@@ -1,3 +1,5 @@
+@file:Suppress("LongParameterList")
+
 package com.eignex.koblas.dense
 
 /**
@@ -47,4 +49,40 @@ internal fun denseGemvUpdate(
         y[column] += alpha * vectorKernels.dot(a, column * rows, x, 0, rows)
         column++
     }
+}
+
+/** Reduces four matrix columns against one vector run and adds their scaled results to four destinations. */
+internal fun dot4Writeback(
+    panelKernels: DensePanelKernels,
+    alpha: Double,
+    a: DoubleArray,
+    aOff: Int,
+    stride: Int,
+    b: DoubleArray,
+    bOff: Int,
+    length: Int,
+    c: DoubleArray,
+    cOff: Int,
+    sums: DoubleArray,
+) {
+    panelKernels.dot4(a, aOff, stride, b, bOff, length, sums, 0)
+    c[cOff] += alpha * sums[0]
+    c[cOff + 1] += alpha * sums[1]
+    c[cOff + 2] += alpha * sums[2]
+    c[cOff + 3] += alpha * sums[3]
+}
+
+/** Reduces one pair of runs and adds its scaled dot to one destination entry. */
+internal fun dotWriteback(
+    vectorKernels: DenseVectorKernels,
+    alpha: Double,
+    a: DoubleArray,
+    aOff: Int,
+    b: DoubleArray,
+    bOff: Int,
+    length: Int,
+    c: DoubleArray,
+    cOff: Int,
+) {
+    c[cOff] += alpha * vectorKernels.dot(a, aOff, b, bOff, length)
 }

@@ -16,7 +16,6 @@ internal val REFERENCE_KC: Int = DenseTuning.level3BlockDepth
 
 /** Diagonal block width for the blocked triangular routines, bounded by the mask that indexes it. */
 internal val REFERENCE_TRIANGULAR_BLOCK: Int = DenseTuning.triangularBlock
-private val REFERENCE_TRANSPOSE_BLOCK: Int = DenseTuning.transposeBlock
 
 /**
  * Fails when [REFERENCE_TRIANGULAR_BLOCK] outgrows the zero-pivot mask that indexes it.
@@ -29,24 +28,6 @@ internal fun requireTriangularBlockFitsMask() {
     require(REFERENCE_TRIANGULAR_BLOCK <= Long.SIZE_BITS) {
         "REFERENCE_TRIANGULAR_BLOCK is $REFERENCE_TRIANGULAR_BLOCK, above the ${Long.SIZE_BITS} rows a " +
             "Long zero-pivot mask can index"
-    }
-}
-
-/** Transposes a column-major matrix into another column-major buffer using cache-sized square tiles. */
-internal fun transposeBlocked(src: DoubleArray, rows: Int, cols: Int, dst: DoubleArray) {
-    var column = 0
-    while (column < cols) {
-        val columnEnd = min(column + REFERENCE_TRANSPOSE_BLOCK, cols)
-        var row = 0
-        while (row < rows) {
-            val rowEnd = min(row + REFERENCE_TRANSPOSE_BLOCK, rows)
-            for (j in column until columnEnd) {
-                val source = j * rows
-                for (i in row until rowEnd) dst[j + i * cols] = src[source + i]
-            }
-            row = rowEnd
-        }
-        column = columnEnd
     }
 }
 
@@ -207,17 +188,10 @@ internal fun blockedTransposedLeftUpdate(
                     var inner = 0
                     while (inner < depth) {
                         val length = min(inner + REFERENCE_KC, depth) - inner
-                        panelKernels.dot4(
-                            a,
-                            aOff + inner + i * lda,
-                            lda,
-                            b,
-                            bOff + inner + j * ldb,
-                            length,
-                            sums,
-                            0,
+                        dot4Writeback(
+                            panelKernels, alpha, a, aOff + inner + i * lda, lda,
+                            b, bOff + inner + j * ldb, length, c, cOff + i + j * ldc, sums,
                         )
-                        for (r in 0 until 4) c[cOff + i + r + j * ldc] += alpha * sums[r]
                         inner += length
                     }
                 }
@@ -228,12 +202,9 @@ internal fun blockedTransposedLeftUpdate(
                     var inner = 0
                     while (inner < depth) {
                         val length = min(inner + REFERENCE_KC, depth) - inner
-                        c[cOff + i + j * ldc] += alpha * vectorKernels.dot(
-                            a,
-                            aOff + inner + i * lda,
-                            b,
-                            bOff + inner + j * ldb,
-                            length,
+                        dotWriteback(
+                            vectorKernels, alpha, a, aOff + inner + i * lda,
+                            b, bOff + inner + j * ldb, length, c, cOff + i + j * ldc,
                         )
                         inner += length
                     }
@@ -309,54 +280,3 @@ internal fun blockedSyr2kUpdate(
     lower: Boolean,
     guardZeroColumns: Boolean = true,
 ): Unit = blockedSymmetricRankUpdate(kernels, alpha, a, b, c, n, depth, lower, guardZeroColumns)
-
-/** Shared cache traversal for rank-k and rank-2k updates. */
-@Suppress("LongParameterList")
-private fun blockedSymmetricRankUpdate(
-    kernels: DensePanelKernels,
-    alpha: Double,
-    a: DoubleArray,
-    b: DoubleArray?,
-    c: DoubleArray,
-    n: Int,
-    depth: Int,
-    lower: Boolean,
-    guardZeroColumns: Boolean,
-) {
-    var column = 0
-    while (column < n) {
-        val columnEnd = min(column + REFERENCE_NC, n)
-        var inner = 0
-        while (inner < depth) {
-            val innerEnd = min(inner + REFERENCE_KC, depth)
-            for (p in inner until innerEnd) {
-                val sourceColumn = p * n
-                for (j in column until columnEnd) {
-                    val firstValue = b?.get(j + sourceColumn) ?: a[j + sourceColumn]
-                    val secondValue = if (b == null) 0.0 else a[j + sourceColumn]
-                    val skip = guardZeroColumns && if (b == null) {
-                        firstValue == 0.0
-                    } else {
-                        firstValue == 0.0 && secondValue == 0.0
-                    }
-                    if (skip) continue
-                    val firstMultiplier = alpha * firstValue
-                    val secondMultiplier = alpha * secondValue
-                    val triangleFrom = if (lower) j else 0
-                    val triangleUntil = if (lower) n else j + 1
-                    var row = triangleFrom
-                    while (row < triangleUntil) {
-                        val length = min(row + REFERENCE_MC, triangleUntil) - row
-                        axpyArithmetic(kernels, c, row + j * n, firstMultiplier, a, row + sourceColumn, length)
-                        if (b != null) {
-                            axpyArithmetic(kernels, c, row + j * n, secondMultiplier, b, row + sourceColumn, length)
-                        }
-                        row += length
-                    }
-                }
-            }
-            inner = innerEnd
-        }
-        column = columnEnd
-    }
-}

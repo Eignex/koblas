@@ -3,43 +3,23 @@ package com.eignex.koblas.dense
 import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.Workspace
 import com.eignex.koblas.borrow
-import kotlin.math.abs
 import kotlin.math.min
 import kotlin.math.nextUp
 
 /** Whether packing can preserve this call's observable zero and non-finite arithmetic. */
 internal fun packedTrsmSupports(a: DenseMatrix, b: DenseMatrix, lower: Boolean, unitDiag: Boolean): Boolean {
-    var bound = 0.0
-    for (value in b.data) {
-        if (!value.isFinite()) return false
-        bound = maxOf(bound, abs(value))
-    }
     val n = a.rows
-    var minimumDiagonal = if (unitDiag) 1.0 else Double.POSITIVE_INFINITY
-    var maximumOffDiagonal = 0.0
-    for (column in 0 until n) {
-        val from = if (lower) column else 0
-        val to = if (lower) n else column + 1
-        for (row in from until to) {
-            if (unitDiag && row == column) continue
-            val value = a.data[row + column * n]
-            // Left non-transposed substitution skips a zero RHS pivot, including a singular diagonal.
-            // The normalized right-side leaf always divides, so singular triangles keep the reference walk.
-            if (!value.isFinite() || value == 0.0) return false
-            if (row == column) {
-                minimumDiagonal = minOf(minimumDiagonal, abs(value))
-            } else {
-                maximumOffDiagonal = maxOf(maximumOffDiagonal, abs(value))
-            }
-        }
-    }
+    // Left non-transposed substitution skips a zero RHS pivot, including a singular diagonal. The normalized
+    // right-side leaf always divides, so a non-finite or zero selected coefficient retains the reference walk.
+    val bounds = triangularSolveBounds(a.data, b.data, n, lower, unitDiag) ?: return false
+    var bound = bounds.source
     // Packing changes dot/subtraction order. Bound the residual and solved entries after every pivot so
     // cancellation cannot hide an overflow in either walk. Outward rounding also covers fused updates;
     // headroom keeps the bound itself away from overflow. Dividing directly admits subnormal diagonals.
     val limit = Double.MAX_VALUE / 4.0
     repeat(n) {
-        val solvedBound = (bound / minimumDiagonal).nextUp()
-        bound = (bound + (maximumOffDiagonal * solvedBound).nextUp()).nextUp()
+        val solvedBound = (bound / bounds.minimumDiagonal).nextUp()
+        bound = (bound + (bounds.offDiagonal * solvedBound).nextUp()).nextUp()
         if (solvedBound > limit || bound > limit) return false
     }
     return true

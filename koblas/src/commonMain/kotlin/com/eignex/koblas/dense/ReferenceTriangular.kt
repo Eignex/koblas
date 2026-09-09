@@ -24,210 +24,6 @@ private val TRSM_BLOCKED_MIN_ORDER = DenseTuning.trsmBlockedMinOrder
  * through the installed context instead.
  */
 
-/** Stages each row of [b] through a scratch vector and applies [op] to it, with the transpose flag
- *  flipped. */
-internal inline fun forEachRow(
-    n: Int,
-    b: DenseMatrix,
-    row: DoubleArray,
-    columnOffset: Int,
-    op: (DoubleArray) -> Unit,
-) {
-    if (n == 0) return
-    val rows = b.rows
-    val bd = b.data
-    for (i in 0 until rows) {
-        for (j in 0 until n) row[j] = bd[i + (columnOffset + j) * rows]
-        op(row)
-        for (j in 0 until n) bd[i + (columnOffset + j) * rows] = row[j]
-    }
-}
-
-/** Adds only runs whose source coefficients are nonzero, retaining vector kernels for every nonzero run. */
-private fun axpySkippingZeroSource(
-    panelKernels: DensePanelKernels,
-    y: DoubleArray,
-    yOff: Int,
-    alpha: Double,
-    x: DoubleArray,
-    xOff: Int,
-    len: Int,
-) {
-    var at = 0
-    while (at < len) {
-        while (at < len && x[xOff + at] == 0.0) at++
-        val start = at
-        while (at < len && x[xOff + at] != 0.0) at++
-        if (at > start) axpyArithmetic(panelKernels, y, yOff + start, alpha, x, xOff + start, at - start)
-    }
-}
-
-/** Dots only runs whose matrix coefficients are nonzero, retaining vector kernels for every nonzero run. */
-private fun dotSkippingZeroMatrix(
-    vectorKernels: DenseVectorKernels,
-    a: DoubleArray,
-    aOff: Int,
-    x: DoubleArray,
-    xOff: Int,
-    len: Int,
-): Double {
-    var sum = 0.0
-    var at = 0
-    while (at < len) {
-        while (at < len && a[aOff + at] == 0.0) at++
-        val start = at
-        while (at < len && a[aOff + at] != 0.0) at++
-        if (at > start) sum += vectorKernels.dot(a, aOff + start, x, xOff + start, at - start)
-    }
-    return sum
-}
-
-/**
- * [trmv] over the leading `n×n` triangle of a column-major [a] whose columns are [lda] apart, applied to
- * x(xOff until xOff + n). [lda] defaults to [n] and is the BLAS `lda` otherwise.
- */
-@Suppress("LongParameterList") // the shape, the leading dimension and the three BLAS flags
-internal fun trmvCore(
-    vectorKernels: DenseVectorKernels,
-    panelKernels: DensePanelKernels,
-    a: DoubleArray,
-    n: Int,
-    x: DoubleArray,
-    aOff: Int = 0,
-    xOff: Int = 0,
-    lda: Int = n,
-    lower: Boolean,
-    transpose: Boolean,
-    unitDiag: Boolean,
-    guardZeroInput: Boolean = true,
-    guardZeroMatrix: Boolean = false,
-) {
-    if (!transpose) {
-        if (lower) { // column j contributes to x(j..), so descending keeps x(j) original
-            for (j in n - 1 downTo 0) {
-                val base = aOff + j + j * lda
-                val xj = x[xOff + j]
-                if (!guardZeroInput || xj != 0.0) {
-                    x[xOff + j] = if (unitDiag) xj else a[base] * xj
-                    if (guardZeroMatrix) {
-                        axpySkippingZeroSource(panelKernels, x, xOff + j + 1, xj, a, base + 1, n - j - 1)
-                    } else {
-                        axpyArithmetic(panelKernels, x, xOff + j + 1, xj, a, base + 1, n - j - 1)
-                    }
-                }
-            }
-        } else { // column j contributes to x(0..j), so ascending keeps x(j) original
-            for (j in 0 until n) {
-                val xj = x[xOff + j]
-                if (!guardZeroInput || xj != 0.0) {
-                    x[xOff + j] = if (unitDiag) xj else a[aOff + j + j * lda] * xj
-                    if (guardZeroMatrix) {
-                        axpySkippingZeroSource(panelKernels, x, xOff, xj, a, aOff + j * lda, j)
-                    } else {
-                        axpyArithmetic(panelKernels, x, xOff, xj, a, aOff + j * lda, j)
-                    }
-                }
-            }
-        }
-    } else {
-        if (lower) { // Tᵀ is upper: row i of Tᵀ is column i of T, read forward from the diagonal
-            for (i in 0 until n) {
-                val base = aOff + i + i * lda
-                val diag = if (unitDiag) x[xOff + i] else a[base] * x[xOff + i]
-                val offDiagonal = if (guardZeroMatrix) {
-                    dotSkippingZeroMatrix(vectorKernels, a, base + 1, x, xOff + i + 1, n - i - 1)
-                } else {
-                    vectorKernels.dot(a, base + 1, x, xOff + i + 1, n - i - 1)
-                }
-                x[xOff + i] = diag + offDiagonal
-            }
-        } else { // Tᵀ is lower: row i of Tᵀ is column i of T, read up to the diagonal
-            for (i in n - 1 downTo 0) {
-                val diag = if (unitDiag) x[xOff + i] else a[aOff + i + i * lda] * x[xOff + i]
-                val offDiagonal = if (guardZeroMatrix) {
-                    dotSkippingZeroMatrix(vectorKernels, a, aOff + i * lda, x, xOff, i)
-                } else {
-                    vectorKernels.dot(a, aOff + i * lda, x, xOff, i)
-                }
-                x[xOff + i] = diag + offDiagonal
-            }
-        }
-    }
-}
-
-/** [trsv] over the leading `n×n` triangle of a column-major [a] with leading dimension [lda], applied to
- *  x(xOff until xOff + n). The diagonal is not checked, so a singular triangle yields infinities or NaNs. */
-@Suppress("LongParameterList") // the shape, the leading dimension and the three BLAS flags
-internal fun trsvCore(
-    vectorKernels: DenseVectorKernels,
-    panelKernels: DensePanelKernels,
-    a: DoubleArray,
-    n: Int,
-    x: DoubleArray,
-    aOff: Int = 0,
-    xOff: Int = 0,
-    lda: Int = n,
-    lower: Boolean,
-    transpose: Boolean,
-    unitDiag: Boolean,
-    guardZeroPivot: Boolean = true,
-    guardZeroMatrix: Boolean = false,
-): Long {
-    var zeroAfterNonzero = 0L
-    if (!transpose) {
-        if (lower) { // forward substitution, finalizing x(j) then pushing it down column j
-            for (j in 0 until n) {
-                val base = aOff + j + j * lda
-                if (guardZeroPivot && x[xOff + j] == 0.0) continue
-                val xj = if (unitDiag) x[xOff + j] else x[xOff + j] / a[base]
-                x[xOff + j] = xj
-                if (guardZeroPivot && xj == 0.0) zeroAfterNonzero = zeroAfterNonzero or (1L shl j)
-                if (guardZeroMatrix) {
-                    axpySkippingZeroSource(panelKernels, x, xOff + j + 1, -xj, a, base + 1, n - j - 1)
-                } else {
-                    axpyArithmetic(panelKernels, x, xOff + j + 1, -xj, a, base + 1, n - j - 1)
-                }
-            }
-        } else { // back substitution, finalizing x(j) then pushing it up column j
-            for (j in n - 1 downTo 0) {
-                if (guardZeroPivot && x[xOff + j] == 0.0) continue
-                val xj = if (unitDiag) x[xOff + j] else x[xOff + j] / a[aOff + j + j * lda]
-                x[xOff + j] = xj
-                if (guardZeroPivot && xj == 0.0) zeroAfterNonzero = zeroAfterNonzero or (1L shl j)
-                if (guardZeroMatrix) {
-                    axpySkippingZeroSource(panelKernels, x, xOff, -xj, a, aOff + j * lda, j)
-                } else {
-                    axpyArithmetic(panelKernels, x, xOff, -xj, a, aOff + j * lda, j)
-                }
-            }
-        }
-    } else {
-        if (lower) { // Tᵀ is upper: back substitution, dotting column i of T behind the frontier
-            for (i in n - 1 downTo 0) {
-                val base = aOff + i + i * lda
-                val product = if (guardZeroMatrix) {
-                    dotSkippingZeroMatrix(vectorKernels, a, base + 1, x, xOff + i + 1, n - i - 1)
-                } else {
-                    vectorKernels.dot(a, base + 1, x, xOff + i + 1, n - i - 1)
-                }
-                val s = x[xOff + i] - product
-                x[xOff + i] = if (unitDiag) s else s / a[base]
-            }
-        } else { // Tᵀ is lower: forward substitution, dotting column i of T behind the frontier
-            for (i in 0 until n) {
-                val product = if (guardZeroMatrix) {
-                    dotSkippingZeroMatrix(vectorKernels, a, aOff + i * lda, x, xOff, i)
-                } else {
-                    vectorKernels.dot(a, aOff + i * lda, x, xOff, i)
-                }
-                val s = x[xOff + i] - product
-                x[xOff + i] = if (unitDiag) s else s / a[aOff + i + i * lda]
-            }
-        }
-    }
-    return zeroAfterNonzero
-}
-
 /**
  * The body [Blas.trsv] and [Blas.trmv] share. The two BLAS routines take the same arguments and differ only
  * in which core runs, which [solve] selects.
@@ -249,7 +45,7 @@ internal fun triangularVector(
     requireSquare(a, what)
     requireShape(x.size == a.rows) { "$what: x length ${x.size} != ${a.rows}" }
     if (solve) {
-        trsvCore(
+        triangularSolveSubstitution(
             vectorKernels,
             panelKernels,
             a.data,
@@ -260,7 +56,7 @@ internal fun triangularVector(
             unitDiag = unitDiag,
         )
     } else {
-        trmvCore(
+        triangularMultiplySubstitution(
             vectorKernels,
             panelKernels,
             a.data,
@@ -379,7 +175,7 @@ private fun blockedLeftSolve(
         val size = end - start
         var zeroCoefficientMasks: LongArray? = null
         for (column in 0 until nrhs) {
-            val mask = trsvCore(
+            val mask = triangularSolveSubstitution(
                 vectorKernels, panelKernels, triangle, size, bd, start + start * n, column * n + start, n,
                 lower, transpose, unitDiag,
             )
@@ -435,25 +231,6 @@ private fun blockedLeftTriangularUpdate(
     }
 }
 
-/**
- * Whether the `size x size` diagonal block at [offset] in a column-major [triangle] of leading dimension
- * [lda] stores an exact zero in the triangle [lower] selects.
- *
- * The zero guard exists so a zero coefficient never forms `0 * Infinity`, and with no zero present the
- * guarded and unguarded walks are bit-identical. Answering it once per block, rather than letting the
- * guarded kernel rescan for every right-hand side, is what keeps a scalar pass off the front of each
- * vector one: the triangle does not change while the rows stream past it.
- */
-private fun triangleHasZero(triangle: DoubleArray, offset: Int, size: Int, lda: Int, lower: Boolean): Boolean {
-    for (j in 0 until size) {
-        val from = if (lower) j else 0
-        val to = if (lower) size else j + 1
-        val base = offset + j * lda
-        for (i in from until to) if (triangle[base + i] == 0.0) return true
-    }
-    return false
-}
-
 private fun blockedRightSolve(
     vectorKernels: DenseVectorKernels,
     panelKernels: DensePanelKernels,
@@ -475,7 +252,7 @@ private fun blockedRightSolve(
         val size = end - start
         val guardZeros = triangleHasZero(triangle, start + start * n, size, n, lower)
         forEachRow(size, b, row, start) { row ->
-            trsvCore(
+            triangularSolveSubstitution(
                 vectorKernels, panelKernels, triangle, size, row, start + start * n, 0, n, lower, !transpose, unitDiag,
                 guardZeroPivot = false,
                 guardZeroMatrix = guardZeros,
@@ -514,7 +291,7 @@ private fun blockedLeftMultiply(
         val end = if (effectiveLower) boundary else min(boundary + REFERENCE_TRIANGULAR_BLOCK, n)
         val size = end - start
         for (column in 0 until nrhs) {
-            trmvCore(
+            triangularMultiplySubstitution(
                 vectorKernels, panelKernels, triangle, size, bd, start + start * n, column * n + start, n,
                 lower, transpose, unitDiag,
             )
@@ -554,7 +331,7 @@ private fun blockedRightMultiply(
         val size = end - start
         val guardZeros = triangleHasZero(triangle, start + start * n, size, n, lower)
         forEachRow(size, b, row, start) { row ->
-            trmvCore(
+            triangularMultiplySubstitution(
                 vectorKernels, panelKernels, triangle, size, row, start + start * n, 0, n, lower, !transpose, unitDiag,
                 guardZeroInput = false,
                 guardZeroMatrix = guardZeros,
@@ -599,7 +376,7 @@ internal fun trsmCore(
 ) {
     if (nrhs < REFERENCE_NC || n < TRSM_BLOCKED_MIN_ORDER) {
         for (column in 0 until nrhs) {
-            trsvCore(
+            triangularSolveSubstitution(
                 vectorKernels, panelKernels, a, n, b,
                 xOff = column * n, lower = lower, transpose = transpose, unitDiag = unitDiag,
             )
