@@ -104,17 +104,17 @@ internal object DenseTuning {
     /**
      * Run length from which crossing into the bundled C library beats staying on the JVM.
      *
-     * Every such call wraps each array in a MemorySegment and goes through invokeExact, which costs tens of
-     * nanoseconds whatever the length, so a short run pays for a foreign call to do work the JIT would have
+     * Every such call looks up each array's cached MemorySegment and goes through invokeExact, which costs tens
+     * of nanoseconds whatever the length, so a short run pays for a foreign call to do work the JIT would have
      * finished already. Measured on `Level1Benchmark` with these set to zero, so the C arm really crosses
      * rather than falling back to the same portable code the scalar arm runs. Across three runs the four
      * plain reductions are level or behind at 64 and ahead at 128. Past the crossover each pulls away,
      * reaching 2.8x to 4.1x by 2048.
      *
-     * Only reductions have one. HotSpot will not vectorise a floating-point reduction, since splitting the
-     * sum across lanes reorders the additions and changes the result, so those loops run an element at a
-     * time however hot they get and the C kernel has something to beat. The elementwise routines never
-     * cross at any length and so have nothing to tune here.
+     * These original single-output crossovers are reductions. HotSpot will not vectorise a floating-point
+     * reduction, since splitting the sum across lanes reorders the additions and changes the result, so those
+     * loops run an element at a time however hot they get and the C kernel has something to beat. Plain
+     * elementwise routines still do not cross; the multi-output fused exceptions have separate defaults below.
      */
     val jvmCDotCrossover: Int = tuned("jvm.c.dot.crossover", default = 128)
 
@@ -146,6 +146,40 @@ internal object DenseTuning {
      * the baseline build.
      */
     val jvmCDot4Crossover: Int = tuned("jvm.c.dot4.crossover", default = 512)
+
+    /**
+     * Bundled C crossover for the four-column AXPY used by non-transposed GEMV.
+     *
+     * Two independent pinned passes on the shared x86-64 JVM put C behind or level at 16 and disagree at 32,
+     * while C leads from 64 upward and separates strongly for the larger streamed rows. This keeps the shortest
+     * length where both passes agree.
+     */
+    val jvmCAxpy4Crossover: Int = tuned("jvm.c.axpy4.crossover", default = 64)
+
+    /**
+     * Bundled C crossover for the fused dot and AXPY used by SYMV.
+     *
+     * C loses through 64, is noisy around 128, and leads in both independent passes from 256 upward. The default
+     * takes that conservative boundary rather than treating one favorable 128-element point as a crossover.
+     */
+    val jvmCDotAxpyCrossover: Int = tuned("jvm.c.dot.axpy.crossover", default = 256)
+
+    /**
+     * Shared depth from which the bundled C four-by-four product tile is selected on the JVM.
+     *
+     * Two pinned passes put the three-step C tile behind and the 31- and 128-step tiles ahead. A focused probe
+     * found a modest lead at eight and a clear lead for both full and padded-edge inputs at 16, so the default
+     * keeps the first stable point rather than the noisier crossing.
+     */
+    val jvmCGemmTileCrossover: Int = tuned("jvm.c.gemm.tile.crossover", default = 16)
+
+    /**
+     * Shared depth from which the bundled C fused packed update and solve is selected on the JVM.
+     *
+     * The full tile can win earlier, but the partial tile is behind or level at depth three. Both shapes lead
+     * clearly at 16 and pull away thereafter, so one conservative threshold covers every logical edge.
+     */
+    val jvmCGemmTrsmTileCrossover: Int = tuned("jvm.c.gemm.trsm.tile.crossover", default = 16)
 
     /**
      * Run length from which four vector accumulators beat one, counted in whole vectors so that the

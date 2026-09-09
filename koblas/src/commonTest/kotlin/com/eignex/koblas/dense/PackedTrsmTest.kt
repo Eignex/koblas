@@ -98,7 +98,7 @@ class PackedTrsmTest {
         val columns = kernels.gemmTileCols
         val rng = Random(20260911)
         for (depth in intArrayOf(0, 1, 7)) {
-            for (validRows in intArrayOf(1, rows)) {
+            for (validRows in 1..rows) {
                 for (order in 1..columns) {
                     for (lower in booleanArrayOf(false, true)) {
                         val packedA = DoubleArray(depth * rows) { rng.nextDouble(-1.0, 1.0) }

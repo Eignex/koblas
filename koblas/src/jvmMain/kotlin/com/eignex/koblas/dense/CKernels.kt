@@ -23,6 +23,10 @@ internal object CKernels : Kernels, ArithmeticKernels {
     private val NRM2_C_CROSSOVER = DenseTuning.jvmCNrm2Crossover
     private val ASUM_C_CROSSOVER = DenseTuning.jvmCAsumCrossover
     private val DOT4_C_CROSSOVER = DenseTuning.jvmCDot4Crossover
+    private val AXPY4_C_CROSSOVER = DenseTuning.jvmCAxpy4Crossover
+    private val DOT_AXPY_C_CROSSOVER = DenseTuning.jvmCDotAxpyCrossover
+    private val GEMM_TILE_C_CROSSOVER = DenseTuning.jvmCGemmTileCrossover
+    private val GEMM_TRSM_TILE_C_CROSSOVER = DenseTuning.jvmCGemmTrsmTileCrossover
 
     override val name: String get() = BackendNames.C
 
@@ -106,7 +110,11 @@ internal object CKernels : Kernels, ArithmeticKernels {
         c2: Double,
         c3: Double,
         len: Int,
-    ) = scalarAxpy4(y, yOff, a, aOff, stride, c0, c1, c2, c3, len)
+    ) = if (len < AXPY4_C_CROSSOVER) {
+        scalarAxpy4(y, yOff, a, aOff, stride, c0, c1, c2, c3, len)
+    } else {
+        JvmCKernelBindings.denseAxpy4(y, yOff, a, aOff, stride, c0, c1, c2, c3, len)
+    }
 
     @Suppress("LongParameterList")
     override fun dotAxpy(
@@ -118,7 +126,60 @@ internal object CKernels : Kernels, ArithmeticKernels {
         x: DoubleArray,
         xOff: Int,
         len: Int,
-    ): Double = scalarDotAxpy(y, yOff, alpha, a, aOff, x, xOff, len)
+    ): Double = if (len < DOT_AXPY_C_CROSSOVER) {
+        scalarDotAxpy(y, yOff, alpha, a, aOff, x, xOff, len)
+    } else {
+        JvmCKernelBindings.denseDotAxpy(y, yOff, alpha, a, aOff, x, xOff, len)
+    }
+
+    @Suppress("LongParameterList")
+    override fun gemmTile(
+        depth: Int,
+        packedA: DoubleArray,
+        aOff: Int,
+        packedB: DoubleArray,
+        bOff: Int,
+        c: DoubleArray,
+        cOff: Int,
+        ldc: Int,
+    ) {
+        if (depth == 0) return
+        if (depth < GEMM_TILE_C_CROSSOVER) {
+            super<Kernels>.gemmTile(depth, packedA, aOff, packedB, bOff, c, cOff, ldc)
+        } else {
+            JvmCKernelBindings.denseGemmTile(depth, packedA, aOff, packedB, bOff, c, cOff, ldc)
+        }
+    }
+
+    @Suppress("LongParameterList")
+    override fun gemmTrsmTile(
+        depth: Int,
+        validRows: Int,
+        order: Int,
+        packedA: DoubleArray,
+        aOff: Int,
+        packedB: DoubleArray,
+        bOff: Int,
+        packedTriangle: DoubleArray,
+        triangleOff: Int,
+        lower: Boolean,
+        unitDiag: Boolean,
+        x: DoubleArray,
+        xOff: Int,
+    ) {
+        if (validRows == 0 || order == 0) return
+        if (depth < GEMM_TRSM_TILE_C_CROSSOVER) {
+            super<Kernels>.gemmTrsmTile(
+                depth, validRows, order, packedA, aOff, packedB, bOff,
+                packedTriangle, triangleOff, lower, unitDiag, x, xOff,
+            )
+            return
+        }
+        JvmCKernelBindings.denseGemmTrsmTile(
+            depth, validRows, order, packedA, aOff, packedB, bOff,
+            packedTriangle, triangleOff, lower, unitDiag, x, xOff,
+        )
+    }
 
     @Suppress("LongParameterList")
     override fun rotm(
