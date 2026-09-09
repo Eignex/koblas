@@ -46,7 +46,7 @@ class Level2Benchmark {
         yv = DenseVector.of(y2)
         triangular = dominantMatrix(n, rng)
         rhs = DoubleArray(n)
-        if (denseArm == BUILTIN_BACKEND && n <= 64) {
+        if (arm.context != null && n <= 64) {
             verifyNearZeroManagedAllocation("level2/gemv/$n") { arm.context!!.gemv(1.0, a, x, 0.0, y) }
             verifyNearZeroManagedAllocation("level2/gemv-transposed/$n") {
                 arm.context!!.gemv(1.0, a, x, 0.0, y, transpose = true)

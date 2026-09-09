@@ -5,6 +5,9 @@ import com.eignex.koblas.ModifiedGivens
 import com.eignex.koblas.DenseMatrix
 
 internal const val BUILTIN_BACKEND = "built-in"
+internal const val SCALAR_BACKEND = "scalar"
+internal const val C_BACKEND = "c"
+internal const val SIMD_BACKEND = "simd"
 internal const val OPENBLAS_BACKEND = "openblas"
 internal const val ONEMKL_BACKEND = "onemkl"
 
@@ -108,6 +111,7 @@ internal class DenseBenchmarkArm private constructor(
         fun resolve(name: String): DenseBenchmarkArm {
             val arm = when (name) {
                 BUILTIN_BACKEND -> DenseBenchmarkArm(explicitBuiltInContext(), null)
+                SCALAR_BACKEND, C_BACKEND, SIMD_BACKEND -> DenseBenchmarkArm(kernelEngine(name), null)
                 OPENBLAS_BACKEND -> DenseBenchmarkArm(
                     null,
                     checkNotNull(openBlasComparator()) { "the benchmark-only single-threaded OpenBLAS comparator is unavailable" },
@@ -119,7 +123,8 @@ internal class DenseBenchmarkArm private constructor(
                 else -> error("unknown dense benchmark arm: $name")
             }
             check(
-                (name == BUILTIN_BACKEND && arm.context != null && arm.external == null) ||
+                (name in setOf(BUILTIN_BACKEND, SCALAR_BACKEND, C_BACKEND, SIMD_BACKEND) &&
+                    arm.context != null && arm.external == null) ||
                     (name in setOf(OPENBLAS_BACKEND, ONEMKL_BACKEND) && arm.context == null && arm.external != null),
             ) { "benchmark arm '$name' did not resolve to its named implementation" }
             println("resolved: arm=$name dense=${arm.identity} threading=${arm.threading}")
