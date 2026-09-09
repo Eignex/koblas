@@ -116,18 +116,19 @@ Expected SHA-256:
 ## Packed triangular SIMD edges
 
 `packed-triangular-simd-0320cab7-jvm-20260909.tar.gz` retains the fresh before/after JVM Vector API
-measurements for full and logical-edge packed GEMM-TRSM tiles at depths 3, 31 and 128. It also contains an
-upper unit-diagonal pass, a second independent edge pass, an end-to-end built-in/OpenBLAS TRSM pass, and an
-unchanged Linux x86-64 scalar/C validation run using the platform-shaped fixture.
+measurements for logical-edge packed GEMM-TRSM tiles at depths 3, 31 and 128. It contains two corrected
+benchmark-only baseline passes, two candidate passes, an end-to-end built-in/OpenBLAS TRSM pass, and an
+unchanged Linux x86-64 scalar/C validation run using the corrected platform-shaped fixture.
 
 The run used an Intel Core i9-12900H with affinity `0,2,4,6` while another JMH process was active. Raw
-confidence intervals and cross-pass variation are retained. Lower non-unit 7x3 edges improve by 2.55x at
-depth 3, 4.08x at 31 and 10.35x at 128 in the stable paired pass, with every successful warmed allocation
-probe reporting `0 B/call`. OpenBLAS was single-threaded. oneMKL, ARM and macOS were unmeasured, and the
-end-to-end results retain substantial residual gaps rather than claiming parity.
+confidence intervals and cross-pass variation are retained. The lower non-unit fixture stores diagonal
+1.25 and performs division; its depth-3 result is inconclusive, while depth 31 improves 2.81x to 3.31x and
+depth 128 improves 8.76x to 8.80x across the two passes. Upper unit-diagonal edges improve at every depth.
+Every successful warmed allocation probe reports `0 B/call`. OpenBLAS was single-threaded. oneMKL, ARM and
+macOS were unmeasured, and the end-to-end results retain substantial residual gaps rather than claiming parity.
 
 Expected SHA-256:
-`8af72908a494b4ae4eb2a066eb6d1f2ad5fe53fde0de97fcec132af902782b96`.
+`50d532c7f6f243b9af7d664cbb964472cd0cb84f85dc954b020cf23ddc4c1df9`.
 
 ## Sparse workspace and C dispatch
 
