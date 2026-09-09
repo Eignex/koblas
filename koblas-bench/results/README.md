@@ -3,6 +3,21 @@
 These archives preserve benchmark evidence that would otherwise be deleted with the Gradle build directory.
 They may contain machine and checkout details; inspect their metadata before sharing them outside the project.
 
+## Retained BLAS gaps
+
+`blas-gaps-20260909.tar.gz` preserves two JVM passes for packed `gemmt` against independently bound,
+single-threaded OpenBLAS and two passes over all nine retained sparse completion rows. The runs used an Intel Core
+i9-12900H with affinity `2-5` on a shared host. The second sparse pass deliberately ignored JMH's advisory global
+lock because another benchmark was active; raw confidence intervals and cross-pass variation are retained.
+
+OpenBLAS 0.3.30 was available and resolved directly. oneMKL was unavailable, so no replacement arm is reported.
+The built-in/OpenBLAS `gemmt` intervals overlap at the measured `129x257` lower-triangle case. Sparse central
+estimates were stable except for visibly noisy sparse-result `syrk`; detailed commands, results, and validation
+status are in `blas-gaps-20260909-notes.md` and inside the archive.
+
+Expected SHA-256:
+`6ea114a9a0b14de6cea32b444faa24517b58fc3043becc99b0a93086d195cea4`.
+
 ## Standard hardware profile
 
 `hardware-standard-18286e42-jvm-20260909.tar.gz` is the first complete version-1 contributor-profile report.
