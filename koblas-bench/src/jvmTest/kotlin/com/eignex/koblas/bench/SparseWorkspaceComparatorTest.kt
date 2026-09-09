@@ -126,8 +126,8 @@ class SparseWorkspaceComparatorTest {
     }
 
     @Test
-    fun `oneMKL composed scatter agrees for first touch overlap and offsets when available`() {
-        val comparator = oneMklSparseComparator() ?: return
+    fun `composed scatter agrees for first touch overlap and offsets`() {
+        val comparator = oneMklSparseComparator() ?: KotlinIndexedComparator
         val indices = intArrayOf(91, 7, 2, 9, 4, 82)
         val values = doubleArrayOf(91.0, 1.5, -2.0, 3.25, -4.5, 82.0)
         val expectedAccumulator = DoubleArray(12) { 123.0 }.also {
@@ -165,8 +165,8 @@ class SparseWorkspaceComparatorTest {
     }
 
     @Test
-    fun `oneMKL repeated short scatters preserve growing first touch order when available`() {
-        val comparator = oneMklSparseComparator() ?: return
+    fun `composed repeated short scatters preserve growing first touch order`() {
+        val comparator = oneMklSparseComparator() ?: KotlinIndexedComparator
         val calls = arrayOf(
             intArrayOf(7, 2, 9, 4),
             intArrayOf(2, 4, 6, 1),
@@ -202,8 +202,8 @@ class SparseWorkspaceComparatorTest {
     }
 
     @Test
-    fun `oneMKL composed gathers agree for order compaction clearing and offsets when available`() {
-        val comparator = oneMklSparseComparator() ?: return
+    fun `composed gathers agree for order compaction clearing and offsets`() {
+        val comparator = oneMklSparseComparator() ?: KotlinIndexedComparator
         val touched = intArrayOf(77, 6, 1, 8, 3, 66)
         val source = DoubleArray(10) { 19.0 }.also {
             it[6] = 2.5
@@ -251,6 +251,46 @@ class SparseWorkspaceComparatorTest {
                 assertContentEquals(expectedIndices, actualIndices, "indices")
                 assertContentEquals(expectedValues, actualValues, "values")
             }
+        }
+    }
+}
+
+private object KotlinIndexedComparator : IndexedSparseLevel1Comparator {
+    override fun indexedAxpy(
+        alpha: Double,
+        values: DoubleArray,
+        valueOffset: Int,
+        indices: IntArray,
+        indexOffset: Int,
+        count: Int,
+        accumulator: DoubleArray,
+    ) {
+        for (k in 0 until count) accumulator[indices[indexOffset + k]] += alpha * values[valueOffset + k]
+    }
+
+    override fun indexedGather(
+        indices: IntArray,
+        indexOffset: Int,
+        count: Int,
+        accumulator: DoubleArray,
+        outValues: DoubleArray,
+        outValueOffset: Int,
+    ) {
+        for (k in 0 until count) outValues[outValueOffset + k] = accumulator[indices[indexOffset + k]]
+    }
+
+    override fun indexedGatherZero(
+        indices: IntArray,
+        indexOffset: Int,
+        count: Int,
+        accumulator: DoubleArray,
+        outValues: DoubleArray,
+        outValueOffset: Int,
+    ) {
+        for (k in 0 until count) {
+            val index = indices[indexOffset + k]
+            outValues[outValueOffset + k] = accumulator[index]
+            accumulator[index] = 0.0
         }
     }
 }
