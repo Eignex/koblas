@@ -80,6 +80,11 @@ koblas-bench/report.sh validate path/to/koblas-hardware-jvm-....tar.gz
 koblas-bench/report.sh summarize path/to/koblas-hardware-jvm-....tar.gz
 ```
 
+These commands route through the pure `tools/hardware_bundle.py` processor: checksum, schema, raw-pass,
+expected-case, fork-failure, aggregation, and ratio validation do not probe libraries, invoke Gradle, or execute
+benchmarks. `tools/hardware_report.py` retains the single contributor CLI and owns only host preflight and process
+execution around that processor.
+
 To submit results, open a benchmark-results issue, paste `summary.txt`, describe any known competing load, and
 attach the inspected archive manually. There is no upload command. A maintainer can validate it offline and, when
 accepted as project evidence, archive it with a PR under `koblas-bench/results/` and update
@@ -111,6 +116,9 @@ For local A/B work:
 Dense parity uses `denseArm=built-in,openblas,onemkl`; retained sparse BLAS uses
 `sparseArm=built-in,onemkl`. These arms construct the built-in implementation or open a benchmark-owned external
 binding directly. They never use production discovery, and every setup asserts and reports its resolved identity.
+Sparse suites resolve that identity in one benchmark-only arm adapter and register prepared handles with a
+setup-owned resource lifetime. One-shot rows still time conversion and destruction, while prepared rows retain
+their handles through teardown; workspace fixtures keep their separate reset and partial-operation contracts.
 
 Kernel microbenchmarks use `kernels=built-in,scalar,c,simd`. `built-in` selects the immutable platform engine;
 the other names are exact pins and fail when unavailable. Dense and sparse comparator arms use the same

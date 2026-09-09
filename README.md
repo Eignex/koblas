@@ -38,7 +38,9 @@ implementation. HFactor is an optional JVM API and is loaded only when construct
 
 The non-published `koblas-bench` module owns development-only OpenBLAS and oneMKL comparators. They are never
 dependencies or resources of a published module. See [`koblas-bench/README.md`](koblas-bench/README.md) for
-installation and runtime requirements. Bundled modules carry their own third-party notices.
+installation and runtime requirements. Comparator arm resolution, preparation, and report processing remain
+inside that benchmark module and do not participate in production engine selection. Bundled modules carry their
+own third-party notices.
 
 ## Quick start
 
