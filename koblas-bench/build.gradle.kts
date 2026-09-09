@@ -151,6 +151,21 @@ val benchmarkJvmMetadata = tasks.register("benchmarkJvmMetadata") {
         println("runtime=${metadata.jvmVersion}")
     }
 }
+val resolvedKonanHome = file(property("konanHome").toString())
+val resolvedKonanCompiler = resolvedKonanHome.resolve("bin/konanc").absolutePath
+val resolvedKonanDistribution = resolvedKonanHome.name
+val benchmarkNativeMetadata = tasks.register("benchmarkNativeMetadata") {
+    group = "benchmark"
+    description = "Prints the Gradle-resolved Kotlin/Native compiler used by benchmark targets."
+    notCompatibleWithConfigurationCache("Reads the Kotlin plugin's resolved Native compiler location")
+    dependsOn("downloadKotlinNativeDistribution")
+    doLast {
+        println("kind=Kotlin/Native")
+        println("executable=$resolvedKonanCompiler")
+        println("distribution=$resolvedKonanDistribution")
+        println("runtime=native executable")
+    }
+}
 tasks.named("check") { dependsOn(checkBenchmarkCoverage, testBenchmarkCoverageChecker) }
 
 tasks.withType<KotlinJvmCompile>().configureEach {
