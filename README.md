@@ -16,7 +16,7 @@
 [![License](https://img.shields.io/github/license/eignex/koblas)](https://github.com/eignex/koblas/blob/main/LICENSE)
 
 Dense and sparse double-precision linear algebra for JVM and Kotlin/Native compute hosts. Koblas provides
-dense and sparse BLAS operations, sparse factorizations, and optional OpenBLAS or HFactor acceleration.
+dense and sparse BLAS operations, with optional OpenBLAS and HFactor acceleration.
 
 Koblas is a low-level building block for numerical and optimization software that owns its data and algorithms.
 It exposes storage, allocation, workspace, backend, and lifecycle decisions instead of hiding them behind a
@@ -58,22 +58,8 @@ val product = a * b
 val y = a * x
 ```
 
-Sparse matrices are validated CSC with ascending row indices in each column. Their typed factorizations expose
-solve operations. Construct matrices from columns or coordinate triplets and close factors deterministically:
-
-```kotlin
-import com.eignex.koblas.SparseMatrix
-import com.eignex.koblas.sparse.lu
-
-val a = SparseMatrix.ofColumns(
-    rows = 2,
-    cols = 2,
-    columns = listOf(listOf(0 to 2.0), listOf(1 to 3.0)),
-)
-val solution = a.lu().use { factor ->
-    factor.solve(doubleArrayOf(4.0, 9.0))
-}
-```
+Sparse matrices are validated CSC with ascending row indices in each column. Construct them from columns or
+coordinate triplets, then use sparse products, transpose, preparation, and triangular operations.
 
 ## Data and storage
 
@@ -126,7 +112,6 @@ subset.
 | BLAS level 3 | `gemm`, `symm`, `syrk`, `syr2k`, `trsm`, `trmm` | `dgemm`, `dsymm`, `dsyrk`, `dsyr2k`, `dtrsm`, `dtrmm` |
 | Dense utility | `transpose`, `norm1`, `normInf`, `normFro`, row/column scaling | No direct BLAS routine |
 | Sparse BLAS | CSC `gemv`, triangular `trsv`/`trsm` and `trmv`/`trmm`, sparse–dense `gemm`, sparse–sparse product, `transpose`, prepared repeated products | Sparse BLAS `usmv`, `ussv`, `ussm`, `usmm`; triangular multiply is `usmv`/`usmm` over a triangle, and product and preparation are Koblas operations |
-| Sparse factorizations | General LU, repeated-pattern LU, Cholesky, LDL, QR, and simplex basis operations | Provider-specific HFactor capabilities |
 
 This table documents the subset, not a roadmap. In particular, it does not imply support for the other routines in
 the BLAS or Sparse BLAS specifications.
@@ -149,19 +134,13 @@ repeat(1_000) {
 }
 ```
 
-Sparse factors report their exact scratch requirement through `solveAllocation(aliasing, transpose)`. Reserve
-those buffers and select an AllocationPolicy when the guarantee should be enforced before destination
-mutation. REQUIRE_NO_SIZE_DEPENDENT_MANAGED permits fixed JVM/FFM overhead; stronger policies are reported
-only where koblas controls the corresponding allocation source.
-
 BLAS options use named Boolean parameters such as lower, transpose, unitDiag, and right.
 
 ## Backends and routing
 
 Every operation runs through an KoblasContext. Top-level functions use the process-wide koblas context, whose
-registry selects providers independently by semantic role. General sparse LU, repeated-pattern LU, Cholesky,
-quasi-definite LDL, QR, basis factorization, and basis solving are separate choices rather than one
-interchangeable sparse backend.
+registry selects providers independently by semantic role. HFactor owns the remaining sparse LU and basis
+solver roles; sparse BLAS routing remains independent.
 
 Selected providers execute their native implementations at every size. They fall back only for unavailable
 libraries, unsupported arguments, or operations they do not implement. Inspect status for the selected providers
@@ -210,51 +189,13 @@ stores.
 
 Pin discovery by backend name per semantic role. Set a JVM property named `koblas.backend.<role>` or the
 matching `KOBLAS_<ROLE>_BACKEND` environment variable; the property takes precedence. A blank value leaves the
-role automatic, while `reference` disables host selection for that role. For example, pin general sparse LU
-with `koblas.backend.sparse.general.lu` or `KOBLAS_SPARSE_GENERAL_LU_BACKEND`.
+role automatic, while `reference` disables host selection for that role.
 
 ## Sparse workflows
 
-Choose a semantic capability based on the matrix sequence and numerical structure:
-
-| Workload | Capability | Provider | Constraint |
-|----------|------------|----------|------------|
-| Unrelated general systems | generalSparseLu | portable Markowitz LU | Numerical pivoting; stable ordinary-LU role. |
-| Same CSC pattern, changing values | repeatedSparseLu | portable | Analyze once; ordered CSC pattern must match exactly. |
-| Symmetric positive-definite systems | sparseCholesky | portable up-looking Cholesky | Reads the lower triangle and rejects a non-positive pivot. |
-| Quasi-definite KKT systems | quasiDefiniteLdl | portable | Numerically unpivoted; use general LU for arbitrary indefinite matrices. |
-| Overdetermined least-squares systems | sparseQr | portable Householder QR | Requires at least as many rows as columns. |
-| Simplex basis column replacement | basisFactorizations | portable, refactoring per replacement | Each update supersedes the preceding factor. |
-| Stateful simplex solve/update loop | basisSolvers | HFactor | Own and close the solver; use typed ftran, btran, and update. |
-
-Each sparse factorization returns the factor type its own kind names, and each exposes its factors: an LU
-carries L, U, the two orderings and the row scaling; a Cholesky and quasi-definite LDL carry L, their ordering
-and, for quasi-definite LDL, D; a QR carries R, the column ordering, the estimated rank and Q as an operator
-through applyQInto.
-Sparse QR is the one whose factor is not an SparseFactorization, because an m-by-n factorization takes a
-right-hand side of length m and answers one of length n.
-
-Factors materialise on first read and cost a copy out of the library, so solving alone never pays for them. A
-provider that keeps its factors in a form it cannot return raises FactorsNotExposed.
-
-Use the typed capability selected in the context rather than casting to a provider implementation.
-Repeated-pattern LU, for example, retains symbolic analysis across numeric factors:
-
-```kotlin
-import com.eignex.koblas.*
-
-discoverBackends()
-val repeated = koblas.repeatedSparseLu
-    ?: error("Repeated sparse LU is unavailable")
-
-repeated.analyze(a).use { analysis ->
-    analysis.factor(a).use { initial ->
-        analysis.refactor(initial, samePatternWithNewValues).use { updated ->
-            updated.solveInto(rhs, out)
-        }
-    }
-}
-```
+Portable sparse Cholesky, LDL, LU, QR, symbolic analysis, and basis factorization have been removed. HFactor is
+the remaining sparse factorization provider. It supplies general sparse LU and the stateful basis solver API;
+install and select HFactor before requesting either capability.
 
 Repeated sparse products can retain an immutable CSC snapshot so a native backend marshals its descriptor once:
 
@@ -268,20 +209,8 @@ a.prepare().use { prepared ->
 }
 ```
 
-Prepared handles and sparse factors are AutoCloseable. Native block solves accept a column-major dense matrix
-of right-hand sides. Sparse quasi-definite LDL factors expose their pivot-sign inertia directly.
-
-## Sparse factorization coverage
-
-The implemented factor families deliberately have different capabilities: matrix shape, numerical meaning,
-and ownership determine what is useful rather than forcing every factor into one interface.
-
-| Family | Solve / transpose / blocks | Reuse and lifecycle | Safe factor inspection | Deliberate non-applicability |
-|--------|----------------------------|---------------------|------------------------|------------------------------|
-| Sparse LU | Vector and multi-RHS `solve`/`solveInto`, including transpose and alias-safe defaults | Native factors close; repeated-pattern LU has `analyze`/`refactor` | L/U, orderings, scaling, off-diagonal, fill, pivot quality, singularity where providers can expose them | No general sparse inverse or determinant API |
-| Sparse Cholesky / LDL | Vector and multi-RHS factor solves; transpose is identical by symmetry | Native factors close; portable factors close as no-ops | L/order; LDL D/inertia | No separate transpose solve or inverse |
-| Sparse QR | `applyQ`/`applyQInto`, vector and multi-RHS least-squares solve | Native factor lifecycle; workspace block staging | R, column order, rank and fill | Q remains an operator; explicit Q/inverse is generally dense and is intentionally not materialized |
-| Basis factorizations / solvers | Basis factors inherit LU solves; solvers provide FTRAN/BTRAN | Column replacement, refactorization, update count, and close where native-owned | Basis factor exposes normal LU inspection; solver reports dimension/fill/updates/singularity | No matrix inverse, determinant, or generic multi-RHS API for hypersparse indexed-vector workflows |
+Prepared handles are AutoCloseable. HFactor factors and basis solvers own native resources and must also be
+closed deterministically.
 
 ## Native options and threading
 
@@ -313,7 +242,7 @@ single-threaded.
 | Owned dense and sparse containers | Mutable and unsynchronized; concurrent reads require no reachable writer. |
 | Strided views | Borrow live storage; the owner must outlive every use. |
 | Workspace | Caller-owned scratch; use one per concurrent operation or serialize access. |
-| Sparse factors and symbolic analyses | Caller-owned AutoCloseable resources; do not race use or refactor with close. |
+| HFactor factors and basis solvers | Caller-owned AutoCloseable resources; do not race use or update with close. |
 | Prepared sparse descriptors | Immutable snapshots with externally serialized native workspace; close explicitly. |
 | Destination-passing operations | Follow the documented alias contract for that operation. |
 

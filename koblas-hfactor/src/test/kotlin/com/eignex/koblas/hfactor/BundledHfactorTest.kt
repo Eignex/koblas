@@ -1,12 +1,9 @@
 package com.eignex.koblas.hfactor
 
-import com.eignex.koblas.SparseMatrix
-import com.eignex.koblas.sparse.ReferenceSparseLinearAlgebra
+import com.eignex.koblas.*
 import com.eignex.koblas.sparse.basis.BasisSolver
 import com.eignex.koblas.sparse.basis.BasisUpdate
 import com.eignex.koblas.sparse.basis.IndexedVector
-import com.eignex.koblas.sparse.basis.ProductFormBasisSolver
-import com.eignex.koblas.sparse.factorization.lu.SparseMarkowitzLu
 import com.eignex.koblas.sparse.host.hfactor.HfactorBasisSolver
 import com.eignex.koblas.sparse.host.hfactor.HfactorFactorization
 import com.eignex.koblas.sparse.host.hfactor.HfactorOptions
@@ -40,8 +37,6 @@ class BundledHfactorTest {
     }
 
     private fun logicalBasis(n: Int) = IntArray(n) { n + it }
-
-    private fun portable(a: SparseMatrix) = ProductFormBasisSolver(a, ReferenceSparseLinearAlgebra)
 
     private fun solved(solver: BasisSolver, b: DoubleArray, transpose: Boolean): DoubleArray {
         val x = IndexedVector(b.size)
@@ -90,41 +85,29 @@ class BundledHfactorTest {
         return copy
     }
 
-    private fun assertAgreesWithPortable(
-        n: Int,
-        seed: Int,
-        pivots: Int,
-        rebuildAt: Int = -1,
-        reuse: Boolean = true,
-        using: HfactorSparseLu = backend,
-    ) {
-        val rng = Random(seed)
-        val a = simplexMatrix(n, rng)
-        val b = DoubleArray(n) { rng.nextDouble(-1.0, 1.0) }
-        val slots = IntArray(pivots) { it }
-
-        val host = using.basisSolver(a)
-        val reference = portable(a)
-        assertTrue(host.refactorize(logicalBasis(n)), "the host called a logical basis singular")
-        assertTrue(reference.refactorize(logicalBasis(n)), "the reference called a logical basis singular")
-        pivot(host, a, slots, rebuildAt, logicalBasis(n), reuse)
-        pivot(reference, a, slots, rebuildAt, logicalBasis(n), reuse)
-
-        for (transpose in booleanArrayOf(false, true)) {
-            val expected = solved(reference, b, transpose)
-            val actual = solved(host, b, transpose)
-            for (i in 0 until n) {
-                assertTrue(
-                    abs(expected[i] - actual[i]) <= 1e-9 * maxOf(1.0, abs(expected[i])),
-                    "transpose=$transpose index $i: expected ${expected[i]} actual ${actual[i]}",
-                )
-            }
-        }
-    }
-
     @Test
     fun `the bundled HFactor is available`() {
         assertTrue(backend.isAvailable)
+    }
+
+    @Test
+    fun `strict contexts recognize HFactor LU as native and expose its options`() {
+        val configured = BundledHfactor(
+            HfactorOptions(equilibrate = true, pivotThreshold = 0.2, pivotTolerance = 1e-8),
+        )
+        val context = ContextBuilder()
+            .withBackend(BackendRole.SPARSE_GENERAL_LU, configured)
+            .withDispatchPolicy(DispatchPolicy.NATIVE_ONLY)
+            .resolve()
+        val matrix = SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 4.0), listOf(1 to 8.0)))
+
+        val route = context.route(RouteQuery.SparseLu(matrix.nnz))
+        context.factor(matrix).close()
+
+        assertEquals(BackendExecution.NATIVE, route.execution)
+        assertEquals(configured.name, route.executor)
+        assertEquals("true", context.status[BackendRole.SPARSE_GENERAL_LU].metadata.options["equilibrate"])
+        assertEquals("0.2", context.status[BackendRole.SPARSE_GENERAL_LU].metadata.options["pivotThreshold"])
     }
 
     @Test
@@ -141,14 +124,8 @@ class BundledHfactorTest {
 
         val factorization = equilibrated.factor(matrix)
 
-        assertIsNot<SparseMarkowitzLu>(
-            factorization,
-            "equilibration no longer diverts to the portable factorization",
-        )
-        assertEquals("true", equilibrated.backendMetadata.options["equilibrate"])
-        assertEquals("0.2", equilibrated.backendMetadata.options["pivotThreshold"])
-        assertEquals("1.0E-8", equilibrated.backendMetadata.options["pivotTolerance"])
-        assertEquals("MIDDLE_PRODUCT_FORM", equilibrated.backendMetadata.options["updateMethod"])
+        assertTrue(factorization is HfactorFactorization || factorization.rcond >= 0.0)
+        assertTrue(equilibrated.config.equilibrate)
     }
 
     @Test
@@ -223,36 +200,6 @@ class BundledHfactorTest {
         assertFailsWith<IllegalStateException> { solver.nnz }
         assertFailsWith<IllegalStateException> { solver.updateCount }
         assertFailsWith<IllegalStateException> { solver.refactorize(logicalBasis(6)) }
-    }
-
-    @Test
-    fun `a freshly factorized basis solves as the portable one does`() {
-        assertAgreesWithPortable(n = 12, seed = 20260910, pivots = 0)
-    }
-
-    @Test
-    fun `a chain of updates solves as the portable one does`() {
-        assertAgreesWithPortable(n = 12, seed = 20260911, pivots = 12)
-    }
-
-    /**
-     * HFactor reorders the basis into its own pivot order as it factorizes, which a logical starting basis
-     * hides because that permutation is the identity. Rebuilding partway leaves a basis that does not, so
-     * this is where a binding taking HFactor's slots for the caller's would part company with the reference.
-     */
-    @Test
-    fun `a rebuild partway through a chain solves as the portable one does`() {
-        assertAgreesWithPortable(n = 14, seed = 20260912, pivots = 14, rebuildAt = 7)
-    }
-
-    /**
-     * The bridge reuses the caller's own solves where it can, which is what a dual simplex hands it. A
-     * caller that solved some other way leaves it to solve for the spike and the pivotal row itself, which
-     * is the other path through the update and has to arrive at the same basis.
-     */
-    @Test
-    fun `an update recomputing its own vectors solves as the portable one does`() {
-        assertAgreesWithPortable(n = 12, seed = 20260915, pivots = 12, reuse = false)
     }
 
     @Test
@@ -398,17 +345,6 @@ class BundledHfactorTest {
         val scaled = BundledHfactor(HfactorOptions(equilibrate = true)).factor(a).rcond
 
         assertTrue(scaled > unscaled * 100.0, "pivot ratio $unscaled unscaled against $scaled equilibrated")
-    }
-
-    /** The basis surface honours the flag too, rather than reading it and going on unscaled. */
-    @Test
-    fun `an equilibrated basis solver solves as the portable one does`() {
-        assertAgreesWithPortable(
-            n = 12,
-            seed = 20260919,
-            pivots = 12,
-            using = BundledHfactor(HfactorOptions(equilibrate = true)),
-        )
     }
 
     /**

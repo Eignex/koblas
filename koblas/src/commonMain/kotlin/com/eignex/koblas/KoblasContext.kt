@@ -7,22 +7,11 @@ import com.eignex.koblas.StridedVectorView
 import com.eignex.koblas.dense.Blas
 import com.eignex.koblas.dense.Kernels
 import com.eignex.koblas.internal.backend.BackendSlot
-import com.eignex.koblas.sparse.BasisFactorizations
 import com.eignex.koblas.sparse.GeneralSparseLu
-import com.eignex.koblas.sparse.QuasiDefiniteLdl
-import com.eignex.koblas.sparse.QuasiDefiniteLdlFactorization
-import com.eignex.koblas.sparse.ReferenceSparseLinearAlgebra
-import com.eignex.koblas.sparse.RepeatedSparseLu
 import com.eignex.koblas.sparse.SparseBlas
-import com.eignex.koblas.sparse.SparseCholesky
-import com.eignex.koblas.sparse.SparseCholeskyFactorization
-import com.eignex.koblas.sparse.SparseDecompositionRoles
 import com.eignex.koblas.sparse.SparseKernels
-import com.eignex.koblas.sparse.SparseLapack
 import com.eignex.koblas.sparse.SparseLinearAlgebra
 import com.eignex.koblas.sparse.SparseLuFactorization
-import com.eignex.koblas.sparse.SparseQr
-import com.eignex.koblas.sparse.SparseQrFactorization
 import com.eignex.koblas.sparse.basis.BasisSolvers
 
 /**
@@ -33,15 +22,13 @@ import com.eignex.koblas.sparse.basis.BasisSolvers
  * @property blas dense matrix routines.
  * @property sparseKernels sparse vector-vector routines.
  * @property sparseBlas sparse matrix routines.
- * @property basisSolvers simplex basis solvers, a half of their own beside [sparseDecompositions].
- * @param roles the sparse factorization providers selected, which the public constructor reads out of
- *   [sparseDecompositions] and every path inside koblas resolves before building a context.
+ * @property basisSolvers simplex basis solvers supplied by HFactor.
+ * @param roles the retained HFactor sparse LU provider.
  * @property dispatchPolicy the operation-level dispatch requirement for routes this context can inspect.
  * @property fallbackPolicy the action taken for non-native inspected routes in automatic mode.
  * @property fallbackWarning notified for each fallback under [FallbackPolicy.WARN].
  *
- * The six sparse factorization roles are what this holds; the [sparseDecompositions] property is a
- * compatibility composition derived from the selected general LU, Cholesky, quasi-definite LDL and QR.
+ * Sparse LU and basis solving are the remaining factorization roles.
  */
 @Suppress("LongParameterList") // the backend halves, resolved roles, and execution policy
 public class KoblasContext internal constructor(
@@ -57,19 +44,18 @@ public class KoblasContext internal constructor(
 ) : Blas by blas,
     SparseLinearAlgebra,
     SparseBlas by sparseBlas,
-    SparseLapack,
+    GeneralSparseLu,
     BasisSolvers by basisSolvers {
 
     /**
-     * Reads the sparse factorization roles out of [sparseDecompositions], for a caller composing a context
-     * by hand. Every path inside koblas resolves the roles first and hands them straight in.
+     * Creates a context from explicit backend halves.
      */
     public constructor(
         kernels: Kernels,
         blas: Blas,
         sparseKernels: SparseKernels,
         sparseBlas: SparseBlas,
-        sparseDecompositions: SparseLapack,
+        generalSparseLu: GeneralSparseLu,
         basisSolvers: BasisSolvers,
     ) : this(
         kernels,
@@ -77,43 +63,11 @@ public class KoblasContext internal constructor(
         sparseKernels,
         sparseBlas,
         basisSolvers,
-        SparseRoles(sparseDecompositions),
+        SparseRoles(generalSparseLu),
     )
-
-    /**
-     * The Cholesky and quasi-definite halves, which route no further than the provider filling each.
-     *
-     * Written out rather than delegated: the roles are this context's one representation of what it
-     * selected, and delegating to the composition they were derived from left two objects answering the
-     * same interface on one instance.
-     */
-    override fun cholesky(a: SparseMatrix): SparseCholeskyFactorization = roles.cholesky.cholesky(a)
-
-    override fun quasiDefiniteLdl(a: SparseMatrix): QuasiDefiniteLdlFactorization =
-        roles.quasiDefiniteLdl.quasiDefiniteLdl(a)
 
     /** Provider selected for ordinary sparse LU. */
     public val generalSparseLu: GeneralSparseLu get() = roles.generalLu
-
-    /** Provider selected for repeated-pattern LU, or null when none was selected. */
-    public val repeatedSparseLu: RepeatedSparseLu? get() = roles.repeatedLu
-
-    /** Provider selected for sparse Cholesky. */
-    public val sparseCholesky: SparseCholesky get() = roles.cholesky
-
-    /** Provider selected for sparse quasi-definite, numerically unpivoted `L * D * L^T`. */
-    public val quasiDefiniteLdl: QuasiDefiniteLdl get() = roles.quasiDefiniteLdl
-
-    /** Provider selected for sparse QR. */
-    public val sparseQr: SparseQr get() = roles.qr
-
-    /** Provider selected for basis factorizations with column replacement. */
-    public val basisFactorizations: BasisFactorizations get() = roles.basisFactorizations
-
-    /** A compatibility operation surface derived from the four selected sparse factorization providers. */
-    public val sparseDecompositions: SparseLapack by lazy {
-        SparseDecompositionRoles(generalSparseLu, sparseCholesky, quasiDefiniteLdl, sparseQr)
-    }
 
     /**
      * The distinct names of the backends that do the matrix work, joined, such as `"openblas+reference"`.
@@ -145,24 +99,19 @@ public class KoblasContext internal constructor(
         blas: Blas = this.blas,
         sparseKernels: SparseKernels = this.sparseKernels,
         sparseBlas: SparseBlas = this.sparseBlas,
-        sparseDecompositions: SparseLapack = this.sparseDecompositions,
+        generalSparseLu: GeneralSparseLu = this.generalSparseLu,
         basisSolvers: BasisSolvers = this.basisSolvers,
-    ): KoblasContext {
-        // A composition this context did not derive its own roles from is one to derive them from again.
-        val selected =
-            if (sparseDecompositions === this.sparseDecompositions) roles else SparseRoles(sparseDecompositions)
-        return KoblasContext(
-            kernels = kernels,
-            blas = blas,
-            sparseKernels = sparseKernels,
-            sparseBlas = sparseBlas,
-            basisSolvers = basisSolvers,
-            dispatchPolicy = dispatchPolicy,
-            fallbackPolicy = fallbackPolicy,
-            fallbackWarning = fallbackWarning,
-            roles = selected,
-        )
-    }
+    ): KoblasContext = KoblasContext(
+        kernels = kernels,
+        blas = blas,
+        sparseKernels = sparseKernels,
+        sparseBlas = sparseBlas,
+        basisSolvers = basisSolvers,
+        dispatchPolicy = dispatchPolicy,
+        fallbackPolicy = fallbackPolicy,
+        fallbackWarning = fallbackWarning,
+        roles = SparseRoles(generalSparseLu),
+    )
 
     override fun gemv(
         alpha: Double,
@@ -369,14 +318,7 @@ public class KoblasContext internal constructor(
             requireSquare(a, "factor")
             beforeDispatch(RouteQuery.SparseLu(a.nnz))
         }
-        return sparseDecompositions.factor(a)
-    }
-
-    override fun qr(a: SparseMatrix): SparseQrFactorization {
-        if (enforcesRoutingPolicy) {
-            beforeDispatch(RouteQuery.SparseQr(a.nnz))
-        }
-        return sparseDecompositions.qr(a)
+        return generalSparseLu.factor(a)
     }
 
     override fun toString(): String = "KoblasContext($name)"
@@ -388,41 +330,6 @@ public class KoblasContext internal constructor(
  * roles its caller resolved from the registry or a builder, and the public one is handed a composition to
  * read them out of.
  *
- * This is the representation, and [KoblasContext.sparseDecompositions] is a compatibility surface derived from
- * it. The reverse, reading roles back out of a composition, is what the `*Capability` readers below are for,
- * and they run only where a caller hands in a composition rather than roles.
+ * This is the internal representation shared by registry and builder assembly.
  */
-internal class SparseRoles(
-    val generalLu: GeneralSparseLu,
-    val repeatedLu: RepeatedSparseLu?,
-    val cholesky: SparseCholesky,
-    val quasiDefiniteLdl: QuasiDefiniteLdl,
-    val qr: SparseQr,
-    val basisFactorizations: BasisFactorizations,
-) {
-    constructor(composition: SparseLapack) : this(
-        generalLu = composition.generalLuCapability(),
-        repeatedLu = composition as? RepeatedSparseLu,
-        cholesky = composition.choleskyCapability(),
-        quasiDefiniteLdl = composition.quasiDefiniteLdlCapability(),
-        qr = composition.qrCapability(),
-        basisFactorizations = (composition as? BasisFactorizations) ?: ReferenceSparseLinearAlgebra,
-    )
-}
-
-private fun SparseLapack.generalLuCapability(): GeneralSparseLu = (this as? SparseDecompositionRoles)?.generalLu
-    ?: (this as? GeneralSparseLu)
-    ?: error("$name fills no general sparse LU role")
-
-private fun SparseLapack.choleskyCapability(): SparseCholesky = (this as? SparseDecompositionRoles)?.choleskyProvider
-    ?: (this as? SparseCholesky)
-    ?: error("$name fills no sparse Cholesky role")
-
-private fun SparseLapack.quasiDefiniteLdlCapability(): QuasiDefiniteLdl =
-    (this as? SparseDecompositionRoles)?.quasiDefiniteLdlProvider
-        ?: (this as? QuasiDefiniteLdl)
-        ?: error("$name fills no sparse quasi-definite LDL role")
-
-private fun SparseLapack.qrCapability(): SparseQr = (this as? SparseDecompositionRoles)?.qrProvider
-    ?: (this as? SparseQr)
-    ?: error("$name fills no sparse QR role")
+internal class SparseRoles(val generalLu: GeneralSparseLu)

@@ -47,10 +47,6 @@ class ResolvedContextTest {
         // path can silently drop.
         for (context in listOf(fromRegistry, fromBuilder)) {
             assertNotNull(context.generalSparseLu)
-            assertNotNull(context.sparseCholesky)
-            assertNotNull(context.quasiDefiniteLdl)
-            assertNotNull(context.sparseQr)
-            assertNotNull(context.basisFactorizations)
         }
     }
 }

@@ -9,7 +9,7 @@ import com.eignex.koblas.dense.applyBeta
 import com.eignex.koblas.internal.backend.BackendNames
 import com.eignex.koblas.internal.numeric.euclideanNorm
 import com.eignex.koblas.sparse.basis.BasisSolver
-import com.eignex.koblas.sparse.basis.ProductFormBasisSolver
+import com.eignex.koblas.sparse.basis.BasisSolvers
 import com.eignex.koblas.sparse.internal.multiplyFromTheLeft
 import com.eignex.koblas.sparse.internal.multiplyFromTheRight
 import com.eignex.koblas.sparse.internal.multiplySparse
@@ -39,10 +39,7 @@ public open class ReferenceSparseBackend(public val configuredKernels: Kernels? 
     RebindableBackend,
     SparseKernels,
     GeneralSparseLu,
-    SparseCholesky,
-    QuasiDefiniteLdl,
-    SparseQr,
-    BasisFactorizations {
+    BasisSolvers {
     override val name: String get() = BackendNames.REFERENCE
 
     override val isPortable: Boolean get() = true
@@ -51,13 +48,12 @@ public open class ReferenceSparseBackend(public val configuredKernels: Kernels? 
 
     private val denseKernels: Kernels get() = configuredKernels ?: koblas.kernels
 
-    /** The product form over this backend's own factorization, so the portable half stays portable. */
-    override fun basisSolver(a: SparseMatrix): BasisSolver = ProductFormBasisSolver(a, this)
+    private fun removed(): Nothing = throw UnsupportedOperationException(
+        "portable sparse factorizations were removed; install and select HFactor",
+    )
 
-    override fun factorBasis(basis: SparseMatrix): BasisFactorization {
-        requireSquare(basis, "factorBasis")
-        return RefactoringBasisFactorization(this, basis, factor(basis))
-    }
+    override fun factor(a: SparseMatrix): SparseLuFactorization = removed()
+    override fun basisSolver(a: SparseMatrix): BasisSolver = removed()
 
     @Suppress("LongParameterList") // the BLAS dgemv signature
     override fun gemv(
@@ -195,25 +191,6 @@ public open class ReferenceSparseBackend(public val configuredKernels: Kernels? 
             trmmLeftCore(triangle, b, lower, transpose, unitDiag, diagonal)
         }
     }
-
-    /** The portable factorization at its default policy; [ReferenceSparseDecompositions] carries the knobs. */
-    override fun factor(a: SparseMatrix): SparseLuFactorization = ReferenceSparseDecompositions.factor(a)
-
-    override fun cholesky(a: SparseMatrix): SparseCholeskyFactorization = ReferenceSparseDecompositions.cholesky(a)
-
-    override fun quasiDefiniteLdl(a: SparseMatrix): QuasiDefiniteLdlFactorization =
-        ReferenceSparseDecompositions.quasiDefiniteLdl(a)
-
-    override fun qr(a: SparseMatrix): SparseQrFactorization = ReferenceSparseDecompositions.qr(a)
-
-    override fun analyzeCholesky(a: SparseMatrix): SparseSymbolicAnalysis<SparseCholeskyFactorization> =
-        ReferenceSparseDecompositions.analyzeCholesky(a)
-
-    override fun analyzeQuasiDefiniteLdl(a: SparseMatrix): SparseSymbolicAnalysis<QuasiDefiniteLdlFactorization> =
-        ReferenceSparseDecompositions.analyzeQuasiDefiniteLdl(a)
-
-    override fun analyzeQr(a: SparseMatrix): SparseSymbolicAnalysis<SparseQrFactorization> =
-        ReferenceSparseDecompositions.analyzeQr(a)
 
     override fun dot(x: SparseVector, y: DoubleArray): Double {
         requireShape(x.size == y.size) { "dot: sizes differ, ${x.size} vs ${y.size}" }

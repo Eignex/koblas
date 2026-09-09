@@ -1,13 +1,9 @@
 package com.eignex.koblas.sparse
 
 import com.eignex.koblas.koblas
-import com.eignex.koblas.sparse.basis.BasisSolvers
 
-/** The sparse matrix halves, with the active sparse-vector kernels used by their surrounding operations. */
-public interface SparseLinearAlgebra :
-    SparseBlas,
-    SparseLapack,
-    BasisSolvers {
-    /** The sparse vector kernels used by operations around these matrix halves. */
+/** Sparse BLAS with the active sparse-vector kernels used by its surrounding operations. */
+public interface SparseLinearAlgebra : SparseBlas {
+    /** The sparse vector kernels used by operations around this matrix half. */
     public val sparseKernels: SparseKernels get() = koblas.sparseKernels
 }
