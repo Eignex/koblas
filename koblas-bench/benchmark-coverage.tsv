@@ -1,4 +1,18 @@
 api_signature	benchmark_id	status	notes
+Blas.gemmt(DenseMatrix)	com.eignex.koblas.bench.GemmtBenchmark.gemmt	benchmarked	OpenBLAS and oneMKL direct CBLAS comparison across transpose flags triangles depths and tile edges.
+PreparedSparseMatrix.gemm(DenseMatrix,transposeB,right)	com.eignex.koblas.bench.SparseCompletionBenchmark.denseProduct	benchmarked	Extended prepared contract shares the sparse product workload; transpose and right variants have correctness coverage.
+PreparedSparseMatrix.gemm(SparseMatrix,transpose)	com.eignex.koblas.bench.SparseCompletionBenchmark.sparseProductScaledTransposed	benchmarked	Includes cached prepared transpose for the built in arm and an explicitly composed vendor comparison.
+PreparedSparseMatrix.gemm(SparseMatrix,DenseMatrix)	com.eignex.koblas.bench.SparseCompletionBenchmark.denseProduct	benchmarked	Direct dense destination avoids a sparse intermediate.
+PreparedSparseMatrix.symm(DenseMatrix)	com.eignex.koblas.bench.SparseCompletionBenchmark.preparedSymm	benchmarked	Prepared selected triangle and vendor handle are retained.
+PreparedSparseMatrix.symv(DoubleArray)	com.eignex.koblas.bench.SparseCompletionBenchmark.preparedSymv	benchmarked	Prepared selected triangle and vendor handle are retained.
+SparseBlas.addScaled(SparseMatrix)	com.eignex.koblas.bench.SparseCompletionBenchmark.addScaled	benchmarked	Fresh result and CSC to CSR comparator conversion remain timed.
+SparseBlas.gemm(SparseMatrix,SparseMatrix,transpose)	com.eignex.koblas.bench.SparseCompletionBenchmark.sparseProductScaledTransposed	benchmarked	Transpose and result scaling adaptations are timed and labeled composition for oneMKL.
+SparseBlas.gemm(SparseMatrix,SparseMatrix,DenseMatrix)	com.eignex.koblas.bench.SparseCompletionBenchmark.denseProduct	benchmarked	Direct oneMKL sp2md comparison with both conversions timed.
+SparseBlas.symm(SparseMatrix,DenseMatrix)	com.eignex.koblas.bench.SparseCompletionBenchmark.symm	benchmarked	Direct left side oneMKL comparison; right side is correctness tested and labeled composition in comparator inventory.
+SparseBlas.symv(SparseMatrix,DoubleArray)	com.eignex.koblas.bench.SparseCompletionBenchmark.symv	benchmarked	Direct oneMKL symmetric descriptor comparison.
+SparseBlas.syrk(SparseMatrix,DenseMatrix)	com.eignex.koblas.bench.SparseCompletionBenchmark.syrkDense	benchmarked	Matching upper triangle compares directly with oneMKL syrkd.
+SparseBlas.syrk(SparseMatrix,SparseMatrix)	com.eignex.koblas.bench.SparseCompletionBenchmark.syrkSparse	benchmarked	Matching upper triangle compares directly with oneMKL sparse syrk.
+SparseMatrix.addScaled	com.eignex.koblas.bench.SparseCompletionBenchmark.addScaled	benchmarked	Convenience reaches the same allocating operation.
 Blas.gemm(DenseMatrix,transposeA=true)	com.eignex.koblas.bench.Level3Benchmark.gemmTransposedA	benchmarked	
 Blas.gemm(StridedMatrixView,StridedMatrixView)		excluded	The host adapter routes strided panels into the same dgemm the benchmarked dense facade reaches; the portable backend does not override the seam and runs its element-by-element default, which is a correctness fallback rather than a kernel worth a row.
 Blas.gemv(DenseMatrix,transpose=false)	com.eignex.koblas.bench.Level2Benchmark.gemv	benchmarked	

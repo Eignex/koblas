@@ -49,6 +49,26 @@ private class JvmOneMklSparse private constructor(private val library: BenchFfmL
         "mkl_sparse_spmm",
         FunctionDescriptor.of(JAVA_INT, JAVA_INT, ADDRESS, ADDRESS, ADDRESS),
     )
+    private val sp2md = handle(
+        "mkl_sparse_d_sp2md",
+        FunctionDescriptor.of(
+            JAVA_INT,
+            JAVA_INT, DESCRIPTOR, ADDRESS, JAVA_INT, DESCRIPTOR, ADDRESS,
+            JAVA_DOUBLE, JAVA_DOUBLE, ADDRESS, JAVA_INT, JAVA_INT,
+        ),
+    )
+    private val sparseSyrk = handle(
+        "mkl_sparse_syrk",
+        FunctionDescriptor.of(JAVA_INT, JAVA_INT, ADDRESS, ADDRESS),
+    )
+    private val sparseSyrkd = handle(
+        "mkl_sparse_d_syrkd",
+        FunctionDescriptor.of(JAVA_INT, JAVA_INT, ADDRESS, JAVA_DOUBLE, JAVA_DOUBLE, ADDRESS, JAVA_INT, JAVA_INT),
+    )
+    private val sparseAdd = handle(
+        "mkl_sparse_d_add",
+        FunctionDescriptor.of(JAVA_INT, JAVA_INT, ADDRESS, JAVA_DOUBLE, ADDRESS, ADDRESS),
+    )
     private val exportCsr = handle(
         "mkl_sparse_d_export_csr",
         FunctionDescriptor.of(JAVA_INT, ADDRESS, ADDRESS, ADDRESS, ADDRESS, ADDRESS, ADDRESS, ADDRESS, ADDRESS),
@@ -67,8 +87,13 @@ private class JvmOneMklSparse private constructor(private val library: BenchFfmL
         library.handleOrNull("MKL_Set_Dynamic", voidOf(JAVA_INT), critical = false)?.let { it.invokeExact(0) as Unit }
     }
 
-    override fun prepare(a: SparseMatrix, triangular: Boolean, lower: Boolean, unitDiag: Boolean): PreparedSparseComparator =
-        Prepared(this, a, triangular, lower, unitDiag)
+    override fun prepare(
+        a: SparseMatrix,
+        triangular: Boolean,
+        symmetric: Boolean,
+        lower: Boolean,
+        unitDiag: Boolean,
+    ): PreparedSparseComparator = Prepared(this, a, triangular, symmetric, lower, unitDiag)
 
     @OptIn(UnsafeKoblasApi::class)
     override fun dot(x: SparseVector, y: DoubleArray): Double =
@@ -144,12 +169,71 @@ private class JvmOneMklSparse private constructor(private val library: BenchFfmL
     }
 
     override fun sparseProduct(a: SparseMatrix, b: SparseMatrix): SparseMatrix {
-        Prepared(this, a, false, true, false).use { left ->
-            Prepared(this, b, false, true, false).use { right ->
+        Prepared(this, a, false, false, true, false).use { left ->
+            Prepared(this, b, false, false, true, false).use { right ->
                 return left.sparseProduct(right)
             }
         }
     }
+
+    override fun denseProduct(
+        alpha: Double,
+        a: SparseMatrix,
+        transposeA: Boolean,
+        b: SparseMatrix,
+        transposeB: Boolean,
+        beta: Double,
+        c: DenseMatrix,
+    ) {
+        Prepared(this, a, false, false, true, false).use { left ->
+            Prepared(this, b, false, false, true, false).use { right ->
+                checkStatus(
+                    sp2md.invokeExact(
+                        operation(transposeA), left.descriptor, left.matrix,
+                        operation(transposeB), right.descriptor, right.matrix,
+                        alpha, beta, seg(c.data), COLUMN_MAJOR, c.rows,
+                    ) as Int,
+                    "mkl_sparse_d_sp2md",
+                )
+            }
+        }
+    }
+
+    override fun syrk(a: SparseMatrix, transpose: Boolean): SparseMatrix =
+        Prepared(this, a, false, false, true, false).use { prepared ->
+            Arena.ofConfined().use { arena ->
+                val outSlot = arena.allocate(ADDRESS)
+                checkStatus(sparseSyrk.invokeExact(operation(transpose), prepared.matrix, outSlot) as Int, "mkl_sparse_syrk")
+                val out = outSlot.get(ADDRESS, 0)
+                try { export(out) } finally { checkStatus(destroy.invokeExact(out) as Int, "mkl_sparse_destroy") }
+            }
+        }
+
+    override fun syrkd(alpha: Double, a: SparseMatrix, transpose: Boolean, beta: Double, c: DenseMatrix) {
+        Prepared(this, a, false, false, true, false).use { prepared ->
+            checkStatus(
+                sparseSyrkd.invokeExact(
+                    operation(transpose), prepared.matrix, alpha, beta, seg(c.data), COLUMN_MAJOR, c.rows,
+                ) as Int,
+                "mkl_sparse_d_syrkd",
+            )
+        }
+    }
+
+    override fun addScaled(alpha: Double, a: SparseMatrix, transposeA: Boolean, b: SparseMatrix): SparseMatrix =
+        Prepared(this, a, false, false, true, false).use { left ->
+            Prepared(this, b, false, false, true, false).use { right ->
+                Arena.ofConfined().use { arena ->
+                    val outSlot = arena.allocate(ADDRESS)
+                    checkStatus(
+                        sparseAdd.invokeExact(operation(transposeA), left.matrix, alpha, right.matrix, outSlot) as Int,
+                        "mkl_sparse_d_add",
+                    )
+                    val out = outSlot.get(ADDRESS, 0)
+                    try { export(out) } finally { checkStatus(destroy.invokeExact(out) as Int, "mkl_sparse_destroy") }
+                }
+            }
+        }
 
     private fun multiply(left: MemorySegment, right: MemorySegment): SparseMatrix = Arena.ofConfined().use { arena ->
         val outSlot = arena.allocate(ADDRESS)
@@ -205,6 +289,7 @@ private class JvmOneMklSparse private constructor(private val library: BenchFfmL
         private val owner: JvmOneMklSparse,
         a: SparseMatrix,
         triangular: Boolean,
+        symmetric: Boolean,
         lower: Boolean,
         unitDiag: Boolean,
     ) : PreparedSparseComparator {
@@ -218,7 +303,7 @@ private class JvmOneMklSparse private constructor(private val library: BenchFfmL
         private val values = arena.allocateFrom(JAVA_DOUBLE, *csr.values)
         private val matrixSlot = arena.allocate(ADDRESS)
         val matrix: MemorySegment
-        private val descriptor = arena.allocate(DESCRIPTOR)
+        val descriptor = arena.allocate(DESCRIPTOR)
 
         init {
             checkStatus(
@@ -228,7 +313,7 @@ private class JvmOneMklSparse private constructor(private val library: BenchFfmL
                 "mkl_sparse_d_create_csr",
             )
             matrix = matrixSlot.get(ADDRESS, 0)
-            descriptor.set(JAVA_INT, 0, if (triangular) TYPE_TRIANGULAR else TYPE_GENERAL)
+            descriptor.set(JAVA_INT, 0, when { triangular -> TYPE_TRIANGULAR; symmetric -> TYPE_SYMMETRIC; else -> TYPE_GENERAL })
             descriptor.set(JAVA_INT, Int.SIZE_BYTES.toLong(), if (lower) FILL_LOWER else FILL_UPPER)
             descriptor.set(JAVA_INT, (2 * Int.SIZE_BYTES).toLong(), if (unitDiag) DIAG_UNIT else DIAG_NON_UNIT)
             checkStatus(owner.optimize.invokeExact(matrix) as Int, "mkl_sparse_optimize")
@@ -260,6 +345,12 @@ private class JvmOneMklSparse private constructor(private val library: BenchFfmL
                 "mkl_sparse_d_mm",
             )
         }
+
+        override fun symv(alpha: Double, x: DoubleArray, beta: Double, y: DoubleArray) =
+            gemv(alpha, x, beta, y, transpose = false)
+
+        override fun symm(alpha: Double, b: DenseMatrix, beta: Double, c: DenseMatrix) =
+            gemm(alpha, b, beta, c, transpose = false)
 
         override fun trsv(x: DoubleArray, out: DoubleArray, transpose: Boolean) {
             require(rows == cols && x.size == rows && out.size == rows) {
@@ -325,7 +416,8 @@ private class JvmOneMklSparse private constructor(private val library: BenchFfmL
         private val required = listOf(
             "MKL_Set_Num_Threads", "mkl_sparse_d_create_csr", "mkl_sparse_destroy", "mkl_sparse_optimize",
             "mkl_sparse_d_mv", "mkl_sparse_d_mm", "mkl_sparse_d_trsv", "mkl_sparse_d_trsm",
-            "mkl_sparse_spmm", "mkl_sparse_d_export_csr",
+            "mkl_sparse_spmm", "mkl_sparse_d_export_csr", "mkl_sparse_d_sp2md",
+            "mkl_sparse_syrk", "mkl_sparse_d_syrkd", "mkl_sparse_d_add",
             "cblas_ddoti", "cblas_daxpyi", "cblas_dsctr", "cblas_dgthr", "cblas_dgthrz",
         )
 
@@ -366,6 +458,7 @@ private const val INDEX_ZERO = 0
 private const val NON_TRANSPOSE = 10
 private const val TRANSPOSE_SPARSE = 11
 private const val TYPE_GENERAL = 20
+private const val TYPE_SYMMETRIC = 21
 private const val TYPE_TRIANGULAR = 23
 private const val FILL_LOWER = 40
 private const val FILL_UPPER = 41
