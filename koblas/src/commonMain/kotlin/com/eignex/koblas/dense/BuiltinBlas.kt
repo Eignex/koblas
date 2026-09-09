@@ -6,7 +6,6 @@ import com.eignex.koblas.*
 import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.DenseVector
 import com.eignex.koblas.VectorLike
-import kotlin.math.abs
 
 /**
  * Shared dense matrix algorithms bound to one immutable set of built-in kernels.
@@ -32,44 +31,7 @@ internal class BuiltinBlas(private val kernelFamilies: DenseKernelFamilies) : Bl
         if (a.rows == 0 || a.cols == 0) return
         applyBeta(vectorKernels, y, 0, y.size, beta)
         if (alpha == 0.0) return
-        val vectorKernels = vectorKernels
-        val panelKernels = panelKernels
-        val ad = a.data
-        val rows = a.rows
-        if (!transpose) {
-            var j = 0
-            val bound = a.cols - 3
-            while (j < bound) {
-                panelKernels.axpy4(
-                    y, 0, ad, j * rows, rows,
-                    alpha * x[j], alpha * x[j + 1], alpha * x[j + 2], alpha * x[j + 3], rows,
-                )
-                j += 4
-            }
-            while (j < a.cols) {
-                axpyArithmetic(panelKernels, y, 0, alpha * x[j], ad, j * rows, rows)
-                j++
-            }
-        } else {
-            var j = 0
-            val bound = a.cols - 3
-            while (j < bound) {
-                val y0 = y[j]
-                val y1 = y[j + 1]
-                val y2 = y[j + 2]
-                val y3 = y[j + 3]
-                panelKernels.dot4(ad, j * rows, rows, x, 0, rows, y, j)
-                y[j] = y0 + alpha * y[j]
-                y[j + 1] = y1 + alpha * y[j + 1]
-                y[j + 2] = y2 + alpha * y[j + 2]
-                y[j + 3] = y3 + alpha * y[j + 3]
-                j += 4
-            }
-            while (j < a.cols) {
-                y[j] += alpha * vectorKernels.dot(ad, j * rows, x, 0, rows)
-                j++
-            }
-        }
+        denseGemvUpdate(vectorKernels, panelKernels, alpha, a.data, a.rows, a.cols, x, y, transpose)
     }
 
     override fun transpose(a: DenseMatrix): DenseMatrix {
@@ -172,45 +134,7 @@ internal class BuiltinBlas(private val kernelFamilies: DenseKernelFamilies) : Bl
             )
             return
         }
-        referenceGemmt(alpha, ad, lda, transposeA, bd, ldb, transposeB, beta, cd, n, k, lower)
-    }
-
-    /** Netlib GEMMTR arithmetic, whose update order depends on whether A is transposed. */
-    @Suppress("LongParameterList")
-    private fun referenceGemmt(
-        alpha: Double,
-        a: DoubleArray,
-        lda: Int,
-        transposeA: Boolean,
-        b: DoubleArray,
-        ldb: Int,
-        transposeB: Boolean,
-        beta: Double,
-        c: DoubleArray,
-        n: Int,
-        k: Int,
-        lower: Boolean,
-    ) {
-        if (!transposeA) scaleTriangle(vectorKernels, c, n, beta, lower)
-        for (j in 0 until n) {
-            val from = if (lower) j else 0
-            val until = if (lower) n else j + 1
-            if (!transposeA) {
-                for (p in 0 until k) {
-                    val scaledB = alpha * if (transposeB) b[j + p * ldb] else b[p + j * ldb]
-                    for (i in from until until) c[i + j * n] += scaledB * a[i + p * lda]
-                }
-            } else {
-                for (i in from until until) {
-                    var sum = 0.0
-                    for (p in 0 until k) {
-                        val bv = if (transposeB) b[j + p * ldb] else b[p + j * ldb]
-                        sum += a[p + i * lda] * bv
-                    }
-                    c[i + j * n] = if (beta == 0.0) alpha * sum else alpha * sum + beta * c[i + j * n]
-                }
-            }
-        }
+        orderedGemmtUpdate(vectorKernels, alpha, ad, lda, transposeA, bd, ldb, transposeB, beta, cd, n, k, lower)
     }
 
     /** Whether packed reassociation cannot introduce or hide non-finite intermediate arithmetic. */
@@ -228,31 +152,12 @@ internal class BuiltinBlas(private val kernelFamilies: DenseKernelFamilies) : Bl
         // Packing scales A, whereas GEMMTR either scales B or scales a completed dot. Restrict the packed
         // path to the identity scalar; every other scalar uses the orientation-specific reference order.
         if (alpha != 1.0 || !beta.isFinite()) return false
-        var maxA = 0.0
-        for (value in a) {
-            if (!value.isFinite()) return false
-            maxA = maxOf(maxA, abs(value))
-        }
-        var maxB = 0.0
-        for (value in b) {
-            if (!value.isFinite()) return false
-            maxB = maxOf(maxB, abs(value))
-        }
-        var maxScaledC = 0.0
-        if (beta != 0.0) {
-            for (j in 0 until n) {
-                val from = if (lower) j else 0
-                val until = if (lower) n else j + 1
-                for (i in from until until) {
-                    val scaled = beta * c[i + j * n]
-                    if (!scaled.isFinite()) return false
-                    maxScaledC = maxOf(maxScaledC, abs(scaled))
-                }
-            }
-        }
+        val maxA = finiteMaxAbs(a) ?: return false
+        val maxB = finiteMaxAbs(b) ?: return false
+        val maxScaledC = finiteScaledTriangleMaxAbs(c, n, lower, beta) ?: return false
         if (maxA == 0.0 || maxB == 0.0) return true
         val perTermLimit = (Double.MAX_VALUE - maxScaledC) / k
-        return !productExceeds(perTermLimit, maxA, maxB, 1.0)
+        return !productExceedsBound(perTermLimit, maxA, maxB, 1.0)
     }
 
     @Suppress("LongParameterList") // the BLAS dsyrk signature plus optional scratch
@@ -298,10 +203,10 @@ internal class BuiltinBlas(private val kernelFamilies: DenseKernelFamilies) : Bl
     ) {
         scaleTriangle(vectorKernels, cd, n, beta, lower)
         if (alpha == 0.0 || n == 0 || k == 0) return
-        val scalingOverflows = packingScaleOverflows(alpha, ad)
+        val scalingOverflows = finiteScaleOverflows(alpha, ad)
         // Netlib's non-transposed traversal skips a raw zero multiplier. This is observable when another
         // value in the rank-one column is already non-finite or becomes non-finite when alpha scales it.
-        if (!transpose && (!alpha.isFinite() || scalingOverflows || ad.any { !it.isFinite() })) {
+        if (!transpose && (!alpha.isFinite() || scalingOverflows || hasNonFinite(ad))) {
             blockedSyrkUpdate(panelKernels, alpha, ad, cd, n, k, lower)
             return
         }
@@ -319,203 +224,13 @@ internal class BuiltinBlas(private val kernelFamilies: DenseKernelFamilies) : Bl
         )
     }
 
-    /** Whether packing would turn a finite entry non-finite by applying [alpha] before the tile product. */
-    private fun packingScaleOverflows(alpha: Double, values: DoubleArray): Boolean {
-        if (!alpha.isFinite() || alpha in -1.0..1.0) return false
-        return values.any { it.isFinite() && !(alpha * it).isFinite() }
-    }
-
     @Suppress("LongParameterList") // the BLAS dsymv signature
     override fun symv(alpha: Double, a: DenseMatrix, x: DoubleArray, beta: Double, y: DoubleArray, lower: Boolean) {
         val n = requireSymvShape(a, x.size, y.size)
         applyBeta(vectorKernels, y, 0, n, beta)
         if (alpha == 0.0) return
-        symvAccumulate(alpha, a.data, n, x, y, lower)
+        symvUpdate(panelKernels, alpha, a.data, n, x, y, lower)
     }
-
-    /** Accumulates alpha times A times x into y for the symmetric `n×n` [ad], reading only the [lower] or
-     *  upper triangle. */
-    private fun symvAccumulate(
-        alpha: Double,
-        ad: DoubleArray,
-        n: Int,
-        x: DoubleArray,
-        y: DoubleArray,
-        lower: Boolean,
-    ) {
-        if (panelKernels !== ScalarPanelKernels && n >= DenseTuning.symvFourColumnCrossover) {
-            symvAccumulateFourColumns(alpha, ad, n, x, y, lower)
-            return
-        }
-        val panelKernels = panelKernels
-        for (j in 0 until n) {
-            val base = j + j * n
-            val xj = alpha * x[j]
-            val runOff = if (lower) j + 1 else 0
-            val len = if (lower) n - j - 1 else j
-            y[j] += xj * ad[base]
-            y[j] += alpha * panelKernels.dotAxpy(y, runOff, xj, ad, runOff + j * n, x, runOff, len)
-        }
-    }
-
-    /** Shares the common part of four adjacent triangular columns across the existing four-way leaves. */
-    private fun symvAccumulateFourColumns(
-        alpha: Double,
-        ad: DoubleArray,
-        n: Int,
-        x: DoubleArray,
-        y: DoubleArray,
-        lower: Boolean,
-    ) {
-        val panelKernels = panelKernels
-        var block = 0
-        val bound = n - 3
-        while (block < bound) {
-            val commonOff = if (lower) block + 4 else 0
-            val commonLen = if (lower) n - commonOff else block
-            val old0 = y[block]
-            val old1 = y[block + 1]
-            val old2 = y[block + 2]
-            val old3 = y[block + 3]
-            panelKernels.dot4(ad, commonOff + block * n, n, x, commonOff, commonLen, y, block)
-            val sum0 = y[block]
-            val sum1 = y[block + 1]
-            val sum2 = y[block + 2]
-            val sum3 = y[block + 3]
-            y[block] = old0
-            y[block + 1] = old1
-            y[block + 2] = old2
-            y[block + 3] = old3
-
-            val c0 = alpha * x[block]
-            val c1 = alpha * x[block + 1]
-            val c2 = alpha * x[block + 2]
-            val c3 = alpha * x[block + 3]
-
-            var dot0 = sum0
-            var dot1 = sum1
-            var dot2 = sum2
-            var dot3 = sum3
-            var reversed0 = 0.0
-            var reversed1 = 0.0
-            var reversed2 = 0.0
-            var reversed3 = 0.0
-            if (lower) {
-                val t01 = ad[block + 1 + block * n] * x[block + 1]
-                val t02 = ad[block + 2 + block * n] * x[block + 2]
-                val t03 = ad[block + 3 + block * n] * x[block + 3]
-                val t12 = ad[block + 2 + (block + 1) * n] * x[block + 2]
-                val t13 = ad[block + 3 + (block + 1) * n] * x[block + 3]
-                val t23 = ad[block + 3 + (block + 2) * n] * x[block + 3]
-                dot0 += t01
-                dot0 += t02
-                dot0 += t03
-                dot1 += t12
-                dot1 += t13
-                dot2 += t23
-                reversed0 += t01
-                reversed0 += t02
-                reversed0 += t03
-                reversed1 += t12
-                reversed1 += t13
-                reversed2 += t23
-            } else {
-                val t01 = ad[block + (block + 1) * n] * x[block]
-                val t02 = ad[block + (block + 2) * n] * x[block]
-                val t12 = ad[block + 1 + (block + 2) * n] * x[block + 1]
-                val t03 = ad[block + (block + 3) * n] * x[block]
-                val t13 = ad[block + 1 + (block + 3) * n] * x[block + 1]
-                val t23 = ad[block + 2 + (block + 3) * n] * x[block + 2]
-                dot1 += t01
-                dot2 += t02
-                dot2 += t12
-                dot3 += t03
-                dot3 += t13
-                dot3 += t23
-                reversed1 += t01
-                reversed2 += t02
-                reversed2 += t12
-                reversed3 += t03
-                reversed3 += t13
-                reversed3 += t23
-            }
-            reversed0 += sum0
-            reversed1 += sum1
-            reversed2 += sum2
-            reversed3 += sum3
-            // The four-way leaves make the common run a partial sum. Check both ways that partial and the
-            // in-block products can be ordered: either one becoming non-finite means regrouping can expose
-            // or hide overflow, so this group must retain the original per-column traversal.
-            val unsafePartialDot =
-                !finiteSymvPartial(alpha, dot0) || !finiteSymvPartial(alpha, dot1) ||
-                    !finiteSymvPartial(alpha, dot2) || !finiteSymvPartial(alpha, dot3) ||
-                    !finiteSymvPartial(alpha, reversed0) || !finiteSymvPartial(alpha, reversed1) ||
-                    !finiteSymvPartial(alpha, reversed2) || !finiteSymvPartial(alpha, reversed3)
-            if (unsafePartialDot) {
-                for (column in block until block + 4) {
-                    val base = column + column * n
-                    val coefficient = alpha * x[column]
-                    val runOff = if (lower) column + 1 else 0
-                    val len = if (lower) n - column - 1 else column
-                    y[column] += coefficient * ad[base]
-                    y[column] +=
-                        alpha * panelKernels.dotAxpy(y, runOff, coefficient, ad, runOff + column * n, x, runOff, len)
-                }
-                block += 4
-                continue
-            }
-
-            panelKernels.axpy4(y, commonOff, ad, commonOff + block * n, n, c0, c1, c2, c3, commonLen)
-
-            if (lower) {
-                for (column in block until block + 4) {
-                    val coefficient = alpha * x[column]
-                    y[column] += coefficient * ad[column + column * n]
-                    for (row in column + 1 until block + 4) {
-                        val value = ad[row + column * n]
-                        y[row] += coefficient * value
-                    }
-                    val dot = when (column - block) {
-                        0 -> dot0
-                        1 -> dot1
-                        2 -> dot2
-                        else -> dot3
-                    }
-                    y[column] += alpha * dot
-                }
-            } else {
-                for (column in block until block + 4) {
-                    val coefficient = alpha * x[column]
-                    for (row in block until column) {
-                        val value = ad[row + column * n]
-                        y[row] += coefficient * value
-                    }
-                    y[column] += coefficient * ad[column + column * n]
-                    val dot = when (column - block) {
-                        0 -> dot0
-                        1 -> dot1
-                        2 -> dot2
-                        else -> dot3
-                    }
-                    y[column] += alpha * dot
-                }
-            }
-            block += 4
-        }
-        while (block < n) {
-            val base = block + block * n
-            val coefficient = alpha * x[block]
-            val runOff = if (lower) block + 1 else 0
-            val len = if (lower) n - block - 1 else block
-            y[block] += coefficient * ad[base]
-            y[block] += alpha * panelKernels.dotAxpy(y, runOff, coefficient, ad, runOff + block * n, x, runOff, len)
-            block++
-        }
-    }
-
-    /** Whether a regrouped SYMV dot partial and its final scaling remain finite. */
-    private fun finiteSymvPartial(alpha: Double, partial: Double): Boolean =
-        partial.isFinite() && (alpha * partial).isFinite()
 
     @Suppress("LongParameterList", "CyclomaticComplexMethod") // the BLAS dsymm signature
     override fun symm(
@@ -564,10 +279,7 @@ internal class BuiltinBlas(private val kernelFamilies: DenseKernelFamilies) : Bl
             "ger shape mismatch: A is ${a.rows}x${a.cols}, x ${x.size}, y ${y.size}"
         }
         if (alpha == 0.0) return
-        val panelKernels = panelKernels
-        for (j in 0 until a.cols) {
-            if (y[j] != 0.0) axpyArithmetic(panelKernels, a.data, a.colOffset(j), alpha * y[j], x, 0, a.rows)
-        }
+        gerUpdate(panelKernels, alpha, x, y, a.data, a.rows, a.cols)
     }
 
     /**
@@ -578,17 +290,8 @@ internal class BuiltinBlas(private val kernelFamilies: DenseKernelFamilies) : Bl
     override fun syr(alpha: Double, x: VectorLike, a: DenseMatrix, lower: Boolean) {
         requireSyrShape(a, x.size, "syr")
         if (alpha == 0.0) return
-        val panelKernels = panelKernels
-        val n = a.rows
-        val ad = a.data
         val xs = rankUpdateData(x)
-        for (j in 0 until n) {
-            if (xs[j] == 0.0) continue
-            val xj = alpha * xs[j]
-            val from = if (lower) j else 0
-            val length = if (lower) n - j else j + 1
-            axpyArithmetic(panelKernels, ad, from + j * n, xj, xs, from, length)
-        }
+        syrUpdate(panelKernels, alpha, xs, a.data, a.rows, lower)
     }
 
     /**
@@ -599,19 +302,9 @@ internal class BuiltinBlas(private val kernelFamilies: DenseKernelFamilies) : Bl
     override fun syr2(alpha: Double, x: VectorLike, y: VectorLike, a: DenseMatrix, lower: Boolean) {
         requireSyr2Shape(a, x.size, y.size, "syr2")
         if (alpha == 0.0) return
-        val panelKernels = panelKernels
-        val n = a.rows
-        val ad = a.data
         val xs = rankUpdateData(x)
         val ys = rankUpdateData(y)
-        for (j in 0 until n) {
-            if (xs[j] == 0.0 && ys[j] == 0.0) continue
-            val from = if (lower) j else 0
-            val length = if (lower) n - j else j + 1
-            val matrixOffset = from + j * n
-            axpyArithmetic(panelKernels, ad, matrixOffset, alpha * ys[j], xs, from, length)
-            axpyArithmetic(panelKernels, ad, matrixOffset, alpha * xs[j], ys, from, length)
-        }
+        syr2Update(panelKernels, alpha, xs, ys, a.data, a.rows, lower)
     }
 
     /** Returns contiguous rank-update operands; sparse copies use the selected sparse level-1 kernels. */
@@ -721,60 +414,18 @@ internal class BuiltinBlas(private val kernelFamilies: DenseKernelFamilies) : Bl
     ): Boolean {
         if (!alpha.isFinite()) return true
         val scalingCanOverflow = alpha !in -1.0..1.0
-        var maxA = 0.0
-        for (value in a) {
-            if (!value.isFinite() || (scalingCanOverflow && !(alpha * value).isFinite())) return true
-            maxA = maxOf(maxA, abs(value))
-        }
-        var maxB = 0.0
-        for (value in b) {
-            if (!value.isFinite() || (scalingCanOverflow && !(alpha * value).isFinite())) return true
-            maxB = maxOf(maxB, abs(value))
-        }
+        val maxA = finiteMaxAbs(a) ?: return true
+        val maxB = finiteMaxAbs(b) ?: return true
+        if (scalingCanOverflow && (finiteScaleOverflows(alpha, a) || finiteScaleOverflows(alpha, b))) return true
         if (maxA == 0.0 || maxB == 0.0) return false
 
-        var maxC = 0.0
-        if (beta != 0.0) {
-            for (j in 0 until n) {
-                val from = if (lower) j else 0
-                val until = if (lower) n else j + 1
-                for (i in from until until) {
-                    val value = c[i + j * n]
-                    if (!value.isFinite()) return true
-                    maxC = maxOf(maxC, abs(value))
-                }
-            }
-        }
+        val maxC = if (beta == 0.0) 0.0 else finiteTriangleMaxAbs(c, n, lower) ?: return true
 
         // Each packed call accumulates one cross-product before the other is added. An absolute bound on
         // both products plus the scaled destination keeps every packed intermediate finite; otherwise the
         // retained loop must interleave them rank by rank so opposite infinities do not manufacture NaN.
         val productLimit = (Double.MAX_VALUE - maxC) / (2.0 * k)
-        return productExceeds(productLimit, abs(alpha), maxA, maxB)
-    }
-
-    /** Compares three positive finite factors with [limit] without overflowing the comparison itself. */
-    private fun productExceeds(limit: Double, first: Double, second: Double, third: Double): Boolean {
-        if (first == 0.0 || second == 0.0 || third == 0.0) return false
-        var largest = first
-        var middle = second
-        var smallest = third
-        if (largest < middle) {
-            val swap = largest
-            largest = middle
-            middle = swap
-        }
-        if (middle < smallest) {
-            val swap = middle
-            middle = smallest
-            smallest = swap
-        }
-        if (largest < middle) {
-            val swap = largest
-            largest = middle
-            middle = swap
-        }
-        return limit / largest / middle / smallest < 1.0
+        return productExceedsBound(productLimit, kotlin.math.abs(alpha), maxA, maxB)
     }
 
     /** Solve `op(T) · x = b` in place (BLAS `dtrsv`) for the [lower] or upper triangle of the square [a],

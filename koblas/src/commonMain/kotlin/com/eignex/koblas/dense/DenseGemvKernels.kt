@@ -1,0 +1,50 @@
+package com.eignex.koblas.dense
+
+/**
+ * Adds `alpha * op(A) * x` to [y] for a contiguous column-major matrix. The four-column path keeps its
+ * reductions and coefficient/writeback work together; scalar tails retain the same arithmetic order.
+ */
+internal fun denseGemvUpdate(
+    vectorKernels: DenseVectorKernels,
+    panelKernels: DensePanelKernels,
+    alpha: Double,
+    a: DoubleArray,
+    rows: Int,
+    columns: Int,
+    x: DoubleArray,
+    y: DoubleArray,
+    transpose: Boolean,
+) {
+    var column = 0
+    val groupedEnd = columns - 3
+    if (!transpose) {
+        while (column < groupedEnd) {
+            panelKernels.axpy4(
+                y, 0, a, column * rows, rows,
+                alpha * x[column], alpha * x[column + 1], alpha * x[column + 2], alpha * x[column + 3], rows,
+            )
+            column += 4
+        }
+        while (column < columns) {
+            axpyArithmetic(panelKernels, y, 0, alpha * x[column], a, column * rows, rows)
+            column++
+        }
+        return
+    }
+    while (column < groupedEnd) {
+        val y0 = y[column]
+        val y1 = y[column + 1]
+        val y2 = y[column + 2]
+        val y3 = y[column + 3]
+        panelKernels.dot4(a, column * rows, rows, x, 0, rows, y, column)
+        y[column] = y0 + alpha * y[column]
+        y[column + 1] = y1 + alpha * y[column + 1]
+        y[column + 2] = y2 + alpha * y[column + 2]
+        y[column + 3] = y3 + alpha * y[column + 3]
+        column += 4
+    }
+    while (column < columns) {
+        y[column] += alpha * vectorKernels.dot(a, column * rows, x, 0, rows)
+        column++
+    }
+}
