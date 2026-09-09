@@ -5,11 +5,11 @@ import com.eignex.koblas.ModifiedGivens
 
 /**
  * The vector-vector routines as a backend half beneath [Blas]. Implementations must
- * agree with [F64PlatformKernels] to within rounding and read nothing outside the (offset, length)
+ * agree with [PlatformKernels] to within rounding and read nothing outside the (offset, length)
  * window.
  *
  * To within rounding rather than exactly, because bit-for-bit is not a contract these routines can hold:
- * [F64PlatformKernels] itself fuses its multiply-add above one lane width and does not below it, and
+ * [PlatformKernels] itself fuses its multiply-add above one lane width and does not below it, and
  * reduces over lanes as a tree rather than in order. Two conforming implementations can differ in the last
  * bits of a sum, and the reference routines are written not to depend on which one they got.
  *
@@ -160,7 +160,7 @@ public interface Kernels : Backend {
 }
 
 /** Internal vector leaf for parent routines whose arithmetic does not have DAXPY's zero-scalar return. */
-internal interface F64ArithmeticKernels {
+internal interface ArithmeticKernels {
     @Suppress("LongParameterList")
     fun axpyArithmetic(y: DoubleArray, yOff: Int, alpha: Double, x: DoubleArray, xOff: Int, len: Int)
 }
@@ -169,7 +169,7 @@ internal interface F64ArithmeticKernels {
  * The kernels compiled into this target: C on Native and on a JVM without `jdk.incubator.vector`, SIMD on
  * a JVM with the module. Its [Backend.name] is what `mathBackend` reports.
  */
-internal expect object F64PlatformKernels : Kernels, F64ArithmeticKernels {
+internal expect object PlatformKernels : Kernels, ArithmeticKernels {
     override val name: String
 
     override fun dot(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int): Double

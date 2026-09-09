@@ -2,25 +2,25 @@ package com.eignex.koblas.sparse
 
 import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.SparseMatrix
-import com.eignex.koblas.dense.F64PlatformKernels
 import com.eignex.koblas.dense.Kernels
+import com.eignex.koblas.dense.PlatformKernels
 import kotlin.test.Test
 import kotlin.test.assertTrue
 
 class SparseLevelOneReuseTest {
 
-    private class RecordingKernels : Kernels by F64PlatformKernels {
+    private class RecordingKernels : Kernels by PlatformKernels {
         var axpys = 0
         var scales = 0
 
         override fun axpy(y: DoubleArray, yOff: Int, alpha: Double, x: DoubleArray, xOff: Int, len: Int) {
             axpys++
-            F64PlatformKernels.axpy(y, yOff, alpha, x, xOff, len)
+            PlatformKernels.axpy(y, yOff, alpha, x, xOff, len)
         }
 
         override fun scale(v: DoubleArray, vOff: Int, alpha: Double, len: Int) {
             scales++
-            F64PlatformKernels.scale(v, vOff, alpha, len)
+            PlatformKernels.scale(v, vOff, alpha, len)
         }
     }
 

@@ -24,7 +24,7 @@ internal fun axpyArithmetic(
 ) {
     if (alpha != 0.0) {
         k.axpy(y, yOff, alpha, x, xOff, len)
-    } else if (k is F64ArithmeticKernels) {
+    } else if (k is ArithmeticKernels) {
         k.axpyArithmetic(y, yOff, alpha, x, xOff, len)
     } else {
         for (i in 0 until len) y[yOff + i] += alpha * x[xOff + i]

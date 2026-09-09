@@ -35,6 +35,7 @@ PUBLIC_NUMERICAL_SOURCES = (
     "VectorOps.kt",
     "dense/Blas.kt",
     "dense/Kernels.kt",
+    "dense/PackedPanels.kt",
     "dense/Triangular.kt",
     "sparse/SparseBlas.kt",
     "sparse/SparseLapack.kt",

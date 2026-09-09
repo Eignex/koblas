@@ -17,7 +17,7 @@ class AccelerationTest {
         override val kernels: Kernels get() = F64ReferenceBlas.kernels
     }
 
-    private class FakeKernels(override val name: String = "fakeblas") : Kernels by F64ScalarKernels {
+    private class FakeKernels(override val name: String = "fakeblas") : Kernels by ScalarKernels {
         override val priority: Int get() = 100
         override val isPortable: Boolean get() = false
     }

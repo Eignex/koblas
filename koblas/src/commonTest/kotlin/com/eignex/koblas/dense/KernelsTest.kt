@@ -176,7 +176,7 @@ class KernelsTest {
         val x = DoubleArray(64).also { it[17] = Double.POSITIVE_INFINITY }
         val y = DoubleArray(64)
 
-        axpyArithmetic(F64PlatformKernels, y, 0, 0.0, x, 0, x.size)
+        axpyArithmetic(PlatformKernels, y, 0, 0.0, x, 0, x.size)
 
         assertTrue(y[17].isNaN())
     }
@@ -225,7 +225,7 @@ class KernelsTest {
 
     @Test
     fun `the compiled-in kernels satisfy the Kernels contract`() {
-        val k: Kernels = F64PlatformKernels
+        val k: Kernels = PlatformKernels
         assertTrue(k.name.isNotEmpty(), "the kernels must name themselves; mathBackend reports it")
 
         val a = DoubleArray(40) { it * 0.5 - 3.0 }
@@ -265,8 +265,8 @@ class KernelsTest {
         val x = DoubleArray(64) { Double.POSITIVE_INFINITY }
         val y = DoubleArray(64)
 
-        F64PlatformKernels.axpy(y, 0, 0.0, x, 0, 64)
-        F64PlatformKernels.scale(x, 0, 1.0, 64)
+        PlatformKernels.axpy(y, 0, 0.0, x, 0, 64)
+        PlatformKernels.scale(x, 0, 1.0, 64)
 
         assertTrue(y.all { it == 0.0 }, "zero axpy must not evaluate infinity times zero")
         assertTrue(x.all { it == Double.POSITIVE_INFINITY }, "unit scale changed the vector")
@@ -286,7 +286,7 @@ class KernelsTest {
             expected[r] = s
         }
 
-        // Recording omits dot4, so this measures the interface default. Delegating with `by F64PlatformKernels`
+        // Recording omits dot4, so this measures the interface default. Delegating with `by PlatformKernels`
         // would forward the defaulted member and silently test the override twice.
         val inherited = Recording()
         val viaDefault = DoubleArray(4)
@@ -294,7 +294,7 @@ class KernelsTest {
         assertEquals(4, inherited.dots, "the default must reach dot once per column")
 
         val viaPlatform = DoubleArray(4)
-        F64PlatformKernels.dot4(a, 0, stride, b, 0, len, viaPlatform, 0)
+        PlatformKernels.dot4(a, 0, stride, b, 0, len, viaPlatform, 0)
 
         for (r in 0 until 4) {
             assertEquals(expected[r], viaDefault[r], absoluteTolerance = 1e-12, message = "default row $r")
@@ -305,9 +305,9 @@ class KernelsTest {
     @Test
     fun `the compiled-in nrm2 survives components that square out of range`() {
         val big = doubleArrayOf(3e200, 4e200)
-        assertEquals(5e200, F64PlatformKernels.nrm2(big, 0, 2), absoluteTolerance = 1e188)
+        assertEquals(5e200, PlatformKernels.nrm2(big, 0, 2), absoluteTolerance = 1e188)
         val tiny = doubleArrayOf(3e-200, 4e-200)
-        assertEquals(5e-200, F64PlatformKernels.nrm2(tiny, 0, 2), absoluteTolerance = 1e-212)
+        assertEquals(5e-200, PlatformKernels.nrm2(tiny, 0, 2), absoluteTolerance = 1e-212)
     }
 
     @Test
@@ -315,12 +315,12 @@ class KernelsTest {
         for (len in intArrayOf(16, 33, 64)) {
             val big = DoubleArray(len) { 1e200 }
             val expected = sqrt(len.toDouble()) * 1e200
-            assertEquals(expected, F64PlatformKernels.nrm2(big, 0, len), absoluteTolerance = expected * 1e-12)
+            assertEquals(expected, PlatformKernels.nrm2(big, 0, len), absoluteTolerance = expected * 1e-12)
             val tiny = DoubleArray(len) { 1e-200 }
             val expectedTiny = sqrt(len.toDouble()) * 1e-200
             assertEquals(
                 expectedTiny,
-                F64PlatformKernels.nrm2(tiny, 0, len),
+                PlatformKernels.nrm2(tiny, 0, len),
                 absoluteTolerance = expectedTiny * 1e-12,
             )
         }
@@ -335,7 +335,7 @@ class KernelsTest {
                 val expected = euclideanNorm(v, off, len)
                 assertEquals(
                     expected,
-                    F64PlatformKernels.nrm2(v, off, len),
+                    PlatformKernels.nrm2(v, off, len),
                     absoluteTolerance = 1e-12 * (expected + 1.0),
                     message = "off $off len $len",
                 )
@@ -345,12 +345,12 @@ class KernelsTest {
 
     @Test
     fun `the context reports the selected kernels by name`() = withCleanBackends {
-        assertEquals(F64PlatformKernels.name, koblas.kernels.name)
+        assertEquals(PlatformKernels.name, koblas.kernels.name)
         assertEquals(koblas.kernels.name, mathBackend, "mathBackend is the selected kernels' name")
         registerBackend(Recording(priority = 90))
         assertEquals("recording", koblas.kernels.name)
         resetBackends()
-        assertEquals(F64PlatformKernels.name, koblas.kernels.name)
+        assertEquals(PlatformKernels.name, koblas.kernels.name)
     }
 
     /**
@@ -374,7 +374,7 @@ class KernelsTest {
 
     @Test
     fun `the compiled-in level-1 kernels agree with the scalar loops`() =
-        assertLevel1KernelsAgreeWithScalar(F64PlatformKernels)
+        assertLevel1KernelsAgreeWithScalar(PlatformKernels)
 
     @Test
     fun `ssqd stays exact where the expanded form cancels`() {
@@ -383,10 +383,10 @@ class KernelsTest {
         // that took the shortcut cannot return 1.0 here.
         val a = doubleArrayOf(1e8, 1e8, 1e8)
         val b = doubleArrayOf(1e8 + 1.0, 1e8, 1e8)
-        val expanded = F64PlatformKernels.dot(a, 0, a, 0, 3) -
-            2.0 * F64PlatformKernels.dot(a, 0, b, 0, 3) +
-            F64PlatformKernels.dot(b, 0, b, 0, 3)
-        assertEquals(1.0, F64PlatformKernels.ssqd(a, 0, b, 0, 3), "fused")
+        val expanded = PlatformKernels.dot(a, 0, a, 0, 3) -
+            2.0 * PlatformKernels.dot(a, 0, b, 0, 3) +
+            PlatformKernels.dot(b, 0, b, 0, 3)
+        assertEquals(1.0, PlatformKernels.ssqd(a, 0, b, 0, 3), "fused")
         assertTrue(abs(expanded - 1.0) > 1e-3, "the expanded form should be the inexact one here: $expanded")
     }
 
@@ -397,23 +397,23 @@ class KernelsTest {
             val a = DoubleArray(len) { rng.nextDouble(-1.0, 1.0) }
             val b = DoubleArray(len) { rng.nextDouble(-1.0, 1.0) }
             assertEquals(
-                F64PlatformKernels.ssqd(a, 0, b, 0, len),
-                F64PlatformKernels.ssqd(b, 0, a, 0, len),
+                PlatformKernels.ssqd(a, 0, b, 0, len),
+                PlatformKernels.ssqd(b, 0, a, 0, len),
                 "symmetry len=$len",
             )
-            assertEquals(0.0, F64PlatformKernels.ssqd(a, 0, a, 0, len), "equal runs len=$len")
+            assertEquals(0.0, PlatformKernels.ssqd(a, 0, a, 0, len), "equal runs len=$len")
         }
     }
 
     @Test
-    fun `the compiled-in reductions agree with the scalar loops`() = assertReductionsAgreeWithScalar(F64PlatformKernels)
+    fun `the compiled-in reductions agree with the scalar loops`() = assertReductionsAgreeWithScalar(PlatformKernels)
 
     @Test
-    fun `the compiled-in swap agrees with the scalar loop`() = assertSwapAgreesWithScalar(F64PlatformKernels)
+    fun `the compiled-in swap agrees with the scalar loop`() = assertSwapAgreesWithScalar(PlatformKernels)
 
     @Test
     fun `the compiled-in modified Givens kernels agree with the portable ones`() {
-        assertModifiedGivensKernelsAgreeWithPortable(F64PlatformKernels)
-        assertRotKernelAgreesWithPortable(F64PlatformKernels)
+        assertModifiedGivensKernelsAgreeWithPortable(PlatformKernels)
+        assertRotKernelAgreesWithPortable(PlatformKernels)
     }
 }

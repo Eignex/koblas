@@ -20,7 +20,7 @@ import kotlinx.cinterop.usePinned
 private val C_HOST_MIN_LENGTH = DenseTuning.nativeCMinLength
 
 /** The C level-1 kernels compiled into each Kotlin/Native host artifact. */
-internal actual object F64PlatformKernels : Kernels, F64ArithmeticKernels {
+internal actual object PlatformKernels : Kernels, ArithmeticKernels {
     actual override val name: String get() = BackendNames.C
 
     override val isPortable: Boolean get() = true

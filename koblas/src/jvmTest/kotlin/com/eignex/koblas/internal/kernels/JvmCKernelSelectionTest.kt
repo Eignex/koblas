@@ -1,6 +1,6 @@
 package com.eignex.koblas.internal.kernels
 
-import com.eignex.koblas.dense.F64PlatformKernels
+import com.eignex.koblas.dense.PlatformKernels
 import com.eignex.koblas.dense.cKernelsAvailable
 import com.eignex.koblas.dense.simdAvailable
 import com.eignex.koblas.internal.backend.BackendNames
@@ -13,13 +13,13 @@ class JvmCKernelSelectionTest {
     @Test
     fun `a jvm without the vector module selects c kernels`() {
         if (simdAvailable) {
-            assertTrue(F64PlatformKernels.name.startsWith(BackendNames.SIMD))
+            assertTrue(PlatformKernels.name.startsWith(BackendNames.SIMD))
             assertEquals(BackendNames.SIMD_SPARSE, F64PlatformSparseKernels.name)
         } else if (cKernelsAvailable) {
-            assertEquals(BackendNames.C, F64PlatformKernels.name)
+            assertEquals(BackendNames.C, PlatformKernels.name)
             assertEquals(BackendNames.C_SPARSE, F64PlatformSparseKernels.name)
         } else {
-            assertEquals(BackendNames.SCALAR, F64PlatformKernels.name)
+            assertEquals(BackendNames.SCALAR, PlatformKernels.name)
             assertEquals(BackendNames.REFERENCE, F64PlatformSparseKernels.name)
         }
     }
