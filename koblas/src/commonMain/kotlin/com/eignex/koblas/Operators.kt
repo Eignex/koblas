@@ -20,6 +20,14 @@ public operator fun DenseMatrix.times(other: SparseMatrix): DenseMatrix {
 /** `A * B` for sparse matrices, allocating the discovered sparse structure through the active backend. */
 public operator fun SparseMatrix.times(other: SparseMatrix): SparseMatrix = koblas.sparseBlas.gemm(this, other)
 
+/** `A + B`, allocating an owned CSC structural union. */
+public operator fun SparseMatrix.plus(other: SparseMatrix): SparseMatrix =
+    koblas.sparseBlas.addScaled(1.0, this, false, other)
+
+/** `A - B`, allocating an owned CSC structural union. */
+public operator fun SparseMatrix.minus(other: SparseMatrix): SparseMatrix =
+    koblas.sparseBlas.addScaled(-1.0, other, false, this)
+
 /**
  * Matrix-vector product into a fresh dense result for any [MatrixLike] against any [VectorLike].
  * [gemvInto] writes into a destination the caller owns, and provides the alpha and beta scalars.

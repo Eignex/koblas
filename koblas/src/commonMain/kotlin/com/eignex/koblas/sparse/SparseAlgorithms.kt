@@ -5,10 +5,15 @@ import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.dense.Kernels
 import com.eignex.koblas.dense.applyBeta
+import com.eignex.koblas.dense.scaleTriangle
+import com.eignex.koblas.sparse.internal.addScaledCsc
 import com.eignex.koblas.sparse.internal.multiplyFromTheLeft
 import com.eignex.koblas.sparse.internal.multiplyFromTheRight
 import com.eignex.koblas.sparse.internal.multiplySparse
+import com.eignex.koblas.sparse.internal.multiplySparseInto
 import com.eignex.koblas.sparse.internal.stableFor
+import com.eignex.koblas.sparse.internal.symmetricMultiplyMatrix
+import com.eignex.koblas.sparse.internal.symmetricMultiplyVector
 import com.eignex.koblas.sparse.internal.transposeCsc
 import com.eignex.koblas.sparse.internal.trmmLeftCore
 import com.eignex.koblas.sparse.internal.trmmRightCore
@@ -61,6 +66,56 @@ internal class SparseAlgorithms(private val denseKernels: Kernels) : SparseBlas 
 
     override fun transpose(a: SparseMatrix): SparseMatrix = transposeCsc(a)
 
+    override fun symv(
+        alpha: Double,
+        a: SparseMatrix,
+        x: DoubleArray,
+        beta: Double,
+        y: DoubleArray,
+        lower: Boolean,
+    ) {
+        requireSquare(a, "symv")
+        requireShape(x.size == a.rows) { "symv: x length ${x.size} != ${a.rows}" }
+        requireShape(y.size == a.rows) { "symv: y length ${y.size} != ${a.rows}" }
+        if (alpha == 0.0) {
+            applyBeta(denseKernels, y, 0, y.size, beta)
+            return
+        }
+        val stableA = a.stableFor(y)
+        val stableX = if (x === y) x.copyOf() else x
+        applyBeta(denseKernels, y, 0, y.size, beta)
+        symmetricMultiplyVector(alpha, stableA, stableX, y, lower)
+    }
+
+    @Suppress("LongParameterList")
+    override fun symm(
+        alpha: Double,
+        a: SparseMatrix,
+        b: DenseMatrix,
+        beta: Double,
+        c: DenseMatrix,
+        lower: Boolean,
+        right: Boolean,
+        workspace: Workspace?,
+    ) {
+        requireSquare(a, "symm")
+        requireShape(c.rows == b.rows && c.cols == b.cols) {
+            "symm: C is ${c.rows}x${c.cols} but B is ${b.rows}x${b.cols}"
+        }
+        if (right) requireShape(b.cols == a.rows) { "symm right: B has ${b.cols} cols, expected ${a.rows}" }
+        else requireShape(b.rows == a.rows) { "symm: B has ${b.rows} rows, expected ${a.rows}" }
+        if (alpha == 0.0) {
+            applyBeta(denseKernels, c.data, 0, c.data.size, beta)
+            return
+        }
+        withStableSparse(a, c.data, workspace) { stableA ->
+            withStableDense(b, c.data, workspace) { stableB ->
+                applyBeta(denseKernels, c.data, 0, c.data.size, beta)
+                symmetricMultiplyMatrix(alpha, stableA, stableB, c, lower, right)
+            }
+        }
+    }
+
     override fun trsv(a: SparseMatrix, x: DoubleArray, lower: Boolean, transpose: Boolean, unitDiag: Boolean) {
         requireSquare(a, "trsv")
         val n = a.rows
@@ -94,20 +149,103 @@ internal class SparseAlgorithms(private val denseKernels: Kernels) : SparseBlas 
         } else {
             requireGemmShape(a, transposeA, b, transposeB, c)
         }
-        applyBeta(denseKernels, c.data, 0, c.data.size, beta)
-        if (alpha == 0.0) return
-        if (right) {
-            multiplyFromTheRight(denseKernels, alpha, a, transposeA, b, transposeB, c, m, workspace)
-        } else {
-            multiplyFromTheLeft(alpha, a, transposeA, b, transposeB, c, m, n, k, workspace)
+        if (alpha == 0.0) {
+            applyBeta(denseKernels, c.data, 0, c.data.size, beta)
+            return
+        }
+        withStableSparse(a, c.data, workspace) { stableA ->
+            withStableDense(b, c.data, workspace) { stableB ->
+                applyBeta(denseKernels, c.data, 0, c.data.size, beta)
+                if (right) {
+                    multiplyFromTheRight(denseKernels, alpha, stableA, transposeA, stableB, transposeB, c, m, workspace)
+                } else {
+                    multiplyFromTheLeft(alpha, stableA, transposeA, stableB, transposeB, c, m, n, k, workspace)
+                }
+            }
         }
     }
 
     /** `C += alpha · op(A) · op(B)`, reusing each walk of the sparse operand over a small RHS panel. */
 
-    override fun gemm(a: SparseMatrix, b: SparseMatrix): SparseMatrix {
-        requireShape(a.cols == b.rows) { "gemm: ${a.rows}x${a.cols} does not meet ${b.rows}x${b.cols}" }
-        return multiplySparse(a, b)
+    override fun gemm(
+        alpha: Double,
+        a: SparseMatrix,
+        transposeA: Boolean,
+        b: SparseMatrix,
+        transposeB: Boolean,
+    ): SparseMatrix {
+        val aRows = if (transposeA) a.cols else a.rows
+        val aCols = if (transposeA) a.rows else a.cols
+        val bRows = if (transposeB) b.cols else b.rows
+        val bCols = if (transposeB) b.rows else b.cols
+        requireShape(aCols == bRows) { "gemm: op(A) is ${aRows}x$aCols but op(B) is ${bRows}x$bCols" }
+        val left = oriented(a, transposeA, alpha != 0.0)
+        val right = oriented(b, transposeB, alpha != 0.0)
+        return multiplySparse(left, right, alpha)
+    }
+
+    @Suppress("LongParameterList")
+    override fun gemm(
+        alpha: Double,
+        a: SparseMatrix,
+        transposeA: Boolean,
+        b: SparseMatrix,
+        transposeB: Boolean,
+        beta: Double,
+        c: DenseMatrix,
+        workspace: Workspace?,
+    ) {
+        requireGemmShape(a, transposeA, b, transposeB, c)
+        if (alpha == 0.0) {
+            applyBeta(denseKernels, c.data, 0, c.data.size, beta)
+            return
+        }
+        withStableSparse(a, c.data, workspace) { stableA ->
+            withStableSparse(b, c.data, workspace) { stableB ->
+                val left = oriented(stableA, transposeA, true)
+                val right = oriented(stableB, transposeB, true)
+                applyBeta(denseKernels, c.data, 0, c.data.size, beta)
+                multiplySparseInto(alpha, left, right, c)
+            }
+        }
+    }
+
+    @Suppress("LongParameterList")
+    override fun syrk(
+        alpha: Double,
+        a: SparseMatrix,
+        transpose: Boolean,
+        beta: Double,
+        c: DenseMatrix,
+        lower: Boolean,
+        workspace: Workspace?,
+    ) {
+        val n = if (transpose) a.cols else a.rows
+        requireShape(c.rows == n && c.cols == n) { "syrk: C is ${c.rows}x${c.cols}, expected ${n}x$n" }
+        if (alpha == 0.0) {
+            scaleTriangle(denseKernels, c.data, n, beta, lower)
+            return
+        }
+        withStableSparse(a, c.data, workspace) { stableA ->
+            val op = oriented(stableA, transpose, true)
+            val opT = transposeCsc(op)
+            scaleTriangle(denseKernels, c.data, n, beta, lower)
+            multiplySparseInto(alpha, op, opT, c, lower)
+        }
+    }
+
+    override fun syrk(a: SparseMatrix, transpose: Boolean, lower: Boolean): SparseMatrix {
+        val op = oriented(a, transpose, true)
+        return multiplySparse(op, transposeCsc(op), lower = lower)
+    }
+
+    override fun addScaled(alpha: Double, a: SparseMatrix, transposeA: Boolean, b: SparseMatrix): SparseMatrix {
+        val rows = if (transposeA) a.cols else a.rows
+        val cols = if (transposeA) a.rows else a.cols
+        requireShape(rows == b.rows && cols == b.cols) {
+            "addScaled: op(A) is ${rows}x$cols but B is ${b.rows}x${b.cols}"
+        }
+        return addScaledCsc(alpha, oriented(a, transposeA, alpha != 0.0), b)
     }
 
     @Suppress("LongParameterList") // the BLAS dtrsm signature
@@ -166,6 +304,41 @@ internal class SparseAlgorithms(private val denseKernels: Kernels) : SparseBlas 
             trmmRightCore(denseKernels, triangle, b, lower, transpose, unitDiag, diagonal)
         } else {
             trmmLeftCore(triangle, b, lower, transpose, unitDiag, diagonal)
+        }
+    }
+
+    private fun oriented(a: SparseMatrix, transpose: Boolean, readValues: Boolean): SparseMatrix {
+        if (!transpose) return a
+        if (readValues) return transposeCsc(a)
+        val patternOnly = SparseMatrix.wrapTrusted(
+            a.rows, a.cols, a.copyColumnPointers(), a.copyRowIndices(), DoubleArray(a.nnz),
+        )
+        return transposeCsc(patternOnly)
+    }
+
+    private inline fun <T> withStableSparse(
+        a: SparseMatrix,
+        destination: DoubleArray,
+        workspace: Workspace?,
+        block: (SparseMatrix) -> T,
+    ): T {
+        if (a.values !== destination) return block(a)
+        return workspace.borrow(a.nnz) { copy ->
+            a.values.copyInto(copy)
+            block(SparseMatrix.wrapTrusted(a.rows, a.cols, a.colPtr, a.rowIdx, copy))
+        }
+    }
+
+    private inline fun <T> withStableDense(
+        b: DenseMatrix,
+        destination: DoubleArray,
+        workspace: Workspace?,
+        block: (DenseMatrix) -> T,
+    ): T {
+        if (b.data !== destination) return block(b)
+        return workspace.borrow(b.data.size) { copy ->
+            b.data.copyInto(copy)
+            block(DenseMatrix.wrap(b.rows, b.cols, copy))
         }
     }
 }

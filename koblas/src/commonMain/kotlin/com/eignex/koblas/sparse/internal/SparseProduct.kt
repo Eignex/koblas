@@ -1,5 +1,6 @@
 package com.eignex.koblas.sparse.internal
 
+import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.SparseMatrix
 
 /**
@@ -15,7 +16,12 @@ import com.eignex.koblas.SparseMatrix
  * entry, so the result stores what the two patterns meet at, as an entry the arithmetic cancels to zero is
  * also kept.
  */
-internal fun multiplySparse(a: SparseMatrix, b: SparseMatrix): SparseMatrix {
+internal fun multiplySparse(
+    a: SparseMatrix,
+    b: SparseMatrix,
+    alpha: Double = 1.0,
+    lower: Boolean? = null,
+): SparseMatrix {
     val rows = a.rows
     val values = DoubleArray(rows)
     // The column each row was last touched in, so a first touch is told from a repeat without clearing.
@@ -29,16 +35,19 @@ internal fun multiplySparse(a: SparseMatrix, b: SparseMatrix): SparseMatrix {
 
     for (j in 0 until b.cols) {
         var used = 0
-        b.forEachInColumn(j) { l, bv ->
+        for (bp in b.colPtr[j] until b.colPtr[j + 1]) {
+            val l = b.rowIdx[bp]
             // A stored zero of B contributes its column of A as stored zeros rather than dropping it: the
             // pattern of the product is the pattern of the operands, whatever the arithmetic makes of it.
-            a.forEachInColumn(l) { i, av ->
+            for (ap in a.colPtr[l] until a.colPtr[l + 1]) {
+                val i = a.rowIdx[ap]
+                if (lower != null && if (lower) i < j else i > j) continue
                 if (touchedIn[i] != j) {
                     touchedIn[i] = j
-                    values[i] = av * bv
+                    values[i] = if (alpha == 0.0) alpha else a.values[ap] * b.values[bp]
                     touched[used++] = i
-                } else {
-                    values[i] += av * bv
+                } else if (alpha != 0.0) {
+                    values[i] += a.values[ap] * b.values[bp]
                 }
             }
         }
@@ -54,11 +63,36 @@ internal fun multiplySparse(a: SparseMatrix, b: SparseMatrix): SparseMatrix {
         for (t in 0 until used) {
             val i = touched[t]
             outIdx[count] = i
-            outVal[count] = values[i]
+            outVal[count] = if (alpha == 0.0) alpha else alpha * values[i]
             count++
         }
         colPtr[j + 1] = count
     }
     // Each column's rows were sorted where they were collected, and a scatter list holds each row once.
     return SparseMatrix.wrapTrusted(rows, b.cols, colPtr, outIdx.copyOf(count), outVal.copyOf(count))
+}
+
+/**
+ * Adds `alpha · A · B` directly into dense [c]. Both sparse operands are already in the requested
+ * orientation. [lower] limits writes to one triangle when non-null. Stored traversal deliberately avoids
+ * products with implicit sparse zeros.
+ */
+internal fun multiplySparseInto(
+    alpha: Double,
+    a: SparseMatrix,
+    b: SparseMatrix,
+    c: DenseMatrix,
+    lower: Boolean? = null,
+) {
+    if (alpha == 0.0) return
+    val cd = c.data
+    for (j in 0 until b.cols) {
+        b.forEachInColumn(j) { p, bv ->
+            a.forEachInColumn(p) { i, av ->
+                if (lower == null || if (lower) i >= j else i <= j) {
+                    cd[i + j * c.rows] += alpha * (av * bv)
+                }
+            }
+        }
+    }
 }
