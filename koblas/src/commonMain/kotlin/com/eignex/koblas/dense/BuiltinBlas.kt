@@ -387,40 +387,76 @@ internal class BuiltinBlas(override val kernels: Kernels) : Blas {
             val c1 = alpha * x[block + 1]
             val c2 = alpha * x[block + 2]
             val c3 = alpha * x[block + 3]
+
+            var dot0 = sum0
+            var dot1 = sum1
+            var dot2 = sum2
+            var dot3 = sum3
+            if (lower) {
+                dot0 += ad[block + 1 + block * n] * x[block + 1]
+                dot0 += ad[block + 2 + block * n] * x[block + 2]
+                dot0 += ad[block + 3 + block * n] * x[block + 3]
+                dot1 += ad[block + 2 + (block + 1) * n] * x[block + 2]
+                dot1 += ad[block + 3 + (block + 1) * n] * x[block + 3]
+                dot2 += ad[block + 3 + (block + 2) * n] * x[block + 3]
+            } else {
+                dot1 += ad[block + (block + 1) * n] * x[block]
+                dot2 += ad[block + (block + 2) * n] * x[block]
+                dot2 += ad[block + 1 + (block + 2) * n] * x[block + 1]
+                dot3 += ad[block + (block + 3) * n] * x[block]
+                dot3 += ad[block + 1 + (block + 3) * n] * x[block + 1]
+                dot3 += ad[block + 2 + (block + 3) * n] * x[block + 2]
+            }
+            val unsafePartialDot =
+                !dot0.isFinite() || !dot1.isFinite() || !dot2.isFinite() || !dot3.isFinite() ||
+                    !(alpha * dot0).isFinite() || !(alpha * dot1).isFinite() ||
+                    !(alpha * dot2).isFinite() || !(alpha * dot3).isFinite()
+            if (unsafePartialDot) {
+                for (column in block until block + 4) {
+                    val base = column + column * n
+                    val coefficient = alpha * x[column]
+                    val runOff = if (lower) column + 1 else 0
+                    val len = if (lower) n - column - 1 else column
+                    y[column] += coefficient * ad[base]
+                    y[column] +=
+                        alpha * kernels.dotAxpy(y, runOff, coefficient, ad, runOff + column * n, x, runOff, len)
+                }
+                block += 4
+                continue
+            }
+
             kernels.axpy4(y, commonOff, ad, commonOff + block * n, n, c0, c1, c2, c3, commonLen)
 
             if (lower) {
                 for (column in block until block + 4) {
                     val coefficient = alpha * x[column]
-                    var dot = when (column - block) {
-                        0 -> sum0
-                        1 -> sum1
-                        2 -> sum2
-                        else -> sum3
-                    }
                     y[column] += coefficient * ad[column + column * n]
                     for (row in column + 1 until block + 4) {
                         val value = ad[row + column * n]
                         y[row] += coefficient * value
-                        dot += value * x[row]
+                    }
+                    val dot = when (column - block) {
+                        0 -> dot0
+                        1 -> dot1
+                        2 -> dot2
+                        else -> dot3
                     }
                     y[column] += alpha * dot
                 }
             } else {
                 for (column in block until block + 4) {
                     val coefficient = alpha * x[column]
-                    var dot = when (column - block) {
-                        0 -> sum0
-                        1 -> sum1
-                        2 -> sum2
-                        else -> sum3
-                    }
                     for (row in block until column) {
                         val value = ad[row + column * n]
                         y[row] += coefficient * value
-                        dot += value * x[row]
                     }
                     y[column] += coefficient * ad[column + column * n]
+                    val dot = when (column - block) {
+                        0 -> dot0
+                        1 -> dot1
+                        2 -> dot2
+                        else -> dot3
+                    }
                     y[column] += alpha * dot
                 }
             }
