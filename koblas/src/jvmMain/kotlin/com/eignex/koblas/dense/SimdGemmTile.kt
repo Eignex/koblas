@@ -104,6 +104,95 @@ internal object SimdGemmTile {
         storeColumn(c, cOff, 3, c03, c13)
     }
 
+    /** Subtracts a logical edge without reading or writing its padded output lanes. */
+    @Suppress("LongParameterList")
+    fun subtractProductEdge(
+        depth: Int,
+        validRows: Int,
+        validColumns: Int,
+        packedA: DoubleArray,
+        aOff: Int,
+        packedB: DoubleArray,
+        bOff: Int,
+        c: DoubleArray,
+        cOff: Int,
+    ) {
+        val lowMask = species.indexInRange(0, validRows)
+        val highMask = species.indexInRange(lanes, validRows)
+        var c00 = DoubleVector.fromArray(species, c, cOff, lowMask)
+        var c10 = DoubleVector.fromArray(species, c, cOff + lanes, highMask)
+        var c01 = if (validColumns > 1) {
+            DoubleVector.fromArray(species, c, cOff + rows, lowMask)
+        } else {
+            DoubleVector.zero(species)
+        }
+        var c11 = if (validColumns > 1) {
+            DoubleVector.fromArray(species, c, cOff + rows + lanes, highMask)
+        } else {
+            DoubleVector.zero(species)
+        }
+        var c02 = if (validColumns > 2) {
+            DoubleVector.fromArray(species, c, cOff + 2 * rows, lowMask)
+        } else {
+            DoubleVector.zero(species)
+        }
+        var c12 = if (validColumns > 2) {
+            DoubleVector.fromArray(species, c, cOff + 2 * rows + lanes, highMask)
+        } else {
+            DoubleVector.zero(species)
+        }
+        var c03 = if (validColumns > 3) {
+            DoubleVector.fromArray(species, c, cOff + 3 * rows, lowMask)
+        } else {
+            DoubleVector.zero(species)
+        }
+        var c13 = if (validColumns > 3) {
+            DoubleVector.fromArray(species, c, cOff + 3 * rows + lanes, highMask)
+        } else {
+            DoubleVector.zero(species)
+        }
+        var ap = aOff
+        var bp = bOff
+        for (p in 0 until depth) {
+            val a0 = DoubleVector.fromArray(species, packedA, ap)
+            val a1 = DoubleVector.fromArray(species, packedA, ap + lanes)
+            var coefficient = DoubleVector.broadcast(species, -packedB[bp])
+            c00 = a0.fma(coefficient, c00)
+            c10 = a1.fma(coefficient, c10)
+            if (validColumns > 1) {
+                coefficient = DoubleVector.broadcast(species, -packedB[bp + 1])
+                c01 = a0.fma(coefficient, c01)
+                c11 = a1.fma(coefficient, c11)
+            }
+            if (validColumns > 2) {
+                coefficient = DoubleVector.broadcast(species, -packedB[bp + 2])
+                c02 = a0.fma(coefficient, c02)
+                c12 = a1.fma(coefficient, c12)
+            }
+            if (validColumns > 3) {
+                coefficient = DoubleVector.broadcast(species, -packedB[bp + 3])
+                c03 = a0.fma(coefficient, c03)
+                c13 = a1.fma(coefficient, c13)
+            }
+            ap += rows
+            bp += COLUMNS
+        }
+        c00.intoArray(c, cOff, lowMask)
+        c10.intoArray(c, cOff + lanes, highMask)
+        if (validColumns > 1) {
+            c01.intoArray(c, cOff + rows, lowMask)
+            c11.intoArray(c, cOff + rows + lanes, highMask)
+        }
+        if (validColumns > 2) {
+            c02.intoArray(c, cOff + 2 * rows, lowMask)
+            c12.intoArray(c, cOff + 2 * rows + lanes, highMask)
+        }
+        if (validColumns > 3) {
+            c03.intoArray(c, cOff + 3 * rows, lowMask)
+            c13.intoArray(c, cOff + 3 * rows + lanes, highMask)
+        }
+    }
+
     // The vectors must stay in the caller so a small-depth tile does not materialize them on the heap.
     @Suppress("NOTHING_TO_INLINE")
     private inline fun addColumn(
