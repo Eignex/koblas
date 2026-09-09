@@ -47,21 +47,23 @@ internal class BuiltinBlas(override val kernels: Kernels) : Blas {
                 j++
             }
         } else {
-            workspace.borrow(4) { quads ->
-                var j = 0
-                val bound = a.cols - 3
-                while (j < bound) {
-                    kernels.dot4(ad, j * rows, rows, x, 0, rows, quads, 0)
-                    y[j] += alpha * quads[0]
-                    y[j + 1] += alpha * quads[1]
-                    y[j + 2] += alpha * quads[2]
-                    y[j + 3] += alpha * quads[3]
-                    j += 4
-                }
-                while (j < a.cols) {
-                    y[j] += alpha * kernels.dot(ad, j * rows, x, 0, rows)
-                    j++
-                }
+            var j = 0
+            val bound = a.cols - 3
+            while (j < bound) {
+                val y0 = y[j]
+                val y1 = y[j + 1]
+                val y2 = y[j + 2]
+                val y3 = y[j + 3]
+                kernels.dot4(ad, j * rows, rows, x, 0, rows, y, j)
+                y[j] = y0 + alpha * y[j]
+                y[j + 1] = y1 + alpha * y[j + 1]
+                y[j + 2] = y2 + alpha * y[j + 2]
+                y[j + 3] = y3 + alpha * y[j + 3]
+                j += 4
+            }
+            while (j < a.cols) {
+                y[j] += alpha * kernels.dot(ad, j * rows, x, 0, rows)
+                j++
             }
         }
     }
@@ -337,6 +339,10 @@ internal class BuiltinBlas(override val kernels: Kernels) : Blas {
         y: DoubleArray,
         lower: Boolean,
     ) {
+        if (kernels !== ScalarKernels && n >= DenseTuning.symvFourColumnCrossover) {
+            symvAccumulateFourColumns(alpha, ad, n, x, y, lower)
+            return
+        }
         val kernels = kernels
         for (j in 0 until n) {
             val base = j + j * n
@@ -345,6 +351,89 @@ internal class BuiltinBlas(override val kernels: Kernels) : Blas {
             val len = if (lower) n - j - 1 else j
             y[j] += xj * ad[base]
             y[j] += alpha * kernels.dotAxpy(y, runOff, xj, ad, runOff + j * n, x, runOff, len)
+        }
+    }
+
+    /** Shares the common part of four adjacent triangular columns across the existing four-way leaves. */
+    private fun symvAccumulateFourColumns(
+        alpha: Double,
+        ad: DoubleArray,
+        n: Int,
+        x: DoubleArray,
+        y: DoubleArray,
+        lower: Boolean,
+    ) {
+        val kernels = kernels
+        var block = 0
+        val bound = n - 3
+        while (block < bound) {
+            val commonOff = if (lower) block + 4 else 0
+            val commonLen = if (lower) n - commonOff else block
+            val old0 = y[block]
+            val old1 = y[block + 1]
+            val old2 = y[block + 2]
+            val old3 = y[block + 3]
+            kernels.dot4(ad, commonOff + block * n, n, x, commonOff, commonLen, y, block)
+            val sum0 = y[block]
+            val sum1 = y[block + 1]
+            val sum2 = y[block + 2]
+            val sum3 = y[block + 3]
+            y[block] = old0
+            y[block + 1] = old1
+            y[block + 2] = old2
+            y[block + 3] = old3
+
+            val c0 = alpha * x[block]
+            val c1 = alpha * x[block + 1]
+            val c2 = alpha * x[block + 2]
+            val c3 = alpha * x[block + 3]
+            kernels.axpy4(y, commonOff, ad, commonOff + block * n, n, c0, c1, c2, c3, commonLen)
+
+            if (lower) {
+                for (column in block until block + 4) {
+                    val coefficient = alpha * x[column]
+                    var dot = when (column - block) {
+                        0 -> sum0
+                        1 -> sum1
+                        2 -> sum2
+                        else -> sum3
+                    }
+                    y[column] += coefficient * ad[column + column * n]
+                    for (row in column + 1 until block + 4) {
+                        val value = ad[row + column * n]
+                        y[row] += coefficient * value
+                        dot += value * x[row]
+                    }
+                    y[column] += alpha * dot
+                }
+            } else {
+                for (column in block until block + 4) {
+                    val coefficient = alpha * x[column]
+                    var dot = when (column - block) {
+                        0 -> sum0
+                        1 -> sum1
+                        2 -> sum2
+                        else -> sum3
+                    }
+                    for (row in block until column) {
+                        val value = ad[row + column * n]
+                        y[row] += coefficient * value
+                        dot += value * x[row]
+                    }
+                    y[column] += coefficient * ad[column + column * n]
+                    y[column] += alpha * dot
+                }
+            }
+            block += 4
+        }
+        while (block < n) {
+            val base = block + block * n
+            val coefficient = alpha * x[block]
+            val runOff = if (lower) block + 1 else 0
+            val len = if (lower) n - block - 1 else block
+            y[block] += coefficient * ad[base]
+            y[block] += alpha * kernels.dotAxpy(y, runOff, coefficient, ad, runOff + block * n, x, runOff, len)
+            block++
         }
     }
 

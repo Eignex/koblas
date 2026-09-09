@@ -13,7 +13,7 @@ public interface Blas {
     public val kernels: Kernels
 
     /** `y = alpha · op(A) · x + beta · y` (BLAS `dgemv`), with `op(A)` being `Aᵀ` when [transpose].
-     *  `beta == 0.0` overwrites [y] without reading it. Supply [workspace] to reuse transposed dot scratch. */
+     *  `beta == 0.0` overwrites [y] without reading it. */
     public fun gemv(
         alpha: Double,
         a: DenseMatrix,
