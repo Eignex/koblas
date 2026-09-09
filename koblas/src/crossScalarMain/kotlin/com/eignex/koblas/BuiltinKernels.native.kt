@@ -1,6 +1,6 @@
 package com.eignex.koblas
 
-import com.eignex.koblas.dense.ScalarKernels
+import com.eignex.koblas.dense.scalarDenseKernelFamilies
 import com.eignex.koblas.sparse.ScalarSparseKernels
 
 /** Built-in providers available while cross-compiling for a foreign Native host. */
@@ -8,7 +8,10 @@ import com.eignex.koblas.sparse.ScalarSparseKernels
 public actual object BuiltinKernels {
     /** Pure Kotlin scalar dense kernels and reference sparse kernels. */
     public actual val scalar: BuiltinKernelProvider =
-        BuiltinKernelProvider(ScalarKernels, ScalarSparseKernels)
+        BuiltinKernelProvider(
+            scalarDenseKernelFamilies,
+            ScalarSparseKernels,
+        )
 
     /** C is unavailable without the target host's cinterop compilation. */
     public actual val c: BuiltinKernelProvider? = null

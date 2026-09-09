@@ -41,8 +41,10 @@ public final class com/eignex/koblas/AllocationPolicyRejectedException : java/la
 }
 
 public final class com/eignex/koblas/BuiltinKernelProvider {
-	public final fun getKernels ()Lcom/eignex/koblas/dense/Kernels;
+	public final fun getPackedKernels ()Lcom/eignex/koblas/dense/PackedKernels;
+	public final fun getPanelKernels ()Lcom/eignex/koblas/dense/DensePanelKernels;
 	public final fun getSparseKernels ()Lcom/eignex/koblas/sparse/SparseKernels;
+	public final fun getVectorKernels ()Lcom/eignex/koblas/dense/DenseVectorKernels;
 }
 
 public final class com/eignex/koblas/BuiltinKernels {
@@ -160,10 +162,12 @@ public final class com/eignex/koblas/KoblasContext : com/eignex/koblas/dense/Bla
 	public fun gemv (Lcom/eignex/koblas/StridedMatrixView;Lcom/eignex/koblas/StridedVectorView;Z)[D
 	public fun ger (D[D[DLcom/eignex/koblas/DenseMatrix;)V
 	public final fun getBlas ()Lcom/eignex/koblas/dense/Blas;
-	public fun getKernels ()Lcom/eignex/koblas/dense/Kernels;
 	public fun getName ()Ljava/lang/String;
+	public final fun getPackedKernels ()Lcom/eignex/koblas/dense/PackedKernels;
+	public final fun getPanelKernels ()Lcom/eignex/koblas/dense/DensePanelKernels;
 	public final fun getSparseBlas ()Lcom/eignex/koblas/sparse/SparseBlas;
 	public final fun getSparseKernels ()Lcom/eignex/koblas/sparse/SparseKernels;
+	public final fun getVectorKernels ()Lcom/eignex/koblas/dense/DenseVectorKernels;
 	public fun prepare (Lcom/eignex/koblas/SparseMatrix;)Lcom/eignex/koblas/sparse/PreparedSparseMatrix;
 	public fun symm (DLcom/eignex/koblas/DenseMatrix;Lcom/eignex/koblas/DenseMatrix;DLcom/eignex/koblas/DenseMatrix;ZZLcom/eignex/koblas/Workspace;)V
 	public fun symm (DLcom/eignex/koblas/SparseMatrix;Lcom/eignex/koblas/DenseMatrix;DLcom/eignex/koblas/DenseMatrix;ZZLcom/eignex/koblas/Workspace;)V
@@ -494,7 +498,6 @@ public abstract interface class com/eignex/koblas/dense/Blas {
 	public static synthetic fun gemv$default (Lcom/eignex/koblas/dense/Blas;Lcom/eignex/koblas/DenseMatrix;[DZILjava/lang/Object;)[D
 	public static synthetic fun gemv$default (Lcom/eignex/koblas/dense/Blas;Lcom/eignex/koblas/StridedMatrixView;Lcom/eignex/koblas/StridedVectorView;ZILjava/lang/Object;)[D
 	public abstract fun ger (D[D[DLcom/eignex/koblas/DenseMatrix;)V
-	public abstract fun getKernels ()Lcom/eignex/koblas/dense/Kernels;
 	public abstract fun getName ()Ljava/lang/String;
 	public abstract fun symm (DLcom/eignex/koblas/DenseMatrix;Lcom/eignex/koblas/DenseMatrix;DLcom/eignex/koblas/DenseMatrix;ZZLcom/eignex/koblas/Workspace;)V
 	public static synthetic fun symm$default (Lcom/eignex/koblas/dense/Blas;DLcom/eignex/koblas/DenseMatrix;Lcom/eignex/koblas/DenseMatrix;DLcom/eignex/koblas/DenseMatrix;ZZLcom/eignex/koblas/Workspace;ILjava/lang/Object;)V
@@ -548,17 +551,17 @@ public final class com/eignex/koblas/dense/BuiltinBlasKt {
 	public static final fun getReferenceBlas ()Lcom/eignex/koblas/dense/Blas;
 }
 
-public abstract interface class com/eignex/koblas/dense/Kernels {
+public abstract interface class com/eignex/koblas/dense/DensePanelKernels {
+	public abstract fun axpy4 ([DI[DIIDDDDI)V
+	public abstract fun axpyArithmetic ([DID[DII)V
+	public abstract fun dot4 ([DII[DII[DI)V
+	public abstract fun dotAxpy ([DID[DI[DII)D
+}
+
+public abstract interface class com/eignex/koblas/dense/DenseVectorKernels {
 	public abstract fun asum ([DII)D
 	public abstract fun axpy ([DID[DII)V
-	public fun axpy4 ([DI[DIIDDDDI)V
 	public abstract fun dot ([DI[DII)D
-	public fun dot4 ([DII[DII[DI)V
-	public fun dotAxpy ([DID[DI[DII)D
-	public fun gemmTile (I[DI[DI[DII)V
-	public fun gemmTrsmTile (III[DI[DI[DIZZ[DI)V
-	public fun getGemmTileCols ()I
-	public fun getGemmTileRows ()I
 	public abstract fun getName ()Ljava/lang/String;
 	public abstract fun nrm2 ([DII)D
 	public abstract fun rot ([DI[DIIDD)V
@@ -568,18 +571,14 @@ public abstract interface class com/eignex/koblas/dense/Kernels {
 	public abstract fun ssqd ([DI[DII)D
 	public abstract fun sum ([DII)D
 	public abstract fun swap ([DI[DII)V
-	public fun trsmTile (II[DIZZ[DI)V
 }
 
-public final class com/eignex/koblas/dense/Kernels$DefaultImpls {
-	public static fun axpy4 (Lcom/eignex/koblas/dense/Kernels;[DI[DIIDDDDI)V
-	public static fun dot4 (Lcom/eignex/koblas/dense/Kernels;[DII[DII[DI)V
-	public static fun dotAxpy (Lcom/eignex/koblas/dense/Kernels;[DID[DI[DII)D
-	public static fun gemmTile (Lcom/eignex/koblas/dense/Kernels;I[DI[DI[DII)V
-	public static fun gemmTrsmTile (Lcom/eignex/koblas/dense/Kernels;III[DI[DI[DIZZ[DI)V
-	public static fun getGemmTileCols (Lcom/eignex/koblas/dense/Kernels;)I
-	public static fun getGemmTileRows (Lcom/eignex/koblas/dense/Kernels;)I
-	public static fun trsmTile (Lcom/eignex/koblas/dense/Kernels;II[DIZZ[DI)V
+public abstract interface class com/eignex/koblas/dense/PackedKernels {
+	public abstract fun gemmTile (I[DI[DI[DII)V
+	public abstract fun gemmTrsmTile (III[DI[DI[DIZZ[DI)V
+	public abstract fun getGemmTileCols ()I
+	public abstract fun getGemmTileRows ()I
+	public abstract fun trsmTile (II[DIZZ[DI)V
 }
 
 public final class com/eignex/koblas/dense/PackedPanels {

@@ -8,7 +8,7 @@ import com.eignex.koblas.portableRotm
 import com.eignex.koblas.portableRotmg
 
 /** Pure Kotlin scalar kernels retained as the portable fallback and semantic reference for compiled leaves. */
-internal object ScalarKernels : Kernels, ArithmeticKernels {
+internal object ScalarKernels : DenseVectorKernels {
     override val name: String get() = ImplementationNames.SCALAR
 
     override fun dot(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int): Double =
@@ -16,9 +16,6 @@ internal object ScalarKernels : Kernels, ArithmeticKernels {
 
     override fun axpy(y: DoubleArray, yOff: Int, alpha: Double, x: DoubleArray, xOff: Int, len: Int) =
         scalarAxpy(y, yOff, alpha, x, xOff, len)
-
-    override fun axpyArithmetic(y: DoubleArray, yOff: Int, alpha: Double, x: DoubleArray, xOff: Int, len: Int) =
-        scalarAxpyArithmetic(y, yOff, alpha, x, xOff, len)
 
     override fun scale(v: DoubleArray, vOff: Int, alpha: Double, len: Int) = scalarScale(v, vOff, alpha, len)
 
@@ -51,42 +48,4 @@ internal object ScalarKernels : Kernels, ArithmeticKernels {
     @Suppress("LongParameterList")
     override fun rot(x: DoubleArray, xOff: Int, y: DoubleArray, yOff: Int, len: Int, c: Double, s: Double) =
         portableRot(x, xOff, y, yOff, len, c, s)
-
-    @Suppress("LongParameterList")
-    override fun dot4(
-        a: DoubleArray,
-        aOff: Int,
-        stride: Int,
-        b: DoubleArray,
-        bOff: Int,
-        len: Int,
-        out: DoubleArray,
-        outOff: Int,
-    ) = scalarDot4(a, aOff, stride, b, bOff, len, out, outOff)
-
-    @Suppress("LongParameterList")
-    override fun axpy4(
-        y: DoubleArray,
-        yOff: Int,
-        a: DoubleArray,
-        aOff: Int,
-        stride: Int,
-        c0: Double,
-        c1: Double,
-        c2: Double,
-        c3: Double,
-        len: Int,
-    ) = scalarAxpy4(y, yOff, a, aOff, stride, c0, c1, c2, c3, len)
-
-    @Suppress("LongParameterList")
-    override fun dotAxpy(
-        y: DoubleArray,
-        yOff: Int,
-        alpha: Double,
-        a: DoubleArray,
-        aOff: Int,
-        x: DoubleArray,
-        xOff: Int,
-        len: Int,
-    ): Double = scalarDotAxpy(y, yOff, alpha, a, aOff, x, xOff, len)
 }

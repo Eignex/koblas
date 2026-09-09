@@ -45,7 +45,7 @@ internal inline fun forEachRow(
 
 /** Adds only runs whose source coefficients are nonzero, retaining vector kernels for every nonzero run. */
 private fun axpySkippingZeroSource(
-    k: Kernels,
+    panelKernels: DensePanelKernels,
     y: DoubleArray,
     yOff: Int,
     alpha: Double,
@@ -58,19 +58,26 @@ private fun axpySkippingZeroSource(
         while (at < len && x[xOff + at] == 0.0) at++
         val start = at
         while (at < len && x[xOff + at] != 0.0) at++
-        if (at > start) axpyArithmetic(k, y, yOff + start, alpha, x, xOff + start, at - start)
+        if (at > start) axpyArithmetic(panelKernels, y, yOff + start, alpha, x, xOff + start, at - start)
     }
 }
 
 /** Dots only runs whose matrix coefficients are nonzero, retaining vector kernels for every nonzero run. */
-private fun dotSkippingZeroMatrix(k: Kernels, a: DoubleArray, aOff: Int, x: DoubleArray, xOff: Int, len: Int): Double {
+private fun dotSkippingZeroMatrix(
+    vectorKernels: DenseVectorKernels,
+    a: DoubleArray,
+    aOff: Int,
+    x: DoubleArray,
+    xOff: Int,
+    len: Int,
+): Double {
     var sum = 0.0
     var at = 0
     while (at < len) {
         while (at < len && a[aOff + at] == 0.0) at++
         val start = at
         while (at < len && a[aOff + at] != 0.0) at++
-        if (at > start) sum += k.dot(a, aOff + start, x, xOff + start, at - start)
+        if (at > start) sum += vectorKernels.dot(a, aOff + start, x, xOff + start, at - start)
     }
     return sum
 }
@@ -81,7 +88,8 @@ private fun dotSkippingZeroMatrix(k: Kernels, a: DoubleArray, aOff: Int, x: Doub
  */
 @Suppress("LongParameterList") // the shape, the leading dimension and the three BLAS flags
 internal fun trmvCore(
-    k: Kernels,
+    vectorKernels: DenseVectorKernels,
+    panelKernels: DensePanelKernels,
     a: DoubleArray,
     n: Int,
     x: DoubleArray,
@@ -102,9 +110,9 @@ internal fun trmvCore(
                 if (!guardZeroInput || xj != 0.0) {
                     x[xOff + j] = if (unitDiag) xj else a[base] * xj
                     if (guardZeroMatrix) {
-                        axpySkippingZeroSource(k, x, xOff + j + 1, xj, a, base + 1, n - j - 1)
+                        axpySkippingZeroSource(panelKernels, x, xOff + j + 1, xj, a, base + 1, n - j - 1)
                     } else {
-                        axpyArithmetic(k, x, xOff + j + 1, xj, a, base + 1, n - j - 1)
+                        axpyArithmetic(panelKernels, x, xOff + j + 1, xj, a, base + 1, n - j - 1)
                     }
                 }
             }
@@ -114,9 +122,9 @@ internal fun trmvCore(
                 if (!guardZeroInput || xj != 0.0) {
                     x[xOff + j] = if (unitDiag) xj else a[aOff + j + j * lda] * xj
                     if (guardZeroMatrix) {
-                        axpySkippingZeroSource(k, x, xOff, xj, a, aOff + j * lda, j)
+                        axpySkippingZeroSource(panelKernels, x, xOff, xj, a, aOff + j * lda, j)
                     } else {
-                        axpyArithmetic(k, x, xOff, xj, a, aOff + j * lda, j)
+                        axpyArithmetic(panelKernels, x, xOff, xj, a, aOff + j * lda, j)
                     }
                 }
             }
@@ -127,9 +135,9 @@ internal fun trmvCore(
                 val base = aOff + i + i * lda
                 val diag = if (unitDiag) x[xOff + i] else a[base] * x[xOff + i]
                 val offDiagonal = if (guardZeroMatrix) {
-                    dotSkippingZeroMatrix(k, a, base + 1, x, xOff + i + 1, n - i - 1)
+                    dotSkippingZeroMatrix(vectorKernels, a, base + 1, x, xOff + i + 1, n - i - 1)
                 } else {
-                    k.dot(a, base + 1, x, xOff + i + 1, n - i - 1)
+                    vectorKernels.dot(a, base + 1, x, xOff + i + 1, n - i - 1)
                 }
                 x[xOff + i] = diag + offDiagonal
             }
@@ -137,9 +145,9 @@ internal fun trmvCore(
             for (i in n - 1 downTo 0) {
                 val diag = if (unitDiag) x[xOff + i] else a[aOff + i + i * lda] * x[xOff + i]
                 val offDiagonal = if (guardZeroMatrix) {
-                    dotSkippingZeroMatrix(k, a, aOff + i * lda, x, xOff, i)
+                    dotSkippingZeroMatrix(vectorKernels, a, aOff + i * lda, x, xOff, i)
                 } else {
-                    k.dot(a, aOff + i * lda, x, xOff, i)
+                    vectorKernels.dot(a, aOff + i * lda, x, xOff, i)
                 }
                 x[xOff + i] = diag + offDiagonal
             }
@@ -151,7 +159,8 @@ internal fun trmvCore(
  *  x(xOff until xOff + n). The diagonal is not checked, so a singular triangle yields infinities or NaNs. */
 @Suppress("LongParameterList") // the shape, the leading dimension and the three BLAS flags
 internal fun trsvCore(
-    k: Kernels,
+    vectorKernels: DenseVectorKernels,
+    panelKernels: DensePanelKernels,
     a: DoubleArray,
     n: Int,
     x: DoubleArray,
@@ -174,9 +183,9 @@ internal fun trsvCore(
                 x[xOff + j] = xj
                 if (guardZeroPivot && xj == 0.0) zeroAfterNonzero = zeroAfterNonzero or (1L shl j)
                 if (guardZeroMatrix) {
-                    axpySkippingZeroSource(k, x, xOff + j + 1, -xj, a, base + 1, n - j - 1)
+                    axpySkippingZeroSource(panelKernels, x, xOff + j + 1, -xj, a, base + 1, n - j - 1)
                 } else {
-                    axpyArithmetic(k, x, xOff + j + 1, -xj, a, base + 1, n - j - 1)
+                    axpyArithmetic(panelKernels, x, xOff + j + 1, -xj, a, base + 1, n - j - 1)
                 }
             }
         } else { // back substitution, finalizing x(j) then pushing it up column j
@@ -186,9 +195,9 @@ internal fun trsvCore(
                 x[xOff + j] = xj
                 if (guardZeroPivot && xj == 0.0) zeroAfterNonzero = zeroAfterNonzero or (1L shl j)
                 if (guardZeroMatrix) {
-                    axpySkippingZeroSource(k, x, xOff, -xj, a, aOff + j * lda, j)
+                    axpySkippingZeroSource(panelKernels, x, xOff, -xj, a, aOff + j * lda, j)
                 } else {
-                    axpyArithmetic(k, x, xOff, -xj, a, aOff + j * lda, j)
+                    axpyArithmetic(panelKernels, x, xOff, -xj, a, aOff + j * lda, j)
                 }
             }
         }
@@ -197,9 +206,9 @@ internal fun trsvCore(
             for (i in n - 1 downTo 0) {
                 val base = aOff + i + i * lda
                 val product = if (guardZeroMatrix) {
-                    dotSkippingZeroMatrix(k, a, base + 1, x, xOff + i + 1, n - i - 1)
+                    dotSkippingZeroMatrix(vectorKernels, a, base + 1, x, xOff + i + 1, n - i - 1)
                 } else {
-                    k.dot(a, base + 1, x, xOff + i + 1, n - i - 1)
+                    vectorKernels.dot(a, base + 1, x, xOff + i + 1, n - i - 1)
                 }
                 val s = x[xOff + i] - product
                 x[xOff + i] = if (unitDiag) s else s / a[base]
@@ -207,9 +216,9 @@ internal fun trsvCore(
         } else { // Tᵀ is lower: forward substitution, dotting column i of T behind the frontier
             for (i in 0 until n) {
                 val product = if (guardZeroMatrix) {
-                    dotSkippingZeroMatrix(k, a, aOff + i * lda, x, xOff, i)
+                    dotSkippingZeroMatrix(vectorKernels, a, aOff + i * lda, x, xOff, i)
                 } else {
-                    k.dot(a, aOff + i * lda, x, xOff, i)
+                    vectorKernels.dot(a, aOff + i * lda, x, xOff, i)
                 }
                 val s = x[xOff + i] - product
                 x[xOff + i] = if (unitDiag) s else s / a[aOff + i + i * lda]
@@ -227,7 +236,8 @@ internal fun trsvCore(
  */
 @Suppress("LongParameterList") // the shared BLAS signature plus the entry-point flag
 internal fun triangularVector(
-    k: Kernels,
+    vectorKernels: DenseVectorKernels,
+    panelKernels: DensePanelKernels,
     a: DenseMatrix,
     x: DoubleArray,
     lower: Boolean,
@@ -239,9 +249,27 @@ internal fun triangularVector(
     requireSquare(a, what)
     requireShape(x.size == a.rows) { "$what: x length ${x.size} != ${a.rows}" }
     if (solve) {
-        trsvCore(k, a.data, a.rows, x, lower = lower, transpose = transpose, unitDiag = unitDiag)
+        trsvCore(
+            vectorKernels,
+            panelKernels,
+            a.data,
+            a.rows,
+            x,
+            lower = lower,
+            transpose = transpose,
+            unitDiag = unitDiag,
+        )
     } else {
-        trmvCore(k, a.data, a.rows, x, lower = lower, transpose = transpose, unitDiag = unitDiag)
+        trmvCore(
+            vectorKernels,
+            panelKernels,
+            a.data,
+            a.rows,
+            x,
+            lower = lower,
+            transpose = transpose,
+            unitDiag = unitDiag,
+        )
     }
 }
 
@@ -253,7 +281,9 @@ internal fun triangularVector(
  */
 @Suppress("LongParameterList") // the shared BLAS signature plus the entry-point flag
 internal fun triangularMatrix(
-    k: Kernels,
+    vectorKernels: DenseVectorKernels,
+    panelKernels: DensePanelKernels,
+    packedKernels: PackedKernels,
     a: DenseMatrix,
     b: DenseMatrix,
     lower: Boolean,
@@ -270,7 +300,7 @@ internal fun triangularMatrix(
         b.data.fill(0.0)
         return
     }
-    if (alpha != 1.0) k.scale(b.data, 0, alpha, b.data.size)
+    if (alpha != 1.0) vectorKernels.scale(b.data, 0, alpha, b.data.size)
     if (a.rows == 0) return
     val normalizedRows = if (right) b.rows else b.cols
     if (
@@ -279,7 +309,7 @@ internal fun triangularMatrix(
         normalizedRows >= DenseTuning.trmmPackedMinRows &&
         packedTrmmSupports(a, b, lower, unitDiag)
     ) {
-        packedTrmmCore(k, a, b, lower, transpose, unitDiag, right, workspace)
+        packedTrmmCore(packedKernels, a, b, lower, transpose, unitDiag, right, workspace)
         return
     }
     if (
@@ -288,7 +318,7 @@ internal fun triangularMatrix(
         normalizedRows >= DenseTuning.trsmPackedMinRows &&
         packedTrsmSupports(a, b, lower, unitDiag)
     ) {
-        packedTrsmCore(k, a, b, lower, transpose, unitDiag, right, workspace)
+        packedTrsmCore(packedKernels, a, b, lower, transpose, unitDiag, right, workspace)
         return
     }
     /*
@@ -299,14 +329,26 @@ internal fun triangularMatrix(
     fun dispatch(scratch: DoubleArray?) {
         when {
             right && solve ->
-                blockedRightSolve(k, a.data, a.rows, b, lower, transpose, unitDiag, requireNotNull(scratch))
+                blockedRightSolve(
+                    vectorKernels, panelKernels, a.data, a.rows, b, lower, transpose, unitDiag,
+                    requireNotNull(scratch),
+                )
 
             right ->
-                blockedRightMultiply(k, a.data, a.rows, b, lower, transpose, unitDiag, requireNotNull(scratch))
+                blockedRightMultiply(
+                    vectorKernels, panelKernels, a.data, a.rows, b, lower, transpose, unitDiag,
+                    requireNotNull(scratch),
+                )
 
-            solve -> blockedLeftSolve(k, a.data, a.rows, b, lower, transpose, unitDiag, scratch)
+            solve ->
+                blockedLeftSolve(
+                    vectorKernels, panelKernels, a.data, a.rows, b, lower, transpose, unitDiag, scratch,
+                )
 
-            else -> blockedLeftMultiply(k, a.data, a.rows, b, lower, transpose, unitDiag, scratch)
+            else ->
+                blockedLeftMultiply(
+                    vectorKernels, panelKernels, a.data, a.rows, b, lower, transpose, unitDiag, scratch,
+                )
         }
     }
     when {
@@ -317,7 +359,8 @@ internal fun triangularMatrix(
 }
 
 private fun blockedLeftSolve(
-    k: Kernels,
+    vectorKernels: DenseVectorKernels,
+    panelKernels: DensePanelKernels,
     triangle: DoubleArray,
     n: Int,
     b: DenseMatrix,
@@ -337,7 +380,7 @@ private fun blockedLeftSolve(
         var zeroCoefficientMasks: LongArray? = null
         for (column in 0 until nrhs) {
             val mask = trsvCore(
-                k, triangle, size, bd, start + start * n, column * n + start, n,
+                vectorKernels, panelKernels, triangle, size, bd, start + start * n, column * n + start, n,
                 lower, transpose, unitDiag,
             )
             if (mask != 0L) {
@@ -347,12 +390,12 @@ private fun blockedLeftSolve(
         }
         if (effectiveLower && end < n) {
             blockedLeftTriangularUpdate(
-                k, -1.0, triangle, n, transpose, bd, end, n - end, start, size, nrhs,
+                vectorKernels, panelKernels, -1.0, triangle, n, transpose, bd, end, n - end, start, size, nrhs,
                 zeroCoefficientMasks, sums,
             )
         } else if (!effectiveLower && start > 0) {
             blockedLeftTriangularUpdate(
-                k, -1.0, triangle, n, transpose, bd, 0, start, start, size, nrhs,
+                vectorKernels, panelKernels, -1.0, triangle, n, transpose, bd, 0, start, start, size, nrhs,
                 zeroCoefficientMasks, sums,
             )
         }
@@ -362,7 +405,8 @@ private fun blockedLeftSolve(
 
 @Suppress("LongParameterList")
 private fun blockedLeftTriangularUpdate(
-    k: Kernels,
+    vectorKernels: DenseVectorKernels,
+    panelKernels: DensePanelKernels,
     alpha: Double,
     triangle: DoubleArray,
     n: Int,
@@ -378,13 +422,13 @@ private fun blockedLeftTriangularUpdate(
 ) {
     if (transpose) {
         blockedTransposedLeftUpdate(
-            k, alpha, triangle, innerStart + rowStart * n, n,
+            panelKernels, vectorKernels, alpha, triangle, innerStart + rowStart * n, n,
             b, innerStart, n, b, rowStart, n, rowCount, columns, innerCount,
             requireNotNull(sums),
         )
     } else {
         blockedUpdate(
-            k, alpha, triangle, rowStart + innerStart * n, n,
+            panelKernels, alpha, triangle, rowStart + innerStart * n, n,
             b, innerStart, n, b, rowStart, n, rowCount, columns, innerCount,
             zeroCoefficientMasks = zeroCoefficientMasks,
         )
@@ -411,7 +455,8 @@ private fun triangleHasZero(triangle: DoubleArray, offset: Int, size: Int, lda: 
 }
 
 private fun blockedRightSolve(
-    k: Kernels,
+    vectorKernels: DenseVectorKernels,
+    panelKernels: DensePanelKernels,
     triangle: DoubleArray,
     n: Int,
     b: DenseMatrix,
@@ -431,18 +476,18 @@ private fun blockedRightSolve(
         val guardZeros = triangleHasZero(triangle, start + start * n, size, n, lower)
         forEachRow(size, b, row, start) { row ->
             trsvCore(
-                k, triangle, size, row, start + start * n, 0, n, lower, !transpose, unitDiag,
+                vectorKernels, panelKernels, triangle, size, row, start + start * n, 0, n, lower, !transpose, unitDiag,
                 guardZeroPivot = false,
                 guardZeroMatrix = guardZeros,
             )
         }
         if (effectiveLower && start > 0) {
             blockedRightTriangularUpdate(
-                k, -1.0, bd, rows, triangle, n, transpose, start, size, 0, start,
+                panelKernels, -1.0, bd, rows, triangle, n, transpose, start, size, 0, start,
             )
         } else if (!effectiveLower && end < n) {
             blockedRightTriangularUpdate(
-                k, -1.0, bd, rows, triangle, n, transpose, start, size, end, n - end,
+                panelKernels, -1.0, bd, rows, triangle, n, transpose, start, size, end, n - end,
             )
         }
         boundary = if (effectiveLower) start else end
@@ -450,7 +495,8 @@ private fun blockedRightSolve(
 }
 
 private fun blockedLeftMultiply(
-    k: Kernels,
+    vectorKernels: DenseVectorKernels,
+    panelKernels: DensePanelKernels,
     triangle: DoubleArray,
     n: Int,
     b: DenseMatrix,
@@ -469,15 +515,19 @@ private fun blockedLeftMultiply(
         val size = end - start
         for (column in 0 until nrhs) {
             trmvCore(
-                k, triangle, size, bd, start + start * n, column * n + start, n,
+                vectorKernels, panelKernels, triangle, size, bd, start + start * n, column * n + start, n,
                 lower, transpose, unitDiag,
             )
         }
         if (effectiveLower && start > 0) {
-            blockedLeftTriangularUpdate(k, 1.0, triangle, n, transpose, bd, start, size, 0, start, nrhs, sums = sums)
+            blockedLeftTriangularUpdate(
+                vectorKernels, panelKernels, 1.0, triangle, n, transpose, bd,
+                start, size, 0, start, nrhs, sums = sums,
+            )
         } else if (!effectiveLower && end < n) {
             blockedLeftTriangularUpdate(
-                k, 1.0, triangle, n, transpose, bd, start, size, end, n - end, nrhs, sums = sums,
+                vectorKernels, panelKernels, 1.0, triangle, n, transpose, bd,
+                start, size, end, n - end, nrhs, sums = sums,
             )
         }
         boundary = if (effectiveLower) start else end
@@ -485,7 +535,8 @@ private fun blockedLeftMultiply(
 }
 
 private fun blockedRightMultiply(
-    k: Kernels,
+    vectorKernels: DenseVectorKernels,
+    panelKernels: DensePanelKernels,
     triangle: DoubleArray,
     n: Int,
     b: DenseMatrix,
@@ -504,17 +555,19 @@ private fun blockedRightMultiply(
         val guardZeros = triangleHasZero(triangle, start + start * n, size, n, lower)
         forEachRow(size, b, row, start) { row ->
             trmvCore(
-                k, triangle, size, row, start + start * n, 0, n, lower, !transpose, unitDiag,
+                vectorKernels, panelKernels, triangle, size, row, start + start * n, 0, n, lower, !transpose, unitDiag,
                 guardZeroInput = false,
                 guardZeroMatrix = guardZeros,
             )
         }
         if (effectiveLower && end < n) {
             blockedRightTriangularUpdate(
-                k, 1.0, bd, b.rows, triangle, n, transpose, end, n - end, start, size,
+                panelKernels, 1.0, bd, b.rows, triangle, n, transpose, end, n - end, start, size,
             )
         } else if (!effectiveLower && start > 0) {
-            blockedRightTriangularUpdate(k, 1.0, bd, b.rows, triangle, n, transpose, 0, start, start, size)
+            blockedRightTriangularUpdate(
+                panelKernels, 1.0, bd, b.rows, triangle, n, transpose, 0, start, start, size,
+            )
         }
         boundary = if (effectiveLower) end else start
     }
@@ -533,7 +586,8 @@ private fun blockedRightMultiply(
  */
 @Suppress("LongParameterList")
 internal fun trsmCore(
-    k: Kernels,
+    vectorKernels: DenseVectorKernels,
+    panelKernels: DensePanelKernels,
     a: DoubleArray,
     n: Int,
     b: DoubleArray,
@@ -545,14 +599,19 @@ internal fun trsmCore(
 ) {
     if (nrhs < REFERENCE_NC || n < TRSM_BLOCKED_MIN_ORDER) {
         for (column in 0 until nrhs) {
-            trsvCore(k, a, n, b, xOff = column * n, lower = lower, transpose = transpose, unitDiag = unitDiag)
+            trsvCore(
+                vectorKernels, panelKernels, a, n, b,
+                xOff = column * n, lower = lower, transpose = transpose, unitDiag = unitDiag,
+            )
         }
         return
     }
     val panel = DenseMatrix.wrap(n, nrhs, b)
     if (transpose) {
-        workspace.borrow(4) { sums -> blockedLeftSolve(k, a, n, panel, lower, transpose, unitDiag, sums) }
+        workspace.borrow(4) { sums ->
+            blockedLeftSolve(vectorKernels, panelKernels, a, n, panel, lower, transpose, unitDiag, sums)
+        }
     } else {
-        blockedLeftSolve(k, a, n, panel, lower, transpose, unitDiag, null)
+        blockedLeftSolve(vectorKernels, panelKernels, a, n, panel, lower, transpose, unitDiag, null)
     }
 }

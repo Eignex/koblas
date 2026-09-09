@@ -1,8 +1,10 @@
 package com.eignex.koblas
 
 import com.eignex.koblas.dense.CKernels
-import com.eignex.koblas.dense.ScalarKernels
 import com.eignex.koblas.dense.SimdKernels
+import com.eignex.koblas.dense.cDenseKernelFamilies
+import com.eignex.koblas.dense.scalarDenseKernelFamilies
+import com.eignex.koblas.dense.simdDenseKernelFamilies
 import com.eignex.koblas.sparse.CSparseKernels
 import com.eignex.koblas.sparse.ScalarSparseKernels
 import com.eignex.koblas.sparse.SimdSparseKernels
@@ -11,13 +13,30 @@ import com.eignex.koblas.sparse.SimdSparseKernels
 @ExperimentalKoblasApi
 public actual object BuiltinKernels {
     private val scalarProvider by lazy {
-        BuiltinKernelProvider(ScalarKernels, ScalarSparseKernels)
+        BuiltinKernelProvider(
+            scalarDenseKernelFamilies,
+            ScalarSparseKernels,
+        )
     }
     private val cProvider by lazy {
-        if (CKernels.isAvailable) BuiltinKernelProvider(CKernels, CSparseKernels) else null
+        if (CKernels.isAvailable) {
+            BuiltinKernelProvider(
+                cDenseKernelFamilies,
+                CSparseKernels,
+            )
+        } else {
+            null
+        }
     }
     private val simdProvider by lazy {
-        if (SimdKernels.isAvailable) BuiltinKernelProvider(SimdKernels, SimdSparseKernels) else null
+        if (SimdKernels.isAvailable) {
+            BuiltinKernelProvider(
+                simdDenseKernelFamilies,
+                SimdSparseKernels,
+            )
+        } else {
+            null
+        }
     }
 
     /** Pure Kotlin scalar dense kernels and reference sparse kernels. */

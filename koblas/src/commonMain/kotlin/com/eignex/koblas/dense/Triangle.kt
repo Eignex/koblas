@@ -1,7 +1,7 @@
 package com.eignex.koblas.dense
 
 /** `v = beta * v` over the [len] entries from [off], honoring the `beta == 0` overwrite convention. */
-internal fun applyBeta(k: Kernels, v: DoubleArray, off: Int, len: Int, beta: Double) {
+internal fun applyBeta(k: DenseVectorKernels, v: DoubleArray, off: Int, len: Int, beta: Double) {
     when {
         beta == 0.0 -> v.fill(0.0, off, off + len)
         beta != 1.0 -> k.scale(v, off, beta, len)
@@ -14,7 +14,7 @@ internal fun applyBeta(k: Kernels, v: DoubleArray, off: Int, len: Int, beta: Dou
  * `0 * infinity` remains a NaN as it is in the reference parent routine.
  */
 internal fun axpyArithmetic(
-    k: Kernels,
+    k: DensePanelKernels,
     y: DoubleArray,
     yOff: Int,
     alpha: Double,
@@ -22,17 +22,11 @@ internal fun axpyArithmetic(
     xOff: Int,
     len: Int,
 ) {
-    if (alpha != 0.0) {
-        k.axpy(y, yOff, alpha, x, xOff, len)
-    } else if (k is ArithmeticKernels) {
-        k.axpyArithmetic(y, yOff, alpha, x, xOff, len)
-    } else {
-        for (i in 0 until len) y[yOff + i] += alpha * x[xOff + i]
-    }
+    k.axpyArithmetic(y, yOff, alpha, x, xOff, len)
 }
 
 /** Scale the selected triangle by [beta], honoring the `beta == 0` overwrite convention. */
-internal fun scaleTriangle(k: Kernels, cd: DoubleArray, n: Int, beta: Double, lower: Boolean) {
+internal fun scaleTriangle(k: DenseVectorKernels, cd: DoubleArray, n: Int, beta: Double, lower: Boolean) {
     if (beta == 1.0) return
     for (j in 0 until n) {
         val from = if (lower) j + j * n else j * n

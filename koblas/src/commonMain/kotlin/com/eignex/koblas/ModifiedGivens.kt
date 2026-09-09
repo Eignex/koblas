@@ -43,7 +43,8 @@ public class ModifiedGivens internal constructor(
  * [d1] clears the returned state, and `d2 * y1 == 0.0` returns the identity (`flag == -2.0`) without changing
  * that state.
  */
-public fun rotmg(d1: Double, d2: Double, x1: Double, y1: Double): ModifiedGivens = koblas.kernels.rotmg(d1, d2, x1, y1)
+public fun rotmg(d1: Double, d2: Double, x1: Double, y1: Double): ModifiedGivens =
+    koblas.denseKernelFamilies.vector.rotmg(d1, d2, x1, y1)
 
 /** Portable Netlib-reference implementation used by the scalar and fallback kernel backends. */
 @Suppress("CyclomaticComplexMethod") // literal translation of the four Netlib DROTMG cases
@@ -185,7 +186,7 @@ public fun rotm(x: StridedVectorView, y: StridedVectorView, transformation: Modi
         for (i in 0 until x.size) x[i] = snapshotX[i]
         for (i in 0 until y.size) y[i] = snapshotY[i]
     } else {
-        koblas.kernels.rotm(
+        koblas.denseKernelFamilies.vector.rotm(
             x.data,
             x.offset,
             x.stride,

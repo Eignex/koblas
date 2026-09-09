@@ -1,23 +1,34 @@
 package com.eignex.koblas
 
-import com.eignex.koblas.dense.Kernels
+import com.eignex.koblas.dense.DenseKernelFamilies
+import com.eignex.koblas.dense.DensePanelKernels
+import com.eignex.koblas.dense.DenseVectorKernels
+import com.eignex.koblas.dense.PackedKernels
 import com.eignex.koblas.sparse.SparseKernels
 
-/** An exact built-in dense and sparse level-1 implementation pair. */
+/** An exact built-in dense and sparse implementation composition. */
 @ExperimentalKoblasApi
 public class BuiltinKernelProvider internal constructor(
-    /** Dense level-1 kernels. */
-    public val kernels: Kernels,
+    internal val denseKernelFamilies: DenseKernelFamilies,
     /** Sparse level-1 kernels. */
     public val sparseKernels: SparseKernels,
-)
+) {
+    /** Standalone contiguous dense-vector kernels. */
+    public val vectorKernels: DenseVectorKernels get() = denseKernelFamilies.vector
+
+    /** Dense matrix-panel arithmetic kernels. */
+    public val panelKernels: DensePanelKernels get() = denseKernelFamilies.panel
+
+    /** Packed layout shape and tile arithmetic kernels. */
+    public val packedKernels: PackedKernels get() = denseKernelFamilies.packed
+}
 
 /** Creates an immutable engine using exactly this built-in kernel pair. */
 @ExperimentalKoblasApi
-public fun BuiltinKernelProvider.engine(): KoblasContext = KoblasContext(kernels, sparseKernels)
+public fun BuiltinKernelProvider.engine(): KoblasContext = KoblasContext(denseKernelFamilies, sparseKernels)
 
 /**
- * Built-in level-1 providers for explicit [KoblasContext] configuration and implementation comparisons.
+ * Built-in providers for explicit [KoblasContext] construction and implementation comparisons.
  * A platform-specific provider is null when that implementation cannot run in the current process.
  */
 @ExperimentalKoblasApi

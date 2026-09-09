@@ -11,7 +11,7 @@ internal const val PORTABLE_TILE: Int = 4
 /**
  * The portable tile: four rows by four columns held in sixteen scalar accumulators.
  *
- * This is what [Kernels.gemmTile] runs where a target has nothing better. Separate locals let a compiler
+ * This is what [PackedKernels.gemmTile] runs where a target has nothing better. Separate locals let a compiler
  * keep the tile in registers; an accumulator array would put it back in memory.
  */
 @Suppress("LongParameterList") // two packed panels, a destination tile, and the shared depth

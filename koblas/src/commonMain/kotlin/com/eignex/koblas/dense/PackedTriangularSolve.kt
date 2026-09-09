@@ -47,11 +47,11 @@ internal fun packedTrsmSupports(a: DenseMatrix, b: DenseMatrix, lower: Boolean, 
 
 /**
  * Normalizes every BLAS side/transpose variant to X * T = B, packs both matrices once, then walks
- * [Kernels.gemmTrsmTile] between packed diagonal solves.
+ * [PackedKernels.gemmTrsmTile] between packed diagonal solves.
  */
 @Suppress("LongParameterList") // BLAS flags plus the two matrix operands and workspace
 internal fun packedTrsmCore(
-    kernels: Kernels,
+    kernels: PackedKernels,
     a: DenseMatrix,
     b: DenseMatrix,
     lower: Boolean,

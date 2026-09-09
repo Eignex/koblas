@@ -38,7 +38,7 @@ internal fun packedTrmmSupports(a: DenseMatrix, b: DenseMatrix, lower: Boolean, 
 /** Packs both immutable inputs, then evaluates only each triangular output tile's live depth range. */
 @Suppress("LongParameterList") // BLAS flags plus the two operands and scratch
 internal fun packedTrmmCore(
-    kernels: Kernels,
+    kernels: PackedKernels,
     a: DenseMatrix,
     b: DenseMatrix,
     lower: Boolean,
@@ -110,7 +110,7 @@ internal fun packedTrmmCore(
 }
 
 private fun packedRightTrmm(
-    kernels: Kernels,
+    kernels: PackedKernels,
     packedSource: DoubleArray,
     packedTriangle: DoubleArray,
     destination: DenseMatrix,
@@ -143,7 +143,7 @@ private fun packedRightTrmm(
 }
 
 private fun packedLeftTrmm(
-    kernels: Kernels,
+    kernels: PackedKernels,
     packedTriangle: DoubleArray,
     packedSource: DoubleArray,
     destination: DenseMatrix,
@@ -177,7 +177,7 @@ private fun packedLeftTrmm(
 
 @Suppress("LongParameterList") // one packed product tile, its destination edge and scratch
 private fun addPackedTile(
-    kernels: Kernels,
+    kernels: PackedKernels,
     depth: Int,
     packedA: DoubleArray,
     aOffset: Int,

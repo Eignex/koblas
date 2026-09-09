@@ -6,7 +6,7 @@ import kotlin.math.min
 
 /*
  * The packed matrix product: both operands are copied into panels laid out in the order the kernel reads
- * them, and a tile of C is accumulated in [Kernels.gemmTile].
+ * them, and a tile of C is accumulated in [PackedKernels.gemmTile].
  *
  * This is the whole of the matrix product, for every shape and every target. What it replaced was built
  * out of AXPY calls, so a block of C was read and written once for every step of the shared dimension.
@@ -33,7 +33,7 @@ import kotlin.math.min
  */
 @Suppress("LongParameterList") // both operands, both transpose flags, three dimensions and the scratch
 internal fun packedGemm(
-    kernels: Kernels,
+    kernels: PackedKernels,
     alpha: Double,
     a: DoubleArray,
     lda: Int,
@@ -60,7 +60,7 @@ internal fun packedGemm(
  */
 @Suppress("LongParameterList") // both operands, both transpose flags, three dimensions and the scratch
 internal fun packedTriangularGemm(
-    kernels: Kernels,
+    kernels: PackedKernels,
     alpha: Double,
     a: DoubleArray,
     lda: Int,
@@ -81,7 +81,7 @@ internal fun packedTriangularGemm(
 /** Shared blocking for rectangular and triangular packed products. */
 @Suppress("LongParameterList") // both operands, both transpose flags, three dimensions and the scratch
 private fun packedProduct(
-    kernels: Kernels,
+    kernels: PackedKernels,
     alpha: Double,
     a: DoubleArray,
     lda: Int,
@@ -243,7 +243,7 @@ private fun packB(
  */
 @Suppress("LongParameterList") // both panels, the destination with its window, and the scratch tile
 private fun macroKernel(
-    kernels: Kernels,
+    kernels: PackedKernels,
     packedA: DoubleArray,
     packedB: DoubleArray,
     c: DoubleArray,

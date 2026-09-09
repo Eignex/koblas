@@ -184,7 +184,8 @@ internal object DenseTuning {
     val jvmCDotAxpyCrossover: Int = tuned("jvm.c.dot.axpy.crossover", default = 256)
 
     /**
-     * Smallest symmetric order that shares four adjacent columns across [Kernels.dot4] and [Kernels.axpy4].
+     * Smallest symmetric order that shares four adjacent columns across [DensePanelKernels.dot4] and
+     * [DensePanelKernels.axpy4].
      * Below this point the extra pass over the stored triangle costs more than the saved vector traffic.
      */
     val symvFourColumnCrossover: Int = tuned("symv.four.column.crossover", default = 512)
