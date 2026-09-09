@@ -43,7 +43,7 @@ class SparseProductHostBenchmark {
     private lateinit var triangularProduct: DenseMatrix
     private lateinit var triangularSolve: DenseMatrix
     private lateinit var triangularProductRight: DenseMatrix
-    private lateinit var prepared: F64PreparedSparseMatrix
+    private lateinit var prepared: PreparedSparseMatrix
     private var externalPrepared: PreparedSparseComparator? = null
     private var externalPreparedSquare: PreparedSparseComparator? = null
     private var externalTriangle: PreparedSparseComparator? = null

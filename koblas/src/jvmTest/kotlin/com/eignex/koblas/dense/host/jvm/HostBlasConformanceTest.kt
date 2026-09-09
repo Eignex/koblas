@@ -20,7 +20,7 @@ class HostBlasConformanceTest {
     @Test
     fun `the host BLAS consumes strided views in place`() {
         requireCblas()
-        assertStridedProductsAgreeWithReference(F64Cblas(HostBlasConfig()))
+        assertStridedProductsAgreeWithReference(OpenBlas(HostBlasConfig()))
     }
 
     @Test
@@ -40,28 +40,28 @@ class HostBlasConformanceTest {
     @Test
     fun `the gated level 2 and 3 routines match reference`() {
         requireCblas()
-        assertTriangularAgreesWithReference(F64Cblas(), intArrayOf(1, 5, 12, 24))
-        assertGerAgreesWithReference(F64Cblas())
-        assertSyrAgreesWithReference(F64Cblas())
-        assertSyr2kAgreesWithReference(F64Cblas(), intArrayOf(1, 5, 12, 24))
+        assertTriangularAgreesWithReference(OpenBlas(), intArrayOf(1, 5, 12, 24))
+        assertGerAgreesWithReference(OpenBlas())
+        assertSyrAgreesWithReference(OpenBlas())
+        assertSyr2kAgreesWithReference(OpenBlas(), intArrayOf(1, 5, 12, 24))
     }
 
     @Test
     fun `symv refuses a non-square matrix`() {
         requireCblas()
-        assertSymvRefusesNonSquare(F64Cblas())
+        assertSymvRefusesNonSquare(OpenBlas())
     }
 
     @Test
     fun `level 3 matches reference at blocked sizes`() {
         requireCblas()
-        assertLevel3AgreesWithReference(F64Cblas(), intArrayOf(7, 64, 256))
+        assertLevel3AgreesWithReference(OpenBlas(), intArrayOf(7, 64, 256))
     }
 
     @Test
     fun `the level 2 and 3 products match reference at moderate sizes`() {
         requireCblas()
-        val host = F64Cblas()
+        val host = OpenBlas()
         assertGemvAgreesWithReference(host, intArrayOf(18, 64))
         assertGemmAgreesWithReference(host, intArrayOf(18, 64))
         assertSyrkAgreesWithReference(host, intArrayOf(18, 64))
@@ -73,7 +73,7 @@ class HostBlasConformanceTest {
     @Test
     fun `the level 2 and 3 products match reference at small sizes`() {
         requireCblas()
-        val host = F64Cblas()
+        val host = OpenBlas()
         assertGemvAgreesWithReference(host, intArrayOf(7))
         assertGemmAgreesWithReference(host, intArrayOf(6))
         assertSyrkAgreesWithReference(host, intArrayOf(6))
@@ -85,12 +85,12 @@ class HostBlasConformanceTest {
     @Test
     fun `degenerate shapes follow BLAS quick returns`() {
         requireCblas()
-        assertDegenerateShapesFollowBlasQuickReturns(F64Cblas())
+        assertDegenerateShapesFollowBlasQuickReturns(OpenBlas())
     }
 
     @Test
     fun `the binding constructs and reports unavailable without the library`() {
-        val backend = F64Cblas(HostBlasConfig(libraryPath = MISSING_LIBRARY))
+        val backend = OpenBlas(HostBlasConfig(libraryPath = MISSING_LIBRARY))
         assertFalse(backend.isAvailable, "a library that is not on this host cannot be available")
     }
 

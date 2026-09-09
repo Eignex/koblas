@@ -7,7 +7,7 @@ package com.eignex.koblas.dense.host
  *
  * Contiguous calls pass an array from its start. Strided view overloads additionally advance the native
  * pointer by an element offset; leading dimensions and increments remain separate arguments, as in CBLAS
- * itself. An implementation must not copy, since [F64BlasAdapter] relies on the library writing through to
+ * itself. An implementation must not copy, since [BlasAdapter] relies on the library writing through to
  * the caller's arrays.
  */
 @Suppress("LongParameterList", "TooManyFunctions") // the CBLAS signatures, one method each

@@ -13,7 +13,7 @@ class PortableSparseFactorsTest {
         for (n in intArrayOf(1, 5, 24, 60)) {
             val a = sparseDominantSystem(n, rng)
 
-            assertLuFactorsReproduce(a, F64ReferenceSparseLinearAlgebra.factor(a), "n=$n")
+            assertLuFactorsReproduce(a, ReferenceSparseLinearAlgebra.factor(a), "n=$n")
         }
     }
 
@@ -22,7 +22,7 @@ class PortableSparseFactorsTest {
         val rng = Random(20260901)
         val a = sparseDominantSystem(30, rng)
 
-        val lu = F64ReferenceSparseDecompositions(equilibrate = true).factor(a)
+        val lu = ReferenceSparseDecompositions(equilibrate = true).factor(a)
 
         assertLuFactorsReproduce(a, lu, "equilibrated")
     }
@@ -33,7 +33,7 @@ class PortableSparseFactorsTest {
         for (n in intArrayOf(1, 6, 30)) {
             val a = sparseSymmetricConformanceSystem(n, rng)
 
-            assertCholeskyFactorReproduces(a, F64ReferenceSparseLinearAlgebra.cholesky(a), "n=$n")
+            assertCholeskyFactorReproduces(a, ReferenceSparseLinearAlgebra.cholesky(a), "n=$n")
         }
     }
 
@@ -43,7 +43,7 @@ class PortableSparseFactorsTest {
         for (n in intArrayOf(1, 6, 30)) {
             val a = sparseSymmetricConformanceSystem(n, rng)
 
-            assertLdlFactorsReproduce(a, F64ReferenceSparseLinearAlgebra.quasiDefiniteLdl(a), "n=$n")
+            assertLdlFactorsReproduce(a, ReferenceSparseLinearAlgebra.quasiDefiniteLdl(a), "n=$n")
         }
     }
 
@@ -52,7 +52,7 @@ class PortableSparseFactorsTest {
         // Column 1 repeats column 0, so no acceptable pivot remains at the second step.
         val a = SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 1.0, 1 to 2.0), listOf(0 to 1.0, 1 to 2.0)))
 
-        val lu = F64ReferenceSparseLinearAlgebra.factor(a)
+        val lu = ReferenceSparseLinearAlgebra.factor(a)
 
         assertEquals(true, lu.singular)
         assertFailsWith<com.eignex.koblas.SingularMatrix> { lu.l }
@@ -64,7 +64,7 @@ class PortableSparseFactorsTest {
     fun `a singular LDL factorization has no factors to give`() {
         val a = SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 1.0), emptyList()))
 
-        val ldl = F64ReferenceSparseLinearAlgebra.quasiDefiniteLdl(a)
+        val ldl = ReferenceSparseLinearAlgebra.quasiDefiniteLdl(a)
 
         assertEquals(true, ldl.singular)
         assertFailsWith<com.eignex.koblas.SingularMatrix> { ldl.l }

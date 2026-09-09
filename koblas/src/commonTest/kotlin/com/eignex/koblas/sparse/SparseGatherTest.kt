@@ -19,7 +19,7 @@ class SparseGatherTest {
     fun `gather takes the dense entries at the stored positions`() {
         val x = pattern()
 
-        F64ReferenceSparseLinearAlgebra.gather(x, dense())
+        ReferenceSparseLinearAlgebra.gather(x, dense())
 
         assertTrue(doubleArrayOf(2.0, 5.0).contentEquals(x.values), "gathered ${x.values.toList()}")
     }
@@ -28,7 +28,7 @@ class SparseGatherTest {
     fun `gather leaves the dense vector it read untouched`() {
         val from = dense()
 
-        F64ReferenceSparseLinearAlgebra.gather(pattern(), from)
+        ReferenceSparseLinearAlgebra.gather(pattern(), from)
 
         assertTrue(dense().contentEquals(from), "gather wrote back into its source")
     }
@@ -37,7 +37,7 @@ class SparseGatherTest {
     fun `gather keeps the pattern where the dense vector stores more`() {
         val x = pattern()
 
-        F64ReferenceSparseLinearAlgebra.gather(x, dense())
+        ReferenceSparseLinearAlgebra.gather(x, dense())
 
         assertTrue(intArrayOf(1, 4).contentEquals(x.copyIndices()), "the pattern must survive a gather")
     }
@@ -46,7 +46,7 @@ class SparseGatherTest {
     fun `gatherZero empties the dense vector at exactly the positions it read`() {
         val from = dense()
 
-        F64ReferenceSparseLinearAlgebra.gatherZero(pattern(), from)
+        ReferenceSparseLinearAlgebra.gatherZero(pattern(), from)
 
         assertTrue(
             doubleArrayOf(1.0, 0.0, 3.0, 4.0, 0.0, 6.0).contentEquals(from),
@@ -56,8 +56,8 @@ class SparseGatherTest {
 
     @Test
     fun `gatherZero takes the same values a gather would`() {
-        val gathered = pattern().also { F64ReferenceSparseLinearAlgebra.gather(it, dense()) }
-        val zeroed = pattern().also { F64ReferenceSparseLinearAlgebra.gatherZero(it, dense()) }
+        val gathered = pattern().also { ReferenceSparseLinearAlgebra.gather(it, dense()) }
+        val zeroed = pattern().also { ReferenceSparseLinearAlgebra.gatherZero(it, dense()) }
 
         assertTrue(gathered.values.contentEquals(zeroed.values), "the two gathers must agree on the values")
     }
@@ -67,9 +67,9 @@ class SparseGatherTest {
         val x = SparseVector.of(6, intArrayOf(0, 3, 5), doubleArrayOf(-1.5, 2.5, 7.0))
         val expected = x.values.copyOf()
         val dense = DoubleArray(6)
-        F64ReferenceSparseLinearAlgebra.scatter(x, dense)
+        ReferenceSparseLinearAlgebra.scatter(x, dense)
 
-        F64ReferenceSparseLinearAlgebra.gather(x, dense)
+        ReferenceSparseLinearAlgebra.gather(x, dense)
 
         assertTrue(expected.contentEquals(x.values), "round trip gave ${x.values.toList()}")
     }

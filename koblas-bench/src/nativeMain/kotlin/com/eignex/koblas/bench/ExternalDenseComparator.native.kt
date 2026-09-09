@@ -4,7 +4,7 @@ import com.eignex.koblas.*
 
 @OptIn(ExperimentalKoblasApi::class)
 internal actual fun explicitBuiltInContext(): KoblasContext {
-    val provider = F64BuiltinKernels.c ?: F64BuiltinKernels.scalar
+    val provider = BuiltinKernels.c ?: BuiltinKernels.scalar
     return ContextBuilder().withBuiltinKernels(provider).resolve()
 }
 

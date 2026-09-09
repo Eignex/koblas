@@ -2,26 +2,26 @@ package com.eignex.koblas.internal.backend
 
 import com.eignex.koblas.*
 import com.eignex.koblas.dense.*
-import com.eignex.koblas.sparse.F64ReferenceSparseLinearAlgebra
+import com.eignex.koblas.sparse.ReferenceSparseLinearAlgebra
 import kotlin.test.*
 
 class BackendAvailabilityTest {
 
     /** A half that reports itself unusable, which is what a binding does when its library did not resolve. */
-    private class UnavailableHost(override val name: String) : Blas by F64ReferenceBlas {
+    private class UnavailableHost(override val name: String) : Blas by ReferenceBlas {
         override val priority: Int get() = HOST_BACKEND_PRIORITY
         override val isPortable: Boolean get() = false
         override val isAvailable: Boolean get() = false
         override val unavailableReason: String? get() = "$name did not resolve"
-        override val kernels: Kernels get() = F64ReferenceBlas.kernels
+        override val kernels: Kernels get() = ReferenceBlas.kernels
     }
 
     @Test
     fun `the built-in backends report themselves available`() {
-        assertTrue(F64ReferenceBlas.isAvailable)
+        assertTrue(ReferenceBlas.isAvailable)
         assertTrue(ReferenceBackend().isAvailable)
-        assertTrue(F64ReferenceSparseLinearAlgebra.isAvailable)
-        assertTrue(F64ReferenceBlas.kernels.isAvailable, "the compiled-in kernels always run")
+        assertTrue(ReferenceSparseLinearAlgebra.isAvailable)
+        assertTrue(ReferenceBlas.kernels.isAvailable, "the compiled-in kernels always run")
     }
 
     @Test
@@ -39,7 +39,7 @@ class BackendAvailabilityTest {
             override val name: String get() = "plain"
         }
         assertNull(plain.unavailableReason)
-        assertNull(F64ReferenceBlas.unavailableReason, "koblas's own halves always run")
+        assertNull(ReferenceBlas.unavailableReason, "koblas's own halves always run")
     }
 
     @Test

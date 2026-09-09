@@ -7,13 +7,13 @@ import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.UnsafeKoblasApi
 import com.eignex.koblas.internal.backend.BackendNames
 import com.eignex.koblas.requireShape
-import com.eignex.koblas.sparse.F64GeneralSparseLu
-import com.eignex.koblas.sparse.F64SingularSparseFactorization
-import com.eignex.koblas.sparse.F64SparseLuFactorization
+import com.eignex.koblas.sparse.GeneralSparseLu
+import com.eignex.koblas.sparse.SingularSparseFactorization
+import com.eignex.koblas.sparse.SparseLuFactorization
 import com.eignex.koblas.sparse.basis.BasisSolver
-import com.eignex.koblas.sparse.basis.F64BasisSolvers
-import com.eignex.koblas.sparse.basis.F64ProductFormBasisSolver
-import com.eignex.koblas.sparse.host.F64SparseDecompositionsAdapter
+import com.eignex.koblas.sparse.basis.BasisSolvers
+import com.eignex.koblas.sparse.basis.ProductFormBasisSolver
+import com.eignex.koblas.sparse.host.SparseDecompositionsAdapter
 import com.eignex.koblas.sparse.host.f64EquilibrationScale
 import com.eignex.koblas.sparse.host.f64ScaledValues
 
@@ -30,12 +30,12 @@ import com.eignex.koblas.sparse.host.f64ScaledValues
 public open class HfactorSparseLu(
     /** Policy for this backend instance. */
     public val config: HfactorConfig = HfactorConfig(),
-) : F64SparseDecompositionsAdapter(
+) : SparseDecompositionsAdapter(
     equilibrate = config.equilibrate,
     metadata = BackendMetadata(options = config.options.metadataOptions()),
 ),
-    F64GeneralSparseLu,
-    F64BasisSolvers {
+    GeneralSparseLu,
+    BasisSolvers {
     private val calls = HfactorCalls(config)
 
     override val name: String get() = BackendNames.HFACTOR
@@ -54,13 +54,13 @@ public open class HfactorSparseLu(
      * model before the simplex ever reaches HFactor and hands it an already-scaled matrix, and the adapter
      * does the same here. Every call reaches HFactor whatever the flag says.
      */
-    final override fun factorNative(a: SparseMatrix): F64SparseLuFactorization {
+    final override fun factorNative(a: SparseMatrix): SparseLuFactorization {
         val handle = calls.create(a.rows, a.cols, a.copyColumnPointers(), a.copyRowIndices(), a.values)
-            ?: return F64SingularSparseFactorization(a.rows, SINGULAR_POSITION_UNKNOWN)
+            ?: return SingularSparseFactorization(a.rows, SINGULAR_POSITION_UNKNOWN)
         // A square matrix is its own basis, slot t holding column t.
         if (calls.build(handle, IntArray(a.rows) { it }) != 0) {
             calls.free(handle)
-            return F64SingularSparseFactorization(a.rows, SINGULAR_POSITION_UNKNOWN)
+            return SingularSparseFactorization(a.rows, SINGULAR_POSITION_UNKNOWN)
         }
         return HfactorFactorization(a.rows, calls, handle)
     }
@@ -82,10 +82,10 @@ public open class HfactorSparseLu(
      */
     override fun basisSolver(a: SparseMatrix): BasisSolver {
         requireShape(a.rows <= a.cols) { "a basis needs ${a.rows} columns to choose from; a has ${a.cols}" }
-        if (!nativeAvailable) return F64ProductFormBasisSolver(a, this)
+        if (!nativeAvailable) return ProductFormBasisSolver(a, this)
         val scale = equilibrationOf(a)
         val handle = calls.create(a.rows, a.cols, a.copyColumnPointers(), a.copyRowIndices(), scaledValues(a, scale))
-            ?: return F64ProductFormBasisSolver(a, this)
+            ?: return ProductFormBasisSolver(a, this)
         return HfactorBasisSolver(a, calls, handle, scale)
     }
 }

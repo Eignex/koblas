@@ -38,7 +38,7 @@ public interface Blas : Backend {
     @Suppress("LongParameterList") // the BLAS dgemv signature
     public fun gemv(
         alpha: Double,
-        a: F64StridedMatrixView,
+        a: StridedMatrixView,
         x: StridedVectorView,
         beta: Double,
         y: StridedVectorView,
@@ -72,7 +72,7 @@ public interface Blas : Backend {
     }
 
     /** [gemv] over borrowed storage into a fresh owned array. */
-    public fun gemv(a: F64StridedMatrixView, x: StridedVectorView, transpose: Boolean = false): DoubleArray {
+    public fun gemv(a: StridedMatrixView, x: StridedVectorView, transpose: Boolean = false): DoubleArray {
         val result = DoubleArray(if (transpose) a.cols else a.rows)
         gemv(1.0, a, x, 0.0, StridedVectorView(result, 0, result.size), transpose)
         return result
@@ -115,12 +115,12 @@ public interface Blas : Backend {
     @Suppress("LongParameterList") // the BLAS dgemm signature
     public fun gemm(
         alpha: Double,
-        a: F64StridedMatrixView,
+        a: StridedMatrixView,
         transposeA: Boolean,
-        b: F64StridedMatrixView,
+        b: StridedMatrixView,
         transposeB: Boolean,
         beta: Double,
-        c: F64StridedMatrixView,
+        c: StridedMatrixView,
     ) {
         val (m, k, n) = requireGemmShape(a, transposeA, b, transposeB, c)
         require(!c.overlaps(a) && !c.overlaps(b)) { "gemm: destination overlaps an input view" }
@@ -156,7 +156,7 @@ public interface Blas : Backend {
     }
 
     /** [gemm] over borrowed panels into a fresh owned matrix. */
-    public fun gemm(a: F64StridedMatrixView, b: F64StridedMatrixView): DenseMatrix {
+    public fun gemm(a: StridedMatrixView, b: StridedMatrixView): DenseMatrix {
         val result = DenseMatrix.zero(a.rows, b.cols)
         gemm(1.0, a, false, b, false, 0.0, result.asView())
         return result

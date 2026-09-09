@@ -1,6 +1,6 @@
 package com.eignex.koblas.hfactor
 
-import com.eignex.koblas.F64BundledBackend
+import com.eignex.koblas.BundledBackend
 import com.eignex.koblas.HOST_BACKEND_PRIORITY
 import com.eignex.koblas.sparse.host.hfactor.HfactorConfig
 import com.eignex.koblas.sparse.host.hfactor.HfactorOptions
@@ -16,7 +16,7 @@ import com.eignex.koblas.sparse.host.hfactor.HfactorSparseLu
  */
 class BundledHfactor private constructor(config: HfactorConfig) :
     HfactorSparseLu(config),
-    F64BundledBackend {
+    BundledBackend {
     /** Creates bundled HFactor with default options. */
     constructor() : this(HfactorOptions())
 

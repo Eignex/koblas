@@ -6,7 +6,7 @@ import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.assertClose
 import com.eignex.koblas.koblas
 import com.eignex.koblas.randomVector
-import com.eignex.koblas.sparse.F64ReferenceSparseLinearAlgebra
+import com.eignex.koblas.sparse.ReferenceSparseLinearAlgebra
 import com.eignex.koblas.sparse.cholesky
 import kotlin.random.Random
 import kotlin.test.Test
@@ -64,7 +64,7 @@ class SparseCholeskyTest {
         val n = 9
         val (sparse, dense) = spd(n, rng)
 
-        val l = (F64ReferenceSparseLinearAlgebra.cholesky(sparse) as F64SparseUpLookingCholesky).l
+        val l = (ReferenceSparseLinearAlgebra.cholesky(sparse) as SparseUpLookingCholesky).l
 
         for (j in 0 until n) {
             for (i in j until n) {
@@ -81,7 +81,7 @@ class SparseCholeskyTest {
         val n = 8
         val (sparse, _) = spd(n, rng)
 
-        val l = (F64ReferenceSparseLinearAlgebra.cholesky(sparse) as F64SparseUpLookingCholesky).l
+        val l = (ReferenceSparseLinearAlgebra.cholesky(sparse) as SparseUpLookingCholesky).l
 
         for (j in 0 until n) {
             var aboveDiagonal = 0
@@ -132,7 +132,7 @@ class SparseCholeskyTest {
         val n = 5
         val identity = SparseMatrix.ofColumns(n, n, List(n) { j -> listOf(j to 1.0) })
 
-        val f = F64ReferenceSparseLinearAlgebra.cholesky(identity)
+        val f = ReferenceSparseLinearAlgebra.cholesky(identity)
 
         assertEquals(n, f.nnz, "an identity should fill nowhere")
         assertEquals(1.0, f.rcond)
@@ -175,7 +175,7 @@ class SparseCholeskyTest {
         }
         val arrow = SparseMatrix.ofColumns(n, n, columns)
 
-        val f = F64ReferenceSparseLinearAlgebra.cholesky(arrow)
+        val f = ReferenceSparseLinearAlgebra.cholesky(arrow)
 
         assertEquals(
             f.nnz,

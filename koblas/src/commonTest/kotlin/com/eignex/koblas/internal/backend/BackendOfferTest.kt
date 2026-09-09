@@ -4,11 +4,11 @@ import com.eignex.koblas.BackendRole
 import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.koblas
 import com.eignex.koblas.registeredBackendNames
-import com.eignex.koblas.sparse.F64GeneralSparseLu
-import com.eignex.koblas.sparse.F64ReferenceSparseLinearAlgebra
-import com.eignex.koblas.sparse.F64RepeatedSparseLu
-import com.eignex.koblas.sparse.F64SparseLuFactorization
+import com.eignex.koblas.sparse.GeneralSparseLu
+import com.eignex.koblas.sparse.ReferenceSparseLinearAlgebra
+import com.eignex.koblas.sparse.RepeatedSparseLu
 import com.eignex.koblas.sparse.SparseLapack
+import com.eignex.koblas.sparse.SparseLuFactorization
 import com.eignex.koblas.withCleanBackends
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -22,14 +22,14 @@ class BackendOfferTest {
 
     /** A host library whose ordinary LU is its repeated-pattern specialization's. */
     private class Specialized(override val name: String = "specialized") :
-        SparseLapack by F64ReferenceSparseLinearAlgebra,
-        F64GeneralSparseLu,
-        F64RepeatedSparseLu {
+        SparseLapack by ReferenceSparseLinearAlgebra,
+        GeneralSparseLu,
+        RepeatedSparseLu {
         override val priority: Int get() = 50
         override val isPortable: Boolean get() = false
         override val isAvailable: Boolean get() = true
 
-        override fun refactor(previous: F64SparseLuFactorization, a: SparseMatrix): F64SparseLuFactorization = factor(a)
+        override fun refactor(previous: SparseLuFactorization, a: SparseMatrix): SparseLuFactorization = factor(a)
     }
 
     private fun unpinned(): Map<BackendSlot, String?> = BackendSlot.entries.associateWith { null }
@@ -37,7 +37,7 @@ class BackendOfferTest {
     @Test
     fun `a half pinned to a specialized provider is filled by it`() = withCleanBackends {
         val specialized = Specialized()
-        val pinned = unpinned() + (BackendSlot.F64GeneralSparseLu to "specialized")
+        val pinned = unpinned() + (BackendSlot.GeneralSparseLu to "specialized")
 
         registerIfOffered(specialized, pinned)
 
@@ -60,7 +60,7 @@ class BackendOfferTest {
     @Test
     fun `a half pinned to a backend that does not implement it stays unfilled`() = withCleanBackends {
         val specialized = Specialized()
-        val pinned = unpinned() + (BackendSlot.F64SparseCholesky to "specialized")
+        val pinned = unpinned() + (BackendSlot.SparseCholesky to "specialized")
 
         registerIfOffered(specialized, pinned)
 
@@ -72,10 +72,10 @@ class BackendOfferTest {
     fun `an offer names only the halves the pin named`() {
         val offered = offerFor(
             namedProvider("specialized"),
-            unpinned() + (BackendSlot.F64GeneralSparseLu to "specialized"),
+            unpinned() + (BackendSlot.GeneralSparseLu to "specialized"),
         )
 
-        assertEquals(setOf(BackendSlot.F64GeneralSparseLu), offered.named)
+        assertEquals(setOf(BackendSlot.GeneralSparseLu), offered.named)
         assertEquals(BackendSlot.entries.toSet(), offered.halves, "the rest were left to it")
     }
 }

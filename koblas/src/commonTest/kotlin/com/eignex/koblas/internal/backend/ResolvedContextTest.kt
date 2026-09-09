@@ -13,7 +13,7 @@ import kotlin.test.assertNotNull
  */
 class ResolvedContextTest {
 
-    private class BlasHalf(override val name: String) : Blas by F64ReferenceBlas {
+    private class BlasHalf(override val name: String) : Blas by ReferenceBlas {
         override val priority: Int get() = 40
         override val isPortable: Boolean get() = false
         override val isAvailable: Boolean get() = true

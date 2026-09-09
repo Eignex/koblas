@@ -211,7 +211,7 @@ class AdapterBorrowTest {
         ) = error("unused")
     }
 
-    private class FailingAdapter(private val available: Boolean = true) : F64BlasAdapter(FailingSyrk()) {
+    private class FailingAdapter(private val available: Boolean = true) : BlasAdapter(FailingSyrk()) {
         override val name: String get() = "failing-syrk"
         override val isAvailable: Boolean get() = available
     }
@@ -220,8 +220,8 @@ class AdapterBorrowTest {
     fun `dense routes report selected native backends`() {
         val adapter = FailingAdapter()
 
-        val gemv = adapter.route(F64RouteQuery.DenseGemv(15, 100))!!
-        val gemm = adapter.route(F64RouteQuery.DenseGemm(64, 2, 4))!!
+        val gemv = adapter.route(RouteQuery.DenseGemv(15, 100))!!
+        val gemm = adapter.route(RouteQuery.DenseGemm(64, 2, 4))!!
 
         assertEquals(BackendRouteReason.NATIVE_ROUTE, gemv.reason)
         assertEquals(BackendExecution.NATIVE, gemm.execution)
@@ -232,7 +232,7 @@ class AdapterBorrowTest {
     fun `dense routes report unavailable bindings`() {
         val adapter = FailingAdapter(available = false)
 
-        val unavailable = adapter.route(F64RouteQuery.DenseGemv(16, 100))!!
+        val unavailable = adapter.route(RouteQuery.DenseGemv(16, 100))!!
         assertEquals(BackendExecution.UNAVAILABLE, unavailable.execution)
         assertEquals(BackendRouteReason.BACKEND_UNAVAILABLE, unavailable.reason)
     }

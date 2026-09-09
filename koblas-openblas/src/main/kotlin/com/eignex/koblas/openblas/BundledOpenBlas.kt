@@ -1,7 +1,7 @@
 package com.eignex.koblas.openblas
 
 import com.eignex.koblas.*
-import com.eignex.koblas.F64BundledBackend
+import com.eignex.koblas.BundledBackend
 import com.eignex.koblas.dense.Blas
 import com.eignex.koblas.dense.Kernels
 import com.eignex.koblas.dense.host.cblas.HostBlasConfig
@@ -10,10 +10,10 @@ import com.eignex.koblas.dense.host.jvm.*
 import java.nio.file.Path
 
 /** CBLAS backend bundled in Maven-native resources. */
-class BundledOpenBlas private constructor(private val blas: F64Cblas) :
-    F64BundledBackend,
+class BundledOpenBlas private constructor(private val blas: OpenBlas) :
+    BundledBackend,
     Blas by blas,
-    F64RoutingBackend,
+    RoutingBackend,
     BackendMetadataProvider {
 
     /** Creates an OpenBLAS backend from bundled native resources with default options. */
@@ -33,12 +33,12 @@ class BundledOpenBlas private constructor(private val blas: F64Cblas) :
     override val kernels: Kernels get() = blas.kernels
     override val backendMetadata: BackendMetadata get() = blas.backendMetadata
 
-    override fun route(query: F64RouteQuery): BackendRoute? = blas.route(query)
+    override fun route(query: RouteQuery): BackendRoute? = blas.route(query)
         ?.let { if (it.execution == BackendExecution.NATIVE) it.copy(executor = name) else it }
 }
 
-private fun loadHostBackend(options: OpenBlasOptions): F64Cblas =
-    F64Cblas(HostBlasConfig(OpenBlasResources.extract().toString(), options))
+private fun loadHostBackend(options: OpenBlasOptions): OpenBlas =
+    OpenBlas(HostBlasConfig(OpenBlasResources.extract().toString(), options))
 
 internal object OpenBlasResources {
     private val platform: String = BundledNativeResources.supportedPlatform { os, architecture ->

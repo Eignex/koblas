@@ -7,47 +7,47 @@ import kotlin.test.*
 class SparseSemanticRolesTest {
 
     private open class LegacyProvider(override val name: String, override val priority: Int) :
-        SparseLapack by F64ReferenceSparseLinearAlgebra {
+        SparseLapack by ReferenceSparseLinearAlgebra {
         override val isPortable: Boolean get() = false
     }
 
     private class General(name: String = "general", priority: Int = 10) :
         LegacyProvider(name, priority),
-        F64GeneralSparseLu
+        GeneralSparseLu
 
     private class Repeated(name: String = "repeated", priority: Int = 100) :
         LegacyProvider(name, priority),
-        F64GeneralSparseLu,
-        F64RepeatedSparseLu {
-        override fun refactor(previous: F64SparseLuFactorization, a: SparseMatrix): F64SparseLuFactorization = factor(a)
+        GeneralSparseLu,
+        RepeatedSparseLu {
+        override fun refactor(previous: SparseLuFactorization, a: SparseMatrix): SparseLuFactorization = factor(a)
     }
 
     private class Basis(name: String = "basis", priority: Int = 200) :
         LegacyProvider(name, priority),
-        F64GeneralSparseLu,
-        F64BasisFactorizations {
-        override fun factorBasis(basis: SparseMatrix): F64BasisFactorization =
-            F64ReferenceSparseLinearAlgebra.factorBasis(basis)
+        GeneralSparseLu,
+        BasisFactorizations {
+        override fun factorBasis(basis: SparseMatrix): BasisFactorization =
+            ReferenceSparseLinearAlgebra.factorBasis(basis)
     }
 
     private class Complete :
         LegacyProvider("complete", priority = 10),
-        F64GeneralSparseLu,
-        F64SparseCholesky,
-        F64QuasiDefiniteLdl,
-        F64SparseQr
+        GeneralSparseLu,
+        SparseCholesky,
+        QuasiDefiniteLdl,
+        SparseQr
 
     private class CholeskyOnly :
         LegacyProvider("cholesky-only", priority = 10),
-        F64SparseCholesky
+        SparseCholesky
 
     private class LdlOnly :
         LegacyProvider("ldl-only", priority = 10),
-        F64QuasiDefiniteLdl
+        QuasiDefiniteLdl
 
     private class QrOnly :
         LegacyProvider("qr-only", priority = 10),
-        F64SparseQr
+        SparseQr
 
     /**
      * Shaped like koblas's own reference: portable, and filling a specialized half beside a general LU that
@@ -55,12 +55,12 @@ class SparseSemanticRolesTest {
      */
     private class PortableComplete :
         LegacyProvider("portable-complete", priority = 10),
-        F64GeneralSparseLu,
-        F64BasisFactorizations {
+        GeneralSparseLu,
+        BasisFactorizations {
         override val isPortable: Boolean get() = true
 
-        override fun factorBasis(basis: SparseMatrix): F64BasisFactorization =
-            F64ReferenceSparseLinearAlgebra.factorBasis(basis)
+        override fun factorBasis(basis: SparseMatrix): BasisFactorization =
+            ReferenceSparseLinearAlgebra.factorBasis(basis)
     }
 
     @Test
@@ -129,7 +129,7 @@ class SparseSemanticRolesTest {
 
     @Test
     fun `a configured portable decomposition fills every factorization role`() {
-        val provider = F64ReferenceSparseDecompositions(equilibrate = true)
+        val provider = ReferenceSparseDecompositions(equilibrate = true)
 
         val context = ContextBuilder()
             .withBackend(provider)
@@ -234,4 +234,4 @@ class SparseSemanticRolesTest {
     }
 }
 
-private fun SparseLapack.generalLuProviderName(): String = (this as F64SparseDecompositionRoles).generalLu.name
+private fun SparseLapack.generalLuProviderName(): String = (this as SparseDecompositionRoles).generalLu.name

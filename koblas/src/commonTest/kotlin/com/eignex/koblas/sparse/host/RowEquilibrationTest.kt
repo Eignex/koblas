@@ -28,7 +28,7 @@ class RowEquilibrationTest {
     fun `equilibration can be applied in place to a solve vector`() {
         val values = doubleArrayOf(3.0, 4.0)
 
-        applyF64Equilibration(values, doubleArrayOf(2.0, 0.5))
+        applyEquilibration(values, doubleArrayOf(2.0, 0.5))
 
         assertContentEquals(doubleArrayOf(6.0, 2.0), values)
     }

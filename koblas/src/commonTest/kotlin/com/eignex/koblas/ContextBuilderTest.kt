@@ -1,0 +1,316 @@
+package com.eignex.koblas
+
+import com.eignex.koblas.*
+import com.eignex.koblas.dense.*
+import com.eignex.koblas.sparse.*
+import kotlin.test.*
+
+class ContextBuilderTest {
+
+    private class TrackingSparseDecompositions :
+        SparseLapack by ReferenceSparseLinearAlgebra,
+        GeneralSparseLu,
+        SparseCholesky,
+        QuasiDefiniteLdl,
+        SparseQr {
+        override val name: String get() = "tracking sparse decompositions"
+        var qrCalls: Int = 0
+
+        override fun qr(a: SparseMatrix): SparseQrFactorization {
+            qrCalls++
+            return ReferenceSparseLinearAlgebra.qr(a)
+        }
+    }
+
+    private class CountingKernels : Kernels by PlatformKernels {
+        var axpys: Int = 0
+        var scales: Int = 0
+        override val name: String get() = "counting"
+
+        override fun axpy(y: DoubleArray, yOff: Int, alpha: Double, x: DoubleArray, xOff: Int, len: Int) {
+            axpys++
+            PlatformKernels.axpy(y, yOff, alpha, x, xOff, len)
+        }
+
+        override fun scale(v: DoubleArray, vOff: Int, alpha: Double, len: Int) {
+            scales++
+            PlatformKernels.scale(v, vOff, alpha, len)
+        }
+    }
+
+    private class RoutedBlas(private val nativeMin: Int) :
+        Blas by ReferenceBlas,
+        RoutingBackend {
+        var calls: Int = 0
+        override val name: String get() = "routed"
+        override val priority: Int get() = 100
+        override val isPortable: Boolean get() = false
+
+        override fun route(query: RouteQuery): BackendRoute? {
+            if (query !is RouteQuery.DenseGemv) return null
+            val actual = minOf(query.rows, query.cols)
+            return BackendRoute(
+                query,
+                BackendStatus(
+                    BackendRole.DENSE_BLAS,
+                    name,
+                    priority,
+                    available = true,
+                    portable = false,
+                    accelerated = true,
+                    BackendMetadata(),
+                ),
+                if (actual >= nativeMin) BackendExecution.NATIVE else BackendExecution.PORTABLE,
+                if (actual >= nativeMin) name else ReferenceBlas.name,
+                if (actual >= nativeMin) BackendRouteReason.NATIVE_ROUTE else BackendRouteReason.BELOW_THRESHOLD,
+                DispatchGate(DispatchMetric.DIMENSION, actual.toLong(), nativeMin.toLong()),
+            )
+        }
+
+        override fun gemv(
+            alpha: Double,
+            a: DenseMatrix,
+            x: DoubleArray,
+            beta: Double,
+            y: DoubleArray,
+            transpose: Boolean,
+            workspace: Workspace?,
+        ) {
+            calls++
+            ReferenceBlas.gemv(alpha, a, x, beta, y, transpose, workspace)
+        }
+    }
+
+    @Test
+    fun `builders retain independent exact selections without global mutation`() = withCleanBackends {
+        val global = koblas
+        val base = ContextBuilder()
+        val routed = RoutedBlas(nativeMin = 0)
+
+        val portable = base.resolve()
+        val native = base.withBackend(BackendRole.DENSE_BLAS, routed).resolve()
+
+        assertIs<ReferenceBackend>(portable.blas)
+        assertSame(routed, native.blas)
+        assertNotSame(portable, native)
+        assertSame(global, koblas)
+    }
+
+    @Test
+    fun `portable halves retain their contexts selected dense kernels`() = withCleanBackends {
+        val kernels = CountingKernels()
+        val context = ContextBuilder()
+            .withBackend(BackendRole.DENSE_KERNELS, kernels)
+            .resolve()
+
+        context.gemv(DenseMatrix(1, 1, doubleArrayOf(2.0)), doubleArrayOf(3.0))
+        context.sparseBlas.gemv(
+            0.0,
+            SparseMatrix.ofTriplets(1, 1, intArrayOf(), intArrayOf(), doubleArrayOf()),
+            doubleArrayOf(0.0),
+            2.0,
+            doubleArrayOf(1.0),
+        )
+
+        assertEquals(1, kernels.axpys)
+        assertEquals(1, kernels.scales)
+        assertNotSame(kernels, koblas.kernels)
+    }
+
+    @Test
+    fun `a caller built portable backend takes its contexts dense kernels`() = withCleanBackends {
+        val kernels = CountingKernels()
+        val context = ContextBuilder()
+            .withBackend(BackendRole.DENSE_KERNELS, kernels)
+            .withBackend(BackendRole.DENSE_BLAS, ReferenceBackend())
+            .resolve()
+
+        context.gemv(DenseMatrix(1, 1, doubleArrayOf(2.0)), doubleArrayOf(3.0))
+
+        assertEquals(1, kernels.axpys, "a stock portable backend follows the context whoever constructed it")
+    }
+
+    @Test
+    fun `a portable backend constructed with kernels keeps them`() = withCleanBackends {
+        val chosen = CountingKernels()
+        val ignored = CountingKernels()
+        val context = ContextBuilder()
+            .withBackend(BackendRole.DENSE_KERNELS, ignored)
+            .withBackend(BackendRole.DENSE_BLAS, ReferenceBackend(chosen))
+            .resolve()
+
+        context.gemv(DenseMatrix(1, 1, doubleArrayOf(2.0)), doubleArrayOf(3.0))
+
+        assertEquals(1, chosen.axpys)
+        assertEquals(0, ignored.axpys, "kernels a caller gave a backend outrank the context's")
+    }
+
+    @Test
+    fun `a portable backend given the process default kernels keeps them`() = withCleanBackends {
+        // The sharp case: a caller who passes the process default explicitly has still chosen it, so the
+        // context must not treat that backend as one of its own to rebind.
+        val contextKernels = CountingKernels()
+        val context = ContextBuilder()
+            .withBackend(BackendRole.DENSE_KERNELS, contextKernels)
+            .withBackend(BackendRole.DENSE_BLAS, ReferenceBackend(koblas.kernels))
+            .resolve()
+
+        context.gemv(DenseMatrix(1, 1, doubleArrayOf(2.0)), doubleArrayOf(3.0))
+
+        assertEquals(0, contextKernels.axpys, "an explicit choice of the process default is still a choice")
+    }
+
+    @Test
+    fun `a resolved context carries its policy in final state`() {
+        // The three policy fields were vars assigned after construction, in a class documented immutable, so
+        // a reader reached through a plain field could observe the AUTO and ALLOW defaults and skip the
+        // enforcement the caller configured. Constructor properties give them the final-field freeze.
+        val context = ContextBuilder()
+            .withDispatchPolicy(DispatchPolicy.NATIVE_ONLY)
+            .withFallbackPolicy(FallbackPolicy.THROW)
+            .resolve()
+
+        assertEquals(DispatchPolicy.NATIVE_ONLY, context.dispatchPolicy)
+        assertEquals(FallbackPolicy.THROW, context.fallbackPolicy)
+    }
+
+    @Test
+    fun `native only rejects a threshold fallback before invoking the backend`() {
+        val routed = RoutedBlas(nativeMin = 2)
+        val context = ContextBuilder()
+            .withBackend(BackendRole.DENSE_BLAS, routed)
+            .withDispatchPolicy(DispatchPolicy.NATIVE_ONLY)
+            .resolve()
+        val a = DenseMatrix(1, 1, doubleArrayOf(2.0))
+        val y = doubleArrayOf(7.0)
+
+        val failure = assertFailsWith<BackendRouteRejectedException> {
+            context.gemv(1.0, a, doubleArrayOf(3.0), 0.0, y)
+        }
+
+        assertEquals(BackendExecution.PORTABLE, failure.route.execution)
+        assertEquals(BackendPolicyDecision.REJECT, context.plan(failure.route.query).decision)
+        assertEquals(0, routed.calls)
+        assertContentEquals(doubleArrayOf(7.0), y)
+    }
+
+    @Test
+    fun `native only applies the same route to borrowed views`() {
+        val routed = RoutedBlas(nativeMin = 2)
+        val context = ContextBuilder()
+            .withBackend(BackendRole.DENSE_BLAS, routed)
+            .withDispatchPolicy(DispatchPolicy.NATIVE_ONLY)
+            .resolve()
+        val matrix = DenseMatrix(1, 1, doubleArrayOf(2.0)).asView()
+        val x = DenseVector(doubleArrayOf(3.0)).asView()
+        val outputStorage = doubleArrayOf(7.0, 11.0)
+        val y = StridedVectorView(outputStorage, offset = 0, size = 1)
+
+        assertFailsWith<BackendRouteRejectedException> {
+            context.gemv(1.0, matrix, x, 0.0, y)
+        }
+
+        assertEquals(0, routed.calls)
+        assertContentEquals(doubleArrayOf(7.0, 11.0), outputStorage)
+    }
+
+    @Test
+    fun `native only executes a known native route`() {
+        val routed = RoutedBlas(nativeMin = 2)
+        val context = ContextBuilder()
+            .withBackend(routed)
+            .withDispatchPolicy(DispatchPolicy.NATIVE_ONLY)
+            .resolve()
+        val a = DenseMatrix(2, 2, doubleArrayOf(1.0, 0.0, 0.0, 1.0))
+
+        val y = context.gemv(a, doubleArrayOf(3.0, 4.0))
+
+        assertContentEquals(doubleArrayOf(3.0, 4.0), y)
+        assertEquals(1, routed.calls)
+    }
+
+    @Test
+    fun `strict routing preserves argument validation precedence`() {
+        val context = ContextBuilder()
+            .withBackend(RoutedBlas(nativeMin = 100))
+            .withDispatchPolicy(DispatchPolicy.NATIVE_ONLY)
+            .resolve()
+
+        assertFailsWith<DimensionMismatch> {
+            context.gemv(DenseMatrix(1, 2), doubleArrayOf(1.0))
+        }
+    }
+
+    @Test
+    fun `portable only discards external selections`() {
+        val context = ContextBuilder()
+            .withBackend(RoutedBlas(nativeMin = 0))
+            .withDispatchPolicy(DispatchPolicy.PORTABLE_ONLY)
+            .resolve()
+
+        assertIs<ReferenceBackend>(context.blas)
+        assertEquals(BackendPolicyDecision.EXECUTE, context.plan(RouteQuery.DenseGemv(100, 100)).decision)
+    }
+
+    @Test
+    fun `warn reports a fallback to the context handler`() {
+        val warnings = mutableListOf<BackendRoute>()
+        val context = ContextBuilder()
+            .withBackend(RoutedBlas(nativeMin = 4))
+            .withFallbackPolicy(FallbackPolicy.WARN)
+            .onFallback(warnings::add)
+            .resolve()
+
+        context.gemv(DenseMatrix(1, 1, doubleArrayOf(2.0)), doubleArrayOf(3.0))
+
+        assertEquals(1, warnings.size)
+        assertEquals(BackendRouteReason.BELOW_THRESHOLD, warnings.single().reason)
+    }
+
+    @Test
+    fun `warn requires an explicit handler`() {
+        val builder = ContextBuilder().withFallbackPolicy(FallbackPolicy.WARN)
+
+        assertFailsWith<IllegalArgumentException> { builder.resolve() }
+    }
+
+    @Test
+    fun `throw rejects an automatic fallback`() {
+        val routed = RoutedBlas(nativeMin = 4)
+        val context = ContextBuilder()
+            .withBackend(routed)
+            .withFallbackPolicy(FallbackPolicy.THROW)
+            .resolve()
+
+        assertFailsWith<BackendRouteRejectedException> {
+            context.gemv(DenseMatrix(1, 1), doubleArrayOf(1.0))
+        }
+        assertEquals(0, routed.calls)
+    }
+
+    @Test
+    fun `a role rejects a backend that does not implement it`() {
+        val routed = RoutedBlas(nativeMin = 0)
+
+        assertFailsWith<IllegalArgumentException> {
+            ContextBuilder().withBackend(BackendRole.SPARSE_BLAS, routed)
+        }
+    }
+
+    @Test
+    fun `a complete sparse backend selects QR with the other decomposition roles`() {
+        val backend = TrackingSparseDecompositions()
+        val context = ContextBuilder()
+            .withBackend(backend)
+            .resolve()
+        val matrix = SparseMatrix.ofColumns(2, 1, listOf(listOf(0 to 1.0, 1 to 1.0)))
+
+        context.qr(matrix).close()
+
+        assertEquals(1, backend.qrCalls)
+        assertSame(backend, context.generalSparseLu)
+        assertSame(backend, context.sparseCholesky)
+        assertSame(backend, context.quasiDefiniteLdl)
+        assertSame(backend, context.sparseQr)
+    }
+}

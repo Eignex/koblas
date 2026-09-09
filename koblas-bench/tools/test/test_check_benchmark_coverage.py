@@ -36,32 +36,32 @@ class CheckBenchmarkCoverageTest(unittest.TestCase):
             root = pathlib.Path(temporary)
             source = self.write(
                 root,
-                "dense/F64Blas.kt",
-                "public interface F64Blas { public fun gemv() }\n",
+                "dense/Blas.kt",
+                "public interface Blas { public fun gemv() }\n",
             )
-            manifest = self.manifest(root, ["F64Blas.gemv\t\texcluded\tSmall fixture has no benchmark source."])
-            inventory = self.inventory(root, ["dense/F64Blas.kt:F64Blas.gemv()\tF64Blas.gemv"])
+            manifest = self.manifest(root, ["Blas.gemv\t\texcluded\tSmall fixture has no benchmark source."])
+            inventory = self.inventory(root, ["dense/Blas.kt:Blas.gemv()\tBlas.gemv"])
             original = CHECKER.PUBLIC_NUMERICAL_SOURCES
             self.addCleanup(setattr, CHECKER, "PUBLIC_NUMERICAL_SOURCES", original)
-            CHECKER.PUBLIC_NUMERICAL_SOURCES = ("dense/F64Blas.kt",)
+            CHECKER.PUBLIC_NUMERICAL_SOURCES = ("dense/Blas.kt",)
 
             signatures, _, _ = CHECKER.manifest(manifest)
             CHECKER.api_inventory(inventory, signatures, CHECKER.public_numerical_operations(root))
-            self.assertEqual(source.name, "F64Blas.kt")
+            self.assertEqual(source.name, "Blas.kt")
 
     def test_inventory_rejects_a_new_unreviewed_public_operation(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = pathlib.Path(temporary)
             self.write(
                 root,
-                "dense/F64Blas.kt",
-                "public interface F64Blas { public fun gemv(); public fun geam() }\n",
+                "dense/Blas.kt",
+                "public interface Blas { public fun gemv(); public fun geam() }\n",
             )
-            manifest = self.manifest(root, ["F64Blas.gemv\t\texcluded\tSmall fixture has no benchmark source."])
-            inventory = self.inventory(root, ["dense/F64Blas.kt:F64Blas.gemv()\tF64Blas.gemv"])
+            manifest = self.manifest(root, ["Blas.gemv\t\texcluded\tSmall fixture has no benchmark source."])
+            inventory = self.inventory(root, ["dense/Blas.kt:Blas.gemv()\tBlas.gemv"])
             original = CHECKER.PUBLIC_NUMERICAL_SOURCES
             self.addCleanup(setattr, CHECKER, "PUBLIC_NUMERICAL_SOURCES", original)
-            CHECKER.PUBLIC_NUMERICAL_SOURCES = ("dense/F64Blas.kt",)
+            CHECKER.PUBLIC_NUMERICAL_SOURCES = ("dense/Blas.kt",)
 
             signatures, _, _ = CHECKER.manifest(manifest)
             with self.assertRaisesRegex(SystemExit, "absent from inventory.*geam"):
@@ -72,20 +72,20 @@ class CheckBenchmarkCoverageTest(unittest.TestCase):
             root = pathlib.Path(temporary)
             self.write(
                 root,
-                "dense/F64Blas.kt",
-                "public interface F64Blas {\n"
-                "    public fun gemv(a: F64DenseMatrix)\n"
-                "    public fun gemv(a: F64SparseMatrix)\n"
+                "dense/Blas.kt",
+                "public interface Blas {\n"
+                "    public fun gemv(a: DenseMatrix)\n"
+                "    public fun gemv(a: SparseMatrix)\n"
                 "}\n",
             )
-            manifest = self.manifest(root, ["F64Blas.gemv\t\texcluded\tSmall fixture has no benchmark source."])
-            inventory = self.inventory(root, ["dense/F64Blas.kt:F64Blas.gemv(F64DenseMatrix)\tF64Blas.gemv"])
+            manifest = self.manifest(root, ["Blas.gemv\t\texcluded\tSmall fixture has no benchmark source."])
+            inventory = self.inventory(root, ["dense/Blas.kt:Blas.gemv(DenseMatrix)\tBlas.gemv"])
             original = CHECKER.PUBLIC_NUMERICAL_SOURCES
             self.addCleanup(setattr, CHECKER, "PUBLIC_NUMERICAL_SOURCES", original)
-            CHECKER.PUBLIC_NUMERICAL_SOURCES = ("dense/F64Blas.kt",)
+            CHECKER.PUBLIC_NUMERICAL_SOURCES = ("dense/Blas.kt",)
 
             signatures, _, _ = CHECKER.manifest(manifest)
-            with self.assertRaisesRegex(SystemExit, r"absent from inventory.*gemv\(F64SparseMatrix\)"):
+            with self.assertRaisesRegex(SystemExit, r"absent from inventory.*gemv\(SparseMatrix\)"):
                 CHECKER.api_inventory(inventory, signatures, CHECKER.public_numerical_operations(root))
 
     def test_a_comment_is_not_a_public_declaration(self):
@@ -93,22 +93,22 @@ class CheckBenchmarkCoverageTest(unittest.TestCase):
             root = pathlib.Path(temporary)
             self.write(
                 root,
-                "dense/F64Blas.kt",
+                "dense/Blas.kt",
                 "/** Prefer [gemv] over `public fun geam()` here. */\n"
-                "public interface F64Blas { public fun gemv() }\n",
+                "public interface Blas { public fun gemv() }\n",
             )
             original = CHECKER.PUBLIC_NUMERICAL_SOURCES
             self.addCleanup(setattr, CHECKER, "PUBLIC_NUMERICAL_SOURCES", original)
-            CHECKER.PUBLIC_NUMERICAL_SOURCES = ("dense/F64Blas.kt",)
+            CHECKER.PUBLIC_NUMERICAL_SOURCES = ("dense/Blas.kt",)
 
             self.assertEqual(
                 CHECKER.public_numerical_operations(root),
-                {"dense/F64Blas.kt:F64Blas.gemv()"},
+                {"dense/Blas.kt:Blas.gemv()"},
             )
 
     def test_exclusion_requires_a_reason_and_no_benchmark_method(self):
         with tempfile.TemporaryDirectory() as temporary:
-            manifest = self.manifest(pathlib.Path(temporary), ["F64Blas.gemv\tmethod\texcluded\t"])
+            manifest = self.manifest(pathlib.Path(temporary), ["Blas.gemv\tmethod\texcluded\t"])
             with self.assertRaisesRegex(SystemExit, "needs notes and no benchmark method"):
                 CHECKER.manifest(manifest)
 

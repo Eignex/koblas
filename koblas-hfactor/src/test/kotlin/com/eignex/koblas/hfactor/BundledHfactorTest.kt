@@ -1,12 +1,12 @@
 package com.eignex.koblas.hfactor
 
 import com.eignex.koblas.SparseMatrix
-import com.eignex.koblas.sparse.F64ReferenceSparseLinearAlgebra
+import com.eignex.koblas.sparse.ReferenceSparseLinearAlgebra
 import com.eignex.koblas.sparse.basis.BasisSolver
 import com.eignex.koblas.sparse.basis.BasisUpdate
-import com.eignex.koblas.sparse.basis.F64ProductFormBasisSolver
 import com.eignex.koblas.sparse.basis.IndexedVector
-import com.eignex.koblas.sparse.factorization.lu.F64SparseMarkowitzLu
+import com.eignex.koblas.sparse.basis.ProductFormBasisSolver
+import com.eignex.koblas.sparse.factorization.lu.SparseMarkowitzLu
 import com.eignex.koblas.sparse.host.hfactor.HfactorBasisSolver
 import com.eignex.koblas.sparse.host.hfactor.HfactorFactorization
 import com.eignex.koblas.sparse.host.hfactor.HfactorOptions
@@ -41,7 +41,7 @@ class BundledHfactorTest {
 
     private fun logicalBasis(n: Int) = IntArray(n) { n + it }
 
-    private fun portable(a: SparseMatrix) = F64ProductFormBasisSolver(a, F64ReferenceSparseLinearAlgebra)
+    private fun portable(a: SparseMatrix) = ProductFormBasisSolver(a, ReferenceSparseLinearAlgebra)
 
     private fun solved(solver: BasisSolver, b: DoubleArray, transpose: Boolean): DoubleArray {
         val x = IndexedVector(b.size)
@@ -141,7 +141,7 @@ class BundledHfactorTest {
 
         val factorization = equilibrated.factor(matrix)
 
-        assertIsNot<F64SparseMarkowitzLu>(
+        assertIsNot<SparseMarkowitzLu>(
             factorization,
             "equilibration no longer diverts to the portable factorization",
         )

@@ -1,9 +1,9 @@
 package com.eignex.koblas.sparse
 
 import com.eignex.koblas.*
-import com.eignex.koblas.sparse.F64QuasiDefiniteLdlFactorization
-import com.eignex.koblas.sparse.F64SparseCholeskyFactorization
-import com.eignex.koblas.sparse.F64SparseLuFactorization
+import com.eignex.koblas.sparse.QuasiDefiniteLdlFactorization
+import com.eignex.koblas.sparse.SparseCholeskyFactorization
+import com.eignex.koblas.sparse.SparseLuFactorization
 import kotlin.test.*
 
 class SparseSeamTest {
@@ -19,42 +19,42 @@ class SparseSeamTest {
 
         override fun dot(x: SparseVector, y: DoubleArray): Double {
             dots++
-            return F64ReferenceSparseLinearAlgebra.dot(x, y)
+            return ReferenceSparseLinearAlgebra.dot(x, y)
         }
 
         override fun dot(x: SparseVector, y: SparseVector): Double {
             dots++
-            return F64ReferenceSparseLinearAlgebra.dot(x, y)
+            return ReferenceSparseLinearAlgebra.dot(x, y)
         }
 
         override fun axpy(y: DoubleArray, alpha: Double, x: SparseVector) {
             axpys++
-            F64ReferenceSparseLinearAlgebra.axpy(y, alpha, x)
+            ReferenceSparseLinearAlgebra.axpy(y, alpha, x)
         }
 
         override fun scatter(x: SparseVector, out: DoubleArray) {
             scatters++
-            F64ReferenceSparseLinearAlgebra.scatter(x, out)
+            ReferenceSparseLinearAlgebra.scatter(x, out)
         }
 
         override fun gather(x: SparseVector, from: DoubleArray) {
             gathers++
-            F64ReferenceSparseLinearAlgebra.gather(x, from)
+            ReferenceSparseLinearAlgebra.gather(x, from)
         }
 
         override fun gatherZero(x: SparseVector, from: DoubleArray) {
             gathers++
-            F64ReferenceSparseLinearAlgebra.gatherZero(x, from)
+            ReferenceSparseLinearAlgebra.gatherZero(x, from)
         }
 
         override fun nrm2(x: SparseVector): Double {
             nrm2s++
-            return F64ReferenceSparseLinearAlgebra.nrm2(x)
+            return ReferenceSparseLinearAlgebra.nrm2(x)
         }
 
         override fun asum(x: SparseVector): Double {
             asums++
-            return F64ReferenceSparseLinearAlgebra.asum(x)
+            return ReferenceSparseLinearAlgebra.asum(x)
         }
     }
 
@@ -77,18 +77,18 @@ class SparseSeamTest {
             transpose: Boolean,
         ) {
             gemvs++
-            F64ReferenceSparseLinearAlgebra.gemv(alpha, a, x, beta, y, transpose)
+            ReferenceSparseLinearAlgebra.gemv(alpha, a, x, beta, y, transpose)
         }
 
         override fun trsv(a: SparseMatrix, x: DoubleArray, lower: Boolean, transpose: Boolean, unitDiag: Boolean) =
-            F64ReferenceSparseLinearAlgebra.trsv(a, x, lower, transpose, unitDiag)
+            ReferenceSparseLinearAlgebra.trsv(a, x, lower, transpose, unitDiag)
 
         override fun trmv(a: SparseMatrix, x: DoubleArray, lower: Boolean, transpose: Boolean, unitDiag: Boolean) =
-            F64ReferenceSparseLinearAlgebra.trmv(a, x, lower, transpose, unitDiag)
+            ReferenceSparseLinearAlgebra.trmv(a, x, lower, transpose, unitDiag)
 
         override fun transpose(a: SparseMatrix): SparseMatrix {
             transposes++
-            return F64ReferenceSparseLinearAlgebra.transpose(a)
+            return ReferenceSparseLinearAlgebra.transpose(a)
         }
 
         @Suppress("LongParameterList")
@@ -104,12 +104,12 @@ class SparseSeamTest {
             workspace: Workspace?,
         ) {
             gemms++
-            F64ReferenceSparseLinearAlgebra.gemm(alpha, a, transposeA, b, transposeB, beta, c, right, workspace)
+            ReferenceSparseLinearAlgebra.gemm(alpha, a, transposeA, b, transposeB, beta, c, right, workspace)
         }
 
         override fun gemm(a: SparseMatrix, b: SparseMatrix): SparseMatrix {
             sparseProducts++
-            return F64ReferenceSparseLinearAlgebra.gemm(a, b)
+            return ReferenceSparseLinearAlgebra.gemm(a, b)
         }
 
         @Suppress("LongParameterList")
@@ -124,7 +124,7 @@ class SparseSeamTest {
             workspace: Workspace?,
         ) {
             trsms++
-            F64ReferenceSparseLinearAlgebra.trsm(a, b, lower, transpose, unitDiag, right, alpha, workspace)
+            ReferenceSparseLinearAlgebra.trsm(a, b, lower, transpose, unitDiag, right, alpha, workspace)
         }
 
         @Suppress("LongParameterList")
@@ -138,40 +138,40 @@ class SparseSeamTest {
             alpha: Double,
         ) {
             trmms++
-            F64ReferenceSparseLinearAlgebra.trmm(a, b, lower, transpose, unitDiag, right, alpha)
+            ReferenceSparseLinearAlgebra.trmm(a, b, lower, transpose, unitDiag, right, alpha)
         }
     }
 
     private class CountingSparseLu(override val priority: Int = 50) :
         SparseLapack,
-        F64GeneralSparseLu,
-        F64SparseCholesky,
-        F64QuasiDefiniteLdl,
-        F64SparseQr {
+        GeneralSparseLu,
+        SparseCholesky,
+        QuasiDefiniteLdl,
+        SparseQr {
         override val name: String get() = "counting-decompositions"
         var factors = 0
         var choleskys = 0
         var ldls = 0
         var qrs = 0
 
-        override fun factor(a: SparseMatrix): F64SparseLuFactorization {
+        override fun factor(a: SparseMatrix): SparseLuFactorization {
             factors++
-            return F64ReferenceSparseLinearAlgebra.factor(a)
+            return ReferenceSparseLinearAlgebra.factor(a)
         }
 
-        override fun cholesky(a: SparseMatrix): F64SparseCholeskyFactorization {
+        override fun cholesky(a: SparseMatrix): SparseCholeskyFactorization {
             choleskys++
-            return F64ReferenceSparseLinearAlgebra.cholesky(a)
+            return ReferenceSparseLinearAlgebra.cholesky(a)
         }
 
-        override fun quasiDefiniteLdl(a: SparseMatrix): F64QuasiDefiniteLdlFactorization {
+        override fun quasiDefiniteLdl(a: SparseMatrix): QuasiDefiniteLdlFactorization {
             ldls++
-            return F64ReferenceSparseLinearAlgebra.quasiDefiniteLdl(a)
+            return ReferenceSparseLinearAlgebra.quasiDefiniteLdl(a)
         }
 
-        override fun qr(a: SparseMatrix): F64SparseQrFactorization {
+        override fun qr(a: SparseMatrix): SparseQrFactorization {
             qrs++
-            return F64ReferenceSparseLinearAlgebra.qr(a)
+            return ReferenceSparseLinearAlgebra.qr(a)
         }
     }
 
@@ -269,7 +269,7 @@ class SparseSeamTest {
         registerBackend(blas)
         val spd = SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 4.0), listOf(1 to 9.0)))
 
-        F64ReferenceSparseLinearAlgebra.cholesky(spd)
+        ReferenceSparseLinearAlgebra.cholesky(spd)
 
         assertEquals(0, blas.transposes, "the portable factorization went through the registered backend")
     }
@@ -281,8 +281,8 @@ class SparseSeamTest {
         assertEquals("counting-blas", koblas.sparseBlas.name)
         assertEquals("counting-decompositions", koblas.sparseDecompositions.name)
         resetBackends()
-        registerBackend(F64ReferenceSparseLinearAlgebra)
-        assertSame(F64ReferenceSparseLinearAlgebra, koblas.sparseBlas)
+        registerBackend(ReferenceSparseLinearAlgebra)
+        assertSame(ReferenceSparseLinearAlgebra, koblas.sparseBlas)
         assertEquals("reference", koblas.sparseDecompositions.name)
     }
 
@@ -300,7 +300,7 @@ class SparseSeamTest {
         assertSame(strong, koblas.sparseKernels, "clearing the override falls back to registration")
         resetBackends()
         assertSame(
-            F64PlatformSparseKernels,
+            PlatformSparseKernels,
             koblas.sparseKernels,
             "an empty registry means the compiled-in kernels for this target",
         )
@@ -308,8 +308,8 @@ class SparseSeamTest {
 
     @Test
     fun `an empty registry resolves to the portable implementation on all three sparse halves`() = withCleanBackends {
-        assertSame(F64ReferenceSparseLinearAlgebra, koblas.sparseBlas)
+        assertSame(ReferenceSparseLinearAlgebra, koblas.sparseBlas)
         assertEquals("reference", koblas.sparseDecompositions.name)
-        assertSame(F64PlatformSparseKernels, koblas.sparseKernels)
+        assertSame(PlatformSparseKernels, koblas.sparseKernels)
     }
 }

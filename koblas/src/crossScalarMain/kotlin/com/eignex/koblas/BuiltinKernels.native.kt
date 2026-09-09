@@ -1,0 +1,18 @@
+package com.eignex.koblas
+
+import com.eignex.koblas.dense.ScalarKernels
+import com.eignex.koblas.sparse.ReferenceSparseLinearAlgebra
+
+/** Built-in providers available while cross-compiling for a foreign Native host. */
+@ExperimentalKoblasApi
+public actual object BuiltinKernels {
+    /** Pure Kotlin scalar dense kernels and reference sparse kernels. */
+    public actual val scalar: BuiltinKernelProvider =
+        BuiltinKernelProvider(ScalarKernels, ReferenceSparseLinearAlgebra)
+
+    /** C is unavailable without the target host's cinterop compilation. */
+    public actual val c: BuiltinKernelProvider? = null
+
+    /** SIMD is unavailable as a distinct Native provider. */
+    public actual val simd: BuiltinKernelProvider? = null
+}

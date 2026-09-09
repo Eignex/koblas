@@ -30,7 +30,7 @@ class BundledOpenBlasTest {
             OpenBlasOptions(threadCount = 1),
         )
 
-        val route = assertNotNull(backend.route(F64RouteQuery.DenseGemm(m = 8, n = 8, k = 8)))
+        val route = assertNotNull(backend.route(RouteQuery.DenseGemm(m = 8, n = 8, k = 8)))
 
         assertEquals(BackendExecution.NATIVE, route.execution)
         assertEquals("1 threads", backend.backendMetadata.threading)

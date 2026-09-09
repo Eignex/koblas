@@ -1,13 +1,13 @@
 package com.eignex.koblas.internal.backend
 
 import com.eignex.koblas.*
-import com.eignex.koblas.F64BundledBackend
+import com.eignex.koblas.BundledBackend
 import com.eignex.koblas.SparseMatrix
-import com.eignex.koblas.sparse.F64GeneralSparseLu
-import com.eignex.koblas.sparse.F64ReferenceSparseLinearAlgebra
-import com.eignex.koblas.sparse.F64SparseLuFactorization
+import com.eignex.koblas.sparse.GeneralSparseLu
+import com.eignex.koblas.sparse.ReferenceSparseLinearAlgebra
 import com.eignex.koblas.sparse.SparseLapack
-import com.eignex.koblas.sparse.basis.F64BasisSolvers
+import com.eignex.koblas.sparse.SparseLuFactorization
+import com.eignex.koblas.sparse.basis.BasisSolvers
 import kotlin.test.*
 
 /**
@@ -19,9 +19,9 @@ class NamedBackendTest {
 
     /** Fills the general-LU role, which is what a backend offers now that the wide seam alone offers nothing. */
     private class FakeSparseLu(override val name: String, override val priority: Int) :
-        SparseLapack by F64ReferenceSparseLinearAlgebra,
-        F64GeneralSparseLu {
-        override fun factor(a: SparseMatrix): F64SparseLuFactorization = F64ReferenceSparseLinearAlgebra.factor(a)
+        SparseLapack by ReferenceSparseLinearAlgebra,
+        GeneralSparseLu {
+        override fun factor(a: SparseMatrix): SparseLuFactorization = ReferenceSparseLinearAlgebra.factor(a)
     }
 
     /** The same carrying a bundled build of [canonicalName], which is how a deployment configures it. */
@@ -29,14 +29,14 @@ class NamedBackendTest {
         override val name: String,
         override val canonicalName: String,
         override val priority: Int,
-    ) : SparseLapack by F64ReferenceSparseLinearAlgebra,
-        F64GeneralSparseLu,
-        F64BundledBackend {
-        override fun factor(a: SparseMatrix): F64SparseLuFactorization = F64ReferenceSparseLinearAlgebra.factor(a)
+    ) : SparseLapack by ReferenceSparseLinearAlgebra,
+        GeneralSparseLu,
+        BundledBackend {
+        override fun factor(a: SparseMatrix): SparseLuFactorization = ReferenceSparseLinearAlgebra.factor(a)
     }
 
-    private class FakeBasisSolvers(override val name: String, override val priority: Int) : F64BasisSolvers {
-        override fun basisSolver(a: SparseMatrix) = F64ReferenceSparseLinearAlgebra.basisSolver(a)
+    private class FakeBasisSolvers(override val name: String, override val priority: Int) : BasisSolvers {
+        override fun basisSolver(a: SparseMatrix) = ReferenceSparseLinearAlgebra.basisSolver(a)
     }
 
     @Test

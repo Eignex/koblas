@@ -21,7 +21,7 @@ class SparseHostBenchmark {
 
     private lateinit var a: SparseMatrix
     private lateinit var rhs: DoubleArray
-    private lateinit var factored: F64SparseFactorization
+    private lateinit var factored: SparseFactorization
 
     @Setup
     fun setup() {
@@ -34,7 +34,7 @@ class SparseHostBenchmark {
     }
 
     @Benchmark
-    fun factor(): F64SparseFactorization = a.lu()
+    fun factor(): SparseFactorization = a.lu()
 
     // Reading the factors copies them out of the library, so it is its own row rather than part of [factor].
     @Benchmark

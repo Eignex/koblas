@@ -15,9 +15,9 @@ import kotlin.test.assertTrue
  */
 class SparseFactorReadAllocationTest {
 
-    private fun factorization(order: Int): F64SparseLuFactorization {
+    private fun factorization(order: Int): SparseLuFactorization {
         val a = sparseConformanceSystem(order, Random(20260904))
-        return F64ReferenceSparseLinearAlgebra.factor(a)
+        return ReferenceSparseLinearAlgebra.factor(a)
     }
 
     /**
@@ -40,7 +40,7 @@ class SparseFactorReadAllocationTest {
         )
     }
 
-    private fun readBoth(lu: F64SparseLuFactorization): Int {
+    private fun readBoth(lu: SparseLuFactorization): Int {
         val l: SparseMatrix = lu.l
         val u: SparseMatrix = lu.u
         return l.nnz + u.nnz

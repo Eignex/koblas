@@ -28,7 +28,7 @@ public interface SparseLapack : Backend {
      * than naming a column: the step that fails is the one with no acceptable pivot left, so there is no
      * column of [a] to attribute it to.
      */
-    public fun factor(a: SparseMatrix): F64SparseLuFactorization
+    public fun factor(a: SparseMatrix): SparseLuFactorization
 
     /**
      * Cholesky factorization `A = L·Lᵀ` of a symmetric positive-definite [a]. Only the lower triangle is
@@ -41,7 +41,7 @@ public interface SparseLapack : Backend {
      *
      * @throws com.eignex.koblas.NotPositiveDefinite at the first column whose pivot is not positive.
      */
-    public fun cholesky(a: SparseMatrix): F64SparseCholeskyFactorization
+    public fun cholesky(a: SparseMatrix): SparseCholeskyFactorization
 
     /**
      * Factorization `A = L·D·Lᵀ` of a symmetric [a], with `L` unit lower triangular. Only the lower triangle
@@ -58,22 +58,22 @@ public interface SparseLapack : Backend {
      * general indefinite one. A caller that cannot promise quasi-definiteness wants [factor], whose pivoting
      * is numerical.
      */
-    public fun quasiDefiniteLdl(a: SparseMatrix): F64QuasiDefiniteLdlFactorization
+    public fun quasiDefiniteLdl(a: SparseMatrix): QuasiDefiniteLdlFactorization
 
     /**
      * QR factorization of a tall or square [a], for the least-squares solve `min ‖A·x − b‖₂`. Its factor is
-     * an [F64SparseQrFactorization] rather than an [F64SparseFactorization], which is square.
+     * an [SparseQrFactorization] rather than an [SparseFactorization], which is square.
      *
      * @throws IllegalArgumentException if [a] has fewer rows than columns.
      */
-    public fun qr(a: SparseMatrix): F64SparseQrFactorization
+    public fun qr(a: SparseMatrix): SparseQrFactorization
 
     /**
      * Solve `A·x = b` from [f] into [out], `Aᵀ·x = b` when [transpose]. The work belongs to the
      * factorization; this convenience keeps callers on the sparse backend surface.
      */
     public fun solveInto(
-        f: F64SparseFactorization,
+        f: SparseFactorization,
         b: DoubleArray,
         out: DoubleArray,
         transpose: Boolean = false,
@@ -81,12 +81,12 @@ public interface SparseLapack : Backend {
     ): DoubleArray = f.solveInto(b, out, transpose, workspace)
 
     /** [solveInto] into a fresh vector. */
-    public fun solve(f: F64SparseFactorization, b: DoubleArray, transpose: Boolean = false): DoubleArray =
+    public fun solve(f: SparseFactorization, b: DoubleArray, transpose: Boolean = false): DoubleArray =
         f.solve(b, transpose)
 
     /** Solve `A · X = B` from [f] into a fresh dense result. */
     public fun solve(
-        f: F64SparseFactorization,
+        f: SparseFactorization,
         b: DenseMatrix,
         transpose: Boolean = false,
         workspace: Workspace? = null,
@@ -99,7 +99,7 @@ public interface SparseLapack : Backend {
 
     /** Solve `A · X = B` from [f] into [out], which is returned. [out] may be [b]. */
     public fun solveInto(
-        f: F64SparseFactorization,
+        f: SparseFactorization,
         b: DenseMatrix,
         out: DenseMatrix,
         transpose: Boolean = false,

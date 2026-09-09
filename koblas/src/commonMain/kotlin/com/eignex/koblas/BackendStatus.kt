@@ -67,7 +67,7 @@ public data class BackendStatus(
  *
  * @property backends one entry for every [BackendRole], in declaration order.
  */
-public data class F64ContextStatus(val backends: List<BackendStatus>) {
+public data class ContextStatus(val backends: List<BackendStatus>) {
     init {
         // Checked position by position rather than through two sets: the producers all build this in
         // declaration order, and comparing sets allocated a list and two of them on a type diagnostics read
@@ -124,8 +124,8 @@ internal fun backendStatus(role: BackendRole, backend: Backend, accelerated: Boo
 )
 
 /** A structured snapshot of every selected backend half. */
-public val KoblasContext.status: F64ContextStatus
-    get() = F64ContextStatus(BackendRole.entries.map { statusFor(it) })
+public val KoblasContext.status: ContextStatus
+    get() = ContextStatus(BackendRole.entries.map { statusFor(it) })
 
 /** The roles still running koblas's own portable implementation, in declaration order. */
 public val KoblasContext.portableRoles: Set<BackendRole>

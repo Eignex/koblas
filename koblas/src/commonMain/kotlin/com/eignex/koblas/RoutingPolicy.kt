@@ -1,7 +1,7 @@
 package com.eignex.koblas
 
 /** How an explicit [KoblasContext] constrains operation-level dispatch. */
-public enum class F64DispatchPolicy {
+public enum class DispatchPolicy {
     /** Use the selected provider's measured routing behavior. */
     AUTO,
 
@@ -13,7 +13,7 @@ public enum class F64DispatchPolicy {
 }
 
 /** What an automatic context does when an inspected operation is not known to execute natively. */
-public enum class F64FallbackPolicy {
+public enum class FallbackPolicy {
     /** Execute without reporting the fallback. */
     ALLOW,
 
@@ -42,7 +42,7 @@ public enum class BackendPolicyDecision {
  * @property route the provider's operation-level prediction.
  * @property decision the action the context will take before dispatch.
  */
-public data class F64RoutePlan(val route: BackendRoute, val decision: BackendPolicyDecision)
+public data class RoutePlan(val route: BackendRoute, val decision: BackendPolicyDecision)
 
 /** Raised before dispatch when an explicit context rejects [route]. */
 public class BackendRouteRejectedException(public val route: BackendRoute) :
@@ -51,35 +51,35 @@ public class BackendRouteRejectedException(public val route: BackendRoute) :
     )
 
 /** Applies this context's dispatch and fallback policy to [query] without executing it. */
-public fun KoblasContext.plan(query: F64RouteQuery): F64RoutePlan {
+public fun KoblasContext.plan(query: RouteQuery): RoutePlan {
     val route = route(query)
     val decision = when (dispatchPolicy) {
-        F64DispatchPolicy.NATIVE_ONLY -> if (route.execution == BackendExecution.NATIVE) {
+        DispatchPolicy.NATIVE_ONLY -> if (route.execution == BackendExecution.NATIVE) {
             BackendPolicyDecision.EXECUTE
         } else {
             BackendPolicyDecision.REJECT
         }
 
-        F64DispatchPolicy.PORTABLE_ONLY -> if (route.execution == BackendExecution.PORTABLE) {
+        DispatchPolicy.PORTABLE_ONLY -> if (route.execution == BackendExecution.PORTABLE) {
             BackendPolicyDecision.EXECUTE
         } else {
             BackendPolicyDecision.REJECT
         }
 
-        F64DispatchPolicy.AUTO -> when {
+        DispatchPolicy.AUTO -> when {
             route.execution == BackendExecution.NATIVE -> BackendPolicyDecision.EXECUTE
-            fallbackPolicy == F64FallbackPolicy.ALLOW -> BackendPolicyDecision.EXECUTE
-            fallbackPolicy == F64FallbackPolicy.WARN -> BackendPolicyDecision.WARN
+            fallbackPolicy == FallbackPolicy.ALLOW -> BackendPolicyDecision.EXECUTE
+            fallbackPolicy == FallbackPolicy.WARN -> BackendPolicyDecision.WARN
             else -> BackendPolicyDecision.REJECT
         }
     }
-    return F64RoutePlan(route, decision)
+    return RoutePlan(route, decision)
 }
 
 internal val KoblasContext.enforcesRoutingPolicy: Boolean
-    get() = dispatchPolicy != F64DispatchPolicy.AUTO || fallbackPolicy != F64FallbackPolicy.ALLOW
+    get() = dispatchPolicy != DispatchPolicy.AUTO || fallbackPolicy != FallbackPolicy.ALLOW
 
-internal fun KoblasContext.beforeDispatch(query: F64RouteQuery) {
+internal fun KoblasContext.beforeDispatch(query: RouteQuery) {
     val plan = plan(query)
     when (plan.decision) {
         BackendPolicyDecision.EXECUTE -> Unit

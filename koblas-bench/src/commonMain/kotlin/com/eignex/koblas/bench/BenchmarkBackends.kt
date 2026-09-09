@@ -1,7 +1,7 @@
 package com.eignex.koblas.bench
 
 import com.eignex.koblas.*
-import com.eignex.koblas.sparse.F64ReferenceSparseLinearAlgebra
+import com.eignex.koblas.sparse.ReferenceSparseLinearAlgebra
 
 internal const val REFERENCE_BACKEND = "reference"
 internal const val HOST_BACKEND = "host"
@@ -64,7 +64,7 @@ internal fun installSparseDecompositionBackend(backend: String) {
     installBackends(null)
     when (backend) {
         AUTOMATIC_BACKEND -> discoverBackends()
-        REFERENCE_BACKEND -> installBackends(koblas.with(sparseDecompositions = F64ReferenceSparseLinearAlgebra))
+        REFERENCE_BACKEND -> installBackends(koblas.with(sparseDecompositions = ReferenceSparseLinearAlgebra))
         HOST_BACKEND -> error("the host sparse decomposition backend is unavailable")
         else -> error("unknown backend: $backend")
     }
@@ -125,9 +125,9 @@ internal fun installKernelProvider(provider: String) {
         AUTOMATIC_KERNELS -> discoverBackends()
         else -> {
             val builtIn = when (provider) {
-                SCALAR_KERNELS -> F64BuiltinKernels.scalar
-                C_KERNELS -> F64BuiltinKernels.c
-                SIMD_KERNELS -> F64BuiltinKernels.simd
+                SCALAR_KERNELS -> BuiltinKernels.scalar
+                C_KERNELS -> BuiltinKernels.c
+                SIMD_KERNELS -> BuiltinKernels.simd
                 else -> error("unknown kernel provider: $provider")
             }
             checkNotNull(builtIn) { "the $provider kernel provider is unavailable on this platform" }

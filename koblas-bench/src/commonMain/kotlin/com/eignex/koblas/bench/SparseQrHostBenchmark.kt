@@ -21,7 +21,7 @@ class SparseQrHostBenchmark {
     private lateinit var a: SparseMatrix
     private lateinit var b: DoubleArray
     private lateinit var block: DenseMatrix
-    private lateinit var factored: F64SparseQrFactorization
+    private lateinit var factored: SparseQrFactorization
 
     @Setup
     fun setup() {
@@ -39,7 +39,7 @@ class SparseQrHostBenchmark {
     // and closed rather than left to the cleaner, which would measure the collector. Reading `r` does both
     // too, and charges a native binding a second factorization the portable one never performs.
     @Benchmark
-    fun qr(): F64SparseQrFactorization = a.qr().also { it.close() }
+    fun qr(): SparseQrFactorization = a.qr().also { it.close() }
 
     @Benchmark
     fun qrApplyQ(): DoubleArray = factored.applyQ(b, transpose = true)

@@ -2,20 +2,20 @@ package com.eignex.koblas.internal.backend
 
 import com.eignex.koblas.*
 import com.eignex.koblas.dense.*
-import com.eignex.koblas.sparse.F64ReferenceSparseLinearAlgebra
+import com.eignex.koblas.sparse.ReferenceSparseLinearAlgebra
 import com.eignex.koblas.sparse.SparseBlas
 import kotlin.test.*
 
 class BackendSelectionTest {
 
-    private class FakeBlas(override val name: String, override val priority: Int) : Blas by F64ReferenceBlas
+    private class FakeBlas(override val name: String, override val priority: Int) : Blas by ReferenceBlas
 
     private class NotABackend(override val name: String = "nothing") : Backend
 
     /** A provider carrying a dense half and a sparse one, as an add-on binding a whole library can. */
     private class FakeBoth(override val name: String, override val priority: Int) :
-        Blas by F64ReferenceBlas,
-        SparseBlas by F64ReferenceSparseLinearAlgebra {
+        Blas by ReferenceBlas,
+        SparseBlas by ReferenceSparseLinearAlgebra {
         override val isAvailable: Boolean get() = true
         override val isPortable: Boolean get() = false
         override val unavailableReason: String? get() = null
@@ -24,7 +24,7 @@ class BackendSelectionTest {
     @Test
     fun `an empty registry resolves to the reference backend`() {
         withCleanBackends {
-            assertSame(F64ReferenceBlas, koblas.blas)
+            assertSame(ReferenceBlas, koblas.blas)
             assertEquals("reference", koblas.name)
         }
     }
@@ -64,7 +64,7 @@ class BackendSelectionTest {
         // fresh binding object, and what has to survive is which backend fills the half. A restore that
         // failed outright would leave the reference here and still be caught.
         val before = koblas.blas.name
-        withCleanBackends { assertSame(F64ReferenceBlas, koblas.blas) }
+        withCleanBackends { assertSame(ReferenceBlas, koblas.blas) }
         assertEquals(before, koblas.blas.name)
     }
 
@@ -82,7 +82,7 @@ class BackendSelectionTest {
 
             assertTrue("both-halves" in BackendRegistry.namesFor(BackendSlot.SparseBlas), "the sparse half")
             assertFalse("both-halves" in BackendRegistry.namesFor(BackendSlot.Blas), "the dense half")
-            assertSame(F64ReferenceBlas, koblas.blas)
+            assertSame(ReferenceBlas, koblas.blas)
         }
     }
 
@@ -100,7 +100,7 @@ class BackendSelectionTest {
             val manual = FakeBlas("manual", -1)
             installBackends(koblas.with(blas = manual))
             resetBackends()
-            assertSame(F64ReferenceBlas, koblas.blas, "reset must clear the override, not just registration")
+            assertSame(ReferenceBlas, koblas.blas, "reset must clear the override, not just registration")
         }
     }
 }

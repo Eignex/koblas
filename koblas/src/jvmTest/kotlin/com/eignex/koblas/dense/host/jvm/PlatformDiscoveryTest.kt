@@ -3,7 +3,7 @@ package com.eignex.koblas.dense.host.jvm
 import com.eignex.koblas.*
 import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.dense.Blas
-import com.eignex.koblas.dense.F64ReferenceBlas
+import com.eignex.koblas.dense.ReferenceBlas
 import com.eignex.koblas.internal.backend.*
 import com.eignex.koblas.testutil.host.HostLibraryTest
 import org.junit.experimental.categories.Category
@@ -82,7 +82,7 @@ class PlatformDiscoveryTest {
 
     @Test
     fun `registering OpenBLAS offers only its BLAS half`() = withCleanBackends {
-        val backend = F64Cblas()
+        val backend = OpenBlas()
         registerBackend(backend)
 
         assertEquals(backend.isAvailable, koblas.isAccelerated(BackendRole.DENSE_BLAS), "BLAS")
@@ -100,7 +100,7 @@ class PlatformDiscoveryTest {
      */
     @Test
     fun `the probe accepts a working backend and rejects every broken one`() {
-        assertTrue(probe(F64ReferenceBlas), "the reference backend should pass its own probe")
+        assertTrue(probe(ReferenceBlas), "the reference backend should pass its own probe")
 
         assertTrue(
             !probe(GemmBackend { _, _, c -> c.data.fill(0.0) }),
@@ -126,7 +126,7 @@ class PlatformDiscoveryTest {
 
     /** A backend whose gemm is [gemm]; every other routine is the reference's. */
     private class GemmBackend(private val gemm: (a: DenseMatrix, reference: () -> Unit, c: DenseMatrix) -> Unit) :
-        Blas by F64ReferenceBlas {
+        Blas by ReferenceBlas {
         override val name: String get() = "fake"
 
         @Suppress("LongParameterList") // the BLAS dgemm signature
@@ -141,7 +141,7 @@ class PlatformDiscoveryTest {
             workspace: Workspace?,
         ) = gemm(
             a,
-            { F64ReferenceBlas.gemm(alpha, a, transposeA, b, transposeB, beta, c, workspace) },
+            { ReferenceBlas.gemm(alpha, a, transposeA, b, transposeB, beta, c, workspace) },
             c,
         )
     }

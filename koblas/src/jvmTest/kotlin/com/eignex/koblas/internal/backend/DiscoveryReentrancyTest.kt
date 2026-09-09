@@ -15,7 +15,7 @@ import kotlin.test.*
  * and what the discovery probe calls. It does not override [Blas.kernels], so that read resolves
  * through [koblas]: a read of the very value discovery is computing.
  */
-class ProbeReentrantProvider : Blas by F64ReferenceBlas {
+class ProbeReentrantProvider : Blas by ReferenceBlas {
     override val unavailableReason: String? get() = null
 
     init {

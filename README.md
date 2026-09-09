@@ -77,12 +77,12 @@ val solution = a.lu().use { factor ->
 
 ## Data and storage
 
-Koblas currently implements one numerical family. The element type is explicit in expert-facing public names,
-while unqualified aliases such as `DenseMatrix` and `SparseMatrix` name the F64 types.
+Koblas currently implements one numerical family: `Double`. Its public types use concise names such as
+`DenseMatrix` and `SparseMatrix`; a future element type would add its own distinct public family.
 
 | Family | Scalar | Dense storage | Sparse storage | Sparse index |
 |--------|--------|---------------|----------------|--------------|
-| F64 | Kotlin Double | DenseVector, DenseMatrix, strided views | SparseVector, CSC SparseMatrix | Kotlin Int |
+| Double | Kotlin Double | DenseVector, DenseMatrix, strided views | SparseVector, CSC SparseMatrix | Kotlin Int |
 
 Compatible DoubleArray and CSC buffers can be wrapped without copying. Dense matrices are column-major, and
 native sparse bindings use 32-bit-index entry points so sparse indices do not need widening copies.
@@ -174,7 +174,7 @@ discoverBackends()
 val dense = koblas.status[BackendRole.DENSE_BLAS]
 check(dense.available)
 
-val route = koblas.route(F64RouteQuery.DenseGemm(m = 256, n = 64, k = 128))
+val route = koblas.route(RouteQuery.DenseGemm(m = 256, n = 64, k = 128))
 check(route.execution == BackendExecution.NATIVE) {
     "${route.executor}: ${route.reason}"
 }
@@ -187,7 +187,7 @@ ContextBuilder:
 ```kotlin
 val strictBlas = ContextBuilder()
     .withBackend(BackendRole.DENSE_BLAS, selectedBlas)
-    .withDispatchPolicy(F64DispatchPolicy.NATIVE_ONLY)
+    .withDispatchPolicy(DispatchPolicy.NATIVE_ONLY)
     .resolve()
 
 val c = strictBlas.gemm(a, b)
@@ -231,7 +231,7 @@ Each sparse factorization returns the factor type its own kind names, and each e
 carries L, U, the two orderings and the row scaling; a Cholesky and quasi-definite LDL carry L, their ordering
 and, for quasi-definite LDL, D; a QR carries R, the column ordering, the estimated rank and Q as an operator
 through applyQInto.
-Sparse QR is the one whose factor is not an F64SparseFactorization, because an m-by-n factorization takes a
+Sparse QR is the one whose factor is not an SparseFactorization, because an m-by-n factorization takes a
 right-hand side of length m and answers one of length n.
 
 Factors materialise on first read and cost a copy out of the library, so solving alone never pays for them. A
@@ -296,9 +296,9 @@ one thread; configure and register a host backend explicitly to request more:
 import com.eignex.koblas.registerBackend
 import com.eignex.koblas.dense.host.cblas.HostBlasConfig
 import com.eignex.koblas.dense.host.cblas.OpenBlasOptions
-import com.eignex.koblas.dense.host.jvm.F64Cblas
+import com.eignex.koblas.dense.host.jvm.Cblas
 
-registerBackend(F64Cblas(HostBlasConfig(OpenBlasOptions(threadCount = 8))))
+registerBackend(Cblas(HostBlasConfig(OpenBlasOptions(threadCount = 8))))
 ```
 
 OpenBLAS thread configuration is process-wide. Bundled OpenBLAS is built without threading, and HFactor is

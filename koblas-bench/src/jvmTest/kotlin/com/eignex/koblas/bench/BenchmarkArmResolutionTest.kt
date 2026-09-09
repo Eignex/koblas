@@ -1,7 +1,7 @@
 package com.eignex.koblas.bench
 
 import com.eignex.koblas.ExperimentalKoblasApi
-import com.eignex.koblas.F64BuiltinKernels
+import com.eignex.koblas.BuiltinKernels
 import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.koblas
 import kotlin.test.Test
@@ -21,9 +21,9 @@ class BenchmarkArmResolutionTest {
     @Test
     fun `each pinned kernel arm resolves to the provider it names`() {
         val pinned = buildList {
-            add(SCALAR_KERNELS to F64BuiltinKernels.scalar)
-            add(C_KERNELS to F64BuiltinKernels.c)
-            add(SIMD_KERNELS to F64BuiltinKernels.simd)
+            add(SCALAR_KERNELS to BuiltinKernels.scalar)
+            add(C_KERNELS to BuiltinKernels.c)
+            add(SIMD_KERNELS to BuiltinKernels.simd)
         }
         for ((arm, provider) in pinned) {
             if (provider == null) continue
@@ -37,8 +37,8 @@ class BenchmarkArmResolutionTest {
 
     @Test
     fun `a pinned kernel arm does not inherit a discovered host half`() {
-        val provider = F64BuiltinKernels.simd ?: F64BuiltinKernels.c ?: return
-        val arm = if (provider === F64BuiltinKernels.simd) SIMD_KERNELS else C_KERNELS
+        val provider = BuiltinKernels.simd ?: BuiltinKernels.c ?: return
+        val arm = if (provider === BuiltinKernels.simd) SIMD_KERNELS else C_KERNELS
         // Discovery first, which is what a benchmark process does before any arm asks for a pinned
         // provider, and what put a host half underneath the pinned arms.
         installKernelProvider(AUTOMATIC_KERNELS)

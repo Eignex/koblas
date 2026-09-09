@@ -2,7 +2,7 @@ package com.eignex.koblas.internal.backend
 
 import com.eignex.koblas.dense.host.cblas.HostBlasConfig
 import com.eignex.koblas.dense.host.jvm.HostBlasCalls
-import com.eignex.koblas.sparse.host.F64SparseBackends
+import com.eignex.koblas.sparse.host.SparseBackends
 import com.eignex.koblas.sparse.host.hfactor.HfactorConfig
 import com.eignex.koblas.testutil.host.HostLibraryTest
 import org.junit.experimental.categories.Category
@@ -50,7 +50,7 @@ class HostCoverageTest {
         hfactor: HfactorConfig = HfactorConfig(libraryPath(ConfigurationKeys.HFACTOR_PATH)),
     ): List<String> {
         val dense = HostBlasCalls(blas)
-        val sparse = F64SparseBackends(hfactor)
+        val sparse = SparseBackends(hfactor)
         return buildList {
             if (dense.available) add("cblas")
             if (sparse.hfactor.isAvailable) add("hfactor")

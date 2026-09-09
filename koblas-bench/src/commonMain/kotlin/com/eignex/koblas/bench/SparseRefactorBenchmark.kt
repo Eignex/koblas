@@ -27,7 +27,7 @@ class SparseRefactorBenchmark {
     var backend: String = REFERENCE_BACKEND
 
     private lateinit var a: SparseMatrix
-    private lateinit var analysis: F64SparseSymbolicAnalysis<F64SparseCholeskyFactorization>
+    private lateinit var analysis: SparseSymbolicAnalysis<SparseCholeskyFactorization>
 
     @Setup
     fun setup() {
@@ -44,8 +44,8 @@ class SparseRefactorBenchmark {
     }
 
     @Benchmark
-    fun bandedCholesky(): F64SparseCholeskyFactorization = a.cholesky().also { it.close() }
+    fun bandedCholesky(): SparseCholeskyFactorization = a.cholesky().also { it.close() }
 
     @Benchmark
-    fun bandedCholeskyRefactor(): F64SparseCholeskyFactorization = analysis.factor(a).also { it.close() }
+    fun bandedCholeskyRefactor(): SparseCholeskyFactorization = analysis.factor(a).also { it.close() }
 }

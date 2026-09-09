@@ -7,14 +7,14 @@ import com.eignex.koblas.UnsafeKoblasApi
 import com.eignex.koblas.internal.host.NativeOwnership
 import com.eignex.koblas.requireInBounds
 import com.eignex.koblas.requireShape
+import com.eignex.koblas.sparse.basis.BasisKernel
+import com.eignex.koblas.sparse.basis.BasisRepair
+import com.eignex.koblas.sparse.basis.BasisSnapshot
+import com.eignex.koblas.sparse.basis.BasisSolveQuality
 import com.eignex.koblas.sparse.basis.BasisSolver
 import com.eignex.koblas.sparse.basis.BasisUpdate
-import com.eignex.koblas.sparse.basis.F64BasisKernel
-import com.eignex.koblas.sparse.basis.F64BasisRepair
-import com.eignex.koblas.sparse.basis.F64BasisSnapshot
-import com.eignex.koblas.sparse.basis.F64BasisSolveQuality
-import com.eignex.koblas.sparse.basis.F64RefactorizeReason
 import com.eignex.koblas.sparse.basis.IndexedVector
+import com.eignex.koblas.sparse.basis.RefactorizeReason
 import com.eignex.koblas.sparse.basis.basisSolveQuality
 import java.lang.foreign.MemorySegment
 
@@ -80,20 +80,20 @@ public class HfactorBasisSolver internal constructor(
     }
 
     /** HFactor distinguishes its own refusal from the synthetic clock, and the shim carries which it was. */
-    override val refactorizeReason: F64RefactorizeReason? get() = ownership.anchoring {
+    override val refactorizeReason: RefactorizeReason? get() = ownership.anchoring {
         when (calls.refactorizeReason(handle)) {
-            1 -> F64RefactorizeReason.FACTOR_ASKED
-            2 -> F64RefactorizeReason.UPDATES_WORN
+            1 -> RefactorizeReason.FACTOR_ASKED
+            2 -> RefactorizeReason.UPDATES_WORN
             else -> null
         }
     }
 
     /** Counted during the factorization, so this costs two field reads rather than a copy of the factors. */
-    override val kernel: F64BasisKernel? get() = ownership.anchoring {
+    override val kernel: BasisKernel? get() = ownership.anchoring {
         if (!factorized) return@anchoring null
         val sizes = IntArray(2)
         if (!calls.kernel(handle, sizes)) return@anchoring null
-        F64BasisKernel(sizes[0], sizes[1])
+        BasisKernel(sizes[0], sizes[1])
     }
 
     override fun refactorize(basicIndex: IntArray): Boolean = ownership.anchoring {
@@ -123,7 +123,7 @@ public class HfactorBasisSolver internal constructor(
      * simplex would hold and not columns of `A`. They are translated to the seam's own reading here: the
      * slot names no column and carries the row its unit column stands for.
      */
-    override fun refactorizeRepairing(basicIndex: IntArray): F64BasisRepair? = ownership.anchoring {
+    override fun refactorizeRepairing(basicIndex: IntArray): BasisRepair? = ownership.anchoring {
         requireShape(basicIndex.size == n) { "refactorize: basicIndex size ${basicIndex.size} != $n" }
         for (t in 0 until n) requireInBounds(basicIndex[t], columns)
         val settled = IntArray(n)
@@ -138,7 +138,7 @@ public class HfactorBasisSolver internal constructor(
         singular = false
         val rowsOf = unitRows ?: IntArray(n) { -1 }
         check(deficiency == 0 || rowsOf.any { it >= 0 }) { "HFactor reported a repair it did not make" }
-        F64BasisRepair(IntArray(n) { if (rowsOf[it] >= 0) -1 else settled[it] }, rowsOf)
+        BasisRepair(IntArray(n) { if (rowsOf[it] >= 0) -1 else settled[it] }, rowsOf)
     }
 
     /**
@@ -170,7 +170,7 @@ public class HfactorBasisSolver internal constructor(
         }
     }
 
-    override fun solveQuality(rhs: DoubleArray, solution: IndexedVector, transpose: Boolean): F64BasisSolveQuality =
+    override fun solveQuality(rhs: DoubleArray, solution: IndexedVector, transpose: Boolean): BasisSolveQuality =
         ownership.anchoring {
             checkSolvable()
             basisSolveQuality(a, basicIndex, unitRows, rhs, solution, transpose)
@@ -235,7 +235,7 @@ public class HfactorBasisSolver internal constructor(
      * basis this binding reports and which of its slots a repair filled with unit columns.
      */
     private inner class NativeSnapshot(val pointer: MemorySegment, val basis: IntArray, val repair: IntArray?) :
-        F64BasisSnapshot {
+        BasisSnapshot {
         private var released = false
 
         override fun close() {
@@ -249,13 +249,13 @@ public class HfactorBasisSolver internal constructor(
     /** Snapshots this solver handed out and still owns, so closing it releases what a caller did not. */
     private val live = mutableSetOf<NativeSnapshot>()
 
-    override fun snapshot(): F64BasisSnapshot? = ownership.anchoring {
+    override fun snapshot(): BasisSnapshot? = ownership.anchoring {
         if (!factorized || singular) return@anchoring null
         val taken = calls.snapshot(handle) ?: return@anchoring null
         NativeSnapshot(taken, basicIndex.copyOf(), unitRows?.copyOf()).also { live.add(it) }
     }
 
-    override fun restore(snapshot: F64BasisSnapshot): Boolean = ownership.anchoring {
+    override fun restore(snapshot: BasisSnapshot): Boolean = ownership.anchoring {
         // Identity against this solver's own live set, so a snapshot from another solver or one already
         // closed is refused rather than handed to a factorization it does not describe.
         val native = snapshot as? NativeSnapshot ?: return@anchoring false

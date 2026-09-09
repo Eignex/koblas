@@ -1,7 +1,7 @@
 package com.eignex.koblas.internal.backend
 
 import com.eignex.koblas.*
-import com.eignex.koblas.sparse.basis.F64BasisSolvers
+import com.eignex.koblas.sparse.basis.BasisSolvers
 import com.eignex.koblas.sparse.host.hfactor.HfactorSparseLu
 import kotlin.test.Test
 import kotlin.test.assertIs
@@ -18,6 +18,6 @@ class NamedSparseBackendTest {
 
         val found = backendNamed("hfactor", Capabilities.basisSolvers)
 
-        assertIs<F64BasisSolvers>(found)
+        assertIs<BasisSolvers>(found)
     }
 }

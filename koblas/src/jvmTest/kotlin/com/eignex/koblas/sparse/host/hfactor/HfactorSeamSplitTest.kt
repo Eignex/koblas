@@ -2,9 +2,9 @@ package com.eignex.koblas.sparse.host.hfactor
 
 import com.eignex.koblas.Backend
 import com.eignex.koblas.HOST_BACKEND_PRIORITY
-import com.eignex.koblas.sparse.F64GeneralSparseLu
+import com.eignex.koblas.sparse.GeneralSparseLu
 import com.eignex.koblas.sparse.assertStrictNativeSolveAllocationContract
-import com.eignex.koblas.sparse.basis.F64BasisSolvers
+import com.eignex.koblas.sparse.basis.BasisSolvers
 import kotlin.test.*
 
 /**
@@ -20,12 +20,12 @@ class HfactorSeamSplitTest {
 
     @Test
     fun `the HFactor backend offers basis solvers`() {
-        assertTrue(hfactorBackend is F64BasisSolvers, "HFactor is what the basis solver seam is for")
+        assertTrue(hfactorBackend is BasisSolvers, "HFactor is what the basis solver seam is for")
     }
 
     @Test
     fun `HFactor offers the general sparse LU role`() {
-        assertTrue(hfactorBackend is F64GeneralSparseLu)
+        assertTrue(hfactorBackend is GeneralSparseLu)
     }
 
     @Test

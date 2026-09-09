@@ -51,9 +51,9 @@ class BackendSlotTest {
     /** The optional half stands a placeholder in instead, which is what makes its role report as absent. */
     @Test
     fun `the repeated LU half defaults to the placeholder it reports as unavailable`() {
-        val placeholder = BackendSlot.F64RepeatedSparseLu.portableDefault()
+        val placeholder = BackendSlot.RepeatedSparseLu.portableDefault()
 
-        assertFalse(BackendSlot.F64RepeatedSparseLu.accepts(placeholder))
+        assertFalse(BackendSlot.RepeatedSparseLu.accepts(placeholder))
         assertFalse(placeholder.isAvailable)
     }
 }

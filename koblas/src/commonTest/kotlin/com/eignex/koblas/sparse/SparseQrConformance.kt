@@ -25,7 +25,7 @@ internal fun assertQrAgreesWithReference(decompositions: SparseLapack) {
             assertEquals(n, host.n, "${m}x$n the factorization reports the wrong column count")
             assertEquals(n, host.rank, "${m}x$n a full-rank system came back deficient")
             val x = host.solve(b)
-            F64ReferenceSparseLinearAlgebra.qr(a).use { portable ->
+            ReferenceSparseLinearAlgebra.qr(a).use { portable ->
                 assertClose(portable.solve(b), x, "${m}x$n", tolerance = 1e-7)
             }
             assertClose(
@@ -41,7 +41,7 @@ internal fun assertQrAgreesWithReference(decompositions: SparseLapack) {
     }
 }
 
-private fun assertFactorizationIdentity(a: SparseMatrix, qr: F64SparseQrFactorization, context: String) {
+private fun assertFactorizationIdentity(a: SparseMatrix, qr: SparseQrFactorization, context: String) {
     val order = qr.columnOrder
     for (j in 0 until qr.n) {
         val embedded = DoubleArray(qr.m)
@@ -53,7 +53,7 @@ private fun assertFactorizationIdentity(a: SparseMatrix, qr: F64SparseQrFactoriz
     }
 }
 
-private fun assertUpperTriangularFactor(a: SparseMatrix, qr: F64SparseQrFactorization, context: String) {
+private fun assertUpperTriangularFactor(a: SparseMatrix, qr: SparseQrFactorization, context: String) {
     val r = qr.r
     val order = qr.columnOrder
     assertEquals(qr.n, r.cols, "$context R has the wrong column count")
@@ -70,7 +70,7 @@ private fun assertUpperTriangularFactor(a: SparseMatrix, qr: F64SparseQrFactoriz
     }
 }
 
-private fun assertOrthogonalOperator(qr: F64SparseQrFactorization, context: String, rng: Random) {
+private fun assertOrthogonalOperator(qr: SparseQrFactorization, context: String, rng: Random) {
     val y = DoubleArray(qr.m) { rng.nextDouble(-1.0, 1.0) }
 
     val roundTrip = qr.applyQ(qr.applyQ(y, transpose = true))
