@@ -98,7 +98,7 @@ SparseBlas.trmm(SparseMatrix,DenseMatrix,right=true)	com.eignex.koblas.bench.Spa
 SparseBlas.trmv(SparseMatrix,DoubleArray)	com.eignex.koblas.bench.SparseBenchmark.sparseTrmv	benchmarked	portable
 SparseBlas.trmv(SparseMatrix,DoubleArray,host)	com.eignex.koblas.bench.SparseProductHostBenchmark.trmv	benchmarked	portable host fallback
 SparseBlas.trsm(SparseMatrix,DenseMatrix)	com.eignex.koblas.bench.SparseProductHostBenchmark.trsm	benchmarked	Direct oneMKL sparse triangular solve comparison.
-SparseBlas.trsm(SparseMatrix,DenseMatrix,right=true)	com.eignex.koblas.bench.SparseProductHostBenchmark.trsmRight	benchmarked	Right-side oneMKL comparison uses a labeled transpose composition.
+SparseBlas.trsm(SparseMatrix,DenseMatrix,right=true)	com.eignex.koblas.bench.SparseRightTriangularBenchmark.trsmRight	benchmarked	Right-side oneMKL comparison uses a labeled transpose composition outside contributor profile v1.
 SparseBlas.trsv(SparseMatrix,DoubleArray)	com.eignex.koblas.bench.SparseBenchmark.sparseTrsv	benchmarked	
 SparseBlas.trsv(SparseMatrix,DoubleArray,host)	com.eignex.koblas.bench.SparseProductHostBenchmark.trsv	benchmarked	
 SparseMatrix.cholesky()		excluded	Registry compatibility only; no implementation remains.

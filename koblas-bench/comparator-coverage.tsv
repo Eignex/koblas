@@ -78,6 +78,6 @@ sparse-3	sparse syrk dense upper	missing	direct	oneMKL mkl_sparse_d_syrkd after 
 sparse-3	sparse syrk sparse upper	missing	direct	oneMKL mkl_sparse_syrk with fresh output export and conversion timed	com.eignex.koblas.bench.SparseCompletionBenchmark.syrkSparse
 sparse-algebra	add scaled	missing	direct	oneMKL mkl_sparse_d_add after visible CSC to CSR conversion	com.eignex.koblas.bench.SparseCompletionBenchmark.addScaled
 sparse-3	trsm	missing	direct	oneMKL mkl_sparse_d_trsm
-sparse-3	trsm right	missing	composition	Transpose identity around mkl_sparse_d_trsm; excluded from direct parity	com.eignex.koblas.bench.SparseProductHostBenchmark.trsmRight
+sparse-3	trsm right	missing	composition	Transpose identity around mkl_sparse_d_trsm; excluded from direct parity	com.eignex.koblas.bench.SparseRightTriangularBenchmark.trsmRight
 sparse-3	trmm left	missing	direct	oneMKL triangular descriptor with mkl_sparse_d_mm
 sparse-3	trmm right	missing	composition	Transpose identity around mkl_sparse_d_mm; excluded from direct parity

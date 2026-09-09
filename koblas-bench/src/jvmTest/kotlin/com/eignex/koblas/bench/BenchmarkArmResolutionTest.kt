@@ -184,8 +184,22 @@ class BenchmarkArmResolutionTest {
                     assertMatrixNear(builtIn.trsm(), oneMkl.trsm(), "$variant trsm invocation $invocation")
                     assertMatrixNear(builtIn.trmm(), oneMkl.trmm(), "$variant trmm invocation $invocation")
                     assertMatrixNear(builtIn.trmmRight(), oneMkl.trmmRight(), "$variant trmm right invocation $invocation")
-                    assertMatrixNear(builtIn.trsmRight(), oneMkl.trsmRight(), "$variant trsm right invocation $invocation")
                 }
+            } finally {
+                builtIn.tearDown()
+                oneMkl.tearDown()
+            }
+        }
+    }
+
+    @Test
+    fun `onemkl right triangular solve composition agrees with built in`() {
+        if (oneMklSparseComparator() == null) return
+        for (variant in listOf("upper-nontrans-nonunit", "lower-trans-nonunit", "upper-trans-unit")) {
+            val builtIn = sparseRightTriangularBenchmark(BUILTIN_BACKEND, variant)
+            val oneMkl = sparseRightTriangularBenchmark(ONEMKL_BACKEND, variant)
+            try {
+                assertMatrixNear(builtIn.trsmRight(), oneMkl.trsmRight(), "$variant trsm right")
             } finally {
                 builtIn.tearDown()
                 oneMkl.tearDown()
@@ -254,6 +268,14 @@ class BenchmarkArmResolutionTest {
             it.lower = lower
             it.side = side
             it.sparseArm = arm
+            it.setup()
+        }
+
+    private fun sparseRightTriangularBenchmark(arm: String, variant: String): SparseRightTriangularBenchmark =
+        SparseRightTriangularBenchmark().also {
+            it.n = 31
+            it.sparseArm = arm
+            it.triangleVariant = variant
             it.setup()
         }
 
