@@ -3,6 +3,18 @@
 These archives preserve benchmark evidence that would otherwise be deleted with the Gradle build directory.
 They may contain machine and checkout details; inspect their metadata before sharing them outside the project.
 
+## Dense numerical leaf extraction
+
+`dense-leaf-extraction-20260909.tar.gz` contains two clean-`39e49b39` baseline passes and two clean-`aaf5fcbb`
+candidate passes for dense GEMV/SYMV/rank updates, transposed-A GEMMT, and right-side ordinary TRSM after the
+phase-2 numerical leaf extraction. The busy-host ranges overlap or move in both directions, so no speedup is
+claimed; repeated warmed allocation checks remain at zero after fixing an intermediate boxed-progression bug.
+Exact provenance, settings, raw-result limitations, commands, and unmeasured platforms are in
+`dense-leaf-extraction-20260909-notes.md`.
+
+Expected SHA-256:
+`9379c05859d8df37429ee1d9908e51c178f109c77ff0772425fa9384a905814c`.
+
 ## Kernel contract composition
 
 `kernel-contract-composition-20260909.tar.gz` preserves two clean-main baseline passes and two dirty-candidate
