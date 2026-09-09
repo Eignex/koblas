@@ -91,23 +91,18 @@ class BundledHfactorTest {
     }
 
     @Test
-    fun `strict contexts recognize HFactor LU as native and expose its options`() {
+    fun `direct HFactor construction exposes availability and options`() {
         val configured = BundledHfactor(
             HfactorOptions(equilibrate = true, pivotThreshold = 0.2, pivotTolerance = 1e-8),
         )
-        val context = ContextBuilder()
-            .withBackend(BackendRole.SPARSE_GENERAL_LU, configured)
-            .withDispatchPolicy(DispatchPolicy.NATIVE_ONLY)
-            .resolve()
         val matrix = SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 4.0), listOf(1 to 8.0)))
 
-        val route = context.route(RouteQuery.SparseLu(matrix.nnz))
-        context.factor(matrix).close()
+        configured.factor(matrix).close()
 
-        assertEquals(BackendExecution.NATIVE, route.execution)
-        assertEquals(configured.name, route.executor)
-        assertEquals("true", context.status[BackendRole.SPARSE_GENERAL_LU].metadata.options["equilibrate"])
-        assertEquals("0.2", context.status[BackendRole.SPARSE_GENERAL_LU].metadata.options["pivotThreshold"])
+        assertTrue(configured.availability.available)
+        assertNull(configured.availability.reason)
+        assertTrue(configured.config.equilibrate)
+        assertEquals(0.2, configured.config.pivotThreshold)
     }
 
     @Test

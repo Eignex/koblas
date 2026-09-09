@@ -8,8 +8,6 @@ import com.eignex.koblas.dense.Kernels
 import com.eignex.koblas.dense.applyBeta
 import com.eignex.koblas.internal.backend.BackendNames
 import com.eignex.koblas.internal.numeric.euclideanNorm
-import com.eignex.koblas.sparse.basis.BasisSolver
-import com.eignex.koblas.sparse.basis.BasisSolvers
 import com.eignex.koblas.sparse.internal.multiplyFromTheLeft
 import com.eignex.koblas.sparse.internal.multiplyFromTheRight
 import com.eignex.koblas.sparse.internal.multiplySparse
@@ -37,9 +35,7 @@ internal const val REFERENCE_SPARSE_RHS_WIDTH: Int = 4
 public open class ReferenceSparseBackend(public val configuredKernels: Kernels? = null) :
     SparseLinearAlgebra,
     RebindableBackend,
-    SparseKernels,
-    GeneralSparseLu,
-    BasisSolvers {
+    SparseKernels {
     override val name: String get() = BackendNames.REFERENCE
 
     override val isPortable: Boolean get() = true
@@ -47,13 +43,6 @@ public open class ReferenceSparseBackend(public val configuredKernels: Kernels? 
     override val hasOwnKernels: Boolean get() = configuredKernels != null
 
     private val denseKernels: Kernels get() = configuredKernels ?: koblas.kernels
-
-    private fun removed(): Nothing = throw UnsupportedOperationException(
-        "portable sparse factorizations were removed; install and select HFactor",
-    )
-
-    override fun factor(a: SparseMatrix): SparseLuFactorization = removed()
-    override fun basisSolver(a: SparseMatrix): BasisSolver = removed()
 
     @Suppress("LongParameterList") // the BLAS dgemv signature
     override fun gemv(

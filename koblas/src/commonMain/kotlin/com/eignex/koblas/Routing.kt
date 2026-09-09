@@ -88,14 +88,6 @@ public sealed interface RouteQuery {
         }
     }
 
-    /** A general sparse LU factorization of a matrix with [storedEntries] stored entries. */
-    public data class SparseLu(val storedEntries: Int) : RouteQuery {
-        override val role: BackendRole get() = BackendRole.SPARSE_GENERAL_LU
-
-        init {
-            requireNonNegative(storedEntries, "storedEntries")
-        }
-    }
 }
 
 /** Operation families whose amortized prepared-descriptor crossovers are measured independently. */

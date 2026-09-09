@@ -7,12 +7,9 @@ import com.eignex.koblas.StridedVectorView
 import com.eignex.koblas.dense.Blas
 import com.eignex.koblas.dense.Kernels
 import com.eignex.koblas.internal.backend.BackendSlot
-import com.eignex.koblas.sparse.GeneralSparseLu
 import com.eignex.koblas.sparse.SparseBlas
 import com.eignex.koblas.sparse.SparseKernels
 import com.eignex.koblas.sparse.SparseLinearAlgebra
-import com.eignex.koblas.sparse.SparseLuFactorization
-import com.eignex.koblas.sparse.basis.BasisSolvers
 
 /**
  * Every backend koblas will use for a piece of work, in one object you can hold. Immutable, and itself a
@@ -22,13 +19,10 @@ import com.eignex.koblas.sparse.basis.BasisSolvers
  * @property blas dense matrix routines.
  * @property sparseKernels sparse vector-vector routines.
  * @property sparseBlas sparse matrix routines.
- * @property basisSolvers simplex basis solvers supplied by HFactor.
- * @param roles the retained HFactor sparse LU provider.
  * @property dispatchPolicy the operation-level dispatch requirement for routes this context can inspect.
  * @property fallbackPolicy the action taken for non-native inspected routes in automatic mode.
  * @property fallbackWarning notified for each fallback under [FallbackPolicy.WARN].
  *
- * Sparse LU and basis solving are the remaining factorization roles.
  */
 @Suppress("LongParameterList") // the backend halves, resolved roles, and execution policy
 public class KoblasContext internal constructor(
@@ -36,41 +30,15 @@ public class KoblasContext internal constructor(
     public val blas: Blas,
     override val sparseKernels: SparseKernels,
     public val sparseBlas: SparseBlas,
-    public val basisSolvers: BasisSolvers,
-    private val roles: SparseRoles,
     public val dispatchPolicy: DispatchPolicy = DispatchPolicy.AUTO,
     public val fallbackPolicy: FallbackPolicy = FallbackPolicy.ALLOW,
     internal val fallbackWarning: (BackendRoute) -> Unit = {},
 ) : Blas by blas,
     SparseLinearAlgebra,
-    SparseBlas by sparseBlas,
-    GeneralSparseLu,
-    BasisSolvers by basisSolvers {
+    SparseBlas by sparseBlas {
 
     /**
-     * Creates a context from explicit backend halves.
-     */
-    public constructor(
-        kernels: Kernels,
-        blas: Blas,
-        sparseKernels: SparseKernels,
-        sparseBlas: SparseBlas,
-        generalSparseLu: GeneralSparseLu,
-        basisSolvers: BasisSolvers,
-    ) : this(
-        kernels,
-        blas,
-        sparseKernels,
-        sparseBlas,
-        basisSolvers,
-        SparseRoles(generalSparseLu),
-    )
-
-    /** Provider selected for ordinary sparse LU. */
-    public val generalSparseLu: GeneralSparseLu get() = roles.generalLu
-
-    /**
-     * The distinct names of the backends that do the matrix work, joined, such as `"reference+hfactor"`.
+     * The distinct names of the backends that do the matrix work, joined, such as `"reference+simd"`.
      * The vector-kernel halves are left out; [koblasInfo] prints both parts.
      */
     override val name: String
@@ -99,18 +67,14 @@ public class KoblasContext internal constructor(
         blas: Blas = this.blas,
         sparseKernels: SparseKernels = this.sparseKernels,
         sparseBlas: SparseBlas = this.sparseBlas,
-        generalSparseLu: GeneralSparseLu = this.generalSparseLu,
-        basisSolvers: BasisSolvers = this.basisSolvers,
     ): KoblasContext = KoblasContext(
         kernels = kernels,
         blas = blas,
         sparseKernels = sparseKernels,
         sparseBlas = sparseBlas,
-        basisSolvers = basisSolvers,
         dispatchPolicy = dispatchPolicy,
         fallbackPolicy = fallbackPolicy,
         fallbackWarning = fallbackWarning,
-        roles = SparseRoles(generalSparseLu),
     )
 
     override fun gemv(
@@ -313,23 +277,5 @@ public class KoblasContext internal constructor(
         sparseBlas.trmm(a, b, lower, transpose, unitDiag, right, alpha)
     }
 
-    override fun factor(a: SparseMatrix): SparseLuFactorization {
-        if (enforcesRoutingPolicy) {
-            requireSquare(a, "factor")
-            beforeDispatch(RouteQuery.SparseLu(a.nnz))
-        }
-        return generalSparseLu.factor(a)
-    }
-
     override fun toString(): String = "KoblasContext($name)"
 }
-
-/**
- * The six sparse factorization providers a context selects, held together because they are selected
- * together. Derived once, at whichever constructor the context came in through: the internal one is handed
- * roles its caller resolved from the registry or a builder, and the public one is handed a composition to
- * read them out of.
- *
- * This is the internal representation shared by registry and builder assembly.
- */
-internal class SparseRoles(val generalLu: GeneralSparseLu)

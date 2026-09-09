@@ -139,9 +139,9 @@ BLAS options use named Boolean parameters such as lower, transpose, unitDiag, an
 
 ## Backends and routing
 
-Every operation runs through an KoblasContext. Top-level functions use the process-wide koblas context, whose
-registry selects providers independently by semantic role. HFactor owns the remaining sparse LU and basis
-solver roles; sparse BLAS routing remains independent.
+Every BLAS operation runs through a KoblasContext. Top-level functions use the process-wide koblas context,
+whose registry selects providers independently by semantic role. The optional HFactor module is constructed
+directly and never participates in BLAS discovery or routing.
 
 Selected providers execute their native implementations at every size. They fall back only for unavailable
 libraries, unsupported arguments, or operations they do not implement. Inspect status for the selected providers
@@ -178,9 +178,7 @@ providers without route diagnostics report UNKNOWN rather than being assumed nat
 ### Discovery configuration
 
 On JVM, a system property takes precedence over the corresponding environment variable. Kotlin/Native reads
-the environment variable. Override a library path with the JVM property `koblas.<library>.path` or environment
-variable `KOBLAS_<LIBRARY>_PATH`. The supported library identifier is hfactor. The
-JVM-only `koblas.jvm.vector.scatter` setting (or
+the environment variable. The JVM-only `koblas.jvm.vector.scatter` setting (or
 `KOBLAS_JVM_VECTOR_SCATTER`) selects indexed Vector API stores for sparse kernels: auto (the default) makes a
 conservative guess from a 512-bit x86 preferred species. Use on when you know the deployment has a profitable
 AVX-512 path; it forces indexed stores when the Vector API module is present. Off retains scalar indexed
@@ -192,9 +190,24 @@ role automatic, while `reference` disables host selection for that role.
 
 ## Sparse workflows
 
-Portable sparse Cholesky, LDL, LU, QR, symbolic analysis, and basis factorization have been removed. HFactor is
-the remaining sparse factorization provider. It supplies general sparse LU and the stateful basis solver API;
-install and select HFactor before requesting either capability.
+Portable sparse Cholesky, LDL, LU, QR, symbolic analysis, and basis factorization have been removed. The
+optional JVM `koblas-hfactor` artifact supplies general sparse LU and the stateful basis solver API directly:
+
+```kotlin
+import com.eignex.koblas.hfactor.BundledHfactor
+import com.eignex.koblas.sparse.host.hfactor.HfactorConfig
+import com.eignex.koblas.sparse.host.hfactor.HfactorSparseLu
+
+val bundled = BundledHfactor()
+check(bundled.availability.available) { bundled.availability.reason }
+bundled.factor(a).use { factors -> factors.solveInto(rhs, solution) }
+
+val explicit = HfactorSparseLu(HfactorConfig(libraryPath = "/opt/lib/libkoblas_hfactor.so.1"))
+```
+
+Existing direct `HfactorSparseLu` and `BundledHfactor` construction keeps the same imports. Code that selected
+HFactor through `ContextBuilder`, `Capabilities`, or registry discovery must instead hold one of these objects
+and call `factor` or `basisSolver` on it.
 
 Repeated sparse products can retain an immutable CSC snapshot so a native backend marshals its descriptor once:
 
@@ -213,9 +226,8 @@ closed deterministically.
 
 ## Native options and threading
 
-Library paths belong to provider configuration types, while numerical and dispatch policy belongs to reusable
-options values. Bundled and host-backed HFactor providers accept the same options, so deployment can change
-without changing numerical policy. Effective options and resolved gates appear in `backendMetadata.options`.
+An explicit HFactor library path belongs to `HfactorConfig`; bundled and explicit-path construction accept the
+same `HfactorOptions`, so the loading choice does not change numerical policy.
 
 The portable reference, JVM SIMD, bundled C kernels, and HFactor are single-threaded.
 

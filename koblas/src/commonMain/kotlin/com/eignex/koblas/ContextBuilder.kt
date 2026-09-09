@@ -4,7 +4,6 @@ import com.eignex.koblas.dense.*
 import com.eignex.koblas.internal.backend.BackendSlot
 import com.eignex.koblas.internal.backend.slot
 import com.eignex.koblas.sparse.*
-import com.eignex.koblas.sparse.basis.BasisSolvers
 
 /**
  * An immutable resolver for an explicit [KoblasContext], initially containing only portable implementations.
@@ -78,17 +77,14 @@ public class ContextBuilder private constructor(
         val kernels = resolved.getValue(BackendRole.DENSE_KERNELS) as Kernels
         val denseReference = ReferenceBackend(kernels)
         val sparseReference = ReferenceSparseBackend(kernels)
-        val generalLu = resolved.semantic<GeneralSparseLu>(BackendRole.SPARSE_GENERAL_LU, sparseReference)
         return KoblasContext(
             kernels = kernels,
             blas = resolved.boundReference(BackendRole.DENSE_BLAS, denseReference) as Blas,
             sparseKernels = resolved.getValue(BackendRole.SPARSE_KERNELS) as SparseKernels,
             sparseBlas = resolved.boundReference(BackendRole.SPARSE_BLAS, sparseReference) as SparseBlas,
-            basisSolvers = resolved.boundReference(BackendRole.BASIS_SOLVERS, sparseReference) as BasisSolvers,
             dispatchPolicy = dispatchPolicy,
             fallbackPolicy = fallbackPolicy,
             fallbackWarning = fallbackWarning ?: {},
-            roles = SparseRoles(generalLu),
         )
     }
 
@@ -113,16 +109,3 @@ private fun Map<BackendRole, Backend>.boundReference(role: BackendRole, configur
 
 private fun portableSelections(): Map<BackendRole, Backend> =
     BackendSlot.entries.associate { it.role to it.portableDefault() }
-
-/**
- * The provider selected for [role], as the interface the role is defined by. The type holds because
- * [ContextBuilder.withBackend] takes no selection its role does not accept, so the error is a guard on a
- * selection map built some other way rather than something a caller can reach.
- */
-private inline fun <reified T : Backend> Map<BackendRole, Backend>.semantic(
-    role: BackendRole,
-    reference: ReferenceSparseBackend,
-): T {
-    val backend = boundReference(role, reference)
-    return backend as? T ?: error("${backend.name} does not implement $role")
-}

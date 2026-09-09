@@ -1,11 +1,8 @@
 package com.eignex.koblas.internal.backend
 
 import com.eignex.koblas.Backend
-import com.eignex.koblas.BundledBackend
 import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.dense.Blas
-import com.eignex.koblas.sparse.host.SparseBackends
-import com.eignex.koblas.sparse.host.hfactor.HfactorConfig
 import java.util.ServiceLoader
 
 /**
@@ -14,9 +11,7 @@ import java.util.ServiceLoader
  */
 internal actual fun registerPlatformBackends() {
     val requested = requestedBackends()
-    val automatic = AutomaticHostConfiguration()
     for (provider in loadProviders().sortedByDescending { it.priority }) {
-        if (automatic.overrides(provider)) continue
         val offered = offerFor(provider, requested)
         if (offered.isEmpty) continue
         if (!probe(provider, offered.halves)) continue
@@ -24,33 +19,6 @@ internal actual fun registerPlatformBackends() {
         // whatever a pin on one half left out.
         BackendRegistry.registerAutomatic(provider, offered)
     }
-    registerBuiltins(automatic, requested)
-}
-
-/** Deployment overrides are read only while automatic discovery chooses its candidates. */
-private class AutomaticHostConfiguration {
-    val hfactor = HfactorConfig(libraryPath(ConfigurationKeys.HFACTOR_PATH))
-
-    /** What a deployment pointed at a library of its own, read once off [ConfigurationKeys.LIBRARY_PATHS]. */
-    private val configuredPaths: Map<String, List<String?>> =
-        ConfigurationKeys.LIBRARY_PATHS.mapValues { (_, keys) -> keys.map(::libraryPath) }
-
-    /**
-     * Whether a configured library supersedes [provider]. Only a bundled provider steps aside: a configured
-     * one is what it would step aside for.
-     */
-    fun overrides(provider: Backend): Boolean = provider is BundledBackend &&
-        configuredPaths[provider.canonicalName].orEmpty().any { it != null }
-}
-
-/**
- * koblas's own HFactor binding, offered once. Presence is a `dlopen` plus a symbol lookup.
- *
- * The backends are built once for this pass and handed over, rather than looked up per question, since
- * constructing them twice would open the library twice.
- */
-private fun registerBuiltins(automatic: AutomaticHostConfiguration, requested: Map<BackendSlot, String?>) {
-    registerIfOffered(SparseBackends(hfactorConfig = automatic.hfactor).hfactor, requested)
 }
 
 /** Instantiate all registered providers, dropping any whose construction fails. */

@@ -16,11 +16,6 @@ public enum class BackendRole {
     /** Sparse matrix operations. */
     SPARSE_BLAS,
 
-    /** General pivoting sparse LU for unrelated patterns. */
-    SPARSE_GENERAL_LU,
-
-    /** Simplex basis solvers. */
-    BASIS_SOLVERS,
 }
 
 /**

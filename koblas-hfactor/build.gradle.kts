@@ -4,7 +4,7 @@ plugins {
 }
 
 eignexPublish {
-    description.set("Maven-hosted HiGHS HFactor basis-solver backend for koblas on the JVM.")
+    description.set("Optional HiGHS HFactor sparse and basis solver API for koblas on the JVM.")
     githubRepo.set("Eignex/koblas")
 }
 

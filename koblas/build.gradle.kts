@@ -19,7 +19,7 @@ kotlin {
         freeCompilerArgs.add("-Xexpect-actual-classes")
         optIn.add("com.eignex.koblas.UnsafeKoblasApi")
     }
-    // The JVM C kernels and HFactor binding use java.lang.foreign, finalized in 22 and used here with
+    // The JVM C kernels use java.lang.foreign, finalized in 22 and used here with
     // Linker.Option.critical. 25 is the current LTS-track release; this is the floor for JVM consumers.
     jvmToolchain(25)
     jvm {
@@ -48,15 +48,6 @@ kotlin {
         }
         linuxMain.get().dependsOn(cMain)
         macosMain.get().dependsOn(if (nativeHostIsMacos) cMain else crossScalarMain)
-
-        // Native resource ownership utilities are shared by the remaining sparse implementation.
-        val hostMain = create("hostMain") { dependsOn(nativeMain.get()) }
-        linuxMain.get().dependsOn(hostMain)
-        macosMain.get().dependsOn(hostMain)
-
-        val hostTest = create("hostTest") { dependsOn(nativeTest.get()) }
-        linuxTest.get().dependsOn(hostTest)
-        macosTest.get().dependsOn(hostTest)
 
         commonMain.dependencies {
             compileOnly("org.jetbrains.kotlinx:kotlinx-serialization-core:1.11.0")
@@ -145,7 +136,6 @@ dokka {
             "src/commonMain/kotlin/com/eignex/koblas/package.md",
             "src/commonMain/kotlin/com/eignex/koblas/dense/package.md",
             "src/commonMain/kotlin/com/eignex/koblas/sparse/package.md",
-            "src/commonMain/kotlin/com/eignex/koblas/sparse/basis/package.md",
         )
     }
 }
@@ -155,31 +145,17 @@ dokka {
 tasks.withType<KotlinJvmCompile>().configureEach {
     compilerOptions.freeCompilerArgs.add("-Xadd-modules=jdk.incubator.vector")
 }
-// FFM downcalls are restricted methods: a warning on 25, an error later. The bundled JVM kernels and
-// HFactor binding both use them.
+// FFM downcalls are restricted methods: a warning on 25, an error later. The bundled JVM kernels use them.
 tasks.withType<Test>().configureEach {
     jvmArgs("--enable-native-access=ALL-UNNAMED")
     if (project.findProperty("koblas.noSimd") != "true") {
         jvmArgs("--add-modules=jdk.incubator.vector")
     }
-    // Tests marked @Category(HostLibraryTest) need a real HFactor, so they are out of the default run and
-    // opted into with -Pkoblas.hostTests=true. Excluding them and pinning every backend role to `reference`
-    // keeps the everyday result independent of the machine's installed libraries.
-    if (project.findProperty("koblas.hostTests") == "true") return@configureEach
+    // Pin the remaining registry roles to the scalar reference for deterministic tests.
     systemProperty("koblas.backend.dense.kernels", "reference")
     systemProperty("koblas.backend.dense.blas", "reference")
     systemProperty("koblas.backend.sparse.kernels", "reference")
     systemProperty("koblas.backend.sparse.blas", "reference")
-    systemProperty("koblas.backend.sparse.general.lu", "reference")
-    systemProperty("koblas.backend.sparse.repeated.lu", "reference")
-    systemProperty("koblas.backend.sparse.cholesky", "reference")
-    systemProperty("koblas.backend.sparse.quasi-definite-ldl", "reference")
-    systemProperty("koblas.backend.sparse.qr", "reference")
-    systemProperty("koblas.backend.basis.factorizations", "reference")
-    systemProperty("koblas.backend.basis.solvers", "reference")
-    useJUnit {
-        excludeCategories("com.eignex.koblas.testutil.host.HostLibraryTest")
-    }
 }
 
 // Kotlin emits a `$DefaultImpls` holder for every interface with a body, and a bridge for every method with

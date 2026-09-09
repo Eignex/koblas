@@ -5,13 +5,10 @@ import com.eignex.koblas.BackendRole
 import com.eignex.koblas.DispatchPolicy
 import com.eignex.koblas.FallbackPolicy
 import com.eignex.koblas.KoblasContext
-import com.eignex.koblas.SparseRoles
 import com.eignex.koblas.dense.Blas
 import com.eignex.koblas.dense.Kernels
-import com.eignex.koblas.sparse.GeneralSparseLu
 import com.eignex.koblas.sparse.SparseBlas
 import com.eignex.koblas.sparse.SparseKernels
-import com.eignex.koblas.sparse.basis.BasisSolvers
 import kotlin.concurrent.Volatile
 import kotlin.concurrent.atomics.AtomicInt
 import kotlin.concurrent.atomics.AtomicReference
@@ -119,17 +116,14 @@ internal class Registry {
 
     /** Builds a context from the currently registered halves, falling back to the portable reference. */
     private fun assemble(): KoblasContext {
-        val general = resolved<GeneralSparseLu>(BackendSlot.GeneralSparseLu)
         return KoblasContext(
             kernels = resolved<Kernels>(BackendSlot.Kernels),
             blas = resolved<Blas>(BackendSlot.Blas),
             sparseKernels = resolved<SparseKernels>(BackendSlot.SparseKernels),
             sparseBlas = resolved<SparseBlas>(BackendSlot.SparseBlas),
-            basisSolvers = resolved<BasisSolvers>(BackendSlot.BasisSolvers),
             dispatchPolicy = DispatchPolicy.AUTO,
             fallbackPolicy = FallbackPolicy.ALLOW,
             fallbackWarning = {},
-            roles = SparseRoles(general),
         )
     }
 
