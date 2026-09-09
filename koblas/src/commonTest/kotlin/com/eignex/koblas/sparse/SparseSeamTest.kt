@@ -1,8 +1,6 @@
 package com.eignex.koblas.sparse
 
 import com.eignex.koblas.*
-import com.eignex.koblas.sparse.QuasiDefiniteLdlFactorization
-import com.eignex.koblas.sparse.SparseCholeskyFactorization
 import com.eignex.koblas.sparse.SparseLuFactorization
 import kotlin.test.*
 
@@ -142,36 +140,13 @@ class SparseSeamTest {
         }
     }
 
-    private class CountingSparseLu(override val priority: Int = 50) :
-        SparseLapack,
-        GeneralSparseLu,
-        SparseCholesky,
-        QuasiDefiniteLdl,
-        SparseQr {
+    private class CountingSparseLu(override val priority: Int = 50) : GeneralSparseLu {
         override val name: String get() = "counting-decompositions"
         var factors = 0
-        var choleskys = 0
-        var ldls = 0
-        var qrs = 0
 
         override fun factor(a: SparseMatrix): SparseLuFactorization {
             factors++
             return ReferenceSparseLinearAlgebra.factor(a)
-        }
-
-        override fun cholesky(a: SparseMatrix): SparseCholeskyFactorization {
-            choleskys++
-            return ReferenceSparseLinearAlgebra.cholesky(a)
-        }
-
-        override fun quasiDefiniteLdl(a: SparseMatrix): QuasiDefiniteLdlFactorization {
-            ldls++
-            return ReferenceSparseLinearAlgebra.quasiDefiniteLdl(a)
-        }
-
-        override fun qr(a: SparseMatrix): SparseQrFactorization {
-            qrs++
-            return ReferenceSparseLinearAlgebra.qr(a)
         }
     }
 
@@ -218,11 +193,9 @@ class SparseSeamTest {
     }
 
     @Test
-    fun `the matrix product and the factorization reach their halves`() = withCleanBackends {
+    fun `the matrix product reaches its half`() = withCleanBackends {
         val blas = CountingSparseBlas()
-        val decompositions = CountingSparseLu()
         registerBackend(blas)
-        registerBackend(decompositions)
         val a = SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 2.0), listOf(1 to 4.0)))
 
         assertTrue(doubleArrayOf(2.0, 8.0).contentEquals(koblas.gemv(a, doubleArrayOf(1.0, 2.0))))
@@ -242,36 +215,6 @@ class SparseSeamTest {
 
         a * a
         assertEquals(1, blas.sparseProducts, "the sparse product should forward to the seam")
-
-        val f = a.lu()
-        assertEquals(1, decompositions.factors, "SparseMatrix.lu should forward to the seam")
-        assertTrue(!f.singular)
-
-        a.cholesky()
-        assertEquals(1, decompositions.choleskys, "SparseMatrix.cholesky should forward to the seam")
-
-        a.quasiDefiniteLdl()
-        assertEquals(1, decompositions.ldls, "SparseMatrix.quasiDefiniteLdl should forward to the seam")
-
-        @Suppress("DEPRECATION")
-        a.quasiDefiniteLdl()
-        assertEquals(2, decompositions.ldls, "the LDL alias should remain compatible")
-    }
-
-    /**
-     * The portable factorizations transpose on the way in, and the portable answer is the definition every
-     * binding is compared against. Reaching the seam for it would route that definition through whichever
-     * backend happens to be registered.
-     */
-    @Test
-    fun `the portable Cholesky transposes without reaching the seam`() = withCleanBackends {
-        val blas = CountingSparseBlas()
-        registerBackend(blas)
-        val spd = SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 4.0), listOf(1 to 9.0)))
-
-        ReferenceSparseLinearAlgebra.cholesky(spd)
-
-        assertEquals(0, blas.transposes, "the portable factorization went through the registered backend")
     }
 
     @Test
@@ -279,11 +222,11 @@ class SparseSeamTest {
         registerBackend(CountingSparseBlas())
         registerBackend(CountingSparseLu())
         assertEquals("counting-blas", koblas.sparseBlas.name)
-        assertEquals("counting-decompositions", koblas.sparseDecompositions.name)
+        assertEquals("counting-decompositions", koblas.generalSparseLu.name)
         resetBackends()
         registerBackend(ReferenceSparseLinearAlgebra)
         assertSame(ReferenceSparseLinearAlgebra, koblas.sparseBlas)
-        assertEquals("reference", koblas.sparseDecompositions.name)
+        assertEquals("reference", koblas.generalSparseLu.name)
     }
 
     @Test
@@ -309,7 +252,7 @@ class SparseSeamTest {
     @Test
     fun `an empty registry resolves to the portable implementation on all three sparse halves`() = withCleanBackends {
         assertSame(ReferenceSparseLinearAlgebra, koblas.sparseBlas)
-        assertEquals("reference", koblas.sparseDecompositions.name)
+        assertEquals("reference", koblas.generalSparseLu.name)
         assertSame(PlatformSparseKernels, koblas.sparseKernels)
     }
 }

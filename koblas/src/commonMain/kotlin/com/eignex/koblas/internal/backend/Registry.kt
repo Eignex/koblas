@@ -8,14 +8,9 @@ import com.eignex.koblas.KoblasContext
 import com.eignex.koblas.SparseRoles
 import com.eignex.koblas.dense.Blas
 import com.eignex.koblas.dense.Kernels
-import com.eignex.koblas.sparse.BasisFactorizations
 import com.eignex.koblas.sparse.GeneralSparseLu
-import com.eignex.koblas.sparse.QuasiDefiniteLdl
-import com.eignex.koblas.sparse.RepeatedSparseLu
 import com.eignex.koblas.sparse.SparseBlas
-import com.eignex.koblas.sparse.SparseCholesky
 import com.eignex.koblas.sparse.SparseKernels
-import com.eignex.koblas.sparse.SparseQr
 import com.eignex.koblas.sparse.basis.BasisSolvers
 import kotlin.concurrent.Volatile
 import kotlin.concurrent.atomics.AtomicInt
@@ -125,9 +120,6 @@ internal class Registry {
     /** Builds a context from the currently registered halves, falling back to the portable reference. */
     private fun assemble(): KoblasContext {
         val general = resolved<GeneralSparseLu>(BackendSlot.GeneralSparseLu)
-        val cholesky = resolved<SparseCholesky>(BackendSlot.SparseCholesky)
-        val quasiDefiniteLdl = resolved<QuasiDefiniteLdl>(BackendSlot.QuasiDefiniteLdl)
-        val qr = resolved<SparseQr>(BackendSlot.SparseQr)
         return KoblasContext(
             kernels = resolved<Kernels>(BackendSlot.Kernels),
             blas = resolved<Blas>(BackendSlot.Blas),
@@ -137,14 +129,7 @@ internal class Registry {
             dispatchPolicy = DispatchPolicy.AUTO,
             fallbackPolicy = FallbackPolicy.ALLOW,
             fallbackWarning = {},
-            roles = SparseRoles(
-                generalLu = general,
-                repeatedLu = strongest<RepeatedSparseLu>(BackendSlot.RepeatedSparseLu),
-                cholesky = cholesky,
-                quasiDefiniteLdl = quasiDefiniteLdl,
-                qr = qr,
-                basisFactorizations = resolved<BasisFactorizations>(BackendSlot.BasisFactorizations),
-            ),
+            roles = SparseRoles(general),
         )
     }
 

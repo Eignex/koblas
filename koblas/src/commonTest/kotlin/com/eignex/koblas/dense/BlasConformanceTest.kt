@@ -3,8 +3,6 @@ package com.eignex.koblas.dense
 import com.eignex.koblas.*
 import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.DenseVector
-import com.eignex.koblas.SparseMatrix
-import com.eignex.koblas.sparse.ReferenceSparseDecompositions
 import kotlin.math.abs
 import kotlin.random.Random
 import kotlin.test.Test
@@ -386,24 +384,6 @@ class BlasConformanceTest {
                     }
                 }
             }
-        }
-    }
-
-    @Test
-    fun `sparse LU solve has a small residual on standard matrices`() {
-        val rng = Random(20260101)
-        for (n in intArrayOf(2, 8, 30)) {
-            val dense = wellConditioned(n, rng)
-            val cols = List(n) { j ->
-                (0 until n).mapNotNull { i -> if (dense[i, j] != 0.0) i to dense[i, j] else null }
-            }
-            val sparse = SparseMatrix.ofColumns(n, n, cols)
-            val lu = ReferenceSparseDecompositions(equilibrate = true).factor(sparse)
-            if (lu.singular) continue
-            val xTrue = DoubleArray(n) { rng.nextDouble(-2.0, 2.0) }
-            val b = koblas.gemv(sparse, xTrue)
-            val x = lu.solve(b)
-            assertSolveResidual(dense, x, b, "sparseLU/n=$n")
         }
     }
 }

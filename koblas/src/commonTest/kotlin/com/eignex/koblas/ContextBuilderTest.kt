@@ -7,21 +7,6 @@ import kotlin.test.*
 
 class ContextBuilderTest {
 
-    private class TrackingSparseDecompositions :
-        SparseLapack by ReferenceSparseLinearAlgebra,
-        GeneralSparseLu,
-        SparseCholesky,
-        QuasiDefiniteLdl,
-        SparseQr {
-        override val name: String get() = "tracking sparse decompositions"
-        var qrCalls: Int = 0
-
-        override fun qr(a: SparseMatrix): SparseQrFactorization {
-            qrCalls++
-            return ReferenceSparseLinearAlgebra.qr(a)
-        }
-    }
-
     private class CountingKernels : Kernels by PlatformKernels {
         var axpys: Int = 0
         var scales: Int = 0
@@ -295,22 +280,5 @@ class ContextBuilderTest {
         assertFailsWith<IllegalArgumentException> {
             ContextBuilder().withBackend(BackendRole.SPARSE_BLAS, routed)
         }
-    }
-
-    @Test
-    fun `a complete sparse backend selects QR with the other decomposition roles`() {
-        val backend = TrackingSparseDecompositions()
-        val context = ContextBuilder()
-            .withBackend(backend)
-            .resolve()
-        val matrix = SparseMatrix.ofColumns(2, 1, listOf(listOf(0 to 1.0, 1 to 1.0)))
-
-        context.qr(matrix).close()
-
-        assertEquals(1, backend.qrCalls)
-        assertSame(backend, context.generalSparseLu)
-        assertSame(backend, context.sparseCholesky)
-        assertSame(backend, context.quasiDefiniteLdl)
-        assertSame(backend, context.sparseQr)
     }
 }

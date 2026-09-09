@@ -19,21 +19,6 @@ public enum class BackendRole {
     /** General pivoting sparse LU for unrelated patterns. */
     SPARSE_GENERAL_LU,
 
-    /** Sparse LU that reuses one pattern's symbolic work. */
-    SPARSE_REPEATED_LU,
-
-    /** Symmetric positive-definite sparse Cholesky. */
-    SPARSE_CHOLESKY,
-
-    /** Symmetric sparse quasi-definite, numerically unpivoted `L * D * L^T`. */
-    SPARSE_QUASI_DEFINITE_LDL,
-
-    /** Sparse QR for least-squares solves. */
-    SPARSE_QR,
-
-    /** Simplex basis factorizations with column replacement. */
-    BASIS_FACTORIZATIONS,
-
     /** Simplex basis solvers. */
     BASIS_SOLVERS,
 }

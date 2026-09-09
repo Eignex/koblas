@@ -4,8 +4,6 @@ import com.eignex.koblas.*
 import com.eignex.koblas.dense.*
 import com.eignex.koblas.sparse.REFERENCE_SPARSE_RHS_WIDTH
 import com.eignex.koblas.sparse.ReferenceSparseLinearAlgebra
-import com.eignex.koblas.sparse.lu
-import com.eignex.koblas.sparse.sparseConformanceSystem
 import com.eignex.koblas.testutil.allocation.allocatedBytes
 import com.eignex.koblas.testutil.allocation.bytesPerIteration
 import kotlin.random.Random
@@ -29,7 +27,7 @@ class AllocationFreeTest {
                 kernels = ScalarKernels,
                 blas = ReferenceBlas,
                 sparseBlas = ReferenceSparseLinearAlgebra,
-                sparseDecompositions = ReferenceSparseLinearAlgebra,
+                generalSparseLu = ReferenceSparseLinearAlgebra,
                 sparseKernels = ReferenceSparseLinearAlgebra,
             ),
         )
@@ -108,54 +106,6 @@ class AllocationFreeTest {
         val a = wellConditioned(n, Random(20260742))
         val bytes = bytesPerIteration(2000) { a.norm1() }
         assertTrue(bytes <= FLOOR_BYTES, "norm1 allocated $bytes B")
-    }
-
-    @Test
-    fun `a sparse simplex-shaped iteration allocates nothing`() {
-        val m = 64
-        val rng = Random(20260739)
-        val columns = List(m) { j ->
-            val entries = ArrayList<Pair<Int, Double>>()
-            entries.add(j to (rng.nextDouble(-1.0, 1.0) + m))
-            for (i in 0 until m) if (i != j && rng.nextDouble() < 0.05) entries.add(i to rng.nextDouble(-1.0, 1.0))
-            entries
-        }
-        val basis = SparseMatrix.ofColumns(m, m, columns).lu()
-        val b = DoubleArray(m) { rng.nextDouble(-1.0, 1.0) }
-        val x = DoubleArray(m)
-        val y = DoubleArray(m)
-        val ws = Workspace()
-
-        val allocating = bytesPerIteration(500) {
-            basis.solve(b)
-            basis.solve(b, transpose = true)
-        }
-        val into = bytesPerIteration(500) {
-            basis.solveInto(b, x, workspace = ws)
-            basis.solveInto(b, y, transpose = true, workspace = ws)
-        }
-        assertTrue(allocating > m * Double.SIZE_BYTES * 2.0, "expected allocation, saw $allocating B")
-        assertPooled(into, allocating, "sparse solve both directions")
-    }
-
-    @Test
-    fun `strict sparse allocation checks are allocation neutral`() {
-        val n = 64
-        val factor = sparseConformanceSystem(n, Random(20260828)).lu()
-        val b = DoubleArray(n) { it * 0.01 - 0.5 }
-        val out = DoubleArray(n)
-        val workspace = Workspace().apply { reserve(n, count = 2) }
-
-        val bytes = bytesPerIteration(500) {
-            factor.solveInto(
-                b,
-                out,
-                workspace = workspace,
-                allocationPolicy = AllocationPolicy.REQUIRE_NO_MANAGED_OR_NATIVE,
-            )
-        }
-
-        assertTrue(bytes <= FLOOR_BYTES, "strict sparse solve allocated $bytes B per call")
     }
 
     /**

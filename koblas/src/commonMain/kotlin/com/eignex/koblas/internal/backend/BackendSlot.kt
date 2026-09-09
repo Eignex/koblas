@@ -3,21 +3,15 @@ package com.eignex.koblas.internal.backend
 import com.eignex.koblas.Backend
 import com.eignex.koblas.BackendRole
 import com.eignex.koblas.KoblasContext
-import com.eignex.koblas.MissingRepeatedSparseLu
 import com.eignex.koblas.dense.Blas
 import com.eignex.koblas.dense.Kernels
 import com.eignex.koblas.dense.PlatformKernels
 import com.eignex.koblas.dense.ReferenceBlas
-import com.eignex.koblas.sparse.BasisFactorizations
 import com.eignex.koblas.sparse.GeneralSparseLu
 import com.eignex.koblas.sparse.PlatformSparseKernels
-import com.eignex.koblas.sparse.QuasiDefiniteLdl
 import com.eignex.koblas.sparse.ReferenceSparseLinearAlgebra
-import com.eignex.koblas.sparse.RepeatedSparseLu
 import com.eignex.koblas.sparse.SparseBlas
-import com.eignex.koblas.sparse.SparseCholesky
 import com.eignex.koblas.sparse.SparseKernels
-import com.eignex.koblas.sparse.SparseQr
 import com.eignex.koblas.sparse.basis.BasisSolvers
 
 /**
@@ -116,73 +110,6 @@ internal enum class BackendSlot(
         selectionKeys = BackendSelectionKeys(
             "koblas.backend.sparse.general.lu",
             "KOBLAS_SPARSE_GENERAL_LU_BACKEND",
-        ),
-        supersededBy = setOf(BackendRole.SPARSE_REPEATED_LU, BackendRole.BASIS_FACTORIZATIONS),
-        sparse = true,
-    ),
-
-    /** Repeated-pattern sparse LU. */
-    RepeatedSparseLu(
-        role = BackendRole.SPARSE_REPEATED_LU,
-        accepts = { it is RepeatedSparseLu },
-        from = { it.repeatedSparseLu ?: MissingRepeatedSparseLu },
-        portableDefault = { MissingRepeatedSparseLu },
-        selectionKeys = BackendSelectionKeys(
-            "koblas.backend.sparse.repeated.lu",
-            "KOBLAS_SPARSE_REPEATED_LU_BACKEND",
-        ),
-        sparse = true,
-        required = false,
-    ),
-
-    /** Sparse Cholesky. */
-    SparseCholesky(
-        role = BackendRole.SPARSE_CHOLESKY,
-        accepts = { it is SparseCholesky },
-        from = { it.sparseCholesky },
-        portableDefault = { ReferenceSparseLinearAlgebra },
-        selectionKeys = BackendSelectionKeys(
-            "koblas.backend.sparse.cholesky",
-            "KOBLAS_SPARSE_CHOLESKY_BACKEND",
-        ),
-        sparse = true,
-    ),
-
-    /** Sparse quasi-definite LDL. */
-    QuasiDefiniteLdl(
-        role = BackendRole.SPARSE_QUASI_DEFINITE_LDL,
-        accepts = { it is QuasiDefiniteLdl },
-        from = { it.quasiDefiniteLdl },
-        portableDefault = { ReferenceSparseLinearAlgebra },
-        selectionKeys = BackendSelectionKeys(
-            "koblas.backend.sparse.quasi-definite-ldl",
-            "KOBLAS_SPARSE_QUASI_DEFINITE_LDL_BACKEND",
-        ),
-        sparse = true,
-    ),
-
-    /** Sparse QR. */
-    SparseQr(
-        role = BackendRole.SPARSE_QR,
-        accepts = { it is SparseQr },
-        from = { it.sparseQr },
-        portableDefault = { ReferenceSparseLinearAlgebra },
-        selectionKeys = BackendSelectionKeys(
-            "koblas.backend.sparse.qr",
-            "KOBLAS_SPARSE_QR_BACKEND",
-        ),
-        sparse = true,
-    ),
-
-    /** Simplex basis factorizations. */
-    BasisFactorizations(
-        role = BackendRole.BASIS_FACTORIZATIONS,
-        accepts = { it is BasisFactorizations },
-        from = { it.basisFactorizations },
-        portableDefault = { ReferenceSparseLinearAlgebra },
-        selectionKeys = BackendSelectionKeys(
-            "koblas.backend.basis.factorizations",
-            "KOBLAS_BASIS_FACTORIZATIONS_BACKEND",
         ),
         sparse = true,
     ),
