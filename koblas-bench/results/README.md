@@ -15,6 +15,25 @@ Exact provenance, settings, raw-result limitations, commands, and unmeasured pla
 Expected SHA-256:
 `9379c05859d8df37429ee1d9908e51c178f109c77ff0772425fa9384a905814c`.
 
+## oneMKL sparse parity
+
+`onemkl-sparse-parity-b1b0b167-jvm-20260909.tar.gz` is a clean-commit version-1 standard JVM report with two
+fresh built-in passes and two matched oneMKL 2026.1 passes over all 83 cases per arm. The run used an Intel Core
+i9-12900H with affinity `0,2,4,6`; oneMKL was fixed to one thread. The report completed in 312.1 seconds and its
+median all-profile `koblas/oneMKL` ratio was 1.195. Sparse one-shot rows expose conversion cost, while prepared
+n=1024 developer rows in the companion selected archive show the credible integration opportunity.
+
+`onemkl-sparse-selected-b1b0b167-jvm-20260910.tar.gz` retains 131 matched selected rows, scalar Level-1 oracle
+timings, complete logs, ratios, the rejected growing-workspace allocation probe, and its corrected measurement.
+It also retains two JMH-lock-rejected attempts as explicitly failed non-evidence. Detailed provenance, commands,
+coverage classification, allocation findings, limitations, and ranked production follow-ups are in
+`onemkl-sparse-parity-b1b0b167-jvm-20260909-notes.md`.
+
+Expected SHA-256 values:
+
+- standard: `78a6fde18ce204aaf422540db2332b7fe938879cf11f838e84f047af316ce37a`
+- selected: `774a578afd9bfa40e3a09700a324a242624c8c89e13e5e970e6613c28fee4484`
+
 ## Kernel contract composition
 
 `kernel-contract-composition-20260909.tar.gz` preserves two clean-main baseline passes and two dirty-candidate
