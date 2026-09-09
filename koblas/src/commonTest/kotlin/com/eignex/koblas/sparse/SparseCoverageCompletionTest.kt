@@ -3,7 +3,6 @@ package com.eignex.koblas.sparse
 import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.Workspace
-import com.eignex.koblas.assertClose
 import com.eignex.koblas.minus
 import com.eignex.koblas.plus
 import kotlin.test.Test
@@ -66,6 +65,21 @@ class SparseCoverageCompletionTest {
         val y = doubleArrayOf(Double.NaN)
         ReferenceSparseLinearAlgebra.symv(0.0, poisoned, doubleArrayOf(Double.NaN), 0.0, y)
         assertEquals(0.0, y[0])
+
+        val allShared = doubleArrayOf(2.0, 3.0, 7.0, 5.0)
+        val sharedA = SparseMatrix.wrap(2, 2, intArrayOf(0, 2, 4), intArrayOf(0, 1, 0, 1), allShared)
+        val sharedB = DenseMatrix.wrap(2, 2, allShared)
+        val sharedC = DenseMatrix.wrap(2, 2, allShared)
+        ReferenceSparseLinearAlgebra.symm(
+            1.0,
+            sharedA,
+            sharedB,
+            0.0,
+            sharedC,
+            lower = true,
+            workspace = Workspace(),
+        )
+        assertContentEquals(doubleArrayOf(13.0, 21.0, 29.0, 46.0), sharedC.data)
     }
 
     @Test
@@ -115,12 +129,53 @@ class SparseCoverageCompletionTest {
                 val n = if (transpose) a.cols else a.rows
                 val dense = DenseMatrix.wrap(n, n, DoubleArray(n * n) { Double.NaN })
                 ReferenceSparseLinearAlgebra.syrk(1.0, a, transpose, 0.0, dense, lower, Workspace())
-                for (j in 0 until n) for (i in 0 until n) {
-                    if (if (lower) i >= j else i <= j) assertEquals(sparse[i, j], dense[i, j])
-                    else assertTrue(dense[i, j].isNaN())
+                for (j in 0 until n) {
+                    for (i in 0 until n) {
+                        if (if (lower) i >= j else i <= j) {
+                            assertEquals(sparse[i, j], dense[i, j])
+                        } else {
+                            assertTrue(dense[i, j].isNaN())
+                        }
+                    }
                 }
             }
         }
+
+        val exceptional = SparseMatrix.ofColumns(
+            2,
+            1,
+            listOf(listOf(0 to Double.POSITIVE_INFINITY, 1 to 0.0)),
+        )
+        val exceptionalResult = ReferenceSparseLinearAlgebra.syrk(exceptional)
+        assertTrue(exceptionalResult[1, 0].isNaN())
+        val implicit = SparseMatrix.ofColumns(2, 1, listOf(listOf(0 to Double.POSITIVE_INFINITY)))
+        val implicitDense = DenseMatrix.zero(2)
+        ReferenceSparseLinearAlgebra.syrk(1.0, implicit, false, 0.0, implicitDense)
+        assertEquals(0.0, implicitDense[1, 0], "implicit sparse zero must not form zero times infinity")
+    }
+
+    @Test
+    fun `empty products retain requested shapes and scalar behavior`() {
+        val a = SparseMatrix.ofColumns(2, 0, emptyList())
+        val b = SparseMatrix.ofColumns(0, 3, List(3) { emptyList() })
+        val sparse = ReferenceSparseLinearAlgebra.gemm(2.0, a, false, b, false)
+        assertEquals(2, sparse.rows)
+        assertEquals(3, sparse.cols)
+        assertEquals(0, sparse.nnz)
+
+        val dense = DenseMatrix.wrap(2, 3, DoubleArray(6) { 4.0 })
+        ReferenceSparseLinearAlgebra.gemm(0.0, a, false, b, false, -0.5, dense)
+        assertTrue(dense.data.all { it == -2.0 })
+
+        val emptySymmetric = SparseMatrix.ofColumns(0, 0, emptyList())
+        ReferenceSparseLinearAlgebra.symv(1.0, emptySymmetric, DoubleArray(0), 0.0, DoubleArray(0))
+        ReferenceSparseLinearAlgebra.symm(
+            1.0,
+            emptySymmetric,
+            DenseMatrix.zero(0, 3),
+            0.0,
+            DenseMatrix.zero(0, 3),
+        )
     }
 
     @Test

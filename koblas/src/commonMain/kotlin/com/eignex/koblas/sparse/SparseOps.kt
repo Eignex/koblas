@@ -66,11 +66,8 @@ public fun SparseMatrix.syrk(
 ): Unit = koblas.sparseBlas.syrk(alpha, this, transpose, beta, c, lower, workspace)
 
 /** Fresh CSC `alpha · op(A) + B`, retaining the structural union. */
-public fun SparseMatrix.addScaled(
-    alpha: Double,
-    transpose: Boolean,
-    b: SparseMatrix,
-): SparseMatrix = koblas.sparseBlas.addScaled(alpha, this, transpose, b)
+public fun SparseMatrix.addScaled(alpha: Double, transpose: Boolean, b: SparseMatrix): SparseMatrix =
+    koblas.sparseBlas.addScaled(alpha, this, transpose, b)
 
 /** Solve `op(T) · X = B` in place for every column of [b]. */
 @Suppress("LongParameterList")

@@ -4,13 +4,7 @@ import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.SparseMatrix
 
 /** Adds `alpha · A · x` to [y], mirroring only entries stored in [lower]'s selected triangle. */
-internal fun symmetricMultiplyVector(
-    alpha: Double,
-    a: SparseMatrix,
-    x: DoubleArray,
-    y: DoubleArray,
-    lower: Boolean,
-) {
+internal fun symmetricMultiplyVector(alpha: Double, a: SparseMatrix, x: DoubleArray, y: DoubleArray, lower: Boolean) {
     for (j in 0 until a.cols) {
         a.forEachInColumn(j) { i, value ->
             if (if (lower) i >= j else i <= j) {

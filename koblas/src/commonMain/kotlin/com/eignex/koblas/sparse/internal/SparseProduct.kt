@@ -96,3 +96,117 @@ internal fun multiplySparseInto(
         }
     }
 }
+
+/** Fresh selected triangle of `op(A) · op(A)ᵀ` without materializing a transpose or full product. */
+internal fun symmetricRankProduct(a: SparseMatrix, transpose: Boolean, lower: Boolean): SparseMatrix {
+    val order = if (transpose) a.cols else a.rows
+    val sums = DoubleArray(order)
+    val touchedAt = IntArray(order) { -1 }
+    val touched = IntArray(order)
+    val pointers = IntArray(order + 1)
+    var rows = IntArray(maxOf(1, a.nnz))
+    var values = DoubleArray(rows.size)
+    var count = 0
+    for (j in 0 until order) {
+        var used = 0
+        forEachRankContribution(a, transpose, j) { i, value ->
+            if (if (lower) i >= j else i <= j) {
+                if (touchedAt[i] != j) {
+                    touchedAt[i] = j
+                    sums[i] = value
+                    touched[used++] = i
+                } else {
+                    sums[i] += value
+                }
+            }
+        }
+        if (count + used > rows.size) {
+            val size = maxOf(rows.size * 2, count + used)
+            rows = rows.copyOf(size)
+            values = values.copyOf(size)
+        }
+        touched.sort(0, used)
+        for (at in 0 until used) {
+            val row = touched[at]
+            rows[count] = row
+            values[count] = sums[row]
+            count++
+        }
+        pointers[j + 1] = count
+    }
+    return SparseMatrix.wrapTrusted(order, order, pointers, rows.copyOf(count), values.copyOf(count))
+}
+
+/** Adds the selected triangle of `alpha · op(A) · op(A)ᵀ` directly into dense [c]. */
+internal fun symmetricRankInto(
+    alpha: Double,
+    a: SparseMatrix,
+    transpose: Boolean,
+    c: DenseMatrix,
+    lower: Boolean,
+    sums: DoubleArray,
+    touchedAt: IntArray,
+    touched: IntArray,
+) {
+    val order = c.rows
+    touchedAt.fill(-1)
+    for (j in 0 until order) {
+        var used = 0
+        forEachRankContribution(a, transpose, j) { i, value ->
+            if (if (lower) i >= j else i <= j) {
+                if (touchedAt[i] != j) {
+                    touchedAt[i] = j
+                    sums[i] = value
+                    touched[used++] = i
+                } else {
+                    sums[i] += value
+                }
+            }
+        }
+        for (at in 0 until used) {
+            val i = touched[at]
+            c.data[i + j * order] += alpha * sums[i]
+        }
+    }
+}
+
+/** Emits one stored product contribution for output column [j]. */
+private inline fun forEachRankContribution(
+    a: SparseMatrix,
+    transpose: Boolean,
+    j: Int,
+    action: (row: Int, value: Double) -> Unit,
+) {
+    if (!transpose) {
+        for (p in 0 until a.cols) {
+            val jp = storedPosition(a, j, p)
+            if (jp < 0) continue
+            val jv = a.values[jp]
+            for (ip in a.colPtr[p] until a.colPtr[p + 1]) action(a.rowIdx[ip], a.values[ip] * jv)
+        }
+        return
+    }
+    for (jp in a.colPtr[j] until a.colPtr[j + 1]) {
+        val p = a.rowIdx[jp]
+        val jv = a.values[jp]
+        for (i in 0 until a.cols) {
+            val ip = storedPosition(a, p, i)
+            if (ip >= 0) action(i, a.values[ip] * jv)
+        }
+    }
+}
+
+/** Stored-position lookup without turning an absent sparse entry into a numerical zero. */
+private fun storedPosition(a: SparseMatrix, row: Int, column: Int): Int {
+    var low = a.colPtr[column]
+    var high = a.colPtr[column + 1] - 1
+    while (low <= high) {
+        val middle = (low + high) ushr 1
+        when {
+            a.rowIdx[middle] < row -> low = middle + 1
+            a.rowIdx[middle] > row -> high = middle - 1
+            else -> return middle
+        }
+    }
+    return -1
+}
