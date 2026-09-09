@@ -14,7 +14,7 @@ internal actual fun oneMklSparseComparator(): SparseComparator? = null
 
 /** Linux x86-64 OpenBLAS cinterop owned by koblas-bench, including the restored level-1 calls. */
 private object NativeOpenBlas : DenseComparator {
-    override val identity = "openblas/cblas-native/${koblas_openblas_version()?.toKString() ?: "unknown"}"
+    override val identity = "openblas/cblas-native"
     override val threading = "1 thread"
 
     init { openblas_set_num_threads(1) }
