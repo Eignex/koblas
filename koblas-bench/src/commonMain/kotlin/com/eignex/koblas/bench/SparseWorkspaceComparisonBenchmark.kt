@@ -361,8 +361,15 @@ class SparseWorkspaceGrowingComparisonBenchmark {
             else -> error("unknown sparse workspace arm: $sparseArm")
         }
         if (supportSize == 512 && scatterSize == 4) {
-            verifyNearZeroManagedAllocation("sparse-workspace-equivalent/$sparseArm/growing") {
-                manyShortScattersEquivalent()
+            if (external == null) {
+                verifyNearZeroManagedAllocation("sparse-workspace-equivalent/$sparseArm/growing") {
+                    manyShortScattersEquivalent()
+                }
+            } else {
+                reportAllocatingWorkload(
+                    "sparse-workspace-equivalent/$sparseArm/growing",
+                    "the equivalent vendor composition creates one sparse-vector wrapper per short scatter",
+                )
             }
         }
         println()
