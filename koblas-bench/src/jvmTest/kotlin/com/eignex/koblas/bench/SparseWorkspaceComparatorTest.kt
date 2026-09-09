@@ -216,11 +216,13 @@ class SparseWorkspaceComparatorTest {
             val actualIndices = expectedIndices.copyOf()
             val expectedValues = DoubleArray(8) { 17.0 }
             val actualValues = expectedValues.copyOf()
+            val scratchValues = DoubleArray(8) { 23.0 }
             val expectedCount = SparseWorkspace.gatherTouched(
                 touched, 1, 4, source, expectedIndices, 2, expectedValues, 2, compact,
             )
             val actualCount = SparseWorkspaceComparators.gatherTouchedOneMkl(
-                comparator, touched, 1, 4, source, actualIndices, 2, actualValues, 2, compact,
+                comparator, touched, 1, 4, source, scratchValues, 1,
+                actualIndices, 2, actualValues, 2, compact,
             )
             assertEquals(expectedCount, actualCount, "compact=$compact")
             assertContentEquals(expectedIndices, actualIndices, "compact=$compact")
@@ -240,7 +242,7 @@ class SparseWorkspaceComparatorTest {
                     expectedIndices, 2, expectedValues, 2, compact,
                 )
                 val actualClearCount = SparseWorkspaceComparators.gatherClearTouchedOneMkl(
-                    comparator, touched, 1, 4, actualAccumulator, actualMarks,
+                    comparator, touched, 1, 4, actualAccumulator, actualMarks, scratchValues, 1,
                     actualIndices, 2, actualValues, 2, compact,
                 )
                 assertEquals(expectedClearCount, actualClearCount, "compact=$compact invocation=$invocation")
