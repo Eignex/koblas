@@ -7,6 +7,7 @@ import com.eignex.koblas.SparseVector
 import java.lang.foreign.*
 import java.lang.foreign.ValueLayout.*
 import java.lang.invoke.MethodHandle
+import java.lang.ref.WeakReference
 
 internal actual fun oneMklSparseComparator(): SparseComparator? = JvmOneMklSparse.open()
 
@@ -75,7 +76,7 @@ private class JvmOneMklSparse private constructor(private val library: BenchFfmL
 
     @OptIn(UnsafeKoblasApi::class)
     override fun axpy(alpha: Double, x: SparseVector, y: DoubleArray) {
-        if (x.values.isNotEmpty()) daxpyi.invokeExact(x.values.size, alpha, seg(x.values), seg(x.indices), seg(y)) as Unit
+        indexedAxpy(alpha, x.values, 0, x.indices, 0, x.values.size, y)
     }
 
     @OptIn(UnsafeKoblasApi::class)
@@ -85,12 +86,61 @@ private class JvmOneMklSparse private constructor(private val library: BenchFfmL
 
     @OptIn(UnsafeKoblasApi::class)
     override fun gather(x: SparseVector, from: DoubleArray, out: DoubleArray) {
-        if (x.values.isNotEmpty()) dgthr.invokeExact(x.values.size, seg(from), seg(out), seg(x.indices)) as Unit
+        indexedGather(x.indices, 0, x.values.size, from, out, 0)
     }
 
     @OptIn(UnsafeKoblasApi::class)
     override fun gatherZero(x: SparseVector, from: DoubleArray, out: DoubleArray) {
-        if (x.values.isNotEmpty()) dgthrz.invokeExact(x.values.size, seg(from), seg(out), seg(x.indices)) as Unit
+        indexedGatherZero(x.indices, 0, x.values.size, from, out, 0)
+    }
+
+    @OptIn(UnsafeKoblasApi::class)
+    override fun indexedAxpy(
+        alpha: Double,
+        values: DoubleArray,
+        valueOffset: Int,
+        indices: IntArray,
+        indexOffset: Int,
+        count: Int,
+        accumulator: DoubleArray,
+    ) {
+        if (count != 0) {
+            daxpyi.invokeExact(
+                count, alpha, seg(values, valueOffset), seg(indices, indexOffset), seg(accumulator),
+            ) as Unit
+        }
+    }
+
+    @OptIn(UnsafeKoblasApi::class)
+    override fun indexedGather(
+        indices: IntArray,
+        indexOffset: Int,
+        count: Int,
+        accumulator: DoubleArray,
+        outValues: DoubleArray,
+        outValueOffset: Int,
+    ) {
+        if (count != 0) {
+            dgthr.invokeExact(
+                count, seg(accumulator), seg(outValues, outValueOffset), seg(indices, indexOffset),
+            ) as Unit
+        }
+    }
+
+    @OptIn(UnsafeKoblasApi::class)
+    override fun indexedGatherZero(
+        indices: IntArray,
+        indexOffset: Int,
+        count: Int,
+        accumulator: DoubleArray,
+        outValues: DoubleArray,
+        outValueOffset: Int,
+    ) {
+        if (count != 0) {
+            dgthrz.invokeExact(
+                count, seg(accumulator), seg(outValues, outValueOffset), seg(indices, indexOffset),
+            ) as Unit
+        }
     }
 
     override fun sparseProduct(a: SparseMatrix, b: SparseMatrix): SparseMatrix {
@@ -145,8 +195,10 @@ private class JvmOneMklSparse private constructor(private val library: BenchFfmL
     }
 
     private fun handle(name: String, descriptor: FunctionDescriptor): MethodHandle = library.handle(name, descriptor)
-    private fun seg(values: DoubleArray): MemorySegment = MemorySegment.ofArray(values)
-    private fun seg(values: IntArray): MemorySegment = MemorySegment.ofArray(values)
+    private fun seg(values: DoubleArray): MemorySegment = BenchSparseArraySegments.of(values, 0)
+    private fun seg(values: IntArray): MemorySegment = BenchSparseArraySegments.of(values, 0)
+    private fun seg(values: DoubleArray, offset: Int): MemorySegment = BenchSparseArraySegments.of(values, offset)
+    private fun seg(values: IntArray, offset: Int): MemorySegment = BenchSparseArraySegments.of(values, offset)
 
     @OptIn(UnsafeKoblasApi::class)
     private class Prepared(
@@ -322,3 +374,45 @@ private const val DIAG_UNIT = 51
 private const val COLUMN_MAJOR = 102
 private fun operation(transpose: Boolean) = if (transpose) TRANSPOSE_SPARSE else NON_TRANSPOSE
 private fun checkStatus(status: Int, operation: String) = check(status == 0) { "$operation failed with oneMKL status $status" }
+
+/** Keeps raw-slice FFM wrappers out of warmed comparator timings without retaining caller arrays. */
+private object BenchSparseArraySegments {
+    private val local = ThreadLocal.withInitial(::SparseArraySegmentCache)
+
+    fun of(array: DoubleArray, offset: Int): MemorySegment = local.get().of(array, offset)
+    fun of(array: IntArray, offset: Int): MemorySegment = local.get().of(array, offset)
+}
+
+private class SparseArraySegmentCache {
+    private companion object { const val CAPACITY = 64 }
+
+    private val arrays = arrayOfNulls<WeakReference<Any>>(CAPACITY)
+    private val offsets = IntArray(CAPACITY)
+    private val segments = arrayOfNulls<WeakReference<MemorySegment>>(CAPACITY)
+    private var replacement = 0
+
+    fun of(array: DoubleArray, offset: Int): MemorySegment = find(array, offset) ?: remember(
+        array, offset, MemorySegment.ofArray(array).asSlice(offset.toLong() * Double.SIZE_BYTES),
+    )
+
+    fun of(array: IntArray, offset: Int): MemorySegment = find(array, offset) ?: remember(
+        array, offset, MemorySegment.ofArray(array).asSlice(offset.toLong() * Int.SIZE_BYTES),
+    )
+
+    private fun find(array: Any, offset: Int): MemorySegment? {
+        for (slot in arrays.indices) {
+            if (offsets[slot] == offset && arrays[slot]?.get() === array) {
+                segments[slot]?.get()?.let { return it }
+            }
+        }
+        return null
+    }
+
+    private fun remember(array: Any, offset: Int, segment: MemorySegment): MemorySegment {
+        arrays[replacement] = WeakReference(array)
+        offsets[replacement] = offset
+        segments[replacement] = WeakReference(segment)
+        replacement = (replacement + 1) % CAPACITY
+        return segment
+    }
+}
