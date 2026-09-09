@@ -12,7 +12,7 @@ internal object SparseWorkspaceComparators {
      */
     @Suppress("LongParameterList")
     fun scatterAxpyOneMkl(
-        comparator: SparseComparator,
+        comparator: IndexedSparseLevel1Comparator,
         alpha: Double,
         indices: IntArray,
         indexOffset: Int,
@@ -46,7 +46,7 @@ internal object SparseWorkspaceComparators {
 
     @Suppress("LongParameterList")
     fun gatherTouchedOneMkl(
-        comparator: SparseComparator,
+        comparator: IndexedSparseLevel1Comparator,
         touched: IntArray,
         touchedOffset: Int,
         touchedCount: Int,
@@ -76,7 +76,7 @@ internal object SparseWorkspaceComparators {
 
     @Suppress("LongParameterList")
     fun gatherClearTouchedOneMkl(
-        comparator: SparseComparator,
+        comparator: IndexedSparseLevel1Comparator,
         touched: IntArray,
         touchedOffset: Int,
         touchedCount: Int,

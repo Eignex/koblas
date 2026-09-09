@@ -4,7 +4,7 @@ import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.SparseVector
 
-internal interface SparseComparator {
+internal interface SparseComparator : IndexedSparseLevel1Comparator {
     val identity: String
     val threading: String
     fun dot(x: SparseVector, y: DoubleArray): Double
@@ -12,6 +12,11 @@ internal interface SparseComparator {
     fun scatter(x: SparseVector, y: DoubleArray)
     fun gather(x: SparseVector, from: DoubleArray, out: DoubleArray)
     fun gatherZero(x: SparseVector, from: DoubleArray, out: DoubleArray)
+    fun prepare(a: SparseMatrix, triangular: Boolean = false, lower: Boolean = true, unitDiag: Boolean = false): PreparedSparseComparator
+    fun sparseProduct(a: SparseMatrix, b: SparseMatrix): SparseMatrix
+}
+
+internal interface IndexedSparseLevel1Comparator {
     fun indexedAxpy(
         alpha: Double,
         values: DoubleArray,
@@ -37,8 +42,6 @@ internal interface SparseComparator {
         outValues: DoubleArray,
         outValueOffset: Int,
     )
-    fun prepare(a: SparseMatrix, triangular: Boolean = false, lower: Boolean = true, unitDiag: Boolean = false): PreparedSparseComparator
-    fun sparseProduct(a: SparseMatrix, b: SparseMatrix): SparseMatrix
 }
 
 internal interface PreparedSparseComparator : AutoCloseable {
