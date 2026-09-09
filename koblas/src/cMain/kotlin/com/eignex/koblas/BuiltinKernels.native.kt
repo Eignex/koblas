@@ -18,7 +18,8 @@ public actual object BuiltinKernels {
     /** C kernels compiled into this Native artifact. */
     public actual val c: BuiltinKernelProvider? =
         BuiltinKernelProvider(
-            platformDenseKernelFamilies, PlatformSparseKernels,
+            platformDenseKernelFamilies,
+            PlatformSparseKernels,
         )
 
     /** SIMD is unavailable as a distinct Native provider. */
