@@ -49,8 +49,17 @@ class ExplicitPackedKernelBenchmark {
         tileColumns = selected.gemmTileCols
         rows = if (edge == "full") tileRows else tileRows - 1
         columns = if (edge == "full") tileColumns else tileColumns - 1
-        lower = variant.startsWith("lower")
-        unitDiagonal = variant.endsWith("unit")
+        when (variant) {
+            "lower-nonunit" -> {
+                lower = true
+                unitDiagonal = false
+            }
+            "upper-unit" -> {
+                lower = false
+                unitDiagonal = true
+            }
+            else -> error("unknown packed triangular variant $variant")
+        }
         val rng = benchRng()
         packedA = DoubleArray(depth * tileRows) { rng.nextDouble(-0.25, 0.25) }
         packedB = DoubleArray(depth * tileColumns) { rng.nextDouble(-0.25, 0.25) }
@@ -66,13 +75,13 @@ class ExplicitPackedKernelBenchmark {
             val rowRange = if (lower) column until columns else 0..column
             for (row in rowRange) {
                 packedTriangle[row * tileColumns + column] =
-                    if (row == column) 1.000_000_001 else 1e-12 * (row + column + 1)
+                    if (row == column) 1.25 else 1e-12 * (row + column + 1)
             }
         }
         c = DoubleArray(tileRows * tileColumns) { rng.nextDouble(-0.5, 0.5) }
         x = c.copyOf()
         verifyNearZeroManagedAllocation("explicit-packed/$kernels/gemm/$depth/$edge") {
-            selected.gemmTile(depth, packedA, 0, packedB, 0, c, 0, 4)
+            selected.gemmTile(depth, packedA, 0, packedB, 0, c, 0, tileRows)
         }
         verifyNearZeroManagedAllocation("explicit-packed/$kernels/trsm/$edge") {
             selected.trsmTile(rows, columns, packedTriangle, 0, lower, unitDiagonal, x, 0)
