@@ -104,6 +104,7 @@ internal object SimdKernels : Kernels, ArithmeticKernels {
         x: DoubleArray,
         xOff: Int,
     ) {
+        if (validRows == 0 || order == 0) return
         if (!simdAvailable) {
             super.gemmTrsmTile(
                 depth, validRows, order, packedA, aOff, packedB, bOff,
@@ -114,12 +115,9 @@ internal object SimdKernels : Kernels, ArithmeticKernels {
         if (validRows == gemmTileRows && order == gemmTileCols) {
             SimdGemmTile.subtractProduct(depth, packedA, aOff, packedB, bOff, x, xOff)
         } else {
-            portableGemmTrsmTile(
-                gemmTileRows, gemmTileCols, depth, validRows, order,
-                packedA, aOff, packedB, bOff, packedTriangle, triangleOff,
-                lower, unitDiag, x, xOff,
+            SimdGemmTile.subtractProductEdge(
+                depth, validRows, order, packedA, aOff, packedB, bOff, x, xOff,
             )
-            return
         }
         portableTrsmTile(
             gemmTileRows, gemmTileCols, validRows, order,
