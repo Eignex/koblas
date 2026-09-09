@@ -189,6 +189,7 @@ internal fun genericRankOneUpdate(alpha: Double, x: VectorLike, y: VectorLike, a
 /** Returns an existing contiguous dense buffer or stages represented entries into a fresh owned buffer. */
 internal fun contiguousVectorData(x: VectorLike): DoubleArray = when (x) {
     is DenseVector -> x.data
+
     else -> DoubleArray(x.size).also { destination ->
         x.forEachStored { index, value -> destination[index] = value }
     }
