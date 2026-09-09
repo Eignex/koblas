@@ -4,8 +4,8 @@ import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.sparse.ReferenceSparseLinearAlgebra
 import com.eignex.koblas.sparse.basis.BasisSolver
 import com.eignex.koblas.sparse.basis.BasisUpdate
-import com.eignex.koblas.sparse.basis.ProductFormBasisSolver
 import com.eignex.koblas.sparse.basis.IndexedVector
+import com.eignex.koblas.sparse.basis.ProductFormBasisSolver
 import com.eignex.koblas.sparse.factorization.lu.SparseMarkowitzLu
 import com.eignex.koblas.sparse.host.hfactor.HfactorBasisSolver
 import com.eignex.koblas.sparse.host.hfactor.HfactorFactorization

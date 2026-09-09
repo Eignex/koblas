@@ -10,7 +10,7 @@ import com.eignex.koblas.dense.host.jvm.*
 import java.nio.file.Path
 
 /** CBLAS backend bundled in Maven-native resources. */
-class BundledOpenBlas private constructor(private val blas: Cblas) :
+class BundledOpenBlas private constructor(private val blas: OpenBlas) :
     BundledBackend,
     Blas by blas,
     RoutingBackend,
@@ -37,8 +37,8 @@ class BundledOpenBlas private constructor(private val blas: Cblas) :
         ?.let { if (it.execution == BackendExecution.NATIVE) it.copy(executor = name) else it }
 }
 
-private fun loadHostBackend(options: OpenBlasOptions): Cblas =
-    Cblas(HostBlasConfig(OpenBlasResources.extract().toString(), options))
+private fun loadHostBackend(options: OpenBlasOptions): OpenBlas =
+    OpenBlas(HostBlasConfig(OpenBlasResources.extract().toString(), options))
 
 internal object OpenBlasResources {
     private val platform: String = BundledNativeResources.supportedPlatform { os, architecture ->
