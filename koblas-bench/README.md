@@ -118,7 +118,27 @@ and the contributor runner collects those lines into the report.
 
 `SparseWorkspaceBenchmark` measures the caller-owned sparse support operations directly at small through large
 touched counts. `SparseWorkspaceGrowingScatterBenchmark` performs many short scatters while support grows, exposing
-any per-call dependence on retained support; there is no external BLAS equivalent. `ExplicitPackedKernelBenchmark`
+any per-call dependence on retained support. The comparison suites add contract-equivalent competitors rather than
+claiming that one vendor call implements the workspace API. `scatterAxpy` composes oneMKL `cblas_daxpyi` with
+validation, epoch marking, stale-entry initialization, and ordered first-touch tracking. `gatherTouched` composes
+`cblas_dgthr` with ordered index emission and optional exact-zero compaction; `gatherClearTouched` similarly composes
+`cblas_dgthrz` with mark clearing. Destructive fixture restoration is included in those rows and reported separately,
+so repeated measurements never gather an already-cleared zero state. Primitive-only rows are explicitly partial
+work. Independent Kotlin rows cover active maximum, pivot candidates, and checked scatter diagnostics where there is
+no vendor counterpart.
+
+The raw slice ABI and arithmetic follow Intel's official
+[`cblas_?axpyi`](https://www.intel.com/content/www/us/en/docs/onemkl/developer-reference-c/2026-0/cblas-axpyi.html),
+[`cblas_?gthr`](https://www.intel.com/content/www/us/en/docs/onemkl/developer-reference-c/2026-0/cblas-gthr.html),
+and [`cblas_?gthrz`](https://www.intel.com/content/www/us/en/docs/onemkl/developer-reference-c/2026-0/cblas-gthrz.html)
+contracts. The composed scatter timing deliberately uses finite values and finite nonzero alpha: exceptional and
+zero-alpha IEEE diagnostics belong to `scatterAxpyChecked` and are covered by the independent baseline, because
+oneMKL does not expose the required per-product flags.
+
+These developer comparisons are intentionally outside the immutable contributor profile v1. Run a bounded local
+comparison with `jvmSelectedBenchmark`, setting `sparseArm=built-in,onemkl` for the composed rows and
+`baselineArm=built-in,baseline` for the independent rows. A requested missing oneMKL arm fails; Native oneMKL remains
+unsupported. `ExplicitPackedKernelBenchmark`
 selects scalar and bundled C arms so full and logical-edge tiles, fused update/solve, and the explicit
 composition remain distinguishable. On the JVM, `PackedTrsmEligibilityBenchmark` isolates the conservative eligibility scan and
 bound, while `ExplicitPackedTrsmBenchmark` keeps its outcome inside a repeated end-to-end solve.

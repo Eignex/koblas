@@ -130,6 +130,22 @@ eligible, while constructed structural-zero and overflow-bound inputs exercise t
 Expected SHA-256:
 `969aef36f3a630d2553616d7d1b85f557af36421bb32e3d242eafbcfcefa189a`.
 
+## Sparse workspace equivalent comparisons
+
+`sparse-workspace-comparators-20260909.tar.gz` retains two affinity-pinned JVM passes and one Linux x86-64 Native
+pass for the contract-equivalent sparse workspace comparison suites. The JVM passes cover full built-in operations,
+separately reported destructive fixture resets and primitive-only partial work, plus independent Kotlin baselines;
+every warmed JVM allocation probe reports `0 B/call`. The Native pass covers the no-vendor-counterpart baselines and
+growing-support workload, with managed allocation explicitly unavailable.
+
+The host was shared and concurrent work was allowed. Cross-pass JVM variation is visible in the raw JSON and is not
+collapsed into a parity claim. `libmkl_rt` was unavailable, so the archive contains no oneMKL measurements and no
+substitute comparator. The included notes record commands, workload dimensions, seed, identities, coverage gaps,
+and concise findings. Contributor profile v1 remains unchanged; these are selected developer results.
+
+Expected SHA-256:
+`56b342dc614d837fab64a09388c739e002446b24c94c8d85ee54d8dfc92fa2fa`.
+
 ## Packed triangular multiply
 
 `packed-trmm-20260909.tar.gz` retains two independent JVM SIMD/OpenBLAS passes across five shapes and all
