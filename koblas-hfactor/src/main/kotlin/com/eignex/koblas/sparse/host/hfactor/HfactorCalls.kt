@@ -167,6 +167,7 @@ internal class HfactorCalls(private val config: HfactorConfig) {
      * Factorizes keeping HFactor's repair, writing the basis it settled on into [repaired] and returning the
      * rank deficiency, or null where the shim predates this entry point.
      */
+    @Suppress("SpreadOperator") // FFM copies the caller-owned indices into confined native storage.
     fun buildRepairing(handle: MemorySegment, basicIndex: IntArray, repaired: IntArray): Int? {
         val builder = handlesOrThrow().buildRepairing ?: return null
         Arena.ofConfined().use { arena ->

@@ -92,8 +92,9 @@ public open class HfactorSparseLu(
         requireHfactorShape(a.rows <= a.cols) { "a basis needs ${a.rows} columns to choose from; a has ${a.cols}" }
         requireAvailable()
         val scale = equilibrationOf(a)
-        val handle = calls.create(a.rows, a.cols, a.copyColumnPointers(), a.copyRowIndices(), scaledValues(a, scale))
-            ?: throw IllegalStateException("HFactor could not create a basis solver")
+        val handle = checkNotNull(
+            calls.create(a.rows, a.cols, a.copyColumnPointers(), a.copyRowIndices(), scaledValues(a, scale)),
+        ) { "HFactor could not create a basis solver" }
         return HfactorBasisSolver(a, calls, handle, scale)
     }
 

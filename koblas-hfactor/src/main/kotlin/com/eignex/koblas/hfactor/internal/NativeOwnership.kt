@@ -27,10 +27,7 @@ internal class NativeOwnership(private val owner: Any, description: String, rele
     }
 }
 
-internal class NativeResourceLifecycle(
-    private val description: String,
-    private val release: () -> Unit,
-) : Runnable {
+internal class NativeResourceLifecycle(private val description: String, private val release: () -> Unit) : Runnable {
     private val activeCalls = AtomicInteger()
     private val closing = AtomicBoolean()
     private val released = AtomicBoolean()

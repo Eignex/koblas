@@ -23,10 +23,10 @@ public class HfactorFactorization internal constructor(
     private val handle: MemorySegment,
 ) : SparseLuFactorization {
     private class Release(private val calls: HfactorCalls, private val handle: MemorySegment) {
-        fun release(): Unit = calls.free(handle)
+        fun closeNative(): Unit = calls.free(handle)
     }
 
-    private val ownership = NativeOwnership(this, "HFactor factorization", Release(calls, handle)::release)
+    private val ownership = NativeOwnership(this, "HFactor factorization", Release(calls, handle)::closeNative)
 
     private val carrier = IndexedVector(n)
     private val pivotRange = DoubleArray(2)

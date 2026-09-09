@@ -11,6 +11,7 @@ import kotlinx.benchmark.*
  * Small row counts are the interesting ones: a classifier's weight matrix has one row per class, so the run
  * each stored entry drives is far shorter than the length a kernel call earns back.
  */
+@OptIn(UnsafeKoblasApi::class)
 @State(Scope.Benchmark)
 @BenchmarkMode(Mode.AverageTime)
 @OutputTimeUnit(BenchmarkTimeUnit.NANOSECONDS)
@@ -39,7 +40,6 @@ class GemvIntoBenchmark {
     }
 
     @Benchmark
-    @OptIn(UnsafeKoblasApi::class)
     fun gemvIntoSparseX(): DoubleArray {
         out.fill(0.0)
         for (entry in sparseX.indices.indices) {

@@ -42,10 +42,10 @@ public class HfactorBasisSolver internal constructor(
     private val rowScale: DoubleArray? = null,
 ) : BasisSolver {
     private class Release(private val calls: HfactorCalls, private val handle: MemorySegment) {
-        fun release(): Unit = calls.free(handle)
+        fun closeNative(): Unit = calls.free(handle)
     }
 
-    private val ownership = NativeOwnership(this, "HFactor basis solver", Release(calls, handle)::release)
+    private val ownership = NativeOwnership(this, "HFactor basis solver", Release(calls, handle)::closeNative)
 
     override val n: Int = a.rows
 
@@ -98,8 +98,10 @@ public class HfactorBasisSolver internal constructor(
 
     override fun refactorize(basicIndex: IntArray): Boolean = ownership.anchoring {
         requireHfactorShape(basicIndex.size == n) { "refactorize: basicIndex size ${basicIndex.size} != $n" }
-        for (t in 0 until n) requireHfactorIndex(basicIndex[t] in 0 until columns) {
-            "index ${basicIndex[t]} outside [0,$columns)"
+        for (t in 0 until n) {
+            requireHfactorIndex(basicIndex[t] in 0 until columns) {
+                "index ${basicIndex[t]} outside [0,$columns)"
+            }
         }
         val deficiency = calls.build(handle, basicIndex)
 
@@ -127,8 +129,10 @@ public class HfactorBasisSolver internal constructor(
      */
     override fun refactorizeRepairing(basicIndex: IntArray): BasisRepair? = ownership.anchoring {
         requireHfactorShape(basicIndex.size == n) { "refactorize: basicIndex size ${basicIndex.size} != $n" }
-        for (t in 0 until n) requireHfactorIndex(basicIndex[t] in 0 until columns) {
-            "index ${basicIndex[t]} outside [0,$columns)"
+        for (t in 0 until n) {
+            requireHfactorIndex(basicIndex[t] in 0 until columns) {
+                "index ${basicIndex[t]} outside [0,$columns)"
+            }
         }
         val settled = IntArray(n)
         val deficiency = calls.buildRepairing(handle, basicIndex, settled)
