@@ -1,6 +1,6 @@
 package com.eignex.koblas.bench
 
-import com.eignex.koblas.dense.Kernels
+import com.eignex.koblas.dense.PackedKernels
 import kotlinx.benchmark.Benchmark
 import kotlinx.benchmark.BenchmarkMode
 import kotlinx.benchmark.BenchmarkTimeUnit
@@ -28,7 +28,7 @@ class ExplicitPackedKernelBenchmark {
     @Param(SCALAR_KERNELS, C_KERNELS)
     var kernels: String = SCALAR_KERNELS
 
-    private lateinit var selected: Kernels
+    private lateinit var selected: PackedKernels
     private lateinit var packedA: DoubleArray
     private lateinit var packedNegativeA: DoubleArray
     private lateinit var packedB: DoubleArray
@@ -44,7 +44,7 @@ class ExplicitPackedKernelBenchmark {
 
     @Setup
     fun setup() {
-        selected = kernelEngine(kernels).kernels
+        selected = kernelEngine(kernels).packedKernels
         tileRows = selected.gemmTileRows
         tileColumns = selected.gemmTileCols
         rows = if (edge == "full") tileRows else tileRows - 1
@@ -92,7 +92,7 @@ class ExplicitPackedKernelBenchmark {
                 packedTriangle, 0, lower, unitDiagonal, x, 0,
             )
         }
-        println("resolved: explicit-packed kernels=${selected.name} depth=$depth edge=$edge variant=$variant")
+        println("resolved: explicit-packed kernels=$kernels depth=$depth edge=$edge variant=$variant")
     }
 
     @Benchmark

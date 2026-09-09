@@ -104,7 +104,7 @@ internal class DenseBenchmarkArm private constructor(
     val context: KoblasContext?,
     val external: DenseComparator?,
 ) {
-    val identity: String get() = external?.identity ?: "built-in/${context!!.blas.name}/${context.kernels.name}"
+    val identity: String get() = external?.identity ?: "built-in/${context!!.blas.name}/${context.vectorKernels.name}"
     val threading: String get() = external?.threading ?: "single calling thread"
 
     companion object {

@@ -1,6 +1,6 @@
 package com.eignex.koblas.internal.kernels
 
-import com.eignex.koblas.dense.PlatformKernels
+import com.eignex.koblas.dense.PlatformVectorKernels
 import com.eignex.koblas.dense.cKernelsAvailable
 import com.eignex.koblas.dense.simdAvailable
 import com.eignex.koblas.internal.configuration.ImplementationNames
@@ -13,13 +13,13 @@ class JvmCKernelSelectionTest {
     @Test
     fun `a jvm without the vector module selects c kernels`() {
         if (simdAvailable) {
-            assertTrue(PlatformKernels.name.startsWith(ImplementationNames.SIMD))
+            assertTrue(PlatformVectorKernels.name.startsWith(ImplementationNames.SIMD))
             assertEquals(ImplementationNames.SIMD_SPARSE, PlatformSparseKernels.name)
         } else if (cKernelsAvailable) {
-            assertEquals(ImplementationNames.C, PlatformKernels.name)
+            assertEquals(ImplementationNames.C, PlatformVectorKernels.name)
             assertEquals(ImplementationNames.C_SPARSE, PlatformSparseKernels.name)
         } else {
-            assertEquals(ImplementationNames.SCALAR, PlatformKernels.name)
+            assertEquals(ImplementationNames.SCALAR, PlatformVectorKernels.name)
             assertEquals(ImplementationNames.SCALAR, PlatformSparseKernels.name)
         }
     }

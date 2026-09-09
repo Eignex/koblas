@@ -13,7 +13,7 @@ import kotlin.test.assertEquals
  * row tile, and 300 crosses the depth block so more than one packed panel is accumulated into the same
  * tile of C.
  */
-internal fun assertPackedGemmAgreesWithWrittenOutProduct(kernels: Kernels) {
+internal fun assertPackedGemmAgreesWithWrittenOutProduct(kernels: PackedKernels) {
     val rng = Random(20260907)
     val alpha = -0.75
     val sizes = intArrayOf(1, 2, 7, 8, 9, 16, 33)
@@ -56,19 +56,19 @@ internal fun assertPackedGemmAgreesWithWrittenOutProduct(kernels: Kernels) {
 class PackedGemmTest {
     @Test
     fun `the packed product on the portable tile agrees with a written out product`() {
-        assertPackedGemmAgreesWithWrittenOutProduct(ScalarKernels)
+        assertPackedGemmAgreesWithWrittenOutProduct(PortablePackedKernels)
     }
 
     @Test
     fun `the packed product on the compiled in kernels agrees with a written out product`() {
-        assertPackedGemmAgreesWithWrittenOutProduct(PlatformKernels)
+        assertPackedGemmAgreesWithWrittenOutProduct(platformDenseKernelFamilies.packed)
     }
 
     @Test
     fun `the triangular tile walk skips the opposite half`() {
         for (lower in booleanArrayOf(true, false)) {
             var calls = 0
-            val recording = object : Kernels by ScalarKernels {
+            val recording = object : PackedKernels by PortablePackedKernels {
                 override fun gemmTile(
                     depth: Int,
                     packedA: DoubleArray,
@@ -80,7 +80,7 @@ class PackedGemmTest {
                     ldc: Int,
                 ) {
                     calls++
-                    ScalarKernels.gemmTile(depth, packedA, aOff, packedB, bOff, c, cOff, ldc)
+                    PortablePackedKernels.gemmTile(depth, packedA, aOff, packedB, bOff, c, cOff, ldc)
                 }
             }
             val order = 16
@@ -89,7 +89,8 @@ class PackedGemmTest {
             val c = DoubleArray(order * order)
 
             packedTriangularGemm(
-                recording, 1.0, a, order, false, a, order, true, c, order, depth, lower, null,
+                recording,
+                1.0, a, order, false, a, order, true, c, order, depth, lower, null,
             )
 
             // Four tiles per side: only the diagonal and the six tiles in the selected half are evaluated.

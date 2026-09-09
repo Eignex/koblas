@@ -84,7 +84,7 @@ class GivensRotationTest {
             expectedY[3 + i] = rotation.c * y[3 + i] - rotation.s * x[2 + i]
         }
 
-        koblas.kernels.rot(x, 2, y, 3, 3, rotation.c, rotation.s)
+        koblas.vectorKernels.rot(x, 2, y, 3, 3, rotation.c, rotation.s)
 
         for (i in x.indices) {
             assertEquals(expectedX[i], x[i], 1e-12, "x[$i]")

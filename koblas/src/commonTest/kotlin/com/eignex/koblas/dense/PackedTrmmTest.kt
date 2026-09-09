@@ -26,7 +26,7 @@ class PackedTrmmTest {
                             val actual = DenseMatrix(source.rows, source.cols, source.data.copyOf())
 
                             packedTrmmCore(
-                                PlatformKernels,
+                                platformDenseKernelFamilies.packed,
                                 triangle,
                                 actual,
                                 lower,
@@ -68,7 +68,7 @@ class PackedTrmmTest {
             val actual = DenseMatrix(source.rows, source.cols, source.data.copyOf())
 
             packedTrmmCore(
-                ScalarKernels,
+                PortablePackedKernels,
                 triangle,
                 actual,
                 lower = true,
@@ -85,7 +85,7 @@ class PackedTrmmTest {
     @Test
     fun `ordinary multiply dispatches at both packed boundaries`() {
         var tiles = 0
-        val recording = object : Kernels by ScalarKernels {
+        val recording = object : PackedKernels by PortablePackedKernels {
             override fun gemmTile(
                 depth: Int,
                 packedA: DoubleArray,
@@ -97,14 +97,14 @@ class PackedTrmmTest {
                 ldc: Int,
             ) {
                 tiles++
-                ScalarKernels.gemmTile(depth, packedA, aOff, packedB, bOff, c, cOff, ldc)
+                PortablePackedKernels.gemmTile(depth, packedA, aOff, packedB, bOff, c, cOff, ldc)
             }
         }
         fun calls(order: Int, panel: Int): Int {
             tiles = 0
             val triangle = DenseMatrix.diagonal(order)
             val source = DenseMatrix(panel, order, DoubleArray(panel * order) { 0.01 * (it + 1) })
-            BuiltinBlas(recording).trmm(
+            BuiltinBlas(testDenseKernelFamilies(packed = recording)).trmm(
                 triangle,
                 source,
                 lower = true,
@@ -131,7 +131,7 @@ class PackedTrmmTest {
         val expected = writtenOut(explicit, scaled, transpose = true, right = false)
         val actual = DenseMatrix(source.rows, source.cols, source.data.copyOf())
 
-        BuiltinBlas(PlatformKernels).trmm(
+        BuiltinBlas(platformDenseKernelFamilies).trmm(
             triangle,
             actual,
             lower = false,
@@ -156,7 +156,7 @@ class PackedTrmmTest {
         }
         val expected = writtenOut(explicitTriangle, sourceSnapshot, transpose = false, right = true)
 
-        BuiltinBlas(PlatformKernels).trmm(
+        BuiltinBlas(platformDenseKernelFamilies).trmm(
             shared,
             shared,
             lower = true,
@@ -170,7 +170,7 @@ class PackedTrmmTest {
     @Test
     fun `ordinary multiply keeps exceptional zero arithmetic on the reference path`() {
         var tiles = 0
-        val recording = object : Kernels by ScalarKernels {
+        val recording = object : PackedKernels by PortablePackedKernels {
             override fun gemmTile(
                 depth: Int,
                 packedA: DoubleArray,
@@ -182,7 +182,7 @@ class PackedTrmmTest {
                 ldc: Int,
             ) {
                 tiles++
-                ScalarKernels.gemmTile(depth, packedA, aOff, packedB, bOff, c, cOff, ldc)
+                PortablePackedKernels.gemmTile(depth, packedA, aOff, packedB, bOff, c, cOff, ldc)
             }
         }
         val order = DenseTuning.trmmPackedMinOrder
@@ -192,7 +192,13 @@ class PackedTrmmTest {
         source[0, 0] = Double.POSITIVE_INFINITY
         source[0, 1] = 1.0
 
-        BuiltinBlas(recording).trmm(triangle, source, lower = true, right = true, workspace = Workspace())
+        BuiltinBlas(testDenseKernelFamilies(packed = recording)).trmm(
+            triangle,
+            source,
+            lower = true,
+            right = true,
+            workspace = Workspace(),
+        )
 
         assertEquals(0, tiles)
         assertEquals(Double.POSITIVE_INFINITY, source[0, 0])
@@ -202,7 +208,7 @@ class PackedTrmmTest {
     @Test
     fun `ordinary multiply keeps overflow and cancellation on the reference path`() {
         var tiles = 0
-        val recording = object : Kernels by ScalarKernels {
+        val recording = object : PackedKernels by PortablePackedKernels {
             override fun gemmTile(
                 depth: Int,
                 packedA: DoubleArray,
@@ -214,7 +220,7 @@ class PackedTrmmTest {
                 ldc: Int,
             ) {
                 tiles++
-                ScalarKernels.gemmTile(depth, packedA, aOff, packedB, bOff, c, cOff, ldc)
+                PortablePackedKernels.gemmTile(depth, packedA, aOff, packedB, bOff, c, cOff, ldc)
             }
         }
         val order = DenseTuning.trmmPackedMinOrder
@@ -225,7 +231,12 @@ class PackedTrmmTest {
         source[0, 0] = Double.MAX_VALUE
         source[1, 0] = Double.MAX_VALUE
 
-        BuiltinBlas(recording).trmm(triangle, source, lower = true, workspace = Workspace())
+        BuiltinBlas(testDenseKernelFamilies(packed = recording)).trmm(
+            triangle,
+            source,
+            lower = true,
+            workspace = Workspace(),
+        )
 
         assertEquals(0, tiles)
         assertEquals(Double.POSITIVE_INFINITY, source[0, 0])

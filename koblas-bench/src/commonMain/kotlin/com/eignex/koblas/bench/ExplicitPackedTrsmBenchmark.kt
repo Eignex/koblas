@@ -56,7 +56,7 @@ class ExplicitPackedTrsmBenchmark {
             "explicit-packed-trsm/$kernels/$shape/$scenario",
             "input reset plus retained packing workspace when eligible",
         )
-        println("resolved: explicit-packed-trsm kernels=${engine.kernels.name} shape=$shape scenario=$scenario")
+        println("resolved: explicit-packed-trsm kernels=${engine.vectorKernels.name} shape=$shape scenario=$scenario")
     }
 
     @Benchmark
