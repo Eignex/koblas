@@ -119,6 +119,20 @@ tar -xzf koblas-bench/results/fused-level2-20260909.tar.gz
 Expected SHA-256:
 `3c975c291509dfc9dce8e4e7846a75864d10d560b6a227ed0f0a789d65cbe950`.
 
+## Dense Level 2 traversal
+
+`dense-level2-20260909.tar.gz` retains current-main baselines, explicit scalar/C/SIMD crossover runs, two final
+JVM built-in/OpenBLAS passes, a Linux x86-64 Native before/after comparison, the warmed allocation probe and the
+detailed measurement notes. All external comparisons are single-threaded and every run was pinned to CPU 4 on a
+busy shared i9-12900H host. oneMKL, ARM and macOS are explicitly unmeasured.
+
+The evidence supports a four-column SYMV traversal from order 512. It also records the decision to retain the
+existing GEMV algorithm and the removal of its 48 B/call transposed scratch allocation. Large SYMV remains above
+the roughly 1.1 OpenBLAS objective on several cases; confidence intervals and the contention-dominated runs are
+kept in the archive.
+
+Expected SHA-256: `9e1f453498ac6da7c34cbb153039ecd531b9d6cdba7b381947e5292eb8d3346c`.
+
 ## Packed triangular solve
 
 `packed-trsm-20260909.tar.gz` retains raw JVM and Kotlin/Native JSON for packed TRSM and fused GEMM-TRSM,
