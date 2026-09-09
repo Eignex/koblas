@@ -31,7 +31,16 @@ internal object NativeCPanelKernels : DensePanelKernels {
         a.usePinned { ap ->
             b.usePinned { bp ->
                 out.usePinned { op ->
-                    koblas_dense_dot4(ap.addressOf(0), aOff, stride, bp.addressOf(0), bOff, len, op.addressOf(0), outOff)
+                    koblas_dense_dot4(
+                        ap.addressOf(0),
+                        aOff,
+                        stride,
+                        bp.addressOf(0),
+                        bOff,
+                        len,
+                        op.addressOf(0),
+                        outOff,
+                    )
                 }
             }
         }
@@ -52,7 +61,9 @@ internal object NativeCPanelKernels : DensePanelKernels {
         if (len < C_HOST_MIN_LENGTH) return scalarAxpy4(y, yOff, a, aOff, stride, c0, c1, c2, c3, len)
         y.usePinned { yp ->
             a.usePinned { ap ->
-                koblas_dense_axpy4(yp.addressOf(0), yOff, ap.addressOf(0), aOff, stride, c0, c1, c2, c3, len)
+                koblas_dense_axpy4(
+                    yp.addressOf(0), yOff, ap.addressOf(0), aOff, stride, c0, c1, c2, c3, len,
+                )
             }
         }
     }
@@ -72,24 +83,26 @@ internal object NativeCPanelKernels : DensePanelKernels {
             a.usePinned { ap ->
                 x.usePinned { xp ->
                     koblas_dense_dot_axpy(
-                        yp.addressOf(0), yOff, alpha, ap.addressOf(0), aOff, xp.addressOf(0), xOff, len,
+                        yp.addressOf(0),
+                        yOff,
+                        alpha,
+                        ap.addressOf(0),
+                        aOff,
+                        xp.addressOf(0),
+                        xOff,
+                        len,
                     )
                 }
             }
         }
     }
 
-    override fun axpyArithmetic(
-        y: DoubleArray,
-        yOff: Int,
-        alpha: Double,
-        x: DoubleArray,
-        xOff: Int,
-        len: Int,
-    ) {
+    override fun axpyArithmetic(y: DoubleArray, yOff: Int, alpha: Double, x: DoubleArray, xOff: Int, len: Int) {
         if (len < C_HOST_MIN_LENGTH) return scalarAxpyArithmetic(y, yOff, alpha, x, xOff, len)
         y.usePinned { yp ->
-            x.usePinned { xp -> koblas_dense_axpy_arithmetic(yp.addressOf(0), yOff, alpha, xp.addressOf(0), xOff, len) }
+            x.usePinned { xp ->
+                koblas_dense_axpy_arithmetic(yp.addressOf(0), yOff, alpha, xp.addressOf(0), xOff, len)
+            }
         }
     }
 }
