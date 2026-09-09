@@ -5,7 +5,7 @@ import com.eignex.koblas.ModifiedGivens
 /**
  * Contiguous dense Level 1 operations that are independently useful outside matrix algorithms.
  * Implementations may differ in their final rounding because compiled leaves can fuse multiplication
- * and addition or reduce vector lanes as a tree. A zero [len] is legal for every operation.
+ * and addition or reduce vector lanes as a tree. A zero length is legal for every operation.
  */
 public interface DenseVectorKernels {
     /** Short implementation identifier for diagnostics. */
