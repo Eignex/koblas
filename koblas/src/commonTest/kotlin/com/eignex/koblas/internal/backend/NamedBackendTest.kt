@@ -5,7 +5,6 @@ import com.eignex.koblas.BundledBackend
 import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.sparse.GeneralSparseLu
 import com.eignex.koblas.sparse.ReferenceSparseLinearAlgebra
-import com.eignex.koblas.sparse.SparseLapack
 import com.eignex.koblas.sparse.SparseLuFactorization
 import com.eignex.koblas.sparse.basis.BasisSolvers
 import kotlin.test.*
@@ -18,9 +17,7 @@ import kotlin.test.*
 class NamedBackendTest {
 
     /** Fills the general-LU role, which is what a backend offers now that the wide seam alone offers nothing. */
-    private class FakeSparseLu(override val name: String, override val priority: Int) :
-        SparseLapack by ReferenceSparseLinearAlgebra,
-        GeneralSparseLu {
+    private class FakeSparseLu(override val name: String, override val priority: Int) : GeneralSparseLu {
         override fun factor(a: SparseMatrix): SparseLuFactorization = ReferenceSparseLinearAlgebra.factor(a)
     }
 
@@ -29,8 +26,7 @@ class NamedBackendTest {
         override val name: String,
         override val canonicalName: String,
         override val priority: Int,
-    ) : SparseLapack by ReferenceSparseLinearAlgebra,
-        GeneralSparseLu,
+    ) : GeneralSparseLu,
         BundledBackend {
         override fun factor(a: SparseMatrix): SparseLuFactorization = ReferenceSparseLinearAlgebra.factor(a)
     }
@@ -128,7 +124,7 @@ class NamedBackendTest {
         registerBackend(FakeSparseLu("same", priority = 10))
 
         assertEquals(30, backendNamed("same", Capabilities.generalSparseLu)?.priority)
-        assertEquals(30, koblas.sparseDecompositions.priority)
+        assertEquals(30, koblas.generalSparseLu.priority)
     }
 
     @Test

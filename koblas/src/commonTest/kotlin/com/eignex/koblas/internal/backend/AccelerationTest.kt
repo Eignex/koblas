@@ -131,7 +131,6 @@ class AccelerationTest {
         assertEquals(BackendMetadata(), status[BackendRole.DENSE_BLAS].metadata)
         assertEquals(koblas.blas, koblas.backendFor(BackendRole.DENSE_BLAS))
         assertTrue(BackendRole.SPARSE_GENERAL_LU in koblas.portableRoles)
-        assertTrue(BackendRole.SPARSE_REPEATED_LU in koblas.portableRoles)
     }
 
     @Test

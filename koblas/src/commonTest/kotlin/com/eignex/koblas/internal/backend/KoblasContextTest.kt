@@ -6,9 +6,7 @@ import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.dense.*
 import com.eignex.koblas.internal.numeric.absoluteSum
 import com.eignex.koblas.internal.numeric.euclideanNorm
-import com.eignex.koblas.sparse.ReferenceSparseDecompositions
 import com.eignex.koblas.sparse.ReferenceSparseLinearAlgebra
-import com.eignex.koblas.sparse.SparseLapack
 import com.eignex.koblas.sparse.SparseLinearAlgebra
 import kotlin.test.*
 
@@ -93,54 +91,6 @@ class KoblasContextTest {
         assertContentClose(doubleArrayOf(2.0, 8.0), koblas.gemv(s, doubleArrayOf(1.0, 2.0)))
     }
 
-    /** The roles are read out of a composition once, so a new one has to be read and the old one kept. */
-    @Test
-    fun `with rereads the factorization roles only from a new composition`() {
-        val base = koblas
-        val replacement = ReferenceSparseDecompositions(equilibrate = true)
-
-        val rederived = base.with(sparseDecompositions = replacement)
-        val kept = base.with(kernels = Counting())
-
-        assertSame(replacement, rederived.generalSparseLu)
-        assertSame(replacement, rederived.sparseCholesky)
-        assertSame(replacement, rederived.quasiDefiniteLdl)
-        assertSame(replacement, rederived.sparseQr)
-        assertSame(base.generalSparseLu, kept.generalSparseLu)
-        assertSame(base.sparseQr, kept.sparseQr)
-    }
-
-    /** A composition filling none of the basis half leaves that role to koblas's own. */
-    @Test
-    fun `a composition that fills no basis role falls back to the reference`() {
-        val replacement = ReferenceSparseDecompositions()
-
-        val context = koblas.with(sparseDecompositions = replacement)
-
-        assertSame(ReferenceSparseLinearAlgebra, context.basisFactorizations)
-    }
-
-    /** Reading roles out of a composition is the one place a partial one is caught, and it says which role. */
-    @Test
-    fun `a composition filling no QR role is rejected at construction`() {
-        val partial = object : SparseLapack by ReferenceSparseLinearAlgebra {
-            override val name: String get() = "partial"
-        }
-
-        val failure = assertFailsWith<IllegalStateException> {
-            KoblasContext(
-                kernels = koblas.kernels,
-                blas = ReferenceBlas,
-                sparseKernels = ReferenceSparseLinearAlgebra,
-                sparseBlas = ReferenceSparseLinearAlgebra,
-                sparseDecompositions = partial,
-                basisSolvers = ReferenceSparseLinearAlgebra,
-            )
-        }
-
-        assertEquals("partial fills no general sparse LU role", failure.message)
-    }
-
     @Test
     fun `with keeps every half it is not given`() {
         val base = koblas
@@ -149,7 +99,7 @@ class KoblasContextTest {
         assertSame(mine, derived.kernels)
         assertSame(base.blas, derived.blas)
         assertSame(base.sparseBlas, derived.sparseBlas)
-        assertEquals(base.sparseDecompositions.name, derived.sparseDecompositions.name)
+        assertSame(base.generalSparseLu, derived.generalSparseLu)
         assertSame(base.sparseKernels, derived.sparseKernels)
         assertSame(base.kernels, base.kernels, "the original must be untouched; contexts are values")
     }
@@ -220,7 +170,7 @@ class KoblasContextTest {
             blas = ReferenceBlas,
             sparseKernels = ReferenceSparseLinearAlgebra,
             sparseBlas = ReferenceSparseLinearAlgebra,
-            sparseDecompositions = ReferenceSparseLinearAlgebra,
+            generalSparseLu = ReferenceSparseLinearAlgebra,
             basisSolvers = ReferenceSparseLinearAlgebra,
         )
         assertEquals(0, reference.priority, "every reference half has priority 0")

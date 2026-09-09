@@ -1,100 +1,20 @@
+@file:Suppress("UndocumentedPublicProperty")
+
 package com.eignex.koblas.sparse
 
 import com.eignex.koblas.SparseMatrix
 
-/*
- * The factors each kind of sparse factorization produces, on the interface rather than on whichever concrete
- * class happens to implement it. A caller reaching a backend through the seam can read them whoever answered.
- *
- * One interface per kind rather than one shared pair of accessors, because the kinds differ in what they
- * produce: a Cholesky has no separate `U`, an `L·D·Lᵀ` has a `D` instead, and a QR is `m×n` and holds `Q` as
- * an operator. A single `l`/`u` pair would be null half the time.
- *
- * Every accessor here materialises its factor on EVERY read, not once: the portable factorizations rebuild
- * the CSC arrays each time, and a native binding copies out of the library each time. A caller who only
- * solves therefore pays nothing, and a caller that reads `l` twice pays twice, so bind it to a local rather
- * than reading it in a loop. Reads go through the same lifecycle as a solve, so a closed factorization
- * refuses them, and a singular factorization has no factors to give.
- *
- * A provider whose factors are not a matrix it can hand back raises [FactorsNotExposed] rather than
- * inventing one. HFactor does: it keeps a basis representation for updating rather than an `L` and a `U`,
- * which is what it is for.
- */
-
-/** Raised by a factorization whose provider keeps its factors in a form it cannot hand back. */
+/** Raised because HFactor keeps an updateable basis representation rather than materialized factors. */
 public class FactorsNotExposed(factor: String) :
     UnsupportedOperationException("this factorization does not expose $factor")
 
-/**
- * The factors a general sparse LU produces, indexed by pivot position.
- *
- * The identity they satisfy is `L·U + F = P·diag(rowScaling)·A·Q`, where `P` is [rowOrder], `Q` is
- * [columnOrder] and `F` is [offDiagonal]. [rowScaling] multiplies rather than divides, whatever a library's
- * own convention, so the identity reads one way everywhere.
- *
- * `F` is empty for a factorization that eliminates over the whole matrix at once, which is most of them, and
- * the identity then reads as the `L·U` one would expect. It is there for a provider that permutes to block
- * triangular form first and factors the blocks, whose off-diagonal blocks are neither in `L` nor in `U`.
- */
+/** HFactor's retained general sparse LU result. */
 public interface SparseLuFactorization : SparseFactorization {
-    /** Unit lower triangular, its diagonal stored. */
     public val l: SparseMatrix get() = throw FactorsNotExposed("l")
-
-    /** Upper triangular, its diagonal stored. */
     public val u: SparseMatrix get() = throw FactorsNotExposed("u")
-
-    /** The original row now at each pivot position, the `P` above. */
     public val rowOrder: IntArray get() = throw FactorsNotExposed("rowOrder")
-
-    /** The original column now at each pivot position, the `Q` above. */
     public val columnOrder: IntArray get() = throw FactorsNotExposed("columnOrder")
-
-    /**
-     * The per-original-row factor the matrix was multiplied by before factorizing. All ones where the backend
-     * does not equilibrate, so the identity above needs no special case for it.
-     */
     public val rowScaling: DoubleArray get() = throw FactorsNotExposed("rowScaling")
-
-    /**
-     * The entries outside the diagonal blocks, `F` in the identity above. Empty unless the provider factored
-     * a block triangular form, which is the unusual case.
-     */
     public val offDiagonal: SparseMatrix
         get() = SparseMatrix.wrap(n, n, IntArray(n + 1), IntArray(0), DoubleArray(0))
-}
-
-/** The `A = L·Lᵀ` a sparse Cholesky produces. */
-public interface SparseCholeskyFactorization : SparseFactorization {
-    /** Lower triangular, its diagonal stored. */
-    public val l: SparseMatrix
-
-    /** The original row and column at each position of [l], the same permutation for both by symmetry. */
-    public val order: IntArray
-}
-
-/**
- * The unpivoted `A = L·D·Lᵀ` factorization for a quasi-definite sparse matrix.
- *
- * Its [order] is structural and controls fill. It is not a dense-style Bunch-Kaufman numerical pivoting
- * factorization, so it is unsuitable when quasi-definiteness cannot be promised.
- */
-public interface QuasiDefiniteLdlFactorization : SparseFactorization {
-    /**
-     * Unit lower triangular, its diagonal of ones implicit rather than stored: [d] occupies that position in
-     * every library that keeps one, so storing ones there would be `n` entries carrying no information. A
-     * caller reconstructing `A` supplies them, which is what the conformance helpers do.
-     *
-     * Unlike the `L` of an [SparseLuFactorization], whose diagonal is stored because the libraries hand it
-     * back that way.
-     */
-    public val l: SparseMatrix
-
-    /** The diagonal factor, one entry per column of [l]. */
-    public val d: DoubleArray
-
-    /** Counts of positive, negative, and zero entries in [d]. */
-    public val inertia: FactorizationInertia
-
-    /** The original row and column at each position of [l], the same permutation for both by symmetry. */
-    public val order: IntArray
 }

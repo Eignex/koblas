@@ -79,14 +79,6 @@ public class ContextBuilder private constructor(
         val denseReference = ReferenceBackend(kernels)
         val sparseReference = ReferenceSparseBackend(kernels)
         val generalLu = resolved.semantic<GeneralSparseLu>(BackendRole.SPARSE_GENERAL_LU, sparseReference)
-        val cholesky = resolved.semantic<SparseCholesky>(BackendRole.SPARSE_CHOLESKY, sparseReference)
-        val quasiDefiniteLdl =
-            resolved.semantic<QuasiDefiniteLdl>(BackendRole.SPARSE_QUASI_DEFINITE_LDL, sparseReference)
-        val qr = resolved.semantic<SparseQr>(BackendRole.SPARSE_QR, sparseReference)
-        val sparseRoles = SparseDecompositionRoles(generalLu, cholesky, quasiDefiniteLdl, qr)
-        val repeated = resolved[BackendRole.SPARSE_REPEATED_LU] as? RepeatedSparseLu
-        val basisFactorizations =
-            resolved.semantic<BasisFactorizations>(BackendRole.BASIS_FACTORIZATIONS, sparseReference)
         return KoblasContext(
             kernels = kernels,
             blas = resolved.boundReference(BackendRole.DENSE_BLAS, denseReference) as Blas,
@@ -96,14 +88,7 @@ public class ContextBuilder private constructor(
             dispatchPolicy = dispatchPolicy,
             fallbackPolicy = fallbackPolicy,
             fallbackWarning = fallbackWarning ?: {},
-            roles = SparseRoles(
-                generalLu = generalLu,
-                repeatedLu = repeated,
-                cholesky = cholesky,
-                quasiDefiniteLdl = quasiDefiniteLdl,
-                qr = qr,
-                basisFactorizations = basisFactorizations,
-            ),
+            roles = SparseRoles(generalLu),
         )
     }
 

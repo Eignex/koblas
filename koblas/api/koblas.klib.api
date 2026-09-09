@@ -102,17 +102,12 @@ final enum class com.eignex.koblas/BackendPolicyDecision : kotlin/Enum<com.eigne
 }
 
 final enum class com.eignex.koblas/BackendRole : kotlin/Enum<com.eignex.koblas/BackendRole> { // com.eignex.koblas/BackendRole|null[0]
-    enum entry BASIS_FACTORIZATIONS // com.eignex.koblas/BackendRole.BASIS_FACTORIZATIONS|null[0]
     enum entry BASIS_SOLVERS // com.eignex.koblas/BackendRole.BASIS_SOLVERS|null[0]
     enum entry DENSE_BLAS // com.eignex.koblas/BackendRole.DENSE_BLAS|null[0]
     enum entry DENSE_KERNELS // com.eignex.koblas/BackendRole.DENSE_KERNELS|null[0]
     enum entry SPARSE_BLAS // com.eignex.koblas/BackendRole.SPARSE_BLAS|null[0]
-    enum entry SPARSE_CHOLESKY // com.eignex.koblas/BackendRole.SPARSE_CHOLESKY|null[0]
     enum entry SPARSE_GENERAL_LU // com.eignex.koblas/BackendRole.SPARSE_GENERAL_LU|null[0]
     enum entry SPARSE_KERNELS // com.eignex.koblas/BackendRole.SPARSE_KERNELS|null[0]
-    enum entry SPARSE_QR // com.eignex.koblas/BackendRole.SPARSE_QR|null[0]
-    enum entry SPARSE_QUASI_DEFINITE_LDL // com.eignex.koblas/BackendRole.SPARSE_QUASI_DEFINITE_LDL|null[0]
-    enum entry SPARSE_REPEATED_LU // com.eignex.koblas/BackendRole.SPARSE_REPEATED_LU|null[0]
 
     final val entries // com.eignex.koblas/BackendRole.entries|#static{}entries[0]
         final fun <get-entries>(): kotlin.enums/EnumEntries<com.eignex.koblas/BackendRole> // com.eignex.koblas/BackendRole.entries.<get-entries>|<get-entries>#static(){}[0]
@@ -192,11 +187,6 @@ final enum class com.eignex.koblas/SparseTriangularKind : kotlin/Enum<com.eignex
 
     final fun valueOf(kotlin/String): com.eignex.koblas/SparseTriangularKind // com.eignex.koblas/SparseTriangularKind.valueOf|valueOf#static(kotlin.String){}[0]
     final fun values(): kotlin/Array<com.eignex.koblas/SparseTriangularKind> // com.eignex.koblas/SparseTriangularKind.values|values#static(){}[0]
-}
-
-abstract interface <#A: out kotlin/AutoCloseable> com.eignex.koblas.sparse/SparseSymbolicAnalysis : kotlin/AutoCloseable { // com.eignex.koblas.sparse/SparseSymbolicAnalysis|null[0]
-    abstract fun close() // com.eignex.koblas.sparse/SparseSymbolicAnalysis.close|close(){}[0]
-    abstract fun factor(com.eignex.koblas/SparseMatrix): #A // com.eignex.koblas.sparse/SparseSymbolicAnalysis.factor|factor(com.eignex.koblas.SparseMatrix){}[0]
 }
 
 abstract interface com.eignex.koblas.dense/Blas : com.eignex.koblas/Backend { // com.eignex.koblas.dense/Blas|null[0]
@@ -283,16 +273,7 @@ abstract interface com.eignex.koblas.sparse.basis/BasisSolvers : com.eignex.kobl
     abstract fun basisSolver(com.eignex.koblas/SparseMatrix): com.eignex.koblas.sparse.basis/BasisSolver // com.eignex.koblas.sparse.basis/BasisSolvers.basisSolver|basisSolver(com.eignex.koblas.SparseMatrix){}[0]
 }
 
-abstract interface com.eignex.koblas.sparse/BasisFactorization : com.eignex.koblas.sparse/SparseLuFactorization { // com.eignex.koblas.sparse/BasisFactorization|null[0]
-    abstract val basis // com.eignex.koblas.sparse/BasisFactorization.basis|{}basis[0]
-        abstract fun <get-basis>(): com.eignex.koblas/SparseMatrix // com.eignex.koblas.sparse/BasisFactorization.basis.<get-basis>|<get-basis>(){}[0]
-
-    abstract fun replaceColumn(kotlin/Int, com.eignex.koblas/SparseVector): com.eignex.koblas.sparse/BasisFactorization // com.eignex.koblas.sparse/BasisFactorization.replaceColumn|replaceColumn(kotlin.Int;com.eignex.koblas.SparseVector){}[0]
-}
-
-abstract interface com.eignex.koblas.sparse/BasisFactorizations : com.eignex.koblas/Backend { // com.eignex.koblas.sparse/BasisFactorizations|null[0]
-    abstract fun factorBasis(com.eignex.koblas/SparseMatrix): com.eignex.koblas.sparse/BasisFactorization // com.eignex.koblas.sparse/BasisFactorizations.factorBasis|factorBasis(com.eignex.koblas.SparseMatrix){}[0]
-}
+abstract interface com.eignex.koblas.sparse/BasisFactorization : com.eignex.koblas.sparse/SparseLuFactorization // com.eignex.koblas.sparse/BasisFactorization|null[0]
 
 abstract interface com.eignex.koblas.sparse/GeneralSparseLu : com.eignex.koblas/Backend { // com.eignex.koblas.sparse/GeneralSparseLu|null[0]
     abstract fun factor(com.eignex.koblas/SparseMatrix): com.eignex.koblas.sparse/SparseLuFactorization // com.eignex.koblas.sparse/GeneralSparseLu.factor|factor(com.eignex.koblas.SparseMatrix){}[0]
@@ -312,28 +293,6 @@ abstract interface com.eignex.koblas.sparse/PreparedSparseMatrix : kotlin/AutoCl
     abstract fun gemv(kotlin/Double, kotlin/DoubleArray, kotlin/Double, kotlin/DoubleArray, kotlin/Boolean = ...) // com.eignex.koblas.sparse/PreparedSparseMatrix.gemv|gemv(kotlin.Double;kotlin.DoubleArray;kotlin.Double;kotlin.DoubleArray;kotlin.Boolean){}[0]
 }
 
-abstract interface com.eignex.koblas.sparse/QuasiDefiniteLdl : com.eignex.koblas/Backend { // com.eignex.koblas.sparse/QuasiDefiniteLdl|null[0]
-    abstract fun quasiDefiniteLdl(com.eignex.koblas/SparseMatrix): com.eignex.koblas.sparse/QuasiDefiniteLdlFactorization // com.eignex.koblas.sparse/QuasiDefiniteLdl.quasiDefiniteLdl|quasiDefiniteLdl(com.eignex.koblas.SparseMatrix){}[0]
-    open fun analyzeQuasiDefiniteLdl(com.eignex.koblas/SparseMatrix): com.eignex.koblas.sparse/SparseSymbolicAnalysis<com.eignex.koblas.sparse/QuasiDefiniteLdlFactorization> // com.eignex.koblas.sparse/QuasiDefiniteLdl.analyzeQuasiDefiniteLdl|analyzeQuasiDefiniteLdl(com.eignex.koblas.SparseMatrix){}[0]
-}
-
-abstract interface com.eignex.koblas.sparse/QuasiDefiniteLdlFactorization : com.eignex.koblas.sparse/SparseFactorization { // com.eignex.koblas.sparse/QuasiDefiniteLdlFactorization|null[0]
-    abstract val d // com.eignex.koblas.sparse/QuasiDefiniteLdlFactorization.d|{}d[0]
-        abstract fun <get-d>(): kotlin/DoubleArray // com.eignex.koblas.sparse/QuasiDefiniteLdlFactorization.d.<get-d>|<get-d>(){}[0]
-    abstract val inertia // com.eignex.koblas.sparse/QuasiDefiniteLdlFactorization.inertia|{}inertia[0]
-        abstract fun <get-inertia>(): com.eignex.koblas.sparse/FactorizationInertia // com.eignex.koblas.sparse/QuasiDefiniteLdlFactorization.inertia.<get-inertia>|<get-inertia>(){}[0]
-    abstract val l // com.eignex.koblas.sparse/QuasiDefiniteLdlFactorization.l|{}l[0]
-        abstract fun <get-l>(): com.eignex.koblas/SparseMatrix // com.eignex.koblas.sparse/QuasiDefiniteLdlFactorization.l.<get-l>|<get-l>(){}[0]
-    abstract val order // com.eignex.koblas.sparse/QuasiDefiniteLdlFactorization.order|{}order[0]
-        abstract fun <get-order>(): kotlin/IntArray // com.eignex.koblas.sparse/QuasiDefiniteLdlFactorization.order.<get-order>|<get-order>(){}[0]
-}
-
-abstract interface com.eignex.koblas.sparse/RepeatedSparseLu : com.eignex.koblas/Backend { // com.eignex.koblas.sparse/RepeatedSparseLu|null[0]
-    abstract fun factor(com.eignex.koblas/SparseMatrix): com.eignex.koblas.sparse/SparseLuFactorization // com.eignex.koblas.sparse/RepeatedSparseLu.factor|factor(com.eignex.koblas.SparseMatrix){}[0]
-    abstract fun refactor(com.eignex.koblas.sparse/SparseLuFactorization, com.eignex.koblas/SparseMatrix): com.eignex.koblas.sparse/SparseLuFactorization // com.eignex.koblas.sparse/RepeatedSparseLu.refactor|refactor(com.eignex.koblas.sparse.SparseLuFactorization;com.eignex.koblas.SparseMatrix){}[0]
-    open fun analyze(com.eignex.koblas/SparseMatrix): com.eignex.koblas.sparse/SparseLuAnalysis // com.eignex.koblas.sparse/RepeatedSparseLu.analyze|analyze(com.eignex.koblas.SparseMatrix){}[0]
-}
-
 abstract interface com.eignex.koblas.sparse/SparseBlas : com.eignex.koblas/Backend { // com.eignex.koblas.sparse/SparseBlas|null[0]
     abstract fun gemm(com.eignex.koblas/SparseMatrix, com.eignex.koblas/SparseMatrix): com.eignex.koblas/SparseMatrix // com.eignex.koblas.sparse/SparseBlas.gemm|gemm(com.eignex.koblas.SparseMatrix;com.eignex.koblas.SparseMatrix){}[0]
     abstract fun gemm(kotlin/Double, com.eignex.koblas/SparseMatrix, kotlin/Boolean, com.eignex.koblas/DenseMatrix, kotlin/Boolean, kotlin/Double, com.eignex.koblas/DenseMatrix, kotlin/Boolean = ..., com.eignex.koblas/Workspace? = ...) // com.eignex.koblas.sparse/SparseBlas.gemm|gemm(kotlin.Double;com.eignex.koblas.SparseMatrix;kotlin.Boolean;com.eignex.koblas.DenseMatrix;kotlin.Boolean;kotlin.Double;com.eignex.koblas.DenseMatrix;kotlin.Boolean;com.eignex.koblas.Workspace?){}[0]
@@ -346,18 +305,6 @@ abstract interface com.eignex.koblas.sparse/SparseBlas : com.eignex.koblas/Backe
     open fun gemm(com.eignex.koblas/SparseMatrix, com.eignex.koblas/DenseMatrix): com.eignex.koblas/DenseMatrix // com.eignex.koblas.sparse/SparseBlas.gemm|gemm(com.eignex.koblas.SparseMatrix;com.eignex.koblas.DenseMatrix){}[0]
     open fun gemv(com.eignex.koblas/SparseMatrix, kotlin/DoubleArray, kotlin/Boolean = ...): kotlin/DoubleArray // com.eignex.koblas.sparse/SparseBlas.gemv|gemv(com.eignex.koblas.SparseMatrix;kotlin.DoubleArray;kotlin.Boolean){}[0]
     open fun prepare(com.eignex.koblas/SparseMatrix): com.eignex.koblas.sparse/PreparedSparseMatrix // com.eignex.koblas.sparse/SparseBlas.prepare|prepare(com.eignex.koblas.SparseMatrix){}[0]
-}
-
-abstract interface com.eignex.koblas.sparse/SparseCholesky : com.eignex.koblas/Backend { // com.eignex.koblas.sparse/SparseCholesky|null[0]
-    abstract fun cholesky(com.eignex.koblas/SparseMatrix): com.eignex.koblas.sparse/SparseCholeskyFactorization // com.eignex.koblas.sparse/SparseCholesky.cholesky|cholesky(com.eignex.koblas.SparseMatrix){}[0]
-    open fun analyzeCholesky(com.eignex.koblas/SparseMatrix): com.eignex.koblas.sparse/SparseSymbolicAnalysis<com.eignex.koblas.sparse/SparseCholeskyFactorization> // com.eignex.koblas.sparse/SparseCholesky.analyzeCholesky|analyzeCholesky(com.eignex.koblas.SparseMatrix){}[0]
-}
-
-abstract interface com.eignex.koblas.sparse/SparseCholeskyFactorization : com.eignex.koblas.sparse/SparseFactorization { // com.eignex.koblas.sparse/SparseCholeskyFactorization|null[0]
-    abstract val l // com.eignex.koblas.sparse/SparseCholeskyFactorization.l|{}l[0]
-        abstract fun <get-l>(): com.eignex.koblas/SparseMatrix // com.eignex.koblas.sparse/SparseCholeskyFactorization.l.<get-l>|<get-l>(){}[0]
-    abstract val order // com.eignex.koblas.sparse/SparseCholeskyFactorization.order|{}order[0]
-        abstract fun <get-order>(): kotlin/IntArray // com.eignex.koblas.sparse/SparseCholeskyFactorization.order.<get-order>|<get-order>(){}[0]
 }
 
 abstract interface com.eignex.koblas.sparse/SparseFactorization : kotlin/AutoCloseable { // com.eignex.koblas.sparse/SparseFactorization|null[0]
@@ -392,26 +339,9 @@ abstract interface com.eignex.koblas.sparse/SparseKernels : com.eignex.koblas/Ba
     abstract fun scatter(com.eignex.koblas/SparseVector, kotlin/DoubleArray) // com.eignex.koblas.sparse/SparseKernels.scatter|scatter(com.eignex.koblas.SparseVector;kotlin.DoubleArray){}[0]
 }
 
-abstract interface com.eignex.koblas.sparse/SparseLapack : com.eignex.koblas/Backend { // com.eignex.koblas.sparse/SparseLapack|null[0]
-    abstract fun cholesky(com.eignex.koblas/SparseMatrix): com.eignex.koblas.sparse/SparseCholeskyFactorization // com.eignex.koblas.sparse/SparseLapack.cholesky|cholesky(com.eignex.koblas.SparseMatrix){}[0]
-    abstract fun factor(com.eignex.koblas/SparseMatrix): com.eignex.koblas.sparse/SparseLuFactorization // com.eignex.koblas.sparse/SparseLapack.factor|factor(com.eignex.koblas.SparseMatrix){}[0]
-    abstract fun qr(com.eignex.koblas/SparseMatrix): com.eignex.koblas.sparse/SparseQrFactorization // com.eignex.koblas.sparse/SparseLapack.qr|qr(com.eignex.koblas.SparseMatrix){}[0]
-    abstract fun quasiDefiniteLdl(com.eignex.koblas/SparseMatrix): com.eignex.koblas.sparse/QuasiDefiniteLdlFactorization // com.eignex.koblas.sparse/SparseLapack.quasiDefiniteLdl|quasiDefiniteLdl(com.eignex.koblas.SparseMatrix){}[0]
-    open fun solve(com.eignex.koblas.sparse/SparseFactorization, com.eignex.koblas/DenseMatrix, kotlin/Boolean = ..., com.eignex.koblas/Workspace? = ...): com.eignex.koblas/DenseMatrix // com.eignex.koblas.sparse/SparseLapack.solve|solve(com.eignex.koblas.sparse.SparseFactorization;com.eignex.koblas.DenseMatrix;kotlin.Boolean;com.eignex.koblas.Workspace?){}[0]
-    open fun solve(com.eignex.koblas.sparse/SparseFactorization, kotlin/DoubleArray, kotlin/Boolean = ...): kotlin/DoubleArray // com.eignex.koblas.sparse/SparseLapack.solve|solve(com.eignex.koblas.sparse.SparseFactorization;kotlin.DoubleArray;kotlin.Boolean){}[0]
-    open fun solveInto(com.eignex.koblas.sparse/SparseFactorization, com.eignex.koblas/DenseMatrix, com.eignex.koblas/DenseMatrix, kotlin/Boolean = ..., com.eignex.koblas/Workspace? = ...): com.eignex.koblas/DenseMatrix // com.eignex.koblas.sparse/SparseLapack.solveInto|solveInto(com.eignex.koblas.sparse.SparseFactorization;com.eignex.koblas.DenseMatrix;com.eignex.koblas.DenseMatrix;kotlin.Boolean;com.eignex.koblas.Workspace?){}[0]
-    open fun solveInto(com.eignex.koblas.sparse/SparseFactorization, kotlin/DoubleArray, kotlin/DoubleArray, kotlin/Boolean = ..., com.eignex.koblas/Workspace? = ...): kotlin/DoubleArray // com.eignex.koblas.sparse/SparseLapack.solveInto|solveInto(com.eignex.koblas.sparse.SparseFactorization;kotlin.DoubleArray;kotlin.DoubleArray;kotlin.Boolean;com.eignex.koblas.Workspace?){}[0]
-}
-
-abstract interface com.eignex.koblas.sparse/SparseLinearAlgebra : com.eignex.koblas.sparse.basis/BasisSolvers, com.eignex.koblas.sparse/SparseBlas, com.eignex.koblas.sparse/SparseLapack { // com.eignex.koblas.sparse/SparseLinearAlgebra|null[0]
+abstract interface com.eignex.koblas.sparse/SparseLinearAlgebra : com.eignex.koblas.sparse/SparseBlas { // com.eignex.koblas.sparse/SparseLinearAlgebra|null[0]
     open val sparseKernels // com.eignex.koblas.sparse/SparseLinearAlgebra.sparseKernels|{}sparseKernels[0]
         open fun <get-sparseKernels>(): com.eignex.koblas.sparse/SparseKernels // com.eignex.koblas.sparse/SparseLinearAlgebra.sparseKernels.<get-sparseKernels>|<get-sparseKernels>(){}[0]
-}
-
-abstract interface com.eignex.koblas.sparse/SparseLuAnalysis : kotlin/AutoCloseable { // com.eignex.koblas.sparse/SparseLuAnalysis|null[0]
-    abstract fun close() // com.eignex.koblas.sparse/SparseLuAnalysis.close|close(){}[0]
-    abstract fun factor(com.eignex.koblas/SparseMatrix): com.eignex.koblas.sparse/SparseLuFactorization // com.eignex.koblas.sparse/SparseLuAnalysis.factor|factor(com.eignex.koblas.SparseMatrix){}[0]
-    abstract fun refactor(com.eignex.koblas.sparse/SparseLuFactorization, com.eignex.koblas/SparseMatrix): com.eignex.koblas.sparse/SparseLuFactorization // com.eignex.koblas.sparse/SparseLuAnalysis.refactor|refactor(com.eignex.koblas.sparse.SparseLuFactorization;com.eignex.koblas.SparseMatrix){}[0]
 }
 
 abstract interface com.eignex.koblas.sparse/SparseLuFactorization : com.eignex.koblas.sparse/SparseFactorization { // com.eignex.koblas.sparse/SparseLuFactorization|null[0]
@@ -427,38 +357,6 @@ abstract interface com.eignex.koblas.sparse/SparseLuFactorization : com.eignex.k
         open fun <get-rowScaling>(): kotlin/DoubleArray // com.eignex.koblas.sparse/SparseLuFactorization.rowScaling.<get-rowScaling>|<get-rowScaling>(){}[0]
     open val u // com.eignex.koblas.sparse/SparseLuFactorization.u|{}u[0]
         open fun <get-u>(): com.eignex.koblas/SparseMatrix // com.eignex.koblas.sparse/SparseLuFactorization.u.<get-u>|<get-u>(){}[0]
-}
-
-abstract interface com.eignex.koblas.sparse/SparseQr : com.eignex.koblas/Backend { // com.eignex.koblas.sparse/SparseQr|null[0]
-    abstract fun qr(com.eignex.koblas/SparseMatrix): com.eignex.koblas.sparse/SparseQrFactorization // com.eignex.koblas.sparse/SparseQr.qr|qr(com.eignex.koblas.SparseMatrix){}[0]
-    open fun analyzeQr(com.eignex.koblas/SparseMatrix): com.eignex.koblas.sparse/SparseSymbolicAnalysis<com.eignex.koblas.sparse/SparseQrFactorization> // com.eignex.koblas.sparse/SparseQr.analyzeQr|analyzeQr(com.eignex.koblas.SparseMatrix){}[0]
-}
-
-abstract interface com.eignex.koblas.sparse/SparseQrFactorization : kotlin/AutoCloseable { // com.eignex.koblas.sparse/SparseQrFactorization|null[0]
-    abstract val columnOrder // com.eignex.koblas.sparse/SparseQrFactorization.columnOrder|{}columnOrder[0]
-        abstract fun <get-columnOrder>(): kotlin/IntArray // com.eignex.koblas.sparse/SparseQrFactorization.columnOrder.<get-columnOrder>|<get-columnOrder>(){}[0]
-    abstract val m // com.eignex.koblas.sparse/SparseQrFactorization.m|{}m[0]
-        abstract fun <get-m>(): kotlin/Int // com.eignex.koblas.sparse/SparseQrFactorization.m.<get-m>|<get-m>(){}[0]
-    abstract val n // com.eignex.koblas.sparse/SparseQrFactorization.n|{}n[0]
-        abstract fun <get-n>(): kotlin/Int // com.eignex.koblas.sparse/SparseQrFactorization.n.<get-n>|<get-n>(){}[0]
-    abstract val nnz // com.eignex.koblas.sparse/SparseQrFactorization.nnz|{}nnz[0]
-        abstract fun <get-nnz>(): kotlin/Int // com.eignex.koblas.sparse/SparseQrFactorization.nnz.<get-nnz>|<get-nnz>(){}[0]
-    abstract val r // com.eignex.koblas.sparse/SparseQrFactorization.r|{}r[0]
-        abstract fun <get-r>(): com.eignex.koblas/SparseMatrix // com.eignex.koblas.sparse/SparseQrFactorization.r.<get-r>|<get-r>(){}[0]
-    abstract val rank // com.eignex.koblas.sparse/SparseQrFactorization.rank|{}rank[0]
-        abstract fun <get-rank>(): kotlin/Int // com.eignex.koblas.sparse/SparseQrFactorization.rank.<get-rank>|<get-rank>(){}[0]
-    open val rankDeficient // com.eignex.koblas.sparse/SparseQrFactorization.rankDeficient|{}rankDeficient[0]
-        open fun <get-rankDeficient>(): kotlin/Boolean // com.eignex.koblas.sparse/SparseQrFactorization.rankDeficient.<get-rankDeficient>|<get-rankDeficient>(){}[0]
-
-    abstract fun applyQInto(kotlin/DoubleArray, kotlin/DoubleArray, kotlin/Boolean = ..., com.eignex.koblas/Workspace? = ...): kotlin/DoubleArray // com.eignex.koblas.sparse/SparseQrFactorization.applyQInto|applyQInto(kotlin.DoubleArray;kotlin.DoubleArray;kotlin.Boolean;com.eignex.koblas.Workspace?){}[0]
-    abstract fun solveInto(kotlin/DoubleArray, kotlin/DoubleArray, com.eignex.koblas/Workspace? = ...): kotlin/DoubleArray // com.eignex.koblas.sparse/SparseQrFactorization.solveInto|solveInto(kotlin.DoubleArray;kotlin.DoubleArray;com.eignex.koblas.Workspace?){}[0]
-    open fun applyQ(kotlin/DoubleArray, kotlin/Boolean = ...): kotlin/DoubleArray // com.eignex.koblas.sparse/SparseQrFactorization.applyQ|applyQ(kotlin.DoubleArray;kotlin.Boolean){}[0]
-    open fun close() // com.eignex.koblas.sparse/SparseQrFactorization.close|close(){}[0]
-    open fun solve(com.eignex.koblas/DenseMatrix, com.eignex.koblas/Workspace? = ...): com.eignex.koblas/DenseMatrix // com.eignex.koblas.sparse/SparseQrFactorization.solve|solve(com.eignex.koblas.DenseMatrix;com.eignex.koblas.Workspace?){}[0]
-    open fun solve(kotlin/DoubleArray, com.eignex.koblas/Workspace? = ...): kotlin/DoubleArray // com.eignex.koblas.sparse/SparseQrFactorization.solve|solve(kotlin.DoubleArray;com.eignex.koblas.Workspace?){}[0]
-    open fun solveAllocation(): com.eignex.koblas/AllocationCapability // com.eignex.koblas.sparse/SparseQrFactorization.solveAllocation|solveAllocation(){}[0]
-    open fun solveInto(com.eignex.koblas/DenseMatrix, com.eignex.koblas/DenseMatrix, com.eignex.koblas/Workspace? = ...): com.eignex.koblas/DenseMatrix // com.eignex.koblas.sparse/SparseQrFactorization.solveInto|solveInto(com.eignex.koblas.DenseMatrix;com.eignex.koblas.DenseMatrix;com.eignex.koblas.Workspace?){}[0]
-    open fun solveInto(kotlin/DoubleArray, kotlin/DoubleArray, com.eignex.koblas/Workspace? = ..., com.eignex.koblas/AllocationPolicy): kotlin/DoubleArray // com.eignex.koblas.sparse/SparseQrFactorization.solveInto|solveInto(kotlin.DoubleArray;kotlin.DoubleArray;com.eignex.koblas.Workspace?;com.eignex.koblas.AllocationPolicy){}[0]
 }
 
 abstract interface com.eignex.koblas/Backend { // com.eignex.koblas/Backend|null[0]
@@ -615,21 +513,6 @@ sealed interface com.eignex.koblas/RouteQuery { // com.eignex.koblas/RouteQuery|
         final fun toString(): kotlin/String // com.eignex.koblas/RouteQuery.SparseLu.toString|toString(){}[0]
     }
 
-    final class SparseQr : com.eignex.koblas/RouteQuery { // com.eignex.koblas/RouteQuery.SparseQr|null[0]
-        constructor <init>(kotlin/Int) // com.eignex.koblas/RouteQuery.SparseQr.<init>|<init>(kotlin.Int){}[0]
-
-        final val role // com.eignex.koblas/RouteQuery.SparseQr.role|{}role[0]
-            final fun <get-role>(): com.eignex.koblas/BackendRole // com.eignex.koblas/RouteQuery.SparseQr.role.<get-role>|<get-role>(){}[0]
-        final val storedEntries // com.eignex.koblas/RouteQuery.SparseQr.storedEntries|{}storedEntries[0]
-            final fun <get-storedEntries>(): kotlin/Int // com.eignex.koblas/RouteQuery.SparseQr.storedEntries.<get-storedEntries>|<get-storedEntries>(){}[0]
-
-        final fun component1(): kotlin/Int // com.eignex.koblas/RouteQuery.SparseQr.component1|component1(){}[0]
-        final fun copy(kotlin/Int = ...): com.eignex.koblas/RouteQuery.SparseQr // com.eignex.koblas/RouteQuery.SparseQr.copy|copy(kotlin.Int){}[0]
-        final fun equals(kotlin/Any?): kotlin/Boolean // com.eignex.koblas/RouteQuery.SparseQr.equals|equals(kotlin.Any?){}[0]
-        final fun hashCode(): kotlin/Int // com.eignex.koblas/RouteQuery.SparseQr.hashCode|hashCode(){}[0]
-        final fun toString(): kotlin/String // com.eignex.koblas/RouteQuery.SparseQr.toString|toString(){}[0]
-    }
-
     final class SparseTriangular : com.eignex.koblas/RouteQuery { // com.eignex.koblas/RouteQuery.SparseTriangular|null[0]
         constructor <init>(kotlin/Int, com.eignex.koblas/SparseTriangularKind, kotlin/Int = ..., kotlin/Boolean = ..., kotlin/Boolean = ..., kotlin/Boolean = ..., kotlin/Boolean = ...) // com.eignex.koblas/RouteQuery.SparseTriangular.<init>|<init>(kotlin.Int;com.eignex.koblas.SparseTriangularKind;kotlin.Int;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean){}[0]
 
@@ -694,36 +577,6 @@ abstract class com.eignex.koblas.dense.host/BlasAdapter : com.eignex.koblas.dens
     open fun trmv(com.eignex.koblas/DenseMatrix, kotlin/DoubleArray, kotlin/Boolean, kotlin/Boolean, kotlin/Boolean) // com.eignex.koblas.dense.host/BlasAdapter.trmv|trmv(com.eignex.koblas.DenseMatrix;kotlin.DoubleArray;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean){}[0]
     open fun trsm(com.eignex.koblas/DenseMatrix, com.eignex.koblas/DenseMatrix, kotlin/Boolean, kotlin/Boolean, kotlin/Boolean, kotlin/Boolean, kotlin/Double, com.eignex.koblas/Workspace?) // com.eignex.koblas.dense.host/BlasAdapter.trsm|trsm(com.eignex.koblas.DenseMatrix;com.eignex.koblas.DenseMatrix;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean;kotlin.Double;com.eignex.koblas.Workspace?){}[0]
     open fun trsv(com.eignex.koblas/DenseMatrix, kotlin/DoubleArray, kotlin/Boolean, kotlin/Boolean, kotlin/Boolean) // com.eignex.koblas.dense.host/BlasAdapter.trsv|trsv(com.eignex.koblas.DenseMatrix;kotlin.DoubleArray;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean){}[0]
-}
-
-abstract class com.eignex.koblas.sparse.host/SparseDecompositionsAdapter : com.eignex.koblas.sparse/SparseLapack, com.eignex.koblas/BackendMetadataProvider, com.eignex.koblas/RoutingBackend { // com.eignex.koblas.sparse.host/SparseDecompositionsAdapter|null[0]
-    constructor <init>(kotlin/Boolean = ..., com.eignex.koblas/BackendMetadata = ...) // com.eignex.koblas.sparse.host/SparseDecompositionsAdapter.<init>|<init>(kotlin.Boolean;com.eignex.koblas.BackendMetadata){}[0]
-
-    abstract val nativeAvailable // com.eignex.koblas.sparse.host/SparseDecompositionsAdapter.nativeAvailable|{}nativeAvailable[0]
-        abstract fun <get-nativeAvailable>(): kotlin/Boolean // com.eignex.koblas.sparse.host/SparseDecompositionsAdapter.nativeAvailable.<get-nativeAvailable>|<get-nativeAvailable>(){}[0]
-    final val equilibrate // com.eignex.koblas.sparse.host/SparseDecompositionsAdapter.equilibrate|{}equilibrate[0]
-        final fun <get-equilibrate>(): kotlin/Boolean // com.eignex.koblas.sparse.host/SparseDecompositionsAdapter.equilibrate.<get-equilibrate>|<get-equilibrate>(){}[0]
-    final val portable // com.eignex.koblas.sparse.host/SparseDecompositionsAdapter.portable|{}portable[0]
-        final fun <get-portable>(): com.eignex.koblas.sparse/ReferenceSparseDecompositions // com.eignex.koblas.sparse.host/SparseDecompositionsAdapter.portable.<get-portable>|<get-portable>(){}[0]
-    open val backendMetadata // com.eignex.koblas.sparse.host/SparseDecompositionsAdapter.backendMetadata|{}backendMetadata[0]
-        open fun <get-backendMetadata>(): com.eignex.koblas/BackendMetadata // com.eignex.koblas.sparse.host/SparseDecompositionsAdapter.backendMetadata.<get-backendMetadata>|<get-backendMetadata>(){}[0]
-    open val isAvailable // com.eignex.koblas.sparse.host/SparseDecompositionsAdapter.isAvailable|{}isAvailable[0]
-        open fun <get-isAvailable>(): kotlin/Boolean // com.eignex.koblas.sparse.host/SparseDecompositionsAdapter.isAvailable.<get-isAvailable>|<get-isAvailable>(){}[0]
-    open val isPortable // com.eignex.koblas.sparse.host/SparseDecompositionsAdapter.isPortable|{}isPortable[0]
-        open fun <get-isPortable>(): kotlin/Boolean // com.eignex.koblas.sparse.host/SparseDecompositionsAdapter.isPortable.<get-isPortable>|<get-isPortable>(){}[0]
-    open val libraryScalesRows // com.eignex.koblas.sparse.host/SparseDecompositionsAdapter.libraryScalesRows|{}libraryScalesRows[0]
-        open fun <get-libraryScalesRows>(): kotlin/Boolean // com.eignex.koblas.sparse.host/SparseDecompositionsAdapter.libraryScalesRows.<get-libraryScalesRows>|<get-libraryScalesRows>(){}[0]
-
-    abstract fun factorNative(com.eignex.koblas/SparseMatrix): com.eignex.koblas.sparse/SparseLuFactorization // com.eignex.koblas.sparse.host/SparseDecompositionsAdapter.factorNative|factorNative(com.eignex.koblas.SparseMatrix){}[0]
-    final fun cholesky(com.eignex.koblas/SparseMatrix): com.eignex.koblas.sparse/SparseCholeskyFactorization // com.eignex.koblas.sparse.host/SparseDecompositionsAdapter.cholesky|cholesky(com.eignex.koblas.SparseMatrix){}[0]
-    final fun factor(com.eignex.koblas/SparseMatrix): com.eignex.koblas.sparse/SparseLuFactorization // com.eignex.koblas.sparse.host/SparseDecompositionsAdapter.factor|factor(com.eignex.koblas.SparseMatrix){}[0]
-    final fun qr(com.eignex.koblas/SparseMatrix): com.eignex.koblas.sparse/SparseQrFactorization // com.eignex.koblas.sparse.host/SparseDecompositionsAdapter.qr|qr(com.eignex.koblas.SparseMatrix){}[0]
-    final fun quasiDefiniteLdl(com.eignex.koblas/SparseMatrix): com.eignex.koblas.sparse/QuasiDefiniteLdlFactorization // com.eignex.koblas.sparse.host/SparseDecompositionsAdapter.quasiDefiniteLdl|quasiDefiniteLdl(com.eignex.koblas.SparseMatrix){}[0]
-    open fun choleskyNative(com.eignex.koblas/SparseMatrix): com.eignex.koblas.sparse/SparseCholeskyFactorization // com.eignex.koblas.sparse.host/SparseDecompositionsAdapter.choleskyNative|choleskyNative(com.eignex.koblas.SparseMatrix){}[0]
-    open fun nativeAvailableFor(com.eignex.koblas/RouteQuery): kotlin/Boolean // com.eignex.koblas.sparse.host/SparseDecompositionsAdapter.nativeAvailableFor|nativeAvailableFor(com.eignex.koblas.RouteQuery){}[0]
-    open fun qrNative(com.eignex.koblas/SparseMatrix): com.eignex.koblas.sparse/SparseQrFactorization // com.eignex.koblas.sparse.host/SparseDecompositionsAdapter.qrNative|qrNative(com.eignex.koblas.SparseMatrix){}[0]
-    open fun quasiDefiniteLdlNative(com.eignex.koblas/SparseMatrix): com.eignex.koblas.sparse/QuasiDefiniteLdlFactorization // com.eignex.koblas.sparse.host/SparseDecompositionsAdapter.quasiDefiniteLdlNative|quasiDefiniteLdlNative(com.eignex.koblas.SparseMatrix){}[0]
-    open fun route(com.eignex.koblas/RouteQuery): com.eignex.koblas/BackendRoute? // com.eignex.koblas.sparse.host/SparseDecompositionsAdapter.route|route(com.eignex.koblas.RouteQuery){}[0]
 }
 
 final class <#A: com.eignex.koblas/Backend> com.eignex.koblas/Capability // com.eignex.koblas/Capability|null[0]
@@ -913,129 +766,6 @@ final class com.eignex.koblas.sparse.basis/IndexedVector { // com.eignex.koblas.
     final inline fun forEachStored(kotlin/Function2<kotlin/Int, kotlin/Double, kotlin/Unit>) // com.eignex.koblas.sparse.basis/IndexedVector.forEachStored|forEachStored(kotlin.Function2<kotlin.Int,kotlin.Double,kotlin.Unit>){}[0]
 }
 
-final class com.eignex.koblas.sparse.basis/ProductFormBasisSolver : com.eignex.koblas.sparse.basis/BasisSolver { // com.eignex.koblas.sparse.basis/ProductFormBasisSolver|null[0]
-    constructor <init>(com.eignex.koblas/SparseMatrix, com.eignex.koblas.sparse/SparseLapack, kotlin/Int = ...) // com.eignex.koblas.sparse.basis/ProductFormBasisSolver.<init>|<init>(com.eignex.koblas.SparseMatrix;com.eignex.koblas.sparse.SparseLapack;kotlin.Int){}[0]
-
-    final val n // com.eignex.koblas.sparse.basis/ProductFormBasisSolver.n|{}n[0]
-        final fun <get-n>(): kotlin/Int // com.eignex.koblas.sparse.basis/ProductFormBasisSolver.n.<get-n>|<get-n>(){}[0]
-    final val nnz // com.eignex.koblas.sparse.basis/ProductFormBasisSolver.nnz|{}nnz[0]
-        final fun <get-nnz>(): kotlin/Int // com.eignex.koblas.sparse.basis/ProductFormBasisSolver.nnz.<get-nnz>|<get-nnz>(){}[0]
-    final val rcond // com.eignex.koblas.sparse.basis/ProductFormBasisSolver.rcond|{}rcond[0]
-        final fun <get-rcond>(): kotlin/Double // com.eignex.koblas.sparse.basis/ProductFormBasisSolver.rcond.<get-rcond>|<get-rcond>(){}[0]
-    final val refactorizeReason // com.eignex.koblas.sparse.basis/ProductFormBasisSolver.refactorizeReason|{}refactorizeReason[0]
-        final fun <get-refactorizeReason>(): com.eignex.koblas.sparse.basis/RefactorizeReason? // com.eignex.koblas.sparse.basis/ProductFormBasisSolver.refactorizeReason.<get-refactorizeReason>|<get-refactorizeReason>(){}[0]
-    final val singular // com.eignex.koblas.sparse.basis/ProductFormBasisSolver.singular|{}singular[0]
-        final fun <get-singular>(): kotlin/Boolean // com.eignex.koblas.sparse.basis/ProductFormBasisSolver.singular.<get-singular>|<get-singular>(){}[0]
-    final val updateCount // com.eignex.koblas.sparse.basis/ProductFormBasisSolver.updateCount|{}updateCount[0]
-        final fun <get-updateCount>(): kotlin/Int // com.eignex.koblas.sparse.basis/ProductFormBasisSolver.updateCount.<get-updateCount>|<get-updateCount>(){}[0]
-
-    final fun btran(com.eignex.koblas.sparse.basis/IndexedVector, kotlin/Double) // com.eignex.koblas.sparse.basis/ProductFormBasisSolver.btran|btran(com.eignex.koblas.sparse.basis.IndexedVector;kotlin.Double){}[0]
-    final fun close() // com.eignex.koblas.sparse.basis/ProductFormBasisSolver.close|close(){}[0]
-    final fun ftran(com.eignex.koblas.sparse.basis/IndexedVector, kotlin/Double) // com.eignex.koblas.sparse.basis/ProductFormBasisSolver.ftran|ftran(com.eignex.koblas.sparse.basis.IndexedVector;kotlin.Double){}[0]
-    final fun refactorize(kotlin/IntArray): kotlin/Boolean // com.eignex.koblas.sparse.basis/ProductFormBasisSolver.refactorize|refactorize(kotlin.IntArray){}[0]
-    final fun solveQuality(kotlin/DoubleArray, com.eignex.koblas.sparse.basis/IndexedVector, kotlin/Boolean): com.eignex.koblas.sparse.basis/BasisSolveQuality // com.eignex.koblas.sparse.basis/ProductFormBasisSolver.solveQuality|solveQuality(kotlin.DoubleArray;com.eignex.koblas.sparse.basis.IndexedVector;kotlin.Boolean){}[0]
-    final fun update(kotlin/Int, kotlin/Int, com.eignex.koblas.sparse.basis/IndexedVector, com.eignex.koblas.sparse.basis/IndexedVector?): com.eignex.koblas.sparse.basis/BasisUpdate // com.eignex.koblas.sparse.basis/ProductFormBasisSolver.update|update(kotlin.Int;kotlin.Int;com.eignex.koblas.sparse.basis.IndexedVector;com.eignex.koblas.sparse.basis.IndexedVector?){}[0]
-}
-
-final class com.eignex.koblas.sparse.factorization.cholesky/SparseUpLookingCholesky : com.eignex.koblas.sparse/SparseCholeskyFactorization { // com.eignex.koblas.sparse.factorization.cholesky/SparseUpLookingCholesky|null[0]
-    final val failedAt // com.eignex.koblas.sparse.factorization.cholesky/SparseUpLookingCholesky.failedAt|{}failedAt[0]
-        final fun <get-failedAt>(): kotlin/Int // com.eignex.koblas.sparse.factorization.cholesky/SparseUpLookingCholesky.failedAt.<get-failedAt>|<get-failedAt>(){}[0]
-    final val l // com.eignex.koblas.sparse.factorization.cholesky/SparseUpLookingCholesky.l|{}l[0]
-        final fun <get-l>(): com.eignex.koblas/SparseMatrix // com.eignex.koblas.sparse.factorization.cholesky/SparseUpLookingCholesky.l.<get-l>|<get-l>(){}[0]
-    final val n // com.eignex.koblas.sparse.factorization.cholesky/SparseUpLookingCholesky.n|{}n[0]
-        final fun <get-n>(): kotlin/Int // com.eignex.koblas.sparse.factorization.cholesky/SparseUpLookingCholesky.n.<get-n>|<get-n>(){}[0]
-    final val nnz // com.eignex.koblas.sparse.factorization.cholesky/SparseUpLookingCholesky.nnz|{}nnz[0]
-        final fun <get-nnz>(): kotlin/Int // com.eignex.koblas.sparse.factorization.cholesky/SparseUpLookingCholesky.nnz.<get-nnz>|<get-nnz>(){}[0]
-    final val order // com.eignex.koblas.sparse.factorization.cholesky/SparseUpLookingCholesky.order|{}order[0]
-        final fun <get-order>(): kotlin/IntArray // com.eignex.koblas.sparse.factorization.cholesky/SparseUpLookingCholesky.order.<get-order>|<get-order>(){}[0]
-    final val rcond // com.eignex.koblas.sparse.factorization.cholesky/SparseUpLookingCholesky.rcond|{}rcond[0]
-        final fun <get-rcond>(): kotlin/Double // com.eignex.koblas.sparse.factorization.cholesky/SparseUpLookingCholesky.rcond.<get-rcond>|<get-rcond>(){}[0]
-
-    final fun solveAllocation(kotlin/Boolean, kotlin/Boolean): com.eignex.koblas/AllocationCapability // com.eignex.koblas.sparse.factorization.cholesky/SparseUpLookingCholesky.solveAllocation|solveAllocation(kotlin.Boolean;kotlin.Boolean){}[0]
-    final fun solveInto(kotlin/DoubleArray, kotlin/DoubleArray, kotlin/Boolean, com.eignex.koblas/Workspace?): kotlin/DoubleArray // com.eignex.koblas.sparse.factorization.cholesky/SparseUpLookingCholesky.solveInto|solveInto(kotlin.DoubleArray;kotlin.DoubleArray;kotlin.Boolean;com.eignex.koblas.Workspace?){}[0]
-
-    final object Companion { // com.eignex.koblas.sparse.factorization.cholesky/SparseUpLookingCholesky.Companion|null[0]
-        final fun factorLower(com.eignex.koblas/SparseMatrix): com.eignex.koblas.sparse.factorization.cholesky/SparseUpLookingCholesky // com.eignex.koblas.sparse.factorization.cholesky/SparseUpLookingCholesky.Companion.factorLower|factorLower(com.eignex.koblas.SparseMatrix){}[0]
-    }
-}
-
-final class com.eignex.koblas.sparse.factorization.ldl/QuasiDefiniteUpLookingLdl : com.eignex.koblas.sparse/QuasiDefiniteLdlFactorization { // com.eignex.koblas.sparse.factorization.ldl/QuasiDefiniteUpLookingLdl|null[0]
-    final val d // com.eignex.koblas.sparse.factorization.ldl/QuasiDefiniteUpLookingLdl.d|{}d[0]
-        final fun <get-d>(): kotlin/DoubleArray // com.eignex.koblas.sparse.factorization.ldl/QuasiDefiniteUpLookingLdl.d.<get-d>|<get-d>(){}[0]
-    final val failedAt // com.eignex.koblas.sparse.factorization.ldl/QuasiDefiniteUpLookingLdl.failedAt|{}failedAt[0]
-        final fun <get-failedAt>(): kotlin/Int // com.eignex.koblas.sparse.factorization.ldl/QuasiDefiniteUpLookingLdl.failedAt.<get-failedAt>|<get-failedAt>(){}[0]
-    final val inertia // com.eignex.koblas.sparse.factorization.ldl/QuasiDefiniteUpLookingLdl.inertia|{}inertia[0]
-        final fun <get-inertia>(): com.eignex.koblas.sparse/FactorizationInertia // com.eignex.koblas.sparse.factorization.ldl/QuasiDefiniteUpLookingLdl.inertia.<get-inertia>|<get-inertia>(){}[0]
-    final val l // com.eignex.koblas.sparse.factorization.ldl/QuasiDefiniteUpLookingLdl.l|{}l[0]
-        final fun <get-l>(): com.eignex.koblas/SparseMatrix // com.eignex.koblas.sparse.factorization.ldl/QuasiDefiniteUpLookingLdl.l.<get-l>|<get-l>(){}[0]
-    final val n // com.eignex.koblas.sparse.factorization.ldl/QuasiDefiniteUpLookingLdl.n|{}n[0]
-        final fun <get-n>(): kotlin/Int // com.eignex.koblas.sparse.factorization.ldl/QuasiDefiniteUpLookingLdl.n.<get-n>|<get-n>(){}[0]
-    final val nnz // com.eignex.koblas.sparse.factorization.ldl/QuasiDefiniteUpLookingLdl.nnz|{}nnz[0]
-        final fun <get-nnz>(): kotlin/Int // com.eignex.koblas.sparse.factorization.ldl/QuasiDefiniteUpLookingLdl.nnz.<get-nnz>|<get-nnz>(){}[0]
-    final val order // com.eignex.koblas.sparse.factorization.ldl/QuasiDefiniteUpLookingLdl.order|{}order[0]
-        final fun <get-order>(): kotlin/IntArray // com.eignex.koblas.sparse.factorization.ldl/QuasiDefiniteUpLookingLdl.order.<get-order>|<get-order>(){}[0]
-    final val rcond // com.eignex.koblas.sparse.factorization.ldl/QuasiDefiniteUpLookingLdl.rcond|{}rcond[0]
-        final fun <get-rcond>(): kotlin/Double // com.eignex.koblas.sparse.factorization.ldl/QuasiDefiniteUpLookingLdl.rcond.<get-rcond>|<get-rcond>(){}[0]
-
-    final fun solveAllocation(kotlin/Boolean, kotlin/Boolean): com.eignex.koblas/AllocationCapability // com.eignex.koblas.sparse.factorization.ldl/QuasiDefiniteUpLookingLdl.solveAllocation|solveAllocation(kotlin.Boolean;kotlin.Boolean){}[0]
-    final fun solveInto(kotlin/DoubleArray, kotlin/DoubleArray, kotlin/Boolean, com.eignex.koblas/Workspace?): kotlin/DoubleArray // com.eignex.koblas.sparse.factorization.ldl/QuasiDefiniteUpLookingLdl.solveInto|solveInto(kotlin.DoubleArray;kotlin.DoubleArray;kotlin.Boolean;com.eignex.koblas.Workspace?){}[0]
-
-    final object Companion { // com.eignex.koblas.sparse.factorization.ldl/QuasiDefiniteUpLookingLdl.Companion|null[0]
-        final fun factorLower(com.eignex.koblas/SparseMatrix): com.eignex.koblas.sparse.factorization.ldl/QuasiDefiniteUpLookingLdl // com.eignex.koblas.sparse.factorization.ldl/QuasiDefiniteUpLookingLdl.Companion.factorLower|factorLower(com.eignex.koblas.SparseMatrix){}[0]
-    }
-}
-
-final class com.eignex.koblas.sparse.factorization.lu/SparseMarkowitzLu : com.eignex.koblas.sparse/SparseLuFactorization { // com.eignex.koblas.sparse.factorization.lu/SparseMarkowitzLu|null[0]
-    final val columnOrder // com.eignex.koblas.sparse.factorization.lu/SparseMarkowitzLu.columnOrder|{}columnOrder[0]
-        final fun <get-columnOrder>(): kotlin/IntArray // com.eignex.koblas.sparse.factorization.lu/SparseMarkowitzLu.columnOrder.<get-columnOrder>|<get-columnOrder>(){}[0]
-    final val failedAt // com.eignex.koblas.sparse.factorization.lu/SparseMarkowitzLu.failedAt|{}failedAt[0]
-        final fun <get-failedAt>(): kotlin/Int // com.eignex.koblas.sparse.factorization.lu/SparseMarkowitzLu.failedAt.<get-failedAt>|<get-failedAt>(){}[0]
-    final val l // com.eignex.koblas.sparse.factorization.lu/SparseMarkowitzLu.l|{}l[0]
-        final fun <get-l>(): com.eignex.koblas/SparseMatrix // com.eignex.koblas.sparse.factorization.lu/SparseMarkowitzLu.l.<get-l>|<get-l>(){}[0]
-    final val n // com.eignex.koblas.sparse.factorization.lu/SparseMarkowitzLu.n|{}n[0]
-        final fun <get-n>(): kotlin/Int // com.eignex.koblas.sparse.factorization.lu/SparseMarkowitzLu.n.<get-n>|<get-n>(){}[0]
-    final val nnz // com.eignex.koblas.sparse.factorization.lu/SparseMarkowitzLu.nnz|{}nnz[0]
-        final fun <get-nnz>(): kotlin/Int // com.eignex.koblas.sparse.factorization.lu/SparseMarkowitzLu.nnz.<get-nnz>|<get-nnz>(){}[0]
-    final val rcond // com.eignex.koblas.sparse.factorization.lu/SparseMarkowitzLu.rcond|{}rcond[0]
-        final fun <get-rcond>(): kotlin/Double // com.eignex.koblas.sparse.factorization.lu/SparseMarkowitzLu.rcond.<get-rcond>|<get-rcond>(){}[0]
-    final val rowOrder // com.eignex.koblas.sparse.factorization.lu/SparseMarkowitzLu.rowOrder|{}rowOrder[0]
-        final fun <get-rowOrder>(): kotlin/IntArray // com.eignex.koblas.sparse.factorization.lu/SparseMarkowitzLu.rowOrder.<get-rowOrder>|<get-rowOrder>(){}[0]
-    final val rowScaling // com.eignex.koblas.sparse.factorization.lu/SparseMarkowitzLu.rowScaling|{}rowScaling[0]
-        final fun <get-rowScaling>(): kotlin/DoubleArray // com.eignex.koblas.sparse.factorization.lu/SparseMarkowitzLu.rowScaling.<get-rowScaling>|<get-rowScaling>(){}[0]
-    final val u // com.eignex.koblas.sparse.factorization.lu/SparseMarkowitzLu.u|{}u[0]
-        final fun <get-u>(): com.eignex.koblas/SparseMatrix // com.eignex.koblas.sparse.factorization.lu/SparseMarkowitzLu.u.<get-u>|<get-u>(){}[0]
-
-    final fun solveAllocation(kotlin/Boolean, kotlin/Boolean): com.eignex.koblas/AllocationCapability // com.eignex.koblas.sparse.factorization.lu/SparseMarkowitzLu.solveAllocation|solveAllocation(kotlin.Boolean;kotlin.Boolean){}[0]
-    final fun solveInto(kotlin/DoubleArray, kotlin/DoubleArray, kotlin/Boolean, com.eignex.koblas/Workspace?): kotlin/DoubleArray // com.eignex.koblas.sparse.factorization.lu/SparseMarkowitzLu.solveInto|solveInto(kotlin.DoubleArray;kotlin.DoubleArray;kotlin.Boolean;com.eignex.koblas.Workspace?){}[0]
-
-    final object Companion // com.eignex.koblas.sparse.factorization.lu/SparseMarkowitzLu.Companion|null[0]
-}
-
-final class com.eignex.koblas.sparse.factorization.qr/SparseHouseholderQr : com.eignex.koblas.sparse/SparseQrFactorization { // com.eignex.koblas.sparse.factorization.qr/SparseHouseholderQr|null[0]
-    final val columnOrder // com.eignex.koblas.sparse.factorization.qr/SparseHouseholderQr.columnOrder|{}columnOrder[0]
-        final fun <get-columnOrder>(): kotlin/IntArray // com.eignex.koblas.sparse.factorization.qr/SparseHouseholderQr.columnOrder.<get-columnOrder>|<get-columnOrder>(){}[0]
-    final val m // com.eignex.koblas.sparse.factorization.qr/SparseHouseholderQr.m|{}m[0]
-        final fun <get-m>(): kotlin/Int // com.eignex.koblas.sparse.factorization.qr/SparseHouseholderQr.m.<get-m>|<get-m>(){}[0]
-    final val n // com.eignex.koblas.sparse.factorization.qr/SparseHouseholderQr.n|{}n[0]
-        final fun <get-n>(): kotlin/Int // com.eignex.koblas.sparse.factorization.qr/SparseHouseholderQr.n.<get-n>|<get-n>(){}[0]
-    final val nnz // com.eignex.koblas.sparse.factorization.qr/SparseHouseholderQr.nnz|{}nnz[0]
-        final fun <get-nnz>(): kotlin/Int // com.eignex.koblas.sparse.factorization.qr/SparseHouseholderQr.nnz.<get-nnz>|<get-nnz>(){}[0]
-    final val r // com.eignex.koblas.sparse.factorization.qr/SparseHouseholderQr.r|{}r[0]
-        final fun <get-r>(): com.eignex.koblas/SparseMatrix // com.eignex.koblas.sparse.factorization.qr/SparseHouseholderQr.r.<get-r>|<get-r>(){}[0]
-    final val rank // com.eignex.koblas.sparse.factorization.qr/SparseHouseholderQr.rank|{}rank[0]
-        final fun <get-rank>(): kotlin/Int // com.eignex.koblas.sparse.factorization.qr/SparseHouseholderQr.rank.<get-rank>|<get-rank>(){}[0]
-    final val rowOrder // com.eignex.koblas.sparse.factorization.qr/SparseHouseholderQr.rowOrder|{}rowOrder[0]
-        final fun <get-rowOrder>(): kotlin/IntArray // com.eignex.koblas.sparse.factorization.qr/SparseHouseholderQr.rowOrder.<get-rowOrder>|<get-rowOrder>(){}[0]
-
-    final fun applyQInto(kotlin/DoubleArray, kotlin/DoubleArray, kotlin/Boolean, com.eignex.koblas/Workspace?): kotlin/DoubleArray // com.eignex.koblas.sparse.factorization.qr/SparseHouseholderQr.applyQInto|applyQInto(kotlin.DoubleArray;kotlin.DoubleArray;kotlin.Boolean;com.eignex.koblas.Workspace?){}[0]
-    final fun solveAllocation(): com.eignex.koblas/AllocationCapability // com.eignex.koblas.sparse.factorization.qr/SparseHouseholderQr.solveAllocation|solveAllocation(){}[0]
-    final fun solveInto(kotlin/DoubleArray, kotlin/DoubleArray, com.eignex.koblas/Workspace?): kotlin/DoubleArray // com.eignex.koblas.sparse.factorization.qr/SparseHouseholderQr.solveInto|solveInto(kotlin.DoubleArray;kotlin.DoubleArray;com.eignex.koblas.Workspace?){}[0]
-
-    final object Companion { // com.eignex.koblas.sparse.factorization.qr/SparseHouseholderQr.Companion|null[0]
-        final fun factor(com.eignex.koblas/SparseMatrix): com.eignex.koblas.sparse.factorization.qr/SparseHouseholderQr // com.eignex.koblas.sparse.factorization.qr/SparseHouseholderQr.Companion.factor|factor(com.eignex.koblas.SparseMatrix){}[0]
-    }
-}
-
 final class com.eignex.koblas.sparse.host.hfactor/HfactorConfig { // com.eignex.koblas.sparse.host.hfactor/HfactorConfig|null[0]
     constructor <init>(com.eignex.koblas.sparse.host.hfactor/HfactorOptions) // com.eignex.koblas.sparse.host.hfactor/HfactorConfig.<init>|<init>(com.eignex.koblas.sparse.host.hfactor.HfactorOptions){}[0]
     constructor <init>(kotlin/String? = ..., kotlin/Boolean = ..., kotlin/Double = ..., kotlin/Double = ..., com.eignex.koblas.sparse.host.hfactor/HfactorUpdateMethod = ...) // com.eignex.koblas.sparse.host.hfactor/HfactorConfig.<init>|<init>(kotlin.String?;kotlin.Boolean;kotlin.Double;kotlin.Double;com.eignex.koblas.sparse.host.hfactor.HfactorUpdateMethod){}[0]
@@ -1087,84 +817,21 @@ final class com.eignex.koblas.sparse.host.hfactor/HfactorOptions { // com.eignex
     final fun toString(): kotlin/String // com.eignex.koblas.sparse.host.hfactor/HfactorOptions.toString|toString(){}[0]
 }
 
-final class com.eignex.koblas.sparse/FactorizationInertia { // com.eignex.koblas.sparse/FactorizationInertia|null[0]
-    constructor <init>(kotlin/Int, kotlin/Int, kotlin/Int) // com.eignex.koblas.sparse/FactorizationInertia.<init>|<init>(kotlin.Int;kotlin.Int;kotlin.Int){}[0]
-
-    final val negative // com.eignex.koblas.sparse/FactorizationInertia.negative|{}negative[0]
-        final fun <get-negative>(): kotlin/Int // com.eignex.koblas.sparse/FactorizationInertia.negative.<get-negative>|<get-negative>(){}[0]
-    final val positive // com.eignex.koblas.sparse/FactorizationInertia.positive|{}positive[0]
-        final fun <get-positive>(): kotlin/Int // com.eignex.koblas.sparse/FactorizationInertia.positive.<get-positive>|<get-positive>(){}[0]
-    final val zero // com.eignex.koblas.sparse/FactorizationInertia.zero|{}zero[0]
-        final fun <get-zero>(): kotlin/Int // com.eignex.koblas.sparse/FactorizationInertia.zero.<get-zero>|<get-zero>(){}[0]
-
-    final fun component1(): kotlin/Int // com.eignex.koblas.sparse/FactorizationInertia.component1|component1(){}[0]
-    final fun component2(): kotlin/Int // com.eignex.koblas.sparse/FactorizationInertia.component2|component2(){}[0]
-    final fun component3(): kotlin/Int // com.eignex.koblas.sparse/FactorizationInertia.component3|component3(){}[0]
-    final fun copy(kotlin/Int = ..., kotlin/Int = ..., kotlin/Int = ...): com.eignex.koblas.sparse/FactorizationInertia // com.eignex.koblas.sparse/FactorizationInertia.copy|copy(kotlin.Int;kotlin.Int;kotlin.Int){}[0]
-    final fun equals(kotlin/Any?): kotlin/Boolean // com.eignex.koblas.sparse/FactorizationInertia.equals|equals(kotlin.Any?){}[0]
-    final fun hashCode(): kotlin/Int // com.eignex.koblas.sparse/FactorizationInertia.hashCode|hashCode(){}[0]
-    final fun toString(): kotlin/String // com.eignex.koblas.sparse/FactorizationInertia.toString|toString(){}[0]
-}
-
 final class com.eignex.koblas.sparse/FactorsNotExposed : kotlin/UnsupportedOperationException { // com.eignex.koblas.sparse/FactorsNotExposed|null[0]
     constructor <init>(kotlin/String) // com.eignex.koblas.sparse/FactorsNotExposed.<init>|<init>(kotlin.String){}[0]
-}
-
-final class com.eignex.koblas.sparse/RefactoringBasisFactorization : com.eignex.koblas.sparse/BasisFactorization { // com.eignex.koblas.sparse/RefactoringBasisFactorization|null[0]
-    constructor <init>(com.eignex.koblas.sparse/SparseLapack, com.eignex.koblas/SparseMatrix, com.eignex.koblas.sparse/SparseLuFactorization) // com.eignex.koblas.sparse/RefactoringBasisFactorization.<init>|<init>(com.eignex.koblas.sparse.SparseLapack;com.eignex.koblas.SparseMatrix;com.eignex.koblas.sparse.SparseLuFactorization){}[0]
-
-    final val basis // com.eignex.koblas.sparse/RefactoringBasisFactorization.basis|{}basis[0]
-        final fun <get-basis>(): com.eignex.koblas/SparseMatrix // com.eignex.koblas.sparse/RefactoringBasisFactorization.basis.<get-basis>|<get-basis>(){}[0]
-    final val columnOrder // com.eignex.koblas.sparse/RefactoringBasisFactorization.columnOrder|{}columnOrder[0]
-        final fun <get-columnOrder>(): kotlin/IntArray // com.eignex.koblas.sparse/RefactoringBasisFactorization.columnOrder.<get-columnOrder>|<get-columnOrder>(){}[0]
-    final val failedAt // com.eignex.koblas.sparse/RefactoringBasisFactorization.failedAt|{}failedAt[0]
-        final fun <get-failedAt>(): kotlin/Int // com.eignex.koblas.sparse/RefactoringBasisFactorization.failedAt.<get-failedAt>|<get-failedAt>(){}[0]
-    final val l // com.eignex.koblas.sparse/RefactoringBasisFactorization.l|{}l[0]
-        final fun <get-l>(): com.eignex.koblas/SparseMatrix // com.eignex.koblas.sparse/RefactoringBasisFactorization.l.<get-l>|<get-l>(){}[0]
-    final val n // com.eignex.koblas.sparse/RefactoringBasisFactorization.n|{}n[0]
-        final fun <get-n>(): kotlin/Int // com.eignex.koblas.sparse/RefactoringBasisFactorization.n.<get-n>|<get-n>(){}[0]
-    final val nnz // com.eignex.koblas.sparse/RefactoringBasisFactorization.nnz|{}nnz[0]
-        final fun <get-nnz>(): kotlin/Int // com.eignex.koblas.sparse/RefactoringBasisFactorization.nnz.<get-nnz>|<get-nnz>(){}[0]
-    final val offDiagonal // com.eignex.koblas.sparse/RefactoringBasisFactorization.offDiagonal|{}offDiagonal[0]
-        final fun <get-offDiagonal>(): com.eignex.koblas/SparseMatrix // com.eignex.koblas.sparse/RefactoringBasisFactorization.offDiagonal.<get-offDiagonal>|<get-offDiagonal>(){}[0]
-    final val rcond // com.eignex.koblas.sparse/RefactoringBasisFactorization.rcond|{}rcond[0]
-        final fun <get-rcond>(): kotlin/Double // com.eignex.koblas.sparse/RefactoringBasisFactorization.rcond.<get-rcond>|<get-rcond>(){}[0]
-    final val rowOrder // com.eignex.koblas.sparse/RefactoringBasisFactorization.rowOrder|{}rowOrder[0]
-        final fun <get-rowOrder>(): kotlin/IntArray // com.eignex.koblas.sparse/RefactoringBasisFactorization.rowOrder.<get-rowOrder>|<get-rowOrder>(){}[0]
-    final val rowScaling // com.eignex.koblas.sparse/RefactoringBasisFactorization.rowScaling|{}rowScaling[0]
-        final fun <get-rowScaling>(): kotlin/DoubleArray // com.eignex.koblas.sparse/RefactoringBasisFactorization.rowScaling.<get-rowScaling>|<get-rowScaling>(){}[0]
-    final val u // com.eignex.koblas.sparse/RefactoringBasisFactorization.u|{}u[0]
-        final fun <get-u>(): com.eignex.koblas/SparseMatrix // com.eignex.koblas.sparse/RefactoringBasisFactorization.u.<get-u>|<get-u>(){}[0]
-
-    final fun close() // com.eignex.koblas.sparse/RefactoringBasisFactorization.close|close(){}[0]
-    final fun replaceColumn(kotlin/Int, com.eignex.koblas/SparseVector): com.eignex.koblas.sparse/BasisFactorization // com.eignex.koblas.sparse/RefactoringBasisFactorization.replaceColumn|replaceColumn(kotlin.Int;com.eignex.koblas.SparseVector){}[0]
-    final fun solveAllocation(kotlin/Boolean, kotlin/Boolean): com.eignex.koblas/AllocationCapability // com.eignex.koblas.sparse/RefactoringBasisFactorization.solveAllocation|solveAllocation(kotlin.Boolean;kotlin.Boolean){}[0]
-    final fun solveInto(kotlin/DoubleArray, kotlin/DoubleArray, kotlin/Boolean, com.eignex.koblas/Workspace?): kotlin/DoubleArray // com.eignex.koblas.sparse/RefactoringBasisFactorization.solveInto|solveInto(kotlin.DoubleArray;kotlin.DoubleArray;kotlin.Boolean;com.eignex.koblas.Workspace?){}[0]
 }
 
 final class com.eignex.koblas.sparse/SingularSparseFactorization : com.eignex.koblas.sparse/SparseLuFactorization { // com.eignex.koblas.sparse/SingularSparseFactorization|null[0]
     constructor <init>(kotlin/Int, kotlin/Int) // com.eignex.koblas.sparse/SingularSparseFactorization.<init>|<init>(kotlin.Int;kotlin.Int){}[0]
 
-    final val columnOrder // com.eignex.koblas.sparse/SingularSparseFactorization.columnOrder|{}columnOrder[0]
-        final fun <get-columnOrder>(): kotlin/IntArray // com.eignex.koblas.sparse/SingularSparseFactorization.columnOrder.<get-columnOrder>|<get-columnOrder>(){}[0]
     final val failedAt // com.eignex.koblas.sparse/SingularSparseFactorization.failedAt|{}failedAt[0]
         final fun <get-failedAt>(): kotlin/Int // com.eignex.koblas.sparse/SingularSparseFactorization.failedAt.<get-failedAt>|<get-failedAt>(){}[0]
-    final val l // com.eignex.koblas.sparse/SingularSparseFactorization.l|{}l[0]
-        final fun <get-l>(): com.eignex.koblas/SparseMatrix // com.eignex.koblas.sparse/SingularSparseFactorization.l.<get-l>|<get-l>(){}[0]
     final val n // com.eignex.koblas.sparse/SingularSparseFactorization.n|{}n[0]
         final fun <get-n>(): kotlin/Int // com.eignex.koblas.sparse/SingularSparseFactorization.n.<get-n>|<get-n>(){}[0]
     final val nnz // com.eignex.koblas.sparse/SingularSparseFactorization.nnz|{}nnz[0]
         final fun <get-nnz>(): kotlin/Int // com.eignex.koblas.sparse/SingularSparseFactorization.nnz.<get-nnz>|<get-nnz>(){}[0]
-    final val offDiagonal // com.eignex.koblas.sparse/SingularSparseFactorization.offDiagonal|{}offDiagonal[0]
-        final fun <get-offDiagonal>(): com.eignex.koblas/SparseMatrix // com.eignex.koblas.sparse/SingularSparseFactorization.offDiagonal.<get-offDiagonal>|<get-offDiagonal>(){}[0]
     final val rcond // com.eignex.koblas.sparse/SingularSparseFactorization.rcond|{}rcond[0]
         final fun <get-rcond>(): kotlin/Double // com.eignex.koblas.sparse/SingularSparseFactorization.rcond.<get-rcond>|<get-rcond>(){}[0]
-    final val rowOrder // com.eignex.koblas.sparse/SingularSparseFactorization.rowOrder|{}rowOrder[0]
-        final fun <get-rowOrder>(): kotlin/IntArray // com.eignex.koblas.sparse/SingularSparseFactorization.rowOrder.<get-rowOrder>|<get-rowOrder>(){}[0]
-    final val rowScaling // com.eignex.koblas.sparse/SingularSparseFactorization.rowScaling|{}rowScaling[0]
-        final fun <get-rowScaling>(): kotlin/DoubleArray // com.eignex.koblas.sparse/SingularSparseFactorization.rowScaling.<get-rowScaling>|<get-rowScaling>(){}[0]
-    final val u // com.eignex.koblas.sparse/SingularSparseFactorization.u|{}u[0]
-        final fun <get-u>(): com.eignex.koblas/SparseMatrix // com.eignex.koblas.sparse/SingularSparseFactorization.u.<get-u>|<get-u>(){}[0]
 
     final fun solveAllocation(kotlin/Boolean, kotlin/Boolean): com.eignex.koblas/AllocationCapability // com.eignex.koblas.sparse/SingularSparseFactorization.solveAllocation|solveAllocation(kotlin.Boolean;kotlin.Boolean){}[0]
     final fun solveInto(kotlin/DoubleArray, kotlin/DoubleArray, kotlin/Boolean, com.eignex.koblas/Workspace?): kotlin/DoubleArray // com.eignex.koblas.sparse/SingularSparseFactorization.solveInto|solveInto(kotlin.DoubleArray;kotlin.DoubleArray;kotlin.Boolean;com.eignex.koblas.Workspace?){}[0]
@@ -1425,11 +1092,9 @@ final class com.eignex.koblas/Givens { // com.eignex.koblas/Givens|null[0]
         final fun <get-s>(): kotlin/Double // com.eignex.koblas/Givens.s.<get-s>|<get-s>(){}[0]
 }
 
-final class com.eignex.koblas/KoblasContext : com.eignex.koblas.dense/Blas, com.eignex.koblas.sparse.basis/BasisSolvers, com.eignex.koblas.sparse/SparseBlas, com.eignex.koblas.sparse/SparseLapack, com.eignex.koblas.sparse/SparseLinearAlgebra { // com.eignex.koblas/KoblasContext|null[0]
-    constructor <init>(com.eignex.koblas.dense/Kernels, com.eignex.koblas.dense/Blas, com.eignex.koblas.sparse/SparseKernels, com.eignex.koblas.sparse/SparseBlas, com.eignex.koblas.sparse/SparseLapack, com.eignex.koblas.sparse.basis/BasisSolvers) // com.eignex.koblas/KoblasContext.<init>|<init>(com.eignex.koblas.dense.Kernels;com.eignex.koblas.dense.Blas;com.eignex.koblas.sparse.SparseKernels;com.eignex.koblas.sparse.SparseBlas;com.eignex.koblas.sparse.SparseLapack;com.eignex.koblas.sparse.basis.BasisSolvers){}[0]
+final class com.eignex.koblas/KoblasContext : com.eignex.koblas.dense/Blas, com.eignex.koblas.sparse.basis/BasisSolvers, com.eignex.koblas.sparse/GeneralSparseLu, com.eignex.koblas.sparse/SparseBlas, com.eignex.koblas.sparse/SparseLinearAlgebra { // com.eignex.koblas/KoblasContext|null[0]
+    constructor <init>(com.eignex.koblas.dense/Kernels, com.eignex.koblas.dense/Blas, com.eignex.koblas.sparse/SparseKernels, com.eignex.koblas.sparse/SparseBlas, com.eignex.koblas.sparse/GeneralSparseLu, com.eignex.koblas.sparse.basis/BasisSolvers) // com.eignex.koblas/KoblasContext.<init>|<init>(com.eignex.koblas.dense.Kernels;com.eignex.koblas.dense.Blas;com.eignex.koblas.sparse.SparseKernels;com.eignex.koblas.sparse.SparseBlas;com.eignex.koblas.sparse.GeneralSparseLu;com.eignex.koblas.sparse.basis.BasisSolvers){}[0]
 
-    final val basisFactorizations // com.eignex.koblas/KoblasContext.basisFactorizations|{}basisFactorizations[0]
-        final fun <get-basisFactorizations>(): com.eignex.koblas.sparse/BasisFactorizations // com.eignex.koblas/KoblasContext.basisFactorizations.<get-basisFactorizations>|<get-basisFactorizations>(){}[0]
     final val basisSolvers // com.eignex.koblas/KoblasContext.basisSolvers|{}basisSolvers[0]
         final fun <get-basisSolvers>(): com.eignex.koblas.sparse.basis/BasisSolvers // com.eignex.koblas/KoblasContext.basisSolvers.<get-basisSolvers>|<get-basisSolvers>(){}[0]
     final val blas // com.eignex.koblas/KoblasContext.blas|{}blas[0]
@@ -1450,25 +1115,14 @@ final class com.eignex.koblas/KoblasContext : com.eignex.koblas.dense/Blas, com.
         final fun <get-name>(): kotlin/String // com.eignex.koblas/KoblasContext.name.<get-name>|<get-name>(){}[0]
     final val priority // com.eignex.koblas/KoblasContext.priority|{}priority[0]
         final fun <get-priority>(): kotlin/Int // com.eignex.koblas/KoblasContext.priority.<get-priority>|<get-priority>(){}[0]
-    final val quasiDefiniteLdl // com.eignex.koblas/KoblasContext.quasiDefiniteLdl|{}quasiDefiniteLdl[0]
-        final fun <get-quasiDefiniteLdl>(): com.eignex.koblas.sparse/QuasiDefiniteLdl // com.eignex.koblas/KoblasContext.quasiDefiniteLdl.<get-quasiDefiniteLdl>|<get-quasiDefiniteLdl>(){}[0]
-    final val repeatedSparseLu // com.eignex.koblas/KoblasContext.repeatedSparseLu|{}repeatedSparseLu[0]
-        final fun <get-repeatedSparseLu>(): com.eignex.koblas.sparse/RepeatedSparseLu? // com.eignex.koblas/KoblasContext.repeatedSparseLu.<get-repeatedSparseLu>|<get-repeatedSparseLu>(){}[0]
     final val sparseBlas // com.eignex.koblas/KoblasContext.sparseBlas|{}sparseBlas[0]
         final fun <get-sparseBlas>(): com.eignex.koblas.sparse/SparseBlas // com.eignex.koblas/KoblasContext.sparseBlas.<get-sparseBlas>|<get-sparseBlas>(){}[0]
-    final val sparseCholesky // com.eignex.koblas/KoblasContext.sparseCholesky|{}sparseCholesky[0]
-        final fun <get-sparseCholesky>(): com.eignex.koblas.sparse/SparseCholesky // com.eignex.koblas/KoblasContext.sparseCholesky.<get-sparseCholesky>|<get-sparseCholesky>(){}[0]
-    final val sparseDecompositions // com.eignex.koblas/KoblasContext.sparseDecompositions|{}sparseDecompositions[0]
-        final fun <get-sparseDecompositions>(): com.eignex.koblas.sparse/SparseLapack // com.eignex.koblas/KoblasContext.sparseDecompositions.<get-sparseDecompositions>|<get-sparseDecompositions>(){}[0]
     final val sparseKernels // com.eignex.koblas/KoblasContext.sparseKernels|{}sparseKernels[0]
         final fun <get-sparseKernels>(): com.eignex.koblas.sparse/SparseKernels // com.eignex.koblas/KoblasContext.sparseKernels.<get-sparseKernels>|<get-sparseKernels>(){}[0]
-    final val sparseQr // com.eignex.koblas/KoblasContext.sparseQr|{}sparseQr[0]
-        final fun <get-sparseQr>(): com.eignex.koblas.sparse/SparseQr // com.eignex.koblas/KoblasContext.sparseQr.<get-sparseQr>|<get-sparseQr>(){}[0]
     final val unavailableReason // com.eignex.koblas/KoblasContext.unavailableReason|{}unavailableReason[0]
         final fun <get-unavailableReason>(): kotlin/String? // com.eignex.koblas/KoblasContext.unavailableReason.<get-unavailableReason>|<get-unavailableReason>(){}[0]
 
     final fun basisSolver(com.eignex.koblas/SparseMatrix): com.eignex.koblas.sparse.basis/BasisSolver // com.eignex.koblas/KoblasContext.basisSolver|basisSolver(com.eignex.koblas.SparseMatrix){}[0]
-    final fun cholesky(com.eignex.koblas/SparseMatrix): com.eignex.koblas.sparse/SparseCholeskyFactorization // com.eignex.koblas/KoblasContext.cholesky|cholesky(com.eignex.koblas.SparseMatrix){}[0]
     final fun factor(com.eignex.koblas/SparseMatrix): com.eignex.koblas.sparse/SparseLuFactorization // com.eignex.koblas/KoblasContext.factor|factor(com.eignex.koblas.SparseMatrix){}[0]
     final fun gemm(com.eignex.koblas/DenseMatrix, com.eignex.koblas/DenseMatrix): com.eignex.koblas/DenseMatrix // com.eignex.koblas/KoblasContext.gemm|gemm(com.eignex.koblas.DenseMatrix;com.eignex.koblas.DenseMatrix){}[0]
     final fun gemm(com.eignex.koblas/SparseMatrix, com.eignex.koblas/DenseMatrix): com.eignex.koblas/DenseMatrix // com.eignex.koblas/KoblasContext.gemm|gemm(com.eignex.koblas.SparseMatrix;com.eignex.koblas.DenseMatrix){}[0]
@@ -1485,8 +1139,6 @@ final class com.eignex.koblas/KoblasContext : com.eignex.koblas.dense/Blas, com.
     final fun gemv(kotlin/Double, com.eignex.koblas/StridedMatrixView, com.eignex.koblas/StridedVectorView, kotlin/Double, com.eignex.koblas/StridedVectorView, kotlin/Boolean) // com.eignex.koblas/KoblasContext.gemv|gemv(kotlin.Double;com.eignex.koblas.StridedMatrixView;com.eignex.koblas.StridedVectorView;kotlin.Double;com.eignex.koblas.StridedVectorView;kotlin.Boolean){}[0]
     final fun ger(kotlin/Double, kotlin/DoubleArray, kotlin/DoubleArray, com.eignex.koblas/DenseMatrix) // com.eignex.koblas/KoblasContext.ger|ger(kotlin.Double;kotlin.DoubleArray;kotlin.DoubleArray;com.eignex.koblas.DenseMatrix){}[0]
     final fun prepare(com.eignex.koblas/SparseMatrix): com.eignex.koblas.sparse/PreparedSparseMatrix // com.eignex.koblas/KoblasContext.prepare|prepare(com.eignex.koblas.SparseMatrix){}[0]
-    final fun qr(com.eignex.koblas/SparseMatrix): com.eignex.koblas.sparse/SparseQrFactorization // com.eignex.koblas/KoblasContext.qr|qr(com.eignex.koblas.SparseMatrix){}[0]
-    final fun quasiDefiniteLdl(com.eignex.koblas/SparseMatrix): com.eignex.koblas.sparse/QuasiDefiniteLdlFactorization // com.eignex.koblas/KoblasContext.quasiDefiniteLdl|quasiDefiniteLdl(com.eignex.koblas.SparseMatrix){}[0]
     final fun symm(kotlin/Double, com.eignex.koblas/DenseMatrix, com.eignex.koblas/DenseMatrix, kotlin/Double, com.eignex.koblas/DenseMatrix, kotlin/Boolean, kotlin/Boolean, com.eignex.koblas/Workspace?) // com.eignex.koblas/KoblasContext.symm|symm(kotlin.Double;com.eignex.koblas.DenseMatrix;com.eignex.koblas.DenseMatrix;kotlin.Double;com.eignex.koblas.DenseMatrix;kotlin.Boolean;kotlin.Boolean;com.eignex.koblas.Workspace?){}[0]
     final fun symv(kotlin/Double, com.eignex.koblas/DenseMatrix, kotlin/DoubleArray, kotlin/Double, kotlin/DoubleArray, kotlin/Boolean) // com.eignex.koblas/KoblasContext.symv|symv(kotlin.Double;com.eignex.koblas.DenseMatrix;kotlin.DoubleArray;kotlin.Double;kotlin.DoubleArray;kotlin.Boolean){}[0]
     final fun syr(kotlin/Double, com.eignex.koblas/VectorLike, com.eignex.koblas/DenseMatrix, kotlin/Boolean) // com.eignex.koblas/KoblasContext.syr|syr(kotlin.Double;com.eignex.koblas.VectorLike;com.eignex.koblas.DenseMatrix;kotlin.Boolean){}[0]
@@ -1504,7 +1156,7 @@ final class com.eignex.koblas/KoblasContext : com.eignex.koblas.dense/Blas, com.
     final fun trsm(com.eignex.koblas/SparseMatrix, com.eignex.koblas/DenseMatrix, kotlin/Boolean, kotlin/Boolean, kotlin/Boolean, kotlin/Boolean, kotlin/Double, com.eignex.koblas/Workspace?) // com.eignex.koblas/KoblasContext.trsm|trsm(com.eignex.koblas.SparseMatrix;com.eignex.koblas.DenseMatrix;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean;kotlin.Double;com.eignex.koblas.Workspace?){}[0]
     final fun trsv(com.eignex.koblas/DenseMatrix, kotlin/DoubleArray, kotlin/Boolean, kotlin/Boolean, kotlin/Boolean) // com.eignex.koblas/KoblasContext.trsv|trsv(com.eignex.koblas.DenseMatrix;kotlin.DoubleArray;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean){}[0]
     final fun trsv(com.eignex.koblas/SparseMatrix, kotlin/DoubleArray, kotlin/Boolean, kotlin/Boolean, kotlin/Boolean) // com.eignex.koblas/KoblasContext.trsv|trsv(com.eignex.koblas.SparseMatrix;kotlin.DoubleArray;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean){}[0]
-    final fun with(com.eignex.koblas.dense/Kernels = ..., com.eignex.koblas.dense/Blas = ..., com.eignex.koblas.sparse/SparseKernels = ..., com.eignex.koblas.sparse/SparseBlas = ..., com.eignex.koblas.sparse/SparseLapack = ..., com.eignex.koblas.sparse.basis/BasisSolvers = ...): com.eignex.koblas/KoblasContext // com.eignex.koblas/KoblasContext.with|with(com.eignex.koblas.dense.Kernels;com.eignex.koblas.dense.Blas;com.eignex.koblas.sparse.SparseKernels;com.eignex.koblas.sparse.SparseBlas;com.eignex.koblas.sparse.SparseLapack;com.eignex.koblas.sparse.basis.BasisSolvers){}[0]
+    final fun with(com.eignex.koblas.dense/Kernels = ..., com.eignex.koblas.dense/Blas = ..., com.eignex.koblas.sparse/SparseKernels = ..., com.eignex.koblas.sparse/SparseBlas = ..., com.eignex.koblas.sparse/GeneralSparseLu = ..., com.eignex.koblas.sparse.basis/BasisSolvers = ...): com.eignex.koblas/KoblasContext // com.eignex.koblas/KoblasContext.with|with(com.eignex.koblas.dense.Kernels;com.eignex.koblas.dense.Blas;com.eignex.koblas.sparse.SparseKernels;com.eignex.koblas.sparse.SparseBlas;com.eignex.koblas.sparse.GeneralSparseLu;com.eignex.koblas.sparse.basis.BasisSolvers){}[0]
 }
 
 final class com.eignex.koblas/ModifiedGivens { // com.eignex.koblas/ModifiedGivens|null[0]
@@ -1701,7 +1353,7 @@ final class com.eignex.koblas/Workspace { // com.eignex.koblas/Workspace|null[0]
     final fun takeI32(kotlin/Int): kotlin/IntArray // com.eignex.koblas/Workspace.takeI32|takeI32(kotlin.Int){}[0]
 }
 
-open class com.eignex.koblas.sparse/ReferenceSparseBackend : com.eignex.koblas.sparse/BasisFactorizations, com.eignex.koblas.sparse/GeneralSparseLu, com.eignex.koblas.sparse/QuasiDefiniteLdl, com.eignex.koblas.sparse/SparseCholesky, com.eignex.koblas.sparse/SparseKernels, com.eignex.koblas.sparse/SparseLinearAlgebra, com.eignex.koblas.sparse/SparseQr, com.eignex.koblas/RebindableBackend { // com.eignex.koblas.sparse/ReferenceSparseBackend|null[0]
+open class com.eignex.koblas.sparse/ReferenceSparseBackend : com.eignex.koblas.sparse.basis/BasisSolvers, com.eignex.koblas.sparse/GeneralSparseLu, com.eignex.koblas.sparse/SparseKernels, com.eignex.koblas.sparse/SparseLinearAlgebra, com.eignex.koblas/RebindableBackend { // com.eignex.koblas.sparse/ReferenceSparseBackend|null[0]
     constructor <init>(com.eignex.koblas.dense/Kernels? = ...) // com.eignex.koblas.sparse/ReferenceSparseBackend.<init>|<init>(com.eignex.koblas.dense.Kernels?){}[0]
 
     final val configuredKernels // com.eignex.koblas.sparse/ReferenceSparseBackend.configuredKernels|{}configuredKernels[0]
@@ -1713,54 +1365,24 @@ open class com.eignex.koblas.sparse/ReferenceSparseBackend : com.eignex.koblas.s
     open val name // com.eignex.koblas.sparse/ReferenceSparseBackend.name|{}name[0]
         open fun <get-name>(): kotlin/String // com.eignex.koblas.sparse/ReferenceSparseBackend.name.<get-name>|<get-name>(){}[0]
 
-    open fun analyzeCholesky(com.eignex.koblas/SparseMatrix): com.eignex.koblas.sparse/SparseSymbolicAnalysis<com.eignex.koblas.sparse/SparseCholeskyFactorization> // com.eignex.koblas.sparse/ReferenceSparseBackend.analyzeCholesky|analyzeCholesky(com.eignex.koblas.SparseMatrix){}[0]
-    open fun analyzeQr(com.eignex.koblas/SparseMatrix): com.eignex.koblas.sparse/SparseSymbolicAnalysis<com.eignex.koblas.sparse/SparseQrFactorization> // com.eignex.koblas.sparse/ReferenceSparseBackend.analyzeQr|analyzeQr(com.eignex.koblas.SparseMatrix){}[0]
-    open fun analyzeQuasiDefiniteLdl(com.eignex.koblas/SparseMatrix): com.eignex.koblas.sparse/SparseSymbolicAnalysis<com.eignex.koblas.sparse/QuasiDefiniteLdlFactorization> // com.eignex.koblas.sparse/ReferenceSparseBackend.analyzeQuasiDefiniteLdl|analyzeQuasiDefiniteLdl(com.eignex.koblas.SparseMatrix){}[0]
     open fun asum(com.eignex.koblas/SparseVector): kotlin/Double // com.eignex.koblas.sparse/ReferenceSparseBackend.asum|asum(com.eignex.koblas.SparseVector){}[0]
     open fun axpy(kotlin/DoubleArray, kotlin/Double, com.eignex.koblas/SparseVector) // com.eignex.koblas.sparse/ReferenceSparseBackend.axpy|axpy(kotlin.DoubleArray;kotlin.Double;com.eignex.koblas.SparseVector){}[0]
     open fun basisSolver(com.eignex.koblas/SparseMatrix): com.eignex.koblas.sparse.basis/BasisSolver // com.eignex.koblas.sparse/ReferenceSparseBackend.basisSolver|basisSolver(com.eignex.koblas.SparseMatrix){}[0]
-    open fun cholesky(com.eignex.koblas/SparseMatrix): com.eignex.koblas.sparse/SparseCholeskyFactorization // com.eignex.koblas.sparse/ReferenceSparseBackend.cholesky|cholesky(com.eignex.koblas.SparseMatrix){}[0]
     open fun dot(com.eignex.koblas/SparseVector, com.eignex.koblas/SparseVector): kotlin/Double // com.eignex.koblas.sparse/ReferenceSparseBackend.dot|dot(com.eignex.koblas.SparseVector;com.eignex.koblas.SparseVector){}[0]
     open fun dot(com.eignex.koblas/SparseVector, kotlin/DoubleArray): kotlin/Double // com.eignex.koblas.sparse/ReferenceSparseBackend.dot|dot(com.eignex.koblas.SparseVector;kotlin.DoubleArray){}[0]
     open fun factor(com.eignex.koblas/SparseMatrix): com.eignex.koblas.sparse/SparseLuFactorization // com.eignex.koblas.sparse/ReferenceSparseBackend.factor|factor(com.eignex.koblas.SparseMatrix){}[0]
-    open fun factorBasis(com.eignex.koblas/SparseMatrix): com.eignex.koblas.sparse/BasisFactorization // com.eignex.koblas.sparse/ReferenceSparseBackend.factorBasis|factorBasis(com.eignex.koblas.SparseMatrix){}[0]
     open fun gather(com.eignex.koblas/SparseVector, kotlin/DoubleArray) // com.eignex.koblas.sparse/ReferenceSparseBackend.gather|gather(com.eignex.koblas.SparseVector;kotlin.DoubleArray){}[0]
     open fun gatherZero(com.eignex.koblas/SparseVector, kotlin/DoubleArray) // com.eignex.koblas.sparse/ReferenceSparseBackend.gatherZero|gatherZero(com.eignex.koblas.SparseVector;kotlin.DoubleArray){}[0]
     open fun gemm(com.eignex.koblas/SparseMatrix, com.eignex.koblas/SparseMatrix): com.eignex.koblas/SparseMatrix // com.eignex.koblas.sparse/ReferenceSparseBackend.gemm|gemm(com.eignex.koblas.SparseMatrix;com.eignex.koblas.SparseMatrix){}[0]
     open fun gemm(kotlin/Double, com.eignex.koblas/SparseMatrix, kotlin/Boolean, com.eignex.koblas/DenseMatrix, kotlin/Boolean, kotlin/Double, com.eignex.koblas/DenseMatrix, kotlin/Boolean, com.eignex.koblas/Workspace?) // com.eignex.koblas.sparse/ReferenceSparseBackend.gemm|gemm(kotlin.Double;com.eignex.koblas.SparseMatrix;kotlin.Boolean;com.eignex.koblas.DenseMatrix;kotlin.Boolean;kotlin.Double;com.eignex.koblas.DenseMatrix;kotlin.Boolean;com.eignex.koblas.Workspace?){}[0]
     open fun gemv(kotlin/Double, com.eignex.koblas/SparseMatrix, kotlin/DoubleArray, kotlin/Double, kotlin/DoubleArray, kotlin/Boolean) // com.eignex.koblas.sparse/ReferenceSparseBackend.gemv|gemv(kotlin.Double;com.eignex.koblas.SparseMatrix;kotlin.DoubleArray;kotlin.Double;kotlin.DoubleArray;kotlin.Boolean){}[0]
     open fun nrm2(com.eignex.koblas/SparseVector): kotlin/Double // com.eignex.koblas.sparse/ReferenceSparseBackend.nrm2|nrm2(com.eignex.koblas.SparseVector){}[0]
-    open fun qr(com.eignex.koblas/SparseMatrix): com.eignex.koblas.sparse/SparseQrFactorization // com.eignex.koblas.sparse/ReferenceSparseBackend.qr|qr(com.eignex.koblas.SparseMatrix){}[0]
-    open fun quasiDefiniteLdl(com.eignex.koblas/SparseMatrix): com.eignex.koblas.sparse/QuasiDefiniteLdlFactorization // com.eignex.koblas.sparse/ReferenceSparseBackend.quasiDefiniteLdl|quasiDefiniteLdl(com.eignex.koblas.SparseMatrix){}[0]
     open fun scatter(com.eignex.koblas/SparseVector, kotlin/DoubleArray) // com.eignex.koblas.sparse/ReferenceSparseBackend.scatter|scatter(com.eignex.koblas.SparseVector;kotlin.DoubleArray){}[0]
     open fun transpose(com.eignex.koblas/SparseMatrix): com.eignex.koblas/SparseMatrix // com.eignex.koblas.sparse/ReferenceSparseBackend.transpose|transpose(com.eignex.koblas.SparseMatrix){}[0]
     open fun trmm(com.eignex.koblas/SparseMatrix, com.eignex.koblas/DenseMatrix, kotlin/Boolean, kotlin/Boolean, kotlin/Boolean, kotlin/Boolean, kotlin/Double) // com.eignex.koblas.sparse/ReferenceSparseBackend.trmm|trmm(com.eignex.koblas.SparseMatrix;com.eignex.koblas.DenseMatrix;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean;kotlin.Double){}[0]
     open fun trmv(com.eignex.koblas/SparseMatrix, kotlin/DoubleArray, kotlin/Boolean, kotlin/Boolean, kotlin/Boolean) // com.eignex.koblas.sparse/ReferenceSparseBackend.trmv|trmv(com.eignex.koblas.SparseMatrix;kotlin.DoubleArray;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean){}[0]
     open fun trsm(com.eignex.koblas/SparseMatrix, com.eignex.koblas/DenseMatrix, kotlin/Boolean, kotlin/Boolean, kotlin/Boolean, kotlin/Boolean, kotlin/Double, com.eignex.koblas/Workspace?) // com.eignex.koblas.sparse/ReferenceSparseBackend.trsm|trsm(com.eignex.koblas.SparseMatrix;com.eignex.koblas.DenseMatrix;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean;kotlin.Double;com.eignex.koblas.Workspace?){}[0]
     open fun trsv(com.eignex.koblas/SparseMatrix, kotlin/DoubleArray, kotlin/Boolean, kotlin/Boolean, kotlin/Boolean) // com.eignex.koblas.sparse/ReferenceSparseBackend.trsv|trsv(com.eignex.koblas.SparseMatrix;kotlin.DoubleArray;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean){}[0]
-}
-
-open class com.eignex.koblas.sparse/ReferenceSparseDecompositions : com.eignex.koblas.sparse/GeneralSparseLu, com.eignex.koblas.sparse/QuasiDefiniteLdl, com.eignex.koblas.sparse/SparseCholesky, com.eignex.koblas.sparse/SparseLapack, com.eignex.koblas.sparse/SparseQr { // com.eignex.koblas.sparse/ReferenceSparseDecompositions|null[0]
-    constructor <init>(kotlin/Boolean = ..., kotlin/Double = ...) // com.eignex.koblas.sparse/ReferenceSparseDecompositions.<init>|<init>(kotlin.Boolean;kotlin.Double){}[0]
-
-    final val dropTolerance // com.eignex.koblas.sparse/ReferenceSparseDecompositions.dropTolerance|{}dropTolerance[0]
-        final fun <get-dropTolerance>(): kotlin/Double // com.eignex.koblas.sparse/ReferenceSparseDecompositions.dropTolerance.<get-dropTolerance>|<get-dropTolerance>(){}[0]
-    final val equilibrate // com.eignex.koblas.sparse/ReferenceSparseDecompositions.equilibrate|{}equilibrate[0]
-        final fun <get-equilibrate>(): kotlin/Boolean // com.eignex.koblas.sparse/ReferenceSparseDecompositions.equilibrate.<get-equilibrate>|<get-equilibrate>(){}[0]
-    open val isPortable // com.eignex.koblas.sparse/ReferenceSparseDecompositions.isPortable|{}isPortable[0]
-        open fun <get-isPortable>(): kotlin/Boolean // com.eignex.koblas.sparse/ReferenceSparseDecompositions.isPortable.<get-isPortable>|<get-isPortable>(){}[0]
-    open val name // com.eignex.koblas.sparse/ReferenceSparseDecompositions.name|{}name[0]
-        open fun <get-name>(): kotlin/String // com.eignex.koblas.sparse/ReferenceSparseDecompositions.name.<get-name>|<get-name>(){}[0]
-
-    open fun analyzeCholesky(com.eignex.koblas/SparseMatrix): com.eignex.koblas.sparse/SparseSymbolicAnalysis<com.eignex.koblas.sparse/SparseCholeskyFactorization> // com.eignex.koblas.sparse/ReferenceSparseDecompositions.analyzeCholesky|analyzeCholesky(com.eignex.koblas.SparseMatrix){}[0]
-    open fun analyzeQr(com.eignex.koblas/SparseMatrix): com.eignex.koblas.sparse/SparseSymbolicAnalysis<com.eignex.koblas.sparse/SparseQrFactorization> // com.eignex.koblas.sparse/ReferenceSparseDecompositions.analyzeQr|analyzeQr(com.eignex.koblas.SparseMatrix){}[0]
-    open fun analyzeQuasiDefiniteLdl(com.eignex.koblas/SparseMatrix): com.eignex.koblas.sparse/SparseSymbolicAnalysis<com.eignex.koblas.sparse/QuasiDefiniteLdlFactorization> // com.eignex.koblas.sparse/ReferenceSparseDecompositions.analyzeQuasiDefiniteLdl|analyzeQuasiDefiniteLdl(com.eignex.koblas.SparseMatrix){}[0]
-    open fun cholesky(com.eignex.koblas/SparseMatrix): com.eignex.koblas.sparse/SparseCholeskyFactorization // com.eignex.koblas.sparse/ReferenceSparseDecompositions.cholesky|cholesky(com.eignex.koblas.SparseMatrix){}[0]
-    open fun factor(com.eignex.koblas/SparseMatrix): com.eignex.koblas.sparse/SparseLuFactorization // com.eignex.koblas.sparse/ReferenceSparseDecompositions.factor|factor(com.eignex.koblas.SparseMatrix){}[0]
-    open fun qr(com.eignex.koblas/SparseMatrix): com.eignex.koblas.sparse/SparseQrFactorization // com.eignex.koblas.sparse/ReferenceSparseDecompositions.qr|qr(com.eignex.koblas.SparseMatrix){}[0]
-    open fun quasiDefiniteLdl(com.eignex.koblas/SparseMatrix): com.eignex.koblas.sparse/QuasiDefiniteLdlFactorization // com.eignex.koblas.sparse/ReferenceSparseDecompositions.quasiDefiniteLdl|quasiDefiniteLdl(com.eignex.koblas.SparseMatrix){}[0]
-
-    final object Default : com.eignex.koblas.sparse/ReferenceSparseDecompositions // com.eignex.koblas.sparse/ReferenceSparseDecompositions.Default|null[0]
 }
 
 sealed class com.eignex.koblas/KoblasException : kotlin/ArithmeticException // com.eignex.koblas/KoblasException|null[0]
@@ -1799,26 +1421,12 @@ final object com.eignex.koblas/BuiltinKernels { // com.eignex.koblas/BuiltinKern
 }
 
 final object com.eignex.koblas/Capabilities { // com.eignex.koblas/Capabilities|null[0]
-    final val basisFactorizations // com.eignex.koblas/Capabilities.basisFactorizations|{}basisFactorizations[0]
-        final fun <get-basisFactorizations>(): com.eignex.koblas/Capability<com.eignex.koblas.sparse/BasisFactorizations> // com.eignex.koblas/Capabilities.basisFactorizations.<get-basisFactorizations>|<get-basisFactorizations>(){}[0]
     final val basisSolvers // com.eignex.koblas/Capabilities.basisSolvers|{}basisSolvers[0]
         final fun <get-basisSolvers>(): com.eignex.koblas/Capability<com.eignex.koblas.sparse.basis/BasisSolvers> // com.eignex.koblas/Capabilities.basisSolvers.<get-basisSolvers>|<get-basisSolvers>(){}[0]
     final val generalSparseLu // com.eignex.koblas/Capabilities.generalSparseLu|{}generalSparseLu[0]
         final fun <get-generalSparseLu>(): com.eignex.koblas/Capability<com.eignex.koblas.sparse/GeneralSparseLu> // com.eignex.koblas/Capabilities.generalSparseLu.<get-generalSparseLu>|<get-generalSparseLu>(){}[0]
-    final val quasiDefiniteLdl // com.eignex.koblas/Capabilities.quasiDefiniteLdl|{}quasiDefiniteLdl[0]
-        final fun <get-quasiDefiniteLdl>(): com.eignex.koblas/Capability<com.eignex.koblas.sparse/QuasiDefiniteLdl> // com.eignex.koblas/Capabilities.quasiDefiniteLdl.<get-quasiDefiniteLdl>|<get-quasiDefiniteLdl>(){}[0]
-    final val repeatedSparseLu // com.eignex.koblas/Capabilities.repeatedSparseLu|{}repeatedSparseLu[0]
-        final fun <get-repeatedSparseLu>(): com.eignex.koblas/Capability<com.eignex.koblas.sparse/RepeatedSparseLu> // com.eignex.koblas/Capabilities.repeatedSparseLu.<get-repeatedSparseLu>|<get-repeatedSparseLu>(){}[0]
-    final val sparseCholesky // com.eignex.koblas/Capabilities.sparseCholesky|{}sparseCholesky[0]
-        final fun <get-sparseCholesky>(): com.eignex.koblas/Capability<com.eignex.koblas.sparse/SparseCholesky> // com.eignex.koblas/Capabilities.sparseCholesky.<get-sparseCholesky>|<get-sparseCholesky>(){}[0]
-    final val sparseQr // com.eignex.koblas/Capabilities.sparseQr|{}sparseQr[0]
-        final fun <get-sparseQr>(): com.eignex.koblas/Capability<com.eignex.koblas.sparse/SparseQr> // com.eignex.koblas/Capabilities.sparseQr.<get-sparseQr>|<get-sparseQr>(){}[0]
 }
 
-final const val com.eignex.koblas.sparse.basis/DEFAULT_ETA_LIMIT // com.eignex.koblas.sparse.basis/DEFAULT_ETA_LIMIT|{}DEFAULT_ETA_LIMIT[0]
-    final fun <get-DEFAULT_ETA_LIMIT>(): kotlin/Int // com.eignex.koblas.sparse.basis/DEFAULT_ETA_LIMIT.<get-DEFAULT_ETA_LIMIT>|<get-DEFAULT_ETA_LIMIT>(){}[0]
-final const val com.eignex.koblas.sparse.factorization.lu/NO_DROP // com.eignex.koblas.sparse.factorization.lu/NO_DROP|{}NO_DROP[0]
-    final fun <get-NO_DROP>(): kotlin/Double // com.eignex.koblas.sparse.factorization.lu/NO_DROP.<get-NO_DROP>|<get-NO_DROP>(){}[0]
 final const val com.eignex.koblas/HOST_BACKEND_PRIORITY // com.eignex.koblas/HOST_BACKEND_PRIORITY|{}HOST_BACKEND_PRIORITY[0]
     final fun <get-HOST_BACKEND_PRIORITY>(): kotlin/Int // com.eignex.koblas/HOST_BACKEND_PRIORITY.<get-HOST_BACKEND_PRIORITY>|<get-HOST_BACKEND_PRIORITY>(){}[0]
 final const val com.eignex.koblas/NOT_SINGULAR // com.eignex.koblas/NOT_SINGULAR|{}NOT_SINGULAR[0]
@@ -1881,11 +1489,7 @@ final fun (com.eignex.koblas/KoblasContext).com.eignex.koblas/route(com.eignex.k
 final fun (com.eignex.koblas/MatrixLike).com.eignex.koblas/gemvInto(com.eignex.koblas/VectorLike, kotlin/DoubleArray) // com.eignex.koblas/gemvInto|gemvInto@com.eignex.koblas.MatrixLike(com.eignex.koblas.VectorLike;kotlin.DoubleArray){}[0]
 final fun (com.eignex.koblas/MatrixLike).com.eignex.koblas/gemvInto(kotlin/Double, com.eignex.koblas/VectorLike, kotlin/Double, kotlin/DoubleArray) // com.eignex.koblas/gemvInto|gemvInto@com.eignex.koblas.MatrixLike(kotlin.Double;com.eignex.koblas.VectorLike;kotlin.Double;kotlin.DoubleArray){}[0]
 final fun (com.eignex.koblas/MatrixLike).com.eignex.koblas/times(com.eignex.koblas/VectorLike): com.eignex.koblas/DenseVector // com.eignex.koblas/times|times@com.eignex.koblas.MatrixLike(com.eignex.koblas.VectorLike){}[0]
-final fun (com.eignex.koblas/SparseMatrix).com.eignex.koblas.sparse/cholesky(): com.eignex.koblas.sparse/SparseCholeskyFactorization // com.eignex.koblas.sparse/cholesky|cholesky@com.eignex.koblas.SparseMatrix(){}[0]
-final fun (com.eignex.koblas/SparseMatrix).com.eignex.koblas.sparse/lu(): com.eignex.koblas.sparse/SparseLuFactorization // com.eignex.koblas.sparse/lu|lu@com.eignex.koblas.SparseMatrix(){}[0]
 final fun (com.eignex.koblas/SparseMatrix).com.eignex.koblas.sparse/prepare(): com.eignex.koblas.sparse/PreparedSparseMatrix // com.eignex.koblas.sparse/prepare|prepare@com.eignex.koblas.SparseMatrix(){}[0]
-final fun (com.eignex.koblas/SparseMatrix).com.eignex.koblas.sparse/qr(): com.eignex.koblas.sparse/SparseQrFactorization // com.eignex.koblas.sparse/qr|qr@com.eignex.koblas.SparseMatrix(){}[0]
-final fun (com.eignex.koblas/SparseMatrix).com.eignex.koblas.sparse/quasiDefiniteLdl(): com.eignex.koblas.sparse/QuasiDefiniteLdlFactorization // com.eignex.koblas.sparse/quasiDefiniteLdl|quasiDefiniteLdl@com.eignex.koblas.SparseMatrix(){}[0]
 final fun (com.eignex.koblas/SparseMatrix).com.eignex.koblas.sparse/trmm(com.eignex.koblas/DenseMatrix, kotlin/Boolean, kotlin/Boolean = ..., kotlin/Boolean = ..., kotlin/Boolean = ..., kotlin/Double = ...) // com.eignex.koblas.sparse/trmm|trmm@com.eignex.koblas.SparseMatrix(com.eignex.koblas.DenseMatrix;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean;kotlin.Double){}[0]
 final fun (com.eignex.koblas/SparseMatrix).com.eignex.koblas.sparse/trmv(kotlin/DoubleArray, kotlin/Boolean, kotlin/Boolean = ..., kotlin/Boolean = ...) // com.eignex.koblas.sparse/trmv|trmv@com.eignex.koblas.SparseMatrix(kotlin.DoubleArray;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean){}[0]
 final fun (com.eignex.koblas/SparseMatrix).com.eignex.koblas.sparse/trsm(com.eignex.koblas/DenseMatrix, kotlin/Boolean, kotlin/Boolean = ..., kotlin/Boolean = ..., kotlin/Boolean = ..., kotlin/Double = ..., com.eignex.koblas/Workspace? = ...) // com.eignex.koblas.sparse/trsm|trsm@com.eignex.koblas.SparseMatrix(com.eignex.koblas.DenseMatrix;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean;kotlin.Double;com.eignex.koblas.Workspace?){}[0]

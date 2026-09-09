@@ -56,24 +56,7 @@ private fun reportResolution(arm: String, vararg halves: Pair<String, String>) {
     println("resolved: arm=$arm " + halves.joinToString(" ") { "${it.first}=${it.second}" })
 }
 
-/**
- * The sparse factorization half has no host provider in koblas-bench, so `automatic` and `reference` are the
- * two arms and a request for `host` fails rather than silently measuring the portable code.
- */
-internal fun installSparseDecompositionBackend(backend: String) {
-    installBackends(null)
-    when (backend) {
-        AUTOMATIC_BACKEND -> discoverBackends()
-        REFERENCE_BACKEND -> installBackends(koblas.with(sparseDecompositions = ReferenceSparseLinearAlgebra))
-        HOST_BACKEND -> error("the host sparse decomposition backend is unavailable")
-        else -> error("unknown backend: $backend")
-    }
-    val resolved = koblas.sparseDecompositions.name
-    if (backend == REFERENCE_BACKEND) requireResolved(backend, "sparseDecompositions", resolved, REFERENCE_BACKEND)
-    reportResolution(backend, "sparseDecompositions" to resolved)
-}
-
-/** The sparse BLAS half has no host provider either, so this mirrors [installSparseDecompositionBackend]. */
+/** Selects the sparse BLAS benchmark arm. */
 internal fun installSparseBlasBackend(backend: String) {
     installBackends(null)
     when (backend) {
@@ -88,9 +71,8 @@ internal fun installSparseBlasBackend(backend: String) {
 }
 
 /**
- * Basis solvers are their own half, distinct from [installSparseDecompositionBackend]'s
- * [koblas.sparseDecompositions]: [koblas-bench] carries no `koblas-hfactor` dependency, so a host
- * implementation surfaces only if automatic discovery finds one already on the classpath.
+ * [koblas-bench] carries no `koblas-hfactor` dependency, so a host basis solver surfaces only if automatic
+ * discovery finds one already on the classpath.
  */
 internal fun installBasisSolverBackend(backend: String) {
     installBackends(null)

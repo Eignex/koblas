@@ -4,7 +4,6 @@ import com.eignex.koblas.BackendRole
 import com.eignex.koblas.ContextBuilder
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 /**
@@ -46,14 +45,5 @@ class BackendSlotTest {
             val selected = slot.from(context)
             assertTrue(slot.accepts(selected), "${slot.name} read back ${selected.name}")
         }
-    }
-
-    /** The optional half stands a placeholder in instead, which is what makes its role report as absent. */
-    @Test
-    fun `the repeated LU half defaults to the placeholder it reports as unavailable`() {
-        val placeholder = BackendSlot.RepeatedSparseLu.portableDefault()
-
-        assertFalse(BackendSlot.RepeatedSparseLu.accepts(placeholder))
-        assertFalse(placeholder.isAvailable)
     }
 }

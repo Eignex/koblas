@@ -25,17 +25,11 @@ class SparseBenchmark {
     private lateinit var rankX: SparseVector
     private lateinit var rankY: DenseVector
 
-    private lateinit var luFactored: SparseFactorization
-
-    /** The portable factorization set to scale rows, which is where equilibration lives now. */
-    private val equilibrating = ReferenceSparseDecompositions(equilibrate = true)
-
     @Setup
     fun setup() {
         val rng = benchRng()
         a = sparseDominantMatrix(n, rng)
         rhs = randomVector(n, rng)
-        luFactored = a.lu()
         x = DoubleArray(n)
         multiplied = DoubleArray(n)
         val rankNnz = (n + 3) / 4
@@ -48,26 +42,10 @@ class SparseBenchmark {
     }
 
     @Benchmark
-    fun sparseLuSolve(): DoubleArray = equilibrating.factor(a).solve(rhs)
-
-    @Benchmark
-    fun sparseLuFtran(): DoubleArray = luFactored.solveInto(rhs, x)
-
-    @Benchmark
-    fun sparseLuBtran(): DoubleArray = luFactored.solveInto(rhs, x, transpose = true)
-
-    @Benchmark
     fun sparseGemv(): DoubleArray = koblas.gemv(a, rhs)
 
     @Benchmark
     fun sparseGemvTransposed(): DoubleArray = koblas.gemv(a, rhs, transpose = true)
-
-    @Benchmark
-    fun sparseLuFactor(): SparseFactorization = a.lu()
-
-    @Benchmark
-    fun sparseLuFactorEquilibrated(): SparseFactorization =
-        equilibrating.factor(a)
 
     @Benchmark
     fun sparseTrsv(): DoubleArray {
