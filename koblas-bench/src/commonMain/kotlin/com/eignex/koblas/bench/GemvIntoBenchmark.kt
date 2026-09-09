@@ -20,16 +20,12 @@ class GemvIntoBenchmark {
     @Param("64")
     var cols: Int = 0
 
-    @Param(AUTOMATIC_KERNELS, SCALAR_KERNELS, C_KERNELS)
-    var kernels: String = AUTOMATIC_KERNELS
-
     private lateinit var a: DenseMatrix
     private lateinit var sparseX: SparseVector
     private lateinit var out: DoubleArray
 
     @Setup
     fun setup() {
-        installKernelProvider(kernels)
         val rng = benchRng()
         a = randomMatrix(rows, cols, rng)
         sparseX = randomSparseVector(cols, density = 0.25, rng = rng)

@@ -1,14 +1,4 @@
 api_signature	benchmark_id	status	notes
-BasisSolver.btran(IndexedVector)		excluded	Basis-solver state and sparsity evolve across calls, so a standalone benchmark would not be representative.
-BasisSolver.ftran(IndexedVector)		excluded	Basis-solver state and sparsity evolve across calls, so a standalone benchmark would not be representative.
-BasisSolver.pivots()	com.eignex.koblas.bench.BasisBenchmark.pivots	benchmarked	
-BasisSolver.refactorize(SparseMatrix)	com.eignex.koblas.bench.BasisBenchmark.refactorize	benchmarked	
-BasisSolver.refactorizeRepairing(SparseMatrix)		excluded	Shares the benchmarked refactorize build; it differs only in keeping the repair rather than refusing it.
-BasisSolver.restore(BasisSnapshot)		excluded	Puts back a copy and runs no numerical work; the comparison a caller wants is against refactorize, which is benchmarked.
-BasisSolver.snapshot()		excluded	Copies the factors HFactor already holds and runs no numerical work; what it is worth is the rebuild it saves, which refactorize already measures.
-BasisSolver.solveQuality(DoubleArray,IndexedVector)		excluded	Residual diagnostics deliberately do extra sparse work and are intended for checks rather than hot loops.
-BasisSolver.update(Int,Int,IndexedVector)		excluded	Basis updates require a meaningful simplex sequence rather than an isolated call.
-BasisSolvers.basisSolver(SparseMatrix)		excluded	Constructing a basis solver is setup work; refactorization is the reviewed numerical benchmark.
 Blas.gemm(DenseMatrix,transposeA=true)	com.eignex.koblas.bench.Level3Benchmark.gemmTransposedA	benchmarked	
 Blas.gemm(StridedMatrixView,StridedMatrixView)		excluded	The host adapter routes strided panels into the same dgemm the benchmarked dense facade reaches; the portable backend does not override the seam and runs its element-by-element default, which is a correctness fallback rather than a kernel worth a row.
 Blas.gemv(DenseMatrix,transpose=false)	com.eignex.koblas.bench.Level2Benchmark.gemv	benchmarked	
@@ -79,7 +69,7 @@ PackedPanels.rightSize(Int,Int)		excluded	Buffer sizing is scalar metadata with 
 PackedPanels.trsm(DoubleArray,DoubleArray,Int,Int,Boolean,Boolean,Int,Int,Workspace?)	com.eignex.koblas.bench.PackedPanelExecutionBenchmark.packedTrsm	benchmarked	Measures repeated packed diagonal solves.
 PackedPanels.writeLeft(DoubleArray,DenseMatrix)	com.eignex.koblas.bench.PackedPanelBenchmark.writeLeft	benchmarked	Writeback cost over full and partial platform tiles.
 PackedPanels.writeRight(DoubleArray,DenseMatrix)	com.eignex.koblas.bench.PackedPanelBenchmark.writeRight	benchmarked	Writeback cost over full and partial platform tiles.
-MatrixLike.gemvInto(VectorLike,DoubleArray)	com.eignex.koblas.bench.GemvIntoBenchmark.gemvIntoSparseX	benchmarked	
+MatrixLike.gemvInto(VectorLike,DoubleArray)	com.eignex.koblas.bench.GemvIntoBenchmark.gemvIntoSparseX	benchmarked	Calls the public destination-passing operation with a sparse vector.
 MatrixLike.times(VectorLike)		excluded	The operator form dispatches to the benchmarked dense and sparse gemv facades.
 PreparedSparseMatrix.gemm(DenseMatrix)	com.eignex.koblas.bench.SparseProductHostBenchmark.preparedGemm	benchmarked	
 PreparedSparseMatrix.gemm(SparseMatrix)	com.eignex.koblas.bench.SparseProductHostBenchmark.preparedSparseProduct	benchmarked	
@@ -99,12 +89,6 @@ SparseMatrix.cholesky()		excluded	Registry compatibility only; no implementation
 SparseMatrix.lu()		excluded	HFactor compatibility only; benchmarked with the optional HFactor module.
 SparseMatrix.qr()		excluded	Registry compatibility only; no implementation remains.
 SparseMatrix.quasiDefiniteLdl()		excluded	Registry compatibility only; no implementation remains.
-SparseFactorization.solve(DoubleArray)		excluded	HFactor-only compatibility surface.
-SparseFactorization.solve(DenseMatrix)		excluded	HFactor-only compatibility surface.
-SparseFactorization.solveAllocation(Boolean,Boolean)		excluded	HFactor-only allocation metadata.
-SparseFactorization.solveInto(DoubleArray,transpose=false)		excluded	HFactor-only compatibility surface.
-SparseFactorization.solveInto(DoubleArray,DoubleArray,AllocationPolicy)		excluded	HFactor-only compatibility surface.
-SparseFactorization.solveInto(DenseMatrix,DenseMatrix)		excluded	HFactor-only compatibility surface.
 SparseKernels.asum(SparseVector)		excluded	The raw kernel shares the dispatch path benchmarked through the public SparseVector.asum facade.
 SparseKernels.axpy(DoubleArray,Double,SparseVector)		excluded	The raw kernel shares the dispatch path benchmarked through the public Vector.axpy(SparseVector) facade.
 SparseKernels.dot(SparseVector,DoubleArray)		excluded	The raw kernel shares the dispatch path benchmarked through the public SparseVector.dot facades.
@@ -119,8 +103,8 @@ SparseWorkspace.gatherClearTouched(IntArray,Int,Int,DoubleArray,IntArray,IntArra
 SparseWorkspace.gatherTouched(IntArray,Int,Int,DoubleArray,IntArray,Int,DoubleArray,Int,Boolean)	com.eignex.koblas.bench.SparseWorkspaceBenchmark.gatherTouched	benchmarked	Includes ordered support-index emission beyond a sparse BLAS gather.
 SparseWorkspace.scatterAxpy(Double,IntArray,Int,DoubleArray,Int,Int,DoubleArray,IntArray,Int,IntArray,Int,Int)	com.eignex.koblas.bench.SparseWorkspaceBenchmark.scatterExistingSupport	benchmarked	Repeated retained-support update; the first-touch variant is recorded separately in comparator coverage.
 SparseWorkspace.scatterAxpyChecked(Double,IntArray,Int,DoubleArray,Int,Int,DoubleArray,IntArray,Int,IntArray,Int,Int,IntArray,Int)	com.eignex.koblas.bench.SparseWorkspaceGrowingScatterBenchmark.manyShortCheckedScattersIntoGrowingSupport	benchmarked	Allocation-free arithmetic diagnostics across repeated short scatters into growing support.
-SparseLinearAlgebra.gemv(SparseMatrix,transpose=false)	com.eignex.koblas.bench.SparseBenchmark.sparseGemv	benchmarked	
-SparseLinearAlgebra.gemv(SparseMatrix,transpose=true)	com.eignex.koblas.bench.SparseBenchmark.sparseGemvTransposed	benchmarked	
+SparseBlas.gemv(SparseMatrix,transpose=false)	com.eignex.koblas.bench.SparseBenchmark.sparseGemv	benchmarked	Built-in sparse matrix-vector product.
+SparseBlas.gemv(SparseMatrix,transpose=true)	com.eignex.koblas.bench.SparseBenchmark.sparseGemvTransposed	benchmarked	Built-in transposed sparse matrix-vector product.
 SparseMatrix.column(Int)	com.eignex.koblas.bench.SparseMatrixOpsBenchmark.column	benchmarked	
 SparseMatrix.norm1()	com.eignex.koblas.bench.SparseMatrixOpsBenchmark.norm1	benchmarked	
 SparseMatrix.normFro()	com.eignex.koblas.bench.SparseMatrixOpsBenchmark.normFro	benchmarked	

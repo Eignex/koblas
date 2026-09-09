@@ -1,8 +1,6 @@
 package com.eignex.koblas.dense
 
 import com.eignex.koblas.*
-import com.eignex.koblas.DenseVector
-import com.eignex.koblas.SparseVector
 import com.eignex.koblas.internal.numeric.euclideanNorm
 import kotlin.math.abs
 import kotlin.math.sqrt
@@ -11,11 +9,10 @@ import kotlin.test.*
 
 class KernelsTest {
 
-    private class Recording(override val priority: Int = 90) : Kernels {
+    private class Recording : Kernels {
         override var name: String = "recording"
             private set
 
-        fun named(n: String): Recording = also { it.name = n }
         var dots = 0
         var axpys = 0
         var scales = 0
@@ -114,64 +111,6 @@ class KernelsTest {
     }
 
     @Test
-    fun `a registered backend handles vector runs of every length`() = withCleanBackends {
-        val recording = Recording()
-        registerBackend(recording)
-        val short1 = DenseVector.of(doubleArrayOf(3.0))
-        val short2 = DenseVector.of(doubleArrayOf(4.0))
-        assertEquals(12.0, short1 dot short2)
-        assertEquals(1, recording.dots, "a length-1 dot did not reach the selected backend")
-        val x = DenseVector.of(DoubleArray(16) { 1.0 })
-        val y = DenseVector.of(DoubleArray(16) { 2.0 })
-        assertEquals(32.0, x dot y)
-        assertEquals(2, recording.dots, "a length-16 dot did not reach the selected backend")
-    }
-
-    @Test
-    fun `axpy and scale route to the selected backend`() = withCleanBackends {
-        val recording = Recording()
-        registerBackend(recording)
-        val v = DenseVector.of(DoubleArray(64) { 1.0 })
-        val x = DenseVector.of(DoubleArray(64) { 2.0 })
-        v.axpy(3.0, x)
-        v.scale(0.5)
-        assertEquals(1, recording.axpys, "axpy did not route")
-        assertEquals(1, recording.scales, "scale did not route")
-        assertTrue(v.data.all { it == 3.5 }, "routed arithmetic is wrong: ${v.data[0]}")
-    }
-
-    @Test
-    fun `modified Givens operations route to the selected backend`() = withCleanBackends {
-        val recording = Recording()
-        registerBackend(recording)
-        val transformation = rotmg(1.0, 1.0, 1.0, 2.0)
-        val x = DenseVector.of(doubleArrayOf(2.0, -1.0))
-        val y = DenseVector.of(doubleArrayOf(1.0, 4.0))
-
-        rotm(x, y, transformation)
-
-        assertEquals(1, recording.rotmgs, "rotmg did not route")
-        assertEquals(1, recording.rotms, "rotm did not route")
-        assertContentEquals(doubleArrayOf(2.0, 3.5), x.data)
-        assertContentEquals(doubleArrayOf(-1.5, 3.0), y.data)
-    }
-
-    @Test
-    fun `a plane rotation routes to the selected backend`() = withCleanBackends {
-        val recording = Recording()
-        registerBackend(recording)
-        val rotation = rotg(3.0, 4.0)
-        val x = DenseVector.of(doubleArrayOf(3.0, 1.0))
-        val y = DenseVector.of(doubleArrayOf(4.0, -1.0))
-
-        rot(x, y, rotation)
-
-        assertEquals(1, recording.rots, "the rotation did not route")
-        assertEquals(5.0, x.data[0], 1e-12, "the rotation should carry the pair's norm into x")
-        assertEquals(0.0, y.data[0], 1e-12, "the rotation should eliminate y")
-    }
-
-    @Test
     fun `the platform arithmetic axpy does not take the DAXPY zero return`() {
         val x = DoubleArray(64).also { it[17] = Double.POSITIVE_INFINITY }
         val y = DoubleArray(64)
@@ -179,48 +118,6 @@ class KernelsTest {
         axpyArithmetic(PlatformKernels, y, 0, 0.0, x, 0, x.size)
 
         assertTrue(y[17].isNaN())
-    }
-
-    @Test
-    fun `the dense reductions route but the sparse ones cannot`() = withCleanBackends {
-        val recording = Recording()
-        registerBackend(recording)
-        val dense = DenseVector.of(DoubleArray(64) { 3.0 })
-        dense.norm2()
-        dense.asum()
-        assertEquals(1, recording.nrm2s, "norm2 on a dense vector did not route")
-        assertEquals(1, recording.asums, "asum on a dense vector did not route")
-        val sparse = SparseVector(8, IntArray(8) { it }, DoubleArray(8) { 3.0 })
-        sparse.norm2()
-        sparse.asum()
-        assertEquals(1, recording.nrm2s, "norm2 routed a sparse vector")
-        assertEquals(1, recording.asums, "asum routed a sparse vector")
-    }
-
-    /** iamax stays off the seam, since `idamax` implementations disagree about NaN and koblas pins its own contract. */
-    @Test
-    fun `iamax does not route`() = withCleanBackends {
-        val recording = Recording()
-        registerBackend(recording)
-        val len = 16
-        val v = DenseVector.of(DoubleArray(len) { if (it == 7) -9.0 else 1.0 })
-        assertEquals(7, v.iamax())
-        assertEquals(0, recording.dots + recording.nrm2s + recording.asums, "iamax reached the seam")
-    }
-
-    @Test
-    fun `registration keeps the highest priority and install overrides both`() = withCleanBackends {
-        val platform = koblas.kernels.name
-        registerBackend(Recording(priority = 200).named("strong"))
-        registerBackend(Recording(priority = 10).named("weak"))
-        assertEquals("strong", koblas.kernels.name, "a weaker registration displaced a stronger one")
-        val override = Recording(priority = 0).named("override")
-        installBackends(koblas.with(kernels = override))
-        assertSame(override, koblas.kernels, "install must win regardless of priority, and unrouted")
-        installBackends(null)
-        assertEquals("strong", koblas.kernels.name, "clearing the override falls back to registration")
-        resetBackends()
-        assertEquals(platform, koblas.kernels.name, "a cleared registry leaves the compiled-in kernels")
     }
 
     @Test
@@ -409,13 +306,9 @@ class KernelsTest {
     }
 
     @Test
-    fun `the context reports the selected kernels by name`() = withCleanBackends {
+    fun `the context reports the selected kernels by name`() {
         assertEquals(PlatformKernels.name, koblas.kernels.name)
         assertEquals(koblas.kernels.name, mathBackend, "mathBackend is the selected kernels' name")
-        registerBackend(Recording(priority = 90))
-        assertEquals("recording", koblas.kernels.name)
-        resetBackends()
-        assertEquals(PlatformKernels.name, koblas.kernels.name)
     }
 
     /**

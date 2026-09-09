@@ -1,44 +1,13 @@
 package com.eignex.koblas
 
-import com.eignex.koblas.dense.Kernels
-import com.eignex.koblas.internal.backend.BackendRegistry
+import com.eignex.koblas.dense.PlatformKernels
+import com.eignex.koblas.sparse.PlatformSparseKernels
 
-/**
- * The process-wide default context: an [installBackends] override when set, else registered backends, else
- * the portable reference implementations. Every free function in koblas uses this.
- */
-public val koblas: KoblasContext get() = BackendRegistry.activeContext
+/** The immutable platform-selected BLAS engine used by top-level convenience operations. */
+public val koblas: KoblasContext = KoblasContext(PlatformKernels, PlatformSparseKernels)
 
-/** What this runtime resolved, for startup logging (e.g. `"backend=reference, kernels=simd(8 lanes)"`). */
-public val koblasInfo: String get() = "backend=${koblas.name}, kernels=${koblas.kernels.name}"
+/** What this runtime selected, for startup logging and benchmark attribution. */
+public val koblasInfo: String
+    get() = "engine=${koblas.name}"
 
-/**
- * Offers [backend] as an explicit choice for every role it implements. Explicit registrations outrank
- * automatically discovered ones; among providers for the same role, [Backend.priority] selects the winner.
- */
-public fun registerBackend(backend: Backend) {
-    BackendRegistry.register(backend)
-}
-
-/** Runs automatic platform discovery once, registering whatever host backends are available. */
-public fun discoverBackends() {
-    BackendRegistry.discover()
-}
-
-/** The backends registered for [role], strongest first. */
-public fun registeredBackendNames(role: BackendRole): List<String> = BackendRegistry.namesFor(role)
-
-/** Overrides the context [koblas] returns; null restores automatic selection. */
-public fun installBackends(context: KoblasContext?) {
-    BackendRegistry.install(context)
-}
-
-internal fun resetBackends() {
-    BackendRegistry.reset()
-}
-
-internal fun rediscoverBackends() {
-    BackendRegistry.rediscover()
-}
-
-internal val platformKernels: Kernels get() = BackendRegistry.platformKernels
+internal val platformKernels get() = PlatformKernels

@@ -14,42 +14,6 @@ open annotation class com.eignex.koblas/UnsafeKoblasApi : kotlin/Annotation { //
     constructor <init>() // com.eignex.koblas/UnsafeKoblasApi.<init>|<init>(){}[0]
 }
 
-final enum class com.eignex.koblas.sparse.basis/BasisUpdate : kotlin/Enum<com.eignex.koblas.sparse.basis/BasisUpdate> { // com.eignex.koblas.sparse.basis/BasisUpdate|null[0]
-    enum entry APPLIED // com.eignex.koblas.sparse.basis/BasisUpdate.APPLIED|null[0]
-    enum entry REFACTORIZE // com.eignex.koblas.sparse.basis/BasisUpdate.REFACTORIZE|null[0]
-    enum entry SINGULAR // com.eignex.koblas.sparse.basis/BasisUpdate.SINGULAR|null[0]
-
-    final val entries // com.eignex.koblas.sparse.basis/BasisUpdate.entries|#static{}entries[0]
-        final fun <get-entries>(): kotlin.enums/EnumEntries<com.eignex.koblas.sparse.basis/BasisUpdate> // com.eignex.koblas.sparse.basis/BasisUpdate.entries.<get-entries>|<get-entries>#static(){}[0]
-
-    final fun valueOf(kotlin/String): com.eignex.koblas.sparse.basis/BasisUpdate // com.eignex.koblas.sparse.basis/BasisUpdate.valueOf|valueOf#static(kotlin.String){}[0]
-    final fun values(): kotlin/Array<com.eignex.koblas.sparse.basis/BasisUpdate> // com.eignex.koblas.sparse.basis/BasisUpdate.values|values#static(){}[0]
-}
-
-final enum class com.eignex.koblas.sparse.basis/RefactorizeReason : kotlin/Enum<com.eignex.koblas.sparse.basis/RefactorizeReason> { // com.eignex.koblas.sparse.basis/RefactorizeReason|null[0]
-    enum entry FACTOR_ASKED // com.eignex.koblas.sparse.basis/RefactorizeReason.FACTOR_ASKED|null[0]
-    enum entry UPDATES_WORN // com.eignex.koblas.sparse.basis/RefactorizeReason.UPDATES_WORN|null[0]
-
-    final val entries // com.eignex.koblas.sparse.basis/RefactorizeReason.entries|#static{}entries[0]
-        final fun <get-entries>(): kotlin.enums/EnumEntries<com.eignex.koblas.sparse.basis/RefactorizeReason> // com.eignex.koblas.sparse.basis/RefactorizeReason.entries.<get-entries>|<get-entries>#static(){}[0]
-
-    final fun valueOf(kotlin/String): com.eignex.koblas.sparse.basis/RefactorizeReason // com.eignex.koblas.sparse.basis/RefactorizeReason.valueOf|valueOf#static(kotlin.String){}[0]
-    final fun values(): kotlin/Array<com.eignex.koblas.sparse.basis/RefactorizeReason> // com.eignex.koblas.sparse.basis/RefactorizeReason.values|values#static(){}[0]
-}
-
-final enum class com.eignex.koblas.sparse.host.hfactor/HfactorUpdateMethod : kotlin/Enum<com.eignex.koblas.sparse.host.hfactor/HfactorUpdateMethod> { // com.eignex.koblas.sparse.host.hfactor/HfactorUpdateMethod|null[0]
-    enum entry ALTERNATE_PRODUCT_FORM // com.eignex.koblas.sparse.host.hfactor/HfactorUpdateMethod.ALTERNATE_PRODUCT_FORM|null[0]
-    enum entry FORREST_TOMLIN // com.eignex.koblas.sparse.host.hfactor/HfactorUpdateMethod.FORREST_TOMLIN|null[0]
-    enum entry MIDDLE_PRODUCT_FORM // com.eignex.koblas.sparse.host.hfactor/HfactorUpdateMethod.MIDDLE_PRODUCT_FORM|null[0]
-    enum entry PRODUCT_FORM // com.eignex.koblas.sparse.host.hfactor/HfactorUpdateMethod.PRODUCT_FORM|null[0]
-
-    final val entries // com.eignex.koblas.sparse.host.hfactor/HfactorUpdateMethod.entries|#static{}entries[0]
-        final fun <get-entries>(): kotlin.enums/EnumEntries<com.eignex.koblas.sparse.host.hfactor/HfactorUpdateMethod> // com.eignex.koblas.sparse.host.hfactor/HfactorUpdateMethod.entries.<get-entries>|<get-entries>#static(){}[0]
-
-    final fun valueOf(kotlin/String): com.eignex.koblas.sparse.host.hfactor/HfactorUpdateMethod // com.eignex.koblas.sparse.host.hfactor/HfactorUpdateMethod.valueOf|valueOf#static(kotlin.String){}[0]
-    final fun values(): kotlin/Array<com.eignex.koblas.sparse.host.hfactor/HfactorUpdateMethod> // com.eignex.koblas.sparse.host.hfactor/HfactorUpdateMethod.values|values#static(){}[0]
-}
-
 final enum class com.eignex.koblas/AllocationGuarantee : kotlin/Enum<com.eignex.koblas/AllocationGuarantee> { // com.eignex.koblas/AllocationGuarantee|null[0]
     enum entry NO_MANAGED // com.eignex.koblas/AllocationGuarantee.NO_MANAGED|null[0]
     enum entry NO_MANAGED_OR_NATIVE // com.eignex.koblas/AllocationGuarantee.NO_MANAGED_OR_NATIVE|null[0]
@@ -76,122 +40,11 @@ final enum class com.eignex.koblas/AllocationPolicy : kotlin/Enum<com.eignex.kob
     final fun values(): kotlin/Array<com.eignex.koblas/AllocationPolicy> // com.eignex.koblas/AllocationPolicy.values|values#static(){}[0]
 }
 
-final enum class com.eignex.koblas/BackendExecution : kotlin/Enum<com.eignex.koblas/BackendExecution> { // com.eignex.koblas/BackendExecution|null[0]
-    enum entry NATIVE // com.eignex.koblas/BackendExecution.NATIVE|null[0]
-    enum entry PORTABLE // com.eignex.koblas/BackendExecution.PORTABLE|null[0]
-    enum entry UNAVAILABLE // com.eignex.koblas/BackendExecution.UNAVAILABLE|null[0]
-    enum entry UNKNOWN // com.eignex.koblas/BackendExecution.UNKNOWN|null[0]
-
-    final val entries // com.eignex.koblas/BackendExecution.entries|#static{}entries[0]
-        final fun <get-entries>(): kotlin.enums/EnumEntries<com.eignex.koblas/BackendExecution> // com.eignex.koblas/BackendExecution.entries.<get-entries>|<get-entries>#static(){}[0]
-
-    final fun valueOf(kotlin/String): com.eignex.koblas/BackendExecution // com.eignex.koblas/BackendExecution.valueOf|valueOf#static(kotlin.String){}[0]
-    final fun values(): kotlin/Array<com.eignex.koblas/BackendExecution> // com.eignex.koblas/BackendExecution.values|values#static(){}[0]
-}
-
-final enum class com.eignex.koblas/BackendPolicyDecision : kotlin/Enum<com.eignex.koblas/BackendPolicyDecision> { // com.eignex.koblas/BackendPolicyDecision|null[0]
-    enum entry EXECUTE // com.eignex.koblas/BackendPolicyDecision.EXECUTE|null[0]
-    enum entry REJECT // com.eignex.koblas/BackendPolicyDecision.REJECT|null[0]
-    enum entry WARN // com.eignex.koblas/BackendPolicyDecision.WARN|null[0]
-
-    final val entries // com.eignex.koblas/BackendPolicyDecision.entries|#static{}entries[0]
-        final fun <get-entries>(): kotlin.enums/EnumEntries<com.eignex.koblas/BackendPolicyDecision> // com.eignex.koblas/BackendPolicyDecision.entries.<get-entries>|<get-entries>#static(){}[0]
-
-    final fun valueOf(kotlin/String): com.eignex.koblas/BackendPolicyDecision // com.eignex.koblas/BackendPolicyDecision.valueOf|valueOf#static(kotlin.String){}[0]
-    final fun values(): kotlin/Array<com.eignex.koblas/BackendPolicyDecision> // com.eignex.koblas/BackendPolicyDecision.values|values#static(){}[0]
-}
-
-final enum class com.eignex.koblas/BackendRole : kotlin/Enum<com.eignex.koblas/BackendRole> { // com.eignex.koblas/BackendRole|null[0]
-    enum entry BASIS_SOLVERS // com.eignex.koblas/BackendRole.BASIS_SOLVERS|null[0]
-    enum entry DENSE_BLAS // com.eignex.koblas/BackendRole.DENSE_BLAS|null[0]
-    enum entry DENSE_KERNELS // com.eignex.koblas/BackendRole.DENSE_KERNELS|null[0]
-    enum entry SPARSE_BLAS // com.eignex.koblas/BackendRole.SPARSE_BLAS|null[0]
-    enum entry SPARSE_GENERAL_LU // com.eignex.koblas/BackendRole.SPARSE_GENERAL_LU|null[0]
-    enum entry SPARSE_KERNELS // com.eignex.koblas/BackendRole.SPARSE_KERNELS|null[0]
-
-    final val entries // com.eignex.koblas/BackendRole.entries|#static{}entries[0]
-        final fun <get-entries>(): kotlin.enums/EnumEntries<com.eignex.koblas/BackendRole> // com.eignex.koblas/BackendRole.entries.<get-entries>|<get-entries>#static(){}[0]
-
-    final fun valueOf(kotlin/String): com.eignex.koblas/BackendRole // com.eignex.koblas/BackendRole.valueOf|valueOf#static(kotlin.String){}[0]
-    final fun values(): kotlin/Array<com.eignex.koblas/BackendRole> // com.eignex.koblas/BackendRole.values|values#static(){}[0]
-}
-
-final enum class com.eignex.koblas/BackendRouteReason : kotlin/Enum<com.eignex.koblas/BackendRouteReason> { // com.eignex.koblas/BackendRouteReason|null[0]
-    enum entry BACKEND_UNAVAILABLE // com.eignex.koblas/BackendRouteReason.BACKEND_UNAVAILABLE|null[0]
-    enum entry BELOW_THRESHOLD // com.eignex.koblas/BackendRouteReason.BELOW_THRESHOLD|null[0]
-    enum entry NATIVE_ROUTE // com.eignex.koblas/BackendRouteReason.NATIVE_ROUTE|null[0]
-    enum entry NOT_REPORTED // com.eignex.koblas/BackendRouteReason.NOT_REPORTED|null[0]
-    enum entry SELECTED_PORTABLE // com.eignex.koblas/BackendRouteReason.SELECTED_PORTABLE|null[0]
-    enum entry UNSUPPORTED_ARGUMENTS // com.eignex.koblas/BackendRouteReason.UNSUPPORTED_ARGUMENTS|null[0]
-    enum entry UNSUPPORTED_OPERATION // com.eignex.koblas/BackendRouteReason.UNSUPPORTED_OPERATION|null[0]
-
-    final val entries // com.eignex.koblas/BackendRouteReason.entries|#static{}entries[0]
-        final fun <get-entries>(): kotlin.enums/EnumEntries<com.eignex.koblas/BackendRouteReason> // com.eignex.koblas/BackendRouteReason.entries.<get-entries>|<get-entries>#static(){}[0]
-
-    final fun valueOf(kotlin/String): com.eignex.koblas/BackendRouteReason // com.eignex.koblas/BackendRouteReason.valueOf|valueOf#static(kotlin.String){}[0]
-    final fun values(): kotlin/Array<com.eignex.koblas/BackendRouteReason> // com.eignex.koblas/BackendRouteReason.values|values#static(){}[0]
-}
-
-final enum class com.eignex.koblas/DispatchMetric : kotlin/Enum<com.eignex.koblas/DispatchMetric> { // com.eignex.koblas/DispatchMetric|null[0]
-    enum entry DIMENSION // com.eignex.koblas/DispatchMetric.DIMENSION|null[0]
-
-    final val entries // com.eignex.koblas/DispatchMetric.entries|#static{}entries[0]
-        final fun <get-entries>(): kotlin.enums/EnumEntries<com.eignex.koblas/DispatchMetric> // com.eignex.koblas/DispatchMetric.entries.<get-entries>|<get-entries>#static(){}[0]
-
-    final fun valueOf(kotlin/String): com.eignex.koblas/DispatchMetric // com.eignex.koblas/DispatchMetric.valueOf|valueOf#static(kotlin.String){}[0]
-    final fun values(): kotlin/Array<com.eignex.koblas/DispatchMetric> // com.eignex.koblas/DispatchMetric.values|values#static(){}[0]
-}
-
-final enum class com.eignex.koblas/DispatchPolicy : kotlin/Enum<com.eignex.koblas/DispatchPolicy> { // com.eignex.koblas/DispatchPolicy|null[0]
-    enum entry AUTO // com.eignex.koblas/DispatchPolicy.AUTO|null[0]
-    enum entry NATIVE_ONLY // com.eignex.koblas/DispatchPolicy.NATIVE_ONLY|null[0]
-    enum entry PORTABLE_ONLY // com.eignex.koblas/DispatchPolicy.PORTABLE_ONLY|null[0]
-
-    final val entries // com.eignex.koblas/DispatchPolicy.entries|#static{}entries[0]
-        final fun <get-entries>(): kotlin.enums/EnumEntries<com.eignex.koblas/DispatchPolicy> // com.eignex.koblas/DispatchPolicy.entries.<get-entries>|<get-entries>#static(){}[0]
-
-    final fun valueOf(kotlin/String): com.eignex.koblas/DispatchPolicy // com.eignex.koblas/DispatchPolicy.valueOf|valueOf#static(kotlin.String){}[0]
-    final fun values(): kotlin/Array<com.eignex.koblas/DispatchPolicy> // com.eignex.koblas/DispatchPolicy.values|values#static(){}[0]
-}
-
-final enum class com.eignex.koblas/FallbackPolicy : kotlin/Enum<com.eignex.koblas/FallbackPolicy> { // com.eignex.koblas/FallbackPolicy|null[0]
-    enum entry ALLOW // com.eignex.koblas/FallbackPolicy.ALLOW|null[0]
-    enum entry THROW // com.eignex.koblas/FallbackPolicy.THROW|null[0]
-    enum entry WARN // com.eignex.koblas/FallbackPolicy.WARN|null[0]
-
-    final val entries // com.eignex.koblas/FallbackPolicy.entries|#static{}entries[0]
-        final fun <get-entries>(): kotlin.enums/EnumEntries<com.eignex.koblas/FallbackPolicy> // com.eignex.koblas/FallbackPolicy.entries.<get-entries>|<get-entries>#static(){}[0]
-
-    final fun valueOf(kotlin/String): com.eignex.koblas/FallbackPolicy // com.eignex.koblas/FallbackPolicy.valueOf|valueOf#static(kotlin.String){}[0]
-    final fun values(): kotlin/Array<com.eignex.koblas/FallbackPolicy> // com.eignex.koblas/FallbackPolicy.values|values#static(){}[0]
-}
-
-final enum class com.eignex.koblas/PreparedSparseProductKind : kotlin/Enum<com.eignex.koblas/PreparedSparseProductKind> { // com.eignex.koblas/PreparedSparseProductKind|null[0]
-    enum entry DENSE_GEMM // com.eignex.koblas/PreparedSparseProductKind.DENSE_GEMM|null[0]
-    enum entry GEMV // com.eignex.koblas/PreparedSparseProductKind.GEMV|null[0]
-    enum entry SPARSE_GEMM // com.eignex.koblas/PreparedSparseProductKind.SPARSE_GEMM|null[0]
-
-    final val entries // com.eignex.koblas/PreparedSparseProductKind.entries|#static{}entries[0]
-        final fun <get-entries>(): kotlin.enums/EnumEntries<com.eignex.koblas/PreparedSparseProductKind> // com.eignex.koblas/PreparedSparseProductKind.entries.<get-entries>|<get-entries>#static(){}[0]
-
-    final fun valueOf(kotlin/String): com.eignex.koblas/PreparedSparseProductKind // com.eignex.koblas/PreparedSparseProductKind.valueOf|valueOf#static(kotlin.String){}[0]
-    final fun values(): kotlin/Array<com.eignex.koblas/PreparedSparseProductKind> // com.eignex.koblas/PreparedSparseProductKind.values|values#static(){}[0]
-}
-
-final enum class com.eignex.koblas/SparseTriangularKind : kotlin/Enum<com.eignex.koblas/SparseTriangularKind> { // com.eignex.koblas/SparseTriangularKind|null[0]
-    enum entry MULTIPLY // com.eignex.koblas/SparseTriangularKind.MULTIPLY|null[0]
-    enum entry SOLVE // com.eignex.koblas/SparseTriangularKind.SOLVE|null[0]
-
-    final val entries // com.eignex.koblas/SparseTriangularKind.entries|#static{}entries[0]
-        final fun <get-entries>(): kotlin.enums/EnumEntries<com.eignex.koblas/SparseTriangularKind> // com.eignex.koblas/SparseTriangularKind.entries.<get-entries>|<get-entries>#static(){}[0]
-
-    final fun valueOf(kotlin/String): com.eignex.koblas/SparseTriangularKind // com.eignex.koblas/SparseTriangularKind.valueOf|valueOf#static(kotlin.String){}[0]
-    final fun values(): kotlin/Array<com.eignex.koblas/SparseTriangularKind> // com.eignex.koblas/SparseTriangularKind.values|values#static(){}[0]
-}
-
-abstract interface com.eignex.koblas.dense/Blas : com.eignex.koblas/Backend { // com.eignex.koblas.dense/Blas|null[0]
-    open val kernels // com.eignex.koblas.dense/Blas.kernels|{}kernels[0]
-        open fun <get-kernels>(): com.eignex.koblas.dense/Kernels // com.eignex.koblas.dense/Blas.kernels.<get-kernels>|<get-kernels>(){}[0]
+abstract interface com.eignex.koblas.dense/Blas { // com.eignex.koblas.dense/Blas|null[0]
+    abstract val kernels // com.eignex.koblas.dense/Blas.kernels|{}kernels[0]
+        abstract fun <get-kernels>(): com.eignex.koblas.dense/Kernels // com.eignex.koblas.dense/Blas.kernels.<get-kernels>|<get-kernels>(){}[0]
+    abstract val name // com.eignex.koblas.dense/Blas.name|{}name[0]
+        abstract fun <get-name>(): kotlin/String // com.eignex.koblas.dense/Blas.name.<get-name>|<get-name>(){}[0]
 
     abstract fun gemm(kotlin/Double, com.eignex.koblas/DenseMatrix, kotlin/Boolean, com.eignex.koblas/DenseMatrix, kotlin/Boolean, kotlin/Double, com.eignex.koblas/DenseMatrix, com.eignex.koblas/Workspace? = ...) // com.eignex.koblas.dense/Blas.gemm|gemm(kotlin.Double;com.eignex.koblas.DenseMatrix;kotlin.Boolean;com.eignex.koblas.DenseMatrix;kotlin.Boolean;kotlin.Double;com.eignex.koblas.DenseMatrix;com.eignex.koblas.Workspace?){}[0]
     abstract fun gemv(kotlin/Double, com.eignex.koblas/DenseMatrix, kotlin/DoubleArray, kotlin/Double, kotlin/DoubleArray, kotlin/Boolean = ..., com.eignex.koblas/Workspace? = ...) // com.eignex.koblas.dense/Blas.gemv|gemv(kotlin.Double;com.eignex.koblas.DenseMatrix;kotlin.DoubleArray;kotlin.Double;kotlin.DoubleArray;kotlin.Boolean;com.eignex.koblas.Workspace?){}[0]
@@ -215,7 +68,9 @@ abstract interface com.eignex.koblas.dense/Blas : com.eignex.koblas/Backend { //
     open fun gemv(kotlin/Double, com.eignex.koblas/StridedMatrixView, com.eignex.koblas/StridedVectorView, kotlin/Double, com.eignex.koblas/StridedVectorView, kotlin/Boolean = ...) // com.eignex.koblas.dense/Blas.gemv|gemv(kotlin.Double;com.eignex.koblas.StridedMatrixView;com.eignex.koblas.StridedVectorView;kotlin.Double;com.eignex.koblas.StridedVectorView;kotlin.Boolean){}[0]
 }
 
-abstract interface com.eignex.koblas.dense/Kernels : com.eignex.koblas/Backend { // com.eignex.koblas.dense/Kernels|null[0]
+abstract interface com.eignex.koblas.dense/Kernels { // com.eignex.koblas.dense/Kernels|null[0]
+    abstract val name // com.eignex.koblas.dense/Kernels.name|{}name[0]
+        abstract fun <get-name>(): kotlin/String // com.eignex.koblas.dense/Kernels.name.<get-name>|<get-name>(){}[0]
     open val gemmTileCols // com.eignex.koblas.dense/Kernels.gemmTileCols|{}gemmTileCols[0]
         open fun <get-gemmTileCols>(): kotlin/Int // com.eignex.koblas.dense/Kernels.gemmTileCols.<get-gemmTileCols>|<get-gemmTileCols>(){}[0]
     open val gemmTileRows // com.eignex.koblas.dense/Kernels.gemmTileRows|{}gemmTileRows[0]
@@ -240,45 +95,6 @@ abstract interface com.eignex.koblas.dense/Kernels : com.eignex.koblas/Backend {
     open fun trsmTile(kotlin/Int, kotlin/Int, kotlin/DoubleArray, kotlin/Int, kotlin/Boolean, kotlin/Boolean, kotlin/DoubleArray, kotlin/Int) // com.eignex.koblas.dense/Kernels.trsmTile|trsmTile(kotlin.Int;kotlin.Int;kotlin.DoubleArray;kotlin.Int;kotlin.Boolean;kotlin.Boolean;kotlin.DoubleArray;kotlin.Int){}[0]
 }
 
-abstract interface com.eignex.koblas.sparse.basis/BasisSnapshot : kotlin/AutoCloseable // com.eignex.koblas.sparse.basis/BasisSnapshot|null[0]
-
-abstract interface com.eignex.koblas.sparse.basis/BasisSolver : kotlin/AutoCloseable { // com.eignex.koblas.sparse.basis/BasisSolver|null[0]
-    abstract val n // com.eignex.koblas.sparse.basis/BasisSolver.n|{}n[0]
-        abstract fun <get-n>(): kotlin/Int // com.eignex.koblas.sparse.basis/BasisSolver.n.<get-n>|<get-n>(){}[0]
-    abstract val nnz // com.eignex.koblas.sparse.basis/BasisSolver.nnz|{}nnz[0]
-        abstract fun <get-nnz>(): kotlin/Int // com.eignex.koblas.sparse.basis/BasisSolver.nnz.<get-nnz>|<get-nnz>(){}[0]
-    abstract val rcond // com.eignex.koblas.sparse.basis/BasisSolver.rcond|{}rcond[0]
-        abstract fun <get-rcond>(): kotlin/Double // com.eignex.koblas.sparse.basis/BasisSolver.rcond.<get-rcond>|<get-rcond>(){}[0]
-    abstract val singular // com.eignex.koblas.sparse.basis/BasisSolver.singular|{}singular[0]
-        abstract fun <get-singular>(): kotlin/Boolean // com.eignex.koblas.sparse.basis/BasisSolver.singular.<get-singular>|<get-singular>(){}[0]
-    abstract val updateCount // com.eignex.koblas.sparse.basis/BasisSolver.updateCount|{}updateCount[0]
-        abstract fun <get-updateCount>(): kotlin/Int // com.eignex.koblas.sparse.basis/BasisSolver.updateCount.<get-updateCount>|<get-updateCount>(){}[0]
-    open val kernel // com.eignex.koblas.sparse.basis/BasisSolver.kernel|{}kernel[0]
-        open fun <get-kernel>(): com.eignex.koblas.sparse.basis/BasisKernel? // com.eignex.koblas.sparse.basis/BasisSolver.kernel.<get-kernel>|<get-kernel>(){}[0]
-    open val refactorizeReason // com.eignex.koblas.sparse.basis/BasisSolver.refactorizeReason|{}refactorizeReason[0]
-        open fun <get-refactorizeReason>(): com.eignex.koblas.sparse.basis/RefactorizeReason? // com.eignex.koblas.sparse.basis/BasisSolver.refactorizeReason.<get-refactorizeReason>|<get-refactorizeReason>(){}[0]
-
-    abstract fun btran(com.eignex.koblas.sparse.basis/IndexedVector, kotlin/Double = ...) // com.eignex.koblas.sparse.basis/BasisSolver.btran|btran(com.eignex.koblas.sparse.basis.IndexedVector;kotlin.Double){}[0]
-    abstract fun ftran(com.eignex.koblas.sparse.basis/IndexedVector, kotlin/Double = ...) // com.eignex.koblas.sparse.basis/BasisSolver.ftran|ftran(com.eignex.koblas.sparse.basis.IndexedVector;kotlin.Double){}[0]
-    abstract fun refactorize(kotlin/IntArray): kotlin/Boolean // com.eignex.koblas.sparse.basis/BasisSolver.refactorize|refactorize(kotlin.IntArray){}[0]
-    abstract fun solveQuality(kotlin/DoubleArray, com.eignex.koblas.sparse.basis/IndexedVector, kotlin/Boolean = ...): com.eignex.koblas.sparse.basis/BasisSolveQuality // com.eignex.koblas.sparse.basis/BasisSolver.solveQuality|solveQuality(kotlin.DoubleArray;com.eignex.koblas.sparse.basis.IndexedVector;kotlin.Boolean){}[0]
-    abstract fun update(kotlin/Int, kotlin/Int, com.eignex.koblas.sparse.basis/IndexedVector, com.eignex.koblas.sparse.basis/IndexedVector? = ...): com.eignex.koblas.sparse.basis/BasisUpdate // com.eignex.koblas.sparse.basis/BasisSolver.update|update(kotlin.Int;kotlin.Int;com.eignex.koblas.sparse.basis.IndexedVector;com.eignex.koblas.sparse.basis.IndexedVector?){}[0]
-    open fun close() // com.eignex.koblas.sparse.basis/BasisSolver.close|close(){}[0]
-    open fun refactorizeRepairing(kotlin/IntArray): com.eignex.koblas.sparse.basis/BasisRepair? // com.eignex.koblas.sparse.basis/BasisSolver.refactorizeRepairing|refactorizeRepairing(kotlin.IntArray){}[0]
-    open fun restore(com.eignex.koblas.sparse.basis/BasisSnapshot): kotlin/Boolean // com.eignex.koblas.sparse.basis/BasisSolver.restore|restore(com.eignex.koblas.sparse.basis.BasisSnapshot){}[0]
-    open fun snapshot(): com.eignex.koblas.sparse.basis/BasisSnapshot? // com.eignex.koblas.sparse.basis/BasisSolver.snapshot|snapshot(){}[0]
-}
-
-abstract interface com.eignex.koblas.sparse.basis/BasisSolvers : com.eignex.koblas/Backend { // com.eignex.koblas.sparse.basis/BasisSolvers|null[0]
-    abstract fun basisSolver(com.eignex.koblas/SparseMatrix): com.eignex.koblas.sparse.basis/BasisSolver // com.eignex.koblas.sparse.basis/BasisSolvers.basisSolver|basisSolver(com.eignex.koblas.SparseMatrix){}[0]
-}
-
-abstract interface com.eignex.koblas.sparse/BasisFactorization : com.eignex.koblas.sparse/SparseLuFactorization // com.eignex.koblas.sparse/BasisFactorization|null[0]
-
-abstract interface com.eignex.koblas.sparse/GeneralSparseLu : com.eignex.koblas/Backend { // com.eignex.koblas.sparse/GeneralSparseLu|null[0]
-    abstract fun factor(com.eignex.koblas/SparseMatrix): com.eignex.koblas.sparse/SparseLuFactorization // com.eignex.koblas.sparse/GeneralSparseLu.factor|factor(com.eignex.koblas.SparseMatrix){}[0]
-}
-
 abstract interface com.eignex.koblas.sparse/PreparedSparseMatrix : kotlin/AutoCloseable { // com.eignex.koblas.sparse/PreparedSparseMatrix|null[0]
     abstract val cols // com.eignex.koblas.sparse/PreparedSparseMatrix.cols|{}cols[0]
         abstract fun <get-cols>(): kotlin/Int // com.eignex.koblas.sparse/PreparedSparseMatrix.cols.<get-cols>|<get-cols>(){}[0]
@@ -293,10 +109,14 @@ abstract interface com.eignex.koblas.sparse/PreparedSparseMatrix : kotlin/AutoCl
     abstract fun gemv(kotlin/Double, kotlin/DoubleArray, kotlin/Double, kotlin/DoubleArray, kotlin/Boolean = ...) // com.eignex.koblas.sparse/PreparedSparseMatrix.gemv|gemv(kotlin.Double;kotlin.DoubleArray;kotlin.Double;kotlin.DoubleArray;kotlin.Boolean){}[0]
 }
 
-abstract interface com.eignex.koblas.sparse/SparseBlas : com.eignex.koblas/Backend { // com.eignex.koblas.sparse/SparseBlas|null[0]
+abstract interface com.eignex.koblas.sparse/SparseBlas { // com.eignex.koblas.sparse/SparseBlas|null[0]
+    abstract val name // com.eignex.koblas.sparse/SparseBlas.name|{}name[0]
+        abstract fun <get-name>(): kotlin/String // com.eignex.koblas.sparse/SparseBlas.name.<get-name>|<get-name>(){}[0]
+
     abstract fun gemm(com.eignex.koblas/SparseMatrix, com.eignex.koblas/SparseMatrix): com.eignex.koblas/SparseMatrix // com.eignex.koblas.sparse/SparseBlas.gemm|gemm(com.eignex.koblas.SparseMatrix;com.eignex.koblas.SparseMatrix){}[0]
     abstract fun gemm(kotlin/Double, com.eignex.koblas/SparseMatrix, kotlin/Boolean, com.eignex.koblas/DenseMatrix, kotlin/Boolean, kotlin/Double, com.eignex.koblas/DenseMatrix, kotlin/Boolean = ..., com.eignex.koblas/Workspace? = ...) // com.eignex.koblas.sparse/SparseBlas.gemm|gemm(kotlin.Double;com.eignex.koblas.SparseMatrix;kotlin.Boolean;com.eignex.koblas.DenseMatrix;kotlin.Boolean;kotlin.Double;com.eignex.koblas.DenseMatrix;kotlin.Boolean;com.eignex.koblas.Workspace?){}[0]
     abstract fun gemv(kotlin/Double, com.eignex.koblas/SparseMatrix, kotlin/DoubleArray, kotlin/Double, kotlin/DoubleArray, kotlin/Boolean = ...) // com.eignex.koblas.sparse/SparseBlas.gemv|gemv(kotlin.Double;com.eignex.koblas.SparseMatrix;kotlin.DoubleArray;kotlin.Double;kotlin.DoubleArray;kotlin.Boolean){}[0]
+    abstract fun prepare(com.eignex.koblas/SparseMatrix): com.eignex.koblas.sparse/PreparedSparseMatrix // com.eignex.koblas.sparse/SparseBlas.prepare|prepare(com.eignex.koblas.SparseMatrix){}[0]
     abstract fun transpose(com.eignex.koblas/SparseMatrix): com.eignex.koblas/SparseMatrix // com.eignex.koblas.sparse/SparseBlas.transpose|transpose(com.eignex.koblas.SparseMatrix){}[0]
     abstract fun trmm(com.eignex.koblas/SparseMatrix, com.eignex.koblas/DenseMatrix, kotlin/Boolean, kotlin/Boolean = ..., kotlin/Boolean = ..., kotlin/Boolean = ..., kotlin/Double = ...) // com.eignex.koblas.sparse/SparseBlas.trmm|trmm(com.eignex.koblas.SparseMatrix;com.eignex.koblas.DenseMatrix;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean;kotlin.Double){}[0]
     abstract fun trmv(com.eignex.koblas/SparseMatrix, kotlin/DoubleArray, kotlin/Boolean, kotlin/Boolean = ..., kotlin/Boolean = ...) // com.eignex.koblas.sparse/SparseBlas.trmv|trmv(com.eignex.koblas.SparseMatrix;kotlin.DoubleArray;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean){}[0]
@@ -304,31 +124,12 @@ abstract interface com.eignex.koblas.sparse/SparseBlas : com.eignex.koblas/Backe
     abstract fun trsv(com.eignex.koblas/SparseMatrix, kotlin/DoubleArray, kotlin/Boolean, kotlin/Boolean = ..., kotlin/Boolean = ...) // com.eignex.koblas.sparse/SparseBlas.trsv|trsv(com.eignex.koblas.SparseMatrix;kotlin.DoubleArray;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean){}[0]
     open fun gemm(com.eignex.koblas/SparseMatrix, com.eignex.koblas/DenseMatrix): com.eignex.koblas/DenseMatrix // com.eignex.koblas.sparse/SparseBlas.gemm|gemm(com.eignex.koblas.SparseMatrix;com.eignex.koblas.DenseMatrix){}[0]
     open fun gemv(com.eignex.koblas/SparseMatrix, kotlin/DoubleArray, kotlin/Boolean = ...): kotlin/DoubleArray // com.eignex.koblas.sparse/SparseBlas.gemv|gemv(com.eignex.koblas.SparseMatrix;kotlin.DoubleArray;kotlin.Boolean){}[0]
-    open fun prepare(com.eignex.koblas/SparseMatrix): com.eignex.koblas.sparse/PreparedSparseMatrix // com.eignex.koblas.sparse/SparseBlas.prepare|prepare(com.eignex.koblas.SparseMatrix){}[0]
 }
 
-abstract interface com.eignex.koblas.sparse/SparseFactorization : kotlin/AutoCloseable { // com.eignex.koblas.sparse/SparseFactorization|null[0]
-    abstract val failedAt // com.eignex.koblas.sparse/SparseFactorization.failedAt|{}failedAt[0]
-        abstract fun <get-failedAt>(): kotlin/Int // com.eignex.koblas.sparse/SparseFactorization.failedAt.<get-failedAt>|<get-failedAt>(){}[0]
-    abstract val n // com.eignex.koblas.sparse/SparseFactorization.n|{}n[0]
-        abstract fun <get-n>(): kotlin/Int // com.eignex.koblas.sparse/SparseFactorization.n.<get-n>|<get-n>(){}[0]
-    abstract val nnz // com.eignex.koblas.sparse/SparseFactorization.nnz|{}nnz[0]
-        abstract fun <get-nnz>(): kotlin/Int // com.eignex.koblas.sparse/SparseFactorization.nnz.<get-nnz>|<get-nnz>(){}[0]
-    abstract val rcond // com.eignex.koblas.sparse/SparseFactorization.rcond|{}rcond[0]
-        abstract fun <get-rcond>(): kotlin/Double // com.eignex.koblas.sparse/SparseFactorization.rcond.<get-rcond>|<get-rcond>(){}[0]
-    open val singular // com.eignex.koblas.sparse/SparseFactorization.singular|{}singular[0]
-        open fun <get-singular>(): kotlin/Boolean // com.eignex.koblas.sparse/SparseFactorization.singular.<get-singular>|<get-singular>(){}[0]
+abstract interface com.eignex.koblas.sparse/SparseKernels { // com.eignex.koblas.sparse/SparseKernels|null[0]
+    abstract val name // com.eignex.koblas.sparse/SparseKernels.name|{}name[0]
+        abstract fun <get-name>(): kotlin/String // com.eignex.koblas.sparse/SparseKernels.name.<get-name>|<get-name>(){}[0]
 
-    abstract fun solveInto(kotlin/DoubleArray, kotlin/DoubleArray, kotlin/Boolean = ..., com.eignex.koblas/Workspace? = ...): kotlin/DoubleArray // com.eignex.koblas.sparse/SparseFactorization.solveInto|solveInto(kotlin.DoubleArray;kotlin.DoubleArray;kotlin.Boolean;com.eignex.koblas.Workspace?){}[0]
-    open fun close() // com.eignex.koblas.sparse/SparseFactorization.close|close(){}[0]
-    open fun solve(com.eignex.koblas/DenseMatrix, kotlin/Boolean = ...): com.eignex.koblas/DenseMatrix // com.eignex.koblas.sparse/SparseFactorization.solve|solve(com.eignex.koblas.DenseMatrix;kotlin.Boolean){}[0]
-    open fun solve(kotlin/DoubleArray, kotlin/Boolean = ...): kotlin/DoubleArray // com.eignex.koblas.sparse/SparseFactorization.solve|solve(kotlin.DoubleArray;kotlin.Boolean){}[0]
-    open fun solveAllocation(kotlin/Boolean = ..., kotlin/Boolean = ...): com.eignex.koblas/AllocationCapability // com.eignex.koblas.sparse/SparseFactorization.solveAllocation|solveAllocation(kotlin.Boolean;kotlin.Boolean){}[0]
-    open fun solveInto(com.eignex.koblas/DenseMatrix, com.eignex.koblas/DenseMatrix, kotlin/Boolean = ..., com.eignex.koblas/Workspace? = ...): com.eignex.koblas/DenseMatrix // com.eignex.koblas.sparse/SparseFactorization.solveInto|solveInto(com.eignex.koblas.DenseMatrix;com.eignex.koblas.DenseMatrix;kotlin.Boolean;com.eignex.koblas.Workspace?){}[0]
-    open fun solveInto(kotlin/DoubleArray, kotlin/DoubleArray, kotlin/Boolean = ..., com.eignex.koblas/Workspace? = ..., com.eignex.koblas/AllocationPolicy): kotlin/DoubleArray // com.eignex.koblas.sparse/SparseFactorization.solveInto|solveInto(kotlin.DoubleArray;kotlin.DoubleArray;kotlin.Boolean;com.eignex.koblas.Workspace?;com.eignex.koblas.AllocationPolicy){}[0]
-}
-
-abstract interface com.eignex.koblas.sparse/SparseKernels : com.eignex.koblas/Backend { // com.eignex.koblas.sparse/SparseKernels|null[0]
     abstract fun asum(com.eignex.koblas/SparseVector): kotlin/Double // com.eignex.koblas.sparse/SparseKernels.asum|asum(com.eignex.koblas.SparseVector){}[0]
     abstract fun axpy(kotlin/DoubleArray, kotlin/Double, com.eignex.koblas/SparseVector) // com.eignex.koblas.sparse/SparseKernels.axpy|axpy(kotlin.DoubleArray;kotlin.Double;com.eignex.koblas.SparseVector){}[0]
     abstract fun dot(com.eignex.koblas/SparseVector, com.eignex.koblas/SparseVector): kotlin/Double // com.eignex.koblas.sparse/SparseKernels.dot|dot(com.eignex.koblas.SparseVector;com.eignex.koblas.SparseVector){}[0]
@@ -339,49 +140,6 @@ abstract interface com.eignex.koblas.sparse/SparseKernels : com.eignex.koblas/Ba
     abstract fun scatter(com.eignex.koblas/SparseVector, kotlin/DoubleArray) // com.eignex.koblas.sparse/SparseKernels.scatter|scatter(com.eignex.koblas.SparseVector;kotlin.DoubleArray){}[0]
 }
 
-abstract interface com.eignex.koblas.sparse/SparseLinearAlgebra : com.eignex.koblas.sparse/SparseBlas { // com.eignex.koblas.sparse/SparseLinearAlgebra|null[0]
-    open val sparseKernels // com.eignex.koblas.sparse/SparseLinearAlgebra.sparseKernels|{}sparseKernels[0]
-        open fun <get-sparseKernels>(): com.eignex.koblas.sparse/SparseKernels // com.eignex.koblas.sparse/SparseLinearAlgebra.sparseKernels.<get-sparseKernels>|<get-sparseKernels>(){}[0]
-}
-
-abstract interface com.eignex.koblas.sparse/SparseLuFactorization : com.eignex.koblas.sparse/SparseFactorization { // com.eignex.koblas.sparse/SparseLuFactorization|null[0]
-    open val columnOrder // com.eignex.koblas.sparse/SparseLuFactorization.columnOrder|{}columnOrder[0]
-        open fun <get-columnOrder>(): kotlin/IntArray // com.eignex.koblas.sparse/SparseLuFactorization.columnOrder.<get-columnOrder>|<get-columnOrder>(){}[0]
-    open val l // com.eignex.koblas.sparse/SparseLuFactorization.l|{}l[0]
-        open fun <get-l>(): com.eignex.koblas/SparseMatrix // com.eignex.koblas.sparse/SparseLuFactorization.l.<get-l>|<get-l>(){}[0]
-    open val offDiagonal // com.eignex.koblas.sparse/SparseLuFactorization.offDiagonal|{}offDiagonal[0]
-        open fun <get-offDiagonal>(): com.eignex.koblas/SparseMatrix // com.eignex.koblas.sparse/SparseLuFactorization.offDiagonal.<get-offDiagonal>|<get-offDiagonal>(){}[0]
-    open val rowOrder // com.eignex.koblas.sparse/SparseLuFactorization.rowOrder|{}rowOrder[0]
-        open fun <get-rowOrder>(): kotlin/IntArray // com.eignex.koblas.sparse/SparseLuFactorization.rowOrder.<get-rowOrder>|<get-rowOrder>(){}[0]
-    open val rowScaling // com.eignex.koblas.sparse/SparseLuFactorization.rowScaling|{}rowScaling[0]
-        open fun <get-rowScaling>(): kotlin/DoubleArray // com.eignex.koblas.sparse/SparseLuFactorization.rowScaling.<get-rowScaling>|<get-rowScaling>(){}[0]
-    open val u // com.eignex.koblas.sparse/SparseLuFactorization.u|{}u[0]
-        open fun <get-u>(): com.eignex.koblas/SparseMatrix // com.eignex.koblas.sparse/SparseLuFactorization.u.<get-u>|<get-u>(){}[0]
-}
-
-abstract interface com.eignex.koblas/Backend { // com.eignex.koblas/Backend|null[0]
-    abstract val name // com.eignex.koblas/Backend.name|{}name[0]
-        abstract fun <get-name>(): kotlin/String // com.eignex.koblas/Backend.name.<get-name>|<get-name>(){}[0]
-    open val isAvailable // com.eignex.koblas/Backend.isAvailable|{}isAvailable[0]
-        open fun <get-isAvailable>(): kotlin/Boolean // com.eignex.koblas/Backend.isAvailable.<get-isAvailable>|<get-isAvailable>(){}[0]
-    open val isPortable // com.eignex.koblas/Backend.isPortable|{}isPortable[0]
-        open fun <get-isPortable>(): kotlin/Boolean // com.eignex.koblas/Backend.isPortable.<get-isPortable>|<get-isPortable>(){}[0]
-    open val priority // com.eignex.koblas/Backend.priority|{}priority[0]
-        open fun <get-priority>(): kotlin/Int // com.eignex.koblas/Backend.priority.<get-priority>|<get-priority>(){}[0]
-    open val unavailableReason // com.eignex.koblas/Backend.unavailableReason|{}unavailableReason[0]
-        open fun <get-unavailableReason>(): kotlin/String? // com.eignex.koblas/Backend.unavailableReason.<get-unavailableReason>|<get-unavailableReason>(){}[0]
-}
-
-abstract interface com.eignex.koblas/BackendMetadataProvider { // com.eignex.koblas/BackendMetadataProvider|null[0]
-    abstract val backendMetadata // com.eignex.koblas/BackendMetadataProvider.backendMetadata|{}backendMetadata[0]
-        abstract fun <get-backendMetadata>(): com.eignex.koblas/BackendMetadata // com.eignex.koblas/BackendMetadataProvider.backendMetadata.<get-backendMetadata>|<get-backendMetadata>(){}[0]
-}
-
-abstract interface com.eignex.koblas/BundledBackend : com.eignex.koblas/Backend { // com.eignex.koblas/BundledBackend|null[0]
-    abstract val canonicalName // com.eignex.koblas/BundledBackend.canonicalName|{}canonicalName[0]
-        abstract fun <get-canonicalName>(): kotlin/String // com.eignex.koblas/BundledBackend.canonicalName.<get-canonicalName>|<get-canonicalName>(){}[0]
-}
-
 abstract interface com.eignex.koblas/MatrixLike { // com.eignex.koblas/MatrixLike|null[0]
     abstract val cols // com.eignex.koblas/MatrixLike.cols|{}cols[0]
         abstract fun <get-cols>(): kotlin/Int // com.eignex.koblas/MatrixLike.cols.<get-cols>|<get-cols>(){}[0]
@@ -390,15 +148,6 @@ abstract interface com.eignex.koblas/MatrixLike { // com.eignex.koblas/MatrixLik
 
     abstract fun get(kotlin/Int, kotlin/Int): kotlin/Double // com.eignex.koblas/MatrixLike.get|get(kotlin.Int;kotlin.Int){}[0]
     abstract fun toArray(): kotlin/Array<kotlin/DoubleArray> // com.eignex.koblas/MatrixLike.toArray|toArray(){}[0]
-}
-
-abstract interface com.eignex.koblas/RebindableBackend : com.eignex.koblas/Backend { // com.eignex.koblas/RebindableBackend|null[0]
-    abstract val hasOwnKernels // com.eignex.koblas/RebindableBackend.hasOwnKernels|{}hasOwnKernels[0]
-        abstract fun <get-hasOwnKernels>(): kotlin/Boolean // com.eignex.koblas/RebindableBackend.hasOwnKernels.<get-hasOwnKernels>|<get-hasOwnKernels>(){}[0]
-}
-
-abstract interface com.eignex.koblas/RoutingBackend : com.eignex.koblas/Backend { // com.eignex.koblas/RoutingBackend|null[0]
-    abstract fun route(com.eignex.koblas/RouteQuery): com.eignex.koblas/BackendRoute? // com.eignex.koblas/RoutingBackend.route|route(com.eignex.koblas.RouteQuery){}[0]
 }
 
 abstract interface com.eignex.koblas/VectorLike { // com.eignex.koblas/VectorLike|null[0]
@@ -416,322 +165,11 @@ sealed interface com.eignex.koblas/MatrixStorage : com.eignex.koblas/MatrixLike 
     }
 }
 
-sealed interface com.eignex.koblas/RouteQuery { // com.eignex.koblas/RouteQuery|null[0]
-    abstract val role // com.eignex.koblas/RouteQuery.role|{}role[0]
-        abstract fun <get-role>(): com.eignex.koblas/BackendRole // com.eignex.koblas/RouteQuery.role.<get-role>|<get-role>(){}[0]
-
-    final class DenseGemm : com.eignex.koblas/RouteQuery { // com.eignex.koblas/RouteQuery.DenseGemm|null[0]
-        constructor <init>(kotlin/Int, kotlin/Int, kotlin/Int) // com.eignex.koblas/RouteQuery.DenseGemm.<init>|<init>(kotlin.Int;kotlin.Int;kotlin.Int){}[0]
-
-        final val k // com.eignex.koblas/RouteQuery.DenseGemm.k|{}k[0]
-            final fun <get-k>(): kotlin/Int // com.eignex.koblas/RouteQuery.DenseGemm.k.<get-k>|<get-k>(){}[0]
-        final val m // com.eignex.koblas/RouteQuery.DenseGemm.m|{}m[0]
-            final fun <get-m>(): kotlin/Int // com.eignex.koblas/RouteQuery.DenseGemm.m.<get-m>|<get-m>(){}[0]
-        final val n // com.eignex.koblas/RouteQuery.DenseGemm.n|{}n[0]
-            final fun <get-n>(): kotlin/Int // com.eignex.koblas/RouteQuery.DenseGemm.n.<get-n>|<get-n>(){}[0]
-        final val role // com.eignex.koblas/RouteQuery.DenseGemm.role|{}role[0]
-            final fun <get-role>(): com.eignex.koblas/BackendRole // com.eignex.koblas/RouteQuery.DenseGemm.role.<get-role>|<get-role>(){}[0]
-
-        final fun component1(): kotlin/Int // com.eignex.koblas/RouteQuery.DenseGemm.component1|component1(){}[0]
-        final fun component2(): kotlin/Int // com.eignex.koblas/RouteQuery.DenseGemm.component2|component2(){}[0]
-        final fun component3(): kotlin/Int // com.eignex.koblas/RouteQuery.DenseGemm.component3|component3(){}[0]
-        final fun copy(kotlin/Int = ..., kotlin/Int = ..., kotlin/Int = ...): com.eignex.koblas/RouteQuery.DenseGemm // com.eignex.koblas/RouteQuery.DenseGemm.copy|copy(kotlin.Int;kotlin.Int;kotlin.Int){}[0]
-        final fun equals(kotlin/Any?): kotlin/Boolean // com.eignex.koblas/RouteQuery.DenseGemm.equals|equals(kotlin.Any?){}[0]
-        final fun hashCode(): kotlin/Int // com.eignex.koblas/RouteQuery.DenseGemm.hashCode|hashCode(){}[0]
-        final fun toString(): kotlin/String // com.eignex.koblas/RouteQuery.DenseGemm.toString|toString(){}[0]
-    }
-
-    final class DenseGemv : com.eignex.koblas/RouteQuery { // com.eignex.koblas/RouteQuery.DenseGemv|null[0]
-        constructor <init>(kotlin/Int, kotlin/Int) // com.eignex.koblas/RouteQuery.DenseGemv.<init>|<init>(kotlin.Int;kotlin.Int){}[0]
-
-        final val cols // com.eignex.koblas/RouteQuery.DenseGemv.cols|{}cols[0]
-            final fun <get-cols>(): kotlin/Int // com.eignex.koblas/RouteQuery.DenseGemv.cols.<get-cols>|<get-cols>(){}[0]
-        final val role // com.eignex.koblas/RouteQuery.DenseGemv.role|{}role[0]
-            final fun <get-role>(): com.eignex.koblas/BackendRole // com.eignex.koblas/RouteQuery.DenseGemv.role.<get-role>|<get-role>(){}[0]
-        final val rows // com.eignex.koblas/RouteQuery.DenseGemv.rows|{}rows[0]
-            final fun <get-rows>(): kotlin/Int // com.eignex.koblas/RouteQuery.DenseGemv.rows.<get-rows>|<get-rows>(){}[0]
-
-        final fun component1(): kotlin/Int // com.eignex.koblas/RouteQuery.DenseGemv.component1|component1(){}[0]
-        final fun component2(): kotlin/Int // com.eignex.koblas/RouteQuery.DenseGemv.component2|component2(){}[0]
-        final fun copy(kotlin/Int = ..., kotlin/Int = ...): com.eignex.koblas/RouteQuery.DenseGemv // com.eignex.koblas/RouteQuery.DenseGemv.copy|copy(kotlin.Int;kotlin.Int){}[0]
-        final fun equals(kotlin/Any?): kotlin/Boolean // com.eignex.koblas/RouteQuery.DenseGemv.equals|equals(kotlin.Any?){}[0]
-        final fun hashCode(): kotlin/Int // com.eignex.koblas/RouteQuery.DenseGemv.hashCode|hashCode(){}[0]
-        final fun toString(): kotlin/String // com.eignex.koblas/RouteQuery.DenseGemv.toString|toString(){}[0]
-    }
-
-    final class PreparedSparseProduct : com.eignex.koblas/RouteQuery { // com.eignex.koblas/RouteQuery.PreparedSparseProduct|null[0]
-        constructor <init>(kotlin/Int, com.eignex.koblas/PreparedSparseProductKind) // com.eignex.koblas/RouteQuery.PreparedSparseProduct.<init>|<init>(kotlin.Int;com.eignex.koblas.PreparedSparseProductKind){}[0]
-
-        final val kind // com.eignex.koblas/RouteQuery.PreparedSparseProduct.kind|{}kind[0]
-            final fun <get-kind>(): com.eignex.koblas/PreparedSparseProductKind // com.eignex.koblas/RouteQuery.PreparedSparseProduct.kind.<get-kind>|<get-kind>(){}[0]
-        final val role // com.eignex.koblas/RouteQuery.PreparedSparseProduct.role|{}role[0]
-            final fun <get-role>(): com.eignex.koblas/BackendRole // com.eignex.koblas/RouteQuery.PreparedSparseProduct.role.<get-role>|<get-role>(){}[0]
-        final val storedEntries // com.eignex.koblas/RouteQuery.PreparedSparseProduct.storedEntries|{}storedEntries[0]
-            final fun <get-storedEntries>(): kotlin/Int // com.eignex.koblas/RouteQuery.PreparedSparseProduct.storedEntries.<get-storedEntries>|<get-storedEntries>(){}[0]
-
-        final fun component1(): kotlin/Int // com.eignex.koblas/RouteQuery.PreparedSparseProduct.component1|component1(){}[0]
-        final fun component2(): com.eignex.koblas/PreparedSparseProductKind // com.eignex.koblas/RouteQuery.PreparedSparseProduct.component2|component2(){}[0]
-        final fun copy(kotlin/Int = ..., com.eignex.koblas/PreparedSparseProductKind = ...): com.eignex.koblas/RouteQuery.PreparedSparseProduct // com.eignex.koblas/RouteQuery.PreparedSparseProduct.copy|copy(kotlin.Int;com.eignex.koblas.PreparedSparseProductKind){}[0]
-        final fun equals(kotlin/Any?): kotlin/Boolean // com.eignex.koblas/RouteQuery.PreparedSparseProduct.equals|equals(kotlin.Any?){}[0]
-        final fun hashCode(): kotlin/Int // com.eignex.koblas/RouteQuery.PreparedSparseProduct.hashCode|hashCode(){}[0]
-        final fun toString(): kotlin/String // com.eignex.koblas/RouteQuery.PreparedSparseProduct.toString|toString(){}[0]
-    }
-
-    final class SparseDenseGemm : com.eignex.koblas/RouteQuery { // com.eignex.koblas/RouteQuery.SparseDenseGemm|null[0]
-        constructor <init>(kotlin/Int, kotlin/Boolean = ..., kotlin/Boolean = ...) // com.eignex.koblas/RouteQuery.SparseDenseGemm.<init>|<init>(kotlin.Int;kotlin.Boolean;kotlin.Boolean){}[0]
-
-        final val right // com.eignex.koblas/RouteQuery.SparseDenseGemm.right|{}right[0]
-            final fun <get-right>(): kotlin/Boolean // com.eignex.koblas/RouteQuery.SparseDenseGemm.right.<get-right>|<get-right>(){}[0]
-        final val role // com.eignex.koblas/RouteQuery.SparseDenseGemm.role|{}role[0]
-            final fun <get-role>(): com.eignex.koblas/BackendRole // com.eignex.koblas/RouteQuery.SparseDenseGemm.role.<get-role>|<get-role>(){}[0]
-        final val storedEntries // com.eignex.koblas/RouteQuery.SparseDenseGemm.storedEntries|{}storedEntries[0]
-            final fun <get-storedEntries>(): kotlin/Int // com.eignex.koblas/RouteQuery.SparseDenseGemm.storedEntries.<get-storedEntries>|<get-storedEntries>(){}[0]
-        final val transposeDense // com.eignex.koblas/RouteQuery.SparseDenseGemm.transposeDense|{}transposeDense[0]
-            final fun <get-transposeDense>(): kotlin/Boolean // com.eignex.koblas/RouteQuery.SparseDenseGemm.transposeDense.<get-transposeDense>|<get-transposeDense>(){}[0]
-
-        final fun component1(): kotlin/Int // com.eignex.koblas/RouteQuery.SparseDenseGemm.component1|component1(){}[0]
-        final fun component2(): kotlin/Boolean // com.eignex.koblas/RouteQuery.SparseDenseGemm.component2|component2(){}[0]
-        final fun component3(): kotlin/Boolean // com.eignex.koblas/RouteQuery.SparseDenseGemm.component3|component3(){}[0]
-        final fun copy(kotlin/Int = ..., kotlin/Boolean = ..., kotlin/Boolean = ...): com.eignex.koblas/RouteQuery.SparseDenseGemm // com.eignex.koblas/RouteQuery.SparseDenseGemm.copy|copy(kotlin.Int;kotlin.Boolean;kotlin.Boolean){}[0]
-        final fun equals(kotlin/Any?): kotlin/Boolean // com.eignex.koblas/RouteQuery.SparseDenseGemm.equals|equals(kotlin.Any?){}[0]
-        final fun hashCode(): kotlin/Int // com.eignex.koblas/RouteQuery.SparseDenseGemm.hashCode|hashCode(){}[0]
-        final fun toString(): kotlin/String // com.eignex.koblas/RouteQuery.SparseDenseGemm.toString|toString(){}[0]
-    }
-
-    final class SparseLu : com.eignex.koblas/RouteQuery { // com.eignex.koblas/RouteQuery.SparseLu|null[0]
-        constructor <init>(kotlin/Int) // com.eignex.koblas/RouteQuery.SparseLu.<init>|<init>(kotlin.Int){}[0]
-
-        final val role // com.eignex.koblas/RouteQuery.SparseLu.role|{}role[0]
-            final fun <get-role>(): com.eignex.koblas/BackendRole // com.eignex.koblas/RouteQuery.SparseLu.role.<get-role>|<get-role>(){}[0]
-        final val storedEntries // com.eignex.koblas/RouteQuery.SparseLu.storedEntries|{}storedEntries[0]
-            final fun <get-storedEntries>(): kotlin/Int // com.eignex.koblas/RouteQuery.SparseLu.storedEntries.<get-storedEntries>|<get-storedEntries>(){}[0]
-
-        final fun component1(): kotlin/Int // com.eignex.koblas/RouteQuery.SparseLu.component1|component1(){}[0]
-        final fun copy(kotlin/Int = ...): com.eignex.koblas/RouteQuery.SparseLu // com.eignex.koblas/RouteQuery.SparseLu.copy|copy(kotlin.Int){}[0]
-        final fun equals(kotlin/Any?): kotlin/Boolean // com.eignex.koblas/RouteQuery.SparseLu.equals|equals(kotlin.Any?){}[0]
-        final fun hashCode(): kotlin/Int // com.eignex.koblas/RouteQuery.SparseLu.hashCode|hashCode(){}[0]
-        final fun toString(): kotlin/String // com.eignex.koblas/RouteQuery.SparseLu.toString|toString(){}[0]
-    }
-
-    final class SparseTriangular : com.eignex.koblas/RouteQuery { // com.eignex.koblas/RouteQuery.SparseTriangular|null[0]
-        constructor <init>(kotlin/Int, com.eignex.koblas/SparseTriangularKind, kotlin/Int = ..., kotlin/Boolean = ..., kotlin/Boolean = ..., kotlin/Boolean = ..., kotlin/Boolean = ...) // com.eignex.koblas/RouteQuery.SparseTriangular.<init>|<init>(kotlin.Int;com.eignex.koblas.SparseTriangularKind;kotlin.Int;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean){}[0]
-
-        final val kind // com.eignex.koblas/RouteQuery.SparseTriangular.kind|{}kind[0]
-            final fun <get-kind>(): com.eignex.koblas/SparseTriangularKind // com.eignex.koblas/RouteQuery.SparseTriangular.kind.<get-kind>|<get-kind>(){}[0]
-        final val lower // com.eignex.koblas/RouteQuery.SparseTriangular.lower|{}lower[0]
-            final fun <get-lower>(): kotlin/Boolean // com.eignex.koblas/RouteQuery.SparseTriangular.lower.<get-lower>|<get-lower>(){}[0]
-        final val right // com.eignex.koblas/RouteQuery.SparseTriangular.right|{}right[0]
-            final fun <get-right>(): kotlin/Boolean // com.eignex.koblas/RouteQuery.SparseTriangular.right.<get-right>|<get-right>(){}[0]
-        final val rightHandSides // com.eignex.koblas/RouteQuery.SparseTriangular.rightHandSides|{}rightHandSides[0]
-            final fun <get-rightHandSides>(): kotlin/Int // com.eignex.koblas/RouteQuery.SparseTriangular.rightHandSides.<get-rightHandSides>|<get-rightHandSides>(){}[0]
-        final val role // com.eignex.koblas/RouteQuery.SparseTriangular.role|{}role[0]
-            final fun <get-role>(): com.eignex.koblas/BackendRole // com.eignex.koblas/RouteQuery.SparseTriangular.role.<get-role>|<get-role>(){}[0]
-        final val storedEntries // com.eignex.koblas/RouteQuery.SparseTriangular.storedEntries|{}storedEntries[0]
-            final fun <get-storedEntries>(): kotlin/Int // com.eignex.koblas/RouteQuery.SparseTriangular.storedEntries.<get-storedEntries>|<get-storedEntries>(){}[0]
-        final val transpose // com.eignex.koblas/RouteQuery.SparseTriangular.transpose|{}transpose[0]
-            final fun <get-transpose>(): kotlin/Boolean // com.eignex.koblas/RouteQuery.SparseTriangular.transpose.<get-transpose>|<get-transpose>(){}[0]
-        final val unitDiagonal // com.eignex.koblas/RouteQuery.SparseTriangular.unitDiagonal|{}unitDiagonal[0]
-            final fun <get-unitDiagonal>(): kotlin/Boolean // com.eignex.koblas/RouteQuery.SparseTriangular.unitDiagonal.<get-unitDiagonal>|<get-unitDiagonal>(){}[0]
-
-        final fun component1(): kotlin/Int // com.eignex.koblas/RouteQuery.SparseTriangular.component1|component1(){}[0]
-        final fun component2(): com.eignex.koblas/SparseTriangularKind // com.eignex.koblas/RouteQuery.SparseTriangular.component2|component2(){}[0]
-        final fun component3(): kotlin/Int // com.eignex.koblas/RouteQuery.SparseTriangular.component3|component3(){}[0]
-        final fun component4(): kotlin/Boolean // com.eignex.koblas/RouteQuery.SparseTriangular.component4|component4(){}[0]
-        final fun component5(): kotlin/Boolean // com.eignex.koblas/RouteQuery.SparseTriangular.component5|component5(){}[0]
-        final fun component6(): kotlin/Boolean // com.eignex.koblas/RouteQuery.SparseTriangular.component6|component6(){}[0]
-        final fun component7(): kotlin/Boolean // com.eignex.koblas/RouteQuery.SparseTriangular.component7|component7(){}[0]
-        final fun copy(kotlin/Int = ..., com.eignex.koblas/SparseTriangularKind = ..., kotlin/Int = ..., kotlin/Boolean = ..., kotlin/Boolean = ..., kotlin/Boolean = ..., kotlin/Boolean = ...): com.eignex.koblas/RouteQuery.SparseTriangular // com.eignex.koblas/RouteQuery.SparseTriangular.copy|copy(kotlin.Int;com.eignex.koblas.SparseTriangularKind;kotlin.Int;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean){}[0]
-        final fun equals(kotlin/Any?): kotlin/Boolean // com.eignex.koblas/RouteQuery.SparseTriangular.equals|equals(kotlin.Any?){}[0]
-        final fun hashCode(): kotlin/Int // com.eignex.koblas/RouteQuery.SparseTriangular.hashCode|hashCode(){}[0]
-        final fun toString(): kotlin/String // com.eignex.koblas/RouteQuery.SparseTriangular.toString|toString(){}[0]
-    }
-}
-
 sealed interface com.eignex.koblas/VectorStorage : com.eignex.koblas/VectorLike { // com.eignex.koblas/VectorStorage|null[0]
     final object Companion : kotlinx.serialization.internal/SerializerFactory { // com.eignex.koblas/VectorStorage.Companion|null[0]
         final fun serializer(): kotlinx.serialization/KSerializer<com.eignex.koblas/VectorStorage> // com.eignex.koblas/VectorStorage.Companion.serializer|serializer(){}[0]
         final fun serializer(kotlin/Array<out kotlinx.serialization/KSerializer<*>>...): kotlinx.serialization/KSerializer<*> // com.eignex.koblas/VectorStorage.Companion.serializer|serializer(kotlin.Array<out|kotlinx.serialization.KSerializer<*>>...){}[0]
     }
-}
-
-final class <#A: com.eignex.koblas/Backend> com.eignex.koblas/Capability // com.eignex.koblas/Capability|null[0]
-
-final class com.eignex.koblas.dense/ReferenceBackend : com.eignex.koblas.dense/Blas, com.eignex.koblas/RebindableBackend { // com.eignex.koblas.dense/ReferenceBackend|null[0]
-    constructor <init>(com.eignex.koblas.dense/Kernels? = ...) // com.eignex.koblas.dense/ReferenceBackend.<init>|<init>(com.eignex.koblas.dense.Kernels?){}[0]
-
-    final val hasOwnKernels // com.eignex.koblas.dense/ReferenceBackend.hasOwnKernels|{}hasOwnKernels[0]
-        final fun <get-hasOwnKernels>(): kotlin/Boolean // com.eignex.koblas.dense/ReferenceBackend.hasOwnKernels.<get-hasOwnKernels>|<get-hasOwnKernels>(){}[0]
-    final val isAvailable // com.eignex.koblas.dense/ReferenceBackend.isAvailable|{}isAvailable[0]
-        final fun <get-isAvailable>(): kotlin/Boolean // com.eignex.koblas.dense/ReferenceBackend.isAvailable.<get-isAvailable>|<get-isAvailable>(){}[0]
-    final val isPortable // com.eignex.koblas.dense/ReferenceBackend.isPortable|{}isPortable[0]
-        final fun <get-isPortable>(): kotlin/Boolean // com.eignex.koblas.dense/ReferenceBackend.isPortable.<get-isPortable>|<get-isPortable>(){}[0]
-    final val kernels // com.eignex.koblas.dense/ReferenceBackend.kernels|{}kernels[0]
-        final fun <get-kernels>(): com.eignex.koblas.dense/Kernels // com.eignex.koblas.dense/ReferenceBackend.kernels.<get-kernels>|<get-kernels>(){}[0]
-    final val name // com.eignex.koblas.dense/ReferenceBackend.name|{}name[0]
-        final fun <get-name>(): kotlin/String // com.eignex.koblas.dense/ReferenceBackend.name.<get-name>|<get-name>(){}[0]
-    final val priority // com.eignex.koblas.dense/ReferenceBackend.priority|{}priority[0]
-        final fun <get-priority>(): kotlin/Int // com.eignex.koblas.dense/ReferenceBackend.priority.<get-priority>|<get-priority>(){}[0]
-    final val unavailableReason // com.eignex.koblas.dense/ReferenceBackend.unavailableReason|{}unavailableReason[0]
-        final fun <get-unavailableReason>(): kotlin/String? // com.eignex.koblas.dense/ReferenceBackend.unavailableReason.<get-unavailableReason>|<get-unavailableReason>(){}[0]
-
-    final fun gemm(com.eignex.koblas/DenseMatrix, com.eignex.koblas/DenseMatrix): com.eignex.koblas/DenseMatrix // com.eignex.koblas.dense/ReferenceBackend.gemm|gemm(com.eignex.koblas.DenseMatrix;com.eignex.koblas.DenseMatrix){}[0]
-    final fun gemm(com.eignex.koblas/StridedMatrixView, com.eignex.koblas/StridedMatrixView): com.eignex.koblas/DenseMatrix // com.eignex.koblas.dense/ReferenceBackend.gemm|gemm(com.eignex.koblas.StridedMatrixView;com.eignex.koblas.StridedMatrixView){}[0]
-    final fun gemm(kotlin/Double, com.eignex.koblas/DenseMatrix, kotlin/Boolean, com.eignex.koblas/DenseMatrix, kotlin/Boolean, kotlin/Double, com.eignex.koblas/DenseMatrix, com.eignex.koblas/Workspace?) // com.eignex.koblas.dense/ReferenceBackend.gemm|gemm(kotlin.Double;com.eignex.koblas.DenseMatrix;kotlin.Boolean;com.eignex.koblas.DenseMatrix;kotlin.Boolean;kotlin.Double;com.eignex.koblas.DenseMatrix;com.eignex.koblas.Workspace?){}[0]
-    final fun gemm(kotlin/Double, com.eignex.koblas/StridedMatrixView, kotlin/Boolean, com.eignex.koblas/StridedMatrixView, kotlin/Boolean, kotlin/Double, com.eignex.koblas/StridedMatrixView) // com.eignex.koblas.dense/ReferenceBackend.gemm|gemm(kotlin.Double;com.eignex.koblas.StridedMatrixView;kotlin.Boolean;com.eignex.koblas.StridedMatrixView;kotlin.Boolean;kotlin.Double;com.eignex.koblas.StridedMatrixView){}[0]
-    final fun gemv(com.eignex.koblas/DenseMatrix, kotlin/DoubleArray, kotlin/Boolean): kotlin/DoubleArray // com.eignex.koblas.dense/ReferenceBackend.gemv|gemv(com.eignex.koblas.DenseMatrix;kotlin.DoubleArray;kotlin.Boolean){}[0]
-    final fun gemv(com.eignex.koblas/StridedMatrixView, com.eignex.koblas/StridedVectorView, kotlin/Boolean): kotlin/DoubleArray // com.eignex.koblas.dense/ReferenceBackend.gemv|gemv(com.eignex.koblas.StridedMatrixView;com.eignex.koblas.StridedVectorView;kotlin.Boolean){}[0]
-    final fun gemv(kotlin/Double, com.eignex.koblas/DenseMatrix, kotlin/DoubleArray, kotlin/Double, kotlin/DoubleArray, kotlin/Boolean, com.eignex.koblas/Workspace?) // com.eignex.koblas.dense/ReferenceBackend.gemv|gemv(kotlin.Double;com.eignex.koblas.DenseMatrix;kotlin.DoubleArray;kotlin.Double;kotlin.DoubleArray;kotlin.Boolean;com.eignex.koblas.Workspace?){}[0]
-    final fun gemv(kotlin/Double, com.eignex.koblas/StridedMatrixView, com.eignex.koblas/StridedVectorView, kotlin/Double, com.eignex.koblas/StridedVectorView, kotlin/Boolean) // com.eignex.koblas.dense/ReferenceBackend.gemv|gemv(kotlin.Double;com.eignex.koblas.StridedMatrixView;com.eignex.koblas.StridedVectorView;kotlin.Double;com.eignex.koblas.StridedVectorView;kotlin.Boolean){}[0]
-    final fun ger(kotlin/Double, kotlin/DoubleArray, kotlin/DoubleArray, com.eignex.koblas/DenseMatrix) // com.eignex.koblas.dense/ReferenceBackend.ger|ger(kotlin.Double;kotlin.DoubleArray;kotlin.DoubleArray;com.eignex.koblas.DenseMatrix){}[0]
-    final fun symm(kotlin/Double, com.eignex.koblas/DenseMatrix, com.eignex.koblas/DenseMatrix, kotlin/Double, com.eignex.koblas/DenseMatrix, kotlin/Boolean, kotlin/Boolean, com.eignex.koblas/Workspace?) // com.eignex.koblas.dense/ReferenceBackend.symm|symm(kotlin.Double;com.eignex.koblas.DenseMatrix;com.eignex.koblas.DenseMatrix;kotlin.Double;com.eignex.koblas.DenseMatrix;kotlin.Boolean;kotlin.Boolean;com.eignex.koblas.Workspace?){}[0]
-    final fun symv(kotlin/Double, com.eignex.koblas/DenseMatrix, kotlin/DoubleArray, kotlin/Double, kotlin/DoubleArray, kotlin/Boolean) // com.eignex.koblas.dense/ReferenceBackend.symv|symv(kotlin.Double;com.eignex.koblas.DenseMatrix;kotlin.DoubleArray;kotlin.Double;kotlin.DoubleArray;kotlin.Boolean){}[0]
-    final fun syr(kotlin/Double, com.eignex.koblas/VectorLike, com.eignex.koblas/DenseMatrix, kotlin/Boolean) // com.eignex.koblas.dense/ReferenceBackend.syr|syr(kotlin.Double;com.eignex.koblas.VectorLike;com.eignex.koblas.DenseMatrix;kotlin.Boolean){}[0]
-    final fun syr2(kotlin/Double, com.eignex.koblas/VectorLike, com.eignex.koblas/VectorLike, com.eignex.koblas/DenseMatrix, kotlin/Boolean) // com.eignex.koblas.dense/ReferenceBackend.syr2|syr2(kotlin.Double;com.eignex.koblas.VectorLike;com.eignex.koblas.VectorLike;com.eignex.koblas.DenseMatrix;kotlin.Boolean){}[0]
-    final fun syr2k(kotlin/Double, com.eignex.koblas/DenseMatrix, com.eignex.koblas/DenseMatrix, kotlin/Boolean, kotlin/Double, com.eignex.koblas/DenseMatrix, kotlin/Boolean, com.eignex.koblas/Workspace?) // com.eignex.koblas.dense/ReferenceBackend.syr2k|syr2k(kotlin.Double;com.eignex.koblas.DenseMatrix;com.eignex.koblas.DenseMatrix;kotlin.Boolean;kotlin.Double;com.eignex.koblas.DenseMatrix;kotlin.Boolean;com.eignex.koblas.Workspace?){}[0]
-    final fun syrk(kotlin/Double, com.eignex.koblas/DenseMatrix, kotlin/Boolean, kotlin/Double, com.eignex.koblas/DenseMatrix, kotlin/Boolean, com.eignex.koblas/Workspace?) // com.eignex.koblas.dense/ReferenceBackend.syrk|syrk(kotlin.Double;com.eignex.koblas.DenseMatrix;kotlin.Boolean;kotlin.Double;com.eignex.koblas.DenseMatrix;kotlin.Boolean;com.eignex.koblas.Workspace?){}[0]
-    final fun transpose(com.eignex.koblas/DenseMatrix): com.eignex.koblas/DenseMatrix // com.eignex.koblas.dense/ReferenceBackend.transpose|transpose(com.eignex.koblas.DenseMatrix){}[0]
-    final fun trmm(com.eignex.koblas/DenseMatrix, com.eignex.koblas/DenseMatrix, kotlin/Boolean, kotlin/Boolean, kotlin/Boolean, kotlin/Boolean, kotlin/Double, com.eignex.koblas/Workspace?) // com.eignex.koblas.dense/ReferenceBackend.trmm|trmm(com.eignex.koblas.DenseMatrix;com.eignex.koblas.DenseMatrix;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean;kotlin.Double;com.eignex.koblas.Workspace?){}[0]
-    final fun trmv(com.eignex.koblas/DenseMatrix, kotlin/DoubleArray, kotlin/Boolean, kotlin/Boolean, kotlin/Boolean) // com.eignex.koblas.dense/ReferenceBackend.trmv|trmv(com.eignex.koblas.DenseMatrix;kotlin.DoubleArray;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean){}[0]
-    final fun trsm(com.eignex.koblas/DenseMatrix, com.eignex.koblas/DenseMatrix, kotlin/Boolean, kotlin/Boolean, kotlin/Boolean, kotlin/Boolean, kotlin/Double, com.eignex.koblas/Workspace?) // com.eignex.koblas.dense/ReferenceBackend.trsm|trsm(com.eignex.koblas.DenseMatrix;com.eignex.koblas.DenseMatrix;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean;kotlin.Double;com.eignex.koblas.Workspace?){}[0]
-    final fun trsv(com.eignex.koblas/DenseMatrix, kotlin/DoubleArray, kotlin/Boolean, kotlin/Boolean, kotlin/Boolean) // com.eignex.koblas.dense/ReferenceBackend.trsv|trsv(com.eignex.koblas.DenseMatrix;kotlin.DoubleArray;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean){}[0]
-}
-
-final class com.eignex.koblas.sparse.basis/BasisKernel { // com.eignex.koblas.sparse.basis/BasisKernel|null[0]
-    constructor <init>(kotlin/Int, kotlin/Int) // com.eignex.koblas.sparse.basis/BasisKernel.<init>|<init>(kotlin.Int;kotlin.Int){}[0]
-
-    final val dimension // com.eignex.koblas.sparse.basis/BasisKernel.dimension|{}dimension[0]
-        final fun <get-dimension>(): kotlin/Int // com.eignex.koblas.sparse.basis/BasisKernel.dimension.<get-dimension>|<get-dimension>(){}[0]
-    final val entries // com.eignex.koblas.sparse.basis/BasisKernel.entries|{}entries[0]
-        final fun <get-entries>(): kotlin/Int // com.eignex.koblas.sparse.basis/BasisKernel.entries.<get-entries>|<get-entries>(){}[0]
-}
-
-final class com.eignex.koblas.sparse.basis/BasisRepair { // com.eignex.koblas.sparse.basis/BasisRepair|null[0]
-    constructor <init>(kotlin/IntArray, kotlin/IntArray) // com.eignex.koblas.sparse.basis/BasisRepair.<init>|<init>(kotlin.IntArray;kotlin.IntArray){}[0]
-
-    final val columns // com.eignex.koblas.sparse.basis/BasisRepair.columns|{}columns[0]
-        final fun <get-columns>(): kotlin/IntArray // com.eignex.koblas.sparse.basis/BasisRepair.columns.<get-columns>|<get-columns>(){}[0]
-    final val repaired // com.eignex.koblas.sparse.basis/BasisRepair.repaired|{}repaired[0]
-        final fun <get-repaired>(): kotlin/Boolean // com.eignex.koblas.sparse.basis/BasisRepair.repaired.<get-repaired>|<get-repaired>(){}[0]
-    final val replacedSlots // com.eignex.koblas.sparse.basis/BasisRepair.replacedSlots|{}replacedSlots[0]
-        final fun <get-replacedSlots>(): kotlin/Int // com.eignex.koblas.sparse.basis/BasisRepair.replacedSlots.<get-replacedSlots>|<get-replacedSlots>(){}[0]
-    final val unitRows // com.eignex.koblas.sparse.basis/BasisRepair.unitRows|{}unitRows[0]
-        final fun <get-unitRows>(): kotlin/IntArray // com.eignex.koblas.sparse.basis/BasisRepair.unitRows.<get-unitRows>|<get-unitRows>(){}[0]
-}
-
-final class com.eignex.koblas.sparse.basis/BasisSolveQuality { // com.eignex.koblas.sparse.basis/BasisSolveQuality|null[0]
-    constructor <init>(kotlin/Double, kotlin/Double) // com.eignex.koblas.sparse.basis/BasisSolveQuality.<init>|<init>(kotlin.Double;kotlin.Double){}[0]
-
-    final val relativeResidual // com.eignex.koblas.sparse.basis/BasisSolveQuality.relativeResidual|{}relativeResidual[0]
-        final fun <get-relativeResidual>(): kotlin/Double // com.eignex.koblas.sparse.basis/BasisSolveQuality.relativeResidual.<get-relativeResidual>|<get-relativeResidual>(){}[0]
-    final val residualInfinityNorm // com.eignex.koblas.sparse.basis/BasisSolveQuality.residualInfinityNorm|{}residualInfinityNorm[0]
-        final fun <get-residualInfinityNorm>(): kotlin/Double // com.eignex.koblas.sparse.basis/BasisSolveQuality.residualInfinityNorm.<get-residualInfinityNorm>|<get-residualInfinityNorm>(){}[0]
-
-    final fun component1(): kotlin/Double // com.eignex.koblas.sparse.basis/BasisSolveQuality.component1|component1(){}[0]
-    final fun component2(): kotlin/Double // com.eignex.koblas.sparse.basis/BasisSolveQuality.component2|component2(){}[0]
-    final fun copy(kotlin/Double = ..., kotlin/Double = ...): com.eignex.koblas.sparse.basis/BasisSolveQuality // com.eignex.koblas.sparse.basis/BasisSolveQuality.copy|copy(kotlin.Double;kotlin.Double){}[0]
-    final fun equals(kotlin/Any?): kotlin/Boolean // com.eignex.koblas.sparse.basis/BasisSolveQuality.equals|equals(kotlin.Any?){}[0]
-    final fun hashCode(): kotlin/Int // com.eignex.koblas.sparse.basis/BasisSolveQuality.hashCode|hashCode(){}[0]
-    final fun toString(): kotlin/String // com.eignex.koblas.sparse.basis/BasisSolveQuality.toString|toString(){}[0]
-}
-
-final class com.eignex.koblas.sparse.basis/IndexedVector { // com.eignex.koblas.sparse.basis/IndexedVector|null[0]
-    constructor <init>(kotlin/Int) // com.eignex.koblas.sparse.basis/IndexedVector.<init>|<init>(kotlin.Int){}[0]
-
-    final val density // com.eignex.koblas.sparse.basis/IndexedVector.density|{}density[0]
-        final fun <get-density>(): kotlin/Double // com.eignex.koblas.sparse.basis/IndexedVector.density.<get-density>|<get-density>(){}[0]
-    final val indices // com.eignex.koblas.sparse.basis/IndexedVector.indices|{}indices[0]
-        final fun <get-indices>(): kotlin/IntArray // com.eignex.koblas.sparse.basis/IndexedVector.indices.<get-indices>|<get-indices>(){}[0]
-    final val size // com.eignex.koblas.sparse.basis/IndexedVector.size|{}size[0]
-        final fun <get-size>(): kotlin/Int // com.eignex.koblas.sparse.basis/IndexedVector.size.<get-size>|<get-size>(){}[0]
-    final val values // com.eignex.koblas.sparse.basis/IndexedVector.values|{}values[0]
-        final fun <get-values>(): kotlin/DoubleArray // com.eignex.koblas.sparse.basis/IndexedVector.values.<get-values>|<get-values>(){}[0]
-
-    final var count // com.eignex.koblas.sparse.basis/IndexedVector.count|{}count[0]
-        final fun <get-count>(): kotlin/Int // com.eignex.koblas.sparse.basis/IndexedVector.count.<get-count>|<get-count>(){}[0]
-
-    final fun clear() // com.eignex.koblas.sparse.basis/IndexedVector.clear|clear(){}[0]
-    final fun gather(kotlin/DoubleArray): kotlin/DoubleArray // com.eignex.koblas.sparse.basis/IndexedVector.gather|gather(kotlin.DoubleArray){}[0]
-    final fun get(kotlin/Int): kotlin/Double // com.eignex.koblas.sparse.basis/IndexedVector.get|get(kotlin.Int){}[0]
-    final fun reindex() // com.eignex.koblas.sparse.basis/IndexedVector.reindex|reindex(){}[0]
-    final fun scatter(kotlin/DoubleArray) // com.eignex.koblas.sparse.basis/IndexedVector.scatter|scatter(kotlin.DoubleArray){}[0]
-    final fun scatterColumn(com.eignex.koblas/SparseMatrix, kotlin/Int) // com.eignex.koblas.sparse.basis/IndexedVector.scatterColumn|scatterColumn(com.eignex.koblas.SparseMatrix;kotlin.Int){}[0]
-    final fun store(kotlin/Int, kotlin/Double) // com.eignex.koblas.sparse.basis/IndexedVector.store|store(kotlin.Int;kotlin.Double){}[0]
-    final fun tighten(kotlin/Double = ...) // com.eignex.koblas.sparse.basis/IndexedVector.tighten|tighten(kotlin.Double){}[0]
-    final fun toDoubleArray(): kotlin/DoubleArray // com.eignex.koblas.sparse.basis/IndexedVector.toDoubleArray|toDoubleArray(){}[0]
-    final fun toString(): kotlin/String // com.eignex.koblas.sparse.basis/IndexedVector.toString|toString(){}[0]
-    final fun unit(kotlin/Int) // com.eignex.koblas.sparse.basis/IndexedVector.unit|unit(kotlin.Int){}[0]
-    final inline fun forEachStored(kotlin/Function2<kotlin/Int, kotlin/Double, kotlin/Unit>) // com.eignex.koblas.sparse.basis/IndexedVector.forEachStored|forEachStored(kotlin.Function2<kotlin.Int,kotlin.Double,kotlin.Unit>){}[0]
-}
-
-final class com.eignex.koblas.sparse.host.hfactor/HfactorConfig { // com.eignex.koblas.sparse.host.hfactor/HfactorConfig|null[0]
-    constructor <init>(com.eignex.koblas.sparse.host.hfactor/HfactorOptions) // com.eignex.koblas.sparse.host.hfactor/HfactorConfig.<init>|<init>(com.eignex.koblas.sparse.host.hfactor.HfactorOptions){}[0]
-    constructor <init>(kotlin/String? = ..., kotlin/Boolean = ..., kotlin/Double = ..., kotlin/Double = ..., com.eignex.koblas.sparse.host.hfactor/HfactorUpdateMethod = ...) // com.eignex.koblas.sparse.host.hfactor/HfactorConfig.<init>|<init>(kotlin.String?;kotlin.Boolean;kotlin.Double;kotlin.Double;com.eignex.koblas.sparse.host.hfactor.HfactorUpdateMethod){}[0]
-    constructor <init>(kotlin/String?, com.eignex.koblas.sparse.host.hfactor/HfactorOptions) // com.eignex.koblas.sparse.host.hfactor/HfactorConfig.<init>|<init>(kotlin.String?;com.eignex.koblas.sparse.host.hfactor.HfactorOptions){}[0]
-
-    final val equilibrate // com.eignex.koblas.sparse.host.hfactor/HfactorConfig.equilibrate|{}equilibrate[0]
-        final fun <get-equilibrate>(): kotlin/Boolean // com.eignex.koblas.sparse.host.hfactor/HfactorConfig.equilibrate.<get-equilibrate>|<get-equilibrate>(){}[0]
-    final val libraryPath // com.eignex.koblas.sparse.host.hfactor/HfactorConfig.libraryPath|{}libraryPath[0]
-        final fun <get-libraryPath>(): kotlin/String? // com.eignex.koblas.sparse.host.hfactor/HfactorConfig.libraryPath.<get-libraryPath>|<get-libraryPath>(){}[0]
-    final val options // com.eignex.koblas.sparse.host.hfactor/HfactorConfig.options|{}options[0]
-        final fun <get-options>(): com.eignex.koblas.sparse.host.hfactor/HfactorOptions // com.eignex.koblas.sparse.host.hfactor/HfactorConfig.options.<get-options>|<get-options>(){}[0]
-    final val pivotThreshold // com.eignex.koblas.sparse.host.hfactor/HfactorConfig.pivotThreshold|{}pivotThreshold[0]
-        final fun <get-pivotThreshold>(): kotlin/Double // com.eignex.koblas.sparse.host.hfactor/HfactorConfig.pivotThreshold.<get-pivotThreshold>|<get-pivotThreshold>(){}[0]
-    final val pivotTolerance // com.eignex.koblas.sparse.host.hfactor/HfactorConfig.pivotTolerance|{}pivotTolerance[0]
-        final fun <get-pivotTolerance>(): kotlin/Double // com.eignex.koblas.sparse.host.hfactor/HfactorConfig.pivotTolerance.<get-pivotTolerance>|<get-pivotTolerance>(){}[0]
-    final val updateMethod // com.eignex.koblas.sparse.host.hfactor/HfactorConfig.updateMethod|{}updateMethod[0]
-        final fun <get-updateMethod>(): com.eignex.koblas.sparse.host.hfactor/HfactorUpdateMethod // com.eignex.koblas.sparse.host.hfactor/HfactorConfig.updateMethod.<get-updateMethod>|<get-updateMethod>(){}[0]
-
-    final fun component1(): kotlin/String? // com.eignex.koblas.sparse.host.hfactor/HfactorConfig.component1|component1(){}[0]
-    final fun component2(): kotlin/Boolean // com.eignex.koblas.sparse.host.hfactor/HfactorConfig.component2|component2(){}[0]
-    final fun component3(): kotlin/Double // com.eignex.koblas.sparse.host.hfactor/HfactorConfig.component3|component3(){}[0]
-    final fun component4(): kotlin/Double // com.eignex.koblas.sparse.host.hfactor/HfactorConfig.component4|component4(){}[0]
-    final fun component5(): com.eignex.koblas.sparse.host.hfactor/HfactorUpdateMethod // com.eignex.koblas.sparse.host.hfactor/HfactorConfig.component5|component5(){}[0]
-    final fun copy(kotlin/String? = ..., kotlin/Boolean = ..., kotlin/Double = ..., kotlin/Double = ..., com.eignex.koblas.sparse.host.hfactor/HfactorUpdateMethod = ...): com.eignex.koblas.sparse.host.hfactor/HfactorConfig // com.eignex.koblas.sparse.host.hfactor/HfactorConfig.copy|copy(kotlin.String?;kotlin.Boolean;kotlin.Double;kotlin.Double;com.eignex.koblas.sparse.host.hfactor.HfactorUpdateMethod){}[0]
-    final fun equals(kotlin/Any?): kotlin/Boolean // com.eignex.koblas.sparse.host.hfactor/HfactorConfig.equals|equals(kotlin.Any?){}[0]
-    final fun hashCode(): kotlin/Int // com.eignex.koblas.sparse.host.hfactor/HfactorConfig.hashCode|hashCode(){}[0]
-    final fun toString(): kotlin/String // com.eignex.koblas.sparse.host.hfactor/HfactorConfig.toString|toString(){}[0]
-}
-
-final class com.eignex.koblas.sparse.host.hfactor/HfactorOptions { // com.eignex.koblas.sparse.host.hfactor/HfactorOptions|null[0]
-    constructor <init>(kotlin/Boolean = ..., kotlin/Double = ..., kotlin/Double = ..., com.eignex.koblas.sparse.host.hfactor/HfactorUpdateMethod = ...) // com.eignex.koblas.sparse.host.hfactor/HfactorOptions.<init>|<init>(kotlin.Boolean;kotlin.Double;kotlin.Double;com.eignex.koblas.sparse.host.hfactor.HfactorUpdateMethod){}[0]
-
-    final val equilibrate // com.eignex.koblas.sparse.host.hfactor/HfactorOptions.equilibrate|{}equilibrate[0]
-        final fun <get-equilibrate>(): kotlin/Boolean // com.eignex.koblas.sparse.host.hfactor/HfactorOptions.equilibrate.<get-equilibrate>|<get-equilibrate>(){}[0]
-    final val pivotThreshold // com.eignex.koblas.sparse.host.hfactor/HfactorOptions.pivotThreshold|{}pivotThreshold[0]
-        final fun <get-pivotThreshold>(): kotlin/Double // com.eignex.koblas.sparse.host.hfactor/HfactorOptions.pivotThreshold.<get-pivotThreshold>|<get-pivotThreshold>(){}[0]
-    final val pivotTolerance // com.eignex.koblas.sparse.host.hfactor/HfactorOptions.pivotTolerance|{}pivotTolerance[0]
-        final fun <get-pivotTolerance>(): kotlin/Double // com.eignex.koblas.sparse.host.hfactor/HfactorOptions.pivotTolerance.<get-pivotTolerance>|<get-pivotTolerance>(){}[0]
-    final val updateMethod // com.eignex.koblas.sparse.host.hfactor/HfactorOptions.updateMethod|{}updateMethod[0]
-        final fun <get-updateMethod>(): com.eignex.koblas.sparse.host.hfactor/HfactorUpdateMethod // com.eignex.koblas.sparse.host.hfactor/HfactorOptions.updateMethod.<get-updateMethod>|<get-updateMethod>(){}[0]
-
-    final fun component1(): kotlin/Boolean // com.eignex.koblas.sparse.host.hfactor/HfactorOptions.component1|component1(){}[0]
-    final fun component2(): kotlin/Double // com.eignex.koblas.sparse.host.hfactor/HfactorOptions.component2|component2(){}[0]
-    final fun component3(): kotlin/Double // com.eignex.koblas.sparse.host.hfactor/HfactorOptions.component3|component3(){}[0]
-    final fun component4(): com.eignex.koblas.sparse.host.hfactor/HfactorUpdateMethod // com.eignex.koblas.sparse.host.hfactor/HfactorOptions.component4|component4(){}[0]
-    final fun copy(kotlin/Boolean = ..., kotlin/Double = ..., kotlin/Double = ..., com.eignex.koblas.sparse.host.hfactor/HfactorUpdateMethod = ...): com.eignex.koblas.sparse.host.hfactor/HfactorOptions // com.eignex.koblas.sparse.host.hfactor/HfactorOptions.copy|copy(kotlin.Boolean;kotlin.Double;kotlin.Double;com.eignex.koblas.sparse.host.hfactor.HfactorUpdateMethod){}[0]
-    final fun equals(kotlin/Any?): kotlin/Boolean // com.eignex.koblas.sparse.host.hfactor/HfactorOptions.equals|equals(kotlin.Any?){}[0]
-    final fun hashCode(): kotlin/Int // com.eignex.koblas.sparse.host.hfactor/HfactorOptions.hashCode|hashCode(){}[0]
-    final fun toString(): kotlin/String // com.eignex.koblas.sparse.host.hfactor/HfactorOptions.toString|toString(){}[0]
-}
-
-final class com.eignex.koblas.sparse/FactorsNotExposed : kotlin/UnsupportedOperationException { // com.eignex.koblas.sparse/FactorsNotExposed|null[0]
-    constructor <init>(kotlin/String) // com.eignex.koblas.sparse/FactorsNotExposed.<init>|<init>(kotlin.String){}[0]
-}
-
-final class com.eignex.koblas.sparse/SingularSparseFactorization : com.eignex.koblas.sparse/SparseLuFactorization { // com.eignex.koblas.sparse/SingularSparseFactorization|null[0]
-    constructor <init>(kotlin/Int, kotlin/Int) // com.eignex.koblas.sparse/SingularSparseFactorization.<init>|<init>(kotlin.Int;kotlin.Int){}[0]
-
-    final val failedAt // com.eignex.koblas.sparse/SingularSparseFactorization.failedAt|{}failedAt[0]
-        final fun <get-failedAt>(): kotlin/Int // com.eignex.koblas.sparse/SingularSparseFactorization.failedAt.<get-failedAt>|<get-failedAt>(){}[0]
-    final val n // com.eignex.koblas.sparse/SingularSparseFactorization.n|{}n[0]
-        final fun <get-n>(): kotlin/Int // com.eignex.koblas.sparse/SingularSparseFactorization.n.<get-n>|<get-n>(){}[0]
-    final val nnz // com.eignex.koblas.sparse/SingularSparseFactorization.nnz|{}nnz[0]
-        final fun <get-nnz>(): kotlin/Int // com.eignex.koblas.sparse/SingularSparseFactorization.nnz.<get-nnz>|<get-nnz>(){}[0]
-    final val rcond // com.eignex.koblas.sparse/SingularSparseFactorization.rcond|{}rcond[0]
-        final fun <get-rcond>(): kotlin/Double // com.eignex.koblas.sparse/SingularSparseFactorization.rcond.<get-rcond>|<get-rcond>(){}[0]
-
-    final fun solveAllocation(kotlin/Boolean, kotlin/Boolean): com.eignex.koblas/AllocationCapability // com.eignex.koblas.sparse/SingularSparseFactorization.solveAllocation|solveAllocation(kotlin.Boolean;kotlin.Boolean){}[0]
-    final fun solveInto(kotlin/DoubleArray, kotlin/DoubleArray, kotlin/Boolean, com.eignex.koblas/Workspace?): kotlin/DoubleArray // com.eignex.koblas.sparse/SingularSparseFactorization.solveInto|solveInto(kotlin.DoubleArray;kotlin.DoubleArray;kotlin.Boolean;com.eignex.koblas.Workspace?){}[0]
 }
 
 final class com.eignex.koblas/AllocationCapability { // com.eignex.koblas/AllocationCapability|null[0]
@@ -760,136 +198,11 @@ final class com.eignex.koblas/AllocationPolicyRejectedException : kotlin/Illegal
         final fun <get-policy>(): com.eignex.koblas/AllocationPolicy // com.eignex.koblas/AllocationPolicyRejectedException.policy.<get-policy>|<get-policy>(){}[0]
 }
 
-final class com.eignex.koblas/BackendMetadata { // com.eignex.koblas/BackendMetadata|null[0]
-    constructor <init>(kotlin/String? = ..., kotlin/String? = ..., kotlin/String? = ..., kotlin.collections/Map<kotlin/String, kotlin/String> = ...) // com.eignex.koblas/BackendMetadata.<init>|<init>(kotlin.String?;kotlin.String?;kotlin.String?;kotlin.collections.Map<kotlin.String,kotlin.String>){}[0]
-
-    final val integerAbi // com.eignex.koblas/BackendMetadata.integerAbi|{}integerAbi[0]
-        final fun <get-integerAbi>(): kotlin/String? // com.eignex.koblas/BackendMetadata.integerAbi.<get-integerAbi>|<get-integerAbi>(){}[0]
-    final val options // com.eignex.koblas/BackendMetadata.options|{}options[0]
-        final fun <get-options>(): kotlin.collections/Map<kotlin/String, kotlin/String> // com.eignex.koblas/BackendMetadata.options.<get-options>|<get-options>(){}[0]
-    final val threading // com.eignex.koblas/BackendMetadata.threading|{}threading[0]
-        final fun <get-threading>(): kotlin/String? // com.eignex.koblas/BackendMetadata.threading.<get-threading>|<get-threading>(){}[0]
-    final val version // com.eignex.koblas/BackendMetadata.version|{}version[0]
-        final fun <get-version>(): kotlin/String? // com.eignex.koblas/BackendMetadata.version.<get-version>|<get-version>(){}[0]
-
-    final fun component1(): kotlin/String? // com.eignex.koblas/BackendMetadata.component1|component1(){}[0]
-    final fun component2(): kotlin/String? // com.eignex.koblas/BackendMetadata.component2|component2(){}[0]
-    final fun component3(): kotlin/String? // com.eignex.koblas/BackendMetadata.component3|component3(){}[0]
-    final fun component4(): kotlin.collections/Map<kotlin/String, kotlin/String> // com.eignex.koblas/BackendMetadata.component4|component4(){}[0]
-    final fun copy(kotlin/String? = ..., kotlin/String? = ..., kotlin/String? = ..., kotlin.collections/Map<kotlin/String, kotlin/String> = ...): com.eignex.koblas/BackendMetadata // com.eignex.koblas/BackendMetadata.copy|copy(kotlin.String?;kotlin.String?;kotlin.String?;kotlin.collections.Map<kotlin.String,kotlin.String>){}[0]
-    final fun equals(kotlin/Any?): kotlin/Boolean // com.eignex.koblas/BackendMetadata.equals|equals(kotlin.Any?){}[0]
-    final fun hashCode(): kotlin/Int // com.eignex.koblas/BackendMetadata.hashCode|hashCode(){}[0]
-    final fun toString(): kotlin/String // com.eignex.koblas/BackendMetadata.toString|toString(){}[0]
-}
-
-final class com.eignex.koblas/BackendRoute { // com.eignex.koblas/BackendRoute|null[0]
-    constructor <init>(com.eignex.koblas/RouteQuery, com.eignex.koblas/BackendStatus, com.eignex.koblas/BackendExecution, kotlin/String, com.eignex.koblas/BackendRouteReason, com.eignex.koblas/DispatchGate? = ...) // com.eignex.koblas/BackendRoute.<init>|<init>(com.eignex.koblas.RouteQuery;com.eignex.koblas.BackendStatus;com.eignex.koblas.BackendExecution;kotlin.String;com.eignex.koblas.BackendRouteReason;com.eignex.koblas.DispatchGate?){}[0]
-
-    final val accelerated // com.eignex.koblas/BackendRoute.accelerated|{}accelerated[0]
-        final fun <get-accelerated>(): kotlin/Boolean // com.eignex.koblas/BackendRoute.accelerated.<get-accelerated>|<get-accelerated>(){}[0]
-    final val execution // com.eignex.koblas/BackendRoute.execution|{}execution[0]
-        final fun <get-execution>(): com.eignex.koblas/BackendExecution // com.eignex.koblas/BackendRoute.execution.<get-execution>|<get-execution>(){}[0]
-    final val executor // com.eignex.koblas/BackendRoute.executor|{}executor[0]
-        final fun <get-executor>(): kotlin/String // com.eignex.koblas/BackendRoute.executor.<get-executor>|<get-executor>(){}[0]
-    final val gate // com.eignex.koblas/BackendRoute.gate|{}gate[0]
-        final fun <get-gate>(): com.eignex.koblas/DispatchGate? // com.eignex.koblas/BackendRoute.gate.<get-gate>|<get-gate>(){}[0]
-    final val query // com.eignex.koblas/BackendRoute.query|{}query[0]
-        final fun <get-query>(): com.eignex.koblas/RouteQuery // com.eignex.koblas/BackendRoute.query.<get-query>|<get-query>(){}[0]
-    final val reason // com.eignex.koblas/BackendRoute.reason|{}reason[0]
-        final fun <get-reason>(): com.eignex.koblas/BackendRouteReason // com.eignex.koblas/BackendRoute.reason.<get-reason>|<get-reason>(){}[0]
-    final val selected // com.eignex.koblas/BackendRoute.selected|{}selected[0]
-        final fun <get-selected>(): com.eignex.koblas/BackendStatus // com.eignex.koblas/BackendRoute.selected.<get-selected>|<get-selected>(){}[0]
-
-    final fun component1(): com.eignex.koblas/RouteQuery // com.eignex.koblas/BackendRoute.component1|component1(){}[0]
-    final fun component2(): com.eignex.koblas/BackendStatus // com.eignex.koblas/BackendRoute.component2|component2(){}[0]
-    final fun component3(): com.eignex.koblas/BackendExecution // com.eignex.koblas/BackendRoute.component3|component3(){}[0]
-    final fun component4(): kotlin/String // com.eignex.koblas/BackendRoute.component4|component4(){}[0]
-    final fun component5(): com.eignex.koblas/BackendRouteReason // com.eignex.koblas/BackendRoute.component5|component5(){}[0]
-    final fun component6(): com.eignex.koblas/DispatchGate? // com.eignex.koblas/BackendRoute.component6|component6(){}[0]
-    final fun copy(com.eignex.koblas/RouteQuery = ..., com.eignex.koblas/BackendStatus = ..., com.eignex.koblas/BackendExecution = ..., kotlin/String = ..., com.eignex.koblas/BackendRouteReason = ..., com.eignex.koblas/DispatchGate? = ...): com.eignex.koblas/BackendRoute // com.eignex.koblas/BackendRoute.copy|copy(com.eignex.koblas.RouteQuery;com.eignex.koblas.BackendStatus;com.eignex.koblas.BackendExecution;kotlin.String;com.eignex.koblas.BackendRouteReason;com.eignex.koblas.DispatchGate?){}[0]
-    final fun equals(kotlin/Any?): kotlin/Boolean // com.eignex.koblas/BackendRoute.equals|equals(kotlin.Any?){}[0]
-    final fun hashCode(): kotlin/Int // com.eignex.koblas/BackendRoute.hashCode|hashCode(){}[0]
-    final fun toString(): kotlin/String // com.eignex.koblas/BackendRoute.toString|toString(){}[0]
-}
-
-final class com.eignex.koblas/BackendRouteRejectedException : kotlin/IllegalStateException { // com.eignex.koblas/BackendRouteRejectedException|null[0]
-    constructor <init>(com.eignex.koblas/BackendRoute) // com.eignex.koblas/BackendRouteRejectedException.<init>|<init>(com.eignex.koblas.BackendRoute){}[0]
-
-    final val route // com.eignex.koblas/BackendRouteRejectedException.route|{}route[0]
-        final fun <get-route>(): com.eignex.koblas/BackendRoute // com.eignex.koblas/BackendRouteRejectedException.route.<get-route>|<get-route>(){}[0]
-}
-
-final class com.eignex.koblas/BackendStatus { // com.eignex.koblas/BackendStatus|null[0]
-    constructor <init>(com.eignex.koblas/BackendRole, kotlin/String, kotlin/Int, kotlin/Boolean, kotlin/Boolean, kotlin/Boolean, com.eignex.koblas/BackendMetadata, kotlin/String? = ...) // com.eignex.koblas/BackendStatus.<init>|<init>(com.eignex.koblas.BackendRole;kotlin.String;kotlin.Int;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean;com.eignex.koblas.BackendMetadata;kotlin.String?){}[0]
-
-    final val accelerated // com.eignex.koblas/BackendStatus.accelerated|{}accelerated[0]
-        final fun <get-accelerated>(): kotlin/Boolean // com.eignex.koblas/BackendStatus.accelerated.<get-accelerated>|<get-accelerated>(){}[0]
-    final val available // com.eignex.koblas/BackendStatus.available|{}available[0]
-        final fun <get-available>(): kotlin/Boolean // com.eignex.koblas/BackendStatus.available.<get-available>|<get-available>(){}[0]
-    final val metadata // com.eignex.koblas/BackendStatus.metadata|{}metadata[0]
-        final fun <get-metadata>(): com.eignex.koblas/BackendMetadata // com.eignex.koblas/BackendStatus.metadata.<get-metadata>|<get-metadata>(){}[0]
-    final val portable // com.eignex.koblas/BackendStatus.portable|{}portable[0]
-        final fun <get-portable>(): kotlin/Boolean // com.eignex.koblas/BackendStatus.portable.<get-portable>|<get-portable>(){}[0]
-    final val priority // com.eignex.koblas/BackendStatus.priority|{}priority[0]
-        final fun <get-priority>(): kotlin/Int // com.eignex.koblas/BackendStatus.priority.<get-priority>|<get-priority>(){}[0]
-    final val provider // com.eignex.koblas/BackendStatus.provider|{}provider[0]
-        final fun <get-provider>(): kotlin/String // com.eignex.koblas/BackendStatus.provider.<get-provider>|<get-provider>(){}[0]
-    final val role // com.eignex.koblas/BackendStatus.role|{}role[0]
-        final fun <get-role>(): com.eignex.koblas/BackendRole // com.eignex.koblas/BackendStatus.role.<get-role>|<get-role>(){}[0]
-    final val unavailableReason // com.eignex.koblas/BackendStatus.unavailableReason|{}unavailableReason[0]
-        final fun <get-unavailableReason>(): kotlin/String? // com.eignex.koblas/BackendStatus.unavailableReason.<get-unavailableReason>|<get-unavailableReason>(){}[0]
-
-    final fun component1(): com.eignex.koblas/BackendRole // com.eignex.koblas/BackendStatus.component1|component1(){}[0]
-    final fun component2(): kotlin/String // com.eignex.koblas/BackendStatus.component2|component2(){}[0]
-    final fun component3(): kotlin/Int // com.eignex.koblas/BackendStatus.component3|component3(){}[0]
-    final fun component4(): kotlin/Boolean // com.eignex.koblas/BackendStatus.component4|component4(){}[0]
-    final fun component5(): kotlin/Boolean // com.eignex.koblas/BackendStatus.component5|component5(){}[0]
-    final fun component6(): kotlin/Boolean // com.eignex.koblas/BackendStatus.component6|component6(){}[0]
-    final fun component7(): com.eignex.koblas/BackendMetadata // com.eignex.koblas/BackendStatus.component7|component7(){}[0]
-    final fun component8(): kotlin/String? // com.eignex.koblas/BackendStatus.component8|component8(){}[0]
-    final fun copy(com.eignex.koblas/BackendRole = ..., kotlin/String = ..., kotlin/Int = ..., kotlin/Boolean = ..., kotlin/Boolean = ..., kotlin/Boolean = ..., com.eignex.koblas/BackendMetadata = ..., kotlin/String? = ...): com.eignex.koblas/BackendStatus // com.eignex.koblas/BackendStatus.copy|copy(com.eignex.koblas.BackendRole;kotlin.String;kotlin.Int;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean;com.eignex.koblas.BackendMetadata;kotlin.String?){}[0]
-    final fun equals(kotlin/Any?): kotlin/Boolean // com.eignex.koblas/BackendStatus.equals|equals(kotlin.Any?){}[0]
-    final fun hashCode(): kotlin/Int // com.eignex.koblas/BackendStatus.hashCode|hashCode(){}[0]
-    final fun toString(): kotlin/String // com.eignex.koblas/BackendStatus.toString|toString(){}[0]
-}
-
 final class com.eignex.koblas/BuiltinKernelProvider { // com.eignex.koblas/BuiltinKernelProvider|null[0]
     final val kernels // com.eignex.koblas/BuiltinKernelProvider.kernels|{}kernels[0]
         final fun <get-kernels>(): com.eignex.koblas.dense/Kernels // com.eignex.koblas/BuiltinKernelProvider.kernels.<get-kernels>|<get-kernels>(){}[0]
     final val sparseKernels // com.eignex.koblas/BuiltinKernelProvider.sparseKernels|{}sparseKernels[0]
         final fun <get-sparseKernels>(): com.eignex.koblas.sparse/SparseKernels // com.eignex.koblas/BuiltinKernelProvider.sparseKernels.<get-sparseKernels>|<get-sparseKernels>(){}[0]
-}
-
-final class com.eignex.koblas/ContextBuilder { // com.eignex.koblas/ContextBuilder|null[0]
-    constructor <init>() // com.eignex.koblas/ContextBuilder.<init>|<init>(){}[0]
-    constructor <init>(com.eignex.koblas/KoblasContext) // com.eignex.koblas/ContextBuilder.<init>|<init>(com.eignex.koblas.KoblasContext){}[0]
-
-    final val dispatchPolicy // com.eignex.koblas/ContextBuilder.dispatchPolicy|{}dispatchPolicy[0]
-        final fun <get-dispatchPolicy>(): com.eignex.koblas/DispatchPolicy // com.eignex.koblas/ContextBuilder.dispatchPolicy.<get-dispatchPolicy>|<get-dispatchPolicy>(){}[0]
-    final val fallbackPolicy // com.eignex.koblas/ContextBuilder.fallbackPolicy|{}fallbackPolicy[0]
-        final fun <get-fallbackPolicy>(): com.eignex.koblas/FallbackPolicy // com.eignex.koblas/ContextBuilder.fallbackPolicy.<get-fallbackPolicy>|<get-fallbackPolicy>(){}[0]
-
-    final fun onFallback(kotlin/Function1<com.eignex.koblas/BackendRoute, kotlin/Unit>): com.eignex.koblas/ContextBuilder // com.eignex.koblas/ContextBuilder.onFallback|onFallback(kotlin.Function1<com.eignex.koblas.BackendRoute,kotlin.Unit>){}[0]
-    final fun resolve(): com.eignex.koblas/KoblasContext // com.eignex.koblas/ContextBuilder.resolve|resolve(){}[0]
-    final fun withBackend(com.eignex.koblas/Backend): com.eignex.koblas/ContextBuilder // com.eignex.koblas/ContextBuilder.withBackend|withBackend(com.eignex.koblas.Backend){}[0]
-    final fun withBackend(com.eignex.koblas/BackendRole, com.eignex.koblas/Backend): com.eignex.koblas/ContextBuilder // com.eignex.koblas/ContextBuilder.withBackend|withBackend(com.eignex.koblas.BackendRole;com.eignex.koblas.Backend){}[0]
-    final fun withBuiltinKernels(com.eignex.koblas/BuiltinKernelProvider): com.eignex.koblas/ContextBuilder // com.eignex.koblas/ContextBuilder.withBuiltinKernels|withBuiltinKernels(com.eignex.koblas.BuiltinKernelProvider){}[0]
-    final fun withDispatchPolicy(com.eignex.koblas/DispatchPolicy): com.eignex.koblas/ContextBuilder // com.eignex.koblas/ContextBuilder.withDispatchPolicy|withDispatchPolicy(com.eignex.koblas.DispatchPolicy){}[0]
-    final fun withFallbackPolicy(com.eignex.koblas/FallbackPolicy): com.eignex.koblas/ContextBuilder // com.eignex.koblas/ContextBuilder.withFallbackPolicy|withFallbackPolicy(com.eignex.koblas.FallbackPolicy){}[0]
-}
-
-final class com.eignex.koblas/ContextStatus { // com.eignex.koblas/ContextStatus|null[0]
-    constructor <init>(kotlin.collections/List<com.eignex.koblas/BackendStatus>) // com.eignex.koblas/ContextStatus.<init>|<init>(kotlin.collections.List<com.eignex.koblas.BackendStatus>){}[0]
-
-    final val backends // com.eignex.koblas/ContextStatus.backends|{}backends[0]
-        final fun <get-backends>(): kotlin.collections/List<com.eignex.koblas/BackendStatus> // com.eignex.koblas/ContextStatus.backends.<get-backends>|<get-backends>(){}[0]
-
-    final fun component1(): kotlin.collections/List<com.eignex.koblas/BackendStatus> // com.eignex.koblas/ContextStatus.component1|component1(){}[0]
-    final fun copy(kotlin.collections/List<com.eignex.koblas/BackendStatus> = ...): com.eignex.koblas/ContextStatus // com.eignex.koblas/ContextStatus.copy|copy(kotlin.collections.List<com.eignex.koblas.BackendStatus>){}[0]
-    final fun equals(kotlin/Any?): kotlin/Boolean // com.eignex.koblas/ContextStatus.equals|equals(kotlin.Any?){}[0]
-    final fun get(com.eignex.koblas/BackendRole): com.eignex.koblas/BackendStatus // com.eignex.koblas/ContextStatus.get|get(com.eignex.koblas.BackendRole){}[0]
-    final fun hashCode(): kotlin/Int // com.eignex.koblas/ContextStatus.hashCode|hashCode(){}[0]
-    final fun toString(): kotlin/String // com.eignex.koblas/ContextStatus.toString|toString(){}[0]
 }
 
 final class com.eignex.koblas/DenseMatrix : com.eignex.koblas/MatrixStorage { // com.eignex.koblas/DenseMatrix|null[0]
@@ -961,25 +274,6 @@ final class com.eignex.koblas/DimensionMismatch : kotlin/IllegalArgumentExceptio
     constructor <init>(kotlin/String) // com.eignex.koblas/DimensionMismatch.<init>|<init>(kotlin.String){}[0]
 }
 
-final class com.eignex.koblas/DispatchGate { // com.eignex.koblas/DispatchGate|null[0]
-    constructor <init>(com.eignex.koblas/DispatchMetric, kotlin/Long, kotlin/Long) // com.eignex.koblas/DispatchGate.<init>|<init>(com.eignex.koblas.DispatchMetric;kotlin.Long;kotlin.Long){}[0]
-
-    final val actual // com.eignex.koblas/DispatchGate.actual|{}actual[0]
-        final fun <get-actual>(): kotlin/Long // com.eignex.koblas/DispatchGate.actual.<get-actual>|<get-actual>(){}[0]
-    final val metric // com.eignex.koblas/DispatchGate.metric|{}metric[0]
-        final fun <get-metric>(): com.eignex.koblas/DispatchMetric // com.eignex.koblas/DispatchGate.metric.<get-metric>|<get-metric>(){}[0]
-    final val minimum // com.eignex.koblas/DispatchGate.minimum|{}minimum[0]
-        final fun <get-minimum>(): kotlin/Long // com.eignex.koblas/DispatchGate.minimum.<get-minimum>|<get-minimum>(){}[0]
-
-    final fun component1(): com.eignex.koblas/DispatchMetric // com.eignex.koblas/DispatchGate.component1|component1(){}[0]
-    final fun component2(): kotlin/Long // com.eignex.koblas/DispatchGate.component2|component2(){}[0]
-    final fun component3(): kotlin/Long // com.eignex.koblas/DispatchGate.component3|component3(){}[0]
-    final fun copy(com.eignex.koblas/DispatchMetric = ..., kotlin/Long = ..., kotlin/Long = ...): com.eignex.koblas/DispatchGate // com.eignex.koblas/DispatchGate.copy|copy(com.eignex.koblas.DispatchMetric;kotlin.Long;kotlin.Long){}[0]
-    final fun equals(kotlin/Any?): kotlin/Boolean // com.eignex.koblas/DispatchGate.equals|equals(kotlin.Any?){}[0]
-    final fun hashCode(): kotlin/Int // com.eignex.koblas/DispatchGate.hashCode|hashCode(){}[0]
-    final fun toString(): kotlin/String // com.eignex.koblas/DispatchGate.toString|toString(){}[0]
-}
-
 final class com.eignex.koblas/Givens { // com.eignex.koblas/Givens|null[0]
     final val c // com.eignex.koblas/Givens.c|{}c[0]
         final fun <get-c>(): kotlin/Double // com.eignex.koblas/Givens.c.<get-c>|<get-c>(){}[0]
@@ -989,38 +283,18 @@ final class com.eignex.koblas/Givens { // com.eignex.koblas/Givens|null[0]
         final fun <get-s>(): kotlin/Double // com.eignex.koblas/Givens.s.<get-s>|<get-s>(){}[0]
 }
 
-final class com.eignex.koblas/KoblasContext : com.eignex.koblas.dense/Blas, com.eignex.koblas.sparse.basis/BasisSolvers, com.eignex.koblas.sparse/GeneralSparseLu, com.eignex.koblas.sparse/SparseBlas, com.eignex.koblas.sparse/SparseLinearAlgebra { // com.eignex.koblas/KoblasContext|null[0]
-    constructor <init>(com.eignex.koblas.dense/Kernels, com.eignex.koblas.dense/Blas, com.eignex.koblas.sparse/SparseKernels, com.eignex.koblas.sparse/SparseBlas, com.eignex.koblas.sparse/GeneralSparseLu, com.eignex.koblas.sparse.basis/BasisSolvers) // com.eignex.koblas/KoblasContext.<init>|<init>(com.eignex.koblas.dense.Kernels;com.eignex.koblas.dense.Blas;com.eignex.koblas.sparse.SparseKernels;com.eignex.koblas.sparse.SparseBlas;com.eignex.koblas.sparse.GeneralSparseLu;com.eignex.koblas.sparse.basis.BasisSolvers){}[0]
-
-    final val basisSolvers // com.eignex.koblas/KoblasContext.basisSolvers|{}basisSolvers[0]
-        final fun <get-basisSolvers>(): com.eignex.koblas.sparse.basis/BasisSolvers // com.eignex.koblas/KoblasContext.basisSolvers.<get-basisSolvers>|<get-basisSolvers>(){}[0]
+final class com.eignex.koblas/KoblasContext : com.eignex.koblas.dense/Blas, com.eignex.koblas.sparse/SparseBlas { // com.eignex.koblas/KoblasContext|null[0]
     final val blas // com.eignex.koblas/KoblasContext.blas|{}blas[0]
         final fun <get-blas>(): com.eignex.koblas.dense/Blas // com.eignex.koblas/KoblasContext.blas.<get-blas>|<get-blas>(){}[0]
-    final val dispatchPolicy // com.eignex.koblas/KoblasContext.dispatchPolicy|{}dispatchPolicy[0]
-        final fun <get-dispatchPolicy>(): com.eignex.koblas/DispatchPolicy // com.eignex.koblas/KoblasContext.dispatchPolicy.<get-dispatchPolicy>|<get-dispatchPolicy>(){}[0]
-    final val fallbackPolicy // com.eignex.koblas/KoblasContext.fallbackPolicy|{}fallbackPolicy[0]
-        final fun <get-fallbackPolicy>(): com.eignex.koblas/FallbackPolicy // com.eignex.koblas/KoblasContext.fallbackPolicy.<get-fallbackPolicy>|<get-fallbackPolicy>(){}[0]
-    final val generalSparseLu // com.eignex.koblas/KoblasContext.generalSparseLu|{}generalSparseLu[0]
-        final fun <get-generalSparseLu>(): com.eignex.koblas.sparse/GeneralSparseLu // com.eignex.koblas/KoblasContext.generalSparseLu.<get-generalSparseLu>|<get-generalSparseLu>(){}[0]
-    final val isAvailable // com.eignex.koblas/KoblasContext.isAvailable|{}isAvailable[0]
-        final fun <get-isAvailable>(): kotlin/Boolean // com.eignex.koblas/KoblasContext.isAvailable.<get-isAvailable>|<get-isAvailable>(){}[0]
-    final val isPortable // com.eignex.koblas/KoblasContext.isPortable|{}isPortable[0]
-        final fun <get-isPortable>(): kotlin/Boolean // com.eignex.koblas/KoblasContext.isPortable.<get-isPortable>|<get-isPortable>(){}[0]
     final val kernels // com.eignex.koblas/KoblasContext.kernels|{}kernels[0]
         final fun <get-kernels>(): com.eignex.koblas.dense/Kernels // com.eignex.koblas/KoblasContext.kernels.<get-kernels>|<get-kernels>(){}[0]
     final val name // com.eignex.koblas/KoblasContext.name|{}name[0]
         final fun <get-name>(): kotlin/String // com.eignex.koblas/KoblasContext.name.<get-name>|<get-name>(){}[0]
-    final val priority // com.eignex.koblas/KoblasContext.priority|{}priority[0]
-        final fun <get-priority>(): kotlin/Int // com.eignex.koblas/KoblasContext.priority.<get-priority>|<get-priority>(){}[0]
     final val sparseBlas // com.eignex.koblas/KoblasContext.sparseBlas|{}sparseBlas[0]
         final fun <get-sparseBlas>(): com.eignex.koblas.sparse/SparseBlas // com.eignex.koblas/KoblasContext.sparseBlas.<get-sparseBlas>|<get-sparseBlas>(){}[0]
     final val sparseKernels // com.eignex.koblas/KoblasContext.sparseKernels|{}sparseKernels[0]
         final fun <get-sparseKernels>(): com.eignex.koblas.sparse/SparseKernels // com.eignex.koblas/KoblasContext.sparseKernels.<get-sparseKernels>|<get-sparseKernels>(){}[0]
-    final val unavailableReason // com.eignex.koblas/KoblasContext.unavailableReason|{}unavailableReason[0]
-        final fun <get-unavailableReason>(): kotlin/String? // com.eignex.koblas/KoblasContext.unavailableReason.<get-unavailableReason>|<get-unavailableReason>(){}[0]
 
-    final fun basisSolver(com.eignex.koblas/SparseMatrix): com.eignex.koblas.sparse.basis/BasisSolver // com.eignex.koblas/KoblasContext.basisSolver|basisSolver(com.eignex.koblas.SparseMatrix){}[0]
-    final fun factor(com.eignex.koblas/SparseMatrix): com.eignex.koblas.sparse/SparseLuFactorization // com.eignex.koblas/KoblasContext.factor|factor(com.eignex.koblas.SparseMatrix){}[0]
     final fun gemm(com.eignex.koblas/DenseMatrix, com.eignex.koblas/DenseMatrix): com.eignex.koblas/DenseMatrix // com.eignex.koblas/KoblasContext.gemm|gemm(com.eignex.koblas.DenseMatrix;com.eignex.koblas.DenseMatrix){}[0]
     final fun gemm(com.eignex.koblas/SparseMatrix, com.eignex.koblas/DenseMatrix): com.eignex.koblas/DenseMatrix // com.eignex.koblas/KoblasContext.gemm|gemm(com.eignex.koblas.SparseMatrix;com.eignex.koblas.DenseMatrix){}[0]
     final fun gemm(com.eignex.koblas/SparseMatrix, com.eignex.koblas/SparseMatrix): com.eignex.koblas/SparseMatrix // com.eignex.koblas/KoblasContext.gemm|gemm(com.eignex.koblas.SparseMatrix;com.eignex.koblas.SparseMatrix){}[0]
@@ -1053,7 +327,6 @@ final class com.eignex.koblas/KoblasContext : com.eignex.koblas.dense/Blas, com.
     final fun trsm(com.eignex.koblas/SparseMatrix, com.eignex.koblas/DenseMatrix, kotlin/Boolean, kotlin/Boolean, kotlin/Boolean, kotlin/Boolean, kotlin/Double, com.eignex.koblas/Workspace?) // com.eignex.koblas/KoblasContext.trsm|trsm(com.eignex.koblas.SparseMatrix;com.eignex.koblas.DenseMatrix;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean;kotlin.Double;com.eignex.koblas.Workspace?){}[0]
     final fun trsv(com.eignex.koblas/DenseMatrix, kotlin/DoubleArray, kotlin/Boolean, kotlin/Boolean, kotlin/Boolean) // com.eignex.koblas/KoblasContext.trsv|trsv(com.eignex.koblas.DenseMatrix;kotlin.DoubleArray;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean){}[0]
     final fun trsv(com.eignex.koblas/SparseMatrix, kotlin/DoubleArray, kotlin/Boolean, kotlin/Boolean, kotlin/Boolean) // com.eignex.koblas/KoblasContext.trsv|trsv(com.eignex.koblas.SparseMatrix;kotlin.DoubleArray;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean){}[0]
-    final fun with(com.eignex.koblas.dense/Kernels = ..., com.eignex.koblas.dense/Blas = ..., com.eignex.koblas.sparse/SparseKernels = ..., com.eignex.koblas.sparse/SparseBlas = ..., com.eignex.koblas.sparse/GeneralSparseLu = ..., com.eignex.koblas.sparse.basis/BasisSolvers = ...): com.eignex.koblas/KoblasContext // com.eignex.koblas/KoblasContext.with|with(com.eignex.koblas.dense.Kernels;com.eignex.koblas.dense.Blas;com.eignex.koblas.sparse.SparseKernels;com.eignex.koblas.sparse.SparseBlas;com.eignex.koblas.sparse.GeneralSparseLu;com.eignex.koblas.sparse.basis.BasisSolvers){}[0]
 }
 
 final class com.eignex.koblas/ModifiedGivens { // com.eignex.koblas/ModifiedGivens|null[0]
@@ -1082,22 +355,6 @@ final class com.eignex.koblas/NotPositiveDefinite : com.eignex.koblas/KoblasExce
         final fun <get-pivot>(): kotlin/Double // com.eignex.koblas/NotPositiveDefinite.pivot.<get-pivot>|<get-pivot>(){}[0]
     final val position // com.eignex.koblas/NotPositiveDefinite.position|{}position[0]
         final fun <get-position>(): kotlin/Int // com.eignex.koblas/NotPositiveDefinite.position.<get-position>|<get-position>(){}[0]
-}
-
-final class com.eignex.koblas/RoutePlan { // com.eignex.koblas/RoutePlan|null[0]
-    constructor <init>(com.eignex.koblas/BackendRoute, com.eignex.koblas/BackendPolicyDecision) // com.eignex.koblas/RoutePlan.<init>|<init>(com.eignex.koblas.BackendRoute;com.eignex.koblas.BackendPolicyDecision){}[0]
-
-    final val decision // com.eignex.koblas/RoutePlan.decision|{}decision[0]
-        final fun <get-decision>(): com.eignex.koblas/BackendPolicyDecision // com.eignex.koblas/RoutePlan.decision.<get-decision>|<get-decision>(){}[0]
-    final val route // com.eignex.koblas/RoutePlan.route|{}route[0]
-        final fun <get-route>(): com.eignex.koblas/BackendRoute // com.eignex.koblas/RoutePlan.route.<get-route>|<get-route>(){}[0]
-
-    final fun component1(): com.eignex.koblas/BackendRoute // com.eignex.koblas/RoutePlan.component1|component1(){}[0]
-    final fun component2(): com.eignex.koblas/BackendPolicyDecision // com.eignex.koblas/RoutePlan.component2|component2(){}[0]
-    final fun copy(com.eignex.koblas/BackendRoute = ..., com.eignex.koblas/BackendPolicyDecision = ...): com.eignex.koblas/RoutePlan // com.eignex.koblas/RoutePlan.copy|copy(com.eignex.koblas.BackendRoute;com.eignex.koblas.BackendPolicyDecision){}[0]
-    final fun equals(kotlin/Any?): kotlin/Boolean // com.eignex.koblas/RoutePlan.equals|equals(kotlin.Any?){}[0]
-    final fun hashCode(): kotlin/Int // com.eignex.koblas/RoutePlan.hashCode|hashCode(){}[0]
-    final fun toString(): kotlin/String // com.eignex.koblas/RoutePlan.toString|toString(){}[0]
 }
 
 final class com.eignex.koblas/ScratchRequirement { // com.eignex.koblas/ScratchRequirement|null[0]
@@ -1250,38 +507,6 @@ final class com.eignex.koblas/Workspace { // com.eignex.koblas/Workspace|null[0]
     final fun takeI32(kotlin/Int): kotlin/IntArray // com.eignex.koblas/Workspace.takeI32|takeI32(kotlin.Int){}[0]
 }
 
-open class com.eignex.koblas.sparse/ReferenceSparseBackend : com.eignex.koblas.sparse.basis/BasisSolvers, com.eignex.koblas.sparse/GeneralSparseLu, com.eignex.koblas.sparse/SparseKernels, com.eignex.koblas.sparse/SparseLinearAlgebra, com.eignex.koblas/RebindableBackend { // com.eignex.koblas.sparse/ReferenceSparseBackend|null[0]
-    constructor <init>(com.eignex.koblas.dense/Kernels? = ...) // com.eignex.koblas.sparse/ReferenceSparseBackend.<init>|<init>(com.eignex.koblas.dense.Kernels?){}[0]
-
-    final val configuredKernels // com.eignex.koblas.sparse/ReferenceSparseBackend.configuredKernels|{}configuredKernels[0]
-        final fun <get-configuredKernels>(): com.eignex.koblas.dense/Kernels? // com.eignex.koblas.sparse/ReferenceSparseBackend.configuredKernels.<get-configuredKernels>|<get-configuredKernels>(){}[0]
-    open val hasOwnKernels // com.eignex.koblas.sparse/ReferenceSparseBackend.hasOwnKernels|{}hasOwnKernels[0]
-        open fun <get-hasOwnKernels>(): kotlin/Boolean // com.eignex.koblas.sparse/ReferenceSparseBackend.hasOwnKernels.<get-hasOwnKernels>|<get-hasOwnKernels>(){}[0]
-    open val isPortable // com.eignex.koblas.sparse/ReferenceSparseBackend.isPortable|{}isPortable[0]
-        open fun <get-isPortable>(): kotlin/Boolean // com.eignex.koblas.sparse/ReferenceSparseBackend.isPortable.<get-isPortable>|<get-isPortable>(){}[0]
-    open val name // com.eignex.koblas.sparse/ReferenceSparseBackend.name|{}name[0]
-        open fun <get-name>(): kotlin/String // com.eignex.koblas.sparse/ReferenceSparseBackend.name.<get-name>|<get-name>(){}[0]
-
-    open fun asum(com.eignex.koblas/SparseVector): kotlin/Double // com.eignex.koblas.sparse/ReferenceSparseBackend.asum|asum(com.eignex.koblas.SparseVector){}[0]
-    open fun axpy(kotlin/DoubleArray, kotlin/Double, com.eignex.koblas/SparseVector) // com.eignex.koblas.sparse/ReferenceSparseBackend.axpy|axpy(kotlin.DoubleArray;kotlin.Double;com.eignex.koblas.SparseVector){}[0]
-    open fun basisSolver(com.eignex.koblas/SparseMatrix): com.eignex.koblas.sparse.basis/BasisSolver // com.eignex.koblas.sparse/ReferenceSparseBackend.basisSolver|basisSolver(com.eignex.koblas.SparseMatrix){}[0]
-    open fun dot(com.eignex.koblas/SparseVector, com.eignex.koblas/SparseVector): kotlin/Double // com.eignex.koblas.sparse/ReferenceSparseBackend.dot|dot(com.eignex.koblas.SparseVector;com.eignex.koblas.SparseVector){}[0]
-    open fun dot(com.eignex.koblas/SparseVector, kotlin/DoubleArray): kotlin/Double // com.eignex.koblas.sparse/ReferenceSparseBackend.dot|dot(com.eignex.koblas.SparseVector;kotlin.DoubleArray){}[0]
-    open fun factor(com.eignex.koblas/SparseMatrix): com.eignex.koblas.sparse/SparseLuFactorization // com.eignex.koblas.sparse/ReferenceSparseBackend.factor|factor(com.eignex.koblas.SparseMatrix){}[0]
-    open fun gather(com.eignex.koblas/SparseVector, kotlin/DoubleArray) // com.eignex.koblas.sparse/ReferenceSparseBackend.gather|gather(com.eignex.koblas.SparseVector;kotlin.DoubleArray){}[0]
-    open fun gatherZero(com.eignex.koblas/SparseVector, kotlin/DoubleArray) // com.eignex.koblas.sparse/ReferenceSparseBackend.gatherZero|gatherZero(com.eignex.koblas.SparseVector;kotlin.DoubleArray){}[0]
-    open fun gemm(com.eignex.koblas/SparseMatrix, com.eignex.koblas/SparseMatrix): com.eignex.koblas/SparseMatrix // com.eignex.koblas.sparse/ReferenceSparseBackend.gemm|gemm(com.eignex.koblas.SparseMatrix;com.eignex.koblas.SparseMatrix){}[0]
-    open fun gemm(kotlin/Double, com.eignex.koblas/SparseMatrix, kotlin/Boolean, com.eignex.koblas/DenseMatrix, kotlin/Boolean, kotlin/Double, com.eignex.koblas/DenseMatrix, kotlin/Boolean, com.eignex.koblas/Workspace?) // com.eignex.koblas.sparse/ReferenceSparseBackend.gemm|gemm(kotlin.Double;com.eignex.koblas.SparseMatrix;kotlin.Boolean;com.eignex.koblas.DenseMatrix;kotlin.Boolean;kotlin.Double;com.eignex.koblas.DenseMatrix;kotlin.Boolean;com.eignex.koblas.Workspace?){}[0]
-    open fun gemv(kotlin/Double, com.eignex.koblas/SparseMatrix, kotlin/DoubleArray, kotlin/Double, kotlin/DoubleArray, kotlin/Boolean) // com.eignex.koblas.sparse/ReferenceSparseBackend.gemv|gemv(kotlin.Double;com.eignex.koblas.SparseMatrix;kotlin.DoubleArray;kotlin.Double;kotlin.DoubleArray;kotlin.Boolean){}[0]
-    open fun nrm2(com.eignex.koblas/SparseVector): kotlin/Double // com.eignex.koblas.sparse/ReferenceSparseBackend.nrm2|nrm2(com.eignex.koblas.SparseVector){}[0]
-    open fun scatter(com.eignex.koblas/SparseVector, kotlin/DoubleArray) // com.eignex.koblas.sparse/ReferenceSparseBackend.scatter|scatter(com.eignex.koblas.SparseVector;kotlin.DoubleArray){}[0]
-    open fun transpose(com.eignex.koblas/SparseMatrix): com.eignex.koblas/SparseMatrix // com.eignex.koblas.sparse/ReferenceSparseBackend.transpose|transpose(com.eignex.koblas.SparseMatrix){}[0]
-    open fun trmm(com.eignex.koblas/SparseMatrix, com.eignex.koblas/DenseMatrix, kotlin/Boolean, kotlin/Boolean, kotlin/Boolean, kotlin/Boolean, kotlin/Double) // com.eignex.koblas.sparse/ReferenceSparseBackend.trmm|trmm(com.eignex.koblas.SparseMatrix;com.eignex.koblas.DenseMatrix;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean;kotlin.Double){}[0]
-    open fun trmv(com.eignex.koblas/SparseMatrix, kotlin/DoubleArray, kotlin/Boolean, kotlin/Boolean, kotlin/Boolean) // com.eignex.koblas.sparse/ReferenceSparseBackend.trmv|trmv(com.eignex.koblas.SparseMatrix;kotlin.DoubleArray;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean){}[0]
-    open fun trsm(com.eignex.koblas/SparseMatrix, com.eignex.koblas/DenseMatrix, kotlin/Boolean, kotlin/Boolean, kotlin/Boolean, kotlin/Boolean, kotlin/Double, com.eignex.koblas/Workspace?) // com.eignex.koblas.sparse/ReferenceSparseBackend.trsm|trsm(com.eignex.koblas.SparseMatrix;com.eignex.koblas.DenseMatrix;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean;kotlin.Double;com.eignex.koblas.Workspace?){}[0]
-    open fun trsv(com.eignex.koblas/SparseMatrix, kotlin/DoubleArray, kotlin/Boolean, kotlin/Boolean, kotlin/Boolean) // com.eignex.koblas.sparse/ReferenceSparseBackend.trsv|trsv(com.eignex.koblas.SparseMatrix;kotlin.DoubleArray;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean){}[0]
-}
-
 sealed class com.eignex.koblas/KoblasException : kotlin/ArithmeticException // com.eignex.koblas/KoblasException|null[0]
 
 final object com.eignex.koblas.dense/PackedPanels { // com.eignex.koblas.dense/PackedPanels|null[0]
@@ -1306,8 +531,6 @@ final object com.eignex.koblas.dense/PackedPanels { // com.eignex.koblas.dense/P
     final fun writeRight(kotlin/DoubleArray, com.eignex.koblas/DenseMatrix, kotlin/Int, kotlin/Int, kotlin/Int = ..., kotlin/Int = ..., kotlin/Int = ..., kotlin/Boolean = ..., com.eignex.koblas/Workspace? = ...) // com.eignex.koblas.dense/PackedPanels.writeRight|writeRight(kotlin.DoubleArray;com.eignex.koblas.DenseMatrix;kotlin.Int;kotlin.Int;kotlin.Int;kotlin.Int;kotlin.Int;kotlin.Boolean;com.eignex.koblas.Workspace?){}[0]
 }
 
-final object com.eignex.koblas.sparse/ReferenceSparseLinearAlgebra : com.eignex.koblas.sparse/ReferenceSparseBackend // com.eignex.koblas.sparse/ReferenceSparseLinearAlgebra|null[0]
-
 final object com.eignex.koblas.sparse/SparseWorkspace { // com.eignex.koblas.sparse/SparseWorkspace|null[0]
     final const val SCATTER_NONFINITE // com.eignex.koblas.sparse/SparseWorkspace.SCATTER_NONFINITE|{}SCATTER_NONFINITE[0]
         final fun <get-SCATTER_NONFINITE>(): kotlin/Int // com.eignex.koblas.sparse/SparseWorkspace.SCATTER_NONFINITE.<get-SCATTER_NONFINITE>|<get-SCATTER_NONFINITE>(){}[0]
@@ -1331,33 +554,16 @@ final object com.eignex.koblas/BuiltinKernels { // com.eignex.koblas/BuiltinKern
         final fun <get-simd>(): com.eignex.koblas/BuiltinKernelProvider? // com.eignex.koblas/BuiltinKernels.simd.<get-simd>|<get-simd>(){}[0]
 }
 
-final object com.eignex.koblas/Capabilities { // com.eignex.koblas/Capabilities|null[0]
-    final val basisSolvers // com.eignex.koblas/Capabilities.basisSolvers|{}basisSolvers[0]
-        final fun <get-basisSolvers>(): com.eignex.koblas/Capability<com.eignex.koblas.sparse.basis/BasisSolvers> // com.eignex.koblas/Capabilities.basisSolvers.<get-basisSolvers>|<get-basisSolvers>(){}[0]
-    final val generalSparseLu // com.eignex.koblas/Capabilities.generalSparseLu|{}generalSparseLu[0]
-        final fun <get-generalSparseLu>(): com.eignex.koblas/Capability<com.eignex.koblas.sparse/GeneralSparseLu> // com.eignex.koblas/Capabilities.generalSparseLu.<get-generalSparseLu>|<get-generalSparseLu>(){}[0]
-}
-
-final const val com.eignex.koblas/HOST_BACKEND_PRIORITY // com.eignex.koblas/HOST_BACKEND_PRIORITY|{}HOST_BACKEND_PRIORITY[0]
-    final fun <get-HOST_BACKEND_PRIORITY>(): kotlin/Int // com.eignex.koblas/HOST_BACKEND_PRIORITY.<get-HOST_BACKEND_PRIORITY>|<get-HOST_BACKEND_PRIORITY>(){}[0]
-final const val com.eignex.koblas/NOT_SINGULAR // com.eignex.koblas/NOT_SINGULAR|{}NOT_SINGULAR[0]
-    final fun <get-NOT_SINGULAR>(): kotlin/Int // com.eignex.koblas/NOT_SINGULAR.<get-NOT_SINGULAR>|<get-NOT_SINGULAR>(){}[0]
-final const val com.eignex.koblas/SINGULAR_POSITION_UNKNOWN // com.eignex.koblas/SINGULAR_POSITION_UNKNOWN|{}SINGULAR_POSITION_UNKNOWN[0]
-    final fun <get-SINGULAR_POSITION_UNKNOWN>(): kotlin/Int // com.eignex.koblas/SINGULAR_POSITION_UNKNOWN.<get-SINGULAR_POSITION_UNKNOWN>|<get-SINGULAR_POSITION_UNKNOWN>(){}[0]
-
 final val com.eignex.koblas.dense/ReferenceBlas // com.eignex.koblas.dense/ReferenceBlas|{}ReferenceBlas[0]
-    final fun <get-ReferenceBlas>(): com.eignex.koblas.dense/ReferenceBackend // com.eignex.koblas.dense/ReferenceBlas.<get-ReferenceBlas>|<get-ReferenceBlas>(){}[0]
+    final fun <get-ReferenceBlas>(): com.eignex.koblas.dense/Blas // com.eignex.koblas.dense/ReferenceBlas.<get-ReferenceBlas>|<get-ReferenceBlas>(){}[0]
 final val com.eignex.koblas/koblas // com.eignex.koblas/koblas|{}koblas[0]
     final fun <get-koblas>(): com.eignex.koblas/KoblasContext // com.eignex.koblas/koblas.<get-koblas>|<get-koblas>(){}[0]
 final val com.eignex.koblas/koblasInfo // com.eignex.koblas/koblasInfo|{}koblasInfo[0]
     final fun <get-koblasInfo>(): kotlin/String // com.eignex.koblas/koblasInfo.<get-koblasInfo>|<get-koblasInfo>(){}[0]
 final val com.eignex.koblas/mathBackend // com.eignex.koblas/mathBackend|{}mathBackend[0]
     final fun <get-mathBackend>(): kotlin/String // com.eignex.koblas/mathBackend.<get-mathBackend>|<get-mathBackend>(){}[0]
-final val com.eignex.koblas/portableRoles // com.eignex.koblas/portableRoles|@com.eignex.koblas.KoblasContext{}portableRoles[0]
-    final fun (com.eignex.koblas/KoblasContext).<get-portableRoles>(): kotlin.collections/Set<com.eignex.koblas/BackendRole> // com.eignex.koblas/portableRoles.<get-portableRoles>|<get-portableRoles>@com.eignex.koblas.KoblasContext(){}[0]
-final val com.eignex.koblas/status // com.eignex.koblas/status|@com.eignex.koblas.KoblasContext{}status[0]
-    final fun (com.eignex.koblas/KoblasContext).<get-status>(): com.eignex.koblas/ContextStatus // com.eignex.koblas/status.<get-status>|<get-status>@com.eignex.koblas.KoblasContext(){}[0]
 
+final fun (com.eignex.koblas/BuiltinKernelProvider).com.eignex.koblas/engine(): com.eignex.koblas/KoblasContext // com.eignex.koblas/engine|engine@com.eignex.koblas.BuiltinKernelProvider(){}[0]
 final fun (com.eignex.koblas/DenseMatrix).com.eignex.koblas.dense/trmm(com.eignex.koblas/DenseMatrix, kotlin/Boolean, kotlin/Boolean = ..., kotlin/Boolean = ..., kotlin/Boolean = ..., kotlin/Double = ..., com.eignex.koblas/Workspace? = ...) // com.eignex.koblas.dense/trmm|trmm@com.eignex.koblas.DenseMatrix(com.eignex.koblas.DenseMatrix;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean;kotlin.Double;com.eignex.koblas.Workspace?){}[0]
 final fun (com.eignex.koblas/DenseMatrix).com.eignex.koblas.dense/trmv(kotlin/DoubleArray, kotlin/Boolean, kotlin/Boolean = ..., kotlin/Boolean = ...) // com.eignex.koblas.dense/trmv|trmv@com.eignex.koblas.DenseMatrix(kotlin.DoubleArray;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean){}[0]
 final fun (com.eignex.koblas/DenseMatrix).com.eignex.koblas.dense/trsm(com.eignex.koblas/DenseMatrix, kotlin/Boolean, kotlin/Boolean = ..., kotlin/Boolean = ..., kotlin/Boolean = ..., kotlin/Double = ..., com.eignex.koblas/Workspace? = ...) // com.eignex.koblas.dense/trsm|trsm@com.eignex.koblas.DenseMatrix(com.eignex.koblas.DenseMatrix;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean;kotlin.Double;com.eignex.koblas.Workspace?){}[0]
@@ -1392,11 +598,6 @@ final fun (com.eignex.koblas/DenseVector).com.eignex.koblas/scale(kotlin/Double)
 final fun (com.eignex.koblas/DenseVector).com.eignex.koblas/times(kotlin/Double): com.eignex.koblas/DenseVector // com.eignex.koblas/times|times@com.eignex.koblas.DenseVector(kotlin.Double){}[0]
 final fun (com.eignex.koblas/DenseVector).com.eignex.koblas/unaryMinus(): com.eignex.koblas/DenseVector // com.eignex.koblas/unaryMinus|unaryMinus@com.eignex.koblas.DenseVector(){}[0]
 final fun (com.eignex.koblas/DenseVector).com.eignex.koblas/view(kotlin/Int, kotlin/Int, kotlin/Int = ...): com.eignex.koblas/StridedVectorView // com.eignex.koblas/view|view@com.eignex.koblas.DenseVector(kotlin.Int;kotlin.Int;kotlin.Int){}[0]
-final fun (com.eignex.koblas/KoblasContext).com.eignex.koblas/backendFor(com.eignex.koblas/BackendRole): com.eignex.koblas/Backend // com.eignex.koblas/backendFor|backendFor@com.eignex.koblas.KoblasContext(com.eignex.koblas.BackendRole){}[0]
-final fun (com.eignex.koblas/KoblasContext).com.eignex.koblas/isAccelerated(com.eignex.koblas/BackendRole): kotlin/Boolean // com.eignex.koblas/isAccelerated|isAccelerated@com.eignex.koblas.KoblasContext(com.eignex.koblas.BackendRole){}[0]
-final fun (com.eignex.koblas/KoblasContext).com.eignex.koblas/plan(com.eignex.koblas/RouteQuery): com.eignex.koblas/RoutePlan // com.eignex.koblas/plan|plan@com.eignex.koblas.KoblasContext(com.eignex.koblas.RouteQuery){}[0]
-final fun (com.eignex.koblas/KoblasContext).com.eignex.koblas/requireAccelerated(com.eignex.koblas/BackendRole, kotlin/Array<out com.eignex.koblas/BackendRole>...) // com.eignex.koblas/requireAccelerated|requireAccelerated@com.eignex.koblas.KoblasContext(com.eignex.koblas.BackendRole;kotlin.Array<out|com.eignex.koblas.BackendRole>...){}[0]
-final fun (com.eignex.koblas/KoblasContext).com.eignex.koblas/route(com.eignex.koblas/RouteQuery): com.eignex.koblas/BackendRoute // com.eignex.koblas/route|route@com.eignex.koblas.KoblasContext(com.eignex.koblas.RouteQuery){}[0]
 final fun (com.eignex.koblas/MatrixLike).com.eignex.koblas/gemvInto(com.eignex.koblas/VectorLike, kotlin/DoubleArray) // com.eignex.koblas/gemvInto|gemvInto@com.eignex.koblas.MatrixLike(com.eignex.koblas.VectorLike;kotlin.DoubleArray){}[0]
 final fun (com.eignex.koblas/MatrixLike).com.eignex.koblas/gemvInto(kotlin/Double, com.eignex.koblas/VectorLike, kotlin/Double, kotlin/DoubleArray) // com.eignex.koblas/gemvInto|gemvInto@com.eignex.koblas.MatrixLike(kotlin.Double;com.eignex.koblas.VectorLike;kotlin.Double;kotlin.DoubleArray){}[0]
 final fun (com.eignex.koblas/MatrixLike).com.eignex.koblas/times(com.eignex.koblas/VectorLike): com.eignex.koblas/DenseVector // com.eignex.koblas/times|times@com.eignex.koblas.MatrixLike(com.eignex.koblas.VectorLike){}[0]
@@ -1429,16 +630,10 @@ final fun (com.eignex.koblas/VectorLike).com.eignex.koblas/norm2(): kotlin/Doubl
 final fun (com.eignex.koblas/VectorLike).com.eignex.koblas/sum(): kotlin/Double // com.eignex.koblas/sum|sum@com.eignex.koblas.VectorLike(){}[0]
 final fun (kotlin/Double).com.eignex.koblas/times(com.eignex.koblas/DenseMatrix): com.eignex.koblas/DenseMatrix // com.eignex.koblas/times|times@kotlin.Double(com.eignex.koblas.DenseMatrix){}[0]
 final fun (kotlin/Double).com.eignex.koblas/times(com.eignex.koblas/DenseVector): com.eignex.koblas/DenseVector // com.eignex.koblas/times|times@kotlin.Double(com.eignex.koblas.DenseVector){}[0]
-final fun <#A: com.eignex.koblas/Backend> (com.eignex.koblas/KoblasContext).com.eignex.koblas/capability(com.eignex.koblas/Capability<#A>): #A? // com.eignex.koblas/capability|capability@com.eignex.koblas.KoblasContext(com.eignex.koblas.Capability<0:0>){0§<com.eignex.koblas.Backend>}[0]
-final fun <#A: com.eignex.koblas/Backend> com.eignex.koblas/backendNamed(kotlin/String, com.eignex.koblas/Capability<#A>): #A? // com.eignex.koblas/backendNamed|backendNamed(kotlin.String;com.eignex.koblas.Capability<0:0>){0§<com.eignex.koblas.Backend>}[0]
 final fun com.eignex.koblas/copy(com.eignex.koblas/VectorLike, com.eignex.koblas/DenseVector) // com.eignex.koblas/copy|copy(com.eignex.koblas.VectorLike;com.eignex.koblas.DenseVector){}[0]
 final fun com.eignex.koblas/copy(com.eignex.koblas/VectorLike, com.eignex.koblas/StridedVectorView) // com.eignex.koblas/copy|copy(com.eignex.koblas.VectorLike;com.eignex.koblas.StridedVectorView){}[0]
-final fun com.eignex.koblas/discoverBackends() // com.eignex.koblas/discoverBackends|discoverBackends(){}[0]
 final fun com.eignex.koblas/gather(com.eignex.koblas/SparseVector, com.eignex.koblas/DenseVector) // com.eignex.koblas/gather|gather(com.eignex.koblas.SparseVector;com.eignex.koblas.DenseVector){}[0]
 final fun com.eignex.koblas/gatherZero(com.eignex.koblas/SparseVector, com.eignex.koblas/DenseVector) // com.eignex.koblas/gatherZero|gatherZero(com.eignex.koblas.SparseVector;com.eignex.koblas.DenseVector){}[0]
-final fun com.eignex.koblas/installBackends(com.eignex.koblas/KoblasContext?) // com.eignex.koblas/installBackends|installBackends(com.eignex.koblas.KoblasContext?){}[0]
-final fun com.eignex.koblas/registerBackend(com.eignex.koblas/Backend) // com.eignex.koblas/registerBackend|registerBackend(com.eignex.koblas.Backend){}[0]
-final fun com.eignex.koblas/registeredBackendNames(com.eignex.koblas/BackendRole): kotlin.collections/List<kotlin/String> // com.eignex.koblas/registeredBackendNames|registeredBackendNames(com.eignex.koblas.BackendRole){}[0]
 final fun com.eignex.koblas/rot(com.eignex.koblas/DenseVector, com.eignex.koblas/DenseVector, com.eignex.koblas/Givens) // com.eignex.koblas/rot|rot(com.eignex.koblas.DenseVector;com.eignex.koblas.DenseVector;com.eignex.koblas.Givens){}[0]
 final fun com.eignex.koblas/rotg(kotlin/Double, kotlin/Double): com.eignex.koblas/Givens // com.eignex.koblas/rotg|rotg(kotlin.Double;kotlin.Double){}[0]
 final fun com.eignex.koblas/rotm(com.eignex.koblas/DenseVector, com.eignex.koblas/DenseVector, com.eignex.koblas/ModifiedGivens) // com.eignex.koblas/rotm|rotm(com.eignex.koblas.DenseVector;com.eignex.koblas.DenseVector;com.eignex.koblas.ModifiedGivens){}[0]

@@ -1,6 +1,5 @@
 package com.eignex.koblas.bench
 
-import com.eignex.koblas.koblas
 import com.eignex.koblas.dense.Kernels
 import kotlinx.benchmark.Benchmark
 import kotlinx.benchmark.BenchmarkMode
@@ -38,8 +37,7 @@ class ExplicitPackedKernelBenchmark {
 
     @Setup
     fun setup() {
-        installKernelProvider(kernels)
-        selected = koblas.kernels
+        selected = kernelEngine(kernels).kernels
         check(selected.gemmTileRows == 4 && selected.gemmTileCols == 4) {
             "explicit scalar/C packed comparison requires the shared four by four tile"
         }

@@ -5,7 +5,7 @@ import com.eignex.koblas.*
 @OptIn(ExperimentalKoblasApi::class)
 internal actual fun explicitBuiltInContext(): KoblasContext {
     val provider = BuiltinKernels.c ?: BuiltinKernels.scalar
-    return ContextBuilder().withBuiltinKernels(provider).resolve()
+    return provider.engine()
 }
 
 // The benchmark-owned native cinterop is added per target once that target has an OpenBLAS SDK available.

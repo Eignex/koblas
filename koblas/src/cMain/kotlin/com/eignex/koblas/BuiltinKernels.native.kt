@@ -3,14 +3,14 @@ package com.eignex.koblas
 import com.eignex.koblas.dense.PlatformKernels
 import com.eignex.koblas.dense.ScalarKernels
 import com.eignex.koblas.sparse.PlatformSparseKernels
-import com.eignex.koblas.sparse.ReferenceSparseLinearAlgebra
+import com.eignex.koblas.sparse.ScalarSparseKernels
 
 /** Kotlin/Native built-in kernel providers. */
 @ExperimentalKoblasApi
 public actual object BuiltinKernels {
     /** Pure Kotlin scalar dense kernels and reference sparse kernels. */
     public actual val scalar: BuiltinKernelProvider =
-        BuiltinKernelProvider(ScalarKernels, ReferenceSparseLinearAlgebra)
+        BuiltinKernelProvider(ScalarKernels, ScalarSparseKernels)
 
     /** C kernels compiled into this Native artifact. */
     public actual val c: BuiltinKernelProvider? =

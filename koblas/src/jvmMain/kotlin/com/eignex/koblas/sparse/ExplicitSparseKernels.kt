@@ -1,10 +1,9 @@
 package com.eignex.koblas.sparse
 
-import com.eignex.koblas.BackendMetadataProvider
 import com.eignex.koblas.SparseVector
 import com.eignex.koblas.dense.CKernels
 import com.eignex.koblas.dense.SimdKernels
-import com.eignex.koblas.internal.backend.BackendNames
+import com.eignex.koblas.internal.configuration.ImplementationNames
 import com.eignex.koblas.internal.kernels.JvmCKernelBindings
 import com.eignex.koblas.requireShape
 
@@ -30,30 +29,28 @@ internal object CSparseKernels : SparseKernels {
      */
     private val DOT_DENSE_C_CROSSOVER = SparseTuning.dotDenseCCrossover
 
-    override val name: String get() = BackendNames.C_SPARSE
+    override val name: String get() = ImplementationNames.C_SPARSE
 
-    override val isPortable: Boolean get() = true
-
-    override val isAvailable: Boolean get() = JvmCKernelBindings.isAvailable
+    val isAvailable: Boolean get() = JvmCKernelBindings.isAvailable
 
     override fun dot(x: SparseVector, y: DoubleArray): Double {
         requireShape(x.size == y.size) { "dot: sizes differ, ${x.size} vs ${y.size}" }
         return if (x.indices.size < DOT_DENSE_C_CROSSOVER) {
-            ReferenceSparseLinearAlgebra.dot(x, y)
+            ScalarSparseKernels.dot(x, y)
         } else {
             JvmCKernelBindings.sparseDotDense(x.indices, x.values, y)
         }
     }
 
-    override fun dot(x: SparseVector, y: SparseVector): Double = ReferenceSparseLinearAlgebra.dot(x, y)
+    override fun dot(x: SparseVector, y: SparseVector): Double = ScalarSparseKernels.dot(x, y)
 
-    override fun axpy(y: DoubleArray, alpha: Double, x: SparseVector) = ReferenceSparseLinearAlgebra.axpy(y, alpha, x)
+    override fun axpy(y: DoubleArray, alpha: Double, x: SparseVector) = ScalarSparseKernels.axpy(y, alpha, x)
 
-    override fun scatter(x: SparseVector, out: DoubleArray) = ReferenceSparseLinearAlgebra.scatter(x, out)
+    override fun scatter(x: SparseVector, out: DoubleArray) = ScalarSparseKernels.scatter(x, out)
 
-    override fun gather(x: SparseVector, from: DoubleArray) = ReferenceSparseLinearAlgebra.gather(x, from)
+    override fun gather(x: SparseVector, from: DoubleArray) = ScalarSparseKernels.gather(x, from)
 
-    override fun gatherZero(x: SparseVector, from: DoubleArray) = ReferenceSparseLinearAlgebra.gatherZero(x, from)
+    override fun gatherZero(x: SparseVector, from: DoubleArray) = ScalarSparseKernels.gatherZero(x, from)
 
     override fun nrm2(x: SparseVector): Double = CKernels.nrm2(x.values, 0, x.values.size)
 
@@ -61,23 +58,19 @@ internal object CSparseKernels : SparseKernels {
 }
 
 /** The JVM Vector API sparse kernels without automatic C selection. */
-internal object SimdSparseKernels : SparseKernels, BackendMetadataProvider {
+internal object SimdSparseKernels : SparseKernels {
     private val scatter = JvmVectorScatter.configured()
 
-    override val name: String get() = BackendNames.SIMD_SPARSE
+    override val name: String get() = ImplementationNames.SIMD_SPARSE
 
-    override val isPortable: Boolean get() = true
-
-    override val isAvailable: Boolean get() = SimdKernels.isAvailable
-
-    override val backendMetadata get() = scatter.metadata
+    val isAvailable: Boolean get() = SimdKernels.isAvailable
 
     override fun dot(x: SparseVector, y: DoubleArray): Double {
         requireShape(x.size == y.size) { "dot: sizes differ, ${x.size} vs ${y.size}" }
         return SparseSimd.dot(x.indices, x.values, y)
     }
 
-    override fun dot(x: SparseVector, y: SparseVector): Double = ReferenceSparseLinearAlgebra.dot(x, y)
+    override fun dot(x: SparseVector, y: SparseVector): Double = ScalarSparseKernels.dot(x, y)
 
     override fun axpy(y: DoubleArray, alpha: Double, x: SparseVector) {
         requireShape(y.size == x.size) { "axpy: sizes differ, ${y.size} vs ${x.size}" }
@@ -85,7 +78,7 @@ internal object SimdSparseKernels : SparseKernels, BackendMetadataProvider {
         if (scatter.enabled) {
             SparseSimd.axpy(x.indices, x.values, y, alpha)
         } else {
-            ReferenceSparseLinearAlgebra.axpy(y, alpha, x)
+            ScalarSparseKernels.axpy(y, alpha, x)
         }
     }
 
@@ -94,7 +87,7 @@ internal object SimdSparseKernels : SparseKernels, BackendMetadataProvider {
         if (scatter.enabled) {
             SparseSimd.scatter(x.indices, x.values, out)
         } else {
-            ReferenceSparseLinearAlgebra.scatter(x, out)
+            ScalarSparseKernels.scatter(x, out)
         }
     }
 
@@ -108,7 +101,7 @@ internal object SimdSparseKernels : SparseKernels, BackendMetadataProvider {
         if (scatter.enabled) {
             SparseSimd.gatherZero(x.indices, x.values, from)
         } else {
-            ReferenceSparseLinearAlgebra.gatherZero(x, from)
+            ScalarSparseKernels.gatherZero(x, from)
         }
     }
 

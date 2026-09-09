@@ -5,14 +5,14 @@ Kotlin Multiplatform BLAS and LAPACK.
 ## Verify
 
 - Run `./gradlew :koblas:check :koblas-bench:check lintDocs`. Bare `./gradlew check` also rebuilds the native library in `koblas-hfactor` from source; reserve it for touching that module or before pushing.
-- Default tests use the reference backend. Use `-Pkoblas.hostTests=true` for HFactor and `-Pkoblas.noSimd=true` for scalar thresholds and small-size dispatch. External OpenBLAS and oneMKL validation lives in `koblas-bench`.
+- Default tests use the statically selected built-in engine. Use `-Pkoblas.noSimd=true` to exercise the bundled C fallback. External OpenBLAS and oneMKL validation lives in `koblas-bench`; HFactor checks live in `koblas-hfactor`.
 
 ## Tests
 
 - Match existing framework, layout, fixtures, and assertion style; arrange → act → assert.
 - Name classes `<FileUnderTest>Test`; use ASCII backtick test names with words only—no `()`, `#`, or commas.
 - Test one observable behavior, parameterize variants, and keep JVM tests under 300 ms.
-- Compare backends with the portable reference via `assert*AgreesWithReference`, not hand values.
+- Compare platform kernels with the explicit scalar oracle via `assert*AgreesWithReference`, not hand values.
 - `wellConditioned` has identity pivots; perturb it before testing pivoting or row permutations.
 
 ## Design
@@ -21,7 +21,7 @@ Kotlin Multiplatform BLAS and LAPACK.
   `SparseVector`); do not restore `F64` aliases. A future element family needs an explicit API and seam design.
 - Dense matrices are column-major: `A(i, j)` is `i + j * rows`. Sparse matrices are validated CSC with ascending row indices per column.
 - The portable reference defines semantics. Host bindings use measured thresholds then fall back to it.
-- Backend seams retain the strongest per half; equal offers preserve first registration. Registration is CAS; call `installBackends` at startup.
+- The default engine is immutable and selected once. Tests and benchmarks select exact scalar, C, or SIMD engines through `BuiltinKernels`; do not add process-global installation or provider discovery.
 - `*Into` destinations may alias inputs; test the backing buffer.
 - A helper returning a `DoubleVector` must be `inline`. A vector returned from a call the JIT declines to inline becomes a heap object, so the loop allocates per operation and runs twenty to forty times slower, silently and only sometimes: the refusal depends on how close the whole compilation sits to its node budget, so a caller's size decides it. Suppress `NOTHING_TO_INLINE` and say why.
 

@@ -1,6 +1,6 @@
 package com.eignex.koblas.dense
 
-import com.eignex.koblas.internal.backend.tunedInt
+import com.eignex.koblas.internal.configuration.tunedInt
 
 /**
  * Every cache block size and dispatch crossover the dense routines apply, in one place and settable from

@@ -1,7 +1,7 @@
 package com.eignex.koblas.dense
 
 import com.eignex.koblas.ModifiedGivens
-import com.eignex.koblas.internal.backend.BackendNames
+import com.eignex.koblas.internal.configuration.ImplementationNames
 import com.eignex.koblas.internal.numeric.*
 import com.eignex.koblas.portableRot
 import com.eignex.koblas.portableRotm
@@ -9,9 +9,7 @@ import com.eignex.koblas.portableRotmg
 
 /** Scalar leaves used only when cross-compiling a Native publication for a foreign host. */
 internal actual object PlatformKernels : Kernels, ArithmeticKernels {
-    actual override val name: String get() = BackendNames.SCALAR
-
-    override val isPortable: Boolean get() = true
+    actual override val name: String get() = ImplementationNames.SCALAR
 
     actual override fun dot(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int): Double =
         scalarDot(a, aOff, b, bOff, len)

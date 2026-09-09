@@ -12,6 +12,10 @@ public class BuiltinKernelProvider internal constructor(
     public val sparseKernels: SparseKernels,
 )
 
+/** Creates an immutable engine using exactly this built-in kernel pair. */
+@ExperimentalKoblasApi
+public fun BuiltinKernelProvider.engine(): KoblasContext = KoblasContext(kernels, sparseKernels)
+
 /**
  * Built-in level-1 providers for explicit [KoblasContext] configuration and implementation comparisons.
  * A platform-specific provider is null when that implementation cannot run in the current process.

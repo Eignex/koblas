@@ -60,7 +60,7 @@ binding directly. They never use production discovery, and every setup asserts a
 
 The older `automatic` and `reference` backend parameters remain for sparse suites. They are not external parity
 evidence. Kernel microbenchmarks retain `scalar`,
-`c`, and `simd` pins, while `built-in` selects SIMD, then bundled C, then scalar without consulting the registry.
+`c`, and `simd` pins, while `built-in` selects SIMD, then bundled C, then scalar.
 
 Benchmark-owned level-1 CBLAS calls cover dot, axpy, scale, norm, absolute sum, swap, and rotations for both dense
 comparators. `sum` and fused squared distance have no CBLAS counterpart. Four-way dot is labeled as a composition

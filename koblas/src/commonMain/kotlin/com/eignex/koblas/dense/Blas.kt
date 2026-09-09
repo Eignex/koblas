@@ -4,11 +4,13 @@ package com.eignex.koblas.dense
 
 import com.eignex.koblas.*
 
-/** Dense matrix routines as a backend half. */
-public interface Blas : Backend {
+/** Dense matrix routines bound to one immutable kernel implementation. */
+public interface Blas {
+    /** Short implementation identifier for diagnostics. */
+    public val name: String
 
-    /** The vector kernels this half's inherited routines run on; the installed ones by default. */
-    public val kernels: Kernels get() = koblas.kernels
+    /** The vector kernels this implementation's shared routines run on. */
+    public val kernels: Kernels
 
     /** `y = alpha · op(A) · x + beta · y` (BLAS `dgemv`), with `op(A)` being `Aᵀ` when [transpose].
      *  `beta == 0.0` overwrites [y] without reading it. Supply [workspace] to reuse transposed dot scratch. */

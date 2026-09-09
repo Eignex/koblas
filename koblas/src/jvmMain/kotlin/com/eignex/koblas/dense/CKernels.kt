@@ -1,7 +1,7 @@
 package com.eignex.koblas.dense
 
 import com.eignex.koblas.ModifiedGivens
-import com.eignex.koblas.internal.backend.BackendNames
+import com.eignex.koblas.internal.configuration.ImplementationNames
 import com.eignex.koblas.internal.kernels.JvmCKernelBindings
 import com.eignex.koblas.internal.numeric.*
 import com.eignex.koblas.portableRot
@@ -28,11 +28,9 @@ internal object CKernels : Kernels, ArithmeticKernels {
     private val GEMM_TILE_C_CROSSOVER = DenseTuning.jvmCGemmTileCrossover
     private val GEMM_TRSM_TILE_C_CROSSOVER = DenseTuning.jvmCGemmTrsmTileCrossover
 
-    override val name: String get() = BackendNames.C
+    override val name: String get() = ImplementationNames.C
 
-    override val isPortable: Boolean get() = true
-
-    override val isAvailable: Boolean get() = JvmCKernelBindings.isAvailable
+    val isAvailable: Boolean get() = JvmCKernelBindings.isAvailable
 
     override fun dot(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int): Double =
         if (len < DOT_C_CROSSOVER) {

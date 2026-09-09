@@ -54,7 +54,7 @@ class SparseProductHostBenchmark {
         if (sparseArm == BUILTIN_BACKEND) {
             val context = explicitBuiltInContext()
             builtIn = context.sparseBlas
-            check(context.sparseBlas.name == REFERENCE_BACKEND) { "built-in sparse arm resolved ${context.sparseBlas.name}" }
+            check(context.sparseBlas.name == BUILTIN_BACKEND) { "built-in sparse arm resolved ${context.sparseBlas.name}" }
             println("resolved: arm=$sparseArm sparse=${context.sparseBlas.name}/${context.sparseKernels.name} threading=single calling thread")
         } else {
             external = checkNotNull(oneMklSparseComparator()) { "the benchmark-only oneMKL sparse comparator is unavailable" }

@@ -195,7 +195,7 @@ class PackedTriangularSolveTest {
         transpose: Boolean,
         right: Boolean,
     ) {
-        val reference = ReferenceBackend(kernels)
+        val reference = BuiltinBlas(kernels)
         val order = triangle.rows
         val panels = if (right) source.rows else source.cols
         val expected = DenseMatrix.wrap(source.rows, source.cols, source.data.copyOf())

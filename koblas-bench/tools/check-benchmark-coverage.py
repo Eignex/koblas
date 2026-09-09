@@ -22,7 +22,7 @@ LINE_COMMENT = re.compile(r"//[^\n]*")
 FUNCTION_TYPE_PARAMETER_NAME = re.compile(r"(?<=[(,])\s*\w+\s*:\s*")
 HEADER_END = re.compile(r"\b(?:fun|class|interface|object|typealias|val|var)\b")
 
-# These are the public operation facades. Storage construction, backend configuration, and lifecycle methods are
+# These are the public operation facades. Storage construction, engine configuration, and lifecycle methods are
 # intentionally not numerical operations. Keep this list alongside a new facade so the inventory remains complete.
 PUBLIC_NUMERICAL_SOURCES = (
     "Givens.kt",
@@ -38,12 +38,9 @@ PUBLIC_NUMERICAL_SOURCES = (
     "dense/PackedPanels.kt",
     "dense/Triangular.kt",
     "sparse/SparseBlas.kt",
-    "sparse/SparseFactorization.kt",
     "sparse/SparseKernels.kt",
     "sparse/SparseWorkspace.kt",
     "sparse/SparseOps.kt",
-    "sparse/basis/BasisSolver.kt",
-    "sparse/basis/BasisSolvers.kt",
 )
 
 def fail(message):

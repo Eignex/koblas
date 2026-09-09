@@ -38,7 +38,7 @@ class SparseLevelOneReuseTest {
     fun `right products send contiguous dense columns through axpy`() {
         for (transposeB in booleanArrayOf(false, true)) {
             val kernels = RecordingKernels()
-            val backend = ReferenceSparseBackend(kernels)
+            val backend = SparseAlgorithms(kernels)
             val b = if (transposeB) {
                 DenseMatrix(3, 5, DoubleArray(15) { (it + 1).toDouble() })
             } else {
@@ -54,7 +54,7 @@ class SparseLevelOneReuseTest {
     @Test
     fun `right solve sends dense column work through level one kernels`() {
         val kernels = RecordingKernels()
-        val backend = ReferenceSparseBackend(kernels)
+        val backend = SparseAlgorithms(kernels)
         val b = DenseMatrix(5, 3, DoubleArray(15) { (it + 1).toDouble() })
 
         backend.trsm(lower, b, lower = true, transpose = false, unitDiag = false, right = true, alpha = 1.0)

@@ -80,7 +80,7 @@ class JvmVectorScatterTest {
                 "jvm.vector.scatter.mode" to "on",
                 "jvm.vector.scatter.path" to "indexed-store",
             ),
-            scatter.metadata.options,
+            scatter.options,
         )
     }
 

@@ -6,9 +6,7 @@ import com.eignex.koblas.SparseMatrix
  * The CSC transpose, which is also the CSC-to-CSR conversion. Explicitly stored zeros survive, since the
  * transpose is structural.
  *
- * Its own function rather than a method on the portable backend because the portable factorizations
- * transpose too, and reaching the seam for it would route the definition of a routine through whichever
- * backend happens to be registered.
+ * Kept as a representation helper so sparse algorithms can reuse the CSC walk directly.
  */
 internal fun transposeCsc(a: SparseMatrix): SparseMatrix =
     transposeOf(a.rows, a.cols, a.colPtr, a.rowIdx, a.values, trusted = true)

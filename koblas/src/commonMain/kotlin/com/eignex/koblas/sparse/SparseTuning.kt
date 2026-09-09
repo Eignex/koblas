@@ -1,6 +1,6 @@
 package com.eignex.koblas.sparse
 
-import com.eignex.koblas.internal.backend.tunedInt
+import com.eignex.koblas.internal.configuration.tunedInt
 
 /**
  * Every dispatch crossover and search width the sparse routines apply, in one place and settable from

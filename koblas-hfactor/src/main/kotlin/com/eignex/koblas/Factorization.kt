@@ -1,0 +1,35 @@
+package com.eignex.koblas
+
+/** The `failedAt` value of a sparse factorization that succeeded. */
+public const val NOT_SINGULAR: Int = -1
+
+/**
+ * A `failedAt` meaning "singular, but this backend cannot say where". Exists so a host solver that counts
+ * zero pivots without locating them need not invent a position or report [NOT_SINGULAR].
+ */
+public const val SINGULAR_POSITION_UNKNOWN: Int = -2
+
+/**
+ * Rejects a solve against a singular factorization, naming the pivot that failed.
+ *
+ * @param failedAt the position from the factorization, or [NOT_SINGULAR] when it succeeded.
+ * @param routine the routine to name in the message.
+ */
+internal fun requireFactored(failedAt: Int, routine: String) {
+    if (failedAt != NOT_SINGULAR) throw hfactorSingularFailure(failedAt, routine)
+}
+
+/** The failure [requireFactored] throws, exposed for the caller that already knows it is singular. */
+internal fun hfactorSingularFailure(failedAt: Int, routine: String): SingularMatrix = SingularMatrix(
+    failedAt,
+    buildString {
+        append(routine)
+        if (failedAt == SINGULAR_POSITION_UNKNOWN) {
+            append(": the factorization is singular")
+        } else {
+            append(": the factorization is singular at pivot ").append(failedAt)
+        }
+        append(", so the system has no unique solution. ")
+        append("Check `singular` before solving, or factor a repaired matrix.")
+    },
+)

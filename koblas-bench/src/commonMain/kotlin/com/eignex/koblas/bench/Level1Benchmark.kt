@@ -19,68 +19,69 @@ class Level1Benchmark {
     private lateinit var y: DenseVector
     private lateinit var modifiedRotation: ModifiedGivens
     private lateinit var rotation: Givens
+    private lateinit var engine: KoblasContext
 
     private lateinit var quad: DoubleArray
     private val quadOut = DoubleArray(4)
 
     @Setup
     fun setup() {
-        installKernelProvider(kernels)
-        println("resolved: primitives=$mathBackend")
+        engine = kernelEngine(kernels)
+        println("resolved: primitives=${engine.kernels.name}")
         val rng = benchRng()
         x = DenseVector.of(randomVector(len, rng))
         y = DenseVector.of(randomVector(len, rng))
         // Near-identity, like NEAR_UNIT_SCALE: rotmBench applies this every invocation with no per-call
         // reset, so a transformation with eigenvalues away from unit magnitude would blow x/y up to
         // Infinity/NaN partway through a trial.
-        modifiedRotation = rotmg(1.0, 1.0, 1.0, NEAR_UNIT_SCALE - 1.0)
+        modifiedRotation = engine.kernels.rotmg(1.0, 1.0, 1.0, NEAR_UNIT_SCALE - 1.0)
         // Any rotation is safe to reapply without a per-call reset, unlike the modified one above: a plane
         // rotation is orthogonal, so repeated application preserves the magnitudes it started with.
         rotation = rotg(3.0, 4.0)
         quad = randomVector(4 * len, rng)
         verifyNearZeroManagedAllocation("level1/$kernels/axpy4") {
-            koblas.kernels.axpy4(
+            engine.kernels.axpy4(
                 y.data, 0, quad, 0, len,
                 NEAR_UNIT_SCALE, -NEAR_UNIT_SCALE, NEAR_UNIT_SCALE, -NEAR_UNIT_SCALE, len,
             )
         }
         verifyNearZeroManagedAllocation("level1/$kernels/dotAxpy") {
-            koblas.kernels.dotAxpy(y.data, 0, NEAR_UNIT_SCALE, x.data, 0, quad, 0, len)
+            engine.kernels.dotAxpy(y.data, 0, NEAR_UNIT_SCALE, x.data, 0, quad, 0, len)
         }
-        verifyNearZeroManagedAllocation("level1/$kernels/dot") { koblas.kernels.dot(x.data, 0, y.data, 0, len) }
-        verifyNearZeroManagedAllocation("level1/$kernels/ssqd") { koblas.kernels.ssqd(x.data, 0, y.data, 0, len) }
+        verifyNearZeroManagedAllocation("level1/$kernels/dot") { engine.kernels.dot(x.data, 0, y.data, 0, len) }
+        verifyNearZeroManagedAllocation("level1/$kernels/ssqd") { engine.kernels.ssqd(x.data, 0, y.data, 0, len) }
         verifyNearZeroManagedAllocation("level1/$kernels/dot4") {
-            koblas.kernels.dot4(quad, 0, len, x.data, 0, len, quadOut, 0)
+            engine.kernels.dot4(quad, 0, len, x.data, 0, len, quadOut, 0)
         }
     }
 
     @Benchmark
-    fun dot(): Double = x dot y
+    fun dot(): Double = engine.kernels.dot(x.data, 0, y.data, 0, len)
 
     @Benchmark
-    fun ssqd(): Double = koblas.kernels.ssqd(x.data, 0, y.data, 0, len)
+    fun ssqd(): Double = engine.kernels.ssqd(x.data, 0, y.data, 0, len)
 
     @Benchmark
     fun axpyBench() {
-        y.axpy(NEAR_UNIT_SCALE, x)
+        engine.kernels.axpy(y.data, 0, NEAR_UNIT_SCALE, x.data, 0, len)
     }
 
     @Benchmark
     fun scaleBench() {
-        y.scale(NEAR_UNIT_SCALE)
+        engine.kernels.scale(y.data, 0, NEAR_UNIT_SCALE, len)
     }
 
     @Benchmark
-    fun nrm2(): Double = x.norm2()
+    fun nrm2(): Double = engine.kernels.nrm2(x.data, 0, len)
 
     @Benchmark
-    fun sumBench(): Double = x.sum()
+    fun sumBench(): Double = engine.kernels.sum(x.data, 0, len)
 
     @Benchmark
     fun compensatedSumBench(): Double = x.compensatedSum()
 
     @Benchmark
-    fun asumBench(): Double = x.asum()
+    fun asumBench(): Double = engine.kernels.asum(x.data, 0, len)
 
     @Benchmark
     fun iamaxBench(): Int = x.iamax()
@@ -94,27 +95,27 @@ class Level1Benchmark {
     }
 
     @Benchmark
-    fun rotmgBench(): ModifiedGivens = rotmg(1.0, 1.0, 2.0, 1.0)
+    fun rotmgBench(): ModifiedGivens = engine.kernels.rotmg(1.0, 1.0, 2.0, 1.0)
 
     @Benchmark
     fun rotmBench() {
-        rotm(x, y, modifiedRotation)
+        engine.kernels.rotm(x.data, 0, 1, y.data, 0, 1, len, modifiedRotation)
     }
 
     @Benchmark
     fun rotBench() {
-        rot(x, y, rotation)
+        engine.kernels.rot(x.data, 0, y.data, 0, len, rotation.c, rotation.s)
     }
 
     @Benchmark
     fun dot4(): Double {
-        koblas.kernels.dot4(quad, 0, len, x.data, 0, len, quadOut, 0)
+        engine.kernels.dot4(quad, 0, len, x.data, 0, len, quadOut, 0)
         return quadOut[0]
     }
 
     @Benchmark
     fun axpy4(): Double {
-        koblas.kernels.axpy4(
+        engine.kernels.axpy4(
             y.data, 0, quad, 0, len,
             NEAR_UNIT_SCALE, -NEAR_UNIT_SCALE, NEAR_UNIT_SCALE, -NEAR_UNIT_SCALE, len,
         )
@@ -123,20 +124,20 @@ class Level1Benchmark {
 
     @Benchmark
     fun axpy4AsFourAxpy(): Double {
-        koblas.kernels.axpy(y.data, 0, NEAR_UNIT_SCALE, quad, 0, len)
-        koblas.kernels.axpy(y.data, 0, -NEAR_UNIT_SCALE, quad, len, len)
-        koblas.kernels.axpy(y.data, 0, NEAR_UNIT_SCALE, quad, 2 * len, len)
-        koblas.kernels.axpy(y.data, 0, -NEAR_UNIT_SCALE, quad, 3 * len, len)
+        engine.kernels.axpy(y.data, 0, NEAR_UNIT_SCALE, quad, 0, len)
+        engine.kernels.axpy(y.data, 0, -NEAR_UNIT_SCALE, quad, len, len)
+        engine.kernels.axpy(y.data, 0, NEAR_UNIT_SCALE, quad, 2 * len, len)
+        engine.kernels.axpy(y.data, 0, -NEAR_UNIT_SCALE, quad, 3 * len, len)
         return y.data[0]
     }
 
     @Benchmark
-    fun dotAxpy(): Double = koblas.kernels.dotAxpy(y.data, 0, NEAR_UNIT_SCALE, x.data, 0, quad, 0, len)
+    fun dotAxpy(): Double = engine.kernels.dotAxpy(y.data, 0, NEAR_UNIT_SCALE, x.data, 0, quad, 0, len)
 
     @Benchmark
     fun dotAxpySeparate(): Double {
-        val result = koblas.kernels.dot(x.data, 0, quad, 0, len)
-        koblas.kernels.axpy(y.data, 0, NEAR_UNIT_SCALE, x.data, 0, len)
+        val result = engine.kernels.dot(x.data, 0, quad, 0, len)
+        engine.kernels.axpy(y.data, 0, NEAR_UNIT_SCALE, x.data, 0, len)
         return result
     }
 }

@@ -1,6 +1,5 @@
 package com.eignex.koblas.internal.kernels
 
-import com.eignex.koblas.internal.host.FfmLibrary
 import java.lang.foreign.ValueLayout.ADDRESS
 import java.lang.foreign.ValueLayout.JAVA_DOUBLE
 import java.lang.foreign.ValueLayout.JAVA_INT
