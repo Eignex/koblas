@@ -238,10 +238,8 @@ class KoblasNativeLibraryPlugin : Plugin<Project> {
 
 class KoblasBuildScriptStructurePlugin : Plugin<Project> {
     override fun apply(project: Project) {
-        val scripts = listOf(
-            "koblas-hfactor/build.gradle.kts",
-            "koblas-openblas/build.gradle.kts",
-        ).map { project.layout.projectDirectory.file(it).asFile }
+        val scripts = listOf("koblas-hfactor/build.gradle.kts")
+            .map { project.layout.projectDirectory.file(it).asFile }
         project.tasks.register<CheckKoblasBuildScriptStructureTask>("checkBuildScriptStructure") {
             group = "verification"
             description = "Checks bundled-native module scripts remain declarative declarations."

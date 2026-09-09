@@ -9,7 +9,7 @@ import com.eignex.koblas.internal.backend.BackendRegistry
  */
 public val koblas: KoblasContext get() = BackendRegistry.activeContext
 
-/** What this runtime resolved, for startup logging (e.g. `"backend=openblas, kernels=simd(8 lanes)"`). */
+/** What this runtime resolved, for startup logging (e.g. `"backend=reference, kernels=simd(8 lanes)"`). */
 public val koblasInfo: String get() = "backend=${koblas.name}, kernels=${koblas.kernels.name}"
 
 /**

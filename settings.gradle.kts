@@ -18,5 +18,4 @@ include(
     ":koblas",
     ":koblas-bench",
     ":koblas-hfactor",
-    ":koblas-openblas",
 )

@@ -17,9 +17,6 @@ internal object ConfigurationKeys {
         "KOBLAS_JVM_VECTOR_SCATTER",
     )
 
-    /** An absolute path to the library exporting `cblas_*`, overriding the deployment lookup chain. */
-    val CBLAS_PATH = LibraryPathKeys("koblas.cblas.path", "KOBLAS_CBLAS_PATH")
-
     /** An absolute path to a build of koblas's HFactor bridge, ahead of the bundled one. */
     val HFACTOR_PATH = LibraryPathKeys("koblas.hfactor.path", "KOBLAS_HFACTOR_PATH")
 
@@ -31,7 +28,6 @@ internal object ConfigurationKeys {
      * one missing from this map silently would not.
      */
     val LIBRARY_PATHS: Map<String, List<LibraryPathKeys>> = mapOf(
-        BackendNames.OPENBLAS to listOf(CBLAS_PATH),
         BackendNames.HFACTOR to listOf(HFACTOR_PATH),
     )
 }

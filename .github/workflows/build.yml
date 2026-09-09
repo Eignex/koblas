@@ -49,15 +49,8 @@ jobs:
       - name: Run linter
         run: ./gradlew lintDocs
 
-      # linuxX64Test is excluded so this job needs no host libraries at all. Its native suites are the only
-      # thing here that would touch them: the JVM side pins `koblas.backend=reference` and filters the
-      # HostLibraryTest category out, and CblasConformanceTest requires its library rather than skipping,
-      # since Kotlin/Native has no Assume and a skipped suite reads as green. test-host-libraries already
-      # runs linuxX64Test with the library installed, so nothing is lost, and Kover measures the JVM only so
-      # coverage is unaffected. Not installing it keeps a slow package mirror from being able to stall this
-      # job.
       - name: Run tests with coverage
-        run: ./gradlew :koblas:check :koblas-bench:check :koblas:koverXmlReport -x :koblas:linuxX64Test
+        run: ./gradlew :koblas:check :koblas-bench:check :koblas:koverXmlReport
 
       - name: Upload test reports
         if: always()
@@ -78,12 +71,12 @@ jobs:
           flags: reference
           fail_ci_if_error: false
 
-  # The bundled Maven packages compile their native libraries from source. Keep that work in its own job so
-  # it runs beside the core, host-library, and macOS suites instead of extending the core feedback path.
+  # The bundled Maven package compiles its native library from source. Keep that work in its own job so
+  # it runs beside the core, comparator, and macOS suites instead of extending the core feedback path.
   # Each job retains Gradle's cache setup and builds/tests its resources in the same workspace, avoiding a
   # serial artifact upload/download handoff and preserving the native tasks' normal build-cache behavior.
   test-bundled-native:
-    name: Build and test bundled native packages
+    name: Build and test the bundled native package
     runs-on: ubuntu-latest
     timeout-minutes: 45
 
@@ -115,21 +108,14 @@ jobs:
       - name: Grant execute permission for Gradle
         run: chmod +x gradlew
 
-      - name: Cache bundled OpenBLAS resources
-        uses: actions/cache@v5
-        with:
-          path: koblas-openblas/build/openblas
-          key: bundled-openblas-${{ runner.os }}-${{ runner.arch }}-linux-x86_64-${{ hashFiles('koblas-openblas/openblas.lock', 'scripts/build-openblas.sh', 'scripts/third-party-notices.sh') }}
-
       - name: Cache bundled HFactor resources
         uses: actions/cache@v5
         with:
           path: koblas-hfactor/build/hfactor
           key: bundled-hfactor-${{ runner.os }}-${{ runner.arch }}-linux-x86_64-${{ hashFiles('koblas-hfactor/hfactor.lock', 'koblas-hfactor/native/*', 'scripts/build-hfactor.sh', 'scripts/third-party-notices.sh') }}
 
-      - name: Build and test the bundled native packages
-        run: >-
-          ./gradlew :koblas-hfactor:check :koblas-openblas:check
+      - name: Build and test the bundled native package
+        run: ./gradlew :koblas-hfactor:check
 
       - name: Upload test reports
         if: always()
@@ -139,20 +125,12 @@ jobs:
           path: |
             koblas-hfactor/build/reports/tests/
             koblas-hfactor/build/test-results/
-            koblas-openblas/build/reports/tests/
-            koblas-openblas/build/test-results/
           if-no-files-found: ignore
 
-  # The default job pins `koblas.backend=reference` and filters the HostLibraryTest category out, so the
-  # OpenBLAS bindings, which auto-register in any JVM/Linux consumer process, are never exercised there.
-  # This job is the one that runs them.
-  #
-  # Kept separate rather than folded into `test` because these measure the machine as much as the library,
-  # so a box without OpenBLAS would report a different everyday result. Coverage is collected here too and
-  # uploaded under its own flags; codecov takes the union across a commit's uploads, which is what makes the
-  # bindings count. Both configurations upload, since the SIMD one cannot reach the level-2 bindings at all.
-  test-host-libraries:
-    name: Run tests against the host BLAS
+  # OpenBLAS is a development comparator owned by koblas-bench. Keep its installed-library validation in a
+  # separate job so no published module acquires an external dependency or resource.
+  test-openblas-comparator:
+    name: Validate the OpenBLAS benchmark comparator
     runs-on: ubuntu-latest
     timeout-minutes: 45
 
@@ -189,12 +167,12 @@ jobs:
       # Cached as .deb files, so a hit installs with no mirror access at all. Keyed on the image as well as
       # the package list: ubuntu-latest moves between releases, and unpacking one release's debs on another
       # would be worse than a slow download.
-      - name: Cache the host library packages
+      - name: Cache the benchmark library packages
         id: host-packages
         uses: actions/cache@v5
         with:
           path: ~/host-packages
-          key: host-packages-${{ runner.os }}-${{ env.ImageOS }}-openblas-lapacke-v1
+          key: benchmark-openblas-${{ runner.os }}-${{ env.ImageOS }}-v1
 
       # Generous on purpose: a slow mirror should cost time, never a red build. Observed downloads run 11 to
       # 18 seconds normally, 117 to 156 seconds on a degraded mirror that still works, and sometimes hang
@@ -208,7 +186,7 @@ jobs:
         timeout-minutes: 30
         run: |
           set -eu
-          packages="libopenblas0 liblapacke"
+          packages="libopenblas0 libopenblas-dev"
           cache="$HOME/host-packages"
           # The runner's mirrorlist leads with azure.archive.ubuntu.com, which has been unreachable: apt waits
           # on it for every index file, logs Ign, and only then falls back to archive.ubuntu.com, which answers
@@ -242,89 +220,69 @@ jobs:
             echo "using $(ls -1 "$cache"/*.deb | wc -l) cached packages"
           fi
           if [ -z "$(ls -A "$cache" 2>/dev/null || true)" ]; then
-            echo "::error::could not download the host libraries; the package mirror is likely unreachable"
+            echo "::error::could not download OpenBLAS; the package mirror is likely unreachable"
             exit 1
           fi
           # One dpkg call over the whole closure, so it can work out the unpack and configure order itself.
           sudo dpkg -i "$cache"/*.deb
 
-      # Fail here rather than let the tests pass over an absent library: the native tests return early
-      # when dlopen finds nothing, which is indistinguishable from success in a report.
-      - name: Verify the soname the binding looks for
+      # Fail here rather than let optional comparator tests return early on an absent library.
+      - name: Verify the comparator soname
         run: |
           set -eu
           for soname in libopenblas.so.0; do
             if ! ldconfig -p | grep -q "$soname"; then
-              echo "::error::$soname is not on the loader path; the bindings would silently fall back"
+              echo "::error::$soname is not on the loader path; the benchmark comparator cannot run"
               exit 1
             fi
             echo "found $soname"
           done
 
-      - name: Run tests against the host libraries
-        run: ./gradlew :koblas:jvmTest :koblas:linuxX64Test :koblas:koverXmlReport -Pkoblas.hostTests=true
-
-      - name: Upload host coverage to Codecov (main only)
-        if: github.ref == 'refs/heads/main'
-        uses: codecov/codecov-action@v7
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          files: koblas/build/reports/kover/report.xml
-          flags: host-simd
-          fail_ci_if_error: false
-
-      # The run above never opens the JVM level-2 gate, so dropping the Vector API is what reaches those
-      # bindings.
-      - name: Run the host tests again with the level-2 bindings reachable
+      - name: Run comparator correctness tests
         run: >-
-          ./gradlew :koblas:jvmTest :koblas:koverXmlReport
-          -Pkoblas.hostTests=true -Pkoblas.noSimd=true --rerun-tasks
+          ./gradlew :koblas-bench:jvmTest
+          --tests com.eignex.koblas.bench.BenchmarkArmResolutionTest
 
-      - name: Upload scalar host coverage to Codecov (main only)
-        if: github.ref == 'refs/heads/main'
-        uses: codecov/codecov-action@v7
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          files: koblas/build/reports/kover/report.xml
-          flags: host-scalar
-          fail_ci_if_error: false
-
-      # The JVM host tests skip themselves via Assume when a library is missing, and a skipped suite is a
-      # green suite. This turns that back into a failure.
-      - name: Fail if the host tests did not actually run
-        if: always()
+      - name: Smoke-test JVM benchmark resolution
         run: |
-          set -eu
-          files=$(find koblas/build/test-results -name 'TEST-*.xml' | grep -Ei 'cblas|hostblas' || true)
-          if [ -z "$files" ]; then
-            echo "::error::no host-library test results were produced"
+          set -o pipefail
+          log=$(mktemp)
+          trap 'rm -f "$log"' EXIT
+          ./gradlew :koblas-bench:jvmSelectedBenchmark \
+            -Pbench.include=Level3Benchmark.gemm \
+            -Pbench.param.n=64 -Pbench.param.denseArm=openblas 2>&1 | tee "$log"
+          if grep -Eq '<failure>|EXCEPTION: <ERROR>' "$log"; then
+            echo "::error::the JVM OpenBLAS comparator failed inside the benchmark fork"
             exit 1
           fi
-          status=0
-          for f in $files; do
-            attrs=$(grep -ho 'tests="[0-9]*"[^>]*skipped="[0-9]*"' "$f" | head -1)
-            tests=$(printf '%s' "$attrs" | sed -n 's/.*tests="\([0-9]*\)".*/\1/p')
-            skipped=$(printf '%s' "$attrs" | sed -n 's/.*skipped="\([0-9]*\)".*/\1/p')
-            echo "$(basename "$f"): tests=${tests:-0} skipped=${skipped:-0}"
-            if [ "${tests:-0}" -eq 0 ] || [ "${skipped:-0}" -ne 0 ]; then
-              echo "::error::$(basename "$f") ran nothing or skipped; the host library did not bind"
-              status=1
-            fi
-          done
-          exit $status
+          grep -q 'resolved: arm=openblas dense=openblas/cblas threading=1 thread' "$log"
+
+      - name: Smoke-test Linux Native benchmark resolution
+        run: |
+          set -o pipefail
+          log=$(mktemp)
+          trap 'rm -f "$log"' EXIT
+          ./gradlew :koblas-bench:linuxX64SelectedBenchmark \
+            -Pbench.include=Level3Benchmark.gemm \
+            -Pbench.param.n=64 -Pbench.param.denseArm=openblas 2>&1 | tee "$log"
+          if grep -Eq '<failure>|EXCEPTION: <ERROR>' "$log"; then
+            echo "::error::the Linux Native OpenBLAS comparator failed inside the benchmark process"
+            exit 1
+          fi
+          grep -q 'resolved: arm=openblas dense=openblas/cblas-native threading=1 thread' "$log"
 
       - name: Upload test reports
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: test-reports-host-libraries
+          name: test-reports-openblas-comparator
           path: |
-            koblas/build/reports/tests/
-            koblas/build/test-results/
+            koblas-bench/build/reports/tests/
+            koblas-bench/build/test-results/
           if-no-files-found: ignore
 
   # The Linux job cross-compiles the macOS klibs but cannot link or run them; this job exercises
-  # the native tests on Apple Silicon, including the host-BLAS backend against Homebrew's OpenBLAS.
+  # the native tests on Apple Silicon.
   test-macos:
     name: Run native tests on macOS
     runs-on: macos-latest
@@ -357,28 +315,6 @@ jobs:
 
       - name: Grant execute permission for Gradle
         run: chmod +x gradlew
-
-      - name: Install the macOS Fortran compiler
-        run: |
-          brew install gcc
-          echo "FC=$(find "$(brew --prefix gcc)/bin" -name 'gfortran-*' -print -quit)" >> "$GITHUB_ENV"
-
-      - name: Cache bundled OpenBLAS resources
-        uses: actions/cache@v5
-        with:
-          path: koblas-openblas/build/openblas
-          key: openblas-${{ runner.os }}-${{ runner.arch }}-macosx-arm64-${{ hashFiles('koblas-openblas/openblas.lock', 'scripts/build-openblas.sh') }}
-
-      # This must stay before Homebrew: it verifies that a JVM consumer can use the optional Maven
-      # artifact on Apple Silicon without a host OpenBLAS installation. GCC supplies the toolchain used to
-      # build the bundled source, not an OpenBLAS runtime library.
-      - name: Run the Maven OpenBLAS bundle tests without host libraries
-        run: ./gradlew :koblas-openblas:test
-
-      # macosTest runs hostBlasTest, whose CblasConformanceTest requires its library rather than skipping
-      # without it.
-      - name: Install OpenBLAS
-        run: brew install openblas
 
       - name: Run native tests
         run: ./gradlew :koblas:macosArm64Test

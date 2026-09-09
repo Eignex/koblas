@@ -17,7 +17,7 @@ class BackendPinTest {
 
     @Test
     fun `a role pin naming another backend leaves every other role`() {
-        val requested = unpinned() + (BackendSlot.Blas to "openblas")
+        val requested = unpinned() + (BackendSlot.Blas to "external-blas")
         assertEquals(
             BackendSlot.entries.toSet() - BackendSlot.Blas,
             offerFor(namedProvider("vendor"), requested).halves,
@@ -32,7 +32,7 @@ class BackendPinTest {
 
     @Test
     fun `a provider no role pin names is offered nothing`() {
-        val requested = BackendSlot.entries.associateWith { "openblas" }
+        val requested = BackendSlot.entries.associateWith { "external" }
         assertTrue(offerFor(namedProvider("superlu"), requested).isEmpty)
     }
 

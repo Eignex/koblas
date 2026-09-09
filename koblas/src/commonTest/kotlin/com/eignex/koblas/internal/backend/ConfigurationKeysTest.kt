@@ -6,7 +6,7 @@ class ConfigurationKeysTest {
 
     @Test
     fun `the property is taken ahead of the environment variable`() {
-        assertEquals("openblas", pinnedBackend("openblas", "reference"))
+        assertEquals("hfactor", pinnedBackend("hfactor", "reference"))
     }
 
     @Test
@@ -32,25 +32,25 @@ class ConfigurationKeysTest {
 
     @Test
     fun `an absolute path is accepted in either spelling`() {
-        assertTrue(isAbsolutePath("/opt/openblas/lib/libopenblas.so"))
-        assertTrue(isAbsolutePath("C:/libs/openblas.dll"))
+        assertTrue(isAbsolutePath("/opt/hfactor/lib/libhfactor.so"))
+        assertTrue(isAbsolutePath("C:/libs/hfactor.dll"))
     }
 
     @Test
     fun `a relative path is not a configured path`() {
-        assertFalse(isAbsolutePath("build/libopenblas.so"))
-        assertFalse(isAbsolutePath("libopenblas.so"))
+        assertFalse(isAbsolutePath("build/libhfactor.so"))
+        assertFalse(isAbsolutePath("libhfactor.so"))
         assertFalse(isAbsolutePath(""))
     }
 
     @Test
     fun `a pin matches a bundled provider by its canonical name`() {
-        assertTrue(matchesRequested(bundledProvider("openblas-bundled", "openblas"), "openblas"))
-        assertTrue(matchesRequested(bundledProvider("openblas-bundled", "openblas"), "openblas-bundled"))
-        assertTrue(matchesRequested(namedProvider("openblas"), "openblas"))
-        assertFalse(matchesRequested(namedProvider("openblas"), "cblas"))
+        assertTrue(matchesRequested(bundledProvider("hfactor-bundled", "hfactor"), "hfactor"))
+        assertTrue(matchesRequested(bundledProvider("hfactor-bundled", "hfactor"), "hfactor-bundled"))
+        assertTrue(matchesRequested(namedProvider("hfactor"), "hfactor"))
+        assertFalse(matchesRequested(namedProvider("hfactor"), "other"))
         assertFalse(
-            matchesRequested(namedProvider("openblas-bundled"), "openblas"),
+            matchesRequested(namedProvider("hfactor-bundled"), "hfactor"),
             "the name no longer carries the meaning; a provider declares what it bundles",
         )
     }
