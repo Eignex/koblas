@@ -9,11 +9,11 @@ import com.eignex.koblas.VectorLike
 import kotlin.math.abs
 
 /**
- * The portable dense matrix routines, the semantic reference a native [Blas] is validated against.
+ * Shared dense matrix algorithms bound to one immutable set of built-in kernels.
  *
  * @property kernels the immutable kernels used by every inner loop.
  */
-internal class ReferenceBackend(override val kernels: Kernels) : Blas {
+internal class BuiltinBlas(override val kernels: Kernels) : Blas {
     override val name: String get() = "built-in"
 
     override fun gemv(
@@ -494,4 +494,4 @@ internal class ReferenceBackend(override val kernels: Kernels) : Blas {
 }
 
 /** The scalar semantic oracle used by tests and explicit comparisons. */
-public val ReferenceBlas: Blas = ReferenceBackend(ScalarKernels)
+public val ReferenceBlas: Blas = BuiltinBlas(ScalarKernels)

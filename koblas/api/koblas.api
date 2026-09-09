@@ -531,6 +531,10 @@ public final class com/eignex/koblas/dense/Blas$DefaultImpls {
 	public static synthetic fun trsv$default (Lcom/eignex/koblas/dense/Blas;Lcom/eignex/koblas/DenseMatrix;[DZZZILjava/lang/Object;)V
 }
 
+public final class com/eignex/koblas/dense/BuiltinBlasKt {
+	public static final fun getReferenceBlas ()Lcom/eignex/koblas/dense/Blas;
+}
+
 public abstract interface class com/eignex/koblas/dense/Kernels {
 	public abstract fun asum ([DII)D
 	public abstract fun axpy ([DID[DII)V
@@ -595,10 +599,6 @@ public final class com/eignex/koblas/dense/PackedPanels {
 	public static synthetic fun writeLeft$default (Lcom/eignex/koblas/dense/PackedPanels;[DLcom/eignex/koblas/DenseMatrix;IIIIIZLcom/eignex/koblas/Workspace;ILjava/lang/Object;)V
 	public final fun writeRight ([DLcom/eignex/koblas/DenseMatrix;IIIIIZLcom/eignex/koblas/Workspace;)V
 	public static synthetic fun writeRight$default (Lcom/eignex/koblas/dense/PackedPanels;[DLcom/eignex/koblas/DenseMatrix;IIIIIZLcom/eignex/koblas/Workspace;ILjava/lang/Object;)V
-}
-
-public final class com/eignex/koblas/dense/ReferenceBackendKt {
-	public static final fun getReferenceBlas ()Lcom/eignex/koblas/dense/Blas;
 }
 
 public final class com/eignex/koblas/dense/TriangularKt {

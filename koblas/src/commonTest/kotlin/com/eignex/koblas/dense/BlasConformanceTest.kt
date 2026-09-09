@@ -67,7 +67,7 @@ class BlasConformanceTest {
                 ScalarKernels.axpy(y, yOff, alpha, x, xOff, len)
             }
         }
-        val blas = ReferenceBackend(recording)
+        val blas = BuiltinBlas(recording)
         val x = DenseVector.wrap(doubleArrayOf(2.0, -3.0, 5.0, 7.0))
 
         val lower = DenseMatrix(4, 4)
@@ -91,7 +91,7 @@ class BlasConformanceTest {
             }
         }
         val upper = DenseMatrix(2, 2)
-        ReferenceBackend(recording).syr(
+        BuiltinBlas(recording).syr(
             1.0,
             DenseVector.wrap(doubleArrayOf(2.0, 3.0)),
             upper,
@@ -122,7 +122,7 @@ class BlasConformanceTest {
         val a = DenseMatrix(3, 3, doubleArrayOf(2.0, 3.0, 5.0, 0.0, 7.0, 11.0, 0.0, 0.0, 13.0))
         val y = DoubleArray(3)
 
-        ReferenceBackend(recording).symv(1.0, a, doubleArrayOf(17.0, 19.0, 23.0), 0.0, y, lower = true)
+        BuiltinBlas(recording).symv(1.0, a, doubleArrayOf(17.0, 19.0, 23.0), 0.0, y, lower = true)
 
         assertEquals(3, fused)
         assertEquals(doubleArrayOf(206.0, 437.0, 593.0).toList(), y.toList())
@@ -138,7 +138,7 @@ class BlasConformanceTest {
             }
         }
 
-        ReferenceBackend(recording).syr2(
+        BuiltinBlas(recording).syr2(
             1.0,
             DenseVector.wrap(doubleArrayOf(2.0, 3.0, 5.0)),
             DenseVector.wrap(doubleArrayOf(7.0, 11.0, 13.0)),
@@ -308,7 +308,7 @@ class BlasConformanceTest {
                     DenseMatrix(k, n, DoubleArray(k * n) { (it + 1).toDouble() })
                 }
 
-                ReferenceBackend(recording).gemm(1.0, a, transposeA, b, transposeB, 0.0, DenseMatrix(m, n))
+                BuiltinBlas(recording).gemm(1.0, a, transposeA, b, transposeB, 0.0, DenseMatrix(m, n))
 
                 assertTrue(tiles > 0, "tA=$transposeA tB=$transposeB did not reach the tile kernel")
             }

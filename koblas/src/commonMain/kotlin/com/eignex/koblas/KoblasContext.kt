@@ -1,8 +1,8 @@
 package com.eignex.koblas
 
 import com.eignex.koblas.dense.Blas
+import com.eignex.koblas.dense.BuiltinBlas
 import com.eignex.koblas.dense.Kernels
-import com.eignex.koblas.dense.ReferenceBackend
 import com.eignex.koblas.sparse.SparseAlgorithms
 import com.eignex.koblas.sparse.SparseBlas
 import com.eignex.koblas.sparse.SparseKernels
@@ -19,7 +19,7 @@ public class KoblasContext internal constructor(
     /** Sparse-vector kernels used by sparse convenience operations. */
     public val sparseKernels: SparseKernels,
     /** Shared dense matrix algorithms bound to [kernels]. */
-    public val blas: Blas = ReferenceBackend(kernels),
+    public val blas: Blas = BuiltinBlas(kernels),
     /** Shared sparse matrix algorithms bound to [kernels]. */
     public val sparseBlas: SparseBlas = SparseAlgorithms(kernels),
 ) : Blas by blas,

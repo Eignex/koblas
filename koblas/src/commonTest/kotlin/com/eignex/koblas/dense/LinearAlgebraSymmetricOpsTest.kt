@@ -273,7 +273,7 @@ class LinearAlgebraSymmetricOpsTest {
 
     @Test
     fun `syrk preserves the netlib zero multiplier rule with infinities`() {
-        val blas = ReferenceBackend(ScalarKernels)
+        val blas = BuiltinBlas(ScalarKernels)
         for (lower in booleanArrayOf(true, false)) {
             val values = if (lower) {
                 doubleArrayOf(0.0, Double.POSITIVE_INFINITY)
@@ -299,7 +299,7 @@ class LinearAlgebraSymmetricOpsTest {
 
     @Test
     fun `syrk preserves the netlib zero multiplier rule when finite scaling overflows`() {
-        val blas = ReferenceBackend(ScalarKernels)
+        val blas = BuiltinBlas(ScalarKernels)
         for (lower in booleanArrayOf(true, false)) {
             val values = if (lower) {
                 doubleArrayOf(0.0, Double.MAX_VALUE)
@@ -331,7 +331,7 @@ class LinearAlgebraSymmetricOpsTest {
     @Test
     fun `syrk snapshots an aliased destination`() {
         val rng = Random(20260908)
-        val blas = ReferenceBackend(ScalarKernels)
+        val blas = BuiltinBlas(ScalarKernels)
         for (transpose in booleanArrayOf(false, true)) {
             for (lower in booleanArrayOf(false, true)) {
                 val original = DoubleArray(25) { rng.nextDouble(-1.0, 1.0) }
@@ -424,7 +424,7 @@ class LinearAlgebraSymmetricOpsTest {
 
     @Test
     fun `syr2k preserves exceptional rank two evaluation`() {
-        val blas = ReferenceBackend(ScalarKernels)
+        val blas = BuiltinBlas(ScalarKernels)
         for (lower in booleanArrayOf(true, false)) {
             val infinityA = if (lower) {
                 doubleArrayOf(1.0, Double.POSITIVE_INFINITY)
@@ -481,7 +481,7 @@ class LinearAlgebraSymmetricOpsTest {
 
     @Test
     fun `syr2k interleaves cross products before accumulation overflow`() {
-        val blas = ReferenceBackend(ScalarKernels)
+        val blas = BuiltinBlas(ScalarKernels)
         val magnitude = 1e154
         val normalA = doubleArrayOf(magnitude, magnitude, magnitude, magnitude)
         val normalB = doubleArrayOf(magnitude, -magnitude, magnitude, -magnitude)
@@ -506,7 +506,7 @@ class LinearAlgebraSymmetricOpsTest {
     @Test
     fun `syr2k snapshots either aliased input`() {
         val rng = Random(20260909)
-        val blas = ReferenceBackend(ScalarKernels)
+        val blas = BuiltinBlas(ScalarKernels)
         for (transpose in booleanArrayOf(false, true)) {
             for (lower in booleanArrayOf(false, true)) {
                 for (aliased in 0..2) {
@@ -725,7 +725,7 @@ class LinearAlgebraSymmetricOpsTest {
         val ws = Workspace()
         ws.reserve(n * k, 2)
         ws.reserve(PORTABLE_TILE * PORTABLE_TILE, 1)
-        val blas = ReferenceBackend(FailingTile())
+        val blas = BuiltinBlas(FailingTile())
         assertFailsWith<IllegalStateException> {
             blas.syrk(
                 1.0,
@@ -769,7 +769,7 @@ class LinearAlgebraSymmetricOpsTest {
         val ws = Workspace()
         val parked = listOf(ws.take(n * k), ws.take(n * k))
         parked.forEach { ws.release(it) }
-        val blas = ReferenceBackend(FailingTile())
+        val blas = BuiltinBlas(FailingTile())
         assertFailsWith<IllegalStateException> {
             blas.syr2k(
                 1.0,
@@ -799,7 +799,7 @@ class LinearAlgebraSymmetricOpsTest {
             it.fill(1.0)
             it[0] = Double.POSITIVE_INFINITY
         }
-        val blas = ReferenceBackend(FailingAxpy())
+        val blas = BuiltinBlas(FailingAxpy())
 
         assertFailsWith<IllegalStateException> {
             blas.syr2k(

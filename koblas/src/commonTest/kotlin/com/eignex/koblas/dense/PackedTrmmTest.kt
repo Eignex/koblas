@@ -104,7 +104,7 @@ class PackedTrmmTest {
             tiles = 0
             val triangle = DenseMatrix.diagonal(order)
             val source = DenseMatrix(panel, order, DoubleArray(panel * order) { 0.01 * (it + 1) })
-            ReferenceBackend(recording).trmm(
+            BuiltinBlas(recording).trmm(
                 triangle,
                 source,
                 lower = true,
@@ -131,7 +131,7 @@ class PackedTrmmTest {
         val expected = writtenOut(explicit, scaled, transpose = true, right = false)
         val actual = DenseMatrix(source.rows, source.cols, source.data.copyOf())
 
-        ReferenceBackend(PlatformKernels).trmm(
+        BuiltinBlas(PlatformKernels).trmm(
             triangle,
             actual,
             lower = false,
@@ -156,7 +156,7 @@ class PackedTrmmTest {
         }
         val expected = writtenOut(explicitTriangle, sourceSnapshot, transpose = false, right = true)
 
-        ReferenceBackend(PlatformKernels).trmm(
+        BuiltinBlas(PlatformKernels).trmm(
             shared,
             shared,
             lower = true,
@@ -192,7 +192,7 @@ class PackedTrmmTest {
         source[0, 0] = Double.POSITIVE_INFINITY
         source[0, 1] = 1.0
 
-        ReferenceBackend(recording).trmm(triangle, source, lower = true, right = true, workspace = Workspace())
+        BuiltinBlas(recording).trmm(triangle, source, lower = true, right = true, workspace = Workspace())
 
         assertEquals(0, tiles)
         assertEquals(Double.POSITIVE_INFINITY, source[0, 0])
@@ -225,7 +225,7 @@ class PackedTrmmTest {
         source[0, 0] = Double.MAX_VALUE
         source[1, 0] = Double.MAX_VALUE
 
-        ReferenceBackend(recording).trmm(triangle, source, lower = true, workspace = Workspace())
+        BuiltinBlas(recording).trmm(triangle, source, lower = true, workspace = Workspace())
 
         assertEquals(0, tiles)
         assertEquals(Double.POSITIVE_INFINITY, source[0, 0])
