@@ -343,5 +343,4 @@ public object PackedPanels {
         require(rows in 0..tileRows) { "packed solve rows $rows exceed tileRows $tileRows" }
         require(order in 0..tileColumns) { "packed solve order $order exceeds tileColumns $tileColumns" }
     }
-
 }

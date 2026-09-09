@@ -1,8 +1,8 @@
 package com.eignex.koblas.dense
 
+import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.Workspace
 import com.eignex.koblas.borrow
-import com.eignex.koblas.DenseMatrix
 import kotlin.math.min
 
 /** Whether packing can preserve this call's observable zero and non-finite arithmetic. */

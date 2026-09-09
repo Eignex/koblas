@@ -121,13 +121,7 @@ internal object SimdGemmTile {
 
     // The vectors must stay in the caller so a small-depth fused tile does not materialize them on the heap.
     @Suppress("NOTHING_TO_INLINE")
-    private inline fun storeColumn(
-        c: DoubleArray,
-        cOff: Int,
-        column: Int,
-        low: DoubleVector,
-        high: DoubleVector,
-    ) {
+    private inline fun storeColumn(c: DoubleArray, cOff: Int, column: Int, low: DoubleVector, high: DoubleVector) {
         val base = cOff + column * rows
         low.intoArray(c, base)
         high.intoArray(c, base + lanes)
