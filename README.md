@@ -60,7 +60,8 @@ val y = a * x
 ```
 
 Sparse matrices are validated CSC with ascending row indices in each column. Construct them from columns or
-coordinate triplets, then use sparse products, transpose, preparation, and triangular operations.
+coordinate triplets, then use general, symmetric, and triangular products, transpose, and preparation. Symmetric
+operations consume exactly one selected CSC triangle; entries physically present in the opposite triangle are ignored.
 
 ## Data and storage
 
@@ -110,9 +111,10 @@ subset.
 |--------|-------------------|-------------------|
 | BLAS level 1 | `dot`, `axpy`, `scale`, `norm2`, `asum`, `iamax`, `copy`, `swap`, `rotg`, `rot`, `rotmg`, `rotm` | `ddot`, `daxpy`, `dscal`, `dnrm2`, `dasum`, `idamax`, `dcopy`, `dswap`, `drotg`, `drot`, `drotmg`, `drotm` |
 | BLAS level 2 | `gemv`, `symv`, `ger`, `syr`, `syr2`, `trsv`, `trmv` | `dgemv`, `dsymv`, `dger`, `dsyr`, `dsyr2`, `dtrsv`, `dtrmv` |
-| BLAS level 3 | `gemm`, `symm`, `syrk`, `syr2k`, `trsm`, `trmm` | `dgemm`, `dsymm`, `dsyrk`, `dsyr2k`, `dtrsm`, `dtrmm` |
+| BLAS level 3 | `gemm`, `gemmt`, `symm`, `syrk`, `syr2k`, `trsm`, `trmm` | `dgemm`, Netlib `GEMMTR` (`cblas_dgemmt` in OpenBLAS and oneMKL), `dsymm`, `dsyrk`, `dsyr2k`, `dtrsm`, `dtrmm` |
 | Dense utility | `transpose`, `norm1`, `normInf`, `normFro`, row/column scaling | No direct BLAS routine |
-| Sparse BLAS | CSC `gemv`, triangular `trsv`/`trsm` and `trmv`/`trmm`, sparse–dense `gemm`, sparse–sparse product, `transpose`, prepared repeated products | Sparse BLAS `usmv`, `ussv`, `ussm`, `usmm`; triangular multiply is `usmv`/`usmm` over a triangle, and product and preparation are Koblas operations |
+| Sparse BLAS | CSC `gemv`, selected-triangle `symv`/`symm`, triangular `trsv`/`trsm` and `trmv`/`trmm`, sparse–dense and sparse–sparse `gemm`, direct dense-result sparse product, selected-triangle `syrk`, `transpose`, prepared repeated products | Sparse BLAS `usmv`, `ussv`, `ussm`, `usmm`; symmetric and triangular properties specialize those operations, while sparse result products and preparation are Koblas operations |
+| Sparse algebra extensions | `addScaled`, sparse `+`/`-`, sparse-result `syrk` | Common vendor extensions rather than standard Sparse BLAS roots |
 
 This table documents the subset, not a roadmap. In particular, it does not imply support for the other routines in
 the BLAS or Sparse BLAS specifications.
@@ -198,6 +200,11 @@ a.prepare().use { prepared ->
 
 Prepared handles are AutoCloseable. HFactor factors and basis solvers own native resources and must also be
 closed deterministically.
+
+Sparse `syrk` has two explicit storage choices: a scaled alpha/beta form writes one triangle of a dense
+destination, while the unscaled allocating form returns only the selected CSC triangle. That sparse result is not
+implicitly mirrored by general `gemv`; pass it to `symv` or `symm` when symmetric interpretation is intended.
+Sparse-sparse `gemm` can likewise return owned CSC structure or accumulate directly into a dense destination.
 
 ## Native options and threading
 

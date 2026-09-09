@@ -103,9 +103,12 @@ the other names are exact pins and fail when unavailable. Dense and sparse compa
 `built-in`, `openblas`, and `onemkl` terminology.
 
 Benchmark-owned level-1 CBLAS calls cover dot, axpy, scale, norm, absolute sum, swap, and rotations for both dense
-comparators. `sum` and fused squared distance have no CBLAS counterpart. Four-way dot is labeled as a composition
-of four calls, never direct kernel parity. See `comparator-coverage.tsv` for the same direct/composition/missing
-classification across dense and sparse operations.
+comparators. OpenBLAS `cblas_dsum` is tracked as a vendor extension; fused squared distance has no CBLAS
+counterpart. Four-way dot is labeled as a composition of four calls, never direct kernel parity. See
+`comparator-coverage.tsv` for the same direct/composition/missing classification across dense and sparse operations.
+
+Comparator equivalence is separate from standards classification. See [`operation-classification.md`](operation-classification.md)
+for standard, matrix-property, legacy indexed, vendor extension, composition, and private-fusion categories.
 
 `simd` is absent from every `@Param` list because Kotlin/Native has no such
 arm and a benchmark configuration covers every target, so a full native
