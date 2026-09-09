@@ -10,6 +10,10 @@ package com.eignex.koblas
 import com.eignex.koblas.*
 import com.eignex.koblas.dense.Blas
 import com.eignex.koblas.dense.applyBeta
+import com.eignex.koblas.dense.denseStoredGemvUpdate
+import com.eignex.koblas.dense.denseSymmetricStoredGemvUpdate
+import com.eignex.koblas.dense.genericRankOneUpdate
+import com.eignex.koblas.dense.genericStoredGemvUpdate
 import com.eignex.koblas.sparse.internal.sparseSyr
 import com.eignex.koblas.sparse.internal.sparseSyr2
 
@@ -56,13 +60,7 @@ public fun MatrixLike.gemvInto(alpha: Double, x: VectorLike, beta: Double, desti
     if (alpha == 0.0) return
     when (a) {
         is DenseMatrix -> {
-            val ad = a.data
-            val rows = a.rows
-            // Read the installed kernels once rather than per stored entry of x.
-            val kernels = koblas.denseKernelFamilies.vector
-            x.forEachStored { j, v ->
-                if (v != 0.0) kernels.axpy(destination, 0, alpha * v, ad, j * rows, rows)
-            }
+            denseStoredGemvUpdate(koblas.denseKernelFamilies.vector, alpha, a, x, destination)
         }
 
         is SparseMatrix -> x.forEachStored { j, v ->
@@ -72,11 +70,7 @@ public fun MatrixLike.gemvInto(alpha: Double, x: VectorLike, beta: Double, desti
             }
         }
 
-        else -> for (i in 0 until a.rows) {
-            var sum = 0.0
-            x.forEachStored { j, v -> sum += a[i, j] * v }
-            destination[i] += alpha * sum
-        }
+        else -> genericStoredGemvUpdate(alpha, a, x, destination)
     }
 }
 
@@ -112,15 +106,7 @@ public fun DenseMatrix.symvInto(
     }
     destination.prescale(beta)
     if (alpha == 0.0) return
-    x.forEachStored { j, v ->
-        if (v != 0.0) {
-            val scaled = alpha * v
-            for (i in 0 until rows) {
-                val aij = if (lower == (i >= j)) this[i, j] else this[j, i]
-                destination[i] += aij * scaled
-            }
-        }
-    }
+    denseSymmetricStoredGemvUpdate(alpha, this, x, destination, lower)
 }
 
 /** [symvInto] with `alpha = 1, beta = 0`, so `destination` receives `A * x`. */
@@ -150,14 +136,7 @@ public fun DenseMatrix.ger(alpha: Double, x: VectorLike, y: VectorLike) {
         koblas.ger(alpha, x.data, y.data, this)
         return
     }
-    val md = data
-    y.forEachStored { j, yj ->
-        if (yj != 0.0) {
-            val col = j * rows
-            val scaled = alpha * yj
-            x.forEachStored { i, xi -> md[col + i] += scaled * xi }
-        }
-    }
+    genericRankOneUpdate(alpha, x, y, this)
 }
 
 /** Symmetric rank-1 update `A += alpha * x * xT` (BLAS `dsyr`) in place. See [Blas.syr]. */
