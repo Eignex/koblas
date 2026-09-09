@@ -46,7 +46,6 @@ class SparseProductHostBenchmark {
     private lateinit var triangularProduct: DenseMatrix
     private lateinit var triangularSolve: DenseMatrix
     private lateinit var triangularProductRight: DenseMatrix
-    private lateinit var triangularSolveRight: DenseMatrix
     private lateinit var prepared: PreparedSparseMatrix
     private var externalPrepared: PreparedSparseComparator? = null
     private var externalPreparedSquare: PreparedSparseComparator? = null
@@ -101,7 +100,6 @@ class SparseProductHostBenchmark {
         triangularProduct = DenseMatrix.zero(n, RIGHT_HAND_SIDES)
         triangularSolve = DenseMatrix.zero(n, RIGHT_HAND_SIDES)
         triangularProductRight = DenseMatrix.zero(RIGHT_HAND_SIDES, n)
-        triangularSolveRight = DenseMatrix.zero(RIGHT_HAND_SIDES, n)
         if (builtIn != null) {
             prepared = builtIn!!.prepare(a)
         } else {
@@ -248,27 +246,84 @@ class SparseProductHostBenchmark {
         return triangularProductRight
     }
 
+}
+
+/** Right-side sparse triangular solve, separated from the immutable contributor profile v1. */
+@State(Scope.Benchmark)
+@BenchmarkMode(Mode.AverageTime)
+@OutputTimeUnit(BenchmarkTimeUnit.MICROSECONDS)
+class SparseRightTriangularBenchmark {
+    @Param("64", "257") var n: Int = 64
+    @Param(BUILTIN_BACKEND, ONEMKL_BACKEND) var sparseArm: String = BUILTIN_BACKEND
+    @Param("upper-nontrans-nonunit") var triangleVariant: String = "upper-nontrans-nonunit"
+
+    private lateinit var triangle: SparseMatrix
+    private lateinit var input: DenseMatrix
+    private lateinit var output: DenseMatrix
+    private var builtIn: SparseBlas? = null
+    private var externalTriangle: PreparedSparseComparator? = null
+    private var lower = false
+    private var transpose = false
+    private var unitDiag = false
+
+    @Setup
+    fun setup() {
+        val parts = triangleVariant.split('-')
+        check(parts.size == 3) { "unknown triangular variant: $triangleVariant" }
+        lower = when (parts[0]) {
+            "lower" -> true
+            "upper" -> false
+            else -> error("unknown triangle: ${parts[0]}")
+        }
+        transpose = when (parts[1]) {
+            "trans" -> true
+            "nontrans" -> false
+            else -> error("unknown transpose: ${parts[1]}")
+        }
+        unitDiag = when (parts[2]) {
+            "unit" -> true
+            "nonunit" -> false
+            else -> error("unknown diagonal: ${parts[2]}")
+        }
+        triangle = bandTriangle(n, lower)
+        input = randomMatrix(RIGHT_HAND_SIDES, n, benchRng())
+        output = DenseMatrix.zero(RIGHT_HAND_SIDES, n)
+        if (sparseArm == BUILTIN_BACKEND) {
+            builtIn = explicitBuiltInContext().sparseBlas
+            println("resolved: arm=$sparseArm sparse=${builtIn!!.name} threading=single calling thread")
+        } else {
+            val external = checkNotNull(oneMklSparseComparator()) {
+                "the benchmark-only oneMKL sparse comparator is unavailable"
+            }
+            externalTriangle = external.prepare(triangle, triangular = true, lower = lower, unitDiag = unitDiag)
+            println("resolved: arm=$sparseArm sparse=${external.identity} threading=${external.threading}")
+        }
+        reportAllocatingWorkload(
+            "sparse/$sparseArm/trsm-right-composition",
+            "oneMKL requires dense transpose staging around its left-side sparse solve",
+        )
+    }
+
+    @TearDown
+    fun tearDown() {
+        externalTriangle?.close()
+    }
+
     @Benchmark
     fun trsmRight(): DenseMatrix {
-        triangularDenseRight.data.copyInto(triangularSolveRight.data)
-        if (external != null) {
-            // B*op(A)^-1 = transpose(op(A)^-T*transpose(B)); oneMKL only exposes a left-side solve.
-            val transposedInput = DenseMatrix.wrap(n, RIGHT_HAND_SIDES, DoubleArray(n * RIGHT_HAND_SIDES))
-            for (j in 0 until n) for (i in 0 until RIGHT_HAND_SIDES) transposedInput[j, i] = triangularSolveRight[i, j]
-            val transposedOut = DenseMatrix.zero(n, RIGHT_HAND_SIDES)
-            externalTriangle!!.trsm(transposedInput, transposedOut, transpose = !triangleTranspose)
-            for (j in 0 until n) for (i in 0 until RIGHT_HAND_SIDES) triangularSolveRight[i, j] = transposedOut[j, i]
-        } else {
-            builtIn!!.trsm(
-                triangle,
-                triangularSolveRight,
-                triangleLower,
-                triangleTranspose,
-                triangleUnitDiag,
-                right = true,
-            )
+        input.data.copyInto(output.data)
+        val external = externalTriangle
+        if (external == null) {
+            builtIn!!.trsm(triangle, output, lower, transpose, unitDiag, right = true)
+            return output
         }
-        return triangularSolveRight
+        // B*op(A)^-1 = transpose(op(A)^-T*transpose(B)); oneMKL only exposes a left-side solve.
+        val transposedInput = DenseMatrix.wrap(n, RIGHT_HAND_SIDES, DoubleArray(n * RIGHT_HAND_SIDES))
+        for (j in 0 until n) for (i in 0 until RIGHT_HAND_SIDES) transposedInput[j, i] = output[i, j]
+        val transposedOut = DenseMatrix.zero(n, RIGHT_HAND_SIDES)
+        external.trsm(transposedInput, transposedOut, transpose = !transpose)
+        for (j in 0 until n) for (i in 0 until RIGHT_HAND_SIDES) output[i, j] = transposedOut[j, i]
+        return output
     }
 }
 
