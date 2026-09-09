@@ -24,8 +24,8 @@ public interface Backend {
      * Whether this backend can do work on this host. koblas's own implementations always can, so the default
      * is true; a binding reports whether the library it calls resolved.
      *
-     * Each half answers for itself, since a host can provide OpenBLAS without HFactor. Registration does not
-     * consult this: koblas registers a binding on a bare library lookup and
+     * Each half answers for itself. Registration does not consult this: koblas registers a binding on a
+     * bare library lookup and
      * lets the binding fall back per call, so a registered backend may still report false here.
      * Read it to report what a host offers, or before installing one explicitly.
      */
@@ -61,8 +61,7 @@ public interface BackendMetadataProvider {
 }
 
 /**
- * The priority every host binding koblas ships registers at. A third-party backend is unprobed, and an ILP64
- * OpenBLAS exports identical symbols while computing wrong answers, caught by reading `openblas_get_config`.
+ * The priority reserved for host bindings. Bundled HFactor ranks just below an explicitly configured host.
  */
 public const val HOST_BACKEND_PRIORITY: Int = 100
 

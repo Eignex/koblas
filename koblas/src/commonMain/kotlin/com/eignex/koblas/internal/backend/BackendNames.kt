@@ -10,12 +10,6 @@ internal object BackendNames {
     /** The portable implementations, and a backend-selection value that registers none. */
     const val REFERENCE = "reference"
 
-    /** The JVM's `java.lang.foreign` binding to a host OpenBLAS. */
-    const val OPENBLAS = "openblas"
-
-    /** The Kotlin/Native `dlopen` binding to a host OpenBLAS. */
-    const val CBLAS = "cblas"
-
     /** The binding to HiGHS's HFactor, which solves a simplex basis hypersparsely and updates it. */
     const val HFACTOR = "hfactor"
 

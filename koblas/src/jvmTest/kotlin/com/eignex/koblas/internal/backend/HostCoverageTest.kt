@@ -1,7 +1,5 @@
 package com.eignex.koblas.internal.backend
 
-import com.eignex.koblas.dense.host.cblas.HostBlasConfig
-import com.eignex.koblas.dense.host.jvm.HostBlasCalls
 import com.eignex.koblas.sparse.host.SparseBackends
 import com.eignex.koblas.sparse.host.hfactor.HfactorConfig
 import com.eignex.koblas.testutil.host.HostLibraryTest
@@ -24,8 +22,8 @@ class HostCoverageTest {
         val resolved = resolvedHostLibraries()
         assertTrue(
             resolved.isNotEmpty(),
-            "no host library resolved, so this run covered none of the bindings it was asked to exercise. " +
-                "Install OpenBLAS or HFactor, or drop -Pkoblas.hostTests=true.",
+            "HFactor did not resolve, so this run covered none of the bindings it was asked to exercise. " +
+                "Install HFactor or drop -Pkoblas.hostTests=true.",
         )
     }
 
@@ -35,24 +33,16 @@ class HostCoverageTest {
         val nowhere = "/nonexistent/koblas-host-coverage"
         assertEquals(
             emptyList(),
-            resolvedHostLibraries(
-                blas = HostBlasConfig(libraryPath = nowhere),
-                hfactor = HfactorConfig(nowhere),
-            ),
+            resolvedHostLibraries(HfactorConfig(nowhere)),
         )
     }
 
     /** Reads the same configuration discovery does, so the guard reports what a run will actually reach. */
     private fun resolvedHostLibraries(
-        blas: HostBlasConfig = HostBlasConfig(
-            libraryPath = libraryPath(ConfigurationKeys.CBLAS_PATH),
-        ),
         hfactor: HfactorConfig = HfactorConfig(libraryPath(ConfigurationKeys.HFACTOR_PATH)),
     ): List<String> {
-        val dense = HostBlasCalls(blas)
         val sparse = SparseBackends(hfactor)
         return buildList {
-            if (dense.available) add("cblas")
             if (sparse.hfactor.isAvailable) add("hfactor")
         }
     }

@@ -25,6 +25,12 @@ symbols and thread controls cannot interfere. OpenBLAS and oneMKL are both force
 libraries installed on the development machine; absence fails an explicitly requested external profile instead
 of falling back to koblas.
 
+The JVM OpenBLAS comparator needs a loader-visible `libopenblas.so.0` (or the corresponding macOS dylib).
+The Linux Native comparator also needs the development linker name `libopenblas.so`; install the distribution's
+OpenBLAS runtime and development packages. oneMKL comparisons need a loader-visible `libmkl_rt` from an installed
+oneAPI MKL runtime. If a library is outside the system loader paths, add its directory to the platform loader
+environment before starting Gradle. None of these libraries is needed to build or use a published koblas module.
+
 ## Run benchmarks
 
 ```bash
@@ -33,6 +39,9 @@ of falling back to koblas.
 
 The `full` configuration expands every declared parameter, including optional external arms, and therefore requires
 all corresponding runtime libraries. Use `report` for the complete built-in inventory.
+
+The benchmark runner can report a fork failure after Gradle itself has completed successfully. Treat any
+`<failure>` or `EXCEPTION: <ERROR>` line as a failed comparison; `report.sh` enforces this automatically.
 
 For local A/B work:
 
