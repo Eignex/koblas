@@ -155,6 +155,15 @@ class OpsTest {
     }
 
     @Test
+    fun `iamax preserves nan and logical index semantics`() {
+        assertEquals(2, DenseVector.of(doubleArrayOf(Double.NaN, -2.0, Double.POSITIVE_INFINITY)).iamax())
+        assertEquals(0, DenseVector.of(doubleArrayOf(Double.NaN, Double.NaN)).iamax())
+        assertEquals(0, SparseVector.of(4, intArrayOf(2), doubleArrayOf(Double.NaN)).iamax())
+        val backing = doubleArrayOf(99.0, Double.NaN, 99.0, -7.0, 99.0, 6.0)
+        assertEquals(1, StridedVectorView(backing, offset = 1, size = 3, stride = 2).iamax())
+    }
+
+    @Test
     fun `copy replicates dense and sparse sources and rejects size mismatch`() {
         val dst = DenseVector.of(doubleArrayOf(9.0, 9.0, 9.0, 9.0, 9.0, 9.0))
         copy(sparse, dst) // sparse: must zero-fill the unstored slots
