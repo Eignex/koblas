@@ -3,6 +3,20 @@
 These archives preserve benchmark evidence that would otherwise be deleted with the Gradle build directory.
 They may contain machine and checkout details; inspect their metadata before sharing them outside the project.
 
+## Kernel contract composition
+
+`kernel-contract-composition-20260909.tar.gz` preserves two clean-main baseline passes and two dirty-candidate
+passes for selected JVM GEMV, SYMV, GEMM, transposed-A GEMM, right-side TRSM, and direct packed tile calls. The
+runs used an Intel Core i9-12900H with affinity `2-5`. One candidate packed pass was heavily contended; raw
+samples and confidence intervals are retained, and no performance improvement is claimed. Candidate source
+provenance was not captured precisely enough to attribute the measurements to the final PR commit.
+
+Exact commands, commit and dirty-state provenance, runtime settings, results, allocation-evidence limitations,
+and unmeasured platforms are recorded in `kernel-contract-composition-20260909-notes.md`.
+
+Expected SHA-256:
+`74b186c6d0a26656288f9f89386f84d308a3034bff6bd927d58cf96d8231f3e6`.
+
 ## Retained BLAS gaps
 
 `blas-gaps-20260909.tar.gz` preserves two original JVM passes for packed `gemmt` against independently bound,
