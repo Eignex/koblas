@@ -117,7 +117,8 @@ Expected SHA-256:
 
 `packed-triangular-simd-0320cab7-jvm-20260909.tar.gz` retains the fresh before/after JVM Vector API
 measurements for full and logical-edge packed GEMM-TRSM tiles at depths 3, 31 and 128. It also contains an
-upper unit-diagonal pass, a second independent edge pass, and an end-to-end built-in/OpenBLAS TRSM pass.
+upper unit-diagonal pass, a second independent edge pass, an end-to-end built-in/OpenBLAS TRSM pass, and an
+unchanged Linux x86-64 scalar/C validation run using the platform-shaped fixture.
 
 The run used an Intel Core i9-12900H with affinity `0,2,4,6` while another JMH process was active. Raw
 confidence intervals and cross-pass variation are retained. Lower non-unit 7x3 edges improve by 2.55x at
@@ -126,7 +127,7 @@ probe reporting `0 B/call`. OpenBLAS was single-threaded. oneMKL, ARM and macOS 
 end-to-end results retain substantial residual gaps rather than claiming parity.
 
 Expected SHA-256:
-`23d44d670d0053cca9a668ea114ece8b7c9b03e3f046d67c34ee139274323db8`.
+`8af72908a494b4ae4eb2a066eb6d1f2ad5fe53fde0de97fcec132af902782b96`.
 
 ## Sparse workspace and C dispatch
 
