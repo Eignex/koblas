@@ -155,6 +155,45 @@ class SparseCoverageCompletionTest {
     }
 
     @Test
+    fun `sparse syrk follows diagonal stored adjacency in both orientations`() {
+        val n = 1024
+        val diagonal = SparseMatrix.ofColumns(n, n, List(n) { j -> listOf(j to (j % 7 + 1.0)) })
+
+        for (transpose in booleanArrayOf(false, true)) {
+            val result = ReferenceSparseLinearAlgebra.syrk(diagonal, transpose)
+            assertEquals(n, result.nnz)
+            assertContentEquals(IntArray(n) { it }, result.copyRowIndices())
+            for (j in 0 until n) assertEquals((j % 7 + 1.0) * (j % 7 + 1.0), result.values[j])
+        }
+    }
+
+    @Test
+    fun `sparse syrk handles hypersparse rectangular adjacency`() {
+        val columns = List(193) { j ->
+            when (j) {
+                2 -> listOf(0 to 2.0, 256 to -3.0)
+                191 -> listOf(128 to 4.0)
+                else -> emptyList()
+            }
+        }
+        val a = SparseMatrix.ofColumns(257, 193, columns)
+
+        for (lower in booleanArrayOf(false, true)) {
+            val ordinary = ReferenceSparseLinearAlgebra.syrk(a, transpose = false, lower)
+            assertEquals(4, ordinary.nnz)
+            assertEquals(4.0, ordinary[0, 0])
+            assertEquals(16.0, ordinary[128, 128])
+            assertEquals(9.0, ordinary[256, 256])
+            assertEquals(-6.0, if (lower) ordinary[256, 0] else ordinary[0, 256])
+
+            val transposed = ReferenceSparseLinearAlgebra.syrk(a, transpose = true, lower)
+            assertEquals(2, transposed.nnz)
+            assertEquals(13.0, transposed[2, 2])
+            assertEquals(16.0, transposed[191, 191])
+        }
+    }
+
+    @Test
     fun `empty products retain requested shapes and scalar behavior`() {
         val a = SparseMatrix.ofColumns(2, 0, emptyList())
         val b = SparseMatrix.ofColumns(0, 3, List(3) { emptyList() })

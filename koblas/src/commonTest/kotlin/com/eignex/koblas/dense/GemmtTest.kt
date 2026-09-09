@@ -4,6 +4,7 @@ import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.Workspace
 import com.eignex.koblas.assertClose
 import kotlin.test.Test
+import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
@@ -99,5 +100,54 @@ class GemmtTest {
         ReferenceBlas.gemmt(1.0, a, false, b, false, 0.0, c)
 
         assertTrue(c[0, 0].isNaN())
+    }
+
+    @Test
+    fun `gemmt nontransposed path scales B before multiplying A`() {
+        val a = DenseMatrix.wrap(2, 1, doubleArrayOf(1e308, Double.NaN))
+        val b = DenseMatrix.wrap(1, 2, doubleArrayOf(2.0, 2.0))
+        val c = DenseMatrix.zero(2)
+
+        ReferenceBlas.gemmt(1e-308, a, false, b, false, 0.0, c)
+
+        assertEquals(2.0, c[0, 0], 1e-15)
+        assertTrue(c[1, 0].isNaN())
+    }
+
+    @Test
+    fun `gemmt transposed path scales the completed overflowing dot`() {
+        val a = DenseMatrix.wrap(1, 1, doubleArrayOf(1e308))
+        val b = DenseMatrix.wrap(1, 1, doubleArrayOf(2.0))
+        val c = DenseMatrix.zero(1)
+
+        ReferenceBlas.gemmt(1e-308, a, true, b, false, 0.0, c)
+
+        assertEquals(Double.POSITIVE_INFINITY, c[0, 0])
+    }
+
+    @Test
+    fun `gemmt transposed path retains overflow before cancellation`() {
+        val a = DenseMatrix.wrap(2, 1, doubleArrayOf(1e308, 1e308))
+        val b = DenseMatrix.wrap(2, 1, doubleArrayOf(2.0, -2.0))
+        val c = DenseMatrix.zero(1)
+
+        ReferenceBlas.gemmt(1e-308, a, true, b, false, 0.0, c)
+
+        assertTrue(c[0, 0].isNaN())
+    }
+
+    @Test
+    fun `gemmt zero depth applies beta in every orientation`() {
+        for (transposeA in booleanArrayOf(false, true)) {
+            for (transposeB in booleanArrayOf(false, true)) {
+                val a = if (transposeA) DenseMatrix(0, 2) else DenseMatrix(2, 0)
+                val b = if (transposeB) DenseMatrix(2, 0) else DenseMatrix(0, 2)
+                val c = DenseMatrix.wrap(2, 2, doubleArrayOf(1.0, 2.0, 3.0, 4.0))
+
+                ReferenceBlas.gemmt(Double.NaN, a, transposeA, b, transposeB, -2.0, c)
+
+                assertContentEquals(doubleArrayOf(-2.0, -4.0, 3.0, -8.0), c.data)
+            }
+        }
     }
 }

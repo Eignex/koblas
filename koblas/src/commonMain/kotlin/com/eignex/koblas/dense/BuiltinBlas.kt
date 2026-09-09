@@ -159,28 +159,94 @@ internal class BuiltinBlas(override val kernels: Kernels) : Blas {
         lower: Boolean,
         workspace: Workspace?,
     ) {
-        scaleTriangle(kernels, cd, n, beta, lower)
-        val exceptional = !alpha.isFinite() || packingScaleOverflows(alpha, ad) ||
-            ad.any { !it.isFinite() } || bd.any { !it.isFinite() }
-        if (!exceptional) {
+        if (packedGemmtSupports(alpha, ad, bd, beta, cd, n, k, lower)) {
+            scaleTriangle(kernels, cd, n, beta, lower)
             packedTriangularGemm(
                 kernels, alpha, ad, lda, transposeA, bd, ldb, transposeB, cd, n, k, lower, workspace,
             )
             return
         }
+        referenceGemmt(alpha, ad, lda, transposeA, bd, ldb, transposeB, beta, cd, n, k, lower)
+    }
+
+    /** Netlib GEMMTR arithmetic, whose update order depends on whether A is transposed. */
+    @Suppress("LongParameterList")
+    private fun referenceGemmt(
+        alpha: Double,
+        a: DoubleArray,
+        lda: Int,
+        transposeA: Boolean,
+        b: DoubleArray,
+        ldb: Int,
+        transposeB: Boolean,
+        beta: Double,
+        c: DoubleArray,
+        n: Int,
+        k: Int,
+        lower: Boolean,
+    ) {
+        if (!transposeA) scaleTriangle(kernels, c, n, beta, lower)
         for (j in 0 until n) {
             val from = if (lower) j else 0
             val until = if (lower) n else j + 1
-            for (i in from until until) {
-                var sum = 0.0
+            if (!transposeA) {
                 for (p in 0 until k) {
-                    val av = if (transposeA) ad[p + i * lda] else ad[i + p * lda]
-                    val bv = if (transposeB) bd[j + p * ldb] else bd[p + j * ldb]
-                    sum += av * bv
+                    val scaledB = alpha * if (transposeB) b[j + p * ldb] else b[p + j * ldb]
+                    for (i in from until until) c[i + j * n] += scaledB * a[i + p * lda]
                 }
-                cd[i + j * n] += alpha * sum
+            } else {
+                for (i in from until until) {
+                    var sum = 0.0
+                    for (p in 0 until k) {
+                        val bv = if (transposeB) b[j + p * ldb] else b[p + j * ldb]
+                        sum += a[p + i * lda] * bv
+                    }
+                    c[i + j * n] = if (beta == 0.0) alpha * sum else alpha * sum + beta * c[i + j * n]
+                }
             }
         }
+    }
+
+    /** Whether packed reassociation cannot introduce or hide non-finite intermediate arithmetic. */
+    @Suppress("LongParameterList")
+    private fun packedGemmtSupports(
+        alpha: Double,
+        a: DoubleArray,
+        b: DoubleArray,
+        beta: Double,
+        c: DoubleArray,
+        n: Int,
+        k: Int,
+        lower: Boolean,
+    ): Boolean {
+        // Packing scales A, whereas GEMMTR either scales B or scales a completed dot. Restrict the packed
+        // path to the identity scalar; every other scalar uses the orientation-specific reference order.
+        if (alpha != 1.0 || !beta.isFinite()) return false
+        var maxA = 0.0
+        for (value in a) {
+            if (!value.isFinite()) return false
+            maxA = maxOf(maxA, abs(value))
+        }
+        var maxB = 0.0
+        for (value in b) {
+            if (!value.isFinite()) return false
+            maxB = maxOf(maxB, abs(value))
+        }
+        var maxScaledC = 0.0
+        if (beta != 0.0) {
+            for (j in 0 until n) {
+                val from = if (lower) j else 0
+                val until = if (lower) n else j + 1
+                for (i in from until until) {
+                    val scaled = beta * c[i + j * n]
+                    if (!scaled.isFinite()) return false
+                    maxScaledC = maxOf(maxScaledC, abs(scaled))
+                }
+            }
+        }
+        if (maxA == 0.0 || maxB == 0.0) return true
+        val perTermLimit = (Double.MAX_VALUE - maxScaledC) / k
+        return !productExceeds(perTermLimit, maxA, maxB, 1.0)
     }
 
     @Suppress("LongParameterList") // the BLAS dsyrk signature plus optional scratch
