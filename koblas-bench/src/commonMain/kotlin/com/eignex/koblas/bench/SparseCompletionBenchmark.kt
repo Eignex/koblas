@@ -13,6 +13,7 @@ class SparseCompletionBenchmark {
     @Param("32", "129", "256") var n: Int = 32
     @Param("0.01", "0.1") var density: Double = 0.01
     @Param("true", "false") var lower: Boolean = true
+    @Param("left") var side: String = "left"
     @Param(BUILTIN_BACKEND, ONEMKL_BACKEND) var sparseArm: String = BUILTIN_BACKEND
 
     private var builtIn: com.eignex.koblas.sparse.SparseBlas? = null
@@ -26,6 +27,7 @@ class SparseCompletionBenchmark {
     private lateinit var c: DenseMatrix
     private lateinit var prepared: PreparedSparseMatrix
     private var externalSymmetric: PreparedSparseComparator? = null
+    private val right: Boolean get() = side == "right"
 
     @Setup
     fun setup() {
@@ -42,7 +44,8 @@ class SparseCompletionBenchmark {
         symmetric = selectedSymmetricMatrix(n, density, lower)
         x = randomVector(n, rng)
         y = DoubleArray(n)
-        rhs = randomMatrix(n, 8, rng)
+        check(side == "left" || side == "right") { "unknown symmetric side: $side" }
+        rhs = if (right) randomMatrix(8, n, rng) else randomMatrix(n, 8, rng)
         c = DenseMatrix.zero(n)
         if (builtIn != null) prepared = builtIn!!.prepare(symmetric)
         else externalSymmetric = external!!.prepare(symmetric, symmetric = true, lower = lower)
@@ -70,17 +73,30 @@ class SparseCompletionBenchmark {
 
     @Benchmark
     fun symm(): DenseMatrix {
-        val out = DenseMatrix.zero(n, rhs.cols)
-        external?.prepare(symmetric, symmetric = true, lower = lower)?.use { it.symm(1.0, rhs, 0.0, out) }
-            ?: builtIn!!.symm(1.0, symmetric, rhs, 0.0, out, lower)
+        val out = DenseMatrix.zero(rhs.rows, rhs.cols)
+        external?.prepare(symmetric, symmetric = true, lower = lower)?.use { externalSymm(it, out) }
+            ?: builtIn!!.symm(1.0, symmetric, rhs, 0.0, out, lower, right)
         return out
     }
 
     @Benchmark
     fun preparedSymm(): DenseMatrix {
-        val out = DenseMatrix.zero(n, rhs.cols)
-        externalSymmetric?.symm(1.0, rhs, 0.0, out) ?: prepared.symm(1.0, rhs, 0.0, out, lower)
+        val out = DenseMatrix.zero(rhs.rows, rhs.cols)
+        externalSymmetric?.let { externalSymm(it, out) } ?: prepared.symm(1.0, rhs, 0.0, out, lower, right)
         return out
+    }
+
+    private fun externalSymm(prepared: PreparedSparseComparator, out: DenseMatrix) {
+        if (!right) {
+            prepared.symm(1.0, rhs, 0.0, out)
+            return
+        }
+        // oneMKL places the sparse operand on the left: B*A = transpose(A*transpose(B)).
+        val transposedInput = DenseMatrix.zero(n, rhs.rows)
+        for (j in 0 until rhs.cols) for (i in 0 until rhs.rows) transposedInput[j, i] = rhs[i, j]
+        val transposedOut = DenseMatrix.zero(n, rhs.rows)
+        prepared.symm(1.0, transposedInput, 0.0, transposedOut)
+        for (j in 0 until out.cols) for (i in 0 until out.rows) out[i, j] = transposedOut[j, i]
     }
 
     @Benchmark

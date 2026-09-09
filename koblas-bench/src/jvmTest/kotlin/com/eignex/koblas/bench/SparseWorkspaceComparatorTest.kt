@@ -127,7 +127,7 @@ class SparseWorkspaceComparatorTest {
 
     @Test
     fun `composed scatter agrees for first touch overlap and offsets`() {
-        val comparator = oneMklSparseComparator() ?: KotlinIndexedComparator
+        val comparator = indexedComparator()
         val indices = intArrayOf(91, 7, 2, 9, 4, 82)
         val values = doubleArrayOf(91.0, 1.5, -2.0, 3.25, -4.5, 82.0)
         val expectedAccumulator = DoubleArray(12) { 123.0 }.also {
@@ -166,7 +166,7 @@ class SparseWorkspaceComparatorTest {
 
     @Test
     fun `composed repeated short scatters preserve growing first touch order`() {
-        val comparator = oneMklSparseComparator() ?: KotlinIndexedComparator
+        val comparator = indexedComparator()
         val calls = arrayOf(
             intArrayOf(7, 2, 9, 4),
             intArrayOf(2, 4, 6, 1),
@@ -203,7 +203,7 @@ class SparseWorkspaceComparatorTest {
 
     @Test
     fun `composed gathers agree for order compaction clearing and offsets`() {
-        val comparator = oneMklSparseComparator() ?: KotlinIndexedComparator
+        val comparator = indexedComparator()
         val touched = intArrayOf(77, 6, 1, 8, 3, 66)
         val source = DoubleArray(10) { 19.0 }.also {
             it[6] = 2.5
@@ -253,6 +253,14 @@ class SparseWorkspaceComparatorTest {
             }
         }
     }
+}
+
+private fun indexedComparator(): IndexedSparseLevel1Comparator {
+    val oneMkl = oneMklSparseComparator()
+    if (System.getProperty("koblas.oneMklTests") == "true") {
+        return checkNotNull(oneMkl) { "-Pkoblas.oneMklTests=true requires a loader-visible oneMKL runtime" }
+    }
+    return oneMkl ?: KotlinIndexedComparator
 }
 
 private object KotlinIndexedComparator : IndexedSparseLevel1Comparator {

@@ -36,6 +36,19 @@ CAPABILITIES = {
     "linuxX64": {"built-in": "supported", "openblas": "supported", "onemkl": "unsupported"},
     "macosArm64": {"built-in": "supported", "openblas": "unsupported", "onemkl": "unsupported"},
 }
+COMPARATOR_LIBRARY_CANDIDATES = {
+    "openblas": ["libopenblas.so.0", "libopenblas.so", "libopenblas.dylib"],
+    "onemkl": [
+        "libmkl_rt.so.3",
+        "libmkl_rt.so.2",
+        "libmkl_rt.so",
+        "libmkl_rt.3.dylib",
+        "libmkl_rt.dylib",
+        "mkl_rt.3.dll",
+        "mkl_rt.2.dll",
+        "mkl_rt.dll",
+    ],
+}
 
 
 class ReportError(RuntimeError):
@@ -89,10 +102,7 @@ def output(command: list[str]) -> str:
 
 
 def probe_library(comparator: str) -> dict[str, str]:
-    candidates = {
-        "openblas": ["libopenblas.so.0", "libopenblas.so", "libopenblas.dylib"],
-        "onemkl": ["libmkl_rt.so", "libmkl_rt.dylib", "mkl_rt.dll"],
-    }[comparator]
+    candidates = COMPARATOR_LIBRARY_CANDIDATES[comparator]
     symbol = "openblas_get_config" if comparator == "openblas" else "MKL_Get_Version_String"
     code = r'''
 import ctypes, json, sys

@@ -290,7 +290,7 @@ private class JvmCblasComparator private constructor(
 
         fun openOneMkl(): JvmCblasComparator? {
             val library = BenchFfmLibrary.open(
-                listOf("libmkl_rt.so.2", "libmkl_rt.so", "libmkl_rt.dylib", "mkl_rt.2.dll", "mkl_rt.dll"),
+                ONE_MKL_LIBRARY_CANDIDATES,
                 "cblas_dgemm",
             )
             return if (library.present && library.containsAll(required + "MKL_Set_Num_Threads")) {
@@ -299,6 +299,17 @@ private class JvmCblasComparator private constructor(
         }
     }
 }
+
+internal val ONE_MKL_LIBRARY_CANDIDATES = listOf(
+    "libmkl_rt.so.3",
+    "libmkl_rt.so.2",
+    "libmkl_rt.so",
+    "libmkl_rt.3.dylib",
+    "libmkl_rt.dylib",
+    "mkl_rt.3.dll",
+    "mkl_rt.2.dll",
+    "mkl_rt.dll",
+)
 
 private const val COL_MAJOR = 102
 private const val NO_TRANS = 111

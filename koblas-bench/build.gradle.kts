@@ -173,6 +173,9 @@ tasks.withType<KotlinJvmCompile>().configureEach {
 }
 tasks.withType<Test>().configureEach {
     jvmArgs("--add-modules=jdk.incubator.vector", "--enable-native-access=ALL-UNNAMED")
+    if (project.findProperty("koblas.oneMklTests") == "true") {
+        systemProperty("koblas.oneMklTests", "true")
+    }
 }
 tasks.withType<JavaExec>().configureEach {
     jvmArgs("--enable-native-access=ALL-UNNAMED")
