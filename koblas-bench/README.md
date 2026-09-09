@@ -67,6 +67,12 @@ the arm names, so a run cannot quietly credit an implementation that never
 executed. Each install prints one `resolved: arm=...` line naming the arm and
 the halves behind it, and `report.sh` collects those lines into the report.
 
+`SparseWorkspaceBenchmark` measures the five caller-owned sparse support operations directly at small through
+large touched counts; there is no external BLAS equivalent. `ExplicitPackedKernelBenchmark` selects scalar and
+bundled C providers so full and logical-edge tiles, fused update/solve, and the explicit composition remain
+distinguishable. On the JVM, `PackedTrsmEligibilityBenchmark` isolates the conservative eligibility scan and
+bound, while `ExplicitPackedTrsmBenchmark` keeps its outcome inside a repeated end-to-end solve.
+
 Sparse one-shot rows include oneMKL CSC conversion and destruction. Prepared rows retain the inspector-executor
 handle across invocations. Fresh sparse results and packing are reported with workload-dependent allocation
 expectations; allocation-free JVM kernels are probed in every fork and invalidate it if managed allocation exceeds

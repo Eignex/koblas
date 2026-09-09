@@ -17,7 +17,8 @@ Kotlin Multiplatform BLAS and LAPACK.
 
 ## Design
 
-- Public types include their element type (`F64DenseMatrix`, `F64Blas`); new element types need separate registries and seams.
+- Public concrete containers use the intentional unprefixed names (`DenseMatrix`, `SparseMatrix`, `DenseVector`,
+  `SparseVector`); do not restore `F64` aliases. A future element family needs an explicit API and seam design.
 - Dense matrices are column-major: `A(i, j)` is `i + j * rows`. Sparse matrices are validated CSC with ascending row indices per column.
 - The portable reference defines semantics. Host bindings use measured thresholds then fall back to it.
 - Backend seams retain the strongest per half; equal offers preserve first registration. Registration is CAS; call `installBackends` at startup.
