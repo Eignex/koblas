@@ -104,6 +104,32 @@ class BenchmarkArmResolutionTest {
     }
 
     @Test
+    fun `external gemmt agrees with the independent built in result`() {
+        val context = explicitBuiltInContext()
+        for (external in listOfNotNull(openBlasComparator(), oneMklDenseComparator())) {
+            for (transposeA in booleanArrayOf(false, true)) {
+                for (transposeB in booleanArrayOf(false, true)) {
+                    for (lower in booleanArrayOf(false, true)) {
+                        val n = 7
+                        val k = 5
+                        val a = if (transposeA) randomMatrix(k, n, benchRng()) else randomMatrix(n, k, benchRng())
+                        val b = if (transposeB) randomMatrix(n, k, benchRng()) else randomMatrix(k, n, benchRng())
+                        val expected = DenseMatrix.zero(n)
+                        val actual = DenseMatrix.zero(n)
+                        context.gemmt(0.75, a, transposeA, b, transposeB, 0.0, expected, lower)
+                        external.gemmt(0.75, a, transposeA, b, transposeB, 0.0, actual, lower)
+                        for (j in 0 until n) for (i in 0 until n) {
+                            if (if (lower) i >= j else i <= j) {
+                                assertEquals(expected[i, j], actual[i, j], 1e-11, "${external.identity} entry $i $j")
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    @Test
     fun `onemkl sparse prepared matrix agrees with built in when available`() {
         val external = oneMklSparseComparator() ?: return
         val context = explicitBuiltInContext()
@@ -114,6 +140,30 @@ class BenchmarkArmResolutionTest {
         context.sparseBlas.gemv(1.0, a, x, 0.0, expected)
         external.prepare(a).use { it.gemv(1.0, x, 0.0, actual) }
         for (i in actual.indices) assertEquals(expected[i], actual[i], 1e-11, "entry $i")
+    }
+
+    @Test
+    fun `sparse completion benchmark resolves every built in row`() {
+        val benchmark = SparseCompletionBenchmark().also {
+            it.n = 17
+            it.density = 0.15
+            it.lower = true
+            it.sparseArm = BUILTIN_BACKEND
+            it.setup()
+        }
+        try {
+            benchmark.symv()
+            benchmark.preparedSymv()
+            benchmark.symm()
+            benchmark.preparedSymm()
+            benchmark.sparseProductScaledTransposed()
+            benchmark.denseProduct()
+            benchmark.syrkDense()
+            benchmark.syrkSparse()
+            benchmark.addScaled()
+        } finally {
+            benchmark.tearDown()
+        }
     }
 
     @Test

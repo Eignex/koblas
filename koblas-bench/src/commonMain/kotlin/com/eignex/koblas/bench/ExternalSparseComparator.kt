@@ -12,8 +12,26 @@ internal interface SparseComparator : IndexedSparseLevel1Comparator {
     fun scatter(x: SparseVector, y: DoubleArray)
     fun gather(x: SparseVector, from: DoubleArray, out: DoubleArray)
     fun gatherZero(x: SparseVector, from: DoubleArray, out: DoubleArray)
-    fun prepare(a: SparseMatrix, triangular: Boolean = false, lower: Boolean = true, unitDiag: Boolean = false): PreparedSparseComparator
+    fun prepare(
+        a: SparseMatrix,
+        triangular: Boolean = false,
+        symmetric: Boolean = false,
+        lower: Boolean = true,
+        unitDiag: Boolean = false,
+    ): PreparedSparseComparator
     fun sparseProduct(a: SparseMatrix, b: SparseMatrix): SparseMatrix
+    fun denseProduct(
+        alpha: Double,
+        a: SparseMatrix,
+        transposeA: Boolean,
+        b: SparseMatrix,
+        transposeB: Boolean,
+        beta: Double,
+        c: DenseMatrix,
+    )
+    fun syrk(a: SparseMatrix, transpose: Boolean): SparseMatrix
+    fun syrkd(alpha: Double, a: SparseMatrix, transpose: Boolean, beta: Double, c: DenseMatrix)
+    fun addScaled(alpha: Double, a: SparseMatrix, transposeA: Boolean, b: SparseMatrix): SparseMatrix
 }
 
 internal interface IndexedSparseLevel1Comparator {
@@ -47,6 +65,8 @@ internal interface IndexedSparseLevel1Comparator {
 internal interface PreparedSparseComparator : AutoCloseable {
     fun gemv(alpha: Double, x: DoubleArray, beta: Double, y: DoubleArray, transpose: Boolean = false)
     fun gemm(alpha: Double, b: DenseMatrix, beta: Double, c: DenseMatrix, transpose: Boolean = false)
+    fun symv(alpha: Double, x: DoubleArray, beta: Double, y: DoubleArray)
+    fun symm(alpha: Double, b: DenseMatrix, beta: Double, c: DenseMatrix)
     fun trsv(x: DoubleArray, out: DoubleArray, transpose: Boolean = false)
     fun trmv(x: DoubleArray, out: DoubleArray, transpose: Boolean = false)
     fun trsm(b: DenseMatrix, out: DenseMatrix, transpose: Boolean = false)

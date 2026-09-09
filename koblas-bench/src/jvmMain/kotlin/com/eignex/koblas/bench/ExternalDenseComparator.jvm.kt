@@ -96,6 +96,15 @@ private class JvmCblasComparator private constructor(
             ),
         )
     }
+    private val dgemmt by lazy {
+        h(
+            "cblas_dgemmt",
+            voidOf(
+                JAVA_INT, JAVA_INT, JAVA_INT, JAVA_INT, JAVA_INT, JAVA_INT, JAVA_DOUBLE,
+                ADDRESS, JAVA_INT, ADDRESS, JAVA_INT, JAVA_DOUBLE, ADDRESS, JAVA_INT,
+            ),
+        )
+    }
     private val dsyrk by lazy {
         h(
             "cblas_dsyrk",
@@ -225,6 +234,23 @@ private class JvmCblasComparator private constructor(
         if (m != 0 && n != 0) dgemm.invokeExact(COL_MAJOR, trans(transposeA), trans(transposeB), m, n, k, alpha, seg(a.data), a.rows, seg(b.data), b.rows, beta, seg(c.data), c.rows) as Unit
     }
 
+    override fun gemmt(
+        alpha: Double,
+        a: DenseMatrix,
+        transposeA: Boolean,
+        b: DenseMatrix,
+        transposeB: Boolean,
+        beta: Double,
+        c: DenseMatrix,
+        lower: Boolean,
+    ) {
+        val k = if (transposeA) a.rows else a.cols
+        if (c.rows != 0) dgemmt.invokeExact(
+            COL_MAJOR, uplo(lower), trans(transposeA), trans(transposeB), c.rows, k, alpha,
+            seg(a.data), a.rows, seg(b.data), b.rows, beta, seg(c.data), c.rows,
+        ) as Unit
+    }
+
     override fun syrk(alpha: Double, a: DenseMatrix, transpose: Boolean, beta: Double, c: DenseMatrix, lower: Boolean) {
         val k = if (transpose) a.rows else a.cols
         if (c.rows != 0) dsyrk.invokeExact(COL_MAJOR, uplo(lower), trans(transpose), c.rows, k, alpha, seg(a.data), a.rows, beta, seg(c.data), c.rows) as Unit
@@ -252,7 +278,7 @@ private class JvmCblasComparator private constructor(
             "cblas_ddot", "cblas_daxpy", "cblas_dscal", "cblas_dnrm2", "cblas_dasum", "cblas_dswap",
             "cblas_drotm", "cblas_drot", "cblas_dgemv", "cblas_dsymv", "cblas_dger", "cblas_dsyr", "cblas_dsyr2",
             "cblas_dtrsv", "cblas_dtrmv", "cblas_dgemm", "cblas_dsyrk", "cblas_dsyr2k", "cblas_dsymm",
-            "cblas_dtrsm", "cblas_dtrmm",
+            "cblas_dtrsm", "cblas_dtrmm", "cblas_dgemmt",
         )
 
         fun openOpenBlas(): JvmCblasComparator? {

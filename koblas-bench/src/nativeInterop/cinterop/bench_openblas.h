@@ -19,7 +19,7 @@ static inline int koblas_openblas_available(void) {
         "cblas_ddot", "cblas_daxpy", "cblas_dscal", "cblas_dnrm2", "cblas_dasum", "cblas_dswap",
         "cblas_drotm", "cblas_drot", "cblas_dgemv", "cblas_dsymv", "cblas_dger", "cblas_dsyr",
         "cblas_dsyr2", "cblas_dtrsv", "cblas_dtrmv", "cblas_dgemm", "cblas_dsyrk", "cblas_dsyr2k",
-        "cblas_dsymm", "cblas_dtrsm", "cblas_dtrmm", "openblas_set_num_threads"
+        "cblas_dsymm", "cblas_dtrsm", "cblas_dtrmm", "cblas_dgemmt", "openblas_set_num_threads"
     };
     void *handle = koblas_openblas_handle();
     if (handle == NULL) return 0;
@@ -104,6 +104,10 @@ static inline void cblas_dtrmv(int o, int u, int t, int d, int n, const double *
 static inline void cblas_dgemm(int o, int ta, int tb, int m, int n, int k, double alpha, const double *a, int lda, const double *b, int ldb, double beta, double *c, int ldc) {
     typedef void (*function_t)(int, int, int, int, int, int, double, const double *, int, const double *, int, double, double *, int);
     KOBLAS_RESOLVE(cblas_dgemm, function_t)(o, ta, tb, m, n, k, alpha, a, lda, b, ldb, beta, c, ldc);
+}
+static inline void cblas_dgemmt(int o, int u, int ta, int tb, int n, int k, double alpha, const double *a, int lda, const double *b, int ldb, double beta, double *c, int ldc) {
+    typedef void (*function_t)(int, int, int, int, int, int, double, const double *, int, const double *, int, double, double *, int);
+    KOBLAS_RESOLVE(cblas_dgemmt, function_t)(o, u, ta, tb, n, k, alpha, a, lda, b, ldb, beta, c, ldc);
 }
 static inline void cblas_dsyrk(int o, int u, int t, int n, int k, double alpha, const double *a, int lda, double beta, double *c, int ldc) {
     typedef void (*function_t)(int, int, int, int, int, double, const double *, int, double, double *, int);

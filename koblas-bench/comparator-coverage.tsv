@@ -7,7 +7,10 @@ dense-1	asum	direct	direct	CBLAS dasum	com.eignex.koblas.bench.ExternalDenseLeve
 dense-1	swap	direct	direct	CBLAS dswap	com.eignex.koblas.bench.ExternalDenseLevel1Benchmark.swap
 dense-1	rotm	direct	direct	CBLAS drotm; parameter-block construction is reported	com.eignex.koblas.bench.ExternalDenseLevel1Benchmark.rotm
 dense-1	rot	direct	direct	CBLAS drot	com.eignex.koblas.bench.ExternalDenseLevel1Benchmark.rot
-dense-1	sum	missing	missing	No BLAS counterpart; never falls back to koblas
+dense-1	sum	direct	missing	OpenBLAS cblas_dsum vendor extension; no oneMKL or standard BLAS counterpart
+dense-1	iamax	direct	direct	Standard CBLAS idamax; exceptional inputs excluded because koblas intentionally ignores NaNs
+dense-1	copy	direct	direct	Standard CBLAS dcopy; public operation retained though not timed
+dense-1	rotg	direct	direct	Standard CBLAS drotg; public operation retained though not timed
 dense-1	ssqd	missing	missing	No numerically equivalent BLAS counterpart; never falls back to koblas
 dense-1	dot4	composition	composition	Four ddot calls; excluded from direct parity	com.eignex.koblas.bench.ExternalDenseLevel1CompositionBenchmark.dot4AsFourDots
 dense-1	axpy4-as-four-axpy	composition	composition	Four kernel calls quantify the fused output-traffic alternative	com.eignex.koblas.bench.Level1Benchmark.axpy4AsFourAxpy
@@ -15,7 +18,7 @@ dense-1	dot-axpy-separate	composition	composition	Separate dot and axpy calls qu
 packed-kernel	explicit trsm tile	missing	missing	Private packed leaf has no external panel-layout counterpart	com.eignex.koblas.bench.ExplicitPackedKernelBenchmark.trsmTile
 packed-kernel	explicit gemm trsm tile	missing	missing	Full C tile is register-resident fusion; portable fallback is the same logical composition	com.eignex.koblas.bench.ExplicitPackedKernelBenchmark.gemmTrsmTile
 packed-kernel	explicit separate gemm and trsm	missing	missing	Internal composition baseline over the same retained panels	com.eignex.koblas.bench.ExplicitPackedKernelBenchmark.separateGemmAndTrsm
-dense-1	rotmg	missing	missing	koblas exposes richer returned state and keeps the Netlib semantics
+dense-1	rotmg	direct	direct	CBLAS drotmg after translating the returned five-value parameter block; intentionally excluded from timing
 dense-2	gemv	direct	direct	CBLAS dgemv
 dense-2	gemv-rectangular	direct	direct	Rectangular CBLAS dgemv comparison	com.eignex.koblas.bench.GemvShapeBenchmark.gemv
 dense-2	gemv-transposed-rectangular	direct	direct	Rectangular transposed CBLAS dgemv comparison	com.eignex.koblas.bench.GemvShapeBenchmark.gemvTransposed
@@ -27,6 +30,7 @@ dense-2	syr2	direct	direct	CBLAS dsyr2
 dense-2	trsv	direct	direct	CBLAS dtrsv
 dense-2	trmv	direct	direct	CBLAS dtrmv
 dense-3	gemm	direct	direct	CBLAS dgemm
+dense-3	gemmt	direct	direct	OpenBLAS and oneMKL cblas_dgemmt; Netlib names the Fortran root GEMMTR	com.eignex.koblas.bench.GemmtBenchmark.gemmt
 dense-3	syrk	direct	direct	CBLAS dsyrk
 dense-3	syr2k	direct	direct	CBLAS dsyr2k
 dense-3	symm	direct	direct	CBLAS dsymm
@@ -61,10 +65,18 @@ sparse-workspace	checked growing scatter independent baseline	no-vendor-counterp
 packed-kernel	gemm tile	missing	missing	Internal packed leaf measured explicitly to choose JVM C dispatch	com.eignex.koblas.bench.ExplicitPackedKernelBenchmark.gemmTile
 packed-trsm	selected-provider end to end	missing	missing	Selected scalar and bundled C providers expose packed eligibility and fallback cost	com.eignex.koblas.bench.ExplicitPackedTrsmBenchmark.denseTrsm
 sparse-2	gemv	missing	direct	oneMKL inspector-executor mkl_sparse_d_mv
+sparse-2	symv	missing	direct	oneMKL symmetric descriptor with mkl_sparse_d_mv	com.eignex.koblas.bench.SparseCompletionBenchmark.symv
 sparse-2	trsv	missing	direct	oneMKL mkl_sparse_d_trsv
 sparse-2	trmv	missing	direct	oneMKL triangular descriptor with mkl_sparse_d_mv
 sparse-3	sparse-dense gemm	missing	direct	oneMKL mkl_sparse_d_mm
 sparse-3	sparse-sparse gemm	missing	direct	oneMKL mkl_sparse_spmm; result export is included in one-shot cost
+sparse-3	sparse-sparse scaled transposed gemm	missing	composition	oneMKL sparse product plus explicit transpose and result scaling adaptations	com.eignex.koblas.bench.SparseCompletionBenchmark.sparseProductScaledTransposed
+sparse-3	sparse-sparse dense result	missing	direct	oneMKL mkl_sparse_d_sp2md with both operand conversions timed	com.eignex.koblas.bench.SparseCompletionBenchmark.denseProduct
+sparse-3	symmetric sparse-dense left	missing	direct	oneMKL symmetric descriptor with mkl_sparse_d_mm	com.eignex.koblas.bench.SparseCompletionBenchmark.symm
+sparse-3	symmetric sparse-dense right	missing	composition	Transpose identity around oneMKL left-side sparse mm; unavailable as a direct vendor call
+sparse-3	sparse syrk dense upper	missing	direct	oneMKL mkl_sparse_d_syrkd after visible CSC to sorted CSR conversion	com.eignex.koblas.bench.SparseCompletionBenchmark.syrkDense
+sparse-3	sparse syrk sparse upper	missing	direct	oneMKL mkl_sparse_syrk with fresh output export and conversion timed	com.eignex.koblas.bench.SparseCompletionBenchmark.syrkSparse
+sparse-algebra	add scaled	missing	direct	oneMKL mkl_sparse_d_add after visible CSC to CSR conversion	com.eignex.koblas.bench.SparseCompletionBenchmark.addScaled
 sparse-3	trsm	missing	direct	oneMKL mkl_sparse_d_trsm
 sparse-3	trmm left	missing	direct	oneMKL triangular descriptor with mkl_sparse_d_mm
 sparse-3	trmm right	missing	composition	Transpose identity around mkl_sparse_d_mm; excluded from direct parity

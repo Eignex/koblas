@@ -69,6 +69,23 @@ private object NativeOpenBlas : DenseComparator {
         val n = if (transposeB) b.rows else b.cols
         three(a.data, b.data, c.data) { ap, bp, cp -> cblas_dgemm(COL, trans(transposeA), trans(transposeB), m, n, k, alpha, ap, a.rows, bp, b.rows, beta, cp, c.rows) }
     }
+    override fun gemmt(
+        alpha: Double,
+        a: DenseMatrix,
+        transposeA: Boolean,
+        b: DenseMatrix,
+        transposeB: Boolean,
+        beta: Double,
+        c: DenseMatrix,
+        lower: Boolean,
+    ) {
+        three(a.data, b.data, c.data) { ap, bp, cp ->
+            cblas_dgemmt(
+                COL, uplo(lower), trans(transposeA), trans(transposeB), c.rows,
+                if (transposeA) a.rows else a.cols, alpha, ap, a.rows, bp, b.rows, beta, cp, c.rows,
+            )
+        }
+    }
     override fun syrk(alpha: Double, a: DenseMatrix, transpose: Boolean, beta: Double, c: DenseMatrix, lower: Boolean) {
         both(a.data, c.data) { ap, cp -> cblas_dsyrk(COL, uplo(lower), trans(transpose), c.rows, if (transpose) a.rows else a.cols, alpha, ap, a.rows, beta, cp, c.rows) }
     }

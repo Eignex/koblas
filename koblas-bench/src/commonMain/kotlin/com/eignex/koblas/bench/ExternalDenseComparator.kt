@@ -40,6 +40,17 @@ internal interface DenseComparator {
         c: DenseMatrix,
     )
 
+    fun gemmt(
+        alpha: Double,
+        a: DenseMatrix,
+        transposeA: Boolean,
+        b: DenseMatrix,
+        transposeB: Boolean,
+        beta: Double,
+        c: DenseMatrix,
+        lower: Boolean,
+    )
+
     fun syrk(alpha: Double, a: DenseMatrix, transpose: Boolean, beta: Double, c: DenseMatrix, lower: Boolean)
     fun syr2k(
         alpha: Double,
