@@ -4,23 +4,34 @@ import com.eignex.koblas.ModifiedGivens
 
 /**
  * Contiguous dense Level 1 operations that are independently useful outside matrix algorithms.
- * Implementations may differ in their final rounding because compiled leaves can fuse multiplication
- * and addition or reduce vector lanes as a tree. A zero length is legal for every operation.
+ * Implementations must read and write only the array windows selected by their offsets and lengths.
+ * Callers must supply non-negative lengths and valid windows; implementations need not validate them.
+ * A zero length is legal for every operation that accepts one and produces the documented empty result
+ * without reading either array.
+ *
+ * Results agree to within rounding rather than bit for bit: compiled leaves may fuse multiplication and
+ * addition or reduce vector lanes as a tree. Shared algorithms must not depend on the final rounding order.
  */
 public interface DenseVectorKernels {
     /** Short implementation identifier for diagnostics. */
     public val name: String
 
-    /** Sum of pairwise products over [len] entries, or zero for an empty run. */
+    /** Returns `sum(a[aOff + i] * b[bOff + i])` over [len] entries, or zero for an empty run. */
     public fun dot(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int): Double
 
-    /** Adds `alpha * x` into [y] over [len] entries; zero alpha follows standalone BLAS semantics. */
+    /**
+     * Adds `alpha * x[xOff + i]` into `y[yOff + i]` over [len] entries. A zero [alpha] returns without
+     * evaluating the products, as required by standalone BLAS AXPY semantics.
+     */
     public fun axpy(y: DoubleArray, yOff: Int, alpha: Double, x: DoubleArray, xOff: Int, len: Int)
 
     /** Scales [len] entries in [v] by [alpha]. */
     public fun scale(v: DoubleArray, vOff: Int, alpha: Double, len: Int)
 
-    /** Rescaled Euclidean norm over [len] entries, or zero for an empty run. */
+    /**
+     * Returns the rescaled Euclidean norm over [len] entries, or zero for an empty run. Implementations
+     * must avoid the avoidable overflow and underflow of a plain square-sum followed by a square root.
+     */
     public fun nrm2(v: DoubleArray, vOff: Int, len: Int): Double
 
     /** Sum of absolute values over [len] entries, or zero for an empty run. */
@@ -29,7 +40,11 @@ public interface DenseVectorKernels {
     /** Constructs a modified Givens transformation. */
     public fun rotmg(d1: Double, d2: Double, x1: Double, y1: Double): ModifiedGivens
 
-    /** Applies a modified Givens [transformation] to two strided runs. */
+    /**
+     * Applies a modified Givens [transformation] to two strided runs. Each pair is loaded before either
+     * result is stored. Equal runs are therefore safe, but callers must snapshot any other overlap whose
+     * stores could precede a later input load.
+     */
     @Suppress("LongParameterList")
     public fun rotm(
         x: DoubleArray,
@@ -42,17 +57,27 @@ public interface DenseVectorKernels {
         transformation: ModifiedGivens,
     )
 
-    /** Applies the plane rotation `(c, s, -s, c)` to two contiguous runs. */
+    /**
+     * Applies the plane rotation `(c, s, -s, c)` to two contiguous runs. Each pair is loaded before either
+     * result is stored. Equal runs are therefore safe, but callers must snapshot any other overlap whose
+     * stores could precede a later input load.
+     */
     @Suppress("LongParameterList")
     public fun rot(x: DoubleArray, xOff: Int, y: DoubleArray, yOff: Int, len: Int, c: Double, s: Double)
 
     /** Exchanges [len] entries of the two runs. */
     public fun swap(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int)
 
-    /** Plain sum over [len] entries, or zero for an empty run. */
+    /**
+     * Returns the plain sum over [len] entries, or zero for an empty run. This is not compensated summation;
+     * compiled leaves may reduce vector lanes as a tree.
+     */
     public fun sum(v: DoubleArray, vOff: Int, len: Int): Double
 
-    /** Sum of squared pairwise differences over [len] entries. */
+    /**
+     * Returns `sum((a[aOff + i] - b[bOff + i])^2)` over [len] entries, or zero for an empty run. This is a
+     * single-pass squared distance and may overflow; it does not inherit the rescaling contract of [nrm2].
+     */
     public fun ssqd(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int): Double
 }
 
