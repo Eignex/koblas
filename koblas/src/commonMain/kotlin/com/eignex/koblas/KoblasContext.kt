@@ -70,7 +70,7 @@ public class KoblasContext internal constructor(
     public val generalSparseLu: GeneralSparseLu get() = roles.generalLu
 
     /**
-     * The distinct names of the backends that do the matrix work, joined, such as `"openblas+reference"`.
+     * The distinct names of the backends that do the matrix work, joined, such as `"reference+hfactor"`.
      * The vector-kernel halves are left out; [koblasInfo] prints both parts.
      */
     override val name: String

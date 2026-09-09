@@ -20,6 +20,6 @@ Dense linear algebra: the two swappable seams and the routines behind them.
 their parent's column-major leading dimension; their [row][com.eignex.koblas.StridedMatrixView.row]
 and [column][com.eignex.koblas.StridedMatrixView.column] views retain the corresponding stride.
 Mutations through a view or another reference to its backing array are visible to each other. View `gemv` and
-`gemm` preserve offsets and strides through JVM and Kotlin/Native CBLAS; negative
-vector strides use the portable loop. Output views may share a buffer with disjoint inputs, but an actual
+`gemm` preserve offsets and strides through the built-in implementations. Output views may share a buffer with
+disjoint inputs, but an actual
 overlap is rejected before mutation because BLAS does not define input/output aliasing for these routines.

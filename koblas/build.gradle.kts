@@ -19,7 +19,7 @@ kotlin {
         freeCompilerArgs.add("-Xexpect-actual-classes")
         optIn.add("com.eignex.koblas.UnsafeKoblasApi")
     }
-    // The JVM host-BLAS backend binds through java.lang.foreign, finalized in 22 and used here with
+    // The JVM C kernels and HFactor binding use java.lang.foreign, finalized in 22 and used here with
     // Linker.Option.critical. 25 is the current LTS-track release; this is the floor for JVM consumers.
     jvmToolchain(25)
     jvm {
@@ -49,8 +49,7 @@ kotlin {
         linuxMain.get().dependsOn(cMain)
         macosMain.get().dependsOn(if (nativeHostIsMacos) cMain else crossScalarMain)
 
-        // Every supported Native target resolves OpenBLAS at runtime, so the library may still be absent
-        // and fall back to scalar code.
+        // Native resource ownership utilities are shared by the remaining sparse implementation.
         val hostMain = create("hostMain") { dependsOn(nativeMain.get()) }
         linuxMain.get().dependsOn(hostMain)
         macosMain.get().dependsOn(hostMain)
@@ -156,18 +155,16 @@ dokka {
 tasks.withType<KotlinJvmCompile>().configureEach {
     compilerOptions.freeCompilerArgs.add("-Xadd-modules=jdk.incubator.vector")
 }
-// FFM downcalls are restricted methods: a warning on 25, an error later. Consumers pass the same flag
-// when they want the host-BLAS backend; core koblas needs it only because the backend now ships inside.
+// FFM downcalls are restricted methods: a warning on 25, an error later. The bundled JVM kernels and
+// HFactor binding both use them.
 tasks.withType<Test>().configureEach {
     jvmArgs("--enable-native-access=ALL-UNNAMED")
     if (project.findProperty("koblas.noSimd") != "true") {
         jvmArgs("--add-modules=jdk.incubator.vector")
     }
-    // Tests marked @Category(HostLibraryTest) need a real OpenBLAS or HFactor, so they are out of the
-    // default run and opted into with -Pkoblas.hostTests=true. They measure the machine as much as the library,
-    // so including them would make the everyday result mean different things on a box with OpenBLAS and one
-    // without. Excluding them and pinning every backend role to `reference` keeps that out; the opt-in
-    // run accepts the noise in exchange for exercising the bindings, and reports coverage like any other run.
+    // Tests marked @Category(HostLibraryTest) need a real HFactor, so they are out of the default run and
+    // opted into with -Pkoblas.hostTests=true. Excluding them and pinning every backend role to `reference`
+    // keeps the everyday result independent of the machine's installed libraries.
     if (project.findProperty("koblas.hostTests") == "true") return@configureEach
     systemProperty("koblas.backend.dense.kernels", "reference")
     systemProperty("koblas.backend.dense.blas", "reference")

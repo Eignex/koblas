@@ -16,7 +16,7 @@
 [![License](https://img.shields.io/github/license/eignex/koblas)](https://github.com/eignex/koblas/blob/main/LICENSE)
 
 Dense and sparse double-precision linear algebra for JVM and Kotlin/Native compute hosts. Koblas provides
-dense and sparse BLAS operations, with optional OpenBLAS and HFactor acceleration.
+dense and sparse BLAS operations, built-in C/SIMD kernels, and optional HFactor acceleration.
 
 Koblas is a low-level building block for numerical and optimization software that owns its data and algorithms.
 It exposes storage, allocation, workspace, backend, and lifecycle decisions instead of hiding them behind a
@@ -29,15 +29,16 @@ Windows Native, and Apple mobile targets are not published.
 
 | Module | Published targets | Purpose |
 |--------|-------------------|---------|
-| koblas | JVM, Linux x64/arm64, macOS arm64 | Dense BLAS and sparse linear algebra with portable references. |
-| koblas-openblas | JVM | Bundled CBLAS-only OpenBLAS. |
+| koblas | JVM, Linux x64/arm64, macOS arm64 | Dense BLAS and sparse linear algebra with built-in C/SIMD kernels and portable references. |
 | koblas-hfactor | JVM | Bundled HFactor for hypersparse simplex workflows. |
 
-On JVM, add `--add-modules=jdk.incubator.vector` to enable the built-in SIMD kernels. A host OpenBLAS is
-discovered when installed; the bundled modules take precedence on JVM Linux x64/arm64 and macOS arm64. When
-an accelerated provider is unavailable, koblas retains the same semantics through its portable implementation.
+On JVM, add `--add-modules=jdk.incubator.vector` to enable the built-in SIMD kernels. Without the Vector API,
+koblas uses its bundled C kernels when available and otherwise retains the same semantics through its scalar
+implementation. HFactor is discovered on JVM when installed; the bundled HFactor module takes precedence.
 
-Bundled modules carry their own third-party notices.
+The non-published `koblas-bench` module owns development-only OpenBLAS and oneMKL comparators. They are never
+dependencies or resources of a published module. See [`koblas-bench/README.md`](koblas-bench/README.md) for
+installation and runtime requirements. Bundled modules carry their own third-party notices.
 
 ## Quick start
 
@@ -95,8 +96,8 @@ koblas.blas.gemm(
 )
 ```
 
-Views are not serializable because they do not own their buffers. Strided BLAS passes offsets, increments, and
-leading dimensions to a selected host backend without packing. Disjoint views may share a backing buffer, but
+Views are not serializable because they do not own their buffers. Strided BLAS preserves offsets, increments,
+and leading dimensions through the built-in implementation without packing. Disjoint views may share a backing buffer, but
 a strided destination must not overlap an input.
 
 ## Numerical routine coverage
@@ -151,12 +152,10 @@ import com.eignex.koblas.*
 
 discoverBackends()
 val dense = koblas.status[BackendRole.DENSE_BLAS]
-check(dense.available)
+check(dense.portable)
 
 val route = koblas.route(RouteQuery.DenseGemm(m = 256, n = 64, k = 128))
-check(route.execution == BackendExecution.NATIVE) {
-    "${route.executor}: ${route.reason}"
-}
+check(route.execution == BackendExecution.PORTABLE)
 ```
 
 The `registerBackend(...)` function adds a provider explicitly. The `installBackends(...)` function replaces the
@@ -180,7 +179,7 @@ providers without route diagnostics report UNKNOWN rather than being assumed nat
 
 On JVM, a system property takes precedence over the corresponding environment variable. Kotlin/Native reads
 the environment variable. Override a library path with the JVM property `koblas.<library>.path` or environment
-variable `KOBLAS_<LIBRARY>_PATH`. Supported library identifiers are cblas and hfactor. The
+variable `KOBLAS_<LIBRARY>_PATH`. The supported library identifier is hfactor. The
 JVM-only `koblas.jvm.vector.scatter` setting (or
 `KOBLAS_JVM_VECTOR_SCATTER`) selects indexed Vector API stores for sparse kernels: auto (the default) makes a
 conservative guess from a 512-bit x86 preferred species. Use on when you know the deployment has a profitable
@@ -215,23 +214,10 @@ closed deterministically.
 ## Native options and threading
 
 Library paths belong to provider configuration types, while numerical and dispatch policy belongs to reusable
-options values. Bundled and host-backed providers accept the same options, so deployment can change without
-changing numerical policy. Effective options and resolved gates appear in `backendMetadata.options`.
+options values. Bundled and host-backed HFactor providers accept the same options, so deployment can change
+without changing numerical policy. Effective options and resolved gates appear in `backendMetadata.options`.
 
-The portable reference and JVM SIMD implementations are single-threaded. Automatic OpenBLAS discovery selects
-one thread; configure and register a host backend explicitly to request more:
-
-```kotlin
-import com.eignex.koblas.registerBackend
-import com.eignex.koblas.dense.host.cblas.HostBlasConfig
-import com.eignex.koblas.dense.host.cblas.OpenBlasOptions
-import com.eignex.koblas.dense.host.jvm.Cblas
-
-registerBackend(Cblas(HostBlasConfig(OpenBlasOptions(threadCount = 8))))
-```
-
-OpenBLAS thread configuration is process-wide. Bundled OpenBLAS is built without threading, and HFactor is
-single-threaded.
+The portable reference, JVM SIMD, bundled C kernels, and HFactor are single-threaded.
 
 ## Ownership and concurrency
 

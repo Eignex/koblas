@@ -4,8 +4,6 @@ import com.eignex.koblas.Backend
 import com.eignex.koblas.BundledBackend
 import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.dense.Blas
-import com.eignex.koblas.dense.host.cblas.HostBlasConfig
-import com.eignex.koblas.dense.host.jvm.OpenBlas
 import com.eignex.koblas.sparse.host.SparseBackends
 import com.eignex.koblas.sparse.host.hfactor.HfactorConfig
 import java.util.ServiceLoader
@@ -31,9 +29,6 @@ internal actual fun registerPlatformBackends() {
 
 /** Deployment overrides are read only while automatic discovery chooses its candidates. */
 private class AutomaticHostConfiguration {
-    val openBlas = HostBlasConfig(
-        libraryPath = libraryPath(ConfigurationKeys.CBLAS_PATH),
-    )
     val hfactor = HfactorConfig(libraryPath(ConfigurationKeys.HFACTOR_PATH))
 
     /** What a deployment pointed at a library of its own, read once off [ConfigurationKeys.LIBRARY_PATHS]. */
@@ -49,15 +44,12 @@ private class AutomaticHostConfiguration {
 }
 
 /**
- * koblas's own FFM bindings, offered once each. Presence is a `dlopen` plus a symbol lookup, not a probe
- * computation, because `Linker.downcallHandle` is stack-hungry enough to throw StackOverflowError here;
- * dense correctness is covered by [probe] for service providers instead.
+ * koblas's own HFactor binding, offered once. Presence is a `dlopen` plus a symbol lookup.
  *
  * The backends are built once for this pass and handed over, rather than looked up per question, since
  * constructing them twice would open the library twice.
  */
 private fun registerBuiltins(automatic: AutomaticHostConfiguration, requested: Map<BackendSlot, String?>) {
-    registerIfOffered(OpenBlas(automatic.openBlas), requested)
     registerIfOffered(SparseBackends(hfactorConfig = automatic.hfactor).hfactor, requested)
 }
 

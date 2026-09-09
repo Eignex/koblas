@@ -60,21 +60,14 @@ jobs:
           cache-read-only: true
           cache-encryption-key: ${{ secrets.GRADLE_ENCRYPTION_KEY }}
 
-      - name: Install the macOS Fortran compiler
-        if: matrix.platform == 'macosx-arm64'
-        run: |
-          brew install gcc
-          echo "FC=$(find "$(brew --prefix gcc)/bin" -name 'gfortran-*' -print -quit)" >> "$GITHUB_ENV"
-
       - name: Install the Linux ARM64 cross-toolchain
         if: matrix.platform == 'linux-arm64'
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
-            gcc-aarch64-linux-gnu g++-aarch64-linux-gnu gfortran-aarch64-linux-gnu
+            gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
           echo "CC=aarch64-linux-gnu-gcc" >> "$GITHUB_ENV"
           echo "CXX=aarch64-linux-gnu-g++" >> "$GITHUB_ENV"
-          echo "FC=aarch64-linux-gnu-gfortran" >> "$GITHUB_ENV"
 
       - name: Build core JVM kernels
         run: >-
@@ -88,33 +81,12 @@ jobs:
           path: koblas/build/kernels/resources
           if-no-files-found: error
 
-      - name: Cache bundled OpenBLAS resources
-        id: cache-openblas
-        uses: actions/cache@v5
-        with:
-          path: koblas-openblas/build/openblas
-          key: release-openblas-${{ runner.os }}-${{ runner.arch }}-${{ matrix.platform }}-${{ hashFiles('koblas-openblas/openblas.lock', 'scripts/build-openblas.sh', 'scripts/third-party-notices.sh') }}
-
       - name: Cache bundled HFactor resources
         id: cache-hfactor
         uses: actions/cache@v5
         with:
           path: koblas-hfactor/build/hfactor
           key: release-hfactor-${{ runner.os }}-${{ runner.arch }}-${{ matrix.platform }}-${{ hashFiles('koblas-hfactor/hfactor.lock', 'koblas-hfactor/native/*', 'scripts/build-hfactor.sh', 'scripts/third-party-notices.sh') }}
-
-      - name: Build bundled OpenBLAS
-        if: steps.cache-openblas.outputs.cache-hit != 'true'
-        run: >-
-          ./gradlew --no-build-cache --no-configuration-cache --rerun-tasks
-          :koblas-openblas:buildOpenBlas -Pkoblas.openblas.platform=${{ matrix.platform }}
-
-      - name: Upload bundled OpenBLAS resources
-        uses: actions/upload-artifact@v7
-        with:
-          name: openblas-${{ matrix.platform }}
-          path: koblas-openblas/build/openblas/resources
-          include-hidden-files: true
-          if-no-files-found: error
 
       # HFactor is a class inside HiGHS rather than a library with an API, so the build compiles it against
       # a shim and reads CXX rather than CC.
@@ -218,13 +190,6 @@ jobs:
           key: ${{ runner.os }}-konan-${{ hashFiles('**/*.gradle.kts') }}
           restore-keys: ${{ runner.os }}-konan-
 
-      - name: Download bundled OpenBLAS resources
-        uses: actions/download-artifact@v8
-        with:
-          pattern: openblas-*
-          path: koblas-openblas/build/openblas/resources
-          merge-multiple: true
-
       - name: Download bundled HFactor resources
         uses: actions/download-artifact@v8
         with:
@@ -275,10 +240,10 @@ jobs:
             echo "IS_SNAPSHOT=false" >> "$GITHUB_ENV"
           fi
 
-      - name: Verify bundled native resources
+      - name: Verify bundled HFactor resources
         run: >-
-          ./gradlew :koblas-openblas:verifyOpenBlasResources :koblas-hfactor:verifyHfactorResources
-          -x :koblas-openblas:buildOpenBlas -x :koblas-hfactor:buildHfactor
+          ./gradlew :koblas-hfactor:verifyHfactorResources
+          -x :koblas-hfactor:buildHfactor
 
       - name: Verify core JVM kernels
         run: ./gradlew :koblas:verifyJvmKernelResources -Pkoblas.kernels.prebuilt=true
@@ -288,7 +253,7 @@ jobs:
         run: >-
           ./gradlew build -PciVersion=${{ env.RELEASE_VERSION }}
           -Pkoblas.kernels.prebuilt=true
-          -x :koblas-openblas:buildOpenBlas -x :koblas-hfactor:buildHfactor
+          -x :koblas-hfactor:buildHfactor
 
       - name: Upload test reports
         if: always() && env.IS_SNAPSHOT == 'false'
@@ -310,7 +275,7 @@ jobs:
         run: >-
           ./gradlew publishAllPublicationsToMavenCentralStagingRepository
           -PciVersion=${{ env.RELEASE_VERSION }} -Pkoblas.kernels.prebuilt=true
-          -x :koblas-openblas:buildOpenBlas -x :koblas-hfactor:buildHfactor
+          -x :koblas-hfactor:buildHfactor
 
       - name: Substitute the host-built macOS Native publication
         if: env.IS_SNAPSHOT == 'false' && env.DRY_RUN != 'true'
@@ -333,7 +298,7 @@ jobs:
         run: >-
           ./gradlew publishAllPublicationsToSonatypeSnapshotsRepository -PciVersion=${{ env.RELEASE_VERSION }}
           -Pkoblas.kernels.prebuilt=true
-          -x :koblas-openblas:buildOpenBlas -x :koblas-hfactor:buildHfactor
+          -x :koblas-hfactor:buildHfactor
           -x :koblas:publishMacosArm64PublicationToSonatypeSnapshotsRepository
 
       - name: Detect pre-release

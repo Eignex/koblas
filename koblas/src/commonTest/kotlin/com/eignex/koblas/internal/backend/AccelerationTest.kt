@@ -71,7 +71,7 @@ class AccelerationTest {
 
     @Test
     fun `registering a host backend accelerates exactly its own role`() = withCleanBackends {
-        registerBackend(FakeHost("openblas"))
+        registerBackend(FakeHost("external-blas"))
         assertTrue(koblas.isAccelerated(BackendRole.DENSE_BLAS))
         assertEquals(BackendRole.entries.toSet() - BackendRole.DENSE_BLAS, koblas.portableRoles)
     }
@@ -85,13 +85,13 @@ class AccelerationTest {
 
     @Test
     fun `requireAccelerated passes for the roles that are covered`() = withCleanBackends {
-        registerBackend(FakeHost("openblas"))
+        registerBackend(FakeHost("external-blas"))
         koblas.requireAccelerated(BackendRole.DENSE_BLAS)
     }
 
     @Test
     fun `requireAccelerated names the roles that fell back and what filled them`() = withCleanBackends {
-        registerBackend(FakeHost("openblas"))
+        registerBackend(FakeHost("external-blas"))
         val failure = assertFailsWith<IllegalStateException> {
             koblas.requireAccelerated(BackendRole.DENSE_BLAS, BackendRole.SPARSE_GENERAL_LU)
         }
@@ -103,7 +103,7 @@ class AccelerationTest {
 
     @Test
     fun `a context reports its own halves rather than the global registry`() = withCleanBackends {
-        registerBackend(FakeHost("openblas"))
+        registerBackend(FakeHost("external-blas"))
         val portable = koblas.with(blas = ReferenceBlas)
         assertFalse(portable.isAccelerated(BackendRole.DENSE_BLAS), "the context's own half is portable")
         assertTrue(koblas.isAccelerated(BackendRole.DENSE_BLAS), "the registry is still accelerated")
@@ -112,7 +112,7 @@ class AccelerationTest {
 
     @Test
     fun `backendFor returns the backend filling each role`() = withCleanBackends {
-        val host = FakeHost("openblas")
+        val host = FakeHost("external-blas")
         registerBackend(host)
         assertSame(host, koblas.backendFor(BackendRole.DENSE_BLAS))
         assertSame(koblas.kernels, koblas.backendFor(BackendRole.DENSE_KERNELS))
@@ -121,12 +121,12 @@ class AccelerationTest {
 
     @Test
     fun `structured status names every public role`() = withCleanBackends {
-        registerBackend(FakeHost("openblas"))
+        registerBackend(FakeHost("external-blas"))
 
         val status = koblas.status
 
         assertEquals(BackendRole.entries, status.backends.map { it.role })
-        assertEquals("openblas", status[BackendRole.DENSE_BLAS].provider)
+        assertEquals("external-blas", status[BackendRole.DENSE_BLAS].provider)
         assertTrue(status[BackendRole.DENSE_BLAS].accelerated)
         assertEquals(BackendMetadata(), status[BackendRole.DENSE_BLAS].metadata)
         assertEquals(koblas.blas, koblas.backendFor(BackendRole.DENSE_BLAS))
