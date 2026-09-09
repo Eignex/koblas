@@ -6,6 +6,10 @@ Dense BLAS contracts and built-in implementations.
 immutable [Kernels] instance. The platform default is exposed through [com.eignex.koblas.koblas]; tests and
 benchmarks can construct independent exact engines through [com.eignex.koblas.BuiltinKernels].
 
+`gemmt` is the triangular-result general product Netlib calls `GEMMTR`; OpenBLAS and oneMKL expose the common
+`cblas_dgemmt` spelling. It uses ordinary full column-major operands and a selected full-storage destination
+triangle, not conventional compact BLAS packed storage.
+
 [com.eignex.koblas.StridedMatrixView] and [com.eignex.koblas.StridedVectorView] are live zero-copy views.
 Operations preserve offsets, increments, and leading dimensions. Disjoint views may share storage, while an
 actual destination/input overlap is rejected where the BLAS contract does not permit aliasing.
