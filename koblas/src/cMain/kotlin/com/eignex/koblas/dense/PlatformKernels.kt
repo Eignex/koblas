@@ -267,6 +267,7 @@ internal actual object PlatformKernels : Kernels, ArithmeticKernels {
         x: DoubleArray,
         xOff: Int,
     ) {
+        if (validRows == 0 || order == 0) return
         packedTriangle.usePinned { triangle ->
             x.usePinned { result ->
                 koblas_dense_trsm_tile(
@@ -299,6 +300,7 @@ internal actual object PlatformKernels : Kernels, ArithmeticKernels {
         x: DoubleArray,
         xOff: Int,
     ) {
+        if (validRows == 0 || order == 0) return
         if (depth == 0) {
             trsmTile(validRows, order, packedTriangle, triangleOff, lower, unitDiag, x, xOff)
             return
