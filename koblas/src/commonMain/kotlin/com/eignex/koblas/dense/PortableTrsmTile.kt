@@ -25,6 +25,7 @@ internal fun portableTrsmTile(
     x: DoubleArray,
     xOff: Int,
 ) {
+    if (validRows == 0 || order == 0) return
     if (lower) {
         for (j in order - 1 downTo 0) {
             dividePackedColumn(tileRows, validRows, packedTriangle, triangleOff, tileColumns, j, unitDiag, x, xOff)
@@ -67,6 +68,7 @@ internal fun portableGemmTrsmTile(
     x: DoubleArray,
     xOff: Int,
 ) {
+    if (validRows == 0 || order == 0) return
     for (step in 0 until depth) {
         for (column in 0 until order) {
             val target = xOff + column * tileRows

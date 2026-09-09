@@ -128,6 +128,26 @@ class PackedTrsmTest {
         }
     }
 
+    @Test
+    fun `empty packed solves do not read operands`() {
+        val empty = doubleArrayOf()
+        for (kernels in listOf(ScalarKernels, PlatformKernels)) {
+            for ((rows, order) in listOf(0 to 0, 0 to 3, 3 to 0)) {
+                for (lower in booleanArrayOf(false, true)) {
+                    for (unitDiag in booleanArrayOf(false, true)) {
+                        kernels.trsmTile(rows, order, empty, 0, lower, unitDiag, empty, 0)
+                        for (depth in intArrayOf(0, 3)) {
+                            kernels.gemmTrsmTile(
+                                depth, rows, order, empty, 0, empty, 0, empty, 0,
+                                lower, unitDiag, empty, 0,
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     private fun packedTriangle(
         tileColumns: Int,
         order: Int,
