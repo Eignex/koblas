@@ -13,9 +13,9 @@
   },
   "expected_cases": {
     "standard": {
-      "built-in": 81,
+      "built-in": 83,
       "openblas": 54,
-      "onemkl": 81
+      "onemkl": 83
     },
     "smoke": {
       "built-in": 2,

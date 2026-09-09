@@ -71,10 +71,12 @@ benchmark {
             val comparator = providers.gradleProperty("bench.hardwareComparator").orElse("built-in").get()
             val denseArm = if (comparator == "built-in") "built-in" else comparator
             val sparseArm = if (comparator == "onemkl") "onemkl" else "built-in"
+            val denseClasses = ".*\\.(?:Level2Benchmark|GemvShapeBenchmark|Level3Benchmark|SyrkBenchmark|Syr2kBenchmark|TrmmBenchmark|TrsmBenchmark)\\..*"
+            val allClasses = ".*\\.(?:Level2Benchmark|GemvShapeBenchmark|Level3Benchmark|SyrkBenchmark|Syr2kBenchmark|TrmmBenchmark|TrsmBenchmark|SparseLevel1ComparisonBenchmark|SparseProductHostBenchmark)\\..*"
             when (comparator) {
-                "built-in" -> include(if (smoke) ".*(?:Level3Benchmark.gemm|SparseProductHostBenchmark.preparedGemv)$" else ".*(?:Level2Benchmark|GemvShapeBenchmark|Level3Benchmark|SyrkBenchmark|Syr2kBenchmark|TrmmBenchmark|TrsmBenchmark|SparseLevel1ComparisonBenchmark|SparseProductHostBenchmark).*")
-                "openblas" -> include(if (smoke) ".*Level3Benchmark.gemm$" else ".*(?:Level2Benchmark|GemvShapeBenchmark|Level3Benchmark|SyrkBenchmark|Syr2kBenchmark|TrmmBenchmark|TrsmBenchmark).*")
-                "onemkl" -> include(if (smoke) ".*(?:Level3Benchmark.gemm|SparseProductHostBenchmark.preparedGemv)$" else ".*(?:Level2Benchmark|GemvShapeBenchmark|Level3Benchmark|SyrkBenchmark|Syr2kBenchmark|TrmmBenchmark|TrsmBenchmark|SparseLevel1ComparisonBenchmark|SparseProductHostBenchmark).*")
+                "built-in" -> include(if (smoke) ".*\\.(?:Level3Benchmark\\.gemm|SparseProductHostBenchmark\\.preparedGemv)$" else allClasses)
+                "openblas" -> include(if (smoke) ".*\\.Level3Benchmark\\.gemm$" else denseClasses)
+                "onemkl" -> include(if (smoke) ".*\\.(?:Level3Benchmark\\.gemm|SparseProductHostBenchmark\\.preparedGemv)$" else allClasses)
                 else -> error("unknown hardware comparator: $comparator")
             }
             param("denseArm", denseArm)
