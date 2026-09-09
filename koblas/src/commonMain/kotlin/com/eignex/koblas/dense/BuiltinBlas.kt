@@ -392,25 +392,61 @@ internal class BuiltinBlas(override val kernels: Kernels) : Blas {
             var dot1 = sum1
             var dot2 = sum2
             var dot3 = sum3
+            var reversed0 = 0.0
+            var reversed1 = 0.0
+            var reversed2 = 0.0
+            var reversed3 = 0.0
             if (lower) {
-                dot0 += ad[block + 1 + block * n] * x[block + 1]
-                dot0 += ad[block + 2 + block * n] * x[block + 2]
-                dot0 += ad[block + 3 + block * n] * x[block + 3]
-                dot1 += ad[block + 2 + (block + 1) * n] * x[block + 2]
-                dot1 += ad[block + 3 + (block + 1) * n] * x[block + 3]
-                dot2 += ad[block + 3 + (block + 2) * n] * x[block + 3]
+                val t01 = ad[block + 1 + block * n] * x[block + 1]
+                val t02 = ad[block + 2 + block * n] * x[block + 2]
+                val t03 = ad[block + 3 + block * n] * x[block + 3]
+                val t12 = ad[block + 2 + (block + 1) * n] * x[block + 2]
+                val t13 = ad[block + 3 + (block + 1) * n] * x[block + 3]
+                val t23 = ad[block + 3 + (block + 2) * n] * x[block + 3]
+                dot0 += t01
+                dot0 += t02
+                dot0 += t03
+                dot1 += t12
+                dot1 += t13
+                dot2 += t23
+                reversed0 += t01
+                reversed0 += t02
+                reversed0 += t03
+                reversed1 += t12
+                reversed1 += t13
+                reversed2 += t23
             } else {
-                dot1 += ad[block + (block + 1) * n] * x[block]
-                dot2 += ad[block + (block + 2) * n] * x[block]
-                dot2 += ad[block + 1 + (block + 2) * n] * x[block + 1]
-                dot3 += ad[block + (block + 3) * n] * x[block]
-                dot3 += ad[block + 1 + (block + 3) * n] * x[block + 1]
-                dot3 += ad[block + 2 + (block + 3) * n] * x[block + 2]
+                val t01 = ad[block + (block + 1) * n] * x[block]
+                val t02 = ad[block + (block + 2) * n] * x[block]
+                val t12 = ad[block + 1 + (block + 2) * n] * x[block + 1]
+                val t03 = ad[block + (block + 3) * n] * x[block]
+                val t13 = ad[block + 1 + (block + 3) * n] * x[block + 1]
+                val t23 = ad[block + 2 + (block + 3) * n] * x[block + 2]
+                dot1 += t01
+                dot2 += t02
+                dot2 += t12
+                dot3 += t03
+                dot3 += t13
+                dot3 += t23
+                reversed1 += t01
+                reversed2 += t02
+                reversed2 += t12
+                reversed3 += t03
+                reversed3 += t13
+                reversed3 += t23
             }
+            reversed0 += sum0
+            reversed1 += sum1
+            reversed2 += sum2
+            reversed3 += sum3
+            // The four-way leaves make the common run a partial sum. Check both ways that partial and the
+            // in-block products can be ordered: either one becoming non-finite means regrouping can expose
+            // or hide overflow, so this group must retain the original per-column traversal.
             val unsafePartialDot =
-                !dot0.isFinite() || !dot1.isFinite() || !dot2.isFinite() || !dot3.isFinite() ||
-                    !(alpha * dot0).isFinite() || !(alpha * dot1).isFinite() ||
-                    !(alpha * dot2).isFinite() || !(alpha * dot3).isFinite()
+                !finiteSymvPartial(alpha, dot0) || !finiteSymvPartial(alpha, dot1) ||
+                    !finiteSymvPartial(alpha, dot2) || !finiteSymvPartial(alpha, dot3) ||
+                    !finiteSymvPartial(alpha, reversed0) || !finiteSymvPartial(alpha, reversed1) ||
+                    !finiteSymvPartial(alpha, reversed2) || !finiteSymvPartial(alpha, reversed3)
             if (unsafePartialDot) {
                 for (column in block until block + 4) {
                     val base = column + column * n
@@ -472,6 +508,10 @@ internal class BuiltinBlas(override val kernels: Kernels) : Blas {
             block++
         }
     }
+
+    /** Whether a regrouped SYMV dot partial and its final scaling remain finite. */
+    private fun finiteSymvPartial(alpha: Double, partial: Double): Boolean =
+        partial.isFinite() && (alpha * partial).isFinite()
 
     @Suppress("LongParameterList", "CyclomaticComplexMethod") // the BLAS dsymm signature
     override fun symm(

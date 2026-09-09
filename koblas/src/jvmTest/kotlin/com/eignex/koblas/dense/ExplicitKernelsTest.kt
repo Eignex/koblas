@@ -36,13 +36,31 @@ class ExplicitKernelsTest {
         assertSymvPreservesFiniteCancellation(SimdKernels)
     }
 
-    private fun assertSymvPreservesFiniteCancellation(kernels: Kernels) {
+    @Test
+    fun `the bundled C symmetric product preserves overflow`() {
+        if (!JvmCKernelBindings.isAvailable) return
+        assertSymvPreservesOverflow(CKernels)
+    }
+
+    @Test
+    fun `the SIMD symmetric product preserves overflow`() {
+        if (!simdAvailable) return
+        assertSymvPreservesOverflow(SimdKernels)
+    }
+
+    private fun assertSymvPreservesFiniteCancellation(kernels: Kernels) =
+        assertSymvColumnResult(kernels, second = -1e308, common = 1e308, expectedValue = 1e308)
+
+    private fun assertSymvPreservesOverflow(kernels: Kernels) =
+        assertSymvColumnResult(kernels, second = 1e308, common = -1e308, expectedValue = Double.POSITIVE_INFINITY)
+
+    private fun assertSymvColumnResult(kernels: Kernels, second: Double, common: Double, expectedValue: Double) {
         val n = DenseTuning.symvFourColumnCrossover
         val column = n - 8
         val a = DenseMatrix(n, n)
         a[column + 1, column] = 1e308
-        a[column + 2, column] = -1e308
-        a[column + 4, column] = 1e308
+        a[column + 2, column] = second
+        a[column + 4, column] = common
         val x = DoubleArray(n)
         x[column + 1] = 1.0
         x[column + 2] = 1.0
@@ -53,7 +71,7 @@ class ExplicitKernelsTest {
         ReferenceBlas.symv(1.0, a, x, 0.0, expected, lower = true)
         BuiltinBlas(kernels).symv(1.0, a, x, 0.0, actual, lower = true)
 
-        assertEquals(1e308, expected[column])
+        assertEquals(expectedValue, expected[column])
         assertEquals(expected[column], actual[column], kernels.name)
     }
 }
