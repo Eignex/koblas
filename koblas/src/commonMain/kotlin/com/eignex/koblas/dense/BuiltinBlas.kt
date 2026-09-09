@@ -11,9 +11,12 @@ import kotlin.math.abs
 /**
  * Shared dense matrix algorithms bound to one immutable set of built-in kernels.
  *
- * @property kernels the immutable kernels used by every inner loop.
  */
-internal class BuiltinBlas(override val kernels: Kernels) : Blas {
+internal class BuiltinBlas(private val kernelFamilies: DenseKernelFamilies) : Blas {
+    private val vectorKernels = kernelFamilies.vector
+    private val panelKernels = kernelFamilies.panel
+    private val packedKernels = kernelFamilies.packed
+
     override val name: String get() = "built-in"
 
     override fun gemv(
@@ -27,23 +30,24 @@ internal class BuiltinBlas(override val kernels: Kernels) : Blas {
     ) {
         requireGemvShape(a, transpose, x.size, y.size)
         if (a.rows == 0 || a.cols == 0) return
-        applyBeta(kernels, y, 0, y.size, beta)
+        applyBeta(vectorKernels, y, 0, y.size, beta)
         if (alpha == 0.0) return
-        val kernels = kernels
+        val vectorKernels = vectorKernels
+        val panelKernels = panelKernels
         val ad = a.data
         val rows = a.rows
         if (!transpose) {
             var j = 0
             val bound = a.cols - 3
             while (j < bound) {
-                kernels.axpy4(
+                panelKernels.axpy4(
                     y, 0, ad, j * rows, rows,
                     alpha * x[j], alpha * x[j + 1], alpha * x[j + 2], alpha * x[j + 3], rows,
                 )
                 j += 4
             }
             while (j < a.cols) {
-                axpyArithmetic(kernels, y, 0, alpha * x[j], ad, j * rows, rows)
+                axpyArithmetic(panelKernels, y, 0, alpha * x[j], ad, j * rows, rows)
                 j++
             }
         } else {
@@ -54,7 +58,7 @@ internal class BuiltinBlas(override val kernels: Kernels) : Blas {
                 val y1 = y[j + 1]
                 val y2 = y[j + 2]
                 val y3 = y[j + 3]
-                kernels.dot4(ad, j * rows, rows, x, 0, rows, y, j)
+                panelKernels.dot4(ad, j * rows, rows, x, 0, rows, y, j)
                 y[j] = y0 + alpha * y[j]
                 y[j + 1] = y1 + alpha * y[j + 1]
                 y[j + 2] = y2 + alpha * y[j + 2]
@@ -62,7 +66,7 @@ internal class BuiltinBlas(override val kernels: Kernels) : Blas {
                 j += 4
             }
             while (j < a.cols) {
-                y[j] += alpha * kernels.dot(ad, j * rows, x, 0, rows)
+                y[j] += alpha * vectorKernels.dot(ad, j * rows, x, 0, rows)
                 j++
             }
         }
@@ -87,13 +91,13 @@ internal class BuiltinBlas(override val kernels: Kernels) : Blas {
     ) {
         val (m, k, n) = requireGemmShape(a, transposeA, b, transposeB, c)
         val cd = c.data
-        applyBeta(kernels, cd, 0, cd.size, beta)
+        applyBeta(vectorKernels, cd, 0, cd.size, beta)
         if (alpha == 0.0 || m == 0 || n == 0 || k == 0) return
         // One product for every shape and every target. The four transpositions differ only in how the
         // operands are read while they are packed, which is inside the packing rather than a path of its
         // own, and the only thing that varies by target is the tile the kernels supply.
         packedGemm(
-            kernels, alpha, a.data, a.rows, transposeA, b.data, b.rows, transposeB, cd, m, n, k, workspace,
+            packedKernels, alpha, a.data, a.rows, transposeA, b.data, b.rows, transposeB, cd, m, n, k, workspace,
         )
     }
 
@@ -113,7 +117,7 @@ internal class BuiltinBlas(override val kernels: Kernels) : Blas {
         requireShape(n == columns) { "gemmt: product is ${n}x$columns, expected square" }
         val cd = c.data
         if (alpha == 0.0 || n == 0 || k == 0) {
-            scaleTriangle(kernels, cd, n, beta, lower)
+            scaleTriangle(vectorKernels, cd, n, beta, lower)
             return
         }
         val ad = a.data
@@ -162,9 +166,9 @@ internal class BuiltinBlas(override val kernels: Kernels) : Blas {
         workspace: Workspace?,
     ) {
         if (packedGemmtSupports(alpha, ad, bd, beta, cd, n, k, lower)) {
-            scaleTriangle(kernels, cd, n, beta, lower)
+            scaleTriangle(vectorKernels, cd, n, beta, lower)
             packedTriangularGemm(
-                kernels, alpha, ad, lda, transposeA, bd, ldb, transposeB, cd, n, k, lower, workspace,
+                packedKernels, alpha, ad, lda, transposeA, bd, ldb, transposeB, cd, n, k, lower, workspace,
             )
             return
         }
@@ -187,7 +191,7 @@ internal class BuiltinBlas(override val kernels: Kernels) : Blas {
         k: Int,
         lower: Boolean,
     ) {
-        if (!transposeA) scaleTriangle(kernels, c, n, beta, lower)
+        if (!transposeA) scaleTriangle(vectorKernels, c, n, beta, lower)
         for (j in 0 until n) {
             val from = if (lower) j else 0
             val until = if (lower) n else j + 1
@@ -264,7 +268,7 @@ internal class BuiltinBlas(override val kernels: Kernels) : Blas {
         val (n, k) = requireSyrkShape(a, transpose, c, "syrk")
         val cd = c.data
         if (alpha == 0.0 || n == 0 || k == 0) {
-            scaleTriangle(kernels, cd, n, beta, lower)
+            scaleTriangle(vectorKernels, cd, n, beta, lower)
             return
         }
         val ad = a.data
@@ -292,13 +296,13 @@ internal class BuiltinBlas(override val kernels: Kernels) : Blas {
         lower: Boolean,
         workspace: Workspace?,
     ) {
-        scaleTriangle(kernels, cd, n, beta, lower)
+        scaleTriangle(vectorKernels, cd, n, beta, lower)
         if (alpha == 0.0 || n == 0 || k == 0) return
         val scalingOverflows = packingScaleOverflows(alpha, ad)
         // Netlib's non-transposed traversal skips a raw zero multiplier. This is observable when another
         // value in the rank-one column is already non-finite or becomes non-finite when alpha scales it.
         if (!transpose && (!alpha.isFinite() || scalingOverflows || ad.any { !it.isFinite() })) {
-            blockedSyrkUpdate(kernels, alpha, ad, cd, n, k, lower)
+            blockedSyrkUpdate(panelKernels, alpha, ad, cd, n, k, lower)
             return
         }
         // The old transposed traversal did not skip zero multipliers, but it scaled the output column's
@@ -306,12 +310,12 @@ internal class BuiltinBlas(override val kernels: Kernels) : Blas {
         // value; actual non-finite inputs continue through the packed path and keep zero-times-infinity NaNs.
         if (transpose && scalingOverflows) {
             workspace.borrowTransposed(ad, lda, n) { packed ->
-                blockedSyrkUpdate(kernels, alpha, packed, cd, n, k, lower, guardZeroColumns = false)
+                blockedSyrkUpdate(panelKernels, alpha, packed, cd, n, k, lower, guardZeroColumns = false)
             }
             return
         }
         packedTriangularGemm(
-            kernels, alpha, ad, lda, transpose, ad, lda, !transpose, cd, n, k, lower, workspace,
+            packedKernels, alpha, ad, lda, transpose, ad, lda, !transpose, cd, n, k, lower, workspace,
         )
     }
 
@@ -324,7 +328,7 @@ internal class BuiltinBlas(override val kernels: Kernels) : Blas {
     @Suppress("LongParameterList") // the BLAS dsymv signature
     override fun symv(alpha: Double, a: DenseMatrix, x: DoubleArray, beta: Double, y: DoubleArray, lower: Boolean) {
         val n = requireSymvShape(a, x.size, y.size)
-        applyBeta(kernels, y, 0, n, beta)
+        applyBeta(vectorKernels, y, 0, n, beta)
         if (alpha == 0.0) return
         symvAccumulate(alpha, a.data, n, x, y, lower)
     }
@@ -339,18 +343,18 @@ internal class BuiltinBlas(override val kernels: Kernels) : Blas {
         y: DoubleArray,
         lower: Boolean,
     ) {
-        if (kernels !== ScalarKernels && n >= DenseTuning.symvFourColumnCrossover) {
+        if (panelKernels !== ScalarPanelKernels && n >= DenseTuning.symvFourColumnCrossover) {
             symvAccumulateFourColumns(alpha, ad, n, x, y, lower)
             return
         }
-        val kernels = kernels
+        val panelKernels = panelKernels
         for (j in 0 until n) {
             val base = j + j * n
             val xj = alpha * x[j]
             val runOff = if (lower) j + 1 else 0
             val len = if (lower) n - j - 1 else j
             y[j] += xj * ad[base]
-            y[j] += alpha * kernels.dotAxpy(y, runOff, xj, ad, runOff + j * n, x, runOff, len)
+            y[j] += alpha * panelKernels.dotAxpy(y, runOff, xj, ad, runOff + j * n, x, runOff, len)
         }
     }
 
@@ -363,7 +367,7 @@ internal class BuiltinBlas(override val kernels: Kernels) : Blas {
         y: DoubleArray,
         lower: Boolean,
     ) {
-        val kernels = kernels
+        val panelKernels = panelKernels
         var block = 0
         val bound = n - 3
         while (block < bound) {
@@ -373,7 +377,7 @@ internal class BuiltinBlas(override val kernels: Kernels) : Blas {
             val old1 = y[block + 1]
             val old2 = y[block + 2]
             val old3 = y[block + 3]
-            kernels.dot4(ad, commonOff + block * n, n, x, commonOff, commonLen, y, block)
+            panelKernels.dot4(ad, commonOff + block * n, n, x, commonOff, commonLen, y, block)
             val sum0 = y[block]
             val sum1 = y[block + 1]
             val sum2 = y[block + 2]
@@ -455,13 +459,13 @@ internal class BuiltinBlas(override val kernels: Kernels) : Blas {
                     val len = if (lower) n - column - 1 else column
                     y[column] += coefficient * ad[base]
                     y[column] +=
-                        alpha * kernels.dotAxpy(y, runOff, coefficient, ad, runOff + column * n, x, runOff, len)
+                        alpha * panelKernels.dotAxpy(y, runOff, coefficient, ad, runOff + column * n, x, runOff, len)
                 }
                 block += 4
                 continue
             }
 
-            kernels.axpy4(y, commonOff, ad, commonOff + block * n, n, c0, c1, c2, c3, commonLen)
+            panelKernels.axpy4(y, commonOff, ad, commonOff + block * n, n, c0, c1, c2, c3, commonLen)
 
             if (lower) {
                 for (column in block until block + 4) {
@@ -504,7 +508,7 @@ internal class BuiltinBlas(override val kernels: Kernels) : Blas {
             val runOff = if (lower) block + 1 else 0
             val len = if (lower) n - block - 1 else block
             y[block] += coefficient * ad[base]
-            y[block] += alpha * kernels.dotAxpy(y, runOff, coefficient, ad, runOff + block * n, x, runOff, len)
+            y[block] += alpha * panelKernels.dotAxpy(y, runOff, coefficient, ad, runOff + block * n, x, runOff, len)
             block++
         }
     }
@@ -537,19 +541,19 @@ internal class BuiltinBlas(override val kernels: Kernels) : Blas {
             requireShape(b.rows == m) { "symm: B has ${b.rows} rows, expected $m" }
         }
         val cd = c.data
-        applyBeta(kernels, cd, 0, cd.size, beta)
+        applyBeta(vectorKernels, cd, 0, cd.size, beta)
         if (alpha == 0.0 || m == 0 || b.rows == 0 || b.cols == 0) return
         // The same packed product the general case uses. A symmetric operand differs only in which side of
         // the diagonal the packing reads each element from, so there is no separate implementation and no
         // separate kernel: C = alpha * A * B on the left, C = alpha * B * A on the right.
         if (right) {
             packedGemm(
-                kernels, alpha, b.data, b.rows, false, a.data, m, false, cd,
+                packedKernels, alpha, b.data, b.rows, false, a.data, m, false, cd,
                 b.rows, m, m, workspace, symmetricB = lower,
             )
         } else {
             packedGemm(
-                kernels, alpha, a.data, m, false, b.data, b.rows, false, cd,
+                packedKernels, alpha, a.data, m, false, b.data, b.rows, false, cd,
                 m, b.cols, m, workspace, symmetricA = lower,
             )
         }
@@ -560,9 +564,9 @@ internal class BuiltinBlas(override val kernels: Kernels) : Blas {
             "ger shape mismatch: A is ${a.rows}x${a.cols}, x ${x.size}, y ${y.size}"
         }
         if (alpha == 0.0) return
-        val kernels = kernels
+        val panelKernels = panelKernels
         for (j in 0 until a.cols) {
-            if (y[j] != 0.0) axpyArithmetic(kernels, a.data, a.colOffset(j), alpha * y[j], x, 0, a.rows)
+            if (y[j] != 0.0) axpyArithmetic(panelKernels, a.data, a.colOffset(j), alpha * y[j], x, 0, a.rows)
         }
     }
 
@@ -574,7 +578,7 @@ internal class BuiltinBlas(override val kernels: Kernels) : Blas {
     override fun syr(alpha: Double, x: VectorLike, a: DenseMatrix, lower: Boolean) {
         requireSyrShape(a, x.size, "syr")
         if (alpha == 0.0) return
-        val kernels = kernels
+        val panelKernels = panelKernels
         val n = a.rows
         val ad = a.data
         val xs = rankUpdateData(x)
@@ -583,7 +587,7 @@ internal class BuiltinBlas(override val kernels: Kernels) : Blas {
             val xj = alpha * xs[j]
             val from = if (lower) j else 0
             val length = if (lower) n - j else j + 1
-            axpyArithmetic(kernels, ad, from + j * n, xj, xs, from, length)
+            axpyArithmetic(panelKernels, ad, from + j * n, xj, xs, from, length)
         }
     }
 
@@ -595,7 +599,7 @@ internal class BuiltinBlas(override val kernels: Kernels) : Blas {
     override fun syr2(alpha: Double, x: VectorLike, y: VectorLike, a: DenseMatrix, lower: Boolean) {
         requireSyr2Shape(a, x.size, y.size, "syr2")
         if (alpha == 0.0) return
-        val kernels = kernels
+        val panelKernels = panelKernels
         val n = a.rows
         val ad = a.data
         val xs = rankUpdateData(x)
@@ -605,8 +609,8 @@ internal class BuiltinBlas(override val kernels: Kernels) : Blas {
             val from = if (lower) j else 0
             val length = if (lower) n - j else j + 1
             val matrixOffset = from + j * n
-            axpyArithmetic(kernels, ad, matrixOffset, alpha * ys[j], xs, from, length)
-            axpyArithmetic(kernels, ad, matrixOffset, alpha * xs[j], ys, from, length)
+            axpyArithmetic(panelKernels, ad, matrixOffset, alpha * ys[j], xs, from, length)
+            axpyArithmetic(panelKernels, ad, matrixOffset, alpha * xs[j], ys, from, length)
         }
     }
 
@@ -632,7 +636,7 @@ internal class BuiltinBlas(override val kernels: Kernels) : Blas {
         val (n, k) = requireSyr2kShape(a, b, transpose, c, "syr2k")
         val cd = c.data
         if (alpha == 0.0 || n == 0 || k == 0) {
-            scaleTriangle(kernels, cd, n, beta, lower)
+            scaleTriangle(vectorKernels, cd, n, beta, lower)
             return
         }
         val ad = a.data
@@ -674,7 +678,7 @@ internal class BuiltinBlas(override val kernels: Kernels) : Blas {
         lower: Boolean,
         workspace: Workspace?,
     ) {
-        scaleTriangle(kernels, cd, n, beta, lower)
+        scaleTriangle(vectorKernels, cd, n, beta, lower)
         // The retained traversal scales the output-column coefficient of each cross-product and skips only
         // when both raw coefficients are zero. Moving alpha to the packed row factor changes exceptional
         // arithmetic, so preserve the old evaluation order whenever a value is non-finite or scaling a
@@ -682,12 +686,12 @@ internal class BuiltinBlas(override val kernels: Kernels) : Blas {
         val exceptional = packedSyr2kChangesExceptionalArithmetic(alpha, ad, bd, beta, cd, n, k, lower)
         if (exceptional) {
             if (!transpose) {
-                blockedSyr2kUpdate(kernels, alpha, ad, bd, cd, n, k, lower)
+                blockedSyr2kUpdate(panelKernels, alpha, ad, bd, cd, n, k, lower)
             } else {
                 workspace.borrowTransposed(ad, lda, n) { packedA ->
                     workspace.borrowTransposed(bd, ldb, n) { packedB ->
                         blockedSyr2kUpdate(
-                            kernels, alpha, packedA, packedB, cd, n, k, lower,
+                            panelKernels, alpha, packedA, packedB, cd, n, k, lower,
                             guardZeroColumns = false,
                         )
                     }
@@ -696,10 +700,10 @@ internal class BuiltinBlas(override val kernels: Kernels) : Blas {
             return
         }
         packedTriangularGemm(
-            kernels, alpha, ad, lda, transpose, bd, ldb, !transpose, cd, n, k, lower, workspace,
+            packedKernels, alpha, ad, lda, transpose, bd, ldb, !transpose, cd, n, k, lower, workspace,
         )
         packedTriangularGemm(
-            kernels, alpha, bd, ldb, transpose, ad, lda, !transpose, cd, n, k, lower, workspace,
+            packedKernels, alpha, bd, ldb, transpose, ad, lda, !transpose, cd, n, k, lower, workspace,
         )
     }
 
@@ -776,7 +780,7 @@ internal class BuiltinBlas(override val kernels: Kernels) : Blas {
     /** Solve `op(T) · x = b` in place (BLAS `dtrsv`) for the [lower] or upper triangle of the square [a],
      *  `op` transposing when [transpose] and [unitDiag] taking the diagonal as 1. [x] carries b in and x out. */
     override fun trsv(a: DenseMatrix, x: DoubleArray, lower: Boolean, transpose: Boolean, unitDiag: Boolean) =
-        triangularVector(kernels, a, x, lower, transpose, unitDiag, solve = true)
+        triangularVector(vectorKernels, panelKernels, a, x, lower, transpose, unitDiag, solve = true)
 
     /** Solve `op(T) · X = B` in place, or `X · op(T) = B` when [right] (BLAS `dtrsm`). Flags follow [trsv];
      *  the right-hand sides are the columns of [b] from the left and its rows from the right. */
@@ -791,11 +795,14 @@ internal class BuiltinBlas(override val kernels: Kernels) : Blas {
         alpha: Double,
         workspace: Workspace?,
     ) =
-        triangularMatrix(kernels, a, b, lower, transpose, unitDiag, right, alpha, solve = true, workspace = workspace)
+        triangularMatrix(
+            vectorKernels, panelKernels, packedKernels,
+            a, b, lower, transpose, unitDiag, right, alpha, solve = true, workspace = workspace,
+        )
 
     /** `x = op(T) · x` in place (BLAS `dtrmv`), the product counterpart of [trsv]. */
     override fun trmv(a: DenseMatrix, x: DoubleArray, lower: Boolean, transpose: Boolean, unitDiag: Boolean) =
-        triangularVector(kernels, a, x, lower, transpose, unitDiag, solve = false)
+        triangularVector(vectorKernels, panelKernels, a, x, lower, transpose, unitDiag, solve = false)
 
     /** `B = op(T) · B`, or `B = B · op(T)` when [right] (BLAS `dtrmm`), the counterpart of [trsm]. */
     @Suppress("LongParameterList") // the BLAS dtrmm signature
@@ -809,8 +816,11 @@ internal class BuiltinBlas(override val kernels: Kernels) : Blas {
         alpha: Double,
         workspace: Workspace?,
     ) =
-        triangularMatrix(kernels, a, b, lower, transpose, unitDiag, right, alpha, solve = false, workspace = workspace)
+        triangularMatrix(
+            vectorKernels, panelKernels, packedKernels,
+            a, b, lower, transpose, unitDiag, right, alpha, solve = false, workspace = workspace,
+        )
 }
 
 /** The scalar semantic oracle used by tests and explicit comparisons. */
-public val ReferenceBlas: Blas = BuiltinBlas(ScalarKernels)
+public val ReferenceBlas: Blas = BuiltinBlas(scalarDenseKernelFamilies)

@@ -90,13 +90,13 @@ private fun DenseVector.combine(other: DenseVector, alpha: Double, op: String): 
 /** A fresh copy of [data] scaled by [alpha], which is what the allocating scalar products all return. */
 private fun scaledCopy(data: DoubleArray, alpha: Double): DoubleArray {
     val out = data.copyOf()
-    koblas.kernels.scale(out, 0, alpha, out.size)
+    koblas.denseKernelFamilies.vector.scale(out, 0, alpha, out.size)
     return out
 }
 
 /** A fresh copy of [a] with `alpha * b` added, which is what the allocating sums and differences return. */
 private fun axpyCopy(a: DoubleArray, alpha: Double, b: DoubleArray): DoubleArray {
     val out = a.copyOf()
-    koblas.kernels.axpy(out, 0, alpha, b, 0, out.size)
+    koblas.denseKernelFamilies.vector.axpy(out, 0, alpha, b, 0, out.size)
     return out
 }

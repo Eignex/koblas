@@ -7,7 +7,8 @@ import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.UnsafeKoblasApi
 import com.eignex.koblas.Workspace
 import com.eignex.koblas.borrow
-import com.eignex.koblas.dense.Kernels
+import com.eignex.koblas.dense.DensePanelKernels
+import com.eignex.koblas.dense.DenseVectorKernels
 import com.eignex.koblas.dense.axpyArithmetic
 import com.eignex.koblas.dense.borrowTransposed
 import com.eignex.koblas.sparse.REFERENCE_SPARSE_RHS_WIDTH
@@ -105,7 +106,7 @@ internal fun trmmLeftCore(
  * of that algorithm is a whole column of [b] here instead of one right-hand side in a panel.
  */
 internal fun trmmRightCore(
-    kernels: Kernels,
+    kernels: DenseVectorKernels,
     a: SparseMatrix,
     b: DenseMatrix,
     lower: Boolean,
@@ -243,7 +244,7 @@ internal fun trsmLeftCore(
 
 /** Right solve over contiguous dense columns, which turns every sparse update into a Level 1 operation. */
 internal fun trsmRightCore(
-    kernels: Kernels,
+    kernels: DenseVectorKernels,
     a: SparseMatrix,
     b: DenseMatrix,
     lower: Boolean,
@@ -359,7 +360,7 @@ internal fun multiplyFromTheLeft(
  */
 @Suppress("LongParameterList") // the operands, their flags, and the shape already worked out
 internal fun multiplyFromTheRight(
-    kernels: Kernels,
+    kernels: DensePanelKernels,
     alpha: Double,
     a: SparseMatrix,
     transposeA: Boolean,
@@ -380,7 +381,7 @@ internal fun multiplyFromTheRight(
 }
 
 internal fun multiplyFromTheRightColumns(
-    kernels: Kernels,
+    kernels: DensePanelKernels,
     alpha: Double,
     a: SparseMatrix,
     transposeA: Boolean,

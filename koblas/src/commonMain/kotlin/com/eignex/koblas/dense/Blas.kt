@@ -9,9 +9,6 @@ public interface Blas {
     /** Short implementation identifier for diagnostics. */
     public val name: String
 
-    /** The vector kernels this implementation's shared routines run on. */
-    public val kernels: Kernels
-
     /** `y = alpha · op(A) · x + beta · y` (BLAS `dgemv`), with `op(A)` being `Aᵀ` when [transpose].
      *  `beta == 0.0` overwrites [y] without reading it. */
     public fun gemv(

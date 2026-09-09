@@ -38,7 +38,7 @@ public fun rotg(a: Double, b: Double): Givens {
 public fun rot(x: DenseVector, y: DenseVector, rotation: Givens) {
     requireSameSize(x.size, y.size)
     if (rotation.c == 1.0 && rotation.s == 0.0) return
-    koblas.kernels.rot(x.data, 0, y.data, 0, x.size, rotation.c, rotation.s)
+    koblas.denseKernelFamilies.vector.rot(x.data, 0, y.data, 0, x.size, rotation.c, rotation.s)
 }
 
 /** Portable backend implementation of plane rotation application. */

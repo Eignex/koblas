@@ -18,16 +18,16 @@ import com.eignex.koblas.Workspace
  *
  * The normalized packed triangular solve is `X * T = B`: `T` is a single right-format square panel with order
  * at most [tileColumns], while `B` and the overwritten `X` are a single left-format panel with at most [tileRows]
- * rows and the same depth as `T`. This is also the column-major tile written by [Kernels.gemmTile], so a
+ * rows and the same depth as `T`. This is also the column-major tile written by [PackedKernels.gemmTile], so a
  * solved panel can be retained for later packed updates without conversion.
  */
 @ExperimentalKoblasApi
 public object PackedPanels {
     /** Number of contiguous values in each shared-dimension step of a left panel on this platform. */
-    public val tileRows: Int get() = PlatformKernels.gemmTileRows
+    public val tileRows: Int get() = platformPackedKernels.gemmTileRows
 
     /** Number of contiguous values in each shared-dimension step of a right panel on this platform. */
-    public val tileColumns: Int get() = PlatformKernels.gemmTileCols
+    public val tileColumns: Int get() = platformPackedKernels.gemmTileCols
 
     /** Exact number of doubles needed for a left panel representing a [rows] by [depth] logical matrix. */
     public fun leftSize(rows: Int, depth: Int): Int = packedLeftSize(rows, depth, tileRows)
@@ -268,7 +268,7 @@ public object PackedPanels {
         requireArrayWindow(rightHandSide, rightHandSideOffset, leftSize(rows, order), "packed right-hand side")
         if (rows == 0 || order == 0) return
         withStableSource(triangle, rightHandSide, workspace) { stableTriangle ->
-            PlatformKernels.trsmTile(
+            platformPackedKernels.trsmTile(
                 rows,
                 order,
                 stableTriangle,
@@ -319,7 +319,7 @@ public object PackedPanels {
         withStableSource(packedLeft, rightHandSide, workspace) { stableLeft ->
             withStableSource(packedRight, rightHandSide, workspace) { stableRight ->
                 withStableSource(triangle, rightHandSide, workspace) { stableTriangle ->
-                    PlatformKernels.gemmTrsmTile(
+                    platformPackedKernels.gemmTrsmTile(
                         depth,
                         rows,
                         order,

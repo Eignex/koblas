@@ -2,9 +2,10 @@
 
 Dense BLAS contracts and built-in implementations.
 
-[Kernels] contains level-1 and packed-panel leaves. [Blas] contains dense matrix algorithms bound to one
-immutable [Kernels] instance. The platform default is exposed through [com.eignex.koblas.koblas]; tests and
-benchmarks can construct independent exact engines through [com.eignex.koblas.BuiltinKernels].
+[DenseVectorKernels], [DensePanelKernels], and [PackedKernels] define separate contiguous-vector,
+matrix-panel, and padded-tile responsibilities. [Blas] contains dense matrix algorithms bound to one immutable
+composition. The platform default is exposed through [com.eignex.koblas.koblas]; tests and benchmarks can
+construct independent exact engines through [com.eignex.koblas.BuiltinKernels].
 
 `gemmt` is the triangular-result general product Netlib calls `GEMMTR`; OpenBLAS and oneMKL expose the common
 `cblas_dgemmt` spelling. It uses ordinary full column-major operands and a selected full-storage destination

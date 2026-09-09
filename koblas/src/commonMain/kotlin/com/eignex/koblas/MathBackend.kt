@@ -1,9 +1,9 @@
 package com.eignex.koblas
 
-import com.eignex.koblas.dense.PlatformKernels
+import com.eignex.koblas.dense.PlatformVectorKernels
 
 /**
  * Short identifier for the vector kernels the current process resolved, as named by
- * [PlatformKernels]: `"c"`, `"simd(8 lanes)"`, or `"scalar"`.
+ * [PlatformVectorKernels]: `"c"`, `"simd(8 lanes)"`, or `"scalar"`.
  */
-public val mathBackend: String get() = koblas.kernels.name
+public val mathBackend: String get() = koblas.vectorKernels.name

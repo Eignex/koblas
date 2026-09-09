@@ -23,7 +23,7 @@ public fun DenseMatrix.scaleRows(d: DoubleArray) {
 /** Scale column `j` by d(j) in place, the product `A * D` for the diagonal D with entries d(j). */
 public fun DenseMatrix.scaleColumns(d: DoubleArray) {
     requireShape(d.size == cols) { "scaleColumns: d length ${d.size} != $cols columns" }
-    val kernels = koblas.kernels
+    val kernels = koblas.denseKernelFamilies.vector
     for (j in 0 until cols) {
         val f = d[j]
         if (f != 1.0) kernels.scale(data, j * rows, f, rows)
