@@ -174,7 +174,7 @@ class AllocationFreeTest {
         val workspace = Workspace().apply { reserve(n, count = 1) }
 
         val bytes = bytesPerIteration(500) {
-            triangle.trsm(b, lower = true, right = true, workspace = workspace)
+            engine.trsm(triangle, b, lower = true, right = true, workspace = workspace)
             b
         }
 
@@ -224,7 +224,7 @@ class AllocationFreeTest {
         }
 
         val bytes = bytesPerIteration(500) {
-            triangle.trsm(rightHandSide, lower = true, right = true, workspace = workspace)
+            engine.trsm(triangle, rightHandSide, lower = true, right = true, workspace = workspace)
             rightHandSide
         }
 
@@ -246,7 +246,7 @@ class AllocationFreeTest {
         val workspace = Workspace().apply { reserve(largestPackedPanel, count = 4) }
 
         val bytes = bytesPerIteration(500) {
-            triangle.trmm(rightHandSide, lower = true, right = true, workspace = workspace)
+            engine.trmm(triangle, rightHandSide, lower = true, right = true, workspace = workspace)
             rightHandSide
         }
 
