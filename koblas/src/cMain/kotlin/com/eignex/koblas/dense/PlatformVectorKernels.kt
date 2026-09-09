@@ -81,15 +81,7 @@ internal actual object PlatformVectorKernels : DenseVectorKernels {
     }
 
     @Suppress("LongParameterList")
-    actual override fun rot(
-        x: DoubleArray,
-        xOff: Int,
-        y: DoubleArray,
-        yOff: Int,
-        len: Int,
-        c: Double,
-        s: Double,
-    ) {
+    actual override fun rot(x: DoubleArray, xOff: Int, y: DoubleArray, yOff: Int, len: Int, c: Double, s: Double) {
         if (len == 0) return
         x.usePinned { xp ->
             y.usePinned { yp ->
@@ -101,13 +93,7 @@ internal actual object PlatformVectorKernels : DenseVectorKernels {
     actual override fun sum(v: DoubleArray, vOff: Int, len: Int): Double =
         if (len == 0) 0.0 else v.usePinned { p -> koblas_dense_sum(p.addressOf(0), vOff, len) }
 
-    actual override fun ssqd(
-        a: DoubleArray,
-        aOff: Int,
-        b: DoubleArray,
-        bOff: Int,
-        len: Int,
-    ): Double = if (len == 0) {
+    actual override fun ssqd(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int): Double = if (len == 0) {
         0.0
     } else {
         a.usePinned { ap ->

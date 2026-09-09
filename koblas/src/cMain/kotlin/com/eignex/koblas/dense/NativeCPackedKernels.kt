@@ -28,7 +28,14 @@ internal object NativeCPackedKernels : PackedKernels {
             packedB.usePinned { bp ->
                 c.usePinned { cp ->
                     koblas_dense_gemm_tile(
-                        depth, ap.addressOf(0), aOff, bp.addressOf(0), bOff, cp.addressOf(0), cOff, ldc,
+                        depth,
+                        ap.addressOf(0),
+                        aOff,
+                        bp.addressOf(0),
+                        bOff,
+                        cp.addressOf(0),
+                        cOff,
+                        ldc,
                     )
                 }
             }
@@ -49,8 +56,14 @@ internal object NativeCPackedKernels : PackedKernels {
         packedTriangle.usePinned { triangle ->
             x.usePinned { result ->
                 koblas_dense_trsm_tile(
-                    validRows, order, triangle.addressOf(0), triangleOff,
-                    if (lower) 1 else 0, if (unitDiag) 1 else 0, result.addressOf(0), xOff,
+                    validRows,
+                    order,
+                    triangle.addressOf(0),
+                    triangleOff,
+                    if (lower) 1 else 0,
+                    if (unitDiag) 1 else 0,
+                    result.addressOf(0),
+                    xOff,
                 )
             }
         }
