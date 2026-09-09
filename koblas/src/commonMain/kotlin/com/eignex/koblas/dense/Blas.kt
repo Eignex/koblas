@@ -103,6 +103,25 @@ public interface Blas {
         workspace: Workspace? = null,
     )
 
+    /**
+     * `C = alpha · op(A) · op(B) + beta · C` in only the selected triangle (Netlib `GEMMTR`, commonly
+     * exposed as `gemmt`). `op(A)` is `n×k`, `op(B)` is `k×n`, and [c] is `n×n`. The opposite triangle is
+     * neither read nor written. `alpha == 0.0` does not read either input and `beta == 0.0` does not read
+     * selected destination entries. If [c] shares either input buffer, [workspace] supplies reusable staging.
+     */
+    @Suppress("LongParameterList") // the BLAS gemmt signature plus optional scratch
+    public fun gemmt(
+        alpha: Double,
+        a: DenseMatrix,
+        transposeA: Boolean,
+        b: DenseMatrix,
+        transposeB: Boolean,
+        beta: Double,
+        c: DenseMatrix,
+        lower: Boolean = true,
+        workspace: Workspace? = null,
+    )
+
     /** [gemm] with `alpha = 1, beta = 0`, into a fresh matrix. `A.cols` must equal `B.rows`. */
     public fun gemm(a: DenseMatrix, b: DenseMatrix): DenseMatrix {
         val c = DenseMatrix(a.rows, b.cols)

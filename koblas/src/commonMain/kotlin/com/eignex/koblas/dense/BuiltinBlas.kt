@@ -95,6 +95,88 @@ internal class BuiltinBlas(override val kernels: Kernels) : Blas {
         )
     }
 
+    @Suppress("LongParameterList", "ReturnCount")
+    override fun gemmt(
+        alpha: Double,
+        a: DenseMatrix,
+        transposeA: Boolean,
+        b: DenseMatrix,
+        transposeB: Boolean,
+        beta: Double,
+        c: DenseMatrix,
+        lower: Boolean,
+        workspace: Workspace?,
+    ) {
+        val (n, k, columns) = requireGemmShape(a, transposeA, b, transposeB, c)
+        requireShape(n == columns) { "gemmt: product is ${n}x$columns, expected square" }
+        val cd = c.data
+        if (alpha == 0.0 || n == 0 || k == 0) {
+            scaleTriangle(kernels, cd, n, beta, lower)
+            return
+        }
+        val ad = a.data
+        val bd = b.data
+        if (ad === cd) {
+            workspace.borrow(ad.size) { copyA ->
+                ad.copyInto(copyA)
+                if (bd === cd) {
+                    gemmtFrom(alpha, copyA, a.rows, transposeA, copyA, b.rows, transposeB, beta, cd, n, k, lower, workspace)
+                } else {
+                    gemmtFrom(alpha, copyA, a.rows, transposeA, bd, b.rows, transposeB, beta, cd, n, k, lower, workspace)
+                }
+            }
+            return
+        }
+        if (bd === cd) {
+            workspace.borrow(bd.size) { copyB ->
+                bd.copyInto(copyB)
+                gemmtFrom(alpha, ad, a.rows, transposeA, copyB, b.rows, transposeB, beta, cd, n, k, lower, workspace)
+            }
+            return
+        }
+        gemmtFrom(alpha, ad, a.rows, transposeA, bd, b.rows, transposeB, beta, cd, n, k, lower, workspace)
+    }
+
+    @Suppress("LongParameterList")
+    private fun gemmtFrom(
+        alpha: Double,
+        ad: DoubleArray,
+        lda: Int,
+        transposeA: Boolean,
+        bd: DoubleArray,
+        ldb: Int,
+        transposeB: Boolean,
+        beta: Double,
+        cd: DoubleArray,
+        n: Int,
+        k: Int,
+        lower: Boolean,
+        workspace: Workspace?,
+    ) {
+        scaleTriangle(kernels, cd, n, beta, lower)
+        val exceptional = !alpha.isFinite() || packingScaleOverflows(alpha, ad) ||
+            ad.any { !it.isFinite() } || bd.any { !it.isFinite() }
+        if (!exceptional) {
+            packedTriangularGemm(
+                kernels, alpha, ad, lda, transposeA, bd, ldb, transposeB, cd, n, k, lower, workspace,
+            )
+            return
+        }
+        for (j in 0 until n) {
+            val from = if (lower) j else 0
+            val until = if (lower) n else j + 1
+            for (i in from until until) {
+                var sum = 0.0
+                for (p in 0 until k) {
+                    val av = if (transposeA) ad[p + i * lda] else ad[i + p * lda]
+                    val bv = if (transposeB) bd[j + p * ldb] else bd[p + j * ldb]
+                    sum += av * bv
+                }
+                cd[i + j * n] += alpha * sum
+            }
+        }
+    }
+
     @Suppress("LongParameterList") // the BLAS dsyrk signature plus optional scratch
     override fun syrk(
         alpha: Double,
