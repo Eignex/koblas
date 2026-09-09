@@ -21,11 +21,12 @@ Correctness was separately checked against the explicit scalar engine for lower 
 zero vector entries, NaN/infinity arithmetic, poisoned unselected storage and the 512 boundary plus remainder.
 Existing alpha/beta and shape suites were also run with JVM SIMD and `-Pkoblas.noSimd=true`.
 
-A review follow-up added a cancellation case where a four-column lower-triangle group has `1e308`, `-1e308`
-before its common-tail `1e308`. Composing the common partial first overflowed even though the prior per-column
-traversal returned finite `1e308`. The grouped path now checks its four composed partial dots before mutation and
-uses the original fused per-column traversal for only a group whose partial result or alpha-scaled result is
-nonfinite. Explicit C and SIMD tests pin the finite result.
+Review follow-ups added both directions of a lower-triangle overflow disagreement. With local values `1e308`,
+`-1e308` before common-tail `1e308`, composing the common partial first overflowed even though the prior
+per-column traversal returned finite `1e308`. Reversing the second and common signs made the prior traversal
+overflow while the grouped result stayed finite. The grouped path now evaluates common-first and local-first
+partial composition before mutation and uses the original fused per-column traversal for only a group where
+either ordering or its alpha scaling is nonfinite. Explicit C and SIMD tests pin both results.
 
 ## Findings
 
@@ -53,10 +54,13 @@ nonfinite. Explicit C and SIMD tests pin the finite result.
   921.4 to 818.5 at 2048. Upper changed from 48.8 to 35.4, 135.5 to 126.9 and 968.4 to 666.1. Native OpenBLAS
   varied between the adjacent passes; the post-change residual is roughly 1.2 to 1.6 times OpenBLAS at 1024 and
   2048, with the raw values retained.
-- The post-review finite-input JVM pass shows no material regression from the safety check. SIMD lower measured
-  30.2, 125.8 and 756.3 us/op at orders 512, 1024 and 2048; SIMD upper measured 34.5, 140.1 and 868.9. The 2048
-  lower and 1024 upper confidence intervals are wide, so they are retained as variability rather than stronger
-  claims.
+- The first post-review finite-input JVM pass measured SIMD lower at 30.2, 125.8 and 756.3 us/op for orders 512,
+  1024 and 2048. Two passes with the bidirectional guard measured 36.9/42.6, 153.6/200.0 and 934.5/1106.5.
+  SIMD upper measured 41.7/33.3, 206.5/149.0 and 1133.9/854.7. Several confidence intervals are wide, but the
+  results remain within the variation of the retained original and optimized passes and continue to support the
+  order-512 crossover; they do not support a stronger performance claim for the added guard.
+- A final JVM run forced the bidirectionally guarded path at order 64 so the standard warmed allocation check
+  exercised it directly. Both lower and upper SYMV reported `0 B/call`; no Vector API boxing was observed.
 
 ## Raw files
 
@@ -70,6 +74,9 @@ nonfinite. Explicit C and SIMD tests pin the finite result.
   allocation probes.
 - `linuxX64-baseline.json` and `linuxX64-symv4.json`: Native compiled-in C/OpenBLAS comparison.
 - `jvm-finite-fallback.json`: post-review explicit C/SIMD timing with the cancellation guard enabled.
+- `jvm-bidirectional-fallback-1.json` and `jvm-bidirectional-fallback-2.json`: independent explicit C/SIMD
+  timing with both overflow directions guarded.
+- `jvm-bidirectional-allocation.json`: guarded-path JVM allocation probe forced below the production crossover.
 
 The benchmark output occasionally includes a decimal rendering of the setup checksum array. It is noisy console
 formatting only; the raw JSON rows and resolved arm assertions are unaffected.
