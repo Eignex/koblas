@@ -6,7 +6,7 @@ import com.eignex.koblas.KoblasContext
 import com.eignex.koblas.engine
 import com.eignex.koblas.koblas
 
-internal const val AUTOMATIC_KERNELS = "automatic"
+internal const val BUILTIN_KERNELS = "built-in"
 internal const val SCALAR_KERNELS = "scalar"
 internal const val C_KERNELS = "c"
 internal const val SIMD_KERNELS = "simd"
@@ -20,24 +20,24 @@ private fun reportResolution(arm: String, context: KoblasContext) {
 }
 
 @OptIn(ExperimentalKoblasApi::class)
-internal fun kernelEngine(provider: String): KoblasContext {
-    val context = when (provider) {
-        AUTOMATIC_KERNELS -> koblas
+internal fun kernelEngine(arm: String): KoblasContext {
+    val context = when (arm) {
+        BUILTIN_KERNELS -> koblas
         else -> {
-            val builtIn = when (provider) {
+            val builtIn = when (arm) {
                 SCALAR_KERNELS -> BuiltinKernels.scalar
                 C_KERNELS -> BuiltinKernels.c
                 SIMD_KERNELS -> BuiltinKernels.simd
-                else -> error("unknown kernel provider: $provider")
+                else -> error("unknown kernel arm: $arm")
             }
-            checkNotNull(builtIn) { "the $provider kernel provider is unavailable on this platform" }.engine()
+            checkNotNull(builtIn) { "the $arm kernel arm is unavailable on this platform" }.engine()
         }
     }
-    if (provider != AUTOMATIC_KERNELS) {
-        check(context.kernels.name.startsWith(provider)) {
-            "benchmark arm '$provider' resolved kernels to '${context.kernels.name}'"
+    if (arm != BUILTIN_KERNELS) {
+        check(context.kernels.name.startsWith(arm)) {
+            "benchmark arm '$arm' resolved kernels to '${context.kernels.name}'"
         }
     }
-    reportResolution(provider, context)
+    reportResolution(arm, context)
     return context
 }

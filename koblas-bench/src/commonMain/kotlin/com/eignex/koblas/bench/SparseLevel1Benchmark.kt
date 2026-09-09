@@ -15,8 +15,8 @@ class SparseLevel1Benchmark {
     @Param("0.001", "0.01", "0.1")
     var density: Double = 0.0
 
-    @Param(AUTOMATIC_KERNELS, SCALAR_KERNELS, C_KERNELS)
-    var kernels: String = AUTOMATIC_KERNELS
+    @Param(BUILTIN_KERNELS, SCALAR_KERNELS, C_KERNELS)
+    var kernels: String = BUILTIN_KERNELS
 
     private lateinit var sparse: SparseVector
     private lateinit var other: SparseVector

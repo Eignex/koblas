@@ -41,7 +41,7 @@ class BenchmarkArmResolutionTest {
         val arm = if (provider === BuiltinKernels.simd) SIMD_KERNELS else C_KERNELS
         // Discovery first, which is what a benchmark process does before any arm asks for a pinned
         // provider, and what put a host half underneath the pinned arms.
-        kernelEngine(AUTOMATIC_KERNELS)
+        kernelEngine(BUILTIN_KERNELS)
         val context = kernelEngine(arm)
         assertTrue(
             '+' !in context.kernels.name,

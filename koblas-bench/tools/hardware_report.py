@@ -176,6 +176,21 @@ def jvm_metadata() -> dict[str, str]:
     return dict(line.split("=", 1) for line in result.stdout.splitlines() if "=" in line)
 
 
+def native_metadata() -> dict[str, str]:
+    candidates = sorted((Path.home() / ".konan").glob("kotlin-native-prebuilt-*/bin/konanc"))
+    if not candidates:
+        return {"kind": "Kotlin/Native", "compiler": "unknown", "distribution": "unknown", "runtime": "native executable"}
+    compiler = candidates[-1]
+    result = subprocess.run([str(compiler), "-version"], cwd=ROOT, text=True, capture_output=True)
+    version = (result.stdout + result.stderr).strip().replace("\n", " ") or "unknown"
+    return {
+        "kind": "Kotlin/Native",
+        "compiler": version,
+        "distribution": compiler.parents[1].name,
+        "runtime": "native executable",
+    }
+
+
 def preflight_data(target: str) -> dict[str, Any]:
     gradle_text = output([str(ROOT / "gradlew"), "--version", "--quiet"])
     return {
@@ -188,7 +203,7 @@ def preflight_data(target: str) -> dict[str, Any]:
             "logical_cpus": os.cpu_count() if os.cpu_count() is not None else "unknown",
         },
         "gradle": gradle_text.splitlines()[0] if gradle_text != "unknown" else "unknown",
-        "runtime": jvm_metadata() if target == "jvm" else {"kind": "Kotlin/Native", "compiler": "2.4.10", "runtime": "native executable"},
+        "runtime": jvm_metadata() if target == "jvm" else native_metadata(),
         "comparators": comparator_status(target),
     }
 
@@ -245,11 +260,14 @@ def metric(entry: dict[str, Any]) -> tuple[float, float | None, str, list[Any]]:
     score = primary.get("score", entry.get("score"))
     if score is None:
         raise ReportError(f"result row {benchmark_name(entry)} has no score")
+    numeric_score = float(score)
+    if not math.isfinite(numeric_score):
+        raise ReportError(f"result row {benchmark_name(entry)} has a non-finite score")
     error = primary.get("scoreError", primary.get("score_error", entry.get("scoreError")))
     unit = str(primary.get("scoreUnit", primary.get("score_unit", entry.get("unit", "unknown"))))
     raw = primary.get("rawData", primary.get("raw_data", entry.get("rawData", []))) or []
     finite_error = None if error is None or not math.isfinite(float(error)) else float(error)
-    return float(score), finite_error, unit, raw
+    return numeric_score, finite_error, unit, raw
 
 
 def load_pass(path: Path, arm: str, pass_number: int, profile_version: int) -> list[dict[str, Any]]:
@@ -497,14 +515,13 @@ def execute_report(args: argparse.Namespace, smoke: bool) -> Path:
                 pass_rows.extend(rows)
 
         aggregates = aggregate_rows(pass_rows)
-        settings = catalog["settings"] if not smoke else {**catalog["settings"], "warmups": 0, "iterations": 1, "iteration_time_ms": 20}
+        settings = catalog["settings"] if not smoke else {**catalog["settings"], "warmups": 1, "iterations": 1, "iteration_time_ms": 20}
         tuning = {key: environment[key] for key in sorted(environment) if key.startswith("KOBLAS_")}
         resolved_lines = []
         runtime_lines = []
         for log in raw_root.rglob("*.log"):
             for line in log.read_text(errors="replace").splitlines():
-                if line.startswith("resolved:"):
-                    resolved_lines.append(line)
+                resolved_lines.extend(match.group(0) for match in re.finditer(r"resolved:[^\r\n]+", line))
                 if line.startswith("# VM version:") or line.startswith("# VM invoker:"):
                     runtime_lines.append(line)
         metadata = {

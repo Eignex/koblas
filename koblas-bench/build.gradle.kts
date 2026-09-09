@@ -61,7 +61,7 @@ benchmark {
     }
     configurations {
         fun BenchmarkConfiguration.hardwareDefaults(smoke: Boolean) {
-            warmups = if (smoke) 0 else 1
+            warmups = 1
             iterations = 1
             iterationTime = if (smoke) 20 else 200
             iterationTimeUnit = "ms"
@@ -100,39 +100,6 @@ benchmark {
         }
         register("hardware") { hardwareDefaults(smoke = false) }
         register("hardwareSmoke") { hardwareDefaults(smoke = true) }
-        register("report") {
-            warmups = 1
-            iterations = 3
-            iterationTime = 300
-            iterationTimeUnit = "ms"
-            advanced("jvmForks", "1")
-            include("^(?!.*ExternalDenseLevel1).*")
-            param("n", "256")
-            param("len", "4096")
-            param("nrhs", "8")
-            param("density", "0.01")
-            param("basisShape", "sparse")
-            param("factorShape", "random")
-            param("productShape", "regular")
-            param("backend", "automatic", "reference")
-            param("kernels", "automatic", "scalar")
-            param("denseArm", "built-in")
-            param("sparseArm", "built-in")
-            param("comparator", "openblas")
-        }
-        register("openblas") {
-            defaults()
-            include(".*(?:ExternalDenseLevel1Benchmark|ExternalDenseLevel1CompositionBenchmark|Level2Benchmark|GemvShapeBenchmark|Level3Benchmark|SyrkBenchmark|Syr2kBenchmark|TrmmBenchmark).*")
-            param("denseArm", "openblas")
-            param("comparator", "openblas")
-        }
-        register("oneMkl") {
-            defaults()
-            include(".*(?:ExternalDenseLevel1Benchmark|ExternalDenseLevel1CompositionBenchmark|Level2Benchmark|GemvShapeBenchmark|Level3Benchmark|SyrkBenchmark|Syr2kBenchmark|TrmmBenchmark|SparseLevel1ComparisonBenchmark|SparseProductHostBenchmark).*")
-            param("denseArm", "onemkl")
-            param("sparseArm", "onemkl")
-            param("comparator", "onemkl")
-        }
         register("full") {
             defaults()
             include(".*")

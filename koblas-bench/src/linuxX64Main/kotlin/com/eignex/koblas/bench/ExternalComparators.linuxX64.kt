@@ -7,13 +7,14 @@ import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.bench.openblas.*
 import kotlinx.cinterop.*
 
-internal actual fun openBlasComparator(): DenseComparator? = NativeOpenBlas
+internal actual fun openBlasComparator(): DenseComparator? =
+    if (koblas_openblas_available() == 1) NativeOpenBlas else null
 internal actual fun oneMklDenseComparator(): DenseComparator? = null
 internal actual fun oneMklSparseComparator(): SparseComparator? = null
 
 /** Linux x86-64 OpenBLAS cinterop owned by koblas-bench, including the restored level-1 calls. */
 private object NativeOpenBlas : DenseComparator {
-    override val identity = "openblas/cblas-native"
+    override val identity = "openblas/cblas-native/${koblas_openblas_version()?.toKString() ?: "unknown"}"
     override val threading = "1 thread"
 
     init { openblas_set_num_threads(1) }

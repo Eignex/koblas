@@ -2,46 +2,82 @@
 
 Development benchmarks for every reviewed public numerical operation in koblas. This module is not published.
 
-## Send a report
+## Contribute a hardware report
 
 ```bash
-koblas-bench/report.sh jvm
-koblas-bench/report.sh native
-koblas-bench/report.sh jvm openblas
-koblas-bench/report.sh jvm oneMkl
+koblas-bench/report.sh preflight jvm
+koblas-bench/report.sh smoke jvm
+koblas-bench/report.sh standard jvm
 ```
 
-The command creates one archive containing two independently executed raw JSON passes, both benchmark logs,
-metadata, and both coverage manifests. It rejects stale or byte-identical passes and requires exactly one fresh
-result from each process. Metadata includes the UTC timestamp, commit and dirty status, OS, architecture, CPU
-model/count, Gradle/JVM versions, target, command, affinity, allocation expectations, and resolved implementation
-output. Inspect the archive before sending it: these details can identify your machine and checkout.
+`preflight` reports the actual Gradle-selected benchmark runtime, host capabilities, and available comparator
+libraries without running measurements. `smoke` builds once and executes two short fresh passes over two setup
+cases; it validates the runner and implementation resolution but is not performance evidence. `standard` runs
+the versioned 81-case built-in workload twice. It includes small and rectangular dense work, packed tile edges,
+and prepared and one-shot sparse work. The runner prints the case count before it starts and the measured elapsed
+time when it finishes.
 
-Reports retained as project evidence are listed in [`results/README.md`](results/README.md).
+The default needs no external numerical library. Add an explicitly matched comparator or probe all optional
+comparators with:
 
-`report` is the complete built-in inventory. `openblas` is the dense OpenBLAS comparison and `oneMkl` is the
-dense and sparse oneMKL comparison. Each external profile runs in separate benchmark processes so their global
-symbols and thread controls cannot interfere. OpenBLAS and oneMKL are both forced to one thread. The bindings use
-libraries installed on the development machine; absence fails an explicitly requested external profile instead
-of falling back to koblas.
+```bash
+koblas-bench/report.sh standard jvm --comparators openblas
+koblas-bench/report.sh standard jvm --comparators onemkl
+koblas-bench/report.sh standard jvm --comparators auto
+```
 
-The JVM OpenBLAS comparator needs a loader-visible `libopenblas.so.0` (or the corresponding macOS dylib).
-The Linux Native comparator also needs the development linker name `libopenblas.so`; install the distribution's
-OpenBLAS runtime and development packages. oneMKL comparisons need a loader-visible `libmkl_rt` from an installed
-oneAPI MKL runtime. If a library is outside the system loader paths, add its directory to the platform loader
-environment before starting Gradle. None of these libraries is needed to build or use a published koblas module.
+An explicitly requested missing or unsupported comparator fails before the build. `auto` records every capability
+and runs only available arms; it never substitutes one implementation for another. Built-in-only reports provide
+hardware coverage, not an external parity claim. Comparator processes use the identical case IDs, seed, warmups,
+measurements, and single-thread settings as their built-in matches. Linux affinity can be recorded and applied with
+`--cores 2-5`; it does not reserve the machine. Existing tuning settings are recorded, and a deliberate override
+can be supplied as `--tuning KOBLAS_DENSE_GEMM_SMALL=64`.
+
+| target | built-in | OpenBLAS | oneMKL |
+| --- | --- | --- | --- |
+| JVM on Linux/macOS | yes | detected at runtime | detected at runtime |
+| Linux x86-64 Native | yes, no external library required | detected at runtime | unsupported |
+| macOS Apple Silicon Native | yes | unsupported | unsupported |
+
+OpenBLAS needs a loader-visible `libopenblas.so.0`, `libopenblas.so`, or `libopenblas.dylib`. oneMKL needs a
+loader-visible `libmkl_rt`. The Linux Native binding opens OpenBLAS dynamically, so the built-in executable neither
+links nor requires it. Native oneMKL and macOS Native external bindings are not implemented.
+
+Each invocation owns a UUID-named output tree and never deletes or scans another run's files. Gradle performs one
+build, then executes fresh passes into distinct directories. JMH's advisory process-lock rejection is disabled for
+these runs; concurrent runner activity is recorded as noisy evidence rather than blocked or deleted. Fork errors,
+resolved identities, allocation checks, exact expected case counts, pass IDs, raw JSON, and complete logs remain in
+the bundle.
+
+The resulting `.tar.gz` contains versioned metadata and rows, stable case IDs, raw passes and logs, both coverage
+manifests, readable `summary.txt`, CSV/JSON rows, and SHA-256 checksums. Uncertainty combines reported benchmark
+error with cross-pass variation. A `koblas/comparator` timing ratio is emitted only when case ID, workload version,
+settings, and units match. Unknown metadata stays `unknown`; structured metadata omits hostname, username, and the
+checkout path. Logs can still contain local paths, so inspect them before sharing.
+
+Validate or summarize a bundle offline:
+
+```bash
+koblas-bench/report.sh validate path/to/koblas-hardware-jvm-....tar.gz
+koblas-bench/report.sh summarize path/to/koblas-hardware-jvm-....tar.gz
+```
+
+To submit results, open a benchmark-results issue, paste `summary.txt`, describe any known competing load, and
+attach the inspected archive manually. There is no upload command. A maintainer can validate it offline and, when
+accepted as project evidence, archive it with a PR under `koblas-bench/results/` and update
+[`results/README.md`](results/README.md).
 
 ## Run benchmarks
 
 ```bash
-./gradlew :koblas-bench:jvmReportBenchmark
+./gradlew :koblas-bench:jvmFullBenchmark
 ```
 
 The `full` configuration expands every declared parameter, including optional external arms, and therefore requires
-all corresponding runtime libraries. Use `report` for the complete built-in inventory.
+all corresponding runtime libraries. It is exhaustive developer coverage, not the bounded contributor workload.
 
 The benchmark runner can report a fork failure after Gradle itself has completed successfully. Treat any
-`<failure>` or `EXCEPTION: <ERROR>` line as a failed comparison; `report.sh` enforces this automatically.
+`<failure>` or `EXCEPTION: <ERROR>` line as a failed comparison; the contributor runner enforces this automatically.
 
 For local A/B work:
 
@@ -58,9 +94,9 @@ Dense parity uses `denseArm=built-in,openblas,onemkl`; retained sparse BLAS uses
 `sparseArm=built-in,onemkl`. These arms construct the built-in implementation or open a benchmark-owned external
 binding directly. They never use production discovery, and every setup asserts and reports its resolved identity.
 
-The older `automatic` and `reference` backend parameters remain for sparse suites. They are not external parity
-evidence. Kernel microbenchmarks retain `scalar`,
-`c`, and `simd` pins, while `built-in` selects SIMD, then bundled C, then scalar.
+Kernel microbenchmarks use `kernels=built-in,scalar,c,simd`. `built-in` selects the immutable platform engine;
+the other names are exact pins and fail when unavailable. Dense and sparse comparator arms use the same
+`built-in`, `openblas`, and `onemkl` terminology.
 
 Benchmark-owned level-1 CBLAS calls cover dot, axpy, scale, norm, absolute sum, swap, and rotations for both dense
 comparators. `sum` and fused squared distance have no CBLAS counterpart. Four-way dot is labeled as a composition
@@ -68,18 +104,18 @@ of four calls, never direct kernel parity. See `comparator-coverage.tsv` for the
 classification across dense and sparse operations.
 
 `simd` is absent from every `@Param` list because Kotlin/Native has no such
-provider and a benchmark configuration covers every target, so a full native
+arm and a benchmark configuration covers every target, so a full native
 run would ask for one that cannot exist. Pass it explicitly on the JVM.
 
 Every arm checks what it actually resolved to and fails when that is not what
 the arm names, so a run cannot quietly credit an implementation that never
-executed. Each install prints one `resolved: arm=...` line naming the arm and
-the halves behind it, and `report.sh` collects those lines into the report.
+executed. Setup prints a `resolved: arm=...` line naming the immutable engine,
+and the contributor runner collects those lines into the report.
 
 `SparseWorkspaceBenchmark` measures the caller-owned sparse support operations directly at small through large
 touched counts. `SparseWorkspaceGrowingScatterBenchmark` performs many short scatters while support grows, exposing
 any per-call dependence on retained support; there is no external BLAS equivalent. `ExplicitPackedKernelBenchmark`
-selects scalar and bundled C providers so full and logical-edge tiles, fused update/solve, and the explicit
+selects scalar and bundled C arms so full and logical-edge tiles, fused update/solve, and the explicit
 composition remain distinguishable. On the JVM, `PackedTrsmEligibilityBenchmark` isolates the conservative eligibility scan and
 bound, while `ExplicitPackedTrsmBenchmark` keeps its outcome inside a repeated end-to-end solve.
 
@@ -90,7 +126,9 @@ the near-zero allowance.
 
 ## Troubleshooting and maintenance
 
-A successful Gradle task without fresh JSON can mean a stale JMH lock. `report.sh` checks for JSON newer than its marker and reports a detected lock; confirm no benchmark is running before removing a stale lock.
+Contributor runs use distinct report and Native-description directories, accept concurrent JMH processes, and
+never remove `/tmp/jmh.lock` or another invocation's files. If an ordinary developer task reports a lock, inspect
+the owning process; do not delete a live run's lock.
 
 When adding or changing a public numerical API, update `public-numerical-api.tsv` and `benchmark-coverage.tsv`, then
 run `./gradlew :koblas-bench:checkBenchmarkCoverage`. The inventory names each reviewed public operation and maps it
