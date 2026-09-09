@@ -8,9 +8,7 @@ class BuiltinKernelsTest {
     @Test
     fun `the scalar provider resolves an exact context`() {
         val provider = BuiltinKernels.scalar
-        val context = ContextBuilder()
-            .withBuiltinKernels(provider)
-            .resolve()
+        val context = provider.engine()
 
         assertSame(provider.kernels, context.kernels)
         assertSame(provider.sparseKernels, context.sparseKernels)

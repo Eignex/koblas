@@ -1,33 +1,15 @@
 # Module koblas
 
-Dense and sparse linear algebra for Kotlin Multiplatform.
+Dense and sparse BLAS for Kotlin Multiplatform.
 
-Koblas currently implements one numerical family with Kotlin `Double` elements. Its public container
-and backend names are concise defaults: [DenseMatrix][com.eignex.koblas.DenseMatrix] and
-[DenseVector][com.eignex.koblas.DenseVector], for example. The README's "Data and storage" section says
-what an element type added later brings and what stays shared.
+Koblas provides mutable owning `Double` containers, live strided dense views, validated CSC sparse storage,
+caller-owned workspaces, and packed arithmetic helpers. Dense matrices are column-major.
 
-Koblas provides mutable owning containers through read-only matrix/vector contracts, with sealed dense and
-sparse backings —
-[MatrixStorage][com.eignex.koblas.MatrixStorage] / [DenseMatrix][com.eignex.koblas.DenseMatrix] and
-[VectorStorage][com.eignex.koblas.VectorStorage] / [DenseVector][com.eignex.koblas.DenseVector] /
-[SparseVector][com.eignex.koblas.SparseVector], all `@Serializable` so snapshots round-trip through
-`kotlinx.serialization` with their concrete storage preserved.
+[koblas][com.eignex.koblas.koblas] is an immutable engine selected once for the platform. JVM selection prefers
+the Vector API, then Koblas's bundled C kernels, then scalar Kotlin. Kotlin/Native uses the bundled C kernels
+with scalar fallbacks. Shared dense and sparse matrix algorithms are bound directly to those selected kernels.
 
-Light arithmetic lives as free functions over the views: BLAS-1/2 (`dot`, `axpy`, `scale`, `ger`,
-`gemv`, `forEachStored`). Their inner loops route through an `expect`/`actual` primitive seam that uses SIMD
-(`jdk.incubator.vector`) on the JVM when present and compiled C kernels on Native and non-SIMD JVMs.
-
-Sparse linear algebra is a first-class peer: a CSC [SparseMatrix][com.eignex.koblas.SparseMatrix]
-with matrix-vector and matrix-matrix products, general and repeated-pattern LU, Cholesky, quasi-definite LDL,
-and distinct simplex-basis capabilities. Sparse factors provide vector and
-block solves, deterministic lifecycle, allocation contracts, and typed factor access. The README's "Numerical
-routine coverage" and "Sparse workflows" sections map these semantic roles to portable and native providers.
-
-The level-2/3 dense work sits behind the runtime-swappable
-[Blas][com.eignex.koblas.dense.Blas] backend so a native BLAS implementation can replace it without
-changing callers. [koblas][com.eignex.koblas.koblas]
-resolves to an [installBackends][com.eignex.koblas.installBackends] override when set, else
-the platform backend when present, else the pure-Kotlin
-[ReferenceBlas][com.eignex.koblas.dense.ReferenceBlas]. Dense matrix products and triangular operations
-delegate to the active backend.
+Exact scalar, C, and SIMD engines are available through the experimental
+[BuiltinKernels][com.eignex.koblas.BuiltinKernels] construction seam for tests and benchmarks. Constructing one
+does not change the default engine. Factorization and basis solving are outside this artifact; the optional JVM
+`koblas-hfactor` artifact exposes HFactor directly.

@@ -1,11 +1,13 @@
 package com.eignex.koblas.sparse
 
-import com.eignex.koblas.Backend
 import com.eignex.koblas.SparseVector
 import com.eignex.koblas.internal.numeric.euclideanNorm
 
-/** Sparse vector-vector routines as a backend half. */
-public interface SparseKernels : Backend {
+/** Sparse vector-vector kernel contract. */
+public interface SparseKernels {
+    /** Short implementation identifier for diagnostics. */
+    public val name: String
+
     /** `xᵀ·y` for a sparse [x] against a dense [y] (Sparse BLAS `usdot`); walks only the stored entries. */
     public fun dot(x: SparseVector, y: DoubleArray): Double
 

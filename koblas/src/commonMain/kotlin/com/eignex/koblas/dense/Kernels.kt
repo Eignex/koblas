@@ -1,12 +1,11 @@
 package com.eignex.koblas.dense
 
-import com.eignex.koblas.Backend
 import com.eignex.koblas.ModifiedGivens
 import com.eignex.koblas.internal.numeric.scalarAxpy4
 import com.eignex.koblas.internal.numeric.scalarDotAxpy
 
 /**
- * The vector-vector routines as a backend half beneath [Blas]. Implementations must
+ * The vector-vector and packed-panel kernel contract beneath [Blas]. Implementations must
  * agree with [PlatformKernels] to within rounding and read nothing outside the (offset, length)
  * window.
  *
@@ -18,7 +17,10 @@ import com.eignex.koblas.internal.numeric.scalarDotAxpy
  * A length of zero is legal everywhere and does nothing: the triangular and Householder kernels reach the
  * last row with an empty tail, so every routine here is called that way.
  */
-public interface Kernels : Backend {
+public interface Kernels {
+    /** Short implementation identifier for diagnostics. */
+    public val name: String
+
     /** Sum of a(aOff + i) * b(bOff + i) over the first [len] entries; `0` for an empty run. */
     public fun dot(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int): Double
 
@@ -264,7 +266,7 @@ internal interface ArithmeticKernels {
 
 /**
  * The kernels compiled into this target: C on Native and on a JVM without `jdk.incubator.vector`, SIMD on
- * a JVM with the module. Its [Backend.name] is what `mathBackend` reports.
+ * a JVM with the module. Its [name] is what `mathBackend` reports.
  */
 internal expect object PlatformKernels : Kernels, ArithmeticKernels {
     override val name: String

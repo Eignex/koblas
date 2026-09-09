@@ -27,10 +27,10 @@ class BenchmarkArmResolutionTest {
         }
         for ((arm, provider) in pinned) {
             if (provider == null) continue
-            installKernelProvider(arm)
+            val context = kernelEngine(arm)
             assertTrue(
-                koblas.kernels.name.startsWith(arm),
-                "the $arm arm resolved kernels to ${koblas.kernels.name}",
+                context.kernels.name.startsWith(arm),
+                "the $arm arm resolved kernels to ${context.kernels.name}",
             )
         }
     }
@@ -41,15 +41,15 @@ class BenchmarkArmResolutionTest {
         val arm = if (provider === BuiltinKernels.simd) SIMD_KERNELS else C_KERNELS
         // Discovery first, which is what a benchmark process does before any arm asks for a pinned
         // provider, and what put a host half underneath the pinned arms.
-        installKernelProvider(AUTOMATIC_KERNELS)
-        installKernelProvider(arm)
+        kernelEngine(AUTOMATIC_KERNELS)
+        val context = kernelEngine(arm)
         assertTrue(
-            '+' !in koblas.kernels.name,
-            "the $arm arm resolved kernels to ${koblas.kernels.name}, which joins a host half",
+            '+' !in context.kernels.name,
+            "the $arm arm resolved kernels to ${context.kernels.name}, which joins a host half",
         )
         assertEquals(
-            REFERENCE_BACKEND,
-            koblas.blas.name,
+            BUILTIN_BACKEND,
+            context.blas.name,
             "the $arm arm left a non-portable matrix half installed, so a level-2 routine would not measure it",
         )
     }
@@ -59,7 +59,7 @@ class BenchmarkArmResolutionTest {
         val arm = DenseBenchmarkArm.resolve(BUILTIN_BACKEND)
         assertTrue(arm.context != null)
         assertEquals(null, arm.external)
-        assertTrue(arm.identity.startsWith("built-in/reference/"), arm.identity)
+        assertTrue(arm.identity.startsWith("built-in/built-in/"), arm.identity)
     }
 
     @Test
@@ -158,7 +158,7 @@ class BenchmarkArmResolutionTest {
 
     @Test
     fun `an unknown arm is rejected rather than quietly measuring the installed one`() {
-        assertFailsWith<IllegalStateException> { installKernelProvider("vectorised") }
+        assertFailsWith<IllegalStateException> { kernelEngine("vectorised") }
     }
 
     private fun sparseProductBenchmark(arm: String): SparseProductHostBenchmark = SparseProductHostBenchmark().also {

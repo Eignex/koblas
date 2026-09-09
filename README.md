@@ -19,7 +19,7 @@ Dense and sparse double-precision linear algebra for JVM and Kotlin/Native compu
 dense and sparse BLAS operations, built-in C/SIMD kernels, and optional HFactor acceleration.
 
 Koblas is a low-level building block for numerical and optimization software that owns its data and algorithms.
-It exposes storage, allocation, workspace, backend, and lifecycle decisions instead of hiding them behind a
+It exposes storage, allocation, workspace, implementation, and lifecycle decisions instead of hiding them behind a
 data-frame or expression layer.
 
 ## Platforms and modules
@@ -34,7 +34,7 @@ Windows Native, and Apple mobile targets are not published.
 
 On JVM, add `--add-modules=jdk.incubator.vector` to enable the built-in SIMD kernels. Without the Vector API,
 koblas uses its bundled C kernels when available and otherwise retains the same semantics through its scalar
-implementation. HFactor is discovered on JVM when installed; the bundled HFactor module takes precedence.
+implementation. HFactor is an optional JVM API and is loaded only when constructed and used directly.
 
 The non-published `koblas-bench` module owns development-only OpenBLAS and oneMKL comparators. They are never
 dependencies or resources of a published module. See [`koblas-bench/README.md`](koblas-bench/README.md) for
@@ -137,45 +137,24 @@ repeat(1_000) {
 
 BLAS options use named Boolean parameters such as lower, transpose, unitDiag, and right.
 
-## Backends and routing
+## Built-in implementation
 
-Every BLAS operation runs through a KoblasContext. Top-level functions use the process-wide koblas context,
-whose registry selects providers independently by semantic role. The optional HFactor module is constructed
-directly and never participates in BLAS discovery or routing.
+Top-level functions use the immutable `koblas` engine selected once for the platform. On JVM it prefers the
+Vector API, then Koblas's bundled C kernels, then exact scalar kernels. Kotlin/Native uses the bundled C kernels,
+with scalar fallbacks where needed. Shared dense and sparse matrix algorithms are bound to the engine's selected
+kernels; there is no provider registry, service discovery, or process-global override.
 
-Selected providers execute their native implementations at every size. They fall back only for unavailable
-libraries, unsupported arguments, or operations they do not implement. Inspect status for the selected providers
-and route a representative problem before entering a hot loop:
-
-```kotlin
-import com.eignex.koblas.*
-
-discoverBackends()
-val dense = koblas.status[BackendRole.DENSE_BLAS]
-check(dense.portable)
-
-val route = koblas.route(RouteQuery.DenseGemm(m = 256, n = 64, k = 128))
-check(route.execution == BackendExecution.PORTABLE)
-```
-
-The `registerBackend(...)` function adds a provider explicitly. The `installBackends(...)` function replaces the
-process-wide context; passing null restores registry selection. For locally scoped control, use an immutable
-ContextBuilder:
+Tests and benchmarks can construct an independent exact engine without changing global state:
 
 ```kotlin
-val strictBlas = ContextBuilder()
-    .withBackend(BackendRole.DENSE_BLAS, selectedBlas)
-    .withDispatchPolicy(DispatchPolicy.NATIVE_ONLY)
-    .resolve()
-
-val c = strictBlas.gemm(a, b)
+@OptIn(ExperimentalKoblasApi::class)
+val scalar = BuiltinKernels.scalar.engine()
+val c = scalar.gemm(a, b)
 ```
 
-NATIVE_ONLY rejects a known fallback before backend invocation. PORTABLE_ONLY resolves every role to the
-reference implementation. In AUTO, fallback can be allowed, reported to a handler, or rejected. Third-party
-providers without route diagnostics report UNKNOWN rather than being assumed native.
+`koblasInfo`, `KoblasContext.name`, and the kernel names provide read-only attribution for logs.
 
-### Discovery configuration
+### Implementation configuration
 
 On JVM, a system property takes precedence over the corresponding environment variable. Kotlin/Native reads
 the environment variable. The JVM-only `koblas.jvm.vector.scatter` setting (or
@@ -183,10 +162,6 @@ the environment variable. The JVM-only `koblas.jvm.vector.scatter` setting (or
 conservative guess from a 512-bit x86 preferred species. Use on when you know the deployment has a profitable
 AVX-512 path; it forces indexed stores when the Vector API module is present. Off retains scalar indexed
 stores.
-
-Pin discovery by backend name per semantic role. Set a JVM property named `koblas.backend.<role>` or the
-matching `KOBLAS_<ROLE>_BACKEND` environment variable; the property takes precedence. A blank value leaves the
-role automatic, while `reference` disables host selection for that role.
 
 ## Sparse workflows
 
@@ -235,8 +210,7 @@ The portable reference, JVM SIMD, bundled C kernels, and HFactor are single-thre
 
 | Object | Contract |
 |--------|----------|
-| KoblasContext, status, and route values | Immutable after resolution and safe to share. |
-| Global backend registry | Configure during startup; process-wide selection is intentionally global. |
+| KoblasContext | Immutable after construction and safe to share. |
 | Owned dense and sparse containers | Mutable and unsynchronized; concurrent reads require no reachable writer. |
 | Strided views | Borrow live storage; the owner must outlive every use. |
 | Workspace | Caller-owned scratch; use one per concurrent operation or serialize access. |

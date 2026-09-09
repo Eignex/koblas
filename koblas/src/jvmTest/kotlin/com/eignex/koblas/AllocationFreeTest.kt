@@ -3,7 +3,6 @@ package com.eignex.koblas
 import com.eignex.koblas.*
 import com.eignex.koblas.dense.*
 import com.eignex.koblas.sparse.REFERENCE_SPARSE_RHS_WIDTH
-import com.eignex.koblas.sparse.ReferenceSparseLinearAlgebra
 import com.eignex.koblas.testutil.allocation.allocatedBytes
 import com.eignex.koblas.testutil.allocation.bytesPerIteration
 import kotlin.random.Random
@@ -17,25 +16,9 @@ class AllocationFreeTest {
 
         /** A pooled form must allocate at most this fraction of what the allocating form does. */
         const val POOLED_RATIO = 50.0
-    }
 
-    /** Pins the portable backend for the suite, since an FFM call allocates a MemorySegment wrapper per array. */
-    @BeforeTest
-    fun usePortableKernels() {
-        installBackends(
-            koblas.with(
-                kernels = ScalarKernels,
-                blas = ReferenceBlas,
-                sparseBlas = ReferenceSparseLinearAlgebra,
-                generalSparseLu = ReferenceSparseLinearAlgebra,
-                sparseKernels = ReferenceSparseLinearAlgebra,
-            ),
-        )
-    }
-
-    @AfterTest
-    fun restoreSelection() {
-        installBackends(null)
+        @OptIn(ExperimentalKoblasApi::class)
+        val engine = BuiltinKernels.scalar.engine()
     }
 
     private fun assertPooled(pooled: Double, allocating: Double, what: String) {
@@ -120,8 +103,8 @@ class AllocationFreeTest {
         val a = DenseMatrix.zero(n, n)
         val x = DenseVector.wrap(DoubleArray(n) { rng.nextDouble(-1.0, 1.0) })
         val y = DenseVector.wrap(DoubleArray(n) { rng.nextDouble(-1.0, 1.0) })
-        val syr = bytesPerIteration(500) { koblas.syr(1e-12, x, a, lower = true) }
-        val syr2 = bytesPerIteration(500) { koblas.syr2(1e-12, x, y, a, lower = true) }
+        val syr = bytesPerIteration(500) { engine.syr(1e-12, x, a, lower = true) }
+        val syr2 = bytesPerIteration(500) { engine.syr2(1e-12, x, y, a, lower = true) }
         assertTrue(syr < FLOOR_BYTES, "syr allocated $syr B per call for a dense operand it can read in place")
         assertTrue(syr2 < FLOOR_BYTES, "syr2 allocated $syr2 B per call for dense operands it can read in place")
     }
@@ -136,7 +119,7 @@ class AllocationFreeTest {
         val workspace = Workspace().apply { reserve(4, count = 1) }
 
         val bytes = bytesPerIteration(1_000) {
-            koblas.gemv(1e-8, a, x, 1.0, y, transpose = true, workspace = workspace)
+            engine.gemv(1e-8, a, x, 1.0, y, transpose = true, workspace = workspace)
             y
         }
 
@@ -157,7 +140,7 @@ class AllocationFreeTest {
         }
 
         val bytes = bytesPerIteration(300) {
-            koblas.gemm(1e-8, a, true, b, true, 1.0, c, workspace)
+            engine.gemm(1e-8, a, true, b, true, 1.0, c, workspace)
             c
         }
 
@@ -175,7 +158,7 @@ class AllocationFreeTest {
             val workspace = Workspace()
 
             val bytes = bytesPerIteration(300) {
-                koblas.symm(1e-8, a, b, 1.0, c, right = right, workspace = workspace)
+                engine.symm(1e-8, a, b, 1.0, c, right = right, workspace = workspace)
                 c
             }
 
@@ -280,7 +263,7 @@ class AllocationFreeTest {
         val workspace = Workspace().apply { reserve(b.data.size, count = 1) }
 
         val bytes = bytesPerIteration(300) {
-            koblas.sparseBlas.gemm(1e-8, sparse, false, b, true, 1.0, c, right = true, workspace = workspace)
+            engine.sparseBlas.gemm(1e-8, sparse, false, b, true, 1.0, c, right = true, workspace = workspace)
             c
         }
 
@@ -298,30 +281,10 @@ class AllocationFreeTest {
         }
 
         val bytes = bytesPerIteration(500) {
-            koblas.sparseBlas.trsm(sparse, b, lower = true, workspace = workspace)
+            engine.sparseBlas.trsm(sparse, b, lower = true, workspace = workspace)
             b
         }
 
         assertTrue(bytes <= FLOOR_BYTES, "left sparse trsm allocated $bytes B per call")
-    }
-
-    @Test
-    fun `inspecting a route reads one role rather than the whole snapshot`() {
-        // route() took the whole twelve-role status to read one entry, so every operation under a strict
-        // dispatch policy built twelve BackendStatus objects, up to twelve BackendMetadata, a list and two
-        // sets. Nothing in this suite covered it: the other cases all run the default AUTO context, where
-        // the policy path never executes.
-        val query = RouteQuery.DenseGemv(64, 64)
-
-        val single = bytesPerIteration(2000) { koblas.route(query) }
-        val whole = bytesPerIteration(2000) { koblas.status }
-
-        // Not allocation-free, and cannot be: route returns a BackendRoute over a BackendStatus, so one of
-        // each is the floor. What it must not do is build the other eleven roles to get there.
-        assertTrue(whole > FLOOR_BYTES, "expected the full snapshot to allocate, saw $whole B")
-        assertTrue(
-            single * 4 < whole,
-            "route allocated $single B against the full snapshot's $whole B, so it is still building all of it",
-        )
     }
 }

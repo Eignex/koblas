@@ -1,7 +1,5 @@
 package com.eignex.koblas.sparse
 
-import com.eignex.koblas.BackendMetadata
-import com.eignex.koblas.BackendMetadataProvider
 import com.eignex.koblas.SparseVector
 import com.eignex.koblas.dense.cKernelsAvailable
 import com.eignex.koblas.dense.simdAvailable
@@ -9,19 +7,14 @@ import jdk.incubator.vector.DoubleVector
 import jdk.incubator.vector.VectorOperators
 
 /** Sparse SIMD kernels where the Vector API is present, the bundled C kernels otherwise. */
-internal actual object PlatformSparseKernels : SparseKernels, BackendMetadataProvider {
+internal actual object PlatformSparseKernels : SparseKernels {
     private val selected: SparseKernels = when {
         simdAvailable -> SimdSparseKernels
         cKernelsAvailable -> CSparseKernels
-        else -> ReferenceSparseLinearAlgebra
+        else -> ScalarSparseKernels
     }
 
     actual override val name: String get() = selected.name
-
-    override val isPortable: Boolean get() = selected.isPortable
-
-    override val backendMetadata: BackendMetadata
-        get() = (selected as? BackendMetadataProvider)?.backendMetadata ?: BackendMetadata()
 
     actual override fun dot(x: SparseVector, y: DoubleArray): Double = selected.dot(x, y)
 

@@ -9,7 +9,7 @@ import java.lang.invoke.MethodHandle
 @OptIn(ExperimentalKoblasApi::class)
 internal actual fun explicitBuiltInContext(): KoblasContext {
     val provider = BuiltinKernels.simd ?: BuiltinKernels.c ?: BuiltinKernels.scalar
-    return ContextBuilder().withBuiltinKernels(provider).resolve()
+    return provider.engine()
 }
 
 internal actual fun openBlasComparator(): DenseComparator? = JvmCblasComparator.openOpenBlas()

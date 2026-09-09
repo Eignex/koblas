@@ -2,20 +2,22 @@
 
 package com.eignex.koblas.sparse
 
-import com.eignex.koblas.Backend
 import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.Workspace
 import com.eignex.koblas.dense.*
 
-/** Sparse matrix routines as a backend half. */
-public interface SparseBlas : Backend {
+/** Sparse matrix algorithms bound to immutable dense kernels. */
+public interface SparseBlas {
+    /** Short implementation identifier for diagnostics. */
+    public val name: String
+
     /**
      * Prepares an immutable snapshot of [a] for repeated products. The caller owns the returned resource and
      * should close it with `use`. Portable backends retain an ordinary CSC copy; native backends may retain
      * native descriptors and buffers.
      */
-    public fun prepare(a: SparseMatrix): PreparedSparseMatrix = ReferencePreparedSparseMatrix(a)
+    public fun prepare(a: SparseMatrix): PreparedSparseMatrix
 
     /**
      * In-place `y = alpha · op(A) · x + beta · y`, where `op(A)` is `Aᵀ` when [transpose]. Per BLAS
@@ -202,7 +204,8 @@ public interface PreparedSparseMatrix : AutoCloseable {
     override fun close()
 }
 
-private class ReferencePreparedSparseMatrix(a: SparseMatrix) : PreparedSparseMatrix {
+internal class ReferencePreparedSparseMatrix(a: SparseMatrix, private val algorithms: SparseBlas) :
+    PreparedSparseMatrix {
     private val snapshot = sparseSnapshotOf(a)
     private var closed = false
 
@@ -212,7 +215,7 @@ private class ReferencePreparedSparseMatrix(a: SparseMatrix) : PreparedSparseMat
 
     override fun gemv(alpha: Double, x: DoubleArray, beta: Double, y: DoubleArray, transpose: Boolean) {
         checkOpen()
-        ReferenceSparseLinearAlgebra.gemv(alpha, snapshot, x, beta, y, transpose)
+        algorithms.gemv(alpha, snapshot, x, beta, y, transpose)
     }
 
     override fun gemm(
@@ -224,12 +227,12 @@ private class ReferencePreparedSparseMatrix(a: SparseMatrix) : PreparedSparseMat
         workspace: Workspace?,
     ) {
         checkOpen()
-        ReferenceSparseLinearAlgebra.gemm(alpha, snapshot, transposeA, b, false, beta, c, workspace = workspace)
+        algorithms.gemm(alpha, snapshot, transposeA, b, false, beta, c, workspace = workspace)
     }
 
     override fun gemm(b: SparseMatrix): SparseMatrix {
         checkOpen()
-        return ReferenceSparseLinearAlgebra.gemm(snapshot, b)
+        return algorithms.gemm(snapshot, b)
     }
 
     override fun close() {

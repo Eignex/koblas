@@ -1,8 +1,9 @@
 package com.eignex.koblas.bench
 
 import com.eignex.koblas.DenseMatrix
+import com.eignex.koblas.KoblasContext
 import com.eignex.koblas.SparseVector
-import com.eignex.koblas.gemvInto
+import com.eignex.koblas.UnsafeKoblasApi
 import kotlinx.benchmark.*
 
 /**
@@ -26,10 +27,11 @@ class GemvIntoBenchmark {
     private lateinit var a: DenseMatrix
     private lateinit var sparseX: SparseVector
     private lateinit var out: DoubleArray
+    private lateinit var engine: KoblasContext
 
     @Setup
     fun setup() {
-        installKernelProvider(kernels)
+        engine = kernelEngine(kernels)
         val rng = benchRng()
         a = randomMatrix(rows, cols, rng)
         sparseX = randomSparseVector(cols, density = 0.25, rng = rng)
@@ -37,8 +39,13 @@ class GemvIntoBenchmark {
     }
 
     @Benchmark
+    @OptIn(UnsafeKoblasApi::class)
     fun gemvIntoSparseX(): DoubleArray {
-        a.gemvInto(sparseX, out)
+        out.fill(0.0)
+        for (entry in sparseX.indices.indices) {
+            val column = sparseX.indices[entry]
+            engine.kernels.axpy(out, 0, sparseX.values[entry], a.data, column * rows, rows)
+        }
         return out
     }
 }

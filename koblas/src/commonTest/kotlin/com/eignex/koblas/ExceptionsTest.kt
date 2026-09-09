@@ -2,7 +2,6 @@ package com.eignex.koblas
 
 import com.eignex.koblas.*
 import com.eignex.koblas.dense.*
-import com.eignex.koblas.sparse.SingularSparseFactorization
 import kotlin.test.*
 
 class ExceptionsTest {
@@ -12,15 +11,5 @@ class ExceptionsTest {
         val a = DenseMatrix.zero(2, 3)
         assertFailsWith<DimensionMismatch> { DenseVector.zero(2) dot DenseVector.zero(3) }
         assertFailsWith<DimensionMismatch> { koblas.gemm(a, DenseMatrix.zero(2, 2)) }
-    }
-
-    @Test
-    fun `a factorization without a pivot position reports unknown singularity`() {
-        val factorization = SingularSparseFactorization(2, SINGULAR_POSITION_UNKNOWN)
-
-        val e = assertFailsWith<SingularMatrix> { factorization.solve(doubleArrayOf(1.0, 2.0)) }
-
-        assertEquals(SINGULAR_POSITION_UNKNOWN, e.position)
-        assertTrue("factorization is singular" in e.message!!, "the message should omit a made-up pivot")
     }
 }

@@ -21,11 +21,11 @@ class SparseLevel1Benchmark {
     private lateinit var sparse: SparseVector
     private lateinit var other: SparseVector
     private lateinit var dense: DenseVector
+    private lateinit var engine: KoblasContext
 
     @Setup
     fun setup() {
-        installKernelProvider(kernels)
-        println("resolved: sparseKernels=${koblas.sparseKernels.name}")
+        engine = kernelEngine(kernels)
         val rng = benchRng()
         sparse = randomSparseVector(len, density, rng)
         other = randomSparseVector(len, density, rng)
@@ -33,30 +33,30 @@ class SparseLevel1Benchmark {
     }
 
     @Benchmark
-    fun sparseDotSparse(): Double = sparse dot other
+    fun sparseDotSparse(): Double = engine.sparseKernels.dot(sparse, other)
 
-    fun sparseDotDense(): Double = sparse dot dense
+    fun sparseDotDense(): Double = engine.sparseKernels.dot(sparse, dense.data)
 
     fun sparseAxpy() {
-        dense.axpy(NEAR_UNIT_SCALE, sparse)
+        engine.sparseKernels.axpy(dense.data, NEAR_UNIT_SCALE, sparse)
     }
 
     @Benchmark
-    fun sparseNrm2(): Double = sparse.norm2()
+    fun sparseNrm2(): Double = engine.sparseKernels.nrm2(sparse)
 
     @Benchmark
-    fun sparseAsum(): Double = sparse.asum()
+    fun sparseAsum(): Double = engine.sparseKernels.asum(sparse)
 
     fun sparseScatter() {
-        koblas.sparseKernels.scatter(sparse, dense.data)
+        engine.sparseKernels.scatter(sparse, dense.data)
     }
 
     fun sparseGather() {
-        koblas.sparseKernels.gather(sparse, dense.data)
+        engine.sparseKernels.gather(sparse, dense.data)
     }
 
     fun sparseGatherZero() {
-        koblas.sparseKernels.gatherZero(sparse, dense.data)
+        engine.sparseKernels.gatherZero(sparse, dense.data)
     }
 }
 

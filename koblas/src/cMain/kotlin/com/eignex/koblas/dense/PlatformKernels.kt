@@ -3,7 +3,7 @@
 package com.eignex.koblas.dense
 
 import com.eignex.koblas.ModifiedGivens
-import com.eignex.koblas.internal.backend.BackendNames
+import com.eignex.koblas.internal.configuration.ImplementationNames
 import com.eignex.koblas.internal.kernels.*
 import com.eignex.koblas.internal.numeric.scalarAxpy
 import com.eignex.koblas.internal.numeric.scalarAxpy4
@@ -23,9 +23,7 @@ private val C_HOST_MIN_LENGTH = DenseTuning.nativeCMinLength
 
 /** The C level-1 kernels compiled into each Kotlin/Native host artifact. */
 internal actual object PlatformKernels : Kernels, ArithmeticKernels {
-    actual override val name: String get() = BackendNames.C
-
-    override val isPortable: Boolean get() = true
+    actual override val name: String get() = ImplementationNames.C
 
     /**
      * The matrix-product tile, in C for the same reason every other kernel here is: a loop written in

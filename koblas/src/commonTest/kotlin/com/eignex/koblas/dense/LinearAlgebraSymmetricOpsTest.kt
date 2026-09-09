@@ -697,7 +697,6 @@ class LinearAlgebraSymmetricOpsTest {
     /** Kernels whose `axpy` fails, standing in for a backend that cannot complete a blocked update. */
     private class FailingAxpy : Kernels by ScalarKernels {
         override val name: String get() = "failing-axpy"
-        override val isPortable: Boolean get() = false
 
         override fun axpy(y: DoubleArray, yOff: Int, alpha: Double, x: DoubleArray, xOff: Int, len: Int) =
             error("kernel failed")
@@ -706,7 +705,6 @@ class LinearAlgebraSymmetricOpsTest {
     /** Kernels whose packed tile fails after all of its scratch buffers have been borrowed. */
     private class FailingTile : Kernels by ScalarKernels {
         override val name: String get() = "failing-tile"
-        override val isPortable: Boolean get() = false
 
         override fun gemmTile(
             depth: Int,

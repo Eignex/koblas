@@ -7,7 +7,7 @@ plugins {
 }
 
 eignexPublish {
-    description.set("Dense/sparse linear algebra for Kotlin/KMP with pluggable BLAS and factorization seams.")
+    description.set("Dense and sparse BLAS for Kotlin Multiplatform with built-in C and SIMD kernels.")
     githubRepo.set("Eignex/koblas")
 }
 
@@ -151,11 +151,6 @@ tasks.withType<Test>().configureEach {
     if (project.findProperty("koblas.noSimd") != "true") {
         jvmArgs("--add-modules=jdk.incubator.vector")
     }
-    // Pin the remaining registry roles to the scalar reference for deterministic tests.
-    systemProperty("koblas.backend.dense.kernels", "reference")
-    systemProperty("koblas.backend.dense.blas", "reference")
-    systemProperty("koblas.backend.sparse.kernels", "reference")
-    systemProperty("koblas.backend.sparse.blas", "reference")
 }
 
 // Kotlin emits a `$DefaultImpls` holder for every interface with a body, and a bridge for every method with

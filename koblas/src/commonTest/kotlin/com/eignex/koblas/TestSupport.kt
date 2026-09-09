@@ -118,26 +118,3 @@ internal fun poisonedTriangle(rng: Random, n: Int, lower: Boolean, unitDiag: Boo
     }
     return poisoned to explicit
 }
-
-/**
- * Runs [block] against an empty registry, then puts the process back by replaying platform discovery.
- *
- * Discovery is explicit, so clearing the registry without replaying it leaves later tests on the portable
- * fallbacks.
- */
-internal fun withCleanBackends(block: () -> Unit) {
-    resetBackends()
-    try {
-        block()
-    } finally {
-        resetBackends()
-        rediscoverBackends()
-    }
-}
-
-/** A dense-only offer at [priority], for tests that just need to rank offers against each other. */
-internal class RankedBlas(override val name: String, override val priority: Int) :
-    com.eignex.koblas.dense.Blas by com.eignex.koblas.dense.ReferenceBlas {
-    override val isAvailable: Boolean get() = true
-    override val isPortable: Boolean get() = false
-}

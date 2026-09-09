@@ -4,7 +4,7 @@ package com.eignex.koblas.sparse
 
 import com.eignex.koblas.SparseVector
 import com.eignex.koblas.dense.PlatformKernels
-import com.eignex.koblas.internal.backend.BackendNames
+import com.eignex.koblas.internal.configuration.ImplementationNames
 import com.eignex.koblas.internal.kernels.*
 import com.eignex.koblas.requireShape
 import kotlinx.cinterop.addressOf
@@ -12,9 +12,7 @@ import kotlinx.cinterop.usePinned
 
 /** The C sparse level-1 kernels compiled into each Kotlin/Native host artifact. */
 internal actual object PlatformSparseKernels : SparseKernels {
-    actual override val name: String get() = BackendNames.C_SPARSE
-
-    override val isPortable: Boolean get() = true
+    actual override val name: String get() = ImplementationNames.C_SPARSE
 
     actual override fun dot(x: SparseVector, y: DoubleArray): Double {
         requireShape(x.size == y.size) { "dot: sizes differ, ${x.size} vs ${y.size}" }

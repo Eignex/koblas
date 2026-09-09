@@ -26,14 +26,6 @@ internal actual object PlatformKernels : Kernels, ArithmeticKernels {
 
     actual override val name: String get() = selected.name
 
-    override val isPortable: Boolean get() = true
-
-    /**
-     * Always true: without the vector module these kernels run the bundled C implementation, so the
-     * SIMD probe shows up in [name] instead of here.
-     */
-    override val isAvailable: Boolean get() = true
-
     actual override fun dot(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int): Double =
         selected.dot(a, aOff, b, bOff, len)
 

@@ -3,7 +3,6 @@ package com.eignex.koblas
 import com.eignex.koblas.dense.*
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertTrue
 
 class ReadmeSamplesTest {
 
@@ -26,7 +25,6 @@ class ReadmeSamplesTest {
 
     @Test
     fun `koblasInfo has the shape the sample shows`() {
-        assertTrue(koblasInfo.startsWith("backend="), koblasInfo)
-        assertTrue(", kernels=" in koblasInfo, koblasInfo)
+        assertEquals("engine=${koblas.name}", koblasInfo)
     }
 }

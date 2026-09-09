@@ -4,14 +4,14 @@ import com.eignex.koblas.dense.CKernels
 import com.eignex.koblas.dense.ScalarKernels
 import com.eignex.koblas.dense.SimdKernels
 import com.eignex.koblas.sparse.CSparseKernels
-import com.eignex.koblas.sparse.ReferenceSparseLinearAlgebra
+import com.eignex.koblas.sparse.ScalarSparseKernels
 import com.eignex.koblas.sparse.SimdSparseKernels
 
 /** JVM built-in kernel providers. */
 @ExperimentalKoblasApi
 public actual object BuiltinKernels {
     private val scalarProvider by lazy {
-        BuiltinKernelProvider(ScalarKernels, ReferenceSparseLinearAlgebra)
+        BuiltinKernelProvider(ScalarKernels, ScalarSparseKernels)
     }
     private val cProvider by lazy {
         if (CKernels.isAvailable) BuiltinKernelProvider(CKernels, CSparseKernels) else null

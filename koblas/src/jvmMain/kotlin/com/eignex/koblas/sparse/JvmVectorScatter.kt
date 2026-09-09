@@ -1,10 +1,9 @@
 package com.eignex.koblas.sparse
 
-import com.eignex.koblas.BackendMetadata
 import com.eignex.koblas.dense.simdAvailable
-import com.eignex.koblas.internal.backend.ConfigurationKeys
-import com.eignex.koblas.internal.backend.environmentVariableOrNull
-import com.eignex.koblas.internal.backend.systemPropertyOrNull
+import com.eignex.koblas.internal.configuration.ConfigurationKeys
+import com.eignex.koblas.internal.configuration.environmentVariableOrNull
+import com.eignex.koblas.internal.configuration.systemPropertyOrNull
 
 /** The requested use of indexed Vector API stores in sparse kernels. */
 internal enum class JvmVectorScatterMode {
@@ -31,16 +30,14 @@ internal enum class JvmVectorScatterMode {
     }
 }
 
-/** The JVM Vector API indexed-store decision, resolved once with the sparse-kernel backend. */
+/** The JVM Vector API indexed-store decision, resolved once with the sparse kernels. */
 internal class JvmVectorScatter private constructor(val mode: JvmVectorScatterMode, val enabled: Boolean) {
     val path: String get() = if (enabled) "indexed-store" else "scalar"
 
-    val metadata: BackendMetadata
-        get() = BackendMetadata(
-            options = mapOf(
-                "jvm.vector.scatter.mode" to mode.name.lowercase(),
-                "jvm.vector.scatter.path" to path,
-            ),
+    val options: Map<String, String>
+        get() = mapOf(
+            "jvm.vector.scatter.mode" to mode.name.lowercase(),
+            "jvm.vector.scatter.path" to path,
         )
 
     companion object {

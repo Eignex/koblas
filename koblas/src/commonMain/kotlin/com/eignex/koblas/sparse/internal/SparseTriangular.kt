@@ -14,11 +14,7 @@ import com.eignex.koblas.sparse.REFERENCE_SPARSE_RHS_WIDTH
 import kotlin.math.min
 
 /*
- * The portable sparse triangular kernels and the sparse-times-dense products.
- *
- * Their own file rather than members of the portable backend, for the reason SparseTranspose.kt gives for
- * the same move: a factorization needs them too, and reaching the seam would route the definition of a
- * routine through whichever backend happens to be registered.
+ * Shared sparse triangular kernels and sparse-times-dense products, kept as reusable CSC walk helpers.
  */
 
 /** Visits dense right-hand sides in cache-sized panels. */

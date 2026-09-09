@@ -2,7 +2,7 @@ package com.eignex.koblas.bench
 
 import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.Workspace
-import com.eignex.koblas.koblas
+import com.eignex.koblas.KoblasContext
 import kotlinx.benchmark.Benchmark
 import kotlinx.benchmark.BenchmarkMode
 import kotlinx.benchmark.BenchmarkTimeUnit
@@ -31,10 +31,11 @@ class ExplicitPackedTrsmBenchmark {
     private lateinit var source: DenseMatrix
     private lateinit var result: DenseMatrix
     private lateinit var workspace: Workspace
+    private lateinit var engine: KoblasContext
 
     @Setup
     fun setup() {
-        installKernelProvider(kernels)
+        engine = kernelEngine(kernels)
         val (order, panel) = shape.split('x').map(String::toInt)
         val rng = benchRng()
         triangle = dominantMatrix(order, rng)
@@ -48,20 +49,20 @@ class ExplicitPackedTrsmBenchmark {
         result = DenseMatrix.zero(panel, order)
         workspace = Workspace()
         source.data.copyInto(result.data)
-        koblas.trsm(
+        engine.trsm(
             triangle, result, lower = true, transpose = true, right = true, workspace = workspace,
         )
         reportAllocatingWorkload(
             "explicit-packed-trsm/$kernels/$shape/$scenario",
             "input reset plus retained packing workspace when eligible",
         )
-        println("resolved: explicit-packed-trsm kernels=${koblas.kernels.name} shape=$shape scenario=$scenario")
+        println("resolved: explicit-packed-trsm kernels=${engine.kernels.name} shape=$shape scenario=$scenario")
     }
 
     @Benchmark
     fun denseTrsm(): DenseMatrix {
         source.data.copyInto(result.data)
-        koblas.trsm(
+        engine.trsm(
             triangle, result, lower = true, transpose = true, right = true, workspace = workspace,
         )
         return result

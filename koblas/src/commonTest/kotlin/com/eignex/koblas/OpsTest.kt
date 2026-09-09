@@ -3,8 +3,6 @@
 package com.eignex.koblas
 
 import com.eignex.koblas.*
-import com.eignex.koblas.dense.Blas
-import com.eignex.koblas.dense.ReferenceBlas
 import kotlin.math.abs
 import kotlin.math.sqrt
 import kotlin.random.Random
@@ -573,24 +571,6 @@ class OpsTest {
         assertEquals(DenseMatrix(0, 0), DenseMatrix(0, 0).transpose())
         assertEquals(0, DenseMatrix(0, 5).transpose().cols)
         assertEquals(5, DenseMatrix(0, 5).transpose().rows)
-    }
-
-    @Test
-    fun `transpose reaches the registered backend`() = withCleanBackends {
-        var calls = 0
-        val counting = object : Blas by ReferenceBlas {
-            override val name: String get() = "counting"
-            override val priority: Int get() = 50
-            override fun transpose(a: DenseMatrix): DenseMatrix {
-                calls++
-                return ReferenceBlas.transpose(a)
-            }
-        }
-        registerBackend(counting)
-
-        DenseMatrix.of(arrayOf(doubleArrayOf(1.0, 2.0))).transpose()
-
-        assertEquals(1, calls, "the extension must forward to the seam")
     }
 
     @Test
