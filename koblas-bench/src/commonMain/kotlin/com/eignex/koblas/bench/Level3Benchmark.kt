@@ -26,7 +26,6 @@ class Level3Benchmark {
     private lateinit var squareB: DenseMatrix
 
     private lateinit var sym: DenseMatrix
-    private lateinit var triangular: DenseMatrix
     private lateinit var rhs: DenseMatrix
 
     @Setup
@@ -41,7 +40,6 @@ class Level3Benchmark {
         squareA = randomMatrix(n, n, rng)
         squareB = randomMatrix(n, n, rng)
         sym = lowerSymmetricMatrix(n, rng)
-        triangular = dominantMatrix(n, rng)
         rhs = DenseMatrix.zero(n, n)
         reportAllocatingWorkload("level3/$denseArm/gemm", "built-in packing workspace or fresh result construction")
     }
@@ -68,20 +66,6 @@ class Level3Benchmark {
     @Benchmark
     fun symmRight(): DenseMatrix {
         arm.external?.symm(1.0, sym, squareB, 0.0, rhs, true, true) ?: arm.context!!.symm(1.0, sym, squareB, 0.0, rhs, right = true)
-        return rhs
-    }
-
-    @Benchmark
-    fun trmm(): DenseMatrix {
-        squareB.data.copyInto(rhs.data)
-        arm.external?.trmm(triangular, rhs, true, false, false, false, 1.0) ?: arm.context!!.trmm(triangular, rhs, lower = true)
-        return rhs
-    }
-
-    @Benchmark
-    fun trmmRight(): DenseMatrix {
-        squareB.data.copyInto(rhs.data)
-        arm.external?.trmm(triangular, rhs, true, false, false, true, 1.0) ?: arm.context!!.trmm(triangular, rhs, lower = true, right = true)
         return rhs
     }
 }
