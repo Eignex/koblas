@@ -1,8 +1,8 @@
 package com.eignex.koblas.dense
 
+import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.Workspace
 import com.eignex.koblas.assertClose
-import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.poisonedTriangle
 import com.eignex.koblas.randomMatrix
 import kotlin.random.Random
@@ -122,12 +122,7 @@ class PackedTriangularSolveTest {
     }
 
     @Suppress("LongParameterList")
-    private fun multiply(
-        triangle: DenseMatrix,
-        x: DenseMatrix,
-        transpose: Boolean,
-        right: Boolean,
-    ): DenseMatrix {
+    private fun multiply(triangle: DenseMatrix, x: DenseMatrix, transpose: Boolean, right: Boolean): DenseMatrix {
         val result = DenseMatrix.zero(x.rows, x.cols)
         if (right) {
             for (column in 0 until x.cols) {

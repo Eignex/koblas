@@ -997,6 +997,7 @@ public abstract interface class com/eignex/koblas/dense/Kernels : com/eignex/kob
 	public fun dot4 ([DII[DII[DI)V
 	public fun dotAxpy ([DID[DI[DII)D
 	public fun gemmTile (I[DI[DI[DII)V
+	public fun gemmTrsmTile (III[DI[DI[DIZZ[DI)V
 	public fun getGemmTileCols ()I
 	public fun getGemmTileRows ()I
 	public abstract fun nrm2 ([DII)D
@@ -1007,6 +1008,7 @@ public abstract interface class com/eignex/koblas/dense/Kernels : com/eignex/kob
 	public abstract fun ssqd ([DI[DII)D
 	public abstract fun sum ([DII)D
 	public abstract fun swap ([DI[DII)V
+	public fun trsmTile (II[DIZZ[DI)V
 }
 
 public final class com/eignex/koblas/dense/Kernels$DefaultImpls {
@@ -1014,12 +1016,14 @@ public final class com/eignex/koblas/dense/Kernels$DefaultImpls {
 	public static fun dot4 (Lcom/eignex/koblas/dense/Kernels;[DII[DII[DI)V
 	public static fun dotAxpy (Lcom/eignex/koblas/dense/Kernels;[DID[DI[DII)D
 	public static fun gemmTile (Lcom/eignex/koblas/dense/Kernels;I[DI[DI[DII)V
+	public static fun gemmTrsmTile (Lcom/eignex/koblas/dense/Kernels;III[DI[DI[DIZZ[DI)V
 	public static fun getGemmTileCols (Lcom/eignex/koblas/dense/Kernels;)I
 	public static fun getGemmTileRows (Lcom/eignex/koblas/dense/Kernels;)I
 	public static fun getPriority (Lcom/eignex/koblas/dense/Kernels;)I
 	public static fun getUnavailableReason (Lcom/eignex/koblas/dense/Kernels;)Ljava/lang/String;
 	public static fun isAvailable (Lcom/eignex/koblas/dense/Kernels;)Z
 	public static fun isPortable (Lcom/eignex/koblas/dense/Kernels;)Z
+	public static fun trsmTile (Lcom/eignex/koblas/dense/Kernels;II[DIZZ[DI)V
 }
 
 public final class com/eignex/koblas/dense/PackedPanels {
@@ -1028,6 +1032,8 @@ public final class com/eignex/koblas/dense/PackedPanels {
 	public static synthetic fun clearLeftPadding$default (Lcom/eignex/koblas/dense/PackedPanels;[DIIIILjava/lang/Object;)V
 	public final fun clearRightPadding ([DIII)V
 	public static synthetic fun clearRightPadding$default (Lcom/eignex/koblas/dense/PackedPanels;[DIIIILjava/lang/Object;)V
+	public final fun gemmTrsm ([D[D[D[DIIIZZIIIILcom/eignex/koblas/Workspace;)V
+	public static synthetic fun gemmTrsm$default (Lcom/eignex/koblas/dense/PackedPanels;[D[D[D[DIIIZZIIIILcom/eignex/koblas/Workspace;ILjava/lang/Object;)V
 	public final fun getTileColumns ()I
 	public final fun getTileRows ()I
 	public final fun leftSize (II)I
@@ -1044,6 +1050,8 @@ public final class com/eignex/koblas/dense/PackedPanels {
 	public final fun packTriangularRight (Lcom/eignex/koblas/DenseMatrix;[DIIZZZIIILcom/eignex/koblas/Workspace;)V
 	public static synthetic fun packTriangularRight$default (Lcom/eignex/koblas/dense/PackedPanels;Lcom/eignex/koblas/DenseMatrix;[DIIZZZIIILcom/eignex/koblas/Workspace;ILjava/lang/Object;)V
 	public final fun rightSize (II)I
+	public final fun trsm ([D[DIIZZIILcom/eignex/koblas/Workspace;)V
+	public static synthetic fun trsm$default (Lcom/eignex/koblas/dense/PackedPanels;[D[DIIZZIILcom/eignex/koblas/Workspace;ILjava/lang/Object;)V
 	public final fun writeLeft ([DLcom/eignex/koblas/DenseMatrix;IIIIIZLcom/eignex/koblas/Workspace;)V
 	public static synthetic fun writeLeft$default (Lcom/eignex/koblas/dense/PackedPanels;[DLcom/eignex/koblas/DenseMatrix;IIIIIZLcom/eignex/koblas/Workspace;ILjava/lang/Object;)V
 	public final fun writeRight ([DLcom/eignex/koblas/DenseMatrix;IIIIIZLcom/eignex/koblas/Workspace;)V
