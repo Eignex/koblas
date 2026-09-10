@@ -1,4 +1,7 @@
+import org.gradle.api.tasks.JavaExec
+import org.gradle.jvm.toolchain.JavaLanguageVersion
 import org.jetbrains.kotlin.gradle.tasks.KotlinJvmCompile
+import org.jetbrains.kotlin.gradle.targets.jvm.KotlinJvmTarget
 import org.jetbrains.kotlin.gradle.plugin.mpp.KotlinNativeTarget
 
 plugins {
@@ -152,6 +155,27 @@ tasks.withType<Test>().configureEach {
         jvmArgs("--add-modules=jdk.incubator.vector")
     }
 }
+
+// Vector API carrier objects are scalar-replaced by HotSpot only after C2 compilation. Kover instruments test
+// classes before their JVM starts, which prevents that replacement and turns an otherwise allocation-free sparse
+// kernel into a coverage artifact. Run this check in its own, uninstrumented JVM with an explicit SIMD engine.
+val jvmTestCompilation = (kotlin.targets.getByName("jvm") as KotlinJvmTarget).compilations.getByName("test")
+val allocationCheckJavaLauncher = javaToolchains.launcherFor { languageVersion.set(JavaLanguageVersion.of(25)) }
+val simdSparseAllocationCheck = tasks.register<JavaExec>("simdSparseAllocationCheck") {
+    group = "verification"
+    description = "Checks allocation-free JVM SIMD indexed sparse dot, gather, and norm kernels outside Kover."
+    dependsOn("jvmTestClasses")
+    classpath(jvmTestCompilation.output.allOutputs, configurations.getByName("jvmTestRuntimeClasspath"))
+    mainClass.set("com.eignex.koblas.sparse.SimdSparseAllocationCheck")
+    javaLauncher.set(allocationCheckJavaLauncher)
+    jvmArgs(
+        "--add-modules=jdk.incubator.vector",
+        "--enable-native-access=ALL-UNNAMED",
+        "-XX:-TieredCompilation",
+        "-XX:CompileThreshold=1000",
+    )
+}
+tasks.named("check") { dependsOn(simdSparseAllocationCheck) }
 
 // Kotlin emits a `$DefaultImpls` holder for every interface with a body, and a bridge for every method with
 // a default argument. Neither is reachable from Kotlin call sites, so both count as permanently uncovered and

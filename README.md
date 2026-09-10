@@ -33,6 +33,13 @@ On JVM, enable SIMD with the runtime flag `--add-modules=jdk.incubator.vector`. 
 C kernels when available, then scalar Kotlin. For bundled C kernels on the classpath, also pass
 `--enable-native-access=ALL-UNNAMED`. Kotlin/Native uses bundled C kernels with scalar fallbacks.
 
+## Verification
+
+Run the core checks with `./gradlew :koblas:check`. This includes `simdSparseAllocationCheck`, which starts an
+uninstrumented JVM and verifies that the SIMD indexed sparse dot, gather, and norm paths do not allocate after
+HotSpot compilation. Run it alone with `./gradlew :koblas:simdSparseAllocationCheck` when investigating a
+regression; it requires JDK 25 and the incubating Vector API, like the regular JVM tests.
+
 ## Quick start
 
 ```kotlin
