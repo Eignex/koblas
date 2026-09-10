@@ -105,6 +105,20 @@ class SparseWorkspaceTest {
     }
 
     @Test
+    fun `first touch adds onto positive zero`() {
+        val accumulator = doubleArrayOf(9.0)
+        val marks = IntArray(1)
+        val touched = IntArray(1)
+
+        SparseWorkspace.scatterAxpy(
+            1.0, intArrayOf(0), 0, doubleArrayOf(-0.0), 0, 1,
+            accumulator, marks, 12, touched, 0, 0,
+        )
+
+        assertEquals(0.0.toBits(), accumulator[0].toBits())
+    }
+
+    @Test
     fun `gather clear compacts and clears every touched entry`() {
         val touched = intArrayOf(9, 3, 1, 4, 9)
         val accumulator = doubleArrayOf(8.0, -0.0, 7.0, Double.NaN, Double.NEGATIVE_INFINITY)

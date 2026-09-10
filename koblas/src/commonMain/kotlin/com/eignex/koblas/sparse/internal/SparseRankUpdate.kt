@@ -46,31 +46,8 @@ private fun SparseMatrix.syrFinite(alpha: Double, x: DoubleArray, support: IntAr
         out.beginColumn(j)
         val start = triangleStart(support, j, lower)
         val end = triangleEnd(support, j, lower)
-        var source = colPtr[j]
-        var update = if (x[j] == 0.0) end else start
-        while (source < colPtr[j + 1] || update < end) {
-            val sourceRow = if (source < colPtr[j + 1]) rowIdx[source] else Int.MAX_VALUE
-            val updateRow = if (update < end) support[update] else Int.MAX_VALUE
-            when {
-                sourceRow < updateRow -> {
-                    out.add(sourceRow, values[source])
-                    source++
-                }
-
-                updateRow < sourceRow -> {
-                    // Adding onto 0.0 rather than storing the bare term keeps an underflowing product at
-                    // +0.0, the sign IEEE addition to a zero-initialized entry would produce.
-                    out.add(updateRow, 0.0 + (alpha * x[j]) * x[updateRow])
-                    update++
-                }
-
-                else -> {
-                    out.add(sourceRow, values[source] + (alpha * x[j]) * x[sourceRow])
-                    source++
-                    update++
-                }
-            }
-        }
+        val updateStart = if (x[j] == 0.0) end else start
+        out.appendRankOne(alpha, j, x, support, updateStart, end, this)
     }
     return out.build()
 }
@@ -90,79 +67,36 @@ private fun SparseMatrix.syr2Finite(
         val xEnd = triangleEnd(xSupport, j, lower)
         val yStart = triangleStart(ySupport, j, lower)
         val yEnd = triangleEnd(ySupport, j, lower)
-        var source = colPtr[j]
-        var xUpdate = if (y[j] == 0.0) xEnd else xStart
-        var yUpdate = if (x[j] == 0.0) yEnd else yStart
-        while (source < colPtr[j + 1] || xUpdate < xEnd || yUpdate < yEnd) {
-            val sourceRow = if (source < colPtr[j + 1]) rowIdx[source] else Int.MAX_VALUE
-            val xRow = if (xUpdate < xEnd) xSupport[xUpdate] else Int.MAX_VALUE
-            val yRow = if (yUpdate < yEnd) ySupport[yUpdate] else Int.MAX_VALUE
-            val updateRow = minOf(xRow, yRow)
-            when {
-                sourceRow < updateRow -> {
-                    out.add(sourceRow, values[source])
-                    source++
-                }
-
-                else -> {
-                    var value = if (sourceRow == updateRow) values[source++] else 0.0
-                    if (xRow == updateRow) {
-                        value += (alpha * y[j]) * x[updateRow]
-                        xUpdate++
-                    }
-                    if (yRow == updateRow) {
-                        value += (alpha * x[j]) * y[updateRow]
-                        yUpdate++
-                    }
-                    out.add(updateRow, value)
-                }
-            }
-        }
+        out.appendRankTwo(
+            alpha, j, x, xSupport, if (y[j] == 0.0) xEnd else xStart, xEnd,
+            y, ySupport, if (x[j] == 0.0) yEnd else yStart, yEnd, this,
+        )
     }
     return out.build()
 }
 
 /* Non-finite operands need the dense BLAS visitation order: zero times infinity can itself introduce NaN fill. */
-private inline fun SparseMatrix.scanTriangleWithFallback(
-    lower: Boolean,
-    active: (column: Int) -> Boolean,
-    contribution: (row: Int, column: Int, current: Double) -> Double,
-): SparseMatrix {
+private fun SparseMatrix.syrWithNonFinite(alpha: Double, x: DoubleArray, lower: Boolean): SparseMatrix {
     val out = SparseRankMatrixBuilder(rows, cols, nnz)
     for (j in 0 until cols) {
         out.beginColumn(j)
-        var source = colPtr[j]
-        val columnActive = active(j)
-        for (i in 0 until rows) {
-            val stored = source < colPtr[j + 1] && rowIdx[source] == i
-            val selected = if (lower) i >= j else i <= j
-            if (selected && columnActive) {
-                out.add(i, contribution(i, j, if (stored) values[source] else 0.0))
-                if (stored) source++
-            } else if (stored) {
-                out.add(i, values[source])
-                source++
-            }
-        }
+        out.appendRankOneDense(alpha, j, x, lower, this)
     }
     return out.build()
 }
-
-private fun SparseMatrix.syrWithNonFinite(alpha: Double, x: DoubleArray, lower: Boolean): SparseMatrix =
-    scanTriangleWithFallback(lower, active = { j -> x[j] != 0.0 }) { i, j, current ->
-        current + (alpha * x[j]) * x[i]
-    }
 
 private fun SparseMatrix.syr2WithNonFinite(
     alpha: Double,
     x: DoubleArray,
     y: DoubleArray,
     lower: Boolean,
-): SparseMatrix = scanTriangleWithFallback(lower, active = { j -> x[j] != 0.0 || y[j] != 0.0 }) { i, j, current ->
-    var value = current
-    value += (alpha * y[j]) * x[i]
-    value += (alpha * x[j]) * y[i]
-    value
+): SparseMatrix {
+    val out = SparseRankMatrixBuilder(rows, cols, nnz)
+    for (j in 0 until cols) {
+        out.beginColumn(j)
+        out.appendRankTwoDense(alpha, j, x, y, lower, this)
+    }
+    return out.build()
 }
 
 /**
@@ -229,11 +163,74 @@ private class SparseRankMatrixBuilder(private val rows: Int, private val cols: I
         pointers[column] = size
     }
 
-    fun add(row: Int, value: Double) {
-        if (size == rowIndices.size) grow()
-        rowIndices[size] = row
-        coefficients[size] = value
-        size++
+    @Suppress("LongParameterList")
+    fun appendRankOne(
+        alpha: Double,
+        column: Int,
+        x: DoubleArray,
+        support: IntArray,
+        supportStart: Int,
+        supportEnd: Int,
+        source: SparseMatrix,
+    ) {
+        ensureCapacity(
+            (source.colPtr[column + 1] - source.colPtr[column]).toLong() + supportEnd - supportStart,
+        )
+        size += SparseAccumulationKernels.mergeRankOneColumn(
+            alpha, column, x, support, supportStart, supportEnd,
+            source.rowIdx, source.values, source.colPtr[column], source.colPtr[column + 1],
+            rowIndices, coefficients, size,
+        )
+    }
+
+    @Suppress("LongParameterList")
+    fun appendRankTwo(
+        alpha: Double,
+        column: Int,
+        x: DoubleArray,
+        xSupport: IntArray,
+        xStart: Int,
+        xEnd: Int,
+        y: DoubleArray,
+        ySupport: IntArray,
+        yStart: Int,
+        yEnd: Int,
+        source: SparseMatrix,
+    ) {
+        ensureCapacity(
+            (source.colPtr[column + 1] - source.colPtr[column]).toLong() +
+                (xEnd - xStart).toLong() + yEnd - yStart,
+        )
+        size += SparseAccumulationKernels.mergeRankTwoColumn(
+            alpha, column, x, xSupport, xStart, xEnd, y, ySupport, yStart, yEnd,
+            source.rowIdx, source.values, source.colPtr[column], source.colPtr[column + 1],
+            rowIndices, coefficients, size,
+        )
+    }
+
+    fun appendRankOneDense(alpha: Double, column: Int, x: DoubleArray, lower: Boolean, source: SparseMatrix) {
+        ensureCapacity(rows.toLong())
+        size += SparseAccumulationKernels.updateRankOneDenseColumn(
+            alpha, column, x, lower, rows,
+            source.rowIdx, source.values, source.colPtr[column], source.colPtr[column + 1],
+            rowIndices, coefficients, size,
+        )
+    }
+
+    fun appendRankTwoDense(
+        alpha: Double,
+        column: Int,
+        x: DoubleArray,
+        y: DoubleArray,
+        lower: Boolean,
+        source: SparseMatrix,
+    ) {
+        ensureCapacity(rows.toLong())
+        size += SparseAccumulationKernels.updateRankTwoDenseColumn(
+            alpha, column, x, y, lower, rows,
+            source.rowIdx, source.values, source.colPtr[column], source.colPtr[column + 1],
+            rowIndices, coefficients, size,
+        )
     }
 
     fun build(): SparseMatrix {
@@ -241,8 +238,13 @@ private class SparseRankMatrixBuilder(private val rows: Int, private val cols: I
         return SparseMatrix.wrap(rows, cols, pointers, rowIndices.copyOf(size), coefficients.copyOf(size))
     }
 
-    private fun grow() {
-        val next = if (rowIndices.isEmpty()) 4 else rowIndices.size * 2
+    private fun ensureCapacity(additional: Long) {
+        val required = size.toLong() + additional
+        if (required <= rowIndices.size) return
+        require(required <= Int.MAX_VALUE) { "sparse rank update exceeds array capacity" }
+        val next = maxOf(if (rowIndices.isEmpty()) 4L else rowIndices.size.toLong() * 2, required)
+            .coerceAtMost(Int.MAX_VALUE.toLong())
+            .toInt()
         rowIndices = rowIndices.copyOf(next)
         coefficients = coefficients.copyOf(next)
     }

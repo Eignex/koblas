@@ -276,6 +276,16 @@ class SparseProductTest {
     }
 
     @Test
+    fun `the sparse product assigns its first contribution directly`() {
+        val negativeZero = SparseMatrix.ofColumns(1, 1, listOf(listOf(0 to -0.0)))
+        val one = SparseMatrix.ofColumns(1, 1, listOf(listOf(0 to 1.0)))
+
+        val product = negativeZero * one
+
+        assertEquals((-0.0).toBits(), product.values.single().toBits())
+    }
+
+    @Test
     fun `a sparse operand that does not meet the first is rejected`() {
         val rng = Random(20260922)
         val (a, _) = sparseAndDense(5, 4, rng)

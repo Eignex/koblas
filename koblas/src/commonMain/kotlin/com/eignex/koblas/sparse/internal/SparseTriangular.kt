@@ -4,7 +4,6 @@ package com.eignex.koblas.sparse.internal
 
 import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.SparseMatrix
-import com.eignex.koblas.UnsafeKoblasApi
 import com.eignex.koblas.Workspace
 import com.eignex.koblas.borrow
 import com.eignex.koblas.sparse.PortableSparsePanelKernels
@@ -128,18 +127,6 @@ internal fun trmvCore(
             )
         }
     }
-}
-
-/**
- * Snapshots the coefficient array only when the in-place destination aliases this matrix's live values.
- * The column pointers and row indices are shared live rather than copied: [trmvCore] never
- * mutates them, and they are documented immutable for the life of a [SparseMatrix].
- */
-@OptIn(UnsafeKoblasApi::class)
-internal fun SparseMatrix.stableFor(destination: DoubleArray): SparseMatrix = if (values === destination) {
-    SparseMatrix.wrap(rows, cols, colPtr, rowIdx, values.copyOf())
-} else {
-    this
 }
 
 /** Sparse substitution over RHS panels, so values and indices are read once for several dense columns. */

@@ -6,6 +6,7 @@ import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.dense.DenseVectorKernels
 import com.eignex.koblas.dense.applyBeta
 import com.eignex.koblas.dense.scaleTriangle
+import com.eignex.koblas.sparse.internal.ReferencePreparedSparseMatrix
 import com.eignex.koblas.sparse.internal.addScaledCsc
 import com.eignex.koblas.sparse.internal.multiplyFromTheLeft
 import com.eignex.koblas.sparse.internal.multiplyFromTheRight
@@ -24,6 +25,9 @@ import com.eignex.koblas.sparse.internal.trsmLeftCore
 import com.eignex.koblas.sparse.internal.trsmRightCore
 import com.eignex.koblas.sparse.internal.trsvCore
 import com.eignex.koblas.sparse.internal.withExplicitDiagonal
+import com.eignex.koblas.sparse.internal.withStableDense
+import com.eignex.koblas.sparse.internal.withStableSparse
+import com.eignex.koblas.sparse.internal.withSymmetricRankScratch
 
 /** Dense right-hand sides processed per walk of portable CSC storage. */
 internal const val REFERENCE_SPARSE_RHS_WIDTH: Int = 4
@@ -251,33 +255,18 @@ internal class SparseAlgorithms(
         }
         withStableSparse(a, c.data, workspace) { stableA ->
             scaleTriangle(vectorKernels, c.data, n, beta, lower)
-            workspace.borrow(n) { sums ->
-                workspace.borrowI32(n) { touchedAt ->
-                    workspace.borrowI32(n) { touched ->
-                        workspace.borrowI32(stableA.rows + 1) { rowPointers ->
-                            workspace.borrowI32(stableA.nnz) { adjacentColumns ->
-                                workspace.borrowI32(stableA.nnz) { adjacentPositions ->
-                                    workspace.borrowI32(stableA.rows) { rowCursor ->
-                                        symmetricRankInto(
-                                            alpha,
-                                            stableA,
-                                            transpose,
-                                            c,
-                                            lower,
-                                            sums,
-                                            touchedAt,
-                                            touched,
-                                            rowPointers,
-                                            adjacentColumns,
-                                            adjacentPositions,
-                                            rowCursor,
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
+            withSymmetricRankScratch(workspace, n, stableA.rows, stableA.nnz) { sums,
+                    touchedAt,
+                    touched,
+                    rowPointers,
+                    adjacentColumns,
+                    adjacentPositions,
+                    rowCursor,
+                ->
+                symmetricRankInto(
+                    alpha, stableA, transpose, c, lower, sums, touchedAt, touched,
+                    rowPointers, adjacentColumns, adjacentPositions, rowCursor,
+                )
             }
         }
     }
@@ -364,31 +353,5 @@ internal class SparseAlgorithms(
             DoubleArray(a.nnz),
         )
         return transposeCsc(patternOnly)
-    }
-
-    private inline fun <T> withStableSparse(
-        a: SparseMatrix,
-        destination: DoubleArray,
-        workspace: Workspace?,
-        block: (SparseMatrix) -> T,
-    ): T {
-        if (a.values !== destination) return block(a)
-        return workspace.borrow(a.nnz) { copy ->
-            a.values.copyInto(copy)
-            block(SparseMatrix.wrapTrusted(a.rows, a.cols, a.colPtr, a.rowIdx, copy))
-        }
-    }
-
-    private inline fun <T> withStableDense(
-        b: DenseMatrix,
-        destination: DoubleArray,
-        workspace: Workspace?,
-        block: (DenseMatrix) -> T,
-    ): T {
-        if (b.data !== destination) return block(b)
-        return workspace.borrow(b.data.size) { copy ->
-            b.data.copyInto(copy)
-            block(DenseMatrix.wrap(b.rows, b.cols, copy))
-        }
     }
 }
