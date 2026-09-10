@@ -23,10 +23,12 @@ row; this is the benchmark process runtime and may differ from the JDK that laun
 fails rather than selecting another one. Normal koblas algorithm fallbacks inside that engine remain part of the
 measurement. Native resolves to Linux x86-64 or macOS arm64 on the current host and fails elsewhere.
 
-Useful bounded timing controls are `-Pbench.warmups=3`, `-Pbench.samples=5`, `-Pbench.targetMs=100`,
-`-Pbench.pass=1`, and `-Pbench.output=path.csv`. On JVM, each warmup is a time-bounded batch rather than a
-single call. Calibration follows warmup, consumes its results, and requires consecutive target-sized batches
-before measuring. The requested warmup count and target are recorded in every row. Destructive
+Useful bounded timing controls are `-Pbench.warmups=3`, `-Pbench.samples=5`, `-Pbench.targetMs=1000`,
+`-Pbench.forks=2`, `-Pbench.pass=1`, and `-Pbench.output=path.csv`. JVM modes run through JMH 1.37: every
+supported case is a benchmark trial with time-based warmup and measurement iterations, independent forks,
+one benchmark thread, and a JMH `Blackhole`. The requested warmup count and iteration duration are recorded in
+every row; the runtime field records JMH and its fork count. Each raw measurement iteration becomes one CSV row.
+Native and external runners retain their bounded calibration loops. Destructive
 operations restore their fixture on every invocation. Prepared sparse handles are created before timing and
 closed afterward; `mode=oneshot` includes the operation's ordinary preparation/conversion and handle lifetime,
 including CSC-to-CSR conversion for oneMKL. The result
@@ -67,14 +69,15 @@ koblas-bench/tools/hardware.sh > hardware.txt
 Compare matching rows without probing hardware or libraries:
 
 ```bash
-python3 koblas-bench/tools/compare.py --require-compatible openblas.csv jvm-c.csv
-python3 koblas-bench/tools/compare.py --require-compatible onemkl.csv jvm-c.csv jvm-simd.csv
+koblas-bench/tools/compare.sh --require-compatible openblas.csv jvm-c.csv
+koblas-bench/tools/compare.sh --require-compatible onemkl.csv jvm-c.csv jvm-simd.csv
 ```
 
 The comparator joins only identical case IDs, workload/fixture versions, timing modes, thread counts, comparison
 kinds, warmup counts, and timing targets. Supported cases whose metadata prevents a join are reported explicitly;
-`--require-compatible` makes any such mismatch fail the check. It does not invent timings or ratios for unsupported rows. Busy-machine samples are valid noisy evidence; no runner
-reserves cores, waits for an idle host, or changes another process.
+`--require-compatible` makes any such mismatch fail the check. The script requires Bash and GNU awk; it does not
+require Python. It does not invent timings or ratios for unsupported rows. Busy-machine samples are valid noisy
+evidence; no runner reserves cores, waits for an idle host, or changes another process.
 
 ## Case language
 
@@ -156,7 +159,7 @@ audit and timing boundaries.
 ```bash
 koblas-bench/reference/test.sh
 ./gradlew :koblas-bench:jvmTest
-./gradlew :koblas-bench:jvmCBenchmark -Pbench.operation=gemm -Pbench.samples=1 -Pbench.targetMs=1
+./gradlew :koblas-bench:jvmCBenchmark -Pbench.operation=gemm -Pbench.warmups=0 -Pbench.samples=1 -Pbench.targetMs=1 -Pbench.forks=1
 ./gradlew :koblas-bench:nativeBenchmark -Pbench.operation=dot -Pbench.samples=1 -Pbench.targetMs=1
 ```
 

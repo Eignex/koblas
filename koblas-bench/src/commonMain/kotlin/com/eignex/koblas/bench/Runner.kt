@@ -14,7 +14,7 @@ internal expect fun environment(name: String): String?
 private val clockOrigin = TimeSource.Monotonic.markNow()
 internal fun nanoTime(): Long = clockOrigin.elapsedNow().inWholeNanoseconds
 
-private data class Settings(
+internal data class Settings(
     val mode: String,
     val operation: String,
     val casesPath: String,
@@ -22,6 +22,7 @@ private data class Settings(
     val warmups: Int,
     val samples: Int,
     val targetNanos: Long,
+    val forks: Int,
     val pass: String,
     val sourceCommit: String,
     val dirty: String,
@@ -29,6 +30,7 @@ private data class Settings(
 
 public fun main(args: Array<String>) {
     val settings = parseArguments(args)
+    require(settings.mode == "native") { "JVM benchmarks must run through the JMH entry point" }
     val allCases = Cases.parse(readTextFile(settings.casesPath))
     val selected = if (settings.operation == "all") allCases else allCases.filter { it.operation == settings.operation }
     require(selected.isNotEmpty()) { "operation '${settings.operation}' selected no cases" }
@@ -50,7 +52,7 @@ public fun main(args: Array<String>) {
                 val start = nanoTime()
                 repeat(operations) { sink += work.run() }
                 val elapsed = max(1L, nanoTime() - start)
-                rows += csvRow(case, implementation, settings, sample, operations, elapsed, formatDouble(elapsed.toDouble() / operations), "ok", work.comparisonKind, work.timingMode)
+                rows += csvRow(case, implementation, settings, sample, operations.toLong(), elapsed, formatDouble(elapsed.toDouble() / operations), "ok", work.comparisonKind, work.timingMode)
             }
         } catch (failure: Throwable) {
             rows += csvRow(case, implementation, settings, 0, 0, 0L, "", "failed:${sanitize(failure.message ?: failure::class.simpleName ?: "error")}", work.comparisonKind, work.timingMode)
@@ -107,7 +109,7 @@ private fun adjustedOperations(operations: Int, elapsed: Long, targetNanos: Long
     return if (adjusted == operations && elapsed < targetNanos) (operations + 1).coerceAtMost(MAX_OPERATIONS) else adjusted
 }
 
-private fun parseArguments(args: Array<String>): Settings {
+internal fun parseArguments(args: Array<String>): Settings {
     val values = linkedMapOf<String, String>()
     for (argument in args) {
         require(argument.startsWith("--") && '=' in argument) { "arguments must use --name=value: $argument" }
@@ -115,48 +117,50 @@ private fun parseArguments(args: Array<String>): Settings {
         require(name !in values) { "duplicate argument --$name" }
         values[name] = value
     }
-    val allowed = setOf("mode", "operation", "cases", "output", "warmups", "samples", "target-ms", "pass", "source-commit", "dirty")
+    val allowed = setOf("mode", "operation", "cases", "output", "warmups", "samples", "target-ms", "forks", "pass", "source-commit", "dirty")
     require(values.keys.all { it in allowed }) { "unknown argument: ${values.keys.first { it !in allowed }}" }
     val mode = values["mode"] ?: error("--mode is required")
     require(mode in setOf("jvm-c", "jvm-simd", "native")) { "mode must be jvm-c, jvm-simd, or native" }
     val warmups = values["warmups"]?.toIntOrNull() ?: 3
     val samples = values["samples"]?.toIntOrNull() ?: 5
-    val targetMillis = values["target-ms"]?.toLongOrNull() ?: 100L
-    require(warmups >= 0 && samples > 0 && targetMillis in 1..60_000) {
-        "timing settings must be positive, target-ms must not exceed 60000 (warmups may be zero)"
+    val targetMillis = values["target-ms"]?.toLongOrNull() ?: 1_000L
+    val forks = values["forks"]?.toIntOrNull() ?: 1
+    require(warmups >= 0 && samples > 0 && targetMillis in 1..60_000 && forks > 0) {
+        "timing settings and forks must be positive, target-ms must not exceed 60000 (warmups may be zero)"
     }
     return Settings(
         mode, values["operation"] ?: "all", values["cases"] ?: "koblas-bench/cases.txt",
         values["output"] ?: "koblas-bench/build/benchmarks/$mode.csv", warmups, samples,
-        targetMillis * 1_000_000L, values["pass"] ?: "1",
+        targetMillis * 1_000_000L, forks, values["pass"] ?: "1",
         values["source-commit"] ?: environment("KOBLAS_SOURCE_COMMIT") ?: "unknown",
         values["dirty"] ?: environment("KOBLAS_SOURCE_DIRTY") ?: "unknown",
     )
 }
 
-private fun csvRow(
+internal fun csvRow(
     case: BenchCase,
     implementation: String,
     settings: Settings,
     sample: Int,
-    operations: Int,
+    operations: Long,
     elapsed: Long,
     nanosPerOperation: String,
     status: String,
     comparisonKind: String,
     timingMode: String,
+    runtime: String = runtimeIdentity(),
 ): String = listOf(
     "3", case.id, implementation, WORKLOAD_VERSION, FIXTURE_VERSION, settings.pass, sample.toString(),
     operations.toString(), elapsed.toString(), nanosPerOperation, "ns", status, comparisonKind, timingMode,
-    settings.sourceCommit, settings.dirty, runtimeIdentity(), "1", settings.warmups.toString(), settings.targetNanos.toString(),
+    settings.sourceCommit, settings.dirty, runtime, "1", settings.warmups.toString(), settings.targetNanos.toString(),
 ).joinToString(",", transform = ::csv)
 
 private fun csv(value: String): String = if (value.any { it == ',' || it == '"' || it == '\n' }) {
     "\"${value.replace("\"", "\"\"")}\""
 } else value
 
-private fun formatDouble(value: Double): String = value.toString()
-private fun sanitize(value: String): String = value.replace(',', ';').replace('\n', ' ').take(160)
+internal fun formatDouble(value: Double): String = value.toString()
+internal fun sanitize(value: String): String = value.replace(',', ';').replace('\n', ' ').take(160)
 
-private const val CSV_HEADER = "schema,case,implementation,workload_version,fixture_version,pass,sample,operations,elapsed_ns,ns_per_op,unit,status,comparison_kind,timing_mode,source_commit,dirty,runtime,threads,warmups,target_ns"
+internal const val CSV_HEADER = "schema,case,implementation,workload_version,fixture_version,pass,sample,operations,elapsed_ns,ns_per_op,unit,status,comparison_kind,timing_mode,source_commit,dirty,runtime,threads,warmups,target_ns"
 private const val MAX_OPERATIONS = 1_000_000

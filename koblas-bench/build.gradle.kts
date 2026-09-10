@@ -16,7 +16,12 @@ kotlin {
     sourceSets {
         commonMain.dependencies { implementation(project(":koblas")) }
         commonTest.dependencies { implementation(kotlin("test")) }
+        jvmMain.dependencies { implementation("org.openjdk.jmh:jmh-core:1.37") }
     }
+}
+
+dependencies {
+    add("jvmMainAnnotationProcessor", "org.openjdk.jmh:jmh-generator-annprocess:1.37")
 }
 
 private val sourceCommit = providers.exec {
@@ -28,18 +33,18 @@ private val sourceDirty = providers.exec {
     workingDir(rootProject.projectDir)
 }.standardOutput.asText.map { if (it.isBlank()) "false" else "true" }
 
-private fun benchmarkArguments(mode: String): List<String> = listOf(
+private fun benchmarkArguments(mode: String, jmh: Boolean): List<String> = listOf(
     "--mode=$mode",
     "--operation=${providers.gradleProperty("bench.operation").orElse("all").get()}",
     "--cases=${providers.gradleProperty("bench.cases").orElse("koblas-bench/cases.txt").get()}",
     "--output=${providers.gradleProperty("bench.output").orElse("koblas-bench/build/benchmarks/$mode.csv").get()}",
     "--warmups=${providers.gradleProperty("bench.warmups").orElse("3").get()}",
     "--samples=${providers.gradleProperty("bench.samples").orElse("5").get()}",
-    "--target-ms=${providers.gradleProperty("bench.targetMs").orElse("100").get()}",
+    "--target-ms=${providers.gradleProperty("bench.targetMs").orElse("1000").get()}",
     "--pass=${providers.gradleProperty("bench.pass").orElse("1").get()}",
     "--source-commit=${sourceCommit.get()}",
     "--dirty=${sourceDirty.get()}",
-)
+) + if (jmh) listOf("--forks=${providers.gradleProperty("bench.forks").orElse("2").get()}") else emptyList()
 
 val jvmCompilation = (kotlin.targets.getByName("jvm") as KotlinJvmTarget).compilations.getByName("main")
 val benchmarkJavaLauncher = javaToolchains.launcherFor { languageVersion.set(JavaLanguageVersion.of(25)) }
@@ -49,10 +54,10 @@ fun registerJvmBenchmark(name: String, mode: String, vectorModule: Boolean) = ta
     description = "Runs the shared cases through exact $mode koblas kernels."
     dependsOn(jvmCompilation.compileTaskProvider)
     classpath(jvmCompilation.output.allOutputs, configurations.getByName("jvmRuntimeClasspath"))
-    mainClass.set("com.eignex.koblas.bench.RunnerKt")
+    mainClass.set("com.eignex.koblas.bench.JvmRunnerKt")
     javaLauncher.set(benchmarkJavaLauncher)
     workingDir(rootProject.projectDir)
-    args(benchmarkArguments(mode))
+    args(benchmarkArguments(mode, jmh = true))
     jvmArgs("--enable-native-access=ALL-UNNAMED")
     if (vectorModule) jvmArgs("--add-modules=jdk.incubator.vector")
 }
@@ -74,7 +79,7 @@ tasks.register<Exec>("nativeBenchmark") {
     val targetDir = hostTarget!!.replaceFirstChar(Char::lowercase)
     commandLine(layout.buildDirectory.file("bin/$targetDir/releaseExecutable/koblas-bench.kexe").get().asFile.absolutePath)
     workingDir(rootProject.projectDir)
-    args(benchmarkArguments("native"))
+    args(benchmarkArguments("native", jmh = false))
 }
 
 fun registerOpenBlasCompatibilityCheck(name: String, resolution: String) = tasks.register<Exec>(name) {

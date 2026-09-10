@@ -8,7 +8,7 @@ output=
 cases="$bench/cases.txt"
 samples=5
 warmups=3
-target_ms=100
+target_ms=1000
 
 usage() {
   echo "usage: koblas-bench/reference.sh [--libraries openblas,onemkl|all] [--output DIR] [--cases FILE] [--samples N] [--warmups N] [--target-ms N]" >&2
