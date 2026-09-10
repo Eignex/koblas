@@ -1,6 +1,6 @@
 package com.eignex.koblas.sparse
 
-import com.eignex.koblas.koblas
+import com.eignex.koblas.BuiltinEngines
 import com.eignex.koblas.testutil.allocation.bytesPerIteration
 import kotlin.test.Test
 import kotlin.test.assertTrue
@@ -23,6 +23,7 @@ class SparseSlicesAllocationTest {
         val rawDestination = DoubleArray(dimension)
         val clearValues = DoubleArray(dimension) { 1.0 }
         val clearMarks = IntArray(dimension) { 1 }
+        val sparseKernels = BuiltinEngines.scalar.sparseKernels
         var touchedCount = SparseSlices.scatterAxpy(
             1.0, indices, 0, values, 0, count,
             accumulator, marks, 11, touched, 0, 0,
@@ -48,10 +49,10 @@ class SparseSlicesAllocationTest {
             SparseSlices.pivotCandidatePositions(
                 indices, 0, values, 0, count, active, maximum, 0.0, 0.1, outIndices, 0,
             )
-            koblas.sparseKernels.dot(indices, 0, values, 0, count, dense)
-            koblas.sparseKernels.axpy(rawDestination, 1e-12, indices, 0, values, 0, count)
-            koblas.sparseKernels.scatter(indices, 0, values, 0, count, rawDestination)
-            koblas.sparseKernels.nrm2(indices, 0, count, dense)
+            sparseKernels.dot(indices, 0, values, 0, count, dense)
+            sparseKernels.axpy(rawDestination, 1e-12, indices, 0, values, 0, count)
+            sparseKernels.scatter(indices, 0, values, 0, count, rawDestination)
+            sparseKernels.nrm2(indices, 0, count, dense)
             SparseSlices.reduceDotChecked(
                 0.0, false, indices, 0, values, 0, count, dense, arithmeticStatus, 0,
             )
@@ -79,10 +80,10 @@ class SparseSlicesAllocationTest {
             SparseSlices.pivotCandidatePositions(
                 indices, 0, values, 0, count, active, maximum, 0.0, 0.1, outIndices, 0,
             )
-            koblas.sparseKernels.dot(indices, 0, values, 0, count, dense)
-            koblas.sparseKernels.axpy(rawDestination, 1e-12, indices, 0, values, 0, count)
-            koblas.sparseKernels.scatter(indices, 0, values, 0, count, rawDestination)
-            koblas.sparseKernels.nrm2(indices, 0, count, dense)
+            sparseKernels.dot(indices, 0, values, 0, count, dense)
+            sparseKernels.axpy(rawDestination, 1e-12, indices, 0, values, 0, count)
+            sparseKernels.scatter(indices, 0, values, 0, count, rawDestination)
+            sparseKernels.nrm2(indices, 0, count, dense)
             SparseSlices.reduceDotChecked(
                 0.0, false, indices, 0, values, 0, count, dense, arithmeticStatus, 0,
             )
