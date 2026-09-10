@@ -75,40 +75,6 @@ internal fun productExceedsBound(limit: Double, first: Double, second: Double, t
     return limit / largest / middle / smallest < 1.0
 }
 
-/** Scan result used only by ordinary TRSM's conservative packed-path decision. */
-internal data class TriangularSolveBounds(val source: Double, val minimumDiagonal: Double, val offDiagonal: Double)
-
-/** Finite, nonzero selected-triangle bounds for TRSM, or `null` when its packed path may change semantics. */
-internal fun triangularSolveBounds(
-    triangle: DoubleArray,
-    source: DoubleArray,
-    n: Int,
-    lower: Boolean,
-    unitDiagonal: Boolean,
-): TriangularSolveBounds? {
-    val sourceBound = finiteMaxAbs(source) ?: return null
-    var minimumDiagonal = if (unitDiagonal) 1.0 else Double.POSITIVE_INFINITY
-    var offDiagonal = 0.0
-    repeat(n) { column ->
-        val from = if (lower) column else 0
-        val until = if (lower) n else column + 1
-        var row = from
-        while (row < until) {
-            if (!unitDiagonal || row != column) {
-                val value = triangle[row + column * n]
-                if (!value.isFinite() || value == 0.0) return null
-                if (row == column) {
-                    minimumDiagonal = minOf(minimumDiagonal, abs(value))
-                } else {
-                    offDiagonal = maxOf(offDiagonal, abs(value))
-                }
-            }
-            row++
-        }
-    }
-    return TriangularSolveBounds(sourceBound, minimumDiagonal, offDiagonal)
-}
-
 /** Finite maximum magnitude of the selected triangle, treating a unit diagonal as exact one. */
 internal fun triangularMultiplyMaxAbs(triangle: DoubleArray, n: Int, lower: Boolean, unitDiagonal: Boolean): Double? {
     var maximum = if (unitDiagonal) 1.0 else 0.0

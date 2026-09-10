@@ -3,6 +3,7 @@ package com.eignex.koblas.dense
 import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.Workspace
 import com.eignex.koblas.borrow
+import kotlin.math.abs
 import kotlin.math.min
 import kotlin.math.nextUp
 
@@ -11,15 +12,35 @@ internal fun packedTrsmSupports(a: DenseMatrix, b: DenseMatrix, lower: Boolean, 
     val n = a.rows
     // Left non-transposed substitution skips a zero RHS pivot, including a singular diagonal. The normalized
     // right-side leaf always divides, so a non-finite or zero selected coefficient retains the reference walk.
-    val bounds = triangularSolveBounds(a.data, b.data, n, lower, unitDiag) ?: return false
-    var bound = bounds.source
+    var sourceBound = 0.0
+    for (value in b.data) {
+        if (!value.isFinite()) return false
+        sourceBound = maxOf(sourceBound, abs(value))
+    }
+    var minimumDiagonal = if (unitDiag) 1.0 else Double.POSITIVE_INFINITY
+    var offDiagonal = 0.0
+    repeat(n) { column ->
+        val from = if (lower) column else 0
+        val until = if (lower) n else column + 1
+        for (row in from until until) {
+            if (unitDiag && row == column) continue
+            val value = a.data[row + column * n]
+            if (!value.isFinite() || value == 0.0) return false
+            if (row == column) {
+                minimumDiagonal = minOf(minimumDiagonal, abs(value))
+            } else {
+                offDiagonal = maxOf(offDiagonal, abs(value))
+            }
+        }
+    }
+    var bound = sourceBound
     // Packing changes dot/subtraction order. Bound the residual and solved entries after every pivot so
     // cancellation cannot hide an overflow in either walk. Outward rounding also covers fused updates;
     // headroom keeps the bound itself away from overflow. Dividing directly admits subnormal diagonals.
     val limit = Double.MAX_VALUE / 4.0
     repeat(n) {
-        val solvedBound = (bound / bounds.minimumDiagonal).nextUp()
-        bound = (bound + (bounds.offDiagonal * solvedBound).nextUp()).nextUp()
+        val solvedBound = (bound / minimumDiagonal).nextUp()
+        bound = (bound + (offDiagonal * solvedBound).nextUp()).nextUp()
         if (solvedBound > limit || bound > limit) return false
     }
     return true
