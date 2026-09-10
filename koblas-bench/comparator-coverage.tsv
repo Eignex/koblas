@@ -80,4 +80,9 @@ sparse-algebra	add scaled	missing	direct	oneMKL mkl_sparse_d_add after visible C
 sparse-3	trsm	missing	direct	oneMKL mkl_sparse_d_trsm
 sparse-3	trsm right	missing	composition	Transpose identity around mkl_sparse_d_trsm; excluded from direct parity	com.eignex.koblas.bench.SparseRightTriangularBenchmark.trsmRight
 sparse-3	trmm left	missing	direct	oneMKL triangular descriptor with mkl_sparse_d_mm
-sparse-3	trmm right	missing	composition	Transpose identity around mkl_sparse_d_mm; excluded from direct parity
+sparse-3	trmm right	missing	composition	Transpose identity around mkl_sparse_d_mm; excluded from direct parity	com.eignex.koblas.bench.SparseProductHostBenchmark.trmmRight
+sparse-3	triangular variant trsv	missing	direct	Developer-only storage variants outside contributor profile v1	com.eignex.koblas.bench.SparseTriangularVariantBenchmark.trsv
+sparse-3	triangular variant trmv	missing	direct	Developer-only storage variants outside contributor profile v1	com.eignex.koblas.bench.SparseTriangularVariantBenchmark.trmv
+sparse-3	triangular variant trmm	missing	direct	Developer-only storage variants outside contributor profile v1	com.eignex.koblas.bench.SparseTriangularVariantBenchmark.trmm
+sparse-3	triangular variant trsm	missing	direct	Developer-only storage variants outside contributor profile v1	com.eignex.koblas.bench.SparseTriangularVariantBenchmark.trsm
+sparse-3	triangular variant trmm right	missing	composition	Developer-only storage variants outside contributor profile v1	com.eignex.koblas.bench.SparseTriangularVariantBenchmark.trmmRight

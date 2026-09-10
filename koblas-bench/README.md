@@ -155,7 +155,9 @@ oneMKL does not expose the required per-product flags.
 These developer comparisons are intentionally outside the immutable contributor profile v1. Run a bounded local
 comparison with `jvmSelectedBenchmark`, setting `sparseArm=built-in,onemkl` for the composed rows and
 `baselineArm=built-in,baseline` for the independent rows. A requested missing oneMKL arm fails; Native oneMKL remains
-unsupported. `ExplicitPackedKernelBenchmark`
+unsupported. Storage, transpose, and diagonal triangular variants use `SparseTriangularVariantBenchmark`, which is
+also outside profile v1 so its `triangleVariant` parameter cannot change contributor case IDs.
+`ExplicitPackedKernelBenchmark`
 selects scalar and bundled C arms so full and logical-edge tiles, fused update/solve, and the explicit
 composition remain distinguishable. On the JVM, `PackedTrsmEligibilityBenchmark` isolates the conservative eligibility scan and
 bound, while `ExplicitPackedTrsmBenchmark` keeps its outcome inside a repeated end-to-end solve.

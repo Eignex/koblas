@@ -10,7 +10,8 @@ clean commit `b1b0b16728670421291087f5ad303b91ea45e2aa`, based on merged `main` 
   `/home/rasmus/.local/share/koblas-onemkl/venv`.
 - Resolved library: `libmkl_rt.so.3`; reported identity: `Intel(R) oneAPI Math Kernel Library Version 2026.1-Product
   Build 20260612 for Intel(R) 64 architecture applications`.
-- Linux x86-64, OpenJDK 22.0.2, 12th Gen Intel Core i9-12900H, 20 logical CPUs.
+- Linux x86-64, Eclipse Temurin 25.0.1+8-LTS, 12th Gen Intel Core i9-12900H, 20 logical CPUs. Both the
+  standard metadata and raw JMH rows identify this measured JVM; the unrelated interactive shell used Java 22.
 - Affinity `0,2,4,6`; this pins but does not reserve CPUs. No other koblas report runner was detected, although
   unrelated host activity was not excluded.
 - `MKL_NUM_THREADS=1`, `MKL_DYNAMIC=FALSE`, and `OMP_NUM_THREADS=1` for every oneMKL run.
@@ -33,7 +34,14 @@ taskset -c 0,2,4,6 koblas-bench/report.sh standard jvm --comparators onemkl --co
 
 The runner executed fresh passes in the order built-in, oneMKL, built-in, oneMKL. It validated all 166 rows and
 finished in 312.1 seconds. The standard archive has SHA-256
-`78a6fde18ce204aaf422540db2332b7fe938879cf11f838e84f047af316ce37a`.
+`cf7e9adaec3f0b7f428a65bda09cdb0d21bdf9b5a0c799fa367b4321820781a4`.
+
+The first retained archive incorrectly included the benchmark-only default
+`triangleVariant=upper-nontrans-nonunit` in 24 profile-v1 stable IDs. The raw JMH JSON and logs are unchanged. The
+current archive explicitly records a derived-metadata migration that removes only that exact default from
+`SparseProductHostBenchmark` v1 IDs and rejects non-default variants. Its `case_id_migration` metadata preserves
+the superseded archive SHA-256 and every raw-file SHA-256. The resulting 83 built-in IDs exactly match the retained
+historical v1 report; developer triangular variants now live in `SparseTriangularVariantBenchmark`.
 
 ## Correctness and coverage
 
@@ -77,16 +85,22 @@ Representative sparse rows from the two-pass aggregate are:
 | indexed gather | 42.05 ns | 0.50 |
 | indexed scatter | 46.21 ns | 0.30 |
 
-The clear result is that conversion and handle setup dominate the current one-shot rows. Prepared operands are the
-only credible production integration shape; at profile sizes they range from roughly parity to a modest loss.
+The clear result is that conversion and handle setup dominate the current one-shot comparator rows. Prepared
+measurements are useful external references for optimizing koblas's own sparse algorithms; they do not propose a
+production vendor integration or a new prepared API.
 
 ## Supplemental selected results
 
 Selected JVM runs used the same runtime, affinity, thread settings, five 500 ms measurement iterations, and one
 pass per arm. They were run with `:koblas-bench:jvmSelectedBenchmark` and explicit `bench.include` and `bench.param`
-properties. Source files remained at `b1b0b167`; the worktree was technically dirty only because the already
-completed standard archive was present as an untracked evidence file. The selected archive retains JSON, complete
-logs, `ratios.csv`, and scalar Level-1 results. Its SHA-256 is
+properties. Every successful selected run except the corrected growing-workspace row used source commit
+`b1b0b167`; those worktrees were technically dirty only because the completed standard archive was present as an
+untracked evidence file. The rejected original growing-workspace run also used `b1b0b167`. Its corrected rerun
+used `b1b0b167` plus the uncommitted allocation-classification change later committed unchanged as `825df282`; that
+change affects the setup assertion and reporting, not the measured operation. Selected JMH files do not embed Git
+state, so this per-run attribution is reconstructed from the retained command chronology and is an explicit
+provenance limitation. The selected archive retains JSON, complete logs, `ratios.csv`, and scalar Level-1 results.
+Its SHA-256 is
 `774a578afd9bfa40e3a09700a324a242624c8c89e13e5e970e6613c28fee4484`.
 
 | selected group | matched rows | median ratio | range |
@@ -116,19 +130,21 @@ measured 48.37 us versus 4.75 us built-in. Both the rejected and corrected logs 
 right-side symmetric-only runs were rejected by JMH's advisory global lock and are retained as failed, non-evidence
 logs; the same operations still have correctness coverage and lower-left timing coverage.
 
-## Ranked production follow-ups
+## Ranked koblas optimization follow-ups
 
-1. Design an explicit prepared sparse operand API and lifecycle seam before any production oneMKL dispatch. The
-   n=1024 prepared wins are material; one-shot dispatch is usually a regression.
-2. Reduce or cache wrapper/handle creation for repeated indexed and workspace compositions. The growing-scatter row
-   is roughly 10× slower and allocates about 70 KB per composed invocation.
-3. Keep right-side symmetric and triangular operations on koblas until a direct or cheaper layout-aware composition
-   exists. Current transpose compositions lose by roughly 3–7×.
-4. Measure dispatch thresholds on an idle host with more independent passes, especially Level 1 and triangular
-   rows whose confidence intervals overlap or vary by storage variant.
-5. Add Native vendor coverage only as a separately designed binding. Linux Native, Apple Silicon, macOS, and ARM
-   remain unmeasured for oneMKL; no JVM result should set their policy.
-6. Preserve scalar fallback for exceptional values, checked workspace diagnostics, alias-sensitive behavior, and
-   matrix-property domains that the vendor surface cannot express directly.
+1. Optimize koblas's own prepared sparse GEMV, GEMM, and sparse-product algorithms at n=257–1024, using the external
+   prepared rows only as benchmark references. Retain the existing prepared API and production engine model.
+2. Consolidate koblas sparse support/accumulation leaves so repeated short scatters avoid retained-support overhead.
+   Separately, benchmark-only comparator wrappers may cache handles to make external reference rows more honest;
+   they must not become a production provider path.
+3. Improve koblas's own right-side symmetric and triangular layouts and kernels. The slower oneMKL transpose
+   compositions remain benchmark-only diagnostics, not candidates for production dispatch.
+4. Add independent interleaved passes around noisy Level-1 and triangular cases. Busy-host evidence remains valid
+   when activity, raw samples, and uncertainty are retained; an idle machine is not a gate.
+5. Keep Native, ARM, and macOS oneMKL absence as an explicit comparator-coverage gap. Do not create a production
+   vendor binding or infer platform policy from JVM results.
+6. Preserve scalar-oracle and built-in C coverage for exceptional values, checked workspace diagnostics, aliasing,
+   and matrix-property semantics while optimizing the owned kernels.
 
-No production kernel, public API, provider discovery, or dispatch threshold is changed by this evidence branch.
+No production kernel, public API, provider discovery, or dispatch threshold is changed or proposed by this
+evidence branch. OpenBLAS and oneMKL remain benchmark-only comparators.

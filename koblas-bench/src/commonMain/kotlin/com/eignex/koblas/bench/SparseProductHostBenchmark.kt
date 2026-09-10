@@ -24,7 +24,6 @@ class SparseProductHostBenchmark {
     @Param("regular", "banded", "skewed")
     var productShape: String = "regular"
 
-    @Param("upper-nontrans-nonunit")
     var triangleVariant: String = "upper-nontrans-nonunit"
 
     private var builtIn: SparseBlas? = null
@@ -246,6 +245,47 @@ class SparseProductHostBenchmark {
         return triangularProductRight
     }
 
+}
+
+/** Triangular storage variants kept outside the immutable contributor profile v1. */
+@State(Scope.Benchmark)
+@BenchmarkMode(Mode.AverageTime)
+@OutputTimeUnit(BenchmarkTimeUnit.MICROSECONDS)
+class SparseTriangularVariantBenchmark {
+    @Param("64", "257") var n: Int = 64
+    @Param(BUILTIN_BACKEND, ONEMKL_BACKEND) var sparseArm: String = BUILTIN_BACKEND
+    @Param("0.01") var density: Double = 0.01
+    @Param("regular") var productShape: String = "regular"
+    @Param("upper-nontrans-nonunit") var triangleVariant: String = "upper-nontrans-nonunit"
+
+    private lateinit var delegate: SparseProductHostBenchmark
+
+    @Setup
+    fun setup() {
+        delegate = SparseProductHostBenchmark().also {
+            it.n = n
+            it.sparseArm = sparseArm
+            it.density = density
+            it.productShape = productShape
+            it.triangleVariant = triangleVariant
+            it.setup()
+        }
+    }
+
+    @TearDown
+    fun tearDown() {
+        delegate.tearDown()
+    }
+
+    @Benchmark fun trsv(): DoubleArray = delegate.trsv()
+
+    @Benchmark fun trmv(): DoubleArray = delegate.trmv()
+
+    @Benchmark fun trmm(): DenseMatrix = delegate.trmm()
+
+    @Benchmark fun trsm(): DenseMatrix = delegate.trsm()
+
+    @Benchmark fun trmmRight(): DenseMatrix = delegate.trmmRight()
 }
 
 /** Right-side sparse triangular solve, separated from the immutable contributor profile v1. */

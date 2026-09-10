@@ -21,7 +21,8 @@ Expected SHA-256:
 fresh built-in passes and two matched oneMKL 2026.1 passes over all 83 cases per arm. The run used an Intel Core
 i9-12900H with affinity `0,2,4,6`; oneMKL was fixed to one thread. The report completed in 312.1 seconds and its
 median all-profile `koblas/oneMKL` ratio was 1.195. Sparse one-shot rows expose conversion cost, while prepared
-n=1024 developer rows in the companion selected archive show the credible integration opportunity.
+n=1024 developer rows in the companion selected archive provide external targets for optimizing koblas's owned
+sparse kernels; oneMKL remains benchmark-only.
 
 `onemkl-sparse-selected-b1b0b167-jvm-20260910.tar.gz` retains 131 matched selected rows, scalar Level-1 oracle
 timings, complete logs, ratios, the rejected growing-workspace allocation probe, and its corrected measurement.
@@ -31,7 +32,7 @@ coverage classification, allocation findings, limitations, and ranked production
 
 Expected SHA-256 values:
 
-- standard: `78a6fde18ce204aaf422540db2332b7fe938879cf11f838e84f047af316ce37a`
+- standard: `cf7e9adaec3f0b7f428a65bda09cdb0d21bdf9b5a0c799fa367b4321820781a4`
 - selected: `774a578afd9bfa40e3a09700a324a242624c8c89e13e5e970e6613c28fee4484`
 
 ## Kernel contract composition
