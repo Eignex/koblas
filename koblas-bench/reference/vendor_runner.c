@@ -138,6 +138,26 @@ static int expected_dimensions(const char *op) {
 static int option_order(const char *name) { const char *names[] = {"density","mode","physical","side","uplo","transA","transB","diag"}; for(int i=0;i<8;++i) if(!strcmp(name,names[i])) return i; return -1; }
 static int option_present(const bench_case *c,const char *name){for(int i=0;i<c->option_count;++i)if(!strcmp(c->option_names[i],name))return 1;return 0;}
 static int operation_in(const char *operation,const char **values,size_t count){for(size_t i=0;i<count;++i)if(!strcmp(operation,values[i]))return 1;return 0;}
+static int mode_operation(const char *op){return !strcmp(op,"spgemv")||!strcmp(op,"spmm")||!strcmp(op,"spgemm")||!strcmp(op,"spsymv")||!strcmp(op,"spsymm")||!strcmp(op,"sptrsv")||!strcmp(op,"sptrmv")||!strcmp(op,"sptrsm")||!strcmp(op,"sptrmm");}
+static int oneshot_only_operation(const char *op){return !strcmp(op,"spsymv")||!strcmp(op,"spsymm")||!strcmp(op,"sptrsv")||!strcmp(op,"sptrmv")||!strcmp(op,"sptrsm")||!strcmp(op,"sptrmm");}
+static int packed_operation(const char *op){const char *values[]={"gemm-tile","packed-trsm","gemm-trsm","pack-left","pack-right","pack-symmetric-left","pack-symmetric-right","pack-triangular-left","pack-triangular-right","write-left","write-right","clear-left-padding","clear-right-padding"};return operation_in(op,values,sizeof(values)/sizeof(*values));}
+static int uplo_operation(const char *op){const char *values[]={"symv","syr","syr2","symm","gemmt","syrk","syr2k","trsv","trmv","trsm","trmm","packed-trsm","gemm-trsm","pack-symmetric-left","pack-symmetric-right","pack-triangular-left","pack-triangular-right","spsymv","spsymm","sptrsv","sptrmv","sptrsm","sptrmm","spsyrk-dense","spsyrk-sparse"};return operation_in(op,values,sizeof(values)/sizeof(*values));}
+static int side_operation(const char *op){const char *values[]={"symm","trsm","trmm","spsymm","sptrsm","sptrmm"};return operation_in(op,values,sizeof(values)/sizeof(*values));}
+static int transa_operation(const char *op){const char *values[]={"gemmt","syrk","syr2k","trsv","trmv","trsm","trmm","sptrsv","sptrmv","sptrsm","sptrmm"};return operation_in(op,values,sizeof(values)/sizeof(*values));}
+static int diag_operation(const char *op){const char *values[]={"trsv","trmv","trsm","trmm","packed-trsm","gemm-trsm","pack-triangular-left","pack-triangular-right","sptrsv","sptrmv","sptrsm","sptrmm"};return operation_in(op,values,sizeof(values)/sizeof(*values));}
+static int triangular_fixture_operation(const char *op){const char *values[]={"trsv","trmv","trsm","trmm","packed-trsm","gemm-trsm","pack-triangular-left","pack-triangular-right","spsymv","spsymm","sptrsv","sptrmv","sptrsm","sptrmm"};return operation_in(op,values,sizeof(values)/sizeof(*values));}
+static int option_allowed(const char *op,const char *name,int sparse){
+    if(!strcmp(name,"density"))return sparse;
+    if(!strcmp(name,"mode"))return mode_operation(op);
+    if(!strcmp(name,"physical"))return packed_operation(op);
+    if(!strcmp(name,"side"))return side_operation(op);
+    if(!strcmp(name,"uplo"))return uplo_operation(op);
+    if(!strcmp(name,"transA"))return !strcmp(op,"gemv")||!strcmp(op,"gemm")||transa_operation(op);
+    if(!strcmp(name,"transB"))return !strcmp(op,"gemm")||!strcmp(op,"gemmt");
+    if(!strcmp(name,"diag"))return diag_operation(op);
+    return 0;
+}
+static void copy_field(char *destination,size_t capacity,const char *source,int line_number,const char *name){size_t length=strlen(source);if(length>=capacity){fprintf(stderr,"line %d: %s is too long\n",line_number,name);exit(2);}memcpy(destination,source,length+1);}
 static int valid_option(const char *name,const char *value){
     if(!strcmp(name,"density")){char *tail;double density=strtod(value,&tail);return !*tail&&density>0&&density<=1;}
     if(!strcmp(name,"mode"))return !strcmp(value,"prepared")||!strcmp(value,"oneshot");
@@ -153,39 +173,37 @@ static int parse_case(char *line, int line_number, bench_case *out) {
     while (*line == ' ' || *line == '\t') ++line;
     char *end = line + strlen(line); while (end > line && (end[-1] == '\n' || end[-1] == '\r' || end[-1] == ' ' || end[-1] == '\t')) *--end = 0;
     if (!*line || *line == '#') return 0;
-    if (strlen(line) >= sizeof(out->id)) { fprintf(stderr,"line %d: case too long\n",line_number); exit(2); }
-    strcpy(out->id, line); char copy[256]; strcpy(copy, line);
-    char *save = NULL, *token = strtok_r(copy, "+", &save); if (!token) fail("missing operation"); strcpy(out->operation, token);
+    if(*line=='+'||end[-1]=='+'||strstr(line,"++")){fprintf(stderr,"line %d: empty case field\n",line_number);exit(2);}
+    copy_field(out->id,sizeof(out->id),line,line_number,"case");char copy[256];copy_field(copy,sizeof(copy),line,line_number,"case");
+    char *save = NULL, *token = strtok_r(copy, "+", &save); if (!token) fail("missing operation"); copy_field(out->operation,sizeof(out->operation),token,line_number,"operation");
     int expected = expected_dimensions(token); if (!expected) { fprintf(stderr,"line %d: unknown operation %s\n",line_number,token); exit(2); }
     token = strtok_r(NULL, "+", &save); if (!token) fail("missing dimensions");
-    char dimensions[64]; strcpy(dimensions, token); char *dimension_save = NULL, *dimension = strtok_r(dimensions,"x",&dimension_save);
+    if(*token=='x'||token[strlen(token)-1]=='x'||strstr(token,"xx")){fprintf(stderr,"line %d: empty dimension\n",line_number);exit(2);}char dimensions[64];copy_field(dimensions,sizeof(dimensions),token,line_number,"dimensions");char *dimension_save = NULL, *dimension = strtok_r(dimensions,"x",&dimension_save);
     while (dimension) { if (out->dim_count == MAX_DIMS || !*dimension) fail("malformed dimensions"); char *tail; long value = strtol(dimension,&tail,10); if(*tail || value<=0 || value>1000000) fail("invalid dimension"); out->dims[out->dim_count++] = (int)value; dimension=strtok_r(NULL,"x",&dimension_save); }
     if (out->dim_count != expected) { fprintf(stderr,"line %d: wrong dimension count\n",line_number); exit(2); }
-    token = strtok_r(NULL, "+", &save); if (!token || (strcmp(token,"uniform") && strcmp(token,"triangular") && strcmp(token,"sparse-uniform") && strcmp(token,"sparse-triangular"))) fail("unknown fixture"); strcpy(out->fixture,token);
+    token = strtok_r(NULL, "+", &save); if (!token || (strcmp(token,"uniform") && strcmp(token,"triangular") && strcmp(token,"sparse-uniform") && strcmp(token,"sparse-triangular"))) fail("unknown fixture"); copy_field(out->fixture,sizeof(out->fixture),token,line_number,"fixture");
     int previous = -1;
-    while ((token = strtok_r(NULL,"+",&save))) { char *equals = strchr(token,'='); if(!equals) fail("malformed option"); *equals=0; int order=option_order(token); if(order<0 || order<=previous || out->option_count==MAX_OPTIONS||!valid_option(token,equals+1)) fail("unknown, invalid, duplicate, or noncanonical option"); previous=order; strcpy(out->option_names[out->option_count],token); strcpy(out->option_values[out->option_count],equals+1); ++out->option_count; }
+    while ((token = strtok_r(NULL,"+",&save))) { char *equals = strchr(token,'='); if(!equals||equals==token||!equals[1]||strchr(equals+1,'=')) fail("malformed option"); *equals=0; int order=option_order(token); if(order<0 || order<=previous || out->option_count==MAX_OPTIONS||!valid_option(token,equals+1)) fail("unknown, invalid, duplicate, or noncanonical option"); previous=order;copy_field(out->option_names[out->option_count],sizeof(out->option_names[0]),token,line_number,"option name");copy_field(out->option_values[out->option_count],sizeof(out->option_values[0]),equals+1,line_number,"option value");++out->option_count; }
     int sparse = !strncmp(out->operation,"sp",2) || !strncmp(out->operation,"workspace-",10);
-    if (sparse != !strncmp(out->fixture,"sparse-",7)) fail("incompatible fixture");
-    int mode_operation=!strcmp(out->operation,"spgemv")||!strcmp(out->operation,"spmm")||!strcmp(out->operation,"spgemm")||!strcmp(out->operation,"spsymv")||!strcmp(out->operation,"spsymm")||!strcmp(out->operation,"sptrsv")||!strcmp(out->operation,"sptrmv")||!strcmp(out->operation,"sptrsm")||!strcmp(out->operation,"sptrmm");
-    if(mode_operation!=option_present(out,"mode"))fail("missing or incompatible mode option");
-    if(option_present(out,"density")&&!sparse)fail("density applies only to sparse cases");
+    int triangular=triangular_fixture_operation(out->operation);const char *expected_fixture=sparse?(triangular?"sparse-triangular":"sparse-uniform"):(triangular?"triangular":"uniform");
+    if(strcmp(out->fixture,expected_fixture))fail("incompatible fixture");
+    for(int i=0;i<out->option_count;++i)if(!option_allowed(out->operation,out->option_names[i],sparse))fail("option is incompatible with operation");
+    if(mode_operation(out->operation)!=option_present(out,"mode"))fail("missing or incompatible mode option");
+    if(oneshot_only_operation(out->operation)&&strcmp(option(out,"mode",""),"oneshot"))fail("operation supports only mode=oneshot");
     if(sparse&&!option_present(out,"density"))fail("sparse cases require density");
-    const char *packed[]={"gemm-tile","packed-trsm","gemm-trsm","pack-left","pack-right","pack-symmetric-left","pack-symmetric-right","pack-triangular-left","pack-triangular-right","write-left","write-right","clear-left-padding","clear-right-padding"};
-    if(operation_in(out->operation,packed,sizeof(packed)/sizeof(*packed))&&!option_present(out,"physical"))fail("packed cases require physical shape");
-    const char *uplo_required[]={"symv","syr","syr2","symm","gemmt","syrk","syr2k","trsv","trmv","trsm","trmm","packed-trsm","gemm-trsm","pack-symmetric-left","pack-symmetric-right","pack-triangular-left","pack-triangular-right","spsymv","spsymm","sptrsv","sptrmv","sptrsm","sptrmm","spsyrk-dense","spsyrk-sparse"};
-    if(operation_in(out->operation,uplo_required,sizeof(uplo_required)/sizeof(*uplo_required))&&!option_present(out,"uplo"))fail("operation requires uplo");
-    const char *side_required[]={"symm","trsm","trmm","spsymm","sptrsm","sptrmm"};
-    if(operation_in(out->operation,side_required,sizeof(side_required)/sizeof(*side_required))&&!option_present(out,"side"))fail("operation requires side");
-    const char *transa_required[]={"gemmt","syrk","syr2k","trsv","trmv","trsm","trmm","sptrsv","sptrmv","sptrsm","sptrmm"};
-    if(operation_in(out->operation,transa_required,sizeof(transa_required)/sizeof(*transa_required))&&!option_present(out,"transA"))fail("operation requires transA");
+    if(packed_operation(out->operation)&&!option_present(out,"physical"))fail("packed cases require physical shape");
+    if(uplo_operation(out->operation)&&!option_present(out,"uplo"))fail("operation requires uplo");
+    if(side_operation(out->operation)&&!option_present(out,"side"))fail("operation requires side");
+    if(transa_operation(out->operation)&&!option_present(out,"transA"))fail("operation requires transA");
     if(!strcmp(out->operation,"gemmt")&&!option_present(out,"transB"))fail("gemmt requires transB");
-    const char *diag_required[]={"trsv","trmv","trsm","trmm","packed-trsm","gemm-trsm","pack-triangular-left","pack-triangular-right","sptrsv","sptrmv","sptrsm","sptrmm"};
-    if(operation_in(out->operation,diag_required,sizeof(diag_required)/sizeof(*diag_required))&&!option_present(out,"diag"))fail("operation requires diag");
+    if(diag_operation(out->operation)&&!option_present(out,"diag"))fail("operation requires diag");
     const char *defaults[]={"side","L","uplo","L","transA","N","transB","N","diag","N"};
     for(int i=0;i<10;i+=2)if(option_present(out,defaults[i])&&!strcmp(option(out,defaults[i],""),defaults[i+1])){
-        int required=!strcmp(defaults[i],"uplo")?operation_in(out->operation,uplo_required,sizeof(uplo_required)/sizeof(*uplo_required)):!strcmp(defaults[i],"side")?operation_in(out->operation,side_required,sizeof(side_required)/sizeof(*side_required)):!strcmp(defaults[i],"transA")?operation_in(out->operation,transa_required,sizeof(transa_required)/sizeof(*transa_required)):!strcmp(defaults[i],"transB")?!strcmp(out->operation,"gemmt"):operation_in(out->operation,diag_required,sizeof(diag_required)/sizeof(*diag_required));
+        int required=!strcmp(defaults[i],"uplo")?uplo_operation(out->operation):!strcmp(defaults[i],"side")?side_operation(out->operation):!strcmp(defaults[i],"transA")?transa_operation(out->operation):!strcmp(defaults[i],"transB")?!strcmp(out->operation,"gemmt"):diag_operation(out->operation);
         if(!required)fail("redundant default option");
     }
+    if(sparse&&option_present(out,"side")&&strcmp(option(out,"side",""),"L"))fail("sparse right-side cases are unsupported");
+    if(option_present(out,"physical")){int physical_rows=0,physical_cols=0;if(sscanf(option(out,"physical",""),"%dx%d",&physical_rows,&physical_cols)!=2)fail("invalid physical shape");const char *op=out->operation;int rows_bounded=!strcmp(op,"gemm-tile")||!strcmp(op,"packed-trsm")||!strcmp(op,"gemm-trsm")||!strcmp(op,"pack-left")||!strcmp(op,"pack-symmetric-left")||!strcmp(op,"pack-triangular-left")||!strcmp(op,"write-left")||!strcmp(op,"clear-left-padding");int columns_bounded=!strcmp(op,"gemm-tile")||!strcmp(op,"packed-trsm")||!strcmp(op,"gemm-trsm")||!strcmp(op,"pack-right")||!strcmp(op,"pack-symmetric-right")||!strcmp(op,"pack-triangular-right")||!strcmp(op,"write-right")||!strcmp(op,"clear-right-padding");if(rows_bounded&&out->dims[0]>physical_rows)fail("logical rows exceed physical tile");if(columns_bounded&&out->dims[1]>physical_cols)fail("logical columns exceed physical tile");}
     return 1;
 }
 
@@ -258,7 +276,7 @@ static void setup_dense(work *w){
     if(!strcmp(op,"axpy")||!strcmp(op,"scal")){w->x=allocate(d[0],sizeof(double));w->y=allocate(d[0],sizeof(double));w->initial=allocate(d[0],sizeof(double));fill_vector(w->x,d[0],1);fill_vector(w->initial,d[0],!strcmp(op,"scal")?1:2);if(!strcmp(op,"scal"))copy_values(w->initial,w->x,d[0]);return;}
     if(!strcmp(op,"swap")||!strcmp(op,"rot")||!strcmp(op,"rotm")){w->a=allocate(d[0],sizeof(double));w->x=allocate(d[0],sizeof(double));w->y=allocate(d[0],sizeof(double));w->initial=allocate(d[0],sizeof(double));fill_vector(w->a,d[0],1);fill_vector(w->initial,d[0],2);if(!strcmp(op,"rotm")){w->c=allocate(5,sizeof(double));w->c[0]=-1;w->c[1]=1;w->c[2]=-.5;w->c[3]=.5;w->c[4]=1;}return;}
     if(!strcmp(op,"rotmg")){w->timing="arithmetic";return;}
-    if(!strcmp(op,"dot4")||!strcmp(op,"axpy4")||!strcmp(op,"dot-axpy")){w->a=allocate(4*d[0],sizeof(double));w->x=allocate(d[0],sizeof(double));w->y=allocate(d[0],sizeof(double));w->initial=allocate(d[0],sizeof(double));fill_vector(w->a,4*d[0],!strcmp(op,"axpy4")?1:2);fill_vector(w->x,d[0],1);fill_vector(w->initial,d[0],!strcmp(op,"axpy4")?2:3);w->comparison="composed";return;}
+    if(!strcmp(op,"dot4")||!strcmp(op,"axpy4")||!strcmp(op,"dot-axpy")){w->a=allocate(4*d[0],sizeof(double));w->x=allocate(d[0],sizeof(double));w->y=allocate(d[0],sizeof(double));w->initial=allocate(d[0],sizeof(double));fill_vector(w->a,4*d[0],!strcmp(op,"axpy4")?1:2);fill_vector(w->x,d[0],1);fill_vector(w->initial,d[0],!strcmp(op,"axpy4")?2:3);w->comparison="composed";if(!strcmp(op,"dot4"))w->timing="arithmetic";return;}
     if(!strcmp(op,"gemv")){int m=d[0],n=d[1],ar=ta?n:m,ac=ta?m:n;w->a=allocate(ar*ac,sizeof(double));w->x=allocate(n,sizeof(double));w->y=allocate(m,sizeof(double));w->initial=allocate(m,sizeof(double));fill_vector(w->a,ar*ac,1);fill_vector(w->x,n,2);fill_vector(w->initial,m,3);return;}
     if(!strcmp(op,"symv")||!strcmp(op,"syr")||!strcmp(op,"syr2")||!strcmp(op,"trsv")||!strcmp(op,"trmv")){int n=d[0];w->a=allocate(n*n,sizeof(double));w->c=allocate(n*n,sizeof(double));w->initial=allocate(n*n>n?n*n:n,sizeof(double));w->x=allocate(n,sizeof(double));w->y=allocate(n,sizeof(double));fill_vector(w->a,n*n,1);fill_vector(w->initial,n*n>n?n*n:n,!strcmp(op,"symv")?3:(!strncmp(op,"tr",2)?2:1));fill_vector(w->x,n,2);fill_vector(w->y,n,3);if(op[0]=='t')fill_triangular(w->a,n,lower,1);return;}
     if(!strcmp(op,"ger")){int m=d[0],n=d[1];w->c=allocate(m*n,sizeof(double));w->initial=allocate(m*n,sizeof(double));w->x=allocate(m,sizeof(double));w->y=allocate(n,sizeof(double));fill_vector(w->initial,m*n,1);fill_vector(w->x,m,2);fill_vector(w->y,n,3);return;}
@@ -300,9 +318,9 @@ static matrix_descr descriptor_for(const bench_case *s){
     return descriptor;
 }
 
-static sparse_matrix_t operation_handle(work *w,int which,int *owned){
+static sparse_matrix_t operation_handle(work *w,int which,int *owned,sparse_fixture *temporary){
     sparse_matrix_t prepared=which?w->handle_b:w->handle_a;if(prepared){*owned=0;return prepared;}
-    *owned=1;return create_handle(which?&w->csr_b:&w->csr_a);
+    *owned=1;*temporary=to_csr(which?&w->sb:&w->sa);return create_handle(temporary);
 }
 
 static double invoke_sparse(work *w){
@@ -312,20 +330,21 @@ static double invoke_sparse(work *w){
     if(!strcmp(op,"spscatter")){copy_values(w->y,w->initial,d[0]);cblas_dsctr(w->sa.nnz,w->sa.values,w->sa.row_idx,w->y);return consume(w->y,d[0]);}
     if(!strcmp(op,"spgather")){copy_values(w->y,w->initial,d[0]);cblas_dgthr(w->sa.nnz,w->y,w->x,w->sa.row_idx);return consume(w->x,w->sa.nnz);}
     if(!strcmp(op,"spgather-zero")){copy_values(w->y,w->initial,d[0]);cblas_dgthrz(w->sa.nnz,w->y,w->x,w->sa.row_idx);return consume(w->x,w->sa.nnz)+consume(w->y,d[0]);}
-    int own_a=0,own_b=0;sparse_matrix_t a=operation_handle(w,0,&own_a),b=NULL,result=NULL;double answer=0;
+    int own_a=0,own_b=0;sparse_fixture temporary_a={0},temporary_b={0};sparse_matrix_t a=operation_handle(w,0,&own_a,&temporary_a),b=NULL,result=NULL;double answer=0;
     if(!strcmp(op,"spgemv")||!strcmp(op,"spsymv")){copy_values(w->y,w->initial,d[0]);if(mkl_sparse_d_mv(operation,.875,a,descriptor,w->x,-.25,w->y))fail("mkl_sparse_d_mv failed");answer=consume(w->y,d[0]);}
     else if(!strcmp(op,"spsymm")){int n=d[0],rhs=d[1];copy_values(w->c,w->initial,n*rhs);if(mkl_sparse_d_mm(operation,.875,a,descriptor,COLUMN_MAJOR,w->b,rhs,n,-.25,w->c,n))fail("mkl_sparse_d_mm symmetric failed");answer=consume(w->c,n*rhs);}
     else if(!strcmp(op,"spmm")){int m=d[0],n=d[1],k=d[2];copy_values(w->c,w->initial,m*n);if(mkl_sparse_d_mm(operation,.875,a,descriptor,COLUMN_MAJOR,w->b,n,k,-.25,w->c,m))fail("mkl_sparse_d_mm failed");answer=consume(w->c,m*n);}
-    else if(!strcmp(op,"spgemm")){b=operation_handle(w,1,&own_b);if(mkl_sparse_spmm(SPARSE_NON_TRANSPOSE,a,b,&result))fail("mkl_sparse_spmm failed");answer=(double)(uintptr_t)result;if(mkl_sparse_destroy(result))fail("mkl_sparse_destroy result failed");}
+    else if(!strcmp(op,"spgemm")){b=operation_handle(w,1,&own_b,&temporary_b);if(mkl_sparse_spmm(SPARSE_NON_TRANSPOSE,a,b,&result))fail("mkl_sparse_spmm failed");answer=(double)(uintptr_t)result;if(mkl_sparse_destroy(result))fail("mkl_sparse_destroy result failed");}
     else if(!strcmp(op,"sptrsv")){copy_values(w->y,w->initial,d[0]);if(mkl_sparse_d_trsv(operation,1,a,descriptor,w->x,w->y))fail("mkl_sparse_d_trsv failed");answer=consume(w->y,d[0]);}
     else if(!strcmp(op,"sptrmv")){copy_values(w->y,w->initial,d[0]);if(mkl_sparse_d_mv(operation,1,a,descriptor,w->x,0,w->y))fail("mkl_sparse_d_mv triangular failed");answer=consume(w->y,d[0]);}
     else if(!strcmp(op,"sptrsm")){int order=d[0],rhs=d[1];copy_values(w->c,w->initial,order*rhs);if(mkl_sparse_d_trsm(operation,.875,a,descriptor,COLUMN_MAJOR,w->b,rhs,order,w->c,order))fail("mkl_sparse_d_trsm failed");answer=consume(w->c,order*rhs);}
     else if(!strcmp(op,"sptrmm")){int order=d[0],rhs=d[1];copy_values(w->c,w->initial,order*rhs);if(mkl_sparse_d_mm(operation,.875,a,descriptor,COLUMN_MAJOR,w->b,rhs,order,0,w->c,order))fail("mkl_sparse_d_mm triangular failed");answer=consume(w->c,order*rhs);}
     else if(!strcmp(op,"spsyrk-dense")){int n=d[0];copy_values(w->c,w->initial,n*n);if(mkl_sparse_d_syrkd(SPARSE_NON_TRANSPOSE,a,.875,-.25,w->c,COLUMN_MAJOR,n))fail("mkl_sparse_d_syrkd failed");answer=consume(w->c,n*n);}
     else if(!strcmp(op,"spsyrk-sparse")){if(mkl_sparse_syrk(SPARSE_NON_TRANSPOSE,a,&result))fail("mkl_sparse_syrk failed");answer=(double)(uintptr_t)result;if(mkl_sparse_destroy(result))fail("mkl_sparse_destroy result failed");}
-    else if(!strcmp(op,"spadd")){b=operation_handle(w,1,&own_b);if(mkl_sparse_d_add(SPARSE_NON_TRANSPOSE,a,.875,b,&result))fail("mkl_sparse_d_add failed");answer=(double)(uintptr_t)result;if(mkl_sparse_destroy(result))fail("mkl_sparse_destroy result failed");}
+    else if(!strcmp(op,"spadd")){b=operation_handle(w,1,&own_b,&temporary_b);if(mkl_sparse_d_add(SPARSE_NON_TRANSPOSE,a,.875,b,&result))fail("mkl_sparse_d_add failed");answer=(double)(uintptr_t)result;if(mkl_sparse_destroy(result))fail("mkl_sparse_destroy result failed");}
     if(own_b&&mkl_sparse_destroy(b))fail("mkl_sparse_destroy B failed");
     if(own_a&&mkl_sparse_destroy(a))fail("mkl_sparse_destroy A failed");
+    free_sparse(&temporary_b);free_sparse(&temporary_a);
     return answer;
 }
 
@@ -340,15 +359,16 @@ static void setup_sparse(work *w){
     else if(!strcmp(s->operation,"spmm")||!strcmp(s->operation,"spgemm"))cols=d[2];
     else if(!strcmp(s->operation,"spsyrk-dense")||!strcmp(s->operation,"spsyrk-sparse")||!strcmp(s->operation,"spadd"))cols=d[1];
     else cols=rows;
-    w->sa=make_sparse(rows,cols,density,1,triangular,lower);w->csr_a=to_csr(&w->sa);
-    if(!strcmp(s->operation,"spgemm")){w->sb=make_sparse(cols,d[1],density,2,0,1);w->csr_b=to_csr(&w->sb);}
-    if(!strcmp(s->operation,"spadd")){w->sb=make_sparse(rows,cols,density,2,0,1);w->csr_b=to_csr(&w->sb);}
-    if(!strcmp(option(s,"mode","oneshot"),"prepared")){w->handle_a=create_handle(&w->csr_a);if(w->csr_b.nnz)w->handle_b=create_handle(&w->csr_b);}
+    w->sa=make_sparse(rows,cols,density,1,triangular,lower);
+    if(!strcmp(s->operation,"spgemm"))w->sb=make_sparse(cols,d[1],density,2,0,1);
+    if(!strcmp(s->operation,"spadd"))w->sb=make_sparse(rows,cols,density,2,0,1);
+    if(!strcmp(option(s,"mode","oneshot"),"prepared")){w->csr_a=to_csr(&w->sa);w->handle_a=create_handle(&w->csr_a);}
     if(!strcmp(s->operation,"spgemv")||!strcmp(s->operation,"spsymv")||!strcmp(s->operation,"sptrsv")||!strcmp(s->operation,"sptrmv")){w->x=allocate(cols,sizeof(double));w->y=allocate(rows,sizeof(double));w->initial=allocate(rows,sizeof(double));fill_vector(w->x,cols,2);fill_vector(w->initial,rows,3);}
     if(!strcmp(s->operation,"spmm")){int n=d[1],k=d[2];w->b=allocate(k*n,sizeof(double));w->c=allocate(rows*n,sizeof(double));w->initial=allocate(rows*n,sizeof(double));fill_vector(w->b,k*n,2);fill_vector(w->initial,rows*n,3);}
     if(!strcmp(s->operation,"spsymm")){int rhs=d[1];w->b=allocate(rows*rhs,sizeof(double));w->c=allocate(rows*rhs,sizeof(double));w->initial=allocate(rows*rhs,sizeof(double));fill_vector(w->b,rows*rhs,2);fill_vector(w->initial,rows*rhs,3);}
     if(!strcmp(s->operation,"sptrsm")||!strcmp(s->operation,"sptrmm")){int rhs=d[1];w->b=allocate(rows*rhs,sizeof(double));w->c=allocate(rows*rhs,sizeof(double));w->initial=allocate(rows*rhs,sizeof(double));fill_vector(w->b,rows*rhs,2);fill_vector(w->initial,rows*rhs,2);}
     if(!strcmp(s->operation,"spsyrk-dense")){w->c=allocate(rows*rows,sizeof(double));w->initial=allocate(rows*rows,sizeof(double));fill_vector(w->initial,rows*rows,2);}
+    if(!strcmp(s->operation,"spgemm")||!strcmp(s->operation,"spsyrk-sparse")||!strcmp(s->operation,"spadd"))w->comparison="partial";
 }
 #endif
 
@@ -387,7 +407,7 @@ static const char *argument_value(int argc,char **argv,const char *name,const ch
 
 int main(int argc,char **argv){
     const char *cases_path=argument_value(argc,argv,"--cases","koblas-bench/cases.txt");const char *output_path=argument_value(argc,argv,"--output",NULL);if(!output_path)fail("--output is required");
-    int warmups=atoi(argument_value(argc,argv,"--warmups","3")),samples=atoi(argument_value(argc,argv,"--samples","5"));long target_ms=strtol(argument_value(argc,argv,"--target-ms","100"),NULL,10);if(warmups<0||samples<1||target_ms<1)fail("invalid timing settings");
+    int warmups=atoi(argument_value(argc,argv,"--warmups","3")),samples=atoi(argument_value(argc,argv,"--samples","5"));long target_ms=strtol(argument_value(argc,argv,"--target-ms","100"),NULL,10);if(warmups<0||samples<1||target_ms<1)fail("invalid timing settings");uint64_t target_ns=(uint64_t)target_ms*UINT64_C(1000000);
     const char *pass=argument_value(argc,argv,"--pass","1"),*commit=argument_value(argc,argv,"--source-commit","unknown"),*dirty=argument_value(argc,argv,"--dirty","unknown");
 #ifdef USE_MKL
     MKL_Set_Num_Threads(1);MKL_Set_Dynamic(0);char runtime[256]={0};MKL_Get_Version_String(runtime,sizeof(runtime));const char *implementation="onemkl";
@@ -398,12 +418,12 @@ int main(int argc,char **argv){
     for(char *p=runtime;*p;++p)if(*p==','||*p=='\n'||*p=='\r')*p=';';
     fixture_check();numerical_check();
     int case_count=0;bench_case *cases=load_cases(cases_path,&case_count);
-    FILE *output=fopen(output_path,"w");if(!output){perror(output_path);exit(2);}fprintf(output,"schema,case,implementation,workload_version,fixture_version,pass,sample,operations,elapsed_ns,ns_per_op,unit,status,comparison_kind,timing_mode,source_commit,dirty,runtime,threads\n");
+    FILE *output=fopen(output_path,"w");if(!output){perror(output_path);exit(2);}fprintf(output,"schema,case,implementation,workload_version,fixture_version,pass,sample,operations,elapsed_ns,ns_per_op,unit,status,comparison_kind,timing_mode,source_commit,dirty,runtime,threads,warmups,target_ns\n");
     volatile double sink=0;
-    for(int index=0;index<case_count;++index){work w;setup_work(&w,&cases[index]);if(!w.supported){fprintf(output,"2,%s,%s,2,1,%s,0,0,0,,ns,unsupported,%s,%s,%s,%s,%s,1\n",cases[index].id,implementation,pass,w.comparison,w.timing,commit,dirty,runtime);free_work(&w);continue;}
+    for(int index=0;index<case_count;++index){work w;setup_work(&w,&cases[index]);if(!w.supported){fprintf(output,"3,%s,%s,2,1,%s,0,0,0,,ns,unsupported,%s,%s,%s,%s,%s,1,%d,%" PRIu64 "\n",cases[index].id,implementation,pass,w.comparison,w.timing,commit,dirty,runtime,warmups,target_ns);free_work(&w);continue;}
         for(int i=0;i<warmups;++i)sink+=w.invoke(&w);
         int operations=1;while(operations<1000000){uint64_t start=nanos();for(int i=0;i<operations;++i)sink+=w.invoke(&w);uint64_t elapsed=nanos()-start;if(elapsed>=(uint64_t)target_ms*250000)break;operations*=2;}
-        for(int sample=1;sample<=samples;++sample){uint64_t start=nanos();for(int i=0;i<operations;++i)sink+=w.invoke(&w);uint64_t elapsed=nanos()-start;fprintf(output,"2,%s,%s,2,1,%s,%d,%d,%" PRIu64 ",%.17g,ns,ok,%s,%s,%s,%s,%s,1\n",cases[index].id,implementation,pass,sample,operations,elapsed,(double)elapsed/operations,w.comparison,w.timing,commit,dirty,runtime);}
+        for(int sample=1;sample<=samples;++sample){uint64_t start=nanos();for(int i=0;i<operations;++i)sink+=w.invoke(&w);uint64_t elapsed=nanos()-start;fprintf(output,"3,%s,%s,2,1,%s,%d,%d,%" PRIu64 ",%.17g,ns,ok,%s,%s,%s,%s,%s,1,%d,%" PRIu64 "\n",cases[index].id,implementation,pass,sample,operations,elapsed,(double)elapsed/operations,w.comparison,w.timing,commit,dirty,runtime,warmups,target_ns);}
         free_work(&w);
     }
     fclose(output);free(cases);fprintf(stderr,"wrote %d cases to %s (%s, sink=%g)\n",case_count,output_path,implementation,(double)sink);return 0;

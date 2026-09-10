@@ -25,15 +25,15 @@ arithmetic subset is comparable; `unsupported` retains the koblas case without a
 | clear-left/right-padding full and edge | unsupported | unsupported | koblas physical-padding maintenance only |
 | spdot, spaxpy, spscatter, spgather, spgather-zero | unsupported | direct legacy indexed BLAS | reset plus arithmetic for destructive operations |
 | spdot-sparse, spnrm2, spasum | unsupported | unsupported | retained koblas sparse-vector reductions |
-| spgemv prepared/oneshot | unsupported | direct inspector-executor MV | prepared handle outside timing; one-shot create/optimize/destroy included |
-| spmm prepared/oneshot | unsupported | direct inspector-executor MM | same ownership split; dense reset included |
-| spgemm prepared/oneshot | unsupported | direct sparse SPMM | output handle creation/destruction timed; inputs prepared according to mode |
+| spgemv prepared/oneshot | unsupported | direct inspector-executor MV | prepared conversion/handle outside timing; one-shot CSC-to-CSR conversion and create/optimize/destroy included |
+| spmm prepared/oneshot | unsupported | direct inspector-executor MM | same conversion and ownership split; dense reset included |
+| spgemm prepared/oneshot | unsupported | partial sparse SPMM | input conversion follows mode; fresh output is consumed only through its handle and its lifetime is timed |
 | spsymv | unsupported | direct sparse MV with symmetric descriptor | one-shot handle lifetime and call |
 | spsymm | unsupported | direct sparse MM with symmetric descriptor | one-shot handle lifetime, reset, and call |
 | sptrsv, sptrmv | unsupported | direct sparse TRSV / MV with triangular descriptor | one-shot handle lifetime and call |
 | sptrsm, sptrmm | unsupported | direct sparse TRSM / MM with triangular descriptor | one-shot handle lifetime, reset, and call |
-| spsyrk-dense, spsyrk-sparse | unsupported | direct sparse SYRKD / SYRK | output lifetime included for sparse result |
-| spadd | unsupported | direct sparse ADD | output handle lifetime included |
+| spsyrk-dense, spsyrk-sparse | unsupported | direct SYRKD / partial sparse SYRK | fresh sparse output is consumed only through its handle and its lifetime is timed |
+| spadd | unsupported | partial sparse ADD | fresh output is consumed only through its handle and its lifetime is timed |
 | workspace scatter/gather/max/filter families | unsupported | unsupported | retained caller-owned koblas workspace contract; an indexed primitive alone is not equivalent |
 
 Packed physical cases deliberately include each supported koblas shape on this acceptance host: native/JVM C

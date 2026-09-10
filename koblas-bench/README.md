@@ -24,9 +24,12 @@ fails rather than selecting another one. Normal koblas algorithm fallbacks insid
 measurement. Native resolves to Linux x86-64 or macOS arm64 on the current host and fails elsewhere.
 
 Useful bounded timing controls are `-Pbench.warmups=3`, `-Pbench.samples=5`, `-Pbench.targetMs=100`,
-`-Pbench.pass=1`, and `-Pbench.output=path.csv`. Calibration happens before measured samples. Destructive
+`-Pbench.pass=1`, and `-Pbench.output=path.csv`. On JVM, each warmup is a time-bounded batch rather than a
+single call. Calibration follows warmup, consumes its results, and requires consecutive target-sized batches
+before measuring. The requested warmup count and target are recorded in every row. Destructive
 operations restore their fixture on every invocation. Prepared sparse handles are created before timing and
-closed afterward; `mode=oneshot` includes the operation's ordinary preparation/conversion lifetime. The result
+closed afterward; `mode=oneshot` includes the operation's ordinary preparation/conversion and handle lifetime,
+including CSC-to-CSR conversion for oneMKL. The result
 is consumed so the work stays observable. Benchmarks do not inspect or classify allocation: allocation
 regressions belong in focused unit tests, while allocations intrinsic to one-shot work naturally remain timed.
 
@@ -64,11 +67,13 @@ koblas-bench/tools/hardware.sh > hardware.txt
 Compare matching rows without probing hardware or libraries:
 
 ```bash
-python3 koblas-bench/tools/compare.py openblas.csv jvm-c.csv onemkl.csv
+python3 koblas-bench/tools/compare.py --require-compatible openblas.csv jvm-c.csv
+python3 koblas-bench/tools/compare.py --require-compatible onemkl.csv jvm-c.csv jvm-simd.csv
 ```
 
-The comparator joins only identical case IDs, workload/fixture versions, timing modes, and thread counts. It
-does not invent timings or ratios for unsupported rows. Busy-machine samples are valid noisy evidence; no runner
+The comparator joins only identical case IDs, workload/fixture versions, timing modes, thread counts, comparison
+kinds, warmup counts, and timing targets. Supported cases whose metadata prevents a join are reported explicitly;
+`--require-compatible` makes any such mismatch fail the check. It does not invent timings or ratios for unsupported rows. Busy-machine samples are valid noisy evidence; no runner
 reserves cores, waits for an idle host, or changes another process.
 
 ## Case language
@@ -135,9 +140,9 @@ Both languages independently assert these goldens before their relevant checks:
 
 ## CSV and timing
 
-Schema 2 columns are `schema`, `case`, `implementation`, `workload_version`, `fixture_version`, `pass`,
+Schema 3 columns are `schema`, `case`, `implementation`, `workload_version`, `fixture_version`, `pass`,
 `sample`, `operations`, `elapsed_ns`, `ns_per_op`, `unit`, `status`, `comparison_kind`, `timing_mode`,
-`source_commit`, `dirty`, `runtime`, and `threads`. Numbers are locale-independent and CSV fields are escaped.
+`source_commit`, `dirty`, `runtime`, `threads`, `warmups`, and `target_ns`. Numbers are locale-independent and CSV fields are escaped.
 Every successful sample is retained. Unsupported cases carry no elapsed value. Supported-call failures abort the
 run after recording failure on Kotlin; they are never converted into another implementation.
 

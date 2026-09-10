@@ -38,7 +38,7 @@ internal fun denseWork(case: BenchCase, engine: KoblasContext): CaseWork? {
         }
         "nrm2" -> vectorReduction(d[0], "direct") { x -> vectors.nrm2(x, 0, x.size) }
         "asum" -> vectorReduction(d[0], "direct") { x -> vectors.asum(x, 0, x.size) }
-        "sum" -> vectorReduction(d[0], "partial") { x -> vectors.sum(x, 0, x.size) }
+        "sum" -> vectorReduction(d[0], "direct") { x -> vectors.sum(x, 0, x.size) }
         "compensated-sum" -> vectorReduction(d[0], "unsupported") { x -> DenseVector.wrap(x).compensatedSum() }
         "iamax" -> vectorReduction(d[0], "direct") { x -> DenseVector.wrap(x).iamax().toDouble() }
         "ssqd" -> {
@@ -172,7 +172,7 @@ private fun packedWork(case: BenchCase, engine: KoblasContext): CaseWork? {
         )) return null
     val packed = engine.packedKernels
     val physical = case.option("physical", "4x4").split('x').map(String::toInt)
-    val layoutOperation = case.operation.startsWith("pack") || case.operation.startsWith("write") || case.operation.startsWith("clear")
+    val layoutOperation = case.operation.startsWith("pack-") || case.operation.startsWith("write-") || case.operation.startsWith("clear-")
     val actualRows = if (layoutOperation) PackedPanels.tileRows else packed.gemmTileRows
     val actualColumns = if (layoutOperation) PackedPanels.tileColumns else packed.gemmTileCols
     if (actualRows != physical[0] || actualColumns != physical[1]) return null
@@ -188,17 +188,23 @@ private fun packedWork(case: BenchCase, engine: KoblasContext): CaseWork? {
     val triangle = DoubleArray(physical[1] * physical[1])
     val lower = case.option("uplo", "L") == "L"; val unit = case.option("diag", "N") == "U"
     if (case.operation == "packed-trsm" || case.operation == "gemm-trsm") {
-        val logicalTriangle = Fixtures.triangular(second, 20, lower)
-        for (j in 0 until second) for (i in 0 until second) triangle[i + j * physical[1]] = logicalTriangle[i, j]
+        packedTriangleFixture(second, physical[1], lower).copyInto(triangle)
     }
     val output0 = Fixtures.vector(physical[0] * physical[1], 4); val output = output0.copyOf()
-    val timing = if (case.operation.startsWith("pack") || case.operation.startsWith("write") || case.operation.startsWith("clear")) "layout" else "arithmetic-only"
+    val timing = if (layoutOperation) "layout" else "arithmetic-only"
     val comparison = when (case.operation) { "gemm-tile", "packed-trsm" -> "partial"; "gemm-trsm" -> "composed"; else -> "unsupported" }
     return when (case.operation) {
         "gemm-tile" -> CaseWork(comparison, timing, { output0.copyInto(output); packed.gemmTile(depth, left, 0, right, 0, output, 0, physical[0]); output[0] })
         "packed-trsm" -> CaseWork(comparison, timing, { output0.copyInto(output); packed.trsmTile(rows, second, triangle, 0, lower, unit, output, 0); output[0] })
         "gemm-trsm" -> CaseWork(comparison, timing, { output0.copyInto(output); packed.gemmTrsmTile(depth, rows, second, left, 0, right, 0, triangle, 0, lower, unit, output, 0); output[0] })
         else -> packedLayoutWork(case, rows, second, left, right, lower, unit)
+    }
+}
+
+internal fun packedTriangleFixture(order: Int, physicalColumns: Int, lower: Boolean): DoubleArray {
+    val logical = Fixtures.triangular(order, 20, lower)
+    return DoubleArray(physicalColumns * physicalColumns).also { packed ->
+        for (i in 0 until order) for (j in 0 until order) packed[i * physicalColumns + j] = logical[i, j]
     }
 }
 

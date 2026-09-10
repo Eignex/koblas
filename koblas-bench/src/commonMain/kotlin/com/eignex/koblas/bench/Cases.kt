@@ -35,7 +35,6 @@ internal object Cases {
     )
     private val fixtures = setOf("uniform", "triangular", "sparse-uniform", "sparse-triangular")
     private val optionOrder = listOf("density", "mode", "physical", "side", "uplo", "transA", "transB", "diag")
-    private val commonOptions = setOf("density", "mode", "physical", "side", "uplo", "transA", "transB", "diag")
 
     fun parse(text: String): List<BenchCase> {
         val cases = text.lineSequence().mapIndexedNotNull { index, raw ->
@@ -55,7 +54,7 @@ internal object Cases {
         val operation = parts[0]
         val count = dimensionCounts[operation] ?: invalid("unknown operation '$operation'")
         val dimensions = parts[1].split('x').map {
-            it.toIntOrNull()?.takeIf { value -> value > 0 } ?: invalid("invalid positive dimension '$it'")
+            it.toIntOrNull()?.takeIf { value -> value in 1..MAX_DIMENSION } ?: invalid("invalid positive dimension '$it'")
         }
         if (dimensions.size != count) invalid("$operation requires $count dimensions")
         val fixture = parts[2]
@@ -64,7 +63,7 @@ internal object Cases {
         var previous = -1
         for (field in parts.drop(3)) {
             val pair = field.split('=', limit = 2)
-            if (pair.size != 2 || pair[0] !in commonOptions || pair[1].isEmpty()) invalid("unknown option '$field'")
+            if (pair.size != 2 || pair[0] !in optionOrder || pair[1].isEmpty()) invalid("unknown option '$field'")
             if (pair[0] in options) invalid("duplicate option '${pair[0]}'")
             val order = optionOrder.indexOf(pair[0])
             if (order <= previous) invalid("options are not in canonical order")
@@ -72,7 +71,7 @@ internal object Cases {
             validateOption(pair[0], pair[1], invalid = ::invalid)
             options[pair[0]] = pair[1]
         }
-        validateCompatibility(operation, fixture, options, invalid = ::invalid)
+        validateCompatibility(operation, dimensions, fixture, options, invalid = ::invalid)
         return BenchCase(operation, dimensions, fixture, options, line)
     }
 
@@ -90,22 +89,63 @@ internal object Cases {
 
     private fun validateCompatibility(
         operation: String,
+        dimensions: List<Int>,
         fixture: String,
         options: Map<String, String>,
         invalid: (String) -> Nothing,
     ) {
         val sparse = operation.startsWith("sp") || operation.startsWith("workspace-")
-        if (sparse != fixture.startsWith("sparse-")) invalid("fixture '$fixture' is incompatible with $operation")
-        if ("density" in options && !sparse) invalid("density applies only to sparse cases")
-        if ("mode" in options && operation !in setOf("spgemv", "spmm", "spgemm", "spsymv", "spsymm", "sptrsv", "sptrmv", "sptrsm", "sptrmm")) invalid("mode is incompatible with $operation")
+        val triangular = operation in TRIANGULAR_FIXTURE_OPERATIONS
+        val expectedFixture = when {
+            sparse && triangular -> "sparse-triangular"
+            sparse -> "sparse-uniform"
+            triangular -> "triangular"
+            else -> "uniform"
+        }
+        if (fixture != expectedFixture) invalid("$operation requires fixture '$expectedFixture'")
+        val allowed = allowedOptions(operation, sparse)
+        val incompatible = options.keys.firstOrNull { it !in allowed }
+        if (incompatible != null) invalid("option '$incompatible' is incompatible with $operation")
         if (operation in setOf("spgemv", "spmm", "spgemm", "spsymv", "spsymm", "sptrsv", "sptrmv", "sptrsm", "sptrmm") && "mode" !in options) invalid("$operation requires mode")
-        if ("physical" in options && operation !in setOf("gemm-tile", "packed-trsm", "gemm-trsm", "pack-left", "pack-right", "pack-symmetric-left", "pack-symmetric-right", "pack-triangular-left", "pack-triangular-right", "write-left", "write-right", "clear-left-padding", "clear-right-padding")) invalid("physical is incompatible with $operation")
+        if (operation in ONESHOT_ONLY_OPERATIONS && options["mode"] != "oneshot") invalid("$operation supports only mode=oneshot")
         val required = requiredOptions(operation, sparse)
         val missing = required.firstOrNull { it !in options }
         if (missing != null) invalid("$operation requires option '$missing'")
         val defaults = mapOf("side" to "L", "uplo" to "L", "transA" to "N", "transB" to "N", "diag" to "N")
         val redundant = options.entries.firstOrNull { (name, value) -> name !in required && defaults[name] == value }
         if (redundant != null) invalid("redundant default option '${redundant.key}=${redundant.value}'")
+        if (sparse && options["side"] == "R") invalid("sparse right-side cases are unsupported")
+        validatePackedBounds(operation, dimensions, options, invalid)
+    }
+
+    private fun allowedOptions(operation: String, sparse: Boolean): Set<String> = buildSet {
+        if (sparse) add("density")
+        addAll(requiredOptions(operation, sparse))
+        when (operation) {
+            "gemv", "gemm" -> add("transA")
+        }
+        if (operation == "gemm") add("transB")
+        if (operation in MODE_OPERATIONS) add("mode")
+    }
+
+    private fun validatePackedBounds(
+        operation: String,
+        dimensions: List<Int>,
+        options: Map<String, String>,
+        invalid: (String) -> Nothing,
+    ) {
+        val physical = options["physical"]?.split('x')?.map(String::toInt) ?: return
+        val (tileRows, tileColumns) = physical
+        val rowsBounded = operation in setOf(
+            "gemm-tile", "packed-trsm", "gemm-trsm", "pack-left", "pack-symmetric-left",
+            "pack-triangular-left", "write-left", "clear-left-padding",
+        )
+        val columnsBounded = operation in setOf(
+            "gemm-tile", "packed-trsm", "gemm-trsm", "pack-right", "pack-symmetric-right",
+            "pack-triangular-right", "write-right", "clear-right-padding",
+        )
+        if (rowsBounded && dimensions[0] > tileRows) invalid("logical rows exceed physical tile")
+        if (columnsBounded && dimensions[1] > tileColumns) invalid("logical columns exceed physical tile")
     }
 
     private fun requiredOptions(operation: String, sparse: Boolean): Set<String> {
@@ -124,4 +164,12 @@ internal object Cases {
         }
         return required
     }
+
+    private val MODE_OPERATIONS = setOf("spgemv", "spmm", "spgemm", "spsymv", "spsymm", "sptrsv", "sptrmv", "sptrsm", "sptrmm")
+    private val ONESHOT_ONLY_OPERATIONS = setOf("spsymv", "spsymm", "sptrsv", "sptrmv", "sptrsm", "sptrmm")
+    private val TRIANGULAR_FIXTURE_OPERATIONS = setOf(
+        "trsv", "trmv", "trsm", "trmm", "packed-trsm", "gemm-trsm", "pack-triangular-left",
+        "pack-triangular-right", "spsymv", "spsymm", "sptrsv", "sptrmv", "sptrsm", "sptrmm",
+    )
+    private const val MAX_DIMENSION = 1_000_000
 }

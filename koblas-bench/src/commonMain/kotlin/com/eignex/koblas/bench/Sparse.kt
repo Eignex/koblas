@@ -63,7 +63,7 @@ internal fun sparseWork(case: BenchCase, engine: KoblasContext): CaseWork? {
         }
         "spgemm" -> {
             val (m, n, k) = d; val a = Fixtures.sparse(m, k, density, 1); val b = Fixtures.sparse(k, n, density, 2)
-            preparedOrOneShot(mode, engine, a,
+            preparedOrOneShot(mode, engine, a, comparison = "partial",
                 preparedRun = { prepared -> prepared.gemm(b).values.firstOrNull() ?: 0.0 },
                 oneShotRun = { engine.gemm(a, b).values.firstOrNull() ?: 0.0 },
             )
@@ -101,7 +101,7 @@ internal fun sparseWork(case: BenchCase, engine: KoblasContext): CaseWork? {
         }
         "spsyrk-dense", "spsyrk-sparse" -> {
             val (n, k) = d; val a = Fixtures.sparse(n, k, density, 1); val c0 = Fixtures.matrix(n, n, 2); val c = Fixtures.matrix(n, n, 2)
-            CaseWork("direct", "oneshot", {
+            CaseWork(if (case.operation == "spsyrk-sparse") "partial" else "direct", "oneshot", {
                 if (case.operation == "spsyrk-dense") {
                     c0.data.copyInto(c.data); engine.syrk(0.875, a, false, -0.25, c, lower); c.data[0]
                 } else engine.syrk(a, false, lower).values.firstOrNull() ?: 0.0
@@ -109,7 +109,7 @@ internal fun sparseWork(case: BenchCase, engine: KoblasContext): CaseWork? {
         }
         "spadd" -> {
             val (m, n) = d; val a = Fixtures.sparse(m, n, density, 1); val b = Fixtures.sparse(m, n, density, 2)
-            CaseWork("direct", "oneshot", { engine.addScaled(0.875, a, false, b).values.firstOrNull() ?: 0.0 })
+            CaseWork("partial", "oneshot", { engine.addScaled(0.875, a, false, b).values.firstOrNull() ?: 0.0 })
         }
         else -> workspaceWork(case, density)
     }
@@ -119,14 +119,15 @@ private fun preparedOrOneShot(
     mode: String,
     engine: KoblasContext,
     matrix: SparseMatrix,
+    comparison: String = "direct",
     preparedRun: (PreparedSparseMatrix) -> Double,
     oneShotRun: () -> Double,
 ): CaseWork {
     if (mode == "oneshot") {
-        return CaseWork("direct", "oneshot", oneShotRun)
+        return CaseWork(comparison, "oneshot", oneShotRun)
     }
     val prepared = engine.prepare(matrix)
-    return CaseWork("direct", "prepared", { preparedRun(prepared) }, { prepared.close() })
+    return CaseWork(comparison, "prepared", { preparedRun(prepared) }, { prepared.close() })
 }
 
 private fun workspaceWork(case: BenchCase, density: Double): CaseWork {
