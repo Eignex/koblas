@@ -86,7 +86,7 @@ jobs:
         uses: actions/cache@v5
         with:
           path: koblas-hfactor/build/hfactor
-          key: release-hfactor-${{ runner.os }}-${{ runner.arch }}-${{ matrix.platform }}-${{ hashFiles('koblas-hfactor/hfactor.lock', 'koblas-hfactor/native/*', 'scripts/build-hfactor.sh', 'scripts/third-party-notices.sh') }}
+          key: release-hfactor-${{ runner.os }}-${{ runner.arch }}-${{ matrix.platform }}-${{ hashFiles('koblas-hfactor/hfactor.lock', 'koblas-hfactor/native/*', 'scripts/third-party-notices.sh') }}
 
       # HFactor is a class inside HiGHS rather than a library with an API, so the build compiles it against
       # a shim and reads CXX rather than CC.
