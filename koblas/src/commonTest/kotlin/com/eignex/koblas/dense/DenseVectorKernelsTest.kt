@@ -22,7 +22,7 @@ class DenseVectorKernelsTest {
     @Test
     fun `the compiled-in kernels satisfy the dense vector contract`() {
         val k: DenseVectorKernels = PlatformVectorKernels
-        assertTrue(k.name.isNotEmpty(), "the kernels must name themselves; mathBackend reports it")
+        assertTrue(k.name.isNotEmpty(), "the kernels must name themselves for engine attribution")
 
         val a = DoubleArray(40) { it * 0.5 - 3.0 }
         val b = DoubleArray(40) { 1.0 / (it + 1) }
@@ -210,9 +210,9 @@ class DenseVectorKernelsTest {
     }
 
     @Test
-    fun `the context reports the selected kernels by name`() {
+    fun `the kernel backend reports the selected engine by name`() {
         assertEquals(PlatformVectorKernels.name, koblas.vectorKernels.name)
-        assertEquals(koblas.vectorKernels.name, mathBackend, "mathBackend is the selected kernels' name")
+        assertEquals(koblas.name, kernelBackend)
     }
 
     /**

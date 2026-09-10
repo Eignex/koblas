@@ -4,7 +4,7 @@ Owning and borrowed dense containers, validated CSC sparse containers, workspace
 [KoblasContext], and free-function arithmetic over matrix and vector contracts.
 
 The default [koblas] engine is selected once and cannot be replaced. [BuiltinKernels] constructs independent
-exact scalar, C, or SIMD engines for tests and benchmarks. [koblasInfo] and [mathBackend] provide concise
+exact scalar, C, or SIMD engines for tests and benchmarks. [koblasInfo] and [kernelBackend] provide concise
 read-only implementation attribution.
 
 Dense and sparse BLAS contracts live in `com.eignex.koblas.dense` and `com.eignex.koblas.sparse`. Packed panels

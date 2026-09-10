@@ -139,6 +139,10 @@ public final class com/eignex/koblas/GivensKt {
 	public static final fun rotg (DD)Lcom/eignex/koblas/Givens;
 }
 
+public final class com/eignex/koblas/KernelBackendKt {
+	public static final fun getKernelBackend ()Ljava/lang/String;
+}
+
 public final class com/eignex/koblas/KoblasContext : com/eignex/koblas/dense/Blas, com/eignex/koblas/sparse/SparseBlas {
 	public fun addScaled (DLcom/eignex/koblas/SparseMatrix;ZLcom/eignex/koblas/SparseMatrix;)Lcom/eignex/koblas/SparseMatrix;
 	public fun gemm (DLcom/eignex/koblas/DenseMatrix;ZLcom/eignex/koblas/DenseMatrix;ZDLcom/eignex/koblas/DenseMatrix;Lcom/eignex/koblas/Workspace;)V
@@ -192,10 +196,6 @@ public final class com/eignex/koblas/KoblasContext : com/eignex/koblas/dense/Bla
 
 public abstract class com/eignex/koblas/KoblasException : java/lang/ArithmeticException {
 	public synthetic fun <init> (Ljava/lang/String;Lkotlin/jvm/internal/DefaultConstructorMarker;)V
-}
-
-public final class com/eignex/koblas/MathBackendKt {
-	public static final fun getMathBackend ()Ljava/lang/String;
 }
 
 public abstract interface class com/eignex/koblas/MatrixLike {
