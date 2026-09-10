@@ -155,7 +155,7 @@ val scalar = BuiltinKernels.scalar.engine()
 val c = scalar.gemm(a, b)
 ```
 
-`koblasInfo`, `KoblasContext.name`, and the kernel names provide read-only attribution for logs.
+`KoblasContext.name` and the kernel names provide read-only attribution for logs.
 
 ### Implementation configuration
 
