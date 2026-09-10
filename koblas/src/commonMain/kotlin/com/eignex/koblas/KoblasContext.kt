@@ -8,6 +8,7 @@ import com.eignex.koblas.dense.DenseVectorKernels
 import com.eignex.koblas.dense.PackedKernels
 import com.eignex.koblas.sparse.SparseAlgorithms
 import com.eignex.koblas.sparse.SparseBlas
+import com.eignex.koblas.sparse.SparseKernelFamilies
 import com.eignex.koblas.sparse.SparseKernels
 
 /**
@@ -15,18 +16,24 @@ import com.eignex.koblas.sparse.SparseKernels
  *
  * The default [koblas] instance is selected once for the platform. Tests and benchmarks can construct an
  * exact scalar, C, or SIMD composition from [BuiltinKernels] without changing process-global state. Each
- * composition binds its vector, matrix-panel, and packed-tile families once.
+ * composition binds its dense vector, dense panel, packed tile, indexed sparse, and sparse panel families once.
  */
 public class KoblasContext internal constructor(
     internal val denseKernelFamilies: DenseKernelFamilies,
-    /** Sparse-vector kernels used by sparse convenience operations. */
-    public val sparseKernels: SparseKernels,
+    internal val sparseKernelFamilies: SparseKernelFamilies,
     /** Shared dense matrix algorithms bound to the immutable kernel families. */
     public val blas: Blas = BuiltinBlas(denseKernelFamilies),
-    /** Shared sparse matrix algorithms bound to the dense vector and panel families. */
-    public val sparseBlas: SparseBlas = SparseAlgorithms(denseKernelFamilies.vector, denseKernelFamilies.panel),
+    /** Shared sparse matrix algorithms bound to the exact dense, indexed, and sparse-panel families. */
+    public val sparseBlas: SparseBlas = SparseAlgorithms(
+        denseKernelFamilies.vector,
+        sparseKernelFamilies.indexed,
+        sparseKernelFamilies.panel,
+    ),
 ) : Blas by blas,
     SparseBlas by sparseBlas {
+
+    /** Sparse-vector kernels used by sparse convenience operations. */
+    public val sparseKernels: SparseKernels get() = sparseKernelFamilies.vector
 
     /** Standalone contiguous dense-vector kernels. */
     public val vectorKernels: DenseVectorKernels get() = denseKernelFamilies.vector

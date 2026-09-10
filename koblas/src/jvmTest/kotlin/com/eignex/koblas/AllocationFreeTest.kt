@@ -289,6 +289,33 @@ class AllocationFreeTest {
     }
 
     @Test
+    fun `sparse vector and matrix slice kernels allocate nothing`() {
+        val n = 128
+        val sparse = SparseMatrix.ofColumns(
+            n,
+            n,
+            List(n) { column -> listOf(column to 1.0, (column + 1) % n to 1e-8).sortedBy { it.first } },
+        )
+        val vector = SparseVector.of(n, IntArray(n / 2) { it * 2 }, DoubleArray(n / 2) { it + 1.0 })
+        val x = DoubleArray(n) { it * 0.01 }
+        val y = DoubleArray(n)
+
+        val levelOneBytes = bytesPerIteration(1_000) { engine.sparseKernels.dot(vector, x) }
+        val gemvBytes = bytesPerIteration(1_000) {
+            engine.sparseBlas.gemv(1e-12, sparse, x, 1.0, y, transpose = true)
+            y
+        }
+        val symvBytes = bytesPerIteration(1_000) {
+            engine.sparseBlas.symv(1e-12, sparse, x, 1.0, y, lower = true)
+            y
+        }
+
+        assertTrue(levelOneBytes <= FLOOR_BYTES, "sparse level one allocated $levelOneBytes B per call")
+        assertTrue(gemvBytes <= FLOOR_BYTES, "sparse gemv allocated $gemvBytes B per call")
+        assertTrue(symvBytes <= FLOOR_BYTES, "sparse symv allocated $symvBytes B per call")
+    }
+
+    @Test
     fun `new sparse dense destinations reuse workspace`() {
         val n = 64
         val sparse = SparseMatrix.ofColumns(n, n, List(n) { j -> listOf(j to (j + 1.0)) })

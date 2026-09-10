@@ -4,15 +4,18 @@ import com.eignex.koblas.dense.DenseKernelFamilies
 import com.eignex.koblas.dense.DensePanelKernels
 import com.eignex.koblas.dense.DenseVectorKernels
 import com.eignex.koblas.dense.PackedKernels
+import com.eignex.koblas.sparse.SparseKernelFamilies
 import com.eignex.koblas.sparse.SparseKernels
 
-/** An exact built-in dense and sparse implementation composition. */
+/** An exact built-in dense, indexed sparse, and sparse-panel implementation composition. */
 @ExperimentalKoblasApi
 public class BuiltinKernelProvider internal constructor(
     internal val denseKernelFamilies: DenseKernelFamilies,
-    /** Sparse level-1 kernels. */
-    public val sparseKernels: SparseKernels,
+    internal val sparseKernelFamilies: SparseKernelFamilies,
 ) {
+    /** Sparse level-1 kernels. */
+    public val sparseKernels: SparseKernels get() = sparseKernelFamilies.vector
+
     /** Standalone contiguous dense-vector kernels. */
     public val vectorKernels: DenseVectorKernels get() = denseKernelFamilies.vector
 
@@ -23,9 +26,9 @@ public class BuiltinKernelProvider internal constructor(
     public val packedKernels: PackedKernels get() = denseKernelFamilies.packed
 }
 
-/** Creates an immutable engine using exactly this built-in kernel pair. */
+/** Creates an immutable engine using exactly these built-in kernel families. */
 @ExperimentalKoblasApi
-public fun BuiltinKernelProvider.engine(): KoblasContext = KoblasContext(denseKernelFamilies, sparseKernels)
+public fun BuiltinKernelProvider.engine(): KoblasContext = KoblasContext(denseKernelFamilies, sparseKernelFamilies)
 
 /**
  * Built-in providers for explicit [KoblasContext] construction and implementation comparisons.

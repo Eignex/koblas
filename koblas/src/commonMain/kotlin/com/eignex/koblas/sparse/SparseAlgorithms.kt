@@ -3,7 +3,6 @@ package com.eignex.koblas.sparse
 import com.eignex.koblas.*
 import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.SparseMatrix
-import com.eignex.koblas.dense.DensePanelKernels
 import com.eignex.koblas.dense.DenseVectorKernels
 import com.eignex.koblas.dense.applyBeta
 import com.eignex.koblas.dense.scaleTriangle
@@ -37,7 +36,8 @@ internal const val REFERENCE_SPARSE_RHS_WIDTH: Int = 4
 @Suppress("TooManyFunctions") // the sparse BLAS surface
 internal class SparseAlgorithms(
     private val vectorKernels: DenseVectorKernels,
-    private val panelKernels: DensePanelKernels,
+    private val indexedKernels: IndexedSparseKernels,
+    private val sparsePanelKernels: PortableSparsePanelKernels,
 ) : SparseBlas {
     override val name: String get() = "built-in"
 
@@ -58,14 +58,13 @@ internal class SparseAlgorithms(
         if (alpha == 0.0) return
         if (transpose) {
             for (j in 0 until a.cols) {
-                var s = 0.0
-                a.forEachInColumn(j) { i, v -> s += v * x[i] }
-                y[j] += alpha * s
+                val sum = indexedKernels.dotDense(a.rowIdx, a.values, a.colPtr[j], a.colPtr[j + 1], x)
+                y[j] += alpha * sum
             }
         } else {
             for (j in 0 until a.cols) {
                 val xj = alpha * x[j]
-                a.forEachInColumn(j) { i, v -> y[i] += v * xj }
+                indexedKernels.axpy(a.rowIdx, a.values, a.colPtr[j], a.colPtr[j + 1], xj, y)
             }
         }
     }
@@ -83,7 +82,7 @@ internal class SparseAlgorithms(
         val stableA = a.stableFor(y)
         val stableX = if (x === y) x.copyOf() else x
         applyBeta(vectorKernels, y, 0, y.size, beta)
-        symmetricMultiplyVector(alpha, stableA, stableX, y, lower)
+        symmetricMultiplyVector(sparsePanelKernels, alpha, stableA, stableX, y, lower)
     }
 
     @Suppress("LongParameterList")
@@ -113,7 +112,7 @@ internal class SparseAlgorithms(
         withStableSparse(a, c.data, workspace) { stableA ->
             withStableDense(b, c.data, workspace) { stableB ->
                 applyBeta(vectorKernels, c.data, 0, c.data.size, beta)
-                symmetricMultiplyMatrix(alpha, stableA, stableB, c, lower, right)
+                symmetricMultiplyMatrix(sparsePanelKernels, alpha, stableA, stableB, c, lower, right)
             }
         }
     }
@@ -122,14 +121,14 @@ internal class SparseAlgorithms(
         requireSquare(a, "trsv")
         val n = a.rows
         requireShape(x.size == n) { "trsv: x length ${x.size} != $n" }
-        trsvCore(a, x, lower, transpose, unitDiag)
+        trsvCore(sparsePanelKernels, a, x, lower, transpose, unitDiag)
     }
 
     override fun trmv(a: SparseMatrix, x: DoubleArray, lower: Boolean, transpose: Boolean, unitDiag: Boolean) {
         requireSquare(a, "trmv")
         val n = a.rows
         requireShape(x.size == n) { "trmv: x length ${x.size} != $n" }
-        trmvCore(a.stableFor(x), x, lower, transpose, unitDiag)
+        trmvCore(sparsePanelKernels, a.stableFor(x), x, lower, transpose, unitDiag)
     }
 
     @Suppress("LongParameterList") // the BLAS dgemm signature, plus the side the sparse operand sits on
@@ -159,9 +158,31 @@ internal class SparseAlgorithms(
             withStableDense(b, c.data, workspace) { stableB ->
                 applyBeta(vectorKernels, c.data, 0, c.data.size, beta)
                 if (right) {
-                    multiplyFromTheRight(panelKernels, alpha, stableA, transposeA, stableB, transposeB, c, m, workspace)
+                    multiplyFromTheRight(
+                        sparsePanelKernels,
+                        alpha,
+                        stableA,
+                        transposeA,
+                        stableB,
+                        transposeB,
+                        c,
+                        m,
+                        workspace,
+                    )
                 } else {
-                    multiplyFromTheLeft(alpha, stableA, transposeA, stableB, transposeB, c, m, n, k, workspace)
+                    multiplyFromTheLeft(
+                        sparsePanelKernels,
+                        alpha,
+                        stableA,
+                        transposeA,
+                        stableB,
+                        transposeB,
+                        c,
+                        m,
+                        n,
+                        k,
+                        workspace,
+                    )
                 }
             }
         }
@@ -295,12 +316,12 @@ internal class SparseAlgorithms(
         if (rightHandSides == 0) return
         if (right) {
             withExplicitDiagonal(a, n, unitDiag, workspace) { diagonal ->
-                trsmRightCore(vectorKernels, a, b, lower, !transpose, diagonal)
+                trsmRightCore(sparsePanelKernels, a, b, lower, !transpose, diagonal)
             }
         } else {
             workspace.borrow(REFERENCE_SPARSE_RHS_WIDTH) { work ->
                 withExplicitDiagonal(a, n, unitDiag, workspace) { diagonal ->
-                    trsmLeftCore(a, b, lower, transpose, diagonal, work)
+                    trsmLeftCore(sparsePanelKernels, a, b, lower, transpose, diagonal, work)
                 }
             }
         }
@@ -326,9 +347,9 @@ internal class SparseAlgorithms(
         // Read once for every right-hand side rather than once per trmvCore call, as trsm does.
         val diagonal = if (unitDiag) null else DoubleArray(n) { triangle[it, it] }
         if (right) {
-            trmmRightCore(vectorKernels, triangle, b, lower, transpose, unitDiag, diagonal)
+            trmmRightCore(sparsePanelKernels, triangle, b, lower, transpose, unitDiag, diagonal)
         } else {
-            trmmLeftCore(triangle, b, lower, transpose, unitDiag, diagonal)
+            trmmLeftCore(sparsePanelKernels, triangle, b, lower, transpose, unitDiag, diagonal)
         }
     }
 

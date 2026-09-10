@@ -5,9 +5,9 @@ import com.eignex.koblas.dense.SimdKernels
 import com.eignex.koblas.dense.cDenseKernelFamilies
 import com.eignex.koblas.dense.scalarDenseKernelFamilies
 import com.eignex.koblas.dense.simdDenseKernelFamilies
-import com.eignex.koblas.sparse.CSparseKernels
-import com.eignex.koblas.sparse.ScalarSparseKernels
-import com.eignex.koblas.sparse.SimdSparseKernels
+import com.eignex.koblas.sparse.cSparseKernelFamilies
+import com.eignex.koblas.sparse.scalarSparseKernelFamilies
+import com.eignex.koblas.sparse.simdSparseKernelFamilies
 
 /** JVM built-in kernel providers. */
 @ExperimentalKoblasApi
@@ -15,14 +15,14 @@ public actual object BuiltinKernels {
     private val scalarProvider by lazy {
         BuiltinKernelProvider(
             scalarDenseKernelFamilies,
-            ScalarSparseKernels,
+            scalarSparseKernelFamilies,
         )
     }
     private val cProvider by lazy {
         if (CKernels.isAvailable) {
             BuiltinKernelProvider(
                 cDenseKernelFamilies,
-                CSparseKernels,
+                cSparseKernelFamilies,
             )
         } else {
             null
@@ -32,7 +32,7 @@ public actual object BuiltinKernels {
         if (SimdKernels.isAvailable) {
             BuiltinKernelProvider(
                 simdDenseKernelFamilies,
-                SimdSparseKernels,
+                simdSparseKernelFamilies,
             )
         } else {
             null

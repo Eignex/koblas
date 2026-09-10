@@ -9,6 +9,8 @@ import com.eignex.koblas.dense.SimdPanelKernels
 import com.eignex.koblas.dense.assertLevel1KernelsAgreeWithScalar
 import com.eignex.koblas.dense.assertReductionsAgreeWithScalar
 import com.eignex.koblas.dense.assertSwapAgreesWithScalar
+import com.eignex.koblas.sparse.CIndexedSparseKernels
+import com.eignex.koblas.sparse.SimdIndexedSparseKernels
 import kotlin.test.Test
 import kotlin.test.assertSame
 
@@ -31,9 +33,15 @@ class JvmBuiltinKernelsTest {
             assertSame(CPanelKernels, families.panel)
             assertSame(CPackedKernels, families.packed)
         }
+        BuiltinKernels.c?.let { provider ->
+            assertSame(CIndexedSparseKernels, provider.sparseKernelFamilies.indexed)
+        }
         BuiltinKernels.simd?.denseKernelFamilies?.let { families ->
             assertSame(SimdPanelKernels, families.panel)
             assertSame(SimdPackedKernels, families.packed)
+        }
+        BuiltinKernels.simd?.let { provider ->
+            assertSame(SimdIndexedSparseKernels, provider.sparseKernelFamilies.indexed)
         }
     }
 }

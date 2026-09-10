@@ -2,8 +2,8 @@ package com.eignex.koblas
 
 import com.eignex.koblas.dense.platformDenseKernelFamilies
 import com.eignex.koblas.dense.scalarDenseKernelFamilies
-import com.eignex.koblas.sparse.PlatformSparseKernels
-import com.eignex.koblas.sparse.ScalarSparseKernels
+import com.eignex.koblas.sparse.nativeCSparseKernelFamilies
+import com.eignex.koblas.sparse.scalarSparseKernelFamilies
 
 /** Kotlin/Native built-in kernel providers. */
 @ExperimentalKoblasApi
@@ -12,14 +12,14 @@ public actual object BuiltinKernels {
     public actual val scalar: BuiltinKernelProvider =
         BuiltinKernelProvider(
             scalarDenseKernelFamilies,
-            ScalarSparseKernels,
+            scalarSparseKernelFamilies,
         )
 
     /** C kernels compiled into this Native artifact. */
     public actual val c: BuiltinKernelProvider? =
         BuiltinKernelProvider(
             platformDenseKernelFamilies,
-            PlatformSparseKernels,
+            nativeCSparseKernelFamilies,
         )
 
     /** SIMD is unavailable as a distinct Native provider. */

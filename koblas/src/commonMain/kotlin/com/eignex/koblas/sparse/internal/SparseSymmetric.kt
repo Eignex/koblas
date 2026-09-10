@@ -2,21 +2,25 @@ package com.eignex.koblas.sparse.internal
 
 import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.SparseMatrix
+import com.eignex.koblas.sparse.PortableSparsePanelKernels
 
 /** Adds `alpha · A · x` to [y], mirroring only entries stored in [lower]'s selected triangle. */
-internal fun symmetricMultiplyVector(alpha: Double, a: SparseMatrix, x: DoubleArray, y: DoubleArray, lower: Boolean) {
+internal fun symmetricMultiplyVector(
+    kernels: PortableSparsePanelKernels,
+    alpha: Double,
+    a: SparseMatrix,
+    x: DoubleArray,
+    y: DoubleArray,
+    lower: Boolean,
+) {
     for (j in 0 until a.cols) {
-        a.forEachInColumn(j) { i, value ->
-            if (if (lower) i >= j else i <= j) {
-                y[i] += alpha * (value * x[j])
-                if (i != j) y[j] += alpha * (value * x[i])
-            }
-        }
+        kernels.symmetricVectorColumn(alpha, j, a.rowIdx, a.values, a.colPtr[j], a.colPtr[j + 1], x, y, lower)
     }
 }
 
 /** Adds a selected-triangle symmetric sparse product on the requested side of dense [b]. */
 internal fun symmetricMultiplyMatrix(
+    kernels: PortableSparsePanelKernels,
     alpha: Double,
     a: SparseMatrix,
     b: DenseMatrix,
@@ -26,25 +30,15 @@ internal fun symmetricMultiplyMatrix(
 ) {
     if (right) {
         for (j in 0 until a.cols) {
-            a.forEachInColumn(j) { i, value ->
-                if (if (lower) i >= j else i <= j) {
-                    for (r in 0 until b.rows) {
-                        c.data[r + i * c.rows] += alpha * (b.data[r + j * b.rows] * value)
-                        if (i != j) c.data[r + j * c.rows] += alpha * (b.data[r + i * b.rows] * value)
-                    }
-                }
-            }
+            kernels.symmetricRightColumn(
+                alpha, j, a.rowIdx, a.values, a.colPtr[j], a.colPtr[j + 1], b.data, c.data, b.rows, lower,
+            )
         }
     } else {
         for (j in 0 until a.cols) {
-            a.forEachInColumn(j) { i, value ->
-                if (if (lower) i >= j else i <= j) {
-                    for (column in 0 until b.cols) {
-                        c.data[i + column * c.rows] += alpha * (value * b.data[j + column * b.rows])
-                        if (i != j) c.data[j + column * c.rows] += alpha * (value * b.data[i + column * b.rows])
-                    }
-                }
-            }
+            kernels.symmetricLeftColumn(
+                alpha, j, a.rowIdx, a.values, a.colPtr[j], a.colPtr[j + 1], b.data, c.data, b.rows, b.cols, lower,
+            )
         }
     }
 }
