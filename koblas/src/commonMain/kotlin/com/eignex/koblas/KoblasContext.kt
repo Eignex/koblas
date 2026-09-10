@@ -46,7 +46,6 @@ public class KoblasContext internal constructor(
     public val packedKernels: PackedKernels get() = denseKernelFamilies.packed
 
     /** Packed panel operations bound to this engine's exact packed kernels. */
-    @ExperimentalKoblasApi
     public val packedPanels: PackedPanels = PackedPanels(denseKernelFamilies.packed)
 
     /** Short read-only implementation description for logs and benchmark attribution. */

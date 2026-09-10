@@ -1,4 +1,4 @@
-@file:OptIn(kotlinx.cinterop.ExperimentalForeignApi::class, com.eignex.koblas.ExperimentalKoblasApi::class)
+@file:OptIn(kotlinx.cinterop.ExperimentalForeignApi::class)
 
 package com.eignex.koblas.bench
 

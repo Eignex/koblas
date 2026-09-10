@@ -10,7 +10,6 @@ import com.eignex.koblas.sparse.scalarSparseKernelFamilies
 import com.eignex.koblas.sparse.simdSparseKernelFamilies
 
 /** JVM built-in kernel providers. */
-@ExperimentalKoblasApi
 public actual object BuiltinKernels {
     private val scalarProvider by lazy {
         BuiltinKernelProvider(

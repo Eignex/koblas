@@ -17,7 +17,6 @@ class AllocationFreeTest {
         /** A pooled form must allocate at most this fraction of what the allocating form does. */
         const val POOLED_RATIO = 50.0
 
-        @OptIn(ExperimentalKoblasApi::class)
         val engine = BuiltinKernels.scalar.engine()
     }
 
@@ -199,7 +198,6 @@ class AllocationFreeTest {
         assertTrue(bytes <= FLOOR_BYTES, "right dense trsm allocated $bytes B per call")
     }
 
-    @OptIn(ExperimentalKoblasApi::class)
     @Test
     fun `packed solve kernels allocate nothing`() {
         val rows = PackedPanels.tileRows

@@ -6,7 +6,6 @@ import com.eignex.koblas.sparse.nativeCSparseKernelFamilies
 import com.eignex.koblas.sparse.scalarSparseKernelFamilies
 
 /** Kotlin/Native built-in kernel providers. */
-@ExperimentalKoblasApi
 public actual object BuiltinKernels {
     /** Pure Kotlin scalar dense kernels and reference sparse kernels. */
     public actual val scalar: BuiltinKernelProvider =

@@ -1,5 +1,3 @@
-@file:OptIn(com.eignex.koblas.ExperimentalKoblasApi::class)
-
 package com.eignex.koblas.bench
 
 import java.io.File
