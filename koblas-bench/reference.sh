@@ -9,9 +9,10 @@ cases="$bench/cases.txt"
 samples=5
 warmups=3
 target_ms=1000
+pass=1
 
 usage() {
-  echo "usage: koblas-bench/reference.sh [--libraries openblas,onemkl|all] [--output DIR] [--cases FILE] [--samples N] [--warmups N] [--target-ms N]" >&2
+  echo "usage: koblas-bench/reference.sh [--libraries openblas,onemkl|all] [--output DIR] [--cases FILE] [--samples N] [--warmups N] [--target-ms N] [--pass LABEL]" >&2
 }
 
 while (($#)); do
@@ -22,6 +23,7 @@ while (($#)); do
     --samples) samples=${2:?}; shift 2 ;;
     --warmups) warmups=${2:?}; shift 2 ;;
     --target-ms) target_ms=${2:?}; shift 2 ;;
+    --pass) pass=${2:?}; shift 2 ;;
     --help|-h) usage; exit 0 ;;
     *) usage; exit 2 ;;
   esac
@@ -46,7 +48,7 @@ run_openblas() {
   cc -std=c11 -O3 -DNDEBUG -Wall -Wextra -Werror "$bench/reference/vendor_runner.c" -lopenblas -lm -o "$output/bin/openblas-runner"
   OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 "$output/bin/openblas-runner" \
     --cases="$cases" --output="$output/openblas.csv" --samples="$samples" \
-    --warmups="$warmups" --target-ms="$target_ms" --source-commit="$commit" --dirty="$dirty"
+    --warmups="$warmups" --target-ms="$target_ms" --pass="$pass" --source-commit="$commit" --dirty="$dirty"
 }
 
 run_onemkl() {
@@ -58,7 +60,7 @@ run_onemkl() {
     "$library" -Wl,-rpath,"$directory" -lpthread -lm -ldl -o "$output/bin/onemkl-runner"
   LD_LIBRARY_PATH="$directory${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" MKL_NUM_THREADS=1 MKL_DYNAMIC=FALSE OMP_NUM_THREADS=1 \
     "$output/bin/onemkl-runner" --cases="$cases" --output="$output/onemkl.csv" \
-    --samples="$samples" --warmups="$warmups" --target-ms="$target_ms" --source-commit="$commit" --dirty="$dirty"
+    --samples="$samples" --warmups="$warmups" --target-ms="$target_ms" --pass="$pass" --source-commit="$commit" --dirty="$dirty"
 }
 
 for library in "${requested[@]}"; do
