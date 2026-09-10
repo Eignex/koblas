@@ -1,0 +1,6 @@
+schema,case,implementation,workload_version,fixture_version,pass,sample,operations,elapsed_ns,ns_per_op,unit,status,comparison_kind,timing_mode,source_commit,dirty,runtime,threads
+2,dot+4096+uniform,jvm-c/c/c-sparse/packed-4x4,2,1,1,1,1,54776,54776.0,ns,ok,direct,arithmetic,533f4d28c1989d4249735d90c5f88d8db824e9d1,true,kotlin-2.4.10/jvm/Eclipse Adoptium/25.0.1,1
+2,dot+4096+uniform,jvm-simd/simd(4 lanes)/simd-sparse/packed-8x4,2,1,1,1,1,412580,412580.0,ns,ok,direct,arithmetic,533f4d28c1989d4249735d90c5f88d8db824e9d1,true,kotlin-2.4.10/jvm/Eclipse Adoptium/25.0.1,1
+2,dot+4096+uniform,native/c/c-sparse/packed-4x4,2,1,1,1,512,265185,517.939453125,ns,ok,direct,arithmetic,533f4d28c1989d4249735d90c5f88d8db824e9d1,true,kotlin-native-2.4.10,1
+2,dot+4096+uniform,openblas,2,1,1,1,256,362207,1414.87109375,ns,ok,direct,arithmetic,533f4d28c1989d4249735d90c5f88d8db824e9d1,true,OpenBLAS 0.3.30 NO_LAPACKE DYNAMIC_ARCH NO_AFFINITY Haswell MAX_THREADS=128; compiler=15.2.0,1
+2,dot+4096+uniform,onemkl,2,1,1,1,128,235790,1842.109375,ns,ok,direct,arithmetic,533f4d28c1989d4249735d90c5f88d8db824e9d1,true,Intel(R) oneAPI Math Kernel Library Version 2026.1-Product Build 20260612 for Intel(R) 64 architecture applications; compiler=15.2.0,1

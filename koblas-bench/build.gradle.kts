@@ -1,12 +1,8 @@
-import kotlinx.benchmark.gradle.BenchmarkConfiguration
-import org.jetbrains.kotlin.gradle.tasks.KotlinJvmCompile
+import org.gradle.api.tasks.JavaExec
 import org.gradle.jvm.toolchain.JavaLanguageVersion
+import org.jetbrains.kotlin.gradle.targets.jvm.KotlinJvmTarget
 
-plugins {
-    kotlin("multiplatform") version "2.4.10"
-    kotlin("plugin.allopen") version "2.4.10"
-    id("org.jetbrains.kotlinx.benchmark") version "0.4.17"
-}
+plugins { kotlin("multiplatform") version "2.4.10" }
 
 repositories { mavenCentral() }
 
@@ -15,171 +11,72 @@ kotlin {
     jvmToolchain(25)
     compilerOptions { freeCompilerArgs.add("-Xexpect-actual-classes") }
     jvm()
-    linuxX64 {
-        compilations.getByName("main").cinterops.create("benchOpenBlas") {
-            definitionFile.set(project.file("src/nativeInterop/cinterop/benchOpenBlas.def"))
-            includeDirs(project.file("src/nativeInterop/cinterop"))
-        }
-        compilations.configureEach {
-            if (name.contains("benchmark", ignoreCase = true)) {
-                cinterops.create("benchOpenBlasBenchmark") {
-                    definitionFile.set(project.file("src/nativeInterop/cinterop/benchOpenBlas.def"))
-                    includeDirs(project.file("src/nativeInterop/cinterop"))
-                }
-            }
-        }
-    }
-    macosArm64()
+    linuxX64 { binaries.executable { entryPoint = "com.eignex.koblas.bench.main"; baseName = "koblas-bench" } }
+    macosArm64 { binaries.executable { entryPoint = "com.eignex.koblas.bench.main"; baseName = "koblas-bench" } }
     sourceSets {
-        commonMain.dependencies {
-            implementation(project(":koblas"))
-            implementation("org.jetbrains.kotlinx:kotlinx-benchmark-runtime:0.4.17")
-            implementation("org.jetbrains.kotlinx:kotlinx-serialization-core:1.11.0")
-        }
+        commonMain.dependencies { implementation(project(":koblas")) }
         commonTest.dependencies { implementation(kotlin("test")) }
-        jvmTest.dependencies { implementation(kotlin("test-junit")) }
     }
 }
 
-allOpen { annotation("org.openjdk.jmh.annotations.State") }
+private val sourceCommit = providers.exec {
+    commandLine("git", "rev-parse", "HEAD")
+    workingDir(rootProject.projectDir)
+}.standardOutput.asText.map { it.trim() }
+private val sourceDirty = providers.exec {
+    commandLine("git", "status", "--porcelain", "--untracked-files=normal")
+    workingDir(rootProject.projectDir)
+}.standardOutput.asText.map { if (it.isBlank()) "false" else "true" }
 
-private fun BenchmarkConfiguration.defaults() {
-    warmups = 3
-    iterations = 5
-    iterationTime = 500
-    iterationTimeUnit = "ms"
-    advanced("jvmForks", "1")
-}
+private fun benchmarkArguments(mode: String): List<String> = listOf(
+    "--mode=$mode",
+    "--operation=${providers.gradleProperty("bench.operation").orElse("all").get()}",
+    "--cases=${providers.gradleProperty("bench.cases").orElse("koblas-bench/cases.txt").get()}",
+    "--output=${providers.gradleProperty("bench.output").orElse("koblas-bench/build/benchmarks/$mode.csv").get()}",
+    "--warmups=${providers.gradleProperty("bench.warmups").orElse("3").get()}",
+    "--samples=${providers.gradleProperty("bench.samples").orElse("5").get()}",
+    "--target-ms=${providers.gradleProperty("bench.targetMs").orElse("100").get()}",
+    "--pass=${providers.gradleProperty("bench.pass").orElse("1").get()}",
+    "--source-commit=${sourceCommit.get()}",
+    "--dirty=${sourceDirty.get()}",
+)
 
-benchmark {
-    reportsDir = providers.gradleProperty("bench.reportsDir").orElse("reports/benchmarks").get()
-    benchsDescriptionDir = providers.gradleProperty("bench.descriptionsDir").orElse("benchsDescription").get()
-    targets {
-        register("jvm")
-        register("linuxX64")
-        register("macosArm64")
-    }
-    configurations {
-        fun BenchmarkConfiguration.hardwareDefaults(smoke: Boolean) {
-            warmups = 1
-            iterations = 1
-            iterationTime = if (smoke) 20 else 200
-            iterationTimeUnit = "ms"
-            advanced("jvmForks", "1")
-            advanced("jmhIgnoreLock", true)
+val jvmCompilation = (kotlin.targets.getByName("jvm") as KotlinJvmTarget).compilations.getByName("main")
+val benchmarkJavaLauncher = javaToolchains.launcherFor { languageVersion.set(JavaLanguageVersion.of(25)) }
 
-            val comparator = providers.gradleProperty("bench.hardwareComparator").orElse("built-in").get()
-            val denseArm = if (comparator == "built-in") "built-in" else comparator
-            val sparseArm = if (comparator == "onemkl") "onemkl" else "built-in"
-            val denseClasses = ".*\\.(?:Level2Benchmark|GemvShapeBenchmark|Level3Benchmark|SyrkBenchmark|Syr2kBenchmark|TrmmBenchmark|TrsmBenchmark)\\..*"
-            val allClasses = ".*\\.(?:Level2Benchmark|GemvShapeBenchmark|Level3Benchmark|SyrkBenchmark|Syr2kBenchmark|TrmmBenchmark|TrsmBenchmark|SparseLevel1ComparisonBenchmark|SparseProductHostBenchmark)\\..*"
-            when (comparator) {
-                "built-in" -> include(if (smoke) ".*\\.(?:Level3Benchmark\\.gemm|SparseProductHostBenchmark\\.preparedGemv)$" else allClasses)
-                "openblas" -> include(if (smoke) ".*\\.Level3Benchmark\\.gemm$" else denseClasses)
-                "onemkl" -> include(if (smoke) ".*\\.(?:Level3Benchmark\\.gemm|SparseProductHostBenchmark\\.preparedGemv)$" else allClasses)
-                else -> error("unknown hardware comparator: $comparator")
-            }
-            param("denseArm", denseArm)
-            param("sparseArm", sparseArm)
-            if (smoke) {
-                param("n", "32")
-                param("shape", "16x32")
-                param("rankShape", "8x5")
-                param("transpose", "false")
-                param("lower", "true")
-                param("variant", "right-lower-transposed")
-            } else {
-                param("n", "64", "257")
-                param("shape", "16x32", "129x31")
-                param("rankShape", "8x5", "129x257")
-                param("transpose", "false", "true")
-                param("lower", "true", "false")
-                param("variant", "right-lower-transposed", "left-upper-transposed")
-            }
-            param("len", "4096")
-            param("density", "0.01")
-            param("productShape", "regular")
-        }
-        register("hardware") { hardwareDefaults(smoke = false) }
-        register("hardwareSmoke") { hardwareDefaults(smoke = true) }
-        register("full") {
-            defaults()
-            include(".*")
-        }
-        register("selected") {
-            defaults()
-            val requestedInclude = providers.gradleProperty("bench.include").orNull?.takeIf { it.isNotBlank() }
-            include(if (requestedInclude != null) "\\.(?:$requestedInclude)$" else "(?!)")
-            gradle.startParameter.projectProperties
-                .filterKeys { it.startsWith("bench.param.") }
-                .forEach { (key, value) ->
-                    param(key.removePrefix("bench.param."), *value.split(',').map { it.trim() }.toTypedArray())
-                }
-        }
-    }
-}
-
-val checkBenchmarkCoverage = tasks.register<Exec>("checkBenchmarkCoverage") {
-    group = "verification"
-    description = "Validates the reviewed benchmark coverage manifest."
-    inputs.file("benchmark-coverage.tsv")
-    inputs.file("comparator-coverage.tsv")
-    inputs.file("public-numerical-api.tsv")
-    inputs.dir("src/commonMain")
-    inputs.dir("../koblas/src/commonMain")
-    outputs.file(layout.buildDirectory.file("checkBenchmarkCoverage/ok.txt"))
-    commandLine("python3", "tools/check-benchmark-coverage.py", "benchmark-coverage.tsv")
-    doLast { outputs.files.singleFile.apply { parentFile.mkdirs(); writeText("ok") } }
-}
-val testBenchmarkCoverageChecker = tasks.register<Exec>("testBenchmarkCoverageChecker") {
-    group = "verification"
-    description = "Tests the benchmark coverage checker."
-    inputs.file("tools/check-benchmark-coverage.py")
-    inputs.dir("tools/test")
-    environment("PYTHONDONTWRITEBYTECODE", "1")
-    commandLine("python3", "-m", "unittest", "discover", "-s", "tools/test")
-}
-val benchmarkJvmMetadata = tasks.register("benchmarkJvmMetadata") {
+fun registerJvmBenchmark(name: String, mode: String, vectorModule: Boolean) = tasks.register<JavaExec>(name) {
     group = "benchmark"
-    description = "Prints metadata for the Java launcher used by JVM benchmarks."
-    val launcher = javaToolchains.launcherFor { languageVersion.set(JavaLanguageVersion.of(25)) }
-    doLast {
-        val metadata = launcher.get().metadata
-        println("executable=${launcher.get().executablePath.asFile.absolutePath}")
-        println("version=${metadata.languageVersion}")
-        println("vendor=${metadata.vendor}")
-        println("runtime=${metadata.jvmVersion}")
-    }
+    description = "Runs the shared cases through exact $mode koblas kernels."
+    dependsOn(jvmCompilation.compileTaskProvider)
+    classpath(jvmCompilation.output.allOutputs, configurations.getByName("jvmRuntimeClasspath"))
+    mainClass.set("com.eignex.koblas.bench.RunnerKt")
+    javaLauncher.set(benchmarkJavaLauncher)
+    workingDir(rootProject.projectDir)
+    args(benchmarkArguments(mode))
+    jvmArgs("--enable-native-access=ALL-UNNAMED")
+    if (vectorModule) jvmArgs("--add-modules=jdk.incubator.vector")
 }
-val resolvedKonanHome = file(property("konanHome").toString())
-val resolvedKonanCompiler = resolvedKonanHome.resolve("bin/konanc").absolutePath
-val resolvedKonanDistribution = resolvedKonanHome.name
-val benchmarkNativeMetadata = tasks.register("benchmarkNativeMetadata") {
-    group = "benchmark"
-    description = "Prints the Gradle-resolved Kotlin/Native compiler used by benchmark targets."
-    notCompatibleWithConfigurationCache("Reads the Kotlin plugin's resolved Native compiler location")
-    dependsOn("downloadKotlinNativeDistribution")
-    doLast {
-        println("kind=Kotlin/Native")
-        println("executable=$resolvedKonanCompiler")
-        println("distribution=$resolvedKonanDistribution")
-        println("runtime=native executable")
-    }
-}
-tasks.named("check") { dependsOn(checkBenchmarkCoverage, testBenchmarkCoverageChecker) }
 
-tasks.withType<KotlinJvmCompile>().configureEach {
-    compilerOptions.freeCompilerArgs.add("-Xadd-modules=jdk.incubator.vector")
+registerJvmBenchmark("jvmCBenchmark", "jvm-c", vectorModule = false)
+registerJvmBenchmark("jvmSimdBenchmark", "jvm-simd", vectorModule = true)
+
+val hostTarget = when {
+    System.getProperty("os.name").startsWith("Linux") && System.getProperty("os.arch") == "amd64" -> "LinuxX64"
+    System.getProperty("os.name").startsWith("Mac") && System.getProperty("os.arch") == "aarch64" -> "MacosArm64"
+    else -> null
 }
+
+tasks.register<Exec>("nativeBenchmark") {
+    group = "benchmark"
+    description = "Runs the shared cases through the exact native koblas C engine."
+    require(hostTarget != null) { "native benchmarks are supported on Linux x86-64 and macOS arm64" }
+    dependsOn("linkReleaseExecutable$hostTarget")
+    val targetDir = hostTarget!!.replaceFirstChar(Char::lowercase)
+    commandLine(layout.buildDirectory.file("bin/$targetDir/releaseExecutable/koblas-bench.kexe").get().asFile.absolutePath)
+    workingDir(rootProject.projectDir)
+    args(benchmarkArguments("native"))
+}
+
 tasks.withType<Test>().configureEach {
     jvmArgs("--add-modules=jdk.incubator.vector", "--enable-native-access=ALL-UNNAMED")
-    if (project.findProperty("koblas.oneMklTests") == "true") {
-        systemProperty("koblas.oneMklTests", "true")
-    }
-}
-tasks.withType<JavaExec>().configureEach {
-    jvmArgs("--enable-native-access=ALL-UNNAMED")
-    if (project.findProperty("koblas.noSimd") != "true") {
-        jvmArgs("--add-modules=jdk.incubator.vector")
-    }
 }
