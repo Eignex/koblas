@@ -12,6 +12,15 @@ report was produced from a dirty worktree based on that commit; its complete sou
 the tree later committed as `1ce4fdcbed25a6a55593e5b12d625922793898f1`. The second candidate report was
 produced from that clean commit. No production source changed between the two candidate reports.
 
+PR review subsequently identified matrix-only exceptional-value cases where a single CSC column covered the
+whole backing array and therefore entered a reordered Level-1 C/SIMD reduction or FMA update. Native matrix
+updates also inherited the standalone Level-1 zero-alpha early return. Commit
+`bceff6d8bd66a18def3d929f80a9fafecc1c5ef9` separates those responsibilities: public sparse-vector operations
+retain their selected Level-1 implementations, while indexed matrix arithmetic uses the ordered, non-FMA,
+zero-evaluating scalar leaf on every platform. That semantic follow-up is not measured by this archive. The
+selected benchmark fixture has many nonempty CSC columns and did not enter the removed whole-storage matrix
+fast path, so no performance result is extrapolated from it and no replacement timing was required.
+
 The runs used Linux 6.17 x86-64 on a 12th Gen Intel Core i9-12900H with 20 online logical CPUs. Gradle 9.7.1
 used a Homebrew OpenJDK 22.0.2 launcher; JMH forked Eclipse Temurin 25.0.1+8-LTS from
 `/home/rasmus/.gradle/jdks/eclipse_adoptium-25-amd64-linux.2/bin/java`. Each benchmark used one thread, one
@@ -58,10 +67,11 @@ and JMH metadata.
 | TRSM | 12.216 / 11.844 | 9.877 / 9.725 | us/op |
 | TRSV | 3.430 / 6.418 | 1.732 / 1.862 | us/op |
 
-Every candidate score lies within or below the two-pass baseline range. The especially wide baseline spread for
+Every measured candidate score lies within or below the two-pass baseline range. The especially wide baseline spread for
 TRMM, TRSV, SYMM, and the Level-1 rows makes a speedup claim inappropriate. These data meet the Phase 4
-best-effort parity objective by ruling out an obvious structural regression at the selected call sites; they do
-not establish a new crossover or a performance improvement.
+best-effort parity objective for the measured extraction by ruling out an obvious structural regression at the
+selected call sites; they do not establish a new crossover, a performance improvement, or a timing result for
+the later semantic follow-up.
 
 The benchmark sources and runner plumbing were not changed. Allocation-sensitive evidence belongs to unit tests:
 the JVM allocation suite covers sparse Level-1 dot, transposed sparse GEMV, sparse SYMV, sparse GEMM/SYMM, and

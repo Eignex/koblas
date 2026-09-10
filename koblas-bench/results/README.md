@@ -6,12 +6,14 @@ They may contain machine and checkout details; inspect their metadata before sha
 ## Sparse slice and panel kernels
 
 `sparse-slice-panel-1ce4fdcb-jvm-20260910.tar.gz` retains two clean merged-base passes, one precisely attributed
-dirty candidate pass, and one clean candidate pass for sparse Level-1 dot/AXPY and selected GEMV, SYMV, GEMM,
+dirty candidate pass, and one clean implementation pass for sparse Level-1 dot/AXPY and selected GEMV, SYMV, GEMM,
 SYMM, TRMV, TRSV, TRMM, and TRSM call sites after the Phase 4 raw-slice and panel-leaf extraction. The built-in
 arm resolved to JVM SIMD on a shared Intel Core i9-12900H without affinity or reservation.
 
-Every candidate score is within or below the noisy two-pass baseline range. The evidence rules out an obvious
-structural regression at the selected call sites but does not establish a speedup or new crossover. Allocation
+Every measured candidate score is within or below the noisy two-pass baseline range. A later unmeasured review
+fix separates exceptional matrix arithmetic from reordered/FMA/zero-skipping Level-1 paths; the measured fixture
+did not enter those removed whole-storage matrix branches. The evidence rules out an obvious structural
+regression at the selected call sites but does not establish a speedup or new crossover. Allocation
 behavior is covered by the JVM unit-test suite rather than benchmark setup. Exact commits, dirty-state
 provenance, commands, runtime settings, raw-result limitations, and unmeasured platforms are in the adjacent
 notes.
