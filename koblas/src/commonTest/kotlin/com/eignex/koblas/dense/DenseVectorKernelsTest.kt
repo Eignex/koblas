@@ -210,9 +210,8 @@ class DenseVectorKernelsTest {
     }
 
     @Test
-    fun `the kernel backend reports the selected engine by name`() {
+    fun `the context exposes the selected vector kernels`() {
         assertEquals(PlatformVectorKernels.name, koblas.vectorKernels.name)
-        assertEquals(koblas.name, kernelBackend)
     }
 
     /**

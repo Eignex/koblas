@@ -142,10 +142,6 @@ public final class com/eignex/koblas/GivensKt {
 	public static final fun rotg (DD)Lcom/eignex/koblas/Givens;
 }
 
-public final class com/eignex/koblas/KernelBackendKt {
-	public static final fun getKernelBackend ()Ljava/lang/String;
-}
-
 public final class com/eignex/koblas/KoblasContext : com/eignex/koblas/dense/Blas, com/eignex/koblas/sparse/SparseBlas {
 	public fun addScaled (DLcom/eignex/koblas/SparseMatrix;ZLcom/eignex/koblas/SparseMatrix;)Lcom/eignex/koblas/SparseMatrix;
 	public fun gemm (DLcom/eignex/koblas/DenseMatrix;ZLcom/eignex/koblas/DenseMatrix;ZDLcom/eignex/koblas/DenseMatrix;Lcom/eignex/koblas/Workspace;)V
@@ -299,7 +295,6 @@ public final class com/eignex/koblas/OperatorsKt {
 
 public final class com/eignex/koblas/RegistryKt {
 	public static final fun getKoblas ()Lcom/eignex/koblas/KoblasContext;
-	public static final fun getKoblasInfo ()Ljava/lang/String;
 }
 
 public final class com/eignex/koblas/ScratchRequirement {

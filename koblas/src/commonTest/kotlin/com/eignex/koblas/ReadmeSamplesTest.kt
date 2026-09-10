@@ -22,9 +22,4 @@ class ReadmeSamplesTest {
             "README triplet sample should match the column one",
         )
     }
-
-    @Test
-    fun `koblasInfo has the shape the sample shows`() {
-        assertEquals("engine=${koblas.name}", koblasInfo)
-    }
 }
