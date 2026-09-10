@@ -7,7 +7,7 @@ import com.eignex.koblas.SparseVector
 import kotlin.random.Random
 import kotlin.test.*
 
-class LinearAlgebraSymmetricOpsTest {
+class SymmetricBlasTest {
 
     /**
      * The same check as the sibling above, at sizes that reach the blocked path.

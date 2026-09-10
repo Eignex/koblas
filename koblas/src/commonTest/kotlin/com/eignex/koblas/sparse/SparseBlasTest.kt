@@ -40,16 +40,16 @@ class SparseBlasTest {
         for (lower in booleanArrayOf(false, true)) {
             val a = selected(lower)
             val y = DoubleArray(3)
-            ReferenceSparseLinearAlgebra.symv(1.0, a, x, 0.0, y, lower)
+            ReferenceSparseBlas.symv(1.0, a, x, 0.0, y, lower)
             assertContentEquals(expectedVector, y)
 
             val b = DenseMatrix.wrap(3, 2, doubleArrayOf(2.0, -3.0, 5.0, 11.0, 13.0, 17.0))
             val left = DenseMatrix.zero(3, 2)
-            ReferenceSparseLinearAlgebra.symm(1.0, a, b, 0.0, left, lower)
+            ReferenceSparseBlas.symm(1.0, a, b, 0.0, left, lower)
             assertContentEquals(expectedVector, left.data.copyOfRange(0, 3))
             val rightInput = DenseMatrix.wrap(2, 3, doubleArrayOf(2.0, 11.0, -3.0, 13.0, 5.0, 17.0))
             val right = DenseMatrix.zero(2, 3)
-            ReferenceSparseLinearAlgebra.symm(1.0, a, rightInput, 0.0, right, lower, right = true)
+            ReferenceSparseBlas.symm(1.0, a, rightInput, 0.0, right, lower, right = true)
             for (j in 0 until 3) for (i in 0 until 2) assertEquals(left[j, i], right[i, j])
         }
     }
@@ -58,19 +58,19 @@ class SparseBlasTest {
     fun `symmetric products stage aliases and honor scalar no reads`() {
         val a = SparseMatrix.wrap(2, 2, intArrayOf(0, 1, 2), intArrayOf(0, 1), doubleArrayOf(2.0, 5.0))
         val shared = a.values
-        ReferenceSparseLinearAlgebra.symv(1.0, a, shared, 0.0, shared, lower = true)
+        ReferenceSparseBlas.symv(1.0, a, shared, 0.0, shared, lower = true)
         assertContentEquals(doubleArrayOf(4.0, 25.0), shared)
 
         val poisoned = SparseMatrix.wrap(1, 1, intArrayOf(0, 1), intArrayOf(0), doubleArrayOf(Double.NaN))
         val y = doubleArrayOf(Double.NaN)
-        ReferenceSparseLinearAlgebra.symv(0.0, poisoned, doubleArrayOf(Double.NaN), 0.0, y)
+        ReferenceSparseBlas.symv(0.0, poisoned, doubleArrayOf(Double.NaN), 0.0, y)
         assertEquals(0.0, y[0])
 
         val allShared = doubleArrayOf(2.0, 3.0, 7.0, 5.0)
         val sharedA = SparseMatrix.wrap(2, 2, intArrayOf(0, 2, 4), intArrayOf(0, 1, 0, 1), allShared)
         val sharedB = DenseMatrix.wrap(2, 2, allShared)
         val sharedC = DenseMatrix.wrap(2, 2, allShared)
-        ReferenceSparseLinearAlgebra.symm(
+        ReferenceSparseBlas.symm(
             1.0,
             sharedA,
             sharedB,
@@ -87,7 +87,7 @@ class SparseBlasTest {
         val a = SparseMatrix.ofColumns(2, 3, listOf(listOf(0 to 1.0), listOf(1 to 2.0), listOf(0 to 0.0)))
         val b = SparseMatrix.ofColumns(2, 3, listOf(listOf(0 to 4.0), listOf(1 to 5.0), listOf(0 to -4.0, 1 to 6.0)))
 
-        val actual = ReferenceSparseLinearAlgebra.gemm(-2.0, a, true, b, false)
+        val actual = ReferenceSparseBlas.gemm(-2.0, a, true, b, false)
 
         assertEquals(3, actual.rows)
         assertEquals(3, actual.cols)
@@ -95,7 +95,7 @@ class SparseBlasTest {
         assertContentEquals(intArrayOf(0, 2, 1, 0, 1, 2), actual.copyRowIndices())
         assertContentEquals(doubleArrayOf(-8.0, -0.0, -20.0, 8.0, -24.0, 0.0), actual.values)
 
-        val zero = ReferenceSparseLinearAlgebra.gemm(-0.0, a, true, b, false)
+        val zero = ReferenceSparseBlas.gemm(-0.0, a, true, b, false)
         assertContentEquals(actual.copyColumnPointers(), zero.copyColumnPointers())
         assertContentEquals(actual.copyRowIndices(), zero.copyRowIndices())
         assertTrue(zero.values.all { it.toBits() == (-0.0).toBits() })
@@ -105,10 +105,10 @@ class SparseBlasTest {
     fun `direct dense sparse product handles every transpose and aliases`() {
         val a = SparseMatrix.ofColumns(2, 3, listOf(listOf(0 to 1.0), listOf(1 to 2.0), listOf(0 to 3.0)))
         val b = SparseMatrix.ofColumns(2, 3, listOf(listOf(0 to 4.0), listOf(1 to 5.0), listOf(0 to 6.0, 1 to 7.0)))
-        val expectedSparse = ReferenceSparseLinearAlgebra.gemm(1.5, a, true, b, false)
+        val expectedSparse = ReferenceSparseBlas.gemm(1.5, a, true, b, false)
         val c = DenseMatrix.wrap(3, 3, DoubleArray(9) { 2.0 })
 
-        ReferenceSparseLinearAlgebra.gemm(1.5, a, true, b, false, -0.5, c, Workspace())
+        ReferenceSparseBlas.gemm(1.5, a, true, b, false, -0.5, c, Workspace())
 
         for (j in 0 until 3) for (i in 0 until 3) assertEquals(expectedSparse[i, j] - 1.0, c[i, j])
 
@@ -116,7 +116,7 @@ class SparseBlasTest {
         val aliasedA = SparseMatrix.wrap(2, 2, intArrayOf(0, 2, 4), intArrayOf(0, 1, 0, 1), aliasedValues)
         val identity = SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 1.0), listOf(1 to 1.0)))
         val aliasedC = DenseMatrix.wrap(2, 2, aliasedValues)
-        ReferenceSparseLinearAlgebra.gemm(1.0, aliasedA, false, identity, false, 0.0, aliasedC, Workspace())
+        ReferenceSparseBlas.gemm(1.0, aliasedA, false, identity, false, 0.0, aliasedC, Workspace())
         assertContentEquals(doubleArrayOf(2.0, 3.0, 5.0, 7.0), aliasedC.data)
     }
 
@@ -125,10 +125,10 @@ class SparseBlasTest {
         val a = SparseMatrix.ofColumns(3, 2, listOf(listOf(0 to 1.0, 2 to 2.0), listOf(1 to 3.0, 2 to -1.0)))
         for (transpose in booleanArrayOf(false, true)) {
             for (lower in booleanArrayOf(false, true)) {
-                val sparse = ReferenceSparseLinearAlgebra.syrk(a, transpose, lower)
+                val sparse = ReferenceSparseBlas.syrk(a, transpose, lower)
                 val n = if (transpose) a.cols else a.rows
                 val dense = DenseMatrix.wrap(n, n, DoubleArray(n * n) { Double.NaN })
-                ReferenceSparseLinearAlgebra.syrk(1.0, a, transpose, 0.0, dense, lower, Workspace())
+                ReferenceSparseBlas.syrk(1.0, a, transpose, 0.0, dense, lower, Workspace())
                 for (j in 0 until n) {
                     for (i in 0 until n) {
                         if (if (lower) i >= j else i <= j) {
@@ -146,11 +146,11 @@ class SparseBlasTest {
             1,
             listOf(listOf(0 to Double.POSITIVE_INFINITY, 1 to 0.0)),
         )
-        val exceptionalResult = ReferenceSparseLinearAlgebra.syrk(exceptional)
+        val exceptionalResult = ReferenceSparseBlas.syrk(exceptional)
         assertTrue(exceptionalResult[1, 0].isNaN())
         val implicit = SparseMatrix.ofColumns(2, 1, listOf(listOf(0 to Double.POSITIVE_INFINITY)))
         val implicitDense = DenseMatrix.zero(2)
-        ReferenceSparseLinearAlgebra.syrk(1.0, implicit, false, 0.0, implicitDense)
+        ReferenceSparseBlas.syrk(1.0, implicit, false, 0.0, implicitDense)
         assertEquals(0.0, implicitDense[1, 0], "implicit sparse zero must not form zero times infinity")
     }
 
@@ -160,7 +160,7 @@ class SparseBlasTest {
         val diagonal = SparseMatrix.ofColumns(n, n, List(n) { j -> listOf(j to (j % 7 + 1.0)) })
 
         for (transpose in booleanArrayOf(false, true)) {
-            val result = ReferenceSparseLinearAlgebra.syrk(diagonal, transpose)
+            val result = ReferenceSparseBlas.syrk(diagonal, transpose)
             assertEquals(n, result.nnz)
             assertContentEquals(IntArray(n) { it }, result.copyRowIndices())
             for (j in 0 until n) assertEquals((j % 7 + 1.0) * (j % 7 + 1.0), result.values[j])
@@ -179,14 +179,14 @@ class SparseBlasTest {
         val a = SparseMatrix.ofColumns(257, 193, columns)
 
         for (lower in booleanArrayOf(false, true)) {
-            val ordinary = ReferenceSparseLinearAlgebra.syrk(a, transpose = false, lower)
+            val ordinary = ReferenceSparseBlas.syrk(a, transpose = false, lower)
             assertEquals(4, ordinary.nnz)
             assertEquals(4.0, ordinary[0, 0])
             assertEquals(16.0, ordinary[128, 128])
             assertEquals(9.0, ordinary[256, 256])
             assertEquals(-6.0, if (lower) ordinary[256, 0] else ordinary[0, 256])
 
-            val transposed = ReferenceSparseLinearAlgebra.syrk(a, transpose = true, lower)
+            val transposed = ReferenceSparseBlas.syrk(a, transpose = true, lower)
             assertEquals(2, transposed.nnz)
             assertEquals(13.0, transposed[2, 2])
             assertEquals(16.0, transposed[191, 191])
@@ -197,18 +197,18 @@ class SparseBlasTest {
     fun `empty products retain requested shapes and scalar behavior`() {
         val a = SparseMatrix.ofColumns(2, 0, emptyList())
         val b = SparseMatrix.ofColumns(0, 3, List(3) { emptyList() })
-        val sparse = ReferenceSparseLinearAlgebra.gemm(2.0, a, false, b, false)
+        val sparse = ReferenceSparseBlas.gemm(2.0, a, false, b, false)
         assertEquals(2, sparse.rows)
         assertEquals(3, sparse.cols)
         assertEquals(0, sparse.nnz)
 
         val dense = DenseMatrix.wrap(2, 3, DoubleArray(6) { 4.0 })
-        ReferenceSparseLinearAlgebra.gemm(0.0, a, false, b, false, -0.5, dense)
+        ReferenceSparseBlas.gemm(0.0, a, false, b, false, -0.5, dense)
         assertTrue(dense.data.all { it == -2.0 })
 
         val emptySymmetric = SparseMatrix.ofColumns(0, 0, emptyList())
-        ReferenceSparseLinearAlgebra.symv(1.0, emptySymmetric, DoubleArray(0), 0.0, DoubleArray(0))
-        ReferenceSparseLinearAlgebra.symm(
+        ReferenceSparseBlas.symv(1.0, emptySymmetric, DoubleArray(0), 0.0, DoubleArray(0))
+        ReferenceSparseBlas.symm(
             1.0,
             emptySymmetric,
             DenseMatrix.zero(0, 3),
@@ -231,7 +231,7 @@ class SparseBlasTest {
         assertContentEquals(doubleArrayOf(-3.0, -7.0, 6.0), difference.values)
 
         a.values.fill(Double.NaN)
-        val zero = ReferenceSparseLinearAlgebra.addScaled(-0.0, a, false, b)
+        val zero = ReferenceSparseBlas.addScaled(-0.0, a, false, b)
         assertContentEquals(intArrayOf(0, 2, 3), zero.copyColumnPointers())
         assertEquals(5.0, zero[0, 0])
         assertEquals(7.0, zero[1, 0])
@@ -239,7 +239,7 @@ class SparseBlasTest {
 
         val aOnly = SparseMatrix.ofColumns(1, 1, listOf(listOf(0 to Double.NaN)))
         val empty = SparseMatrix.ofColumns(1, 1, listOf(emptyList()))
-        val signedZero = ReferenceSparseLinearAlgebra.addScaled(-0.0, aOnly, false, empty)
+        val signedZero = ReferenceSparseBlas.addScaled(-0.0, aOnly, false, empty)
         assertEquals((-0.0).toBits(), signedZero.values.single().toBits())
     }
 }
