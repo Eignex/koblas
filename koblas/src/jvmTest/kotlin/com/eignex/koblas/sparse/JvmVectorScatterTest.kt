@@ -8,6 +8,7 @@ import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertTrue
 
 class JvmVectorScatterTest {
 
@@ -120,6 +121,17 @@ class JvmVectorScatterTest {
 
             assertClose(expected, actual, "axpy nnz=${x.values.size}")
         }
+    }
+
+    @Test
+    fun `indexed axpy rounds multiplication before addition`() {
+        Assume.assumeTrue("the Vector API module is unavailable", simdAvailable)
+        val count = 256
+        val destination = DoubleArray(count) { -1e308 }
+
+        SparseSimd.axpy(IntArray(count) { it }, 0, DoubleArray(count) { 1e308 }, 0, count, destination, 2.0)
+
+        assertTrue(destination.all { it == Double.POSITIVE_INFINITY })
     }
 
     private fun forEachPattern(block: (SparseVector, DoubleArray) -> Unit) {

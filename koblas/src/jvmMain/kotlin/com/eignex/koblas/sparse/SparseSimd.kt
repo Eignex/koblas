@@ -56,7 +56,8 @@ internal object SparseSimd {
         while (k < bound) {
             val old = DoubleVector.fromArray(SPECIES, y, 0, indices, indexOffset + k)
             val increment = DoubleVector.fromArray(SPECIES, values, valueOffset + k)
-            increment.fma(multiplier, old).intoArray(y, 0, indices, indexOffset + k)
+            // Sparse BLAS updates require the multiplication to round before the addition.
+            increment.mul(multiplier).add(old).intoArray(y, 0, indices, indexOffset + k)
             k += LANE
         }
         while (k < len) {
