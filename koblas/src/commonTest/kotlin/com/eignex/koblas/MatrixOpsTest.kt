@@ -66,10 +66,13 @@ class MatrixOpsTest {
             override fun get(i: Int, j: Int): Double = dense[i, j]
             override fun toArray(): Array<DoubleArray> = dense.toArray()
         }
-        val vectors = listOf(
+        val vectors = listOf<Pair<VectorLike, DoubleArray>>(
             DenseVector.of(doubleArrayOf(2.0, -1.0, 0.5)) to doubleArrayOf(3.0, 0.0, -10.0, 0.25),
             SparseVector.of(3, intArrayOf(0, 2), doubleArrayOf(2.0, 0.5)) to
                 doubleArrayOf(3.0, 0.0, -6.0, 0.75),
+            StridedVectorView(doubleArrayOf(2.0, 99.0, -1.0, 99.0, 0.5), 0, 3, 2) to
+                doubleArrayOf(3.0, 0.0, -10.0, 0.25),
+            ForeignRampVector(3) to doubleArrayOf(-1.0, 0.0, 1.0, -0.25),
         )
         for (A in listOf<MatrixLike>(dense, sparseMatrix, foreign)) {
             for ((x, expected) in vectors) {
