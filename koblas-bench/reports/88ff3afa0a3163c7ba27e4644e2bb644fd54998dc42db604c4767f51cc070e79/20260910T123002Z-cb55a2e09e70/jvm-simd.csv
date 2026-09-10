@@ -1,0 +1,4 @@
+schema,case,implementation,workload_version,fixture_version,pass,sample,operations,elapsed_ns,ns_per_op,unit,status,comparison_kind,timing_mode,source_commit,dirty,runtime,threads,warmups,target_ns
+3,gemm+32x21x48+uniform,jvm-simd/simd(4 lanes)/simd-sparse/packed-8x4,2,1,1,1,1,28387457,2.8387457E7,ns,ok,direct,reset-and-arithmetic,cb55a2e09e70c23dc6b694fcabb43eaf97dfe330,true,kotlin-2.4.10/jvm/Eclipse Adoptium/25.0.1/JMH 1.37/forks=1,1,0,1000000
+3,gemm+129x31x257+uniform+transA=T,jvm-simd/simd(4 lanes)/simd-sparse/packed-8x4,2,1,1,1,1,76239659,7.6239659E7,ns,ok,direct,reset-and-arithmetic,cb55a2e09e70c23dc6b694fcabb43eaf97dfe330,true,kotlin-2.4.10/jvm/Eclipse Adoptium/25.0.1/JMH 1.37/forks=1,1,0,1000000
+3,gemm+65x127x33+uniform+transB=T,jvm-simd/simd(4 lanes)/simd-sparse/packed-8x4,2,1,1,1,1,51515365,5.1515365E7,ns,ok,direct,reset-and-arithmetic,cb55a2e09e70c23dc6b694fcabb43eaf97dfe330,true,kotlin-2.4.10/jvm/Eclipse Adoptium/25.0.1/JMH 1.37/forks=1,1,0,1000000
