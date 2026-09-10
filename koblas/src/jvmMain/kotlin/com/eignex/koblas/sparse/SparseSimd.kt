@@ -12,7 +12,7 @@ internal object SparseSimd {
         get() = SPECIES.vectorBitSize() == 512 && System.getProperty("os.arch").orEmpty() in X86_ARCHITECTURES
 
     val autoIndexedLoadEligible: Boolean
-        get() = autoScatterEligible
+        get() = LANE > 1
 
     @Suppress("LongParameterList")
     fun dot(

@@ -5,11 +5,12 @@ import com.eignex.koblas.sparse.internal.SparseAccumulationKernels
 /**
  * Stateless, allocation-free sparse arithmetic over caller-owned array slices.
  *
- * The caller owns every buffer and retains it between calls. Input indices and touched indices must be unique
- * within their supplied slices. That uniqueness, and agreement between an active mark and the touched slice, are
- * caller preconditions: checking either without temporary storage would require quadratic work or a full-dimension
- * scan. Bounds, windows, capacities, overlap, and scatter's incoming indices are validated before any destination
- * is mutated. The existing touched slice is trusted and is never scanned by scatter. Roles without two explicit
+ * The caller owns every buffer and retains it between calls. Scatter input indices and touched indices used by
+ * gather or clear operations must be unique within their supplied slices; reductions explicitly permit repeated
+ * indices. Required uniqueness, and agreement between an active mark and the touched slice, are caller
+ * preconditions: checking either without temporary storage would require quadratic work or a full-dimension scan.
+ * Bounds, windows, capacities, overlap, and scatter's incoming indices are validated before any destination is
+ * mutated. The existing touched slice is trusted and is never scanned by scatter. Roles without two explicit
  * comparable slices must use distinct arrays; explicit
  * `IntArray` slices may share an array only when their reserved windows do not overlap.
  *
