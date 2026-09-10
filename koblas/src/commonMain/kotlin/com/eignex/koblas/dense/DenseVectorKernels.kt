@@ -86,7 +86,7 @@ public interface DenseVectorKernels {
 }
 
 /** Pure Kotlin scalar kernels retained as the portable fallback and semantic reference for compiled leaves. */
-internal object ScalarKernels : DenseVectorKernels {
+internal object ScalarVectorKernels : DenseVectorKernels {
     override val name: String get() = "scalar"
 
     override fun dot(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int): Double =

@@ -8,12 +8,12 @@ import com.eignex.koblas.portableRotm
 import com.eignex.koblas.portableRotmg
 
 /** The bundled C kernels without automatic SIMD selection. */
-internal object CKernels : DenseVectorKernels {
+internal object CVectorKernels : DenseVectorKernels {
     /**
      * Run length from which crossing into the bundled library beats staying on the JVM, for the routines
      * that cross at all. What was measured, and why only reductions appear here, is on
      * [DenseTuning.jvmCDotCrossover]. Bound to fields of this object so the comparison each routine makes
-     * does not reach through the tuning object on every call. [SimdKernels] gates on vector width
+     * does not reach through the tuning object on every call. [SimdVectorKernels] gates on vector width
      * instead, because its cost is a vector rather than a foreign call.
      */
     private val DOT_C_CROSSOVER = DenseTuning.jvmCDotCrossover

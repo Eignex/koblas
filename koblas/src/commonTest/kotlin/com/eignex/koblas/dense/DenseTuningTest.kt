@@ -48,13 +48,13 @@ class DenseTuningTest {
     fun `the triangular block still fits the mask that indexes it`() {
         requireTriangularBlockFitsMask()
 
-        assertEquals(REFERENCE_TRIANGULAR_BLOCK, DenseTuning.triangularBlock)
+        assertEquals(TRIANGULAR_BLOCK, DenseTuning.triangularBlock)
     }
 
     @Test
     fun `the routines read the values the collection resolved`() {
-        assertEquals(DenseTuning.level3BlockRows, REFERENCE_MC)
-        assertEquals(DenseTuning.level3BlockColumns, REFERENCE_NC)
-        assertEquals(DenseTuning.level3BlockDepth, REFERENCE_KC)
+        assertEquals(DenseTuning.level3BlockRows, LEVEL3_BLOCK_ROWS)
+        assertEquals(DenseTuning.level3BlockColumns, LEVEL3_BLOCK_COLUMNS)
+        assertEquals(DenseTuning.level3BlockDepth, LEVEL3_BLOCK_DEPTH)
     }
 }

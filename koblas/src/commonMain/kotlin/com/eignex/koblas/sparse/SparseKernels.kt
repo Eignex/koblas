@@ -1,7 +1,9 @@
 package com.eignex.koblas.sparse
 
 import com.eignex.koblas.SparseVector
+import com.eignex.koblas.dense.DenseVectorKernels
 import com.eignex.koblas.internal.numeric.euclideanNorm
+import com.eignex.koblas.requireShape
 
 /** Sparse vector-vector kernel contract. */
 public interface SparseKernels {
@@ -45,4 +47,45 @@ public interface SparseKernels {
 
     /** `Sum |x_i|` over the stored entries. */
     public fun asum(x: SparseVector): Double
+}
+
+internal class SparseKernelAdapter(
+    override val name: String,
+    private val denseVectorKernels: DenseVectorKernels,
+    private val indexedSparseKernels: IndexedSparseKernels,
+) : SparseKernels {
+    override fun dot(x: SparseVector, y: DoubleArray): Double {
+        requireShape(x.size == y.size) { "dot: sizes differ, ${x.size} vs ${y.size}" }
+        return indexedSparseKernels.dotDense(x.indices, x.values, y)
+    }
+
+    override fun dot(x: SparseVector, y: SparseVector): Double {
+        requireShape(x.size == y.size) { "dot: sizes differ, ${x.size} vs ${y.size}" }
+        return indexedSparseKernels.dotSparse(x.indices, x.values, y.indices, y.values)
+    }
+
+    override fun axpy(y: DoubleArray, alpha: Double, x: SparseVector) {
+        requireShape(x.size == y.size) { "axpy: sizes differ, ${x.size} vs ${y.size}" }
+        if (alpha == 0.0) return
+        indexedSparseKernels.axpy(x.indices, x.values, alpha, y)
+    }
+
+    override fun scatter(x: SparseVector, out: DoubleArray) {
+        requireShape(x.size == out.size) { "scatter: sizes differ, ${x.size} vs ${out.size}" }
+        indexedSparseKernels.scatter(x.indices, x.values, out)
+    }
+
+    override fun gather(x: SparseVector, from: DoubleArray) {
+        requireShape(x.size == from.size) { "gather: sizes differ, ${x.size} vs ${from.size}" }
+        indexedSparseKernels.gather(x.indices, x.values, from)
+    }
+
+    override fun gatherZero(x: SparseVector, from: DoubleArray) {
+        requireShape(x.size == from.size) { "gatherZero: sizes differ, ${x.size} vs ${from.size}" }
+        indexedSparseKernels.gatherZero(x.indices, x.values, from)
+    }
+
+    override fun nrm2(x: SparseVector): Double = denseVectorKernels.nrm2(x.values, 0, x.values.size)
+
+    override fun asum(x: SparseVector): Double = denseVectorKernels.asum(x.values, 0, x.values.size)
 }

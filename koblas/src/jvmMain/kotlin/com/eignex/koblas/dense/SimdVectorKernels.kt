@@ -16,7 +16,7 @@ internal val simdAvailable: Boolean = try {
 }
 
 /** The JVM Vector API kernels without automatic C selection. */
-internal object SimdKernels : DenseVectorKernels {
+internal object SimdVectorKernels : DenseVectorKernels {
     private val lanes: Int = if (simdAvailable) SimdOps.lanes() else 0
 
     override val name: String get() = "simd($lanes lanes)"

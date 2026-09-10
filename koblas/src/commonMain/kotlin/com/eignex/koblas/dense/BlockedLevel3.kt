@@ -5,31 +5,15 @@ import com.eignex.koblas.borrow
 import kotlin.math.min
 
 /*
- * Cache tiles for the portable level-3 routines: a block of the product is `MC` rows by `NC` columns and is
- * accumulated over `KC` of the shared dimension at a time. Why each has the value it has, and how to change
- * one without rebuilding, is on the entry in [DenseTuning]. They are bound to names here because that is
- * what the loops below read, and binding them once keeps the read off the block loops.
+ * Cache tiles for the portable level-3 routines: a block of the product covers a fixed number of rows and
+ * columns and is accumulated over a fixed depth of the shared dimension at a time. Why each has the value
+ * it has, and how to change one without rebuilding, is on the entry in [DenseTuning]. They are bound to
+ * names here because that is what the loops below read, and binding them once keeps the read off the block
+ * loops.
  */
-internal val REFERENCE_MC: Int = DenseTuning.level3BlockRows
-internal val REFERENCE_NC: Int = DenseTuning.level3BlockColumns
-internal val REFERENCE_KC: Int = DenseTuning.level3BlockDepth
-
-/** Diagonal block width for the blocked triangular routines, bounded by the mask that indexes it. */
-internal val REFERENCE_TRIANGULAR_BLOCK: Int = DenseTuning.triangularBlock
-
-/**
- * Fails when [REFERENCE_TRIANGULAR_BLOCK] outgrows the zero-pivot mask that indexes it.
- *
- * A wrapped shift would not throw or read out of bounds. It would quietly retain the products of one row
- * against the mask bit of another, which only shows up as a wrong answer on a matrix whose quotient
- * underflows, so the check has to be explicit rather than left to a test to notice.
- */
-internal fun requireTriangularBlockFitsMask() {
-    require(REFERENCE_TRIANGULAR_BLOCK <= Long.SIZE_BITS) {
-        "REFERENCE_TRIANGULAR_BLOCK is $REFERENCE_TRIANGULAR_BLOCK, above the ${Long.SIZE_BITS} rows a " +
-            "Long zero-pivot mask can index"
-    }
-}
+internal val LEVEL3_BLOCK_ROWS: Int = DenseTuning.level3BlockRows
+internal val LEVEL3_BLOCK_COLUMNS: Int = DenseTuning.level3BlockColumns
+internal val LEVEL3_BLOCK_DEPTH: Int = DenseTuning.level3BlockDepth
 
 /** Borrows a `[rows]x[cols]` buffer and packs it with the transpose of [src], for a caller that only ever
  *  wants the transposed layout on scratch. */
@@ -91,17 +75,17 @@ private inline fun blockedAxpyUpdate(
 ) {
     var column = 0
     while (column < n) {
-        val columnEnd = min(column + REFERENCE_NC, n)
+        val columnEnd = min(column + LEVEL3_BLOCK_COLUMNS, n)
         var inner = 0
         while (inner < depth) {
-            val innerEnd = min(inner + REFERENCE_KC, depth)
+            val innerEnd = min(inner + LEVEL3_BLOCK_DEPTH, depth)
             // The row block is outside the two operand loops, which is what makes it a block: everything
             // below it touches A's rows `row until row + length` and C's, and nothing else. With the row
             // loop innermost the live piece of C was the whole of `m x NC` however small the tile was, so
             // the tile bounded no working set and only chopped one axpy into several.
             var row = 0
             while (row < m) {
-                val length = min(row + REFERENCE_MC, m) - row
+                val length = min(row + LEVEL3_BLOCK_ROWS, m) - row
                 for (p in inner until innerEnd) {
                     val source = aOff + row + p * lda
                     for (j in column until columnEnd) {
@@ -145,19 +129,19 @@ internal fun blockedTransposedLeftUpdate(
 ) {
     var column = 0
     while (column < n) {
-        val columnEnd = min(column + REFERENCE_NC, n)
+        val columnEnd = min(column + LEVEL3_BLOCK_COLUMNS, n)
         var row = 0
         while (row < m) {
-            val rowEnd = min(row + REFERENCE_MC, m)
+            val rowEnd = min(row + LEVEL3_BLOCK_ROWS, m)
             // The row quad is the outer of the two, so the four A columns it reads stay in L1 while the
             // column block's B streams past them. With the columns outside instead, each of them re-read
-            // the whole row panel, which is REFERENCE_NC passes over it rather than one.
+            // the whole row panel, which is LEVEL3_BLOCK_COLUMNS passes over it rather than one.
             var i = row
             while (i + 4 <= rowEnd) {
                 for (j in column until columnEnd) {
                     var inner = 0
                     while (inner < depth) {
-                        val length = min(inner + REFERENCE_KC, depth) - inner
+                        val length = min(inner + LEVEL3_BLOCK_DEPTH, depth) - inner
                         dot4Writeback(
                             panelKernels, alpha, a, aOff + inner + i * lda, lda,
                             b, bOff + inner + j * ldb, length, c, cOff + i + j * ldc, sums,
@@ -171,7 +155,7 @@ internal fun blockedTransposedLeftUpdate(
                 for (j in column until columnEnd) {
                     var inner = 0
                     while (inner < depth) {
-                        val length = min(inner + REFERENCE_KC, depth) - inner
+                        val length = min(inner + LEVEL3_BLOCK_DEPTH, depth) - inner
                         dotWriteback(
                             vectorKernels, alpha, a, aOff + inner + i * lda,
                             b, bOff + inner + j * ldb, length, c, cOff + i + j * ldc,
