@@ -9,11 +9,7 @@ import java.lang.foreign.MemorySegment
 import java.lang.foreign.ValueLayout.*
 import java.lang.invoke.MethodHandle
 
-/**
- * The bridge koblas builds over HiGHS's HFactor. Indices are 32-bit throughout, which is what HighsInt is
- * unless HiGHS is built for 64, so koblas's own CSC arrays and the vectors a solve carries cross without a
- * widening copy.
- */
+// HFactor uses 32-bit indices by default, matching koblas's CSC arrays and avoiding a widening copy.
 internal class HfactorCalls(private val config: HfactorConfig) {
     private val library: HfactorLibrary by lazy {
         HfactorLibrary.open(
@@ -33,10 +29,7 @@ internal class HfactorCalls(private val config: HfactorConfig) {
         val updateCount: MethodHandle,
         val fill: MethodHandle,
         val pivotRange: MethodHandle,
-        /*
-         * Optional, so a deployment pointing at a shim built before these existed keeps its factorization
-         * and simply reports no diagnostics, rather than losing the binding to a missing symbol.
-         */
+        // Optional diagnostics symbols do not prevent factorization.
         val buildRepairing: MethodHandle?,
         val snapshot: MethodHandle?,
         val restore: MethodHandle?,
@@ -45,10 +38,8 @@ internal class HfactorCalls(private val config: HfactorConfig) {
         val kernel: MethodHandle?,
     )
 
-    /** Whether the library resolved and exports every entry point this binding calls. */
     val available: Boolean get() = handles != null
 
-    /** Why loading or binding failed, or null while the implementation is available. */
     val unavailableReason: String?
         get() {
             if (!library.present) return library.unavailableReason
@@ -120,7 +111,6 @@ internal class HfactorCalls(private val config: HfactorConfig) {
         handlesOrThrow().free.invokeExact(handle) as Unit
     }
 
-    /** Factorizes the basis of [basicIndex], answering 0 or the rank deficiency HFactor found. */
     fun build(handle: MemorySegment, basicIndex: IntArray): Int =
         handlesOrThrow().build.invokeExact(handle, MemorySegment.ofArray(basicIndex)) as Int
 
@@ -148,7 +138,6 @@ internal class HfactorCalls(private val config: HfactorConfig) {
         ) as Int
     }
 
-    /** One Forrest-Tomlin update; see [HfactorUpdate] for what it answers. */
     fun update(handle: MemorySegment, pivotRow: Int, entering: Int, reuseSpike: Boolean, reusePivotEta: Boolean): Int =
         handlesOrThrow().update.invokeExact(
             handle,
@@ -160,7 +149,6 @@ internal class HfactorCalls(private val config: HfactorConfig) {
 
     fun updateCount(handle: MemorySegment): Int = handlesOrThrow().updateCount.invokeExact(handle) as Int
 
-    /** The fill the bridge tracks, which reads a counter and so is fit to be read every iteration. */
     fun fill(handle: MemorySegment): Int = handlesOrThrow().fill.invokeExact(handle) as Int
 
     /**
@@ -179,14 +167,12 @@ internal class HfactorCalls(private val config: HfactorConfig) {
         }
     }
 
-    /** The current factorization set aside, or null where the shim cannot or the allocation failed. */
     fun snapshot(handle: MemorySegment): MemorySegment? {
         val taker = handlesOrThrow().snapshot ?: return null
         val taken = taker.invokeExact(handle) as MemorySegment
         return if (taken.address() == 0L) null else taken
     }
 
-    /** Whether [snapshot] went back; false where the shim cannot or it does not fit this handle. */
     fun restore(handle: MemorySegment, snapshot: MemorySegment): Boolean {
         val restorer = handlesOrThrow().restore ?: return false
         return restorer.invokeExact(handle, snapshot) as Int == 0
@@ -196,11 +182,9 @@ internal class HfactorCalls(private val config: HfactorConfig) {
         handlesOrThrow().snapshotFree?.invokeExact(snapshot)
     }
 
-    /** Which rule advised the last rebuild: 0 none, 1 the factorization's own, 2 the synthetic clock. */
     fun refactorizeReason(handle: MemorySegment): Int =
         handlesOrThrow().refactorizeReason?.let { it.invokeExact(handle) as Int } ?: 0
 
-    /** The kernel's dimension and stored entries into [out], or false where the shim does not report them. */
     fun kernel(handle: MemorySegment, out: IntArray): Boolean {
         val reader = handlesOrThrow().kernel ?: return false
         Arena.ofConfined().use { arena ->

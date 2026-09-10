@@ -17,7 +17,6 @@ import kotlin.test.*
 class BundledHfactorTest {
     private val backend = BundledHfactor()
 
-    /** `[S | I]`, the shape a simplex hands over: structural columns and then the logical ones. */
     private fun simplexMatrix(n: Int, rng: Random): SparseMatrix {
         val columns = ArrayList<List<Pair<Int, Double>>>(2 * n)
         for (j in 0 until n) {
@@ -78,7 +77,6 @@ class BundledHfactorTest {
         }
     }
 
-    /** The same vector by value and a different one by identity, which is all a reuse check goes on. */
     private fun handedOver(v: IndexedVector): IndexedVector {
         val copy = IndexedVector(v.size)
         copy.scatter(v.toDoubleArray())
@@ -256,7 +254,6 @@ class BundledHfactorTest {
         assertEquals(4, solver.updateCount)
     }
 
-    /** Fill is tracked rather than read back from the factors, so what it counts is worth pinning. */
     @Test
     fun `the fill it reports grows with the chain`() {
         val rng = Random(20260916)
@@ -271,7 +268,6 @@ class BundledHfactorTest {
         assertTrue(solver.nnz > factored, "an update adds to the fill: $factored then ${solver.nnz}")
     }
 
-    /** A rebuild drops what the updates added, so the count starts again from the factors. */
     @Test
     fun `a rebuild reports the fill of the factors alone`() {
         val rng = Random(20260917)
@@ -287,7 +283,6 @@ class BundledHfactorTest {
         assertEquals(factored, solver.nnz)
     }
 
-    /** Rows spanning many binary exponents, which is the shape equilibration exists for. */
     private fun badlyScaled(n: Int, rng: Random): SparseMatrix {
         val columns = List(n) { j ->
             val entries = ArrayList<Pair<Int, Double>>()
@@ -363,7 +358,6 @@ class BundledHfactorTest {
         assertTrue(structural.entries >= structural.dimension, "the kernel stores at least its diagonal")
     }
 
-    /** The advisory is one answer reached two ways, and a caller pacing rebuilds wants to know which. */
     @Test
     fun `no rebuild advice means no reason to report`() {
         val n = 8
@@ -379,7 +373,6 @@ class BundledHfactorTest {
         assertNull(solver.refactorizeReason, "an applied update advises nothing")
     }
 
-    /** A rebuild clears what the previous factors said about themselves. */
     @Test
     fun `a rebuild forgets the previous advice`() {
         val n = 8
@@ -392,11 +385,6 @@ class BundledHfactorTest {
         assertNotNull(solver.kernel)
     }
 
-    /**
-     * The basis of a duplicated column is rank deficient. [BasisSolver.refactorize] refuses it to match
-     * the portable solver; the repairing rebuild keeps what HFactor made of it, which is what saves a warm
-     * start from becoming a cold one.
-     */
     @Test
     fun `a rank deficient basis is repaired rather than refused`() {
         val n = 3
@@ -422,7 +410,6 @@ class BundledHfactorTest {
         }
     }
 
-    /** A repaired basis still solves, and the residual check reads its unit columns rather than A's. */
     @Test
     fun `a repaired basis solves against what it actually holds`() {
         val n = 3
@@ -441,7 +428,6 @@ class BundledHfactorTest {
         )
     }
 
-    /** A basis that needs no repair comes back as the one it was given, in the order it was given. */
     @Test
     fun `a sound basis is returned unrepaired`() {
         val n = 8
@@ -484,7 +470,6 @@ class BundledHfactorTest {
         held.close()
     }
 
-    /** A snapshot belongs to the solver that took it, and one from elsewhere is refused rather than adopted. */
     @Test
     fun `a snapshot from another solver is refused`() {
         val n = 8
@@ -500,7 +485,6 @@ class BundledHfactorTest {
         held.close()
     }
 
-    /** Closing a snapshot releases it, and restoring a released one is refused rather than reaching freed memory. */
     @Test
     fun `a closed snapshot is refused`() {
         val n = 6
@@ -515,7 +499,6 @@ class BundledHfactorTest {
         assertFalse(solver.restore(held))
     }
 
-    /** Closing the solver releases the snapshots a caller left behind, so a dropped node leaks nothing. */
     @Test
     fun `closing the solver releases the snapshots it still owns`() {
         val n = 6
@@ -554,7 +537,6 @@ class BundledHfactorTest {
         )
     }
 
-    /** A caller reaching this library by name gets its own routines only if the two share a type. */
     @Test
     fun `the bundled HFactor is the binding rather than a wrapper around it`() {
         assertIs<HfactorSparseLu>(BundledHfactor(), "the bundled providers all answer as the type their binding is")

@@ -4,9 +4,6 @@
 
 package com.eignex.koblas
 
-// Part of the MatrixOpsKt facade. Splitting the file would otherwise rename the class JVM callers
-// compiled against, so the four parts are joined back into one rather than becoming four.
-
 import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.SparseMatrix
 

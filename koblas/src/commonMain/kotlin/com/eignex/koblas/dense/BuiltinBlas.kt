@@ -209,9 +209,7 @@ internal class BuiltinBlas(private val kernelFamilies: DenseKernelFamilies) : Bl
             blockedSyrkUpdate(panelKernels, alpha, ad, cd, n, k, lower)
             return
         }
-        // The old transposed traversal did not skip zero multipliers, but it scaled the output column's
-        // coefficient rather than the other factor. Retain that order when packing would overflow a finite
-        // value; actual non-finite inputs continue through the packed path and keep zero-times-infinity NaNs.
+        // This evaluation order preserves exceptional arithmetic when scaling would overflow.
         if (transpose && scalingOverflows) {
             workspace.borrowTransposed(ad, lda, n) { packed ->
                 blockedSyrkUpdate(panelKernels, alpha, packed, cd, n, k, lower, guardZeroColumns = false)
@@ -368,10 +366,7 @@ internal class BuiltinBlas(private val kernelFamilies: DenseKernelFamilies) : Bl
         workspace: Workspace?,
     ) {
         scaleTriangle(vectorKernels, cd, n, beta, lower)
-        // The retained traversal scales the output-column coefficient of each cross-product and skips only
-        // when both raw coefficients are zero. Moving alpha to the packed row factor changes exceptional
-        // arithmetic, so preserve the old evaluation order whenever a value is non-finite or scaling a
-        // finite value would overflow.
+        // Packed factors change exceptional arithmetic when values are non-finite or scaling overflows.
         val exceptional = packedSyr2kChangesExceptionalArithmetic(alpha, ad, bd, beta, cd, n, k, lower)
         if (exceptional) {
             if (!transpose) {
@@ -417,9 +412,7 @@ internal class BuiltinBlas(private val kernelFamilies: DenseKernelFamilies) : Bl
 
         val maxC = if (beta == 0.0) 0.0 else finiteTriangleMaxAbs(c, n, lower) ?: return true
 
-        // Each packed call accumulates one cross-product before the other is added. An absolute bound on
-        // both products plus the scaled destination keeps every packed intermediate finite; otherwise the
-        // retained loop must interleave them rank by rank so opposite infinities do not manufacture NaN.
+        // The bound keeps packed intermediates finite; otherwise interleaving avoids spurious NaN.
         val productLimit = (Double.MAX_VALUE - maxC) / (2.0 * k)
         return productExceedsBound(productLimit, kotlin.math.abs(alpha), maxA, maxB)
     }
