@@ -1,0 +1,12 @@
+# Fast reference preflight; every line must also occur verbatim in cases.txt.
+dot+4096+uniform
+gemv+32x21+uniform
+gemm+32x21x48+uniform
+trsm+64x16+triangular+side=L+uplo=L+transA=N+diag=N
+gemm-tile+4x4x32+uniform+physical=4x4
+gemm-tile+8x4x32+uniform+physical=8x4
+spdot+4096+sparse-uniform+density=0.01
+spgemv+257x129+sparse-uniform+density=0.01+mode=prepared
+spgemv+257x129+sparse-uniform+density=0.01+mode=oneshot
+spmm+257x8x129+sparse-uniform+density=0.01+mode=prepared
+spsymm+129x8+sparse-triangular+density=0.02+mode=oneshot+side=L+uplo=L

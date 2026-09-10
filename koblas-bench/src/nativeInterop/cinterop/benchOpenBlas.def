@@ -1,3 +1,0 @@
-package = com.eignex.koblas.bench.openblas
-headers = bench_openblas.h
-linkerOpts.linux = -ldl

@@ -1,0 +1,166 @@
+@file:OptIn(com.eignex.koblas.ExperimentalKoblasApi::class)
+
+package com.eignex.koblas.bench
+
+import com.eignex.koblas.KoblasContext
+import kotlin.math.max
+import kotlin.time.TimeSource
+
+internal expect fun readTextFile(path: String): String
+internal expect fun writeTextFile(path: String, text: String)
+internal expect fun resolveEngine(mode: String): Pair<KoblasContext, String>
+internal expect fun runtimeIdentity(): String
+internal expect fun environment(name: String): String?
+private val clockOrigin = TimeSource.Monotonic.markNow()
+internal fun nanoTime(): Long = clockOrigin.elapsedNow().inWholeNanoseconds
+
+internal data class Settings(
+    val mode: String,
+    val operation: String,
+    val casesPath: String,
+    val outputPath: String,
+    val warmups: Int,
+    val samples: Int,
+    val targetNanos: Long,
+    val forks: Int,
+    val pass: String,
+    val sourceCommit: String,
+    val dirty: String,
+)
+
+public fun main(args: Array<String>) {
+    val settings = parseArguments(args)
+    require(settings.mode == "native") { "JVM benchmarks must run through the JMH entry point" }
+    val allCases = Cases.parse(readTextFile(settings.casesPath))
+    val selected = if (settings.operation == "all") allCases else allCases.filter { it.operation == settings.operation }
+    require(selected.isNotEmpty()) { "operation '${settings.operation}' selected no cases" }
+    val (engine, implementation) = resolveEngine(settings.mode)
+    val rows = ArrayList<String>()
+    rows += CSV_HEADER
+    var sink = 0.0
+    for (case in selected) {
+        val work = denseWork(case, engine) ?: sparseWork(case, engine)
+        if (work == null) {
+            rows += csvRow(case, implementation, settings, 0, 0, 0L, "", "unsupported", "unsupported", case.option("mode", "arithmetic"))
+            continue
+        }
+        try {
+            val calibration = warmAndCalibrate(work, settings.targetNanos, settings.warmups)
+            sink += calibration.sink
+            val operations = calibration.operations
+            for (sample in 1..settings.samples) {
+                val start = nanoTime()
+                repeat(operations) { sink += work.run() }
+                val elapsed = max(1L, nanoTime() - start)
+                rows += csvRow(case, implementation, settings, sample, operations.toLong(), elapsed, formatDouble(elapsed.toDouble() / operations), "ok", work.comparisonKind, work.timingMode)
+            }
+        } catch (failure: Throwable) {
+            rows += csvRow(case, implementation, settings, 0, 0, 0L, "", "failed:${sanitize(failure.message ?: failure::class.simpleName ?: "error")}", work.comparisonKind, work.timingMode)
+            throw failure
+        } finally {
+            work.close()
+        }
+    }
+    if (sink == Double.POSITIVE_INFINITY) throw IllegalStateException("unreachable result sink")
+    writeTextFile(settings.outputPath, rows.joinToString("\n", postfix = "\n"))
+    println("wrote ${selected.size} cases and ${rows.size - 1} rows to ${settings.outputPath}")
+    println("resolved implementation=$implementation runtime=${runtimeIdentity()}")
+}
+
+private data class Calibration(val operations: Int, val sink: Double)
+private data class Batch(val elapsed: Long, val sink: Double)
+
+private fun warmAndCalibrate(work: CaseWork, targetNanos: Long, warmupBatches: Int): Calibration {
+    var operations = 1
+    var sink = 0.0
+    val warmupNanos = max(1_000_000L, targetNanos / 4)
+    repeat(warmupBatches) {
+        val deadline = nanoTime() + warmupNanos
+        do {
+            val batch = runBatch(work, operations)
+            sink += batch.sink
+            operations = adjustedOperations(operations, batch.elapsed, warmupNanos)
+        } while (nanoTime() < deadline)
+    }
+    var stableBatches = 0
+    repeat(16) {
+        val batch = runBatch(work, operations)
+        sink += batch.sink
+        val acceptable = batch.elapsed in (targetNanos / 2)..(targetNanos * 2)
+        stableBatches = if (acceptable) stableBatches + 1 else 0
+        if (stableBatches == 2 || operations == MAX_OPERATIONS && batch.elapsed >= targetNanos / 2) {
+            return Calibration(operations, sink)
+        }
+        operations = adjustedOperations(operations, batch.elapsed, targetNanos)
+    }
+    return Calibration(operations, sink)
+}
+
+private fun runBatch(work: CaseWork, operations: Int): Batch {
+    var sink = 0.0
+    val start = nanoTime()
+    repeat(operations) { sink += work.run() }
+    return Batch(max(1L, nanoTime() - start), sink)
+}
+
+private fun adjustedOperations(operations: Int, elapsed: Long, targetNanos: Long): Int {
+    val ratio = (targetNanos.toDouble() / elapsed).coerceIn(0.25, 4.0)
+    val adjusted = (operations * ratio).toInt().coerceIn(1, MAX_OPERATIONS)
+    return if (adjusted == operations && elapsed < targetNanos) (operations + 1).coerceAtMost(MAX_OPERATIONS) else adjusted
+}
+
+internal fun parseArguments(args: Array<String>): Settings {
+    val values = linkedMapOf<String, String>()
+    for (argument in args) {
+        require(argument.startsWith("--") && '=' in argument) { "arguments must use --name=value: $argument" }
+        val (name, value) = argument.removePrefix("--").split('=', limit = 2)
+        require(name !in values) { "duplicate argument --$name" }
+        values[name] = value
+    }
+    val allowed = setOf("mode", "operation", "cases", "output", "warmups", "samples", "target-ms", "forks", "pass", "source-commit", "dirty")
+    require(values.keys.all { it in allowed }) { "unknown argument: ${values.keys.first { it !in allowed }}" }
+    val mode = values["mode"] ?: error("--mode is required")
+    require(mode in setOf("jvm-c", "jvm-simd", "native")) { "mode must be jvm-c, jvm-simd, or native" }
+    val warmups = values["warmups"]?.toIntOrNull() ?: 3
+    val samples = values["samples"]?.toIntOrNull() ?: 5
+    val targetMillis = values["target-ms"]?.toLongOrNull() ?: 1_000L
+    val forks = values["forks"]?.toIntOrNull() ?: 1
+    require(warmups >= 0 && samples > 0 && targetMillis in 1..60_000 && forks > 0) {
+        "timing settings and forks must be positive, target-ms must not exceed 60000 (warmups may be zero)"
+    }
+    return Settings(
+        mode, values["operation"] ?: "all", values["cases"] ?: "koblas-bench/cases.txt",
+        values["output"] ?: "koblas-bench/build/benchmarks/$mode.csv", warmups, samples,
+        targetMillis * 1_000_000L, forks, values["pass"] ?: "1",
+        values["source-commit"] ?: environment("KOBLAS_SOURCE_COMMIT") ?: "unknown",
+        values["dirty"] ?: environment("KOBLAS_SOURCE_DIRTY") ?: "unknown",
+    )
+}
+
+internal fun csvRow(
+    case: BenchCase,
+    implementation: String,
+    settings: Settings,
+    sample: Int,
+    operations: Long,
+    elapsed: Long,
+    nanosPerOperation: String,
+    status: String,
+    comparisonKind: String,
+    timingMode: String,
+    runtime: String = runtimeIdentity(),
+): String = listOf(
+    "3", case.id, implementation, WORKLOAD_VERSION, FIXTURE_VERSION, settings.pass, sample.toString(),
+    operations.toString(), elapsed.toString(), nanosPerOperation, "ns", status, comparisonKind, timingMode,
+    settings.sourceCommit, settings.dirty, runtime, "1", settings.warmups.toString(), settings.targetNanos.toString(),
+).joinToString(",", transform = ::csv)
+
+private fun csv(value: String): String = if (value.any { it == ',' || it == '"' || it == '\n' }) {
+    "\"${value.replace("\"", "\"\"")}\""
+} else value
+
+internal fun formatDouble(value: Double): String = value.toString()
+internal fun sanitize(value: String): String = value.replace(',', ';').replace('\n', ' ').take(160)
+
+internal const val CSV_HEADER = "schema,case,implementation,workload_version,fixture_version,pass,sample,operations,elapsed_ns,ns_per_op,unit,status,comparison_kind,timing_mode,source_commit,dirty,runtime,threads,warmups,target_ns"
+private const val MAX_OPERATIONS = 1_000_000
