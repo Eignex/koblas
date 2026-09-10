@@ -9,57 +9,16 @@ import com.eignex.koblas.internal.configuration.ImplementationNames
 import com.eignex.koblas.internal.kernels.JvmCKernelBindings
 import com.eignex.koblas.requireShape
 
-/** Bundled C indexed leaves with scalar fallbacks for short or interior slices. */
+/** Bundled C indexed leaves, with ordered matrix arithmetic retained by the scalar delegate. */
 internal object CIndexedSparseKernels : IndexedSparseKernels by ScalarIndexedSparseKernels {
-    private val DOT_DENSE_C_CROSSOVER = SparseTuning.dotDenseCCrossover
-
     val isAvailable: Boolean get() = JvmCKernelBindings.isAvailable
-
-    override fun dotDense(
-        indices: IntArray,
-        values: DoubleArray,
-        fromIndex: Int,
-        toIndex: Int,
-        dense: DoubleArray,
-    ): Double = if (fromIndex == 0 && toIndex == indices.size && toIndex >= DOT_DENSE_C_CROSSOVER) {
-        JvmCKernelBindings.sparseDotDense(indices, values, dense)
-    } else {
-        ScalarIndexedSparseKernels.dotDense(indices, values, fromIndex, toIndex, dense)
-    }
 }
 
-/** JVM Vector API indexed leaves, retaining scalar order for the interior CSC slices used by matrix algorithms. */
+/** JVM Vector API indexed data movement, with ordered matrix arithmetic retained by the scalar delegate. */
 internal object SimdIndexedSparseKernels : IndexedSparseKernels by ScalarIndexedSparseKernels {
     private val scatter = JvmVectorScatter.configured()
 
     val isAvailable: Boolean get() = SimdKernels.isAvailable
-
-    override fun dotDense(
-        indices: IntArray,
-        values: DoubleArray,
-        fromIndex: Int,
-        toIndex: Int,
-        dense: DoubleArray,
-    ): Double = if (fromIndex == 0 && toIndex == indices.size) {
-        SparseSimd.dot(indices, values, dense)
-    } else {
-        ScalarIndexedSparseKernels.dotDense(indices, values, fromIndex, toIndex, dense)
-    }
-
-    override fun axpy(
-        indices: IntArray,
-        values: DoubleArray,
-        fromIndex: Int,
-        toIndex: Int,
-        alpha: Double,
-        destination: DoubleArray,
-    ) {
-        if (fromIndex == 0 && toIndex == indices.size && scatter.enabled) {
-            SparseSimd.axpy(indices, values, destination, alpha)
-        } else {
-            ScalarIndexedSparseKernels.axpy(indices, values, fromIndex, toIndex, alpha, destination)
-        }
-    }
 
     override fun scatter(
         indices: IntArray,
@@ -103,7 +62,11 @@ internal object CSparseKernels : SparseKernels {
 
     override fun dot(x: SparseVector, y: DoubleArray): Double {
         requireShape(x.size == y.size) { "dot: sizes differ, ${x.size} vs ${y.size}" }
-        return CIndexedSparseKernels.dotDense(x.indices, x.values, 0, x.values.size, y)
+        return if (x.values.size >= SparseTuning.dotDenseCCrossover) {
+            JvmCKernelBindings.sparseDotDense(x.indices, x.values, y)
+        } else {
+            ScalarIndexedSparseKernels.dotDense(x.indices, x.values, 0, x.values.size, y)
+        }
     }
 
     override fun dot(x: SparseVector, y: SparseVector): Double = ScalarSparseKernels.dot(x, y)
