@@ -88,7 +88,7 @@ class SparseProductTest {
         val a = SparseMatrix.ofColumns(2, 1, listOf(listOf(0 to Double.POSITIVE_INFINITY)))
         val y = DoubleArray(2)
 
-        ReferenceSparseLinearAlgebra.gemv(1.0, a, doubleArrayOf(0.0), 0.0, y)
+        ReferenceSparseBlas.gemv(1.0, a, doubleArrayOf(0.0), 0.0, y)
 
         assertTrue(y[0].isNaN(), "the stored infinity produced ${y[0]}")
         assertEquals(0.0, y[1], "the missing entry was not structural zero")
@@ -99,7 +99,7 @@ class SparseProductTest {
         val a = SparseMatrix.ofColumns(1, 1, listOf(listOf(0 to Double.POSITIVE_INFINITY)))
         val c = DenseMatrix(1, 1)
 
-        ReferenceSparseLinearAlgebra.gemm(1.0, a, false, DenseMatrix(1, 1), false, 0.0, c)
+        ReferenceSparseBlas.gemm(1.0, a, false, DenseMatrix(1, 1), false, 0.0, c)
 
         assertTrue(c[0, 0].isNaN())
     }
@@ -110,7 +110,7 @@ class SparseProductTest {
         val b = DenseMatrix(1, 1, doubleArrayOf(Double.POSITIVE_INFINITY))
         val c = DenseMatrix(1, 1)
 
-        ReferenceSparseLinearAlgebra.gemm(1.0, a, false, b, false, 0.0, c, right = true)
+        ReferenceSparseBlas.gemm(1.0, a, false, b, false, 0.0, c, right = true)
 
         assertTrue(c[0, 0].isNaN())
     }

@@ -15,7 +15,7 @@ class PreparedSparseMatrixTest {
     @Test
     fun `a prepared matrix is an immutable snapshot`() {
         val source = matrix()
-        val prepared = ReferenceSparseLinearAlgebra.prepare(source)
+        val prepared = ReferenceSparseBlas.prepare(source)
         source.values.fill(100.0)
 
         val actual = DoubleArray(3)
@@ -28,19 +28,19 @@ class PreparedSparseMatrixTest {
     @Test
     fun `all prepared products agree with the reference`() {
         val source = matrix()
-        ReferenceSparseLinearAlgebra.prepare(source).use { prepared ->
+        ReferenceSparseBlas.prepare(source).use { prepared ->
             val dense = DenseMatrix.wrap(2, 2, doubleArrayOf(1.0, 2.0, 3.0, 4.0))
-            val expectedDense = ReferenceSparseLinearAlgebra.gemm(source, dense)
+            val expectedDense = ReferenceSparseBlas.gemm(source, dense)
             val actualDense = DenseMatrix.zero(3, 2)
             prepared.gemm(1.0, false, dense, 0.0, actualDense)
             assertClose(expectedDense, actualDense, "dense product", tolerance = 1e-12)
 
             val right = SparseMatrix.ofColumns(2, 1, listOf(listOf(0 to 2.0, 1 to -1.0)))
-            assertEquals(ReferenceSparseLinearAlgebra.gemm(source, right), prepared.gemm(right))
+            assertEquals(ReferenceSparseBlas.gemm(source, right), prepared.gemm(right))
 
             val transposedDense = DenseMatrix.wrap(2, 3, doubleArrayOf(1.0, 2.0, 3.0, 4.0, 5.0, 6.0))
             val expectedTransposed = DenseMatrix.zero(2, 2)
-            ReferenceSparseLinearAlgebra.gemm(
+            ReferenceSparseBlas.gemm(
                 1.0,
                 source,
                 true,
@@ -57,7 +57,7 @@ class PreparedSparseMatrixTest {
             val sparseDense = DenseMatrix.zero(3, 1)
             prepared.gemm(2.0, false, right, false, 0.0, sparseDense)
             val expectedSparseDense = DenseMatrix.zero(3, 1)
-            ReferenceSparseLinearAlgebra.gemm(2.0, source, false, right, false, 0.0, expectedSparseDense)
+            ReferenceSparseBlas.gemm(2.0, source, false, right, false, 0.0, expectedSparseDense)
             assertClose(expectedSparseDense, sparseDense, "direct sparse dense result")
         }
     }
@@ -69,7 +69,7 @@ class PreparedSparseMatrixTest {
             2,
             listOf(listOf(0 to 2.0, 1 to 3.0), listOf(1 to 5.0)),
         )
-        ReferenceSparseLinearAlgebra.prepare(source).use { prepared ->
+        ReferenceSparseBlas.prepare(source).use { prepared ->
             source.values.fill(Double.NaN)
             val y = DoubleArray(2)
             prepared.symv(1.0, doubleArrayOf(7.0, 11.0), 0.0, y)
@@ -84,7 +84,7 @@ class PreparedSparseMatrixTest {
 
     @Test
     fun `close is idempotent and rejects every product`() {
-        val prepared = ReferenceSparseLinearAlgebra.prepare(matrix())
+        val prepared = ReferenceSparseBlas.prepare(matrix())
         prepared.close()
         prepared.close()
 
