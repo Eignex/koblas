@@ -13,6 +13,13 @@ class MatrixNormsTest {
     )
 
     @Test
+    fun `norm1 is the maximum absolute column sum`() {
+        assertEquals(9.0, example.norm1())
+        assertEquals(0.0, DenseMatrix(0, 3).norm1())
+        assertEquals(0.0, DenseMatrix(3, 0).norm1())
+    }
+
+    @Test
     fun `normInf and normFro agree with direct sums`() {
         assertEquals(15.0, example.normInf(), 1e-12)
         assertEquals(sqrt(1.0 + 4 + 9 + 16 + 25 + 36), example.normFro(), 1e-12)

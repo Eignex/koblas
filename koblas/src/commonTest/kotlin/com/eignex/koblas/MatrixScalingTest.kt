@@ -79,6 +79,7 @@ class MatrixScalingTest {
         assertFailsWith<DimensionMismatch> {
             SparseMatrix.ofTriplets(2, 2, IntArray(0), IntArray(0), DoubleArray(0)).scaleColumns(DoubleArray(3))
         }
+        assertFailsWith<DimensionMismatch> { sparseStorageExample().scaleRows(DoubleArray(2)) }
     }
 
     @Test

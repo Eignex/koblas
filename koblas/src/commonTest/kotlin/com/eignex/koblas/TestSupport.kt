@@ -26,6 +26,7 @@ internal fun assertClose(expected: Double, actual: Double, context: String, tole
     if (expected.isNaN()) fail("$context: the numerical oracle produced NaN; assert that contract explicitly")
     if (actual.isNaN()) fail("$context: expected $expected actual NaN")
     if (expected == actual) return
+    if (!expected.isFinite() || !actual.isFinite()) fail("$context: expected $expected actual $actual")
     val error = abs(expected - actual)
     val bound = tolerance * maxOf(1.0, abs(expected))
     assertTrue(
