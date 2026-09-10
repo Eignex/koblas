@@ -70,22 +70,6 @@ class TuningTest {
     }
 
     @Test
-    fun `a fractional override replaces the default within the unit interval`() {
-        assertEquals(0.25, tunedDoubleValue("0.25", default = 0.1, minimum = 0.0, maximum = 1.0))
-        assertEquals(0.0, tunedDoubleValue("0", default = 0.1, minimum = 0.0, maximum = 1.0))
-        assertEquals(1.0, tunedDoubleValue("1", default = 0.1, minimum = 0.0, maximum = 1.0))
-    }
-
-    @Test
-    fun `a fractional override outside the range keeps the default`() {
-        for (configured in listOf("-0.5", "1.5", "nonsense", "NaN", "")) {
-            val resolved = tunedDoubleValue(configured, default = 0.1, minimum = 0.0, maximum = 1.0)
-
-            assertEquals(0.1, resolved, "override outside the range [$configured]")
-        }
-    }
-
-    @Test
     fun `a key spells one property and one environment variable`() {
         assertEquals("koblas.dense.jvm.c.dot4.crossover", tuningProperty("dense", "jvm.c.dot4.crossover"))
         assertEquals("KOBLAS_DENSE_JVM_C_DOT4_CROSSOVER", tuningEnvironment("dense", "jvm.c.dot4.crossover"))

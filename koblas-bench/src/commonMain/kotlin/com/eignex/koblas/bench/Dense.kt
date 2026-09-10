@@ -30,6 +30,12 @@ internal fun denseWork(case: BenchCase, engine: KoblasContext): CaseWork? {
             val x = Fixtures.vector(d[0], 1); val initial = Fixtures.vector(d[0], 2); val y = initial.copyOf()
             CaseWork("direct", "reset-and-arithmetic", { initial.copyInto(y); vectors.axpy(y, 0, alpha, x, 0, d[0]); y[0] })
         }
+        "axpy-arithmetic" -> {
+            val x = Fixtures.vector(d[0], 1); val initial = Fixtures.vector(d[0], 2); val y = initial.copyOf()
+            CaseWork("direct", "reset-and-arithmetic", {
+                initial.copyInto(y); panels.axpyArithmetic(y, 0, alpha, x, 0, d[0]); y[0]
+            })
+        }
         "scal" -> {
             val initial = Fixtures.vector(d[0], 1); val x = initial.copyOf()
             CaseWork("direct", "reset-and-arithmetic", { initial.copyInto(x); vectors.scale(x, 0, alpha, d[0]); x[0] })
@@ -212,10 +218,12 @@ private fun packedLayoutWork(
     left: DoubleArray, right: DoubleArray, lower: Boolean, unit: Boolean,
 ): CaseWork {
     val isLeft = "left" in case.operation
-    val sourceRows = if (isLeft) first else first
-    val sourceCols = if (isLeft) second else second
-    val source = if (case.operation.contains("triangular")) Fixtures.triangular(first, 1, lower) else Fixtures.matrix(sourceRows, sourceCols, 1)
-    val destination = DenseMatrix.zero(sourceRows, sourceCols)
+    val source = if (case.operation.contains("triangular")) {
+        Fixtures.triangular(first, 1, lower)
+    } else {
+        Fixtures.matrix(first, second, 1)
+    }
+    val destination = DenseMatrix.zero(first, second)
     val panel = if (isLeft) left else right
     return CaseWork("unsupported", "layout", {
         when (case.operation) {

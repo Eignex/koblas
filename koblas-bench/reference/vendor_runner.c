@@ -1,4 +1,6 @@
 #define _POSIX_C_SOURCE 200809L
+#define WORKLOAD_VERSION "3"
+#define FIXTURE_VERSION "1"
 #include <cblas.h>
 #include <errno.h>
 #include <inttypes.h>
@@ -126,7 +128,7 @@ static const char *option(const bench_case *c, const char *name, const char *fal
 static int flag(const bench_case *c, const char *name) { return !strcmp(option(c, name, "N"), "T"); }
 
 static int expected_dimensions(const char *op) {
-    static const char *one[] = { "dot","axpy","scal","nrm2","asum","sum","compensated-sum","iamax","swap","rot","rotm","rotmg","ssqd","dot4","axpy4","dot-axpy","symv","syr","syr2","trsv","trmv","spdot","spdot-sparse","spaxpy","spnrm2","spasum","spscatter","spgather","spgather-zero","spsymv","sptrsv","sptrmv","workspace-scatter","workspace-scatter-checked","workspace-gather","workspace-gather-clear","workspace-max","workspace-filter" };
+    static const char *one[] = { "dot","axpy","axpy-arithmetic","scal","nrm2","asum","sum","compensated-sum","iamax","swap","rot","rotm","rotmg","ssqd","dot4","axpy4","dot-axpy","symv","syr","syr2","trsv","trmv","spdot","spdot-sparse","spaxpy","spnrm2","spasum","spscatter","spgather","spgather-zero","spsymv","sptrsv","sptrmv","workspace-scatter","workspace-scatter-checked","workspace-gather","workspace-gather-clear","workspace-max","workspace-filter" };
     static const char *two[] = { "gemv","ger","symm","gemmt","syrk","syr2k","trsm","trmm","packed-trsm","pack-left","pack-right","pack-symmetric-left","pack-symmetric-right","pack-triangular-left","pack-triangular-right","write-left","write-right","clear-left-padding","clear-right-padding","spgemv","spsymm","sptrsm","sptrmm","spsyrk-dense","spsyrk-sparse","spadd" };
     static const char *three[] = { "gemm","gemm-tile","gemm-trsm","spmm","spgemm" };
     for (size_t i=0;i<sizeof(one)/sizeof(*one);++i) if(!strcmp(op,one[i])) return 1;
@@ -230,7 +232,7 @@ static void packed_output_fixture(double *logical,int rows,int cols,int physical
 static double invoke_dense(work *w){
     bench_case *s=w->spec;const char *op=s->operation;int *d=s->dims;int ta=flag(s,"transA"),tb=flag(s,"transB"),lower=!strcmp(option(s,"uplo","L"),"L"),right=!strcmp(option(s,"side","L"),"R"),unit=!strcmp(option(s,"diag","N"),"U");
     if(!strcmp(op,"dot"))return cblas_ddot(d[0],w->x,1,w->y,1);
-    if(!strcmp(op,"axpy")){copy_values(w->y,w->initial,d[0]);cblas_daxpy(d[0],.875,w->x,1,w->y,1);return consume(w->y,d[0]);}
+    if(!strcmp(op,"axpy")||!strcmp(op,"axpy-arithmetic")){copy_values(w->y,w->initial,d[0]);cblas_daxpy(d[0],.875,w->x,1,w->y,1);return consume(w->y,d[0]);}
     if(!strcmp(op,"scal")){copy_values(w->x,w->initial,d[0]);cblas_dscal(d[0],.875,w->x,1);return consume(w->x,d[0]);}
     if(!strcmp(op,"nrm2"))return cblas_dnrm2(d[0],w->x,1);
     if(!strcmp(op,"asum"))return cblas_dasum(d[0],w->x,1);
@@ -273,7 +275,7 @@ static void setup_dense(work *w){
     if(!strcmp(op,"sum")){w->supported=0;w->comparison="unsupported";w->timing="arithmetic";return;}
 #endif
     if(!strcmp(op,"dot")||!strcmp(op,"nrm2")||!strcmp(op,"asum")||!strcmp(op,"sum")||!strcmp(op,"iamax")){w->x=allocate(d[0],sizeof(double));w->y=allocate(d[0],sizeof(double));fill_vector(w->x,d[0],1);fill_vector(w->y,d[0],2);w->timing="arithmetic";return;}
-    if(!strcmp(op,"axpy")||!strcmp(op,"scal")){w->x=allocate(d[0],sizeof(double));w->y=allocate(d[0],sizeof(double));w->initial=allocate(d[0],sizeof(double));fill_vector(w->x,d[0],1);fill_vector(w->initial,d[0],!strcmp(op,"scal")?1:2);if(!strcmp(op,"scal"))copy_values(w->initial,w->x,d[0]);return;}
+    if(!strcmp(op,"axpy")||!strcmp(op,"axpy-arithmetic")||!strcmp(op,"scal")){w->x=allocate(d[0],sizeof(double));w->y=allocate(d[0],sizeof(double));w->initial=allocate(d[0],sizeof(double));fill_vector(w->x,d[0],1);fill_vector(w->initial,d[0],!strcmp(op,"scal")?1:2);if(!strcmp(op,"scal"))copy_values(w->initial,w->x,d[0]);return;}
     if(!strcmp(op,"swap")||!strcmp(op,"rot")||!strcmp(op,"rotm")){w->a=allocate(d[0],sizeof(double));w->x=allocate(d[0],sizeof(double));w->y=allocate(d[0],sizeof(double));w->initial=allocate(d[0],sizeof(double));fill_vector(w->a,d[0],1);fill_vector(w->initial,d[0],2);if(!strcmp(op,"rotm")){w->c=allocate(5,sizeof(double));w->c[0]=-1;w->c[1]=1;w->c[2]=-.5;w->c[3]=.5;w->c[4]=1;}return;}
     if(!strcmp(op,"rotmg")){w->timing="arithmetic";return;}
     if(!strcmp(op,"dot4")||!strcmp(op,"axpy4")||!strcmp(op,"dot-axpy")){w->a=allocate(4*d[0],sizeof(double));w->x=allocate(d[0],sizeof(double));w->y=allocate(d[0],sizeof(double));w->initial=allocate(d[0],sizeof(double));fill_vector(w->a,4*d[0],!strcmp(op,"axpy4")?1:2);fill_vector(w->x,d[0],1);fill_vector(w->initial,d[0],!strcmp(op,"axpy4")?2:3);w->comparison="composed";if(!strcmp(op,"dot4"))w->timing="arithmetic";return;}
@@ -420,10 +422,10 @@ int main(int argc,char **argv){
     int case_count=0;bench_case *cases=load_cases(cases_path,&case_count);
     FILE *output=fopen(output_path,"w");if(!output){perror(output_path);exit(2);}fprintf(output,"schema,case,implementation,workload_version,fixture_version,pass,sample,operations,elapsed_ns,ns_per_op,unit,status,comparison_kind,timing_mode,source_commit,dirty,runtime,threads,warmups,target_ns\n");
     volatile double sink=0;
-    for(int index=0;index<case_count;++index){work w;setup_work(&w,&cases[index]);if(!w.supported){fprintf(output,"3,%s,%s,2,1,%s,0,0,0,,ns,unsupported,%s,%s,%s,%s,%s,1,%d,%" PRIu64 "\n",cases[index].id,implementation,pass,w.comparison,w.timing,commit,dirty,runtime,warmups,target_ns);free_work(&w);continue;}
+    for(int index=0;index<case_count;++index){work w;setup_work(&w,&cases[index]);if(!w.supported){fprintf(output,"3,%s,%s," WORKLOAD_VERSION "," FIXTURE_VERSION ",%s,0,0,0,,ns,unsupported,%s,%s,%s,%s,%s,1,%d,%" PRIu64 "\n",cases[index].id,implementation,pass,w.comparison,w.timing,commit,dirty,runtime,warmups,target_ns);free_work(&w);continue;}
         for(int i=0;i<warmups;++i)sink+=w.invoke(&w);
         int operations=1;while(operations<1000000){uint64_t start=nanos();for(int i=0;i<operations;++i)sink+=w.invoke(&w);uint64_t elapsed=nanos()-start;if(elapsed>=(uint64_t)target_ms*250000)break;operations*=2;}
-        for(int sample=1;sample<=samples;++sample){uint64_t start=nanos();for(int i=0;i<operations;++i)sink+=w.invoke(&w);uint64_t elapsed=nanos()-start;fprintf(output,"3,%s,%s,2,1,%s,%d,%d,%" PRIu64 ",%.17g,ns,ok,%s,%s,%s,%s,%s,1,%d,%" PRIu64 "\n",cases[index].id,implementation,pass,sample,operations,elapsed,(double)elapsed/operations,w.comparison,w.timing,commit,dirty,runtime,warmups,target_ns);}
+        for(int sample=1;sample<=samples;++sample){uint64_t start=nanos();for(int i=0;i<operations;++i)sink+=w.invoke(&w);uint64_t elapsed=nanos()-start;fprintf(output,"3,%s,%s," WORKLOAD_VERSION "," FIXTURE_VERSION ",%s,%d,%d,%" PRIu64 ",%.17g,ns,ok,%s,%s,%s,%s,%s,1,%d,%" PRIu64 "\n",cases[index].id,implementation,pass,sample,operations,elapsed,(double)elapsed/operations,w.comparison,w.timing,commit,dirty,runtime,warmups,target_ns);}
         free_work(&w);
     }
     fclose(output);free(cases);fprintf(stderr,"wrote %d cases to %s (%s, sink=%g)\n",case_count,output_path,implementation,(double)sink);return 0;

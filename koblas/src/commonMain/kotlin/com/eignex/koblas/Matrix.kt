@@ -60,9 +60,6 @@ public class DenseMatrix internal constructor(
         data[i + j * rows] = v
     }
 
-    /** Offset into [data] where column [j] starts, running contiguously for [rows] entries. */
-    internal fun colOffset(j: Int): Int = j * rows
-
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (other !is DenseMatrix) return false

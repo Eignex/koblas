@@ -217,19 +217,6 @@ internal fun requireSymvShape(a: DenseMatrix, x: Int, y: Int): Int {
     return n
 }
 
-/** Checks the operands of a `symm`, returning the symmetric matrix's dimension. */
-internal fun requireSymmShape(a: DenseMatrix, b: DenseMatrix, c: DenseMatrix, right: Boolean): Int {
-    requireSquare(a, "symm")
-    val m = a.rows
-    requireShape(c.rows == b.rows && c.cols == b.cols) {
-        "symm: C is ${c.rows}x${c.cols} but B is ${b.rows}x${b.cols}"
-    }
-    requireShape((if (right) b.cols else b.rows) == m) {
-        "symm: B is ${b.rows}x${b.cols}, expected dimension $m on the ${if (right) "cols" else "rows"} side"
-    }
-    return m
-}
-
 /** Checks the triangle and the block of a `trsm` or `trmm`, returning the triangle's dimension. */
 internal fun requireTriangularMatrixShape(a: MatrixLike, b: DenseMatrix, right: Boolean, what: String): Int {
     requireSquare(a, what)

@@ -10,6 +10,19 @@ import kotlin.test.*
 class DenseVectorKernelsTest {
 
     @Test
+    fun `the scalar and platform arithmetic axpy kernels agree`() {
+        val source = DoubleArray(47) { it * 0.125 - 2.0 }
+        val initial = DoubleArray(53) { 3.0 - it * 0.2 }
+        val expected = initial.copyOf()
+        val actual = initial.copyOf()
+
+        ScalarPanelKernels.axpyArithmetic(expected, 7, -0.75, source, 3, 31)
+        platformDenseKernelFamilies.panel.axpyArithmetic(actual, 7, -0.75, source, 3, 31)
+
+        assertClose(expected, actual, "arithmetic axpy")
+    }
+
+    @Test
     fun `the platform arithmetic axpy does not take the DAXPY zero return`() {
         val x = DoubleArray(64).also { it[17] = Double.POSITIVE_INFINITY }
         val y = DoubleArray(64)

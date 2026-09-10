@@ -1,7 +1,8 @@
-# koblas benchmark workload v2
+# koblas benchmark workload v3
 # operation+dimensions+fixture[+option=value...]
 dot+4096+uniform
 axpy+4096+uniform
+axpy-arithmetic+4096+uniform
 scal+4096+uniform
 nrm2+4096+uniform
 asum+4096+uniform

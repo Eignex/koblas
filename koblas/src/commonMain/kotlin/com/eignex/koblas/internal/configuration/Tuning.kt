@@ -28,10 +28,6 @@ internal fun tunedInt(
     maximum: Int = Int.MAX_VALUE,
 ): Int = tunedIntValue(configuredTuning(prefix, name), default, minimum, maximum)
 
-/** One fractional entry, resolved once by its caller. */
-internal fun tunedDouble(prefix: String, name: String, default: Double, minimum: Double, maximum: Double): Double =
-    tunedDoubleValue(configuredTuning(prefix, name), default, minimum, maximum)
-
 /**
  * The whole number [configured] asks for, or [default] where it asks for nothing usable.
  *
@@ -44,12 +40,5 @@ internal fun tunedDouble(prefix: String, name: String, default: Double, minimum:
  */
 internal fun tunedIntValue(configured: String?, default: Int, minimum: Int, maximum: Int): Int {
     val requested = configured?.trim()?.takeIf { it.isNotEmpty() }?.toIntOrNull() ?: return default
-    return if (requested in minimum..maximum) requested else default
-}
-
-/** The fraction [configured] asks for, or [default], on the same terms as [tunedIntValue]. */
-internal fun tunedDoubleValue(configured: String?, default: Double, minimum: Double, maximum: Double): Double {
-    val requested = configured?.trim()?.takeIf { it.isNotEmpty() }?.toDoubleOrNull() ?: return default
-    if (requested.isNaN()) return default
     return if (requested in minimum..maximum) requested else default
 }

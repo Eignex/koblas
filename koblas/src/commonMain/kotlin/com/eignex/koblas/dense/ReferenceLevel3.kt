@@ -120,36 +120,6 @@ private inline fun blockedAxpyUpdate(
     }
 }
 
-/** GEMM's blocked update, accepting a transposed B without materialising it. A is always stored `m x depth`. */
-@Suppress("LongParameterList")
-internal fun blockedGemmUpdate(
-    kernels: DensePanelKernels,
-    alpha: Double,
-    a: DoubleArray,
-    b: DoubleArray,
-    bRows: Int,
-    transposeB: Boolean,
-    c: DoubleArray,
-    m: Int,
-    n: Int,
-    depth: Int,
-    skipZeroCoefficient: Boolean,
-) {
-    if (!transposeB) {
-        blockedAxpyUpdate(
-            kernels, alpha, a, 0, m, c, 0, m, m, n, depth, skipZeroCoefficient,
-        ) { p, j ->
-            b[p + j * bRows]
-        }
-        return
-    }
-    blockedAxpyUpdate(
-        kernels, alpha, a, 0, m, c, 0, m, m, n, depth, skipZeroCoefficient,
-    ) { p, j ->
-        b[j + p * bRows]
-    }
-}
-
 /**
  * Adds `alpha * A transpose * B` to C without packing A. Columns of A and B are contiguous dot operands;
  * four output rows share each B column through [DensePanelKernels.dot4].

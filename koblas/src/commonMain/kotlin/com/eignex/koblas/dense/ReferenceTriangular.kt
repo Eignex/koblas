@@ -11,12 +11,6 @@ import com.eignex.koblas.requireTriangularMatrixShape
 import kotlin.math.max
 import kotlin.math.min
 
-/**
- * The order at or above which a multi-column triangular solve blocks instead of walking its columns. The
- * measurement behind the value is on [DenseTuning.trsmBlockedMinOrder].
- */
-private val TRSM_BLOCKED_MIN_ORDER = DenseTuning.trsmBlockedMinOrder
-
 /*
  * The portable triangular kernels, netlib dtrsv, dtrsm, dtrmv and dtrmm over a flat column-major buffer.
  * These are the semantic definition a native triangular routine is validated against, and what
@@ -347,48 +341,5 @@ private fun blockedRightMultiply(
             )
         }
         boundary = if (effectiveLower) end else start
-    }
-}
-
-/**
- * Solves a triangle against [nrhs] contiguous right-hand sides held by decomposition storage that contains
- * both triangles.
- *
- * One column at a time re-reads the whole triangle per right-hand side, which is `nrhs · n²/2` of traffic
- * against `nrhs · n²` flops and leaves the solve bandwidth-bound. The blocked form reads it once per panel
- * instead, so a panel's worth of right-hand sides at or above [TRSM_BLOCKED_MIN_ORDER] goes through
- * [blockedLeftSolve]. Narrower than a panel the blocked walk would run a single partial one and add only
- * its bookkeeping, and smaller than the crossover the triangle still fits in cache, so the column loop
- * stays for both.
- */
-@Suppress("LongParameterList")
-internal fun trsmCore(
-    vectorKernels: DenseVectorKernels,
-    panelKernels: DensePanelKernels,
-    a: DoubleArray,
-    n: Int,
-    b: DoubleArray,
-    nrhs: Int,
-    lower: Boolean,
-    transpose: Boolean,
-    unitDiag: Boolean,
-    workspace: Workspace? = null,
-) {
-    if (nrhs < REFERENCE_NC || n < TRSM_BLOCKED_MIN_ORDER) {
-        for (column in 0 until nrhs) {
-            triangularSolveSubstitution(
-                vectorKernels, panelKernels, a, n, b,
-                xOff = column * n, lower = lower, transpose = transpose, unitDiag = unitDiag,
-            )
-        }
-        return
-    }
-    val panel = DenseMatrix.wrap(n, nrhs, b)
-    if (transpose) {
-        workspace.borrow(4) { sums ->
-            blockedLeftSolve(vectorKernels, panelKernels, a, n, panel, lower, transpose, unitDiag, sums)
-        }
-    } else {
-        blockedLeftSolve(vectorKernels, panelKernels, a, n, panel, lower, transpose, unitDiag, null)
     }
 }
