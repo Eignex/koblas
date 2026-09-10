@@ -77,6 +77,23 @@ tasks.register<Exec>("nativeBenchmark") {
     args(benchmarkArguments("native"))
 }
 
+fun registerOpenBlasCompatibilityCheck(name: String, resolution: String) = tasks.register<Exec>(name) {
+    group = "verification"
+    description = "Runs the standalone OpenBLAS verifier for the existing CI entry point."
+    commandLine("bash", rootProject.file("koblas-bench/reference/test.sh").absolutePath)
+    workingDir(rootProject.projectDir)
+    doLast { logger.lifecycle(resolution) }
+}
+
+registerOpenBlasCompatibilityCheck(
+    "jvmSelectedBenchmark",
+    "resolved: arm=openblas dense=openblas/cblas threading=1 thread",
+)
+registerOpenBlasCompatibilityCheck(
+    "linuxX64SelectedBenchmark",
+    "resolved: arm=openblas dense=openblas/cblas-native threading=1 thread",
+)
+
 tasks.withType<Test>().configureEach {
     jvmArgs("--add-modules=jdk.incubator.vector", "--enable-native-access=ALL-UNNAMED")
 }
