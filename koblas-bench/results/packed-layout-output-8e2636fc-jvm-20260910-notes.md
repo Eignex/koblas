@@ -5,6 +5,9 @@
 - Architecture phase: 3, packed layout and output leaves.
 - Exact merged baseline: `533f4d28c1989d4249735d90c5f88d8db824e9d1` (`main` after PRs #512--#514).
 - Exact final measured code: `8e2636fca8ec11321e7804e5bc4e1137d6023ff8`.
+- Current PR head after measurement: `0f55a9cad201abe92582a46239badf6615dc8eba`. Its final source correction changes
+  unit-diagonal scaled packing from `alpha` to `alpha * 1.0` to preserve the previous floating-point evaluation
+  order; none of the archived timing rows measure that correction.
 - Baseline state: detached, clean temporary worktree.
 - Final state: clean branch worktree; `git status --porcelain=v1` was empty before the `clean-1` and `clean-2`
   series.
@@ -21,7 +24,9 @@ final clean candidate series, each split into panels, products, rank updates and
 
 - Linux `6.17.0-41-generic`, x86-64.
 - 12th Gen Intel Core i9-12900H, 20 logical CPUs.
-- OpenJDK 22.0.2; Gradle 9.7.1; Kotlin 2.4.0.
+- JMH fork JVM recorded in every archived result: OpenJDK 25.0.1, VM `25.0.1+8-LTS`.
+- Gradle launcher and daemon JVM: OpenJDK 22.0.2. Gradle 9.7.1 reports embedded Kotlin 2.4.0; the build selects
+  Kotlin Gradle plugins 2.4.10.
 - Built-in immutable SIMD engine, reported as `built-in/built-in/simd(4 lanes)`.
 - One JMH fork, three 500 ms warmups and five 500 ms measurements per case.
 - No CPU affinity, reservation or peer pause. The shared host was visibly busy and became more contended during
