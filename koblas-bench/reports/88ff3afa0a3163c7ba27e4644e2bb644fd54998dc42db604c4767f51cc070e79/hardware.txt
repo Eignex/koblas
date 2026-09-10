@@ -1,0 +1,16 @@
+schema=1
+architecture=x86_64
+vendor id=GenuineIntel
+model name=12th Gen Intel(R) Core(TM) i9-12900H
+cpu family=6
+model=154
+thread(s) per core=2
+core(s) per socket=14
+socket(s)=1
+stepping=3
+l1d cache=544 KiB (14 instances)
+l1i cache=704 KiB (14 instances)
+l2 cache=11.5 MiB (8 instances)
+l3 cache=24 MiB (1 instance)
+numa node(s)=1
+memory_kib=64221080
