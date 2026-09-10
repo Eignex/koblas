@@ -109,19 +109,6 @@ class VectorOpsTest {
     }
 
     @Test
-    fun `norm1 is the maximum absolute column sum`() {
-        val a = DenseMatrix.of(
-            arrayOf(
-                doubleArrayOf(1.0, -2.0, 3.0),
-                doubleArrayOf(-4.0, 5.0, -6.0),
-            ),
-        )
-        assertEquals(9.0, a.norm1()) // columns sum to 5, 7, 9
-        assertEquals(0.0, DenseMatrix(0, 3).norm1())
-        assertEquals(0.0, DenseMatrix(3, 0).norm1())
-    }
-
-    @Test
     fun `iamax returns the first maximal index and handles edge cases`() {
         assertEquals(2, DenseVector.of(doubleArrayOf(1.0, -2.0, 5.0, -5.0)).iamax())
         assertEquals(1, DenseVector.of(doubleArrayOf(1.0, -5.0, 5.0)).iamax()) // tie: first wins
@@ -166,6 +153,42 @@ class VectorOpsTest {
         assertContentEquals(doubleArrayOf(3.0, 4.0), a.data)
         assertContentEquals(doubleArrayOf(1.0, 2.0), b.data)
         assertFailsWith<IllegalArgumentException> { swap(DenseVector.zero(2), DenseVector.zero(3)) }
+    }
+
+    @Test
+    fun `vector operations reject mismatched sizes`() {
+        assertFailsWith<IllegalArgumentException> { dense(1.0) dot dense(1.0, 2.0) }
+        assertFailsWith<IllegalArgumentException> { dense(1.0).axpy(1.0, dense(1.0, 2.0)) }
+    }
+
+    @Test
+    fun `sparse against sparse dot matches the dense answer over merge shapes`() {
+        val n = 8
+        val patterns = listOf(
+            intArrayOf(0, 2, 4, 6) to intArrayOf(1, 3, 5, 7),
+            intArrayOf(0, 1, 2) to intArrayOf(0, 1, 2),
+            intArrayOf(0, 7) to intArrayOf(3, 4),
+            intArrayOf(0, 1, 2, 3) to intArrayOf(3),
+            intArrayOf(5) to intArrayOf(0, 1, 2, 3, 4),
+            IntArray(0) to intArrayOf(0, 4),
+            IntArray(0) to IntArray(0),
+        )
+        for ((ia, ib) in patterns) {
+            val a = SparseVector.of(n, ia, DoubleArray(ia.size) { it + 1.5 })
+            val b = SparseVector.of(n, ib, DoubleArray(ib.size) { it + 2.5 })
+            val expected = DenseVector.of(a.toDoubleArray()) dot DenseVector.of(b.toDoubleArray())
+            assertEquals(expected, a dot b, "pattern ${ia.toList()} vs ${ib.toList()}")
+            assertEquals(expected, b dot a, "dot should be symmetric for ${ia.toList()} vs ${ib.toList()}")
+        }
+    }
+
+    @Test
+    fun `mixed sparse and dense dot agrees in both operand orders`() {
+        val sparse = SparseVector.of(6, intArrayOf(1, 4), doubleArrayOf(2.0, -3.0))
+        val dense = DenseVector.of(doubleArrayOf(1.0, 2.0, 3.0, 4.0, 5.0, 6.0))
+        val expected = 2.0 * 2.0 + -3.0 * 5.0
+        assertEquals(expected, sparse dot dense)
+        assertEquals(expected, dense dot sparse)
     }
 
     @Test

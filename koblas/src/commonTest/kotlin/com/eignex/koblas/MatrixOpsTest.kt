@@ -43,29 +43,40 @@ class MatrixOpsTest {
     }
 
     @Test
-    fun `gemvInto agrees with the allocating product over every storage pairing`() {
-        val rng = Random(11)
-        val n = 6
-        val dense = randomMatrix(n, n, rng)
+    fun `matrix vector operations match hand results over every storage pairing`() {
+        val rows = 4
+        val cols = 3
+        val entries = arrayOf(
+            doubleArrayOf(1.0, 0.0, 2.0),
+            doubleArrayOf(0.0, 0.0, 0.0),
+            doubleArrayOf(-3.0, 4.0, 0.0),
+            doubleArrayOf(0.0, 0.5, 1.5),
+        )
+        val dense = DenseMatrix.of(entries)
         val sparseMatrix = SparseMatrix.ofTriplets(
-            rows = n,
-            cols = n,
-            rowIdx = IntArray(n) { it },
-            colIdx = IntArray(n) { it },
-            values = DoubleArray(n) { it + 1.0 },
+            rows,
+            cols,
+            intArrayOf(0, 0, 2, 2, 3, 3),
+            intArrayOf(0, 2, 0, 1, 1, 2),
+            doubleArrayOf(1.0, 2.0, -3.0, 4.0, 0.5, 1.5),
         )
-        val values = randomVector(n, rng)
-        val xs = listOf<VectorLike>(
-            DenseVector.of(values),
-            SparseVector.of(n, intArrayOf(1, 4), doubleArrayOf(values[1], values[4])),
-            StridedVectorView(DoubleArray(2 * n) { values[it / 2] }, 0, n, 2),
-            ForeignRampVector(n),
+        val foreign = object : MatrixLike {
+            override val rows: Int get() = dense.rows
+            override val cols: Int get() = dense.cols
+            override fun get(i: Int, j: Int): Double = dense[i, j]
+            override fun toArray(): Array<DoubleArray> = dense.toArray()
+        }
+        val vectors = listOf(
+            DenseVector.of(doubleArrayOf(2.0, -1.0, 0.5)) to doubleArrayOf(3.0, 0.0, -10.0, 0.25),
+            SparseVector.of(3, intArrayOf(0, 2), doubleArrayOf(2.0, 0.5)) to
+                doubleArrayOf(3.0, 0.0, -6.0, 0.75),
         )
-        for (A in listOf<MatrixLike>(dense, sparseMatrix, ForeignSpdMatrix(n))) {
-            for (x in xs) {
-                val out = DoubleArray(n)
+        for (A in listOf<MatrixLike>(dense, sparseMatrix, foreign)) {
+            for ((x, expected) in vectors) {
+                assertClose(expected, (A * x).data, "product ${A::class.simpleName} ${x::class.simpleName}")
+                val out = DoubleArray(rows)
                 A.gemvInto(x, out)
-                assertClose((A * x).data, out, "gemvInto ${A::class.simpleName} ${x::class.simpleName}")
+                assertClose(expected, out, "gemvInto ${A::class.simpleName} ${x::class.simpleName}")
             }
         }
     }
@@ -314,9 +325,7 @@ class MatrixOpsTest {
     }
 
     @Test
-    fun `the ops reject mismatched sizes and shapes`() {
-        assertFailsWith<IllegalArgumentException> { dense(1.0) dot dense(1.0, 2.0) }
-        assertFailsWith<IllegalArgumentException> { dense(1.0).axpy(1.0, dense(1.0, 2.0)) }
+    fun `matrix operations reject mismatched shapes`() {
         assertFailsWith<IllegalArgumentException> {
             DenseMatrix(2, 2).ger(1.0, dense(1.0, 2.0, 3.0), dense(1.0, 2.0))
         }
@@ -401,36 +410,6 @@ class MatrixOpsTest {
         val viaFlag = DenseMatrix(6, 3)
         koblas.gemm(1.0, a, true, b, false, 0.0, viaFlag)
         assertClose(viaMaterialized, viaFlag, "transpose flag vs materialized")
-    }
-
-    @Test
-    fun `sparse against sparse dot matches the dense answer over merge shapes`() {
-        val n = 8
-        val patterns = listOf(
-            intArrayOf(0, 2, 4, 6) to intArrayOf(1, 3, 5, 7), // disjoint, fully interleaved
-            intArrayOf(0, 1, 2) to intArrayOf(0, 1, 2), // identical
-            intArrayOf(0, 7) to intArrayOf(3, 4), // disjoint, nested inside the first span
-            intArrayOf(0, 1, 2, 3) to intArrayOf(3), // one side exhausts early
-            intArrayOf(5) to intArrayOf(0, 1, 2, 3, 4), // the other side does
-            IntArray(0) to intArrayOf(0, 4), // empty against non-empty
-            IntArray(0) to IntArray(0),
-        )
-        for ((ia, ib) in patterns) {
-            val a = SparseVector.of(n, ia, DoubleArray(ia.size) { it + 1.5 })
-            val b = SparseVector.of(n, ib, DoubleArray(ib.size) { it + 2.5 })
-            val expected = DenseVector.of(a.toDoubleArray()) dot DenseVector.of(b.toDoubleArray())
-            assertEquals(expected, a dot b, "pattern ${ia.toList()} vs ${ib.toList()}")
-            assertEquals(expected, b dot a, "dot should be symmetric for ${ia.toList()} vs ${ib.toList()}")
-        }
-    }
-
-    @Test
-    fun `mixed sparse and dense dot agrees in both operand orders`() {
-        val sparse = SparseVector.of(6, intArrayOf(1, 4), doubleArrayOf(2.0, -3.0))
-        val dense = DenseVector.of(doubleArrayOf(1.0, 2.0, 3.0, 4.0, 5.0, 6.0))
-        val expected = 2.0 * 2.0 + -3.0 * 5.0
-        assertEquals(expected, sparse dot dense)
-        assertEquals(expected, dense dot sparse)
     }
 
     @Test

@@ -23,6 +23,9 @@ class VectorTest {
         assertFailsWith<DimensionMismatch> { DenseVector.zero(-3) }
         assertFailsWith<DimensionMismatch> { SparseVector.wrap(-5, IntArray(0), DoubleArray(0)) }
         assertFailsWith<DimensionMismatch> { SparseVector.of(-3, IntArray(0), DoubleArray(0)) }
+        assertFailsWith<IllegalArgumentException> {
+            SparseVector.of(3, intArrayOf(0), doubleArrayOf(1.0, 2.0))
+        }
     }
 
     @Test
