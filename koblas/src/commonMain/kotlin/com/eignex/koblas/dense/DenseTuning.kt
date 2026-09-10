@@ -55,9 +55,6 @@ internal object DenseTuning {
     /** Side of the square tile the blocked transpose moves at a time. */
     val transposeBlock: Int = tuned("transpose.block", default = 32)
 
-    /** Order at which a multi-column triangular solve blocks. */
-    val trsmBlockedMinOrder: Int = tuned("trsm.blocked.min.order", default = 512)
-
     /** Smallest triangular order sent through packed updates. */
     val trsmPackedMinOrder: Int = tuned("trsm.packed.min.order", default = 16)
 

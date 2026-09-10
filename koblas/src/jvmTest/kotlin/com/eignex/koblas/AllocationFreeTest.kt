@@ -14,18 +14,7 @@ class AllocationFreeTest {
         /** Allowance for effects that are not koblas's (instrumentation, index boxing, JIT noise). */
         const val FLOOR_BYTES = 64.0
 
-        /** A pooled form must allocate at most this fraction of what the allocating form does. */
-        const val POOLED_RATIO = 50.0
-
         val engine = BuiltinKernels.scalar.engine()
-    }
-
-    private fun assertPooled(pooled: Double, allocating: Double, what: String) {
-        val budget = maxOf(FLOOR_BYTES, allocating / POOLED_RATIO)
-        assertTrue(
-            pooled < budget,
-            "$what allocated $pooled B per iteration against a $budget B budget (allocating form: $allocating B)",
-        )
     }
 
     @Test

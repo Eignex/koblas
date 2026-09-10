@@ -1,6 +1,6 @@
 package com.eignex.koblas.bench
 
-internal const val WORKLOAD_VERSION = "2"
+internal const val WORKLOAD_VERSION = "3"
 internal const val FIXTURE_VERSION = "1"
 
 internal data class BenchCase(
@@ -17,7 +17,7 @@ internal data class BenchCase(
 
 internal object Cases {
     private val dimensionCounts = mapOf(
-        "dot" to 1, "axpy" to 1, "scal" to 1, "nrm2" to 1, "asum" to 1, "sum" to 1,
+        "dot" to 1, "axpy" to 1, "axpy-arithmetic" to 1, "scal" to 1, "nrm2" to 1, "asum" to 1, "sum" to 1,
         "compensated-sum" to 1, "iamax" to 1, "swap" to 1, "rot" to 1, "rotm" to 1, "rotmg" to 1,
         "ssqd" to 1, "dot4" to 1, "axpy4" to 1, "dot-axpy" to 1,
         "gemv" to 2, "symv" to 1, "ger" to 2, "syr" to 1, "syr2" to 1, "trsv" to 1,

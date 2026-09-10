@@ -19,7 +19,6 @@ class DenseTuningTest {
         assertEquals(128, DenseTuning.level3BlockDepth)
         assertEquals(64, DenseTuning.triangularBlock)
         assertEquals(32, DenseTuning.transposeBlock)
-        assertEquals(512, DenseTuning.trsmBlockedMinOrder)
         assertEquals(16, DenseTuning.trmmPackedMinOrder)
         assertEquals(32, DenseTuning.trmmPackedMinRows)
     }

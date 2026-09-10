@@ -90,9 +90,3 @@ internal val AllocationPolicy.guarantee: AllocationGuarantee?
         AllocationPolicy.REQUIRE_NO_MANAGED -> AllocationGuarantee.NO_MANAGED
         AllocationPolicy.REQUIRE_NO_MANAGED_OR_NATIVE -> AllocationGuarantee.NO_MANAGED_OR_NATIVE
     }
-
-internal val unrestrictedAllocation: AllocationCapability = AllocationCapability(AllocationGuarantee.UNRESTRICTED)
-internal val noSizeDependentManagedAllocation: AllocationCapability =
-    AllocationCapability(AllocationGuarantee.NO_SIZE_DEPENDENT_MANAGED)
-internal val noManagedOrNativeAllocation: AllocationCapability =
-    AllocationCapability(AllocationGuarantee.NO_MANAGED_OR_NATIVE)

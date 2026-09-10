@@ -7,7 +7,7 @@ arithmetic subset is comparable; `unsupported` retains the koblas case without a
 
 | cases | OpenBLAS | oneMKL | external timing boundary |
 | --- | --- | --- | --- |
-| dot, axpy, scal, nrm2, asum, iamax, swap, rot, rotm, rotmg | direct | direct | CBLAS call; destructive input reset included on both sides |
+| dot, axpy, axpy-arithmetic, scal, nrm2, asum, iamax, swap, rot, rotm, rotmg | direct | direct | CBLAS call; destructive input reset included on both sides |
 | sum | direct OpenBLAS extension | unsupported | arithmetic call |
 | compensated-sum, ssqd | unsupported | unsupported | koblas-only compensated/fused reductions |
 | dot4 | composed as four DDOT | composed as four DDOT | four calls |
