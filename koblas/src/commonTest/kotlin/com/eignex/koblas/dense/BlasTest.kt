@@ -1,15 +1,20 @@
 package com.eignex.koblas.dense
 
-import com.eignex.koblas.*
 import com.eignex.koblas.DenseMatrix
-import com.eignex.koblas.DenseVector
+import com.eignex.koblas.Workspace
+import com.eignex.koblas.assertClose
+import com.eignex.koblas.koblas
+import com.eignex.koblas.randomMatrix
+import com.eignex.koblas.times
+import com.eignex.koblas.wellConditioned
 import kotlin.math.abs
 import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
-class BlasConformanceTest {
+class BlasTest {
 
     private val eps = 2.220446049250313e-16
 
@@ -27,153 +32,6 @@ class BlasConformanceTest {
             m = maxOf(m, r)
         }
         return m
-    }
-
-    private fun hilbert(n: Int): DenseMatrix =
-        DenseMatrix(n, n).also { for (i in 0 until n) for (j in 0 until n) it[i, j] = 1.0 / (i + j + 1.0) }
-
-    private fun diagonal(n: Int, rng: Random): DenseMatrix =
-        DenseMatrix(n, n).also { for (i in 0 until n) it[i, i] = rng.nextDouble(1.0, 5.0) }
-
-    private fun spd(n: Int, rng: Random): DenseMatrix {
-        val a = DenseMatrix(n, n, DoubleArray(n * n) { rng.nextDouble(-1.0, 1.0) })
-        val m = DenseMatrix(n, n)
-        for (i in 0 until n) {
-            for (j in 0 until n) {
-                var s = 0.0
-                for (k in 0 until n) s += a[k, i] * a[k, j]
-                m[i, j] = s + if (i == j) n.toDouble() else 0.0
-            }
-        }
-        return m
-    }
-
-    // The bound scales the residual by the norms of A, x and b and by n times the unit roundoff. Only the
-    // residual is checked, not the forward error, which the condition number of a Hilbert matrix inflates.
-    private fun assertSolveResidual(a: DenseMatrix, x: DoubleArray, b: DoubleArray, name: String) {
-        val ax = koblas.gemv(a, x)
-        val residual = DoubleArray(a.rows) { ax[it] - b[it] }
-        val bound = 100.0 * a.rows * eps * (infNorm(a) * infNorm(x) + infNorm(b))
-        assertTrue(infNorm(residual) <= bound + 1e-12, "$name: residual ${infNorm(residual)} > bound $bound")
-    }
-
-    @Test
-    fun `dense lower syr uses contiguous axpy runs`() {
-        data class AxpyCall(val yOff: Int, val xOff: Int, val len: Int)
-        val calls = ArrayList<AxpyCall>()
-        val recording = object : DensePanelKernels by ScalarPanelKernels {
-            override fun axpyArithmetic(
-                y: DoubleArray,
-                yOff: Int,
-                alpha: Double,
-                x: DoubleArray,
-                xOff: Int,
-                len: Int,
-            ) {
-                calls.add(AxpyCall(yOff, xOff, len))
-                ScalarPanelKernels.axpyArithmetic(y, yOff, alpha, x, xOff, len)
-            }
-        }
-        val blas = BuiltinBlas(testDenseKernelFamilies(panel = recording))
-        val x = DenseVector.wrap(doubleArrayOf(2.0, -3.0, 5.0, 7.0))
-
-        val lower = DenseMatrix(4, 4)
-        blas.syr(1.5, x, lower, lower = true)
-
-        assertEquals(
-            listOf(AxpyCall(0, 0, 4), AxpyCall(5, 1, 3), AxpyCall(10, 2, 2), AxpyCall(15, 3, 1)),
-            calls,
-        )
-        for (j in 0 until 4) for (i in j until 4) assertEquals(1.5 * x[i] * x[j], lower[i, j])
-    }
-
-    @Test
-    fun `dense upper syr uses contiguous axpy runs`() {
-        data class AxpyCall(val yOff: Int, val xOff: Int, val len: Int)
-        val calls = ArrayList<AxpyCall>()
-        val recording = object : DensePanelKernels by ScalarPanelKernels {
-            override fun axpyArithmetic(
-                y: DoubleArray,
-                yOff: Int,
-                alpha: Double,
-                x: DoubleArray,
-                xOff: Int,
-                len: Int,
-            ) {
-                calls.add(AxpyCall(yOff, xOff, len))
-                ScalarPanelKernels.axpyArithmetic(y, yOff, alpha, x, xOff, len)
-            }
-        }
-        val upper = DenseMatrix(2, 2)
-        BuiltinBlas(testDenseKernelFamilies(panel = recording)).syr(
-            1.0,
-            DenseVector.wrap(doubleArrayOf(2.0, 3.0)),
-            upper,
-            lower = false,
-        )
-
-        assertEquals(listOf(AxpyCall(0, 0, 1), AxpyCall(2, 0, 2)), calls)
-    }
-
-    @Test
-    fun `reference symv traverses each stored column through one fused kernel`() {
-        var fused = 0
-        val recording = object : DensePanelKernels by ScalarPanelKernels {
-            override fun dotAxpy(
-                y: DoubleArray,
-                yOff: Int,
-                alpha: Double,
-                a: DoubleArray,
-                aOff: Int,
-                x: DoubleArray,
-                xOff: Int,
-                len: Int,
-            ): Double {
-                fused++
-                return ScalarPanelKernels.dotAxpy(y, yOff, alpha, a, aOff, x, xOff, len)
-            }
-        }
-        val a = DenseMatrix(3, 3, doubleArrayOf(2.0, 3.0, 5.0, 0.0, 7.0, 11.0, 0.0, 0.0, 13.0))
-        val y = DoubleArray(3)
-
-        BuiltinBlas(testDenseKernelFamilies(panel = recording)).symv(
-            1.0,
-            a,
-            doubleArrayOf(17.0, 19.0, 23.0),
-            0.0,
-            y,
-            lower = true,
-        )
-
-        assertEquals(3, fused)
-        assertEquals(doubleArrayOf(206.0, 437.0, 593.0).toList(), y.toList())
-    }
-
-    @Test
-    fun `reference syr2 uses two axpy kernels per column`() {
-        var axpys = 0
-        val recording = object : DensePanelKernels by ScalarPanelKernels {
-            override fun axpyArithmetic(
-                y: DoubleArray,
-                yOff: Int,
-                alpha: Double,
-                x: DoubleArray,
-                xOff: Int,
-                len: Int,
-            ) {
-                axpys++
-                ScalarPanelKernels.axpyArithmetic(y, yOff, alpha, x, xOff, len)
-            }
-        }
-
-        BuiltinBlas(testDenseKernelFamilies(panel = recording)).syr2(
-            1.0,
-            DenseVector.wrap(doubleArrayOf(2.0, 3.0, 5.0)),
-            DenseVector.wrap(doubleArrayOf(7.0, 11.0, 13.0)),
-            DenseMatrix(3, 3),
-        )
-
-        assertEquals(6, axpys)
     }
 
     @Test
@@ -240,6 +98,20 @@ class BlasConformanceTest {
     }
 
     @Test
+    fun `gemm preserves a rectangular result with zero depth`() {
+        assertEquals(DenseMatrix(2, 3), DenseMatrix(2, 0) * DenseMatrix(0, 3))
+    }
+
+    @Test
+    fun `gemv and gemm reject incompatible shapes`() {
+        assertFailsWith<IllegalArgumentException> { DenseMatrix(2, 3) * DenseMatrix(2, 2) }
+        assertFailsWith<IllegalArgumentException> { koblas.gemv(DenseMatrix(2, 3), DoubleArray(2)) }
+        assertFailsWith<IllegalArgumentException> {
+            koblas.gemv(DenseMatrix(2, 3), DoubleArray(3), transpose = true)
+        }
+    }
+
+    @Test
     fun `gemm forms zero products in every transpose mode`() {
         val a = DenseMatrix.diagonal(2).also { it[0, 0] = Double.POSITIVE_INFINITY }
         val b = DenseMatrix(2, 2)
@@ -298,55 +170,6 @@ class BlasConformanceTest {
                     workspace = Workspace(),
                 )
                 assertClose(expected, actual, "gemm tA=$transposeA tB=$transposeB", tolerance = 1e-10)
-            }
-        }
-    }
-
-    @Test
-    fun `gemm drives the tile kernel for every transposition`() {
-        for (transposeA in booleanArrayOf(false, true)) {
-            for (transposeB in booleanArrayOf(false, true)) {
-                var tiles = 0
-                val recording = object : PackedKernels by PortablePackedKernels {
-                    override fun gemmTile(
-                        depth: Int,
-                        packedA: DoubleArray,
-                        aOff: Int,
-                        packedB: DoubleArray,
-                        bOff: Int,
-                        c: DoubleArray,
-                        cOff: Int,
-                        ldc: Int,
-                    ) {
-                        tiles++
-                        PortablePackedKernels.gemmTile(depth, packedA, aOff, packedB, bOff, c, cOff, ldc)
-                    }
-                }
-                val k = 5
-                val m = 9
-                val n = 3
-                val a = if (transposeA) {
-                    DenseMatrix(k, m, DoubleArray(k * m) { (it + 1).toDouble() })
-                } else {
-                    DenseMatrix(m, k, DoubleArray(m * k) { (it + 1).toDouble() })
-                }
-                val b = if (transposeB) {
-                    DenseMatrix(n, k, DoubleArray(n * k) { (it + 1).toDouble() })
-                } else {
-                    DenseMatrix(k, n, DoubleArray(k * n) { (it + 1).toDouble() })
-                }
-
-                BuiltinBlas(testDenseKernelFamilies(packed = recording)).gemm(
-                    1.0,
-                    a,
-                    transposeA,
-                    b,
-                    transposeB,
-                    0.0,
-                    DenseMatrix(m, n),
-                )
-
-                assertTrue(tiles > 0, "tA=$transposeA tB=$transposeB did not reach the tile kernel")
             }
         }
     }

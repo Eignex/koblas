@@ -240,7 +240,7 @@ class DenseVectorKernelsTest {
 
     @Test
     fun `the compiled-in level-1 kernels agree with the scalar loops`() =
-        assertLevel1KernelsAgreeWithScalar(PlatformVectorKernels)
+        assertLevel1KernelsAgreeWithReference(PlatformVectorKernels)
 
     @Test
     fun `ssqd stays exact where the expanded form cancels`() {
@@ -273,14 +273,14 @@ class DenseVectorKernelsTest {
 
     @Test
     fun `the compiled-in reductions agree with the scalar loops`() =
-        assertReductionsAgreeWithScalar(PlatformVectorKernels)
+        assertReductionsAgreeWithReference(PlatformVectorKernels)
 
     @Test
-    fun `the compiled-in swap agrees with the scalar loop`() = assertSwapAgreesWithScalar(PlatformVectorKernels)
+    fun `the compiled-in swap agrees with the scalar loop`() = assertSwapAgreesWithReference(PlatformVectorKernels)
 
     @Test
     fun `the compiled-in modified Givens kernels agree with the portable ones`() {
-        assertModifiedGivensKernelsAgreeWithPortable(PlatformVectorKernels)
-        assertRotKernelAgreesWithPortable(PlatformVectorKernels)
+        assertModifiedGivensKernelsAgreeWithReference(PlatformVectorKernels)
+        assertRotKernelAgreesWithReference(PlatformVectorKernels)
     }
 }

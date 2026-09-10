@@ -6,6 +6,26 @@ import kotlin.test.*
 class VectorTest {
 
     @Test
+    fun `vector indexing rejects every address outside its size`() {
+        val vectors = listOf<VectorLike>(
+            DenseVector.of(doubleArrayOf(1.0, 2.0)),
+            SparseVector.of(2, intArrayOf(0), doubleArrayOf(1.0)),
+        )
+        for (vector in vectors) {
+            assertFailsWith<IndexOutOfBoundsException> { vector[2] }
+            assertFailsWith<IndexOutOfBoundsException> { vector[7] }
+            assertFailsWith<IndexOutOfBoundsException> { vector[-1] }
+        }
+    }
+
+    @Test
+    fun `vector factories reject negative sizes`() {
+        assertFailsWith<DimensionMismatch> { DenseVector.zero(-3) }
+        assertFailsWith<DimensionMismatch> { SparseVector.wrap(-5, IntArray(0), DoubleArray(0)) }
+        assertFailsWith<DimensionMismatch> { SparseVector.of(-3, IntArray(0), DoubleArray(0)) }
+    }
+
+    @Test
     fun `DenseVector zero factory builds a zero-filled vector`() {
         val z = DenseVector.zero(3)
         assertEquals(3, z.size)
@@ -41,7 +61,6 @@ class VectorTest {
         val a = DenseVector.of(doubleArrayOf(1.0, 2.0))
         val b = DenseVector.of(doubleArrayOf(1.0, 2.0))
         val c = DenseVector.of(doubleArrayOf(1.0, 3.0))
-        assertEquals(a, a)
         assertEquals(a, b)
         assertEquals(a.hashCode(), b.hashCode())
         assertNotEquals(a, c)
@@ -80,7 +99,6 @@ class VectorTest {
         val b = SparseVector.of(4, intArrayOf(0, 2), doubleArrayOf(1.0, 3.0))
         val different = SparseVector.of(4, intArrayOf(0, 2), doubleArrayOf(1.0, 4.0))
         val sizeDiff = SparseVector.of(5, intArrayOf(0, 2), doubleArrayOf(1.0, 3.0))
-        assertEquals(a, a)
         assertEquals(a, b)
         assertEquals(a.hashCode(), b.hashCode())
         assertNotEquals(a, different)
@@ -135,6 +153,15 @@ class VectorTest {
         }
         assertFailsWith<IllegalArgumentException> {
             SparseVector.wrap(5, intArrayOf(0, 1), doubleArrayOf(1.0))
+        }
+        assertFailsWith<IllegalArgumentException> {
+            SparseVector.wrap(5, intArrayOf(-1), doubleArrayOf(1.0))
+        }
+        assertFailsWith<IllegalArgumentException> {
+            SparseVector.wrap(5, intArrayOf(5), doubleArrayOf(1.0))
+        }
+        assertFailsWith<IllegalArgumentException> {
+            SparseVector.wrap(5, intArrayOf(1, 1), doubleArrayOf(1.0, 2.0))
         }
     }
 }

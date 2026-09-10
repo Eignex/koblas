@@ -375,8 +375,9 @@ internal object SimdOps {
         while (i < bound) {
             val vx = DoubleVector.fromArray(SPECIES, x, xOff + i)
             val vy = DoubleVector.fromArray(SPECIES, y, yOff + i)
-            // y_new = alpha * x + y  ->  vx.fma(alphaVec, vy) computes vx * alphaVec + vy.
-            vx.fma(alphaVec, vy).intoArray(y, yOff + i)
+            // Parent BLAS routines require the multiplication to round before the addition. A fused
+            // operation can hide an overflowing product and change a later cancellation.
+            vx.mul(alphaVec).add(vy).intoArray(y, yOff + i)
             i += LANE
         }
         while (i < len) {

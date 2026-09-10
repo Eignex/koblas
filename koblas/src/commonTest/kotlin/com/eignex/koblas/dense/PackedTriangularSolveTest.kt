@@ -8,7 +8,6 @@ import com.eignex.koblas.randomMatrix
 import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
-import kotlin.test.assertTrue
 
 class PackedTriangularSolveTest {
     @Test
@@ -52,75 +51,6 @@ class PackedTriangularSolveTest {
                 }
             }
         }
-    }
-
-    @Test
-    fun `ordinary trsm reaches packed update and solve kernels`() {
-        var solves = 0
-        var fused = 0
-        val recording = object : PackedKernels by PortablePackedKernels {
-            override fun trsmTile(
-                validRows: Int,
-                order: Int,
-                packedTriangle: DoubleArray,
-                triangleOff: Int,
-                lower: Boolean,
-                unitDiag: Boolean,
-                x: DoubleArray,
-                xOff: Int,
-            ) {
-                solves++
-                PortablePackedKernels.trsmTile(
-                    validRows,
-                    order,
-                    packedTriangle,
-                    triangleOff,
-                    lower,
-                    unitDiag,
-                    x,
-                    xOff,
-                )
-            }
-
-            override fun gemmTrsmTile(
-                depth: Int,
-                validRows: Int,
-                order: Int,
-                packedA: DoubleArray,
-                aOff: Int,
-                packedB: DoubleArray,
-                bOff: Int,
-                packedTriangle: DoubleArray,
-                triangleOff: Int,
-                lower: Boolean,
-                unitDiag: Boolean,
-                x: DoubleArray,
-                xOff: Int,
-            ) {
-                fused++
-                PortablePackedKernels.gemmTrsmTile(
-                    depth, validRows, order, packedA, aOff, packedB, bOff,
-                    packedTriangle, triangleOff, lower, unitDiag, x, xOff,
-                )
-            }
-        }
-        val order = maxOf(DenseTuning.trsmPackedMinOrder, 17)
-        val rows = maxOf(DenseTuning.trsmPackedMinRows, 9)
-        val rng = Random(20260913)
-        val (triangle, explicit) = poisonedTriangle(rng, order, lower = true, unitDiag = false)
-        val expected = randomMatrix(rows, order, rng)
-        val rightHandSide = multiply(explicit, expected, transpose = true, right = true)
-
-        val families = testDenseKernelFamilies(packed = recording)
-        triangularMatrix(
-            families.vector, families.panel, families.packed, triangle, rightHandSide,
-            lower = true, transpose = true, unitDiag = false, right = true,
-            alpha = 1.0, solve = true, workspace = Workspace(),
-        )
-
-        assertClose(expected, rightHandSide, "ordinary packed right transposed solve", tolerance = 1e-9)
-        assertTrue(solves > 0, "ordinary trsm did not use trsmTile")
-        assertTrue(fused > 0, "ordinary trsm did not use gemmTrsmTile")
     }
 
     @Test

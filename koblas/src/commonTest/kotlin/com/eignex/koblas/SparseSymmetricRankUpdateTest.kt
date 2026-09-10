@@ -28,7 +28,7 @@ class SparseSymmetricRankUpdateTest {
         val x = SparseVector.of(4, intArrayOf(3, 0, 3, 2), doubleArrayOf(2.0, -1.0, 1.0, 4.0))
 
         for (lower in booleanArrayOf(true, false)) {
-            val expected = denseCopy(source)
+            val expected = source.denseCopy()
             ReferenceBlas.syr(0.5, x, expected, lower)
 
             val actual = source.syr(0.5, x, lower)
@@ -50,7 +50,7 @@ class SparseSymmetricRankUpdateTest {
         val y = SparseVector.of(4, intArrayOf(3, 0, 3, 1), doubleArrayOf(-1.0, 4.0, 2.0, 5.0))
 
         for (lower in booleanArrayOf(true, false)) {
-            val expected = denseCopy(source)
+            val expected = source.denseCopy()
             ReferenceBlas.syr2(-0.75, x, y, expected, lower)
 
             val actual = source.syr2(-0.75, x, y, lower)
@@ -87,7 +87,7 @@ class SparseSymmetricRankUpdateTest {
         val y = SparseVector.of(3, intArrayOf(2), doubleArrayOf(2.0))
 
         for (lower in booleanArrayOf(true, false)) {
-            val expected = denseCopy(source)
+            val expected = source.denseCopy()
             ReferenceBlas.syr2(1.0, x, y, expected, lower)
 
             val actual = source.syr2(1.0, x, y, lower)
@@ -102,7 +102,7 @@ class SparseSymmetricRankUpdateTest {
         val x = SparseVector.of(3, intArrayOf(0, 1, 2), doubleArrayOf(1.0, 0.0, 2.0))
 
         for (lower in booleanArrayOf(true, false)) {
-            val expected = denseCopy(source)
+            val expected = source.denseCopy()
             ReferenceBlas.syr(1.0, x, expected, lower)
 
             val actual = source.syr(1.0, x, lower)
@@ -120,7 +120,7 @@ class SparseSymmetricRankUpdateTest {
         val y = SparseVector.of(3, intArrayOf(0, 2), doubleArrayOf(-3.0, 4.0))
 
         for (lower in booleanArrayOf(true, false)) {
-            val expected = denseCopy(source)
+            val expected = source.denseCopy()
             ReferenceBlas.syr2(1.0, x, y, expected, lower)
 
             val actual = source.syr2(1.0, x, y, lower)
@@ -173,13 +173,6 @@ class SparseSymmetricRankUpdateTest {
                 DenseVector.zero(3),
             )
         }
-    }
-
-    private fun denseCopy(source: SparseMatrix): DenseMatrix = DenseMatrix(
-        source.rows,
-        source.cols,
-    ).also { out ->
-        for (j in 0 until source.cols) source.forEachInColumn(j) { i, value -> out[i, j] = value }
     }
 
     private fun assertMatrixEquals(expected: DenseMatrix, actual: SparseMatrix, context: String) {

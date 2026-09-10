@@ -44,6 +44,8 @@ class SparseMatrixTest {
         assertEquals(0.0, a[2, 1])
         assertFailsWith<IndexOutOfBoundsException> { a[3, 0] }
         assertFailsWith<IndexOutOfBoundsException> { a[0, 2] }
+        assertFailsWith<IndexOutOfBoundsException> { a[-1, 0] }
+        assertFailsWith<IndexOutOfBoundsException> { a[0, -1] }
     }
 
     @Test
@@ -171,6 +173,9 @@ class SparseMatrixTest {
         assertFailsWith<IllegalArgumentException> {
             SparseMatrix.ofTriplets(2, 2, intArrayOf(0, 1), intArrayOf(0), doubleArrayOf(1.0))
         }
+        assertFailsWith<DimensionMismatch> {
+            SparseMatrix.ofTriplets(-1, 1, IntArray(0), IntArray(0), DoubleArray(0))
+        }
     }
 
     /**
@@ -179,6 +184,21 @@ class SparseMatrixTest {
      */
     @Test
     fun `wrap still rejects a pattern it cannot vouch for`() {
+        assertFailsWith<IllegalArgumentException>("a short column pointer array") {
+            SparseMatrix.wrap(2, 2, intArrayOf(0, 1), IntArray(0), DoubleArray(0))
+        }
+        assertFailsWith<IllegalArgumentException>("misaligned values") {
+            SparseMatrix.wrap(2, 2, intArrayOf(0, 1, 1), intArrayOf(0), DoubleArray(0))
+        }
+        assertFailsWith<IllegalArgumentException>("a nonzero column pointer head") {
+            SparseMatrix.wrap(2, 2, intArrayOf(1, 1, 1), intArrayOf(0), doubleArrayOf(1.0))
+        }
+        assertFailsWith<IllegalArgumentException>("a column pointer tail different from nnz") {
+            SparseMatrix.wrap(2, 2, intArrayOf(0, 1, 1), intArrayOf(0), doubleArrayOf(1.0, 2.0))
+        }
+        assertFailsWith<IllegalArgumentException>("descending column pointers") {
+            SparseMatrix.wrap(2, 2, intArrayOf(0, 2, 1), intArrayOf(0), doubleArrayOf(1.0))
+        }
         assertFailsWith<IllegalArgumentException>("rows that descend") {
             SparseMatrix.wrap(3, 1, intArrayOf(0, 2), intArrayOf(2, 0), doubleArrayOf(1.0, 2.0))
         }
@@ -187,6 +207,12 @@ class SparseMatrixTest {
         }
         assertFailsWith<IllegalArgumentException>("a row outside the matrix") {
             SparseMatrix.wrap(2, 1, intArrayOf(0, 1), intArrayOf(5), doubleArrayOf(1.0))
+        }
+        assertFailsWith<IllegalArgumentException>("negative rows") {
+            SparseMatrix.wrap(-1, 1, intArrayOf(0, 0), IntArray(0), DoubleArray(0))
+        }
+        assertFailsWith<IllegalArgumentException>("negative columns") {
+            SparseMatrix.wrap(1, -1, intArrayOf(0), IntArray(0), DoubleArray(0))
         }
     }
 

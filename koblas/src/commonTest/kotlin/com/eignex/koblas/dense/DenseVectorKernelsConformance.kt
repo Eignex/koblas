@@ -19,7 +19,7 @@ import kotlin.test.assertEquals
  * 600 clears any unrolled body a wide-lane host takes, whose own threshold scales with the lane count and so
  * sits above the shorter lengths here.
  */
-internal fun assertLevel1KernelsAgreeWithScalar(kernels: DenseVectorKernels) {
+internal fun assertLevel1KernelsAgreeWithReference(kernels: DenseVectorKernels) {
     val rng = Random(20260731)
     for (len in intArrayOf(1, 7, 31, 32, 63, 64, 65, 200, 600)) {
         val pad = 3
@@ -56,7 +56,7 @@ internal fun assertLevel1KernelsAgreeWithScalar(kernels: DenseVectorKernels) {
 }
 
 /** Modified Givens construction and strided application against the portable kernel implementation. */
-internal fun assertModifiedGivensKernelsAgreeWithPortable(kernels: DenseVectorKernels) {
+internal fun assertModifiedGivensKernelsAgreeWithReference(kernels: DenseVectorKernels) {
     val inputs = listOf(
         doubleArrayOf(-1.0, 3.0, 2.0, 4.0),
         doubleArrayOf(1.0, 0.0, 2.0, 4.0),
@@ -109,7 +109,7 @@ internal fun assertModifiedGivensKernelsAgreeWithPortable(kernels: DenseVectorKe
  * rotation instead of implementing one would pass, but there is no such leaf to inherit from, so the
  * failure this catches is a leaf whose own rotation disagrees.
  */
-internal fun assertRotKernelAgreesWithPortable(kernels: DenseVectorKernels) {
+internal fun assertRotKernelAgreesWithReference(kernels: DenseVectorKernels) {
     val rotation = rotg(3.0, 4.0)
     for (len in intArrayOf(0, 1, 7, 63, 64, 65, 200)) {
         val pad = 3
@@ -156,7 +156,7 @@ private fun assertModifiedGivensClose(expected: ModifiedGivens, actual: Modified
  * Exchange, at a non-zero offset in both operands and at lengths that straddle a lane boundary, so a kernel
  * that swaps whole vectors is checked for leaving the padding either side untouched.
  */
-internal fun assertSwapAgreesWithScalar(kernels: DenseVectorKernels) {
+internal fun assertSwapAgreesWithReference(kernels: DenseVectorKernels) {
     val rng = Random(20260826)
     for (len in intArrayOf(1, 7, 63, 64, 65, 200, 600)) {
         val pad = 3
@@ -183,7 +183,7 @@ internal fun assertSwapAgreesWithScalar(kernels: DenseVectorKernels) {
  * The reductions at scales whose squares leave the exponent range, which is what forces `nrm2` to rescale
  * rather than sum squares directly, plus the zero run both must report as zero exactly.
  */
-internal fun assertReductionsAgreeWithScalar(kernels: DenseVectorKernels) {
+internal fun assertReductionsAgreeWithReference(kernels: DenseVectorKernels) {
     val rng = Random(20260951)
     for (scale in doubleArrayOf(1.0, 1e200, 1e-200)) {
         for (len in intArrayOf(1, 31, 32, 63, 64, 200, 600)) {

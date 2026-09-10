@@ -1,10 +1,8 @@
 package com.eignex.koblas
 
-import com.eignex.koblas.DenseMatrix
-import com.eignex.koblas.SparseMatrix
 import kotlin.test.*
 
-class ScalingTest {
+class MatrixScalingTest {
 
     private fun example() = DenseMatrix.of(
         arrayOf(
@@ -81,5 +79,46 @@ class ScalingTest {
         assertFailsWith<DimensionMismatch> {
             SparseMatrix.ofTriplets(2, 2, IntArray(0), IntArray(0), DoubleArray(0)).scaleColumns(DoubleArray(3))
         }
+    }
+
+    @Test
+    fun `sparse scaleRows agrees with dense reference`() {
+        val sparse = sparseStorageExample()
+        val dense = sparse.denseCopy()
+
+        val factors = doubleArrayOf(-2.0, 0.5, 3.0)
+        sparse.scaleRows(factors)
+        dense.scaleRows(factors)
+        for (i in 0 until sparse.rows) {
+            // Dense scaling changes an implicit +0.0 to -0.0 for a negative factor; CSC has no stored entry.
+            for (j in 0 until sparse.cols) assertEquals(dense[i, j], sparse[i, j], 0.0, "($i,$j)")
+        }
+    }
+
+    @Test
+    fun `row scaling keeps CSC storage including explicit zeros`() {
+        val sparse = sparseStorageExample()
+        val pointers = sparse.copyColumnPointers()
+        val indices = sparse.copyRowIndices()
+
+        sparse.scaleRows(doubleArrayOf(-2.0, 0.5, 3.0))
+
+        assertContentEquals(pointers, sparse.copyColumnPointers())
+        assertContentEquals(indices, sparse.copyRowIndices())
+        assertEquals((-0.0).toBits(), sparse.values[3].toBits())
+    }
+
+    @Test
+    fun `sparse row scaling handles empty shapes`() {
+        val noRows = SparseMatrix.ofTriplets(0, 3, IntArray(0), IntArray(0), DoubleArray(0))
+        val noColumns = SparseMatrix.ofTriplets(4, 0, IntArray(0), IntArray(0), DoubleArray(0))
+
+        noRows.scaleRows(DoubleArray(0))
+        noColumns.scaleRows(DoubleArray(4))
+
+        assertEquals(0, noRows.nnz)
+        assertEquals(0, noColumns.nnz)
+        assertEquals(3, noRows.cols)
+        assertEquals(4, noColumns.rows)
     }
 }

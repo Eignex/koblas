@@ -58,6 +58,15 @@ class SerializationTest {
     }
 
     @Test
+    fun `SparseVector deserialization rejects a negative size`() {
+        assertFailsWith<DimensionMismatch> {
+            json.decodeFromString<VectorStorage>(
+                """{"type":"SparseVector","size":-5,"indices":[],"values":[]}""",
+            )
+        }
+    }
+
+    @Test
     fun `VectorStorage round-trips polymorphically preserving dense and sparse types`() {
         val dense: VectorStorage = DenseVector.of(doubleArrayOf(1.0, 2.0))
         val sparse: VectorStorage = SparseVector.of(4, intArrayOf(0, 3), doubleArrayOf(1.0, 2.0))
