@@ -12,30 +12,8 @@ import com.eignex.koblas.requireShape
 import kotlinx.cinterop.addressOf
 import kotlinx.cinterop.usePinned
 
-/** C indexed leaves compiled into each runnable Kotlin/Native host artifact. */
-internal object NativeCIndexedSparseKernels : IndexedSparseKernels {
-    override fun dotDense(
-        indices: IntArray,
-        values: DoubleArray,
-        fromIndex: Int,
-        toIndex: Int,
-        dense: DoubleArray,
-    ): Double {
-        if (fromIndex == toIndex) return 0.0
-        return indices.usePinned { ip ->
-            values.usePinned { vp ->
-                dense.usePinned { dp ->
-                    koblas_sparse_dot_dense(
-                        ip.addressOf(fromIndex),
-                        vp.addressOf(fromIndex),
-                        toIndex - fromIndex,
-                        dp.addressOf(0),
-                    )
-                }
-            }
-        }
-    }
-
+/** C indexed data movement, with ordered and zero-evaluating matrix arithmetic retained by the scalar delegate. */
+internal object NativeCIndexedSparseKernels : IndexedSparseKernels by ScalarIndexedSparseKernels {
     override fun dotSparse(
         xIndices: IntArray,
         xValues: DoubleArray,
@@ -60,30 +38,6 @@ internal object NativeCIndexedSparseKernels : IndexedSparseKernels {
                             yToIndex - yFromIndex,
                         )
                     }
-                }
-            }
-        }
-    }
-
-    override fun axpy(
-        indices: IntArray,
-        values: DoubleArray,
-        fromIndex: Int,
-        toIndex: Int,
-        alpha: Double,
-        destination: DoubleArray,
-    ) {
-        if (fromIndex == toIndex) return
-        indices.usePinned { ip ->
-            values.usePinned { vp ->
-                destination.usePinned { dp ->
-                    koblas_sparse_axpy(
-                        ip.addressOf(fromIndex),
-                        vp.addressOf(fromIndex),
-                        toIndex - fromIndex,
-                        alpha,
-                        dp.addressOf(0),
-                    )
                 }
             }
         }
@@ -155,7 +109,19 @@ internal object NativeCSparseKernels : SparseKernels {
 
     override fun dot(x: SparseVector, y: DoubleArray): Double {
         requireShape(x.size == y.size) { "dot: sizes differ, ${x.size} vs ${y.size}" }
-        return NativeCIndexedSparseKernels.dotDense(x.indices, x.values, 0, x.values.size, y)
+        if (x.values.isEmpty()) return 0.0
+        return x.indices.usePinned { ip ->
+            x.values.usePinned { vp ->
+                y.usePinned { yp ->
+                    koblas_sparse_dot_dense(
+                        ip.addressOf(0),
+                        vp.addressOf(0),
+                        x.values.size,
+                        yp.addressOf(0),
+                    )
+                }
+            }
+        }
     }
 
     override fun dot(x: SparseVector, y: SparseVector): Double {
@@ -174,8 +140,20 @@ internal object NativeCSparseKernels : SparseKernels {
 
     override fun axpy(y: DoubleArray, alpha: Double, x: SparseVector) {
         requireShape(x.size == y.size) { "axpy: sizes differ, ${x.size} vs ${y.size}" }
-        if (alpha == 0.0) return
-        NativeCIndexedSparseKernels.axpy(x.indices, x.values, 0, x.values.size, alpha, y)
+        if (alpha == 0.0 || x.values.isEmpty()) return
+        x.indices.usePinned { ip ->
+            x.values.usePinned { vp ->
+                y.usePinned { yp ->
+                    koblas_sparse_axpy(
+                        ip.addressOf(0),
+                        vp.addressOf(0),
+                        x.values.size,
+                        alpha,
+                        yp.addressOf(0),
+                    )
+                }
+            }
+        }
     }
 
     override fun scatter(x: SparseVector, out: DoubleArray) {
