@@ -1,7 +1,6 @@
 package com.eignex.koblas.dense
 
 import com.eignex.koblas.DenseMatrix
-import com.eignex.koblas.ExperimentalKoblasApi
 import com.eignex.koblas.Workspace
 import com.eignex.koblas.assertClose
 import kotlin.math.min
@@ -10,7 +9,6 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
-@OptIn(ExperimentalKoblasApi::class)
 class PackedPanelsTest {
     @Test
     fun `left panels round trip across a partial edge`() {

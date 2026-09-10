@@ -1,13 +1,11 @@
 package com.eignex.koblas.sparse
 
-import com.eignex.koblas.ExperimentalKoblasApi
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
-@OptIn(ExperimentalKoblasApi::class)
 class SparseWorkspaceTest {
     @Test
     fun `scatter preserves first touch order across calls`() {

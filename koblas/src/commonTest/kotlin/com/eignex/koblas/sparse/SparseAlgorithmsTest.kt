@@ -2,7 +2,6 @@ package com.eignex.koblas.sparse
 
 import com.eignex.koblas.BuiltinKernelProvider
 import com.eignex.koblas.BuiltinKernels
-import com.eignex.koblas.ExperimentalKoblasApi
 import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.assertClose
 import com.eignex.koblas.engine
@@ -11,7 +10,6 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
-@OptIn(ExperimentalKoblasApi::class)
 class SparseAlgorithmsTest {
     private val providers: List<BuiltinKernelProvider>
         get() = listOfNotNull(BuiltinKernels.scalar, BuiltinKernels.c, BuiltinKernels.simd).distinct()

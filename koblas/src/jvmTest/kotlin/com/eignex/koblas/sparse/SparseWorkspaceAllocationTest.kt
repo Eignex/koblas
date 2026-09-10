@@ -1,11 +1,9 @@
 package com.eignex.koblas.sparse
 
-import com.eignex.koblas.ExperimentalKoblasApi
 import com.eignex.koblas.testutil.allocation.bytesPerIteration
 import kotlin.test.Test
 import kotlin.test.assertTrue
 
-@OptIn(ExperimentalKoblasApi::class)
 class SparseWorkspaceAllocationTest {
     @Test
     fun `warmed sparse workspace operations allocate nothing`() {

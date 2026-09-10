@@ -1,7 +1,6 @@
 package com.eignex.koblas.dense
 
 import com.eignex.koblas.DenseMatrix
-import com.eignex.koblas.ExperimentalKoblasApi
 import com.eignex.koblas.Workspace
 
 /**
@@ -21,7 +20,6 @@ import com.eignex.koblas.Workspace
  * rows and the same depth as `T`. This is also the column-major tile written by [PackedKernels.gemmTile], so a
  * solved panel can be retained for later packed updates without conversion.
  */
-@ExperimentalKoblasApi
 public open class PackedPanels internal constructor(private val kernels: PackedKernels) {
     /** Platform-selected packed panel operations retained for source-compatible convenience calls. */
     public companion object : PackedPanels(platformDenseKernelFamilies.packed)

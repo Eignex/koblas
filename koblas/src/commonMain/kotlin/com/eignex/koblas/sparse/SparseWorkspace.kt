@@ -1,6 +1,5 @@
 package com.eignex.koblas.sparse
 
-import com.eignex.koblas.ExperimentalKoblasApi
 import com.eignex.koblas.sparse.internal.SparseAccumulationKernels
 
 /**
@@ -17,7 +16,6 @@ import com.eignex.koblas.sparse.internal.SparseAccumulationKernels
  * These helpers manipulate arithmetic values and active support only. Pivot selection, merit calculations,
  * permutations, dropping policy, and factorization state remain caller responsibilities.
  */
-@ExperimentalKoblasApi
 public object SparseWorkspace {
     /** Bit reported by [scatterAxpyChecked] when a product or updated accumulator value is not finite. */
     public const val SCATTER_NONFINITE: Int = 1

@@ -151,7 +151,6 @@ kernels; there is no provider registry, service discovery, or process-global ove
 Tests and benchmarks can construct an independent exact engine without changing global state:
 
 ```kotlin
-@OptIn(ExperimentalKoblasApi::class)
 val scalar = BuiltinKernels.scalar.engine()
 val c = scalar.gemm(a, b)
 ```

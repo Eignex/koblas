@@ -6,10 +6,6 @@
 // - Show declarations: true
 
 // Library unique name: <com.eignex:koblas>
-open annotation class com.eignex.koblas/ExperimentalKoblasApi : kotlin/Annotation { // com.eignex.koblas/ExperimentalKoblasApi|null[0]
-    constructor <init>() // com.eignex.koblas/ExperimentalKoblasApi.<init>|<init>(){}[0]
-}
-
 open annotation class com.eignex.koblas/UnsafeKoblasApi : kotlin/Annotation { // com.eignex.koblas/UnsafeKoblasApi|null[0]
     constructor <init>() // com.eignex.koblas/UnsafeKoblasApi.<init>|<init>(){}[0]
 }

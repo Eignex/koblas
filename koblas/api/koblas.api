@@ -128,9 +128,6 @@ public final class com/eignex/koblas/DimensionMismatch : java/lang/IllegalArgume
 	public fun <init> (Ljava/lang/String;)V
 }
 
-public abstract interface annotation class com/eignex/koblas/ExperimentalKoblasApi : java/lang/annotation/Annotation {
-}
-
 public final class com/eignex/koblas/Givens {
 	public final fun getC ()D
 	public final fun getR ()D

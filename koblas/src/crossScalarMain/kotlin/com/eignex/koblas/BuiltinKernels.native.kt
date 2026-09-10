@@ -4,7 +4,6 @@ import com.eignex.koblas.dense.scalarDenseKernelFamilies
 import com.eignex.koblas.sparse.scalarSparseKernelFamilies
 
 /** Built-in providers available while cross-compiling for a foreign Native host. */
-@ExperimentalKoblasApi
 public actual object BuiltinKernels {
     /** Pure Kotlin scalar dense kernels and reference sparse kernels. */
     public actual val scalar: BuiltinKernelProvider =
