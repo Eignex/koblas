@@ -64,6 +64,7 @@ fun registerJvmBenchmark(name: String, mode: String, vectorModule: Boolean) = ta
 
 registerJvmBenchmark("jvmCBenchmark", "jvm-c", vectorModule = false)
 registerJvmBenchmark("jvmSimdBenchmark", "jvm-simd", vectorModule = true)
+registerJvmBenchmark("jvmScalarBenchmark", "jvm-scalar", vectorModule = false)
 
 val hostTarget = when {
     System.getProperty("os.name").startsWith("Linux") && System.getProperty("os.arch") == "amd64" -> "LinuxX64"

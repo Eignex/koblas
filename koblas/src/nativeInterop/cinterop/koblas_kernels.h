@@ -421,10 +421,12 @@ KOBLAS_KERNEL void koblas_dense_rotm(
 
 /* Indexed loads cannot pack without a gather, but four chains still keep the adds off one another. */
 KOBLAS_KERNEL double koblas_sparse_dot_dense(
-    const int32_t *indices, const double *values, int32_t len, const double *dense
+    const int32_t *indices, int32_t index_off,
+    const double *values, int32_t value_off, int32_t len, const double *dense
 ) {
 #define KOBLAS_SPARSE_DOT_DECLARE(q) double s##q = 0.0;
-#define KOBLAS_SPARSE_DOT_STEP(q) s##q += values[k + q] * dense[indices[k + q]];
+#define KOBLAS_SPARSE_DOT_STEP(q) \
+    s##q += values[value_off + k + q] * dense[indices[index_off + k + q]];
     KOBLAS_REPEAT(KOBLAS_SPARSE_DOT_DECLARE)
     int32_t k = 0;
     if (len >= KOBLAS_UNROLL_MIN) {
@@ -435,7 +437,7 @@ KOBLAS_KERNEL double koblas_sparse_dot_dense(
     double sum = KOBLAS_GATHER(s0, s1, s2, s3, s4, s5, s6, s7);
 #undef KOBLAS_SPARSE_DOT_DECLARE
 #undef KOBLAS_SPARSE_DOT_STEP
-    for (; k < len; k++) sum += values[k] * dense[indices[k]];
+    for (; k < len; k++) sum += values[value_off + k] * dense[indices[index_off + k]];
     return sum;
 }
 
@@ -464,16 +466,45 @@ KOBLAS_KERNEL double koblas_sparse_dot_sparse(
 }
 
 KOBLAS_KERNEL void koblas_sparse_axpy(
-    const int32_t *indices, const double *values, int32_t len, double alpha, double *dense
+    const int32_t *indices, int32_t index_off,
+    const double *values, int32_t value_off, int32_t len, double alpha, double *dense
 ) {
     if (alpha == 0.0) return;
-    for (int32_t k = 0; k < len; k++) dense[indices[k]] += alpha * values[k];
+    for (int32_t k = 0; k < len; k++) {
+        dense[indices[index_off + k]] += alpha * values[value_off + k];
+    }
 }
 
 KOBLAS_KERNEL void koblas_sparse_scatter(
-    const int32_t *indices, const double *values, int32_t len, double *dense
+    const int32_t *indices, int32_t index_off,
+    const double *values, int32_t value_off, int32_t len, double *dense
 ) {
-    for (int32_t k = 0; k < len; k++) dense[indices[k]] = values[k];
+    for (int32_t k = 0; k < len; k++) dense[indices[index_off + k]] = values[value_off + k];
+}
+
+KOBLAS_KERNEL double koblas_sparse_nrm2(
+    const int32_t *indices, int32_t index_off, int32_t len, const double *values
+) {
+    double squares = 0.0;
+    for (int32_t k = 0; k < len; k++) {
+        const double value = values[indices[index_off + k]];
+        squares += value * value;
+    }
+    if (isfinite(squares) && squares >= 0x1p-1022) return sqrt(squares);
+
+    double maximum = 0.0;
+    for (int32_t k = 0; k < len; k++) {
+        const double magnitude = fabs(values[indices[index_off + k]]);
+        if (magnitude > maximum) maximum = magnitude;
+    }
+    if (maximum == 0.0 || isinf(maximum)) return sqrt(squares);
+
+    double scaled_squares = 0.0;
+    for (int32_t k = 0; k < len; k++) {
+        const double scaled = values[indices[index_off + k]] / maximum;
+        scaled_squares += scaled * scaled;
+    }
+    return maximum * sqrt(scaled_squares);
 }
 
 KOBLAS_KERNEL void koblas_sparse_gather(

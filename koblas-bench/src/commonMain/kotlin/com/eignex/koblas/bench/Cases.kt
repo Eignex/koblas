@@ -1,6 +1,6 @@
 package com.eignex.koblas.bench
 
-internal const val WORKLOAD_VERSION = "3"
+internal const val WORKLOAD_VERSION = "4"
 internal const val FIXTURE_VERSION = "1"
 
 internal data class BenchCase(
@@ -26,12 +26,17 @@ internal object Cases {
         "pack-left" to 2, "pack-right" to 2, "pack-symmetric-left" to 2,
         "pack-symmetric-right" to 2, "pack-triangular-left" to 2, "pack-triangular-right" to 2,
         "write-left" to 2, "write-right" to 2, "clear-left-padding" to 2, "clear-right-padding" to 2,
-        "spdot" to 1, "spdot-sparse" to 1, "spaxpy" to 1, "spnrm2" to 1, "spasum" to 1,
-        "spscatter" to 1, "spgather" to 1, "spgather-zero" to 1, "spgemv" to 2, "spmm" to 3, "spgemm" to 3,
+        "spdot" to 1, "spdot-raw" to 1, "spdot-sparse" to 1, "spaxpy" to 1, "spaxpy-raw" to 1,
+        "spnrm2" to 1, "spnrm2-indexed" to 1, "spasum" to 1,
+        "spscatter" to 1, "spscatter-raw" to 1, "spgather" to 1, "spgather-zero" to 1,
+        "spgemv" to 2, "spmm" to 3, "spgemm" to 3,
         "spsymv" to 1, "spsymm" to 2, "sptrsv" to 1, "sptrmv" to 1, "sptrsm" to 2, "sptrmm" to 2,
         "spsyrk-dense" to 2, "spsyrk-sparse" to 2, "spadd" to 2,
-        "workspace-scatter" to 1, "workspace-scatter-checked" to 1, "workspace-gather" to 1,
-        "workspace-gather-clear" to 1, "workspace-max" to 1, "workspace-filter" to 1,
+        "sparse-slices-scatter" to 1, "sparse-slices-scatter-checked" to 1, "sparse-slices-gather" to 1,
+        "sparse-slices-gather-clear" to 1, "sparse-slices-clear" to 1, "sparse-slices-clear-local" to 1,
+        "sparse-slices-reduce-dot-checked" to 1, "sparse-slices-reduce-dot-local" to 1,
+        "sparse-slices-reduce-dot-unchecked" to 1,
+        "sparse-slices-max" to 1, "sparse-slices-filter" to 1,
     )
     private val fixtures = setOf("uniform", "triangular", "sparse-uniform", "sparse-triangular")
     private val optionOrder = listOf("density", "mode", "physical", "side", "uplo", "transA", "transB", "diag")
@@ -94,7 +99,7 @@ internal object Cases {
         options: Map<String, String>,
         invalid: (String) -> Nothing,
     ) {
-        val sparse = operation.startsWith("sp") || operation.startsWith("workspace-")
+        val sparse = operation.startsWith("sp") || operation.startsWith("sparse-slices-")
         val triangular = operation in TRIANGULAR_FIXTURE_OPERATIONS
         val expectedFixture = when {
             sparse && triangular -> "sparse-triangular"

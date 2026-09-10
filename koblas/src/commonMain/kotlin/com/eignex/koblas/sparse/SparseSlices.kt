@@ -3,25 +3,26 @@ package com.eignex.koblas.sparse
 import com.eignex.koblas.sparse.internal.SparseAccumulationKernels
 
 /**
- * Allocation-free sparse arithmetic over caller-owned array slices and workspaces.
+ * Stateless, allocation-free sparse arithmetic over caller-owned array slices.
  *
  * The caller owns every buffer and retains it between calls. Input indices and touched indices must be unique
  * within their supplied slices. That uniqueness, and agreement between an active mark and the touched slice, are
- * caller preconditions: checking either without another workspace would require quadratic work or a full-dimension
+ * caller preconditions: checking either without temporary storage would require quadratic work or a full-dimension
  * scan. Bounds, windows, capacities, overlap, and scatter's incoming indices are validated before any destination
  * is mutated. The existing touched slice is trusted and is never scanned by scatter. Roles without two explicit
  * comparable slices must use distinct arrays; explicit
  * `IntArray` slices may share an array only when their reserved windows do not overlap.
  *
- * These helpers manipulate arithmetic values and active support only. Pivot selection, merit calculations,
+ * Unlike [com.eignex.koblas.Workspace], this object owns and borrows no storage. These helpers manipulate
+ * arithmetic values and active support only. Pivot selection, merit calculations,
  * permutations, dropping policy, and factorization state remain caller responsibilities.
  */
-public object SparseWorkspace {
+public object SparseSlices {
     /** Bit reported by [scatterAxpyChecked] when a product or updated accumulator value is not finite. */
-    public const val SCATTER_NONFINITE: Int = 1
+    public const val ARITHMETIC_NONFINITE: Int = 1
 
     /** Bit reported by [scatterAxpyChecked] when nonzero operands produce a zero product. */
-    public const val SCATTER_NONZERO_PRODUCT_UNDERFLOW: Int = 2
+    public const val ARITHMETIC_NONZERO_PRODUCT_UNDERFLOW: Int = 2
 
     /**
      * Accumulates `alpha * values(k)` at `indices(k)` and returns the new total touched count.
@@ -65,8 +66,8 @@ public object SparseWorkspace {
     /**
      * Performs [scatterAxpy] while latching arithmetic diagnostics into [arithmeticStatus] at [statusOffset].
      *
-     * [SCATTER_NONFINITE] is set when a multiplication or updated accumulator value is nonfinite.
-     * [SCATTER_NONZERO_PRODUCT_UNDERFLOW] is set when two nonzero operands produce a zero product. Existing bits in
+     * [ARITHMETIC_NONFINITE] is set when a multiplication or updated accumulator value is nonfinite.
+     * [ARITHMETIC_NONZERO_PRODUCT_UNDERFLOW] is set when two nonzero operands produce a zero product. Existing bits in
      * the status element are preserved, allowing one caller-owned element to collect diagnostics across repeated
      * scatters. The IEEE result is always written, and each product and sum is evaluated exactly once.
      */
@@ -99,7 +100,7 @@ public object SparseWorkspace {
         return SparseAccumulationKernels.scatterWorkspaceChecked(
             alpha, indices, indexOffset, values, valueOffset, count,
             accumulator, marks, epoch, touched, touchedOffset, touchedCount,
-            arithmeticStatus, statusOffset, SCATTER_NONFINITE, SCATTER_NONZERO_PRODUCT_UNDERFLOW,
+            arithmeticStatus, statusOffset, ARITHMETIC_NONFINITE, ARITHMETIC_NONZERO_PRODUCT_UNDERFLOW,
         )
     }
 
@@ -175,6 +176,94 @@ public object SparseWorkspace {
             outIndices, outIndexOffset, outValues, outValueOffset,
             compactExactZeros, marks,
         )
+    }
+
+    /**
+     * Clears the selected [values] and [marks] entries without consuming or changing [touched].
+     *
+     * The two state arrays must have the same logical dimension. The touched window, including an empty window at
+     * the array end, and every selected index are validated before mutation. Selected indices must be unique as a
+     * caller precondition; verifying uniqueness without temporary storage would require quadratic work. Values are
+     * written as positive zero and marks as zero.
+     */
+    public fun clearTouched(
+        touched: IntArray,
+        touchedOffset: Int,
+        touchedCount: Int,
+        values: DoubleArray,
+        marks: IntArray,
+    ) {
+        require(values.size == marks.size) {
+            "values and marks lengths differ: ${values.size} vs ${marks.size}"
+        }
+        requireWindow(touched.size, touchedOffset, touchedCount, "touched")
+        requireDistinct(touched, marks, "touched and marks")
+        validateIndices(touched, touchedOffset, touchedCount, values.size, "touched")
+
+        for (k in 0 until touchedCount) {
+            val index = touched[touchedOffset + k]
+            values[index] = 0.0
+            marks[index] = 0
+        }
+    }
+
+    /**
+     * Reduces indexed products into [initial] in strict input order and latches arithmetic diagnostics.
+     *
+     * Each product is evaluated once, then added to or subtracted from the running result once according to
+     * [subtractProducts]. [ARITHMETIC_NONFINITE] reports a nonfinite initial value, operand, product, or updated
+     * result. [ARITHMETIC_NONZERO_PRODUCT_UNDERFLOW] reports two nonzero finite operands whose product is zero.
+     * Existing status bits are preserved, and the IEEE result is returned rather than converted to an exception.
+     * A zero updated sum is not classified as addition underflow because it may be exact cancellation.
+     *
+     * Status and input windows and every index are validated before any arithmetic is evaluated. Repeated and
+     * unsorted indices are permitted and contribute in their supplied order. [values] and [dense] may alias.
+     */
+    @Suppress("LongParameterList") // two independent input slices plus a caller-owned diagnostic sink
+    public fun reduceDotChecked(
+        initial: Double,
+        subtractProducts: Boolean,
+        indices: IntArray,
+        indexOffset: Int,
+        values: DoubleArray,
+        valueOffset: Int,
+        count: Int,
+        dense: DoubleArray,
+        arithmeticStatus: IntArray,
+        statusOffset: Int,
+    ): Double {
+        requireWindow(arithmeticStatus.size, statusOffset, 1, "arithmetic status")
+        requireWindow(indices.size, indexOffset, count, "indices")
+        requireWindow(values.size, valueOffset, count, "values")
+        requireNonoverlap(
+            arithmeticStatus,
+            statusOffset,
+            1,
+            indices,
+            indexOffset,
+            count,
+            "arithmetic status and indices",
+        )
+        validateIndices(indices, indexOffset, count, dense.size, "indices")
+
+        var status = arithmeticStatus[statusOffset]
+        var result = initial
+        if (!initial.isFinite()) status = status or ARITHMETIC_NONFINITE
+        for (k in 0 until count) {
+            val left = values[valueOffset + k]
+            val right = dense[indices[indexOffset + k]]
+            val product = left * right
+            val updated = if (subtractProducts) result - product else result + product
+            if (!left.isFinite() || !right.isFinite() || !product.isFinite() || !updated.isFinite()) {
+                status = status or ARITHMETIC_NONFINITE
+            }
+            if (left.isFinite() && right.isFinite() && left != 0.0 && right != 0.0 && product == 0.0) {
+                status = status or ARITHMETIC_NONZERO_PRODUCT_UNDERFLOW
+            }
+            result = updated
+        }
+        arithmeticStatus[statusOffset] = status
+        return result
     }
 
     /**

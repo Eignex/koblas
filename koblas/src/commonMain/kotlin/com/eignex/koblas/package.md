@@ -8,5 +8,5 @@ exact scalar, C, or SIMD engines for tests and benchmarks. [KoblasContext.name] 
 implementation attribution.
 
 Dense and sparse BLAS contracts live in `com.eignex.koblas.dense` and `com.eignex.koblas.sparse`. Packed panels
-and sparse workspaces retain caller-owned storage and allocation contracts. Factorization and basis-solver APIs
+and sparse slices retain caller-owned storage and allocation contracts. Factorization and basis-solver APIs
 belong to the optional JVM `koblas-hfactor` artifact.

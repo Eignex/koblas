@@ -65,9 +65,10 @@ public fun MatrixLike.gemvInto(alpha: Double, x: VectorLike, beta: Double, desti
                 val scaled = alpha * v
                 koblas.indexedSparseKernels.axpy(
                     a.rowIdx,
+                    a.colPtr[j],
                     a.values,
                     a.colPtr[j],
-                    a.colPtr[j + 1],
+                    a.colPtr[j + 1] - a.colPtr[j],
                     scaled,
                     destination,
                 )

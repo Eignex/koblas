@@ -9,6 +9,7 @@ Run the koblas implementations you want to compare. `all` is the complete worklo
 such as `gemm` for a smaller run.
 
 ```bash
+./gradlew :koblas-bench:jvmScalarBenchmark -Pbench.operation=all
 ./gradlew :koblas-bench:jvmCBenchmark -Pbench.operation=all
 ./gradlew :koblas-bench:jvmSimdBenchmark -Pbench.operation=all
 ./gradlew :koblas-bench:nativeBenchmark -Pbench.operation=all
@@ -44,8 +45,9 @@ runs on the same hardware share the fingerprint and never overwrite prior result
 koblas-bench/capture-report.sh --libraries openblas,onemkl
 ```
 
-The command runs JVM C, JVM SIMD, native koblas, and the requested vendors. A missing selected library or engine
-fails the run. To make a short trial, add `--operation gemm --warmups 0 --samples 1 --target-ms 1 --forks 1`.
+The command runs JVM scalar, JVM C, JVM SIMD, native koblas, and the requested vendors. A missing selected library
+or engine fails the run. To make a short trial, add
+`--operation gemm --warmups 0 --samples 1 --target-ms 1 --forks 1`.
 
 Compare CSVs from the same run (or compatible runs):
 

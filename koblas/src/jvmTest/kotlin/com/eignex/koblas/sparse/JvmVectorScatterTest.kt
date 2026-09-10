@@ -74,7 +74,7 @@ class JvmVectorScatterTest {
             ReferenceSparseBlas.scatter(x, expected)
 
             val actual = dense.copyOf()
-            SparseSimd.scatter(x.indices, x.values, actual)
+            SparseSimd.scatter(x.indices, 0, x.values, 0, x.values.size, actual)
 
             assertClose(expected, actual, "scatter nnz=${x.values.size}")
         }
@@ -87,7 +87,7 @@ class JvmVectorScatterTest {
             ReferenceSparseBlas.gather(expected, dense.copyOf())
 
             val actual = SparseVector.wrap(x.size, x.indices.copyOf(), x.values.copyOf())
-            SparseSimd.gather(actual.indices, actual.values, dense.copyOf())
+            SparseSimd.gather(actual.indices, 0, actual.values, 0, actual.values.size, dense.copyOf())
 
             assertClose(expected.values, actual.values, "gather nnz=${x.values.size}")
         }
@@ -102,7 +102,7 @@ class JvmVectorScatterTest {
 
             val actualX = SparseVector.wrap(x.size, x.indices.copyOf(), x.values.copyOf())
             val actualDense = dense.copyOf()
-            SparseSimd.gatherZero(actualX.indices, actualX.values, actualDense)
+            SparseSimd.gatherZero(actualX.indices, 0, actualX.values, 0, actualX.values.size, actualDense)
 
             assertClose(expectedX.values, actualX.values, "gatherZero values nnz=${x.values.size}")
             assertClose(expectedDense, actualDense, "gatherZero dense nnz=${x.values.size}")
@@ -116,7 +116,7 @@ class JvmVectorScatterTest {
             ReferenceSparseBlas.axpy(expected, -0.75, x)
 
             val actual = dense.copyOf()
-            SparseSimd.axpy(x.indices, x.values, actual, -0.75)
+            SparseSimd.axpy(x.indices, 0, x.values, 0, x.values.size, actual, -0.75)
 
             assertClose(expected, actual, "axpy nnz=${x.values.size}")
         }

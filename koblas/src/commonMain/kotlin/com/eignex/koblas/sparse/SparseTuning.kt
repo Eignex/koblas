@@ -26,6 +26,18 @@ internal object SparseTuning {
      */
     val dotDenseCCrossover: Int = tuned("dot.dense.c.crossover", default = 256)
 
+    /** Indexed updates shorter than this remain in Kotlin to avoid a foreign call. */
+    val cIndexedMutationCrossover: Int = tuned("indexed.mutation.c.crossover", default = 4096)
+
+    /** Indexed norms shorter than this remain in Kotlin to avoid a foreign call. */
+    val cIndexedNormCrossover: Int = tuned("indexed.norm.c.crossover", default = 4096)
+
+    /** Minimum support width for a JVM Vector API indexed load or store. */
+    val simdIndexedCrossover: Int = tuned("indexed.simd.crossover", default = 16)
+
+    /** Minimum support width for a Kotlin/Native call into an indexed C leaf. */
+    val nativeIndexedCrossover: Int = tuned("indexed.native.crossover", default = 32)
+
     private fun tuned(name: String, default: Int, minimum: Int = 1, maximum: Int = Int.MAX_VALUE): Int =
         tunedInt(PREFIX, name, default, minimum, maximum)
 

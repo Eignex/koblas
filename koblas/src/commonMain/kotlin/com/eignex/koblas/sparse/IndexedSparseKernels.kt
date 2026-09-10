@@ -3,49 +3,87 @@ package com.eignex.koblas.sparse
 /** Numerical leaves over trusted sorted indexed slices. Callers own shape and slice validation. */
 internal interface IndexedSparseKernels {
     fun dotDense(indices: IntArray, values: DoubleArray, dense: DoubleArray): Double =
-        dotDense(indices, values, 0, values.size, dense)
+        dotDense(indices, 0, values, 0, values.size, dense)
 
-    fun dotDense(indices: IntArray, values: DoubleArray, fromIndex: Int, toIndex: Int, dense: DoubleArray): Double
+    @Suppress("LongParameterList")
+    fun dotDense(
+        indices: IntArray,
+        indexOffset: Int,
+        values: DoubleArray,
+        valueOffset: Int,
+        count: Int,
+        dense: DoubleArray,
+    ): Double
 
     fun dotSparse(xIndices: IntArray, xValues: DoubleArray, yIndices: IntArray, yValues: DoubleArray): Double =
-        dotSparse(xIndices, xValues, 0, xValues.size, yIndices, yValues, 0, yValues.size)
+        dotSparse(xIndices, 0, xValues, 0, xValues.size, yIndices, 0, yValues, 0, yValues.size)
 
     @Suppress("LongParameterList")
     fun dotSparse(
         xIndices: IntArray,
+        xIndexOffset: Int,
         xValues: DoubleArray,
-        xFromIndex: Int,
-        xToIndex: Int,
+        xValueOffset: Int,
+        xCount: Int,
         yIndices: IntArray,
+        yIndexOffset: Int,
         yValues: DoubleArray,
-        yFromIndex: Int,
-        yToIndex: Int,
+        yValueOffset: Int,
+        yCount: Int,
     ): Double
 
     fun axpy(indices: IntArray, values: DoubleArray, alpha: Double, destination: DoubleArray) =
-        axpy(indices, values, 0, values.size, alpha, destination)
+        axpy(indices, 0, values, 0, values.size, alpha, destination)
 
+    @Suppress("LongParameterList")
     fun axpy(
         indices: IntArray,
+        indexOffset: Int,
         values: DoubleArray,
-        fromIndex: Int,
-        toIndex: Int,
+        valueOffset: Int,
+        count: Int,
         alpha: Double,
         destination: DoubleArray,
     )
 
     fun scatter(indices: IntArray, values: DoubleArray, destination: DoubleArray) =
-        scatter(indices, values, 0, values.size, destination)
-
-    fun scatter(indices: IntArray, values: DoubleArray, fromIndex: Int, toIndex: Int, destination: DoubleArray)
+        scatter(indices, 0, values, 0, values.size, destination)
 
     fun gather(indices: IntArray, values: DoubleArray, source: DoubleArray) =
-        gather(indices, values, 0, values.size, source)
-
-    fun gather(indices: IntArray, values: DoubleArray, fromIndex: Int, toIndex: Int, source: DoubleArray)
+        gather(indices, 0, values, 0, values.size, source)
 
     fun gatherZero(indices: IntArray, values: DoubleArray, source: DoubleArray) =
-        gatherZero(indices, values, 0, values.size, source)
+        gatherZero(indices, 0, values, 0, values.size, source)
 
-    fun gatherZero(indices: IntArray, values: DoubleArray, fromIndex: Int, toIndex: Int, source: DoubleArray)
+    @Suppress("LongParameterList")
+    fun scatter(
+        indices: IntArray,
+        indexOffset: Int,
+        values: DoubleArray,
+        valueOffset: Int,
+        count: Int,
+        destination: DoubleArray,
+    )
+
+    @Suppress("LongParameterList")
+    fun gather(
+        indices: IntArray,
+        indexOffset: Int,
+        values: DoubleArray,
+        valueOffset: Int,
+        count: Int,
+        source: DoubleArray,
+    )
+
+    @Suppress("LongParameterList")
+    fun gatherZero(
+        indices: IntArray,
+        indexOffset: Int,
+        values: DoubleArray,
+        valueOffset: Int,
+        count: Int,
+        source: DoubleArray,
+    )
+
+    fun nrm2(indices: IntArray, indexOffset: Int, count: Int, values: DoubleArray): Double
 }
