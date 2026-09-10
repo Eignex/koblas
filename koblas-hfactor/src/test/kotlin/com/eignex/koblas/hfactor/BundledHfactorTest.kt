@@ -103,6 +103,18 @@ class BundledHfactorTest {
     }
 
     @Test
+    fun `the bundled HFactor rejects an explicit library path`() {
+        val config = HfactorConfig(libraryPath = "/opt/lib/libkoblas_hfactor.so.1")
+
+        val failure = assertFailsWith<IllegalArgumentException> { BundledHfactor(config) }
+
+        assertEquals(
+            "BundledHfactor does not accept libraryPath; use HfactorSparseLu for an explicit library",
+            failure.message,
+        )
+    }
+
+    @Test
     fun `shared equilibration option reaches the binding without leaving HFactor`() {
         val equilibrated = BundledHfactor(
             HfactorConfig(

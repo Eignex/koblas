@@ -1,5 +1,3 @@
-@file:Suppress("UndocumentedPublicFunction", "UndocumentedPublicProperty")
-
 package com.eignex.koblas.sparse.host.hfactor
 
 import com.eignex.koblas.SINGULAR_POSITION_UNKNOWN
@@ -48,6 +46,7 @@ public class HfactorBasisSolver internal constructor(
 
     private val ownership = NativeOwnership(this, "HFactor basis solver", Release(calls, handle)::closeNative)
 
+    /** The dimension of the basis, equal to the row count of the source matrix. */
     public val n: Int = a.rows
 
     private val columns = a.cols
@@ -63,23 +62,31 @@ public class HfactorBasisSolver internal constructor(
     private var lastFtran: IndexedVector? = null
     private var lastBtran: IndexedVector? = null
 
+    /** Whether the last [refactorize] left the solver unable to solve. */
     public var singular: Boolean = true
         private set
 
+    /**
+     * The smallest-to-largest pivot ratio in the current factors, or zero for an unusable basis.
+     * This is a pivot-spread indicator, not a reciprocal condition-number estimate.
+     */
     public val rcond: Double get() = ownership.anchoring {
         if (!factorized || singular) return@anchoring 0.0
         calls.pivotRange(handle, pivotRange)
         if (pivotRange[1] == 0.0) 0.0 else pivotRange[0] / pivotRange[1]
     }
 
+    /** Updates folded into the factors since the last [refactorize]. */
     public val updateCount: Int get() = ownership.anchoring {
         if (factorized) calls.updateCount(handle) else 0
     }
 
+    /** Stored entries in the current factors, including entries added by updates. */
     public val nnz: Int get() = ownership.anchoring {
         if (factorized) calls.fill(handle) else 0
     }
 
+    /** Why the most recent [update] advised refactorization, or null when it did not. */
     public val refactorizeReason: RefactorizeReason? get() = ownership.anchoring {
         when (calls.refactorizeReason(handle)) {
             1 -> RefactorizeReason.FACTOR_ASKED
@@ -88,6 +95,7 @@ public class HfactorBasisSolver internal constructor(
         }
     }
 
+    /** The elimination kernel produced by the last [refactorize], or null before factorization. */
     public val kernel: BasisKernel? get() = ownership.anchoring {
         if (!factorized) return@anchoring null
         val sizes = IntArray(2)
@@ -95,6 +103,10 @@ public class HfactorBasisSolver internal constructor(
         BasisKernel(sizes[0], sizes[1])
     }
 
+    /**
+     * Factorizes the columns named by [basicIndex] as a basis and drops any updates.
+     * Returns false when the basis is singular, leaving the solver unusable until a later call succeeds.
+     */
     public fun refactorize(basicIndex: IntArray): Boolean = ownership.anchoring {
         requireHfactorShape(basicIndex.size == n) { "refactorize: basicIndex size ${basicIndex.size} != $n" }
         for (t in 0 until n) {
@@ -151,8 +163,9 @@ public class HfactorBasisSolver internal constructor(
     }
 
     /**
-     * The factors are of `E·A`, so a forward solve scales what goes in: `(E·B)` applied to `E·x` is `B` applied
-     * to `x`, and the answer comes back in the caller's own numbers.
+     * Solves `B x = b` in place, with [x] carrying `b` in and the solution out.
+     * [expectedDensity] only steers HFactor's choice of sparse or dense sweep. When row equilibration is
+     * enabled, the factors are of `E·A`, so the input is scaled before the native solve.
      */
     public fun ftran(x: IndexedVector, expectedDensity: Double = 1.0): Unit = ownership.anchoring {
         if (rowScale != null) scaleStored(x)
@@ -161,8 +174,9 @@ public class HfactorBasisSolver internal constructor(
     }
 
     /**
-     * The transposed counterpart, which scales its result instead. HFactor's own vector keeps the answer in
-     * the scaled space it factored, which is what [update] needs back from it, so only the caller's copy moves.
+     * Solves `Bᵀ x = b` in place, the transposed counterpart of [ftran].
+     * With row equilibration, the caller's result is scaled after the solve. HFactor retains its vector in
+     * the scaled space needed by [update], so only the caller's copy changes.
      */
     public fun btran(x: IndexedVector, expectedDensity: Double = 1.0): Unit = ownership.anchoring {
         solveNative(x, expectedDensity, transpose = true)
@@ -178,12 +192,30 @@ public class HfactorBasisSolver internal constructor(
         }
     }
 
+    /**
+     * Measures the residual of [solution] against an unmodified [rhs]. This performs a sparse matrix-vector
+     * product and is intended for numerical checks and rebuild decisions rather than every iteration.
+     */
     public fun solveQuality(rhs: DoubleArray, solution: IndexedVector, transpose: Boolean = false): BasisSolveQuality =
         ownership.anchoring {
             checkSolvable()
             basisSolveQuality(a, basicIndex, unitRows, rhs, solution, transpose)
         }
 
+    /**
+     * Replaces the basis column at [pivotRow] with column [entering] of the source matrix.
+     *
+     * [spike] must be `B⁻¹ A(entering)` under the factorization in effect before this call. [pivotEta], when
+     * supplied, must be `Bᵀ` solved against `e(pivotRow)`. It is trusted rather than checked against the row;
+     * passing an eta for another row folds in a transform that does not invert the requested basis.
+     *
+     * Both vectors must arrive as this solver left them. The solver recognizes its most recent [ftran] and
+     * [btran] results by identity and may reuse the native forms it retained. If either vector was edited after
+     * that solve, the update reads the pre-edit native value. To supply a different value, use a different
+     * [IndexedVector], which makes HFactor recompute the corresponding solve.
+     *
+     * [BasisUpdate.SINGULAR] means the factors were not changed because no usable basis or pivot existed.
+     */
     public fun update(
         pivotRow: Int,
         entering: Int,
@@ -259,12 +291,19 @@ public class HfactorBasisSolver internal constructor(
 
     private val live = mutableSetOf<NativeSnapshot>()
 
+    /**
+     * Sets the current factorization aside for [restore], or returns null when no usable basis is factorized.
+     * Closing the snapshot releases its native copy; closing this solver releases all snapshots it still owns.
+     */
     public fun snapshot(): BasisSnapshot? = ownership.anchoring {
         if (!factorized || singular) return@anchoring null
         val taken = calls.snapshot(handle) ?: return@anchoring null
         NativeSnapshot(taken, basicIndex.copyOf(), unitRows?.copyOf()).also { live.add(it) }
     }
 
+    /**
+     * Restores [snapshot] when it is a live snapshot created by this solver, returning whether it was accepted.
+     */
     public fun restore(snapshot: BasisSnapshot): Boolean = ownership.anchoring {
         // Only snapshots still owned by this solver describe its native factorization.
         val native = snapshot as? NativeSnapshot ?: return@anchoring false
@@ -278,6 +317,7 @@ public class HfactorBasisSolver internal constructor(
         true
     }
 
+    /** Releases the native solver and every snapshot it still owns. This operation is idempotent. */
     override fun close() {
         for (snapshot in live.toList()) snapshot.close()
         ownership.close()
