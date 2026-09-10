@@ -9,9 +9,9 @@ import kotlin.test.assertTrue
 class PackedWorkTest {
     @Test
     fun `packed solve fixtures agree with the scalar equation`() {
-        val providers = listOfNotNull(BuiltinKernels.scalar, BuiltinKernels.c, BuiltinKernels.simd).distinct()
-        for (provider in providers) {
-            val kernels = provider.packedKernels
+        val engines = listOfNotNull(BuiltinKernels.scalar, BuiltinKernels.c, BuiltinKernels.simd).distinct()
+        for (engine in engines) {
+            val kernels = engine.packedKernels
             for (rows in listOf(kernels.gemmTileRows, max(1, kernels.gemmTileRows - 1))) {
                 for (order in listOf(kernels.gemmTileCols, max(1, kernels.gemmTileCols - 2))) {
                     for (lower in listOf(false, true)) {

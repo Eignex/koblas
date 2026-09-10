@@ -88,7 +88,7 @@ val panel = storage.view(row = 64, rows = 128, column = 4, cols = 8)
 val weights = DenseMatrix.zero(8, 2)
 val output = DenseMatrix.zero(128, 2)
 
-koblas.blas.gemm(
+koblas.gemm(
     alpha = 1.0,
     a = panel,
     transposeA = false,
@@ -151,7 +151,7 @@ kernels; there is no provider registry, service discovery, or process-global ove
 Tests and benchmarks can construct an independent exact engine without changing global state:
 
 ```kotlin
-val scalar = BuiltinKernels.scalar.engine()
+val scalar = BuiltinKernels.scalar
 val c = scalar.gemm(a, b)
 ```
 
@@ -183,24 +183,18 @@ bundled.factor(a).use { factors -> factors.solveInto(rhs, solution) }
 val explicit = HfactorSparseLu(HfactorConfig(libraryPath = "/opt/lib/libkoblas_hfactor.so.1"))
 ```
 
-Existing direct `HfactorSparseLu` and `BundledHfactor` construction keeps the same imports. Code that selected
-HFactor through `ContextBuilder`, `Capabilities`, or registry discovery must instead hold one of these objects
-and call `factor` or `basisSolver` on it.
-
-Repeated sparse products can retain an immutable CSC snapshot so a native backend marshals its descriptor once:
+Repeated sparse products can retain an immutable CSC snapshot:
 
 ```kotlin
 import com.eignex.koblas.sparse.prepare
 
-a.prepare().use { prepared ->
-    repeat(iterations) {
-        prepared.gemv(1.0, x, 0.0, y)
-    }
+val prepared = a.prepare()
+repeat(iterations) {
+    prepared.gemv(1.0, x, 0.0, y)
 }
 ```
 
-Prepared handles are AutoCloseable. HFactor factors and basis solvers own native resources and must also be
-closed deterministically.
+HFactor factors and basis solvers own native resources and must be closed deterministically.
 
 Sparse `syrk` has two explicit storage choices: a scaled alpha/beta form writes one triangle of a dense
 destination, while the unscaled allocating form returns only the selected CSC triangle. That sparse result is not
@@ -210,7 +204,7 @@ Sparse-sparse `gemm` can likewise return owned CSC structure or accumulate direc
 ## Native options and threading
 
 An explicit HFactor library path belongs to `HfactorConfig`; bundled and explicit-path construction accept the
-same `HfactorOptions`, so the loading choice does not change numerical policy.
+same `HfactorConfig`, so the loading choice does not change numerical policy.
 
 The portable reference, JVM SIMD, bundled C kernels, and HFactor are single-threaded.
 

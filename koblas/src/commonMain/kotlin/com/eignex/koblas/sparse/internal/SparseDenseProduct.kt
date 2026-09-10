@@ -7,8 +7,8 @@ import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.Workspace
 import com.eignex.koblas.borrow
 import com.eignex.koblas.dense.borrowTransposed
-import com.eignex.koblas.sparse.PortableSparsePanelKernels
 import com.eignex.koblas.sparse.REFERENCE_SPARSE_RHS_WIDTH
+import com.eignex.koblas.sparse.SparsePanelKernels
 import kotlin.math.min
 
 /** Visits dense right-hand sides in cache-sized panels. */
@@ -23,7 +23,7 @@ internal inline fun forEachRhsPanel(columns: Int, action: (start: Int, width: In
 
 @Suppress("LongParameterList") // the operands, their flags, and the shape already worked out
 internal fun multiplyFromTheLeft(
-    kernels: PortableSparsePanelKernels,
+    kernels: SparsePanelKernels,
     alpha: Double,
     a: SparseMatrix,
     transposeA: Boolean,
@@ -60,7 +60,7 @@ internal fun multiplyFromTheLeft(
 /** `C += alpha · op(B) · op(A)` over the sparse operand's CSC columns. */
 @Suppress("LongParameterList") // the operands, their flags, and the shape already worked out
 internal fun multiplyFromTheRight(
-    kernels: PortableSparsePanelKernels,
+    kernels: SparsePanelKernels,
     alpha: Double,
     a: SparseMatrix,
     transposeA: Boolean,
@@ -80,7 +80,7 @@ internal fun multiplyFromTheRight(
 }
 
 internal fun multiplyFromTheRightColumns(
-    kernels: PortableSparsePanelKernels,
+    kernels: SparsePanelKernels,
     alpha: Double,
     a: SparseMatrix,
     transposeA: Boolean,

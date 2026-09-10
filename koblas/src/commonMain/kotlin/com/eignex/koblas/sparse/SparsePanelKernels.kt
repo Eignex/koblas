@@ -4,184 +4,12 @@ import com.eignex.koblas.dense.DensePanelKernels
 import com.eignex.koblas.dense.DenseVectorKernels
 import com.eignex.koblas.dense.axpyArithmetic
 
-/** Numerical leaves for one sparse CSC column against dense vector or right-hand-side storage. */
-internal interface SparsePanelKernels {
-    @Suppress("LongParameterList")
-    fun symmetricVectorColumn(
-        alpha: Double,
-        column: Int,
-        rowIndices: IntArray,
-        values: DoubleArray,
-        fromIndex: Int,
-        toIndex: Int,
-        x: DoubleArray,
-        y: DoubleArray,
-        lower: Boolean,
-    )
-
-    @Suppress("LongParameterList")
-    fun symmetricLeftColumn(
-        alpha: Double,
-        column: Int,
-        rowIndices: IntArray,
-        values: DoubleArray,
-        fromIndex: Int,
-        toIndex: Int,
-        b: DoubleArray,
-        c: DoubleArray,
-        rows: Int,
-        columns: Int,
-        lower: Boolean,
-    )
-
-    @Suppress("LongParameterList")
-    fun symmetricRightColumn(
-        alpha: Double,
-        column: Int,
-        rowIndices: IntArray,
-        values: DoubleArray,
-        fromIndex: Int,
-        toIndex: Int,
-        b: DoubleArray,
-        c: DoubleArray,
-        rows: Int,
-        lower: Boolean,
-    )
-
-    @Suppress("LongParameterList")
-    fun gatherProductPanel(
-        alpha: Double,
-        outputRow: Int,
-        rowIndices: IntArray,
-        values: DoubleArray,
-        fromIndex: Int,
-        toIndex: Int,
-        b: DoubleArray,
-        leadingDimension: Int,
-        transposeB: Boolean,
-        columnStart: Int,
-        width: Int,
-        c: DoubleArray,
-        outputRows: Int,
-        work: DoubleArray,
-    )
-
-    @Suppress("LongParameterList")
-    fun scatterProductPanel(
-        alpha: Double,
-        rowIndices: IntArray,
-        values: DoubleArray,
-        fromIndex: Int,
-        toIndex: Int,
-        b: DoubleArray,
-        leadingDimension: Int,
-        transposeB: Boolean,
-        innerIndex: Int,
-        columnStart: Int,
-        width: Int,
-        c: DoubleArray,
-        outputRows: Int,
-        work: DoubleArray,
-    )
-
-    @Suppress("LongParameterList")
-    fun rightProductColumn(
-        alpha: Double,
-        column: Int,
-        rowIndices: IntArray,
-        values: DoubleArray,
-        fromIndex: Int,
-        toIndex: Int,
-        transposeSparse: Boolean,
-        b: DoubleArray,
-        leadingDimension: Int,
-        c: DoubleArray,
-        rows: Int,
-    )
-
-    @Suppress("LongParameterList")
-    fun triangularAxpy(
-        column: Int,
-        lower: Boolean,
-        rowIndices: IntArray,
-        values: DoubleArray,
-        fromIndex: Int,
-        toIndex: Int,
-        alpha: Double,
-        destination: DoubleArray,
-    )
-
-    fun triangularReduce(
-        column: Int,
-        lower: Boolean,
-        rowIndices: IntArray,
-        values: DoubleArray,
-        fromIndex: Int,
-        toIndex: Int,
-        source: DoubleArray,
-        initial: Double,
-        subtract: Boolean,
-    ): Double
-
-    @Suppress("LongParameterList")
-    fun triangularPanelScatter(
-        solve: Boolean,
-        column: Int,
-        lower: Boolean,
-        unitDiagonal: Boolean,
-        diagonal: Double,
-        rowIndices: IntArray,
-        values: DoubleArray,
-        fromIndex: Int,
-        toIndex: Int,
-        dense: DoubleArray,
-        leadingDimension: Int,
-        columnStart: Int,
-        width: Int,
-        work: DoubleArray,
-    )
-
-    @Suppress("LongParameterList")
-    fun triangularPanelGather(
-        solve: Boolean,
-        column: Int,
-        lower: Boolean,
-        unitDiagonal: Boolean,
-        diagonal: Double,
-        rowIndices: IntArray,
-        values: DoubleArray,
-        fromIndex: Int,
-        toIndex: Int,
-        dense: DoubleArray,
-        leadingDimension: Int,
-        columnStart: Int,
-        width: Int,
-        work: DoubleArray,
-    )
-
-    @Suppress("LongParameterList")
-    fun triangularRightColumn(
-        solve: Boolean,
-        gather: Boolean,
-        column: Int,
-        lower: Boolean,
-        unitDiagonal: Boolean,
-        diagonal: Double,
-        rowIndices: IntArray,
-        values: DoubleArray,
-        fromIndex: Int,
-        toIndex: Int,
-        dense: DoubleArray,
-        rows: Int,
-    )
-}
-
 /** Portable sparse panel arithmetic, retaining the exact selected dense update leaf for contiguous columns. */
-internal class PortableSparsePanelKernels(
+internal class SparsePanelKernels(
     private val denseVectors: DenseVectorKernels,
     private val densePanels: DensePanelKernels,
-) : SparsePanelKernels {
-    override fun symmetricVectorColumn(
+) {
+    fun symmetricVectorColumn(
         alpha: Double,
         column: Int,
         rowIndices: IntArray,
@@ -202,7 +30,7 @@ internal class PortableSparsePanelKernels(
         }
     }
 
-    override fun symmetricLeftColumn(
+    fun symmetricLeftColumn(
         alpha: Double,
         column: Int,
         rowIndices: IntArray,
@@ -228,7 +56,7 @@ internal class PortableSparsePanelKernels(
         }
     }
 
-    override fun symmetricRightColumn(
+    fun symmetricRightColumn(
         alpha: Double,
         column: Int,
         rowIndices: IntArray,
@@ -252,7 +80,7 @@ internal class PortableSparsePanelKernels(
         }
     }
 
-    override fun gatherProductPanel(
+    fun gatherProductPanel(
         alpha: Double,
         outputRow: Int,
         rowIndices: IntArray,
@@ -289,7 +117,7 @@ internal class PortableSparsePanelKernels(
         for (rhs in 0 until width) c[(columnStart + rhs) * outputRows + outputRow] += alpha * work[rhs]
     }
 
-    override fun scatterProductPanel(
+    fun scatterProductPanel(
         alpha: Double,
         rowIndices: IntArray,
         values: DoubleArray,
@@ -324,7 +152,7 @@ internal class PortableSparsePanelKernels(
         }
     }
 
-    override fun rightProductColumn(
+    fun rightProductColumn(
         alpha: Double,
         column: Int,
         rowIndices: IntArray,
@@ -345,7 +173,7 @@ internal class PortableSparsePanelKernels(
         }
     }
 
-    override fun triangularAxpy(
+    fun triangularAxpy(
         column: Int,
         lower: Boolean,
         rowIndices: IntArray,
@@ -361,7 +189,7 @@ internal class PortableSparsePanelKernels(
         }
     }
 
-    override fun triangularReduce(
+    fun triangularReduce(
         column: Int,
         lower: Boolean,
         rowIndices: IntArray,
@@ -383,7 +211,7 @@ internal class PortableSparsePanelKernels(
         return sum
     }
 
-    override fun triangularPanelScatter(
+    fun triangularPanelScatter(
         solve: Boolean,
         column: Int,
         lower: Boolean,
@@ -431,7 +259,7 @@ internal class PortableSparsePanelKernels(
         }
     }
 
-    override fun triangularPanelGather(
+    fun triangularPanelGather(
         solve: Boolean,
         column: Int,
         lower: Boolean,
@@ -467,7 +295,7 @@ internal class PortableSparsePanelKernels(
         }
     }
 
-    override fun triangularRightColumn(
+    fun triangularRightColumn(
         solve: Boolean,
         gather: Boolean,
         column: Int,

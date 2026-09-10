@@ -6,8 +6,8 @@ import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.Workspace
 import com.eignex.koblas.borrow
-import com.eignex.koblas.sparse.PortableSparsePanelKernels
 import com.eignex.koblas.sparse.REFERENCE_SPARSE_RHS_WIDTH
+import com.eignex.koblas.sparse.SparsePanelKernels
 
 /* Shared triangular scheduling over reusable sparse column and RHS-panel leaves. */
 
@@ -31,7 +31,7 @@ internal inline fun withExplicitDiagonal(
 
 /** Sparse triangular multiply over RHS panels, so values and indices are read once for several dense columns. */
 internal fun trmmLeftCore(
-    kernels: PortableSparsePanelKernels,
+    kernels: SparsePanelKernels,
     a: SparseMatrix,
     b: DenseMatrix,
     lower: Boolean,
@@ -68,7 +68,7 @@ internal fun trmmLeftCore(
  * of that algorithm is a whole column of [b] here instead of one right-hand side in a panel.
  */
 internal fun trmmRightCore(
-    kernels: PortableSparsePanelKernels,
+    kernels: SparsePanelKernels,
     a: SparseMatrix,
     b: DenseMatrix,
     lower: Boolean,
@@ -97,7 +97,7 @@ internal fun trmmRightCore(
  * several right-hand sides against one triangle and precomputes the diagonal for itself instead.
  */
 internal fun trmvCore(
-    kernels: PortableSparsePanelKernels,
+    kernels: SparsePanelKernels,
     a: SparseMatrix,
     x: DoubleArray,
     lower: Boolean,
@@ -131,7 +131,7 @@ internal fun trmvCore(
 
 /** Sparse substitution over RHS panels, so values and indices are read once for several dense columns. */
 internal fun trsmLeftCore(
-    kernels: PortableSparsePanelKernels,
+    kernels: SparsePanelKernels,
     a: SparseMatrix,
     b: DenseMatrix,
     lower: Boolean,
@@ -163,7 +163,7 @@ internal fun trsmLeftCore(
 
 /** Right solve over contiguous dense columns, which turns every sparse update into a Level 1 operation. */
 internal fun trsmRightCore(
-    kernels: PortableSparsePanelKernels,
+    kernels: SparsePanelKernels,
     a: SparseMatrix,
     b: DenseMatrix,
     lower: Boolean,
@@ -185,7 +185,7 @@ internal fun trsmRightCore(
 /** `trsv` over the `n` entries of [x], with the triangle flags resolved once by the caller. */
 @Suppress("LongParameterList") // the three BLAS triangle flags
 internal fun trsvCore(
-    kernels: PortableSparsePanelKernels,
+    kernels: SparsePanelKernels,
     a: SparseMatrix,
     x: DoubleArray,
     lower: Boolean,

@@ -6,9 +6,6 @@ import com.eignex.koblas.*
 
 /** Dense matrix routines bound to one immutable kernel implementation. */
 public interface Blas {
-    /** Short implementation identifier for diagnostics. */
-    public val name: String
-
     /** `y = alpha · op(A) · x + beta · y` (BLAS `dgemv`), with `op(A)` being `Aᵀ` when [transpose].
      *  `beta == 0.0` overwrites [y] without reading it. */
     public fun gemv(

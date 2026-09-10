@@ -6,15 +6,12 @@ import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.dense.DenseVectorKernels
 import com.eignex.koblas.dense.applyBeta
 import com.eignex.koblas.dense.scaleTriangle
-import com.eignex.koblas.sparse.internal.ReferencePreparedSparseMatrix
-import com.eignex.koblas.sparse.internal.addScaledCsc
+import com.eignex.koblas.sparse.internal.SparseAccumulationKernels
 import com.eignex.koblas.sparse.internal.multiplyFromTheLeft
 import com.eignex.koblas.sparse.internal.multiplyFromTheRight
 import com.eignex.koblas.sparse.internal.multiplySparse
 import com.eignex.koblas.sparse.internal.multiplySparseInto
 import com.eignex.koblas.sparse.internal.stableFor
-import com.eignex.koblas.sparse.internal.symmetricMultiplyMatrix
-import com.eignex.koblas.sparse.internal.symmetricMultiplyVector
 import com.eignex.koblas.sparse.internal.symmetricRankInto
 import com.eignex.koblas.sparse.internal.symmetricRankProduct
 import com.eignex.koblas.sparse.internal.transposeCsc
@@ -41,11 +38,9 @@ internal const val REFERENCE_SPARSE_RHS_WIDTH: Int = 4
 internal class SparseAlgorithms(
     private val vectorKernels: DenseVectorKernels,
     private val indexedKernels: IndexedSparseKernels,
-    private val sparsePanelKernels: PortableSparsePanelKernels,
+    private val sparsePanelKernels: SparsePanelKernels,
 ) : SparseBlas {
-    override val name: String get() = "built-in"
-
-    override fun prepare(a: SparseMatrix): PreparedSparseMatrix = ReferencePreparedSparseMatrix(a, this)
+    override fun prepare(a: SparseMatrix): PreparedSparseMatrix = PreparedSparseMatrix(a, this)
 
     @Suppress("LongParameterList") // the BLAS dgemv signature
     override fun gemv(
@@ -86,7 +81,19 @@ internal class SparseAlgorithms(
         val stableA = a.stableFor(y)
         val stableX = if (x === y) x.copyOf() else x
         applyBeta(vectorKernels, y, 0, y.size, beta)
-        symmetricMultiplyVector(sparsePanelKernels, alpha, stableA, stableX, y, lower)
+        for (column in 0 until stableA.cols) {
+            sparsePanelKernels.symmetricVectorColumn(
+                alpha,
+                column,
+                stableA.rowIdx,
+                stableA.values,
+                stableA.colPtr[column],
+                stableA.colPtr[column + 1],
+                stableX,
+                y,
+                lower,
+            )
+        }
     }
 
     @Suppress("LongParameterList")
@@ -116,7 +123,36 @@ internal class SparseAlgorithms(
         withStableSparse(a, c.data, workspace) { stableA ->
             withStableDense(b, c.data, workspace) { stableB ->
                 applyBeta(vectorKernels, c.data, 0, c.data.size, beta)
-                symmetricMultiplyMatrix(sparsePanelKernels, alpha, stableA, stableB, c, lower, right)
+                for (column in 0 until stableA.cols) {
+                    if (right) {
+                        sparsePanelKernels.symmetricRightColumn(
+                            alpha,
+                            column,
+                            stableA.rowIdx,
+                            stableA.values,
+                            stableA.colPtr[column],
+                            stableA.colPtr[column + 1],
+                            stableB.data,
+                            c.data,
+                            stableB.rows,
+                            lower,
+                        )
+                    } else {
+                        sparsePanelKernels.symmetricLeftColumn(
+                            alpha,
+                            column,
+                            stableA.rowIdx,
+                            stableA.values,
+                            stableA.colPtr[column],
+                            stableA.colPtr[column + 1],
+                            stableB.data,
+                            c.data,
+                            stableB.rows,
+                            stableB.cols,
+                            lower,
+                        )
+                    }
+                }
             }
         }
     }
@@ -281,7 +317,35 @@ internal class SparseAlgorithms(
         requireShape(rows == b.rows && cols == b.cols) {
             "addScaled: op(A) is ${rows}x$cols but B is ${b.rows}x${b.cols}"
         }
-        return addScaledCsc(alpha, oriented(a, transposeA, alpha != 0.0), b)
+        val left = oriented(a, transposeA, alpha != 0.0)
+        val pointers = IntArray(left.cols + 1)
+        val rowIndices = IntArray(left.nnz + b.nnz)
+        val values = DoubleArray(rowIndices.size)
+        var count = 0
+        for (column in 0 until left.cols) {
+            count += SparseAccumulationKernels.mergeScaledColumns(
+                alpha,
+                left.rowIdx,
+                left.values,
+                left.colPtr[column],
+                left.colPtr[column + 1],
+                b.rowIdx,
+                b.values,
+                b.colPtr[column],
+                b.colPtr[column + 1],
+                rowIndices,
+                values,
+                count,
+            )
+            pointers[column + 1] = count
+        }
+        return SparseMatrix.wrapTrusted(
+            left.rows,
+            left.cols,
+            pointers,
+            rowIndices.copyOf(count),
+            values.copyOf(count),
+        )
     }
 
     @Suppress("LongParameterList") // the BLAS dtrsm signature

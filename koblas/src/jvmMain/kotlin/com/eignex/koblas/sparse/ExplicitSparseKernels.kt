@@ -5,20 +5,12 @@ import com.eignex.koblas.dense.CKernels
 import com.eignex.koblas.dense.CPanelKernels
 import com.eignex.koblas.dense.SimdKernels
 import com.eignex.koblas.dense.SimdPanelKernels
-import com.eignex.koblas.internal.configuration.ImplementationNames
 import com.eignex.koblas.internal.kernels.JvmCKernelBindings
 import com.eignex.koblas.requireShape
 
-/** Bundled C indexed leaves, with ordered matrix arithmetic retained by the scalar delegate. */
-internal object CIndexedSparseKernels : IndexedSparseKernels by ScalarIndexedSparseKernels {
-    val isAvailable: Boolean get() = JvmCKernelBindings.isAvailable
-}
-
 /** JVM Vector API indexed data movement, with ordered matrix arithmetic retained by the scalar delegate. */
 internal object SimdIndexedSparseKernels : IndexedSparseKernels by ScalarIndexedSparseKernels {
-    private val scatter = JvmVectorScatter.configured()
-
-    val isAvailable: Boolean get() = SimdKernels.isAvailable
+    private val vectorScatter = configuredJvmVectorScatter()
 
     override fun scatter(
         indices: IntArray,
@@ -27,7 +19,7 @@ internal object SimdIndexedSparseKernels : IndexedSparseKernels by ScalarIndexed
         toIndex: Int,
         destination: DoubleArray,
     ) {
-        if (fromIndex == 0 && toIndex == indices.size && scatter.enabled) {
+        if (fromIndex == 0 && toIndex == indices.size && vectorScatter) {
             SparseSimd.scatter(indices, values, destination)
         } else {
             ScalarIndexedSparseKernels.scatter(indices, values, fromIndex, toIndex, destination)
@@ -49,7 +41,7 @@ internal object SimdIndexedSparseKernels : IndexedSparseKernels by ScalarIndexed
         toIndex: Int,
         source: DoubleArray,
     ) {
-        if (fromIndex == 0 && toIndex == indices.size && scatter.enabled) {
+        if (fromIndex == 0 && toIndex == indices.size && vectorScatter) {
             SparseSimd.gatherZero(indices, values, source)
         } else {
             ScalarIndexedSparseKernels.gatherZero(indices, values, fromIndex, toIndex, source)
@@ -58,7 +50,7 @@ internal object SimdIndexedSparseKernels : IndexedSparseKernels by ScalarIndexed
 }
 
 internal object CSparseKernels : SparseKernels {
-    override val name: String get() = ImplementationNames.C_SPARSE
+    override val name: String get() = "c-sparse"
 
     override fun dot(x: SparseVector, y: DoubleArray): Double {
         requireShape(x.size == y.size) { "dot: sizes differ, ${x.size} vs ${y.size}" }
@@ -85,9 +77,9 @@ internal object CSparseKernels : SparseKernels {
 }
 
 internal object SimdSparseKernels : SparseKernels {
-    private val scatter = JvmVectorScatter.configured()
+    private val vectorScatter = configuredJvmVectorScatter()
 
-    override val name: String get() = ImplementationNames.SIMD_SPARSE
+    override val name: String get() = "simd-sparse"
 
     override fun dot(x: SparseVector, y: DoubleArray): Double {
         requireShape(x.size == y.size) { "dot: sizes differ, ${x.size} vs ${y.size}" }
@@ -99,12 +91,12 @@ internal object SimdSparseKernels : SparseKernels {
     override fun axpy(y: DoubleArray, alpha: Double, x: SparseVector) {
         requireShape(y.size == x.size) { "axpy: sizes differ, ${y.size} vs ${x.size}" }
         if (alpha == 0.0) return
-        if (scatter.enabled) SparseSimd.axpy(x.indices, x.values, y, alpha) else ScalarSparseKernels.axpy(y, alpha, x)
+        if (vectorScatter) SparseSimd.axpy(x.indices, x.values, y, alpha) else ScalarSparseKernels.axpy(y, alpha, x)
     }
 
     override fun scatter(x: SparseVector, out: DoubleArray) {
         requireShape(out.size == x.size) { "scatter: sizes differ, ${out.size} vs ${x.size}" }
-        if (scatter.enabled) SparseSimd.scatter(x.indices, x.values, out) else ScalarSparseKernels.scatter(x, out)
+        if (vectorScatter) SparseSimd.scatter(x.indices, x.values, out) else ScalarSparseKernels.scatter(x, out)
     }
 
     override fun gather(x: SparseVector, from: DoubleArray) {
@@ -114,7 +106,7 @@ internal object SimdSparseKernels : SparseKernels {
 
     override fun gatherZero(x: SparseVector, from: DoubleArray) {
         requireShape(from.size == x.size) { "gatherZero: sizes differ, ${from.size} vs ${x.size}" }
-        if (scatter.enabled) {
+        if (vectorScatter) {
             SparseSimd.gatherZero(x.indices, x.values, from)
         } else {
             ScalarSparseKernels.gatherZero(x, from)
@@ -126,14 +118,14 @@ internal object SimdSparseKernels : SparseKernels {
     override fun asum(x: SparseVector): Double = SimdKernels.asum(x.values, 0, x.values.size)
 }
 
-internal val cSparseKernelFamilies: SparseKernelFamilies = sparseKernelFamilies(
+internal val cSparseKernelFamilies: SparseKernelFamilies = SparseKernelFamilies(
     CSparseKernels,
-    CIndexedSparseKernels,
+    ScalarIndexedSparseKernels,
     CKernels,
     CPanelKernels,
 )
 
-internal val simdSparseKernelFamilies: SparseKernelFamilies = sparseKernelFamilies(
+internal val simdSparseKernelFamilies: SparseKernelFamilies = SparseKernelFamilies(
     SimdSparseKernels,
     SimdIndexedSparseKernels,
     SimdKernels,

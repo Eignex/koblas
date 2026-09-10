@@ -5,8 +5,7 @@ import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.UnsafeKoblasApi
 import com.eignex.koblas.requireHfactorShape
 import com.eignex.koblas.sparse.SingularSparseFactorization
-import com.eignex.koblas.sparse.SparseLuFactorization
-import com.eignex.koblas.sparse.basis.BasisSolver
+import com.eignex.koblas.sparse.SparseFactorization
 import com.eignex.koblas.sparse.host.EquilibratedSparseLu
 import com.eignex.koblas.sparse.host.f64EquilibrationScale
 import com.eignex.koblas.sparse.host.f64ScaledValues
@@ -32,17 +31,11 @@ public open class HfactorSparseLu(
     public val availability: HfactorAvailability
         get() = HfactorAvailability(calls.available, calls.unavailableReason)
 
-    /** Convenience view of [availability]. */
-    public val isAvailable: Boolean get() = availability.available
-
-    /** Why this implementation is unavailable, or null when it can be used. */
-    public val unavailableReason: String? get() = availability.reason
-
     /**
      * HFactor offers no row scaling of its own. HiGHS scales the model before the simplex reaches HFactor,
      * and this adapter applies the same policy before building the native factors.
      */
-    public fun factor(a: SparseMatrix): SparseLuFactorization {
+    public fun factor(a: SparseMatrix): SparseFactorization {
         requireHfactorShape(a.rows == a.cols) { "factor: A is ${a.rows}x${a.cols}, expected square" }
         requireAvailable()
         val scale = equilibrationOf(a)
@@ -62,7 +55,7 @@ public open class HfactorSparseLu(
         return if (scale == null || factored.singular) factored else EquilibratedSparseLu(factored, scale)
     }
 
-    private fun factorNative(a: SparseMatrix): SparseLuFactorization {
+    private fun factorNative(a: SparseMatrix): SparseFactorization {
         val handle = calls.create(a.rows, a.cols, a.copyColumnPointers(), a.copyRowIndices(), a.values)
             ?: return SingularSparseFactorization(a.rows, SINGULAR_POSITION_UNKNOWN)
         if (calls.build(handle, IntArray(a.rows) { it }) != 0) {
@@ -85,7 +78,7 @@ public open class HfactorSparseLu(
      * weighs one factorization against a crossing into the library, which has nothing to say about a
      * caller that will pivot through the same factors thousands of times.
      */
-    public fun basisSolver(a: SparseMatrix): BasisSolver {
+    public fun basisSolver(a: SparseMatrix): HfactorBasisSolver {
         requireHfactorShape(a.rows <= a.cols) { "a basis needs ${a.rows} columns to choose from; a has ${a.cols}" }
         requireAvailable()
         val scale = equilibrationOf(a)

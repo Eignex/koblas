@@ -14,7 +14,7 @@ import kotlin.math.min
 /*
  * The portable triangular kernels, netlib dtrsv, dtrsm, dtrmv and dtrmm over a flat column-major buffer.
  * These are the semantic definition a native triangular routine is validated against, and what
- * [ReferenceBlas] and the host adapters' fallbacks call. `Triangular.kt` is the public facade that routes
+ * The scalar engine and the host adapters' fallbacks call these. `Triangular.kt` is the public facade that routes
  * through the installed context instead.
  */
 

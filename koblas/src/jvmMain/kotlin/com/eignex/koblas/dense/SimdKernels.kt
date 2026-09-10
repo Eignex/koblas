@@ -2,7 +2,6 @@ package com.eignex.koblas.dense
 
 import com.eignex.koblas.ModifiedGivens
 import com.eignex.koblas.applyModifiedGivens
-import com.eignex.koblas.internal.configuration.ImplementationNames
 import com.eignex.koblas.internal.numeric.*
 import com.eignex.koblas.portableRot
 import com.eignex.koblas.portableRotmg
@@ -12,7 +11,7 @@ import kotlin.math.sqrt
 internal object SimdKernels : DenseVectorKernels {
     private val lanes: Int = if (simdAvailable) SimdOps.lanes() else 0
 
-    override val name: String get() = "${ImplementationNames.SIMD}($lanes lanes)"
+    override val name: String get() = "simd($lanes lanes)"
 
     val isAvailable: Boolean get() = simdAvailable
 

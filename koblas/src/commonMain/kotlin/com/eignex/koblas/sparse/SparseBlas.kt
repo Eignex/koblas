@@ -9,13 +9,8 @@ import com.eignex.koblas.dense.*
 
 /** Sparse matrix algorithms bound to immutable dense kernels. */
 public interface SparseBlas {
-    /** Short implementation identifier for diagnostics. */
-    public val name: String
-
     /**
-     * Prepares an immutable snapshot of [a] for repeated products. The caller owns the returned resource and
-     * should close it with `use`. Portable backends retain an ordinary CSC copy; native backends may retain
-     * native descriptors and buffers.
+     * Copies [a] into an immutable snapshot for repeated products.
      */
     public fun prepare(a: SparseMatrix): PreparedSparseMatrix
 
@@ -262,29 +257,40 @@ public interface SparseBlas {
 }
 
 /**
- * An explicitly owned immutable snapshot of one sparse matrix, prepared for repeated products.
+ * An immutable snapshot of one sparse matrix, prepared for repeated products.
  *
  * Changes to the matrix passed to [SparseBlas.prepare] after preparation do not affect this snapshot.
- * Calls after [close] throw [IllegalStateException], and close is idempotent. A handle and close must not be
- * used concurrently; callers that share a handle between threads must serialize its operations.
  */
-public interface PreparedSparseMatrix : AutoCloseable {
+public class PreparedSparseMatrix internal constructor(a: SparseMatrix, private val algorithms: SparseAlgorithms) {
+    private val snapshot = SparseMatrix.wrap(
+        a.rows,
+        a.cols,
+        a.copyColumnPointers(),
+        a.copyRowIndices(),
+        a.values.copyOf(),
+    )
+    private var transposedSnapshot: SparseMatrix? = null
+
     /** Rows in the prepared sparse matrix. */
-    public val rows: Int
+    public val rows: Int get() = snapshot.rows
 
     /** Columns in the prepared sparse matrix. */
-    public val cols: Int
+    public val cols: Int get() = snapshot.cols
 
     /** Stored entries copied into the snapshot. */
-    public val nnz: Int
+    public val nnz: Int get() = snapshot.nnz
 
     /** In-place `y = alpha · op(A) · x + beta · y` against the prepared `A`. */
     @Suppress("LongParameterList")
-    public fun gemv(alpha: Double, x: DoubleArray, beta: Double, y: DoubleArray, transpose: Boolean = false)
+    public fun gemv(alpha: Double, x: DoubleArray, beta: Double, y: DoubleArray, transpose: Boolean = false) {
+        algorithms.gemv(alpha, snapshot, x, beta, y, transpose)
+    }
 
     /** Prepared selected-triangle symmetric matrix-vector product; semantics match [SparseBlas.symv]. */
     @Suppress("LongParameterList")
-    public fun symv(alpha: Double, x: DoubleArray, beta: Double, y: DoubleArray, lower: Boolean = true)
+    public fun symv(alpha: Double, x: DoubleArray, beta: Double, y: DoubleArray, lower: Boolean = true) {
+        algorithms.symv(alpha, snapshot, x, beta, y, lower)
+    }
 
     /** `C = alpha · op(A) · B + beta · C` against the prepared `A`. [workspace] reuses portable staging on
      *  the software fallback a native binding keeps for itself. */
@@ -296,7 +302,9 @@ public interface PreparedSparseMatrix : AutoCloseable {
         beta: Double,
         c: DenseMatrix,
         workspace: Workspace? = null,
-    )
+    ) {
+        gemm(alpha, transposeA, b, false, beta, c, false, workspace)
+    }
 
     /** Full sparse-dense product contract, including dense transpose and sparse side selection. */
     @Suppress("LongParameterList")
@@ -309,7 +317,9 @@ public interface PreparedSparseMatrix : AutoCloseable {
         c: DenseMatrix,
         right: Boolean,
         workspace: Workspace? = null,
-    )
+    ) {
+        algorithms.gemm(alpha, preparedOrientation(transposeA), false, b, transposeB, beta, c, right, workspace)
+    }
 
     /** Prepared selected-triangle symmetric matrix-matrix product; semantics match [SparseBlas.symm]. */
     @Suppress("LongParameterList")
@@ -321,13 +331,16 @@ public interface PreparedSparseMatrix : AutoCloseable {
         lower: Boolean = true,
         right: Boolean = false,
         workspace: Workspace? = null,
-    )
+    ) {
+        algorithms.symm(alpha, snapshot, b, beta, c, lower, right, workspace)
+    }
 
     /** `A · B` against the prepared `A`, into a fresh sparse matrix. */
     public fun gemm(b: SparseMatrix): SparseMatrix = gemm(1.0, false, b, false)
 
     /** Prepared sparse-result product with scaling and transpose controls. */
-    public fun gemm(alpha: Double, transposeA: Boolean, b: SparseMatrix, transposeB: Boolean): SparseMatrix
+    public fun gemm(alpha: Double, transposeA: Boolean, b: SparseMatrix, transposeB: Boolean): SparseMatrix =
+        algorithms.gemm(alpha, preparedOrientation(transposeA), false, b, transposeB)
 
     /** Prepared direct sparse-sparse-to-dense product. */
     @Suppress("LongParameterList")
@@ -339,8 +352,14 @@ public interface PreparedSparseMatrix : AutoCloseable {
         beta: Double,
         c: DenseMatrix,
         workspace: Workspace? = null,
-    )
+    ) {
+        algorithms.gemm(alpha, preparedOrientation(transposeA), false, b, transposeB, beta, c, workspace)
+    }
 
-    /** Releases resources owned by this prepared snapshot. */
-    override fun close()
+    private fun preparedOrientation(transpose: Boolean): SparseMatrix {
+        if (!transpose) return snapshot
+        val existing = transposedSnapshot
+        if (existing != null) return existing
+        return algorithms.transpose(snapshot).also { transposedSnapshot = it }
+    }
 }

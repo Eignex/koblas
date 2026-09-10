@@ -1,12 +1,10 @@
 package com.eignex.koblas.sparse.host.hfactor
 
 import com.eignex.koblas.*
-import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.hfactor.internal.NativeOwnership
 import com.eignex.koblas.requireHfactorSolveShapes
-import com.eignex.koblas.sparse.SparseLuFactorization
+import com.eignex.koblas.sparse.SparseFactorization
 import com.eignex.koblas.sparse.basis.IndexedVector
-import com.eignex.koblas.sparse.host.factorNotExposed
 import java.lang.foreign.MemorySegment
 
 /**
@@ -21,7 +19,7 @@ public class HfactorFactorization internal constructor(
     override val n: Int,
     private val calls: HfactorCalls,
     private val handle: MemorySegment,
-) : SparseLuFactorization {
+) : SparseFactorization {
     private class Release(private val calls: HfactorCalls, private val handle: MemorySegment) {
         fun closeNative(): Unit = calls.free(handle)
     }
@@ -32,23 +30,6 @@ public class HfactorFactorization internal constructor(
     private val pivotRange = DoubleArray(2)
 
     override val failedAt: Int get() = NOT_SINGULAR
-
-    override val l: SparseMatrix get() = factorNotExposed("l")
-
-    override val u: SparseMatrix get() = factorNotExposed("u")
-
-    override val rowOrder: IntArray get() = factorNotExposed("rowOrder")
-
-    override val columnOrder: IntArray get() = factorNotExposed("columnOrder")
-
-    override val rowScaling: DoubleArray get() = factorNotExposed("rowScaling")
-
-    override val offDiagonal: SparseMatrix get() = factorNotExposed("offDiagonal")
-
-    private fun factorNotExposed(factor: String): Nothing = ownership.factorNotExposed(factor)
-
-    override fun solveAllocation(aliasing: Boolean, transpose: Boolean): AllocationCapability =
-        AllocationCapability(AllocationGuarantee.NO_SIZE_DEPENDENT_MANAGED)
 
     override val nnz: Int get() = ownership.anchoring {
         calls.fill(handle)

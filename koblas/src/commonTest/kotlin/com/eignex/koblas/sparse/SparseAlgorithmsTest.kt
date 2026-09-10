@@ -1,17 +1,16 @@
 package com.eignex.koblas.sparse
 
-import com.eignex.koblas.BuiltinKernelProvider
 import com.eignex.koblas.BuiltinKernels
+import com.eignex.koblas.KoblasContext
 import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.assertClose
-import com.eignex.koblas.engine
 import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 class SparseAlgorithmsTest {
-    private val providers: List<BuiltinKernelProvider>
+    private val engines: List<KoblasContext>
         get() = listOfNotNull(BuiltinKernels.scalar, BuiltinKernels.c, BuiltinKernels.simd).distinct()
 
     @Test
@@ -34,10 +33,9 @@ class SparseAlgorithmsTest {
                         for (j in 0 until 5) product += (if (transpose) matrix[j, i] else matrix[i, j]) * x[j]
                         alpha * product + if (beta == 0.0) 0.0 else beta * initial[i]
                     }
-                    for (provider in providers) {
-                        val engine = provider.engine()
+                    for (engine in engines) {
                         val actual = initial.copyOf()
-                        engine.sparseBlas.gemv(alpha, matrix, x, beta, actual, transpose)
+                        engine.gemv(alpha, matrix, x, beta, actual, transpose)
                         assertClose(expected, actual, "${engine.name} transpose=$transpose alpha=$alpha beta=$beta")
                     }
                 }
@@ -54,36 +52,35 @@ class SparseAlgorithmsTest {
         values[0] = 1e308
         values[1] = -1e308
         values[8] = 1e308
-        for (provider in providers) {
-            assertEquals(1e308, provider.engine().sparseBlas.gemv(matrix, x, transpose = true)[0])
+        for (engine in engines) {
+            assertEquals(1e308, engine.gemv(matrix, x, transpose = true)[0])
         }
 
         values[1] = 1e308
         values[8] = -1e308
-        for (provider in providers) {
-            assertEquals(Double.POSITIVE_INFINITY, provider.engine().sparseBlas.gemv(matrix, x, transpose = true)[0])
+        for (engine in engines) {
+            assertEquals(Double.POSITIVE_INFINITY, engine.gemv(matrix, x, transpose = true)[0])
         }
     }
 
     @Test
     fun `gemv updates do not fuse multiplication and addition`() {
         val matrix = singleColumn(DoubleArray(256) { 1e308 })
-        for (provider in providers) {
+        for (engine in engines) {
             val y = DoubleArray(256) { -1e308 }
-            provider.engine().sparseBlas.gemv(1.0, matrix, doubleArrayOf(2.0), 1.0, y, transpose = false)
-            assertTrue(y.all { it == Double.POSITIVE_INFINITY }, provider.engine().name)
+            engine.gemv(1.0, matrix, doubleArrayOf(2.0), 1.0, y, transpose = false)
+            assertTrue(y.all { it == Double.POSITIVE_INFINITY }, engine.name)
         }
     }
 
     @Test
     fun `gemv evaluates zero coefficient updates`() {
         val matrix = singleColumn(doubleArrayOf(Double.POSITIVE_INFINITY))
-        for (provider in providers) {
-            val engine = provider.engine()
-            assertTrue(engine.sparseBlas.gemv(matrix, doubleArrayOf(0.0))[0].isNaN(), engine.name)
+        for (engine in engines) {
+            assertTrue(engine.gemv(matrix, doubleArrayOf(0.0))[0].isNaN(), engine.name)
 
             val y = doubleArrayOf(0.0)
-            engine.sparseBlas.gemv(Double.MIN_VALUE, matrix, doubleArrayOf(0.5), 0.0, y, transpose = false)
+            engine.gemv(Double.MIN_VALUE, matrix, doubleArrayOf(0.5), 0.0, y, transpose = false)
             assertTrue(y[0].isNaN(), engine.name)
         }
     }

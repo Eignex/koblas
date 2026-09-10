@@ -4,9 +4,8 @@
 package com.eignex.koblas.sparse
 
 import com.eignex.koblas.SparseVector
+import com.eignex.koblas.dense.NativeCKernels
 import com.eignex.koblas.dense.NativeCPanelKernels
-import com.eignex.koblas.dense.PlatformVectorKernels
-import com.eignex.koblas.internal.configuration.ImplementationNames
 import com.eignex.koblas.internal.kernels.*
 import com.eignex.koblas.requireShape
 import kotlinx.cinterop.addressOf
@@ -105,7 +104,7 @@ internal object NativeCIndexedSparseKernels : IndexedSparseKernels by ScalarInde
 }
 
 internal object NativeCSparseKernels : SparseKernels {
-    override val name: String get() = ImplementationNames.C_SPARSE
+    override val name: String get() = "c-sparse"
 
     override fun dot(x: SparseVector, y: DoubleArray): Double {
         requireShape(x.size == y.size) { "dot: sizes differ, ${x.size} vs ${y.size}" }
@@ -171,15 +170,15 @@ internal object NativeCSparseKernels : SparseKernels {
         NativeCIndexedSparseKernels.gatherZero(x.indices, x.values, 0, x.values.size, from)
     }
 
-    override fun nrm2(x: SparseVector): Double = PlatformVectorKernels.nrm2(x.values, 0, x.values.size)
+    override fun nrm2(x: SparseVector): Double = NativeCKernels.nrm2(x.values, 0, x.values.size)
 
-    override fun asum(x: SparseVector): Double = PlatformVectorKernels.asum(x.values, 0, x.values.size)
+    override fun asum(x: SparseVector): Double = NativeCKernels.asum(x.values, 0, x.values.size)
 }
 
-internal val nativeCSparseKernelFamilies: SparseKernelFamilies = sparseKernelFamilies(
+internal val nativeCSparseKernelFamilies: SparseKernelFamilies = SparseKernelFamilies(
     NativeCSparseKernels,
     NativeCIndexedSparseKernels,
-    PlatformVectorKernels,
+    NativeCKernels,
     NativeCPanelKernels,
 )
 

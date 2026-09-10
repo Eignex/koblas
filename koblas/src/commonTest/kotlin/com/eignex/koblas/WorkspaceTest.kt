@@ -71,13 +71,12 @@ class WorkspaceTest {
     @Test
     fun `integer scratch is reserved and pooled independently`() {
         val ws = Workspace()
-        val f64 = ScratchRequirement(size = 6, count = 2)
-        ws.reserve(f64)
+        ws.reserve(size = 6, count = 2)
         ws.reserveI32(6, count = 1)
 
-        assertEquals(2, ws.available(f64))
+        assertEquals(2, ws.available(6))
         val integers = ws.takeI32(6)
-        assertEquals(2, ws.available(f64))
+        assertEquals(2, ws.available(6))
         ws.release(integers)
         assertSame(integers, ws.takeI32(6))
     }

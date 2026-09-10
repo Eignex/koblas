@@ -9,7 +9,7 @@ import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertTrue
 
-class PlatformSparseKernelsTest {
+class PlatformSparseKernelFamiliesTest {
 
     private fun sparse(size: Int, nnz: Int, rng: Random): SparseVector {
         val stride = size / nnz
@@ -26,7 +26,7 @@ class PlatformSparseKernelsTest {
             val x = sparse(size, nnz, rng)
             val y = randomVector(size, rng)
             val expected = ReferenceSparseBlas.dot(x, y)
-            val actual = PlatformSparseKernels.dot(x, y)
+            val actual = platformSparseKernelFamilies.vector.dot(x, y)
             // A vectorized reduction sums lanes in a different order, so the bound scales with the count.
             assertTrue(
                 abs(actual - expected) <= 1e-13 * nnz * (1.0 + abs(expected)),
@@ -43,7 +43,7 @@ class PlatformSparseKernelsTest {
             val x = sparse(size, nnz, rng)
             val y = sparse(size, nnz, rng)
             val expected = ReferenceSparseBlas.dot(x, y)
-            val actual = PlatformSparseKernels.dot(x, y)
+            val actual = platformSparseKernelFamilies.vector.dot(x, y)
             assertTrue(
                 abs(actual - expected) <= 1e-13 * nnz * (1.0 + abs(expected)),
                 "nnz=$nnz: $actual vs $expected",
@@ -59,7 +59,7 @@ class PlatformSparseKernelsTest {
             val expected = randomVector(x.size, rng)
             val actual = expected.copyOf()
             ReferenceSparseBlas.axpy(expected, -0.75, x)
-            PlatformSparseKernels.axpy(actual, -0.75, x)
+            platformSparseKernelFamilies.vector.axpy(actual, -0.75, x)
             assertClose(expected, actual, "nnz=$nnz", tolerance = 1e-15)
         }
     }
@@ -72,7 +72,7 @@ class PlatformSparseKernelsTest {
             val expected = randomVector(x.size, rng)
             val actual = expected.copyOf()
             ReferenceSparseBlas.scatter(x, expected)
-            PlatformSparseKernels.scatter(x, actual)
+            platformSparseKernelFamilies.vector.scatter(x, actual)
             assertContentEquals(expected, actual, "nnz=$nnz")
         }
     }
@@ -86,7 +86,7 @@ class PlatformSparseKernelsTest {
             val actual = SparseVector.of(pattern.size, pattern.indices, pattern.values)
             val from = randomVector(pattern.size, rng)
             ReferenceSparseBlas.gather(expected, from)
-            PlatformSparseKernels.gather(actual, from)
+            platformSparseKernelFamilies.vector.gather(actual, from)
             assertContentEquals(expected.values, actual.values, "nnz=$nnz")
         }
     }
@@ -101,7 +101,7 @@ class PlatformSparseKernelsTest {
             val expectedFrom = randomVector(pattern.size, rng)
             val actualFrom = expectedFrom.copyOf()
             ReferenceSparseBlas.gatherZero(expected, expectedFrom)
-            PlatformSparseKernels.gatherZero(actual, actualFrom)
+            platformSparseKernelFamilies.vector.gatherZero(actual, actualFrom)
             assertContentEquals(expected.values, actual.values, "values nnz=$nnz")
             assertContentEquals(expectedFrom, actualFrom, "source nnz=$nnz")
         }
@@ -116,13 +116,13 @@ class PlatformSparseKernelsTest {
             // Both reduce over the stored values, so a vectorized kernel sums lanes in a different order and
             // the bound scales with the count, as it does for dot above.
             val expectedAsum = ReferenceSparseBlas.asum(x)
-            val actualAsum = PlatformSparseKernels.asum(x)
+            val actualAsum = platformSparseKernelFamilies.vector.asum(x)
             assertTrue(
                 abs(actualAsum - expectedAsum) <= 1e-13 * nnz * (1.0 + abs(expectedAsum)),
                 "asum nnz=$nnz: $actualAsum vs $expectedAsum",
             )
             val expectedNrm2 = ReferenceSparseBlas.nrm2(x)
-            val actualNrm2 = PlatformSparseKernels.nrm2(x)
+            val actualNrm2 = platformSparseKernelFamilies.vector.nrm2(x)
             assertTrue(
                 abs(actualNrm2 - expectedNrm2) <= 1e-13 * nnz * (1.0 + abs(expectedNrm2)),
                 "nrm2 nnz=$nnz: $actualNrm2 vs $expectedNrm2",
@@ -139,14 +139,14 @@ class PlatformSparseKernelsTest {
             val values = DoubleArray(nnz) { rng.nextDouble(0.5, 1.0) * scale }
             val x = SparseVector.of(nnz * 4, IntArray(nnz) { it * 4 }, values)
             val expectedNrm2 = ReferenceSparseBlas.nrm2(x)
-            val actualNrm2 = PlatformSparseKernels.nrm2(x)
+            val actualNrm2 = platformSparseKernelFamilies.vector.nrm2(x)
             assertTrue(actualNrm2.isFinite() && actualNrm2 > 0.0, "nrm2 at scale $scale is $actualNrm2")
             assertTrue(
                 abs(actualNrm2 - expectedNrm2) <= 1e-13 * nnz * expectedNrm2,
                 "nrm2 scale=$scale: $actualNrm2 vs $expectedNrm2",
             )
             val expectedAsum = ReferenceSparseBlas.asum(x)
-            val actualAsum = PlatformSparseKernels.asum(x)
+            val actualAsum = platformSparseKernelFamilies.vector.asum(x)
             assertTrue(
                 abs(actualAsum - expectedAsum) <= 1e-13 * nnz * expectedAsum,
                 "asum scale=$scale: $actualAsum vs $expectedAsum",
@@ -161,7 +161,7 @@ class PlatformSparseKernelsTest {
             val x = sparse(nnz * 8, nnz, rng)
             val wrong = DoubleArray(x.size + 1)
             val failed = try {
-                PlatformSparseKernels.dot(x, wrong)
+                platformSparseKernelFamilies.vector.dot(x, wrong)
                 false
             } catch (_: IllegalArgumentException) {
                 true

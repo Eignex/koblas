@@ -36,52 +36,35 @@ class JvmVectorScatterTest {
 
     @Test
     fun `on enables indexed stores despite automatic eligibility`() {
-        val scatter = JvmVectorScatter.resolve(
+        val enabled = jvmVectorScatterEnabled(
             JvmVectorScatterMode.ON,
             vectorApiAvailable = true,
             autoScatterEligible = false,
         )
 
-        assertEquals("indexed-store", scatter.path)
+        assertEquals(true, enabled)
     }
 
     @Test
     fun `off retains scalar stores despite automatic eligibility`() {
-        val scatter = JvmVectorScatter.resolve(
+        val enabled = jvmVectorScatterEnabled(
             JvmVectorScatterMode.OFF,
             vectorApiAvailable = true,
             autoScatterEligible = true,
         )
 
-        assertEquals("scalar", scatter.path)
+        assertEquals(false, enabled)
     }
 
     @Test
     fun `on requires the Vector API module`() {
         assertFailsWith<IllegalStateException> {
-            JvmVectorScatter.resolve(
+            jvmVectorScatterEnabled(
                 JvmVectorScatterMode.ON,
                 vectorApiAvailable = false,
                 autoScatterEligible = true,
             )
         }
-    }
-
-    @Test
-    fun `scatter metadata reports the resolved mode and path`() {
-        val scatter = JvmVectorScatter.resolve(
-            JvmVectorScatterMode.ON,
-            vectorApiAvailable = true,
-            autoScatterEligible = false,
-        )
-
-        assertEquals(
-            mapOf(
-                "jvm.vector.scatter.mode" to "on",
-                "jvm.vector.scatter.path" to "indexed-store",
-            ),
-            scatter.options,
-        )
     }
 
     @Test

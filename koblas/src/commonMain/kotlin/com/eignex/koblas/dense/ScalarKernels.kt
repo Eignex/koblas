@@ -1,7 +1,6 @@
 package com.eignex.koblas.dense
 
 import com.eignex.koblas.ModifiedGivens
-import com.eignex.koblas.internal.configuration.ImplementationNames
 import com.eignex.koblas.internal.numeric.*
 import com.eignex.koblas.portableRot
 import com.eignex.koblas.portableRotm
@@ -9,7 +8,7 @@ import com.eignex.koblas.portableRotmg
 
 /** Pure Kotlin scalar kernels retained as the portable fallback and semantic reference for compiled leaves. */
 internal object ScalarKernels : DenseVectorKernels {
-    override val name: String get() = ImplementationNames.SCALAR
+    override val name: String get() = "scalar"
 
     override fun dot(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int): Double =
         scalarDot(a, aOff, b, bOff, len)
