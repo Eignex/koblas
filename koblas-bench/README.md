@@ -43,7 +43,9 @@ koblas-bench/reference-smoke.sh --libraries openblas,onemkl --output /tmp/koblas
 ```
 
 The smoke command uses [`smoke-cases.txt`](smoke-cases.txt), whose case IDs are checked as an exact subset of
-the authoritative workload. It forces zero warmups, one sample and a 1 ms calibration target. Use it to verify
+the authoritative workload. The wrapper delegates directly to `reference.sh`, changing only the case file and
+bounded timing settings, so compilation, library selection, numerical preflight, execution, and CSV generation
+use the exact full-run path. It forces zero warmups, one sample and a 1 ms calibration target. Use it to verify
 the requested libraries, fixture goldens, numerical preflight and CSV path before committing to the full run.
 
 Then run one or both external libraries through the complete workload into a fresh directory:

@@ -4,9 +4,15 @@ set -euo pipefail
 root=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)
 temporary=$(mktemp -d)
 trap 'rm -r "$temporary"' EXIT
+
+smoke_output="$temporary/smoke"
+"$root/koblas-bench/reference-smoke.sh" --libraries openblas --output "$smoke_output" >/dev/null
+result="$smoke_output/openblas.csv"
+test "$(wc -l <"$result")" -eq 12
+test ! -d "$smoke_output/bin"
+
+# Parser rejection checks use a private test binary; smoke coverage above goes through the production entry point.
 cc -std=c11 -O2 -Wall -Wextra -Werror "$root/koblas-bench/reference/vendor_runner.c" -lopenblas -lm -o "$temporary/runner"
-OPENBLAS_NUM_THREADS=1 "$temporary/runner" --cases="$root/koblas-bench/smoke-cases.txt" --output="$temporary/result.csv" --warmups=0 --samples=1 --target-ms=1
-test "$(wc -l <"$temporary/result.csv")" -gt 2
 
 reject_case() {
   local name=$1
@@ -26,8 +32,8 @@ reject_case oversized-packed 'gemm-tile+9x4x32+uniform+physical=8x4'
 reject_case unsupported-mode 'spsymv+8x8+sparse-uniform+density=0.25+mode=prepared+uplo=L'
 reject_case long-operation 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa+4+uniform'
 
-sed 's/,arithmetic,/,incompatible,/' "$temporary/result.csv" >"$temporary/incompatible.csv"
-if "$root/koblas-bench/tools/compare.sh" --require-compatible "$temporary/result.csv" "$temporary/incompatible.csv" >"$temporary/compare-output.txt" 2>"$temporary/compare-error.txt"; then
+sed 's/,arithmetic,/,incompatible,/' "$result" >"$temporary/incompatible.csv"
+if "$root/koblas-bench/tools/compare.sh" --require-compatible "$result" "$temporary/incompatible.csv" >"$temporary/compare-output.txt" 2>"$temporary/compare-error.txt"; then
   echo "incompatible supported cases unexpectedly joined" >&2
   exit 1
 fi
