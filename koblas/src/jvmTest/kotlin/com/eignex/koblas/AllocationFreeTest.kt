@@ -179,7 +179,7 @@ class AllocationFreeTest {
         val b = DenseMatrix(20, n)
         val workspace = Workspace().apply { reserve(n, count = 1) }
 
-        val bytes = bytesPerIteration(500, warmup = 20_000) {
+        val bytes = bytesPerIteration(500) {
             engine.trsm(triangle, b, lower = true, right = true, workspace = workspace)
             b
         }
@@ -228,7 +228,7 @@ class AllocationFreeTest {
             reserve(maxOf(packedTriangleSize, packedRightHandSideSize), count = 2)
         }
 
-        val bytes = bytesPerIteration(500) {
+        val bytes = bytesPerIteration(500, warmup = 20_000) {
             engine.trsm(triangle, rightHandSide, lower = true, right = true, workspace = workspace)
             rightHandSide
         }
