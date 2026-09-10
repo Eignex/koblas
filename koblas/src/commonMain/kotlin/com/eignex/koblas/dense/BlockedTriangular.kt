@@ -18,6 +18,23 @@ import kotlin.math.min
  * through the installed context instead.
  */
 
+/** Diagonal block width for the blocked triangular routines, bounded by the mask that indexes it. */
+internal val TRIANGULAR_BLOCK: Int = DenseTuning.triangularBlock
+
+/**
+ * Fails when [TRIANGULAR_BLOCK] outgrows the zero-pivot mask that indexes it.
+ *
+ * A wrapped shift would not throw or read out of bounds. It would quietly retain the products of one row
+ * against the mask bit of another, which only shows up as a wrong answer on a matrix whose quotient
+ * underflows, so the check has to be explicit rather than left to a test to notice.
+ */
+internal fun requireTriangularBlockFitsMask() {
+    require(TRIANGULAR_BLOCK <= Long.SIZE_BITS) {
+        "TRIANGULAR_BLOCK is $TRIANGULAR_BLOCK, above the ${Long.SIZE_BITS} rows a " +
+            "Long zero-pivot mask can index"
+    }
+}
+
 /**
  * The body [Blas.trsv] and [Blas.trmv] share. The two BLAS routines take the same arguments and differ only
  * in which core runs, which [solve] selects.
@@ -164,8 +181,8 @@ private fun blockedLeftSolve(
     val effectiveLower = if (transpose) !lower else lower
     var boundary = if (effectiveLower) 0 else n
     while (if (effectiveLower) boundary < n else boundary > 0) {
-        val start = if (effectiveLower) boundary else max(0, boundary - REFERENCE_TRIANGULAR_BLOCK)
-        val end = if (effectiveLower) min(boundary + REFERENCE_TRIANGULAR_BLOCK, n) else boundary
+        val start = if (effectiveLower) boundary else max(0, boundary - TRIANGULAR_BLOCK)
+        val end = if (effectiveLower) min(boundary + TRIANGULAR_BLOCK, n) else boundary
         val size = end - start
         var zeroCoefficientMasks: LongArray? = null
         for (column in 0 until nrhs) {
@@ -241,8 +258,8 @@ private fun blockedRightSolve(
     val effectiveLower = if (transpose) !lower else lower
     var boundary = if (effectiveLower) n else 0
     while (if (effectiveLower) boundary > 0 else boundary < n) {
-        val start = if (effectiveLower) max(0, boundary - REFERENCE_TRIANGULAR_BLOCK) else boundary
-        val end = if (effectiveLower) boundary else min(boundary + REFERENCE_TRIANGULAR_BLOCK, n)
+        val start = if (effectiveLower) max(0, boundary - TRIANGULAR_BLOCK) else boundary
+        val end = if (effectiveLower) boundary else min(boundary + TRIANGULAR_BLOCK, n)
         val size = end - start
         val guardZeros = triangleHasZero(triangle, start + start * n, size, n, lower)
         forEachRow(size, b, row, start) { row ->
@@ -281,8 +298,8 @@ private fun blockedLeftMultiply(
     val effectiveLower = if (transpose) !lower else lower
     var boundary = if (effectiveLower) n else 0
     while (if (effectiveLower) boundary > 0 else boundary < n) {
-        val start = if (effectiveLower) max(0, boundary - REFERENCE_TRIANGULAR_BLOCK) else boundary
-        val end = if (effectiveLower) boundary else min(boundary + REFERENCE_TRIANGULAR_BLOCK, n)
+        val start = if (effectiveLower) max(0, boundary - TRIANGULAR_BLOCK) else boundary
+        val end = if (effectiveLower) boundary else min(boundary + TRIANGULAR_BLOCK, n)
         val size = end - start
         for (column in 0 until nrhs) {
             triangularMultiplySubstitution(
@@ -320,8 +337,8 @@ private fun blockedRightMultiply(
     val effectiveLower = if (transpose) !lower else lower
     var boundary = if (effectiveLower) 0 else n
     while (if (effectiveLower) boundary < n else boundary > 0) {
-        val start = if (effectiveLower) boundary else max(0, boundary - REFERENCE_TRIANGULAR_BLOCK)
-        val end = if (effectiveLower) min(boundary + REFERENCE_TRIANGULAR_BLOCK, n) else boundary
+        val start = if (effectiveLower) boundary else max(0, boundary - TRIANGULAR_BLOCK)
+        val end = if (effectiveLower) min(boundary + TRIANGULAR_BLOCK, n) else boundary
         val size = end - start
         val guardZeros = triangleHasZero(triangle, start + start * n, size, n, lower)
         forEachRow(size, b, row, start) { row ->

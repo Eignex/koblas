@@ -10,7 +10,7 @@ class TriangularTest {
 
     @Test
     fun `the triangular block width fits the zero-pivot mask`() {
-        // Retuning REFERENCE_TRIANGULAR_BLOCK above 64 wraps the mask shift instead of failing, and the
+        // Retuning TRIANGULAR_BLOCK above 64 wraps the mask shift instead of failing, and the
         // underflow tests below would still pass at n = 65 while being wrong at larger n.
         requireTriangularBlockFitsMask()
     }
@@ -186,7 +186,7 @@ class TriangularTest {
     @Test
     fun `triangular matrix operations cross the diagonal block boundary`() {
         val rng = Random(20261031)
-        val n = REFERENCE_TRIANGULAR_BLOCK + 5
+        val n = TRIANGULAR_BLOCK + 5
         val width = 3
         for (lower in booleanArrayOf(false, true)) {
             for (transpose in booleanArrayOf(false, true)) {
@@ -301,7 +301,7 @@ class TriangularTest {
 
     @Test
     fun `blocked trsm retains products after a quotient underflows`() {
-        val n = REFERENCE_TRIANGULAR_BLOCK + 1
+        val n = TRIANGULAR_BLOCK + 1
         val triangle = DenseMatrix.diagonal(n)
         triangle[0, 0] = Double.POSITIVE_INFINITY
         triangle[n - 1, 0] = Double.POSITIVE_INFINITY

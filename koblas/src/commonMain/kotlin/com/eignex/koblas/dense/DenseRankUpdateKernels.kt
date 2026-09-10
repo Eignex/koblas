@@ -36,10 +36,10 @@ internal fun blockedSymmetricRankUpdate(
 ) {
     var column = 0
     while (column < n) {
-        val columnEnd = min(column + REFERENCE_NC, n)
+        val columnEnd = min(column + LEVEL3_BLOCK_COLUMNS, n)
         var inner = 0
         while (inner < depth) {
-            val innerEnd = min(inner + REFERENCE_KC, depth)
+            val innerEnd = min(inner + LEVEL3_BLOCK_DEPTH, depth)
             var p = inner
             while (p < innerEnd) {
                 val sourceColumn = p * n
@@ -59,7 +59,7 @@ internal fun blockedSymmetricRankUpdate(
                         val triangleUntil = if (lower) n else j + 1
                         var row = triangleFrom
                         while (row < triangleUntil) {
-                            val length = min(row + REFERENCE_MC, triangleUntil) - row
+                            val length = min(row + LEVEL3_BLOCK_ROWS, triangleUntil) - row
                             axpyArithmetic(kernels, c, row + j * n, firstMultiplier, a, row + sourceColumn, length)
                             if (b != null) {
                                 axpyArithmetic(

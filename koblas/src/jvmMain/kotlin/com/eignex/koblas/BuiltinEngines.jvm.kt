@@ -1,42 +1,41 @@
 package com.eignex.koblas
 
-import com.eignex.koblas.dense.CKernels
 import com.eignex.koblas.dense.CPackedKernels
 import com.eignex.koblas.dense.CPanelKernels
+import com.eignex.koblas.dense.CVectorKernels
 import com.eignex.koblas.dense.PortablePackedKernels
-import com.eignex.koblas.dense.ScalarKernels
 import com.eignex.koblas.dense.ScalarPanelKernels
-import com.eignex.koblas.dense.SimdKernels
+import com.eignex.koblas.dense.ScalarVectorKernels
 import com.eignex.koblas.dense.SimdPackedKernels
 import com.eignex.koblas.dense.SimdPanelKernels
-import com.eignex.koblas.sparse.CSparseKernels
+import com.eignex.koblas.dense.SimdVectorKernels
+import com.eignex.koblas.sparse.CIndexedSparseKernels
 import com.eignex.koblas.sparse.ScalarIndexedSparseKernels
-import com.eignex.koblas.sparse.ScalarSparseKernels
 import com.eignex.koblas.sparse.SimdIndexedSparseKernels
-import com.eignex.koblas.sparse.SimdSparseKernels
+import com.eignex.koblas.sparse.SparseKernelAdapter
 
 /** JVM built-in engines. */
 public actual object BuiltinEngines {
     /** Pure Kotlin scalar dense kernels and reference sparse kernels. */
     public actual val scalar: KoblasContext by lazy {
         KoblasContext(
-            ScalarKernels,
+            ScalarVectorKernels,
             ScalarPanelKernels,
             PortablePackedKernels,
-            ScalarSparseKernels,
+            SparseKernelAdapter("scalar", ScalarVectorKernels, ScalarIndexedSparseKernels),
             ScalarIndexedSparseKernels,
         )
     }
 
     /** Bundled C kernels when the native library loaded successfully. */
     public actual val c: KoblasContext? by lazy {
-        if (CKernels.isAvailable) {
+        if (CVectorKernels.isAvailable) {
             KoblasContext(
-                CKernels,
+                CVectorKernels,
                 CPanelKernels,
                 CPackedKernels,
-                CSparseKernels,
-                ScalarIndexedSparseKernels,
+                SparseKernelAdapter("c-sparse", CVectorKernels, CIndexedSparseKernels),
+                CIndexedSparseKernels,
             )
         } else {
             null
@@ -45,12 +44,12 @@ public actual object BuiltinEngines {
 
     /** Vector API kernels when the incubator module resolved at startup. */
     public actual val simd: KoblasContext? by lazy {
-        if (SimdKernels.isAvailable) {
+        if (SimdVectorKernels.isAvailable) {
             KoblasContext(
-                SimdKernels,
+                SimdVectorKernels,
                 SimdPanelKernels,
                 SimdPackedKernels,
-                SimdSparseKernels,
+                SparseKernelAdapter("simd-sparse", SimdVectorKernels, SimdIndexedSparseKernels),
                 SimdIndexedSparseKernels,
             )
         } else {

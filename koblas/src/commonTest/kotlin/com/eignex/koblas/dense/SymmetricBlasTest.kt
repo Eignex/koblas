@@ -12,11 +12,12 @@ class SymmetricBlasTest {
     /**
      * The same check as the sibling above, at sizes that reach the blocked path.
      *
-     * That one runs to order 12, which is inside a single tile: `REFERENCE_KC` is 128 and `REFERENCE_MC` is
-     * 256, so it never packs a panel whose row block starts away from zero, and never crosses from one tile
-     * to the next. The packing that feeds a blocked `symm` reads one side of the diagonal down a stored
-     * column and the other along a stored row, and which is which flips with the triangle and with the side
-     * `B` sits on, so the interesting cases are exactly the ones a small matrix cannot reach.
+     * That one runs to order 12, which is inside a single tile: `LEVEL3_BLOCK_DEPTH` is 128 and
+     * `LEVEL3_BLOCK_ROWS` is 256, so it never packs a panel whose row block starts away from zero, and never
+     * crosses from one tile to the next. The packing that feeds a blocked `symm` reads one side of the
+     * diagonal down a stored column and the other along a stored row, and which is which flips with the
+     * triangle and with the side `B` sits on, so the interesting cases are exactly the ones a small matrix
+     * cannot reach.
      *
      * Checked against `gemm` on the full matrix, which does not share the packing, rather than against
      * another `symm`.
@@ -586,7 +587,11 @@ class SymmetricBlasTest {
     @Test
     fun `syrk crosses its cache tile boundaries`() {
         val rng = Random(20261031)
-        for ((n, k) in listOf((REFERENCE_MC + 1) to 3, (REFERENCE_NC + 3) to (REFERENCE_KC + 2))) {
+        val dimensions = listOf(
+            (LEVEL3_BLOCK_ROWS + 1) to 3,
+            (LEVEL3_BLOCK_COLUMNS + 3) to (LEVEL3_BLOCK_DEPTH + 2),
+        )
+        for ((n, k) in dimensions) {
             for (transpose in booleanArrayOf(false, true)) {
                 val a = if (transpose) randomMatrix(k, n, rng) else randomMatrix(n, k, rng)
                 for (lower in booleanArrayOf(false, true)) {
@@ -679,8 +684,8 @@ class SymmetricBlasTest {
     @Test
     fun `left symm crosses its cache tile boundaries`() {
         val rng = Random(20261031)
-        val n = REFERENCE_MC + 1
-        val columns = REFERENCE_NC + 1
+        val n = LEVEL3_BLOCK_ROWS + 1
+        val columns = LEVEL3_BLOCK_COLUMNS + 1
         for (lower in booleanArrayOf(false, true)) {
             val (full, selected) = poisonedSymmetric(rng, n, lower)
             val b = randomMatrix(n, columns, rng)
@@ -695,8 +700,8 @@ class SymmetricBlasTest {
     @Test
     fun `right symm crosses its cache tile boundaries`() {
         val rng = Random(20261031)
-        val rows = REFERENCE_MC + 1
-        val n = REFERENCE_NC + 1
+        val rows = LEVEL3_BLOCK_ROWS + 1
+        val n = LEVEL3_BLOCK_COLUMNS + 1
         for (lower in booleanArrayOf(false, true)) {
             val (full, selected) = poisonedSymmetric(rng, n, lower)
             val b = randomMatrix(rows, n, rng)

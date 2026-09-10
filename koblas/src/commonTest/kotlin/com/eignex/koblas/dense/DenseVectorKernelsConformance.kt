@@ -12,7 +12,7 @@ import kotlin.test.assertEquals
 internal val ReferenceBlas: Blas = BuiltinEngines.scalar
 
 internal fun testBlas(
-    vector: DenseVectorKernels = ScalarKernels,
+    vector: DenseVectorKernels = ScalarVectorKernels,
     panel: DensePanelKernels = ScalarPanelKernels,
     packed: PackedKernels = PortablePackedKernels,
 ): Blas = BuiltinBlas(vector, panel, packed)
@@ -74,12 +74,12 @@ internal fun assertModifiedGivensKernelsAgreeWithReference(kernels: DenseVectorK
         doubleArrayOf(1.0, -1.0, 1.0, 2.0),
     )
     for (input in inputs) {
-        val expected = ScalarKernels.rotmg(input[0], input[1], input[2], input[3])
+        val expected = ScalarVectorKernels.rotmg(input[0], input[1], input[2], input[3])
         val actual = kernels.rotmg(input[0], input[1], input[2], input[3])
         assertModifiedGivensClose(expected, actual, "rotmg input=${input.toList()}")
     }
 
-    val transformation = ScalarKernels.rotmg(1.0, 1.0, 1.0, 2.0)
+    val transformation = ScalarVectorKernels.rotmg(1.0, 1.0, 1.0, 2.0)
     for (len in intArrayOf(1, 7, 63, 64, 65, 200)) {
         val pad = 3
         val x = DoubleArray(2 * len + 2 * pad) { it * 0.25 - 4.0 }
@@ -88,7 +88,7 @@ internal fun assertModifiedGivensKernelsAgreeWithReference(kernels: DenseVectorK
         val expectedY = y.copyOf()
         val actualX = x.copyOf()
         val actualY = y.copyOf()
-        ScalarKernels.rotm(
+        ScalarVectorKernels.rotm(
             expectedX,
             pad,
             2,
@@ -128,7 +128,7 @@ internal fun assertRotKernelAgreesWithReference(kernels: DenseVectorKernels) {
         val expectedY = y.copyOf()
         val actualX = x.copyOf()
         val actualY = y.copyOf()
-        ScalarKernels.rot(expectedX, pad, expectedY, pad, len, rotation.c, rotation.s)
+        ScalarVectorKernels.rot(expectedX, pad, expectedY, pad, len, rotation.c, rotation.s)
         kernels.rot(actualX, pad, actualY, pad, len, rotation.c, rotation.s)
         assertClose(expectedX, actualX, context = "rot x len=$len")
         assertClose(expectedY, actualY, context = "rot y len=$len")

@@ -139,9 +139,9 @@ class BlasTest {
     @Test
     fun `gemm agrees with a naive product across every cache tile boundary`() {
         val rng = Random(20261031)
-        val m = REFERENCE_MC + 7
-        val k = REFERENCE_KC + 3
-        val n = REFERENCE_NC + 3
+        val m = LEVEL3_BLOCK_ROWS + 7
+        val k = LEVEL3_BLOCK_DEPTH + 3
+        val n = LEVEL3_BLOCK_COLUMNS + 3
         for (transposeA in booleanArrayOf(false, true)) {
             for (transposeB in booleanArrayOf(false, true)) {
                 val a = if (transposeA) randomMatrix(k, m, rng) else randomMatrix(m, k, rng)

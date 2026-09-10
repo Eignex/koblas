@@ -15,7 +15,7 @@ import kotlinx.cinterop.usePinned
 internal val C_HOST_MIN_LENGTH = DenseTuning.nativeCMinLength
 
 /** The C vector kernels compiled into each Kotlin/Native host artifact. */
-internal object NativeCKernels : DenseVectorKernels {
+internal object NativeCVectorKernels : DenseVectorKernels {
     override val name: String get() = "c"
 
     override fun dot(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int): Double = if (
