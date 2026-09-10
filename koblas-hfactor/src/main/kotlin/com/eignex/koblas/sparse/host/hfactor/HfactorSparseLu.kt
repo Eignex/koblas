@@ -3,6 +3,7 @@ package com.eignex.koblas.sparse.host.hfactor
 import com.eignex.koblas.SINGULAR_POSITION_UNKNOWN
 import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.UnsafeKoblasApi
+import com.eignex.koblas.hfactor.BundledNativeResources
 import com.eignex.koblas.requireHfactorShape
 import com.eignex.koblas.sparse.SingularSparseFactorization
 import com.eignex.koblas.sparse.SparseFactorization
@@ -18,18 +19,19 @@ import com.eignex.koblas.sparse.host.f64ScaledValues
  * basis of its own columns.
  *
  * Construction is direct and does not register or alter koblas's BLAS engine. A null library path uses the
- * platform lookup chain; [com.eignex.koblas.hfactor.BundledHfactor] selects this same implementation from
- * this module's bundled resources.
+ * platform lookup chain; [bundled] loads this module's bundled library instead.
  */
-public open class HfactorSparseLu(
+public class HfactorSparseLu(
     /** Policy for this backend instance. */
     public val config: HfactorConfig = HfactorConfig(),
 ) {
     private val calls = HfactorCalls(config)
 
-    /** The result of lazily loading and binding this implementation. */
-    public val availability: HfactorAvailability
-        get() = HfactorAvailability(calls.available, calls.unavailableReason)
+    /** Whether factorization and basis-solver construction can proceed. */
+    public val available: Boolean get() = calls.available
+
+    /** Why HFactor cannot run, or null when it is [available]. */
+    public val unavailableReason: String? get() = calls.unavailableReason
 
     /**
      * HFactor offers no row scaling of its own. HiGHS scales the model before the simplex reaches HFactor,
@@ -89,7 +91,28 @@ public open class HfactorSparseLu(
     }
 
     private fun requireAvailable() {
-        val result = availability
-        check(result.available) { "HFactor is unavailable: ${result.reason ?: "unknown reason"}" }
+        check(available) { "HFactor is unavailable: ${unavailableReason ?: "unknown reason"}" }
+    }
+
+    /** Bundled-library construction for the ordinary packaged backend. */
+    public companion object {
+        /** Creates an HFactor backend from this module's bundled native library. */
+        public fun bundled(config: HfactorConfig = HfactorConfig()): HfactorSparseLu {
+            require(config.libraryPath == null) {
+                "bundled HFactor does not accept libraryPath; use the constructor for an explicit library"
+            }
+            return HfactorSparseLu(config.copy(libraryPath = bundledLibrary.extract().toString()))
+        }
+
+        private val bundledLibrary by lazy {
+            BundledNativeResources.manifestDriven(
+                directoryPrefix = "koblas-hfactor",
+                resourceRoot = "org/eignex/hfactor",
+                anchor = HfactorSparseLu::class.java,
+                libraryDescription = "HFactor",
+                linuxSoname = "libkoblas_hfactor.so.1",
+                macosSoname = "libkoblas_hfactor.1.dylib",
+            ) { _, _ -> "koblas-hfactor has no bundled HFactor for this host" }
+        }
     }
 }

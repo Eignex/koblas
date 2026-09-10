@@ -3,7 +3,7 @@
 Owning and borrowed dense containers, validated CSC sparse containers, workspaces, the immutable
 [KoblasContext], and free-function arithmetic over matrix and vector contracts.
 
-The default [koblas] engine is selected once and cannot be replaced. [BuiltinKernels] constructs independent
+The default [koblas] engine is selected once and cannot be replaced. [BuiltinEngines] constructs independent
 exact scalar, C, or SIMD engines for tests and benchmarks. [KoblasContext.name] provides concise read-only
 implementation attribution.
 

@@ -1,6 +1,6 @@
 package com.eignex.koblas.bench
 
-import com.eignex.koblas.BuiltinKernels
+import com.eignex.koblas.BuiltinEngines
 import kotlin.math.abs
 import kotlin.math.max
 import kotlin.test.Test
@@ -9,7 +9,7 @@ import kotlin.test.assertTrue
 class PackedWorkTest {
     @Test
     fun `packed solve fixtures agree with the scalar equation`() {
-        val engines = listOfNotNull(BuiltinKernels.scalar, BuiltinKernels.c, BuiltinKernels.simd).distinct()
+        val engines = listOfNotNull(BuiltinEngines.scalar, BuiltinEngines.c, BuiltinEngines.simd).distinct()
         for (engine in engines) {
             val kernels = engine.packedKernels
             for (rows in listOf(kernels.gemmTileRows, max(1, kernels.gemmTileRows - 1))) {

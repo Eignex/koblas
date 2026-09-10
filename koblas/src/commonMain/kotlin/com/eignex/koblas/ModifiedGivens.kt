@@ -44,7 +44,7 @@ public class ModifiedGivens internal constructor(
  * that state.
  */
 public fun rotmg(d1: Double, d2: Double, x1: Double, y1: Double): ModifiedGivens =
-    koblas.denseKernelFamilies.vector.rotmg(d1, d2, x1, y1)
+    koblas.vectorKernels.rotmg(d1, d2, x1, y1)
 
 /** Portable Netlib-reference implementation used by the scalar and fallback kernel backends. */
 @Suppress("CyclomaticComplexMethod") // literal translation of the four Netlib DROTMG cases
@@ -186,7 +186,7 @@ public fun rotm(x: StridedVectorView, y: StridedVectorView, transformation: Modi
         for (i in 0 until x.size) x[i] = snapshotX[i]
         for (i in 0 until y.size) y[i] = snapshotY[i]
     } else {
-        koblas.denseKernelFamilies.vector.rotm(
+        koblas.vectorKernels.rotm(
             x.data,
             x.offset,
             x.stride,

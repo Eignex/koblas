@@ -5,10 +5,10 @@ import com.eignex.koblas.dense.assertReductionsAgreeWithReference
 import com.eignex.koblas.dense.assertSwapAgreesWithReference
 import kotlin.test.Test
 
-class JvmBuiltinKernelsTest {
+class JvmBuiltinEnginesTest {
     @Test
-    fun `available explicit providers agree with scalar kernels`() {
-        listOfNotNull(BuiltinKernels.c, BuiltinKernels.simd).forEach { engine ->
+    fun `available explicit engines agree with scalar kernels`() {
+        listOfNotNull(BuiltinEngines.c, BuiltinEngines.simd).forEach { engine ->
             assertLevel1KernelsAgreeWithReference(engine.vectorKernels)
             assertReductionsAgreeWithReference(engine.vectorKernels)
             assertSwapAgreesWithReference(engine.vectorKernels)

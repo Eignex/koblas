@@ -38,14 +38,6 @@ public data class HfactorConfig(
     }
 }
 
-/** Result of probing one explicitly constructed HFactor implementation. */
-public data class HfactorAvailability(
-    /** Whether factorization and basis-solver construction can proceed. */
-    val available: Boolean,
-    /** Why HFactor cannot run, or null when it is available. */
-    val reason: String? = null,
-)
-
 /**
  * Names the platform loader looks for. HFactor is a C++ class inside HiGHS rather than a library with an
  * API of its own, so what is looked for is koblas's own build of it and not a host HiGHS: no distribution

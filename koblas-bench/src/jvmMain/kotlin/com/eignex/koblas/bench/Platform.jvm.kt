@@ -1,6 +1,6 @@
 package com.eignex.koblas.bench
 
-import com.eignex.koblas.BuiltinKernels
+import com.eignex.koblas.BuiltinEngines
 import com.eignex.koblas.KoblasContext
 import java.nio.file.Files
 import java.nio.file.Path
@@ -15,8 +15,8 @@ internal actual fun writeTextFile(path: String, text: String) {
 
 internal actual fun resolveEngine(mode: String): Pair<KoblasContext, String> {
     val engine = when (mode) {
-        "jvm-c" -> requireNotNull(BuiltinKernels.c) { "requested jvm-c engine is unavailable" }
-        "jvm-simd" -> requireNotNull(BuiltinKernels.simd) { "requested jvm-simd engine is unavailable; launch with jdk.incubator.vector" }
+        "jvm-c" -> requireNotNull(BuiltinEngines.c) { "requested jvm-c engine is unavailable" }
+        "jvm-simd" -> requireNotNull(BuiltinEngines.simd) { "requested jvm-simd engine is unavailable; launch with jdk.incubator.vector" }
         else -> error("JVM runner cannot execute mode '$mode'")
     }
     return engine to "$mode/${engine.vectorKernels.name}/${engine.sparseKernels.name}/packed-${engine.packedKernels.gemmTileRows}x${engine.packedKernels.gemmTileCols}"

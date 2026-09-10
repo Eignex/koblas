@@ -323,7 +323,7 @@ class SymmetricBlasTest {
 
     @Test
     fun `syrk preserves the netlib zero multiplier rule with infinities`() {
-        val blas = BuiltinBlas(scalarDenseKernelFamilies)
+        val blas = ReferenceBlas
         for (lower in booleanArrayOf(true, false)) {
             val values = if (lower) {
                 doubleArrayOf(0.0, Double.POSITIVE_INFINITY)
@@ -349,7 +349,7 @@ class SymmetricBlasTest {
 
     @Test
     fun `syrk preserves the netlib zero multiplier rule when finite scaling overflows`() {
-        val blas = BuiltinBlas(scalarDenseKernelFamilies)
+        val blas = ReferenceBlas
         for (lower in booleanArrayOf(true, false)) {
             val values = if (lower) {
                 doubleArrayOf(0.0, Double.MAX_VALUE)
@@ -381,7 +381,7 @@ class SymmetricBlasTest {
     @Test
     fun `syrk snapshots an aliased destination`() {
         val rng = Random(20260908)
-        val blas = BuiltinBlas(scalarDenseKernelFamilies)
+        val blas = ReferenceBlas
         for (transpose in booleanArrayOf(false, true)) {
             for (lower in booleanArrayOf(false, true)) {
                 val original = DoubleArray(25) { rng.nextDouble(-1.0, 1.0) }
@@ -474,7 +474,7 @@ class SymmetricBlasTest {
 
     @Test
     fun `syr2k preserves exceptional rank two evaluation`() {
-        val blas = BuiltinBlas(scalarDenseKernelFamilies)
+        val blas = ReferenceBlas
         for (lower in booleanArrayOf(true, false)) {
             val infinityA = if (lower) {
                 doubleArrayOf(1.0, Double.POSITIVE_INFINITY)
@@ -531,7 +531,7 @@ class SymmetricBlasTest {
 
     @Test
     fun `syr2k interleaves cross products before accumulation overflow`() {
-        val blas = BuiltinBlas(scalarDenseKernelFamilies)
+        val blas = ReferenceBlas
         val magnitude = 1e154
         val normalA = doubleArrayOf(magnitude, magnitude, magnitude, magnitude)
         val normalB = doubleArrayOf(magnitude, -magnitude, magnitude, -magnitude)
@@ -556,7 +556,7 @@ class SymmetricBlasTest {
     @Test
     fun `syr2k snapshots either aliased input`() {
         val rng = Random(20260909)
-        val blas = BuiltinBlas(scalarDenseKernelFamilies)
+        val blas = ReferenceBlas
         for (transpose in booleanArrayOf(false, true)) {
             for (lower in booleanArrayOf(false, true)) {
                 for (aliased in 0..2) {
@@ -658,7 +658,7 @@ class SymmetricBlasTest {
                 for (lower in booleanArrayOf(false, true)) {
                     val expected = DenseMatrix(n, n)
                     blockedSyr2kUpdate(
-                        platformDenseKernelFamilies.panel,
+                        koblas.panelKernels,
                         0.75,
                         normalizedA,
                         normalizedB,
@@ -771,7 +771,7 @@ class SymmetricBlasTest {
         val ws = Workspace()
         ws.reserve(n * k, 2)
         ws.reserve(PORTABLE_TILE * PORTABLE_TILE, 1)
-        val blas = BuiltinBlas(testDenseKernelFamilies(packed = FailingTile()))
+        val blas = testBlas(packed = FailingTile())
         assertFailsWith<IllegalStateException> {
             blas.syrk(
                 1.0,
@@ -815,7 +815,7 @@ class SymmetricBlasTest {
         val ws = Workspace()
         val parked = listOf(ws.take(n * k), ws.take(n * k))
         parked.forEach { ws.release(it) }
-        val blas = BuiltinBlas(testDenseKernelFamilies(packed = FailingTile()))
+        val blas = testBlas(packed = FailingTile())
         assertFailsWith<IllegalStateException> {
             blas.syr2k(
                 1.0,
@@ -845,7 +845,7 @@ class SymmetricBlasTest {
             it.fill(1.0)
             it[0] = Double.POSITIVE_INFINITY
         }
-        val blas = BuiltinBlas(testDenseKernelFamilies(panel = FailingAxpy()))
+        val blas = testBlas(panel = FailingAxpy())
 
         assertFailsWith<IllegalStateException> {
             blas.syr2k(

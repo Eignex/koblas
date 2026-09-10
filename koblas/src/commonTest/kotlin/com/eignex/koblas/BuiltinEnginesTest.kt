@@ -4,11 +4,11 @@ import com.eignex.koblas.sparse.ScalarIndexedSparseKernels
 import kotlin.test.Test
 import kotlin.test.assertSame
 
-class BuiltinKernelsTest {
+class BuiltinEnginesTest {
     @Test
     fun `the scalar engine uses the scalar families`() {
-        val engine = BuiltinKernels.scalar
+        val engine = BuiltinEngines.scalar
 
-        assertSame(ScalarIndexedSparseKernels, engine.sparseKernelFamilies.indexed)
+        assertSame(ScalarIndexedSparseKernels, engine.indexedSparseKernels)
     }
 }

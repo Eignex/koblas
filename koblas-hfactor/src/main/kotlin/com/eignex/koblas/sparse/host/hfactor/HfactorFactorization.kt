@@ -15,7 +15,7 @@ import java.lang.foreign.MemorySegment
  * HFactor is for and this is the plainer surface beside it.
  */
 @OptIn(UnsafeKoblasApi::class)
-public class HfactorFactorization internal constructor(
+internal class HfactorFactorization(
     override val n: Int,
     private val calls: HfactorCalls,
     private val handle: MemorySegment,

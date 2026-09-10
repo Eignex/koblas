@@ -1,8 +1,8 @@
 package com.eignex.koblas.sparse
 
-import com.eignex.koblas.dense.ScalarKernels
+import com.eignex.koblas.BuiltinEngines
 
 /** Exact scalar oracle shared by sparse conformance tests. */
 internal object ReferenceSparseBlas :
-    SparseBlas by SparseAlgorithms(ScalarKernels, scalarSparseKernelFamilies.indexed, scalarSparseKernelFamilies.panel),
-    SparseKernels by ScalarSparseKernels
+    SparseBlas by BuiltinEngines.scalar,
+    SparseKernels by BuiltinEngines.scalar.sparseKernels

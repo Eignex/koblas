@@ -2,9 +2,7 @@ package com.eignex.koblas.sparse
 
 import com.eignex.koblas.SparseVector
 import com.eignex.koblas.dense.CKernels
-import com.eignex.koblas.dense.CPanelKernels
 import com.eignex.koblas.dense.SimdKernels
-import com.eignex.koblas.dense.SimdPanelKernels
 import com.eignex.koblas.internal.kernels.JvmCKernelBindings
 import com.eignex.koblas.requireShape
 
@@ -117,17 +115,3 @@ internal object SimdSparseKernels : SparseKernels {
 
     override fun asum(x: SparseVector): Double = SimdKernels.asum(x.values, 0, x.values.size)
 }
-
-internal val cSparseKernelFamilies: SparseKernelFamilies = SparseKernelFamilies(
-    CSparseKernels,
-    ScalarIndexedSparseKernels,
-    CKernels,
-    CPanelKernels,
-)
-
-internal val simdSparseKernelFamilies: SparseKernelFamilies = SparseKernelFamilies(
-    SimdSparseKernels,
-    SimdIndexedSparseKernels,
-    SimdKernels,
-    SimdPanelKernels,
-)

@@ -1,18 +1,7 @@
-@file:kotlin.jvm.JvmName("JvmPlatformSparseKernelsKt")
-
 package com.eignex.koblas.sparse
 
-import com.eignex.koblas.dense.cKernelsAvailable
-import com.eignex.koblas.dense.simdAvailable
 import jdk.incubator.vector.DoubleVector
 import jdk.incubator.vector.VectorOperators
-
-/** Sparse SIMD families where the Vector API is present, the bundled C families otherwise. */
-internal actual val platformSparseKernelFamilies: SparseKernelFamilies = when {
-    simdAvailable -> simdSparseKernelFamilies
-    cKernelsAvailable -> cSparseKernelFamilies
-    else -> scalarSparseKernelFamilies
-}
 
 /** Its own object so the initializer, which touches DoubleVector, runs only once the module is present. */
 internal object SparseSimd {

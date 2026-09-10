@@ -14,7 +14,7 @@ class AllocationFreeTest {
         /** Allowance for effects that are not koblas's (instrumentation, index boxing, JIT noise). */
         const val FLOOR_BYTES = 64.0
 
-        val engine = BuiltinKernels.scalar
+        val engine = BuiltinEngines.scalar
     }
 
     @Test

@@ -1,6 +1,7 @@
 package com.eignex.koblas.hfactor
 
 import com.eignex.koblas.SparseMatrix
+import com.eignex.koblas.sparse.host.hfactor.HfactorSparseLu
 import com.sun.management.ThreadMXBean
 import java.lang.management.ManagementFactory
 import kotlin.test.*
@@ -17,7 +18,7 @@ class SolveAllocationTest {
 
     private fun bytesPerSolve(n: Int): Double {
         val diagonal = SparseMatrix.ofColumns(n, n, (0 until n).map { j -> listOf(j to (n + 10.0)) })
-        val factorization = BundledHfactor().factor(diagonal)
+        val factorization = HfactorSparseLu.bundled().factor(diagonal)
         val b = DoubleArray(n) { 1.0 + it }
         val out = DoubleArray(n)
         repeat(500) { sink = factorization.solveInto(b, out) }

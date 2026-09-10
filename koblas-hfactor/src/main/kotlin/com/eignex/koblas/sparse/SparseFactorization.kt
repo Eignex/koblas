@@ -43,7 +43,7 @@ public interface SparseFactorization : AutoCloseable {
 }
 
 /** A singular result from HFactor, which exposes no factors and cannot solve. */
-public class SingularSparseFactorization(override val n: Int, override val failedAt: Int) : SparseFactorization {
+internal class SingularSparseFactorization(override val n: Int, override val failedAt: Int) : SparseFactorization {
     override val nnz: Int get() = 0
     override val rcond: Double get() = 0.0
     override fun solveInto(b: DoubleArray, out: DoubleArray, transpose: Boolean, workspace: Workspace?): DoubleArray =

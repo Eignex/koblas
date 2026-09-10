@@ -17,7 +17,7 @@ class DenseVectorKernelsTest {
         val actual = initial.copyOf()
 
         ScalarPanelKernels.axpyArithmetic(expected, 7, -0.75, source, 3, 31)
-        platformDenseKernelFamilies.panel.axpyArithmetic(actual, 7, -0.75, source, 3, 31)
+        koblas.panelKernels.axpyArithmetic(actual, 7, -0.75, source, 3, 31)
 
         assertClose(expected, actual, "arithmetic axpy")
     }
@@ -27,14 +27,14 @@ class DenseVectorKernelsTest {
         val x = DoubleArray(64).also { it[17] = Double.POSITIVE_INFINITY }
         val y = DoubleArray(64)
 
-        axpyArithmetic(platformDenseKernelFamilies.panel, y, 0, 0.0, x, 0, x.size)
+        axpyArithmetic(koblas.panelKernels, y, 0, 0.0, x, 0, x.size)
 
         assertTrue(y[17].isNaN())
     }
 
     @Test
     fun `the compiled-in kernels satisfy the dense vector contract`() {
-        val k: DenseVectorKernels = platformDenseKernelFamilies.vector
+        val k: DenseVectorKernels = koblas.vectorKernels
         assertTrue(k.name.isNotEmpty(), "the kernels must name themselves for engine attribution")
 
         val a = DoubleArray(40) { it * 0.5 - 3.0 }
@@ -74,8 +74,8 @@ class DenseVectorKernelsTest {
         val x = DoubleArray(64) { Double.POSITIVE_INFINITY }
         val y = DoubleArray(64)
 
-        platformDenseKernelFamilies.vector.axpy(y, 0, 0.0, x, 0, 64)
-        platformDenseKernelFamilies.vector.scale(x, 0, 1.0, 64)
+        koblas.vectorKernels.axpy(y, 0, 0.0, x, 0, 64)
+        koblas.vectorKernels.scale(x, 0, 1.0, 64)
 
         assertTrue(y.all { it == 0.0 }, "zero axpy must not evaluate infinity times zero")
         assertTrue(x.all { it == Double.POSITIVE_INFINITY }, "unit scale changed the vector")
@@ -99,7 +99,7 @@ class DenseVectorKernelsTest {
         ScalarPanelKernels.dot4(a, 0, stride, b, 0, len, viaScalar, 0)
 
         val viaPlatform = DoubleArray(4)
-        platformDenseKernelFamilies.panel.dot4(a, 0, stride, b, 0, len, viaPlatform, 0)
+        koblas.panelKernels.dot4(a, 0, stride, b, 0, len, viaPlatform, 0)
 
         for (r in 0 until 4) {
             assertEquals(expected[r], viaScalar[r], absoluteTolerance = 1e-12, message = "scalar row $r")
@@ -127,7 +127,7 @@ class DenseVectorKernelsTest {
             coefficients[0], coefficients[1], coefficients[2], coefficients[3], len,
         )
         val viaPlatform = initial.copyOf()
-        platformDenseKernelFamilies.panel.axpy4(
+        koblas.panelKernels.axpy4(
             viaPlatform, off, a, 0, stride,
             coefficients[0], coefficients[1], coefficients[2], coefficients[3], len,
         )
@@ -162,7 +162,7 @@ class DenseVectorKernelsTest {
         val viaScalar = initial.copyOf()
         val scalarDot = ScalarPanelKernels.dotAxpy(viaScalar, off, alpha, a, 2, viaScalar, off, len)
         val viaPlatform = initial.copyOf()
-        val platformDot = platformDenseKernelFamilies.panel.dotAxpy(
+        val platformDot = koblas.panelKernels.dotAxpy(
             viaPlatform,
             off,
             alpha,
@@ -184,9 +184,9 @@ class DenseVectorKernelsTest {
     @Test
     fun `the compiled-in nrm2 survives components that square out of range`() {
         val big = doubleArrayOf(3e200, 4e200)
-        assertEquals(5e200, platformDenseKernelFamilies.vector.nrm2(big, 0, 2), absoluteTolerance = 1e188)
+        assertEquals(5e200, koblas.vectorKernels.nrm2(big, 0, 2), absoluteTolerance = 1e188)
         val tiny = doubleArrayOf(3e-200, 4e-200)
-        assertEquals(5e-200, platformDenseKernelFamilies.vector.nrm2(tiny, 0, 2), absoluteTolerance = 1e-212)
+        assertEquals(5e-200, koblas.vectorKernels.nrm2(tiny, 0, 2), absoluteTolerance = 1e-212)
     }
 
     @Test
@@ -196,14 +196,14 @@ class DenseVectorKernelsTest {
             val expected = sqrt(len.toDouble()) * 1e200
             assertEquals(
                 expected,
-                platformDenseKernelFamilies.vector.nrm2(big, 0, len),
+                koblas.vectorKernels.nrm2(big, 0, len),
                 absoluteTolerance = expected * 1e-12,
             )
             val tiny = DoubleArray(len) { 1e-200 }
             val expectedTiny = sqrt(len.toDouble()) * 1e-200
             assertEquals(
                 expectedTiny,
-                platformDenseKernelFamilies.vector.nrm2(tiny, 0, len),
+                koblas.vectorKernels.nrm2(tiny, 0, len),
                 absoluteTolerance = expectedTiny * 1e-12,
             )
         }
@@ -218,17 +218,12 @@ class DenseVectorKernelsTest {
                 val expected = euclideanNorm(v, off, len)
                 assertEquals(
                     expected,
-                    platformDenseKernelFamilies.vector.nrm2(v, off, len),
+                    koblas.vectorKernels.nrm2(v, off, len),
                     absoluteTolerance = 1e-12 * (expected + 1.0),
                     message = "off $off len $len",
                 )
             }
         }
-    }
-
-    @Test
-    fun `the context exposes the selected vector kernels`() {
-        assertEquals(platformDenseKernelFamilies.vector.name, koblas.vectorKernels.name)
     }
 
     /**
@@ -237,8 +232,8 @@ class DenseVectorKernelsTest {
      */
     @Test
     fun `every kernel accepts a zero length run`() {
-        val vectorKernels = platformDenseKernelFamilies.vector
-        val panelKernels = platformDenseKernelFamilies.panel
+        val vectorKernels = koblas.vectorKernels
+        val panelKernels = koblas.panelKernels
         val v = doubleArrayOf(1.0, 2.0, 3.0)
         assertEquals(0.0, vectorKernels.dot(v, 3, v, 3, 0), "dot over nothing")
         assertEquals(0.0, vectorKernels.nrm2(v, 3, 0), "nrm2 over nothing")
@@ -256,7 +251,7 @@ class DenseVectorKernelsTest {
 
     @Test
     fun `the compiled-in level-1 kernels agree with the scalar loops`() =
-        assertLevel1KernelsAgreeWithReference(platformDenseKernelFamilies.vector)
+        assertLevel1KernelsAgreeWithReference(koblas.vectorKernels)
 
     @Test
     fun `ssqd stays exact where the expanded form cancels`() {
@@ -265,10 +260,10 @@ class DenseVectorKernelsTest {
         // that took the shortcut cannot return 1.0 here.
         val a = doubleArrayOf(1e8, 1e8, 1e8)
         val b = doubleArrayOf(1e8 + 1.0, 1e8, 1e8)
-        val expanded = platformDenseKernelFamilies.vector.dot(a, 0, a, 0, 3) -
-            2.0 * platformDenseKernelFamilies.vector.dot(a, 0, b, 0, 3) +
-            platformDenseKernelFamilies.vector.dot(b, 0, b, 0, 3)
-        assertEquals(1.0, platformDenseKernelFamilies.vector.ssqd(a, 0, b, 0, 3), "fused")
+        val expanded = koblas.vectorKernels.dot(a, 0, a, 0, 3) -
+            2.0 * koblas.vectorKernels.dot(a, 0, b, 0, 3) +
+            koblas.vectorKernels.dot(b, 0, b, 0, 3)
+        assertEquals(1.0, koblas.vectorKernels.ssqd(a, 0, b, 0, 3), "fused")
         assertTrue(abs(expanded - 1.0) > 1e-3, "the expanded form should be the inexact one here: $expanded")
     }
 
@@ -279,25 +274,24 @@ class DenseVectorKernelsTest {
             val a = DoubleArray(len) { rng.nextDouble(-1.0, 1.0) }
             val b = DoubleArray(len) { rng.nextDouble(-1.0, 1.0) }
             assertEquals(
-                platformDenseKernelFamilies.vector.ssqd(a, 0, b, 0, len),
-                platformDenseKernelFamilies.vector.ssqd(b, 0, a, 0, len),
+                koblas.vectorKernels.ssqd(a, 0, b, 0, len),
+                koblas.vectorKernels.ssqd(b, 0, a, 0, len),
                 "symmetry len=$len",
             )
-            assertEquals(0.0, platformDenseKernelFamilies.vector.ssqd(a, 0, a, 0, len), "equal runs len=$len")
+            assertEquals(0.0, koblas.vectorKernels.ssqd(a, 0, a, 0, len), "equal runs len=$len")
         }
     }
 
     @Test
     fun `the compiled-in reductions agree with the scalar loops`() =
-        assertReductionsAgreeWithReference(platformDenseKernelFamilies.vector)
+        assertReductionsAgreeWithReference(koblas.vectorKernels)
 
     @Test
-    fun `the compiled-in swap agrees with the scalar loop`() =
-        assertSwapAgreesWithReference(platformDenseKernelFamilies.vector)
+    fun `the compiled-in swap agrees with the scalar loop`() = assertSwapAgreesWithReference(koblas.vectorKernels)
 
     @Test
     fun `the compiled-in modified Givens kernels agree with the portable ones`() {
-        assertModifiedGivensKernelsAgreeWithReference(platformDenseKernelFamilies.vector)
-        assertRotKernelAgreesWithReference(platformDenseKernelFamilies.vector)
+        assertModifiedGivensKernelsAgreeWithReference(koblas.vectorKernels)
+        assertRotKernelAgreesWithReference(koblas.vectorKernels)
     }
 }

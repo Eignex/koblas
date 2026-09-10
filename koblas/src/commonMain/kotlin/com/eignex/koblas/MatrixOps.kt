@@ -57,13 +57,13 @@ public fun MatrixLike.gemvInto(alpha: Double, x: VectorLike, beta: Double, desti
     if (alpha == 0.0) return
     when (a) {
         is DenseMatrix -> {
-            denseStoredGemvUpdate(koblas.denseKernelFamilies.vector, alpha, a, x, destination)
+            denseStoredGemvUpdate(koblas.vectorKernels, alpha, a, x, destination)
         }
 
         is SparseMatrix -> x.forEachStored { j, v ->
             if (v != 0.0) {
                 val scaled = alpha * v
-                koblas.sparseKernelFamilies.indexed.axpy(
+                koblas.indexedSparseKernels.axpy(
                     a.rowIdx,
                     a.values,
                     a.colPtr[j],
@@ -119,7 +119,7 @@ public fun DenseMatrix.symvInto(x: VectorLike, destination: DoubleArray, lower: 
 
 /** The `beta * y` half of a matvec. A zero [beta] overwrites without reading, as BLAS specifies, so the
  *  destination's previous contents cannot poison the result. */
-private fun DoubleArray.prescale(beta: Double) = applyBeta(koblas.denseKernelFamilies.vector, this, 0, size, beta)
+private fun DoubleArray.prescale(beta: Double) = applyBeta(koblas.vectorKernels, this, 0, size, beta)
 
 /** Whether [destination] is the very array this vector is stored in. */
 private fun VectorLike.sharesStorage(destination: DoubleArray): Boolean = this is DenseVector && data === destination

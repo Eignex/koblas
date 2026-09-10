@@ -42,7 +42,7 @@ public infix fun VectorLike.dot(other: VectorLike): Double {
         return sum
     }
     if (this is DenseVector && other is DenseVector) {
-        return koblas.denseKernelFamilies.vector.dot(data, 0, other.data, 0, size)
+        return koblas.vectorKernels.dot(data, 0, other.data, 0, size)
     }
     if (this is SparseVector && other is SparseVector) return koblas.sparseKernels.dot(this, other)
     if (this is SparseVector && other is DenseVector) return koblas.sparseKernels.dot(this, other.data)
@@ -57,7 +57,7 @@ public infix fun VectorLike.dot(other: VectorLike): Double {
  * finite input gives the correct norm.
  */
 public fun VectorLike.norm2(): Double = when (this) {
-    is DenseVector -> koblas.denseKernelFamilies.vector.nrm2(data, 0, size)
+    is DenseVector -> koblas.vectorKernels.nrm2(data, 0, size)
     is SparseVector -> koblas.sparseKernels.nrm2(this)
     is StridedVectorView -> stridedNorm2(this)
     else -> euclideanNorm(toDoubleArray(), 0, size)
@@ -71,7 +71,7 @@ public fun VectorLike.norm2(): Double = when (this) {
  * that the rounding error of a naive sum matters.
  */
 public fun VectorLike.sum(): Double = when (this) {
-    is DenseVector -> koblas.denseKernelFamilies.vector.sum(data, 0, size)
+    is DenseVector -> koblas.vectorKernels.sum(data, 0, size)
 
     else -> {
         var s = 0.0
@@ -112,7 +112,7 @@ public fun VectorLike.compensatedSum(): Double = when (this) {
 
 /** Sum of absolute values (BLAS `dasum`). Sparse vectors sum over stored entries only. */
 public fun VectorLike.asum(): Double = when (this) {
-    is DenseVector -> koblas.denseKernelFamilies.vector.asum(data, 0, size)
+    is DenseVector -> koblas.vectorKernels.asum(data, 0, size)
 
     is SparseVector -> koblas.sparseKernels.asum(this)
 
@@ -185,7 +185,7 @@ public fun gatherZero(x: SparseVector, from: DenseVector) {
 /** Exchange the contents of [a] and [b] (BLAS `dswap`). */
 public fun swap(a: DenseVector, b: DenseVector) {
     requireSameSize(a.size, b.size)
-    koblas.denseKernelFamilies.vector.swap(a.data, 0, b.data, 0, a.size)
+    koblas.vectorKernels.swap(a.data, 0, b.data, 0, a.size)
 }
 
 /** Exchanges two borrowed slices, including rows and columns of dense matrix views. */
@@ -203,7 +203,7 @@ public fun DenseVector.axpy(alpha: Double, x: VectorLike) {
     requireSameSize(size, x.size)
     if (alpha == 0.0) return
     when (x) {
-        is DenseVector -> koblas.denseKernelFamilies.vector.axpy(data, 0, alpha, x.data, 0, size)
+        is DenseVector -> koblas.vectorKernels.axpy(data, 0, alpha, x.data, 0, size)
         is SparseVector -> koblas.sparseKernels.axpy(data, alpha, x)
         else -> x.forEachStored { i, v -> data[i] += alpha * v }
     }
@@ -219,7 +219,7 @@ public fun StridedVectorView.axpy(alpha: Double, x: VectorLike) {
 /** `v = alpha * v`. */
 public fun DenseVector.scale(alpha: Double) {
     if (alpha == 1.0) return
-    koblas.denseKernelFamilies.vector.scale(data, 0, alpha, size)
+    koblas.vectorKernels.scale(data, 0, alpha, size)
 }
 
 /** `this = alpha * this` over a borrowed strided slice. */

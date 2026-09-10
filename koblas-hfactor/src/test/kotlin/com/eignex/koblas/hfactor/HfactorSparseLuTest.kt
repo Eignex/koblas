@@ -13,8 +13,8 @@ import kotlin.math.pow
 import kotlin.random.Random
 import kotlin.test.*
 
-class BundledHfactorTest {
-    private val backend = BundledHfactor()
+class HfactorSparseLuTest {
+    private val backend = HfactorSparseLu.bundled()
 
     private fun simplexMatrix(n: Int, rng: Random): SparseMatrix {
         val columns = ArrayList<List<Pair<Int, Double>>>(2 * n)
@@ -84,20 +84,28 @@ class BundledHfactorTest {
 
     @Test
     fun `the bundled HFactor is available`() {
-        assertTrue(backend.availability.available)
+        assertTrue(backend.available)
+    }
+
+    @Test
+    fun `an unavailable explicit library reports its reason`() {
+        val hfactor = HfactorSparseLu(HfactorConfig(libraryPath = "/no/such/hfactor/library"))
+
+        assertFalse(hfactor.available)
+        assertNotNull(hfactor.unavailableReason)
     }
 
     @Test
     fun `direct HFactor construction exposes availability and options`() {
-        val configured = BundledHfactor(
+        val configured = HfactorSparseLu.bundled(
             HfactorConfig(equilibrate = true, pivotThreshold = 0.2, pivotTolerance = 1e-8),
         )
         val matrix = SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 4.0), listOf(1 to 8.0)))
 
         configured.factor(matrix).close()
 
-        assertTrue(configured.availability.available)
-        assertNull(configured.availability.reason)
+        assertTrue(configured.available)
+        assertNull(configured.unavailableReason)
         assertTrue(configured.config.equilibrate)
         assertEquals(0.2, configured.config.pivotThreshold)
     }
@@ -106,17 +114,17 @@ class BundledHfactorTest {
     fun `the bundled HFactor rejects an explicit library path`() {
         val config = HfactorConfig(libraryPath = "/opt/lib/libkoblas_hfactor.so.1")
 
-        val failure = assertFailsWith<IllegalArgumentException> { BundledHfactor(config) }
+        val failure = assertFailsWith<IllegalArgumentException> { HfactorSparseLu.bundled(config) }
 
         assertEquals(
-            "BundledHfactor does not accept libraryPath; use HfactorSparseLu for an explicit library",
+            "bundled HFactor does not accept libraryPath; use the constructor for an explicit library",
             failure.message,
         )
     }
 
     @Test
     fun `shared equilibration option reaches the binding without leaving HFactor`() {
-        val equilibrated = BundledHfactor(
+        val equilibrated = HfactorSparseLu.bundled(
             HfactorConfig(
                 equilibrate = true,
                 pivotThreshold = 0.2,
@@ -150,7 +158,7 @@ class BundledHfactorTest {
 
     @Test
     fun `the bundled HFactor accepts numerical update controls`() {
-        val configured = BundledHfactor(
+        val configured = HfactorSparseLu.bundled(
             HfactorConfig(
                 pivotThreshold = 0.2,
                 pivotTolerance = 1e-8,
@@ -310,7 +318,7 @@ class BundledHfactorTest {
      */
     @Test
     fun `an equilibrated factorization solves as the unscaled one does`() {
-        val equilibrated = BundledHfactor(HfactorConfig(equilibrate = true))
+        val equilibrated = HfactorSparseLu.bundled(HfactorConfig(equilibrate = true))
         val n = 8
         val a = badlyScaled(n, Random(20260906))
         val b = DoubleArray(n) { (it + 1).toDouble() }
@@ -337,7 +345,7 @@ class BundledHfactorTest {
         val a = badlyScaled(8, Random(20260906))
 
         val unscaled = backend.factor(a).rcond
-        val scaled = BundledHfactor(HfactorConfig(equilibrate = true)).factor(a).rcond
+        val scaled = HfactorSparseLu.bundled(HfactorConfig(equilibrate = true)).factor(a).rcond
 
         assertTrue(scaled > unscaled * 100.0, "pivot ratio $unscaled unscaled against $scaled equilibrated")
     }
@@ -540,10 +548,5 @@ class BundledHfactorTest {
             factorization.rcond > 0.0 && factorization.rcond <= 1.0,
             "pivot ratio ${factorization.rcond} outside (0, 1]",
         )
-    }
-
-    @Test
-    fun `the bundled HFactor is the binding rather than a wrapper around it`() {
-        assertIs<HfactorSparseLu>(BundledHfactor(), "the bundled providers all answer as the type their binding is")
     }
 }
