@@ -117,7 +117,21 @@ private fun packedProduct(
                     var depthBlock = 0
                     while (depthBlock < k) {
                         val depth = min(kc, k - depthBlock)
-                        packB(b, ldb, transposeB, symmetricB, packedB, cols, depthBlock, depth, columnBlock, columns)
+                        packRightLayout(
+                            b,
+                            ldb,
+                            packedB,
+                            0,
+                            depth,
+                            columns,
+                            depthBlock,
+                            columnBlock,
+                            transposeB,
+                            if (symmetricB == null) PackedPanelStructure.General else PackedPanelStructure.Symmetric,
+                            symmetricB ?: false,
+                            unitDiagonal = false,
+                            cols,
+                        )
                         var rowBlock = 0
                         while (rowBlock < m) {
                             val rowCount = min(mc, m - rowBlock)
@@ -127,9 +141,25 @@ private fun packedProduct(
                                 rowBlock > columnBlock + columns - 1
                             }
                             if (!outside) {
-                                packA(
-                                    a, lda, transposeA, symmetricA, alpha, packedA,
-                                    rows, rowBlock, rowCount, depthBlock, depth,
+                                packLeftLayout(
+                                    a,
+                                    lda,
+                                    packedA,
+                                    0,
+                                    rowCount,
+                                    depth,
+                                    rowBlock,
+                                    depthBlock,
+                                    transposeA,
+                                    alpha,
+                                    if (symmetricA == null) {
+                                        PackedPanelStructure.General
+                                    } else {
+                                        PackedPanelStructure.Symmetric
+                                    },
+                                    symmetricA ?: false,
+                                    unitDiagonal = false,
+                                    rows,
                                 )
                                 macroKernel(
                                     kernels, packedA, packedB, c, m,
@@ -149,92 +179,6 @@ private fun packedProduct(
 
 /** The next multiple of [step] at or above [value]. */
 private fun roundUp(value: Int, step: Int): Int = (value + step - 1) / step * step
-
-/**
- * Copies a row block of op(A) into panels of [rows] rows, each holding one step of the shared dimension
- * contiguously, and scales it by [alpha] on the way. Scaling here rather than in the tile costs one
- * multiply per packed element instead of one per multiply-add, and the panel is read many times.
- */
-@Suppress("LongParameterList") // the source with its layout, the destination panel, and both windows
-private fun packA(
-    a: DoubleArray,
-    lda: Int,
-    transposeA: Boolean,
-    symmetric: Boolean?,
-    alpha: Double,
-    packed: DoubleArray,
-    rows: Int,
-    rowBlock: Int,
-    rowCount: Int,
-    depthBlock: Int,
-    depth: Int,
-) {
-    var target = 0
-    var row = 0
-    while (row < rowCount) {
-        val present = min(rows, rowCount - row)
-        for (step in 0 until depth) {
-            val i = rowBlock + row
-            val p = depthBlock + step
-            if (symmetric != null) {
-                // A symmetric operand is its own transpose, so the flag says nothing here; what matters is
-                // which side of the diagonal holds the value.
-                for (r in 0 until present) {
-                    val stored = if (symmetric) i + r >= p else i + r <= p
-                    packed[target + r] =
-                        alpha * if (stored) a[i + r + p * lda] else a[p + (i + r) * lda]
-                }
-            } else if (transposeA) {
-                for (r in 0 until present) packed[target + r] = alpha * a[p + (i + r) * lda]
-            } else {
-                val source = i + p * lda
-                for (r in 0 until present) packed[target + r] = alpha * a[source + r]
-            }
-            for (r in present until rows) packed[target + r] = 0.0
-            target += rows
-        }
-        row += rows
-    }
-}
-
-/** Copies a column block of op(B) into panels of [cols] columns, one step of the shared dimension per row. */
-@Suppress("LongParameterList") // the source with its layout, the destination panel, and both windows
-private fun packB(
-    b: DoubleArray,
-    ldb: Int,
-    transposeB: Boolean,
-    symmetric: Boolean?,
-    packed: DoubleArray,
-    cols: Int,
-    depthBlock: Int,
-    depth: Int,
-    columnBlock: Int,
-    columns: Int,
-) {
-    var target = 0
-    var column = 0
-    while (column < columns) {
-        val present = min(cols, columns - column)
-        for (step in 0 until depth) {
-            val p = depthBlock + step
-            val j = columnBlock + column
-            if (symmetric != null) {
-                for (q in 0 until present) {
-                    val stored = if (symmetric) p >= j + q else p <= j + q
-                    packed[target + q] = if (stored) b[p + (j + q) * ldb] else b[j + q + p * ldb]
-                }
-            } else if (transposeB) {
-                val source = j + p * ldb
-                for (q in 0 until present) packed[target + q] = b[source + q]
-            } else {
-                for (q in 0 until present) packed[target + q] = b[p + (j + q) * ldb]
-            }
-            for (q in present until cols) packed[target + q] = 0.0
-            target += cols
-        }
-        column += cols
-    }
-}
 
 /**
  * Walks the packed panels tile by tile. A full selected tile is accumulated straight into C; a short edge
@@ -268,33 +212,11 @@ private fun macroKernel(
             val aPanel = (row / rows) * depth * rows
             val targetRow = rowBlock + row
             val targetColumn = columnBlock + column
-            val lastRow = targetRow + presentRows - 1
-            val lastColumn = targetColumn + presentColumns - 1
-            val outside = triangle != null && if (triangle) lastRow < targetColumn else targetRow > lastColumn
-            if (outside) {
-                row += presentRows
-                continue
-            }
-            val inside = triangle == null || if (triangle) targetRow >= lastColumn else lastRow <= targetColumn
             val target = targetRow + targetColumn * ldc
-            if (inside && presentRows == rows && presentColumns == cols) {
-                kernels.gemmTile(depth, packedA, aPanel, packedB, bPanel, c, target, ldc)
-            } else {
-                tile.fill(0.0, 0, rows * cols)
-                kernels.gemmTile(depth, packedA, aPanel, packedB, bPanel, tile, 0, rows)
-                for (q in 0 until presentColumns) {
-                    val source = q * rows
-                    val destination = target + q * ldc
-                    for (r in 0 until presentRows) {
-                        val selected = triangle == null || if (triangle) {
-                            targetRow + r >= targetColumn + q
-                        } else {
-                            targetRow + r <= targetColumn + q
-                        }
-                        if (selected) c[destination + r] += tile[source + r]
-                    }
-                }
-            }
+            accumulatePackedProductTile(
+                kernels, depth, packedA, aPanel, packedB, bPanel, c, target, ldc,
+                presentRows, presentColumns, targetRow, targetColumn, triangle, tile,
+            )
             row += presentRows
         }
         column += presentColumns

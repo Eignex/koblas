@@ -48,14 +48,13 @@ internal fun packedTrmmCore(
         workspace.borrow(packedSourceSize) { packedSource ->
             workspace.borrow(tileRows * tileColumns) { tile ->
                 if (right) {
-                    packRightPanel(
-                        a, packedTriangle, order, order, 0, 0, transpose, 0, null,
+                    packRightLayout(
+                        a.data, a.rows, packedTriangle, 0, order, order, 0, 0, transpose,
                         PackedPanelStructure.Triangular, lower, unitDiagonal, tileColumns,
                     )
-                    packLeftPanel(
-                        b, packedSource, b.rows, order, 0, 0, transpose = false, alpha = 1.0,
-                        destinationOffset = 0, workspace = null, structure = PackedPanelStructure.General,
-                        tileRows = tileRows,
+                    packLeftLayout(
+                        b.data, b.rows, packedSource, 0, b.rows, order, 0, 0, false, 1.0,
+                        PackedPanelStructure.General, false, false, tileRows,
                     )
                     b.data.fill(0.0)
                     packedRightTrmm(
@@ -68,14 +67,13 @@ internal fun packedTrmmCore(
                         tile,
                     )
                 } else {
-                    packLeftPanel(
-                        a, packedTriangle, order, order, 0, 0, transpose, 1.0, 0, null,
+                    packLeftLayout(
+                        a.data, a.rows, packedTriangle, 0, order, order, 0, 0, transpose, 1.0,
                         PackedPanelStructure.Triangular, lower, unitDiagonal, tileRows,
                     )
-                    packRightPanel(
-                        b, packedSource, order, b.cols, 0, 0, transpose = false,
-                        destinationOffset = 0, workspace = null, structure = PackedPanelStructure.General,
-                        tileColumns = tileColumns,
+                    packRightLayout(
+                        b.data, b.rows, packedSource, 0, order, b.cols, 0, 0, false,
+                        PackedPanelStructure.General, false, false, tileColumns,
                     )
                     b.data.fill(0.0)
                     packedLeftTrmm(
@@ -114,7 +112,7 @@ private fun packedRightTrmm(
         while (rowStart < destination.rows) {
             val validRows = min(tileRows, destination.rows - rowStart)
             val sourcePanel = rowStart / tileRows * order * tileRows
-            addPackedTile(
+            writePackedProductTile(
                 kernels, depth, packedSource, sourcePanel + depthStart * tileRows,
                 packedTriangle, trianglePanel + depthStart * tileColumns,
                 destination.data, rowStart + columnStart * destination.rows, destination.rows,
@@ -147,7 +145,7 @@ private fun packedLeftTrmm(
             val depthStart = if (effectiveLower) 0 else rowStart
             val depth = if (effectiveLower) rowStart + validRows else order - rowStart
             val trianglePanel = rowStart / tileRows * order * tileRows
-            addPackedTile(
+            writePackedProductTile(
                 kernels, depth, packedTriangle, trianglePanel + depthStart * tileRows,
                 packedSource, sourcePanel + depthStart * tileColumns,
                 destination.data, rowStart + columnStart * order, order,
@@ -156,47 +154,5 @@ private fun packedLeftTrmm(
             rowStart += tileRows
         }
         columnStart += tileColumns
-    }
-}
-
-@Suppress("LongParameterList") // one packed product tile, its destination edge and scratch
-private fun addPackedTile(
-    kernels: PackedKernels,
-    depth: Int,
-    packedA: DoubleArray,
-    aOffset: Int,
-    packedB: DoubleArray,
-    bOffset: Int,
-    destination: DoubleArray,
-    destinationOffset: Int,
-    leadingDimension: Int,
-    validRows: Int,
-    validColumns: Int,
-    tile: DoubleArray,
-) {
-    val tileRows = kernels.gemmTileRows
-    val tileColumns = kernels.gemmTileCols
-    if (validRows == tileRows && validColumns == tileColumns) {
-        kernels.gemmTile(
-            depth,
-            packedA,
-            aOffset,
-            packedB,
-            bOffset,
-            destination,
-            destinationOffset,
-            leadingDimension,
-        )
-        return
-    }
-    tile.fill(0.0, 0, tileRows * tileColumns)
-    kernels.gemmTile(depth, packedA, aOffset, packedB, bOffset, tile, 0, tileRows)
-    for (column in 0 until validColumns) {
-        tile.copyInto(
-            destination,
-            destinationOffset + column * leadingDimension,
-            column * tileRows,
-            column * tileRows + validRows,
-        )
     }
 }
