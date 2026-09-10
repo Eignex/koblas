@@ -1,3 +1,5 @@
+@file:Suppress("NOTHING_TO_INLINE") // keep run-level extraction from adding a hot call per CSC slice or column
+
 package com.eignex.koblas.sparse.internal
 
 import kotlin.math.abs
@@ -10,7 +12,7 @@ import kotlin.math.abs
  */
 internal object SparseAccumulationKernels {
     @Suppress("LongParameterList")
-    fun mergeRankOneColumn(
+    inline fun mergeRankOneColumn(
         alpha: Double,
         column: Int,
         x: DoubleArray,
@@ -57,7 +59,7 @@ internal object SparseAccumulationKernels {
     }
 
     @Suppress("LongParameterList")
-    fun mergeRankTwoColumn(
+    inline fun mergeRankTwoColumn(
         alpha: Double,
         column: Int,
         x: DoubleArray,
@@ -108,7 +110,7 @@ internal object SparseAccumulationKernels {
     }
 
     @Suppress("LongParameterList")
-    fun updateRankOneDenseColumn(
+    inline fun updateRankOneDenseColumn(
         alpha: Double,
         column: Int,
         x: DoubleArray,
@@ -144,7 +146,7 @@ internal object SparseAccumulationKernels {
     }
 
     @Suppress("LongParameterList")
-    fun updateRankTwoDenseColumn(
+    inline fun updateRankTwoDenseColumn(
         alpha: Double,
         column: Int,
         x: DoubleArray,
@@ -183,7 +185,7 @@ internal object SparseAccumulationKernels {
     }
 
     @Suppress("LongParameterList")
-    fun mergeScaledColumns(
+    inline fun mergeScaledColumns(
         alpha: Double,
         leftRows: IntArray,
         leftValues: DoubleArray,
@@ -233,7 +235,7 @@ internal object SparseAccumulationKernels {
     }
 
     @Suppress("LongParameterList")
-    fun addProductColumnToDense(
+    inline fun addProductColumnToDense(
         alpha: Double,
         leftPointers: IntArray,
         leftRows: IntArray,
@@ -260,7 +262,7 @@ internal object SparseAccumulationKernels {
     }
 
     @Suppress("LongParameterList")
-    fun accumulateProductSlice(
+    inline fun accumulateProductSlice(
         rowIndices: IntArray,
         coefficients: DoubleArray,
         start: Int,
@@ -291,7 +293,7 @@ internal object SparseAccumulationKernels {
     }
 
     @Suppress("LongParameterList")
-    fun accumulateProductPattern(
+    inline fun accumulateProductPattern(
         rowIndices: IntArray,
         start: Int,
         end: Int,
@@ -316,7 +318,7 @@ internal object SparseAccumulationKernels {
     }
 
     @Suppress("LongParameterList")
-    fun accumulateIndirectProductSlice(
+    inline fun accumulateIndirectProductSlice(
         rows: IntArray,
         positions: IntArray,
         coefficients: DoubleArray,
@@ -348,7 +350,7 @@ internal object SparseAccumulationKernels {
     }
 
     @Suppress("LongParameterList")
-    fun emitScaledSupport(
+    inline fun emitScaledSupport(
         alpha: Double,
         touched: IntArray,
         touchedCount: Int,
@@ -371,7 +373,7 @@ internal object SparseAccumulationKernels {
         }
     }
 
-    fun addScaledSupportToDense(
+    inline fun addScaledSupportToDense(
         alpha: Double,
         touched: IntArray,
         touchedCount: Int,
