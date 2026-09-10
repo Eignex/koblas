@@ -30,14 +30,25 @@ closed afterward; `mode=oneshot` includes the operation's ordinary preparation/c
 is consumed so the work stays observable. Benchmarks do not inspect or classify allocation: allocation
 regressions belong in focused unit tests, while allocations intrinsic to one-shot work naturally remain timed.
 
-Run one or both external libraries into a fresh directory:
+Run the fast, representative 11-case smoke suite first:
+
+```bash
+koblas-bench/reference-smoke.sh --libraries openblas
+koblas-bench/reference-smoke.sh --libraries openblas,onemkl --output /tmp/koblas-reference-smoke
+```
+
+The smoke command uses [`smoke-cases.txt`](smoke-cases.txt), whose case IDs are checked as an exact subset of
+the authoritative workload. It forces zero warmups, one sample and a 1 ms calibration target. Use it to verify
+the requested libraries, fixture goldens, numerical preflight and CSV path before committing to the full run.
+
+Then run one or both external libraries through the complete workload into a fresh directory:
 
 ```bash
 koblas-bench/reference.sh --libraries openblas,onemkl
 koblas-bench/reference.sh --libraries openblas --output /tmp/koblas-reference
 ```
 
-The command prints its output directory. It creates `openblas.csv` and/or `onemkl.csv`; measurements from two
+Both commands print their output directory. They create `openblas.csv` and/or `onemkl.csv`; measurements from two
 libraries are never combined. Vendor threads are fixed to one. OpenBLAS must be linkable as `-lopenblas`.
 oneMKL defaults to `/home/rasmus/.local/share/koblas-onemkl/venv/lib/libmkl_rt.so.3`; set
 `ONEMKL_LIBRARY=/path/to/libmkl_rt.so.3` to use another runtime. An explicitly requested missing library is an
