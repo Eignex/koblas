@@ -42,6 +42,13 @@ installation and runtime requirements. Comparator arm resolution, preparation, a
 inside that benchmark module and do not participate in production engine selection. Bundled modules carry their
 own third-party notices.
 
+## Verification
+
+Run the core checks with `./gradlew :koblas:check`. This includes `simdSparseAllocationCheck`, which starts an
+uninstrumented JVM and verifies that the SIMD indexed sparse dot, gather, and norm paths do not allocate after
+HotSpot compilation. Run it alone with `./gradlew :koblas:simdSparseAllocationCheck` when investigating a
+regression; it requires JDK 25 and the incubating Vector API, like the regular JVM tests.
+
 ## Quick start
 
 Dense containers use column-major storage. Operators cover ordinary arithmetic and BLAS-backed products:
