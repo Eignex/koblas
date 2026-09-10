@@ -109,3 +109,6 @@ internal expect object PlatformVectorKernels : DenseVectorKernels {
     override fun sum(v: DoubleArray, vOff: Int, len: Int): Double
     override fun ssqd(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int): Double
 }
+
+/** Platform packed family used by the consumer-facing packed-panel API. */
+internal val platformPackedKernels: PackedKernels get() = platformDenseKernelFamilies.packed

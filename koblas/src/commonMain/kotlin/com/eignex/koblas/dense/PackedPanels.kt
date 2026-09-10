@@ -22,12 +22,12 @@ import com.eignex.koblas.Workspace
  * solved panel can be retained for later packed updates without conversion.
  */
 @ExperimentalKoblasApi
-public class PackedPanels internal constructor(private val kernels: PackedKernels) {
-    /** Number of contiguous values in each shared-dimension step of a left panel for this engine. */
-    public val tileRows: Int get() = kernels.gemmTileRows
+public object PackedPanels {
+    /** Number of contiguous values in each shared-dimension step of a left panel on this platform. */
+    public val tileRows: Int get() = platformPackedKernels.gemmTileRows
 
-    /** Number of contiguous values in each shared-dimension step of a right panel for this engine. */
-    public val tileColumns: Int get() = kernels.gemmTileCols
+    /** Number of contiguous values in each shared-dimension step of a right panel on this platform. */
+    public val tileColumns: Int get() = platformPackedKernels.gemmTileCols
 
     /** Exact number of doubles needed for a left panel representing a [rows] by [depth] logical matrix. */
     public fun leftSize(rows: Int, depth: Int): Int = packedLeftSize(rows, depth, tileRows)
@@ -55,7 +55,7 @@ public class PackedPanels internal constructor(private val kernels: PackedKernel
     ) {
         packLeftPanel(
             source, destination, rows, depth, sourceRow, sourceColumn, transpose, alpha,
-            destinationOffset, workspace, PackedPanelStructure.General, tileRows = tileRows,
+            destinationOffset, workspace, PackedPanelStructure.General,
         )
     }
 
@@ -78,7 +78,7 @@ public class PackedPanels internal constructor(private val kernels: PackedKernel
     ) {
         packLeftPanel(
             source, destination, rows, depth, sourceRow, sourceColumn, false, alpha,
-            destinationOffset, workspace, PackedPanelStructure.Symmetric, lower, tileRows = tileRows,
+            destinationOffset, workspace, PackedPanelStructure.Symmetric, lower,
         )
     }
 
@@ -104,7 +104,7 @@ public class PackedPanels internal constructor(private val kernels: PackedKernel
     ) {
         packLeftPanel(
             source, destination, rows, depth, sourceRow, sourceColumn, transpose, alpha,
-            destinationOffset, workspace, PackedPanelStructure.Triangular, lower, unitDiagonal, tileRows,
+            destinationOffset, workspace, PackedPanelStructure.Triangular, lower, unitDiagonal,
         )
     }
 
@@ -127,7 +127,7 @@ public class PackedPanels internal constructor(private val kernels: PackedKernel
     ) {
         packRightPanel(
             source, destination, depth, columns, sourceRow, sourceColumn, transpose,
-            destinationOffset, workspace, PackedPanelStructure.General, tileColumns = tileColumns,
+            destinationOffset, workspace, PackedPanelStructure.General,
         )
     }
 
@@ -149,7 +149,7 @@ public class PackedPanels internal constructor(private val kernels: PackedKernel
     ) {
         packRightPanel(
             source, destination, depth, columns, sourceRow, sourceColumn, false,
-            destinationOffset, workspace, PackedPanelStructure.Symmetric, lower, tileColumns = tileColumns,
+            destinationOffset, workspace, PackedPanelStructure.Symmetric, lower,
         )
     }
 
@@ -174,7 +174,7 @@ public class PackedPanels internal constructor(private val kernels: PackedKernel
     ) {
         packRightPanel(
             source, destination, depth, columns, sourceRow, sourceColumn, transpose,
-            destinationOffset, workspace, PackedPanelStructure.Triangular, lower, unitDiagonal, tileColumns,
+            destinationOffset, workspace, PackedPanelStructure.Triangular, lower, unitDiagonal,
         )
     }
 
@@ -197,7 +197,7 @@ public class PackedPanels internal constructor(private val kernels: PackedKernel
     ) {
         writeLeftPanel(
             source, destination, rows, depth, sourceOffset, destinationRow, destinationColumn,
-            transpose, workspace, tileRows,
+            transpose, workspace,
         )
     }
 
@@ -220,7 +220,7 @@ public class PackedPanels internal constructor(private val kernels: PackedKernel
     ) {
         writeRightPanel(
             source, destination, depth, columns, sourceOffset, destinationRow, destinationColumn,
-            transpose, workspace, tileColumns,
+            transpose, workspace,
         )
     }
 
@@ -268,7 +268,7 @@ public class PackedPanels internal constructor(private val kernels: PackedKernel
         requireArrayWindow(rightHandSide, rightHandSideOffset, leftSize(rows, order), "packed right-hand side")
         if (rows == 0 || order == 0) return
         withStableSource(triangle, rightHandSide, workspace) { stableTriangle ->
-            kernels.trsmTile(
+            platformPackedKernels.trsmTile(
                 rows,
                 order,
                 stableTriangle,
@@ -319,7 +319,7 @@ public class PackedPanels internal constructor(private val kernels: PackedKernel
         withStableSource(packedLeft, rightHandSide, workspace) { stableLeft ->
             withStableSource(packedRight, rightHandSide, workspace) { stableRight ->
                 withStableSource(triangle, rightHandSide, workspace) { stableTriangle ->
-                    kernels.gemmTrsmTile(
+                    platformPackedKernels.gemmTrsmTile(
                         depth,
                         rows,
                         order,

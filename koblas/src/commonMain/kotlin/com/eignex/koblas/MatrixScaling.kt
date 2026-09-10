@@ -1,18 +1,23 @@
 @file:Suppress("VariableNaming", "FunctionParameterNaming") // math convention: single-letter matrices L, M, etc.
+@file:kotlin.jvm.JvmName("MatrixOpsKt")
+@file:kotlin.jvm.JvmMultifileClass
 
 package com.eignex.koblas
 
+// Part of the MatrixOpsKt facade. Splitting the file would otherwise rename the class JVM callers
+// compiled against, so the four parts are joined back into one rather than becoming four.
+
 import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.SparseMatrix
-import com.eignex.koblas.dense.clearDenseStrictUpper
-import com.eignex.koblas.dense.scaleDenseRows
-import com.eignex.koblas.sparse.internal.scaleSparseColumns
-import com.eignex.koblas.sparse.internal.scaleSparseRows
 
 /** Scale row `i` by d(i) in place, the product `D * A` for the diagonal D with entries d(i). */
 public fun DenseMatrix.scaleRows(d: DoubleArray) {
     requireShape(d.size == rows) { "scaleRows: d length ${d.size} != $rows rows" }
-    scaleDenseRows(data, rows, cols, d)
+    val ad = data
+    for (j in 0 until cols) {
+        val base = j * rows
+        for (i in 0 until rows) ad[base + i] *= d[i]
+    }
 }
 
 /** Scale column `j` by d(j) in place, the product `A * D` for the diagonal D with entries d(j). */
@@ -36,13 +41,20 @@ public fun DenseMatrix.scaleColumns(d: DoubleArray) {
  * entirely above the diagonal and is zeroed whole.
  */
 public fun DenseMatrix.zeroStrictUpper() {
-    clearDenseStrictUpper(data, rows, cols)
+    for (j in 1 until cols) {
+        val start = j * rows
+        data.fill(0.0, start, start + minOf(j, rows))
+    }
 }
 
 /** Scale column `j` by d(j) in place for a CSC matrix. The pattern is untouched. */
 public fun SparseMatrix.scaleColumns(d: DoubleArray) {
     requireShape(d.size == cols) { "scaleColumns: d length ${d.size} != $cols columns" }
-    scaleSparseColumns(colPtr, values, cols, d)
+    for (j in 0 until cols) {
+        val f = d[j]
+        if (f == 1.0) continue
+        for (k in colPtr[j] until colPtr[j + 1]) values[k] *= f
+    }
 }
 
 /**
@@ -53,5 +65,5 @@ public fun SparseMatrix.scaleColumns(d: DoubleArray) {
  */
 public fun SparseMatrix.scaleRows(d: DoubleArray) {
     requireShape(d.size == rows) { "scaleRows: d length ${d.size} != $rows rows" }
-    scaleSparseRows(rowIdx, values, d)
+    for (k in values.indices) values[k] *= d[rowIdx[k]]
 }
