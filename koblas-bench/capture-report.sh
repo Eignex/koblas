@@ -34,6 +34,14 @@ temporary=$(mktemp -d "${TMPDIR:-/tmp}/koblas-bench-report.XXXXXX")
 trap 'rm -rf "$temporary"' EXIT
 "$bench/tools/hardware.sh" >"$temporary/hardware.txt"
 
+cases="$bench/cases.txt"
+if [[ $operation != all ]]; then
+  cases="$temporary/cases.txt"
+  awk -F+ -v operation="$operation" '
+    /^[[:space:]]*($|#)/ || $1 == operation { print }
+  ' "$bench/cases.txt" >"$cases"
+fi
+
 if command -v sha256sum >/dev/null 2>&1; then
   hardware_hash=$(sha256sum "$temporary/hardware.txt" | awk '{ print $1 }')
 else
@@ -57,10 +65,10 @@ run="$hardware_report/$run_id"
 [[ ! -e $run ]] || { echo "report already exists: $run" >&2; exit 1; }
 mkdir "$run"
 
-common=("-Pbench.operation=$operation" "-Pbench.warmups=$warmups" "-Pbench.samples=$samples" "-Pbench.targetMs=$target_ms" "-Pbench.pass=$pass")
+common=("-Pbench.operation=$operation" "-Pbench.cases=$cases" "-Pbench.warmups=$warmups" "-Pbench.samples=$samples" "-Pbench.targetMs=$target_ms" "-Pbench.pass=$pass")
 (cd "$root" && ./gradlew :koblas-bench:jvmCBenchmark "${common[@]}" "-Pbench.forks=$forks" "-Pbench.output=$run/jvm-c.csv")
 (cd "$root" && ./gradlew :koblas-bench:jvmSimdBenchmark "${common[@]}" "-Pbench.forks=$forks" "-Pbench.output=$run/jvm-simd.csv")
 (cd "$root" && ./gradlew :koblas-bench:nativeBenchmark "${common[@]}" "-Pbench.output=$run/native.csv")
-"$bench/reference.sh" --libraries "$libraries" --output "$run/vendor" --samples "$samples" --warmups "$warmups" --target-ms "$target_ms"
+"$bench/reference.sh" --libraries "$libraries" --output "$run/vendor" --cases "$cases" --samples "$samples" --warmups "$warmups" --target-ms "$target_ms"
 
 echo "$run"
