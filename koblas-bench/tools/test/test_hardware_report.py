@@ -90,6 +90,38 @@ class HardwareReportTest(unittest.TestCase):
         self.assertEqual(built_in, openblas)
         self.assertEqual(built_in, "v1:com.eignex.koblas.bench.Level3Benchmark.gemm[n=64]")
 
+    def test_v1_case_id_normalizes_only_the_historical_triangle_default(self):
+        row = jmh_row()
+        row["benchmark"] = f"{report.V1_SPARSE_PRODUCT_BENCHMARK}.preparedGemv"
+        row["params"]["triangleVariant"] = report.V1_TRIANGLE_VARIANT
+
+        self.assertEqual(
+            report.stable_case_id(row, 1),
+            f"v1:{report.V1_SPARSE_PRODUCT_BENCHMARK}.preparedGemv[n=64]",
+        )
+
+        row["params"]["triangleVariant"] = "lower-trans-nonunit"
+        with self.assertRaisesRegex(report.ReportError, "developer triangular variant"):
+            report.stable_case_id(row, 1)
+
+    def test_retained_onemkl_report_preserves_historical_v1_case_ids(self):
+        results = SCRIPT.parents[1] / "results"
+        historical = results / "hardware-standard-18286e42-jvm-20260909.tar.gz"
+        one_mkl = results / "onemkl-sparse-parity-b1b0b167-jvm-20260909.tar.gz"
+
+        def built_in_ids(archive):
+            with report.bundle_directory(archive) as bundle:
+                metadata = json.loads((bundle / "metadata.json").read_text())
+                raw = report.raw_entries(bundle / "raw" / "built-in" / "pass-1.json")
+                return {
+                    report.stable_case_id(row, metadata["workload"]["version"])
+                    for row in raw
+                }
+
+        expected = built_in_ids(historical)
+        self.assertEqual(len(expected), 83)
+        self.assertEqual(built_in_ids(one_mkl), expected)
+
     def test_missing_case_fails(self):
         with self.assertRaisesRegex(report.ReportError, "expected 2 cases"):
             report.check_pass([{"case_id": "one"}], "built-in", 2)

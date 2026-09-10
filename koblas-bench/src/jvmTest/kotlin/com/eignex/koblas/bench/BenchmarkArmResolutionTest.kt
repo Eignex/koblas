@@ -175,8 +175,8 @@ class BenchmarkArmResolutionTest {
     fun `onemkl triangular benchmark rows agree with built in across repeated calls`() {
         if (oneMklSparseComparator() == null) return
         for (variant in listOf("upper-nontrans-nonunit", "lower-trans-nonunit", "upper-trans-unit")) {
-            val builtIn = sparseProductBenchmark(BUILTIN_BACKEND, variant)
-            val oneMkl = sparseProductBenchmark(ONEMKL_BACKEND, variant)
+            val builtIn = sparseTriangularVariantBenchmark(BUILTIN_BACKEND, variant)
+            val oneMkl = sparseTriangularVariantBenchmark(ONEMKL_BACKEND, variant)
             try {
                 repeat(2) { invocation ->
                     assertVectorNear(builtIn.trsv(), oneMkl.trsv(), "$variant trsv invocation $invocation")
@@ -251,15 +251,23 @@ class BenchmarkArmResolutionTest {
 
     private fun sparseProductBenchmark(
         arm: String,
-        triangleVariant: String = "upper-nontrans-nonunit",
     ): SparseProductHostBenchmark = SparseProductHostBenchmark().also {
         it.n = 31
         it.sparseArm = arm
         it.density = 0.1
         it.productShape = "regular"
-        it.triangleVariant = triangleVariant
         it.setup()
     }
+
+    private fun sparseTriangularVariantBenchmark(arm: String, variant: String): SparseTriangularVariantBenchmark =
+        SparseTriangularVariantBenchmark().also {
+            it.n = 31
+            it.sparseArm = arm
+            it.density = 0.1
+            it.productShape = "regular"
+            it.triangleVariant = variant
+            it.setup()
+        }
 
     private fun sparseCompletionBenchmark(arm: String, lower: Boolean, side: String): SparseCompletionBenchmark =
         SparseCompletionBenchmark().also {

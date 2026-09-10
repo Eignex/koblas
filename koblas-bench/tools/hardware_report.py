@@ -31,6 +31,8 @@ BENCH = ROOT / "koblas-bench"
 CATALOG_PATH = BENCH / "hardware-workload-v1.json"
 FAILURE_PATTERN = re.compile(r"<failure>|EXCEPTION: <ERROR>|Benchmark fork reported", re.IGNORECASE)
 ARM_PARAMETERS = {"denseArm", "sparseArm", "comparator"}
+V1_SPARSE_PRODUCT_BENCHMARK = "com.eignex.koblas.bench.SparseProductHostBenchmark"
+V1_TRIANGLE_VARIANT = "upper-nontrans-nonunit"
 CAPABILITIES = {
     "jvm": {"built-in": "supported", "openblas": "supported", "onemkl": "supported"},
     "linuxX64": {"built-in": "supported", "openblas": "supported", "onemkl": "unsupported"},
@@ -266,7 +268,13 @@ def benchmark_name(entry: dict[str, Any]) -> str:
 
 
 def stable_case_id(entry: dict[str, Any], profile_version: int) -> str:
-    params = entry.get("params") or {}
+    params = dict(entry.get("params") or {})
+    if profile_version == 1 and benchmark_name(entry).startswith(f"{V1_SPARSE_PRODUCT_BENCHMARK}."):
+        triangle_variant = params.pop("triangleVariant", None)
+        if triangle_variant not in {None, V1_TRIANGLE_VARIANT}:
+            raise ReportError(
+                f"profile v1 cannot normalize developer triangular variant {triangle_variant!r}"
+            )
     parts = [f"{key}={params[key]}" for key in sorted(params) if key not in ARM_PARAMETERS]
     suffix = ",".join(parts)
     return f"v{profile_version}:{benchmark_name(entry)}" + (f"[{suffix}]" if suffix else "")
