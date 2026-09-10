@@ -65,7 +65,6 @@ public open class HfactorSparseLu(
     private fun factorNative(a: SparseMatrix): SparseLuFactorization {
         val handle = calls.create(a.rows, a.cols, a.copyColumnPointers(), a.copyRowIndices(), a.values)
             ?: return SingularSparseFactorization(a.rows, SINGULAR_POSITION_UNKNOWN)
-        // A square matrix is its own basis, slot t holding column t.
         if (calls.build(handle, IntArray(a.rows) { it }) != 0) {
             calls.free(handle)
             return SingularSparseFactorization(a.rows, SINGULAR_POSITION_UNKNOWN)
@@ -73,12 +72,10 @@ public open class HfactorSparseLu(
         return HfactorFactorization(a.rows, calls, handle)
     }
 
-    /** The row factors this backend equilibrates with, or null when it was not asked to. */
     @OptIn(UnsafeKoblasApi::class)
     private fun equilibrationOf(a: SparseMatrix): DoubleArray? =
         if (config.equilibrate) f64EquilibrationScale(a.rows, a.rowIdx, a.values) else null
 
-    /** [a]'s values under [scale], or its own array when there is nothing to apply. */
     @OptIn(UnsafeKoblasApi::class)
     private fun scaledValues(a: SparseMatrix, scale: DoubleArray?): DoubleArray =
         if (scale == null) a.values else f64ScaledValues(a.rowIdx, a.values, scale)

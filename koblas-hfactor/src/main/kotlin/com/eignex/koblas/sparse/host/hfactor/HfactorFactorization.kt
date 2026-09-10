@@ -31,7 +31,6 @@ public class HfactorFactorization internal constructor(
     private val carrier = IndexedVector(n)
     private val pivotRange = DoubleArray(2)
 
-    /** Always [NOT_SINGULAR]: this exists only for a matrix HFactor factored at full rank. */
     override val failedAt: Int get() = NOT_SINGULAR
 
     override val l: SparseMatrix get() = factorNotExposed("l")
@@ -55,7 +54,7 @@ public class HfactorFactorization internal constructor(
         calls.fill(handle)
     }
 
-    /** Reaching the pivots copies the whole factorization, so this is sampled rather than polled. */
+    // Reading pivots copies the native factors, so callers should sample rather than poll this.
     override val rcond: Double get() = ownership.anchoring {
         calls.pivotRange(handle, pivotRange)
         if (pivotRange[1] == 0.0) 0.0 else pivotRange[0] / pivotRange[1]
@@ -72,7 +71,6 @@ public class HfactorFactorization internal constructor(
     override fun close(): Unit = ownership.close()
 
     private companion object {
-        /** A dense right-hand side is what a general solve is handed, so the sweeps are chosen for one. */
         const val DENSE = 1.0
     }
 }

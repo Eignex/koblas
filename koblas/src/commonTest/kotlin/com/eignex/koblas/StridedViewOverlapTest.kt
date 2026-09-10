@@ -6,11 +6,6 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
-/**
- * Overlap decides whether a strided product is allowed to run at all, and it answers most cases without
- * walking the entries. Every shortcut has to agree with the walk it replaces, so the cases below are checked
- * against a plain scan of the physical indices each view addresses.
- */
 class StridedViewOverlapTest {
 
     private val buffer = DoubleArray(64)
@@ -62,7 +57,6 @@ class StridedViewOverlapTest {
         assertTrue(lowerRight.overlaps(upperLeft))
     }
 
-    /** The shortcuts have to answer the same as the walk over every pair of blocks one buffer can hold. */
     @Test
     fun `every pair of blocks agrees with a scan of the entries they address`() {
         val whole = StridedMatrixView(8, 8, buffer, 0, 8)
@@ -88,7 +82,6 @@ class StridedViewOverlapTest {
         }
     }
 
-    /** Views with different leading dimensions share no grid, so they take the entry walk. */
     @Test
     fun `views with unequal leading dimensions agree with a scan`() {
         val rng = Random(20260941)
@@ -119,11 +112,9 @@ class StridedViewOverlapTest {
     fun `a negatively strided vector is measured over the entries it reaches`() {
         val whole = StridedMatrixView(8, 8, buffer, 0, 8)
         val block = whole.view(0, 4, 4, 4)
-        // 35 down to 32, which is column 4 of the block read from the bottom up.
         val descending = StridedVectorView(buffer, 35, 4, -1)
 
         assertTrue(block.overlaps(descending))
-        // 39 down to 15, which passes the block's span without landing in any of its rows.
         assertFalse(block.overlaps(StridedVectorView(buffer, 39, 4, -8)))
     }
 

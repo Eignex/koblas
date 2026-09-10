@@ -79,7 +79,6 @@ public class HfactorBasisSolver internal constructor(
         if (factorized) calls.fill(handle) else 0
     }
 
-    /** HFactor distinguishes its own refusal from the synthetic clock, and the shim carries which it was. */
     override val refactorizeReason: RefactorizeReason? get() = ownership.anchoring {
         when (calls.refactorizeReason(handle)) {
             1 -> RefactorizeReason.FACTOR_ASKED
@@ -88,7 +87,6 @@ public class HfactorBasisSolver internal constructor(
         }
     }
 
-    /** Counted during the factorization, so this costs two field reads rather than a copy of the factors. */
     override val kernel: BasisKernel? get() = ownership.anchoring {
         if (!factorized) return@anchoring null
         val sizes = IntArray(2)
@@ -142,7 +140,6 @@ public class HfactorBasisSolver internal constructor(
         unitRows = if (deficiency == 0) null else rowsOfUnitColumns(settled)
         forgetSolves()
         factorized = true
-        // A repaired basis is invertible, which is the whole point of keeping it.
         singular = false
         val rowsOf = unitRows ?: IntArray(n) { -1 }
         check(deficiency == 0 || rowsOf.any { it >= 0 }) { "HFactor reported a repair it did not make" }
@@ -169,7 +166,6 @@ public class HfactorBasisSolver internal constructor(
         lastBtran = x
     }
 
-    /** Multiplies the stored positions of [x] by their row's factor, leaving the pattern alone. */
     private fun scaleStored(x: IndexedVector) {
         val scale = rowScale ?: return
         for (k in 0 until x.count) {
@@ -206,7 +202,7 @@ public class HfactorBasisSolver internal constructor(
                     pivotEta != null && pivotEta === lastBtran,
                 )
 
-            // The update consumes both native vectors, so neither answers for a caller's vector afterwards.
+            // The native update consumes its solve vectors, so neither remains reusable afterwards.
             forgetSolves()
             when (advice) {
                 HfactorUpdate.REFUSED -> BasisUpdate.SINGULAR
@@ -218,7 +214,6 @@ public class HfactorBasisSolver internal constructor(
             }
         }
 
-    /** HFactor numbers a substituted column past the matrix, which is how a unit column is spotted. */
     private fun rowsOfUnitColumns(settled: IntArray): IntArray =
         IntArray(n) { if (settled[it] < columns) -1 else settled[it] - columns }
 
@@ -254,7 +249,6 @@ public class HfactorBasisSolver internal constructor(
         }
     }
 
-    /** Snapshots this solver handed out and still owns, so closing it releases what a caller did not. */
     private val live = mutableSetOf<NativeSnapshot>()
 
     override fun snapshot(): BasisSnapshot? = ownership.anchoring {
@@ -264,8 +258,7 @@ public class HfactorBasisSolver internal constructor(
     }
 
     override fun restore(snapshot: BasisSnapshot): Boolean = ownership.anchoring {
-        // Identity against this solver's own live set, so a snapshot from another solver or one already
-        // closed is refused rather than handed to a factorization it does not describe.
+        // Only snapshots still owned by this solver describe its native factorization.
         val native = snapshot as? NativeSnapshot ?: return@anchoring false
         if (native !in live) return@anchoring false
         if (!calls.restore(handle, native.pointer)) return@anchoring false

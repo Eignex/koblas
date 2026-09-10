@@ -168,7 +168,6 @@ class WorkspaceTest {
         assertTrue(ws.pooledWidths <= 64, "the burst left ${ws.pooledWidths} sizes retained")
     }
 
-    /** Buffers lent out are never reclaimed, however many other widths pass through afterwards. */
     @Test
     fun `an outstanding borrow survives churn through other widths`() {
         val ws = Workspace()
@@ -180,7 +179,6 @@ class WorkspaceTest {
         assertSame(held, ws.take(9), "the held buffer's pool was dropped while it was lent")
     }
 
-    /** With no workspace to lend one, [borrow] allocates and has nothing to hand back. */
     @Test
     fun `a borrow without a workspace allocates and returns the block value`() {
         val absent: Workspace? = null
