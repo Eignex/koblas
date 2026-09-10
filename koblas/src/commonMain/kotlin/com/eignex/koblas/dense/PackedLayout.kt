@@ -65,7 +65,7 @@ internal fun packLeftLayout(
                     val stored = if (lower) i >= j else i <= j
                     destination[target + lane] = when {
                         !stored -> 0.0
-                        i == j && unitDiagonal -> alpha
+                        i == j && unitDiagonal -> alpha * 1.0
                         else -> alpha * source[i + j * leadingDimension]
                     }
                     lane++
