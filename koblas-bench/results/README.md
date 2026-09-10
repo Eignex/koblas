@@ -3,6 +3,22 @@
 These archives preserve benchmark evidence that would otherwise be deleted with the Gradle build directory.
 They may contain machine and checkout details; inspect their metadata before sharing them outside the project.
 
+## Packed layout and output leaves
+
+`packed-layout-output-8e2636fc-jvm-20260910.tar.gz` retains 24 raw JMH JSON files for the Phase 3 packed-layout
+refactor: two clean merged-base series, two interleaved candidate series and two final clean candidate series.
+They cover full and partial public panel packing/writeback, ordinary and transposed GEMM, both symmetric products,
+every SYRK/SYR2K orientation and selected triangle, and left/right TRMM/TRSM.
+
+The runs used a shared Intel Core i9-12900H without affinity or reservation. Every warmed full/partial panel
+pack/write probe reported `0 B/call`. The final clean series was heavily contended and does not establish the 1.1x
+objective; the semantically identical interleaved series overlaps or moves in both directions against the base.
+The archive retains all raw confidence intervals and the adjacent notes record exact commits, dirty state,
+commands, environment and ranges. No ARM, macOS or external-comparator timing claim is made.
+
+Expected SHA-256:
+`d356d94016baffe44c54f1b744faf0d68beebcd2a81357a498a2b22275455503`.
+
 ## Dense numerical leaf extraction
 
 `dense-leaf-extraction-20260909.tar.gz` contains two clean-`39e49b39` baseline passes and two clean-`aaf5fcbb`
