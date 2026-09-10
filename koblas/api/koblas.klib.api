@@ -595,12 +595,12 @@ final object com.eignex.koblas/BuiltinKernels { // com.eignex.koblas/BuiltinKern
 
 final val com.eignex.koblas.dense/ReferenceBlas // com.eignex.koblas.dense/ReferenceBlas|{}ReferenceBlas[0]
     final fun <get-ReferenceBlas>(): com.eignex.koblas.dense/Blas // com.eignex.koblas.dense/ReferenceBlas.<get-ReferenceBlas>|<get-ReferenceBlas>(){}[0]
+final val com.eignex.koblas/kernelBackend // com.eignex.koblas/kernelBackend|{}kernelBackend[0]
+    final fun <get-kernelBackend>(): kotlin/String // com.eignex.koblas/kernelBackend.<get-kernelBackend>|<get-kernelBackend>(){}[0]
 final val com.eignex.koblas/koblas // com.eignex.koblas/koblas|{}koblas[0]
     final fun <get-koblas>(): com.eignex.koblas/KoblasContext // com.eignex.koblas/koblas.<get-koblas>|<get-koblas>(){}[0]
 final val com.eignex.koblas/koblasInfo // com.eignex.koblas/koblasInfo|{}koblasInfo[0]
     final fun <get-koblasInfo>(): kotlin/String // com.eignex.koblas/koblasInfo.<get-koblasInfo>|<get-koblasInfo>(){}[0]
-final val com.eignex.koblas/mathBackend // com.eignex.koblas/mathBackend|{}mathBackend[0]
-    final fun <get-mathBackend>(): kotlin/String // com.eignex.koblas/mathBackend.<get-mathBackend>|<get-mathBackend>(){}[0]
 
 final fun (com.eignex.koblas/BuiltinKernelProvider).com.eignex.koblas/engine(): com.eignex.koblas/KoblasContext // com.eignex.koblas/engine|engine@com.eignex.koblas.BuiltinKernelProvider(){}[0]
 final fun (com.eignex.koblas/DenseMatrix).com.eignex.koblas.dense/trmm(com.eignex.koblas/DenseMatrix, kotlin/Boolean, kotlin/Boolean = ..., kotlin/Boolean = ..., kotlin/Boolean = ..., kotlin/Double = ..., com.eignex.koblas/Workspace? = ...) // com.eignex.koblas.dense/trmm|trmm@com.eignex.koblas.DenseMatrix(com.eignex.koblas.DenseMatrix;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean;kotlin.Double;com.eignex.koblas.Workspace?){}[0]
