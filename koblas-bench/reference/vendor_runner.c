@@ -128,7 +128,7 @@ static const char *option(const bench_case *c, const char *name, const char *fal
 static int flag(const bench_case *c, const char *name) { return !strcmp(option(c, name, "N"), "T"); }
 
 static int expected_dimensions(const char *op) {
-    static const char *one[] = { "dot","axpy","axpy-arithmetic","scal","nrm2","asum","sum","compensated-sum","iamax","swap","rot","rotm","rotmg","ssqd","dot4","axpy4","dot-axpy","symv","syr","syr2","trsv","trmv","spdot","spdot-sparse","spaxpy","spnrm2","spasum","spscatter","spgather","spgather-zero","spsymv","sptrsv","sptrmv","workspace-scatter","workspace-scatter-checked","workspace-gather","workspace-gather-clear","workspace-max","workspace-filter" };
+    static const char *one[] = { "dot","axpy","axpy-arithmetic","scal","nrm2","asum","sum","compensated-sum","iamax","swap","rot","rotm","rotmg","ssqd","dot4","axpy4","dot-axpy","symv","syr","syr2","trsv","trmv","spdot","spdot-raw","spdot-sparse","spaxpy","spaxpy-raw","spnrm2","spnrm2-indexed","spasum","spscatter","spscatter-raw","spgather","spgather-zero","spsymv","sptrsv","sptrmv","sparse-slices-scatter","sparse-slices-scatter-checked","sparse-slices-gather","sparse-slices-gather-clear","sparse-slices-clear","sparse-slices-clear-local","sparse-slices-reduce-dot-checked","sparse-slices-reduce-dot-local","sparse-slices-reduce-dot-unchecked","sparse-slices-max","sparse-slices-filter" };
     static const char *two[] = { "gemv","ger","symm","gemmt","syrk","syr2k","trsm","trmm","packed-trsm","pack-left","pack-right","pack-symmetric-left","pack-symmetric-right","pack-triangular-left","pack-triangular-right","write-left","write-right","clear-left-padding","clear-right-padding","spgemv","spsymm","sptrsm","sptrmm","spsyrk-dense","spsyrk-sparse","spadd" };
     static const char *three[] = { "gemm","gemm-tile","gemm-trsm","spmm","spgemm" };
     for (size_t i=0;i<sizeof(one)/sizeof(*one);++i) if(!strcmp(op,one[i])) return 1;
@@ -186,7 +186,7 @@ static int parse_case(char *line, int line_number, bench_case *out) {
     token = strtok_r(NULL, "+", &save); if (!token || (strcmp(token,"uniform") && strcmp(token,"triangular") && strcmp(token,"sparse-uniform") && strcmp(token,"sparse-triangular"))) fail("unknown fixture"); copy_field(out->fixture,sizeof(out->fixture),token,line_number,"fixture");
     int previous = -1;
     while ((token = strtok_r(NULL,"+",&save))) { char *equals = strchr(token,'='); if(!equals||equals==token||!equals[1]||strchr(equals+1,'=')) fail("malformed option"); *equals=0; int order=option_order(token); if(order<0 || order<=previous || out->option_count==MAX_OPTIONS||!valid_option(token,equals+1)) fail("unknown, invalid, duplicate, or noncanonical option"); previous=order;copy_field(out->option_names[out->option_count],sizeof(out->option_names[0]),token,line_number,"option name");copy_field(out->option_values[out->option_count],sizeof(out->option_values[0]),equals+1,line_number,"option value");++out->option_count; }
-    int sparse = !strncmp(out->operation,"sp",2) || !strncmp(out->operation,"workspace-",10);
+    int sparse = !strncmp(out->operation,"sp",2) || !strncmp(out->operation,"sparse-slices-",14);
     int triangular=triangular_fixture_operation(out->operation);const char *expected_fixture=sparse?(triangular?"sparse-triangular":"sparse-uniform"):(triangular?"triangular":"uniform");
     if(strcmp(out->fixture,expected_fixture))fail("incompatible fixture");
     for(int i=0;i<out->option_count;++i)if(!option_allowed(out->operation,out->option_names[i],sparse))fail("option is incompatible with operation");
@@ -353,8 +353,13 @@ static double invoke_sparse(work *w){
 static void setup_sparse(work *w){
     bench_case *s=w->spec;int *d=s->dims;double density=strtod(option(s,"density","0.01"),NULL);int lower=!strcmp(option(s,"uplo","L"),"L");
     w->supported=1;w->comparison="direct";w->timing=!strcmp(option(s,"mode","oneshot"),"prepared")?"prepared":"oneshot";w->invoke=invoke_sparse;
-    if(!strncmp(s->operation,"workspace-",10)){w->supported=0;w->comparison="unsupported";w->timing="workspace";return;}
-    if(!strcmp(s->operation,"spdot-sparse")||!strcmp(s->operation,"spnrm2")||!strcmp(s->operation,"spasum")){w->supported=0;w->comparison="unsupported";w->timing="arithmetic";return;}
+    if(!strncmp(s->operation,"sparse-slices-",14)){w->supported=0;w->comparison="unsupported";w->timing="sparse-slices";return;}
+    if(!strcmp(s->operation,"spdot-raw")||!strcmp(s->operation,"spdot-sparse")||
+       !strcmp(s->operation,"spaxpy-raw")||!strcmp(s->operation,"spnrm2")||
+       !strcmp(s->operation,"spnrm2-indexed")||!strcmp(s->operation,"spasum")||
+       !strcmp(s->operation,"spscatter-raw")){
+        w->supported=0;w->comparison="unsupported";w->timing="arithmetic";return;
+    }
     if(!strcmp(s->operation,"spdot")||!strcmp(s->operation,"spaxpy")||!strcmp(s->operation,"spscatter")||!strcmp(s->operation,"spgather")||!strcmp(s->operation,"spgather-zero")){w->sa=make_sparse(d[0],1,density,1,0,1);w->y=allocate(d[0],sizeof(double));w->initial=allocate(d[0],sizeof(double));w->x=allocate(w->sa.nnz,sizeof(double));fill_vector(w->initial,d[0],2);copy_values(w->y,w->initial,d[0]);w->timing=!strcmp(s->operation,"spdot")?"arithmetic":"reset-and-arithmetic";return;}
     int rows=d[0],cols=1,triangular=!strncmp(s->operation,"sptr",4)||!strcmp(s->operation,"spsymv")||!strcmp(s->operation,"spsymm");
     if(!strcmp(s->operation,"spgemv"))cols=d[1];
@@ -374,11 +379,11 @@ static void setup_sparse(work *w){
 }
 #endif
 
-static void setup_work(work *w,bench_case *spec){memset(w,0,sizeof(*w));w->spec=spec;if(!strncmp(spec->operation,"sp",2)||!strncmp(spec->operation,"workspace-",10)){
+static void setup_work(work *w,bench_case *spec){memset(w,0,sizeof(*w));w->spec=spec;if(!strncmp(spec->operation,"sp",2)||!strncmp(spec->operation,"sparse-slices-",14)){
 #ifdef USE_MKL
 setup_sparse(w);
 #else
-w->supported=0;w->comparison="unsupported";w->timing=!strncmp(spec->operation,"workspace-",10)?"workspace":option(spec,"mode","arithmetic");
+w->supported=0;w->comparison="unsupported";w->timing=!strncmp(spec->operation,"sparse-slices-",14)?"sparse-slices":option(spec,"mode","arithmetic");
 #endif
 }else setup_dense(w);}
 

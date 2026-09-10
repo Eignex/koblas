@@ -615,13 +615,17 @@ public final class com/eignex/koblas/sparse/SparseBlas$DefaultImpls {
 public abstract interface class com/eignex/koblas/sparse/SparseKernels {
 	public abstract fun asum (Lcom/eignex/koblas/SparseVector;)D
 	public abstract fun axpy ([DDLcom/eignex/koblas/SparseVector;)V
+	public abstract fun axpy ([DD[II[DII)V
 	public abstract fun dot (Lcom/eignex/koblas/SparseVector;Lcom/eignex/koblas/SparseVector;)D
 	public abstract fun dot (Lcom/eignex/koblas/SparseVector;[D)D
+	public abstract fun dot ([II[DII[D)D
 	public abstract fun gather (Lcom/eignex/koblas/SparseVector;[D)V
 	public abstract fun gatherZero (Lcom/eignex/koblas/SparseVector;[D)V
 	public abstract fun getName ()Ljava/lang/String;
 	public abstract fun nrm2 (Lcom/eignex/koblas/SparseVector;)D
+	public abstract fun nrm2 ([III[D)D
 	public abstract fun scatter (Lcom/eignex/koblas/SparseVector;[D)V
+	public abstract fun scatter ([II[DII[D)V
 }
 
 public final class com/eignex/koblas/sparse/SparseOpsKt {
@@ -647,16 +651,18 @@ public final class com/eignex/koblas/sparse/SparseOpsKt {
 	public static synthetic fun trsv$default (Lcom/eignex/koblas/SparseMatrix;[DZZZILjava/lang/Object;)V
 }
 
-public final class com/eignex/koblas/sparse/SparseWorkspace {
-	public static final field INSTANCE Lcom/eignex/koblas/sparse/SparseWorkspace;
-	public static final field SCATTER_NONFINITE I
-	public static final field SCATTER_NONZERO_PRODUCT_UNDERFLOW I
+public final class com/eignex/koblas/sparse/SparseSlices {
+	public static final field ARITHMETIC_NONFINITE I
+	public static final field ARITHMETIC_NONZERO_PRODUCT_UNDERFLOW I
+	public static final field INSTANCE Lcom/eignex/koblas/sparse/SparseSlices;
 	public final fun activeColumnMaxAbs ([II[DII[Z)D
+	public final fun clearTouched ([III[D[I)V
 	public final fun gatherClearTouched ([III[D[I[II[DIZ)I
-	public static synthetic fun gatherClearTouched$default (Lcom/eignex/koblas/sparse/SparseWorkspace;[III[D[I[II[DIZILjava/lang/Object;)I
+	public static synthetic fun gatherClearTouched$default (Lcom/eignex/koblas/sparse/SparseSlices;[III[D[I[II[DIZILjava/lang/Object;)I
 	public final fun gatherTouched ([III[D[II[DIZ)I
-	public static synthetic fun gatherTouched$default (Lcom/eignex/koblas/sparse/SparseWorkspace;[III[D[II[DIZILjava/lang/Object;)I
+	public static synthetic fun gatherTouched$default (Lcom/eignex/koblas/sparse/SparseSlices;[III[D[II[DIZILjava/lang/Object;)I
 	public final fun pivotCandidatePositions ([II[DII[ZDDD[II)I
+	public final fun reduceDotChecked (DZ[II[DII[D[II)D
 	public final fun scatterAxpy (D[II[DII[D[II[III)I
 	public final fun scatterAxpyChecked (D[II[DII[D[II[III[II)I
 }

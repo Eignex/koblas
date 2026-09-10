@@ -57,13 +57,23 @@ internal class SparseAlgorithms(
         if (alpha == 0.0) return
         if (transpose) {
             for (j in 0 until a.cols) {
-                val sum = indexedKernels.dotDense(a.rowIdx, a.values, a.colPtr[j], a.colPtr[j + 1], x)
+                val start = a.colPtr[j]
+                // CSC gemv promises one input-order accumulation chain; raw dot permits backend reassociation.
+                val sum = ScalarIndexedSparseKernels.dotDense(
+                    a.rowIdx,
+                    start,
+                    a.values,
+                    start,
+                    a.colPtr[j + 1] - start,
+                    x,
+                )
                 y[j] += alpha * sum
             }
         } else {
             for (j in 0 until a.cols) {
                 val xj = alpha * x[j]
-                indexedKernels.axpy(a.rowIdx, a.values, a.colPtr[j], a.colPtr[j + 1], xj, y)
+                val start = a.colPtr[j]
+                indexedKernels.axpy(a.rowIdx, start, a.values, start, a.colPtr[j + 1] - start, xj, y)
             }
         }
     }

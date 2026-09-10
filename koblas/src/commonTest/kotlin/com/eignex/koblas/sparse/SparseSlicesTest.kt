@@ -6,18 +6,122 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
-class SparseWorkspaceTest {
+class SparseSlicesTest {
+    @Test
+    fun `clear touched validates then resets values and marks`() {
+        val touched = intArrayOf(9, 3, 1, 9)
+        val values = doubleArrayOf(8.0, -0.0, 7.0, Double.NaN)
+        val marks = intArrayOf(4, 4, 4, 4)
+
+        SparseSlices.clearTouched(touched, 1, 2, values, marks)
+
+        assertContentEquals(doubleArrayOf(8.0, 0.0, 7.0, 0.0), values)
+        assertEquals(0.0.toBits(), values[1].toBits())
+        assertContentEquals(intArrayOf(4, 0, 4, 0), marks)
+        assertContentEquals(intArrayOf(9, 3, 1, 9), touched)
+    }
+
+    @Test
+    fun `clear touched accepts an empty end slice`() {
+        val touched = intArrayOf(0)
+        val values = doubleArrayOf(2.0)
+        val marks = intArrayOf(3)
+
+        SparseSlices.clearTouched(touched, 1, 0, values, marks)
+
+        assertContentEquals(doubleArrayOf(2.0), values)
+        assertContentEquals(intArrayOf(3), marks)
+    }
+
+    @Test
+    fun `clear touched failure precedes mutation`() {
+        val values = doubleArrayOf(2.0, 3.0)
+        val marks = intArrayOf(4, 4)
+
+        assertFailsWith<IllegalArgumentException> {
+            SparseSlices.clearTouched(intArrayOf(0, 2), 0, 2, values, marks)
+        }
+
+        assertContentEquals(doubleArrayOf(2.0, 3.0), values)
+        assertContentEquals(intArrayOf(4, 4), marks)
+    }
+
+    @Test
+    fun `checked dot preserves strict product and accumulation order`() {
+        val status = intArrayOf(8)
+        val reassociationResult = SparseSlices.reduceDotChecked(
+            1e16, true,
+            intArrayOf(9, 0, 1, 9), 1,
+            doubleArrayOf(9.0, 1e16, 1.0, 9.0), 1,
+            2, doubleArrayOf(1.0, 1.0), status, 0,
+        )
+        val roundedProductResult = SparseSlices.reduceDotChecked(
+            1.0, true,
+            intArrayOf(0), 0,
+            doubleArrayOf(1.0 + 7.450580596923828e-9), 0,
+            1, doubleArrayOf(1.0 - 7.450580596923828e-9), status, 0,
+        )
+
+        assertEquals(-1.0, reassociationResult)
+        assertEquals(0.0.toBits(), roundedProductResult.toBits())
+        assertEquals(8, status[0])
+    }
+
+    @Test
+    fun `checked dot latches exceptional arithmetic and preserves bits`() {
+        val status = intArrayOf(4)
+        val underflow = SparseSlices.reduceDotChecked(
+            0.0, false, intArrayOf(0), 0, doubleArrayOf(0.5), 0, 1,
+            doubleArrayOf(Double.MIN_VALUE), status, 0,
+        )
+        val overflow = SparseSlices.reduceDotChecked(
+            Double.MAX_VALUE, false, intArrayOf(0), 0, doubleArrayOf(Double.MAX_VALUE), 0, 1,
+            doubleArrayOf(1.0), status, 0,
+        )
+        val productOverflow = SparseSlices.reduceDotChecked(
+            0.0, false, intArrayOf(0), 0, doubleArrayOf(Double.MAX_VALUE), 0, 1,
+            doubleArrayOf(2.0), status, 0,
+        )
+        val nonfiniteOperand = SparseSlices.reduceDotChecked(
+            0.0, false, intArrayOf(0), 0, doubleArrayOf(Double.NaN), 0, 1,
+            doubleArrayOf(1.0), status, 0,
+        )
+
+        assertEquals(0.0, underflow)
+        assertEquals(Double.POSITIVE_INFINITY, overflow)
+        assertEquals(Double.POSITIVE_INFINITY, productOverflow)
+        assertTrue(nonfiniteOperand.isNaN())
+        assertEquals(
+            4 or SparseSlices.ARITHMETIC_NONFINITE or SparseSlices.ARITHMETIC_NONZERO_PRODUCT_UNDERFLOW,
+            status[0],
+        )
+    }
+
+    @Test
+    fun `checked dot validates before arithmetic or status mutation`() {
+        val status = intArrayOf(16)
+
+        assertFailsWith<IllegalArgumentException> {
+            SparseSlices.reduceDotChecked(
+                Double.NaN, false, intArrayOf(2), 0, doubleArrayOf(Double.NaN), 0, 1,
+                doubleArrayOf(1.0), status, 0,
+            )
+        }
+
+        assertEquals(16, status[0])
+    }
+
     @Test
     fun `scatter preserves first touch order across calls`() {
         val accumulator = DoubleArray(6)
         val marks = IntArray(6)
         val touched = IntArray(6)
 
-        var count = SparseWorkspace.scatterAxpy(
+        var count = SparseSlices.scatterAxpy(
             2.0, intArrayOf(4, 1), 0, doubleArrayOf(3.0, -2.0), 0, 2,
             accumulator, marks, 7, touched, 0, 0,
         )
-        count = SparseWorkspace.scatterAxpy(
+        count = SparseSlices.scatterAxpy(
             -1.0, intArrayOf(1, 5), 0, doubleArrayOf(4.0, 8.0), 0, 2,
             accumulator, marks, 7, touched, 0, count,
         )
@@ -34,7 +138,7 @@ class SparseWorkspaceTest {
         val marks = IntArray(5)
         val touched = intArrayOf(-1, -1, -1, -1, -1)
 
-        val count = SparseWorkspace.scatterAxpy(
+        val count = SparseSlices.scatterAxpy(
             0.5, intArrayOf(99, 3, 0, 99), 1, doubleArrayOf(99.0, 8.0, -6.0, 99.0), 1, 2,
             accumulator, marks, 2, touched, 1, 0,
         )
@@ -52,18 +156,18 @@ class SparseWorkspaceTest {
         val touched = IntArray(4)
         val indices = intArrayOf(2)
 
-        var count = SparseWorkspace.scatterAxpy(
+        var count = SparseSlices.scatterAxpy(
             1.0, indices, 0, doubleArrayOf(3.0), 0, 1,
             accumulator, marks, 4, touched, 0, 0,
         )
-        count = SparseWorkspace.scatterAxpy(
+        count = SparseSlices.scatterAxpy(
             -1.0, indices, 0, doubleArrayOf(3.0), 0, 1,
             accumulator, marks, 4, touched, 0, count,
         )
         val outIndices = IntArray(4) { -1 }
         val outValues = DoubleArray(4) { 9.0 }
 
-        val retained = SparseWorkspace.gatherTouched(
+        val retained = SparseSlices.gatherTouched(
             touched,
             0,
             count,
@@ -73,7 +177,7 @@ class SparseWorkspaceTest {
             outValues,
             0,
         )
-        val compacted = SparseWorkspace.gatherTouched(
+        val compacted = SparseSlices.gatherTouched(
             touched, 0, count, accumulator, outIndices, 0, outValues, 0, compactExactZeros = true,
         )
 
@@ -91,7 +195,7 @@ class SparseWorkspaceTest {
         val marks = IntArray(3)
         val touched = IntArray(3)
 
-        val count = SparseWorkspace.scatterAxpy(
+        val count = SparseSlices.scatterAxpy(
             0.0, intArrayOf(0, 2), 0, doubleArrayOf(5.0, Double.POSITIVE_INFINITY), 0, 2,
             accumulator, marks, 3, touched, 0, 0,
         )
@@ -108,7 +212,7 @@ class SparseWorkspaceTest {
         val marks = IntArray(1)
         val touched = IntArray(1)
 
-        SparseWorkspace.scatterAxpy(
+        SparseSlices.scatterAxpy(
             1.0, intArrayOf(0), 0, doubleArrayOf(-0.0), 0, 1,
             accumulator, marks, 12, touched, 0, 0,
         )
@@ -124,7 +228,7 @@ class SparseWorkspaceTest {
         val outIndices = IntArray(5) { -1 }
         val outValues = DoubleArray(5)
 
-        val written = SparseWorkspace.gatherClearTouched(
+        val written = SparseSlices.gatherClearTouched(
             touched, 1, 3, accumulator, marks,
             outIndices, 1, outValues, 1, compactExactZeros = true,
         )
@@ -139,7 +243,7 @@ class SparseWorkspaceTest {
 
     @Test
     fun `active maximum ignores inactive rows`() {
-        val maximum = SparseWorkspace.activeColumnMaxAbs(
+        val maximum = SparseSlices.activeColumnMaxAbs(
             intArrayOf(4, 1, 3),
             0,
             doubleArrayOf(Double.POSITIVE_INFINITY, -7.0, 5.0),
@@ -156,8 +260,8 @@ class SparseWorkspaceTest {
         val rows = intArrayOf(0, 2)
         val values = doubleArrayOf(1.0, Double.NaN)
 
-        val nonfinite = SparseWorkspace.activeColumnMaxAbs(rows, 0, values, 0, 2, booleanArrayOf(true, false, true))
-        val empty = SparseWorkspace.activeColumnMaxAbs(rows, 0, values, 0, 2, BooleanArray(3))
+        val nonfinite = SparseSlices.activeColumnMaxAbs(rows, 0, values, 0, 2, booleanArrayOf(true, false, true))
+        val empty = SparseSlices.activeColumnMaxAbs(rows, 0, values, 0, 2, BooleanArray(3))
 
         assertTrue(nonfinite.isNaN())
         assertEquals(0.0, empty)
@@ -167,7 +271,7 @@ class SparseWorkspaceTest {
     fun `candidate filter writes relative positions in input order`() {
         val output = IntArray(6) { -1 }
 
-        val written = SparseWorkspace.pivotCandidatePositions(
+        val written = SparseSlices.pivotCandidatePositions(
             intArrayOf(9, 4, 1, 3, 0, 9), 1,
             doubleArrayOf(9.0, -8.0, 4.0, 0.0, 7.0, 9.0), 1,
             4, booleanArrayOf(true, true, false, true, true),
@@ -189,11 +293,11 @@ class SparseWorkspaceTest {
         val touched = IntArray(2)
         val output = IntArray(2)
 
-        val scattered = SparseWorkspace.scatterAxpy(
+        val scattered = SparseSlices.scatterAxpy(
             1.0, IntArray(0), 0, DoubleArray(0), 0, 0,
             accumulator, marks, 1, touched, 2, 0,
         )
-        val gathered = SparseWorkspace.gatherTouched(
+        val gathered = SparseSlices.gatherTouched(
             touched,
             2,
             0,
@@ -203,7 +307,7 @@ class SparseWorkspaceTest {
             DoubleArray(2),
             2,
         )
-        val candidates = SparseWorkspace.pivotCandidatePositions(
+        val candidates = SparseSlices.pivotCandidatePositions(
             IntArray(0), 0, DoubleArray(0), 0, 0, BooleanArray(0),
             0.0, 0.0, 0.0, output, 2,
         )
@@ -220,7 +324,7 @@ class SparseWorkspaceTest {
         val touched = intArrayOf(9)
 
         assertFailsWith<IllegalArgumentException> {
-            SparseWorkspace.scatterAxpy(
+            SparseSlices.scatterAxpy(
                 1.0, intArrayOf(0, 1), 0, doubleArrayOf(3.0, 4.0), 0, 2,
                 accumulator, marks, 1, touched, 0, 0,
             )
@@ -237,7 +341,7 @@ class SparseWorkspaceTest {
         val marks = intArrayOf(5, 0, 5)
         val touched = intArrayOf(0, 2)
 
-        val count = SparseWorkspace.scatterAxpy(
+        val count = SparseSlices.scatterAxpy(
             2.0, intArrayOf(2, 0), 0, doubleArrayOf(4.0, -1.0), 0, 2,
             accumulator, marks, 5, touched, 0, 2,
         )
@@ -253,7 +357,7 @@ class SparseWorkspaceTest {
         val marks = intArrayOf(6, 0)
         val touched = intArrayOf(0, -1)
 
-        val count = SparseWorkspace.scatterAxpy(
+        val count = SparseSlices.scatterAxpy(
             1.0, intArrayOf(0, 1), 0, doubleArrayOf(2.0, 4.0), 0, 2,
             accumulator, marks, 6, touched, 0, 1,
         )
@@ -270,11 +374,11 @@ class SparseWorkspaceTest {
         val touched = IntArray(2)
         val status = intArrayOf(0, 4)
 
-        var count = SparseWorkspace.scatterAxpyChecked(
+        var count = SparseSlices.scatterAxpyChecked(
             Double.MIN_VALUE, intArrayOf(0), 0, doubleArrayOf(0.5), 0, 1,
             accumulator, marks, 9, touched, 0, 0, status, 1,
         )
-        count = SparseWorkspace.scatterAxpyChecked(
+        count = SparseSlices.scatterAxpyChecked(
             Double.MAX_VALUE, intArrayOf(1), 0, doubleArrayOf(2.0), 0, 1,
             accumulator, marks, 9, touched, 0, count, status, 1,
         )
@@ -283,7 +387,7 @@ class SparseWorkspaceTest {
         assertEquals(0.0, accumulator[0])
         assertEquals(Double.POSITIVE_INFINITY, accumulator[1])
         assertEquals(
-            4 or SparseWorkspace.SCATTER_NONFINITE or SparseWorkspace.SCATTER_NONZERO_PRODUCT_UNDERFLOW,
+            4 or SparseSlices.ARITHMETIC_NONFINITE or SparseSlices.ARITHMETIC_NONZERO_PRODUCT_UNDERFLOW,
             status[1],
         )
     }
@@ -294,7 +398,7 @@ class SparseWorkspaceTest {
         val marks = intArrayOf(0, 3)
 
         assertFailsWith<IllegalArgumentException> {
-            SparseWorkspace.gatherClearTouched(
+            SparseSlices.gatherClearTouched(
                 intArrayOf(1), 0, 1, accumulator, marks,
                 IntArray(0), 0, DoubleArray(1), 0,
             )
@@ -311,7 +415,7 @@ class SparseWorkspaceTest {
         val marks = IntArray(2)
 
         assertFailsWith<IllegalArgumentException> {
-            SparseWorkspace.scatterAxpy(
+            SparseSlices.scatterAxpy(
                 1.0, shared, 0, doubleArrayOf(2.0), 0, 1,
                 accumulator, marks, 1, shared, 0, 0,
             )
@@ -326,7 +430,7 @@ class SparseWorkspaceTest {
         val output = intArrayOf(7)
 
         assertFailsWith<IllegalArgumentException> {
-            SparseWorkspace.pivotCandidatePositions(
+            SparseSlices.pivotCandidatePositions(
                 intArrayOf(0), 0, doubleArrayOf(1.0), 0, 1, booleanArrayOf(true),
                 Double.NaN, 0.0, 0.0, output, 0,
             )
@@ -339,7 +443,7 @@ class SparseWorkspaceTest {
     fun `candidate overlap is rejected before writes`() {
         val shared = intArrayOf(0, 1, 8)
         assertFailsWith<IllegalArgumentException> {
-            SparseWorkspace.pivotCandidatePositions(
+            SparseSlices.pivotCandidatePositions(
                 shared, 0, doubleArrayOf(2.0), 0, 1, booleanArrayOf(true),
                 2.0, 0.0, 0.0, shared, 0,
             )
@@ -352,7 +456,7 @@ class SparseWorkspaceTest {
     fun `invalid candidate row is rejected before writes`() {
         val output = intArrayOf(8)
         assertFailsWith<IllegalArgumentException> {
-            SparseWorkspace.pivotCandidatePositions(
+            SparseSlices.pivotCandidatePositions(
                 intArrayOf(2), 0, doubleArrayOf(2.0), 0, 1, booleanArrayOf(true),
                 2.0, 0.0, 0.0, output, 0,
             )

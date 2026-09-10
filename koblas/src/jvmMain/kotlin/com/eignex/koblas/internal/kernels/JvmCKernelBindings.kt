@@ -21,6 +21,9 @@ internal object JvmCKernelBindings {
         "koblas_dense_gemm_tile",
         "koblas_dense_gemm_trsm_tile",
         "koblas_sparse_dot_dense",
+        "koblas_sparse_axpy",
+        "koblas_sparse_scatter",
+        "koblas_sparse_nrm2",
     )
     private val library: FfmLibrary? = loadLibraryOrNull()
 
@@ -112,7 +115,25 @@ internal object JvmCKernelBindings {
     private val sparseDotDense by lazy {
         requiredLibrary().handle(
             "koblas_sparse_dot_dense",
-            FfmLibrary.doubleOf(ADDRESS, ADDRESS, JAVA_INT, ADDRESS),
+            FfmLibrary.doubleOf(ADDRESS, JAVA_INT, ADDRESS, JAVA_INT, JAVA_INT, ADDRESS),
+        )
+    }
+    private val sparseAxpy by lazy {
+        requiredLibrary().handle(
+            "koblas_sparse_axpy",
+            FfmLibrary.voidOf(ADDRESS, JAVA_INT, ADDRESS, JAVA_INT, JAVA_INT, JAVA_DOUBLE, ADDRESS),
+        )
+    }
+    private val sparseScatter by lazy {
+        requiredLibrary().handle(
+            "koblas_sparse_scatter",
+            FfmLibrary.voidOf(ADDRESS, JAVA_INT, ADDRESS, JAVA_INT, JAVA_INT, ADDRESS),
+        )
+    }
+    private val sparseNrm2 by lazy {
+        requiredLibrary().handle(
+            "koblas_sparse_nrm2",
+            FfmLibrary.doubleOf(ADDRESS, JAVA_INT, JAVA_INT, ADDRESS),
         )
     }
 
@@ -251,12 +272,69 @@ internal object JvmCKernelBindings {
     }
 
     @Suppress("LongParameterList")
-    fun sparseDotDense(indices: IntArray, values: DoubleArray, dense: DoubleArray): Double = sparseDotDense.invokeExact(
+    fun sparseDotDense(
+        indices: IntArray,
+        indexOffset: Int,
+        values: DoubleArray,
+        valueOffset: Int,
+        count: Int,
+        dense: DoubleArray,
+    ): Double = sparseDotDense.invokeExact(
         JvmArraySegments.of(indices),
+        indexOffset,
         JvmArraySegments.of(values),
-        indices.size,
+        valueOffset,
+        count,
         JvmArraySegments.of(dense),
     ) as Double
+
+    @Suppress("LongParameterList")
+    fun sparseAxpy(
+        indices: IntArray,
+        indexOffset: Int,
+        values: DoubleArray,
+        valueOffset: Int,
+        count: Int,
+        alpha: Double,
+        destination: DoubleArray,
+    ) {
+        sparseAxpy.invokeExact(
+            JvmArraySegments.of(indices),
+            indexOffset,
+            JvmArraySegments.of(values),
+            valueOffset,
+            count,
+            alpha,
+            JvmArraySegments.of(destination),
+        ) as Unit
+    }
+
+    @Suppress("LongParameterList")
+    fun sparseScatter(
+        indices: IntArray,
+        indexOffset: Int,
+        values: DoubleArray,
+        valueOffset: Int,
+        count: Int,
+        destination: DoubleArray,
+    ) {
+        sparseScatter.invokeExact(
+            JvmArraySegments.of(indices),
+            indexOffset,
+            JvmArraySegments.of(values),
+            valueOffset,
+            count,
+            JvmArraySegments.of(destination),
+        ) as Unit
+    }
+
+    fun sparseNrm2(indices: IntArray, indexOffset: Int, count: Int, values: DoubleArray): Double =
+        sparseNrm2.invokeExact(
+            JvmArraySegments.of(indices),
+            indexOffset,
+            count,
+            JvmArraySegments.of(values),
+        ) as Double
 
     private fun loadLibraryOrNull(): FfmLibrary? = try {
         val extractedLibrary = extractLibrary()

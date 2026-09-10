@@ -115,7 +115,7 @@ subset.
 | BLAS level 2 | `gemv`, `symv`, `ger`, `syr`, `syr2`, `trsv`, `trmv` | `dgemv`, `dsymv`, `dger`, `dsyr`, `dsyr2`, `dtrsv`, `dtrmv` |
 | BLAS level 3 | `gemm`, `gemmt`, `symm`, `syrk`, `syr2k`, `trsm`, `trmm` | `dgemm`, Netlib `GEMMTR` (`cblas_dgemmt` in OpenBLAS and oneMKL), `dsymm`, `dsyrk`, `dsyr2k`, `dtrsm`, `dtrmm` |
 | Dense utility | `transpose`, `norm1`, `normInf`, `normFro`, row/column scaling | No direct BLAS routine |
-| Sparse BLAS | CSC `gemv`, selected-triangle `symv`/`symm`, triangular `trsv`/`trsm` and `trmv`/`trmm`, sparse–dense and sparse–sparse `gemm`, direct dense-result sparse product, selected-triangle `syrk`, `transpose`, prepared repeated products | Sparse BLAS `usmv`, `ussv`, `ussm`, `usmm`; symmetric and triangular properties specialize those operations, while sparse result products and preparation are Koblas operations |
+| Sparse BLAS | Indexed sparse/dense `dot`, `axpy`, `scatter`, and stable `nrm2`; CSC `gemv`, selected-triangle `symv`/`symm`, triangular `trsv`/`trsm` and `trmv`/`trmm`, sparse–dense and sparse–sparse `gemm`, direct dense-result sparse product, selected-triangle `syrk`, `transpose`, prepared repeated products | Sparse BLAS `usdot`, `usaxpy`, `ussc`, `usmv`, `ussv`, `ussm`, `usmm`; indexed `nrm2`, sparse result products, and preparation are Koblas extensions |
 | Sparse algebra extensions | `addScaled`, sparse `+`/`-`, sparse-result `syrk` | Common vendor extensions rather than standard Sparse BLAS roots |
 
 This table documents the subset, not a roadmap. In particular, it does not imply support for the other routines in

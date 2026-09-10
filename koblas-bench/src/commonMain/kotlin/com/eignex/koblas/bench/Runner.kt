@@ -118,7 +118,9 @@ internal fun parseArguments(args: Array<String>): Settings {
     val allowed = setOf("mode", "operation", "cases", "output", "warmups", "samples", "target-ms", "forks", "pass", "source-commit", "dirty")
     require(values.keys.all { it in allowed }) { "unknown argument: ${values.keys.first { it !in allowed }}" }
     val mode = values["mode"] ?: error("--mode is required")
-    require(mode in setOf("jvm-c", "jvm-simd", "native")) { "mode must be jvm-c, jvm-simd, or native" }
+    require(mode in setOf("jvm-c", "jvm-simd", "jvm-scalar", "native")) {
+        "mode must be jvm-c, jvm-simd, jvm-scalar, or native"
+    }
     val warmups = values["warmups"]?.toIntOrNull() ?: 3
     val samples = values["samples"]?.toIntOrNull() ?: 5
     val targetMillis = values["target-ms"]?.toLongOrNull() ?: 1_000L

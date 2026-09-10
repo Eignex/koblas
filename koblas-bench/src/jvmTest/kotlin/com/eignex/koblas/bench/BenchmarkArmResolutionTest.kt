@@ -6,6 +6,14 @@ import kotlin.test.assertTrue
 
 class BenchmarkArmResolutionTest {
     @Test
+    fun `jvm scalar mode resolves the exact built in engine`() {
+        val (engine, identity) = resolveEngine("jvm-scalar")
+
+        assertTrue(identity.startsWith("jvm-scalar/scalar/"), identity)
+        assertTrue(engine === com.eignex.koblas.BuiltinEngines.scalar)
+    }
+
+    @Test
     fun `jvm c mode resolves the exact built in engine`() {
         val (engine, identity) = resolveEngine("jvm-c")
         val packLeft = Cases.parse("pack-left+4x2+uniform+physical=4x4").single()

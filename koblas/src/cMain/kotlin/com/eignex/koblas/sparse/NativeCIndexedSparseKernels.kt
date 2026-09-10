@@ -2,21 +2,38 @@
 
 package com.eignex.koblas.sparse
 
-import com.eignex.koblas.internal.kernels.*
+import com.eignex.koblas.internal.kernels.koblas_sparse_axpy
+import com.eignex.koblas.internal.kernels.koblas_sparse_dot_dense
+import com.eignex.koblas.internal.kernels.koblas_sparse_dot_sparse
+import com.eignex.koblas.internal.kernels.koblas_sparse_gather
+import com.eignex.koblas.internal.kernels.koblas_sparse_gather_zero
+import com.eignex.koblas.internal.kernels.koblas_sparse_nrm2
+import com.eignex.koblas.internal.kernels.koblas_sparse_scatter
 import kotlinx.cinterop.addressOf
 import kotlinx.cinterop.usePinned
 
-/** C indexed data movement, with ordered and zero-evaluating matrix arithmetic retained by the scalar delegate. */
+/** Kotlin/Native bindings to the indexed C leaves, with scalar fallbacks for short slices. */
 internal object NativeCIndexedSparseKernels : IndexedSparseKernels by ScalarIndexedSparseKernels {
-    override fun dotDense(indices: IntArray, values: DoubleArray, dense: DoubleArray): Double {
-        if (values.isEmpty()) return 0.0
+    override fun dotDense(
+        indices: IntArray,
+        indexOffset: Int,
+        values: DoubleArray,
+        valueOffset: Int,
+        count: Int,
+        dense: DoubleArray,
+    ): Double {
+        if (count < SparseTuning.nativeIndexedCrossover) {
+            return ScalarIndexedSparseKernels.dotDense(indices, indexOffset, values, valueOffset, count, dense)
+        }
         return indices.usePinned { ip ->
             values.usePinned { vp ->
                 dense.usePinned { dp ->
                     koblas_sparse_dot_dense(
                         ip.addressOf(0),
+                        indexOffset,
                         vp.addressOf(0),
-                        values.size,
+                        valueOffset,
+                        count,
                         dp.addressOf(0),
                     )
                 }
@@ -26,33 +43,28 @@ internal object NativeCIndexedSparseKernels : IndexedSparseKernels by ScalarInde
 
     override fun dotSparse(
         xIndices: IntArray,
+        xIndexOffset: Int,
         xValues: DoubleArray,
+        xValueOffset: Int,
+        xCount: Int,
         yIndices: IntArray,
+        yIndexOffset: Int,
         yValues: DoubleArray,
-    ): Double = dotSparse(xIndices, xValues, 0, xValues.size, yIndices, yValues, 0, yValues.size)
-
-    override fun dotSparse(
-        xIndices: IntArray,
-        xValues: DoubleArray,
-        xFromIndex: Int,
-        xToIndex: Int,
-        yIndices: IntArray,
-        yValues: DoubleArray,
-        yFromIndex: Int,
-        yToIndex: Int,
+        yValueOffset: Int,
+        yCount: Int,
     ): Double {
-        if (xFromIndex == xToIndex || yFromIndex == yToIndex) return 0.0
+        if (xCount == 0 || yCount == 0) return 0.0
         return xIndices.usePinned { xip ->
             xValues.usePinned { xvp ->
                 yIndices.usePinned { yip ->
                     yValues.usePinned { yvp ->
                         koblas_sparse_dot_sparse(
-                            xip.addressOf(xFromIndex),
-                            xvp.addressOf(xFromIndex),
-                            xToIndex - xFromIndex,
-                            yip.addressOf(yFromIndex),
-                            yvp.addressOf(yFromIndex),
-                            yToIndex - yFromIndex,
+                            xip.addressOf(xIndexOffset),
+                            xvp.addressOf(xValueOffset),
+                            xCount,
+                            yip.addressOf(yIndexOffset),
+                            yvp.addressOf(yValueOffset),
+                            yCount,
                         )
                     }
                 }
@@ -60,15 +72,28 @@ internal object NativeCIndexedSparseKernels : IndexedSparseKernels by ScalarInde
         }
     }
 
-    override fun axpy(indices: IntArray, values: DoubleArray, alpha: Double, destination: DoubleArray) {
-        if (values.isEmpty()) return
+    override fun axpy(
+        indices: IntArray,
+        indexOffset: Int,
+        values: DoubleArray,
+        valueOffset: Int,
+        count: Int,
+        alpha: Double,
+        destination: DoubleArray,
+    ) {
+        if (count < SparseTuning.nativeIndexedCrossover) {
+            ScalarIndexedSparseKernels.axpy(indices, indexOffset, values, valueOffset, count, alpha, destination)
+            return
+        }
         indices.usePinned { ip ->
             values.usePinned { vp ->
                 destination.usePinned { dp ->
                     koblas_sparse_axpy(
                         ip.addressOf(0),
+                        indexOffset,
                         vp.addressOf(0),
-                        values.size,
+                        valueOffset,
+                        count,
                         alpha,
                         dp.addressOf(0),
                     )
@@ -77,24 +102,27 @@ internal object NativeCIndexedSparseKernels : IndexedSparseKernels by ScalarInde
         }
     }
 
-    override fun scatter(indices: IntArray, values: DoubleArray, destination: DoubleArray) =
-        scatter(indices, values, 0, values.size, destination)
-
     override fun scatter(
         indices: IntArray,
+        indexOffset: Int,
         values: DoubleArray,
-        fromIndex: Int,
-        toIndex: Int,
+        valueOffset: Int,
+        count: Int,
         destination: DoubleArray,
     ) {
-        if (fromIndex == toIndex) return
+        if (count < SparseTuning.nativeIndexedCrossover) {
+            ScalarIndexedSparseKernels.scatter(indices, indexOffset, values, valueOffset, count, destination)
+            return
+        }
         indices.usePinned { ip ->
             values.usePinned { vp ->
                 destination.usePinned { dp ->
                     koblas_sparse_scatter(
-                        ip.addressOf(fromIndex),
-                        vp.addressOf(fromIndex),
-                        toIndex - fromIndex,
+                        ip.addressOf(0),
+                        indexOffset,
+                        vp.addressOf(0),
+                        valueOffset,
+                        count,
                         dp.addressOf(0),
                     )
                 }
@@ -102,18 +130,22 @@ internal object NativeCIndexedSparseKernels : IndexedSparseKernels by ScalarInde
         }
     }
 
-    override fun gather(indices: IntArray, values: DoubleArray, source: DoubleArray) =
-        gather(indices, values, 0, values.size, source)
-
-    override fun gather(indices: IntArray, values: DoubleArray, fromIndex: Int, toIndex: Int, source: DoubleArray) {
-        if (fromIndex == toIndex) return
+    override fun gather(
+        indices: IntArray,
+        indexOffset: Int,
+        values: DoubleArray,
+        valueOffset: Int,
+        count: Int,
+        source: DoubleArray,
+    ) {
+        if (count == 0) return
         indices.usePinned { ip ->
             values.usePinned { vp ->
                 source.usePinned { sp ->
                     koblas_sparse_gather(
-                        ip.addressOf(fromIndex),
-                        vp.addressOf(fromIndex),
-                        toIndex - fromIndex,
+                        ip.addressOf(indexOffset),
+                        vp.addressOf(valueOffset),
+                        count,
                         sp.addressOf(0),
                     )
                 }
@@ -121,28 +153,35 @@ internal object NativeCIndexedSparseKernels : IndexedSparseKernels by ScalarInde
         }
     }
 
-    override fun gatherZero(indices: IntArray, values: DoubleArray, source: DoubleArray) =
-        gatherZero(indices, values, 0, values.size, source)
-
     override fun gatherZero(
         indices: IntArray,
+        indexOffset: Int,
         values: DoubleArray,
-        fromIndex: Int,
-        toIndex: Int,
+        valueOffset: Int,
+        count: Int,
         source: DoubleArray,
     ) {
-        if (fromIndex == toIndex) return
+        if (count == 0) return
         indices.usePinned { ip ->
             values.usePinned { vp ->
                 source.usePinned { sp ->
                     koblas_sparse_gather_zero(
-                        ip.addressOf(fromIndex),
-                        vp.addressOf(fromIndex),
-                        toIndex - fromIndex,
+                        ip.addressOf(indexOffset),
+                        vp.addressOf(valueOffset),
+                        count,
                         sp.addressOf(0),
                     )
                 }
             }
+        }
+    }
+
+    override fun nrm2(indices: IntArray, indexOffset: Int, count: Int, values: DoubleArray): Double {
+        if (count < SparseTuning.nativeIndexedCrossover) {
+            return ScalarIndexedSparseKernels.nrm2(indices, indexOffset, count, values)
+        }
+        return indices.usePinned { ip ->
+            values.usePinned { vp -> koblas_sparse_nrm2(ip.addressOf(0), indexOffset, count, vp.addressOf(0)) }
         }
     }
 }

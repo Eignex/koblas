@@ -1,6 +1,6 @@
 # Benchmark coverage and external mapping
 
-The shared workload keeps representative public BLAS, sparse, workspace, panel, and packed operations while
+The shared workload keeps representative public BLAS, sparse, sparse-slice, panel, and packed operations while
 removing parameter-class duplication. `direct` means one documented vendor call performs the arithmetic;
 `composed` means documented calls reproduce the retained mathematical work; `partial` means only a useful
 arithmetic subset is comparable; `unsupported` retains the koblas case without a defensible vendor equivalent.
@@ -24,6 +24,7 @@ arithmetic subset is comparable; `unsupported` retains the koblas case without a
 | write-left/right full and edge | unsupported | unsupported | koblas layout only |
 | clear-left/right-padding full and edge | unsupported | unsupported | koblas physical-padding maintenance only |
 | spdot, spaxpy, spscatter, spgather, spgather-zero | unsupported | direct legacy indexed BLAS | reset plus arithmetic for destructive operations |
+| spdot-raw, spaxpy-raw, spscatter-raw, spnrm2-indexed | unsupported | unsupported | caller-owned raw indexed slices; reset plus arithmetic for destructive operations |
 | spdot-sparse, spnrm2, spasum | unsupported | unsupported | retained koblas sparse-vector reductions |
 | spgemv prepared/oneshot | unsupported | direct inspector-executor MV | prepared conversion/handle outside timing; one-shot CSC-to-CSR conversion and create/optimize/destroy included |
 | spmm prepared/oneshot | unsupported | direct inspector-executor MM | same conversion and ownership split; dense reset included |
@@ -34,7 +35,7 @@ arithmetic subset is comparable; `unsupported` retains the koblas case without a
 | sptrsm, sptrmm | unsupported | direct sparse TRSM / MM with triangular descriptor | one-shot handle lifetime, reset, and call |
 | spsyrk-dense, spsyrk-sparse | unsupported | direct SYRKD / partial sparse SYRK | fresh sparse output is consumed only through its handle and its lifetime is timed |
 | spadd | unsupported | partial sparse ADD | fresh output is consumed only through its handle and its lifetime is timed |
-| workspace scatter/gather/max/filter families | unsupported | unsupported | retained caller-owned koblas workspace contract; an indexed primitive alone is not equivalent |
+| sparse-slices scatter/gather/clear/checked-reduction/max/filter families | unsupported | unsupported | retained caller-owned structural policy; an indexed vendor primitive alone is not equivalent |
 
 Packed physical cases deliberately include each supported koblas shape on this acceptance host: native/JVM C
 4x4 and JVM SIMD 8x4, each with a complete logical tile and a partial edge. A mode emits unsupported for the

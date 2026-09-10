@@ -4,10 +4,10 @@ import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.KoblasContext
 import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.sparse.PreparedSparseMatrix
-import com.eignex.koblas.sparse.SparseWorkspace
+import com.eignex.koblas.sparse.SparseSlices
 
 internal fun sparseWork(case: BenchCase, engine: KoblasContext): CaseWork? {
-    if (!case.operation.startsWith("sp") && !case.operation.startsWith("workspace-")) return null
+    if (!case.operation.startsWith("sp") && !case.operation.startsWith("sparse-slices-")) return null
     val density = case.option("density", "0.01").toDouble()
     val d = case.dimensions
     val lower = case.option("uplo", "L") == "L"
@@ -19,6 +19,13 @@ internal fun sparseWork(case: BenchCase, engine: KoblasContext): CaseWork? {
             val x = Fixtures.sparseVector(d[0], density, 1); val y = Fixtures.vector(d[0], 2)
             CaseWork("direct", "arithmetic", { engine.sparseKernels.dot(x, y) })
         }
+        "spdot-raw" -> {
+            val x = Fixtures.sparseVector(d[0], density, 1); val y = Fixtures.vector(d[0], 2)
+            val indices = x.copyIndices()
+            CaseWork("unsupported", "arithmetic", {
+                engine.sparseKernels.dot(indices, 0, x.values, 0, x.values.size, y)
+            })
+        }
         "spdot-sparse" -> {
             val x = Fixtures.sparseVector(d[0], density, 1); val y = Fixtures.sparseVector(d[0], density, 2)
             CaseWork("unsupported", "arithmetic", { engine.sparseKernels.dot(x, y) })
@@ -27,9 +34,34 @@ internal fun sparseWork(case: BenchCase, engine: KoblasContext): CaseWork? {
             val x = Fixtures.sparseVector(d[0], density, 1); val y0 = Fixtures.vector(d[0], 2); val y = y0.copyOf()
             CaseWork("direct", "reset-and-arithmetic", { y0.copyInto(y); engine.sparseKernels.axpy(y, 0.875, x); y[0] })
         }
+        "spaxpy-raw" -> {
+            val x = Fixtures.sparseVector(d[0], density, 1); val indices = x.copyIndices()
+            val y0 = Fixtures.vector(d[0], 2); val y = y0.copyOf()
+            CaseWork("unsupported", "reset-and-arithmetic", {
+                y0.copyInto(y)
+                engine.sparseKernels.axpy(y, 0.875, indices, 0, x.values, 0, x.values.size)
+                y[0]
+            })
+        }
         "spnrm2", "spasum" -> {
             val x = Fixtures.sparseVector(d[0], density, 1)
             CaseWork("unsupported", "arithmetic", { if (case.operation == "spnrm2") engine.sparseKernels.nrm2(x) else engine.sparseKernels.asum(x) })
+        }
+        "spnrm2-indexed" -> {
+            val x = Fixtures.sparseVector(d[0], density, 1); val indices = x.copyIndices()
+            val dense = Fixtures.vector(d[0], 2)
+            CaseWork("unsupported", "arithmetic", {
+                engine.sparseKernels.nrm2(indices, 0, indices.size, dense)
+            })
+        }
+        "spscatter-raw" -> {
+            val x = Fixtures.sparseVector(d[0], density, 1); val indices = x.copyIndices()
+            val dense0 = Fixtures.vector(d[0], 2); val dense = dense0.copyOf()
+            CaseWork("unsupported", "reset-and-arithmetic", {
+                dense0.copyInto(dense)
+                engine.sparseKernels.scatter(indices, 0, x.values, 0, x.values.size, dense)
+                dense[0]
+            })
         }
         "spscatter", "spgather", "spgather-zero" -> {
             val x = Fixtures.sparseVector(d[0], density, 1); val values0 = x.values.copyOf(); val dense0 = Fixtures.vector(d[0], 2); val dense = dense0.copyOf()
@@ -109,7 +141,7 @@ internal fun sparseWork(case: BenchCase, engine: KoblasContext): CaseWork? {
             val (m, n) = d; val a = Fixtures.sparse(m, n, density, 1); val b = Fixtures.sparse(m, n, density, 2)
             CaseWork("partial", "oneshot", { engine.addScaled(0.875, a, false, b).values.firstOrNull() ?: 0.0 })
         }
-        else -> workspaceWork(case, density)
+        else -> sparseSlicesWork(case, density, engine)
     }
 }
 
@@ -128,7 +160,7 @@ private fun preparedOrOneShot(
     return CaseWork(comparison, "prepared", { preparedRun(prepared) })
 }
 
-private fun workspaceWork(case: BenchCase, density: Double): CaseWork {
+private fun sparseSlicesWork(case: BenchCase, density: Double, engine: KoblasContext): CaseWork {
     val dimension = case.dimension(0)
     val count = (dimension * density + 0.5).toInt().coerceAtLeast(1)
     val sparse = Fixtures.sparseVector(dimension, density, 1)
@@ -136,27 +168,73 @@ private fun workspaceWork(case: BenchCase, density: Double): CaseWork {
     val accumulator = DoubleArray(dimension); val marks = IntArray(dimension); val touched = IntArray(count)
     val outIndices = IntArray(count); val outValues = DoubleArray(count); val active = BooleanArray(dimension) { it % 3 != 0 }
     var epoch = 1
-    SparseWorkspace.scatterAxpy(1.0, indices, 0, values, 0, count, accumulator, marks, epoch, touched, 0, 0)
+    SparseSlices.scatterAxpy(1.0, indices, 0, values, 0, count, accumulator, marks, epoch, touched, 0, 0)
     val populated = accumulator.copyOf(); val populatedMarks = marks.copyOf()
     val status = IntArray(1)
-    val maximum = SparseWorkspace.activeColumnMaxAbs(indices, 0, values, 0, count, active)
-    return CaseWork("unsupported", "workspace", {
+    val maximum = SparseSlices.activeColumnMaxAbs(indices, 0, values, 0, count, active)
+    val clearValues = populated.copyOf(); val clearMarks = populatedMarks.copyOf()
+    return CaseWork("unsupported", "sparse-slices", {
         when (case.operation) {
-            "workspace-scatter" -> {
+            "sparse-slices-scatter" -> {
                 epoch++; accumulator.fill(0.0); marks.fill(0)
-                SparseWorkspace.scatterAxpy(0.875, indices, 0, values, 0, count, accumulator, marks, epoch, touched, 0, 0).toDouble()
+                SparseSlices.scatterAxpy(0.875, indices, 0, values, 0, count, accumulator, marks, epoch, touched, 0, 0).toDouble()
             }
-            "workspace-scatter-checked" -> {
+            "sparse-slices-scatter-checked" -> {
                 epoch++; accumulator.fill(0.0); marks.fill(0); status[0] = 0
-                SparseWorkspace.scatterAxpyChecked(0.875, indices, 0, values, 0, count, accumulator, marks, epoch, touched, 0, 0, status, 0).toDouble()
+                SparseSlices.scatterAxpyChecked(0.875, indices, 0, values, 0, count, accumulator, marks, epoch, touched, 0, 0, status, 0).toDouble()
             }
-            "workspace-gather" -> SparseWorkspace.gatherTouched(touched, 0, count, populated, outIndices, 0, outValues, 0).toDouble()
-            "workspace-gather-clear" -> {
+            "sparse-slices-gather" -> SparseSlices.gatherTouched(touched, 0, count, populated, outIndices, 0, outValues, 0).toDouble()
+            "sparse-slices-gather-clear" -> {
                 populated.copyInto(accumulator); populatedMarks.copyInto(marks)
-                SparseWorkspace.gatherClearTouched(touched, 0, count, accumulator, marks, outIndices, 0, outValues, 0).toDouble()
+                SparseSlices.gatherClearTouched(touched, 0, count, accumulator, marks, outIndices, 0, outValues, 0).toDouble()
             }
-            "workspace-max" -> SparseWorkspace.activeColumnMaxAbs(indices, 0, values, 0, count, active)
-            else -> SparseWorkspace.pivotCandidatePositions(indices, 0, values, 0, count, active, maximum, 0.01, 0.1, outIndices, 0).toDouble()
+            "sparse-slices-clear" -> {
+                populated.copyInto(clearValues); populatedMarks.copyInto(clearMarks)
+                SparseSlices.clearTouched(touched, 0, count, clearValues, clearMarks)
+                clearValues[0]
+            }
+            "sparse-slices-clear-local" -> {
+                populated.copyInto(clearValues); populatedMarks.copyInto(clearMarks)
+                for (k in 0 until count) {
+                    clearValues[touched[k]] = 0.0
+                    clearMarks[touched[k]] = 0
+                }
+                clearValues[0]
+            }
+            "sparse-slices-reduce-dot-checked" -> {
+                status[0] = 0
+                SparseSlices.reduceDotChecked(0.0, false, indices, 0, values, 0, count, populated, status, 0)
+            }
+            "sparse-slices-reduce-dot-local" -> {
+                status[0] = 0
+                checkedDotLoop(indices, values, count, populated, status)
+            }
+            "sparse-slices-reduce-dot-unchecked" ->
+                engine.sparseKernels.dot(indices, 0, values, 0, count, populated)
+            "sparse-slices-max" -> SparseSlices.activeColumnMaxAbs(indices, 0, values, 0, count, active)
+            else -> SparseSlices.pivotCandidatePositions(indices, 0, values, 0, count, active, maximum, 0.01, 0.1, outIndices, 0).toDouble()
         }
     })
+}
+
+private fun checkedDotLoop(
+    indices: IntArray,
+    values: DoubleArray,
+    count: Int,
+    dense: DoubleArray,
+    status: IntArray,
+): Double {
+    var result = 0.0
+    var bits = status[0]
+    for (k in 0 until count) {
+        val left = values[k]
+        val right = dense[indices[k]]
+        val product = left * right
+        val updated = result + product
+        if (!left.isFinite() || !right.isFinite() || !product.isFinite() || !updated.isFinite()) bits = bits or 1
+        if (left.isFinite() && right.isFinite() && left != 0.0 && right != 0.0 && product == 0.0) bits = bits or 2
+        result = updated
+    }
+    status[0] = bits
+    return result
 }
