@@ -255,7 +255,8 @@ internal class SparseAlgorithms(
         }
         withStableSparse(a, c.data, workspace) { stableA ->
             scaleTriangle(vectorKernels, c.data, n, beta, lower)
-            withSymmetricRankScratch(workspace, n, stableA.rows, stableA.nnz) { sums,
+            withSymmetricRankScratch(workspace, n, stableA.rows, stableA.nnz) {
+                    sums,
                     touchedAt,
                     touched,
                     rowPointers,

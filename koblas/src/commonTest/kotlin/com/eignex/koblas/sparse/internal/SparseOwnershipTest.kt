@@ -11,8 +11,14 @@ class SparseOwnershipTest {
         val workspace = Workspace()
 
         assertFailsWith<ExpectedFailure> {
-            withSymmetricRankScratch(workspace, order = 5, sourceRows = 7, sourceEntries = 11) { _,
-                    _, _, _, _, _, _,
+            withSymmetricRankScratch(workspace, order = 5, sourceRows = 7, sourceEntries = 11) {
+                    _,
+                    _,
+                    _,
+                    _,
+                    _,
+                    _,
+                    _,
                 ->
                 throw ExpectedFailure()
             }
