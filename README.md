@@ -203,8 +203,8 @@ Sparse-sparse `gemm` can likewise return owned CSC structure or accumulate direc
 
 ## Native options and threading
 
-An explicit HFactor library path belongs to `HfactorConfig`; bundled and explicit-path construction accept the
-same `HfactorConfig`, so the loading choice does not change numerical policy.
+`BundledHfactor` accepts the numerical options in `HfactorConfig` and requires its `libraryPath` to be null.
+Use `HfactorSparseLu` with a non-null path to load an explicit build with the same numerical options.
 
 The portable reference, JVM SIMD, bundled C kernels, and HFactor are single-threaded.
 
@@ -217,9 +217,7 @@ The portable reference, JVM SIMD, bundled C kernels, and HFactor are single-thre
 | Strided views | Borrow live storage; the owner must outlive every use. |
 | Workspace | Caller-owned scratch; use one per concurrent operation or serialize access. |
 | HFactor factors and basis solvers | Caller-owned AutoCloseable resources; do not race use or update with close. |
-| Prepared sparse descriptors | Immutable snapshots with externally serialized native workspace; close explicitly. |
+| Prepared sparse matrices | Immutable CSC snapshots with no external lifecycle. |
 | Destination-passing operations | Follow the documented alias contract for that operation. |
 
-Native cleaners are leak guards only. Deterministic close or use remains the lifecycle contract, and a
-strict allocation policy covers an operation call rather than factor construction, library initialization, or
-thread-pool startup.
+Native cleaners are leak guards only. Close HFactor factors, basis solvers, and snapshots deterministically.
