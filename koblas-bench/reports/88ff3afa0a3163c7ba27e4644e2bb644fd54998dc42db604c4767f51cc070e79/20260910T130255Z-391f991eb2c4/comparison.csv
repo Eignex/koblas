@@ -1,0 +1,15 @@
+candidate=koblas-bench/reports/88ff3afa0a3163c7ba27e4644e2bb644fd54998dc42db604c4767f51cc070e79/20260910T130255Z-391f991eb2c4/jvm-c.csv
+case,base_median_ns,candidate_median_ns,candidate_min_ns,candidate_max_ns,base_over_candidate,comparison_kind
+gemm+129x31x257+uniform+transA=T,44868,25050219,25050219,25050219,0.00179112,direct
+gemm+32x21x48+uniform,1430.70703,21896435,21896435,21896435,6.53397e-05,direct
+gemm+65x127x33+uniform+transB=T,11885,24110617,24110617,24110617,0.000492936,direct
+candidate=koblas-bench/reports/88ff3afa0a3163c7ba27e4644e2bb644fd54998dc42db604c4767f51cc070e79/20260910T130255Z-391f991eb2c4/jvm-simd.csv
+case,base_median_ns,candidate_median_ns,candidate_min_ns,candidate_max_ns,base_over_candidate,comparison_kind
+gemm+129x31x257+uniform+transA=T,44868,47272098,47272098,47272098,0.000949143,direct
+gemm+32x21x48+uniform,1430.70703,16961849,16961849,16961849,8.43485e-05,direct
+gemm+65x127x33+uniform+transB=T,11885,28643112,28643112,28643112,0.000414934,direct
+candidate=koblas-bench/reports/88ff3afa0a3163c7ba27e4644e2bb644fd54998dc42db604c4767f51cc070e79/20260910T130255Z-391f991eb2c4/native.csv
+case,base_median_ns,candidate_median_ns,candidate_min_ns,candidate_max_ns,base_over_candidate,comparison_kind
+gemm+129x31x257+uniform+transA=T,44868,184749.429,184749.429,184749.429,0.242859,direct
+gemm+32x21x48+uniform,1430.70703,12263.8636,12263.8636,12263.8636,0.11666,direct
+gemm+65x127x33+uniform+transB=T,11885,44771.4762,44771.4762,44771.4762,0.265459,direct
