@@ -1,21 +1,14 @@
 @file:Suppress("VariableNaming", "FunctionParameterNaming") // math convention: single-letter matrices L, M, etc.
-@file:kotlin.jvm.JvmName("MatrixOpsKt")
-@file:kotlin.jvm.JvmMultifileClass
 
 package com.eignex.koblas
 
-// Part of the MatrixOpsKt facade. Splitting the file would otherwise rename the class JVM callers
-// compiled against, so the four parts are joined back into one rather than becoming four.
-
 import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.SparseMatrix
-import com.eignex.koblas.internal.numeric.absoluteSum
+import com.eignex.koblas.dense.denseMatrixNorm1
+import com.eignex.koblas.dense.denseMatrixNormInf
 import com.eignex.koblas.internal.numeric.euclideanNorm
-import kotlin.math.abs
-
-/** The larger of [current] and [candidate], except a NaN [candidate] always wins, so it carries through. */
-private fun carryingMax(current: Double, candidate: Double): Double =
-    if (candidate > current || candidate.isNaN()) candidate else current
+import com.eignex.koblas.sparse.internal.sparseMatrixNorm1
+import com.eignex.koblas.sparse.internal.sparseMatrixNormInf
 
 /**
  * Matrix 1-norm, the maximum absolute column sum (LAPACK `dlange` with norm 1). This is the `anorm`
@@ -25,14 +18,7 @@ private fun carryingMax(current: Double, candidate: Double): Double =
  * it, since every comparison against a NaN is false, and a norm that answers a finite number for a matrix
  * it cannot describe would go on to be an `anorm` that hides what is in the matrix.
  */
-public fun DenseMatrix.norm1(): Double {
-    val ad = data
-    var m = 0.0
-    for (j in 0 until cols) {
-        m = carryingMax(m, absoluteSum(ad, j * rows, rows))
-    }
-    return m
-}
+public fun DenseMatrix.norm1(): Double = denseMatrixNorm1(data, rows, cols)
 
 /** Matrix infinity-norm, the maximum absolute row sum (LAPACK `dlange` with norm I). A NaN carries through
  *  as it does in [norm1]. */
@@ -40,14 +26,7 @@ public fun DenseMatrix.normInf(workspace: Workspace? = null): Double {
     if (rows == 0 || cols == 0) return 0.0
     return workspace.borrow(rows) { sums ->
         sums.fill(0.0, 0, rows) // take() promises nothing about the contents
-        val ad = data
-        for (j in 0 until cols) {
-            val base = j * rows
-            for (i in 0 until rows) sums[i] += abs(ad[base + i])
-        }
-        var m = 0.0
-        for (i in 0 until rows) m = carryingMax(m, sums[i])
-        m
+        denseMatrixNormInf(data, rows, cols, sums)
     }
 }
 
@@ -60,14 +39,7 @@ public fun DenseMatrix.normFro(): Double = euclideanNorm(data, 0, data.size)
  * Runs in `O(nnz + cols)` time and allocates nothing. Explicitly stored zeros contribute zero, while a stored
  * NaN carries through to the result as it does in [DenseMatrix.norm1].
  */
-public fun SparseMatrix.norm1(): Double {
-    var maximum = 0.0
-    for (j in 0 until cols) {
-        val sum = absoluteSum(values, colPtr[j], colPtr[j + 1] - colPtr[j])
-        maximum = carryingMax(maximum, sum)
-    }
-    return maximum
-}
+public fun SparseMatrix.norm1(): Double = sparseMatrixNorm1(values, colPtr, cols)
 
 /**
  * Matrix infinity-norm, the maximum absolute row sum (LAPACK `dlange` with norm I).
@@ -79,10 +51,7 @@ public fun SparseMatrix.normInf(workspace: Workspace? = null): Double {
     if (rows == 0 || cols == 0) return 0.0
     return workspace.borrow(rows) { sums ->
         sums.fill(0.0, 0, rows)
-        for (k in values.indices) sums[rowIdx[k]] += abs(values[k])
-        var maximum = 0.0
-        for (i in 0 until rows) maximum = carryingMax(maximum, sums[i])
-        maximum
+        sparseMatrixNormInf(rowIdx, values, rows, sums)
     }
 }
 

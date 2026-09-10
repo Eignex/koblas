@@ -1,14 +1,12 @@
 @file:Suppress("VariableNaming", "FunctionParameterNaming") // math convention: single-letter matrices L, M, etc.
-@file:kotlin.jvm.JvmName("MatrixOpsKt")
-@file:kotlin.jvm.JvmMultifileClass
 
 package com.eignex.koblas
 
-// Part of the MatrixOpsKt facade. Splitting the file would otherwise rename the class JVM callers
-// compiled against, so the four parts are joined back into one rather than becoming four.
-
 import com.eignex.koblas.*
 import com.eignex.koblas.dense.Blas
+import com.eignex.koblas.dense.gatherDenseRow
+import com.eignex.koblas.sparse.internal.gatherSparseRow
+import com.eignex.koblas.sparse.internal.sparseRowSize
 
 /** Column `j` as a fresh vector, copied rather than viewed. */
 public fun DenseMatrix.column(j: Int): DenseVector {
@@ -21,7 +19,7 @@ public fun DenseMatrix.column(j: Int): DenseVector {
 public fun DenseMatrix.row(i: Int): DenseVector {
     requireIndex(i in 0 until rows) { "row $i outside [0,$rows)" }
     val out = DoubleArray(cols)
-    for (j in 0 until cols) out[j] = data[i + j * rows]
+    gatherDenseRow(data, rows, cols, i, out)
     return DenseVector.wrap(out)
 }
 
@@ -47,22 +45,10 @@ public fun SparseMatrix.column(j: Int): SparseVector {
  */
 public fun SparseMatrix.row(i: Int): SparseVector {
     requireIndex(i in 0 until rows) { "row $i outside [0,$rows)" }
-    var count = 0
-    for (j in 0 until cols) {
-        for (k in colPtr[j] until colPtr[j + 1]) if (rowIdx[k] == i) count++
-    }
+    val count = sparseRowSize(i, cols, colPtr, rowIdx)
     val indices = IntArray(count)
     val out = DoubleArray(count)
-    var n = 0
-    for (j in 0 until cols) {
-        for (k in colPtr[j] until colPtr[j + 1]) {
-            if (rowIdx[k] == i) {
-                indices[n] = j
-                out[n] = values[k]
-                n++
-            }
-        }
-    }
+    gatherSparseRow(i, cols, colPtr, rowIdx, values, indices, out)
     return SparseVector.wrap(cols, indices, out)
 }
 

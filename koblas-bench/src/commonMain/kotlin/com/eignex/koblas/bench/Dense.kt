@@ -171,10 +171,11 @@ private fun packedWork(case: BenchCase, engine: KoblasContext): CaseWork? {
             "clear-left-padding", "clear-right-padding",
         )) return null
     val packed = engine.packedKernels
+    val panels = engine.packedPanels
     val physical = case.option("physical", "4x4").split('x').map(String::toInt)
     val layoutOperation = case.operation.startsWith("pack-") || case.operation.startsWith("write-") || case.operation.startsWith("clear-")
-    val actualRows = if (layoutOperation) PackedPanels.tileRows else packed.gemmTileRows
-    val actualColumns = if (layoutOperation) PackedPanels.tileColumns else packed.gemmTileCols
+    val actualRows = if (layoutOperation) panels.tileRows else packed.gemmTileRows
+    val actualColumns = if (layoutOperation) panels.tileColumns else packed.gemmTileCols
     if (actualRows != physical[0] || actualColumns != physical[1]) return null
     val rows = case.dimension(0); val second = case.dimension(1); val depth = if (case.dimensions.size == 3) case.dimension(2) else second
     val leftDepth = if (layoutOperation) second else depth
@@ -197,7 +198,7 @@ private fun packedWork(case: BenchCase, engine: KoblasContext): CaseWork? {
         "gemm-tile" -> CaseWork(comparison, timing, { output0.copyInto(output); packed.gemmTile(depth, left, 0, right, 0, output, 0, physical[0]); output[0] })
         "packed-trsm" -> CaseWork(comparison, timing, { output0.copyInto(output); packed.trsmTile(rows, second, triangle, 0, lower, unit, output, 0); output[0] })
         "gemm-trsm" -> CaseWork(comparison, timing, { output0.copyInto(output); packed.gemmTrsmTile(depth, rows, second, left, 0, right, 0, triangle, 0, lower, unit, output, 0); output[0] })
-        else -> packedLayoutWork(case, rows, second, left, right, lower, unit)
+        else -> packedLayoutWork(case, panels, rows, second, left, right, lower, unit)
     }
 }
 
@@ -209,7 +210,7 @@ internal fun packedTriangleFixture(order: Int, physicalColumns: Int, lower: Bool
 }
 
 private fun packedLayoutWork(
-    case: BenchCase, first: Int, second: Int,
+    case: BenchCase, panels: PackedPanels, first: Int, second: Int,
     left: DoubleArray, right: DoubleArray, lower: Boolean, unit: Boolean,
 ): CaseWork {
     val isLeft = "left" in case.operation
@@ -220,16 +221,16 @@ private fun packedLayoutWork(
     val panel = if (isLeft) left else right
     return CaseWork("unsupported", "layout", {
         when (case.operation) {
-            "pack-left" -> PackedPanels.packLeft(source, panel, first, second)
-            "pack-right" -> PackedPanels.packRight(source, panel, first, second)
-            "pack-symmetric-left" -> PackedPanels.packSymmetricLeft(source, panel, first, second, lower)
-            "pack-symmetric-right" -> PackedPanels.packSymmetricRight(source, panel, first, second, lower)
-            "pack-triangular-left" -> PackedPanels.packTriangularLeft(source, panel, first, second, lower, unitDiagonal = unit)
-            "pack-triangular-right" -> PackedPanels.packTriangularRight(source, panel, first, second, lower, unitDiagonal = unit)
-            "write-left" -> PackedPanels.writeLeft(panel, destination, first, second)
-            "write-right" -> PackedPanels.writeRight(panel, destination, first, second)
-            "clear-left-padding" -> PackedPanels.clearLeftPadding(panel, first, second)
-            "clear-right-padding" -> PackedPanels.clearRightPadding(panel, first, second)
+            "pack-left" -> panels.packLeft(source, panel, first, second)
+            "pack-right" -> panels.packRight(source, panel, first, second)
+            "pack-symmetric-left" -> panels.packSymmetricLeft(source, panel, first, second, lower)
+            "pack-symmetric-right" -> panels.packSymmetricRight(source, panel, first, second, lower)
+            "pack-triangular-left" -> panels.packTriangularLeft(source, panel, first, second, lower, unitDiagonal = unit)
+            "pack-triangular-right" -> panels.packTriangularRight(source, panel, first, second, lower, unitDiagonal = unit)
+            "write-left" -> panels.writeLeft(panel, destination, first, second)
+            "write-right" -> panels.writeRight(panel, destination, first, second)
+            "clear-left-padding" -> panels.clearLeftPadding(panel, first, second)
+            "clear-right-padding" -> panels.clearRightPadding(panel, first, second)
         }
         if (case.operation.startsWith("write")) destination.data[0] else panel[0]
     })

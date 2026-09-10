@@ -7,10 +7,22 @@ import com.eignex.koblas.SparseVector
 import com.eignex.koblas.StridedVectorView
 import com.eignex.koblas.VectorLike
 import com.eignex.koblas.dense.DenseVectorKernels
+import com.eignex.koblas.dense.addStoredToDense
+import com.eignex.koblas.dense.addToStrided
+import com.eignex.koblas.dense.copyStoredToDense
+import com.eignex.koblas.dense.copyToStrided
+import com.eignex.koblas.dense.genericDot
+import com.eignex.koblas.dense.scaleStridedVector
+import com.eignex.koblas.dense.storedAbsoluteSum
+import com.eignex.koblas.dense.storedCompensatedSum
+import com.eignex.koblas.dense.storedIndexOfMaximumAbsoluteValue
+import com.eignex.koblas.dense.storedSum
+import com.eignex.koblas.dense.stridedDot
+import com.eignex.koblas.dense.stridedEuclideanNorm
+import com.eignex.koblas.dense.swapStrided
 import com.eignex.koblas.internal.numeric.euclideanNorm
 import com.eignex.koblas.internal.numeric.neumaierSum
 import com.eignex.koblas.sparse.SparseKernels
-import kotlin.math.abs
 
 /**
  * Visit each stored entry as (index, value), in ascending index order for any storage. A [SparseVector]
@@ -37,9 +49,7 @@ public inline fun VectorLike.forEachStored(block: (i: Int, v: Double) -> Unit) {
 public infix fun VectorLike.dot(other: VectorLike): Double {
     requireSameSize(size, other.size)
     if (this is StridedVectorView && other is StridedVectorView) {
-        var sum = 0.0
-        for (i in 0 until size) sum += data[offset + i * stride] * other.data[other.offset + i * other.stride]
-        return sum
+        return stridedDot(this, other)
     }
     if (this is DenseVector && other is DenseVector) {
         return koblas.denseKernelFamilies.vector.dot(data, 0, other.data, 0, size)
@@ -47,9 +57,7 @@ public infix fun VectorLike.dot(other: VectorLike): Double {
     if (this is SparseVector && other is SparseVector) return koblas.sparseKernels.dot(this, other)
     if (this is SparseVector && other is DenseVector) return koblas.sparseKernels.dot(this, other.data)
     if (this is DenseVector && other is SparseVector) return koblas.sparseKernels.dot(other, data)
-    var s = 0.0
-    for (i in 0 until size) s += this[i] * other[i]
-    return s
+    return genericDot(this, other)
 }
 
 /**
@@ -59,7 +67,7 @@ public infix fun VectorLike.dot(other: VectorLike): Double {
 public fun VectorLike.norm2(): Double = when (this) {
     is DenseVector -> koblas.denseKernelFamilies.vector.nrm2(data, 0, size)
     is SparseVector -> koblas.sparseKernels.nrm2(this)
-    is StridedVectorView -> stridedNorm2(this)
+    is StridedVectorView -> stridedEuclideanNorm(this)
     else -> euclideanNorm(toDoubleArray(), 0, size)
 }
 
@@ -72,12 +80,7 @@ public fun VectorLike.norm2(): Double = when (this) {
  */
 public fun VectorLike.sum(): Double = when (this) {
     is DenseVector -> koblas.denseKernelFamilies.vector.sum(data, 0, size)
-
-    else -> {
-        var s = 0.0
-        forEachStored { _, x -> s += x }
-        s
-    }
+    else -> storedSum(this)
 }
 
 /**
@@ -97,30 +100,14 @@ public fun VectorLike.sum(): Double = when (this) {
  */
 public fun VectorLike.compensatedSum(): Double = when (this) {
     is DenseVector -> neumaierSum(data, 0, size)
-
-    else -> {
-        var s = 0.0
-        var compensation = 0.0
-        forEachStored { _, x ->
-            val t = s + x
-            compensation += if (abs(s) >= abs(x)) (s - t) + x else (x - t) + s
-            s = t
-        }
-        s + compensation
-    }
+    else -> storedCompensatedSum(this)
 }
 
 /** Sum of absolute values (BLAS `dasum`). Sparse vectors sum over stored entries only. */
 public fun VectorLike.asum(): Double = when (this) {
     is DenseVector -> koblas.denseKernelFamilies.vector.asum(data, 0, size)
-
     is SparseVector -> koblas.sparseKernels.asum(this)
-
-    else -> {
-        var s = 0.0
-        forEachStored { _, x -> s += abs(x) }
-        s
-    }
+    else -> storedAbsoluteSum(this)
 }
 
 /**
@@ -131,16 +118,7 @@ public fun VectorLike.asum(): Double = when (this) {
  */
 public fun VectorLike.iamax(): Int {
     if (size == 0) return -1
-    var best = -1
-    var bestAbs = 0.0
-    forEachStored { i, x ->
-        val a = abs(x)
-        if (a > bestAbs) {
-            bestAbs = a
-            best = i
-        }
-    }
-    return if (best == -1) 0 else best
+    return storedIndexOfMaximumAbsoluteValue(this)
 }
 
 /** `dst = src` (BLAS `dcopy`). A sparse source zero-fills the destination first, so nothing survives. */
@@ -156,7 +134,7 @@ public fun copy(src: VectorLike, dst: DenseVector) {
 
         else -> {
             dst.data.fill(0.0)
-            src.forEachStored { i, v -> dst.data[i] = v }
+            copyStoredToDense(src, dst.data)
         }
     }
 }
@@ -164,7 +142,7 @@ public fun copy(src: VectorLike, dst: DenseVector) {
 /** `dst = src` into a borrowed strided destination, without materializing either operand. */
 public fun copy(src: VectorLike, dst: StridedVectorView) {
     requireSameSize(src.size, dst.size)
-    for (i in 0 until src.size) dst[i] = src[i]
+    copyToStrided(src, dst)
 }
 
 /**
@@ -191,11 +169,7 @@ public fun swap(a: DenseVector, b: DenseVector) {
 /** Exchanges two borrowed slices, including rows and columns of dense matrix views. */
 public fun swap(a: StridedVectorView, b: StridedVectorView) {
     requireSameSize(a.size, b.size)
-    for (i in 0 until a.size) {
-        val value = a[i]
-        a[i] = b[i]
-        b[i] = value
-    }
+    swapStrided(a, b)
 }
 
 /** `y = y + alpha * x`. A sparse `x` touches only the positions it stores. */
@@ -205,7 +179,7 @@ public fun DenseVector.axpy(alpha: Double, x: VectorLike) {
     when (x) {
         is DenseVector -> koblas.denseKernelFamilies.vector.axpy(data, 0, alpha, x.data, 0, size)
         is SparseVector -> koblas.sparseKernels.axpy(data, alpha, x)
-        else -> x.forEachStored { i, v -> data[i] += alpha * v }
+        else -> addStoredToDense(data, alpha, x)
     }
 }
 
@@ -213,7 +187,7 @@ public fun DenseVector.axpy(alpha: Double, x: VectorLike) {
 public fun StridedVectorView.axpy(alpha: Double, x: VectorLike) {
     requireSameSize(size, x.size)
     if (alpha == 0.0) return
-    for (i in 0 until size) this[i] += alpha * x[i]
+    addToStrided(this, alpha, x)
 }
 
 /** `v = alpha * v`. */
@@ -225,29 +199,5 @@ public fun DenseVector.scale(alpha: Double) {
 /** `this = alpha * this` over a borrowed strided slice. */
 public fun StridedVectorView.scale(alpha: Double) {
     if (alpha == 1.0) return
-    for (i in 0 until size) this[i] *= alpha
-}
-
-/** Scaled sum-of-squares over a strided vector, retaining `dnrm2` overflow and underflow behavior. */
-private fun stridedNorm2(vector: StridedVectorView): Double {
-    var scale = 0.0
-    var sumSquares = 1.0
-    for (i in 0 until vector.size) {
-        val value = abs(vector[i])
-        if (value != 0.0) {
-            if (scale < value) {
-                val ratio = scale / value
-                sumSquares = 1.0 + sumSquares * ratio * ratio
-                scale = value
-            } else {
-                val ratio = value / scale
-                sumSquares += ratio * ratio
-            }
-        }
-    }
-    // A NaN entry never raises `scale`, since `0.0 < NaN` is false, but it does reach `sumSquares`. Reading
-    // the zero case off `scale` alone would then discard it and report a clean norm for a corrupt vector,
-    // where dnrm2 and the dense path both propagate the NaN.
-    if (scale == 0.0) return if (sumSquares.isNaN()) Double.NaN else 0.0
-    return scale * kotlin.math.sqrt(sumSquares)
+    scaleStridedVector(this, alpha)
 }

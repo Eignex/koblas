@@ -21,7 +21,9 @@ The JVM benchmark toolchain is intentionally JDK 25. Its actual vendor and versi
 row; this is the benchmark process runtime and may differ from the JDK that launched Gradle. `jvm-c`,
 `jvm-simd`, and `native` resolve an exact immutable provider through `BuiltinKernels`. A missing requested engine
 fails rather than selecting another one. Normal koblas algorithm fallbacks inside that engine remain part of the
-measurement. Native resolves to Linux x86-64 or macOS arm64 on the current host and fails elsewhere.
+measurement. Packed layout and tile cases use that context's bound packed-panel operations, so their recorded
+physical shape cannot come from the platform default. Native resolves to Linux x86-64 or macOS arm64 on the
+current host and fails elsewhere.
 
 Useful bounded timing controls are `-Pbench.warmups=3`, `-Pbench.samples=5`, `-Pbench.targetMs=1000`,
 `-Pbench.forks=2`, `-Pbench.pass=1`, and `-Pbench.output=path.csv`. JVM modes run through JMH 1.37: every

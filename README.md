@@ -22,6 +22,8 @@ Koblas is a low-level building block for numerical and optimization software tha
 It exposes storage, allocation, workspace, implementation, and lifecycle decisions instead of hiding them behind a
 data-frame or expression layer.
 
+See [`ARCHITECTURE.md`](ARCHITECTURE.md) for the current dependency and numerical-loop ownership map.
+
 ## Platforms and modules
 
 The core is published for JVM, Linux x64/arm64 Kotlin/Native, and macOS arm64 Kotlin/Native. JavaScript, Wasm,
@@ -36,11 +38,11 @@ On JVM, add `--add-modules=jdk.incubator.vector` to enable the built-in SIMD ker
 koblas uses its bundled C kernels when available and otherwise retains the same semantics through its scalar
 implementation. HFactor is an optional JVM API and is loaded only when constructed and used directly.
 
-The non-published `koblas-bench` module owns development-only OpenBLAS and oneMKL comparators. They are never
-dependencies or resources of a published module. See [`koblas-bench/README.md`](koblas-bench/README.md) for
-installation and runtime requirements. Comparator arm resolution, preparation, and report processing remain
-inside that benchmark module and do not participate in production engine selection. Bundled modules carry their
-own third-party notices.
+The non-published `koblas-bench` module owns koblas measurements and standalone OpenBLAS and oneMKL reference
+runners. They are never dependencies or resources of a published module. See
+[`koblas-bench/README.md`](koblas-bench/README.md) for installation and runtime requirements. Benchmark engine
+selection does not participate in production default selection. Bundled modules carry their own third-party
+notices.
 
 ## Quick start
 
@@ -154,7 +156,11 @@ Tests and benchmarks can construct an independent exact engine without changing 
 @OptIn(ExperimentalKoblasApi::class)
 val scalar = BuiltinKernels.scalar.engine()
 val c = scalar.gemm(a, b)
+val scalarPanels = scalar.packedPanels
 ```
+
+Packed panel layout and tile calls must come from the same context: `scalar.packedPanels` above uses the scalar
+engine's physical tile shape. The top-level `packedPanels` value is the equivalent convenience for `koblas`.
 
 `koblasInfo`, `KoblasContext.name`, and the kernel names provide read-only attribution for logs.
 

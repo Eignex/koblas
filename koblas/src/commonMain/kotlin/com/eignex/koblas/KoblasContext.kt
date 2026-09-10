@@ -6,10 +6,13 @@ import com.eignex.koblas.dense.DenseKernelFamilies
 import com.eignex.koblas.dense.DensePanelKernels
 import com.eignex.koblas.dense.DenseVectorKernels
 import com.eignex.koblas.dense.PackedKernels
+import com.eignex.koblas.dense.PackedPanels
+import com.eignex.koblas.dense.platformDenseKernelFamilies
 import com.eignex.koblas.sparse.SparseAlgorithms
 import com.eignex.koblas.sparse.SparseBlas
 import com.eignex.koblas.sparse.SparseKernelFamilies
 import com.eignex.koblas.sparse.SparseKernels
+import com.eignex.koblas.sparse.platformSparseKernelFamilies
 
 /**
  * An immutable dense and sparse BLAS engine.
@@ -44,8 +47,26 @@ public class KoblasContext internal constructor(
     /** Packed layout shape and tile arithmetic kernels. */
     public val packedKernels: PackedKernels get() = denseKernelFamilies.packed
 
+    /** Packed panel layout and tile operations bound to this engine's exact packed kernels. */
+    @ExperimentalKoblasApi
+    public val packedPanels: PackedPanels = PackedPanels(denseKernelFamilies.packed)
+
     /** Short read-only implementation description for logs and benchmark attribution. */
     override val name: String get() = "built-in/${vectorKernels.name}/${sparseKernels.name}"
 
     override fun toString(): String = "KoblasContext($name)"
 }
+
+/** The immutable platform-selected BLAS engine used by top-level convenience operations. */
+public val koblas: KoblasContext = KoblasContext(
+    platformDenseKernelFamilies,
+    platformSparseKernelFamilies,
+)
+
+/** Packed panel operations bound to the platform-selected [koblas] engine. */
+@ExperimentalKoblasApi
+public val packedPanels: PackedPanels get() = koblas.packedPanels
+
+/** What this runtime selected, for startup logging and benchmark attribution. */
+public val koblasInfo: String
+    get() = "engine=${koblas.name}"

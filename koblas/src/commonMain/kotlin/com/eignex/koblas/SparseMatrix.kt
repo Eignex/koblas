@@ -1,6 +1,7 @@
 package com.eignex.koblas
 
 import com.eignex.koblas.*
+import com.eignex.koblas.sparse.internal.sparseRows
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
@@ -85,11 +86,7 @@ public class SparseMatrix internal constructor(
     }
 
     /** Materialises into a fresh `rows × cols` array of rows; unstored entries stay zero. */
-    override fun toArray(): Array<DoubleArray> {
-        val out = Array(rows) { DoubleArray(cols) }
-        for (j in 0 until cols) forEachInColumn(j) { i, v -> out[i][j] = v }
-        return out
-    }
+    override fun toArray(): Array<DoubleArray> = sparseRows(rows, cols, colPtr, rowIdx, values)
 
     /** A copy of the CSC column start offsets, of length `cols + 1`. */
     public fun copyColumnPointers(): IntArray = colPtr.copyOf()

@@ -7,6 +7,10 @@ matrix-panel, and padded-tile responsibilities. [Blas] contains dense matrix alg
 composition. The platform default is exposed through [com.eignex.koblas.koblas]; tests and benchmarks can
 construct independent exact engines through [com.eignex.koblas.BuiltinKernels].
 
+[PackedPanels] is an engine-bound checked facade over shared packed layout leaves and the selected
+[PackedKernels]. Use [com.eignex.koblas.KoblasContext.packedPanels] for explicit engines or
+[com.eignex.koblas.packedPanels] for the platform default.
+
 `gemmt` is the triangular-result general product Netlib calls `GEMMTR`; OpenBLAS and oneMKL expose the common
 `cblas_dgemmt` spelling. It uses ordinary full column-major operands and a selected full-storage destination
 triangle, not conventional compact BLAS packed storage.

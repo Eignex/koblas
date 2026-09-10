@@ -202,23 +202,23 @@ class AllocationFreeTest {
     @OptIn(ExperimentalKoblasApi::class)
     @Test
     fun `packed solve kernels allocate nothing`() {
-        val rows = PackedPanels.tileRows
-        val order = PackedPanels.tileColumns
+        val rows = packedPanels.tileRows
+        val order = packedPanels.tileColumns
         val depth = 32
-        val left = DoubleArray(PackedPanels.leftSize(rows, depth)) { 0.01 * (it + 1) }
-        val right = DoubleArray(PackedPanels.rightSize(depth, order)) { 0.005 * (it + 1) }
-        val triangle = DoubleArray(PackedPanels.rightSize(order, order))
+        val left = DoubleArray(packedPanels.leftSize(rows, depth)) { 0.01 * (it + 1) }
+        val right = DoubleArray(packedPanels.rightSize(depth, order)) { 0.005 * (it + 1) }
+        val triangle = DoubleArray(packedPanels.rightSize(order, order))
         for (i in 0 until order) {
             for (j in 0..i) triangle[i * order + j] = if (i == j) 2.0 else 0.1
         }
-        val x = DoubleArray(PackedPanels.leftSize(rows, order)) { 1.0 }
+        val x = DoubleArray(packedPanels.leftSize(rows, order)) { 1.0 }
 
         val solveBytes = bytesPerIteration(1000) {
-            PackedPanels.trsm(triangle, x, rows, order, lower = true)
+            packedPanels.trsm(triangle, x, rows, order, lower = true)
             x
         }
         val fusedBytes = bytesPerIteration(1000, warmup = 20_000) {
-            PackedPanels.gemmTrsm(left, right, triangle, x, rows, order, depth, lower = true)
+            packedPanels.gemmTrsm(left, right, triangle, x, rows, order, depth, lower = true)
             x
         }
 

@@ -1,11 +1,6 @@
 @file:Suppress("VariableNaming", "FunctionParameterNaming") // math convention: single-letter matrices L, M, etc.
-@file:kotlin.jvm.JvmName("MatrixOpsKt")
-@file:kotlin.jvm.JvmMultifileClass
 
 package com.eignex.koblas
-
-// Part of the MatrixOpsKt facade. Splitting the file would otherwise rename the class JVM callers
-// compiled against, so the four parts are joined back into one rather than becoming four.
 
 import com.eignex.koblas.*
 import com.eignex.koblas.dense.Blas

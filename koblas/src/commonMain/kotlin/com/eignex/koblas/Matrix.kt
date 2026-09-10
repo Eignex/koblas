@@ -1,6 +1,10 @@
 package com.eignex.koblas
 
 import com.eignex.koblas.*
+import com.eignex.koblas.dense.denseRows
+import com.eignex.koblas.dense.fillDenseDiagonal
+import com.eignex.koblas.dense.flattenDenseColumns
+import com.eignex.koblas.dense.flattenDenseRows
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
@@ -50,9 +54,7 @@ public class DenseMatrix internal constructor(
         return data[i + j * rows]
     }
 
-    override fun toArray(): Array<DoubleArray> = Array(rows) { i ->
-        DoubleArray(cols) { j -> data[i + j * rows] }
-    }
+    override fun toArray(): Array<DoubleArray> = denseRows(data, rows, cols)
 
     /** Writes (v) at row (i), column (j). */
     public operator fun set(i: Int, j: Int, v: Double) {
@@ -83,10 +85,7 @@ public class DenseMatrix internal constructor(
             val c = if (r == 0) 0 else rows[0].size
             requireShape(rows.all { it.size == c }) { "all rows must have the same length" }
             val flat = DoubleArray(entryCount(r, c))
-            for (i in 0 until r) {
-                val row = rows[i]
-                for (j in 0 until c) flat[i + j * r] = row[j]
-            }
+            flattenDenseRows(rows, c, flat)
             return DenseMatrix(r, c, flat)
         }
 
@@ -96,7 +95,7 @@ public class DenseMatrix internal constructor(
             val r = if (c == 0) 0 else columns[0].size
             requireShape(columns.all { it.size == r }) { "all columns must have the same length" }
             val flat = DoubleArray(entryCount(r, c))
-            for (j in 0 until c) columns[j].copyInto(flat, j * r)
+            flattenDenseColumns(columns, r, flat)
             return DenseMatrix(r, c, flat)
         }
 
@@ -106,7 +105,7 @@ public class DenseMatrix internal constructor(
         /** Create a square identity matrix of the given [size], scaled by [diagonal]. */
         public fun diagonal(size: Int, diagonal: Double = 1.0): DenseMatrix {
             val m = DenseMatrix(size, size)
-            for (i in 0 until size) m[i, i] = diagonal
+            fillDenseDiagonal(m.data, size, diagonal)
             return m
         }
 
@@ -114,7 +113,7 @@ public class DenseMatrix internal constructor(
         public fun diagonal(values: DoubleArray): DenseMatrix {
             val n = values.size
             val m = DenseMatrix(n, n)
-            for (i in 0 until n) m.data[i + i * n] = values[i]
+            fillDenseDiagonal(m.data, values)
             return m
         }
 
