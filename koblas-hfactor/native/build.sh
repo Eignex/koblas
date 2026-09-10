@@ -1,13 +1,14 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+module="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+root="$(cd "$module/.." && pwd)"
 source "$root/scripts/native-build-common.sh"
 source "$root/scripts/third-party-notices.sh"
-native="$root/koblas-hfactor/native"
+native="$module/native"
 
 parse_native_build_args "usage: $0 --platform <platform> --output <directory>" "$@"
-read_native_lock "$root/koblas-hfactor/hfactor.lock"
+read_native_lock "$module/hfactor.lock"
 cache="$output/../downloads/highs-$version.tar.gz"
 fetch_verified_archive "$url" "$cache" "$expected" HiGHS
 require_platform_host "$platform" HFactor
@@ -48,7 +49,7 @@ else
     cp "$destination/$library" "$destination/libkoblas_hfactor.dylib"
 fi
 find "$destination" -maxdepth 1 -type f -exec basename {} \; | sort > "$destination/.libraries"
-notices_init "$notices" "koblas-hfactor" "scripts/build-hfactor.sh"
+notices_init "$notices" "koblas-hfactor" "koblas-hfactor/native/build.sh"
 printf '\nHiGHS Copyright (c) 2026 HiGHS\nUsed in Koblas under the MIT license.\n' >> "$notices"
 notices_append_file "$notices" "HiGHS $version — MIT" "HiGHS/LICENSE.txt" "$source_root/LICENSE.txt"
 notices_append_file "$notices" "pdqsort — MIT" "HiGHS/extern/pdqsort/pdqsort.h" "$source_root/extern/pdqsort/license.txt"
