@@ -57,7 +57,6 @@ class MatrixTest {
         val b = DenseMatrix.diagonal(2, 1.0)
         val c = DenseMatrix.diagonal(2, 2.0)
         val sizeDiff = DenseMatrix.diagonal(3, 1.0)
-        assertEquals(a, a)
         assertEquals(a, b)
         assertEquals(a.hashCode(), b.hashCode())
         assertNotEquals(a, c)
@@ -69,6 +68,24 @@ class MatrixTest {
     fun `DenseMatrix rejects a shape its backing cannot hold`() {
         assertFailsWith<DimensionMismatch> { DenseMatrix.wrap(2, 3, DoubleArray(5)) }
         assertFailsWith<DimensionMismatch> { DenseMatrix(-1, 2) }
+        assertFailsWith<DimensionMismatch> { DenseMatrix(2, -1) }
+        assertFailsWith<DimensionMismatch> { DenseMatrix.zero(65536, 65536) }
+        assertFailsWith<DimensionMismatch> { DenseMatrix.zero(46341, 46341) }
+        assertFailsWith<DimensionMismatch> { DenseMatrix.zero(2, 1073741824) }
+    }
+
+    @Test
+    fun `DenseMatrix indexing rejects every address outside its shape`() {
+        val matrix = DenseMatrix.of(
+            arrayOf(doubleArrayOf(1.0, 2.0, 3.0), doubleArrayOf(4.0, 5.0, 6.0)),
+        )
+        assertFailsWith<IndexOutOfBoundsException> { matrix[2, 0] }
+        assertFailsWith<IndexOutOfBoundsException> { matrix[5, 0] }
+        assertFailsWith<IndexOutOfBoundsException> { matrix[-1, 1] }
+        assertFailsWith<IndexOutOfBoundsException> { matrix[0, 3] }
+        assertFailsWith<IndexOutOfBoundsException> { matrix[0, -1] }
+        assertFailsWith<IndexOutOfBoundsException> { matrix[5, 0] = 0.0 }
+        assertEquals(6.0, matrix[1, 2])
     }
 
     @Test

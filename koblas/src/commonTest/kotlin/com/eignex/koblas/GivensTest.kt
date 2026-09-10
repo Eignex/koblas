@@ -7,7 +7,7 @@ import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
-class GivensRotationTest {
+class GivensTest {
 
     @Test
     fun `rotg generates the rotation that zeroes the second component`() {

@@ -1,18 +1,36 @@
 package com.eignex.koblas
 
-import com.eignex.koblas.DenseMatrix
 import kotlin.math.abs
 import kotlin.random.Random
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
+import kotlin.test.fail
 
 /** Tolerance for a chain of a few dozen flops, relative to `max(1, |expected|)`. */
 internal const val TIGHT_TOLERANCE = 1e-12
 
+/** A non-koblas matrix storage used to exercise public adapter fallbacks. */
+internal class ForeignSpdMatrix(override val rows: Int) : MatrixLike {
+    override val cols: Int get() = rows
+    override fun get(i: Int, j: Int): Double = if (i == j) rows + 2.0 else 1.0 / (1 + i + j)
+    override fun toArray(): Array<DoubleArray> = Array(rows) { i -> DoubleArray(cols) { j -> this[i, j] } }
+}
+
+/** A non-koblas vector storage used to exercise public adapter fallbacks. */
+internal class ForeignRampVector(override val size: Int) : VectorLike {
+    override fun get(i: Int): Double = i * 0.5 - 1.0
+    override fun toDoubleArray(): DoubleArray = DoubleArray(size) { this[it] }
+}
+
 internal fun assertClose(expected: Double, actual: Double, context: String, tolerance: Double = TIGHT_TOLERANCE) {
+    if (expected.isNaN()) fail("$context: the numerical oracle produced NaN; assert that contract explicitly")
+    if (actual.isNaN()) fail("$context: expected $expected actual NaN")
+    if (expected == actual) return
+    val error = abs(expected - actual)
+    val bound = tolerance * maxOf(1.0, abs(expected))
     assertTrue(
-        abs(expected - actual) <= tolerance * maxOf(1.0, abs(expected)),
-        "$context: expected $expected actual $actual",
+        error <= bound,
+        "$context: expected $expected actual $actual error $error tolerance $bound",
     )
 }
 
@@ -47,6 +65,17 @@ internal fun randomVector(n: Int, rng: Random): DoubleArray = DoubleArray(n) { r
 
 internal fun randomMatrix(rows: Int, cols: Int, rng: Random): DenseMatrix =
     DenseMatrix.wrap(rows, cols, DoubleArray(rows * cols) { rng.nextDouble(-1.0, 1.0) })
+
+/** CSC fixture with empty columns, irregular rows, and an explicitly stored zero. */
+internal fun sparseStorageExample(): SparseMatrix = SparseMatrix.ofTriplets(
+    rows = 3,
+    cols = 4,
+    rowIdx = intArrayOf(0, 2, 1, 0, 2),
+    colIdx = intArrayOf(0, 0, 1, 3, 3),
+    values = doubleArrayOf(1.0, -2.0, 3.0, 0.0, -4.0),
+)
+
+internal fun SparseMatrix.denseCopy(): DenseMatrix = DenseMatrix.of(toArray())
 
 internal fun wellConditioned(n: Int, rng: Random): DenseMatrix {
     val a = randomMatrix(n, n, rng)

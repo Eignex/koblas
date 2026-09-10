@@ -11,41 +11,34 @@ import kotlin.test.assertEquals
  */
 class ExplicitKernelsTest {
     @Test
-    fun `the bundled C kernels modified Givens agrees with the portable one`() {
-        if (!JvmCKernelBindings.isAvailable) return
-        assertModifiedGivensKernelsAgreeWithPortable(CKernels)
-        assertRotKernelAgreesWithPortable(CKernels)
+    fun `available explicit kernels preserve vector contracts`() {
+        for ((vector, _) in availableKernels()) {
+            assertModifiedGivensKernelsAgreeWithReference(vector)
+            assertRotKernelAgreesWithReference(vector)
+        }
     }
 
     @Test
-    fun `the SIMD kernels modified Givens agrees with the portable one`() {
-        if (!simdAvailable) return
-        assertModifiedGivensKernelsAgreeWithPortable(SimdKernels)
-        assertRotKernelAgreesWithPortable(SimdKernels)
+    fun `available explicit kernels preserve exceptional arithmetic`() {
+        for ((_, families) in availableKernels()) {
+            assertAxpyArithmeticPreservesOverflow(families.panel)
+            assertSymvPreservesFiniteCancellation(families)
+            assertSymvPreservesOverflow(families)
+        }
     }
 
-    @Test
-    fun `the bundled C symmetric product preserves finite cancellation`() {
-        if (!JvmCKernelBindings.isAvailable) return
-        assertSymvPreservesFiniteCancellation(cDenseKernelFamilies)
+    private fun assertAxpyArithmeticPreservesOverflow(kernels: DensePanelKernels) {
+        val x = DoubleArray(64) { Double.MAX_VALUE }
+        val y = DoubleArray(64) { Double.MAX_VALUE }
+
+        kernels.axpyArithmetic(y, 0, -2.0, x, 0, y.size)
+
+        assertEquals(Double.NEGATIVE_INFINITY, y[0])
     }
 
-    @Test
-    fun `the SIMD symmetric product preserves finite cancellation`() {
-        if (!simdAvailable) return
-        assertSymvPreservesFiniteCancellation(simdDenseKernelFamilies)
-    }
-
-    @Test
-    fun `the bundled C symmetric product preserves overflow`() {
-        if (!JvmCKernelBindings.isAvailable) return
-        assertSymvPreservesOverflow(cDenseKernelFamilies)
-    }
-
-    @Test
-    fun `the SIMD symmetric product preserves overflow`() {
-        if (!simdAvailable) return
-        assertSymvPreservesOverflow(simdDenseKernelFamilies)
+    private fun availableKernels(): List<Pair<DenseVectorKernels, DenseKernelFamilies>> = buildList {
+        if (JvmCKernelBindings.isAvailable) add(CKernels to cDenseKernelFamilies)
+        if (simdAvailable) add(SimdKernels to simdDenseKernelFamilies)
     }
 
     private fun assertSymvPreservesFiniteCancellation(families: DenseKernelFamilies) =
