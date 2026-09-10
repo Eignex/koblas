@@ -1,6 +1,7 @@
 package com.eignex.koblas.dense
 
 import com.eignex.koblas.assertClose
+import com.eignex.koblas.koblas
 import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -93,7 +94,7 @@ class PackedTrsmTest {
 
     @Test
     fun `the compiled in packed kernels agree with their reference composition`() {
-        val kernels = platformDenseKernelFamilies.packed
+        val kernels = koblas.packedKernels
         val rows = kernels.gemmTileRows
         val columns = kernels.gemmTileCols
         val rng = Random(20260911)
@@ -131,7 +132,7 @@ class PackedTrsmTest {
     @Test
     fun `empty packed solves do not read operands`() {
         val empty = doubleArrayOf()
-        for (kernels in listOf(PortablePackedKernels, platformDenseKernelFamilies.packed)) {
+        for (kernels in listOf(PortablePackedKernels, koblas.packedKernels).distinct()) {
             for ((rows, order) in listOf(0 to 0, 0 to 3, 3 to 0)) {
                 for (lower in booleanArrayOf(false, true)) {
                     for (unitDiag in booleanArrayOf(false, true)) {

@@ -1,6 +1,6 @@
 package com.eignex.koblas.sparse
 
-import com.eignex.koblas.BuiltinKernels
+import com.eignex.koblas.BuiltinEngines
 import com.eignex.koblas.KoblasContext
 import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.assertClose
@@ -11,7 +11,7 @@ import kotlin.test.assertTrue
 
 class SparseAlgorithmsTest {
     private val engines: List<KoblasContext>
-        get() = listOfNotNull(BuiltinKernels.scalar, BuiltinKernels.c, BuiltinKernels.simd).distinct()
+        get() = listOfNotNull(BuiltinEngines.scalar, BuiltinEngines.c, BuiltinEngines.simd).distinct()
 
     @Test
     fun `gemv agrees across transpose alpha and beta variants`() {

@@ -10,6 +10,6 @@ the Vector API, then Koblas's bundled C kernels, then scalar Kotlin. Kotlin/Nati
 with scalar fallbacks. Shared dense and sparse matrix algorithms are bound directly to those selected kernels.
 
 Exact scalar, C, and SIMD engines are available through the experimental
-[BuiltinKernels][com.eignex.koblas.BuiltinKernels] construction seam for tests and benchmarks. Constructing one
+[BuiltinEngines][com.eignex.koblas.BuiltinEngines] construction seam for tests and benchmarks. Constructing one
 does not change the default engine. Factorization and basis solving are outside this artifact; the optional JVM
 `koblas-hfactor` artifact exposes HFactor directly.

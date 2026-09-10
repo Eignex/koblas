@@ -151,7 +151,9 @@ kernels; there is no provider registry, service discovery, or process-global ove
 Tests and benchmarks can construct an independent exact engine without changing global state:
 
 ```kotlin
-val scalar = BuiltinKernels.scalar
+import com.eignex.koblas.BuiltinEngines
+
+val scalar = BuiltinEngines.scalar
 val c = scalar.gemm(a, b)
 ```
 
@@ -172,12 +174,11 @@ Portable sparse Cholesky, LDL, LU, QR, symbolic analysis, and basis factorizatio
 optional JVM `koblas-hfactor` artifact supplies general sparse LU and the stateful basis solver API directly:
 
 ```kotlin
-import com.eignex.koblas.hfactor.BundledHfactor
 import com.eignex.koblas.sparse.host.hfactor.HfactorConfig
 import com.eignex.koblas.sparse.host.hfactor.HfactorSparseLu
 
-val bundled = BundledHfactor()
-check(bundled.availability.available) { bundled.availability.reason }
+val bundled = HfactorSparseLu.bundled()
+check(bundled.available) { bundled.unavailableReason }
 bundled.factor(a).use { factors -> factors.solveInto(rhs, solution) }
 
 val explicit = HfactorSparseLu(HfactorConfig(libraryPath = "/opt/lib/libkoblas_hfactor.so.1"))
@@ -203,8 +204,8 @@ Sparse-sparse `gemm` can likewise return owned CSC structure or accumulate direc
 
 ## Native options and threading
 
-`BundledHfactor` accepts the numerical options in `HfactorConfig` and requires its `libraryPath` to be null.
-Use `HfactorSparseLu` with a non-null path to load an explicit build with the same numerical options.
+`HfactorSparseLu.bundled()` accepts the numerical options in `HfactorConfig` and requires its `libraryPath` to be
+null. Use the constructor with a non-null path to load an explicit build with the same numerical options.
 
 The portable reference, JVM SIMD, bundled C kernels, and HFactor are single-threaded.
 

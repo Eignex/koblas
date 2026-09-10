@@ -1,6 +1,7 @@
 package com.eignex.koblas.dense
 
 import com.eignex.koblas.assertClose
+import com.eignex.koblas.koblas
 import kotlin.random.Random
 import kotlin.test.Test
 
@@ -60,6 +61,6 @@ class PackedGemmTest {
 
     @Test
     fun `the packed product on the compiled in kernels agrees with a written out product`() {
-        assertPackedGemmAgreesWithWrittenOutProduct(platformDenseKernelFamilies.packed)
+        assertPackedGemmAgreesWithWrittenOutProduct(koblas.packedKernels)
     }
 }

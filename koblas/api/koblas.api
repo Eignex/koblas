@@ -1,5 +1,5 @@
-public final class com/eignex/koblas/BuiltinKernels {
-	public static final field INSTANCE Lcom/eignex/koblas/BuiltinKernels;
+public final class com/eignex/koblas/BuiltinEngines {
+	public static final field INSTANCE Lcom/eignex/koblas/BuiltinEngines;
 	public final fun getC ()Lcom/eignex/koblas/KoblasContext;
 	public final fun getScalar ()Lcom/eignex/koblas/KoblasContext;
 	public final fun getSimd ()Lcom/eignex/koblas/KoblasContext;

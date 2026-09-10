@@ -1,5 +1,6 @@
 package com.eignex.koblas.dense
 
+import com.eignex.koblas.BuiltinEngines
 import com.eignex.koblas.ModifiedGivens
 import com.eignex.koblas.assertClose
 import com.eignex.koblas.rotg
@@ -7,6 +8,14 @@ import kotlin.math.abs
 import kotlin.math.sqrt
 import kotlin.random.Random
 import kotlin.test.assertEquals
+
+internal val ReferenceBlas: Blas = BuiltinEngines.scalar
+
+internal fun testBlas(
+    vector: DenseVectorKernels = ScalarKernels,
+    panel: DensePanelKernels = ScalarPanelKernels,
+    packed: PackedKernels = PortablePackedKernels,
+): Blas = BuiltinBlas(vector, panel, packed)
 
 // The dense vector contract, over any implementation. The compiled-in kernels and a host binding must both
 // satisfy it, and a host kernels class exists only on the native targets, so the assertions live here rather

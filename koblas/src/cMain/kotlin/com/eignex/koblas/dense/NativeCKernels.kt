@@ -1,5 +1,4 @@
 @file:OptIn(kotlinx.cinterop.ExperimentalForeignApi::class)
-@file:Suppress("MatchingDeclarationName") // Native kernels and their selected family share one source-set boundary
 
 package com.eignex.koblas.dense
 
@@ -14,12 +13,6 @@ import kotlinx.cinterop.usePinned
 
 /** Shortest run for which crossing into the C vector kernels pays on Kotlin/Native. */
 internal val C_HOST_MIN_LENGTH = DenseTuning.nativeCMinLength
-
-internal actual val platformDenseKernelFamilies: DenseKernelFamilies = DenseKernelFamilies(
-    NativeCKernels,
-    NativeCPanelKernels,
-    NativeCPackedKernels,
-)
 
 /** The C vector kernels compiled into each Kotlin/Native host artifact. */
 internal object NativeCKernels : DenseVectorKernels {

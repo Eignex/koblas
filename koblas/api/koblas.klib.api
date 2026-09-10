@@ -487,13 +487,13 @@ final object com.eignex.koblas.sparse/SparseWorkspace { // com.eignex.koblas.spa
     final fun scatterAxpyChecked(kotlin/Double, kotlin/IntArray, kotlin/Int, kotlin/DoubleArray, kotlin/Int, kotlin/Int, kotlin/DoubleArray, kotlin/IntArray, kotlin/Int, kotlin/IntArray, kotlin/Int, kotlin/Int, kotlin/IntArray, kotlin/Int): kotlin/Int // com.eignex.koblas.sparse/SparseWorkspace.scatterAxpyChecked|scatterAxpyChecked(kotlin.Double;kotlin.IntArray;kotlin.Int;kotlin.DoubleArray;kotlin.Int;kotlin.Int;kotlin.DoubleArray;kotlin.IntArray;kotlin.Int;kotlin.IntArray;kotlin.Int;kotlin.Int;kotlin.IntArray;kotlin.Int){}[0]
 }
 
-final object com.eignex.koblas/BuiltinKernels { // com.eignex.koblas/BuiltinKernels|null[0]
-    final val c // com.eignex.koblas/BuiltinKernels.c|{}c[0]
-        final fun <get-c>(): com.eignex.koblas/KoblasContext? // com.eignex.koblas/BuiltinKernels.c.<get-c>|<get-c>(){}[0]
-    final val scalar // com.eignex.koblas/BuiltinKernels.scalar|{}scalar[0]
-        final fun <get-scalar>(): com.eignex.koblas/KoblasContext // com.eignex.koblas/BuiltinKernels.scalar.<get-scalar>|<get-scalar>(){}[0]
-    final val simd // com.eignex.koblas/BuiltinKernels.simd|{}simd[0]
-        final fun <get-simd>(): com.eignex.koblas/KoblasContext? // com.eignex.koblas/BuiltinKernels.simd.<get-simd>|<get-simd>(){}[0]
+final object com.eignex.koblas/BuiltinEngines { // com.eignex.koblas/BuiltinEngines|null[0]
+    final val c // com.eignex.koblas/BuiltinEngines.c|{}c[0]
+        final fun <get-c>(): com.eignex.koblas/KoblasContext? // com.eignex.koblas/BuiltinEngines.c.<get-c>|<get-c>(){}[0]
+    final val scalar // com.eignex.koblas/BuiltinEngines.scalar|{}scalar[0]
+        final fun <get-scalar>(): com.eignex.koblas/KoblasContext // com.eignex.koblas/BuiltinEngines.scalar.<get-scalar>|<get-scalar>(){}[0]
+    final val simd // com.eignex.koblas/BuiltinEngines.simd|{}simd[0]
+        final fun <get-simd>(): com.eignex.koblas/KoblasContext? // com.eignex.koblas/BuiltinEngines.simd.<get-simd>|<get-simd>(){}[0]
 }
 
 final val com.eignex.koblas/koblas // com.eignex.koblas/koblas|{}koblas[0]

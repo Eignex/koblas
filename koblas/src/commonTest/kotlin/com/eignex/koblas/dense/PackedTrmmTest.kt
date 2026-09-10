@@ -3,6 +3,7 @@ package com.eignex.koblas.dense
 import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.Workspace
 import com.eignex.koblas.assertClose
+import com.eignex.koblas.koblas
 import com.eignex.koblas.poisonedTriangle
 import com.eignex.koblas.randomMatrix
 import kotlin.random.Random
@@ -25,7 +26,7 @@ class PackedTrmmTest {
                             val actual = DenseMatrix(source.rows, source.cols, source.data.copyOf())
 
                             packedTrmmCore(
-                                platformDenseKernelFamilies.packed,
+                                koblas.packedKernels,
                                 triangle,
                                 actual,
                                 lower,
@@ -93,7 +94,7 @@ class PackedTrmmTest {
         val expected = writtenOut(explicit, scaled, transpose = true, right = false)
         val actual = DenseMatrix(source.rows, source.cols, source.data.copyOf())
 
-        BuiltinBlas(platformDenseKernelFamilies).trmm(
+        koblas.trmm(
             triangle,
             actual,
             lower = false,
@@ -118,7 +119,7 @@ class PackedTrmmTest {
         }
         val expected = writtenOut(explicitTriangle, sourceSnapshot, transpose = false, right = true)
 
-        BuiltinBlas(platformDenseKernelFamilies).trmm(
+        koblas.trmm(
             shared,
             shared,
             lower = true,
@@ -138,7 +139,7 @@ class PackedTrmmTest {
         source[0, 0] = Double.POSITIVE_INFINITY
         source[0, 1] = 1.0
 
-        BuiltinBlas(platformDenseKernelFamilies).trmm(
+        koblas.trmm(
             triangle,
             source,
             lower = true,
@@ -160,7 +161,7 @@ class PackedTrmmTest {
         source[0, 0] = Double.MAX_VALUE
         source[1, 0] = Double.MAX_VALUE
 
-        BuiltinBlas(platformDenseKernelFamilies).trmm(
+        koblas.trmm(
             triangle,
             source,
             lower = true,

@@ -10,11 +10,11 @@ import com.eignex.koblas.VectorLike
  * Shared dense matrix algorithms bound to one immutable set of built-in kernels.
  *
  */
-internal class BuiltinBlas(private val kernelFamilies: DenseKernelFamilies) : Blas {
-    private val vectorKernels = kernelFamilies.vector
-    private val panelKernels = kernelFamilies.panel
-    private val packedKernels = kernelFamilies.packed
-
+internal class BuiltinBlas(
+    private val vectorKernels: DenseVectorKernels,
+    private val panelKernels: DensePanelKernels,
+    private val packedKernels: PackedKernels,
+) : Blas {
     override fun gemv(
         alpha: Double,
         a: DenseMatrix,

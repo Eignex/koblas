@@ -260,7 +260,7 @@ class PackedPanelsTest {
 
         koblas.packedPanels.packLeft(a, packedA, rows, depth)
         koblas.packedPanels.packRight(b, packedB, depth, columns)
-        platformDenseKernelFamilies.packed.gemmTile(
+        koblas.packedKernels.gemmTile(
             depth,
             packedA,
             0,

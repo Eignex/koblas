@@ -7,6 +7,14 @@ import com.eignex.koblas.portableRot
 import com.eignex.koblas.portableRotmg
 import kotlin.math.sqrt
 
+/** Whether the incubating Vector API resolved without initializing its implementation classes. */
+internal val simdAvailable: Boolean = try {
+    Class.forName("jdk.incubator.vector.DoubleVector")
+    true
+} catch (_: Throwable) {
+    false
+}
+
 /** The JVM Vector API kernels without automatic C selection. */
 internal object SimdKernels : DenseVectorKernels {
     private val lanes: Int = if (simdAvailable) SimdOps.lanes() else 0

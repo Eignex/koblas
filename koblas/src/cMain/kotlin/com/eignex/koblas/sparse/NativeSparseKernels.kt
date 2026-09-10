@@ -1,11 +1,9 @@
 @file:OptIn(kotlinx.cinterop.ExperimentalForeignApi::class)
-@file:Suppress("MatchingDeclarationName") // actual family selection shares this source set boundary
 
 package com.eignex.koblas.sparse
 
 import com.eignex.koblas.SparseVector
 import com.eignex.koblas.dense.NativeCKernels
-import com.eignex.koblas.dense.NativeCPanelKernels
 import com.eignex.koblas.internal.kernels.*
 import com.eignex.koblas.requireShape
 import kotlinx.cinterop.addressOf
@@ -174,12 +172,3 @@ internal object NativeCSparseKernels : SparseKernels {
 
     override fun asum(x: SparseVector): Double = NativeCKernels.asum(x.values, 0, x.values.size)
 }
-
-internal val nativeCSparseKernelFamilies: SparseKernelFamilies = SparseKernelFamilies(
-    NativeCSparseKernels,
-    NativeCIndexedSparseKernels,
-    NativeCKernels,
-    NativeCPanelKernels,
-)
-
-internal actual val platformSparseKernelFamilies: SparseKernelFamilies = nativeCSparseKernelFamilies

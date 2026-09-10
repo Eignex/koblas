@@ -138,10 +138,3 @@ internal object ScalarSparseKernels : SparseKernels {
 
     override fun asum(x: SparseVector): Double = ScalarKernels.asum(x.values, 0, x.values.size)
 }
-
-internal val scalarSparseKernelFamilies: SparseKernelFamilies = SparseKernelFamilies(
-    ScalarSparseKernels,
-    ScalarIndexedSparseKernels,
-    ScalarKernels,
-    com.eignex.koblas.dense.ScalarPanelKernels,
-)

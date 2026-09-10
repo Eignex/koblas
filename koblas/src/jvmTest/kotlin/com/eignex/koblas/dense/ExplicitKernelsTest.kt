@@ -1,7 +1,8 @@
 package com.eignex.koblas.dense
 
+import com.eignex.koblas.BuiltinEngines
 import com.eignex.koblas.DenseMatrix
-import com.eignex.koblas.internal.kernels.JvmCKernelBindings
+import com.eignex.koblas.KoblasContext
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -12,18 +13,18 @@ import kotlin.test.assertEquals
 class ExplicitKernelsTest {
     @Test
     fun `available explicit kernels preserve vector contracts`() {
-        for ((vector, _) in availableKernels()) {
-            assertModifiedGivensKernelsAgreeWithReference(vector)
-            assertRotKernelAgreesWithReference(vector)
+        for (engine in availableEngines()) {
+            assertModifiedGivensKernelsAgreeWithReference(engine.vectorKernels)
+            assertRotKernelAgreesWithReference(engine.vectorKernels)
         }
     }
 
     @Test
     fun `available explicit kernels preserve exceptional arithmetic`() {
-        for ((_, families) in availableKernels()) {
-            assertAxpyArithmeticPreservesOverflow(families.panel)
-            assertSymvPreservesFiniteCancellation(families)
-            assertSymvPreservesOverflow(families)
+        for (engine in availableEngines()) {
+            assertAxpyArithmeticPreservesOverflow(engine.panelKernels)
+            assertSymvPreservesFiniteCancellation(engine)
+            assertSymvPreservesOverflow(engine)
         }
     }
 
@@ -36,23 +37,15 @@ class ExplicitKernelsTest {
         assertEquals(Double.NEGATIVE_INFINITY, y[0])
     }
 
-    private fun availableKernels(): List<Pair<DenseVectorKernels, DenseKernelFamilies>> = buildList {
-        if (JvmCKernelBindings.isAvailable) add(CKernels to cDenseKernelFamilies)
-        if (simdAvailable) add(SimdKernels to simdDenseKernelFamilies)
-    }
+    private fun availableEngines(): List<KoblasContext> = listOfNotNull(BuiltinEngines.c, BuiltinEngines.simd)
 
-    private fun assertSymvPreservesFiniteCancellation(families: DenseKernelFamilies) =
-        assertSymvColumnResult(families, second = -1e308, common = 1e308, expectedValue = 1e308)
+    private fun assertSymvPreservesFiniteCancellation(engine: KoblasContext) =
+        assertSymvColumnResult(engine, second = -1e308, common = 1e308, expectedValue = 1e308)
 
-    private fun assertSymvPreservesOverflow(families: DenseKernelFamilies) =
-        assertSymvColumnResult(families, second = 1e308, common = -1e308, expectedValue = Double.POSITIVE_INFINITY)
+    private fun assertSymvPreservesOverflow(engine: KoblasContext) =
+        assertSymvColumnResult(engine, second = 1e308, common = -1e308, expectedValue = Double.POSITIVE_INFINITY)
 
-    private fun assertSymvColumnResult(
-        families: DenseKernelFamilies,
-        second: Double,
-        common: Double,
-        expectedValue: Double,
-    ) {
+    private fun assertSymvColumnResult(engine: KoblasContext, second: Double, common: Double, expectedValue: Double) {
         val n = DenseTuning.symvFourColumnCrossover
         val column = n - 8
         val a = DenseMatrix(n, n)
@@ -67,9 +60,9 @@ class ExplicitKernelsTest {
         val actual = DoubleArray(n)
 
         ReferenceBlas.symv(1.0, a, x, 0.0, expected, lower = true)
-        BuiltinBlas(families).symv(1.0, a, x, 0.0, actual, lower = true)
+        engine.symv(1.0, a, x, 0.0, actual, lower = true)
 
         assertEquals(expectedValue, expected[column])
-        assertEquals(expected[column], actual[column], families.vector.name)
+        assertEquals(expected[column], actual[column], engine.vectorKernels.name)
     }
 }

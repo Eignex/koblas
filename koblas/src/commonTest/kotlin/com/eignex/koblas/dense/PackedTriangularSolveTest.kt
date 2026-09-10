@@ -1,8 +1,11 @@
 package com.eignex.koblas.dense
 
+import com.eignex.koblas.BuiltinEngines
 import com.eignex.koblas.DenseMatrix
+import com.eignex.koblas.KoblasContext
 import com.eignex.koblas.Workspace
 import com.eignex.koblas.assertClose
+import com.eignex.koblas.koblas
 import com.eignex.koblas.poisonedTriangle
 import com.eignex.koblas.randomMatrix
 import kotlin.random.Random
@@ -56,7 +59,7 @@ class PackedTriangularSolveTest {
     @Test
     fun `ordinary left solve preserves singular zero pivot semantics`() {
         val order = 16
-        for (families in listOf(scalarDenseKernelFamilies, platformDenseKernelFamilies)) {
+        for (engine in listOf(BuiltinEngines.scalar, koblas).distinct()) {
             for (lower in booleanArrayOf(false, true)) {
                 val triangle = DenseMatrix.zero(order)
                 for (column in 0 until order) {
@@ -69,7 +72,7 @@ class PackedTriangularSolveTest {
                     }
                 }
                 assertWideTrsmAgreesWithReference(
-                    families,
+                    engine,
                     triangle,
                     DenseMatrix.zero(order, 32),
                     lower,
@@ -83,7 +86,7 @@ class PackedTriangularSolveTest {
     @Test
     fun `ordinary solve preserves overflow and cancellation semantics`() {
         val order = 16
-        for (families in listOf(scalarDenseKernelFamilies, platformDenseKernelFamilies)) {
+        for (engine in listOf(BuiltinEngines.scalar, koblas).distinct()) {
             for (lower in booleanArrayOf(false, true)) {
                 for (right in booleanArrayOf(false, true)) {
                     val triangle = DenseMatrix.zero(order)
@@ -110,7 +113,7 @@ class PackedTriangularSolveTest {
                                 if (right) source[panel, i] = rhs[i] else source[i, panel] = rhs[i]
                             }
                         }
-                        assertWideTrsmAgreesWithReference(families, triangle, source, lower, transpose = !right, right)
+                        assertWideTrsmAgreesWithReference(engine, triangle, source, lower, transpose = !right, right)
                     }
                 }
             }
@@ -119,14 +122,13 @@ class PackedTriangularSolveTest {
 
     @Suppress("LongParameterList")
     private fun assertWideTrsmAgreesWithReference(
-        families: DenseKernelFamilies,
+        engine: KoblasContext,
         triangle: DenseMatrix,
         source: DenseMatrix,
         lower: Boolean,
         transpose: Boolean,
         right: Boolean,
     ) {
-        val reference = BuiltinBlas(families)
         val order = triangle.rows
         val panels = if (right) source.rows else source.cols
         val expected = DenseMatrix.wrap(source.rows, source.cols, source.data.copyOf())
@@ -134,19 +136,19 @@ class PackedTriangularSolveTest {
             // One RHS retains the reference walk independently of the wide call's packed dispatch.
             val rhs = DoubleArray(order) { i -> if (right) source[panel, i] else source[i, panel] }
             val narrow = if (right) DenseMatrix.wrap(1, order, rhs) else DenseMatrix.wrap(order, 1, rhs)
-            reference.trsm(triangle, narrow, lower, transpose, right = right)
+            engine.trsm(triangle, narrow, lower, transpose, right = right)
             for (i in 0 until order) {
                 if (right) expected[panel, i] = rhs[i] else expected[i, panel] = rhs[i]
             }
         }
         val actual = DenseMatrix.wrap(source.rows, source.cols, source.data.copyOf())
 
-        reference.trsm(triangle, actual, lower, transpose, right = right)
+        engine.trsm(triangle, actual, lower, transpose, right = right)
 
         assertContentEquals(
             expected.data,
             actual.data,
-            "${families.vector.name} lower=$lower transpose=$transpose right=$right",
+            "${engine.vectorKernels.name} lower=$lower transpose=$transpose right=$right",
         )
     }
 

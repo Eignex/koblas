@@ -2,7 +2,7 @@
 
 package com.eignex.koblas.bench
 
-import com.eignex.koblas.BuiltinKernels
+import com.eignex.koblas.BuiltinEngines
 import com.eignex.koblas.KoblasContext
 import kotlinx.cinterop.memScoped
 import kotlinx.cinterop.toKString
@@ -43,7 +43,7 @@ internal actual fun writeTextFile(path: String, text: String) = memScoped {
 
 internal actual fun resolveEngine(mode: String): Pair<KoblasContext, String> {
     require(mode == "native") { "Native runner requires --mode=native" }
-    val engine = requireNotNull(BuiltinKernels.c) { "requested native C engine is unavailable" }
+    val engine = requireNotNull(BuiltinEngines.c) { "requested native C engine is unavailable" }
     return engine to "native/${engine.vectorKernels.name}/${engine.sparseKernels.name}/packed-${engine.packedKernels.gemmTileRows}x${engine.packedKernels.gemmTileCols}"
 }
 
