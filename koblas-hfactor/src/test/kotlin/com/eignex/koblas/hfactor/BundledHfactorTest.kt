@@ -1,12 +1,11 @@
 package com.eignex.koblas.hfactor
 
 import com.eignex.koblas.*
-import com.eignex.koblas.sparse.basis.BasisSolver
 import com.eignex.koblas.sparse.basis.BasisUpdate
 import com.eignex.koblas.sparse.basis.IndexedVector
 import com.eignex.koblas.sparse.host.hfactor.HfactorBasisSolver
+import com.eignex.koblas.sparse.host.hfactor.HfactorConfig
 import com.eignex.koblas.sparse.host.hfactor.HfactorFactorization
-import com.eignex.koblas.sparse.host.hfactor.HfactorOptions
 import com.eignex.koblas.sparse.host.hfactor.HfactorSparseLu
 import com.eignex.koblas.sparse.host.hfactor.HfactorUpdateMethod
 import kotlin.math.abs
@@ -37,7 +36,7 @@ class BundledHfactorTest {
 
     private fun logicalBasis(n: Int) = IntArray(n) { n + it }
 
-    private fun solved(solver: BasisSolver, b: DoubleArray, transpose: Boolean): DoubleArray {
+    private fun solved(solver: HfactorBasisSolver, b: DoubleArray, transpose: Boolean): DoubleArray {
         val x = IndexedVector(b.size)
         x.scatter(b)
         if (transpose) solver.btran(x) else solver.ftran(x)
@@ -52,7 +51,7 @@ class BundledHfactorTest {
      * some other way, and a backend reusing its own solves has to recompute them instead.
      */
     private fun pivot(
-        solver: BasisSolver,
+        solver: HfactorBasisSolver,
         a: SparseMatrix,
         slots: IntArray,
         rebuildAt: Int,
@@ -85,13 +84,13 @@ class BundledHfactorTest {
 
     @Test
     fun `the bundled HFactor is available`() {
-        assertTrue(backend.isAvailable)
+        assertTrue(backend.availability.available)
     }
 
     @Test
     fun `direct HFactor construction exposes availability and options`() {
         val configured = BundledHfactor(
-            HfactorOptions(equilibrate = true, pivotThreshold = 0.2, pivotTolerance = 1e-8),
+            HfactorConfig(equilibrate = true, pivotThreshold = 0.2, pivotTolerance = 1e-8),
         )
         val matrix = SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 4.0), listOf(1 to 8.0)))
 
@@ -106,7 +105,7 @@ class BundledHfactorTest {
     @Test
     fun `shared equilibration option reaches the binding without leaving HFactor`() {
         val equilibrated = BundledHfactor(
-            HfactorOptions(
+            HfactorConfig(
                 equilibrate = true,
                 pivotThreshold = 0.2,
                 pivotTolerance = 1e-8,
@@ -140,7 +139,7 @@ class BundledHfactorTest {
     @Test
     fun `the bundled HFactor accepts numerical update controls`() {
         val configured = BundledHfactor(
-            HfactorOptions(
+            HfactorConfig(
                 pivotThreshold = 0.2,
                 pivotTolerance = 1e-8,
                 updateMethod = HfactorUpdateMethod.PRODUCT_FORM,
@@ -169,12 +168,6 @@ class BundledHfactorTest {
         assertFailsWith<IllegalStateException> { factorization.nnz }
         assertFailsWith<IllegalStateException> { factorization.rcond }
         assertFailsWith<IllegalStateException> { factorization.solve(DoubleArray(n)) }
-        assertFailsWith<IllegalStateException> { factorization.l }
-        assertFailsWith<IllegalStateException> { factorization.u }
-        assertFailsWith<IllegalStateException> { factorization.rowOrder }
-        assertFailsWith<IllegalStateException> { factorization.columnOrder }
-        assertFailsWith<IllegalStateException> { factorization.rowScaling }
-        assertFailsWith<IllegalStateException> { factorization.offDiagonal }
     }
 
     @Test
@@ -305,7 +298,7 @@ class BundledHfactorTest {
      */
     @Test
     fun `an equilibrated factorization solves as the unscaled one does`() {
-        val equilibrated = BundledHfactor(HfactorOptions(equilibrate = true))
+        val equilibrated = BundledHfactor(HfactorConfig(equilibrate = true))
         val n = 8
         val a = badlyScaled(n, Random(20260906))
         val b = DoubleArray(n) { (it + 1).toDouble() }
@@ -332,7 +325,7 @@ class BundledHfactorTest {
         val a = badlyScaled(8, Random(20260906))
 
         val unscaled = backend.factor(a).rcond
-        val scaled = BundledHfactor(HfactorOptions(equilibrate = true)).factor(a).rcond
+        val scaled = BundledHfactor(HfactorConfig(equilibrate = true)).factor(a).rcond
 
         assertTrue(scaled > unscaled * 100.0, "pivot ratio $unscaled unscaled against $scaled equilibrated")
     }

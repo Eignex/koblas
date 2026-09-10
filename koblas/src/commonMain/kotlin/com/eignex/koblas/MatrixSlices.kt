@@ -67,13 +67,13 @@ public fun SparseMatrix.row(i: Int): SparseVector {
  * Fresh transposed matrix, with the active backend ([koblas]). For products, prefer the transpose flags on
  * gemv and gemm, which read the original storage without copying. See [Blas.transpose].
  */
-public fun DenseMatrix.transpose(): DenseMatrix = koblas.blas.transpose(this)
+public fun DenseMatrix.transpose(): DenseMatrix = koblas.transpose(this)
 
 /**
  * Fresh transposed matrix, still CSC, which makes this the CSC-to-CSR conversion as well, with the active
- * backend ([koblas]). See [com.eignex.koblas.sparse.SparseBlas.transpose].
+ * backend ([koblas]).
  */
-public fun SparseMatrix.transpose(): SparseMatrix = koblas.sparseBlas.transpose(this)
+public fun SparseMatrix.transpose(): SparseMatrix = koblas.transpose(this)
 
 /**
  * Fresh matrix with column [column] replaced by [entering], still CSC. The replacement is structural, so an

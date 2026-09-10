@@ -782,8 +782,8 @@ class SymmetricBlasTest {
                 workspace = ws,
             )
         }
-        assertEquals(2, ws.available(ScratchRequirement(n * k)))
-        assertEquals(1, ws.available(ScratchRequirement(PORTABLE_TILE * PORTABLE_TILE)))
+        assertEquals(2, ws.available(n * k))
+        assertEquals(1, ws.available(PORTABLE_TILE * PORTABLE_TILE))
     }
 
     @Test
@@ -859,6 +859,6 @@ class SymmetricBlasTest {
             )
         }
 
-        assertEquals(2, ws.available(ScratchRequirement(n * k)))
+        assertEquals(2, ws.available(n * k))
     }
 }

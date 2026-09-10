@@ -1,6 +1,10 @@
+@file:Suppress("MatchingDeclarationName") // packed structure and its layout operations are one unit
+
 package com.eignex.koblas.dense
 
 import kotlin.math.min
+
+internal enum class PackedPanelStructure { General, Symmetric, Triangular }
 
 /**
  * Trusted array-level layout leaves for the padded panels consumed by [PackedKernels]. Callers provide valid,

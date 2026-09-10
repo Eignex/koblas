@@ -15,9 +15,11 @@ public enum class HfactorUpdateMethod(internal val nativeValue: Int) {
     ALTERNATE_PRODUCT_FORM(4),
 }
 
-/** Numerical and execution policy shared by explicit-path and bundled HFactor construction. */
-public data class HfactorOptions(
-    /** Whether the binding scales rows before factorization. */
+/** Policy for one HFactor solver factory. */
+public data class HfactorConfig(
+    /** An absolute path to the library, or the platform lookup chain when null. */
+    val libraryPath: String? = null,
+    /** Whether to scale rows before factorizing and undo it in the solves. */
     val equilibrate: Boolean = false,
     /** Markowitz pivot acceptance as a fraction of the largest entry in its column. */
     val pivotThreshold: Double = 0.1,
@@ -34,39 +36,6 @@ public data class HfactorOptions(
             "pivotTolerance must be finite and in [0, 1]: $pivotTolerance"
         }
     }
-}
-
-/** Policy for one HFactor solver factory. */
-public data class HfactorConfig(
-    /** An absolute path to the library, or the platform lookup chain when null. */
-    val libraryPath: String? = null,
-    /** Whether to scale rows before factorizing and undo it in the solves. */
-    val equilibrate: Boolean = false,
-    /** Markowitz pivot acceptance as a fraction of the largest entry in its column. */
-    val pivotThreshold: Double = 0.1,
-    /** Smallest acceptable absolute pivot. */
-    val pivotTolerance: Double = 1e-10,
-    /** Factor update representation retained between reinversions. */
-    val updateMethod: HfactorUpdateMethod = HfactorUpdateMethod.FORREST_TOMLIN,
-) {
-    init {
-        HfactorOptions(equilibrate, pivotThreshold, pivotTolerance, updateMethod)
-    }
-
-    /** Creates a platform-library HFactor configuration from shared [options]. */
-    public constructor(options: HfactorOptions) : this(null, options)
-
-    /** Creates an HFactor configuration from a library location and shared [options]. */
-    public constructor(libraryPath: String?, options: HfactorOptions) : this(
-        libraryPath,
-        options.equilibrate,
-        options.pivotThreshold,
-        options.pivotTolerance,
-        options.updateMethod,
-    )
-
-    /** Numerical and execution policy, independent of [libraryPath]. */
-    public val options: HfactorOptions get() = HfactorOptions(equilibrate, pivotThreshold, pivotTolerance, updateMethod)
 }
 
 /** Result of probing one explicitly constructed HFactor implementation. */
@@ -88,10 +57,3 @@ internal val HFACTOR_SONAMES: List<String> = listOf(
     "libkoblas_hfactor.1.dylib",
     "libkoblas_hfactor.dylib",
 )
-
-/** What the bridge's `koblas_hfactor_update` answers with, which is advice rather than a status. */
-internal object HfactorUpdate {
-    const val REFUSED = -1
-    const val APPLIED = 0
-    const val REFACTORIZE = 1
-}

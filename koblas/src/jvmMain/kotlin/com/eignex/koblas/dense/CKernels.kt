@@ -1,7 +1,6 @@
 package com.eignex.koblas.dense
 
 import com.eignex.koblas.ModifiedGivens
-import com.eignex.koblas.internal.configuration.ImplementationNames
 import com.eignex.koblas.internal.kernels.JvmCKernelBindings
 import com.eignex.koblas.internal.numeric.*
 import com.eignex.koblas.portableRot
@@ -23,7 +22,7 @@ internal object CKernels : DenseVectorKernels {
     private val NRM2_C_CROSSOVER = DenseTuning.jvmCNrm2Crossover
     private val ASUM_C_CROSSOVER = DenseTuning.jvmCAsumCrossover
 
-    override val name: String get() = ImplementationNames.C
+    override val name: String get() = "c"
 
     val isAvailable: Boolean get() = JvmCKernelBindings.isAvailable
 

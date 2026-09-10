@@ -14,7 +14,7 @@ class AllocationFreeTest {
         /** Allowance for effects that are not koblas's (instrumentation, index boxing, JIT noise). */
         const val FLOOR_BYTES = 64.0
 
-        val engine = BuiltinKernels.scalar.engine()
+        val engine = BuiltinKernels.scalar
     }
 
     @Test
@@ -189,23 +189,23 @@ class AllocationFreeTest {
 
     @Test
     fun `packed solve kernels allocate nothing`() {
-        val rows = PackedPanels.tileRows
-        val order = PackedPanels.tileColumns
+        val rows = koblas.packedPanels.tileRows
+        val order = koblas.packedPanels.tileColumns
         val depth = 32
-        val left = DoubleArray(PackedPanels.leftSize(rows, depth)) { 0.01 * (it + 1) }
-        val right = DoubleArray(PackedPanels.rightSize(depth, order)) { 0.005 * (it + 1) }
-        val triangle = DoubleArray(PackedPanels.rightSize(order, order))
+        val left = DoubleArray(koblas.packedPanels.leftSize(rows, depth)) { 0.01 * (it + 1) }
+        val right = DoubleArray(koblas.packedPanels.rightSize(depth, order)) { 0.005 * (it + 1) }
+        val triangle = DoubleArray(koblas.packedPanels.rightSize(order, order))
         for (i in 0 until order) {
             for (j in 0..i) triangle[i * order + j] = if (i == j) 2.0 else 0.1
         }
-        val x = DoubleArray(PackedPanels.leftSize(rows, order)) { 1.0 }
+        val x = DoubleArray(koblas.packedPanels.leftSize(rows, order)) { 1.0 }
 
         val solveBytes = bytesPerIteration(1000) {
-            PackedPanels.trsm(triangle, x, rows, order, lower = true)
+            koblas.packedPanels.trsm(triangle, x, rows, order, lower = true)
             x
         }
         val fusedBytes = bytesPerIteration(1000, warmup = 20_000) {
-            PackedPanels.gemmTrsm(left, right, triangle, x, rows, order, depth, lower = true)
+            koblas.packedPanels.gemmTrsm(left, right, triangle, x, rows, order, depth, lower = true)
             x
         }
 
@@ -268,7 +268,7 @@ class AllocationFreeTest {
         val workspace = Workspace().apply { reserve(b.data.size, count = 1) }
 
         val bytes = bytesPerIteration(300) {
-            engine.sparseBlas.gemm(1e-8, sparse, false, b, true, 1.0, c, right = true, workspace = workspace)
+            engine.gemm(1e-8, sparse, false, b, true, 1.0, c, right = true, workspace = workspace)
             c
         }
 
@@ -289,11 +289,11 @@ class AllocationFreeTest {
 
         val levelOneBytes = bytesPerIteration(1_000) { engine.sparseKernels.dot(vector, x) }
         val gemvBytes = bytesPerIteration(1_000) {
-            engine.sparseBlas.gemv(1e-12, sparse, x, 1.0, y, transpose = true)
+            engine.gemv(1e-12, sparse, x, 1.0, y, transpose = true)
             y
         }
         val symvBytes = bytesPerIteration(1_000) {
-            engine.sparseBlas.symv(1e-12, sparse, x, 1.0, y, lower = true)
+            engine.symv(1e-12, sparse, x, 1.0, y, lower = true)
             y
         }
 
@@ -314,18 +314,18 @@ class AllocationFreeTest {
             reserve(n, count = 1)
             reserveI32(n, count = 2)
         }
-        engine.sparseBlas.syrk(1e-12, sparse, false, 1.0, product, workspace = workspace)
+        engine.syrk(1e-12, sparse, false, 1.0, product, workspace = workspace)
 
         val syrkBytes = bytesPerIteration(300) {
-            engine.sparseBlas.syrk(1e-12, sparse, false, 1.0, product, workspace = workspace)
+            engine.syrk(1e-12, sparse, false, 1.0, product, workspace = workspace)
             product
         }
         val symmBytes = bytesPerIteration(300) {
-            engine.sparseBlas.symm(1e-12, sparse, rhs, 1.0, symmetricProduct, workspace = workspace)
+            engine.symm(1e-12, sparse, rhs, 1.0, symmetricProduct, workspace = workspace)
             symmetricProduct
         }
         val gemmBytes = bytesPerIteration(300) {
-            engine.sparseBlas.gemm(1e-12, sparse, false, identity, false, 1.0, product, workspace)
+            engine.gemm(1e-12, sparse, false, identity, false, 1.0, product, workspace)
             product
         }
 
@@ -345,7 +345,7 @@ class AllocationFreeTest {
         }
 
         val bytes = bytesPerIteration(500) {
-            engine.sparseBlas.trsm(sparse, b, lower = true, workspace = workspace)
+            engine.trsm(sparse, b, lower = true, workspace = workspace)
             b
         }
 

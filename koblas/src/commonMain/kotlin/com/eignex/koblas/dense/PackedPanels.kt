@@ -20,10 +20,7 @@ import com.eignex.koblas.Workspace
  * rows and the same depth as `T`. This is also the column-major tile written by [PackedKernels.gemmTile], so a
  * solved panel can be retained for later packed updates without conversion.
  */
-public open class PackedPanels internal constructor(private val kernels: PackedKernels) {
-    /** Platform-selected packed panel operations retained for source-compatible convenience calls. */
-    public companion object : PackedPanels(platformDenseKernelFamilies.packed)
-
+public class PackedPanels internal constructor(private val kernels: PackedKernels) {
     /** Number of contiguous values in each shared-dimension step of a left panel for this engine. */
     public val tileRows: Int get() = kernels.gemmTileRows
 

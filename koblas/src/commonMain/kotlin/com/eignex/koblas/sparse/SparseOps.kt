@@ -22,11 +22,11 @@ public fun SparseMatrix.trmv(
 ): Unit = koblas.trmv(this, x, lower, transpose, unitDiag)
 
 /** Prepares an immutable snapshot of this matrix for repeated products. */
-public fun SparseMatrix.prepare(): PreparedSparseMatrix = koblas.sparseBlas.prepare(this)
+public fun SparseMatrix.prepare(): PreparedSparseMatrix = koblas.prepare(this)
 
 /** Symmetric product with [x] into a fresh dense vector, reading only this matrix's selected triangle. */
 public fun SparseMatrix.symv(x: DoubleArray, lower: Boolean = true): DoubleArray =
-    DoubleArray(rows).also { koblas.sparseBlas.symv(1.0, this, x, 0.0, it, lower) }
+    DoubleArray(rows).also { koblas.symv(1.0, this, x, 0.0, it, lower) }
 
 /** Symmetric `y = alpha · A · x + beta · y`, reading only this matrix's selected triangle. */
 @Suppress("LongParameterList")
@@ -36,7 +36,7 @@ public fun SparseMatrix.symv(
     beta: Double,
     y: DoubleArray,
     lower: Boolean = true,
-): Unit = koblas.sparseBlas.symv(alpha, this, x, beta, y, lower)
+): Unit = koblas.symv(alpha, this, x, beta, y, lower)
 
 /** Symmetric sparse-dense product into [c], with this selected-triangle matrix on either side. */
 @Suppress("LongParameterList")
@@ -48,11 +48,11 @@ public fun SparseMatrix.symm(
     lower: Boolean = true,
     right: Boolean = false,
     workspace: Workspace? = null,
-): Unit = koblas.sparseBlas.symm(alpha, this, b, beta, c, lower, right, workspace)
+): Unit = koblas.symm(alpha, this, b, beta, c, lower, right, workspace)
 
 /** Fresh selected CSC triangle of `op(A) · op(A)ᵀ`. */
 public fun SparseMatrix.syrk(transpose: Boolean = false, lower: Boolean = true): SparseMatrix =
-    koblas.sparseBlas.syrk(this, transpose, lower)
+    koblas.syrk(this, transpose, lower)
 
 /** Dense selected-triangle sparse rank-k product into [c]. */
 @Suppress("LongParameterList")
@@ -63,11 +63,11 @@ public fun SparseMatrix.syrk(
     c: DenseMatrix,
     lower: Boolean = true,
     workspace: Workspace? = null,
-): Unit = koblas.sparseBlas.syrk(alpha, this, transpose, beta, c, lower, workspace)
+): Unit = koblas.syrk(alpha, this, transpose, beta, c, lower, workspace)
 
 /** Fresh CSC `alpha · op(A) + B`, retaining the structural union. */
 public fun SparseMatrix.addScaled(alpha: Double, transpose: Boolean, b: SparseMatrix): SparseMatrix =
-    koblas.sparseBlas.addScaled(alpha, this, transpose, b)
+    koblas.addScaled(alpha, this, transpose, b)
 
 /** Solve `op(T) · X = B` in place for every column of [b]. */
 @Suppress("LongParameterList")
@@ -79,7 +79,7 @@ public fun SparseMatrix.trsm(
     right: Boolean = false,
     alpha: Double = 1.0,
     workspace: Workspace? = null,
-): Unit = koblas.sparseBlas.trsm(this, b, lower, transpose, unitDiag, right, alpha, workspace)
+): Unit = koblas.trsm(this, b, lower, transpose, unitDiag, right, alpha, workspace)
 
 /** Multiply [b] in place by this triangular matrix. */
 @Suppress("LongParameterList")

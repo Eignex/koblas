@@ -1,5 +1,6 @@
 package com.eignex.koblas.sparse
 
+import com.eignex.koblas.dense.DensePanelKernels
 import com.eignex.koblas.dense.DenseVectorKernels
 
 /** Numerical leaves over trusted sorted indexed slices. Callers own shape and slice validation. */
@@ -38,16 +39,10 @@ internal interface IndexedSparseKernels {
 internal class SparseKernelFamilies(
     val vector: SparseKernels,
     val indexed: IndexedSparseKernels,
-    val panel: PortableSparsePanelKernels,
-)
-
-internal fun sparseKernelFamilies(
-    vector: SparseKernels,
-    indexed: IndexedSparseKernels,
     values: DenseVectorKernels,
-    panels: com.eignex.koblas.dense.DensePanelKernels,
-): SparseKernelFamilies = SparseKernelFamilies(
-    vector,
-    indexed,
-    PortableSparsePanelKernels(values, panels),
-)
+    panels: DensePanelKernels,
+) {
+    val panel = SparsePanelKernels(values, panels)
+}
+
+internal expect val platformSparseKernelFamilies: SparseKernelFamilies

@@ -26,7 +26,7 @@ class StridedBlasTest {
         val storage = doubleArrayOf(0.0, 0.0)
         val y = StridedVectorView(storage, 0, 2)
 
-        koblas.blas.gemv(1.0, a, x, 0.0, y)
+        koblas.gemv(1.0, a, x, 0.0, y)
 
         assertTrue(storage[0].isNaN(), "the infinite coefficient was skipped, giving ${storage[0]}")
     }
@@ -38,7 +38,7 @@ class StridedBlasTest {
         val storage = doubleArrayOf(5.0)
         val c = DenseMatrix.wrap(1, 1, storage).asView()
 
-        koblas.blas.gemm(0.0, a, false, b, false, 0.0, c)
+        koblas.gemm(0.0, a, false, b, false, 0.0, c)
 
         assertEquals(0.0, storage[0], "alpha zero let an infinite operand reach the destination")
     }

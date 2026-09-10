@@ -22,7 +22,7 @@ import com.eignex.koblas.sparse.internal.sparseSyr2
  * A sparse or generic [x] is never materialised as a dense array: a dense `A` takes one column axpy per
  * stored entry of [x], a sparse `A` walks the stored entries of each such column, and any other
  * [MatrixLike] falls back to indexed reads. Dense storage on both sides dispatches straight to the
- * backend, either [Blas.gemv] or [com.eignex.koblas.sparse.SparseBlas.gemv].
+ * backend, using the dense or sparse `gemv` overload selected by `A`.
  *
  * [destination] must not be the backing array of [x] or of a dense `A`, as for [Blas.gemv] over strided
  * views: the product reads every operand entry while writing, so an aliased destination would feed partial
@@ -50,7 +50,7 @@ public fun MatrixLike.gemvInto(alpha: Double, x: VectorLike, beta: Double, desti
         return
     }
     if (x is DenseVector && a is SparseMatrix) {
-        koblas.sparseBlas.gemv(alpha, a, x.data, beta, destination)
+        koblas.gemv(alpha, a, x.data, beta, destination)
         return
     }
     destination.prescale(beta)

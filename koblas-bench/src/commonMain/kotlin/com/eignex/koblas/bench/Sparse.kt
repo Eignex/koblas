@@ -125,7 +125,7 @@ private fun preparedOrOneShot(
         return CaseWork(comparison, "oneshot", oneShotRun)
     }
     val prepared = engine.prepare(matrix)
-    return CaseWork(comparison, "prepared", { preparedRun(prepared) }, { prepared.close() })
+    return CaseWork(comparison, "prepared", { preparedRun(prepared) })
 }
 
 private fun workspaceWork(case: BenchCase, density: Double): CaseWork {

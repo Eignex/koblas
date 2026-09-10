@@ -8,10 +8,10 @@ import kotlin.test.Test
 class JvmBuiltinKernelsTest {
     @Test
     fun `available explicit providers agree with scalar kernels`() {
-        listOfNotNull(BuiltinKernels.c, BuiltinKernels.simd).forEach { provider ->
-            assertLevel1KernelsAgreeWithReference(provider.vectorKernels)
-            assertReductionsAgreeWithReference(provider.vectorKernels)
-            assertSwapAgreesWithReference(provider.vectorKernels)
+        listOfNotNull(BuiltinKernels.c, BuiltinKernels.simd).forEach { engine ->
+            assertLevel1KernelsAgreeWithReference(engine.vectorKernels)
+            assertReductionsAgreeWithReference(engine.vectorKernels)
+            assertSwapAgreesWithReference(engine.vectorKernels)
         }
     }
 }

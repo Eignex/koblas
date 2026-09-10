@@ -11,8 +11,6 @@ public interface SparseFactorization : AutoCloseable {
     public val singular: Boolean get() = failedAt != NOT_SINGULAR
     public val nnz: Int
     public val rcond: Double
-    public fun solveAllocation(aliasing: Boolean = true, transpose: Boolean = false): AllocationCapability =
-        AllocationCapability(AllocationGuarantee.UNRESTRICTED)
     public fun solveInto(
         b: DoubleArray,
         out: DoubleArray,
@@ -40,30 +38,14 @@ public interface SparseFactorization : AutoCloseable {
         }
         return out
     }
-    public fun solveInto(
-        b: DoubleArray,
-        out: DoubleArray,
-        transpose: Boolean = false,
-        workspace: Workspace? = null,
-        allocationPolicy: AllocationPolicy,
-    ): DoubleArray {
-        requireHfactorSolveShapes(n, n, b, out)
-        val capability = solveAllocation(b === out, transpose)
-        if (!capability.supports(allocationPolicy, workspace)) {
-            throw AllocationPolicyRejectedException(allocationPolicy, capability)
-        }
-        return solveInto(b, out, transpose, workspace)
-    }
     public fun solve(b: DoubleArray, transpose: Boolean = false): DoubleArray = solveInto(b, DoubleArray(n), transpose)
     override fun close() {}
 }
 
 /** A singular result from HFactor, which exposes no factors and cannot solve. */
-public class SingularSparseFactorization(override val n: Int, override val failedAt: Int) : SparseLuFactorization {
+public class SingularSparseFactorization(override val n: Int, override val failedAt: Int) : SparseFactorization {
     override val nnz: Int get() = 0
     override val rcond: Double get() = 0.0
-    override fun solveAllocation(aliasing: Boolean, transpose: Boolean): AllocationCapability =
-        AllocationCapability(AllocationGuarantee.NO_MANAGED_OR_NATIVE)
     override fun solveInto(b: DoubleArray, out: DoubleArray, transpose: Boolean, workspace: Workspace?): DoubleArray =
         throw hfactorSingularFailure(failedAt, "solve")
 }

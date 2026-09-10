@@ -1,17 +1,15 @@
 package com.eignex.koblas.hfactor
 
-import com.eignex.koblas.AllocationGuarantee
 import com.eignex.koblas.SparseMatrix
 import com.sun.management.ThreadMXBean
 import java.lang.management.ManagementFactory
 import kotlin.test.*
 
 /**
- * What a solve through a native binding allocates, against what it says it allocates.
+ * What a solve through a native binding allocates.
  *
  * The wrapper costs a little on every call whatever the size: the ownership anchor builds closures, and the
- * binding wraps the arrays it hands over. That is why these declare the size-independent guarantee and not
- * the stronger one, and this is what holds them to it.
+ * binding wraps the arrays it hands over. This holds that overhead to a size-independent bound.
  */
 class SolveAllocationTest {
     private val bean = ManagementFactory.getThreadMXBean() as ThreadMXBean
@@ -49,18 +47,5 @@ class SolveAllocationTest {
             "eight times the order should not cost more to solve: $small at 64 against $large at 512",
         )
         assertTrue(large < 1024.0, "and the bound is a constant, not a function of n: $large at 512")
-    }
-
-    @Test
-    fun `a solve declares the guarantee it keeps`() {
-        val n = 64
-        val diagonal = SparseMatrix.ofColumns(n, n, (0 until n).map { j -> listOf(j to (n + 10.0)) })
-        val declared = BundledHfactor().factor(diagonal).solveAllocation(aliasing = false, transpose = false)
-
-        assertEquals(
-            AllocationGuarantee.NO_SIZE_DEPENDENT_MANAGED,
-            declared.guarantee,
-            "the solve allocates per call, so it cannot promise NO_MANAGED",
-        )
     }
 }

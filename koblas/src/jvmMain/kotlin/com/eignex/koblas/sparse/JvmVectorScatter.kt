@@ -1,7 +1,8 @@
+@file:Suppress("MatchingDeclarationName") // parsing and resolving the same JVM scatter setting
+
 package com.eignex.koblas.sparse
 
 import com.eignex.koblas.dense.simdAvailable
-import com.eignex.koblas.internal.configuration.ConfigurationKeys
 import com.eignex.koblas.internal.configuration.environmentVariableOrNull
 import com.eignex.koblas.internal.configuration.systemPropertyOrNull
 
@@ -31,42 +32,31 @@ internal enum class JvmVectorScatterMode {
 }
 
 /** The JVM Vector API indexed-store decision, resolved once with the sparse kernels. */
-internal class JvmVectorScatter private constructor(val mode: JvmVectorScatterMode, val enabled: Boolean) {
-    val path: String get() = if (enabled) "indexed-store" else "scalar"
+internal fun configuredJvmVectorScatter(): Boolean = jvmVectorScatterEnabled(
+    JvmVectorScatterMode.configured(
+        systemPropertyOrNull(VECTOR_SCATTER_PROPERTY),
+        environmentVariableOrNull(VECTOR_SCATTER_ENVIRONMENT),
+    ),
+    simdAvailable,
+    simdAvailable && SparseSimd.autoScatterEligible,
+)
 
-    val options: Map<String, String>
-        get() = mapOf(
-            "jvm.vector.scatter.mode" to mode.name.lowercase(),
-            "jvm.vector.scatter.path" to path,
-        )
+internal fun jvmVectorScatterEnabled(
+    mode: JvmVectorScatterMode,
+    vectorApiAvailable: Boolean,
+    autoScatterEligible: Boolean,
+): Boolean = when (mode) {
+    JvmVectorScatterMode.OFF -> false
 
-    companion object {
-        fun configured(): JvmVectorScatter {
-            val mode = JvmVectorScatterMode.configured(
-                systemPropertyOrNull(ConfigurationKeys.JVM_VECTOR_SCATTER.property),
-                environmentVariableOrNull(ConfigurationKeys.JVM_VECTOR_SCATTER.environment),
-            )
-            return resolve(mode, simdAvailable, simdAvailable && SparseSimd.autoScatterEligible)
+    JvmVectorScatterMode.ON -> {
+        check(vectorApiAvailable) {
+            "koblas.jvm.vector.scatter=on requires --add-modules=jdk.incubator.vector"
         }
-
-        fun resolve(
-            mode: JvmVectorScatterMode,
-            vectorApiAvailable: Boolean,
-            autoScatterEligible: Boolean,
-        ): JvmVectorScatter {
-            val enabled = when (mode) {
-                JvmVectorScatterMode.OFF -> false
-
-                JvmVectorScatterMode.ON -> {
-                    check(vectorApiAvailable) {
-                        "koblas.jvm.vector.scatter=on requires --add-modules=jdk.incubator.vector"
-                    }
-                    true
-                }
-
-                JvmVectorScatterMode.AUTO -> vectorApiAvailable && autoScatterEligible
-            }
-            return JvmVectorScatter(mode, enabled)
-        }
+        true
     }
+
+    JvmVectorScatterMode.AUTO -> vectorApiAvailable && autoScatterEligible
 }
+
+private const val VECTOR_SCATTER_PROPERTY = "koblas.jvm.vector.scatter"
+private const val VECTOR_SCATTER_ENVIRONMENT = "KOBLAS_JVM_VECTOR_SCATTER"

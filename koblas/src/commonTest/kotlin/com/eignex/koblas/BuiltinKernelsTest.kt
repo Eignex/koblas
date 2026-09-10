@@ -6,12 +6,9 @@ import kotlin.test.assertSame
 
 class BuiltinKernelsTest {
     @Test
-    fun `the scalar provider resolves an exact context`() {
-        val provider = BuiltinKernels.scalar
-        val context = provider.engine()
+    fun `the scalar engine uses the scalar families`() {
+        val engine = BuiltinKernels.scalar
 
-        assertSame(provider.vectorKernels, context.vectorKernels)
-        assertSame(provider.sparseKernels, context.sparseKernels)
-        assertSame(ScalarIndexedSparseKernels, context.sparseKernelFamilies.indexed)
+        assertSame(ScalarIndexedSparseKernels, engine.sparseKernelFamilies.indexed)
     }
 }

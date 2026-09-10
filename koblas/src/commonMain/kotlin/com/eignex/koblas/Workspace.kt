@@ -34,11 +34,8 @@ public class Workspace {
     /** Pre-allocates [count] integer buffers of [size]. */
     public fun reserveI32(size: Int, count: Int): Unit = indices.reserve(size, count)
 
-    /** Number of reserved floating-point buffers that can satisfy [requirement] without allocation. */
-    public fun available(requirement: ScratchRequirement): Int = doubles.available(requirement.size)
-
-    /** Reserves the floating-point buffers described by [requirement]. */
-    public fun reserve(requirement: ScratchRequirement): Unit = reserve(requirement.size, requirement.count)
+    /** Number of idle floating-point buffers of [size]. */
+    public fun available(size: Int): Int = doubles.available(size)
 }
 
 /**

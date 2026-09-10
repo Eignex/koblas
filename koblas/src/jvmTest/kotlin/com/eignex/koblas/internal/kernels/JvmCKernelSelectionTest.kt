@@ -1,10 +1,9 @@
 package com.eignex.koblas.internal.kernels
 
-import com.eignex.koblas.dense.PlatformVectorKernels
 import com.eignex.koblas.dense.cKernelsAvailable
+import com.eignex.koblas.dense.platformDenseKernelFamilies
 import com.eignex.koblas.dense.simdAvailable
-import com.eignex.koblas.internal.configuration.ImplementationNames
-import com.eignex.koblas.sparse.PlatformSparseKernels
+import com.eignex.koblas.sparse.platformSparseKernelFamilies
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -13,14 +12,14 @@ class JvmCKernelSelectionTest {
     @Test
     fun `a jvm without the vector module selects c kernels`() {
         if (simdAvailable) {
-            assertTrue(PlatformVectorKernels.name.startsWith(ImplementationNames.SIMD))
-            assertEquals(ImplementationNames.SIMD_SPARSE, PlatformSparseKernels.name)
+            assertTrue(platformDenseKernelFamilies.vector.name.startsWith("simd"))
+            assertEquals("simd-sparse", platformSparseKernelFamilies.vector.name)
         } else if (cKernelsAvailable) {
-            assertEquals(ImplementationNames.C, PlatformVectorKernels.name)
-            assertEquals(ImplementationNames.C_SPARSE, PlatformSparseKernels.name)
+            assertEquals("c", platformDenseKernelFamilies.vector.name)
+            assertEquals("c-sparse", platformSparseKernelFamilies.vector.name)
         } else {
-            assertEquals(ImplementationNames.SCALAR, PlatformVectorKernels.name)
-            assertEquals(ImplementationNames.SCALAR, PlatformSparseKernels.name)
+            assertEquals("scalar", platformDenseKernelFamilies.vector.name)
+            assertEquals("scalar", platformSparseKernelFamilies.vector.name)
         }
     }
 }

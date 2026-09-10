@@ -55,7 +55,7 @@ class SparseProductTest {
                 val fromDense = copyOf(c)
                 koblas.gemm(0.75, dense, transposeA, b, transposeB, -0.5, fromDense)
                 val fromSparse = copyOf(c)
-                koblas.sparseBlas.gemm(
+                koblas.gemm(
                     0.75,
                     sparse,
                     transposeA,
@@ -78,7 +78,7 @@ class SparseProductTest {
         val x = randomVector(4, rng)
         val c = DenseMatrix.zero(6, 1)
 
-        koblas.sparseBlas.gemm(1.0, sparse, false, DenseMatrix.wrap(4, 1, x.copyOf()), false, 0.0, c)
+        koblas.gemm(1.0, sparse, false, DenseMatrix.wrap(4, 1, x.copyOf()), false, 0.0, c)
 
         assertClose(koblas.gemv(sparse, x), c.data, "gemm over one column is gemv")
     }
@@ -122,7 +122,7 @@ class SparseProductTest {
         val b = randomMatrix(3, 2, rng)
         val c = DenseMatrix.wrap(4, 2, DoubleArray(8) { Double.NaN })
 
-        koblas.sparseBlas.gemm(1.0, sparse, false, b, false, 0.0, c)
+        koblas.gemm(1.0, sparse, false, b, false, 0.0, c)
 
         assertTrue(c.data.all { it.isFinite() }, "a NaN survived beta = 0")
     }
@@ -136,7 +136,7 @@ class SparseProductTest {
         val expected = DenseMatrix.wrap(4, 2, DoubleArray(8) { c.data[it] * 2.0 })
 
         val actual = copyOf(c)
-        koblas.sparseBlas.gemm(0.0, sparse, false, b, false, 2.0, actual)
+        koblas.gemm(0.0, sparse, false, b, false, 2.0, actual)
 
         assertClose(expected, actual, "alpha = 0")
     }
@@ -174,7 +174,7 @@ class SparseProductTest {
                 val fromDense = copyOf(c)
                 koblas.gemm(0.75, b, transposeB, dense, transposeA, -0.5, fromDense)
                 val fromSparse = copyOf(c)
-                koblas.sparseBlas.gemm(
+                koblas.gemm(
                     0.75, sparse, transposeA, b, transposeB, -0.5, fromSparse,
                     right = true,
                     workspace = Workspace(),
@@ -191,7 +191,7 @@ class SparseProductTest {
         val (sparse, _) = sparseAndDense(5, 4, rng)
 
         assertFailsWith<DimensionMismatch> {
-            koblas.sparseBlas.gemm(
+            koblas.gemm(
                 1.0,
                 sparse,
                 false,
@@ -301,7 +301,7 @@ class SparseProductTest {
         val b = randomMatrix(4, 3, rng)
 
         assertFailsWith<DimensionMismatch> {
-            koblas.sparseBlas.gemm(1.0, sparse, false, b, false, 0.0, DenseMatrix.zero(5, 2))
+            koblas.gemm(1.0, sparse, false, b, false, 0.0, DenseMatrix.zero(5, 2))
         }
     }
 

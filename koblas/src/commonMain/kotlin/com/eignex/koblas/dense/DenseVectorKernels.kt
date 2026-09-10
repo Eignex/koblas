@@ -80,32 +80,3 @@ public interface DenseVectorKernels {
      */
     public fun ssqd(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int): Double
 }
-
-/** The dense vector kernels selected once for the current platform. */
-internal expect object PlatformVectorKernels : DenseVectorKernels {
-    override val name: String
-    override fun dot(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int): Double
-    override fun axpy(y: DoubleArray, yOff: Int, alpha: Double, x: DoubleArray, xOff: Int, len: Int)
-    override fun scale(v: DoubleArray, vOff: Int, alpha: Double, len: Int)
-    override fun nrm2(v: DoubleArray, vOff: Int, len: Int): Double
-    override fun asum(v: DoubleArray, vOff: Int, len: Int): Double
-    override fun rotmg(d1: Double, d2: Double, x1: Double, y1: Double): ModifiedGivens
-
-    @Suppress("LongParameterList")
-    override fun rotm(
-        x: DoubleArray,
-        xOff: Int,
-        xStride: Int,
-        y: DoubleArray,
-        yOff: Int,
-        yStride: Int,
-        len: Int,
-        transformation: ModifiedGivens,
-    )
-
-    @Suppress("LongParameterList")
-    override fun rot(x: DoubleArray, xOff: Int, y: DoubleArray, yOff: Int, len: Int, c: Double, s: Double)
-    override fun swap(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int)
-    override fun sum(v: DoubleArray, vOff: Int, len: Int): Double
-    override fun ssqd(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int): Double
-}

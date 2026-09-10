@@ -23,6 +23,3 @@ internal actual val platformDenseKernelFamilies: DenseKernelFamilies = when {
     cKernelsAvailable -> cDenseKernelFamilies
     else -> scalarDenseKernelFamilies
 }
-
-/** JVM vector family selected once with the complete platform composition. */
-internal actual object PlatformVectorKernels : DenseVectorKernels by platformDenseKernelFamilies.vector

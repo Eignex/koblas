@@ -4,7 +4,6 @@ package com.eignex.koblas.sparse
 
 import com.eignex.koblas.SparseVector
 import com.eignex.koblas.dense.ScalarKernels
-import com.eignex.koblas.internal.configuration.ImplementationNames
 import com.eignex.koblas.requireShape
 
 /** Scalar sparse-vector kernels used as the semantic oracle and universal fallback. */
@@ -93,7 +92,7 @@ internal object ScalarIndexedSparseKernels : IndexedSparseKernels {
 }
 
 internal object ScalarSparseKernels : SparseKernels {
-    override val name: String get() = ImplementationNames.SCALAR
+    override val name: String get() = "scalar"
 
     override fun dot(x: SparseVector, y: DoubleArray): Double {
         requireShape(x.size == y.size) { "dot: sizes differ, ${x.size} vs ${y.size}" }
@@ -140,7 +139,7 @@ internal object ScalarSparseKernels : SparseKernels {
     override fun asum(x: SparseVector): Double = ScalarKernels.asum(x.values, 0, x.values.size)
 }
 
-internal val scalarSparseKernelFamilies: SparseKernelFamilies = sparseKernelFamilies(
+internal val scalarSparseKernelFamilies: SparseKernelFamilies = SparseKernelFamilies(
     ScalarSparseKernels,
     ScalarIndexedSparseKernels,
     ScalarKernels,

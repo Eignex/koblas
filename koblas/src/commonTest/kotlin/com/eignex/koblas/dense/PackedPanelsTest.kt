@@ -3,6 +3,7 @@ package com.eignex.koblas.dense
 import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.Workspace
 import com.eignex.koblas.assertClose
+import com.eignex.koblas.koblas
 import kotlin.math.min
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -12,14 +13,14 @@ import kotlin.test.assertTrue
 class PackedPanelsTest {
     @Test
     fun `left panels round trip across a partial edge`() {
-        val tile = PackedPanels.tileRows
+        val tile = koblas.packedPanels.tileRows
         val rows = tile + 1
         val depth = 3
         val source = matrix(rows + 2, depth + 2)
-        val packed = DoubleArray(PackedPanels.leftSize(rows, depth) + 4) { Double.NaN }
+        val packed = DoubleArray(koblas.packedPanels.leftSize(rows, depth) + 4) { Double.NaN }
         val restored = DenseMatrix.zero(rows + 2, depth + 2)
 
-        PackedPanels.packLeft(
+        koblas.packedPanels.packLeft(
             source,
             packed,
             rows,
@@ -29,7 +30,7 @@ class PackedPanelsTest {
             alpha = 2.0,
             destinationOffset = 2,
         )
-        PackedPanels.writeLeft(
+        koblas.packedPanels.writeLeft(
             packed,
             restored,
             rows,
@@ -53,12 +54,12 @@ class PackedPanelsTest {
     @Test
     fun `right panels transpose and round trip`() {
         val depth = 3
-        val columns = PackedPanels.tileColumns + 1
+        val columns = koblas.packedPanels.tileColumns + 1
         val source = matrix(columns + 2, depth + 2)
-        val packed = DoubleArray(PackedPanels.rightSize(depth, columns))
+        val packed = DoubleArray(koblas.packedPanels.rightSize(depth, columns))
         val restored = DenseMatrix.zero(columns + 2, depth + 2)
 
-        PackedPanels.packRight(
+        koblas.packedPanels.packRight(
             source,
             packed,
             depth,
@@ -67,7 +68,7 @@ class PackedPanelsTest {
             sourceColumn = 1,
             transpose = true,
         )
-        PackedPanels.writeRight(
+        koblas.packedPanels.writeRight(
             packed,
             restored,
             depth,
@@ -84,20 +85,20 @@ class PackedPanelsTest {
 
     @Test
     fun `symmetric packing never reads the poisoned triangle`() {
-        val order = min(PackedPanels.tileRows, PackedPanels.tileColumns) + 1
+        val order = min(koblas.packedPanels.tileRows, koblas.packedPanels.tileColumns) + 1
         val source = DenseMatrix.zero(order)
         for (j in 0 until order) {
             for (i in 0 until order) source[i, j] = if (i >= j) 100.0 * j + i else Double.NaN
         }
-        val left = DoubleArray(PackedPanels.leftSize(order, order))
-        val right = DoubleArray(PackedPanels.rightSize(order, order))
+        val left = DoubleArray(koblas.packedPanels.leftSize(order, order))
+        val right = DoubleArray(koblas.packedPanels.rightSize(order, order))
         val leftRestored = DenseMatrix.zero(order)
         val rightRestored = DenseMatrix.zero(order)
 
-        PackedPanels.packSymmetricLeft(source, left, order, order, lower = true)
-        PackedPanels.packSymmetricRight(source, right, order, order, lower = true)
-        PackedPanels.writeLeft(left, leftRestored, order, order)
-        PackedPanels.writeRight(right, rightRestored, order, order)
+        koblas.packedPanels.packSymmetricLeft(source, left, order, order, lower = true)
+        koblas.packedPanels.packSymmetricRight(source, right, order, order, lower = true)
+        koblas.packedPanels.writeLeft(left, leftRestored, order, order)
+        koblas.packedPanels.writeRight(right, rightRestored, order, order)
 
         for (j in 0 until order) {
             for (i in 0 until order) {
@@ -110,7 +111,7 @@ class PackedPanelsTest {
 
     @Test
     fun `triangular unit diagonal is materialized without reading`() {
-        val order = min(PackedPanels.tileColumns, 5)
+        val order = min(koblas.packedPanels.tileColumns, 5)
         val source = DenseMatrix.zero(order)
         for (j in 0 until order) {
             for (i in 0 until order) {
@@ -120,10 +121,10 @@ class PackedPanelsTest {
                 }
             }
         }
-        val packed = DoubleArray(PackedPanels.rightSize(order, order))
+        val packed = DoubleArray(koblas.packedPanels.rightSize(order, order))
         val restored = DenseMatrix.zero(order)
 
-        PackedPanels.packTriangularRight(
+        koblas.packedPanels.packTriangularRight(
             source,
             packed,
             order,
@@ -132,7 +133,7 @@ class PackedPanelsTest {
             transpose = true,
             unitDiagonal = true,
         )
-        PackedPanels.writeRight(packed, restored, order, order)
+        koblas.packedPanels.writeRight(packed, restored, order, order)
 
         for (j in 0 until order) {
             for (i in 0 until order) {
@@ -148,24 +149,24 @@ class PackedPanelsTest {
 
     @Test
     fun `left alpha preserves exceptional products and zero padding`() {
-        val rows = PackedPanels.tileRows - 1
+        val rows = koblas.packedPanels.tileRows - 1
         val source = DenseMatrix.zero(rows, 1)
-        val packed = DoubleArray(PackedPanels.leftSize(rows, 1))
+        val packed = DoubleArray(koblas.packedPanels.leftSize(rows, 1))
 
-        PackedPanels.packLeft(source, packed, rows, 1, alpha = Double.POSITIVE_INFINITY)
+        koblas.packedPanels.packLeft(source, packed, rows, 1, alpha = Double.POSITIVE_INFINITY)
 
         for (lane in 0 until rows) assertTrue(packed[lane].isNaN())
-        for (lane in rows until PackedPanels.tileRows) assertPositiveZero(packed[lane])
+        for (lane in rows until koblas.packedPanels.tileRows) assertPositiveZero(packed[lane])
     }
 
     @Test
     fun `triangular structural zero survives infinite alpha`() {
-        val order = min(PackedPanels.tileRows, 3)
+        val order = min(koblas.packedPanels.tileRows, 3)
         val source = DenseMatrix.zero(order)
-        val packed = DoubleArray(PackedPanels.leftSize(order, order))
+        val packed = DoubleArray(koblas.packedPanels.leftSize(order, order))
         val restored = DenseMatrix.zero(order)
 
-        PackedPanels.packTriangularLeft(
+        koblas.packedPanels.packTriangularLeft(
             source,
             packed,
             order,
@@ -173,7 +174,7 @@ class PackedPanelsTest {
             lower = true,
             alpha = Double.POSITIVE_INFINITY,
         )
-        PackedPanels.writeLeft(packed, restored, order, order)
+        koblas.packedPanels.writeLeft(packed, restored, order, order)
 
         for (j in 0 until order) {
             for (i in 0 until order) {
@@ -184,12 +185,12 @@ class PackedPanelsTest {
 
     @Test
     fun `same backing packing uses workspace staging`() {
-        val order = PackedPanels.tileRows
+        val order = koblas.packedPanels.tileRows
         val source = matrix(order, order)
         val expected = source.toArray()
         val workspace = Workspace().also { it.reserve(source.data.size, 1) }
 
-        PackedPanels.packLeft(
+        koblas.packedPanels.packLeft(
             source,
             source.data,
             order,
@@ -198,7 +199,7 @@ class PackedPanelsTest {
             workspace = workspace,
         )
         val restored = DenseMatrix.zero(order)
-        PackedPanels.writeLeft(source.data, restored, order, order)
+        koblas.packedPanels.writeLeft(source.data, restored, order, order)
 
         for (j in 0 until order) {
             for (i in 0 until order) assertEquals(expected[j][i], restored[i, j])
@@ -207,14 +208,14 @@ class PackedPanelsTest {
 
     @Test
     fun `same backing writeback uses workspace staging`() {
-        val order = PackedPanels.tileColumns
+        val order = koblas.packedPanels.tileColumns
         val source = matrix(order, order)
-        val packed = DoubleArray(PackedPanels.rightSize(order, order))
-        PackedPanels.packRight(source, packed, order, order)
+        val packed = DoubleArray(koblas.packedPanels.rightSize(order, order))
+        koblas.packedPanels.packRight(source, packed, order, order)
         val destination = DenseMatrix.wrap(order, order, packed.copyOf())
         val workspace = Workspace().also { it.reserve(packed.size, 1) }
 
-        PackedPanels.writeRight(
+        koblas.packedPanels.writeRight(
             destination.data,
             destination,
             order,
@@ -227,38 +228,38 @@ class PackedPanelsTest {
 
     @Test
     fun `padding restoration leaves valid entries unchanged`() {
-        val rows = PackedPanels.tileRows + 1
+        val rows = koblas.packedPanels.tileRows + 1
         val depth = 2
-        val panel = DoubleArray(PackedPanels.leftSize(rows, depth)) { it + 1.0 }
+        val panel = DoubleArray(koblas.packedPanels.leftSize(rows, depth)) { it + 1.0 }
         val before = panel.copyOf()
 
-        PackedPanels.clearLeftPadding(panel, rows, depth)
+        koblas.packedPanels.clearLeftPadding(panel, rows, depth)
 
-        val edgePanel = PackedPanels.tileRows * depth
+        val edgePanel = koblas.packedPanels.tileRows * depth
         for (step in 0 until depth) {
             assertEquals(
-                before[edgePanel + step * PackedPanels.tileRows],
-                panel[edgePanel + step * PackedPanels.tileRows],
+                before[edgePanel + step * koblas.packedPanels.tileRows],
+                panel[edgePanel + step * koblas.packedPanels.tileRows],
             )
-            for (lane in 1 until PackedPanels.tileRows) {
-                assertPositiveZero(panel[edgePanel + step * PackedPanels.tileRows + lane])
+            for (lane in 1 until koblas.packedPanels.tileRows) {
+                assertPositiveZero(panel[edgePanel + step * koblas.packedPanels.tileRows + lane])
             }
         }
     }
 
     @Test
     fun `packed panels feed the platform tile`() {
-        val rows = PackedPanels.tileRows - 1
-        val columns = PackedPanels.tileColumns - 1
+        val rows = koblas.packedPanels.tileRows - 1
+        val columns = koblas.packedPanels.tileColumns - 1
         val depth = 3
         val a = matrix(rows, depth)
         val b = matrix(depth, columns)
-        val packedA = DoubleArray(PackedPanels.leftSize(rows, depth))
-        val packedB = DoubleArray(PackedPanels.rightSize(depth, columns))
-        val c = DoubleArray(PackedPanels.tileRows * PackedPanels.tileColumns)
+        val packedA = DoubleArray(koblas.packedPanels.leftSize(rows, depth))
+        val packedB = DoubleArray(koblas.packedPanels.rightSize(depth, columns))
+        val c = DoubleArray(koblas.packedPanels.tileRows * koblas.packedPanels.tileColumns)
 
-        PackedPanels.packLeft(a, packedA, rows, depth)
-        PackedPanels.packRight(b, packedB, depth, columns)
+        koblas.packedPanels.packLeft(a, packedA, rows, depth)
+        koblas.packedPanels.packRight(b, packedB, depth, columns)
         platformDenseKernelFamilies.packed.gemmTile(
             depth,
             packedA,
@@ -267,49 +268,49 @@ class PackedPanelsTest {
             0,
             c,
             0,
-            PackedPanels.tileRows,
+            koblas.packedPanels.tileRows,
         )
 
         for (j in 0 until columns) {
             for (i in 0 until rows) {
                 var expected = 0.0
                 for (p in 0 until depth) expected += a[i, p] * b[p, j]
-                assertEquals(expected, c[i + j * PackedPanels.tileRows], 1e-12)
+                assertEquals(expected, c[i + j * koblas.packedPanels.tileRows], 1e-12)
             }
         }
     }
 
     @Test
     fun `packed trsm solves partial tiles in both directions`() {
-        val rows = maxOf(1, PackedPanels.tileRows - 1)
-        val order = maxOf(1, PackedPanels.tileColumns - 1)
+        val rows = maxOf(1, koblas.packedPanels.tileRows - 1)
+        val order = maxOf(1, koblas.packedPanels.tileColumns - 1)
         for (lower in booleanArrayOf(false, true)) {
             val triangle = triangle(order, lower)
             val expected = matrix(rows, order)
             val rightHandSide = rightProduct(expected, triangle)
-            val packedTriangle = DoubleArray(PackedPanels.rightSize(order, order))
-            val packedRightHandSide = DoubleArray(PackedPanels.leftSize(rows, order))
-            PackedPanels.packTriangularRight(
+            val packedTriangle = DoubleArray(koblas.packedPanels.rightSize(order, order))
+            val packedRightHandSide = DoubleArray(koblas.packedPanels.leftSize(rows, order))
+            koblas.packedPanels.packTriangularRight(
                 triangle,
                 packedTriangle,
                 order,
                 order,
                 lower = lower,
             )
-            PackedPanels.packLeft(rightHandSide, packedRightHandSide, rows, order)
+            koblas.packedPanels.packLeft(rightHandSide, packedRightHandSide, rows, order)
 
-            PackedPanels.trsm(packedTriangle, packedRightHandSide, rows, order, lower)
+            koblas.packedPanels.trsm(packedTriangle, packedRightHandSide, rows, order, lower)
 
             val actual = DenseMatrix.zero(rows, order)
-            PackedPanels.writeLeft(packedRightHandSide, actual, rows, order)
+            koblas.packedPanels.writeLeft(packedRightHandSide, actual, rows, order)
             assertClose(expected, actual, "lower=$lower partial packed solve")
         }
     }
 
     @Test
     fun `packed gemm trsm accepts exact edge buffers`() {
-        val rows = maxOf(1, PackedPanels.tileRows - 1)
-        val order = maxOf(1, PackedPanels.tileColumns - 1)
+        val rows = maxOf(1, koblas.packedPanels.tileRows - 1)
+        val order = maxOf(1, koblas.packedPanels.tileColumns - 1)
         val depth = 3
         val triangle = triangle(order, lower = true)
         val expected = matrix(rows, order)
@@ -321,16 +322,16 @@ class PackedPanelsTest {
                 for (row in 0 until rows) initial[row, column] += left[row, step] * right[step, column]
             }
         }
-        val packedLeft = DoubleArray(PackedPanels.leftSize(rows, depth))
-        val packedRight = DoubleArray(PackedPanels.rightSize(depth, order))
-        val packedTriangle = DoubleArray(PackedPanels.rightSize(order, order))
-        val packedInitial = DoubleArray(PackedPanels.leftSize(rows, order))
-        PackedPanels.packLeft(left, packedLeft, rows, depth)
-        PackedPanels.packRight(right, packedRight, depth, order)
-        PackedPanels.packTriangularRight(triangle, packedTriangle, order, order, lower = true)
-        PackedPanels.packLeft(initial, packedInitial, rows, order)
+        val packedLeft = DoubleArray(koblas.packedPanels.leftSize(rows, depth))
+        val packedRight = DoubleArray(koblas.packedPanels.rightSize(depth, order))
+        val packedTriangle = DoubleArray(koblas.packedPanels.rightSize(order, order))
+        val packedInitial = DoubleArray(koblas.packedPanels.leftSize(rows, order))
+        koblas.packedPanels.packLeft(left, packedLeft, rows, depth)
+        koblas.packedPanels.packRight(right, packedRight, depth, order)
+        koblas.packedPanels.packTriangularRight(triangle, packedTriangle, order, order, lower = true)
+        koblas.packedPanels.packLeft(initial, packedInitial, rows, order)
 
-        PackedPanels.gemmTrsm(
+        koblas.packedPanels.gemmTrsm(
             packedLeft,
             packedRight,
             packedTriangle,
@@ -342,22 +343,22 @@ class PackedPanelsTest {
         )
 
         val actual = DenseMatrix.zero(rows, order)
-        PackedPanels.writeLeft(packedInitial, actual, rows, order)
+        koblas.packedPanels.writeLeft(packedInitial, actual, rows, order)
         assertClose(expected, actual, "partial fused packed solve", tolerance = 1e-9)
     }
 
     @Test
     fun `packed trsm stages an aliased triangle`() {
-        val rows = min(PackedPanels.tileRows, 2)
-        val order = min(PackedPanels.tileColumns, 2)
+        val rows = min(koblas.packedPanels.tileRows, 2)
+        val order = min(koblas.packedPanels.tileColumns, 2)
         val triangle = triangle(order, lower = true)
         val expected = matrix(rows, order)
         val rightHandSide = rightProduct(expected, triangle)
-        val triangleSize = PackedPanels.rightSize(order, order)
-        val rightHandSideSize = PackedPanels.leftSize(rows, order)
+        val triangleSize = koblas.packedPanels.rightSize(order, order)
+        val rightHandSideSize = koblas.packedPanels.leftSize(rows, order)
         val shared = DoubleArray(triangleSize + rightHandSideSize)
-        PackedPanels.packTriangularRight(triangle, shared, order, order, lower = true)
-        PackedPanels.packLeft(
+        koblas.packedPanels.packTriangularRight(triangle, shared, order, order, lower = true)
+        koblas.packedPanels.packLeft(
             rightHandSide,
             shared,
             rows,
@@ -366,7 +367,7 @@ class PackedPanelsTest {
         )
         val workspace = Workspace().also { it.reserve(shared.size, 1) }
 
-        PackedPanels.trsm(
+        koblas.packedPanels.trsm(
             shared,
             shared,
             rows,
@@ -377,14 +378,14 @@ class PackedPanelsTest {
         )
 
         val actual = DenseMatrix.zero(rows, order)
-        PackedPanels.writeLeft(shared, actual, rows, order, sourceOffset = triangleSize)
+        koblas.packedPanels.writeLeft(shared, actual, rows, order, sourceOffset = triangleSize)
         assertClose(expected, actual, "aliased packed triangle")
     }
 
     @Test
     fun `panel sizes reject impossible arrays`() {
-        assertFailsWith<IllegalArgumentException> { PackedPanels.leftSize(-1, 2) }
-        assertFailsWith<IllegalArgumentException> { PackedPanels.rightSize(Int.MAX_VALUE, Int.MAX_VALUE) }
+        assertFailsWith<IllegalArgumentException> { koblas.packedPanels.leftSize(-1, 2) }
+        assertFailsWith<IllegalArgumentException> { koblas.packedPanels.rightSize(Int.MAX_VALUE, Int.MAX_VALUE) }
     }
 
     private fun matrix(rows: Int, columns: Int): DenseMatrix = DenseMatrix.ofColumns(

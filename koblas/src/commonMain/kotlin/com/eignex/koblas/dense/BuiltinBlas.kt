@@ -15,8 +15,6 @@ internal class BuiltinBlas(private val kernelFamilies: DenseKernelFamilies) : Bl
     private val panelKernels = kernelFamilies.panel
     private val packedKernels = kernelFamilies.packed
 
-    override val name: String get() = "built-in"
-
     override fun gemv(
         alpha: Double,
         a: DenseMatrix,
@@ -461,6 +459,3 @@ internal class BuiltinBlas(private val kernelFamilies: DenseKernelFamilies) : Bl
             a, b, lower, transpose, unitDiag, right, alpha, solve = false, workspace = workspace,
         )
 }
-
-/** The scalar semantic oracle used by tests and explicit comparisons. */
-public val ReferenceBlas: Blas = BuiltinBlas(scalarDenseKernelFamilies)

@@ -1,9 +1,9 @@
 @file:OptIn(kotlinx.cinterop.ExperimentalForeignApi::class)
+@file:Suppress("MatchingDeclarationName") // Native kernels and their selected family share one source-set boundary
 
 package com.eignex.koblas.dense
 
 import com.eignex.koblas.ModifiedGivens
-import com.eignex.koblas.internal.configuration.ImplementationNames
 import com.eignex.koblas.internal.kernels.*
 import com.eignex.koblas.internal.numeric.scalarAxpy
 import com.eignex.koblas.internal.numeric.scalarDot
@@ -16,16 +16,16 @@ import kotlinx.cinterop.usePinned
 internal val C_HOST_MIN_LENGTH = DenseTuning.nativeCMinLength
 
 internal actual val platformDenseKernelFamilies: DenseKernelFamilies = DenseKernelFamilies(
-    PlatformVectorKernels,
+    NativeCKernels,
     NativeCPanelKernels,
     NativeCPackedKernels,
 )
 
 /** The C vector kernels compiled into each Kotlin/Native host artifact. */
-internal actual object PlatformVectorKernels : DenseVectorKernels {
-    actual override val name: String get() = ImplementationNames.C
+internal object NativeCKernels : DenseVectorKernels {
+    override val name: String get() = "c"
 
-    actual override fun dot(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int): Double = if (
+    override fun dot(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int): Double = if (
         len < C_HOST_MIN_LENGTH
     ) {
         scalarDot(a, aOff, b, bOff, len)
@@ -35,7 +35,7 @@ internal actual object PlatformVectorKernels : DenseVectorKernels {
         }
     }
 
-    actual override fun axpy(y: DoubleArray, yOff: Int, alpha: Double, x: DoubleArray, xOff: Int, len: Int) {
+    override fun axpy(y: DoubleArray, yOff: Int, alpha: Double, x: DoubleArray, xOff: Int, len: Int) {
         if (alpha == 0.0) return
         if (len < C_HOST_MIN_LENGTH) return scalarAxpy(y, yOff, alpha, x, xOff, len)
         y.usePinned { yp ->
@@ -43,23 +43,22 @@ internal actual object PlatformVectorKernels : DenseVectorKernels {
         }
     }
 
-    actual override fun scale(v: DoubleArray, vOff: Int, alpha: Double, len: Int) {
+    override fun scale(v: DoubleArray, vOff: Int, alpha: Double, len: Int) {
         if (alpha == 1.0) return
         if (len < C_HOST_MIN_LENGTH) return scalarScale(v, vOff, alpha, len)
         v.usePinned { vp -> koblas_dense_scale(vp.addressOf(0), vOff, alpha, len) }
     }
 
-    actual override fun nrm2(v: DoubleArray, vOff: Int, len: Int): Double =
+    override fun nrm2(v: DoubleArray, vOff: Int, len: Int): Double =
         if (len == 0) 0.0 else v.usePinned { vp -> koblas_dense_nrm2(vp.addressOf(0), vOff, len) }
 
-    actual override fun asum(v: DoubleArray, vOff: Int, len: Int): Double =
+    override fun asum(v: DoubleArray, vOff: Int, len: Int): Double =
         if (len == 0) 0.0 else v.usePinned { vp -> koblas_dense_asum(vp.addressOf(0), vOff, len) }
 
-    actual override fun rotmg(d1: Double, d2: Double, x1: Double, y1: Double): ModifiedGivens =
-        portableRotmg(d1, d2, x1, y1)
+    override fun rotmg(d1: Double, d2: Double, x1: Double, y1: Double): ModifiedGivens = portableRotmg(d1, d2, x1, y1)
 
     @Suppress("LongParameterList")
-    actual override fun rotm(
+    override fun rotm(
         x: DoubleArray,
         xOff: Int,
         xStride: Int,
@@ -81,7 +80,7 @@ internal actual object PlatformVectorKernels : DenseVectorKernels {
     }
 
     @Suppress("LongParameterList")
-    actual override fun rot(x: DoubleArray, xOff: Int, y: DoubleArray, yOff: Int, len: Int, c: Double, s: Double) {
+    override fun rot(x: DoubleArray, xOff: Int, y: DoubleArray, yOff: Int, len: Int, c: Double, s: Double) {
         if (len == 0) return
         x.usePinned { xp ->
             y.usePinned { yp ->
@@ -90,10 +89,10 @@ internal actual object PlatformVectorKernels : DenseVectorKernels {
         }
     }
 
-    actual override fun sum(v: DoubleArray, vOff: Int, len: Int): Double =
+    override fun sum(v: DoubleArray, vOff: Int, len: Int): Double =
         if (len == 0) 0.0 else v.usePinned { p -> koblas_dense_sum(p.addressOf(0), vOff, len) }
 
-    actual override fun ssqd(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int): Double = if (len == 0) {
+    override fun ssqd(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int): Double = if (len == 0) {
         0.0
     } else {
         a.usePinned { ap ->
@@ -101,7 +100,7 @@ internal actual object PlatformVectorKernels : DenseVectorKernels {
         }
     }
 
-    actual override fun swap(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int) {
+    override fun swap(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int) {
         if (len == 0) return
         a.usePinned { ap ->
             b.usePinned { bp -> koblas_dense_swap(ap.addressOf(0), aOff, bp.addressOf(0), bOff, len) }

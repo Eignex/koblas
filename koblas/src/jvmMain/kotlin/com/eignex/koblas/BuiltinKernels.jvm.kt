@@ -11,15 +11,15 @@ import com.eignex.koblas.sparse.simdSparseKernelFamilies
 
 /** JVM built-in kernel providers. */
 public actual object BuiltinKernels {
-    private val scalarProvider by lazy {
-        BuiltinKernelProvider(
+    private val scalarEngine by lazy {
+        KoblasContext(
             scalarDenseKernelFamilies,
             scalarSparseKernelFamilies,
         )
     }
-    private val cProvider by lazy {
+    private val cEngine by lazy {
         if (CKernels.isAvailable) {
-            BuiltinKernelProvider(
+            KoblasContext(
                 cDenseKernelFamilies,
                 cSparseKernelFamilies,
             )
@@ -27,9 +27,9 @@ public actual object BuiltinKernels {
             null
         }
     }
-    private val simdProvider by lazy {
+    private val simdEngine by lazy {
         if (SimdKernels.isAvailable) {
-            BuiltinKernelProvider(
+            KoblasContext(
                 simdDenseKernelFamilies,
                 simdSparseKernelFamilies,
             )
@@ -39,14 +39,14 @@ public actual object BuiltinKernels {
     }
 
     /** Pure Kotlin scalar dense kernels and reference sparse kernels. */
-    public actual val scalar: BuiltinKernelProvider
-        get() = scalarProvider
+    public actual val scalar: KoblasContext
+        get() = scalarEngine
 
     /** Bundled C kernels when the native library loaded successfully. */
-    public actual val c: BuiltinKernelProvider?
-        get() = cProvider
+    public actual val c: KoblasContext?
+        get() = cEngine
 
     /** Vector API kernels when the incubator module resolved at startup. */
-    public actual val simd: BuiltinKernelProvider?
-        get() = simdProvider
+    public actual val simd: KoblasContext?
+        get() = simdEngine
 }
