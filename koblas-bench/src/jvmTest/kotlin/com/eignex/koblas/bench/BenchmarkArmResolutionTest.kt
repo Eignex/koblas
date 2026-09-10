@@ -7,9 +7,11 @@ import kotlin.test.assertTrue
 class BenchmarkArmResolutionTest {
     @Test
     fun `jvm c mode resolves the exact built in engine`() {
-        val (_, identity) = resolveEngine("jvm-c")
+        val (engine, identity) = resolveEngine("jvm-c")
+        val packLeft = Cases.parse("pack-left+4x2+uniform+physical=4x4").single()
 
         assertTrue(identity.startsWith("jvm-c/c/"), identity)
+        assertTrue(denseWork(packLeft, engine) != null)
     }
 
     @Test

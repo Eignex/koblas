@@ -6,6 +6,7 @@ import com.eignex.koblas.dense.DenseKernelFamilies
 import com.eignex.koblas.dense.DensePanelKernels
 import com.eignex.koblas.dense.DenseVectorKernels
 import com.eignex.koblas.dense.PackedKernels
+import com.eignex.koblas.dense.PackedPanels
 import com.eignex.koblas.sparse.SparseAlgorithms
 import com.eignex.koblas.sparse.SparseBlas
 import com.eignex.koblas.sparse.SparseKernelFamilies
@@ -43,6 +44,10 @@ public class KoblasContext internal constructor(
 
     /** Packed layout shape and tile arithmetic kernels. */
     public val packedKernels: PackedKernels get() = denseKernelFamilies.packed
+
+    /** Packed panel operations bound to this engine's exact packed kernels. */
+    @ExperimentalKoblasApi
+    public val packedPanels: PackedPanels = PackedPanels(denseKernelFamilies.packed)
 
     /** Short read-only implementation description for logs and benchmark attribution. */
     override val name: String get() = "built-in/${vectorKernels.name}/${sparseKernels.name}"

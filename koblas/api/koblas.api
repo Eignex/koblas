@@ -164,6 +164,7 @@ public final class com/eignex/koblas/KoblasContext : com/eignex/koblas/dense/Bla
 	public final fun getBlas ()Lcom/eignex/koblas/dense/Blas;
 	public fun getName ()Ljava/lang/String;
 	public final fun getPackedKernels ()Lcom/eignex/koblas/dense/PackedKernels;
+	public final fun getPackedPanels ()Lcom/eignex/koblas/dense/PackedPanels;
 	public final fun getPanelKernels ()Lcom/eignex/koblas/dense/DensePanelKernels;
 	public final fun getSparseBlas ()Lcom/eignex/koblas/sparse/SparseBlas;
 	public final fun getSparseKernels ()Lcom/eignex/koblas/sparse/SparseKernels;
@@ -581,8 +582,8 @@ public abstract interface class com/eignex/koblas/dense/PackedKernels {
 	public abstract fun trsmTile (II[DIZZ[DI)V
 }
 
-public final class com/eignex/koblas/dense/PackedPanels {
-	public static final field INSTANCE Lcom/eignex/koblas/dense/PackedPanels;
+public class com/eignex/koblas/dense/PackedPanels {
+	public static final field Companion Lcom/eignex/koblas/dense/PackedPanels$Companion;
 	public final fun clearLeftPadding ([DIII)V
 	public static synthetic fun clearLeftPadding$default (Lcom/eignex/koblas/dense/PackedPanels;[DIIIILjava/lang/Object;)V
 	public final fun clearRightPadding ([DIII)V
@@ -611,6 +612,9 @@ public final class com/eignex/koblas/dense/PackedPanels {
 	public static synthetic fun writeLeft$default (Lcom/eignex/koblas/dense/PackedPanels;[DLcom/eignex/koblas/DenseMatrix;IIIIIZLcom/eignex/koblas/Workspace;ILjava/lang/Object;)V
 	public final fun writeRight ([DLcom/eignex/koblas/DenseMatrix;IIIIIZLcom/eignex/koblas/Workspace;)V
 	public static synthetic fun writeRight$default (Lcom/eignex/koblas/dense/PackedPanels;[DLcom/eignex/koblas/DenseMatrix;IIIIIZLcom/eignex/koblas/Workspace;ILjava/lang/Object;)V
+}
+
+public final class com/eignex/koblas/dense/PackedPanels$Companion : com/eignex/koblas/dense/PackedPanels {
 }
 
 public final class com/eignex/koblas/dense/TriangularKt {

@@ -40,7 +40,7 @@ internal fun packLeftPanel(
     structure: PackedPanelStructure,
     lower: Boolean = false,
     unitDiagonal: Boolean = false,
-    tileRows: Int = platformPackedKernels.gemmTileRows,
+    tileRows: Int,
 ) {
     requirePackWindow(source, rows, depth, sourceRow, sourceColumn, transpose, structure)
     val size = packedLeftSize(rows, depth, tileRows)
@@ -67,7 +67,7 @@ internal fun packRightPanel(
     structure: PackedPanelStructure,
     lower: Boolean = false,
     unitDiagonal: Boolean = false,
-    tileColumns: Int = platformPackedKernels.gemmTileCols,
+    tileColumns: Int,
 ) {
     requirePackWindow(source, depth, columns, sourceRow, sourceColumn, transpose, structure)
     val size = packedRightSize(depth, columns, tileColumns)
@@ -91,7 +91,7 @@ internal fun writeLeftPanel(
     destinationColumn: Int,
     transpose: Boolean,
     workspace: Workspace?,
-    tileRows: Int = platformPackedKernels.gemmTileRows,
+    tileRows: Int,
 ) {
     val size = packedLeftSize(rows, depth, tileRows)
     requireArrayWindow(source, sourceOffset, size, "packed source")
@@ -115,7 +115,7 @@ internal fun writeRightPanel(
     destinationColumn: Int,
     transpose: Boolean,
     workspace: Workspace?,
-    tileColumns: Int = platformPackedKernels.gemmTileCols,
+    tileColumns: Int,
 ) {
     val size = packedRightSize(depth, columns, tileColumns)
     requireArrayWindow(source, sourceOffset, size, "packed source")
