@@ -22,12 +22,15 @@ import com.eignex.koblas.Workspace
  * solved panel can be retained for later packed updates without conversion.
  */
 @ExperimentalKoblasApi
-public object PackedPanels {
-    /** Number of contiguous values in each shared-dimension step of a left panel on this platform. */
-    public val tileRows: Int get() = platformPackedKernels.gemmTileRows
+public open class PackedPanels internal constructor(private val kernels: PackedKernels) {
+    /** Platform-selected packed panel operations retained for source-compatible convenience calls. */
+    public companion object : PackedPanels(platformDenseKernelFamilies.packed)
 
-    /** Number of contiguous values in each shared-dimension step of a right panel on this platform. */
-    public val tileColumns: Int get() = platformPackedKernels.gemmTileCols
+    /** Number of contiguous values in each shared-dimension step of a left panel for this engine. */
+    public val tileRows: Int get() = kernels.gemmTileRows
+
+    /** Number of contiguous values in each shared-dimension step of a right panel for this engine. */
+    public val tileColumns: Int get() = kernels.gemmTileCols
 
     /** Exact number of doubles needed for a left panel representing a [rows] by [depth] logical matrix. */
     public fun leftSize(rows: Int, depth: Int): Int = packedLeftSize(rows, depth, tileRows)
@@ -55,7 +58,7 @@ public object PackedPanels {
     ) {
         packLeftPanel(
             source, destination, rows, depth, sourceRow, sourceColumn, transpose, alpha,
-            destinationOffset, workspace, PackedPanelStructure.General,
+            destinationOffset, workspace, PackedPanelStructure.General, tileRows = tileRows,
         )
     }
 
@@ -78,7 +81,7 @@ public object PackedPanels {
     ) {
         packLeftPanel(
             source, destination, rows, depth, sourceRow, sourceColumn, false, alpha,
-            destinationOffset, workspace, PackedPanelStructure.Symmetric, lower,
+            destinationOffset, workspace, PackedPanelStructure.Symmetric, lower, tileRows = tileRows,
         )
     }
 
@@ -104,7 +107,7 @@ public object PackedPanels {
     ) {
         packLeftPanel(
             source, destination, rows, depth, sourceRow, sourceColumn, transpose, alpha,
-            destinationOffset, workspace, PackedPanelStructure.Triangular, lower, unitDiagonal,
+            destinationOffset, workspace, PackedPanelStructure.Triangular, lower, unitDiagonal, tileRows,
         )
     }
 
@@ -127,7 +130,7 @@ public object PackedPanels {
     ) {
         packRightPanel(
             source, destination, depth, columns, sourceRow, sourceColumn, transpose,
-            destinationOffset, workspace, PackedPanelStructure.General,
+            destinationOffset, workspace, PackedPanelStructure.General, tileColumns = tileColumns,
         )
     }
 
@@ -149,7 +152,7 @@ public object PackedPanels {
     ) {
         packRightPanel(
             source, destination, depth, columns, sourceRow, sourceColumn, false,
-            destinationOffset, workspace, PackedPanelStructure.Symmetric, lower,
+            destinationOffset, workspace, PackedPanelStructure.Symmetric, lower, tileColumns = tileColumns,
         )
     }
 
@@ -174,7 +177,7 @@ public object PackedPanels {
     ) {
         packRightPanel(
             source, destination, depth, columns, sourceRow, sourceColumn, transpose,
-            destinationOffset, workspace, PackedPanelStructure.Triangular, lower, unitDiagonal,
+            destinationOffset, workspace, PackedPanelStructure.Triangular, lower, unitDiagonal, tileColumns,
         )
     }
 
@@ -197,7 +200,7 @@ public object PackedPanels {
     ) {
         writeLeftPanel(
             source, destination, rows, depth, sourceOffset, destinationRow, destinationColumn,
-            transpose, workspace,
+            transpose, workspace, tileRows,
         )
     }
 
@@ -220,7 +223,7 @@ public object PackedPanels {
     ) {
         writeRightPanel(
             source, destination, depth, columns, sourceOffset, destinationRow, destinationColumn,
-            transpose, workspace,
+            transpose, workspace, tileColumns,
         )
     }
 
@@ -268,7 +271,7 @@ public object PackedPanels {
         requireArrayWindow(rightHandSide, rightHandSideOffset, leftSize(rows, order), "packed right-hand side")
         if (rows == 0 || order == 0) return
         withStableSource(triangle, rightHandSide, workspace) { stableTriangle ->
-            platformPackedKernels.trsmTile(
+            kernels.trsmTile(
                 rows,
                 order,
                 stableTriangle,
@@ -319,7 +322,7 @@ public object PackedPanels {
         withStableSource(packedLeft, rightHandSide, workspace) { stableLeft ->
             withStableSource(packedRight, rightHandSide, workspace) { stableRight ->
                 withStableSource(triangle, rightHandSide, workspace) { stableTriangle ->
-                    platformPackedKernels.gemmTrsmTile(
+                    kernels.gemmTrsmTile(
                         depth,
                         rows,
                         order,
