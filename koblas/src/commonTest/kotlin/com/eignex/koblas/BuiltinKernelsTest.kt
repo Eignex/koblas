@@ -1,5 +1,6 @@
 package com.eignex.koblas
 
+import com.eignex.koblas.sparse.ScalarIndexedSparseKernels
 import kotlin.test.Test
 import kotlin.test.assertSame
 
@@ -12,5 +13,6 @@ class BuiltinKernelsTest {
 
         assertSame(provider.vectorKernels, context.vectorKernels)
         assertSame(provider.sparseKernels, context.sparseKernels)
+        assertSame(ScalarIndexedSparseKernels, context.sparseKernelFamilies.indexed)
     }
 }

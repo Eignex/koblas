@@ -66,7 +66,14 @@ public fun MatrixLike.gemvInto(alpha: Double, x: VectorLike, beta: Double, desti
         is SparseMatrix -> x.forEachStored { j, v ->
             if (v != 0.0) {
                 val scaled = alpha * v
-                a.forEachInColumn(j) { i, aij -> destination[i] += aij * scaled }
+                koblas.sparseKernelFamilies.indexed.axpy(
+                    a.rowIdx,
+                    a.values,
+                    a.colPtr[j],
+                    a.colPtr[j + 1],
+                    scaled,
+                    destination,
+                )
             }
         }
 

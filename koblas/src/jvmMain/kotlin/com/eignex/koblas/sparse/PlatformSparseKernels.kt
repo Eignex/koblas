@@ -1,36 +1,17 @@
+@file:kotlin.jvm.JvmName("JvmPlatformSparseKernelsKt")
+
 package com.eignex.koblas.sparse
 
-import com.eignex.koblas.SparseVector
 import com.eignex.koblas.dense.cKernelsAvailable
 import com.eignex.koblas.dense.simdAvailable
 import jdk.incubator.vector.DoubleVector
 import jdk.incubator.vector.VectorOperators
 
-/** Sparse SIMD kernels where the Vector API is present, the bundled C kernels otherwise. */
-internal actual object PlatformSparseKernels : SparseKernels {
-    private val selected: SparseKernels = when {
-        simdAvailable -> SimdSparseKernels
-        cKernelsAvailable -> CSparseKernels
-        else -> ScalarSparseKernels
-    }
-
-    actual override val name: String get() = selected.name
-
-    actual override fun dot(x: SparseVector, y: DoubleArray): Double = selected.dot(x, y)
-
-    actual override fun dot(x: SparseVector, y: SparseVector): Double = selected.dot(x, y)
-
-    actual override fun axpy(y: DoubleArray, alpha: Double, x: SparseVector) = selected.axpy(y, alpha, x)
-
-    actual override fun scatter(x: SparseVector, out: DoubleArray) = selected.scatter(x, out)
-
-    actual override fun gather(x: SparseVector, from: DoubleArray) = selected.gather(x, from)
-
-    actual override fun gatherZero(x: SparseVector, from: DoubleArray) = selected.gatherZero(x, from)
-
-    actual override fun nrm2(x: SparseVector): Double = selected.nrm2(x)
-
-    actual override fun asum(x: SparseVector): Double = selected.asum(x)
+/** Sparse SIMD families where the Vector API is present, the bundled C families otherwise. */
+internal actual val platformSparseKernelFamilies: SparseKernelFamilies = when {
+    simdAvailable -> simdSparseKernelFamilies
+    cKernelsAvailable -> cSparseKernelFamilies
+    else -> scalarSparseKernelFamilies
 }
 
 /** Its own object so the initializer, which touches DoubleVector, runs only once the module is present. */

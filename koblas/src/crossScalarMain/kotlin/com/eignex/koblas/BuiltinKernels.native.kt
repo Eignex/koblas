@@ -1,7 +1,7 @@
 package com.eignex.koblas
 
 import com.eignex.koblas.dense.scalarDenseKernelFamilies
-import com.eignex.koblas.sparse.ScalarSparseKernels
+import com.eignex.koblas.sparse.scalarSparseKernelFamilies
 
 /** Built-in providers available while cross-compiling for a foreign Native host. */
 @ExperimentalKoblasApi
@@ -10,7 +10,7 @@ public actual object BuiltinKernels {
     public actual val scalar: BuiltinKernelProvider =
         BuiltinKernelProvider(
             scalarDenseKernelFamilies,
-            ScalarSparseKernels,
+            scalarSparseKernelFamilies,
         )
 
     /** C is unavailable without the target host's cinterop compilation. */
