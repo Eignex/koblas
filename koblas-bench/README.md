@@ -144,9 +144,6 @@ koblas-bench/reference/test.sh
 ./gradlew :koblas-bench:nativeBenchmark -Pbench.operation=dot -Pbench.samples=1 -Pbench.targetMs=1
 ```
 
-Historical bundles in [`results/`](results/) retain their original formats and provenance. The new runner does
-not read or rewrite them.
-
 [`example.csv`](example.csv) is a compact schema example from this implementation worktree. Its `dirty=true`
 provenance is intentional, and its one-sample smoke timings demonstrate format and engine identity only; they are
 not performance evidence.
