@@ -7,7 +7,6 @@ import com.eignex.koblas.borrow
 import com.eignex.koblas.requireIndex
 import com.eignex.koblas.requireNonNegativeShape
 import com.eignex.koblas.requireShape
-import kotlin.math.min
 
 internal fun packedLeftSize(rows: Int, depth: Int, tileRows: Int): Int = packedPanelSize(rows, depth, tileRows, "left")
 
@@ -47,41 +46,10 @@ internal fun packLeftPanel(
     val size = packedLeftSize(rows, depth, tileRows)
     requireArrayWindow(destination, destinationOffset, size, "packed destination")
     withStableSource(source.data, destination, workspace) { stable ->
-        var target = destinationOffset
-        var row = 0
-        while (row < rows) {
-            val present = min(tileRows, rows - row)
-            for (step in 0 until depth) {
-                for (lane in 0 until present) {
-                    val logicalRow = sourceRow + row + lane
-                    val logicalColumn = sourceColumn + step
-                    destination[target + lane] = if (isStructuralZero(
-                            logicalRow,
-                            logicalColumn,
-                            transpose,
-                            structure,
-                            lower,
-                        )
-                    ) {
-                        0.0
-                    } else {
-                        alpha * packedSourceValue(
-                            stable,
-                            source.rows,
-                            logicalRow,
-                            logicalColumn,
-                            transpose,
-                            structure,
-                            lower,
-                            unitDiagonal,
-                        )
-                    }
-                }
-                for (lane in present until tileRows) destination[target + lane] = 0.0
-                target += tileRows
-            }
-            row += tileRows
-        }
+        packLeftLayout(
+            stable, source.rows, destination, destinationOffset, rows, depth, sourceRow, sourceColumn,
+            transpose, alpha, structure, lower, unitDiagonal, tileRows,
+        )
     }
 }
 
@@ -105,28 +73,10 @@ internal fun packRightPanel(
     val size = packedRightSize(depth, columns, tileColumns)
     requireArrayWindow(destination, destinationOffset, size, "packed destination")
     withStableSource(source.data, destination, workspace) { stable ->
-        var target = destinationOffset
-        var column = 0
-        while (column < columns) {
-            val present = min(tileColumns, columns - column)
-            for (step in 0 until depth) {
-                for (lane in 0 until present) {
-                    destination[target + lane] = packedSourceValue(
-                        stable,
-                        source.rows,
-                        sourceRow + step,
-                        sourceColumn + column + lane,
-                        transpose,
-                        structure,
-                        lower,
-                        unitDiagonal,
-                    )
-                }
-                for (lane in present until tileColumns) destination[target + lane] = 0.0
-                target += tileColumns
-            }
-            column += tileColumns
-        }
+        packRightLayout(
+            stable, source.rows, destination, destinationOffset, depth, columns, sourceRow, sourceColumn,
+            transpose, structure, lower, unitDiagonal, tileColumns,
+        )
     }
 }
 
@@ -147,26 +97,10 @@ internal fun writeLeftPanel(
     requireArrayWindow(source, sourceOffset, size, "packed source")
     requireWriteWindow(destination, rows, depth, destinationRow, destinationColumn, transpose)
     withStableSource(source, destination.data, workspace) { stable ->
-        var packed = sourceOffset
-        var row = 0
-        while (row < rows) {
-            val present = min(tileRows, rows - row)
-            for (step in 0 until depth) {
-                for (lane in 0 until present) {
-                    writeLogical(
-                        destination,
-                        destinationRow,
-                        destinationColumn,
-                        row + lane,
-                        step,
-                        transpose,
-                        stable[packed + lane],
-                    )
-                }
-                packed += tileRows
-            }
-            row += tileRows
-        }
+        writeLeftLayout(
+            stable, sourceOffset, destination.data, destination.rows, rows, depth,
+            destinationRow, destinationColumn, transpose, tileRows,
+        )
     }
 }
 
@@ -187,51 +121,23 @@ internal fun writeRightPanel(
     requireArrayWindow(source, sourceOffset, size, "packed source")
     requireWriteWindow(destination, depth, columns, destinationRow, destinationColumn, transpose)
     withStableSource(source, destination.data, workspace) { stable ->
-        var packed = sourceOffset
-        var column = 0
-        while (column < columns) {
-            val present = min(tileColumns, columns - column)
-            for (step in 0 until depth) {
-                for (lane in 0 until present) {
-                    writeLogical(
-                        destination,
-                        destinationRow,
-                        destinationColumn,
-                        step,
-                        column + lane,
-                        transpose,
-                        stable[packed + lane],
-                    )
-                }
-                packed += tileColumns
-            }
-            column += tileColumns
-        }
+        writeRightLayout(
+            stable, sourceOffset, destination.data, destination.rows, depth, columns,
+            destinationRow, destinationColumn, transpose, tileColumns,
+        )
     }
 }
 
 internal fun clearLeftPanelPadding(panel: DoubleArray, rows: Int, depth: Int, panelOffset: Int, tileRows: Int) {
     val size = packedLeftSize(rows, depth, tileRows)
     requireArrayWindow(panel, panelOffset, size, "packed panel")
-    val edge = rows % tileRows
-    if (edge == 0 || depth == 0) return
-    val edgePanel = panelOffset + (rows / tileRows) * depth * tileRows
-    for (step in 0 until depth) {
-        val group = edgePanel + step * tileRows
-        panel.fill(0.0, group + edge, group + tileRows)
-    }
+    clearLeftLayoutPadding(panel, rows, depth, panelOffset, tileRows)
 }
 
 internal fun clearRightPanelPadding(panel: DoubleArray, depth: Int, columns: Int, panelOffset: Int, tileColumns: Int) {
     val size = packedRightSize(depth, columns, tileColumns)
     requireArrayWindow(panel, panelOffset, size, "packed panel")
-    val edge = columns % tileColumns
-    if (edge == 0 || depth == 0) return
-    val edgePanel = panelOffset + (columns / tileColumns) * depth * tileColumns
-    for (step in 0 until depth) {
-        val group = edgePanel + step * tileColumns
-        panel.fill(0.0, group + edge, group + tileColumns)
-    }
+    clearRightLayoutPadding(panel, depth, columns, panelOffset, tileColumns)
 }
 
 @Suppress("LongParameterList")
@@ -287,65 +193,6 @@ internal fun requireArrayWindow(array: DoubleArray, offset: Int, size: Int, what
     requireIndex(offset >= 0 && offset.toLong() + size <= array.size) {
         "$what [$offset, ${offset.toLong() + size}) exceeds array length ${array.size}"
     }
-}
-
-private fun packedSourceValue(
-    source: DoubleArray,
-    leadingDimension: Int,
-    logicalRow: Int,
-    logicalColumn: Int,
-    transpose: Boolean,
-    structure: PackedPanelStructure,
-    lower: Boolean,
-    unitDiagonal: Boolean,
-): Double {
-    val row = if (transpose) logicalColumn else logicalRow
-    val column = if (transpose) logicalRow else logicalColumn
-    return when (structure) {
-        PackedPanelStructure.General -> source[row + column * leadingDimension]
-
-        PackedPanelStructure.Symmetric -> {
-            val stored = if (lower) row >= column else row <= column
-            if (stored) {
-                source[row + column * leadingDimension]
-            } else {
-                source[column + row * leadingDimension]
-            }
-        }
-
-        PackedPanelStructure.Triangular -> when {
-            row == column && unitDiagonal -> 1.0
-            if (lower) row >= column else row <= column -> source[row + column * leadingDimension]
-            else -> 0.0
-        }
-    }
-}
-
-private fun isStructuralZero(
-    logicalRow: Int,
-    logicalColumn: Int,
-    transpose: Boolean,
-    structure: PackedPanelStructure,
-    lower: Boolean,
-): Boolean {
-    if (structure != PackedPanelStructure.Triangular) return false
-    val row = if (transpose) logicalColumn else logicalRow
-    val column = if (transpose) logicalRow else logicalColumn
-    return if (lower) row < column else row > column
-}
-
-private fun writeLogical(
-    destination: DenseMatrix,
-    destinationRow: Int,
-    destinationColumn: Int,
-    logicalRow: Int,
-    logicalColumn: Int,
-    transpose: Boolean,
-    value: Double,
-) {
-    val row = destinationRow + if (transpose) logicalColumn else logicalRow
-    val column = destinationColumn + if (transpose) logicalRow else logicalColumn
-    destination.data[row + column * destination.rows] = value
 }
 
 internal inline fun withStableSource(

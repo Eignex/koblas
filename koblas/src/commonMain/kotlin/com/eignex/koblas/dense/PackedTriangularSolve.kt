@@ -50,33 +50,35 @@ internal fun packedTrsmCore(
     val packedTriangleSize = packedRightSize(order, order, tileColumns)
     workspace.borrow(packedTriangleSize) { packedTriangle ->
         workspace.borrow(packedXSize) { packedX ->
-            packRightPanel(
-                a,
+            packRightLayout(
+                a.data,
+                a.rows,
                 packedTriangle,
+                0,
                 order,
                 order,
                 0,
                 0,
                 transposeTriangle,
-                0,
-                null,
                 PackedPanelStructure.Triangular,
                 lower,
                 unitDiag,
                 tileColumns,
             )
-            packLeftPanel(
-                b,
+            packLeftLayout(
+                b.data,
+                b.rows,
                 packedX,
+                0,
                 rows,
                 order,
                 0,
                 0,
                 transpose = !right,
                 alpha = 1.0,
-                destinationOffset = 0,
-                workspace = null,
                 structure = PackedPanelStructure.General,
+                lower = false,
+                unitDiagonal = false,
                 tileRows = tileRows,
             )
             var boundary = if (effectiveLower) order else 0
@@ -131,16 +133,16 @@ internal fun packedTrsmCore(
                 }
                 boundary = if (effectiveLower) start else end
             }
-            writeLeftPanel(
+            writeLeftLayout(
                 packedX,
-                b,
+                0,
+                b.data,
+                b.rows,
                 rows,
                 order,
                 0,
                 0,
-                0,
                 transpose = !right,
-                workspace = null,
                 tileRows = tileRows,
             )
         }
