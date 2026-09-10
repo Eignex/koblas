@@ -1,7 +1,7 @@
 package com.eignex.koblas.sparse
 
 import com.eignex.koblas.ExperimentalKoblasApi
-import kotlin.math.abs
+import com.eignex.koblas.sparse.internal.SparseAccumulationKernels
 
 /**
  * Allocation-free sparse arithmetic over caller-owned array slices and workspaces.
@@ -58,18 +58,10 @@ public object SparseWorkspace {
             accumulator, marks, epoch, touched, touchedOffset, touchedCount,
         )
 
-        var total = touchedCount
-        for (k in 0 until count) {
-            val index = indices[indexOffset + k]
-            if (marks[index] != epoch) {
-                accumulator[index] = 0.0
-                marks[index] = epoch
-                touched[touchedOffset + total] = index
-                total++
-            }
-            accumulator[index] += alpha * values[valueOffset + k]
-        }
-        return total
+        return SparseAccumulationKernels.scatterWorkspace(
+            alpha, indices, indexOffset, values, valueOffset, count,
+            accumulator, marks, epoch, touched, touchedOffset, touchedCount,
+        )
     }
 
     /**
@@ -106,27 +98,11 @@ public object SparseWorkspace {
             accumulator, marks, epoch, touched, touchedOffset, touchedCount,
         )
 
-        var flags = arithmeticStatus[statusOffset]
-        var total = touchedCount
-        for (k in 0 until count) {
-            val index = indices[indexOffset + k]
-            if (marks[index] != epoch) {
-                accumulator[index] = 0.0
-                marks[index] = epoch
-                touched[touchedOffset + total] = index
-                total++
-            }
-            val value = values[valueOffset + k]
-            val product = alpha * value
-            val updated = accumulator[index] + product
-            if (!product.isFinite() || !updated.isFinite()) flags = flags or SCATTER_NONFINITE
-            if (alpha != 0.0 && value != 0.0 && product == 0.0) {
-                flags = flags or SCATTER_NONZERO_PRODUCT_UNDERFLOW
-            }
-            accumulator[index] = updated
-        }
-        arithmeticStatus[statusOffset] = flags
-        return total
+        return SparseAccumulationKernels.scatterWorkspaceChecked(
+            alpha, indices, indexOffset, values, valueOffset, count,
+            accumulator, marks, epoch, touched, touchedOffset, touchedCount,
+            arithmeticStatus, statusOffset, SCATTER_NONFINITE, SCATTER_NONZERO_PRODUCT_UNDERFLOW,
+        )
     }
 
     /**
@@ -156,10 +132,10 @@ public object SparseWorkspace {
             outValues,
             outValueOffset,
         )
-        return gather(
+        return SparseAccumulationKernels.gatherWorkspace(
             touched, touchedOffset, touchedCount, accumulator,
             outIndices, outIndexOffset, outValues, outValueOffset,
-            compactExactZeros, clear = false, marks = null,
+            compactExactZeros, marks = null,
         )
     }
 
@@ -196,10 +172,10 @@ public object SparseWorkspace {
         )
         requireDistinct(marks, touched, "marks and touched")
         requireDistinct(marks, outIndices, "marks and output indices")
-        return gather(
+        return SparseAccumulationKernels.gatherWorkspace(
             touched, touchedOffset, touchedCount, accumulator,
             outIndices, outIndexOffset, outValues, outValueOffset,
-            compactExactZeros, clear = true, marks = marks,
+            compactExactZeros, marks,
         )
     }
 
@@ -218,14 +194,14 @@ public object SparseWorkspace {
         requireWindow(rowIndices.size, indexOffset, count, "row indices")
         requireWindow(values.size, valueOffset, count, "values")
         validateIndices(rowIndices, indexOffset, count, activeRows.size, "row indices")
-        var maximum = 0.0
-        for (k in 0 until count) {
-            if (!activeRows[rowIndices[indexOffset + k]]) continue
-            val value = values[valueOffset + k]
-            if (!value.isFinite()) return Double.NaN
-            maximum = maxOf(maximum, abs(value))
-        }
-        return maximum
+        return SparseAccumulationKernels.activeMaximum(
+            rowIndices,
+            indexOffset,
+            values,
+            valueOffset,
+            count,
+            activeRows,
+        )
     }
 
     /**
@@ -264,19 +240,10 @@ public object SparseWorkspace {
         requireNonoverlap(rowIndices, indexOffset, count, outPositions, outOffset, count, "row indices and candidates")
         validateIndices(rowIndices, indexOffset, count, activeRows.size, "row indices")
 
-        val relativeCutoff = relativeThreshold * columnMaximum
-        var written = 0
-        for (k in 0 until count) {
-            if (!activeRows[rowIndices[indexOffset + k]]) continue
-            val value = values[valueOffset + k]
-            if (!value.isFinite() || value == 0.0) continue
-            val magnitude = abs(value)
-            if (magnitude >= absoluteTolerance && magnitude >= relativeCutoff) {
-                outPositions[outOffset + written] = k
-                written++
-            }
-        }
-        return written
+        return SparseAccumulationKernels.selectPivotCandidates(
+            rowIndices, indexOffset, values, valueOffset, count, activeRows,
+            absoluteTolerance, relativeThreshold * columnMaximum, outPositions, outOffset,
+        )
     }
 }
 
@@ -347,37 +314,6 @@ private fun validateGather(
         "touched and output indices",
     )
     validateIndices(touched, touchedOffset, touchedCount, accumulator.size, "touched")
-}
-
-@Suppress("LongParameterList")
-private fun gather(
-    touched: IntArray,
-    touchedOffset: Int,
-    touchedCount: Int,
-    accumulator: DoubleArray,
-    outIndices: IntArray,
-    outIndexOffset: Int,
-    outValues: DoubleArray,
-    outValueOffset: Int,
-    compactExactZeros: Boolean,
-    clear: Boolean,
-    marks: IntArray?,
-): Int {
-    var written = 0
-    for (k in 0 until touchedCount) {
-        val index = touched[touchedOffset + k]
-        val value = accumulator[index]
-        if (!compactExactZeros || value != 0.0) {
-            outIndices[outIndexOffset + written] = index
-            outValues[outValueOffset + written] = value
-            written++
-        }
-        if (clear) {
-            accumulator[index] = 0.0
-            marks!![index] = 0
-        }
-    }
-    return written
 }
 
 private fun validateIndices(indices: IntArray, offset: Int, count: Int, dimension: Int, name: String) {

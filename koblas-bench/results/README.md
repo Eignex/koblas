@@ -3,6 +3,23 @@
 These archives preserve benchmark evidence that would otherwise be deleted with the Gradle build directory.
 They may contain machine and checkout details; inspect their metadata before sharing them outside the project.
 
+## Sparse accumulation ownership
+
+`sparse-accumulation-8bc2579a-jvm-20260910.tar.gz` retains clean merged-base and final-candidate JVM measurements
+for sparse product, addition, rank updates, SYRK, and workspace primitives after the Phase 5 numerical-leaf and
+ownership-boundary extraction. The built-in arm resolved to JVM SIMD on a shared Intel Core i9-12900H without
+affinity or reservation, using the intentional JDK 25 toolchain.
+
+The first full pass was dominated by changing host contention; a repeated product/addition pass put every
+candidate score below its contemporaneous baseline, while workspace results moved in both directions. The raw
+confidence intervals are retained, so the evidence rules out an obvious structural regression at the selected
+call sites but does not establish a speedup. Allocation behavior is covered by JVM unit tests rather than the
+benchmark setup. Exact commits, commands, runtime settings, results, and unmeasured platforms are in the adjacent
+notes.
+
+Expected SHA-256:
+`dc42f9ae2dba5c2f6b0c367603fe53b5cc2dd5bea951ba69f5eebaa394fb8789`.
+
 ## Sparse slice and panel kernels
 
 `sparse-slice-panel-1ce4fdcb-jvm-20260910.tar.gz` retains two clean merged-base passes, one precisely attributed

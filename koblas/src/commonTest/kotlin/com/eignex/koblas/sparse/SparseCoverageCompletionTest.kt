@@ -236,5 +236,10 @@ class SparseCoverageCompletionTest {
         assertEquals(5.0, zero[0, 0])
         assertEquals(7.0, zero[1, 0])
         assertEquals(-3.0, zero[1, 1])
+
+        val aOnly = SparseMatrix.ofColumns(1, 1, listOf(listOf(0 to Double.NaN)))
+        val empty = SparseMatrix.ofColumns(1, 1, listOf(emptyList()))
+        val signedZero = ReferenceSparseLinearAlgebra.addScaled(-0.0, aOnly, false, empty)
+        assertEquals((-0.0).toBits(), signedZero.values.single().toBits())
     }
 }
