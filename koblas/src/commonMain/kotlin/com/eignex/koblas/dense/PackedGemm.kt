@@ -4,20 +4,7 @@ import com.eignex.koblas.Workspace
 import com.eignex.koblas.borrow
 import kotlin.math.min
 
-/*
- * The packed matrix product: both operands are copied into panels laid out in the order the kernel reads
- * them, and a tile of C is accumulated in [PackedKernels.gemmTile].
- *
- * This is the whole of the matrix product, for every shape and every target. What it replaced was built
- * out of AXPY calls, so a block of C was read and written once for every step of the shared dimension.
- * Here C is touched once per tile per depth block instead, and both operand streams are contiguous, which
- * is what lets a vector unit run at its arithmetic rate rather than at the rate cache can feed it.
- * Measured against the old update on Level3Benchmark.gemm at order 1024, this is 3.3 times as fast and
- * within a tenth of a single-threaded OpenBLAS.
- *
- * The blocking and the packing are here rather than behind the seam because they are the same everywhere.
- * The tile is the one piece that varies by target, and it varies there rather than here.
- */
+// Packing makes operand reads contiguous and accumulates each C tile in [PackedKernels.gemmTile].
 
 /**
  * Adds `alpha * op(A) * op(B)` into [c], where op is a transpose when the matching flag is set.
@@ -102,9 +89,7 @@ private fun packedProduct(
     val cols = kernels.gemmTileCols
     val blockRows = DenseTuning.packedBlockRows
     val blockColumns = DenseTuning.packedBlockColumns
-    // Blocked to the problem, not to the constants: a product smaller than a block would otherwise borrow
-    // and clear scratch for rows and columns it does not have, which on a small product costs more than the
-    // arithmetic. Rounded up to whole tiles, because a short edge is packed with its padding.
+    // Whole tiles avoid scratch for rows and columns outside a small product.
     val mc = min(blockRows - blockRows % rows, roundUp(m, rows))
     val nc = min(blockColumns - blockColumns % cols, roundUp(n, cols))
     val kc = min(DenseTuning.packedBlockDepth, k)

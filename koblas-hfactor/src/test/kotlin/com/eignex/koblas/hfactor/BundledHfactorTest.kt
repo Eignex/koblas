@@ -385,11 +385,6 @@ class BundledHfactorTest {
         assertNotNull(solver.kernel)
     }
 
-    /**
-     * The basis of a duplicated column is rank deficient. [BasisSolver.refactorize] refuses it to match
-     * the portable solver; the repairing rebuild keeps what HFactor made of it, which is what saves a warm
-     * start from becoming a cold one.
-     */
     @Test
     fun `a rank deficient basis is repaired rather than refused`() {
         val n = 3

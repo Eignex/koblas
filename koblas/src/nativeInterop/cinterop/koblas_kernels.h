@@ -4,31 +4,7 @@
 #include <math.h>
 #include <stdint.h>
 
-/*
- * The shared library the JVM loads is built once and shipped to unknown machines, so it cannot be compiled
- * for a wide instruction set outright. Without a target flag the compiler assumes only the x86-64 baseline,
- * which is SSE2, and every loop here vectorises two doubles at a time while the JIT it competes against
- * emits four. target_clones resolves that: the compiler emits a baseline version and an AVX2 version of
- * each kernel and picks between them once, through an ifunc resolver, the first time the symbol is called.
- * A machine without AVX2 runs exactly what it ran before.
- *
- * Both clones return the same bits. The accumulator structure below is written out in the source, so which
- * additions are grouped together is fixed there rather than chosen by the vectoriser, and a wider register
- * holds the same four accumulators in one place instead of two. A result therefore does not depend on which
- * clone the machine resolved to.
- *
- * KOBLAS_KERNEL_BASELINE opts a kernel out of the clones. Nothing uses it at present. It existed for
- * koblas_dense_dot4, whose scalar form was the one kernel the wider registers made slower, by 1.7 times,
- * because five live streams of hand-unrolled scalars stopped fitting. Written at vector width instead, the
- * shared operand is one register rather than four, and the exclusion is no longer needed. The macro stays
- * because the next kernel with that shape will want it.
- *
- * Only x86-64 ELF takes the clones. Aarch64 has no equivalent split, since NEON is baseline there and the
- * next step up is SVE, which needs different code rather than the same code widened. Mach-O has no ifunc.
- * Kotlin/Native compiles this header as static inline through its own toolchain rather than linking the
- * shared library, so it stays on the baseline: widening it would mean pinning the published Native
- * artifacts to a newer instruction set than they target today.
- */
+/* x86-64 ELF dispatches between baseline and AVX2 clones; other targets use the baseline implementation. */
 #if defined(KOBLAS_KERNELS_IMPLEMENTATION)
 /*
  * Exported through a pragma rather than an attribute per function, because clang refuses to accept a
@@ -50,54 +26,10 @@
 #define KOBLAS_KERNEL_BASELINE static inline
 #endif
 
-/*
- * Every reduction here carries four independent accumulators rather than one. A single accumulator chains
- * each add onto the previous result, and no compiler may reassociate a floating point sum unless asked, so
- * such a loop runs at add latency and vectorises to nothing at all. Four independent chains are
- * reassociated in the source, which is the author's call to make rather than the compiler's, so it needs
- * no flag and leaves the vectoriser free to pack them. koblas_dense_dot4 has carried four by construction
- * from the start and was the only reduction here that compiled to packed adds.
- *
- * Element-wise kernels need none of this: with no reduction to reassociate they already vectorise at -O3.
- * Two families cannot be helped this way and are left plain, each noted at its definition: rotm, whose
- * operands are strided and may overlap, and the sparse kernels, which index indirectly where the baseline
- * instruction set has neither gather nor scatter.
- *
- * Short runs take the plain tail instead, guarded by KOBLAS_UNROLL_MIN. Four chains have to be started and
- * then combined, and below a few dozen elements that fixed cost outweighs the shortened dependency chain.
- * Timing the two forms against each other here puts the crossover between 16 and 32 elements, and the JVM
- * SIMD kernels reached 32 by their own measurement, so the two implementations agree on the number. Since
- * the accumulators are still zero on that path, the combine folds to nothing and a short run returns
- * exactly what the plain loop alone returned.
- */
+/* Four independent accumulators expose reduction parallelism; short runs avoid their setup cost. */
 #define KOBLAS_UNROLL_MIN 32
 
-/*
- * The reductions are written at vector width rather than as scalars the compiler is expected to widen.
- *
- * That expectation held for one compiler and not the other. GCC widens eight hand-unrolled scalar chains
- * to 256-bit registers; the clang Kotlin/Native compiles with refuses to, even when the instruction set is
- * enabled explicitly and even with the operands marked as not aliasing, and emits 128-bit throughout. So
- * on Native every reduction ran at half width, which is most of why that target trailed a host BLAS by
- * two to two and a half times on dot and the absolute sum.
- *
- * A vector type says the width instead of hoping for it. Each target then spends its own registers on the
- * same source: 128-bit pairs at the x86 baseline, one 256-bit register in the AVX2 clone, and a pair of
- * NEON registers loaded with `ldp` on aarch64, where it is already full width and there are no clones.
- * Measured against a single-threaded OpenBLAS with this compiler, dot goes from 2.25x behind to 0.96x,
- * 1.00x and 1.05x at lengths 256, 1024 and 4096, and the absolute sum from 2.56x behind to 0.49x, 0.92x
- * and 1.10x.
- *
- * Four accumulators of four lanes, so sixteen doubles a step. Two accumulators leave the absolute sum at
- * 1.43x rather than 1.10x, so the count matters as much as the width. This is also the shape OpenBLAS
- * uses, arrived at here by measuring rather than by copying.
- *
- * Vector types are a GNU extension rather than standard C, supported by both compilers koblas builds with.
- * One rule comes with them: a vector must not cross a function boundary, because returning one from a
- * helper is an ABI error under clang in the clone that does not have the wider instruction set enabled.
- * Everything below keeps them inside a function body. `__builtin_memcpy` is the load, which assumes no
- * alignment and compiles to a plain unaligned move.
- */
+/* Explicit vectors guarantee lane width. Keep them within a function body for clang's target-clone ABI. */
 #define KOBLAS_LANES 4
 #define KOBLAS_VECTOR_STEP 16
 
@@ -258,12 +190,7 @@ KOBLAS_KERNEL double koblas_dense_sum(const double *v, int32_t v_off, int32_t le
     return sum;
 }
 
-KOBLAS_KERNEL double koblas_dense_asum(const double *v, int32_t v_off, int32_t len) {    /*
-     * The sign bit is cleared with an integer AND rather than fabs. The same substitution on the JVM's
-     * vector path was worth 1.47x to 1.76x, and it is what lets this match a host BLAS rather than trail
-     * it. Clearing the sign bit is what an absolute value is, so infinities, NaN and negative zero all
-     * come out as fabs would leave them.
-     */
+KOBLAS_KERNEL double koblas_dense_asum(const double *v, int32_t v_off, int32_t len) {    /* Clear the sign bit without changing NaN, infinity, or signed zero. */
     const koblas_v4i sign = {0x7fffffffffffffffLL, 0x7fffffffffffffffLL,
                              0x7fffffffffffffffLL, 0x7fffffffffffffffLL};
     koblas_v4d s0 = KOBLAS_ZERO, s1 = KOBLAS_ZERO, s2 = KOBLAS_ZERO, s3 = KOBLAS_ZERO;

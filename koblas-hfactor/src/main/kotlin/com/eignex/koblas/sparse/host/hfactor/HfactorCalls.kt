@@ -29,10 +29,7 @@ internal class HfactorCalls(private val config: HfactorConfig) {
         val updateCount: MethodHandle,
         val fill: MethodHandle,
         val pivotRange: MethodHandle,
-        /*
-         * Optional, so a deployment pointing at a shim built before these existed keeps its factorization
-         * and simply reports no diagnostics, rather than losing the binding to a missing symbol.
-         */
+        // Optional diagnostics symbols do not prevent factorization.
         val buildRepairing: MethodHandle?,
         val snapshot: MethodHandle?,
         val restore: MethodHandle?,

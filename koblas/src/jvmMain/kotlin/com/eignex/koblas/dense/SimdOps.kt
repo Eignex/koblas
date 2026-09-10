@@ -13,11 +13,7 @@ internal object SimdOps {
 
     fun lanes(): Int = LANE
 
-    /**
-     * Run length from which four accumulators beat one, as a multiple of the lane width because the reduce
-     * that combines them is a fixed cost against a per-vector saving. The measurement behind the multiplier
-     * is on [DenseTuning.simdUnrollMinVectors]; the lane count is the machine's and is applied here.
-     */
+    /** Run length for four accumulators, scaled by the machine's lane count. */
     private val UNROLL_MIN = DenseTuning.simdUnrollMinVectors * LANE
 
     /**
@@ -73,15 +69,7 @@ internal object SimdOps {
         return head + dotOneChain(a, aOff + unrolled, b, bOff + unrolled, len - unrolled)
     }
 
-    /**
-     * Four chains above [UNROLL_MIN], one accumulator below it, and a scalar tail.
-     *
-     * A single accumulator runs the whole reduction at floating-point add latency, which is what the four
-     * chains break. Measured on `Level1Benchmark.sumBench`: 35.9 ns against 79.2 at len 1024 and 147.0
-     * against 400.7 at 4096, both with clear error bars, and unchanged at 64 where the short arm still runs.
-     * Reassociating is sound here for the same reason it is in [dot], and a caller who needs the ordering
-     * held has `compensatedSum` instead.
-     */
+    /** Four chains above [UNROLL_MIN], one accumulator below it, and a scalar tail. */
     fun sum(v: DoubleArray, vOff: Int, len: Int): Double {
         var i = 0
         var s = 0.0
@@ -297,23 +285,12 @@ internal object SimdOps {
     /**
      * A vector with every sign bit cleared, which is the absolute value of each lane.
      *
-     * Reinterpreting to integers and masking rather than calling the vector absolute value, because the
-     * latter is measurably slower here: on `Level1Benchmark.asumBench` the masked form runs 1.47x to 1.76x
-     * faster over lengths 1024 to 16384, and it is the difference between trailing a single-threaded
-     * OpenBLAS on this routine and matching it. The result is identical for every input, including
-     * negative zero, infinities and NaN, since clearing the sign bit is what an absolute value is.
+     * The result is identical for every input, including negative zero, infinities and NaN.
      *
      * The `inline` keyword is load-bearing and must stay. A function returning a vector is one the JIT has
-     * to inline for the value to live in a register; when it declines, the vector becomes a heap object and
-     * the loop allocates. Compilation logs of a slow benchmark fork show this exact call refused with
-     * NodeCountInliningCutoff, after which the routine ran twenty to forty times slower and collected
-     * garbage where it should allocate nothing. Whether the JIT declines depends on how close the calling
-     * compilation is to its node budget, so it varied run to run and looked like measurement noise.
-     * Inlining in Kotlin removes the call before the JIT can decide against it.
+     * to inline for the value to live in a register; otherwise the loop allocates a heap vector.
      *
-     * The suppression is deliberate. Kotlin reports inlining a function with no functional parameters as
-     * having insignificant benefit, which is the usual case and wrong here: the benefit is not saving a
-     * call, it is keeping a vector out of the heap. Do not remove the keyword to silence the warning.
+     * Kotlin's warning does not account for avoiding that allocation.
      */
     @Suppress("NOTHING_TO_INLINE")
     private inline fun signStripped(v: DoubleVector): DoubleVector =
@@ -386,10 +363,7 @@ internal object SimdOps {
         }
     }
 
-    /**
-     * Exchange two runs a vector at a time. No accumulator, so no dependency chain to break and no unrolled
-     * variant: the win is two loads and two stores per vector where the loop does them per element.
-     */
+    /** Exchange two runs a vector at a time. */
     fun swap(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int) {
         var i = 0
         val bound = SPECIES.loopBound(len)

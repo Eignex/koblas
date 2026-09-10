@@ -417,8 +417,6 @@ class MatrixOpsTest {
 
     @Test
     fun `gemvInto honours beta on a matrix with no columns`() {
-        // The seams quick-return on a zero-extent operand before scaling, so the dense fast path used to
-        // leave the destination untouched while a generic MatrixLike of the same shape returned zeros.
         val dense = DenseMatrix.zero(3, 0)
         val destination = doubleArrayOf(Double.NaN, Double.NaN, Double.NaN)
 
