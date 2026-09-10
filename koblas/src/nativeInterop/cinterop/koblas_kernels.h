@@ -471,7 +471,9 @@ KOBLAS_KERNEL void koblas_sparse_axpy(
 ) {
     if (alpha == 0.0) return;
     for (int32_t k = 0; k < len; k++) {
-        dense[indices[index_off + k]] += alpha * values[value_off + k];
+        /* Preserve portable gemv overflow semantics by preventing multiply-add contraction. */
+        volatile double increment = alpha * values[value_off + k];
+        dense[indices[index_off + k]] += increment;
     }
 }
 
