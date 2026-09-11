@@ -29,6 +29,3 @@ out/
 .specstory/
 .aider*
 *.local.md
-
-# Generated benchmark bundles stay local; promote baseline CSVs and provenance explicitly.
-/koblas-bench/reports/
