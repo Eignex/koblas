@@ -1,15 +1,15 @@
 run,id,implementation,pass,unit,source_commit,dirty,runtime,threads,warmups,target_ns,harness,warmup_target_ns,forks
 case,id,run_id,case,status,comparison_kind,timing_mode,actual_kernel
 sample,case_id,fork,sample,operations,elapsed_ns,ns_per_op
-run,1,jvm-scalar/scalar/scalar/packed-4x4,1,ns,7a38ed4bdde4f7b167b5dbe3924fffe6ca7555fa,true,kotlin-2.4.10/jvm/Eclipse Adoptium/25.0.1/JMH 1.37/forks=2,1,5,200000000,jmh-average-time,200000000,2
-case,2,1,gemm-tile+3x2x31+uniform+packed=4x4,ok,partial,raw-tile,portable-tile
-sample,2,1,1,565297,204280172,361.36786857174195
-sample,2,1,2,392287,209111883,533.0584062178966
-run,2,jvm-scalar/scalar/scalar/packed-4x4,1,ns,7a38ed4bdde4f7b167b5dbe3924fffe6ca7555fa,true,kotlin-2.4.10/jvm/Eclipse Adoptium/25.0.1,1,5,200000000,jmh-average-time,200000000,2
-case,7,2,gemm-tile+8x4x32+uniform+packed=8x4,unsupported,unsupported,arithmetic,unavailable
-case,57,1,gemm-block+64x64x32+uniform+packed=4x4+timing=prepacked-compute,ok,direct,prepacked-compute,portable-tile
-sample,57,1,1,2339,200249862,85613.45104745618
-sample,57,1,2,2478,200184235,80784.59846650525
-case,58,1,gemm-block+64x64x32+uniform+packed=4x4+timing=pack-plus-compute,ok,direct,pack-plus-compute,portable-tile
-sample,58,1,1,2264,200243144,88446.6183745583
-sample,58,1,2,2549,200189777,78536.59356610435
+run,1,jvm-scalar/scalar/scalar/packed-4x4,1,ns,db65fbb3fdf9fcb1ea032284c73b78082bdec4bc,true,kotlin-2.4.10/jvm/Eclipse Adoptium/25.0.1/JMH 1.37/forks=2,1,5,200000000,jmh-average-time,200000000,2
+case,1,1,gemm-tile+3x2x31+uniform+packed=4x4,ok,partial,raw-tile,portable-tile
+sample,1,1,1,1733062,200290087,115.57006442931643
+sample,1,1,2,1794014,200249032,111.62066293797038
+run,2,jvm-scalar/scalar/scalar/packed-4x4,1,ns,db65fbb3fdf9fcb1ea032284c73b78082bdec4bc,true,kotlin-2.4.10/jvm/Eclipse Adoptium/25.0.1,1,5,200000000,jmh-average-time,200000000,2
+case,2,2,gemm-tile+8x4x32+uniform+packed=8x4,unsupported,unsupported,arithmetic,unavailable
+case,3,1,gemm-block+64x64x32+uniform+packed=4x4+timing=prepacked-compute,ok,direct,prepacked-compute,portable-tile
+sample,3,1,1,4740,200173995,42230.80063291139
+sample,3,1,2,4775,200258586,41938.970890052355
+case,4,1,gemm-block+64x64x32+uniform+packed=4x4+timing=pack-plus-compute,ok,direct,pack-plus-compute,portable-tile
+sample,4,1,1,4399,200150989,45499.201864060014
+sample,4,1,2,4373,200104564,45759.10450491653
