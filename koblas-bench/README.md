@@ -53,7 +53,7 @@ and raw per-run logs. To make a short trial, add
 
 Generated report bundles are ignored by Git. Keep logs, test XML and derived comparisons in an external
 artifact. When preserving a baseline in the repository, explicitly add only its raw CSVs, case snapshot,
-hardware/toolchain provenance and completion status, with a concise handoff. Use `git add -f` for those files.
+hardware/toolchain provenance and completion status. Record brief implementation notes in the original plans. Use `git add -f` for those files.
 
 Compare CSVs from the same run (or compatible runs):
 
