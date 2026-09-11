@@ -19,11 +19,13 @@ Koblas provides dense and sparse double-precision linear algebra for Kotlin Mult
 operations, mutable matrices and vectors, views into existing storage, and reusable workspaces. Built-in C and
 JVM SIMD kernels speed up supported operations.
 
+Koblas has no external dependencies and is entirely Apache-2.0 licensed; its goal is OpenBLAS and oneMKL parity for supported kernels.
+
 SIMD is confined to the low-level kernels. Level 2 and Level 3 operations are implemented in portable Kotlin
 and call those kernels to accelerate their inner loops.
 
-See the [benchmark guide](koblas-bench/README.md) for performance tests and comparisons with OpenBLAS and
-oneMKL. We welcome benchmark reports from different hardware.
+The [benchmark guide](koblas-bench/README.md) measures progress toward that parity with performance tests and
+comparisons against OpenBLAS and oneMKL. We welcome benchmark reports from different hardware.
 
 ## Setup
 
