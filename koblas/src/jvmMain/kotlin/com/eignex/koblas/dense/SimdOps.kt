@@ -1,5 +1,6 @@
 package com.eignex.koblas.dense
 
+import com.eignex.koblas.internal.numeric.scalarDot
 import jdk.incubator.vector.DoubleVector
 import jdk.incubator.vector.VectorOperators
 import kotlin.math.abs
@@ -261,25 +262,34 @@ internal object SimdOps {
         len: Int,
     ): Double {
         val alphaVector = DoubleVector.broadcast(SPECIES, alpha)
+        // If every product is smaller than this bound, even their absolute sum stays finite, so splitting
+        // the reduction across lanes cannot hide or introduce intermediate overflow. The rare exceptional
+        // path below replays the dot in scalar encounter order after retaining the SIMD AXPY update.
+        val safeProductLimit = if (len == 0) Double.MAX_VALUE else Double.MAX_VALUE / len
+        var requiresOrderedDot = false
         var sum = DoubleVector.zero(SPECIES)
         var i = 0
         val bound = SPECIES.loopBound(len)
         while (i < bound) {
             val va = DoubleVector.fromArray(SPECIES, a, aOff + i)
             val vx = DoubleVector.fromArray(SPECIES, x, xOff + i)
-            sum = va.fma(vx, sum)
-            va.fma(alphaVector, DoubleVector.fromArray(SPECIES, y, yOff + i)).intoArray(y, yOff + i)
+            val products = va.mul(vx)
+            requiresOrderedDot = requiresOrderedDot ||
+                signStripped(products).compare(VectorOperators.GE, safeProductLimit).anyTrue()
+            sum = products.add(sum)
+            va.mul(alphaVector).add(DoubleVector.fromArray(SPECIES, y, yOff + i)).intoArray(y, yOff + i)
             i += LANE
         }
         var result = sum.reduceLanes(VectorOperators.ADD)
         while (i < len) {
             val ai = a[aOff + i]
             val xi = x[xOff + i]
+            requiresOrderedDot = requiresOrderedDot || abs(ai * xi) >= safeProductLimit
             result += ai * xi
             y[yOff + i] += alpha * ai
             i++
         }
-        return result
+        return if (requiresOrderedDot) scalarDot(a, aOff, x, xOff, len) else result
     }
 
     /**
