@@ -51,6 +51,10 @@ run marks it `complete`. The report keeps an exact case snapshot, source patch, 
 and raw per-run logs. To make a short trial, add
 `--operation gemm --warmups 0 --samples 1 --target-ms 1 --forks 1`.
 
+Generated report bundles are ignored by Git. Keep logs, test XML and derived comparisons in an external
+artifact. When preserving a baseline in the repository, explicitly add only its raw CSVs, case snapshot,
+hardware/toolchain provenance and completion status, with a concise handoff. Use `git add -f` for those files.
+
 Compare CSVs from the same run (or compatible runs):
 
 ```bash
