@@ -1,0 +1,41 @@
+status=complete
+
+[capture]
+Fri Sep 11 19:57:01 UTC 2026
+Linux LTHCL001 7.0.0-31-generic #31-Ubuntu SMP PREEMPT_DYNAMIC Sat Aug  1 04:26:38 UTC 2026 x86_64 GNU/Linux
+cc (Ubuntu 15.2.0-16ubuntu1) 15.2.0
+7a38ed4bdde4f7b167b5dbe3924fffe6ca7555fa
+?? koblas-bench/reports/f342c3192a41a07cf0454d7d4d5324f8289cc01329bcc9c990b986dcdd2f5922/20260911T195701Z-7a38ed4bdde4/
+operation=all suite=packed warmups=5 samples=10 target_ms=200 forks=2 pass=1 libraries=openblas,onemkl
+completed_at=2026-09-11T20:17:46.036698+00:00
+Vendor runners started after commit 107ea102 (capture script, README and example only); their CSVs retain that source SHA. Benchmark sources stayed unchanged throughout.
+
+[toolchain]
+clang version 21.1.6
+Target: x86_64-unknown-linux-gnu
+Thread model: posix
+InstalledDir: /home/rasmus/.konan/dependencies/llvm-21-x86_64-linux-essentials-116/bin
+
+Kotlin Native distribution: kotlin-native-prebuilt-linux-x86_64-2.4.10
+JVM C flags: -std=c11 -O3 -fPIC -fvisibility=hidden -shared (scripts/build-koblas-kernels.sh)
+Native cinterop: -DKOBLAS_KERNELS_IMPLEMENTATION; release executable optimization; source src/nativeInterop/cinterop/koblas_kernels.def and Kotlin Native konan.properties
+No CPU affinity, frequency governor, thermal stabilization or host exclusivity was enforced.
+Only one repository benchmark workload was run at a time. No hardware-to-hardware comparison is claimed.
+
+[hardware]
+schema=1
+architecture=x86_64
+vendor id=GenuineIntel
+model name=12th Gen Intel(R) Core(TM) i9-12900H
+cpu family=6
+model=154
+thread(s) per core=2
+core(s) per socket=14
+socket(s)=1
+stepping=3
+l1d cache=544 KiB (14 instances)
+l1i cache=704 KiB (14 instances)
+l2 cache=11.5 MiB (8 instances)
+l3 cache=24 MiB (1 instance)
+numa node(s)=1
+memory_kib=64221064
