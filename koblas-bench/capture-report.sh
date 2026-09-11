@@ -56,28 +56,28 @@ commit=$(git -C "$root" rev-parse --short=12 HEAD)
 run_id="$(date -u +%Y%m%dT%H%M%SZ)-$commit"
 hardware_report="$reports/$hardware_hash"
 mkdir -p "$hardware_report"
-if [[ -e $hardware_report/hardware.txt ]]; then
-  cmp -s "$temporary/hardware.txt" "$hardware_report/hardware.txt" || {
-    echo "hardware hash collision" >&2; exit 1;
-  }
-else
-  cp "$temporary/hardware.txt" "$hardware_report/hardware.txt"
-fi
 run="$hardware_report/$run_id"
 [[ ! -e $run ]] || { echo "report already exists: $run" >&2; exit 1; }
 mkdir "$run"
-echo "incomplete" >"$run/status.txt"
 cp "$cases" "$temporary/selected-cases.txt"
 cases="$temporary/selected-cases.txt"
 {
+  echo "status=incomplete"
+  echo
+  echo "[capture]"
   date -u
   uname -a
-  cc --version | head -n 1
   git -C "$root" rev-parse HEAD
   git -C "$root" status --porcelain
   echo "operation=$operation suite=$suite warmups=$warmups samples=$samples target_ms=$target_ms forks=$forks pass=$pass libraries=$libraries"
   env | LC_ALL=C sort | awk '/^KOBLAS_(DENSE|SPARSE)_/ { print }'
-} >"$run/provenance.txt"
+  echo
+  echo "[toolchain]"
+  cc --version | head -n 1
+  echo
+  echo "[hardware]"
+  cat "$temporary/hardware.txt"
+} >"$run/metadata.txt"
 git -C "$root" diff --binary HEAD >"$temporary/source.patch"
 [[ ! -s $temporary/source.patch ]] || cp "$temporary/source.patch" "$run/source.patch"
 
@@ -86,7 +86,9 @@ common=("-Pbench.operation=$operation" "-Pbench.cases=$cases" "-Pbench.warmups=$
 (cd "$root" && ./gradlew :koblas-bench:jvmCBenchmark "${common[@]}" "-Pbench.forks=$forks" "-Pbench.output=$run/jvm-c.csv")
 (cd "$root" && ./gradlew :koblas-bench:jvmSimdBenchmark "${common[@]}" "-Pbench.forks=$forks" "-Pbench.output=$run/jvm-simd.csv")
 (cd "$root" && ./gradlew :koblas-bench:nativeBenchmark "${common[@]}" "-Pbench.output=$run/native.csv")
-"$bench/reference.sh" --libraries "$libraries" --output "$run/vendor" --cases "$cases" --samples "$samples" --warmups "$warmups" --target-ms "$target_ms" --pass "$pass"
+"$bench/reference.sh" --libraries "$libraries" --output "$temporary/vendor" --cases "$cases" --samples "$samples" --warmups "$warmups" --target-ms "$target_ms" --pass "$pass"
 
-echo "complete" >"$run/status.txt"
+mv "$temporary/vendor/"*.csv "$run/"
+sed '1s/status=incomplete/status=complete/' "$run/metadata.txt" >"$temporary/metadata.txt"
+mv "$temporary/metadata.txt" "$run/metadata.txt"
 echo "$run"

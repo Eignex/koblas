@@ -37,9 +37,9 @@ not suitable.
 
 ## Save and compare results
 
-Use one command to capture a full report. It hashes a stable hardware fingerprint, saves it at
-`koblas-bench/reports/<hardware-sha256>/hardware.txt`, then saves this run in a timestamped subdirectory. Repeated
-runs on the same hardware share the fingerprint and never overwrite prior results.
+Use one command to capture a full report in `koblas-bench/reports/<hardware-sha256>/<run-id>/`.
+Each run contains one CSV per implementation and `metadata.txt` with completion status, provenance, toolchain
+and hardware details. Repeated runs never overwrite prior results.
 
 ```bash
 koblas-bench/capture-report.sh --libraries openblas,onemkl --suite packed \
@@ -54,7 +54,7 @@ Compare CSVs from the same run (or compatible runs):
 
 ```bash
 koblas-bench/tools/compare.sh --mode logical --timing prepacked-compute --require-compatible \
-  koblas-bench/reports/<hardware-sha256>/<run-id>/vendor/openblas.csv \
+  koblas-bench/reports/<hardware-sha256>/<run-id>/openblas.csv \
   koblas-bench/reports/<hardware-sha256>/<run-id>/jvm-c.csv
 ```
 
@@ -62,7 +62,7 @@ Use `--mode fixed` for identical packed configurations, or `--mode logical` to c
 across layouts. Physical strategies remain separate pairs. The example selects prepacked block computation;
 raw vendor arithmetic has a different timing boundary and cannot be compared with Koblas raw tiles.
 The comparator rejects mismatched workload/fixture versions, timing modes, threads, warmups and timing targets.
-Each CSV row records its source commit, runtime, actual kernel and physical configuration.
+CSV run and case records identify the source commit, runtime, actual kernel and physical configuration.
 
 ## Useful options
 
@@ -110,4 +110,4 @@ koblas-bench/reference/test.sh
 ./gradlew :koblas-bench:nativeBenchmark -Pbench.operation=dot -Pbench.samples=1 -Pbench.targetMs=1
 ```
 
-[`example.csv`](example.csv) shows the format only; its smoke timings are not performance evidence.
+[`example.csv`](example.csv) is a short format example; use complete captured reports for performance comparisons.
