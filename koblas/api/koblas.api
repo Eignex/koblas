@@ -425,6 +425,15 @@ public final class com/eignex/koblas/VectorStorage$Companion {
 
 public final class com/eignex/koblas/Workspace {
 	public fun <init> ()V
+	public final fun release ([D)V
+	public final fun release ([I)V
+	public final fun take (I)[D
+	public final fun takeI32 (I)[I
+}
+
+public final class com/eignex/koblas/WorkspaceKt {
+	public static final fun borrow (Lcom/eignex/koblas/Workspace;ILkotlin/jvm/functions/Function1;)Ljava/lang/Object;
+	public static final fun borrowI32 (Lcom/eignex/koblas/Workspace;ILkotlin/jvm/functions/Function1;)Ljava/lang/Object;
 }
 
 public abstract interface class com/eignex/koblas/dense/DenseBlas {

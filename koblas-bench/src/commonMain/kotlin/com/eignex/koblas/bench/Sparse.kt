@@ -1,12 +1,12 @@
 package com.eignex.koblas.bench
 
 import com.eignex.koblas.DenseMatrix
-import com.eignex.koblas.KoblasContext
+import com.eignex.koblas.KoblasEngine
 import com.eignex.koblas.SparseMatrix
-import com.eignex.koblas.sparse.PreparedSparseMatrix
+import com.eignex.koblas.PreparedSparseMatrix
 import com.eignex.koblas.sparse.SparseSlices
 
-internal fun sparseWork(case: BenchCase, engine: KoblasContext): CaseWork? {
+internal fun sparseWork(case: BenchCase, engine: KoblasEngine): CaseWork? {
     if (!case.operation.startsWith("sp") && !case.operation.startsWith("sparse-slices-")) return null
     val density = case.option("density", "0.01").toDouble()
     val d = case.dimensions
@@ -147,7 +147,7 @@ internal fun sparseWork(case: BenchCase, engine: KoblasContext): CaseWork? {
 
 private fun preparedOrOneShot(
     mode: String,
-    engine: KoblasContext,
+    engine: KoblasEngine,
     matrix: SparseMatrix,
     comparison: String = "direct",
     preparedRun: (PreparedSparseMatrix) -> Double,
@@ -160,7 +160,7 @@ private fun preparedOrOneShot(
     return CaseWork(comparison, "prepared", { preparedRun(prepared) })
 }
 
-private fun sparseSlicesWork(case: BenchCase, density: Double, engine: KoblasContext): CaseWork {
+private fun sparseSlicesWork(case: BenchCase, density: Double, engine: KoblasEngine): CaseWork {
     val dimension = case.dimension(0)
     val count = (dimension * density + 0.5).toInt().coerceAtLeast(1)
     val sparse = Fixtures.sparseVector(dimension, density, 1)

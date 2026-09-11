@@ -1,12 +1,12 @@
 package com.eignex.koblas.bench
 
-import com.eignex.koblas.KoblasContext
+import com.eignex.koblas.KoblasEngine
 import kotlin.math.max
 import kotlin.time.TimeSource
 
 internal expect fun readTextFile(path: String): String
 internal expect fun writeTextFile(path: String, text: String)
-internal expect fun resolveEngine(mode: String): Pair<KoblasContext, String>
+internal expect fun resolveEngine(mode: String): Pair<KoblasEngine, String>
 internal expect fun runtimeIdentity(): String
 internal expect fun environment(name: String): String?
 private val clockOrigin = TimeSource.Monotonic.markNow()
