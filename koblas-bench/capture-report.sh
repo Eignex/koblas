@@ -35,7 +35,17 @@ done
 [[ $suite == all || $suite == packed ]] || { usage; exit 2; }
 
 temporary=$(mktemp -d "${TMPDIR:-/tmp}/koblas-bench-report.XXXXXX")
-trap 'rm -rf "$temporary"' EXIT
+cpu_pid=
+cleanup() {
+  if [[ -n $cpu_pid ]]; then
+    touch "$temporary/cpu.stop"
+    wait "$cpu_pid" || true
+  fi
+  rm -rf "$temporary"
+}
+trap cleanup EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
 "$bench/tools/hardware.sh" >"$temporary/hardware.txt"
 
 cases="$bench/cases.txt"
@@ -81,14 +91,40 @@ cases="$temporary/selected-cases.txt"
 git -C "$root" diff --binary HEAD >"$temporary/source.patch"
 [[ ! -s $temporary/source.patch ]] || cp "$temporary/source.patch" "$run/source.patch"
 
+{
+  echo
+  echo "[cpu]"
+  echo "interval_ms=1000 baseline_seconds=3"
+} >>"$run/metadata.txt"
+java_command=${JAVA_HOME:+$JAVA_HOME/bin/}java
+"$java_command" "$bench/tools/CpuSampler.java" "$run/cpu.csv" "$temporary/cpu.ready" "$temporary/cpu.stop" >>"$run/metadata.txt" &
+cpu_pid=$!
+until [[ -f $temporary/cpu.ready ]]; do
+  kill -0 "$cpu_pid" 2>/dev/null || { wait "$cpu_pid"; echo "CPU sampler stopped before startup" >&2; exit 1; }
+  sleep 0.1
+done
+{
+  echo
+  echo "[execution]"
+} >>"$run/metadata.txt"
+
 common=("-Pbench.operation=$operation" "-Pbench.cases=$cases" "-Pbench.warmups=$warmups" "-Pbench.samples=$samples" "-Pbench.targetMs=$target_ms" "-Pbench.pass=$pass")
+echo "jvm-scalar_started_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >>"$run/metadata.txt"
 (cd "$root" && ./gradlew :koblas-bench:jvmScalarBenchmark "${common[@]}" "-Pbench.forks=$forks" "-Pbench.output=$run/jvm-scalar.csv")
+echo "jvm-c_started_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >>"$run/metadata.txt"
 (cd "$root" && ./gradlew :koblas-bench:jvmCBenchmark "${common[@]}" "-Pbench.forks=$forks" "-Pbench.output=$run/jvm-c.csv")
+echo "jvm-simd_started_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >>"$run/metadata.txt"
 (cd "$root" && ./gradlew :koblas-bench:jvmSimdBenchmark "${common[@]}" "-Pbench.forks=$forks" "-Pbench.output=$run/jvm-simd.csv")
+echo "native_started_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >>"$run/metadata.txt"
 (cd "$root" && ./gradlew :koblas-bench:nativeBenchmark "${common[@]}" "-Pbench.output=$run/native.csv")
+echo "vendors_started_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >>"$run/metadata.txt"
 "$bench/reference.sh" --libraries "$libraries" --output "$temporary/vendor" --cases "$cases" --samples "$samples" --warmups "$warmups" --target-ms "$target_ms" --pass "$pass"
 
 mv "$temporary/vendor/"*.csv "$run/"
+echo "completed_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >>"$run/metadata.txt"
+touch "$temporary/cpu.stop"
+wait "$cpu_pid"
+cpu_pid=
 sed '1s/status=incomplete/status=complete/' "$run/metadata.txt" >"$temporary/metadata.txt"
 mv "$temporary/metadata.txt" "$run/metadata.txt"
 echo "$run"

@@ -39,10 +39,13 @@ not suitable.
 
 Use one command to capture a full report in `koblas-bench/reports/<hardware-sha256>/<run-id>/`.
 Each run contains one CSV per implementation and `metadata.txt` with completion status, provenance, toolchain
-and hardware details. Repeated runs never overwrite prior results.
+and hardware details. `cpu.csv` records overall CPU utilization once per second, including a three-second
+background baseline. Blank readings mean unavailable. Execution timestamps in `metadata.txt` locate each runner
+within the trace, including its build and warmup time. The sampler uses the JDK selected by `JAVA_HOME` or `java`
+on `PATH`. Repeated runs never overwrite prior results.
 
 ```bash
-koblas-bench/capture-report.sh --libraries openblas,onemkl --suite packed \
+koblas-bench/capture-report.sh --libraries openblas,onemkl \
   --samples 10 --warmups 5 --target-ms 200 --forks 2
 ```
 

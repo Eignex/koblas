@@ -1,4 +1,0 @@
-case,implementation,pass,sample,operations,elapsed_ns,ns_per_op,unit,status,comparison_kind,timing_mode,source_commit,dirty,runtime,threads,warmups,target_ns
-gemm+32x21x48+uniform,jvm-c/c/c-sparse/packed-4x4,2,1,1,21896435,2.1896435E7,ns,ok,direct,reset-and-arithmetic,391f991eb2c4d81e8a42e942bafb249a03cf8a25,false,kotlin-2.4.10/jvm/Eclipse Adoptium/25.0.1/JMH 1.37/forks=1,1,0,1000000
-gemm+129x31x257+uniform+transA=T,jvm-c/c/c-sparse/packed-4x4,2,1,1,25050219,2.5050219E7,ns,ok,direct,reset-and-arithmetic,391f991eb2c4d81e8a42e942bafb249a03cf8a25,false,kotlin-2.4.10/jvm/Eclipse Adoptium/25.0.1/JMH 1.37/forks=1,1,0,1000000
-gemm+65x127x33+uniform+transB=T,jvm-c/c/c-sparse/packed-4x4,2,1,1,24110617,2.4110617E7,ns,ok,direct,reset-and-arithmetic,391f991eb2c4d81e8a42e942bafb249a03cf8a25,false,kotlin-2.4.10/jvm/Eclipse Adoptium/25.0.1/JMH 1.37/forks=1,1,0,1000000

@@ -1,4 +1,0 @@
-case,implementation,pass,sample,operations,elapsed_ns,ns_per_op,unit,status,comparison_kind,timing_mode,source_commit,dirty,runtime,threads,warmups,target_ns
-gemm+32x21x48+uniform,openblas,2,1,256,366261,1430.70703125,ns,ok,direct,reset-and-arithmetic,391f991eb2c4d81e8a42e942bafb249a03cf8a25,false,OpenBLAS 0.3.32 NO_LAPACKE DYNAMIC_ARCH NO_AFFINITY Haswell MAX_THREADS=128; compiler=15.2.0,1,0,1000000
-gemm+129x31x257+uniform+transA=T,openblas,2,1,8,358944,44868,ns,ok,direct,reset-and-arithmetic,391f991eb2c4d81e8a42e942bafb249a03cf8a25,false,OpenBLAS 0.3.32 NO_LAPACKE DYNAMIC_ARCH NO_AFFINITY Haswell MAX_THREADS=128; compiler=15.2.0,1,0,1000000
-gemm+65x127x33+uniform+transB=T,openblas,2,1,32,380320,11885,ns,ok,direct,reset-and-arithmetic,391f991eb2c4d81e8a42e942bafb249a03cf8a25,false,OpenBLAS 0.3.32 NO_LAPACKE DYNAMIC_ARCH NO_AFFINITY Haswell MAX_THREADS=128; compiler=15.2.0,1,0,1000000
