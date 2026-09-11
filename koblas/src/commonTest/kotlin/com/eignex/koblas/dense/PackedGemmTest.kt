@@ -1,7 +1,9 @@
 package com.eignex.koblas.dense
 
+import com.eignex.koblas.asView
 import com.eignex.koblas.assertClose
 import com.eignex.koblas.koblas
+import com.eignex.koblas.randomMatrix
 import kotlin.random.Random
 import kotlin.test.Test
 
@@ -54,6 +56,18 @@ internal fun assertPackedGemmAgreesWithWrittenOutProduct(kernels: PackedKernels)
 }
 
 class PackedGemmTest {
+    @Test
+    fun `configured packing blocks preserve a rectangular product`() {
+        val rng = Random(20260911)
+        val a = randomMatrix(5, 7, rng)
+        val b = randomMatrix(7, 6, rng)
+        val expected = ReferenceBlas.gemm(a.asView(), b.asView())
+
+        val actual = koblas.gemm(a, b)
+
+        assertClose(expected, actual, "configured packed blocks")
+    }
+
     @Test
     fun `the packed product on the portable tile agrees with a written out product`() {
         assertPackedGemmAgreesWithWrittenOutProduct(PortablePackedKernels)

@@ -56,4 +56,46 @@ class StridedViewsTest {
         assertFailsWith<IllegalArgumentException> { StridedMatrixView(2, 2, DoubleArray(4), leadingDimension = 3) }
         assertFailsWith<IllegalArgumentException> { DenseMatrix.zero(2).view(1, 2, 0, 1) }
     }
+
+    @Test
+    fun `empty boundary panels keep a valid buffer offset`() {
+        val backing = DoubleArray(8)
+        val parents = listOf(
+            DenseMatrix.zero(2, 3).asView(),
+            StridedMatrixView(2, 2, backing, offset = 2, leadingDimension = 4),
+            StridedMatrixView(0, Int.MAX_VALUE, DoubleArray(0), leadingDimension = Int.MAX_VALUE),
+        )
+
+        for (parent in parents) {
+            val panels = listOf(
+                parent.view(parent.rows, 0, parent.cols, 0),
+                parent.view(0, parent.rows, parent.cols, 0),
+                parent.view(parent.rows, 0, 0, parent.cols),
+            )
+
+            for (panel in panels) {
+                assertSame(parent.data, panel.data)
+                assertEquals(parent.leadingDimension, panel.leadingDimension)
+                assertTrue(panel.offset in 0..panel.data.size)
+                assertFalse(panel.overlaps(parent))
+            }
+        }
+    }
+
+    @Test
+    fun `rows and columns of zero extent matrices produce empty vectors`() {
+        val noRows = StridedMatrixView(0, 3, DoubleArray(0))
+        val noColumns = StridedMatrixView(3, 0, DoubleArray(0))
+
+        for (j in 0 until noRows.cols) {
+            val column = noRows.column(j)
+            assertSame(noRows.data, column.data)
+            assertContentEquals(DoubleArray(0), column.toDoubleArray())
+        }
+        for (i in 0 until noColumns.rows) {
+            val row = noColumns.row(i)
+            assertSame(noColumns.data, row.data)
+            assertContentEquals(DoubleArray(0), row.toDoubleArray())
+        }
+    }
 }

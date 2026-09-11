@@ -9,7 +9,6 @@ import com.eignex.koblas.VectorLike
 import com.eignex.koblas.dense.DenseVectorKernels
 import com.eignex.koblas.internal.numeric.euclideanNorm
 import com.eignex.koblas.internal.numeric.neumaierSum
-import com.eignex.koblas.sparse.SparseKernels
 import kotlin.math.abs
 
 /**
@@ -33,7 +32,7 @@ public inline fun VectorLike.forEachStored(block: (i: Int, v: Double) -> Unit) {
     }
 }
 
-/** `aT * b`. Any sparse operand goes through [SparseKernels], walking the stored entries only. */
+/** `aT * b`. Sparse operands walk their stored entries only. */
 public infix fun VectorLike.dot(other: VectorLike): Double {
     requireSameSize(size, other.size)
     if (this is StridedVectorView && other is StridedVectorView) {
@@ -47,6 +46,12 @@ public infix fun VectorLike.dot(other: VectorLike): Double {
     if (this is SparseVector && other is SparseVector) return koblas.sparseKernels.dot(this, other)
     if (this is SparseVector && other is DenseVector) return koblas.sparseKernels.dot(this, other.data)
     if (this is DenseVector && other is SparseVector) return koblas.sparseKernels.dot(other, data)
+    if (this is SparseVector) {
+        var sum = 0.0
+        for (k in indices.indices) sum += values[k] * other[indices[k]]
+        return sum
+    }
+    if (other is SparseVector) return other dot this
     var s = 0.0
     for (i in 0 until size) s += this[i] * other[i]
     return s
@@ -143,9 +148,16 @@ public fun VectorLike.iamax(): Int {
     return if (best == -1) 0 else best
 }
 
-/** `dst = src` (BLAS `dcopy`). A sparse source zero-fills the destination first, so nothing survives. */
+/**
+ * `dst = src` (BLAS `dcopy`). A sparse source zero-fills the destination first, so nothing survives.
+ * A borrowed or sparse source sharing [dst]'s buffer is snapshotted before writing.
+ */
 public fun copy(src: VectorLike, dst: DenseVector) {
     requireSameSize(src.size, dst.size)
+    if ((src is StridedVectorView && src.data === dst.data) || (src is SparseVector && src.values === dst.data)) {
+        src.toDoubleArray().copyInto(dst.data)
+        return
+    }
     when (src) {
         is DenseVector -> src.data.copyInto(dst.data)
 
@@ -155,16 +167,27 @@ public fun copy(src: VectorLike, dst: DenseVector) {
         }
 
         else -> {
-            dst.data.fill(0.0)
             src.forEachStored { i, v -> dst.data[i] = v }
         }
     }
 }
 
-/** `dst = src` into a borrowed strided destination, without materializing either operand. */
+/**
+ * `dst = src` into a borrowed strided destination. Overlapping built-in sources are snapshotted before
+ * writing; disjoint operands are copied without materializing either one.
+ */
 public fun copy(src: VectorLike, dst: StridedVectorView) {
     requireSameSize(src.size, dst.size)
-    for (i in 0 until src.size) dst[i] = src[i]
+    val source = src.stableFor(dst)
+    for (i in 0 until source.size) dst[i] = source[i]
+}
+
+/** Retains sparse support when snapshotting an input whose values may be overwritten through [destination]. */
+private fun VectorLike.stableFor(destination: StridedVectorView): VectorLike = when (this) {
+    is DenseVector -> if (data === destination.data) DenseVector.of(data) else this
+    is SparseVector -> if (values === destination.data) SparseVector.wrap(size, indices, values.copyOf()) else this
+    is StridedVectorView -> if (overlaps(destination)) DenseVector.wrap(toDoubleArray()) else this
+    else -> this
 }
 
 /**
@@ -198,22 +221,29 @@ public fun swap(a: StridedVectorView, b: StridedVectorView) {
     }
 }
 
-/** `y = y + alpha * x`. A sparse `x` touches only the positions it stores. */
+/**
+ * `y = y + alpha * x`. A sparse `x` touches only the positions it stores. A borrowed [x] sharing the
+ * destination buffer is snapshotted before writing.
+ */
 public fun DenseVector.axpy(alpha: Double, x: VectorLike) {
     requireSameSize(size, x.size)
     if (alpha == 0.0) return
-    when (x) {
-        is DenseVector -> koblas.vectorKernels.axpy(data, 0, alpha, x.data, 0, size)
-        is SparseVector -> koblas.sparseKernels.axpy(data, alpha, x)
-        else -> x.forEachStored { i, v -> data[i] += alpha * v }
+    val source = if (x is StridedVectorView && x.data === data) DenseVector.wrap(x.toDoubleArray()) else x
+    when (source) {
+        is DenseVector -> koblas.vectorKernels.axpy(data, 0, alpha, source.data, 0, size)
+        is SparseVector -> koblas.sparseKernels.axpy(data, alpha, source)
+        else -> source.forEachStored { i, v -> data[i] += alpha * v }
     }
 }
 
-/** `this = this + alpha * x` over a borrowed strided destination. */
+/**
+ * `this = this + alpha * x` over a borrowed strided destination. Sparse inputs touch only stored positions;
+ * overlapping built-in inputs are snapshotted before writing.
+ */
 public fun StridedVectorView.axpy(alpha: Double, x: VectorLike) {
     requireSameSize(size, x.size)
     if (alpha == 0.0) return
-    for (i in 0 until size) this[i] += alpha * x[i]
+    x.stableFor(this).forEachStored { i, value -> this[i] += alpha * value }
 }
 
 /** `v = alpha * v`. */
@@ -234,7 +264,12 @@ private fun stridedNorm2(vector: StridedVectorView): Double {
     var sumSquares = 1.0
     for (i in 0 until vector.size) {
         val value = abs(vector[i])
-        if (value != 0.0) {
+        if (value.isNaN()) return Double.NaN
+        if (value.isInfinite()) {
+            // Repeated infinities must not form infinity / infinity in the rescaling recurrence.
+            scale = value
+            sumSquares = 1.0
+        } else if (value != 0.0) {
             if (scale < value) {
                 val ratio = scale / value
                 sumSquares = 1.0 + sumSquares * ratio * ratio
@@ -245,9 +280,6 @@ private fun stridedNorm2(vector: StridedVectorView): Double {
             }
         }
     }
-    // A NaN entry never raises `scale`, since `0.0 < NaN` is false, but it does reach `sumSquares`. Reading
-    // the zero case off `scale` alone would then discard it and report a clean norm for a corrupt vector,
-    // where dnrm2 and the dense path both propagate the NaN.
-    if (scale == 0.0) return if (sumSquares.isNaN()) Double.NaN else 0.0
+    if (scale == 0.0) return 0.0
     return scale * kotlin.math.sqrt(sumSquares)
 }
