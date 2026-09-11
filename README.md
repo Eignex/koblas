@@ -17,6 +17,8 @@
 
 Dense and sparse double-precision linear algebra for Kotlin Multiplatform, with built-in C and JVM SIMD kernels.
 Koblas provides BLAS operations, mutable matrices and vectors, strided views, and reusable workspaces.
+See the [benchmark guide](koblas-bench/README.md) for performance suites and development-only OpenBLAS and
+oneMKL comparisons. We welcome benchmark reports from different hardware.
 
 ## Setup
 
@@ -32,13 +34,6 @@ Supported targets are JVM (JDK 25 or later), Linux x64/arm64, and macOS arm64.
 On JVM, enable SIMD with the runtime flag `--add-modules=jdk.incubator.vector`. Without it, Koblas uses bundled
 C kernels when available, then scalar Kotlin. For bundled C kernels on the classpath, also pass
 `--enable-native-access=ALL-UNNAMED`. Kotlin/Native uses bundled C kernels with scalar fallbacks.
-
-## Verification
-
-Run the core checks with `./gradlew :koblas:check`. This includes `simdSparseAllocationCheck`, which starts an
-uninstrumented JVM and verifies that the SIMD indexed sparse dot, gather, and norm paths do not allocate after
-HotSpot compilation. Run it alone with `./gradlew :koblas:simdSparseAllocationCheck` when investigating a
-regression; it requires JDK 25 and the incubating Vector API, like the regular JVM tests.
 
 ## Quick start
 
@@ -118,14 +113,3 @@ to interpret a single-triangle result symmetrically.
 The default `koblas` engine is immutable, selected once, and safe to share. Its kernels are single-threaded.
 Containers and views are mutable; concurrent reads require no writer. Use one `Workspace` per concurrent
 operation.
-
-## Development
-
-Run the core, benchmark, and documentation checks with:
-
-```sh
-./gradlew :koblas:check :koblas-bench:check lintDocs
-```
-
-See the [benchmark guide](koblas-bench/README.md) for performance suites and development-only OpenBLAS and
-oneMKL comparisons.
