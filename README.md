@@ -87,6 +87,23 @@ fun multiply(engine: KoblasEngine, left: DenseMatrix, right: DenseMatrix): Dense
 val scalarProduct = multiply(BuiltinEngines.scalar, a, b)
 ```
 
+## API structure
+
+Most application code needs only `com.eignex.koblas.*`. The root package contains the owning dense and sparse
+containers, zero-copy views, `Workspace`, allocating operators, and high-level operations. `Matrix` and `Vector`
+are read-only contracts that custom types can implement. `MatrixStorage` and `VectorStorage` identify Koblas's
+built-in dense and sparse containers, so operations such as norms, scaling, and triangular solves can use one API
+and dispatch according to the actual storage.
+
+The `com.eignex.koblas.dense` and `com.eignex.koblas.sparse` packages are the lower-level composition layer.
+`DenseBlas` and `SparseBlas` expose storage-specific BLAS signatures, while their kernel interfaces, packed panels,
+and sparse slices support custom algorithms over caller-owned storage. Ordinary matrix and vector arithmetic does
+not require imports from these packages.
+
+`KoblasEngine` connects the layers: it implements both BLAS contracts and binds them to one immutable set of dense,
+packed, and sparse kernels. Root-package operators and extensions use the platform-selected `koblas` engine. Call
+an explicit engine instead when selecting scalar, C, or SIMD behavior is part of the caller's contract.
+
 ## Operations
 
 | API | Includes |
