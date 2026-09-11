@@ -82,7 +82,7 @@ internal object Cases {
         when (name) {
             "density" -> if (value.toDoubleOrNull()?.let { it > 0.0 && it <= 1.0 } != true) invalid("invalid density '$value'")
             "mode" -> if (value !in setOf("prepared", "oneshot")) invalid("invalid mode '$value'")
-            "packed" -> if (value !in setOf("4x4-v1", "8x4-v1")) invalid("unsupported packed recipe '$value'")
+            "packed" -> if (value !in setOf("4x4", "8x4")) invalid("unsupported packed recipe '$value'")
             "side" -> if (value !in setOf("L", "R")) invalid("invalid side '$value'")
             "uplo" -> if (value !in setOf("L", "U")) invalid("invalid uplo '$value'")
             "transA", "transB" -> if (value !in setOf("N", "T")) invalid("invalid transpose '$value'")
@@ -138,7 +138,7 @@ internal object Cases {
         options: Map<String, String>,
         invalid: (String) -> Nothing,
     ) {
-        val physical = options["packed"]?.removeSuffix("-v1")?.split('x')?.map(String::toInt) ?: return
+        val physical = options["packed"]?.split('x')?.map(String::toInt) ?: return
         val (tileRows, tileColumns) = physical
         val rowsBounded = operation in setOf(
             "gemm-tile", "packed-trsm", "gemm-trsm", "pack-left", "pack-symmetric-left",

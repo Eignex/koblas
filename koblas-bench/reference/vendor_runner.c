@@ -165,7 +165,7 @@ static int valid_option(const char *name,const char *value){
     if(!strcmp(name,"timing"))return !strcmp(value,"prepacked-compute")||!strcmp(value,"pack-plus-compute");
     if(!strcmp(name,"density")){char *tail;double density=strtod(value,&tail);return !*tail&&density>0&&density<=1;}
     if(!strcmp(name,"mode"))return !strcmp(value,"prepared")||!strcmp(value,"oneshot");
-    if(!strcmp(name,"packed"))return !strcmp(value,"4x4-v1")||!strcmp(value,"8x4-v1");
+    if(!strcmp(name,"packed"))return !strcmp(value,"4x4")||!strcmp(value,"8x4");
     if(!strcmp(name,"side"))return !strcmp(value,"L")||!strcmp(value,"R");
     if(!strcmp(name,"uplo"))return !strcmp(value,"L")||!strcmp(value,"U");
     if(!strcmp(name,"transA")||!strcmp(name,"transB"))return !strcmp(value,"N")||!strcmp(value,"T");
@@ -229,7 +229,7 @@ static int parse_case(char *line, int line_number, bench_case *out) {
         if(!required)fail("redundant default option");
     }
     if(sparse&&option_present(out,"side")&&strcmp(option(out,"side",""),"L"))fail("sparse right-side cases are unsupported");
-    if(option_present(out,"packed")){int physical_rows=0,physical_cols=0;if(sscanf(option(out,"packed",""),"%dx%d-v1",&physical_rows,&physical_cols)!=2)fail("invalid physical shape");const char *op=out->operation;int rows_bounded=!strcmp(op,"gemm-tile")||!strcmp(op,"packed-trsm")||!strcmp(op,"gemm-trsm")||!strcmp(op,"pack-left")||!strcmp(op,"pack-symmetric-left")||!strcmp(op,"pack-triangular-left")||!strcmp(op,"write-left")||!strcmp(op,"clear-left-padding");int columns_bounded=!strcmp(op,"gemm-tile")||!strcmp(op,"packed-trsm")||!strcmp(op,"gemm-trsm")||!strcmp(op,"pack-right")||!strcmp(op,"pack-symmetric-right")||!strcmp(op,"pack-triangular-right")||!strcmp(op,"write-right")||!strcmp(op,"clear-right-padding");if(rows_bounded&&out->dims[0]>physical_rows)fail("logical rows exceed physical tile");if(columns_bounded&&out->dims[1]>physical_cols)fail("logical columns exceed physical tile");}
+    if(option_present(out,"packed")){int physical_rows=0,physical_cols=0;if(sscanf(option(out,"packed",""),"%dx%d",&physical_rows,&physical_cols)!=2)fail("invalid physical shape");const char *op=out->operation;int rows_bounded=!strcmp(op,"gemm-tile")||!strcmp(op,"packed-trsm")||!strcmp(op,"gemm-trsm")||!strcmp(op,"pack-left")||!strcmp(op,"pack-symmetric-left")||!strcmp(op,"pack-triangular-left")||!strcmp(op,"write-left")||!strcmp(op,"clear-left-padding");int columns_bounded=!strcmp(op,"gemm-tile")||!strcmp(op,"packed-trsm")||!strcmp(op,"gemm-trsm")||!strcmp(op,"pack-right")||!strcmp(op,"pack-symmetric-right")||!strcmp(op,"pack-triangular-right")||!strcmp(op,"write-right")||!strcmp(op,"clear-right-padding");if(rows_bounded&&out->dims[0]>physical_rows)fail("logical rows exceed physical tile");if(columns_bounded&&out->dims[1]>physical_cols)fail("logical columns exceed physical tile");}
     if(packed_operation(out->operation))validate_packed(out);
     canonicalize_case(out);
     return 1;

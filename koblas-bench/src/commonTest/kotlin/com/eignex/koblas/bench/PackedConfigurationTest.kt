@@ -22,8 +22,8 @@ class PackedConfigurationTest {
         for (option in listOf("alignment=64", "leftStride=8", "panel=32", "batch=2", "leftLayout=depth-rows-v2", "variant=sme")) {
             assertFailsWith<IllegalArgumentException>(option) { Cases.parse("$BLOCK+$option") }
         }
-        for (recipe in listOf("4x4-v2", "16x4-v1", "4x8-v1")) {
-            assertFailsWith<IllegalArgumentException>(recipe) { Cases.parse(BLOCK.replace("4x4-v1", recipe)) }
+        for (recipe in listOf("4x4-v1", "16x4", "4x8")) {
+            assertFailsWith<IllegalArgumentException>(recipe) { Cases.parse(BLOCK.replace("4x4", recipe)) }
         }
         assertFailsWith<IllegalArgumentException> { Cases.parse(BLOCK.replace("prepacked-compute", "raw-tile")) }
     }
@@ -55,7 +55,7 @@ class PackedConfigurationTest {
     }
 
     @Test
-    fun `packers preserve the versioned formulas and positive zero padding`() {
+    fun `packers preserve the packed formulas and positive zero padding`() {
         for (engine in listOfNotNull(BuiltinEngines.scalar, BuiltinEngines.c, BuiltinEngines.simd).distinct()) {
             val specification = configurationFor(engine.packedKernels.gemmTileRows, engine.packedKernels.gemmTileCols) ?: continue
             val p = PackedConfiguration(Cases.parse(specification).single())
@@ -121,9 +121,9 @@ class PackedConfigurationTest {
         configuration.rows == rows && configuration.columns == columns
     }
 
-    private fun eightRows(): String = BLOCK.replace("packed=4x4-v1", "packed=8x4-v1")
+    private fun eightRows(): String = BLOCK.replace("packed=4x4", "packed=8x4")
 
     private companion object {
-        const val BLOCK = "gemm-block+15x7x31+uniform+packed=4x4-v1+timing=prepacked-compute"
+        const val BLOCK = "gemm-block+15x7x31+uniform+packed=4x4+timing=prepacked-compute"
     }
 }
