@@ -1,6 +1,7 @@
 package com.eignex.koblas.dense
 
 import com.eignex.koblas.DenseMatrix
+import com.eignex.koblas.DimensionMismatch
 import com.eignex.koblas.Workspace
 import com.eignex.koblas.assertClose
 import com.eignex.koblas.koblas
@@ -104,9 +105,9 @@ class BlasTest {
 
     @Test
     fun `gemv and gemm reject incompatible shapes`() {
-        assertFailsWith<IllegalArgumentException> { DenseMatrix(2, 3) * DenseMatrix(2, 2) }
-        assertFailsWith<IllegalArgumentException> { koblas.gemv(DenseMatrix(2, 3), DoubleArray(2)) }
-        assertFailsWith<IllegalArgumentException> {
+        assertFailsWith<DimensionMismatch> { DenseMatrix(2, 3) * DenseMatrix(2, 2) }
+        assertFailsWith<DimensionMismatch> { koblas.gemv(DenseMatrix(2, 3), DoubleArray(2)) }
+        assertFailsWith<DimensionMismatch> {
             koblas.gemv(DenseMatrix(2, 3), DoubleArray(3), transpose = true)
         }
     }

@@ -78,10 +78,12 @@ public class StridedMatrixView(
 
     /** A live submatrix retaining this view's physical [leadingDimension]. */
     public fun view(row: Int, rows: Int, column: Int, cols: Int): StridedMatrixView {
-        requireShape(row >= 0 && rows >= 0 && row.toLong() + rows <= this.rows) {
+        requireIndex(row in 0..this.rows) { "row $row is outside [0, ${this.rows}]" }
+        requireIndex(column in 0..this.cols) { "column $column is outside [0, ${this.cols}]" }
+        requireShape(rows >= 0 && row.toLong() + rows <= this.rows) {
             "row range [$row, ${row.toLong() + rows}) exceeds $this"
         }
-        requireShape(column >= 0 && cols >= 0 && column.toLong() + cols <= this.cols) {
+        requireShape(cols >= 0 && column.toLong() + cols <= this.cols) {
             "column range [$column, ${column.toLong() + cols}) exceeds $this"
         }
         return StridedMatrixView(

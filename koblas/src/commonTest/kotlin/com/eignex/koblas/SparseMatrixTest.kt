@@ -49,6 +49,14 @@ class SparseMatrixTest {
     }
 
     @Test
+    fun `stored column traversal rejects an index outside the shape`() {
+        val a = SparseMatrix.ofColumns(2, 1, listOf(listOf(0 to 1.0)))
+
+        assertFailsWith<IndexOutOfBoundsException> { a.forEachInColumn(-1) { _, _ -> } }
+        assertFailsWith<IndexOutOfBoundsException> { a.forEachInColumn(1) { _, _ -> } }
+    }
+
+    @Test
     fun `structural copies cannot mutate CSC storage`() {
         val a = SparseMatrix.ofColumns(3, 2, listOf(listOf(0 to 1.0, 2 to 3.0), listOf(1 to 2.0)))
         val pointers = a.copyColumnPointers()
@@ -164,15 +172,16 @@ class SparseMatrixTest {
         assertEquals(0.0, empty[1, 1])
         assertEquals(2, empty.rows)
 
-        assertFailsWith<IllegalArgumentException> {
+        assertFailsWith<IndexOutOfBoundsException> {
             SparseMatrix.ofTriplets(2, 2, intArrayOf(2), intArrayOf(0), doubleArrayOf(1.0))
         }
-        assertFailsWith<IllegalArgumentException> {
+        assertFailsWith<IndexOutOfBoundsException> {
             SparseMatrix.ofTriplets(2, 2, intArrayOf(0), intArrayOf(2), doubleArrayOf(1.0))
         }
-        assertFailsWith<IllegalArgumentException> {
+        assertFailsWith<DimensionMismatch> {
             SparseMatrix.ofTriplets(2, 2, intArrayOf(0, 1), intArrayOf(0), doubleArrayOf(1.0))
         }
+        assertFailsWith<DimensionMismatch> { SparseMatrix.ofColumns(2, 2, emptyList()) }
         assertFailsWith<DimensionMismatch> {
             SparseMatrix.ofTriplets(-1, 1, IntArray(0), IntArray(0), DoubleArray(0))
         }
@@ -184,10 +193,10 @@ class SparseMatrixTest {
      */
     @Test
     fun `wrap still rejects a pattern it cannot vouch for`() {
-        assertFailsWith<IllegalArgumentException>("a short column pointer array") {
+        assertFailsWith<DimensionMismatch>("a short column pointer array") {
             SparseMatrix.wrap(2, 2, intArrayOf(0, 1), IntArray(0), DoubleArray(0))
         }
-        assertFailsWith<IllegalArgumentException>("misaligned values") {
+        assertFailsWith<DimensionMismatch>("misaligned values") {
             SparseMatrix.wrap(2, 2, intArrayOf(0, 1, 1), intArrayOf(0), DoubleArray(0))
         }
         assertFailsWith<IllegalArgumentException>("a nonzero column pointer head") {
@@ -205,13 +214,13 @@ class SparseMatrixTest {
         assertFailsWith<IllegalArgumentException>("a row stored twice") {
             SparseMatrix.wrap(3, 1, intArrayOf(0, 2), intArrayOf(1, 1), doubleArrayOf(1.0, 2.0))
         }
-        assertFailsWith<IllegalArgumentException>("a row outside the matrix") {
+        assertFailsWith<IndexOutOfBoundsException>("a row outside the matrix") {
             SparseMatrix.wrap(2, 1, intArrayOf(0, 1), intArrayOf(5), doubleArrayOf(1.0))
         }
-        assertFailsWith<IllegalArgumentException>("negative rows") {
+        assertFailsWith<DimensionMismatch>("negative rows") {
             SparseMatrix.wrap(-1, 1, intArrayOf(0, 0), IntArray(0), DoubleArray(0))
         }
-        assertFailsWith<IllegalArgumentException>("negative columns") {
+        assertFailsWith<DimensionMismatch>("negative columns") {
             SparseMatrix.wrap(1, -1, intArrayOf(0), IntArray(0), DoubleArray(0))
         }
     }

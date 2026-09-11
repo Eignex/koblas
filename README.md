@@ -101,6 +101,11 @@ val scalarProduct = multiply(BuiltinEngines.scalar, a, b)
 Sparse matrix products can produce sparse or dense results. If you reuse a sparse matrix in several products,
 call `SparseMatrix.prepare()` from `com.eignex.koblas.sparse` once and reuse the prepared copy.
 
+## Error handling
+
+Shape mismatches throw `DimensionMismatch`, invalid logical indices throw `IndexOutOfBoundsException`, and other
+invalid arguments throw `IllegalArgumentException`. Numerical failures use `KoblasException` subtypes.
+
 ## Storage and reuse
 
 All matrices and vectors use `Double` values. `DenseMatrix` uses column-major storage, so `A(i, j)` is at

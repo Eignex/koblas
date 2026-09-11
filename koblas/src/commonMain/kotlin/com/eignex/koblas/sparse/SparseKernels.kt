@@ -3,6 +3,7 @@ package com.eignex.koblas.sparse
 import com.eignex.koblas.SparseVector
 import com.eignex.koblas.dense.DenseVectorKernels
 import com.eignex.koblas.internal.numeric.euclideanNorm
+import com.eignex.koblas.requireIndex
 import com.eignex.koblas.requireShape
 
 /**
@@ -229,7 +230,7 @@ private fun validateSparseIndices(
     var previous = -1
     for (k in 0 until count) {
         val index = indices[offset + k]
-        require(index in 0 until dimension) { "index $index is outside [0, $dimension)" }
+        requireIndex(index in 0 until dimension) { "index $index is outside [0, $dimension)" }
         if (strictlyIncreasing) {
             require(index > previous) { "indices must be strictly increasing" }
             previous = index

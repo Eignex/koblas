@@ -83,6 +83,16 @@ class IndexedVectorTest {
     }
 
     @Test
+    fun `tighten rejects an invalid tolerance as an argument error`() {
+        val x = IndexedVector(1)
+
+        for (tolerance in listOf(-1.0, Double.NaN)) {
+            val failure = assertFailsWith<IllegalArgumentException> { x.tighten(tolerance) }
+            assertEquals(IllegalArgumentException::class, failure::class)
+        }
+    }
+
+    @Test
     fun `an index outlives its value cancelling`() {
         val x = IndexedVector(3)
         x.store(1, 4.0)
@@ -123,6 +133,7 @@ class IndexedVectorTest {
         v.store(0, 1.0)
         v.store(1, 2.0)
 
-        assertFailsWith<DimensionMismatch> { v.store(0, 3.0) }
+        val failure = assertFailsWith<IllegalArgumentException> { v.store(0, 3.0) }
+        assertEquals(IllegalArgumentException::class, failure::class)
     }
 }

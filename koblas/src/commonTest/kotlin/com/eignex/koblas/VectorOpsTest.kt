@@ -142,7 +142,7 @@ class VectorOpsTest {
         assertContentEquals(denseOfSparse.data, dst.data)
         copy(DenseVector.of(doubleArrayOf(1.0, 2.0, 3.0, 4.0, 5.0, 6.0)), dst)
         assertContentEquals(doubleArrayOf(1.0, 2.0, 3.0, 4.0, 5.0, 6.0), dst.data)
-        assertFailsWith<IllegalArgumentException> { copy(DenseVector.zero(2), DenseVector.zero(3)) }
+        assertFailsWith<DimensionMismatch> { copy(DenseVector.zero(2), DenseVector.zero(3)) }
     }
 
     @Test
@@ -152,13 +152,29 @@ class VectorOpsTest {
         swap(a, b)
         assertContentEquals(doubleArrayOf(3.0, 4.0), a.data)
         assertContentEquals(doubleArrayOf(1.0, 2.0), b.data)
-        assertFailsWith<IllegalArgumentException> { swap(DenseVector.zero(2), DenseVector.zero(3)) }
+        assertFailsWith<DimensionMismatch> { swap(DenseVector.zero(2), DenseVector.zero(3)) }
+    }
+
+    @Test
+    fun `swap snapshots overlapping borrowed slices`() {
+        val backing = doubleArrayOf(1.0, 2.0, 3.0, 4.0, 5.0)
+        val a = StridedVectorView(backing, 0, 4)
+        val b = StridedVectorView(backing, 4, 4, -1)
+        val originalA = a.toDoubleArray()
+        val originalB = b.toDoubleArray()
+        val expected = backing.copyOf()
+        for (i in 0 until a.size) expected[a.offset + i * a.stride] = originalB[i]
+        for (i in 0 until b.size) expected[b.offset + i * b.stride] = originalA[i]
+
+        swap(a, b)
+
+        assertContentEquals(expected, backing)
     }
 
     @Test
     fun `vector operations reject mismatched sizes`() {
-        assertFailsWith<IllegalArgumentException> { dense(1.0) dot dense(1.0, 2.0) }
-        assertFailsWith<IllegalArgumentException> { dense(1.0).axpy(1.0, dense(1.0, 2.0)) }
+        assertFailsWith<DimensionMismatch> { dense(1.0) dot dense(1.0, 2.0) }
+        assertFailsWith<DimensionMismatch> { dense(1.0).axpy(1.0, dense(1.0, 2.0)) }
     }
 
     @Test

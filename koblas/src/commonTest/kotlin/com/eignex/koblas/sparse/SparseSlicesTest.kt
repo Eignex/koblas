@@ -1,5 +1,6 @@
 package com.eignex.koblas.sparse
 
+import com.eignex.koblas.DimensionMismatch
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
@@ -38,7 +39,7 @@ class SparseSlicesTest {
         val values = doubleArrayOf(2.0, 3.0)
         val marks = intArrayOf(4, 4)
 
-        assertFailsWith<IllegalArgumentException> {
+        assertFailsWith<IndexOutOfBoundsException> {
             SparseSlices.clearTouched(intArrayOf(0, 2), 0, 2, values, marks)
         }
 
@@ -101,7 +102,7 @@ class SparseSlicesTest {
     fun `checked dot validates before arithmetic or status mutation`() {
         val status = intArrayOf(16)
 
-        assertFailsWith<IllegalArgumentException> {
+        assertFailsWith<IndexOutOfBoundsException> {
             SparseSlices.reduceDotChecked(
                 Double.NaN, false, intArrayOf(2), 0, doubleArrayOf(Double.NaN), 0, 1,
                 doubleArrayOf(1.0), status, 0,
@@ -455,7 +456,7 @@ class SparseSlicesTest {
     @Test
     fun `invalid candidate row is rejected before writes`() {
         val output = intArrayOf(8)
-        assertFailsWith<IllegalArgumentException> {
+        assertFailsWith<IndexOutOfBoundsException> {
             SparseSlices.pivotCandidatePositions(
                 intArrayOf(2), 0, doubleArrayOf(2.0), 0, 1, booleanArrayOf(true),
                 2.0, 0.0, 0.0, output, 0,
@@ -463,5 +464,12 @@ class SparseSlicesTest {
         }
 
         assertContentEquals(intArrayOf(8), output)
+    }
+
+    @Test
+    fun `state arrays of different dimensions are rejected as a shape mismatch`() {
+        assertFailsWith<DimensionMismatch> {
+            SparseSlices.clearTouched(IntArray(0), 0, 0, DoubleArray(1), IntArray(2))
+        }
     }
 }

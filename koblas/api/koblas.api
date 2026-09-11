@@ -83,6 +83,7 @@ public final class com/eignex/koblas/Givens {
 
 public final class com/eignex/koblas/GivensKt {
 	public static final fun rot (Lcom/eignex/koblas/DenseVector;Lcom/eignex/koblas/DenseVector;Lcom/eignex/koblas/Givens;)V
+	public static final fun rot (Lcom/eignex/koblas/StridedVectorView;Lcom/eignex/koblas/StridedVectorView;Lcom/eignex/koblas/Givens;)V
 	public static final fun rotg (DD)Lcom/eignex/koblas/Givens;
 }
 
@@ -390,7 +391,6 @@ public final class com/eignex/koblas/VectorStorage$Companion {
 
 public final class com/eignex/koblas/Workspace {
 	public fun <init> ()V
-	public final fun available (I)I
 	public final fun release ([D)V
 	public final fun release ([I)V
 	public final fun reserve (II)V

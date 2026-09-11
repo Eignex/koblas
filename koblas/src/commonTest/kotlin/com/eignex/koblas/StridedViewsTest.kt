@@ -51,10 +51,12 @@ class StridedViewsTest {
 
     @Test
     fun `view construction rejects addresses outside the buffer`() {
-        assertFailsWith<IllegalArgumentException> { StridedVectorView(DoubleArray(3), 2, 2) }
+        assertFailsWith<DimensionMismatch> { StridedVectorView(DoubleArray(3), 2, 2) }
         assertFailsWith<IllegalArgumentException> { StridedVectorView(DoubleArray(3), 0, 2, 0) }
-        assertFailsWith<IllegalArgumentException> { StridedMatrixView(2, 2, DoubleArray(4), leadingDimension = 3) }
-        assertFailsWith<IllegalArgumentException> { DenseMatrix.zero(2).view(1, 2, 0, 1) }
+        assertFailsWith<DimensionMismatch> { StridedMatrixView(2, 2, DoubleArray(4), leadingDimension = 3) }
+        assertFailsWith<DimensionMismatch> { DenseMatrix.zero(2).view(1, 2, 0, 1) }
+        assertFailsWith<IndexOutOfBoundsException> { DenseMatrix.zero(2).view(-1, 1, 0, 1) }
+        assertFailsWith<IndexOutOfBoundsException> { DenseMatrix.zero(2).view(0, 1, 3, 0) }
     }
 
     @Test

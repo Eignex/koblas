@@ -466,7 +466,6 @@ final class com.eignex.koblas/StridedVectorView : com.eignex.koblas/VectorLike {
 final class com.eignex.koblas/Workspace { // com.eignex.koblas/Workspace|null[0]
     constructor <init>() // com.eignex.koblas/Workspace.<init>|<init>(){}[0]
 
-    final fun available(kotlin/Int): kotlin/Int // com.eignex.koblas/Workspace.available|available(kotlin.Int){}[0]
     final fun release(kotlin/DoubleArray) // com.eignex.koblas/Workspace.release|release(kotlin.DoubleArray){}[0]
     final fun release(kotlin/IntArray) // com.eignex.koblas/Workspace.release|release(kotlin.IntArray){}[0]
     final fun reserve(kotlin/Int, kotlin/Int) // com.eignex.koblas/Workspace.reserve|reserve(kotlin.Int;kotlin.Int){}[0]
@@ -584,6 +583,7 @@ final fun com.eignex.koblas/copy(com.eignex.koblas/VectorLike, com.eignex.koblas
 final fun com.eignex.koblas/gather(com.eignex.koblas/SparseVector, com.eignex.koblas/DenseVector) // com.eignex.koblas/gather|gather(com.eignex.koblas.SparseVector;com.eignex.koblas.DenseVector){}[0]
 final fun com.eignex.koblas/gatherZero(com.eignex.koblas/SparseVector, com.eignex.koblas/DenseVector) // com.eignex.koblas/gatherZero|gatherZero(com.eignex.koblas.SparseVector;com.eignex.koblas.DenseVector){}[0]
 final fun com.eignex.koblas/rot(com.eignex.koblas/DenseVector, com.eignex.koblas/DenseVector, com.eignex.koblas/Givens) // com.eignex.koblas/rot|rot(com.eignex.koblas.DenseVector;com.eignex.koblas.DenseVector;com.eignex.koblas.Givens){}[0]
+final fun com.eignex.koblas/rot(com.eignex.koblas/StridedVectorView, com.eignex.koblas/StridedVectorView, com.eignex.koblas/Givens) // com.eignex.koblas/rot|rot(com.eignex.koblas.StridedVectorView;com.eignex.koblas.StridedVectorView;com.eignex.koblas.Givens){}[0]
 final fun com.eignex.koblas/rotg(kotlin/Double, kotlin/Double): com.eignex.koblas/Givens // com.eignex.koblas/rotg|rotg(kotlin.Double;kotlin.Double){}[0]
 final fun com.eignex.koblas/rotm(com.eignex.koblas/DenseVector, com.eignex.koblas/DenseVector, com.eignex.koblas/ModifiedGivens) // com.eignex.koblas/rotm|rotm(com.eignex.koblas.DenseVector;com.eignex.koblas.DenseVector;com.eignex.koblas.ModifiedGivens){}[0]
 final fun com.eignex.koblas/rotm(com.eignex.koblas/StridedVectorView, com.eignex.koblas/StridedVectorView, com.eignex.koblas/ModifiedGivens) // com.eignex.koblas/rotm|rotm(com.eignex.koblas.StridedVectorView;com.eignex.koblas.StridedVectorView;com.eignex.koblas.ModifiedGivens){}[0]

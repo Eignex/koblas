@@ -34,8 +34,8 @@ public class Workspace {
     /** Pre-allocates [count] integer buffers of [size]. */
     public fun reserveI32(size: Int, count: Int): Unit = indices.reserve(size, count)
 
-    /** Number of idle floating-point buffers of [size]. */
-    public fun available(size: Int): Int = doubles.available(size)
+    /** Number of idle floating-point buffers of [size]. An implementation diagnostic for tests. */
+    internal fun available(size: Int): Int = doubles.available(size)
 }
 
 /**

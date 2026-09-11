@@ -170,13 +170,9 @@ class MatrixOpsTest {
     }
 
     @Test
-    fun `the matvec destinations reject aliasing and mismatched shapes`() {
+    fun `the matvec destinations reject mismatched shapes`() {
         val A = DenseMatrix.of(arrayOf(doubleArrayOf(1.0, 2.0), doubleArrayOf(3.0, 4.0)))
         val x = dense(1.0, -1.0)
-        assertFailsWith<IllegalArgumentException> { A.gemvInto(x, x.data) }
-        assertFailsWith<IllegalArgumentException> { A.symvInto(x, x.data) }
-        val square = DenseMatrix.of(arrayOf(doubleArrayOf(1.0)))
-        assertFailsWith<IllegalArgumentException> { square.gemvInto(dense(1.0), square.data) }
         assertFailsWith<DimensionMismatch> { A.gemvInto(dense(1.0, 2.0, 3.0), DoubleArray(2)) }
         assertFailsWith<DimensionMismatch> { A.gemvInto(x, DoubleArray(3)) }
         assertFailsWith<DimensionMismatch> { A.symvInto(x, DoubleArray(3)) }
@@ -186,24 +182,23 @@ class MatrixOpsTest {
     }
 
     @Test
-    fun `matvec adapters reject borrowed and sparse vector aliases before writing`() {
+    fun `matvec adapters snapshot vector aliases before writing`() {
         val matrix = DenseMatrix.diagonal(3)
         for (sparse in booleanArrayOf(false, true)) {
             for (symmetric in booleanArrayOf(false, true)) {
                 val destination = doubleArrayOf(1.0, 2.0, 3.0)
-                val expected = destination.copyOf()
+                val original = destination.copyOf()
                 val source = if (sparse) {
                     SparseVector.wrap(3, intArrayOf(0, 1, 2), destination)
                 } else {
                     StridedVectorView(destination, 2, 3, -1)
                 }
+                val expected = DoubleArray(3) { source[it] + 0.5 * original[it] }
 
-                assertFailsWith<IllegalArgumentException> {
-                    if (symmetric) {
-                        matrix.symvInto(source, destination)
-                    } else {
-                        matrix.gemvInto(source, destination)
-                    }
+                if (symmetric) {
+                    matrix.symvInto(1.0, source, 0.5, destination)
+                } else {
+                    matrix.gemvInto(1.0, source, 0.5, destination)
                 }
 
                 assertContentEquals(expected, destination)
@@ -212,20 +207,29 @@ class MatrixOpsTest {
     }
 
     @Test
-    fun `matvec adapters reject borrowed and sparse matrix aliases before writing`() {
-        for (sparse in booleanArrayOf(false, true)) {
+    fun `gemvInto snapshots matrix aliases before writing`() {
+        for (storage in 0..2) {
             val destination = doubleArrayOf(1.0, 2.0, 3.0)
-            val expected = destination.copyOf()
-            val matrix = if (sparse) {
-                SparseMatrix.wrap(3, 1, intArrayOf(0, 3), intArrayOf(0, 1, 2), destination)
-            } else {
-                StridedMatrixView(3, 1, destination)
+            val matrix: MatrixLike = when (storage) {
+                0 -> DenseMatrix.wrap(3, 1, destination)
+                1 -> SparseMatrix.wrap(3, 1, intArrayOf(0, 3), intArrayOf(0, 1, 2), destination)
+                else -> StridedMatrixView(3, 1, destination)
             }
 
-            assertFailsWith<IllegalArgumentException> { matrix.gemvInto(dense(2.0), destination) }
+            matrix.gemvInto(1.0, dense(2.0), 0.5, destination)
 
-            assertContentEquals(expected, destination)
+            assertContentEquals(doubleArrayOf(2.5, 5.0, 7.5), destination, "storage $storage")
         }
+    }
+
+    @Test
+    fun `symvInto snapshots its matrix alias before writing`() {
+        val destination = doubleArrayOf(2.0)
+        val matrix = DenseMatrix.wrap(1, 1, destination)
+
+        matrix.symvInto(1.0, dense(3.0), 0.5, destination)
+
+        assertContentEquals(doubleArrayOf(7.0), destination)
     }
 
     @Test
@@ -372,10 +376,10 @@ class MatrixOpsTest {
 
     @Test
     fun `matrix operations reject mismatched shapes`() {
-        assertFailsWith<IllegalArgumentException> {
+        assertFailsWith<DimensionMismatch> {
             DenseMatrix(2, 2).ger(1.0, dense(1.0, 2.0, 3.0), dense(1.0, 2.0))
         }
-        assertFailsWith<IllegalArgumentException> { DenseMatrix(2, 3) * dense(1.0, 2.0) }
+        assertFailsWith<DimensionMismatch> { DenseMatrix(2, 3) * dense(1.0, 2.0) }
     }
 
     @Test

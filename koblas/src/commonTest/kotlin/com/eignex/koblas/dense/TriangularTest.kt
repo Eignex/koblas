@@ -314,8 +314,8 @@ class TriangularTest {
 
     @Test
     fun `trsv and trsm validate shapes`() {
-        assertFailsWith<IllegalArgumentException> { DenseMatrix(2, 3).trsv(DoubleArray(2), lower = true) }
-        assertFailsWith<IllegalArgumentException> { DenseMatrix(3, 3).trsv(DoubleArray(2), lower = true) }
-        assertFailsWith<IllegalArgumentException> { DenseMatrix(3, 3).trsm(DenseMatrix(2, 4), lower = true) }
+        assertFailsWith<DimensionMismatch> { DenseMatrix(2, 3).trsv(DoubleArray(2), lower = true) }
+        assertFailsWith<DimensionMismatch> { DenseMatrix(3, 3).trsv(DoubleArray(2), lower = true) }
+        assertFailsWith<DimensionMismatch> { DenseMatrix(3, 3).trsm(DenseMatrix(2, 4), lower = true) }
     }
 }
