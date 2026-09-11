@@ -211,9 +211,19 @@ public fun swap(a: DenseVector, b: DenseVector) {
     koblas.vectorKernels.swap(a.data, 0, b.data, 0, a.size)
 }
 
-/** Exchanges two borrowed slices, including rows and columns of dense matrix views. */
+/**
+ * Exchanges two borrowed slices, including rows and columns of dense matrix views. Overlapping inputs are
+ * snapshotted; at a shared physical entry the final write is from [b].
+ */
 public fun swap(a: StridedVectorView, b: StridedVectorView) {
     requireSameSize(a.size, b.size)
+    if (a.overlaps(b)) {
+        val snapshotA = a.toDoubleArray()
+        val snapshotB = b.toDoubleArray()
+        for (i in 0 until a.size) a[i] = snapshotB[i]
+        for (i in 0 until b.size) b[i] = snapshotA[i]
+        return
+    }
     for (i in 0 until a.size) {
         val value = a[i]
         a[i] = b[i]

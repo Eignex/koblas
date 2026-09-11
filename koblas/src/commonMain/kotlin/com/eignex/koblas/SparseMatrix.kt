@@ -32,17 +32,19 @@ public class SparseMatrix internal constructor(
 ) : MatrixStorage {
     init {
         requireNonNegativeShape(rows, cols)
-        requireShape(colPtr.size == cols + 1) { "colPtr length ${colPtr.size} != cols+1 ${cols + 1}" }
+        requireShape(colPtr.size.toLong() == cols.toLong() + 1) {
+            "colPtr length ${colPtr.size} != cols+1 ${cols.toLong() + 1}"
+        }
         requireShape(rowIdx.size == values.size) { "rowIdx/values length mismatch: ${rowIdx.size} vs ${values.size}" }
-        requireShape(colPtr[0] == 0) { "colPtr[0] ${colPtr[0]} != 0" }
-        requireShape(colPtr[cols] == values.size) { "colPtr[cols] ${colPtr[cols]} != nnz ${values.size}" }
-        for (j in 0 until cols) requireShape(colPtr[j] <= colPtr[j + 1]) { "colPtr not monotonic at $j" }
+        require(colPtr[0] == 0) { "colPtr[0] ${colPtr[0]} != 0" }
+        require(colPtr[cols] == values.size) { "colPtr[cols] ${colPtr[cols]} != nnz ${values.size}" }
+        for (j in 0 until cols) require(colPtr[j] <= colPtr[j + 1]) { "colPtr not monotonic at $j" }
         // The two passes over rowIdx, which is where an O(nnz) construction spends its checking. A producer
         // deriving this from a matrix that already holds the invariant skips them through [wrapTrusted];
         // everything reaching koblas from outside, a native library above all, still comes through here.
         if (!trustedPattern) {
             for (k in rowIdx.indices) {
-                requireShape(rowIdx[k] in 0 until rows) { "rowIdx[$k]=${rowIdx[k]} out of [0,$rows)" }
+                requireIndex(rowIdx[k] in 0 until rows) { "rowIdx[$k]=${rowIdx[k]} out of [0,$rows)" }
             }
             // Rows must ascend strictly, or the binary search in get reports a stored entry as absent.
             for (j in 0 until cols) {
@@ -61,6 +63,7 @@ public class SparseMatrix internal constructor(
 
     /** Visits the stored entries of column [j] as `(row, value)`, rows ascending. */
     public inline fun forEachInColumn(j: Int, action: (row: Int, value: Double) -> Unit) {
+        if (j !in 0 until cols) throw IndexOutOfBoundsException("index $j outside [0,$cols)")
         for (k in colPtr[j] until colPtr[j + 1]) action(rowIdx[k], values[k])
     }
 
@@ -127,9 +130,12 @@ public class SparseMatrix internal constructor(
          * nonzeros in any order. Entries are sorted by row and duplicate positions are summed.
          */
         public fun ofColumns(rows: Int, cols: Int, columns: List<List<Pair<Int, Double>>>): SparseMatrix {
-            require(columns.size == cols) { "expected $cols columns, got ${columns.size}" }
-            var nnz = 0
-            for (column in columns) nnz += column.size
+            requireNonNegativeShape(rows, cols)
+            requireShape(columns.size == cols) { "expected $cols columns, got ${columns.size}" }
+            var nnzLong = 0L
+            for (column in columns) nnzLong += column.size
+            requireShape(nnzLong <= Int.MAX_VALUE) { "stored entry count $nnzLong exceeds Int capacity" }
+            val nnz = nnzLong.toInt()
             // Flattened into triplets, so nothing boxes beyond the pairs the caller already holds.
             val rowIdx = IntArray(nnz)
             val colIdx = IntArray(nnz)
@@ -158,13 +164,13 @@ public class SparseMatrix internal constructor(
             values: DoubleArray,
         ): SparseMatrix {
             requireNonNegativeShape(rows, cols)
-            require(rowIdx.size == colIdx.size && colIdx.size == values.size) {
+            requireShape(rowIdx.size == colIdx.size && colIdx.size == values.size) {
                 "rowIdx/colIdx/values must align: ${rowIdx.size}, ${colIdx.size}, ${values.size}"
             }
             val nnz = values.size
             for (k in 0 until nnz) {
-                requireShape(rowIdx[k] in 0 until rows) { "rowIdx[$k]=${rowIdx[k]} out of [0,$rows)" }
-                require(colIdx[k] in 0 until cols) { "colIdx[$k]=${colIdx[k]} out of [0,$cols)" }
+                requireIndex(rowIdx[k] in 0 until rows) { "rowIdx[$k]=${rowIdx[k]} out of [0,$rows)" }
+                requireIndex(colIdx[k] in 0 until cols) { "colIdx[$k]=${colIdx[k]} out of [0,$cols)" }
             }
 
             // Group by row, so that rowStart(i) is where row i's entries begin once scattered.

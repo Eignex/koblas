@@ -24,10 +24,8 @@ import com.eignex.koblas.sparse.internal.sparseSyr2
  * [MatrixLike] falls back to indexed reads. Dense storage on both sides dispatches straight to the
  * backend, using the dense or sparse `gemv` overload selected by `A`.
  *
- * [destination] must not be the backing array of [x] or `A`, including sparse values and borrowed storage,
- * as for [Blas.gemv] over strided
- * views: the product reads every operand entry while writing, so an aliased destination would feed partial
- * results back into the sum.
+ * Built-in operands may share [destination]'s backing array. They are snapshotted before [destination] is
+ * scaled or written, so aliasing has the same result as a call over independent inputs.
  */
 public fun MatrixLike.gemvInto(alpha: Double, x: VectorLike, beta: Double, destination: DoubleArray) {
     val a = this
@@ -35,48 +33,46 @@ public fun MatrixLike.gemvInto(alpha: Double, x: VectorLike, beta: Double, desti
     requireShape(destination.size == a.rows) {
         "gemvInto: destination size ${destination.size} != rows ${a.rows}"
     }
-    require(!x.sharesStorage(destination) && !a.sharesStorage(destination)) {
-        "gemvInto: destination overlaps an input"
-    }
     // The seams quick-return on a zero-extent operand before scaling, which is netlib's rule for gemv but
     // not the contract above: this one promises that `beta == 0.0` overwrites a destination that may arrive
     // holding NaN. Settling it here keeps every storage combination answering the same way, where otherwise
     // a dense 3x0 left the NaN in place and a generic one returned zeros.
-    if (a.cols == 0) {
+    if (alpha == 0.0 || a.cols == 0) {
         destination.prescale(beta)
         return
     }
-    if (x is DenseVector && a is DenseMatrix) {
-        koblas.gemv(alpha, a, x.data, beta, destination)
+    val stableX = x.stableFor(destination)
+    val stableA = a.stableFor(destination)
+    if (stableX is DenseVector && stableA is DenseMatrix) {
+        koblas.gemv(alpha, stableA, stableX.data, beta, destination)
         return
     }
-    if (x is DenseVector && a is SparseMatrix) {
-        koblas.gemv(alpha, a, x.data, beta, destination)
+    if (stableX is DenseVector && stableA is SparseMatrix) {
+        koblas.gemv(alpha, stableA, stableX.data, beta, destination)
         return
     }
     destination.prescale(beta)
-    if (alpha == 0.0) return
-    when (a) {
+    when (stableA) {
         is DenseMatrix -> {
-            denseStoredGemvUpdate(koblas.vectorKernels, alpha, a, x, destination)
+            denseStoredGemvUpdate(koblas.vectorKernels, alpha, stableA, stableX, destination)
         }
 
-        is SparseMatrix -> x.forEachStored { j, v ->
+        is SparseMatrix -> stableX.forEachStored { j, v ->
             if (v != 0.0) {
                 val scaled = alpha * v
                 koblas.indexedSparseKernels.axpy(
-                    a.rowIdx,
-                    a.colPtr[j],
-                    a.values,
-                    a.colPtr[j],
-                    a.colPtr[j + 1] - a.colPtr[j],
+                    stableA.rowIdx,
+                    stableA.colPtr[j],
+                    stableA.values,
+                    stableA.colPtr[j],
+                    stableA.colPtr[j + 1] - stableA.colPtr[j],
                     scaled,
                     destination,
                 )
             }
         }
 
-        else -> genericStoredGemvUpdate(alpha, a, x, destination)
+        else -> genericStoredGemvUpdate(alpha, stableA, stableX, destination)
     }
 }
 
@@ -90,7 +86,8 @@ public fun MatrixLike.gemvInto(x: VectorLike, destination: DoubleArray): Unit = 
  *
  * Reading one triangle is what lets a caller maintain its symmetric matrix with [DenseMatrix.syr], which
  * touches half the entries, rather than the full-matrix [DenseMatrix.ger]. Outside the stored triangle
- * each entry is taken from its mirror, so the other half may hold anything.
+ * each entry is taken from its mirror, so the other half may hold anything. [x] and this matrix may share
+ * [destination]'s backing array; built-in aliases are snapshotted before any output is written.
  */
 @Suppress("LongParameterList") // the BLAS dsymv signature
 public fun DenseMatrix.symvInto(
@@ -103,16 +100,18 @@ public fun DenseMatrix.symvInto(
     requireSquare(this, "symvInto")
     requireShape(cols == x.size) { "symvInto shape mismatch: A is ${rows}x$cols, x size ${x.size}" }
     requireShape(destination.size == rows) { "symvInto: destination size ${destination.size} != rows $rows" }
-    require(!x.sharesStorage(destination) && !sharesStorage(destination)) {
-        "symvInto: destination overlaps an input"
+    if (alpha == 0.0) {
+        destination.prescale(beta)
+        return
     }
-    if (x is DenseVector) {
-        koblas.symv(alpha, this, x.data, beta, destination, lower)
+    val stableX = x.stableFor(destination)
+    val stableA = stableFor(destination)
+    if (stableX is DenseVector) {
+        koblas.symv(alpha, stableA, stableX.data, beta, destination, lower)
         return
     }
     destination.prescale(beta)
-    if (alpha == 0.0) return
-    denseSymmetricStoredGemvUpdate(alpha, this, x, destination, lower)
+    denseSymmetricStoredGemvUpdate(alpha, stableA, stableX, destination, lower)
 }
 
 /** [symvInto] with `alpha = 1, beta = 0`, so `destination` receives `A * x`. */
@@ -123,21 +122,43 @@ public fun DenseMatrix.symvInto(x: VectorLike, destination: DoubleArray, lower: 
  *  destination's previous contents cannot poison the result. */
 private fun DoubleArray.prescale(beta: Double) = applyBeta(koblas.vectorKernels, this, 0, size, beta)
 
-/** Whether [destination] is the very array this vector is stored in. */
-private fun VectorLike.sharesStorage(destination: DoubleArray): Boolean = when (this) {
-    is DenseVector -> data === destination
-    is SparseVector -> values === destination
-    is StridedVectorView -> data === destination
-    else -> false
+/** Stable built-in vector storage when [destination] is its live backing array. */
+private fun VectorLike.stableFor(destination: DoubleArray): VectorLike = when (this) {
+    is DenseVector -> if (data === destination) DenseVector.of(data) else this
+
+    is SparseVector -> if (values === destination) SparseVector.wrap(size, indices, values.copyOf()) else this
+
+    is StridedVectorView -> if (data === destination) {
+        StridedVectorView(data.copyOf(), offset, size, stride)
+    } else {
+        this
+    }
+
+    else -> this
 }
 
-/** Whether [destination] is the very array this matrix is stored in. */
-private fun MatrixLike.sharesStorage(destination: DoubleArray): Boolean = when (this) {
-    is DenseMatrix -> data === destination
-    is SparseMatrix -> values === destination
-    is StridedMatrixView -> data === destination
-    else -> false
+/** Stable built-in matrix storage when [destination] is its live backing array. */
+private fun MatrixLike.stableFor(destination: DoubleArray): MatrixLike = when (this) {
+    is DenseMatrix -> stableFor(destination)
+
+    is SparseMatrix -> if (values === destination) {
+        SparseMatrix.wrapTrusted(rows, cols, colPtr, rowIdx, values.copyOf())
+    } else {
+        this
+    }
+
+    is StridedMatrixView -> if (data === destination) {
+        StridedMatrixView(rows, cols, data.copyOf(), offset, leadingDimension)
+    } else {
+        this
+    }
+
+    else -> this
 }
+
+/** Dense specialization retained by [symvInto], whose matrix type is known statically. */
+private fun DenseMatrix.stableFor(destination: DoubleArray): DenseMatrix =
+    if (data === destination) DenseMatrix.wrap(rows, cols, data.copyOf()) else this
 
 /**
  * Rank-one update `A = A + alpha * x * yT` (BLAS `dger`) in place. Subtract by passing

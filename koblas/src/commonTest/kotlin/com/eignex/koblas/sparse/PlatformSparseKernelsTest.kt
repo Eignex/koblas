@@ -224,12 +224,25 @@ class PlatformSparseKernelsTest {
     fun `raw mutations validate before changing the destination`() {
         for (engine in engines) {
             val kernels = engine.sparseKernels
-            for (indices in listOf(intArrayOf(0, 3), intArrayOf(1, 1), intArrayOf(2, 0))) {
-                val destination = doubleArrayOf(5.0, 6.0, 7.0)
+            val outOfRangeDestination = doubleArrayOf(5.0, 6.0, 7.0)
+            assertFailsWith<IndexOutOfBoundsException>(engine.name) {
+                kernels.axpy(
+                    outOfRangeDestination,
+                    1.0,
+                    intArrayOf(0, 3),
+                    0,
+                    doubleArrayOf(2.0, 3.0),
+                    0,
+                    2,
+                )
+            }
+            assertContentEquals(doubleArrayOf(5.0, 6.0, 7.0), outOfRangeDestination, engine.name)
+            for (indices in listOf(intArrayOf(1, 1), intArrayOf(2, 0))) {
+                val unorderedDestination = doubleArrayOf(5.0, 6.0, 7.0)
                 assertFailsWith<IllegalArgumentException>(engine.name) {
-                    kernels.axpy(destination, 1.0, indices, 0, doubleArrayOf(2.0, 3.0), 0, 2)
+                    kernels.axpy(unorderedDestination, 1.0, indices, 0, doubleArrayOf(2.0, 3.0), 0, 2)
                 }
-                assertContentEquals(doubleArrayOf(5.0, 6.0, 7.0), destination, engine.name)
+                assertContentEquals(doubleArrayOf(5.0, 6.0, 7.0), unorderedDestination, engine.name)
             }
             val destination = doubleArrayOf(5.0, 6.0)
             assertFailsWith<IllegalArgumentException>(engine.name) {
@@ -249,7 +262,7 @@ class PlatformSparseKernelsTest {
             assertFailsWith<IllegalArgumentException>(engine.name) {
                 kernels.dot(intArrayOf(0), 0, doubleArrayOf(1.0), 0, -1, doubleArrayOf(2.0))
             }
-            assertFailsWith<IllegalArgumentException>(engine.name) {
+            assertFailsWith<IndexOutOfBoundsException>(engine.name) {
                 kernels.nrm2(intArrayOf(1), 0, 1, doubleArrayOf(2.0))
             }
             val destination = doubleArrayOf(7.0)

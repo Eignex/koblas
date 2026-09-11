@@ -77,7 +77,7 @@ public class IndexedVector(public val size: Int) {
         requireHfactorIndex(i in 0 until size) { "index $i outside [0,$size)" }
         // A full index set means a position was stored twice, since there are only [size] of them. Caught
         // here so the precondition above reads as itself rather than as an array index running off the end.
-        requireHfactorShape(count < size) { "store: all $size positions are stored, so $i is a repeat" }
+        require(count < size) { "store: all $size positions are stored, so $i is a repeat" }
         values[i] = v
         indices[count] = i
         count++
@@ -125,7 +125,7 @@ public class IndexedVector(public val size: Int) {
      * entries still carrying weight.
      */
     public fun tighten(tolerance: Double = 0.0) {
-        requireHfactorShape(tolerance >= 0.0) { "negative tolerance: $tolerance" }
+        require(tolerance >= 0.0) { "tolerance must be nonnegative, got $tolerance" }
         var kept = 0
         for (k in 0 until count) {
             val i = indices[k]

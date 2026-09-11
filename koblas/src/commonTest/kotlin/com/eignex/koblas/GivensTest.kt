@@ -5,6 +5,7 @@ import kotlin.math.abs
 import kotlin.math.sqrt
 import kotlin.random.Random
 import kotlin.test.Test
+import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
 
 class GivensTest {
@@ -90,5 +91,26 @@ class GivensTest {
             assertEquals(expectedX[i], x[i], 1e-12, "x[$i]")
             assertEquals(expectedY[i], y[i], 1e-12, "y[$i]")
         }
+    }
+
+    @Test
+    fun `rot supports strided inputs and snapshots overlaps`() {
+        val rotation = rotg(3.0, 4.0)
+        val backing = doubleArrayOf(1.0, 2.0, 3.0, 4.0, 5.0)
+        val x = StridedVectorView(backing, 0, 4)
+        val y = StridedVectorView(backing, 4, 4, -1)
+        val originalX = x.toDoubleArray()
+        val originalY = y.toDoubleArray()
+        val expected = backing.copyOf()
+        for (i in 0 until x.size) {
+            expected[x.offset + i * x.stride] = rotation.c * originalX[i] + rotation.s * originalY[i]
+        }
+        for (i in 0 until y.size) {
+            expected[y.offset + i * y.stride] = rotation.c * originalY[i] - rotation.s * originalX[i]
+        }
+
+        rot(x, y, rotation)
+
+        assertContentEquals(expected, backing)
     }
 }

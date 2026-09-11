@@ -81,6 +81,11 @@ See the [dense](koblas/src/commonMain/kotlin/com/eignex/koblas/dense/Blas.kt) an
 [sparse](koblas/src/commonMain/kotlin/com/eignex/koblas/sparse/SparseBlas.kt) API contracts for overloads and
 supported routines.
 
+## Error handling
+
+Shape mismatches throw `DimensionMismatch`, invalid logical indices throw `IndexOutOfBoundsException`, and other
+invalid arguments throw `IllegalArgumentException`. Numerical failures use `KoblasException` subtypes.
+
 ## Storage and reuse
 
 All containers use `Double` values. `DenseMatrix` stores columns contiguously: `A(i, j)` is at `i + j * rows`.

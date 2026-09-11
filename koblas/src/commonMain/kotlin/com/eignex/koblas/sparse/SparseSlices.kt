@@ -1,5 +1,7 @@
 package com.eignex.koblas.sparse
 
+import com.eignex.koblas.requireIndex
+import com.eignex.koblas.requireShape
 import com.eignex.koblas.sparse.internal.SparseAccumulationKernels
 
 /**
@@ -157,7 +159,7 @@ public object SparseSlices {
         outValueOffset: Int,
         compactExactZeros: Boolean = false,
     ): Int {
-        require(accumulator.size == marks.size) {
+        requireShape(accumulator.size == marks.size) {
             "accumulator and marks lengths differ: ${accumulator.size} vs ${marks.size}"
         }
         validateGather(
@@ -194,7 +196,7 @@ public object SparseSlices {
         values: DoubleArray,
         marks: IntArray,
     ) {
-        require(values.size == marks.size) {
+        requireShape(values.size == marks.size) {
             "values and marks lengths differ: ${values.size} vs ${marks.size}"
         }
         requireWindow(touched.size, touchedOffset, touchedCount, "touched")
@@ -350,7 +352,7 @@ private fun validateScatter(
     touchedCount: Int,
 ) {
     require(epoch != 0) { "scatter epoch must be nonzero" }
-    require(accumulator.size == marks.size) {
+    requireShape(accumulator.size == marks.size) {
         "accumulator and marks lengths differ: ${accumulator.size} vs ${marks.size}"
     }
     requireWindow(indices.size, indexOffset, count, "indices")
@@ -407,7 +409,7 @@ private fun validateGather(
 private fun validateIndices(indices: IntArray, offset: Int, count: Int, dimension: Int, name: String) {
     for (k in 0 until count) {
         val index = indices[offset + k]
-        require(index in 0 until dimension) { "$name entry $index is outside [0, $dimension)" }
+        requireIndex(index in 0 until dimension) { "$name entry $index is outside [0, $dimension)" }
     }
 }
 
