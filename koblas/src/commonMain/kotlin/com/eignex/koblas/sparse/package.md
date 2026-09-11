@@ -1,16 +1,17 @@
 # Package com.eignex.koblas.sparse
 
-The sparse package contains validated CSC containers and sparse BLAS levels 1–3. General products support sparse
+The sparse package contains low-level sparse BLAS and kernel building blocks. The public CSC containers and their
+high-level operations live in `com.eignex.koblas`, alongside the dense containers. General products support sparse
 or direct dense destinations. Symmetric products read exactly one selected CSC triangle, while triangular products
 and solves use explicit lower, transpose, unit-diagonal, and side flags. Sparse `syrk` returns either one triangle
 of a dense destination or a fresh selected-triangle CSC result; general products do not implicitly mirror it.
 
-`addScaled` and sparse `+`/`-` are sparse algebra extensions. Prepared products retain immutable owned snapshots;
+`addScaled` and sparse `+`/`-` are root-package algebra extensions. Prepared products retain immutable owned snapshots;
 transpose indexing may be cached without introducing descriptors or mutable global selection.
 
 [SparseKernels][com.eignex.koblas.sparse.SparseKernels] also exposes allocation-free raw indexed `dot`, `axpy`,
 `scatter`, and stable norm operations. Their independent array windows are validated before arithmetic or
-mutation, then dispatched to the context's scalar, bundled C, or JVM Vector API leaves. Reductions admit repeated
+mutation, then dispatched to the engine's scalar, bundled C, or JVM Vector API leaves. Reductions admit repeated
 and unsorted support with contribution semantics; indexed mutations require strictly ordered unique destinations.
 
 [SparseSlices][com.eignex.koblas.sparse.SparseSlices] is a stateless collection of validated operations over

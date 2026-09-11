@@ -2,7 +2,7 @@ package com.eignex.koblas.bench
 
 import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.DenseVector
-import com.eignex.koblas.KoblasContext
+import com.eignex.koblas.KoblasEngine
 import com.eignex.koblas.Workspace
 import com.eignex.koblas.compensatedSum
 import com.eignex.koblas.iamax
@@ -15,7 +15,7 @@ internal class CaseWork(
     val close: () -> Unit = {},
 )
 
-internal fun denseWork(case: BenchCase, engine: KoblasContext): CaseWork? {
+internal fun denseWork(case: BenchCase, engine: KoblasEngine): CaseWork? {
     val d = case.dimensions
     val vectors = engine.vectorKernels
     val panels = engine.panelKernels
@@ -146,7 +146,7 @@ private fun symmetricUpdate(size: Int, lower: Boolean, comparison: String, opera
     return CaseWork(comparison, "reset-and-arithmetic", { original.data.copyInto(target.data); operation(target, x, y); target.data[if (lower) 0 else size * size - 1] })
 }
 
-private fun gemmWork(case: BenchCase, engine: KoblasContext): CaseWork {
+private fun gemmWork(case: BenchCase, engine: KoblasEngine): CaseWork {
     val (m, n, k) = case.dimensions; val ta = case.flag("transA"); val tb = case.flag("transB")
     val a = Fixtures.matrix(if (ta) k else m, if (ta) m else k, 1)
     val b = Fixtures.matrix(if (tb) n else k, if (tb) k else n, 2)
@@ -156,7 +156,7 @@ private fun gemmWork(case: BenchCase, engine: KoblasContext): CaseWork {
     })
 }
 
-private fun triangularMatrixWork(case: BenchCase, engine: KoblasContext): CaseWork {
+private fun triangularMatrixWork(case: BenchCase, engine: KoblasEngine): CaseWork {
     val (m, n) = case.dimensions; val right = case.option("side", "L") == "R"; val lower = case.option("uplo", "L") == "L"
     val trans = case.flag("transA"); val unit = case.option("diag", "N") == "U"; val order = if (right) n else m
     val triangle = Fixtures.triangular(order, 1, lower); val original = Fixtures.matrix(m, n, 2); val b = Fixtures.matrix(m, n, 2); val workspace = Workspace()
@@ -168,7 +168,7 @@ private fun triangularMatrixWork(case: BenchCase, engine: KoblasContext): CaseWo
     })
 }
 
-private fun packedWork(case: BenchCase, engine: KoblasContext): CaseWork? {
+private fun packedWork(case: BenchCase, engine: KoblasEngine): CaseWork? {
     if (case.operation !in setOf(
             "gemm-tile", "packed-trsm", "gemm-trsm", "pack-left", "pack-right", "pack-symmetric-left",
             "pack-symmetric-right", "pack-triangular-left", "pack-triangular-right", "write-left", "write-right",

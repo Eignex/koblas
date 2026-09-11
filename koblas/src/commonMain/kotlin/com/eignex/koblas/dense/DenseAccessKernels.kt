@@ -4,10 +4,10 @@ package com.eignex.koblas.dense
 
 import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.DenseVector
-import com.eignex.koblas.MatrixLike
+import com.eignex.koblas.Matrix
 import com.eignex.koblas.StridedMatrixView
 import com.eignex.koblas.StridedVectorView
-import com.eignex.koblas.VectorLike
+import com.eignex.koblas.Vector
 import com.eignex.koblas.forEachStored
 
 /** Scales a strided destination, overwriting it without reads when [beta] is zero. */
@@ -133,7 +133,7 @@ internal fun denseStoredGemvUpdate(
     kernels: DenseVectorKernels,
     alpha: Double,
     a: DenseMatrix,
-    x: VectorLike,
+    x: Vector,
     destination: DoubleArray,
 ) {
     val ad = a.data
@@ -144,7 +144,7 @@ internal fun denseStoredGemvUpdate(
 }
 
 /** Adds a generic indexed matrix-vector product, visiting only entries represented by [x]. */
-internal fun genericStoredGemvUpdate(alpha: Double, a: MatrixLike, x: VectorLike, destination: DoubleArray) {
+internal fun genericStoredGemvUpdate(alpha: Double, a: Matrix, x: Vector, destination: DoubleArray) {
     repeat(a.rows) { i ->
         var sum = 0.0
         x.forEachStored { j, value -> sum += a[i, j] * value }
@@ -156,7 +156,7 @@ internal fun genericStoredGemvUpdate(alpha: Double, a: MatrixLike, x: VectorLike
 internal fun denseSymmetricStoredGemvUpdate(
     alpha: Double,
     a: DenseMatrix,
-    x: VectorLike,
+    x: Vector,
     destination: DoubleArray,
     lower: Boolean,
 ) {
@@ -174,7 +174,7 @@ internal fun denseSymmetricStoredGemvUpdate(
 }
 
 /** Applies a generic stored-entry rank-one update to a dense column-major destination. */
-internal fun genericRankOneUpdate(alpha: Double, x: VectorLike, y: VectorLike, a: DenseMatrix) {
+internal fun genericRankOneUpdate(alpha: Double, x: Vector, y: Vector, a: DenseMatrix) {
     val ad = a.data
     val rows = a.rows
     y.forEachStored { j, yj ->
@@ -187,7 +187,7 @@ internal fun genericRankOneUpdate(alpha: Double, x: VectorLike, y: VectorLike, a
 }
 
 /** Returns an existing contiguous dense buffer or stages represented entries into a fresh owned buffer. */
-internal fun contiguousVectorData(x: VectorLike): DoubleArray = when (x) {
+internal fun contiguousVectorData(x: Vector): DoubleArray = when (x) {
     is DenseVector -> x.data
 
     else -> DoubleArray(x.size).also { destination ->

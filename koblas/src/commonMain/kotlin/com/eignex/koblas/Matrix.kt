@@ -1,11 +1,10 @@
 package com.eignex.koblas
 
-import com.eignex.koblas.*
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 /** Read-only matrix contract. Anything that only reads a matrix should take this. */
-public interface MatrixLike {
+public interface Matrix {
     /** Number of rows. */
     public val rows: Int
 
@@ -21,7 +20,7 @@ public interface MatrixLike {
 
 /** The matrix storages koblas itself defines, [DenseMatrix] and [SparseMatrix]. */
 @Serializable
-public sealed interface MatrixStorage : MatrixLike
+public sealed interface MatrixStorage : Matrix
 
 /**
  * @property rows the number of rows.
@@ -75,7 +74,7 @@ public class DenseMatrix internal constructor(
     /** Factories for dense matrices. */
     public companion object {
         /** Copy an `Array<DoubleArray>` of rows into a fresh dense matrix, so rows(i) is row i. */
-        public fun of(rows: Array<DoubleArray>): DenseMatrix {
+        public fun ofRows(rows: Array<DoubleArray>): DenseMatrix {
             val r = rows.size
             val c = if (r == 0) 0 else rows[0].size
             requireShape(rows.all { it.size == c }) { "all rows must have the same length" }

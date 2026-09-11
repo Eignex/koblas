@@ -1,6 +1,5 @@
 package com.eignex.koblas
 
-import com.eignex.koblas.*
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient

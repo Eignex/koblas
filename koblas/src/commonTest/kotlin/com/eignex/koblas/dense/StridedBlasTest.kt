@@ -45,7 +45,7 @@ class StridedBlasTest {
 
     @Test
     fun `gemv reads a panel and strided vectors without copies`() {
-        val storage = DenseMatrix.of(
+        val storage = DenseMatrix.ofRows(
             arrayOf(
                 doubleArrayOf(-1.0, 1.0, 2.0, -1.0),
                 doubleArrayOf(-1.0, 3.0, 4.0, -1.0),
@@ -82,21 +82,21 @@ class StridedBlasTest {
 
     @Test
     fun `gemm writes a panel while preserving its surrounding buffer`() {
-        val aOwner = DenseMatrix.of(
+        val aOwner = DenseMatrix.ofRows(
             arrayOf(
                 doubleArrayOf(1.0, 2.0, 99.0),
                 doubleArrayOf(3.0, 4.0, 99.0),
                 doubleArrayOf(99.0, 99.0, 99.0),
             ),
         )
-        val bOwner = DenseMatrix.of(
+        val bOwner = DenseMatrix.ofRows(
             arrayOf(
                 doubleArrayOf(5.0, 6.0),
                 doubleArrayOf(7.0, 8.0),
                 doubleArrayOf(99.0, 99.0),
             ),
         )
-        val output = DenseMatrix.of(Array(4) { DoubleArray(4) { -1.0 } })
+        val output = DenseMatrix.ofRows(Array(4) { DoubleArray(4) { -1.0 } })
 
         ReferenceBlas.gemm(
             1.0,
@@ -133,7 +133,7 @@ class StridedBlasTest {
 
     @Test
     fun `vector operations mutate borrowed rows and slices`() {
-        val owner = DenseMatrix.of(
+        val owner = DenseMatrix.ofRows(
             arrayOf(doubleArrayOf(1.0, 2.0, 3.0), doubleArrayOf(4.0, 5.0, 6.0)),
         )
         val row = owner.asView().row(1)

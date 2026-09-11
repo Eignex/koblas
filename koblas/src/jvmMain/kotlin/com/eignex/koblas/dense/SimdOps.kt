@@ -159,7 +159,7 @@ internal object SimdOps {
 
     /**
      * Four rows against one shared vector, each b segment loaded once into four independent
-     * accumulators. [Blas.gemv] wants this over four [dot] calls and their four reductions.
+     * accumulators. [DenseBlas.gemv] wants this over four [dot] calls and their four reductions.
      */
     @Suppress("LongParameterList") // four row offsets plus the shared operand
     fun dot4(

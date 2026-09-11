@@ -5,7 +5,7 @@ import kotlin.test.*
 class StridedViewsTest {
     @Test
     fun `a panel borrows its parent buffer and leading dimension`() {
-        val matrix = DenseMatrix.of(
+        val matrix = DenseMatrix.ofRows(
             arrayOf(
                 doubleArrayOf(0.0, 10.0, 20.0),
                 doubleArrayOf(1.0, 11.0, 21.0),

@@ -50,9 +50,8 @@ uses bundled C kernels and falls back to scalar Kotlin when needed.
 
 ```kotlin
 import com.eignex.koblas.*
-import com.eignex.koblas.dense.*
 
-val a = DenseMatrix.of(arrayOf(
+val a = DenseMatrix.ofRows(arrayOf(
     doubleArrayOf(2.0, 1.0),
     doubleArrayOf(1.0, 3.0),
 ))
@@ -76,17 +75,34 @@ repeat(1_000) {
 }
 ```
 
-### Global and explicit contexts
+### Global and explicit engines
 
-Operators such as `a * b` use the global, platform-selected `koblas` context. Pass a `KoblasContext` when the
+Operators such as `a * b` use the global, platform-selected `koblas` engine. Pass a `KoblasEngine` when the
 caller should choose the engine:
 
 ```kotlin
-fun multiply(context: KoblasContext, left: DenseMatrix, right: DenseMatrix): DenseMatrix =
-    context.gemm(left, right)
+fun multiply(engine: KoblasEngine, left: DenseMatrix, right: DenseMatrix): DenseMatrix =
+    engine.gemm(left, right)
 
 val scalarProduct = multiply(BuiltinEngines.scalar, a, b)
 ```
+
+## API structure
+
+Most application code needs only `com.eignex.koblas.*`. The root package contains the owning dense and sparse
+containers, zero-copy views, `Workspace`, allocating operators, and high-level operations. `Matrix` and `Vector`
+are read-only contracts that custom types can implement. `MatrixStorage` and `VectorStorage` identify Koblas's
+built-in dense and sparse containers, so operations such as norms, scaling, and triangular solves can use one API
+and dispatch according to the actual storage.
+
+The `com.eignex.koblas.dense` and `com.eignex.koblas.sparse` packages are the lower-level composition layer.
+`DenseBlas` and `SparseBlas` expose storage-specific BLAS signatures, while their kernel interfaces, packed panels,
+and sparse slices support custom algorithms over caller-owned storage. Ordinary matrix and vector arithmetic does
+not require imports from these packages.
+
+`KoblasEngine` connects the layers: it implements both BLAS contracts and binds them to one immutable set of dense,
+packed, and sparse kernels. Root-package operators and extensions use the platform-selected `koblas` engine. Call
+an explicit engine instead when selecting scalar, C, or SIMD behavior is part of the caller's contract.
 
 ## Operations
 
@@ -94,15 +110,15 @@ val scalarProduct = multiply(BuiltinEngines.scalar, a, b)
 |-----|----------|
 | [Dense matrices](koblas/src/commonMain/kotlin/com/eignex/koblas/Matrix.kt), [sparse matrices](koblas/src/commonMain/kotlin/com/eignex/koblas/SparseMatrix.kt), [vectors](koblas/src/commonMain/kotlin/com/eignex/koblas/Vector.kt), and [views](koblas/src/commonMain/kotlin/com/eignex/koblas/StridedViews.kt) | Dense and sparse containers, array wrapping, factories, and views into existing storage. |
 | [Vector operations](koblas/src/commonMain/kotlin/com/eignex/koblas/VectorOps.kt) | Dense and sparse dot products, sums, norms, scaling, copy, swap, gather, scatter, and [Givens](koblas/src/commonMain/kotlin/com/eignex/koblas/Givens.kt) or [modified Givens](koblas/src/commonMain/kotlin/com/eignex/koblas/ModifiedGivens.kt) rotations. |
-| [Matrix helpers](koblas/src/commonMain/kotlin/com/eignex/koblas/MatrixOps.kt) | Allocating [operators](koblas/src/commonMain/kotlin/com/eignex/koblas/Operators.kt), matrix-vector products, rank updates, [slices and transpose](koblas/src/commonMain/kotlin/com/eignex/koblas/MatrixSlices.kt), [scaling](koblas/src/commonMain/kotlin/com/eignex/koblas/MatrixScaling.kt), and [norms](koblas/src/commonMain/kotlin/com/eignex/koblas/MatrixNorms.kt). |
-| [Dense BLAS](koblas/src/commonMain/kotlin/com/eignex/koblas/dense/Blas.kt) | General, symmetric, and triangular matrix products and solves, including `gemmt`, `syr2k`, and strided-view overloads. |
+| [Matrix helpers](koblas/src/commonMain/kotlin/com/eignex/koblas/MatrixOps.kt) | Allocating [operators](koblas/src/commonMain/kotlin/com/eignex/koblas/Operators.kt), matrix-vector products, rank updates, [triangular operations](koblas/src/commonMain/kotlin/com/eignex/koblas/Triangular.kt), [sparse operations](koblas/src/commonMain/kotlin/com/eignex/koblas/SparseOps.kt), slices, scaling, transpose, and norms. |
+| [Dense BLAS](koblas/src/commonMain/kotlin/com/eignex/koblas/dense/DenseBlas.kt) | General, symmetric, and triangular matrix products and solves, including `gemmt`, `syr2k`, and strided-view overloads. |
 | [Sparse BLAS](koblas/src/commonMain/kotlin/com/eignex/koblas/sparse/SparseBlas.kt) | Sparse matrix-vector and matrix-matrix products, dense or sparse results, symmetric and triangular operations, addition, and transpose. |
 | [Packed panels](koblas/src/commonMain/kotlin/com/eignex/koblas/dense/PackedPanels.kt) and [tile kernels](koblas/src/commonMain/kotlin/com/eignex/koblas/dense/PackedKernels.kt) | Reusable packed layouts and fixed-size product and triangular-solve tiles for custom blocked algorithms. |
 | [Sparse kernels](koblas/src/commonMain/kotlin/com/eignex/koblas/sparse/SparseKernels.kt) and [slices](koblas/src/commonMain/kotlin/com/eignex/koblas/sparse/SparseSlices.kt) | Allocation-free indexed arithmetic over caller-owned arrays, including accumulation, touched-index handling, diagnostics, and pivot candidates. |
-| [Engines and kernel APIs](koblas/src/commonMain/kotlin/com/eignex/koblas/KoblasContext.kt) | The default engine, explicit scalar, C, and SIMD engines, and lower-level dense, packed, and sparse kernel interfaces. |
+| [Engines and kernel APIs](koblas/src/commonMain/kotlin/com/eignex/koblas/KoblasEngine.kt) | The default engine, explicit scalar, C, and SIMD engines, and lower-level dense, packed, and sparse kernel interfaces. |
 
 Sparse matrix products can produce sparse or dense results. If you reuse a sparse matrix in several products,
-call `SparseMatrix.prepare()` from `com.eignex.koblas.sparse` once and reuse the prepared copy.
+call `SparseMatrix.prepare()` once and reuse the prepared copy.
 
 ## Error handling
 

@@ -15,7 +15,7 @@ import kotlin.math.min
  * The portable triangular kernels, netlib dtrsv, dtrsm, dtrmv and dtrmm over a flat column-major buffer.
  * These are the semantic definition a native triangular routine is validated against, and what
  * The scalar engine and the host adapters' fallbacks call these. `Triangular.kt` is the public facade that routes
- * through the installed context instead.
+ * through the selected engine instead.
  */
 
 /** Diagonal block width for the blocked triangular routines, bounded by the mask that indexes it. */
@@ -36,7 +36,7 @@ internal fun requireTriangularBlockFitsMask() {
 }
 
 /**
- * The body [Blas.trsv] and [Blas.trmv] share. The two BLAS routines take the same arguments and differ only
+ * The body [DenseBlas.trsv] and [DenseBlas.trmv] share. The two BLAS routines take the same arguments and differ only
  * in which core runs, which [solve] selects.
  *
  * The selection is a flag rather than a passed-in core so the call stays direct.
@@ -81,7 +81,7 @@ internal fun triangularVector(
 }
 
 /**
- * The body [Blas.trsm] and [Blas.trmm] share, with [solve] selecting the core as in [triangularVector].
+ * The body [DenseBlas.trsm] and [DenseBlas.trmm] share, with [solve] selecting the core as in [triangularVector].
  *
  * Matrix operations solve or multiply diagonal blocks with the vector cores and send off-diagonal updates
  * through shared blocked level-3 kernels. A transposed triangle is read in its original storage orientation.

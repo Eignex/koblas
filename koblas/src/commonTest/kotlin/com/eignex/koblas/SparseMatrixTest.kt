@@ -104,7 +104,7 @@ class SparseMatrixTest {
     @Test
     fun `the MatrixStorage gemv overload agrees with the dense equivalent`() {
         val a = SparseMatrix.ofColumns(3, 2, listOf(listOf(0 to 1.0, 2 to 3.0), listOf(1 to 2.0)))
-        val dense = DenseMatrix.of(a.toArray())
+        val dense = DenseMatrix.ofRows(a.toArray())
         for (x in listOf(
             DenseVector.of(doubleArrayOf(2.0, -1.0)),
             SparseVector.of(2, intArrayOf(1), doubleArrayOf(-1.0)),

@@ -1,7 +1,5 @@
 package com.eignex.koblas
 
-import com.eignex.koblas.*
-
 /** `A * B` (BLAS `dgemm`), allocating. gemm accumulates into an existing C instead. */
 public operator fun DenseMatrix.times(other: DenseMatrix): DenseMatrix = koblas.gemm(this, other)
 
@@ -27,10 +25,10 @@ public operator fun SparseMatrix.plus(other: SparseMatrix): SparseMatrix = kobla
 public operator fun SparseMatrix.minus(other: SparseMatrix): SparseMatrix = koblas.addScaled(-1.0, other, false, this)
 
 /**
- * Matrix-vector product into a fresh dense result for any [MatrixLike] against any [VectorLike].
+ * Matrix-vector product into a fresh dense result for any [Matrix] against any [Vector].
  * [gemvInto] writes into a destination the caller owns, and provides the alpha and beta scalars.
  */
-public operator fun MatrixLike.times(x: VectorLike): DenseVector {
+public operator fun Matrix.times(x: Vector): DenseVector {
     requireShape(cols == x.size) { "times shape mismatch: A is ${rows}x$cols, x size ${x.size}" }
     val out = DenseVector(rows)
     gemvInto(x, out.data)

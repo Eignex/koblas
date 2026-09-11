@@ -212,7 +212,7 @@ class VectorOpsTest {
         val sparse = sparse(3, 1 to 2.0)
         val backing = doubleArrayOf(Double.NaN, 3.0, Double.POSITIVE_INFINITY)
         val borrowed = StridedVectorView(backing, 2, 3, -1)
-        val foreign = object : VectorLike {
+        val foreign = object : Vector {
             override val size: Int = backing.size
             override fun get(i: Int): Double = backing[i]
             override fun toDoubleArray(): DoubleArray = backing.copyOf()

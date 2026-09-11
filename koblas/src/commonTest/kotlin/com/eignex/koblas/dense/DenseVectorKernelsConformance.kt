@@ -9,13 +9,13 @@ import kotlin.math.sqrt
 import kotlin.random.Random
 import kotlin.test.assertEquals
 
-internal val ReferenceBlas: Blas = BuiltinEngines.scalar
+internal val ReferenceBlas: DenseBlas = BuiltinEngines.scalar
 
 internal fun testBlas(
     vector: DenseVectorKernels = ScalarVectorKernels,
     panel: DensePanelKernels = ScalarPanelKernels,
     packed: PackedKernels = PortablePackedKernels,
-): Blas = BuiltinBlas(vector, panel, packed)
+): DenseBlas = BuiltinBlas(vector, panel, packed)
 
 // The dense vector contract, over any implementation. The compiled-in kernels and a host binding must both
 // satisfy it, and a host kernels class exists only on the native targets, so the assertions live here rather

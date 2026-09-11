@@ -1,10 +1,10 @@
 package com.eignex.koblas
 
 /**
- * Reusable floating-point and index scratch. Each active borrow gets its own buffer, so nested borrows are
- * safe. Idle buffers are retained for at most 64 distinct sizes per element type, so changing problem sizes
- * do not make a long-lived workspace retain every array it has used. A workspace is deliberately not
- * thread-safe.
+ * Reusable scratch storage for allocation-sensitive operations.
+ *
+ * Pass the same workspace to repeated calls to reuse their temporary arrays. Nested operations are safe, but
+ * concurrent operations must use separate workspaces.
  */
 public class Workspace {
     private val doubles = PrimitiveBuffers(::DoubleArray, DoubleArray::size, "buffer")
@@ -22,8 +22,8 @@ public class Workspace {
     @PublishedApi
     internal fun release(buffer: DoubleArray): Unit = doubles.release(buffer)
 
-    /** Pre-allocates [count] buffers of [size], so a loop does not allocate even on its first pass. */
-    public fun reserve(size: Int, count: Int): Unit = doubles.reserve(size, count)
+    /** Pre-allocates [count] buffers of [size]. */
+    internal fun reserve(size: Int, count: Int): Unit = doubles.reserve(size, count)
 
     @PublishedApi
     internal fun takeI32(size: Int): IntArray = indices.take(size)
@@ -32,7 +32,7 @@ public class Workspace {
     internal fun release(buffer: IntArray): Unit = indices.release(buffer)
 
     /** Pre-allocates [count] integer buffers of [size]. */
-    public fun reserveI32(size: Int, count: Int): Unit = indices.reserve(size, count)
+    internal fun reserveI32(size: Int, count: Int): Unit = indices.reserve(size, count)
 
     /** Number of idle floating-point buffers of [size]. An implementation diagnostic for tests. */
     internal fun available(size: Int): Int = doubles.available(size)

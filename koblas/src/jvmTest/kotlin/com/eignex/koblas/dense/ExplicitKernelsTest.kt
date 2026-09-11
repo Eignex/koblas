@@ -2,7 +2,7 @@ package com.eignex.koblas.dense
 
 import com.eignex.koblas.BuiltinEngines
 import com.eignex.koblas.DenseMatrix
-import com.eignex.koblas.KoblasContext
+import com.eignex.koblas.KoblasEngine
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -37,15 +37,15 @@ class ExplicitKernelsTest {
         assertEquals(Double.NEGATIVE_INFINITY, y[0])
     }
 
-    private fun availableEngines(): List<KoblasContext> = listOfNotNull(BuiltinEngines.c, BuiltinEngines.simd)
+    private fun availableEngines(): List<KoblasEngine> = listOfNotNull(BuiltinEngines.c, BuiltinEngines.simd)
 
-    private fun assertSymvPreservesFiniteCancellation(engine: KoblasContext) =
+    private fun assertSymvPreservesFiniteCancellation(engine: KoblasEngine) =
         assertSymvColumnResult(engine, second = -1e308, common = 1e308, expectedValue = 1e308)
 
-    private fun assertSymvPreservesOverflow(engine: KoblasContext) =
+    private fun assertSymvPreservesOverflow(engine: KoblasEngine) =
         assertSymvColumnResult(engine, second = 1e308, common = -1e308, expectedValue = Double.POSITIVE_INFINITY)
 
-    private fun assertSymvColumnResult(engine: KoblasContext, second: Double, common: Double, expectedValue: Double) {
+    private fun assertSymvColumnResult(engine: KoblasEngine, second: Double, common: Double, expectedValue: Double) {
         val n = DenseTuning.symvFourColumnCrossover
         val column = n - 8
         val a = DenseMatrix(n, n)

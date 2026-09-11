@@ -5,7 +5,7 @@ package com.eignex.koblas
 import com.eignex.koblas.DenseVector
 import com.eignex.koblas.SparseVector
 import com.eignex.koblas.StridedVectorView
-import com.eignex.koblas.VectorLike
+import com.eignex.koblas.Vector
 import com.eignex.koblas.dense.DenseVectorKernels
 import com.eignex.koblas.internal.numeric.euclideanNorm
 import com.eignex.koblas.internal.numeric.neumaierSum
@@ -13,9 +13,9 @@ import kotlin.math.abs
 
 /**
  * Visit each stored entry as (index, value), in ascending index order for any storage. A [SparseVector]
- * may present numerical zeros as stored, and any other [VectorLike] has every index visited.
+ * may present numerical zeros as stored, and any other [Vector] has every index visited.
  */
-public inline fun VectorLike.forEachStored(block: (i: Int, v: Double) -> Unit) {
+public inline fun Vector.forEachStored(block: (i: Int, v: Double) -> Unit) {
     when (this) {
         is DenseVector -> {
             val d = data
@@ -33,7 +33,7 @@ public inline fun VectorLike.forEachStored(block: (i: Int, v: Double) -> Unit) {
 }
 
 /** `aT * b`. Sparse operands walk their stored entries only. */
-public infix fun VectorLike.dot(other: VectorLike): Double {
+public infix fun Vector.dot(other: Vector): Double {
     requireSameSize(size, other.size)
     if (this is StridedVectorView && other is StridedVectorView) {
         var sum = 0.0
@@ -61,7 +61,7 @@ public infix fun VectorLike.dot(other: VectorLike): Double {
  * Euclidean norm (BLAS `dnrm2`). Rescales when the sum of squares would overflow or underflow, so any
  * finite input gives the correct norm.
  */
-public fun VectorLike.norm2(): Double = when (this) {
+public fun Vector.norm2(): Double = when (this) {
     is DenseVector -> koblas.vectorKernels.nrm2(data, 0, size)
     is SparseVector -> koblas.sparseKernels.nrm2(this)
     is StridedVectorView -> stridedNorm2(this)
@@ -75,7 +75,7 @@ public fun VectorLike.norm2(): Double = when (this) {
  * does not store are zero and contribute nothing. Use [compensatedSum] where the length is large enough
  * that the rounding error of a naive sum matters.
  */
-public fun VectorLike.sum(): Double = when (this) {
+public fun Vector.sum(): Double = when (this) {
     is DenseVector -> koblas.vectorKernels.sum(data, 0, size)
 
     else -> {
@@ -100,7 +100,7 @@ public fun VectorLike.sum(): Double = when (this) {
  * This is the batch form, over entries that already exist. An accumulator fed one value at a time needs its
  * compensator in its own state, which no vector routine can supply.
  */
-public fun VectorLike.compensatedSum(): Double = when (this) {
+public fun Vector.compensatedSum(): Double = when (this) {
     is DenseVector -> neumaierSum(data, 0, size)
 
     else -> {
@@ -116,7 +116,7 @@ public fun VectorLike.compensatedSum(): Double = when (this) {
 }
 
 /** Sum of absolute values (BLAS `dasum`). Sparse vectors sum over stored entries only. */
-public fun VectorLike.asum(): Double = when (this) {
+public fun Vector.asum(): Double = when (this) {
     is DenseVector -> koblas.vectorKernels.asum(data, 0, size)
 
     is SparseVector -> koblas.sparseKernels.asum(this)
@@ -134,7 +134,7 @@ public fun VectorLike.asum(): Double = when (this) {
  * a leading NaN. All-zero and all-NaN nonempty inputs return `0`, as do sparse inputs whose maximum is an
  * implicit zero. Strided views report their logical index rather than a backing-array offset.
  */
-public fun VectorLike.iamax(): Int {
+public fun Vector.iamax(): Int {
     if (size == 0) return -1
     var best = -1
     var bestAbs = 0.0
@@ -152,7 +152,7 @@ public fun VectorLike.iamax(): Int {
  * `dst = src` (BLAS `dcopy`). A sparse source zero-fills the destination first, so nothing survives.
  * A borrowed or sparse source sharing [dst]'s buffer is snapshotted before writing.
  */
-public fun copy(src: VectorLike, dst: DenseVector) {
+public fun copy(src: Vector, dst: DenseVector) {
     requireSameSize(src.size, dst.size)
     if ((src is StridedVectorView && src.data === dst.data) || (src is SparseVector && src.values === dst.data)) {
         src.toDoubleArray().copyInto(dst.data)
@@ -176,14 +176,14 @@ public fun copy(src: VectorLike, dst: DenseVector) {
  * `dst = src` into a borrowed strided destination. Overlapping built-in sources are snapshotted before
  * writing; disjoint operands are copied without materializing either one.
  */
-public fun copy(src: VectorLike, dst: StridedVectorView) {
+public fun copy(src: Vector, dst: StridedVectorView) {
     requireSameSize(src.size, dst.size)
     val source = src.stableFor(dst)
     for (i in 0 until source.size) dst[i] = source[i]
 }
 
 /** Retains sparse support when snapshotting an input whose values may be overwritten through [destination]. */
-private fun VectorLike.stableFor(destination: StridedVectorView): VectorLike = when (this) {
+private fun Vector.stableFor(destination: StridedVectorView): Vector = when (this) {
     is DenseVector -> if (data === destination.data) DenseVector.of(data) else this
     is SparseVector -> if (values === destination.data) SparseVector.wrap(size, indices, values.copyOf()) else this
     is StridedVectorView -> if (overlaps(destination)) DenseVector.wrap(toDoubleArray()) else this
@@ -235,7 +235,7 @@ public fun swap(a: StridedVectorView, b: StridedVectorView) {
  * `y = y + alpha * x`. A sparse `x` touches only the positions it stores. A borrowed [x] sharing the
  * destination buffer is snapshotted before writing.
  */
-public fun DenseVector.axpy(alpha: Double, x: VectorLike) {
+public fun DenseVector.axpy(alpha: Double, x: Vector) {
     requireSameSize(size, x.size)
     if (alpha == 0.0) return
     val source = if (x is StridedVectorView && x.data === data) DenseVector.wrap(x.toDoubleArray()) else x
@@ -250,7 +250,7 @@ public fun DenseVector.axpy(alpha: Double, x: VectorLike) {
  * `this = this + alpha * x` over a borrowed strided destination. Sparse inputs touch only stored positions;
  * overlapping built-in inputs are snapshotted before writing.
  */
-public fun StridedVectorView.axpy(alpha: Double, x: VectorLike) {
+public fun StridedVectorView.axpy(alpha: Double, x: Vector) {
     requireSameSize(size, x.size)
     if (alpha == 0.0) return
     x.stableFor(this).forEachStored { i, value -> this[i] += alpha * value }

@@ -80,7 +80,7 @@ class AllocationFreeTest {
     }
 
     /**
-     * The symmetric rank-one and rank-two updates take a [VectorLike], and densifying a dense operand to
+     * The symmetric rank-one and rank-two updates take a [Vector], and densifying a dense operand to
      * read it copies the whole vector on every call. They are the innermost step of a covariance or a
      * quasi-Newton update, so a copy per call is a copy per iteration of the caller's loop.
      */

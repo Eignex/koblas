@@ -11,8 +11,8 @@ class SerializationTest {
     @Test
     fun `DenseMatrix round-trips through JSON for square rectangular and degenerate shapes`() {
         val cases = listOf(
-            DenseMatrix.of(arrayOf(doubleArrayOf(1.0, 2.0), doubleArrayOf(3.0, 4.0))),
-            DenseMatrix.of(arrayOf(doubleArrayOf(1.0, 2.0, 3.0))), // 1x3
+            DenseMatrix.ofRows(arrayOf(doubleArrayOf(1.0, 2.0), doubleArrayOf(3.0, 4.0))),
+            DenseMatrix.ofRows(arrayOf(doubleArrayOf(1.0, 2.0, 3.0))), // 1x3
             DenseMatrix(1, 1).also { it[0, 0] = 7.5 },
             DenseMatrix(3, 0), // 3 empty rows survive (cols=0)
             DenseMatrix(0, 0),
@@ -25,7 +25,7 @@ class SerializationTest {
 
     @Test
     fun `DenseMatrix wire form is its shape and a flat array`() {
-        val m = DenseMatrix.of(arrayOf(doubleArrayOf(1.0, 2.0), doubleArrayOf(3.0, 4.0)))
+        val m = DenseMatrix.ofRows(arrayOf(doubleArrayOf(1.0, 2.0), doubleArrayOf(3.0, 4.0)))
         val obj = json.parseToJsonElement(json.encodeToString(m)).jsonObject
         assertEquals(2, obj.getValue("rows").jsonPrimitive.int)
         assertEquals(2, obj.getValue("cols").jsonPrimitive.int)
@@ -113,7 +113,7 @@ class SerializationTest {
     fun `both matrix storages round-trip polymorphically through MatrixStorage`() {
         val storages: List<MatrixStorage> = listOf(
             SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 1.0), listOf(1 to 2.0))),
-            DenseMatrix.of(arrayOf(doubleArrayOf(1.0, 2.0), doubleArrayOf(3.0, 4.0))),
+            DenseMatrix.ofRows(arrayOf(doubleArrayOf(1.0, 2.0), doubleArrayOf(3.0, 4.0))),
             DenseMatrix(0, 0),
         )
         for (storage in storages) {

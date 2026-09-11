@@ -5,7 +5,7 @@ import kotlin.test.*
 
 class MatrixNormsTest {
 
-    private val example = DenseMatrix.of(
+    private val example = DenseMatrix.ofRows(
         arrayOf(
             doubleArrayOf(1.0, -2.0, 3.0),
             doubleArrayOf(-4.0, 5.0, -6.0),
@@ -42,7 +42,7 @@ class MatrixNormsTest {
      */
     @Test
     fun `norm1 and normInf carry a NaN through`() {
-        val poisoned = DenseMatrix.of(
+        val poisoned = DenseMatrix.ofRows(
             arrayOf(
                 doubleArrayOf(1.0, -2.0, 3.0),
                 doubleArrayOf(-4.0, Double.NaN, -6.0),
@@ -56,7 +56,7 @@ class MatrixNormsTest {
     @Test
     fun `a NaN in one column does not hide behind a larger clean column`() {
         // The clean column sums to 100, so a maximum that merely compares would answer with it.
-        val poisoned = DenseMatrix.of(
+        val poisoned = DenseMatrix.ofRows(
             arrayOf(
                 doubleArrayOf(Double.NaN, 100.0),
                 doubleArrayOf(1.0, 0.0),
@@ -69,7 +69,7 @@ class MatrixNormsTest {
 
     @Test
     fun `normFro survives entries that square out of range`() {
-        val big = DenseMatrix.of(arrayOf(doubleArrayOf(3e200, 4e200)))
+        val big = DenseMatrix.ofRows(arrayOf(doubleArrayOf(3e200, 4e200)))
         assertEquals(5e200, big.normFro(), 1e188)
     }
 

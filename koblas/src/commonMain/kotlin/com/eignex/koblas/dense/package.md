@@ -3,7 +3,7 @@
 Dense BLAS contracts and built-in implementations.
 
 [DenseVectorKernels], [DensePanelKernels], and [PackedKernels] define separate contiguous-vector,
-matrix-panel, and padded-tile responsibilities. [Blas] contains dense matrix algorithms bound to one immutable
+matrix-panel, and padded-tile responsibilities. [DenseBlas] contains dense matrix algorithms bound to one immutable
 composition. The platform default is exposed through [com.eignex.koblas.koblas]; tests and benchmarks can
 construct independent exact engines through [com.eignex.koblas.BuiltinEngines].
 

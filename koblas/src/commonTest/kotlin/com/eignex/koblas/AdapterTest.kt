@@ -10,7 +10,7 @@ class AdapterTest {
         val a = ForeignSpdMatrix(5)
         val x = ForeignRampVector(5)
         val viaAdapter = a * x
-        val viaStorage = DenseMatrix.of(a.toArray()) * DenseVector.of(x.toDoubleArray())
+        val viaStorage = DenseMatrix.ofRows(a.toArray()) * DenseVector.of(x.toDoubleArray())
         for (i in 0 until 5) {
             assertEquals(viaStorage[i], viaAdapter[i], 1e-12, "row $i")
         }

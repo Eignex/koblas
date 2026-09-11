@@ -1,7 +1,7 @@
 package com.eignex.koblas.bench
 
 import com.eignex.koblas.BuiltinEngines
-import com.eignex.koblas.KoblasContext
+import com.eignex.koblas.KoblasEngine
 import java.nio.file.Files
 import java.nio.file.Path
 
@@ -13,7 +13,7 @@ internal actual fun writeTextFile(path: String, text: String) {
     Files.writeString(target, text)
 }
 
-internal actual fun resolveEngine(mode: String): Pair<KoblasContext, String> {
+internal actual fun resolveEngine(mode: String): Pair<KoblasEngine, String> {
     val engine = when (mode) {
         "jvm-scalar" -> BuiltinEngines.scalar
         "jvm-c" -> requireNotNull(BuiltinEngines.c) { "requested jvm-c engine is unavailable" }

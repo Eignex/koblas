@@ -1,6 +1,5 @@
 package com.eignex.koblas
 
-import com.eignex.koblas.dense.*
 import kotlin.test.Test
 import kotlin.test.assertEquals
 

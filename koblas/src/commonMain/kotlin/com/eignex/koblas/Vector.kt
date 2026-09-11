@@ -1,11 +1,10 @@
 package com.eignex.koblas
 
-import com.eignex.koblas.*
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 /** Read-only vector contract. Anything that only reads a vector should take this. */
-public interface VectorLike {
+public interface Vector {
     /** Number of entries, counting the unstored zeros of a sparse vector. */
     public val size: Int
 
@@ -18,7 +17,7 @@ public interface VectorLike {
 
 /** The vector storages koblas itself defines, [DenseVector] and [SparseVector]. */
 @Serializable
-public sealed interface VectorStorage : VectorLike
+public sealed interface VectorStorage : Vector
 
 /**
  * @property data the flat backing array. The vector is mutable through it and [set]; do not use the vector as

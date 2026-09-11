@@ -4,8 +4,7 @@
 
 package com.eignex.koblas
 
-import com.eignex.koblas.*
-import com.eignex.koblas.dense.Blas
+import com.eignex.koblas.dense.DenseBlas
 import com.eignex.koblas.dense.applyBeta
 import com.eignex.koblas.dense.denseStoredGemvUpdate
 import com.eignex.koblas.dense.denseSymmetricStoredGemvUpdate
@@ -15,19 +14,19 @@ import com.eignex.koblas.sparse.internal.sparseSyr
 import com.eignex.koblas.sparse.internal.sparseSyr2
 
 /**
- * `y = alpha * A * x + beta * y` (BLAS `dgemv`) into [destination], for any [MatrixLike] against any
- * [VectorLike]. `beta == 0.0` overwrites [destination] without reading it, so a destination left holding
+ * `y = alpha * A * x + beta * y` (BLAS `dgemv`) into [destination], for any [Matrix] against any
+ * [Vector]. `beta == 0.0` overwrites [destination] without reading it, so a destination left holding
  * NaN still yields a clean product.
  *
  * A sparse or generic [x] is never materialised as a dense array: a dense `A` takes one column axpy per
  * stored entry of [x], a sparse `A` walks the stored entries of each such column, and any other
- * [MatrixLike] falls back to indexed reads. Dense storage on both sides dispatches straight to the
+ * [Matrix] falls back to indexed reads. Dense storage on both sides dispatches straight to the
  * backend, using the dense or sparse `gemv` overload selected by `A`.
  *
  * Built-in operands may share [destination]'s backing array. They are snapshotted before [destination] is
  * scaled or written, so aliasing has the same result as a call over independent inputs.
  */
-public fun MatrixLike.gemvInto(alpha: Double, x: VectorLike, beta: Double, destination: DoubleArray) {
+public fun Matrix.gemvInto(alpha: Double, x: Vector, beta: Double, destination: DoubleArray) {
     val a = this
     requireShape(a.cols == x.size) { "gemvInto shape mismatch: A is ${a.rows}x${a.cols}, x size ${x.size}" }
     requireShape(destination.size == a.rows) {
@@ -77,11 +76,11 @@ public fun MatrixLike.gemvInto(alpha: Double, x: VectorLike, beta: Double, desti
 }
 
 /** [gemvInto] with `alpha = 1, beta = 0`, so `destination` receives `A * x`. */
-public fun MatrixLike.gemvInto(x: VectorLike, destination: DoubleArray): Unit = gemvInto(1.0, x, 0.0, destination)
+public fun Matrix.gemvInto(x: Vector, destination: DoubleArray): Unit = gemvInto(1.0, x, 0.0, destination)
 
 /**
  * `y = alpha * A * x + beta * y` for a symmetric `A` (BLAS `dsymv`) into [destination], accepting any
- * [VectorLike] for [x]. Only the [lower] triangle is read, diagonal included, and `beta == 0.0`
+ * [Vector] for [x]. Only the [lower] triangle is read, diagonal included, and `beta == 0.0`
  * overwrites [destination] without reading it.
  *
  * Reading one triangle is what lets a caller maintain its symmetric matrix with [DenseMatrix.syr], which
@@ -92,7 +91,7 @@ public fun MatrixLike.gemvInto(x: VectorLike, destination: DoubleArray): Unit = 
 @Suppress("LongParameterList") // the BLAS dsymv signature
 public fun DenseMatrix.symvInto(
     alpha: Double,
-    x: VectorLike,
+    x: Vector,
     beta: Double,
     destination: DoubleArray,
     lower: Boolean = true,
@@ -115,7 +114,7 @@ public fun DenseMatrix.symvInto(
 }
 
 /** [symvInto] with `alpha = 1, beta = 0`, so `destination` receives `A * x`. */
-public fun DenseMatrix.symvInto(x: VectorLike, destination: DoubleArray, lower: Boolean = true): Unit =
+public fun DenseMatrix.symvInto(x: Vector, destination: DoubleArray, lower: Boolean = true): Unit =
     symvInto(1.0, x, 0.0, destination, lower)
 
 /** The `beta * y` half of a matvec. A zero [beta] overwrites without reading, as BLAS specifies, so the
@@ -123,7 +122,7 @@ public fun DenseMatrix.symvInto(x: VectorLike, destination: DoubleArray, lower: 
 private fun DoubleArray.prescale(beta: Double) = applyBeta(koblas.vectorKernels, this, 0, size, beta)
 
 /** Stable built-in vector storage when [destination] is its live backing array. */
-private fun VectorLike.stableFor(destination: DoubleArray): VectorLike = when (this) {
+private fun Vector.stableFor(destination: DoubleArray): Vector = when (this) {
     is DenseVector -> if (data === destination) DenseVector.of(data) else this
 
     is SparseVector -> if (values === destination) SparseVector.wrap(size, indices, values.copyOf()) else this
@@ -138,7 +137,7 @@ private fun VectorLike.stableFor(destination: DoubleArray): VectorLike = when (t
 }
 
 /** Stable built-in matrix storage when [destination] is its live backing array. */
-private fun MatrixLike.stableFor(destination: DoubleArray): MatrixLike = when (this) {
+private fun Matrix.stableFor(destination: DoubleArray): Matrix = when (this) {
     is DenseMatrix -> stableFor(destination)
 
     is SparseMatrix -> if (values === destination) {
@@ -164,7 +163,7 @@ private fun DenseMatrix.stableFor(destination: DoubleArray): DenseMatrix =
  * Rank-one update `A = A + alpha * x * yT` (BLAS `dger`) in place. Subtract by passing
  * `alpha = -1.0`.
  */
-public fun DenseMatrix.ger(alpha: Double, x: VectorLike, y: VectorLike) {
+public fun DenseMatrix.ger(alpha: Double, x: Vector, y: Vector) {
     requireShape(rows == x.size && cols == y.size) {
         "ger shape mismatch: A is ${rows}x$cols, x ${x.size}, y ${y.size}"
     }
@@ -176,16 +175,16 @@ public fun DenseMatrix.ger(alpha: Double, x: VectorLike, y: VectorLike) {
     genericRankOneUpdate(alpha, x, y, this)
 }
 
-/** Symmetric rank-1 update `A += alpha * x * xT` (BLAS `dsyr`) in place. See [Blas.syr]. */
-public fun DenseMatrix.syr(alpha: Double, x: VectorLike, lower: Boolean = true): Unit = koblas.syr(
+/** Symmetric rank-1 update `A += alpha * x * xT` (BLAS `dsyr`) in place. See [DenseBlas.syr]. */
+public fun DenseMatrix.syr(alpha: Double, x: Vector, lower: Boolean = true): Unit = koblas.syr(
     alpha,
     x,
     this,
     lower,
 )
 
-/** Symmetric rank-2 update `A += alpha * (x * yT + y * xT)` (BLAS `dsyr2`) in place. See [Blas.syr2]. */
-public fun DenseMatrix.syr2(alpha: Double, x: VectorLike, y: VectorLike, lower: Boolean = true): Unit =
+/** Symmetric rank-2 update `A += alpha * (x * yT + y * xT)` (BLAS `dsyr2`) in place. See [DenseBlas.syr2]. */
+public fun DenseMatrix.syr2(alpha: Double, x: Vector, y: Vector, lower: Boolean = true): Unit =
     koblas.syr2(alpha, x, y, this, lower)
 
 /**
@@ -197,7 +196,7 @@ public fun DenseMatrix.syr2(alpha: Double, x: VectorLike, y: VectorLike, lower: 
  * arithmetic cancels or underflows to zero, so the returned matrix never silently drops discovered fill.
  * The result owns independent structural and value arrays, and its rows ascend within every column.
  */
-public fun SparseMatrix.syr(alpha: Double, x: VectorLike, lower: Boolean = true): SparseMatrix {
+public fun SparseMatrix.syr(alpha: Double, x: Vector, lower: Boolean = true): SparseMatrix {
     requireSyrShape(this, x.size, "syr")
     return sparseSyr(this, alpha, x, lower)
 }
@@ -210,7 +209,7 @@ public fun SparseMatrix.syr(alpha: Double, x: VectorLike, lower: Boolean = true)
  * Existing explicit zeros survive. A coordinate reached by nonzero vector support is stored even when its
  * two terms cancel or underflow to zero. The result has independent arrays and canonical ascending CSC rows.
  */
-public fun SparseMatrix.syr2(alpha: Double, x: VectorLike, y: VectorLike, lower: Boolean = true): SparseMatrix {
+public fun SparseMatrix.syr2(alpha: Double, x: Vector, y: Vector, lower: Boolean = true): SparseMatrix {
     requireSyr2Shape(this, x.size, y.size, "syr2")
     return sparseSyr2(this, alpha, x, y, lower)
 }

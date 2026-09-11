@@ -13,8 +13,8 @@ import com.eignex.koblas.sparse.SparseKernelAdapter
 /** Kotlin/Native built-in engines. */
 public actual object BuiltinEngines {
     /** Pure Kotlin scalar dense kernels and reference sparse kernels. */
-    public actual val scalar: KoblasContext =
-        KoblasContext(
+    public actual val scalar: KoblasEngine =
+        KoblasEngine(
             ScalarVectorKernels,
             ScalarPanelKernels,
             PortablePackedKernels,
@@ -23,8 +23,8 @@ public actual object BuiltinEngines {
         )
 
     /** C kernels compiled into this Native artifact. */
-    public actual val c: KoblasContext? =
-        KoblasContext(
+    public actual val c: KoblasEngine? =
+        KoblasEngine(
             NativeCVectorKernels,
             NativeCPanelKernels,
             NativeCPackedKernels,
@@ -33,5 +33,5 @@ public actual object BuiltinEngines {
         )
 
     /** SIMD is unavailable as a distinct Native engine. */
-    public actual val simd: KoblasContext? = null
+    public actual val simd: KoblasEngine? = null
 }
