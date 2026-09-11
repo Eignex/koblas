@@ -33,19 +33,25 @@ reject_case unsupported-mode 'spsymv+8x8+sparse-uniform+density=0.25+mode=prepar
 reject_case long-operation 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa+4+uniform'
 
 sed 's/,arithmetic,/,incompatible,/' "$result" >"$temporary/incompatible.csv"
-if "$root/koblas-bench/tools/compare.sh" --require-compatible "$result" "$temporary/incompatible.csv" >"$temporary/compare-output.txt" 2>"$temporary/compare-error.txt"; then
+if "$root/koblas-bench/tools/compare.sh" --require-compatible --mode logical "$result" "$temporary/incompatible.csv" >"$temporary/compare-output.txt" 2>"$temporary/compare-error.txt"; then
   echo "incompatible supported cases unexpectedly joined" >&2
   exit 1
 fi
 grep -q '^incompatible case=' "$temporary/compare-error.txt"
 
-printf '%s\n' \
-  'case,implementation,workload_version,fixture_version,ns_per_op,status,comparison_kind,timing_mode,threads,warmups,target_ns' \
-  '"quoted ""case"", one",base,1,1,3,ok,direct,arithmetic-only,1,2,1000' \
-  '"quoted ""case"", one",base,1,1,1,ok,direct,arithmetic-only,1,2,1000' >"$temporary/base.csv"
-printf '%s\n' \
-  'case,implementation,workload_version,fixture_version,ns_per_op,status,comparison_kind,timing_mode,threads,warmups,target_ns' \
-  '"quoted ""case"", one",candidate,1,1,2,ok,direct,arithmetic-only,1,2,1000' \
-  '"quoted ""case"", one",candidate,1,1,4,ok,direct,arithmetic-only,1,2,1000' >"$temporary/candidate.csv"
-"$root/koblas-bench/tools/compare.sh" --require-compatible "$temporary/base.csv" "$temporary/candidate.csv" >"$temporary/quoted-output.csv"
-grep -q '^"quoted ""case"", one",2,3,2,4,0.666667,direct$' "$temporary/quoted-output.csv"
+python3 "$root/koblas-bench/tools/compare_test.py"
+
+# Remove each required field independently from a valid canonical case.
+packed=$(awk '/^gemm-block/ { print; exit }' "$root/koblas-bench/cases.txt")
+IFS=+ read -r -a fields <<<"$packed"
+for field in "${fields[@]:3}"; do
+  reject_case missing-field "${packed/+${field}/}"
+done
+reject_case stride "${packed/leftStride=4/leftStride=8}"
+reject_case alignment "${packed/alignment=8/alignment=64}"
+reject_case panel "${packed/panel=31/panel=32}"
+reject_case batch "${packed/batch=1/batch=2}"
+reject_case layout "${packed/leftLayout=depth-rows-v1/leftLayout=depth-rows-v2}"
+
+# Parse and execute the full shared workload, including explicit unsupported vendor cases.
+"$temporary/runner" --cases="$root/koblas-bench/cases.txt" --output="$temporary/all.csv" --warmups=0 --samples=1 --target-ms=1

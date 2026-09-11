@@ -50,28 +50,41 @@ fi
 
 commit=$(git -C "$root" rev-parse --short=12 HEAD)
 run_id="$(date -u +%Y%m%dT%H%M%SZ)-$commit"
-run="$temporary/report"
-mkdir "$run"
-
-common=("-Pbench.operation=$operation" "-Pbench.cases=$cases" "-Pbench.warmups=$warmups" "-Pbench.samples=$samples" "-Pbench.targetMs=$target_ms" "-Pbench.pass=$pass")
-(cd "$root" && ./gradlew :koblas-bench:jvmScalarBenchmark "${common[@]}" "-Pbench.forks=$forks" "-Pbench.output=$run/jvm-scalar.csv")
-(cd "$root" && ./gradlew :koblas-bench:jvmCBenchmark "${common[@]}" "-Pbench.forks=$forks" "-Pbench.output=$run/jvm-c.csv")
-(cd "$root" && ./gradlew :koblas-bench:jvmSimdBenchmark "${common[@]}" "-Pbench.forks=$forks" "-Pbench.output=$run/jvm-simd.csv")
-(cd "$root" && ./gradlew :koblas-bench:nativeBenchmark "${common[@]}" "-Pbench.output=$run/native.csv")
-"$bench/reference.sh" --libraries "$libraries" --output "$run/vendor" --cases "$cases" --samples "$samples" --warmups "$warmups" --target-ms "$target_ms" --pass "$pass"
-
 hardware_report="$reports/$hardware_hash"
+mkdir -p "$hardware_report"
 if [[ -e $hardware_report/hardware.txt ]]; then
   cmp -s "$temporary/hardware.txt" "$hardware_report/hardware.txt" || {
-    echo "hardware hash collision: $hardware_report/hardware.txt differs" >&2
-    exit 1
+    echo "hardware hash collision" >&2; exit 1;
   }
 else
-  mkdir -p "$hardware_report"
-  mv "$temporary/hardware.txt" "$hardware_report/hardware.txt"
+  cp "$temporary/hardware.txt" "$hardware_report/hardware.txt"
 fi
+run="$hardware_report/$run_id"
+[[ ! -e $run ]] || { echo "report already exists: $run" >&2; exit 1; }
+mkdir "$run"
+echo "incomplete" >"$run/status.txt"
+cp "$cases" "$run/cases.txt"
+cases="$run/cases.txt"
+{
+  date -u
+  uname -a
+  cc --version
+  java --version
+  git -C "$root" rev-parse HEAD
+  git -C "$root" status --porcelain
+  echo "operation=$operation warmups=$warmups samples=$samples target_ms=$target_ms forks=$forks pass=$pass libraries=$libraries"
+  echo "JVM benchmark runtime and VM flags: see the JMH logs and CSV runtime fields."
+  echo "Native: Kotlin 2.4.10 release executable; build flags are in the source commit and native-build.log."
+  env | LC_ALL=C sort | awk '/^KOBLAS_(DENSE|SPARSE)_/ { print }'
+} >"$run/provenance.txt"
+git -C "$root" diff --binary HEAD >"$run/source.patch"
 
-destination="$hardware_report/$run_id"
-[[ ! -e $destination ]] || { echo "report already exists: $destination" >&2; exit 1; }
-mv "$run" "$destination"
-echo "$destination"
+common=("-Pbench.operation=$operation" "-Pbench.cases=$cases" "-Pbench.warmups=$warmups" "-Pbench.samples=$samples" "-Pbench.targetMs=$target_ms" "-Pbench.pass=$pass")
+(cd "$root" && ./gradlew :koblas-bench:jvmScalarBenchmark "${common[@]}" "-Pbench.forks=$forks" "-Pbench.output=$run/jvm-scalar.csv") 2>&1 | tee "$run/jvm-scalar.log"
+(cd "$root" && ./gradlew :koblas-bench:jvmCBenchmark "${common[@]}" "-Pbench.forks=$forks" "-Pbench.output=$run/jvm-c.csv") 2>&1 | tee "$run/jvm-c.log"
+(cd "$root" && ./gradlew :koblas-bench:jvmSimdBenchmark "${common[@]}" "-Pbench.forks=$forks" "-Pbench.output=$run/jvm-simd.csv") 2>&1 | tee "$run/jvm-simd.log"
+(cd "$root" && ./gradlew :koblas-bench:nativeBenchmark "${common[@]}" "-Pbench.output=$run/native.csv") 2>&1 | tee "$run/native-build.log"
+"$bench/reference.sh" --libraries "$libraries" --output "$run/vendor" --cases "$cases" --samples "$samples" --warmups "$warmups" --target-ms "$target_ms" --pass "$pass" 2>&1 | tee "$run/vendor.log"
+
+echo "complete" >"$run/status.txt"
+echo "$run"

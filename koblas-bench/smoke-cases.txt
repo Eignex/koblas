@@ -3,8 +3,8 @@ dot+4096+uniform
 gemv+32x21+uniform
 gemm+32x21x48+uniform
 trsm+64x16+triangular+side=L+uplo=L+transA=N+diag=N
-gemm-tile+4x4x32+uniform+physical=4x4
-gemm-tile+8x4x32+uniform+physical=8x4
+gemm-tile+4x4x32+uniform+physical=4x4+work=gemm-add-v1+leftLayout=depth-rows-v1+rightLayout=depth-columns-v1+leftGroup=4+rightGroup=4+leftStride=4+rightStride=4+padding=zero+alignment=8+block=4x4x32+panel=32+diagonal=0+rhs=0+batch=1+variant=current-tile-v1+timing=raw-tile
+gemm-tile+8x4x32+uniform+physical=8x4+work=gemm-add-v1+leftLayout=depth-rows-v1+rightLayout=depth-columns-v1+leftGroup=8+rightGroup=4+leftStride=8+rightStride=4+padding=zero+alignment=8+block=8x4x32+panel=32+diagonal=0+rhs=0+batch=1+variant=current-tile-v1+timing=raw-tile
 spdot+4096+sparse-uniform+density=0.01
 spgemv+257x129+sparse-uniform+density=0.01+mode=prepared
 spgemv+257x129+sparse-uniform+density=0.01+mode=oneshot

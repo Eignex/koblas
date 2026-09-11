@@ -1,0 +1,7 @@
+wrote 11 cases to /tmp/tmp.5RLKy68lu7/smoke/openblas.csv (openblas, sink=18584.3)
+.....
+----------------------------------------------------------------------
+Ran 5 tests in 0.614s
+
+OK
+wrote 143 cases to /tmp/tmp.5RLKy68lu7/all.csv (openblas, sink=1.46361e+07)

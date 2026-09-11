@@ -1,7 +1,7 @@
 package com.eignex.koblas.bench
 
-internal const val WORKLOAD_VERSION = "4"
-internal const val FIXTURE_VERSION = "1"
+internal const val WORKLOAD_VERSION = "5"
+internal const val FIXTURE_VERSION = "2"
 
 internal data class BenchCase(
     val operation: String,
@@ -22,7 +22,7 @@ internal object Cases {
         "ssqd" to 1, "dot4" to 1, "axpy4" to 1, "dot-axpy" to 1,
         "gemv" to 2, "symv" to 1, "ger" to 2, "syr" to 1, "syr2" to 1, "trsv" to 1,
         "trmv" to 1, "gemm" to 3, "symm" to 2, "gemmt" to 2, "syrk" to 2, "syr2k" to 2,
-        "trsm" to 2, "trmm" to 2, "gemm-tile" to 3, "packed-trsm" to 2, "gemm-trsm" to 3,
+        "trsm" to 2, "trmm" to 2, "gemm-block" to 3, "gemm-tile" to 3, "packed-trsm" to 2, "gemm-trsm" to 3,
         "pack-left" to 2, "pack-right" to 2, "pack-symmetric-left" to 2,
         "pack-symmetric-right" to 2, "pack-triangular-left" to 2, "pack-triangular-right" to 2,
         "write-left" to 2, "write-right" to 2, "clear-left-padding" to 2, "clear-right-padding" to 2,
@@ -39,7 +39,7 @@ internal object Cases {
         "sparse-slices-max" to 1, "sparse-slices-filter" to 1,
     )
     private val fixtures = setOf("uniform", "triangular", "sparse-uniform", "sparse-triangular")
-    private val optionOrder = listOf("density", "mode", "physical", "side", "uplo", "transA", "transB", "diag")
+    private val optionOrder = listOf("density", "mode", "physical", "side", "uplo", "transA", "transB", "diag") + PACKED_OPTIONS
 
     fun parse(text: String): List<BenchCase> {
         val cases = text.lineSequence().mapIndexedNotNull { index, raw ->
@@ -121,6 +121,7 @@ internal object Cases {
         if (redundant != null) invalid("redundant default option '${redundant.key}=${redundant.value}'")
         if (sparse && options["side"] == "R") invalid("sparse right-side cases are unsupported")
         validatePackedBounds(operation, dimensions, options, invalid)
+        if ("physical" in required) PackedConfiguration.validate(operation, dimensions, options)
     }
 
     private fun allowedOptions(operation: String, sparse: Boolean): Set<String> = buildSet {
@@ -156,7 +157,7 @@ internal object Cases {
     private fun requiredOptions(operation: String, sparse: Boolean): Set<String> {
         val required = linkedSetOf<String>()
         if (sparse) required += "density"
-        if (operation in setOf("gemm-tile", "packed-trsm", "gemm-trsm", "pack-left", "pack-right", "pack-symmetric-left", "pack-symmetric-right", "pack-triangular-left", "pack-triangular-right", "write-left", "write-right", "clear-left-padding", "clear-right-padding")) required += "physical"
+        if (operation in setOf("gemm-block", "gemm-tile", "packed-trsm", "gemm-trsm", "pack-left", "pack-right", "pack-symmetric-left", "pack-symmetric-right", "pack-triangular-left", "pack-triangular-right", "write-left", "write-right", "clear-left-padding", "clear-right-padding")) required += setOf("physical") + PACKED_OPTIONS
         when (operation) {
             "symv", "syr", "syr2" -> required += "uplo"
             "symm", "spsymm" -> required += setOf("side", "uplo")

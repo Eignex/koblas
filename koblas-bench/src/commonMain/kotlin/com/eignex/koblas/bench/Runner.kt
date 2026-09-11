@@ -150,9 +150,16 @@ internal fun csvRow(
     timingMode: String,
     runtime: String = runtimeIdentity(),
 ): String = listOf(
-    "3", case.id, implementation, WORKLOAD_VERSION, FIXTURE_VERSION, settings.pass, sample.toString(),
+    "4", case.id, implementation, WORKLOAD_VERSION, FIXTURE_VERSION, settings.pass, sample.toString(),
     operations.toString(), elapsed.toString(), nanosPerOperation, "ns", status, comparisonKind, timingMode,
     settings.sourceCommit, settings.dirty, runtime, "1", settings.warmups.toString(), settings.targetNanos.toString(),
+    case.logicalId, case.configurationId, case.physicalWork,
+    actualPackedKernel(case, settings.mode, status),
+    if (settings.mode.startsWith("jvm")) "jmh-average-time-v1" else "native-calibrated-v1",
+    (if (settings.mode.startsWith("jvm")) settings.targetNanos else max(1_000_000L, settings.targetNanos / 4)).toString(),
+    (if (sample == 0) 0 else if (settings.mode.startsWith("jvm")) (sample - 1) / settings.samples + 1 else 1).toString(),
+    settings.forks.toString(),
+    if (settings.mode.startsWith("jvm")) "score-times-operations" else "monotonic-batch",
 ).joinToString(",", transform = ::csv)
 
 private fun csv(value: String): String = if (value.any { it == ',' || it == '"' || it == '\n' }) {
@@ -162,5 +169,5 @@ private fun csv(value: String): String = if (value.any { it == ',' || it == '"' 
 internal fun formatDouble(value: Double): String = value.toString()
 internal fun sanitize(value: String): String = value.replace(',', ';').replace('\n', ' ').take(160)
 
-internal const val CSV_HEADER = "schema,case,implementation,workload_version,fixture_version,pass,sample,operations,elapsed_ns,ns_per_op,unit,status,comparison_kind,timing_mode,source_commit,dirty,runtime,threads,warmups,target_ns"
+internal const val CSV_HEADER = "schema,case,implementation,workload_version,fixture_version,pass,sample,operations,elapsed_ns,ns_per_op,unit,status,comparison_kind,timing_mode,source_commit,dirty,runtime,threads,warmups,target_ns,logical_id,configuration,physical_work,actual_kernel,harness,warmup_target_ns,fork,forks,elapsed_kind"
 private const val MAX_OPERATIONS = 1_000_000

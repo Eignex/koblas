@@ -1,6 +1,6 @@
 #define _POSIX_C_SOURCE 200809L
-#define WORKLOAD_VERSION "3"
-#define FIXTURE_VERSION "1"
+#define WORKLOAD_VERSION "5"
+#define FIXTURE_VERSION "2"
 #include <cblas.h>
 #include <errno.h>
 #include <inttypes.h>
@@ -40,12 +40,12 @@ extern double cblas_dsum(const int, const double *, const int);
 #endif
 extern void cblas_dgemmt(const CBLAS_LAYOUT, const CBLAS_UPLO, const CBLAS_TRANSPOSE, const CBLAS_TRANSPOSE, const int, const int, const double, const double *, const int, const double *, const int, const double, double *, const int);
 
-enum { MAX_DIMS = 3, MAX_OPTIONS = 8 };
+enum { MAX_DIMS = 3, MAX_OPTIONS = 24 };
 static const uint64_t SEED = UINT64_C(0x243f6a8885a308d3);
 static const uint64_t GOLDEN = UINT64_C(0x9e3779b97f4a7c15);
 
 typedef struct {
-    char id[256], operation[48], fixture[32];
+    char id[2048], operation[48], fixture[32];
     int dims[MAX_DIMS], dim_count;
     char option_names[MAX_OPTIONS][16], option_values[MAX_OPTIONS][32];
     int option_count;
@@ -130,19 +130,19 @@ static int flag(const bench_case *c, const char *name) { return !strcmp(option(c
 static int expected_dimensions(const char *op) {
     static const char *one[] = { "dot","axpy","axpy-arithmetic","scal","nrm2","asum","sum","compensated-sum","iamax","swap","rot","rotm","rotmg","ssqd","dot4","axpy4","dot-axpy","symv","syr","syr2","trsv","trmv","spdot","spdot-raw","spdot-sparse","spaxpy","spaxpy-raw","spnrm2","spnrm2-indexed","spasum","spscatter","spscatter-raw","spgather","spgather-zero","spsymv","sptrsv","sptrmv","sparse-slices-scatter","sparse-slices-scatter-checked","sparse-slices-gather","sparse-slices-gather-clear","sparse-slices-clear","sparse-slices-clear-local","sparse-slices-reduce-dot-checked","sparse-slices-reduce-dot-local","sparse-slices-reduce-dot-unchecked","sparse-slices-max","sparse-slices-filter" };
     static const char *two[] = { "gemv","ger","symm","gemmt","syrk","syr2k","trsm","trmm","packed-trsm","pack-left","pack-right","pack-symmetric-left","pack-symmetric-right","pack-triangular-left","pack-triangular-right","write-left","write-right","clear-left-padding","clear-right-padding","spgemv","spsymm","sptrsm","sptrmm","spsyrk-dense","spsyrk-sparse","spadd" };
-    static const char *three[] = { "gemm","gemm-tile","gemm-trsm","spmm","spgemm" };
+    static const char *three[] = { "gemm","gemm-block","gemm-tile","gemm-trsm","spmm","spgemm" };
     for (size_t i=0;i<sizeof(one)/sizeof(*one);++i) if(!strcmp(op,one[i])) return 1;
     for (size_t i=0;i<sizeof(two)/sizeof(*two);++i) if(!strcmp(op,two[i])) return 2;
     for (size_t i=0;i<sizeof(three)/sizeof(*three);++i) if(!strcmp(op,three[i])) return 3;
     return 0;
 }
 
-static int option_order(const char *name) { const char *names[] = {"density","mode","physical","side","uplo","transA","transB","diag"}; for(int i=0;i<8;++i) if(!strcmp(name,names[i])) return i; return -1; }
+static int option_order(const char *name) { const char *names[] = {"density","mode","physical","side","uplo","transA","transB","diag","work","leftLayout","rightLayout","leftGroup","rightGroup","leftStride","rightStride","padding","alignment","block","panel","diagonal","rhs","batch","variant","timing"}; for(int i=0;i<24;++i) if(!strcmp(name,names[i])) return i; return -1; }
 static int option_present(const bench_case *c,const char *name){for(int i=0;i<c->option_count;++i)if(!strcmp(c->option_names[i],name))return 1;return 0;}
 static int operation_in(const char *operation,const char **values,size_t count){for(size_t i=0;i<count;++i)if(!strcmp(operation,values[i]))return 1;return 0;}
 static int mode_operation(const char *op){return !strcmp(op,"spgemv")||!strcmp(op,"spmm")||!strcmp(op,"spgemm")||!strcmp(op,"spsymv")||!strcmp(op,"spsymm")||!strcmp(op,"sptrsv")||!strcmp(op,"sptrmv")||!strcmp(op,"sptrsm")||!strcmp(op,"sptrmm");}
 static int oneshot_only_operation(const char *op){return !strcmp(op,"spsymv")||!strcmp(op,"spsymm")||!strcmp(op,"sptrsv")||!strcmp(op,"sptrmv")||!strcmp(op,"sptrsm")||!strcmp(op,"sptrmm");}
-static int packed_operation(const char *op){const char *values[]={"gemm-tile","packed-trsm","gemm-trsm","pack-left","pack-right","pack-symmetric-left","pack-symmetric-right","pack-triangular-left","pack-triangular-right","write-left","write-right","clear-left-padding","clear-right-padding"};return operation_in(op,values,sizeof(values)/sizeof(*values));}
+static int packed_operation(const char *op){const char *values[]={"gemm-block","gemm-tile","packed-trsm","gemm-trsm","pack-left","pack-right","pack-symmetric-left","pack-symmetric-right","pack-triangular-left","pack-triangular-right","write-left","write-right","clear-left-padding","clear-right-padding"};return operation_in(op,values,sizeof(values)/sizeof(*values));}
 static int uplo_operation(const char *op){const char *values[]={"symv","syr","syr2","symm","gemmt","syrk","syr2k","trsv","trmv","trsm","trmm","packed-trsm","gemm-trsm","pack-symmetric-left","pack-symmetric-right","pack-triangular-left","pack-triangular-right","spsymv","spsymm","sptrsv","sptrmv","sptrsm","sptrmm","spsyrk-dense","spsyrk-sparse"};return operation_in(op,values,sizeof(values)/sizeof(*values));}
 static int side_operation(const char *op){const char *values[]={"symm","trsm","trmm","spsymm","sptrsm","sptrmm"};return operation_in(op,values,sizeof(values)/sizeof(*values));}
 static int transa_operation(const char *op){const char *values[]={"gemmt","syrk","syr2k","trsv","trmv","trsm","trmm","sptrsv","sptrmv","sptrsm","sptrmm"};return operation_in(op,values,sizeof(values)/sizeof(*values));}
@@ -151,7 +151,7 @@ static int triangular_fixture_operation(const char *op){const char *values[]={"t
 static int option_allowed(const char *op,const char *name,int sparse){
     if(!strcmp(name,"density"))return sparse;
     if(!strcmp(name,"mode"))return mode_operation(op);
-    if(!strcmp(name,"physical"))return packed_operation(op);
+    if(!strcmp(name,"physical") || option_order(name)>=8)return packed_operation(op);
     if(!strcmp(name,"side"))return side_operation(op);
     if(!strcmp(name,"uplo"))return uplo_operation(op);
     if(!strcmp(name,"transA"))return !strcmp(op,"gemv")||!strcmp(op,"gemm")||transa_operation(op);
@@ -161,6 +161,7 @@ static int option_allowed(const char *op,const char *name,int sparse){
 }
 static void copy_field(char *destination,size_t capacity,const char *source,int line_number,const char *name){size_t length=strlen(source);if(length>=capacity){fprintf(stderr,"line %d: %s is too long\n",line_number,name);exit(2);}memcpy(destination,source,length+1);}
 static int valid_option(const char *name,const char *value){
+    if(option_order(name)>=8)return *value != 0;
     if(!strcmp(name,"density")){char *tail;double density=strtod(value,&tail);return !*tail&&density>0&&density<=1;}
     if(!strcmp(name,"mode"))return !strcmp(value,"prepared")||!strcmp(value,"oneshot");
     if(!strcmp(name,"physical"))return !strcmp(value,"4x4")||!strcmp(value,"8x4");
@@ -171,12 +172,48 @@ static int valid_option(const char *name,const char *value){
     return 0;
 }
 
+static int is_layout(const char *op);
+static void require_option(const bench_case *s, const char *name, const char *expected) {
+    if (strcmp(option(s,name,""),expected)) {
+        fprintf(stderr,"%s requires %s=%s\n",s->operation,name,expected);exit(2);
+    }
+}
+static void require_number(const bench_case *s,const char *name,int expected) {
+    char value[32];snprintf(value,sizeof(value),"%d",expected);require_option(s,name,value);
+}
+static void validate_packed(const bench_case *s) {
+    int r=0,c=0,m=s->dims[0],n=s->dims[1];
+    if(sscanf(option(s,"physical",""),"%dx%d",&r,&c)!=2)fail("missing physical");
+    const char *op=s->operation;
+    int layout=is_layout(op), solve=!strcmp(op,"packed-trsm")||!strcmp(op,"gemm-trsm");
+    int k=s->dim_count==3?s->dims[2]:(layout&&strstr(op,"right")?m:n);
+    char work_id[64],block[64];
+    snprintf(work_id,sizeof(work_id),"%s-v1",op);
+    if(!strcmp(op,"gemm-tile")||!strcmp(op,"gemm-block"))strcpy(work_id,"gemm-add-v1");
+    if(!strcmp(op,"packed-trsm"))strcpy(work_id,"right-solve-v1");
+    if(!strcmp(op,"gemm-trsm"))strcpy(work_id,"update-solve-v1");
+    require_option(s,"work",work_id);
+    require_option(s,"leftLayout","depth-rows-v1");require_option(s,"rightLayout","depth-columns-v1");
+    require_number(s,"leftGroup",r);require_number(s,"rightGroup",c);
+    require_number(s,"leftStride",r);require_number(s,"rightStride",c);
+    require_option(s,"padding","zero");require_option(s,"alignment","8");
+    snprintf(block,sizeof(block),"%dx%dx%d",m,n,k);require_option(s,"block",block);require_number(s,"panel",k);
+    require_number(s,"diagonal",solve?n:0);require_number(s,"rhs",solve?m:0);
+    require_option(s,"batch","1");require_option(s,"variant","current-tile-v1");
+    if(!strcmp(op,"gemm-block")) {
+        const char *timing=option(s,"timing","");
+        if(strcmp(timing,"prepacked-compute")&&strcmp(timing,"pack-plus-compute"))fail("unsupported block timing");
+    } else require_option(s,"timing",!strncmp(op,"pack-",5)?"packing-only":layout?"layout-only":"raw-tile");
+    if(m>4096||n>4096||k>4096||(int64_t)m*n*k>16777216)fail("packed allocation budget exceeded");
+    if((strstr(op,"symmetric")||strstr(op,"triangular"))&&m!=n)fail("structured source must be square");
+}
+
 static int parse_case(char *line, int line_number, bench_case *out) {
     while (*line == ' ' || *line == '\t') ++line;
     char *end = line + strlen(line); while (end > line && (end[-1] == '\n' || end[-1] == '\r' || end[-1] == ' ' || end[-1] == '\t')) *--end = 0;
     if (!*line || *line == '#') return 0;
     if(*line=='+'||end[-1]=='+'||strstr(line,"++")){fprintf(stderr,"line %d: empty case field\n",line_number);exit(2);}
-    copy_field(out->id,sizeof(out->id),line,line_number,"case");char copy[256];copy_field(copy,sizeof(copy),line,line_number,"case");
+    copy_field(out->id,sizeof(out->id),line,line_number,"case");char copy[2048];copy_field(copy,sizeof(copy),line,line_number,"case");
     char *save = NULL, *token = strtok_r(copy, "+", &save); if (!token) fail("missing operation"); copy_field(out->operation,sizeof(out->operation),token,line_number,"operation");
     int expected = expected_dimensions(token); if (!expected) { fprintf(stderr,"line %d: unknown operation %s\n",line_number,token); exit(2); }
     token = strtok_r(NULL, "+", &save); if (!token) fail("missing dimensions");
@@ -206,6 +243,7 @@ static int parse_case(char *line, int line_number, bench_case *out) {
     }
     if(sparse&&option_present(out,"side")&&strcmp(option(out,"side",""),"L"))fail("sparse right-side cases are unsupported");
     if(option_present(out,"physical")){int physical_rows=0,physical_cols=0;if(sscanf(option(out,"physical",""),"%dx%d",&physical_rows,&physical_cols)!=2)fail("invalid physical shape");const char *op=out->operation;int rows_bounded=!strcmp(op,"gemm-tile")||!strcmp(op,"packed-trsm")||!strcmp(op,"gemm-trsm")||!strcmp(op,"pack-left")||!strcmp(op,"pack-symmetric-left")||!strcmp(op,"pack-triangular-left")||!strcmp(op,"write-left")||!strcmp(op,"clear-left-padding");int columns_bounded=!strcmp(op,"gemm-tile")||!strcmp(op,"packed-trsm")||!strcmp(op,"gemm-trsm")||!strcmp(op,"pack-right")||!strcmp(op,"pack-symmetric-right")||!strcmp(op,"pack-triangular-right")||!strcmp(op,"write-right")||!strcmp(op,"clear-right-padding");if(rows_bounded&&out->dims[0]>physical_rows)fail("logical rows exceed physical tile");if(columns_bounded&&out->dims[1]>physical_cols)fail("logical columns exceed physical tile");}
+    if(packed_operation(out->operation))validate_packed(out);
     return 1;
 }
 
@@ -224,10 +262,10 @@ static CBLAS_TRANSPOSE transpose_value(int transpose){return transpose?CblasTran
 static CBLAS_UPLO uplo_value(int lower){return lower?CblasLower:CblasUpper;}
 static CBLAS_SIDE side_value(int right){return right?CblasRight:CblasLeft;}
 static CBLAS_DIAG diag_value(int unit){return unit?CblasUnit:CblasNonUnit;}
-static void physical_shape(const bench_case *s,int *rows,int *cols){if(sscanf(option(s,"physical","4x4"),"%dx%d",rows,cols)!=2)fail("invalid physical shape");}
-static void packed_left_fixture(double *logical,int rows,int depth,int physical_rows,int operand){double *packed=allocate(physical_rows*depth,sizeof(double));fill_vector(packed,physical_rows*depth,operand);for(int p=0;p<depth;++p)for(int i=0;i<rows;++i)logical[i+p*rows]=packed[i+p*physical_rows];free(packed);}
-static void packed_right_fixture(double *logical,int depth,int cols,int physical_cols,int operand){double *packed=allocate(depth*physical_cols,sizeof(double));fill_vector(packed,depth*physical_cols,operand);for(int j=0;j<cols;++j)for(int p=0;p<depth;++p)logical[p+j*depth]=packed[j+p*physical_cols];free(packed);}
-static void packed_output_fixture(double *logical,int rows,int cols,int physical_rows,int physical_cols,int operand){double *packed=allocate(physical_rows*physical_cols,sizeof(double));fill_vector(packed,physical_rows*physical_cols,operand);for(int j=0;j<cols;++j)for(int i=0;i<rows;++i)logical[i+j*rows]=packed[i+j*physical_rows];free(packed);}
+static void packed_left_fixture(double *logical,int rows,int depth,int operand){fill_vector(logical,rows*depth,operand);}
+static void packed_right_fixture(double *logical,int depth,int cols,int operand){fill_vector(logical,depth*cols,operand);}
+static void packed_output_fixture(double *logical,int rows,int cols,int operand){fill_vector(logical,rows*cols,operand);}
+
 
 static double invoke_dense(work *w){
     bench_case *s=w->spec;const char *op=s->operation;int *d=s->dims;int ta=flag(s,"transA"),tb=flag(s,"transB"),lower=!strcmp(option(s,"uplo","L"),"L"),right=!strcmp(option(s,"side","L"),"R"),unit=!strcmp(option(s,"diag","N"),"U");
@@ -259,7 +297,7 @@ static double invoke_dense(work *w){
     if(!strcmp(op,"syrk")){int n=d[0],k=d[1],ar=ta?k:n;copy_values(w->c,w->initial,n*n);cblas_dsyrk(CblasColMajor,uplo_value(lower),transpose_value(ta),n,k,.875,w->a,ar,-.25,w->c,n);return consume(w->c,n*n);}
     if(!strcmp(op,"syr2k")){int n=d[0],k=d[1],ar=ta?k:n;copy_values(w->c,w->initial,n*n);cblas_dsyr2k(CblasColMajor,uplo_value(lower),transpose_value(ta),n,k,.875,w->a,ar,w->b,ar,-.25,w->c,n);return consume(w->c,n*n);}
     if(!strcmp(op,"trsm")||!strcmp(op,"trmm")){int m=d[0],n=d[1],order=right?n:m;copy_values(w->b,w->initial,m*n);if(op[2]=='s')cblas_dtrsm(CblasColMajor,side_value(right),uplo_value(lower),transpose_value(ta),diag_value(unit),m,n,.875,w->a,order,w->b,m);else cblas_dtrmm(CblasColMajor,side_value(right),uplo_value(lower),transpose_value(ta),diag_value(unit),m,n,.875,w->a,order,w->b,m);return consume(w->b,m*n);}
-    if(!strcmp(op,"gemm-tile")){int m=d[0],n=d[1],k=d[2];copy_values(w->c,w->initial,m*n);cblas_dgemm(CblasColMajor,CblasNoTrans,CblasNoTrans,m,n,k,1,w->a,m,w->b,k,1,w->c,m);return consume(w->c,m*n);}
+    if((!strcmp(op,"gemm-tile")||!strcmp(op,"gemm-block"))){int m=d[0],n=d[1],k=d[2];copy_values(w->c,w->initial,m*n);cblas_dgemm(CblasColMajor,CblasNoTrans,CblasNoTrans,m,n,k,1,w->a,m,w->b,k,1,w->c,m);return consume(w->c,m*n);}
     if(!strcmp(op,"packed-trsm")){int m=d[0],n=d[1];copy_values(w->b,w->initial,m*n);cblas_dtrsm(CblasColMajor,CblasRight,uplo_value(lower),CblasNoTrans,diag_value(unit),m,n,1,w->a,n,w->b,m);return consume(w->b,m*n);}
     if(!strcmp(op,"gemm-trsm")){int m=d[0],n=d[1],k=d[2];copy_values(w->c,w->initial,m*n);cblas_dgemm(CblasColMajor,CblasNoTrans,CblasNoTrans,m,n,k,-1,w->a,m,w->b,k,1,w->c,m);cblas_dtrsm(CblasColMajor,CblasRight,uplo_value(lower),CblasNoTrans,diag_value(unit),m,n,1,w->x,n,w->c,m);return consume(w->c,m*n);}
     return 0;
@@ -270,6 +308,7 @@ static int is_layout(const char *op){return !strncmp(op,"pack-",5)||!strncmp(op,
 static void setup_dense(work *w){
     bench_case *s=w->spec;const char *op=s->operation;int *d=s->dims;int ta=flag(s,"transA"),tb=flag(s,"transB"),lower=!strcmp(option(s,"uplo","L"),"L"),right=!strcmp(option(s,"side","L"),"R");
     w->supported=1;w->comparison="direct";w->timing="reset-and-arithmetic";w->invoke=invoke_dense;
+    if(!strcmp(op,"gemm-block")&&!strcmp(option(s,"timing",""),"pack-plus-compute")){w->supported=0;w->comparison="unsupported";w->timing="pack-plus-compute";return;}
     if(is_layout(op)||!strcmp(op,"ssqd")||!strcmp(op,"compensated-sum")){w->supported=0;w->comparison="unsupported";w->timing=is_layout(op)?"layout":"arithmetic";return;}
 #ifdef USE_MKL
     if(!strcmp(op,"sum")){w->supported=0;w->comparison="unsupported";w->timing="arithmetic";return;}
@@ -286,9 +325,9 @@ static void setup_dense(work *w){
     if(!strcmp(op,"symm")){int m=d[0],n=d[1],order=right?n:m;w->a=allocate(order*order,sizeof(double));w->b=allocate(m*n,sizeof(double));w->c=allocate(m*n,sizeof(double));w->initial=allocate(m*n,sizeof(double));fill_vector(w->a,order*order,1);fill_vector(w->b,m*n,2);fill_vector(w->initial,m*n,3);return;}
     if(!strcmp(op,"gemmt")||!strcmp(op,"syrk")||!strcmp(op,"syr2k")){int n=d[0],k=d[1],as=(ta?k:n)*(ta?n:k);w->a=allocate(as,sizeof(double));w->b=allocate((!strcmp(op,"gemmt")?((tb?n:k)*(tb?k:n)):as),sizeof(double));w->c=allocate(n*n,sizeof(double));w->initial=allocate(n*n,sizeof(double));fill_vector(w->a,as,1);fill_vector(w->b,!strcmp(op,"gemmt")?((tb?n:k)*(tb?k:n)):as,2);fill_vector(w->initial,n*n,3);return;}
     if(!strcmp(op,"trsm")||!strcmp(op,"trmm")){int m=d[0],n=d[1],order=right?n:m;w->a=allocate(order*order,sizeof(double));w->b=allocate(m*n,sizeof(double));w->initial=allocate(m*n,sizeof(double));fill_triangular(w->a,order,lower,1);fill_vector(w->initial,m*n,2);return;}
-    if(!strcmp(op,"gemm-tile")){int m=d[0],n=d[1],k=d[2],pr,pc;physical_shape(s,&pr,&pc);w->a=allocate(m*k,sizeof(double));w->b=allocate(k*n,sizeof(double));w->c=allocate(m*n,sizeof(double));w->initial=allocate(m*n,sizeof(double));packed_left_fixture(w->a,m,k,pr,1);packed_right_fixture(w->b,k,n,pc,2);packed_output_fixture(w->initial,m,n,pr,pc,4);w->comparison="partial";w->timing="arithmetic-only";return;}
-    if(!strcmp(op,"packed-trsm")){int m=d[0],n=d[1],pr,pc;physical_shape(s,&pr,&pc);w->a=allocate(n*n,sizeof(double));w->b=allocate(m*n,sizeof(double));w->initial=allocate(m*n,sizeof(double));fill_triangular(w->a,n,lower,20);packed_output_fixture(w->initial,m,n,pr,pc,4);w->comparison="partial";w->timing="arithmetic-only";return;}
-    if(!strcmp(op,"gemm-trsm")){int m=d[0],n=d[1],k=d[2],pr,pc;physical_shape(s,&pr,&pc);w->a=allocate(m*k,sizeof(double));w->b=allocate(k*n,sizeof(double));w->c=allocate(m*n,sizeof(double));w->initial=allocate(m*n,sizeof(double));w->x=allocate(n*n,sizeof(double));packed_left_fixture(w->a,m,k,pr,1);packed_right_fixture(w->b,k,n,pc,2);packed_output_fixture(w->initial,m,n,pr,pc,4);fill_triangular(w->x,n,lower,20);w->comparison="composed";w->timing="arithmetic-only";return;}
+    if((!strcmp(op,"gemm-tile")||!strcmp(op,"gemm-block"))){int m=d[0],n=d[1],k=d[2];w->a=allocate(m*k,sizeof(double));w->b=allocate(k*n,sizeof(double));w->c=allocate(m*n,sizeof(double));w->initial=allocate(m*n,sizeof(double));packed_left_fixture(w->a,m,k,1);packed_right_fixture(w->b,k,n,2);packed_output_fixture(w->initial,m,n,4);w->comparison=!strcmp(op,"gemm-block")?"direct":"partial";w->timing=!strcmp(op,"gemm-block")?"prepacked-compute":"vendor-arithmetic";return;}
+    if(!strcmp(op,"packed-trsm")){int m=d[0],n=d[1];w->a=allocate(n*n,sizeof(double));w->b=allocate(m*n,sizeof(double));w->initial=allocate(m*n,sizeof(double));fill_triangular(w->a,n,lower,20);packed_output_fixture(w->initial,m,n,4);w->comparison="partial";w->timing="vendor-arithmetic";return;}
+    if(!strcmp(op,"gemm-trsm")){int m=d[0],n=d[1],k=d[2];w->a=allocate(m*k,sizeof(double));w->b=allocate(k*n,sizeof(double));w->c=allocate(m*n,sizeof(double));w->initial=allocate(m*n,sizeof(double));w->x=allocate(n*n,sizeof(double));packed_left_fixture(w->a,m,k,1);packed_right_fixture(w->b,k,n,2);packed_output_fixture(w->initial,m,n,4);fill_triangular(w->x,n,lower,20);w->comparison="composed";w->timing="vendor-arithmetic";return;}
     w->supported=0;w->comparison="unsupported";
 }
 
@@ -412,6 +451,22 @@ static void numerical_check(void){
 
 static const char *argument_value(int argc,char **argv,const char *name,const char *fallback){size_t length=strlen(name);for(int i=1;i<argc;++i)if(!strncmp(argv[i],name,length)&&argv[i][length]=='=')return argv[i]+length+1;return fallback;}
 
+static void metadata(FILE *output,const bench_case *s,const work *w,int sample,uint64_t target_ns) {
+    fprintf(output,",%s",option(s,"work",s->operation));
+    if(!option_present(s,"work"))fputs("-v1",output);
+    for(int i=0;i<s->dim_count;++i)fprintf(output,"%c%d",i?'x':'+',s->dims[i]);
+    fprintf(output,"+%s",s->fixture);
+    for(int i=0;i<s->option_count;++i)if(option_order(s->option_names[i])<8&&strcmp(s->option_names[i],"physical"))fprintf(output,"+%s=%s",s->option_names[i],s->option_values[i]);
+    /* Vendor layout is column-major, never the requested Koblas packed format. */
+    if(packed_operation(s->operation)) {
+        int m=s->dims[0],n=s->dims[1],k=s->dim_count==3?s->dims[2]:0;
+        int solve=!strcmp(s->operation,"packed-trsm")||!strcmp(s->operation,"gemm-trsm");
+        fprintf(output,",vendor-column-major-v1,calls=%d;leftDoubles=%d;rightDoubles=%d;outputDoubles=%d;resetDoubles=%d;triangleDoubles=%d,%s",
+            solve&&k?2:1,m*k,k*n,m*n,m*n,solve?n*n:0,w->supported?"vendor-cblas-v1":"unavailable");
+    } else fprintf(output,",policy-v1,policy,%s",w->supported?"vendor-cblas-v1":"unavailable");
+    fprintf(output,",vendor-calibrated-v1,%" PRIu64 ",%d,1,monotonic-batch\n",target_ns/4>1000000?target_ns/4:UINT64_C(1000000),sample?1:0);
+}
+
 int main(int argc,char **argv){
     const char *cases_path=argument_value(argc,argv,"--cases","koblas-bench/cases.txt");const char *output_path=argument_value(argc,argv,"--output",NULL);if(!output_path)fail("--output is required");
     int warmups=atoi(argument_value(argc,argv,"--warmups","3")),samples=atoi(argument_value(argc,argv,"--samples","5"));long target_ms=strtol(argument_value(argc,argv,"--target-ms","100"),NULL,10);if(warmups<0||samples<1||target_ms<1)fail("invalid timing settings");uint64_t target_ns=(uint64_t)target_ms*UINT64_C(1000000);
@@ -425,12 +480,15 @@ int main(int argc,char **argv){
     for(char *p=runtime;*p;++p)if(*p==','||*p=='\n'||*p=='\r')*p=';';
     fixture_check();numerical_check();
     int case_count=0;bench_case *cases=load_cases(cases_path,&case_count);
-    FILE *output=fopen(output_path,"w");if(!output){perror(output_path);exit(2);}fprintf(output,"schema,case,implementation,workload_version,fixture_version,pass,sample,operations,elapsed_ns,ns_per_op,unit,status,comparison_kind,timing_mode,source_commit,dirty,runtime,threads,warmups,target_ns\n");
+    FILE *output=fopen(output_path,"w");if(!output){perror(output_path);exit(2);}fprintf(output,"schema,case,implementation,workload_version,fixture_version,pass,sample,operations,elapsed_ns,ns_per_op,unit,status,comparison_kind,timing_mode,source_commit,dirty,runtime,threads,warmups,target_ns,logical_id,configuration,physical_work,actual_kernel,harness,warmup_target_ns,fork,forks,elapsed_kind\n");
     volatile double sink=0;
-    for(int index=0;index<case_count;++index){work w;setup_work(&w,&cases[index]);if(!w.supported){fprintf(output,"3,%s,%s," WORKLOAD_VERSION "," FIXTURE_VERSION ",%s,0,0,0,,ns,unsupported,%s,%s,%s,%s,%s,1,%d,%" PRIu64 "\n",cases[index].id,implementation,pass,w.comparison,w.timing,commit,dirty,runtime,warmups,target_ns);free_work(&w);continue;}
-        for(int i=0;i<warmups;++i)sink+=w.invoke(&w);
-        int operations=1;while(operations<1000000){uint64_t start=nanos();for(int i=0;i<operations;++i)sink+=w.invoke(&w);uint64_t elapsed=nanos()-start;if(elapsed>=(uint64_t)target_ms*250000)break;operations*=2;}
-        for(int sample=1;sample<=samples;++sample){uint64_t start=nanos();for(int i=0;i<operations;++i)sink+=w.invoke(&w);uint64_t elapsed=nanos()-start;fprintf(output,"3,%s,%s," WORKLOAD_VERSION "," FIXTURE_VERSION ",%s,%d,%d,%" PRIu64 ",%.17g,ns,ok,%s,%s,%s,%s,%s,1,%d,%" PRIu64 "\n",cases[index].id,implementation,pass,sample,operations,elapsed,(double)elapsed/operations,w.comparison,w.timing,commit,dirty,runtime,warmups,target_ns);}
+    for(int index=0;index<case_count;++index){work w;setup_work(&w,&cases[index]);if(!w.supported){fprintf(output,"4,%s,%s," WORKLOAD_VERSION "," FIXTURE_VERSION ",%s,0,0,0,,ns,unsupported,%s,%s,%s,%s,%s,1,%d,%" PRIu64 "",cases[index].id,implementation,pass,w.comparison,w.timing,commit,dirty,runtime,warmups,target_ns);metadata(output,&cases[index],&w,0,target_ns);free_work(&w);continue;}
+        for(int i=0;i<warmups;++i){
+            uint64_t start=nanos(),warmup_target=target_ns/4>1000000?target_ns/4:UINT64_C(1000000);
+            do { sink+=w.invoke(&w); } while(nanos()-start<warmup_target);
+        }
+        int operations=1;while(operations<1000000){uint64_t start=nanos();for(int i=0;i<operations;++i)sink+=w.invoke(&w);uint64_t elapsed=nanos()-start;if(elapsed>=target_ns/2)break;operations=operations>500000?1000000:operations*2;}
+        for(int sample=1;sample<=samples;++sample){uint64_t start=nanos();for(int i=0;i<operations;++i)sink+=w.invoke(&w);uint64_t elapsed=nanos()-start;fprintf(output,"4,%s,%s," WORKLOAD_VERSION "," FIXTURE_VERSION ",%s,%d,%d,%" PRIu64 ",%.17g,ns,ok,%s,%s,%s,%s,%s,1,%d,%" PRIu64 "",cases[index].id,implementation,pass,sample,operations,elapsed,(double)elapsed/operations,w.comparison,w.timing,commit,dirty,runtime,warmups,target_ns);metadata(output,&cases[index],&w,sample,target_ns);}
         free_work(&w);
     }
     fclose(output);free(cases);fprintf(stderr,"wrote %d cases to %s (%s, sink=%g)\n",case_count,output_path,implementation,(double)sink);return 0;

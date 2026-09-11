@@ -47,6 +47,14 @@ private fun benchmarkArguments(mode: String, jmh: Boolean): List<String> = listO
 ) + if (jmh) listOf("--forks=${providers.gradleProperty("bench.forks").orElse("2").get()}") else emptyList()
 
 val jvmCompilation = (kotlin.targets.getByName("jvm") as KotlinJvmTarget).compilations.getByName("main")
+// The benchmark calls existing internal JVM bindings to select exact C tiles without changing production dispatch.
+// Remove this friend access when the planned exact kernel selection API replaces the baseline adapter.
+jvmCompilation.compileTaskProvider.configure {
+    compilerOptions.freeCompilerArgs.add(configurations.named("jvmCompileClasspath").map { classpath ->
+        "-Xfriend-paths=" + classpath.files.single { it.name.startsWith("koblas-jvm-") }.absolutePath
+    })
+}
+
 val benchmarkJavaLauncher = javaToolchains.launcherFor { languageVersion.set(JavaLanguageVersion.of(25)) }
 
 fun registerJvmBenchmark(name: String, mode: String, vectorModule: Boolean) = tasks.register<JavaExec>(name) {
@@ -103,3 +111,21 @@ registerOpenBlasCompatibilityCheck(
 tasks.withType<Test>().configureEach {
     jvmArgs("--add-modules=jdk.incubator.vector", "--enable-native-access=ALL-UNNAMED")
 }
+
+val jvmTests = tasks.named<Test>("jvmTest")
+val fixedConfigurationTest = tasks.register<Test>("fixedConfigurationTest") {
+    group = "verification"
+    description = "Checks fixed packed work under different tuning defaults and a narrower JVM vector species."
+    dependsOn(jvmTests.map { it.testClassesDirs })
+    testClassesDirs = jvmTests.get().testClassesDirs
+    classpath = jvmTests.get().classpath
+    javaLauncher.set(benchmarkJavaLauncher)
+    filter { includeTestsMatching("com.eignex.koblas.bench.PackedConfigurationTest") }
+    systemProperty("koblas.dense.packed.block.rows", "3")
+    systemProperty("koblas.dense.packed.block.columns", "5")
+    systemProperty("koblas.dense.packed.block.depth", "7")
+    systemProperty("koblas.dense.jvm.c.gemm.tile.crossover", "1000000")
+    systemProperty("koblas.dense.jvm.c.gemm.trsm.tile.crossover", "1000000")
+    jvmArgs("-XX:MaxVectorSize=16")
+}
+tasks.named("check") { dependsOn(fixedConfigurationTest) }

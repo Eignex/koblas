@@ -46,19 +46,22 @@ koblas-bench/capture-report.sh --libraries openblas,onemkl
 ```
 
 The command runs JVM scalar, JVM C, JVM SIMD, native koblas, and the requested vendors. A missing selected library
-or engine fails the run. To make a short trial, add
+or engine fails the run. Partial reports and logs remain on disk with `status.txt=incomplete`; a successful
+run marks it `complete`. The report keeps an exact case snapshot, source patch, compiler/runtime provenance,
+and raw per-run logs. To make a short trial, add
 `--operation gemm --warmups 0 --samples 1 --target-ms 1 --forks 1`.
 
 Compare CSVs from the same run (or compatible runs):
 
 ```bash
-koblas-bench/tools/compare.sh --require-compatible \
+koblas-bench/tools/compare.sh --mode logical --require-compatible \
   koblas-bench/reports/<hardware-sha256>/<run-id>/vendor/openblas.csv \
   koblas-bench/reports/<hardware-sha256>/<run-id>/jvm-c.csv
 ```
 
-The comparator refuses mismatched workload/fixture versions, cases, timing modes, threads, warmups, or timing
-targets. It does not probe your hardware or libraries. `hardware.txt` contains static CPU topology, model, cache,
+Choose `--mode fixed` for identical packed configurations or `--mode logical` for complete logical workloads.
+The comparator refuses mismatched workload/fixture versions, timing modes, threads, warmups, or timing targets.
+Physical strategies remain separate pairs; policy rows belong to logical mode. It does not probe your hardware or libraries. `hardware.txt` contains static CPU topology, model, cache,
 and memory information only, so its hash does not change due to collection time, kernel version, CPU frequency,
 or compiler upgrades. Each CSV row records source commit, dirty state, runtime, thread count, and timing settings.
 
@@ -86,10 +89,11 @@ gemm+129x31x257+uniform+transA=T
 spgemv+257x129+sparse-uniform+density=0.01+mode=prepared
 ```
 
-Do not hand-edit generated CSVs. They use schema 3 and retain provenance, timing, and compatibility metadata.
+Do not hand-edit generated CSVs. They use schema 4 and retain provenance, timing, and compatibility metadata.
 Unsupported cases have no timing; a supported call failure stops the run. See [`coverage.md`](coverage.md) for
 the exact vendor-operation mapping and timing boundaries. Fixtures are deterministic and verified before relevant
-runs.
+runs. See [packed-cases.md](packed-cases.md) for mandatory packed options, immutable formulas, mathematical
+identity and timing boundaries. [contracts.md](contracts.md) inventories the semantic baseline and oracle owners.
 
 ## Verify the harness
 

@@ -18,6 +18,8 @@ arithmetic subset is comparable; `unsupported` retains the koblas case without a
 | gemm-tile full and logical edge, physical 4x4 and 8x4 | partial DGEMM arithmetic | partial DGEMM arithmetic | packed values are staged as the same logical column-major operands before timing; arithmetic only |
 | packed-trsm full and logical edge, physical 4x4 and 8x4 | partial right-side DTRSM arithmetic | partial right-side DTRSM arithmetic | packed triangle/RHS staged before timing; arithmetic only |
 | gemm-trsm full and logical edge, physical 4x4 and 8x4 | composed DGEMM then DTRSM | composed DGEMM then DTRSM | staging excluded; update and solve both timed; signs/scaling match `B - A*R`, then `X*T=B` |
+| gemm-block prepacked-compute | direct DGEMM | direct DGEMM | same logical reset and arithmetic; Koblas old tile loops and edge staging included |
+| gemm-block pack-plus-compute | unsupported | unsupported | both Koblas panel packs plus entire logical block |
 | pack-left/right full and edge | unsupported | unsupported | koblas layout only; vendor packing would create an unmatched private format |
 | pack-symmetric-left/right | unsupported | unsupported | koblas selected-triangle layout only |
 | pack-triangular-left/right | unsupported | unsupported | koblas structure/unit-diagonal materialization only |
@@ -39,18 +41,22 @@ arithmetic subset is comparable; `unsupported` retains the koblas case without a
 
 Packed physical cases deliberately include each supported koblas shape on this acceptance host: native/JVM C
 4x4 and JVM SIMD 8x4, each with a complete logical tile and a partial edge. A mode emits unsupported for the
-other physical shape. This makes different padded work impossible to join under one case ID. Panel layout cases
+other physical shape. Raw tile comparisons require identical physical work. Logical block cases permit cross-layout comparison
+without changing the mathematical fixture; every old tile call remains timed. Panel layout cases
 likewise retain full/edge packing, writeback, symmetric/triangular recipes, and padding restoration even though
 no vendor layout claim is available.
 
 ## Intentional exclusions
 
 Overload, operator, and convenience aliases are represented by the underlying operation case rather than a
-second timing row. Strided and generic views reach the same portable access kernels and remain correctness-test
-concerns. Row/column slicing, `withColumn`, transpose, copying, storage scaling, zeroing, and dense/sparse matrix
+second timing row. Strided views use portable access kernels and remain correctness-test concerns. Borrowed GEMV/GEMM views
+reject overlapping destinations; owning and `Into` APIs have their separately documented alias contracts. Row/column slicing, `withColumn`, transpose, copying, storage scaling, zeroing, and dense/sparse matrix
 norms are storage transformations or simple traversals rather than backend-comparison operations; their existing
 unit tests remain the useful guard. Scalar rotation construction `rotg` is represented by the `rot` application;
 modified construction has its own `rotmg` case because it is dispatched. Fresh sparse SYR/SYR2 structure
 construction and right-side sparse transpose compositions are excluded from this bounded workload: they have no
 direct vendor equivalent, while the retained sparse product, add, rank-k, triangular, and workspace cases cover
 the underlying accumulation, output construction, and transpose-sensitive arithmetic families.
+
+See [packed-cases.md](packed-cases.md) for the versioned formats and exact timing rules. Raw vendor arithmetic
+uses `vendor-arithmetic`, distinct from Koblas `raw-tile`; only complete logical block costs join across layouts.
