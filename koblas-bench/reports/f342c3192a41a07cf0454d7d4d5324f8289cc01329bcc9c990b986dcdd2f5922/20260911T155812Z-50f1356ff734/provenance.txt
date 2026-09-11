@@ -13,3 +13,6 @@ OpenJDK 64-Bit Server VM Homebrew (build 22.0.2, mixed mode, sharing)
 operation=all suite=packed warmups=3 samples=5 target_ms=200 forks=1 pass=1 libraries=openblas
 JVM benchmark runtime and VM flags: see the JMH logs and CSV runtime fields.
 Native: Kotlin 2.4.10 release executable; build flags are in the source commit and native-build.log.
+
+Additional oneMKL capture completed 2026-09-11 19:41:42 UTC, source 2eb65b8b891dc2c77f19931a8bf78c4ea78b9ba5.
+Same 52 packed case definitions, warmups=3 samples=5 target_ms=200 pass=1; runtime/build recorded in onemkl.csv.
