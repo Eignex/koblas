@@ -2,20 +2,23 @@ import org.gradle.api.tasks.JavaExec
 import org.gradle.jvm.toolchain.JavaLanguageVersion
 import org.jetbrains.kotlin.gradle.targets.jvm.KotlinJvmTarget
 
-plugins { kotlin("multiplatform") version "2.4.10" }
+plugins { id("com.eignex.kmp") version "1.3.3" }
 
-repositories { mavenCentral() }
+eignexPublish { publish.set(false) }
+eignexBuild {
+    abiValidationEnabled.set(false)
+    // The benchmark harness does not yet follow the library's lint conventions.
+    lintEnabled.set(false)
+}
 
 kotlin {
     applyDefaultHierarchyTemplate()
-    jvmToolchain(25)
     compilerOptions { freeCompilerArgs.add("-Xexpect-actual-classes") }
     jvm()
     linuxX64 { binaries.executable { entryPoint = "com.eignex.koblas.bench.main"; baseName = "koblas-bench" } }
     macosArm64 { binaries.executable { entryPoint = "com.eignex.koblas.bench.main"; baseName = "koblas-bench" } }
     sourceSets {
         commonMain.dependencies { implementation(project(":koblas")) }
-        commonTest.dependencies { implementation(kotlin("test")) }
         jvmMain.dependencies { implementation("org.openjdk.jmh:jmh-core:1.37") }
     }
 }
