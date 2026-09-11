@@ -39,7 +39,7 @@ if "$root/koblas-bench/tools/compare.sh" --require-compatible --mode logical "$r
 fi
 grep -q '^incompatible case=' "$temporary/compare-error.txt"
 
-python3 "$root/koblas-bench/tools/compare_test.py"
+"$root/koblas-bench/tools/compare_test.sh"
 
 # Remove each required field independently from a valid canonical case.
 packed=$(awk '/^gemm-block/ { print; exit }' "$root/koblas-bench/cases.txt")

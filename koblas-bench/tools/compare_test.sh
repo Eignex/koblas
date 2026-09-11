@@ -1,0 +1,152 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+tools=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+temporary=$(mktemp -d)
+trap 'rm -r "$temporary"' EXIT
+base="$temporary/base.csv"
+candidate="$temporary/candidate.csv"
+
+fail() { echo "$*" >&2; exit 1; }
+
+header() {
+  echo 'schema,workload_version,fixture_version,timing_mode,threads,warmups,target_ns,comparison_kind,configuration,physical_work,case,logical_id,actual_kernel,implementation,status,ns_per_op'
+}
+
+row() {
+  gawk '
+  function csv(value) {
+    if (value ~ /[",\r\n]/) { gsub(/"/, "\"\"", value); return "\"" value "\"" }
+    return value
+  }
+  BEGIN {
+    count = split("schema workload_version fixture_version timing_mode threads warmups target_ns comparison_kind configuration physical_work case logical_id actual_kernel implementation status ns_per_op", fields)
+    for (i = 1; i <= count; i++) values[fields[i]] = "1"
+    values["schema"] = "4"
+    values["timing_mode"] = "prepacked-compute"
+    values["comparison_kind"] = "direct"
+    values["configuration"] = "tile-four"
+    values["physical_work"] = "tiles=4"
+    values["case"] = "old-kernel+shape"
+    values["logical_id"] = "gemm-add-v1+shape"
+    values["status"] = "ok"
+    values["ns_per_op"] = "2"
+    for (i = 1; i < ARGC; i++) {
+      delimiter = index(ARGV[i], "=")
+      values[substr(ARGV[i], 1, delimiter - 1)] = substr(ARGV[i], delimiter + 1)
+    }
+    for (i = 1; i <= count; i++) printf "%s%s", i == 1 ? "" : ",", csv(values[fields[i]])
+    print ""
+    exit
+  }' -- "$@"
+}
+
+report() {
+  local path=$1
+  shift
+  { header; row "$@"; } >"$path"
+}
+
+compare() {
+  local mode=$1
+  shift
+  "$tools/compare.sh" --require-compatible --mode "$mode" "$base" "$candidate" "$@" >"$temporary/output.csv" 2>"$temporary/error.txt"
+}
+
+accept() { compare "$@" || fail "comparison rejected: $(cat "$temporary/error.txt")"; }
+reject() { if compare "$@"; then fail "incompatible comparison accepted"; fi; }
+lines() { [[ $(wc -l <"$temporary/output.csv") -eq $1 ]] || fail "unexpected comparison pair count"; }
+
+# Logical mode retains each layout pair instead of pooling distinct physical strategies.
+report "$base"
+report "$candidate"
+row configuration=tile-eight physical_work=tiles=2 case=new-kernel+shape >>"$candidate"
+accept logical
+lines 3
+report "$candidate" configuration=tile-eight physical_work=tiles=2 case=new-kernel+shape
+reject fixed
+
+# Mathematical identity survives renaming the operation and actual symbol.
+report "$candidate" case=new-name actual_kernel=new-symbol
+accept fixed
+lines 2
+
+# Semantic and physical boundaries must match even when logical identity matches.
+for field in fixture_version workload_version timing_mode physical_work threads warmups target_ns; do
+  report "$candidate" "$field=different"
+  reject fixed
+done
+for timing in raw-tile packing-only layout-only vendor-arithmetic; do
+  report "$base" "timing_mode=$timing"
+  report "$candidate" "timing_mode=$timing" physical_work=tiles=2
+  reject logical
+done
+
+# A timing selector excludes incompatible raw calls; repeated selectors retain both block modes.
+report "$base"
+row timing_mode=raw-tile >>"$base"
+report "$candidate"
+row timing_mode=vendor-arithmetic >>"$candidate"
+reject logical
+accept logical --timing prepacked-compute
+lines 2
+row timing_mode=pack-plus-compute >>"$base"
+row timing_mode=pack-plus-compute >>"$candidate"
+accept logical --timing prepacked-compute --timing pack-plus-compute
+lines 3
+
+# Policy rows cannot become fixed experiments merely by agreeing with themselves.
+report "$base"
+row configuration=policy-v1 physical_work=policy >>"$base"
+cp "$base" "$candidate"
+accept fixed
+lines 2
+report "$base" configuration=policy-v1
+cp "$base" "$candidate"
+reject fixed
+
+# Disjoint, unsupported-only and historical reports cannot silently pass strict comparison.
+report "$base"
+for patch in logical_id=different schema=3 status=unsupported; do
+  report "$candidate" "$patch"
+  reject logical
+done
+
+# Quoted CSV fields round-trip, while sample aggregation uses medians and extrema.
+report "$base" 'case=quoted "case", one' ns_per_op=1
+row 'case=quoted "case", one' ns_per_op=3 >>"$base"
+report "$candidate" 'case=quoted "case", one' ns_per_op=2
+row 'case=quoted "case", one' ns_per_op=4 >>"$candidate"
+accept fixed
+grep -Fq '"quoted ""case"", one"' "$temporary/output.csv" || fail "quoted case did not round-trip"
+grep -Eq ',2,3,2,4,0[.]66666[0-9]+$' "$temporary/output.csv" || fail "incorrect sample statistics"
+
+# Embedded newlines remain one CSV field, and numeric-looking metadata matches textually.
+report "$base" $'case=first line\nsecond line'
+cp "$base" "$candidate"
+accept fixed
+grep -Fq 'second line"' "$temporary/output.csv" || fail "multiline case did not round-trip"
+report "$base" fixture_version=1
+report "$candidate" fixture_version=01
+reject fixed
+
+# Invalid samples and malformed records fail before comparison.
+report "$base"
+for value in 0 -1 NaN Infinity 1e999 bad ''; do
+  report "$candidate" "ns_per_op=$value"
+  reject logical
+done
+report "$candidate"
+echo 'extra,columns' >>"$candidate"
+reject logical
+printf '\n' >"$candidate"
+reject logical
+
+# Every candidate is checked separately, including a filename containing an equals sign.
+report "$candidate"
+report "$temporary/second=report.csv" configuration=tile-eight
+"$tools/compare.sh" --mode logical --require-compatible "$base" "$candidate" "$temporary/second=report.csv" >"$temporary/output.csv"
+lines 3
+if "$tools/compare.sh" "$base" "$candidate" >/dev/null 2>&1; then fail "missing comparison mode accepted"; fi
+
+echo 'Comparator shell tests passed'
