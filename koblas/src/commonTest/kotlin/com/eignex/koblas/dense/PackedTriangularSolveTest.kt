@@ -2,7 +2,7 @@ package com.eignex.koblas.dense
 
 import com.eignex.koblas.BuiltinEngines
 import com.eignex.koblas.DenseMatrix
-import com.eignex.koblas.KoblasContext
+import com.eignex.koblas.KoblasEngine
 import com.eignex.koblas.Workspace
 import com.eignex.koblas.assertClose
 import com.eignex.koblas.koblas
@@ -122,7 +122,7 @@ class PackedTriangularSolveTest {
 
     @Suppress("LongParameterList")
     private fun assertWideTrsmAgreesWithReference(
-        engine: KoblasContext,
+        engine: KoblasEngine,
         triangle: DenseMatrix,
         source: DenseMatrix,
         lower: Boolean,

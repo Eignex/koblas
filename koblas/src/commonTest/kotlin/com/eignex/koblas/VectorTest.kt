@@ -7,7 +7,7 @@ class VectorTest {
 
     @Test
     fun `vector indexing rejects every address outside its size`() {
-        val vectors = listOf<VectorLike>(
+        val vectors = listOf<Vector>(
             DenseVector.of(doubleArrayOf(1.0, 2.0)),
             SparseVector.of(2, intArrayOf(0), doubleArrayOf(1.0)),
         )

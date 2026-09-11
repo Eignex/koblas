@@ -1,7 +1,6 @@
 package com.eignex.koblas
 
 import com.eignex.koblas.*
-import com.eignex.koblas.dense.*
 import kotlin.test.*
 
 class ExceptionsTest {

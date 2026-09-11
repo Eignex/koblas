@@ -16,7 +16,7 @@ class MatrixOpsTest {
 
     @Test
     fun `the gemv overload computes A x for dense and sparse x`() {
-        val A = DenseMatrix.of(
+        val A = DenseMatrix.ofRows(
             arrayOf(
                 doubleArrayOf(1.0, 2.0),
                 doubleArrayOf(3.0, 4.0),
@@ -52,7 +52,7 @@ class MatrixOpsTest {
             doubleArrayOf(-3.0, 4.0, 0.0),
             doubleArrayOf(0.0, 0.5, 1.5),
         )
-        val dense = DenseMatrix.of(entries)
+        val dense = DenseMatrix.ofRows(entries)
         val sparseMatrix = SparseMatrix.ofTriplets(
             rows,
             cols,
@@ -60,13 +60,13 @@ class MatrixOpsTest {
             intArrayOf(0, 2, 0, 1, 1, 2),
             doubleArrayOf(1.0, 2.0, -3.0, 4.0, 0.5, 1.5),
         )
-        val foreign = object : MatrixLike {
+        val foreign = object : Matrix {
             override val rows: Int get() = dense.rows
             override val cols: Int get() = dense.cols
             override fun get(i: Int, j: Int): Double = dense[i, j]
             override fun toArray(): Array<DoubleArray> = dense.toArray()
         }
-        val vectors = listOf<Pair<VectorLike, DoubleArray>>(
+        val vectors = listOf<Pair<Vector, DoubleArray>>(
             DenseVector.of(doubleArrayOf(2.0, -1.0, 0.5)) to doubleArrayOf(3.0, 0.0, -10.0, 0.25),
             SparseVector.of(3, intArrayOf(0, 2), doubleArrayOf(2.0, 0.5)) to
                 doubleArrayOf(3.0, 0.0, -6.0, 0.75),
@@ -74,7 +74,7 @@ class MatrixOpsTest {
                 doubleArrayOf(3.0, 0.0, -10.0, 0.25),
             ForeignRampVector(3) to doubleArrayOf(-1.0, 0.0, 1.0, -0.25),
         )
-        for (A in listOf<MatrixLike>(dense, sparseMatrix, foreign)) {
+        for (A in listOf<Matrix>(dense, sparseMatrix, foreign)) {
             for ((x, expected) in vectors) {
                 assertClose(expected, (A * x).data, "product ${A::class.simpleName} ${x::class.simpleName}")
                 val out = DoubleArray(rows)
@@ -86,8 +86,8 @@ class MatrixOpsTest {
 
     @Test
     fun `gemvInto applies alpha and beta like dgemv`() {
-        val A = DenseMatrix.of(arrayOf(doubleArrayOf(1.0, 2.0), doubleArrayOf(3.0, 4.0)))
-        val xs = listOf<VectorLike>(dense(1.0, -1.0), sparse(2, 0 to 1.0, 1 to -1.0))
+        val A = DenseMatrix.ofRows(arrayOf(doubleArrayOf(1.0, 2.0), doubleArrayOf(3.0, 4.0)))
+        val xs = listOf<Vector>(dense(1.0, -1.0), sparse(2, 0 to 1.0, 1 to -1.0))
         for (x in xs) {
             val context = x::class.simpleName
             // beta == 0 must overwrite rather than accumulate, so a poisoned destination stays clean.
@@ -112,7 +112,7 @@ class MatrixOpsTest {
         val full = randomMatrix(n, n, rng)
         for (j in 0 until n) for (i in 0 until j) full[i, j] = full[j, i]
         val values = randomVector(n, rng)
-        val xs = listOf<VectorLike>(
+        val xs = listOf<Vector>(
             DenseVector.of(values),
             SparseVector.of(n, intArrayOf(0, 3), doubleArrayOf(values[0], values[3])),
         )
@@ -135,8 +135,8 @@ class MatrixOpsTest {
 
     @Test
     fun `symvInto applies alpha and beta like dsymv`() {
-        val A = DenseMatrix.of(arrayOf(doubleArrayOf(2.0, 1.0), doubleArrayOf(1.0, 3.0)))
-        for (x in listOf<VectorLike>(dense(1.0, -1.0), sparse(2, 0 to 1.0, 1 to -1.0))) {
+        val A = DenseMatrix.ofRows(arrayOf(doubleArrayOf(2.0, 1.0), doubleArrayOf(1.0, 3.0)))
+        for (x in listOf<Vector>(dense(1.0, -1.0), sparse(2, 0 to 1.0, 1 to -1.0))) {
             val context = x::class.simpleName
             val fresh = doubleArrayOf(Double.NaN, Double.NaN)
             A.symvInto(2.0, x, 0.0, fresh)
@@ -171,7 +171,7 @@ class MatrixOpsTest {
 
     @Test
     fun `the matvec destinations reject mismatched shapes`() {
-        val A = DenseMatrix.of(arrayOf(doubleArrayOf(1.0, 2.0), doubleArrayOf(3.0, 4.0)))
+        val A = DenseMatrix.ofRows(arrayOf(doubleArrayOf(1.0, 2.0), doubleArrayOf(3.0, 4.0)))
         val x = dense(1.0, -1.0)
         assertFailsWith<DimensionMismatch> { A.gemvInto(dense(1.0, 2.0, 3.0), DoubleArray(2)) }
         assertFailsWith<DimensionMismatch> { A.gemvInto(x, DoubleArray(3)) }
@@ -210,7 +210,7 @@ class MatrixOpsTest {
     fun `gemvInto snapshots matrix aliases before writing`() {
         for (storage in 0..2) {
             val destination = doubleArrayOf(1.0, 2.0, 3.0)
-            val matrix: MatrixLike = when (storage) {
+            val matrix: Matrix = when (storage) {
                 0 -> DenseMatrix.wrap(3, 1, destination)
                 1 -> SparseMatrix.wrap(3, 1, intArrayOf(0, 3), intArrayOf(0, 1, 2), destination)
                 else -> StridedMatrixView(3, 1, destination)
@@ -384,7 +384,7 @@ class MatrixOpsTest {
 
     @Test
     fun `zeroStrictUpper clears above the diagonal and keeps the rest`() {
-        val M = DenseMatrix.of(
+        val M = DenseMatrix.ofRows(
             arrayOf(
                 doubleArrayOf(1.0, 2.0, 3.0),
                 doubleArrayOf(4.0, 5.0, 6.0),
@@ -435,7 +435,7 @@ class MatrixOpsTest {
 
     @Test
     fun `transpose round-trips and maps entries`() {
-        val a = DenseMatrix.of(
+        val a = DenseMatrix.ofRows(
             arrayOf(
                 doubleArrayOf(1.0, 2.0, 3.0),
                 doubleArrayOf(4.0, 5.0, 6.0),

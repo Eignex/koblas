@@ -4,7 +4,7 @@ import kotlin.test.*
 
 class MatrixScalingTest {
 
-    private fun example() = DenseMatrix.of(
+    private fun example() = DenseMatrix.ofRows(
         arrayOf(
             doubleArrayOf(1.0, 2.0, 3.0),
             doubleArrayOf(4.0, 5.0, 6.0),
@@ -53,7 +53,7 @@ class MatrixScalingTest {
         val nnzBefore = s.nnz
         s.scaleColumns(d)
 
-        val dense = DenseMatrix.of(
+        val dense = DenseMatrix.ofRows(
             arrayOf(doubleArrayOf(1.0, 0.0, 3.0), doubleArrayOf(0.0, 5.0, 0.0)),
         )
         dense.scaleColumns(d)

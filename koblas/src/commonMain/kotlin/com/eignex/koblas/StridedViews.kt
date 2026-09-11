@@ -14,7 +14,7 @@ public class StridedVectorView(
     public val offset: Int,
     override val size: Int,
     public val stride: Int = 1,
-) : VectorLike {
+) : Vector {
     init {
         requireShape(size >= 0) { "negative size: $size" }
         require(stride != 0) { "stride must not be zero" }
@@ -51,7 +51,7 @@ public class StridedMatrixView(
     public val offset: Int = 0,
     /** Physical distance between the starts of adjacent columns. */
     public val leadingDimension: Int = maxOf(1, rows),
-) : MatrixLike {
+) : Matrix {
     init {
         requireNonNegativeShape(rows, cols)
         require(leadingDimension >= maxOf(1, rows)) {

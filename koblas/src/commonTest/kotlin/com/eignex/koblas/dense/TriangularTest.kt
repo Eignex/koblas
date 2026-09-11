@@ -241,7 +241,7 @@ class TriangularTest {
 
     @Test
     fun `trsv divides by a zero diagonal instead of reporting it`() {
-        val singular = DenseMatrix.of(arrayOf(doubleArrayOf(1.0, 0.0), doubleArrayOf(3.0, 0.0)))
+        val singular = DenseMatrix.ofRows(arrayOf(doubleArrayOf(1.0, 0.0), doubleArrayOf(3.0, 0.0)))
         val x = doubleArrayOf(1.0, 1.0)
         ReferenceBlas.trsv(singular, x, lower = true)
         assertTrue(!x[1].isFinite(), "expected a non-finite entry from the zero pivot, got ${x[1]}")
@@ -249,7 +249,7 @@ class TriangularTest {
 
     @Test
     fun `nontransposed trsv skips a zero right hand side pivot`() {
-        val singular = DenseMatrix.of(arrayOf(doubleArrayOf(0.0, 0.0), doubleArrayOf(Double.NaN, 1.0)))
+        val singular = DenseMatrix.ofRows(arrayOf(doubleArrayOf(0.0, 0.0), doubleArrayOf(Double.NaN, 1.0)))
         val x = DoubleArray(2)
 
         ReferenceBlas.trsv(singular, x, lower = true)
@@ -259,7 +259,7 @@ class TriangularTest {
 
     @Test
     fun `transposed trsv divides a zero right hand side pivot`() {
-        val singular = DenseMatrix.of(arrayOf(doubleArrayOf(0.0, 0.0), doubleArrayOf(0.0, 1.0)))
+        val singular = DenseMatrix.ofRows(arrayOf(doubleArrayOf(0.0, 0.0), doubleArrayOf(0.0, 1.0)))
         val x = DoubleArray(2)
 
         ReferenceBlas.trsv(singular, x, lower = true, transpose = true)

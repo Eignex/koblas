@@ -5,7 +5,7 @@ package com.eignex.koblas.sparse.internal
 import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.SparseVector
 import com.eignex.koblas.UnsafeKoblasApi
-import com.eignex.koblas.VectorLike
+import com.eignex.koblas.Vector
 
 /*
  * The symmetric rank-one and rank-two updates over a CSC matrix, which build a new pattern rather than
@@ -14,7 +14,7 @@ import com.eignex.koblas.VectorLike
  */
 
 /** `A + alpha·x·xᵀ` over the [lower] or upper triangle of a CSC [a], as a fresh matrix. */
-internal fun sparseSyr(a: SparseMatrix, alpha: Double, x: VectorLike, lower: Boolean): SparseMatrix {
+internal fun sparseSyr(a: SparseMatrix, alpha: Double, x: Vector, lower: Boolean): SparseMatrix {
     val xs = x.toDoubleArray()
     if (alpha == 0.0) return a.sparseCopy()
     if (!alpha.isFinite() || xs.any { !it.isFinite() }) return a.syrWithNonFinite(alpha, xs, lower)
@@ -22,7 +22,7 @@ internal fun sparseSyr(a: SparseMatrix, alpha: Double, x: VectorLike, lower: Boo
 }
 
 /** `A + alpha·(x·yᵀ + y·xᵀ)` over the [lower] or upper triangle of a CSC [a], as a fresh matrix. */
-internal fun sparseSyr2(a: SparseMatrix, alpha: Double, x: VectorLike, y: VectorLike, lower: Boolean): SparseMatrix {
+internal fun sparseSyr2(a: SparseMatrix, alpha: Double, x: Vector, y: Vector, lower: Boolean): SparseMatrix {
     val xs = x.toDoubleArray()
     val ys = y.toDoubleArray()
     if (alpha == 0.0) return a.sparseCopy()
@@ -107,7 +107,7 @@ private fun SparseMatrix.syr2WithNonFinite(
  * the common case of a sparse vector with no explicit zeros costs no copy at all.
  */
 @OptIn(UnsafeKoblasApi::class)
-private fun VectorLike.nonzeroSupport(dense: DoubleArray): IntArray = when (this) {
+private fun Vector.nonzeroSupport(dense: DoubleArray): IntArray = when (this) {
     is SparseVector -> filterNonzero(indices, values)
     else -> nonzeroIndices(dense)
 }

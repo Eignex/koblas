@@ -14,13 +14,13 @@ class MatrixTest {
     @Test
     fun `DenseMatrix of rejects ragged rows`() {
         assertFailsWith<DimensionMismatch> {
-            DenseMatrix.of(arrayOf(doubleArrayOf(1.0, 2.0), doubleArrayOf(3.0)))
+            DenseMatrix.ofRows(arrayOf(doubleArrayOf(1.0, 2.0), doubleArrayOf(3.0)))
         }
     }
 
     @Test
     fun `DenseMatrix of supports an empty row set`() {
-        val m = DenseMatrix.of(arrayOf())
+        val m = DenseMatrix.ofRows(arrayOf())
         assertEquals(0, m.rows)
         assertEquals(0, m.cols)
     }
@@ -76,7 +76,7 @@ class MatrixTest {
 
     @Test
     fun `DenseMatrix indexing rejects every address outside its shape`() {
-        val matrix = DenseMatrix.of(
+        val matrix = DenseMatrix.ofRows(
             arrayOf(doubleArrayOf(1.0, 2.0, 3.0), doubleArrayOf(4.0, 5.0, 6.0)),
         )
         assertFailsWith<IndexOutOfBoundsException> { matrix[2, 0] }
@@ -90,7 +90,7 @@ class MatrixTest {
 
     @Test
     fun `column and row read the two axes of the same matrix`() {
-        val m = DenseMatrix.of(arrayOf(doubleArrayOf(1.0, 2.0, 3.0), doubleArrayOf(4.0, 5.0, 6.0)))
+        val m = DenseMatrix.ofRows(arrayOf(doubleArrayOf(1.0, 2.0, 3.0), doubleArrayOf(4.0, 5.0, 6.0)))
         assertTrue(doubleArrayOf(2.0, 5.0).contentEquals(m.column(1).data), "column 1")
         assertTrue(doubleArrayOf(4.0, 5.0, 6.0).contentEquals(m.row(1).data), "row 1")
         for (j in 0 until m.cols) {
@@ -105,7 +105,7 @@ class MatrixTest {
 
     @Test
     fun `column copies rather than aliasing the backing`() {
-        val m = DenseMatrix.of(arrayOf(doubleArrayOf(1.0, 2.0), doubleArrayOf(3.0, 4.0)))
+        val m = DenseMatrix.ofRows(arrayOf(doubleArrayOf(1.0, 2.0), doubleArrayOf(3.0, 4.0)))
         val col = m.column(0)
         col[0] = 99.0
         assertEquals(1.0, m[0, 0], "writing the copy must not reach the matrix")
@@ -135,7 +135,7 @@ class MatrixTest {
     @Test
     fun `DenseMatrix ofColumns is the transpose of of`() {
         val entries = arrayOf(doubleArrayOf(1.0, 2.0, 3.0), doubleArrayOf(4.0, 5.0, 6.0))
-        val byRows = DenseMatrix.of(entries)
+        val byRows = DenseMatrix.ofRows(entries)
         val byCols = DenseMatrix.ofColumns(entries)
         assertEquals(byRows.rows, byCols.cols)
         assertEquals(byRows.cols, byCols.rows)

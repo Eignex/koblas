@@ -5,7 +5,7 @@ package com.eignex.koblas.dense
 import com.eignex.koblas.*
 
 /** Dense matrix routines bound to one immutable kernel implementation. */
-public interface Blas {
+public interface DenseBlas {
     /** `y = alpha · op(A) · x + beta · y` (BLAS `dgemv`), with `op(A)` being `Aᵀ` when [transpose].
      *  `beta == 0.0` overwrites [y] without reading it. */
     public fun gemv(
@@ -187,10 +187,10 @@ public interface Blas {
     public fun ger(alpha: Double, x: DoubleArray, y: DoubleArray, a: DenseMatrix)
 
     /** `A += alpha · x · xᵀ` (BLAS `dsyr`), writing only the [lower] or upper triangle. */
-    public fun syr(alpha: Double, x: VectorLike, a: DenseMatrix, lower: Boolean = true)
+    public fun syr(alpha: Double, x: Vector, a: DenseMatrix, lower: Boolean = true)
 
     /** `A += alpha · (x · yᵀ + y · xᵀ)` (BLAS `dsyr2`), writing only the [lower] or upper triangle. */
-    public fun syr2(alpha: Double, x: VectorLike, y: VectorLike, a: DenseMatrix, lower: Boolean = true)
+    public fun syr2(alpha: Double, x: Vector, y: Vector, a: DenseMatrix, lower: Boolean = true)
 
     /**
      * `C = alpha · (op(A) · op(B)ᵀ + op(B) · op(A)ᵀ) + beta · C` (BLAS `dsyr2k`), where `op` transposes when

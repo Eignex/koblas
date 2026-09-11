@@ -3,10 +3,6 @@ package com.eignex.koblas.sparse
 import com.eignex.koblas.*
 import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.SparseMatrix
-import com.eignex.koblas.dense.trmm
-import com.eignex.koblas.dense.trmv
-import com.eignex.koblas.dense.trsm
-import com.eignex.koblas.dense.trsv
 import com.eignex.koblas.randomMatrix
 import kotlin.random.Random
 import kotlin.test.*

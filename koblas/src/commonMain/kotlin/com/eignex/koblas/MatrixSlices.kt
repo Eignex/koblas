@@ -4,8 +4,7 @@
 
 package com.eignex.koblas
 
-import com.eignex.koblas.*
-import com.eignex.koblas.dense.Blas
+import com.eignex.koblas.dense.DenseBlas
 
 /** Column `j` as a fresh vector, copied rather than viewed. */
 public fun DenseMatrix.column(j: Int): DenseVector {
@@ -65,7 +64,7 @@ public fun SparseMatrix.row(i: Int): SparseVector {
 
 /**
  * Fresh transposed matrix, with the active backend ([koblas]). For products, prefer the transpose flags on
- * gemv and gemm, which read the original storage without copying. See [Blas.transpose].
+ * gemv and gemm, which read the original storage without copying. See [DenseBlas.transpose].
  */
 public fun DenseMatrix.transpose(): DenseMatrix = koblas.transpose(this)
 

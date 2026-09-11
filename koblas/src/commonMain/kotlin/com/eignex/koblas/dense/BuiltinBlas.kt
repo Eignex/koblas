@@ -4,7 +4,7 @@ package com.eignex.koblas.dense
 
 import com.eignex.koblas.*
 import com.eignex.koblas.DenseMatrix
-import com.eignex.koblas.VectorLike
+import com.eignex.koblas.Vector
 
 /**
  * Shared dense matrix algorithms bound to one immutable set of built-in kernels.
@@ -14,7 +14,7 @@ internal class BuiltinBlas(
     private val vectorKernels: DenseVectorKernels,
     private val panelKernels: DensePanelKernels,
     private val packedKernels: PackedKernels,
-) : Blas {
+) : DenseBlas {
     override fun gemv(
         alpha: Double,
         a: DenseMatrix,
@@ -282,7 +282,7 @@ internal class BuiltinBlas(
      *
      * Non-dense vectors are staged once so the rank update itself is a sequence of contiguous Level 1 calls.
      */
-    override fun syr(alpha: Double, x: VectorLike, a: DenseMatrix, lower: Boolean) {
+    override fun syr(alpha: Double, x: Vector, a: DenseMatrix, lower: Boolean) {
         requireSyrShape(a, x.size, "syr")
         if (alpha == 0.0) return
         val xs = rankUpdateData(x)
@@ -294,7 +294,7 @@ internal class BuiltinBlas(
      *
      * Non-dense operands are staged once so the rank update itself is a sequence of contiguous Level 1 calls.
      */
-    override fun syr2(alpha: Double, x: VectorLike, y: VectorLike, a: DenseMatrix, lower: Boolean) {
+    override fun syr2(alpha: Double, x: Vector, y: Vector, a: DenseMatrix, lower: Boolean) {
         requireSyr2Shape(a, x.size, y.size, "syr2")
         if (alpha == 0.0) return
         val xs = rankUpdateData(x)
@@ -303,7 +303,7 @@ internal class BuiltinBlas(
     }
 
     /** Returns contiguous rank-update operands; sparse copies use the selected sparse level-1 kernels. */
-    private fun rankUpdateData(x: VectorLike): DoubleArray = contiguousVectorData(x)
+    private fun rankUpdateData(x: Vector): DoubleArray = contiguousVectorData(x)
 
     /** `C = alpha · (op(A) · op(B)ᵀ + op(B) · op(A)ᵀ) + beta · C` (BLAS `dsyr2k`), where `op` transposes when
      *  [transpose]. Writes only the [lower] or upper triangle. */

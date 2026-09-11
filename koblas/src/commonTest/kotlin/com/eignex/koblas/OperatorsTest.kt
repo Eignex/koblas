@@ -5,13 +5,13 @@ import kotlin.test.*
 
 class OperatorsTest {
 
-    private val a = DenseMatrix.of(arrayOf(doubleArrayOf(1.0, 2.0), doubleArrayOf(3.0, 4.0)))
-    private val b = DenseMatrix.of(arrayOf(doubleArrayOf(5.0, 6.0), doubleArrayOf(7.0, 8.0)))
+    private val a = DenseMatrix.ofRows(arrayOf(doubleArrayOf(1.0, 2.0), doubleArrayOf(3.0, 4.0)))
+    private val b = DenseMatrix.ofRows(arrayOf(doubleArrayOf(5.0, 6.0), doubleArrayOf(7.0, 8.0)))
     private val x = DenseVector.of(doubleArrayOf(2.0, -1.0))
 
     @Test
     fun `matrix product has expected entries`() {
-        assertEquals(DenseMatrix.of(arrayOf(doubleArrayOf(19.0, 22.0), doubleArrayOf(43.0, 50.0))), a * b)
+        assertEquals(DenseMatrix.ofRows(arrayOf(doubleArrayOf(19.0, 22.0), doubleArrayOf(43.0, 50.0))), a * b)
     }
 
     @Test

@@ -1,10 +1,10 @@
 package com.eignex.koblas
 
 /**
- * Reusable floating-point and index scratch. Each active borrow gets its own buffer, so nested borrows are
- * safe. Idle buffers are retained for at most 64 distinct sizes per element type, so changing problem sizes
- * do not make a long-lived workspace retain every array it has used. A workspace is deliberately not
- * thread-safe.
+ * Reusable scratch storage for allocation-sensitive operations.
+ *
+ * Pass the same workspace to repeated calls to reuse their temporary arrays. Nested operations are safe, but
+ * concurrent operations must use separate workspaces.
  */
 public class Workspace {
     private val doubles = PrimitiveBuffers(::DoubleArray, DoubleArray::size, "buffer")
@@ -16,23 +16,19 @@ public class Workspace {
     /** How many index sizes are retained. A test hook for otherwise invisible reclamation. */
     internal val pooledI32Widths: Int get() = indices.pooledWidths
 
-    @PublishedApi
     internal fun take(size: Int): DoubleArray = doubles.take(size)
 
-    @PublishedApi
     internal fun release(buffer: DoubleArray): Unit = doubles.release(buffer)
 
-    /** Pre-allocates [count] buffers of [size], so a loop does not allocate even on its first pass. */
-    public fun reserve(size: Int, count: Int): Unit = doubles.reserve(size, count)
+    /** Pre-allocates [count] buffers of [size]. */
+    internal fun reserve(size: Int, count: Int): Unit = doubles.reserve(size, count)
 
-    @PublishedApi
     internal fun takeI32(size: Int): IntArray = indices.take(size)
 
-    @PublishedApi
     internal fun release(buffer: IntArray): Unit = indices.release(buffer)
 
     /** Pre-allocates [count] integer buffers of [size]. */
-    public fun reserveI32(size: Int, count: Int): Unit = indices.reserve(size, count)
+    internal fun reserveI32(size: Int, count: Int): Unit = indices.reserve(size, count)
 
     /** Number of idle floating-point buffers of [size]. An implementation diagnostic for tests. */
     internal fun available(size: Int): Int = doubles.available(size)
@@ -47,7 +43,7 @@ public class Workspace {
  * The receiver is nullable because a workspace is optional everywhere it is taken, and Kotlin cannot carry
  * both receivers under one name: nullability is not part of a JVM signature.
  */
-public inline fun <T> Workspace?.borrow(size: Int, block: (DoubleArray) -> T): T {
+internal inline fun <T> Workspace?.borrow(size: Int, block: (DoubleArray) -> T): T {
     val buffer = this?.take(size) ?: DoubleArray(size)
     try {
         return block(buffer)
@@ -57,7 +53,7 @@ public inline fun <T> Workspace?.borrow(size: Int, block: (DoubleArray) -> T): T
 }
 
 /** Integer counterpart of [borrow]. */
-public inline fun <T> Workspace?.borrowI32(size: Int, block: (IntArray) -> T): T {
+internal inline fun <T> Workspace?.borrowI32(size: Int, block: (IntArray) -> T): T {
     val buffer = this?.takeI32(size) ?: IntArray(size)
     try {
         return block(buffer)

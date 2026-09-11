@@ -17,8 +17,8 @@ import com.eignex.koblas.sparse.SparseKernelAdapter
 /** JVM built-in engines. */
 public actual object BuiltinEngines {
     /** Pure Kotlin scalar dense kernels and reference sparse kernels. */
-    public actual val scalar: KoblasContext by lazy {
-        KoblasContext(
+    public actual val scalar: KoblasEngine by lazy {
+        KoblasEngine(
             ScalarVectorKernels,
             ScalarPanelKernels,
             PortablePackedKernels,
@@ -28,9 +28,9 @@ public actual object BuiltinEngines {
     }
 
     /** Bundled C kernels when the native library loaded successfully. */
-    public actual val c: KoblasContext? by lazy {
+    public actual val c: KoblasEngine? by lazy {
         if (CVectorKernels.isAvailable) {
-            KoblasContext(
+            KoblasEngine(
                 CVectorKernels,
                 CPanelKernels,
                 CPackedKernels,
@@ -43,9 +43,9 @@ public actual object BuiltinEngines {
     }
 
     /** Vector API kernels when the incubator module resolved at startup. */
-    public actual val simd: KoblasContext? by lazy {
+    public actual val simd: KoblasEngine? by lazy {
         if (SimdVectorKernels.isAvailable) {
-            KoblasContext(
+            KoblasEngine(
                 SimdVectorKernels,
                 SimdPanelKernels,
                 SimdPackedKernels,

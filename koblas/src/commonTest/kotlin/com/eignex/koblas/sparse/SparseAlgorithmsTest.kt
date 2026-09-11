@@ -1,7 +1,7 @@
 package com.eignex.koblas.sparse
 
 import com.eignex.koblas.BuiltinEngines
-import com.eignex.koblas.KoblasContext
+import com.eignex.koblas.KoblasEngine
 import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.assertClose
 import kotlin.random.Random
@@ -10,7 +10,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 class SparseAlgorithmsTest {
-    private val engines: List<KoblasContext>
+    private val engines: List<KoblasEngine>
         get() = listOfNotNull(BuiltinEngines.scalar, BuiltinEngines.c, BuiltinEngines.simd).distinct()
 
     @Test
