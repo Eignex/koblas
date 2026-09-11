@@ -1,9 +1,9 @@
-schema,5
+schema,6
 run,id,implementation,workload_version,fixture_version,pass,unit,source_commit,dirty,runtime,threads,warmups,target_ns,harness,warmup_target_ns,forks
-case,id,run_id,case,status,comparison_kind,timing_mode,logical_id,configuration,physical_work,actual_kernel
+case,id,run_id,case,status,comparison_kind,timing_mode,actual_kernel
 sample,case_id,fork,sample,operations,elapsed_ns,ns_per_op
-run,1,jvm-c/c/c-sparse/packed-4x4,5,2,1,ns,7a38ed4bdde4f7b167b5dbe3924fffe6ca7555fa,true,kotlin-2.4.10/jvm/Eclipse Adoptium/25.0.1/JMH 1.37/forks=2,1,5,200000000,jmh-average-time-v1,200000000,2
-case,1,1,gemm-tile+4x4x32+uniform+packed=4x4,ok,partial,raw-tile,gemm-add-v1+4x4x32+uniform,packed=4x4,tiles=1;leftDoubles=128;rightDoubles=128;outputDoubles=16;resetDoubles=16;scratchDoubles=0;triangleDoubles=0,jvm-c/c-tile-v1/4x4
+run,1,jvm-c/c/c-sparse/packed-4x4,5,2,1,ns,7a38ed4bdde4f7b167b5dbe3924fffe6ca7555fa,true,kotlin-2.4.10/jvm/Eclipse Adoptium/25.0.1/JMH 1.37/forks=2,1,5,200000000,jmh-average-time,200000000,2
+case,1,1,gemm-tile+4x4x32+uniform+packed=4x4,ok,partial,raw-tile,c-tile
 sample,1,1,1,2256247,200185268,88.72489049292919
 sample,1,1,2,2244144,200145047,89.1854742832902
 sample,1,1,3,2274253,200112384,87.99037925859612
@@ -24,7 +24,7 @@ sample,1,2,17,2064780,200236461,96.97714090605295
 sample,1,2,18,2080114,200206949,96.24806573101282
 sample,1,2,19,2082369,200249186,96.16412172866576
 sample,1,2,20,2073716,200269427,96.57514674140529
-case,2,1,gemm-tile+3x2x31+uniform+packed=4x4,ok,partial,raw-tile,gemm-add-v1+3x2x31+uniform,packed=4x4,tiles=1;leftDoubles=124;rightDoubles=124;outputDoubles=16;resetDoubles=16;scratchDoubles=0;triangleDoubles=0,jvm-c/c-tile-v1/4x4
+case,2,1,gemm-tile+3x2x31+uniform+packed=4x4,ok,partial,raw-tile,c-tile
 sample,2,1,1,2262977,200226560,88.47927309910794
 sample,2,1,2,2292739,200196296,87.31752545754227
 sample,2,1,3,2204617,200150788,90.78710179591285
@@ -45,7 +45,7 @@ sample,2,2,17,2042489,200200988,98.01814746615527
 sample,2,2,18,2048200,200207556,97.74804999511767
 sample,2,2,19,1973158,200213349,101.4684830104837
 sample,2,2,20,2045147,200112368,97.84742514841231
-case,3,1,packed-trsm+4x4+triangular+packed=4x4+uplo=L+diag=N,ok,partial,raw-tile,right-solve-v1+4x4+triangular+uplo=L+diag=N,packed=4x4,tiles=1;leftDoubles=0;rightDoubles=0;outputDoubles=16;resetDoubles=16;scratchDoubles=0;triangleDoubles=16,jvm-c/portable-solve-v1/4x4
+case,3,1,packed-trsm+4x4+triangular+packed=4x4+uplo=L+diag=N,ok,partial,raw-tile,portable-solve
 sample,3,1,1,4610743,200194615,43.41916584810735
 sample,3,1,2,4593970,200235693,43.586634871363984
 sample,3,1,3,4595319,200244854,43.5758331467304
@@ -66,7 +66,7 @@ sample,3,2,17,4473688,200219681,44.754949607572094
 sample,3,2,18,4704374,200214564,42.559236149166715
 sample,3,2,19,4558072,200205506,43.92328730217513
 sample,3,2,20,4484162,200199540,44.64592046406887
-case,4,1,packed-trsm+3x2+triangular+packed=4x4+uplo=U+diag=U,ok,partial,raw-tile,right-solve-v1+3x2+triangular+uplo=U+diag=U,packed=4x4,tiles=1;leftDoubles=0;rightDoubles=0;outputDoubles=16;resetDoubles=16;scratchDoubles=0;triangleDoubles=16,jvm-c/portable-solve-v1/4x4
+case,4,1,packed-trsm+3x2+triangular+packed=4x4+uplo=U+diag=U,ok,partial,raw-tile,portable-solve
 sample,4,1,1,16961663,200146188,11.799915373863989
 sample,4,1,2,17126603,200184777,11.688527900132911
 sample,4,1,3,17120325,200191814,11.6932250994067
@@ -87,7 +87,7 @@ sample,4,2,17,17223205,200150622,11.62098587341903
 sample,4,2,18,17174745,200244167,11.659222131100055
 sample,4,2,19,17212986,200116796,11.625919872356835
 sample,4,2,20,17165940,200216380,11.66358381772277
-case,5,1,gemm-trsm+4x4x32+triangular+packed=4x4+uplo=L+diag=N,ok,composed,raw-tile,update-solve-v1+4x4x32+triangular+uplo=L+diag=N,packed=4x4,tiles=1;leftDoubles=128;rightDoubles=128;outputDoubles=16;resetDoubles=16;scratchDoubles=0;triangleDoubles=16,jvm-c/c-tile-v1/4x4
+case,5,1,gemm-trsm+4x4x32+triangular+packed=4x4+uplo=L+diag=N,ok,composed,raw-tile,c-tile
 sample,5,1,1,1602292,200290558,125.00253262201896
 sample,5,1,2,1600984,200186989,125.03996854434523
 sample,5,1,3,1593079,200164257,125.64615879061867
@@ -108,7 +108,7 @@ sample,5,2,17,1541989,200199816,129.83219465249104
 sample,5,2,18,1555211,200109678,128.67043635879634
 sample,5,2,19,1548064,200151265,129.29133743824545
 sample,5,2,20,1341757,200110833,149.14088989287927
-case,6,1,gemm-trsm+3x2x31+triangular+packed=4x4+uplo=U+diag=U,ok,composed,raw-tile,update-solve-v1+3x2x31+triangular+uplo=U+diag=U,packed=4x4,tiles=1;leftDoubles=124;rightDoubles=124;outputDoubles=16;resetDoubles=16;scratchDoubles=0;triangleDoubles=16,jvm-c/c-tile-v1/4x4
+case,6,1,gemm-trsm+3x2x31+triangular+packed=4x4+uplo=U+diag=U,ok,composed,raw-tile,c-tile
 sample,6,1,1,1645165,200158563,121.66473454030447
 sample,6,1,2,1646455,200143529,121.56027890224756
 sample,6,1,3,1638384,200159246,122.16870159864843
@@ -129,14 +129,14 @@ sample,6,2,17,1643428,200278015,121.86601116690235
 sample,6,2,18,1486357,200188654,134.68409944582626
 sample,6,2,19,1388366,200143517,144.15760469501558
 sample,6,2,20,1446751,200237083,138.40466189413382
-run,2,jvm-c/c/c-sparse/packed-4x4,5,2,1,ns,7a38ed4bdde4f7b167b5dbe3924fffe6ca7555fa,true,kotlin-2.4.10/jvm/Eclipse Adoptium/25.0.1,1,5,200000000,jmh-average-time-v1,200000000,2
-case,7,2,gemm-tile+8x4x32+uniform+packed=8x4,unsupported,unsupported,arithmetic,gemm-add-v1+8x4x32+uniform,packed=8x4,tiles=1;leftDoubles=256;rightDoubles=128;outputDoubles=32;resetDoubles=32;scratchDoubles=0;triangleDoubles=0,unavailable
-case,8,2,gemm-tile+7x2x31+uniform+packed=8x4,unsupported,unsupported,arithmetic,gemm-add-v1+7x2x31+uniform,packed=8x4,tiles=1;leftDoubles=248;rightDoubles=124;outputDoubles=32;resetDoubles=32;scratchDoubles=0;triangleDoubles=0,unavailable
-case,9,2,packed-trsm+8x4+triangular+packed=8x4+uplo=L+diag=N,unsupported,unsupported,arithmetic,right-solve-v1+8x4+triangular+uplo=L+diag=N,packed=8x4,tiles=1;leftDoubles=0;rightDoubles=0;outputDoubles=32;resetDoubles=32;scratchDoubles=0;triangleDoubles=16,unavailable
-case,10,2,packed-trsm+7x2+triangular+packed=8x4+uplo=U+diag=U,unsupported,unsupported,arithmetic,right-solve-v1+7x2+triangular+uplo=U+diag=U,packed=8x4,tiles=1;leftDoubles=0;rightDoubles=0;outputDoubles=32;resetDoubles=32;scratchDoubles=0;triangleDoubles=16,unavailable
-case,11,2,gemm-trsm+8x4x32+triangular+packed=8x4+uplo=L+diag=N,unsupported,unsupported,arithmetic,update-solve-v1+8x4x32+triangular+uplo=L+diag=N,packed=8x4,tiles=1;leftDoubles=256;rightDoubles=128;outputDoubles=32;resetDoubles=32;scratchDoubles=0;triangleDoubles=16,unavailable
-case,12,2,gemm-trsm+7x2x31+triangular+packed=8x4+uplo=U+diag=U,unsupported,unsupported,arithmetic,update-solve-v1+7x2x31+triangular+uplo=U+diag=U,packed=8x4,tiles=1;leftDoubles=248;rightDoubles=124;outputDoubles=32;resetDoubles=32;scratchDoubles=0;triangleDoubles=16,unavailable
-case,13,1,pack-left+4x32+uniform+packed=4x4,ok,unsupported,packing-only,pack-left-v1+4x32+uniform,packed=4x4,panelDoubles=128,jvm-c/portable-layout-v1/4x4
+run,2,jvm-c/c/c-sparse/packed-4x4,5,2,1,ns,7a38ed4bdde4f7b167b5dbe3924fffe6ca7555fa,true,kotlin-2.4.10/jvm/Eclipse Adoptium/25.0.1,1,5,200000000,jmh-average-time,200000000,2
+case,7,2,gemm-tile+8x4x32+uniform+packed=8x4,unsupported,unsupported,arithmetic,unavailable
+case,8,2,gemm-tile+7x2x31+uniform+packed=8x4,unsupported,unsupported,arithmetic,unavailable
+case,9,2,packed-trsm+8x4+triangular+packed=8x4+uplo=L+diag=N,unsupported,unsupported,arithmetic,unavailable
+case,10,2,packed-trsm+7x2+triangular+packed=8x4+uplo=U+diag=U,unsupported,unsupported,arithmetic,unavailable
+case,11,2,gemm-trsm+8x4x32+triangular+packed=8x4+uplo=L+diag=N,unsupported,unsupported,arithmetic,unavailable
+case,12,2,gemm-trsm+7x2x31+triangular+packed=8x4+uplo=U+diag=U,unsupported,unsupported,arithmetic,unavailable
+case,13,1,pack-left+4x32+uniform+packed=4x4,ok,unsupported,packing-only,portable-layout
 sample,13,1,1,1431100,200111496,139.8305471315771
 sample,13,1,2,1369493,200179394,146.17043971747208
 sample,13,1,3,1381001,200175237,144.94937874773444
@@ -157,7 +157,7 @@ sample,13,2,17,1430585,200163628,139.91732612882143
 sample,13,2,18,1495129,200187901,133.8933971583723
 sample,13,2,19,1454578,200199320,137.63395294030295
 sample,13,2,20,1425698,200184082,140.4112806498992
-case,14,1,pack-left+3x31+uniform+packed=4x4,ok,unsupported,packing-only,pack-left-v1+3x31+uniform,packed=4x4,panelDoubles=124,jvm-c/portable-layout-v1/4x4
+case,14,1,pack-left+3x31+uniform+packed=4x4,ok,unsupported,packing-only,portable-layout
 sample,14,1,1,1129846,200164911,177.16123347783682
 sample,14,1,2,823396,200112020,243.03253841408022
 sample,14,1,3,664892,200116547,300.97601866167736
@@ -178,7 +178,7 @@ sample,14,2,17,1166113,200184568,171.66824141399675
 sample,14,2,18,1295041,200175198,154.57054873166177
 sample,14,2,19,1289556,200101119,155.1705540511618
 sample,14,2,20,1204238,200097318,166.16093994708686
-case,15,1,pack-right+32x4+uniform+packed=4x4,ok,unsupported,packing-only,pack-right-v1+32x4+uniform,packed=4x4,panelDoubles=128,jvm-c/portable-layout-v1/4x4
+case,15,1,pack-right+32x4+uniform+packed=4x4,ok,unsupported,packing-only,portable-layout
 sample,15,1,1,1409009,200119312,142.02841287741953
 sample,15,1,2,1372709,200111226,145.7783302943304
 sample,15,1,3,1384029,200110166,144.5852406271834
@@ -199,7 +199,7 @@ sample,15,2,17,1416487,200221205,141.3505418687217
 sample,15,2,18,1423947,200332524,140.688188535107
 sample,15,2,19,1408822,200173027,142.08539261879784
 sample,15,2,20,1415083,200152271,141.4420715958004
-case,16,1,pack-right+31x2+uniform+packed=4x4,ok,unsupported,packing-only,pack-right-v1+31x2+uniform,packed=4x4,panelDoubles=124,jvm-c/portable-layout-v1/4x4
+case,16,1,pack-right+31x2+uniform+packed=4x4,ok,unsupported,packing-only,portable-layout
 sample,16,1,1,1419829,200179247,140.98827887020198
 sample,16,1,2,1350418,200134146,148.20162794038586
 sample,16,1,3,1416251,200177215,141.34303523881007
@@ -220,7 +220,7 @@ sample,16,2,17,1391596,200192649,143.8583101704805
 sample,16,2,18,1415577,200133993,141.37979989785083
 sample,16,2,19,1407044,200149755,142.24839806004644
 sample,16,2,20,1391564,200121938,143.81080424615757
-case,17,1,pack-symmetric-left+4x4+uniform+packed=4x4+uplo=L,ok,unsupported,packing-only,pack-symmetric-left-v1+4x4+uniform+uplo=L,packed=4x4,panelDoubles=16,jvm-c/portable-layout-v1/4x4
+case,17,1,pack-symmetric-left+4x4+uniform+packed=4x4+uplo=L,ok,unsupported,packing-only,portable-layout
 sample,17,1,1,6038839,200331701,33.17387679982858
 sample,17,1,2,5724008,200184076,34.97271072996404
 sample,17,1,3,5905386,200127237,33.88893410185211
@@ -241,7 +241,7 @@ sample,17,2,17,5980518,200220778,33.478835445357745
 sample,17,2,18,5365959,200279294,37.3240447793209
 sample,17,2,19,5940445,200234928,33.70705864627987
 sample,17,2,20,5998106,200140307,33.367250762157255
-case,18,1,pack-symmetric-right+4x4+uniform+packed=4x4+uplo=U,ok,unsupported,packing-only,pack-symmetric-right-v1+4x4+uniform+uplo=U,packed=4x4,panelDoubles=16,jvm-c/portable-layout-v1/4x4
+case,18,1,pack-symmetric-right+4x4+uniform+packed=4x4+uplo=U,ok,unsupported,packing-only,portable-layout
 sample,18,1,1,5611418,200111143,35.66142158719953
 sample,18,1,2,5895203,200094694,33.941951447643106
 sample,18,1,3,5941655,200091480,33.6760515378291
@@ -262,7 +262,7 @@ sample,18,2,17,6013600,200100002,33.27457795663163
 sample,18,2,18,5667551,200176819,35.319809032155156
 sample,18,2,19,5803225,200187289,34.495868934945655
 sample,18,2,20,6094741,200184471,32.84544347331577
-case,19,1,pack-triangular-left+4x4+triangular+packed=4x4+uplo=L+diag=N,ok,unsupported,packing-only,pack-triangular-left-v1+4x4+triangular+uplo=L+diag=N,packed=4x4,panelDoubles=16,jvm-c/portable-layout-v1/4x4
+case,19,1,pack-triangular-left+4x4+triangular+packed=4x4+uplo=L+diag=N,ok,unsupported,packing-only,portable-layout
 sample,19,1,1,6401791,200159569,31.266183010348197
 sample,19,1,2,6339476,200095598,31.563428586211227
 sample,19,1,3,6285901,200093174,31.832059397690163
@@ -283,7 +283,7 @@ sample,19,2,17,5558651,200322808,36.03802577279991
 sample,19,2,18,5554898,200152490,36.031712913540446
 sample,19,2,19,5543244,200283396,36.13108064519621
 sample,19,2,20,5513794,200254200,36.31876707762387
-case,20,1,pack-triangular-right+4x4+triangular+packed=4x4+uplo=U+diag=U,ok,unsupported,packing-only,pack-triangular-right-v1+4x4+triangular+uplo=U+diag=U,packed=4x4,panelDoubles=16,jvm-c/portable-layout-v1/4x4
+case,20,1,pack-triangular-right+4x4+triangular+packed=4x4+uplo=U+diag=U,ok,unsupported,packing-only,portable-layout
 sample,20,1,1,6420334,200271274,31.193279664266687
 sample,20,1,2,6479227,200205449,30.899588639200324
 sample,20,1,3,6007273,200191612,33.32487336600151
@@ -304,7 +304,7 @@ sample,20,2,17,5649540,200191106,35.434939127787395
 sample,20,2,18,4885875,200215785,40.97849105840817
 sample,20,2,19,4736476,200218707,42.27166082969701
 sample,20,2,20,3507583,200175324,57.06930498864888
-case,21,1,write-left+3x31+uniform+packed=4x4,ok,unsupported,layout-only,write-left-v1+3x31+uniform,packed=4x4,panelDoubles=124,jvm-c/portable-layout-v1/4x4
+case,21,1,write-left+3x31+uniform+packed=4x4,ok,unsupported,layout-only,portable-layout
 sample,21,1,1,2475503,200244273,80.8903374384923
 sample,21,1,2,2408691,200358249,83.18138316620936
 sample,21,1,3,1861345,200203496,107.55851064687094
@@ -325,7 +325,7 @@ sample,21,2,17,2832088,200140814,70.66899545494348
 sample,21,2,18,2832518,200139607,70.6578411858283
 sample,21,2,19,2839998,200123418,70.46604187749428
 sample,21,2,20,2833170,200256139,70.68271194457093
-case,22,1,write-left+4x32+uniform+packed=4x4,ok,unsupported,layout-only,write-left-v1+4x32+uniform,packed=4x4,panelDoubles=128,jvm-c/portable-layout-v1/4x4
+case,22,1,write-left+4x32+uniform+packed=4x4,ok,unsupported,layout-only,portable-layout
 sample,22,1,1,2378401,200268272,84.2029043882844
 sample,22,1,2,2351792,200147978,85.10445566614735
 sample,22,1,3,2370880,200155116,84.42228877041435
@@ -346,7 +346,7 @@ sample,22,2,17,2419558,200166061,82.72835823733095
 sample,22,2,18,2424022,200168953,82.57720144454134
 sample,22,2,19,2454932,200149998,81.52975235159263
 sample,22,2,20,2378581,200181052,84.15986338072994
-case,23,1,write-right+31x2+uniform+packed=4x4,ok,unsupported,layout-only,write-right-v1+31x2+uniform,packed=4x4,panelDoubles=124,jvm-c/portable-layout-v1/4x4
+case,23,1,write-right+31x2+uniform+packed=4x4,ok,unsupported,layout-only,portable-layout
 sample,23,1,1,2227971,200114039,89.81896039041801
 sample,23,1,2,2228963,200279054,89.85301864589049
 sample,23,1,3,2217620,200107472,90.2352395811726
@@ -367,7 +367,7 @@ sample,23,2,17,2219193,200137401,90.1847658135187
 sample,23,2,18,2205280,200168551,90.76786213088587
 sample,23,2,19,2213845,200209609,90.43524230467806
 sample,23,2,20,2176597,200200390,91.97862075524316
-case,24,1,write-right+32x4+uniform+packed=4x4,ok,unsupported,layout-only,write-right-v1+32x4+uniform,packed=4x4,panelDoubles=128,jvm-c/portable-layout-v1/4x4
+case,24,1,write-right+32x4+uniform+packed=4x4,ok,unsupported,layout-only,portable-layout
 sample,24,1,1,1669906,200150487,119.85733747887606
 sample,24,1,2,1675910,200224685,119.47221807853644
 sample,24,1,3,1708036,200245115,117.23705764983876
@@ -388,7 +388,7 @@ sample,24,2,17,1644722,200135495,121.68347903171478
 sample,24,2,18,1664972,200087210,120.17451945137816
 sample,24,2,19,1676632,200098107,119.34527493212583
 sample,24,2,20,1675884,200091590,119.39465380658804
-case,25,1,clear-left-padding+3x31+uniform+packed=4x4,ok,unsupported,layout-only,clear-left-padding-v1+3x31+uniform,packed=4x4,panelDoubles=124,jvm-c/portable-layout-v1/4x4
+case,25,1,clear-left-padding+3x31+uniform+packed=4x4,ok,unsupported,layout-only,portable-layout
 sample,25,1,1,2711212,200153560,73.82438555155406
 sample,25,1,2,2660119,200265069,75.28425194511975
 sample,25,1,3,2742674,200151001,72.97659182243315
@@ -409,7 +409,7 @@ sample,25,2,17,2678931,200292469,74.76581852985389
 sample,25,2,18,2794351,200145899,71.62518201900906
 sample,25,2,19,2638629,200169494,75.86117411731622
 sample,25,2,20,2691385,200162406,74.37152469825016
-case,26,1,clear-left-padding+4x32+uniform+packed=4x4,ok,unsupported,layout-only,clear-left-padding-v1+4x32+uniform,packed=4x4,panelDoubles=128,jvm-c/portable-layout-v1/4x4
+case,26,1,clear-left-padding+4x32+uniform+packed=4x4,ok,unsupported,layout-only,portable-layout
 sample,26,1,1,28471219,200235761,7.032918435982667
 sample,26,1,2,27417336,200196450,7.301819914232367
 sample,26,1,3,27960822,200125549,7.157355710071757
@@ -430,7 +430,7 @@ sample,26,2,17,27853944,200179341,7.186750321606161
 sample,26,2,18,27666823,200110674,7.232875057609614
 sample,26,2,19,27625629,200226210,7.247842574009808
 sample,26,2,20,28517479,200233710,7.0214379749346
-case,27,1,clear-right-padding+31x2+uniform+packed=4x4,ok,unsupported,layout-only,clear-right-padding-v1+31x2+uniform,packed=4x4,panelDoubles=124,jvm-c/portable-layout-v1/4x4
+case,27,1,clear-right-padding+31x2+uniform+packed=4x4,ok,unsupported,layout-only,portable-layout
 sample,27,1,1,2531938,200119081,79.03790732632474
 sample,27,1,2,2541668,200190358,78.76337822249012
 sample,27,1,3,2545874,200097836,78.5969124944911
@@ -451,7 +451,7 @@ sample,27,2,17,2539449,200286408,78.87002574180462
 sample,27,2,18,2534796,200125940,78.95149747750904
 sample,27,2,19,2486813,200146068,80.48295871060671
 sample,27,2,20,2521741,200173808,79.37920983955132
-case,28,1,clear-right-padding+32x4+uniform+packed=4x4,ok,unsupported,layout-only,clear-right-padding-v1+32x4+uniform,packed=4x4,panelDoubles=128,jvm-c/portable-layout-v1/4x4
+case,28,1,clear-right-padding+32x4+uniform+packed=4x4,ok,unsupported,layout-only,portable-layout
 sample,28,1,1,26243821,200224269,7.629387085058993
 sample,28,1,2,26306839,200146970,7.6081725364267445
 sample,28,1,3,26248656,200210088,7.627441496433189
@@ -472,23 +472,23 @@ sample,28,2,17,25794963,200256281,7.763387022497377
 sample,28,2,18,22579339,200167731,8.865083738722378
 sample,28,2,19,16824087,200164037,11.897468017135195
 sample,28,2,20,25680792,200194871,7.795510006077694
-case,29,2,pack-left+7x31+uniform+packed=8x4,unsupported,unsupported,arithmetic,pack-left-v1+7x31+uniform,packed=8x4,panelDoubles=248,unavailable
-case,30,2,pack-left+8x32+uniform+packed=8x4,unsupported,unsupported,arithmetic,pack-left-v1+8x32+uniform,packed=8x4,panelDoubles=256,unavailable
-case,31,2,pack-right+31x2+uniform+packed=8x4,unsupported,unsupported,arithmetic,pack-right-v1+31x2+uniform,packed=8x4,panelDoubles=124,unavailable
-case,32,2,pack-right+32x4+uniform+packed=8x4,unsupported,unsupported,arithmetic,pack-right-v1+32x4+uniform,packed=8x4,panelDoubles=128,unavailable
-case,33,2,pack-symmetric-left+8x8+uniform+packed=8x4+uplo=L,unsupported,unsupported,arithmetic,pack-symmetric-left-v1+8x8+uniform+uplo=L,packed=8x4,panelDoubles=64,unavailable
-case,34,2,pack-symmetric-right+4x4+uniform+packed=8x4+uplo=U,unsupported,unsupported,arithmetic,pack-symmetric-right-v1+4x4+uniform+uplo=U,packed=8x4,panelDoubles=16,unavailable
-case,35,2,pack-triangular-left+8x8+triangular+packed=8x4+uplo=L+diag=N,unsupported,unsupported,arithmetic,pack-triangular-left-v1+8x8+triangular+uplo=L+diag=N,packed=8x4,panelDoubles=64,unavailable
-case,36,2,pack-triangular-right+4x4+triangular+packed=8x4+uplo=U+diag=U,unsupported,unsupported,arithmetic,pack-triangular-right-v1+4x4+triangular+uplo=U+diag=U,packed=8x4,panelDoubles=16,unavailable
-case,37,2,write-left+7x31+uniform+packed=8x4,unsupported,unsupported,arithmetic,write-left-v1+7x31+uniform,packed=8x4,panelDoubles=248,unavailable
-case,38,2,write-left+8x32+uniform+packed=8x4,unsupported,unsupported,arithmetic,write-left-v1+8x32+uniform,packed=8x4,panelDoubles=256,unavailable
-case,39,2,write-right+31x2+uniform+packed=8x4,unsupported,unsupported,arithmetic,write-right-v1+31x2+uniform,packed=8x4,panelDoubles=124,unavailable
-case,40,2,write-right+32x4+uniform+packed=8x4,unsupported,unsupported,arithmetic,write-right-v1+32x4+uniform,packed=8x4,panelDoubles=128,unavailable
-case,41,2,clear-left-padding+7x31+uniform+packed=8x4,unsupported,unsupported,arithmetic,clear-left-padding-v1+7x31+uniform,packed=8x4,panelDoubles=248,unavailable
-case,42,2,clear-left-padding+8x32+uniform+packed=8x4,unsupported,unsupported,arithmetic,clear-left-padding-v1+8x32+uniform,packed=8x4,panelDoubles=256,unavailable
-case,43,2,clear-right-padding+31x2+uniform+packed=8x4,unsupported,unsupported,arithmetic,clear-right-padding-v1+31x2+uniform,packed=8x4,panelDoubles=124,unavailable
-case,44,2,clear-right-padding+32x4+uniform+packed=8x4,unsupported,unsupported,arithmetic,clear-right-padding-v1+32x4+uniform,packed=8x4,panelDoubles=128,unavailable
-case,45,1,gemm-block+15x7x31+uniform+packed=4x4+timing=prepacked-compute,ok,direct,prepacked-compute,gemm-add-v1+15x7x31+uniform,packed=4x4,tiles=8;leftDoubles=496;rightDoubles=248;outputDoubles=105;resetDoubles=105;scratchDoubles=16;triangleDoubles=0,jvm-c/c-tile-v1/4x4
+case,29,2,pack-left+7x31+uniform+packed=8x4,unsupported,unsupported,arithmetic,unavailable
+case,30,2,pack-left+8x32+uniform+packed=8x4,unsupported,unsupported,arithmetic,unavailable
+case,31,2,pack-right+31x2+uniform+packed=8x4,unsupported,unsupported,arithmetic,unavailable
+case,32,2,pack-right+32x4+uniform+packed=8x4,unsupported,unsupported,arithmetic,unavailable
+case,33,2,pack-symmetric-left+8x8+uniform+packed=8x4+uplo=L,unsupported,unsupported,arithmetic,unavailable
+case,34,2,pack-symmetric-right+4x4+uniform+packed=8x4+uplo=U,unsupported,unsupported,arithmetic,unavailable
+case,35,2,pack-triangular-left+8x8+triangular+packed=8x4+uplo=L+diag=N,unsupported,unsupported,arithmetic,unavailable
+case,36,2,pack-triangular-right+4x4+triangular+packed=8x4+uplo=U+diag=U,unsupported,unsupported,arithmetic,unavailable
+case,37,2,write-left+7x31+uniform+packed=8x4,unsupported,unsupported,arithmetic,unavailable
+case,38,2,write-left+8x32+uniform+packed=8x4,unsupported,unsupported,arithmetic,unavailable
+case,39,2,write-right+31x2+uniform+packed=8x4,unsupported,unsupported,arithmetic,unavailable
+case,40,2,write-right+32x4+uniform+packed=8x4,unsupported,unsupported,arithmetic,unavailable
+case,41,2,clear-left-padding+7x31+uniform+packed=8x4,unsupported,unsupported,arithmetic,unavailable
+case,42,2,clear-left-padding+8x32+uniform+packed=8x4,unsupported,unsupported,arithmetic,unavailable
+case,43,2,clear-right-padding+31x2+uniform+packed=8x4,unsupported,unsupported,arithmetic,unavailable
+case,44,2,clear-right-padding+32x4+uniform+packed=8x4,unsupported,unsupported,arithmetic,unavailable
+case,45,1,gemm-block+15x7x31+uniform+packed=4x4+timing=prepacked-compute,ok,direct,prepacked-compute,c-tile
 sample,45,1,1,215759,200182844,927.8076186856632
 sample,45,1,2,225308,200154054,888.3575106077014
 sample,45,1,3,223528,200175750,895.5287480763036
@@ -509,7 +509,7 @@ sample,45,2,17,224499,200165660,891.6104748796208
 sample,45,2,18,225473,200157886,887.724410461563
 sample,45,2,19,224527,200121270,891.301580656224
 sample,45,2,20,222868,200096070,897.8232406626344
-case,46,1,gemm-block+15x7x31+uniform+packed=4x4+timing=pack-plus-compute,ok,direct,pack-plus-compute,gemm-add-v1+15x7x31+uniform,packed=4x4,tiles=8;leftDoubles=496;rightDoubles=248;outputDoubles=105;resetDoubles=105;scratchDoubles=16;triangleDoubles=0,jvm-c/c-tile-v1/4x4
+case,46,1,gemm-block+15x7x31+uniform+packed=4x4+timing=pack-plus-compute,ok,direct,pack-plus-compute,c-tile
 sample,46,1,1,116239,200172088,1722.073383287881
 sample,46,1,2,118011,200216334,1696.5904364847345
 sample,46,1,3,115995,200153585,1725.5363162205267
@@ -530,7 +530,7 @@ sample,46,2,17,110973,200194896,1803.9964315644345
 sample,46,2,18,112242,200292158,1784.4671156964416
 sample,46,2,19,112200,200199310,1784.3075757575757
 sample,46,2,20,111853,200204577,1789.8900968235093
-case,47,1,gemm-block+32x16x65+uniform+packed=4x4+timing=prepacked-compute,ok,direct,prepacked-compute,gemm-add-v1+32x16x65+uniform,packed=4x4,tiles=32;leftDoubles=2080;rightDoubles=1040;outputDoubles=512;resetDoubles=512;scratchDoubles=16;triangleDoubles=0,jvm-c/c-tile-v1/4x4
+case,47,1,gemm-block+32x16x65+uniform+packed=4x4+timing=prepacked-compute,ok,direct,prepacked-compute,c-tile
 sample,47,1,1,36113,200346292,5547.760972502977
 sample,47,1,2,37149,200304874,5391.931788204259
 sample,47,1,3,36592,200175161,5470.462423480542
@@ -551,7 +551,7 @@ sample,47,2,17,37446,200148664,5344.994498744859
 sample,47,2,18,33097,200219523,6049.476478230656
 sample,47,2,19,37554,200202682,5331.061458166906
 sample,47,2,20,37603,200198264,5323.997127888732
-case,48,1,gemm-block+32x16x65+uniform+packed=4x4+timing=pack-plus-compute,ok,direct,pack-plus-compute,gemm-add-v1+32x16x65+uniform,packed=4x4,tiles=32;leftDoubles=2080;rightDoubles=1040;outputDoubles=512;resetDoubles=512;scratchDoubles=16;triangleDoubles=0,jvm-c/c-tile-v1/4x4
+case,48,1,gemm-block+32x16x65+uniform+packed=4x4+timing=pack-plus-compute,ok,direct,pack-plus-compute,c-tile
 sample,48,1,1,23346,200183989,8574.658999400326
 sample,48,1,2,23668,200271703,8461.707917863783
 sample,48,1,3,23219,200231834,8623.620052543176
@@ -572,11 +572,11 @@ sample,48,2,17,23600,200138784,8480.456949152542
 sample,48,2,18,23573,200088262,8488.027064862343
 sample,48,2,19,23610,200096896,8475.090893689116
 sample,48,2,20,23578,200093653,8486.455721435237
-case,49,2,gemm-block+15x7x31+uniform+packed=8x4+timing=prepacked-compute,unsupported,unsupported,arithmetic,gemm-add-v1+15x7x31+uniform,packed=8x4,tiles=4;leftDoubles=496;rightDoubles=248;outputDoubles=105;resetDoubles=105;scratchDoubles=32;triangleDoubles=0,unavailable
-case,50,2,gemm-block+15x7x31+uniform+packed=8x4+timing=pack-plus-compute,unsupported,unsupported,arithmetic,gemm-add-v1+15x7x31+uniform,packed=8x4,tiles=4;leftDoubles=496;rightDoubles=248;outputDoubles=105;resetDoubles=105;scratchDoubles=32;triangleDoubles=0,unavailable
-case,51,2,gemm-block+32x16x65+uniform+packed=8x4+timing=prepacked-compute,unsupported,unsupported,arithmetic,gemm-add-v1+32x16x65+uniform,packed=8x4,tiles=16;leftDoubles=2080;rightDoubles=1040;outputDoubles=512;resetDoubles=512;scratchDoubles=32;triangleDoubles=0,unavailable
-case,52,2,gemm-block+32x16x65+uniform+packed=8x4+timing=pack-plus-compute,unsupported,unsupported,arithmetic,gemm-add-v1+32x16x65+uniform,packed=8x4,tiles=16;leftDoubles=2080;rightDoubles=1040;outputDoubles=512;resetDoubles=512;scratchDoubles=32;triangleDoubles=0,unavailable
-case,53,1,gemm-block+64x64x31+uniform+packed=4x4+timing=prepacked-compute,ok,direct,prepacked-compute,gemm-add-v1+64x64x31+uniform,packed=4x4,tiles=256;leftDoubles=1984;rightDoubles=1984;outputDoubles=4096;resetDoubles=4096;scratchDoubles=16;triangleDoubles=0,jvm-c/c-tile-v1/4x4
+case,49,2,gemm-block+15x7x31+uniform+packed=8x4+timing=prepacked-compute,unsupported,unsupported,arithmetic,unavailable
+case,50,2,gemm-block+15x7x31+uniform+packed=8x4+timing=pack-plus-compute,unsupported,unsupported,arithmetic,unavailable
+case,51,2,gemm-block+32x16x65+uniform+packed=8x4+timing=prepacked-compute,unsupported,unsupported,arithmetic,unavailable
+case,52,2,gemm-block+32x16x65+uniform+packed=8x4+timing=pack-plus-compute,unsupported,unsupported,arithmetic,unavailable
+case,53,1,gemm-block+64x64x31+uniform+packed=4x4+timing=prepacked-compute,ok,direct,prepacked-compute,c-tile
 sample,53,1,1,6283,200113095,31849.92758236511
 sample,53,1,2,5469,200154251,36597.96141890656
 sample,53,1,3,4633,200203036,43212.39715087417
@@ -597,7 +597,7 @@ sample,53,2,17,6332,200223613,31620.911718256473
 sample,53,2,18,6304,200181330,31754.65260152284
 sample,53,2,19,5853,200155097,34197.009567743036
 sample,53,2,20,4299,200311871,46594.992091183994
-case,54,1,gemm-block+64x64x31+uniform+packed=4x4+timing=pack-plus-compute,ok,direct,pack-plus-compute,gemm-add-v1+64x64x31+uniform,packed=4x4,tiles=256;leftDoubles=1984;rightDoubles=1984;outputDoubles=4096;resetDoubles=4096;scratchDoubles=16;triangleDoubles=0,jvm-c/c-tile-v1/4x4
+case,54,1,gemm-block+64x64x31+uniform+packed=4x4+timing=pack-plus-compute,ok,direct,pack-plus-compute,c-tile
 sample,54,1,1,4078,200256616,49106.57577243747
 sample,54,1,2,5180,200272523,38662.64922779923
 sample,54,1,3,5584,200232409,35858.23943409742
@@ -618,9 +618,9 @@ sample,54,2,17,4682,200203635,42760.28086287911
 sample,54,2,18,5489,200165678,36466.69302240845
 sample,54,2,19,5487,200215395,36489.04592673592
 sample,54,2,20,5513,200170235,36308.7674587339
-case,55,2,gemm-block+64x64x31+uniform+packed=8x4+timing=prepacked-compute,unsupported,unsupported,arithmetic,gemm-add-v1+64x64x31+uniform,packed=8x4,tiles=128;leftDoubles=1984;rightDoubles=1984;outputDoubles=4096;resetDoubles=4096;scratchDoubles=32;triangleDoubles=0,unavailable
-case,56,2,gemm-block+64x64x31+uniform+packed=8x4+timing=pack-plus-compute,unsupported,unsupported,arithmetic,gemm-add-v1+64x64x31+uniform,packed=8x4,tiles=128;leftDoubles=1984;rightDoubles=1984;outputDoubles=4096;resetDoubles=4096;scratchDoubles=32;triangleDoubles=0,unavailable
-case,57,1,gemm-block+64x64x32+uniform+packed=4x4+timing=prepacked-compute,ok,direct,prepacked-compute,gemm-add-v1+64x64x32+uniform,packed=4x4,tiles=256;leftDoubles=2048;rightDoubles=2048;outputDoubles=4096;resetDoubles=4096;scratchDoubles=16;triangleDoubles=0,jvm-c/c-tile-v1/4x4
+case,55,2,gemm-block+64x64x31+uniform+packed=8x4+timing=prepacked-compute,unsupported,unsupported,arithmetic,unavailable
+case,56,2,gemm-block+64x64x31+uniform+packed=8x4+timing=pack-plus-compute,unsupported,unsupported,arithmetic,unavailable
+case,57,1,gemm-block+64x64x32+uniform+packed=4x4+timing=prepacked-compute,ok,direct,prepacked-compute,c-tile
 sample,57,1,1,6209,200245296,32250.81269125463
 sample,57,1,2,6520,200215060,30707.831288343557
 sample,57,1,3,6395,200236316,31311.38639562158
@@ -641,7 +641,7 @@ sample,57,2,17,6258,200112655,31977.094119527006
 sample,57,2,18,6304,200116260,31744.330583756346
 sample,57,2,19,6243,200121701,32055.37417908057
 sample,57,2,20,6256,200107747,31986.532448849106
-case,58,1,gemm-block+64x64x32+uniform+packed=4x4+timing=pack-plus-compute,ok,direct,pack-plus-compute,gemm-add-v1+64x64x32+uniform,packed=4x4,tiles=256;leftDoubles=2048;rightDoubles=2048;outputDoubles=4096;resetDoubles=4096;scratchDoubles=16;triangleDoubles=0,jvm-c/c-tile-v1/4x4
+case,58,1,gemm-block+64x64x32+uniform+packed=4x4+timing=pack-plus-compute,ok,direct,pack-plus-compute,c-tile
 sample,58,1,1,5476,200338909,36584.899379108836
 sample,58,1,2,5409,200240055,37019.79201331115
 sample,58,1,3,5451,200136475,36715.5521922583
@@ -662,9 +662,9 @@ sample,58,2,17,5672,200207929,35297.58973906911
 sample,58,2,18,5698,200216474,35138.02632502632
 sample,58,2,19,5882,200226097,34040.47891873513
 sample,58,2,20,5685,200126332,35202.52102022867
-case,59,2,gemm-block+64x64x32+uniform+packed=8x4+timing=prepacked-compute,unsupported,unsupported,arithmetic,gemm-add-v1+64x64x32+uniform,packed=8x4,tiles=128;leftDoubles=2048;rightDoubles=2048;outputDoubles=4096;resetDoubles=4096;scratchDoubles=32;triangleDoubles=0,unavailable
-case,60,2,gemm-block+64x64x32+uniform+packed=8x4+timing=pack-plus-compute,unsupported,unsupported,arithmetic,gemm-add-v1+64x64x32+uniform,packed=8x4,tiles=128;leftDoubles=2048;rightDoubles=2048;outputDoubles=4096;resetDoubles=4096;scratchDoubles=32;triangleDoubles=0,unavailable
-case,61,1,gemm-block+64x64x33+uniform+packed=4x4+timing=prepacked-compute,ok,direct,prepacked-compute,gemm-add-v1+64x64x33+uniform,packed=4x4,tiles=256;leftDoubles=2112;rightDoubles=2112;outputDoubles=4096;resetDoubles=4096;scratchDoubles=16;triangleDoubles=0,jvm-c/c-tile-v1/4x4
+case,59,2,gemm-block+64x64x32+uniform+packed=8x4+timing=prepacked-compute,unsupported,unsupported,arithmetic,unavailable
+case,60,2,gemm-block+64x64x32+uniform+packed=8x4+timing=pack-plus-compute,unsupported,unsupported,arithmetic,unavailable
+case,61,1,gemm-block+64x64x33+uniform+packed=4x4+timing=prepacked-compute,ok,direct,prepacked-compute,c-tile
 sample,61,1,1,5735,200243709,34916.07829119442
 sample,61,1,2,6197,200173627,32301.698725189606
 sample,61,1,3,6166,200155112,32461.09503730133
@@ -685,7 +685,7 @@ sample,61,2,17,6269,200109211,31920.43563566757
 sample,61,2,18,6271,200115828,31911.31047679796
 sample,61,2,19,6215,200151137,32204.52727272727
 sample,61,2,20,6178,200121731,32392.640174813856
-case,62,1,gemm-block+64x64x33+uniform+packed=4x4+timing=pack-plus-compute,ok,direct,pack-plus-compute,gemm-add-v1+64x64x33+uniform,packed=4x4,tiles=256;leftDoubles=2112;rightDoubles=2112;outputDoubles=4096;resetDoubles=4096;scratchDoubles=16;triangleDoubles=0,jvm-c/c-tile-v1/4x4
+case,62,1,gemm-block+64x64x33+uniform+packed=4x4+timing=pack-plus-compute,ok,direct,pack-plus-compute,c-tile
 sample,62,1,1,5421,200239907,36937.817192399925
 sample,62,1,2,5396,200171640,37096.3009636768
 sample,62,1,3,5353,200204658,37400.45918176723
@@ -706,9 +706,9 @@ sample,62,2,17,5403,200186240,37050.9420692208
 sample,62,2,18,5425,200186809,36900.794285714284
 sample,62,2,19,5376,200220849,37243.46149553572
 sample,62,2,20,5166,200170671,38747.71022067364
-case,63,2,gemm-block+64x64x33+uniform+packed=8x4+timing=prepacked-compute,unsupported,unsupported,arithmetic,gemm-add-v1+64x64x33+uniform,packed=8x4,tiles=128;leftDoubles=2112;rightDoubles=2112;outputDoubles=4096;resetDoubles=4096;scratchDoubles=32;triangleDoubles=0,unavailable
-case,64,2,gemm-block+64x64x33+uniform+packed=8x4+timing=pack-plus-compute,unsupported,unsupported,arithmetic,gemm-add-v1+64x64x33+uniform,packed=8x4,tiles=128;leftDoubles=2112;rightDoubles=2112;outputDoubles=4096;resetDoubles=4096;scratchDoubles=32;triangleDoubles=0,unavailable
-case,65,1,gemm-block+64x64x63+uniform+packed=4x4+timing=prepacked-compute,ok,direct,prepacked-compute,gemm-add-v1+64x64x63+uniform,packed=4x4,tiles=256;leftDoubles=4032;rightDoubles=4032;outputDoubles=4096;resetDoubles=4096;scratchDoubles=16;triangleDoubles=0,jvm-c/c-tile-v1/4x4
+case,63,2,gemm-block+64x64x33+uniform+packed=8x4+timing=prepacked-compute,unsupported,unsupported,arithmetic,unavailable
+case,64,2,gemm-block+64x64x33+uniform+packed=8x4+timing=pack-plus-compute,unsupported,unsupported,arithmetic,unavailable
+case,65,1,gemm-block+64x64x63+uniform+packed=4x4+timing=prepacked-compute,ok,direct,prepacked-compute,c-tile
 sample,65,1,1,4677,200361802,42839.81227282446
 sample,65,1,2,4527,200245974,44233.70311464546
 sample,65,1,3,4478,200163624,44699.33541759714
@@ -729,7 +729,7 @@ sample,65,2,17,4695,200148924,42630.22875399361
 sample,65,2,18,3910,200208463,51204.2104859335
 sample,65,2,19,4703,200188174,42566.05868594514
 sample,65,2,20,4740,200111831,42217.68586497891
-case,66,1,gemm-block+64x64x63+uniform+packed=4x4+timing=pack-plus-compute,ok,direct,pack-plus-compute,gemm-add-v1+64x64x63+uniform,packed=4x4,tiles=256;leftDoubles=4032;rightDoubles=4032;outputDoubles=4096;resetDoubles=4096;scratchDoubles=16;triangleDoubles=0,jvm-c/c-tile-v1/4x4
+case,66,1,gemm-block+64x64x63+uniform+packed=4x4+timing=pack-plus-compute,ok,direct,pack-plus-compute,c-tile
 sample,66,1,1,3901,200202122,51320.71827736478
 sample,66,1,2,3885,200129407,51513.36087516088
 sample,66,1,3,3900,200115331,51311.62333333334
@@ -750,9 +750,9 @@ sample,66,2,17,3901,200171966,51312.98795180723
 sample,66,2,18,3897,200229784,51380.49371311265
 sample,66,2,19,3908,200199121,51228.024820880244
 sample,66,2,20,4009,200217696,49942.05437765029
-case,67,2,gemm-block+64x64x63+uniform+packed=8x4+timing=prepacked-compute,unsupported,unsupported,arithmetic,gemm-add-v1+64x64x63+uniform,packed=8x4,tiles=128;leftDoubles=4032;rightDoubles=4032;outputDoubles=4096;resetDoubles=4096;scratchDoubles=32;triangleDoubles=0,unavailable
-case,68,2,gemm-block+64x64x63+uniform+packed=8x4+timing=pack-plus-compute,unsupported,unsupported,arithmetic,gemm-add-v1+64x64x63+uniform,packed=8x4,tiles=128;leftDoubles=4032;rightDoubles=4032;outputDoubles=4096;resetDoubles=4096;scratchDoubles=32;triangleDoubles=0,unavailable
-case,69,1,gemm-block+64x64x64+uniform+packed=4x4+timing=prepacked-compute,ok,direct,prepacked-compute,gemm-add-v1+64x64x64+uniform,packed=4x4,tiles=256;leftDoubles=4096;rightDoubles=4096;outputDoubles=4096;resetDoubles=4096;scratchDoubles=16;triangleDoubles=0,jvm-c/c-tile-v1/4x4
+case,67,2,gemm-block+64x64x63+uniform+packed=8x4+timing=prepacked-compute,unsupported,unsupported,arithmetic,unavailable
+case,68,2,gemm-block+64x64x63+uniform+packed=8x4+timing=pack-plus-compute,unsupported,unsupported,arithmetic,unavailable
+case,69,1,gemm-block+64x64x64+uniform+packed=4x4+timing=prepacked-compute,ok,direct,prepacked-compute,c-tile
 sample,69,1,1,4663,200293379,42953.75916791765
 sample,69,1,2,4483,200293669,44678.4896274816
 sample,69,1,3,4643,200292020,43138.49235408141
@@ -773,7 +773,7 @@ sample,69,2,17,3718,200147284,53831.97525551372
 sample,69,2,18,3412,200178738,58669.032239155924
 sample,69,2,19,4269,200195135,46895.089013820565
 sample,69,2,20,4442,200209277,45071.8768572715
-case,70,1,gemm-block+64x64x64+uniform+packed=4x4+timing=pack-plus-compute,ok,direct,pack-plus-compute,gemm-add-v1+64x64x64+uniform,packed=4x4,tiles=256;leftDoubles=4096;rightDoubles=4096;outputDoubles=4096;resetDoubles=4096;scratchDoubles=16;triangleDoubles=0,jvm-c/c-tile-v1/4x4
+case,70,1,gemm-block+64x64x64+uniform+packed=4x4+timing=pack-plus-compute,ok,direct,pack-plus-compute,c-tile
 sample,70,1,1,3845,200228667,52075.07594278284
 sample,70,1,2,3304,200179752,60587.09200968523
 sample,70,1,3,3762,200270276,53235.05475810739
@@ -794,9 +794,9 @@ sample,70,2,17,3807,200111207,52564.01549776727
 sample,70,2,18,3824,200197818,52352.985878661086
 sample,70,2,19,3812,200190556,52515.88562434418
 sample,70,2,20,3864,200130088,51793.501035196685
-case,71,2,gemm-block+64x64x64+uniform+packed=8x4+timing=prepacked-compute,unsupported,unsupported,arithmetic,gemm-add-v1+64x64x64+uniform,packed=8x4,tiles=128;leftDoubles=4096;rightDoubles=4096;outputDoubles=4096;resetDoubles=4096;scratchDoubles=32;triangleDoubles=0,unavailable
-case,72,2,gemm-block+64x64x64+uniform+packed=8x4+timing=pack-plus-compute,unsupported,unsupported,arithmetic,gemm-add-v1+64x64x64+uniform,packed=8x4,tiles=128;leftDoubles=4096;rightDoubles=4096;outputDoubles=4096;resetDoubles=4096;scratchDoubles=32;triangleDoubles=0,unavailable
-case,73,1,gemm-block+64x64x65+uniform+packed=4x4+timing=prepacked-compute,ok,direct,prepacked-compute,gemm-add-v1+64x64x65+uniform,packed=4x4,tiles=256;leftDoubles=4160;rightDoubles=4160;outputDoubles=4096;resetDoubles=4096;scratchDoubles=16;triangleDoubles=0,jvm-c/c-tile-v1/4x4
+case,71,2,gemm-block+64x64x64+uniform+packed=8x4+timing=prepacked-compute,unsupported,unsupported,arithmetic,unavailable
+case,72,2,gemm-block+64x64x64+uniform+packed=8x4+timing=pack-plus-compute,unsupported,unsupported,arithmetic,unavailable
+case,73,1,gemm-block+64x64x65+uniform+packed=4x4+timing=prepacked-compute,ok,direct,prepacked-compute,c-tile
 sample,73,1,1,4647,200223696,43086.657198192384
 sample,73,1,2,4615,200178216,43375.561430119174
 sample,73,1,3,4628,200108154,43238.5812445981
@@ -817,7 +817,7 @@ sample,73,2,17,4575,200194595,43758.38142076503
 sample,73,2,18,4386,200180410,45640.76835385317
 sample,73,2,19,4355,200141358,45956.683811710674
 sample,73,2,20,4566,200114805,43827.15834428384
-case,74,1,gemm-block+64x64x65+uniform+packed=4x4+timing=pack-plus-compute,ok,direct,pack-plus-compute,gemm-add-v1+64x64x65+uniform,packed=4x4,tiles=256;leftDoubles=4160;rightDoubles=4160;outputDoubles=4096;resetDoubles=4096;scratchDoubles=16;triangleDoubles=0,jvm-c/c-tile-v1/4x4
+case,74,1,gemm-block+64x64x65+uniform+packed=4x4+timing=pack-plus-compute,ok,direct,pack-plus-compute,c-tile
 sample,74,1,1,3896,200198349,51385.61319301848
 sample,74,1,2,3868,200224755,51764.41442605998
 sample,74,1,3,3868,200181696,51753.28231644261
@@ -838,9 +838,9 @@ sample,74,2,17,2870,200228589,69766.05888501742
 sample,74,2,18,2887,200253820,69363.98337374437
 sample,74,2,19,2947,200239820,67947.00373260943
 sample,74,2,20,3453,200275567,58000.453808282655
-case,75,2,gemm-block+64x64x65+uniform+packed=8x4+timing=prepacked-compute,unsupported,unsupported,arithmetic,gemm-add-v1+64x64x65+uniform,packed=8x4,tiles=128;leftDoubles=4160;rightDoubles=4160;outputDoubles=4096;resetDoubles=4096;scratchDoubles=32;triangleDoubles=0,unavailable
-case,76,2,gemm-block+64x64x65+uniform+packed=8x4+timing=pack-plus-compute,unsupported,unsupported,arithmetic,gemm-add-v1+64x64x65+uniform,packed=8x4,tiles=128;leftDoubles=4160;rightDoubles=4160;outputDoubles=4096;resetDoubles=4096;scratchDoubles=32;triangleDoubles=0,unavailable
-case,77,1,gemm-block+128x128x64+uniform+packed=4x4+timing=prepacked-compute,ok,direct,prepacked-compute,gemm-add-v1+128x128x64+uniform,packed=4x4,tiles=1024;leftDoubles=8192;rightDoubles=8192;outputDoubles=16384;resetDoubles=16384;scratchDoubles=16;triangleDoubles=0,jvm-c/c-tile-v1/4x4
+case,75,2,gemm-block+64x64x65+uniform+packed=8x4+timing=prepacked-compute,unsupported,unsupported,arithmetic,unavailable
+case,76,2,gemm-block+64x64x65+uniform+packed=8x4+timing=pack-plus-compute,unsupported,unsupported,arithmetic,unavailable
+case,77,1,gemm-block+128x128x64+uniform+packed=4x4+timing=prepacked-compute,ok,direct,prepacked-compute,c-tile
 sample,77,1,1,1073,200370764,186738.8294501398
 sample,77,1,2,1167,200153364,171511.02313624677
 sample,77,1,3,1177,200288822,170168.92268479185
@@ -861,7 +861,7 @@ sample,77,2,17,1192,200202193,167954.85989932885
 sample,77,2,18,1194,200220171,167688.58542713567
 sample,77,2,19,1192,200302815,168039.27432885906
 sample,77,2,20,1186,200246244,168841.6897133221
-case,78,1,gemm-block+128x128x64+uniform+packed=4x4+timing=pack-plus-compute,ok,direct,pack-plus-compute,gemm-add-v1+128x128x64+uniform,packed=4x4,tiles=1024;leftDoubles=8192;rightDoubles=8192;outputDoubles=16384;resetDoubles=16384;scratchDoubles=16;triangleDoubles=0,jvm-c/c-tile-v1/4x4
+case,78,1,gemm-block+128x128x64+uniform+packed=4x4+timing=pack-plus-compute,ok,direct,pack-plus-compute,c-tile
 sample,78,1,1,1065,200251708,188029.77276995307
 sample,78,1,2,1083,200364519,185008.7894736842
 sample,78,1,3,1071,200319963,187040.11484593837
@@ -882,9 +882,9 @@ sample,78,2,17,1068,200303614,187550.20037453182
 sample,78,2,18,1093,200267012,183226.90942360475
 sample,78,2,19,1071,200430127,187142.97572362277
 sample,78,2,20,1067,200243015,187669.17994376758
-case,79,2,gemm-block+128x128x64+uniform+packed=8x4+timing=prepacked-compute,unsupported,unsupported,arithmetic,gemm-add-v1+128x128x64+uniform,packed=8x4,tiles=512;leftDoubles=8192;rightDoubles=8192;outputDoubles=16384;resetDoubles=16384;scratchDoubles=32;triangleDoubles=0,unavailable
-case,80,2,gemm-block+128x128x64+uniform+packed=8x4+timing=pack-plus-compute,unsupported,unsupported,arithmetic,gemm-add-v1+128x128x64+uniform,packed=8x4,tiles=512;leftDoubles=8192;rightDoubles=8192;outputDoubles=16384;resetDoubles=16384;scratchDoubles=32;triangleDoubles=0,unavailable
-case,81,1,gemm-block+128x8x64+uniform+packed=4x4+timing=prepacked-compute,ok,direct,prepacked-compute,gemm-add-v1+128x8x64+uniform,packed=4x4,tiles=64;leftDoubles=8192;rightDoubles=512;outputDoubles=1024;resetDoubles=1024;scratchDoubles=16;triangleDoubles=0,jvm-c/c-tile-v1/4x4
+case,79,2,gemm-block+128x128x64+uniform+packed=8x4+timing=prepacked-compute,unsupported,unsupported,arithmetic,unavailable
+case,80,2,gemm-block+128x128x64+uniform+packed=8x4+timing=pack-plus-compute,unsupported,unsupported,arithmetic,unavailable
+case,81,1,gemm-block+128x8x64+uniform+packed=4x4+timing=prepacked-compute,ok,direct,prepacked-compute,c-tile
 sample,81,1,1,18751,200181387,10675.771265532505
 sample,81,1,2,18719,200171058,10693.469629787916
 sample,81,1,3,18740,200212528,10683.69946638207
@@ -905,7 +905,7 @@ sample,81,2,17,19290,200215612,10379.24375324002
 sample,81,2,18,19142,200255808,10461.592728032598
 sample,81,2,19,19295,200235846,10377.6027986525
 sample,81,2,20,19214,200236369,10421.378630165504
-case,82,1,gemm-block+128x8x64+uniform+packed=4x4+timing=pack-plus-compute,ok,direct,pack-plus-compute,gemm-add-v1+128x8x64+uniform,packed=4x4,tiles=64;leftDoubles=8192;rightDoubles=512;outputDoubles=1024;resetDoubles=1024;scratchDoubles=16;triangleDoubles=0,jvm-c/c-tile-v1/4x4
+case,82,1,gemm-block+128x8x64+uniform+packed=4x4+timing=pack-plus-compute,ok,direct,pack-plus-compute,c-tile
 sample,82,1,1,10499,200254059,19073.631679207545
 sample,82,1,2,10544,200217687,18988.779116084977
 sample,82,1,3,10599,200201654,18888.730446268517
@@ -926,5 +926,5 @@ sample,82,2,17,10779,200285352,18581.069858057333
 sample,82,2,18,10738,200236635,18647.47951201341
 sample,82,2,19,10966,200206316,18257.00492431151
 sample,82,2,20,10319,200269648,19407.854249442775
-case,83,2,gemm-block+128x8x64+uniform+packed=8x4+timing=prepacked-compute,unsupported,unsupported,arithmetic,gemm-add-v1+128x8x64+uniform,packed=8x4,tiles=32;leftDoubles=8192;rightDoubles=512;outputDoubles=1024;resetDoubles=1024;scratchDoubles=32;triangleDoubles=0,unavailable
-case,84,2,gemm-block+128x8x64+uniform+packed=8x4+timing=pack-plus-compute,unsupported,unsupported,arithmetic,gemm-add-v1+128x8x64+uniform,packed=8x4,tiles=32;leftDoubles=8192;rightDoubles=512;outputDoubles=1024;resetDoubles=1024;scratchDoubles=32;triangleDoubles=0,unavailable
+case,83,2,gemm-block+128x8x64+uniform+packed=8x4+timing=prepacked-compute,unsupported,unsupported,arithmetic,unavailable
+case,84,2,gemm-block+128x8x64+uniform+packed=8x4+timing=pack-plus-compute,unsupported,unsupported,arithmetic,unavailable

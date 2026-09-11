@@ -44,53 +44,19 @@ internal class PackedConfiguration(val case: BenchCase) {
     }
 }
 
-internal val BenchCase.logicalId: String get() = buildString {
-    append(when (operation) {
-        "gemm-tile", "gemm-block" -> "gemm-add-v1"
-        "packed-trsm" -> "right-solve-v1"
-        "gemm-trsm" -> "update-solve-v1"
-        else -> "$operation-v1"
-    })
-    append('+'); append(dimensions.joinToString("x")); append('+'); append(fixture)
-    for ((key, value) in options) if (key != "packed" && key != "timing") {
-        append('+'); append(key); append('='); append(value)
-    }
-}
-
-internal val BenchCase.configurationId: String get() = options["packed"]?.let { "packed=$it" } ?: "policy-v1"
-
-/** Physical arithmetic visits and buffer extents, in doubles. */
-internal val BenchCase.physicalWork: String get() {
-    if ("packed" !in options) return "policy"
-    val p = PackedConfiguration(this)
-    val layout = operation.startsWith("pack-") || operation.startsWith("write-") || operation.startsWith("clear-")
-    if (layout) {
-        val size = if ("left" in operation) ((p.m + p.rows - 1) / p.rows) * p.rows * p.n
-            else ((p.n + p.columns - 1) / p.columns) * p.columns * p.m
-        return "panelDoubles=$size"
-    }
-    val tiles = if (operation == "gemm-block") p.rowTiles * p.columnTiles else 1
-    val left = if (operation == "packed-trsm") 0 else p.leftSize
-    val right = if (operation == "packed-trsm") 0 else p.rightSize
-    val triangle = if (operation in setOf("packed-trsm", "gemm-trsm")) p.columns * p.columns else 0
-    val output = if (operation == "gemm-block") p.m * p.n else p.rows * p.columns
-    val scratch = if (operation == "gemm-block") p.rows * p.columns else 0
-    return "tiles=$tiles;leftDoubles=$left;rightDoubles=$right;outputDoubles=$output;resetDoubles=$output;scratchDoubles=$scratch;triangleDoubles=$triangle"
-}
-
 internal expect fun benchmarkPackedKernels(engine: com.eignex.koblas.KoblasEngine): com.eignex.koblas.dense.PackedKernels
 
 internal fun actualPackedKernel(case: BenchCase, mode: String, status: String): String {
     if (status != "ok") return "unavailable"
-    if ("packed" !in case.options) return "$mode/policy-v1"
+    if ("packed" !in case.options) return "policy"
     val operation = case.operation
     val component = when {
-        operation.startsWith("pack-") || operation.startsWith("write-") || operation.startsWith("clear-") -> "portable-layout-v1"
-        operation == "packed-trsm" && mode.startsWith("jvm") -> "portable-solve-v1"
-        mode == "jvm-scalar" -> "portable-tile-v1"
-        mode == "jvm-simd" && operation == "gemm-trsm" -> "vector-update-portable-solve-v1"
-        mode == "jvm-simd" -> "vector-tile-v1"
-        else -> "c-tile-v1"
+        operation.startsWith("pack-") || operation.startsWith("write-") || operation.startsWith("clear-") -> "portable-layout"
+        operation == "packed-trsm" && mode.startsWith("jvm") -> "portable-solve"
+        mode == "jvm-scalar" -> "portable-tile"
+        mode == "jvm-simd" && operation == "gemm-trsm" -> "vector-update-portable-solve"
+        mode == "jvm-simd" -> "vector-tile"
+        else -> "c-tile"
     }
-    return "$mode/$component/${case.options.getValue("packed")}"
+    return component
 }

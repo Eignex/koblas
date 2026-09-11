@@ -29,16 +29,6 @@ class PackedConfigurationTest {
     }
 
     @Test
-    fun `logical identity is independent of tile geometry`() {
-        val four = Cases.parse(BLOCK).single()
-        val eight = Cases.parse(eightRows()).single()
-
-        assertEquals(four.logicalId, eight.logicalId)
-        assertTrue(four.configurationId != eight.configurationId)
-        assertTrue(four.physicalWork != eight.physicalWork)
-    }
-
-    @Test
     fun `logical matrices have stable digests before packing`() {
         assertEquals(digest(Fixtures.vector(15 * 31, 1)), digest(Fixtures.matrix(15, 31, 1).data))
         assertEquals(digest(Fixtures.vector(31 * 7, 2)), digest(Fixtures.matrix(31, 7, 2).data))
@@ -47,10 +37,8 @@ class PackedConfigurationTest {
     @Test
     fun `fixed work rejects a backend with different geometry`() {
         val case = Cases.parse(eightRows()).single()
-        val before = case.physicalWork
 
         assertNull(denseWork(case, BuiltinEngines.scalar))
-        assertEquals(before, case.physicalWork)
         assertEquals(16 * 31, PackedConfiguration(case).leftSize)
     }
 

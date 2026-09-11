@@ -10,9 +10,9 @@ candidate="$temporary/candidate.csv"
 fail() { echo "$*" >&2; exit 1; }
 
 header() {
-  echo 'schema,5'
+  echo 'schema,6'
   echo 'run,id,implementation,workload_version,fixture_version,pass,unit,source_commit,dirty,runtime,threads,warmups,target_ns,harness,warmup_target_ns,forks'
-  echo 'case,id,run_id,case,status,comparison_kind,timing_mode,logical_id,configuration,physical_work,actual_kernel'
+  echo 'case,id,run_id,case,status,comparison_kind,timing_mode,actual_kernel'
   echo 'sample,case_id,fork,sample,operations,elapsed_ns,ns_per_op'
 }
 
@@ -32,16 +32,15 @@ row() {
   }
   BEGIN {
     run = "implementation workload_version fixture_version pass unit source_commit dirty runtime threads warmups target_ns harness warmup_target_ns forks"
-    case_fields = "case status comparison_kind timing_mode logical_id configuration physical_work actual_kernel"
+    case_fields = "case status comparison_kind timing_mode actual_kernel"
     sample = "fork sample operations elapsed_ns ns_per_op"
     count = split(run " " case_fields " " sample, fields)
     for (i = 1; i <= count; i++) values[fields[i]] = "1"
     values["timing_mode"] = "prepacked-compute"
     values["comparison_kind"] = "direct"
-    values["configuration"] = "tile-four"
-    values["physical_work"] = "tiles=4"
-    values["case"] = "old-kernel+shape"
-    values["logical_id"] = "gemm-add-v1+shape"
+    values["case"] = "gemm-block+15x7x31+uniform+packed=4x4+timing=prepacked-compute"
+    values["implementation"] = "jvm-c"
+    values["actual_kernel"] = "c-tile"
     values["status"] = "ok"
     values["ns_per_op"] = "2"
     for (i = 1; i < ARGC; i++) {
@@ -75,26 +74,52 @@ lines() { [[ $(wc -l <"$temporary/output.csv") -eq $1 ]] || fail "unexpected com
 # Logical mode retains each layout pair instead of pooling distinct physical strategies.
 report "$base"
 report "$candidate"
-row configuration=tile-eight physical_work=tiles=2 case=new-kernel+shape >>"$candidate"
+row case=gemm-block+15x7x31+uniform+packed=8x4+timing=prepacked-compute >>"$candidate"
 accept logical
 lines 3
-report "$candidate" configuration=tile-eight physical_work=tiles=2 case=new-kernel+shape
+report "$candidate" case=gemm-block+15x7x31+uniform+packed=8x4+timing=prepacked-compute
 reject fixed
 
-# Mathematical identity survives renaming the operation and actual symbol.
-report "$candidate" case=new-name actual_kernel=new-symbol
+# Mathematical identity survives renaming the actual kernel symbol.
+report "$candidate" actual_kernel=new-symbol
 accept fixed
 lines 2
 
 # Semantic and physical boundaries must match even when logical identity matches.
-for field in fixture_version workload_version timing_mode physical_work threads warmups target_ns; do
+for field in fixture_version workload_version timing_mode threads warmups target_ns; do
   report "$candidate" "$field=different"
   reject fixed
 done
 for timing in raw-tile packing-only layout-only vendor-arithmetic; do
   report "$base" "timing_mode=$timing"
-  report "$candidate" "timing_mode=$timing" physical_work=tiles=2
+  report "$candidate" "timing_mode=$timing" case=gemm-block+15x7x31+uniform+packed=8x4+timing=prepacked-compute
   reject logical
+done
+
+# Option order does not change identity; matrix flags and fixtures do.
+report "$base"
+report "$candidate" case=gemm-block+15x7x31+uniform+timing=prepacked-compute+packed=4x4
+accept fixed
+for value in 'gemm-block+15x7x31+other+packed=4x4+timing=prepacked-compute' \
+  'gemm-block+15x7x31+uniform+packed=4x4+transA=T+timing=prepacked-compute'; do
+  report "$candidate" "case=$value"
+  reject logical
+done
+
+# Vendors use column-major storage even when the requested case has a packed recipe.
+report "$candidate" implementation=openblas actual_kernel=vendor-cblas
+accept logical
+reject fixed
+report "$base" timing_mode=raw-tile
+report "$candidate" implementation=openblas actual_kernel=vendor-cblas timing_mode=raw-tile
+reject logical
+
+# Invalid or ambiguous recipes cannot produce a fixed comparison.
+report "$base"
+for value in 'gemm-block+15x7x31+uniform+packed=16x4' \
+  'gemm-block+15x7x31+uniform+packed=4x4+packed=8x4' 'gemm-block+shape+uniform'; do
+  report "$candidate" "case=$value"
+  reject fixed
 done
 
 # A timing selector excludes incompatible raw calls; repeated selectors retain both block modes.
@@ -112,39 +137,39 @@ lines 3
 
 # Policy rows cannot become fixed experiments merely by agreeing with themselves.
 report "$base"
-row configuration=policy-v1 physical_work=policy >>"$base"
+row case=gemm+15x7x31+uniform >>"$base"
 cp "$base" "$candidate"
 accept fixed
 lines 2
-report "$base" configuration=policy-v1
+report "$base" case=gemm+15x7x31+uniform
 cp "$base" "$candidate"
 reject fixed
 
 # Disjoint, unsupported-only and historical reports cannot silently pass strict comparison.
 report "$base"
-for patch in logical_id=different status=unsupported; do
+for patch in case=gemm-block+16x7x31+uniform+packed=4x4+timing=prepacked-compute status=unsupported; do
   report "$candidate" "$patch"
   reject logical
 done
 
 report "$candidate"
-sed -i '1s/schema,5/schema,4/' "$candidate"
+sed -i '1s/schema,6/schema,4/' "$candidate"
 reject logical
 
 # Quoted CSV fields round-trip, while sample aggregation uses medians and extrema.
-report "$base" 'case=quoted "case", one' ns_per_op=1
-row 'case=quoted "case", one' ns_per_op=3 >>"$base"
-report "$candidate" 'case=quoted "case", one' ns_per_op=2
-row 'case=quoted "case", one' ns_per_op=4 >>"$candidate"
+report "$base" 'actual_kernel=quoted "kernel", one' ns_per_op=1
+row 'actual_kernel=quoted "kernel", one' ns_per_op=3 >>"$base"
+report "$candidate" 'actual_kernel=quoted "kernel", one' ns_per_op=2
+row 'actual_kernel=quoted "kernel", one' ns_per_op=4 >>"$candidate"
 accept fixed
-grep -Fq '"quoted ""case"", one"' "$temporary/output.csv" || fail "quoted case did not round-trip"
+grep -Fq '"quoted ""kernel"", one"' "$temporary/output.csv" || fail "quoted kernel did not round-trip"
 grep -Eq ',2,3,2,4,0[.]66666[0-9]+$' "$temporary/output.csv" || fail "incorrect sample statistics"
 
 # Embedded newlines remain one CSV field, and numeric-looking metadata matches textually.
-report "$base" $'case=first line\nsecond line'
+report "$base" $'actual_kernel=first line\nsecond line'
 cp "$base" "$candidate"
 accept fixed
-grep -Fq 'second line"' "$temporary/output.csv" || fail "multiline case did not round-trip"
+grep -Fq 'second line"' "$temporary/output.csv" || fail "multiline kernel did not round-trip"
 report "$base" fixture_version=1
 report "$candidate" fixture_version=01
 reject fixed
@@ -163,7 +188,7 @@ reject logical
 
 # Every candidate is checked separately, including a filename containing an equals sign.
 report "$candidate"
-report "$temporary/second=report.csv" configuration=tile-eight
+report "$temporary/second=report.csv" case=gemm-block+15x7x31+uniform+packed=8x4+timing=prepacked-compute
 "$tools/compare.sh" --mode logical --require-compatible "$base" "$candidate" "$temporary/second=report.csv" >"$temporary/output.csv"
 lines 3
 if "$tools/compare.sh" "$base" "$candidate" >/dev/null 2>&1; then fail "missing comparison mode accepted"; fi

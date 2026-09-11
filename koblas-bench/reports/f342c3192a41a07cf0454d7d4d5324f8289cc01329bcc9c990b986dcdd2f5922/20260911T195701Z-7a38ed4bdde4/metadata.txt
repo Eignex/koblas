@@ -10,6 +10,8 @@ operation=all suite=packed warmups=5 samples=10 target_ms=200 forks=2 pass=1 lib
 completed_at=2026-09-11T20:17:46.036698+00:00
 Vendor runners started after commit 107ea102 (capture script, README and example only); their CSVs retain that source SHA. Benchmark sources stayed unchanged throughout.
 
+Re-encoded as CSV schema 6: derived case metadata removed and kernel/harness labels shortened; raw samples and source SHAs unchanged.
+
 [toolchain]
 clang version 21.1.6
 Target: x86_64-unknown-linux-gnu

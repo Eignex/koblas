@@ -42,7 +42,6 @@ class CasesTest {
         val actual = Cases.parse(reordered).single()
 
         assertEquals(expected, actual)
-        assertEquals(expected.logicalId, actual.logicalId)
         assertFailsWith<IllegalArgumentException> { Cases.parse("$canonical\n$reordered") }
     }
 
