@@ -10,7 +10,7 @@ operation=all suite=packed warmups=5 samples=10 target_ms=200 forks=2 pass=1 lib
 completed_at=2026-09-11T20:17:46.036698+00:00
 Vendor runners started after commit 107ea102 (capture script, README and example only); their CSVs retain that source SHA. Benchmark sources stayed unchanged throughout.
 
-Re-encoded as CSV schema 6: derived case metadata removed and kernel/harness labels shortened; raw samples and source SHAs unchanged.
+Re-encoded as compact CSV: derived case metadata removed and kernel/harness labels shortened; raw samples and source SHAs unchanged.
 
 [toolchain]
 clang version 21.1.6
@@ -25,7 +25,6 @@ No CPU affinity, frequency governor, thermal stabilization or host exclusivity w
 Only one repository benchmark workload was run at a time. No hardware-to-hardware comparison is claimed.
 
 [hardware]
-schema=1
 architecture=x86_64
 vendor id=GenuineIntel
 model name=12th Gen Intel(R) Core(TM) i9-12900H

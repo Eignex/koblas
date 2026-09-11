@@ -1,8 +1,7 @@
-schema,6
-run,id,implementation,workload_version,fixture_version,pass,unit,source_commit,dirty,runtime,threads,warmups,target_ns,harness,warmup_target_ns,forks
+run,id,implementation,pass,unit,source_commit,dirty,runtime,threads,warmups,target_ns,harness,warmup_target_ns,forks
 case,id,run_id,case,status,comparison_kind,timing_mode,actual_kernel
 sample,case_id,fork,sample,operations,elapsed_ns,ns_per_op
-run,1,openblas,5,2,1,ns,107ea102c7d2f4adeb9383f78d03d97e462f70b8,true,OpenBLAS 0.3.32 NO_LAPACKE DYNAMIC_ARCH NO_AFFINITY Haswell MAX_THREADS=128; compiler=15.2.0,1,5,200000000,vendor-calibrated,50000000,1
+run,1,openblas,1,ns,107ea102c7d2f4adeb9383f78d03d97e462f70b8,true,OpenBLAS 0.3.32 NO_LAPACKE DYNAMIC_ARCH NO_AFFINITY Haswell MAX_THREADS=128; compiler=15.2.0,1,5,200000000,vendor-calibrated,50000000,1
 case,1,1,gemm-tile+4x4x32+uniform+packed=4x4,ok,partial,vendor-arithmetic,vendor-cblas
 sample,1,1,1,524288,109914004,209.64432525634766
 sample,1,1,2,524288,109851562,209.52522659301758

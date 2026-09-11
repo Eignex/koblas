@@ -1,8 +1,5 @@
 package com.eignex.koblas.bench
 
-internal const val WORKLOAD_VERSION = "5"
-internal const val FIXTURE_VERSION = "2"
-
 internal data class BenchCase(
     val operation: String,
     val dimensions: List<Int>,

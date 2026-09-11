@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-echo "schema=1"
 echo "architecture=$(uname -m)"
 
 if [[ $(uname -s) == Linux ]]; then

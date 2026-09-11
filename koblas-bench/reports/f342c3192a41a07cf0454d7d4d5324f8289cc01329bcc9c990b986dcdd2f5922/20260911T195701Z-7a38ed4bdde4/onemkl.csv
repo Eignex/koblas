@@ -1,8 +1,7 @@
-schema,6
-run,id,implementation,workload_version,fixture_version,pass,unit,source_commit,dirty,runtime,threads,warmups,target_ns,harness,warmup_target_ns,forks
+run,id,implementation,pass,unit,source_commit,dirty,runtime,threads,warmups,target_ns,harness,warmup_target_ns,forks
 case,id,run_id,case,status,comparison_kind,timing_mode,actual_kernel
 sample,case_id,fork,sample,operations,elapsed_ns,ns_per_op
-run,1,onemkl,5,2,1,ns,107ea102c7d2f4adeb9383f78d03d97e462f70b8,true,Intel(R) oneAPI Math Kernel Library Version 2026.1-Product Build 20260612 for Intel(R) 64 architecture applications; compiler=15.2.0,1,5,200000000,vendor-calibrated,50000000,1
+run,1,onemkl,1,ns,107ea102c7d2f4adeb9383f78d03d97e462f70b8,true,Intel(R) oneAPI Math Kernel Library Version 2026.1-Product Build 20260612 for Intel(R) 64 architecture applications; compiler=15.2.0,1,5,200000000,vendor-calibrated,50000000,1
 case,1,1,gemm-tile+4x4x32+uniform+packed=4x4,ok,partial,vendor-arithmetic,vendor-cblas
 sample,1,1,1,524288,128745789,245.5631046295166
 sample,1,1,2,524288,128073865,244.2815113067627

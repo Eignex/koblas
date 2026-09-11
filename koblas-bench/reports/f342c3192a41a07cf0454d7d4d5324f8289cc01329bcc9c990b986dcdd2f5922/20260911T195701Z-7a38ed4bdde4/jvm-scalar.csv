@@ -1,8 +1,7 @@
-schema,6
-run,id,implementation,workload_version,fixture_version,pass,unit,source_commit,dirty,runtime,threads,warmups,target_ns,harness,warmup_target_ns,forks
+run,id,implementation,pass,unit,source_commit,dirty,runtime,threads,warmups,target_ns,harness,warmup_target_ns,forks
 case,id,run_id,case,status,comparison_kind,timing_mode,actual_kernel
 sample,case_id,fork,sample,operations,elapsed_ns,ns_per_op
-run,1,jvm-scalar/scalar/scalar/packed-4x4,5,2,1,ns,7a38ed4bdde4f7b167b5dbe3924fffe6ca7555fa,true,kotlin-2.4.10/jvm/Eclipse Adoptium/25.0.1/JMH 1.37/forks=2,1,5,200000000,jmh-average-time,200000000,2
+run,1,jvm-scalar/scalar/scalar/packed-4x4,1,ns,7a38ed4bdde4f7b167b5dbe3924fffe6ca7555fa,true,kotlin-2.4.10/jvm/Eclipse Adoptium/25.0.1/JMH 1.37/forks=2,1,5,200000000,jmh-average-time,200000000,2
 case,1,1,gemm-tile+4x4x32+uniform+packed=4x4,ok,partial,raw-tile,portable-tile
 sample,1,1,1,557765,203204963,364.3200326302296
 sample,1,1,2,573599,202967104,353.84842721134453
@@ -129,7 +128,7 @@ sample,6,2,17,591101,203430221,344.15475697046696
 sample,6,2,18,642540,200116805,311.4464546954275
 sample,6,2,19,549545,202315025,368.15006050459925
 sample,6,2,20,458207,206127231,449.8561370734188
-run,2,jvm-scalar/scalar/scalar/packed-4x4,5,2,1,ns,7a38ed4bdde4f7b167b5dbe3924fffe6ca7555fa,true,kotlin-2.4.10/jvm/Eclipse Adoptium/25.0.1,1,5,200000000,jmh-average-time,200000000,2
+run,2,jvm-scalar/scalar/scalar/packed-4x4,1,ns,7a38ed4bdde4f7b167b5dbe3924fffe6ca7555fa,true,kotlin-2.4.10/jvm/Eclipse Adoptium/25.0.1,1,5,200000000,jmh-average-time,200000000,2
 case,7,2,gemm-tile+8x4x32+uniform+packed=8x4,unsupported,unsupported,arithmetic,unavailable
 case,8,2,gemm-tile+7x2x31+uniform+packed=8x4,unsupported,unsupported,arithmetic,unavailable
 case,9,2,packed-trsm+8x4+triangular+packed=8x4+uplo=L+diag=N,unsupported,unsupported,arithmetic,unavailable

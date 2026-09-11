@@ -1,6 +1,4 @@
 #define _POSIX_C_SOURCE 200809L
-#define WORKLOAD_VERSION "5"
-#define FIXTURE_VERSION "2"
 #include <cblas.h>
 #include <errno.h>
 #include <inttypes.h>
@@ -453,11 +451,10 @@ int main(int argc,char **argv){
     fixture_check();numerical_check();
     int case_count=0;bench_case *cases=load_cases(cases_path,&case_count);
     FILE *output=fopen(output_path,"w");if(!output){perror(output_path);exit(2);}
-    fputs("schema,6\n"
-        "run,id,implementation,workload_version,fixture_version,pass,unit,source_commit,dirty,runtime,threads,warmups,target_ns,harness,warmup_target_ns,forks\n"
+    fputs("run,id,implementation,pass,unit,source_commit,dirty,runtime,threads,warmups,target_ns,harness,warmup_target_ns,forks\n"
         "case,id,run_id,case,status,comparison_kind,timing_mode,actual_kernel\n"
         "sample,case_id,fork,sample,operations,elapsed_ns,ns_per_op\n",output);
-    fprintf(output,"run,1,%s," WORKLOAD_VERSION "," FIXTURE_VERSION ",%s,ns,%s,%s,%s,1,%d,%" PRIu64 ",vendor-calibrated,%" PRIu64 ",1\n",
+    fprintf(output,"run,1,%s,%s,ns,%s,%s,%s,1,%d,%" PRIu64 ",vendor-calibrated,%" PRIu64 ",1\n",
         implementation,pass,commit,dirty,runtime,warmups,target_ns,target_ns/4>1000000?target_ns/4:UINT64_C(1000000));
     volatile double sink=0;
     for(int index=0;index<case_count;++index){

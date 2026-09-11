@@ -48,10 +48,10 @@ IFS=+ read -r -a fields <<<"$packed"
 for field in "${fields[@]:3}"; do
   reject_case missing-field "${packed/+${field}/}"
 done
-for override in leftStride=8 alignment=64 panel=32 batch=2 leftLayout=depth-rows-v2; do
+for override in leftStride=8 alignment=64 panel=32 batch=2 leftLayout=custom-layout; do
   reject_case override "$packed+$override"
 done
-reject_case recipe "${packed/packed=4x4/packed=4x4-v1}"
+reject_case recipe "${packed/packed=4x4/packed=4x4-custom}"
 reject_case duplicate-option "$packed+packed=4x4"
 reordered=${packed/+packed=4x4/}+packed=4x4
 reject_case duplicate-order "$packed"$'\n'"$reordered"
