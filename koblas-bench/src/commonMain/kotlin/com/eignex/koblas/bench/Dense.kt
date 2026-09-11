@@ -13,6 +13,7 @@ internal class CaseWork(
     val timingMode: String,
     val run: () -> Double,
     val close: () -> Unit = {},
+    val result: DoubleArray? = null,
 )
 
 internal fun denseWork(case: BenchCase, engine: KoblasEngine): CaseWork? {
@@ -170,33 +171,40 @@ private fun triangularMatrixWork(case: BenchCase, engine: KoblasEngine): CaseWor
 
 private fun packedWork(case: BenchCase, engine: KoblasEngine): CaseWork? {
     if (case.operation !in setOf(
-            "gemm-tile", "packed-trsm", "gemm-trsm", "pack-left", "pack-right", "pack-symmetric-left",
+            "gemm-block", "gemm-tile", "packed-trsm", "gemm-trsm", "pack-left", "pack-right", "pack-symmetric-left",
             "pack-symmetric-right", "pack-triangular-left", "pack-triangular-right", "write-left", "write-right",
             "clear-left-padding", "clear-right-padding",
         )) return null
-    val packed = engine.packedKernels
+    val packed = benchmarkPackedKernels(engine)
     val panels = engine.packedPanels
-    val physical = case.option("physical", "4x4").split('x').map(String::toInt)
+    val physical = case.options.getValue("physical").split('x').map(String::toInt)
     val layoutOperation = case.operation.startsWith("pack-") || case.operation.startsWith("write-") || case.operation.startsWith("clear-")
     val actualRows = if (layoutOperation) panels.tileRows else packed.gemmTileRows
     val actualColumns = if (layoutOperation) panels.tileColumns else packed.gemmTileCols
     if (actualRows != physical[0] || actualColumns != physical[1]) return null
+    if (case.operation == "gemm-block") return packedBlockWork(case, engine)
     val rows = case.dimension(0); val second = case.dimension(1); val depth = if (case.dimensions.size == 3) case.dimension(2) else second
     val leftDepth = if (layoutOperation) second else depth
     val rightDepth = if (layoutOperation) rows else depth
-    val left = DoubleArray(leftDepth * physical[0]).also { Fixtures.vector(it.size, 1).copyInto(it) }
-    val right = DoubleArray(rightDepth * physical[1]).also { Fixtures.vector(it.size, 2).copyInto(it) }
+    val left = DoubleArray(if (case.operation == "packed-trsm" || layoutOperation && "right" in case.operation) 0 else leftDepth * physical[0])
+    val right = DoubleArray(if (case.operation == "packed-trsm" || layoutOperation && "left" in case.operation) 0 else rightDepth * physical[1])
     if (!layoutOperation && case.operation != "packed-trsm") {
-        for (p in 0 until depth) for (i in rows until physical[0]) left[i + p * physical[0]] = 0.0
-        for (p in 0 until depth) for (j in second until physical[1]) right[j + p * physical[1]] = 0.0
+        val logicalLeft = Fixtures.matrix(rows, depth, 1)
+        val logicalRight = Fixtures.matrix(depth, second, 2)
+        panels.packLeft(logicalLeft, left, rows, depth)
+        panels.packRight(logicalRight, right, depth, second)
     }
-    val triangle = DoubleArray(physical[1] * physical[1])
+    val triangle = DoubleArray(if (case.operation in setOf("packed-trsm", "gemm-trsm")) physical[1] * physical[1] else 0)
     val lower = case.option("uplo", "L") == "L"; val unit = case.option("diag", "N") == "U"
     if (case.operation == "packed-trsm" || case.operation == "gemm-trsm") {
         packedTriangleFixture(second, physical[1], lower).copyInto(triangle)
     }
-    val output0 = Fixtures.vector(physical[0] * physical[1], 4); val output = output0.copyOf()
-    val timing = if (layoutOperation) "layout" else "arithmetic-only"
+    if (layoutOperation) return packedLayoutWork(case, panels, rows, second, left, right, lower, unit)
+    val output0 = DoubleArray(physical[0] * physical[1])
+    val logicalOutput = Fixtures.matrix(rows, second, 4)
+    for (j in 0 until second) for (i in 0 until rows) output0[i + j * physical[0]] = logicalOutput[i, j]
+    val output = output0.copyOf()
+    val timing = case.options.getValue("timing")
     val comparison = when (case.operation) { "gemm-tile", "packed-trsm" -> "partial"; "gemm-trsm" -> "composed"; else -> "unsupported" }
     return when (case.operation) {
         "gemm-tile" -> CaseWork(comparison, timing, { output0.copyInto(output); packed.gemmTile(depth, left, 0, right, 0, output, 0, physical[0]); output[0] })
@@ -225,7 +233,8 @@ private fun packedLayoutWork(
     }
     val destination = DenseMatrix.zero(first, second)
     val panel = if (isLeft) left else right
-    return CaseWork("unsupported", "layout", {
+    if (isLeft) panels.packLeft(source, panel, first, second) else panels.packRight(source, panel, first, second)
+    return CaseWork("unsupported", case.options.getValue("timing"), {
         when (case.operation) {
             "pack-left" -> panels.packLeft(source, panel, first, second)
             "pack-right" -> panels.packRight(source, panel, first, second)
@@ -240,4 +249,41 @@ private fun packedLayoutWork(
         }
         if (case.operation.startsWith("write")) destination.data[0] else panel[0]
     })
+}
+
+/** Timed old tile traversal for one logical block, with retained scratch and no hidden cache-block selection. */
+internal fun packedBlockWork(case: BenchCase, engine: KoblasEngine): CaseWork {
+    val p = PackedConfiguration(case)
+    val a = Fixtures.matrix(p.m, p.depth, 1)
+    val b = Fixtures.matrix(p.depth, p.n, 2)
+    val initial = Fixtures.matrix(p.m, p.n, 4)
+    val output = DenseMatrix.zero(p.m, p.n)
+    val left = DoubleArray(p.leftSize)
+    val right = DoubleArray(p.rightSize)
+    val tile = DoubleArray(p.rows * p.columns)
+    val panels = engine.packedPanels
+    val kernels = benchmarkPackedKernels(engine)
+    require(kernels.gemmTileRows == p.rows && kernels.gemmTileCols == p.columns)
+    fun pack() {
+        panels.packLeft(a, left, p.m, p.depth)
+        panels.packRight(b, right, p.depth, p.n)
+    }
+    pack()
+    return CaseWork("direct", p.timing, {
+        if (p.timing == "pack-plus-compute") pack()
+        initial.data.copyInto(output.data)
+        for (j in 0 until p.columnTiles) for (i in 0 until p.rowTiles) {
+            tile.fill(0.0)
+            val rows = minOf(p.rows, p.m - i * p.rows)
+            val columns = minOf(p.columns, p.n - j * p.columns)
+            for (column in 0 until columns) for (row in 0 until rows) {
+                tile[row + column * p.rows] = output[i * p.rows + row, j * p.columns + column]
+            }
+            kernels.gemmTile(p.depth, left, i * p.rows * p.depth, right, j * p.columns * p.depth, tile, 0, p.rows)
+            for (column in 0 until columns) for (row in 0 until rows) {
+                output[i * p.rows + row, j * p.columns + column] = tile[row + column * p.rows]
+            }
+        }
+        output.data[0]
+    }, result = output.data)
 }

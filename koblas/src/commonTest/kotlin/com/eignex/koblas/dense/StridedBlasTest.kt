@@ -5,6 +5,57 @@ import kotlin.test.*
 
 class StridedBlasTest {
     @Test
+    fun `strided gemm beta zero ignores poisoned output and preserves guards`() {
+        val a = DenseMatrix.ofRows(arrayOf(doubleArrayOf(1.0, -2.0), doubleArrayOf(3.0, 4.0)))
+        val b = DenseMatrix.ofRows(arrayOf(doubleArrayOf(2.0, 5.0), doubleArrayOf(-1.0, 3.0)))
+        val expected = DenseMatrix.zero(2, 2)
+        ReferenceBlas.gemm(0.75, a, false, b, false, 0.0, expected)
+        for (engine in listOfNotNull(BuiltinEngines.scalar, BuiltinEngines.c, BuiltinEngines.simd).distinct()) {
+            val backing = DoubleArray(13) { -0.0 }
+            val output = StridedMatrixView(2, 2, backing, 2, 5)
+            for (column in 0..1) for (row in 0..1) output[row, column] = Double.NaN
+
+            engine.gemm(0.75, a.asView(), false, b.asView(), false, 0.0, output)
+
+            assertStridedGemmAgreesWithReference(expected, output)
+            for (index in backing.indices) {
+                if (index !in setOf(2, 3, 7, 8)) {
+                    assertEquals((-0.0).toBits(), backing[index].toBits(), "guard $index")
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `gemv rejects reversed aliased vectors before mutating backing storage`() {
+        val a = DenseMatrix.ofRows(
+            arrayOf(
+                doubleArrayOf(1.0, 2.0, 3.0),
+                doubleArrayOf(4.0, 5.0, 6.0),
+                doubleArrayOf(7.0, 8.0, 10.0),
+            ),
+        )
+        val original = doubleArrayOf(-0.0, 2.0, -99.0, 3.0, -99.0, 4.0, -0.0)
+        for (engine in listOfNotNull(BuiltinEngines.scalar, BuiltinEngines.c, BuiltinEngines.simd).distinct()) {
+            val backing = original.copyOf()
+            val x = StridedVectorView(backing, 5, 3, -2)
+            val y = StridedVectorView(backing, 1, 3, 2)
+
+            assertFailsWith<IllegalArgumentException> { engine.gemv(0.75, a.asView(), x, 0.0, y) }
+
+            for (index in backing.indices) assertEquals(original[index].toBits(), backing[index].toBits())
+        }
+    }
+
+    private fun assertStridedGemmAgreesWithReference(expected: DenseMatrix, actual: StridedMatrixView) {
+        for (column in 0 until expected.cols) {
+            for (row in 0 until expected.rows) {
+                assertEquals(expected[row, column], actual[row, column], 2e-12)
+            }
+        }
+    }
+
+    @Test
     fun `norm2 over a strided view propagates a NaN entry`() {
         // A NaN never raises the running scale, so reading the zero case off the scale alone would report a
         // clean norm for a corrupt vector. The dense path and dnrm2 both answer NaN.
