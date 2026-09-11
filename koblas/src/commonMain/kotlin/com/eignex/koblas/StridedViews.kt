@@ -1,15 +1,19 @@
+@file:kotlin.jvm.JvmName("Koblas")
+@file:kotlin.jvm.JvmMultifileClass
+
 package com.eignex.koblas
 
 import com.eignex.koblas.requireInBounds
 import com.eignex.koblas.requireNonNegativeShape
 import com.eignex.koblas.requireShape
+import kotlin.jvm.JvmOverloads
 
 /**
  * A mutable live view of [size] entries in [data], starting at [offset] and separated by [stride].
  * Negative stride is supported when both ends remain in the buffer. The view never copies [data], so mutations
  * through the view or any other reference to the array are visible to each other.
  */
-public class StridedVectorView(
+public class StridedVectorView @JvmOverloads constructor(
     public val data: DoubleArray,
     public val offset: Int,
     override val size: Int,
@@ -43,7 +47,7 @@ public class StridedVectorView(
  * The view never copies [data], so mutations through the view or any other reference to the array are visible
  * to each other.
  */
-public class StridedMatrixView(
+public class StridedMatrixView @JvmOverloads constructor(
     override val rows: Int,
     override val cols: Int,
     public val data: DoubleArray,
@@ -201,6 +205,7 @@ public fun DenseMatrix.view(row: Int, rows: Int, column: Int, cols: Int): Stride
 public fun DenseVector.asView(): StridedVectorView = StridedVectorView(data, 0, size)
 
 /** A borrowed strided slice of this owned vector. */
+@JvmOverloads
 public fun DenseVector.view(offset: Int, size: Int, stride: Int = 1): StridedVectorView =
     StridedVectorView(data, offset, size, stride)
 

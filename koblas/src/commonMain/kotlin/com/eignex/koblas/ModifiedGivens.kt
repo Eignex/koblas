@@ -1,3 +1,6 @@
+@file:kotlin.jvm.JvmName("Koblas")
+@file:kotlin.jvm.JvmMultifileClass
+
 package com.eignex.koblas
 
 import com.eignex.koblas.DenseVector
@@ -48,6 +51,7 @@ public fun rotmg(d1: Double, d2: Double, x1: Double, y1: Double): ModifiedGivens
 
 /** Portable Netlib-reference implementation used by the scalar and fallback kernel backends. */
 @Suppress("CyclomaticComplexMethod") // literal translation of the four Netlib DROTMG cases
+@kotlin.jvm.JvmSynthetic
 internal fun portableRotmg(d1: Double, d2: Double, x1: Double, y1: Double): ModifiedGivens {
     var dd1 = d1
     var dd2 = d2
@@ -200,6 +204,7 @@ public fun rotm(x: StridedVectorView, y: StridedVectorView, transformation: Modi
 }
 
 /** Convert the materialized matrix back to BLAS's flag-dependent `dparam` layout. */
+@kotlin.jvm.JvmSynthetic
 internal fun ModifiedGivens.toBlasParameters(): DoubleArray = DoubleArray(5).also { parameters ->
     parameters[0] = flag
     when (flag) {
@@ -252,6 +257,7 @@ private fun modifiedGivens(
 
 /** Portable backend implementation of modified Givens application. */
 @Suppress("LongParameterList")
+@kotlin.jvm.JvmSynthetic
 internal fun portableRotm(
     x: DoubleArray,
     xOff: Int,
@@ -271,6 +277,7 @@ internal fun portableRotm(
  * result, so this is safe even when [x] and [y] are the same array at the same offset and stride.
  */
 @Suppress("LongParameterList")
+@kotlin.jvm.JvmSynthetic
 internal fun applyModifiedGivens(
     x: DoubleArray,
     xOffset: Int,

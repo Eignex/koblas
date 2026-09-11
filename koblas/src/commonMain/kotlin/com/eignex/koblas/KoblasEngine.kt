@@ -1,3 +1,6 @@
+@file:kotlin.jvm.JvmName("Koblas")
+@file:kotlin.jvm.JvmMultifileClass
+
 package com.eignex.koblas
 
 import com.eignex.koblas.dense.BuiltinBlas
@@ -13,6 +16,7 @@ import com.eignex.koblas.sparse.SparseKernels
 import com.eignex.koblas.sparse.SparsePanelKernels
 
 /** The immutable platform-selected BLAS engine used by top-level convenience operations. */
+@get:kotlin.jvm.JvmName("getDefault")
 public val koblas: KoblasEngine = BuiltinEngines.simd ?: BuiltinEngines.c ?: BuiltinEngines.scalar
 
 /**

@@ -2,6 +2,7 @@ package com.eignex.koblas
 
 import com.eignex.koblas.sparse.SparseAlgorithms
 import com.eignex.koblas.sparse.SparseBlas
+import kotlin.jvm.JvmOverloads
 
 /**
  * An immutable snapshot of one sparse matrix, prepared for repeated products.
@@ -30,18 +31,21 @@ public class PreparedSparseMatrix internal constructor(a: SparseMatrix, private 
 
     /** In-place `y = alpha · op(A) · x + beta · y` against the prepared `A`. */
     @Suppress("LongParameterList")
+    @JvmOverloads
     public fun gemv(alpha: Double, x: DoubleArray, beta: Double, y: DoubleArray, transpose: Boolean = false) {
         algorithms.gemv(alpha, snapshot, x, beta, y, transpose)
     }
 
     /** Prepared selected-triangle symmetric matrix-vector product; semantics match [SparseBlas.symv]. */
     @Suppress("LongParameterList")
+    @JvmOverloads
     public fun symv(alpha: Double, x: DoubleArray, beta: Double, y: DoubleArray, lower: Boolean = true) {
         algorithms.symv(alpha, snapshot, x, beta, y, lower)
     }
 
     /** `C = alpha · op(A) · B + beta · C` against the prepared `A`. */
     @Suppress("LongParameterList")
+    @JvmOverloads
     public fun gemm(
         alpha: Double,
         transposeA: Boolean,
@@ -55,6 +59,7 @@ public class PreparedSparseMatrix internal constructor(a: SparseMatrix, private 
 
     /** Full sparse-dense product contract, including dense transpose and sparse side selection. */
     @Suppress("LongParameterList")
+    @JvmOverloads
     public fun gemm(
         alpha: Double,
         transposeA: Boolean,
@@ -70,6 +75,7 @@ public class PreparedSparseMatrix internal constructor(a: SparseMatrix, private 
 
     /** Prepared selected-triangle symmetric matrix-matrix product; semantics match [SparseBlas.symm]. */
     @Suppress("LongParameterList")
+    @JvmOverloads
     public fun symm(
         alpha: Double,
         b: DenseMatrix,
@@ -91,6 +97,7 @@ public class PreparedSparseMatrix internal constructor(a: SparseMatrix, private 
 
     /** Prepared direct sparse-sparse-to-dense product. */
     @Suppress("LongParameterList")
+    @JvmOverloads
     public fun gemm(
         alpha: Double,
         transposeA: Boolean,

@@ -75,6 +75,45 @@ repeat(1_000) {
 }
 ```
 
+## Java
+
+The JVM artifact exposes container factories as static methods and collects Kotlin's operators and extensions on
+the `Koblas` class directly from their canonical declarations. Default arguments have Java overloads, so common
+calls do not need `Companion`, placeholder flags, nullable workspace arguments, or generated `*Kt` class names:
+
+```java
+import com.eignex.koblas.DenseMatrix;
+import com.eignex.koblas.DenseVector;
+import com.eignex.koblas.Koblas;
+import com.eignex.koblas.SparseMatrix;
+
+DenseMatrix a = DenseMatrix.ofRows(new double[][] {
+    {2.0, 1.0},
+    {1.0, 3.0},
+});
+DenseVector x = DenseVector.of(new double[] {3.0, 5.0});
+
+DenseVector y = Koblas.multiply(a, x);
+double norm = Koblas.normInf(a);
+
+double[] destination = new double[a.getRows()];
+Koblas.gemvInto(a, x, destination);
+
+SparseMatrix diagonal = SparseMatrix.ofTriplets(
+    2,
+    2,
+    new int[] {0, 1},
+    new int[] {0, 1},
+    new double[] {2.0, 3.0}
+);
+```
+
+`DenseMatrix`, `DenseVector`, `SparseMatrix`, and `SparseVector` provide static `of`, `ofRows`, `ofTriplets`,
+`zero`, `diagonal`, and `wrap` factories as appropriate. Values use ordinary Java primitive arrays. Read entries
+with `get(...)`, mutate dense storage with `set(...)`, and use `getData()` or `getValues()` when direct mutable
+storage access is intentional. `Koblas.getDefault()` exposes the selected engine, while exact implementations are
+available through `BuiltinEngines.getScalar()`, `getC()`, and `getSimd()`.
+
 ### Global and explicit engines
 
 Operators such as `a * b` use the global, platform-selected `koblas` engine. Pass a `KoblasEngine` when the

@@ -1,5 +1,5 @@
 @file:Suppress("VariableNaming", "FunctionParameterNaming") // math convention: single-letter matrices L, M, etc.
-@file:kotlin.jvm.JvmName("MatrixOpsKt")
+@file:kotlin.jvm.JvmName("Koblas")
 @file:kotlin.jvm.JvmMultifileClass
 
 package com.eignex.koblas
@@ -12,6 +12,7 @@ import com.eignex.koblas.dense.genericRankOneUpdate
 import com.eignex.koblas.dense.genericStoredGemvUpdate
 import com.eignex.koblas.sparse.internal.sparseSyr
 import com.eignex.koblas.sparse.internal.sparseSyr2
+import kotlin.jvm.JvmOverloads
 
 /**
  * `y = alpha * A * x + beta * y` (BLAS `dgemv`) into [destination], for any [Matrix] against any
@@ -89,6 +90,7 @@ public fun Matrix.gemvInto(x: Vector, destination: DoubleArray): Unit = gemvInto
  * [destination]'s backing array; built-in aliases are snapshotted before any output is written.
  */
 @Suppress("LongParameterList") // the BLAS dsymv signature
+@JvmOverloads
 public fun DenseMatrix.symvInto(
     alpha: Double,
     x: Vector,
@@ -114,6 +116,7 @@ public fun DenseMatrix.symvInto(
 }
 
 /** [symvInto] with `alpha = 1, beta = 0`, so `destination` receives `A * x`. */
+@JvmOverloads
 public fun DenseMatrix.symvInto(x: Vector, destination: DoubleArray, lower: Boolean = true): Unit =
     symvInto(1.0, x, 0.0, destination, lower)
 
@@ -176,6 +179,7 @@ public fun DenseMatrix.ger(alpha: Double, x: Vector, y: Vector) {
 }
 
 /** Symmetric rank-1 update `A += alpha * x * xT` (BLAS `dsyr`) in place. See [DenseBlas.syr]. */
+@JvmOverloads
 public fun DenseMatrix.syr(alpha: Double, x: Vector, lower: Boolean = true): Unit = koblas.syr(
     alpha,
     x,
@@ -184,6 +188,7 @@ public fun DenseMatrix.syr(alpha: Double, x: Vector, lower: Boolean = true): Uni
 )
 
 /** Symmetric rank-2 update `A += alpha * (x * yT + y * xT)` (BLAS `dsyr2`) in place. See [DenseBlas.syr2]. */
+@JvmOverloads
 public fun DenseMatrix.syr2(alpha: Double, x: Vector, y: Vector, lower: Boolean = true): Unit =
     koblas.syr2(alpha, x, y, this, lower)
 
@@ -196,6 +201,7 @@ public fun DenseMatrix.syr2(alpha: Double, x: Vector, y: Vector, lower: Boolean 
  * arithmetic cancels or underflows to zero, so the returned matrix never silently drops discovered fill.
  * The result owns independent structural and value arrays, and its rows ascend within every column.
  */
+@JvmOverloads
 public fun SparseMatrix.syr(alpha: Double, x: Vector, lower: Boolean = true): SparseMatrix {
     requireSyrShape(this, x.size, "syr")
     return sparseSyr(this, alpha, x, lower)
@@ -209,6 +215,7 @@ public fun SparseMatrix.syr(alpha: Double, x: Vector, lower: Boolean = true): Sp
  * Existing explicit zeros survive. A coordinate reached by nonzero vector support is stored even when its
  * two terms cancel or underflow to zero. The result has independent arrays and canonical ascending CSC rows.
  */
+@JvmOverloads
 public fun SparseMatrix.syr2(alpha: Double, x: Vector, y: Vector, lower: Boolean = true): SparseMatrix {
     requireSyr2Shape(this, x.size, y.size, "syr2")
     return sparseSyr2(this, alpha, x, y, lower)

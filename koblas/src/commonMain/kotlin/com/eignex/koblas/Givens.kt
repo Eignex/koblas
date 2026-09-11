@@ -1,3 +1,6 @@
+@file:kotlin.jvm.JvmName("Koblas")
+@file:kotlin.jvm.JvmMultifileClass
+
 package com.eignex.koblas
 
 import kotlin.math.abs
@@ -66,6 +69,7 @@ public fun rot(x: StridedVectorView, y: StridedVectorView, rotation: Givens) {
 
 /** Portable backend implementation of plane rotation application. */
 @Suppress("LongParameterList")
+@kotlin.jvm.JvmSynthetic
 internal fun portableRot(x: DoubleArray, xOff: Int, y: DoubleArray, yOff: Int, len: Int, c: Double, s: Double) {
     for (i in 0 until len) {
         val xi = x[xOff + i]

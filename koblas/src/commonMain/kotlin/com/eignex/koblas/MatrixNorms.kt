@@ -1,11 +1,12 @@
 @file:Suppress("VariableNaming", "FunctionParameterNaming") // math convention: single-letter matrices L, M, etc.
-@file:kotlin.jvm.JvmName("MatrixOpsKt")
+@file:kotlin.jvm.JvmName("Koblas")
 @file:kotlin.jvm.JvmMultifileClass
 
 package com.eignex.koblas
 
 import com.eignex.koblas.internal.numeric.absoluteSum
 import com.eignex.koblas.internal.numeric.euclideanNorm
+import kotlin.jvm.JvmOverloads
 import kotlin.math.abs
 
 /** The larger of [current] and [candidate], except a NaN [candidate] always wins, so it carries through. */
@@ -37,6 +38,7 @@ public fun MatrixStorage.norm1(): Double {
 
 /** Matrix infinity-norm, the maximum absolute row sum (LAPACK `dlange` with norm I). A NaN carries through
  *  as it does in [norm1]. */
+@JvmOverloads
 public fun MatrixStorage.normInf(workspace: Workspace? = null): Double {
     if (rows == 0 || cols == 0) return 0.0
     return workspace.borrow(rows) { sums ->

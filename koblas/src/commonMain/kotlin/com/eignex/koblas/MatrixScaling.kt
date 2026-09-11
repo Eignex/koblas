@@ -1,5 +1,5 @@
 @file:Suppress("VariableNaming", "FunctionParameterNaming") // math convention: single-letter matrices L, M, etc.
-@file:kotlin.jvm.JvmName("MatrixOpsKt")
+@file:kotlin.jvm.JvmName("Koblas")
 @file:kotlin.jvm.JvmMultifileClass
 
 package com.eignex.koblas
