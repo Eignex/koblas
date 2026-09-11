@@ -96,9 +96,8 @@ The CSV stores run metadata and case definitions once, followed by sample record
 Runtime/build strings and source commits belong to the run. Case records contain the case, status, comparison kind,
 timing and kernel; shape and packing are read from the case instead of duplicated as metadata.
 JMH elapsed time is reconstructed from its score; Native/vendor elapsed time is measured. Keep raw sample values unchanged.
-Unsupported cases have no timing; a supported call failure stops the run. See [`coverage.md`](coverage.md) for
-the exact vendor-operation mapping and timing boundaries. Fixtures are deterministic and verified before relevant
-runs.
+Unsupported cases have no timing; a supported call failure stops the run. Fixtures are deterministic and verified
+before relevant runs.
 
 Packed cases choose `packed=4x4` or `packed=8x4`; the recipe fixes layout, strides, zero padding and
 alignment independently of backend defaults. Shapes determine panel dimensions, and options may appear in any
