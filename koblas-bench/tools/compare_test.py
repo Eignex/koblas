@@ -33,9 +33,10 @@ class CompareTest(unittest.TestCase):
             writer.writerows(rows)
         return str(path)
 
-    def run_compare(self, left, right, mode):
+    def run_compare(self, left, right, mode, timing=None):
         return subprocess.run(['python3', str(TOOLS / 'compare.py'), '--require-compatible', '--mode', mode,
-                               self.write('base.csv', left), self.write('candidate.csv', right)], capture_output=True, text=True)
+                               self.write('base.csv', left), self.write('candidate.csv', right)] +
+                              (['--timing', timing] if timing else []), capture_output=True, text=True)
 
     def test_logical_mode_keeps_layout_pairs_separate(self):
         other = self.row | dict(configuration='tile-eight', physical_work='tiles=2', case='new-kernel+shape')
@@ -55,6 +56,20 @@ class CompareTest(unittest.TestCase):
         for timing in ('raw-tile', 'packing-only', 'layout-only'):
             left = self.row | dict(timing_mode=timing)
             self.assertNotEqual(0, self.run_compare([left], [left | dict(physical_work='tiles=2')], 'logical').returncode)
+
+    def test_boundary_selector_excludes_deliberately_incompatible_raw_rows(self):
+        raw = self.row | dict(timing_mode='raw-tile')
+        vendor_raw = self.row | dict(timing_mode='vendor-arithmetic')
+        self.assertNotEqual(0, self.run_compare([self.row, raw], [self.row, vendor_raw], 'logical').returncode)
+        result = self.run_compare([self.row, raw], [self.row, vendor_raw], 'logical', 'prepacked-compute')
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertEqual(2, len(result.stdout.splitlines()))
+
+    def test_fixed_mode_excludes_policy_experiments(self):
+        policy = self.row | dict(configuration='policy-v1', physical_work='policy')
+        result = self.run_compare([self.row, policy], [self.row, policy], 'fixed')
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertEqual(2, len(result.stdout.splitlines()))
 
     def test_disjoint_reports_and_historical_schema_fail(self):
         for patch in (dict(logical_id='different'), dict(schema='3')):

@@ -6,6 +6,7 @@ bench="$root/koblas-bench"
 reports="$bench/reports"
 libraries=all
 operation=all
+suite=all
 samples=5
 warmups=3
 target_ms=1000
@@ -13,13 +14,14 @@ forks=2
 pass=1
 
 usage() {
-  echo "usage: koblas-bench/capture-report.sh [--libraries openblas,onemkl|all] [--operation NAME|all] [--samples N] [--warmups N] [--target-ms N] [--forks N] [--pass N]" >&2
+  echo "usage: koblas-bench/capture-report.sh [--libraries openblas,onemkl|all] [--operation NAME|all] [--suite all|packed] [--samples N] [--warmups N] [--target-ms N] [--forks N] [--pass N]" >&2
 }
 
 while (($#)); do
   case "$1" in
     --libraries) libraries=${2:?}; shift 2 ;;
     --operation) operation=${2:?}; shift 2 ;;
+    --suite) suite=${2:?}; shift 2 ;;
     --samples) samples=${2:?}; shift 2 ;;
     --warmups) warmups=${2:?}; shift 2 ;;
     --target-ms) target_ms=${2:?}; shift 2 ;;
@@ -30,15 +32,17 @@ while (($#)); do
   esac
 done
 
+[[ $suite == all || $suite == packed ]] || { usage; exit 2; }
+
 temporary=$(mktemp -d "${TMPDIR:-/tmp}/koblas-bench-report.XXXXXX")
 trap 'rm -rf "$temporary"' EXIT
 "$bench/tools/hardware.sh" >"$temporary/hardware.txt"
 
 cases="$bench/cases.txt"
-if [[ $operation != all ]]; then
+if [[ $operation != all || $suite == packed ]]; then
   cases="$temporary/cases.txt"
-  awk -F+ -v operation="$operation" '
-    /^[[:space:]]*($|#)/ || $1 == operation { print }
+  awk -F+ -v operation="$operation" -v suite="$suite" '
+    /^[[:space:]]*($|#)/ || ((operation == "all" || $1 == operation) && (suite == "all" || /\+physical=/)) { print }
   ' "$bench/cases.txt" >"$cases"
 fi
 
@@ -72,7 +76,7 @@ cases="$run/cases.txt"
   java --version
   git -C "$root" rev-parse HEAD
   git -C "$root" status --porcelain
-  echo "operation=$operation warmups=$warmups samples=$samples target_ms=$target_ms forks=$forks pass=$pass libraries=$libraries"
+  echo "operation=$operation suite=$suite warmups=$warmups samples=$samples target_ms=$target_ms forks=$forks pass=$pass libraries=$libraries"
   echo "JVM benchmark runtime and VM flags: see the JMH logs and CSV runtime fields."
   echo "Native: Kotlin 2.4.10 release executable; build flags are in the source commit and native-build.log."
   env | LC_ALL=C sort | awk '/^KOBLAS_(DENSE|SPARSE)_/ { print }'

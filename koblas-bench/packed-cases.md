@@ -33,9 +33,9 @@ These restrictions describe the current harness, not future production APIs or a
 Generate A(m,k), B(k,n), and C(m,n) in column-major logical order from operand streams 1, 2, and 4 before
 packing. `Fixtures` and the C runner use the same SplitMix64 seed/stream and triangular recipe. A triangle
 uses operand 20, order n, and the selected uplo; unit-diagonal solve flags ignore stored diagonal values.
-Physical padding never advances a random stream. Matrix coordinates start at offset zero, are contiguous,
+Layout-only source matrices use operand stream 1 for either side. Physical padding never advances a random stream. Matrix coordinates start at offset zero, are contiguous,
 and have their logical row count as leading dimension; scaling and transpose are fixed by the recipe above.
-These are immutable recipe semantics rather than changing engine defaults. Non-packed cases retain their
+Packed helper invocations pin all these semantic arguments explicitly. These are immutable recipe semantics rather than changing engine defaults. Non-packed cases retain their
 existing operand streams/scaling/flag semantics, now labelled as policy experiments in configuration metadata.
 
 For groups r/c and reduction depth k, left storage has ceil(m/r)*r*k doubles and right storage has
@@ -80,7 +80,8 @@ experiments are excluded. `--mode logical` permits different physical strategies
 or full operation. Raw tiles and format-specific layout operations still require equal physical work. Both modes
 reject mismatched schema/workload/fixtures/timing/threads/warmups/target durations. Distinct physical strategies
 are never pooled: logical mode emits separate pairs with both configurations and physical extents. Kernel
-renaming does not affect identity. `--require-compatible` fails on unmatched strategies for shared logical
+renaming does not affect identity. `--timing prepacked-compute` selects a complete comparable boundary directly from raw CSVs.
+`--require-compatible` fails on unmatched strategies for shared logical
 work, or reports with no compatible pair. Unsupported rows have no sample and cannot establish equivalence.
 
 Vendors receive the same logical fixtures in column-major storage. Raw tile arithmetic has the distinct

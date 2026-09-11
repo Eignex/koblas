@@ -54,10 +54,15 @@ and raw per-run logs. To make a short trial, add
 Compare CSVs from the same run (or compatible runs):
 
 ```bash
-koblas-bench/tools/compare.sh --mode logical --require-compatible \
+koblas-bench/tools/compare.sh --mode logical --timing prepacked-compute --require-compatible \
   koblas-bench/reports/<hardware-sha256>/<run-id>/vendor/openblas.csv \
   koblas-bench/reports/<hardware-sha256>/<run-id>/jvm-c.csv
 ```
+
+The example selects the complete prepacked block boundary. Without `--timing`, full vendor reports also
+contain intentionally incompatible raw-tile boundaries: omit `--require-compatible` to inspect accepted pairs
+and rejection diagnostics together. Use `capture-report.sh --suite packed` to recapture every explicit packed
+case from the authoritative workload.
 
 Choose `--mode fixed` for identical packed configurations or `--mode logical` for complete logical workloads.
 The comparator refuses mismatched workload/fixture versions, timing modes, threads, warmups, or timing targets.
