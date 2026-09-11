@@ -3,6 +3,8 @@ package com.eignex.koblas.sparse
 import com.eignex.koblas.requireIndex
 import com.eignex.koblas.requireShape
 import com.eignex.koblas.sparse.internal.SparseAccumulationKernels
+import kotlin.jvm.JvmOverloads
+import kotlin.jvm.JvmStatic
 
 /**
  * Stateless, allocation-free sparse arithmetic over caller-owned array slices.
@@ -41,6 +43,7 @@ public object SparseSlices {
      * produces NaN according to IEEE 754 arithmetic.
      */
     @Suppress("LongParameterList") // parallel input slices plus caller-owned accumulator state
+    @JvmStatic
     public fun scatterAxpy(
         alpha: Double,
         indices: IntArray,
@@ -75,6 +78,7 @@ public object SparseSlices {
      * scatters. The IEEE result is always written, and each product and sum is evaluated exactly once.
      */
     @Suppress("LongParameterList") // parallel slices, caller-owned accumulator state, and diagnostic sink
+    @JvmStatic
     public fun scatterAxpyChecked(
         alpha: Double,
         indices: IntArray,
@@ -113,6 +117,8 @@ public object SparseSlices {
      * The accumulator and touched support are left unchanged.
      */
     @Suppress("LongParameterList") // caller-owned source and output slices
+    @JvmStatic
+    @JvmOverloads
     public fun gatherTouched(
         touched: IntArray,
         touchedOffset: Int,
@@ -147,6 +153,8 @@ public object SparseSlices {
      * call; touched storage itself is deliberately left intact for reuse.
      */
     @Suppress("LongParameterList") // caller-owned source, state, and output slices
+    @JvmStatic
+    @JvmOverloads
     public fun gatherClearTouched(
         touched: IntArray,
         touchedOffset: Int,
@@ -189,6 +197,7 @@ public object SparseSlices {
      * caller precondition; verifying uniqueness without temporary storage would require quadratic work. Values are
      * written as positive zero and marks as zero.
      */
+    @JvmStatic
     public fun clearTouched(
         touched: IntArray,
         touchedOffset: Int,
@@ -223,6 +232,7 @@ public object SparseSlices {
      * unsorted indices are permitted and contribute in their supplied order. [values] and [dense] may alias.
      */
     @Suppress("LongParameterList") // two independent input slices plus a caller-owned diagnostic sink
+    @JvmStatic
     public fun reduceDotChecked(
         initial: Double,
         subtractProducts: Boolean,
@@ -273,6 +283,7 @@ public object SparseSlices {
      * Maximum absolute finite value whose row is active. Inactive entries are ignored, empty active support
      * returns zero, and any active NaN or infinity returns NaN.
      */
+    @JvmStatic
     public fun activeColumnMaxAbs(
         rowIndices: IntArray,
         indexOffset: Int,
@@ -302,6 +313,7 @@ public object SparseSlices {
      * [activeColumnMaxAbs] would already be NaN, so a finite maximum means they are not eligible arithmetic data.
      */
     @Suppress("LongParameterList") // raw sparse slice, activity mask, thresholds, and caller output
+    @JvmStatic
     public fun pivotCandidatePositions(
         rowIndices: IntArray,
         indexOffset: Int,

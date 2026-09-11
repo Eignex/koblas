@@ -2,6 +2,7 @@ package com.eignex.koblas.dense
 
 import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.Workspace
+import kotlin.jvm.JvmOverloads
 
 /**
  * Packing helpers for retaining matrix panels in the format consumed by koblas's built-in level-3 kernels.
@@ -39,6 +40,7 @@ public class PackedPanels internal constructor(private val kernels: PackedKernel
      * zero, including when [alpha] is NaN or infinite. [destinationOffset] starts the caller-owned output window.
      */
     @Suppress("LongParameterList") // source and destination windows plus the operation applied while copying
+    @JvmOverloads
     public fun packLeft(
         source: DenseMatrix,
         destination: DoubleArray,
@@ -62,6 +64,7 @@ public class PackedPanels internal constructor(private val kernels: PackedKernel
      * The source must be square. [alpha] scales valid entries; padding remains positive zero.
      */
     @Suppress("LongParameterList") // source and destination windows plus the structure applied while copying
+    @JvmOverloads
     public fun packSymmetricLeft(
         source: DenseMatrix,
         destination: DoubleArray,
@@ -86,6 +89,7 @@ public class PackedPanels internal constructor(private val kernels: PackedKernel
      * then scaled by [alpha]. [lower] identifies the source triangle before [transpose].
      */
     @Suppress("LongParameterList") // source and destination windows plus the structure applied while copying
+    @JvmOverloads
     public fun packTriangularLeft(
         source: DenseMatrix,
         destination: DoubleArray,
@@ -112,6 +116,7 @@ public class PackedPanels internal constructor(private val kernels: PackedKernel
      * is positive zero.
      */
     @Suppress("LongParameterList") // source and destination windows plus the operation applied while copying
+    @JvmOverloads
     public fun packRight(
         source: DenseMatrix,
         destination: DoubleArray,
@@ -134,6 +139,7 @@ public class PackedPanels internal constructor(private val kernels: PackedKernel
      * The source must be square. Valid entries are not scaled and padding is positive zero.
      */
     @Suppress("LongParameterList") // source and destination windows plus the structure applied while copying
+    @JvmOverloads
     public fun packSymmetricRight(
         source: DenseMatrix,
         destination: DoubleArray,
@@ -157,6 +163,7 @@ public class PackedPanels internal constructor(private val kernels: PackedKernel
      * [lower] identifies the source triangle before [transpose]; diagonals are never inverted or scaled.
      */
     @Suppress("LongParameterList") // source and destination windows plus the structure applied while copying
+    @JvmOverloads
     public fun packTriangularRight(
         source: DenseMatrix,
         destination: DoubleArray,
@@ -182,6 +189,7 @@ public class PackedPanels internal constructor(private val kernels: PackedKernel
      * `workspace` staging.
      */
     @Suppress("LongParameterList") // source and destination windows plus the operation applied while copying
+    @JvmOverloads
     public fun writeLeft(
         source: DoubleArray,
         destination: DenseMatrix,
@@ -205,6 +213,7 @@ public class PackedPanels internal constructor(private val kernels: PackedKernel
      * `workspace` staging.
      */
     @Suppress("LongParameterList") // source and destination windows plus the operation applied while copying
+    @JvmOverloads
     public fun writeRight(
         source: DoubleArray,
         destination: DenseMatrix,
@@ -226,6 +235,7 @@ public class PackedPanels internal constructor(private val kernels: PackedKernel
      * Restores positive-zero edge padding in a left panel after a kernel that may use the physical tile as
      * scratch. Valid entries are unchanged. This allocates nothing and is safe for every caller-owned panel.
      */
+    @JvmOverloads
     public fun clearLeftPadding(panel: DoubleArray, rows: Int, depth: Int, panelOffset: Int = 0) {
         clearLeftPanelPadding(panel, rows, depth, panelOffset, tileRows)
     }
@@ -234,6 +244,7 @@ public class PackedPanels internal constructor(private val kernels: PackedKernel
      * Restores positive-zero edge padding in a right panel after a kernel that may use the physical tile as
      * scratch. Valid entries are unchanged. This allocates nothing and is safe for every caller-owned panel.
      */
+    @JvmOverloads
     public fun clearRightPadding(panel: DoubleArray, depth: Int, columns: Int, panelOffset: Int = 0) {
         clearRightPanelPadding(panel, depth, columns, panelOffset, tileColumns)
     }
@@ -250,6 +261,7 @@ public class PackedPanels internal constructor(private val kernels: PackedKernel
      * allocation when no workspace is supplied.
      */
     @Suppress("LongParameterList") // packed source and destination windows plus triangular flags
+    @JvmOverloads
     public fun trsm(
         triangle: DoubleArray,
         rightHandSide: DoubleArray,
@@ -291,6 +303,7 @@ public class PackedPanels internal constructor(private val kernels: PackedKernel
      * [workspace], or through temporary allocations when no workspace is supplied.
      */
     @Suppress("LongParameterList") // three packed source windows, one destination window and triangular flags
+    @JvmOverloads
     public fun gemmTrsm(
         packedLeft: DoubleArray,
         packedRight: DoubleArray,

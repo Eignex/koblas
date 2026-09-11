@@ -1,3 +1,6 @@
+@file:kotlin.jvm.JvmName("Koblas")
+@file:kotlin.jvm.JvmMultifileClass
+
 package com.eignex.koblas
 
 /**
@@ -17,18 +20,22 @@ public class Workspace {
     internal val pooledI32Widths: Int get() = indices.pooledWidths
 
     @PublishedApi
+    @kotlin.jvm.JvmSynthetic
     internal fun take(size: Int): DoubleArray = doubles.take(size)
 
     @PublishedApi
+    @kotlin.jvm.JvmSynthetic
     internal fun release(buffer: DoubleArray): Unit = doubles.release(buffer)
 
     /** Pre-allocates [count] buffers of [size]. */
     internal fun reserve(size: Int, count: Int): Unit = doubles.reserve(size, count)
 
     @PublishedApi
+    @kotlin.jvm.JvmSynthetic
     internal fun takeI32(size: Int): IntArray = indices.take(size)
 
     @PublishedApi
+    @kotlin.jvm.JvmSynthetic
     internal fun release(buffer: IntArray): Unit = indices.release(buffer)
 
     /** Pre-allocates [count] integer buffers of [size]. */
@@ -47,6 +54,7 @@ public class Workspace {
  * The receiver is nullable because a workspace is optional everywhere it is taken, and Kotlin cannot carry
  * both receivers under one name: nullability is not part of a JVM signature.
  */
+@kotlin.jvm.JvmSynthetic
 public inline fun <T> Workspace?.borrow(size: Int, block: (DoubleArray) -> T): T {
     val buffer = this?.take(size) ?: DoubleArray(size)
     try {
@@ -57,6 +65,7 @@ public inline fun <T> Workspace?.borrow(size: Int, block: (DoubleArray) -> T): T
 }
 
 /** Integer counterpart of [borrow]. */
+@kotlin.jvm.JvmSynthetic
 public inline fun <T> Workspace?.borrowI32(size: Int, block: (IntArray) -> T): T {
     val buffer = this?.takeI32(size) ?: IntArray(size)
     try {

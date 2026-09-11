@@ -2,6 +2,8 @@ package com.eignex.koblas
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlin.jvm.JvmOverloads
+import kotlin.jvm.JvmStatic
 
 /** Read-only matrix contract. Anything that only reads a matrix should take this. */
 public interface Matrix {
@@ -74,6 +76,7 @@ public class DenseMatrix internal constructor(
     /** Factories for dense matrices. */
     public companion object {
         /** Copy an `Array<DoubleArray>` of rows into a fresh dense matrix, so rows(i) is row i. */
+        @JvmStatic
         public fun ofRows(rows: Array<DoubleArray>): DenseMatrix {
             val r = rows.size
             val c = if (r == 0) 0 else rows[0].size
@@ -87,6 +90,7 @@ public class DenseMatrix internal constructor(
         }
 
         /** Copy an `Array<DoubleArray>` of columns into a fresh dense matrix, so columns(j) is column j. */
+        @JvmStatic
         public fun ofColumns(columns: Array<DoubleArray>): DenseMatrix {
             val c = columns.size
             val r = if (c == 0) 0 else columns[0].size
@@ -97,9 +101,13 @@ public class DenseMatrix internal constructor(
         }
 
         /** Create a zero matrix of shape [rows] x [cols], square when [cols] is omitted. */
+        @JvmStatic
+        @JvmOverloads
         public fun zero(rows: Int, cols: Int = rows): DenseMatrix = DenseMatrix(rows, cols)
 
         /** Create a square identity matrix of the given [size], scaled by [diagonal]. */
+        @JvmStatic
+        @JvmOverloads
         public fun diagonal(size: Int, diagonal: Double = 1.0): DenseMatrix {
             val m = DenseMatrix(size, size)
             for (i in 0 until size) m[i, i] = diagonal
@@ -107,6 +115,7 @@ public class DenseMatrix internal constructor(
         }
 
         /** Create the square matrix whose diagonal is [values]. */
+        @JvmStatic
         public fun diagonal(values: DoubleArray): DenseMatrix {
             val n = values.size
             val m = DenseMatrix(n, n)
@@ -115,6 +124,7 @@ public class DenseMatrix internal constructor(
         }
 
         /** Wrap an existing flat `DoubleArray` without copying; mutations remain visible through both references. */
+        @JvmStatic
         public fun wrap(rows: Int, cols: Int, data: DoubleArray): DenseMatrix = DenseMatrix(rows, cols, data)
 
         /** Entry count for a shape, validated first so a negative dimension reports a shape error. */

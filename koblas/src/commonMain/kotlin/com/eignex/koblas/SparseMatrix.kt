@@ -3,6 +3,7 @@ package com.eignex.koblas
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
+import kotlin.jvm.JvmStatic
 
 /**
  * Compressed-sparse-column form: column j occupies colPtr(j) until colPtr(j + 1) of [rowIdx] and [values],
@@ -61,6 +62,7 @@ public class SparseMatrix internal constructor(
     public val nnz: Int get() = values.size
 
     /** Visits the stored entries of column [j] as `(row, value)`, rows ascending. */
+    @kotlin.jvm.JvmSynthetic
     public inline fun forEachInColumn(j: Int, action: (row: Int, value: Double) -> Unit) {
         if (j !in 0 until cols) throw IndexOutOfBoundsException("index $j outside [0,$cols)")
         for (k in colPtr[j] until colPtr[j + 1]) action(rowIdx[k], values[k])
@@ -128,6 +130,7 @@ public class SparseMatrix internal constructor(
          * Builds a CSC matrix from column-major `(row, value)` entries, where columns(j) lists column j's
          * nonzeros in any order. Entries are sorted by row and duplicate positions are summed.
          */
+        @JvmStatic
         public fun ofColumns(rows: Int, cols: Int, columns: List<List<Pair<Int, Double>>>): SparseMatrix {
             requireNonNegativeShape(rows, cols)
             requireShape(columns.size == cols) { "expected $cols columns, got ${columns.size}" }
@@ -155,6 +158,7 @@ public class SparseMatrix internal constructor(
          * Builds a CSC matrix from parallel coordinate (triplet) arrays, where entry k is values(k) at
          * (rowIdx(k), colIdx(k)). Any order, duplicate positions summed, inputs copied. `O(nnz + rows + cols)`.
          */
+        @JvmStatic
         public fun ofTriplets(
             rows: Int,
             cols: Int,
@@ -228,6 +232,7 @@ public class SparseMatrix internal constructor(
          * invariants rather than repairing them, so use [ofColumns] or [ofTriplets] when they do not hold. The
          * structural arrays cannot be recovered for mutation afterwards.
          */
+        @JvmStatic
         public fun wrap(rows: Int, cols: Int, colPtr: IntArray, rowIdx: IntArray, values: DoubleArray): SparseMatrix =
             SparseMatrix(rows, cols, colPtr, rowIdx, values)
 

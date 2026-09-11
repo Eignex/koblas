@@ -2,6 +2,7 @@ package com.eignex.koblas
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlin.jvm.JvmStatic
 
 /** Read-only vector contract. Anything that only reads a vector should take this. */
 public interface Vector {
@@ -51,15 +52,18 @@ public class DenseVector internal constructor(public val data: DoubleArray) : Ve
     /** Factories for dense vectors. */
     public companion object {
         /** Copy a `DoubleArray` into a fresh dense vector. */
+        @JvmStatic
         public fun of(values: DoubleArray): DenseVector = DenseVector(values.copyOf())
 
         /** A dense vector of [size] zeros. */
+        @JvmStatic
         public fun zero(size: Int): DenseVector {
             requireShape(size >= 0) { "negative size: $size" }
             return DenseVector(size)
         }
 
         /** Wrap an existing `DoubleArray` without copying; mutations remain visible through both references. */
+        @JvmStatic
         public fun wrap(data: DoubleArray): DenseVector = DenseVector(data)
     }
 }
@@ -139,6 +143,7 @@ public class SparseVector internal constructor(
     /** Factories for sparse vectors. */
     public companion object {
         /** Build a sparse vector, sorting by index and summing duplicates. Copies its inputs. */
+        @JvmStatic
         public fun of(size: Int, indices: IntArray, values: DoubleArray): SparseVector {
             requireShape(size >= 0) { "negative size: $size" }
             requireShape(indices.size == values.size) {
@@ -168,6 +173,7 @@ public class SparseVector internal constructor(
          * Wrap existing arrays without copying, taking ownership; [indices] must already be strictly
          * ascending and in range. The structural indices cannot be recovered for mutation afterwards.
          */
+        @JvmStatic
         public fun wrap(size: Int, indices: IntArray, values: DoubleArray): SparseVector = SparseVector(
             size,
             indices,

@@ -1,4 +1,6 @@
 @file:Suppress("VariableNaming", "FunctionParameterNaming") // math convention: single-letter matrices L, M, etc.
+@file:kotlin.jvm.JvmName("Koblas")
+@file:kotlin.jvm.JvmMultifileClass
 
 package com.eignex.koblas
 
@@ -15,6 +17,7 @@ import kotlin.math.abs
  * Visit each stored entry as (index, value), in ascending index order for any storage. A [SparseVector]
  * may present numerical zeros as stored, and any other [Vector] has every index visited.
  */
+@kotlin.jvm.JvmSynthetic
 public inline fun Vector.forEachStored(block: (i: Int, v: Double) -> Unit) {
     when (this) {
         is DenseVector -> {

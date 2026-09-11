@@ -1,17 +1,19 @@
 @file:Suppress("VariableNaming", "FunctionParameterNaming") // math convention: single-letter A, T, X
-@file:kotlin.jvm.JvmName("MatrixOpsKt")
+@file:kotlin.jvm.JvmName("Koblas")
 @file:kotlin.jvm.JvmMultifileClass
 
 package com.eignex.koblas
 
 import com.eignex.koblas.dense.DenseBlas
 import com.eignex.koblas.sparse.SparseBlas
+import kotlin.jvm.JvmOverloads
 
 /**
  * Solve `op(T) · x = b` in place (BLAS `dtrsv`) for dense or sparse storage; see [DenseBlas.trsv] and
  * [SparseBlas.trsv]. Reads only the triangle [lower] selects, and does not check the diagonal, so a singular
  * triangle yields infinities or NaNs.
  */
+@JvmOverloads
 public fun MatrixStorage.trsv(
     x: DoubleArray,
     lower: Boolean,
@@ -26,6 +28,7 @@ public fun MatrixStorage.trsv(
  *  [DenseBlas.trsm] and [SparseBlas.trsm]. Reads only the triangle [lower] selects, and a singular triangle
  *  yields infinities or NaNs. */
 @Suppress("LongParameterList") // the BLAS dtrsm signature
+@JvmOverloads
 public fun MatrixStorage.trsm(
     b: DenseMatrix,
     lower: Boolean,
@@ -40,6 +43,7 @@ public fun MatrixStorage.trsm(
 }
 
 /** Multiply `x = op(T) · x` in place (BLAS `dtrmv`) for dense or sparse storage. */
+@JvmOverloads
 public fun MatrixStorage.trmv(
     x: DoubleArray,
     lower: Boolean,
@@ -52,6 +56,7 @@ public fun MatrixStorage.trmv(
 
 /** `B = alpha · op(T) · B`, or `B = alpha · B · op(T)` when [right] (BLAS `dtrmm`). */
 @Suppress("LongParameterList") // the BLAS dtrmm signature
+@JvmOverloads
 public fun MatrixStorage.trmm(
     b: DenseMatrix,
     lower: Boolean,
