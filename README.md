@@ -15,15 +15,17 @@
 [![codecov](https://codecov.io/gh/eignex/koblas/branch/main/graph/badge.svg)](https://codecov.io/gh/eignex/koblas)
 [![License](https://img.shields.io/github/license/eignex/koblas)](https://github.com/eignex/koblas/blob/main/LICENSE)
 
-Dense and sparse double-precision linear algebra for Kotlin Multiplatform, with built-in C and JVM SIMD kernels.
-Koblas provides BLAS operations, mutable matrices and vectors, strided views, and reusable workspaces.
-See the [benchmark guide](koblas-bench/README.md) for performance suites and development-only OpenBLAS and
-oneMKL comparisons. We welcome benchmark reports from different hardware.
+Koblas provides dense and sparse double-precision linear algebra for Kotlin Multiplatform. It includes BLAS
+operations, mutable matrices and vectors, views into existing storage, and reusable workspaces. Built-in C and
+JVM SIMD kernels speed up supported operations.
+
+See the [benchmark guide](koblas-bench/README.md) for performance tests and comparisons with OpenBLAS and
+oneMKL. We welcome benchmark reports from different hardware.
 
 ## Setup
 
-Add the Maven Central dependency to your JVM or shared `commonMain` source set, replacing `<version>` with the
-version shown in the badge above:
+Add the Maven Central dependency to your JVM or `commonMain` source set. Replace `<version>` with the version
+shown in the badge above:
 
 ```kotlin
 implementation("com.eignex:koblas:<version>")
@@ -31,9 +33,12 @@ implementation("com.eignex:koblas:<version>")
 
 Supported targets are JVM (JDK 25 or later), Linux x64/arm64, and macOS arm64.
 
-On JVM, enable SIMD with the runtime flag `--add-modules=jdk.incubator.vector`. Without it, Koblas uses bundled
-C kernels when available, then scalar Kotlin. For bundled C kernels on the classpath, also pass
-`--enable-native-access=ALL-UNNAMED`. Kotlin/Native uses bundled C kernels with scalar fallbacks.
+On JVM, pass `--add-modules=jdk.incubator.vector` at runtime to enable SIMD. Without this flag, Koblas uses its
+bundled C engine when available. This engine runs small operations in scalar Kotlin and switches to C for larger
+ones. If the C engine is unavailable, Koblas uses scalar Kotlin for all operations.
+
+To load the bundled C kernels from the classpath, also pass `--enable-native-access=ALL-UNNAMED`. Kotlin/Native
+uses bundled C kernels and falls back to scalar Kotlin when needed.
 
 ## Quick start
 
@@ -52,8 +57,8 @@ val product = a * b
 val y = a * x
 ```
 
-Use operators for allocating arithmetic, or BLAS-style and `*Into` operations to write into existing buffers.
-A `Workspace` grows as needed and retains temporary storage for repeated calls:
+Operators create a new result. BLAS-style and `*Into` operations can instead write into existing arrays and
+containers. A `Workspace` keeps temporary storage for reuse across calls:
 
 ```kotlin
 val input = DoubleArray(a.rows)
@@ -67,27 +72,38 @@ repeat(1_000) {
 
 ## Operations
 
-| Area | Coverage |
-|------|----------|
-| Dense vectors | Dot products, scaling, norms, copy, swap, and rotations. |
-| Dense matrices | General, symmetric, and triangular products; triangular solves; rank updates; transpose and norms. |
-| Sparse vectors | Indexed dot products, scaled addition, scatter, and norms. |
-| Sparse matrices | CSC products, symmetric products, triangular products and solves, rank updates, addition, and transpose. |
+| API | Includes |
+|-----|----------|
+| [Dense matrices](koblas/src/commonMain/kotlin/com/eignex/koblas/Matrix.kt), [sparse matrices](koblas/src/commonMain/kotlin/com/eignex/koblas/SparseMatrix.kt), [vectors](koblas/src/commonMain/kotlin/com/eignex/koblas/Vector.kt), and [views](koblas/src/commonMain/kotlin/com/eignex/koblas/StridedViews.kt) | Dense and sparse containers, array wrapping, factories, and views into existing storage. |
+| [Vector operations](koblas/src/commonMain/kotlin/com/eignex/koblas/VectorOps.kt) | Dense and sparse dot products, sums, norms, scaling, copy, swap, gather, scatter, and [Givens](koblas/src/commonMain/kotlin/com/eignex/koblas/Givens.kt) or [modified Givens](koblas/src/commonMain/kotlin/com/eignex/koblas/ModifiedGivens.kt) rotations. |
+| [Matrix helpers](koblas/src/commonMain/kotlin/com/eignex/koblas/MatrixOps.kt) | Allocating [operators](koblas/src/commonMain/kotlin/com/eignex/koblas/Operators.kt), matrix-vector products, rank updates, [slices and transpose](koblas/src/commonMain/kotlin/com/eignex/koblas/MatrixSlices.kt), [scaling](koblas/src/commonMain/kotlin/com/eignex/koblas/MatrixScaling.kt), and [norms](koblas/src/commonMain/kotlin/com/eignex/koblas/MatrixNorms.kt). |
+| [Dense BLAS](koblas/src/commonMain/kotlin/com/eignex/koblas/dense/Blas.kt) | General, symmetric, and triangular matrix products and solves, including `gemmt`, `syr2k`, and strided-view overloads. |
+| [Sparse BLAS](koblas/src/commonMain/kotlin/com/eignex/koblas/sparse/SparseBlas.kt) | Sparse matrix-vector and matrix-matrix products, dense or sparse results, symmetric and triangular operations, addition, and transpose. |
+| [Packed panels](koblas/src/commonMain/kotlin/com/eignex/koblas/dense/PackedPanels.kt) and [tile kernels](koblas/src/commonMain/kotlin/com/eignex/koblas/dense/PackedKernels.kt) | Reusable packed layouts and fixed-size product and triangular-solve tiles for custom blocked algorithms. |
+| [Sparse kernels](koblas/src/commonMain/kotlin/com/eignex/koblas/sparse/SparseKernels.kt) and [slices](koblas/src/commonMain/kotlin/com/eignex/koblas/sparse/SparseSlices.kt) | Allocation-free indexed arithmetic over caller-owned arrays, including accumulation, touched-index handling, diagnostics, and pivot candidates. |
+| [Engines and kernel APIs](koblas/src/commonMain/kotlin/com/eignex/koblas/KoblasContext.kt) | The default engine, explicit scalar, C, and SIMD engines, and lower-level dense, packed, and sparse kernel interfaces. |
 
-Sparse matrix products can produce sparse or dense results. For repeated products, `SparseMatrix.prepare()`
-(from `com.eignex.koblas.sparse`) retains an immutable CSC snapshot.
+Sparse matrix products can produce sparse or dense results. If you reuse a sparse matrix in several products,
+call `SparseMatrix.prepare()` from `com.eignex.koblas.sparse` once and reuse the prepared copy.
 
-See the [dense](koblas/src/commonMain/kotlin/com/eignex/koblas/dense/Blas.kt) and
-[sparse](koblas/src/commonMain/kotlin/com/eignex/koblas/sparse/SparseBlas.kt) API contracts for overloads and
-supported routines.
+### Packed and tiled building blocks
+
+The packed API can be used to build custom blocked algorithms. Start with `koblas.packedPanels`. It reports the
+selected engine's tile size, calculates the required buffer sizes, and packs general, symmetric, or triangular
+matrix regions into reusable `DoubleArray` buffers. It can also write packed data back to a matrix.
+
+For computation, `koblas.packedKernels` provides fixed-tile `gemmTile`, `trsmTile`, and `gemmTrsmTile`
+operations. The higher-level `PackedPanels.trsm` and `PackedPanels.gemmTrsm` helpers validate their inputs and
+handle overlapping arrays. The packed layout depends on the selected engine, so use the sizes and packing
+functions from the same `KoblasContext` as the tile kernels.
 
 ## Storage and reuse
 
-All containers use `Double` values. `DenseMatrix` stores columns contiguously: `A(i, j)` is at `i + j * rows`.
-`SparseMatrix` uses validated CSC storage with `Int` row indices in ascending order within each column.
-Compatible arrays can be wrapped without copying.
+All matrices and vectors use `Double` values. `DenseMatrix` uses column-major storage, so `A(i, j)` is at
+`i + j * rows`. `SparseMatrix` uses compressed sparse column (CSC) storage with sorted `Int` row indices.
+Compatible arrays can be wrapped without copying them.
 
-Dense views borrow live storage and preserve offsets, strides, and leading dimensions:
+Dense views refer to the original storage instead of copying it. They can represent part of a matrix or vector:
 
 ```kotlin
 val storage = DenseMatrix.zero(512, 32)
@@ -106,10 +122,13 @@ koblas.gemm(
 )
 ```
 
-Follow each operation's aliasing contract. Disjoint views can share a backing buffer, but a strided destination
-must not overlap an input. Symmetric sparse operations read only the selected triangle; use `symv` or `symm`
-to interpret a single-triangle result symmetrically.
+Inputs and outputs may share an array only when the operation's documentation allows it. Two views can use the
+same array if they do not cover the same elements. An output view that skips positions in the array must not
+overlap an input.
 
-The default `koblas` engine is immutable, selected once, and safe to share. Its kernels are single-threaded.
-Containers and views are mutable; concurrent reads require no writer. Use one `Workspace` per concurrent
-operation.
+For symmetric sparse operations, Koblas reads only the triangle you select. Use `symv` or `symm` to treat that
+triangle as a full symmetric matrix.
+
+Koblas chooses its default engine once, and the engine is safe to share. Its kernels use one thread. Matrices,
+vectors, and views are mutable, so do not modify them while another thread is reading them. Give each operation
+running at the same time its own `Workspace`.
