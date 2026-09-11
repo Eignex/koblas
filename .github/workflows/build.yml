@@ -284,7 +284,7 @@ jobs:
   # The Linux job cross-compiles the macOS klibs but cannot link or run them; this job exercises
   # the native tests on Apple Silicon.
   test-macos:
-    name: Run native tests on macOS
+    name: Run JVM and native tests on macOS
     runs-on: macos-latest
     timeout-minutes: 45
 
@@ -316,8 +316,8 @@ jobs:
       - name: Grant execute permission for Gradle
         run: chmod +x gradlew
 
-      - name: Run native tests
-        run: ./gradlew :koblas:macosArm64Test
+      - name: Run JVM and native tests
+        run: ./gradlew :koblas:jvmTest :koblas:macosArm64Test
 
       - name: Upload test reports
         if: always()
