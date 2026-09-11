@@ -41,7 +41,11 @@ done
 
 gawk -v require_compatible="$require_compatible" -v mode="$mode" -v timings="$timings" '
 BEGIN {
-  required_count = split("schema workload_version fixture_version timing_mode threads warmups target_ns comparison_kind configuration physical_work case logical_id actual_kernel implementation status ns_per_op", required)
+  record_type[2] = "run"; record_type[3] = "case"; record_type[4] = "sample"
+  expected["run"] = "id implementation workload_version fixture_version pass unit source_commit dirty runtime threads warmups target_ns harness warmup_target_ns forks"
+  expected["case"] = "id run_id case status comparison_kind timing_mode logical_id configuration physical_work actual_kernel"
+  expected["sample"] = "case_id fork sample operations elapsed_ns ns_per_op"
+  for (type in expected) column_count[type] = split(expected[type], columns[type]) + 1
   match_count = split("schema workload_version fixture_version timing_mode threads warmups target_ns comparison_kind", match_fields)
   group_count_fields = split("logical_id schema workload_version fixture_version timing_mode threads warmups target_ns comparison_kind configuration physical_work implementation actual_kernel", group_fields)
   timing_count = split(timings, timing_values, "\034")
@@ -137,19 +141,24 @@ function compatible(left, right,    i, field) {
 BEGINFILE {
   file_count = ARGIND
   names[ARGIND] = FILENAME
-  delete header
+  delete runs
+  delete cases
+  delete case_samples
+  delete seen_samples
 }
 
 FNR == 1 {
   sub(/\r$/, "")
-  columns = read_csv($0, fields)
-  if (columns < 0) fail(FILENAME ": malformed benchmark CSV header")
-  for (i = 1; i <= columns; i++) {
-    if (fields[i] in header) fail(FILENAME ": duplicate benchmark CSV column")
-    header[fields[i]] = i
-  }
-  for (i = 1; i <= required_count; i++) {
-    if (!(required[i] in header)) fail(FILENAME ": incompatible or empty benchmark CSV")
+  if (read_csv($0, fields) != 2 || fields[1] != "schema" || fields[2] != "5") fail(FILENAME ": unsupported schema; use a schema 5 report")
+  next
+}
+
+FNR <= 4 {
+  sub(/\r$/, "")
+  type = record_type[FNR]
+  if (read_csv($0, fields) != column_count[type] || fields[1] != type) fail(FILENAME ": malformed benchmark CSV header")
+  for (i = 2; i <= column_count[type]; i++) {
+    if (fields[i] != columns[type][i - 1]) fail(FILENAME ": malformed benchmark CSV header")
   }
   next
 }
@@ -157,15 +166,41 @@ FNR == 1 {
 {
   sub(/\r$/, "")
   if ($0 == "") next
-  if (read_csv($0, fields) != columns) fail(FILENAME ": malformed benchmark CSV")
-  delete row
-  for (i = 1; i <= required_count; i++) {
-    field = required[i]
-    row[field] = fields[header[field]]
-    if (field != "ns_per_op" && row[field] == "") fail(FILENAME ": malformed benchmark CSV")
+  count = read_csv($0, fields)
+  type = fields[1]
+  if (!(type in column_count) || count != column_count[type]) fail(FILENAME ": malformed benchmark CSV record")
+  delete record
+  for (i = 2; i <= count; i++) {
+    if (fields[i] == "") fail(FILENAME ": empty benchmark CSV field")
+    record[columns[type][i - 1]] = fields[i]
   }
-  if (row["schema"] != "4") fail(FILENAME ": unsupported schema; capture a fresh baseline")
-  if (row["status"] != "ok") next
+  if (type == "run") {
+    id = record["id"]
+    if (id !~ /^[1-9][0-9]*$/ || (id in runs)) fail(FILENAME ": invalid or duplicate run id")
+    for (field in record) if (field != "id") runs[id][field] = record[field]
+    next
+  }
+  if (type == "case") {
+    id = record["id"]
+    if (id !~ /^[1-9][0-9]*$/ || (id in cases) || !(record["run_id"] in runs)) fail(FILENAME ": invalid case or unknown run id")
+    for (field in record) if (field != "id") cases[id][field] = record[field]
+    next
+  }
+  id = record["case_id"]
+  if (!(id in cases) || cases[id]["status"] != "ok") fail(FILENAME ": sample references unknown or unsupported case")
+  for (i = 1; i <= 4; i++) {
+    field = columns["sample"][i + 1]
+    if (record[field] !~ /^[1-9][0-9]*$/) fail(FILENAME ": invalid sample " field)
+  }
+  key = id SUBSEP record["fork"] SUBSEP record["sample"]
+  if (key in seen_samples) fail(FILENAME ": duplicate sample")
+  seen_samples[key] = 1
+  case_samples[id]++
+  delete row
+  row["schema"] = "5"
+  for (field in runs[cases[id]["run_id"]]) row[field] = runs[cases[id]["run_id"]][field]
+  for (field in cases[id]) row[field] = cases[id][field]
+  for (field in record) row[field] = record[field]
   value = row["ns_per_op"]
   if (value !~ /^[+]?[0-9]*([.][0-9]+|[0-9]+[.]?[0-9]*)([eE][+-]?[0-9]+)?$/ || value + 0 <= 0 || tolower(sprintf("%g", value + 0)) ~ /inf|nan/) fail(FILENAME ": invalid sample")
   successful[ARGIND]++
@@ -190,6 +225,7 @@ FNR == 1 {
 }
 
 ENDFILE {
+  for (id in cases) if (cases[id]["status"] == "ok" && !case_samples[id]) fail(FILENAME ": supported case has no samples")
   if (!successful[ARGIND]) fail(FILENAME ": no successful measurements")
 }
 

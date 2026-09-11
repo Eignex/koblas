@@ -10,19 +10,32 @@ candidate="$temporary/candidate.csv"
 fail() { echo "$*" >&2; exit 1; }
 
 header() {
-  echo 'schema,workload_version,fixture_version,timing_mode,threads,warmups,target_ns,comparison_kind,configuration,physical_work,case,logical_id,actual_kernel,implementation,status,ns_per_op'
+  echo 'schema,5'
+  echo 'run,id,implementation,workload_version,fixture_version,pass,unit,source_commit,dirty,runtime,threads,warmups,target_ns,harness,warmup_target_ns,forks'
+  echo 'case,id,run_id,case,status,comparison_kind,timing_mode,logical_id,configuration,physical_work,actual_kernel'
+  echo 'sample,case_id,fork,sample,operations,elapsed_ns,ns_per_op'
 }
 
+row_id=0
 row() {
-  gawk '
+  row_id=$((row_id + 1))
+  gawk -v id="$row_id" '
   function csv(value) {
     if (value ~ /[",\r\n]/) { gsub(/"/, "\"\"", value); return "\"" value "\"" }
     return value
   }
+  function record(type, fields, prefix,    names, count, i) {
+    count = split(fields, names)
+    printf "%s,%s", type, prefix
+    for (i = 1; i <= count; i++) printf ",%s", csv(values[names[i]])
+    print ""
+  }
   BEGIN {
-    count = split("schema workload_version fixture_version timing_mode threads warmups target_ns comparison_kind configuration physical_work case logical_id actual_kernel implementation status ns_per_op", fields)
+    run = "implementation workload_version fixture_version pass unit source_commit dirty runtime threads warmups target_ns harness warmup_target_ns forks"
+    case_fields = "case status comparison_kind timing_mode logical_id configuration physical_work actual_kernel"
+    sample = "fork sample operations elapsed_ns ns_per_op"
+    count = split(run " " case_fields " " sample, fields)
     for (i = 1; i <= count; i++) values[fields[i]] = "1"
-    values["schema"] = "4"
     values["timing_mode"] = "prepacked-compute"
     values["comparison_kind"] = "direct"
     values["configuration"] = "tile-four"
@@ -35,8 +48,9 @@ row() {
       delimiter = index(ARGV[i], "=")
       values[substr(ARGV[i], 1, delimiter - 1)] = substr(ARGV[i], delimiter + 1)
     }
-    for (i = 1; i <= count; i++) printf "%s%s", i == 1 ? "" : ",", csv(values[fields[i]])
-    print ""
+    record("run", run, id)
+    record("case", case_fields, id "," id)
+    if (values["status"] == "ok") record("sample", sample, id)
     exit
   }' -- "$@"
 }
@@ -44,6 +58,7 @@ row() {
 report() {
   local path=$1
   shift
+  row_id=0
   { header; row "$@"; } >"$path"
 }
 
@@ -107,10 +122,14 @@ reject fixed
 
 # Disjoint, unsupported-only and historical reports cannot silently pass strict comparison.
 report "$base"
-for patch in logical_id=different schema=3 status=unsupported; do
+for patch in logical_id=different status=unsupported; do
   report "$candidate" "$patch"
   reject logical
 done
+
+report "$candidate"
+sed -i '1s/schema,5/schema,4/' "$candidate"
+reject logical
 
 # Quoted CSV fields round-trip, while sample aggregation uses medians and extrema.
 report "$base" 'case=quoted "case", one' ns_per_op=1
@@ -148,5 +167,19 @@ report "$temporary/second=report.csv" configuration=tile-eight
 "$tools/compare.sh" --mode logical --require-compatible "$base" "$candidate" "$temporary/second=report.csv" >"$temporary/output.csv"
 lines 3
 if "$tools/compare.sh" "$base" "$candidate" >/dev/null 2>&1; then fail "missing comparison mode accepted"; fi
+
+# Broken references, duplicate samples and missing measurements are rejected.
+report "$candidate"
+sed -i 's/^sample,1,/sample,99,/' "$candidate"
+reject logical
+report "$candidate"
+tail -1 "$candidate" >>"$candidate"
+reject logical
+report "$candidate"
+sed -i '$d' "$candidate"
+reject logical
+report "$candidate"
+sed -i 's/^case,1,1,/case,1,99,/' "$candidate"
+reject logical
 
 echo 'Comparator shell tests passed'

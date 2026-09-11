@@ -33,11 +33,11 @@ public fun main(args: Array<String>) {
     require(selected.isNotEmpty()) { "operation '${settings.operation}' selected no cases" }
     val (engine, implementation) = resolveEngine(settings.mode)
     val supported = linkedMapOf<String, Pair<String, String>>()
-    val rowsByCase = linkedMapOf<String, MutableList<String>>()
+    val rowsByCase = linkedMapOf<String, MutableList<Measurement>>()
     for (case in selected) {
         val work = denseWork(case, engine) ?: sparseWork(case, engine)
         if (work == null) {
-            rowsByCase.getOrPut(case.id, ::arrayListOf) += csvRow(
+            rowsByCase.getOrPut(case.id, ::arrayListOf) += measurement(
                 case, implementation, settings, 0, 0, 0, "", "unsupported", "unsupported",
                 case.option("mode", "arithmetic"),
             )
@@ -54,7 +54,7 @@ public fun main(args: Array<String>) {
             val status = "failed:jmh:${sanitize(failure.message ?: failure::class.simpleName ?: "error")}"
             for ((caseId, metadata) in supported) {
                 val case = allCases.single { it.id == caseId }
-                rowsByCase.getOrPut(caseId, ::arrayListOf) += csvRow(
+                rowsByCase.getOrPut(caseId, ::arrayListOf) += measurement(
                     case, implementation, settings, 0, 0, 0, "", status, metadata.first, metadata.second,
                     jmhRuntime(settings),
                 )
@@ -68,10 +68,10 @@ public fun main(args: Array<String>) {
     println("resolved implementation=$implementation runtime=${runtimeIdentity()} harness=JMH 1.37 forks=${settings.forks}")
 }
 
-private fun writeRows(settings: Settings, selected: List<BenchCase>, rowsByCase: Map<String, List<String>>) {
-    val rows = arrayListOf(CSV_HEADER)
+private fun writeRows(settings: Settings, selected: List<BenchCase>, rowsByCase: Map<String, List<Measurement>>) {
+    val rows = arrayListOf<Measurement>()
     for (case in selected) rows += requireNotNull(rowsByCase[case.id]) { "JMH returned no result for ${case.id}" }
-    writeTextFile(settings.outputPath, rows.joinToString("\n", postfix = "\n"))
+    writeTextFile(settings.outputPath, reportCsv(rows))
 }
 
 private fun jmhOptions(settings: Settings, caseIds: Collection<String>) = OptionsBuilder()
@@ -89,7 +89,7 @@ private fun jmhOptions(settings: Settings, caseIds: Collection<String>) = Option
     .build()
 
 private fun appendJmhRows(
-    rowsByCase: MutableMap<String, MutableList<String>>,
+    rowsByCase: MutableMap<String, MutableList<Measurement>>,
     results: Collection<RunResult>,
     cases: Map<String, BenchCase>,
     supported: Map<String, Pair<String, String>>,
@@ -109,7 +109,7 @@ private fun appendJmhRows(
                 "invalid JMH result for $caseId"
             }
             val elapsed = max(1L, (nanosPerOperation * operations).roundToLong())
-            rowsByCase.getOrPut(caseId, ::arrayListOf) += csvRow(
+            rowsByCase.getOrPut(caseId, ::arrayListOf) += measurement(
                 case, implementation, settings, ++sample, operations, elapsed, formatDouble(nanosPerOperation),
                 "ok", comparison, timing, runtime,
             )

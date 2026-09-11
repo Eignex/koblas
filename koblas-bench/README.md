@@ -87,7 +87,9 @@ gemm+129x31x257+uniform+transA=T
 spgemv+257x129+sparse-uniform+density=0.01+mode=prepared
 ```
 
-Do not hand-edit generated CSVs. They use schema 4 and retain provenance, timing, and compatibility metadata.
+CSV schema 5 stores run metadata and case definitions once, followed by sample records referencing their IDs.
+Runtime/build strings and source commits belong to the run; case definitions replace separate `cases.txt` copies.
+JMH elapsed time is reconstructed from its score; Native/vendor elapsed time is measured. Keep raw sample values unchanged.
 Unsupported cases have no timing; a supported call failure stops the run. See [`coverage.md`](coverage.md) for
 the exact vendor-operation mapping and timing boundaries. Fixtures are deterministic and verified before relevant
 runs.
