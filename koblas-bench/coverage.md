@@ -57,6 +57,3 @@ modified construction has its own `rotmg` case because it is dispatched. Fresh s
 construction and right-side sparse transpose compositions are excluded from this bounded workload: they have no
 direct vendor equivalent, while the retained sparse product, add, rank-k, triangular, and workspace cases cover
 the underlying accumulation, output construction, and transpose-sensitive arithmetic families.
-
-See [packed-cases.md](packed-cases.md) for the versioned formats and exact timing rules. Raw vendor arithmetic
-uses `vendor-arithmetic`, distinct from Koblas `raw-tile`; only complete logical block costs join across layouts.
