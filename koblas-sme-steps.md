@@ -1,0 +1,746 @@
+# Koblas SME implementation: PR-by-PR transition
+
+Status: all PRs below are planned. No implementation PRs have been created by this document.
+
+Architecture: [koblas-sme.md](koblas-sme.md). Keep one backend-neutral portable Level 2/3 orchestration per
+operation, with reusable strategies and backend-specific block kernels. Do not duplicate portable BLAS by ISA.
+
+The target is independently selectable SME and SME2 kernels, an extensible C probe, explicit ordinary SIMD
+widths, operation-level planning, layout-bearing packed operands, measured runtime-specific defaults, and seams
+for future AMD/Intel AVX10, AMX, and ACE. Existing APIs and implementation structure may change.
+
+**Backward compatibility is not required in any PR.** Choose the optimal final architecture even when it breaks
+existing public/internal Kotlin APIs, C ABI and symbols, packed formats, engine selection, or configuration keys.
+Existing consumers may need to rebuild and migrate. Do not preserve source, binary, configuration, or packed-data
+compatibility through deprecated aliases, legacy modes, dual APIs, or permanent shims. Mathematical correctness,
+required alias/no-read semantics, and supported operation coverage remain requirements.
+
+**Scope discipline**
+
+Build both SME backends and the shared dense interfaces. Existing sparse callers migrate with the panel API;
+new sparse-dense analysis is a measured follow-up. Standalone vector experiments belong to calibration, with
+no requirement to ship new streaming leaves. Native-memory workspaces and new vendor bindings are added only
+when measurements justify them. Future ACE/AMX support requires extensible descriptors and synthetic tests,
+not speculative low-precision metadata or a dummy OS-enablement implementation.
+Support logical modes through shared packing/scheduling where possible; do not multiply native implementations
+across every ISA/layout/transpose/tile combination without measured need.
+
+**How to land the transition**
+
+- Land in numbered order. The prerequisite column names the essential technical dependencies; every PR also
+  rebases onto the accepted preceding state. These labels are planning IDs, not GitHub issue/PR numbers.
+- Each merge must compile, pass its applicable checks, and leave all existing operations callable. If a backend
+  does not yet implement an operation, select an explicitly identified available implementation. Exact kernel
+  execution must never silently substitute another backend.
+- New ISA kernels are initially exact-selectable. AUTO eligibility requires correctness and target measurements;
+  PR 26 installs the complete measured policy. Shared orchestration can migrate earlier using conservative
+  available-kernel profiles.
+- Temporary adapters exist only to cross a transition boundary. They do not define the final ABI or packing
+  format, and each has a removal owner in this document. Do not publish them as new public APIs. Keeping each
+  intermediate PR buildable is an integration requirement, not a backward-compatibility commitment. Remove an
+  adapter as soon as its last in-repository consumer migrates; prefer updating callers directly in the owning PR.
+- Update relevant API dumps, KDoc, and test callers in the PR that changes an API. PR 27 finishes migration
+  documentation; it is not permission to leave intermediate API checks broken.
+- Do not split PRs solely by source set when that leaves JVM or Native broken. A kernel contract change includes
+  the bindings and reference implementation needed to exercise it.
+- Suggested titles below use single-line Conventional Commits without scopes. Actual PR descriptions follow
+  the repository template and refer to real issues only; do not fabricate `Closes` numbers.
+- These 27 steps are a plan; no implementation sessions or PRs are being launched now.
+
+**Fresh sessions and model settings**
+
+Every numbered PR starts in a fresh implementation session and ends with an independent review in a separate
+fresh session. Do not continue the next PR in the previous PR's conversation, fork the implementation history
+into the reviewer, or count implementation-session self-review as independent review. Using the same model in
+two separate sessions is allowed; independence comes from separate context and independently checking evidence.
+If a planned PR is split, each resulting PR follows this same workflow and inherits its settings unless this
+plan is explicitly revised.
+
+Use GPT-6 Astra (`gpt-6-astra`) for implementation and review. The official model documentation identifies it
+for complex coding/reasoning and lists `high` and `xhigh` as supported reasoning settings.
+[Model documentation](https://developers.openai.com/api/docs/models/gpt-6-astra).
+The assignments below are engineering recommendations for this project, not measured model comparisons:
+`high` for the bounded baseline/build/ordinary-width transitions (01, 02, 04); `xhigh` for the remaining
+implementation work and every independent review. Settings are stated explicitly in every PR section.
+At session start, confirm availability and record the actual model/effort; if unavailable, revise the assignment
+explicitly rather than silently substituting another model. Model settings never replace verification gates.
+
+1. Start one fresh implementation session per PR on a fresh `codex/` branch from the accepted preceding state.
+   Read AGENTS.md, both plans, prerequisite handoffs, and the affected code. Implement this PR and run its gates.
+2. Save one handoff in the PR record: base/head SHAs, contract changes, remaining adapters/removal owners,
+   test commands/results, relevant hardware/toolchain identity, report links, and missing evidence. Record the
+   implementation session ID and actual model/effort. Do not duplicate this into a separate reporting system.
+3. Start a separate fresh reviewer session with AGENTS.md, both plans, the full diff/surrounding source, and raw
+   verification evidence. Do not preload the implementer's conversation. Review the whole change independently;
+   the per-PR focus is guidance, not a scope limit. Enforce the no-backward-compatibility rule.
+4. Record findings with severity/locations, actual checks, gaps, base/head SHAs, and reviewer session/model/effort.
+   Fix actionable findings in the implementation session and rerun affected checks. The independent reviewer
+   checks revisions and integration changes, then records a verdict for the final base/head pair. Any subsequent
+   change needs renewed review; a new reviewer session is optional for revisions within this same PR.
+5. End each PR with `no blocking findings` and all applicable gates passed; otherwise record `changes required`
+   or `verification incomplete`. Missing required hardware evidence cannot be waived by model judgment. Preserve
+   the handoff/review before starting the next PR in a fresh implementation session. Follow the user's execution
+   instructions for pushing/merging when implementation is requested.
+
+**Review and verification gates**
+
+The following named gates are used throughout the sequence. Each PR runs the checks appropriate to its changes;
+they are not reasons to repeat unchanged hardware suites unnecessarily.
+
+| Gate | Required evidence |
+|---|---|
+| G1: repository | `./gradlew :koblas:check :koblas-bench:check lintDocs`; run the bundled-C configuration with `-Pkoblas.noSimd=true` where dispatch/native behavior changes. |
+| G2: native ABI/build | JVM shared library and Kotlin/Native static archive compile/link on affected supported targets; ABI layout/export tests; library loads on baseline hardware. Cross-compilation alone is not execution evidence. |
+| G3: numerical | New kernels agree with an independently callable scalar oracle using existing assertion conventions. Include no-read cases, special values, logical edges, permitted aliases, and untouched backing storage. |
+| G4: exact ISA | Requested SME and SME2 implementations execute on supported hardware, with actual ID/layout recorded. Audit generated instructions and state preservation; use feature-restricted execution where available for the SME-only path. |
+| G5: performance | Reproducible repository-harness comparisons with matching inputs/timing boundaries, raw and full-operation costs, and retained-packed cases where relevant. No inferred thresholds from instruction peak throughput. |
+| G6: runtime | Allocation/lifetime checks, concurrency, per-thread execution constraints, and bounded JVM critical-call/safepoint behavior. |
+| G7: independent review | Mandatory for every PR: separate fresh reviewer session, explicit model/effort, review of the final base/head pair, evidence-backed verdict, and resolution of findings before completion. |
+
+G7 applies to every PR alongside its listed technical gates. Every applicable correctness gate must pass before
+merge. A kernel without real-hardware execution evidence is
+not a verified supported backend. A correct but uncalibrated kernel may remain exact-only. If target hardware
+is unavailable, unrelated foundation work may land, but target execution/default activation remains outstanding.
+
+Before pushing, run the full repository check as instructed by AGENTS.md. Keep HFactor implementation changes
+out of this project; the full check may still rebuild it. Do not edit `.github/` without a separate request.
+Match repository test naming/layout and keep individual JVM tests short by parameterizing bounded cases.
+
+**Sequence overview**
+
+| PR | Suggested title | Essential prerequisites | State after merge |
+|---|---|---|---|
+| 01 | `test: establish kernel transition baselines` | None | Semantic and performance baselines are reproducible. |
+| 02 | `refactor: compile native kernels outside cinterop headers` | 01 | One native source tree builds shared and static artifacts. |
+| 03 | `feat: add versioned native kernel capability probe` | 02 | Generic catalog and execution-state descriptions work through JVM and Native. |
+| 04 | `refactor: make ordinary native kernel widths explicit` | 03 | Existing C variants have exact IDs and truthful width attribution. |
+| 05 | `feat: add immutable kernel profiles and plan selection` | 03, 04 | Typed policy/configuration and inspectable selection replace hidden decisions. |
+| 06 | `feat: define matrix operands and block contracts` | 05 | Validated windows/layouts and scalar execution establish the product contract. |
+| 07 | `feat: implement ordinary matrix block kernels` | 04, 06 | JVM SIMD and ordinary C consume the same logical product interface. |
+| 08 | `refactor: share gemm planning across matrices and views` | 05–07 | One GEMM orchestration schedules direct and packed block calls. |
+| 09 | `feat: add isolated SME execution support` | 03, 07 | Separate SME/SME2 build targets and safe native boundaries are verified. |
+| 10 | `feat: add FP64 SME product kernels` | 08, 09 | SME GEMM is exact-selectable through the shared planner. |
+| 11 | `feat: add FP64 SME2 product kernels` | 10 | SME2 GEMM is independently selectable and compared with SME. |
+| 12 | `feat: add SME packing and transpose kernels` | 06, 09, 10 | SME layout operations produce final-format packed operands. |
+| 13 | `feat: add SME2 packing and transpose kernels` | 11, 12 | SME2 grouped layout operations are separately selectable. |
+| 14 | `refactor: share structured matrix product scheduling` | 08, 10–13 | SYMM, GEMMT, and SYRK share block products across backends. |
+| 15 | `feat: fuse symmetric rank two k updates` | 14 | SYR2K can accumulate both products in one output traversal. |
+| 16 | `refactor: schedule triangular multiplication by blocks` | 14 | TRMM uses one dependency-correct block orchestration. |
+| 17 | `refactor: decouple triangular solves from gemm tile shapes` | 06, 07, 16 | TRSM diagonal/RHS blocks are independent of product microtiles. |
+| 18 | `feat: add SME triangular block kernels` | 10, 17 | SME solve and fused update/solve variants are exact-selectable. |
+| 19 | `feat: add SME2 triangular block kernels` | 11, 18 | SME2 triangular variants are separately tested and measured. |
+| 20 | `refactor: express gemv through variable panel kernels` | 05–07 | GEMV uses variable panels; existing sparse consumers migrate without an algorithm rewrite. |
+| 21 | `feat: add SME and SME2 panel and gemv kernels` | 09–13, 20 | Both matrix backends serve the same GEMV/panel contract. |
+| 22 | `refactor: execute symmetric matrix vector products by blocks` | 20, 21 | SYMV has shared block scheduling and explicit semantic fallbacks. |
+| 23 | `feat: execute rank updates through matrix block kernels` | 14, 21, 22 | GER/SYR/SYR2 can use direct block updates on each backend. |
+| 24 | `perf: optimize native call batches and workspace lifetimes` | 08–23 | Batching is measured; an additional storage strategy exists only if justified. |
+| 25 | `feat: calibrate kernel profiles and vector dispatch` | 01, 05, 10–24 | Reproducible calibration covers dense kernels and existing vector candidates. |
+| 26 | `perf: enable measured operation specific kernel dispatch` | 25 | AUTO selects measured scalar/SIMD/C/SME/SME2 plans by operation and shape. |
+| 27 | `refactor: remove legacy kernel dispatch and finalize migration` | 26 | Legacy seams are gone; the end state is documented and release-verified. |
+
+**PR 01 — Establish semantic and benchmark baselines**
+
+**Implementation:** fresh session; model `gpt-6-astra`; reasoning `high`.
+
+Transition: current behavior is implicit in scattered tests and fixed physical benchmark cases; after this PR,
+the redesign has an explicit reference and comparable measurements.
+
+- Inventory zero-alpha/beta, empty dimensions, robust norms, selected triangles, unit diagonals, strided views,
+  permitted aliases, and the ordered numerical fallbacks. Record each contract's current oracle/test owner.
+- Extend the harness's case descriptions to distinguish logical workload from backend physical layout without
+  changing the timing meaning of existing rows. Version changed workload/schema semantics rather than mixing
+  incompatible reports. Add shapes that expose skinny GEMM, depth tails, and multi-RHS solves.
+- Capture current scalar, JVM SIMD, JVM C, and Native baselines on available representative targets. Record
+  missing targets explicitly. Do not make a performance test a timing assertion in ordinary unit tests.
+- Add meaningful missing reference coverage; do not copy the current implementation into expected values.
+
+Verification: G1, G3, G5 baseline capture. Exit: later reports can compare identical logical problems and explain
+any fixture or timing-boundary change. No production dispatch changes.
+
+**Final independent review (G7):** fresh separate session; model `gpt-6-astra`; reasoning `xhigh`.
+Focus: oracle independence, no-read and alias coverage, and unchanged benchmark timing semantics.
+
+**PR 02 — Extract and unify native builds**
+
+**Implementation:** fresh session; model `gpt-6-astra`; reasoning `high`.
+
+Transition: header-compiled implementation becomes ordinary compiled native code shared by both runtimes.
+
+- Move bodies from `koblas_kernels.h` and `koblas_packed_trsm.h` into implementation/internal files. Public
+  cinterop headers become declarations; preserve behavior and current callable symbols for this transition.
+- Build target-specific static archives for Kotlin/Native and shared libraries for JVM from the same sources.
+  Update `koblas_kernels.def`, Gradle dependencies/inputs, resource checks, and exported-symbol verification.
+- Track compiler/toolchain identity, target triple, flags, and all sources in build cache inputs. Handle cross
+  targets explicitly and retain the existing supported scalar cross-target behavior.
+- Keep current instruction selection intact until PR 04 makes variants explicit. Do not introduce SME here.
+
+Verification: G1, G2, existing kernel conformance and a small G5 before/after sample. Exit: each affected target
+links the correct architecture; no host archive leaks into another target. Old symbol forwarding is removed
+after the last consumer migrates, no later than PR 27.
+
+**Final independent review (G7):** fresh separate session; model `gpt-6-astra`; reasoning `xhigh`.
+Focus: cross-target archive selection, symbol/link parity, toolchain cache inputs, and baseline instruction safety.
+
+**PR 03 — Add the generic C probe and state model**
+
+**Implementation:** fresh session; model `gpt-6-astra`; reasoning `xhigh`.
+
+Transition: library availability becomes a versioned catalog of built, usable, and unavailable kernel choices.
+
+- Implement `koblas_probe_v1` HOST/KERNEL/THREAD queries with struct sizing/version negotiation, stable IDs,
+  feature records, type tuples, widths, matrix geometry, layouts, and reason codes. Document error behavior.
+- Implement baseline feature discovery for current x86/Arm targets; distinguish hardware, build, OS support,
+  and current execution context. Querying never changes permissions or executes an illegal-instruction trial.
+- Describe process/thread/per-call state and test preparation outcomes with synthetic descriptors. Add a real
+  preparation entry point only if a supported backend needs it; do not ship a dummy AMX/ACE permission service.
+- Add JVM and Native probe bindings, using non-critical JVM calls for OS queries/preparation. Decode the same
+  records on both runtimes; no independent Kotlin CPU-feature guesswork.
+- Test synthetic ACE-without-FP64, AVX10-without-ACE, denied enablement, unknown feature records, and a future
+  FP64 tile descriptor. Synthetic capability tests cannot authorize real unsupported instructions.
+
+Verification: G1, G2 and descriptor/ABI tests. Exit: unsupported and unavailable are explainable; process,
+thread, and per-call state requirements are distinct. The probe is useful before SME kernels exist.
+
+**Final independent review (G7):** fresh separate session; model `gpt-6-astra`; reasoning `xhigh`.
+Focus: ABI sizing/version negotiation, capability versus readiness, permission scopes, and rejection of ACE without FP64.
+
+**PR 04 — Make ordinary C variants and widths explicit**
+
+**Implementation:** fresh session; model `gpt-6-astra`; reasoning `high`.
+
+Transition: hidden target cloning/source-vector width assumptions become individually identifiable kernels.
+
+- Give baseline and existing ordinary SIMD implementations stable operation-specific IDs. Separate targeted
+  objects or explicit specializations so the exact selected ISA can be verified.
+- Expose typed vector/panel execution entry points resolving an ID once outside the loop. Wire JVM and Native
+  calls through them. Preserve a scalar/non-accelerated competitor for every migrated contract.
+- Describe machine register width, logical batch size, and unroll separately. Provide the specialization seam
+  for future NEON/SSE2/AVX2/AVX-512/SVE/AVX10 choices without claiming unimplemented variants.
+- Keep pure scalar Kotlin and JVM SIMD identities distinct from ordinary native SIMD. Add exact raw C mode
+  that bypasses performance thresholds while preserving semantic early exits.
+
+Verification: G1–G3; disassembly and G5 for affected ordinary variants. Exit: actual native ISA/width is
+attributable and exact requests cannot resolve to a different width. Remove obsolete hidden clones here.
+
+**Final independent review (G7):** fresh separate session; model `gpt-6-astra`; reasoning `xhigh`.
+Focus: truthful ISA and width IDs, absence of hidden substitution, and baseline portability.
+
+**PR 05 — Add immutable profiles and inspectable planning**
+
+**Implementation:** fresh session; model `gpt-6-astra`; reasoning `xhigh`.
+
+Transition: process-wide scattered crossovers become data belonging to a hardware/runtime execution policy.
+
+- Add typed profile tables under `koblas/src/tuning/` with deterministic validation. Separate legal native
+  variants from scheduling, host crossovers, and algorithm choices. Kotlin owns policy and passes selected
+  schedules to C; generate shared data only if a field actually has consumers in both languages.
+- Implement profile resolution, exact/AUTO policies, and a pure decision API. Represent `Never`,
+  `AlwaysEligible`, shape rules, and checked/saturating work estimates explicitly.
+- Add operation/component diagnostics; an engine with mixed components cannot label every operation SME.
+- Resolve properties/environment overrides once. Validate supported geometries and IDs; exact unavailable
+  requests fail. Keep current proven behavior as transitional conservative profile data.
+- Test scalar-to-C and SIMD-to-C as separate decisions, including cases where one stage never wins. Exercise
+  synthetic x86 matrix descriptors so the planner is not organized around SME booleans.
+
+Verification: G1, decision tests and warmed allocation checks. Exit: performance choice is separate from
+capability, no startup autotuning is introduced, and newer ISA/greater width does not imply priority.
+Existing operation families consume this policy as they migrate; residual old tuning readers belong to PR 27.
+
+**Final independent review (G7):** fresh separate session; model `gpt-6-astra`; reasoning `xhigh`.
+Focus: immutable selection, checked shape arithmetic, separate scalar-C and SIMD-C policies, and truthful diagnostics.
+
+**PR 06 — Define windows, packed layouts, and executable block contracts**
+
+**Implementation:** fresh session; model `gpt-6-astra`; reasoning `xhigh`.
+
+Transition: raw panels and fixed microtiles become validated logical operands with an executable scalar contract.
+
+- Define matrix/vector windows and retained packed operands: dimensions, offsets/strides, padding/alignment,
+  layout ID/version, ownership, and baked transforms/scaling. Prefer unscaled reusable panels. Keep future type
+  tuples extensible without adding quantization/scale-buffer machinery to Double operands.
+- Implement scalar pack/unpack/transpose for general, symmetric, and triangular input. Validate caller-owned
+  wrapping, sizes, permitted aliases, and retained-buffer lifetime independently of the initializing thread's SVL.
+- Define direct, one-side-packed, both-side-packed, and retained product modes with alpha/beta, selected output,
+  logical m/n/k, scratch requirements, and first/subsequent depth contributions. Implement the scalar reference.
+- Keep ordered numerical fallbacks and failure-before-mutation explicit. Multiple kernels may share a declared
+  layout; product packing dimensions must not dictate triangular solve order.
+- Update in-repository callers/API dumps with the contract changes. Use temporary internal wrappers only for
+  unmigrated consumers; remove them in the owning family PR, with the final audit in PR 27.
+
+Verification: G1, G3, size/stride overflow, round trips, retained-layout mismatch, alpha/beta/no-read cases,
+non-finite/extreme values, and untouched backing storage. Exit: layout and product contracts are exercised
+together before accelerated implementations are added.
+
+**Final independent review (G7):** fresh separate session; model `gpt-6-astra`; reasoning `xhigh`.
+Focus: ownership/layout validation, scalar-oracle independence, alpha/beta and no-read semantics, and failure before mutation.
+
+**PR 07 — Implement ordinary C and JVM SIMD product blocks**
+
+**Implementation:** fresh session; model `gpt-6-astra`; reasoning `xhigh`.
+
+Transition: ordinary backends implement the final block API, proving it is not an SME-only abstraction.
+
+- Implement direct and packed block products for ordinary C and JVM SIMD. Reuse valid arithmetic code where
+  helpful, but put the microtile loops inside the selected backend's block execution.
+- Add versioned C matrix execution bindings and block-level Kotlin/Native pinning. Add edge/masked stores and
+  alpha/beta handling under the contract from PR 06.
+- Establish a conservative finite work bound for JVM critical calls now. PR 24 optimizes it; no interim PR may
+  pass an arbitrarily large whole BLAS operation through a critical downcall.
+- Preserve the JVM inlining rule for helpers returning `DoubleVector`; benchmark allocation behavior.
+
+Verification: G1–G3, G5 ordinary comparisons, G6 allocation/call-boundary smoke. Exit: every new product mode
+has a non-SME execution path and exact diagnostics. No new portable ISA-specific traversal is introduced.
+
+**Final independent review (G7):** fresh separate session; model `gpt-6-astra`; reasoning `xhigh`.
+Focus: C/JVM contract equivalence, edge handling, bounded calls, and allocation-free JVM vector helpers.
+
+**PR 08 — Migrate GEMM and view execution to one planner**
+
+**Implementation:** fresh session; model `gpt-6-astra`; reasoning `xhigh`.
+
+Transition: `BuiltinBlas`/view defaults and per-tile Kotlin dispatch become shared operation-level scheduling.
+
+- Route owning and view GEMM through one validation, alias, semantic-eligibility, and planning path.
+- Select direct, one-side-packed, both-side-packed, or retained-packed execution before allocating/packing.
+  Schedule cache blocks; backend code owns microtiles. Reuse workspace buffers across depth/row blocks.
+- Use explicit scaling/writeback semantics and document internal panel packing versus a full view copy.
+- Keep one portable GEMM orchestration for all exact and AUTO backend selections. Preserve independently
+  callable reference arithmetic, not a second production portable implementation per ISA.
+- Remove the superseded GEMM-only scheduler/edge adapters; shared helpers still used by unmigrated structured
+  or triangular operations remain temporarily and have deletion owners in PRs 14–19.
+
+Verification: G1–G3, G5 full GEMM versus PR 01 on ordinary backends, G6. Exit: matrices and views receive the
+same planning opportunities; changing layout after packing is impossible. Regressions in the ordinary route
+must be fixed before merge rather than hidden behind the future SME backend.
+
+**Final independent review (G7):** fresh separate session; model `gpt-6-astra`; reasoning `xhigh`.
+Focus: owning/view parity, pack amortization, alias handling, and removal of per-microtile foreign calls.
+
+**PR 09 — Establish isolated SME execution boundaries**
+
+**Implementation:** fresh session; model `gpt-6-astra`; reasoning `xhigh`.
+
+Transition: supported build systems gain verified SME and SME2 code-generation/link/runtime boundaries.
+
+- Add separate SME-only and SME2 source targets, feature-tested compiler flags, target-correct helper linkage,
+  and baseline-safe dispatch wrappers. Baseline-only builds remain valid; explicitly requested missing
+  accelerator build components fail the build.
+- Use ordinary pointer-based ABI entry points with compiler-managed streaming/ZA state. Keep scalable-vector
+  values private to implementation functions with a compiler-supported ABI.
+- Test state restoration, repeated calls, multiple threads, thread vector-length changes, and baseline library
+  loading. Use private test helpers for state exercises; do not advertise a production kernel not yet built.
+- Audit objects to ensure the SME-only target cannot acquire SME2 instructions and generic target flags cannot
+  cause ordinary SVE instructions to run on an incompatible Apple target.
+
+Verification: G1, G2, G4, G6. Exit: both runtimes can safely call an attributed implementation. The earlier
+compile-only investigation is superseded by actual link and hardware evidence.
+
+**Final independent review (G7):** fresh separate session; model `gpt-6-astra`; reasoning `xhigh`.
+Focus: streaming ABI attributes, ZA preservation, helper linking, per-context readiness, and baseline ISA isolation.
+
+**PR 10 — Implement SME FP64 GEMM blocks**
+
+**Implementation:** fresh session; model `gpt-6-astra`; reasoning `xhigh`.
+
+Transition: the shared product planner gains its first matrix-accelerated implementation.
+
+- Add SME-only `FMOPA` product kernels, multiple ZA accumulators, and tail-safe input/output handling.
+  Honor the final block contract, including direct and supported packed modes.
+- Interpret explicit packed strides and current SVL correctly. Specialized SVL restrictions are checked before
+  output mutation; exact mismatch reports failure rather than quietly changing backend.
+- Bind exact SME selection in JVM and Native. Exercise generic layouts through the scalar packer initially;
+  the packing implementation is an independent plan component.
+- Add candidate microtile shapes and record raw versus full-operation costs. Do not change AUTO defaults yet.
+
+Verification: G1–G4, G5 initial SME results, G6. Exit: SME GEMM runs through the existing shared planner, including
+owning/view and retained-packed paths, with no `smeGemm` portable fork.
+
+**Final independent review (G7):** fresh separate session; model `gpt-6-astra`; reasoning `xhigh`.
+Focus: actual FP64 SME instructions, current SVL, predicated edges, epilogue semantics, and exact execution evidence.
+
+**PR 11 — Implement SME2 FP64 GEMM blocks**
+
+**Implementation:** fresh session; model `gpt-6-astra`; reasoning `xhigh`.
+
+Transition: SME and SME2 become distinct, comparable product choices under the same contract.
+
+- Implement SME2-specific data movement/output scheduling around the appropriate outer-product primitive.
+  Use grouped instructions where they improve the measured schedule; a compiler flag alone is not an SME2
+  implementation.
+- Keep SME-only kernels independently available on SME2 hardware. Register exact IDs for actual schedules
+  and legal layouts, including diagnostics when two paths share an arithmetic primitive.
+- Test same-layout comparisons as well as each backend's native preferred geometry. Distinguish kernel gains
+  from changes caused by packing or different physical shapes.
+
+Verification: G1–G4, G5 SME-versus-SME2 raw and full GEMM, G6. Exit: both implementations pass identical logical
+conformance cases and remain separately selectable. Neither receives a default solely because it is newer.
+
+**Final independent review (G7):** fresh separate session; model `gpt-6-astra`; reasoning `xhigh`.
+Focus: distinct SME2 instruction schedules, feature gating, layout compatibility, and independently measured SME comparisons.
+
+**PR 12 — Implement SME layout kernels**
+
+**Implementation:** fresh session; model `gpt-6-astra`; reasoning `xhigh`.
+
+Transition: layout preparation becomes an accelerated component instead of an unconditional portable cost.
+
+- Implement SME general packing, unpacking, and blocked transpose; add structural packing variants where their
+  algorithm needs differ. Use existing explicit flags for mirroring, unit diagonals, and optional scaling.
+- Produce exactly the declared final layouts. Test logical edges, padding, strided windows, bit-preserving
+  copies where required, and never-reading ignored triangle/diagonal storage.
+- Wire the layout planner for both high-level products and retained-panel APIs. Reuse source transformations
+  rather than materializing a full matrix unnecessarily.
+
+Verification: G1–G4, G5 layout-only and full GEMM, G6 scratch reuse. Exit: scalar and SME packers are compatible
+when their layout ID matches, and an operation can mix a measured layout kernel with a compatible compute kernel.
+
+**Final independent review (G7):** fresh separate session; model `gpt-6-astra`; reasoning `xhigh`.
+Focus: bit-preserving layout transforms, padding and tails, unit-diagonal/triangle no-read rules, and SVL-dependent layouts.
+
+**PR 13 — Implement SME2 layout kernels**
+
+**Implementation:** fresh session; model `gpt-6-astra`; reasoning `xhigh`.
+
+Transition: packing and final extraction gain independently measurable SME2 grouped-transfer schedules.
+
+- Implement SME2 pack/unpack/transpose variants for the same contracts, including structural transforms used
+  by later symmetric/triangular operations.
+- Verify exact byte/layout compatibility with other producers/consumers; do not label an ISA-specific format
+  generic unless every documented consumer supports it.
+- Add independently configurable layout and compute choices, with end-to-end evidence that accounts for
+  streaming transitions. Short padding clears retain an ordinary fill when appropriate.
+
+Verification: G1–G4, G5 SME-versus-SME2 layout/full-operation comparisons, G6. Exit: packing and GEMM can be
+tuned independently without multiplying portable algorithms.
+
+**Final independent review (G7):** fresh separate session; model `gpt-6-astra`; reasoning `xhigh`.
+Focus: grouped SME2 moves, producer/consumer layout compatibility, tails, and complete packing costs.
+
+**PR 14 — Migrate symmetric and triangular-output products**
+
+**Implementation:** fresh session; model `gpt-6-astra`; reasoning `xhigh`.
+
+Transition: SYMM, GEMMT, and SYRK share the new product planner rather than old tile orchestration.
+
+- Route each operation through backend-neutral scheduling, structural input descriptions, and selected-output
+  masks. Share the GEMM block implementations; add specialized schedules only where the operation warrants one.
+- Preserve triangle-only reads/writes and the existing semantic guards for rearranged arithmetic. Edge handling
+  belongs to the block contract, not an unconditional Kotlin microtile scratch loop.
+- Extend exact backend reports so coverage cannot silently skip a physical shape. Route relevant view entry
+  points through the same shared logic.
+- Remove the old structured-product scheduler when its last consumer moves; leave the SYR2K ordered semantic
+  fallback until PR 15 establishes the new fused operation.
+
+Verification: G1–G4, G5 all structured products and both triangles. Exit: SME/non-SME portable paths do not exist;
+selection changes kernel/layout components only.
+
+**Final independent review (G7):** fresh separate session; model `gpt-6-astra`; reasoning `xhigh`.
+Focus: structured operand access, selected-triangle stores, fused scaling eligibility, and shared portable scheduling.
+
+**PR 15 — Fuse SYR2K output accumulation**
+
+**Implementation:** fresh session; model `gpt-6-astra`; reasoning `xhigh`.
+
+Transition: two separate product/output passes become an explicitly contracted two-product update.
+
+- Add a fused rank-2k block primitive with a scalar reference and ordinary C/JVM SIMD/SME/SME2 implementations.
+  Both products share output traffic; beta is applied exactly once across products and depth blocks.
+- Keep eligibility checks for scaling/reassociation and an ordered generic fallback. A declined accelerated
+  call leaves the destination untouched.
+- Route one shared SYR2K orchestration to the fused or ordinary product strategy. Delete obsolete duplicated
+  scheduling after all callers move.
+
+Verification: G1–G4, special-value and beta-once tests, G5 fused versus composed full operations. Exit: each
+backend serves the same new primitive; the shared planner can retain composed execution when it wins.
+
+**Final independent review (G7):** fresh separate session; model `gpt-6-astra`; reasoning `xhigh`.
+Focus: both-product accumulation, beta applied once, numerical fallback eligibility, and untouched output triangles.
+
+**PR 16 — Migrate TRMM block scheduling**
+
+**Implementation:** fresh session; model `gpt-6-astra`; reasoning `xhigh`.
+
+Transition: triangular multiplication becomes dependency-aware scheduling of final product/layout kernels.
+
+- Implement one shared left/right/transposed triangular multiplication traversal. Choose safe in-place order
+  or explicitly costed source staging; use the same product blocks for ordinary SIMD, SME, and SME2.
+- Reuse packed source/triangle panels across calls, with structural metadata and selected input reads.
+- Preserve zero-source, unit-diagonal, scaling, and alias behavior. A matrix-shaped problem does not authorize
+  extra reads of the unstored triangle.
+- Remove `packedTrmmCore` and its obsolete packing adapters after replacement is verified.
+
+Verification: G1–G4, all side/uplo/transpose/diag combinations, G5 and G6. Exit: no TRMM scheduling dimension is
+implicitly fixed by a backend's old 4-by-4 tile interface.
+
+**Final independent review (G7):** fresh separate session; model `gpt-6-astra`; reasoning `xhigh`.
+Focus: in-place dependency order, side/transpose/unit-diagonal combinations, and snapshot lifetime.
+
+**PR 17 — Redesign TRSM orchestration and ordinary solve blocks**
+
+**Implementation:** fresh session; model `gpt-6-astra`; reasoning `xhigh`.
+
+Transition: solve order, RHS batching, and product geometry become independent.
+
+- Define diagonal-solve and fused update-and-solve block contracts; implement their scalar oracle and ordinary
+  C/JVM SIMD versions. Preserve division and zero-source/pivot semantics.
+- Rewrite one shared TRSM traversal with independently tuned diagonal and RHS blocks. Reuse the product/layout
+  infrastructure, and keep numerical fallback eligibility independent of a particular backend.
+- Replace masks whose size was implicitly tied to a machine word where the final block design needs a wider
+  representation; otherwise retain and validate a deliberate size bound. Never enlarge a block past its guard.
+- Remove the old portable tile-shape dependency and migrate public/custom solve callers to explicit layouts.
+
+Verification: G1–G3, G5 ordinary TRSM, G6. Exit: all flags and difficult numerical cases run without SME, and a
+future accelerator only needs to implement the solve/update block contracts.
+
+**Final independent review (G7):** fresh separate session; model `gpt-6-astra`; reasoning `xhigh`.
+Focus: solve order independent of product tiles, diagonal/RHS geometry, fused update contracts, and all triangular flags.
+
+**PR 18 — Add SME triangular kernels**
+
+**Implementation:** fresh session; model `gpt-6-astra`; reasoning `xhigh`.
+
+Transition: the shared solve traversal gains SME solve and fused product-subtraction/solve implementations.
+
+- Implement `trsmTile`'s replacement and `gemmTrsmTile`'s replacement for SME-only execution. Parallelize across
+  independent RHS entries; retain pivot dependency order.
+- Keep residuals in registers where useful and include all transfers in benchmarks. A composition that uses
+  ordinary SIMD for part of the solve reports that fact; exact kernel IDs identify the actual implementation.
+- Cover zero-depth solve-only calls, short diagonal/RHS blocks, nonunit and unit diagonals, and padded storage.
+
+Verification: G1–G4, G5 versus ordinary block solve and composed update+solve, G6. Exit: the portable TRSM code
+does not change to accommodate SME; its block selection changes.
+
+**Final independent review (G7):** fresh separate session; model `gpt-6-astra`; reasoning `xhigh`.
+Focus: SME solve dependencies, update/solve fusion, diagonal semantics, and truthful composed-kernel identities.
+
+**PR 19 — Add SME2 triangular kernels**
+
+**Implementation:** fresh session; model `gpt-6-astra`; reasoning `xhigh`.
+
+Transition: SME2 grouped RHS updates become a separate solve/update candidate.
+
+- Implement grouped residual extraction, updates, and substitution schedules appropriate to the final contracts.
+  Keep FP64 division and required numerical behavior intact.
+- Compare standalone diagonal solve, fused update/solve, and full TRSM, including shapes with few RHS entries.
+- Remove final users of old `PackedKernels.trsmTile`/`gemmTrsmTile` adapters. Update packed benchmarks to operate
+  on final contracts with exact layout metadata.
+
+Verification: G1–G4, G5 SME/SME2 comparisons, G6. Exit: both architectures have complete triangular alternatives;
+AUTO may later select an ordinary solve for shapes where it wins.
+
+**Final independent review (G7):** fresh separate session; model `gpt-6-astra`; reasoning `xhigh`.
+Focus: SME2 grouped triangular dependencies, all edge cases, state boundaries, and evidence against SME competitors.
+
+**PR 20 — Generalize panels and migrate GEMV**
+
+**Implementation:** fresh session; model `gpt-6-astra`; reasoning `xhigh`.
+
+Transition: fixed `dot4`/`axpy4` calls become variable-width panel execution with one GEMV traversal.
+
+- Define and implement scalar, ordinary C, and JVM SIMD multi-dot/multi-column-update contracts. Include fused
+  scaling/writeback and the correct zero-multiplier behavior.
+- Rewrite GEMV to schedule row/reduction panels and hold outputs across more columns or rows. Unify owning
+  and strided/view execution through validated windows.
+- Route small cases through cheap in-runtime kernels. Remove the four-output API limitation rather than adding
+  separate `dot8`, `dot16`, and SME-only portable loops.
+- Migrate existing sparse panel consumers to this interface without changing their algorithms. Remove their
+  four-column adapters here. Only unmigrated SYMV/rank consumers retain adapters, removed in PRs 22 and 23.
+
+Verification: G1–G3, G5 ordinary GEMV across both transposes, G6. Exit: the panel abstraction is useful without
+SME and supports backend-specific execution group sizes without changing portable scheduling semantics.
+
+**Final independent review (G7):** fresh separate session; model `gpt-6-astra`; reasoning `xhigh`.
+Focus: variable panel widths, transpose/stride paths, accumulation order, and owning/view parity.
+
+**PR 21 — Add SME and SME2 GEMV/panel implementations**
+
+**Implementation:** fresh session; model `gpt-6-astra`; reasoning `xhigh`.
+
+Transition: both matrix backends execute the panel/GEMV contracts without new portable branches.
+
+- Add SME panel schedules and distinct SME2 vector-group schedules for the applicable multi-dot and update
+  operations. Register exact IDs; unsupported candidates are explicit rather than disguised as accelerated.
+- Keep output/reduction state in the native region across a panel, rather than entering streaming mode once
+  per old four-column leaf. Handle stride/edge behavior through the shared contracts.
+- Preserve ordered coefficient evaluation where required, reduction semantics, and out/input alias rules.
+- Measure skinny products and direct GEMV against ordinary kernels. Do not assume a ZA-based panel wins merely
+  because its instruction throughput is higher.
+
+Verification: G1–G4, G5 raw panels and full GEMV, G6. Exit: SME and SME2 panel alternatives are independently
+testable. If the native source diff becomes too large, split this PR by ISA while keeping the same PR 20 contract.
+
+**Final independent review (G7):** fresh separate session; model `gpt-6-astra`; reasoning `xhigh`.
+Focus: SME and SME2 panel identity, streaming amortization, reduction tails, and full GEMV costs.
+
+**PR 22 — Replace four-column SYMV with symmetric blocks**
+
+**Implementation:** fresh session; model `gpt-6-astra`; reasoning `xhigh`.
+
+Transition: one symmetric block schedule replaces hard-coded regrouping and duplicated portable work.
+
+- Define a coupled off-diagonal block update contributing both a block product and its transpose contribution;
+  diagonal blocks read only the selected triangle.
+- Implement the scalar oracle and ordinary/SME/SME2 block kernels; share the same portable SYMV traversal.
+  Reuse components from PRs 20 and 21 without reintroducing many foreign calls.
+- Rework the numerical eligibility checks for the actual new schedule. Use preflight checks or scratch-and-
+  commit when required; never fall back after mutating y and apply the contribution again.
+- Remove the old SYMV four-column scheduler and its temporary panel adapters.
+
+Verification: G1–G4, intermediate-overflow/cancellation cases and both triangles, G5/G6. Exit: one generic
+ordered fallback and one shared blocked strategy remain; neither is named or branched by ISA.
+
+**Final independent review (G7):** fresh separate session; model `gpt-6-astra`; reasoning `xhigh`.
+Focus: coupled symmetric updates, overflow preflight, no partial mutation before fallback, and numerical edge cases.
+
+**PR 23 — Add direct matrix rank-update blocks**
+
+**Implementation:** fresh session; model `gpt-6-astra`; reasoning `xhigh`.
+
+Transition: GER/SYR/SYR2 can update whole logical blocks instead of issuing one AXPY per column.
+
+- Define rank-one/rank-two block contracts and implement scalar, ordinary C/JVM SIMD, SME, and SME2 candidates.
+  Reuse product components where profitable while accounting for the small reduction depth.
+- Route each public operation through a shared planner/traversal. Preserve raw zero-source skips, zero-product
+  evaluation where required, selected-triangle writes, and aliases.
+- Compare direct outer-product/grouped schedules with bandwidth-efficient ordinary vector updates. Advertise
+  kernel availability separately from AUTO eligibility.
+- Remove migrated column-update adapters; retain only genuinely useful general panel contracts.
+
+Verification: G1–G4, G5 full rank updates with hot/cold destinations, G6. Exit: Level 2 rank updates use the same
+backend-neutral matrix layer and do not impose GEMM packing when it cannot pay off.
+
+**Final independent review (G7):** fresh separate session; model `gpt-6-astra`; reasoning `xhigh`.
+Focus: rank-update alpha semantics, skipped-zero behavior, selected triangles, aliases, and fused epilogue eligibility.
+
+**PR 24 — Optimize native batches and workspace lifetimes**
+
+**Implementation:** fresh session; model `gpt-6-astra`; reasoning `xhigh`.
+
+Transition: conservative safe call boundaries become measured per-runtime execution strategies.
+
+- Tune the amount of work per block/panel call without changing the shared mathematical traversal. Split long
+  reductions or depth blocks correctly and preserve first-contribution beta behavior.
+- Measure whether bounded heap-array calls meet throughput/latency needs. Add a native-memory alternative
+  only if justified, including staging, cleanup, reuse, ownership, and memory-budget costs. A second storage
+  strategy is not required when the simpler route wins.
+- Keep heap-backed critical calls bounded; no retained heap pointer or live ZA state crosses a Kotlin return.
+  Pin Native arrays once per useful call. Keep workspaces independent across concurrent operations.
+- Verify preparation/OS queries occur outside critical regions and that current-context incompatibility is
+  handled before output mutation, not by retrying partially completed work.
+
+Verification: G1–G4 for changed paths, G5 full-operation and reused-memory costs, G6 including safepoint/GC and
+concurrent workloads. Exit: larger batches are justified by throughput and latency, not only by reduced call count.
+
+**Final independent review (G7):** fresh separate session; model `gpt-6-astra`; reasoning `xhigh`.
+Focus: heap/native pointer lifetime, safepoints, concurrent workspaces, bounded calls, and beta across split reductions.
+
+**PR 25 — Calibrate profiles and evaluate remaining vector candidates**
+
+**Implementation:** fresh session; model `gpt-6-astra`; reasoning `xhigh`.
+
+Transition: individual kernel experiments become a repeatable process that produces checked tuning profiles.
+
+- Extend the existing harness/report tools with candidate sweeps for legal widths, microtiles, packing groups,
+  cache blocks, triangular/RHS blocks, direct/packed choices, and call limits. Use the established compatibility
+  checks; do not hand-edit generated benchmark data.
+- Reuse existing vendor comparisons. Add an Accelerate binding only as a justified follow-up if current
+  coverage cannot answer a target comparison; it is not a completion gate for this sequence.
+- Include existing dot/sum/ssqd/asum/nrm2 and vector mutations across lengths/strides. Evaluate additional
+  ordinary widths or streaming/grouped leaves only for plausible gaps; preserve robust norms and zero semantics.
+  Negative results need a report, not a shipping kernel. Remove stale unconditional dispatch assumptions.
+- Emit profile candidates with source reports, runtime/compiler identity, layout/kernel IDs, and workload
+  versions. Validate typed tables and deterministic report import; check cross-language agreement only where
+  data is actually shared. Do not add a general profile/configuration language.
+- Measure scalar-to-C and JVM-SIMD-to-C independently. Include raw kernel, full-operation, and retained-packed
+  boundaries. Validate candidate rules on held-out shapes and repeated runs.
+
+Verification: G1, harness tests, G5 complete calibration runs. Exit: thresholds and schedule choices are
+reproducible; unavailable hardware produces no invented calibrated profile. Calibration tools are not executed
+at application startup.
+
+**Final independent review (G7):** fresh separate session; model `gpt-6-astra`; reasoning `xhigh`.
+Focus: timing equivalence, robust vector semantics, deterministic profile import, provenance, and held-out validation.
+
+**PR 26 — Activate measured operation-specific defaults**
+
+**Implementation:** fresh session; model `gpt-6-astra`; reasoning `xhigh`.
+
+Transition: the default engine's old whole-backend precedence becomes the final mixed execution policy.
+
+- Check in measured profiles for the verified hardware/runtime combinations, including SME and SME2 exact
+  competitors. Separate scalar-C, SIMD-C, native-C, and algorithm/packing thresholds.
+- Enable AUTO choices per operation and shape. Small operations stay in-runtime when appropriate; large GEMM
+  can use a matrix backend even when the JVM Vector API is enabled. Newer ISA need not win every operation.
+- Restrict retained-packed execution to compatible layouts or an explicitly costed repack. Select layout before
+  packing for ordinary calls. Never pay an extra hidden scalar crossover inside exact native execution.
+- Keep unknown or uncalibrated hardware on conservative correct profiles. Exact selection remains available
+  for verified implementations, and diagnostics explain fallback or disabled choices.
+- Exercise synthetic ACE/AMX/AVX10 eligibility again: a future ISA must fit the planner, while ACE without FP64
+  must remain ineligible for the Double arithmetic path. No speculative ACE instructions are added.
+
+Verification: G1–G6, ordinary-hardware regression runs and held-out AUTO-versus-exact comparisons. Exit: enabled
+choices are supported by end-to-end evidence; the presence/absence of the JVM vector module/native library is
+fully covered, and no process-global provider mutation is introduced.
+
+**Final independent review (G7):** fresh separate session; model `gpt-6-astra`; reasoning `xhigh`.
+Focus: operation-specific defaults, independent JVM crossover rules, unknown-host behavior, and end-to-end regression evidence.
+
+**PR 27 — Remove transitional seams and verify the end state**
+
+**Implementation:** fresh session; model `gpt-6-astra`; reasoning `xhigh`.
+
+Transition: any remaining bridge to the old architecture is removed; all callers use the final contracts.
+
+- Remove obsolete legacy C symbols, fixed-shape/four-column adapters, engine-wide precedence, old tuning
+  readers, and superseded packing/tile APIs. Keep intentional scalar references and generic numerical fallbacks.
+- Finish source-level migration documentation for low-level/custom packed callers and config keys, with examples
+  of exact selection, AUTO diagnostics, retained operands, and workspace ownership. Confirm all API dumps/KDoc.
+- Audit every owning/view Level 2/3 entry point and every benchmark identity. Verify there is one shared
+  portable orchestration per operation and no hidden SME/non-SME copies or scalar-only view bypasses.
+- Package and inspect final target artifacts, their compiled catalog, and helper dependencies. Record verified
+  hardware/toolchain coverage, target limitations, and final profile/report provenance.
+- Run the complete release verification matrix and full repository check before pushing. If a required platform
+  or operation lacks evidence, record it as unfinished support rather than marking the entire plan complete.
+
+Verification: G1–G6 and the final checklist below. Exit: the architecture plan is implemented, measured defaults
+are enabled where verified, and future width/accelerator additions do not require new portable BLAS families.
+
+**Final independent review (G7):** fresh separate session; model `gpt-6-astra`; reasoning `xhigh`.
+Focus: complete adapter removal, public/view entry-point coverage, packaged catalog accuracy, and final hardware evidence.
+
+**Transition cleanup ownership**
+
+| Temporary component | Introduced/retained | Removal owner |
+|---|---|---|
+| Old native symbol forwarding | PR 02 | Remove as bindings migrate; PR 27 verifies none remain. |
+| Hidden ISA clones | PR 02 | PR 04. |
+| Old tuning readers for unmigrated operations | PR 05 | Each family migration; PR 27 verifies none remain. |
+| Old raw-panel wrapping | PR 06 | PRs 08 and 14–19; PR 27 covers residual public/harness callers. |
+| Old product/tile output helpers | PR 08 | PRs 14–19 after structured/triangular consumers move. |
+| Four-column panel adapters | PR 20 | Sparse consumers migrate in PR 20; PR 22 SYMV and PR 23 rank updates. |
+| Conservative operation preferences | PRs 05–24 | PR 26 replaces only those with verified measured policies; conservative unknown-host behavior remains intentional. |
+
+**Final acceptance checklist**
+
+- Every implementation PR began in a fresh session and ended with an independent fresh-session review of its
+  final base/head pair. Model/effort, evidence, findings, resolutions, and handoffs are recorded for all PRs.
+- Both SME-only and SME2 product, triangular, panel, and layout implementations execute independently through
+  the shared operation contracts; exact reports identify any deliberately composed components.
+- The generic C probe describes actual implementations, numerical types, ordinary widths, packed layouts,
+  accelerator geometry, and readiness. Its ABI and synthetic future-ISA tests pass on non-Arm hosts too.
+- GEMM, structured products, TRMM/TRSM, GEMV/SYMV, and rank updates use one backend-neutral portable
+  orchestration per operation, with generic strategies and independently callable scalar reference semantics.
+- Owning matrices and views receive the same applicable acceleration; packed data carries its own layout and
+  remains safe across threads/context changes, with explicit rejection/repack rules where needed.
+- Profile data separately controls native schedules, algorithms, and host crossovers. Defaults are measured;
+  ordinary SIMD widths and future AMD/Intel accelerators can be added without changing the portable architecture.
+- JVM scalar-to-C and JVM-SIMD-to-C decisions are separate, shape-aware where needed, and compared against
+  actual warmed JVM behavior. Neither ISA names nor instruction-throughput figures serve as thresholds.
+- All supported numerical/alias/no-read contracts pass; allocations, native lifetimes, threading, and JVM call
+  latency have evidence. Faster raw kernels with slower full operations do not become AUTO defaults.
+- ACE extensibility is tested without claiming published low-precision arithmetic as an FP64 backend; adding
+  a future element family remains an explicit API project.
+- No transitional adapters or duplicated portable ISA families remain. The repository builds and checks pass;
+  final support claims are limited to actually validated targets and modes.
+- No obsolete API, ABI, packed format, configuration key, or dispatch path survives solely for backward
+  compatibility. All in-repository consumers, API dumps, and documentation reflect the final design.
