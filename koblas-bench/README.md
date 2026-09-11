@@ -42,7 +42,8 @@ Use one command to capture a full report. It hashes a stable hardware fingerprin
 runs on the same hardware share the fingerprint and never overwrite prior results.
 
 ```bash
-koblas-bench/capture-report.sh --libraries openblas,onemkl
+koblas-bench/capture-report.sh --libraries openblas,onemkl --suite packed \
+  --samples 10 --warmups 5 --target-ms 200 --forks 2
 ```
 
 The command runs JVM scalar, JVM C, JVM SIMD, native koblas, and the requested vendors. A missing selected library
