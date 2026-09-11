@@ -1,4 +1,0 @@
-case,implementation,pass,sample,operations,elapsed_ns,ns_per_op,unit,status,comparison_kind,timing_mode,source_commit,dirty,runtime,threads,warmups,target_ns
-gemm+32x21x48+uniform,native/c/c-sparse/packed-4x4,2,1,44,539610,12263.863636363636,ns,ok,direct,reset-and-arithmetic,391f991eb2c4d81e8a42e942bafb249a03cf8a25,false,kotlin-native-2.4.10,1,0,1000000
-gemm+129x31x257+uniform+transA=T,native/c/c-sparse/packed-4x4,2,1,7,1293246,184749.42857142858,ns,ok,direct,reset-and-arithmetic,391f991eb2c4d81e8a42e942bafb249a03cf8a25,false,kotlin-native-2.4.10,1,0,1000000
-gemm+65x127x33+uniform+transB=T,native/c/c-sparse/packed-4x4,2,1,21,940201,44771.47619047619,ns,ok,direct,reset-and-arithmetic,391f991eb2c4d81e8a42e942bafb249a03cf8a25,false,kotlin-native-2.4.10,1,0,1000000
