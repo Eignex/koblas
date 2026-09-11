@@ -34,7 +34,8 @@ shown in the badge above:
 implementation("com.eignex:koblas:<version>")
 ```
 
-Supported targets are JVM (JDK 25 or later), Linux x64/arm64, and macOS arm64.
+Supported targets are JVM (JDK 25 or later), Linux x64/arm64, and macOS arm64. When the Vector API is made stable
+that will be the new JVM lowest target.
 
 On JVM, pass `--add-modules=jdk.incubator.vector` at runtime to enable SIMD. Without this flag, Koblas uses its
 bundled C engine when available. This engine runs small operations in scalar Kotlin and switches to C for larger
