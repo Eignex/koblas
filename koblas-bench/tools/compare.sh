@@ -41,13 +41,13 @@ done
 
 gawk -v require_compatible="$require_compatible" -v mode="$mode" -v timings="$timings" '
 BEGIN {
-  record_type[2] = "run"; record_type[3] = "case"; record_type[4] = "sample"
-  expected["run"] = "id implementation workload_version fixture_version pass unit source_commit dirty runtime threads warmups target_ns harness warmup_target_ns forks"
+  record_type[1] = "run"; record_type[2] = "case"; record_type[3] = "sample"
+  expected["run"] = "id implementation pass unit source_commit dirty runtime threads warmups target_ns harness warmup_target_ns forks"
   expected["case"] = "id run_id case status comparison_kind timing_mode actual_kernel"
   expected["sample"] = "case_id fork sample operations elapsed_ns ns_per_op"
   for (type in expected) column_count[type] = split(expected[type], columns[type]) + 1
-  match_count = split("schema workload_version fixture_version timing_mode threads warmups target_ns comparison_kind", match_fields)
-  group_count_fields = split("logical_id schema workload_version fixture_version timing_mode threads warmups target_ns comparison_kind operation configuration implementation actual_kernel", group_fields)
+  match_count = split("timing_mode threads warmups target_ns comparison_kind", match_fields)
+  group_count_fields = split("logical_id timing_mode threads warmups target_ns comparison_kind operation configuration implementation actual_kernel", group_fields)
   timing_count = split(timings, timing_values, "\034")
   for (i = 1; i <= timing_count; i++) if (timing_values[i] != "") selected_timing[timing_values[i]] = 1
 }
@@ -176,13 +176,7 @@ BEGINFILE {
   delete seen_samples
 }
 
-FNR == 1 {
-  sub(/\r$/, "")
-  if (read_csv($0, fields) != 2 || fields[1] != "schema" || fields[2] != "6") fail(FILENAME ": unsupported schema; use a schema 6 report")
-  next
-}
-
-FNR <= 4 {
+FNR <= 3 {
   sub(/\r$/, "")
   type = record_type[FNR]
   if (read_csv($0, fields) != column_count[type] || fields[1] != type) fail(FILENAME ": malformed benchmark CSV header")
@@ -226,7 +220,6 @@ FNR <= 4 {
   seen_samples[key] = 1
   case_samples[id]++
   delete row
-  row["schema"] = "6"
   for (field in runs[cases[id]["run_id"]]) row[field] = runs[cases[id]["run_id"]][field]
   for (field in cases[id]) row[field] = cases[id][field]
   for (field in record) row[field] = record[field]

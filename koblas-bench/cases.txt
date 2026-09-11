@@ -1,4 +1,4 @@
-# koblas benchmark workload v5
+# koblas benchmark workload
 # operation+dimensions+fixture[+option=value...]
 dot+4096+uniform
 axpy+4096+uniform

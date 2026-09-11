@@ -10,8 +10,7 @@ candidate="$temporary/candidate.csv"
 fail() { echo "$*" >&2; exit 1; }
 
 header() {
-  echo 'schema,6'
-  echo 'run,id,implementation,workload_version,fixture_version,pass,unit,source_commit,dirty,runtime,threads,warmups,target_ns,harness,warmup_target_ns,forks'
+  echo 'run,id,implementation,pass,unit,source_commit,dirty,runtime,threads,warmups,target_ns,harness,warmup_target_ns,forks'
   echo 'case,id,run_id,case,status,comparison_kind,timing_mode,actual_kernel'
   echo 'sample,case_id,fork,sample,operations,elapsed_ns,ns_per_op'
 }
@@ -31,7 +30,7 @@ row() {
     print ""
   }
   BEGIN {
-    run = "implementation workload_version fixture_version pass unit source_commit dirty runtime threads warmups target_ns harness warmup_target_ns forks"
+    run = "implementation pass unit source_commit dirty runtime threads warmups target_ns harness warmup_target_ns forks"
     case_fields = "case status comparison_kind timing_mode actual_kernel"
     sample = "fork sample operations elapsed_ns ns_per_op"
     count = split(run " " case_fields " " sample, fields)
@@ -86,7 +85,7 @@ accept fixed
 lines 2
 
 # Semantic and physical boundaries must match even when logical identity matches.
-for field in fixture_version workload_version timing_mode threads warmups target_ns; do
+for field in timing_mode threads warmups target_ns; do
   report "$candidate" "$field=different"
   reject fixed
 done
@@ -153,7 +152,7 @@ for patch in case=gemm-block+16x7x31+uniform+packed=4x4+timing=prepacked-compute
 done
 
 report "$candidate"
-sed -i '1s/schema,6/schema,4/' "$candidate"
+sed -i '1s/run,id/run,unknown/' "$candidate"
 reject logical
 
 # Quoted CSV fields round-trip, while sample aggregation uses medians and extrema.
@@ -170,8 +169,8 @@ report "$base" $'actual_kernel=first line\nsecond line'
 cp "$base" "$candidate"
 accept fixed
 grep -Fq 'second line"' "$temporary/output.csv" || fail "multiline kernel did not round-trip"
-report "$base" fixture_version=1
-report "$candidate" fixture_version=01
+report "$base" threads=1
+report "$candidate" threads=01
 reject fixed
 
 # Invalid samples and malformed records fail before comparison.

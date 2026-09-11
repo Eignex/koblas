@@ -19,10 +19,10 @@ class PackedConfigurationTest {
 
     @Test
     fun `unsupported layout and schedule overrides are rejected`() {
-        for (option in listOf("alignment=64", "leftStride=8", "panel=32", "batch=2", "leftLayout=depth-rows-v2", "variant=sme")) {
+        for (option in listOf("alignment=64", "leftStride=8", "panel=32", "batch=2", "leftLayout=custom-layout", "variant=sme")) {
             assertFailsWith<IllegalArgumentException>(option) { Cases.parse("$BLOCK+$option") }
         }
-        for (recipe in listOf("4x4-v1", "16x4", "4x8")) {
+        for (recipe in listOf("4x4-custom", "16x4", "4x8")) {
             assertFailsWith<IllegalArgumentException>(recipe) { Cases.parse(BLOCK.replace("4x4", recipe)) }
         }
         assertFailsWith<IllegalArgumentException> { Cases.parse(BLOCK.replace("prepacked-compute", "raw-tile")) }

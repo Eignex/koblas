@@ -1,8 +1,7 @@
-schema,6
-run,id,implementation,workload_version,fixture_version,pass,unit,source_commit,dirty,runtime,threads,warmups,target_ns,harness,warmup_target_ns,forks
+run,id,implementation,pass,unit,source_commit,dirty,runtime,threads,warmups,target_ns,harness,warmup_target_ns,forks
 case,id,run_id,case,status,comparison_kind,timing_mode,actual_kernel
 sample,case_id,fork,sample,operations,elapsed_ns,ns_per_op
-run,1,native/c/c-sparse/packed-4x4,5,2,1,ns,7a38ed4bdde4f7b167b5dbe3924fffe6ca7555fa,true,kotlin-native-2.4.10,1,5,200000000,native-calibrated,50000000,1
+run,1,native/c/c-sparse/packed-4x4,1,ns,7a38ed4bdde4f7b167b5dbe3924fffe6ca7555fa,true,kotlin-native-2.4.10,1,5,200000000,native-calibrated,50000000,1
 case,1,1,gemm-tile+4x4x32+uniform+packed=4x4,ok,partial,raw-tile,c-tile
 sample,1,1,1,1000000,122464423,122.464423
 sample,1,1,2,1000000,150696100,150.6961

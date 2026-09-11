@@ -61,7 +61,7 @@ koblas-bench/tools/compare.sh --mode logical --timing prepacked-compute --requir
 Use `--mode fixed` for identical packed configurations, or `--mode logical` to compare complete operations
 across layouts. Physical strategies remain separate pairs. The example selects prepacked block computation;
 raw vendor arithmetic has a different timing boundary and cannot be compared with Koblas raw tiles.
-The comparator rejects mismatched workload/fixture versions, timing modes, threads, warmups and timing targets.
+The comparator rejects mismatched timing modes, threads, warmups and timing targets. Source SHAs identify the workload and fixtures.
 CSV run and case records identify the source commit, runtime, actual kernel and physical configuration.
 
 ## Useful options
@@ -89,7 +89,7 @@ spgemv+257x129+sparse-uniform+density=0.01+mode=prepared
 gemm-block+15x7x31+uniform+packed=4x4+timing=prepacked-compute
 ```
 
-CSV schema 6 stores run metadata and case definitions once, followed by sample records referencing their IDs.
+The CSV stores run metadata and case definitions once, followed by sample records referencing their IDs.
 Runtime/build strings and source commits belong to the run. Case records contain the case, status, comparison kind,
 timing and kernel; shape and packing are read from the case instead of duplicated as metadata.
 JMH elapsed time is reconstructed from its score; Native/vendor elapsed time is measured. Keep raw sample values unchanged.
