@@ -88,7 +88,7 @@ public class StridedMatrixView(
             rows,
             cols,
             data,
-            offset + row + column * leadingDimension,
+            sliceOffset(row, column),
             leadingDimension,
         )
     }
@@ -96,13 +96,20 @@ public class StridedMatrixView(
     /** Live column [j], contiguous even when this view is a panel. */
     public fun column(j: Int): StridedVectorView {
         requireInBounds(j, cols)
-        return StridedVectorView(data, offset + j * leadingDimension, rows)
+        return StridedVectorView(data, sliceOffset(0, j), rows)
     }
 
     /** Live row [i], strided by [leadingDimension]. */
     public fun row(i: Int): StridedVectorView {
         requireInBounds(i, rows)
-        return StridedVectorView(data, offset + i, cols, leadingDimension)
+        return StridedVectorView(data, sliceOffset(i, 0), cols, leadingDimension)
+    }
+
+    private fun sliceOffset(row: Int, column: Int): Int {
+        // Empty boundary slices have no physical entries; their logical origin can lie beyond the buffer,
+        // especially when the final column has no trailing padding. Keep their sentinel offset in bounds.
+        val origin = offset.toLong() + row + column.toLong() * leadingDimension
+        return minOf(origin, data.size.toLong()).toInt()
     }
 
     /**

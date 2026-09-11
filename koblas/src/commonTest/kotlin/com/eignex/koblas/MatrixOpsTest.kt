@@ -186,6 +186,49 @@ class MatrixOpsTest {
     }
 
     @Test
+    fun `matvec adapters reject borrowed and sparse vector aliases before writing`() {
+        val matrix = DenseMatrix.diagonal(3)
+        for (sparse in booleanArrayOf(false, true)) {
+            for (symmetric in booleanArrayOf(false, true)) {
+                val destination = doubleArrayOf(1.0, 2.0, 3.0)
+                val expected = destination.copyOf()
+                val source = if (sparse) {
+                    SparseVector.wrap(3, intArrayOf(0, 1, 2), destination)
+                } else {
+                    StridedVectorView(destination, 2, 3, -1)
+                }
+
+                assertFailsWith<IllegalArgumentException> {
+                    if (symmetric) {
+                        matrix.symvInto(source, destination)
+                    } else {
+                        matrix.gemvInto(source, destination)
+                    }
+                }
+
+                assertContentEquals(expected, destination)
+            }
+        }
+    }
+
+    @Test
+    fun `matvec adapters reject borrowed and sparse matrix aliases before writing`() {
+        for (sparse in booleanArrayOf(false, true)) {
+            val destination = doubleArrayOf(1.0, 2.0, 3.0)
+            val expected = destination.copyOf()
+            val matrix = if (sparse) {
+                SparseMatrix.wrap(3, 1, intArrayOf(0, 3), intArrayOf(0, 1, 2), destination)
+            } else {
+                StridedMatrixView(3, 1, destination)
+            }
+
+            assertFailsWith<IllegalArgumentException> { matrix.gemvInto(dense(2.0), destination) }
+
+            assertContentEquals(expected, destination)
+        }
+    }
+
+    @Test
     fun `ger updates a matrix with alpha x y_transpose`() {
         val M = DenseMatrix.diagonal(2, 1.0)
         M.ger(0.5, dense(1.0, 2.0), dense(3.0, 4.0))

@@ -24,7 +24,8 @@ import com.eignex.koblas.sparse.internal.sparseSyr2
  * [MatrixLike] falls back to indexed reads. Dense storage on both sides dispatches straight to the
  * backend, using the dense or sparse `gemv` overload selected by `A`.
  *
- * [destination] must not be the backing array of [x] or of a dense `A`, as for [Blas.gemv] over strided
+ * [destination] must not be the backing array of [x] or `A`, including sparse values and borrowed storage,
+ * as for [Blas.gemv] over strided
  * views: the product reads every operand entry while writing, so an aliased destination would feed partial
  * results back into the sum.
  */
@@ -123,10 +124,20 @@ public fun DenseMatrix.symvInto(x: VectorLike, destination: DoubleArray, lower: 
 private fun DoubleArray.prescale(beta: Double) = applyBeta(koblas.vectorKernels, this, 0, size, beta)
 
 /** Whether [destination] is the very array this vector is stored in. */
-private fun VectorLike.sharesStorage(destination: DoubleArray): Boolean = this is DenseVector && data === destination
+private fun VectorLike.sharesStorage(destination: DoubleArray): Boolean = when (this) {
+    is DenseVector -> data === destination
+    is SparseVector -> values === destination
+    is StridedVectorView -> data === destination
+    else -> false
+}
 
 /** Whether [destination] is the very array this matrix is stored in. */
-private fun MatrixLike.sharesStorage(destination: DoubleArray): Boolean = this is DenseMatrix && data === destination
+private fun MatrixLike.sharesStorage(destination: DoubleArray): Boolean = when (this) {
+    is DenseMatrix -> data === destination
+    is SparseMatrix -> values === destination
+    is StridedMatrixView -> data === destination
+    else -> false
+}
 
 /**
  * Rank-one update `A = A + alpha * x * yT` (BLAS `dger`) in place. Subtract by passing

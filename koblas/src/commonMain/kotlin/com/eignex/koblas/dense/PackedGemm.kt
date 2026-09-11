@@ -89,9 +89,10 @@ private fun packedProduct(
     val cols = kernels.gemmTileCols
     val blockRows = DenseTuning.packedBlockRows
     val blockColumns = DenseTuning.packedBlockColumns
-    // Whole tiles avoid scratch for rows and columns outside a small product.
-    val mc = min(blockRows - blockRows % rows, roundUp(m, rows))
-    val nc = min(blockColumns - blockColumns % cols, roundUp(n, cols))
+    // Whole tiles avoid scratch for rows and columns outside a small product. A configured block smaller
+    // than one tile must still advance the scheduler, so rounding down cannot leave a zero block extent.
+    val mc = min(maxOf(rows, blockRows - blockRows % rows), roundUp(m, rows))
+    val nc = min(maxOf(cols, blockColumns - blockColumns % cols), roundUp(n, cols))
     val kc = min(DenseTuning.packedBlockDepth, k)
     workspace.borrow(mc * kc) { packedA ->
         workspace.borrow(kc * nc) { packedB ->
