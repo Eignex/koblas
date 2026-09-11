@@ -46,14 +46,11 @@ koblas-bench/capture-report.sh --libraries openblas,onemkl
 ```
 
 The command runs JVM scalar, JVM C, JVM SIMD, native koblas, and the requested vendors. A missing selected library
-or engine fails the run. Partial reports and logs remain on disk with `status.txt=incomplete`; a successful
-run marks it `complete`. The report keeps an exact case snapshot, source patch, compiler/runtime provenance,
-and raw per-run logs. To make a short trial, add
+or engine fails the run. Use `--suite packed` for packed cases only. To make a short trial, add
 `--operation gemm --warmups 0 --samples 1 --target-ms 1 --forks 1`.
 
-Generated report bundles are ignored by Git. Keep logs, test XML and derived comparisons in an external
-artifact. When preserving a baseline in the repository, explicitly add only its raw CSVs, case snapshot,
-hardware/toolchain provenance and completion status. Record brief implementation notes in the original plans. Use `git add -f` for those files.
+Generated reports are ignored by Git. Preserve baseline CSVs and case/hardware/toolchain metadata explicitly;
+keep logs and derived output outside the repository.
 
 Compare CSVs from the same run (or compatible runs):
 
@@ -63,16 +60,11 @@ koblas-bench/tools/compare.sh --mode logical --timing prepacked-compute --requir
   koblas-bench/reports/<hardware-sha256>/<run-id>/jvm-c.csv
 ```
 
-The example selects the complete prepacked block boundary. Without `--timing`, full vendor reports also
-contain intentionally incompatible raw-tile boundaries: omit `--require-compatible` to inspect accepted pairs
-and rejection diagnostics together. Use `capture-report.sh --suite packed` to recapture every explicit packed
-case from the authoritative workload.
-
-Choose `--mode fixed` for identical packed configurations or `--mode logical` for complete logical workloads.
-The comparator refuses mismatched workload/fixture versions, timing modes, threads, warmups, or timing targets.
-Physical strategies remain separate pairs; policy rows belong to logical mode. It does not probe your hardware or libraries. `hardware.txt` contains static CPU topology, model, cache,
-and memory information only, so its hash does not change due to collection time, kernel version, CPU frequency,
-or compiler upgrades. Each CSV row records source commit, dirty state, runtime, thread count, and timing settings.
+Use `--mode fixed` for identical packed configurations, or `--mode logical` to compare complete operations
+across layouts. Physical strategies remain separate pairs. The example selects prepacked block computation;
+raw vendor arithmetic has a different timing boundary and cannot be compared with Koblas raw tiles.
+The comparator rejects mismatched workload/fixture versions, timing modes, threads, warmups and timing targets.
+Each CSV row records its source commit, runtime, actual kernel and physical configuration.
 
 ## Useful options
 
@@ -101,8 +93,11 @@ spgemv+257x129+sparse-uniform+density=0.01+mode=prepared
 Do not hand-edit generated CSVs. They use schema 4 and retain provenance, timing, and compatibility metadata.
 Unsupported cases have no timing; a supported call failure stops the run. See [`coverage.md`](coverage.md) for
 the exact vendor-operation mapping and timing boundaries. Fixtures are deterministic and verified before relevant
-runs. See [packed-cases.md](packed-cases.md) for mandatory packed options, immutable formulas, mathematical
-identity and timing boundaries. [contracts.md](contracts.md) inventories the semantic baseline and oracle owners.
+runs.
+
+Packed cases explicitly declare their tile, versioned layouts, packing settings and timing in `cases.txt`;
+unsupported configurations are rejected. Logical fixtures are generated before packing. `prepacked-compute`
+includes tile loops, edge handling and writeback; `pack-plus-compute` also includes both panel packs.
 
 ## Verify the harness
 
