@@ -1,10 +1,10 @@
 package com.eignex.koblas.bench
 
-/** Version one fixes depth-major interleaving, positive-zero padding, natural double alignment and one tile per call. */
+/** The recipe fixes depth-major interleaving, positive-zero padding, natural double alignment and one tile per call. */
 internal class PackedConfiguration(val case: BenchCase) {
     val rows = when (case.options.getValue("packed")) {
-        "4x4-v1" -> 4
-        "8x4-v1" -> 8
+        "4x4" -> 4
+        "8x4" -> 8
         else -> error("unsupported packed recipe")
     }
     val columns = 4
@@ -92,5 +92,5 @@ internal fun actualPackedKernel(case: BenchCase, mode: String, status: String): 
         mode == "jvm-simd" -> "vector-tile-v1"
         else -> "c-tile-v1"
     }
-    return "$mode/$component/${case.options.getValue("packed").removeSuffix("-v1")}"
+    return "$mode/$component/${case.options.getValue("packed")}"
 }

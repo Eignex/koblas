@@ -29,7 +29,7 @@ reject_case duplicate $'dot+4+uniform\ndot+4+uniform'
 reject_case empty-field 'dot++4+uniform'
 reject_case irrelevant-option 'dot+4+uniform+transA=T'
 reject_case wrong-fixture 'gemm+4x4x4+triangular'
-reject_case oversized-packed 'gemm-tile+9x4x32+uniform+packed=8x4-v1'
+reject_case oversized-packed 'gemm-tile+9x4x32+uniform+packed=8x4'
 reject_case unsupported-mode 'spsymv+8x8+sparse-uniform+density=0.25+mode=prepared+uplo=L'
 reject_case long-operation 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa+4+uniform'
 
@@ -51,9 +51,9 @@ done
 for override in leftStride=8 alignment=64 panel=32 batch=2 leftLayout=depth-rows-v2; do
   reject_case override "$packed+$override"
 done
-reject_case recipe "${packed/4x4-v1/4x4-v2}"
-reject_case duplicate-option "$packed+packed=4x4-v1"
-reordered=${packed/+packed=4x4-v1/}+packed=4x4-v1
+reject_case recipe "${packed/packed=4x4/packed=4x4-v1}"
+reject_case duplicate-option "$packed+packed=4x4"
+reordered=${packed/+packed=4x4/}+packed=4x4
 reject_case duplicate-order "$packed"$'\n'"$reordered"
 printf '%s\n' "$reordered" >"$temporary/reordered.txt"
 "$temporary/runner" --cases="$temporary/reordered.txt" --output="$temporary/reordered.csv" --warmups=0 --samples=1 --target-ms=1
