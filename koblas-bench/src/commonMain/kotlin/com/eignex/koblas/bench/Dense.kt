@@ -191,8 +191,10 @@ private fun packedWork(case: BenchCase, engine: KoblasEngine): CaseWork? {
     if (!layoutOperation && case.operation != "packed-trsm") {
         val logicalLeft = Fixtures.matrix(rows, depth, 1)
         val logicalRight = Fixtures.matrix(depth, second, 2)
-        panels.packLeft(logicalLeft, left, rows, depth)
-        panels.packRight(logicalRight, right, depth, second)
+        panels.packLeft(logicalLeft, left, rows, depth,
+                sourceRow = 0, sourceColumn = 0, transpose = false, alpha = 1.0, destinationOffset = 0, workspace = null)
+        panels.packRight(logicalRight, right, depth, second,
+                sourceRow = 0, sourceColumn = 0, transpose = false, destinationOffset = 0, workspace = null)
     }
     val triangle = DoubleArray(if (case.operation in setOf("packed-trsm", "gemm-trsm")) physical[1] * physical[1] else 0)
     val lower = case.option("uplo", "L") == "L"; val unit = case.option("diag", "N") == "U"
@@ -233,19 +235,29 @@ private fun packedLayoutWork(
     }
     val destination = DenseMatrix.zero(first, second)
     val panel = if (isLeft) left else right
-    if (isLeft) panels.packLeft(source, panel, first, second) else panels.packRight(source, panel, first, second)
+    if (isLeft) panels.packLeft(source, panel, first, second,
+                sourceRow = 0, sourceColumn = 0, transpose = false, alpha = 1.0, destinationOffset = 0, workspace = null) else panels.packRight(source, panel, first, second,
+                sourceRow = 0, sourceColumn = 0, transpose = false, destinationOffset = 0, workspace = null)
     return CaseWork("unsupported", case.options.getValue("timing"), {
         when (case.operation) {
-            "pack-left" -> panels.packLeft(source, panel, first, second)
-            "pack-right" -> panels.packRight(source, panel, first, second)
-            "pack-symmetric-left" -> panels.packSymmetricLeft(source, panel, first, second, lower)
-            "pack-symmetric-right" -> panels.packSymmetricRight(source, panel, first, second, lower)
-            "pack-triangular-left" -> panels.packTriangularLeft(source, panel, first, second, lower, unitDiagonal = unit)
-            "pack-triangular-right" -> panels.packTriangularRight(source, panel, first, second, lower, unitDiagonal = unit)
-            "write-left" -> panels.writeLeft(panel, destination, first, second)
-            "write-right" -> panels.writeRight(panel, destination, first, second)
-            "clear-left-padding" -> panels.clearLeftPadding(panel, first, second)
-            "clear-right-padding" -> panels.clearRightPadding(panel, first, second)
+            "pack-left" -> panels.packLeft(source, panel, first, second,
+                sourceRow = 0, sourceColumn = 0, transpose = false, alpha = 1.0, destinationOffset = 0, workspace = null)
+            "pack-right" -> panels.packRight(source, panel, first, second,
+                sourceRow = 0, sourceColumn = 0, transpose = false, destinationOffset = 0, workspace = null)
+            "pack-symmetric-left" -> panels.packSymmetricLeft(source, panel, first, second, lower,
+                sourceRow = 0, sourceColumn = 0, alpha = 1.0, destinationOffset = 0, workspace = null)
+            "pack-symmetric-right" -> panels.packSymmetricRight(source, panel, first, second, lower,
+                sourceRow = 0, sourceColumn = 0, destinationOffset = 0, workspace = null)
+            "pack-triangular-left" -> panels.packTriangularLeft(source, panel, first, second, lower, transpose = false, unitDiagonal = unit,
+                sourceRow = 0, sourceColumn = 0, alpha = 1.0, destinationOffset = 0, workspace = null)
+            "pack-triangular-right" -> panels.packTriangularRight(source, panel, first, second, lower, transpose = false, unitDiagonal = unit,
+                sourceRow = 0, sourceColumn = 0, destinationOffset = 0, workspace = null)
+            "write-left" -> panels.writeLeft(panel, destination, first, second,
+                sourceOffset = 0, destinationRow = 0, destinationColumn = 0, transpose = false, workspace = null)
+            "write-right" -> panels.writeRight(panel, destination, first, second,
+                sourceOffset = 0, destinationRow = 0, destinationColumn = 0, transpose = false, workspace = null)
+            "clear-left-padding" -> panels.clearLeftPadding(panel, first, second, panelOffset = 0)
+            "clear-right-padding" -> panels.clearRightPadding(panel, first, second, panelOffset = 0)
         }
         if (case.operation.startsWith("write")) destination.data[0] else panel[0]
     })
@@ -265,8 +277,10 @@ internal fun packedBlockWork(case: BenchCase, engine: KoblasEngine): CaseWork {
     val kernels = benchmarkPackedKernels(engine)
     require(kernels.gemmTileRows == p.rows && kernels.gemmTileCols == p.columns)
     fun pack() {
-        panels.packLeft(a, left, p.m, p.depth)
-        panels.packRight(b, right, p.depth, p.n)
+        panels.packLeft(a, left, p.m, p.depth,
+                sourceRow = 0, sourceColumn = 0, transpose = false, alpha = 1.0, destinationOffset = 0, workspace = null)
+        panels.packRight(b, right, p.depth, p.n,
+                sourceRow = 0, sourceColumn = 0, transpose = false, destinationOffset = 0, workspace = null)
     }
     pack()
     return CaseWork("direct", p.timing, {

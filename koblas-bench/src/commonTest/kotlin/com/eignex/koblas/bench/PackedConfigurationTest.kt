@@ -53,6 +53,38 @@ class PackedConfigurationTest {
     }
 
     @Test
+    fun `packers preserve the versioned formulas and positive zero padding`() {
+        for (engine in listOfNotNull(BuiltinEngines.scalar, BuiltinEngines.c, BuiltinEngines.simd).distinct()) {
+            val specification = if (engine.packedKernels.gemmTileRows == 4) BLOCK else eightRows()
+            val p = PackedConfiguration(Cases.parse(specification).single())
+            val a = Fixtures.matrix(p.m, p.depth, 1)
+            val b = Fixtures.matrix(p.depth, p.n, 2)
+            a[0, 0] = -0.0
+            b[0, 0] = -0.0
+            val left = DoubleArray(p.leftSize + 2) { Double.NaN }
+            val right = DoubleArray(p.rightSize + 2) { Double.NaN }
+
+            engine.packedPanels.packLeft(a, left, p.m, p.depth, sourceRow = 0, sourceColumn = 0,
+                transpose = false, alpha = 1.0, destinationOffset = 0, workspace = null)
+            engine.packedPanels.packRight(b, right, p.depth, p.n, sourceRow = 0, sourceColumn = 0,
+                transpose = false, destinationOffset = 0, workspace = null)
+
+            for (tile in 0 until p.rowTiles) for (depth in 0 until p.depth) for (lane in 0 until p.rows) {
+                val row = tile * p.rows + lane
+                val expected = if (row < p.m) a[row, depth] else 0.0
+                assertEquals(expected.toBits(), left[tile * p.rows * p.depth + depth * p.rows + lane].toBits())
+            }
+            for (tile in 0 until p.columnTiles) for (depth in 0 until p.depth) for (lane in 0 until p.columns) {
+                val column = tile * p.columns + lane
+                val expected = if (column < p.n) b[depth, column] else 0.0
+                assertEquals(expected.toBits(), right[tile * p.columns * p.depth + depth * p.columns + lane].toBits())
+            }
+            for (index in p.leftSize until left.size) assertEquals(Double.NaN.toBits(), left[index].toBits())
+            for (index in p.rightSize until right.size) assertEquals(Double.NaN.toBits(), right[index].toBits())
+        }
+    }
+
+    @Test
     fun `block loops and packing modes agree with the scalar reference`() {
         val a = Fixtures.matrix(15, 31, 1)
         val b = Fixtures.matrix(31, 7, 2)

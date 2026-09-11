@@ -51,16 +51,22 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--require-compatible', action='store_true')
     parser.add_argument('--mode', choices=('fixed', 'logical'), required=True)
+    parser.add_argument('--timing', action='append', help='include only this timing boundary; may be repeated')
     parser.add_argument('files', nargs='+')
     args = parser.parse_args()
     if len(args.files) < 2:
         parser.error('provide a baseline and at least one candidate')
-    base = read(args.files[0])
+    def selected(path):
+        return [group for group in read(path)
+                if (not args.timing or group[0]['timing_mode'] in args.timing)
+                and (args.mode != 'fixed' or group[0]['configuration'] != 'policy-v1')]
+
+    base = selected(args.files[0])
     writer = csv.writer(sys.stdout, lineterminator='\n')
-    writer.writerow(('candidate', 'logical_id', 'base_case', 'candidate_case', 'base_configuration', 'candidate_configuration', 'base_physical_work', 'candidate_physical_work', 'base_median_ns', 'candidate_median_ns', 'candidate_min_ns', 'candidate_max_ns', 'base_over_candidate'))
+    writer.writerow(('candidate', 'logical_id', 'base_case', 'candidate_case', 'base_configuration', 'candidate_configuration', 'base_physical_work', 'candidate_physical_work', 'base_kernel', 'candidate_kernel', 'base_median_ns', 'candidate_median_ns', 'candidate_min_ns', 'candidate_max_ns', 'base_over_candidate'))
     incompatible = False
     for path in args.files[1:]:
-        candidate = read(path)
+        candidate = selected(path)
         joined = set()
         for left_index, left in enumerate(base):
             for right_index, right in enumerate(candidate):
@@ -69,7 +75,7 @@ def main():
                     continue
                 x = [float(row['ns_per_op']) for row in left]
                 y = [float(row['ns_per_op']) for row in right]
-                writer.writerow((path, a['logical_id'], a['case'], b['case'], a['configuration'], b['configuration'], a['physical_work'], b['physical_work'], statistics.median(x), statistics.median(y), min(y), max(y), statistics.median(x) / statistics.median(y)))
+                writer.writerow((path, a['logical_id'], a['case'], b['case'], a['configuration'], b['configuration'], a['physical_work'], b['physical_work'], a['actual_kernel'], b['actual_kernel'], statistics.median(x), statistics.median(y), min(y), max(y), statistics.median(x) / statistics.median(y)))
                 joined.add(('base', left_index)); joined.add(('candidate', right_index))
         # A completely unmatched report must not succeed silently. Each strategy needs a compatible peer
         # when the mathematical workload appears on both sides; unsupported rows are not measurements.
