@@ -1,0 +1,10 @@
+clang version 21.1.6
+Target: x86_64-unknown-linux-gnu
+Thread model: posix
+InstalledDir: /home/rasmus/.konan/dependencies/llvm-21-x86_64-linux-essentials-116/bin
+
+Kotlin Native distribution: kotlin-native-prebuilt-linux-x86_64-2.4.10
+JVM C flags: -std=c11 -O3 -fPIC -fvisibility=hidden -shared (scripts/build-koblas-kernels.sh)
+Native cinterop: -DKOBLAS_KERNELS_IMPLEMENTATION; release executable optimization; source src/nativeInterop/cinterop/koblas_kernels.def and Kotlin Native konan.properties
+No CPU affinity, frequency governor, thermal stabilization or host exclusivity was enforced.
+Only one repository benchmark workload was run at a time. No hardware-to-hardware comparison is claimed.

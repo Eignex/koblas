@@ -55,7 +55,7 @@ class PackedConfigurationTest {
     @Test
     fun `packers preserve the versioned formulas and positive zero padding`() {
         for (engine in listOfNotNull(BuiltinEngines.scalar, BuiltinEngines.c, BuiltinEngines.simd).distinct()) {
-            val specification = if (engine.packedKernels.gemmTileRows == 4) BLOCK else eightRows()
+            val specification = configurationFor(engine.packedKernels.gemmTileRows, engine.packedKernels.gemmTileCols) ?: continue
             val p = PackedConfiguration(Cases.parse(specification).single())
             val a = Fixtures.matrix(p.m, p.depth, 1)
             val b = Fixtures.matrix(p.depth, p.n, 2)
@@ -91,7 +91,7 @@ class PackedConfigurationTest {
         val expected = Fixtures.matrix(15, 7, 4)
         BuiltinEngines.scalar.gemm(1.0, a, false, b, false, 1.0, expected)
         for (engine in listOfNotNull(BuiltinEngines.scalar, BuiltinEngines.c, BuiltinEngines.simd).distinct()) {
-            val specification = if (engine.packedKernels.gemmTileRows == 4) BLOCK else eightRows()
+            val specification = configurationFor(engine.packedKernels.gemmTileRows, engine.packedKernels.gemmTileCols) ?: continue
             for (timing in listOf("prepacked-compute", "pack-plus-compute")) {
                 val work = denseWork(Cases.parse(specification.replace("prepacked-compute", timing)).single(), engine) ?: continue
                 repeat(2) {
@@ -105,6 +105,18 @@ class PackedConfigurationTest {
 
     private fun assertBlockAgreesWithReference(expected: Double, actual: Double) {
         assertTrue(abs(expected - actual) < 2e-12 * (1.0 + abs(expected)), "$expected != $actual")
+    }
+
+    @Test
+    fun `unlisted vector geometries have no supported configuration`() {
+        for ((rows, columns) in listOf(16 to 4, 2 to 4, 4 to 8)) {
+            assertNull(configurationFor(rows, columns))
+        }
+    }
+
+    private fun configurationFor(rows: Int, columns: Int): String? = listOf(BLOCK, eightRows()).firstOrNull {
+        val configuration = PackedConfiguration(Cases.parse(it).single())
+        configuration.rows == rows && configuration.columns == columns
     }
 
     private fun eightRows(): String = BLOCK.replace("physical=4x4", "physical=8x4")
