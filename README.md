@@ -70,6 +70,18 @@ repeat(1_000) {
 }
 ```
 
+### Global and explicit contexts
+
+Operators such as `a * b` use the global, platform-selected `koblas` context. Pass a `KoblasContext` when the
+caller should choose the engine:
+
+```kotlin
+fun multiply(context: KoblasContext, left: DenseMatrix, right: DenseMatrix): DenseMatrix =
+    context.gemm(left, right)
+
+val scalarProduct = multiply(BuiltinEngines.scalar, a, b)
+```
+
 ## Operations
 
 | API | Includes |
@@ -85,17 +97,6 @@ repeat(1_000) {
 
 Sparse matrix products can produce sparse or dense results. If you reuse a sparse matrix in several products,
 call `SparseMatrix.prepare()` from `com.eignex.koblas.sparse` once and reuse the prepared copy.
-
-### Packed and tiled building blocks
-
-The packed API can be used to build custom blocked algorithms. Start with `koblas.packedPanels`. It reports the
-selected engine's tile size, calculates the required buffer sizes, and packs general, symmetric, or triangular
-matrix regions into reusable `DoubleArray` buffers. It can also write packed data back to a matrix.
-
-For computation, `koblas.packedKernels` provides fixed-tile `gemmTile`, `trsmTile`, and `gemmTrsmTile`
-operations. The higher-level `PackedPanels.trsm` and `PackedPanels.gemmTrsm` helpers validate their inputs and
-handle overlapping arrays. The packed layout depends on the selected engine, so use the sizes and packing
-functions from the same `KoblasContext` as the tile kernels.
 
 ## Storage and reuse
 
