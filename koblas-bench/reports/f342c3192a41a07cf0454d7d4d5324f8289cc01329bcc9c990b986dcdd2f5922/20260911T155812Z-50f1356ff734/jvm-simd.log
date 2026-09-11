@@ -1,0 +1,1015 @@
+Calculating task graph as configuration cache cannot be reused because Gradle property 'bench.cases' has changed.
+
+> Configure project :koblas
+Signing skipped: SNAPSHOT is a snapshot.
+
+> Configure project :koblas-hfactor
+Signing skipped: SNAPSHOT is a snapshot.
+
+> Task :koblas:verifyJvmKernelResources SKIPPED
+> Task :koblas-bench:kmpPartiallyResolvedDependenciesChecker
+> Task :koblas-bench:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :koblas:kmpPartiallyResolvedDependenciesChecker
+> Task :koblas:buildJvmKernels UP-TO-DATE
+> Task :koblas-bench:jvmProcessResources NO-SOURCE
+> Task :koblas:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :koblas-bench:processJvmMainResources SKIPPED
+> Task :koblas:jvmProcessResources UP-TO-DATE
+> Task :koblas:processJvmMainResources SKIPPED
+> Task :koblas:compileKotlinJvm UP-TO-DATE
+> Task :koblas:compileJvmMainJava NO-SOURCE
+> Task :koblas:jvmMainClasses UP-TO-DATE
+> Task :koblas:jvmJar UP-TO-DATE
+> Task :koblas-bench:compileKotlinJvm UP-TO-DATE
+> Task :koblas-bench:compileJvmMainJava UP-TO-DATE
+> Task :koblas-bench:jvmMainClasses UP-TO-DATE
+
+> Task :koblas-bench:jvmSimdBenchmark
+WARNING: Using incubator modules: jdk.incubator.vector
+WARNING: A terminally deprecated method in sun.misc.Unsafe has been called
+WARNING: sun.misc.Unsafe::objectFieldOffset has been called by org.openjdk.jmh.util.Utils (file:/home/rasmus/.gradle/caches/modules-2/files-2.1/org.openjdk.jmh/jmh-core/1.37/896f27e49105b35ea1964319c83d12082e7a79ef/jmh-core-1.37.jar)
+WARNING: Please consider reporting this to the maintainers of class org.openjdk.jmh.util.Utils
+WARNING: sun.misc.Unsafe::objectFieldOffset will be removed in a future release
+# JMH version: 1.37
+# VM version: JDK 25.0.1, OpenJDK 64-Bit Server VM, 25.0.1+8-LTS
+# VM invoker: /home/rasmus/.gradle/jdks/eclipse_adoptium-25-amd64-linux.2/bin/java
+# VM options: --enable-native-access=ALL-UNNAMED --add-modules=jdk.incubator.vector -Dfile.encoding=UTF-8 -Duser.country -Duser.language=en -Duser.variant -Dkoblas.bench.cases=/home/rasmus/.codex/worktrees/703f/koblas/koblas-bench/reports/f342c3192a41a07cf0454d7d4d5324f8289cc01329bcc9c990b986dcdd2f5922/20260911T155812Z-50f1356ff734/cases.txt
+# Blackhole mode: compiler (auto-detected, use -Djmh.blackhole.autoDetect=false to disable)
+# Warmup: 3 iterations, 200000000 ns each
+# Measurement: 5 iterations, 200000000 ns each
+# Timeout: 10 min per iteration
+# Threads: 1 thread, will synchronize iterations
+# Benchmark mode: Average time, time/op
+# Benchmark: com.eignex.koblas.bench.KoblasJmhBenchmark.run
+# Parameters: (benchmarkMode = jvm-simd, caseId = gemm-tile+8x4x32+uniform+physical=8x4+work=gemm-add-v1+leftLayout=depth-rows-v1+rightLayout=depth-columns-v1+leftGroup=8+rightGroup=4+leftStride=8+rightStride=4+padding=zero+alignment=8+block=8x4x32+panel=32+diagonal=0+rhs=0+batch=1+variant=current-tile-v1+timing=raw-tile)
+
+# Run progress: 0.00% complete, ETA 00:00:41
+# Fork: 1 of 1
+WARNING: Using incubator modules: jdk.incubator.vector
+WARNING: A terminally deprecated method in sun.misc.Unsafe has been called
+WARNING: sun.misc.Unsafe::objectFieldOffset has been called by org.openjdk.jmh.util.Utils (file:/home/rasmus/.gradle/caches/modules-2/files-2.1/org.openjdk.jmh/jmh-core/1.37/896f27e49105b35ea1964319c83d12082e7a79ef/jmh-core-1.37.jar)
+WARNING: Please consider reporting this to the maintainers of class org.openjdk.jmh.util.Utils
+WARNING: sun.misc.Unsafe::objectFieldOffset will be removed in a future release
+# Warmup Iteration   1: 81.396 ns/op
+# Warmup Iteration   2: 52.238 ns/op
+# Warmup Iteration   3: 51.501 ns/op
+Iteration   1: 51.501 ns/op
+Iteration   2: 51.937 ns/op
+Iteration   3: 51.337 ns/op
+Iteration   4: 53.744 ns/op
+Iteration   5: 51.463 ns/op
+
+
+Result "com.eignex.koblas.bench.KoblasJmhBenchmark.run":
+  51.996 ±(99.9%) 3.861 ns/op [Average]
+  (min, avg, max) = (51.337, 51.996, 53.744), stdev = 1.003
+  CI (99.9%): [48.135, 55.857] (assumes normal distribution)
+
+
+# JMH version: 1.37
+# VM version: JDK 25.0.1, OpenJDK 64-Bit Server VM, 25.0.1+8-LTS
+# VM invoker: /home/rasmus/.gradle/jdks/eclipse_adoptium-25-amd64-linux.2/bin/java
+# VM options: --enable-native-access=ALL-UNNAMED --add-modules=jdk.incubator.vector -Dfile.encoding=UTF-8 -Duser.country -Duser.language=en -Duser.variant -Dkoblas.bench.cases=/home/rasmus/.codex/worktrees/703f/koblas/koblas-bench/reports/f342c3192a41a07cf0454d7d4d5324f8289cc01329bcc9c990b986dcdd2f5922/20260911T155812Z-50f1356ff734/cases.txt
+# Blackhole mode: compiler (auto-detected, use -Djmh.blackhole.autoDetect=false to disable)
+# Warmup: 3 iterations, 200000000 ns each
+# Measurement: 5 iterations, 200000000 ns each
+# Timeout: 10 min per iteration
+# Threads: 1 thread, will synchronize iterations
+# Benchmark mode: Average time, time/op
+# Benchmark: com.eignex.koblas.bench.KoblasJmhBenchmark.run
+# Parameters: (benchmarkMode = jvm-simd, caseId = gemm-tile+7x2x31+uniform+physical=8x4+work=gemm-add-v1+leftLayout=depth-rows-v1+rightLayout=depth-columns-v1+leftGroup=8+rightGroup=4+leftStride=8+rightStride=4+padding=zero+alignment=8+block=7x2x31+panel=31+diagonal=0+rhs=0+batch=1+variant=current-tile-v1+timing=raw-tile)
+
+# Run progress: 3.85% complete, ETA 00:00:47
+# Fork: 1 of 1
+WARNING: Using incubator modules: jdk.incubator.vector
+WARNING: A terminally deprecated method in sun.misc.Unsafe has been called
+WARNING: sun.misc.Unsafe::objectFieldOffset has been called by org.openjdk.jmh.util.Utils (file:/home/rasmus/.gradle/caches/modules-2/files-2.1/org.openjdk.jmh/jmh-core/1.37/896f27e49105b35ea1964319c83d12082e7a79ef/jmh-core-1.37.jar)
+WARNING: Please consider reporting this to the maintainers of class org.openjdk.jmh.util.Utils
+WARNING: sun.misc.Unsafe::objectFieldOffset will be removed in a future release
+# Warmup Iteration   1: 69.967 ns/op
+# Warmup Iteration   2: 49.492 ns/op
+# Warmup Iteration   3: 49.619 ns/op
+Iteration   1: 50.204 ns/op
+Iteration   2: 58.829 ns/op
+Iteration   3: 53.249 ns/op
+Iteration   4: 51.248 ns/op
+Iteration   5: 47.318 ns/op
+
+
+Result "com.eignex.koblas.bench.KoblasJmhBenchmark.run":
+  52.170 ±(99.9%) 16.535 ns/op [Average]
+  (min, avg, max) = (47.318, 52.170, 58.829), stdev = 4.294
+  CI (99.9%): [35.635, 68.705] (assumes normal distribution)
+
+
+# JMH version: 1.37
+# VM version: JDK 25.0.1, OpenJDK 64-Bit Server VM, 25.0.1+8-LTS
+# VM invoker: /home/rasmus/.gradle/jdks/eclipse_adoptium-25-amd64-linux.2/bin/java
+# VM options: --enable-native-access=ALL-UNNAMED --add-modules=jdk.incubator.vector -Dfile.encoding=UTF-8 -Duser.country -Duser.language=en -Duser.variant -Dkoblas.bench.cases=/home/rasmus/.codex/worktrees/703f/koblas/koblas-bench/reports/f342c3192a41a07cf0454d7d4d5324f8289cc01329bcc9c990b986dcdd2f5922/20260911T155812Z-50f1356ff734/cases.txt
+# Blackhole mode: compiler (auto-detected, use -Djmh.blackhole.autoDetect=false to disable)
+# Warmup: 3 iterations, 200000000 ns each
+# Measurement: 5 iterations, 200000000 ns each
+# Timeout: 10 min per iteration
+# Threads: 1 thread, will synchronize iterations
+# Benchmark mode: Average time, time/op
+# Benchmark: com.eignex.koblas.bench.KoblasJmhBenchmark.run
+# Parameters: (benchmarkMode = jvm-simd, caseId = packed-trsm+8x4+triangular+physical=8x4+uplo=L+diag=N+work=right-solve-v1+leftLayout=depth-rows-v1+rightLayout=depth-columns-v1+leftGroup=8+rightGroup=4+leftStride=8+rightStride=4+padding=zero+alignment=8+block=8x4x4+panel=4+diagonal=4+rhs=8+batch=1+variant=current-tile-v1+timing=raw-tile)
+
+# Run progress: 7.69% complete, ETA 00:00:44
+# Fork: 1 of 1
+WARNING: Using incubator modules: jdk.incubator.vector
+WARNING: A terminally deprecated method in sun.misc.Unsafe has been called
+WARNING: sun.misc.Unsafe::objectFieldOffset has been called by org.openjdk.jmh.util.Utils (file:/home/rasmus/.gradle/caches/modules-2/files-2.1/org.openjdk.jmh/jmh-core/1.37/896f27e49105b35ea1964319c83d12082e7a79ef/jmh-core-1.37.jar)
+WARNING: Please consider reporting this to the maintainers of class org.openjdk.jmh.util.Utils
+WARNING: sun.misc.Unsafe::objectFieldOffset will be removed in a future release
+# Warmup Iteration   1: 67.608 ns/op
+# Warmup Iteration   2: 63.630 ns/op
+# Warmup Iteration   3: 62.235 ns/op
+Iteration   1: 62.719 ns/op
+Iteration   2: 61.675 ns/op
+Iteration   3: 61.958 ns/op
+Iteration   4: 62.068 ns/op
+Iteration   5: 62.269 ns/op
+
+
+Result "com.eignex.koblas.bench.KoblasJmhBenchmark.run":
+  62.138 ±(99.9%) 1.499 ns/op [Average]
+  (min, avg, max) = (61.675, 62.138, 62.719), stdev = 0.389
+  CI (99.9%): [60.639, 63.637] (assumes normal distribution)
+
+
+# JMH version: 1.37
+# VM version: JDK 25.0.1, OpenJDK 64-Bit Server VM, 25.0.1+8-LTS
+# VM invoker: /home/rasmus/.gradle/jdks/eclipse_adoptium-25-amd64-linux.2/bin/java
+# VM options: --enable-native-access=ALL-UNNAMED --add-modules=jdk.incubator.vector -Dfile.encoding=UTF-8 -Duser.country -Duser.language=en -Duser.variant -Dkoblas.bench.cases=/home/rasmus/.codex/worktrees/703f/koblas/koblas-bench/reports/f342c3192a41a07cf0454d7d4d5324f8289cc01329bcc9c990b986dcdd2f5922/20260911T155812Z-50f1356ff734/cases.txt
+# Blackhole mode: compiler (auto-detected, use -Djmh.blackhole.autoDetect=false to disable)
+# Warmup: 3 iterations, 200000000 ns each
+# Measurement: 5 iterations, 200000000 ns each
+# Timeout: 10 min per iteration
+# Threads: 1 thread, will synchronize iterations
+# Benchmark mode: Average time, time/op
+# Benchmark: com.eignex.koblas.bench.KoblasJmhBenchmark.run
+# Parameters: (benchmarkMode = jvm-simd, caseId = packed-trsm+7x2+triangular+physical=8x4+uplo=U+diag=U+work=right-solve-v1+leftLayout=depth-rows-v1+rightLayout=depth-columns-v1+leftGroup=8+rightGroup=4+leftStride=8+rightStride=4+padding=zero+alignment=8+block=7x2x2+panel=2+diagonal=2+rhs=7+batch=1+variant=current-tile-v1+timing=raw-tile)
+
+# Run progress: 11.54% complete, ETA 00:00:43
+# Fork: 1 of 1
+WARNING: Using incubator modules: jdk.incubator.vector
+WARNING: A terminally deprecated method in sun.misc.Unsafe has been called
+WARNING: sun.misc.Unsafe::objectFieldOffset has been called by org.openjdk.jmh.util.Utils (file:/home/rasmus/.gradle/caches/modules-2/files-2.1/org.openjdk.jmh/jmh-core/1.37/896f27e49105b35ea1964319c83d12082e7a79ef/jmh-core-1.37.jar)
+WARNING: Please consider reporting this to the maintainers of class org.openjdk.jmh.util.Utils
+WARNING: sun.misc.Unsafe::objectFieldOffset will be removed in a future release
+# Warmup Iteration   1: 17.690 ns/op
+# Warmup Iteration   2: 16.180 ns/op
+# Warmup Iteration   3: 15.875 ns/op
+Iteration   1: 16.057 ns/op
+Iteration   2: 17.179 ns/op
+Iteration   3: 20.092 ns/op
+Iteration   4: 16.724 ns/op
+Iteration   5: 15.896 ns/op
+
+
+Result "com.eignex.koblas.bench.KoblasJmhBenchmark.run":
+  17.190 ±(99.9%) 6.556 ns/op [Average]
+  (min, avg, max) = (15.896, 17.190, 20.092), stdev = 1.703
+  CI (99.9%): [10.633, 23.746] (assumes normal distribution)
+
+
+# JMH version: 1.37
+# VM version: JDK 25.0.1, OpenJDK 64-Bit Server VM, 25.0.1+8-LTS
+# VM invoker: /home/rasmus/.gradle/jdks/eclipse_adoptium-25-amd64-linux.2/bin/java
+# VM options: --enable-native-access=ALL-UNNAMED --add-modules=jdk.incubator.vector -Dfile.encoding=UTF-8 -Duser.country -Duser.language=en -Duser.variant -Dkoblas.bench.cases=/home/rasmus/.codex/worktrees/703f/koblas/koblas-bench/reports/f342c3192a41a07cf0454d7d4d5324f8289cc01329bcc9c990b986dcdd2f5922/20260911T155812Z-50f1356ff734/cases.txt
+# Blackhole mode: compiler (auto-detected, use -Djmh.blackhole.autoDetect=false to disable)
+# Warmup: 3 iterations, 200000000 ns each
+# Measurement: 5 iterations, 200000000 ns each
+# Timeout: 10 min per iteration
+# Threads: 1 thread, will synchronize iterations
+# Benchmark mode: Average time, time/op
+# Benchmark: com.eignex.koblas.bench.KoblasJmhBenchmark.run
+# Parameters: (benchmarkMode = jvm-simd, caseId = gemm-trsm+8x4x32+triangular+physical=8x4+uplo=L+diag=N+work=update-solve-v1+leftLayout=depth-rows-v1+rightLayout=depth-columns-v1+leftGroup=8+rightGroup=4+leftStride=8+rightStride=4+padding=zero+alignment=8+block=8x4x32+panel=32+diagonal=4+rhs=8+batch=1+variant=current-tile-v1+timing=raw-tile)
+
+# Run progress: 15.38% complete, ETA 00:00:41
+# Fork: 1 of 1
+WARNING: Using incubator modules: jdk.incubator.vector
+WARNING: A terminally deprecated method in sun.misc.Unsafe has been called
+WARNING: sun.misc.Unsafe::objectFieldOffset has been called by org.openjdk.jmh.util.Utils (file:/home/rasmus/.gradle/caches/modules-2/files-2.1/org.openjdk.jmh/jmh-core/1.37/896f27e49105b35ea1964319c83d12082e7a79ef/jmh-core-1.37.jar)
+WARNING: Please consider reporting this to the maintainers of class org.openjdk.jmh.util.Utils
+WARNING: sun.misc.Unsafe::objectFieldOffset will be removed in a future release
+# Warmup Iteration   1: 144.587 ns/op
+# Warmup Iteration   2: 100.282 ns/op
+# Warmup Iteration   3: 95.628 ns/op
+Iteration   1: 96.206 ns/op
+Iteration   2: 95.150 ns/op
+Iteration   3: 96.639 ns/op
+Iteration   4: 95.910 ns/op
+Iteration   5: 95.871 ns/op
+
+
+Result "com.eignex.koblas.bench.KoblasJmhBenchmark.run":
+  95.955 ±(99.9%) 2.098 ns/op [Average]
+  (min, avg, max) = (95.150, 95.955, 96.639), stdev = 0.545
+  CI (99.9%): [93.857, 98.053] (assumes normal distribution)
+
+
+# JMH version: 1.37
+# VM version: JDK 25.0.1, OpenJDK 64-Bit Server VM, 25.0.1+8-LTS
+# VM invoker: /home/rasmus/.gradle/jdks/eclipse_adoptium-25-amd64-linux.2/bin/java
+# VM options: --enable-native-access=ALL-UNNAMED --add-modules=jdk.incubator.vector -Dfile.encoding=UTF-8 -Duser.country -Duser.language=en -Duser.variant -Dkoblas.bench.cases=/home/rasmus/.codex/worktrees/703f/koblas/koblas-bench/reports/f342c3192a41a07cf0454d7d4d5324f8289cc01329bcc9c990b986dcdd2f5922/20260911T155812Z-50f1356ff734/cases.txt
+# Blackhole mode: compiler (auto-detected, use -Djmh.blackhole.autoDetect=false to disable)
+# Warmup: 3 iterations, 200000000 ns each
+# Measurement: 5 iterations, 200000000 ns each
+# Timeout: 10 min per iteration
+# Threads: 1 thread, will synchronize iterations
+# Benchmark mode: Average time, time/op
+# Benchmark: com.eignex.koblas.bench.KoblasJmhBenchmark.run
+# Parameters: (benchmarkMode = jvm-simd, caseId = gemm-trsm+7x2x31+triangular+physical=8x4+uplo=U+diag=U+work=update-solve-v1+leftLayout=depth-rows-v1+rightLayout=depth-columns-v1+leftGroup=8+rightGroup=4+leftStride=8+rightStride=4+padding=zero+alignment=8+block=7x2x31+panel=31+diagonal=2+rhs=7+batch=1+variant=current-tile-v1+timing=raw-tile)
+
+# Run progress: 19.23% complete, ETA 00:00:39
+# Fork: 1 of 1
+WARNING: Using incubator modules: jdk.incubator.vector
+WARNING: A terminally deprecated method in sun.misc.Unsafe has been called
+WARNING: sun.misc.Unsafe::objectFieldOffset has been called by org.openjdk.jmh.util.Utils (file:/home/rasmus/.gradle/caches/modules-2/files-2.1/org.openjdk.jmh/jmh-core/1.37/896f27e49105b35ea1964319c83d12082e7a79ef/jmh-core-1.37.jar)
+WARNING: Please consider reporting this to the maintainers of class org.openjdk.jmh.util.Utils
+WARNING: sun.misc.Unsafe::objectFieldOffset will be removed in a future release
+# Warmup Iteration   1: 90.152 ns/op
+# Warmup Iteration   2: 50.546 ns/op
+# Warmup Iteration   3: 50.846 ns/op
+Iteration   1: 50.293 ns/op
+Iteration   2: 50.211 ns/op
+Iteration   3: 50.618 ns/op
+Iteration   4: 50.385 ns/op
+Iteration   5: 54.064 ns/op
+
+
+Result "com.eignex.koblas.bench.KoblasJmhBenchmark.run":
+  51.114 ±(99.9%) 6.377 ns/op [Average]
+  (min, avg, max) = (50.211, 51.114, 54.064), stdev = 1.656
+  CI (99.9%): [44.737, 57.491] (assumes normal distribution)
+
+
+# JMH version: 1.37
+# VM version: JDK 25.0.1, OpenJDK 64-Bit Server VM, 25.0.1+8-LTS
+# VM invoker: /home/rasmus/.gradle/jdks/eclipse_adoptium-25-amd64-linux.2/bin/java
+# VM options: --enable-native-access=ALL-UNNAMED --add-modules=jdk.incubator.vector -Dfile.encoding=UTF-8 -Duser.country -Duser.language=en -Duser.variant -Dkoblas.bench.cases=/home/rasmus/.codex/worktrees/703f/koblas/koblas-bench/reports/f342c3192a41a07cf0454d7d4d5324f8289cc01329bcc9c990b986dcdd2f5922/20260911T155812Z-50f1356ff734/cases.txt
+# Blackhole mode: compiler (auto-detected, use -Djmh.blackhole.autoDetect=false to disable)
+# Warmup: 3 iterations, 200000000 ns each
+# Measurement: 5 iterations, 200000000 ns each
+# Timeout: 10 min per iteration
+# Threads: 1 thread, will synchronize iterations
+# Benchmark mode: Average time, time/op
+# Benchmark: com.eignex.koblas.bench.KoblasJmhBenchmark.run
+# Parameters: (benchmarkMode = jvm-simd, caseId = pack-left+7x31+uniform+physical=8x4+work=pack-left-v1+leftLayout=depth-rows-v1+rightLayout=depth-columns-v1+leftGroup=8+rightGroup=4+leftStride=8+rightStride=4+padding=zero+alignment=8+block=7x31x31+panel=31+diagonal=0+rhs=0+batch=1+variant=current-tile-v1+timing=packing-only)
+
+# Run progress: 23.08% complete, ETA 00:00:37
+# Fork: 1 of 1
+WARNING: Using incubator modules: jdk.incubator.vector
+WARNING: A terminally deprecated method in sun.misc.Unsafe has been called
+WARNING: sun.misc.Unsafe::objectFieldOffset has been called by org.openjdk.jmh.util.Utils (file:/home/rasmus/.gradle/caches/modules-2/files-2.1/org.openjdk.jmh/jmh-core/1.37/896f27e49105b35ea1964319c83d12082e7a79ef/jmh-core-1.37.jar)
+WARNING: Please consider reporting this to the maintainers of class org.openjdk.jmh.util.Utils
+WARNING: sun.misc.Unsafe::objectFieldOffset will be removed in a future release
+# Warmup Iteration   1: 227.539 ns/op
+# Warmup Iteration   2: 206.547 ns/op
+# Warmup Iteration   3: 203.256 ns/op
+Iteration   1: 204.983 ns/op
+Iteration   2: 204.517 ns/op
+Iteration   3: 205.094 ns/op
+Iteration   4: 210.250 ns/op
+Iteration   5: 202.937 ns/op
+
+
+Result "com.eignex.koblas.bench.KoblasJmhBenchmark.run":
+  205.556 ±(99.9%) 10.635 ns/op [Average]
+  (min, avg, max) = (202.937, 205.556, 210.250), stdev = 2.762
+  CI (99.9%): [194.921, 216.191] (assumes normal distribution)
+
+
+# JMH version: 1.37
+# VM version: JDK 25.0.1, OpenJDK 64-Bit Server VM, 25.0.1+8-LTS
+# VM invoker: /home/rasmus/.gradle/jdks/eclipse_adoptium-25-amd64-linux.2/bin/java
+# VM options: --enable-native-access=ALL-UNNAMED --add-modules=jdk.incubator.vector -Dfile.encoding=UTF-8 -Duser.country -Duser.language=en -Duser.variant -Dkoblas.bench.cases=/home/rasmus/.codex/worktrees/703f/koblas/koblas-bench/reports/f342c3192a41a07cf0454d7d4d5324f8289cc01329bcc9c990b986dcdd2f5922/20260911T155812Z-50f1356ff734/cases.txt
+# Blackhole mode: compiler (auto-detected, use -Djmh.blackhole.autoDetect=false to disable)
+# Warmup: 3 iterations, 200000000 ns each
+# Measurement: 5 iterations, 200000000 ns each
+# Timeout: 10 min per iteration
+# Threads: 1 thread, will synchronize iterations
+# Benchmark mode: Average time, time/op
+# Benchmark: com.eignex.koblas.bench.KoblasJmhBenchmark.run
+# Parameters: (benchmarkMode = jvm-simd, caseId = pack-left+8x32+uniform+physical=8x4+work=pack-left-v1+leftLayout=depth-rows-v1+rightLayout=depth-columns-v1+leftGroup=8+rightGroup=4+leftStride=8+rightStride=4+padding=zero+alignment=8+block=8x32x32+panel=32+diagonal=0+rhs=0+batch=1+variant=current-tile-v1+timing=packing-only)
+
+# Run progress: 26.92% complete, ETA 00:00:35
+# Fork: 1 of 1
+WARNING: Using incubator modules: jdk.incubator.vector
+WARNING: A terminally deprecated method in sun.misc.Unsafe has been called
+WARNING: sun.misc.Unsafe::objectFieldOffset has been called by org.openjdk.jmh.util.Utils (file:/home/rasmus/.gradle/caches/modules-2/files-2.1/org.openjdk.jmh/jmh-core/1.37/896f27e49105b35ea1964319c83d12082e7a79ef/jmh-core-1.37.jar)
+WARNING: Please consider reporting this to the maintainers of class org.openjdk.jmh.util.Utils
+WARNING: sun.misc.Unsafe::objectFieldOffset will be removed in a future release
+# Warmup Iteration   1: 210.387 ns/op
+# Warmup Iteration   2: 189.895 ns/op
+# Warmup Iteration   3: 186.334 ns/op
+Iteration   1: 188.348 ns/op
+Iteration   2: 192.796 ns/op
+Iteration   3: 187.582 ns/op
+Iteration   4: 187.887 ns/op
+Iteration   5: 189.388 ns/op
+
+
+Result "com.eignex.koblas.bench.KoblasJmhBenchmark.run":
+  189.200 ±(99.9%) 8.176 ns/op [Average]
+  (min, avg, max) = (187.582, 189.200, 192.796), stdev = 2.123
+  CI (99.9%): [181.024, 197.376] (assumes normal distribution)
+
+
+# JMH version: 1.37
+# VM version: JDK 25.0.1, OpenJDK 64-Bit Server VM, 25.0.1+8-LTS
+# VM invoker: /home/rasmus/.gradle/jdks/eclipse_adoptium-25-amd64-linux.2/bin/java
+# VM options: --enable-native-access=ALL-UNNAMED --add-modules=jdk.incubator.vector -Dfile.encoding=UTF-8 -Duser.country -Duser.language=en -Duser.variant -Dkoblas.bench.cases=/home/rasmus/.codex/worktrees/703f/koblas/koblas-bench/reports/f342c3192a41a07cf0454d7d4d5324f8289cc01329bcc9c990b986dcdd2f5922/20260911T155812Z-50f1356ff734/cases.txt
+# Blackhole mode: compiler (auto-detected, use -Djmh.blackhole.autoDetect=false to disable)
+# Warmup: 3 iterations, 200000000 ns each
+# Measurement: 5 iterations, 200000000 ns each
+# Timeout: 10 min per iteration
+# Threads: 1 thread, will synchronize iterations
+# Benchmark mode: Average time, time/op
+# Benchmark: com.eignex.koblas.bench.KoblasJmhBenchmark.run
+# Parameters: (benchmarkMode = jvm-simd, caseId = pack-right+31x2+uniform+physical=8x4+work=pack-right-v1+leftLayout=depth-rows-v1+rightLayout=depth-columns-v1+leftGroup=8+rightGroup=4+leftStride=8+rightStride=4+padding=zero+alignment=8+block=31x2x31+panel=31+diagonal=0+rhs=0+batch=1+variant=current-tile-v1+timing=packing-only)
+
+# Run progress: 30.77% complete, ETA 00:00:33
+# Fork: 1 of 1
+WARNING: Using incubator modules: jdk.incubator.vector
+WARNING: A terminally deprecated method in sun.misc.Unsafe has been called
+WARNING: sun.misc.Unsafe::objectFieldOffset has been called by org.openjdk.jmh.util.Utils (file:/home/rasmus/.gradle/caches/modules-2/files-2.1/org.openjdk.jmh/jmh-core/1.37/896f27e49105b35ea1964319c83d12082e7a79ef/jmh-core-1.37.jar)
+WARNING: Please consider reporting this to the maintainers of class org.openjdk.jmh.util.Utils
+WARNING: sun.misc.Unsafe::objectFieldOffset will be removed in a future release
+# Warmup Iteration   1: 166.255 ns/op
+# Warmup Iteration   2: 154.470 ns/op
+# Warmup Iteration   3: 152.676 ns/op
+Iteration   1: 158.340 ns/op
+Iteration   2: 151.581 ns/op
+Iteration   3: 150.341 ns/op
+Iteration   4: 148.649 ns/op
+Iteration   5: 148.928 ns/op
+
+
+Result "com.eignex.koblas.bench.KoblasJmhBenchmark.run":
+  151.568 ±(99.9%) 15.264 ns/op [Average]
+  (min, avg, max) = (148.649, 151.568, 158.340), stdev = 3.964
+  CI (99.9%): [136.304, 166.832] (assumes normal distribution)
+
+
+# JMH version: 1.37
+# VM version: JDK 25.0.1, OpenJDK 64-Bit Server VM, 25.0.1+8-LTS
+# VM invoker: /home/rasmus/.gradle/jdks/eclipse_adoptium-25-amd64-linux.2/bin/java
+# VM options: --enable-native-access=ALL-UNNAMED --add-modules=jdk.incubator.vector -Dfile.encoding=UTF-8 -Duser.country -Duser.language=en -Duser.variant -Dkoblas.bench.cases=/home/rasmus/.codex/worktrees/703f/koblas/koblas-bench/reports/f342c3192a41a07cf0454d7d4d5324f8289cc01329bcc9c990b986dcdd2f5922/20260911T155812Z-50f1356ff734/cases.txt
+# Blackhole mode: compiler (auto-detected, use -Djmh.blackhole.autoDetect=false to disable)
+# Warmup: 3 iterations, 200000000 ns each
+# Measurement: 5 iterations, 200000000 ns each
+# Timeout: 10 min per iteration
+# Threads: 1 thread, will synchronize iterations
+# Benchmark mode: Average time, time/op
+# Benchmark: com.eignex.koblas.bench.KoblasJmhBenchmark.run
+# Parameters: (benchmarkMode = jvm-simd, caseId = pack-right+32x4+uniform+physical=8x4+work=pack-right-v1+leftLayout=depth-rows-v1+rightLayout=depth-columns-v1+leftGroup=8+rightGroup=4+leftStride=8+rightStride=4+padding=zero+alignment=8+block=32x4x32+panel=32+diagonal=0+rhs=0+batch=1+variant=current-tile-v1+timing=packing-only)
+
+# Run progress: 34.62% complete, ETA 00:00:31
+# Fork: 1 of 1
+WARNING: Using incubator modules: jdk.incubator.vector
+WARNING: A terminally deprecated method in sun.misc.Unsafe has been called
+WARNING: sun.misc.Unsafe::objectFieldOffset has been called by org.openjdk.jmh.util.Utils (file:/home/rasmus/.gradle/caches/modules-2/files-2.1/org.openjdk.jmh/jmh-core/1.37/896f27e49105b35ea1964319c83d12082e7a79ef/jmh-core-1.37.jar)
+WARNING: Please consider reporting this to the maintainers of class org.openjdk.jmh.util.Utils
+WARNING: sun.misc.Unsafe::objectFieldOffset will be removed in a future release
+# Warmup Iteration   1: 160.940 ns/op
+# Warmup Iteration   2: 147.599 ns/op
+# Warmup Iteration   3: 143.400 ns/op
+Iteration   1: 142.767 ns/op
+Iteration   2: 159.781 ns/op
+Iteration   3: 137.121 ns/op
+Iteration   4: 136.772 ns/op
+Iteration   5: 135.291 ns/op
+
+
+Result "com.eignex.koblas.bench.KoblasJmhBenchmark.run":
+  142.347 ±(99.9%) 39.095 ns/op [Average]
+  (min, avg, max) = (135.291, 142.347, 159.781), stdev = 10.153
+  CI (99.9%): [103.252, 181.441] (assumes normal distribution)
+
+
+# JMH version: 1.37
+# VM version: JDK 25.0.1, OpenJDK 64-Bit Server VM, 25.0.1+8-LTS
+# VM invoker: /home/rasmus/.gradle/jdks/eclipse_adoptium-25-amd64-linux.2/bin/java
+# VM options: --enable-native-access=ALL-UNNAMED --add-modules=jdk.incubator.vector -Dfile.encoding=UTF-8 -Duser.country -Duser.language=en -Duser.variant -Dkoblas.bench.cases=/home/rasmus/.codex/worktrees/703f/koblas/koblas-bench/reports/f342c3192a41a07cf0454d7d4d5324f8289cc01329bcc9c990b986dcdd2f5922/20260911T155812Z-50f1356ff734/cases.txt
+# Blackhole mode: compiler (auto-detected, use -Djmh.blackhole.autoDetect=false to disable)
+# Warmup: 3 iterations, 200000000 ns each
+# Measurement: 5 iterations, 200000000 ns each
+# Timeout: 10 min per iteration
+# Threads: 1 thread, will synchronize iterations
+# Benchmark mode: Average time, time/op
+# Benchmark: com.eignex.koblas.bench.KoblasJmhBenchmark.run
+# Parameters: (benchmarkMode = jvm-simd, caseId = pack-symmetric-left+8x8+uniform+physical=8x4+uplo=L+work=pack-symmetric-left-v1+leftLayout=depth-rows-v1+rightLayout=depth-columns-v1+leftGroup=8+rightGroup=4+leftStride=8+rightStride=4+padding=zero+alignment=8+block=8x8x8+panel=8+diagonal=0+rhs=0+batch=1+variant=current-tile-v1+timing=packing-only)
+
+# Run progress: 38.46% complete, ETA 00:00:29
+# Fork: 1 of 1
+WARNING: Using incubator modules: jdk.incubator.vector
+WARNING: A terminally deprecated method in sun.misc.Unsafe has been called
+WARNING: sun.misc.Unsafe::objectFieldOffset has been called by org.openjdk.jmh.util.Utils (file:/home/rasmus/.gradle/caches/modules-2/files-2.1/org.openjdk.jmh/jmh-core/1.37/896f27e49105b35ea1964319c83d12082e7a79ef/jmh-core-1.37.jar)
+WARNING: Please consider reporting this to the maintainers of class org.openjdk.jmh.util.Utils
+WARNING: sun.misc.Unsafe::objectFieldOffset will be removed in a future release
+# Warmup Iteration   1: 77.701 ns/op
+# Warmup Iteration   2: 77.802 ns/op
+# Warmup Iteration   3: 78.710 ns/op
+Iteration   1: 79.093 ns/op
+Iteration   2: 78.742 ns/op
+Iteration   3: 70.466 ns/op
+Iteration   4: 71.280 ns/op
+Iteration   5: 71.233 ns/op
+
+
+Result "com.eignex.koblas.bench.KoblasJmhBenchmark.run":
+  74.163 ±(99.9%) 16.767 ns/op [Average]
+  (min, avg, max) = (70.466, 74.163, 79.093), stdev = 4.354
+  CI (99.9%): [57.396, 90.930] (assumes normal distribution)
+
+
+# JMH version: 1.37
+# VM version: JDK 25.0.1, OpenJDK 64-Bit Server VM, 25.0.1+8-LTS
+# VM invoker: /home/rasmus/.gradle/jdks/eclipse_adoptium-25-amd64-linux.2/bin/java
+# VM options: --enable-native-access=ALL-UNNAMED --add-modules=jdk.incubator.vector -Dfile.encoding=UTF-8 -Duser.country -Duser.language=en -Duser.variant -Dkoblas.bench.cases=/home/rasmus/.codex/worktrees/703f/koblas/koblas-bench/reports/f342c3192a41a07cf0454d7d4d5324f8289cc01329bcc9c990b986dcdd2f5922/20260911T155812Z-50f1356ff734/cases.txt
+# Blackhole mode: compiler (auto-detected, use -Djmh.blackhole.autoDetect=false to disable)
+# Warmup: 3 iterations, 200000000 ns each
+# Measurement: 5 iterations, 200000000 ns each
+# Timeout: 10 min per iteration
+# Threads: 1 thread, will synchronize iterations
+# Benchmark mode: Average time, time/op
+# Benchmark: com.eignex.koblas.bench.KoblasJmhBenchmark.run
+# Parameters: (benchmarkMode = jvm-simd, caseId = pack-symmetric-right+4x4+uniform+physical=8x4+uplo=U+work=pack-symmetric-right-v1+leftLayout=depth-rows-v1+rightLayout=depth-columns-v1+leftGroup=8+rightGroup=4+leftStride=8+rightStride=4+padding=zero+alignment=8+block=4x4x4+panel=4+diagonal=0+rhs=0+batch=1+variant=current-tile-v1+timing=packing-only)
+
+# Run progress: 42.31% complete, ETA 00:00:27
+# Fork: 1 of 1
+WARNING: Using incubator modules: jdk.incubator.vector
+WARNING: A terminally deprecated method in sun.misc.Unsafe has been called
+WARNING: sun.misc.Unsafe::objectFieldOffset has been called by org.openjdk.jmh.util.Utils (file:/home/rasmus/.gradle/caches/modules-2/files-2.1/org.openjdk.jmh/jmh-core/1.37/896f27e49105b35ea1964319c83d12082e7a79ef/jmh-core-1.37.jar)
+WARNING: Please consider reporting this to the maintainers of class org.openjdk.jmh.util.Utils
+WARNING: sun.misc.Unsafe::objectFieldOffset will be removed in a future release
+# Warmup Iteration   1: 38.612 ns/op
+# Warmup Iteration   2: 36.105 ns/op
+# Warmup Iteration   3: 32.095 ns/op
+Iteration   1: 31.766 ns/op
+Iteration   2: 34.731 ns/op
+Iteration   3: 31.485 ns/op
+Iteration   4: 32.177 ns/op
+Iteration   5: 32.074 ns/op
+
+
+Result "com.eignex.koblas.bench.KoblasJmhBenchmark.run":
+  32.446 ±(99.9%) 5.027 ns/op [Average]
+  (min, avg, max) = (31.485, 32.446, 34.731), stdev = 1.306
+  CI (99.9%): [27.419, 37.474] (assumes normal distribution)
+
+
+# JMH version: 1.37
+# VM version: JDK 25.0.1, OpenJDK 64-Bit Server VM, 25.0.1+8-LTS
+# VM invoker: /home/rasmus/.gradle/jdks/eclipse_adoptium-25-amd64-linux.2/bin/java
+# VM options: --enable-native-access=ALL-UNNAMED --add-modules=jdk.incubator.vector -Dfile.encoding=UTF-8 -Duser.country -Duser.language=en -Duser.variant -Dkoblas.bench.cases=/home/rasmus/.codex/worktrees/703f/koblas/koblas-bench/reports/f342c3192a41a07cf0454d7d4d5324f8289cc01329bcc9c990b986dcdd2f5922/20260911T155812Z-50f1356ff734/cases.txt
+# Blackhole mode: compiler (auto-detected, use -Djmh.blackhole.autoDetect=false to disable)
+# Warmup: 3 iterations, 200000000 ns each
+# Measurement: 5 iterations, 200000000 ns each
+# Timeout: 10 min per iteration
+# Threads: 1 thread, will synchronize iterations
+# Benchmark mode: Average time, time/op
+# Benchmark: com.eignex.koblas.bench.KoblasJmhBenchmark.run
+# Parameters: (benchmarkMode = jvm-simd, caseId = pack-triangular-left+8x8+triangular+physical=8x4+uplo=L+diag=N+work=pack-triangular-left-v1+leftLayout=depth-rows-v1+rightLayout=depth-columns-v1+leftGroup=8+rightGroup=4+leftStride=8+rightStride=4+padding=zero+alignment=8+block=8x8x8+panel=8+diagonal=0+rhs=0+batch=1+variant=current-tile-v1+timing=packing-only)
+
+# Run progress: 46.15% complete, ETA 00:00:26
+# Fork: 1 of 1
+WARNING: Using incubator modules: jdk.incubator.vector
+WARNING: A terminally deprecated method in sun.misc.Unsafe has been called
+WARNING: sun.misc.Unsafe::objectFieldOffset has been called by org.openjdk.jmh.util.Utils (file:/home/rasmus/.gradle/caches/modules-2/files-2.1/org.openjdk.jmh/jmh-core/1.37/896f27e49105b35ea1964319c83d12082e7a79ef/jmh-core-1.37.jar)
+WARNING: Please consider reporting this to the maintainers of class org.openjdk.jmh.util.Utils
+WARNING: sun.misc.Unsafe::objectFieldOffset will be removed in a future release
+# Warmup Iteration   1: 74.062 ns/op
+# Warmup Iteration   2: 74.304 ns/op
+# Warmup Iteration   3: 75.172 ns/op
+Iteration   1: 75.486 ns/op
+Iteration   2: 76.517 ns/op
+Iteration   3: 75.607 ns/op
+Iteration   4: 75.065 ns/op
+Iteration   5: 74.488 ns/op
+
+
+Result "com.eignex.koblas.bench.KoblasJmhBenchmark.run":
+  75.433 ±(99.9%) 2.879 ns/op [Average]
+  (min, avg, max) = (74.488, 75.433, 76.517), stdev = 0.748
+  CI (99.9%): [72.554, 78.312] (assumes normal distribution)
+
+
+# JMH version: 1.37
+# VM version: JDK 25.0.1, OpenJDK 64-Bit Server VM, 25.0.1+8-LTS
+# VM invoker: /home/rasmus/.gradle/jdks/eclipse_adoptium-25-amd64-linux.2/bin/java
+# VM options: --enable-native-access=ALL-UNNAMED --add-modules=jdk.incubator.vector -Dfile.encoding=UTF-8 -Duser.country -Duser.language=en -Duser.variant -Dkoblas.bench.cases=/home/rasmus/.codex/worktrees/703f/koblas/koblas-bench/reports/f342c3192a41a07cf0454d7d4d5324f8289cc01329bcc9c990b986dcdd2f5922/20260911T155812Z-50f1356ff734/cases.txt
+# Blackhole mode: compiler (auto-detected, use -Djmh.blackhole.autoDetect=false to disable)
+# Warmup: 3 iterations, 200000000 ns each
+# Measurement: 5 iterations, 200000000 ns each
+# Timeout: 10 min per iteration
+# Threads: 1 thread, will synchronize iterations
+# Benchmark mode: Average time, time/op
+# Benchmark: com.eignex.koblas.bench.KoblasJmhBenchmark.run
+# Parameters: (benchmarkMode = jvm-simd, caseId = pack-triangular-right+4x4+triangular+physical=8x4+uplo=U+diag=U+work=pack-triangular-right-v1+leftLayout=depth-rows-v1+rightLayout=depth-columns-v1+leftGroup=8+rightGroup=4+leftStride=8+rightStride=4+padding=zero+alignment=8+block=4x4x4+panel=4+diagonal=0+rhs=0+batch=1+variant=current-tile-v1+timing=packing-only)
+
+# Run progress: 50.00% complete, ETA 00:00:24
+# Fork: 1 of 1
+WARNING: Using incubator modules: jdk.incubator.vector
+WARNING: A terminally deprecated method in sun.misc.Unsafe has been called
+WARNING: sun.misc.Unsafe::objectFieldOffset has been called by org.openjdk.jmh.util.Utils (file:/home/rasmus/.gradle/caches/modules-2/files-2.1/org.openjdk.jmh/jmh-core/1.37/896f27e49105b35ea1964319c83d12082e7a79ef/jmh-core-1.37.jar)
+WARNING: Please consider reporting this to the maintainers of class org.openjdk.jmh.util.Utils
+WARNING: sun.misc.Unsafe::objectFieldOffset will be removed in a future release
+# Warmup Iteration   1: 35.704 ns/op
+# Warmup Iteration   2: 36.369 ns/op
+# Warmup Iteration   3: 36.019 ns/op
+Iteration   1: 35.970 ns/op
+Iteration   2: 35.976 ns/op
+Iteration   3: 32.217 ns/op
+Iteration   4: 32.991 ns/op
+Iteration   5: 35.175 ns/op
+
+
+Result "com.eignex.koblas.bench.KoblasJmhBenchmark.run":
+  34.466 ±(99.9%) 6.746 ns/op [Average]
+  (min, avg, max) = (32.217, 34.466, 35.976), stdev = 1.752
+  CI (99.9%): [27.719, 41.212] (assumes normal distribution)
+
+
+# JMH version: 1.37
+# VM version: JDK 25.0.1, OpenJDK 64-Bit Server VM, 25.0.1+8-LTS
+# VM invoker: /home/rasmus/.gradle/jdks/eclipse_adoptium-25-amd64-linux.2/bin/java
+# VM options: --enable-native-access=ALL-UNNAMED --add-modules=jdk.incubator.vector -Dfile.encoding=UTF-8 -Duser.country -Duser.language=en -Duser.variant -Dkoblas.bench.cases=/home/rasmus/.codex/worktrees/703f/koblas/koblas-bench/reports/f342c3192a41a07cf0454d7d4d5324f8289cc01329bcc9c990b986dcdd2f5922/20260911T155812Z-50f1356ff734/cases.txt
+# Blackhole mode: compiler (auto-detected, use -Djmh.blackhole.autoDetect=false to disable)
+# Warmup: 3 iterations, 200000000 ns each
+# Measurement: 5 iterations, 200000000 ns each
+# Timeout: 10 min per iteration
+# Threads: 1 thread, will synchronize iterations
+# Benchmark mode: Average time, time/op
+# Benchmark: com.eignex.koblas.bench.KoblasJmhBenchmark.run
+# Parameters: (benchmarkMode = jvm-simd, caseId = write-left+7x31+uniform+physical=8x4+work=write-left-v1+leftLayout=depth-rows-v1+rightLayout=depth-columns-v1+leftGroup=8+rightGroup=4+leftStride=8+rightStride=4+padding=zero+alignment=8+block=7x31x31+panel=31+diagonal=0+rhs=0+batch=1+variant=current-tile-v1+timing=layout-only)
+
+# Run progress: 53.85% complete, ETA 00:00:22
+# Fork: 1 of 1
+WARNING: Using incubator modules: jdk.incubator.vector
+WARNING: A terminally deprecated method in sun.misc.Unsafe has been called
+WARNING: sun.misc.Unsafe::objectFieldOffset has been called by org.openjdk.jmh.util.Utils (file:/home/rasmus/.gradle/caches/modules-2/files-2.1/org.openjdk.jmh/jmh-core/1.37/896f27e49105b35ea1964319c83d12082e7a79ef/jmh-core-1.37.jar)
+WARNING: Please consider reporting this to the maintainers of class org.openjdk.jmh.util.Utils
+WARNING: sun.misc.Unsafe::objectFieldOffset will be removed in a future release
+# Warmup Iteration   1: 93.890 ns/op
+# Warmup Iteration   2: 93.664 ns/op
+# Warmup Iteration   3: 93.613 ns/op
+Iteration   1: 92.185 ns/op
+Iteration   2: 82.479 ns/op
+Iteration   3: 84.749 ns/op
+Iteration   4: 84.611 ns/op
+Iteration   5: 84.385 ns/op
+
+
+Result "com.eignex.koblas.bench.KoblasJmhBenchmark.run":
+  85.682 ±(99.9%) 14.439 ns/op [Average]
+  (min, avg, max) = (82.479, 85.682, 92.185), stdev = 3.750
+  CI (99.9%): [71.243, 100.121] (assumes normal distribution)
+
+
+# JMH version: 1.37
+# VM version: JDK 25.0.1, OpenJDK 64-Bit Server VM, 25.0.1+8-LTS
+# VM invoker: /home/rasmus/.gradle/jdks/eclipse_adoptium-25-amd64-linux.2/bin/java
+# VM options: --enable-native-access=ALL-UNNAMED --add-modules=jdk.incubator.vector -Dfile.encoding=UTF-8 -Duser.country -Duser.language=en -Duser.variant -Dkoblas.bench.cases=/home/rasmus/.codex/worktrees/703f/koblas/koblas-bench/reports/f342c3192a41a07cf0454d7d4d5324f8289cc01329bcc9c990b986dcdd2f5922/20260911T155812Z-50f1356ff734/cases.txt
+# Blackhole mode: compiler (auto-detected, use -Djmh.blackhole.autoDetect=false to disable)
+# Warmup: 3 iterations, 200000000 ns each
+# Measurement: 5 iterations, 200000000 ns each
+# Timeout: 10 min per iteration
+# Threads: 1 thread, will synchronize iterations
+# Benchmark mode: Average time, time/op
+# Benchmark: com.eignex.koblas.bench.KoblasJmhBenchmark.run
+# Parameters: (benchmarkMode = jvm-simd, caseId = write-left+8x32+uniform+physical=8x4+work=write-left-v1+leftLayout=depth-rows-v1+rightLayout=depth-columns-v1+leftGroup=8+rightGroup=4+leftStride=8+rightStride=4+padding=zero+alignment=8+block=8x32x32+panel=32+diagonal=0+rhs=0+batch=1+variant=current-tile-v1+timing=layout-only)
+
+# Run progress: 57.69% complete, ETA 00:00:20
+# Fork: 1 of 1
+WARNING: Using incubator modules: jdk.incubator.vector
+WARNING: A terminally deprecated method in sun.misc.Unsafe has been called
+WARNING: sun.misc.Unsafe::objectFieldOffset has been called by org.openjdk.jmh.util.Utils (file:/home/rasmus/.gradle/caches/modules-2/files-2.1/org.openjdk.jmh/jmh-core/1.37/896f27e49105b35ea1964319c83d12082e7a79ef/jmh-core-1.37.jar)
+WARNING: Please consider reporting this to the maintainers of class org.openjdk.jmh.util.Utils
+WARNING: sun.misc.Unsafe::objectFieldOffset will be removed in a future release
+# Warmup Iteration   1: 119.427 ns/op
+# Warmup Iteration   2: 108.743 ns/op
+# Warmup Iteration   3: 110.993 ns/op
+Iteration   1: 116.324 ns/op
+Iteration   2: 118.619 ns/op
+Iteration   3: 139.628 ns/op
+Iteration   4: 145.333 ns/op
+Iteration   5: 140.117 ns/op
+
+
+Result "com.eignex.koblas.bench.KoblasJmhBenchmark.run":
+  132.004 ±(99.9%) 51.898 ns/op [Average]
+  (min, avg, max) = (116.324, 132.004, 145.333), stdev = 13.478
+  CI (99.9%): [80.106, 183.903] (assumes normal distribution)
+
+
+# JMH version: 1.37
+# VM version: JDK 25.0.1, OpenJDK 64-Bit Server VM, 25.0.1+8-LTS
+# VM invoker: /home/rasmus/.gradle/jdks/eclipse_adoptium-25-amd64-linux.2/bin/java
+# VM options: --enable-native-access=ALL-UNNAMED --add-modules=jdk.incubator.vector -Dfile.encoding=UTF-8 -Duser.country -Duser.language=en -Duser.variant -Dkoblas.bench.cases=/home/rasmus/.codex/worktrees/703f/koblas/koblas-bench/reports/f342c3192a41a07cf0454d7d4d5324f8289cc01329bcc9c990b986dcdd2f5922/20260911T155812Z-50f1356ff734/cases.txt
+# Blackhole mode: compiler (auto-detected, use -Djmh.blackhole.autoDetect=false to disable)
+# Warmup: 3 iterations, 200000000 ns each
+# Measurement: 5 iterations, 200000000 ns each
+# Timeout: 10 min per iteration
+# Threads: 1 thread, will synchronize iterations
+# Benchmark mode: Average time, time/op
+# Benchmark: com.eignex.koblas.bench.KoblasJmhBenchmark.run
+# Parameters: (benchmarkMode = jvm-simd, caseId = write-right+31x2+uniform+physical=8x4+work=write-right-v1+leftLayout=depth-rows-v1+rightLayout=depth-columns-v1+leftGroup=8+rightGroup=4+leftStride=8+rightStride=4+padding=zero+alignment=8+block=31x2x31+panel=31+diagonal=0+rhs=0+batch=1+variant=current-tile-v1+timing=layout-only)
+
+# Run progress: 61.54% complete, ETA 00:00:18
+# Fork: 1 of 1
+WARNING: Using incubator modules: jdk.incubator.vector
+WARNING: A terminally deprecated method in sun.misc.Unsafe has been called
+WARNING: sun.misc.Unsafe::objectFieldOffset has been called by org.openjdk.jmh.util.Utils (file:/home/rasmus/.gradle/caches/modules-2/files-2.1/org.openjdk.jmh/jmh-core/1.37/896f27e49105b35ea1964319c83d12082e7a79ef/jmh-core-1.37.jar)
+WARNING: Please consider reporting this to the maintainers of class org.openjdk.jmh.util.Utils
+WARNING: sun.misc.Unsafe::objectFieldOffset will be removed in a future release
+# Warmup Iteration   1: 116.256 ns/op
+# Warmup Iteration   2: 103.661 ns/op
+# Warmup Iteration   3: 92.775 ns/op
+Iteration   1: 87.395 ns/op
+Iteration   2: 90.830 ns/op
+Iteration   3: 103.513 ns/op
+Iteration   4: 91.215 ns/op
+Iteration   5: 89.879 ns/op
+
+
+Result "com.eignex.koblas.bench.KoblasJmhBenchmark.run":
+  92.566 ±(99.9%) 24.251 ns/op [Average]
+  (min, avg, max) = (87.395, 92.566, 103.513), stdev = 6.298
+  CI (99.9%): [68.316, 116.817] (assumes normal distribution)
+
+
+# JMH version: 1.37
+# VM version: JDK 25.0.1, OpenJDK 64-Bit Server VM, 25.0.1+8-LTS
+# VM invoker: /home/rasmus/.gradle/jdks/eclipse_adoptium-25-amd64-linux.2/bin/java
+# VM options: --enable-native-access=ALL-UNNAMED --add-modules=jdk.incubator.vector -Dfile.encoding=UTF-8 -Duser.country -Duser.language=en -Duser.variant -Dkoblas.bench.cases=/home/rasmus/.codex/worktrees/703f/koblas/koblas-bench/reports/f342c3192a41a07cf0454d7d4d5324f8289cc01329bcc9c990b986dcdd2f5922/20260911T155812Z-50f1356ff734/cases.txt
+# Blackhole mode: compiler (auto-detected, use -Djmh.blackhole.autoDetect=false to disable)
+# Warmup: 3 iterations, 200000000 ns each
+# Measurement: 5 iterations, 200000000 ns each
+# Timeout: 10 min per iteration
+# Threads: 1 thread, will synchronize iterations
+# Benchmark mode: Average time, time/op
+# Benchmark: com.eignex.koblas.bench.KoblasJmhBenchmark.run
+# Parameters: (benchmarkMode = jvm-simd, caseId = write-right+32x4+uniform+physical=8x4+work=write-right-v1+leftLayout=depth-rows-v1+rightLayout=depth-columns-v1+leftGroup=8+rightGroup=4+leftStride=8+rightStride=4+padding=zero+alignment=8+block=32x4x32+panel=32+diagonal=0+rhs=0+batch=1+variant=current-tile-v1+timing=layout-only)
+
+# Run progress: 65.38% complete, ETA 00:00:16
+# Fork: 1 of 1
+WARNING: Using incubator modules: jdk.incubator.vector
+WARNING: A terminally deprecated method in sun.misc.Unsafe has been called
+WARNING: sun.misc.Unsafe::objectFieldOffset has been called by org.openjdk.jmh.util.Utils (file:/home/rasmus/.gradle/caches/modules-2/files-2.1/org.openjdk.jmh/jmh-core/1.37/896f27e49105b35ea1964319c83d12082e7a79ef/jmh-core-1.37.jar)
+WARNING: Please consider reporting this to the maintainers of class org.openjdk.jmh.util.Utils
+WARNING: sun.misc.Unsafe::objectFieldOffset will be removed in a future release
+# Warmup Iteration   1: 114.887 ns/op
+# Warmup Iteration   2: 105.721 ns/op
+# Warmup Iteration   3: 110.939 ns/op
+Iteration   1: 102.740 ns/op
+Iteration   2: 113.339 ns/op
+Iteration   3: 113.607 ns/op
+Iteration   4: 113.501 ns/op
+Iteration   5: 111.427 ns/op
+
+
+Result "com.eignex.koblas.bench.KoblasJmhBenchmark.run":
+  110.923 ±(99.9%) 17.948 ns/op [Average]
+  (min, avg, max) = (102.740, 110.923, 113.607), stdev = 4.661
+  CI (99.9%): [92.974, 128.871] (assumes normal distribution)
+
+
+# JMH version: 1.37
+# VM version: JDK 25.0.1, OpenJDK 64-Bit Server VM, 25.0.1+8-LTS
+# VM invoker: /home/rasmus/.gradle/jdks/eclipse_adoptium-25-amd64-linux.2/bin/java
+# VM options: --enable-native-access=ALL-UNNAMED --add-modules=jdk.incubator.vector -Dfile.encoding=UTF-8 -Duser.country -Duser.language=en -Duser.variant -Dkoblas.bench.cases=/home/rasmus/.codex/worktrees/703f/koblas/koblas-bench/reports/f342c3192a41a07cf0454d7d4d5324f8289cc01329bcc9c990b986dcdd2f5922/20260911T155812Z-50f1356ff734/cases.txt
+# Blackhole mode: compiler (auto-detected, use -Djmh.blackhole.autoDetect=false to disable)
+# Warmup: 3 iterations, 200000000 ns each
+# Measurement: 5 iterations, 200000000 ns each
+# Timeout: 10 min per iteration
+# Threads: 1 thread, will synchronize iterations
+# Benchmark mode: Average time, time/op
+# Benchmark: com.eignex.koblas.bench.KoblasJmhBenchmark.run
+# Parameters: (benchmarkMode = jvm-simd, caseId = clear-left-padding+7x31+uniform+physical=8x4+work=clear-left-padding-v1+leftLayout=depth-rows-v1+rightLayout=depth-columns-v1+leftGroup=8+rightGroup=4+leftStride=8+rightStride=4+padding=zero+alignment=8+block=7x31x31+panel=31+diagonal=0+rhs=0+batch=1+variant=current-tile-v1+timing=layout-only)
+
+# Run progress: 69.23% complete, ETA 00:00:14
+# Fork: 1 of 1
+WARNING: Using incubator modules: jdk.incubator.vector
+WARNING: A terminally deprecated method in sun.misc.Unsafe has been called
+WARNING: sun.misc.Unsafe::objectFieldOffset has been called by org.openjdk.jmh.util.Utils (file:/home/rasmus/.gradle/caches/modules-2/files-2.1/org.openjdk.jmh/jmh-core/1.37/896f27e49105b35ea1964319c83d12082e7a79ef/jmh-core-1.37.jar)
+WARNING: Please consider reporting this to the maintainers of class org.openjdk.jmh.util.Utils
+WARNING: sun.misc.Unsafe::objectFieldOffset will be removed in a future release
+# Warmup Iteration   1: 58.761 ns/op
+# Warmup Iteration   2: 60.413 ns/op
+# Warmup Iteration   3: 60.822 ns/op
+Iteration   1: 60.582 ns/op
+Iteration   2: 60.968 ns/op
+Iteration   3: 61.195 ns/op
+Iteration   4: 60.901 ns/op
+Iteration   5: 61.341 ns/op
+
+
+Result "com.eignex.koblas.bench.KoblasJmhBenchmark.run":
+  60.997 ±(99.9%) 1.123 ns/op [Average]
+  (min, avg, max) = (60.582, 60.997, 61.341), stdev = 0.292
+  CI (99.9%): [59.875, 62.120] (assumes normal distribution)
+
+
+# JMH version: 1.37
+# VM version: JDK 25.0.1, OpenJDK 64-Bit Server VM, 25.0.1+8-LTS
+# VM invoker: /home/rasmus/.gradle/jdks/eclipse_adoptium-25-amd64-linux.2/bin/java
+# VM options: --enable-native-access=ALL-UNNAMED --add-modules=jdk.incubator.vector -Dfile.encoding=UTF-8 -Duser.country -Duser.language=en -Duser.variant -Dkoblas.bench.cases=/home/rasmus/.codex/worktrees/703f/koblas/koblas-bench/reports/f342c3192a41a07cf0454d7d4d5324f8289cc01329bcc9c990b986dcdd2f5922/20260911T155812Z-50f1356ff734/cases.txt
+# Blackhole mode: compiler (auto-detected, use -Djmh.blackhole.autoDetect=false to disable)
+# Warmup: 3 iterations, 200000000 ns each
+# Measurement: 5 iterations, 200000000 ns each
+# Timeout: 10 min per iteration
+# Threads: 1 thread, will synchronize iterations
+# Benchmark mode: Average time, time/op
+# Benchmark: com.eignex.koblas.bench.KoblasJmhBenchmark.run
+# Parameters: (benchmarkMode = jvm-simd, caseId = clear-left-padding+8x32+uniform+physical=8x4+work=clear-left-padding-v1+leftLayout=depth-rows-v1+rightLayout=depth-columns-v1+leftGroup=8+rightGroup=4+leftStride=8+rightStride=4+padding=zero+alignment=8+block=8x32x32+panel=32+diagonal=0+rhs=0+batch=1+variant=current-tile-v1+timing=layout-only)
+
+# Run progress: 73.08% complete, ETA 00:00:13
+# Fork: 1 of 1
+WARNING: Using incubator modules: jdk.incubator.vector
+WARNING: A terminally deprecated method in sun.misc.Unsafe has been called
+WARNING: sun.misc.Unsafe::objectFieldOffset has been called by org.openjdk.jmh.util.Utils (file:/home/rasmus/.gradle/caches/modules-2/files-2.1/org.openjdk.jmh/jmh-core/1.37/896f27e49105b35ea1964319c83d12082e7a79ef/jmh-core-1.37.jar)
+WARNING: Please consider reporting this to the maintainers of class org.openjdk.jmh.util.Utils
+WARNING: sun.misc.Unsafe::objectFieldOffset will be removed in a future release
+# Warmup Iteration   1: 7.680 ns/op
+# Warmup Iteration   2: 9.416 ns/op
+# Warmup Iteration   3: 9.555 ns/op
+Iteration   1: 11.363 ns/op
+Iteration   2: 8.427 ns/op
+Iteration   3: 7.627 ns/op
+Iteration   4: 7.497 ns/op
+Iteration   5: 7.836 ns/op
+
+
+Result "com.eignex.koblas.bench.KoblasJmhBenchmark.run":
+  8.550 ±(99.9%) 6.209 ns/op [Average]
+  (min, avg, max) = (7.497, 8.550, 11.363), stdev = 1.613
+  CI (99.9%): [2.341, 14.759] (assumes normal distribution)
+
+
+# JMH version: 1.37
+# VM version: JDK 25.0.1, OpenJDK 64-Bit Server VM, 25.0.1+8-LTS
+# VM invoker: /home/rasmus/.gradle/jdks/eclipse_adoptium-25-amd64-linux.2/bin/java
+# VM options: --enable-native-access=ALL-UNNAMED --add-modules=jdk.incubator.vector -Dfile.encoding=UTF-8 -Duser.country -Duser.language=en -Duser.variant -Dkoblas.bench.cases=/home/rasmus/.codex/worktrees/703f/koblas/koblas-bench/reports/f342c3192a41a07cf0454d7d4d5324f8289cc01329bcc9c990b986dcdd2f5922/20260911T155812Z-50f1356ff734/cases.txt
+# Blackhole mode: compiler (auto-detected, use -Djmh.blackhole.autoDetect=false to disable)
+# Warmup: 3 iterations, 200000000 ns each
+# Measurement: 5 iterations, 200000000 ns each
+# Timeout: 10 min per iteration
+# Threads: 1 thread, will synchronize iterations
+# Benchmark mode: Average time, time/op
+# Benchmark: com.eignex.koblas.bench.KoblasJmhBenchmark.run
+# Parameters: (benchmarkMode = jvm-simd, caseId = clear-right-padding+31x2+uniform+physical=8x4+work=clear-right-padding-v1+leftLayout=depth-rows-v1+rightLayout=depth-columns-v1+leftGroup=8+rightGroup=4+leftStride=8+rightStride=4+padding=zero+alignment=8+block=31x2x31+panel=31+diagonal=0+rhs=0+batch=1+variant=current-tile-v1+timing=layout-only)
+
+# Run progress: 76.92% complete, ETA 00:00:11
+# Fork: 1 of 1
+WARNING: Using incubator modules: jdk.incubator.vector
+WARNING: A terminally deprecated method in sun.misc.Unsafe has been called
+WARNING: sun.misc.Unsafe::objectFieldOffset has been called by org.openjdk.jmh.util.Utils (file:/home/rasmus/.gradle/caches/modules-2/files-2.1/org.openjdk.jmh/jmh-core/1.37/896f27e49105b35ea1964319c83d12082e7a79ef/jmh-core-1.37.jar)
+WARNING: Please consider reporting this to the maintainers of class org.openjdk.jmh.util.Utils
+WARNING: sun.misc.Unsafe::objectFieldOffset will be removed in a future release
+# Warmup Iteration   1: 73.544 ns/op
+# Warmup Iteration   2: 70.912 ns/op
+# Warmup Iteration   3: 70.611 ns/op
+Iteration   1: 70.840 ns/op
+Iteration   2: 78.861 ns/op
+Iteration   3: 82.062 ns/op
+Iteration   4: 71.008 ns/op
+Iteration   5: 70.023 ns/op
+
+
+Result "com.eignex.koblas.bench.KoblasJmhBenchmark.run":
+  74.559 ±(99.9%) 21.250 ns/op [Average]
+  (min, avg, max) = (70.023, 74.559, 82.062), stdev = 5.519
+  CI (99.9%): [53.309, 95.809] (assumes normal distribution)
+
+
+# JMH version: 1.37
+# VM version: JDK 25.0.1, OpenJDK 64-Bit Server VM, 25.0.1+8-LTS
+# VM invoker: /home/rasmus/.gradle/jdks/eclipse_adoptium-25-amd64-linux.2/bin/java
+# VM options: --enable-native-access=ALL-UNNAMED --add-modules=jdk.incubator.vector -Dfile.encoding=UTF-8 -Duser.country -Duser.language=en -Duser.variant -Dkoblas.bench.cases=/home/rasmus/.codex/worktrees/703f/koblas/koblas-bench/reports/f342c3192a41a07cf0454d7d4d5324f8289cc01329bcc9c990b986dcdd2f5922/20260911T155812Z-50f1356ff734/cases.txt
+# Blackhole mode: compiler (auto-detected, use -Djmh.blackhole.autoDetect=false to disable)
+# Warmup: 3 iterations, 200000000 ns each
+# Measurement: 5 iterations, 200000000 ns each
+# Timeout: 10 min per iteration
+# Threads: 1 thread, will synchronize iterations
+# Benchmark mode: Average time, time/op
+# Benchmark: com.eignex.koblas.bench.KoblasJmhBenchmark.run
+# Parameters: (benchmarkMode = jvm-simd, caseId = clear-right-padding+32x4+uniform+physical=8x4+work=clear-right-padding-v1+leftLayout=depth-rows-v1+rightLayout=depth-columns-v1+leftGroup=8+rightGroup=4+leftStride=8+rightStride=4+padding=zero+alignment=8+block=32x4x32+panel=32+diagonal=0+rhs=0+batch=1+variant=current-tile-v1+timing=layout-only)
+
+# Run progress: 80.77% complete, ETA 00:00:09
+# Fork: 1 of 1
+WARNING: Using incubator modules: jdk.incubator.vector
+WARNING: A terminally deprecated method in sun.misc.Unsafe has been called
+WARNING: sun.misc.Unsafe::objectFieldOffset has been called by org.openjdk.jmh.util.Utils (file:/home/rasmus/.gradle/caches/modules-2/files-2.1/org.openjdk.jmh/jmh-core/1.37/896f27e49105b35ea1964319c83d12082e7a79ef/jmh-core-1.37.jar)
+WARNING: Please consider reporting this to the maintainers of class org.openjdk.jmh.util.Utils
+WARNING: sun.misc.Unsafe::objectFieldOffset will be removed in a future release
+# Warmup Iteration   1: 7.881 ns/op
+# Warmup Iteration   2: 8.108 ns/op
+# Warmup Iteration   3: 9.874 ns/op
+Iteration   1: 16.181 ns/op
+Iteration   2: 17.253 ns/op
+Iteration   3: 16.795 ns/op
+Iteration   4: 12.796 ns/op
+Iteration   5: 11.311 ns/op
+
+
+Result "com.eignex.koblas.bench.KoblasJmhBenchmark.run":
+  14.867 ±(99.9%) 10.200 ns/op [Average]
+  (min, avg, max) = (11.311, 14.867, 17.253), stdev = 2.649
+  CI (99.9%): [4.667, 25.067] (assumes normal distribution)
+
+
+# JMH version: 1.37
+# VM version: JDK 25.0.1, OpenJDK 64-Bit Server VM, 25.0.1+8-LTS
+# VM invoker: /home/rasmus/.gradle/jdks/eclipse_adoptium-25-amd64-linux.2/bin/java
+# VM options: --enable-native-access=ALL-UNNAMED --add-modules=jdk.incubator.vector -Dfile.encoding=UTF-8 -Duser.country -Duser.language=en -Duser.variant -Dkoblas.bench.cases=/home/rasmus/.codex/worktrees/703f/koblas/koblas-bench/reports/f342c3192a41a07cf0454d7d4d5324f8289cc01329bcc9c990b986dcdd2f5922/20260911T155812Z-50f1356ff734/cases.txt
+# Blackhole mode: compiler (auto-detected, use -Djmh.blackhole.autoDetect=false to disable)
+# Warmup: 3 iterations, 200000000 ns each
+# Measurement: 5 iterations, 200000000 ns each
+# Timeout: 10 min per iteration
+# Threads: 1 thread, will synchronize iterations
+# Benchmark mode: Average time, time/op
+# Benchmark: com.eignex.koblas.bench.KoblasJmhBenchmark.run
+# Parameters: (benchmarkMode = jvm-simd, caseId = gemm-block+15x7x31+uniform+physical=8x4+work=gemm-add-v1+leftLayout=depth-rows-v1+rightLayout=depth-columns-v1+leftGroup=8+rightGroup=4+leftStride=8+rightStride=4+padding=zero+alignment=8+block=15x7x31+panel=31+diagonal=0+rhs=0+batch=1+variant=current-tile-v1+timing=prepacked-compute)
+
+# Run progress: 84.62% complete, ETA 00:00:07
+# Fork: 1 of 1
+WARNING: Using incubator modules: jdk.incubator.vector
+WARNING: A terminally deprecated method in sun.misc.Unsafe has been called
+WARNING: sun.misc.Unsafe::objectFieldOffset has been called by org.openjdk.jmh.util.Utils (file:/home/rasmus/.gradle/caches/modules-2/files-2.1/org.openjdk.jmh/jmh-core/1.37/896f27e49105b35ea1964319c83d12082e7a79ef/jmh-core-1.37.jar)
+WARNING: Please consider reporting this to the maintainers of class org.openjdk.jmh.util.Utils
+WARNING: sun.misc.Unsafe::objectFieldOffset will be removed in a future release
+# Warmup Iteration   1: 325665.847 ns/op
+# Warmup Iteration   2: 7964.606 ns/op
+# Warmup Iteration   3: 1605.682 ns/op
+Iteration   1: 1546.526 ns/op
+Iteration   2: 1486.647 ns/op
+Iteration   3: 1451.147 ns/op
+Iteration   4: 1498.445 ns/op
+Iteration   5: 1277.828 ns/op
+
+
+Result "com.eignex.koblas.bench.KoblasJmhBenchmark.run":
+  1452.118 ±(99.9%) 397.519 ns/op [Average]
+  (min, avg, max) = (1277.828, 1452.118, 1546.526), stdev = 103.234
+  CI (99.9%): [1054.600, 1849.637] (assumes normal distribution)
+
+
+# JMH version: 1.37
+# VM version: JDK 25.0.1, OpenJDK 64-Bit Server VM, 25.0.1+8-LTS
+# VM invoker: /home/rasmus/.gradle/jdks/eclipse_adoptium-25-amd64-linux.2/bin/java
+# VM options: --enable-native-access=ALL-UNNAMED --add-modules=jdk.incubator.vector -Dfile.encoding=UTF-8 -Duser.country -Duser.language=en -Duser.variant -Dkoblas.bench.cases=/home/rasmus/.codex/worktrees/703f/koblas/koblas-bench/reports/f342c3192a41a07cf0454d7d4d5324f8289cc01329bcc9c990b986dcdd2f5922/20260911T155812Z-50f1356ff734/cases.txt
+# Blackhole mode: compiler (auto-detected, use -Djmh.blackhole.autoDetect=false to disable)
+# Warmup: 3 iterations, 200000000 ns each
+# Measurement: 5 iterations, 200000000 ns each
+# Timeout: 10 min per iteration
+# Threads: 1 thread, will synchronize iterations
+# Benchmark mode: Average time, time/op
+# Benchmark: com.eignex.koblas.bench.KoblasJmhBenchmark.run
+# Parameters: (benchmarkMode = jvm-simd, caseId = gemm-block+15x7x31+uniform+physical=8x4+work=gemm-add-v1+leftLayout=depth-rows-v1+rightLayout=depth-columns-v1+leftGroup=8+rightGroup=4+leftStride=8+rightStride=4+padding=zero+alignment=8+block=15x7x31+panel=31+diagonal=0+rhs=0+batch=1+variant=current-tile-v1+timing=pack-plus-compute)
+
+# Run progress: 88.46% complete, ETA 00:00:05
+# Fork: 1 of 1
+WARNING: Using incubator modules: jdk.incubator.vector
+WARNING: A terminally deprecated method in sun.misc.Unsafe has been called
+WARNING: sun.misc.Unsafe::objectFieldOffset has been called by org.openjdk.jmh.util.Utils (file:/home/rasmus/.gradle/caches/modules-2/files-2.1/org.openjdk.jmh/jmh-core/1.37/896f27e49105b35ea1964319c83d12082e7a79ef/jmh-core-1.37.jar)
+WARNING: Please consider reporting this to the maintainers of class org.openjdk.jmh.util.Utils
+WARNING: sun.misc.Unsafe::objectFieldOffset will be removed in a future release
+# Warmup Iteration   1: 121340.751 ns/op
+# Warmup Iteration   2: 4447.168 ns/op
+# Warmup Iteration   3: 3633.350 ns/op
+Iteration   1: 3896.809 ns/op
+Iteration   2: 4079.193 ns/op
+Iteration   3: 3956.551 ns/op
+Iteration   4: 3490.701 ns/op
+Iteration   5: 2515.923 ns/op
+
+
+Result "com.eignex.koblas.bench.KoblasJmhBenchmark.run":
+  3587.836 ±(99.9%) 2459.052 ns/op [Average]
+  (min, avg, max) = (2515.923, 3587.836, 4079.193), stdev = 638.608
+  CI (99.9%): [1128.784, 6046.887] (assumes normal distribution)
+
+
+# JMH version: 1.37
+# VM version: JDK 25.0.1, OpenJDK 64-Bit Server VM, 25.0.1+8-LTS
+# VM invoker: /home/rasmus/.gradle/jdks/eclipse_adoptium-25-amd64-linux.2/bin/java
+# VM options: --enable-native-access=ALL-UNNAMED --add-modules=jdk.incubator.vector -Dfile.encoding=UTF-8 -Duser.country -Duser.language=en -Duser.variant -Dkoblas.bench.cases=/home/rasmus/.codex/worktrees/703f/koblas/koblas-bench/reports/f342c3192a41a07cf0454d7d4d5324f8289cc01329bcc9c990b986dcdd2f5922/20260911T155812Z-50f1356ff734/cases.txt
+# Blackhole mode: compiler (auto-detected, use -Djmh.blackhole.autoDetect=false to disable)
+# Warmup: 3 iterations, 200000000 ns each
+# Measurement: 5 iterations, 200000000 ns each
+# Timeout: 10 min per iteration
+# Threads: 1 thread, will synchronize iterations
+# Benchmark mode: Average time, time/op
+# Benchmark: com.eignex.koblas.bench.KoblasJmhBenchmark.run
+# Parameters: (benchmarkMode = jvm-simd, caseId = gemm-block+32x16x65+uniform+physical=8x4+work=gemm-add-v1+leftLayout=depth-rows-v1+rightLayout=depth-columns-v1+leftGroup=8+rightGroup=4+leftStride=8+rightStride=4+padding=zero+alignment=8+block=32x16x65+panel=65+diagonal=0+rhs=0+batch=1+variant=current-tile-v1+timing=prepacked-compute)
+
+# Run progress: 92.31% complete, ETA 00:00:03
+# Fork: 1 of 1
+WARNING: Using incubator modules: jdk.incubator.vector
+WARNING: A terminally deprecated method in sun.misc.Unsafe has been called
+WARNING: sun.misc.Unsafe::objectFieldOffset has been called by org.openjdk.jmh.util.Utils (file:/home/rasmus/.gradle/caches/modules-2/files-2.1/org.openjdk.jmh/jmh-core/1.37/896f27e49105b35ea1964319c83d12082e7a79ef/jmh-core-1.37.jar)
+WARNING: Please consider reporting this to the maintainers of class org.openjdk.jmh.util.Utils
+WARNING: sun.misc.Unsafe::objectFieldOffset will be removed in a future release
+# Warmup Iteration   1: 2338695.756 ns/op
+# Warmup Iteration   2: 12529.025 ns/op
+# Warmup Iteration   3: 4529.246 ns/op
+Iteration   1: 4796.762 ns/op
+Iteration   2: 4857.026 ns/op
+Iteration   3: 4481.772 ns/op
+Iteration   4: 4272.783 ns/op
+Iteration   5: 9172.204 ns/op
+
+
+Result "com.eignex.koblas.bench.KoblasJmhBenchmark.run":
+  5516.109 ±(99.9%) 7923.020 ns/op [Average]
+  (min, avg, max) = (4272.783, 5516.109, 9172.204), stdev = 2057.583
+  CI (99.9%): [≈ 0, 13439.129] (assumes normal distribution)
+
+
+# JMH version: 1.37
+# VM version: JDK 25.0.1, OpenJDK 64-Bit Server VM, 25.0.1+8-LTS
+# VM invoker: /home/rasmus/.gradle/jdks/eclipse_adoptium-25-amd64-linux.2/bin/java
+# VM options: --enable-native-access=ALL-UNNAMED --add-modules=jdk.incubator.vector -Dfile.encoding=UTF-8 -Duser.country -Duser.language=en -Duser.variant -Dkoblas.bench.cases=/home/rasmus/.codex/worktrees/703f/koblas/koblas-bench/reports/f342c3192a41a07cf0454d7d4d5324f8289cc01329bcc9c990b986dcdd2f5922/20260911T155812Z-50f1356ff734/cases.txt
+# Blackhole mode: compiler (auto-detected, use -Djmh.blackhole.autoDetect=false to disable)
+# Warmup: 3 iterations, 200000000 ns each
+# Measurement: 5 iterations, 200000000 ns each
+# Timeout: 10 min per iteration
+# Threads: 1 thread, will synchronize iterations
+# Benchmark mode: Average time, time/op
+# Benchmark: com.eignex.koblas.bench.KoblasJmhBenchmark.run
+# Parameters: (benchmarkMode = jvm-simd, caseId = gemm-block+32x16x65+uniform+physical=8x4+work=gemm-add-v1+leftLayout=depth-rows-v1+rightLayout=depth-columns-v1+leftGroup=8+rightGroup=4+leftStride=8+rightStride=4+padding=zero+alignment=8+block=32x16x65+panel=65+diagonal=0+rhs=0+batch=1+variant=current-tile-v1+timing=pack-plus-compute)
+
+# Run progress: 96.15% complete, ETA 00:00:01
+# Fork: 1 of 1
+WARNING: Using incubator modules: jdk.incubator.vector
+WARNING: A terminally deprecated method in sun.misc.Unsafe has been called
+WARNING: sun.misc.Unsafe::objectFieldOffset has been called by org.openjdk.jmh.util.Utils (file:/home/rasmus/.gradle/caches/modules-2/files-2.1/org.openjdk.jmh/jmh-core/1.37/896f27e49105b35ea1964319c83d12082e7a79ef/jmh-core-1.37.jar)
+WARNING: Please consider reporting this to the maintainers of class org.openjdk.jmh.util.Utils
+WARNING: sun.misc.Unsafe::objectFieldOffset will be removed in a future release
+# Warmup Iteration   1: 2284067.614 ns/op
+# Warmup Iteration   2: 56882.868 ns/op
+# Warmup Iteration   3: 14406.369 ns/op
+Iteration   1: 19647.102 ns/op
+Iteration   2: 18825.184 ns/op
+Iteration   3: 19267.974 ns/op
+Iteration   4: 10777.475 ns/op
+Iteration   5: 8977.951 ns/op
+
+
+Result "com.eignex.koblas.bench.KoblasJmhBenchmark.run":
+  15499.137 ±(99.9%) 19942.869 ns/op [Average]
+  (min, avg, max) = (8977.951, 15499.137, 19647.102), stdev = 5179.100
+  CI (99.9%): [≈ 0, 35442.006] (assumes normal distribution)
+
+
+# Run complete. Total time: 00:00:50
+
+REMEMBER: The numbers below are just data. To gain reusable insights, you need to follow up on
+why the numbers are the way they are. Use profilers (see -prof, -lprof), design factorial
+experiments, perform baseline and negative tests that provide experimental control, make sure
+the benchmarking environment is safe on JVM/OS/HW level, ask for reviews from the domain experts.
+Do not assume the numbers tell you what you want them to tell.
+
+NOTE: Current JVM experimentally supports Compiler Blackholes, and they are in use. Please exercise
+extra caution when trusting the results, look into the generated code to check the benchmark still
+works, and factor in a small probability of new VM bugs. Additionally, while comparisons between
+different JVMs are already problematic, the performance difference caused by different Blackhole
+modes can be very significant. Please make sure you use the consistent Blackhole mode for comparisons.
+
+Benchmark               (benchmarkMode)                                                                                                                                                                                                                                                                                                                   (caseId)  Mode  Cnt      Score       Error  Units
+KoblasJmhBenchmark.run         jvm-simd                                           gemm-tile+8x4x32+uniform+physical=8x4+work=gemm-add-v1+leftLayout=depth-rows-v1+rightLayout=depth-columns-v1+leftGroup=8+rightGroup=4+leftStride=8+rightStride=4+padding=zero+alignment=8+block=8x4x32+panel=32+diagonal=0+rhs=0+batch=1+variant=current-tile-v1+timing=raw-tile  avgt    5     51.996 ±     3.861  ns/op
+KoblasJmhBenchmark.run         jvm-simd                                           gemm-tile+7x2x31+uniform+physical=8x4+work=gemm-add-v1+leftLayout=depth-rows-v1+rightLayout=depth-columns-v1+leftGroup=8+rightGroup=4+leftStride=8+rightStride=4+padding=zero+alignment=8+block=7x2x31+panel=31+diagonal=0+rhs=0+batch=1+variant=current-tile-v1+timing=raw-tile  avgt    5     52.170 ±    16.535  ns/op
+KoblasJmhBenchmark.run         jvm-simd                          packed-trsm+8x4+triangular+physical=8x4+uplo=L+diag=N+work=right-solve-v1+leftLayout=depth-rows-v1+rightLayout=depth-columns-v1+leftGroup=8+rightGroup=4+leftStride=8+rightStride=4+padding=zero+alignment=8+block=8x4x4+panel=4+diagonal=4+rhs=8+batch=1+variant=current-tile-v1+timing=raw-tile  avgt    5     62.138 ±     1.499  ns/op
+KoblasJmhBenchmark.run         jvm-simd                          packed-trsm+7x2+triangular+physical=8x4+uplo=U+diag=U+work=right-solve-v1+leftLayout=depth-rows-v1+rightLayout=depth-columns-v1+leftGroup=8+rightGroup=4+leftStride=8+rightStride=4+padding=zero+alignment=8+block=7x2x2+panel=2+diagonal=2+rhs=7+batch=1+variant=current-tile-v1+timing=raw-tile  avgt    5     17.190 ±     6.556  ns/op
+KoblasJmhBenchmark.run         jvm-simd                      gemm-trsm+8x4x32+triangular+physical=8x4+uplo=L+diag=N+work=update-solve-v1+leftLayout=depth-rows-v1+rightLayout=depth-columns-v1+leftGroup=8+rightGroup=4+leftStride=8+rightStride=4+padding=zero+alignment=8+block=8x4x32+panel=32+diagonal=4+rhs=8+batch=1+variant=current-tile-v1+timing=raw-tile  avgt    5     95.955 ±     2.098  ns/op
+KoblasJmhBenchmark.run         jvm-simd                      gemm-trsm+7x2x31+triangular+physical=8x4+uplo=U+diag=U+work=update-solve-v1+leftLayout=depth-rows-v1+rightLayout=depth-columns-v1+leftGroup=8+rightGroup=4+leftStride=8+rightStride=4+padding=zero+alignment=8+block=7x2x31+panel=31+diagonal=2+rhs=7+batch=1+variant=current-tile-v1+timing=raw-tile  avgt    5     51.114 ±     6.377  ns/op
+KoblasJmhBenchmark.run         jvm-simd                                       pack-left+7x31+uniform+physical=8x4+work=pack-left-v1+leftLayout=depth-rows-v1+rightLayout=depth-columns-v1+leftGroup=8+rightGroup=4+leftStride=8+rightStride=4+padding=zero+alignment=8+block=7x31x31+panel=31+diagonal=0+rhs=0+batch=1+variant=current-tile-v1+timing=packing-only  avgt    5    205.556 ±    10.635  ns/op
+KoblasJmhBenchmark.run         jvm-simd                                       pack-left+8x32+uniform+physical=8x4+work=pack-left-v1+leftLayout=depth-rows-v1+rightLayout=depth-columns-v1+leftGroup=8+rightGroup=4+leftStride=8+rightStride=4+padding=zero+alignment=8+block=8x32x32+panel=32+diagonal=0+rhs=0+batch=1+variant=current-tile-v1+timing=packing-only  avgt    5    189.200 ±     8.176  ns/op
+KoblasJmhBenchmark.run         jvm-simd                                     pack-right+31x2+uniform+physical=8x4+work=pack-right-v1+leftLayout=depth-rows-v1+rightLayout=depth-columns-v1+leftGroup=8+rightGroup=4+leftStride=8+rightStride=4+padding=zero+alignment=8+block=31x2x31+panel=31+diagonal=0+rhs=0+batch=1+variant=current-tile-v1+timing=packing-only  avgt    5    151.568 ±    15.264  ns/op
+KoblasJmhBenchmark.run         jvm-simd                                     pack-right+32x4+uniform+physical=8x4+work=pack-right-v1+leftLayout=depth-rows-v1+rightLayout=depth-columns-v1+leftGroup=8+rightGroup=4+leftStride=8+rightStride=4+padding=zero+alignment=8+block=32x4x32+panel=32+diagonal=0+rhs=0+batch=1+variant=current-tile-v1+timing=packing-only  avgt    5    142.347 ±    39.095  ns/op
+KoblasJmhBenchmark.run         jvm-simd                pack-symmetric-left+8x8+uniform+physical=8x4+uplo=L+work=pack-symmetric-left-v1+leftLayout=depth-rows-v1+rightLayout=depth-columns-v1+leftGroup=8+rightGroup=4+leftStride=8+rightStride=4+padding=zero+alignment=8+block=8x8x8+panel=8+diagonal=0+rhs=0+batch=1+variant=current-tile-v1+timing=packing-only  avgt    5     74.163 ±    16.767  ns/op
+KoblasJmhBenchmark.run         jvm-simd              pack-symmetric-right+4x4+uniform+physical=8x4+uplo=U+work=pack-symmetric-right-v1+leftLayout=depth-rows-v1+rightLayout=depth-columns-v1+leftGroup=8+rightGroup=4+leftStride=8+rightStride=4+padding=zero+alignment=8+block=4x4x4+panel=4+diagonal=0+rhs=0+batch=1+variant=current-tile-v1+timing=packing-only  avgt    5     32.446 ±     5.027  ns/op
+KoblasJmhBenchmark.run         jvm-simd    pack-triangular-left+8x8+triangular+physical=8x4+uplo=L+diag=N+work=pack-triangular-left-v1+leftLayout=depth-rows-v1+rightLayout=depth-columns-v1+leftGroup=8+rightGroup=4+leftStride=8+rightStride=4+padding=zero+alignment=8+block=8x8x8+panel=8+diagonal=0+rhs=0+batch=1+variant=current-tile-v1+timing=packing-only  avgt    5     75.433 ±     2.879  ns/op
+KoblasJmhBenchmark.run         jvm-simd  pack-triangular-right+4x4+triangular+physical=8x4+uplo=U+diag=U+work=pack-triangular-right-v1+leftLayout=depth-rows-v1+rightLayout=depth-columns-v1+leftGroup=8+rightGroup=4+leftStride=8+rightStride=4+padding=zero+alignment=8+block=4x4x4+panel=4+diagonal=0+rhs=0+batch=1+variant=current-tile-v1+timing=packing-only  avgt    5     34.466 ±     6.746  ns/op
+KoblasJmhBenchmark.run         jvm-simd                                      write-left+7x31+uniform+physical=8x4+work=write-left-v1+leftLayout=depth-rows-v1+rightLayout=depth-columns-v1+leftGroup=8+rightGroup=4+leftStride=8+rightStride=4+padding=zero+alignment=8+block=7x31x31+panel=31+diagonal=0+rhs=0+batch=1+variant=current-tile-v1+timing=layout-only  avgt    5     85.682 ±    14.439  ns/op
+KoblasJmhBenchmark.run         jvm-simd                                      write-left+8x32+uniform+physical=8x4+work=write-left-v1+leftLayout=depth-rows-v1+rightLayout=depth-columns-v1+leftGroup=8+rightGroup=4+leftStride=8+rightStride=4+padding=zero+alignment=8+block=8x32x32+panel=32+diagonal=0+rhs=0+batch=1+variant=current-tile-v1+timing=layout-only  avgt    5    132.004 ±    51.898  ns/op
+KoblasJmhBenchmark.run         jvm-simd                                    write-right+31x2+uniform+physical=8x4+work=write-right-v1+leftLayout=depth-rows-v1+rightLayout=depth-columns-v1+leftGroup=8+rightGroup=4+leftStride=8+rightStride=4+padding=zero+alignment=8+block=31x2x31+panel=31+diagonal=0+rhs=0+batch=1+variant=current-tile-v1+timing=layout-only  avgt    5     92.566 ±    24.251  ns/op
+KoblasJmhBenchmark.run         jvm-simd                                    write-right+32x4+uniform+physical=8x4+work=write-right-v1+leftLayout=depth-rows-v1+rightLayout=depth-columns-v1+leftGroup=8+rightGroup=4+leftStride=8+rightStride=4+padding=zero+alignment=8+block=32x4x32+panel=32+diagonal=0+rhs=0+batch=1+variant=current-tile-v1+timing=layout-only  avgt    5    110.923 ±    17.948  ns/op
+KoblasJmhBenchmark.run         jvm-simd                      clear-left-padding+7x31+uniform+physical=8x4+work=clear-left-padding-v1+leftLayout=depth-rows-v1+rightLayout=depth-columns-v1+leftGroup=8+rightGroup=4+leftStride=8+rightStride=4+padding=zero+alignment=8+block=7x31x31+panel=31+diagonal=0+rhs=0+batch=1+variant=current-tile-v1+timing=layout-only  avgt    5     60.997 ±     1.123  ns/op
+KoblasJmhBenchmark.run         jvm-simd                      clear-left-padding+8x32+uniform+physical=8x4+work=clear-left-padding-v1+leftLayout=depth-rows-v1+rightLayout=depth-columns-v1+leftGroup=8+rightGroup=4+leftStride=8+rightStride=4+padding=zero+alignment=8+block=8x32x32+panel=32+diagonal=0+rhs=0+batch=1+variant=current-tile-v1+timing=layout-only  avgt    5      8.550 ±     6.209  ns/op
+KoblasJmhBenchmark.run         jvm-simd                    clear-right-padding+31x2+uniform+physical=8x4+work=clear-right-padding-v1+leftLayout=depth-rows-v1+rightLayout=depth-columns-v1+leftGroup=8+rightGroup=4+leftStride=8+rightStride=4+padding=zero+alignment=8+block=31x2x31+panel=31+diagonal=0+rhs=0+batch=1+variant=current-tile-v1+timing=layout-only  avgt    5     74.559 ±    21.250  ns/op
+KoblasJmhBenchmark.run         jvm-simd                    clear-right-padding+32x4+uniform+physical=8x4+work=clear-right-padding-v1+leftLayout=depth-rows-v1+rightLayout=depth-columns-v1+leftGroup=8+rightGroup=4+leftStride=8+rightStride=4+padding=zero+alignment=8+block=32x4x32+panel=32+diagonal=0+rhs=0+batch=1+variant=current-tile-v1+timing=layout-only  avgt    5     14.867 ±    10.200  ns/op
+KoblasJmhBenchmark.run         jvm-simd                               gemm-block+15x7x31+uniform+physical=8x4+work=gemm-add-v1+leftLayout=depth-rows-v1+rightLayout=depth-columns-v1+leftGroup=8+rightGroup=4+leftStride=8+rightStride=4+padding=zero+alignment=8+block=15x7x31+panel=31+diagonal=0+rhs=0+batch=1+variant=current-tile-v1+timing=prepacked-compute  avgt    5   1452.118 ±   397.519  ns/op
+KoblasJmhBenchmark.run         jvm-simd                               gemm-block+15x7x31+uniform+physical=8x4+work=gemm-add-v1+leftLayout=depth-rows-v1+rightLayout=depth-columns-v1+leftGroup=8+rightGroup=4+leftStride=8+rightStride=4+padding=zero+alignment=8+block=15x7x31+panel=31+diagonal=0+rhs=0+batch=1+variant=current-tile-v1+timing=pack-plus-compute  avgt    5   3587.836 ±  2459.052  ns/op
+KoblasJmhBenchmark.run         jvm-simd                             gemm-block+32x16x65+uniform+physical=8x4+work=gemm-add-v1+leftLayout=depth-rows-v1+rightLayout=depth-columns-v1+leftGroup=8+rightGroup=4+leftStride=8+rightStride=4+padding=zero+alignment=8+block=32x16x65+panel=65+diagonal=0+rhs=0+batch=1+variant=current-tile-v1+timing=prepacked-compute  avgt    5   5516.109 ±  7923.020  ns/op
+KoblasJmhBenchmark.run         jvm-simd                             gemm-block+32x16x65+uniform+physical=8x4+work=gemm-add-v1+leftLayout=depth-rows-v1+rightLayout=depth-columns-v1+leftGroup=8+rightGroup=4+leftStride=8+rightStride=4+padding=zero+alignment=8+block=32x16x65+panel=65+diagonal=0+rhs=0+batch=1+variant=current-tile-v1+timing=pack-plus-compute  avgt    5  15499.137 ± 19942.869  ns/op
+wrote 52 cases and 156 rows to /home/rasmus/.codex/worktrees/703f/koblas/koblas-bench/reports/f342c3192a41a07cf0454d7d4d5324f8289cc01329bcc9c990b986dcdd2f5922/20260911T155812Z-50f1356ff734/jvm-simd.csv
+resolved implementation=jvm-simd/simd(4 lanes)/simd-sparse/packed-8x4 runtime=kotlin-2.4.10/jvm/Eclipse Adoptium/25.0.1 harness=JMH 1.37 forks=1
+
+BUILD SUCCESSFUL in 52s
+9 actionable tasks: 3 executed, 6 up-to-date
+Configuration cache entry stored.

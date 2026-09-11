@@ -1,0 +1,15 @@
+Fri Sep 11 15:58:12 UTC 2026
+Linux LTHCL001 7.0.0-31-generic #31-Ubuntu SMP PREEMPT_DYNAMIC Sat Aug  1 04:26:38 UTC 2026 x86_64 GNU/Linux
+cc (Ubuntu 15.2.0-16ubuntu1) 15.2.0
+Copyright (C) 2025 Free Software Foundation, Inc.
+This is free software; see the source for copying conditions.  There is NO
+warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+
+openjdk 22.0.2 2024-07-16
+OpenJDK Runtime Environment Homebrew (build 22.0.2)
+OpenJDK 64-Bit Server VM Homebrew (build 22.0.2, mixed mode, sharing)
+50f1356ff734c61f359e46e821b0f580d6549e73
+?? koblas-bench/reports/f342c3192a41a07cf0454d7d4d5324f8289cc01329bcc9c990b986dcdd2f5922/
+operation=all suite=packed warmups=3 samples=5 target_ms=200 forks=1 pass=1 libraries=openblas
+JVM benchmark runtime and VM flags: see the JMH logs and CSV runtime fields.
+Native: Kotlin 2.4.10 release executable; build flags are in the source commit and native-build.log.
