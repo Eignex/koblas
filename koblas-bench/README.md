@@ -49,9 +49,6 @@ The command runs JVM scalar, JVM C, JVM SIMD, native koblas, and the requested v
 or engine fails the run. Use `--suite packed` for packed cases only. To make a short trial, add
 `--operation gemm --warmups 0 --samples 1 --target-ms 1 --forks 1`.
 
-Generated reports are ignored by Git. Preserve baseline CSVs and case/hardware/toolchain metadata explicitly;
-keep logs and derived output outside the repository.
-
 Compare CSVs from the same run (or compatible runs):
 
 ```bash
