@@ -33,13 +33,12 @@ public fun main(args: Array<String>) {
     val selected = if (settings.operation == "all") allCases else allCases.filter { it.operation == settings.operation }
     require(selected.isNotEmpty()) { "operation '${settings.operation}' selected no cases" }
     val (engine, implementation) = resolveEngine(settings.mode)
-    val rows = ArrayList<String>()
-    rows += CSV_HEADER
+    val rows = ArrayList<Measurement>()
     var sink = 0.0
     for (case in selected) {
         val work = denseWork(case, engine) ?: sparseWork(case, engine)
         if (work == null) {
-            rows += csvRow(case, implementation, settings, 0, 0, 0L, "", "unsupported", "unsupported", case.option("mode", "arithmetic"))
+            rows += measurement(case, implementation, settings, 0, 0, 0L, "", "unsupported", "unsupported", case.option("mode", "arithmetic"))
             continue
         }
         try {
@@ -50,18 +49,18 @@ public fun main(args: Array<String>) {
                 val start = nanoTime()
                 repeat(operations) { sink += work.run() }
                 val elapsed = max(1L, nanoTime() - start)
-                rows += csvRow(case, implementation, settings, sample, operations.toLong(), elapsed, formatDouble(elapsed.toDouble() / operations), "ok", work.comparisonKind, work.timingMode)
+                rows += measurement(case, implementation, settings, sample, operations.toLong(), elapsed, formatDouble(elapsed.toDouble() / operations), "ok", work.comparisonKind, work.timingMode)
             }
         } catch (failure: Throwable) {
-            rows += csvRow(case, implementation, settings, 0, 0, 0L, "", "failed:${sanitize(failure.message ?: failure::class.simpleName ?: "error")}", work.comparisonKind, work.timingMode)
+            rows += measurement(case, implementation, settings, 0, 0, 0L, "", "failed:${sanitize(failure.message ?: failure::class.simpleName ?: "error")}", work.comparisonKind, work.timingMode)
             throw failure
         } finally {
             work.close()
         }
     }
     if (sink == Double.POSITIVE_INFINITY) throw IllegalStateException("unreachable result sink")
-    writeTextFile(settings.outputPath, rows.joinToString("\n", postfix = "\n"))
-    println("wrote ${selected.size} cases and ${rows.size - 1} rows to ${settings.outputPath}")
+    writeTextFile(settings.outputPath, reportCsv(rows))
+    println("wrote ${selected.size} cases and ${rows.size} measurements to ${settings.outputPath}")
     println("resolved implementation=$implementation runtime=${runtimeIdentity()}")
 }
 
@@ -137,7 +136,7 @@ internal fun parseArguments(args: Array<String>): Settings {
     )
 }
 
-internal fun csvRow(
+internal fun measurement(
     case: BenchCase,
     implementation: String,
     settings: Settings,
@@ -149,18 +148,43 @@ internal fun csvRow(
     comparisonKind: String,
     timingMode: String,
     runtime: String = runtimeIdentity(),
-): String = listOf(
-    "4", case.id, implementation, WORKLOAD_VERSION, FIXTURE_VERSION, settings.pass, sample.toString(),
-    operations.toString(), elapsed.toString(), nanosPerOperation, "ns", status, comparisonKind, timingMode,
-    settings.sourceCommit, settings.dirty, runtime, "1", settings.warmups.toString(), settings.targetNanos.toString(),
-    case.logicalId, case.configurationId, case.physicalWork,
-    actualPackedKernel(case, settings.mode, status),
-    if (settings.mode.startsWith("jvm")) "jmh-average-time-v1" else "native-calibrated-v1",
-    (if (settings.mode.startsWith("jvm")) settings.targetNanos else max(1_000_000L, settings.targetNanos / 4)).toString(),
-    (if (sample == 0) 0 else if (settings.mode.startsWith("jvm")) (sample - 1) / settings.samples + 1 else 1).toString(),
-    settings.forks.toString(),
-    if (settings.mode.startsWith("jvm")) "score-times-operations" else "monotonic-batch",
-).joinToString(",", transform = ::csv)
+): Measurement = Measurement(
+    run = listOf(
+        implementation, WORKLOAD_VERSION, FIXTURE_VERSION, settings.pass, "ns", settings.sourceCommit,
+        settings.dirty, runtime, "1", settings.warmups.toString(), settings.targetNanos.toString(),
+        if (settings.mode.startsWith("jvm")) "jmh-average-time-v1" else "native-calibrated-v1",
+        (if (settings.mode.startsWith("jvm")) settings.targetNanos else max(1_000_000L, settings.targetNanos / 4)).toString(),
+        settings.forks.toString(),
+    ),
+    case = listOf(
+        case.id, status, comparisonKind, timingMode, case.logicalId, case.configurationId, case.physicalWork,
+        actualPackedKernel(case, settings.mode, status),
+    ),
+    sample = if (status != "ok") null else listOf(
+        (if (settings.mode.startsWith("jvm")) (sample - 1) / settings.samples + 1 else 1).toString(),
+        sample.toString(), operations.toString(), elapsed.toString(), nanosPerOperation,
+    ),
+)
+
+internal data class Measurement(val run: List<String>, val case: List<String>, val sample: List<String>?)
+
+internal fun reportCsv(measurements: List<Measurement>): String = buildString {
+    appendLine(CSV_HEADER)
+    val runs = linkedMapOf<List<String>, Int>()
+    val cases = linkedMapOf<List<String>, Int>()
+    for (measurement in measurements) {
+        val runId = runs.getOrPut(measurement.run) {
+            (runs.size + 1).also { appendLine(csvRecord(listOf("run", it.toString()) + measurement.run)) }
+        }
+        val definition = listOf(runId.toString()) + measurement.case
+        val caseId = cases.getOrPut(definition) {
+            (cases.size + 1).also { appendLine(csvRecord(listOf("case", it.toString()) + definition)) }
+        }
+        measurement.sample?.let { appendLine(csvRecord(listOf("sample", caseId.toString()) + it)) }
+    }
+}
+
+private fun csvRecord(fields: List<String>): String = fields.joinToString(",", transform = ::csv)
 
 private fun csv(value: String): String = if (value.any { it == ',' || it == '"' || it == '\n' }) {
     "\"${value.replace("\"", "\"\"")}\""
@@ -169,5 +193,8 @@ private fun csv(value: String): String = if (value.any { it == ',' || it == '"' 
 internal fun formatDouble(value: Double): String = value.toString()
 internal fun sanitize(value: String): String = value.replace(',', ';').replace('\n', ' ').take(160)
 
-internal const val CSV_HEADER = "schema,case,implementation,workload_version,fixture_version,pass,sample,operations,elapsed_ns,ns_per_op,unit,status,comparison_kind,timing_mode,source_commit,dirty,runtime,threads,warmups,target_ns,logical_id,configuration,physical_work,actual_kernel,harness,warmup_target_ns,fork,forks,elapsed_kind"
+internal const val CSV_HEADER = "schema,5\n" +
+    "run,id,implementation,workload_version,fixture_version,pass,unit,source_commit,dirty,runtime,threads,warmups,target_ns,harness,warmup_target_ns,forks\n" +
+    "case,id,run_id,case,status,comparison_kind,timing_mode,logical_id,configuration,physical_work,actual_kernel\n" +
+    "sample,case_id,fork,sample,operations,elapsed_ns,ns_per_op"
 private const val MAX_OPERATIONS = 1_000_000

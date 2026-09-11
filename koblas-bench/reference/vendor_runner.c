@@ -451,7 +451,7 @@ static void numerical_check(void){
 
 static const char *argument_value(int argc,char **argv,const char *name,const char *fallback){size_t length=strlen(name);for(int i=1;i<argc;++i)if(!strncmp(argv[i],name,length)&&argv[i][length]=='=')return argv[i]+length+1;return fallback;}
 
-static void metadata(FILE *output,const bench_case *s,const work *w,int sample,uint64_t target_ns) {
+static void metadata(FILE *output,const bench_case *s,const work *w) {
     fprintf(output,",%s",option(s,"work",s->operation));
     if(!option_present(s,"work"))fputs("-v1",output);
     for(int i=0;i<s->dim_count;++i)fprintf(output,"%c%d",i?'x':'+',s->dims[i]);
@@ -464,7 +464,7 @@ static void metadata(FILE *output,const bench_case *s,const work *w,int sample,u
         fprintf(output,",vendor-column-major-v1,calls=%d;leftDoubles=%d;rightDoubles=%d;outputDoubles=%d;resetDoubles=%d;triangleDoubles=%d,%s",
             solve&&k?2:1,m*k,k*n,m*n,m*n,solve?n*n:0,w->supported?"vendor-cblas-v1":"unavailable");
     } else fprintf(output,",policy-v1,policy,%s",w->supported?"vendor-cblas-v1":"unavailable");
-    fprintf(output,",vendor-calibrated-v1,%" PRIu64 ",%d,1,monotonic-batch\n",target_ns/4>1000000?target_ns/4:UINT64_C(1000000),sample?1:0);
+    fputc('\n',output);
 }
 
 int main(int argc,char **argv){
@@ -480,15 +480,28 @@ int main(int argc,char **argv){
     for(char *p=runtime;*p;++p)if(*p==','||*p=='\n'||*p=='\r')*p=';';
     fixture_check();numerical_check();
     int case_count=0;bench_case *cases=load_cases(cases_path,&case_count);
-    FILE *output=fopen(output_path,"w");if(!output){perror(output_path);exit(2);}fprintf(output,"schema,case,implementation,workload_version,fixture_version,pass,sample,operations,elapsed_ns,ns_per_op,unit,status,comparison_kind,timing_mode,source_commit,dirty,runtime,threads,warmups,target_ns,logical_id,configuration,physical_work,actual_kernel,harness,warmup_target_ns,fork,forks,elapsed_kind\n");
+    FILE *output=fopen(output_path,"w");if(!output){perror(output_path);exit(2);}
+    fputs("schema,5\n"
+        "run,id,implementation,workload_version,fixture_version,pass,unit,source_commit,dirty,runtime,threads,warmups,target_ns,harness,warmup_target_ns,forks\n"
+        "case,id,run_id,case,status,comparison_kind,timing_mode,logical_id,configuration,physical_work,actual_kernel\n"
+        "sample,case_id,fork,sample,operations,elapsed_ns,ns_per_op\n",output);
+    fprintf(output,"run,1,%s," WORKLOAD_VERSION "," FIXTURE_VERSION ",%s,ns,%s,%s,%s,1,%d,%" PRIu64 ",vendor-calibrated-v1,%" PRIu64 ",1\n",
+        implementation,pass,commit,dirty,runtime,warmups,target_ns,target_ns/4>1000000?target_ns/4:UINT64_C(1000000));
     volatile double sink=0;
-    for(int index=0;index<case_count;++index){work w;setup_work(&w,&cases[index]);if(!w.supported){fprintf(output,"4,%s,%s," WORKLOAD_VERSION "," FIXTURE_VERSION ",%s,0,0,0,,ns,unsupported,%s,%s,%s,%s,%s,1,%d,%" PRIu64 "",cases[index].id,implementation,pass,w.comparison,w.timing,commit,dirty,runtime,warmups,target_ns);metadata(output,&cases[index],&w,0,target_ns);free_work(&w);continue;}
+    for(int index=0;index<case_count;++index){
+        work w;setup_work(&w,&cases[index]);
+        fprintf(output,"case,%d,1,%s,%s,%s,%s",index+1,cases[index].id,w.supported?"ok":"unsupported",w.comparison,w.timing);
+        metadata(output,&cases[index],&w);
+        if(!w.supported){free_work(&w);continue;}
         for(int i=0;i<warmups;++i){
             uint64_t start=nanos(),warmup_target=target_ns/4>1000000?target_ns/4:UINT64_C(1000000);
             do { sink+=w.invoke(&w); } while(nanos()-start<warmup_target);
         }
         int operations=1;while(operations<1000000){uint64_t start=nanos();for(int i=0;i<operations;++i)sink+=w.invoke(&w);uint64_t elapsed=nanos()-start;if(elapsed>=target_ns/2)break;operations=operations>500000?1000000:operations*2;}
-        for(int sample=1;sample<=samples;++sample){uint64_t start=nanos();for(int i=0;i<operations;++i)sink+=w.invoke(&w);uint64_t elapsed=nanos()-start;fprintf(output,"4,%s,%s," WORKLOAD_VERSION "," FIXTURE_VERSION ",%s,%d,%d,%" PRIu64 ",%.17g,ns,ok,%s,%s,%s,%s,%s,1,%d,%" PRIu64 "",cases[index].id,implementation,pass,sample,operations,elapsed,(double)elapsed/operations,w.comparison,w.timing,commit,dirty,runtime,warmups,target_ns);metadata(output,&cases[index],&w,sample,target_ns);}
+        for(int sample=1;sample<=samples;++sample){
+            uint64_t start=nanos();for(int i=0;i<operations;++i)sink+=w.invoke(&w);uint64_t elapsed=nanos()-start;
+            fprintf(output,"sample,%d,1,%d,%d,%" PRIu64 ",%.17g\n",index+1,sample,operations,elapsed,(double)elapsed/operations);
+        }
         free_work(&w);
     }
     fclose(output);free(cases);fprintf(stderr,"wrote %d cases to %s (%s, sink=%g)\n",case_count,output_path,implementation,(double)sink);return 0;

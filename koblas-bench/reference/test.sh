@@ -8,7 +8,8 @@ trap 'rm -r "$temporary"' EXIT
 smoke_output="$temporary/smoke"
 "$root/koblas-bench/reference-smoke.sh" --libraries openblas --output "$smoke_output" >/dev/null
 result="$smoke_output/openblas.csv"
-test "$(wc -l <"$result")" -eq 12
+test "$(grep -c '^case,[0-9]' "$result")" -eq 11
+test "$(grep -c '^sample,[0-9]' "$result")" -gt 0
 test ! -d "$smoke_output/bin"
 
 # Parser rejection checks use a private test binary; smoke coverage above goes through the production entry point.
