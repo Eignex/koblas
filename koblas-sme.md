@@ -464,6 +464,46 @@ width, layout, and AUTO identities, with native probes recorded in reports. Curr
 selected 4-by-4/8-by-4 physical shapes and skip mismatches; replace accidental coverage gaps with explicit
 logical-shape and layout coverage for the new catalog.
 
+**Tile and packed benchmark options — before baseline capture**
+
+Make `koblas-bench/cases.txt` the source of truth for tile and packed workload settings in PR 01, before replacing
+kernels. Each case must explicitly declare its applicable physical tile, versioned packing formats, packing
+groups/strides/padding/alignment requirements, block/panel sizes, and timing mode. Missing required settings are
+errors, including settings whose value happens to equal today's default. Do not reconstruct them from engine
+tile properties, vector species, tuning profiles, or changing helper defaults. Both Kotlin and vendor runners
+consume the same case specification; implementation code executes and validates it.
+
+Keep mathematical case identity separate from implementation symbols. The runner may select the backend under
+test, but cannot change the case's declared work. Parameter spelling must fit the existing `+key=value` schema.
+
+| Control | Purpose |
+|---|---|
+| Logical dimensions and operation flags | Keep m/n/k, triangular solve order, transpose/side/uplo/diag, scaling, offsets, and strides equivalent across implementations. |
+| Kernel/ISA and tile geometry | The case fixes physical microtile shape and any required variant constraints. Record the actual implementation ID; never use a backend default to supply missing geometry. |
+| Packing configuration | Declare left/right layout IDs/versions, packing groups, applicable physical strides, padding, and alignment requirements in the case. Verify actual buffers match. |
+| Block and panel schedule | Select supported cache blocks, panel width, diagonal/RHS blocks, and call batch size where applicable. Reject inapplicable or unsupported overrides rather than ignoring them. |
+| Timing boundary | Separate raw tile, logical block, packing-only, prepacked compute, and pack-plus-compute. Record reset, allocation, staging, and retained-data reuse consistently. |
+
+Provide two explicit comparison modes. Fixed-configuration comparisons require matching layout, tile geometry,
+physical work, and timing semantics; they isolate kernel changes. Logical-workload comparisons allow different
+layouts/microtiles for the same mathematical operation and timing boundary; they measure the complete chosen
+strategy and report those differences. An old backend may cover a logical block with multiple old tile calls,
+but their loop/call costs stay in the timed block. Never equate one larger tile call with a smaller tile's work.
+
+Generate logical fixtures first, then pack them independently into each selected format. Physical padding must
+not change logical inputs. Record logical work, physical extents/bytes, layout versions, actual kernels, and
+source commit. Physical sizes may be calculated from the explicit fields and documented format formulas, but
+not from hidden tuning settings. A layout ID's meaning is immutable; changing it requires a new version/case.
+Keep AUTO/default-policy experiments explicitly labeled and separate from these fixed before/after cases.
+Explicit unsupported selections produce a clear failure/unsupported row under the harness's existing policy;
+no substitution and no arbitrary tile-size support fabricated by an option parser.
+
+Keep old operation names or renamed successors associated through a versioned mathematical-work identity.
+Do not join reports on a kernel symbol or remove physical metadata to force a match. Historical reports are
+reusable only when their fixture and timing metadata proves equivalence; otherwise capture new baselines from
+the old implementation with the extended harness. Version changed cases and update both Kotlin/vendor runners
+and the comparator together. This requires no production compatibility API or permanent old-kernel copy.
+
 Required tests:
 
 1. Probe ABI sizing/version negotiation, unavailable features, exact-selection failures, ordinary width
@@ -509,7 +549,10 @@ HFactor-specific validation only if that module changes. No `.github/` edits are
 **14. Implementation sequence and completion**
 
 [koblas-sme-steps.md](koblas-sme-steps.md) is the sole PR sequence and verification-gate checklist. Each PR
-starts in a fresh implementation session and ends with independent review using its explicit model/effort.
+starts in a fresh implementation session with an explicit session goal and its specified model/effort. The
+session implements, commits, pushes, and OPENS a GitHub PR, resolves independent review findings, and gets
+required CI green on the final reviewed head before marking its goal complete. An open PR with pending checks
+is unfinished. Every step ends with independent review in a separate fresh context; merging is not automatic.
 Do not maintain a second dependency roadmap here.
 
 Completion requires both SME and SME2 dense backends, the generic probe and future-width seam, shared portable

@@ -1,6 +1,6 @@
 # Koblas SME implementation: PR-by-PR transition
 
-Status: all PRs below are planned. No implementation PRs have been created by this document.
+Status: implementation is tracked in the individual sessions and GitHub PRs; planning IDs below are not GitHub numbers.
 
 Architecture: [koblas-sme.md](koblas-sme.md). Keep one backend-neutral portable Level 2/3 orchestration per
 operation, with reusable strategies and backend-specific block kernels. Do not duplicate portable BLAS by ISA.
@@ -45,7 +45,8 @@ across every ISA/layout/transpose/tile combination without measured need.
   the bindings and reference implementation needed to exercise it.
 - Suggested titles below use single-line Conventional Commits without scopes. Actual PR descriptions follow
   the repository template and refer to real issues only; do not fabricate `Closes` numbers.
-- These 27 steps are a plan; no implementation sessions or PRs are being launched now.
+- Launching a step authorizes its session to implement, commit, push, OPEN a GitHub PR, and fix it until green.
+  A local patch or commit alone is not completion. Do not merge automatically or launch the next step.
 
 **Fresh sessions and model settings**
 
@@ -66,21 +67,35 @@ At session start, confirm availability and record the actual model/effort; if un
 explicitly rather than silently substituting another model. Model settings never replace verification gates.
 
 1. Start one fresh implementation session per PR on a fresh `codex/` branch from the accepted preceding state.
-   Read AGENTS.md, both plans, prerequisite handoffs, and the affected code. Implement this PR and run its gates.
-2. Save one handoff in the PR record: base/head SHAs, contract changes, remaining adapters/removal owners,
+   Read AGENTS.md, both plans, prerequisite handoffs, and the affected code. Create an actual session goal with
+   `create_goal`, using the Goal stated in that PR's section. Do not set a token budget unless the user requests
+   one. If the session already has the same active goal, continue it instead of creating a duplicate.
+2. Implement this PR and run its applicable local gates, including the full repository check before pushing.
+   Commit, push the branch, and OPEN a GitHub PR against the correct base once the change is reviewable. A draft
+   is acceptable while work remains, but completion requires an open, non-draft PR ready for review. Keep the PR
+   title/body current and reuse an existing PR for this step instead of opening duplicates.
+3. Save one handoff in the PR record: PR URL, base/head SHAs, contract changes, remaining adapters/removal owners,
    test commands/results, relevant hardware/toolchain identity, report links, and missing evidence. Record the
    implementation session ID and actual model/effort. Do not duplicate this into a separate reporting system.
-3. Start a separate fresh reviewer session with AGENTS.md, both plans, the full diff/surrounding source, and raw
+4. Start a separate fresh reviewer session with AGENTS.md, both plans, the full diff/surrounding source, and raw
    verification evidence. Do not preload the implementer's conversation. Review the whole change independently;
    the per-PR focus is guidance, not a scope limit. Enforce the no-backward-compatibility rule.
-4. Record findings with severity/locations, actual checks, gaps, base/head SHAs, and reviewer session/model/effort.
+5. Record findings with severity/locations, actual checks, gaps, base/head SHAs, and reviewer session/model/effort.
    Fix actionable findings in the implementation session and rerun affected checks. The independent reviewer
    checks revisions and integration changes, then records a verdict for the final base/head pair. Any subsequent
    change needs renewed review; a new reviewer session is optional for revisions within this same PR.
-5. End each PR with `no blocking findings` and all applicable gates passed; otherwise record `changes required`
-   or `verification incomplete`. Missing required hardware evidence cannot be waived by model judgment. Preserve
-   the handoff/review before starting the next PR in a fresh implementation session. Follow the user's execution
-   instructions for pushing/merging when implementation is requested.
+6. Watch the PR's required CI checks to completion. Inspect failing logs, fix the cause, push, and repeat until
+   required checks pass on the latest head. Pending, failed, cancelled, or missing required checks are not green.
+   Do not disable checks or weaken tests to obtain a green status. Respect the existing prohibition on editing
+   `.github/` without a separate request; an external CI/access blocker must be reported, not disguised as success.
+7. Finish only with an open, non-draft PR, green required CI for the final head, applicable local/evidence gates
+   passed, and independent review reporting `no blocking findings` for the final base/head pair. Resolve
+   actionable review findings. Required human approval is not supplied by an agent review; report any remaining
+   merge requirement accurately. Missing required hardware evidence still means `verification incomplete`.
+8. Verify the final PR state and preserve its URL, final SHA, check results, and independent review in the
+   handoff. Only then mark the session goal complete with `update_goal` and report completion. Do not end at
+   "PR opened" while CI is running. Keep the goal unfinished when requirements remain, following the goal
+   tool's blocked-state rules where an external blocker persists. Leave merging to the user.
 
 **Review and verification gates**
 
@@ -96,8 +111,9 @@ they are not reasons to repeat unchanged hardware suites unnecessarily.
 | G5: performance | Reproducible repository-harness comparisons with matching inputs/timing boundaries, raw and full-operation costs, and retained-packed cases where relevant. No inferred thresholds from instruction peak throughput. |
 | G6: runtime | Allocation/lifetime checks, concurrency, per-thread execution constraints, and bounded JVM critical-call/safepoint behavior. |
 | G7: independent review | Mandatory for every PR: separate fresh reviewer session, explicit model/effort, review of the final base/head pair, evidence-backed verdict, and resolution of findings before completion. |
+| G8: open PR and green CI | Mandatory for every PR: pushed final commit, open non-draft GitHub PR, required checks passing on its latest head, and PR URL/SHA/check evidence in the handoff. |
 
-G7 applies to every PR alongside its listed technical gates. Every applicable correctness gate must pass before
+G7 and G8 apply to every PR alongside its listed technical gates. Every applicable correctness gate must pass before
 merge. A kernel without real-hardware execution evidence is
 not a verified supported backend. A correct but uncalibrated kernel may remain exact-only. If target hardware
 is unavailable, unrelated foundation work may land, but target execution/default activation remains outstanding.
@@ -142,6 +158,10 @@ Match repository test naming/layout and keep individual JVM tests short by param
 
 **Implementation:** fresh session; model `gpt-6-astra`; reasoning `high`.
 
+**Goal:** Implement PR 01 (Establish semantic and benchmark baselines), open its GitHub PR, pass all applicable verification gates,
+resolve independent review findings, and get required CI green on the final reviewed head; leave the PR open
+and ready for review without merging.
+
 Transition: current behavior is implicit in scattered tests and fixed physical benchmark cases; after this PR,
 the redesign has an explicit reference and comparable measurements.
 
@@ -150,19 +170,34 @@ the redesign has an explicit reference and comparable measurements.
 - Extend the harness's case descriptions to distinguish logical workload from backend physical layout without
   changing the timing meaning of existing rows. Version changed workload/schema semantics rather than mixing
   incompatible reports. Add shapes that expose skinny GEMM, depth tails, and multi-RHS solves.
+- Put the tile/packed settings from architecture section 13 explicitly in `koblas-bench/cases.txt` before
+  capturing baselines: physical tile, versioned left/right formats, packing groups/strides/padding/alignment,
+  applicable block/panel sizes, variant constraints, and timing mode. Require applicable fields even when they
+  equal today's defaults. Kotlin/vendor runners must consume them without consulting backend/tuning defaults
+  to reconstruct the workload. Validate actual geometry/layout against the case; reject unsupported selections.
+- Implement fixed-configuration and logical-workload comparison modes. Generate logical fixtures before
+  packing, retain physical-work metadata, and include old tile-loop overhead when timing a logical block.
+  Update Kotlin/vendor runners and comparator together. Preserve semantic identity across kernel renames;
+  old reports without sufficient equivalence metadata require a fresh old-code baseline.
 - Capture current scalar, JVM SIMD, JVM C, and Native baselines on available representative targets. Record
   missing targets explicitly. Do not make a performance test a timing assertion in ordinary unit tests.
 - Add meaningful missing reference coverage; do not copy the current implementation into expected values.
 
 Verification: G1, G3, G5 baseline capture. Exit: later reports can compare identical logical problems and explain
-any fixture or timing-boundary change. No production dispatch changes.
+any fixture or timing-boundary change. Test missing-field rejection and show that changing backend/tuning
+defaults cannot change a fixed case's workload. Test cross-layout comparisons and rejection of incompatible
+fixture/timing/physical-work pairs. No production dispatch changes.
 
 **Final independent review (G7):** fresh separate session; model `gpt-6-astra`; reasoning `xhigh`.
-Focus: oracle independence, no-read and alias coverage, and unchanged benchmark timing semantics.
+Focus: oracle independence, no-read/alias coverage, explicit case-defined work, and honest before/after comparisons.
 
 **PR 02 — Extract and unify native builds**
 
 **Implementation:** fresh session; model `gpt-6-astra`; reasoning `high`.
+
+**Goal:** Implement PR 02 (Extract and unify native builds), open its GitHub PR, pass all applicable verification gates,
+resolve independent review findings, and get required CI green on the final reviewed head; leave the PR open
+and ready for review without merging.
 
 Transition: header-compiled implementation becomes ordinary compiled native code shared by both runtimes.
 
@@ -184,6 +219,10 @@ Focus: cross-target archive selection, symbol/link parity, toolchain cache input
 **PR 03 — Add the generic C probe and state model**
 
 **Implementation:** fresh session; model `gpt-6-astra`; reasoning `xhigh`.
+
+**Goal:** Implement PR 03 (Add the generic C probe and state model), open its GitHub PR, pass all applicable verification gates,
+resolve independent review findings, and get required CI green on the final reviewed head; leave the PR open
+and ready for review without merging.
 
 Transition: library availability becomes a versioned catalog of built, usable, and unavailable kernel choices.
 
@@ -208,6 +247,10 @@ Focus: ABI sizing/version negotiation, capability versus readiness, permission s
 
 **Implementation:** fresh session; model `gpt-6-astra`; reasoning `high`.
 
+**Goal:** Implement PR 04 (Make ordinary C variants and widths explicit), open its GitHub PR, pass all applicable verification gates,
+resolve independent review findings, and get required CI green on the final reviewed head; leave the PR open
+and ready for review without merging.
+
 Transition: hidden target cloning/source-vector width assumptions become individually identifiable kernels.
 
 - Give baseline and existing ordinary SIMD implementations stable operation-specific IDs. Separate targeted
@@ -228,6 +271,10 @@ Focus: truthful ISA and width IDs, absence of hidden substitution, and baseline 
 **PR 05 — Add immutable profiles and inspectable planning**
 
 **Implementation:** fresh session; model `gpt-6-astra`; reasoning `xhigh`.
+
+**Goal:** Implement PR 05 (Add immutable profiles and inspectable planning), open its GitHub PR, pass all applicable verification gates,
+resolve independent review findings, and get required CI green on the final reviewed head; leave the PR open
+and ready for review without merging.
 
 Transition: process-wide scattered crossovers become data belonging to a hardware/runtime execution policy.
 
@@ -252,6 +299,10 @@ Focus: immutable selection, checked shape arithmetic, separate scalar-C and SIMD
 **PR 06 — Define windows, packed layouts, and executable block contracts**
 
 **Implementation:** fresh session; model `gpt-6-astra`; reasoning `xhigh`.
+
+**Goal:** Implement PR 06 (Define windows, packed layouts, and executable block contracts), open its GitHub PR, pass all applicable verification gates,
+resolve independent review findings, and get required CI green on the final reviewed head; leave the PR open
+and ready for review without merging.
 
 Transition: raw panels and fixed microtiles become validated logical operands with an executable scalar contract.
 
@@ -278,6 +329,10 @@ Focus: ownership/layout validation, scalar-oracle independence, alpha/beta and n
 
 **Implementation:** fresh session; model `gpt-6-astra`; reasoning `xhigh`.
 
+**Goal:** Implement PR 07 (Implement ordinary C and JVM SIMD product blocks), open its GitHub PR, pass all applicable verification gates,
+resolve independent review findings, and get required CI green on the final reviewed head; leave the PR open
+and ready for review without merging.
+
 Transition: ordinary backends implement the final block API, proving it is not an SME-only abstraction.
 
 - Implement direct and packed block products for ordinary C and JVM SIMD. Reuse valid arithmetic code where
@@ -297,6 +352,10 @@ Focus: C/JVM contract equivalence, edge handling, bounded calls, and allocation-
 **PR 08 — Migrate GEMM and view execution to one planner**
 
 **Implementation:** fresh session; model `gpt-6-astra`; reasoning `xhigh`.
+
+**Goal:** Implement PR 08 (Migrate GEMM and view execution to one planner), open its GitHub PR, pass all applicable verification gates,
+resolve independent review findings, and get required CI green on the final reviewed head; leave the PR open
+and ready for review without merging.
 
 Transition: `BuiltinBlas`/view defaults and per-tile Kotlin dispatch become shared operation-level scheduling.
 
@@ -320,6 +379,10 @@ Focus: owning/view parity, pack amortization, alias handling, and removal of per
 
 **Implementation:** fresh session; model `gpt-6-astra`; reasoning `xhigh`.
 
+**Goal:** Implement PR 09 (Establish isolated SME execution boundaries), open its GitHub PR, pass all applicable verification gates,
+resolve independent review findings, and get required CI green on the final reviewed head; leave the PR open
+and ready for review without merging.
+
 Transition: supported build systems gain verified SME and SME2 code-generation/link/runtime boundaries.
 
 - Add separate SME-only and SME2 source targets, feature-tested compiler flags, target-correct helper linkage,
@@ -342,6 +405,10 @@ Focus: streaming ABI attributes, ZA preservation, helper linking, per-context re
 
 **Implementation:** fresh session; model `gpt-6-astra`; reasoning `xhigh`.
 
+**Goal:** Implement PR 10 (Implement SME FP64 GEMM blocks), open its GitHub PR, pass all applicable verification gates,
+resolve independent review findings, and get required CI green on the final reviewed head; leave the PR open
+and ready for review without merging.
+
 Transition: the shared product planner gains its first matrix-accelerated implementation.
 
 - Add SME-only `FMOPA` product kernels, multiple ZA accumulators, and tail-safe input/output handling.
@@ -361,6 +428,10 @@ Focus: actual FP64 SME instructions, current SVL, predicated edges, epilogue sem
 **PR 11 — Implement SME2 FP64 GEMM blocks**
 
 **Implementation:** fresh session; model `gpt-6-astra`; reasoning `xhigh`.
+
+**Goal:** Implement PR 11 (Implement SME2 FP64 GEMM blocks), open its GitHub PR, pass all applicable verification gates,
+resolve independent review findings, and get required CI green on the final reviewed head; leave the PR open
+and ready for review without merging.
 
 Transition: SME and SME2 become distinct, comparable product choices under the same contract.
 
@@ -382,6 +453,10 @@ Focus: distinct SME2 instruction schedules, feature gating, layout compatibility
 
 **Implementation:** fresh session; model `gpt-6-astra`; reasoning `xhigh`.
 
+**Goal:** Implement PR 12 (Implement SME layout kernels), open its GitHub PR, pass all applicable verification gates,
+resolve independent review findings, and get required CI green on the final reviewed head; leave the PR open
+and ready for review without merging.
+
 Transition: layout preparation becomes an accelerated component instead of an unconditional portable cost.
 
 - Implement SME general packing, unpacking, and blocked transpose; add structural packing variants where their
@@ -401,6 +476,10 @@ Focus: bit-preserving layout transforms, padding and tails, unit-diagonal/triang
 
 **Implementation:** fresh session; model `gpt-6-astra`; reasoning `xhigh`.
 
+**Goal:** Implement PR 13 (Implement SME2 layout kernels), open its GitHub PR, pass all applicable verification gates,
+resolve independent review findings, and get required CI green on the final reviewed head; leave the PR open
+and ready for review without merging.
+
 Transition: packing and final extraction gain independently measurable SME2 grouped-transfer schedules.
 
 - Implement SME2 pack/unpack/transpose variants for the same contracts, including structural transforms used
@@ -419,6 +498,10 @@ Focus: grouped SME2 moves, producer/consumer layout compatibility, tails, and co
 **PR 14 — Migrate symmetric and triangular-output products**
 
 **Implementation:** fresh session; model `gpt-6-astra`; reasoning `xhigh`.
+
+**Goal:** Implement PR 14 (Migrate symmetric and triangular-output products), open its GitHub PR, pass all applicable verification gates,
+resolve independent review findings, and get required CI green on the final reviewed head; leave the PR open
+and ready for review without merging.
 
 Transition: SYMM, GEMMT, and SYRK share the new product planner rather than old tile orchestration.
 
@@ -441,6 +524,10 @@ Focus: structured operand access, selected-triangle stores, fused scaling eligib
 
 **Implementation:** fresh session; model `gpt-6-astra`; reasoning `xhigh`.
 
+**Goal:** Implement PR 15 (Fuse SYR2K output accumulation), open its GitHub PR, pass all applicable verification gates,
+resolve independent review findings, and get required CI green on the final reviewed head; leave the PR open
+and ready for review without merging.
+
 Transition: two separate product/output passes become an explicitly contracted two-product update.
 
 - Add a fused rank-2k block primitive with a scalar reference and ordinary C/JVM SIMD/SME/SME2 implementations.
@@ -460,6 +547,10 @@ Focus: both-product accumulation, beta applied once, numerical fallback eligibil
 
 **Implementation:** fresh session; model `gpt-6-astra`; reasoning `xhigh`.
 
+**Goal:** Implement PR 16 (Migrate TRMM block scheduling), open its GitHub PR, pass all applicable verification gates,
+resolve independent review findings, and get required CI green on the final reviewed head; leave the PR open
+and ready for review without merging.
+
 Transition: triangular multiplication becomes dependency-aware scheduling of final product/layout kernels.
 
 - Implement one shared left/right/transposed triangular multiplication traversal. Choose safe in-place order
@@ -478,6 +569,10 @@ Focus: in-place dependency order, side/transpose/unit-diagonal combinations, and
 **PR 17 — Redesign TRSM orchestration and ordinary solve blocks**
 
 **Implementation:** fresh session; model `gpt-6-astra`; reasoning `xhigh`.
+
+**Goal:** Implement PR 17 (Redesign TRSM orchestration and ordinary solve blocks), open its GitHub PR, pass all applicable verification gates,
+resolve independent review findings, and get required CI green on the final reviewed head; leave the PR open
+and ready for review without merging.
 
 Transition: solve order, RHS batching, and product geometry become independent.
 
@@ -499,6 +594,10 @@ Focus: solve order independent of product tiles, diagonal/RHS geometry, fused up
 
 **Implementation:** fresh session; model `gpt-6-astra`; reasoning `xhigh`.
 
+**Goal:** Implement PR 18 (Add SME triangular kernels), open its GitHub PR, pass all applicable verification gates,
+resolve independent review findings, and get required CI green on the final reviewed head; leave the PR open
+and ready for review without merging.
+
 Transition: the shared solve traversal gains SME solve and fused product-subtraction/solve implementations.
 
 - Implement `trsmTile`'s replacement and `gemmTrsmTile`'s replacement for SME-only execution. Parallelize across
@@ -517,6 +616,10 @@ Focus: SME solve dependencies, update/solve fusion, diagonal semantics, and trut
 
 **Implementation:** fresh session; model `gpt-6-astra`; reasoning `xhigh`.
 
+**Goal:** Implement PR 19 (Add SME2 triangular kernels), open its GitHub PR, pass all applicable verification gates,
+resolve independent review findings, and get required CI green on the final reviewed head; leave the PR open
+and ready for review without merging.
+
 Transition: SME2 grouped RHS updates become a separate solve/update candidate.
 
 - Implement grouped residual extraction, updates, and substitution schedules appropriate to the final contracts.
@@ -534,6 +637,10 @@ Focus: SME2 grouped triangular dependencies, all edge cases, state boundaries, a
 **PR 20 — Generalize panels and migrate GEMV**
 
 **Implementation:** fresh session; model `gpt-6-astra`; reasoning `xhigh`.
+
+**Goal:** Implement PR 20 (Generalize panels and migrate GEMV), open its GitHub PR, pass all applicable verification gates,
+resolve independent review findings, and get required CI green on the final reviewed head; leave the PR open
+and ready for review without merging.
 
 Transition: fixed `dot4`/`axpy4` calls become variable-width panel execution with one GEMV traversal.
 
@@ -556,6 +663,10 @@ Focus: variable panel widths, transpose/stride paths, accumulation order, and ow
 
 **Implementation:** fresh session; model `gpt-6-astra`; reasoning `xhigh`.
 
+**Goal:** Implement PR 21 (Add SME and SME2 GEMV/panel implementations), open its GitHub PR, pass all applicable verification gates,
+resolve independent review findings, and get required CI green on the final reviewed head; leave the PR open
+and ready for review without merging.
+
 Transition: both matrix backends execute the panel/GEMV contracts without new portable branches.
 
 - Add SME panel schedules and distinct SME2 vector-group schedules for the applicable multi-dot and update
@@ -575,6 +686,10 @@ Focus: SME and SME2 panel identity, streaming amortization, reduction tails, and
 **PR 22 — Replace four-column SYMV with symmetric blocks**
 
 **Implementation:** fresh session; model `gpt-6-astra`; reasoning `xhigh`.
+
+**Goal:** Implement PR 22 (Replace four-column SYMV with symmetric blocks), open its GitHub PR, pass all applicable verification gates,
+resolve independent review findings, and get required CI green on the final reviewed head; leave the PR open
+and ready for review without merging.
 
 Transition: one symmetric block schedule replaces hard-coded regrouping and duplicated portable work.
 
@@ -596,6 +711,10 @@ Focus: coupled symmetric updates, overflow preflight, no partial mutation before
 
 **Implementation:** fresh session; model `gpt-6-astra`; reasoning `xhigh`.
 
+**Goal:** Implement PR 23 (Add direct matrix rank-update blocks), open its GitHub PR, pass all applicable verification gates,
+resolve independent review findings, and get required CI green on the final reviewed head; leave the PR open
+and ready for review without merging.
+
 Transition: GER/SYR/SYR2 can update whole logical blocks instead of issuing one AXPY per column.
 
 - Define rank-one/rank-two block contracts and implement scalar, ordinary C/JVM SIMD, SME, and SME2 candidates.
@@ -615,6 +734,10 @@ Focus: rank-update alpha semantics, skipped-zero behavior, selected triangles, a
 **PR 24 — Optimize native batches and workspace lifetimes**
 
 **Implementation:** fresh session; model `gpt-6-astra`; reasoning `xhigh`.
+
+**Goal:** Implement PR 24 (Optimize native batches and workspace lifetimes), open its GitHub PR, pass all applicable verification gates,
+resolve independent review findings, and get required CI green on the final reviewed head; leave the PR open
+and ready for review without merging.
 
 Transition: conservative safe call boundaries become measured per-runtime execution strategies.
 
@@ -637,6 +760,10 @@ Focus: heap/native pointer lifetime, safepoints, concurrent workspaces, bounded 
 **PR 25 — Calibrate profiles and evaluate remaining vector candidates**
 
 **Implementation:** fresh session; model `gpt-6-astra`; reasoning `xhigh`.
+
+**Goal:** Implement PR 25 (Calibrate profiles and evaluate remaining vector candidates), open its GitHub PR, pass all applicable verification gates,
+resolve independent review findings, and get required CI green on the final reviewed head; leave the PR open
+and ready for review without merging.
 
 Transition: individual kernel experiments become a repeatable process that produces checked tuning profiles.
 
@@ -665,6 +792,10 @@ Focus: timing equivalence, robust vector semantics, deterministic profile import
 
 **Implementation:** fresh session; model `gpt-6-astra`; reasoning `xhigh`.
 
+**Goal:** Implement PR 26 (Activate measured operation-specific defaults), open its GitHub PR, pass all applicable verification gates,
+resolve independent review findings, and get required CI green on the final reviewed head; leave the PR open
+and ready for review without merging.
+
 Transition: the default engine's old whole-backend precedence becomes the final mixed execution policy.
 
 - Check in measured profiles for the verified hardware/runtime combinations, including SME and SME2 exact
@@ -688,6 +819,10 @@ Focus: operation-specific defaults, independent JVM crossover rules, unknown-hos
 **PR 27 — Remove transitional seams and verify the end state**
 
 **Implementation:** fresh session; model `gpt-6-astra`; reasoning `xhigh`.
+
+**Goal:** Implement PR 27 (Remove transitional seams and verify the end state), open its GitHub PR, pass all applicable verification gates,
+resolve independent review findings, and get required CI green on the final reviewed head; leave the PR open
+and ready for review without merging.
 
 Transition: any remaining bridge to the old architecture is removed; all callers use the final contracts.
 
@@ -724,6 +859,8 @@ Focus: complete adapter removal, public/view entry-point coverage, packaged cata
 
 - Every implementation PR began in a fresh session and ended with an independent fresh-session review of its
   final base/head pair. Model/effort, evidence, findings, resolutions, and handoffs are recorded for all PRs.
+- Every session created an explicit goal and delivered an open, non-draft GitHub PR with required CI green on
+  the final reviewed head before marking that goal complete. Local-only changes and pending CI do not qualify.
 - Both SME-only and SME2 product, triangular, panel, and layout implementations execute independently through
   the shared operation contracts; exact reports identify any deliberately composed components.
 - The generic C probe describes actual implementations, numerical types, ordinary widths, packed layouts,
