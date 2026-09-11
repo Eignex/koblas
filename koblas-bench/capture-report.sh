@@ -42,7 +42,7 @@ cases="$bench/cases.txt"
 if [[ $operation != all || $suite == packed ]]; then
   cases="$temporary/cases.txt"
   awk -F+ -v operation="$operation" -v suite="$suite" '
-    /^[[:space:]]*($|#)/ || ((operation == "all" || $1 == operation) && (suite == "all" || /\+physical=/)) { print }
+    /^[[:space:]]*($|#)/ || ((operation == "all" || $1 == operation) && (suite == "all" || /\+packed=/)) { print }
   ' "$bench/cases.txt" >"$cases"
 fi
 
