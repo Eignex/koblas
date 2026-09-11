@@ -177,7 +177,8 @@ private fun packedWork(case: BenchCase, engine: KoblasEngine): CaseWork? {
         )) return null
     val packed = benchmarkPackedKernels(engine)
     val panels = engine.packedPanels
-    val physical = case.options.getValue("physical").split('x').map(String::toInt)
+    val configuration = PackedConfiguration(case)
+    val physical = listOf(configuration.rows, configuration.columns)
     val layoutOperation = case.operation.startsWith("pack-") || case.operation.startsWith("write-") || case.operation.startsWith("clear-")
     val actualRows = if (layoutOperation) panels.tileRows else packed.gemmTileRows
     val actualColumns = if (layoutOperation) panels.tileColumns else packed.gemmTileCols
@@ -206,7 +207,7 @@ private fun packedWork(case: BenchCase, engine: KoblasEngine): CaseWork? {
     val logicalOutput = Fixtures.matrix(rows, second, 4)
     for (j in 0 until second) for (i in 0 until rows) output0[i + j * physical[0]] = logicalOutput[i, j]
     val output = output0.copyOf()
-    val timing = case.options.getValue("timing")
+    val timing = PackedConfiguration(case).timing
     val comparison = when (case.operation) { "gemm-tile", "packed-trsm" -> "partial"; "gemm-trsm" -> "composed"; else -> "unsupported" }
     return when (case.operation) {
         "gemm-tile" -> CaseWork(comparison, timing, { output0.copyInto(output); packed.gemmTile(depth, left, 0, right, 0, output, 0, physical[0]); output[0] })
@@ -238,7 +239,7 @@ private fun packedLayoutWork(
     if (isLeft) panels.packLeft(source, panel, first, second,
                 sourceRow = 0, sourceColumn = 0, transpose = false, alpha = 1.0, destinationOffset = 0, workspace = null) else panels.packRight(source, panel, first, second,
                 sourceRow = 0, sourceColumn = 0, transpose = false, destinationOffset = 0, workspace = null)
-    return CaseWork("unsupported", case.options.getValue("timing"), {
+    return CaseWork("unsupported", PackedConfiguration(case).timing, {
         when (case.operation) {
             "pack-left" -> panels.packLeft(source, panel, first, second,
                 sourceRow = 0, sourceColumn = 0, transpose = false, alpha = 1.0, destinationOffset = 0, workspace = null)

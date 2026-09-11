@@ -1,51 +1,39 @@
 package com.eignex.koblas.bench
 
-internal val PACKED_OPTIONS = listOf("work", "leftLayout", "rightLayout", "leftGroup", "rightGroup", "leftStride", "rightStride", "padding", "alignment", "block", "panel", "diagonal", "rhs", "batch", "variant", "timing")
-
-/** Benchmark-only description of the existing interleaved panel formats; no engine defaults supply work. */
+/** Version one fixes depth-major interleaving, positive-zero padding, natural double alignment and one tile per call. */
 internal class PackedConfiguration(val case: BenchCase) {
-    val rows = case.options.getValue("leftGroup").toInt()
-    val columns = case.options.getValue("rightGroup").toInt()
-    val depth = case.options.getValue("panel").toInt()
-    val timing = case.options.getValue("timing")
+    val rows = when (case.options.getValue("packed")) {
+        "4x4-v1" -> 4
+        "8x4-v1" -> 8
+        else -> error("unsupported packed recipe")
+    }
+    val columns = 4
     val m = case.dimension(0)
     val n = case.dimension(1)
+    val depth = depth(case.operation, case.dimensions)
+    val timing = when {
+        case.operation == "gemm-block" -> case.options.getValue("timing")
+        case.operation.startsWith("pack-") -> "packing-only"
+        case.operation.startsWith("write-") || case.operation.startsWith("clear-") -> "layout-only"
+        else -> "raw-tile"
+    }
     val rowTiles = (m + rows - 1) / rows
     val columnTiles = (n + columns - 1) / columns
     val leftSize = rowTiles * rows * depth
     val rightSize = columnTiles * columns * depth
 
     companion object {
+        private fun depth(operation: String, dimensions: List<Int>): Int = when {
+            dimensions.size == 3 -> dimensions[2]
+            "right" in operation -> dimensions[0]
+            else -> dimensions[1]
+        }
+
         fun validate(operation: String, dimensions: List<Int>, options: Map<String, String>) {
-            fun exact(key: String, expected: String) {
-                require(options[key] == expected) { "$operation requires $key=$expected" }
+            if (operation == "gemm-block") {
+                require(options["timing"] in setOf("prepacked-compute", "pack-plus-compute")) { "unsupported block timing" }
             }
-            val (r, c) = options.getValue("physical").split('x').map(String::toInt)
-            val m = dimensions[0]; val n = dimensions[1]
-            val layout = operation.startsWith("pack-") || operation.startsWith("write-") || operation.startsWith("clear-")
-            val solve = operation == "packed-trsm" || operation == "gemm-trsm"
-            val k = if (dimensions.size == 3) dimensions[2] else if (layout && "right" in operation) m else n
-            val work = when (operation) {
-                "gemm-tile", "gemm-block" -> "gemm-add-v1"
-                "packed-trsm" -> "right-solve-v1"
-                "gemm-trsm" -> "update-solve-v1"
-                else -> "$operation-v1"
-            }
-            exact("work", work)
-            exact("leftLayout", "depth-rows-v1"); exact("rightLayout", "depth-columns-v1")
-            exact("leftGroup", "$r"); exact("rightGroup", "$c")
-            exact("leftStride", "$r"); exact("rightStride", "$c")
-            exact("padding", "zero"); exact("alignment", "8")
-            exact("block", "${m}x${n}x$k"); exact("panel", "$k")
-            exact("diagonal", if (solve) "$n" else "0"); exact("rhs", if (solve) "$m" else "0")
-            exact("batch", "1"); exact("variant", "current-tile-v1")
-            val timings = when {
-                operation == "gemm-block" -> setOf("prepacked-compute", "pack-plus-compute")
-                operation.startsWith("pack-") -> setOf("packing-only")
-                layout -> setOf("layout-only")
-                else -> setOf("raw-tile")
-            }
-            require(options["timing"] in timings) { "unsupported timing for $operation" }
+            val m = dimensions[0]; val n = dimensions[1]; val k = depth(operation, dimensions)
             require(dimensions.all { it <= 4096 } && m.toLong() * n * k <= 16_777_216L) {
                 "packed benchmark exceeds bounded allocation budget"
             }
@@ -57,20 +45,23 @@ internal class PackedConfiguration(val case: BenchCase) {
 }
 
 internal val BenchCase.logicalId: String get() = buildString {
-    append(options["work"] ?: "$operation-v1")
+    append(when (operation) {
+        "gemm-tile", "gemm-block" -> "gemm-add-v1"
+        "packed-trsm" -> "right-solve-v1"
+        "gemm-trsm" -> "update-solve-v1"
+        else -> "$operation-v1"
+    })
     append('+'); append(dimensions.joinToString("x")); append('+'); append(fixture)
-    for ((key, value) in options) if (key !in PACKED_OPTIONS && key != "physical") {
+    for ((key, value) in options) if (key != "packed" && key != "timing") {
         append('+'); append(key); append('='); append(value)
     }
 }
 
-internal val BenchCase.configurationId: String get() = if ("physical" !in options) "policy-v1" else
-    options.filterKeys { it == "physical" || it in PACKED_OPTIONS && it != "work" && it != "timing" }
-        .entries.joinToString("+") { "${it.key}=${it.value}" }
+internal val BenchCase.configurationId: String get() = options["packed"]?.let { "packed=$it" } ?: "policy-v1"
 
-/** Physical arithmetic visits and buffer extents, in doubles; see coverage.md for byte and lifetime formulas. */
+/** Physical arithmetic visits and buffer extents, in doubles. */
 internal val BenchCase.physicalWork: String get() {
-    if ("physical" !in options) return "policy"
+    if ("packed" !in options) return "policy"
     val p = PackedConfiguration(this)
     val layout = operation.startsWith("pack-") || operation.startsWith("write-") || operation.startsWith("clear-")
     if (layout) {
@@ -91,7 +82,7 @@ internal expect fun benchmarkPackedKernels(engine: com.eignex.koblas.KoblasEngin
 
 internal fun actualPackedKernel(case: BenchCase, mode: String, status: String): String {
     if (status != "ok") return "unavailable"
-    if ("physical" !in case.options) return "$mode/policy-v1"
+    if ("packed" !in case.options) return "$mode/policy-v1"
     val operation = case.operation
     val component = when {
         operation.startsWith("pack-") || operation.startsWith("write-") || operation.startsWith("clear-") -> "portable-layout-v1"
@@ -101,5 +92,5 @@ internal fun actualPackedKernel(case: BenchCase, mode: String, status: String): 
         mode == "jvm-simd" -> "vector-tile-v1"
         else -> "c-tile-v1"
     }
-    return "$mode/$component/${case.options.getValue("physical")}"
+    return "$mode/$component/${case.options.getValue("packed").removeSuffix("-v1")}"
 }

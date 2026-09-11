@@ -85,6 +85,7 @@ host conditions when possible.
 operation+dimensions+fixture[+option=value...]
 gemm+129x31x257+uniform+transA=T
 spgemv+257x129+sparse-uniform+density=0.01+mode=prepared
+gemm-block+15x7x31+uniform+packed=4x4-v1+timing=prepacked-compute
 ```
 
 CSV schema 5 stores run metadata and case definitions once, followed by sample records referencing their IDs.
@@ -94,8 +95,9 @@ Unsupported cases have no timing; a supported call failure stops the run. See [`
 the exact vendor-operation mapping and timing boundaries. Fixtures are deterministic and verified before relevant
 runs.
 
-Packed cases explicitly declare their tile, versioned layouts, packing settings and timing in `cases.txt`;
-unsupported configurations are rejected. Logical fixtures are generated before packing. `prepacked-compute`
+Packed cases choose `packed=4x4-v1` or `packed=8x4-v1`; the recipe fixes layout, strides, zero padding and
+alignment independently of backend defaults. Shapes determine panel dimensions, and options may appear in any
+order. Blocks require a timing choice. Logical fixtures are generated before packing. `prepacked-compute`
 includes tile loops, edge handling and writeback; `pack-plus-compute` also includes both panel packs.
 
 ## Verify the harness

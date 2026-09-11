@@ -11,9 +11,9 @@ case,3,1,gemm+32x21x48+uniform,ok,direct,reset-and-arithmetic,gemm-v1+32x21x48+u
 sample,3,1,1,512,1158098,2261.91015625
 case,4,1,trsm+64x16+triangular+side=L+uplo=L+transA=N+diag=N,ok,direct,reset-and-arithmetic,trsm-v1+64x16+triangular+side=L+uplo=L+transA=N+diag=N,policy-v1,policy,vendor-cblas-v1
 sample,4,1,1,256,823717,3217.64453125
-case,5,1,gemm-tile+4x4x32+uniform+physical=4x4+work=gemm-add-v1+leftLayout=depth-rows-v1+rightLayout=depth-columns-v1+leftGroup=4+rightGroup=4+leftStride=4+rightStride=4+padding=zero+alignment=8+block=4x4x32+panel=32+diagonal=0+rhs=0+batch=1+variant=current-tile-v1+timing=raw-tile,ok,partial,vendor-arithmetic,gemm-add-v1+4x4x32+uniform,vendor-column-major-v1,calls=1;leftDoubles=128;rightDoubles=128;outputDoubles=16;resetDoubles=16;triangleDoubles=0,vendor-cblas-v1
+case,5,1,gemm-tile+4x4x32+uniform+packed=4x4-v1,ok,partial,vendor-arithmetic,gemm-add-v1+4x4x32+uniform,vendor-column-major-v1,calls=1;leftDoubles=128;rightDoubles=128;outputDoubles=16;resetDoubles=16;triangleDoubles=0,vendor-cblas-v1
 sample,5,1,1,2048,783051,382.34912109375
-case,6,1,gemm-tile+8x4x32+uniform+physical=8x4+work=gemm-add-v1+leftLayout=depth-rows-v1+rightLayout=depth-columns-v1+leftGroup=8+rightGroup=4+leftStride=8+rightStride=4+padding=zero+alignment=8+block=8x4x32+panel=32+diagonal=0+rhs=0+batch=1+variant=current-tile-v1+timing=raw-tile,ok,partial,vendor-arithmetic,gemm-add-v1+8x4x32+uniform,vendor-column-major-v1,calls=1;leftDoubles=256;rightDoubles=128;outputDoubles=32;resetDoubles=32;triangleDoubles=0,vendor-cblas-v1
+case,6,1,gemm-tile+8x4x32+uniform+packed=8x4-v1,ok,partial,vendor-arithmetic,gemm-add-v1+8x4x32+uniform,vendor-column-major-v1,calls=1;leftDoubles=256;rightDoubles=128;outputDoubles=32;resetDoubles=32;triangleDoubles=0,vendor-cblas-v1
 sample,6,1,1,2048,846079,413.12451171875
 case,7,1,spdot+4096+sparse-uniform+density=0.01,unsupported,unsupported,arithmetic,spdot-v1+4096+sparse-uniform+density=0.01,policy-v1,policy,unavailable
 case,8,1,spgemv+257x129+sparse-uniform+density=0.01+mode=prepared,unsupported,unsupported,prepared,spgemv-v1+257x129+sparse-uniform+density=0.01+mode=prepared,policy-v1,policy,unavailable

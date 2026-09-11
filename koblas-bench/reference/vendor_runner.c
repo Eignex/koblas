@@ -40,7 +40,7 @@ extern double cblas_dsum(const int, const double *, const int);
 #endif
 extern void cblas_dgemmt(const CBLAS_LAYOUT, const CBLAS_UPLO, const CBLAS_TRANSPOSE, const CBLAS_TRANSPOSE, const int, const int, const double, const double *, const int, const double *, const int, const double, double *, const int);
 
-enum { MAX_DIMS = 3, MAX_OPTIONS = 24 };
+enum { MAX_DIMS = 3, MAX_OPTIONS = 9 };
 static const uint64_t SEED = UINT64_C(0x243f6a8885a308d3);
 static const uint64_t GOLDEN = UINT64_C(0x9e3779b97f4a7c15);
 
@@ -137,7 +137,7 @@ static int expected_dimensions(const char *op) {
     return 0;
 }
 
-static int option_order(const char *name) { const char *names[] = {"density","mode","physical","side","uplo","transA","transB","diag","work","leftLayout","rightLayout","leftGroup","rightGroup","leftStride","rightStride","padding","alignment","block","panel","diagonal","rhs","batch","variant","timing"}; for(int i=0;i<24;++i) if(!strcmp(name,names[i])) return i; return -1; }
+static int option_order(const char *name) { const char *names[] = {"density","mode","packed","side","uplo","transA","transB","diag","timing"}; for(int i=0;i<9;++i) if(!strcmp(name,names[i])) return i; return -1; }
 static int option_present(const bench_case *c,const char *name){for(int i=0;i<c->option_count;++i)if(!strcmp(c->option_names[i],name))return 1;return 0;}
 static int operation_in(const char *operation,const char **values,size_t count){for(size_t i=0;i<count;++i)if(!strcmp(operation,values[i]))return 1;return 0;}
 static int mode_operation(const char *op){return !strcmp(op,"spgemv")||!strcmp(op,"spmm")||!strcmp(op,"spgemm")||!strcmp(op,"spsymv")||!strcmp(op,"spsymm")||!strcmp(op,"sptrsv")||!strcmp(op,"sptrmv")||!strcmp(op,"sptrsm")||!strcmp(op,"sptrmm");}
@@ -151,7 +151,8 @@ static int triangular_fixture_operation(const char *op){const char *values[]={"t
 static int option_allowed(const char *op,const char *name,int sparse){
     if(!strcmp(name,"density"))return sparse;
     if(!strcmp(name,"mode"))return mode_operation(op);
-    if(!strcmp(name,"physical") || option_order(name)>=8)return packed_operation(op);
+    if(!strcmp(name,"packed"))return packed_operation(op);
+    if(!strcmp(name,"timing"))return !strcmp(op,"gemm-block");
     if(!strcmp(name,"side"))return side_operation(op);
     if(!strcmp(name,"uplo"))return uplo_operation(op);
     if(!strcmp(name,"transA"))return !strcmp(op,"gemv")||!strcmp(op,"gemm")||transa_operation(op);
@@ -161,10 +162,10 @@ static int option_allowed(const char *op,const char *name,int sparse){
 }
 static void copy_field(char *destination,size_t capacity,const char *source,int line_number,const char *name){size_t length=strlen(source);if(length>=capacity){fprintf(stderr,"line %d: %s is too long\n",line_number,name);exit(2);}memcpy(destination,source,length+1);}
 static int valid_option(const char *name,const char *value){
-    if(option_order(name)>=8)return *value != 0;
+    if(!strcmp(name,"timing"))return !strcmp(value,"prepacked-compute")||!strcmp(value,"pack-plus-compute");
     if(!strcmp(name,"density")){char *tail;double density=strtod(value,&tail);return !*tail&&density>0&&density<=1;}
     if(!strcmp(name,"mode"))return !strcmp(value,"prepared")||!strcmp(value,"oneshot");
-    if(!strcmp(name,"physical"))return !strcmp(value,"4x4")||!strcmp(value,"8x4");
+    if(!strcmp(name,"packed"))return !strcmp(value,"4x4-v1")||!strcmp(value,"8x4-v1");
     if(!strcmp(name,"side"))return !strcmp(value,"L")||!strcmp(value,"R");
     if(!strcmp(name,"uplo"))return !strcmp(value,"L")||!strcmp(value,"U");
     if(!strcmp(name,"transA")||!strcmp(name,"transB"))return !strcmp(value,"N")||!strcmp(value,"T");
@@ -173,39 +174,26 @@ static int valid_option(const char *name,const char *value){
 }
 
 static int is_layout(const char *op);
-static void require_option(const bench_case *s, const char *name, const char *expected) {
-    if (strcmp(option(s,name,""),expected)) {
-        fprintf(stderr,"%s requires %s=%s\n",s->operation,name,expected);exit(2);
-    }
-}
-static void require_number(const bench_case *s,const char *name,int expected) {
-    char value[32];snprintf(value,sizeof(value),"%d",expected);require_option(s,name,value);
-}
 static void validate_packed(const bench_case *s) {
-    int r=0,c=0,m=s->dims[0],n=s->dims[1];
-    if(sscanf(option(s,"physical",""),"%dx%d",&r,&c)!=2)fail("missing physical");
+    int m=s->dims[0],n=s->dims[1];
     const char *op=s->operation;
-    int layout=is_layout(op), solve=!strcmp(op,"packed-trsm")||!strcmp(op,"gemm-trsm");
-    int k=s->dim_count==3?s->dims[2]:(layout&&strstr(op,"right")?m:n);
-    char work_id[64],block[64];
-    snprintf(work_id,sizeof(work_id),"%s-v1",op);
-    if(!strcmp(op,"gemm-tile")||!strcmp(op,"gemm-block"))strcpy(work_id,"gemm-add-v1");
-    if(!strcmp(op,"packed-trsm"))strcpy(work_id,"right-solve-v1");
-    if(!strcmp(op,"gemm-trsm"))strcpy(work_id,"update-solve-v1");
-    require_option(s,"work",work_id);
-    require_option(s,"leftLayout","depth-rows-v1");require_option(s,"rightLayout","depth-columns-v1");
-    require_number(s,"leftGroup",r);require_number(s,"rightGroup",c);
-    require_number(s,"leftStride",r);require_number(s,"rightStride",c);
-    require_option(s,"padding","zero");require_option(s,"alignment","8");
-    snprintf(block,sizeof(block),"%dx%dx%d",m,n,k);require_option(s,"block",block);require_number(s,"panel",k);
-    require_number(s,"diagonal",solve?n:0);require_number(s,"rhs",solve?m:0);
-    require_option(s,"batch","1");require_option(s,"variant","current-tile-v1");
-    if(!strcmp(op,"gemm-block")) {
-        const char *timing=option(s,"timing","");
-        if(strcmp(timing,"prepacked-compute")&&strcmp(timing,"pack-plus-compute"))fail("unsupported block timing");
-    } else require_option(s,"timing",!strncmp(op,"pack-",5)?"packing-only":layout?"layout-only":"raw-tile");
+    int k=s->dim_count==3?s->dims[2]:(is_layout(op)&&strstr(op,"right")?m:n);
+    if(!strcmp(op,"gemm-block")&&!option_present(s,"timing"))fail("block cases require timing");
     if(m>4096||n>4096||k>4096||(int64_t)m*n*k>16777216)fail("packed allocation budget exceeded");
     if((strstr(op,"symmetric")||strstr(op,"triangular"))&&m!=n)fail("structured source must be square");
+}
+
+static void canonicalize_case(bench_case *s) {
+    for(int i=1;i<s->option_count;++i)for(int j=i;j>0&&option_order(s->option_names[j])<option_order(s->option_names[j-1]);--j){
+        char name[16],value[32];
+        strcpy(name,s->option_names[j]);strcpy(value,s->option_values[j]);
+        strcpy(s->option_names[j],s->option_names[j-1]);strcpy(s->option_values[j],s->option_values[j-1]);
+        strcpy(s->option_names[j-1],name);strcpy(s->option_values[j-1],value);
+    }
+    size_t used=(size_t)snprintf(s->id,sizeof(s->id),"%s",s->operation);
+    for(int i=0;i<s->dim_count;++i)used+=(size_t)snprintf(s->id+used,sizeof(s->id)-used,"%c%d",i?'x':'+',s->dims[i]);
+    used+=(size_t)snprintf(s->id+used,sizeof(s->id)-used,"+%s",s->fixture);
+    for(int i=0;i<s->option_count;++i)used+=(size_t)snprintf(s->id+used,sizeof(s->id)-used,"+%s=%s",s->option_names[i],s->option_values[i]);
 }
 
 static int parse_case(char *line, int line_number, bench_case *out) {
@@ -221,8 +209,7 @@ static int parse_case(char *line, int line_number, bench_case *out) {
     while (dimension) { if (out->dim_count == MAX_DIMS || !*dimension) fail("malformed dimensions"); char *tail; long value = strtol(dimension,&tail,10); if(*tail || value<=0 || value>1000000) fail("invalid dimension"); out->dims[out->dim_count++] = (int)value; dimension=strtok_r(NULL,"x",&dimension_save); }
     if (out->dim_count != expected) { fprintf(stderr,"line %d: wrong dimension count\n",line_number); exit(2); }
     token = strtok_r(NULL, "+", &save); if (!token || (strcmp(token,"uniform") && strcmp(token,"triangular") && strcmp(token,"sparse-uniform") && strcmp(token,"sparse-triangular"))) fail("unknown fixture"); copy_field(out->fixture,sizeof(out->fixture),token,line_number,"fixture");
-    int previous = -1;
-    while ((token = strtok_r(NULL,"+",&save))) { char *equals = strchr(token,'='); if(!equals||equals==token||!equals[1]||strchr(equals+1,'=')) fail("malformed option"); *equals=0; int order=option_order(token); if(order<0 || order<=previous || out->option_count==MAX_OPTIONS||!valid_option(token,equals+1)) fail("unknown, invalid, duplicate, or noncanonical option"); previous=order;copy_field(out->option_names[out->option_count],sizeof(out->option_names[0]),token,line_number,"option name");copy_field(out->option_values[out->option_count],sizeof(out->option_values[0]),equals+1,line_number,"option value");++out->option_count; }
+    while ((token = strtok_r(NULL,"+",&save))) { char *equals = strchr(token,'='); if(!equals||equals==token||!equals[1]||strchr(equals+1,'=')) fail("malformed option"); *equals=0; int order=option_order(token); if(order<0 || option_present(out,token) || out->option_count==MAX_OPTIONS||!valid_option(token,equals+1)) fail("unknown, invalid, or duplicate option");copy_field(out->option_names[out->option_count],sizeof(out->option_names[0]),token,line_number,"option name");copy_field(out->option_values[out->option_count],sizeof(out->option_values[0]),equals+1,line_number,"option value");++out->option_count; }
     int sparse = !strncmp(out->operation,"sp",2) || !strncmp(out->operation,"sparse-slices-",14);
     int triangular=triangular_fixture_operation(out->operation);const char *expected_fixture=sparse?(triangular?"sparse-triangular":"sparse-uniform"):(triangular?"triangular":"uniform");
     if(strcmp(out->fixture,expected_fixture))fail("incompatible fixture");
@@ -230,7 +217,7 @@ static int parse_case(char *line, int line_number, bench_case *out) {
     if(mode_operation(out->operation)!=option_present(out,"mode"))fail("missing or incompatible mode option");
     if(oneshot_only_operation(out->operation)&&strcmp(option(out,"mode",""),"oneshot"))fail("operation supports only mode=oneshot");
     if(sparse&&!option_present(out,"density"))fail("sparse cases require density");
-    if(packed_operation(out->operation)&&!option_present(out,"physical"))fail("packed cases require physical shape");
+    if(packed_operation(out->operation)&&!option_present(out,"packed"))fail("packed cases require a recipe");
     if(uplo_operation(out->operation)&&!option_present(out,"uplo"))fail("operation requires uplo");
     if(side_operation(out->operation)&&!option_present(out,"side"))fail("operation requires side");
     if(transa_operation(out->operation)&&!option_present(out,"transA"))fail("operation requires transA");
@@ -242,8 +229,9 @@ static int parse_case(char *line, int line_number, bench_case *out) {
         if(!required)fail("redundant default option");
     }
     if(sparse&&option_present(out,"side")&&strcmp(option(out,"side",""),"L"))fail("sparse right-side cases are unsupported");
-    if(option_present(out,"physical")){int physical_rows=0,physical_cols=0;if(sscanf(option(out,"physical",""),"%dx%d",&physical_rows,&physical_cols)!=2)fail("invalid physical shape");const char *op=out->operation;int rows_bounded=!strcmp(op,"gemm-tile")||!strcmp(op,"packed-trsm")||!strcmp(op,"gemm-trsm")||!strcmp(op,"pack-left")||!strcmp(op,"pack-symmetric-left")||!strcmp(op,"pack-triangular-left")||!strcmp(op,"write-left")||!strcmp(op,"clear-left-padding");int columns_bounded=!strcmp(op,"gemm-tile")||!strcmp(op,"packed-trsm")||!strcmp(op,"gemm-trsm")||!strcmp(op,"pack-right")||!strcmp(op,"pack-symmetric-right")||!strcmp(op,"pack-triangular-right")||!strcmp(op,"write-right")||!strcmp(op,"clear-right-padding");if(rows_bounded&&out->dims[0]>physical_rows)fail("logical rows exceed physical tile");if(columns_bounded&&out->dims[1]>physical_cols)fail("logical columns exceed physical tile");}
+    if(option_present(out,"packed")){int physical_rows=0,physical_cols=0;if(sscanf(option(out,"packed",""),"%dx%d-v1",&physical_rows,&physical_cols)!=2)fail("invalid physical shape");const char *op=out->operation;int rows_bounded=!strcmp(op,"gemm-tile")||!strcmp(op,"packed-trsm")||!strcmp(op,"gemm-trsm")||!strcmp(op,"pack-left")||!strcmp(op,"pack-symmetric-left")||!strcmp(op,"pack-triangular-left")||!strcmp(op,"write-left")||!strcmp(op,"clear-left-padding");int columns_bounded=!strcmp(op,"gemm-tile")||!strcmp(op,"packed-trsm")||!strcmp(op,"gemm-trsm")||!strcmp(op,"pack-right")||!strcmp(op,"pack-symmetric-right")||!strcmp(op,"pack-triangular-right")||!strcmp(op,"write-right")||!strcmp(op,"clear-right-padding");if(rows_bounded&&out->dims[0]>physical_rows)fail("logical rows exceed physical tile");if(columns_bounded&&out->dims[1]>physical_cols)fail("logical columns exceed physical tile");}
     if(packed_operation(out->operation))validate_packed(out);
+    canonicalize_case(out);
     return 1;
 }
 
@@ -452,11 +440,12 @@ static void numerical_check(void){
 static const char *argument_value(int argc,char **argv,const char *name,const char *fallback){size_t length=strlen(name);for(int i=1;i<argc;++i)if(!strncmp(argv[i],name,length)&&argv[i][length]=='=')return argv[i]+length+1;return fallback;}
 
 static void metadata(FILE *output,const bench_case *s,const work *w) {
-    fprintf(output,",%s",option(s,"work",s->operation));
-    if(!option_present(s,"work"))fputs("-v1",output);
+    const char *recipe=!strcmp(s->operation,"gemm-tile")||!strcmp(s->operation,"gemm-block")?"gemm-add":
+        !strcmp(s->operation,"packed-trsm")?"right-solve":!strcmp(s->operation,"gemm-trsm")?"update-solve":s->operation;
+    fprintf(output,",%s-v1",recipe);
     for(int i=0;i<s->dim_count;++i)fprintf(output,"%c%d",i?'x':'+',s->dims[i]);
     fprintf(output,"+%s",s->fixture);
-    for(int i=0;i<s->option_count;++i)if(option_order(s->option_names[i])<8&&strcmp(s->option_names[i],"physical"))fprintf(output,"+%s=%s",s->option_names[i],s->option_values[i]);
+    for(int i=0;i<s->option_count;++i)if(option_order(s->option_names[i])<8&&strcmp(s->option_names[i],"packed"))fprintf(output,"+%s=%s",s->option_names[i],s->option_values[i]);
     /* Vendor layout is column-major, never the requested Koblas packed format. */
     if(packed_operation(s->operation)) {
         int m=s->dims[0],n=s->dims[1],k=s->dim_count==3?s->dims[2]:0;

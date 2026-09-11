@@ -39,7 +39,7 @@ internal object Cases {
         "sparse-slices-max" to 1, "sparse-slices-filter" to 1,
     )
     private val fixtures = setOf("uniform", "triangular", "sparse-uniform", "sparse-triangular")
-    private val optionOrder = listOf("density", "mode", "physical", "side", "uplo", "transA", "transB", "diag") + PACKED_OPTIONS
+    private val optionOrder = listOf("density", "mode", "packed", "side", "uplo", "transA", "transB", "diag", "timing")
 
     fun parse(text: String): List<BenchCase> {
         val cases = text.lineSequence().mapIndexedNotNull { index, raw ->
@@ -65,26 +65,24 @@ internal object Cases {
         val fixture = parts[2]
         if (fixture !in fixtures) invalid("unknown fixture '$fixture'")
         val options = linkedMapOf<String, String>()
-        var previous = -1
         for (field in parts.drop(3)) {
             val pair = field.split('=', limit = 2)
             if (pair.size != 2 || pair[0] !in optionOrder || pair[1].isEmpty()) invalid("unknown option '$field'")
             if (pair[0] in options) invalid("duplicate option '${pair[0]}'")
-            val order = optionOrder.indexOf(pair[0])
-            if (order <= previous) invalid("options are not in canonical order")
-            previous = order
             validateOption(pair[0], pair[1], invalid = ::invalid)
             options[pair[0]] = pair[1]
         }
         validateCompatibility(operation, dimensions, fixture, options, invalid = ::invalid)
-        return BenchCase(operation, dimensions, fixture, options, line)
+        val ordered = optionOrder.filter { it in options }.associateWith { options.getValue(it) }
+        val id = (listOf(operation, dimensions.joinToString("x"), fixture) + ordered.map { "${it.key}=${it.value}" }).joinToString("+")
+        return BenchCase(operation, dimensions, fixture, ordered, id)
     }
 
     private fun validateOption(name: String, value: String, invalid: (String) -> Nothing) {
         when (name) {
             "density" -> if (value.toDoubleOrNull()?.let { it > 0.0 && it <= 1.0 } != true) invalid("invalid density '$value'")
             "mode" -> if (value !in setOf("prepared", "oneshot")) invalid("invalid mode '$value'")
-            "physical" -> if (value !in setOf("4x4", "8x4")) invalid("unsupported physical tile '$value'")
+            "packed" -> if (value !in setOf("4x4-v1", "8x4-v1")) invalid("unsupported packed recipe '$value'")
             "side" -> if (value !in setOf("L", "R")) invalid("invalid side '$value'")
             "uplo" -> if (value !in setOf("L", "U")) invalid("invalid uplo '$value'")
             "transA", "transB" -> if (value !in setOf("N", "T")) invalid("invalid transpose '$value'")
@@ -121,7 +119,7 @@ internal object Cases {
         if (redundant != null) invalid("redundant default option '${redundant.key}=${redundant.value}'")
         if (sparse && options["side"] == "R") invalid("sparse right-side cases are unsupported")
         validatePackedBounds(operation, dimensions, options, invalid)
-        if ("physical" in required) PackedConfiguration.validate(operation, dimensions, options)
+        if ("packed" in required) PackedConfiguration.validate(operation, dimensions, options)
     }
 
     private fun allowedOptions(operation: String, sparse: Boolean): Set<String> = buildSet {
@@ -140,7 +138,7 @@ internal object Cases {
         options: Map<String, String>,
         invalid: (String) -> Nothing,
     ) {
-        val physical = options["physical"]?.split('x')?.map(String::toInt) ?: return
+        val physical = options["packed"]?.removeSuffix("-v1")?.split('x')?.map(String::toInt) ?: return
         val (tileRows, tileColumns) = physical
         val rowsBounded = operation in setOf(
             "gemm-tile", "packed-trsm", "gemm-trsm", "pack-left", "pack-symmetric-left",
@@ -157,7 +155,8 @@ internal object Cases {
     private fun requiredOptions(operation: String, sparse: Boolean): Set<String> {
         val required = linkedSetOf<String>()
         if (sparse) required += "density"
-        if (operation in setOf("gemm-block", "gemm-tile", "packed-trsm", "gemm-trsm", "pack-left", "pack-right", "pack-symmetric-left", "pack-symmetric-right", "pack-triangular-left", "pack-triangular-right", "write-left", "write-right", "clear-left-padding", "clear-right-padding")) required += setOf("physical") + PACKED_OPTIONS
+        if (operation in setOf("gemm-block", "gemm-tile", "packed-trsm", "gemm-trsm", "pack-left", "pack-right", "pack-symmetric-left", "pack-symmetric-right", "pack-triangular-left", "pack-triangular-right", "write-left", "write-right", "clear-left-padding", "clear-right-padding")) required += "packed"
+        if (operation == "gemm-block") required += "timing"
         when (operation) {
             "symv", "syr", "syr2" -> required += "uplo"
             "symm", "spsymm" -> required += setOf("side", "uplo")

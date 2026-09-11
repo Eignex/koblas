@@ -10,7 +10,7 @@ import kotlin.test.assertTrue
 
 class PackedConfigurationTest {
     @Test
-    fun `every packed configuration field is required`() {
+    fun `packed blocks require a recipe and timing`() {
         val fields = BLOCK.split('+')
         for (field in fields.drop(3)) {
             assertFailsWith<IllegalArgumentException>(field) { Cases.parse(fields.filterNot { it == field }.joinToString("+")) }
@@ -19,11 +19,13 @@ class PackedConfigurationTest {
 
     @Test
     fun `unsupported layout and schedule overrides are rejected`() {
-        for ((from, to) in listOf("alignment=8" to "alignment=64", "leftStride=4" to "leftStride=8",
-            "panel=31" to "panel=32", "batch=1" to "batch=2", "leftLayout=depth-rows-v1" to "leftLayout=depth-rows-v2",
-            "variant=current-tile-v1" to "variant=sme", "timing=prepacked-compute" to "timing=raw-tile")) {
-            assertFailsWith<IllegalArgumentException>(to) { Cases.parse(BLOCK.replace(from, to)) }
+        for (option in listOf("alignment=64", "leftStride=8", "panel=32", "batch=2", "leftLayout=depth-rows-v2", "variant=sme")) {
+            assertFailsWith<IllegalArgumentException>(option) { Cases.parse("$BLOCK+$option") }
         }
+        for (recipe in listOf("4x4-v2", "16x4-v1", "4x8-v1")) {
+            assertFailsWith<IllegalArgumentException>(recipe) { Cases.parse(BLOCK.replace("4x4-v1", recipe)) }
+        }
+        assertFailsWith<IllegalArgumentException> { Cases.parse(BLOCK.replace("prepacked-compute", "raw-tile")) }
     }
 
     @Test
@@ -119,10 +121,9 @@ class PackedConfigurationTest {
         configuration.rows == rows && configuration.columns == columns
     }
 
-    private fun eightRows(): String = BLOCK.replace("physical=4x4", "physical=8x4")
-        .replace("leftGroup=4", "leftGroup=8").replace("leftStride=4", "leftStride=8")
+    private fun eightRows(): String = BLOCK.replace("packed=4x4-v1", "packed=8x4-v1")
 
     private companion object {
-        const val BLOCK = "gemm-block+15x7x31+uniform+physical=4x4+work=gemm-add-v1+leftLayout=depth-rows-v1+rightLayout=depth-columns-v1+leftGroup=4+rightGroup=4+leftStride=4+rightStride=4+padding=zero+alignment=8+block=15x7x31+panel=31+diagonal=0+rhs=0+batch=1+variant=current-tile-v1+timing=prepacked-compute"
+        const val BLOCK = "gemm-block+15x7x31+uniform+packed=4x4-v1+timing=prepacked-compute"
     }
 }
