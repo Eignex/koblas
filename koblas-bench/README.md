@@ -89,8 +89,9 @@ spgemv+257x129+sparse-uniform+density=0.01+mode=prepared
 gemm-block+15x7x31+uniform+packed=4x4+timing=prepacked-compute
 ```
 
-CSV schema 5 stores run metadata and case definitions once, followed by sample records referencing their IDs.
-Runtime/build strings and source commits belong to the run; case definitions replace separate `cases.txt` copies.
+CSV schema 6 stores run metadata and case definitions once, followed by sample records referencing their IDs.
+Runtime/build strings and source commits belong to the run. Case records contain the case, status, comparison kind,
+timing and kernel; shape and packing are read from the case instead of duplicated as metadata.
 JMH elapsed time is reconstructed from its score; Native/vendor elapsed time is measured. Keep raw sample values unchanged.
 Unsupported cases have no timing; a supported call failure stops the run. See [`coverage.md`](coverage.md) for
 the exact vendor-operation mapping and timing boundaries. Fixtures are deterministic and verified before relevant

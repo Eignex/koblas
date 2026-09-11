@@ -152,12 +152,12 @@ internal fun measurement(
     run = listOf(
         implementation, WORKLOAD_VERSION, FIXTURE_VERSION, settings.pass, "ns", settings.sourceCommit,
         settings.dirty, runtime, "1", settings.warmups.toString(), settings.targetNanos.toString(),
-        if (settings.mode.startsWith("jvm")) "jmh-average-time-v1" else "native-calibrated-v1",
+        if (settings.mode.startsWith("jvm")) "jmh-average-time" else "native-calibrated",
         (if (settings.mode.startsWith("jvm")) settings.targetNanos else max(1_000_000L, settings.targetNanos / 4)).toString(),
         settings.forks.toString(),
     ),
     case = listOf(
-        case.id, status, comparisonKind, timingMode, case.logicalId, case.configurationId, case.physicalWork,
+        case.id, status, comparisonKind, timingMode,
         actualPackedKernel(case, settings.mode, status),
     ),
     sample = if (status != "ok") null else listOf(
@@ -193,8 +193,8 @@ private fun csv(value: String): String = if (value.any { it == ',' || it == '"' 
 internal fun formatDouble(value: Double): String = value.toString()
 internal fun sanitize(value: String): String = value.replace(',', ';').replace('\n', ' ').take(160)
 
-internal const val CSV_HEADER = "schema,5\n" +
+internal const val CSV_HEADER = "schema,6\n" +
     "run,id,implementation,workload_version,fixture_version,pass,unit,source_commit,dirty,runtime,threads,warmups,target_ns,harness,warmup_target_ns,forks\n" +
-    "case,id,run_id,case,status,comparison_kind,timing_mode,logical_id,configuration,physical_work,actual_kernel\n" +
+    "case,id,run_id,case,status,comparison_kind,timing_mode,actual_kernel\n" +
     "sample,case_id,fork,sample,operations,elapsed_ns,ns_per_op"
 private const val MAX_OPERATIONS = 1_000_000

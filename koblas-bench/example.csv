@@ -1,16 +1,16 @@
-schema,5
+schema,6
 run,id,implementation,workload_version,fixture_version,pass,unit,source_commit,dirty,runtime,threads,warmups,target_ns,harness,warmup_target_ns,forks
-case,id,run_id,case,status,comparison_kind,timing_mode,logical_id,configuration,physical_work,actual_kernel
+case,id,run_id,case,status,comparison_kind,timing_mode,actual_kernel
 sample,case_id,fork,sample,operations,elapsed_ns,ns_per_op
-run,1,jvm-scalar/scalar/scalar/packed-4x4,5,2,1,ns,7a38ed4bdde4f7b167b5dbe3924fffe6ca7555fa,true,kotlin-2.4.10/jvm/Eclipse Adoptium/25.0.1/JMH 1.37/forks=2,1,5,200000000,jmh-average-time-v1,200000000,2
-case,2,1,gemm-tile+3x2x31+uniform+packed=4x4,ok,partial,raw-tile,gemm-add-v1+3x2x31+uniform,packed=4x4,tiles=1;leftDoubles=124;rightDoubles=124;outputDoubles=16;resetDoubles=16;scratchDoubles=0;triangleDoubles=0,jvm-scalar/portable-tile-v1/4x4
+run,1,jvm-scalar/scalar/scalar/packed-4x4,5,2,1,ns,7a38ed4bdde4f7b167b5dbe3924fffe6ca7555fa,true,kotlin-2.4.10/jvm/Eclipse Adoptium/25.0.1/JMH 1.37/forks=2,1,5,200000000,jmh-average-time,200000000,2
+case,2,1,gemm-tile+3x2x31+uniform+packed=4x4,ok,partial,raw-tile,portable-tile
 sample,2,1,1,565297,204280172,361.36786857174195
 sample,2,1,2,392287,209111883,533.0584062178966
-run,2,jvm-scalar/scalar/scalar/packed-4x4,5,2,1,ns,7a38ed4bdde4f7b167b5dbe3924fffe6ca7555fa,true,kotlin-2.4.10/jvm/Eclipse Adoptium/25.0.1,1,5,200000000,jmh-average-time-v1,200000000,2
-case,7,2,gemm-tile+8x4x32+uniform+packed=8x4,unsupported,unsupported,arithmetic,gemm-add-v1+8x4x32+uniform,packed=8x4,tiles=1;leftDoubles=256;rightDoubles=128;outputDoubles=32;resetDoubles=32;scratchDoubles=0;triangleDoubles=0,unavailable
-case,57,1,gemm-block+64x64x32+uniform+packed=4x4+timing=prepacked-compute,ok,direct,prepacked-compute,gemm-add-v1+64x64x32+uniform,packed=4x4,tiles=256;leftDoubles=2048;rightDoubles=2048;outputDoubles=4096;resetDoubles=4096;scratchDoubles=16;triangleDoubles=0,jvm-scalar/portable-tile-v1/4x4
+run,2,jvm-scalar/scalar/scalar/packed-4x4,5,2,1,ns,7a38ed4bdde4f7b167b5dbe3924fffe6ca7555fa,true,kotlin-2.4.10/jvm/Eclipse Adoptium/25.0.1,1,5,200000000,jmh-average-time,200000000,2
+case,7,2,gemm-tile+8x4x32+uniform+packed=8x4,unsupported,unsupported,arithmetic,unavailable
+case,57,1,gemm-block+64x64x32+uniform+packed=4x4+timing=prepacked-compute,ok,direct,prepacked-compute,portable-tile
 sample,57,1,1,2339,200249862,85613.45104745618
 sample,57,1,2,2478,200184235,80784.59846650525
-case,58,1,gemm-block+64x64x32+uniform+packed=4x4+timing=pack-plus-compute,ok,direct,pack-plus-compute,gemm-add-v1+64x64x32+uniform,packed=4x4,tiles=256;leftDoubles=2048;rightDoubles=2048;outputDoubles=4096;resetDoubles=4096;scratchDoubles=16;triangleDoubles=0,jvm-scalar/portable-tile-v1/4x4
+case,58,1,gemm-block+64x64x32+uniform+packed=4x4+timing=pack-plus-compute,ok,direct,pack-plus-compute,portable-tile
 sample,58,1,1,2264,200243144,88446.6183745583
 sample,58,1,2,2549,200189777,78536.59356610435

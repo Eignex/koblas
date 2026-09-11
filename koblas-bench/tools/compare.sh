@@ -43,11 +43,11 @@ gawk -v require_compatible="$require_compatible" -v mode="$mode" -v timings="$ti
 BEGIN {
   record_type[2] = "run"; record_type[3] = "case"; record_type[4] = "sample"
   expected["run"] = "id implementation workload_version fixture_version pass unit source_commit dirty runtime threads warmups target_ns harness warmup_target_ns forks"
-  expected["case"] = "id run_id case status comparison_kind timing_mode logical_id configuration physical_work actual_kernel"
+  expected["case"] = "id run_id case status comparison_kind timing_mode actual_kernel"
   expected["sample"] = "case_id fork sample operations elapsed_ns ns_per_op"
   for (type in expected) column_count[type] = split(expected[type], columns[type]) + 1
   match_count = split("schema workload_version fixture_version timing_mode threads warmups target_ns comparison_kind", match_fields)
-  group_count_fields = split("logical_id schema workload_version fixture_version timing_mode threads warmups target_ns comparison_kind configuration physical_work implementation actual_kernel", group_fields)
+  group_count_fields = split("logical_id schema workload_version fixture_version timing_mode threads warmups target_ns comparison_kind operation configuration implementation actual_kernel", group_fields)
   timing_count = split(timings, timing_values, "\034")
   for (i = 1; i <= timing_count; i++) if (timing_values[i] != "") selected_timing[timing_values[i]] = 1
 }
@@ -126,6 +126,35 @@ function median(values, count,    ordered, value_index) {
   return ordered[count / 2] / 2 + ordered[count / 2 + 1] / 2
 }
 
+# Shape and recipe determine physical work; the source commit identifies the implementation.
+function identify_case(row,    parts, count, operation, logical, options, i, key, value, names, n) {
+  count = split(row["case"], parts, "+")
+  if (count < 3 || parts[2] !~ /^[1-9][0-9]*(x[1-9][0-9]*)*$/) fail(FILENAME ": malformed case")
+  operation = parts[1]
+  row["operation"] = operation
+  logical = operation == "gemm-tile" || operation == "gemm-block" ? "gemm-add" : \
+      operation == "packed-trsm" ? "right-solve" : operation == "gemm-trsm" ? "update-solve" : operation
+  logical = logical "+" parts[2] "+" parts[3]
+  row["configuration"] = "policy"
+  for (i = 4; i <= count; i++) {
+    n = index(parts[i], "=")
+    if (n < 2 || n == length(parts[i])) fail(FILENAME ": malformed case option")
+    key = substr(parts[i], 1, n - 1); value = substr(parts[i], n + 1)
+    if (key in options) fail(FILENAME ": duplicate case option")
+    options[key] = value
+    if (key == "packed") {
+      if (value != "4x4" && value != "8x4") fail(FILENAME ": unsupported packed recipe")
+      row["configuration"] = row["implementation"] ~ /^(openblas|onemkl)$/ ? "column-major" : "packed=" value
+    }
+  }
+  n = asorti(options, names)
+  for (i = 1; i <= n; i++) {
+    key = names[i]
+    if (key != "packed" && key != "timing") logical = logical "+" key "=" options[key]
+  }
+  row["logical_id"] = logical
+}
+
 function compatible(left, right,    i, field) {
   if (("" rows[left]["logical_id"]) != ("" rows[right]["logical_id"])) return 0
   for (i = 1; i <= match_count; i++) {
@@ -133,7 +162,7 @@ function compatible(left, right,    i, field) {
     if (("" rows[left][field]) != ("" rows[right][field])) return 0
   }
   if (mode == "fixed" || rows[left]["timing_mode"] ~ /^(raw-tile|packing-only|layout-only|vendor-arithmetic)$/) {
-    return ("" rows[left]["configuration"]) == ("" rows[right]["configuration"]) && ("" rows[left]["physical_work"]) == ("" rows[right]["physical_work"])
+    return ("" rows[left]["configuration"]) == ("" rows[right]["configuration"]) && ("" rows[left]["operation"]) == ("" rows[right]["operation"])
   }
   return 1
 }
@@ -149,7 +178,7 @@ BEGINFILE {
 
 FNR == 1 {
   sub(/\r$/, "")
-  if (read_csv($0, fields) != 2 || fields[1] != "schema" || fields[2] != "5") fail(FILENAME ": unsupported schema; use a schema 5 report")
+  if (read_csv($0, fields) != 2 || fields[1] != "schema" || fields[2] != "6") fail(FILENAME ": unsupported schema; use a schema 6 report")
   next
 }
 
@@ -197,15 +226,16 @@ FNR <= 4 {
   seen_samples[key] = 1
   case_samples[id]++
   delete row
-  row["schema"] = "5"
+  row["schema"] = "6"
   for (field in runs[cases[id]["run_id"]]) row[field] = runs[cases[id]["run_id"]][field]
   for (field in cases[id]) row[field] = cases[id][field]
   for (field in record) row[field] = record[field]
+  identify_case(row)
   value = row["ns_per_op"]
   if (value !~ /^[+]?[0-9]*([.][0-9]+|[0-9]+[.]?[0-9]*)([eE][+-]?[0-9]+)?$/ || value + 0 <= 0 || tolower(sprintf("%g", value + 0)) ~ /inf|nan/) fail(FILENAME ": invalid sample")
   successful[ARGIND]++
   if (length(selected_timing) && !(row["timing_mode"] in selected_timing)) next
-  if (mode == "fixed" && row["configuration"] == "policy-v1") next
+  if (mode == "fixed" && row["configuration"] == "policy") next
 
   # Length prefixes keep physical strategies distinct without delimiter collisions in CSV values.
   key = ""
@@ -235,7 +265,7 @@ END {
     medians[group] = median(samples[group], sample_counts[group])
     asort(samples[group], samples[group], "@val_num_asc")
   }
-  print "candidate,logical_id,base_case,candidate_case,base_configuration,candidate_configuration,base_physical_work,candidate_physical_work,base_kernel,candidate_kernel,base_median_ns,candidate_median_ns,candidate_min_ns,candidate_max_ns,base_over_candidate"
+  print "candidate,logical_id,base_case,candidate_case,base_configuration,candidate_configuration,base_kernel,candidate_kernel,base_median_ns,candidate_median_ns,candidate_min_ns,candidate_max_ns,base_over_candidate"
   for (candidate = 2; candidate <= file_count; candidate++) {
     delete joined
     pairs = 0
@@ -244,7 +274,7 @@ END {
       for (right_index = 1; right_index <= group_counts[candidate]; right_index++) {
         right = order[candidate][right_index]
         if (!compatible(left, right)) continue
-        printf "%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%.17g,%.17g,%.17g,%.17g,%.17g\n", csv(names[candidate]), csv(rows[left]["logical_id"]), csv(rows[left]["case"]), csv(rows[right]["case"]), csv(rows[left]["configuration"]), csv(rows[right]["configuration"]), csv(rows[left]["physical_work"]), csv(rows[right]["physical_work"]), csv(rows[left]["actual_kernel"]), csv(rows[right]["actual_kernel"]), medians[left], medians[right], samples[right][1], samples[right][sample_counts[right]], medians[left] / medians[right]
+        printf "%s,%s,%s,%s,%s,%s,%s,%s,%.17g,%.17g,%.17g,%.17g,%.17g\n", csv(names[candidate]), csv(rows[left]["logical_id"]), csv(rows[left]["case"]), csv(rows[right]["case"]), csv(rows[left]["configuration"]), csv(rows[right]["configuration"]), csv(rows[left]["actual_kernel"]), csv(rows[right]["actual_kernel"]), medians[left], medians[right], samples[right][1], samples[right][sample_counts[right]], medians[left] / medians[right]
         joined[left] = joined[right] = 1
         pairs++
       }

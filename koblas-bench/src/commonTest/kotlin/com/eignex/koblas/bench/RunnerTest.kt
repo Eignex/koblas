@@ -33,5 +33,16 @@ class RunnerTest {
         assertEquals(0, records.count { it.startsWith("sample,1,") })
     }
 
+    @Test
+    fun `packed case records omit derived metadata`() {
+        val case = Cases.parse("gemm-tile+3x2x31+uniform+packed=4x4").single()
+        val measurement = measurement(case, "jvm-scalar", settings(), 1, 10, 25, "2.5", "ok", "partial", "raw-tile", "runtime")
+
+        val records = reportCsv(listOf(measurement)).lines()
+
+        assertEquals("case,1,1,gemm-tile+3x2x31+uniform+packed=4x4,ok,partial,raw-tile,portable-tile",
+            records.single { it.startsWith("case,1,") })
+    }
+
     private fun settings() = Settings("jvm-scalar", "all", "cases.txt", "output.csv", 0, 1, 1_000_000, 2, "1", "source", "false")
 }
