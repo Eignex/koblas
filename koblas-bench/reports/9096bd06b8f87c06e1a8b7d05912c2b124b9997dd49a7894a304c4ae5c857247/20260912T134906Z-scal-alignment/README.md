@@ -11,6 +11,9 @@ That report correctly rejected alignment based on inconclusive elapsed-time comp
 array addresses. This follow-up records the actual alignment, rotates implementations, and preserves
 both thread CPU time and elapsed time. The old captures remain unchanged.
 
+A [source-guided follow-up](../20260912T141014Z-openblas-source/README.md) adds fixed pointer-relative
+blocks and records a further native improvement against this alignment-only implementation.
+
 ## Cause and implementation
 
 The original native AVX2 clone already processes four vectors per iteration. Missing AVX2 support and
