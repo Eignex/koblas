@@ -5,7 +5,6 @@ root=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 bench="$root/koblas-bench"
 libraries=all
 operation=all
-suite=all
 cases="$bench/cases.txt"
 output=
 samples=5
@@ -17,14 +16,12 @@ vendors_only=false
 smoke=false
 
 usage() {
-  echo "usage: capture-report.sh [--libraries openblas,accelerate,onemkl,scalar-slices|all] [--vendors-only] [--smoke] [--output NEW_DIR] [--cases FILE] [--operation NAME|all] [--suite all|packed|sparse-slices] [--samples N] [--warmups N] [--target-ms N] [--forks N] [--pass N]" >&2
+  echo "usage: capture-report.sh [--libraries openblas,accelerate,onemkl,scalar-slices|all] [--vendors-only] [--smoke] [--output NEW_DIR] [--operation NAME|all] [--samples N] [--warmups N] [--target-ms N] [--forks N] [--pass N]" >&2
 }
 while (($#)); do
   case "$1" in
     --libraries) libraries=${2:?}; shift 2 ;;
     --operation) operation=${2:?}; shift 2 ;;
-    --suite) suite=${2:?}; shift 2 ;;
-    --cases) cases=${2:?}; shift 2 ;;
     --output) output=${2:?}; shift 2 ;;
     --samples) samples=${2:?}; shift 2 ;;
     --warmups) warmups=${2:?}; shift 2 ;;
@@ -37,8 +34,6 @@ while (($#)); do
     *) usage; exit 2 ;;
   esac
 done
-[[ $suite == all || $suite == packed || $suite == sparse-slices ]] || { usage; exit 2; }
-if [[ $suite == sparse-slices ]]; then cases="$bench/sparse-slices-cases.txt"; fi
 if $smoke; then samples=1; warmups=0; target_ms=1; forks=1; fi
 platform=$(uname -s)
 if [[ $libraries == all ]]; then
@@ -83,15 +78,15 @@ dirty=false
 [[ -z $(git -C "$root" status --porcelain) ]] || dirty=true
 run_id="$(date -u +%Y%m%dT%H%M%SZ)-${commit:0:12}"
 if [[ -z $output ]]; then
-  if $vendors_only || $smoke; then output="$bench/build/benchmarks/$run_id-$$";
+  if $vendors_only || $smoke || [[ $operation != all ]]; then output="$bench/build/benchmarks/$run_id-$$";
   else output="$bench/reports/$hardware_hash/$run_id"; fi
 fi
 [[ ! -e $output ]] || { echo "report already exists: $output" >&2; exit 2; }
 results="$temporary/results"
 mkdir "$results"
 metadata="$results/metadata.txt"
-awk -F+ -v operation="$operation" -v suite="$suite" -v smoke="$smoke" '
-  !/^[[:space:]]*($|#)/ && (operation == "all" || $1 == operation) && (suite != "packed" || /\+packed=/) {
+awk -F+ -v operation="$operation" -v smoke="$smoke" '
+  !/^[[:space:]]*($|#)/ && (operation == "all" || $1 == operation) {
     print
     if (smoke == "true" && ++count == 3) exit
   }
@@ -105,7 +100,7 @@ cases="$temporary/cases.txt"
   echo "dirty=$dirty"
   uname -a
   git -C "$root" status --porcelain
-  echo "operation=$operation suite=$suite warmups=$warmups samples=$samples target_ms=$target_ms forks=$forks pass=$pass libraries=$libraries vendors_only=$vendors_only"
+  echo "operation=$operation warmups=$warmups samples=$samples target_ms=$target_ms forks=$forks pass=$pass libraries=$libraries vendors_only=$vendors_only"
   env | LC_ALL=C sort | awk '/^KOBLAS_(DENSE|SPARSE)_/ { print }'
   printf '\n[toolchain]\n'
   cc --version | head -n 1

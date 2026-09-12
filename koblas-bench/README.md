@@ -13,12 +13,12 @@ koblas-bench/capture-report.sh --smoke
 koblas-bench/capture-report.sh --vendors-only --libraries openblas,accelerate
 ```
 
-Full reports go to `reports/<hardware-sha256>/<run-id>/`; smoke and vendor-only runs default to `build/benchmarks/`.
+Full reports go to `reports/<hardware-sha256>/<run-id>/`; single-kernel, smoke and vendor-only runs default to `build/benchmarks/`.
 Use `--output NEW_DIR` to override. Each report contains one CSV per target and `metadata.txt` with hardware,
 source revision, timing settings, execution timestamps, and actual runtime/library configurations.
 Each CSV records one row per case with sample/fork counts, median, minimum, and maximum ns/op.
 
-[`cases.txt`](cases.txt) defines the workload. Filter with `--operation NAME` or `--suite packed`.
+[`cases.txt`](cases.txt) defines the workload. Reports run all cases; use `--operation NAME` for a single kernel.
 Compare matching cases and timing boundaries; prepared, one-shot, and packing-inclusive timings differ.
 Unsupported cases have no timing. A selected target failure stops capture; existing reports are never overwritten.
 
@@ -31,7 +31,8 @@ matrix products. For Linux oneMKL, set `ONEMKL_LIBRARY` to its runtime library p
 
 ## Sparse slices
 
-`--suite sparse-slices --libraries scalar-slices,onemkl` selects 26 caller-owned scratch cases:
+Sparse-slices cases use the normal `--operation` filter, for example `--operation sparse-slices-cycle`.
+The 26 `timing=reuse` cases have references selected with `--libraries scalar-slices,onemkl`:
 19 oneMKL compositions and seven scalar-only cases (checked cycles, checked dot and clear).
 Validation, support tracking, compaction and output handling are timed; buffers persist across calls.
 Cycles scatter `0.875` over half the support, then `-0.875` over all, and gather-clear.
