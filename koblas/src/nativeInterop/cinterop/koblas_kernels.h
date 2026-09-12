@@ -224,6 +224,96 @@ KOBLAS_KERNEL double koblas_dense_asum(const double *v, int32_t v_off, int32_t l
     return sum;
 }
 
+/* Strict lane comparisons ignore NaNs; the second pass resolves ties in input order. */
+KOBLAS_KERNEL int32_t koblas_dense_iamax(const double *v, int32_t v_off, int32_t len) {
+    if (len == 0) return -1;
+    const koblas_v4i sign = {0x7fffffffffffffffLL, 0x7fffffffffffffffLL,
+                             0x7fffffffffffffffLL, 0x7fffffffffffffffLL};
+    /* Named accumulators keep GCC from spilling a vector array on every iteration. */
+    koblas_v4d m0 = KOBLAS_ZERO, m1 = KOBLAS_ZERO, m2 = KOBLAS_ZERO, m3 = KOBLAS_ZERO;
+    int32_t i = 0;
+    for (; i <= len - KOBLAS_VECTOR_STEP; i += KOBLAS_VECTOR_STEP) {
+        {
+            koblas_v4i bits, previous;
+            koblas_v4d values;
+            KOBLAS_LOAD(values, v + v_off + i);
+            __builtin_memcpy(&bits, &values, sizeof bits);
+            bits &= sign;
+            __builtin_memcpy(&values, &bits, sizeof values);
+            koblas_v4i greater = values > m0;
+            __builtin_memcpy(&previous, &m0, sizeof previous);
+            bits = (bits & greater) | (previous & ~greater);
+            __builtin_memcpy(&m0, &bits, sizeof bits);
+        }
+        {
+            koblas_v4i bits, previous;
+            koblas_v4d values;
+            KOBLAS_LOAD(values, v + v_off + i + KOBLAS_LANES);
+            __builtin_memcpy(&bits, &values, sizeof bits);
+            bits &= sign;
+            __builtin_memcpy(&values, &bits, sizeof values);
+            koblas_v4i greater = values > m1;
+            __builtin_memcpy(&previous, &m1, sizeof previous);
+            bits = (bits & greater) | (previous & ~greater);
+            __builtin_memcpy(&m1, &bits, sizeof bits);
+        }
+        {
+            koblas_v4i bits, previous;
+            koblas_v4d values;
+            KOBLAS_LOAD(values, v + v_off + i + 2 * KOBLAS_LANES);
+            __builtin_memcpy(&bits, &values, sizeof bits);
+            bits &= sign;
+            __builtin_memcpy(&values, &bits, sizeof values);
+            koblas_v4i greater = values > m2;
+            __builtin_memcpy(&previous, &m2, sizeof previous);
+            bits = (bits & greater) | (previous & ~greater);
+            __builtin_memcpy(&m2, &bits, sizeof bits);
+        }
+        {
+            koblas_v4i bits, previous;
+            koblas_v4d values;
+            KOBLAS_LOAD(values, v + v_off + i + 3 * KOBLAS_LANES);
+            __builtin_memcpy(&bits, &values, sizeof bits);
+            bits &= sign;
+            __builtin_memcpy(&values, &bits, sizeof values);
+            koblas_v4i greater = values > m3;
+            __builtin_memcpy(&previous, &m3, sizeof previous);
+            bits = (bits & greater) | (previous & ~greater);
+            __builtin_memcpy(&m3, &bits, sizeof bits);
+        }
+    }
+    double best = 0.0;
+    for (int lane = 0; lane < KOBLAS_LANES; lane++) {
+        if (m0[lane] > best) best = m0[lane];
+        if (m1[lane] > best) best = m1[lane];
+        if (m2[lane] > best) best = m2[lane];
+        if (m3[lane] > best) best = m3[lane];
+    }
+    for (; i < len; i++) {
+        double magnitude = fabs(v[v_off + i]);
+        if (magnitude > best) best = magnitude;
+    }
+    if (best == 0.0) return 0;
+    const koblas_v4d target = {best, best, best, best};
+    for (i = 0; i <= len - KOBLAS_LANES; i += KOBLAS_LANES) {
+        koblas_v4d values;
+        koblas_v4i bits;
+        KOBLAS_LOAD(values, v + v_off + i);
+        __builtin_memcpy(&bits, &values, sizeof bits);
+        bits &= sign;
+        __builtin_memcpy(&values, &bits, sizeof values);
+        koblas_v4i matches = values == target;
+        if (matches[0]) return i;
+        if (matches[1]) return i + 1;
+        if (matches[2]) return i + 2;
+        if (matches[3]) return i + 3;
+    }
+    for (; i < len; i++) {
+        if (fabs(v[v_off + i]) == best) return i;
+    }
+    return 0;
+}
+
 /*
  * The matrix-product tile. koblas packs both operands into panels laid out in the order read here, and this
  * accumulates KOBLAS_GEMM_TILE rows by KOBLAS_GEMM_TILE columns of C over the whole of depth before touching

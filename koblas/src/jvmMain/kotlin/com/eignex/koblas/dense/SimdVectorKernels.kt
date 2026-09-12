@@ -17,6 +17,7 @@ internal val simdAvailable: Boolean = try {
 
 /** The JVM Vector API kernels without automatic C selection. */
 internal object SimdVectorKernels : DenseVectorKernels {
+    private val IAMAX_CROSSOVER = DenseTuning.simdIamaxCrossover
     private val lanes: Int = if (simdAvailable) SimdOps.lanes() else 0
 
     override val name: String get() = "simd($lanes lanes)"
@@ -56,6 +57,9 @@ internal object SimdVectorKernels : DenseVectorKernels {
         }
         return euclideanNorm(v, vOff, len)
     }
+
+    override fun iamax(v: DoubleArray, vOff: Int, len: Int): Int =
+        if (vectorizes(len) && len >= IAMAX_CROSSOVER) SimdOps.iamax(v, vOff, len) else scalarIamax(v, vOff, len)
 
     override fun asum(v: DoubleArray, vOff: Int, len: Int): Double =
         if (vectorizes(len)) SimdOps.asum(v, vOff, len) else absoluteSum(v, vOff, len)

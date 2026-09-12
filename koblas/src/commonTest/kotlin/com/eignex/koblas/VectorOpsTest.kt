@@ -1,5 +1,8 @@
 package com.eignex.koblas
 
+import com.eignex.koblas.dense.DenseVectorKernels
+import com.eignex.koblas.dense.ScalarVectorKernels
+import com.eignex.koblas.dense.assertIamaxAgreesWithReference
 import kotlin.math.abs
 import kotlin.math.sqrt
 import kotlin.random.Random
@@ -116,6 +119,16 @@ class VectorOpsTest {
         assertEquals(0, DenseVector.zero(3).iamax()) // zero vector: first element
         assertEquals(0, SparseVector.of(3, IntArray(0), DoubleArray(0)).iamax()) // all-unstored: same
         assertEquals(-1, DenseVector.zero(0).iamax())
+    }
+
+    @Test
+    fun `dense iamax agrees with the scalar reference across kernel boundaries`() {
+        val publicKernels = object : DenseVectorKernels by ScalarVectorKernels {
+            override fun iamax(v: DoubleArray, vOff: Int, len: Int): Int =
+                DenseVector.wrap(v.copyOfRange(vOff, vOff + len)).iamax()
+        }
+
+        assertIamaxAgreesWithReference(publicKernels)
     }
 
     @Test

@@ -283,6 +283,10 @@ class DenseVectorKernelsTest {
     }
 
     @Test
+    fun `the compiled in iamax agrees with the scalar reference`() =
+        assertIamaxAgreesWithReference(koblas.vectorKernels)
+
+    @Test
     fun `the compiled-in reductions agree with the scalar loops`() =
         assertReductionsAgreeWithReference(koblas.vectorKernels)
 

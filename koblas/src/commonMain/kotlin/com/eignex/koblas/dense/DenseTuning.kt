@@ -79,6 +79,12 @@ internal object DenseTuning {
     /** Bundled C crossover for the euclidean norm. */
     val jvmCNrm2Crossover: Int = tuned("jvm.c.nrm2.crossover", default = 128)
 
+    /** Bundled C crossover for the first maximum magnitude index. */
+    val jvmCIamaxCrossover: Int = tuned("jvm.c.iamax.crossover", default = 512)
+
+    /** JVM SIMD crossover for the first maximum magnitude index. */
+    val simdIamaxCrossover: Int = tuned("simd.iamax.crossover", default = 256)
+
     /** Bundled C crossover for the absolute sum. */
     val jvmCAsumCrossover: Int = tuned("jvm.c.asum.crossover", default = 128)
 

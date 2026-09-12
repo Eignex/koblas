@@ -552,6 +552,7 @@ public abstract interface class com/eignex/koblas/dense/DenseVectorKernels {
 	public abstract fun axpy ([DID[DII)V
 	public abstract fun dot ([DI[DII)D
 	public abstract fun getName ()Ljava/lang/String;
+	public abstract fun iamax ([DII)I
 	public abstract fun nrm2 ([DII)D
 	public abstract fun rot ([DI[DIIDD)V
 	public abstract fun rotm ([DII[DIIILcom/eignex/koblas/ModifiedGivens;)V

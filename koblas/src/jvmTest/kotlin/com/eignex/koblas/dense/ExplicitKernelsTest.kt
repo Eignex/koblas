@@ -20,6 +20,11 @@ class ExplicitKernelsTest {
     }
 
     @Test
+    fun `available explicit kernels preserve iamax indices`() {
+        for (engine in availableEngines()) assertIamaxAgreesWithReference(engine.vectorKernels)
+    }
+
+    @Test
     fun `available explicit kernels preserve exceptional arithmetic`() {
         for (engine in availableEngines()) {
             assertAxpyArithmeticPreservesOverflow(engine.panelKernels)
