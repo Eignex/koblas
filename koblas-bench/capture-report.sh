@@ -14,7 +14,7 @@ forks=2
 pass=1
 
 usage() {
-  echo "usage: koblas-bench/capture-report.sh [--libraries openblas,onemkl|all] [--operation NAME|all] [--suite all|packed] [--samples N] [--warmups N] [--target-ms N] [--forks N] [--pass N]" >&2
+  echo "usage: koblas-bench/capture-report.sh [--libraries openblas,onemkl,scalar-slices|all] [--operation NAME|all] [--suite all|packed|sparse-slices] [--samples N] [--warmups N] [--target-ms N] [--forks N] [--pass N]" >&2
 }
 
 while (($#)); do
@@ -32,7 +32,7 @@ while (($#)); do
   esac
 done
 
-[[ $suite == all || $suite == packed ]] || { usage; exit 2; }
+[[ $suite == all || $suite == packed || $suite == sparse-slices ]] || { usage; exit 2; }
 
 temporary=$(mktemp -d "${TMPDIR:-/tmp}/koblas-bench-report.XXXXXX")
 cpu_pid=
@@ -49,11 +49,13 @@ trap 'exit 143' TERM
 "$bench/tools/hardware.sh" >"$temporary/hardware.txt"
 
 cases="$bench/cases.txt"
-if [[ $operation != all || $suite == packed ]]; then
-  cases="$temporary/cases.txt"
+if [[ $suite == sparse-slices ]]; then cases="$bench/sparse-slices-cases.txt"; fi
+if [[ $operation != all || $suite == packed || $suite == sparse-slices ]]; then
+  selected_cases="$temporary/cases.txt"
   awk -F+ -v operation="$operation" -v suite="$suite" '
-    /^[[:space:]]*($|#)/ || ((operation == "all" || $1 == operation) && (suite == "all" || /\+packed=/)) { print }
-  ' "$bench/cases.txt" >"$cases"
+    /^[[:space:]]*($|#)/ || ((operation == "all" || $1 == operation) && (suite != "packed" || /\+packed=/)) { print }
+  ' "$cases" >"$selected_cases"
+  cases="$selected_cases"
 fi
 
 if command -v sha256sum >/dev/null 2>&1; then
@@ -69,6 +71,7 @@ mkdir -p "$hardware_report"
 run="$hardware_report/$run_id"
 [[ ! -e $run ]] || { echo "report already exists: $run" >&2; exit 1; }
 mkdir "$run"
+cp "$cases" "$run/cases.txt"
 cp "$cases" "$temporary/selected-cases.txt"
 cases="$temporary/selected-cases.txt"
 {
@@ -110,13 +113,13 @@ done
 
 common=("-Pbench.operation=$operation" "-Pbench.cases=$cases" "-Pbench.warmups=$warmups" "-Pbench.samples=$samples" "-Pbench.targetMs=$target_ms" "-Pbench.pass=$pass")
 echo "jvm-scalar_started_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >>"$run/metadata.txt"
-(cd "$root" && ./gradlew :koblas-bench:jvmScalarBenchmark "${common[@]}" "-Pbench.forks=$forks" "-Pbench.output=$run/jvm-scalar.csv")
+(cd "$root" && ./gradlew --no-daemon :koblas-bench:jvmScalarBenchmark "${common[@]}" "-Pbench.forks=$forks" "-Pbench.output=$run/jvm-scalar.csv")
 echo "jvm-c_started_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >>"$run/metadata.txt"
-(cd "$root" && ./gradlew :koblas-bench:jvmCBenchmark "${common[@]}" "-Pbench.forks=$forks" "-Pbench.output=$run/jvm-c.csv")
+(cd "$root" && ./gradlew --no-daemon :koblas-bench:jvmCBenchmark "${common[@]}" "-Pbench.forks=$forks" "-Pbench.output=$run/jvm-c.csv")
 echo "jvm-simd_started_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >>"$run/metadata.txt"
-(cd "$root" && ./gradlew :koblas-bench:jvmSimdBenchmark "${common[@]}" "-Pbench.forks=$forks" "-Pbench.output=$run/jvm-simd.csv")
+(cd "$root" && ./gradlew --no-daemon :koblas-bench:jvmSimdBenchmark "${common[@]}" "-Pbench.forks=$forks" "-Pbench.output=$run/jvm-simd.csv")
 echo "native_started_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >>"$run/metadata.txt"
-(cd "$root" && ./gradlew :koblas-bench:nativeBenchmark "${common[@]}" "-Pbench.output=$run/native.csv")
+(cd "$root" && ./gradlew --no-daemon :koblas-bench:nativeBenchmark "${common[@]}" "-Pbench.output=$run/native.csv")
 echo "vendors_started_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >>"$run/metadata.txt"
 "$bench/reference.sh" --libraries "$libraries" --output "$temporary/vendor" --cases "$cases" --samples "$samples" --warmups "$warmups" --target-ms "$target_ms" --pass "$pass"
 

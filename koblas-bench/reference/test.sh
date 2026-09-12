@@ -13,7 +13,7 @@ test "$(grep -c '^sample,[0-9]' "$result")" -gt 0
 test ! -d "$smoke_output/bin"
 
 # Parser rejection checks use a private test binary; smoke coverage above goes through the production entry point.
-cc -std=c11 -O2 -Wall -Wextra -Werror "$root/koblas-bench/reference/vendor_runner.c" -lopenblas -lm -o "$temporary/runner"
+cc -std=c11 -O2 -ffp-contract=off -Wall -Wextra -Werror "$root/koblas-bench/reference/vendor_runner.c" -lopenblas -lm -o "$temporary/runner"
 
 reject_case() {
   local name=$1
@@ -24,6 +24,15 @@ reject_case() {
     exit 1
   fi
 }
+
+cc -std=c11 -O2 -ffp-contract=off -Wall -Wextra -Werror "$root/koblas-bench/reference/sparse_slices_test.c" -lopenblas -lm -o "$temporary/slices-test"
+"$temporary/slices-test"
+reject_case slices-missing-timing 'sparse-slices-cycle+64+sparse-uniform+density=0.25'
+reject_case slices-wrong-timing 'sparse-slices-gather+64+sparse-uniform+density=0.25+timing=arithmetic'
+reject_case slices-compact-clear 'sparse-slices-clear+64+sparse-uniform+density=0.25+timing=reuse+compact=T'
+reject_case slices-invalid-locality 'sparse-slices-cycle+64+sparse-uniform+density=0.25+timing=reuse+locality=random'
+reject_case slices-legacy-locality 'sparse-slices-gather+64+sparse-uniform+density=0.25+locality=shuffled'
+reject_case dense-reuse 'scal+64+uniform+timing=reuse'
 
 reject_case scal-packed-timing 'scal+64+uniform+timing=prepacked-compute'
 reject_case gather-invalid-timing 'spgather+64+sparse-uniform+density=0.25+timing=reset-and-arithmetic'
@@ -64,3 +73,11 @@ grep -Fq "$packed" "$temporary/reordered.csv"
 
 # Parse and execute the full shared workload, including explicit unsupported vendor cases.
 "$temporary/runner" --cases="$root/koblas-bench/cases.txt" --output="$temporary/all.csv" --warmups=0 --samples=1 --target-ms=1
+
+# The local reference is an explicit arm, including operations without a matching oneMKL composition.
+"$temporary/runner" --slices-backend=scalar --cases="$root/koblas-bench/sparse-slices-cases.txt" --output="$temporary/slices.csv" --warmups=0 --samples=1 --target-ms=1
+test "$(grep -c '^case,[0-9].*,ok,composed,' "$temporary/slices.csv")" -eq 26
+grep -q '^run,1,scalar-slices,' "$temporary/slices.csv"
+grep -q ',scalar-c-validated-slices$' "$temporary/slices.csv"
+"$temporary/runner" --cases="$root/koblas-bench/sparse-slices-cases.txt" --output="$temporary/slices-unsupported.csv" --warmups=0 --samples=1 --target-ms=1
+test "$(grep -c '^case,[0-9].*,unsupported,' "$temporary/slices-unsupported.csv")" -eq 26

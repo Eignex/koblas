@@ -111,6 +111,26 @@ the dense source, matching oneMKL. Both runners consume the first and last outpu
 boundary separately; the default gather boundary predating this change included an extra Koblas output reset.
 OpenBLAS gather remains unsupported because the runner has no corresponding vendor entry point.
 
+## Sparse slices with caller-owned scratch
+
+[`sparse-slices-cases.txt`](sparse-slices-cases.txt) contains 26 `timing=reuse` cases with persistent buffers:
+19 oneMKL compositions and seven scalar-only cases (checked cycles, checked dot and clear).
+
+```bash
+koblas-bench/capture-report.sh --suite sparse-slices --libraries scalar-slices,onemkl \
+  --warmups 5 --samples 3 --target-ms 100 --forks 2
+```
+
+Cycles scatter `0.875` over half the support, then `-0.875` over all of it, and gather-clear with optional
+zero compaction. Standalone gather reads stable scratch; clear and gather-clear include a touched-entry refill.
+Validation, support tracking and output handling are timed. No timed call allocates scratch or clears the full dimension.
+
+The oneMKL adapter preserves separate multiply/add rounding and unwritten output tails. Checked dot retains
+ordered diagnostics; unchecked dot permits different reduction orders. The `scalar-slices` C reference covers
+all cases. Kotlin uses portable `SparseSlices` except unchecked dot, which dispatches through the selected engine.
+These versioned timings remain separate from historical slice cases; max and filtering are not yet covered.
+Use longer samples on a quiet host before choosing optimization thresholds.
+
 ## Verify the harness
 
 ```bash
@@ -129,3 +149,5 @@ The [scal and spgather investigation](reports/9096bd06b8f87c06e1a8b7d05912c2b124
 The [native scaling alignment follow-up](reports/9096bd06b8f87c06e1a8b7d05912c2b124b9997dd49a7894a304c4ae5c857247/20260912T134906Z-scal-alignment/README.md) isolates misaligned stores, validates guarded alignment through the native engine, and compares with oneMKL and OpenBLAS.
 
 The [OpenBLAS source follow-up](reports/9096bd06b8f87c06e1a8b7d05912c2b124b9997dd49a7894a304c4ae5c857247/20260912T141014Z-openblas-source/README.md) compares the Haswell loop, validates fixed pointer-relative blocks, and records the remaining vendor gap.
+
+The [SparseSlices harness validation](reports/9096bd06b8f87c06e1a8b7d05912c2b124b9997dd49a7894a304c4ae5c857247/20260912T161309Z-0081264d482f/README.md) records the first complete reuse-suite capture and supported comparison pairs; background load prevents performance conclusions.

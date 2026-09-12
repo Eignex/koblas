@@ -8,6 +8,10 @@ import com.eignex.koblas.sparse.SparseSlices
 
 internal fun sparseWork(case: BenchCase, engine: KoblasEngine): CaseWork? {
     if (!case.operation.startsWith("sp") && !case.operation.startsWith("sparse-slices-")) return null
+    if (case.option("timing", "") == "reuse") {
+        val work = SparseSlicesReuseWork(case, engine)
+        return CaseWork("composed", sparseSlicesTiming(case.operation), { work.run() }, result = work.outValues)
+    }
     val density = case.option("density", "0.01").toDouble()
     val d = case.dimensions
     val lower = case.option("uplo", "L") == "L"
