@@ -59,6 +59,7 @@ internal object CIndexedSparseKernels : IndexedSparseKernels by ScalarIndexedSpa
 /** JVM Vector API indexed kernels, with scalar fallbacks below measured call widths. */
 internal object SimdIndexedSparseKernels : IndexedSparseKernels by ScalarIndexedSparseKernels {
     private val vectorScatter = configuredJvmVectorScatter()
+    private val vectorGather = SparseSimd.autoGatherEligible
 
     override fun dotDense(
         indices: IntArray,
@@ -112,7 +113,7 @@ internal object SimdIndexedSparseKernels : IndexedSparseKernels by ScalarIndexed
         count: Int,
         source: DoubleArray,
     ) {
-        if (SparseSimd.autoGatherEligible && count >= SparseTuning.simdIndexedCrossover) {
+        if (vectorGather && count >= SparseTuning.simdIndexedCrossover) {
             SparseSimd.gather(indices, indexOffset, values, valueOffset, count, source)
         } else {
             ScalarIndexedSparseKernels.gather(indices, indexOffset, values, valueOffset, count, source)
