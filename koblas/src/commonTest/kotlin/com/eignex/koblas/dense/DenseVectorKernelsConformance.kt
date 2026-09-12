@@ -246,7 +246,7 @@ internal fun assertIamaxAgreesWithReference(kernels: DenseVectorKernels) {
     val rng = Random(20260912)
     val lengths = intArrayOf(
         0, 1, 2, 3, 7, 8, 9, 15, 16, 17, 31, 32, 33, 63, 64, 65,
-        127, 128, 129, 255, 256, 257, 511, 512, 513, 600,
+        127, 128, 129, 255, 256, 257, 511, 512, 513, 600, 1023, 1024, 1025,
     )
     for (len in lengths) {
         for (off in intArrayOf(0, 1, 3)) {

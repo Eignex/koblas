@@ -80,7 +80,7 @@ internal object DenseTuning {
     val jvmCNrm2Crossover: Int = tuned("jvm.c.nrm2.crossover", default = 128)
 
     /** Bundled C crossover for the first maximum magnitude index. */
-    val jvmCIamaxCrossover: Int = tuned("jvm.c.iamax.crossover", default = 512)
+    val jvmCIamaxCrossover: Int = tuned("jvm.c.iamax.crossover", default = 1024)
 
     /** JVM SIMD crossover for the first maximum magnitude index. */
     val simdIamaxCrossover: Int = tuned("simd.iamax.crossover", default = 256)
