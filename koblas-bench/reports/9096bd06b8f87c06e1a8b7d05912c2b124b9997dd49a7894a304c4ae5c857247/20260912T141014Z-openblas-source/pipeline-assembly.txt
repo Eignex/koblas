@@ -1,0 +1,161 @@
+
+/tmp/scal-openblas-source/probe:     file format elf64-x86-64
+
+
+Disassembly of section .init:
+
+Disassembly of section .plt:
+
+Disassembly of section .plt.got:
+
+Disassembly of section .text:
+
+000000000000a1c0 <pipeline.avx2.0>:
+    a1c0:	85 ff                	test   %edi,%edi
+    a1c2:	0f 8e 1a 02 00 00    	jle    a3e2 <pipeline.avx2.0+0x222>
+    a1c8:	c5 f9 2e 05 38 1e 00 	vucomisd 0x1e38(%rip),%xmm0        # c008 <_IO_stdin_used+0x8>
+    a1cf:	00
+    a1d0:	75 06                	jne    a1d8 <pipeline.avx2.0+0x18>
+    a1d2:	0f 8b 0a 02 00 00    	jnp    a3e2 <pipeline.avx2.0+0x222>
+    a1d8:	81 ff 80 00 00 00    	cmp    $0x80,%edi
+    a1de:	0f 92 c0             	setb   %al
+    a1e1:	40 f6 c6 1f          	test   $0x1f,%sil
+    a1e5:	0f 94 c1             	sete   %cl
+    a1e8:	08 c1                	or     %al,%cl
+    a1ea:	74 16                	je     a202 <pipeline.avx2.0+0x42>
+    a1ec:	48 89 f0             	mov    %rsi,%rax
+    a1ef:	c4 e2 7d 19 c8       	vbroadcastsd %xmm0,%ymm1
+    a1f4:	83 ff 10             	cmp    $0x10,%edi
+    a1f7:	0f 8d 8d 00 00 00    	jge    a28a <pipeline.avx2.0+0xca>
+    a1fd:	e9 1b 01 00 00       	jmp    a31d <pipeline.avx2.0+0x15d>
+    a202:	48 8d 46 08          	lea    0x8(%rsi),%rax
+    a206:	c5 fb 59 0e          	vmulsd (%rsi),%xmm0,%xmm1
+    a20a:	c5 fb 11 0e          	vmovsd %xmm1,(%rsi)
+    a20e:	a8 1f                	test   $0x1f,%al
+    a210:	74 44                	je     a256 <pipeline.avx2.0+0x96>
+    a212:	48 8d 46 10          	lea    0x10(%rsi),%rax
+    a216:	c5 fb 59 4e 08       	vmulsd 0x8(%rsi),%xmm0,%xmm1
+    a21b:	c5 fb 11 4e 08       	vmovsd %xmm1,0x8(%rsi)
+    a220:	a8 1f                	test   $0x1f,%al
+    a222:	74 43                	je     a267 <pipeline.avx2.0+0xa7>
+    a224:	48 8d 46 18          	lea    0x18(%rsi),%rax
+    a228:	c5 fb 59 4e 10       	vmulsd 0x10(%rsi),%xmm0,%xmm1
+    a22d:	c5 fb 11 4e 10       	vmovsd %xmm1,0x10(%rsi)
+    a232:	a8 1f                	test   $0x1f,%al
+    a234:	74 43                	je     a279 <pipeline.avx2.0+0xb9>
+    a236:	48 8d 46 20          	lea    0x20(%rsi),%rax
+    a23a:	c5 fb 59 4e 18       	vmulsd 0x18(%rsi),%xmm0,%xmm1
+    a23f:	c5 fb 11 4e 18       	vmovsd %xmm1,0x18(%rsi)
+    a244:	83 c7 fc             	add    $0xfffffffc,%edi
+    a247:	c4 e2 7d 19 c8       	vbroadcastsd %xmm0,%ymm1
+    a24c:	83 ff 10             	cmp    $0x10,%edi
+    a24f:	7d 39                	jge    a28a <pipeline.avx2.0+0xca>
+    a251:	e9 c7 00 00 00       	jmp    a31d <pipeline.avx2.0+0x15d>
+    a256:	ff cf                	dec    %edi
+    a258:	c4 e2 7d 19 c8       	vbroadcastsd %xmm0,%ymm1
+    a25d:	83 ff 10             	cmp    $0x10,%edi
+    a260:	7d 28                	jge    a28a <pipeline.avx2.0+0xca>
+    a262:	e9 b6 00 00 00       	jmp    a31d <pipeline.avx2.0+0x15d>
+    a267:	83 c7 fe             	add    $0xfffffffe,%edi
+    a26a:	c4 e2 7d 19 c8       	vbroadcastsd %xmm0,%ymm1
+    a26f:	83 ff 10             	cmp    $0x10,%edi
+    a272:	7d 16                	jge    a28a <pipeline.avx2.0+0xca>
+    a274:	e9 a4 00 00 00       	jmp    a31d <pipeline.avx2.0+0x15d>
+    a279:	83 c7 fd             	add    $0xfffffffd,%edi
+    a27c:	c4 e2 7d 19 c8       	vbroadcastsd %xmm0,%ymm1
+    a281:	83 ff 10             	cmp    $0x10,%edi
+    a284:	0f 8c 93 00 00 00    	jl     a31d <pipeline.avx2.0+0x15d>
+    a28a:	c5 f5 59 18          	vmulpd (%rax),%ymm1,%ymm3
+    a28e:	c5 f5 59 60 20       	vmulpd 0x20(%rax),%ymm1,%ymm4
+    a293:	c5 f5 59 50 60       	vmulpd 0x60(%rax),%ymm1,%ymm2
+    a298:	c5 f5 59 68 40       	vmulpd 0x40(%rax),%ymm1,%ymm5
+    a29d:	83 ff 20             	cmp    $0x20,%edi
+    a2a0:	72 57                	jb     a2f9 <pipeline.avx2.0+0x139>
+    a2a2:	66 66 66 66 66 2e 0f 	data16 data16 data16 data16 cs nopw 0x0(%rax,%rax,1)
+    a2a9:	1f 84 00 00 00 00 00
+    a2b0:	48 8d 88 80 00 00 00 	lea    0x80(%rax),%rcx
+    a2b7:	c5 fd 11 18          	vmovupd %ymm3,(%rax)
+    a2bb:	c5 fd 11 60 20       	vmovupd %ymm4,0x20(%rax)
+    a2c0:	c5 fd 11 68 40       	vmovupd %ymm5,0x40(%rax)
+    a2c5:	c5 fd 11 50 60       	vmovupd %ymm2,0x60(%rax)
+    a2ca:	c5 f5 59 98 80 00 00 	vmulpd 0x80(%rax),%ymm1,%ymm3
+    a2d1:	00
+    a2d2:	c5 f5 59 a0 a0 00 00 	vmulpd 0xa0(%rax),%ymm1,%ymm4
+    a2d9:	00
+    a2da:	c5 f5 59 90 e0 00 00 	vmulpd 0xe0(%rax),%ymm1,%ymm2
+    a2e1:	00
+    a2e2:	c5 f5 59 a8 c0 00 00 	vmulpd 0xc0(%rax),%ymm1,%ymm5
+    a2e9:	00
+    a2ea:	8d 57 f0             	lea    -0x10(%rdi),%edx
+    a2ed:	48 89 c8             	mov    %rcx,%rax
+    a2f0:	83 ff 2f             	cmp    $0x2f,%edi
+    a2f3:	89 d7                	mov    %edx,%edi
+    a2f5:	77 b9                	ja     a2b0 <pipeline.avx2.0+0xf0>
+    a2f7:	eb 05                	jmp    a2fe <pipeline.avx2.0+0x13e>
+    a2f9:	48 89 c1             	mov    %rax,%rcx
+    a2fc:	89 fa                	mov    %edi,%edx
+    a2fe:	c5 fd 11 19          	vmovupd %ymm3,(%rcx)
+    a302:	c5 fd 11 61 20       	vmovupd %ymm4,0x20(%rcx)
+    a307:	c5 fd 11 69 40       	vmovupd %ymm5,0x40(%rcx)
+    a30c:	c5 fd 11 51 60       	vmovupd %ymm2,0x60(%rcx)
+    a311:	83 c2 f0             	add    $0xfffffff0,%edx
+    a314:	48 83 e9 80          	sub    $0xffffffffffffff80,%rcx
+    a318:	48 89 c8             	mov    %rcx,%rax
+    a31b:	89 d7                	mov    %edx,%edi
+    a31d:	85 ff                	test   %edi,%edi
+    a31f:	0f 8e bd 00 00 00    	jle    a3e2 <pipeline.avx2.0+0x222>
+    a325:	89 f9                	mov    %edi,%ecx
+    a327:	83 ff 04             	cmp    $0x4,%edi
+    a32a:	73 07                	jae    a333 <pipeline.avx2.0+0x173>
+    a32c:	31 d2                	xor    %edx,%edx
+    a32e:	e9 9d 00 00 00       	jmp    a3d0 <pipeline.avx2.0+0x210>
+    a333:	83 ff 10             	cmp    $0x10,%edi
+    a336:	73 04                	jae    a33c <pipeline.avx2.0+0x17c>
+    a338:	31 d2                	xor    %edx,%edx
+    a33a:	eb 64                	jmp    a3a0 <pipeline.avx2.0+0x1e0>
+    a33c:	89 ca                	mov    %ecx,%edx
+    a33e:	81 e2 f0 ff ff 7f    	and    $0x7ffffff0,%edx
+    a344:	89 ce                	mov    %ecx,%esi
+    a346:	c1 ee 04             	shr    $0x4,%esi
+    a349:	81 e6 ff ff ff 07    	and    $0x7ffffff,%esi
+    a34f:	48 c1 e6 07          	shl    $0x7,%rsi
+    a353:	31 ff                	xor    %edi,%edi
+    a355:	66 66 2e 0f 1f 84 00 	data16 cs nopw 0x0(%rax,%rax,1)
+    a35c:	00 00 00 00
+    a360:	c5 f5 59 14 38       	vmulpd (%rax,%rdi,1),%ymm1,%ymm2
+    a365:	c5 f5 59 5c 38 20    	vmulpd 0x20(%rax,%rdi,1),%ymm1,%ymm3
+    a36b:	c5 f5 59 64 38 40    	vmulpd 0x40(%rax,%rdi,1),%ymm1,%ymm4
+    a371:	c5 f5 59 6c 38 60    	vmulpd 0x60(%rax,%rdi,1),%ymm1,%ymm5
+    a377:	c5 fd 11 14 38       	vmovupd %ymm2,(%rax,%rdi,1)
+    a37c:	c5 fd 11 5c 38 20    	vmovupd %ymm3,0x20(%rax,%rdi,1)
+    a382:	c5 fd 11 64 38 40    	vmovupd %ymm4,0x40(%rax,%rdi,1)
+    a388:	c5 fd 11 6c 38 60    	vmovupd %ymm5,0x60(%rax,%rdi,1)
+    a38e:	48 83 ef 80          	sub    $0xffffffffffffff80,%rdi
+    a392:	48 39 fe             	cmp    %rdi,%rsi
+    a395:	75 c9                	jne    a360 <pipeline.avx2.0+0x1a0>
+    a397:	39 ca                	cmp    %ecx,%edx
+    a399:	74 47                	je     a3e2 <pipeline.avx2.0+0x222>
+    a39b:	f6 c1 0c             	test   $0xc,%cl
+    a39e:	74 30                	je     a3d0 <pipeline.avx2.0+0x210>
+    a3a0:	48 89 d6             	mov    %rdx,%rsi
+    a3a3:	89 ca                	mov    %ecx,%edx
+    a3a5:	81 e2 fc ff ff 7f    	and    $0x7ffffffc,%edx
+    a3ab:	0f 1f 44 00 00       	nopl   0x0(%rax,%rax,1)
+    a3b0:	c5 f5 59 14 f0       	vmulpd (%rax,%rsi,8),%ymm1,%ymm2
+    a3b5:	c5 fd 11 14 f0       	vmovupd %ymm2,(%rax,%rsi,8)
+    a3ba:	48 83 c6 04          	add    $0x4,%rsi
+    a3be:	48 39 f2             	cmp    %rsi,%rdx
+    a3c1:	75 ed                	jne    a3b0 <pipeline.avx2.0+0x1f0>
+    a3c3:	39 ca                	cmp    %ecx,%edx
+    a3c5:	74 1b                	je     a3e2 <pipeline.avx2.0+0x222>
+    a3c7:	66 0f 1f 84 00 00 00 	nopw   0x0(%rax,%rax,1)
+    a3ce:	00 00
+    a3d0:	c5 fb 59 0c d0       	vmulsd (%rax,%rdx,8),%xmm0,%xmm1
+    a3d5:	c5 fb 11 0c d0       	vmovsd %xmm1,(%rax,%rdx,8)
+    a3da:	48 ff c2             	inc    %rdx
+    a3dd:	48 39 d1             	cmp    %rdx,%rcx
+    a3e0:	75 ee                	jne    a3d0 <pipeline.avx2.0+0x210>
+    a3e2:	c5 f8 77             	vzeroupper
+    a3e5:	c3                   	ret
+
+Disassembly of section .fini:

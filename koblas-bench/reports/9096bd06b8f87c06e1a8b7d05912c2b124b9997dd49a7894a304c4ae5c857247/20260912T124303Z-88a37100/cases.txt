@@ -1,0 +1,10 @@
+scal+4096+uniform
+spgather+4096+sparse-uniform+density=0.01
+scal+64+uniform+timing=arithmetic
+scal+256+uniform+timing=arithmetic
+scal+4096+uniform+timing=arithmetic
+scal+65536+uniform+timing=arithmetic
+spgather+4096+sparse-uniform+density=0.01+timing=arithmetic
+spgather+4096+sparse-uniform+density=0.25+timing=arithmetic
+spgather+65536+sparse-uniform+density=0.01+timing=arithmetic
+spgather+65536+sparse-uniform+density=0.25+timing=arithmetic

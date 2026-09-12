@@ -7,6 +7,7 @@ import com.eignex.koblas.rotg
 import kotlin.math.abs
 import kotlin.math.sqrt
 import kotlin.random.Random
+import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
 
 internal val ReferenceBlas: DenseBlas = BuiltinEngines.scalar
@@ -290,4 +291,36 @@ internal fun assertIamaxAgreesWithReference(kernels: DenseVectorKernels) {
         }
     }
     assertEquals(-1, kernels.iamax(DoubleArray(0), 0, 0), "empty backing array")
+}
+
+internal fun assertScaleAgreesWithReference(kernels: DenseVectorKernels) {
+    val exceptional = doubleArrayOf(
+        0.0,
+        -0.0,
+        Double.MIN_VALUE,
+        -Double.MIN_VALUE,
+        Double.MAX_VALUE,
+        Double.POSITIVE_INFINITY,
+        Double.NEGATIVE_INFINITY,
+        Double.NaN,
+    )
+    val lengths = intArrayOf(
+        0, 1, 3, 4, 7, 31, 32, 47, 48, 49, 63, 64, 65,
+        127, 128, 129, 143, 144, 145, 159, 160, 161, 255, 256, 257, 4097,
+    )
+    for (len in lengths) {
+        for (off in 0..7) {
+            for (alpha in doubleArrayOf(0.0, -0.0, 1.0, -1.0, 0.875, Double.POSITIVE_INFINITY, Double.NaN)) {
+                val expected = DoubleArray(off + len + 5) { i ->
+                    if (i % 3 == 0) exceptional[(i / 3) % exceptional.size] else i * 0.125 - 3.0
+                }
+                val actual = expected.copyOf()
+                ScalarVectorKernels.scale(expected, off, alpha, len)
+
+                kernels.scale(actual, off, alpha, len)
+
+                assertContentEquals(expected, actual, "${kernels.name} len=$len off=$off alpha=$alpha")
+            }
+        }
+    }
 }

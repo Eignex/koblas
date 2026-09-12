@@ -115,6 +115,9 @@ internal object Cases {
         val redundant = options.entries.firstOrNull { (name, value) -> name !in required && defaults[name] == value }
         if (redundant != null) invalid("redundant default option '${redundant.key}=${redundant.value}'")
         if (sparse && options["side"] == "R") invalid("sparse right-side cases are unsupported")
+        if (operation in setOf("scal", "spgather") && "timing" in options && options["timing"] != "arithmetic") {
+            invalid("$operation supports only timing=arithmetic as an explicit override")
+        }
         validatePackedBounds(operation, dimensions, options, invalid)
         if ("packed" in required) PackedConfiguration.validate(operation, dimensions, options)
     }
@@ -126,6 +129,7 @@ internal object Cases {
             "gemv", "gemm" -> add("transA")
         }
         if (operation == "gemm") add("transB")
+        if (operation in setOf("scal", "spgather")) add("timing")
         if (operation in MODE_OPERATIONS) add("mode")
     }
 

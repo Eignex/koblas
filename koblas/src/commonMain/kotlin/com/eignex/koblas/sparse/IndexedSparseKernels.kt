@@ -49,9 +49,6 @@ internal interface IndexedSparseKernels {
     fun scatter(indices: IntArray, values: DoubleArray, destination: DoubleArray) =
         scatter(indices, 0, values, 0, values.size, destination)
 
-    fun gather(indices: IntArray, values: DoubleArray, source: DoubleArray) =
-        gather(indices, 0, values, 0, values.size, source)
-
     fun gatherZero(indices: IntArray, values: DoubleArray, source: DoubleArray) =
         gatherZero(indices, 0, values, 0, values.size, source)
 
@@ -87,3 +84,7 @@ internal interface IndexedSparseKernels {
 
     fun nrm2(indices: IntArray, indexOffset: Int, count: Int, values: DoubleArray): Double
 }
+
+// An interface default on a delegated implementation calls the scalar delegate instead of its override.
+internal fun IndexedSparseKernels.gather(indices: IntArray, values: DoubleArray, source: DoubleArray) =
+    gather(indices, 0, values, 0, values.size, source)

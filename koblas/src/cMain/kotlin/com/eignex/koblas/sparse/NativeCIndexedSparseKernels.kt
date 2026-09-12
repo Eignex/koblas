@@ -138,7 +138,10 @@ internal object NativeCIndexedSparseKernels : IndexedSparseKernels by ScalarInde
         count: Int,
         source: DoubleArray,
     ) {
-        if (count == 0) return
+        if (count < SparseTuning.nativeIndexedCrossover) {
+            ScalarIndexedSparseKernels.gather(indices, indexOffset, values, valueOffset, count, source)
+            return
+        }
         indices.usePinned { ip ->
             values.usePinned { vp ->
                 source.usePinned { sp ->

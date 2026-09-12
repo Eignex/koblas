@@ -1,0 +1,12 @@
+run,id,implementation,pass,unit,source_commit,dirty,runtime,threads,warmups,target_ns,harness,warmup_target_ns,forks
+case,id,run_id,case,status,comparison_kind,timing_mode,actual_kernel
+sample,case_id,fork,sample,operations,elapsed_ns,ns_per_op
+run,1,openblas,1,ns,6e4c009a2debfea98b1b169b903b79da200a08d3,false,OpenBLAS 0.3.32 NO_LAPACKE DYNAMIC_ARCH NO_AFFINITY Haswell MAX_THREADS=128; compiler=15.2.0,1,3,50000000,vendor-calibrated,12500000,1
+case,1,1,scal+4096+uniform+timing=arithmetic,ok,direct,arithmetic,vendor-cblas
+sample,1,1,1,65536,38429582,586.38888549804688
+sample,1,1,2,65536,38628412,589.42279052734375
+sample,1,1,3,65536,37831143,577.25743103027344
+sample,1,1,4,65536,37948922,579.05459594726562
+sample,1,1,5,65536,37977503,579.49070739746094
+case,2,1,spgather+4096+sparse-uniform+density=0.25+timing=arithmetic,unsupported,unsupported,arithmetic,unavailable
+case,3,1,spgather+65536+sparse-uniform+density=0.25+timing=arithmetic,unsupported,unsupported,arithmetic,unavailable

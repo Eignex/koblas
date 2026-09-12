@@ -1,0 +1,134 @@
+
+/tmp/scal-openblas-source/blocks:     file format elf64-x86-64
+
+
+Disassembly of section .init:
+
+Disassembly of section .plt:
+
+Disassembly of section .plt.got:
+
+Disassembly of section .text:
+
+000000000000a7c0 <blocks.avx2.0>:
+    a7c0:	85 ff                	test   %edi,%edi
+    a7c2:	0f 8e 9a 01 00 00    	jle    a962 <blocks.avx2.0+0x1a2>
+    a7c8:	c5 f9 2e 05 38 18 00 	vucomisd 0x1838(%rip),%xmm0        # c008 <_IO_stdin_used+0x8>
+    a7cf:	00
+    a7d0:	75 06                	jne    a7d8 <blocks.avx2.0+0x18>
+    a7d2:	0f 8b 8a 01 00 00    	jnp    a962 <blocks.avx2.0+0x1a2>
+    a7d8:	81 ff 80 00 00 00    	cmp    $0x80,%edi
+    a7de:	0f 82 bd 00 00 00    	jb     a8a1 <blocks.avx2.0+0xe1>
+    a7e4:	40 f6 c6 1f          	test   $0x1f,%sil
+    a7e8:	74 61                	je     a84b <blocks.avx2.0+0x8b>
+    a7ea:	c5 fb 59 0e          	vmulsd (%rsi),%xmm0,%xmm1
+    a7ee:	48 8d 46 08          	lea    0x8(%rsi),%rax
+    a7f2:	c5 fb 11 0e          	vmovsd %xmm1,(%rsi)
+    a7f6:	8d 4f ff             	lea    -0x1(%rdi),%ecx
+    a7f9:	a8 1f                	test   $0x1f,%al
+    a7fb:	74 45                	je     a842 <blocks.avx2.0+0x82>
+    a7fd:	c5 fb 59 4e 08       	vmulsd 0x8(%rsi),%xmm0,%xmm1
+    a802:	48 8d 46 10          	lea    0x10(%rsi),%rax
+    a806:	c5 fb 11 4e 08       	vmovsd %xmm1,0x8(%rsi)
+    a80b:	8d 57 fe             	lea    -0x2(%rdi),%edx
+    a80e:	a8 1f                	test   $0x1f,%al
+    a810:	74 2c                	je     a83e <blocks.avx2.0+0x7e>
+    a812:	c5 fb 59 4e 10       	vmulsd 0x10(%rsi),%xmm0,%xmm1
+    a817:	48 8d 46 18          	lea    0x18(%rsi),%rax
+    a81b:	c5 fb 11 4e 10       	vmovsd %xmm1,0x10(%rsi)
+    a820:	8d 4f fd             	lea    -0x3(%rdi),%ecx
+    a823:	a8 1f                	test   $0x1f,%al
+    a825:	0f 84 3b 01 00 00    	je     a966 <blocks.avx2.0+0x1a6>
+    a82b:	48 8d 46 20          	lea    0x20(%rsi),%rax
+    a82f:	c5 fb 59 4e 18       	vmulsd 0x18(%rsi),%xmm0,%xmm1
+    a834:	c5 fb 11 4e 18       	vmovsd %xmm1,0x18(%rsi)
+    a839:	89 fa                	mov    %edi,%edx
+    a83b:	83 c2 fc             	add    $0xfffffffc,%edx
+    a83e:	89 cf                	mov    %ecx,%edi
+    a840:	89 d1                	mov    %edx,%ecx
+    a842:	83 ff 11             	cmp    $0x11,%edi
+    a845:	89 cf                	mov    %ecx,%edi
+    a847:	7d 05                	jge    a84e <blocks.avx2.0+0x8e>
+    a849:	eb 49                	jmp    a894 <blocks.avx2.0+0xd4>
+    a84b:	48 89 f0             	mov    %rsi,%rax
+    a84e:	c4 e2 7d 19 c8       	vbroadcastsd %xmm0,%ymm1
+    a853:	66 66 66 66 2e 0f 1f 	data16 data16 data16 cs nopw 0x0(%rax,%rax,1)
+    a85a:	84 00 00 00 00 00
+    a860:	c5 f5 59 10          	vmulpd (%rax),%ymm1,%ymm2
+    a864:	c5 fd 11 10          	vmovupd %ymm2,(%rax)
+    a868:	c5 f5 59 50 20       	vmulpd 0x20(%rax),%ymm1,%ymm2
+    a86d:	c5 fd 11 50 20       	vmovupd %ymm2,0x20(%rax)
+    a872:	c5 f5 59 50 40       	vmulpd 0x40(%rax),%ymm1,%ymm2
+    a877:	c5 fd 11 50 40       	vmovupd %ymm2,0x40(%rax)
+    a87c:	c5 f5 59 50 60       	vmulpd 0x60(%rax),%ymm1,%ymm2
+    a881:	c5 fd 11 50 60       	vmovupd %ymm2,0x60(%rax)
+    a886:	8d 4f f0             	lea    -0x10(%rdi),%ecx
+    a889:	48 83 e8 80          	sub    $0xffffffffffffff80,%rax
+    a88d:	83 ff 1f             	cmp    $0x1f,%edi
+    a890:	89 cf                	mov    %ecx,%edi
+    a892:	77 cc                	ja     a860 <blocks.avx2.0+0xa0>
+    a894:	89 cf                	mov    %ecx,%edi
+    a896:	48 89 c6             	mov    %rax,%rsi
+    a899:	85 c9                	test   %ecx,%ecx
+    a89b:	0f 8e c1 00 00 00    	jle    a962 <blocks.avx2.0+0x1a2>
+    a8a1:	89 f8                	mov    %edi,%eax
+    a8a3:	83 ff 04             	cmp    $0x4,%edi
+    a8a6:	73 07                	jae    a8af <blocks.avx2.0+0xef>
+    a8a8:	31 c9                	xor    %ecx,%ecx
+    a8aa:	e9 a1 00 00 00       	jmp    a950 <blocks.avx2.0+0x190>
+    a8af:	83 f8 10             	cmp    $0x10,%eax
+    a8b2:	73 04                	jae    a8b8 <blocks.avx2.0+0xf8>
+    a8b4:	31 c9                	xor    %ecx,%ecx
+    a8b6:	eb 67                	jmp    a91f <blocks.avx2.0+0x15f>
+    a8b8:	89 c1                	mov    %eax,%ecx
+    a8ba:	81 e1 f0 ff ff 7f    	and    $0x7ffffff0,%ecx
+    a8c0:	c4 e2 7d 19 c8       	vbroadcastsd %xmm0,%ymm1
+    a8c5:	48 8d 14 c5 00 00 00 	lea    0x0(,%rax,8),%rdx
+    a8cc:	00
+    a8cd:	48 83 e2 80          	and    $0xffffffffffffff80,%rdx
+    a8d1:	31 ff                	xor    %edi,%edi
+    a8d3:	66 66 66 66 2e 0f 1f 	data16 data16 data16 cs nopw 0x0(%rax,%rax,1)
+    a8da:	84 00 00 00 00 00
+    a8e0:	c5 f5 59 14 3e       	vmulpd (%rsi,%rdi,1),%ymm1,%ymm2
+    a8e5:	c5 f5 59 5c 3e 20    	vmulpd 0x20(%rsi,%rdi,1),%ymm1,%ymm3
+    a8eb:	c5 f5 59 64 3e 40    	vmulpd 0x40(%rsi,%rdi,1),%ymm1,%ymm4
+    a8f1:	c5 f5 59 6c 3e 60    	vmulpd 0x60(%rsi,%rdi,1),%ymm1,%ymm5
+    a8f7:	c5 fd 11 14 3e       	vmovupd %ymm2,(%rsi,%rdi,1)
+    a8fc:	c5 fd 11 5c 3e 20    	vmovupd %ymm3,0x20(%rsi,%rdi,1)
+    a902:	c5 fd 11 64 3e 40    	vmovupd %ymm4,0x40(%rsi,%rdi,1)
+    a908:	c5 fd 11 6c 3e 60    	vmovupd %ymm5,0x60(%rsi,%rdi,1)
+    a90e:	48 83 ef 80          	sub    $0xffffffffffffff80,%rdi
+    a912:	48 39 fa             	cmp    %rdi,%rdx
+    a915:	75 c9                	jne    a8e0 <blocks.avx2.0+0x120>
+    a917:	39 c1                	cmp    %eax,%ecx
+    a919:	74 47                	je     a962 <blocks.avx2.0+0x1a2>
+    a91b:	a8 0c                	test   $0xc,%al
+    a91d:	74 31                	je     a950 <blocks.avx2.0+0x190>
+    a91f:	48 89 ca             	mov    %rcx,%rdx
+    a922:	89 c1                	mov    %eax,%ecx
+    a924:	81 e1 fc ff ff 7f    	and    $0x7ffffffc,%ecx
+    a92a:	c4 e2 7d 19 c8       	vbroadcastsd %xmm0,%ymm1
+    a92f:	90                   	nop
+    a930:	c5 f5 59 14 d6       	vmulpd (%rsi,%rdx,8),%ymm1,%ymm2
+    a935:	c5 fd 11 14 d6       	vmovupd %ymm2,(%rsi,%rdx,8)
+    a93a:	48 83 c2 04          	add    $0x4,%rdx
+    a93e:	48 39 d1             	cmp    %rdx,%rcx
+    a941:	75 ed                	jne    a930 <blocks.avx2.0+0x170>
+    a943:	39 c1                	cmp    %eax,%ecx
+    a945:	74 1b                	je     a962 <blocks.avx2.0+0x1a2>
+    a947:	66 0f 1f 84 00 00 00 	nopw   0x0(%rax,%rax,1)
+    a94e:	00 00
+    a950:	c5 fb 59 0c ce       	vmulsd (%rsi,%rcx,8),%xmm0,%xmm1
+    a955:	c5 fb 11 0c ce       	vmovsd %xmm1,(%rsi,%rcx,8)
+    a95a:	48 ff c1             	inc    %rcx
+    a95d:	48 39 c8             	cmp    %rcx,%rax
+    a960:	75 ee                	jne    a950 <blocks.avx2.0+0x190>
+    a962:	c5 f8 77             	vzeroupper
+    a965:	c3                   	ret
+    a966:	89 d7                	mov    %edx,%edi
+    a968:	83 ff 11             	cmp    $0x11,%edi
+    a96b:	89 cf                	mov    %ecx,%edi
+    a96d:	0f 8d db fe ff ff    	jge    a84e <blocks.avx2.0+0x8e>
+    a973:	e9 1c ff ff ff       	jmp    a894 <blocks.avx2.0+0xd4>
+
+Disassembly of section .fini:

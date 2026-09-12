@@ -185,3 +185,13 @@ gemm-block+128x8x64+uniform+packed=4x4+timing=prepacked-compute
 gemm-block+128x8x64+uniform+packed=4x4+timing=pack-plus-compute
 gemm-block+128x8x64+uniform+packed=8x4+timing=prepacked-compute
 gemm-block+128x8x64+uniform+packed=8x4+timing=pack-plus-compute
+
+# Level 1 arithmetic without fixture resets
+scal+64+uniform+timing=arithmetic
+scal+256+uniform+timing=arithmetic
+scal+4096+uniform+timing=arithmetic
+scal+65536+uniform+timing=arithmetic
+spgather+4096+sparse-uniform+density=0.01+timing=arithmetic
+spgather+4096+sparse-uniform+density=0.25+timing=arithmetic
+spgather+65536+sparse-uniform+density=0.01+timing=arithmetic
+spgather+65536+sparse-uniform+density=0.25+timing=arithmetic

@@ -125,8 +125,25 @@ KOBLAS_KERNEL void koblas_dense_axpy_arithmetic(
 }
 
 KOBLAS_KERNEL void koblas_dense_scale(double *v, int32_t v_off, double alpha, int32_t len) {
-    if (alpha == 1.0) return;
-    for (int32_t i = 0; i < len; i++) v[v_off + i] *= alpha;
+    if (alpha == 1.0 || len <= 0) return;
+    v += v_off;
+#if defined(__x86_64__)
+    // Cache-line-split AVX2 stores dominate medium vectors; shorter calls cannot amortize peeling.
+    if (len >= 128) {
+        while ((uintptr_t)v & (sizeof(koblas_v4d) - 1)) {
+            *v++ *= alpha;
+            --len;
+        }
+        double *aligned = __builtin_assume_aligned(v, sizeof(koblas_v4d));
+        // Fixed pointer-relative blocks avoid scaled-index addresses in the vector stores.
+        for (; len >= 16; len -= 16, aligned += 16) {
+            for (int32_t i = 0; i < 16; i++) aligned[i] *= alpha;
+        }
+        for (int32_t i = 0; i < len; i++) aligned[i] *= alpha;
+        return;
+    }
+#endif
+    for (int32_t i = 0; i < len; i++) v[i] *= alpha;
 }
 
 KOBLAS_KERNEL double koblas_dense_nrm2(const double *v, int32_t v_off, int32_t len) {

@@ -104,6 +104,13 @@ alignment independently of backend defaults. Shapes determine panel dimensions, 
 order. Blocks require a timing choice. Logical fixtures are generated before packing. `prepacked-compute`
 includes tile loops, edge handling and writeback; `pack-plus-compute` also includes both panel packs.
 
+The `scal` and `spgather` cases also accept `+timing=arithmetic`. Scaling then uses `alpha = -1` to
+preserve fixture magnitudes across repeated calls; the default resets the vector and uses `alpha = 0.875`.
+Arithmetic gather overwrites the sparse values without resetting either buffer. Default gather resets only
+the dense source, matching oneMKL. Both runners consume the first and last output values. Compare each timing
+boundary separately; the default gather boundary predating this change included an extra Koblas output reset.
+OpenBLAS gather remains unsupported because the runner has no corresponding vendor entry point.
+
 ## Verify the harness
 
 ```bash
@@ -116,3 +123,9 @@ koblas-bench/reference/test.sh
 [`example.csv`](example.csv) is a short format example; use complete captured reports for performance comparisons.
 
 The [dense iamax investigation](reports/9096bd06b8f87c06e1a8b7d05912c2b124b9997dd49a7894a304c4ae5c857247/20260912T091639Z-22929a90abb1/README.md) records the scalar bottleneck, kernel design, crossover measurements, and CPU traces.
+
+The [scal and spgather investigation](reports/9096bd06b8f87c06e1a8b7d05912c2b124b9997dd49a7894a304c4ae5c857247/20260912T124303Z-88a37100/README.md) compares both operations with oneMKL and OpenBLAS, records the gather dispatch fix, and documents the scaling experiments.
+
+The [native scaling alignment follow-up](reports/9096bd06b8f87c06e1a8b7d05912c2b124b9997dd49a7894a304c4ae5c857247/20260912T134906Z-scal-alignment/README.md) isolates misaligned stores, validates guarded alignment through the native engine, and compares with oneMKL and OpenBLAS.
+
+The [OpenBLAS source follow-up](reports/9096bd06b8f87c06e1a8b7d05912c2b124b9997dd49a7894a304c4ae5c857247/20260912T141014Z-openblas-source/README.md) compares the Haswell loop, validates fixed pointer-relative blocks, and records the remaining vendor gap.

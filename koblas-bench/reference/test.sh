@@ -25,6 +25,9 @@ reject_case() {
   fi
 }
 
+reject_case scal-packed-timing 'scal+64+uniform+timing=prepacked-compute'
+reject_case gather-invalid-timing 'spgather+64+sparse-uniform+density=0.25+timing=reset-and-arithmetic'
+reject_case block-arithmetic-timing 'gemm-block+4x4x4+uniform+packed=4x4+timing=arithmetic'
 reject_case duplicate $'dot+4+uniform\ndot+4+uniform'
 reject_case empty-field 'dot++4+uniform'
 reject_case irrelevant-option 'dot+4+uniform+transA=T'
