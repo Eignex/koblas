@@ -19,6 +19,17 @@ internal object SparseSimd {
     val autoIndexedLoadEligible: Boolean
         get() = LANE > 1
 
+    // NEON has no gather instruction; the Vector API indexed load allocates fallback carriers on JDK 25.
+    // Inline the two scalar loads so the vector stays inside the caller's C2 compilation.
+    @Suppress("NOTHING_TO_INLINE")
+    private inline fun indexedLoad(values: DoubleArray, indices: IntArray, offset: Int): DoubleVector = if (LANE == 2) {
+        DoubleVector.zero(SPECIES)
+            .withLane(0, values[indices[offset]])
+            .withLane(1, values[indices[offset + 1]])
+    } else {
+        DoubleVector.fromArray(SPECIES, values, 0, indices, offset)
+    }
+
     @Suppress("LongParameterList")
     fun dot(
         indices: IntArray,
@@ -32,8 +43,7 @@ internal object SparseSimd {
         val bound = SPECIES.loopBound(len)
         var sum = DoubleVector.zero(SPECIES)
         while (k < bound) {
-            // One AVX2 vgatherqpd, where the scalar loop issues a load per entry.
-            val gathered = DoubleVector.fromArray(SPECIES, y, 0, indices, indexOffset + k)
+            val gathered = indexedLoad(y, indices, indexOffset + k)
             sum = DoubleVector.fromArray(SPECIES, values, valueOffset + k).fma(gathered, sum)
             k += LANE
         }
@@ -59,7 +69,7 @@ internal object SparseSimd {
         val bound = SPECIES.loopBound(len)
         val multiplier = DoubleVector.broadcast(SPECIES, alpha)
         while (k < bound) {
-            val old = DoubleVector.fromArray(SPECIES, y, 0, indices, indexOffset + k)
+            val old = indexedLoad(y, indices, indexOffset + k)
             val increment = DoubleVector.fromArray(SPECIES, values, valueOffset + k)
             // Sparse BLAS updates require the multiplication to round before the addition.
             increment.mul(multiplier).add(old).intoArray(y, 0, indices, indexOffset + k)
@@ -104,7 +114,7 @@ internal object SparseSimd {
         var k = 0
         val bound = SPECIES.loopBound(len)
         while (k < bound) {
-            DoubleVector.fromArray(SPECIES, from, 0, indices, indexOffset + k).intoArray(values, valueOffset + k)
+            indexedLoad(from, indices, indexOffset + k).intoArray(values, valueOffset + k)
             k += LANE
         }
         while (k < len) {
@@ -126,7 +136,7 @@ internal object SparseSimd {
         val bound = SPECIES.loopBound(len)
         val zero = DoubleVector.zero(SPECIES)
         while (k < bound) {
-            DoubleVector.fromArray(SPECIES, from, 0, indices, indexOffset + k).intoArray(values, valueOffset + k)
+            indexedLoad(from, indices, indexOffset + k).intoArray(values, valueOffset + k)
             zero.intoArray(from, 0, indices, indexOffset + k)
             k += LANE
         }
@@ -143,7 +153,7 @@ internal object SparseSimd {
         val bound = SPECIES.loopBound(len)
         var sum = DoubleVector.zero(SPECIES)
         while (k < bound) {
-            val gathered = DoubleVector.fromArray(SPECIES, values, 0, indices, indexOffset + k)
+            val gathered = indexedLoad(values, indices, indexOffset + k)
             sum = gathered.fma(gathered, sum)
             k += LANE
         }
