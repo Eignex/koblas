@@ -43,6 +43,7 @@ public class KoblasEngine internal constructor(
     /** Ordinary C variant bound to native components; policy calls may retain in-runtime arithmetic. */
     public val nativeVariant: NativeVariant? = null,
     internal val dispatch: DenseDispatch? = null,
+    internal val runtimeDescription: ((DenseOperation, Int) -> String)? = null,
 ) : DenseBlas by BuiltinBlas(vectorKernels, panelKernels, packedKernels),
     SparseBlas by SparseAlgorithms(
         vectorKernels,
@@ -58,7 +59,8 @@ public class KoblasEngine internal constructor(
     /**
      * Describes the selected implementation without performing arithmetic. [length] is the vector/panel
      * length, product-tile depth, or standalone solve order. Semantic no-work exits still precede execution.
-     * Native IDs and layouts identify the actual component; policy fallbacks name their runtime component.
+     * Native IDs and layouts identify the selected component. Runtime descriptions identify scalar stages
+     * and potential data-dependent or stride fallbacks; inspecting length does not inspect operand values.
      */
     public fun explain(operation: DenseOperation, length: Int): String {
         require(length >= 0) { "negative operation length" }
@@ -69,6 +71,7 @@ public class KoblasEngine internal constructor(
             }
             return describeNative(kernel)
         }
+        runtimeDescription?.let { return it(operation, length) }
         return if (operation.packed) {
             "${vectorKernels.name} packed ${packedKernels.gemmTileRows}x${packedKernels.gemmTileCols}"
         } else {
@@ -77,7 +80,8 @@ public class KoblasEngine internal constructor(
     }
 
     /** Malformed performance overrides retained as read-only diagnostic messages. */
-    public val tuningDiagnostics: List<String> get() = dispatch?.profile?.diagnostics.orEmpty()
+    public val tuningDiagnostics: List<String>
+        get() = (dispatch?.profile ?: DenseProfiles.conservative).diagnostics
 
     override fun toString(): String = "KoblasEngine($name)"
 }

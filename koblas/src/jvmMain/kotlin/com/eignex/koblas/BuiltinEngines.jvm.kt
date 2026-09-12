@@ -12,6 +12,7 @@ import com.eignex.koblas.dense.SimdPackedKernels
 import com.eignex.koblas.dense.SimdPanelKernels
 import com.eignex.koblas.dense.SimdVectorKernels
 import com.eignex.koblas.dense.densePolicyEngine
+import com.eignex.koblas.dense.describeSimdComponent
 import com.eignex.koblas.internal.kernels.JvmCKernelBindings
 import com.eignex.koblas.internal.kernels.NativeCatalog
 import com.eignex.koblas.sparse.CIndexedSparseKernels
@@ -70,6 +71,7 @@ public actual object BuiltinEngines {
                 SimdPackedKernels,
                 SparseKernelAdapter("simd-sparse", SimdVectorKernels, SimdIndexedSparseKernels),
                 SimdIndexedSparseKernels,
+                runtimeDescription = ::describeSimdComponent,
             )
         } else {
             null
