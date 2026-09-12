@@ -131,6 +131,7 @@ kotlin {
     }
 
     sourceSets {
+        commonMain { kotlin.srcDir("src/tuning/kotlin") }
         val cMain = create("cMain") {
             dependsOn(commonMain.get())
         }
