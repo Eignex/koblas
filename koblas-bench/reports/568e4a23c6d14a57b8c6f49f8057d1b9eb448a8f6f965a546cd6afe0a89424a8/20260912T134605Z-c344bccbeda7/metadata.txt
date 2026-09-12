@@ -1,0 +1,31 @@
+status=complete
+
+[capture]
+Sat Sep 12 13:46:05 UTC 2026
+Darwin MinisomorRasmus.ros 25.6.0 Darwin Kernel Version 25.6.0: Fri Jul 31 19:11:03 PDT 2026; root:xnu-12377.161.14~5/RELEASE_ARM64_T8132 arm64
+c344bccbeda7f52d0e683eada1c06daee7c3d22a
+?? koblas-bench/reports/568e4a23c6d14a57b8c6f49f8057d1b9eb448a8f6f965a546cd6afe0a89424a8/
+operation=all suite=all warmups=5 samples=10 target_ms=200 forks=2 pass=1 libraries=openblas,accelerate
+
+[toolchain]
+Apple clang version 21.0.0 (clang-2100.1.1.101)
+
+[hardware]
+architecture=arm64
+cpu_model=Apple M4
+physical_cpus=10
+physical_cpus_max=10
+memory_bytes=25769803776
+
+[cpu]
+interval_ms=1000 baseline_seconds=3
+started_at=2026-09-12T13:46:05.998836Z
+runtime=Homebrew/25.0.4.1
+
+[execution]
+jvm-scalar_started_at=2026-09-12T13:46:09Z
+jvm-c_started_at=2026-09-12T14:00:50Z
+jvm-simd_started_at=2026-09-12T14:16:01Z
+native_started_at=2026-09-12T14:30:45Z
+vendors_started_at=2026-09-12T14:36:28Z
+completed_at=2026-09-12T14:41:18Z
