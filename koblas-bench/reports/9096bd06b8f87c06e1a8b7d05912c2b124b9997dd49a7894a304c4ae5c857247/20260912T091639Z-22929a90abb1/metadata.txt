@@ -1,0 +1,71 @@
+status=complete
+
+[capture]
+Sat Sep 12 09:16:39 UTC 2026
+Linux LTHCL001 7.0.0-31-generic #31-Ubuntu SMP PREEMPT_DYNAMIC Sat Aug  1 04:26:38 UTC 2026 x86_64 GNU/Linux
+22929a90abb13057cc58efa8b32da4ced1eedaf9
+?? koblas-bench/reports/9096bd06b8f87c06e1a8b7d05912c2b124b9997dd49a7894a304c4ae5c857247/20260912T091639Z-22929a90abb1/
+operation=iamax suite=all warmups=5 samples=5 target_ms=200 forks=2 pass=1 libraries=openblas,onemkl
+
+[toolchain]
+cc (Ubuntu 15.2.0-16ubuntu1) 15.2.0
+
+[hardware]
+architecture=x86_64
+vendor id=GenuineIntel
+model name=12th Gen Intel(R) Core(TM) i9-12900H
+cpu family=6
+model=154
+thread(s) per core=2
+core(s) per socket=14
+socket(s)=1
+stepping=3
+l1d cache=544 KiB (14 instances)
+l1i cache=704 KiB (14 instances)
+l2 cache=11.5 MiB (8 instances)
+l3 cache=24 MiB (1 instance)
+numa node(s)=1
+memory_kib=64221064
+
+[cpu]
+interval_ms=1000 baseline_seconds=3
+started_at=2026-09-12T09:16:39.966895709Z
+runtime=Homebrew/22.0.2
+
+[execution]
+jvm-scalar_started_at=2026-09-12T09:16:43Z
+jvm-c_started_at=2026-09-12T09:17:14Z
+jvm-simd_started_at=2026-09-12T09:17:46Z
+native_started_at=2026-09-12T09:18:18Z
+vendors_started_at=2026-09-12T09:18:53Z
+completed_at=2026-09-12T09:19:07Z
+
+[followup_cpu]
+file=cpu-followup.csv
+started_at=2026-09-12T09:21:52.004337612Z
+runtime=Homebrew/22.0.2
+
+[followup]
+jvm_c_cutoff_1024_source_commit=79dcf45e12c8d40de824bd29b763a05960f2973b
+jvm_c_cutoff_1024_started_at=2026-09-12T09:21:55Z
+native_scalar_started_at=2026-09-12T09:22:30Z
+native_scalar_environment=KOBLAS_DENSE_NATIVE_C_MIN_LENGTH=1000001
+native_scalar_binary_source_commit=22929a90abb13057cc58efa8b32da4ced1eedaf9
+followup_completed_at=2026-09-12T09:22:43Z
+
+[pinned_comparison]
+affinity=CPU4 (performance core 2)
+gradle_daemon=false (fresh processes inherit affinity)
+started_at=2026-09-12T09:24:11.348962577Z
+runtime=Homebrew/22.0.2
+pinned_jvm-scalar_started_at=2026-09-12T09:24:14Z
+pinned_jvm-c_started_at=2026-09-12T09:25:02Z
+pinned_jvm-simd_started_at=2026-09-12T09:25:54Z
+pinned_native_c_started_at=2026-09-12T09:26:45Z
+pinned_native_scalar_started_at=2026-09-12T09:26:56Z
+pinned_completed_at=2026-09-12T09:27:08Z
+
+[final_policy]
+jvm_c_iamax_crossover=4096
+simd_iamax_crossover=256
+Only the JVM C cutoff changes after the pinned capture; measured vector loop bodies are identical.

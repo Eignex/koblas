@@ -5,7 +5,6 @@ import com.eignex.koblas.DenseVector
 import com.eignex.koblas.KoblasEngine
 import com.eignex.koblas.Workspace
 import com.eignex.koblas.compensatedSum
-import com.eignex.koblas.iamax
 import com.eignex.koblas.dense.PackedPanels
 
 internal class CaseWork(
@@ -45,7 +44,7 @@ internal fun denseWork(case: BenchCase, engine: KoblasEngine): CaseWork? {
         "asum" -> vectorReduction(d[0], "direct") { x -> vectors.asum(x, 0, x.size) }
         "sum" -> vectorReduction(d[0], "direct") { x -> vectors.sum(x, 0, x.size) }
         "compensated-sum" -> vectorReduction(d[0], "unsupported") { x -> DenseVector.wrap(x).compensatedSum() }
-        "iamax" -> vectorReduction(d[0], "direct") { x -> DenseVector.wrap(x).iamax().toDouble() }
+        "iamax" -> vectorReduction(d[0], "direct") { x -> vectors.iamax(x, 0, x.size).toDouble() }
         "ssqd" -> {
             val x = Fixtures.vector(d[0], 1); val y = Fixtures.vector(d[0], 2)
             CaseWork("unsupported", "arithmetic", { vectors.ssqd(x, 0, y, 0, d[0]) })

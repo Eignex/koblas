@@ -20,6 +20,7 @@ internal object CVectorKernels : DenseVectorKernels {
     private val SUM_C_CROSSOVER = DenseTuning.jvmCSumCrossover
     private val SSQD_C_CROSSOVER = DenseTuning.jvmCSsqdCrossover
     private val NRM2_C_CROSSOVER = DenseTuning.jvmCNrm2Crossover
+    private val IAMAX_C_CROSSOVER = DenseTuning.jvmCIamaxCrossover
     private val ASUM_C_CROSSOVER = DenseTuning.jvmCAsumCrossover
 
     override val name: String get() = "c"
@@ -64,6 +65,9 @@ internal object CVectorKernels : DenseVectorKernels {
 
     override fun nrm2(v: DoubleArray, vOff: Int, len: Int): Double =
         if (len < NRM2_C_CROSSOVER) euclideanNorm(v, vOff, len) else JvmCKernelBindings.denseNrm2(v, vOff, len)
+
+    override fun iamax(v: DoubleArray, vOff: Int, len: Int): Int =
+        if (len < IAMAX_C_CROSSOVER) scalarIamax(v, vOff, len) else JvmCKernelBindings.denseIamax(v, vOff, len)
 
     override fun asum(v: DoubleArray, vOff: Int, len: Int): Double =
         if (len < ASUM_C_CROSSOVER) absoluteSum(v, vOff, len) else JvmCKernelBindings.denseAsum(v, vOff, len)

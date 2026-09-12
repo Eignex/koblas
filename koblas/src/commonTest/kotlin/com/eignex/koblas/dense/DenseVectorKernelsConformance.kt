@@ -240,3 +240,54 @@ private fun rescaledNorm(v: DoubleArray, off: Int, len: Int): Double {
     }
     return amax * sqrt(sum)
 }
+
+/** Exact index agreement across vector boundaries, padding, ties, and exceptional magnitudes. */
+internal fun assertIamaxAgreesWithReference(kernels: DenseVectorKernels) {
+    val rng = Random(20260912)
+    val lengths = intArrayOf(
+        0, 1, 2, 3, 7, 8, 9, 15, 16, 17, 31, 32, 33, 63, 64, 65,
+        127, 128, 129, 255, 256, 257, 511, 512, 513, 600, 1023, 1024, 1025,
+        4095, 4096, 4097,
+    )
+    for (len in lengths) {
+        for (off in intArrayOf(0, 1, 3)) {
+            val inputs = listOf(
+                DoubleArray(len) { rng.nextDouble(-1.0, 1.0) },
+                DoubleArray(len) { it.toDouble() },
+                DoubleArray(len) { (len - it).toDouble() },
+                DoubleArray(len) { if (it % 2 == 0) -0.0 else 0.0 },
+                DoubleArray(len) { Double.NaN },
+                DoubleArray(len) { if (it % 3 == 0) Double.NaN else -0.0 },
+                DoubleArray(len) { if (it % 3 == 0) Double.NaN else Double.MIN_VALUE },
+                DoubleArray(len) { if (it % 2 == 0) Double.NEGATIVE_INFINITY else Double.POSITIVE_INFINITY },
+            )
+            for ((fixture, input) in inputs.withIndex()) {
+                val v = DoubleArray(off + len + 3) { Double.POSITIVE_INFINITY }
+                input.copyInto(v, off)
+                assertEquals(
+                    ScalarVectorKernels.iamax(v, off, len),
+                    kernels.iamax(v, off, len),
+                    "${kernels.name} len=$len off=$off fixture=$fixture",
+                )
+            }
+            // Probe each lane and both ends of long runs without an exhaustive quadratic scan.
+            val winners = if (len <= 33) {
+                (0 until len).toList()
+            } else {
+                (0..16).toList() + listOf(31, 32, len / 2, len - 2, len - 1)
+            }
+            for (winner in winners) {
+                val v = DoubleArray(off + len + 3) { Double.POSITIVE_INFINITY }
+                v.fill(Double.NaN, off, off + len)
+                v[off + winner] = -2.0
+                v[off + len - 1] = 2.0
+                assertEquals(
+                    ScalarVectorKernels.iamax(v, off, len),
+                    kernels.iamax(v, off, len),
+                    "${kernels.name} len=$len off=$off winner=$winner",
+                )
+            }
+        }
+    }
+    assertEquals(-1, kernels.iamax(DoubleArray(0), 0, 0), "empty backing array")
+}

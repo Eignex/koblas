@@ -8,7 +8,13 @@ nrm2+4096+uniform
 asum+4096+uniform
 sum+4096+uniform
 compensated-sum+4096+uniform
+iamax+64+uniform
+iamax+128+uniform
+iamax+256+uniform
+iamax+512+uniform
+iamax+1024+uniform
 iamax+4096+uniform
+iamax+65536+uniform
 swap+4096+uniform
 rot+4096+uniform
 rotm+4096+uniform
