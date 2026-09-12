@@ -90,7 +90,9 @@ class NativeVariantTest {
                                 depth, rows, order, left, 2, right, 3, triangle, 3, lower, unit, actual, 5,
                             )
                             assertClose(
-                                expected, actual, "solve rows=$rows order=$order depth=$depth lower=$lower unit=$unit",
+                                expected,
+                                actual,
+                                "solve rows=$rows order=$order depth=$depth lower=$lower unit=$unit",
                             )
                             for (index in actual.indices) {
                                 val offset = index - 5
