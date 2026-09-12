@@ -575,6 +575,11 @@ static void numerical_check(void){
 
 static const char *argument_value(int argc,char **argv,const char *name,const char *fallback){size_t length=strlen(name);for(int i=1;i<argc;++i)if(!strncmp(argv[i],name,length)&&argv[i][length]=='=')return argv[i]+length+1;return fallback;}
 
+static int compare_samples(const void *left, const void *right) {
+    double a = *(const double *)left, b = *(const double *)right;
+    return (a > b) - (a < b);
+}
+
 int main(int argc,char **argv){
     const char *cases_path=argument_value(argc,argv,"--cases","koblas-bench/cases.txt");const char *output_path=argument_value(argc,argv,"--output",NULL);if(!output_path)fail("--output is required");
     int warmups=atoi(argument_value(argc,argv,"--warmups","3")),samples=atoi(argument_value(argc,argv,"--samples","5"));long target_ms=strtol(argument_value(argc,argv,"--target-ms","100"),NULL,10);if(warmups<0||samples<1||target_ms<1)fail("invalid timing settings");uint64_t target_ns=(uint64_t)target_ms*UINT64_C(1000000);
@@ -593,20 +598,20 @@ int main(int argc,char **argv){
     int case_count=0;bench_case *cases=load_cases(cases_path,&case_count);
     FILE *output=fopen(output_path,"w");if(!output){perror(output_path);exit(2);}
     fputs("run,id,implementation,pass,unit,source_commit,dirty,runtime,threads,warmups,target_ns,harness,warmup_target_ns,forks\n"
-        "case,id,run_id,case,status,comparison_kind,timing_mode,actual_kernel\n"
-        "sample,case_id,fork,sample,operations,elapsed_ns,ns_per_op\n",output);
+        "case,id,run_id,case,status,comparison_kind,timing_mode,actual_kernel,samples,forks,median_ns,min_ns,max_ns\n",output);
     fprintf(output,"run,1,%s,%s,ns,%s,%s,%s,1,%d,%" PRIu64 ",vendor-calibrated,%" PRIu64 ",1\n",
         implementation,pass,commit,dirty,runtime,warmups,target_ns,target_ns/4>1000000?target_ns/4:UINT64_C(1000000));
     volatile double sink=0;
+    double *timings = allocate(samples, sizeof(double));
     for(int index=0;index<case_count;++index){
         work w;setup_work(&w,&cases[index]);
         fprintf(output,"case,%d,1,%s,%s,%s,%s",index+1,cases[index].id,w.supported?"ok":"unsupported",w.comparison,w.timing);
 #ifdef USE_ACCELERATE
-        fprintf(output,",%s\n",w.supported?"vendor-accelerate":"unavailable");
+        fprintf(output,",%s",w.supported?"vendor-accelerate":"unavailable");
 #else
-        fprintf(output,",%s\n",w.supported?"vendor-cblas":"unavailable");
+        fprintf(output,",%s",w.supported?"vendor-cblas":"unavailable");
 #endif
-        if(!w.supported){free_work(&w);continue;}
+        if(!w.supported){fputs(",0,0,,,\n",output);free_work(&w);continue;}
         for(int i=0;i<warmups;++i){
             uint64_t start=nanos(),warmup_target=target_ns/4>1000000?target_ns/4:UINT64_C(1000000);
             do { sink+=w.invoke(&w); } while(nanos()-start<warmup_target);
@@ -614,9 +619,13 @@ int main(int argc,char **argv){
         int operations=1;while(operations<1000000){uint64_t start=nanos();for(int i=0;i<operations;++i)sink+=w.invoke(&w);uint64_t elapsed=nanos()-start;if(elapsed>=target_ns/2)break;operations=operations>500000?1000000:operations*2;}
         for(int sample=1;sample<=samples;++sample){
             uint64_t start=nanos();for(int i=0;i<operations;++i)sink+=w.invoke(&w);uint64_t elapsed=nanos()-start;
-            fprintf(output,"sample,%d,1,%d,%d,%" PRIu64 ",%.17g\n",index+1,sample,operations,elapsed,(double)elapsed/operations);
+            timings[sample - 1] = (double)elapsed / operations;
+            if (!isfinite(timings[sample - 1]) || timings[sample - 1] <= 0) fail("invalid measured timing");
         }
+        qsort(timings, samples, sizeof(double), compare_samples);
+        double median = samples % 2 ? timings[samples / 2] : timings[samples / 2 - 1] / 2 + timings[samples / 2] / 2;
+        fprintf(output,",%d,1,%.17g,%.17g,%.17g\n",samples,median,timings[0],timings[samples - 1]);
         free_work(&w);
     }
-    fclose(output);free(cases);fprintf(stderr,"wrote %d cases to %s (%s, sink=%g)\n",case_count,output_path,implementation,(double)sink);return 0;
+    fclose(output);free(timings);free(cases);fprintf(stderr,"wrote %d cases to %s (%s, sink=%g)\n",case_count,output_path,implementation,(double)sink);return 0;
 }

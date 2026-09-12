@@ -2,7 +2,6 @@
 set -euo pipefail
 
 root=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)
-python3 "$root/koblas-bench/tools/summarize_report_test.py"
 temporary=$(mktemp -d)
 trap 'rm -r "$temporary"' EXIT
 
@@ -10,7 +9,16 @@ smoke_output="$temporary/smoke"
 "$root/koblas-bench/reference-smoke.sh" --libraries openblas --output "$smoke_output" >/dev/null
 result="$smoke_output/openblas.csv"
 test "$(grep -c '^case,[0-9]' "$result")" -eq 11
-test "$(grep -c '^sample,[0-9]' "$result")" -gt 0
+test "$(awk -F, '$1 == "case" && $5 == "ok" && $9 > 0 { n++ } END { print n+0 }' "$result")" -gt 0
+awk -F, '
+  $1 == "sample" { exit 1 }
+  $1 == "case" && $5 == "ok" {
+    if (NF != 13 || $9 != 1 || $10 != 1 || $11 <= 0 || $11 != $12 || $11 != $13) exit 1
+  }
+  $1 == "case" && $5 == "unsupported" {
+    if (NF != 13 || $9 != 0 || $10 != 0 || $11 != "" || $12 != "" || $13 != "") exit 1
+  }
+' "$result"
 test ! -d "$smoke_output/bin"
 
 if [[ $(uname) == Darwin ]]; then

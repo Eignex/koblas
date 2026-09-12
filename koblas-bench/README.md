@@ -45,15 +45,15 @@ supported Linux runtime.
 
 Use one command to capture a full report in `koblas-bench/reports/<hardware-sha256>/<run-id>/`.
 Each run contains one `*-summary.csv` per implementation: one row per case with sample count, fork count,
-median, minimum, and maximum ns/op. Run provenance is stored once. `cpu-summary.csv` has one row per runner
+median, minimum, and maximum ns/op. Run provenance is stored once. `cpu-summary.csv` has one row per observed runner
 phase plus the background baseline, with reading counts and mean, median, minimum, and maximum CPU usage.
 `metadata.txt` records completion status, provenance, toolchain, hardware, and execution timestamps.
 Blank statistics mean unavailable, not zero. CPU phases include builds and warmups, not just arithmetic.
 
-Full samples and the once-per-second CPU trace stay in ignored
-`koblas-bench/build/reports-raw/<hardware-sha256>/<run-id>/`. Keep compact summaries in version control;
-use raw captures for detailed analysis. Export requires Python 3. The CPU sampler uses the JDK selected by
-`JAVA_HOME` or `java` on `PATH`. Repeated runs never overwrite prior results.
+Runners write summaries directly; there is no raw CSV export or separate summarization step. CPU usage
+is sampled once per second and accumulated in memory. Phase boundaries are observed on those ticks,
+so phases shorter than the sampling interval may have no CPU row. The Kotlin CPU sampler uses the JDK
+selected by `JAVA_HOME` or `java` on `PATH`. Repeated runs never overwrite prior results.
 
 ```bash
 koblas-bench/capture-report.sh --libraries all \
@@ -64,12 +64,12 @@ The command runs JVM scalar, JVM C, JVM SIMD, native koblas, and the requested v
 or engine fails the run. Use `--suite packed` for packed cases only. To make a short trial, add
 `--operation gemm --warmups 0 --samples 1 --target-ms 1 --forks 1`.
 
-Compare raw CSVs from the same run (or compatible runs). Summary files are not comparator inputs:
+Compare CSVs from the same run (or compatible runs):
 
 ```bash
 koblas-bench/tools/compare.sh --mode logical --timing prepacked-compute --require-compatible \
-  koblas-bench/build/reports-raw/<hardware-sha256>/<run-id>/openblas.csv \
-  koblas-bench/build/reports-raw/<hardware-sha256>/<run-id>/jvm-c.csv
+  koblas-bench/reports/<hardware-sha256>/<run-id>/openblas-summary.csv \
+  koblas-bench/reports/<hardware-sha256>/<run-id>/jvm-c-summary.csv
 ```
 
 Use `--mode fixed` for identical packed configurations, or `--mode logical` to compare complete operations
@@ -78,6 +78,8 @@ raw vendor arithmetic has a different timing boundary and cannot be compared wit
 The comparator requires GNU awk (`gawk`; install with `brew install gawk` on macOS).
 It rejects mismatched timing modes, threads, warmups and timing targets. Source SHAs identify the workload and fixtures.
 CSV run and case records identify the source commit, runtime, actual kernel and physical configuration.
+The comparator also accepts legacy raw captures. Compact case records remain separate: summary medians
+cannot reconstruct a pooled sample distribution, even when different cases represent equivalent work.
 
 ## Useful options
 
@@ -90,7 +92,7 @@ CSV run and case records identify the source commit, runtime, actual kernel and 
 -Pbench.output=file   CSV destination
 ```
 
-Every raw measured sample is kept locally in build output. A busy machine can make results noisy, so avoid comparing runs from different
+All measured samples contribute to the summary. A busy machine can make results noisy, so avoid comparing runs from different
 host conditions when possible.
 
 ## Workload and output
@@ -104,10 +106,11 @@ spgemv+257x129+sparse-uniform+density=0.01+mode=prepared
 gemm-block+15x7x31+uniform+packed=4x4+timing=prepacked-compute
 ```
 
-The raw CSV stores run metadata and case definitions once, followed by sample records referencing their IDs.
+The CSV stores run metadata once and one summary row per case.
 Runtime/build strings and source commits belong to the run. Case records contain the case, status, comparison kind,
 timing and kernel; shape and packing are read from the case instead of duplicated as metadata.
-JMH elapsed time is reconstructed from its score; Native/vendor elapsed time is measured. Keep raw sample values unchanged.
+Case rows include measured sample and fork counts, median, minimum, and maximum ns/op.
+JVM statistics combine all JMH measured iterations across forks; Native/vendor timings use measured elapsed time.
 Unsupported cases have no timing; a supported call failure stops the run. Fixtures are deterministic and verified
 before relevant runs.
 

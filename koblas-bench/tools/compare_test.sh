@@ -209,4 +209,46 @@ report "$candidate"
 sed -i.bak 's/^case,1,1,/case,1,99,/' "$candidate"
 reject logical
 
+compact() {
+  awk -F, '
+    NR == 2 { print $0 ",samples,forks,median_ns,min_ns,max_ns"; next }
+    NR == 3 || $1 == "sample" { next }
+    $1 == "case" { print $0 ($5 == "ok" ? ",4,1,3,1,9" : ",0,0,,,"); next }
+    { print }
+  ' "$1" >"$temporary/compact.csv"
+  mv "$temporary/compact.csv" "$1"
+}
+
+# Compact summaries carry their extrema; the median is not a synthetic sample.
+report "$base"
+compact "$base"
+cp "$base" "$candidate"
+accept logical
+grep -Eq ',3,3,1,9,1$' "$temporary/output.csv" || fail "incorrect compact statistics"
+
+# Separate summary records must not be pooled into a median of medians.
+report "$candidate"
+row >>"$candidate"
+compact "$candidate"
+accept logical
+lines 3
+
+# Legacy raw captures can still be compared with a compact report.
+report "$candidate" ns_per_op=6
+accept logical
+grep -Eq ',3,6,6,6,0[.]5$' "$temporary/output.csv" || fail "incorrect mixed statistics"
+
+for statistics in '0,1,3,1,9' '4,0,3,1,9' '4,1,NaN,1,9' '4,1,3,4,9' '4,1,3,1,2'; do
+  cp "$base" "$candidate"
+  sed -i.bak "s/,4,1,3,1,9$/,${statistics}/" "$candidate"
+  reject logical
+done
+
+report "$candidate"
+row status=unsupported >>"$candidate"
+compact "$candidate"
+accept logical
+echo 'sample,1,1,1,10,20,2' >>"$candidate"
+reject logical
+
 echo 'Comparator shell tests passed'

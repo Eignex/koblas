@@ -100,24 +100,21 @@ completion are excluded. Missing readings are counted separately and never treat
 
 `comparison-openblas.csv` and `comparison-accelerate.csv` contain compatible logical comparisons
 against all four Koblas implementations. `base_over_candidate` greater than one means Koblas is faster.
-Raw tile and packing-only boundaries are excluded. Logical comparisons pool equivalent vendor
-column-major records across packed recipe labels; the table above instead selects exact case records.
-These comparison files were generated before compaction and remain unchanged. Regenerate from the local
-raw capture directory, replacing `accelerate` with `openblas` for the other file:
+Raw tile and packing-only boundaries are excluded. Each compact case record remains separate,
+including vendor column-major records with different packed recipe labels. Summary medians cannot
+reconstruct pooled distributions. Regenerate from this directory, replacing `accelerate` with
+`openblas` for the other file:
 
 ```bash
-koblas-bench/tools/compare.sh --mode logical --require-compatible \
+../../../tools/compare.sh --mode logical --require-compatible \
   --timing arithmetic --timing reset-and-arithmetic --timing prepared \
   --timing oneshot --timing prepacked-compute \
-  "$raw/accelerate.csv" "$raw/jvm-scalar.csv" "$raw/jvm-c.csv" "$raw/jvm-simd.csv" "$raw/native.csv"
+  accelerate-summary.csv jvm-scalar-summary.csv jvm-c-summary.csv jvm-simd-summary.csv native-summary.csv
 ```
 
-Run that command from the repository root with `raw` set to
-`koblas-bench/build/reports-raw/568e4a23c6d14a57b8c6f49f8057d1b9eb448a8f6f965a546cd6afe0a89424a8/20260912T134605Z-c344bccbeda7`.
-Raw files are preserved there locally, not included in the compact report. Summary CSVs are not raw
-comparator inputs: medians alone cannot reconstruct pooled sample distributions. A fresh checkout must
-rerun the capture to regenerate raw data. Future captures export compact reports automatically; the
-original source commit predates that export step.
+The original raw files remain locally under `koblas-bench/build/reports-raw/` for this historical capture,
+not in the compact report. Future runners write summaries directly, without raw CSVs or an exporter.
+The recorded source commit predates the direct-summary format.
 
 ## Fixes and validation
 
@@ -142,5 +139,5 @@ koblas-bench/reference/test.sh
 
 All-case short preflight runs also succeeded for C, SIMD, native, OpenBLAS, and Accelerate before
 the full capture. Raw CSVs and CPU trace are preserved unchanged in local build output.
-The compact export also passes unit checks for medians, sample counts, unsupported cases, missing CPU
-readings, phase boundaries, raw-file preservation, and overwrite protection.
+The direct-summary runners also pass tests for medians, sample counts, unsupported cases, missing CPU
+readings, and compact comparisons without pooling separate case medians.
