@@ -29,12 +29,12 @@ class DenseDispatchTest {
         )
         val profile = DenseProfiles.resolve(
             ProfileOverrides { key ->
-            when (key) {
-                "jvm.c.dot.crossover" -> "3"
-                "jvm.c.sum.crossover" -> "never"
-                else -> null
-            }
-        }
+                when (key) {
+                    "jvm.c.dot.crossover" -> "3"
+                    "jvm.c.sum.crossover" -> "never"
+                    else -> null
+                }
+            },
         )
         val engine = densePolicyEngine(BuiltinEngines.scalar, native, RuntimeCompetitor.JvmScalar, profile)
         val input = doubleArrayOf(1.0, 2.0, 3.0)
@@ -54,12 +54,12 @@ class DenseDispatchTest {
         val raw = BuiltinEngines.exactC(variant)
         val profile = DenseProfiles.resolve(
             ProfileOverrides { key ->
-            when (key) {
-                "jvm.c.dot.crossover" -> "never"
-                "jvm.simd.c.dot.crossover" -> "always"
-                else -> null
-            }
-        }
+                when (key) {
+                    "jvm.c.dot.crossover" -> "never"
+                    "jvm.simd.c.dot.crossover" -> "always"
+                    else -> null
+                }
+            },
         )
         val scalar = densePolicyEngine(BuiltinEngines.scalar, raw, RuntimeCompetitor.JvmScalar, profile)
         val vector = densePolicyEngine(BuiltinEngines.scalar, raw, RuntimeCompetitor.JvmVector, profile)

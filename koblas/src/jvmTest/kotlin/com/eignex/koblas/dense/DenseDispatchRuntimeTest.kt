@@ -10,9 +10,11 @@ class DenseDispatchRuntimeTest {
     fun `warmed selection and mixed vector execution allocate no plans`() {
         val variant = BuiltinEngines.nativeVariants.firstOrNull() ?: return
         val runtime = BuiltinEngines.simd ?: BuiltinEngines.scalar
-        val profile = DenseProfiles.resolve(ProfileOverrides { key ->
-            if (key == "jvm.simd.c.dot.crossover") "128" else null
-        })
+        val profile = DenseProfiles.resolve(
+            ProfileOverrides { key ->
+                if (key == "jvm.simd.c.dot.crossover") "128" else null
+            },
+        )
         val engine = densePolicyEngine(runtime, BuiltinEngines.exactC(variant), RuntimeCompetitor.JvmVector, profile)
         val data = DoubleArray(256) { 0.25 }
         val selection = bytesPerIteration(2000, warmup = 3000) {

@@ -35,7 +35,14 @@ internal class PolicyPackedKernels(
         x: DoubleArray,
         xOff: Int,
     ) = selected(DenseOperation.TrsmTile, order).trsmTile(
-        validRows, order, packedTriangle, triangleOff, lower, unitDiag, x, xOff,
+        validRows,
+        order,
+        packedTriangle,
+        triangleOff,
+        lower,
+        unitDiag,
+        x,
+        xOff,
     )
 
     @Suppress("LongParameterList")
