@@ -78,12 +78,9 @@ Implement each merged PR as its ordered work packages within one implementation 
 A work package is not a separate PR/session gate. Split only if a concrete review/build risk warrants it; preserve
 all package requirements and the same session/goal/review/CI rules for each resulting PR.
 
-Use GPT-6 Astra (`gpt-6-astra`) for implementation and review. The official model documentation identifies it
-for complex coding/reasoning and lists `high` and `xhigh` as supported reasoning settings.
-[Model documentation](https://developers.openai.com/api/docs/models/gpt-6-astra).
-The assignments below are engineering recommendations for this project, not measured model comparisons:
-`high` for the existing baseline step (PR 01); `xhigh` for the remaining consolidated
-implementation work and every independent review. Settings are stated explicitly in every PR section.
+Use GPT-6 Astra (`gpt-6-astra`) with `high` reasoning for every implementation and independent review.
+**Astra `high` is the user-set ceiling.** Do not increase model capability or reasoning effort beyond this
+ceiling without a new user instruction. Settings are stated explicitly in every PR section.
 At session start, confirm availability and record the actual model/effort; if unavailable, revise the assignment
 explicitly rather than silently substituting another model. Model settings never replace verification gates.
 
@@ -201,13 +198,13 @@ any fixture or timing-boundary change. Test missing-field rejection and show tha
 defaults cannot change a fixed case's workload. Test cross-layout comparisons and rejection of incompatible
 fixture/timing/physical-work pairs. No production dispatch changes.
 
-**Final independent review (G7):** fresh separate session; model `gpt-6-astra`; reasoning `xhigh`.
+**Final independent review (G7):** fresh separate session; model `gpt-6-astra`; reasoning `high`.
 
 - W01: oracle independence, no-read/alias coverage, explicit case-defined work, and honest before/after comparisons.
 
 **PR 02 — Native builds, capability probe, and ordinary widths**
 
-**Implementation:** fresh session; model `gpt-6-astra`; reasoning `xhigh`.
+**Implementation:** fresh session; model `gpt-6-astra`; reasoning `high`.
 
 **Goal:** Deliver one native build pipeline, a baseline-safe capability probe, and exact ordinary-width execution; OPEN the GitHub PR,
 pass all applicable gates and independent review, and get required CI green on the final reviewed head.
@@ -263,7 +260,7 @@ Transition: hidden target cloning/source-vector width assumptions become individ
 Verification: G1–G3; disassembly and G5 for affected ordinary variants. Exit: actual native ISA/width is
 attributable and exact requests cannot resolve to a different width. Remove obsolete hidden clones here.
 
-**Final independent review (G7):** fresh separate session; model `gpt-6-astra`; reasoning `xhigh`.
+**Final independent review (G7):** fresh separate session; model `gpt-6-astra`; reasoning `high`.
 
 - W02: cross-target archive selection, symbol/link parity, toolchain cache inputs, and baseline instruction safety.
 - W03: ABI sizing/version negotiation, capability versus readiness, permission scopes, and rejection of ACE without FP64.
@@ -271,7 +268,7 @@ attributable and exact requests cannot resolve to a different width. Remove obso
 
 **PR 03 — Typed selection, operands, and scalar block contracts**
 
-**Implementation:** fresh session; model `gpt-6-astra`; reasoning `xhigh`.
+**Implementation:** fresh session; model `gpt-6-astra`; reasoning `high`.
 
 **Goal:** Deliver small typed selection rules, validated windows/packed operands, and executable scalar block contracts; OPEN the GitHub PR,
 pass all applicable gates and independent review, and get required CI green on the final reviewed head.
@@ -317,14 +314,14 @@ Verification: G1, G3, size/stride overflow, round trips, retained-layout mismatc
 non-finite/extreme values, and untouched backing storage. Exit: layout and product contracts are exercised
 together before accelerated implementations are added.
 
-**Final independent review (G7):** fresh separate session; model `gpt-6-astra`; reasoning `xhigh`.
+**Final independent review (G7):** fresh separate session; model `gpt-6-astra`; reasoning `high`.
 
 - W05: immutable selection, checked shape arithmetic, separate scalar-C and SIMD-C policies, and truthful diagnostics.
 - W06: ownership/layout validation, scalar-oracle independence, alpha/beta and no-read semantics, and failure before mutation.
 
 **PR 04 — Ordinary GEMM blocks and shared matrix/view execution**
 
-**Implementation:** fresh session; model `gpt-6-astra`; reasoning `xhigh`.
+**Implementation:** fresh session; model `gpt-6-astra`; reasoning `high`.
 
 **Goal:** Deliver ordinary C/JVM SIMD block kernels and one GEMM orchestration for owning matrices and views; OPEN the GitHub PR,
 pass all applicable gates and independent review, and get required CI green on the final reviewed head.
@@ -362,14 +359,14 @@ Verification: G1–G3, G5 full GEMM versus W01 on ordinary backends, G6. Exit: m
 same planning opportunities; changing layout after packing is impossible. Regressions in the ordinary route
 must be fixed before merge rather than hidden behind the future SME backend.
 
-**Final independent review (G7):** fresh separate session; model `gpt-6-astra`; reasoning `xhigh`.
+**Final independent review (G7):** fresh separate session; model `gpt-6-astra`; reasoning `high`.
 
 - W07: C/JVM contract equivalence, edge handling, bounded calls, and allocation-free JVM vector helpers.
 - W08: owning/view parity, pack amortization, alias handling, and removal of per-microtile foreign calls.
 
 **PR 05 — SME execution boundaries and both FP64 product backends**
 
-**Implementation:** fresh session; model `gpt-6-astra`; reasoning `xhigh`.
+**Implementation:** fresh session; model `gpt-6-astra`; reasoning `high`.
 
 **Goal:** Verify isolated streaming boundaries and independently executable SME and SME2 FP64 GEMM kernels; OPEN the GitHub PR,
 pass all applicable gates and independent review, and get required CI green on the final reviewed head.
@@ -422,7 +419,7 @@ Transition: SME and SME2 become distinct, comparable product choices under the s
 Verification: G1–G4, G5 SME-versus-SME2 raw and full GEMM, G6. Exit: both implementations pass identical logical
 conformance cases and remain separately selectable. Neither receives a default solely because it is newer.
 
-**Final independent review (G7):** fresh separate session; model `gpt-6-astra`; reasoning `xhigh`.
+**Final independent review (G7):** fresh separate session; model `gpt-6-astra`; reasoning `high`.
 
 - W09: streaming ABI attributes, ZA preservation, helper linking, per-context readiness, and baseline ISA isolation.
 - W10: actual FP64 SME instructions, current SVL, predicated edges, epilogue semantics, and exact execution evidence.
@@ -430,7 +427,7 @@ conformance cases and remain separately selectable. Neither receives a default s
 
 **PR 06 — SME and SME2 packing, unpacking, and transpose**
 
-**Implementation:** fresh session; model `gpt-6-astra`; reasoning `xhigh`.
+**Implementation:** fresh session; model `gpt-6-astra`; reasoning `high`.
 
 **Goal:** Deliver independently measured SME and SME2 general/structured packing, unpacking, and transpose; OPEN the GitHub PR,
 pass all applicable gates and independent review, and get required CI green on the final reviewed head.
@@ -464,14 +461,14 @@ Transition: packing and final extraction gain independently measurable SME2 grou
 Verification: G1–G4, G5 SME-versus-SME2 layout/full-operation comparisons, G6. Exit: packing and GEMM can be
 tuned independently without multiplying portable algorithms.
 
-**Final independent review (G7):** fresh separate session; model `gpt-6-astra`; reasoning `xhigh`.
+**Final independent review (G7):** fresh separate session; model `gpt-6-astra`; reasoning `high`.
 
 - W12: bit-preserving layout transforms, padding and tails, unit-diagonal/triangle no-read rules, and SVL-dependent layouts.
 - W13: grouped SME2 moves, producer/consumer layout compatibility, tails, and complete packing costs.
 
 **PR 07 — Structured products and fused SYR2K**
 
-**Implementation:** fresh session; model `gpt-6-astra`; reasoning `xhigh`.
+**Implementation:** fresh session; model `gpt-6-astra`; reasoning `high`.
 
 **Goal:** Deliver shared SYMM/GEMMT/SYRK scheduling and the fused two-product SYR2K contract and backends; OPEN the GitHub PR,
 pass all applicable gates and independent review, and get required CI green on the final reviewed head.
@@ -507,14 +504,14 @@ Transition: two separate product/output passes become an explicitly contracted t
 Verification: G1–G4, special-value and beta-once tests, G5 fused versus composed full operations. Exit: each
 backend serves the same new primitive; the shared planner can retain composed execution when it wins.
 
-**Final independent review (G7):** fresh separate session; model `gpt-6-astra`; reasoning `xhigh`.
+**Final independent review (G7):** fresh separate session; model `gpt-6-astra`; reasoning `high`.
 
 - W14: structured operand access, selected-triangle stores, fused scaling eligibility, and shared portable scheduling.
 - W15: both-product accumulation, beta applied once, numerical fallback eligibility, and untouched output triangles.
 
 **PR 08 — Shared triangular multiplication and solve scheduling**
 
-**Implementation:** fresh session; model `gpt-6-astra`; reasoning `xhigh`.
+**Implementation:** fresh session; model `gpt-6-astra`; reasoning `high`.
 
 **Goal:** Deliver dependency-correct TRMM/TRSM scheduling and ordinary solve/update blocks with independent geometry; OPEN the GitHub PR,
 pass all applicable gates and independent review, and get required CI green on the final reviewed head.
@@ -549,14 +546,14 @@ Transition: solve order, RHS batching, and product geometry become independent.
 Verification: G1–G3, G5 ordinary TRSM, G6. Exit: all flags and difficult numerical cases run without SME, and a
 future accelerator only needs to implement the solve/update block contracts.
 
-**Final independent review (G7):** fresh separate session; model `gpt-6-astra`; reasoning `xhigh`.
+**Final independent review (G7):** fresh separate session; model `gpt-6-astra`; reasoning `high`.
 
 - W16: in-place dependency order, side/transpose/unit-diagonal combinations, and snapshot lifetime.
 - W17: solve order independent of product tiles, diagonal/RHS geometry, fused update contracts, and all triangular flags.
 
 **PR 09 — SME and SME2 triangular block kernels**
 
-**Implementation:** fresh session; model `gpt-6-astra`; reasoning `xhigh`.
+**Implementation:** fresh session; model `gpt-6-astra`; reasoning `high`.
 
 **Goal:** Deliver independently tested SME and SME2 diagonal-solve and fused update/solve kernels; OPEN the GitHub PR,
 pass all applicable gates and independent review, and get required CI green on the final reviewed head.
@@ -588,14 +585,14 @@ Transition: SME2 grouped RHS updates become a separate solve/update candidate.
 Verification: G1–G4, G5 SME/SME2 comparisons, G6. Exit: both architectures have complete triangular alternatives;
 AUTO may later select an ordinary solve for shapes where it wins.
 
-**Final independent review (G7):** fresh separate session; model `gpt-6-astra`; reasoning `xhigh`.
+**Final independent review (G7):** fresh separate session; model `gpt-6-astra`; reasoning `high`.
 
 - W18: SME solve dependencies, update/solve fusion, diagonal semantics, and truthful composed-kernel identities.
 - W19: SME2 grouped triangular dependencies, all edge cases, state boundaries, and evidence against SME competitors.
 
 **PR 10 — Variable panels and GEMV on ordinary, SME, and SME2 backends**
 
-**Implementation:** fresh session; model `gpt-6-astra`; reasoning `xhigh`.
+**Implementation:** fresh session; model `gpt-6-astra`; reasoning `high`.
 
 **Goal:** Deliver variable-width panels, shared owning/view GEMV, both SME implementations, and migrated sparse callers; OPEN the GitHub PR,
 pass all applicable gates and independent review, and get required CI green on the final reviewed head.
@@ -632,14 +629,14 @@ Transition: both matrix backends execute the panel/GEMV contracts without new po
 Verification: G1–G4, G5 raw panels and full GEMV, G6. Exit: SME and SME2 panel alternatives are independently
 testable. If the native source diff becomes too large, split this PR by ISA while keeping the same W20 contract.
 
-**Final independent review (G7):** fresh separate session; model `gpt-6-astra`; reasoning `xhigh`.
+**Final independent review (G7):** fresh separate session; model `gpt-6-astra`; reasoning `high`.
 
 - W20: variable panel widths, transpose/stride paths, accumulation order, and owning/view parity.
 - W21: SME and SME2 panel identity, streaming amortization, reduction tails, and full GEMV costs.
 
 **PR 11 — Symmetric vector products and direct rank updates**
 
-**Implementation:** fresh session; model `gpt-6-astra`; reasoning `xhigh`.
+**Implementation:** fresh session; model `gpt-6-astra`; reasoning `high`.
 
 **Goal:** Deliver shared SYMV and GER/SYR/SYR2 block execution with numerical guards and ordinary/SME/SME2 kernels; OPEN the GitHub PR,
 pass all applicable gates and independent review, and get required CI green on the final reviewed head.
@@ -675,14 +672,14 @@ Transition: GER/SYR/SYR2 can update whole logical blocks instead of issuing one 
 Verification: G1–G4, G5 full rank updates with hot/cold destinations, G6. Exit: Level 2 rank updates use the same
 backend-neutral matrix layer and do not impose GEMM packing when it cannot pay off.
 
-**Final independent review (G7):** fresh separate session; model `gpt-6-astra`; reasoning `xhigh`.
+**Final independent review (G7):** fresh separate session; model `gpt-6-astra`; reasoning `high`.
 
 - W22: coupled symmetric updates, overflow preflight, no partial mutation before fallback, and numerical edge cases.
 - W23: rank-update alpha semantics, skipped-zero behavior, selected triangles, aliases, and fused epilogue eligibility.
 
 **PR 12 — Bounded native calls and workspace tuning**
 
-**Implementation:** fresh session; model `gpt-6-astra`; reasoning `xhigh`.
+**Implementation:** fresh session; model `gpt-6-astra`; reasoning `high`.
 
 **Goal:** Measure bounded native-call strategies and add an alternative storage path only where justified; OPEN the GitHub PR,
 pass all applicable gates and independent review, and get required CI green on the final reviewed head.
@@ -705,13 +702,13 @@ Transition: conservative safe call boundaries become measured per-runtime execut
 Verification: G1–G4 for changed paths, G5 full-operation and reused-memory costs, G6 including safepoint/GC and
 concurrent workloads. Exit: larger batches are justified by throughput and latency, not only by reduced call count.
 
-**Final independent review (G7):** fresh separate session; model `gpt-6-astra`; reasoning `xhigh`.
+**Final independent review (G7):** fresh separate session; model `gpt-6-astra`; reasoning `high`.
 
 - W24: heap/native pointer lifetime, safepoints, concurrent workspaces, bounded calls, and beta across split reductions.
 
 **PR 13 — Calibration, vector evaluation, and measured AUTO defaults**
 
-**Implementation:** fresh session; model `gpt-6-astra`; reasoning `xhigh`.
+**Implementation:** fresh session; model `gpt-6-astra`; reasoning `high`.
 
 **Goal:** Calibrate the completed kernel catalog, evaluate remaining vector candidates, and activate measured AUTO profiles; OPEN the GitHub PR,
 pass all applicable gates and independent review, and get required CI green on the final reviewed head.
@@ -759,14 +756,14 @@ Verification: G1–G6, ordinary-hardware regression runs and held-out AUTO-versu
 choices are supported by end-to-end evidence; the presence/absence of the JVM vector module/native library is
 fully covered, and no process-global provider mutation is introduced.
 
-**Final independent review (G7):** fresh separate session; model `gpt-6-astra`; reasoning `xhigh`.
+**Final independent review (G7):** fresh separate session; model `gpt-6-astra`; reasoning `high`.
 
 - W25: timing equivalence, robust vector semantics, deterministic profile import, provenance, and held-out validation.
 - W26: operation-specific defaults, independent JVM crossover rules, unknown-host behavior, and end-to-end regression evidence.
 
 **PR 14 — Remove adapters and verify the release**
 
-**Implementation:** fresh session; model `gpt-6-astra`; reasoning `xhigh`.
+**Implementation:** fresh session; model `gpt-6-astra`; reasoning `high`.
 
 **Goal:** Remove all transitional seams and verify final API, packaging, numerical, hardware, and performance evidence; OPEN the GitHub PR,
 pass all applicable gates and independent review, and get required CI green on the final reviewed head.
@@ -790,7 +787,7 @@ Transition: any remaining bridge to the old architecture is removed; all callers
 Verification: G1–G6 and the final checklist below. Exit: the architecture plan is implemented, measured defaults
 are enabled where verified, and future width/accelerator additions do not require new portable BLAS families.
 
-**Final independent review (G7):** fresh separate session; model `gpt-6-astra`; reasoning `xhigh`.
+**Final independent review (G7):** fresh separate session; model `gpt-6-astra`; reasoning `high`.
 
 - W27: complete adapter removal, public/view entry-point coverage, packaged catalog accuracy, and final hardware evidence.
 

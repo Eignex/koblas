@@ -574,7 +574,8 @@ HFactor-specific validation only if that module changes. No `.github/` edits are
 [koblas-sme-steps.md](koblas-sme-steps.md) is the sole PR sequence and verification-gate checklist. Each PR
 in the consolidated 14-PR sequence contains the full requirements of its original work packages (W01–W27).
 PR 01 has landed; subsequent sessions consume its existing harness and baseline evidence. Each remaining PR
-starts in a fresh implementation session with an explicit session goal and its specified model/effort. The
+starts in a fresh implementation session with an explicit session goal. Implementation and independent review
+use GPT-6 Astra (`gpt-6-astra`) with `high` reasoning; Astra `high` is the user-set ceiling. The
 session implements, commits, pushes, and OPENS a GitHub PR, resolves independent review findings, and gets
 required CI green on the final reviewed head before marking its goal complete. An open PR with pending checks
 is unfinished. Every step ends with independent review in a separate fresh context; merging is not automatic.

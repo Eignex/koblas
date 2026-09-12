@@ -6,7 +6,7 @@ import kotlin.test.assertTrue
 
 class RunnerTest {
     @Test
-    fun `report shares metadata and preserves samples across forks`() {
+    fun `report shares metadata and summarizes samples across forks`() {
         val case = Cases.parse("dot+4+uniform").single()
         val settings = settings()
         val measurements = listOf(
@@ -19,7 +19,8 @@ class RunnerTest {
         assertEquals(1, records.count { it.startsWith("run,1,") })
         assertEquals(1, records.count { it.startsWith("case,1,") })
         assertTrue(records.single { it.startsWith("run,1,") }.contains("\"runtime, \"\"build\"\"\""))
-        assertEquals(listOf("sample,1,1,1,10,25,2.5", "sample,1,2,2,20,70,3.5"), records.filter { it.startsWith("sample,1,") })
+        assertTrue(records.single { it.startsWith("case,1,") }.endsWith(",2,2,3.0,2.5,3.5"))
+        assertEquals(0, records.count { it.startsWith("sample,") })
     }
 
     @Test
@@ -30,6 +31,7 @@ class RunnerTest {
         val records = reportCsv(listOf(measurement)).lines()
 
         assertTrue(records.single { it.startsWith("case,1,") }.contains(",unsupported,"))
+        assertTrue(records.single { it.startsWith("case,1,") }.endsWith(",0,0,,,"))
         assertEquals(0, records.count { it.startsWith("sample,1,") })
     }
 
@@ -40,7 +42,7 @@ class RunnerTest {
 
         val records = reportCsv(listOf(measurement)).lines()
 
-        assertEquals("case,1,1,gemm-tile+3x2x31+uniform+packed=4x4,ok,partial,raw-tile,portable-tile",
+        assertEquals("case,1,1,gemm-tile+3x2x31+uniform+packed=4x4,ok,partial,raw-tile,portable-tile,1,1,2.5,2.5,2.5",
             records.single { it.startsWith("case,1,") })
     }
 

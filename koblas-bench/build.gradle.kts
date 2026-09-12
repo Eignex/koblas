@@ -96,8 +96,9 @@ tasks.register<Exec>("nativeBenchmark") {
 
 fun registerOpenBlasCompatibilityCheck(name: String, resolution: String) = tasks.register<Exec>(name) {
     group = "verification"
-    description = "Runs the standalone OpenBLAS verifier for the existing CI entry point."
-    commandLine("bash", rootProject.file("koblas-bench/reference/test.sh").absolutePath)
+    description = "Runs an OpenBLAS smoke benchmark for the existing CI entry point."
+    commandLine("bash", rootProject.file("koblas-bench/capture-report.sh").absolutePath,
+        "--vendors-only", "--smoke", "--libraries", "openblas")
     workingDir(rootProject.projectDir)
     doLast { logger.lifecycle(resolution) }
 }
