@@ -1,30 +1,10 @@
 package com.eignex.koblas.dense
 
-/** Operation policy keys; native operation identities remain in the native catalog. */
-internal enum class DensePolicyOperation(val key: String) {
-    Dot("dot"),
-    Sum("sum"),
-    Ssqd("ssqd"),
-    Nrm2("nrm2"),
-    Iamax("iamax"),
-    Asum("asum"),
-    Axpy("axpy"),
-    Scale("scale"),
-    Swap("swap"),
-    Rot("rot"),
-    Rotm("rotm"),
-    Dot4("dot4"),
-    Axpy4("axpy4"),
-    DotAxpy("dot.axpy"),
-    AxpyArithmetic("axpy.arithmetic"),
-    GemmTile("gemm.tile"),
-    TrsmTile("trsm.tile"),
-    GemmTrsmTile("gemm.trsm.tile"),
-}
+import com.eignex.koblas.NativeVariant
 
 /** Resolved Kotlin policy. Construction snapshots entries; no tuning source is read by an operation call. */
 internal class DenseProfile(
-    crossovers: Map<DensePolicyOperation, HostCrossovers>,
+    crossovers: Map<DenseOperation, HostCrossovers>,
     val schedule: BlockSchedule,
     val products: ProductPolicy,
     diagnostics: List<String>,
@@ -33,10 +13,10 @@ internal class DenseProfile(
     val diagnostics: List<String> = diagnostics.toList()
 
     init {
-        require(entries.keys == DensePolicyOperation.entries.toSet()) { "incomplete dense crossover profile" }
+        require(entries.keys == DenseOperation.entries.toSet()) { "incomplete dense crossover profile" }
     }
 
-    operator fun get(operation: DensePolicyOperation): HostCrossovers = entries.getValue(operation)
+    operator fun get(operation: DenseOperation): HostCrossovers = entries.getValue(operation)
 }
 
 /**
@@ -46,8 +26,13 @@ internal class DenseProfile(
 internal object DenseProfiles {
     val conservative: DenseProfile by lazy { resolve(ProfileOverrides()) }
 
+    // This preserves the former ordinary implementation choice; new variants require measured profile entries.
+    fun preferredVariant(available: List<NativeVariant>): NativeVariant? =
+        listOf(NativeVariant.AVX2, NativeVariant.NEON, NativeVariant.SSE2, NativeVariant.SCALAR)
+            .firstOrNull { it in available }
+
     fun resolve(overrides: ProfileOverrides): DenseProfile {
-        val entries = DensePolicyOperation.entries.associateWith { operation ->
+        val entries = DenseOperation.entries.associateWith { operation ->
             HostCrossovers(
                 overrides.rule("jvm.c.${operation.key}.crossover", scalarDefault(operation)),
                 overrides.rule("jvm.simd.c.${operation.key}.crossover", WorkRule.Never),
@@ -58,26 +43,26 @@ internal object DenseProfiles {
         return DenseProfile(entries, schedule, ProductPolicy(), overrides.diagnostics)
     }
 
-    private fun scalarDefault(operation: DensePolicyOperation): WorkRule = when (operation) {
-        DensePolicyOperation.Dot, DensePolicyOperation.Sum, DensePolicyOperation.Nrm2, DensePolicyOperation.Asum ->
+    private fun scalarDefault(operation: DenseOperation): WorkRule = when (operation) {
+        DenseOperation.Dot, DenseOperation.Sum, DenseOperation.Nrm2, DenseOperation.Asum ->
             WorkRule.Minimum(128)
 
-        DensePolicyOperation.Ssqd, DensePolicyOperation.DotAxpy -> WorkRule.Minimum(256)
+        DenseOperation.Ssqd, DenseOperation.DotAxpy -> WorkRule.Minimum(256)
 
-        DensePolicyOperation.Iamax -> WorkRule.Minimum(4096)
+        DenseOperation.Iamax -> WorkRule.Minimum(4096)
 
-        DensePolicyOperation.Dot4 -> WorkRule.Minimum(512)
+        DenseOperation.Dot4 -> WorkRule.Minimum(512)
 
-        DensePolicyOperation.Axpy4 -> WorkRule.Minimum(64)
+        DenseOperation.Axpy4 -> WorkRule.Minimum(64)
 
-        DensePolicyOperation.GemmTile, DensePolicyOperation.GemmTrsmTile -> WorkRule.Minimum(16)
+        DenseOperation.GemmTile, DenseOperation.GemmTrsmTile -> WorkRule.Minimum(16)
 
         else -> WorkRule.Never
     }
 
-    private fun nativeDefault(operation: DensePolicyOperation): WorkRule = when (operation) {
-        DensePolicyOperation.Dot, DensePolicyOperation.Axpy, DensePolicyOperation.Scale, DensePolicyOperation.Iamax,
-        DensePolicyOperation.Axpy4, DensePolicyOperation.DotAxpy, DensePolicyOperation.AxpyArithmetic,
+    private fun nativeDefault(operation: DenseOperation): WorkRule = when (operation) {
+        DenseOperation.Dot, DenseOperation.Axpy, DenseOperation.Scale, DenseOperation.Iamax,
+        DenseOperation.Axpy4, DenseOperation.DotAxpy, DenseOperation.AxpyArithmetic,
         ->
             WorkRule.Minimum(48)
 

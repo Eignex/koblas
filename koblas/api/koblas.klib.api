@@ -10,17 +10,31 @@ open annotation class com.eignex.koblas/UnsafeKoblasApi : kotlin/Annotation { //
     constructor <init>() // com.eignex.koblas/UnsafeKoblasApi.<init>|<init>(){}[0]
 }
 
-final enum class com.eignex.koblas/NativeVariant : kotlin/Enum<com.eignex.koblas/NativeVariant> { // com.eignex.koblas/NativeVariant|null[0]
-    enum entry AVX2 // com.eignex.koblas/NativeVariant.AVX2|null[0]
-    enum entry NEON // com.eignex.koblas/NativeVariant.NEON|null[0]
-    enum entry SCALAR // com.eignex.koblas/NativeVariant.SCALAR|null[0]
-    enum entry SSE2 // com.eignex.koblas/NativeVariant.SSE2|null[0]
+final enum class com.eignex.koblas.dense/DenseOperation : kotlin/Enum<com.eignex.koblas.dense/DenseOperation> { // com.eignex.koblas.dense/DenseOperation|null[0]
+    enum entry Asum // com.eignex.koblas.dense/DenseOperation.Asum|null[0]
+    enum entry Axpy // com.eignex.koblas.dense/DenseOperation.Axpy|null[0]
+    enum entry Axpy4 // com.eignex.koblas.dense/DenseOperation.Axpy4|null[0]
+    enum entry AxpyArithmetic // com.eignex.koblas.dense/DenseOperation.AxpyArithmetic|null[0]
+    enum entry Dot // com.eignex.koblas.dense/DenseOperation.Dot|null[0]
+    enum entry Dot4 // com.eignex.koblas.dense/DenseOperation.Dot4|null[0]
+    enum entry DotAxpy // com.eignex.koblas.dense/DenseOperation.DotAxpy|null[0]
+    enum entry GemmTile // com.eignex.koblas.dense/DenseOperation.GemmTile|null[0]
+    enum entry GemmTrsmTile // com.eignex.koblas.dense/DenseOperation.GemmTrsmTile|null[0]
+    enum entry Iamax // com.eignex.koblas.dense/DenseOperation.Iamax|null[0]
+    enum entry Nrm2 // com.eignex.koblas.dense/DenseOperation.Nrm2|null[0]
+    enum entry Rot // com.eignex.koblas.dense/DenseOperation.Rot|null[0]
+    enum entry Rotm // com.eignex.koblas.dense/DenseOperation.Rotm|null[0]
+    enum entry Scale // com.eignex.koblas.dense/DenseOperation.Scale|null[0]
+    enum entry Ssqd // com.eignex.koblas.dense/DenseOperation.Ssqd|null[0]
+    enum entry Sum // com.eignex.koblas.dense/DenseOperation.Sum|null[0]
+    enum entry Swap // com.eignex.koblas.dense/DenseOperation.Swap|null[0]
+    enum entry TrsmTile // com.eignex.koblas.dense/DenseOperation.TrsmTile|null[0]
 
-    final val entries // com.eignex.koblas/NativeVariant.entries|#static{}entries[0]
-        final fun <get-entries>(): kotlin.enums/EnumEntries<com.eignex.koblas/NativeVariant> // com.eignex.koblas/NativeVariant.entries.<get-entries>|<get-entries>#static(){}[0]
+    final val entries // com.eignex.koblas.dense/DenseOperation.entries|#static{}entries[0]
+        final fun <get-entries>(): kotlin.enums/EnumEntries<com.eignex.koblas.dense/DenseOperation> // com.eignex.koblas.dense/DenseOperation.entries.<get-entries>|<get-entries>#static(){}[0]
 
-    final fun valueOf(kotlin/String): com.eignex.koblas/NativeVariant // com.eignex.koblas/NativeVariant.valueOf|valueOf#static(kotlin.String){}[0]
-    final fun values(): kotlin/Array<com.eignex.koblas/NativeVariant> // com.eignex.koblas/NativeVariant.values|values#static(){}[0]
+    final fun valueOf(kotlin/String): com.eignex.koblas.dense/DenseOperation // com.eignex.koblas.dense/DenseOperation.valueOf|valueOf#static(kotlin.String){}[0]
+    final fun values(): kotlin/Array<com.eignex.koblas.dense/DenseOperation> // com.eignex.koblas.dense/DenseOperation.values|values#static(){}[0]
 }
 
 final enum class com.eignex.koblas.dense/DepthContribution : kotlin/Enum<com.eignex.koblas.dense/DepthContribution> { // com.eignex.koblas.dense/DepthContribution|null[0]
@@ -82,6 +96,19 @@ final enum class com.eignex.koblas.dense/ProductEvaluation : kotlin/Enum<com.eig
 
     final fun valueOf(kotlin/String): com.eignex.koblas.dense/ProductEvaluation // com.eignex.koblas.dense/ProductEvaluation.valueOf|valueOf#static(kotlin.String){}[0]
     final fun values(): kotlin/Array<com.eignex.koblas.dense/ProductEvaluation> // com.eignex.koblas.dense/ProductEvaluation.values|values#static(){}[0]
+}
+
+final enum class com.eignex.koblas/NativeVariant : kotlin/Enum<com.eignex.koblas/NativeVariant> { // com.eignex.koblas/NativeVariant|null[0]
+    enum entry AVX2 // com.eignex.koblas/NativeVariant.AVX2|null[0]
+    enum entry NEON // com.eignex.koblas/NativeVariant.NEON|null[0]
+    enum entry SCALAR // com.eignex.koblas/NativeVariant.SCALAR|null[0]
+    enum entry SSE2 // com.eignex.koblas/NativeVariant.SSE2|null[0]
+
+    final val entries // com.eignex.koblas/NativeVariant.entries|#static{}entries[0]
+        final fun <get-entries>(): kotlin.enums/EnumEntries<com.eignex.koblas/NativeVariant> // com.eignex.koblas/NativeVariant.entries.<get-entries>|<get-entries>#static(){}[0]
+
+    final fun valueOf(kotlin/String): com.eignex.koblas/NativeVariant // com.eignex.koblas/NativeVariant.valueOf|valueOf#static(kotlin.String){}[0]
+    final fun values(): kotlin/Array<com.eignex.koblas/NativeVariant> // com.eignex.koblas/NativeVariant.values|values#static(){}[0]
 }
 
 abstract interface com.eignex.koblas.dense/DenseBlas { // com.eignex.koblas.dense/DenseBlas|null[0]
@@ -440,10 +467,13 @@ final class com.eignex.koblas/KoblasEngine : com.eignex.koblas.dense/DenseBlas, 
         final fun <get-panelKernels>(): com.eignex.koblas.dense/DensePanelKernels // com.eignex.koblas/KoblasEngine.panelKernels.<get-panelKernels>|<get-panelKernels>(){}[0]
     final val sparseKernels // com.eignex.koblas/KoblasEngine.sparseKernels|{}sparseKernels[0]
         final fun <get-sparseKernels>(): com.eignex.koblas.sparse/SparseKernels // com.eignex.koblas/KoblasEngine.sparseKernels.<get-sparseKernels>|<get-sparseKernels>(){}[0]
+    final val tuningDiagnostics // com.eignex.koblas/KoblasEngine.tuningDiagnostics|{}tuningDiagnostics[0]
+        final fun <get-tuningDiagnostics>(): kotlin.collections/List<kotlin/String> // com.eignex.koblas/KoblasEngine.tuningDiagnostics.<get-tuningDiagnostics>|<get-tuningDiagnostics>(){}[0]
     final val vectorKernels // com.eignex.koblas/KoblasEngine.vectorKernels|{}vectorKernels[0]
         final fun <get-vectorKernels>(): com.eignex.koblas.dense/DenseVectorKernels // com.eignex.koblas/KoblasEngine.vectorKernels.<get-vectorKernels>|<get-vectorKernels>(){}[0]
 
     final fun addScaled(kotlin/Double, com.eignex.koblas/SparseMatrix, kotlin/Boolean, com.eignex.koblas/SparseMatrix): com.eignex.koblas/SparseMatrix // com.eignex.koblas/KoblasEngine.addScaled|addScaled(kotlin.Double;com.eignex.koblas.SparseMatrix;kotlin.Boolean;com.eignex.koblas.SparseMatrix){}[0]
+    final fun explain(com.eignex.koblas.dense/DenseOperation, kotlin/Int): kotlin/String // com.eignex.koblas/KoblasEngine.explain|explain(com.eignex.koblas.dense.DenseOperation;kotlin.Int){}[0]
     final fun gemm(com.eignex.koblas/DenseMatrix, com.eignex.koblas/DenseMatrix): com.eignex.koblas/DenseMatrix // com.eignex.koblas/KoblasEngine.gemm|gemm(com.eignex.koblas.DenseMatrix;com.eignex.koblas.DenseMatrix){}[0]
     final fun gemm(com.eignex.koblas/SparseMatrix, com.eignex.koblas/DenseMatrix): com.eignex.koblas/DenseMatrix // com.eignex.koblas/KoblasEngine.gemm|gemm(com.eignex.koblas.SparseMatrix;com.eignex.koblas.DenseMatrix){}[0]
     final fun gemm(com.eignex.koblas/SparseMatrix, com.eignex.koblas/SparseMatrix): com.eignex.koblas/SparseMatrix // com.eignex.koblas/KoblasEngine.gemm|gemm(com.eignex.koblas.SparseMatrix;com.eignex.koblas.SparseMatrix){}[0]

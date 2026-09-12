@@ -154,15 +154,6 @@ internal object NativeCatalog {
         kernels.any { it.variant == variant.id } && kernels.filter { it.variant == variant.id }.all { it.reason == 0 }
     }
 
-    // Preserve the former ordinary clone choice until measured operation policy migrates in W05/W26.
-    val defaultVariant: NativeVariant? = listOf(
-        NativeVariant.AVX2,
-        NativeVariant.NEON,
-        NativeVariant.SSE2,
-        NativeVariant.SCALAR,
-    )
-        .firstOrNull { it in variants }
-
     fun requireVariant(variant: NativeVariant) {
         require(
             variant in variants,

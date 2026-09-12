@@ -15,3 +15,15 @@ An enabled measured entry must identify workload source SHA and case/recipe, har
 kernel and layout, comparison paths, report location, and measured range. No startup measurements or generated
 cross-language settings are required for these Kotlin-only fields. Each operation migrates its old tuning
 readers with its family; the final audit belongs to W27.
+
+AUTO binds a known ordinary variant from explicit preference data, then selects runtime or native arithmetic
+per operation. `jvm.c.<operation>.crossover`, `jvm.simd.c.<operation>.crossover`, and
+`native.c.<operation>.crossover` are independent rules. Current vector/panel rules count elements; packed
+product rules count depth and standalone solves count order. Shape rules and saturating work estimates are
+available for the logical block consumers. Incompatible legacy packed geometry always retains the runtime
+component, even when an override says `always`. Exact C bypasses crossover rules, retaining capability checks
+and semantic early exits. `KoblasEngine.explain` reports the selected operation's component, native ID, width,
+and layouts; `tuningDiagnostics` reports invalid overrides. No rule is parsed or plan allocated by a hot call.
+
+The packed and diagonal schedule values now also feed existing `DenseTuning` consumers, so each override is
+resolved once. Other family-specific tuning readers remain until their migration or the W27 audit.

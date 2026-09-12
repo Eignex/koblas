@@ -3,12 +3,8 @@
 
 package com.eignex.koblas
 
-import com.eignex.koblas.dense.BuiltinBlas
-import com.eignex.koblas.dense.DenseBlas
-import com.eignex.koblas.dense.DensePanelKernels
-import com.eignex.koblas.dense.DenseVectorKernels
-import com.eignex.koblas.dense.PackedKernels
-import com.eignex.koblas.dense.PackedPanels
+import com.eignex.koblas.dense.*
+import com.eignex.koblas.internal.kernels.NativeCatalog
 import com.eignex.koblas.sparse.IndexedSparseKernels
 import com.eignex.koblas.sparse.SparseAlgorithms
 import com.eignex.koblas.sparse.SparseBlas
@@ -17,7 +13,15 @@ import com.eignex.koblas.sparse.SparsePanelKernels
 
 /** The immutable platform-selected BLAS engine used by top-level convenience operations. */
 @get:kotlin.jvm.JvmName("getDefault")
-public val koblas: KoblasEngine = BuiltinEngines.simd ?: BuiltinEngines.c ?: BuiltinEngines.scalar
+public val koblas: KoblasEngine = run {
+    val simd = BuiltinEngines.simd
+    val c = BuiltinEngines.c
+    if (simd != null && c?.nativeVariant != null) {
+        densePolicyEngine(simd, BuiltinEngines.exactC(c.nativeVariant), RuntimeCompetitor.JvmVector)
+    } else {
+        simd ?: c ?: BuiltinEngines.scalar
+    }
+}
 
 /**
  * An immutable dense and sparse BLAS engine.
@@ -38,6 +42,7 @@ public class KoblasEngine internal constructor(
     internal val indexedSparseKernels: IndexedSparseKernels,
     /** Ordinary C variant bound to native components; policy calls may retain in-runtime arithmetic. */
     public val nativeVariant: NativeVariant? = null,
+    internal val dispatch: DenseDispatch? = null,
 ) : DenseBlas by BuiltinBlas(vectorKernels, panelKernels, packedKernels),
     SparseBlas by SparseAlgorithms(
         vectorKernels,
@@ -49,6 +54,30 @@ public class KoblasEngine internal constructor(
 
     /** Short read-only implementation description for logs and benchmark attribution. */
     public val name: String get() = "built-in/${vectorKernels.name}/${sparseKernels.name}"
+
+    /**
+     * Describes the selected implementation without performing arithmetic. [length] is the vector/panel
+     * length, product-tile depth, or standalone solve order. Semantic no-work exits still precede execution.
+     * Native IDs and layouts identify the actual component; policy fallbacks name their runtime component.
+     */
+    public fun explain(operation: DenseOperation, length: Int): String {
+        require(length >= 0) { "negative operation length" }
+        dispatch?.let { return it.explain(operation, length) }
+        if (nativeVariant != null) {
+            val kernel = NativeCatalog.kernels.single {
+                it.variant == nativeVariant.id && it.operation == operation.nativeOperation
+            }
+            return describeNative(kernel)
+        }
+        return if (operation.packed) {
+            "${vectorKernels.name} packed ${packedKernels.gemmTileRows}x${packedKernels.gemmTileCols}"
+        } else {
+            vectorKernels.name
+        }
+    }
+
+    /** Malformed performance overrides retained as read-only diagnostic messages. */
+    public val tuningDiagnostics: List<String> get() = dispatch?.profile?.diagnostics.orEmpty()
 
     override fun toString(): String = "KoblasEngine($name)"
 }

@@ -9,11 +9,11 @@ class DenseProfileTest {
     @Test
     fun `conservative profile preserves separate host paths`() {
         val profile = DenseProfiles.resolve(ProfileOverrides { null })
-        assertTrue(profile[DensePolicyOperation.Dot].scalarToC.accepts(128))
-        assertFalse(profile[DensePolicyOperation.Dot].scalarToC.accepts(127))
-        assertFalse(profile[DensePolicyOperation.Dot].simdToC.accepts(Int.MAX_VALUE))
-        assertTrue(profile[DensePolicyOperation.Dot].nativeToC.accepts(48))
-        assertFalse(profile[DensePolicyOperation.Axpy].scalarToC.accepts(Int.MAX_VALUE))
+        assertTrue(profile[DenseOperation.Dot].scalarToC.accepts(128))
+        assertFalse(profile[DenseOperation.Dot].scalarToC.accepts(127))
+        assertFalse(profile[DenseOperation.Dot].simdToC.accepts(Int.MAX_VALUE))
+        assertTrue(profile[DenseOperation.Dot].nativeToC.accepts(48))
+        assertFalse(profile[DenseOperation.Axpy].scalarToC.accepts(Int.MAX_VALUE))
     }
 
     @Test
@@ -22,14 +22,14 @@ class DenseProfileTest {
         val values = mutableMapOf("jvm.simd.c.dot.crossover" to "always", "jvm.c.sum.crossover" to "never")
         val profile = DenseProfiles.resolve(
             ProfileOverrides { key ->
-            calls[key] = calls.getOrElse(key) { 0 } + 1
-            values[key]
-        }
+                calls[key] = calls.getOrElse(key) { 0 } + 1
+                values[key]
+            },
         )
         values.clear()
-        assertEquals(WorkRule.AlwaysEligible, profile[DensePolicyOperation.Dot].simdToC)
-        assertEquals(WorkRule.Never, profile[DensePolicyOperation.Sum].scalarToC)
-        assertEquals(WorkRule.Minimum(128), profile[DensePolicyOperation.Dot].scalarToC)
+        assertEquals(WorkRule.AlwaysEligible, profile[DenseOperation.Dot].simdToC)
+        assertEquals(WorkRule.Never, profile[DenseOperation.Sum].scalarToC)
+        assertEquals(WorkRule.Minimum(128), profile[DenseOperation.Dot].scalarToC)
         assertTrue(calls.values.all { it == 1 })
     }
 }
