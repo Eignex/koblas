@@ -183,3 +183,5 @@ The [scal and spgather investigation](reports/9096bd06b8f87c06e1a8b7d05912c2b124
 The [native scaling alignment follow-up](reports/9096bd06b8f87c06e1a8b7d05912c2b124b9997dd49a7894a304c4ae5c857247/20260912T134906Z-scal-alignment/README.md) isolates misaligned stores, validates guarded alignment through the native engine, and compares with oneMKL and OpenBLAS.
 
 The [OpenBLAS source follow-up](reports/9096bd06b8f87c06e1a8b7d05912c2b124b9997dd49a7894a304c4ae5c857247/20260912T141014Z-openblas-source/README.md) compares the Haswell loop, validates fixed pointer-relative blocks, and records the remaining vendor gap.
+
+The [SparseSlices harness validation](reports/9096bd06b8f87c06e1a8b7d05912c2b124b9997dd49a7894a304c4ae5c857247/20260912T161309Z-0081264d482f/README.md) records the first complete reuse-suite capture and supported comparison pairs; background load prevents performance conclusions.
