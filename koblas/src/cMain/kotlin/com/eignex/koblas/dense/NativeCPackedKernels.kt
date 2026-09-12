@@ -7,8 +7,7 @@ import kotlinx.cinterop.addressOf
 import kotlinx.cinterop.usePinned
 
 /** Native compiled-C packed tile arithmetic. */
-internal class NativeCPackedKernels(private val bindings: NativeCKernelBindings, private val exact: Boolean) :
-    PackedKernels {
+internal class NativeCPackedKernels(private val bindings: NativeCKernelBindings) : PackedKernels {
     override val gemmTileRows: Int get() = PORTABLE_TILE
     override val gemmTileCols: Int get() = PORTABLE_TILE
 

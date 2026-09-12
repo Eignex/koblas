@@ -30,3 +30,8 @@ blocks whose row and column origins differ. Aliased block calls stage output bef
 These logical block contracts are the migration target for the existing fixed-tile [PackedPanels] callers.
 GEMM migrates in PR 04 of the repository implementation plan; structured and triangular consumers migrate
 in PRs 07–09. Internal panel packing can prepare strided windows without materializing a whole contiguous matrix.
+
+The default engine resolves immutable performance rules once, with separate scalar-to-C and SIMD-to-C
+crossovers. [com.eignex.koblas.KoblasEngine.explain] describes the actual component selected for a
+[DenseOperation] and length. Exact C engines bypass these rules while retaining capability checks and semantic
+no-work exits. Packed geometry compatibility remains required when composing legacy tile implementations.
