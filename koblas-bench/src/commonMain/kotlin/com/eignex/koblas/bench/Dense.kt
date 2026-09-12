@@ -38,7 +38,12 @@ internal fun denseWork(case: BenchCase, engine: KoblasEngine): CaseWork? {
         }
         "scal" -> {
             val initial = Fixtures.vector(d[0], 1); val x = initial.copyOf()
-            CaseWork("direct", "reset-and-arithmetic", { initial.copyInto(x); vectors.scale(x, 0, alpha, d[0]); x[0] })
+            if (case.option("timing", "reset-and-arithmetic") == "arithmetic") {
+                // Negation preserves normal magnitudes over arbitrarily many timed invocations.
+                CaseWork("direct", "arithmetic", { vectors.scale(x, 0, -1.0, d[0]); x[0] + x.last() }, result = x)
+            } else {
+                CaseWork("direct", "reset-and-arithmetic", { initial.copyInto(x); vectors.scale(x, 0, alpha, d[0]); x[0] + x.last() }, result = x)
+            }
         }
         "nrm2" -> vectorReduction(d[0], "direct") { x -> vectors.nrm2(x, 0, x.size) }
         "asum" -> vectorReduction(d[0], "direct") { x -> vectors.asum(x, 0, x.size) }

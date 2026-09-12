@@ -150,7 +150,7 @@ static int option_allowed(const char *op,const char *name,int sparse){
     if(!strcmp(name,"density"))return sparse;
     if(!strcmp(name,"mode"))return mode_operation(op);
     if(!strcmp(name,"packed"))return packed_operation(op);
-    if(!strcmp(name,"timing"))return !strcmp(op,"gemm-block");
+    if(!strcmp(name,"timing"))return !strcmp(op,"gemm-block")||!strcmp(op,"scal")||!strcmp(op,"spgather");
     if(!strcmp(name,"side"))return side_operation(op);
     if(!strcmp(name,"uplo"))return uplo_operation(op);
     if(!strcmp(name,"transA"))return !strcmp(op,"gemv")||!strcmp(op,"gemm")||transa_operation(op);
@@ -160,7 +160,7 @@ static int option_allowed(const char *op,const char *name,int sparse){
 }
 static void copy_field(char *destination,size_t capacity,const char *source,int line_number,const char *name){size_t length=strlen(source);if(length>=capacity){fprintf(stderr,"line %d: %s is too long\n",line_number,name);exit(2);}memcpy(destination,source,length+1);}
 static int valid_option(const char *name,const char *value){
-    if(!strcmp(name,"timing"))return !strcmp(value,"prepacked-compute")||!strcmp(value,"pack-plus-compute");
+    if(!strcmp(name,"timing"))return !strcmp(value,"arithmetic")||!strcmp(value,"prepacked-compute")||!strcmp(value,"pack-plus-compute");
     if(!strcmp(name,"density")){char *tail;double density=strtod(value,&tail);return !*tail&&density>0&&density<=1;}
     if(!strcmp(name,"mode"))return !strcmp(value,"prepared")||!strcmp(value,"oneshot");
     if(!strcmp(name,"packed"))return !strcmp(value,"4x4")||!strcmp(value,"8x4");
@@ -176,7 +176,7 @@ static void validate_packed(const bench_case *s) {
     int m=s->dims[0],n=s->dims[1];
     const char *op=s->operation;
     int k=s->dim_count==3?s->dims[2]:(is_layout(op)&&strstr(op,"right")?m:n);
-    if(!strcmp(op,"gemm-block")&&!option_present(s,"timing"))fail("block cases require timing");
+    if(!strcmp(op,"gemm-block")&&strcmp(option(s,"timing",""),"prepacked-compute")&&strcmp(option(s,"timing",""),"pack-plus-compute"))fail("invalid block timing");
     if(m>4096||n>4096||k>4096||(int64_t)m*n*k>16777216)fail("packed allocation budget exceeded");
     if((strstr(op,"symmetric")||strstr(op,"triangular"))&&m!=n)fail("structured source must be square");
 }
@@ -214,6 +214,7 @@ static int parse_case(char *line, int line_number, bench_case *out) {
     for(int i=0;i<out->option_count;++i)if(!option_allowed(out->operation,out->option_names[i],sparse))fail("option is incompatible with operation");
     if(mode_operation(out->operation)!=option_present(out,"mode"))fail("missing or incompatible mode option");
     if(oneshot_only_operation(out->operation)&&strcmp(option(out,"mode",""),"oneshot"))fail("operation supports only mode=oneshot");
+    if((!strcmp(out->operation,"scal")||!strcmp(out->operation,"spgather"))&&option_present(out,"timing")&&strcmp(option(out,"timing",""),"arithmetic"))fail("invalid vector timing");
     if(sparse&&!option_present(out,"density"))fail("sparse cases require density");
     if(packed_operation(out->operation)&&!option_present(out,"packed"))fail("packed cases require a recipe");
     if(uplo_operation(out->operation)&&!option_present(out,"uplo"))fail("operation requires uplo");
@@ -257,7 +258,7 @@ static double invoke_dense(work *w){
     bench_case *s=w->spec;const char *op=s->operation;int *d=s->dims;int ta=flag(s,"transA"),tb=flag(s,"transB"),lower=!strcmp(option(s,"uplo","L"),"L"),right=!strcmp(option(s,"side","L"),"R"),unit=!strcmp(option(s,"diag","N"),"U");
     if(!strcmp(op,"dot"))return cblas_ddot(d[0],w->x,1,w->y,1);
     if(!strcmp(op,"axpy")||!strcmp(op,"axpy-arithmetic")){copy_values(w->y,w->initial,d[0]);cblas_daxpy(d[0],.875,w->x,1,w->y,1);return consume(w->y,d[0]);}
-    if(!strcmp(op,"scal")){copy_values(w->x,w->initial,d[0]);cblas_dscal(d[0],.875,w->x,1);return consume(w->x,d[0]);}
+    if(!strcmp(op,"scal")){int arithmetic=!strcmp(w->timing,"arithmetic");if(!arithmetic)copy_values(w->x,w->initial,d[0]);cblas_dscal(d[0],arithmetic?-1.0:.875,w->x,1);return consume(w->x,d[0]);}
     if(!strcmp(op,"nrm2"))return cblas_dnrm2(d[0],w->x,1);
     if(!strcmp(op,"asum"))return cblas_dasum(d[0],w->x,1);
     if(!strcmp(op,"iamax"))return (double)cblas_idamax(d[0],w->x,1);
@@ -300,7 +301,7 @@ static void setup_dense(work *w){
     if(!strcmp(op,"sum")){w->supported=0;w->comparison="unsupported";w->timing="arithmetic";return;}
 #endif
     if(!strcmp(op,"dot")||!strcmp(op,"nrm2")||!strcmp(op,"asum")||!strcmp(op,"sum")||!strcmp(op,"iamax")){w->x=allocate(d[0],sizeof(double));w->y=allocate(d[0],sizeof(double));fill_vector(w->x,d[0],1);fill_vector(w->y,d[0],2);w->timing="arithmetic";return;}
-    if(!strcmp(op,"axpy")||!strcmp(op,"axpy-arithmetic")||!strcmp(op,"scal")){w->x=allocate(d[0],sizeof(double));w->y=allocate(d[0],sizeof(double));w->initial=allocate(d[0],sizeof(double));fill_vector(w->x,d[0],1);fill_vector(w->initial,d[0],!strcmp(op,"scal")?1:2);if(!strcmp(op,"scal"))copy_values(w->initial,w->x,d[0]);return;}
+    if(!strcmp(op,"axpy")||!strcmp(op,"axpy-arithmetic")||!strcmp(op,"scal")){w->x=allocate(d[0],sizeof(double));w->y=allocate(d[0],sizeof(double));w->initial=allocate(d[0],sizeof(double));fill_vector(w->x,d[0],1);fill_vector(w->initial,d[0],!strcmp(op,"scal")?1:2);if(!strcmp(op,"scal")){copy_values(w->x,w->initial,d[0]);w->timing=option(s,"timing","reset-and-arithmetic");}return;}
     if(!strcmp(op,"swap")||!strcmp(op,"rot")||!strcmp(op,"rotm")){w->a=allocate(d[0],sizeof(double));w->x=allocate(d[0],sizeof(double));w->y=allocate(d[0],sizeof(double));w->initial=allocate(d[0],sizeof(double));fill_vector(w->a,d[0],1);fill_vector(w->initial,d[0],2);if(!strcmp(op,"rotm")){w->c=allocate(5,sizeof(double));w->c[0]=-1;w->c[1]=1;w->c[2]=-.5;w->c[3]=.5;w->c[4]=1;}return;}
     if(!strcmp(op,"rotmg")){w->timing="arithmetic";return;}
     if(!strcmp(op,"dot4")||!strcmp(op,"axpy4")||!strcmp(op,"dot-axpy")){w->a=allocate(4*d[0],sizeof(double));w->x=allocate(d[0],sizeof(double));w->y=allocate(d[0],sizeof(double));w->initial=allocate(d[0],sizeof(double));fill_vector(w->a,4*d[0],!strcmp(op,"axpy4")?1:2);fill_vector(w->x,d[0],1);fill_vector(w->initial,d[0],!strcmp(op,"axpy4")?2:3);w->comparison="composed";if(!strcmp(op,"dot4"))w->timing="arithmetic";return;}
@@ -355,7 +356,7 @@ static double invoke_sparse(work *w){
     if(!strcmp(op,"spdot"))return cblas_ddoti(w->sa.nnz,w->sa.values,w->sa.row_idx,w->y);
     if(!strcmp(op,"spaxpy")){copy_values(w->y,w->initial,d[0]);cblas_daxpyi(w->sa.nnz,.875,w->sa.values,w->sa.row_idx,w->y);return consume(w->y,d[0]);}
     if(!strcmp(op,"spscatter")){copy_values(w->y,w->initial,d[0]);cblas_dsctr(w->sa.nnz,w->sa.values,w->sa.row_idx,w->y);return consume(w->y,d[0]);}
-    if(!strcmp(op,"spgather")){copy_values(w->y,w->initial,d[0]);cblas_dgthr(w->sa.nnz,w->y,w->x,w->sa.row_idx);return consume(w->x,w->sa.nnz);}
+    if(!strcmp(op,"spgather")){if(strcmp(w->timing,"arithmetic"))copy_values(w->y,w->initial,d[0]);cblas_dgthr(w->sa.nnz,w->y,w->x,w->sa.row_idx);return consume(w->x,w->sa.nnz);}
     if(!strcmp(op,"spgather-zero")){copy_values(w->y,w->initial,d[0]);cblas_dgthrz(w->sa.nnz,w->y,w->x,w->sa.row_idx);return consume(w->x,w->sa.nnz)+consume(w->y,d[0]);}
     int own_a=0,own_b=0;sparse_fixture temporary_a={0},temporary_b={0};sparse_matrix_t a=operation_handle(w,0,&own_a,&temporary_a),b=NULL,result=NULL;double answer=0;
     if(!strcmp(op,"spgemv")||!strcmp(op,"spsymv")){copy_values(w->y,w->initial,d[0]);if(mkl_sparse_d_mv(operation,.875,a,descriptor,w->x,-.25,w->y))fail("mkl_sparse_d_mv failed");answer=consume(w->y,d[0]);}
@@ -385,7 +386,7 @@ static void setup_sparse(work *w){
        !strcmp(s->operation,"spscatter-raw")){
         w->supported=0;w->comparison="unsupported";w->timing="arithmetic";return;
     }
-    if(!strcmp(s->operation,"spdot")||!strcmp(s->operation,"spaxpy")||!strcmp(s->operation,"spscatter")||!strcmp(s->operation,"spgather")||!strcmp(s->operation,"spgather-zero")){w->sa=make_sparse(d[0],1,density,1,0,1);w->y=allocate(d[0],sizeof(double));w->initial=allocate(d[0],sizeof(double));w->x=allocate(w->sa.nnz,sizeof(double));fill_vector(w->initial,d[0],2);copy_values(w->y,w->initial,d[0]);w->timing=!strcmp(s->operation,"spdot")?"arithmetic":"reset-and-arithmetic";return;}
+    if(!strcmp(s->operation,"spdot")||!strcmp(s->operation,"spaxpy")||!strcmp(s->operation,"spscatter")||!strcmp(s->operation,"spgather")||!strcmp(s->operation,"spgather-zero")){w->sa=make_sparse(d[0],1,density,1,0,1);w->y=allocate(d[0],sizeof(double));w->initial=allocate(d[0],sizeof(double));w->x=allocate(w->sa.nnz,sizeof(double));fill_vector(w->initial,d[0],2);copy_values(w->y,w->initial,d[0]);w->timing=!strcmp(s->operation,"spdot")?"arithmetic":option(s,"timing","reset-and-arithmetic");return;}
     int rows=d[0],cols=1,triangular=!strncmp(s->operation,"sptr",4)||!strcmp(s->operation,"spsymv")||!strcmp(s->operation,"spsymm");
     if(!strcmp(s->operation,"spgemv"))cols=d[1];
     else if(!strcmp(s->operation,"spmm")||!strcmp(s->operation,"spgemm"))cols=d[2];

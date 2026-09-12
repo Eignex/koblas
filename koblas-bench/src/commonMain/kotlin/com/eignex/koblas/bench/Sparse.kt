@@ -63,13 +63,22 @@ internal fun sparseWork(case: BenchCase, engine: KoblasEngine): CaseWork? {
                 dense[0]
             })
         }
-        "spscatter", "spgather", "spgather-zero" -> {
+        "spgather" -> {
+            val x = Fixtures.sparseVector(d[0], density, 1)
+            val dense0 = Fixtures.vector(d[0], 2); val dense = dense0.copyOf()
+            val timing = case.option("timing", "reset-and-arithmetic")
+            CaseWork("direct", timing, {
+                if (timing == "reset-and-arithmetic") dense0.copyInto(dense)
+                engine.sparseKernels.gather(x, dense)
+                (x.values.firstOrNull() ?: 0.0) + (x.values.lastOrNull() ?: 0.0)
+            }, result = x.values)
+        }
+        "spscatter", "spgather-zero" -> {
             val x = Fixtures.sparseVector(d[0], density, 1); val values0 = x.values.copyOf(); val dense0 = Fixtures.vector(d[0], 2); val dense = dense0.copyOf()
             CaseWork("direct", "reset-and-arithmetic", {
                 values0.copyInto(x.values); dense0.copyInto(dense)
                 when (case.operation) {
                     "spscatter" -> engine.sparseKernels.scatter(x, dense)
-                    "spgather" -> engine.sparseKernels.gather(x, dense)
                     else -> engine.sparseKernels.gatherZero(x, dense)
                 }
                 x.values.firstOrNull() ?: dense[0]

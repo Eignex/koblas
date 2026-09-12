@@ -104,6 +104,13 @@ alignment independently of backend defaults. Shapes determine panel dimensions, 
 order. Blocks require a timing choice. Logical fixtures are generated before packing. `prepacked-compute`
 includes tile loops, edge handling and writeback; `pack-plus-compute` also includes both panel packs.
 
+The `scal` and `spgather` cases also accept `+timing=arithmetic`. Scaling then uses `alpha = -1` to
+preserve fixture magnitudes across repeated calls; the default resets the vector and uses `alpha = 0.875`.
+Arithmetic gather overwrites the sparse values without resetting either buffer. Default gather resets only
+the dense source, matching oneMKL. Both runners consume the first and last output values. Compare each timing
+boundary separately; the default gather boundary predating this change included an extra Koblas output reset.
+OpenBLAS gather remains unsupported because the runner has no corresponding vendor entry point.
+
 ## Verify the harness
 
 ```bash
