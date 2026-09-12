@@ -20,6 +20,7 @@ Each CSV records one row per case with sample/fork counts, median, minimum, and 
 
 [`cases.txt`](cases.txt) defines the workload. Reports run all cases; use `--operation NAME` for a single kernel.
 Compare matching cases and timing boundaries; prepared, one-shot, and packing-inclusive timings differ.
+New references must match the fixture, validation, buffer reuse, and numerical contract.
 Unsupported cases have no timing. A selected target failure stops capture; existing reports are never overwritten.
 
 For `scal` and `spgather`, `+timing=arithmetic` excludes resets; arithmetic scaling uses alpha = -1.
@@ -28,14 +29,3 @@ Default gather resets only the dense source; older captures also reset the spars
 Vendors use one thread. `--libraries all` selects OpenBLAS and Accelerate on macOS, OpenBLAS and oneMKL on Linux.
 Homebrew OpenBLAS is detected automatically. Accelerate requires macOS 15+ and includes sparse vectors and
 matrix products. For Linux oneMKL, set `ONEMKL_LIBRARY` to its runtime library path.
-
-## Sparse slices
-
-Sparse-slices cases use the normal `--operation` filter, for example `--operation sparse-slices-cycle`.
-Results appear in the normal target CSVs (`jvm-scalar.csv`, `jvm-c.csv`, `jvm-simd.csv`, `native.csv`).
-Of the 26 `timing=reuse` cases, oneMKL supports 19 compositions; seven checked or clear-only cases are unsupported.
-Validation, support tracking, compaction and output handling are timed; buffers persist across calls.
-Cycles scatter `0.875` over half the support, then `-0.875` over all, and gather-clear.
-Standalone clear and gather-clear include a touched-entry refill. oneMKL compositions preserve rounded
-products and unwritten output tails. Checked reductions retain ordered diagnostics; unchecked dot uses
-the selected engine. These `timing=reuse` cases remain separate from historical slice timings.
