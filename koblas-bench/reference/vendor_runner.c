@@ -554,8 +554,7 @@ static void setup_accelerate_sparse(work *w) {
 #endif
 
 static void setup_work(work *w,bench_case *spec){memset(w,0,sizeof(*w));w->spec=spec;
-if(!strncmp(spec->operation,"sparse-slices-",14)){setup_slices(w);return;}
-if(scalar_slices){w->comparison="unsupported";w->timing="arithmetic";return;}
+if(!strncmp(spec->operation,"sparse-slices-",14)){setup_slices(w, 0);return;}
 if(!strncmp(spec->operation,"sp",2)||!strncmp(spec->operation,"sparse-slices-",14)){
 #ifdef USE_MKL
 setup_sparse(w);
@@ -604,9 +603,6 @@ static int compare_samples(const void *left, const void *right) {
 }
 
 int main(int argc,char **argv){
-    const char *slices_backend=argument_value(argc,argv,"--slices-backend","library");
-    if(strcmp(slices_backend,"library")&&strcmp(slices_backend,"scalar"))fail("invalid sparse slice backend");
-    scalar_slices=!strcmp(slices_backend,"scalar");
     const char *cases_path=argument_value(argc,argv,"--cases","koblas-bench/cases.txt");const char *output_path=argument_value(argc,argv,"--output",NULL);if(!output_path)fail("--output is required");
     int warmups=atoi(argument_value(argc,argv,"--warmups","3")),samples=atoi(argument_value(argc,argv,"--samples","5"));long target_ms=strtol(argument_value(argc,argv,"--target-ms","100"),NULL,10);if(warmups<0||samples<1||target_ms<1)fail("invalid timing settings");uint64_t target_ns=(uint64_t)target_ms*UINT64_C(1000000);
     const char *pass=argument_value(argc,argv,"--pass","1"),*commit=argument_value(argc,argv,"--source-commit","unknown"),*dirty=argument_value(argc,argv,"--dirty","unknown");
@@ -618,7 +614,6 @@ int main(int argc,char **argv){
 #else
     openblas_set_num_threads(1);char runtime[256]={0};snprintf(runtime,sizeof(runtime),"%s",openblas_get_config());const char *implementation="openblas";
 #endif
-    if(scalar_slices){implementation="scalar-slices";snprintf(runtime,sizeof(runtime),"scalar C sparse slice reference");}
     size_t runtime_length=strlen(runtime);snprintf(runtime+runtime_length,sizeof(runtime)-runtime_length,"; compiler=%s",__VERSION__);
     for(char *p=runtime;*p;++p)if(*p==','||*p=='\n'||*p=='\r')*p=';';
     fixture_check();numerical_check();

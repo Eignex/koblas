@@ -4,6 +4,12 @@
 #include <float.h>
 
 static void require_test(int condition, const char *message) { if (!condition) fail(message); }
+static void setup_test_work(work *w, bench_case *spec, int library) {
+    memset(w, 0, sizeof(*w));
+    w->spec = spec;
+    setup_slices(w, !library);
+}
+
 static int same_value(double left, double right) {
     return (isnan(left) && isnan(right)) || (left == right && (left != 0.0 || signbit(left) == signbit(right)));
 }
@@ -14,8 +20,7 @@ static void check_case(const char *operation, int compact, int shuffled, int exc
     snprintf(text, sizeof(text), "%s+31+sparse-uniform+density=0.3+timing=reuse%s%s", operation,
         gathers && compact ? "+compact=T" : "", shuffled ? "+locality=shuffled" : "");
     bench_case spec = {0}; parse_case(text, 1, &spec);
-    scalar_slices = !library;
-    work w; setup_work(&w, &spec);
+    work w; setup_test_work(&w, &spec, library);
     require_test(w.supported, "expected sparse slice reference support");
     slices_state *s = w.slices;
     int cycle = s->operation == SLICES_CYCLE || s->operation == SLICES_CYCLE_CHECKED;
@@ -107,17 +112,16 @@ int main(void) {
 #ifdef USE_MKL
     MKL_Set_Num_Threads(1); MKL_Set_Dynamic(0);
 #endif
-    scalar_slices = 1;
     char golden_text[] = "sparse-slices-cycle+31+sparse-uniform+density=0.3+timing=reuse+locality=shuffled";
     bench_case golden_case = {0}; parse_case(golden_text, 1, &golden_case);
-    work golden_work; setup_work(&golden_work, &golden_case);
+    work golden_work; setup_test_work(&golden_work, &golden_case, 0);
     int expected_indices[] = {23, 19, 16, 21, 12, 9, 10, 15, 2};
     require_test(!memcmp(golden_work.slices->indices, expected_indices, sizeof(expected_indices)), "shuffled fixture indices differ");
     require_test(digest(golden_work.slices->values, 9) == UINT64_C(0x82a2f9d0ba820fb8), "shuffled fixture values differ");
     free_work(&golden_work);
     char checked_text[] = "sparse-slices-cycle-checked+3+sparse-uniform+density=1+timing=reuse";
     bench_case checked_case = {0}; parse_case(checked_text, 1, &checked_case);
-    work checked_work; setup_work(&checked_work, &checked_case);
+    work checked_work; setup_test_work(&checked_work, &checked_case, 0);
     slices_state *checked = checked_work.slices;
     checked->values[0] = DBL_TRUE_MIN;
     slices_scatter(checked, .5, 1, 1);

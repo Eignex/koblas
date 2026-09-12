@@ -16,7 +16,7 @@ vendors_only=false
 smoke=false
 
 usage() {
-  echo "usage: capture-report.sh [--libraries openblas,accelerate,onemkl,scalar-slices|all] [--vendors-only] [--smoke] [--output NEW_DIR] [--operation NAME|all] [--samples N] [--warmups N] [--target-ms N] [--forks N] [--pass N]" >&2
+  echo "usage: capture-report.sh [--libraries openblas,accelerate,onemkl|all] [--vendors-only] [--smoke] [--output NEW_DIR] [--operation NAME|all] [--samples N] [--warmups N] [--target-ms N] [--forks N] [--pass N]" >&2
 }
 while (($#)); do
   case "$1" in
@@ -41,7 +41,7 @@ if [[ $libraries == all ]]; then
 fi
 IFS=, read -r -a vendors <<<"$libraries"
 for vendor in "${vendors[@]}"; do
-  [[ $vendor == openblas || $vendor == accelerate || $vendor == onemkl || $vendor == scalar-slices ]] || { echo "unknown library: $vendor" >&2; exit 2; }
+  [[ $vendor == openblas || $vendor == accelerate || $vendor == onemkl ]] || { echo "unknown library: $vendor" >&2; exit 2; }
 done
 
 temporary=$(mktemp -d "${TMPDIR:-/tmp}/koblas-bench-report.XXXXXX")
@@ -136,7 +136,7 @@ export OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 VECLIB_MAXIMUM_THREADS=1 MKL_NUM
 for vendor in "${vendors[@]}"; do
   flags=()
   case "$vendor" in
-    openblas|scalar-slices)
+    openblas)
       if [[ $platform == Darwin ]] && command -v brew >/dev/null 2>&1; then
         prefix=$(brew --prefix openblas)
         flags=("-I$prefix/include" "-L$prefix/lib" "-Wl,-rpath,$prefix/lib")
@@ -156,13 +156,11 @@ for vendor in "${vendors[@]}"; do
       ;;
   esac
   cc -std=c11 -O3 -ffp-contract=off -DNDEBUG -Wall -Wextra -Werror "$bench/reference/vendor_runner.c" "${flags[@]}" -lm -o "$temporary/$vendor"
-  if [[ $vendor == scalar-slices || $vendor == onemkl ]]; then
+  if [[ $vendor == onemkl ]]; then
     cc -std=c11 -O3 -ffp-contract=off -DNDEBUG -Wall -Wextra -Werror "$bench/reference/sparse_slices_test.c" "${flags[@]}" -lm -o "$temporary/slices-test"
     "$temporary/slices-test"
   fi
-  arguments=()
-  if [[ $vendor == scalar-slices ]]; then arguments+=(--slices-backend=scalar); fi
-  run_target "$vendor" "$temporary/$vendor" "${arguments[@]}" --cases="$cases" --output="$results/$vendor.csv" \
+  run_target "$vendor" "$temporary/$vendor" --cases="$cases" --output="$results/$vendor.csv" \
     --samples="$samples" --warmups="$warmups" --target-ms="$target_ms" --pass="$pass" --source-commit="$commit" --dirty="$dirty"
 done
 printf '\ncompleted_at=%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" >>"$metadata"

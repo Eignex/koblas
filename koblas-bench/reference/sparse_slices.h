@@ -1,5 +1,4 @@
 /* Benchmark-only compositions over persistent caller-owned buffers. */
-static int scalar_slices;
 
 enum { SLICES_CYCLE, SLICES_CYCLE_CHECKED, SLICES_GATHER, SLICES_GATHER_CLEAR,
        SLICES_CLEAR, SLICES_DOT_CHECKED, SLICES_DOT };
@@ -156,7 +155,7 @@ static const char *slices_timing(int operation) {
     return timings[operation];
 }
 
-static void setup_slices(work *w) {
+static void setup_slices(work *w, int scalar_oracle) {
     bench_case *spec = w->spec;
     w->comparison = "unsupported"; w->timing = "sparse-slices";
     if (strcmp(option(spec, "timing", ""), "reuse")) return;
@@ -166,7 +165,7 @@ static void setup_slices(work *w) {
     for (int i = 0; i < 7; ++i) if (!strcmp(spec->operation, operations[i])) operation = i;
     if (operation < 0) fail("unknown sparse slices comparison");
     w->timing = slices_timing(operation);
-    if (!scalar_slices) {
+    if (!scalar_oracle) {
 #ifndef USE_MKL
         return;
 #else
@@ -177,7 +176,7 @@ static void setup_slices(work *w) {
     w->slices = s;
     sparse_fixture fixture = make_sparse(spec->dims[0], 1, strtod(option(spec, "density", ".01"), NULL), 1, 0, 1);
     s->dimension = spec->dims[0]; s->count = fixture.nnz; s->capacity = s->count; s->output_capacity = s->count;
-    s->operation = operation; s->compact = !strcmp(option(spec, "compact", "N"), "T"); s->use_mkl = !scalar_slices;
+    s->operation = operation; s->compact = !strcmp(option(spec, "compact", "N"), "T"); s->use_mkl = !scalar_oracle;
     s->indices = fixture.row_idx; s->values = fixture.values; free(fixture.col_ptr);
     s->marks = allocate(s->dimension, sizeof(int)); s->touched = allocate(s->count, sizeof(int));
     s->out_indices = allocate(s->count, sizeof(int)); s->accumulator = allocate(s->dimension, sizeof(double));
@@ -193,7 +192,7 @@ static void setup_slices(work *w) {
     memcpy(s->touched, s->indices, (size_t)s->count * sizeof(int));
     if (operation != SLICES_CYCLE && operation != SLICES_CYCLE_CHECKED) { s->total = s->count; slices_refill(s); }
     w->supported = 1; w->comparison = "composed"; w->invoke = invoke_slices;
-    w->actual_kernel = scalar_slices ? "scalar-c-validated-slices" : "onemkl-with-validated-bookkeeping";
+    w->actual_kernel = scalar_oracle ? "scalar-test-oracle" : "onemkl-with-validated-bookkeeping";
 }
 
 static void free_slices(work *w) {

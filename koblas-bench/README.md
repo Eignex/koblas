@@ -32,8 +32,8 @@ matrix products. For Linux oneMKL, set `ONEMKL_LIBRARY` to its runtime library p
 ## Sparse slices
 
 Sparse-slices cases use the normal `--operation` filter, for example `--operation sparse-slices-cycle`.
-The 26 `timing=reuse` cases have references selected with `--libraries scalar-slices,onemkl`:
-19 oneMKL compositions and seven scalar-only cases (checked cycles, checked dot and clear).
+Results appear in the normal target CSVs (`jvm-scalar.csv`, `jvm-c.csv`, `jvm-simd.csv`, `native.csv`).
+Of the 26 `timing=reuse` cases, oneMKL supports 19 compositions; seven checked or clear-only cases are unsupported.
 Validation, support tracking, compaction and output handling are timed; buffers persist across calls.
 Cycles scatter `0.875` over half the support, then `-0.875` over all, and gather-clear.
 Standalone clear and gather-clear include a touched-entry refill. oneMKL compositions preserve rounded
