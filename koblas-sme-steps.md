@@ -25,6 +25,26 @@ not speculative low-precision metadata or a dummy OS-enablement implementation.
 Support logical modes through shared packing/scheduling where possible; do not multiply native implementations
 across every ISA/layout/transpose/tile combination without measured need.
 
+**Consolidation and current progress**
+
+This sequence has **14 PRs**, covering all 27 original steps. `W01`–`W27` are stable work-package IDs matching
+those original planning numbers; they are not GitHub PR numbers. The mapping below assigns every package once.
+Each package retains its transition, implementation scope, technical verification, and exit criteria. A merged
+PR gets one goal, one implementation session, one independent review, and one final green-CI completion gate;
+its reviewer covers the union of the package-specific risks. Checks need not be repeated without relevant changes.
+
+PR 01 has already landed as [GitHub PR #540](https://github.com/Eignex/koblas/pull/540), merged on 2026-09-12 at
+`1be759ff`. Keep W01 as the acceptance record; audit existing results and carry forward missing target evidence
+instead of reopening or reimplementing it. Its follow-up simplifications use explicit named packed recipes,
+source-SHA provenance, and existing case/run/sample records rather than separate version labels or duplicated
+physical settings. New work begins with PR 02 after checking the accepted baseline.
+
+Within merged PRs, update producers and consumers directly; do not introduce an adapter merely to bridge two
+work packages landing together. Temporary adapters are only for consumers in a later PR. Build the simple
+concrete implementation first: static native descriptors, typed tables, ordinary selection functions, and
+validated operands. Preserve every operation/mode and correctness requirement without creating a distinct
+interface, packing format, or specialized kernel for every combination. oneMKL parity remains a separate goal.
+
 **How to land the transition**
 
 - Land in numbered order. The prerequisite column names the essential technical dependencies; every PR also
@@ -33,13 +53,13 @@ across every ISA/layout/transpose/tile combination without measured need.
   does not yet implement an operation, select an explicitly identified available implementation. Exact kernel
   execution must never silently substitute another backend.
 - New ISA kernels are initially exact-selectable. AUTO eligibility requires correctness and target measurements;
-  PR 26 installs the complete measured policy. Shared orchestration can migrate earlier using conservative
+  PR 13 installs the complete measured policy. Shared orchestration can migrate earlier using conservative
   available-kernel profiles.
 - Temporary adapters exist only to cross a transition boundary. They do not define the final ABI or packing
   format, and each has a removal owner in this document. Do not publish them as new public APIs. Keeping each
   intermediate PR buildable is an integration requirement, not a backward-compatibility commitment. Remove an
   adapter as soon as its last in-repository consumer migrates; prefer updating callers directly in the owning PR.
-- Update relevant API dumps, KDoc, and test callers in the PR that changes an API. PR 27 finishes migration
+- Update relevant API dumps, KDoc, and test callers in the PR that changes an API. PR 14 finishes migration
   documentation; it is not permission to leave intermediate API checks broken.
 - Do not split PRs solely by source set when that leaves JVM or Native broken. A kernel contract change includes
   the bindings and reference implementation needed to exercise it.
@@ -54,14 +74,15 @@ Every numbered PR starts in a fresh implementation session and ends with an inde
 fresh session. Do not continue the next PR in the previous PR's conversation, fork the implementation history
 into the reviewer, or count implementation-session self-review as independent review. Using the same model in
 two separate sessions is allowed; independence comes from separate context and independently checking evidence.
-If a planned PR is split, each resulting PR follows this same workflow and inherits its settings unless this
-plan is explicitly revised.
+Implement each merged PR as its ordered work packages within one implementation session and one reviewed PR.
+A work package is not a separate PR/session gate. Split only if a concrete review/build risk warrants it; preserve
+all package requirements and the same session/goal/review/CI rules for each resulting PR.
 
 Use GPT-6 Astra (`gpt-6-astra`) for implementation and review. The official model documentation identifies it
 for complex coding/reasoning and lists `high` and `xhigh` as supported reasoning settings.
 [Model documentation](https://developers.openai.com/api/docs/models/gpt-6-astra).
 The assignments below are engineering recommendations for this project, not measured model comparisons:
-`high` for the bounded baseline/build/ordinary-width transitions (01, 02, 04); `xhigh` for the remaining
+`high` for the existing baseline step (PR 01); `xhigh` for the remaining consolidated
 implementation work and every independent review. Settings are stated explicitly in every PR section.
 At session start, confirm availability and record the actual model/effort; if unavailable, revise the assignment
 explicitly rather than silently substituting another model. Model settings never replace verification gates.
@@ -122,45 +143,36 @@ Before pushing, run the full repository check as instructed by AGENTS.md. Keep H
 out of this project; the full check may still rebuild it. Do not edit `.github/` without a separate request.
 Match repository test naming/layout and keep individual JVM tests short by parameterizing bounded cases.
 
-**Sequence overview**
+**Sequence and complete old-to-new mapping**
 
-| PR | Suggested title | Essential prerequisites | State after merge |
+| PR | Included former steps | Suggested title | Essential prerequisites |
 |---|---|---|---|
-| 01 | `test: establish kernel transition baselines` | None | Semantic and performance baselines are reproducible. |
-| 02 | `refactor: compile native kernels outside cinterop headers` | 01 | One native source tree builds shared and static artifacts. |
-| 03 | `feat: add versioned native kernel capability probe` | 02 | Generic catalog and execution-state descriptions work through JVM and Native. |
-| 04 | `refactor: make ordinary native kernel widths explicit` | 03 | Existing C variants have exact IDs and truthful width attribution. |
-| 05 | `feat: add immutable kernel profiles and plan selection` | 03, 04 | Typed policy/configuration and inspectable selection replace hidden decisions. |
-| 06 | `feat: define matrix operands and block contracts` | 05 | Validated windows/layouts and scalar execution establish the product contract. |
-| 07 | `feat: implement ordinary matrix block kernels` | 04, 06 | JVM SIMD and ordinary C consume the same logical product interface. |
-| 08 | `refactor: share gemm planning across matrices and views` | 05–07 | One GEMM orchestration schedules direct and packed block calls. |
-| 09 | `feat: add isolated SME execution support` | 03, 07 | Separate SME/SME2 build targets and safe native boundaries are verified. |
-| 10 | `feat: add FP64 SME product kernels` | 08, 09 | SME GEMM is exact-selectable through the shared planner. |
-| 11 | `feat: add FP64 SME2 product kernels` | 10 | SME2 GEMM is independently selectable and compared with SME. |
-| 12 | `feat: add SME packing and transpose kernels` | 06, 09, 10 | SME layout operations produce final-format packed operands. |
-| 13 | `feat: add SME2 packing and transpose kernels` | 11, 12 | SME2 grouped layout operations are separately selectable. |
-| 14 | `refactor: share structured matrix product scheduling` | 08, 10–13 | SYMM, GEMMT, and SYRK share block products across backends. |
-| 15 | `feat: fuse symmetric rank two k updates` | 14 | SYR2K can accumulate both products in one output traversal. |
-| 16 | `refactor: schedule triangular multiplication by blocks` | 14 | TRMM uses one dependency-correct block orchestration. |
-| 17 | `refactor: decouple triangular solves from gemm tile shapes` | 06, 07, 16 | TRSM diagonal/RHS blocks are independent of product microtiles. |
-| 18 | `feat: add SME triangular block kernels` | 10, 17 | SME solve and fused update/solve variants are exact-selectable. |
-| 19 | `feat: add SME2 triangular block kernels` | 11, 18 | SME2 triangular variants are separately tested and measured. |
-| 20 | `refactor: express gemv through variable panel kernels` | 05–07 | GEMV uses variable panels; existing sparse consumers migrate without an algorithm rewrite. |
-| 21 | `feat: add SME and SME2 panel and gemv kernels` | 09–13, 20 | Both matrix backends serve the same GEMV/panel contract. |
-| 22 | `refactor: execute symmetric matrix vector products by blocks` | 20, 21 | SYMV has shared block scheduling and explicit semantic fallbacks. |
-| 23 | `feat: execute rank updates through matrix block kernels` | 14, 21, 22 | GER/SYR/SYR2 can use direct block updates on each backend. |
-| 24 | `perf: optimize native call batches and workspace lifetimes` | 08–23 | Batching is measured; an additional storage strategy exists only if justified. |
-| 25 | `feat: calibrate kernel profiles and vector dispatch` | 01, 05, 10–24 | Reproducible calibration covers dense kernels and existing vector candidates. |
-| 26 | `perf: enable measured operation specific kernel dispatch` | 25 | AUTO selects measured scalar/SIMD/C/SME/SME2 plans by operation and shape. |
-| 27 | `refactor: remove legacy kernel dispatch and finalize migration` | 26 | Legacy seams are gone; the end state is documented and release-verified. |
+| 01 | W01 | `test: establish kernel transition baselines` | None |
+| 02 | W02, W03, W04 | `feat: unify native builds and kernel capabilities` | 01 |
+| 03 | W05, W06 | `feat: define kernel selection and matrix operands` | 02 |
+| 04 | W07, W08 | `refactor: execute gemm through shared block kernels` | 03 |
+| 05 | W09, W10, W11 | `feat: add SME and SME2 product kernels` | 02, 04 |
+| 06 | W12, W13 | `feat: add SME and SME2 layout kernels` | 03, 05 |
+| 07 | W14, W15 | `refactor: share structured matrix product execution` | 04–06 |
+| 08 | W16, W17 | `refactor: decouple triangular blocks from product tiles` | 03, 04, 07 |
+| 09 | W18, W19 | `feat: add SME and SME2 triangular kernels` | 05, 08 |
+| 10 | W20, W21 | `feat: execute gemv through variable panel kernels` | 03–06 |
+| 11 | W22, W23 | `feat: add symmetric and rank update block kernels` | 07, 10 |
+| 12 | W24 | `perf: tune native batches and workspace lifetimes` | 04–11 |
+| 13 | W25, W26 | `perf: calibrate and enable operation specific dispatch` | 01–12 |
+| 14 | W27 | `refactor: finalize the kernel architecture migration` | 13 |
 
-**PR 01 — Establish semantic and benchmark baselines**
+**PR 01 — Explicit benchmark cases and baselines**
 
 **Implementation:** fresh session; model `gpt-6-astra`; reasoning `high`.
 
-**Goal:** Implement PR 01 (Establish semantic and benchmark baselines), open its GitHub PR, pass all applicable verification gates,
-resolve independent review findings, and get required CI green on the final reviewed head; leave the PR open
-and ready for review without merging.
+**Goal:** Preserve explicit benchmark recipes, numerical coverage, and reproducible baselines; OPEN the GitHub PR,
+pass all applicable gates and independent review, and get required CI green on the final reviewed head.
+Leave it open and ready for review without merging; mark the session goal complete only then.
+
+**Status:** landed in GitHub PR #540. The goal and requirements below document acceptance; do not start a duplicate PR.
+
+**W01 — Establish semantic and benchmark baselines**
 
 Transition: current behavior is implicit in scattered tests and fixed physical benchmark cases; after this PR,
 the redesign has an explicit reference and comparable measurements.
@@ -168,13 +180,14 @@ the redesign has an explicit reference and comparable measurements.
 - Inventory zero-alpha/beta, empty dimensions, robust norms, selected triangles, unit diagonals, strided views,
   permitted aliases, and the ordered numerical fallbacks. Record each contract's current oracle/test owner.
 - Extend the harness's case descriptions to distinguish logical workload from backend physical layout without
-  changing the timing meaning of existing rows. Version changed workload/schema semantics rather than mixing
-  incompatible reports. Add shapes that expose skinny GEMM, depth tails, and multi-RHS solves.
+  changing the timing meaning of existing rows. Identify changed workload/fixture semantics by explicit
+  case/recipe and source SHA; do not mix incompatible reports or restore removed version-label fields. Add
+  shapes that expose skinny GEMM, depth tails, and multi-RHS solves.
 - Put the tile/packed settings from architecture section 13 explicitly in `koblas-bench/cases.txt` before
-  capturing baselines: physical tile, versioned left/right formats, packing groups/strides/padding/alignment,
-  applicable block/panel sizes, variant constraints, and timing mode. Require applicable fields even when they
-  equal today's defaults. Kotlin/vendor runners must consume them without consulting backend/tuning defaults
-  to reconstruct the workload. Validate actual geometry/layout against the case; reject unsupported selections.
+  capturing baselines: an explicit packed recipe fixing tile, left/right formats, groups/strides/padding/alignment,
+  plus independently varied block/panel settings, variant constraints, and timing mode. Require the recipe and
+  applicable independent fields even when today's defaults match; avoid duplicating constants it already fixes.
+  Kotlin/vendor runners must consume them without consulting backend/tuning defaults to reconstruct the workload. Validate actual geometry/layout against the case; reject unsupported selections.
 - Implement fixed-configuration and logical-workload comparison modes. Generate logical fixtures before
   packing, retain physical-work metadata, and include old tile-loop overhead when timing a logical block.
   Update Kotlin/vendor runners and comparator together. Preserve semantic identity across kernel renames;
@@ -189,15 +202,18 @@ defaults cannot change a fixed case's workload. Test cross-layout comparisons an
 fixture/timing/physical-work pairs. No production dispatch changes.
 
 **Final independent review (G7):** fresh separate session; model `gpt-6-astra`; reasoning `xhigh`.
-Focus: oracle independence, no-read/alias coverage, explicit case-defined work, and honest before/after comparisons.
 
-**PR 02 — Extract and unify native builds**
+- W01: oracle independence, no-read/alias coverage, explicit case-defined work, and honest before/after comparisons.
 
-**Implementation:** fresh session; model `gpt-6-astra`; reasoning `high`.
+**PR 02 — Native builds, capability probe, and ordinary widths**
 
-**Goal:** Implement PR 02 (Extract and unify native builds), open its GitHub PR, pass all applicable verification gates,
-resolve independent review findings, and get required CI green on the final reviewed head; leave the PR open
-and ready for review without merging.
+**Implementation:** fresh session; model `gpt-6-astra`; reasoning `xhigh`.
+
+**Goal:** Deliver one native build pipeline, a baseline-safe capability probe, and exact ordinary-width execution; OPEN the GitHub PR,
+pass all applicable gates and independent review, and get required CI green on the final reviewed head.
+Leave it open and ready for review without merging; mark the session goal complete only then.
+
+**W02 — Extract and unify native builds**
 
 Transition: header-compiled implementation becomes ordinary compiled native code shared by both runtimes.
 
@@ -207,22 +223,13 @@ Transition: header-compiled implementation becomes ordinary compiled native code
   Update `koblas_kernels.def`, Gradle dependencies/inputs, resource checks, and exported-symbol verification.
 - Track compiler/toolchain identity, target triple, flags, and all sources in build cache inputs. Handle cross
   targets explicitly and retain the existing supported scalar cross-target behavior.
-- Keep current instruction selection intact until PR 04 makes variants explicit. Do not introduce SME here.
+- Keep current instruction selection intact until W04 makes variants explicit. Do not introduce SME here.
 
 Verification: G1, G2, existing kernel conformance and a small G5 before/after sample. Exit: each affected target
 links the correct architecture; no host archive leaks into another target. Old symbol forwarding is removed
-after the last consumer migrates, no later than PR 27.
+after the last consumer migrates, no later than W27.
 
-**Final independent review (G7):** fresh separate session; model `gpt-6-astra`; reasoning `xhigh`.
-Focus: cross-target archive selection, symbol/link parity, toolchain cache inputs, and baseline instruction safety.
-
-**PR 03 — Add the generic C probe and state model**
-
-**Implementation:** fresh session; model `gpt-6-astra`; reasoning `xhigh`.
-
-**Goal:** Implement PR 03 (Add the generic C probe and state model), open its GitHub PR, pass all applicable verification gates,
-resolve independent review findings, and get required CI green on the final reviewed head; leave the PR open
-and ready for review without merging.
+**W03 — Add the generic C probe and state model**
 
 Transition: library availability becomes a versioned catalog of built, usable, and unavailable kernel choices.
 
@@ -240,16 +247,7 @@ Transition: library availability becomes a versioned catalog of built, usable, a
 Verification: G1, G2 and descriptor/ABI tests. Exit: unsupported and unavailable are explainable; process,
 thread, and per-call state requirements are distinct. The probe is useful before SME kernels exist.
 
-**Final independent review (G7):** fresh separate session; model `gpt-6-astra`; reasoning `xhigh`.
-Focus: ABI sizing/version negotiation, capability versus readiness, permission scopes, and rejection of ACE without FP64.
-
-**PR 04 — Make ordinary C variants and widths explicit**
-
-**Implementation:** fresh session; model `gpt-6-astra`; reasoning `high`.
-
-**Goal:** Implement PR 04 (Make ordinary C variants and widths explicit), open its GitHub PR, pass all applicable verification gates,
-resolve independent review findings, and get required CI green on the final reviewed head; leave the PR open
-and ready for review without merging.
+**W04 — Make ordinary C variants and widths explicit**
 
 Transition: hidden target cloning/source-vector width assumptions become individually identifiable kernels.
 
@@ -266,22 +264,28 @@ Verification: G1–G3; disassembly and G5 for affected ordinary variants. Exit: 
 attributable and exact requests cannot resolve to a different width. Remove obsolete hidden clones here.
 
 **Final independent review (G7):** fresh separate session; model `gpt-6-astra`; reasoning `xhigh`.
-Focus: truthful ISA and width IDs, absence of hidden substitution, and baseline portability.
 
-**PR 05 — Add immutable profiles and inspectable planning**
+- W02: cross-target archive selection, symbol/link parity, toolchain cache inputs, and baseline instruction safety.
+- W03: ABI sizing/version negotiation, capability versus readiness, permission scopes, and rejection of ACE without FP64.
+- W04: truthful ISA and width IDs, absence of hidden substitution, and baseline portability.
+
+**PR 03 — Typed selection, operands, and scalar block contracts**
 
 **Implementation:** fresh session; model `gpt-6-astra`; reasoning `xhigh`.
 
-**Goal:** Implement PR 05 (Add immutable profiles and inspectable planning), open its GitHub PR, pass all applicable verification gates,
-resolve independent review findings, and get required CI green on the final reviewed head; leave the PR open
-and ready for review without merging.
+**Goal:** Deliver small typed selection rules, validated windows/packed operands, and executable scalar block contracts; OPEN the GitHub PR,
+pass all applicable gates and independent review, and get required CI green on the final reviewed head.
+Leave it open and ready for review without merging; mark the session goal complete only then.
+
+**W05 — Add immutable profiles and inspectable planning**
 
 Transition: process-wide scattered crossovers become data belonging to a hardware/runtime execution policy.
 
-- Add typed profile tables under `koblas/src/tuning/` with deterministic validation. Separate legal native
+- Add small typed profile tables under `koblas/src/tuning/` with deterministic validation. Separate legal native
   variants from scheduling, host crossovers, and algorithm choices. Kotlin owns policy and passes selected
   schedules to C; generate shared data only if a field actually has consumers in both languages.
-- Implement profile resolution, exact/AUTO policies, and a pure decision API. Represent `Never`,
+- Implement exact/AUTO policies and inspectable selection functions in the existing engine where possible;
+  do not require a new public planner/profile framework. Represent `Never`,
   `AlwaysEligible`, shape rules, and checked/saturating work estimates explicitly.
 - Add operation/component diagnostics; an engine with mixed components cannot label every operation SME.
 - Resolve properties/environment overrides once. Validate supported geometries and IDs; exact unavailable
@@ -291,18 +295,9 @@ Transition: process-wide scattered crossovers become data belonging to a hardwar
 
 Verification: G1, decision tests and warmed allocation checks. Exit: performance choice is separate from
 capability, no startup autotuning is introduced, and newer ISA/greater width does not imply priority.
-Existing operation families consume this policy as they migrate; residual old tuning readers belong to PR 27.
+Existing operation families consume this policy as they migrate; residual old tuning readers belong to W27.
 
-**Final independent review (G7):** fresh separate session; model `gpt-6-astra`; reasoning `xhigh`.
-Focus: immutable selection, checked shape arithmetic, separate scalar-C and SIMD-C policies, and truthful diagnostics.
-
-**PR 06 — Define windows, packed layouts, and executable block contracts**
-
-**Implementation:** fresh session; model `gpt-6-astra`; reasoning `xhigh`.
-
-**Goal:** Implement PR 06 (Define windows, packed layouts, and executable block contracts), open its GitHub PR, pass all applicable verification gates,
-resolve independent review findings, and get required CI green on the final reviewed head; leave the PR open
-and ready for review without merging.
+**W06 — Define windows, packed layouts, and executable block contracts**
 
 Transition: raw panels and fixed microtiles become validated logical operands with an executable scalar contract.
 
@@ -316,46 +311,41 @@ Transition: raw panels and fixed microtiles become validated logical operands wi
 - Keep ordered numerical fallbacks and failure-before-mutation explicit. Multiple kernels may share a declared
   layout; product packing dimensions must not dictate triangular solve order.
 - Update in-repository callers/API dumps with the contract changes. Use temporary internal wrappers only for
-  unmigrated consumers; remove them in the owning family PR, with the final audit in PR 27.
+  unmigrated consumers; remove them in the owning family PR, with the final audit in W27.
 
 Verification: G1, G3, size/stride overflow, round trips, retained-layout mismatch, alpha/beta/no-read cases,
 non-finite/extreme values, and untouched backing storage. Exit: layout and product contracts are exercised
 together before accelerated implementations are added.
 
 **Final independent review (G7):** fresh separate session; model `gpt-6-astra`; reasoning `xhigh`.
-Focus: ownership/layout validation, scalar-oracle independence, alpha/beta and no-read semantics, and failure before mutation.
 
-**PR 07 — Implement ordinary C and JVM SIMD product blocks**
+- W05: immutable selection, checked shape arithmetic, separate scalar-C and SIMD-C policies, and truthful diagnostics.
+- W06: ownership/layout validation, scalar-oracle independence, alpha/beta and no-read semantics, and failure before mutation.
+
+**PR 04 — Ordinary GEMM blocks and shared matrix/view execution**
 
 **Implementation:** fresh session; model `gpt-6-astra`; reasoning `xhigh`.
 
-**Goal:** Implement PR 07 (Implement ordinary C and JVM SIMD product blocks), open its GitHub PR, pass all applicable verification gates,
-resolve independent review findings, and get required CI green on the final reviewed head; leave the PR open
-and ready for review without merging.
+**Goal:** Deliver ordinary C/JVM SIMD block kernels and one GEMM orchestration for owning matrices and views; OPEN the GitHub PR,
+pass all applicable gates and independent review, and get required CI green on the final reviewed head.
+Leave it open and ready for review without merging; mark the session goal complete only then.
+
+**W07 — Implement ordinary C and JVM SIMD product blocks**
 
 Transition: ordinary backends implement the final block API, proving it is not an SME-only abstraction.
 
 - Implement direct and packed block products for ordinary C and JVM SIMD. Reuse valid arithmetic code where
   helpful, but put the microtile loops inside the selected backend's block execution.
 - Add versioned C matrix execution bindings and block-level Kotlin/Native pinning. Add edge/masked stores and
-  alpha/beta handling under the contract from PR 06.
-- Establish a conservative finite work bound for JVM critical calls now. PR 24 optimizes it; no interim PR may
+  alpha/beta handling under the contract from W06.
+- Establish a conservative finite work bound for JVM critical calls now. W24 optimizes it; no interim PR may
   pass an arbitrarily large whole BLAS operation through a critical downcall.
 - Preserve the JVM inlining rule for helpers returning `DoubleVector`; benchmark allocation behavior.
 
 Verification: G1–G3, G5 ordinary comparisons, G6 allocation/call-boundary smoke. Exit: every new product mode
 has a non-SME execution path and exact diagnostics. No new portable ISA-specific traversal is introduced.
 
-**Final independent review (G7):** fresh separate session; model `gpt-6-astra`; reasoning `xhigh`.
-Focus: C/JVM contract equivalence, edge handling, bounded calls, and allocation-free JVM vector helpers.
-
-**PR 08 — Migrate GEMM and view execution to one planner**
-
-**Implementation:** fresh session; model `gpt-6-astra`; reasoning `xhigh`.
-
-**Goal:** Implement PR 08 (Migrate GEMM and view execution to one planner), open its GitHub PR, pass all applicable verification gates,
-resolve independent review findings, and get required CI green on the final reviewed head; leave the PR open
-and ready for review without merging.
+**W08 — Migrate GEMM and view execution to one planner**
 
 Transition: `BuiltinBlas`/view defaults and per-tile Kotlin dispatch become shared operation-level scheduling.
 
@@ -366,22 +356,26 @@ Transition: `BuiltinBlas`/view defaults and per-tile Kotlin dispatch become shar
 - Keep one portable GEMM orchestration for all exact and AUTO backend selections. Preserve independently
   callable reference arithmetic, not a second production portable implementation per ISA.
 - Remove the superseded GEMM-only scheduler/edge adapters; shared helpers still used by unmigrated structured
-  or triangular operations remain temporarily and have deletion owners in PRs 14–19.
+  or triangular operations remain temporarily and have deletion owners in W14–W19.
 
-Verification: G1–G3, G5 full GEMM versus PR 01 on ordinary backends, G6. Exit: matrices and views receive the
+Verification: G1–G3, G5 full GEMM versus W01 on ordinary backends, G6. Exit: matrices and views receive the
 same planning opportunities; changing layout after packing is impossible. Regressions in the ordinary route
 must be fixed before merge rather than hidden behind the future SME backend.
 
 **Final independent review (G7):** fresh separate session; model `gpt-6-astra`; reasoning `xhigh`.
-Focus: owning/view parity, pack amortization, alias handling, and removal of per-microtile foreign calls.
 
-**PR 09 — Establish isolated SME execution boundaries**
+- W07: C/JVM contract equivalence, edge handling, bounded calls, and allocation-free JVM vector helpers.
+- W08: owning/view parity, pack amortization, alias handling, and removal of per-microtile foreign calls.
+
+**PR 05 — SME execution boundaries and both FP64 product backends**
 
 **Implementation:** fresh session; model `gpt-6-astra`; reasoning `xhigh`.
 
-**Goal:** Implement PR 09 (Establish isolated SME execution boundaries), open its GitHub PR, pass all applicable verification gates,
-resolve independent review findings, and get required CI green on the final reviewed head; leave the PR open
-and ready for review without merging.
+**Goal:** Verify isolated streaming boundaries and independently executable SME and SME2 FP64 GEMM kernels; OPEN the GitHub PR,
+pass all applicable gates and independent review, and get required CI green on the final reviewed head.
+Leave it open and ready for review without merging; mark the session goal complete only then.
+
+**W09 — Establish isolated SME execution boundaries**
 
 Transition: supported build systems gain verified SME and SME2 code-generation/link/runtime boundaries.
 
@@ -398,16 +392,7 @@ Transition: supported build systems gain verified SME and SME2 code-generation/l
 Verification: G1, G2, G4, G6. Exit: both runtimes can safely call an attributed implementation. The earlier
 compile-only investigation is superseded by actual link and hardware evidence.
 
-**Final independent review (G7):** fresh separate session; model `gpt-6-astra`; reasoning `xhigh`.
-Focus: streaming ABI attributes, ZA preservation, helper linking, per-context readiness, and baseline ISA isolation.
-
-**PR 10 — Implement SME FP64 GEMM blocks**
-
-**Implementation:** fresh session; model `gpt-6-astra`; reasoning `xhigh`.
-
-**Goal:** Implement PR 10 (Implement SME FP64 GEMM blocks), open its GitHub PR, pass all applicable verification gates,
-resolve independent review findings, and get required CI green on the final reviewed head; leave the PR open
-and ready for review without merging.
+**W10 — Implement SME FP64 GEMM blocks**
 
 Transition: the shared product planner gains its first matrix-accelerated implementation.
 
@@ -422,16 +407,7 @@ Transition: the shared product planner gains its first matrix-accelerated implem
 Verification: G1–G4, G5 initial SME results, G6. Exit: SME GEMM runs through the existing shared planner, including
 owning/view and retained-packed paths, with no `smeGemm` portable fork.
 
-**Final independent review (G7):** fresh separate session; model `gpt-6-astra`; reasoning `xhigh`.
-Focus: actual FP64 SME instructions, current SVL, predicated edges, epilogue semantics, and exact execution evidence.
-
-**PR 11 — Implement SME2 FP64 GEMM blocks**
-
-**Implementation:** fresh session; model `gpt-6-astra`; reasoning `xhigh`.
-
-**Goal:** Implement PR 11 (Implement SME2 FP64 GEMM blocks), open its GitHub PR, pass all applicable verification gates,
-resolve independent review findings, and get required CI green on the final reviewed head; leave the PR open
-and ready for review without merging.
+**W11 — Implement SME2 FP64 GEMM blocks**
 
 Transition: SME and SME2 become distinct, comparable product choices under the same contract.
 
@@ -447,15 +423,20 @@ Verification: G1–G4, G5 SME-versus-SME2 raw and full GEMM, G6. Exit: both impl
 conformance cases and remain separately selectable. Neither receives a default solely because it is newer.
 
 **Final independent review (G7):** fresh separate session; model `gpt-6-astra`; reasoning `xhigh`.
-Focus: distinct SME2 instruction schedules, feature gating, layout compatibility, and independently measured SME comparisons.
 
-**PR 12 — Implement SME layout kernels**
+- W09: streaming ABI attributes, ZA preservation, helper linking, per-context readiness, and baseline ISA isolation.
+- W10: actual FP64 SME instructions, current SVL, predicated edges, epilogue semantics, and exact execution evidence.
+- W11: distinct SME2 instruction schedules, feature gating, layout compatibility, and independently measured SME comparisons.
+
+**PR 06 — SME and SME2 packing, unpacking, and transpose**
 
 **Implementation:** fresh session; model `gpt-6-astra`; reasoning `xhigh`.
 
-**Goal:** Implement PR 12 (Implement SME layout kernels), open its GitHub PR, pass all applicable verification gates,
-resolve independent review findings, and get required CI green on the final reviewed head; leave the PR open
-and ready for review without merging.
+**Goal:** Deliver independently measured SME and SME2 general/structured packing, unpacking, and transpose; OPEN the GitHub PR,
+pass all applicable gates and independent review, and get required CI green on the final reviewed head.
+Leave it open and ready for review without merging; mark the session goal complete only then.
+
+**W12 — Implement SME layout kernels**
 
 Transition: layout preparation becomes an accelerated component instead of an unconditional portable cost.
 
@@ -469,16 +450,7 @@ Transition: layout preparation becomes an accelerated component instead of an un
 Verification: G1–G4, G5 layout-only and full GEMM, G6 scratch reuse. Exit: scalar and SME packers are compatible
 when their layout ID matches, and an operation can mix a measured layout kernel with a compatible compute kernel.
 
-**Final independent review (G7):** fresh separate session; model `gpt-6-astra`; reasoning `xhigh`.
-Focus: bit-preserving layout transforms, padding and tails, unit-diagonal/triangle no-read rules, and SVL-dependent layouts.
-
-**PR 13 — Implement SME2 layout kernels**
-
-**Implementation:** fresh session; model `gpt-6-astra`; reasoning `xhigh`.
-
-**Goal:** Implement PR 13 (Implement SME2 layout kernels), open its GitHub PR, pass all applicable verification gates,
-resolve independent review findings, and get required CI green on the final reviewed head; leave the PR open
-and ready for review without merging.
+**W13 — Implement SME2 layout kernels**
 
 Transition: packing and final extraction gain independently measurable SME2 grouped-transfer schedules.
 
@@ -493,15 +465,19 @@ Verification: G1–G4, G5 SME-versus-SME2 layout/full-operation comparisons, G6.
 tuned independently without multiplying portable algorithms.
 
 **Final independent review (G7):** fresh separate session; model `gpt-6-astra`; reasoning `xhigh`.
-Focus: grouped SME2 moves, producer/consumer layout compatibility, tails, and complete packing costs.
 
-**PR 14 — Migrate symmetric and triangular-output products**
+- W12: bit-preserving layout transforms, padding and tails, unit-diagonal/triangle no-read rules, and SVL-dependent layouts.
+- W13: grouped SME2 moves, producer/consumer layout compatibility, tails, and complete packing costs.
+
+**PR 07 — Structured products and fused SYR2K**
 
 **Implementation:** fresh session; model `gpt-6-astra`; reasoning `xhigh`.
 
-**Goal:** Implement PR 14 (Migrate symmetric and triangular-output products), open its GitHub PR, pass all applicable verification gates,
-resolve independent review findings, and get required CI green on the final reviewed head; leave the PR open
-and ready for review without merging.
+**Goal:** Deliver shared SYMM/GEMMT/SYRK scheduling and the fused two-product SYR2K contract and backends; OPEN the GitHub PR,
+pass all applicable gates and independent review, and get required CI green on the final reviewed head.
+Leave it open and ready for review without merging; mark the session goal complete only then.
+
+**W14 — Migrate symmetric and triangular-output products**
 
 Transition: SYMM, GEMMT, and SYRK share the new product planner rather than old tile orchestration.
 
@@ -512,21 +488,12 @@ Transition: SYMM, GEMMT, and SYRK share the new product planner rather than old 
 - Extend exact backend reports so coverage cannot silently skip a physical shape. Route relevant view entry
   points through the same shared logic.
 - Remove the old structured-product scheduler when its last consumer moves; leave the SYR2K ordered semantic
-  fallback until PR 15 establishes the new fused operation.
+  fallback until W15 establishes the new fused operation.
 
 Verification: G1–G4, G5 all structured products and both triangles. Exit: SME/non-SME portable paths do not exist;
 selection changes kernel/layout components only.
 
-**Final independent review (G7):** fresh separate session; model `gpt-6-astra`; reasoning `xhigh`.
-Focus: structured operand access, selected-triangle stores, fused scaling eligibility, and shared portable scheduling.
-
-**PR 15 — Fuse SYR2K output accumulation**
-
-**Implementation:** fresh session; model `gpt-6-astra`; reasoning `xhigh`.
-
-**Goal:** Implement PR 15 (Fuse SYR2K output accumulation), open its GitHub PR, pass all applicable verification gates,
-resolve independent review findings, and get required CI green on the final reviewed head; leave the PR open
-and ready for review without merging.
+**W15 — Fuse SYR2K output accumulation**
 
 Transition: two separate product/output passes become an explicitly contracted two-product update.
 
@@ -541,15 +508,19 @@ Verification: G1–G4, special-value and beta-once tests, G5 fused versus compos
 backend serves the same new primitive; the shared planner can retain composed execution when it wins.
 
 **Final independent review (G7):** fresh separate session; model `gpt-6-astra`; reasoning `xhigh`.
-Focus: both-product accumulation, beta applied once, numerical fallback eligibility, and untouched output triangles.
 
-**PR 16 — Migrate TRMM block scheduling**
+- W14: structured operand access, selected-triangle stores, fused scaling eligibility, and shared portable scheduling.
+- W15: both-product accumulation, beta applied once, numerical fallback eligibility, and untouched output triangles.
+
+**PR 08 — Shared triangular multiplication and solve scheduling**
 
 **Implementation:** fresh session; model `gpt-6-astra`; reasoning `xhigh`.
 
-**Goal:** Implement PR 16 (Migrate TRMM block scheduling), open its GitHub PR, pass all applicable verification gates,
-resolve independent review findings, and get required CI green on the final reviewed head; leave the PR open
-and ready for review without merging.
+**Goal:** Deliver dependency-correct TRMM/TRSM scheduling and ordinary solve/update blocks with independent geometry; OPEN the GitHub PR,
+pass all applicable gates and independent review, and get required CI green on the final reviewed head.
+Leave it open and ready for review without merging; mark the session goal complete only then.
+
+**W16 — Migrate TRMM block scheduling**
 
 Transition: triangular multiplication becomes dependency-aware scheduling of final product/layout kernels.
 
@@ -563,16 +534,7 @@ Transition: triangular multiplication becomes dependency-aware scheduling of fin
 Verification: G1–G4, all side/uplo/transpose/diag combinations, G5 and G6. Exit: no TRMM scheduling dimension is
 implicitly fixed by a backend's old 4-by-4 tile interface.
 
-**Final independent review (G7):** fresh separate session; model `gpt-6-astra`; reasoning `xhigh`.
-Focus: in-place dependency order, side/transpose/unit-diagonal combinations, and snapshot lifetime.
-
-**PR 17 — Redesign TRSM orchestration and ordinary solve blocks**
-
-**Implementation:** fresh session; model `gpt-6-astra`; reasoning `xhigh`.
-
-**Goal:** Implement PR 17 (Redesign TRSM orchestration and ordinary solve blocks), open its GitHub PR, pass all applicable verification gates,
-resolve independent review findings, and get required CI green on the final reviewed head; leave the PR open
-and ready for review without merging.
+**W17 — Redesign TRSM orchestration and ordinary solve blocks**
 
 Transition: solve order, RHS batching, and product geometry become independent.
 
@@ -588,15 +550,19 @@ Verification: G1–G3, G5 ordinary TRSM, G6. Exit: all flags and difficult numer
 future accelerator only needs to implement the solve/update block contracts.
 
 **Final independent review (G7):** fresh separate session; model `gpt-6-astra`; reasoning `xhigh`.
-Focus: solve order independent of product tiles, diagonal/RHS geometry, fused update contracts, and all triangular flags.
 
-**PR 18 — Add SME triangular kernels**
+- W16: in-place dependency order, side/transpose/unit-diagonal combinations, and snapshot lifetime.
+- W17: solve order independent of product tiles, diagonal/RHS geometry, fused update contracts, and all triangular flags.
+
+**PR 09 — SME and SME2 triangular block kernels**
 
 **Implementation:** fresh session; model `gpt-6-astra`; reasoning `xhigh`.
 
-**Goal:** Implement PR 18 (Add SME triangular kernels), open its GitHub PR, pass all applicable verification gates,
-resolve independent review findings, and get required CI green on the final reviewed head; leave the PR open
-and ready for review without merging.
+**Goal:** Deliver independently tested SME and SME2 diagonal-solve and fused update/solve kernels; OPEN the GitHub PR,
+pass all applicable gates and independent review, and get required CI green on the final reviewed head.
+Leave it open and ready for review without merging; mark the session goal complete only then.
+
+**W18 — Add SME triangular kernels**
 
 Transition: the shared solve traversal gains SME solve and fused product-subtraction/solve implementations.
 
@@ -609,16 +575,7 @@ Transition: the shared solve traversal gains SME solve and fused product-subtrac
 Verification: G1–G4, G5 versus ordinary block solve and composed update+solve, G6. Exit: the portable TRSM code
 does not change to accommodate SME; its block selection changes.
 
-**Final independent review (G7):** fresh separate session; model `gpt-6-astra`; reasoning `xhigh`.
-Focus: SME solve dependencies, update/solve fusion, diagonal semantics, and truthful composed-kernel identities.
-
-**PR 19 — Add SME2 triangular kernels**
-
-**Implementation:** fresh session; model `gpt-6-astra`; reasoning `xhigh`.
-
-**Goal:** Implement PR 19 (Add SME2 triangular kernels), open its GitHub PR, pass all applicable verification gates,
-resolve independent review findings, and get required CI green on the final reviewed head; leave the PR open
-and ready for review without merging.
+**W19 — Add SME2 triangular kernels**
 
 Transition: SME2 grouped RHS updates become a separate solve/update candidate.
 
@@ -632,15 +589,19 @@ Verification: G1–G4, G5 SME/SME2 comparisons, G6. Exit: both architectures hav
 AUTO may later select an ordinary solve for shapes where it wins.
 
 **Final independent review (G7):** fresh separate session; model `gpt-6-astra`; reasoning `xhigh`.
-Focus: SME2 grouped triangular dependencies, all edge cases, state boundaries, and evidence against SME competitors.
 
-**PR 20 — Generalize panels and migrate GEMV**
+- W18: SME solve dependencies, update/solve fusion, diagonal semantics, and truthful composed-kernel identities.
+- W19: SME2 grouped triangular dependencies, all edge cases, state boundaries, and evidence against SME competitors.
+
+**PR 10 — Variable panels and GEMV on ordinary, SME, and SME2 backends**
 
 **Implementation:** fresh session; model `gpt-6-astra`; reasoning `xhigh`.
 
-**Goal:** Implement PR 20 (Generalize panels and migrate GEMV), open its GitHub PR, pass all applicable verification gates,
-resolve independent review findings, and get required CI green on the final reviewed head; leave the PR open
-and ready for review without merging.
+**Goal:** Deliver variable-width panels, shared owning/view GEMV, both SME implementations, and migrated sparse callers; OPEN the GitHub PR,
+pass all applicable gates and independent review, and get required CI green on the final reviewed head.
+Leave it open and ready for review without merging; mark the session goal complete only then.
+
+**W20 — Generalize panels and migrate GEMV**
 
 Transition: fixed `dot4`/`axpy4` calls become variable-width panel execution with one GEMV traversal.
 
@@ -651,21 +612,12 @@ Transition: fixed `dot4`/`axpy4` calls become variable-width panel execution wit
 - Route small cases through cheap in-runtime kernels. Remove the four-output API limitation rather than adding
   separate `dot8`, `dot16`, and SME-only portable loops.
 - Migrate existing sparse panel consumers to this interface without changing their algorithms. Remove their
-  four-column adapters here. Only unmigrated SYMV/rank consumers retain adapters, removed in PRs 22 and 23.
+  four-column adapters here. Only unmigrated SYMV/rank consumers retain adapters, removed in W22 and W23.
 
 Verification: G1–G3, G5 ordinary GEMV across both transposes, G6. Exit: the panel abstraction is useful without
 SME and supports backend-specific execution group sizes without changing portable scheduling semantics.
 
-**Final independent review (G7):** fresh separate session; model `gpt-6-astra`; reasoning `xhigh`.
-Focus: variable panel widths, transpose/stride paths, accumulation order, and owning/view parity.
-
-**PR 21 — Add SME and SME2 GEMV/panel implementations**
-
-**Implementation:** fresh session; model `gpt-6-astra`; reasoning `xhigh`.
-
-**Goal:** Implement PR 21 (Add SME and SME2 GEMV/panel implementations), open its GitHub PR, pass all applicable verification gates,
-resolve independent review findings, and get required CI green on the final reviewed head; leave the PR open
-and ready for review without merging.
+**W21 — Add SME and SME2 GEMV/panel implementations**
 
 Transition: both matrix backends execute the panel/GEMV contracts without new portable branches.
 
@@ -678,25 +630,29 @@ Transition: both matrix backends execute the panel/GEMV contracts without new po
   because its instruction throughput is higher.
 
 Verification: G1–G4, G5 raw panels and full GEMV, G6. Exit: SME and SME2 panel alternatives are independently
-testable. If the native source diff becomes too large, split this PR by ISA while keeping the same PR 20 contract.
+testable. If the native source diff becomes too large, split this PR by ISA while keeping the same W20 contract.
 
 **Final independent review (G7):** fresh separate session; model `gpt-6-astra`; reasoning `xhigh`.
-Focus: SME and SME2 panel identity, streaming amortization, reduction tails, and full GEMV costs.
 
-**PR 22 — Replace four-column SYMV with symmetric blocks**
+- W20: variable panel widths, transpose/stride paths, accumulation order, and owning/view parity.
+- W21: SME and SME2 panel identity, streaming amortization, reduction tails, and full GEMV costs.
+
+**PR 11 — Symmetric vector products and direct rank updates**
 
 **Implementation:** fresh session; model `gpt-6-astra`; reasoning `xhigh`.
 
-**Goal:** Implement PR 22 (Replace four-column SYMV with symmetric blocks), open its GitHub PR, pass all applicable verification gates,
-resolve independent review findings, and get required CI green on the final reviewed head; leave the PR open
-and ready for review without merging.
+**Goal:** Deliver shared SYMV and GER/SYR/SYR2 block execution with numerical guards and ordinary/SME/SME2 kernels; OPEN the GitHub PR,
+pass all applicable gates and independent review, and get required CI green on the final reviewed head.
+Leave it open and ready for review without merging; mark the session goal complete only then.
+
+**W22 — Replace four-column SYMV with symmetric blocks**
 
 Transition: one symmetric block schedule replaces hard-coded regrouping and duplicated portable work.
 
 - Define a coupled off-diagonal block update contributing both a block product and its transpose contribution;
   diagonal blocks read only the selected triangle.
 - Implement the scalar oracle and ordinary/SME/SME2 block kernels; share the same portable SYMV traversal.
-  Reuse components from PRs 20 and 21 without reintroducing many foreign calls.
+  Reuse components from W20 and W21 without reintroducing many foreign calls.
 - Rework the numerical eligibility checks for the actual new schedule. Use preflight checks or scratch-and-
   commit when required; never fall back after mutating y and apply the contribution again.
 - Remove the old SYMV four-column scheduler and its temporary panel adapters.
@@ -704,16 +660,7 @@ Transition: one symmetric block schedule replaces hard-coded regrouping and dupl
 Verification: G1–G4, intermediate-overflow/cancellation cases and both triangles, G5/G6. Exit: one generic
 ordered fallback and one shared blocked strategy remain; neither is named or branched by ISA.
 
-**Final independent review (G7):** fresh separate session; model `gpt-6-astra`; reasoning `xhigh`.
-Focus: coupled symmetric updates, overflow preflight, no partial mutation before fallback, and numerical edge cases.
-
-**PR 23 — Add direct matrix rank-update blocks**
-
-**Implementation:** fresh session; model `gpt-6-astra`; reasoning `xhigh`.
-
-**Goal:** Implement PR 23 (Add direct matrix rank-update blocks), open its GitHub PR, pass all applicable verification gates,
-resolve independent review findings, and get required CI green on the final reviewed head; leave the PR open
-and ready for review without merging.
+**W23 — Add direct matrix rank-update blocks**
 
 Transition: GER/SYR/SYR2 can update whole logical blocks instead of issuing one AXPY per column.
 
@@ -729,15 +676,19 @@ Verification: G1–G4, G5 full rank updates with hot/cold destinations, G6. Exit
 backend-neutral matrix layer and do not impose GEMM packing when it cannot pay off.
 
 **Final independent review (G7):** fresh separate session; model `gpt-6-astra`; reasoning `xhigh`.
-Focus: rank-update alpha semantics, skipped-zero behavior, selected triangles, aliases, and fused epilogue eligibility.
 
-**PR 24 — Optimize native batches and workspace lifetimes**
+- W22: coupled symmetric updates, overflow preflight, no partial mutation before fallback, and numerical edge cases.
+- W23: rank-update alpha semantics, skipped-zero behavior, selected triangles, aliases, and fused epilogue eligibility.
+
+**PR 12 — Bounded native calls and workspace tuning**
 
 **Implementation:** fresh session; model `gpt-6-astra`; reasoning `xhigh`.
 
-**Goal:** Implement PR 24 (Optimize native batches and workspace lifetimes), open its GitHub PR, pass all applicable verification gates,
-resolve independent review findings, and get required CI green on the final reviewed head; leave the PR open
-and ready for review without merging.
+**Goal:** Measure bounded native-call strategies and add an alternative storage path only where justified; OPEN the GitHub PR,
+pass all applicable gates and independent review, and get required CI green on the final reviewed head.
+Leave it open and ready for review without merging; mark the session goal complete only then.
+
+**W24 — Optimize native batches and workspace lifetimes**
 
 Transition: conservative safe call boundaries become measured per-runtime execution strategies.
 
@@ -755,15 +706,18 @@ Verification: G1–G4 for changed paths, G5 full-operation and reused-memory cos
 concurrent workloads. Exit: larger batches are justified by throughput and latency, not only by reduced call count.
 
 **Final independent review (G7):** fresh separate session; model `gpt-6-astra`; reasoning `xhigh`.
-Focus: heap/native pointer lifetime, safepoints, concurrent workspaces, bounded calls, and beta across split reductions.
 
-**PR 25 — Calibrate profiles and evaluate remaining vector candidates**
+- W24: heap/native pointer lifetime, safepoints, concurrent workspaces, bounded calls, and beta across split reductions.
+
+**PR 13 — Calibration, vector evaluation, and measured AUTO defaults**
 
 **Implementation:** fresh session; model `gpt-6-astra`; reasoning `xhigh`.
 
-**Goal:** Implement PR 25 (Calibrate profiles and evaluate remaining vector candidates), open its GitHub PR, pass all applicable verification gates,
-resolve independent review findings, and get required CI green on the final reviewed head; leave the PR open
-and ready for review without merging.
+**Goal:** Calibrate the completed kernel catalog, evaluate remaining vector candidates, and activate measured AUTO profiles; OPEN the GitHub PR,
+pass all applicable gates and independent review, and get required CI green on the final reviewed head.
+Leave it open and ready for review without merging; mark the session goal complete only then.
+
+**W25 — Calibrate profiles and evaluate remaining vector candidates**
 
 Transition: individual kernel experiments become a repeatable process that produces checked tuning profiles.
 
@@ -776,8 +730,9 @@ Transition: individual kernel experiments become a repeatable process that produ
   ordinary widths or streaming/grouped leaves only for plausible gaps; preserve robust norms and zero semantics.
   Negative results need a report, not a shipping kernel. Remove stale unconditional dispatch assumptions.
 - Emit profile candidates with source reports, runtime/compiler identity, layout/kernel IDs, and workload
-  versions. Validate typed tables and deterministic report import; check cross-language agreement only where
-  data is actually shared. Do not add a general profile/configuration language.
+  provenance using source SHAs and explicit case/recipe records. Validate typed tables and reuse existing
+  report tooling; add import/generation only to remove actual duplicated maintenance. Check cross-language
+  agreement only for shared data. Do not add a general profile/configuration language.
 - Measure scalar-to-C and JVM-SIMD-to-C independently. Include raw kernel, full-operation, and retained-packed
   boundaries. Validate candidate rules on held-out shapes and repeated runs.
 
@@ -785,16 +740,7 @@ Verification: G1, harness tests, G5 complete calibration runs. Exit: thresholds 
 reproducible; unavailable hardware produces no invented calibrated profile. Calibration tools are not executed
 at application startup.
 
-**Final independent review (G7):** fresh separate session; model `gpt-6-astra`; reasoning `xhigh`.
-Focus: timing equivalence, robust vector semantics, deterministic profile import, provenance, and held-out validation.
-
-**PR 26 — Activate measured operation-specific defaults**
-
-**Implementation:** fresh session; model `gpt-6-astra`; reasoning `xhigh`.
-
-**Goal:** Implement PR 26 (Activate measured operation-specific defaults), open its GitHub PR, pass all applicable verification gates,
-resolve independent review findings, and get required CI green on the final reviewed head; leave the PR open
-and ready for review without merging.
+**W26 — Activate measured operation-specific defaults**
 
 Transition: the default engine's old whole-backend precedence becomes the final mixed execution policy.
 
@@ -814,15 +760,19 @@ choices are supported by end-to-end evidence; the presence/absence of the JVM ve
 fully covered, and no process-global provider mutation is introduced.
 
 **Final independent review (G7):** fresh separate session; model `gpt-6-astra`; reasoning `xhigh`.
-Focus: operation-specific defaults, independent JVM crossover rules, unknown-host behavior, and end-to-end regression evidence.
 
-**PR 27 — Remove transitional seams and verify the end state**
+- W25: timing equivalence, robust vector semantics, deterministic profile import, provenance, and held-out validation.
+- W26: operation-specific defaults, independent JVM crossover rules, unknown-host behavior, and end-to-end regression evidence.
+
+**PR 14 — Remove adapters and verify the release**
 
 **Implementation:** fresh session; model `gpt-6-astra`; reasoning `xhigh`.
 
-**Goal:** Implement PR 27 (Remove transitional seams and verify the end state), open its GitHub PR, pass all applicable verification gates,
-resolve independent review findings, and get required CI green on the final reviewed head; leave the PR open
-and ready for review without merging.
+**Goal:** Remove all transitional seams and verify final API, packaging, numerical, hardware, and performance evidence; OPEN the GitHub PR,
+pass all applicable gates and independent review, and get required CI green on the final reviewed head.
+Leave it open and ready for review without merging; mark the session goal complete only then.
+
+**W27 — Remove transitional seams and verify the end state**
 
 Transition: any remaining bridge to the old architecture is removed; all callers use the final contracts.
 
@@ -841,19 +791,20 @@ Verification: G1–G6 and the final checklist below. Exit: the architecture plan
 are enabled where verified, and future width/accelerator additions do not require new portable BLAS families.
 
 **Final independent review (G7):** fresh separate session; model `gpt-6-astra`; reasoning `xhigh`.
-Focus: complete adapter removal, public/view entry-point coverage, packaged catalog accuracy, and final hardware evidence.
+
+- W27: complete adapter removal, public/view entry-point coverage, packaged catalog accuracy, and final hardware evidence.
 
 **Transition cleanup ownership**
 
-| Temporary component | Introduced/retained | Removal owner |
+| Temporary component | Earliest relevant work | Removal owner |
 |---|---|---|
-| Old native symbol forwarding | PR 02 | Remove as bindings migrate; PR 27 verifies none remain. |
-| Hidden ISA clones | PR 02 | PR 04. |
-| Old tuning readers for unmigrated operations | PR 05 | Each family migration; PR 27 verifies none remain. |
-| Old raw-panel wrapping | PR 06 | PRs 08 and 14–19; PR 27 covers residual public/harness callers. |
-| Old product/tile output helpers | PR 08 | PRs 14–19 after structured/triangular consumers move. |
-| Four-column panel adapters | PR 20 | Sparse consumers migrate in PR 20; PR 22 SYMV and PR 23 rank updates. |
-| Conservative operation preferences | PRs 05–24 | PR 26 replaces only those with verified measured policies; conservative unknown-host behavior remains intentional. |
+| Old native symbol forwarding | PR 02 / W02 | Migrate callers directly within PR 02 where possible; later owning PRs remove remaining uses; PR 14 audits none remain. |
+| Hidden ISA clones | PR 02 / W02 | PR 02 / W04, in the same PR. |
+| Old tuning readers for unmigrated operations | PR 03 / W05 | Each family migration; PR 14 verifies none remain. |
+| Old raw-panel wrapping | PR 03 / W06 | PRs 04 and 07–09; PR 14 covers residual public/harness callers. |
+| Old product/tile output helpers | PR 04 / W08 | PRs 07–09 after structured/triangular consumers migrate. |
+| Four-column panel adapters | PR 10 / W20 | Sparse callers migrate in PR 10; PR 11 / W22–W23 removes SYMV/rank-update consumers. |
+| Conservative operation preferences | PRs 03–12 | PR 13 / W26 replaces only those with verified measured policies; conservative unknown-host behavior remains intentional. |
 
 **Final acceptance checklist**
 

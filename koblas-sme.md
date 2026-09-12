@@ -24,6 +24,13 @@ add specialized layouts, schedules, or storage strategies when measurements just
 Sparse-dense analysis, new standalone streaming-vector kernels, new vendor bindings, and future low-precision
 metadata are conditional follow-ups, not prerequisites for completing the dense SME/SME2 transition.
 
+**Minimum sufficient end state.** Keep the existing engine and kernel interfaces where they express the new
+contracts cleanly. Use one static native catalog, small typed tuning tables, validated operands, and ordinary
+operation-specific selection functions. The named components below describe responsibilities, not a mandate
+for separate registries, planners, public classes, or generic execution graphs. Add a field or abstraction only
+when a real kernel, caller, or comparison needs it. Both SME implementations and all numerical/storage checks
+remain required; specialization and framework growth are separate decisions.
+
 **1. Decisions that define the end state**
 
 1. Use one versioned, architecture-neutral C probe for compiled kernels and usable hardware capabilities.
@@ -48,7 +55,8 @@ metadata are conditional follow-ups, not prerequisites for completing the dense 
 
 **2. Current code that motivates the redesign**
 
-The following observations describe the current checkout, not constraints on the replacement:
+The following observations describe the pre-port architecture, not constraints on the replacement. Benchmark
+infrastructure has since advanced through [PR #540](https://github.com/Eignex/koblas/pull/540); reuse that work.
 
 | Current area | Limitation to remove |
 |---|---|
@@ -83,7 +91,9 @@ an exact kernel ID. All structs begin with ABI version and byte size; use fixed-
 padding, documented alignment, and reserved zero fields. Return explicit status codes. Never export C++ types,
 scalable-vector types, compiler-specific enums, or compiler vector structs through the ABI.
 
-Use extensible feature IDs/records and versioned structs, without building a general capability-query framework.
+Use a small static descriptor table and sized/versioned ABI structs, without building a general capability-query framework.
+Known feature tags can use a simple bitset; extend its representation when a concrete backend needs more tags.
+Do not implement pagination, plugin registration, or a property/constraint language for the current small catalog.
 Start with host/context inspection, catalog enumeration, and exact ID lookup. Filter candidates in the shared
 planner; add query-side filters only if catalog size makes them necessary. Do not reduce eligibility to `has_matrix`.
 Use operation-specific type tuples: A type, B type, accumulation type, output type, and numerical mode. Future
@@ -92,7 +102,7 @@ typed wrappers can reuse the catalog without adding dtype branches to a Double h
 | Query/result | Required information |
 |---|---|
 | Host | Architecture, OS, compiled feature set, OS-usable feature set, catalog revision, conservative CPU tuning key, optional CPU-model evidence. Unknown model is valid. |
-| Kernel request | Enumeration cursor or exact implementation ID. |
+| Kernel request | Static table index or exact implementation ID; no paged query protocol. |
 | Kernel result | Stable implementation ID, operation/type tuple, required features, availability/reason, supported semantics/addressing modes, execution-state requirements, width/geometry, layout IDs, and scratch/alignment constraints. |
 | Thread | Current ordinary SVE VL and SME SVL when supported, relevant execution-state readiness, plus validity flags. Unsupported and unknown are distinguishable from zero. |
 
@@ -173,6 +183,11 @@ contracts internal unless an existing custom-algorithm or retained-operand use c
 | `MatrixKernels` | Logical matrix-block products, symmetric products, triangular solves/updates, and rank updates. |
 | `LayoutKernels` | Packing, unpacking, and transpose over explicit windows and structural flags. |
 | `PackedLayout` and packed operands | Layout version, role, logical dimensions, strides, physical padding/alignment, buffer and offset, and any baked transform/scaling. |
+
+Implement these within a small number of existing or replacement kernel types. A native kernel ID need not be
+wrapped in a universal registry containing Kotlin and JVM functions. A selected execution plan may be a few
+primitive locals and a chosen block function. Matrix windows and packed operands carry only the facts their
+actual execution needs; they are not a generic tensor IR. Keep diagnostics able to explain the same decisions.
 
 The global engine is an immutable AUTO policy, selected once. Its per-call choices depend on operation metadata
 and current execution constraints; this does not require mutable global providers. It can use JVM SIMD for a
@@ -291,6 +306,10 @@ Use a small catalog of documented formats rather than one universal format:
   layout version and geometry, not merely by ISA name.
 - Explicit retained panels, preferably unscaled, so changes in alpha do not require rebuilding them.
 
+Start with one shared left/right packed format where it works and one straightforward pack/compute path per
+backend. The logical direct/one-packed/both-packed/retained modes remain supported, but can share native code
+and packing helpers. Add an extra physical format only when complete-operation measurements justify it.
+
 Descriptors identify any alpha or transpose baked into packing. The planner avoids applying them twice. A
 kernel consumes a declared logical window and only touches its permitted physical input/output windows.
 Predication handles tails; padding is a format requirement when explicitly declared, not an accidental universal
@@ -322,7 +341,9 @@ epilogue alpha are an algorithm choice, not permission to change overflow/zero s
 Replace global tuning objects with resolved typed profile data under `koblas/src/tuning/`. Start with compact
 checked-in tables and a small deterministic validator/importer for benchmark-derived settings. Kotlin owns
 selection and passes the selected schedule/work limits to C; legal native variants remain in the native catalog.
-Add cross-language generation only for fields that actually need to be consumed in both languages. Do not build
+Keep the four categories below as fields/functions in one typed configuration where practical, not four runtime
+subsystems. Reuse the existing report tools; a checked-in measured table with validation and report provenance
+is sufficient. Add import/generation only where it removes actual duplicated maintenance. Do not build
 a configuration language, duplicate performance policy in C, or require runtime JSON/config downloads.
 
 A profile key includes architecture/CPU family when reliably identified, native implementation ID and layout,
@@ -351,7 +372,7 @@ Represent thresholds as `Never`, `AlwaysEligible`, or a typed minimum/shape rule
 as an infinity sentinel or forbidding zero when a benchmark needs to force eligibility. Use checked or
 saturating 64-bit work estimates; `m*n*k` must not overflow an Int during dispatch.
 
-Every tuned entry needs provenance: workload/fixture version, hardware evidence, compiler/JDK, native ID,
+Every tuned entry needs provenance: workload/fixture source SHA and explicit case/recipe, hardware evidence, compiler/JDK, native ID,
 layout, comparison paths, report location, and the measured range where the choice holds. Remove obsolete
 performance comments tied to a source file that now dispatches among several architectures.
 
@@ -394,18 +415,17 @@ benchmarks bypass performance thresholds but still honor zero-work semantics and
 
 **11. Native build and JVM memory/call boundaries**
 
-Move implementations out of the cinterop header. Use declaration-only public ABI headers, internal headers,
-baseline dispatch sources, ordinary SIMD sources, SME sources, and SME2 sources. Suggested native organization:
+Move implementations out of the cinterop header. Keep declaration-only ABI headers and independently compiled
+baseline, ordinary SIMD, SME, and SME2 sources. Start with a few files and split by operation only when useful:
 
 ```text
 src/nativeInterop/kernels/
-  include/koblas_probe.h, koblas_vector.h, koblas_matrix.h, koblas_layout.h
-  dispatch/probe.c, catalog.c, entrypoints.c
-  scalar/...
-  simd/...
-  arm/sme/...
-  arm/sme2/...
-  internal/...
+  koblas_probe.h, koblas_kernels.h, internal.h
+  probe.c
+  baseline.c
+  simd.c
+  sme.c
+  sme2.c
 ```
 
 One build pipeline emits the JVM shared library and Kotlin/Native static archives from the same source set.
@@ -459,19 +479,20 @@ implementation. Keep ordered reference paths for cases that cannot safely use a 
 
 **13. Validation and tuning workload**
 
-Extend `koblas-bench`, whose README and compatibility rules remain the basis for measurements. Add exact ISA,
-width, layout, and AUTO identities, with native probes recorded in reports. Current packed cases only cover
-selected 4-by-4/8-by-4 physical shapes and skip mismatches; replace accidental coverage gaps with explicit
-logical-shape and layout coverage for the new catalog.
+Extend the existing `koblas-bench` harness, whose README defines the measurement rules. PR #540 already added
+explicit packed recipes, logical block cases, fixed/logical comparisons, source-SHA provenance, and baseline
+reports. Reuse its case/run/sample records and CPU trace. Add exact ISA/width/layout attribution as kernels
+arrive; preserve comparable logical workloads and mark unsupported physical configurations explicitly.
 
 **Tile and packed benchmark options — before baseline capture**
 
-Make `koblas-bench/cases.txt` the source of truth for tile and packed workload settings in PR 01, before replacing
-kernels. Each case must explicitly declare its applicable physical tile, versioned packing formats, packing
-groups/strides/padding/alignment requirements, block/panel sizes, and timing mode. Missing required settings are
-errors, including settings whose value happens to equal today's default. Do not reconstruct them from engine
-tile properties, vector species, tuning profiles, or changing helper defaults. Both Kotlin and vendor runners
-consume the same case specification; implementation code executes and validates it.
+Keep `koblas-bench/cases.txt` the source of truth for tile and packed workloads. A named explicit recipe such as
+`packed=4x4` or `packed=8x4` fixes format, packing groups, strides, zero padding, natural alignment, and tile calls;
+do not expand these into redundant per-row knobs. Source SHA identifies the recipe implementation. Add an
+individual field only when cases genuinely vary it independently, for example block timing or a new panel size.
+Dimensions and the selected recipe must determine the same workload regardless of engine, vector species,
+tuning profile, or helper defaults. Missing recipe/required fields are errors even when today's default matches.
+Both Kotlin and vendor runners consume the same specification and validate actual geometry against it.
 
 Keep mathematical case identity separate from implementation symbols. The runner may select the backend under
 test, but cannot change the case's declared work. Parameter spelling must fit the existing `+key=value` schema.
@@ -480,7 +501,7 @@ test, but cannot change the case's declared work. Parameter spelling must fit th
 |---|---|
 | Logical dimensions and operation flags | Keep m/n/k, triangular solve order, transpose/side/uplo/diag, scaling, offsets, and strides equivalent across implementations. |
 | Kernel/ISA and tile geometry | The case fixes physical microtile shape and any required variant constraints. Record the actual implementation ID; never use a backend default to supply missing geometry. |
-| Packing configuration | Declare left/right layout IDs/versions, packing groups, applicable physical strides, padding, and alignment requirements in the case. Verify actual buffers match. |
+| Packing configuration | The explicit recipe fixes left/right formats, groups, physical strides, padding, and alignment; add overrides only for independently varied cases. Verify actual buffers match. |
 | Block and panel schedule | Select supported cache blocks, panel width, diagonal/RHS blocks, and call batch size where applicable. Reject inapplicable or unsupported overrides rather than ignoring them. |
 | Timing boundary | Separate raw tile, logical block, packing-only, prepacked compute, and pack-plus-compute. Record reset, allocation, staging, and retained-data reuse consistently. |
 
@@ -491,18 +512,20 @@ strategy and report those differences. An old backend may cover a logical block 
 but their loop/call costs stay in the timed block. Never equate one larger tile call with a smaller tile's work.
 
 Generate logical fixtures first, then pack them independently into each selected format. Physical padding must
-not change logical inputs. Record logical work, physical extents/bytes, layout versions, actual kernels, and
-source commit. Physical sizes may be calculated from the explicit fields and documented format formulas, but
-not from hidden tuning settings. A layout ID's meaning is immutable; changing it requires a new version/case.
+not change logical inputs. Preserve logical/physical work, actual kernels, and source commit through the existing
+case/run records; derive extents/bytes from the explicit recipe rather than duplicate them in every sample.
+Physical sizes may be calculated from recipe formulas, never hidden tuning. A changed recipe is a changed
+workload unless equivalence is demonstrated from its source; capture a new baseline when that evidence is absent.
 Keep AUTO/default-policy experiments explicitly labeled and separate from these fixed before/after cases.
 Explicit unsupported selections produce a clear failure/unsupported row under the harness's existing policy;
 no substitution and no arbitrary tile-size support fabricated by an option parser.
 
-Keep old operation names or renamed successors associated through a versioned mathematical-work identity.
+Keep old operation names or renamed successors associated through explicit mathematical-work identity and source provenance.
 Do not join reports on a kernel symbol or remove physical metadata to force a match. Historical reports are
 reusable only when their fixture and timing metadata proves equivalence; otherwise capture new baselines from
-the old implementation with the extended harness. Version changed cases and update both Kotlin/vendor runners
-and the comparator together. This requires no production compatibility API or permanent old-kernel copy.
+the old implementation with the extended harness. Update changed cases, Kotlin/vendor runners, and comparator
+together. Do not restore the removed benchmark schema/fixture version labels or build a migration framework;
+preserve the same equivalence checks using explicit cases and source SHAs. No permanent old-kernel copy is needed.
 
 Required tests:
 
@@ -549,6 +572,8 @@ HFactor-specific validation only if that module changes. No `.github/` edits are
 **14. Implementation sequence and completion**
 
 [koblas-sme-steps.md](koblas-sme-steps.md) is the sole PR sequence and verification-gate checklist. Each PR
+in the consolidated 14-PR sequence contains the full requirements of its original work packages (W01–W27).
+PR 01 has landed; subsequent sessions consume its existing harness and baseline evidence. Each remaining PR
 starts in a fresh implementation session with an explicit session goal and its specified model/effort. The
 session implements, commits, pushes, and OPENS a GitHub PR, resolves independent review findings, and gets
 required CI green on the final reviewed head before marking its goal complete. An open PR with pending checks
