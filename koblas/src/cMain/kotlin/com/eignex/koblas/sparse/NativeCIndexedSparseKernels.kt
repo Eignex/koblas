@@ -139,6 +139,11 @@ internal object NativeCIndexedSparseKernels : IndexedSparseKernels by ScalarInde
         source: DoubleArray,
     ) {
         if (count == 0) return
+        // The C leaf groups reads before stores and requires disjoint arrays.
+        if (values === source) {
+            ScalarIndexedSparseKernels.gather(indices, indexOffset, values, valueOffset, count, source)
+            return
+        }
         indices.usePinned { ip ->
             values.usePinned { vp ->
                 source.usePinned { sp ->

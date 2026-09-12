@@ -447,6 +447,19 @@ internal object SimdOps {
         if (alpha == 1.0) return
         val alphaVec = DoubleVector.broadcast(SPECIES, alpha)
         var i = 0
+        // Four independent loads and stores amortize the Vector API loop checks.
+        val unrolledBound = len - 4 * LANE + 1
+        while (i < unrolledBound) {
+            val v0 = DoubleVector.fromArray(SPECIES, v, vOff + i)
+            val v1 = DoubleVector.fromArray(SPECIES, v, vOff + i + LANE)
+            val v2 = DoubleVector.fromArray(SPECIES, v, vOff + i + 2 * LANE)
+            val v3 = DoubleVector.fromArray(SPECIES, v, vOff + i + 3 * LANE)
+            v0.mul(alphaVec).intoArray(v, vOff + i)
+            v1.mul(alphaVec).intoArray(v, vOff + i + LANE)
+            v2.mul(alphaVec).intoArray(v, vOff + i + 2 * LANE)
+            v3.mul(alphaVec).intoArray(v, vOff + i + 3 * LANE)
+            i += 4 * LANE
+        }
         val bound = SPECIES.loopBound(len)
         while (i < bound) {
             val vv = DoubleVector.fromArray(SPECIES, v, vOff + i)

@@ -291,3 +291,25 @@ internal fun assertIamaxAgreesWithReference(kernels: DenseVectorKernels) {
     }
     assertEquals(-1, kernels.iamax(DoubleArray(0), 0, 0), "empty backing array")
 }
+
+internal fun assertScaleAgreesWithReference(kernels: DenseVectorKernels) {
+    val exceptional = doubleArrayOf(0.0, -0.0, Double.MIN_VALUE, -Double.MIN_VALUE,
+        Double.MAX_VALUE, Double.POSITIVE_INFINITY, Double.NEGATIVE_INFINITY, Double.NaN)
+    for (len in listOf(0, 1, 3, 4, 7, 15, 16, 17, 31, 32, 33, 63, 64, 65, 255, 256, 257, 4097)) {
+        for (off in listOf(0, 3)) {
+            for (alpha in doubleArrayOf(0.0, -0.0, 1.0, -1.0, 0.875, Double.POSITIVE_INFINITY, Double.NaN)) {
+                val expected = DoubleArray(off + len + 5) { i ->
+                    if (i % 3 == 0) exceptional[(i / 3) % exceptional.size] else i * 0.125 - 3.0
+                }
+                val actual = expected.copyOf()
+                ScalarVectorKernels.scale(expected, off, alpha, len)
+
+                kernels.scale(actual, off, alpha, len)
+
+                for (i in expected.indices) {
+                    assertEquals(expected[i].toBits(), actual[i].toBits(), "${kernels.name} len=$len off=$off alpha=$alpha index=$i")
+                }
+            }
+        }
+    }
+}
