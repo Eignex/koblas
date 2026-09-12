@@ -40,3 +40,9 @@ The accompanying logs preserve ABI/export, sanitizer, baseline x86 emulation, Ar
 allocation/concurrency evidence. Arm64 emulation ran all 505 Native tests on Cortex-A53; it is not physical
 Arm execution or performance evidence. macOS hardware execution and final review/CI acceptance are recorded
 in the single PR handoff, not inferred from cross-compilation or these samples.
+
+`linux-arm64-shared-*.log` additionally records a Linux Arm shared-library cross-build with the selected
+Native compiler/sysroot, C fixture dynamic linking, all 25 ABI exports, and successful ABI/guard execution
+under Cortex-A53 emulation. Linux shared builds explicitly restrict exports to the declaration-header ABI
+because older cross-linkers otherwise expose CRT boundary symbols. This check still does not establish
+physical Linux Arm execution or NEON performance; those remain outstanding in the PR handoff.

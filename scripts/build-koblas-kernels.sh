@@ -69,7 +69,17 @@ else
     resource_dir="$output/com/eignex/koblas/internal/kernels/$platform"
     mkdir -p "$resource_dir"
     case "$platform" in
-        linux-*) "$compiler" ${cflags[@]+"${cflags[@]}"} -shared "${objects[@]}" -Wl,-soname,libkoblas_kernels.so -lm -o "$resource_dir/libkoblas_kernels.so" ;;
+        linux-*)
+            # Older target linkers otherwise publish their CRT boundary symbols as part of our ABI.
+            {
+                printf '{ global:\n'
+                sed -n 's/.*int32_t \(koblas_[a-z0-9_]*\)(.*/    \1;/p' "$source_dir/koblas_kernels.h"
+                printf '    koblas_probe_v1;\n  local: *;\n};\n'
+            } > "$build_dir/exports.map"
+            "$compiler" ${cflags[@]+"${cflags[@]}"} -shared "${objects[@]}" \
+                -Wl,-soname,libkoblas_kernels.so -Wl,--version-script,"$build_dir/exports.map" \
+                -lm -o "$resource_dir/libkoblas_kernels.so"
+            ;;
         macosx-*) "$compiler" ${cflags[@]+"${cflags[@]}"} -dynamiclib "${objects[@]}" -Wl,-install_name,@rpath/libkoblas_kernels.dylib -o "$resource_dir/libkoblas_kernels.dylib" ;;
     esac
 fi
