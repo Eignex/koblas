@@ -1,0 +1,9 @@
+iamax+1+uniform
+iamax+8+uniform
+iamax+16+uniform
+iamax+32+uniform
+iamax+64+uniform
+iamax+128+uniform
+iamax+256+uniform
+iamax+4096+uniform
+iamax+65536+uniform

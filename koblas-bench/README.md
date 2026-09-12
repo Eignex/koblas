@@ -114,3 +114,5 @@ koblas-bench/reference/test.sh
 ```
 
 [`example.csv`](example.csv) is a short format example; use complete captured reports for performance comparisons.
+
+The [dense iamax investigation](reports/9096bd06b8f87c06e1a8b7d05912c2b124b9997dd49a7894a304c4ae5c857247/20260912T091639Z-22929a90abb1/README.md) records the scalar bottleneck, kernel design, crossover measurements, and CPU traces.

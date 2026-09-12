@@ -30,7 +30,7 @@ class DenseTuningTest {
         assertEquals(256, DenseTuning.jvmCSsqdCrossover)
         assertEquals(128, DenseTuning.jvmCNrm2Crossover)
         assertEquals(128, DenseTuning.jvmCAsumCrossover)
-        assertEquals(1024, DenseTuning.jvmCIamaxCrossover)
+        assertEquals(4096, DenseTuning.jvmCIamaxCrossover)
         assertEquals(512, DenseTuning.jvmCDot4Crossover)
         assertEquals(64, DenseTuning.jvmCAxpy4Crossover)
         assertEquals(256, DenseTuning.jvmCDotAxpyCrossover)
