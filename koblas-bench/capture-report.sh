@@ -14,7 +14,7 @@ forks=2
 pass=1
 
 usage() {
-  echo "usage: koblas-bench/capture-report.sh [--libraries openblas,onemkl|all] [--operation NAME|all] [--suite all|packed] [--samples N] [--warmups N] [--target-ms N] [--forks N] [--pass N]" >&2
+  echo "usage: koblas-bench/capture-report.sh [--libraries openblas,accelerate,onemkl|all] [--operation NAME|all] [--suite all|packed] [--samples N] [--warmups N] [--target-ms N] [--forks N] [--pass N]" >&2
 }
 
 while (($#)); do

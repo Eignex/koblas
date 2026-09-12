@@ -12,6 +12,14 @@ test "$(grep -c '^case,[0-9]' "$result")" -eq 11
 test "$(grep -c '^sample,[0-9]' "$result")" -gt 0
 test ! -d "$smoke_output/bin"
 
+if [[ $(uname) == Darwin ]]; then
+  accelerate_output="$temporary/accelerate"
+  "$root/koblas-bench/reference-smoke.sh" --libraries accelerate --output "$accelerate_output" >/dev/null
+  accelerate="$accelerate_output/accelerate.csv"
+  grep -Fq 'spdot+4096+sparse-uniform+density=0.01,ok,direct,arithmetic,vendor-accelerate' "$accelerate"
+  grep -Fq 'spgemv+257x129+sparse-uniform+density=0.01+mode=prepared,ok,direct,prepared,vendor-accelerate' "$accelerate"
+fi
+
 # Parser rejection checks use a private test binary; smoke coverage above goes through the production entry point.
 flags=()
 if [[ $(uname) == Darwin ]] && command -v brew >/dev/null 2>&1; then

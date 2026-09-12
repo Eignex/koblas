@@ -28,13 +28,15 @@ koblas-bench/reference-smoke.sh --libraries openblas
 Then run the full vendor workload into a fresh directory:
 
 ```bash
-koblas-bench/reference.sh --libraries openblas,onemkl --output results/vendor
+koblas-bench/reference.sh --libraries all --output results/vendor
 ```
 
-This writes one file per library (`openblas.csv`, `onemkl.csv`). Vendor runs use one thread. OpenBLAS must be
-linkable as `-lopenblas`. On macOS, the runner automatically uses Homebrew's keg-only `openblas` install. For
-oneMKL, set `ONEMKL_LIBRARY=/path/to/libmkl_rt.so.3` if the default runtime path is not suitable. oneMKL vendor
-runs require a supported Linux runtime.
+This writes one file per library. On macOS, `all` selects OpenBLAS and Accelerate; other hosts select OpenBLAS and
+oneMKL. Vendor runs use one thread. OpenBLAS must be linkable as `-lopenblas`; on macOS, the runner automatically
+uses Homebrew's keg-only `openblas` install. Accelerate is the system comparator for macOS and covers dense BLAS,
+sparse vectors, and sparse matrix-vector multiplication. For oneMKL, set
+`ONEMKL_LIBRARY=/path/to/libmkl_rt.so.3` if the default runtime path is not suitable. oneMKL vendor runs require a
+supported Linux runtime.
 
 ## Save and compare results
 
