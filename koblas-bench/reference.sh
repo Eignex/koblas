@@ -45,7 +45,15 @@ commit=$(git -C "$root" rev-parse HEAD 2>/dev/null || echo unknown)
 if [[ -z $(git -C "$root" status --porcelain --untracked-files=normal 2>/dev/null) ]]; then dirty=false; else dirty=true; fi
 
 run_openblas() {
-  cc -std=c11 -O3 -DNDEBUG -Wall -Wextra -Werror "$bench/reference/vendor_runner.c" -lopenblas -lm -o "$output/bin/openblas-runner"
+  local -a flags=()
+  if [[ $(uname) == Darwin ]] && command -v brew >/dev/null 2>&1; then
+    local prefix
+    prefix=$(brew --prefix openblas 2>/dev/null || true)
+    if [[ -f $prefix/include/cblas.h ]]; then
+      flags=("-I$prefix/include" "-L$prefix/lib" "-Wl,-rpath,$prefix/lib")
+    fi
+  fi
+  cc -std=c11 -O3 -DNDEBUG -Wall -Wextra -Werror "${flags[@]}" "$bench/reference/vendor_runner.c" -lopenblas -lm -o "$output/bin/openblas-runner"
   OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 "$output/bin/openblas-runner" \
     --cases="$cases" --output="$output/openblas.csv" --samples="$samples" \
     --warmups="$warmups" --target-ms="$target_ms" --pass="$pass" --source-commit="$commit" --dirty="$dirty"

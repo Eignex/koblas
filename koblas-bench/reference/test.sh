@@ -13,7 +13,14 @@ test "$(grep -c '^sample,[0-9]' "$result")" -gt 0
 test ! -d "$smoke_output/bin"
 
 # Parser rejection checks use a private test binary; smoke coverage above goes through the production entry point.
-cc -std=c11 -O2 -Wall -Wextra -Werror "$root/koblas-bench/reference/vendor_runner.c" -lopenblas -lm -o "$temporary/runner"
+flags=()
+if [[ $(uname) == Darwin ]] && command -v brew >/dev/null 2>&1; then
+  prefix=$(brew --prefix openblas 2>/dev/null || true)
+  if [[ -f $prefix/include/cblas.h ]]; then
+    flags=("-I$prefix/include" "-L$prefix/lib" "-Wl,-rpath,$prefix/lib")
+  fi
+fi
+cc -std=c11 -O2 -Wall -Wextra -Werror "${flags[@]}" "$root/koblas-bench/reference/vendor_runner.c" -lopenblas -lm -o "$temporary/runner"
 
 reject_case() {
   local name=$1
