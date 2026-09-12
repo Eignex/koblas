@@ -60,7 +60,7 @@ public fun main(args: Array<String>) {
     }
     if (sink == Double.POSITIVE_INFINITY) throw IllegalStateException("unreachable result sink")
     writeTextFile(settings.outputPath, reportCsv(rows))
-    println("wrote ${selected.size} cases and ${rows.size} measurements to ${settings.outputPath}")
+    println("wrote ${selected.size} case summaries from ${rows.count { it.sample != null }} measurements to ${settings.outputPath}")
     println("resolved implementation=$implementation runtime=${runtimeIdentity()}")
 }
 
@@ -171,16 +171,25 @@ internal data class Measurement(val run: List<String>, val case: List<String>, v
 internal fun reportCsv(measurements: List<Measurement>): String = buildString {
     appendLine(CSV_HEADER)
     val runs = linkedMapOf<List<String>, Int>()
-    val cases = linkedMapOf<List<String>, Int>()
+    val cases = linkedMapOf<List<String>, MutableList<Measurement>>()
     for (measurement in measurements) {
         val runId = runs.getOrPut(measurement.run) {
             (runs.size + 1).also { appendLine(csvRecord(listOf("run", it.toString()) + measurement.run)) }
         }
         val definition = listOf(runId.toString()) + measurement.case
-        val caseId = cases.getOrPut(definition) {
-            (cases.size + 1).also { appendLine(csvRecord(listOf("case", it.toString()) + definition)) }
+        cases.getOrPut(definition, ::arrayListOf).add(measurement)
+    }
+    for ((index, entry) in cases.entries.withIndex()) {
+        val samples = entry.value.mapNotNull { it.sample }
+        val values = samples.map { it.last().toDouble() }.sorted()
+        require(values.all { it.isFinite() && it > 0 }) { "invalid measured timing" }
+        val statistics = if (values.isEmpty()) listOf("", "", "") else {
+            val middle = values.size / 2
+            val median = if (values.size % 2 == 1) values[middle] else values[middle - 1] / 2 + values[middle] / 2
+            listOf(median, values.first(), values.last()).map(::formatDouble)
         }
-        measurement.sample?.let { appendLine(csvRecord(listOf("sample", caseId.toString()) + it)) }
+        val counts = listOf(samples.size.toString(), samples.map { it.first() }.distinct().size.toString())
+        appendLine(csvRecord(listOf("case", (index + 1).toString()) + entry.key + counts + statistics))
     }
 }
 
@@ -194,6 +203,5 @@ internal fun formatDouble(value: Double): String = value.toString()
 internal fun sanitize(value: String): String = value.replace(',', ';').replace('\n', ' ').take(160)
 
 internal const val CSV_HEADER = "run,id,implementation,pass,unit,source_commit,dirty,runtime,threads,warmups,target_ns,harness,warmup_target_ns,forks\n" +
-    "case,id,run_id,case,status,comparison_kind,timing_mode,actual_kernel\n" +
-    "sample,case_id,fork,sample,operations,elapsed_ns,ns_per_op"
+    "case,id,run_id,case,status,comparison_kind,timing_mode,actual_kernel,samples,forks,median_ns,min_ns,max_ns"
 private const val MAX_OPERATIONS = 1_000_000

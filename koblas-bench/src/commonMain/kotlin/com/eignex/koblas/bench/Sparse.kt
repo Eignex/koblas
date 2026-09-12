@@ -45,7 +45,7 @@ internal fun sparseWork(case: BenchCase, engine: KoblasEngine): CaseWork? {
         }
         "spnrm2", "spasum" -> {
             val x = Fixtures.sparseVector(d[0], density, 1)
-            CaseWork("unsupported", "arithmetic", { if (case.operation == "spnrm2") engine.sparseKernels.nrm2(x) else engine.sparseKernels.asum(x) })
+            CaseWork("direct", "arithmetic", { if (case.operation == "spnrm2") engine.sparseKernels.nrm2(x) else engine.sparseKernels.asum(x) })
         }
         "spnrm2-indexed" -> {
             val x = Fixtures.sparseVector(d[0], density, 1); val indices = x.copyIndices()

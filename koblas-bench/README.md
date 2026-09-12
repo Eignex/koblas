@@ -1,131 +1,30 @@
 # koblas-bench
 
-Benchmarks for koblas, plus independent OpenBLAS and oneMKL reference runs. This module is for development; it is
-not published.
-
-## Quick start
-
-Run the koblas implementations you want to compare. `all` is the complete workload; replace it with an operation
-such as `gemm` for a smaller run.
+CPU benchmarks for Koblas, OpenBLAS, Accelerate, and oneMKL. Requires JDK 25 and a C compiler.
 
 ```bash
-./gradlew :koblas-bench:jvmScalarBenchmark -Pbench.operation=all
-./gradlew :koblas-bench:jvmCBenchmark -Pbench.operation=all
-./gradlew :koblas-bench:jvmSimdBenchmark -Pbench.operation=all
-./gradlew :koblas-bench:nativeBenchmark -Pbench.operation=all
+# Full capture: JVM scalar, C, SIMD, native, and available platform vendors.
+koblas-bench/capture-report.sh --samples 10 --warmups 5 --target-ms 200 --forks 2
+
+# First three selected cases, one short sample, no warmup.
+koblas-bench/capture-report.sh --smoke
+
+# Vendor-only run.
+koblas-bench/capture-report.sh --vendors-only --libraries openblas,accelerate
 ```
 
-Output defaults to `koblas-bench/build/benchmarks/`. Use `-Pbench.output=results/jvm-c.csv` to choose a file.
-JVM runs use JDK 25 and JMH; native runs work on Linux x86-64 and macOS arm64. Every run selects the requested
-engine exactly, or fails—there is no silent substitute.
+Full reports go to `reports/<hardware-sha256>/<run-id>/`; smoke and vendor-only runs default to `build/benchmarks/`.
+Use `--output NEW_DIR` to override. Each report contains one CSV per target and `metadata.txt` with hardware,
+source revision, timing settings, execution timestamps, and actual runtime/library configurations.
+Each CSV records one row per case with sample/fork counts, median, minimum, and maximum ns/op.
 
-Before a long vendor run, check that the library works:
+[`cases.txt`](cases.txt) defines the workload. Filter with `--operation NAME` or `--suite packed`.
+Compare matching cases and timing boundaries; prepared, one-shot, and packing-inclusive timings differ.
+Unsupported cases have no timing. A selected target failure stops capture; existing reports are never overwritten.
 
-```bash
-koblas-bench/reference-smoke.sh --libraries openblas
-```
+For `scal` and `spgather`, `+timing=arithmetic` excludes resets; arithmetic scaling uses alpha = -1.
+Default gather resets only the dense source; older captures also reset the sparse output, so compare those separately.
 
-Then run the full vendor workload into a fresh directory:
-
-```bash
-koblas-bench/reference.sh --libraries openblas,onemkl --output results/vendor
-```
-
-This writes one file per library (`openblas.csv`, `onemkl.csv`). Vendor runs use one thread. OpenBLAS must be
-linkable as `-lopenblas`. For oneMKL, set `ONEMKL_LIBRARY=/path/to/libmkl_rt.so.3` if the default runtime path is
-not suitable.
-
-## Save and compare results
-
-Use one command to capture a full report in `koblas-bench/reports/<hardware-sha256>/<run-id>/`.
-Each run contains one CSV per implementation and `metadata.txt` with completion status, provenance, toolchain
-and hardware details. `cpu.csv` records overall CPU utilization once per second, including a three-second
-background baseline. Blank readings mean unavailable. Execution timestamps in `metadata.txt` locate each runner
-within the trace, including its build and warmup time. The sampler uses the JDK selected by `JAVA_HOME` or `java`
-on `PATH`. Repeated runs never overwrite prior results.
-
-```bash
-koblas-bench/capture-report.sh --libraries openblas,onemkl \
-  --samples 10 --warmups 5 --target-ms 200 --forks 2
-```
-
-The command runs JVM scalar, JVM C, JVM SIMD, native koblas, and the requested vendors. A missing selected library
-or engine fails the run. Use `--suite packed` for packed cases only. To make a short trial, add
-`--operation gemm --warmups 0 --samples 1 --target-ms 1 --forks 1`.
-
-Compare CSVs from the same run (or compatible runs):
-
-```bash
-koblas-bench/tools/compare.sh --mode logical --timing prepacked-compute --require-compatible \
-  koblas-bench/reports/<hardware-sha256>/<run-id>/openblas.csv \
-  koblas-bench/reports/<hardware-sha256>/<run-id>/jvm-c.csv
-```
-
-Use `--mode fixed` for identical packed configurations, or `--mode logical` to compare complete operations
-across layouts. Physical strategies remain separate pairs. The example selects prepacked block computation;
-raw vendor arithmetic has a different timing boundary and cannot be compared with Koblas raw tiles.
-The comparator rejects mismatched timing modes, threads, warmups and timing targets. Source SHAs identify the workload and fixtures.
-CSV run and case records identify the source commit, runtime, actual kernel and physical configuration.
-
-## Useful options
-
-```text
--Pbench.warmups=3     warmup iterations
--Pbench.samples=5     measured samples
--Pbench.targetMs=1000 target duration per sample
--Pbench.forks=2       JVM forks only
--Pbench.pass=1        label for repeated runs
--Pbench.output=file   CSV destination
-```
-
-Every raw measured sample is kept. A busy machine can make results noisy, so avoid comparing runs from different
-host conditions when possible.
-
-## Workload and output
-
-[`cases.txt`](cases.txt) is the authoritative workload. Cases look like:
-
-```text
-operation+dimensions+fixture[+option=value...]
-gemm+129x31x257+uniform+transA=T
-spgemv+257x129+sparse-uniform+density=0.01+mode=prepared
-gemm-block+15x7x31+uniform+packed=4x4+timing=prepacked-compute
-```
-
-The CSV stores run metadata and case definitions once, followed by sample records referencing their IDs.
-Runtime/build strings and source commits belong to the run. Case records contain the case, status, comparison kind,
-timing and kernel; shape and packing are read from the case instead of duplicated as metadata.
-JMH elapsed time is reconstructed from its score; Native/vendor elapsed time is measured. Keep raw sample values unchanged.
-Unsupported cases have no timing; a supported call failure stops the run. Fixtures are deterministic and verified
-before relevant runs.
-
-Packed cases choose `packed=4x4` or `packed=8x4`; the recipe fixes layout, strides, zero padding and
-alignment independently of backend defaults. Shapes determine panel dimensions, and options may appear in any
-order. Blocks require a timing choice. Logical fixtures are generated before packing. `prepacked-compute`
-includes tile loops, edge handling and writeback; `pack-plus-compute` also includes both panel packs.
-
-The `scal` and `spgather` cases also accept `+timing=arithmetic`. Scaling then uses `alpha = -1` to
-preserve fixture magnitudes across repeated calls; the default resets the vector and uses `alpha = 0.875`.
-Arithmetic gather overwrites the sparse values without resetting either buffer. Default gather resets only
-the dense source, matching oneMKL. Both runners consume the first and last output values. Compare each timing
-boundary separately; the default gather boundary predating this change included an extra Koblas output reset.
-OpenBLAS gather remains unsupported because the runner has no corresponding vendor entry point.
-
-## Verify the harness
-
-```bash
-koblas-bench/reference/test.sh
-./gradlew :koblas-bench:jvmTest
-./gradlew :koblas-bench:jvmCBenchmark -Pbench.operation=gemm -Pbench.warmups=0 -Pbench.samples=1 -Pbench.targetMs=1 -Pbench.forks=1
-./gradlew :koblas-bench:nativeBenchmark -Pbench.operation=dot -Pbench.samples=1 -Pbench.targetMs=1
-```
-
-[`example.csv`](example.csv) is a short format example; use complete captured reports for performance comparisons.
-
-The [dense iamax investigation](reports/9096bd06b8f87c06e1a8b7d05912c2b124b9997dd49a7894a304c4ae5c857247/20260912T091639Z-22929a90abb1/README.md) records the scalar bottleneck, kernel design, crossover measurements, and CPU traces.
-
-The [scal and spgather investigation](reports/9096bd06b8f87c06e1a8b7d05912c2b124b9997dd49a7894a304c4ae5c857247/20260912T124303Z-88a37100/README.md) compares both operations with oneMKL and OpenBLAS, records the gather dispatch fix, and documents the scaling experiments.
-
-The [native scaling alignment follow-up](reports/9096bd06b8f87c06e1a8b7d05912c2b124b9997dd49a7894a304c4ae5c857247/20260912T134906Z-scal-alignment/README.md) isolates misaligned stores, validates guarded alignment through the native engine, and compares with oneMKL and OpenBLAS.
-
-The [OpenBLAS source follow-up](reports/9096bd06b8f87c06e1a8b7d05912c2b124b9997dd49a7894a304c4ae5c857247/20260912T141014Z-openblas-source/README.md) compares the Haswell loop, validates fixed pointer-relative blocks, and records the remaining vendor gap.
+Vendors use one thread. `--libraries all` selects OpenBLAS and Accelerate on macOS, OpenBLAS and oneMKL on Linux.
+Homebrew OpenBLAS is detected automatically. Accelerate requires macOS 15+ and includes sparse vectors and
+matrix products. For Linux oneMKL, set `ONEMKL_LIBRARY` to its runtime library path.
