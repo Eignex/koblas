@@ -45,4 +45,7 @@ in the single PR handoff, not inferred from cross-compilation or these samples.
 Native compiler/sysroot, C fixture dynamic linking, all 25 ABI exports, and successful ABI/guard execution
 under Cortex-A53 emulation. Linux shared builds explicitly restrict exports to the declaration-header ABI
 because older cross-linkers otherwise expose CRT boundary symbols. This check still does not establish
-physical Linux Arm execution or NEON performance; those remain outstanding in the PR handoff.
+physical Linux Arm execution or NEON performance. Dedicated Arm hosts are permanently unavailable; the
+PR 02 acceptance policy in `koblas-sme-steps.md` uses physical macOS Arm CI and the Linux Arm emulation evidence
+for this transition, with NEON performance explicitly unmeasured. No Arm thresholds or speedups follow from
+these samples.
