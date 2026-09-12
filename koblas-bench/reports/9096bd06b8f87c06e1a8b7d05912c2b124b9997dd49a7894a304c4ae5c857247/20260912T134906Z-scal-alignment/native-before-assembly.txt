@@ -6,7 +6,7 @@ Disassembly of section .text:
 
 0000000000289de0 <koblas_dense_scale.avx2.0>:
   289de0:	c5 f9 2e 05 50 a4 f8 	vucomisd -0x75bb0(%rip),%xmm0        # 214238 <_IO_stdin_used+0x4c>
-  289de7:	ff 
+  289de7:	ff
   289de8:	0f 9b c0             	setnp  %al
   289deb:	0f 94 c1             	sete   %cl
   289dee:	20 c1                	and    %al,%cl
@@ -37,7 +37,7 @@ Disassembly of section .text:
   289e40:	48 83 c7 60          	add    $0x60,%rdi
   289e44:	45 31 c0             	xor    %r8d,%r8d
   289e47:	66 0f 1f 84 00 00 00 	nopw   0x0(%rax,%rax,1)
-  289e4e:	00 00 
+  289e4e:	00 00
   289e50:	c4 a1 75 59 54 07 a0 	vmulpd -0x60(%rdi,%r8,1),%ymm1,%ymm2
   289e57:	c4 a1 75 59 5c 07 c0 	vmulpd -0x40(%rdi,%r8,1),%ymm1,%ymm3
   289e5e:	c4 a1 75 59 64 07 e0 	vmulpd -0x20(%rdi,%r8,1),%ymm1,%ymm4
@@ -57,7 +57,7 @@ Disassembly of section .text:
   289e9a:	89 c2                	mov    %eax,%edx
   289e9c:	81 e2 fc ff ff 7f    	and    $0x7ffffffc,%edx
   289ea2:	66 66 66 66 66 2e 0f 	data16 data16 data16 data16 cs nopw 0x0(%rax,%rax,1)
-  289ea9:	1f 84 00 00 00 00 00 
+  289ea9:	1f 84 00 00 00 00 00
   289eb0:	c5 f5 59 14 f1       	vmulpd (%rcx,%rsi,8),%ymm1,%ymm2
   289eb5:	c5 fd 11 14 f1       	vmovupd %ymm2,(%rcx,%rsi,8)
   289eba:	48 83 c6 04          	add    $0x4,%rsi
@@ -66,7 +66,7 @@ Disassembly of section .text:
   289ec3:	39 c2                	cmp    %eax,%edx
   289ec5:	74 1b                	je     289ee2 <koblas_dense_scale.avx2.0+0x102>
   289ec7:	66 0f 1f 84 00 00 00 	nopw   0x0(%rax,%rax,1)
-  289ece:	00 00 
+  289ece:	00 00
   289ed0:	c5 fb 59 0c d1       	vmulsd (%rcx,%rdx,8),%xmm0,%xmm1
   289ed5:	c5 fb 11 0c d1       	vmovsd %xmm1,(%rcx,%rdx,8)
   289eda:	48 ff c2             	inc    %rdx

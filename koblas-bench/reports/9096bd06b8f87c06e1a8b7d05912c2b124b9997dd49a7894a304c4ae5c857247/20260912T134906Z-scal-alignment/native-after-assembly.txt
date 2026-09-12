@@ -6,7 +6,7 @@ Disassembly of section .text:
 
 0000000000289ec0 <koblas_dense_scale.avx2.0>:
   289ec0:	c5 f9 2e 05 70 a3 f8 	vucomisd -0x75c90(%rip),%xmm0        # 214238 <_IO_stdin_used+0x4c>
-  289ec7:	ff 
+  289ec7:	ff
   289ec8:	0f 9b c0             	setnp  %al
   289ecb:	0f 94 c1             	sete   %cl
   289ece:	20 c1                	and    %al,%cl
@@ -66,111 +66,111 @@ Disassembly of section .text:
   289f9d:	48 83 fa 10          	cmp    $0x10,%rdx
   289fa1:	0f 84 a9 01 00 00    	je     28a150 <koblas_dense_scale.avx2.0+0x290>
   289fa7:	c5 f5 59 90 80 00 00 	vmulpd 0x80(%rax),%ymm1,%ymm2
-  289fae:	00 
+  289fae:	00
   289faf:	c5 f5 59 98 a0 00 00 	vmulpd 0xa0(%rax),%ymm1,%ymm3
-  289fb6:	00 
+  289fb6:	00
   289fb7:	c5 f5 59 a0 c0 00 00 	vmulpd 0xc0(%rax),%ymm1,%ymm4
-  289fbe:	00 
+  289fbe:	00
   289fbf:	c5 f5 59 a8 e0 00 00 	vmulpd 0xe0(%rax),%ymm1,%ymm5
-  289fc6:	00 
+  289fc6:	00
   289fc7:	c5 fd 11 90 80 00 00 	vmovupd %ymm2,0x80(%rax)
-  289fce:	00 
+  289fce:	00
   289fcf:	c5 fd 11 98 a0 00 00 	vmovupd %ymm3,0xa0(%rax)
-  289fd6:	00 
+  289fd6:	00
   289fd7:	c5 fd 11 a0 c0 00 00 	vmovupd %ymm4,0xc0(%rax)
-  289fde:	00 
+  289fde:	00
   289fdf:	c5 fd 11 a8 e0 00 00 	vmovupd %ymm5,0xe0(%rax)
-  289fe6:	00 
+  289fe6:	00
   289fe7:	83 fa 20             	cmp    $0x20,%edx
   289fea:	0f 84 60 01 00 00    	je     28a150 <koblas_dense_scale.avx2.0+0x290>
   289ff0:	c5 f5 59 90 00 01 00 	vmulpd 0x100(%rax),%ymm1,%ymm2
-  289ff7:	00 
+  289ff7:	00
   289ff8:	c5 f5 59 98 20 01 00 	vmulpd 0x120(%rax),%ymm1,%ymm3
-  289fff:	00 
+  289fff:	00
   28a000:	c5 f5 59 a0 40 01 00 	vmulpd 0x140(%rax),%ymm1,%ymm4
-  28a007:	00 
+  28a007:	00
   28a008:	c5 f5 59 a8 60 01 00 	vmulpd 0x160(%rax),%ymm1,%ymm5
-  28a00f:	00 
+  28a00f:	00
   28a010:	c5 fd 11 90 00 01 00 	vmovupd %ymm2,0x100(%rax)
-  28a017:	00 
+  28a017:	00
   28a018:	c5 fd 11 98 20 01 00 	vmovupd %ymm3,0x120(%rax)
-  28a01f:	00 
+  28a01f:	00
   28a020:	c5 fd 11 a0 40 01 00 	vmovupd %ymm4,0x140(%rax)
-  28a027:	00 
+  28a027:	00
   28a028:	c5 fd 11 a8 60 01 00 	vmovupd %ymm5,0x160(%rax)
-  28a02f:	00 
+  28a02f:	00
   28a030:	83 fa 30             	cmp    $0x30,%edx
   28a033:	0f 84 17 01 00 00    	je     28a150 <koblas_dense_scale.avx2.0+0x290>
   28a039:	c5 f5 59 90 80 01 00 	vmulpd 0x180(%rax),%ymm1,%ymm2
-  28a040:	00 
+  28a040:	00
   28a041:	c5 f5 59 98 a0 01 00 	vmulpd 0x1a0(%rax),%ymm1,%ymm3
-  28a048:	00 
+  28a048:	00
   28a049:	c5 f5 59 a0 c0 01 00 	vmulpd 0x1c0(%rax),%ymm1,%ymm4
-  28a050:	00 
+  28a050:	00
   28a051:	c5 f5 59 a8 e0 01 00 	vmulpd 0x1e0(%rax),%ymm1,%ymm5
-  28a058:	00 
+  28a058:	00
   28a059:	c5 fd 11 90 80 01 00 	vmovupd %ymm2,0x180(%rax)
-  28a060:	00 
+  28a060:	00
   28a061:	c5 fd 11 98 a0 01 00 	vmovupd %ymm3,0x1a0(%rax)
-  28a068:	00 
+  28a068:	00
   28a069:	c5 fd 11 a0 c0 01 00 	vmovupd %ymm4,0x1c0(%rax)
-  28a070:	00 
+  28a070:	00
   28a071:	c5 fd 11 a8 e0 01 00 	vmovupd %ymm5,0x1e0(%rax)
-  28a078:	00 
+  28a078:	00
   28a079:	83 fa 40             	cmp    $0x40,%edx
   28a07c:	0f 84 ce 00 00 00    	je     28a150 <koblas_dense_scale.avx2.0+0x290>
   28a082:	c5 f5 59 90 00 02 00 	vmulpd 0x200(%rax),%ymm1,%ymm2
-  28a089:	00 
+  28a089:	00
   28a08a:	c5 f5 59 98 20 02 00 	vmulpd 0x220(%rax),%ymm1,%ymm3
-  28a091:	00 
+  28a091:	00
   28a092:	c5 f5 59 a0 40 02 00 	vmulpd 0x240(%rax),%ymm1,%ymm4
-  28a099:	00 
+  28a099:	00
   28a09a:	c5 f5 59 a8 60 02 00 	vmulpd 0x260(%rax),%ymm1,%ymm5
-  28a0a1:	00 
+  28a0a1:	00
   28a0a2:	c5 fd 11 90 00 02 00 	vmovupd %ymm2,0x200(%rax)
-  28a0a9:	00 
+  28a0a9:	00
   28a0aa:	c5 fd 11 98 20 02 00 	vmovupd %ymm3,0x220(%rax)
-  28a0b1:	00 
+  28a0b1:	00
   28a0b2:	c5 fd 11 a0 40 02 00 	vmovupd %ymm4,0x240(%rax)
-  28a0b9:	00 
+  28a0b9:	00
   28a0ba:	c5 fd 11 a8 60 02 00 	vmovupd %ymm5,0x260(%rax)
-  28a0c1:	00 
+  28a0c1:	00
   28a0c2:	83 fa 50             	cmp    $0x50,%edx
   28a0c5:	0f 84 85 00 00 00    	je     28a150 <koblas_dense_scale.avx2.0+0x290>
   28a0cb:	c5 f5 59 90 80 02 00 	vmulpd 0x280(%rax),%ymm1,%ymm2
-  28a0d2:	00 
+  28a0d2:	00
   28a0d3:	c5 f5 59 98 a0 02 00 	vmulpd 0x2a0(%rax),%ymm1,%ymm3
-  28a0da:	00 
+  28a0da:	00
   28a0db:	c5 f5 59 a0 c0 02 00 	vmulpd 0x2c0(%rax),%ymm1,%ymm4
-  28a0e2:	00 
+  28a0e2:	00
   28a0e3:	c5 f5 59 a8 e0 02 00 	vmulpd 0x2e0(%rax),%ymm1,%ymm5
-  28a0ea:	00 
+  28a0ea:	00
   28a0eb:	c5 fd 11 90 80 02 00 	vmovupd %ymm2,0x280(%rax)
-  28a0f2:	00 
+  28a0f2:	00
   28a0f3:	c5 fd 11 98 a0 02 00 	vmovupd %ymm3,0x2a0(%rax)
-  28a0fa:	00 
+  28a0fa:	00
   28a0fb:	c5 fd 11 a0 c0 02 00 	vmovupd %ymm4,0x2c0(%rax)
-  28a102:	00 
+  28a102:	00
   28a103:	c5 fd 11 a8 e0 02 00 	vmovupd %ymm5,0x2e0(%rax)
-  28a10a:	00 
+  28a10a:	00
   28a10b:	83 fa 60             	cmp    $0x60,%edx
   28a10e:	74 40                	je     28a150 <koblas_dense_scale.avx2.0+0x290>
   28a110:	c5 f5 59 90 00 03 00 	vmulpd 0x300(%rax),%ymm1,%ymm2
-  28a117:	00 
+  28a117:	00
   28a118:	c5 f5 59 98 20 03 00 	vmulpd 0x320(%rax),%ymm1,%ymm3
-  28a11f:	00 
+  28a11f:	00
   28a120:	c5 f5 59 a0 40 03 00 	vmulpd 0x340(%rax),%ymm1,%ymm4
-  28a127:	00 
+  28a127:	00
   28a128:	c5 f5 59 a8 60 03 00 	vmulpd 0x360(%rax),%ymm1,%ymm5
-  28a12f:	00 
+  28a12f:	00
   28a130:	c5 fd 11 90 00 03 00 	vmovupd %ymm2,0x300(%rax)
-  28a137:	00 
+  28a137:	00
   28a138:	c5 fd 11 98 20 03 00 	vmovupd %ymm3,0x320(%rax)
-  28a13f:	00 
+  28a13f:	00
   28a140:	c5 fd 11 a0 40 03 00 	vmovupd %ymm4,0x340(%rax)
-  28a147:	00 
+  28a147:	00
   28a148:	c5 fd 11 a8 60 03 00 	vmovupd %ymm5,0x360(%rax)
-  28a14f:	00 
+  28a14f:	00
   28a150:	39 ca                	cmp    %ecx,%edx
   28a152:	0f 84 fa 00 00 00    	je     28a252 <koblas_dense_scale.avx2.0+0x392>
   28a158:	f6 c1 0c             	test   $0xc,%cl
@@ -179,7 +179,7 @@ Disassembly of section .text:
   28a160:	89 ca                	mov    %ecx,%edx
   28a162:	83 e2 7c             	and    $0x7c,%edx
   28a165:	66 66 2e 0f 1f 84 00 	data16 cs nopw 0x0(%rax,%rax,1)
-  28a16c:	00 00 00 00 
+  28a16c:	00 00 00 00
   28a170:	c5 f5 59 14 f0       	vmulpd (%rax,%rsi,8),%ymm1,%ymm2
   28a175:	c5 fd 11 14 f0       	vmovupd %ymm2,(%rax,%rsi,8)
   28a17a:	48 83 c6 04          	add    $0x4,%rsi
@@ -205,7 +205,7 @@ Disassembly of section .text:
   28a1bd:	c4 e2 7d 19 c8       	vbroadcastsd %xmm0,%ymm1
   28a1c2:	31 f6                	xor    %esi,%esi
   28a1c4:	66 66 66 2e 0f 1f 84 	data16 data16 cs nopw 0x0(%rax,%rax,1)
-  28a1cb:	00 00 00 00 00 
+  28a1cb:	00 00 00 00 00
   28a1d0:	c5 f5 59 14 f1       	vmulpd (%rcx,%rsi,8),%ymm1,%ymm2
   28a1d5:	c5 f5 59 5c f1 20    	vmulpd 0x20(%rcx,%rsi,8),%ymm1,%ymm3
   28a1db:	c5 f5 59 64 f1 40    	vmulpd 0x40(%rcx,%rsi,8),%ymm1,%ymm4
@@ -224,7 +224,7 @@ Disassembly of section .text:
   28a20f:	89 c6                	mov    %eax,%esi
   28a211:	81 e6 fc ff ff 7f    	and    $0x7ffffffc,%esi
   28a217:	66 0f 1f 84 00 00 00 	nopw   0x0(%rax,%rax,1)
-  28a21e:	00 00 
+  28a21e:	00 00
   28a220:	c5 f5 59 14 d1       	vmulpd (%rcx,%rdx,8),%ymm1,%ymm2
   28a225:	c5 fd 29 14 d1       	vmovapd %ymm2,(%rcx,%rdx,8)
   28a22a:	48 83 c2 04          	add    $0x4,%rdx
