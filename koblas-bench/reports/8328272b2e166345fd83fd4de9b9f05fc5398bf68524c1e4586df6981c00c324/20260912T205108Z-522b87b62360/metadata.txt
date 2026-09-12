@@ -1,0 +1,66 @@
+status=complete
+
+[capture]
+started_at=2026-09-12T20:51:08Z
+source_commit=522b87b62360fff02e3777a20a9328c37516ee56
+dirty=false
+Linux LTHCL001 7.0.0-31-generic #31-Ubuntu SMP PREEMPT_DYNAMIC Sat Aug  1 04:26:38 UTC 2026 x86_64 GNU/Linux
+operation=all suite=sparse-slices warmups=5 samples=5 target_ms=200 forks=2 pass=1 libraries=scalar-slices,onemkl vendors_only=false
+
+[toolchain]
+cc (Ubuntu 15.2.0-16ubuntu1) 15.2.0
+
+[hardware]
+architecture=x86_64
+vendor id=GenuineIntel
+model name=12th Gen Intel(R) Core(TM) i9-12900H
+cpu family=6
+model=154
+thread(s) per core=2
+core(s) per socket=14
+socket(s)=1
+stepping=3
+l1d cache=544 KiB (14 instances)
+l1i cache=704 KiB (14 instances)
+l2 cache=11.5 MiB (8 instances)
+l3 cache=24 MiB (1 instance)
+numa node(s)=1
+memory_kib=64221076
+
+[jvm-scalar]
+started_at=2026-09-12T20:51:08Z
+resolved implementation=jvm-scalar/scalar/scalar/packed-4x4 runtime=kotlin-2.4.10/jvm/Eclipse Adoptium/25.0.1 harness=JMH 1.37 forks=2
+threads=1
+completed_at=2026-09-12T20:53:42Z
+
+[jvm-c]
+started_at=2026-09-12T20:53:42Z
+resolved implementation=jvm-c/c/c-sparse/packed-4x4 runtime=kotlin-2.4.10/jvm/Eclipse Adoptium/25.0.1 harness=JMH 1.37 forks=2
+threads=1
+completed_at=2026-09-12T20:56:38Z
+
+[jvm-simd]
+started_at=2026-09-12T20:56:38Z
+resolved implementation=jvm-simd/simd(4 lanes)/simd-sparse/packed-8x4 runtime=kotlin-2.4.10/jvm/Eclipse Adoptium/25.0.1 harness=JMH 1.37 forks=2
+threads=1
+completed_at=2026-09-12T20:59:20Z
+
+[native]
+started_at=2026-09-12T20:59:20Z
+resolved implementation=native/c/c-sparse/packed-4x4 runtime=kotlin-native-2.4.10
+threads=1
+completed_at=2026-09-12T21:01:30Z
+
+[scalar-slices]
+started_at=2026-09-12T21:01:32Z
+resolved implementation=scalar-slices runtime=scalar C sparse slice reference; compiler=15.2.0
+threads=1
+completed_at=2026-09-12T21:02:00Z
+
+[onemkl]
+started_at=2026-09-12T21:02:02Z
+resolved implementation=onemkl runtime=Intel(R) oneAPI Math Kernel Library Version 2026.1-Product Build 20260612 for Intel(R) 64 architecture applications; compiler=15.2.0
+threads=1
+completed_at=2026-09-12T21:02:25Z
+
+completed_at=2026-09-12T21:02:25Z
