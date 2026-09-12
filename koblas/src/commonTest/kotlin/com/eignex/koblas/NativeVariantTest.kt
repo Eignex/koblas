@@ -64,38 +64,44 @@ class NativeVariantTest {
     private fun assertSolveTilesAgreeWithReference(kernels: PackedKernels) {
         for (rows in 1..4) {
             for (order in 1..4) {
-            for (lower in listOf(false, true)) {
-                for (unit in listOf(false, true)) {
-                val triangle = DoubleArray(23) { Double.NaN }
-                for (j in 0 until order) {
-                    for (i in 0 until order) {
-                    if ((lower && i >= j) || (!lower && i <= j)) {
-                        triangle[3 + i * 4 + j] = if (i == j) {
-                            if (unit) Double.NaN else 2.0
-                        } else 0.125
-                    }
-                }
-                }
-                for (depth in listOf(0, 1, 3, 17)) {
-                    val left = DoubleArray(depth * 4 + 5) { it * 0.125 - 1.0 }
-                    val right = DoubleArray(depth * 4 + 7) { 2.0 - it * 0.25 }
-                    val expected = DoubleArray(27) { if (it % 3 == 0) -0.0 else it * 0.25 }
-                    val actual = expected.copyOf()
-                    PortablePackedKernels.gemmTrsmTile(
-                        depth, rows, order, left, 2, right, 3, triangle, 3, lower, unit, expected, 5,
-                    )
-                    kernels.gemmTrsmTile(depth, rows, order, left, 2, right, 3, triangle, 3, lower, unit, actual, 5)
-                    assertClose(expected, actual, "solve rows=$rows order=$order depth=$depth lower=$lower unit=$unit")
-                    for (index in actual.indices) {
-                        val offset = index - 5
-                        if (offset < 0 || offset / 4 >= order || offset % 4 >= rows) {
-                            assertEquals(expected[index].toBits(), actual[index].toBits())
+                for (lower in listOf(false, true)) {
+                    for (unit in listOf(false, true)) {
+                        val triangle = DoubleArray(23) { Double.NaN }
+                        for (j in 0 until order) {
+                            for (i in 0 until order) {
+                                if ((lower && i >= j) || (!lower && i <= j)) {
+                                    triangle[3 + i * 4 + j] = if (i == j) {
+                                        if (unit) Double.NaN else 2.0
+                                    } else {
+                                        0.125
+                                    }
+                                }
+                            }
+                        }
+                        for (depth in listOf(0, 1, 3, 17)) {
+                            val left = DoubleArray(depth * 4 + 5) { it * 0.125 - 1.0 }
+                            val right = DoubleArray(depth * 4 + 7) { 2.0 - it * 0.25 }
+                            val expected = DoubleArray(27) { if (it % 3 == 0) -0.0 else it * 0.25 }
+                            val actual = expected.copyOf()
+                            PortablePackedKernels.gemmTrsmTile(
+                                depth, rows, order, left, 2, right, 3, triangle, 3, lower, unit, expected, 5,
+                            )
+                            kernels.gemmTrsmTile(
+                                depth, rows, order, left, 2, right, 3, triangle, 3, lower, unit, actual, 5,
+                            )
+                            assertClose(
+                                expected, actual, "solve rows=$rows order=$order depth=$depth lower=$lower unit=$unit",
+                            )
+                            for (index in actual.indices) {
+                                val offset = index - 5
+                                if (offset < 0 || offset / 4 >= order || offset % 4 >= rows) {
+                                    assertEquals(expected[index].toBits(), actual[index].toBits())
+                                }
+                            }
                         }
                     }
                 }
             }
-            }
-        }
         }
     }
 

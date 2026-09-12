@@ -8,14 +8,6 @@ internal class JvmCKernelBindings(val variant: NativeVariant) {
     init {
         NativeCatalog.requireVariant(variant)
     }
-    private val library = checkNotNull(JvmNativeLibrary.library)
-    private val results = ThreadLocal.withInitial { DoubleArray(1) }
-    private val indices = ThreadLocal.withInitial { IntArray(1) }
-
-    private val denseDotHandle = library.handle(
-        "koblas_dense_dot_v1",
-        FfmLibrary.intOf(JAVA_INT, ADDRESS, JAVA_INT, ADDRESS, JAVA_INT, JAVA_INT, ADDRESS),
-    )
 
     @Suppress("LongParameterList")
     fun denseDot(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int): Double {
@@ -33,11 +25,6 @@ internal class JvmCKernelBindings(val variant: NativeVariant) {
         return result[0]
     }
 
-    private val denseSsqdHandle = library.handle(
-        "koblas_dense_ssqd_v1",
-        FfmLibrary.intOf(JAVA_INT, ADDRESS, JAVA_INT, ADDRESS, JAVA_INT, JAVA_INT, ADDRESS),
-    )
-
     @Suppress("LongParameterList")
     fun denseSsqd(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int): Double {
         val result = results.get()
@@ -54,11 +41,6 @@ internal class JvmCKernelBindings(val variant: NativeVariant) {
         return result[0]
     }
 
-    private val denseAxpyHandle = library.handle(
-        "koblas_dense_axpy_v1",
-        FfmLibrary.intOf(JAVA_INT, ADDRESS, JAVA_INT, JAVA_DOUBLE, ADDRESS, JAVA_INT, JAVA_INT),
-    )
-
     @Suppress("LongParameterList")
     fun denseAxpy(y: DoubleArray, yOff: Int, alpha: Double, x: DoubleArray, xOff: Int, len: Int) {
         val status = denseAxpyHandle.invokeExact(
@@ -72,11 +54,6 @@ internal class JvmCKernelBindings(val variant: NativeVariant) {
         ) as Int
         check(status == 0) { "native execution rejected: $status" }
     }
-
-    private val denseAxpyArithmeticHandle = library.handle(
-        "koblas_dense_axpy_arithmetic_v1",
-        FfmLibrary.intOf(JAVA_INT, ADDRESS, JAVA_INT, JAVA_DOUBLE, ADDRESS, JAVA_INT, JAVA_INT),
-    )
 
     @Suppress("LongParameterList")
     fun denseAxpyArithmetic(y: DoubleArray, yOff: Int, alpha: Double, x: DoubleArray, xOff: Int, len: Int) {
@@ -92,21 +69,11 @@ internal class JvmCKernelBindings(val variant: NativeVariant) {
         check(status == 0) { "native execution rejected: $status" }
     }
 
-    private val denseScaleHandle = library.handle(
-        "koblas_dense_scale_v1",
-        FfmLibrary.intOf(JAVA_INT, ADDRESS, JAVA_INT, JAVA_DOUBLE, JAVA_INT),
-    )
-
     @Suppress("LongParameterList")
     fun denseScale(v: DoubleArray, vOff: Int, alpha: Double, len: Int) {
         val status = denseScaleHandle.invokeExact(5 * 16 + variant.id, JvmArraySegments.of(v), vOff, alpha, len) as Int
         check(status == 0) { "native execution rejected: $status" }
     }
-
-    private val denseNrm2Handle = library.handle(
-        "koblas_dense_nrm2_v1",
-        FfmLibrary.intOf(JAVA_INT, ADDRESS, JAVA_INT, JAVA_INT, ADDRESS),
-    )
 
     @Suppress("LongParameterList")
     fun denseNrm2(v: DoubleArray, vOff: Int, len: Int): Double {
@@ -122,11 +89,6 @@ internal class JvmCKernelBindings(val variant: NativeVariant) {
         return result[0]
     }
 
-    private val denseSumHandle = library.handle(
-        "koblas_dense_sum_v1",
-        FfmLibrary.intOf(JAVA_INT, ADDRESS, JAVA_INT, JAVA_INT, ADDRESS),
-    )
-
     @Suppress("LongParameterList")
     fun denseSum(v: DoubleArray, vOff: Int, len: Int): Double {
         val result = results.get()
@@ -140,11 +102,6 @@ internal class JvmCKernelBindings(val variant: NativeVariant) {
         check(status == 0) { "native execution rejected: $status" }
         return result[0]
     }
-
-    private val denseAsumHandle = library.handle(
-        "koblas_dense_asum_v1",
-        FfmLibrary.intOf(JAVA_INT, ADDRESS, JAVA_INT, JAVA_INT, ADDRESS),
-    )
 
     @Suppress("LongParameterList")
     fun denseAsum(v: DoubleArray, vOff: Int, len: Int): Double {
@@ -160,11 +117,6 @@ internal class JvmCKernelBindings(val variant: NativeVariant) {
         return result[0]
     }
 
-    private val denseIamaxHandle = library.handle(
-        "koblas_dense_iamax_v1",
-        FfmLibrary.intOf(JAVA_INT, ADDRESS, JAVA_INT, JAVA_INT, ADDRESS),
-    )
-
     @Suppress("LongParameterList")
     fun denseIamax(v: DoubleArray, vOff: Int, len: Int): Int {
         val result = indices.get()
@@ -178,11 +130,6 @@ internal class JvmCKernelBindings(val variant: NativeVariant) {
         check(status == 0) { "native execution rejected: $status" }
         return result[0]
     }
-
-    private val denseGemmTileHandle = library.handle(
-        "koblas_dense_gemm_tile_v1",
-        FfmLibrary.intOf(JAVA_INT, JAVA_INT, ADDRESS, JAVA_INT, ADDRESS, JAVA_INT, ADDRESS, JAVA_INT, JAVA_INT),
-    )
 
     @Suppress("LongParameterList")
     fun denseGemmTile(
@@ -205,11 +152,6 @@ internal class JvmCKernelBindings(val variant: NativeVariant) {
         check(status == 0) { "native execution rejected: $status" }
     }
 
-    private val denseSwapHandle = library.handle(
-        "koblas_dense_swap_v1",
-        FfmLibrary.intOf(JAVA_INT, ADDRESS, JAVA_INT, ADDRESS, JAVA_INT, JAVA_INT),
-    )
-
     @Suppress("LongParameterList")
     fun denseSwap(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int) {
         val status = denseSwapHandle.invokeExact(
@@ -222,11 +164,6 @@ internal class JvmCKernelBindings(val variant: NativeVariant) {
         ) as Int
         check(status == 0) { "native execution rejected: $status" }
     }
-
-    private val denseDot4Handle = library.handle(
-        "koblas_dense_dot4_v1",
-        FfmLibrary.intOf(JAVA_INT, ADDRESS, JAVA_INT, JAVA_INT, ADDRESS, JAVA_INT, JAVA_INT, ADDRESS, JAVA_INT),
-    )
 
     @Suppress("LongParameterList")
     fun denseDot4(
@@ -248,23 +185,6 @@ internal class JvmCKernelBindings(val variant: NativeVariant) {
         ) as Int
         check(status == 0) { "native execution rejected: $status" }
     }
-
-    private val denseAxpy4Handle = library.handle(
-        "koblas_dense_axpy4_v1",
-        FfmLibrary.intOf(
-            JAVA_INT,
-            ADDRESS,
-            JAVA_INT,
-            ADDRESS,
-            JAVA_INT,
-            JAVA_INT,
-            JAVA_DOUBLE,
-            JAVA_DOUBLE,
-            JAVA_DOUBLE,
-            JAVA_DOUBLE,
-            JAVA_INT,
-        ),
-    )
 
     @Suppress("LongParameterList")
     fun denseAxpy4(
@@ -288,22 +208,6 @@ internal class JvmCKernelBindings(val variant: NativeVariant) {
         ) as Int
         check(status == 0) { "native execution rejected: $status" }
     }
-
-    private val denseDotAxpyHandle = library.handle(
-        "koblas_dense_dot_axpy_v1",
-        FfmLibrary.intOf(
-            JAVA_INT,
-            ADDRESS,
-            JAVA_INT,
-            JAVA_DOUBLE,
-            ADDRESS,
-            JAVA_INT,
-            ADDRESS,
-            JAVA_INT,
-            JAVA_INT,
-            ADDRESS,
-        ),
-    )
 
     @Suppress("LongParameterList")
     fun denseDotAxpy(
@@ -332,24 +236,6 @@ internal class JvmCKernelBindings(val variant: NativeVariant) {
         return result[0]
     }
 
-    private val denseRotmHandle = library.handle(
-        "koblas_dense_rotm_v1",
-        FfmLibrary.intOf(
-            JAVA_INT,
-            ADDRESS,
-            JAVA_INT,
-            JAVA_INT,
-            ADDRESS,
-            JAVA_INT,
-            JAVA_INT,
-            JAVA_INT,
-            JAVA_DOUBLE,
-            JAVA_DOUBLE,
-            JAVA_DOUBLE,
-            JAVA_DOUBLE,
-        ),
-    )
-
     @Suppress("LongParameterList")
     fun denseRotm(
         x: DoubleArray,
@@ -373,11 +259,6 @@ internal class JvmCKernelBindings(val variant: NativeVariant) {
         ) as Int
         check(status == 0) { "native execution rejected: $status" }
     }
-
-    private val sparseDotDenseHandle = library.handle(
-        "koblas_sparse_dot_dense_v1",
-        FfmLibrary.intOf(JAVA_INT, ADDRESS, JAVA_INT, ADDRESS, JAVA_INT, JAVA_INT, ADDRESS, ADDRESS),
-    )
 
     @Suppress("LongParameterList")
     fun sparseDotDense(
@@ -403,11 +284,6 @@ internal class JvmCKernelBindings(val variant: NativeVariant) {
         return result[0]
     }
 
-    private val sparseDotSparseHandle = library.handle(
-        "koblas_sparse_dot_sparse_v1",
-        FfmLibrary.intOf(JAVA_INT, ADDRESS, ADDRESS, JAVA_INT, ADDRESS, ADDRESS, JAVA_INT, ADDRESS),
-    )
-
     @Suppress("LongParameterList")
     fun sparseDotSparse(
         aIndices: IntArray,
@@ -432,11 +308,6 @@ internal class JvmCKernelBindings(val variant: NativeVariant) {
         return result[0]
     }
 
-    private val sparseAxpyHandle = library.handle(
-        "koblas_sparse_axpy_v1",
-        FfmLibrary.intOf(JAVA_INT, ADDRESS, JAVA_INT, ADDRESS, JAVA_INT, JAVA_INT, JAVA_DOUBLE, ADDRESS),
-    )
-
     @Suppress("LongParameterList")
     fun sparseAxpy(
         indices: IntArray,
@@ -460,11 +331,6 @@ internal class JvmCKernelBindings(val variant: NativeVariant) {
         check(status == 0) { "native execution rejected: $status" }
     }
 
-    private val sparseScatterHandle = library.handle(
-        "koblas_sparse_scatter_v1",
-        FfmLibrary.intOf(JAVA_INT, ADDRESS, JAVA_INT, ADDRESS, JAVA_INT, JAVA_INT, ADDRESS),
-    )
-
     @Suppress("LongParameterList")
     fun sparseScatter(
         indices: IntArray,
@@ -486,11 +352,6 @@ internal class JvmCKernelBindings(val variant: NativeVariant) {
         check(status == 0) { "native execution rejected: $status" }
     }
 
-    private val sparseNrm2Handle = library.handle(
-        "koblas_sparse_nrm2_v1",
-        FfmLibrary.intOf(JAVA_INT, ADDRESS, JAVA_INT, JAVA_INT, ADDRESS, ADDRESS),
-    )
-
     @Suppress("LongParameterList")
     fun sparseNrm2(indices: IntArray, indexOff: Int, len: Int, values: DoubleArray): Double {
         val result = results.get()
@@ -506,11 +367,6 @@ internal class JvmCKernelBindings(val variant: NativeVariant) {
         return result[0]
     }
 
-    private val sparseGatherHandle = library.handle(
-        "koblas_sparse_gather_v1",
-        FfmLibrary.intOf(JAVA_INT, ADDRESS, ADDRESS, JAVA_INT, ADDRESS),
-    )
-
     @Suppress("LongParameterList")
     fun sparseGather(indices: IntArray, values: DoubleArray, len: Int, dense: DoubleArray) {
         val status = sparseGatherHandle.invokeExact(
@@ -523,11 +379,6 @@ internal class JvmCKernelBindings(val variant: NativeVariant) {
         check(status == 0) { "native execution rejected: $status" }
     }
 
-    private val sparseGatherZeroHandle = library.handle(
-        "koblas_sparse_gather_zero_v1",
-        FfmLibrary.intOf(JAVA_INT, ADDRESS, ADDRESS, JAVA_INT, ADDRESS),
-    )
-
     @Suppress("LongParameterList")
     fun sparseGatherZero(indices: IntArray, values: DoubleArray, len: Int, dense: DoubleArray) {
         val status = sparseGatherZeroHandle.invokeExact(
@@ -539,11 +390,6 @@ internal class JvmCKernelBindings(val variant: NativeVariant) {
         ) as Int
         check(status == 0) { "native execution rejected: $status" }
     }
-
-    private val denseTrsmTileHandle = library.handle(
-        "koblas_dense_trsm_tile_v1",
-        FfmLibrary.intOf(JAVA_INT, JAVA_INT, JAVA_INT, ADDRESS, JAVA_INT, JAVA_INT, JAVA_INT, ADDRESS, JAVA_INT),
-    )
 
     @Suppress("LongParameterList")
     fun denseTrsmTile(
@@ -565,26 +411,6 @@ internal class JvmCKernelBindings(val variant: NativeVariant) {
         ) as Int
         check(status == 0) { "native execution rejected: $status" }
     }
-
-    private val denseGemmTrsmTileHandle = library.handle(
-        "koblas_dense_gemm_trsm_tile_v1",
-        FfmLibrary.intOf(
-            JAVA_INT,
-            JAVA_INT,
-            JAVA_INT,
-            JAVA_INT,
-            ADDRESS,
-            JAVA_INT,
-            ADDRESS,
-            JAVA_INT,
-            ADDRESS,
-            JAVA_INT,
-            JAVA_INT,
-            JAVA_INT,
-            ADDRESS,
-            JAVA_INT,
-        ),
-    )
 
     @Suppress("LongParameterList")
     fun denseGemmTrsmTile(
@@ -614,5 +440,185 @@ internal class JvmCKernelBindings(val variant: NativeVariant) {
             bOff, JvmArraySegments.of(packedTriangle), triangleOff, lower, unitDiag, JvmArraySegments.of(x), xOff,
         ) as Int
         check(status == 0) { "native execution rejected: $status" }
+    }
+
+    // All instances call the same typed ABI symbols; static final handles let HotSpot inline the downcall.
+    private companion object {
+        private val library = checkNotNull(JvmNativeLibrary.library)
+
+        private val results = ThreadLocal.withInitial { DoubleArray(1) }
+
+        private val indices = ThreadLocal.withInitial { IntArray(1) }
+
+        private val denseDotHandle = library.handle(
+            "koblas_dense_dot_v1",
+            FfmLibrary.intOf(JAVA_INT, ADDRESS, JAVA_INT, ADDRESS, JAVA_INT, JAVA_INT, ADDRESS),
+        )
+
+        private val denseSsqdHandle = library.handle(
+            "koblas_dense_ssqd_v1",
+            FfmLibrary.intOf(JAVA_INT, ADDRESS, JAVA_INT, ADDRESS, JAVA_INT, JAVA_INT, ADDRESS),
+        )
+
+        private val denseAxpyHandle = library.handle(
+            "koblas_dense_axpy_v1",
+            FfmLibrary.intOf(JAVA_INT, ADDRESS, JAVA_INT, JAVA_DOUBLE, ADDRESS, JAVA_INT, JAVA_INT),
+        )
+
+        private val denseAxpyArithmeticHandle = library.handle(
+            "koblas_dense_axpy_arithmetic_v1",
+            FfmLibrary.intOf(JAVA_INT, ADDRESS, JAVA_INT, JAVA_DOUBLE, ADDRESS, JAVA_INT, JAVA_INT),
+        )
+
+        private val denseScaleHandle = library.handle(
+            "koblas_dense_scale_v1",
+            FfmLibrary.intOf(JAVA_INT, ADDRESS, JAVA_INT, JAVA_DOUBLE, JAVA_INT),
+        )
+
+        private val denseNrm2Handle = library.handle(
+            "koblas_dense_nrm2_v1",
+            FfmLibrary.intOf(JAVA_INT, ADDRESS, JAVA_INT, JAVA_INT, ADDRESS),
+        )
+
+        private val denseSumHandle = library.handle(
+            "koblas_dense_sum_v1",
+            FfmLibrary.intOf(JAVA_INT, ADDRESS, JAVA_INT, JAVA_INT, ADDRESS),
+        )
+
+        private val denseAsumHandle = library.handle(
+            "koblas_dense_asum_v1",
+            FfmLibrary.intOf(JAVA_INT, ADDRESS, JAVA_INT, JAVA_INT, ADDRESS),
+        )
+
+        private val denseIamaxHandle = library.handle(
+            "koblas_dense_iamax_v1",
+            FfmLibrary.intOf(JAVA_INT, ADDRESS, JAVA_INT, JAVA_INT, ADDRESS),
+        )
+
+        private val denseGemmTileHandle = library.handle(
+            "koblas_dense_gemm_tile_v1",
+            FfmLibrary.intOf(JAVA_INT, JAVA_INT, ADDRESS, JAVA_INT, ADDRESS, JAVA_INT, ADDRESS, JAVA_INT, JAVA_INT),
+        )
+
+        private val denseSwapHandle = library.handle(
+            "koblas_dense_swap_v1",
+            FfmLibrary.intOf(JAVA_INT, ADDRESS, JAVA_INT, ADDRESS, JAVA_INT, JAVA_INT),
+        )
+
+        private val denseDot4Handle = library.handle(
+            "koblas_dense_dot4_v1",
+            FfmLibrary.intOf(JAVA_INT, ADDRESS, JAVA_INT, JAVA_INT, ADDRESS, JAVA_INT, JAVA_INT, ADDRESS, JAVA_INT),
+        )
+
+        private val denseAxpy4Handle = library.handle(
+            "koblas_dense_axpy4_v1",
+            FfmLibrary.intOf(
+                JAVA_INT,
+                ADDRESS,
+                JAVA_INT,
+                ADDRESS,
+                JAVA_INT,
+                JAVA_INT,
+                JAVA_DOUBLE,
+                JAVA_DOUBLE,
+                JAVA_DOUBLE,
+                JAVA_DOUBLE,
+                JAVA_INT,
+            ),
+        )
+
+        private val denseDotAxpyHandle = library.handle(
+            "koblas_dense_dot_axpy_v1",
+            FfmLibrary.intOf(
+                JAVA_INT,
+                ADDRESS,
+                JAVA_INT,
+                JAVA_DOUBLE,
+                ADDRESS,
+                JAVA_INT,
+                ADDRESS,
+                JAVA_INT,
+                JAVA_INT,
+                ADDRESS,
+            ),
+        )
+
+        private val denseRotmHandle = library.handle(
+            "koblas_dense_rotm_v1",
+            FfmLibrary.intOf(
+                JAVA_INT,
+                ADDRESS,
+                JAVA_INT,
+                JAVA_INT,
+                ADDRESS,
+                JAVA_INT,
+                JAVA_INT,
+                JAVA_INT,
+                JAVA_DOUBLE,
+                JAVA_DOUBLE,
+                JAVA_DOUBLE,
+                JAVA_DOUBLE,
+            ),
+        )
+
+        private val sparseDotDenseHandle = library.handle(
+            "koblas_sparse_dot_dense_v1",
+            FfmLibrary.intOf(JAVA_INT, ADDRESS, JAVA_INT, ADDRESS, JAVA_INT, JAVA_INT, ADDRESS, ADDRESS),
+        )
+
+        private val sparseDotSparseHandle = library.handle(
+            "koblas_sparse_dot_sparse_v1",
+            FfmLibrary.intOf(JAVA_INT, ADDRESS, ADDRESS, JAVA_INT, ADDRESS, ADDRESS, JAVA_INT, ADDRESS),
+        )
+
+        private val sparseAxpyHandle = library.handle(
+            "koblas_sparse_axpy_v1",
+            FfmLibrary.intOf(JAVA_INT, ADDRESS, JAVA_INT, ADDRESS, JAVA_INT, JAVA_INT, JAVA_DOUBLE, ADDRESS),
+        )
+
+        private val sparseScatterHandle = library.handle(
+            "koblas_sparse_scatter_v1",
+            FfmLibrary.intOf(JAVA_INT, ADDRESS, JAVA_INT, ADDRESS, JAVA_INT, JAVA_INT, ADDRESS),
+        )
+
+        private val sparseNrm2Handle = library.handle(
+            "koblas_sparse_nrm2_v1",
+            FfmLibrary.intOf(JAVA_INT, ADDRESS, JAVA_INT, JAVA_INT, ADDRESS, ADDRESS),
+        )
+
+        private val sparseGatherHandle = library.handle(
+            "koblas_sparse_gather_v1",
+            FfmLibrary.intOf(JAVA_INT, ADDRESS, ADDRESS, JAVA_INT, ADDRESS),
+        )
+
+        private val sparseGatherZeroHandle = library.handle(
+            "koblas_sparse_gather_zero_v1",
+            FfmLibrary.intOf(JAVA_INT, ADDRESS, ADDRESS, JAVA_INT, ADDRESS),
+        )
+
+        private val denseTrsmTileHandle = library.handle(
+            "koblas_dense_trsm_tile_v1",
+            FfmLibrary.intOf(JAVA_INT, JAVA_INT, JAVA_INT, ADDRESS, JAVA_INT, JAVA_INT, JAVA_INT, ADDRESS, JAVA_INT),
+        )
+
+        private val denseGemmTrsmTileHandle = library.handle(
+            "koblas_dense_gemm_trsm_tile_v1",
+            FfmLibrary.intOf(
+                JAVA_INT,
+                JAVA_INT,
+                JAVA_INT,
+                JAVA_INT,
+                ADDRESS,
+                JAVA_INT,
+                ADDRESS,
+                JAVA_INT,
+                ADDRESS,
+                JAVA_INT,
+                JAVA_INT,
+                JAVA_INT,
+                ADDRESS,
+                JAVA_INT,
+            ),
+        )
     }
 }
