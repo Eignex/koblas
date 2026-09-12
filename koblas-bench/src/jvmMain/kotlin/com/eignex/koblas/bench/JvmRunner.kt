@@ -64,7 +64,7 @@ public fun main(args: Array<String>) {
         }
     }
     writeRows(settings, selected, rowsByCase)
-    println("wrote ${selected.size} cases and ${rowsByCase.values.sumOf { it.size }} rows to ${settings.outputPath}")
+    println("wrote ${selected.size} case summaries from ${rowsByCase.values.sumOf { rows -> rows.count { it.sample != null } }} measurements to ${settings.outputPath}")
     println("resolved implementation=$implementation runtime=${runtimeIdentity()} harness=JMH 1.37 forks=${settings.forks}")
 }
 

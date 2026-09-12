@@ -58,6 +58,10 @@ function fail(message) {
   exit 1
 }
 
+function positive(value) {
+  return value ~ /^[+]?[0-9]*([.][0-9]+|[0-9]+[.]?[0-9]*)([eE][+-]?[0-9]+)?$/ && value + 0 > 0 && tolower(sprintf("%g", value + 0)) !~ /inf|nan/
+}
+
 function parse_csv(line, fields,    character, field, length_, next_character, output_index, position, state) {
   delete fields
   field = ""
@@ -144,7 +148,7 @@ function identify_case(row,    parts, count, operation, logical, options, i, key
     options[key] = value
     if (key == "packed") {
       if (value != "4x4" && value != "8x4") fail(FILENAME ": unsupported packed recipe")
-      row["configuration"] = row["implementation"] ~ /^(openblas|onemkl)$/ ? "column-major" : "packed=" value
+      row["configuration"] = row["implementation"] ~ /^(openblas|onemkl|accelerate)$/ ? "column-major" : "packed=" value
     }
   }
   n = asorti(options, names)
@@ -168,6 +172,8 @@ function compatible(left, right,    i, field) {
 }
 
 BEGINFILE {
+  compact = 0
+  column_count["case"] = split(expected["case"], columns["case"]) + 1
   file_count = ARGIND
   names[ARGIND] = FILENAME
   delete runs
@@ -176,10 +182,15 @@ BEGINFILE {
   delete seen_samples
 }
 
-FNR <= 3 {
+FNR <= 2 || (FNR == 3 && !compact) {
   sub(/\r$/, "")
   type = record_type[FNR]
-  if (read_csv($0, fields) != column_count[type] || fields[1] != type) fail(FILENAME ": malformed benchmark CSV header")
+  count = read_csv($0, fields)
+  if (FNR == 2 && count == 13) {
+    compact = 1
+    column_count["case"] = split(expected["case"] " samples forks median_ns min_ns max_ns", columns["case"]) + 1
+  }
+  if (count != column_count[type] || fields[1] != type) fail(FILENAME ": malformed benchmark CSV header")
   for (i = 2; i <= column_count[type]; i++) {
     if (fields[i] != columns[type][i - 1]) fail(FILENAME ": malformed benchmark CSV header")
   }
@@ -194,7 +205,7 @@ FNR <= 3 {
   if (!(type in column_count) || count != column_count[type]) fail(FILENAME ": malformed benchmark CSV record")
   delete record
   for (i = 2; i <= count; i++) {
-    if (fields[i] == "") fail(FILENAME ": empty benchmark CSV field")
+    if (fields[i] == "" && !(compact && type == "case" && i >= 11)) fail(FILENAME ": empty benchmark CSV field")
     record[columns[type][i - 1]] = fields[i]
   }
   if (type == "run") {
@@ -207,25 +218,35 @@ FNR <= 3 {
     id = record["id"]
     if (id !~ /^[1-9][0-9]*$/ || (id in cases) || !(record["run_id"] in runs)) fail(FILENAME ": invalid case or unknown run id")
     for (field in record) if (field != "id") cases[id][field] = record[field]
-    next
+    if (!compact) next
+    if (record["status"] != "ok") {
+      if (record["status"] != "unsupported" || record["samples"] != "0" || record["forks"] != "0" || record["median_ns"] != "" || record["min_ns"] != "" || record["max_ns"] != "") fail(FILENAME ": invalid unmeasured summary")
+      next
+    }
+    if (record["samples"] !~ /^[1-9][0-9]*$/ || record["forks"] !~ /^[1-9][0-9]*$/ || record["forks"] + 0 != runs[record["run_id"]]["forks"] + 0 || record["samples"] + 0 < record["forks"] + 0) fail(FILENAME ": invalid summary counts")
+    if (!positive(record["median_ns"]) || !positive(record["min_ns"]) || !positive(record["max_ns"]) || record["min_ns"] + 0 > record["median_ns"] + 0 || record["median_ns"] + 0 > record["max_ns"] + 0) fail(FILENAME ": invalid summary statistics")
+    record["ns_per_op"] = record["median_ns"]
+    case_samples[id] = record["samples"]
+  } else {
+    if (compact) fail(FILENAME ": sample record in compact report")
+    id = record["case_id"]
+    if (!(id in cases) || cases[id]["status"] != "ok") fail(FILENAME ": sample references unknown or unsupported case")
+    for (i = 1; i <= 4; i++) {
+      field = columns["sample"][i + 1]
+      if (record[field] !~ /^[1-9][0-9]*$/) fail(FILENAME ": invalid sample " field)
+    }
+    key = id SUBSEP record["fork"] SUBSEP record["sample"]
+    if (key in seen_samples) fail(FILENAME ": duplicate sample")
+    seen_samples[key] = 1
+    case_samples[id]++
   }
-  id = record["case_id"]
-  if (!(id in cases) || cases[id]["status"] != "ok") fail(FILENAME ": sample references unknown or unsupported case")
-  for (i = 1; i <= 4; i++) {
-    field = columns["sample"][i + 1]
-    if (record[field] !~ /^[1-9][0-9]*$/) fail(FILENAME ": invalid sample " field)
-  }
-  key = id SUBSEP record["fork"] SUBSEP record["sample"]
-  if (key in seen_samples) fail(FILENAME ": duplicate sample")
-  seen_samples[key] = 1
-  case_samples[id]++
   delete row
   for (field in runs[cases[id]["run_id"]]) row[field] = runs[cases[id]["run_id"]][field]
   for (field in cases[id]) row[field] = cases[id][field]
   for (field in record) row[field] = record[field]
   identify_case(row)
   value = row["ns_per_op"]
-  if (value !~ /^[+]?[0-9]*([.][0-9]+|[0-9]+[.]?[0-9]*)([eE][+-]?[0-9]+)?$/ || value + 0 <= 0 || tolower(sprintf("%g", value + 0)) ~ /inf|nan/) fail(FILENAME ": invalid sample")
+  if (!positive(value)) fail(FILENAME ": invalid sample")
   successful[ARGIND]++
   if (length(selected_timing) && !(row["timing_mode"] in selected_timing)) next
   if (mode == "fixed" && row["configuration"] == "policy") next
@@ -236,6 +257,8 @@ FNR <= 3 {
     value = row[group_fields[i]]
     key = key length(value) ":" value
   }
+  # Summary medians cannot reconstruct pooled distributions; keep each case record separate.
+  if (compact) key = key ":case=" id
   if (!(key in groups[ARGIND])) {
     group = ++group_count
     groups[ARGIND][key] = group
@@ -244,7 +267,12 @@ FNR <= 3 {
     identities[ARGIND][row["logical_id"]] = 1
   }
   group = groups[ARGIND][key]
-  samples[group][++sample_counts[group]] = row["ns_per_op"] + 0
+  if (compact) {
+    summarized[group] = 1
+    medians[group] = row["median_ns"] + 0
+    minimums[group] = row["min_ns"] + 0
+    maximums[group] = row["max_ns"] + 0
+  } else samples[group][++sample_counts[group]] = row["ns_per_op"] + 0
 }
 
 ENDFILE {
@@ -255,8 +283,11 @@ ENDFILE {
 END {
   if (failed) exit 1
   for (group = 1; group <= group_count; group++) {
+    if (summarized[group]) continue
     medians[group] = median(samples[group], sample_counts[group])
     asort(samples[group], samples[group], "@val_num_asc")
+    minimums[group] = samples[group][1]
+    maximums[group] = samples[group][sample_counts[group]]
   }
   print "candidate,logical_id,base_case,candidate_case,base_configuration,candidate_configuration,base_kernel,candidate_kernel,base_median_ns,candidate_median_ns,candidate_min_ns,candidate_max_ns,base_over_candidate"
   for (candidate = 2; candidate <= file_count; candidate++) {
@@ -267,7 +298,7 @@ END {
       for (right_index = 1; right_index <= group_counts[candidate]; right_index++) {
         right = order[candidate][right_index]
         if (!compatible(left, right)) continue
-        printf "%s,%s,%s,%s,%s,%s,%s,%s,%.17g,%.17g,%.17g,%.17g,%.17g\n", csv(names[candidate]), csv(rows[left]["logical_id"]), csv(rows[left]["case"]), csv(rows[right]["case"]), csv(rows[left]["configuration"]), csv(rows[right]["configuration"]), csv(rows[left]["actual_kernel"]), csv(rows[right]["actual_kernel"]), medians[left], medians[right], samples[right][1], samples[right][sample_counts[right]], medians[left] / medians[right]
+        printf "%s,%s,%s,%s,%s,%s,%s,%s,%.17g,%.17g,%.17g,%.17g,%.17g\n", csv(names[candidate]), csv(rows[left]["logical_id"]), csv(rows[left]["case"]), csv(rows[right]["case"]), csv(rows[left]["configuration"]), csv(rows[right]["configuration"]), csv(rows[left]["actual_kernel"]), csv(rows[right]["actual_kernel"]), medians[left], medians[right], minimums[right], maximums[right], medians[left] / medians[right]
         joined[left] = joined[right] = 1
         pairs++
       }

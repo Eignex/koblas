@@ -1,5 +1,9 @@
 #define _POSIX_C_SOURCE 200809L
+#ifdef USE_ACCELERATE
+#include <Accelerate/Accelerate.h>
+#else
 #include <cblas.h>
+#endif
 #include <errno.h>
 #include <inttypes.h>
 #include <math.h>
@@ -31,12 +35,27 @@ extern void cblas_daxpyi(int, double, const double *, const int *, double *);
 extern void cblas_dsctr(int, const double *, const int *, double *);
 extern void cblas_dgthr(int, const double *, double *, const int *);
 extern void cblas_dgthrz(int, double *, double *, const int *);
-#else
+#elif !defined(USE_ACCELERATE)
 extern char *openblas_get_config(void);
 extern void openblas_set_num_threads(int);
 extern double cblas_dsum(const int, const double *, const int);
 #endif
-extern void cblas_dgemmt(const CBLAS_LAYOUT, const CBLAS_UPLO, const CBLAS_TRANSPOSE, const CBLAS_TRANSPOSE, const int, const int, const double, const double *, const int, const double *, const int, const double, double *, const int);
+#ifdef USE_ACCELERATE
+typedef enum CBLAS_ORDER cblas_layout;
+typedef enum CBLAS_UPLO cblas_uplo;
+typedef enum CBLAS_TRANSPOSE cblas_transpose;
+typedef enum CBLAS_SIDE cblas_side;
+typedef enum CBLAS_DIAG cblas_diag;
+#else
+typedef CBLAS_LAYOUT cblas_layout;
+typedef CBLAS_UPLO cblas_uplo;
+typedef CBLAS_TRANSPOSE cblas_transpose;
+typedef CBLAS_SIDE cblas_side;
+typedef CBLAS_DIAG cblas_diag;
+#endif
+#ifndef USE_ACCELERATE
+extern void cblas_dgemmt(const cblas_layout, const cblas_uplo, const cblas_transpose, const cblas_transpose, const int, const int, const double, const double *, const int, const double *, const int, const double, double *, const int);
+#endif
 
 enum { MAX_DIMS = 3, MAX_OPTIONS = 9 };
 static const uint64_t SEED = UINT64_C(0x243f6a8885a308d3);
@@ -68,6 +87,10 @@ struct work {
 #ifdef USE_MKL
     sparse_fixture csr_a, csr_b;
     sparse_matrix_t handle_a, handle_b;
+#endif
+#ifdef USE_ACCELERATE
+    sparse_index *accelerate_indices;
+    sparse_matrix_double accelerate_a;
 #endif
     int supported;
     const char *comparison, *timing;
@@ -245,10 +268,10 @@ static void copy_values(double *to,const double *from,int n){memcpy(to,from,(siz
 static double consume(const double *values,int count){return count?values[0]+values[count-1]:0.0;}
 
 static void fill_triangular(double *a,int n,int lower,int operand){fill_vector(a,n*n,operand);for(int j=0;j<n;++j)for(int i=0;i<n;++i){if((lower&&i<j)||(!lower&&i>j))a[i+j*n]=0.0;}for(int i=0;i<n;++i)a[i+i*n]=2.0+fabs(a[i+i*n]);}
-static CBLAS_TRANSPOSE transpose_value(int transpose){return transpose?CblasTrans:CblasNoTrans;}
-static CBLAS_UPLO uplo_value(int lower){return lower?CblasLower:CblasUpper;}
-static CBLAS_SIDE side_value(int right){return right?CblasRight:CblasLeft;}
-static CBLAS_DIAG diag_value(int unit){return unit?CblasUnit:CblasNonUnit;}
+static cblas_transpose transpose_value(int transpose){return transpose?CblasTrans:CblasNoTrans;}
+static cblas_uplo uplo_value(int lower){return lower?CblasLower:CblasUpper;}
+static cblas_side side_value(int right){return right?CblasRight:CblasLeft;}
+static cblas_diag diag_value(int unit){return unit?CblasUnit:CblasNonUnit;}
 static void packed_left_fixture(double *logical,int rows,int depth,int operand){fill_vector(logical,rows*depth,operand);}
 static void packed_right_fixture(double *logical,int depth,int cols,int operand){fill_vector(logical,depth*cols,operand);}
 static void packed_output_fixture(double *logical,int rows,int cols,int operand){fill_vector(logical,rows*cols,operand);}
@@ -262,7 +285,7 @@ static double invoke_dense(work *w){
     if(!strcmp(op,"nrm2"))return cblas_dnrm2(d[0],w->x,1);
     if(!strcmp(op,"asum"))return cblas_dasum(d[0],w->x,1);
     if(!strcmp(op,"iamax"))return (double)cblas_idamax(d[0],w->x,1);
-#ifndef USE_MKL
+#if !defined(USE_MKL) && !defined(USE_ACCELERATE)
     if(!strcmp(op,"sum"))return cblas_dsum(d[0],w->x,1);
 #endif
     if(!strcmp(op,"swap")){copy_values(w->x,w->a,d[0]);copy_values(w->y,w->initial,d[0]);cblas_dswap(d[0],w->x,1,w->y,1);return w->x[0]+w->y[0];}
@@ -280,7 +303,9 @@ static double invoke_dense(work *w){
     if(!strcmp(op,"trsv")||!strcmp(op,"trmv")){int n=d[0];copy_values(w->x,w->initial,n);if(op[2]=='s')cblas_dtrsv(CblasColMajor,uplo_value(lower),transpose_value(ta),diag_value(unit),n,w->a,n,w->x,1);else cblas_dtrmv(CblasColMajor,uplo_value(lower),transpose_value(ta),diag_value(unit),n,w->a,n,w->x,1);return consume(w->x,n);}
     if(!strcmp(op,"gemm")){int m=d[0],n=d[1],k=d[2],ar=ta?k:m,br=tb?n:k;copy_values(w->c,w->initial,m*n);cblas_dgemm(CblasColMajor,transpose_value(ta),transpose_value(tb),m,n,k,.875,w->a,ar,w->b,br,-.25,w->c,m);return consume(w->c,m*n);}
     if(!strcmp(op,"symm")){int m=d[0],n=d[1],order=right?n:m;copy_values(w->c,w->initial,m*n);cblas_dsymm(CblasColMajor,side_value(right),uplo_value(lower),m,n,.875,w->a,order,w->b,m,-.25,w->c,m);return consume(w->c,m*n);}
+#ifndef USE_ACCELERATE
     if(!strcmp(op,"gemmt")){int n=d[0],k=d[1],ar=ta?k:n,br=tb?n:k;copy_values(w->c,w->initial,n*n);cblas_dgemmt(CblasColMajor,uplo_value(lower),transpose_value(ta),transpose_value(tb),n,k,.875,w->a,ar,w->b,br,-.25,w->c,n);return consume(w->c,n*n);}
+#endif
     if(!strcmp(op,"syrk")){int n=d[0],k=d[1],ar=ta?k:n;copy_values(w->c,w->initial,n*n);cblas_dsyrk(CblasColMajor,uplo_value(lower),transpose_value(ta),n,k,.875,w->a,ar,-.25,w->c,n);return consume(w->c,n*n);}
     if(!strcmp(op,"syr2k")){int n=d[0],k=d[1],ar=ta?k:n;copy_values(w->c,w->initial,n*n);cblas_dsyr2k(CblasColMajor,uplo_value(lower),transpose_value(ta),n,k,.875,w->a,ar,w->b,ar,-.25,w->c,n);return consume(w->c,n*n);}
     if(!strcmp(op,"trsm")||!strcmp(op,"trmm")){int m=d[0],n=d[1],order=right?n:m;copy_values(w->b,w->initial,m*n);if(op[2]=='s')cblas_dtrsm(CblasColMajor,side_value(right),uplo_value(lower),transpose_value(ta),diag_value(unit),m,n,.875,w->a,order,w->b,m);else cblas_dtrmm(CblasColMajor,side_value(right),uplo_value(lower),transpose_value(ta),diag_value(unit),m,n,.875,w->a,order,w->b,m);return consume(w->b,m*n);}
@@ -297,8 +322,11 @@ static void setup_dense(work *w){
     w->supported=1;w->comparison="direct";w->timing="reset-and-arithmetic";w->invoke=invoke_dense;
     if(!strcmp(op,"gemm-block")&&!strcmp(option(s,"timing",""),"pack-plus-compute")){w->supported=0;w->comparison="unsupported";w->timing="pack-plus-compute";return;}
     if(is_layout(op)||!strcmp(op,"ssqd")||!strcmp(op,"compensated-sum")){w->supported=0;w->comparison="unsupported";w->timing=is_layout(op)?"layout":"arithmetic";return;}
-#ifdef USE_MKL
+#if defined(USE_MKL) || defined(USE_ACCELERATE)
     if(!strcmp(op,"sum")){w->supported=0;w->comparison="unsupported";w->timing="arithmetic";return;}
+#endif
+#ifdef USE_ACCELERATE
+    if(!strcmp(op,"gemmt")){w->supported=0;w->comparison="unsupported";return;}
 #endif
     if(!strcmp(op,"dot")||!strcmp(op,"nrm2")||!strcmp(op,"asum")||!strcmp(op,"sum")||!strcmp(op,"iamax")){w->x=allocate(d[0],sizeof(double));w->y=allocate(d[0],sizeof(double));fill_vector(w->x,d[0],1);fill_vector(w->y,d[0],2);w->timing="arithmetic";return;}
     if(!strcmp(op,"axpy")||!strcmp(op,"axpy-arithmetic")||!strcmp(op,"scal")){w->x=allocate(d[0],sizeof(double));w->y=allocate(d[0],sizeof(double));w->initial=allocate(d[0],sizeof(double));fill_vector(w->x,d[0],1);fill_vector(w->initial,d[0],!strcmp(op,"scal")?1:2);if(!strcmp(op,"scal")){copy_values(w->x,w->initial,d[0]);w->timing=option(s,"timing","reset-and-arithmetic");}return;}
@@ -405,9 +433,113 @@ static void setup_sparse(work *w){
 }
 #endif
 
+#ifdef USE_ACCELERATE
+static void accelerate_check(sparse_status status, const char *operation) {
+    if (status != SPARSE_SUCCESS) fail(operation);
+}
+
+static sparse_matrix_double create_accelerate_matrix(const sparse_fixture *matrix) {
+    sparse_matrix_double result = sparse_matrix_create_double(matrix->rows, matrix->cols);
+    if (!result) fail("sparse_matrix_create_double failed");
+    for (int column = 0; column < matrix->cols; ++column) {
+        for (int p = matrix->col_ptr[column]; p < matrix->col_ptr[column + 1]; ++p) {
+            accelerate_check(sparse_insert_entry_double(result, matrix->values[p], matrix->row_idx[p], column),
+                "sparse_insert_entry_double failed");
+        }
+    }
+    accelerate_check(sparse_commit(result), "sparse_commit failed");
+    return result;
+}
+
+static void copy_accelerate_indices(work *w) {
+    w->accelerate_indices = allocate(w->sa.nnz, sizeof(*w->accelerate_indices));
+    for (int p = 0; p < w->sa.nnz; ++p) w->accelerate_indices[p] = w->sa.row_idx[p];
+}
+
+static double invoke_accelerate_sparse(work *w) {
+    const char *operation = w->spec->operation;
+    int *dimensions = w->spec->dims;
+    if (!strcmp(operation, "spdot")) {
+        return sparse_inner_product_dense_double(w->sa.nnz, w->sa.values, w->accelerate_indices, w->y, 1);
+    }
+    if (!strcmp(operation, "spaxpy")) {
+        copy_values(w->y, w->initial, dimensions[0]);
+        sparse_vector_add_with_scale_dense_double(w->sa.nnz, .875, w->sa.values, w->accelerate_indices, w->y, 1);
+        return consume(w->y, dimensions[0]);
+    }
+    if (!strcmp(operation, "spnrm2")) {
+        return sparse_vector_norm_double(w->sa.nnz, w->sa.values, w->accelerate_indices, SPARSE_NORM_TWO);
+    }
+    if (!strcmp(operation, "spasum")) {
+        return sparse_vector_norm_double(w->sa.nnz, w->sa.values, w->accelerate_indices, SPARSE_NORM_ONE);
+    }
+    sparse_matrix_double matrix = w->accelerate_a ? w->accelerate_a : create_accelerate_matrix(&w->sa);
+    if (!strcmp(operation, "spmm")) {
+        int count = dimensions[0] * dimensions[1];
+        copy_values(w->c, w->initial, count);
+        cblas_dscal(count, -.25, w->c, 1);
+        accelerate_check(sparse_matrix_product_dense_double(CblasColMajor, CblasNoTrans,
+            dimensions[1], .875, matrix, w->b, dimensions[2], w->c, dimensions[0]),
+            "sparse_matrix_product_dense_double failed");
+        if (!w->accelerate_a) accelerate_check(sparse_matrix_destroy(matrix), "sparse_matrix_destroy failed");
+        return consume(w->c, count);
+    }
+    copy_values(w->y, w->initial, dimensions[0]);
+    cblas_dscal(dimensions[0], -.25, w->y, 1);
+    accelerate_check(sparse_matrix_vector_product_dense_double(
+        flag(w->spec, "transA") ? CblasTrans : CblasNoTrans, .875, matrix, w->x, 1, w->y, 1),
+        "sparse_matrix_vector_product_dense_double failed");
+    if (!w->accelerate_a) accelerate_check(sparse_matrix_destroy(matrix), "sparse_matrix_destroy failed");
+    return consume(w->y, dimensions[0]);
+}
+
+static void setup_accelerate_sparse(work *w) {
+    bench_case *spec = w->spec;
+    int *dimensions = spec->dims;
+    double density = strtod(option(spec, "density", "0.01"), NULL);
+    if (strcmp(spec->operation, "spdot") && strcmp(spec->operation, "spaxpy") &&
+        strcmp(spec->operation, "spnrm2") && strcmp(spec->operation, "spasum") &&
+        strcmp(spec->operation, "spgemv") && strcmp(spec->operation, "spmm")) {
+        w->supported = 0;
+        w->comparison = "unsupported";
+        w->timing = !strncmp(spec->operation, "sparse-slices-", 14) ? "sparse-slices" : option(spec, "mode", "arithmetic");
+        return;
+    }
+    w->supported = 1;
+    w->comparison = "direct";
+    w->timing = !strcmp(spec->operation, "spgemv") || !strcmp(spec->operation, "spmm") ?
+        (!strcmp(option(spec, "mode", "oneshot"), "prepared") ? "prepared" : "oneshot") :
+        (!strcmp(spec->operation, "spdot") || !strcmp(spec->operation, "spnrm2") || !strcmp(spec->operation, "spasum") ? "arithmetic" : "reset-and-arithmetic");
+    w->invoke = invoke_accelerate_sparse;
+    if (!strcmp(spec->operation, "spgemv") || !strcmp(spec->operation, "spmm")) {
+        int columns = dimensions[!strcmp(spec->operation, "spmm") ? 2 : 1];
+        int rhs = !strcmp(spec->operation, "spmm") ? dimensions[1] : 1;
+        w->sa = make_sparse(dimensions[0], columns, density, 1, 0, 1);
+        w->x = allocate(columns, sizeof(double));
+        w->y = allocate(dimensions[0], sizeof(double));
+        w->b = allocate(columns * rhs, sizeof(double));
+        w->c = allocate(dimensions[0] * rhs, sizeof(double));
+        w->initial = allocate(dimensions[0] * rhs, sizeof(double));
+        fill_vector(w->x, columns, 2);
+        fill_vector(w->b, columns * rhs, 2);
+        fill_vector(w->initial, dimensions[0] * rhs, 3);
+        if (!strcmp(option(spec, "mode", "oneshot"), "prepared")) w->accelerate_a = create_accelerate_matrix(&w->sa);
+    } else {
+        w->sa = make_sparse(dimensions[0], 1, density, 1, 0, 1);
+        w->y = allocate(dimensions[0], sizeof(double));
+        w->initial = allocate(dimensions[0], sizeof(double));
+        fill_vector(w->initial, dimensions[0], 2);
+        copy_values(w->y, w->initial, dimensions[0]);
+    }
+    copy_accelerate_indices(w);
+}
+#endif
+
 static void setup_work(work *w,bench_case *spec){memset(w,0,sizeof(*w));w->spec=spec;if(!strncmp(spec->operation,"sp",2)||!strncmp(spec->operation,"sparse-slices-",14)){
 #ifdef USE_MKL
 setup_sparse(w);
+#elif defined(USE_ACCELERATE)
+setup_accelerate_sparse(w);
 #else
 w->supported=0;w->comparison="unsupported";w->timing=!strncmp(spec->operation,"sparse-slices-",14)?"sparse-slices":option(spec,"mode","arithmetic");
 #endif
@@ -418,6 +550,10 @@ static void free_work(work *w){
 if(w->handle_b)mkl_sparse_destroy(w->handle_b);
 if(w->handle_a)mkl_sparse_destroy(w->handle_a);
 free_sparse(&w->csr_a);free_sparse(&w->csr_b);
+#endif
+#ifdef USE_ACCELERATE
+if(w->accelerate_a)accelerate_check(sparse_matrix_destroy(w->accelerate_a), "sparse_matrix_destroy failed");
+free(w->accelerate_indices);
 #endif
 free_sparse(&w->sa);free_sparse(&w->sb);free(w->a);free(w->b);free(w->c);free(w->initial);free(w->x);free(w->y);free(w->indices);
 }
@@ -433,10 +569,17 @@ static void numerical_check(void){
     int m=7,n=5,k=9;double *a=allocate(m*k,sizeof(double)),*b=allocate(k*n,sizeof(double)),*c=allocate(m*n,sizeof(double)),*oracle=allocate(m*n,sizeof(double));fill_vector(a,m*k,1);fill_vector(b,k*n,2);fill_vector(c,m*n,3);copy_values(oracle,c,m*n);cblas_dgemm(CblasColMajor,CblasNoTrans,CblasNoTrans,m,n,k,.875,a,m,b,k,-.25,c,m);for(int j=0;j<n;++j)for(int i=0;i<m;++i){double sum=0;for(int p=0;p<k;++p)sum+=a[i+p*m]*b[p+j*k];oracle[i+j*m]=.875*sum-.25*oracle[i+j*m];}for(int i=0;i<m*n;++i)if(fabs(c[i]-oracle[i])>2e-12*(1+fabs(oracle[i])))fail("dense gemm numerical check failed");free(a);free(b);free(c);free(oracle);
 #ifdef USE_MKL
     sparse_fixture sa=make_sparse(11,7,.3,4,0,1),csr=to_csr(&sa);sparse_matrix_t handle=create_handle(&csr);double sx[7],sy[11]={0},expected[11]={0};fill_vector(sx,7,5);matrix_descr descriptor={TYPE_GENERAL,FILL_LOWER,DIAG_NON_UNIT};if(mkl_sparse_d_mv(SPARSE_NON_TRANSPOSE,1,handle,descriptor,sx,0,sy))fail("sparse numerical call failed");for(int j=0;j<7;++j)for(int p=sa.col_ptr[j];p<sa.col_ptr[j+1];++p)expected[sa.row_idx[p]]+=sa.values[p]*sx[j];for(int i=0;i<11;++i)if(fabs(sy[i]-expected[i])>2e-12*(1+fabs(expected[i])))fail("sparse gemv numerical check failed");mkl_sparse_destroy(handle);free_sparse(&sa);free_sparse(&csr);
+#elif defined(USE_ACCELERATE)
+    sparse_fixture sa=make_sparse(11,7,.3,4,0,1);sparse_matrix_double handle=create_accelerate_matrix(&sa);double sx[7],sy[11]={0},expected[11]={0};fill_vector(sx,7,5);accelerate_check(sparse_matrix_vector_product_dense_double(CblasNoTrans,1,handle,sx,1,sy,1),"sparse numerical call failed");for(int j=0;j<7;++j)for(int p=sa.col_ptr[j];p<sa.col_ptr[j+1];++p)expected[sa.row_idx[p]]+=sa.values[p]*sx[j];for(int i=0;i<11;++i)if(fabs(sy[i]-expected[i])>2e-12*(1+fabs(expected[i])))fail("sparse gemv numerical check failed");sparse_matrix_destroy(handle);free_sparse(&sa);
 #endif
 }
 
 static const char *argument_value(int argc,char **argv,const char *name,const char *fallback){size_t length=strlen(name);for(int i=1;i<argc;++i)if(!strncmp(argv[i],name,length)&&argv[i][length]=='=')return argv[i]+length+1;return fallback;}
+
+static int compare_samples(const void *left, const void *right) {
+    double a = *(const double *)left, b = *(const double *)right;
+    return (a > b) - (a < b);
+}
 
 int main(int argc,char **argv){
     const char *cases_path=argument_value(argc,argv,"--cases","koblas-bench/cases.txt");const char *output_path=argument_value(argc,argv,"--output",NULL);if(!output_path)fail("--output is required");
@@ -444,6 +587,9 @@ int main(int argc,char **argv){
     const char *pass=argument_value(argc,argv,"--pass","1"),*commit=argument_value(argc,argv,"--source-commit","unknown"),*dirty=argument_value(argc,argv,"--dirty","unknown");
 #ifdef USE_MKL
     MKL_Set_Num_Threads(1);MKL_Set_Dynamic(0);char runtime[256]={0};MKL_Get_Version_String(runtime,sizeof(runtime));const char *implementation="onemkl";
+#elif defined(USE_ACCELERATE)
+    if (BLASSetThreading(BLAS_THREADING_SINGLE_THREADED)) fail("BLASSetThreading failed");
+    char runtime[256]="Accelerate.framework";const char *implementation="accelerate";
 #else
     openblas_set_num_threads(1);char runtime[256]={0};snprintf(runtime,sizeof(runtime),"%s",openblas_get_config());const char *implementation="openblas";
 #endif
@@ -453,16 +599,20 @@ int main(int argc,char **argv){
     int case_count=0;bench_case *cases=load_cases(cases_path,&case_count);
     FILE *output=fopen(output_path,"w");if(!output){perror(output_path);exit(2);}
     fputs("run,id,implementation,pass,unit,source_commit,dirty,runtime,threads,warmups,target_ns,harness,warmup_target_ns,forks\n"
-        "case,id,run_id,case,status,comparison_kind,timing_mode,actual_kernel\n"
-        "sample,case_id,fork,sample,operations,elapsed_ns,ns_per_op\n",output);
+        "case,id,run_id,case,status,comparison_kind,timing_mode,actual_kernel,samples,forks,median_ns,min_ns,max_ns\n",output);
     fprintf(output,"run,1,%s,%s,ns,%s,%s,%s,1,%d,%" PRIu64 ",vendor-calibrated,%" PRIu64 ",1\n",
         implementation,pass,commit,dirty,runtime,warmups,target_ns,target_ns/4>1000000?target_ns/4:UINT64_C(1000000));
     volatile double sink=0;
+    double *timings = allocate(samples, sizeof(double));
     for(int index=0;index<case_count;++index){
         work w;setup_work(&w,&cases[index]);
         fprintf(output,"case,%d,1,%s,%s,%s,%s",index+1,cases[index].id,w.supported?"ok":"unsupported",w.comparison,w.timing);
-        fprintf(output,",%s\n",w.supported?"vendor-cblas":"unavailable");
-        if(!w.supported){free_work(&w);continue;}
+#ifdef USE_ACCELERATE
+        fprintf(output,",%s",w.supported?"vendor-accelerate":"unavailable");
+#else
+        fprintf(output,",%s",w.supported?"vendor-cblas":"unavailable");
+#endif
+        if(!w.supported){fputs(",0,0,,,\n",output);free_work(&w);continue;}
         for(int i=0;i<warmups;++i){
             uint64_t start=nanos(),warmup_target=target_ns/4>1000000?target_ns/4:UINT64_C(1000000);
             do { sink+=w.invoke(&w); } while(nanos()-start<warmup_target);
@@ -470,9 +620,13 @@ int main(int argc,char **argv){
         int operations=1;while(operations<1000000){uint64_t start=nanos();for(int i=0;i<operations;++i)sink+=w.invoke(&w);uint64_t elapsed=nanos()-start;if(elapsed>=target_ns/2)break;operations=operations>500000?1000000:operations*2;}
         for(int sample=1;sample<=samples;++sample){
             uint64_t start=nanos();for(int i=0;i<operations;++i)sink+=w.invoke(&w);uint64_t elapsed=nanos()-start;
-            fprintf(output,"sample,%d,1,%d,%d,%" PRIu64 ",%.17g\n",index+1,sample,operations,elapsed,(double)elapsed/operations);
+            timings[sample - 1] = (double)elapsed / operations;
+            if (!isfinite(timings[sample - 1]) || timings[sample - 1] <= 0) fail("invalid measured timing");
         }
+        qsort(timings, samples, sizeof(double), compare_samples);
+        double median = samples % 2 ? timings[samples / 2] : timings[samples / 2 - 1] / 2 + timings[samples / 2] / 2;
+        fprintf(output,",%d,1,%.17g,%.17g,%.17g\n",samples,median,timings[0],timings[samples - 1]);
         free_work(&w);
     }
-    fclose(output);free(cases);fprintf(stderr,"wrote %d cases to %s (%s, sink=%g)\n",case_count,output_path,implementation,(double)sink);return 0;
+    fclose(output);free(timings);free(cases);fprintf(stderr,"wrote %d cases to %s (%s, sink=%g)\n",case_count,output_path,implementation,(double)sink);return 0;
 }

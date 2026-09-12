@@ -12,7 +12,7 @@ target_ms=1000
 pass=1
 
 usage() {
-  echo "usage: koblas-bench/reference.sh [--libraries openblas,onemkl|all] [--output DIR] [--cases FILE] [--samples N] [--warmups N] [--target-ms N] [--pass LABEL]" >&2
+  echo "usage: koblas-bench/reference.sh [--libraries openblas,accelerate,onemkl|all] [--output DIR] [--cases FILE] [--samples N] [--warmups N] [--target-ms N] [--pass LABEL]" >&2
 }
 
 while (($#)); do
@@ -29,10 +29,12 @@ while (($#)); do
   esac
 done
 
-if [[ $libraries == all ]]; then libraries=openblas,onemkl; fi
+if [[ $libraries == all ]]; then
+  if [[ $(uname) == Darwin ]]; then libraries=openblas,accelerate; else libraries=openblas,onemkl; fi
+fi
 IFS=, read -r -a requested <<<"$libraries"
 for library in "${requested[@]}"; do
-  [[ $library == openblas || $library == onemkl ]] || { echo "unknown library: $library" >&2; exit 2; }
+  [[ $library == openblas || $library == accelerate || $library == onemkl ]] || { echo "unknown library: $library" >&2; exit 2; }
 done
 
 if [[ -z $output ]]; then
@@ -45,9 +47,25 @@ commit=$(git -C "$root" rev-parse HEAD 2>/dev/null || echo unknown)
 if [[ -z $(git -C "$root" status --porcelain --untracked-files=normal 2>/dev/null) ]]; then dirty=false; else dirty=true; fi
 
 run_openblas() {
-  cc -std=c11 -O3 -DNDEBUG -Wall -Wextra -Werror "$bench/reference/vendor_runner.c" -lopenblas -lm -o "$output/bin/openblas-runner"
+  local -a flags=()
+  if [[ $(uname) == Darwin ]] && command -v brew >/dev/null 2>&1; then
+    local prefix
+    prefix=$(brew --prefix openblas 2>/dev/null || true)
+    if [[ -f $prefix/include/cblas.h ]]; then
+      flags=("-I$prefix/include" "-L$prefix/lib" "-Wl,-rpath,$prefix/lib")
+    fi
+  fi
+  cc -std=c11 -O3 -DNDEBUG -Wall -Wextra -Werror "${flags[@]}" "$bench/reference/vendor_runner.c" -lopenblas -lm -o "$output/bin/openblas-runner"
   OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 "$output/bin/openblas-runner" \
     --cases="$cases" --output="$output/openblas.csv" --samples="$samples" \
+    --warmups="$warmups" --target-ms="$target_ms" --pass="$pass" --source-commit="$commit" --dirty="$dirty"
+}
+
+run_accelerate() {
+  [[ $(uname) == Darwin ]] || { echo "Accelerate is available only on macOS" >&2; exit 2; }
+  cc -std=c11 -O3 -DNDEBUG -Wall -Wextra -Werror -DUSE_ACCELERATE -DACCELERATE_NEW_LAPACK \
+    "$bench/reference/vendor_runner.c" -framework Accelerate -lm -o "$output/bin/accelerate-runner"
+  VECLIB_MAXIMUM_THREADS=1 "$output/bin/accelerate-runner" --cases="$cases" --output="$output/accelerate.csv" --samples="$samples" \
     --warmups="$warmups" --target-ms="$target_ms" --pass="$pass" --source-commit="$commit" --dirty="$dirty"
 }
 
@@ -66,6 +84,7 @@ run_onemkl() {
 for library in "${requested[@]}"; do
   case "$library" in
     openblas) run_openblas ;;
+    accelerate) run_accelerate ;;
     onemkl) run_onemkl ;;
   esac
 done

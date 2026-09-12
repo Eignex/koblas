@@ -14,7 +14,7 @@ forks=2
 pass=1
 
 usage() {
-  echo "usage: koblas-bench/capture-report.sh [--libraries openblas,onemkl|all] [--operation NAME|all] [--suite all|packed] [--samples N] [--warmups N] [--target-ms N] [--forks N] [--pass N]" >&2
+  echo "usage: koblas-bench/capture-report.sh [--libraries openblas,accelerate,onemkl|all] [--operation NAME|all] [--suite all|packed] [--samples N] [--warmups N] [--target-ms N] [--forks N] [--pass N]" >&2
 }
 
 while (($#)); do
@@ -64,9 +64,8 @@ fi
 
 commit=$(git -C "$root" rev-parse --short=12 HEAD)
 run_id="$(date -u +%Y%m%dT%H%M%SZ)-$commit"
-hardware_report="$reports/$hardware_hash"
-mkdir -p "$hardware_report"
-run="$hardware_report/$run_id"
+mkdir -p "$reports/$hardware_hash"
+run="$reports/$hardware_hash/$run_id"
 [[ ! -e $run ]] || { echo "report already exists: $run" >&2; exit 1; }
 mkdir "$run"
 cp "$cases" "$temporary/selected-cases.txt"
@@ -96,8 +95,11 @@ git -C "$root" diff --binary HEAD >"$temporary/source.patch"
   echo "[cpu]"
   echo "interval_ms=1000 baseline_seconds=3"
 } >>"$run/metadata.txt"
+(cd "$root" && ./gradlew :koblas-bench:prepareCpuSampler)
 java_command=${JAVA_HOME:+$JAVA_HOME/bin/}java
-"$java_command" "$bench/tools/CpuSampler.java" "$run/cpu.csv" "$temporary/cpu.ready" "$temporary/cpu.stop" >>"$run/metadata.txt" &
+echo baseline >"$temporary/cpu.phase"
+"$java_command" -cp "$(<"$bench/build/cpu-sampler.classpath")" com.eignex.koblas.bench.CpuSampler \
+  "$run/cpu-summary.csv" "$temporary/cpu.ready" "$temporary/cpu.stop" "$temporary/cpu.phase" >>"$run/metadata.txt" &
 cpu_pid=$!
 until [[ -f $temporary/cpu.ready ]]; do
   kill -0 "$cpu_pid" 2>/dev/null || { wait "$cpu_pid"; echo "CPU sampler stopped before startup" >&2; exit 1; }
@@ -109,18 +111,26 @@ done
 } >>"$run/metadata.txt"
 
 common=("-Pbench.operation=$operation" "-Pbench.cases=$cases" "-Pbench.warmups=$warmups" "-Pbench.samples=$samples" "-Pbench.targetMs=$target_ms" "-Pbench.pass=$pass")
-echo "jvm-scalar_started_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >>"$run/metadata.txt"
-(cd "$root" && ./gradlew :koblas-bench:jvmScalarBenchmark "${common[@]}" "-Pbench.forks=$forks" "-Pbench.output=$run/jvm-scalar.csv")
-echo "jvm-c_started_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >>"$run/metadata.txt"
-(cd "$root" && ./gradlew :koblas-bench:jvmCBenchmark "${common[@]}" "-Pbench.forks=$forks" "-Pbench.output=$run/jvm-c.csv")
-echo "jvm-simd_started_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >>"$run/metadata.txt"
-(cd "$root" && ./gradlew :koblas-bench:jvmSimdBenchmark "${common[@]}" "-Pbench.forks=$forks" "-Pbench.output=$run/jvm-simd.csv")
-echo "native_started_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >>"$run/metadata.txt"
-(cd "$root" && ./gradlew :koblas-bench:nativeBenchmark "${common[@]}" "-Pbench.output=$run/native.csv")
-echo "vendors_started_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >>"$run/metadata.txt"
+start_phase() {
+  echo "${1}_started_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >>"$run/metadata.txt"
+  echo "$1" >"$temporary/cpu.next"
+  mv "$temporary/cpu.next" "$temporary/cpu.phase"
+}
+start_phase jvm-scalar
+(cd "$root" && ./gradlew :koblas-bench:jvmScalarBenchmark "${common[@]}" "-Pbench.forks=$forks" "-Pbench.output=$run/jvm-scalar-summary.csv")
+start_phase jvm-c
+(cd "$root" && ./gradlew :koblas-bench:jvmCBenchmark "${common[@]}" "-Pbench.forks=$forks" "-Pbench.output=$run/jvm-c-summary.csv")
+start_phase jvm-simd
+(cd "$root" && ./gradlew :koblas-bench:jvmSimdBenchmark "${common[@]}" "-Pbench.forks=$forks" "-Pbench.output=$run/jvm-simd-summary.csv")
+start_phase native
+(cd "$root" && ./gradlew :koblas-bench:nativeBenchmark "${common[@]}" "-Pbench.output=$run/native-summary.csv")
+start_phase vendors
 "$bench/reference.sh" --libraries "$libraries" --output "$temporary/vendor" --cases "$cases" --samples "$samples" --warmups "$warmups" --target-ms "$target_ms" --pass "$pass"
 
-mv "$temporary/vendor/"*.csv "$run/"
+for vendor in "$temporary/vendor/"*.csv; do
+  name=$(basename "$vendor" .csv)
+  mv "$vendor" "$run/$name-summary.csv"
+done
 echo "completed_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >>"$run/metadata.txt"
 touch "$temporary/cpu.stop"
 wait "$cpu_pid"

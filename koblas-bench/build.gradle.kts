@@ -60,6 +60,15 @@ jvmCompilation.compileTaskProvider.configure {
 
 val benchmarkJavaLauncher = javaToolchains.launcherFor { languageVersion.set(JavaLanguageVersion.of(25)) }
 
+tasks.register("prepareCpuSampler") {
+    val samplerClasspath = files(jvmCompilation.output.allOutputs, configurations.getByName("jvmRuntimeClasspath"))
+    val output = layout.buildDirectory.file("cpu-sampler.classpath")
+    dependsOn(jvmCompilation.compileTaskProvider)
+    inputs.files(samplerClasspath)
+    outputs.file(output)
+    doLast { output.get().asFile.writeText(samplerClasspath.asPath) }
+}
+
 fun registerJvmBenchmark(name: String, mode: String, vectorModule: Boolean) = tasks.register<JavaExec>(name) {
     group = "benchmark"
     description = "Runs the shared cases through exact $mode koblas kernels."
