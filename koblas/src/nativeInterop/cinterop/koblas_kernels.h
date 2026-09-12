@@ -135,6 +135,10 @@ KOBLAS_KERNEL void koblas_dense_scale(double *v, int32_t v_off, double alpha, in
             --len;
         }
         double *aligned = __builtin_assume_aligned(v, sizeof(koblas_v4d));
+        // Fixed pointer-relative blocks avoid scaled-index addresses in the vector stores.
+        for (; len >= 16; len -= 16, aligned += 16) {
+            for (int32_t i = 0; i < 16; i++) aligned[i] *= alpha;
+        }
         for (int32_t i = 0; i < len; i++) aligned[i] *= alpha;
         return;
     }

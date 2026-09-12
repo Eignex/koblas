@@ -304,7 +304,11 @@ internal fun assertScaleAgreesWithReference(kernels: DenseVectorKernels) {
         Double.NEGATIVE_INFINITY,
         Double.NaN,
     )
-    for (len in listOf(0, 1, 3, 4, 7, 31, 32, 47, 48, 49, 63, 64, 65, 127, 128, 129, 255, 256, 257, 4097)) {
+    val lengths = intArrayOf(
+        0, 1, 3, 4, 7, 31, 32, 47, 48, 49, 63, 64, 65,
+        127, 128, 129, 143, 144, 145, 159, 160, 161, 255, 256, 257, 4097,
+    )
+    for (len in lengths) {
         for (off in 0..7) {
             for (alpha in doubleArrayOf(0.0, -0.0, 1.0, -1.0, 0.875, Double.POSITIVE_INFINITY, Double.NaN)) {
                 val expected = DoubleArray(off + len + 5) { i ->
