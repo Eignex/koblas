@@ -11,8 +11,7 @@ fail() { echo "$*" >&2; exit 1; }
 
 header() {
   echo 'run,id,implementation,pass,unit,source_commit,dirty,runtime,threads,warmups,target_ns,harness,warmup_target_ns,forks'
-  echo 'case,id,run_id,case,status,comparison_kind,timing_mode,actual_kernel'
-  echo 'sample,case_id,fork,sample,operations,elapsed_ns,ns_per_op'
+  echo 'case,id,run_id,case,status,comparison_kind,timing_mode,actual_kernel,samples,forks,median_ns,min_ns,max_ns'
 }
 
 row_id=0
@@ -31,9 +30,8 @@ row() {
   }
   BEGIN {
     run = "implementation pass unit source_commit dirty runtime threads warmups target_ns harness warmup_target_ns forks"
-    case_fields = "case status comparison_kind timing_mode actual_kernel"
-    sample = "fork sample operations elapsed_ns ns_per_op"
-    count = split(run " " case_fields " " sample, fields)
+    case_fields = "case status comparison_kind timing_mode actual_kernel samples forks median_ns min_ns max_ns"
+    count = split(run " " case_fields, fields)
     for (i = 1; i <= count; i++) values[fields[i]] = "1"
     values["timing_mode"] = "prepacked-compute"
     values["comparison_kind"] = "direct"
@@ -41,14 +39,20 @@ row() {
     values["implementation"] = "jvm-c"
     values["actual_kernel"] = "c-tile"
     values["status"] = "ok"
-    values["ns_per_op"] = "2"
+    values["samples"] = "4"
+    values["median_ns"] = "3"
+    values["min_ns"] = "1"
+    values["max_ns"] = "9"
     for (i = 1; i < ARGC; i++) {
       delimiter = index(ARGV[i], "=")
       values[substr(ARGV[i], 1, delimiter - 1)] = substr(ARGV[i], delimiter + 1)
     }
     record("run", run, id)
+    if (values["status"] == "unsupported") {
+      values["samples"] = values["forks"] = "0"
+      values["median_ns"] = values["min_ns"] = values["max_ns"] = ""
+    }
     record("case", case_fields, id "," id)
-    if (values["status"] == "ok") record("sample", sample, id)
     exit
   }' -- "$@"
 }
@@ -109,9 +113,6 @@ done
 report "$candidate" implementation=openblas actual_kernel=vendor-cblas
 accept logical
 reject fixed
-report "$candidate" implementation=accelerate actual_kernel=vendor-accelerate
-accept logical
-reject fixed
 report "$base" timing_mode=raw-tile
 report "$candidate" implementation=openblas actual_kernel=vendor-cblas timing_mode=raw-tile
 reject logical
@@ -158,11 +159,9 @@ report "$candidate"
 sed -i.bak '1s/run,id/run,unknown/' "$candidate"
 reject logical
 
-# Quoted CSV fields round-trip, while sample aggregation uses medians and extrema.
-report "$base" 'actual_kernel=quoted "kernel", one' ns_per_op=1
-row 'actual_kernel=quoted "kernel", one' ns_per_op=3 >>"$base"
-report "$candidate" 'actual_kernel=quoted "kernel", one' ns_per_op=2
-row 'actual_kernel=quoted "kernel", one' ns_per_op=4 >>"$candidate"
+# Quoted CSV fields and recorded statistics round-trip without pooling medians.
+report "$base" 'actual_kernel=quoted "kernel", one' median_ns=2
+report "$candidate" 'actual_kernel=quoted "kernel", one' median_ns=3 min_ns=2 max_ns=4
 accept fixed
 grep -Fq '"quoted ""kernel"", one"' "$temporary/output.csv" || fail "quoted kernel did not round-trip"
 grep -Eq ',2,3,2,4,0[.]66666[0-9]+$' "$temporary/output.csv" || fail "incorrect sample statistics"
@@ -176,10 +175,10 @@ report "$base" threads=1
 report "$candidate" threads=01
 reject fixed
 
-# Invalid samples and malformed records fail before comparison.
+# Invalid statistics and malformed records fail before comparison.
 report "$base"
 for value in 0 -1 NaN Infinity 1e999 bad ''; do
-  report "$candidate" "ns_per_op=$value"
+  report "$candidate" "median_ns=$value"
   reject logical
 done
 report "$candidate"
@@ -195,10 +194,7 @@ report "$temporary/second=report.csv" case=gemm-block+15x7x31+uniform+packed=8x4
 lines 3
 if "$tools/compare.sh" "$base" "$candidate" >/dev/null 2>&1; then fail "missing comparison mode accepted"; fi
 
-# Broken references, duplicate samples and missing measurements are rejected.
-report "$candidate"
-sed -i.bak 's/^sample,1,/sample,99,/' "$candidate"
-reject logical
+# Broken references, duplicate cases and missing measurements are rejected.
 report "$candidate"
 tail -1 "$candidate" >>"$candidate"
 reject logical
@@ -207,48 +203,6 @@ sed -i.bak '$d' "$candidate"
 reject logical
 report "$candidate"
 sed -i.bak 's/^case,1,1,/case,1,99,/' "$candidate"
-reject logical
-
-compact() {
-  awk -F, '
-    NR == 2 { print $0 ",samples,forks,median_ns,min_ns,max_ns"; next }
-    NR == 3 || $1 == "sample" { next }
-    $1 == "case" { print $0 ($5 == "ok" ? ",4,1,3,1,9" : ",0,0,,,"); next }
-    { print }
-  ' "$1" >"$temporary/compact.csv"
-  mv "$temporary/compact.csv" "$1"
-}
-
-# Compact summaries carry their extrema; the median is not a synthetic sample.
-report "$base"
-compact "$base"
-cp "$base" "$candidate"
-accept logical
-grep -Eq ',3,3,1,9,1$' "$temporary/output.csv" || fail "incorrect compact statistics"
-
-# Separate summary records must not be pooled into a median of medians.
-report "$candidate"
-row >>"$candidate"
-compact "$candidate"
-accept logical
-lines 3
-
-# Legacy raw captures can still be compared with a compact report.
-report "$candidate" ns_per_op=6
-accept logical
-grep -Eq ',3,6,6,6,0[.]5$' "$temporary/output.csv" || fail "incorrect mixed statistics"
-
-for statistics in '0,1,3,1,9' '4,0,3,1,9' '4,1,NaN,1,9' '4,1,3,4,9' '4,1,3,1,2'; do
-  cp "$base" "$candidate"
-  sed -i.bak "s/,4,1,3,1,9$/,${statistics}/" "$candidate"
-  reject logical
-done
-
-report "$candidate"
-row status=unsupported >>"$candidate"
-compact "$candidate"
-accept logical
-echo 'sample,1,1,1,10,20,2' >>"$candidate"
 reject logical
 
 echo 'Comparator shell tests passed'

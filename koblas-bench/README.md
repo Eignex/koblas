@@ -44,16 +44,12 @@ supported Linux runtime.
 ## Save and compare results
 
 Use one command to capture a full report in `koblas-bench/reports/<hardware-sha256>/<run-id>/`.
-Each run contains one `*-summary.csv` per implementation: one row per case with sample count, fork count,
-median, minimum, and maximum ns/op. Run provenance is stored once. `cpu-summary.csv` has one row per observed runner
-phase plus the background baseline, with reading counts and mean, median, minimum, and maximum CPU usage.
-`metadata.txt` records completion status, provenance, toolchain, hardware, and execution timestamps.
-Blank statistics mean unavailable, not zero. CPU phases include builds and warmups, not just arithmetic.
-
-Runners write summaries directly; there is no raw CSV export or separate summarization step. CPU usage
-is sampled once per second and accumulated in memory. Phase boundaries are observed on those ticks,
-so phases shorter than the sampling interval may have no CPU row. The Kotlin CPU sampler uses the JDK
-selected by `JAVA_HOME` or `java` on `PATH`. Repeated runs never overwrite prior results.
+Each run contains only one CSV per target: `jvm-scalar.csv`, `jvm-c.csv`, `jvm-simd.csv`, `native.csv`,
+and one file for each selected vendor (`openblas.csv`, `accelerate.csv`, or `onemkl.csv`). Each file stores
+run provenance once and one row per case with sample count, fork count, median, minimum, and maximum ns/op.
+Blank statistics mean unsupported, not zero. Runners write these rows directly, without a separate exporter.
+There are no CPU traces, comparison files, or metadata sidecars. A report is published only after every
+selected target succeeds. Repeated runs never overwrite prior results.
 
 ```bash
 koblas-bench/capture-report.sh --libraries all \
@@ -68,8 +64,8 @@ Compare CSVs from the same run (or compatible runs):
 
 ```bash
 koblas-bench/tools/compare.sh --mode logical --timing prepacked-compute --require-compatible \
-  koblas-bench/reports/<hardware-sha256>/<run-id>/openblas-summary.csv \
-  koblas-bench/reports/<hardware-sha256>/<run-id>/jvm-c-summary.csv
+  koblas-bench/reports/<hardware-sha256>/<run-id>/openblas.csv \
+  koblas-bench/reports/<hardware-sha256>/<run-id>/jvm-c.csv
 ```
 
 Use `--mode fixed` for identical packed configurations, or `--mode logical` to compare complete operations
@@ -78,7 +74,7 @@ raw vendor arithmetic has a different timing boundary and cannot be compared wit
 The comparator requires GNU awk (`gawk`; install with `brew install gawk` on macOS).
 It rejects mismatched timing modes, threads, warmups and timing targets. Source SHAs identify the workload and fixtures.
 CSV run and case records identify the source commit, runtime, actual kernel and physical configuration.
-The comparator also accepts legacy raw captures. Compact case records remain separate: summary medians
+Case records remain separate: summary medians
 cannot reconstruct a pooled sample distribution, even when different cases represent equivalent work.
 
 ## Useful options

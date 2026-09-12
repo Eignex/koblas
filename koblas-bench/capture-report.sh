@@ -35,15 +35,7 @@ done
 [[ $suite == all || $suite == packed ]] || { usage; exit 2; }
 
 temporary=$(mktemp -d "${TMPDIR:-/tmp}/koblas-bench-report.XXXXXX")
-cpu_pid=
-cleanup() {
-  if [[ -n $cpu_pid ]]; then
-    touch "$temporary/cpu.stop"
-    wait "$cpu_pid" || true
-  fi
-  rm -rf "$temporary"
-}
-trap cleanup EXIT
+trap 'rm -rf "$temporary"' EXIT
 trap 'exit 130' INT
 trap 'exit 143' TERM
 "$bench/tools/hardware.sh" >"$temporary/hardware.txt"
@@ -67,74 +59,18 @@ run_id="$(date -u +%Y%m%dT%H%M%SZ)-$commit"
 mkdir -p "$reports/$hardware_hash"
 run="$reports/$hardware_hash/$run_id"
 [[ ! -e $run ]] || { echo "report already exists: $run" >&2; exit 1; }
-mkdir "$run"
+results="$temporary/results"
+mkdir "$results"
 cp "$cases" "$temporary/selected-cases.txt"
 cases="$temporary/selected-cases.txt"
-{
-  echo "status=incomplete"
-  echo
-  echo "[capture]"
-  date -u
-  uname -a
-  git -C "$root" rev-parse HEAD
-  git -C "$root" status --porcelain
-  echo "operation=$operation suite=$suite warmups=$warmups samples=$samples target_ms=$target_ms forks=$forks pass=$pass libraries=$libraries"
-  env | LC_ALL=C sort | awk '/^KOBLAS_(DENSE|SPARSE)_/ { print }'
-  echo
-  echo "[toolchain]"
-  cc --version | head -n 1
-  echo
-  echo "[hardware]"
-  cat "$temporary/hardware.txt"
-} >"$run/metadata.txt"
-git -C "$root" diff --binary HEAD >"$temporary/source.patch"
-[[ ! -s $temporary/source.patch ]] || cp "$temporary/source.patch" "$run/source.patch"
-
-{
-  echo
-  echo "[cpu]"
-  echo "interval_ms=1000 baseline_seconds=3"
-} >>"$run/metadata.txt"
-(cd "$root" && ./gradlew :koblas-bench:prepareCpuSampler)
-java_command=${JAVA_HOME:+$JAVA_HOME/bin/}java
-echo baseline >"$temporary/cpu.phase"
-"$java_command" -cp "$(<"$bench/build/cpu-sampler.classpath")" com.eignex.koblas.bench.CpuSampler \
-  "$run/cpu-summary.csv" "$temporary/cpu.ready" "$temporary/cpu.stop" "$temporary/cpu.phase" >>"$run/metadata.txt" &
-cpu_pid=$!
-until [[ -f $temporary/cpu.ready ]]; do
-  kill -0 "$cpu_pid" 2>/dev/null || { wait "$cpu_pid"; echo "CPU sampler stopped before startup" >&2; exit 1; }
-  sleep 0.1
-done
-{
-  echo
-  echo "[execution]"
-} >>"$run/metadata.txt"
-
 common=("-Pbench.operation=$operation" "-Pbench.cases=$cases" "-Pbench.warmups=$warmups" "-Pbench.samples=$samples" "-Pbench.targetMs=$target_ms" "-Pbench.pass=$pass")
-start_phase() {
-  echo "${1}_started_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >>"$run/metadata.txt"
-  echo "$1" >"$temporary/cpu.next"
-  mv "$temporary/cpu.next" "$temporary/cpu.phase"
-}
-start_phase jvm-scalar
-(cd "$root" && ./gradlew :koblas-bench:jvmScalarBenchmark "${common[@]}" "-Pbench.forks=$forks" "-Pbench.output=$run/jvm-scalar-summary.csv")
-start_phase jvm-c
-(cd "$root" && ./gradlew :koblas-bench:jvmCBenchmark "${common[@]}" "-Pbench.forks=$forks" "-Pbench.output=$run/jvm-c-summary.csv")
-start_phase jvm-simd
-(cd "$root" && ./gradlew :koblas-bench:jvmSimdBenchmark "${common[@]}" "-Pbench.forks=$forks" "-Pbench.output=$run/jvm-simd-summary.csv")
-start_phase native
-(cd "$root" && ./gradlew :koblas-bench:nativeBenchmark "${common[@]}" "-Pbench.output=$run/native-summary.csv")
-start_phase vendors
+(cd "$root" && ./gradlew :koblas-bench:jvmScalarBenchmark "${common[@]}" "-Pbench.forks=$forks" "-Pbench.output=$results/jvm-scalar.csv")
+(cd "$root" && ./gradlew :koblas-bench:jvmCBenchmark "${common[@]}" "-Pbench.forks=$forks" "-Pbench.output=$results/jvm-c.csv")
+(cd "$root" && ./gradlew :koblas-bench:jvmSimdBenchmark "${common[@]}" "-Pbench.forks=$forks" "-Pbench.output=$results/jvm-simd.csv")
+(cd "$root" && ./gradlew :koblas-bench:nativeBenchmark "${common[@]}" "-Pbench.output=$results/native.csv")
 "$bench/reference.sh" --libraries "$libraries" --output "$temporary/vendor" --cases "$cases" --samples "$samples" --warmups "$warmups" --target-ms "$target_ms" --pass "$pass"
 
-for vendor in "$temporary/vendor/"*.csv; do
-  name=$(basename "$vendor" .csv)
-  mv "$vendor" "$run/$name-summary.csv"
-done
-echo "completed_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >>"$run/metadata.txt"
-touch "$temporary/cpu.stop"
-wait "$cpu_pid"
-cpu_pid=
-sed '1s/status=incomplete/status=complete/' "$run/metadata.txt" >"$temporary/metadata.txt"
-mv "$temporary/metadata.txt" "$run/metadata.txt"
+mv "$temporary/vendor/"*.csv "$results/"
+mkdir "$run"
+mv "$results/"*.csv "$run/"
 echo "$run"

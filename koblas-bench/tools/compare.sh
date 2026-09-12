@@ -41,13 +41,11 @@ done
 
 gawk -v require_compatible="$require_compatible" -v mode="$mode" -v timings="$timings" '
 BEGIN {
-  record_type[1] = "run"; record_type[2] = "case"; record_type[3] = "sample"
+  record_type[1] = "run"; record_type[2] = "case"
   expected["run"] = "id implementation pass unit source_commit dirty runtime threads warmups target_ns harness warmup_target_ns forks"
-  expected["case"] = "id run_id case status comparison_kind timing_mode actual_kernel"
-  expected["sample"] = "case_id fork sample operations elapsed_ns ns_per_op"
+  expected["case"] = "id run_id case status comparison_kind timing_mode actual_kernel samples forks median_ns min_ns max_ns"
   for (type in expected) column_count[type] = split(expected[type], columns[type]) + 1
   match_count = split("timing_mode threads warmups target_ns comparison_kind", match_fields)
-  group_count_fields = split("logical_id timing_mode threads warmups target_ns comparison_kind operation configuration implementation actual_kernel", group_fields)
   timing_count = split(timings, timing_values, "\034")
   for (i = 1; i <= timing_count; i++) if (timing_values[i] != "") selected_timing[timing_values[i]] = 1
 }
@@ -122,14 +120,6 @@ function csv(value) {
   return value
 }
 
-function median(values, count,    ordered, value_index) {
-  delete ordered
-  for (value_index = 1; value_index <= count; value_index++) ordered[value_index] = values[value_index]
-  asort(ordered, ordered, "@val_num_asc")
-  if (count % 2) return ordered[(count + 1) / 2]
-  return ordered[count / 2] / 2 + ordered[count / 2 + 1] / 2
-}
-
 # Shape and recipe determine physical work; the source commit identifies the implementation.
 function identify_case(row,    parts, count, operation, logical, options, i, key, value, names, n) {
   count = split(row["case"], parts, "+")
@@ -172,24 +162,16 @@ function compatible(left, right,    i, field) {
 }
 
 BEGINFILE {
-  compact = 0
-  column_count["case"] = split(expected["case"], columns["case"]) + 1
   file_count = ARGIND
   names[ARGIND] = FILENAME
   delete runs
   delete cases
-  delete case_samples
-  delete seen_samples
 }
 
-FNR <= 2 || (FNR == 3 && !compact) {
+FNR <= 2 {
   sub(/\r$/, "")
   type = record_type[FNR]
   count = read_csv($0, fields)
-  if (FNR == 2 && count == 13) {
-    compact = 1
-    column_count["case"] = split(expected["case"] " samples forks median_ns min_ns max_ns", columns["case"]) + 1
-  }
   if (count != column_count[type] || fields[1] != type) fail(FILENAME ": malformed benchmark CSV header")
   for (i = 2; i <= column_count[type]; i++) {
     if (fields[i] != columns[type][i - 1]) fail(FILENAME ": malformed benchmark CSV header")
@@ -205,7 +187,7 @@ FNR <= 2 || (FNR == 3 && !compact) {
   if (!(type in column_count) || count != column_count[type]) fail(FILENAME ": malformed benchmark CSV record")
   delete record
   for (i = 2; i <= count; i++) {
-    if (fields[i] == "" && !(compact && type == "case" && i >= 11)) fail(FILENAME ": empty benchmark CSV field")
+    if (fields[i] == "" && !(type == "case" && i >= 11)) fail(FILENAME ": empty benchmark CSV field")
     record[columns[type][i - 1]] = fields[i]
   }
   if (type == "run") {
@@ -214,81 +196,39 @@ FNR <= 2 || (FNR == 3 && !compact) {
     for (field in record) if (field != "id") runs[id][field] = record[field]
     next
   }
-  if (type == "case") {
-    id = record["id"]
-    if (id !~ /^[1-9][0-9]*$/ || (id in cases) || !(record["run_id"] in runs)) fail(FILENAME ": invalid case or unknown run id")
-    for (field in record) if (field != "id") cases[id][field] = record[field]
-    if (!compact) next
-    if (record["status"] != "ok") {
-      if (record["status"] != "unsupported" || record["samples"] != "0" || record["forks"] != "0" || record["median_ns"] != "" || record["min_ns"] != "" || record["max_ns"] != "") fail(FILENAME ": invalid unmeasured summary")
-      next
-    }
-    if (record["samples"] !~ /^[1-9][0-9]*$/ || record["forks"] !~ /^[1-9][0-9]*$/ || record["forks"] + 0 != runs[record["run_id"]]["forks"] + 0 || record["samples"] + 0 < record["forks"] + 0) fail(FILENAME ": invalid summary counts")
-    if (!positive(record["median_ns"]) || !positive(record["min_ns"]) || !positive(record["max_ns"]) || record["min_ns"] + 0 > record["median_ns"] + 0 || record["median_ns"] + 0 > record["max_ns"] + 0) fail(FILENAME ": invalid summary statistics")
-    record["ns_per_op"] = record["median_ns"]
-    case_samples[id] = record["samples"]
-  } else {
-    if (compact) fail(FILENAME ": sample record in compact report")
-    id = record["case_id"]
-    if (!(id in cases) || cases[id]["status"] != "ok") fail(FILENAME ": sample references unknown or unsupported case")
-    for (i = 1; i <= 4; i++) {
-      field = columns["sample"][i + 1]
-      if (record[field] !~ /^[1-9][0-9]*$/) fail(FILENAME ": invalid sample " field)
-    }
-    key = id SUBSEP record["fork"] SUBSEP record["sample"]
-    if (key in seen_samples) fail(FILENAME ": duplicate sample")
-    seen_samples[key] = 1
-    case_samples[id]++
+  id = record["id"]
+  if (id !~ /^[1-9][0-9]*$/ || (id in cases) || !(record["run_id"] in runs)) fail(FILENAME ": invalid case or unknown run id")
+  cases[id] = 1
+  if (record["status"] != "ok") {
+    if (record["status"] != "unsupported" || record["samples"] != "0" || record["forks"] != "0" || record["median_ns"] != "" || record["min_ns"] != "" || record["max_ns"] != "") fail(FILENAME ": invalid unmeasured summary")
+    next
   }
+  if (record["samples"] !~ /^[1-9][0-9]*$/ || record["forks"] !~ /^[1-9][0-9]*$/ || record["forks"] + 0 != runs[record["run_id"]]["forks"] + 0 || record["samples"] + 0 < record["forks"] + 0) fail(FILENAME ": invalid summary counts")
+  if (!positive(record["median_ns"]) || !positive(record["min_ns"]) || !positive(record["max_ns"]) || record["min_ns"] + 0 > record["median_ns"] + 0 || record["median_ns"] + 0 > record["max_ns"] + 0) fail(FILENAME ": invalid summary statistics")
   delete row
-  for (field in runs[cases[id]["run_id"]]) row[field] = runs[cases[id]["run_id"]][field]
-  for (field in cases[id]) row[field] = cases[id][field]
+  for (field in runs[record["run_id"]]) row[field] = runs[record["run_id"]][field]
   for (field in record) row[field] = record[field]
   identify_case(row)
-  value = row["ns_per_op"]
-  if (!positive(value)) fail(FILENAME ": invalid sample")
   successful[ARGIND]++
   if (length(selected_timing) && !(row["timing_mode"] in selected_timing)) next
   if (mode == "fixed" && row["configuration"] == "policy") next
 
-  # Length prefixes keep physical strategies distinct without delimiter collisions in CSV values.
-  key = ""
-  for (i = 1; i <= group_count_fields; i++) {
-    value = row[group_fields[i]]
-    key = key length(value) ":" value
-  }
   # Summary medians cannot reconstruct pooled distributions; keep each case record separate.
-  if (compact) key = key ":case=" id
-  if (!(key in groups[ARGIND])) {
-    group = ++group_count
-    groups[ARGIND][key] = group
-    order[ARGIND][++group_counts[ARGIND]] = group
-    for (field in row) rows[group][field] = row[field]
-    identities[ARGIND][row["logical_id"]] = 1
-  }
-  group = groups[ARGIND][key]
-  if (compact) {
-    summarized[group] = 1
-    medians[group] = row["median_ns"] + 0
-    minimums[group] = row["min_ns"] + 0
-    maximums[group] = row["max_ns"] + 0
-  } else samples[group][++sample_counts[group]] = row["ns_per_op"] + 0
+  group = ++group_count
+  order[ARGIND][++group_counts[ARGIND]] = group
+  for (field in row) rows[group][field] = row[field]
+  identities[ARGIND][row["logical_id"]] = 1
+  medians[group] = row["median_ns"] + 0
+  minimums[group] = row["min_ns"] + 0
+  maximums[group] = row["max_ns"] + 0
 }
 
 ENDFILE {
-  for (id in cases) if (cases[id]["status"] == "ok" && !case_samples[id]) fail(FILENAME ": supported case has no samples")
   if (!successful[ARGIND]) fail(FILENAME ": no successful measurements")
 }
 
 END {
   if (failed) exit 1
-  for (group = 1; group <= group_count; group++) {
-    if (summarized[group]) continue
-    medians[group] = median(samples[group], sample_counts[group])
-    asort(samples[group], samples[group], "@val_num_asc")
-    minimums[group] = samples[group][1]
-    maximums[group] = samples[group][sample_counts[group]]
-  }
   print "candidate,logical_id,base_case,candidate_case,base_configuration,candidate_configuration,base_kernel,candidate_kernel,base_median_ns,candidate_median_ns,candidate_min_ns,candidate_max_ns,base_over_candidate"
   for (candidate = 2; candidate <= file_count; candidate++) {
     delete joined
