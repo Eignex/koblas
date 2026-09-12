@@ -38,7 +38,7 @@ extern double cblas_dsum(const int, const double *, const int);
 #endif
 extern void cblas_dgemmt(const CBLAS_LAYOUT, const CBLAS_UPLO, const CBLAS_TRANSPOSE, const CBLAS_TRANSPOSE, const int, const int, const double, const double *, const int, const double *, const int, const double, double *, const int);
 
-enum { MAX_DIMS = 3, MAX_OPTIONS = 9 };
+enum { MAX_DIMS = 3, MAX_OPTIONS = 11 };
 static const uint64_t SEED = UINT64_C(0x243f6a8885a308d3);
 static const uint64_t GOLDEN = UINT64_C(0x9e3779b97f4a7c15);
 
@@ -59,11 +59,14 @@ typedef struct {
     double *values;
 } sparse_fixture;
 
+typedef struct slices_state slices_state;
 typedef struct work work;
 struct work {
     bench_case *spec;
     double *a, *b, *c, *initial, *x, *y;
     int *indices;
+    slices_state *slices;
+    const char *actual_kernel;
     sparse_fixture sa, sb;
 #ifdef USE_MKL
     sparse_fixture csr_a, csr_b;
@@ -126,7 +129,7 @@ static const char *option(const bench_case *c, const char *name, const char *fal
 static int flag(const bench_case *c, const char *name) { return !strcmp(option(c, name, "N"), "T"); }
 
 static int expected_dimensions(const char *op) {
-    static const char *one[] = { "dot","axpy","axpy-arithmetic","scal","nrm2","asum","sum","compensated-sum","iamax","swap","rot","rotm","rotmg","ssqd","dot4","axpy4","dot-axpy","symv","syr","syr2","trsv","trmv","spdot","spdot-raw","spdot-sparse","spaxpy","spaxpy-raw","spnrm2","spnrm2-indexed","spasum","spscatter","spscatter-raw","spgather","spgather-zero","spsymv","sptrsv","sptrmv","sparse-slices-scatter","sparse-slices-scatter-checked","sparse-slices-gather","sparse-slices-gather-clear","sparse-slices-clear","sparse-slices-clear-local","sparse-slices-reduce-dot-checked","sparse-slices-reduce-dot-local","sparse-slices-reduce-dot-unchecked","sparse-slices-max","sparse-slices-filter" };
+    static const char *one[] = { "dot","axpy","axpy-arithmetic","scal","nrm2","asum","sum","compensated-sum","iamax","swap","rot","rotm","rotmg","ssqd","dot4","axpy4","dot-axpy","symv","syr","syr2","trsv","trmv","spdot","spdot-raw","spdot-sparse","spaxpy","spaxpy-raw","spnrm2","spnrm2-indexed","spasum","spscatter","spscatter-raw","spgather","spgather-zero","spsymv","sptrsv","sptrmv","sparse-slices-cycle","sparse-slices-cycle-checked","sparse-slices-scatter","sparse-slices-scatter-checked","sparse-slices-gather","sparse-slices-gather-clear","sparse-slices-clear","sparse-slices-clear-local","sparse-slices-reduce-dot-checked","sparse-slices-reduce-dot-local","sparse-slices-reduce-dot-unchecked","sparse-slices-max","sparse-slices-filter" };
     static const char *two[] = { "gemv","ger","symm","gemmt","syrk","syr2k","trsm","trmm","packed-trsm","pack-left","pack-right","pack-symmetric-left","pack-symmetric-right","pack-triangular-left","pack-triangular-right","write-left","write-right","clear-left-padding","clear-right-padding","spgemv","spsymm","sptrsm","sptrmm","spsyrk-dense","spsyrk-sparse","spadd" };
     static const char *three[] = { "gemm","gemm-block","gemm-tile","gemm-trsm","spmm","spgemm" };
     for (size_t i=0;i<sizeof(one)/sizeof(*one);++i) if(!strcmp(op,one[i])) return 1;
@@ -135,7 +138,7 @@ static int expected_dimensions(const char *op) {
     return 0;
 }
 
-static int option_order(const char *name) { const char *names[] = {"density","mode","packed","side","uplo","transA","transB","diag","timing"}; for(int i=0;i<9;++i) if(!strcmp(name,names[i])) return i; return -1; }
+static int option_order(const char *name) { const char *names[] = {"density","mode","packed","side","uplo","transA","transB","diag","timing","compact","locality"}; for(int i=0;i<11;++i) if(!strcmp(name,names[i])) return i; return -1; }
 static int option_present(const bench_case *c,const char *name){for(int i=0;i<c->option_count;++i)if(!strcmp(c->option_names[i],name))return 1;return 0;}
 static int operation_in(const char *operation,const char **values,size_t count){for(size_t i=0;i<count;++i)if(!strcmp(operation,values[i]))return 1;return 0;}
 static int mode_operation(const char *op){return !strcmp(op,"spgemv")||!strcmp(op,"spmm")||!strcmp(op,"spgemm")||!strcmp(op,"spsymv")||!strcmp(op,"spsymm")||!strcmp(op,"sptrsv")||!strcmp(op,"sptrmv")||!strcmp(op,"sptrsm")||!strcmp(op,"sptrmm");}
@@ -146,11 +149,18 @@ static int side_operation(const char *op){const char *values[]={"symm","trsm","t
 static int transa_operation(const char *op){const char *values[]={"gemmt","syrk","syr2k","trsv","trmv","trsm","trmm","sptrsv","sptrmv","sptrsm","sptrmm"};return operation_in(op,values,sizeof(values)/sizeof(*values));}
 static int diag_operation(const char *op){const char *values[]={"trsv","trmv","trsm","trmm","packed-trsm","gemm-trsm","pack-triangular-left","pack-triangular-right","sptrsv","sptrmv","sptrsm","sptrmm"};return operation_in(op,values,sizeof(values)/sizeof(*values));}
 static int triangular_fixture_operation(const char *op){const char *values[]={"trsv","trmv","trsm","trmm","packed-trsm","gemm-trsm","pack-triangular-left","pack-triangular-right","spsymv","spsymm","sptrsv","sptrmv","sptrsm","sptrmm"};return operation_in(op,values,sizeof(values)/sizeof(*values));}
+static int slices_comparison_operation(const char *op) {
+    const char *operations[] = {"sparse-slices-cycle","sparse-slices-cycle-checked","sparse-slices-gather",
+        "sparse-slices-gather-clear","sparse-slices-clear","sparse-slices-reduce-dot-checked","sparse-slices-reduce-dot-unchecked"};
+    return operation_in(op, operations, sizeof(operations)/sizeof(*operations));
+}
 static int option_allowed(const char *op,const char *name,int sparse){
+    if(!strcmp(name,"locality"))return slices_comparison_operation(op);
+    if(!strcmp(name,"compact"))return !strcmp(op,"sparse-slices-cycle")||!strcmp(op,"sparse-slices-cycle-checked")||!strcmp(op,"sparse-slices-gather")||!strcmp(op,"sparse-slices-gather-clear");
     if(!strcmp(name,"density"))return sparse;
     if(!strcmp(name,"mode"))return mode_operation(op);
     if(!strcmp(name,"packed"))return packed_operation(op);
-    if(!strcmp(name,"timing"))return !strcmp(op,"gemm-block")||!strcmp(op,"scal")||!strcmp(op,"spgather");
+    if(!strcmp(name,"timing"))return !strcmp(op,"gemm-block")||!strcmp(op,"scal")||!strcmp(op,"spgather")||slices_comparison_operation(op);
     if(!strcmp(name,"side"))return side_operation(op);
     if(!strcmp(name,"uplo"))return uplo_operation(op);
     if(!strcmp(name,"transA"))return !strcmp(op,"gemv")||!strcmp(op,"gemm")||transa_operation(op);
@@ -160,7 +170,9 @@ static int option_allowed(const char *op,const char *name,int sparse){
 }
 static void copy_field(char *destination,size_t capacity,const char *source,int line_number,const char *name){size_t length=strlen(source);if(length>=capacity){fprintf(stderr,"line %d: %s is too long\n",line_number,name);exit(2);}memcpy(destination,source,length+1);}
 static int valid_option(const char *name,const char *value){
-    if(!strcmp(name,"timing"))return !strcmp(value,"arithmetic")||!strcmp(value,"prepacked-compute")||!strcmp(value,"pack-plus-compute");
+    if(!strcmp(name,"locality"))return !strcmp(value,"sorted")||!strcmp(value,"shuffled");
+    if(!strcmp(name,"compact"))return !strcmp(value,"N")||!strcmp(value,"T");
+    if(!strcmp(name,"timing"))return !strcmp(value,"reuse")||!strcmp(value,"arithmetic")||!strcmp(value,"prepacked-compute")||!strcmp(value,"pack-plus-compute");
     if(!strcmp(name,"density")){char *tail;double density=strtod(value,&tail);return !*tail&&density>0&&density<=1;}
     if(!strcmp(name,"mode"))return !strcmp(value,"prepared")||!strcmp(value,"oneshot");
     if(!strcmp(name,"packed"))return !strcmp(value,"4x4")||!strcmp(value,"8x4");
@@ -214,6 +226,10 @@ static int parse_case(char *line, int line_number, bench_case *out) {
     for(int i=0;i<out->option_count;++i)if(!option_allowed(out->operation,out->option_names[i],sparse))fail("option is incompatible with operation");
     if(mode_operation(out->operation)!=option_present(out,"mode"))fail("missing or incompatible mode option");
     if(oneshot_only_operation(out->operation)&&strcmp(option(out,"mode",""),"oneshot"))fail("operation supports only mode=oneshot");
+    if(slices_comparison_operation(out->operation)) {
+        if(option_present(out,"timing")&&strcmp(option(out,"timing",""),"reuse"))fail("invalid sparse slice timing");
+        if((!strncmp(out->operation,"sparse-slices-cycle",19)||option_present(out,"compact")||option_present(out,"locality"))&&strcmp(option(out,"timing",""),"reuse"))fail("sparse slice comparisons require timing=reuse");
+    }
     if((!strcmp(out->operation,"scal")||!strcmp(out->operation,"spgather"))&&option_present(out,"timing")&&strcmp(option(out,"timing",""),"arithmetic"))fail("invalid vector timing");
     if(sparse&&!option_present(out,"density"))fail("sparse cases require density");
     if(packed_operation(out->operation)&&!option_present(out,"packed"))fail("packed cases require a recipe");
@@ -318,6 +334,8 @@ static void setup_dense(work *w){
     w->supported=0;w->comparison="unsupported";
 }
 
+#include "sparse_slices.h"
+
 #ifdef USE_MKL
 enum { SPARSE_NON_TRANSPOSE=10,SPARSE_TRANSPOSE=11,TYPE_GENERAL=20,TYPE_SYMMETRIC=21,TYPE_TRIANGULAR=23,FILL_LOWER=40,FILL_UPPER=41,DIAG_NON_UNIT=50,DIAG_UNIT=51,COLUMN_MAJOR=102 };
 
@@ -405,7 +423,9 @@ static void setup_sparse(work *w){
 }
 #endif
 
-static void setup_work(work *w,bench_case *spec){memset(w,0,sizeof(*w));w->spec=spec;if(!strncmp(spec->operation,"sp",2)||!strncmp(spec->operation,"sparse-slices-",14)){
+static void setup_work(work *w,bench_case *spec){memset(w,0,sizeof(*w));w->spec=spec;if(!strncmp(spec->operation,"sparse-slices-",14)){setup_slices(w);return;}
+if(scalar_slices){w->comparison="unsupported";w->timing="arithmetic";return;}
+if(!strncmp(spec->operation,"sp",2)||!strncmp(spec->operation,"sparse-slices-",14)){
 #ifdef USE_MKL
 setup_sparse(w);
 #else
@@ -414,6 +434,7 @@ w->supported=0;w->comparison="unsupported";w->timing=!strncmp(spec->operation,"s
 }else setup_dense(w);}
 
 static void free_work(work *w){
+free_slices(w);
 #ifdef USE_MKL
 if(w->handle_b)mkl_sparse_destroy(w->handle_b);
 if(w->handle_a)mkl_sparse_destroy(w->handle_a);
@@ -439,6 +460,9 @@ static void numerical_check(void){
 static const char *argument_value(int argc,char **argv,const char *name,const char *fallback){size_t length=strlen(name);for(int i=1;i<argc;++i)if(!strncmp(argv[i],name,length)&&argv[i][length]=='=')return argv[i]+length+1;return fallback;}
 
 int main(int argc,char **argv){
+    const char *slices_backend=argument_value(argc,argv,"--slices-backend","library");
+    if(strcmp(slices_backend,"library")&&strcmp(slices_backend,"scalar"))fail("invalid sparse slice backend");
+    scalar_slices=!strcmp(slices_backend,"scalar");
     const char *cases_path=argument_value(argc,argv,"--cases","koblas-bench/cases.txt");const char *output_path=argument_value(argc,argv,"--output",NULL);if(!output_path)fail("--output is required");
     int warmups=atoi(argument_value(argc,argv,"--warmups","3")),samples=atoi(argument_value(argc,argv,"--samples","5"));long target_ms=strtol(argument_value(argc,argv,"--target-ms","100"),NULL,10);if(warmups<0||samples<1||target_ms<1)fail("invalid timing settings");uint64_t target_ns=(uint64_t)target_ms*UINT64_C(1000000);
     const char *pass=argument_value(argc,argv,"--pass","1"),*commit=argument_value(argc,argv,"--source-commit","unknown"),*dirty=argument_value(argc,argv,"--dirty","unknown");
@@ -447,6 +471,7 @@ int main(int argc,char **argv){
 #else
     openblas_set_num_threads(1);char runtime[256]={0};snprintf(runtime,sizeof(runtime),"%s",openblas_get_config());const char *implementation="openblas";
 #endif
+    if(scalar_slices){implementation="scalar-slices";snprintf(runtime,sizeof(runtime),"scalar C sparse slice reference");}
     size_t runtime_length=strlen(runtime);snprintf(runtime+runtime_length,sizeof(runtime)-runtime_length,"; compiler=%s",__VERSION__);
     for(char *p=runtime;*p;++p)if(*p==','||*p=='\n'||*p=='\r')*p=';';
     fixture_check();numerical_check();
@@ -461,7 +486,7 @@ int main(int argc,char **argv){
     for(int index=0;index<case_count;++index){
         work w;setup_work(&w,&cases[index]);
         fprintf(output,"case,%d,1,%s,%s,%s,%s",index+1,cases[index].id,w.supported?"ok":"unsupported",w.comparison,w.timing);
-        fprintf(output,",%s\n",w.supported?"vendor-cblas":"unavailable");
+        fprintf(output,",%s\n",w.supported?(w.actual_kernel?w.actual_kernel:"vendor-cblas"):"unavailable");
         if(!w.supported){free_work(&w);continue;}
         for(int i=0;i<warmups;++i){
             uint64_t start=nanos(),warmup_target=target_ns/4>1000000?target_ns/4:UINT64_C(1000000);

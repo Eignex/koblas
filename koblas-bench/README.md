@@ -111,6 +111,60 @@ the dense source, matching oneMKL. Both runners consume the first and last outpu
 boundary separately; the default gather boundary predating this change included an extra Koblas output reset.
 OpenBLAS gather remains unsupported because the runner has no corresponding vendor entry point.
 
+## Sparse slices with caller-owned scratch
+
+[`sparse-slices-cases.txt`](sparse-slices-cases.txt) selects 26 cases from the canonical workload. They use
+`+timing=reuse`, persistent buffers, and versioned timing labels separate from historical slice cases.
+Sorted and shuffled supports have identical paired values; compaction variants retain or discard exact zeros.
+The C reference uses the same deterministic fixtures, zero-offset windows, validation scans and output contracts.
+
+| Operation | Timed work | oneMKL reference |
+| --- | --- | --- |
+| `sparse-slices-cycle` | Two scatters, then gather and clear, optionally compacting zeros | Indexed AXPY and gather-zero plus validation and bookkeeping |
+| `sparse-slices-cycle-checked` | Same cycle with latched arithmetic diagnostics | Unsupported; scalar C reference |
+| `sparse-slices-gather` | Validate and emit touched indices and values | Indexed gather plus validation and bookkeeping |
+| `sparse-slices-gather-clear` | Refill touched entries, then validate, gather and clear | Indexed gather-zero plus validation and bookkeeping |
+| `sparse-slices-clear` | Refill touched entries, then validate and clear | Unsupported; scalar C reference |
+| `sparse-slices-reduce-dot-checked` | Ordered products and sum with per-step diagnostics | Unsupported; scalar C reference |
+| `sparse-slices-reduce-dot-unchecked` | Validated sparse dot through the selected engine | Indexed dot with validation; reduction order may differ |
+
+Each cycle scatters `alpha = 0.875` over the first half of the support, then `alpha = -0.875` over all of it.
+The second scatter visits both existing and fresh entries, and exact cancellation exercises compaction.
+Gather-clear restores scratch for the next cycle. Standalone gather reads a stable accumulator; standalone
+clear and gather-clear include only a touched-entry refill. No case clears the full dimension inside timing.
+
+The oneMKL adapter stages rounded products in reusable scratch before indexed AXPY, preserving separate
+multiplication and addition when a vendor implementation uses FMA. Compacted gathers also use reusable scratch
+so unwritten output tails remain unchanged. Validation, support marks, touched order, output indices and
+compaction all stay inside timing. These are composed comparisons, not raw BLAS timings. Checked operations
+remain unsupported by oneMKL because its entry points do not provide the ordered diagnostics contract.
+
+`scalar-slices` is an independent C implementation of all seven contracts. Its runner links the usual OpenBLAS
+dependency, but these timed paths make no BLAS calls. Both C references disable floating-point contraction.
+Their state checks run before measurement and cover repeated reuse, untouched buffers, cancellation and
+exceptional values. JVM tests also check allocation-free reuse. Kotlin rows identify `portable-sparse-slices`
+as the actual kernel, except unchecked dot, which uses the selected engine.
+
+Capture a first comparison, optionally pinning the command to a quiet core on Linux:
+
+```bash
+koblas-bench/capture-report.sh --suite sparse-slices --libraries scalar-slices,onemkl \
+  --warmups 5 --samples 3 --target-ms 100 --forks 2
+```
+
+The capture saves its selected `cases.txt` and launches fresh Gradle processes so JVM forks inherit CPU affinity.
+Use longer samples and repeat runs before choosing optimization thresholds. For reference-only runs:
+
+```bash
+koblas-bench/reference.sh --libraries scalar-slices,onemkl \
+  --cases koblas-bench/sparse-slices-cases.txt --output results/sparse-slices
+koblas-bench/tools/compare.sh --mode logical --require-compatible \
+  results/sparse-slices/onemkl.csv results/sparse-slices/scalar-slices.csv
+```
+
+This first suite covers 19 oneMKL compositions and seven scalar-only cases. Other slice operations, including
+max and filtering, retain their historical timing boundaries and do not yet have equivalent vendor comparisons.
+
 ## Verify the harness
 
 ```bash
