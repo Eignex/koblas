@@ -1,0 +1,1404 @@
+0000000000000000 <koblas_dense_dot_v1>:
+       0:	a9bb7bfd 	stp	x29, x30, [sp, #-80]!
+       4:	f9000bf9 	str	x25, [sp, #16]
+       8:	a9025ff8 	stp	x24, x23, [sp, #32]
+       c:	a90357f6 	stp	x22, x21, [sp, #48]
+      10:	a9044ff4 	stp	x20, x19, [sp, #64]
+      14:	910003fd 	mov	x29, sp
+      18:	aa0103f8 	mov	x24, x1
+      1c:	52800021 	mov	w1, #0x1                   	// #1
+      20:	aa0603f3 	mov	x19, x6
+      24:	2a0503f4 	mov	w20, w5
+      28:	2a0403f5 	mov	w21, w4
+      2c:	aa0303f6 	mov	x22, x3
+      30:	2a0203f7 	mov	w23, w2
+      34:	2a0003f9 	mov	w25, w0
+      38:	94000000 	bl	0 <koblas_kernel_reason>
+      3c:	340000e0 	cbz	w0, 58 <koblas_dense_dot_v1+0x58>
+      40:	a9444ff4 	ldp	x20, x19, [sp, #64]
+      44:	f9400bf9 	ldr	x25, [sp, #16]
+      48:	a94357f6 	ldp	x22, x21, [sp, #48]
+      4c:	a9425ff8 	ldp	x24, x23, [sp, #32]
+      50:	a8c57bfd 	ldp	x29, x30, [sp], #80
+      54:	d65f03c0 	ret
+      58:	b40001d3 	cbz	x19, 90 <koblas_dense_dot_v1+0x90>
+      5c:	34000294 	cbz	w20, ac <koblas_dense_dot_v1+0xac>
+      60:	12000f28 	and	w8, w25, #0xf
+      64:	7100111f 	cmp	w8, #0x4
+      68:	54000260 	b.eq	b4 <koblas_dense_dot_v1+0xb4>  // b.none
+      6c:	7100051f 	cmp	w8, #0x1
+      70:	540003e1 	b.ne	ec <koblas_dense_dot_v1+0xec>  // b.any
+      74:	aa1803e0 	mov	x0, x24
+      78:	2a1703e1 	mov	w1, w23
+      7c:	aa1603e2 	mov	x2, x22
+      80:	2a1503e3 	mov	w3, w21
+      84:	2a1403e4 	mov	w4, w20
+      88:	94000000 	bl	0 <koblas_dense_dot_scalar>
+      8c:	14000010 	b	cc <koblas_dense_dot_v1+0xcc>
+      90:	52800020 	mov	w0, #0x1                   	// #1
+      94:	a9444ff4 	ldp	x20, x19, [sp, #64]
+      98:	f9400bf9 	ldr	x25, [sp, #16]
+      9c:	a94357f6 	ldp	x22, x21, [sp, #48]
+      a0:	a9425ff8 	ldp	x24, x23, [sp, #32]
+      a4:	a8c57bfd 	ldp	x29, x30, [sp], #80
+      a8:	d65f03c0 	ret
+      ac:	2f00e400 	movi	d0, #0x0
+      b0:	14000007 	b	cc <koblas_dense_dot_v1+0xcc>
+      b4:	aa1803e0 	mov	x0, x24
+      b8:	2a1703e1 	mov	w1, w23
+      bc:	aa1603e2 	mov	x2, x22
+      c0:	2a1503e3 	mov	w3, w21
+      c4:	2a1403e4 	mov	w4, w20
+      c8:	94000000 	bl	0 <koblas_dense_dot_neon>
+      cc:	2a1f03e0 	mov	w0, wzr
+      d0:	fd000260 	str	d0, [x19]
+      d4:	a9444ff4 	ldp	x20, x19, [sp, #64]
+      d8:	f9400bf9 	ldr	x25, [sp, #16]
+      dc:	a94357f6 	ldp	x22, x21, [sp, #48]
+      e0:	a9425ff8 	ldp	x24, x23, [sp, #32]
+      e4:	a8c57bfd 	ldp	x29, x30, [sp], #80
+      e8:	d65f03c0 	ret
+      ec:	52800120 	mov	w0, #0x9                   	// #9
+      f0:	a9444ff4 	ldp	x20, x19, [sp, #64]
+      f4:	f9400bf9 	ldr	x25, [sp, #16]
+      f8:	a94357f6 	ldp	x22, x21, [sp, #48]
+      fc:	a9425ff8 	ldp	x24, x23, [sp, #32]
+     100:	a8c57bfd 	ldp	x29, x30, [sp], #80
+     104:	d65f03c0 	ret
+
+0000000000000108 <koblas_dense_ssqd_v1>:
+     108:	a9bb7bfd 	stp	x29, x30, [sp, #-80]!
+     10c:	f9000bf9 	str	x25, [sp, #16]
+     110:	a9025ff8 	stp	x24, x23, [sp, #32]
+     114:	a90357f6 	stp	x22, x21, [sp, #48]
+     118:	a9044ff4 	stp	x20, x19, [sp, #64]
+     11c:	910003fd 	mov	x29, sp
+     120:	aa0103f8 	mov	x24, x1
+     124:	52800041 	mov	w1, #0x2                   	// #2
+     128:	aa0603f3 	mov	x19, x6
+     12c:	2a0503f4 	mov	w20, w5
+     130:	2a0403f5 	mov	w21, w4
+     134:	aa0303f6 	mov	x22, x3
+     138:	2a0203f7 	mov	w23, w2
+     13c:	2a0003f9 	mov	w25, w0
+     140:	94000000 	bl	0 <koblas_kernel_reason>
+     144:	340000e0 	cbz	w0, 160 <koblas_dense_ssqd_v1+0x58>
+     148:	a9444ff4 	ldp	x20, x19, [sp, #64]
+     14c:	f9400bf9 	ldr	x25, [sp, #16]
+     150:	a94357f6 	ldp	x22, x21, [sp, #48]
+     154:	a9425ff8 	ldp	x24, x23, [sp, #32]
+     158:	a8c57bfd 	ldp	x29, x30, [sp], #80
+     15c:	d65f03c0 	ret
+     160:	b40001d3 	cbz	x19, 198 <koblas_dense_ssqd_v1+0x90>
+     164:	34000294 	cbz	w20, 1b4 <koblas_dense_ssqd_v1+0xac>
+     168:	12000f28 	and	w8, w25, #0xf
+     16c:	7100111f 	cmp	w8, #0x4
+     170:	54000260 	b.eq	1bc <koblas_dense_ssqd_v1+0xb4>  // b.none
+     174:	7100051f 	cmp	w8, #0x1
+     178:	540003e1 	b.ne	1f4 <koblas_dense_ssqd_v1+0xec>  // b.any
+     17c:	aa1803e0 	mov	x0, x24
+     180:	2a1703e1 	mov	w1, w23
+     184:	aa1603e2 	mov	x2, x22
+     188:	2a1503e3 	mov	w3, w21
+     18c:	2a1403e4 	mov	w4, w20
+     190:	94000000 	bl	0 <koblas_dense_ssqd_scalar>
+     194:	14000010 	b	1d4 <koblas_dense_ssqd_v1+0xcc>
+     198:	52800020 	mov	w0, #0x1                   	// #1
+     19c:	a9444ff4 	ldp	x20, x19, [sp, #64]
+     1a0:	f9400bf9 	ldr	x25, [sp, #16]
+     1a4:	a94357f6 	ldp	x22, x21, [sp, #48]
+     1a8:	a9425ff8 	ldp	x24, x23, [sp, #32]
+     1ac:	a8c57bfd 	ldp	x29, x30, [sp], #80
+     1b0:	d65f03c0 	ret
+     1b4:	2f00e400 	movi	d0, #0x0
+     1b8:	14000007 	b	1d4 <koblas_dense_ssqd_v1+0xcc>
+     1bc:	aa1803e0 	mov	x0, x24
+     1c0:	2a1703e1 	mov	w1, w23
+     1c4:	aa1603e2 	mov	x2, x22
+     1c8:	2a1503e3 	mov	w3, w21
+     1cc:	2a1403e4 	mov	w4, w20
+     1d0:	94000000 	bl	0 <koblas_dense_ssqd_neon>
+     1d4:	2a1f03e0 	mov	w0, wzr
+     1d8:	fd000260 	str	d0, [x19]
+     1dc:	a9444ff4 	ldp	x20, x19, [sp, #64]
+     1e0:	f9400bf9 	ldr	x25, [sp, #16]
+     1e4:	a94357f6 	ldp	x22, x21, [sp, #48]
+     1e8:	a9425ff8 	ldp	x24, x23, [sp, #32]
+     1ec:	a8c57bfd 	ldp	x29, x30, [sp], #80
+     1f0:	d65f03c0 	ret
+     1f4:	52800120 	mov	w0, #0x9                   	// #9
+     1f8:	a9444ff4 	ldp	x20, x19, [sp, #64]
+     1fc:	f9400bf9 	ldr	x25, [sp, #16]
+     200:	a94357f6 	ldp	x22, x21, [sp, #48]
+     204:	a9425ff8 	ldp	x24, x23, [sp, #32]
+     208:	a8c57bfd 	ldp	x29, x30, [sp], #80
+     20c:	d65f03c0 	ret
+
+0000000000000210 <koblas_dense_axpy_v1>:
+     210:	fc1b0fe8 	str	d8, [sp, #-80]!
+     214:	a9017bfd 	stp	x29, x30, [sp, #16]
+     218:	a9025ff8 	stp	x24, x23, [sp, #32]
+     21c:	a90357f6 	stp	x22, x21, [sp, #48]
+     220:	a9044ff4 	stp	x20, x19, [sp, #64]
+     224:	910043fd 	add	x29, sp, #0x10
+     228:	aa0103f7 	mov	x23, x1
+     22c:	52800061 	mov	w1, #0x3                   	// #3
+     230:	2a0503f3 	mov	w19, w5
+     234:	2a0403f4 	mov	w20, w4
+     238:	aa0303f5 	mov	x21, x3
+     23c:	1e604008 	fmov	d8, d0
+     240:	2a0203f6 	mov	w22, w2
+     244:	2a0003f8 	mov	w24, w0
+     248:	94000000 	bl	0 <koblas_kernel_reason>
+     24c:	340000e0 	cbz	w0, 268 <koblas_dense_axpy_v1+0x58>
+     250:	a9444ff4 	ldp	x20, x19, [sp, #64]
+     254:	a94357f6 	ldp	x22, x21, [sp, #48]
+     258:	a9425ff8 	ldp	x24, x23, [sp, #32]
+     25c:	a9417bfd 	ldp	x29, x30, [sp, #16]
+     260:	fc4507e8 	ldr	d8, [sp], #80
+     264:	d65f03c0 	ret
+     268:	340002b3 	cbz	w19, 2bc <koblas_dense_axpy_v1+0xac>
+     26c:	12000f08 	and	w8, w24, #0xf
+     270:	7100111f 	cmp	w8, #0x4
+     274:	54000160 	b.eq	2a0 <koblas_dense_axpy_v1+0x90>  // b.none
+     278:	7100051f 	cmp	w8, #0x1
+     27c:	540002e1 	b.ne	2d8 <koblas_dense_axpy_v1+0xc8>  // b.any
+     280:	1e604100 	fmov	d0, d8
+     284:	aa1703e0 	mov	x0, x23
+     288:	2a1603e1 	mov	w1, w22
+     28c:	aa1503e2 	mov	x2, x21
+     290:	2a1403e3 	mov	w3, w20
+     294:	2a1303e4 	mov	w4, w19
+     298:	94000000 	bl	0 <koblas_dense_axpy_scalar>
+     29c:	14000008 	b	2bc <koblas_dense_axpy_v1+0xac>
+     2a0:	1e604100 	fmov	d0, d8
+     2a4:	aa1703e0 	mov	x0, x23
+     2a8:	2a1603e1 	mov	w1, w22
+     2ac:	aa1503e2 	mov	x2, x21
+     2b0:	2a1403e3 	mov	w3, w20
+     2b4:	2a1303e4 	mov	w4, w19
+     2b8:	94000000 	bl	0 <koblas_dense_axpy_neon>
+     2bc:	2a1f03e0 	mov	w0, wzr
+     2c0:	a9444ff4 	ldp	x20, x19, [sp, #64]
+     2c4:	a94357f6 	ldp	x22, x21, [sp, #48]
+     2c8:	a9425ff8 	ldp	x24, x23, [sp, #32]
+     2cc:	a9417bfd 	ldp	x29, x30, [sp, #16]
+     2d0:	fc4507e8 	ldr	d8, [sp], #80
+     2d4:	d65f03c0 	ret
+     2d8:	52800120 	mov	w0, #0x9                   	// #9
+     2dc:	a9444ff4 	ldp	x20, x19, [sp, #64]
+     2e0:	a94357f6 	ldp	x22, x21, [sp, #48]
+     2e4:	a9425ff8 	ldp	x24, x23, [sp, #32]
+     2e8:	a9417bfd 	ldp	x29, x30, [sp, #16]
+     2ec:	fc4507e8 	ldr	d8, [sp], #80
+     2f0:	d65f03c0 	ret
+
+00000000000002f4 <koblas_dense_axpy_arithmetic_v1>:
+     2f4:	fc1b0fe8 	str	d8, [sp, #-80]!
+     2f8:	a9017bfd 	stp	x29, x30, [sp, #16]
+     2fc:	a9025ff8 	stp	x24, x23, [sp, #32]
+     300:	a90357f6 	stp	x22, x21, [sp, #48]
+     304:	a9044ff4 	stp	x20, x19, [sp, #64]
+     308:	910043fd 	add	x29, sp, #0x10
+     30c:	aa0103f7 	mov	x23, x1
+     310:	52800081 	mov	w1, #0x4                   	// #4
+     314:	2a0503f3 	mov	w19, w5
+     318:	2a0403f4 	mov	w20, w4
+     31c:	aa0303f5 	mov	x21, x3
+     320:	1e604008 	fmov	d8, d0
+     324:	2a0203f6 	mov	w22, w2
+     328:	2a0003f8 	mov	w24, w0
+     32c:	94000000 	bl	0 <koblas_kernel_reason>
+     330:	340000e0 	cbz	w0, 34c <koblas_dense_axpy_arithmetic_v1+0x58>
+     334:	a9444ff4 	ldp	x20, x19, [sp, #64]
+     338:	a94357f6 	ldp	x22, x21, [sp, #48]
+     33c:	a9425ff8 	ldp	x24, x23, [sp, #32]
+     340:	a9417bfd 	ldp	x29, x30, [sp, #16]
+     344:	fc4507e8 	ldr	d8, [sp], #80
+     348:	d65f03c0 	ret
+     34c:	340002b3 	cbz	w19, 3a0 <koblas_dense_axpy_arithmetic_v1+0xac>
+     350:	12000f08 	and	w8, w24, #0xf
+     354:	7100111f 	cmp	w8, #0x4
+     358:	54000160 	b.eq	384 <koblas_dense_axpy_arithmetic_v1+0x90>  // b.none
+     35c:	7100051f 	cmp	w8, #0x1
+     360:	540002e1 	b.ne	3bc <koblas_dense_axpy_arithmetic_v1+0xc8>  // b.any
+     364:	1e604100 	fmov	d0, d8
+     368:	aa1703e0 	mov	x0, x23
+     36c:	2a1603e1 	mov	w1, w22
+     370:	aa1503e2 	mov	x2, x21
+     374:	2a1403e3 	mov	w3, w20
+     378:	2a1303e4 	mov	w4, w19
+     37c:	94000000 	bl	0 <koblas_dense_axpy_arithmetic_scalar>
+     380:	14000008 	b	3a0 <koblas_dense_axpy_arithmetic_v1+0xac>
+     384:	1e604100 	fmov	d0, d8
+     388:	aa1703e0 	mov	x0, x23
+     38c:	2a1603e1 	mov	w1, w22
+     390:	aa1503e2 	mov	x2, x21
+     394:	2a1403e3 	mov	w3, w20
+     398:	2a1303e4 	mov	w4, w19
+     39c:	94000000 	bl	0 <koblas_dense_axpy_arithmetic_neon>
+     3a0:	2a1f03e0 	mov	w0, wzr
+     3a4:	a9444ff4 	ldp	x20, x19, [sp, #64]
+     3a8:	a94357f6 	ldp	x22, x21, [sp, #48]
+     3ac:	a9425ff8 	ldp	x24, x23, [sp, #32]
+     3b0:	a9417bfd 	ldp	x29, x30, [sp, #16]
+     3b4:	fc4507e8 	ldr	d8, [sp], #80
+     3b8:	d65f03c0 	ret
+     3bc:	52800120 	mov	w0, #0x9                   	// #9
+     3c0:	a9444ff4 	ldp	x20, x19, [sp, #64]
+     3c4:	a94357f6 	ldp	x22, x21, [sp, #48]
+     3c8:	a9425ff8 	ldp	x24, x23, [sp, #32]
+     3cc:	a9417bfd 	ldp	x29, x30, [sp, #16]
+     3d0:	fc4507e8 	ldr	d8, [sp], #80
+     3d4:	d65f03c0 	ret
+
+00000000000003d8 <koblas_dense_scale_v1>:
+     3d8:	fc1c0fe8 	str	d8, [sp, #-64]!
+     3dc:	a9017bfd 	stp	x29, x30, [sp, #16]
+     3e0:	a90257f6 	stp	x22, x21, [sp, #32]
+     3e4:	a9034ff4 	stp	x20, x19, [sp, #48]
+     3e8:	910043fd 	add	x29, sp, #0x10
+     3ec:	aa0103f5 	mov	x21, x1
+     3f0:	528000a1 	mov	w1, #0x5                   	// #5
+     3f4:	2a0303f3 	mov	w19, w3
+     3f8:	1e604008 	fmov	d8, d0
+     3fc:	2a0203f4 	mov	w20, w2
+     400:	2a0003f6 	mov	w22, w0
+     404:	94000000 	bl	0 <koblas_kernel_reason>
+     408:	340000c0 	cbz	w0, 420 <koblas_dense_scale_v1+0x48>
+     40c:	a9434ff4 	ldp	x20, x19, [sp, #48]
+     410:	a94257f6 	ldp	x22, x21, [sp, #32]
+     414:	a9417bfd 	ldp	x29, x30, [sp, #16]
+     418:	fc4407e8 	ldr	d8, [sp], #64
+     41c:	d65f03c0 	ret
+     420:	34000173 	cbz	w19, 44c <koblas_dense_scale_v1+0x74>
+     424:	12000ec8 	and	w8, w22, #0xf
+     428:	7100111f 	cmp	w8, #0x4
+     42c:	540001c0 	b.eq	464 <koblas_dense_scale_v1+0x8c>  // b.none
+     430:	7100051f 	cmp	w8, #0x1
+     434:	540002e1 	b.ne	490 <koblas_dense_scale_v1+0xb8>  // b.any
+     438:	1e604100 	fmov	d0, d8
+     43c:	aa1503e0 	mov	x0, x21
+     440:	2a1403e1 	mov	w1, w20
+     444:	2a1303e2 	mov	w2, w19
+     448:	94000000 	bl	0 <koblas_dense_scale_scalar>
+     44c:	2a1f03e0 	mov	w0, wzr
+     450:	a9434ff4 	ldp	x20, x19, [sp, #48]
+     454:	a94257f6 	ldp	x22, x21, [sp, #32]
+     458:	a9417bfd 	ldp	x29, x30, [sp, #16]
+     45c:	fc4407e8 	ldr	d8, [sp], #64
+     460:	d65f03c0 	ret
+     464:	1e604100 	fmov	d0, d8
+     468:	aa1503e0 	mov	x0, x21
+     46c:	2a1403e1 	mov	w1, w20
+     470:	2a1303e2 	mov	w2, w19
+     474:	94000000 	bl	0 <koblas_dense_scale_neon>
+     478:	2a1f03e0 	mov	w0, wzr
+     47c:	a9434ff4 	ldp	x20, x19, [sp, #48]
+     480:	a94257f6 	ldp	x22, x21, [sp, #32]
+     484:	a9417bfd 	ldp	x29, x30, [sp, #16]
+     488:	fc4407e8 	ldr	d8, [sp], #64
+     48c:	d65f03c0 	ret
+     490:	52800120 	mov	w0, #0x9                   	// #9
+     494:	a9434ff4 	ldp	x20, x19, [sp, #48]
+     498:	a94257f6 	ldp	x22, x21, [sp, #32]
+     49c:	a9417bfd 	ldp	x29, x30, [sp, #16]
+     4a0:	fc4407e8 	ldr	d8, [sp], #64
+     4a4:	d65f03c0 	ret
+
+00000000000004a8 <koblas_dense_nrm2_v1>:
+     4a8:	a9bc7bfd 	stp	x29, x30, [sp, #-64]!
+     4ac:	f9000bf7 	str	x23, [sp, #16]
+     4b0:	a90257f6 	stp	x22, x21, [sp, #32]
+     4b4:	a9034ff4 	stp	x20, x19, [sp, #48]
+     4b8:	910003fd 	mov	x29, sp
+     4bc:	aa0103f6 	mov	x22, x1
+     4c0:	528000c1 	mov	w1, #0x6                   	// #6
+     4c4:	aa0403f3 	mov	x19, x4
+     4c8:	2a0303f4 	mov	w20, w3
+     4cc:	2a0203f5 	mov	w21, w2
+     4d0:	2a0003f7 	mov	w23, w0
+     4d4:	94000000 	bl	0 <koblas_kernel_reason>
+     4d8:	340000c0 	cbz	w0, 4f0 <koblas_dense_nrm2_v1+0x48>
+     4dc:	a9434ff4 	ldp	x20, x19, [sp, #48]
+     4e0:	f9400bf7 	ldr	x23, [sp, #16]
+     4e4:	a94257f6 	ldp	x22, x21, [sp, #32]
+     4e8:	a8c47bfd 	ldp	x29, x30, [sp], #64
+     4ec:	d65f03c0 	ret
+     4f0:	b4000193 	cbz	x19, 520 <koblas_dense_nrm2_v1+0x78>
+     4f4:	34000234 	cbz	w20, 538 <koblas_dense_nrm2_v1+0x90>
+     4f8:	12000ee8 	and	w8, w23, #0xf
+     4fc:	7100111f 	cmp	w8, #0x4
+     500:	54000200 	b.eq	540 <koblas_dense_nrm2_v1+0x98>  // b.none
+     504:	7100051f 	cmp	w8, #0x1
+     508:	54000321 	b.ne	56c <koblas_dense_nrm2_v1+0xc4>  // b.any
+     50c:	aa1603e0 	mov	x0, x22
+     510:	2a1503e1 	mov	w1, w21
+     514:	2a1403e2 	mov	w2, w20
+     518:	94000000 	bl	0 <koblas_dense_nrm2_scalar>
+     51c:	1400000d 	b	550 <koblas_dense_nrm2_v1+0xa8>
+     520:	52800020 	mov	w0, #0x1                   	// #1
+     524:	a9434ff4 	ldp	x20, x19, [sp, #48]
+     528:	f9400bf7 	ldr	x23, [sp, #16]
+     52c:	a94257f6 	ldp	x22, x21, [sp, #32]
+     530:	a8c47bfd 	ldp	x29, x30, [sp], #64
+     534:	d65f03c0 	ret
+     538:	2f00e400 	movi	d0, #0x0
+     53c:	14000005 	b	550 <koblas_dense_nrm2_v1+0xa8>
+     540:	aa1603e0 	mov	x0, x22
+     544:	2a1503e1 	mov	w1, w21
+     548:	2a1403e2 	mov	w2, w20
+     54c:	94000000 	bl	0 <koblas_dense_nrm2_neon>
+     550:	2a1f03e0 	mov	w0, wzr
+     554:	fd000260 	str	d0, [x19]
+     558:	a9434ff4 	ldp	x20, x19, [sp, #48]
+     55c:	f9400bf7 	ldr	x23, [sp, #16]
+     560:	a94257f6 	ldp	x22, x21, [sp, #32]
+     564:	a8c47bfd 	ldp	x29, x30, [sp], #64
+     568:	d65f03c0 	ret
+     56c:	52800120 	mov	w0, #0x9                   	// #9
+     570:	a9434ff4 	ldp	x20, x19, [sp, #48]
+     574:	f9400bf7 	ldr	x23, [sp, #16]
+     578:	a94257f6 	ldp	x22, x21, [sp, #32]
+     57c:	a8c47bfd 	ldp	x29, x30, [sp], #64
+     580:	d65f03c0 	ret
+
+0000000000000584 <koblas_dense_sum_v1>:
+     584:	a9bc7bfd 	stp	x29, x30, [sp, #-64]!
+     588:	f9000bf7 	str	x23, [sp, #16]
+     58c:	a90257f6 	stp	x22, x21, [sp, #32]
+     590:	a9034ff4 	stp	x20, x19, [sp, #48]
+     594:	910003fd 	mov	x29, sp
+     598:	aa0103f6 	mov	x22, x1
+     59c:	528000e1 	mov	w1, #0x7                   	// #7
+     5a0:	aa0403f3 	mov	x19, x4
+     5a4:	2a0303f4 	mov	w20, w3
+     5a8:	2a0203f5 	mov	w21, w2
+     5ac:	2a0003f7 	mov	w23, w0
+     5b0:	94000000 	bl	0 <koblas_kernel_reason>
+     5b4:	340000c0 	cbz	w0, 5cc <koblas_dense_sum_v1+0x48>
+     5b8:	a9434ff4 	ldp	x20, x19, [sp, #48]
+     5bc:	f9400bf7 	ldr	x23, [sp, #16]
+     5c0:	a94257f6 	ldp	x22, x21, [sp, #32]
+     5c4:	a8c47bfd 	ldp	x29, x30, [sp], #64
+     5c8:	d65f03c0 	ret
+     5cc:	b4000193 	cbz	x19, 5fc <koblas_dense_sum_v1+0x78>
+     5d0:	34000234 	cbz	w20, 614 <koblas_dense_sum_v1+0x90>
+     5d4:	12000ee8 	and	w8, w23, #0xf
+     5d8:	7100111f 	cmp	w8, #0x4
+     5dc:	54000200 	b.eq	61c <koblas_dense_sum_v1+0x98>  // b.none
+     5e0:	7100051f 	cmp	w8, #0x1
+     5e4:	54000321 	b.ne	648 <koblas_dense_sum_v1+0xc4>  // b.any
+     5e8:	aa1603e0 	mov	x0, x22
+     5ec:	2a1503e1 	mov	w1, w21
+     5f0:	2a1403e2 	mov	w2, w20
+     5f4:	94000000 	bl	0 <koblas_dense_sum_scalar>
+     5f8:	1400000d 	b	62c <koblas_dense_sum_v1+0xa8>
+     5fc:	52800020 	mov	w0, #0x1                   	// #1
+     600:	a9434ff4 	ldp	x20, x19, [sp, #48]
+     604:	f9400bf7 	ldr	x23, [sp, #16]
+     608:	a94257f6 	ldp	x22, x21, [sp, #32]
+     60c:	a8c47bfd 	ldp	x29, x30, [sp], #64
+     610:	d65f03c0 	ret
+     614:	2f00e400 	movi	d0, #0x0
+     618:	14000005 	b	62c <koblas_dense_sum_v1+0xa8>
+     61c:	aa1603e0 	mov	x0, x22
+     620:	2a1503e1 	mov	w1, w21
+     624:	2a1403e2 	mov	w2, w20
+     628:	94000000 	bl	0 <koblas_dense_sum_neon>
+     62c:	2a1f03e0 	mov	w0, wzr
+     630:	fd000260 	str	d0, [x19]
+     634:	a9434ff4 	ldp	x20, x19, [sp, #48]
+     638:	f9400bf7 	ldr	x23, [sp, #16]
+     63c:	a94257f6 	ldp	x22, x21, [sp, #32]
+     640:	a8c47bfd 	ldp	x29, x30, [sp], #64
+     644:	d65f03c0 	ret
+     648:	52800120 	mov	w0, #0x9                   	// #9
+     64c:	a9434ff4 	ldp	x20, x19, [sp, #48]
+     650:	f9400bf7 	ldr	x23, [sp, #16]
+     654:	a94257f6 	ldp	x22, x21, [sp, #32]
+     658:	a8c47bfd 	ldp	x29, x30, [sp], #64
+     65c:	d65f03c0 	ret
+
+0000000000000660 <koblas_dense_asum_v1>:
+     660:	a9bc7bfd 	stp	x29, x30, [sp, #-64]!
+     664:	f9000bf7 	str	x23, [sp, #16]
+     668:	a90257f6 	stp	x22, x21, [sp, #32]
+     66c:	a9034ff4 	stp	x20, x19, [sp, #48]
+     670:	910003fd 	mov	x29, sp
+     674:	aa0103f6 	mov	x22, x1
+     678:	52800101 	mov	w1, #0x8                   	// #8
+     67c:	aa0403f3 	mov	x19, x4
+     680:	2a0303f4 	mov	w20, w3
+     684:	2a0203f5 	mov	w21, w2
+     688:	2a0003f7 	mov	w23, w0
+     68c:	94000000 	bl	0 <koblas_kernel_reason>
+     690:	340000c0 	cbz	w0, 6a8 <koblas_dense_asum_v1+0x48>
+     694:	a9434ff4 	ldp	x20, x19, [sp, #48]
+     698:	f9400bf7 	ldr	x23, [sp, #16]
+     69c:	a94257f6 	ldp	x22, x21, [sp, #32]
+     6a0:	a8c47bfd 	ldp	x29, x30, [sp], #64
+     6a4:	d65f03c0 	ret
+     6a8:	b4000193 	cbz	x19, 6d8 <koblas_dense_asum_v1+0x78>
+     6ac:	34000234 	cbz	w20, 6f0 <koblas_dense_asum_v1+0x90>
+     6b0:	12000ee8 	and	w8, w23, #0xf
+     6b4:	7100111f 	cmp	w8, #0x4
+     6b8:	54000200 	b.eq	6f8 <koblas_dense_asum_v1+0x98>  // b.none
+     6bc:	7100051f 	cmp	w8, #0x1
+     6c0:	54000321 	b.ne	724 <koblas_dense_asum_v1+0xc4>  // b.any
+     6c4:	aa1603e0 	mov	x0, x22
+     6c8:	2a1503e1 	mov	w1, w21
+     6cc:	2a1403e2 	mov	w2, w20
+     6d0:	94000000 	bl	0 <koblas_dense_asum_scalar>
+     6d4:	1400000d 	b	708 <koblas_dense_asum_v1+0xa8>
+     6d8:	52800020 	mov	w0, #0x1                   	// #1
+     6dc:	a9434ff4 	ldp	x20, x19, [sp, #48]
+     6e0:	f9400bf7 	ldr	x23, [sp, #16]
+     6e4:	a94257f6 	ldp	x22, x21, [sp, #32]
+     6e8:	a8c47bfd 	ldp	x29, x30, [sp], #64
+     6ec:	d65f03c0 	ret
+     6f0:	2f00e400 	movi	d0, #0x0
+     6f4:	14000005 	b	708 <koblas_dense_asum_v1+0xa8>
+     6f8:	aa1603e0 	mov	x0, x22
+     6fc:	2a1503e1 	mov	w1, w21
+     700:	2a1403e2 	mov	w2, w20
+     704:	94000000 	bl	0 <koblas_dense_asum_neon>
+     708:	2a1f03e0 	mov	w0, wzr
+     70c:	fd000260 	str	d0, [x19]
+     710:	a9434ff4 	ldp	x20, x19, [sp, #48]
+     714:	f9400bf7 	ldr	x23, [sp, #16]
+     718:	a94257f6 	ldp	x22, x21, [sp, #32]
+     71c:	a8c47bfd 	ldp	x29, x30, [sp], #64
+     720:	d65f03c0 	ret
+     724:	52800120 	mov	w0, #0x9                   	// #9
+     728:	a9434ff4 	ldp	x20, x19, [sp, #48]
+     72c:	f9400bf7 	ldr	x23, [sp, #16]
+     730:	a94257f6 	ldp	x22, x21, [sp, #32]
+     734:	a8c47bfd 	ldp	x29, x30, [sp], #64
+     738:	d65f03c0 	ret
+
+000000000000073c <koblas_dense_iamax_v1>:
+     73c:	a9bc7bfd 	stp	x29, x30, [sp, #-64]!
+     740:	f9000bf7 	str	x23, [sp, #16]
+     744:	a90257f6 	stp	x22, x21, [sp, #32]
+     748:	a9034ff4 	stp	x20, x19, [sp, #48]
+     74c:	910003fd 	mov	x29, sp
+     750:	aa0103f6 	mov	x22, x1
+     754:	52800121 	mov	w1, #0x9                   	// #9
+     758:	aa0403f3 	mov	x19, x4
+     75c:	2a0303f4 	mov	w20, w3
+     760:	2a0203f5 	mov	w21, w2
+     764:	2a0003f7 	mov	w23, w0
+     768:	94000000 	bl	0 <koblas_kernel_reason>
+     76c:	340000c0 	cbz	w0, 784 <koblas_dense_iamax_v1+0x48>
+     770:	a9434ff4 	ldp	x20, x19, [sp, #48]
+     774:	f9400bf7 	ldr	x23, [sp, #16]
+     778:	a94257f6 	ldp	x22, x21, [sp, #32]
+     77c:	a8c47bfd 	ldp	x29, x30, [sp], #64
+     780:	d65f03c0 	ret
+     784:	b4000193 	cbz	x19, 7b4 <koblas_dense_iamax_v1+0x78>
+     788:	34000234 	cbz	w20, 7cc <koblas_dense_iamax_v1+0x90>
+     78c:	12000ee8 	and	w8, w23, #0xf
+     790:	7100111f 	cmp	w8, #0x4
+     794:	54000200 	b.eq	7d4 <koblas_dense_iamax_v1+0x98>  // b.none
+     798:	7100051f 	cmp	w8, #0x1
+     79c:	54000341 	b.ne	804 <koblas_dense_iamax_v1+0xc8>  // b.any
+     7a0:	aa1603e0 	mov	x0, x22
+     7a4:	2a1503e1 	mov	w1, w21
+     7a8:	2a1403e2 	mov	w2, w20
+     7ac:	94000000 	bl	0 <koblas_dense_iamax_scalar>
+     7b0:	1400000d 	b	7e4 <koblas_dense_iamax_v1+0xa8>
+     7b4:	52800020 	mov	w0, #0x1                   	// #1
+     7b8:	a9434ff4 	ldp	x20, x19, [sp, #48]
+     7bc:	f9400bf7 	ldr	x23, [sp, #16]
+     7c0:	a94257f6 	ldp	x22, x21, [sp, #32]
+     7c4:	a8c47bfd 	ldp	x29, x30, [sp], #64
+     7c8:	d65f03c0 	ret
+     7cc:	12800008 	mov	w8, #0xffffffff            	// #-1
+     7d0:	14000006 	b	7e8 <koblas_dense_iamax_v1+0xac>
+     7d4:	aa1603e0 	mov	x0, x22
+     7d8:	2a1503e1 	mov	w1, w21
+     7dc:	2a1403e2 	mov	w2, w20
+     7e0:	94000000 	bl	0 <koblas_dense_iamax_neon>
+     7e4:	2a0003e8 	mov	w8, w0
+     7e8:	2a1f03e0 	mov	w0, wzr
+     7ec:	b9000268 	str	w8, [x19]
+     7f0:	a9434ff4 	ldp	x20, x19, [sp, #48]
+     7f4:	f9400bf7 	ldr	x23, [sp, #16]
+     7f8:	a94257f6 	ldp	x22, x21, [sp, #32]
+     7fc:	a8c47bfd 	ldp	x29, x30, [sp], #64
+     800:	d65f03c0 	ret
+     804:	52800120 	mov	w0, #0x9                   	// #9
+     808:	a9434ff4 	ldp	x20, x19, [sp, #48]
+     80c:	f9400bf7 	ldr	x23, [sp, #16]
+     810:	a94257f6 	ldp	x22, x21, [sp, #32]
+     814:	a8c47bfd 	ldp	x29, x30, [sp], #64
+     818:	d65f03c0 	ret
+
+000000000000081c <koblas_dense_gemm_tile_v1>:
+     81c:	a9bb7bfd 	stp	x29, x30, [sp, #-80]!
+     820:	a90167fa 	stp	x26, x25, [sp, #16]
+     824:	a9025ff8 	stp	x24, x23, [sp, #32]
+     828:	a90357f6 	stp	x22, x21, [sp, #48]
+     82c:	a9044ff4 	stp	x20, x19, [sp, #64]
+     830:	910003fd 	mov	x29, sp
+     834:	2a0103f9 	mov	w25, w1
+     838:	52800141 	mov	w1, #0xa                   	// #10
+     83c:	2a0703f3 	mov	w19, w7
+     840:	aa0603f4 	mov	x20, x6
+     844:	2a0503f5 	mov	w21, w5
+     848:	aa0403f6 	mov	x22, x4
+     84c:	2a0303f7 	mov	w23, w3
+     850:	aa0203f8 	mov	x24, x2
+     854:	2a0003fa 	mov	w26, w0
+     858:	94000000 	bl	0 <koblas_kernel_reason>
+     85c:	340000e0 	cbz	w0, 878 <koblas_dense_gemm_tile_v1+0x5c>
+     860:	a9444ff4 	ldp	x20, x19, [sp, #64]
+     864:	a94357f6 	ldp	x22, x21, [sp, #48]
+     868:	a9425ff8 	ldp	x24, x23, [sp, #32]
+     86c:	a94167fa 	ldp	x26, x25, [sp, #16]
+     870:	a8c57bfd 	ldp	x29, x30, [sp], #80
+     874:	d65f03c0 	ret
+     878:	34000319 	cbz	w25, 8d8 <koblas_dense_gemm_tile_v1+0xbc>
+     87c:	12000f48 	and	w8, w26, #0xf
+     880:	b94053a7 	ldr	w7, [x29, #80]
+     884:	7100111f 	cmp	w8, #0x4
+     888:	54000180 	b.eq	8b8 <koblas_dense_gemm_tile_v1+0x9c>  // b.none
+     88c:	7100051f 	cmp	w8, #0x1
+     890:	54000321 	b.ne	8f4 <koblas_dense_gemm_tile_v1+0xd8>  // b.any
+     894:	2a1903e0 	mov	w0, w25
+     898:	aa1803e1 	mov	x1, x24
+     89c:	2a1703e2 	mov	w2, w23
+     8a0:	aa1603e3 	mov	x3, x22
+     8a4:	2a1503e4 	mov	w4, w21
+     8a8:	aa1403e5 	mov	x5, x20
+     8ac:	2a1303e6 	mov	w6, w19
+     8b0:	94000000 	bl	0 <koblas_dense_gemm_tile_scalar>
+     8b4:	14000009 	b	8d8 <koblas_dense_gemm_tile_v1+0xbc>
+     8b8:	2a1903e0 	mov	w0, w25
+     8bc:	aa1803e1 	mov	x1, x24
+     8c0:	2a1703e2 	mov	w2, w23
+     8c4:	aa1603e3 	mov	x3, x22
+     8c8:	2a1503e4 	mov	w4, w21
+     8cc:	aa1403e5 	mov	x5, x20
+     8d0:	2a1303e6 	mov	w6, w19
+     8d4:	94000000 	bl	0 <koblas_dense_gemm_tile_neon>
+     8d8:	2a1f03e0 	mov	w0, wzr
+     8dc:	a9444ff4 	ldp	x20, x19, [sp, #64]
+     8e0:	a94357f6 	ldp	x22, x21, [sp, #48]
+     8e4:	a9425ff8 	ldp	x24, x23, [sp, #32]
+     8e8:	a94167fa 	ldp	x26, x25, [sp, #16]
+     8ec:	a8c57bfd 	ldp	x29, x30, [sp], #80
+     8f0:	d65f03c0 	ret
+     8f4:	52800120 	mov	w0, #0x9                   	// #9
+     8f8:	a9444ff4 	ldp	x20, x19, [sp, #64]
+     8fc:	a94357f6 	ldp	x22, x21, [sp, #48]
+     900:	a9425ff8 	ldp	x24, x23, [sp, #32]
+     904:	a94167fa 	ldp	x26, x25, [sp, #16]
+     908:	a8c57bfd 	ldp	x29, x30, [sp], #80
+     90c:	d65f03c0 	ret
+
+0000000000000910 <koblas_dense_swap_v1>:
+     910:	a9bc7bfd 	stp	x29, x30, [sp, #-64]!
+     914:	a9015ff8 	stp	x24, x23, [sp, #16]
+     918:	a90257f6 	stp	x22, x21, [sp, #32]
+     91c:	a9034ff4 	stp	x20, x19, [sp, #48]
+     920:	910003fd 	mov	x29, sp
+     924:	aa0103f7 	mov	x23, x1
+     928:	52800161 	mov	w1, #0xb                   	// #11
+     92c:	2a0503f3 	mov	w19, w5
+     930:	2a0403f4 	mov	w20, w4
+     934:	aa0303f5 	mov	x21, x3
+     938:	2a0203f6 	mov	w22, w2
+     93c:	2a0003f8 	mov	w24, w0
+     940:	94000000 	bl	0 <koblas_kernel_reason>
+     944:	340000c0 	cbz	w0, 95c <koblas_dense_swap_v1+0x4c>
+     948:	a9434ff4 	ldp	x20, x19, [sp, #48]
+     94c:	a94257f6 	ldp	x22, x21, [sp, #32]
+     950:	a9415ff8 	ldp	x24, x23, [sp, #16]
+     954:	a8c47bfd 	ldp	x29, x30, [sp], #64
+     958:	d65f03c0 	ret
+     95c:	34000193 	cbz	w19, 98c <koblas_dense_swap_v1+0x7c>
+     960:	12000f08 	and	w8, w24, #0xf
+     964:	7100111f 	cmp	w8, #0x4
+     968:	540001e0 	b.eq	9a4 <koblas_dense_swap_v1+0x94>  // b.none
+     96c:	7100051f 	cmp	w8, #0x1
+     970:	54000321 	b.ne	9d4 <koblas_dense_swap_v1+0xc4>  // b.any
+     974:	aa1703e0 	mov	x0, x23
+     978:	2a1603e1 	mov	w1, w22
+     97c:	aa1503e2 	mov	x2, x21
+     980:	2a1403e3 	mov	w3, w20
+     984:	2a1303e4 	mov	w4, w19
+     988:	94000000 	bl	0 <koblas_dense_swap_scalar>
+     98c:	2a1f03e0 	mov	w0, wzr
+     990:	a9434ff4 	ldp	x20, x19, [sp, #48]
+     994:	a94257f6 	ldp	x22, x21, [sp, #32]
+     998:	a9415ff8 	ldp	x24, x23, [sp, #16]
+     99c:	a8c47bfd 	ldp	x29, x30, [sp], #64
+     9a0:	d65f03c0 	ret
+     9a4:	aa1703e0 	mov	x0, x23
+     9a8:	2a1603e1 	mov	w1, w22
+     9ac:	aa1503e2 	mov	x2, x21
+     9b0:	2a1403e3 	mov	w3, w20
+     9b4:	2a1303e4 	mov	w4, w19
+     9b8:	94000000 	bl	0 <koblas_dense_swap_neon>
+     9bc:	2a1f03e0 	mov	w0, wzr
+     9c0:	a9434ff4 	ldp	x20, x19, [sp, #48]
+     9c4:	a94257f6 	ldp	x22, x21, [sp, #32]
+     9c8:	a9415ff8 	ldp	x24, x23, [sp, #16]
+     9cc:	a8c47bfd 	ldp	x29, x30, [sp], #64
+     9d0:	d65f03c0 	ret
+     9d4:	52800120 	mov	w0, #0x9                   	// #9
+     9d8:	a9434ff4 	ldp	x20, x19, [sp, #48]
+     9dc:	a94257f6 	ldp	x22, x21, [sp, #32]
+     9e0:	a9415ff8 	ldp	x24, x23, [sp, #16]
+     9e4:	a8c47bfd 	ldp	x29, x30, [sp], #64
+     9e8:	d65f03c0 	ret
+
+00000000000009ec <koblas_dense_dot4_v1>:
+     9ec:	a9bb7bfd 	stp	x29, x30, [sp, #-80]!
+     9f0:	a90167fa 	stp	x26, x25, [sp, #16]
+     9f4:	a9025ff8 	stp	x24, x23, [sp, #32]
+     9f8:	a90357f6 	stp	x22, x21, [sp, #48]
+     9fc:	a9044ff4 	stp	x20, x19, [sp, #64]
+     a00:	910003fd 	mov	x29, sp
+     a04:	aa0103f9 	mov	x25, x1
+     a08:	52800181 	mov	w1, #0xc                   	// #12
+     a0c:	aa0703f3 	mov	x19, x7
+     a10:	2a0603f4 	mov	w20, w6
+     a14:	2a0503f5 	mov	w21, w5
+     a18:	aa0403f6 	mov	x22, x4
+     a1c:	2a0303f7 	mov	w23, w3
+     a20:	2a0203f8 	mov	w24, w2
+     a24:	2a0003fa 	mov	w26, w0
+     a28:	94000000 	bl	0 <koblas_kernel_reason>
+     a2c:	340000e0 	cbz	w0, a48 <koblas_dense_dot4_v1+0x5c>
+     a30:	a9444ff4 	ldp	x20, x19, [sp, #64]
+     a34:	a94357f6 	ldp	x22, x21, [sp, #48]
+     a38:	a9425ff8 	ldp	x24, x23, [sp, #32]
+     a3c:	a94167fa 	ldp	x26, x25, [sp, #16]
+     a40:	a8c57bfd 	ldp	x29, x30, [sp], #80
+     a44:	d65f03c0 	ret
+     a48:	b94053a7 	ldr	w7, [x29, #80]
+     a4c:	340001f4 	cbz	w20, a88 <koblas_dense_dot4_v1+0x9c>
+     a50:	12000f48 	and	w8, w26, #0xf
+     a54:	7100111f 	cmp	w8, #0x4
+     a58:	540002c0 	b.eq	ab0 <koblas_dense_dot4_v1+0xc4>  // b.none
+     a5c:	7100051f 	cmp	w8, #0x1
+     a60:	54000461 	b.ne	aec <koblas_dense_dot4_v1+0x100>  // b.any
+     a64:	aa1903e0 	mov	x0, x25
+     a68:	2a1803e1 	mov	w1, w24
+     a6c:	2a1703e2 	mov	w2, w23
+     a70:	aa1603e3 	mov	x3, x22
+     a74:	2a1503e4 	mov	w4, w21
+     a78:	2a1403e5 	mov	w5, w20
+     a7c:	aa1303e6 	mov	x6, x19
+     a80:	94000000 	bl	0 <koblas_dense_dot4_scalar>
+     a84:	14000013 	b	ad0 <koblas_dense_dot4_v1+0xe4>
+     a88:	6f00e400 	movi	v0.2d, #0x0
+     a8c:	8b27ce68 	add	x8, x19, w7, sxtw #3
+     a90:	2a1f03e0 	mov	w0, wzr
+     a94:	ad000100 	stp	q0, q0, [x8]
+     a98:	a9444ff4 	ldp	x20, x19, [sp, #64]
+     a9c:	a94357f6 	ldp	x22, x21, [sp, #48]
+     aa0:	a9425ff8 	ldp	x24, x23, [sp, #32]
+     aa4:	a94167fa 	ldp	x26, x25, [sp, #16]
+     aa8:	a8c57bfd 	ldp	x29, x30, [sp], #80
+     aac:	d65f03c0 	ret
+     ab0:	aa1903e0 	mov	x0, x25
+     ab4:	2a1803e1 	mov	w1, w24
+     ab8:	2a1703e2 	mov	w2, w23
+     abc:	aa1603e3 	mov	x3, x22
+     ac0:	2a1503e4 	mov	w4, w21
+     ac4:	2a1403e5 	mov	w5, w20
+     ac8:	aa1303e6 	mov	x6, x19
+     acc:	94000000 	bl	0 <koblas_dense_dot4_neon>
+     ad0:	2a1f03e0 	mov	w0, wzr
+     ad4:	a9444ff4 	ldp	x20, x19, [sp, #64]
+     ad8:	a94357f6 	ldp	x22, x21, [sp, #48]
+     adc:	a9425ff8 	ldp	x24, x23, [sp, #32]
+     ae0:	a94167fa 	ldp	x26, x25, [sp, #16]
+     ae4:	a8c57bfd 	ldp	x29, x30, [sp], #80
+     ae8:	d65f03c0 	ret
+     aec:	52800120 	mov	w0, #0x9                   	// #9
+     af0:	a9444ff4 	ldp	x20, x19, [sp, #64]
+     af4:	a94357f6 	ldp	x22, x21, [sp, #48]
+     af8:	a9425ff8 	ldp	x24, x23, [sp, #32]
+     afc:	a94167fa 	ldp	x26, x25, [sp, #16]
+     b00:	a8c57bfd 	ldp	x29, x30, [sp], #80
+     b04:	d65f03c0 	ret
+
+0000000000000b08 <koblas_dense_axpy4_v1>:
+     b08:	6db92beb 	stp	d11, d10, [sp, #-112]!
+     b0c:	6d0123e9 	stp	d9, d8, [sp, #16]
+     b10:	a9027bfd 	stp	x29, x30, [sp, #32]
+     b14:	f9001bf9 	str	x25, [sp, #48]
+     b18:	a9045ff8 	stp	x24, x23, [sp, #64]
+     b1c:	a90557f6 	stp	x22, x21, [sp, #80]
+     b20:	a9064ff4 	stp	x20, x19, [sp, #96]
+     b24:	910083fd 	add	x29, sp, #0x20
+     b28:	aa0103f8 	mov	x24, x1
+     b2c:	528001a1 	mov	w1, #0xd                   	// #13
+     b30:	2a0603f3 	mov	w19, w6
+     b34:	1e604068 	fmov	d8, d3
+     b38:	1e604049 	fmov	d9, d2
+     b3c:	1e60402a 	fmov	d10, d1
+     b40:	1e60400b 	fmov	d11, d0
+     b44:	2a0503f4 	mov	w20, w5
+     b48:	2a0403f5 	mov	w21, w4
+     b4c:	aa0303f6 	mov	x22, x3
+     b50:	2a0203f7 	mov	w23, w2
+     b54:	2a0003f9 	mov	w25, w0
+     b58:	94000000 	bl	0 <koblas_kernel_reason>
+     b5c:	35000420 	cbnz	w0, be0 <koblas_dense_axpy4_v1+0xd8>
+     b60:	340003b3 	cbz	w19, bd4 <koblas_dense_axpy4_v1+0xcc>
+     b64:	12000f28 	and	w8, w25, #0xf
+     b68:	7100111f 	cmp	w8, #0x4
+     b6c:	540001e0 	b.eq	ba8 <koblas_dense_axpy4_v1+0xa0>  // b.none
+     b70:	7100051f 	cmp	w8, #0x1
+     b74:	54000341 	b.ne	bdc <koblas_dense_axpy4_v1+0xd4>  // b.any
+     b78:	1e604160 	fmov	d0, d11
+     b7c:	1e604141 	fmov	d1, d10
+     b80:	aa1803e0 	mov	x0, x24
+     b84:	1e604122 	fmov	d2, d9
+     b88:	1e604103 	fmov	d3, d8
+     b8c:	2a1703e1 	mov	w1, w23
+     b90:	aa1603e2 	mov	x2, x22
+     b94:	2a1503e3 	mov	w3, w21
+     b98:	2a1403e4 	mov	w4, w20
+     b9c:	2a1303e5 	mov	w5, w19
+     ba0:	94000000 	bl	0 <koblas_dense_axpy4_scalar>
+     ba4:	1400000c 	b	bd4 <koblas_dense_axpy4_v1+0xcc>
+     ba8:	1e604160 	fmov	d0, d11
+     bac:	1e604141 	fmov	d1, d10
+     bb0:	aa1803e0 	mov	x0, x24
+     bb4:	1e604122 	fmov	d2, d9
+     bb8:	1e604103 	fmov	d3, d8
+     bbc:	2a1703e1 	mov	w1, w23
+     bc0:	aa1603e2 	mov	x2, x22
+     bc4:	2a1503e3 	mov	w3, w21
+     bc8:	2a1403e4 	mov	w4, w20
+     bcc:	2a1303e5 	mov	w5, w19
+     bd0:	94000000 	bl	0 <koblas_dense_axpy4_neon>
+     bd4:	2a1f03e0 	mov	w0, wzr
+     bd8:	14000002 	b	be0 <koblas_dense_axpy4_v1+0xd8>
+     bdc:	52800120 	mov	w0, #0x9                   	// #9
+     be0:	a9464ff4 	ldp	x20, x19, [sp, #96]
+     be4:	f9401bf9 	ldr	x25, [sp, #48]
+     be8:	a94557f6 	ldp	x22, x21, [sp, #80]
+     bec:	a9445ff8 	ldp	x24, x23, [sp, #64]
+     bf0:	a9427bfd 	ldp	x29, x30, [sp, #32]
+     bf4:	6d4123e9 	ldp	d9, d8, [sp, #16]
+     bf8:	6cc72beb 	ldp	d11, d10, [sp], #112
+     bfc:	d65f03c0 	ret
+
+0000000000000c00 <koblas_dense_dot_axpy_v1>:
+     c00:	fc1a0fe8 	str	d8, [sp, #-96]!
+     c04:	a900fbfd 	stp	x29, x30, [sp, #8]
+     c08:	f9000ffb 	str	x27, [sp, #24]
+     c0c:	a90267fa 	stp	x26, x25, [sp, #32]
+     c10:	a9035ff8 	stp	x24, x23, [sp, #48]
+     c14:	a90457f6 	stp	x22, x21, [sp, #64]
+     c18:	a9054ff4 	stp	x20, x19, [sp, #80]
+     c1c:	910023fd 	add	x29, sp, #0x8
+     c20:	aa0103f9 	mov	x25, x1
+     c24:	528001c1 	mov	w1, #0xe                   	// #14
+     c28:	2a0703f3 	mov	w19, w7
+     c2c:	2a0603f4 	mov	w20, w6
+     c30:	aa0503f5 	mov	x21, x5
+     c34:	2a0403f6 	mov	w22, w4
+     c38:	aa0303f7 	mov	x23, x3
+     c3c:	1e604008 	fmov	d8, d0
+     c40:	2a0203f8 	mov	w24, w2
+     c44:	2a0003fa 	mov	w26, w0
+     c48:	94000000 	bl	0 <koblas_kernel_reason>
+     c4c:	35000480 	cbnz	w0, cdc <koblas_dense_dot_axpy_v1+0xdc>
+     c50:	f9402fbb 	ldr	x27, [x29, #88]
+     c54:	b400023b 	cbz	x27, c98 <koblas_dense_dot_axpy_v1+0x98>
+     c58:	34000253 	cbz	w19, ca0 <koblas_dense_dot_axpy_v1+0xa0>
+     c5c:	12000f48 	and	w8, w26, #0xf
+     c60:	7100111f 	cmp	w8, #0x4
+     c64:	54000220 	b.eq	ca8 <koblas_dense_dot_axpy_v1+0xa8>  // b.none
+     c68:	7100051f 	cmp	w8, #0x1
+     c6c:	54000361 	b.ne	cd8 <koblas_dense_dot_axpy_v1+0xd8>  // b.any
+     c70:	1e604100 	fmov	d0, d8
+     c74:	aa1903e0 	mov	x0, x25
+     c78:	2a1803e1 	mov	w1, w24
+     c7c:	aa1703e2 	mov	x2, x23
+     c80:	2a1603e3 	mov	w3, w22
+     c84:	aa1503e4 	mov	x4, x21
+     c88:	2a1403e5 	mov	w5, w20
+     c8c:	2a1303e6 	mov	w6, w19
+     c90:	94000000 	bl	0 <koblas_dense_dot_axpy_scalar>
+     c94:	1400000e 	b	ccc <koblas_dense_dot_axpy_v1+0xcc>
+     c98:	52800020 	mov	w0, #0x1                   	// #1
+     c9c:	14000010 	b	cdc <koblas_dense_dot_axpy_v1+0xdc>
+     ca0:	2f00e400 	movi	d0, #0x0
+     ca4:	1400000a 	b	ccc <koblas_dense_dot_axpy_v1+0xcc>
+     ca8:	1e604100 	fmov	d0, d8
+     cac:	aa1903e0 	mov	x0, x25
+     cb0:	2a1803e1 	mov	w1, w24
+     cb4:	aa1703e2 	mov	x2, x23
+     cb8:	2a1603e3 	mov	w3, w22
+     cbc:	aa1503e4 	mov	x4, x21
+     cc0:	2a1403e5 	mov	w5, w20
+     cc4:	2a1303e6 	mov	w6, w19
+     cc8:	94000000 	bl	0 <koblas_dense_dot_axpy_neon>
+     ccc:	2a1f03e0 	mov	w0, wzr
+     cd0:	fd000360 	str	d0, [x27]
+     cd4:	14000002 	b	cdc <koblas_dense_dot_axpy_v1+0xdc>
+     cd8:	52800120 	mov	w0, #0x9                   	// #9
+     cdc:	a9454ff4 	ldp	x20, x19, [sp, #80]
+     ce0:	f9400ffb 	ldr	x27, [sp, #24]
+     ce4:	a94457f6 	ldp	x22, x21, [sp, #64]
+     ce8:	a9435ff8 	ldp	x24, x23, [sp, #48]
+     cec:	a94267fa 	ldp	x26, x25, [sp, #32]
+     cf0:	a940fbfd 	ldp	x29, x30, [sp, #8]
+     cf4:	fc4607e8 	ldr	d8, [sp], #96
+     cf8:	d65f03c0 	ret
+
+0000000000000cfc <koblas_dense_rotm_v1>:
+     cfc:	6db92beb 	stp	d11, d10, [sp, #-112]!
+     d00:	6d0123e9 	stp	d9, d8, [sp, #16]
+     d04:	a9027bfd 	stp	x29, x30, [sp, #32]
+     d08:	a90367fa 	stp	x26, x25, [sp, #48]
+     d0c:	a9045ff8 	stp	x24, x23, [sp, #64]
+     d10:	a90557f6 	stp	x22, x21, [sp, #80]
+     d14:	a9064ff4 	stp	x20, x19, [sp, #96]
+     d18:	910083fd 	add	x29, sp, #0x20
+     d1c:	aa0103f9 	mov	x25, x1
+     d20:	528001e1 	mov	w1, #0xf                   	// #15
+     d24:	1e604068 	fmov	d8, d3
+     d28:	1e604049 	fmov	d9, d2
+     d2c:	1e60402a 	fmov	d10, d1
+     d30:	1e60400b 	fmov	d11, d0
+     d34:	2a0703f3 	mov	w19, w7
+     d38:	2a0603f4 	mov	w20, w6
+     d3c:	2a0503f5 	mov	w21, w5
+     d40:	aa0403f6 	mov	x22, x4
+     d44:	2a0303f7 	mov	w23, w3
+     d48:	2a0203f8 	mov	w24, w2
+     d4c:	2a0003fa 	mov	w26, w0
+     d50:	94000000 	bl	0 <koblas_kernel_reason>
+     d54:	35000460 	cbnz	w0, de0 <koblas_dense_rotm_v1+0xe4>
+     d58:	340003f3 	cbz	w19, dd4 <koblas_dense_rotm_v1+0xd8>
+     d5c:	12000f48 	and	w8, w26, #0xf
+     d60:	7100111f 	cmp	w8, #0x4
+     d64:	54000200 	b.eq	da4 <koblas_dense_rotm_v1+0xa8>  // b.none
+     d68:	7100051f 	cmp	w8, #0x1
+     d6c:	54000381 	b.ne	ddc <koblas_dense_rotm_v1+0xe0>  // b.any
+     d70:	1e604160 	fmov	d0, d11
+     d74:	1e604141 	fmov	d1, d10
+     d78:	aa1903e0 	mov	x0, x25
+     d7c:	1e604122 	fmov	d2, d9
+     d80:	1e604103 	fmov	d3, d8
+     d84:	2a1803e1 	mov	w1, w24
+     d88:	2a1703e2 	mov	w2, w23
+     d8c:	aa1603e3 	mov	x3, x22
+     d90:	2a1503e4 	mov	w4, w21
+     d94:	2a1403e5 	mov	w5, w20
+     d98:	2a1303e6 	mov	w6, w19
+     d9c:	94000000 	bl	0 <koblas_dense_rotm_scalar>
+     da0:	1400000d 	b	dd4 <koblas_dense_rotm_v1+0xd8>
+     da4:	1e604160 	fmov	d0, d11
+     da8:	1e604141 	fmov	d1, d10
+     dac:	aa1903e0 	mov	x0, x25
+     db0:	1e604122 	fmov	d2, d9
+     db4:	1e604103 	fmov	d3, d8
+     db8:	2a1803e1 	mov	w1, w24
+     dbc:	2a1703e2 	mov	w2, w23
+     dc0:	aa1603e3 	mov	x3, x22
+     dc4:	2a1503e4 	mov	w4, w21
+     dc8:	2a1403e5 	mov	w5, w20
+     dcc:	2a1303e6 	mov	w6, w19
+     dd0:	94000000 	bl	0 <koblas_dense_rotm_neon>
+     dd4:	2a1f03e0 	mov	w0, wzr
+     dd8:	14000002 	b	de0 <koblas_dense_rotm_v1+0xe4>
+     ddc:	52800120 	mov	w0, #0x9                   	// #9
+     de0:	a9464ff4 	ldp	x20, x19, [sp, #96]
+     de4:	a94557f6 	ldp	x22, x21, [sp, #80]
+     de8:	a9445ff8 	ldp	x24, x23, [sp, #64]
+     dec:	a94367fa 	ldp	x26, x25, [sp, #48]
+     df0:	a9427bfd 	ldp	x29, x30, [sp, #32]
+     df4:	6d4123e9 	ldp	d9, d8, [sp, #16]
+     df8:	6cc72beb 	ldp	d11, d10, [sp], #112
+     dfc:	d65f03c0 	ret
+
+0000000000000e00 <koblas_sparse_dot_dense_v1>:
+     e00:	a9bb7bfd 	stp	x29, x30, [sp, #-80]!
+     e04:	a90167fa 	stp	x26, x25, [sp, #16]
+     e08:	a9025ff8 	stp	x24, x23, [sp, #32]
+     e0c:	a90357f6 	stp	x22, x21, [sp, #48]
+     e10:	a9044ff4 	stp	x20, x19, [sp, #64]
+     e14:	910003fd 	mov	x29, sp
+     e18:	aa0103f9 	mov	x25, x1
+     e1c:	52800201 	mov	w1, #0x10                  	// #16
+     e20:	aa0703f3 	mov	x19, x7
+     e24:	aa0603f4 	mov	x20, x6
+     e28:	2a0503f5 	mov	w21, w5
+     e2c:	2a0403f6 	mov	w22, w4
+     e30:	aa0303f7 	mov	x23, x3
+     e34:	2a0203f8 	mov	w24, w2
+     e38:	2a0003fa 	mov	w26, w0
+     e3c:	94000000 	bl	0 <koblas_kernel_reason>
+     e40:	340000e0 	cbz	w0, e5c <koblas_sparse_dot_dense_v1+0x5c>
+     e44:	a9444ff4 	ldp	x20, x19, [sp, #64]
+     e48:	a94357f6 	ldp	x22, x21, [sp, #48]
+     e4c:	a9425ff8 	ldp	x24, x23, [sp, #32]
+     e50:	a94167fa 	ldp	x26, x25, [sp, #16]
+     e54:	a8c57bfd 	ldp	x29, x30, [sp], #80
+     e58:	d65f03c0 	ret
+     e5c:	b40001b3 	cbz	x19, e90 <koblas_sparse_dot_dense_v1+0x90>
+     e60:	34000275 	cbz	w21, eac <koblas_sparse_dot_dense_v1+0xac>
+     e64:	12000f48 	and	w8, w26, #0xf
+     e68:	7100051f 	cmp	w8, #0x1
+     e6c:	54000321 	b.ne	ed0 <koblas_sparse_dot_dense_v1+0xd0>  // b.any
+     e70:	aa1903e0 	mov	x0, x25
+     e74:	2a1803e1 	mov	w1, w24
+     e78:	aa1703e2 	mov	x2, x23
+     e7c:	2a1603e3 	mov	w3, w22
+     e80:	2a1503e4 	mov	w4, w21
+     e84:	aa1403e5 	mov	x5, x20
+     e88:	94000000 	bl	0 <koblas_sparse_dot_dense_scalar>
+     e8c:	14000009 	b	eb0 <koblas_sparse_dot_dense_v1+0xb0>
+     e90:	52800020 	mov	w0, #0x1                   	// #1
+     e94:	a9444ff4 	ldp	x20, x19, [sp, #64]
+     e98:	a94357f6 	ldp	x22, x21, [sp, #48]
+     e9c:	a9425ff8 	ldp	x24, x23, [sp, #32]
+     ea0:	a94167fa 	ldp	x26, x25, [sp, #16]
+     ea4:	a8c57bfd 	ldp	x29, x30, [sp], #80
+     ea8:	d65f03c0 	ret
+     eac:	2f00e400 	movi	d0, #0x0
+     eb0:	2a1f03e0 	mov	w0, wzr
+     eb4:	fd000260 	str	d0, [x19]
+     eb8:	a9444ff4 	ldp	x20, x19, [sp, #64]
+     ebc:	a94357f6 	ldp	x22, x21, [sp, #48]
+     ec0:	a9425ff8 	ldp	x24, x23, [sp, #32]
+     ec4:	a94167fa 	ldp	x26, x25, [sp, #16]
+     ec8:	a8c57bfd 	ldp	x29, x30, [sp], #80
+     ecc:	d65f03c0 	ret
+     ed0:	52800120 	mov	w0, #0x9                   	// #9
+     ed4:	a9444ff4 	ldp	x20, x19, [sp, #64]
+     ed8:	a94357f6 	ldp	x22, x21, [sp, #48]
+     edc:	a9425ff8 	ldp	x24, x23, [sp, #32]
+     ee0:	a94167fa 	ldp	x26, x25, [sp, #16]
+     ee4:	a8c57bfd 	ldp	x29, x30, [sp], #80
+     ee8:	d65f03c0 	ret
+
+0000000000000eec <koblas_sparse_dot_sparse_v1>:
+     eec:	a9bb7bfd 	stp	x29, x30, [sp, #-80]!
+     ef0:	a90167fa 	stp	x26, x25, [sp, #16]
+     ef4:	a9025ff8 	stp	x24, x23, [sp, #32]
+     ef8:	a90357f6 	stp	x22, x21, [sp, #48]
+     efc:	a9044ff4 	stp	x20, x19, [sp, #64]
+     f00:	910003fd 	mov	x29, sp
+     f04:	aa0103f9 	mov	x25, x1
+     f08:	52800221 	mov	w1, #0x11                  	// #17
+     f0c:	aa0703f3 	mov	x19, x7
+     f10:	2a0603f4 	mov	w20, w6
+     f14:	aa0503f5 	mov	x21, x5
+     f18:	aa0403f6 	mov	x22, x4
+     f1c:	2a0303f7 	mov	w23, w3
+     f20:	aa0203f8 	mov	x24, x2
+     f24:	2a0003fa 	mov	w26, w0
+     f28:	94000000 	bl	0 <koblas_kernel_reason>
+     f2c:	340000e0 	cbz	w0, f48 <koblas_sparse_dot_sparse_v1+0x5c>
+     f30:	a9444ff4 	ldp	x20, x19, [sp, #64]
+     f34:	a94357f6 	ldp	x22, x21, [sp, #48]
+     f38:	a9425ff8 	ldp	x24, x23, [sp, #32]
+     f3c:	a94167fa 	ldp	x26, x25, [sp, #16]
+     f40:	a8c57bfd 	ldp	x29, x30, [sp], #80
+     f44:	d65f03c0 	ret
+     f48:	b4000273 	cbz	x19, f94 <koblas_sparse_dot_sparse_v1+0xa8>
+     f4c:	12000f48 	and	w8, w26, #0xf
+     f50:	7100051f 	cmp	w8, #0x1
+     f54:	540002e1 	b.ne	fb0 <koblas_sparse_dot_sparse_v1+0xc4>  // b.any
+     f58:	aa1903e0 	mov	x0, x25
+     f5c:	aa1803e1 	mov	x1, x24
+     f60:	2a1703e2 	mov	w2, w23
+     f64:	aa1603e3 	mov	x3, x22
+     f68:	aa1503e4 	mov	x4, x21
+     f6c:	2a1403e5 	mov	w5, w20
+     f70:	94000000 	bl	0 <koblas_sparse_dot_sparse_scalar>
+     f74:	2a1f03e0 	mov	w0, wzr
+     f78:	fd000260 	str	d0, [x19]
+     f7c:	a9444ff4 	ldp	x20, x19, [sp, #64]
+     f80:	a94357f6 	ldp	x22, x21, [sp, #48]
+     f84:	a9425ff8 	ldp	x24, x23, [sp, #32]
+     f88:	a94167fa 	ldp	x26, x25, [sp, #16]
+     f8c:	a8c57bfd 	ldp	x29, x30, [sp], #80
+     f90:	d65f03c0 	ret
+     f94:	52800020 	mov	w0, #0x1                   	// #1
+     f98:	a9444ff4 	ldp	x20, x19, [sp, #64]
+     f9c:	a94357f6 	ldp	x22, x21, [sp, #48]
+     fa0:	a9425ff8 	ldp	x24, x23, [sp, #32]
+     fa4:	a94167fa 	ldp	x26, x25, [sp, #16]
+     fa8:	a8c57bfd 	ldp	x29, x30, [sp], #80
+     fac:	d65f03c0 	ret
+     fb0:	52800120 	mov	w0, #0x9                   	// #9
+     fb4:	a9444ff4 	ldp	x20, x19, [sp, #64]
+     fb8:	a94357f6 	ldp	x22, x21, [sp, #48]
+     fbc:	a9425ff8 	ldp	x24, x23, [sp, #32]
+     fc0:	a94167fa 	ldp	x26, x25, [sp, #16]
+     fc4:	a8c57bfd 	ldp	x29, x30, [sp], #80
+     fc8:	d65f03c0 	ret
+
+0000000000000fcc <koblas_sparse_axpy_v1>:
+     fcc:	fc1b0fe8 	str	d8, [sp, #-80]!
+     fd0:	a900fbfd 	stp	x29, x30, [sp, #8]
+     fd4:	f9000ff9 	str	x25, [sp, #24]
+     fd8:	a9025ff8 	stp	x24, x23, [sp, #32]
+     fdc:	a90357f6 	stp	x22, x21, [sp, #48]
+     fe0:	a9044ff4 	stp	x20, x19, [sp, #64]
+     fe4:	910023fd 	add	x29, sp, #0x8
+     fe8:	aa0103f8 	mov	x24, x1
+     fec:	52800241 	mov	w1, #0x12                  	// #18
+     ff0:	aa0603f3 	mov	x19, x6
+     ff4:	1e604008 	fmov	d8, d0
+     ff8:	2a0503f4 	mov	w20, w5
+     ffc:	2a0403f5 	mov	w21, w4
+    1000:	aa0303f6 	mov	x22, x3
+    1004:	2a0203f7 	mov	w23, w2
+    1008:	2a0003f9 	mov	w25, w0
+    100c:	94000000 	bl	0 <koblas_kernel_reason>
+    1010:	35000200 	cbnz	w0, 1050 <koblas_sparse_axpy_v1+0x84>
+    1014:	34000194 	cbz	w20, 1044 <koblas_sparse_axpy_v1+0x78>
+    1018:	12000f28 	and	w8, w25, #0xf
+    101c:	7100051f 	cmp	w8, #0x1
+    1020:	54000161 	b.ne	104c <koblas_sparse_axpy_v1+0x80>  // b.any
+    1024:	1e604100 	fmov	d0, d8
+    1028:	aa1803e0 	mov	x0, x24
+    102c:	2a1703e1 	mov	w1, w23
+    1030:	aa1603e2 	mov	x2, x22
+    1034:	2a1503e3 	mov	w3, w21
+    1038:	2a1403e4 	mov	w4, w20
+    103c:	aa1303e5 	mov	x5, x19
+    1040:	94000000 	bl	0 <koblas_sparse_axpy_scalar>
+    1044:	2a1f03e0 	mov	w0, wzr
+    1048:	14000002 	b	1050 <koblas_sparse_axpy_v1+0x84>
+    104c:	52800120 	mov	w0, #0x9                   	// #9
+    1050:	a9444ff4 	ldp	x20, x19, [sp, #64]
+    1054:	f9400ff9 	ldr	x25, [sp, #24]
+    1058:	a94357f6 	ldp	x22, x21, [sp, #48]
+    105c:	a9425ff8 	ldp	x24, x23, [sp, #32]
+    1060:	a940fbfd 	ldp	x29, x30, [sp, #8]
+    1064:	fc4507e8 	ldr	d8, [sp], #80
+    1068:	d65f03c0 	ret
+
+000000000000106c <koblas_sparse_scatter_v1>:
+    106c:	a9bb7bfd 	stp	x29, x30, [sp, #-80]!
+    1070:	f9000bf9 	str	x25, [sp, #16]
+    1074:	a9025ff8 	stp	x24, x23, [sp, #32]
+    1078:	a90357f6 	stp	x22, x21, [sp, #48]
+    107c:	a9044ff4 	stp	x20, x19, [sp, #64]
+    1080:	910003fd 	mov	x29, sp
+    1084:	aa0103f8 	mov	x24, x1
+    1088:	52800261 	mov	w1, #0x13                  	// #19
+    108c:	aa0603f3 	mov	x19, x6
+    1090:	2a0503f4 	mov	w20, w5
+    1094:	2a0403f5 	mov	w21, w4
+    1098:	aa0303f6 	mov	x22, x3
+    109c:	2a0203f7 	mov	w23, w2
+    10a0:	2a0003f9 	mov	w25, w0
+    10a4:	94000000 	bl	0 <koblas_kernel_reason>
+    10a8:	340000e0 	cbz	w0, 10c4 <koblas_sparse_scatter_v1+0x58>
+    10ac:	a9444ff4 	ldp	x20, x19, [sp, #64]
+    10b0:	f9400bf9 	ldr	x25, [sp, #16]
+    10b4:	a94357f6 	ldp	x22, x21, [sp, #48]
+    10b8:	a9425ff8 	ldp	x24, x23, [sp, #32]
+    10bc:	a8c57bfd 	ldp	x29, x30, [sp], #80
+    10c0:	d65f03c0 	ret
+    10c4:	34000174 	cbz	w20, 10f0 <koblas_sparse_scatter_v1+0x84>
+    10c8:	12000f28 	and	w8, w25, #0xf
+    10cc:	7100051f 	cmp	w8, #0x1
+    10d0:	540001e1 	b.ne	110c <koblas_sparse_scatter_v1+0xa0>  // b.any
+    10d4:	aa1803e0 	mov	x0, x24
+    10d8:	2a1703e1 	mov	w1, w23
+    10dc:	aa1603e2 	mov	x2, x22
+    10e0:	2a1503e3 	mov	w3, w21
+    10e4:	2a1403e4 	mov	w4, w20
+    10e8:	aa1303e5 	mov	x5, x19
+    10ec:	94000000 	bl	0 <koblas_sparse_scatter_scalar>
+    10f0:	2a1f03e0 	mov	w0, wzr
+    10f4:	a9444ff4 	ldp	x20, x19, [sp, #64]
+    10f8:	f9400bf9 	ldr	x25, [sp, #16]
+    10fc:	a94357f6 	ldp	x22, x21, [sp, #48]
+    1100:	a9425ff8 	ldp	x24, x23, [sp, #32]
+    1104:	a8c57bfd 	ldp	x29, x30, [sp], #80
+    1108:	d65f03c0 	ret
+    110c:	52800120 	mov	w0, #0x9                   	// #9
+    1110:	a9444ff4 	ldp	x20, x19, [sp, #64]
+    1114:	f9400bf9 	ldr	x25, [sp, #16]
+    1118:	a94357f6 	ldp	x22, x21, [sp, #48]
+    111c:	a9425ff8 	ldp	x24, x23, [sp, #32]
+    1120:	a8c57bfd 	ldp	x29, x30, [sp], #80
+    1124:	d65f03c0 	ret
+
+0000000000001128 <koblas_sparse_nrm2_v1>:
+    1128:	a9bc7bfd 	stp	x29, x30, [sp, #-64]!
+    112c:	a9015ff8 	stp	x24, x23, [sp, #16]
+    1130:	a90257f6 	stp	x22, x21, [sp, #32]
+    1134:	a9034ff4 	stp	x20, x19, [sp, #48]
+    1138:	910003fd 	mov	x29, sp
+    113c:	aa0103f7 	mov	x23, x1
+    1140:	52800281 	mov	w1, #0x14                  	// #20
+    1144:	aa0503f3 	mov	x19, x5
+    1148:	aa0403f4 	mov	x20, x4
+    114c:	2a0303f5 	mov	w21, w3
+    1150:	2a0203f6 	mov	w22, w2
+    1154:	2a0003f8 	mov	w24, w0
+    1158:	94000000 	bl	0 <koblas_kernel_reason>
+    115c:	340000c0 	cbz	w0, 1174 <koblas_sparse_nrm2_v1+0x4c>
+    1160:	a9434ff4 	ldp	x20, x19, [sp, #48]
+    1164:	a94257f6 	ldp	x22, x21, [sp, #32]
+    1168:	a9415ff8 	ldp	x24, x23, [sp, #16]
+    116c:	a8c47bfd 	ldp	x29, x30, [sp], #64
+    1170:	d65f03c0 	ret
+    1174:	b4000173 	cbz	x19, 11a0 <koblas_sparse_nrm2_v1+0x78>
+    1178:	34000215 	cbz	w21, 11b8 <koblas_sparse_nrm2_v1+0x90>
+    117c:	12000f08 	and	w8, w24, #0xf
+    1180:	7100051f 	cmp	w8, #0x1
+    1184:	540002a1 	b.ne	11d8 <koblas_sparse_nrm2_v1+0xb0>  // b.any
+    1188:	aa1703e0 	mov	x0, x23
+    118c:	2a1603e1 	mov	w1, w22
+    1190:	2a1503e2 	mov	w2, w21
+    1194:	aa1403e3 	mov	x3, x20
+    1198:	94000000 	bl	0 <koblas_sparse_nrm2_scalar>
+    119c:	14000008 	b	11bc <koblas_sparse_nrm2_v1+0x94>
+    11a0:	52800020 	mov	w0, #0x1                   	// #1
+    11a4:	a9434ff4 	ldp	x20, x19, [sp, #48]
+    11a8:	a94257f6 	ldp	x22, x21, [sp, #32]
+    11ac:	a9415ff8 	ldp	x24, x23, [sp, #16]
+    11b0:	a8c47bfd 	ldp	x29, x30, [sp], #64
+    11b4:	d65f03c0 	ret
+    11b8:	2f00e400 	movi	d0, #0x0
+    11bc:	2a1f03e0 	mov	w0, wzr
+    11c0:	fd000260 	str	d0, [x19]
+    11c4:	a9434ff4 	ldp	x20, x19, [sp, #48]
+    11c8:	a94257f6 	ldp	x22, x21, [sp, #32]
+    11cc:	a9415ff8 	ldp	x24, x23, [sp, #16]
+    11d0:	a8c47bfd 	ldp	x29, x30, [sp], #64
+    11d4:	d65f03c0 	ret
+    11d8:	52800120 	mov	w0, #0x9                   	// #9
+    11dc:	a9434ff4 	ldp	x20, x19, [sp, #48]
+    11e0:	a94257f6 	ldp	x22, x21, [sp, #32]
+    11e4:	a9415ff8 	ldp	x24, x23, [sp, #16]
+    11e8:	a8c47bfd 	ldp	x29, x30, [sp], #64
+    11ec:	d65f03c0 	ret
+
+00000000000011f0 <koblas_sparse_gather_v1>:
+    11f0:	a9bc7bfd 	stp	x29, x30, [sp, #-64]!
+    11f4:	f9000bf7 	str	x23, [sp, #16]
+    11f8:	a90257f6 	stp	x22, x21, [sp, #32]
+    11fc:	a9034ff4 	stp	x20, x19, [sp, #48]
+    1200:	910003fd 	mov	x29, sp
+    1204:	aa0103f6 	mov	x22, x1
+    1208:	528002a1 	mov	w1, #0x15                  	// #21
+    120c:	aa0403f3 	mov	x19, x4
+    1210:	2a0303f4 	mov	w20, w3
+    1214:	aa0203f5 	mov	x21, x2
+    1218:	2a0003f7 	mov	w23, w0
+    121c:	94000000 	bl	0 <koblas_kernel_reason>
+    1220:	340000c0 	cbz	w0, 1238 <koblas_sparse_gather_v1+0x48>
+    1224:	a9434ff4 	ldp	x20, x19, [sp, #48]
+    1228:	f9400bf7 	ldr	x23, [sp, #16]
+    122c:	a94257f6 	ldp	x22, x21, [sp, #32]
+    1230:	a8c47bfd 	ldp	x29, x30, [sp], #64
+    1234:	d65f03c0 	ret
+    1238:	34000134 	cbz	w20, 125c <koblas_sparse_gather_v1+0x6c>
+    123c:	12000ee8 	and	w8, w23, #0xf
+    1240:	7100051f 	cmp	w8, #0x1
+    1244:	54000181 	b.ne	1274 <koblas_sparse_gather_v1+0x84>  // b.any
+    1248:	aa1603e0 	mov	x0, x22
+    124c:	aa1503e1 	mov	x1, x21
+    1250:	2a1403e2 	mov	w2, w20
+    1254:	aa1303e3 	mov	x3, x19
+    1258:	94000000 	bl	0 <koblas_sparse_gather_scalar>
+    125c:	2a1f03e0 	mov	w0, wzr
+    1260:	a9434ff4 	ldp	x20, x19, [sp, #48]
+    1264:	f9400bf7 	ldr	x23, [sp, #16]
+    1268:	a94257f6 	ldp	x22, x21, [sp, #32]
+    126c:	a8c47bfd 	ldp	x29, x30, [sp], #64
+    1270:	d65f03c0 	ret
+    1274:	52800120 	mov	w0, #0x9                   	// #9
+    1278:	a9434ff4 	ldp	x20, x19, [sp, #48]
+    127c:	f9400bf7 	ldr	x23, [sp, #16]
+    1280:	a94257f6 	ldp	x22, x21, [sp, #32]
+    1284:	a8c47bfd 	ldp	x29, x30, [sp], #64
+    1288:	d65f03c0 	ret
+
+000000000000128c <koblas_sparse_gather_zero_v1>:
+    128c:	a9bc7bfd 	stp	x29, x30, [sp, #-64]!
+    1290:	f9000bf7 	str	x23, [sp, #16]
+    1294:	a90257f6 	stp	x22, x21, [sp, #32]
+    1298:	a9034ff4 	stp	x20, x19, [sp, #48]
+    129c:	910003fd 	mov	x29, sp
+    12a0:	aa0103f6 	mov	x22, x1
+    12a4:	528002c1 	mov	w1, #0x16                  	// #22
+    12a8:	aa0403f3 	mov	x19, x4
+    12ac:	2a0303f4 	mov	w20, w3
+    12b0:	aa0203f5 	mov	x21, x2
+    12b4:	2a0003f7 	mov	w23, w0
+    12b8:	94000000 	bl	0 <koblas_kernel_reason>
+    12bc:	340000c0 	cbz	w0, 12d4 <koblas_sparse_gather_zero_v1+0x48>
+    12c0:	a9434ff4 	ldp	x20, x19, [sp, #48]
+    12c4:	f9400bf7 	ldr	x23, [sp, #16]
+    12c8:	a94257f6 	ldp	x22, x21, [sp, #32]
+    12cc:	a8c47bfd 	ldp	x29, x30, [sp], #64
+    12d0:	d65f03c0 	ret
+    12d4:	34000134 	cbz	w20, 12f8 <koblas_sparse_gather_zero_v1+0x6c>
+    12d8:	12000ee8 	and	w8, w23, #0xf
+    12dc:	7100051f 	cmp	w8, #0x1
+    12e0:	54000181 	b.ne	1310 <koblas_sparse_gather_zero_v1+0x84>  // b.any
+    12e4:	aa1603e0 	mov	x0, x22
+    12e8:	aa1503e1 	mov	x1, x21
+    12ec:	2a1403e2 	mov	w2, w20
+    12f0:	aa1303e3 	mov	x3, x19
+    12f4:	94000000 	bl	0 <koblas_sparse_gather_zero_scalar>
+    12f8:	2a1f03e0 	mov	w0, wzr
+    12fc:	a9434ff4 	ldp	x20, x19, [sp, #48]
+    1300:	f9400bf7 	ldr	x23, [sp, #16]
+    1304:	a94257f6 	ldp	x22, x21, [sp, #32]
+    1308:	a8c47bfd 	ldp	x29, x30, [sp], #64
+    130c:	d65f03c0 	ret
+    1310:	52800120 	mov	w0, #0x9                   	// #9
+    1314:	a9434ff4 	ldp	x20, x19, [sp, #48]
+    1318:	f9400bf7 	ldr	x23, [sp, #16]
+    131c:	a94257f6 	ldp	x22, x21, [sp, #32]
+    1320:	a8c47bfd 	ldp	x29, x30, [sp], #64
+    1324:	d65f03c0 	ret
+
+0000000000001328 <koblas_dense_trsm_tile_v1>:
+    1328:	a9bb7bfd 	stp	x29, x30, [sp, #-80]!
+    132c:	a90167fa 	stp	x26, x25, [sp, #16]
+    1330:	a9025ff8 	stp	x24, x23, [sp, #32]
+    1334:	a90357f6 	stp	x22, x21, [sp, #48]
+    1338:	a9044ff4 	stp	x20, x19, [sp, #64]
+    133c:	910003fd 	mov	x29, sp
+    1340:	2a0103f9 	mov	w25, w1
+    1344:	528002e1 	mov	w1, #0x17                  	// #23
+    1348:	aa0703f3 	mov	x19, x7
+    134c:	2a0603f4 	mov	w20, w6
+    1350:	2a0503f5 	mov	w21, w5
+    1354:	2a0403f6 	mov	w22, w4
+    1358:	aa0303f7 	mov	x23, x3
+    135c:	2a0203f8 	mov	w24, w2
+    1360:	2a0003fa 	mov	w26, w0
+    1364:	94000000 	bl	0 <koblas_kernel_reason>
+    1368:	340000e0 	cbz	w0, 1384 <koblas_dense_trsm_tile_v1+0x5c>
+    136c:	a9444ff4 	ldp	x20, x19, [sp, #64]
+    1370:	a94357f6 	ldp	x22, x21, [sp, #48]
+    1374:	a9425ff8 	ldp	x24, x23, [sp, #32]
+    1378:	a94167fa 	ldp	x26, x25, [sp, #16]
+    137c:	a8c57bfd 	ldp	x29, x30, [sp], #80
+    1380:	d65f03c0 	ret
+    1384:	34ffff59 	cbz	w25, 136c <koblas_dense_trsm_tile_v1+0x44>
+    1388:	34ffff38 	cbz	w24, 136c <koblas_dense_trsm_tile_v1+0x44>
+    138c:	12000f48 	and	w8, w26, #0xf
+    1390:	b94053a7 	ldr	w7, [x29, #80]
+    1394:	7100111f 	cmp	w8, #0x4
+    1398:	54000180 	b.eq	13c8 <koblas_dense_trsm_tile_v1+0xa0>  // b.none
+    139c:	7100051f 	cmp	w8, #0x1
+    13a0:	54000321 	b.ne	1404 <koblas_dense_trsm_tile_v1+0xdc>  // b.any
+    13a4:	2a1903e0 	mov	w0, w25
+    13a8:	2a1803e1 	mov	w1, w24
+    13ac:	aa1703e2 	mov	x2, x23
+    13b0:	2a1603e3 	mov	w3, w22
+    13b4:	2a1503e4 	mov	w4, w21
+    13b8:	2a1403e5 	mov	w5, w20
+    13bc:	aa1303e6 	mov	x6, x19
+    13c0:	94000000 	bl	0 <koblas_dense_trsm_tile_scalar>
+    13c4:	14000009 	b	13e8 <koblas_dense_trsm_tile_v1+0xc0>
+    13c8:	2a1903e0 	mov	w0, w25
+    13cc:	2a1803e1 	mov	w1, w24
+    13d0:	aa1703e2 	mov	x2, x23
+    13d4:	2a1603e3 	mov	w3, w22
+    13d8:	2a1503e4 	mov	w4, w21
+    13dc:	2a1403e5 	mov	w5, w20
+    13e0:	aa1303e6 	mov	x6, x19
+    13e4:	94000000 	bl	0 <koblas_dense_trsm_tile_neon>
+    13e8:	2a1f03e0 	mov	w0, wzr
+    13ec:	a9444ff4 	ldp	x20, x19, [sp, #64]
+    13f0:	a94357f6 	ldp	x22, x21, [sp, #48]
+    13f4:	a9425ff8 	ldp	x24, x23, [sp, #32]
+    13f8:	a94167fa 	ldp	x26, x25, [sp, #16]
+    13fc:	a8c57bfd 	ldp	x29, x30, [sp], #80
+    1400:	d65f03c0 	ret
+    1404:	52800120 	mov	w0, #0x9                   	// #9
+    1408:	a9444ff4 	ldp	x20, x19, [sp, #64]
+    140c:	a94357f6 	ldp	x22, x21, [sp, #48]
+    1410:	a9425ff8 	ldp	x24, x23, [sp, #32]
+    1414:	a94167fa 	ldp	x26, x25, [sp, #16]
+    1418:	a8c57bfd 	ldp	x29, x30, [sp], #80
+    141c:	d65f03c0 	ret
+
+0000000000001420 <koblas_dense_gemm_trsm_tile_v1>:
+    1420:	d10203ff 	sub	sp, sp, #0x80
+    1424:	a9037bfd 	stp	x29, x30, [sp, #48]
+    1428:	a90467fa 	stp	x26, x25, [sp, #64]
+    142c:	a9055ff8 	stp	x24, x23, [sp, #80]
+    1430:	a90657f6 	stp	x22, x21, [sp, #96]
+    1434:	a9074ff4 	stp	x20, x19, [sp, #112]
+    1438:	9100c3fd 	add	x29, sp, #0x30
+    143c:	2a0103f9 	mov	w25, w1
+    1440:	52800301 	mov	w1, #0x18                  	// #24
+    1444:	2a0703f3 	mov	w19, w7
+    1448:	aa0603f4 	mov	x20, x6
+    144c:	2a0503f5 	mov	w21, w5
+    1450:	aa0403f6 	mov	x22, x4
+    1454:	2a0303f7 	mov	w23, w3
+    1458:	2a0203f8 	mov	w24, w2
+    145c:	2a0003fa 	mov	w26, w0
+    1460:	94000000 	bl	0 <koblas_kernel_reason>
+    1464:	34000100 	cbz	w0, 1484 <koblas_dense_gemm_trsm_tile_v1+0x64>
+    1468:	a9474ff4 	ldp	x20, x19, [sp, #112]
+    146c:	a94657f6 	ldp	x22, x21, [sp, #96]
+    1470:	a9455ff8 	ldp	x24, x23, [sp, #80]
+    1474:	a94467fa 	ldp	x26, x25, [sp, #64]
+    1478:	a9437bfd 	ldp	x29, x30, [sp, #48]
+    147c:	910203ff 	add	sp, sp, #0x80
+    1480:	d65f03c0 	ret
+    1484:	34ffff38 	cbz	w24, 1468 <koblas_dense_gemm_trsm_tile_v1+0x48>
+    1488:	34ffff17 	cbz	w23, 1468 <koblas_dense_gemm_trsm_tile_v1+0x48>
+    148c:	b9407bac 	ldr	w12, [x29, #120]
+    1490:	f9403bab 	ldr	x11, [x29, #112]
+    1494:	12000f4d 	and	w13, w26, #0xf
+    1498:	b9406baa 	ldr	w10, [x29, #104]
+    149c:	b94063a9 	ldr	w9, [x29, #96]
+    14a0:	710011bf 	cmp	w13, #0x4
+    14a4:	b9405ba8 	ldr	w8, [x29, #88]
+    14a8:	f9402ba7 	ldr	x7, [x29, #80]
+    14ac:	54000220 	b.eq	14f0 <koblas_dense_gemm_trsm_tile_v1+0xd0>  // b.none
+    14b0:	710005bf 	cmp	w13, #0x1
+    14b4:	540003c1 	b.ne	152c <koblas_dense_gemm_trsm_tile_v1+0x10c>  // b.any
+    14b8:	2a1903e0 	mov	w0, w25
+    14bc:	2a1803e1 	mov	w1, w24
+    14c0:	2a1703e2 	mov	w2, w23
+    14c4:	aa1603e3 	mov	x3, x22
+    14c8:	2a1503e4 	mov	w4, w21
+    14cc:	aa1403e5 	mov	x5, x20
+    14d0:	2a1303e6 	mov	w6, w19
+    14d4:	b90023ec 	str	w12, [sp, #32]
+    14d8:	f9000feb 	str	x11, [sp, #24]
+    14dc:	b90013ea 	str	w10, [sp, #16]
+    14e0:	b9000be9 	str	w9, [sp, #8]
+    14e4:	b90003e8 	str	w8, [sp]
+    14e8:	94000000 	bl	0 <koblas_dense_gemm_trsm_tile_scalar>
+    14ec:	1400000e 	b	1524 <koblas_dense_gemm_trsm_tile_v1+0x104>
+    14f0:	2a1903e0 	mov	w0, w25
+    14f4:	2a1803e1 	mov	w1, w24
+    14f8:	2a1703e2 	mov	w2, w23
+    14fc:	aa1603e3 	mov	x3, x22
+    1500:	2a1503e4 	mov	w4, w21
+    1504:	aa1403e5 	mov	x5, x20
+    1508:	2a1303e6 	mov	w6, w19
+    150c:	b90023ec 	str	w12, [sp, #32]
+    1510:	f9000feb 	str	x11, [sp, #24]
+    1514:	b90013ea 	str	w10, [sp, #16]
+    1518:	b9000be9 	str	w9, [sp, #8]
+    151c:	b90003e8 	str	w8, [sp]
+    1520:	94000000 	bl	0 <koblas_dense_gemm_trsm_tile_neon>
+    1524:	2a1f03e0 	mov	w0, wzr
+    1528:	17ffffd0 	b	1468 <koblas_dense_gemm_trsm_tile_v1+0x48>
+    152c:	52800120 	mov	w0, #0x9                   	// #9
+    1530:	17ffffce 	b	1468 <koblas_dense_gemm_trsm_tile_v1+0x48>

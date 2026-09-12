@@ -1,0 +1,219 @@
+0000000000000000 <koblas_dense_dot_avx2>:
+       0:	53                   	push   %rbx
+       1:	48 63 c6             	movslq %esi,%rax
+       4:	48 63 c9             	movslq %ecx,%rcx
+       7:	41 83 f8 10          	cmp    $0x10,%r8d
+       b:	7d 0c                	jge    19 <koblas_dense_dot_avx2+0x19>
+       d:	c5 f9 57 c0          	vxorpd %xmm0,%xmm0,%xmm0
+      11:	45 31 c9             	xor    %r9d,%r9d
+      14:	e9 9a 00 00 00       	jmp    b3 <koblas_dense_dot_avx2+0xb3>
+      19:	45 8d 48 f0          	lea    -0x10(%r8),%r9d
+      1d:	44 89 ce             	mov    %r9d,%esi
+      20:	4c 8d 14 ca          	lea    (%rdx,%rcx,8),%r10
+      24:	49 83 c2 60          	add    $0x60,%r10
+      28:	4c 8d 1c c7          	lea    (%rdi,%rax,8),%r11
+      2c:	49 83 c3 60          	add    $0x60,%r11
+      30:	c5 f9 57 c0          	vxorpd %xmm0,%xmm0,%xmm0
+      34:	31 db                	xor    %ebx,%ebx
+      36:	c5 f1 57 c9          	vxorpd %xmm1,%xmm1,%xmm1
+      3a:	c5 e9 57 d2          	vxorpd %xmm2,%xmm2,%xmm2
+      3e:	c5 e1 57 db          	vxorpd %xmm3,%xmm3,%xmm3
+      42:	66 66 66 66 66 2e 0f 	data16 data16 data16 data16 cs nopw 0x0(%rax,%rax,1)
+      49:	1f 84 00 00 00 00 00
+      50:	c4 c1 7d 10 64 db a0 	vmovupd -0x60(%r11,%rbx,8),%ymm4
+      57:	c4 c1 7d 10 6c db c0 	vmovupd -0x40(%r11,%rbx,8),%ymm5
+      5e:	c4 c1 7d 10 74 db e0 	vmovupd -0x20(%r11,%rbx,8),%ymm6
+      65:	c4 c1 7d 10 3c db    	vmovupd (%r11,%rbx,8),%ymm7
+      6b:	c4 c1 5d 59 64 da a0 	vmulpd -0x60(%r10,%rbx,8),%ymm4,%ymm4
+      72:	c5 fd 58 c4          	vaddpd %ymm4,%ymm0,%ymm0
+      76:	c4 c1 55 59 64 da c0 	vmulpd -0x40(%r10,%rbx,8),%ymm5,%ymm4
+      7d:	c5 f5 58 cc          	vaddpd %ymm4,%ymm1,%ymm1
+      81:	c4 c1 4d 59 64 da e0 	vmulpd -0x20(%r10,%rbx,8),%ymm6,%ymm4
+      88:	c4 c1 45 59 2c da    	vmulpd (%r10,%rbx,8),%ymm7,%ymm5
+      8e:	c5 ed 58 d4          	vaddpd %ymm4,%ymm2,%ymm2
+      92:	c5 e5 58 dd          	vaddpd %ymm5,%ymm3,%ymm3
+      96:	48 83 c3 10          	add    $0x10,%rbx
+      9a:	48 39 f3             	cmp    %rsi,%rbx
+      9d:	76 b1                	jbe    50 <koblas_dense_dot_avx2+0x50>
+      9f:	41 83 e1 f0          	and    $0xfffffff0,%r9d
+      a3:	41 83 c1 10          	add    $0x10,%r9d
+      a7:	c5 f5 58 c0          	vaddpd %ymm0,%ymm1,%ymm0
+      ab:	c5 e5 58 ca          	vaddpd %ymm2,%ymm3,%ymm1
+      af:	c5 f5 58 c0          	vaddpd %ymm0,%ymm1,%ymm0
+      b3:	c4 e3 7d 19 c1 01    	vextractf128 $0x1,%ymm0,%xmm1
+      b9:	c5 f9 7c c1          	vhaddpd %xmm1,%xmm0,%xmm0
+      bd:	c5 f9 c6 c8 01       	vshufpd $0x1,%xmm0,%xmm0,%xmm1
+      c2:	c5 fb 58 c1          	vaddsd %xmm1,%xmm0,%xmm0
+      c6:	45 39 c1             	cmp    %r8d,%r9d
+      c9:	0f 8d b0 00 00 00    	jge    17f <koblas_dense_dot_avx2+0x17f>
+      cf:	45 89 ca             	mov    %r9d,%r10d
+      d2:	44 89 c6             	mov    %r8d,%esi
+      d5:	45 29 c8             	sub    %r9d,%r8d
+      d8:	41 83 e0 03          	and    $0x3,%r8d
+      dc:	74 35                	je     113 <koblas_dense_dot_avx2+0x113>
+      de:	4c 8d 1c c7          	lea    (%rdi,%rax,8),%r11
+      e2:	48 8d 1c ca          	lea    (%rdx,%rcx,8),%rbx
+      e6:	4d 89 d1             	mov    %r10,%r9
+      e9:	0f 1f 80 00 00 00 00 	nopl   0x0(%rax)
+      f0:	c4 81 7b 10 0c cb    	vmovsd (%r11,%r9,8),%xmm1
+      f6:	c4 a1 73 59 0c cb    	vmulsd (%rbx,%r9,8),%xmm1,%xmm1
+      fc:	c5 fb 58 c1          	vaddsd %xmm1,%xmm0,%xmm0
+     100:	49 ff c1             	inc    %r9
+     103:	49 ff c8             	dec    %r8
+     106:	75 e8                	jne    f0 <koblas_dense_dot_avx2+0xf0>
+     108:	49 29 f2             	sub    %rsi,%r10
+     10b:	49 83 fa fc          	cmp    $0xfffffffffffffffc,%r10
+     10f:	76 0e                	jbe    11f <koblas_dense_dot_avx2+0x11f>
+     111:	eb 6c                	jmp    17f <koblas_dense_dot_avx2+0x17f>
+     113:	4d 89 d1             	mov    %r10,%r9
+     116:	49 29 f2             	sub    %rsi,%r10
+     119:	49 83 fa fc          	cmp    $0xfffffffffffffffc,%r10
+     11d:	77 60                	ja     17f <koblas_dense_dot_avx2+0x17f>
+     11f:	48 8d 0c ca          	lea    (%rdx,%rcx,8),%rcx
+     123:	48 83 c1 18          	add    $0x18,%rcx
+     127:	48 8d 04 c7          	lea    (%rdi,%rax,8),%rax
+     12b:	48 83 c0 18          	add    $0x18,%rax
+     12f:	90                   	nop
+     130:	c4 a1 7b 10 4c c8 e8 	vmovsd -0x18(%rax,%r9,8),%xmm1
+     137:	c4 a1 7b 10 54 c8 f0 	vmovsd -0x10(%rax,%r9,8),%xmm2
+     13e:	c4 a1 73 59 4c c9 e8 	vmulsd -0x18(%rcx,%r9,8),%xmm1,%xmm1
+     145:	c4 a1 6b 59 54 c9 f0 	vmulsd -0x10(%rcx,%r9,8),%xmm2,%xmm2
+     14c:	c5 fb 58 c1          	vaddsd %xmm1,%xmm0,%xmm0
+     150:	c4 a1 7b 10 4c c8 f8 	vmovsd -0x8(%rax,%r9,8),%xmm1
+     157:	c4 a1 73 59 4c c9 f8 	vmulsd -0x8(%rcx,%r9,8),%xmm1,%xmm1
+     15e:	c5 fb 58 c2          	vaddsd %xmm2,%xmm0,%xmm0
+     162:	c4 a1 7b 10 14 c8    	vmovsd (%rax,%r9,8),%xmm2
+     168:	c4 a1 6b 59 14 c9    	vmulsd (%rcx,%r9,8),%xmm2,%xmm2
+     16e:	c5 fb 58 c1          	vaddsd %xmm1,%xmm0,%xmm0
+     172:	c5 fb 58 c2          	vaddsd %xmm2,%xmm0,%xmm0
+     176:	49 83 c1 04          	add    $0x4,%r9
+     17a:	4c 39 ce             	cmp    %r9,%rsi
+     17d:	75 b1                	jne    130 <koblas_dense_dot_avx2+0x130>
+     17f:	5b                   	pop    %rbx
+     180:	c5 f8 77             	vzeroupper
+     183:	c3                   	ret
+     184:	66 66 66 2e 0f 1f 84 	data16 data16 cs nopw 0x0(%rax,%rax,1)
+     18b:	00 00 00 00 00
+
+0000000000001cf0 <koblas_dense_dot_axpy_avx2>:
+    1cf0:	41 57                	push   %r15
+    1cf2:	41 56                	push   %r14
+    1cf4:	41 54                	push   %r12
+    1cf6:	53                   	push   %rbx
+    1cf7:	44 8b 54 24 28       	mov    0x28(%rsp),%r10d
+    1cfc:	48 63 c1             	movslq %ecx,%rax
+    1cff:	49 63 c9             	movslq %r9d,%rcx
+    1d02:	48 63 f6             	movslq %esi,%rsi
+    1d05:	41 83 fa 04          	cmp    $0x4,%r10d
+    1d09:	7d 0c                	jge    1d17 <koblas_dense_dot_axpy_avx2+0x27>
+    1d0b:	c5 f1 57 c9          	vxorpd %xmm1,%xmm1,%xmm1
+    1d0f:	45 31 c9             	xor    %r9d,%r9d
+    1d12:	e9 dc 00 00 00       	jmp    1df3 <koblas_dense_dot_axpy_avx2+0x103>
+    1d17:	45 8d 4a fc          	lea    -0x4(%r10),%r9d
+    1d1b:	c4 e2 7d 19 d0       	vbroadcastsd %xmm0,%ymm2
+    1d20:	45 89 cb             	mov    %r9d,%r11d
+    1d23:	41 c1 eb 02          	shr    $0x2,%r11d
+    1d27:	41 ff c3             	inc    %r11d
+    1d2a:	41 83 f9 04          	cmp    $0x4,%r9d
+    1d2e:	73 0c                	jae    1d3c <koblas_dense_dot_axpy_avx2+0x4c>
+    1d30:	c5 f1 57 c9          	vxorpd %xmm1,%xmm1,%xmm1
+    1d34:	45 31 c9             	xor    %r9d,%r9d
+    1d37:	e9 81 00 00 00       	jmp    1dbd <koblas_dense_dot_axpy_avx2+0xcd>
+    1d3c:	48 8d 1c c2          	lea    (%rdx,%rax,8),%rbx
+    1d40:	48 83 c3 20          	add    $0x20,%rbx
+    1d44:	4d 8d 34 c8          	lea    (%r8,%rcx,8),%r14
+    1d48:	49 83 c6 20          	add    $0x20,%r14
+    1d4c:	4c 8d 3c f7          	lea    (%rdi,%rsi,8),%r15
+    1d50:	49 83 c7 20          	add    $0x20,%r15
+    1d54:	4e 8d 24 9d 00 00 00 	lea    0x0(,%r11,4),%r12
+    1d5b:	00
+    1d5c:	49 83 e4 f8          	and    $0xfffffffffffffff8,%r12
+    1d60:	c5 f1 57 c9          	vxorpd %xmm1,%xmm1,%xmm1
+    1d64:	45 31 c9             	xor    %r9d,%r9d
+    1d67:	66 0f 1f 84 00 00 00 	nopw   0x0(%rax,%rax,1)
+    1d6e:	00 00
+    1d70:	c4 a1 7d 10 5c cb e0 	vmovupd -0x20(%rbx,%r9,8),%ymm3
+    1d77:	c4 81 65 59 64 ce e0 	vmulpd -0x20(%r14,%r9,8),%ymm3,%ymm4
+    1d7e:	c5 ed 59 db          	vmulpd %ymm3,%ymm2,%ymm3
+    1d82:	c4 81 65 58 5c cf e0 	vaddpd -0x20(%r15,%r9,8),%ymm3,%ymm3
+    1d89:	c4 81 7d 11 5c cf e0 	vmovupd %ymm3,-0x20(%r15,%r9,8)
+    1d90:	c4 a1 7d 10 1c cb    	vmovupd (%rbx,%r9,8),%ymm3
+    1d96:	c4 81 65 59 2c ce    	vmulpd (%r14,%r9,8),%ymm3,%ymm5
+    1d9c:	c5 f5 58 cc          	vaddpd %ymm4,%ymm1,%ymm1
+    1da0:	c5 ed 59 db          	vmulpd %ymm3,%ymm2,%ymm3
+    1da4:	c4 81 65 58 1c cf    	vaddpd (%r15,%r9,8),%ymm3,%ymm3
+    1daa:	c5 f5 58 cd          	vaddpd %ymm5,%ymm1,%ymm1
+    1dae:	c4 81 7d 11 1c cf    	vmovupd %ymm3,(%r15,%r9,8)
+    1db4:	49 83 c1 08          	add    $0x8,%r9
+    1db8:	4d 39 cc             	cmp    %r9,%r12
+    1dbb:	75 b3                	jne    1d70 <koblas_dense_dot_axpy_avx2+0x80>
+    1dbd:	41 f6 c3 01          	test   $0x1,%r11b
+    1dc1:	74 30                	je     1df3 <koblas_dense_dot_axpy_avx2+0x103>
+    1dc3:	4c 8d 1c c2          	lea    (%rdx,%rax,8),%r11
+    1dc7:	49 8d 1c c8          	lea    (%r8,%rcx,8),%rbx
+    1dcb:	4c 8d 34 f7          	lea    (%rdi,%rsi,8),%r14
+    1dcf:	c4 81 7d 10 1c cb    	vmovupd (%r11,%r9,8),%ymm3
+    1dd5:	c4 a1 65 59 24 cb    	vmulpd (%rbx,%r9,8),%ymm3,%ymm4
+    1ddb:	c5 f5 58 cc          	vaddpd %ymm4,%ymm1,%ymm1
+    1ddf:	c5 ed 59 d3          	vmulpd %ymm3,%ymm2,%ymm2
+    1de3:	c4 81 6d 58 14 ce    	vaddpd (%r14,%r9,8),%ymm2,%ymm2
+    1de9:	c4 81 7d 11 14 ce    	vmovupd %ymm2,(%r14,%r9,8)
+    1def:	49 83 c1 04          	add    $0x4,%r9
+    1df3:	c4 e3 7d 19 ca 01    	vextractf128 $0x1,%ymm1,%xmm2
+    1df9:	c5 f1 7c ca          	vhaddpd %xmm2,%xmm1,%xmm1
+    1dfd:	c5 f1 c6 d1 01       	vshufpd $0x1,%xmm1,%xmm1,%xmm2
+    1e02:	c5 f3 58 ca          	vaddsd %xmm2,%xmm1,%xmm1
+    1e06:	45 39 d1             	cmp    %r10d,%r9d
+    1e09:	0f 8d be 00 00 00    	jge    1ecd <koblas_dense_dot_axpy_avx2+0x1dd>
+    1e0f:	44 89 cb             	mov    %r9d,%ebx
+    1e12:	45 89 d3             	mov    %r10d,%r11d
+    1e15:	45 29 ca             	sub    %r9d,%r10d
+    1e18:	41 f6 c2 01          	test   $0x1,%r10b
+    1e1c:	75 11                	jne    1e2f <koblas_dense_dot_axpy_avx2+0x13f>
+    1e1e:	49 89 d9             	mov    %rbx,%r9
+    1e21:	4d 8d 53 ff          	lea    -0x1(%r11),%r10
+    1e25:	49 39 da             	cmp    %rbx,%r10
+    1e28:	75 3e                	jne    1e68 <koblas_dense_dot_axpy_avx2+0x178>
+    1e2a:	e9 9e 00 00 00       	jmp    1ecd <koblas_dense_dot_axpy_avx2+0x1dd>
+    1e2f:	4c 8d 0c c2          	lea    (%rdx,%rax,8),%r9
+    1e33:	4d 8d 14 c8          	lea    (%r8,%rcx,8),%r10
+    1e37:	4c 8d 34 f7          	lea    (%rdi,%rsi,8),%r14
+    1e3b:	c4 c1 7b 10 14 d9    	vmovsd (%r9,%rbx,8),%xmm2
+    1e41:	c4 c1 6b 59 1c da    	vmulsd (%r10,%rbx,8),%xmm2,%xmm3
+    1e47:	c5 f3 58 cb          	vaddsd %xmm3,%xmm1,%xmm1
+    1e4b:	c5 fb 59 d2          	vmulsd %xmm2,%xmm0,%xmm2
+    1e4f:	c4 c1 6b 58 14 de    	vaddsd (%r14,%rbx,8),%xmm2,%xmm2
+    1e55:	c4 c1 7b 11 14 de    	vmovsd %xmm2,(%r14,%rbx,8)
+    1e5b:	4c 8d 4b 01          	lea    0x1(%rbx),%r9
+    1e5f:	4d 8d 53 ff          	lea    -0x1(%r11),%r10
+    1e63:	49 39 da             	cmp    %rbx,%r10
+    1e66:	74 65                	je     1ecd <koblas_dense_dot_axpy_avx2+0x1dd>
+    1e68:	48 8d 34 f7          	lea    (%rdi,%rsi,8),%rsi
+    1e6c:	48 83 c6 08          	add    $0x8,%rsi
+    1e70:	49 8d 0c c8          	lea    (%r8,%rcx,8),%rcx
+    1e74:	48 83 c1 08          	add    $0x8,%rcx
+    1e78:	48 8d 04 c2          	lea    (%rdx,%rax,8),%rax
+    1e7c:	48 83 c0 08          	add    $0x8,%rax
+    1e80:	c4 a1 7b 10 54 c8 f8 	vmovsd -0x8(%rax,%r9,8),%xmm2
+    1e87:	c4 a1 6b 59 5c c9 f8 	vmulsd -0x8(%rcx,%r9,8),%xmm2,%xmm3
+    1e8e:	c5 fb 59 d2          	vmulsd %xmm2,%xmm0,%xmm2
+    1e92:	c4 a1 6b 58 54 ce f8 	vaddsd -0x8(%rsi,%r9,8),%xmm2,%xmm2
+    1e99:	c4 a1 7b 11 54 ce f8 	vmovsd %xmm2,-0x8(%rsi,%r9,8)
+    1ea0:	c4 a1 7b 10 14 c8    	vmovsd (%rax,%r9,8),%xmm2
+    1ea6:	c4 a1 6b 59 24 c9    	vmulsd (%rcx,%r9,8),%xmm2,%xmm4
+    1eac:	c5 f3 58 cb          	vaddsd %xmm3,%xmm1,%xmm1
+    1eb0:	c5 fb 59 d2          	vmulsd %xmm2,%xmm0,%xmm2
+    1eb4:	c4 a1 6b 58 14 ce    	vaddsd (%rsi,%r9,8),%xmm2,%xmm2
+    1eba:	c5 f3 58 cc          	vaddsd %xmm4,%xmm1,%xmm1
+    1ebe:	c4 a1 7b 11 14 ce    	vmovsd %xmm2,(%rsi,%r9,8)
+    1ec4:	49 83 c1 02          	add    $0x2,%r9
+    1ec8:	4d 39 cb             	cmp    %r9,%r11
+    1ecb:	75 b3                	jne    1e80 <koblas_dense_dot_axpy_avx2+0x190>
+    1ecd:	c5 f9 28 c1          	vmovapd %xmm1,%xmm0
+    1ed1:	5b                   	pop    %rbx
+    1ed2:	41 5c                	pop    %r12
+    1ed4:	41 5e                	pop    %r14
+    1ed6:	41 5f                	pop    %r15
+    1ed8:	c5 f8 77             	vzeroupper
+    1edb:	c3                   	ret
+    1edc:	0f 1f 40 00          	nopl   0x0(%rax)

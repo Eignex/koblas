@@ -1,0 +1,636 @@
+0000000000000000 <initialize_host>:
+   0:	a9be7bfd 	stp	x29, x30, [sp, #-32]!
+   4:	a9014ff4 	stp	x20, x19, [sp, #16]
+   8:	910003fd 	mov	x29, sp
+   c:	d2800028 	mov	x8, #0x1                   	// #1
+  10:	90000014 	adrp	x20, 0 <initialize_host>
+  14:	91000294 	add	x20, x20, #0x0
+  18:	f2c02008 	movk	x8, #0x100, lsl #32
+  1c:	d2800029 	mov	x9, #0x1                   	// #1
+  20:	b940428a 	ldr	w10, [x20, #64]
+  24:	f9000288 	str	x8, [x20]
+  28:	d2800048 	mov	x8, #0x2                   	// #2
+  2c:	f2c00529 	movk	x9, #0x29, lsl #32
+  30:	f2c00028 	movk	x8, #0x1, lsl #32
+  34:	52800200 	mov	w0, #0x10                  	// #16
+  38:	a9012289 	stp	x9, x8, [x20, #16]
+  3c:	321d0149 	orr	w9, w10, #0x8
+  40:	52800048 	mov	w8, #0x2                   	// #2
+  44:	b9004289 	str	w9, [x20, #64]
+  48:	b9002e88 	str	w8, [x20, #44]
+  4c:	94000000 	bl	0 <getauxval>
+  50:	aa0003f3 	mov	x19, x0
+  54:	52800340 	mov	w0, #0x1a                  	// #26
+  58:	94000000 	bl	0 <getauxval>
+  5c:	531e7669 	lsl	w9, w19, #2
+  60:	b9403a88 	ldr	w8, [x20, #56]
+  64:	53127e6a 	lsr	w10, w19, #18
+  68:	9269000c 	and	x12, x0, #0x800000
+  6c:	927f566b 	and	x11, x19, #0x7ffffe
+  70:	9267000d 	and	x13, x0, #0x2000000
+  74:	925b000e 	and	x14, x0, #0x2000000000
+  78:	121d0129 	and	w9, w9, #0x8
+  7c:	d352fd8f 	lsr	x15, x12, #18
+  80:	121c014a 	and	w10, w10, #0x10
+  84:	2a090108 	orr	w8, w8, w9
+  88:	926aad69 	and	x9, x11, #0xffffffffffc00003
+  8c:	d352fdab 	lsr	x11, x13, #18
+  90:	d35ffdd0 	lsr	x16, x14, #31
+  94:	2a0f014a 	orr	w10, w10, w15
+  98:	aa0c0129 	orr	x9, x9, x12
+  9c:	aa0e01ac 	orr	x12, x13, x14
+  a0:	2a0a0108 	orr	w8, w8, w10
+  a4:	2a10016a 	orr	w10, w11, w16
+  a8:	aa0c0129 	orr	x9, x9, x12
+  ac:	2a0a0108 	orr	w8, w8, w10
+  b0:	b4000069 	cbz	x9, bc <initialize_host+0xbc>
+  b4:	90000009 	adrp	x9, 0 <initialize_host>
+  b8:	b9000128 	str	w8, [x9]
+  bc:	90000009 	adrp	x9, 0 <initialize_host>
+  c0:	b9000128 	str	w8, [x9]
+  c4:	a9414ff4 	ldp	x20, x19, [sp, #16]
+  c8:	a8c27bfd 	ldp	x29, x30, [sp], #32
+  cc:	d65f03c0 	ret
+
+00000000000000d0 <koblas_kernel_reason>:
+  d0:	2a0003e8 	mov	w8, w0
+  d4:	6b40103f 	cmp	w1, w0, lsr #4
+  d8:	52800080 	mov	w0, #0x4                   	// #4
+  dc:	540003a1 	b.ne	150 <koblas_kernel_reason+0x80>  // b.any
+  e0:	51000429 	sub	w9, w1, #0x1
+  e4:	71005d3f 	cmp	w9, #0x17
+  e8:	54000348 	b.hi	150 <koblas_kernel_reason+0x80>  // b.pmore
+  ec:	12000d08 	and	w8, w8, #0xf
+  f0:	7100051f 	cmp	w8, #0x1
+  f4:	54000080 	b.eq	104 <koblas_kernel_reason+0x34>  // b.none
+  f8:	51004029 	sub	w9, w1, #0x10
+  fc:	71001d3f 	cmp	w9, #0x7
+ 100:	540000e3 	b.cc	11c <koblas_kernel_reason+0x4c>  // b.lo, b.ul, b.last
+ 104:	7100051f 	cmp	w8, #0x1
+ 108:	540000e0 	b.eq	124 <koblas_kernel_reason+0x54>  // b.none
+ 10c:	7100111f 	cmp	w8, #0x4
+ 110:	54000061 	b.ne	11c <koblas_kernel_reason+0x4c>  // b.any
+ 114:	52800108 	mov	w8, #0x8                   	// #8
+ 118:	14000004 	b	128 <koblas_kernel_reason+0x58>
+ 11c:	52800120 	mov	w0, #0x9                   	// #9
+ 120:	d65f03c0 	ret
+ 124:	2a1f03e8 	mov	w8, wzr
+ 128:	90000009 	adrp	x9, 0 <initialize_host>
+ 12c:	91000129 	add	x9, x9, #0x0
+ 130:	b940092a 	ldr	w10, [x9, #8]
+ 134:	b9400129 	ldr	w9, [x9]
+ 138:	6a2a011f 	bics	wzr, w8, w10
+ 13c:	528000ca 	mov	w10, #0x6                   	// #6
+ 140:	1a8a03ea 	csel	w10, wzr, w10, eq  // eq = none
+ 144:	6a29011f 	bics	wzr, w8, w9
+ 148:	528000a8 	mov	w8, #0x5                   	// #5
+ 14c:	1a880140 	csel	w0, w10, w8, eq  // eq = none
+ 150:	d65f03c0 	ret
+
+0000000000000154 <koblas_probe_v1>:
+ 154:	aa0003e8 	mov	x8, x0
+ 158:	52800020 	mov	w0, #0x1                   	// #1
+ 15c:	b4000168 	cbz	x8, 188 <koblas_probe_v1+0x34>
+ 160:	b4000141 	cbz	x1, 188 <koblas_probe_v1+0x34>
+ 164:	b9400029 	ldr	w9, [x1]
+ 168:	7100053f 	cmp	w9, #0x1
+ 16c:	540000c1 	b.ne	184 <koblas_probe_v1+0x30>  // b.any
+ 170:	b9400429 	ldr	w9, [x1, #4]
+ 174:	7104013f 	cmp	w9, #0x100
+ 178:	540000a2 	b.cs	18c <koblas_probe_v1+0x38>  // b.hs, b.nlast
+ 17c:	52800060 	mov	w0, #0x3                   	// #3
+ 180:	d65f03c0 	ret
+ 184:	52800040 	mov	w0, #0x2                   	// #2
+ 188:	d65f03c0 	ret
+ 18c:	d105c3ff 	sub	sp, sp, #0x170
+ 190:	a9117bfd 	stp	x29, x30, [sp, #272]
+ 194:	a9126ffc 	stp	x28, x27, [sp, #288]
+ 198:	a91367fa 	stp	x26, x25, [sp, #304]
+ 19c:	a9145ff8 	stp	x24, x23, [sp, #320]
+ 1a0:	a91557f6 	stp	x22, x21, [sp, #336]
+ 1a4:	a9164ff4 	stp	x20, x19, [sp, #352]
+ 1a8:	910443fd 	add	x29, sp, #0x110
+ 1ac:	b9400109 	ldr	w9, [x8]
+ 1b0:	7100053f 	cmp	w9, #0x1
+ 1b4:	540000c1 	b.ne	1cc <koblas_probe_v1+0x78>  // b.any
+ 1b8:	b9400509 	ldr	w9, [x8, #4]
+ 1bc:	7100813f 	cmp	w9, #0x20
+ 1c0:	540000a2 	b.cs	1d4 <koblas_probe_v1+0x80>  // b.hs, b.nlast
+ 1c4:	52800060 	mov	w0, #0x3                   	// #3
+ 1c8:	140000d3 	b	514 <koblas_probe_v1+0x3c0>
+ 1cc:	52800040 	mov	w0, #0x2                   	// #2
+ 1d0:	140000d1 	b	514 <koblas_probe_v1+0x3c0>
+ 1d4:	d1005129 	sub	x9, x9, #0x14
+ 1d8:	9100510a 	add	x10, x8, #0x14
+ 1dc:	3840154b 	ldrb	w11, [x10], #1
+ 1e0:	3500198b 	cbnz	w11, 510 <koblas_probe_v1+0x3bc>
+ 1e4:	f1000529 	subs	x9, x9, #0x1
+ 1e8:	54ffffa1 	b.ne	1dc <koblas_probe_v1+0x88>  // b.any
+ 1ec:	90000009 	adrp	x9, 0 <initialize_host>
+ 1f0:	91000129 	add	x9, x9, #0x0
+ 1f4:	b9400918 	ldr	w24, [x8, #8]
+ 1f8:	f940212a 	ldr	x10, [x9, #64]
+ 1fc:	ad408520 	ldp	q0, q1, [x9, #16]
+ 200:	294c2d20 	ldp	w0, w11, [x9, #96]
+ 204:	f81f03aa 	stur	x10, [x29, #-16]
+ 208:	b940692a 	ldr	w10, [x9, #104]
+ 20c:	71000f1f 	cmp	w24, #0x3
+ 210:	ad3e07a0 	stp	q0, q1, [x29, #-64]
+ 214:	3dc00d20 	ldr	q0, [x9, #48]
+ 218:	f9400136 	ldr	x22, [x9]
+ 21c:	290eafea 	stp	w10, w11, [sp, #116]
+ 220:	3ccec121 	ldur	q1, [x9, #236]
+ 224:	294de92b 	ldp	w11, w26, [x9, #108]
+ 228:	294ea931 	ldp	w17, w10, [x9, #116]
+ 22c:	3c9e03a0 	stur	q0, [x29, #-32]
+ 230:	3ccbc120 	ldur	q0, [x9, #188]
+ 234:	29490930 	ldp	w16, w2, [x9, #72]
+ 238:	290dafea 	stp	w10, w11, [sp, #108]
+ 23c:	2951a937 	ldp	w23, w10, [x9, #140]
+ 240:	294a392d 	ldp	w13, w14, [x9, #80]
+ 244:	294b6d2f 	ldp	w15, w27, [x9, #88]
+ 248:	b9007fea 	str	w10, [sp, #124]
+ 24c:	2952a92b 	ldp	w11, w10, [x9, #148]
+ 250:	294f9532 	ldp	w18, w5, [x9, #124]
+ 254:	29508d24 	ldp	w4, w3, [x9, #132]
+ 258:	290cafea 	stp	w10, w11, [sp, #100]
+ 25c:	b940fd2b 	ldr	w11, [x9, #252]
+ 260:	2959e52a 	ldp	w10, w25, [x9, #204]
+ 264:	29539d3e 	ldp	w30, w7, [x9, #156]
+ 268:	2954cd26 	ldp	w6, w19, [x9, #164]
+ 26c:	2955d52c 	ldp	w12, w21, [x9, #172]
+ 270:	b81b03aa 	stur	w10, [x29, #-80]
+ 274:	b900a3eb 	str	w11, [sp, #160]
+ 278:	2956a92b 	ldp	w11, w10, [x9, #180]
+ 27c:	295af134 	ldp	w20, w28, [x9, #212]
+ 280:	3c9a03a0 	stur	q0, [x29, #-96]
+ 284:	3ccdc120 	ldur	q0, [x9, #220]
+ 288:	ad0407e0 	stp	q0, q1, [sp, #128]
+ 28c:	540000a0 	b.eq	2a0 <koblas_probe_v1+0x14c>  // b.none
+ 290:	71000b1f 	cmp	w24, #0x2
+ 294:	540015a0 	b.eq	548 <koblas_probe_v1+0x3f4>  // b.none
+ 298:	7100071f 	cmp	w24, #0x1
+ 29c:	54001641 	b.ne	564 <koblas_probe_v1+0x410>  // b.any
+ 2a0:	b9400d09 	ldr	w9, [x8, #12]
+ 2a4:	35000069 	cbnz	w9, 2b0 <koblas_probe_v1+0x15c>
+ 2a8:	b9401109 	ldr	w9, [x8, #16]
+ 2ac:	34001749 	cbz	w9, 594 <koblas_probe_v1+0x440>
+ 2b0:	2a1f03e9 	mov	w9, wzr
+ 2b4:	71000f1f 	cmp	w24, #0x3
+ 2b8:	54000d41 	b.ne	460 <koblas_probe_v1+0x30c>  // b.any
+ 2bc:	29012be9 	stp	w9, w10, [sp, #8]
+ 2c0:	90000009 	adrp	x9, 0 <initialize_host>
+ 2c4:	b9400129 	ldr	w9, [x9]
+ 2c8:	290233e0 	stp	w0, w12, [sp, #16]
+ 2cc:	b90057f8 	str	w24, [sp, #84]
+ 2d0:	a9045be8 	stp	x8, x22, [sp, #64]
+ 2d4:	b90063f4 	str	w20, [sp, #96]
+ 2d8:	f9002fe1 	str	x1, [sp, #88]
+ 2dc:	290657e2 	stp	w2, w21, [sp, #48]
+ 2e0:	29056be3 	stp	w3, w26, [sp, #40]
+ 2e4:	29046fe4 	stp	w4, w27, [sp, #32]
+ 2e8:	29034ff7 	stp	w23, w19, [sp, #24]
+ 2ec:	362005c9 	tbz	w9, #4, 3a4 <koblas_probe_v1+0x250>
+ 2f0:	52800660 	mov	w0, #0x33                  	// #51
+ 2f4:	2a1f03e1 	mov	w1, wzr
+ 2f8:	2a1f03e2 	mov	w2, wzr
+ 2fc:	2a1f03e3 	mov	w3, wzr
+ 300:	2a1f03e4 	mov	w4, wzr
+ 304:	290773f9 	stp	w25, w28, [sp, #56]
+ 308:	2a0d03f8 	mov	w24, w13
+ 30c:	2a0e03f6 	mov	w22, w14
+ 310:	2a0f03f7 	mov	w23, w15
+ 314:	2a1003fc 	mov	w28, w16
+ 318:	2a1103f4 	mov	w20, w17
+ 31c:	2a1203f5 	mov	w21, w18
+ 320:	2a0503f9 	mov	w25, w5
+ 324:	2a0603fa 	mov	w26, w6
+ 328:	2a0703f3 	mov	w19, w7
+ 32c:	2a1e03fb 	mov	w27, w30
+ 330:	b90007eb 	str	w11, [sp, #4]
+ 334:	94000000 	bl	0 <prctl>
+ 338:	2a1903e5 	mov	w5, w25
+ 33c:	2a1503f2 	mov	w18, w21
+ 340:	2a1c03f0 	mov	w16, w28
+ 344:	2946e7f5 	ldp	w21, w25, [sp, #52]
+ 348:	b9403ffc 	ldr	w28, [sp, #60]
+ 34c:	2a1b03fe 	mov	w30, w27
+ 350:	2a1303e7 	mov	w7, w19
+ 354:	294393f3 	ldp	w19, w4, [sp, #28]
+ 358:	2a1a03e6 	mov	w6, w26
+ 35c:	2a1703ef 	mov	w15, w23
+ 360:	2a1603ee 	mov	w14, w22
+ 364:	29448ffb 	ldp	w27, w3, [sp, #36]
+ 368:	29458bfa 	ldp	w26, w2, [sp, #44]
+ 36c:	2942dfec 	ldp	w12, w23, [sp, #20]
+ 370:	a9445be8 	ldp	x8, x22, [sp, #64]
+ 374:	90000009 	adrp	x9, 0 <initialize_host>
+ 378:	2a2003ea 	mvn	w10, w0
+ 37c:	12003c0b 	and	w11, w0, #0xffff
+ 380:	3100041f 	cmn	w0, #0x1
+ 384:	2a1403f1 	mov	w17, w20
+ 388:	f9402fe1 	ldr	x1, [sp, #88]
+ 38c:	b94063f4 	ldr	w20, [sp, #96]
+ 390:	b9400129 	ldr	w9, [x9]
+ 394:	2a4a7f9c 	orr	w28, w28, w10, lsr #31
+ 398:	1a99c179 	csel	w25, w11, w25, gt
+ 39c:	b94007eb 	ldr	w11, [sp, #4]
+ 3a0:	2a1803ed 	mov	w13, w24
+ 3a4:	36280589 	tbz	w9, #5, 454 <koblas_probe_v1+0x300>
+ 3a8:	52800800 	mov	w0, #0x40                  	// #64
+ 3ac:	2a1f03e1 	mov	w1, wzr
+ 3b0:	2a1f03e2 	mov	w2, wzr
+ 3b4:	2a1f03e3 	mov	w3, wzr
+ 3b8:	2a1f03e4 	mov	w4, wzr
+ 3bc:	290773f9 	stp	w25, w28, [sp, #56]
+ 3c0:	2a0d03fb 	mov	w27, w13
+ 3c4:	2a0e03f7 	mov	w23, w14
+ 3c8:	2a0f03fc 	mov	w28, w15
+ 3cc:	2a1003f4 	mov	w20, w16
+ 3d0:	2a1103f8 	mov	w24, w17
+ 3d4:	2a1203f9 	mov	w25, w18
+ 3d8:	b90007e5 	str	w5, [sp, #4]
+ 3dc:	2a0603f3 	mov	w19, w6
+ 3e0:	2a0703f5 	mov	w21, w7
+ 3e4:	2a1e03fa 	mov	w26, w30
+ 3e8:	2a0b03f6 	mov	w22, w11
+ 3ec:	94000000 	bl	0 <prctl>
+ 3f0:	2a1c03ef 	mov	w15, w28
+ 3f4:	b9403ffc 	ldr	w28, [sp, #60]
+ 3f8:	2a1603eb 	mov	w11, w22
+ 3fc:	2a1a03fe 	mov	w30, w26
+ 400:	2a1503e7 	mov	w7, w21
+ 404:	2a1303e6 	mov	w6, w19
+ 408:	294393f3 	ldp	w19, w4, [sp, #28]
+ 40c:	29458bfa 	ldp	w26, w2, [sp, #44]
+ 410:	2a1903f2 	mov	w18, w25
+ 414:	2a1403f0 	mov	w16, w20
+ 418:	2a1703ee 	mov	w14, w23
+ 41c:	2942dfec 	ldp	w12, w23, [sp, #20]
+ 420:	2a1b03ed 	mov	w13, w27
+ 424:	a9445be8 	ldp	x8, x22, [sp, #64]
+ 428:	29448ffb 	ldp	w27, w3, [sp, #36]
+ 42c:	2946e7f5 	ldp	w21, w25, [sp, #52]
+ 430:	b94063f4 	ldr	w20, [sp, #96]
+ 434:	b94007e5 	ldr	w5, [sp, #4]
+ 438:	f9402fe1 	ldr	x1, [sp, #88]
+ 43c:	321f0389 	orr	w9, w28, #0x2
+ 440:	12003c0a 	and	w10, w0, #0xffff
+ 444:	3100041f 	cmn	w0, #0x1
+ 448:	2a1803f1 	mov	w17, w24
+ 44c:	1a94c154 	csel	w20, w10, w20, gt
+ 450:	1a9cc13c 	csel	w28, w9, w28, gt
+ 454:	294183ea 	ldp	w10, w0, [sp, #12]
+ 458:	b94057f8 	ldr	w24, [sp, #84]
+ 45c:	b9400be9 	ldr	w9, [sp, #8]
+ 460:	36000809 	tbz	w9, #0, 560 <koblas_probe_v1+0x40c>
+ 464:	2a0a03e9 	mov	w9, w10
+ 468:	2a0003ea 	mov	w10, w0
+ 46c:	f85f03a8 	ldur	x8, [x29, #-16]
+ 470:	ad7e07a0 	ldp	q0, q1, [x29, #-64]
+ 474:	3cde03a2 	ldur	q2, [x29, #-32]
+ 478:	2a1f03e0 	mov	w0, wzr
+ 47c:	f9000036 	str	x22, [x1]
+ 480:	f9002028 	str	x8, [x1, #64]
+ 484:	b9407be8 	ldr	w8, [sp, #120]
+ 488:	ad008420 	stp	q0, q1, [x1, #16]
+ 48c:	3cda03a0 	ldur	q0, [x29, #-96]
+ 490:	290c202a 	stp	w10, w8, [x1, #96]
+ 494:	294e2be8 	ldp	w8, w10, [sp, #112]
+ 498:	3c8bc020 	stur	q0, [x1, #188]
+ 49c:	ad4407e0 	ldp	q0, q1, [sp, #128]
+ 4a0:	29017c38 	stp	w24, wzr, [x1, #8]
+ 4a4:	290d202a 	stp	w10, w8, [x1, #104]
+ 4a8:	b9406fe8 	ldr	w8, [sp, #108]
+ 4ac:	b9407fea 	ldr	w10, [sp, #124]
+ 4b0:	29090830 	stp	w16, w2, [x1, #72]
+ 4b4:	290f4828 	stp	w8, w18, [x1, #120]
+ 4b8:	b9406be8 	ldr	w8, [sp, #104]
+ 4bc:	3d800c22 	str	q2, [x1, #48]
+ 4c0:	2912202a 	stp	w10, w8, [x1, #144]
+ 4c4:	b94067e8 	ldr	w8, [sp, #100]
+ 4c8:	3c8ec021 	stur	q1, [x1, #236]
+ 4cc:	29137828 	stp	w8, w30, [x1, #152]
+ 4d0:	b85b03a8 	ldur	w8, [x29, #-80]
+ 4d4:	290a382d 	stp	w13, w14, [x1, #80]
+ 4d8:	2919e428 	stp	w8, w25, [x1, #204]
+ 4dc:	b940a3e8 	ldr	w8, [sp, #160]
+ 4e0:	290b6c2f 	stp	w15, w27, [x1, #88]
+ 4e4:	290e443a 	stp	w26, w17, [x1, #112]
+ 4e8:	29101025 	stp	w5, w4, [x1, #128]
+ 4ec:	29115c23 	stp	w3, w23, [x1, #136]
+ 4f0:	29141827 	stp	w7, w6, [x1, #160]
+ 4f4:	29153033 	stp	w19, w12, [x1, #168]
+ 4f8:	29162c35 	stp	w21, w11, [x1, #176]
+ 4fc:	b900b829 	str	w9, [x1, #184]
+ 500:	291af034 	stp	w20, w28, [x1, #212]
+ 504:	b900fc28 	str	w8, [x1, #252]
+ 508:	3c8dc020 	stur	q0, [x1, #220]
+ 50c:	14000007 	b	528 <koblas_probe_v1+0x3d4>
+ 510:	52800020 	mov	w0, #0x1                   	// #1
+ 514:	d2800028 	mov	x8, #0x1                   	// #1
+ 518:	b900083f 	str	wzr, [x1, #8]
+ 51c:	f2c02008 	movk	x8, #0x100, lsl #32
+ 520:	f9000028 	str	x8, [x1]
+ 524:	b9000c20 	str	w0, [x1, #12]
+ 528:	a9564ff4 	ldp	x20, x19, [sp, #352]
+ 52c:	a95557f6 	ldp	x22, x21, [sp, #336]
+ 530:	a9545ff8 	ldp	x24, x23, [sp, #320]
+ 534:	a95367fa 	ldp	x26, x25, [sp, #304]
+ 538:	a9526ffc 	ldp	x28, x27, [sp, #288]
+ 53c:	a9517bfd 	ldp	x29, x30, [sp, #272]
+ 540:	9105c3ff 	add	sp, sp, #0x170
+ 544:	d65f03c0 	ret
+ 548:	29418108 	ldp	w8, w0, [x8, #12]
+ 54c:	34000140 	cbz	w0, 574 <koblas_probe_v1+0x420>
+ 550:	34000fa8 	cbz	w8, 744 <koblas_probe_v1+0x5f0>
+ 554:	52800020 	mov	w0, #0x1                   	// #1
+ 558:	52800058 	mov	w24, #0x2                   	// #2
+ 55c:	14000003 	b	568 <koblas_probe_v1+0x414>
+ 560:	b9400918 	ldr	w24, [x8, #8]
+ 564:	52800020 	mov	w0, #0x1                   	// #1
+ 568:	d2800028 	mov	x8, #0x1                   	// #1
+ 56c:	b9000838 	str	w24, [x1, #8]
+ 570:	17ffffeb 	b	51c <koblas_probe_v1+0x3c8>
+ 574:	90000009 	adrp	x9, 0 <initialize_host>
+ 578:	b9400129 	ldr	w9, [x9]
+ 57c:	6b09011f 	cmp	w8, w9
+ 580:	54000e82 	b.cs	750 <koblas_probe_v1+0x5fc>  // b.hs, b.nlast
+ 584:	7100090a 	subs	w10, w8, #0x2
+ 588:	540000e2 	b.cs	5a4 <koblas_probe_v1+0x450>  // b.hs, b.nlast
+ 58c:	52800209 	mov	w9, #0x10                  	// #16
+ 590:	14000069 	b	734 <koblas_probe_v1+0x5e0>
+ 594:	52800029 	mov	w9, #0x1                   	// #1
+ 598:	71000f1f 	cmp	w24, #0x3
+ 59c:	54ffe900 	b.eq	2bc <koblas_probe_v1+0x168>  // b.none
+ 5a0:	17ffffb0 	b	460 <koblas_probe_v1+0x30c>
+ 5a4:	7100095f 	cmp	w10, #0x2
+ 5a8:	54000082 	b.cs	5b8 <koblas_probe_v1+0x464>  // b.hs, b.nlast
+ 5ac:	52800409 	mov	w9, #0x20                  	// #32
+ 5b0:	2a0a03e8 	mov	w8, w10
+ 5b4:	14000060 	b	734 <koblas_probe_v1+0x5e0>
+ 5b8:	5100110a 	sub	w10, w8, #0x4
+ 5bc:	7100095f 	cmp	w10, #0x2
+ 5c0:	54000082 	b.cs	5d0 <koblas_probe_v1+0x47c>  // b.hs, b.nlast
+ 5c4:	52800609 	mov	w9, #0x30                  	// #48
+ 5c8:	2a0a03e8 	mov	w8, w10
+ 5cc:	1400005a 	b	734 <koblas_probe_v1+0x5e0>
+ 5d0:	5100190a 	sub	w10, w8, #0x6
+ 5d4:	7100095f 	cmp	w10, #0x2
+ 5d8:	54000082 	b.cs	5e8 <koblas_probe_v1+0x494>  // b.hs, b.nlast
+ 5dc:	52800809 	mov	w9, #0x40                  	// #64
+ 5e0:	2a0a03e8 	mov	w8, w10
+ 5e4:	14000054 	b	734 <koblas_probe_v1+0x5e0>
+ 5e8:	5100210a 	sub	w10, w8, #0x8
+ 5ec:	7100095f 	cmp	w10, #0x2
+ 5f0:	54000082 	b.cs	600 <koblas_probe_v1+0x4ac>  // b.hs, b.nlast
+ 5f4:	52800a09 	mov	w9, #0x50                  	// #80
+ 5f8:	2a0a03e8 	mov	w8, w10
+ 5fc:	1400004e 	b	734 <koblas_probe_v1+0x5e0>
+ 600:	5100290a 	sub	w10, w8, #0xa
+ 604:	7100095f 	cmp	w10, #0x2
+ 608:	54000082 	b.cs	618 <koblas_probe_v1+0x4c4>  // b.hs, b.nlast
+ 60c:	52800c09 	mov	w9, #0x60                  	// #96
+ 610:	2a0a03e8 	mov	w8, w10
+ 614:	14000048 	b	734 <koblas_probe_v1+0x5e0>
+ 618:	5100310a 	sub	w10, w8, #0xc
+ 61c:	7100095f 	cmp	w10, #0x2
+ 620:	54000082 	b.cs	630 <koblas_probe_v1+0x4dc>  // b.hs, b.nlast
+ 624:	52800e09 	mov	w9, #0x70                  	// #112
+ 628:	2a0a03e8 	mov	w8, w10
+ 62c:	14000042 	b	734 <koblas_probe_v1+0x5e0>
+ 630:	5100390a 	sub	w10, w8, #0xe
+ 634:	7100095f 	cmp	w10, #0x2
+ 638:	54000082 	b.cs	648 <koblas_probe_v1+0x4f4>  // b.hs, b.nlast
+ 63c:	52801009 	mov	w9, #0x80                  	// #128
+ 640:	2a0a03e8 	mov	w8, w10
+ 644:	1400003c 	b	734 <koblas_probe_v1+0x5e0>
+ 648:	5100410a 	sub	w10, w8, #0x10
+ 64c:	7100095f 	cmp	w10, #0x2
+ 650:	54000082 	b.cs	660 <koblas_probe_v1+0x50c>  // b.hs, b.nlast
+ 654:	52801209 	mov	w9, #0x90                  	// #144
+ 658:	2a0a03e8 	mov	w8, w10
+ 65c:	14000036 	b	734 <koblas_probe_v1+0x5e0>
+ 660:	5100490a 	sub	w10, w8, #0x12
+ 664:	7100095f 	cmp	w10, #0x2
+ 668:	54000082 	b.cs	678 <koblas_probe_v1+0x524>  // b.hs, b.nlast
+ 66c:	52801409 	mov	w9, #0xa0                  	// #160
+ 670:	2a0a03e8 	mov	w8, w10
+ 674:	14000030 	b	734 <koblas_probe_v1+0x5e0>
+ 678:	5100510a 	sub	w10, w8, #0x14
+ 67c:	7100095f 	cmp	w10, #0x2
+ 680:	54000082 	b.cs	690 <koblas_probe_v1+0x53c>  // b.hs, b.nlast
+ 684:	52801609 	mov	w9, #0xb0                  	// #176
+ 688:	2a0a03e8 	mov	w8, w10
+ 68c:	1400002a 	b	734 <koblas_probe_v1+0x5e0>
+ 690:	5100590a 	sub	w10, w8, #0x16
+ 694:	7100095f 	cmp	w10, #0x2
+ 698:	54000082 	b.cs	6a8 <koblas_probe_v1+0x554>  // b.hs, b.nlast
+ 69c:	52801809 	mov	w9, #0xc0                  	// #192
+ 6a0:	2a0a03e8 	mov	w8, w10
+ 6a4:	14000024 	b	734 <koblas_probe_v1+0x5e0>
+ 6a8:	5100610a 	sub	w10, w8, #0x18
+ 6ac:	7100095f 	cmp	w10, #0x2
+ 6b0:	54000082 	b.cs	6c0 <koblas_probe_v1+0x56c>  // b.hs, b.nlast
+ 6b4:	52801a09 	mov	w9, #0xd0                  	// #208
+ 6b8:	2a0a03e8 	mov	w8, w10
+ 6bc:	1400001e 	b	734 <koblas_probe_v1+0x5e0>
+ 6c0:	5100690a 	sub	w10, w8, #0x1a
+ 6c4:	7100095f 	cmp	w10, #0x2
+ 6c8:	54000082 	b.cs	6d8 <koblas_probe_v1+0x584>  // b.hs, b.nlast
+ 6cc:	52801c09 	mov	w9, #0xe0                  	// #224
+ 6d0:	2a0a03e8 	mov	w8, w10
+ 6d4:	14000018 	b	734 <koblas_probe_v1+0x5e0>
+ 6d8:	5100710a 	sub	w10, w8, #0x1c
+ 6dc:	7100095f 	cmp	w10, #0x2
+ 6e0:	54000082 	b.cs	6f0 <koblas_probe_v1+0x59c>  // b.hs, b.nlast
+ 6e4:	52801e09 	mov	w9, #0xf0                  	// #240
+ 6e8:	2a0a03e8 	mov	w8, w10
+ 6ec:	14000012 	b	734 <koblas_probe_v1+0x5e0>
+ 6f0:	51007909 	sub	w9, w8, #0x1e
+ 6f4:	71001d3f 	cmp	w9, #0x7
+ 6f8:	540000a2 	b.cs	70c <koblas_probe_v1+0x5b8>  // b.hs, b.nlast
+ 6fc:	531c6d29 	lsl	w9, w9, #4
+ 700:	2a1f03e8 	mov	w8, wzr
+ 704:	32180129 	orr	w9, w9, #0x100
+ 708:	1400000b 	b	734 <koblas_probe_v1+0x5e0>
+ 70c:	5100950a 	sub	w10, w8, #0x25
+ 710:	7100095f 	cmp	w10, #0x2
+ 714:	54000082 	b.cs	724 <koblas_probe_v1+0x5d0>  // b.hs, b.nlast
+ 718:	52802e09 	mov	w9, #0x170                 	// #368
+ 71c:	2a0a03e8 	mov	w8, w10
+ 720:	14000005 	b	734 <koblas_probe_v1+0x5e0>
+ 724:	51009d08 	sub	w8, w8, #0x27
+ 728:	7100091f 	cmp	w8, #0x2
+ 72c:	54000122 	b.cs	750 <koblas_probe_v1+0x5fc>  // b.hs, b.nlast
+ 730:	52803009 	mov	w9, #0x180                 	// #384
+ 734:	9000000a 	adrp	x10, 0 <initialize_host>
+ 738:	9100014a 	add	x10, x10, #0x0
+ 73c:	b8685948 	ldr	w8, [x10, w8, uxtw #2]
+ 740:	0b090100 	add	w0, w8, w9
+ 744:	51064008 	sub	w8, w0, #0x190
+ 748:	3106011f 	cmn	w8, #0x180
+ 74c:	54000082 	b.cs	75c <koblas_probe_v1+0x608>  // b.hs, b.nlast
+ 750:	52800080 	mov	w0, #0x4                   	// #4
+ 754:	52800058 	mov	w24, #0x2                   	// #2
+ 758:	17ffff84 	b	568 <koblas_probe_v1+0x414>
+ 75c:	f9002fe1 	str	x1, [sp, #88]
+ 760:	53047c01 	lsr	w1, w0, #4
+ 764:	52800289 	mov	w9, #0x14                  	// #20
+ 768:	2a1b03f7 	mov	w23, w27
+ 76c:	b90063f4 	str	w20, [sp, #96]
+ 770:	9000000a 	adrp	x10, 0 <initialize_host>
+ 774:	9100014a 	add	x10, x10, #0x0
+ 778:	51000428 	sub	w8, w1, #0x1
+ 77c:	12000c1b 	and	w27, w0, #0xf
+ 780:	9ba92914 	umaddl	x20, w8, w9, x10
+ 784:	b90057e0 	str	w0, [sp, #84]
+ 788:	2a0103f3 	mov	w19, w1
+ 78c:	94000000 	bl	d0 <koblas_kernel_reason>
+ 790:	51000768 	sub	w8, w27, #0x1
+ 794:	2a1b03ed 	mov	w13, w27
+ 798:	2a0003ee 	mov	w14, w0
+ 79c:	71000d1f 	cmp	w8, #0x3
+ 7a0:	540000a8 	b.hi	7b4 <koblas_probe_v1+0x660>  // b.pmore
+ 7a4:	90000009 	adrp	x9, 0 <initialize_host>
+ 7a8:	91000129 	add	x9, x9, #0x0
+ 7ac:	b868592f 	ldr	w15, [x9, w8, uxtw #2]
+ 7b0:	14000002 	b	7b8 <koblas_probe_v1+0x664>
+ 7b4:	1280000f 	mov	w15, #0xffffffff            	// #-1
+ 7b8:	71000dbf 	cmp	w13, #0x3
+ 7bc:	52801008 	mov	w8, #0x80                  	// #128
+ 7c0:	52802009 	mov	w9, #0x100                 	// #256
+ 7c4:	1a88012c 	csel	w12, w9, w8, eq  // eq = none
+ 7c8:	710005bf 	cmp	w13, #0x1
+ 7cc:	f9402fe1 	ldr	x1, [sp, #88]
+ 7d0:	2940aa89 	ldp	w9, w10, [x20, #4]
+ 7d4:	2941a28b 	ldp	w11, w8, [x20, #12]
+ 7d8:	b94057f0 	ldr	w16, [sp, #84]
+ 7dc:	2a1703fb 	mov	w27, w23
+ 7e0:	1a9f07f1 	cset	w17, ne  // ne = any
+ 7e4:	1a9f1192 	csel	w18, w12, wzr, ne  // ne = any
+ 7e8:	2a1303e2 	mov	w2, w19
+ 7ec:	540002c0 	b.eq	844 <koblas_probe_v1+0x6f0>  // b.none
+ 7f0:	7100145f 	cmp	w2, #0x5
+ 7f4:	b94063f4 	ldr	w20, [sp, #96]
+ 7f8:	1a9f1563 	csinc	w3, w11, wzr, ne  // ne = any
+ 7fc:	1a9f1544 	csinc	w4, w10, wzr, ne  // ne = any
+ 800:	1a9f1525 	csinc	w5, w9, wzr, ne  // ne = any
+ 804:	340004c8 	cbz	w8, 89c <koblas_probe_v1+0x748>
+ 808:	71005c5f 	cmp	w2, #0x17
+ 80c:	52800049 	mov	w9, #0x2                   	// #2
+ 810:	5280008c 	mov	w12, #0x4                   	// #4
+ 814:	320083e6 	mov	w6, #0x10001               	// #65537
+ 818:	1a89018a 	csel	w10, w12, w9, eq  // eq = none
+ 81c:	1a891529 	cinc	w9, w9, eq  // eq = none
+ 820:	1a8603e7 	csel	w7, wzr, w6, eq  // eq = none
+ 824:	7100605f 	cmp	w2, #0x18
+ 828:	528000cb 	mov	w11, #0x6                   	// #6
+ 82c:	1a8a017e 	csel	w30, w11, w10, eq  // eq = none
+ 830:	5280008a 	mov	w10, #0x4                   	// #4
+ 834:	1a890197 	csel	w23, w12, w9, eq  // eq = none
+ 838:	b90077ff 	str	wzr, [sp, #116]
+ 83c:	b9007fea 	str	w10, [sp, #124]
+ 840:	14000015 	b	894 <koblas_probe_v1+0x740>
+ 844:	b94063f4 	ldr	w20, [sp, #96]
+ 848:	34000348 	cbz	w8, 8b0 <koblas_probe_v1+0x75c>
+ 84c:	7100145f 	cmp	w2, #0x5
+ 850:	52800080 	mov	w0, #0x4                   	// #4
+ 854:	320083e6 	mov	w6, #0x10001               	// #65537
+ 858:	1a9f1563 	csinc	w3, w11, wzr, ne  // ne = any
+ 85c:	1a9f1544 	csinc	w4, w10, wzr, ne  // ne = any
+ 860:	1a9f1525 	csinc	w5, w9, wzr, ne  // ne = any
+ 864:	71005c5f 	cmp	w2, #0x17
+ 868:	52800049 	mov	w9, #0x2                   	// #2
+ 86c:	528000cb 	mov	w11, #0x6                   	// #6
+ 870:	1a89152a 	cinc	w10, w9, eq  // eq = none
+ 874:	1a890009 	csel	w9, w0, w9, eq  // eq = none
+ 878:	1a8603e7 	csel	w7, wzr, w6, eq  // eq = none
+ 87c:	7100605f 	cmp	w2, #0x18
+ 880:	5280008c 	mov	w12, #0x4                   	// #4
+ 884:	b90077ff 	str	wzr, [sp, #116]
+ 888:	b9007fec 	str	w12, [sp, #124]
+ 88c:	1a8a0017 	csel	w23, w0, w10, eq  // eq = none
+ 890:	1a89017e 	csel	w30, w11, w9, eq  // eq = none
+ 894:	114040d3 	add	w19, w6, #0x10, lsl #12
+ 898:	1400001c 	b	908 <koblas_probe_v1+0x7b4>
+ 89c:	2a1f03e7 	mov	w7, wzr
+ 8a0:	2a1f03e6 	mov	w6, wzr
+ 8a4:	2a1f03f3 	mov	w19, wzr
+ 8a8:	b9007fff 	str	wzr, [sp, #124]
+ 8ac:	1400000c 	b	8dc <koblas_probe_v1+0x788>
+ 8b0:	51004048 	sub	w8, w2, #0x10
+ 8b4:	71001d1f 	cmp	w8, #0x7
+ 8b8:	54000822 	b.cs	9bc <koblas_probe_v1+0x868>  // b.hs, b.nlast
+ 8bc:	7100145f 	cmp	w2, #0x5
+ 8c0:	2a1f03e7 	mov	w7, wzr
+ 8c4:	2a1f03e6 	mov	w6, wzr
+ 8c8:	b9007fff 	str	wzr, [sp, #124]
+ 8cc:	2a1f03f3 	mov	w19, wzr
+ 8d0:	1a9f1563 	csinc	w3, w11, wzr, ne  // ne = any
+ 8d4:	1a9f1544 	csinc	w4, w10, wzr, ne  // ne = any
+ 8d8:	1a9f1525 	csinc	w5, w9, wzr, ne  // ne = any
+ 8dc:	71005c5f 	cmp	w2, #0x17
+ 8e0:	52800068 	mov	w8, #0x3                   	// #3
+ 8e4:	52800089 	mov	w9, #0x4                   	// #4
+ 8e8:	1a9f0508 	csinc	w8, w8, wzr, eq  // eq = none
+ 8ec:	1a9f052a 	csinc	w10, w9, wzr, eq  // eq = none
+ 8f0:	7100605f 	cmp	w2, #0x18
+ 8f4:	528000ab 	mov	w11, #0x5                   	// #5
+ 8f8:	1a880137 	csel	w23, w9, w8, eq  // eq = none
+ 8fc:	52800028 	mov	w8, #0x1                   	// #1
+ 900:	1a8a017e 	csel	w30, w11, w10, eq  // eq = none
+ 904:	b90077e8 	str	w8, [sp, #116]
+ 908:	7100485f 	cmp	w2, #0x12
+ 90c:	52800069 	mov	w9, #0x3                   	// #3
+ 910:	51005c4b 	sub	w11, w2, #0x17
+ 914:	7a431844 	ccmp	w2, #0x3, #0x4, ne  // ne = any
+ 918:	5280010c 	mov	w12, #0x8                   	// #8
+ 91c:	52800080 	mov	w0, #0x4                   	// #4
+ 920:	1a9f0529 	csinc	w9, w9, wzr, eq  // eq = none
+ 924:	7100505f 	cmp	w2, #0x14
+ 928:	7a461844 	ccmp	w2, #0x6, #0x4, ne  // ne = any
+ 92c:	321d012a 	orr	w10, w9, #0x8
+ 930:	1a890149 	csel	w9, w10, w9, eq  // eq = none
+ 934:	7100345f 	cmp	w2, #0xd
+ 938:	321c012a 	orr	w10, w9, #0x10
+ 93c:	1a890149 	csel	w9, w10, w9, eq  // eq = none
+ 940:	7100285f 	cmp	w2, #0xa
+ 944:	7a4c1844 	ccmp	w2, #0xc, #0x4, ne  // ne = any
+ 948:	321b012a 	orr	w10, w9, #0x20
+ 94c:	1a890149 	csel	w9, w10, w9, eq  // eq = none
+ 950:	7100097f 	cmp	w11, #0x2
+ 954:	321e012a 	orr	w10, w9, #0x4
+ 958:	1a893148 	csel	w8, w10, w9, cc  // cc = lo, ul, last
+ 95c:	31001d7f 	cmn	w11, #0x7
+ 960:	121b0e09 	and	w9, w16, #0x1e0
+ 964:	1a9f258b 	csinc	w11, w12, wzr, cs  // cs = hs, nlast
+ 968:	7103013f 	cmp	w9, #0xc0
+ 96c:	5280060c 	mov	w12, #0x30                  	// #48
+ 970:	321f0169 	orr	w9, w11, #0x2
+ 974:	5280002a 	mov	w10, #0x1                   	// #1
+ 978:	1a8b0129 	csel	w9, w9, w11, eq  // eq = none
+ 97c:	2a0803eb 	mov	w11, w8
+ 980:	52800028 	mov	w8, #0x1                   	// #1
+ 984:	b9007be8 	str	w8, [sp, #120]
+ 988:	b94077e8 	ldr	w8, [sp, #116]
+ 98c:	71003c5f 	cmp	w2, #0xf
+ 990:	1a890009 	csel	w9, w0, w9, eq  // eq = none
+ 994:	7100011f 	cmp	w8, #0x0
+ 998:	52800028 	mov	w8, #0x1                   	// #1
+ 99c:	290e23e8 	stp	w8, w8, [sp, #112]
+ 9a0:	b9407fe8 	ldr	w8, [sp, #124]
+ 9a4:	1a8c1129 	csel	w9, w9, w12, ne  // ne = any
+ 9a8:	5280010c 	mov	w12, #0x8                   	// #8
+ 9ac:	290d47e8 	stp	w8, w17, [sp, #104]
+ 9b0:	52800028 	mov	w8, #0x1                   	// #1
+ 9b4:	b90067e8 	str	w8, [sp, #100]
+ 9b8:	17fffead 	b	46c <koblas_probe_v1+0x318>
+ 9bc:	7100185f 	cmp	w2, #0x6
+ 9c0:	54fff7e0 	b.eq	8bc <koblas_probe_v1+0x768>  // b.none
+ 9c4:	7100305f 	cmp	w2, #0xc
+ 9c8:	52800088 	mov	w8, #0x4                   	// #4
+ 9cc:	5280002a 	mov	w10, #0x1                   	// #1
+ 9d0:	1a9f050b 	csinc	w11, w8, wzr, eq  // eq = none
+ 9d4:	52800029 	mov	w9, #0x1                   	// #1
+ 9d8:	17ffffb9 	b	8bc <koblas_probe_v1+0x768>

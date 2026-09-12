@@ -1,5 +1,8 @@
 import org.jetbrains.kotlin.gradle.tasks.CInteropProcess
 import org.jetbrains.kotlin.konan.target.PlatformManager
+import org.jetbrains.kotlin.konan.target.KonanTarget
+import org.gradle.api.provider.ValueSource
+import org.gradle.api.provider.ValueSourceParameters
 import org.gradle.api.tasks.JavaExec
 import org.gradle.jvm.toolchain.JavaLanguageVersion
 import org.jetbrains.kotlin.gradle.tasks.KotlinJvmCompile
@@ -9,6 +12,33 @@ import org.jetbrains.kotlin.gradle.plugin.mpp.KotlinNativeTarget
 plugins {
     id("com.eignex.kmp") version "1.3.3"
     kotlin("plugin.serialization") version "2.4.10"
+}
+
+// Apple toolchain discovery invokes xcrun; ValueSource makes its result a configuration-cache input.
+abstract class NativeKernelToolchain : ValueSource<List<String>, NativeKernelToolchain.Parameters> {
+    interface Parameters : ValueSourceParameters {
+        val nativeHome: Property<String>
+        val dataDirectory: Property<String>
+        val targetName: Property<String>
+    }
+
+    override fun obtain(): List<String> {
+        val manager = PlatformManager(parameters.nativeHome.get(), konanDataDir = parameters.dataDirectory.orNull?.takeIf(String::isNotEmpty))
+        val clang = manager.platform(KonanTarget.predefinedTargets.getValue(parameters.targetName.get())).clang
+        return listOf(clang.clangC().first(), clang.llvmAr().first()) + clang.clangArgs
+    }
+}
+
+abstract class PrepareNativeKernelToolchain : DefaultTask() {
+    @get:Input abstract val nativeHome: Property<String>
+    @get:Input @get:Optional abstract val dataDirectory: Property<String>
+    @get:Input abstract val targetName: Property<String>
+
+    @TaskAction
+    fun prepare() {
+        PlatformManager(nativeHome.get(), konanDataDir = dataDirectory.orNull?.takeIf(String::isNotEmpty))
+            .loader(KonanTarget.predefinedTargets.getValue(targetName.get())).downloadDependencies()
+    }
 }
 
 eignexPublish {
@@ -49,38 +79,46 @@ kotlin {
             val nativeHome = interopTask.get().konanHome
             @Suppress("DEPRECATION_ERROR")
             val dataDirectory = interopTask.get().konanDataDir
-            val manager = nativeHome.map { PlatformManager(it, konanDataDir = dataDirectory.orNull) }
-            val platform = manager.map { it.platform(target) }
+            val toolchain = providers.of(NativeKernelToolchain::class) {
+                parameters.nativeHome.set(nativeHome)
+                parameters.dataDirectory.set(dataDirectory.map { it.orEmpty() })
+                parameters.targetName.set(target.name)
+            }
             val nativePlatform = when (name) {
                 "linuxX64" -> "linux-x86_64"
                 "linuxArm64" -> "linux-arm64"
                 else -> "macosx-arm64"
             }
-            val prepareToolchain = tasks.register("prepare${name.replaceFirstChar(Char::uppercase)}KernelToolchain") {
+            val selectedNativeHome = nativeHome
+            val selectedDataDirectory = dataDirectory
+            val prepareToolchain = tasks.register<PrepareNativeKernelToolchain>(
+                "prepare${name.replaceFirstChar(Char::uppercase)}KernelToolchain",
+            ) {
                 dependsOn(tasks.matching { it.name == "downloadKotlinNativeDistribution" })
-                doLast { manager.get().loader(target).downloadDependencies() }
+                this.nativeHome.set(selectedNativeHome)
+                this.dataDirectory.set(selectedDataDirectory.map { it.orEmpty() })
+                targetName.set(target.name)
             }
             val archive = tasks.register<Exec>("build${name.replaceFirstChar(Char::uppercase)}Kernels") {
                 dependsOn(prepareToolchain)
-                inputs.file(platform.map { it.clang.clangC().first() })
-                inputs.file(platform.map { it.clang.llvmAr().first() })
+                inputs.file(toolchain.map { it[0] })
+                inputs.file(toolchain.map { it[1] })
                 inputs.files(fileTree("src/nativeInterop/kernels"), "../scripts/build-koblas-kernels.sh")
                 inputs.file(nativeHome.map { "$it/konan/konan.properties" })
                 inputs.property("target", target.name)
-                inputs.property("compiler", platform.map { it.clang.clangC().first() })
-                inputs.property("flags", platform.map { it.clang.clangArgs.toList() })
+                inputs.property("compiler", toolchain.map { it[0] })
+                inputs.property("flags", toolchain.map { it.drop(2) })
                 inputs.property("nativeHome", nativeHome)
                 outputs.dir(archiveDirectory)
                 val script = rootProject.file("scripts/build-koblas-kernels.sh").absolutePath
                 val destination = archiveDirectory.get().asFile.absolutePath
                 doFirst {
-                    val selected = manager.get()
-                    val clang = selected.platform(target).clang
+                    val selected = toolchain.get()
                     commandLine(
                         listOf("bash", script, "--platform", nativePlatform, "--kind", "static",
-                            "--output", destination, "--compiler", clang.clangC().first(),
-                            "--archiver", clang.llvmAr().first()) +
-                            clang.clangArgs.flatMap { listOf("--cflag", it) },
+                            "--output", destination, "--compiler", selected[0],
+                            "--archiver", selected[1]) +
+                            selected.drop(2).flatMap { listOf("--cflag", it) },
                     )
                 }
             }

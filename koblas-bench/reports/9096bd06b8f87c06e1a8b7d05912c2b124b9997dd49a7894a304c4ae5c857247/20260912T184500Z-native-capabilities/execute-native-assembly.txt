@@ -1,0 +1,146 @@
+0000000000000000 <koblas_dense_dot_v1>:
+   0:	55                   	push   %rbp
+   1:	41 57                	push   %r15
+   3:	41 56                	push   %r14
+   5:	41 55                	push   %r13
+   7:	41 54                	push   %r12
+   9:	53                   	push   %rbx
+   a:	50                   	push   %rax
+   b:	44 89 cb             	mov    %r9d,%ebx
+   e:	44 89 c5             	mov    %r8d,%ebp
+  11:	49 89 ce             	mov    %rcx,%r14
+  14:	41 89 d7             	mov    %edx,%r15d
+  17:	49 89 f4             	mov    %rsi,%r12
+  1a:	41 89 fd             	mov    %edi,%r13d
+  1d:	be 01 00 00 00       	mov    $0x1,%esi
+  22:	e8 00 00 00 00       	call   27 <koblas_dense_dot_v1+0x27>
+  27:	85 c0                	test   %eax,%eax
+  29:	75 7b                	jne    a6 <koblas_dense_dot_v1+0xa6>
+  2b:	48 8b 4c 24 40       	mov    0x40(%rsp),%rcx
+  30:	b8 01 00 00 00       	mov    $0x1,%eax
+  35:	48 85 c9             	test   %rcx,%rcx
+  38:	74 6c                	je     a6 <koblas_dense_dot_v1+0xa6>
+  3a:	85 db                	test   %ebx,%ebx
+  3c:	74 30                	je     6e <koblas_dense_dot_v1+0x6e>
+  3e:	41 83 e5 0f          	and    $0xf,%r13d
+  42:	41 83 fd 03          	cmp    $0x3,%r13d
+  46:	74 40                	je     88 <koblas_dense_dot_v1+0x88>
+  48:	41 83 fd 02          	cmp    $0x2,%r13d
+  4c:	74 25                	je     73 <koblas_dense_dot_v1+0x73>
+  4e:	b8 09 00 00 00       	mov    $0x9,%eax
+  53:	41 83 fd 01          	cmp    $0x1,%r13d
+  57:	75 4d                	jne    a6 <koblas_dense_dot_v1+0xa6>
+  59:	4c 89 e7             	mov    %r12,%rdi
+  5c:	44 89 fe             	mov    %r15d,%esi
+  5f:	4c 89 f2             	mov    %r14,%rdx
+  62:	89 e9                	mov    %ebp,%ecx
+  64:	41 89 d8             	mov    %ebx,%r8d
+  67:	e8 00 00 00 00       	call   6c <koblas_dense_dot_v1+0x6c>
+  6c:	eb 2d                	jmp    9b <koblas_dense_dot_v1+0x9b>
+  6e:	0f 57 c0             	xorps  %xmm0,%xmm0
+  71:	eb 2d                	jmp    a0 <koblas_dense_dot_v1+0xa0>
+  73:	4c 89 e7             	mov    %r12,%rdi
+  76:	44 89 fe             	mov    %r15d,%esi
+  79:	4c 89 f2             	mov    %r14,%rdx
+  7c:	89 e9                	mov    %ebp,%ecx
+  7e:	41 89 d8             	mov    %ebx,%r8d
+  81:	e8 00 00 00 00       	call   86 <koblas_dense_dot_v1+0x86>
+  86:	eb 13                	jmp    9b <koblas_dense_dot_v1+0x9b>
+  88:	4c 89 e7             	mov    %r12,%rdi
+  8b:	44 89 fe             	mov    %r15d,%esi
+  8e:	4c 89 f2             	mov    %r14,%rdx
+  91:	89 e9                	mov    %ebp,%ecx
+  93:	41 89 d8             	mov    %ebx,%r8d
+  96:	e8 00 00 00 00       	call   9b <koblas_dense_dot_v1+0x9b>
+  9b:	48 8b 4c 24 40       	mov    0x40(%rsp),%rcx
+  a0:	f2 0f 11 01          	movsd  %xmm0,(%rcx)
+  a4:	31 c0                	xor    %eax,%eax
+  a6:	48 83 c4 08          	add    $0x8,%rsp
+  aa:	5b                   	pop    %rbx
+  ab:	41 5c                	pop    %r12
+  ad:	41 5d                	pop    %r13
+  af:	41 5e                	pop    %r14
+  b1:	41 5f                	pop    %r15
+  b3:	5d                   	pop    %rbp
+  b4:	c3                   	ret
+  b5:	66 66 2e 0f 1f 84 00 	data16 cs nopw 0x0(%rax,%rax,1)
+  bc:	00 00 00 00
+
+00000000000008d0 <koblas_dense_dot_axpy_v1>:
+ 8d0:	55                   	push   %rbp
+ 8d1:	41 57                	push   %r15
+ 8d3:	41 56                	push   %r14
+ 8d5:	41 55                	push   %r13
+ 8d7:	41 54                	push   %r12
+ 8d9:	53                   	push   %rbx
+ 8da:	48 83 ec 18          	sub    $0x18,%rsp
+ 8de:	4c 89 cb             	mov    %r9,%rbx
+ 8e1:	44 89 c5             	mov    %r8d,%ebp
+ 8e4:	49 89 ce             	mov    %rcx,%r14
+ 8e7:	f2 0f 11 44 24 10    	movsd  %xmm0,0x10(%rsp)
+ 8ed:	41 89 d7             	mov    %edx,%r15d
+ 8f0:	49 89 f4             	mov    %rsi,%r12
+ 8f3:	41 89 fd             	mov    %edi,%r13d
+ 8f6:	be 0e 00 00 00       	mov    $0xe,%esi
+ 8fb:	e8 00 00 00 00       	call   900 <koblas_dense_dot_axpy_v1+0x30>
+ 900:	85 c0                	test   %eax,%eax
+ 902:	0f 85 9c 00 00 00    	jne    9a4 <koblas_dense_dot_axpy_v1+0xd4>
+ 908:	f2 0f 10 44 24 10    	movsd  0x10(%rsp),%xmm0
+ 90e:	48 8b 54 24 60       	mov    0x60(%rsp),%rdx
+ 913:	48 85 d2             	test   %rdx,%rdx
+ 916:	74 43                	je     95b <koblas_dense_dot_axpy_v1+0x8b>
+ 918:	8b 4c 24 58          	mov    0x58(%rsp),%ecx
+ 91c:	85 c9                	test   %ecx,%ecx
+ 91e:	74 42                	je     962 <koblas_dense_dot_axpy_v1+0x92>
+ 920:	44 8b 4c 24 50       	mov    0x50(%rsp),%r9d
+ 925:	41 83 e5 0f          	and    $0xf,%r13d
+ 929:	41 83 fd 03          	cmp    $0x3,%r13d
+ 92d:	74 53                	je     982 <koblas_dense_dot_axpy_v1+0xb2>
+ 92f:	41 83 fd 02          	cmp    $0x2,%r13d
+ 933:	74 32                	je     967 <koblas_dense_dot_axpy_v1+0x97>
+ 935:	b8 09 00 00 00       	mov    $0x9,%eax
+ 93a:	41 83 fd 01          	cmp    $0x1,%r13d
+ 93e:	75 64                	jne    9a4 <koblas_dense_dot_axpy_v1+0xd4>
+ 940:	89 0c 24             	mov    %ecx,(%rsp)
+ 943:	4c 89 e7             	mov    %r12,%rdi
+ 946:	44 89 fe             	mov    %r15d,%esi
+ 949:	49 89 d7             	mov    %rdx,%r15
+ 94c:	4c 89 f2             	mov    %r14,%rdx
+ 94f:	89 e9                	mov    %ebp,%ecx
+ 951:	49 89 d8             	mov    %rbx,%r8
+ 954:	e8 00 00 00 00       	call   959 <koblas_dense_dot_axpy_v1+0x89>
+ 959:	eb 40                	jmp    99b <koblas_dense_dot_axpy_v1+0xcb>
+ 95b:	b8 01 00 00 00       	mov    $0x1,%eax
+ 960:	eb 42                	jmp    9a4 <koblas_dense_dot_axpy_v1+0xd4>
+ 962:	0f 57 c0             	xorps  %xmm0,%xmm0
+ 965:	eb 37                	jmp    99e <koblas_dense_dot_axpy_v1+0xce>
+ 967:	89 0c 24             	mov    %ecx,(%rsp)
+ 96a:	4c 89 e7             	mov    %r12,%rdi
+ 96d:	44 89 fe             	mov    %r15d,%esi
+ 970:	49 89 d7             	mov    %rdx,%r15
+ 973:	4c 89 f2             	mov    %r14,%rdx
+ 976:	89 e9                	mov    %ebp,%ecx
+ 978:	49 89 d8             	mov    %rbx,%r8
+ 97b:	e8 00 00 00 00       	call   980 <koblas_dense_dot_axpy_v1+0xb0>
+ 980:	eb 19                	jmp    99b <koblas_dense_dot_axpy_v1+0xcb>
+ 982:	89 0c 24             	mov    %ecx,(%rsp)
+ 985:	4c 89 e7             	mov    %r12,%rdi
+ 988:	44 89 fe             	mov    %r15d,%esi
+ 98b:	49 89 d7             	mov    %rdx,%r15
+ 98e:	4c 89 f2             	mov    %r14,%rdx
+ 991:	89 e9                	mov    %ebp,%ecx
+ 993:	49 89 d8             	mov    %rbx,%r8
+ 996:	e8 00 00 00 00       	call   99b <koblas_dense_dot_axpy_v1+0xcb>
+ 99b:	4c 89 fa             	mov    %r15,%rdx
+ 99e:	f2 0f 11 02          	movsd  %xmm0,(%rdx)
+ 9a2:	31 c0                	xor    %eax,%eax
+ 9a4:	48 83 c4 18          	add    $0x18,%rsp
+ 9a8:	5b                   	pop    %rbx
+ 9a9:	41 5c                	pop    %r12
+ 9ab:	41 5d                	pop    %r13
+ 9ad:	41 5e                	pop    %r14
+ 9af:	41 5f                	pop    %r15
+ 9b1:	5d                   	pop    %rbp
+ 9b2:	c3                   	ret
+ 9b3:	66 66 66 66 2e 0f 1f 	data16 data16 data16 cs nopw 0x0(%rax,%rax,1)
+ 9ba:	84 00 00 00 00 00

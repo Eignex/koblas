@@ -20,7 +20,7 @@ source_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/../koblas/src/nativeInterop/ker
 build_dir="$output"
 [[ "$kind" != shared ]] || build_dir="${output}.build/$platform"
 mkdir -p "$build_dir/objects"
-triple="$("$compiler" "${cflags[@]}" -dumpmachine)"
+triple="$("$compiler" ${cflags[@]+"${cflags[@]}"} -dumpmachine)"
 case "$platform:$triple" in
     linux-x86_64:x86_64*linux*)
         baseline=(-march=x86-64 -mno-avx -mno-fma)
@@ -40,7 +40,7 @@ if [[ "$version" == *clang* ]]; then
 else
     scalar_flags=(-fno-tree-vectorize -fno-tree-slp-vectorize)
 fi
-common=(-std=c11 -O3 -fPIC -fvisibility=hidden -fno-lto -ffp-contract=off -I"$source_dir" "${cflags[@]}")
+common=(-std=c11 -O3 -fPIC -fvisibility=hidden -fno-lto -ffp-contract=off -I"$source_dir" ${cflags[@]+"${cflags[@]}"})
 {
     printf 'target=%s\nplatform=%s\nkind=%s\ncompiler=%s\n' "$triple" "$platform" "$kind" "$compiler"
     printf '%s\n' "$version"
@@ -58,7 +58,7 @@ compile scalar ordinary.c "${scalar_flags[@]}" -DKOBLAS_SCALAR_IMPL -DKOBLAS_SUF
 for variant in "${variants[@]}"; do
     flags=()
     [[ "$variant" != avx2 ]] || flags=(-mavx2 -mprefer-vector-width=256)
-    compile "$variant" ordinary.c "${flags[@]}" "-DKOBLAS_SUFFIX=_$variant"
+    compile "$variant" ordinary.c ${flags[@]+"${flags[@]}"} "-DKOBLAS_SUFFIX=_$variant"
 done
 compile probe probe.c "${scalar_flags[@]}" "${defines[@]}"
 compile execute execute.c "${scalar_flags[@]}" "${defines[@]}"
@@ -69,7 +69,7 @@ else
     resource_dir="$output/com/eignex/koblas/internal/kernels/$platform"
     mkdir -p "$resource_dir"
     case "$platform" in
-        linux-*) "$compiler" "${cflags[@]}" -shared "${objects[@]}" -Wl,-soname,libkoblas_kernels.so -lm -o "$resource_dir/libkoblas_kernels.so" ;;
-        macosx-*) "$compiler" "${cflags[@]}" -dynamiclib "${objects[@]}" -Wl,-install_name,@rpath/libkoblas_kernels.dylib -o "$resource_dir/libkoblas_kernels.dylib" ;;
+        linux-*) "$compiler" ${cflags[@]+"${cflags[@]}"} -shared "${objects[@]}" -Wl,-soname,libkoblas_kernels.so -lm -o "$resource_dir/libkoblas_kernels.so" ;;
+        macosx-*) "$compiler" ${cflags[@]+"${cflags[@]}"} -dynamiclib "${objects[@]}" -Wl,-install_name,@rpath/libkoblas_kernels.dylib -o "$resource_dir/libkoblas_kernels.dylib" ;;
     esac
 fi

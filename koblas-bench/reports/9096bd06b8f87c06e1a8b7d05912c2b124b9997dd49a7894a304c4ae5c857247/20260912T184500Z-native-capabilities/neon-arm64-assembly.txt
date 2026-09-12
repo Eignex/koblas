@@ -1,0 +1,232 @@
+0000000000000000 <koblas_dense_dot_neon>:
+       0:	71004088 	subs	w8, w4, #0x10
+       4:	5400016a 	b.ge	30 <koblas_dense_dot_neon+0x30>  // b.tcont
+       8:	6f00e400 	movi	v0.2d, #0x0
+       c:	6f00e401 	movi	v1.2d, #0x0
+      10:	2a1f03e8 	mov	w8, wzr
+      14:	6e014002 	ext	v2.16b, v0.16b, v1.16b, #8
+      18:	6e184420 	mov	v0.d[1], v1.d[1]
+      1c:	6b0403ff 	negs	wzr, w4
+      20:	4e60d440 	fadd	v0.2d, v2.2d, v0.2d
+      24:	7e70d800 	faddp	d0, v0.2d
+      28:	5400074b 	b.lt	110 <koblas_dense_dot_neon+0x110>  // b.tstop
+      2c:	14000066 	b	1c4 <koblas_dense_dot_neon+0x1c4>
+      30:	6f00e400 	movi	v0.2d, #0x0
+      34:	6f00e401 	movi	v1.2d, #0x0
+      38:	8b21cc0a 	add	x10, x0, w1, sxtw #3
+      3c:	6f00e402 	movi	v2.2d, #0x0
+      40:	6f00e404 	movi	v4.2d, #0x0
+      44:	8b23cc4b 	add	x11, x2, w3, sxtw #3
+      48:	6f00e403 	movi	v3.2d, #0x0
+      4c:	6f00e405 	movi	v5.2d, #0x0
+      50:	aa1f03e9 	mov	x9, xzr
+      54:	6f00e406 	movi	v6.2d, #0x0
+      58:	6f00e407 	movi	v7.2d, #0x0
+      5c:	9101014a 	add	x10, x10, #0x40
+      60:	9101016b 	add	x11, x11, #0x40
+      64:	ad7e4151 	ldp	q17, q16, [x10, #-64]
+      68:	91004129 	add	x9, x9, #0x10
+      6c:	ad7e4973 	ldp	q19, q18, [x11, #-64]
+      70:	eb08013f 	cmp	x9, x8
+      74:	ad7f5155 	ldp	q21, q20, [x10, #-32]
+      78:	ad405957 	ldp	q23, q22, [x10]
+      7c:	6e73de31 	fmul	v17.2d, v17.2d, v19.2d
+      80:	6e72de10 	fmul	v16.2d, v16.2d, v18.2d
+      84:	ad7f4973 	ldp	q19, q18, [x11, #-32]
+      88:	ad406179 	ldp	q25, q24, [x11]
+      8c:	ad41695b 	ldp	q27, q26, [x10, #32]
+      90:	9102014a 	add	x10, x10, #0x80
+      94:	ad41717d 	ldp	q29, q28, [x11, #32]
+      98:	6e73deb3 	fmul	v19.2d, v21.2d, v19.2d
+      9c:	6e72de92 	fmul	v18.2d, v20.2d, v18.2d
+      a0:	6e78ded4 	fmul	v20.2d, v22.2d, v24.2d
+      a4:	6e79def5 	fmul	v21.2d, v23.2d, v25.2d
+      a8:	4e70d421 	fadd	v1.2d, v1.2d, v16.2d
+      ac:	4e71d400 	fadd	v0.2d, v0.2d, v17.2d
+      b0:	9102016b 	add	x11, x11, #0x80
+      b4:	6e7ddf76 	fmul	v22.2d, v27.2d, v29.2d
+      b8:	6e7cdf57 	fmul	v23.2d, v26.2d, v28.2d
+      bc:	4e73d442 	fadd	v2.2d, v2.2d, v19.2d
+      c0:	4e72d484 	fadd	v4.2d, v4.2d, v18.2d
+      c4:	4e74d4a5 	fadd	v5.2d, v5.2d, v20.2d
+      c8:	4e75d463 	fadd	v3.2d, v3.2d, v21.2d
+      cc:	4e77d4e7 	fadd	v7.2d, v7.2d, v23.2d
+      d0:	4e76d4c6 	fadd	v6.2d, v6.2d, v22.2d
+      d4:	54fffc89 	b.ls	64 <koblas_dense_dot_neon+0x64>  // b.plast
+      d8:	4e61d481 	fadd	v1.2d, v4.2d, v1.2d
+      dc:	4e60d440 	fadd	v0.2d, v2.2d, v0.2d
+      e0:	121c6d08 	and	w8, w8, #0xfffffff0
+      e4:	4e65d4e2 	fadd	v2.2d, v7.2d, v5.2d
+      e8:	4e63d4c3 	fadd	v3.2d, v6.2d, v3.2d
+      ec:	11004108 	add	w8, w8, #0x10
+      f0:	4e60d460 	fadd	v0.2d, v3.2d, v0.2d
+      f4:	4e61d441 	fadd	v1.2d, v2.2d, v1.2d
+      f8:	6e014002 	ext	v2.16b, v0.16b, v1.16b, #8
+      fc:	6e184420 	mov	v0.d[1], v1.d[1]
+     100:	6b04011f 	cmp	w8, w4
+     104:	4e60d440 	fadd	v0.2d, v2.2d, v0.2d
+     108:	7e70d800 	faddp	d0, v0.2d
+     10c:	540005ca 	b.ge	1c4 <koblas_dense_dot_neon+0x1c4>  // b.tcont
+     110:	2a0803eb 	mov	w11, w8
+     114:	2a0403e8 	mov	w8, w4
+     118:	93407c29 	sxtw	x9, w1
+     11c:	cb0b010c 	sub	x12, x8, x11
+     120:	93407c6a 	sxtw	x10, w3
+     124:	f100119f 	cmp	x12, #0x4
+     128:	54000363 	b.cc	194 <koblas_dense_dot_neon+0x194>  // b.lo, b.ul, b.last
+     12c:	d37df16d 	lsl	x13, x11, #3
+     130:	8b090dae 	add	x14, x13, x9, lsl #3
+     134:	8b0a0daf 	add	x15, x13, x10, lsl #3
+     138:	927ef58d 	and	x13, x12, #0xfffffffffffffffc
+     13c:	8b0b01ab 	add	x11, x13, x11
+     140:	aa0d03f0 	mov	x16, x13
+     144:	8b0001ce 	add	x14, x14, x0
+     148:	8b0201ef 	add	x15, x15, x2
+     14c:	910041ce 	add	x14, x14, #0x10
+     150:	910041ef 	add	x15, x15, #0x10
+     154:	ad7f91e1 	ldp	q1, q4, [x15, #-16]
+     158:	f1001210 	subs	x16, x16, #0x4
+     15c:	ad7f8dc2 	ldp	q2, q3, [x14, #-16]
+     160:	910081ce 	add	x14, x14, #0x20
+     164:	910081ef 	add	x15, x15, #0x20
+     168:	6e61dc41 	fmul	v1.2d, v2.2d, v1.2d
+     16c:	5e180422 	mov	d2, v1.d[1]
+     170:	1e612800 	fadd	d0, d0, d1
+     174:	6e64dc61 	fmul	v1.2d, v3.2d, v4.2d
+     178:	1e622800 	fadd	d0, d0, d2
+     17c:	5e180422 	mov	d2, v1.d[1]
+     180:	1e612800 	fadd	d0, d0, d1
+     184:	1e622800 	fadd	d0, d0, d2
+     188:	54fffe61 	b.ne	154 <koblas_dense_dot_neon+0x154>  // b.any
+     18c:	eb0d019f 	cmp	x12, x13
+     190:	540001a0 	b.eq	1c4 <koblas_dense_dot_neon+0x1c4>  // b.none
+     194:	d37df16c 	lsl	x12, x11, #3
+     198:	cb0b0108 	sub	x8, x8, x11
+     19c:	8b0a0d8a 	add	x10, x12, x10, lsl #3
+     1a0:	8b090d8c 	add	x12, x12, x9, lsl #3
+     1a4:	8b0a0049 	add	x9, x2, x10
+     1a8:	8b0c000a 	add	x10, x0, x12
+     1ac:	fc408541 	ldr	d1, [x10], #8
+     1b0:	f1000508 	subs	x8, x8, #0x1
+     1b4:	fc408522 	ldr	d2, [x9], #8
+     1b8:	1e620821 	fmul	d1, d1, d2
+     1bc:	1e612800 	fadd	d0, d0, d1
+     1c0:	54ffff61 	b.ne	1ac <koblas_dense_dot_neon+0x1ac>  // b.any
+     1c4:	d65f03c0 	ret
+
+00000000000015b8 <koblas_dense_dot_axpy_neon>:
+    15b8:	6f00e401 	movi	v1.2d, #0x0
+    15bc:	6f00e402 	movi	v2.2d, #0x0
+    15c0:	710010c8 	subs	w8, w6, #0x4
+    15c4:	5400006a 	b.ge	15d0 <koblas_dense_dot_axpy_neon+0x18>  // b.tcont
+    15c8:	2a1f03e9 	mov	w9, wzr
+    15cc:	14000014 	b	161c <koblas_dense_dot_axpy_neon+0x64>
+    15d0:	8b23cc4a 	add	x10, x2, w3, sxtw #3
+    15d4:	8b25cc8b 	add	x11, x4, w5, sxtw #3
+    15d8:	8b21cc0c 	add	x12, x0, w1, sxtw #3
+    15dc:	aa1f03e9 	mov	x9, xzr
+    15e0:	acc11143 	ldp	q3, q4, [x10], #32
+    15e4:	acc11967 	ldp	q7, q6, [x11], #32
+    15e8:	91001129 	add	x9, x9, #0x4
+    15ec:	4fc09065 	fmul	v5.2d, v3.2d, v0.d[0]
+    15f0:	4fc09090 	fmul	v16.2d, v4.2d, v0.d[0]
+    15f4:	eb08013f 	cmp	x9, x8
+    15f8:	6e67dc63 	fmul	v3.2d, v3.2d, v7.2d
+    15fc:	6e66dc84 	fmul	v4.2d, v4.2d, v6.2d
+    1600:	ad401991 	ldp	q17, q6, [x12]
+    1604:	4e71d4a5 	fadd	v5.2d, v5.2d, v17.2d
+    1608:	4e66d606 	fadd	v6.2d, v16.2d, v6.2d
+    160c:	4e64d442 	fadd	v2.2d, v2.2d, v4.2d
+    1610:	4e63d421 	fadd	v1.2d, v1.2d, v3.2d
+    1614:	ac811985 	stp	q5, q6, [x12], #32
+    1618:	54fffe49 	b.ls	15e0 <koblas_dense_dot_axpy_neon+0x28>  // b.plast
+    161c:	6e024023 	ext	v3.16b, v1.16b, v2.16b, #8
+    1620:	6e184441 	mov	v1.d[1], v2.d[1]
+    1624:	6b06013f 	cmp	w9, w6
+    1628:	4e61d461 	fadd	v1.2d, v3.2d, v1.2d
+    162c:	7e70d821 	faddp	d1, v1.2d
+    1630:	5400036a 	b.ge	169c <koblas_dense_dot_axpy_neon+0xe4>  // b.tcont
+    1634:	2a0903ed 	mov	w13, w9
+    1638:	2a0603e8 	mov	w8, w6
+    163c:	93407c69 	sxtw	x9, w3
+    1640:	cb0d010c 	sub	x12, x8, x13
+    1644:	93407caa 	sxtw	x10, w5
+    1648:	93407c2b 	sxtw	x11, w1
+    164c:	f100399f 	cmp	x12, #0xe
+    1650:	540002a2 	b.cs	16a4 <koblas_dense_dot_axpy_neon+0xec>  // b.hs, b.nlast
+    1654:	d37df1ac 	lsl	x12, x13, #3
+    1658:	cb0d0108 	sub	x8, x8, x13
+    165c:	8b0b0d8b 	add	x11, x12, x11, lsl #3
+    1660:	8b0a0d8a 	add	x10, x12, x10, lsl #3
+    1664:	8b090d8c 	add	x12, x12, x9, lsl #3
+    1668:	8b0b0009 	add	x9, x0, x11
+    166c:	8b0a008a 	add	x10, x4, x10
+    1670:	8b0c004b 	add	x11, x2, x12
+    1674:	fc408562 	ldr	d2, [x11], #8
+    1678:	f1000508 	subs	x8, x8, #0x1
+    167c:	fc408543 	ldr	d3, [x10], #8
+    1680:	1e620804 	fmul	d4, d0, d2
+    1684:	1e630842 	fmul	d2, d2, d3
+    1688:	fd400123 	ldr	d3, [x9]
+    168c:	1e632883 	fadd	d3, d4, d3
+    1690:	1e622821 	fadd	d1, d1, d2
+    1694:	fc008523 	str	d3, [x9], #8
+    1698:	54fffee1 	b.ne	1674 <koblas_dense_dot_axpy_neon+0xbc>  // b.any
+    169c:	1e604020 	fmov	d0, d1
+    16a0:	d65f03c0 	ret
+    16a4:	8b0d016e 	add	x14, x11, x13
+    16a8:	8b08014f 	add	x15, x10, x8
+    16ac:	8b0d0151 	add	x17, x10, x13
+    16b0:	8b0e0c10 	add	x16, x0, x14, lsl #3
+    16b4:	8b08016e 	add	x14, x11, x8
+    16b8:	8b0f0c8f 	add	x15, x4, x15, lsl #3
+    16bc:	8b0e0c12 	add	x18, x0, x14, lsl #3
+    16c0:	8b0d012e 	add	x14, x9, x13
+    16c4:	8b110c91 	add	x17, x4, x17, lsl #3
+    16c8:	8b0e0c41 	add	x1, x2, x14, lsl #3
+    16cc:	8b08012e 	add	x14, x9, x8
+    16d0:	eb0f021f 	cmp	x16, x15
+    16d4:	8b0e0c4f 	add	x15, x2, x14, lsl #3
+    16d8:	fa523222 	ccmp	x17, x18, #0x2, cc  // cc = lo, ul, last
+    16dc:	1a9f27ee 	cset	w14, cc  // cc = lo, ul, last
+    16e0:	eb12003f 	cmp	x1, x18
+    16e4:	fa4f3202 	ccmp	x16, x15, #0x2, cc  // cc = lo, ul, last
+    16e8:	54fffb63 	b.cc	1654 <koblas_dense_dot_axpy_neon+0x9c>  // b.lo, b.ul, b.last
+    16ec:	3707fb4e 	tbnz	w14, #0, 1654 <koblas_dense_dot_axpy_neon+0x9c>
+    16f0:	d37df1af 	lsl	x15, x13, #3
+    16f4:	927ef58e 	and	x14, x12, #0xfffffffffffffffc
+    16f8:	8b0d01cd 	add	x13, x14, x13
+    16fc:	8b090df0 	add	x16, x15, x9, lsl #3
+    1700:	8b0b0df1 	add	x17, x15, x11, lsl #3
+    1704:	8b0a0def 	add	x15, x15, x10, lsl #3
+    1708:	8b020210 	add	x16, x16, x2
+    170c:	8b000231 	add	x17, x17, x0
+    1710:	8b0401f2 	add	x18, x15, x4
+    1714:	9100420f 	add	x15, x16, #0x10
+    1718:	91004230 	add	x16, x17, #0x10
+    171c:	91004251 	add	x17, x18, #0x10
+    1720:	aa0e03f2 	mov	x18, x14
+    1724:	ad7f9622 	ldp	q2, q5, [x17, #-16]
+    1728:	f1001252 	subs	x18, x18, #0x4
+    172c:	ad7f91e3 	ldp	q3, q4, [x15, #-16]
+    1730:	910081ef 	add	x15, x15, #0x20
+    1734:	91008231 	add	x17, x17, #0x20
+    1738:	6e62dc62 	fmul	v2.2d, v3.2d, v2.2d
+    173c:	4fc09063 	fmul	v3.2d, v3.2d, v0.d[0]
+    1740:	5e180446 	mov	d6, v2.d[1]
+    1744:	1e622821 	fadd	d1, d1, d2
+    1748:	6e65dc82 	fmul	v2.2d, v4.2d, v5.2d
+    174c:	4fc09084 	fmul	v4.2d, v4.2d, v0.d[0]
+    1750:	ad7f9e05 	ldp	q5, q7, [x16, #-16]
+    1754:	1e662821 	fadd	d1, d1, d6
+    1758:	5e180446 	mov	d6, v2.d[1]
+    175c:	1e622821 	fadd	d1, d1, d2
+    1760:	4e65d462 	fadd	v2.2d, v3.2d, v5.2d
+    1764:	4e67d483 	fadd	v3.2d, v4.2d, v7.2d
+    1768:	1e662821 	fadd	d1, d1, d6
+    176c:	ad3f8e02 	stp	q2, q3, [x16, #-16]
+    1770:	91008210 	add	x16, x16, #0x20
+    1774:	54fffd81 	b.ne	1724 <koblas_dense_dot_axpy_neon+0x16c>  // b.any
+    1778:	eb0e019f 	cmp	x12, x14
+    177c:	54fff6c1 	b.ne	1654 <koblas_dense_dot_axpy_neon+0x9c>  // b.any
+    1780:	17ffffc7 	b	169c <koblas_dense_dot_axpy_neon+0xe4>
