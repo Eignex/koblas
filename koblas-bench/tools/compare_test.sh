@@ -109,6 +109,9 @@ done
 report "$candidate" implementation=openblas actual_kernel=vendor-cblas
 accept logical
 reject fixed
+report "$candidate" implementation=accelerate actual_kernel=vendor-accelerate
+accept logical
+reject fixed
 report "$base" timing_mode=raw-tile
 report "$candidate" implementation=openblas actual_kernel=vendor-cblas timing_mode=raw-tile
 reject logical
@@ -152,7 +155,7 @@ for patch in case=gemm-block+16x7x31+uniform+packed=4x4+timing=prepacked-compute
 done
 
 report "$candidate"
-sed -i '1s/run,id/run,unknown/' "$candidate"
+sed -i.bak '1s/run,id/run,unknown/' "$candidate"
 reject logical
 
 # Quoted CSV fields round-trip, while sample aggregation uses medians and extrema.
@@ -194,16 +197,16 @@ if "$tools/compare.sh" "$base" "$candidate" >/dev/null 2>&1; then fail "missing 
 
 # Broken references, duplicate samples and missing measurements are rejected.
 report "$candidate"
-sed -i 's/^sample,1,/sample,99,/' "$candidate"
+sed -i.bak 's/^sample,1,/sample,99,/' "$candidate"
 reject logical
 report "$candidate"
 tail -1 "$candidate" >>"$candidate"
 reject logical
 report "$candidate"
-sed -i '$d' "$candidate"
+sed -i.bak '$d' "$candidate"
 reject logical
 report "$candidate"
-sed -i 's/^case,1,1,/case,1,99,/' "$candidate"
+sed -i.bak 's/^case,1,1,/case,1,99,/' "$candidate"
 reject logical
 
 echo 'Comparator shell tests passed'

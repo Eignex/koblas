@@ -322,7 +322,10 @@ static void setup_dense(work *w){
     if(!strcmp(op,"gemm-block")&&!strcmp(option(s,"timing",""),"pack-plus-compute")){w->supported=0;w->comparison="unsupported";w->timing="pack-plus-compute";return;}
     if(is_layout(op)||!strcmp(op,"ssqd")||!strcmp(op,"compensated-sum")){w->supported=0;w->comparison="unsupported";w->timing=is_layout(op)?"layout":"arithmetic";return;}
 #if defined(USE_MKL) || defined(USE_ACCELERATE)
-    if(!strcmp(op,"sum") || !strcmp(op,"gemmt")){w->supported=0;w->comparison="unsupported";w->timing="arithmetic";return;}
+    if(!strcmp(op,"sum")){w->supported=0;w->comparison="unsupported";w->timing="arithmetic";return;}
+#endif
+#ifdef USE_ACCELERATE
+    if(!strcmp(op,"gemmt")){w->supported=0;w->comparison="unsupported";return;}
 #endif
     if(!strcmp(op,"dot")||!strcmp(op,"nrm2")||!strcmp(op,"asum")||!strcmp(op,"sum")||!strcmp(op,"iamax")){w->x=allocate(d[0],sizeof(double));w->y=allocate(d[0],sizeof(double));fill_vector(w->x,d[0],1);fill_vector(w->y,d[0],2);w->timing="arithmetic";return;}
     if(!strcmp(op,"axpy")||!strcmp(op,"axpy-arithmetic")||!strcmp(op,"scal")){w->x=allocate(d[0],sizeof(double));w->y=allocate(d[0],sizeof(double));w->initial=allocate(d[0],sizeof(double));fill_vector(w->x,d[0],1);fill_vector(w->initial,d[0],!strcmp(op,"scal")?1:2);if(!strcmp(op,"scal"))copy_values(w->initial,w->x,d[0]);return;}
@@ -443,6 +446,7 @@ static sparse_matrix_double create_accelerate_matrix(const sparse_fixture *matri
                 "sparse_insert_entry_double failed");
         }
     }
+    accelerate_check(sparse_commit(result), "sparse_commit failed");
     return result;
 }
 
@@ -469,12 +473,22 @@ static double invoke_accelerate_sparse(work *w) {
         return sparse_vector_norm_double(w->sa.nnz, w->sa.values, w->accelerate_indices, SPARSE_NORM_ONE);
     }
     sparse_matrix_double matrix = w->accelerate_a ? w->accelerate_a : create_accelerate_matrix(&w->sa);
+    if (!strcmp(operation, "spmm")) {
+        int count = dimensions[0] * dimensions[1];
+        copy_values(w->c, w->initial, count);
+        cblas_dscal(count, -.25, w->c, 1);
+        accelerate_check(sparse_matrix_product_dense_double(CblasColMajor, CblasNoTrans,
+            dimensions[1], .875, matrix, w->b, dimensions[2], w->c, dimensions[0]),
+            "sparse_matrix_product_dense_double failed");
+        if (!w->accelerate_a) accelerate_check(sparse_matrix_destroy(matrix), "sparse_matrix_destroy failed");
+        return consume(w->c, count);
+    }
     copy_values(w->y, w->initial, dimensions[0]);
     cblas_dscal(dimensions[0], -.25, w->y, 1);
     accelerate_check(sparse_matrix_vector_product_dense_double(
         flag(w->spec, "transA") ? CblasTrans : CblasNoTrans, .875, matrix, w->x, 1, w->y, 1),
         "sparse_matrix_vector_product_dense_double failed");
-    if (!w->accelerate_a) sparse_matrix_destroy(matrix);
+    if (!w->accelerate_a) accelerate_check(sparse_matrix_destroy(matrix), "sparse_matrix_destroy failed");
     return consume(w->y, dimensions[0]);
 }
 
@@ -483,7 +497,8 @@ static void setup_accelerate_sparse(work *w) {
     int *dimensions = spec->dims;
     double density = strtod(option(spec, "density", "0.01"), NULL);
     if (strcmp(spec->operation, "spdot") && strcmp(spec->operation, "spaxpy") &&
-        strcmp(spec->operation, "spnrm2") && strcmp(spec->operation, "spasum") && strcmp(spec->operation, "spgemv")) {
+        strcmp(spec->operation, "spnrm2") && strcmp(spec->operation, "spasum") &&
+        strcmp(spec->operation, "spgemv") && strcmp(spec->operation, "spmm")) {
         w->supported = 0;
         w->comparison = "unsupported";
         w->timing = !strncmp(spec->operation, "sparse-slices-", 14) ? "sparse-slices" : option(spec, "mode", "arithmetic");
@@ -491,23 +506,29 @@ static void setup_accelerate_sparse(work *w) {
     }
     w->supported = 1;
     w->comparison = "direct";
-    w->timing = !strcmp(spec->operation, "spgemv") ?
+    w->timing = !strcmp(spec->operation, "spgemv") || !strcmp(spec->operation, "spmm") ?
         (!strcmp(option(spec, "mode", "oneshot"), "prepared") ? "prepared" : "oneshot") :
         (!strcmp(spec->operation, "spdot") || !strcmp(spec->operation, "spnrm2") || !strcmp(spec->operation, "spasum") ? "arithmetic" : "reset-and-arithmetic");
     w->invoke = invoke_accelerate_sparse;
-    if (!strcmp(spec->operation, "spgemv")) {
-        w->sa = make_sparse(dimensions[0], dimensions[1], density, 1, 0, 1);
-        w->x = allocate(dimensions[1], sizeof(double));
+    if (!strcmp(spec->operation, "spgemv") || !strcmp(spec->operation, "spmm")) {
+        int columns = dimensions[!strcmp(spec->operation, "spmm") ? 2 : 1];
+        int rhs = !strcmp(spec->operation, "spmm") ? dimensions[1] : 1;
+        w->sa = make_sparse(dimensions[0], columns, density, 1, 0, 1);
+        w->x = allocate(columns, sizeof(double));
         w->y = allocate(dimensions[0], sizeof(double));
-        w->initial = allocate(dimensions[0], sizeof(double));
-        fill_vector(w->x, dimensions[1], 2);
-        fill_vector(w->initial, dimensions[0], 3);
+        w->b = allocate(columns * rhs, sizeof(double));
+        w->c = allocate(dimensions[0] * rhs, sizeof(double));
+        w->initial = allocate(dimensions[0] * rhs, sizeof(double));
+        fill_vector(w->x, columns, 2);
+        fill_vector(w->b, columns * rhs, 2);
+        fill_vector(w->initial, dimensions[0] * rhs, 3);
         if (!strcmp(option(spec, "mode", "oneshot"), "prepared")) w->accelerate_a = create_accelerate_matrix(&w->sa);
     } else {
         w->sa = make_sparse(dimensions[0], 1, density, 1, 0, 1);
         w->y = allocate(dimensions[0], sizeof(double));
         w->initial = allocate(dimensions[0], sizeof(double));
         fill_vector(w->initial, dimensions[0], 2);
+        copy_values(w->y, w->initial, dimensions[0]);
     }
     copy_accelerate_indices(w);
 }
@@ -530,7 +551,7 @@ if(w->handle_a)mkl_sparse_destroy(w->handle_a);
 free_sparse(&w->csr_a);free_sparse(&w->csr_b);
 #endif
 #ifdef USE_ACCELERATE
-if(w->accelerate_a)sparse_matrix_destroy(w->accelerate_a);
+if(w->accelerate_a)accelerate_check(sparse_matrix_destroy(w->accelerate_a), "sparse_matrix_destroy failed");
 free(w->accelerate_indices);
 #endif
 free_sparse(&w->sa);free_sparse(&w->sb);free(w->a);free(w->b);free(w->c);free(w->initial);free(w->x);free(w->y);free(w->indices);

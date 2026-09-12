@@ -144,7 +144,7 @@ function identify_case(row,    parts, count, operation, logical, options, i, key
     options[key] = value
     if (key == "packed") {
       if (value != "4x4" && value != "8x4") fail(FILENAME ": unsupported packed recipe")
-      row["configuration"] = row["implementation"] ~ /^(openblas|onemkl)$/ ? "column-major" : "packed=" value
+      row["configuration"] = row["implementation"] ~ /^(openblas|onemkl|accelerate)$/ ? "column-major" : "packed=" value
     }
   }
   n = asorti(options, names)

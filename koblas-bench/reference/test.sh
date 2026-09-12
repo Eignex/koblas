@@ -13,11 +13,15 @@ test "$(grep -c '^sample,[0-9]' "$result")" -gt 0
 test ! -d "$smoke_output/bin"
 
 if [[ $(uname) == Darwin ]]; then
+  cc -std=c11 -O2 -Wall -Wextra -Werror -DUSE_ACCELERATE -DACCELERATE_NEW_LAPACK \
+    "$root/koblas-bench/reference/accelerate_test.c" -framework Accelerate -lm -o "$temporary/accelerate-test"
+  "$temporary/accelerate-test"
   accelerate_output="$temporary/accelerate"
   "$root/koblas-bench/reference-smoke.sh" --libraries accelerate --output "$accelerate_output" >/dev/null
   accelerate="$accelerate_output/accelerate.csv"
   grep -Fq 'spdot+4096+sparse-uniform+density=0.01,ok,direct,arithmetic,vendor-accelerate' "$accelerate"
   grep -Fq 'spgemv+257x129+sparse-uniform+density=0.01+mode=prepared,ok,direct,prepared,vendor-accelerate' "$accelerate"
+  "$root/koblas-bench/reference.sh" --libraries accelerate --output "$temporary/accelerate-full" --warmups 0 --samples 1 --target-ms 1
 fi
 
 # Parser rejection checks use a private test binary; smoke coverage above goes through the production entry point.

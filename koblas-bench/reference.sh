@@ -65,7 +65,7 @@ run_accelerate() {
   [[ $(uname) == Darwin ]] || { echo "Accelerate is available only on macOS" >&2; exit 2; }
   cc -std=c11 -O3 -DNDEBUG -Wall -Wextra -Werror -DUSE_ACCELERATE -DACCELERATE_NEW_LAPACK \
     "$bench/reference/vendor_runner.c" -framework Accelerate -lm -o "$output/bin/accelerate-runner"
-  "$output/bin/accelerate-runner" --cases="$cases" --output="$output/accelerate.csv" --samples="$samples" \
+  VECLIB_MAXIMUM_THREADS=1 "$output/bin/accelerate-runner" --cases="$cases" --output="$output/accelerate.csv" --samples="$samples" \
     --warmups="$warmups" --target-ms="$target_ms" --pass="$pass" --source-commit="$commit" --dirty="$dirty"
 }
 

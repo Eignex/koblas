@@ -1,6 +1,6 @@
 # koblas-bench
 
-Benchmarks for koblas, plus independent OpenBLAS and oneMKL reference runs. This module is for development; it is
+Benchmarks for koblas, plus independent OpenBLAS, Accelerate, and oneMKL reference runs. This module is for development; it is
 not published.
 
 ## Quick start
@@ -34,7 +34,10 @@ koblas-bench/reference.sh --libraries all --output results/vendor
 This writes one file per library. On macOS, `all` selects OpenBLAS and Accelerate; other hosts select OpenBLAS and
 oneMKL. Vendor runs use one thread. OpenBLAS must be linkable as `-lopenblas`; on macOS, the runner automatically
 uses Homebrew's keg-only `openblas` install. Accelerate is the system comparator for macOS and covers dense BLAS,
-sparse vectors, and sparse matrix-vector multiplication. For oneMKL, set
+sparse vector dot/AXPY/norms, sparse matrix-vector multiplication, and sparse matrix times dense matrix multiplication.
+Accelerate requires macOS 15 or later for single-thread BLAS control; `VECLIB_MAXIMUM_THREADS=1` also limits its sparse calls.
+Prepared sparse cases commit the matrix before timing; one-shot cases include creation, insertion, commit, and destruction.
+For oneMKL, set
 `ONEMKL_LIBRARY=/path/to/libmkl_rt.so.3` if the default runtime path is not suitable. oneMKL vendor runs require a
 supported Linux runtime.
 
@@ -48,7 +51,7 @@ within the trace, including its build and warmup time. The sampler uses the JDK 
 on `PATH`. Repeated runs never overwrite prior results.
 
 ```bash
-koblas-bench/capture-report.sh --libraries openblas,onemkl \
+koblas-bench/capture-report.sh --libraries all \
   --samples 10 --warmups 5 --target-ms 200 --forks 2
 ```
 
@@ -67,7 +70,8 @@ koblas-bench/tools/compare.sh --mode logical --timing prepacked-compute --requir
 Use `--mode fixed` for identical packed configurations, or `--mode logical` to compare complete operations
 across layouts. Physical strategies remain separate pairs. The example selects prepacked block computation;
 raw vendor arithmetic has a different timing boundary and cannot be compared with Koblas raw tiles.
-The comparator rejects mismatched timing modes, threads, warmups and timing targets. Source SHAs identify the workload and fixtures.
+The comparator requires GNU awk (`gawk`; install with `brew install gawk` on macOS).
+It rejects mismatched timing modes, threads, warmups and timing targets. Source SHAs identify the workload and fixtures.
 CSV run and case records identify the source commit, runtime, actual kernel and physical configuration.
 
 ## Useful options
