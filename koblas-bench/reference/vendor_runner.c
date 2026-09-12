@@ -627,5 +627,6 @@ int main(int argc,char **argv){
         fprintf(output,",%d,1,%.17g,%.17g,%.17g\n",samples,median,timings[0],timings[samples - 1]);
         free_work(&w);
     }
-    fclose(output);free(timings);free(cases);fprintf(stderr,"wrote %d cases to %s (%s, sink=%g)\n",case_count,output_path,implementation,(double)sink);return 0;
+    fclose(output);free(timings);free(cases);fprintf(stderr,"wrote %d cases to %s (%s, sink=%g)\n",case_count,output_path,implementation,(double)sink);
+    printf("resolved implementation=%s runtime=%s\n",implementation,runtime);return 0;
 }
