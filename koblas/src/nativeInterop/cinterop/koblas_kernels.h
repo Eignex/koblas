@@ -125,8 +125,18 @@ KOBLAS_KERNEL void koblas_dense_axpy_arithmetic(
 }
 
 KOBLAS_KERNEL void koblas_dense_scale(double *v, int32_t v_off, double alpha, int32_t len) {
-    if (alpha == 1.0) return;
-    for (int32_t i = 0; i < len; i++) v[v_off + i] *= alpha;
+    if (alpha == 1.0 || len <= 0) return;
+    v += v_off;
+#if defined(__x86_64__)
+    /* Avoid cache-line-split AVX2 stores when the array or its slice starts between vector boundaries. */
+    while (len > 0 && ((uintptr_t)v & (sizeof(koblas_v4d) - 1))) {
+        *v++ *= alpha;
+        --len;
+    }
+    if (len == 0) return;
+    v = __builtin_assume_aligned(v, sizeof(koblas_v4d));
+#endif
+    for (int32_t i = 0; i < len; i++) v[i] *= alpha;
 }
 
 KOBLAS_KERNEL double koblas_dense_nrm2(const double *v, int32_t v_off, int32_t len) {
