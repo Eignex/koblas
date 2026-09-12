@@ -8,6 +8,10 @@ import kotlin.random.Random
 import kotlin.test.*
 
 class DenseVectorKernelsTest {
+    @Test
+    fun `the platform scaling preserves offsets tails and exceptional values`() {
+        assertScaleAgreesWithReference(koblas.vectorKernels)
+    }
 
     @Test
     fun `the scalar and platform arithmetic axpy kernels agree`() {
@@ -281,6 +285,10 @@ class DenseVectorKernelsTest {
             assertEquals(0.0, koblas.vectorKernels.ssqd(a, 0, a, 0, len), "equal runs len=$len")
         }
     }
+
+    @Test
+    fun `the compiled in iamax agrees with the scalar reference`() =
+        assertIamaxAgreesWithReference(koblas.vectorKernels)
 
     @Test
     fun `the compiled-in reductions agree with the scalar loops`() =

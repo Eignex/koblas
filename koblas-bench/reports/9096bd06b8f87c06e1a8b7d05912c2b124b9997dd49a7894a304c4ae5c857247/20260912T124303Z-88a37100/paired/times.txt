@@ -1,0 +1,12 @@
+2026-09-12T13:16:13Z pass=1 mode=scalar
+2026-09-12T13:16:15Z pass=1 mode=native
+2026-09-12T13:16:16Z pass=1 mode=onemkl
+2026-09-12T13:16:17Z pass=1 mode=openblas
+2026-09-12T13:16:17Z pass=2 mode=openblas
+2026-09-12T13:16:18Z pass=2 mode=onemkl
+2026-09-12T13:16:19Z pass=2 mode=native
+2026-09-12T13:16:20Z pass=2 mode=scalar
+2026-09-12T13:16:21Z pass=3 mode=native
+2026-09-12T13:16:23Z pass=3 mode=scalar
+2026-09-12T13:16:24Z pass=3 mode=openblas
+2026-09-12T13:16:24Z pass=3 mode=onemkl

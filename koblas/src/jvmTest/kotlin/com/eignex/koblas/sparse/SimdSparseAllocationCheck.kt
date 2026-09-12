@@ -1,7 +1,6 @@
 package com.eignex.koblas.sparse
 
 import com.eignex.koblas.BuiltinEngines
-import com.eignex.koblas.SparseVector
 import com.sun.management.ThreadMXBean
 import java.lang.management.ManagementFactory
 
@@ -44,14 +43,14 @@ internal object SimdSparseAllocationCheck {
         val indices = IntArray(ENTRY_COUNT) { 1 + it * 4 }
         val values = DoubleArray(ENTRY_COUNT) { it * 0.125 - 16.0 }
         val dense = DoubleArray(DIMENSION) { 1.0 + (it % 17) * 0.03125 }
-        val pattern = SparseVector.wrap(DIMENSION, indices, values)
         val kernels = engine.sparseKernels
 
         assertAllocationFree("indexed dot") {
             kernels.dot(indices, 0, values, 0, ENTRY_COUNT, dense)
         }
         assertAllocationFree("indexed gather") {
-            kernels.gather(pattern, dense)
+            // Exercise the Vector API leaf even where production prefers scalar indexed loads.
+            SparseSimd.gather(indices, 0, values, 0, ENTRY_COUNT, dense)
             values[ENTRY_COUNT / 2]
         }
         assertAllocationFree("indexed norm") {

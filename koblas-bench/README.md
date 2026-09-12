@@ -22,6 +22,9 @@ Each CSV records one row per case with sample/fork counts, median, minimum, and 
 Compare matching cases and timing boundaries; prepared, one-shot, and packing-inclusive timings differ.
 Unsupported cases have no timing. A selected target failure stops capture; existing reports are never overwritten.
 
+For `scal` and `spgather`, `+timing=arithmetic` excludes resets; arithmetic scaling uses alpha = -1.
+Default gather resets only the dense source; older captures also reset the sparse output, so compare those separately.
+
 Vendors use one thread. `--libraries all` selects OpenBLAS and Accelerate on macOS, OpenBLAS and oneMKL on Linux.
 Homebrew OpenBLAS is detected automatically. Accelerate requires macOS 15+ and includes sparse vectors and
 matrix products. For Linux oneMKL, set `ONEMKL_LIBRARY` to its runtime library path.

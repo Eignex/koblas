@@ -70,6 +70,58 @@ internal object SimdOps {
         return head + dotOneChain(a, aOff + unrolled, b, bOff + unrolled, len - unrolled)
     }
 
+    /**
+     * Reduce magnitudes independently in each lane, then locate the first match in input order.
+     * Separating the index search removes the scalar value/index dependency from the reduction. Four
+     * independent vectors break the remaining maximum dependency chain. Strict comparisons leave NaNs
+     * out without changing ties or the all-zero result.
+     */
+    fun iamax(v: DoubleArray, vOff: Int, len: Int): Int {
+        if (len == 0) return -1
+        val bound = SPECIES.loopBound(len)
+        var maximum = DoubleVector.zero(SPECIES)
+        var second = DoubleVector.zero(SPECIES)
+        var third = DoubleVector.zero(SPECIES)
+        var fourth = DoubleVector.zero(SPECIES)
+        var i = 0
+        val quadBound = len - len % (4 * LANE)
+        while (i < quadBound) {
+            val a = DoubleVector.fromArray(SPECIES, v, vOff + i).abs()
+            val b = DoubleVector.fromArray(SPECIES, v, vOff + i + LANE).abs()
+            val c = DoubleVector.fromArray(SPECIES, v, vOff + i + 2 * LANE).abs()
+            val d = DoubleVector.fromArray(SPECIES, v, vOff + i + 3 * LANE).abs()
+            maximum = maximum.blend(a, a.compare(VectorOperators.GT, maximum))
+            second = second.blend(b, b.compare(VectorOperators.GT, second))
+            third = third.blend(c, c.compare(VectorOperators.GT, third))
+            fourth = fourth.blend(d, d.compare(VectorOperators.GT, fourth))
+            i += 4 * LANE
+        }
+        maximum = maximum.max(second).max(third.max(fourth))
+        while (i < bound) {
+            val values = DoubleVector.fromArray(SPECIES, v, vOff + i).abs()
+            maximum = maximum.blend(values, values.compare(VectorOperators.GT, maximum))
+            i += LANE
+        }
+        var bestAbs = maximum.reduceLanes(VectorOperators.MAX)
+        while (i < len) {
+            val magnitude = abs(v[vOff + i])
+            if (magnitude > bestAbs) bestAbs = magnitude
+            i++
+        }
+        if (bestAbs == 0.0) return 0
+        i = 0
+        while (i < bound) {
+            val matches = DoubleVector.fromArray(SPECIES, v, vOff + i).abs().eq(bestAbs)
+            if (matches.anyTrue()) return i + matches.firstTrue()
+            i += LANE
+        }
+        while (i < len) {
+            if (abs(v[vOff + i]) == bestAbs) return i
+            i++
+        }
+        return 0
+    }
+
     /** Four chains above [UNROLL_MIN], one accumulator below it, and a scalar tail. */
     fun sum(v: DoubleArray, vOff: Int, len: Int): Double {
         var i = 0

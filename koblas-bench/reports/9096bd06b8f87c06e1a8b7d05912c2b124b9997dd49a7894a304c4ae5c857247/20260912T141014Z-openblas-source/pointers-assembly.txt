@@ -1,0 +1,172 @@
+
+/tmp/scal-openblas-source/probe:     file format elf64-x86-64
+
+
+Disassembly of section .init:
+
+Disassembly of section .plt:
+
+Disassembly of section .plt.got:
+
+Disassembly of section .text:
+
+0000000000009d60 <pointers.avx2.0>:
+    9d60:	85 ff                	test   %edi,%edi
+    9d62:	0f 8e 4a 02 00 00    	jle    9fb2 <pointers.avx2.0+0x252>
+    9d68:	c5 f9 2e 05 98 22 00 	vucomisd 0x2298(%rip),%xmm0        # c008 <_IO_stdin_used+0x8>
+    9d6f:	00
+    9d70:	75 06                	jne    9d78 <pointers.avx2.0+0x18>
+    9d72:	0f 8b 3a 02 00 00    	jnp    9fb2 <pointers.avx2.0+0x252>
+    9d78:	81 ff 80 00 00 00    	cmp    $0x80,%edi
+    9d7e:	0f 92 c0             	setb   %al
+    9d81:	40 f6 c6 1f          	test   $0x1f,%sil
+    9d85:	0f 94 c1             	sete   %cl
+    9d88:	08 c1                	or     %al,%cl
+    9d8a:	74 12                	je     9d9e <pointers.avx2.0+0x3e>
+    9d8c:	48 89 f0             	mov    %rsi,%rax
+    9d8f:	c4 e2 7d 19 c8       	vbroadcastsd %xmm0,%ymm1
+    9d94:	83 ff 10             	cmp    $0x10,%edi
+    9d97:	7d 7f                	jge    9e18 <pointers.avx2.0+0xb8>
+    9d99:	e9 4e 01 00 00       	jmp    9eec <pointers.avx2.0+0x18c>
+    9d9e:	48 8d 46 08          	lea    0x8(%rsi),%rax
+    9da2:	c5 fb 59 0e          	vmulsd (%rsi),%xmm0,%xmm1
+    9da6:	c5 fb 11 0e          	vmovsd %xmm1,(%rsi)
+    9daa:	a8 1f                	test   $0x1f,%al
+    9dac:	74 48                	je     9df6 <pointers.avx2.0+0x96>
+    9dae:	48 8d 46 10          	lea    0x10(%rsi),%rax
+    9db2:	c5 fb 59 4e 08       	vmulsd 0x8(%rsi),%xmm0,%xmm1
+    9db7:	c5 fb 11 4e 08       	vmovsd %xmm1,0x8(%rsi)
+    9dbc:	a8 1f                	test   $0x1f,%al
+    9dbe:	74 47                	je     9e07 <pointers.avx2.0+0xa7>
+    9dc0:	48 8d 46 18          	lea    0x18(%rsi),%rax
+    9dc4:	c5 fb 59 4e 10       	vmulsd 0x10(%rsi),%xmm0,%xmm1
+    9dc9:	c5 fb 11 4e 10       	vmovsd %xmm1,0x10(%rsi)
+    9dce:	a8 1f                	test   $0x1f,%al
+    9dd0:	0f 84 05 01 00 00    	je     9edb <pointers.avx2.0+0x17b>
+    9dd6:	48 8d 46 20          	lea    0x20(%rsi),%rax
+    9dda:	c5 fb 59 4e 18       	vmulsd 0x18(%rsi),%xmm0,%xmm1
+    9ddf:	c5 fb 11 4e 18       	vmovsd %xmm1,0x18(%rsi)
+    9de4:	83 c7 fc             	add    $0xfffffffc,%edi
+    9de7:	c4 e2 7d 19 c8       	vbroadcastsd %xmm0,%ymm1
+    9dec:	83 ff 10             	cmp    $0x10,%edi
+    9def:	7d 27                	jge    9e18 <pointers.avx2.0+0xb8>
+    9df1:	e9 f6 00 00 00       	jmp    9eec <pointers.avx2.0+0x18c>
+    9df6:	ff cf                	dec    %edi
+    9df8:	c4 e2 7d 19 c8       	vbroadcastsd %xmm0,%ymm1
+    9dfd:	83 ff 10             	cmp    $0x10,%edi
+    9e00:	7d 16                	jge    9e18 <pointers.avx2.0+0xb8>
+    9e02:	e9 e5 00 00 00       	jmp    9eec <pointers.avx2.0+0x18c>
+    9e07:	83 c7 fe             	add    $0xfffffffe,%edi
+    9e0a:	c4 e2 7d 19 c8       	vbroadcastsd %xmm0,%ymm1
+    9e0f:	83 ff 10             	cmp    $0x10,%edi
+    9e12:	0f 8c d4 00 00 00    	jl     9eec <pointers.avx2.0+0x18c>
+    9e18:	8d 57 f0             	lea    -0x10(%rdi),%edx
+    9e1b:	f6 c2 10             	test   $0x10,%dl
+    9e1e:	75 2c                	jne    9e4c <pointers.avx2.0+0xec>
+    9e20:	c5 f5 59 10          	vmulpd (%rax),%ymm1,%ymm2
+    9e24:	c5 f5 59 58 20       	vmulpd 0x20(%rax),%ymm1,%ymm3
+    9e29:	c5 f5 59 60 40       	vmulpd 0x40(%rax),%ymm1,%ymm4
+    9e2e:	c5 f5 59 68 60       	vmulpd 0x60(%rax),%ymm1,%ymm5
+    9e33:	c5 fd 11 10          	vmovupd %ymm2,(%rax)
+    9e37:	c5 fd 11 58 20       	vmovupd %ymm3,0x20(%rax)
+    9e3c:	c5 fd 11 60 40       	vmovupd %ymm4,0x40(%rax)
+    9e41:	c5 fd 11 68 60       	vmovupd %ymm5,0x60(%rax)
+    9e46:	48 83 e8 80          	sub    $0xffffffffffffff80,%rax
+    9e4a:	89 d7                	mov    %edx,%edi
+    9e4c:	83 fa 10             	cmp    $0x10,%edx
+    9e4f:	0f 82 99 00 00 00    	jb     9eee <pointers.avx2.0+0x18e>
+    9e55:	66 66 2e 0f 1f 84 00 	data16 cs nopw 0x0(%rax,%rax,1)
+    9e5c:	00 00 00 00
+    9e60:	c5 f5 59 10          	vmulpd (%rax),%ymm1,%ymm2
+    9e64:	c5 f5 59 58 20       	vmulpd 0x20(%rax),%ymm1,%ymm3
+    9e69:	c5 f5 59 60 40       	vmulpd 0x40(%rax),%ymm1,%ymm4
+    9e6e:	c5 f5 59 68 60       	vmulpd 0x60(%rax),%ymm1,%ymm5
+    9e73:	c5 fd 11 10          	vmovupd %ymm2,(%rax)
+    9e77:	c5 fd 11 58 20       	vmovupd %ymm3,0x20(%rax)
+    9e7c:	c5 fd 11 60 40       	vmovupd %ymm4,0x40(%rax)
+    9e81:	c5 fd 11 68 60       	vmovupd %ymm5,0x60(%rax)
+    9e86:	c5 f5 59 90 80 00 00 	vmulpd 0x80(%rax),%ymm1,%ymm2
+    9e8d:	00
+    9e8e:	c5 f5 59 98 a0 00 00 	vmulpd 0xa0(%rax),%ymm1,%ymm3
+    9e95:	00
+    9e96:	c5 f5 59 a0 c0 00 00 	vmulpd 0xc0(%rax),%ymm1,%ymm4
+    9e9d:	00
+    9e9e:	c5 f5 59 a8 e0 00 00 	vmulpd 0xe0(%rax),%ymm1,%ymm5
+    9ea5:	00
+    9ea6:	c5 fd 11 90 80 00 00 	vmovupd %ymm2,0x80(%rax)
+    9ead:	00
+    9eae:	c5 fd 11 98 a0 00 00 	vmovupd %ymm3,0xa0(%rax)
+    9eb5:	00
+    9eb6:	c5 fd 11 a0 c0 00 00 	vmovupd %ymm4,0xc0(%rax)
+    9ebd:	00
+    9ebe:	c5 fd 11 a8 e0 00 00 	vmovupd %ymm5,0xe0(%rax)
+    9ec5:	00
+    9ec6:	8d 57 e0             	lea    -0x20(%rdi),%edx
+    9ec9:	48 05 00 01 00 00    	add    $0x100,%rax
+    9ecf:	83 c7 d0             	add    $0xffffffd0,%edi
+    9ed2:	83 ff e0             	cmp    $0xffffffe0,%edi
+    9ed5:	89 d7                	mov    %edx,%edi
+    9ed7:	72 87                	jb     9e60 <pointers.avx2.0+0x100>
+    9ed9:	eb 13                	jmp    9eee <pointers.avx2.0+0x18e>
+    9edb:	83 c7 fd             	add    $0xfffffffd,%edi
+    9ede:	c4 e2 7d 19 c8       	vbroadcastsd %xmm0,%ymm1
+    9ee3:	83 ff 10             	cmp    $0x10,%edi
+    9ee6:	0f 8d 2c ff ff ff    	jge    9e18 <pointers.avx2.0+0xb8>
+    9eec:	89 fa                	mov    %edi,%edx
+    9eee:	85 d2                	test   %edx,%edx
+    9ef0:	0f 8e bc 00 00 00    	jle    9fb2 <pointers.avx2.0+0x252>
+    9ef6:	89 d1                	mov    %edx,%ecx
+    9ef8:	83 fa 03             	cmp    $0x3,%edx
+    9efb:	77 07                	ja     9f04 <pointers.avx2.0+0x1a4>
+    9efd:	31 d2                	xor    %edx,%edx
+    9eff:	e9 9c 00 00 00       	jmp    9fa0 <pointers.avx2.0+0x240>
+    9f04:	83 fa 10             	cmp    $0x10,%edx
+    9f07:	73 04                	jae    9f0d <pointers.avx2.0+0x1ad>
+    9f09:	31 d2                	xor    %edx,%edx
+    9f0b:	eb 63                	jmp    9f70 <pointers.avx2.0+0x210>
+    9f0d:	89 ca                	mov    %ecx,%edx
+    9f0f:	81 e2 f0 ff ff 7f    	and    $0x7ffffff0,%edx
+    9f15:	89 ce                	mov    %ecx,%esi
+    9f17:	c1 ee 04             	shr    $0x4,%esi
+    9f1a:	81 e6 ff ff ff 07    	and    $0x7ffffff,%esi
+    9f20:	48 c1 e6 07          	shl    $0x7,%rsi
+    9f24:	31 ff                	xor    %edi,%edi
+    9f26:	66 2e 0f 1f 84 00 00 	cs nopw 0x0(%rax,%rax,1)
+    9f2d:	00 00 00
+    9f30:	c5 f5 59 14 38       	vmulpd (%rax,%rdi,1),%ymm1,%ymm2
+    9f35:	c5 f5 59 5c 38 20    	vmulpd 0x20(%rax,%rdi,1),%ymm1,%ymm3
+    9f3b:	c5 f5 59 64 38 40    	vmulpd 0x40(%rax,%rdi,1),%ymm1,%ymm4
+    9f41:	c5 f5 59 6c 38 60    	vmulpd 0x60(%rax,%rdi,1),%ymm1,%ymm5
+    9f47:	c5 fd 11 14 38       	vmovupd %ymm2,(%rax,%rdi,1)
+    9f4c:	c5 fd 11 5c 38 20    	vmovupd %ymm3,0x20(%rax,%rdi,1)
+    9f52:	c5 fd 11 64 38 40    	vmovupd %ymm4,0x40(%rax,%rdi,1)
+    9f58:	c5 fd 11 6c 38 60    	vmovupd %ymm5,0x60(%rax,%rdi,1)
+    9f5e:	48 83 ef 80          	sub    $0xffffffffffffff80,%rdi
+    9f62:	48 39 fe             	cmp    %rdi,%rsi
+    9f65:	75 c9                	jne    9f30 <pointers.avx2.0+0x1d0>
+    9f67:	39 ca                	cmp    %ecx,%edx
+    9f69:	74 47                	je     9fb2 <pointers.avx2.0+0x252>
+    9f6b:	f6 c1 0c             	test   $0xc,%cl
+    9f6e:	74 30                	je     9fa0 <pointers.avx2.0+0x240>
+    9f70:	48 89 d6             	mov    %rdx,%rsi
+    9f73:	89 ca                	mov    %ecx,%edx
+    9f75:	81 e2 fc ff ff 7f    	and    $0x7ffffffc,%edx
+    9f7b:	0f 1f 44 00 00       	nopl   0x0(%rax,%rax,1)
+    9f80:	c5 f5 59 14 f0       	vmulpd (%rax,%rsi,8),%ymm1,%ymm2
+    9f85:	c5 fd 11 14 f0       	vmovupd %ymm2,(%rax,%rsi,8)
+    9f8a:	48 83 c6 04          	add    $0x4,%rsi
+    9f8e:	48 39 f2             	cmp    %rsi,%rdx
+    9f91:	75 ed                	jne    9f80 <pointers.avx2.0+0x220>
+    9f93:	39 ca                	cmp    %ecx,%edx
+    9f95:	74 1b                	je     9fb2 <pointers.avx2.0+0x252>
+    9f97:	66 0f 1f 84 00 00 00 	nopw   0x0(%rax,%rax,1)
+    9f9e:	00 00
+    9fa0:	c5 fb 59 0c d0       	vmulsd (%rax,%rdx,8),%xmm0,%xmm1
+    9fa5:	c5 fb 11 0c d0       	vmovsd %xmm1,(%rax,%rdx,8)
+    9faa:	48 ff c2             	inc    %rdx
+    9fad:	48 39 d1             	cmp    %rdx,%rcx
+    9fb0:	75 ee                	jne    9fa0 <pointers.avx2.0+0x240>
+    9fb2:	c5 f8 77             	vzeroupper
+    9fb5:	c3                   	ret
+
+Disassembly of section .fini:

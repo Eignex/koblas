@@ -41,6 +41,12 @@ public interface DenseVectorKernels {
     /** Sum of absolute values over [len] entries, or zero for an empty run. */
     public fun asum(v: DoubleArray, vOff: Int, len: Int): Double
 
+    /**
+     * Zero-based index within the selected run of its first maximum absolute value, or `-1` when empty.
+     * NaNs are ignored; nonempty runs containing only zeros and NaNs return `0`.
+     */
+    public fun iamax(v: DoubleArray, vOff: Int, len: Int): Int
+
     /** Constructs a modified Givens transformation. */
     public fun rotmg(d1: Double, d2: Double, x1: Double, y1: Double): ModifiedGivens
 
@@ -100,6 +106,8 @@ internal object ScalarVectorKernels : DenseVectorKernels {
     override fun nrm2(v: DoubleArray, vOff: Int, len: Int): Double = euclideanNorm(v, vOff, len)
 
     override fun asum(v: DoubleArray, vOff: Int, len: Int): Double = absoluteSum(v, vOff, len)
+
+    override fun iamax(v: DoubleArray, vOff: Int, len: Int): Int = scalarIamax(v, vOff, len)
 
     override fun sum(v: DoubleArray, vOff: Int, len: Int): Double = scalarSum(v, vOff, len)
 

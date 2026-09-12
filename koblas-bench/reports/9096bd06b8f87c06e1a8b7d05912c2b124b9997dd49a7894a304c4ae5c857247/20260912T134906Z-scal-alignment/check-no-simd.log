@@ -1,0 +1,29 @@
+Calculating task graph as no cached configuration is available for tasks: :koblas:jvmTest
+
+> Configure project :koblas
+Signing skipped: SNAPSHOT is a snapshot.
+
+> Configure project :koblas-hfactor
+Signing skipped: SNAPSHOT is a snapshot.
+
+> Task :koblas:verifyJvmKernelResources SKIPPED
+> Task :koblas:jvmTestProcessResources NO-SOURCE
+> Task :koblas:kmpPartiallyResolvedDependenciesChecker
+> Task :koblas:processJvmTestResources SKIPPED
+> Task :koblas:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :koblas:koverFindJar UP-TO-DATE
+> Task :koblas:buildJvmKernels UP-TO-DATE
+> Task :koblas:jvmProcessResources UP-TO-DATE
+> Task :koblas:processJvmMainResources SKIPPED
+> Task :koblas:compileKotlinJvm UP-TO-DATE
+> Task :koblas:compileJvmMainJava NO-SOURCE
+> Task :koblas:jvmMainClasses UP-TO-DATE
+> Task :koblas:jvmJar UP-TO-DATE
+> Task :koblas:compileTestKotlinJvm
+> Task :koblas:compileJvmTestJava UP-TO-DATE
+> Task :koblas:jvmTestClasses
+> Task :koblas:jvmTest
+
+BUILD SUCCESSFUL in 6s
+9 actionable tasks: 3 executed, 6 up-to-date
+Configuration cache entry stored.

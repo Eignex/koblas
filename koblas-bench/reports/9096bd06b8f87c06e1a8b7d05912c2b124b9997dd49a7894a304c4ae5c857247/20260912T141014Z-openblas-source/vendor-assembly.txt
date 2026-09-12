@@ -1,0 +1,262 @@
+
+/usr/lib/x86_64-linux-gnu/openblas-pthread/libopenblasp-r0.3.32.so:     file format elf64-x86-64
+
+
+Disassembly of section .init:
+
+Disassembly of section .plt:
+
+Disassembly of section .plt.got:
+
+Disassembly of section .plt.sec:
+
+Disassembly of section .text:
+
+0000000001cfec70 <dscal_k_HASWELL@@Base>:
+ 1cfec70:	f3 0f 1e fa          	endbr64
+ 1cfec74:	55                   	push   %rbp
+ 1cfec75:	49 89 fa             	mov    %rdi,%r10
+ 1cfec78:	49 89 cb             	mov    %rcx,%r11
+ 1cfec7b:	48 89 e5             	mov    %rsp,%rbp
+ 1cfec7e:	48 83 e4 e0          	and    $0xffffffffffffffe0,%rsp
+ 1cfec82:	48 83 ec 20          	sub    $0x20,%rsp
+ 1cfec86:	c5 fb 11 44 24 18    	vmovsd %xmm0,0x18(%rsp)
+ 1cfec8c:	48 83 7d 20 01       	cmpq   $0x1,0x20(%rbp)
+ 1cfec91:	75 6d                	jne    1cfed00 <dscal_k_HASWELL@@Base+0x90>
+ 1cfec93:	c5 f1 57 c9          	vxorpd %xmm1,%xmm1,%xmm1
+ 1cfec97:	ba 00 00 00 00       	mov    $0x0,%edx
+ 1cfec9c:	c5 f9 2e c1          	vucomisd %xmm1,%xmm0
+ 1cfeca0:	0f 9b c0             	setnp  %al
+ 1cfeca3:	0f 45 c2             	cmovne %edx,%eax
+ 1cfeca6:	84 c0                	test   %al,%al
+ 1cfeca8:	74 56                	je     1cfed00 <dscal_k_HASWELL@@Base+0x90>
+ 1cfecaa:	49 89 f9             	mov    %rdi,%r9
+ 1cfecad:	49 83 e1 f8          	and    $0xfffffffffffffff8,%r9
+ 1cfecb1:	49 83 f8 01          	cmp    $0x1,%r8
+ 1cfecb5:	0f 84 35 01 00 00    	je     1cfedf0 <dscal_k_HASWELL@@Base+0x180>
+ 1cfecbb:	4d 85 c9             	test   %r9,%r9
+ 1cfecbe:	0f 8f 1c 02 00 00    	jg     1cfeee0 <dscal_k_HASWELL@@Base+0x270>
+ 1cfecc4:	45 31 c9             	xor    %r9d,%r9d
+ 1cfecc7:	31 c0                	xor    %eax,%eax
+ 1cfecc9:	4d 39 ca             	cmp    %r9,%r10
+ 1cfeccc:	7e 26                	jle    1cfecf4 <dscal_k_HASWELL@@Base+0x84>
+ 1cfecce:	c5 fb 10 4c 24 18    	vmovsd 0x18(%rsp),%xmm1
+ 1cfecd4:	49 c1 e0 03          	shl    $0x3,%r8
+ 1cfecd8:	49 8d 04 c3          	lea    (%r11,%rax,8),%rax
+ 1cfecdc:	0f 1f 40 00          	nopl   0x0(%rax)
+ 1cfece0:	c5 f3 59 00          	vmulsd (%rax),%xmm1,%xmm0
+ 1cfece4:	49 83 c1 01          	add    $0x1,%r9
+ 1cfece8:	c5 fb 11 00          	vmovsd %xmm0,(%rax)
+ 1cfecec:	4c 01 c0             	add    %r8,%rax
+ 1cfecef:	4d 39 ca             	cmp    %r9,%r10
+ 1cfecf2:	75 ec                	jne    1cfece0 <dscal_k_HASWELL@@Base+0x70>
+ 1cfecf4:	c9                   	leave
+ 1cfecf5:	31 c0                	xor    %eax,%eax
+ 1cfecf7:	c3                   	ret
+ 1cfecf8:	0f 1f 84 00 00 00 00 	nopl   0x0(%rax,%rax,1)
+ 1cfecff:	00
+ 1cfed00:	49 83 f8 01          	cmp    $0x1,%r8
+ 1cfed04:	0f 84 96 00 00 00    	je     1cfeda0 <dscal_k_HASWELL@@Base+0x130>
+ 1cfed0a:	c5 f1 57 c9          	vxorpd %xmm1,%xmm1,%xmm1
+ 1cfed0e:	c5 f9 2e c1          	vucomisd %xmm1,%xmm0
+ 1cfed12:	0f 8a 68 01 00 00    	jp     1cfee80 <dscal_k_HASWELL@@Base+0x210>
+ 1cfed18:	0f 85 62 01 00 00    	jne    1cfee80 <dscal_k_HASWELL@@Base+0x210>
+ 1cfed1e:	4c 89 d0             	mov    %r10,%rax
+ 1cfed21:	48 83 e0 fe          	and    $0xfffffffffffffffe,%rax
+ 1cfed25:	0f 8e e2 02 00 00    	jle    1cff00d <dscal_k_HASWELL@@Base+0x39d>
+ 1cfed2b:	4c 89 c6             	mov    %r8,%rsi
+ 1cfed2e:	4b 8d 3c 00          	lea    (%r8,%r8,1),%rdi
+ 1cfed32:	4c 89 da             	mov    %r11,%rdx
+ 1cfed35:	31 c9                	xor    %ecx,%ecx
+ 1cfed37:	48 c1 e6 04          	shl    $0x4,%rsi
+ 1cfed3b:	0f 1f 44 00 00       	nopl   0x0(%rax,%rax,1)
+ 1cfed40:	48 83 c1 02          	add    $0x2,%rcx
+ 1cfed44:	48 c7 02 00 00 00 00 	movq   $0x0,(%rdx)
+ 1cfed4b:	4a c7 04 c2 00 00 00 	movq   $0x0,(%rdx,%r8,8)
+ 1cfed52:	00
+ 1cfed53:	48 01 f2             	add    %rsi,%rdx
+ 1cfed56:	48 39 c8             	cmp    %rcx,%rax
+ 1cfed59:	7f e5                	jg     1cfed40 <dscal_k_HASWELL@@Base+0xd0>
+ 1cfed5b:	48 8d 50 ff          	lea    -0x1(%rax),%rdx
+ 1cfed5f:	48 d1 ea             	shr    $1,%rdx
+ 1cfed62:	48 83 c2 01          	add    $0x1,%rdx
+ 1cfed66:	48 0f af d7          	imul   %rdi,%rdx
+ 1cfed6a:	49 39 c2             	cmp    %rax,%r10
+ 1cfed6d:	7e 85                	jle    1cfecf4 <dscal_k_HASWELL@@Base+0x84>
+ 1cfed6f:	49 c1 e0 03          	shl    $0x3,%r8
+ 1cfed73:	49 8d 14 d3          	lea    (%r11,%rdx,8),%rdx
+ 1cfed77:	66 0f 1f 84 00 00 00 	nopw   0x0(%rax,%rax,1)
+ 1cfed7e:	00 00
+ 1cfed80:	48 83 c0 01          	add    $0x1,%rax
+ 1cfed84:	48 c7 02 00 00 00 00 	movq   $0x0,(%rdx)
+ 1cfed8b:	4c 01 c2             	add    %r8,%rdx
+ 1cfed8e:	49 39 c2             	cmp    %rax,%r10
+ 1cfed91:	75 ed                	jne    1cfed80 <dscal_k_HASWELL@@Base+0x110>
+ 1cfed93:	c9                   	leave
+ 1cfed94:	31 c0                	xor    %eax,%eax
+ 1cfed96:	c3                   	ret
+ 1cfed97:	66 0f 1f 84 00 00 00 	nopw   0x0(%rax,%rax,1)
+ 1cfed9e:	00 00
+ 1cfeda0:	4c 89 d1             	mov    %r10,%rcx
+ 1cfeda3:	c5 f1 57 c9          	vxorpd %xmm1,%xmm1,%xmm1
+ 1cfeda7:	48 83 e1 f8          	and    $0xfffffffffffffff8,%rcx
+ 1cfedab:	c5 f9 2e c1          	vucomisd %xmm1,%xmm0
+ 1cfedaf:	0f 8a 5b 01 00 00    	jp     1cfef10 <dscal_k_HASWELL@@Base+0x2a0>
+ 1cfedb5:	0f 85 55 01 00 00    	jne    1cfef10 <dscal_k_HASWELL@@Base+0x2a0>
+ 1cfedbb:	48 85 c9             	test   %rcx,%rcx
+ 1cfedbe:	0f 8f 34 02 00 00    	jg     1cfeff8 <dscal_k_HASWELL@@Base+0x388>
+ 1cfedc4:	49 39 ca             	cmp    %rcx,%r10
+ 1cfedc7:	0f 8e 27 ff ff ff    	jle    1cfecf4 <dscal_k_HASWELL@@Base+0x84>
+ 1cfedcd:	49 29 ca             	sub    %rcx,%r10
+ 1cfedd0:	49 8d 3c cb          	lea    (%r11,%rcx,8),%rdi
+ 1cfedd4:	31 f6                	xor    %esi,%esi
+ 1cfedd6:	4a 8d 14 d5 00 00 00 	lea    0x0(,%r10,8),%rdx
+ 1cfeddd:	00
+ 1cfedde:	e8 4d f6 43 fe       	call   13e430 <memset@plt>
+ 1cfede3:	e9 0c ff ff ff       	jmp    1cfecf4 <dscal_k_HASWELL@@Base+0x84>
+ 1cfede8:	0f 1f 84 00 00 00 00 	nopl   0x0(%rax,%rax,1)
+ 1cfedef:	00
+ 1cfedf0:	4d 85 c9             	test   %r9,%r9
+ 1cfedf3:	7e 10                	jle    1cfee05 <dscal_k_HASWELL@@Base+0x195>
+ 1cfedf5:	48 8d 74 24 18       	lea    0x18(%rsp),%rsi
+ 1cfedfa:	48 89 ca             	mov    %rcx,%rdx
+ 1cfedfd:	4c 89 cf             	mov    %r9,%rdi
+ 1cfee00:	e8 bb fc ff ff       	call   1cfeac0 <drot_k_HASWELL@@Base+0xb0>
+ 1cfee05:	4d 39 ca             	cmp    %r9,%r10
+ 1cfee08:	0f 8e e6 fe ff ff    	jle    1cfecf4 <dscal_k_HASWELL@@Base+0x84>
+ 1cfee0e:	49 8d 42 ff          	lea    -0x1(%r10),%rax
+ 1cfee12:	c5 fb 10 54 24 18    	vmovsd 0x18(%rsp),%xmm2
+ 1cfee18:	4c 29 c8             	sub    %r9,%rax
+ 1cfee1b:	48 83 f8 02          	cmp    $0x2,%rax
+ 1cfee1f:	76 44                	jbe    1cfee65 <dscal_k_HASWELL@@Base+0x1f5>
+ 1cfee21:	4c 89 d1             	mov    %r10,%rcx
+ 1cfee24:	4b 8d 04 cb          	lea    (%r11,%r9,8),%rax
+ 1cfee28:	c4 e2 7d 19 ca       	vbroadcastsd %xmm2,%ymm1
+ 1cfee2d:	4c 29 c9             	sub    %r9,%rcx
+ 1cfee30:	48 89 ca             	mov    %rcx,%rdx
+ 1cfee33:	48 c1 ea 02          	shr    $0x2,%rdx
+ 1cfee37:	48 c1 e2 05          	shl    $0x5,%rdx
+ 1cfee3b:	48 01 c2             	add    %rax,%rdx
+ 1cfee3e:	66 90                	xchg   %ax,%ax
+ 1cfee40:	c5 f5 59 00          	vmulpd (%rax),%ymm1,%ymm0
+ 1cfee44:	48 83 c0 20          	add    $0x20,%rax
+ 1cfee48:	c5 fd 11 40 e0       	vmovupd %ymm0,-0x20(%rax)
+ 1cfee4d:	48 39 d0             	cmp    %rdx,%rax
+ 1cfee50:	75 ee                	jne    1cfee40 <dscal_k_HASWELL@@Base+0x1d0>
+ 1cfee52:	f6 c1 03             	test   $0x3,%cl
+ 1cfee55:	0f 84 75 01 00 00    	je     1cfefd0 <dscal_k_HASWELL@@Base+0x360>
+ 1cfee5b:	48 83 e1 fc          	and    $0xfffffffffffffffc,%rcx
+ 1cfee5f:	49 01 c9             	add    %rcx,%r9
+ 1cfee62:	c5 f8 77             	vzeroupper
+ 1cfee65:	c4 81 6b 59 04 cb    	vmulsd (%r11,%r9,8),%xmm2,%xmm0
+ 1cfee6b:	c4 81 7b 11 04 cb    	vmovsd %xmm0,(%r11,%r9,8)
+ 1cfee71:	49 83 c1 01          	add    $0x1,%r9
+ 1cfee75:	4d 39 d1             	cmp    %r10,%r9
+ 1cfee78:	7c eb                	jl     1cfee65 <dscal_k_HASWELL@@Base+0x1f5>
+ 1cfee7a:	e9 75 fe ff ff       	jmp    1cfecf4 <dscal_k_HASWELL@@Base+0x84>
+ 1cfee7f:	90                   	nop
+ 1cfee80:	4d 89 d1             	mov    %r10,%r9
+ 1cfee83:	49 83 e1 f8          	and    $0xfffffffffffffff8,%r9
+ 1cfee87:	0f 8f 13 01 00 00    	jg     1cfefa0 <dscal_k_HASWELL@@Base+0x330>
+ 1cfee8d:	45 31 c9             	xor    %r9d,%r9d
+ 1cfee90:	31 c0                	xor    %eax,%eax
+ 1cfee92:	4d 39 d1             	cmp    %r10,%r9
+ 1cfee95:	0f 8d 59 fe ff ff    	jge    1cfecf4 <dscal_k_HASWELL@@Base+0x84>
+ 1cfee9b:	c5 fb 10 4c 24 18    	vmovsd 0x18(%rsp),%xmm1
+ 1cfeea1:	49 c1 e0 03          	shl    $0x3,%r8
+ 1cfeea5:	49 8d 04 c3          	lea    (%r11,%rax,8),%rax
+ 1cfeea9:	90                   	nop
+ 1cfeeaa:	66 66 2e 0f 1f 84 00 	data16 cs nopw 0x0(%rax,%rax,1)
+ 1cfeeb1:	00 00 00 00
+ 1cfeeb5:	66 66 2e 0f 1f 84 00 	data16 cs nopw 0x0(%rax,%rax,1)
+ 1cfeebc:	00 00 00 00
+ 1cfeec0:	c5 f3 59 00          	vmulsd (%rax),%xmm1,%xmm0
+ 1cfeec4:	49 83 c1 01          	add    $0x1,%r9
+ 1cfeec8:	c5 fb 11 00          	vmovsd %xmm0,(%rax)
+ 1cfeecc:	4c 01 c0             	add    %r8,%rax
+ 1cfeecf:	4d 39 ca             	cmp    %r9,%r10
+ 1cfeed2:	75 ec                	jne    1cfeec0 <dscal_k_HASWELL@@Base+0x250>
+ 1cfeed4:	c9                   	leave
+ 1cfeed5:	31 c0                	xor    %eax,%eax
+ 1cfeed7:	c3                   	ret
+ 1cfeed8:	0f 1f 84 00 00 00 00 	nopl   0x0(%rax,%rax,1)
+ 1cfeedf:	00
+ 1cfeee0:	4c 89 c1             	mov    %r8,%rcx
+ 1cfeee3:	48 8d 74 24 18       	lea    0x18(%rsp),%rsi
+ 1cfeee8:	4c 89 da             	mov    %r11,%rdx
+ 1cfeeeb:	4c 89 cf             	mov    %r9,%rdi
+ 1cfeeee:	4c 89 44 24 10       	mov    %r8,0x10(%rsp)
+ 1cfeef3:	e8 d8 fc ff ff       	call   1cfebd0 <drot_k_HASWELL@@Base+0x1c0>
+ 1cfeef8:	4c 8b 44 24 10       	mov    0x10(%rsp),%r8
+ 1cfeefd:	4c 89 c0             	mov    %r8,%rax
+ 1cfef00:	49 0f af c1          	imul   %r9,%rax
+ 1cfef04:	e9 c0 fd ff ff       	jmp    1cfecc9 <dscal_k_HASWELL@@Base+0x59>
+ 1cfef09:	0f 1f 80 00 00 00 00 	nopl   0x0(%rax)
+ 1cfef10:	48 85 c9             	test   %rcx,%rcx
+ 1cfef13:	0f 8f c7 00 00 00    	jg     1cfefe0 <dscal_k_HASWELL@@Base+0x370>
+ 1cfef19:	49 39 ca             	cmp    %rcx,%r10
+ 1cfef1c:	0f 8e d2 fd ff ff    	jle    1cfecf4 <dscal_k_HASWELL@@Base+0x84>
+ 1cfef22:	49 8d 42 ff          	lea    -0x1(%r10),%rax
+ 1cfef26:	c5 fb 10 54 24 18    	vmovsd 0x18(%rsp),%xmm2
+ 1cfef2c:	48 29 c8             	sub    %rcx,%rax
+ 1cfef2f:	48 83 f8 02          	cmp    $0x2,%rax
+ 1cfef33:	76 4d                	jbe    1cfef82 <dscal_k_HASWELL@@Base+0x312>
+ 1cfef35:	4c 89 d6             	mov    %r10,%rsi
+ 1cfef38:	49 8d 04 cb          	lea    (%r11,%rcx,8),%rax
+ 1cfef3c:	c4 e2 7d 19 ca       	vbroadcastsd %xmm2,%ymm1
+ 1cfef41:	48 29 ce             	sub    %rcx,%rsi
+ 1cfef44:	48 89 f2             	mov    %rsi,%rdx
+ 1cfef47:	48 c1 ea 02          	shr    $0x2,%rdx
+ 1cfef4b:	48 c1 e2 05          	shl    $0x5,%rdx
+ 1cfef4f:	48 01 c2             	add    %rax,%rdx
+ 1cfef52:	0f 1f 00             	nopl   (%rax)
+ 1cfef55:	66 66 2e 0f 1f 84 00 	data16 cs nopw 0x0(%rax,%rax,1)
+ 1cfef5c:	00 00 00 00
+ 1cfef60:	c5 f5 59 00          	vmulpd (%rax),%ymm1,%ymm0
+ 1cfef64:	48 83 c0 20          	add    $0x20,%rax
+ 1cfef68:	c5 fd 11 40 e0       	vmovupd %ymm0,-0x20(%rax)
+ 1cfef6d:	48 39 d0             	cmp    %rdx,%rax
+ 1cfef70:	75 ee                	jne    1cfef60 <dscal_k_HASWELL@@Base+0x2f0>
+ 1cfef72:	40 f6 c6 03          	test   $0x3,%sil
+ 1cfef76:	74 58                	je     1cfefd0 <dscal_k_HASWELL@@Base+0x360>
+ 1cfef78:	48 83 e6 fc          	and    $0xfffffffffffffffc,%rsi
+ 1cfef7c:	48 01 f1             	add    %rsi,%rcx
+ 1cfef7f:	c5 f8 77             	vzeroupper
+ 1cfef82:	c4 c1 6b 59 04 cb    	vmulsd (%r11,%rcx,8),%xmm2,%xmm0
+ 1cfef88:	c4 c1 7b 11 04 cb    	vmovsd %xmm0,(%r11,%rcx,8)
+ 1cfef8e:	48 83 c1 01          	add    $0x1,%rcx
+ 1cfef92:	49 39 ca             	cmp    %rcx,%r10
+ 1cfef95:	7f eb                	jg     1cfef82 <dscal_k_HASWELL@@Base+0x312>
+ 1cfef97:	e9 58 fd ff ff       	jmp    1cfecf4 <dscal_k_HASWELL@@Base+0x84>
+ 1cfef9c:	0f 1f 40 00          	nopl   0x0(%rax)
+ 1cfefa0:	4c 89 c1             	mov    %r8,%rcx
+ 1cfefa3:	48 8d 74 24 18       	lea    0x18(%rsp),%rsi
+ 1cfefa8:	4c 89 da             	mov    %r11,%rdx
+ 1cfefab:	4c 89 cf             	mov    %r9,%rdi
+ 1cfefae:	4c 89 44 24 10       	mov    %r8,0x10(%rsp)
+ 1cfefb3:	e8 18 fc ff ff       	call   1cfebd0 <drot_k_HASWELL@@Base+0x1c0>
+ 1cfefb8:	4c 8b 44 24 10       	mov    0x10(%rsp),%r8
+ 1cfefbd:	4c 89 c0             	mov    %r8,%rax
+ 1cfefc0:	49 0f af c1          	imul   %r9,%rax
+ 1cfefc4:	e9 c9 fe ff ff       	jmp    1cfee92 <dscal_k_HASWELL@@Base+0x222>
+ 1cfefc9:	0f 1f 80 00 00 00 00 	nopl   0x0(%rax)
+ 1cfefd0:	c5 f8 77             	vzeroupper
+ 1cfefd3:	e9 1c fd ff ff       	jmp    1cfecf4 <dscal_k_HASWELL@@Base+0x84>
+ 1cfefd8:	0f 1f 84 00 00 00 00 	nopl   0x0(%rax,%rax,1)
+ 1cfefdf:	00
+ 1cfefe0:	48 8d 74 24 18       	lea    0x18(%rsp),%rsi
+ 1cfefe5:	4c 89 da             	mov    %r11,%rdx
+ 1cfefe8:	48 89 cf             	mov    %rcx,%rdi
+ 1cfefeb:	e8 d0 fa ff ff       	call   1cfeac0 <drot_k_HASWELL@@Base+0xb0>
+ 1cfeff0:	e9 24 ff ff ff       	jmp    1cfef19 <dscal_k_HASWELL@@Base+0x2a9>
+ 1cfeff5:	0f 1f 00             	nopl   (%rax)
+ 1cfeff8:	48 8d 74 24 18       	lea    0x18(%rsp),%rsi
+ 1cfeffd:	4c 89 da             	mov    %r11,%rdx
+ 1cff000:	48 89 cf             	mov    %rcx,%rdi
+ 1cff003:	e8 68 fb ff ff       	call   1cfeb70 <drot_k_HASWELL@@Base+0x160>
+ 1cff008:	e9 b7 fd ff ff       	jmp    1cfedc4 <dscal_k_HASWELL@@Base+0x154>
+ 1cff00d:	31 c0                	xor    %eax,%eax
+ 1cff00f:	31 d2                	xor    %edx,%edx
+ 1cff011:	e9 54 fd ff ff       	jmp    1cfed6a <dscal_k_HASWELL@@Base+0xfa>
+
+Disassembly of section .fini:

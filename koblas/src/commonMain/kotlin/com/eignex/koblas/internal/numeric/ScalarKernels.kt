@@ -1,5 +1,22 @@
 package com.eignex.koblas.internal.numeric
 
+import kotlin.math.abs
+
+/** First index of the largest magnitude in the run, ignoring NaNs and retaining the first tie. */
+internal fun scalarIamax(v: DoubleArray, vOff: Int, len: Int): Int {
+    if (len == 0) return -1
+    var best = 0
+    var bestAbs = 0.0
+    for (i in 0 until len) {
+        val magnitude = abs(v[vOff + i])
+        if (magnitude > bestAbs) {
+            bestAbs = magnitude
+            best = i
+        }
+    }
+    return best
+}
+
 /** `a · b` over [len] elements from each offset. */
 internal fun scalarDot(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int): Double {
     var s = 0.0

@@ -1,0 +1,2 @@
+wrote 5 cases and 25 measurements to /tmp/scal-openblas-source/suite/p2-before.csv
+resolved implementation=native/c/c-sparse/packed-4x4 runtime=kotlin-native-2.4.10

@@ -1,0 +1,22 @@
+Reusing configuration cache.
+> Task :koblas:verifyJvmKernelResources SKIPPED
+> Task :koblas:jvmTestProcessResources NO-SOURCE
+> Task :koblas:processJvmTestResources SKIPPED
+> Task :koblas:kmpPartiallyResolvedDependenciesChecker
+> Task :koblas:koverFindJar UP-TO-DATE
+> Task :koblas:buildJvmKernels UP-TO-DATE
+> Task :koblas:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :koblas:jvmProcessResources UP-TO-DATE
+> Task :koblas:processJvmMainResources SKIPPED
+> Task :koblas:compileKotlinJvm UP-TO-DATE
+> Task :koblas:compileJvmMainJava NO-SOURCE
+> Task :koblas:jvmMainClasses UP-TO-DATE
+> Task :koblas:jvmJar UP-TO-DATE
+> Task :koblas:compileTestKotlinJvm UP-TO-DATE
+> Task :koblas:compileJvmTestJava UP-TO-DATE
+> Task :koblas:jvmTestClasses UP-TO-DATE
+> Task :koblas:jvmTest
+
+BUILD SUCCESSFUL in 3s
+9 actionable tasks: 2 executed, 7 up-to-date
+Configuration cache entry reused.

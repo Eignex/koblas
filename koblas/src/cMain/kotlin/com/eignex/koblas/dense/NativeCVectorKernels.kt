@@ -6,6 +6,7 @@ import com.eignex.koblas.ModifiedGivens
 import com.eignex.koblas.internal.kernels.*
 import com.eignex.koblas.internal.numeric.scalarAxpy
 import com.eignex.koblas.internal.numeric.scalarDot
+import com.eignex.koblas.internal.numeric.scalarIamax
 import com.eignex.koblas.internal.numeric.scalarScale
 import com.eignex.koblas.portableRotmg
 import kotlinx.cinterop.addressOf
@@ -44,6 +45,14 @@ internal object NativeCVectorKernels : DenseVectorKernels {
 
     override fun nrm2(v: DoubleArray, vOff: Int, len: Int): Double =
         if (len == 0) 0.0 else v.usePinned { vp -> koblas_dense_nrm2(vp.addressOf(0), vOff, len) }
+
+    override fun iamax(v: DoubleArray, vOff: Int, len: Int): Int = if (len < C_HOST_MIN_LENGTH) {
+        scalarIamax(v, vOff, len)
+    } else {
+        v.usePinned { p ->
+            koblas_dense_iamax(p.addressOf(0), vOff, len)
+        }
+    }
 
     override fun asum(v: DoubleArray, vOff: Int, len: Int): Double =
         if (len == 0) 0.0 else v.usePinned { vp -> koblas_dense_asum(vp.addressOf(0), vOff, len) }

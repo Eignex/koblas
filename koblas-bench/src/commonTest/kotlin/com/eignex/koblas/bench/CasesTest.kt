@@ -34,6 +34,19 @@ class CasesTest {
     }
 
     @Test
+    fun `vector timings reject unrelated boundaries`() {
+        for (operation in listOf("scal+64+uniform", "spgather+64+sparse-uniform+density=0.25")) {
+            assertEquals("arithmetic", Cases.parse("$operation+timing=arithmetic").single().options["timing"])
+            for (timing in listOf("pack-plus-compute", "prepacked-compute", "reset-and-arithmetic", "unknown")) {
+                assertFailsWith<IllegalArgumentException> { Cases.parse("$operation+timing=$timing") }
+            }
+        }
+        assertFailsWith<IllegalArgumentException> {
+            Cases.parse("gemm-block+4x4x4+uniform+packed=4x4+timing=arithmetic")
+        }
+    }
+
+    @Test
     fun `option order does not change case identity`() {
         val canonical = "gemm-block+15x7x31+uniform+packed=4x4+timing=prepacked-compute"
         val reordered = "gemm-block+15x7x31+uniform+timing=prepacked-compute+packed=4x4"
