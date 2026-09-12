@@ -79,15 +79,25 @@ class NativeVariantTest {
                             }
                         }
                         for (depth in listOf(0, 1, 3, 17)) {
-                            val left = DoubleArray(depth * 4 + 5) { it * 0.125 - 1.0 }
-                            val right = DoubleArray(depth * 4 + 7) { 2.0 - it * 0.25 }
+                            val left = if (depth == 0) {
+                                doubleArrayOf()
+                            } else {
+                                DoubleArray(depth * 4 + 5) { it * 0.125 - 1.0 }
+                            }
+                            val right = if (depth == 0) {
+                                doubleArrayOf()
+                            } else {
+                                DoubleArray(depth * 4 + 7) { 2.0 - it * 0.25 }
+                            }
+                            val aOff = if (depth == 0) 0 else 2
+                            val bOff = if (depth == 0) 0 else 3
                             val expected = DoubleArray(27) { if (it % 3 == 0) -0.0 else it * 0.25 }
                             val actual = expected.copyOf()
                             PortablePackedKernels.gemmTrsmTile(
-                                depth, rows, order, left, 2, right, 3, triangle, 3, lower, unit, expected, 5,
+                                depth, rows, order, left, aOff, right, bOff, triangle, 3, lower, unit, expected, 5,
                             )
                             kernels.gemmTrsmTile(
-                                depth, rows, order, left, 2, right, 3, triangle, 3, lower, unit, actual, 5,
+                                depth, rows, order, left, aOff, right, bOff, triangle, 3, lower, unit, actual, 5,
                             )
                             assertClose(
                                 expected,
