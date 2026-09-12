@@ -2,6 +2,7 @@
 set -euo pipefail
 
 root=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)
+python3 "$root/koblas-bench/tools/summarize_report_test.py"
 temporary=$(mktemp -d)
 trap 'rm -r "$temporary"' EXIT
 

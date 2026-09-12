@@ -31,7 +31,9 @@ are not represented by this capture.
 
 ## Coverage and integrity
 
-Every implementation records all 175 case statuses. Unsupported cases have no fabricated timings.
+Every implementation records all 175 case statuses in one summary row per case, with sample and fork
+counts, median, minimum, and maximum ns/op. Unsupported cases have no fabricated timings.
+Run provenance appears once per run record. The raw samples were summarized, not resampled or rerun.
 
 | Implementation | Measured cases | Unsupported cases | Raw samples |
 | --- | ---: | ---: | ---: |
@@ -42,7 +44,7 @@ Every implementation records all 175 case statuses. Unsupported cases have no fa
 | OpenBLAS | 72 | 103 | 720 |
 | Accelerate | 78 | 97 | 780 |
 
-The 10,810 raw samples were checked for finite positive timings, valid operation counts, unique
+The 10,810 original samples were checked for finite positive timings, valid operation counts, unique
 case/fork/sample identifiers, expected per-fork sample counts, matching source commits and timing
 settings, and exact coverage of the source workload. `metadata.txt` records `status=complete`.
 Vendor numerical preflight checks passed before timing. OpenBLAS has no sparse coverage in this
@@ -53,7 +55,7 @@ not establish that every individual sparse call executes SIMD instructions.
 ## Selected results
 
 Medians in ns/op; lower is better. JVM medians combine all twenty samples, other medians use ten.
-These are the exact named case records, without pooling different packed recipes.
+These are the exact named case summaries, without pooling different packed recipes.
 All sparse fixtures below use density 0.01. Sparse vectors have logical length 4096.
 GEMM dimensions are rows by output columns by inner dimension.
 
@@ -90,7 +92,9 @@ This is a single host run, not a confidence interval or a crossover study. The m
 isolated or core-pinned. Overall CPU utilization was about 10.6% at the captured baseline; mean
 utilization during scalar, C, SIMD, native, and combined vendor intervals was 14.0%, 13.3%, 13.3%,
 12.8%, and 12.5%, respectively. These include background work, builds, and warmups and are not
-per-benchmark CPU measurements. See `cpu.csv` and execution timestamps before drawing tuning conclusions.
+per-benchmark CPU measurements. See `cpu-summary.csv` and execution timestamps before drawing tuning conclusions.
+The CPU summary groups readings by their timestamps into half-open runner intervals; readings at or after
+completion are excluded. Missing readings are counted separately and never treated as zero utilization.
 
 ## Machine-readable comparisons
 
@@ -98,14 +102,22 @@ per-benchmark CPU measurements. See `cpu.csv` and execution timestamps before dr
 against all four Koblas implementations. `base_over_candidate` greater than one means Koblas is faster.
 Raw tile and packing-only boundaries are excluded. Logical comparisons pool equivalent vendor
 column-major records across packed recipe labels; the table above instead selects exact case records.
-Regenerate from this directory, replacing `accelerate` with `openblas` for the other file:
+These comparison files were generated before compaction and remain unchanged. Regenerate from the local
+raw capture directory, replacing `accelerate` with `openblas` for the other file:
 
 ```bash
-../../../tools/compare.sh --mode logical --require-compatible \
+koblas-bench/tools/compare.sh --mode logical --require-compatible \
   --timing arithmetic --timing reset-and-arithmetic --timing prepared \
   --timing oneshot --timing prepacked-compute \
-  accelerate.csv jvm-scalar.csv jvm-c.csv jvm-simd.csv native.csv
+  "$raw/accelerate.csv" "$raw/jvm-scalar.csv" "$raw/jvm-c.csv" "$raw/jvm-simd.csv" "$raw/native.csv"
 ```
+
+Run that command from the repository root with `raw` set to
+`koblas-bench/build/reports-raw/568e4a23c6d14a57b8c6f49f8057d1b9eb448a8f6f965a546cd6afe0a89424a8/20260912T134605Z-c344bccbeda7`.
+Raw files are preserved there locally, not included in the compact report. Summary CSVs are not raw
+comparator inputs: medians alone cannot reconstruct pooled sample distributions. A fresh checkout must
+rerun the capture to regenerate raw data. Future captures export compact reports automatically; the
+original source commit predates that export step.
 
 ## Fixes and validation
 
@@ -129,4 +141,6 @@ koblas-bench/reference/test.sh
 ```
 
 All-case short preflight runs also succeeded for C, SIMD, native, OpenBLAS, and Accelerate before
-the full capture. Raw CSVs and CPU trace are preserved unchanged.
+the full capture. Raw CSVs and CPU trace are preserved unchanged in local build output.
+The compact export also passes unit checks for medians, sample counts, unsupported cases, missing CPU
+readings, phase boundaries, raw-file preservation, and overwrite protection.

@@ -44,11 +44,16 @@ supported Linux runtime.
 ## Save and compare results
 
 Use one command to capture a full report in `koblas-bench/reports/<hardware-sha256>/<run-id>/`.
-Each run contains one CSV per implementation and `metadata.txt` with completion status, provenance, toolchain
-and hardware details. `cpu.csv` records overall CPU utilization once per second, including a three-second
-background baseline. Blank readings mean unavailable. Execution timestamps in `metadata.txt` locate each runner
-within the trace, including its build and warmup time. The sampler uses the JDK selected by `JAVA_HOME` or `java`
-on `PATH`. Repeated runs never overwrite prior results.
+Each run contains one `*-summary.csv` per implementation: one row per case with sample count, fork count,
+median, minimum, and maximum ns/op. Run provenance is stored once. `cpu-summary.csv` has one row per runner
+phase plus the background baseline, with reading counts and mean, median, minimum, and maximum CPU usage.
+`metadata.txt` records completion status, provenance, toolchain, hardware, and execution timestamps.
+Blank statistics mean unavailable, not zero. CPU phases include builds and warmups, not just arithmetic.
+
+Full samples and the once-per-second CPU trace stay in ignored
+`koblas-bench/build/reports-raw/<hardware-sha256>/<run-id>/`. Keep compact summaries in version control;
+use raw captures for detailed analysis. Export requires Python 3. The CPU sampler uses the JDK selected by
+`JAVA_HOME` or `java` on `PATH`. Repeated runs never overwrite prior results.
 
 ```bash
 koblas-bench/capture-report.sh --libraries all \
@@ -59,12 +64,12 @@ The command runs JVM scalar, JVM C, JVM SIMD, native koblas, and the requested v
 or engine fails the run. Use `--suite packed` for packed cases only. To make a short trial, add
 `--operation gemm --warmups 0 --samples 1 --target-ms 1 --forks 1`.
 
-Compare CSVs from the same run (or compatible runs):
+Compare raw CSVs from the same run (or compatible runs). Summary files are not comparator inputs:
 
 ```bash
 koblas-bench/tools/compare.sh --mode logical --timing prepacked-compute --require-compatible \
-  koblas-bench/reports/<hardware-sha256>/<run-id>/openblas.csv \
-  koblas-bench/reports/<hardware-sha256>/<run-id>/jvm-c.csv
+  koblas-bench/build/reports-raw/<hardware-sha256>/<run-id>/openblas.csv \
+  koblas-bench/build/reports-raw/<hardware-sha256>/<run-id>/jvm-c.csv
 ```
 
 Use `--mode fixed` for identical packed configurations, or `--mode logical` to compare complete operations
@@ -85,7 +90,7 @@ CSV run and case records identify the source commit, runtime, actual kernel and 
 -Pbench.output=file   CSV destination
 ```
 
-Every raw measured sample is kept. A busy machine can make results noisy, so avoid comparing runs from different
+Every raw measured sample is kept locally in build output. A busy machine can make results noisy, so avoid comparing runs from different
 host conditions when possible.
 
 ## Workload and output
@@ -99,7 +104,7 @@ spgemv+257x129+sparse-uniform+density=0.01+mode=prepared
 gemm-block+15x7x31+uniform+packed=4x4+timing=prepacked-compute
 ```
 
-The CSV stores run metadata and case definitions once, followed by sample records referencing their IDs.
+The raw CSV stores run metadata and case definitions once, followed by sample records referencing their IDs.
 Runtime/build strings and source commits belong to the run. Case records contain the case, status, comparison kind,
 timing and kernel; shape and packing are read from the case instead of duplicated as metadata.
 JMH elapsed time is reconstructed from its score; Native/vendor elapsed time is measured. Keep raw sample values unchanged.

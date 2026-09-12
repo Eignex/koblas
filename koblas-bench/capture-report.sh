@@ -33,6 +33,7 @@ while (($#)); do
 done
 
 [[ $suite == all || $suite == packed ]] || { usage; exit 2; }
+command -v python3 >/dev/null || { echo "compact reports require Python 3" >&2; exit 1; }
 
 temporary=$(mktemp -d "${TMPDIR:-/tmp}/koblas-bench-report.XXXXXX")
 cpu_pid=
@@ -64,9 +65,11 @@ fi
 
 commit=$(git -C "$root" rev-parse --short=12 HEAD)
 run_id="$(date -u +%Y%m%dT%H%M%SZ)-$commit"
-hardware_report="$reports/$hardware_hash"
-mkdir -p "$hardware_report"
-run="$hardware_report/$run_id"
+report="$reports/$hardware_hash/$run_id"
+[[ ! -e $report ]] || { echo "report already exists: $report" >&2; exit 1; }
+raw_hardware_report="$bench/build/reports-raw/$hardware_hash"
+mkdir -p "$raw_hardware_report"
+run="$raw_hardware_report/$run_id"
 [[ ! -e $run ]] || { echo "report already exists: $run" >&2; exit 1; }
 mkdir "$run"
 cp "$cases" "$temporary/selected-cases.txt"
@@ -127,4 +130,6 @@ wait "$cpu_pid"
 cpu_pid=
 sed '1s/status=incomplete/status=complete/' "$run/metadata.txt" >"$temporary/metadata.txt"
 mv "$temporary/metadata.txt" "$run/metadata.txt"
-echo "$run"
+python3 "$bench/tools/summarize_report.py" "$run" "$report"
+echo "raw capture: $run"
+echo "$report"
