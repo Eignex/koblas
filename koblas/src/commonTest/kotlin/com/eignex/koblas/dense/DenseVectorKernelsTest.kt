@@ -13,7 +13,6 @@ class DenseVectorKernelsTest {
         assertScaleAgreesWithReference(koblas.vectorKernels)
     }
 
-
     @Test
     fun `the scalar and platform arithmetic axpy kernels agree`() {
         val source = DoubleArray(47) { it * 0.125 - 2.0 }

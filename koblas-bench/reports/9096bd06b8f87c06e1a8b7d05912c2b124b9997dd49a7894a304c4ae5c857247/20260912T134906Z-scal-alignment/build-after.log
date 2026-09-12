@@ -1,0 +1,16 @@
+Reusing configuration cache.
+> Task :koblas:kmpPartiallyResolvedDependenciesChecker
+> Task :koblas-bench:kmpPartiallyResolvedDependenciesChecker
+> Task :koblas:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :koblas-bench:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :koblas:exportCrossCompilationMetadataForLinuxX64ApiElements UP-TO-DATE
+> Task :koblas-bench:downloadKotlinNativeDistribution UP-TO-DATE
+> Task :koblas:downloadKotlinNativeDistribution UP-TO-DATE
+> Task :koblas:cinteropKoblasKernelsLinuxX64
+> Task :koblas:compileKotlinLinuxX64
+> Task :koblas-bench:compileKotlinLinuxX64
+> Task :koblas-bench:linkReleaseExecutableLinuxX64
+
+BUILD SUCCESSFUL in 23s
+9 actionable tasks: 6 executed, 3 up-to-date
+Configuration cache entry reused.

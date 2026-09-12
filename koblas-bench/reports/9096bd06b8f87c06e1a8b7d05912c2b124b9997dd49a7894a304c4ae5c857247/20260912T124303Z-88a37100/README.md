@@ -4,6 +4,8 @@ The retained fix is sparse gather dispatch. Native gather improves by a median p
 stored values and **2.68x** at 16,384 stored values. The scaling investigation did not establish a reliable
 production improvement; its kernel is unchanged. OpenBLAS gather is unsupported by the reference runner.
 
+A [subsequent scaling follow-up](../20260912T134906Z-scal-alignment/README.md) controls pointer alignment and confirms a guarded native scaling improvement. The results below describe this earlier capture.
+
 ## Gather cause and fix
 
 `NativeCIndexedSparseKernels` and `SimdIndexedSparseKernels` delegate unspecified methods to

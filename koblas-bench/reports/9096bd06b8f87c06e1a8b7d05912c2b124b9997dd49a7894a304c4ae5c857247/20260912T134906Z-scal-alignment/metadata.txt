@@ -1,0 +1,19 @@
+capture_host=Intel Core i9-12900H
+cpu_affinity=4
+candidate=ef35f7ca6871efddc43194c55b0d92b63c42af88
+baseline=204f8d29742e70178056b24801d91322d932569f
+sha256.native-before.kexe=1b15acd14978a14daf040c5ca001903be94b82beabfa7051ada8031d7306e322
+mtime.native-before.kexe=2026-09-12T13:49:33.757861+00:00
+sha256.native-after.kexe=14b947eef513ec05791093200a6670b09c16dd999247b9a35911302d71d5d452
+mtime.native-after.kexe=2026-09-12T13:50:17.809759+00:00
+sha256.probe=5aa0fad4167ee5f80b2d2475582e15dde538b69f156a22743177e7375ef7233a
+mtime.probe=2026-09-12T13:43:18.769925+00:00
+sha256.cutoff=70c3a7e788ed1d20512701651fb25c1095ea0d0563a83b1723fc347a9d442772
+mtime.cutoff=2026-09-12T13:47:57.665859+00:00
+sha256.guarded=5db6895286a5bf7ad991408be188b4ba0d5e29af7838bb8eb89e2718562f8db7
+mtime.guarded=2026-09-12T13:51:29.966237+00:00
+Linux LTHCL001 7.0.0-31-generic #31-Ubuntu SMP PREEMPT_DYNAMIC Sat Aug  1 04:26:38 UTC 2026 x86_64 GNU/Linux
+clang version 21.1.6
+Target: x86_64-unknown-linux-gnu
+Thread model: posix
+InstalledDir: /home/rasmus/.konan/dependencies/llvm-21-x86_64-linux-essentials-116/bin

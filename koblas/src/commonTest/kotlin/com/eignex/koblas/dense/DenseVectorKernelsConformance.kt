@@ -294,8 +294,16 @@ internal fun assertIamaxAgreesWithReference(kernels: DenseVectorKernels) {
 }
 
 internal fun assertScaleAgreesWithReference(kernels: DenseVectorKernels) {
-    val exceptional = doubleArrayOf(0.0, -0.0, Double.MIN_VALUE, -Double.MIN_VALUE,
-        Double.MAX_VALUE, Double.POSITIVE_INFINITY, Double.NEGATIVE_INFINITY, Double.NaN)
+    val exceptional = doubleArrayOf(
+        0.0,
+        -0.0,
+        Double.MIN_VALUE,
+        -Double.MIN_VALUE,
+        Double.MAX_VALUE,
+        Double.POSITIVE_INFINITY,
+        Double.NEGATIVE_INFINITY,
+        Double.NaN,
+    )
     for (len in listOf(0, 1, 3, 4, 7, 31, 32, 47, 48, 49, 63, 64, 65, 127, 128, 129, 255, 256, 257, 4097)) {
         for (off in 0..7) {
             for (alpha in doubleArrayOf(0.0, -0.0, 1.0, -1.0, 0.875, Double.POSITIVE_INFINITY, Double.NaN)) {

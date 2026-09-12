@@ -125,3 +125,5 @@ koblas-bench/reference/test.sh
 The [dense iamax investigation](reports/9096bd06b8f87c06e1a8b7d05912c2b124b9997dd49a7894a304c4ae5c857247/20260912T091639Z-22929a90abb1/README.md) records the scalar bottleneck, kernel design, crossover measurements, and CPU traces.
 
 The [scal and spgather investigation](reports/9096bd06b8f87c06e1a8b7d05912c2b124b9997dd49a7894a304c4ae5c857247/20260912T124303Z-88a37100/README.md) compares both operations with oneMKL and OpenBLAS, records the gather dispatch fix, and documents the scaling experiments.
+
+The [native scaling alignment follow-up](reports/9096bd06b8f87c06e1a8b7d05912c2b124b9997dd49a7894a304c4ae5c857247/20260912T134906Z-scal-alignment/README.md) isolates misaligned stores, validates guarded alignment through the native engine, and compares with oneMKL and OpenBLAS.

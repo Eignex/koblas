@@ -1,0 +1,23 @@
+Calculating task graph as no cached configuration is available for tasks: :koblas-bench:linkReleaseExecutableLinuxX64
+
+> Configure project :koblas
+Signing skipped: SNAPSHOT is a snapshot.
+
+> Configure project :koblas-hfactor
+Signing skipped: SNAPSHOT is a snapshot.
+
+> Task :koblas-bench:kmpPartiallyResolvedDependenciesChecker
+> Task :koblas:kmpPartiallyResolvedDependenciesChecker
+> Task :koblas:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :koblas-bench:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :koblas:exportCrossCompilationMetadataForLinuxX64ApiElements UP-TO-DATE
+> Task :koblas:downloadKotlinNativeDistribution UP-TO-DATE
+> Task :koblas-bench:downloadKotlinNativeDistribution UP-TO-DATE
+> Task :koblas:cinteropKoblasKernelsLinuxX64 UP-TO-DATE
+> Task :koblas:compileKotlinLinuxX64 UP-TO-DATE
+> Task :koblas-bench:compileKotlinLinuxX64
+> Task :koblas-bench:linkReleaseExecutableLinuxX64
+
+BUILD SUCCESSFUL in 30s
+9 actionable tasks: 4 executed, 5 up-to-date
+Configuration cache entry stored.

@@ -1,0 +1,84 @@
+
+/tmp/scal-followup/native-before.kexe:     file format elf64-x86-64
+
+
+Disassembly of section .text:
+
+0000000000289de0 <koblas_dense_scale.avx2.0>:
+  289de0:	c5 f9 2e 05 50 a4 f8 	vucomisd -0x75bb0(%rip),%xmm0        # 214238 <_IO_stdin_used+0x4c>
+  289de7:	ff 
+  289de8:	0f 9b c0             	setnp  %al
+  289deb:	0f 94 c1             	sete   %cl
+  289dee:	20 c1                	and    %al,%cl
+  289df0:	85 d2                	test   %edx,%edx
+  289df2:	0f 9e c0             	setle  %al
+  289df5:	08 c8                	or     %cl,%al
+  289df7:	0f 85 e5 00 00 00    	jne    289ee2 <koblas_dense_scale.avx2.0+0x102>
+  289dfd:	4c 63 c6             	movslq %esi,%r8
+  289e00:	89 d0                	mov    %edx,%eax
+  289e02:	4a 8d 0c c7          	lea    (%rdi,%r8,8),%rcx
+  289e06:	83 fa 04             	cmp    $0x4,%edx
+  289e09:	73 07                	jae    289e12 <koblas_dense_scale.avx2.0+0x32>
+  289e0b:	31 d2                	xor    %edx,%edx
+  289e0d:	e9 be 00 00 00       	jmp    289ed0 <koblas_dense_scale.avx2.0+0xf0>
+  289e12:	83 fa 0f             	cmp    $0xf,%edx
+  289e15:	77 09                	ja     289e20 <koblas_dense_scale.avx2.0+0x40>
+  289e17:	c4 e2 7d 19 c8       	vbroadcastsd %xmm0,%ymm1
+  289e1c:	31 d2                	xor    %edx,%edx
+  289e1e:	eb 77                	jmp    289e97 <koblas_dense_scale.avx2.0+0xb7>
+  289e20:	89 c2                	mov    %eax,%edx
+  289e22:	81 e2 f0 ff ff 7f    	and    $0x7ffffff0,%edx
+  289e28:	c4 e2 7d 19 c8       	vbroadcastsd %xmm0,%ymm1
+  289e2d:	89 c6                	mov    %eax,%esi
+  289e2f:	c1 ee 04             	shr    $0x4,%esi
+  289e32:	81 e6 ff ff ff 07    	and    $0x7ffffff,%esi
+  289e38:	48 c1 e6 07          	shl    $0x7,%rsi
+  289e3c:	4a 8d 3c c7          	lea    (%rdi,%r8,8),%rdi
+  289e40:	48 83 c7 60          	add    $0x60,%rdi
+  289e44:	45 31 c0             	xor    %r8d,%r8d
+  289e47:	66 0f 1f 84 00 00 00 	nopw   0x0(%rax,%rax,1)
+  289e4e:	00 00 
+  289e50:	c4 a1 75 59 54 07 a0 	vmulpd -0x60(%rdi,%r8,1),%ymm1,%ymm2
+  289e57:	c4 a1 75 59 5c 07 c0 	vmulpd -0x40(%rdi,%r8,1),%ymm1,%ymm3
+  289e5e:	c4 a1 75 59 64 07 e0 	vmulpd -0x20(%rdi,%r8,1),%ymm1,%ymm4
+  289e65:	c4 a1 75 59 2c 07    	vmulpd (%rdi,%r8,1),%ymm1,%ymm5
+  289e6b:	c4 a1 7d 11 54 07 a0 	vmovupd %ymm2,-0x60(%rdi,%r8,1)
+  289e72:	c4 a1 7d 11 5c 07 c0 	vmovupd %ymm3,-0x40(%rdi,%r8,1)
+  289e79:	c4 a1 7d 11 64 07 e0 	vmovupd %ymm4,-0x20(%rdi,%r8,1)
+  289e80:	c4 a1 7d 11 2c 07    	vmovupd %ymm5,(%rdi,%r8,1)
+  289e86:	49 83 e8 80          	sub    $0xffffffffffffff80,%r8
+  289e8a:	4c 39 c6             	cmp    %r8,%rsi
+  289e8d:	75 c1                	jne    289e50 <koblas_dense_scale.avx2.0+0x70>
+  289e8f:	39 c2                	cmp    %eax,%edx
+  289e91:	74 4f                	je     289ee2 <koblas_dense_scale.avx2.0+0x102>
+  289e93:	a8 0c                	test   $0xc,%al
+  289e95:	74 39                	je     289ed0 <koblas_dense_scale.avx2.0+0xf0>
+  289e97:	48 89 d6             	mov    %rdx,%rsi
+  289e9a:	89 c2                	mov    %eax,%edx
+  289e9c:	81 e2 fc ff ff 7f    	and    $0x7ffffffc,%edx
+  289ea2:	66 66 66 66 66 2e 0f 	data16 data16 data16 data16 cs nopw 0x0(%rax,%rax,1)
+  289ea9:	1f 84 00 00 00 00 00 
+  289eb0:	c5 f5 59 14 f1       	vmulpd (%rcx,%rsi,8),%ymm1,%ymm2
+  289eb5:	c5 fd 11 14 f1       	vmovupd %ymm2,(%rcx,%rsi,8)
+  289eba:	48 83 c6 04          	add    $0x4,%rsi
+  289ebe:	48 39 f2             	cmp    %rsi,%rdx
+  289ec1:	75 ed                	jne    289eb0 <koblas_dense_scale.avx2.0+0xd0>
+  289ec3:	39 c2                	cmp    %eax,%edx
+  289ec5:	74 1b                	je     289ee2 <koblas_dense_scale.avx2.0+0x102>
+  289ec7:	66 0f 1f 84 00 00 00 	nopw   0x0(%rax,%rax,1)
+  289ece:	00 00 
+  289ed0:	c5 fb 59 0c d1       	vmulsd (%rcx,%rdx,8),%xmm0,%xmm1
+  289ed5:	c5 fb 11 0c d1       	vmovsd %xmm1,(%rcx,%rdx,8)
+  289eda:	48 ff c2             	inc    %rdx
+  289edd:	48 39 d0             	cmp    %rdx,%rax
+  289ee0:	75 ee                	jne    289ed0 <koblas_dense_scale.avx2.0+0xf0>
+  289ee2:	c5 f8 77             	vzeroupper
+  289ee5:	c3                   	ret
+
+Disassembly of section .init:
+
+Disassembly of section .fini:
+
+Disassembly of section .plt:
+
+Disassembly of section .iplt:
