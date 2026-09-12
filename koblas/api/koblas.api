@@ -230,6 +230,7 @@ public final class com/eignex/koblas/Koblas {
 
 public final class com/eignex/koblas/KoblasEngine : com/eignex/koblas/dense/DenseBlas, com/eignex/koblas/sparse/SparseBlas {
 	public fun addScaled (DLcom/eignex/koblas/SparseMatrix;ZLcom/eignex/koblas/SparseMatrix;)Lcom/eignex/koblas/SparseMatrix;
+	public final fun explain (Lcom/eignex/koblas/dense/DenseOperation;I)Ljava/lang/String;
 	public fun gemm (DLcom/eignex/koblas/DenseMatrix;ZLcom/eignex/koblas/DenseMatrix;ZDLcom/eignex/koblas/DenseMatrix;Lcom/eignex/koblas/Workspace;)V
 	public fun gemm (DLcom/eignex/koblas/SparseMatrix;ZLcom/eignex/koblas/DenseMatrix;ZDLcom/eignex/koblas/DenseMatrix;ZLcom/eignex/koblas/Workspace;)V
 	public fun gemm (DLcom/eignex/koblas/SparseMatrix;ZLcom/eignex/koblas/SparseMatrix;Z)Lcom/eignex/koblas/SparseMatrix;
@@ -253,6 +254,7 @@ public final class com/eignex/koblas/KoblasEngine : com/eignex/koblas/dense/Dens
 	public final fun getPackedPanels ()Lcom/eignex/koblas/dense/PackedPanels;
 	public final fun getPanelKernels ()Lcom/eignex/koblas/dense/DensePanelKernels;
 	public final fun getSparseKernels ()Lcom/eignex/koblas/sparse/SparseKernels;
+	public final fun getTuningDiagnostics ()Ljava/util/List;
 	public final fun getVectorKernels ()Lcom/eignex/koblas/dense/DenseVectorKernels;
 	public fun prepare (Lcom/eignex/koblas/SparseMatrix;)Lcom/eignex/koblas/PreparedSparseMatrix;
 	public fun symm (DLcom/eignex/koblas/DenseMatrix;Lcom/eignex/koblas/DenseMatrix;DLcom/eignex/koblas/DenseMatrix;ZZLcom/eignex/koblas/Workspace;)V
@@ -488,6 +490,19 @@ public final class com/eignex/koblas/Workspace {
 	public final synthetic fun takeI32 (I)[I
 }
 
+public final class com/eignex/koblas/dense/BlockOutput {
+	public static final field Companion Lcom/eignex/koblas/dense/BlockOutput$Companion;
+	public final fun getDiagonalOffset ()I
+}
+
+public final class com/eignex/koblas/dense/BlockOutput$Companion {
+	public final fun getFull ()Lcom/eignex/koblas/dense/BlockOutput;
+	public final fun lower (I)Lcom/eignex/koblas/dense/BlockOutput;
+	public static synthetic fun lower$default (Lcom/eignex/koblas/dense/BlockOutput$Companion;IILjava/lang/Object;)Lcom/eignex/koblas/dense/BlockOutput;
+	public final fun upper (I)Lcom/eignex/koblas/dense/BlockOutput;
+	public static synthetic fun upper$default (Lcom/eignex/koblas/dense/BlockOutput$Companion;IILjava/lang/Object;)Lcom/eignex/koblas/dense/BlockOutput;
+}
+
 public abstract interface class com/eignex/koblas/dense/DenseBlas {
 	public abstract fun gemm (DLcom/eignex/koblas/DenseMatrix;ZLcom/eignex/koblas/DenseMatrix;ZDLcom/eignex/koblas/DenseMatrix;Lcom/eignex/koblas/Workspace;)V
 	public fun gemm (DLcom/eignex/koblas/StridedMatrixView;ZLcom/eignex/koblas/StridedMatrixView;ZDLcom/eignex/koblas/StridedMatrixView;)V
@@ -553,6 +568,30 @@ public final class com/eignex/koblas/dense/DenseBlas$DefaultImpls {
 	public static synthetic fun trsv$default (Lcom/eignex/koblas/dense/DenseBlas;Lcom/eignex/koblas/DenseMatrix;[DZZZILjava/lang/Object;)V
 }
 
+public final class com/eignex/koblas/dense/DenseOperation : java/lang/Enum {
+	public static final field Asum Lcom/eignex/koblas/dense/DenseOperation;
+	public static final field Axpy Lcom/eignex/koblas/dense/DenseOperation;
+	public static final field Axpy4 Lcom/eignex/koblas/dense/DenseOperation;
+	public static final field AxpyArithmetic Lcom/eignex/koblas/dense/DenseOperation;
+	public static final field Dot Lcom/eignex/koblas/dense/DenseOperation;
+	public static final field Dot4 Lcom/eignex/koblas/dense/DenseOperation;
+	public static final field DotAxpy Lcom/eignex/koblas/dense/DenseOperation;
+	public static final field GemmTile Lcom/eignex/koblas/dense/DenseOperation;
+	public static final field GemmTrsmTile Lcom/eignex/koblas/dense/DenseOperation;
+	public static final field Iamax Lcom/eignex/koblas/dense/DenseOperation;
+	public static final field Nrm2 Lcom/eignex/koblas/dense/DenseOperation;
+	public static final field Rot Lcom/eignex/koblas/dense/DenseOperation;
+	public static final field Rotm Lcom/eignex/koblas/dense/DenseOperation;
+	public static final field Scale Lcom/eignex/koblas/dense/DenseOperation;
+	public static final field Ssqd Lcom/eignex/koblas/dense/DenseOperation;
+	public static final field Sum Lcom/eignex/koblas/dense/DenseOperation;
+	public static final field Swap Lcom/eignex/koblas/dense/DenseOperation;
+	public static final field TrsmTile Lcom/eignex/koblas/dense/DenseOperation;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lcom/eignex/koblas/dense/DenseOperation;
+	public static fun values ()[Lcom/eignex/koblas/dense/DenseOperation;
+}
+
 public abstract interface class com/eignex/koblas/dense/DensePanelKernels {
 	public abstract fun axpy4 ([DI[DIIDDDDI)V
 	public abstract fun axpyArithmetic ([DID[DII)V
@@ -576,12 +615,102 @@ public abstract interface class com/eignex/koblas/dense/DenseVectorKernels {
 	public abstract fun swap ([DI[DII)V
 }
 
+public final class com/eignex/koblas/dense/DepthContribution : java/lang/Enum {
+	public static final field First Lcom/eignex/koblas/dense/DepthContribution;
+	public static final field Subsequent Lcom/eignex/koblas/dense/DepthContribution;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lcom/eignex/koblas/dense/DepthContribution;
+	public static fun values ()[Lcom/eignex/koblas/dense/DepthContribution;
+}
+
+public abstract class com/eignex/koblas/dense/MatrixOperand {
+	public abstract fun getColumns ()I
+	public abstract fun getRows ()I
+}
+
+public final class com/eignex/koblas/dense/MatrixStructure : java/lang/Enum {
+	public static final field General Lcom/eignex/koblas/dense/MatrixStructure;
+	public static final field SymmetricLower Lcom/eignex/koblas/dense/MatrixStructure;
+	public static final field SymmetricUpper Lcom/eignex/koblas/dense/MatrixStructure;
+	public static final field TriangularLower Lcom/eignex/koblas/dense/MatrixStructure;
+	public static final field TriangularUpper Lcom/eignex/koblas/dense/MatrixStructure;
+	public static final field UnitLower Lcom/eignex/koblas/dense/MatrixStructure;
+	public static final field UnitUpper Lcom/eignex/koblas/dense/MatrixStructure;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lcom/eignex/koblas/dense/MatrixStructure;
+	public static fun values ()[Lcom/eignex/koblas/dense/MatrixStructure;
+}
+
+public final class com/eignex/koblas/dense/MatrixWindow : com/eignex/koblas/dense/MatrixOperand {
+	public fun <init> ([DIIIIILcom/eignex/koblas/dense/MatrixStructure;Z)V
+	public final fun get (II)D
+	public final fun getColumnStride ()I
+	public fun getColumns ()I
+	public final fun getData ()[D
+	public final fun getDiagonalOffset ()I
+	public final fun getOffset ()I
+	public final fun getRowStride ()I
+	public fun getRows ()I
+	public final fun getStructure ()Lcom/eignex/koblas/dense/MatrixStructure;
+	public final fun getTransposed ()Z
+	public final fun transpose ()Lcom/eignex/koblas/dense/MatrixWindow;
+	public final fun window (IIII)Lcom/eignex/koblas/dense/MatrixWindow;
+}
+
 public abstract interface class com/eignex/koblas/dense/PackedKernels {
 	public abstract fun gemmTile (I[DI[DI[DII)V
 	public abstract fun gemmTrsmTile (III[DI[DI[DIZZ[DI)V
 	public abstract fun getGemmTileCols ()I
 	public abstract fun getGemmTileRows ()I
 	public abstract fun trsmTile (II[DIZZ[DI)V
+}
+
+public final class com/eignex/koblas/dense/PackedMatrix : com/eignex/koblas/dense/MatrixOperand {
+	public static final field Companion Lcom/eignex/koblas/dense/PackedMatrix$Companion;
+	public final fun get (II)D
+	public final fun getBakedScale ()D
+	public final fun getBakedTranspose ()Z
+	public fun getColumns ()I
+	public final fun getLayout ()Lcom/eignex/koblas/dense/PackedMatrixLayout;
+	public final fun getOffset ()I
+	public final fun getOwnership ()Lcom/eignex/koblas/dense/PackedOwnership;
+	public fun getRows ()I
+}
+
+public final class com/eignex/koblas/dense/PackedMatrix$Companion {
+	public final fun wrap ([DLcom/eignex/koblas/dense/PackedMatrixLayout;IDZ)Lcom/eignex/koblas/dense/PackedMatrix;
+	public static synthetic fun wrap$default (Lcom/eignex/koblas/dense/PackedMatrix$Companion;[DLcom/eignex/koblas/dense/PackedMatrixLayout;IDZILjava/lang/Object;)Lcom/eignex/koblas/dense/PackedMatrix;
+}
+
+public final class com/eignex/koblas/dense/PackedMatrixLayout {
+	public static final field Companion Lcom/eignex/koblas/dense/PackedMatrixLayout$Companion;
+	public static final field GROUPED_FP64 I
+	public fun <init> (Lcom/eignex/koblas/dense/PackedRole;IIIIIIIII)V
+	public synthetic fun <init> (Lcom/eignex/koblas/dense/PackedRole;IIIIIIIIIILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun getAlignmentBytes ()I
+	public final fun getColumns ()I
+	public final fun getDepthStride ()I
+	public final fun getGroup ()I
+	public final fun getGroupStride ()I
+	public final fun getLayoutId ()I
+	public final fun getRequiredSvlBytes ()I
+	public final fun getRole ()Lcom/eignex/koblas/dense/PackedRole;
+	public final fun getRows ()I
+	public final fun getStorageSize ()I
+	public final fun getVersion ()I
+	public final fun requireCompatible (III)V
+	public static synthetic fun requireCompatible$default (Lcom/eignex/koblas/dense/PackedMatrixLayout;IIIILjava/lang/Object;)V
+}
+
+public final class com/eignex/koblas/dense/PackedMatrixLayout$Companion {
+}
+
+public final class com/eignex/koblas/dense/PackedOwnership : java/lang/Enum {
+	public static final field Borrowed Lcom/eignex/koblas/dense/PackedOwnership;
+	public static final field Owned Lcom/eignex/koblas/dense/PackedOwnership;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lcom/eignex/koblas/dense/PackedOwnership;
+	public static fun values ()[Lcom/eignex/koblas/dense/PackedOwnership;
 }
 
 public final class com/eignex/koblas/dense/PackedPanels {
@@ -668,6 +797,53 @@ public final class com/eignex/koblas/dense/PackedPanels {
 	public final fun writeRight ([DLcom/eignex/koblas/DenseMatrix;IIIIIZ)V
 	public final fun writeRight ([DLcom/eignex/koblas/DenseMatrix;IIIIIZLcom/eignex/koblas/Workspace;)V
 	public static synthetic fun writeRight$default (Lcom/eignex/koblas/dense/PackedPanels;[DLcom/eignex/koblas/DenseMatrix;IIIIIZLcom/eignex/koblas/Workspace;ILjava/lang/Object;)V
+}
+
+public final class com/eignex/koblas/dense/PackedRole : java/lang/Enum {
+	public static final field Left Lcom/eignex/koblas/dense/PackedRole;
+	public static final field Right Lcom/eignex/koblas/dense/PackedRole;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lcom/eignex/koblas/dense/PackedRole;
+	public static fun values ()[Lcom/eignex/koblas/dense/PackedRole;
+}
+
+public final class com/eignex/koblas/dense/ProductEvaluation : java/lang/Enum {
+	public static final field ArithmeticUpdates Lcom/eignex/koblas/dense/ProductEvaluation;
+	public static final field DotThenScale Lcom/eignex/koblas/dense/ProductEvaluation;
+	public static final field OrderedUpdates Lcom/eignex/koblas/dense/ProductEvaluation;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lcom/eignex/koblas/dense/ProductEvaluation;
+	public static fun values ()[Lcom/eignex/koblas/dense/ProductEvaluation;
+}
+
+public final class com/eignex/koblas/dense/ScalarBlockKernels {
+	public static final field INSTANCE Lcom/eignex/koblas/dense/ScalarBlockKernels;
+	public final fun product (Lcom/eignex/koblas/dense/MatrixOperand;Lcom/eignex/koblas/dense/MatrixOperand;Lcom/eignex/koblas/dense/MatrixWindow;DDLcom/eignex/koblas/dense/BlockOutput;Lcom/eignex/koblas/dense/DepthContribution;Lcom/eignex/koblas/dense/ProductEvaluation;[DI)V
+	public static synthetic fun product$default (Lcom/eignex/koblas/dense/ScalarBlockKernels;Lcom/eignex/koblas/dense/MatrixOperand;Lcom/eignex/koblas/dense/MatrixOperand;Lcom/eignex/koblas/dense/MatrixWindow;DDLcom/eignex/koblas/dense/BlockOutput;Lcom/eignex/koblas/dense/DepthContribution;Lcom/eignex/koblas/dense/ProductEvaluation;[DIILjava/lang/Object;)V
+	public final fun scratchSize (Lcom/eignex/koblas/dense/MatrixOperand;Lcom/eignex/koblas/dense/MatrixOperand;Lcom/eignex/koblas/dense/MatrixWindow;D)I
+	public static synthetic fun scratchSize$default (Lcom/eignex/koblas/dense/ScalarBlockKernels;Lcom/eignex/koblas/dense/MatrixOperand;Lcom/eignex/koblas/dense/MatrixOperand;Lcom/eignex/koblas/dense/MatrixWindow;DILjava/lang/Object;)I
+}
+
+public final class com/eignex/koblas/dense/ScalarLayoutKernels {
+	public static final field INSTANCE Lcom/eignex/koblas/dense/ScalarLayoutKernels;
+	public final fun pack (Lcom/eignex/koblas/dense/MatrixWindow;Lcom/eignex/koblas/dense/PackedMatrixLayout;D)Lcom/eignex/koblas/dense/PackedMatrix;
+	public static synthetic fun pack$default (Lcom/eignex/koblas/dense/ScalarLayoutKernels;Lcom/eignex/koblas/dense/MatrixWindow;Lcom/eignex/koblas/dense/PackedMatrixLayout;DILjava/lang/Object;)Lcom/eignex/koblas/dense/PackedMatrix;
+	public final fun packInto (Lcom/eignex/koblas/dense/MatrixWindow;[DLcom/eignex/koblas/dense/PackedMatrixLayout;ID)Lcom/eignex/koblas/dense/PackedMatrix;
+	public static synthetic fun packInto$default (Lcom/eignex/koblas/dense/ScalarLayoutKernels;Lcom/eignex/koblas/dense/MatrixWindow;[DLcom/eignex/koblas/dense/PackedMatrixLayout;IDILjava/lang/Object;)Lcom/eignex/koblas/dense/PackedMatrix;
+	public final fun transpose (Lcom/eignex/koblas/dense/MatrixWindow;Lcom/eignex/koblas/dense/MatrixWindow;Lcom/eignex/koblas/dense/BlockOutput;)V
+	public static synthetic fun transpose$default (Lcom/eignex/koblas/dense/ScalarLayoutKernels;Lcom/eignex/koblas/dense/MatrixWindow;Lcom/eignex/koblas/dense/MatrixWindow;Lcom/eignex/koblas/dense/BlockOutput;ILjava/lang/Object;)V
+	public final fun unpack (Lcom/eignex/koblas/dense/PackedMatrix;Lcom/eignex/koblas/dense/MatrixWindow;ZLcom/eignex/koblas/dense/BlockOutput;)V
+	public static synthetic fun unpack$default (Lcom/eignex/koblas/dense/ScalarLayoutKernels;Lcom/eignex/koblas/dense/PackedMatrix;Lcom/eignex/koblas/dense/MatrixWindow;ZLcom/eignex/koblas/dense/BlockOutput;ILjava/lang/Object;)V
+}
+
+public final class com/eignex/koblas/dense/VectorWindow {
+	public fun <init> ([DIII)V
+	public synthetic fun <init> ([DIIIILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun get (I)D
+	public final fun getData ()[D
+	public final fun getOffset ()I
+	public final fun getSize ()I
+	public final fun getStride ()I
 }
 
 public abstract interface class com/eignex/koblas/sparse/SparseBlas {

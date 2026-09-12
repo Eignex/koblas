@@ -24,26 +24,10 @@ class DenseTuningTest {
     }
 
     @Test
-    fun `every bundled C crossover keeps its measured length`() {
-        assertEquals(128, DenseTuning.jvmCDotCrossover)
-        assertEquals(128, DenseTuning.jvmCSumCrossover)
-        assertEquals(256, DenseTuning.jvmCSsqdCrossover)
-        assertEquals(128, DenseTuning.jvmCNrm2Crossover)
-        assertEquals(128, DenseTuning.jvmCAsumCrossover)
-        assertEquals(4096, DenseTuning.jvmCIamaxCrossover)
-        assertEquals(512, DenseTuning.jvmCDot4Crossover)
-        assertEquals(64, DenseTuning.jvmCAxpy4Crossover)
-        assertEquals(256, DenseTuning.jvmCDotAxpyCrossover)
-        assertEquals(16, DenseTuning.jvmCGemmTileCrossover)
-        assertEquals(16, DenseTuning.jvmCGemmTrsmTileCrossover)
-    }
-
-    @Test
     fun `the compiled in kernel thresholds keep their measured lengths`() {
         assertEquals(512, DenseTuning.symvFourColumnCrossover)
         assertEquals(32, DenseTuning.simdUnrollMinVectors)
         assertEquals(256, DenseTuning.simdIamaxCrossover)
-        assertEquals(48, DenseTuning.nativeCMinLength)
     }
 
     @Test

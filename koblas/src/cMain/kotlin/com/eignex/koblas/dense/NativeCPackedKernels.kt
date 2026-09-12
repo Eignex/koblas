@@ -7,8 +7,7 @@ import kotlinx.cinterop.addressOf
 import kotlinx.cinterop.usePinned
 
 /** Native compiled-C packed tile arithmetic. */
-internal class NativeCPackedKernels(private val bindings: NativeCKernelBindings, private val exact: Boolean) :
-    PackedKernels {
+internal class NativeCPackedKernels(private val bindings: NativeCKernelBindings) : PackedKernels {
     override val gemmTileRows: Int get() = PORTABLE_TILE
     override val gemmTileCols: Int get() = PORTABLE_TILE
 
@@ -84,7 +83,20 @@ internal class NativeCPackedKernels(private val bindings: NativeCKernelBindings,
         xOff: Int,
     ) {
         if (validRows == 0 || order == 0) return
-        if (depth == 0) return trsmTile(validRows, order, packedTriangle, triangleOff, lower, unitDiag, x, xOff)
+        if (depth == 0) {
+            packedTriangle.usePinned { triangle ->
+                x.usePinned { result ->
+                    // C forms panel pointers even at zero depth. Valid dummy addresses retain the fused ID
+                    // without addressing empty update operands; the depth loop cannot read the dummy panels.
+                    bindings.denseGemmTrsmTile(
+                        0, validRows, order, triangle.addressOf(0), 0, triangle.addressOf(0), 0,
+                        triangle.addressOf(0), triangleOff, if (lower) 1 else 0, if (unitDiag) 1 else 0,
+                        result.addressOf(0), xOff,
+                    )
+                }
+            }
+            return
+        }
         packedA.usePinned { left ->
             packedB.usePinned { right ->
                 packedTriangle.usePinned { triangle ->

@@ -4,24 +4,18 @@ package com.eignex.koblas.dense
 
 import com.eignex.koblas.ModifiedGivens
 import com.eignex.koblas.internal.kernels.*
-import com.eignex.koblas.internal.numeric.scalarAxpy
 import com.eignex.koblas.internal.numeric.scalarDot
 import com.eignex.koblas.internal.numeric.scalarIamax
-import com.eignex.koblas.internal.numeric.scalarScale
 import com.eignex.koblas.portableRotmg
 import kotlinx.cinterop.addressOf
 import kotlinx.cinterop.usePinned
 
-/** Shortest run for which crossing into the C vector kernels pays on Kotlin/Native. */
-internal val C_HOST_MIN_LENGTH = DenseTuning.nativeCMinLength
-
 /** The C vector kernels compiled into each Kotlin/Native host artifact. */
-internal class NativeCVectorKernels(private val bindings: NativeCKernelBindings, private val exact: Boolean) :
-    DenseVectorKernels {
-    override val name: String get() = "c-${bindings.variant.name.lowercase()}" + if (exact) "-raw" else "-policy"
+internal class NativeCVectorKernels(private val bindings: NativeCKernelBindings) : DenseVectorKernels {
+    override val name: String get() = "c-${bindings.variant.name.lowercase()}-raw"
 
     override fun dot(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int): Double = if (
-        len == 0 || (!exact && len < C_HOST_MIN_LENGTH)
+        len == 0
     ) {
         scalarDot(a, aOff, b, bOff, len)
     } else {
@@ -32,7 +26,6 @@ internal class NativeCVectorKernels(private val bindings: NativeCKernelBindings,
 
     override fun axpy(y: DoubleArray, yOff: Int, alpha: Double, x: DoubleArray, xOff: Int, len: Int) {
         if (alpha == 0.0 || len == 0) return
-        if (!exact && len < C_HOST_MIN_LENGTH) return scalarAxpy(y, yOff, alpha, x, xOff, len)
         y.usePinned { yp ->
             x.usePinned { xp -> bindings.denseAxpy(yp.addressOf(0), yOff, alpha, xp.addressOf(0), xOff, len) }
         }
@@ -40,16 +33,13 @@ internal class NativeCVectorKernels(private val bindings: NativeCKernelBindings,
 
     override fun scale(v: DoubleArray, vOff: Int, alpha: Double, len: Int) {
         if (alpha == 1.0 || len == 0) return
-        if (!exact && len < C_HOST_MIN_LENGTH) return scalarScale(v, vOff, alpha, len)
         v.usePinned { vp -> bindings.denseScale(vp.addressOf(0), vOff, alpha, len) }
     }
 
     override fun nrm2(v: DoubleArray, vOff: Int, len: Int): Double =
         if (len == 0) 0.0 else v.usePinned { vp -> bindings.denseNrm2(vp.addressOf(0), vOff, len) }
 
-    override fun iamax(v: DoubleArray, vOff: Int, len: Int): Int = if (len == 0 ||
-        (!exact && len < C_HOST_MIN_LENGTH)
-    ) {
+    override fun iamax(v: DoubleArray, vOff: Int, len: Int): Int = if (len == 0) {
         scalarIamax(v, vOff, len)
     } else {
         v.usePinned { p ->

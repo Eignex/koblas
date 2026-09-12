@@ -131,6 +131,7 @@ kotlin {
     }
 
     sourceSets {
+        commonMain { kotlin.srcDir("src/tuning/kotlin") }
         val cMain = create("cMain") {
             dependsOn(commonMain.get())
         }
@@ -290,6 +291,23 @@ val nativeRuntimeCheck = tasks.register<JavaExec>("nativeRuntimeCheck") {
     jvmArgs("--enable-native-access=ALL-UNNAMED", "-XX:-TieredCompilation", "-XX:CompileThreshold=1000")
 }
 tasks.named("check") { dependsOn(nativeRuntimeCheck) }
+
+// Coverage instrumentation can retain Vector API carriers. Measure the mixed policy path after C2 warmup
+// in a separate JVM, including when CI invokes jvmTest directly instead of the aggregate check task.
+val denseDispatchRuntimeCheck = tasks.register<JavaExec>("denseDispatchRuntimeCheck") {
+    group = "verification"
+    description = "Checks warmed dense selection and mixed runtime/native allocation outside coverage instrumentation."
+    dependsOn("jvmTestClasses", buildJvmKernels)
+    classpath(jvmTestCompilation.output.allOutputs, configurations.getByName("jvmTestRuntimeClasspath"))
+    mainClass.set("com.eignex.koblas.dense.DenseDispatchRuntimeCheck")
+    javaLauncher.set(allocationCheckJavaLauncher)
+    jvmArgs("--enable-native-access=ALL-UNNAMED", "-XX:-TieredCompilation", "-XX:CompileThreshold=1000", "-Xbatch")
+    if (project.findProperty("koblas.noSimd") != "true") {
+        jvmArgs("--add-modules=jdk.incubator.vector")
+    }
+}
+tasks.named("jvmTest") { dependsOn(denseDispatchRuntimeCheck) }
+
 
 // Kotlin emits a `$DefaultImpls` holder for every interface with a body, and a bridge for every method with
 // a default argument. Neither is reachable from Kotlin call sites, so both count as permanently uncovered and

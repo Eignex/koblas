@@ -1,9 +1,14 @@
 package com.eignex.koblas.dense
 
-import com.eignex.koblas.internal.kernels.JvmCKernelBindings
+/** Shared panel dispatch; arithmetic stays in the independently callable implementations. */
+internal class PolicyPanelKernels(
+    private val runtime: DensePanelKernels,
+    private val native: DensePanelKernels,
+    private val dispatch: DenseDispatch,
+) : DensePanelKernels {
+    private fun selected(operation: DenseOperation, length: Int): DensePanelKernels =
+        if (dispatch.usesNative(operation, length)) native else runtime
 
-/** Exact native panel leaves; performance policy is resolved before entering this implementation. */
-internal class CPanelKernels(private val bindings: JvmCKernelBindings) : DensePanelKernels {
     @Suppress("LongParameterList")
     override fun dot4(
         a: DoubleArray,
@@ -14,7 +19,7 @@ internal class CPanelKernels(private val bindings: JvmCKernelBindings) : DensePa
         len: Int,
         out: DoubleArray,
         outOff: Int,
-    ) = bindings.denseDot4(a, aOff, stride, b, bOff, len, out, outOff)
+    ) = selected(DenseOperation.Dot4, len).dot4(a, aOff, stride, b, bOff, len, out, outOff)
 
     @Suppress("LongParameterList")
     override fun axpy4(
@@ -28,7 +33,7 @@ internal class CPanelKernels(private val bindings: JvmCKernelBindings) : DensePa
         c2: Double,
         c3: Double,
         len: Int,
-    ) = bindings.denseAxpy4(y, yOff, a, aOff, stride, c0, c1, c2, c3, len)
+    ) = selected(DenseOperation.Axpy4, len).axpy4(y, yOff, a, aOff, stride, c0, c1, c2, c3, len)
 
     @Suppress("LongParameterList")
     override fun dotAxpy(
@@ -40,8 +45,8 @@ internal class CPanelKernels(private val bindings: JvmCKernelBindings) : DensePa
         x: DoubleArray,
         xOff: Int,
         len: Int,
-    ): Double = bindings.denseDotAxpy(y, yOff, alpha, a, aOff, x, xOff, len)
+    ): Double = selected(DenseOperation.DotAxpy, len).dotAxpy(y, yOff, alpha, a, aOff, x, xOff, len)
 
     override fun axpyArithmetic(y: DoubleArray, yOff: Int, alpha: Double, x: DoubleArray, xOff: Int, len: Int) =
-        bindings.denseAxpyArithmetic(y, yOff, alpha, x, xOff, len)
+        selected(DenseOperation.AxpyArithmetic, len).axpyArithmetic(y, yOff, alpha, x, xOff, len)
 }
