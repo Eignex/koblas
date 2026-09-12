@@ -3,8 +3,32 @@ package com.eignex.koblas.sparse
 import com.eignex.koblas.BuiltinEngines
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
+import kotlin.test.assertEquals
 
 class IndexedSparseKernelsTest {
+    @Test
+    fun `whole vector gather calls the selected slice implementation`() {
+        val indices = intArrayOf(1, 3)
+        val values = DoubleArray(2)
+        val source = DoubleArray(4)
+        var calls = 0
+        val kernels = object : IndexedSparseKernels by ScalarIndexedSparseKernels {
+            override fun gather(
+                indices: IntArray, indexOffset: Int, values: DoubleArray, valueOffset: Int,
+                count: Int, source: DoubleArray,
+            ) {
+                assertEquals(0, indexOffset)
+                assertEquals(0, valueOffset)
+                assertEquals(2, count)
+                calls++
+            }
+        }
+
+        kernels.gather(indices, values, source)
+
+        assertEquals(1, calls)
+    }
+
     @Test
     fun `gather preserves slice boundaries and source values`() {
         for (engine in listOfNotNull(BuiltinEngines.c, BuiltinEngines.simd)) {

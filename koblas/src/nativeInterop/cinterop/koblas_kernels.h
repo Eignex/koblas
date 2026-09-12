@@ -599,19 +599,10 @@ KOBLAS_KERNEL double koblas_sparse_nrm2(
     return maximum * sqrt(scaled_squares);
 }
 
-/* The binding retains the ordered scalar loop when the source and destination share an array. */
 KOBLAS_KERNEL void koblas_sparse_gather(
-    const int32_t *indices, double *__restrict values, int32_t len, const double *__restrict dense
+    const int32_t *indices, double *values, int32_t len, const double *dense
 ) {
-    int32_t k = 0;
-    /* Group indexed reads into contiguous vector stores instead of interleaving each load and store. */
-    for (; k <= len - KOBLAS_LANES; k += KOBLAS_LANES) {
-        const koblas_v4d gathered = {
-            dense[indices[k]], dense[indices[k + 1]], dense[indices[k + 2]], dense[indices[k + 3]]
-        };
-        __builtin_memcpy(values + k, &gathered, sizeof(gathered));
-    }
-    for (; k < len; k++) values[k] = dense[indices[k]];
+    for (int32_t k = 0; k < len; k++) values[k] = dense[indices[k]];
 }
 
 KOBLAS_KERNEL void koblas_sparse_gather_zero(
