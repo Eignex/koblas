@@ -1,0 +1,22 @@
+run,id,implementation,pass,unit,source_commit,dirty,runtime,threads,warmups,target_ns,harness,warmup_target_ns,forks
+case,id,run_id,case,status,comparison_kind,timing_mode,actual_kernel
+sample,case_id,fork,sample,operations,elapsed_ns,ns_per_op
+run,1,onemkl,2,ns,6e4c009a2debfea98b1b169b903b79da200a08d3,false,Intel(R) oneAPI Math Kernel Library Version 2026.1-Product Build 20260612 for Intel(R) 64 architecture applications; compiler=15.2.0,1,3,50000000,vendor-calibrated,12500000,1
+case,1,1,scal+4096+uniform+timing=arithmetic,ok,direct,arithmetic,vendor-cblas
+sample,1,1,1,131072,34171943,260.71123504638672
+sample,1,1,2,131072,34341982,262.00852966308594
+sample,1,1,3,131072,34351400,262.08038330078125
+sample,1,1,4,131072,34514199,263.32244110107422
+sample,1,1,5,131072,34453101,262.85630035400391
+case,2,1,spgather+4096+sparse-uniform+density=0.25+timing=arithmetic,ok,direct,arithmetic,vendor-cblas
+sample,2,1,1,131072,40006377,305.22443389892578
+sample,2,1,2,131072,39140839,298.62090301513672
+sample,2,1,3,131072,38317254,292.33744812011719
+sample,2,1,4,131072,38755129,295.67816925048828
+sample,2,1,5,131072,38342238,292.52806091308594
+case,3,1,spgather+65536+sparse-uniform+density=0.25+timing=arithmetic,ok,direct,arithmetic,vendor-cblas
+sample,3,1,1,4096,29517668,7206.4619140625
+sample,3,1,2,4096,29454348,7191.0029296875
+sample,3,1,3,4096,29474371,7195.891357421875
+sample,3,1,4,4096,29452796,7190.6240234375
+sample,3,1,5,4096,29435854,7186.48779296875
