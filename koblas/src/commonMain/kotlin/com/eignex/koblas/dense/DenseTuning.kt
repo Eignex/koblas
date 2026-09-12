@@ -10,9 +10,6 @@ import com.eignex.koblas.internal.configuration.tunedInt
  * overrides are ignored so a deployment typo cannot prevent initialization.
  */
 internal object DenseTuning {
-    /** Length at which JVM scaling uses HotSpot autovectorization instead of the Vector API loop. */
-    val scaleScalarCrossover: Int = tuned("scale.scalar.crossover", default = 4096)
-
     /**
      * Rows of the product a portable level-3 block covers.
      *

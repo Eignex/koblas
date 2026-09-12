@@ -47,12 +47,7 @@ internal object SimdVectorKernels : DenseVectorKernels {
     }
 
     override fun scale(v: DoubleArray, vOff: Int, alpha: Double, len: Int) {
-        // HotSpot unrolls and autovectorizes the plain loop more effectively for long vectors.
-        if (len < DenseTuning.scaleScalarCrossover && vectorizes(len)) {
-            SimdOps.scale(v, vOff, alpha, len)
-        } else {
-            scalarScale(v, vOff, alpha, len)
-        }
+        if (vectorizes(len)) SimdOps.scale(v, vOff, alpha, len) else scalarScale(v, vOff, alpha, len)
     }
 
     override fun nrm2(v: DoubleArray, vOff: Int, len: Int): Double {

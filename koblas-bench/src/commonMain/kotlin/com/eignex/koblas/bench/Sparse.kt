@@ -70,7 +70,7 @@ internal fun sparseWork(case: BenchCase, engine: KoblasEngine): CaseWork? {
             CaseWork("direct", timing, {
                 if (timing == "reset-and-arithmetic") dense0.copyInto(dense)
                 engine.sparseKernels.gather(x, dense)
-                (x.values.firstOrNull() ?: 0.0) + (x.values.lastOrNull() ?: 0.0)
+                if (x.values.isEmpty()) 0.0 else x.values[0] + x.values[x.values.lastIndex]
             }, result = x.values)
         }
         "spscatter", "spgather-zero" -> {

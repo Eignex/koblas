@@ -112,7 +112,7 @@ internal object SimdIndexedSparseKernels : IndexedSparseKernels by ScalarIndexed
         count: Int,
         source: DoubleArray,
     ) {
-        if (SparseSimd.autoIndexedLoadEligible && count >= SparseTuning.simdIndexedCrossover) {
+        if (SparseSimd.autoGatherEligible && count >= SparseTuning.simdIndexedCrossover) {
             SparseSimd.gather(indices, indexOffset, values, valueOffset, count, source)
         } else {
             ScalarIndexedSparseKernels.gather(indices, indexOffset, values, valueOffset, count, source)

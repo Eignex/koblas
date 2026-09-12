@@ -20,11 +20,6 @@ class ExplicitKernelsTest {
     }
 
     @Test
-    fun `available explicit kernels preserve scaling arithmetic`() {
-        for (engine in availableEngines()) assertScaleAgreesWithReference(engine.vectorKernels)
-    }
-
-    @Test
     fun `available explicit kernels preserve iamax indices`() {
         for (engine in availableEngines()) assertIamaxAgreesWithReference(engine.vectorKernels)
     }

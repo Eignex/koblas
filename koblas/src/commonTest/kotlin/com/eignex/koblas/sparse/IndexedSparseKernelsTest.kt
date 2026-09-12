@@ -14,8 +14,12 @@ class IndexedSparseKernelsTest {
         var calls = 0
         val kernels = object : IndexedSparseKernels by ScalarIndexedSparseKernels {
             override fun gather(
-                indices: IntArray, indexOffset: Int, values: DoubleArray, valueOffset: Int,
-                count: Int, source: DoubleArray,
+                indices: IntArray,
+                indexOffset: Int,
+                values: DoubleArray,
+                valueOffset: Int,
+                count: Int,
+                source: DoubleArray,
             ) {
                 assertEquals(0, indexOffset)
                 assertEquals(0, valueOffset)

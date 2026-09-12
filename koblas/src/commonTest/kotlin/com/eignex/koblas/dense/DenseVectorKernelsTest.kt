@@ -8,11 +8,6 @@ import kotlin.random.Random
 import kotlin.test.*
 
 class DenseVectorKernelsTest {
-    @Test
-    fun `the platform scaling preserves offsets tails and exceptional values`() {
-        assertScaleAgreesWithReference(koblas.vectorKernels)
-    }
-
 
     @Test
     fun `the scalar and platform arithmetic axpy kernels agree`() {

@@ -11,6 +11,11 @@ internal object SparseSimd {
     val autoScatterEligible: Boolean
         get() = SPECIES.vectorBitSize() == 512 && System.getProperty("os.arch").orEmpty() in X86_ARCHITECTURES
 
+    // AVX2 gather loses to HotSpot's scalar indexed loop in the arithmetic gather cases.
+    val autoGatherEligible: Boolean
+        get() = autoIndexedLoadEligible &&
+            (SPECIES.vectorBitSize() != 256 || System.getProperty("os.arch").orEmpty() !in X86_ARCHITECTURES)
+
     val autoIndexedLoadEligible: Boolean
         get() = LANE > 1
 
