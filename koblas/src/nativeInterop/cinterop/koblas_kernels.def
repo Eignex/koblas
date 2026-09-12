@@ -1,6 +1,3 @@
 headers = koblas_kernels.h
 package = com.eignex.koblas.internal.kernels
-# Compile the kernels into the interop stub rather than inlining them as static code.
-# The inline form is what a target without the definitions would use, and it costs Kotlin/Native
-# the instruction-set clones, which only exist in the exported form.
-compilerOpts = -DKOBLAS_KERNELS_IMPLEMENTATION
+staticLibraries = libkoblas_kernels.a

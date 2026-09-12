@@ -28,7 +28,7 @@ internal data class Settings(
 
 public fun main(args: Array<String>) {
     val settings = parseArguments(args)
-    require(settings.mode == "native") { "JVM benchmarks must run through the JMH entry point" }
+    require(settings.mode == "native" || settings.mode.startsWith("native-raw-")) { "JVM benchmarks must run through the JMH entry point" }
     val allCases = Cases.parse(readTextFile(settings.casesPath))
     val selected = if (settings.operation == "all") allCases else allCases.filter { it.operation == settings.operation }
     require(selected.isNotEmpty()) { "operation '${settings.operation}' selected no cases" }
@@ -117,7 +117,7 @@ internal fun parseArguments(args: Array<String>): Settings {
     val allowed = setOf("mode", "operation", "cases", "output", "warmups", "samples", "target-ms", "forks", "pass", "source-commit", "dirty")
     require(values.keys.all { it in allowed }) { "unknown argument: ${values.keys.first { it !in allowed }}" }
     val mode = values["mode"] ?: error("--mode is required")
-    require(mode in setOf("jvm-c", "jvm-simd", "jvm-scalar", "native")) {
+    require(mode in setOf("jvm-c", "jvm-simd", "jvm-scalar", "native") || rawNativeVariant(mode) != null) {
         "mode must be jvm-c, jvm-simd, jvm-scalar, or native"
     }
     val warmups = values["warmups"]?.toIntOrNull() ?: 3

@@ -15,13 +15,16 @@ import kotlin.test.Test
  * row tile, and 300 crosses the depth block so more than one packed panel is accumulated into the same
  * tile of C.
  */
-internal fun assertPackedGemmAgreesWithWrittenOutProduct(kernels: PackedKernels) {
+internal fun assertPackedGemmAgreesWithWrittenOutProduct(
+    kernels: PackedKernels,
+    sizes: IntArray = intArrayOf(1, 2, 7, 8, 9, 16, 33),
+    depths: IntArray = intArrayOf(1, 5, 17, 300),
+) {
     val rng = Random(20260907)
     val alpha = -0.75
-    val sizes = intArrayOf(1, 2, 7, 8, 9, 16, 33)
     for (m in sizes) {
         for (n in sizes) {
-            for (k in intArrayOf(1, 5, 17, 300)) {
+            for (k in depths) {
                 for (transposeA in booleanArrayOf(false, true)) {
                     for (transposeB in booleanArrayOf(false, true)) {
                         val lda = if (transposeA) k else m

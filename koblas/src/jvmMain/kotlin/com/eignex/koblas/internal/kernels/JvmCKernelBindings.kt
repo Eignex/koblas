@@ -1,168 +1,232 @@
 package com.eignex.koblas.internal.kernels
 
-import java.lang.foreign.ValueLayout.ADDRESS
-import java.lang.foreign.ValueLayout.JAVA_DOUBLE
-import java.lang.foreign.ValueLayout.JAVA_INT
-import java.nio.file.Files
-import java.nio.file.Path
-import java.nio.file.attribute.PosixFilePermissions
+import com.eignex.koblas.NativeVariant
+import java.lang.foreign.ValueLayout.*
 
-/** FFM bindings to the C kernels bundled in the JVM artifact. */
-internal object JvmCKernelBindings {
-    private val symbolNames = listOf(
-        "koblas_dense_dot",
-        "koblas_dense_ssqd",
-        "koblas_dense_nrm2",
-        "koblas_dense_sum",
-        "koblas_dense_iamax",
-        "koblas_dense_asum",
-        "koblas_dense_dot4",
-        "koblas_dense_axpy4",
-        "koblas_dense_dot_axpy",
-        "koblas_dense_gemm_tile",
-        "koblas_dense_gemm_trsm_tile",
-        "koblas_sparse_dot_dense",
-        "koblas_sparse_axpy",
-        "koblas_sparse_scatter",
-        "koblas_sparse_nrm2",
+/** Typed, exact-ID FFM calls. A binding fixes its native variant before arithmetic begins. */
+internal class JvmCKernelBindings(val variant: NativeVariant) {
+    init {
+        NativeCatalog.requireVariant(variant)
+    }
+    private val library = checkNotNull(JvmNativeLibrary.library)
+    private val results = ThreadLocal.withInitial { DoubleArray(1) }
+    private val indices = ThreadLocal.withInitial { IntArray(1) }
+
+    private val denseDotHandle = library.handle(
+        "koblas_dense_dot_v1",
+        FfmLibrary.intOf(JAVA_INT, ADDRESS, JAVA_INT, ADDRESS, JAVA_INT, JAVA_INT, ADDRESS),
     )
-    private val library: FfmLibrary? = loadLibraryOrNull()
 
-    val isAvailable: Boolean get() = library != null
-
-    private fun requiredLibrary(): FfmLibrary = checkNotNull(library) { "bundled koblas C kernels are unavailable" }
-
-    private val denseDot by lazy {
-        requiredLibrary().handle(
-            "koblas_dense_dot",
-            FfmLibrary.doubleOf(ADDRESS, JAVA_INT, ADDRESS, JAVA_INT, JAVA_INT),
-        )
-    }
-    private val denseSsqd by lazy {
-        requiredLibrary().handle(
-            "koblas_dense_ssqd",
-            FfmLibrary.doubleOf(ADDRESS, JAVA_INT, ADDRESS, JAVA_INT, JAVA_INT),
-        )
-    }
-    private val denseNrm2 by lazy {
-        requiredLibrary().handle(
-            "koblas_dense_nrm2",
-            FfmLibrary.doubleOf(ADDRESS, JAVA_INT, JAVA_INT),
-        )
-    }
-    private val denseSum by lazy {
-        requiredLibrary().handle("koblas_dense_sum", FfmLibrary.doubleOf(ADDRESS, JAVA_INT, JAVA_INT))
-    }
-    private val denseIamax by lazy {
-        requiredLibrary().handle("koblas_dense_iamax", FfmLibrary.intOf(ADDRESS, JAVA_INT, JAVA_INT))
-    }
-    private val denseAsum by lazy {
-        requiredLibrary().handle(
-            "koblas_dense_asum",
-            FfmLibrary.doubleOf(ADDRESS, JAVA_INT, JAVA_INT),
-        )
-    }
-    private val denseDot4 by lazy {
-        requiredLibrary().handle(
-            "koblas_dense_dot4",
-            FfmLibrary.voidOf(ADDRESS, JAVA_INT, JAVA_INT, ADDRESS, JAVA_INT, JAVA_INT, ADDRESS, JAVA_INT),
-        )
+    @Suppress("LongParameterList")
+    fun denseDot(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int): Double {
+        val result = results.get()
+        val status = denseDotHandle.invokeExact(
+            1 * 16 + variant.id,
+            JvmArraySegments.of(a),
+            aOff,
+            JvmArraySegments.of(b),
+            bOff,
+            len,
+            JvmArraySegments.of(result),
+        ) as Int
+        check(status == 0) { "native execution rejected: $status" }
+        return result[0]
     }
 
-    @PublishedApi
-    internal val denseAxpy4 by lazy {
-        requiredLibrary().handle(
-            "koblas_dense_axpy4",
-            FfmLibrary.voidOf(
-                ADDRESS, JAVA_INT, ADDRESS, JAVA_INT, JAVA_INT,
-                JAVA_DOUBLE, JAVA_DOUBLE, JAVA_DOUBLE, JAVA_DOUBLE, JAVA_INT,
+    private val denseSsqdHandle = library.handle(
+        "koblas_dense_ssqd_v1",
+        FfmLibrary.intOf(JAVA_INT, ADDRESS, JAVA_INT, ADDRESS, JAVA_INT, JAVA_INT, ADDRESS),
+    )
+
+    @Suppress("LongParameterList")
+    fun denseSsqd(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int): Double {
+        val result = results.get()
+        val status = denseSsqdHandle.invokeExact(
+            2 * 16 + variant.id,
+            JvmArraySegments.of(a),
+            aOff,
+            JvmArraySegments.of(b),
+            bOff,
+            len,
+            JvmArraySegments.of(result),
+        ) as Int
+        check(status == 0) { "native execution rejected: $status" }
+        return result[0]
+    }
+
+    private val denseAxpyHandle = library.handle(
+        "koblas_dense_axpy_v1",
+        FfmLibrary.intOf(JAVA_INT, ADDRESS, JAVA_INT, JAVA_DOUBLE, ADDRESS, JAVA_INT, JAVA_INT),
+    )
+
+    @Suppress("LongParameterList")
+    fun denseAxpy(y: DoubleArray, yOff: Int, alpha: Double, x: DoubleArray, xOff: Int, len: Int) {
+        val status = denseAxpyHandle.invokeExact(
+            3 * 16 + variant.id,
+            JvmArraySegments.of(y),
+            yOff,
+            alpha,
+            JvmArraySegments.of(x),
+            xOff,
+            len,
+        ) as Int
+        check(status == 0) { "native execution rejected: $status" }
+    }
+
+    private val denseAxpyArithmeticHandle = library.handle(
+        "koblas_dense_axpy_arithmetic_v1",
+        FfmLibrary.intOf(JAVA_INT, ADDRESS, JAVA_INT, JAVA_DOUBLE, ADDRESS, JAVA_INT, JAVA_INT),
+    )
+
+    @Suppress("LongParameterList")
+    fun denseAxpyArithmetic(y: DoubleArray, yOff: Int, alpha: Double, x: DoubleArray, xOff: Int, len: Int) {
+        val status = denseAxpyArithmeticHandle.invokeExact(
+            4 * 16 + variant.id,
+            JvmArraySegments.of(y),
+            yOff,
+            alpha,
+            JvmArraySegments.of(x),
+            xOff,
+            len,
+        ) as Int
+        check(status == 0) { "native execution rejected: $status" }
+    }
+
+    private val denseScaleHandle = library.handle(
+        "koblas_dense_scale_v1",
+        FfmLibrary.intOf(JAVA_INT, ADDRESS, JAVA_INT, JAVA_DOUBLE, JAVA_INT),
+    )
+
+    @Suppress("LongParameterList")
+    fun denseScale(v: DoubleArray, vOff: Int, alpha: Double, len: Int) {
+        val status = denseScaleHandle.invokeExact(5 * 16 + variant.id, JvmArraySegments.of(v), vOff, alpha, len) as Int
+        check(status == 0) { "native execution rejected: $status" }
+    }
+
+    private val denseNrm2Handle = library.handle(
+        "koblas_dense_nrm2_v1",
+        FfmLibrary.intOf(JAVA_INT, ADDRESS, JAVA_INT, JAVA_INT, ADDRESS),
+    )
+
+    @Suppress("LongParameterList")
+    fun denseNrm2(v: DoubleArray, vOff: Int, len: Int): Double {
+        val result = results.get()
+        val status = denseNrm2Handle.invokeExact(
+            6 * 16 + variant.id,
+            JvmArraySegments.of(v),
+            vOff,
+            len,
+            JvmArraySegments.of(result),
+        ) as Int
+        check(status == 0) { "native execution rejected: $status" }
+        return result[0]
+    }
+
+    private val denseSumHandle = library.handle(
+        "koblas_dense_sum_v1",
+        FfmLibrary.intOf(JAVA_INT, ADDRESS, JAVA_INT, JAVA_INT, ADDRESS),
+    )
+
+    @Suppress("LongParameterList")
+    fun denseSum(v: DoubleArray, vOff: Int, len: Int): Double {
+        val result = results.get()
+        val status = denseSumHandle.invokeExact(
+            7 * 16 + variant.id,
+            JvmArraySegments.of(v),
+            vOff,
+            len,
+            JvmArraySegments.of(result),
+        ) as Int
+        check(status == 0) { "native execution rejected: $status" }
+        return result[0]
+    }
+
+    private val denseAsumHandle = library.handle(
+        "koblas_dense_asum_v1",
+        FfmLibrary.intOf(JAVA_INT, ADDRESS, JAVA_INT, JAVA_INT, ADDRESS),
+    )
+
+    @Suppress("LongParameterList")
+    fun denseAsum(v: DoubleArray, vOff: Int, len: Int): Double {
+        val result = results.get()
+        val status = denseAsumHandle.invokeExact(
+            8 * 16 + variant.id,
+            JvmArraySegments.of(v),
+            vOff,
+            len,
+            JvmArraySegments.of(result),
+        ) as Int
+        check(status == 0) { "native execution rejected: $status" }
+        return result[0]
+    }
+
+    private val denseIamaxHandle = library.handle(
+        "koblas_dense_iamax_v1",
+        FfmLibrary.intOf(JAVA_INT, ADDRESS, JAVA_INT, JAVA_INT, ADDRESS),
+    )
+
+    @Suppress("LongParameterList")
+    fun denseIamax(v: DoubleArray, vOff: Int, len: Int): Int {
+        val result = indices.get()
+        val status = denseIamaxHandle.invokeExact(
+            9 * 16 + variant.id,
+            JvmArraySegments.of(v),
+            vOff,
+            len,
+            JvmArraySegments.of(result),
+        ) as Int
+        check(status == 0) { "native execution rejected: $status" }
+        return result[0]
+    }
+
+    private val denseGemmTileHandle = library.handle(
+        "koblas_dense_gemm_tile_v1",
+        FfmLibrary.intOf(JAVA_INT, JAVA_INT, ADDRESS, JAVA_INT, ADDRESS, JAVA_INT, ADDRESS, JAVA_INT, JAVA_INT),
+    )
+
+    @Suppress("LongParameterList")
+    fun denseGemmTile(
+        depth: Int,
+        packedA: DoubleArray,
+        aOff: Int,
+        packedB: DoubleArray,
+        bOff: Int,
+        c: DoubleArray,
+        cOff: Int,
+        ldc: Int,
+    ) {
+        val status = denseGemmTileHandle.invokeExact(
+            10 * 16 + variant.id, depth,
+            JvmArraySegments.of(
+                packedA,
             ),
-        )
+            aOff, JvmArraySegments.of(packedB), bOff, JvmArraySegments.of(c), cOff, ldc,
+        ) as Int
+        check(status == 0) { "native execution rejected: $status" }
     }
 
-    @PublishedApi
-    internal val denseDotAxpy by lazy {
-        requiredLibrary().handle(
-            "koblas_dense_dot_axpy",
-            FfmLibrary.doubleOf(
-                ADDRESS,
-                JAVA_INT,
-                JAVA_DOUBLE,
-                ADDRESS,
-                JAVA_INT,
-                ADDRESS,
-                JAVA_INT,
-                JAVA_INT,
-            ),
-        )
+    private val denseSwapHandle = library.handle(
+        "koblas_dense_swap_v1",
+        FfmLibrary.intOf(JAVA_INT, ADDRESS, JAVA_INT, ADDRESS, JAVA_INT, JAVA_INT),
+    )
+
+    @Suppress("LongParameterList")
+    fun denseSwap(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int) {
+        val status = denseSwapHandle.invokeExact(
+            11 * 16 + variant.id,
+            JvmArraySegments.of(a),
+            aOff,
+            JvmArraySegments.of(b),
+            bOff,
+            len,
+        ) as Int
+        check(status == 0) { "native execution rejected: $status" }
     }
 
-    @PublishedApi
-    internal val denseGemmTile by lazy {
-        requiredLibrary().handle(
-            "koblas_dense_gemm_tile",
-            FfmLibrary.voidOf(JAVA_INT, ADDRESS, JAVA_INT, ADDRESS, JAVA_INT, ADDRESS, JAVA_INT, JAVA_INT),
-        )
-    }
-
-    @PublishedApi
-    internal val denseGemmTrsmTile by lazy {
-        requiredLibrary().handle(
-            "koblas_dense_gemm_trsm_tile",
-            FfmLibrary.voidOf(
-                JAVA_INT, JAVA_INT, JAVA_INT,
-                ADDRESS, JAVA_INT, ADDRESS, JAVA_INT, ADDRESS, JAVA_INT,
-                JAVA_INT, JAVA_INT, ADDRESS, JAVA_INT,
-            ),
-        )
-    }
-    private val sparseDotDense by lazy {
-        requiredLibrary().handle(
-            "koblas_sparse_dot_dense",
-            FfmLibrary.doubleOf(ADDRESS, JAVA_INT, ADDRESS, JAVA_INT, JAVA_INT, ADDRESS),
-        )
-    }
-    private val sparseAxpy by lazy {
-        requiredLibrary().handle(
-            "koblas_sparse_axpy",
-            FfmLibrary.voidOf(ADDRESS, JAVA_INT, ADDRESS, JAVA_INT, JAVA_INT, JAVA_DOUBLE, ADDRESS),
-        )
-    }
-    private val sparseScatter by lazy {
-        requiredLibrary().handle(
-            "koblas_sparse_scatter",
-            FfmLibrary.voidOf(ADDRESS, JAVA_INT, ADDRESS, JAVA_INT, JAVA_INT, ADDRESS),
-        )
-    }
-    private val sparseNrm2 by lazy {
-        requiredLibrary().handle(
-            "koblas_sparse_nrm2",
-            FfmLibrary.doubleOf(ADDRESS, JAVA_INT, JAVA_INT, ADDRESS),
-        )
-    }
-
-    fun denseDot(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int): Double =
-        denseDot.invokeExact(JvmArraySegments.of(a), aOff, JvmArraySegments.of(b), bOff, len) as Double
-
-    fun denseSsqd(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int): Double = denseSsqd.invokeExact(
-        JvmArraySegments.of(a),
-        aOff,
-        JvmArraySegments.of(b),
-        bOff,
-        len,
-    ) as Double
-
-    fun denseNrm2(v: DoubleArray, vOff: Int, len: Int): Double =
-        denseNrm2.invokeExact(JvmArraySegments.of(v), vOff, len) as Double
-
-    fun denseSum(v: DoubleArray, vOff: Int, len: Int): Double =
-        denseSum.invokeExact(JvmArraySegments.of(v), vOff, len) as Double
-
-    fun denseIamax(v: DoubleArray, vOff: Int, len: Int): Int =
-        denseIamax.invokeExact(JvmArraySegments.of(v), vOff, len) as Int
-
-    fun denseAsum(v: DoubleArray, vOff: Int, len: Int): Double =
-        denseAsum.invokeExact(JvmArraySegments.of(v), vOff, len) as Double
+    private val denseDot4Handle = library.handle(
+        "koblas_dense_dot4_v1",
+        FfmLibrary.intOf(JAVA_INT, ADDRESS, JAVA_INT, JAVA_INT, ADDRESS, JAVA_INT, JAVA_INT, ADDRESS, JAVA_INT),
+    )
 
     @Suppress("LongParameterList")
     fun denseDot4(
@@ -175,21 +239,35 @@ internal object JvmCKernelBindings {
         out: DoubleArray,
         outOff: Int,
     ) {
-        denseDot4.invokeExact(
-            JvmArraySegments.of(a),
-            aOff,
-            stride,
-            JvmArraySegments.of(b),
-            bOff,
-            len,
-            JvmArraySegments.of(out),
-            outOff,
-        ) as Unit
+        val status = denseDot4Handle.invokeExact(
+            12 * 16 + variant.id,
+            JvmArraySegments.of(
+                a,
+            ),
+            aOff, stride, JvmArraySegments.of(b), bOff, len, JvmArraySegments.of(out), outOff,
+        ) as Int
+        check(status == 0) { "native execution rejected: $status" }
     }
 
-    /** Inline to keep the segment-cache lookup and downcall at the kernel call site. */
-    @Suppress("LongParameterList", "NOTHING_TO_INLINE")
-    inline fun denseAxpy4(
+    private val denseAxpy4Handle = library.handle(
+        "koblas_dense_axpy4_v1",
+        FfmLibrary.intOf(
+            JAVA_INT,
+            ADDRESS,
+            JAVA_INT,
+            ADDRESS,
+            JAVA_INT,
+            JAVA_INT,
+            JAVA_DOUBLE,
+            JAVA_DOUBLE,
+            JAVA_DOUBLE,
+            JAVA_DOUBLE,
+            JAVA_INT,
+        ),
+    )
+
+    @Suppress("LongParameterList")
+    fun denseAxpy4(
         y: DoubleArray,
         yOff: Int,
         a: DoubleArray,
@@ -201,15 +279,34 @@ internal object JvmCKernelBindings {
         c3: Double,
         len: Int,
     ) {
-        denseAxpy4.invokeExact(
-            JvmArraySegments.of(y), yOff, JvmArraySegments.of(a), aOff, stride,
-            c0, c1, c2, c3, len,
-        ) as Unit
+        val status = denseAxpy4Handle.invokeExact(
+            13 * 16 + variant.id,
+            JvmArraySegments.of(
+                y,
+            ),
+            yOff, JvmArraySegments.of(a), aOff, stride, c0, c1, c2, c3, len,
+        ) as Int
+        check(status == 0) { "native execution rejected: $status" }
     }
 
-    /** Inline to keep the segment-cache lookup and downcall at the kernel call site. */
-    @Suppress("LongParameterList", "NOTHING_TO_INLINE")
-    inline fun denseDotAxpy(
+    private val denseDotAxpyHandle = library.handle(
+        "koblas_dense_dot_axpy_v1",
+        FfmLibrary.intOf(
+            JAVA_INT,
+            ADDRESS,
+            JAVA_INT,
+            JAVA_DOUBLE,
+            ADDRESS,
+            JAVA_INT,
+            ADDRESS,
+            JAVA_INT,
+            JAVA_INT,
+            ADDRESS,
+        ),
+    )
+
+    @Suppress("LongParameterList")
+    fun denseDotAxpy(
         y: DoubleArray,
         yOff: Int,
         alpha: Double,
@@ -218,44 +315,279 @@ internal object JvmCKernelBindings {
         x: DoubleArray,
         xOff: Int,
         len: Int,
-    ): Double = denseDotAxpy.invokeExact(
-        JvmArraySegments.of(y),
-        yOff,
-        alpha,
-        JvmArraySegments.of(a),
-        aOff,
-        JvmArraySegments.of(x),
-        xOff,
-        len,
-    ) as Double
-
-    /** Inline to keep the segment-cache lookup and downcall at the kernel call site. */
-    @Suppress("LongParameterList", "NOTHING_TO_INLINE")
-    inline fun denseGemmTile(
-        depth: Int,
-        packedA: DoubleArray,
-        aOff: Int,
-        packedB: DoubleArray,
-        bOff: Int,
-        c: DoubleArray,
-        cOff: Int,
-        ldc: Int,
-    ) {
-        denseGemmTile.invokeExact(
-            depth,
-            JvmArraySegments.of(packedA),
-            aOff,
-            JvmArraySegments.of(packedB),
-            bOff,
-            JvmArraySegments.of(c),
-            cOff,
-            ldc,
-        ) as Unit
+    ): Double {
+        val result = results.get()
+        val status = denseDotAxpyHandle.invokeExact(
+            14 * 16 + variant.id,
+            JvmArraySegments.of(
+                y,
+            ),
+            yOff, alpha,
+            JvmArraySegments.of(
+                a,
+            ),
+            aOff, JvmArraySegments.of(x), xOff, len, JvmArraySegments.of(result),
+        ) as Int
+        check(status == 0) { "native execution rejected: $status" }
+        return result[0]
     }
 
-    /** Inline to keep the segment-cache lookup and downcall at the kernel call site. */
-    @Suppress("LongParameterList", "NOTHING_TO_INLINE")
-    inline fun denseGemmTrsmTile(
+    private val denseRotmHandle = library.handle(
+        "koblas_dense_rotm_v1",
+        FfmLibrary.intOf(
+            JAVA_INT,
+            ADDRESS,
+            JAVA_INT,
+            JAVA_INT,
+            ADDRESS,
+            JAVA_INT,
+            JAVA_INT,
+            JAVA_INT,
+            JAVA_DOUBLE,
+            JAVA_DOUBLE,
+            JAVA_DOUBLE,
+            JAVA_DOUBLE,
+        ),
+    )
+
+    @Suppress("LongParameterList")
+    fun denseRotm(
+        x: DoubleArray,
+        xOff: Int,
+        xStride: Int,
+        y: DoubleArray,
+        yOff: Int,
+        yStride: Int,
+        len: Int,
+        h11: Double,
+        h12: Double,
+        h21: Double,
+        h22: Double,
+    ) {
+        val status = denseRotmHandle.invokeExact(
+            15 * 16 + variant.id,
+            JvmArraySegments.of(
+                x,
+            ),
+            xOff, xStride, JvmArraySegments.of(y), yOff, yStride, len, h11, h12, h21, h22,
+        ) as Int
+        check(status == 0) { "native execution rejected: $status" }
+    }
+
+    private val sparseDotDenseHandle = library.handle(
+        "koblas_sparse_dot_dense_v1",
+        FfmLibrary.intOf(JAVA_INT, ADDRESS, JAVA_INT, ADDRESS, JAVA_INT, JAVA_INT, ADDRESS, ADDRESS),
+    )
+
+    @Suppress("LongParameterList")
+    fun sparseDotDense(
+        indices: IntArray,
+        indexOff: Int,
+        values: DoubleArray,
+        valueOff: Int,
+        len: Int,
+        dense: DoubleArray,
+    ): Double {
+        val result = results.get()
+        val status = sparseDotDenseHandle.invokeExact(
+            16 * 16 + 1,
+            JvmArraySegments.of(indices),
+            indexOff,
+            JvmArraySegments.of(values),
+            valueOff,
+            len,
+            JvmArraySegments.of(dense),
+            JvmArraySegments.of(result),
+        ) as Int
+        check(status == 0) { "native execution rejected: $status" }
+        return result[0]
+    }
+
+    private val sparseDotSparseHandle = library.handle(
+        "koblas_sparse_dot_sparse_v1",
+        FfmLibrary.intOf(JAVA_INT, ADDRESS, ADDRESS, JAVA_INT, ADDRESS, ADDRESS, JAVA_INT, ADDRESS),
+    )
+
+    @Suppress("LongParameterList")
+    fun sparseDotSparse(
+        aIndices: IntArray,
+        aValues: DoubleArray,
+        aLen: Int,
+        bIndices: IntArray,
+        bValues: DoubleArray,
+        bLen: Int,
+    ): Double {
+        val result = results.get()
+        val status = sparseDotSparseHandle.invokeExact(
+            17 * 16 + 1,
+            JvmArraySegments.of(aIndices),
+            JvmArraySegments.of(aValues),
+            aLen,
+            JvmArraySegments.of(bIndices),
+            JvmArraySegments.of(bValues),
+            bLen,
+            JvmArraySegments.of(result),
+        ) as Int
+        check(status == 0) { "native execution rejected: $status" }
+        return result[0]
+    }
+
+    private val sparseAxpyHandle = library.handle(
+        "koblas_sparse_axpy_v1",
+        FfmLibrary.intOf(JAVA_INT, ADDRESS, JAVA_INT, ADDRESS, JAVA_INT, JAVA_INT, JAVA_DOUBLE, ADDRESS),
+    )
+
+    @Suppress("LongParameterList")
+    fun sparseAxpy(
+        indices: IntArray,
+        indexOff: Int,
+        values: DoubleArray,
+        valueOff: Int,
+        len: Int,
+        alpha: Double,
+        dense: DoubleArray,
+    ) {
+        val status = sparseAxpyHandle.invokeExact(
+            18 * 16 + 1,
+            JvmArraySegments.of(indices),
+            indexOff,
+            JvmArraySegments.of(values),
+            valueOff,
+            len,
+            alpha,
+            JvmArraySegments.of(dense),
+        ) as Int
+        check(status == 0) { "native execution rejected: $status" }
+    }
+
+    private val sparseScatterHandle = library.handle(
+        "koblas_sparse_scatter_v1",
+        FfmLibrary.intOf(JAVA_INT, ADDRESS, JAVA_INT, ADDRESS, JAVA_INT, JAVA_INT, ADDRESS),
+    )
+
+    @Suppress("LongParameterList")
+    fun sparseScatter(
+        indices: IntArray,
+        indexOff: Int,
+        values: DoubleArray,
+        valueOff: Int,
+        len: Int,
+        dense: DoubleArray,
+    ) {
+        val status = sparseScatterHandle.invokeExact(
+            19 * 16 + 1,
+            JvmArraySegments.of(indices),
+            indexOff,
+            JvmArraySegments.of(values),
+            valueOff,
+            len,
+            JvmArraySegments.of(dense),
+        ) as Int
+        check(status == 0) { "native execution rejected: $status" }
+    }
+
+    private val sparseNrm2Handle = library.handle(
+        "koblas_sparse_nrm2_v1",
+        FfmLibrary.intOf(JAVA_INT, ADDRESS, JAVA_INT, JAVA_INT, ADDRESS, ADDRESS),
+    )
+
+    @Suppress("LongParameterList")
+    fun sparseNrm2(indices: IntArray, indexOff: Int, len: Int, values: DoubleArray): Double {
+        val result = results.get()
+        val status = sparseNrm2Handle.invokeExact(
+            20 * 16 + 1,
+            JvmArraySegments.of(indices),
+            indexOff,
+            len,
+            JvmArraySegments.of(values),
+            JvmArraySegments.of(result),
+        ) as Int
+        check(status == 0) { "native execution rejected: $status" }
+        return result[0]
+    }
+
+    private val sparseGatherHandle = library.handle(
+        "koblas_sparse_gather_v1",
+        FfmLibrary.intOf(JAVA_INT, ADDRESS, ADDRESS, JAVA_INT, ADDRESS),
+    )
+
+    @Suppress("LongParameterList")
+    fun sparseGather(indices: IntArray, values: DoubleArray, len: Int, dense: DoubleArray) {
+        val status = sparseGatherHandle.invokeExact(
+            21 * 16 + 1,
+            JvmArraySegments.of(indices),
+            JvmArraySegments.of(values),
+            len,
+            JvmArraySegments.of(dense),
+        ) as Int
+        check(status == 0) { "native execution rejected: $status" }
+    }
+
+    private val sparseGatherZeroHandle = library.handle(
+        "koblas_sparse_gather_zero_v1",
+        FfmLibrary.intOf(JAVA_INT, ADDRESS, ADDRESS, JAVA_INT, ADDRESS),
+    )
+
+    @Suppress("LongParameterList")
+    fun sparseGatherZero(indices: IntArray, values: DoubleArray, len: Int, dense: DoubleArray) {
+        val status = sparseGatherZeroHandle.invokeExact(
+            22 * 16 + 1,
+            JvmArraySegments.of(indices),
+            JvmArraySegments.of(values),
+            len,
+            JvmArraySegments.of(dense),
+        ) as Int
+        check(status == 0) { "native execution rejected: $status" }
+    }
+
+    private val denseTrsmTileHandle = library.handle(
+        "koblas_dense_trsm_tile_v1",
+        FfmLibrary.intOf(JAVA_INT, JAVA_INT, JAVA_INT, ADDRESS, JAVA_INT, JAVA_INT, JAVA_INT, ADDRESS, JAVA_INT),
+    )
+
+    @Suppress("LongParameterList")
+    fun denseTrsmTile(
+        validRows: Int,
+        order: Int,
+        packedTriangle: DoubleArray,
+        triangleOff: Int,
+        lower: Int,
+        unitDiag: Int,
+        x: DoubleArray,
+        xOff: Int,
+    ) {
+        val status = denseTrsmTileHandle.invokeExact(
+            23 * 16 + variant.id, validRows, order,
+            JvmArraySegments.of(
+                packedTriangle,
+            ),
+            triangleOff, lower, unitDiag, JvmArraySegments.of(x), xOff,
+        ) as Int
+        check(status == 0) { "native execution rejected: $status" }
+    }
+
+    private val denseGemmTrsmTileHandle = library.handle(
+        "koblas_dense_gemm_trsm_tile_v1",
+        FfmLibrary.intOf(
+            JAVA_INT,
+            JAVA_INT,
+            JAVA_INT,
+            JAVA_INT,
+            ADDRESS,
+            JAVA_INT,
+            ADDRESS,
+            JAVA_INT,
+            ADDRESS,
+            JAVA_INT,
+            JAVA_INT,
+            JAVA_INT,
+            ADDRESS,
+            JAVA_INT,
+        ),
+    )
+
+    @Suppress("LongParameterList")
+    fun denseGemmTrsmTile(
         depth: Int,
         validRows: Int,
         order: Int,
@@ -265,139 +597,22 @@ internal object JvmCKernelBindings {
         bOff: Int,
         packedTriangle: DoubleArray,
         triangleOff: Int,
-        lower: Boolean,
-        unitDiag: Boolean,
+        lower: Int,
+        unitDiag: Int,
         x: DoubleArray,
         xOff: Int,
     ) {
-        denseGemmTrsmTile.invokeExact(
-            depth, validRows, order,
-            JvmArraySegments.of(packedA), aOff, JvmArraySegments.of(packedB), bOff,
-            JvmArraySegments.of(packedTriangle), triangleOff,
-            if (lower) 1 else 0, if (unitDiag) 1 else 0, JvmArraySegments.of(x), xOff,
-        ) as Unit
-    }
-
-    @Suppress("LongParameterList")
-    fun sparseDotDense(
-        indices: IntArray,
-        indexOffset: Int,
-        values: DoubleArray,
-        valueOffset: Int,
-        count: Int,
-        dense: DoubleArray,
-    ): Double = sparseDotDense.invokeExact(
-        JvmArraySegments.of(indices),
-        indexOffset,
-        JvmArraySegments.of(values),
-        valueOffset,
-        count,
-        JvmArraySegments.of(dense),
-    ) as Double
-
-    @Suppress("LongParameterList")
-    fun sparseAxpy(
-        indices: IntArray,
-        indexOffset: Int,
-        values: DoubleArray,
-        valueOffset: Int,
-        count: Int,
-        alpha: Double,
-        destination: DoubleArray,
-    ) {
-        sparseAxpy.invokeExact(
-            JvmArraySegments.of(indices),
-            indexOffset,
-            JvmArraySegments.of(values),
-            valueOffset,
-            count,
-            alpha,
-            JvmArraySegments.of(destination),
-        ) as Unit
-    }
-
-    @Suppress("LongParameterList")
-    fun sparseScatter(
-        indices: IntArray,
-        indexOffset: Int,
-        values: DoubleArray,
-        valueOffset: Int,
-        count: Int,
-        destination: DoubleArray,
-    ) {
-        sparseScatter.invokeExact(
-            JvmArraySegments.of(indices),
-            indexOffset,
-            JvmArraySegments.of(values),
-            valueOffset,
-            count,
-            JvmArraySegments.of(destination),
-        ) as Unit
-    }
-
-    fun sparseNrm2(indices: IntArray, indexOffset: Int, count: Int, values: DoubleArray): Double =
-        sparseNrm2.invokeExact(
-            JvmArraySegments.of(indices),
-            indexOffset,
-            count,
-            JvmArraySegments.of(values),
-        ) as Double
-
-    private fun loadLibraryOrNull(): FfmLibrary? = try {
-        val extractedLibrary = extractLibrary()
-        FfmLibrary.open(
-            listOf(extractedLibrary.toString()),
-            "koblas_dense_dot",
-            "bundled koblas C kernels",
-        ).takeIf { it.containsAll(symbolNames) }
-    } catch (_: RuntimeException) {
-        null
-    } catch (_: UnsatisfiedLinkError) {
-        null
-    }
-
-    private fun extractLibrary(): Path {
-        val (platform, libraryName) = supportedPlatform()
-        val resource = "com/eignex/koblas/internal/kernels/$platform/$libraryName"
-        val stream = Thread.currentThread().contextClassLoader.getResourceAsStream(resource)
-            ?: JvmCKernelBindings::class.java.classLoader.getResourceAsStream(resource)
-            ?: error("bundled C kernel resource is absent for $platform")
-        val directory = Files.createTempDirectory("koblas-kernels-$platform-")
-        secure(directory, "rwx------")
-        val destination = directory.resolve(libraryName)
-        stream.use { Files.copy(it, destination) }
-        secure(destination, "rw-------")
-        destination.toFile().deleteOnExit()
-        directory.toFile().deleteOnExit()
-        return destination
-    }
-
-    private fun secure(path: Path, permissions: String) {
-        runCatching {
-            Files.setPosixFilePermissions(path, PosixFilePermissions.fromString(permissions))
-        }
-            .getOrElse { cause ->
-                throw IllegalStateException(
-                    "cannot secure extracted C kernel resource $path",
-                    cause,
-                )
-            }
-    }
-
-    private fun supportedPlatform(): Pair<String, String> {
-        val os = System.getProperty("os.name")
-        val architecture = System.getProperty("os.arch")
-        return when {
-            os.startsWith("Linux", ignoreCase = true) && architecture in setOf("amd64", "x86_64") ->
-                "linux-x86_64" to "libkoblas_kernels.so"
-
-            os.startsWith("Linux", ignoreCase = true) && architecture in setOf("aarch64", "arm64") ->
-                "linux-arm64" to "libkoblas_kernels.so"
-
-            os.startsWith("Mac", ignoreCase = true) && architecture in setOf("aarch64", "arm64") ->
-                "macosx-arm64" to "libkoblas_kernels.dylib"
-
-            else -> error("unsupported koblas C kernel host $os/$architecture")
-        }
+        val status = denseGemmTrsmTileHandle.invokeExact(
+            24 * 16 + variant.id, depth, validRows, order,
+            JvmArraySegments.of(
+                packedA,
+            ),
+            aOff,
+            JvmArraySegments.of(
+                packedB,
+            ),
+            bOff, JvmArraySegments.of(packedTriangle), triangleOff, lower, unitDiag, JvmArraySegments.of(x), xOff,
+        ) as Int
+        check(status == 0) { "native execution rejected: $status" }
     }
 }
