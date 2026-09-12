@@ -481,7 +481,7 @@ implementation. Keep ordered reference paths for cases that cannot safely use a 
 
 Extend the existing `koblas-bench` harness, whose README defines the measurement rules. PR #540 already added
 explicit packed recipes, logical block cases, fixed/logical comparisons, source-SHA provenance, and baseline
-reports. Reuse its case/run/sample records and CPU trace. Add exact ISA/width/layout attribution as kernels
+reports. Use its single capture script, one CSV row per case, and normalized `metadata.txt`. Add exact ISA/width/layout attribution as kernels
 arrive; preserve comparable logical workloads and mark unsupported physical configurations explicitly.
 
 **Tile and packed benchmark options — before baseline capture**
@@ -513,7 +513,7 @@ but their loop/call costs stay in the timed block. Never equate one larger tile 
 
 Generate logical fixtures first, then pack them independently into each selected format. Physical padding must
 not change logical inputs. Preserve logical/physical work, actual kernels, and source commit through the existing
-case/run records; derive extents/bytes from the explicit recipe rather than duplicate them in every sample.
+case rows and run metadata; derive extents/bytes from the explicit recipe rather than duplicate them.
 Physical sizes may be calculated from recipe formulas, never hidden tuning. A changed recipe is a changed
 workload unless equivalence is demonstrated from its source; capture a new baseline when that evidence is absent.
 Keep AUTO/default-policy experiments explicitly labeled and separate from these fixed before/after cases.

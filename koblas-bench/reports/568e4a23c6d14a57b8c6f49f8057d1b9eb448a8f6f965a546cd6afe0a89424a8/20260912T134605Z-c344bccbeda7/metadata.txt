@@ -1,14 +1,13 @@
 status=complete
 
 [capture]
-Sat Sep 12 13:46:05 UTC 2026
-Darwin MinisomorRasmus.ros 25.6.0 Darwin Kernel Version 25.6.0: Fri Jul 31 19:11:03 PDT 2026; root:xnu-12377.161.14~5/RELEASE_ARM64_T8132 arm64
-c344bccbeda7f52d0e683eada1c06daee7c3d22a
-?? koblas-bench/reports/568e4a23c6d14a57b8c6f49f8057d1b9eb448a8f6f965a546cd6afe0a89424a8/
-operation=all suite=all warmups=5 samples=10 target_ms=200 forks=2 pass=1 libraries=openblas,accelerate
-
-[toolchain]
-Apple clang version 21.0.0 (clang-2100.1.1.101)
+dirty=true
+pass=1
+source_commit=c344bccbeda7f52d0e683eada1c06daee7c3d22a
+target_ns=200000000
+threads=1
+unit=ns
+warmups=5
 
 [hardware]
 architecture=arm64
@@ -17,10 +16,47 @@ physical_cpus=10
 physical_cpus_max=10
 memory_bytes=25769803776
 
-[cpu]
-interval_ms=1000 baseline_seconds=3
-started_at=2026-09-12T13:46:05.998836Z
-runtime=Homebrew/25.0.4.1
+[accelerate]
+harness=vendor-calibrated
+implementation=accelerate
+requested_forks=1
+runtime=Accelerate.framework; compiler=Apple LLVM 21.0.0 (clang-2100.1.1.101)
+warmup_target_ns=50000000
+
+[jvm-c]
+harness=jmh-average-time/JMH-1.37
+implementation=jvm-c/c/c-sparse/packed-4x4
+requested_forks=2
+runtime=kotlin-2.4.10/jvm/Homebrew/25.0.4.1
+warmup_target_ns=200000000
+
+[jvm-scalar]
+harness=jmh-average-time/JMH-1.37
+implementation=jvm-scalar/scalar/scalar/packed-4x4
+requested_forks=2
+runtime=kotlin-2.4.10/jvm/Homebrew/25.0.4.1
+warmup_target_ns=200000000
+
+[jvm-simd]
+harness=jmh-average-time/JMH-1.37
+implementation=jvm-simd/simd(2 lanes)/simd-sparse/packed-4x4
+requested_forks=2
+runtime=kotlin-2.4.10/jvm/Homebrew/25.0.4.1
+warmup_target_ns=200000000
+
+[native]
+harness=native-calibrated
+implementation=native/c/c-sparse/packed-4x4
+requested_forks=1
+runtime=kotlin-native-2.4.10
+warmup_target_ns=50000000
+
+[openblas]
+harness=vendor-calibrated
+implementation=openblas
+requested_forks=1
+runtime=OpenBLAS 0.3.34 DYNAMIC_ARCH NO_AFFINITY USE_OPENMP vortexm4 MAX_THREADS=56; compiler=Apple LLVM 21.0.0 (clang-2100.1.1.101)
+warmup_target_ns=50000000
 
 [execution]
 jvm-scalar_started_at=2026-09-12T13:46:09Z
@@ -29,11 +65,3 @@ jvm-simd_started_at=2026-09-12T14:16:01Z
 native_started_at=2026-09-12T14:30:45Z
 vendors_started_at=2026-09-12T14:36:28Z
 completed_at=2026-09-12T14:41:18Z
-
-[runtimes]
-jvm-scalar=kotlin-2.4.10/jvm/Homebrew/25.0.4.1/JMH 1.37/forks=2
-jvm-c=kotlin-2.4.10/jvm/Homebrew/25.0.4.1/JMH 1.37/forks=2
-jvm-simd=kotlin-2.4.10/jvm/Homebrew/25.0.4.1/JMH 1.37/forks=2
-native=kotlin-native-2.4.10
-openblas=OpenBLAS 0.3.34 DYNAMIC_ARCH NO_AFFINITY USE_OPENMP vortexm4 MAX_THREADS=56; compiler=Apple LLVM 21.0.0 (clang-2100.1.1.101)
-accelerate=Accelerate.framework; compiler=Apple LLVM 21.0.0 (clang-2100.1.1.101)

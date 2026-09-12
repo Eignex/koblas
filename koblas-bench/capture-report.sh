@@ -6,6 +6,7 @@ bench="$root/koblas-bench"
 libraries=all
 operation=all
 suite=all
+native_variant=
 cases="$bench/cases.txt"
 output=
 samples=5
@@ -17,11 +18,12 @@ vendors_only=false
 smoke=false
 
 usage() {
-  echo "usage: capture-report.sh [--libraries openblas,accelerate,onemkl|all] [--vendors-only] [--smoke] [--output NEW_DIR] [--cases FILE] [--operation NAME|all] [--suite all|packed] [--samples N] [--warmups N] [--target-ms N] [--forks N] [--pass N]" >&2
+  echo "usage: capture-report.sh [--libraries openblas,accelerate,onemkl|all] [--native-variant scalar|sse2|avx2|neon] [--vendors-only] [--smoke] [--output NEW_DIR] [--cases FILE] [--operation NAME|all] [--suite all|packed] [--samples N] [--warmups N] [--target-ms N] [--forks N] [--pass N]" >&2
 }
 while (($#)); do
   case "$1" in
     --libraries) libraries=${2:?}; shift 2 ;;
+    --native-variant) native_variant=${2:?}; shift 2 ;;
     --operation) operation=${2:?}; shift 2 ;;
     --suite) suite=${2:?}; shift 2 ;;
     --cases) cases=${2:?}; shift 2 ;;
@@ -38,6 +40,7 @@ while (($#)); do
   esac
 done
 [[ $suite == all || $suite == packed ]] || { usage; exit 2; }
+[[ -z $native_variant || $native_variant == scalar || $native_variant == sse2 || $native_variant == avx2 || $native_variant == neon ]] || { usage; exit 2; }
 if $smoke; then samples=1; warmups=0; target_ms=1; forks=1; fi
 platform=$(uname -s)
 if [[ $libraries == all ]]; then
@@ -100,12 +103,18 @@ cases="$temporary/cases.txt"
   echo "status=incomplete"
   printf '\n[capture]\n'
   echo "started_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  echo "completed_at=pending"
   echo "source_commit=$commit"
   echo "dirty=$dirty"
-  uname -a
-  git -C "$root" status --porcelain
-  echo "operation=$operation suite=$suite warmups=$warmups samples=$samples target_ms=$target_ms forks=$forks pass=$pass libraries=$libraries vendors_only=$vendors_only"
+  echo "platform=$(uname -a)"
+  printf '%s\n' "operation=$operation" "suite=$suite" "warmups=$warmups" "requested_samples=$samples" \
+    "target_ns=$((target_ms * 1000000))" "pass=$pass" "libraries=$libraries" "vendors_only=$vendors_only"
+  if ! $vendors_only; then
+    echo "requested_jvm_forks=$forks"
+    [[ -z $native_variant ]] || echo "requested_native_variant=$native_variant"
+  fi
   env | LC_ALL=C sort | awk '/^KOBLAS_(DENSE|SPARSE)_/ { print }'
+  echo "threads=1"
   printf '\n[toolchain]\n'
   cc --version | head -n 1
   printf '\n[hardware]\n'
@@ -118,20 +127,32 @@ run_target() {
   printf '\n[%s]\n' "$target" >>"$metadata"
   echo "started_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >>"$metadata"
   "$@" 2>&1 | tee "$temporary/$target.log"
-  sed -n '/^resolved implementation=/p' "$temporary/$target.log" >>"$metadata"
-  echo "threads=1" >>"$metadata"
+  sed -n 's/^resolved implementation=\(.*\) runtime=\(.*\) harness=\(.*\)$/implementation=\1\nruntime=\2\nharness=\3/p' "$temporary/$target.log" >>"$metadata"
+  if [[ $target == jvm-* ]]; then
+    echo "warmup_target_ns=$((target_ms * 1000000))"
+  else
+    echo "warmup_target_ns=$((target_ms > 4 ? target_ms * 250000 : 1000000))"
+  fi >>"$metadata"
   echo "completed_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >>"$metadata"
 }
 
 cd "$root"
-common=("-Pbench.operation=$operation" "-Pbench.cases=$cases" "-Pbench.warmups=$warmups" "-Pbench.samples=$samples" "-Pbench.targetMs=$target_ms" "-Pbench.pass=$pass")
+common=("-Pbench.operation=$operation" "-Pbench.cases=$cases" "-Pbench.warmups=$warmups" "-Pbench.samples=$samples" "-Pbench.targetMs=$target_ms")
 if ! $vendors_only; then
-  for target in jvm-scalar jvm-c jvm-simd native; do
+  c_target=jvm-c
+  native_target=native
+  if [[ -n $native_variant ]]; then
+    c_target=jvm-c-raw-$native_variant
+    native_target=native-raw-$native_variant
+    common+=("-Pbench.variant=$native_variant")
+  fi
+  for target in jvm-scalar "$c_target" jvm-simd "$native_target"; do
     case "$target" in
       jvm-scalar) task=jvmScalarBenchmark ;;
       jvm-c) task=jvmCBenchmark ;;
+      jvm-c-raw-*) task=jvmCRawBenchmark ;;
       jvm-simd) task=jvmSimdBenchmark ;;
-      native) task=nativeBenchmark ;;
+      native*) task=nativeBenchmark ;;
     esac
     run_target "$target" ./gradlew ":koblas-bench:$task" "${common[@]}" "-Pbench.forks=$forks" "-Pbench.output=$results/$target.csv"
   done
@@ -161,10 +182,11 @@ for vendor in "${vendors[@]}"; do
   esac
   cc -std=c11 -O3 -DNDEBUG -Wall -Wextra -Werror "$bench/reference/vendor_runner.c" "${flags[@]}" -lm -o "$temporary/$vendor"
   run_target "$vendor" "$temporary/$vendor" --cases="$cases" --output="$results/$vendor.csv" \
-    --samples="$samples" --warmups="$warmups" --target-ms="$target_ms" --pass="$pass" --source-commit="$commit" --dirty="$dirty"
+    --samples="$samples" --warmups="$warmups" --target-ms="$target_ms"
 done
-printf '\ncompleted_at=%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" >>"$metadata"
-sed '1s/status=incomplete/status=complete/' "$metadata" >"$temporary/metadata.txt"
+sed -e '1s/status=incomplete/status=complete/' \
+  -e "s/^completed_at=pending$/completed_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)/" \
+  "$metadata" >"$temporary/metadata.txt"
 mv "$temporary/metadata.txt" "$metadata"
 mkdir -p "$(dirname "$output")"
 mkdir "$output"

@@ -27,15 +27,6 @@ dependencies {
     add("jvmMainAnnotationProcessor", "org.openjdk.jmh:jmh-generator-annprocess:1.37")
 }
 
-private val sourceCommit = providers.exec {
-    commandLine("git", "rev-parse", "HEAD")
-    workingDir(rootProject.projectDir)
-}.standardOutput.asText.map { it.trim() }
-private val sourceDirty = providers.exec {
-    commandLine("git", "status", "--porcelain", "--untracked-files=normal")
-    workingDir(rootProject.projectDir)
-}.standardOutput.asText.map { if (it.isBlank()) "false" else "true" }
-
 private fun benchmarkArguments(mode: String, jmh: Boolean): List<String> = listOf(
     "--mode=$mode",
     "--operation=${providers.gradleProperty("bench.operation").orElse("all").get()}",
@@ -44,9 +35,6 @@ private fun benchmarkArguments(mode: String, jmh: Boolean): List<String> = listO
     "--warmups=${providers.gradleProperty("bench.warmups").orElse("3").get()}",
     "--samples=${providers.gradleProperty("bench.samples").orElse("5").get()}",
     "--target-ms=${providers.gradleProperty("bench.targetMs").orElse("1000").get()}",
-    "--pass=${providers.gradleProperty("bench.pass").orElse("1").get()}",
-    "--source-commit=${sourceCommit.get()}",
-    "--dirty=${sourceDirty.get()}",
 ) + if (jmh) listOf("--forks=${providers.gradleProperty("bench.forks").orElse("2").get()}") else emptyList()
 
 val jvmCompilation = (kotlin.targets.getByName("jvm") as KotlinJvmTarget).compilations.getByName("main")

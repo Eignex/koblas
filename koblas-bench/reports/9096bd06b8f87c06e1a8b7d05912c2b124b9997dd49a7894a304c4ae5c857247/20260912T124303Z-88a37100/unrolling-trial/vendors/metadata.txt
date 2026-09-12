@@ -1,0 +1,38 @@
+status=unknown
+
+[capture]
+dirty=false
+harness=vendor-calibrated
+pass=1
+requested_forks=1
+source_commit=909088ed2a2a075623501c07efc86201da55f26b
+target_ns=200000000
+threads=1
+unit=ns
+warmup_target_ns=50000000
+warmups=5
+
+[hardware]
+architecture=x86_64
+vendor id=GenuineIntel
+model name=12th Gen Intel(R) Core(TM) i9-12900H
+cpu family=6
+model=154
+thread(s) per core=2
+core(s) per socket=14
+socket(s)=1
+stepping=3
+l1d cache=544 KiB (14 instances)
+l1i cache=704 KiB (14 instances)
+l2 cache=11.5 MiB (8 instances)
+l3 cache=24 MiB (1 instance)
+numa node(s)=1
+memory_kib=64221064
+
+[onemkl]
+implementation=onemkl
+runtime=Intel(R) oneAPI Math Kernel Library Version 2026.1-Product Build 20260612 for Intel(R) 64 architecture applications; compiler=15.2.0
+
+[openblas]
+implementation=openblas
+runtime=OpenBLAS 0.3.32 NO_LAPACKE DYNAMIC_ARCH NO_AFFINITY Haswell MAX_THREADS=128; compiler=15.2.0

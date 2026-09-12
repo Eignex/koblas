@@ -2,8 +2,6 @@ package com.eignex.koblas.bench
 
 import java.io.File
 import java.util.concurrent.TimeUnit
-import kotlin.math.max
-import kotlin.math.roundToLong
 import org.openjdk.jmh.results.RunResult
 import org.openjdk.jmh.runner.Runner
 import org.openjdk.jmh.runner.options.OptionsBuilder
@@ -38,7 +36,7 @@ public fun main(args: Array<String>) {
         val work = denseWork(case, engine) ?: sparseWork(case, engine)
         if (work == null) {
             rowsByCase.getOrPut(case.id, ::arrayListOf) += measurement(
-                case, implementation, settings, 0, 0, 0, "", "unsupported", "unsupported",
+                case, settings, 0, null, "unsupported", "unsupported",
                 case.option("mode", "arithmetic"),
             )
         } else {
@@ -47,25 +45,12 @@ public fun main(args: Array<String>) {
         }
     }
     if (supported.isNotEmpty()) {
-        try {
-            val results = Runner(jmhOptions(settings, supported.keys)).run()
-            appendJmhRows(rowsByCase, results, allCases.associateBy { it.id }, supported, implementation, settings)
-        } catch (failure: Throwable) {
-            val status = "failed:jmh:${sanitize(failure.message ?: failure::class.simpleName ?: "error")}"
-            for ((caseId, metadata) in supported) {
-                val case = allCases.single { it.id == caseId }
-                rowsByCase.getOrPut(caseId, ::arrayListOf) += measurement(
-                    case, implementation, settings, 0, 0, 0, "", status, metadata.first, metadata.second,
-                    jmhRuntime(settings),
-                )
-            }
-            writeRows(settings, selected, rowsByCase)
-            throw failure
-        }
+        val results = Runner(jmhOptions(settings, supported.keys)).run()
+        appendJmhRows(rowsByCase, results, allCases.associateBy { it.id }, supported, settings)
     }
     writeRows(settings, selected, rowsByCase)
-    println("wrote ${selected.size} case summaries from ${rowsByCase.values.sumOf { rows -> rows.count { it.sample != null } }} measurements to ${settings.outputPath}")
-    println("resolved implementation=$implementation runtime=${runtimeIdentity()} harness=JMH 1.37 forks=${settings.forks}")
+    println("wrote ${selected.size} case summaries from ${rowsByCase.values.sumOf { rows -> rows.count { it.nanos != null } }} measurements to ${settings.outputPath}")
+    println("resolved implementation=$implementation runtime=${runtimeIdentity()} harness=jmh-average-time/JMH-1.37")
 }
 
 private fun writeRows(settings: Settings, selected: List<BenchCase>, rowsByCase: Map<String, List<Measurement>>) {
@@ -93,10 +78,8 @@ private fun appendJmhRows(
     results: Collection<RunResult>,
     cases: Map<String, BenchCase>,
     supported: Map<String, Pair<String, String>>,
-    implementation: String,
     settings: Settings,
 ) {
-    val runtime = jmhRuntime(settings)
     for (result in results.sortedBy { it.params.getParam("caseId") }) {
         val caseId = result.params.getParam("caseId")
         val case = requireNotNull(cases[caseId])
@@ -108,15 +91,11 @@ private fun appendJmhRows(
             require(operations > 0 && nanosPerOperation.isFinite() && nanosPerOperation > 0) {
                 "invalid JMH result for $caseId"
             }
-            val elapsed = max(1L, (nanosPerOperation * operations).roundToLong())
             rowsByCase.getOrPut(caseId, ::arrayListOf) += measurement(
-                case, implementation, settings, ++sample, operations, elapsed, formatDouble(nanosPerOperation),
-                "ok", comparison, timing, runtime,
+                case, settings, ++sample, nanosPerOperation, "ok", comparison, timing,
             )
         }
         require(sample == settings.samples * settings.forks) { "JMH returned $sample samples for $caseId" }
     }
     for (caseId in supported.keys) require(caseId in rowsByCase) { "JMH returned no result for $caseId" }
 }
-
-private fun jmhRuntime(settings: Settings): String = "${runtimeIdentity()}/JMH 1.37/forks=${settings.forks}"

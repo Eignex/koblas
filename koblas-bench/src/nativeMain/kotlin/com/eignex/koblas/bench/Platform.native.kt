@@ -11,7 +11,6 @@ import platform.posix.fclose
 import platform.posix.fgetc
 import platform.posix.fopen
 import platform.posix.fputs
-import platform.posix.getenv
 import platform.posix.mkdir
 
 internal actual fun readTextFile(path: String): String = memScoped {
@@ -49,4 +48,3 @@ internal actual fun resolveEngine(mode: String): Pair<KoblasEngine, String> {
 }
 
 internal actual fun runtimeIdentity(): String = "kotlin-native-2.4.10"
-internal actual fun environment(name: String): String? = getenv(name)?.toKString()

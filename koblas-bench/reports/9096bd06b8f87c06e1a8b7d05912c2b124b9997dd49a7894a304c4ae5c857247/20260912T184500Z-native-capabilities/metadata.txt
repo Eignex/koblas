@@ -1,0 +1,97 @@
+status=unknown
+
+[capture]
+dirty=false
+pass=1
+requested_forks=1
+target_ns=50000000
+threads=1
+unit=ns
+warmups=2
+
+[hardware]
+architecture=x86_64
+vendor id=GenuineIntel
+model name=12th Gen Intel(R) Core(TM) i9-12900H
+cpu family=6
+model=154
+thread(s) per core=2
+core(s) per socket=14
+socket(s)=1
+stepping=3
+l1d cache=544 KiB (14 instances)
+l1i cache=704 KiB (14 instances)
+l2 cache=11.5 MiB (8 instances)
+l3 cache=24 MiB (1 instance)
+numa node(s)=1
+memory_kib=64221064
+
+[before-jvm-c]
+harness=jmh-average-time/JMH-1.37
+implementation=jvm-c/c/c-sparse/packed-4x4
+runtime=kotlin-2.4.10/jvm/Eclipse Adoptium/25.0.1
+source_commit=bb25cc5fe3973534518eeb5af889675c3fd9aff3
+warmup_target_ns=50000000
+
+[before-native]
+harness=native-calibrated
+implementation=native/c/c-sparse/packed-4x4
+runtime=kotlin-native-2.4.10
+source_commit=bb25cc5fe3973534518eeb5af889675c3fd9aff3
+warmup_target_ns=12500000
+
+[final-jvm-c]
+harness=jmh-average-time/JMH-1.37
+implementation=jvm-c/c-avx2-policy/c-scalar-indexed-policy/packed-4x4
+runtime=kotlin-2.4.10/jvm/Eclipse Adoptium/25.0.1
+source_commit=79ec551faecaf802a947f14feb4a5549a25b2714
+warmup_target_ns=50000000
+
+[final-native]
+harness=native-calibrated
+implementation=native/c-avx2-policy/c-scalar-indexed-policy/packed-4x4
+runtime=kotlin-native-2.4.10
+source_commit=79ec551faecaf802a947f14feb4a5549a25b2714
+warmup_target_ns=12500000
+
+[raw-jvm-avx2]
+harness=jmh-average-time/JMH-1.37
+implementation=jvm-c-raw-avx2/c-avx2-raw/c-scalar-indexed-policy/packed-4x4
+runtime=kotlin-2.4.10/jvm/Eclipse Adoptium/25.0.1
+source_commit=79ec551faecaf802a947f14feb4a5549a25b2714
+warmup_target_ns=50000000
+
+[raw-jvm-scalar]
+harness=jmh-average-time/JMH-1.37
+implementation=jvm-c-raw-scalar/c-scalar-raw/c-scalar-indexed-policy/packed-4x4
+runtime=kotlin-2.4.10/jvm/Eclipse Adoptium/25.0.1
+source_commit=79ec551faecaf802a947f14feb4a5549a25b2714
+warmup_target_ns=50000000
+
+[raw-jvm-sse2]
+harness=jmh-average-time/JMH-1.37
+implementation=jvm-c-raw-sse2/c-sse2-raw/c-scalar-indexed-policy/packed-4x4
+runtime=kotlin-2.4.10/jvm/Eclipse Adoptium/25.0.1
+source_commit=79ec551faecaf802a947f14feb4a5549a25b2714
+warmup_target_ns=50000000
+
+[raw-native-avx2]
+harness=native-calibrated
+implementation=native-raw-avx2/c-avx2-raw/c-scalar-indexed-policy/packed-4x4
+runtime=kotlin-native-2.4.10
+source_commit=79ec551faecaf802a947f14feb4a5549a25b2714
+warmup_target_ns=12500000
+
+[raw-native-scalar]
+harness=native-calibrated
+implementation=native-raw-scalar/c-scalar-raw/c-scalar-indexed-policy/packed-4x4
+runtime=kotlin-native-2.4.10
+source_commit=79ec551faecaf802a947f14feb4a5549a25b2714
+warmup_target_ns=12500000
+
+[raw-native-sse2]
+harness=native-calibrated
+implementation=native-raw-sse2/c-sse2-raw/c-scalar-indexed-policy/packed-4x4
+runtime=kotlin-native-2.4.10
+source_commit=79ec551faecaf802a947f14feb4a5549a25b2714
+warmup_target_ns=12500000
