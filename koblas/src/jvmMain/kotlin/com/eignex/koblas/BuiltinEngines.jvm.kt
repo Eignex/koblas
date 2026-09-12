@@ -9,6 +9,8 @@ import com.eignex.koblas.dense.ScalarVectorKernels
 import com.eignex.koblas.dense.SimdPackedKernels
 import com.eignex.koblas.dense.SimdPanelKernels
 import com.eignex.koblas.dense.SimdVectorKernels
+import com.eignex.koblas.internal.kernels.JvmCKernelBindings
+import com.eignex.koblas.internal.kernels.NativeCatalog
 import com.eignex.koblas.sparse.CIndexedSparseKernels
 import com.eignex.koblas.sparse.ScalarIndexedSparseKernels
 import com.eignex.koblas.sparse.SimdIndexedSparseKernels
@@ -28,20 +30,29 @@ public actual object BuiltinEngines {
         )
     }
 
-    /** Bundled C kernels when the native library loaded successfully. */
-    @get:JvmStatic
+    /** Native C policy using the catalog's explicit ordinary implementation. */
     public actual val c: KoblasEngine? by lazy {
-        if (CVectorKernels.isAvailable) {
-            KoblasEngine(
-                CVectorKernels,
-                CPanelKernels,
-                CPackedKernels,
-                SparseKernelAdapter("c-sparse", CVectorKernels, CIndexedSparseKernels),
-                CIndexedSparseKernels,
-            )
-        } else {
-            null
-        }
+        NativeCatalog.defaultVariant?.let { nativeEngine(it, exact = false) }
+    }
+
+    /** Native variants available on this host. */
+    public actual val nativeVariants: List<NativeVariant> get() = NativeCatalog.variants
+
+    /** Binds exact dense native execution once, failing for unavailable variants. */
+    public actual fun exactC(variant: NativeVariant): KoblasEngine = nativeEngine(variant, exact = true)
+
+    private fun nativeEngine(variant: NativeVariant, exact: Boolean): KoblasEngine {
+        val bindings = JvmCKernelBindings(variant)
+        val vector = CVectorKernels(bindings, exact)
+        val indexed = CIndexedSparseKernels(bindings)
+        return KoblasEngine(
+            vector,
+            CPanelKernels(bindings, exact),
+            CPackedKernels(bindings, exact),
+            SparseKernelAdapter("c-scalar-indexed-policy", vector, indexed),
+            indexed,
+            variant,
+        )
     }
 
     /** Vector API kernels when the incubator module resolved at startup. */

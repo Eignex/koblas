@@ -1,0 +1,15 @@
+target=aarch64-unknown-linux-gnu
+platform=linux-arm64
+kind=static
+compiler=/home/rasmus/.konan/dependencies/llvm-21-x86_64-linux-essentials-116/bin/clang
+clang version 21.1.6
+Target: x86_64-unknown-linux-gnu
+Thread model: posix
+InstalledDir: /home/rasmus/.konan/dependencies/llvm-21-x86_64-linux-essentials-116/bin
+common=-std=c11 -O3 -fPIC -fvisibility=hidden -fno-lto -ffp-contract=off -I/home/rasmus/.codex/worktrees/2622/koblas/koblas/src/nativeInterop/kernels -B/home/rasmus/.konan/dependencies/aarch64-unknown-linux-gnu-gcc-8.3.0-glibc-2.25-kernel-4.9-2/aarch64-unknown-linux-gnu/bin -fno-stack-protector --gcc-toolchain=/home/rasmus/.konan/dependencies/aarch64-unknown-linux-gnu-gcc-8.3.0-glibc-2.25-kernel-4.9-2 -target aarch64-unknown-linux-gnu --sysroot=/home/rasmus/.konan/dependencies/aarch64-unknown-linux-gnu-gcc-8.3.0-glibc-2.25-kernel-4.9-2/aarch64-unknown-linux-gnu/sysroot -fPIC
+baseline=-march=armv8-a
+scalar=-fno-vectorize -fno-slp-vectorize
+variants=neon
+LLVM (http://llvm.org/):
+  LLVM version 21.1.6
+  Optimized build.

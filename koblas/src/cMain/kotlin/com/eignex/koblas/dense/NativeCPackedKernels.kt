@@ -2,14 +2,13 @@
 
 package com.eignex.koblas.dense
 
-import com.eignex.koblas.internal.kernels.koblas_dense_gemm_tile
-import com.eignex.koblas.internal.kernels.koblas_dense_gemm_trsm_tile
-import com.eignex.koblas.internal.kernels.koblas_dense_trsm_tile
+import com.eignex.koblas.internal.kernels.NativeCKernelBindings
 import kotlinx.cinterop.addressOf
 import kotlinx.cinterop.usePinned
 
 /** Native compiled-C packed tile arithmetic. */
-internal object NativeCPackedKernels : PackedKernels {
+internal class NativeCPackedKernels(private val bindings: NativeCKernelBindings, private val exact: Boolean) :
+    PackedKernels {
     override val gemmTileRows: Int get() = PORTABLE_TILE
     override val gemmTileCols: Int get() = PORTABLE_TILE
 
@@ -27,7 +26,7 @@ internal object NativeCPackedKernels : PackedKernels {
         packedA.usePinned { ap ->
             packedB.usePinned { bp ->
                 c.usePinned { cp ->
-                    koblas_dense_gemm_tile(
+                    bindings.denseGemmTile(
                         depth,
                         ap.addressOf(0),
                         aOff,
@@ -55,7 +54,7 @@ internal object NativeCPackedKernels : PackedKernels {
         if (validRows == 0 || order == 0) return
         packedTriangle.usePinned { triangle ->
             x.usePinned { result ->
-                koblas_dense_trsm_tile(
+                bindings.denseTrsmTile(
                     validRows,
                     order,
                     triangle.addressOf(0),
@@ -90,7 +89,7 @@ internal object NativeCPackedKernels : PackedKernels {
             packedB.usePinned { right ->
                 packedTriangle.usePinned { triangle ->
                     x.usePinned { result ->
-                        koblas_dense_gemm_trsm_tile(
+                        bindings.denseGemmTrsmTile(
                             depth, validRows, order, left.addressOf(0), aOff, right.addressOf(0), bOff,
                             triangle.addressOf(0), triangleOff, if (lower) 1 else 0, if (unitDiag) 1 else 0,
                             result.addressOf(0), xOff,

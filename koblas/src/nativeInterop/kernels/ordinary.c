@@ -1,35 +1,36 @@
-#ifndef KOBLAS_KERNELS_H
-#define KOBLAS_KERNELS_H
-
 #include <math.h>
 #include <stdint.h>
+#include "internal.h"
 
-/* x86-64 ELF dispatches between baseline and AVX2 clones; other targets use the baseline implementation. */
-#if defined(KOBLAS_KERNELS_IMPLEMENTATION)
-/*
- * Exported through a pragma rather than an attribute per function, because clang refuses to accept a
- * visibility attribute on the same declaration as target_clones and Kotlin/Native compiles this header
- * with clang. The pragma is honoured by both compilers, survives the hidden default the shared library is
- * built with, and leaves the clone attribute alone. It is popped at the end of the header.
- */
-#pragma GCC visibility push(default)
-#if defined(__x86_64__) && defined(__ELF__) && \
-    ((defined(__clang__) && __clang_major__ >= 14) || \
-     (defined(__GNUC__) && !defined(__clang__) && __GNUC__ >= 6))
-#define KOBLAS_KERNEL __attribute__((target_clones("avx2", "default")))
-#else
-#define KOBLAS_KERNEL
-#endif
-#define KOBLAS_KERNEL_BASELINE
-#else
-#define KOBLAS_KERNEL static inline
-#define KOBLAS_KERNEL_BASELINE static inline
-#endif
+#define koblas_dense_dot KOBLAS_IMPL(koblas_dense_dot)
+#define koblas_dense_ssqd KOBLAS_IMPL(koblas_dense_ssqd)
+#define koblas_dense_axpy KOBLAS_IMPL(koblas_dense_axpy)
+#define koblas_dense_axpy_arithmetic KOBLAS_IMPL(koblas_dense_axpy_arithmetic)
+#define koblas_dense_scale KOBLAS_IMPL(koblas_dense_scale)
+#define koblas_dense_nrm2 KOBLAS_IMPL(koblas_dense_nrm2)
+#define koblas_dense_sum KOBLAS_IMPL(koblas_dense_sum)
+#define koblas_dense_asum KOBLAS_IMPL(koblas_dense_asum)
+#define koblas_dense_iamax KOBLAS_IMPL(koblas_dense_iamax)
+#define koblas_dense_gemm_tile KOBLAS_IMPL(koblas_dense_gemm_tile)
+#define koblas_dense_swap KOBLAS_IMPL(koblas_dense_swap)
+#define koblas_dense_dot4 KOBLAS_IMPL(koblas_dense_dot4)
+#define koblas_dense_axpy4 KOBLAS_IMPL(koblas_dense_axpy4)
+#define koblas_dense_dot_axpy KOBLAS_IMPL(koblas_dense_dot_axpy)
+#define koblas_dense_rotm KOBLAS_IMPL(koblas_dense_rotm)
+#define koblas_sparse_dot_dense KOBLAS_IMPL(koblas_sparse_dot_dense)
+#define koblas_sparse_dot_sparse KOBLAS_IMPL(koblas_sparse_dot_sparse)
+#define koblas_sparse_axpy KOBLAS_IMPL(koblas_sparse_axpy)
+#define koblas_sparse_scatter KOBLAS_IMPL(koblas_sparse_scatter)
+#define koblas_sparse_nrm2 KOBLAS_IMPL(koblas_sparse_nrm2)
+#define koblas_sparse_gather KOBLAS_IMPL(koblas_sparse_gather)
+#define koblas_sparse_gather_zero KOBLAS_IMPL(koblas_sparse_gather_zero)
+#define koblas_dense_trsm_tile KOBLAS_IMPL(koblas_dense_trsm_tile)
+#define koblas_dense_gemm_trsm_tile KOBLAS_IMPL(koblas_dense_gemm_trsm_tile)
 
 /* Four independent accumulators expose reduction parallelism; short runs avoid their setup cost. */
 #define KOBLAS_UNROLL_MIN 32
 
-/* Explicit vectors guarantee lane width. Keep them within a function body for clang's target-clone ABI. */
+/* A logical group is four doubles, implemented by one AVX2 or two SSE2/NEON registers. */
 #define KOBLAS_LANES 4
 #define KOBLAS_VECTOR_STEP 16
 
@@ -50,11 +51,15 @@ typedef long long koblas_v4i __attribute__((vector_size(KOBLAS_LANES * sizeof(do
 #define KOBLAS_GATHER(s0, s1, s2, s3, s4, s5, s6, s7) \
     (((s0) + (s1)) + ((s2) + (s3))) + (((s4) + (s5)) + ((s6) + (s7)))
 
-KOBLAS_KERNEL double koblas_dense_dot(
+double koblas_dense_dot(
     const double *a, int32_t a_off, const double *b, int32_t b_off, int32_t len
-) {    koblas_v4d s0 = KOBLAS_ZERO, s1 = KOBLAS_ZERO, s2 = KOBLAS_ZERO, s3 = KOBLAS_ZERO;
+) {
+#if defined(KOBLAS_SCALAR_IMPL)
+    double sum = 0.0; for (int32_t i = 0; i < len; i++) sum += a[a_off+i] * b[b_off+i]; return sum;
+#else
+    koblas_v4d s0 = KOBLAS_ZERO, s1 = KOBLAS_ZERO, s2 = KOBLAS_ZERO, s3 = KOBLAS_ZERO;
     int32_t i = 0;
-    for (; i + KOBLAS_VECTOR_STEP <= len; i += KOBLAS_VECTOR_STEP) {
+    for (; i <= len - KOBLAS_VECTOR_STEP; i += KOBLAS_VECTOR_STEP) {
         koblas_v4d x0, x1, x2, x3, y0, y1, y2, y3;
         KOBLAS_LOAD(x0, a + a_off + i);
         KOBLAS_LOAD(y0, b + b_off + i);
@@ -72,13 +77,18 @@ KOBLAS_KERNEL double koblas_dense_dot(
     double sum = KOBLAS_COMBINE(s0, s1, s2, s3);
     for (; i < len; i++) sum += a[a_off + i] * b[b_off + i];
     return sum;
+#endif
 }
 
-KOBLAS_KERNEL double koblas_dense_ssqd(
+double koblas_dense_ssqd(
     const double *a, int32_t a_off, const double *b, int32_t b_off, int32_t len
-) {    koblas_v4d s0 = KOBLAS_ZERO, s1 = KOBLAS_ZERO, s2 = KOBLAS_ZERO, s3 = KOBLAS_ZERO;
+) {
+#if defined(KOBLAS_SCALAR_IMPL)
+    double sum = 0.0; for (int32_t i = 0; i < len; i++) { double d = a[a_off+i] - b[b_off+i]; sum += d*d; } return sum;
+#else
+    koblas_v4d s0 = KOBLAS_ZERO, s1 = KOBLAS_ZERO, s2 = KOBLAS_ZERO, s3 = KOBLAS_ZERO;
     int32_t i = 0;
-    for (; i + KOBLAS_VECTOR_STEP <= len; i += KOBLAS_VECTOR_STEP) {
+    for (; i <= len - KOBLAS_VECTOR_STEP; i += KOBLAS_VECTOR_STEP) {
         koblas_v4d x0, x1, x2, x3, y0, y1, y2, y3;
         KOBLAS_LOAD(x0, a + a_off + i);
         KOBLAS_LOAD(y0, b + b_off + i);
@@ -103,6 +113,7 @@ KOBLAS_KERNEL double koblas_dense_ssqd(
         sum += d * d;
     }
     return sum;
+#endif
 }
 
 static inline void koblas_dense_axpy_loop(
@@ -111,23 +122,23 @@ static inline void koblas_dense_axpy_loop(
     for (int32_t i = 0; i < len; i++) y[y_off + i] += alpha * x[x_off + i];
 }
 
-KOBLAS_KERNEL void koblas_dense_axpy(
+void koblas_dense_axpy(
     double *y, int32_t y_off, double alpha, const double *x, int32_t x_off, int32_t len
 ) {
     if (alpha == 0.0) return;
     koblas_dense_axpy_loop(y, y_off, alpha, x, x_off, len);
 }
 
-KOBLAS_KERNEL void koblas_dense_axpy_arithmetic(
+void koblas_dense_axpy_arithmetic(
     double *y, int32_t y_off, double alpha, const double *x, int32_t x_off, int32_t len
 ) {
     koblas_dense_axpy_loop(y, y_off, alpha, x, x_off, len);
 }
 
-KOBLAS_KERNEL void koblas_dense_scale(double *v, int32_t v_off, double alpha, int32_t len) {
+void koblas_dense_scale(double *v, int32_t v_off, double alpha, int32_t len) {
     if (alpha == 1.0 || len <= 0) return;
     v += v_off;
-#if defined(__x86_64__)
+#if defined(__x86_64__) && !defined(KOBLAS_SCALAR_IMPL)
     // Cache-line-split AVX2 stores dominate medium vectors; shorter calls cannot amortize peeling.
     if (len >= 128) {
         while ((uintptr_t)v & (sizeof(koblas_v4d) - 1)) {
@@ -146,14 +157,14 @@ KOBLAS_KERNEL void koblas_dense_scale(double *v, int32_t v_off, double alpha, in
     for (int32_t i = 0; i < len; i++) v[i] *= alpha;
 }
 
-KOBLAS_KERNEL double koblas_dense_nrm2(const double *v, int32_t v_off, int32_t len) {
+double koblas_dense_nrm2(const double *v, int32_t v_off, int32_t len) {
 #define KOBLAS_SQUARES_DECLARE(q) double s##q = 0.0;
 #define KOBLAS_SQUARES_STEP(q) \
     { const double value = v[v_off + i + q]; s##q += value * value; }
     KOBLAS_REPEAT(KOBLAS_SQUARES_DECLARE)
     int32_t i = 0;
     if (len >= KOBLAS_UNROLL_MIN) {
-        for (; i + KOBLAS_ACCUMULATORS <= len; i += KOBLAS_ACCUMULATORS) { KOBLAS_REPEAT(KOBLAS_SQUARES_STEP) }
+        for (; i <= len - KOBLAS_ACCUMULATORS; i += KOBLAS_ACCUMULATORS) { KOBLAS_REPEAT(KOBLAS_SQUARES_STEP) }
     }
     double squares = KOBLAS_GATHER(s0, s1, s2, s3, s4, s5, s6, s7);
 #undef KOBLAS_SQUARES_DECLARE
@@ -177,7 +188,7 @@ KOBLAS_KERNEL double koblas_dense_nrm2(const double *v, int32_t v_off, int32_t l
     KOBLAS_REPEAT(KOBLAS_SCALED_DECLARE)
     int32_t j = 0;
     if (len >= KOBLAS_UNROLL_MIN) {
-        for (; j + KOBLAS_ACCUMULATORS <= len; j += KOBLAS_ACCUMULATORS) { KOBLAS_REPEAT(KOBLAS_SCALED_STEP) }
+        for (; j <= len - KOBLAS_ACCUMULATORS; j += KOBLAS_ACCUMULATORS) { KOBLAS_REPEAT(KOBLAS_SCALED_STEP) }
     }
     double scaled_squares = KOBLAS_GATHER(r0, r1, r2, r3, r4, r5, r6, r7);
 #undef KOBLAS_SCALED_DECLARE
@@ -189,9 +200,13 @@ KOBLAS_KERNEL double koblas_dense_nrm2(const double *v, int32_t v_off, int32_t l
     return maximum * sqrt(scaled_squares);
 }
 
-KOBLAS_KERNEL double koblas_dense_sum(const double *v, int32_t v_off, int32_t len) {    koblas_v4d s0 = KOBLAS_ZERO, s1 = KOBLAS_ZERO, s2 = KOBLAS_ZERO, s3 = KOBLAS_ZERO;
+double koblas_dense_sum(const double *v, int32_t v_off, int32_t len) {
+#if defined(KOBLAS_SCALAR_IMPL)
+    double sum = 0.0; for (int32_t i = 0; i < len; i++) sum += v[v_off+i]; return sum;
+#else
+    koblas_v4d s0 = KOBLAS_ZERO, s1 = KOBLAS_ZERO, s2 = KOBLAS_ZERO, s3 = KOBLAS_ZERO;
     int32_t i = 0;
-    for (; i + KOBLAS_VECTOR_STEP <= len; i += KOBLAS_VECTOR_STEP) {
+    for (; i <= len - KOBLAS_VECTOR_STEP; i += KOBLAS_VECTOR_STEP) {
         koblas_v4d x0, x1, x2, x3;
         KOBLAS_LOAD(x0, v + v_off + i);
         KOBLAS_LOAD(x1, v + v_off + i + KOBLAS_LANES);
@@ -205,14 +220,19 @@ KOBLAS_KERNEL double koblas_dense_sum(const double *v, int32_t v_off, int32_t le
     double sum = KOBLAS_COMBINE(s0, s1, s2, s3);
     for (; i < len; i++) sum += v[v_off + i];
     return sum;
+#endif
 }
 
-KOBLAS_KERNEL double koblas_dense_asum(const double *v, int32_t v_off, int32_t len) {    /* Clear the sign bit without changing NaN, infinity, or signed zero. */
+double koblas_dense_asum(const double *v, int32_t v_off, int32_t len) {
+#if defined(KOBLAS_SCALAR_IMPL)
+    double sum = 0.0; for (int32_t i = 0; i < len; i++) sum += fabs(v[v_off+i]); return sum;
+#else
+    /* Clear the sign bit without changing NaN, infinity, or signed zero. */
     const koblas_v4i sign = {0x7fffffffffffffffLL, 0x7fffffffffffffffLL,
                              0x7fffffffffffffffLL, 0x7fffffffffffffffLL};
     koblas_v4d s0 = KOBLAS_ZERO, s1 = KOBLAS_ZERO, s2 = KOBLAS_ZERO, s3 = KOBLAS_ZERO;
     int32_t i = 0;
-    for (; i + KOBLAS_VECTOR_STEP <= len; i += KOBLAS_VECTOR_STEP) {
+    for (; i <= len - KOBLAS_VECTOR_STEP; i += KOBLAS_VECTOR_STEP) {
         koblas_v4d x0, x1, x2, x3;
         koblas_v4i b0, b1, b2, b3;
         KOBLAS_LOAD(x0, v + v_off + i);
@@ -239,10 +259,15 @@ KOBLAS_KERNEL double koblas_dense_asum(const double *v, int32_t v_off, int32_t l
     double sum = KOBLAS_COMBINE(s0, s1, s2, s3);
     for (; i < len; i++) sum += fabs(v[v_off + i]);
     return sum;
+#endif
 }
 
 /* Strict lane comparisons ignore NaNs; the second pass resolves ties in input order. */
-KOBLAS_KERNEL int32_t koblas_dense_iamax(const double *v, int32_t v_off, int32_t len) {
+int32_t koblas_dense_iamax(const double *v, int32_t v_off, int32_t len) {
+#if defined(KOBLAS_SCALAR_IMPL)
+    if (len == 0) return -1; double best = 0.0; int32_t index = 0; for (int32_t i = 0; i < len; i++) { double a = fabs(v[v_off+i]); if (a > best) { best = a; index = i; } } return index;
+#else
+
     if (len == 0) return -1;
     const koblas_v4i sign = {0x7fffffffffffffffLL, 0x7fffffffffffffffLL,
                              0x7fffffffffffffffLL, 0x7fffffffffffffffLL};
@@ -329,26 +354,16 @@ KOBLAS_KERNEL int32_t koblas_dense_iamax(const double *v, int32_t v_off, int32_t
         if (fabs(v[v_off + i]) == best) return i;
     }
     return 0;
+#endif
 }
 
-/*
- * The matrix-product tile. koblas packs both operands into panels laid out in the order read here, and this
- * accumulates KOBLAS_GEMM_TILE rows by KOBLAS_GEMM_TILE columns of C over the whole of depth before touching
- * C at all, which is the point: C is read and written once per tile rather than once per step.
- *
- * Sixteen accumulators in named locals, four rows by four columns. Four rows is two SSE2 registers or one
- * AVX2 register, so the tile occupies eight vector registers at the baseline and four when a wider clone
- * runs, either of which leaves room for the operand loads. A wider tile would hold more of C per pass and
- * spill at the baseline, which is the trade this shape settles on the narrow side because the same source
- * has to compile well both ways.
- *
- * One call covers depth times sixteen multiply-adds, so the cost of reaching it from a managed caller is
- * spread over thousands of operations. That is what makes a tile the right unit to put behind a foreign
- * call, where a single vector operation is not.
+/* Four-row depth-major groups feed sixteen independent FP64 accumulation chains. The same logical
+ * tile uses one AVX2 or two SSE2/NEON registers per output column; packing does not imply register width.
+ * Each tile accumulates its whole depth before writing C, including when C aliases a packed input.
  */
 #define KOBLAS_GEMM_TILE 4
 
-KOBLAS_KERNEL void koblas_dense_gemm_tile(
+void koblas_dense_gemm_tile(
     int32_t depth,
     const double *packed_a, int32_t a_off,
     const double *packed_b, int32_t b_off,
@@ -407,7 +422,7 @@ KOBLAS_KERNEL void koblas_dense_gemm_tile(
     out[3 * ldc + 3] += c33;
 }
 
-KOBLAS_KERNEL void koblas_dense_swap(
+void koblas_dense_swap(
     double *a, int32_t a_off, double *b, int32_t b_off, int32_t len
 ) {
     for (int32_t i = 0; i < len; i++) {
@@ -417,17 +432,21 @@ KOBLAS_KERNEL void koblas_dense_swap(
     }
 }
 
-KOBLAS_KERNEL void koblas_dense_dot4(
+void koblas_dense_dot4(
     const double *a, int32_t a_off, int32_t stride, const double *b, int32_t b_off,
     int32_t len, double *out, int32_t out_off
 ) {
+#if defined(KOBLAS_SCALAR_IMPL)
+    double sums[4] = {0.0, 0.0, 0.0, 0.0}; for (int32_t i = 0; i < len; i++) { double x = b[b_off+i]; for (int32_t j = 0; j < 4; j++) sums[j] += a[a_off+j*stride+i]*x; } for (int32_t j = 0; j < 4; j++) out[out_off+j] = sums[j];
+#else
+
     koblas_v4d s0 = KOBLAS_ZERO, s1 = KOBLAS_ZERO, s2 = KOBLAS_ZERO, s3 = KOBLAS_ZERO;
     const double *r0 = a + a_off;
     const double *r1 = r0 + stride;
     const double *r2 = r1 + stride;
     const double *r3 = r2 + stride;
     int32_t i = 0;
-    for (; i + KOBLAS_LANES <= len; i += KOBLAS_LANES) {
+    for (; i <= len - KOBLAS_LANES; i += KOBLAS_LANES) {
         koblas_v4d shared, x0, x1, x2, x3;
         KOBLAS_LOAD(shared, b + b_off + i);
         KOBLAS_LOAD(x0, r0 + i);
@@ -454,18 +473,23 @@ KOBLAS_KERNEL void koblas_dense_dot4(
     out[out_off + 1] = t1;
     out[out_off + 2] = t2;
     out[out_off + 3] = t3;
+#endif
 }
 
-KOBLAS_KERNEL void koblas_dense_axpy4(
+void koblas_dense_axpy4(
     double *y, int32_t y_off, const double *a, int32_t a_off, int32_t stride,
     double c0, double c1, double c2, double c3, int32_t len
 ) {
+#if defined(KOBLAS_SCALAR_IMPL)
+    for (int32_t i = 0; i < len; i++) { double value = y[y_off+i]; value += c0*a[a_off+i]; value += c1*a[a_off+stride+i]; value += c2*a[a_off+2*stride+i]; value += c3*a[a_off+3*stride+i]; y[y_off+i] = value; }
+#else
+
     const double *r0 = a + a_off;
     const double *r1 = r0 + stride;
     const double *r2 = r1 + stride;
     const double *r3 = r2 + stride;
     int32_t i = 0;
-    for (; i + KOBLAS_LANES <= len; i += KOBLAS_LANES) {
+    for (; i <= len - KOBLAS_LANES; i += KOBLAS_LANES) {
         koblas_v4d value, a0, a1, a2, a3;
         KOBLAS_LOAD(value, y + y_off + i);
         KOBLAS_LOAD(a0, r0 + i);
@@ -486,15 +510,20 @@ KOBLAS_KERNEL void koblas_dense_axpy4(
         value += c3 * r3[i];
         y[y_off + i] = value;
     }
+#endif
 }
 
-KOBLAS_KERNEL double koblas_dense_dot_axpy(
+double koblas_dense_dot_axpy(
     double *y, int32_t y_off, double alpha, const double *a, int32_t a_off,
     const double *x, int32_t x_off, int32_t len
 ) {
+#if defined(KOBLAS_SCALAR_IMPL)
+    double sum = 0.0; for (int32_t i = 0; i < len; i++) { double av = a[a_off+i], xv = x[x_off+i]; sum += av*xv; y[y_off+i] += alpha*av; } return sum;
+#else
+
     koblas_v4d sum = KOBLAS_ZERO;
     int32_t i = 0;
-    for (; i + KOBLAS_LANES <= len; i += KOBLAS_LANES) {
+    for (; i <= len - KOBLAS_LANES; i += KOBLAS_LANES) {
         koblas_v4d av, xv, yv;
         KOBLAS_LOAD(av, a + a_off + i);
         KOBLAS_LOAD(xv, x + x_off + i);
@@ -511,10 +540,11 @@ KOBLAS_KERNEL double koblas_dense_dot_axpy(
         y[y_off + i] += alpha * ai;
     }
     return result;
+#endif
 }
 
 /* Strided on both operands, which may also overlap, so neither the loads nor the stores can pack. */
-KOBLAS_KERNEL void koblas_dense_rotm(
+void koblas_dense_rotm(
     double *x, int32_t x_off, int32_t x_stride, double *y, int32_t y_off, int32_t y_stride,
     int32_t len, double h11, double h12, double h21, double h22
 ) {
@@ -526,8 +556,9 @@ KOBLAS_KERNEL void koblas_dense_rotm(
     }
 }
 
+#if defined(KOBLAS_SCALAR_IMPL)
 /* Indexed loads cannot pack without a gather, but four chains still keep the adds off one another. */
-KOBLAS_KERNEL double koblas_sparse_dot_dense(
+double koblas_sparse_dot_dense(
     const int32_t *indices, int32_t index_off,
     const double *values, int32_t value_off, int32_t len, const double *dense
 ) {
@@ -537,7 +568,7 @@ KOBLAS_KERNEL double koblas_sparse_dot_dense(
     KOBLAS_REPEAT(KOBLAS_SPARSE_DOT_DECLARE)
     int32_t k = 0;
     if (len >= KOBLAS_UNROLL_MIN) {
-        for (; k + KOBLAS_ACCUMULATORS <= len; k += KOBLAS_ACCUMULATORS) {
+        for (; k <= len - KOBLAS_ACCUMULATORS; k += KOBLAS_ACCUMULATORS) {
             KOBLAS_REPEAT(KOBLAS_SPARSE_DOT_STEP)
         }
     }
@@ -549,7 +580,7 @@ KOBLAS_KERNEL double koblas_sparse_dot_dense(
 }
 
 /* A merge, so the accumulate waits on the index comparison rather than on itself; one chain is enough. */
-KOBLAS_KERNEL double koblas_sparse_dot_sparse(
+double koblas_sparse_dot_sparse(
     const int32_t *a_indices, const double *a_values, int32_t a_len,
     const int32_t *b_indices, const double *b_values, int32_t b_len
 ) {
@@ -572,7 +603,7 @@ KOBLAS_KERNEL double koblas_sparse_dot_sparse(
     return sum;
 }
 
-KOBLAS_KERNEL void koblas_sparse_axpy(
+void koblas_sparse_axpy(
     const int32_t *indices, int32_t index_off,
     const double *values, int32_t value_off, int32_t len, double alpha, double *dense
 ) {
@@ -584,14 +615,14 @@ KOBLAS_KERNEL void koblas_sparse_axpy(
     }
 }
 
-KOBLAS_KERNEL void koblas_sparse_scatter(
+void koblas_sparse_scatter(
     const int32_t *indices, int32_t index_off,
     const double *values, int32_t value_off, int32_t len, double *dense
 ) {
     for (int32_t k = 0; k < len; k++) dense[indices[index_off + k]] = values[value_off + k];
 }
 
-KOBLAS_KERNEL double koblas_sparse_nrm2(
+double koblas_sparse_nrm2(
     const int32_t *indices, int32_t index_off, int32_t len, const double *values
 ) {
     double squares = 0.0;
@@ -616,13 +647,13 @@ KOBLAS_KERNEL double koblas_sparse_nrm2(
     return maximum * sqrt(scaled_squares);
 }
 
-KOBLAS_KERNEL void koblas_sparse_gather(
+void koblas_sparse_gather(
     const int32_t *indices, double *values, int32_t len, const double *dense
 ) {
     for (int32_t k = 0; k < len; k++) values[k] = dense[indices[k]];
 }
 
-KOBLAS_KERNEL void koblas_sparse_gather_zero(
+void koblas_sparse_gather_zero(
     const int32_t *indices, double *values, int32_t len, double *dense
 ) {
     for (int32_t k = 0; k < len; k++) {
@@ -632,11 +663,183 @@ KOBLAS_KERNEL void koblas_sparse_gather_zero(
     }
 }
 
-#include "koblas_packed_trsm.h"
-
-#undef KOBLAS_KERNEL
-#if defined(KOBLAS_KERNELS_IMPLEMENTATION)
-#pragma GCC visibility pop
 #endif
 
-#endif
+/*
+ * Packed right-side triangular solve. T uses the packed-right row groups consumed by the GEMM tile, while
+ * X uses its column-major output layout. Exact-zero coefficients are skipped so structural zeroes never
+ * form products with non-finite solved values.
+ */
+void koblas_dense_trsm_tile(
+    int32_t valid_rows, int32_t order,
+    const double *packed_triangle, int32_t triangle_off,
+    int32_t lower, int32_t unit_diag,
+    double *x, int32_t x_off
+) {
+    const double *triangle = packed_triangle + triangle_off;
+    double *out = x + x_off;
+    if (lower) {
+        for (int32_t j = order - 1; j >= 0; j--) {
+            double *solved = out + j * KOBLAS_GEMM_TILE;
+            if (!unit_diag) {
+                const double diagonal = triangle[j * KOBLAS_GEMM_TILE + j];
+                for (int32_t row = 0; row < valid_rows; row++) solved[row] /= diagonal;
+            }
+            for (int32_t column = 0; column < j; column++) {
+                const double coefficient = triangle[j * KOBLAS_GEMM_TILE + column];
+                if (coefficient != 0.0) {
+                    double *target = out + column * KOBLAS_GEMM_TILE;
+                    for (int32_t row = 0; row < valid_rows; row++) {
+                        target[row] -= solved[row] * coefficient;
+                    }
+                }
+            }
+        }
+    } else {
+        for (int32_t j = 0; j < order; j++) {
+            double *solved = out + j * KOBLAS_GEMM_TILE;
+            if (!unit_diag) {
+                const double diagonal = triangle[j * KOBLAS_GEMM_TILE + j];
+                for (int32_t row = 0; row < valid_rows; row++) solved[row] /= diagonal;
+            }
+            for (int32_t column = j + 1; column < order; column++) {
+                const double coefficient = triangle[j * KOBLAS_GEMM_TILE + column];
+                if (coefficient != 0.0) {
+                    double *target = out + column * KOBLAS_GEMM_TILE;
+                    for (int32_t row = 0; row < valid_rows; row++) {
+                        target[row] -= solved[row] * coefficient;
+                    }
+                }
+            }
+        }
+    }
+}
+
+/*
+ * Product intermediates stay in scalar locals for full and edge tiles. Packed product groups are always padded;
+ * an edge initializes and writes only its logical X entries before handing that exact-size tile to the solve.
+ */
+void koblas_dense_gemm_trsm_tile(
+    int32_t depth, int32_t valid_rows, int32_t order,
+    const double *packed_a, int32_t a_off,
+    const double *packed_b, int32_t b_off,
+    const double *packed_triangle, int32_t triangle_off,
+    int32_t lower, int32_t unit_diag,
+    double *x, int32_t x_off
+) {
+    double *out = x + x_off;
+    double c00 = valid_rows > 0 && order > 0 ? out[0] : 0.0;
+    double c10 = valid_rows > 1 && order > 0 ? out[1] : 0.0;
+    double c20 = valid_rows > 2 && order > 0 ? out[2] : 0.0;
+    double c30 = valid_rows > 3 && order > 0 ? out[3] : 0.0;
+    double c01 = valid_rows > 0 && order > 1 ? out[4] : 0.0;
+    double c11 = valid_rows > 1 && order > 1 ? out[5] : 0.0;
+    double c21 = valid_rows > 2 && order > 1 ? out[6] : 0.0;
+    double c31 = valid_rows > 3 && order > 1 ? out[7] : 0.0;
+    double c02 = valid_rows > 0 && order > 2 ? out[8] : 0.0;
+    double c12 = valid_rows > 1 && order > 2 ? out[9] : 0.0;
+    double c22 = valid_rows > 2 && order > 2 ? out[10] : 0.0;
+    double c32 = valid_rows > 3 && order > 2 ? out[11] : 0.0;
+    double c03 = valid_rows > 0 && order > 3 ? out[12] : 0.0;
+    double c13 = valid_rows > 1 && order > 3 ? out[13] : 0.0;
+    double c23 = valid_rows > 2 && order > 3 ? out[14] : 0.0;
+    double c33 = valid_rows > 3 && order > 3 ? out[15] : 0.0;
+    const double *ap = packed_a + a_off;
+    const double *bp = packed_b + b_off;
+    for (int32_t p = 0; p < depth; p++) {
+        const double a0 = ap[0], a1 = ap[1], a2 = ap[2], a3 = ap[3];
+        double coefficient = bp[0];
+        c00 -= a0 * coefficient; c10 -= a1 * coefficient;
+        c20 -= a2 * coefficient; c30 -= a3 * coefficient;
+        coefficient = bp[1];
+        c01 -= a0 * coefficient; c11 -= a1 * coefficient;
+        c21 -= a2 * coefficient; c31 -= a3 * coefficient;
+        coefficient = bp[2];
+        c02 -= a0 * coefficient; c12 -= a1 * coefficient;
+        c22 -= a2 * coefficient; c32 -= a3 * coefficient;
+        coefficient = bp[3];
+        c03 -= a0 * coefficient; c13 -= a1 * coefficient;
+        c23 -= a2 * coefficient; c33 -= a3 * coefficient;
+        ap += KOBLAS_GEMM_TILE;
+        bp += KOBLAS_GEMM_TILE;
+    }
+    if (valid_rows != KOBLAS_GEMM_TILE || order != KOBLAS_GEMM_TILE) {
+        if (order > 0) {
+            if (valid_rows > 0) out[0] = c00;
+            if (valid_rows > 1) out[1] = c10;
+            if (valid_rows > 2) out[2] = c20;
+            if (valid_rows > 3) out[3] = c30;
+        }
+        if (order > 1) {
+            if (valid_rows > 0) out[4] = c01;
+            if (valid_rows > 1) out[5] = c11;
+            if (valid_rows > 2) out[6] = c21;
+            if (valid_rows > 3) out[7] = c31;
+        }
+        if (order > 2) {
+            if (valid_rows > 0) out[8] = c02;
+            if (valid_rows > 1) out[9] = c12;
+            if (valid_rows > 2) out[10] = c22;
+            if (valid_rows > 3) out[11] = c32;
+        }
+        if (order > 3) {
+            if (valid_rows > 0) out[12] = c03;
+            if (valid_rows > 1) out[13] = c13;
+            if (valid_rows > 2) out[14] = c23;
+            if (valid_rows > 3) out[15] = c33;
+        }
+        koblas_dense_trsm_tile(
+            valid_rows, order, packed_triangle, triangle_off, lower, unit_diag, x, x_off
+        );
+        return;
+    }
+    const double *triangle = packed_triangle + triangle_off;
+#define KOBLAS_DIVIDE_COLUMN(a, b, c, d, diagonal) \
+    do { a /= diagonal; b /= diagonal; c /= diagonal; d /= diagonal; } while (0)
+#define KOBLAS_SUBTRACT_COLUMN(a, b, c, d, sa, sb, sc, sd, coefficient) \
+    do { \
+        a -= sa * coefficient; b -= sb * coefficient; \
+        c -= sc * coefficient; d -= sd * coefficient; \
+    } while (0)
+    if (lower) {
+        if (!unit_diag) KOBLAS_DIVIDE_COLUMN(c03, c13, c23, c33, triangle[15]);
+        double coefficient = triangle[12];
+        if (coefficient != 0.0) KOBLAS_SUBTRACT_COLUMN(c00, c10, c20, c30, c03, c13, c23, c33, coefficient);
+        coefficient = triangle[13];
+        if (coefficient != 0.0) KOBLAS_SUBTRACT_COLUMN(c01, c11, c21, c31, c03, c13, c23, c33, coefficient);
+        coefficient = triangle[14];
+        if (coefficient != 0.0) KOBLAS_SUBTRACT_COLUMN(c02, c12, c22, c32, c03, c13, c23, c33, coefficient);
+        if (!unit_diag) KOBLAS_DIVIDE_COLUMN(c02, c12, c22, c32, triangle[10]);
+        coefficient = triangle[8];
+        if (coefficient != 0.0) KOBLAS_SUBTRACT_COLUMN(c00, c10, c20, c30, c02, c12, c22, c32, coefficient);
+        coefficient = triangle[9];
+        if (coefficient != 0.0) KOBLAS_SUBTRACT_COLUMN(c01, c11, c21, c31, c02, c12, c22, c32, coefficient);
+        if (!unit_diag) KOBLAS_DIVIDE_COLUMN(c01, c11, c21, c31, triangle[5]);
+        coefficient = triangle[4];
+        if (coefficient != 0.0) KOBLAS_SUBTRACT_COLUMN(c00, c10, c20, c30, c01, c11, c21, c31, coefficient);
+        if (!unit_diag) KOBLAS_DIVIDE_COLUMN(c00, c10, c20, c30, triangle[0]);
+    } else {
+        if (!unit_diag) KOBLAS_DIVIDE_COLUMN(c00, c10, c20, c30, triangle[0]);
+        double coefficient = triangle[1];
+        if (coefficient != 0.0) KOBLAS_SUBTRACT_COLUMN(c01, c11, c21, c31, c00, c10, c20, c30, coefficient);
+        coefficient = triangle[2];
+        if (coefficient != 0.0) KOBLAS_SUBTRACT_COLUMN(c02, c12, c22, c32, c00, c10, c20, c30, coefficient);
+        coefficient = triangle[3];
+        if (coefficient != 0.0) KOBLAS_SUBTRACT_COLUMN(c03, c13, c23, c33, c00, c10, c20, c30, coefficient);
+        if (!unit_diag) KOBLAS_DIVIDE_COLUMN(c01, c11, c21, c31, triangle[5]);
+        coefficient = triangle[6];
+        if (coefficient != 0.0) KOBLAS_SUBTRACT_COLUMN(c02, c12, c22, c32, c01, c11, c21, c31, coefficient);
+        coefficient = triangle[7];
+        if (coefficient != 0.0) KOBLAS_SUBTRACT_COLUMN(c03, c13, c23, c33, c01, c11, c21, c31, coefficient);
+        if (!unit_diag) KOBLAS_DIVIDE_COLUMN(c02, c12, c22, c32, triangle[10]);
+        coefficient = triangle[11];
+        if (coefficient != 0.0) KOBLAS_SUBTRACT_COLUMN(c03, c13, c23, c33, c02, c12, c22, c32, coefficient);
+        if (!unit_diag) KOBLAS_DIVIDE_COLUMN(c03, c13, c23, c33, triangle[15]);
+    }
+#undef KOBLAS_SUBTRACT_COLUMN
+#undef KOBLAS_DIVIDE_COLUMN
+    out[0] = c00; out[1] = c10; out[2] = c20; out[3] = c30;
+    out[4] = c01; out[5] = c11; out[6] = c21; out[7] = c31;
+    out[8] = c02; out[9] = c12; out[10] = c22; out[11] = c32;
+    out[12] = c03; out[13] = c13; out[14] = c23; out[15] = c33;
+}

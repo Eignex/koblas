@@ -1,0 +1,3 @@
+/tmp/koblas-pr02-evidence/linux-arm64-shared/com/eignex/koblas/internal/kernels/linux-arm64/libkoblas_kernels.so: ELF 64-bit LSB shared object, ARM aarch64, version 1 (SYSV), dynamically linked, with debug_info, not stripped
+/tmp/koblas-pr02-evidence/linux-arm64-shared/probe-test:                                                          ELF 64-bit LSB pie executable, ARM aarch64, version 1 (SYSV), dynamically linked, interpreter /lib/ld-linux-aarch64.so.1, for GNU/Linux 4.9.156, with debug_info, not stripped
+Exact all-export comparison: PASS (25 ABI symbols)

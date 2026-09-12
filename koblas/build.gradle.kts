@@ -1,3 +1,8 @@
+import org.jetbrains.kotlin.gradle.tasks.CInteropProcess
+import org.jetbrains.kotlin.konan.target.PlatformManager
+import org.jetbrains.kotlin.konan.target.KonanTarget
+import org.gradle.api.provider.ValueSource
+import org.gradle.api.provider.ValueSourceParameters
 import org.gradle.api.tasks.JavaExec
 import org.gradle.jvm.toolchain.JavaLanguageVersion
 import org.jetbrains.kotlin.gradle.tasks.KotlinJvmCompile
@@ -7,6 +12,33 @@ import org.jetbrains.kotlin.gradle.plugin.mpp.KotlinNativeTarget
 plugins {
     id("com.eignex.kmp") version "1.3.3"
     kotlin("plugin.serialization") version "2.4.10"
+}
+
+// Apple toolchain discovery invokes xcrun; ValueSource makes its result a configuration-cache input.
+abstract class NativeKernelToolchain : ValueSource<List<String>, NativeKernelToolchain.Parameters> {
+    interface Parameters : ValueSourceParameters {
+        val nativeHome: Property<String>
+        val dataDirectory: Property<String>
+        val targetName: Property<String>
+    }
+
+    override fun obtain(): List<String> {
+        val manager = PlatformManager(parameters.nativeHome.get(), konanDataDir = parameters.dataDirectory.orNull?.takeIf(String::isNotEmpty))
+        val clang = manager.platform(KonanTarget.predefinedTargets.getValue(parameters.targetName.get())).clang
+        return listOf(clang.clangC().first(), clang.llvmAr().first()) + clang.clangArgs
+    }
+}
+
+abstract class PrepareNativeKernelToolchain : DefaultTask() {
+    @get:Input abstract val nativeHome: Property<String>
+    @get:Input @get:Optional abstract val dataDirectory: Property<String>
+    @get:Input abstract val targetName: Property<String>
+
+    @TaskAction
+    fun prepare() {
+        PlatformManager(nativeHome.get(), konanDataDir = dataDirectory.orNull?.takeIf(String::isNotEmpty))
+            .loader(KonanTarget.predefinedTargets.getValue(targetName.get())).downloadDependencies()
+    }
 }
 
 eignexPublish {
@@ -35,9 +67,65 @@ kotlin {
 
     targets.withType<KotlinNativeTarget>().configureEach {
         if (name != "macosArm64" || nativeHostIsMacos) {
-            compilations.getByName("main").cinterops.create("koblasKernels") {
+            val interop = compilations.getByName("main").cinterops.create("koblasKernels") {
                 definitionFile.set(project.file("src/nativeInterop/cinterop/koblas_kernels.def"))
-                includeDirs(project.file("src/nativeInterop/cinterop"))
+                includeDirs(project.file("src/nativeInterop/kernels"))
+            }
+            val interopTask = tasks.named<CInteropProcess>(interop.interopProcessingTaskName)
+            val target = konanTarget
+            val archiveDirectory = layout.buildDirectory.dir("kernels/$name")
+            // KGP 2.4 exposes the selected distribution only through these accessors.
+            @Suppress("DEPRECATION_ERROR")
+            val nativeHome = interopTask.get().konanHome
+            @Suppress("DEPRECATION_ERROR")
+            val dataDirectory = interopTask.get().konanDataDir
+            val toolchain = providers.of(NativeKernelToolchain::class) {
+                parameters.nativeHome.set(nativeHome)
+                parameters.dataDirectory.set(dataDirectory.map { it.orEmpty() })
+                parameters.targetName.set(target.name)
+            }
+            val nativePlatform = when (name) {
+                "linuxX64" -> "linux-x86_64"
+                "linuxArm64" -> "linux-arm64"
+                else -> "macosx-arm64"
+            }
+            val selectedNativeHome = nativeHome
+            val selectedDataDirectory = dataDirectory
+            val prepareToolchain = tasks.register<PrepareNativeKernelToolchain>(
+                "prepare${name.replaceFirstChar(Char::uppercase)}KernelToolchain",
+            ) {
+                dependsOn(tasks.matching { it.name == "downloadKotlinNativeDistribution" })
+                this.nativeHome.set(selectedNativeHome)
+                this.dataDirectory.set(selectedDataDirectory.map { it.orEmpty() })
+                targetName.set(target.name)
+            }
+            val archive = tasks.register<Exec>("build${name.replaceFirstChar(Char::uppercase)}Kernels") {
+                dependsOn(prepareToolchain)
+                inputs.file(toolchain.map { it[0] })
+                inputs.file(toolchain.map { it[1] })
+                inputs.files(fileTree("src/nativeInterop/kernels"), "../scripts/build-koblas-kernels.sh")
+                inputs.file(nativeHome.map { "$it/konan/konan.properties" })
+                inputs.property("target", target.name)
+                inputs.property("compiler", toolchain.map { it[0] })
+                inputs.property("flags", toolchain.map { it.drop(2) })
+                inputs.property("nativeHome", nativeHome)
+                outputs.dir(archiveDirectory)
+                val script = rootProject.file("scripts/build-koblas-kernels.sh").absolutePath
+                val destination = archiveDirectory.get().asFile.absolutePath
+                doFirst {
+                    val selected = toolchain.get()
+                    commandLine(
+                        listOf("bash", script, "--platform", nativePlatform, "--kind", "static",
+                            "--output", destination, "--compiler", selected[0],
+                            "--archiver", selected[1]) +
+                            selected.drop(2).flatMap { listOf("--cflag", it) },
+                    )
+                }
+            }
+            interop.extraOpts("-libraryPath", archiveDirectory.get().asFile.absolutePath)
+            interopTask.configure {
+                dependsOn(archive)
+                inputs.file(archiveDirectory.map { it.file("libkoblas_kernels.a") })
             }
         }
     }
@@ -78,15 +166,14 @@ val jvmKernelsPlatform = providers.gradleProperty("koblas.kernels.platform").orE
 val jvmKernelsResources = layout.buildDirectory.dir("kernels/resources")
 val prebuiltJvmKernels = providers.gradleProperty("koblas.kernels.prebuilt").map(String::toBoolean).orElse(false)
 val buildJvmKernels = tasks.register<Exec>("buildJvmKernels") {
-    inputs.files(
-        "src/nativeInterop/cinterop/koblas_kernels.c",
-        "src/nativeInterop/cinterop/koblas_kernels.h",
-        "src/nativeInterop/cinterop/koblas_packed_trsm.h",
-        "../scripts/build-koblas-kernels.sh",
-    )
+    inputs.files(fileTree("src/nativeInterop/kernels"), "../scripts/build-koblas-kernels.sh")
     inputs.property("platform", jvmKernelsPlatform)
-    inputs.property("CC", providers.environmentVariable("CC").orElse("cc"))
+    val compiler = providers.environmentVariable("CC").orElse("cc")
+    inputs.property("CC", compiler)
+    inputs.property("compilerIdentity", providers.exec { commandLine(compiler.get(), "--version") }.standardOutput.asText)
+    inputs.property("compilerTarget", providers.exec { commandLine(compiler.get(), "-dumpmachine") }.standardOutput.asText)
     outputs.dir(jvmKernelsResources)
+    outputs.dir(layout.buildDirectory.dir("kernels/resources.build/${jvmKernelsPlatform.get()}"))
     commandLine(
         "bash",
         rootProject.file("scripts/build-koblas-kernels.sh").absolutePath,
@@ -97,6 +184,22 @@ val buildJvmKernels = tasks.register<Exec>("buildJvmKernels") {
     )
     environment("CC", providers.environmentVariable("CC").orElse("cc").get())
     enabled = !prebuiltJvmKernels.get() && jvmKernelsPlatform.get() != "unsupported"
+}
+val checkNativeKernels = tasks.register<Exec>("checkNativeKernels") {
+    group = "verification"
+    description = "Checks native probe ABI, exact rejection and exported symbols on the host."
+    dependsOn(buildJvmKernels)
+    inputs.files(fileTree("src/nativeInterop/tests"), "../scripts/check-koblas-kernels.sh")
+    inputs.dir(jvmKernelsResources)
+    commandLine("bash", rootProject.file("scripts/check-koblas-kernels.sh").absolutePath,
+        jvmKernelsResources.get().asFile.absolutePath, jvmKernelsPlatform.get())
+    enabled = !prebuiltJvmKernels.get() && jvmKernelsPlatform.get() != "unsupported"
+}
+tasks.named("check") { dependsOn(checkNativeKernels) }
+tasks.named<Test>("jvmTest") {
+    dependsOn(checkNativeKernels)
+    systemProperty("koblas.test.nativeFixtures",
+        layout.buildDirectory.dir("kernels/resources.checks/${jvmKernelsPlatform.get()}/fixtures").get().asFile.absolutePath)
 }
 val verifyJvmKernelResources = tasks.register<Exec>("verifyJvmKernelResources") {
     val root = jvmKernelsResources.get().asFile.absolutePath
@@ -176,6 +279,17 @@ val simdSparseAllocationCheck = tasks.register<JavaExec>("simdSparseAllocationCh
     )
 }
 tasks.named("check") { dependsOn(simdSparseAllocationCheck) }
+
+val nativeRuntimeCheck = tasks.register<JavaExec>("nativeRuntimeCheck") {
+    group = "verification"
+    description = "Checks warmed native allocation and concurrent exact calls outside coverage instrumentation."
+    dependsOn("jvmTestClasses", buildJvmKernels)
+    classpath(jvmTestCompilation.output.allOutputs, configurations.getByName("jvmTestRuntimeClasspath"))
+    mainClass.set("com.eignex.koblas.internal.kernels.JvmNativeRuntimeCheck")
+    javaLauncher.set(allocationCheckJavaLauncher)
+    jvmArgs("--enable-native-access=ALL-UNNAMED", "-XX:-TieredCompilation", "-XX:CompileThreshold=1000")
+}
+tasks.named("check") { dependsOn(nativeRuntimeCheck) }
 
 // Kotlin emits a `$DefaultImpls` holder for every interface with a body, and a bridge for every method with
 // a default argument. Neither is reachable from Kotlin call sites, so both count as permanently uncovered and

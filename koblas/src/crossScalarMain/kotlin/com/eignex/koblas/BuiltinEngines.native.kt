@@ -23,4 +23,11 @@ public actual object BuiltinEngines {
 
     /** SIMD is unavailable as a distinct Native engine. */
     public actual val simd: KoblasEngine? = null
+
+    /** No native archive is available in this scalar cross-target artifact. */
+    public actual val nativeVariants: List<NativeVariant> = emptyList()
+
+    /** Exact native execution requires a target archive. */
+    public actual fun exactC(variant: NativeVariant): KoblasEngine =
+        throw IllegalArgumentException("native ${variant.name} is not built for this target")
 }

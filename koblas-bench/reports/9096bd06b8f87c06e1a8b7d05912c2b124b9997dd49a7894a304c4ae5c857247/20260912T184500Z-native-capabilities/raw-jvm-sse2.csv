@@ -1,0 +1,8 @@
+run,id,implementation,pass,unit,source_commit,dirty,runtime,threads,warmups,target_ns,harness,warmup_target_ns,forks
+case,id,run_id,case,status,comparison_kind,timing_mode,actual_kernel
+sample,case_id,fork,sample,operations,elapsed_ns,ns_per_op
+run,1,jvm-c-raw-sse2/c-sse2-raw/c-scalar-indexed-policy/packed-4x4,1,ns,79ec551faecaf802a947f14feb4a5549a25b2714,false,kotlin-2.4.10/jvm/Eclipse Adoptium/25.0.1/JMH 1.37/forks=1,1,2,50000000,jmh-average-time,50000000,1
+case,1,1,dot+4096+uniform,ok,direct,arithmetic,koblas_dense_dot_sse2
+sample,1,1,1,32599,50132544,1537.8552716340992
+sample,1,1,2,33858,50126446,1480.4904601571268
+sample,1,1,3,35638,50194755,1408.46161400752

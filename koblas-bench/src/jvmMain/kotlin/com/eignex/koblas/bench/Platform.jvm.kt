@@ -18,7 +18,7 @@ internal actual fun resolveEngine(mode: String): Pair<KoblasEngine, String> {
         "jvm-scalar" -> BuiltinEngines.scalar
         "jvm-c" -> requireNotNull(BuiltinEngines.c) { "requested jvm-c engine is unavailable" }
         "jvm-simd" -> requireNotNull(BuiltinEngines.simd) { "requested jvm-simd engine is unavailable; launch with jdk.incubator.vector" }
-        else -> error("JVM runner cannot execute mode '$mode'")
+        else -> BuiltinEngines.exactC(rawNativeVariant(mode) ?: error("unknown JVM mode $mode"))
     }
     return engine to "$mode/${engine.vectorKernels.name}/${engine.sparseKernels.name}/packed-${engine.packedKernels.gemmTileRows}x${engine.packedKernels.gemmTileCols}"
 }

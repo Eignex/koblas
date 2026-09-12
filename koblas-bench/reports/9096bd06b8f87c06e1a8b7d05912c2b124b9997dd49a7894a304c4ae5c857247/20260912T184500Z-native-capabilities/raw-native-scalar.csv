@@ -1,0 +1,8 @@
+run,id,implementation,pass,unit,source_commit,dirty,runtime,threads,warmups,target_ns,harness,warmup_target_ns,forks
+case,id,run_id,case,status,comparison_kind,timing_mode,actual_kernel
+sample,case_id,fork,sample,operations,elapsed_ns,ns_per_op
+run,1,native-raw-scalar/c-scalar-raw/c-scalar-indexed-policy/packed-4x4,1,ns,79ec551faecaf802a947f14feb4a5549a25b2714,false,kotlin-native-2.4.10,1,2,50000000,native-calibrated,12500000,1
+case,1,1,dot+4096+uniform,ok,direct,arithmetic,koblas_dense_dot_scalar
+sample,1,1,1,16579,83382658,5029.414198685084
+sample,1,1,2,16579,78732616,4748.93636528138
+sample,1,1,3,16579,86742861,5232.092466373123

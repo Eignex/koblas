@@ -1,0 +1,303 @@
+Reusing configuration cache.
+> Task :koblas:verifyJvmKernelResources SKIPPED
+> Task :koblas:jvmTestProcessResources NO-SOURCE
+> Task :koblas:kmpPartiallyResolvedDependenciesChecker
+> Task :koblas:processJvmTestResources SKIPPED
+> Task :koblas:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :koblas:koverFindJar UP-TO-DATE
+> Task :koblas:linuxX64ProcessResources NO-SOURCE
+> Task :koblas:macosArm64ProcessResources NO-SOURCE
+> Task :koblas:computeLocalPackageDependencyInputFiles SKIPPED
+> Task :koblas:generateSyntheticLinkageSwiftPMImportProjectForCinteropsAndLdDump SKIPPED
+> Task :koblas:generateUmbrellaPackageIdentifierBasedResolutionForDefault SKIPPED
+> Task :koblas:fetchUmbrellaPackageIdentifierForDefault SKIPPED
+> Task :koblas:syncPersistedPackageResolvedToSynthetic SKIPPED
+> Task :koblas:fetchSyntheticImportProjectPackages SKIPPED
+> Task :koblas:convertSyntheticImportProjectIntoDefFileMacosx SKIPPED
+> Task :koblas:downloadKotlinNativeDistribution UP-TO-DATE
+> Task :koblas:prepareLinuxX64KernelToolchain
+> Task :koblas:buildJvmKernels UP-TO-DATE
+> Task :koblas:buildLinuxX64Kernels UP-TO-DATE
+> Task :koblas:jvmProcessResources UP-TO-DATE
+> Task :koblas:processJvmMainResources SKIPPED
+> Task :koblas:cinteropKoblasKernelsLinuxX64 UP-TO-DATE
+> Task :koblas:compileKotlinLinuxX64 UP-TO-DATE
+> Task :koblas:linuxX64MainKlibrary UP-TO-DATE
+> Task :koblas:checkKdoc
+> Task :koblas:compileKotlinMacosArm64 UP-TO-DATE
+> Task :koblas:macosArm64MainKlibrary UP-TO-DATE
+
+> Task :koblas:checkNativeKernels
+host arch=1 os=1 hardware=7 usable=7 built=7 kernels=58
+kernel=17 operation=1 variant=1 reason=0 bits=0 batch=1 unroll=1
+kernel=18 operation=1 variant=2 reason=0 bits=128 batch=16 unroll=4
+kernel=19 operation=1 variant=3 reason=0 bits=256 batch=16 unroll=4
+kernel=33 operation=2 variant=1 reason=0 bits=0 batch=1 unroll=1
+kernel=34 operation=2 variant=2 reason=0 bits=128 batch=16 unroll=4
+kernel=35 operation=2 variant=3 reason=0 bits=256 batch=16 unroll=4
+kernel=49 operation=3 variant=1 reason=0 bits=0 batch=1 unroll=1
+kernel=50 operation=3 variant=2 reason=0 bits=128 batch=1 unroll=1
+kernel=51 operation=3 variant=3 reason=0 bits=256 batch=1 unroll=1
+kernel=65 operation=4 variant=1 reason=0 bits=0 batch=1 unroll=1
+kernel=66 operation=4 variant=2 reason=0 bits=128 batch=1 unroll=1
+kernel=67 operation=4 variant=3 reason=0 bits=256 batch=1 unroll=1
+kernel=81 operation=5 variant=1 reason=0 bits=0 batch=1 unroll=1
+kernel=82 operation=5 variant=2 reason=0 bits=128 batch=16 unroll=4
+kernel=83 operation=5 variant=3 reason=0 bits=256 batch=16 unroll=4
+kernel=97 operation=6 variant=1 reason=0 bits=0 batch=8 unroll=8
+kernel=98 operation=6 variant=2 reason=0 bits=128 batch=8 unroll=8
+kernel=99 operation=6 variant=3 reason=0 bits=256 batch=8 unroll=8
+kernel=113 operation=7 variant=1 reason=0 bits=0 batch=1 unroll=1
+kernel=114 operation=7 variant=2 reason=0 bits=128 batch=16 unroll=4
+kernel=115 operation=7 variant=3 reason=0 bits=256 batch=16 unroll=4
+kernel=129 operation=8 variant=1 reason=0 bits=0 batch=1 unroll=1
+kernel=130 operation=8 variant=2 reason=0 bits=128 batch=16 unroll=4
+kernel=131 operation=8 variant=3 reason=0 bits=256 batch=16 unroll=4
+kernel=145 operation=9 variant=1 reason=0 bits=0 batch=1 unroll=1
+kernel=146 operation=9 variant=2 reason=0 bits=128 batch=16 unroll=4
+kernel=147 operation=9 variant=3 reason=0 bits=256 batch=16 unroll=4
+kernel=161 operation=10 variant=1 reason=0 bits=0 batch=1 unroll=1
+kernel=162 operation=10 variant=2 reason=0 bits=128 batch=1 unroll=1
+kernel=163 operation=10 variant=3 reason=0 bits=256 batch=1 unroll=1
+kernel=177 operation=11 variant=1 reason=0 bits=0 batch=1 unroll=1
+kernel=178 operation=11 variant=2 reason=0 bits=128 batch=1 unroll=1
+kernel=179 operation=11 variant=3 reason=0 bits=256 batch=1 unroll=1
+kernel=193 operation=12 variant=1 reason=0 bits=0 batch=1 unroll=1
+kernel=194 operation=12 variant=2 reason=0 bits=128 batch=4 unroll=1
+kernel=195 operation=12 variant=3 reason=0 bits=256 batch=4 unroll=1
+kernel=209 operation=13 variant=1 reason=0 bits=0 batch=1 unroll=1
+kernel=210 operation=13 variant=2 reason=0 bits=128 batch=4 unroll=1
+kernel=211 operation=13 variant=3 reason=0 bits=256 batch=4 unroll=1
+kernel=225 operation=14 variant=1 reason=0 bits=0 batch=1 unroll=1
+kernel=226 operation=14 variant=2 reason=0 bits=128 batch=4 unroll=1
+kernel=227 operation=14 variant=3 reason=0 bits=256 batch=4 unroll=1
+kernel=241 operation=15 variant=1 reason=0 bits=0 batch=1 unroll=1
+kernel=242 operation=15 variant=2 reason=0 bits=128 batch=1 unroll=1
+kernel=243 operation=15 variant=3 reason=0 bits=256 batch=1 unroll=1
+kernel=257 operation=16 variant=1 reason=0 bits=0 batch=8 unroll=8
+kernel=273 operation=17 variant=1 reason=0 bits=0 batch=1 unroll=1
+kernel=289 operation=18 variant=1 reason=0 bits=0 batch=1 unroll=1
+kernel=305 operation=19 variant=1 reason=0 bits=0 batch=1 unroll=1
+kernel=321 operation=20 variant=1 reason=0 bits=0 batch=1 unroll=1
+kernel=337 operation=21 variant=1 reason=0 bits=0 batch=1 unroll=1
+kernel=353 operation=22 variant=1 reason=0 bits=0 batch=1 unroll=1
+kernel=369 operation=23 variant=1 reason=0 bits=0 batch=1 unroll=1
+kernel=370 operation=23 variant=2 reason=0 bits=128 batch=1 unroll=1
+kernel=371 operation=23 variant=3 reason=0 bits=256 batch=1 unroll=1
+kernel=385 operation=24 variant=1 reason=0 bits=0 batch=1 unroll=1
+kernel=386 operation=24 variant=2 reason=0 bits=128 batch=1 unroll=1
+kernel=387 operation=24 variant=3 reason=0 bits=256 batch=1 unroll=1
+probe ABI and rejection checks passed
+
+> Task :koblas:prepareLinuxArm64KernelToolchain
+> Task :koblas:buildLinuxArm64Kernels UP-TO-DATE
+> Task :koblas:cinteropKoblasKernelsLinuxArm64 UP-TO-DATE
+> Task :koblas:compileKotlinLinuxArm64 UP-TO-DATE
+> Task :koblas:linuxArm64ProcessResources NO-SOURCE
+> Task :koblas:linuxArm64MainKlibrary UP-TO-DATE
+> Task :koblas:checkNativeSafeTestNames
+> Task :koblas:writeEignexDetektConfig UP-TO-DATE
+> Task :koblas:detekt SKIPPED
+> Task :koblas:detektAppleMainSourceSet NO-SOURCE
+> Task :koblas:detektAppleTestSourceSet NO-SOURCE
+> Task :koblas:detektCMainSourceSet UP-TO-DATE
+> Task :koblas:detektCommonMainSourceSet UP-TO-DATE
+> Task :koblas:compileKotlinJvm
+> Task :koblas:compileJvmMainJava NO-SOURCE
+> Task :koblas:jvmMainClasses
+> Task :koblas:jvmJar
+> Task :koblas:compileTestKotlinJvm
+> Task :koblas:compileJvmTestJava UP-TO-DATE
+> Task :koblas:jvmTestClasses
+
+> Task :koblas:jvmTest
+WARNING: Using incubator modules: jdk.incubator.vector
+
+> Task :koblas:compileTestKotlinMacosArm64
+> Task :koblas:linkDebugTestMacosArm64 SKIPPED
+> Task :koblas:macosArm64Test SKIPPED
+> Task :koblas:compileTestKotlinLinuxX64
+> Task :koblas:internalDumpKotlinAbi
+> Task :koblas:checkKotlinAbi
+> Task :koblas:detektCrossScalarMainSourceSet UP-TO-DATE
+> Task :koblas:detektJvmMainSourceSet
+> Task :koblas:detektJvmTestSourceSet UP-TO-DATE
+> Task :koblas:detektLinuxArm64MainSourceSet NO-SOURCE
+> Task :koblas:detektLinuxArm64TestSourceSet NO-SOURCE
+> Task :koblas:detektLinuxMainSourceSet NO-SOURCE
+> Task :koblas:detektLinuxTestSourceSet NO-SOURCE
+> Task :koblas:detektLinuxX64MainSourceSet NO-SOURCE
+> Task :koblas:detektLinuxX64TestSourceSet NO-SOURCE
+> Task :koblas:detektMacosArm64MainSourceSet NO-SOURCE
+> Task :koblas:detektMacosArm64TestSourceSet NO-SOURCE
+> Task :koblas:detektMacosMainSourceSet NO-SOURCE
+> Task :koblas:detektMacosTestSourceSet NO-SOURCE
+> Task :koblas:detektMainJvm SKIPPED
+> Task :koblas:detektNativeMainSourceSet UP-TO-DATE
+> Task :koblas:detektNativeTestSourceSet NO-SOURCE
+> Task :koblas:detektTestJvm SKIPPED
+
+> Task :koblas:nativeRuntimeCheck
+SCALAR warmed allocation: 0 bytes for 20000 calls
+SSE2 warmed allocation: 0 bytes for 20000 calls
+AVX2 warmed allocation: 0 bytes for 20000 calls
+concurrent exact calls and read-only thread probes passed
+
+> Task :koblas:koverGenerateArtifactJvm
+> Task :koblas:koverGenerateArtifact UP-TO-DATE
+
+> Task :koblas:simdSparseAllocationCheck
+WARNING: Using incubator modules: jdk.incubator.vector
+
+> Task :koblas-bench:kmpPartiallyResolvedDependenciesChecker
+> Task :koblas-bench:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :koblas-bench:compileKotlinJvm UP-TO-DATE
+> Task :koblas:koverCachedVerify
+> Task :koblas:koverVerify
+> Task :koblas-bench:jvmProcessResources NO-SOURCE
+> Task :koblas-bench:processJvmMainResources SKIPPED
+> Task :koblas-bench:jvmTestProcessResources NO-SOURCE
+> Task :koblas-bench:processJvmTestResources SKIPPED
+> Task :koblas-bench:koverFindJar UP-TO-DATE
+> Task :koblas:exportCrossCompilationMetadataForLinuxX64ApiElements UP-TO-DATE
+> Task :koblas-bench:downloadKotlinNativeDistribution UP-TO-DATE
+> Task :koblas-bench:compileKotlinLinuxX64 UP-TO-DATE
+> Task :koblas-bench:linuxX64ProcessResources NO-SOURCE
+> Task :koblas-bench:linuxX64MainKlibrary UP-TO-DATE
+> Task :koblas-bench:compileJvmMainJava UP-TO-DATE
+> Task :koblas-bench:jvmMainClasses UP-TO-DATE
+> Task :koblas-bench:jvmJar UP-TO-DATE
+> Task :koblas-bench:compileTestKotlinJvm UP-TO-DATE
+> Task :koblas-bench:compileJvmTestJava NO-SOURCE
+> Task :koblas-bench:jvmTestClasses UP-TO-DATE
+> Task :koblas-bench:compileTestKotlinLinuxX64
+> Task :koblas:detektCommonTestSourceSet
+> Task :koblas:exportCrossCompilationMetadataForMacosArm64ApiElements UP-TO-DATE
+
+> Task :koblas-bench:jvmTest
+WARNING: Using incubator modules: jdk.incubator.vector
+
+> Task :koblas-bench:compileKotlinMacosArm64
+> Task :koblas-bench:macosArm64ProcessResources NO-SOURCE
+> Task :koblas-bench:macosArm64MainKlibrary
+> Task :koblas-bench:computeLocalPackageDependencyInputFiles SKIPPED
+> Task :koblas-bench:generateSyntheticLinkageSwiftPMImportProjectForCinteropsAndLdDump SKIPPED
+> Task :koblas-bench:syncPersistedPackageResolvedToSynthetic SKIPPED
+> Task :koblas-bench:fetchSyntheticImportProjectPackages SKIPPED
+> Task :koblas-bench:convertSyntheticImportProjectIntoDefFileMacosx SKIPPED
+> Task :koblas-bench:checkKdoc SKIPPED
+> Task :koblas-bench:checkNativeSafeTestNames
+> Task :koblas-bench:writeEignexDetektConfig UP-TO-DATE
+> Task :koblas-bench:detekt SKIPPED
+> Task :koblas-bench:detektAppleMainSourceSet SKIPPED
+> Task :koblas-bench:detektAppleTestSourceSet SKIPPED
+> Task :koblas-bench:detektCommonMainSourceSet SKIPPED
+> Task :koblas-bench:detektCommonTestSourceSet SKIPPED
+> Task :koblas-bench:detektJvmMainSourceSet SKIPPED
+> Task :koblas-bench:detektJvmTestSourceSet SKIPPED
+> Task :koblas-bench:detektLinuxMainSourceSet SKIPPED
+> Task :koblas-bench:detektLinuxTestSourceSet SKIPPED
+> Task :koblas-bench:detektLinuxX64MainSourceSet SKIPPED
+> Task :koblas-bench:detektLinuxX64TestSourceSet SKIPPED
+> Task :koblas-bench:detektMacosArm64MainSourceSet SKIPPED
+> Task :koblas-bench:detektMacosArm64TestSourceSet SKIPPED
+> Task :koblas-bench:detektMacosMainSourceSet SKIPPED
+> Task :koblas-bench:detektMacosTestSourceSet SKIPPED
+> Task :koblas-bench:detektMainJvm SKIPPED
+> Task :koblas-bench:detektNativeMainSourceSet SKIPPED
+> Task :koblas-bench:detektNativeTestSourceSet SKIPPED
+> Task :koblas-bench:detektTestJvm SKIPPED
+> Task :koblas-bench:compileTestKotlinMacosArm64
+> Task :koblas-bench:linkDebugTestMacosArm64 SKIPPED
+> Task :koblas-bench:macosArm64Test SKIPPED
+> Task :koblas-bench:koverGenerateArtifactJvm
+> Task :koblas-bench:koverGenerateArtifact UP-TO-DATE
+> Task :koblas-bench:koverCachedVerify
+> Task :koblas-bench:koverVerify
+> Task :koblas-hfactor:checkKdoc
+> Task :koblas-hfactor:checkNativeSafeTestNames
+> Task :koblas-hfactor:writeEignexDetektConfig UP-TO-DATE
+> Task :koblas-hfactor:detekt SKIPPED
+> Task :koblas-hfactor:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :koblas-hfactor:compileKotlin
+> Task :koblas-hfactor:compileJava NO-SOURCE
+
+> Task :koblas-bench:fixedConfigurationTest
+WARNING: Using incubator modules: jdk.incubator.vector
+
+> Task :koblas-hfactor:detektMainSourceSet SKIPPED
+> Task :koblas-hfactor:buildHfactor UP-TO-DATE
+> Task :koblas-hfactor:processResources UP-TO-DATE
+> Task :koblas-hfactor:classes UP-TO-DATE
+> Task :koblas-hfactor:jar UP-TO-DATE
+> Task :koblas-hfactor:compileTestKotlin
+> Task :koblas-hfactor:compileTestJava NO-SOURCE
+> Task :koblas-bench:linkDebugTestLinuxX64
+> Task :koblas-bench:linuxX64Test
+> Task :koblas-bench:allTests
+> Task :koblas-bench:check
+> Task :koblas-hfactor:detektTestSourceSet SKIPPED
+> Task :koblas-hfactor:koverFindJar UP-TO-DATE
+> Task :koblas-hfactor:processTestResources NO-SOURCE
+> Task :koblas-hfactor:testClasses UP-TO-DATE
+> Task :koblas:linkDebugTestLinuxX64
+> Task :koblas-hfactor:test
+> Task :koblas-hfactor:koverGenerateArtifactJvm
+> Task :koblas-hfactor:koverGenerateArtifact UP-TO-DATE
+> Task :koblas-hfactor:koverCachedVerify FROM-CACHE
+> Task :koblas-hfactor:koverVerify
+> Task :koblas:commonizeNativeDistribution UP-TO-DATE
+> Task :koblas:commonizeCInterop UP-TO-DATE
+> Task :koblas:transformCommonMainDependenciesMetadata UP-TO-DATE
+> Task :koblas-hfactor:detektTest
+> Task :koblas:metadataCommonMainProcessResources NO-SOURCE
+> Task :koblas:transformCMainCInteropDependenciesMetadata UP-TO-DATE
+> Task :koblas:transformCMainDependenciesMetadata UP-TO-DATE
+> Task :koblas:transformNativeMainCInteropDependenciesMetadata UP-TO-DATE
+> Task :koblas:transformNativeMainDependenciesMetadata UP-TO-DATE
+> Task :koblas:metadataCMainProcessResources NO-SOURCE
+> Task :koblas:metadataNativeMainProcessResources NO-SOURCE
+> Task :koblas:transformLinuxMainCInteropDependenciesMetadata UP-TO-DATE
+> Task :koblas:transformLinuxMainDependenciesMetadata UP-TO-DATE
+> Task :koblas:generateProjectStructureMetadata UP-TO-DATE
+> Task :koblas:metadataLinuxMainProcessResources NO-SOURCE
+> Task :koblas-bench:commonizeNativeDistribution UP-TO-DATE
+> Task :koblas:linuxX64MetadataElements UP-TO-DATE
+> Task :koblas:macosArm64MetadataElements UP-TO-DATE
+> Task :koblas-bench:metadataCommonMainProcessResources NO-SOURCE
+> Task :koblas-bench:transformNativeMainCInteropDependenciesMetadata UP-TO-DATE
+> Task :koblas:compileCommonMainKotlinMetadata
+> Task :koblas:metadataCommonMainClasses
+> Task :koblas-hfactor:detektMain
+> Task :koblas-hfactor:check
+> Task :koblas:compileCMainKotlinMetadata
+> Task :koblas:metadataCMainClasses
+> Task :koblas:compileNativeMainKotlinMetadata
+> Task :koblas:metadataNativeMainClasses
+> Task :koblas:compileLinuxMainKotlinMetadata NO-SOURCE
+> Task :koblas:metadataLinuxMainClasses UP-TO-DATE
+> Task :koblas:allMetadataJar UP-TO-DATE
+> Task :koblas:exportCommonSourceSetsMetadataLocationsForMetadataApiElements UP-TO-DATE
+> Task :koblas-bench:transformCommonMainDependenciesMetadata UP-TO-DATE
+> Task :koblas-bench:compileCommonMainKotlinMetadata UP-TO-DATE
+> Task :koblas-bench:metadataCommonMainClasses UP-TO-DATE
+> Task :koblas-bench:transformNativeMainDependenciesMetadata UP-TO-DATE
+> Task :koblas:linuxX64Test
+> Task :koblas:allTests
+> Task :koblas:check
+> Task :koblas-hfactor:dokkaGeneratePublicationHtml
+> Task :koblas-hfactor:dokkaGenerate
+> Task :koblas-hfactor:lintDocs
+> Task :koblas-hfactor:logLinkDokkaGeneratePublicationHtml SKIPPED
+> Task :koblas-bench:dokkaGeneratePublicationHtml
+> Task :koblas-bench:dokkaGenerate
+> Task :koblas-bench:lintDocs
+> Task :koblas-bench:logLinkDokkaGeneratePublicationHtml SKIPPED
+> Task :koblas:dokkaGeneratePublicationHtml
+> Task :koblas:dokkaGenerate
+> Task :koblas:lintDocs
+> Task :koblas:logLinkDokkaGeneratePublicationHtml SKIPPED
+
+BUILD SUCCESSFUL in 48s
+108 actionable tasks: 52 executed, 1 from cache, 55 up-to-date
+Configuration cache entry reused.

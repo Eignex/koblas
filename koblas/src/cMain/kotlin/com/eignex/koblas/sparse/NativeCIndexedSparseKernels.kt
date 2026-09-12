@@ -2,18 +2,13 @@
 
 package com.eignex.koblas.sparse
 
-import com.eignex.koblas.internal.kernels.koblas_sparse_axpy
-import com.eignex.koblas.internal.kernels.koblas_sparse_dot_dense
-import com.eignex.koblas.internal.kernels.koblas_sparse_dot_sparse
-import com.eignex.koblas.internal.kernels.koblas_sparse_gather
-import com.eignex.koblas.internal.kernels.koblas_sparse_gather_zero
-import com.eignex.koblas.internal.kernels.koblas_sparse_nrm2
-import com.eignex.koblas.internal.kernels.koblas_sparse_scatter
+import com.eignex.koblas.internal.kernels.NativeCKernelBindings
 import kotlinx.cinterop.addressOf
 import kotlinx.cinterop.usePinned
 
 /** Kotlin/Native bindings to the indexed C leaves, with scalar fallbacks for short slices. */
-internal object NativeCIndexedSparseKernels : IndexedSparseKernels by ScalarIndexedSparseKernels {
+internal class NativeCIndexedSparseKernels(private val bindings: NativeCKernelBindings) :
+    IndexedSparseKernels by ScalarIndexedSparseKernels {
     override fun dotDense(
         indices: IntArray,
         indexOffset: Int,
@@ -28,7 +23,7 @@ internal object NativeCIndexedSparseKernels : IndexedSparseKernels by ScalarInde
         return indices.usePinned { ip ->
             values.usePinned { vp ->
                 dense.usePinned { dp ->
-                    koblas_sparse_dot_dense(
+                    bindings.sparseDotDense(
                         ip.addressOf(0),
                         indexOffset,
                         vp.addressOf(0),
@@ -58,7 +53,7 @@ internal object NativeCIndexedSparseKernels : IndexedSparseKernels by ScalarInde
             xValues.usePinned { xvp ->
                 yIndices.usePinned { yip ->
                     yValues.usePinned { yvp ->
-                        koblas_sparse_dot_sparse(
+                        bindings.sparseDotSparse(
                             xip.addressOf(xIndexOffset),
                             xvp.addressOf(xValueOffset),
                             xCount,
@@ -88,7 +83,7 @@ internal object NativeCIndexedSparseKernels : IndexedSparseKernels by ScalarInde
         indices.usePinned { ip ->
             values.usePinned { vp ->
                 destination.usePinned { dp ->
-                    koblas_sparse_axpy(
+                    bindings.sparseAxpy(
                         ip.addressOf(0),
                         indexOffset,
                         vp.addressOf(0),
@@ -117,7 +112,7 @@ internal object NativeCIndexedSparseKernels : IndexedSparseKernels by ScalarInde
         indices.usePinned { ip ->
             values.usePinned { vp ->
                 destination.usePinned { dp ->
-                    koblas_sparse_scatter(
+                    bindings.sparseScatter(
                         ip.addressOf(0),
                         indexOffset,
                         vp.addressOf(0),
@@ -145,7 +140,7 @@ internal object NativeCIndexedSparseKernels : IndexedSparseKernels by ScalarInde
         indices.usePinned { ip ->
             values.usePinned { vp ->
                 source.usePinned { sp ->
-                    koblas_sparse_gather(
+                    bindings.sparseGather(
                         ip.addressOf(indexOffset),
                         vp.addressOf(valueOffset),
                         count,
@@ -168,7 +163,7 @@ internal object NativeCIndexedSparseKernels : IndexedSparseKernels by ScalarInde
         indices.usePinned { ip ->
             values.usePinned { vp ->
                 source.usePinned { sp ->
-                    koblas_sparse_gather_zero(
+                    bindings.sparseGatherZero(
                         ip.addressOf(indexOffset),
                         vp.addressOf(valueOffset),
                         count,
@@ -184,7 +179,7 @@ internal object NativeCIndexedSparseKernels : IndexedSparseKernels by ScalarInde
             return ScalarIndexedSparseKernels.nrm2(indices, indexOffset, count, values)
         }
         return indices.usePinned { ip ->
-            values.usePinned { vp -> koblas_sparse_nrm2(ip.addressOf(0), indexOffset, count, vp.addressOf(0)) }
+            values.usePinned { vp -> bindings.sparseNrm2(ip.addressOf(0), indexOffset, count, vp.addressOf(0)) }
         }
     }
 }

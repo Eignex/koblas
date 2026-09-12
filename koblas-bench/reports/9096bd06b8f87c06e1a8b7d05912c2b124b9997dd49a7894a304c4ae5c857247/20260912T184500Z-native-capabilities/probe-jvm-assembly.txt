@@ -1,0 +1,729 @@
+0000000000000000 <koblas_kernel_reason>:
+   0:	f3 0f 1e fa          	endbr64
+   4:	8d 56 ff             	lea    -0x1(%rsi),%edx
+   7:	b8 04 00 00 00       	mov    $0x4,%eax
+   c:	83 fa 17             	cmp    $0x17,%edx
+   f:	77 2d                	ja     3e <koblas_kernel_reason+0x3e>
+  11:	89 fa                	mov    %edi,%edx
+  13:	c1 ea 04             	shr    $0x4,%edx
+  16:	39 f2                	cmp    %esi,%edx
+  18:	75 24                	jne    3e <koblas_kernel_reason+0x3e>
+  1a:	83 ea 10             	sub    $0x10,%edx
+  1d:	83 e7 0f             	and    $0xf,%edi
+  20:	83 fa 06             	cmp    $0x6,%edx
+  23:	76 1b                	jbe    40 <koblas_kernel_reason+0x40>
+  25:	83 ff 01             	cmp    $0x1,%edi
+  28:	74 54                	je     7e <koblas_kernel_reason+0x7e>
+  2a:	83 ff 02             	cmp    $0x2,%edi
+  2d:	74 21                	je     50 <koblas_kernel_reason+0x50>
+  2f:	b8 09 00 00 00       	mov    $0x9,%eax
+  34:	ba 06 00 00 00       	mov    $0x6,%edx
+  39:	83 ff 03             	cmp    $0x3,%edi
+  3c:	74 17                	je     55 <koblas_kernel_reason+0x55>
+  3e:	c3                   	ret
+  3f:	90                   	nop
+  40:	31 c0                	xor    %eax,%eax
+  42:	83 ff 01             	cmp    $0x1,%edi
+  45:	0f 95 c0             	setne  %al
+  48:	8d 04 c0             	lea    (%rax,%rax,8),%eax
+  4b:	c3                   	ret
+  4c:	0f 1f 40 00          	nopl   0x0(%rax)
+  50:	ba 01 00 00 00       	mov    $0x1,%edx
+  55:	8b 0d 00 00 00 00    	mov    0x0(%rip),%ecx        # 5b <koblas_kernel_reason+0x5b>
+  5b:	b8 05 00 00 00       	mov    $0x5,%eax
+  60:	21 d1                	and    %edx,%ecx
+  62:	39 d1                	cmp    %edx,%ecx
+  64:	75 d8                	jne    3e <koblas_kernel_reason+0x3e>
+  66:	8b 05 00 00 00 00    	mov    0x0(%rip),%eax        # 6c <koblas_kernel_reason+0x6c>
+  6c:	21 d0                	and    %edx,%eax
+  6e:	39 d0                	cmp    %edx,%eax
+  70:	ba 00 00 00 00       	mov    $0x0,%edx
+  75:	b8 06 00 00 00       	mov    $0x6,%eax
+  7a:	0f 44 c2             	cmove  %edx,%eax
+  7d:	c3                   	ret
+  7e:	31 c0                	xor    %eax,%eax
+  80:	c3                   	ret
+  81:	0f 1f 40 00          	nopl   0x0(%rax)
+  85:	66 66 2e 0f 1f 84 00 	data16 cs nopw 0x0(%rax,%rax,1)
+  8c:	00 00 00 00
+
+0000000000000090 <koblas_probe_v1>:
+  90:	f3 0f 1e fa          	endbr64
+  94:	41 57                	push   %r15
+  96:	41 56                	push   %r14
+  98:	55                   	push   %rbp
+  99:	53                   	push   %rbx
+  9a:	48 81 ec 28 01 00 00 	sub    $0x128,%rsp
+  a1:	64 48 8b 04 25 28 00 	mov    %fs:0x28,%rax
+  a8:	00 00
+  aa:	48 89 84 24 18 01 00 	mov    %rax,0x118(%rsp)
+  b1:	00
+  b2:	31 c0                	xor    %eax,%eax
+  b4:	48 85 f6             	test   %rsi,%rsi
+  b7:	0f 84 9b 02 00 00    	je     358 <koblas_probe_v1+0x2c8>
+  bd:	48 85 ff             	test   %rdi,%rdi
+  c0:	0f 84 92 02 00 00    	je     358 <koblas_probe_v1+0x2c8>
+  c6:	b8 02 00 00 00       	mov    $0x2,%eax
+  cb:	83 3e 01             	cmpl   $0x1,(%rsi)
+  ce:	0f 85 5c 02 00 00    	jne    330 <koblas_probe_v1+0x2a0>
+  d4:	b8 03 00 00 00       	mov    $0x3,%eax
+  d9:	81 7e 04 ff 00 00 00 	cmpl   $0xff,0x4(%rsi)
+  e0:	0f 86 4a 02 00 00    	jbe    330 <koblas_probe_v1+0x2a0>
+  e6:	8b 0f                	mov    (%rdi),%ecx
+  e8:	83 f9 01             	cmp    $0x1,%ecx
+  eb:	0f 85 6f 02 00 00    	jne    360 <koblas_probe_v1+0x2d0>
+  f1:	8b 57 04             	mov    0x4(%rdi),%edx
+  f4:	83 fa 1f             	cmp    $0x1f,%edx
+  f7:	0f 86 83 02 00 00    	jbe    380 <koblas_probe_v1+0x2f0>
+  fd:	48 8d 47 14          	lea    0x14(%rdi),%rax
+ 101:	48 01 fa             	add    %rdi,%rdx
+ 104:	90                   	nop
+ 105:	66 66 2e 0f 1f 84 00 	data16 cs nopw 0x0(%rax,%rax,1)
+ 10c:	00 00 00 00
+ 110:	80 38 00             	cmpb   $0x0,(%rax)
+ 113:	0f 85 77 02 00 00    	jne    390 <koblas_probe_v1+0x300>
+ 119:	48 83 c0 01          	add    $0x1,%rax
+ 11d:	48 39 c2             	cmp    %rax,%rdx
+ 120:	75 ee                	jne    110 <koblas_probe_v1+0x80>
+ 122:	66 0f 6f 05 00 00 00 	movdqa 0x0(%rip),%xmm0        # 12a <koblas_probe_v1+0x9a>
+ 129:	00
+ 12a:	0f 29 44 24 10       	movaps %xmm0,0x10(%rsp)
+ 12f:	66 0f 6f 05 00 00 00 	movdqa 0x0(%rip),%xmm0        # 137 <koblas_probe_v1+0xa7>
+ 136:	00
+ 137:	0f 29 44 24 20       	movaps %xmm0,0x20(%rsp)
+ 13c:	66 0f 6f 05 00 00 00 	movdqa 0x0(%rip),%xmm0        # 144 <koblas_probe_v1+0xb4>
+ 143:	00
+ 144:	0f 29 44 24 30       	movaps %xmm0,0x30(%rsp)
+ 149:	66 0f 6f 05 00 00 00 	movdqa 0x0(%rip),%xmm0        # 151 <koblas_probe_v1+0xc1>
+ 150:	00
+ 151:	0f 29 44 24 40       	movaps %xmm0,0x40(%rsp)
+ 156:	66 0f 6f 05 00 00 00 	movdqa 0x0(%rip),%xmm0        # 15e <koblas_probe_v1+0xce>
+ 15d:	00
+ 15e:	0f 29 44 24 50       	movaps %xmm0,0x50(%rsp)
+ 163:	66 0f 6f 05 00 00 00 	movdqa 0x0(%rip),%xmm0        # 16b <koblas_probe_v1+0xdb>
+ 16a:	00
+ 16b:	0f 29 44 24 60       	movaps %xmm0,0x60(%rsp)
+ 170:	66 0f 6f 05 00 00 00 	movdqa 0x0(%rip),%xmm0        # 178 <koblas_probe_v1+0xe8>
+ 177:	00
+ 178:	0f 29 44 24 70       	movaps %xmm0,0x70(%rsp)
+ 17d:	66 0f 6f 05 00 00 00 	movdqa 0x0(%rip),%xmm0        # 185 <koblas_probe_v1+0xf5>
+ 184:	00
+ 185:	0f 29 84 24 80 00 00 	movaps %xmm0,0x80(%rsp)
+ 18c:	00
+ 18d:	66 0f 6f 05 00 00 00 	movdqa 0x0(%rip),%xmm0        # 195 <koblas_probe_v1+0x105>
+ 194:	00
+ 195:	0f 29 84 24 90 00 00 	movaps %xmm0,0x90(%rsp)
+ 19c:	00
+ 19d:	66 0f 6f 05 00 00 00 	movdqa 0x0(%rip),%xmm0        # 1a5 <koblas_probe_v1+0x115>
+ 1a4:	00
+ 1a5:	0f 29 84 24 a0 00 00 	movaps %xmm0,0xa0(%rsp)
+ 1ac:	00
+ 1ad:	66 0f 6f 05 00 00 00 	movdqa 0x0(%rip),%xmm0        # 1b5 <koblas_probe_v1+0x125>
+ 1b4:	00
+ 1b5:	0f 29 84 24 b0 00 00 	movaps %xmm0,0xb0(%rsp)
+ 1bc:	00
+ 1bd:	66 0f 6f 05 00 00 00 	movdqa 0x0(%rip),%xmm0        # 1c5 <koblas_probe_v1+0x135>
+ 1c4:	00
+ 1c5:	0f 29 84 24 c0 00 00 	movaps %xmm0,0xc0(%rsp)
+ 1cc:	00
+ 1cd:	66 0f 6f 05 00 00 00 	movdqa 0x0(%rip),%xmm0        # 1d5 <koblas_probe_v1+0x145>
+ 1d4:	00
+ 1d5:	0f 29 84 24 d0 00 00 	movaps %xmm0,0xd0(%rsp)
+ 1dc:	00
+ 1dd:	66 0f 6f 05 00 00 00 	movdqa 0x0(%rip),%xmm0        # 1e5 <koblas_probe_v1+0x155>
+ 1e4:	00
+ 1e5:	0f 29 84 24 e0 00 00 	movaps %xmm0,0xe0(%rsp)
+ 1ec:	00
+ 1ed:	66 0f 6f 05 00 00 00 	movdqa 0x0(%rip),%xmm0        # 1f5 <koblas_probe_v1+0x165>
+ 1f4:	00
+ 1f5:	0f 29 84 24 f0 00 00 	movaps %xmm0,0xf0(%rsp)
+ 1fc:	00
+ 1fd:	66 0f 6f 05 00 00 00 	movdqa 0x0(%rip),%xmm0        # 205 <koblas_probe_v1+0x175>
+ 204:	00
+ 205:	0f 29 84 24 00 01 00 	movaps %xmm0,0x100(%rsp)
+ 20c:	00
+ 20d:	8b 05 00 00 00 00    	mov    0x0(%rip),%eax        # 213 <koblas_probe_v1+0x183>
+ 213:	8b 57 08             	mov    0x8(%rdi),%edx
+ 216:	41 89 d0             	mov    %edx,%r8d
+ 219:	89 54 24 18          	mov    %edx,0x18(%rsp)
+ 21d:	41 83 e0 fd          	and    $0xfffffffd,%r8d
+ 221:	41 83 f8 01          	cmp    $0x1,%r8d
+ 225:	0f 85 75 01 00 00    	jne    3a0 <koblas_probe_v1+0x310>
+ 22b:	44 8b 77 0c          	mov    0xc(%rdi),%r14d
+ 22f:	45 85 f6             	test   %r14d,%r14d
+ 232:	0f 85 98 01 00 00    	jne    3d0 <koblas_probe_v1+0x340>
+ 238:	8b 6f 10             	mov    0x10(%rdi),%ebp
+ 23b:	85 ed                	test   %ebp,%ebp
+ 23d:	0f 85 8d 01 00 00    	jne    3d0 <koblas_probe_v1+0x340>
+ 243:	c7 44 24 1c 00 00 00 	movl   $0x0,0x1c(%rsp)
+ 24a:	00
+ 24b:	66 0f 6f 44 24 10    	movdqa 0x10(%rsp),%xmm0
+ 251:	89 84 24 c4 00 00 00 	mov    %eax,0xc4(%rsp)
+ 258:	31 c0                	xor    %eax,%eax
+ 25a:	0f 11 06             	movups %xmm0,(%rsi)
+ 25d:	66 0f 6f 44 24 20    	movdqa 0x20(%rsp),%xmm0
+ 263:	0f 11 46 10          	movups %xmm0,0x10(%rsi)
+ 267:	66 0f 6f 44 24 30    	movdqa 0x30(%rsp),%xmm0
+ 26d:	0f 11 46 20          	movups %xmm0,0x20(%rsi)
+ 271:	66 0f 6f 44 24 40    	movdqa 0x40(%rsp),%xmm0
+ 277:	0f 11 46 30          	movups %xmm0,0x30(%rsi)
+ 27b:	66 0f 6f 44 24 50    	movdqa 0x50(%rsp),%xmm0
+ 281:	0f 11 46 40          	movups %xmm0,0x40(%rsi)
+ 285:	66 0f 6f 44 24 60    	movdqa 0x60(%rsp),%xmm0
+ 28b:	0f 11 46 50          	movups %xmm0,0x50(%rsi)
+ 28f:	66 0f 6f 44 24 70    	movdqa 0x70(%rsp),%xmm0
+ 295:	0f 11 46 60          	movups %xmm0,0x60(%rsi)
+ 299:	66 0f 6f 84 24 80 00 	movdqa 0x80(%rsp),%xmm0
+ 2a0:	00 00
+ 2a2:	0f 11 46 70          	movups %xmm0,0x70(%rsi)
+ 2a6:	66 0f 6f 84 24 90 00 	movdqa 0x90(%rsp),%xmm0
+ 2ad:	00 00
+ 2af:	0f 11 86 80 00 00 00 	movups %xmm0,0x80(%rsi)
+ 2b6:	66 0f 6f 84 24 a0 00 	movdqa 0xa0(%rsp),%xmm0
+ 2bd:	00 00
+ 2bf:	0f 11 86 90 00 00 00 	movups %xmm0,0x90(%rsi)
+ 2c6:	66 0f 6f 84 24 b0 00 	movdqa 0xb0(%rsp),%xmm0
+ 2cd:	00 00
+ 2cf:	0f 11 86 a0 00 00 00 	movups %xmm0,0xa0(%rsi)
+ 2d6:	66 0f 6f 84 24 c0 00 	movdqa 0xc0(%rsp),%xmm0
+ 2dd:	00 00
+ 2df:	0f 11 86 b0 00 00 00 	movups %xmm0,0xb0(%rsi)
+ 2e6:	66 0f 6f 84 24 d0 00 	movdqa 0xd0(%rsp),%xmm0
+ 2ed:	00 00
+ 2ef:	0f 11 86 c0 00 00 00 	movups %xmm0,0xc0(%rsi)
+ 2f6:	66 0f 6f 84 24 e0 00 	movdqa 0xe0(%rsp),%xmm0
+ 2fd:	00 00
+ 2ff:	0f 11 86 d0 00 00 00 	movups %xmm0,0xd0(%rsi)
+ 306:	66 0f 6f 84 24 f0 00 	movdqa 0xf0(%rsp),%xmm0
+ 30d:	00 00
+ 30f:	0f 11 86 e0 00 00 00 	movups %xmm0,0xe0(%rsi)
+ 316:	66 0f 6f 84 24 00 01 	movdqa 0x100(%rsp),%xmm0
+ 31d:	00 00
+ 31f:	0f 11 86 f0 00 00 00 	movups %xmm0,0xf0(%rsi)
+ 326:	66 2e 0f 1f 84 00 00 	cs nopw 0x0(%rax,%rax,1)
+ 32d:	00 00 00
+ 330:	48 8b 94 24 18 01 00 	mov    0x118(%rsp),%rdx
+ 337:	00
+ 338:	64 48 2b 14 25 28 00 	sub    %fs:0x28,%rdx
+ 33f:	00 00
+ 341:	0f 85 5b 05 00 00    	jne    8a2 <koblas_probe_v1+0x812>
+ 347:	48 81 c4 28 01 00 00 	add    $0x128,%rsp
+ 34e:	5b                   	pop    %rbx
+ 34f:	5d                   	pop    %rbp
+ 350:	41 5e                	pop    %r14
+ 352:	41 5f                	pop    %r15
+ 354:	c3                   	ret
+ 355:	0f 1f 00             	nopl   (%rax)
+ 358:	b8 01 00 00 00       	mov    $0x1,%eax
+ 35d:	eb d1                	jmp    330 <koblas_probe_v1+0x2a0>
+ 35f:	90                   	nop
+ 360:	b8 02 00 00 00       	mov    $0x2,%eax
+ 365:	b9 02 00 00 00       	mov    $0x2,%ecx
+ 36a:	48 c7 46 04 00 01 00 	movq   $0x100,0x4(%rsi)
+ 371:	00
+ 372:	89 4e 0c             	mov    %ecx,0xc(%rsi)
+ 375:	eb b9                	jmp    330 <koblas_probe_v1+0x2a0>
+ 377:	66 0f 1f 84 00 00 00 	nopw   0x0(%rax,%rax,1)
+ 37e:	00 00
+ 380:	b9 03 00 00 00       	mov    $0x3,%ecx
+ 385:	eb e3                	jmp    36a <koblas_probe_v1+0x2da>
+ 387:	66 0f 1f 84 00 00 00 	nopw   0x0(%rax,%rax,1)
+ 38e:	00 00
+ 390:	b8 01 00 00 00       	mov    $0x1,%eax
+ 395:	eb d3                	jmp    36a <koblas_probe_v1+0x2da>
+ 397:	66 0f 1f 84 00 00 00 	nopw   0x0(%rax,%rax,1)
+ 39e:	00 00
+ 3a0:	41 b8 01 00 00 00    	mov    $0x1,%r8d
+ 3a6:	b8 01 00 00 00       	mov    $0x1,%eax
+ 3ab:	83 fa 02             	cmp    $0x2,%edx
+ 3ae:	74 30                	je     3e0 <koblas_probe_v1+0x350>
+ 3b0:	48 b9 01 00 00 00 00 	movabs $0x10000000001,%rcx
+ 3b7:	01 00 00
+ 3ba:	89 56 08             	mov    %edx,0x8(%rsi)
+ 3bd:	48 89 0e             	mov    %rcx,(%rsi)
+ 3c0:	44 89 46 0c          	mov    %r8d,0xc(%rsi)
+ 3c4:	e9 67 ff ff ff       	jmp    330 <koblas_probe_v1+0x2a0>
+ 3c9:	0f 1f 80 00 00 00 00 	nopl   0x0(%rax)
+ 3d0:	b8 01 00 00 00       	mov    $0x1,%eax
+ 3d5:	eb d9                	jmp    3b0 <koblas_probe_v1+0x320>
+ 3d7:	66 0f 1f 84 00 00 00 	nopw   0x0(%rax,%rax,1)
+ 3de:	00 00
+ 3e0:	44 8b 57 10          	mov    0x10(%rdi),%r10d
+ 3e4:	44 8b 4f 0c          	mov    0xc(%rdi),%r9d
+ 3e8:	45 85 d2             	test   %r10d,%r10d
+ 3eb:	0f 84 10 02 00 00    	je     601 <koblas_probe_v1+0x571>
+ 3f1:	45 85 c9             	test   %r9d,%r9d
+ 3f4:	75 ba                	jne    3b0 <koblas_probe_v1+0x320>
+ 3f6:	44 89 d0             	mov    %r10d,%eax
+ 3f9:	45 89 d0             	mov    %r10d,%r8d
+ 3fc:	c1 e8 04             	shr    $0x4,%eax
+ 3ff:	41 83 e0 0f          	and    $0xf,%r8d
+ 403:	8d 78 ff             	lea    -0x1(%rax),%edi
+ 406:	83 ff 17             	cmp    $0x17,%edi
+ 409:	0f 87 6b 02 00 00    	ja     67a <koblas_probe_v1+0x5ea>
+ 40f:	44 8d 48 f0          	lea    -0x10(%rax),%r9d
+ 413:	44 89 54 24 58       	mov    %r10d,0x58(%rsp)
+ 418:	89 44 24 5c          	mov    %eax,0x5c(%rsp)
+ 41c:	44 89 44 24 60       	mov    %r8d,0x60(%rsp)
+ 421:	41 83 f9 06          	cmp    $0x6,%r9d
+ 425:	0f 87 93 02 00 00    	ja     6be <koblas_probe_v1+0x62e>
+ 42b:	41 83 f8 01          	cmp    $0x1,%r8d
+ 42f:	0f 85 a5 02 00 00    	jne    6da <koblas_probe_v1+0x64a>
+ 435:	31 db                	xor    %ebx,%ebx
+ 437:	4c 8d 15 00 00 00 00 	lea    0x0(%rip),%r10        # 43e <koblas_probe_v1+0x3ae>
+ 43e:	45 31 db             	xor    %r11d,%r11d
+ 441:	47 8b 14 9a          	mov    (%r10,%r11,4),%r10d
+ 445:	89 5c 24 64          	mov    %ebx,0x64(%rsp)
+ 449:	4c 8d 1c bf          	lea    (%rdi,%rdi,4),%r11
+ 44d:	48 bb 01 00 00 00 01 	movabs $0x100000001,%rbx
+ 454:	00 00 00
+ 457:	48 89 5c 24 70       	mov    %rbx,0x70(%rsp)
+ 45c:	44 89 54 24 68       	mov    %r10d,0x68(%rsp)
+ 461:	45 31 d2             	xor    %r10d,%r10d
+ 464:	41 83 f8 01          	cmp    $0x1,%r8d
+ 468:	41 0f 95 c2          	setne  %r10b
+ 46c:	48 89 5c 24 78       	mov    %rbx,0x78(%rsp)
+ 471:	44 89 94 24 84 00 00 	mov    %r10d,0x84(%rsp)
+ 478:	00
+ 479:	44 89 94 24 88 00 00 	mov    %r10d,0x88(%rsp)
+ 480:	00
+ 481:	4c 8d 15 00 00 00 00 	lea    0x0(%rip),%r10        # 488 <koblas_probe_v1+0x3f8>
+ 488:	4b 8d 1c 9a          	lea    (%r10,%r11,4),%rbx
+ 48c:	44 8b 7b 04          	mov    0x4(%rbx),%r15d
+ 490:	44 8b 73 08          	mov    0x8(%rbx),%r14d
+ 494:	48 89 dd             	mov    %rbx,%rbp
+ 497:	44 8b 5b 0c          	mov    0xc(%rbx),%r11d
+ 49b:	0f 85 31 03 00 00    	jne    7d2 <koblas_probe_v1+0x742>
+ 4a1:	8b 5d 10             	mov    0x10(%rbp),%ebx
+ 4a4:	44 89 bc 24 90 00 00 	mov    %r15d,0x90(%rsp)
+ 4ab:	00
+ 4ac:	c7 84 24 8c 00 00 00 	movl   $0x0,0x8c(%rsp)
+ 4b3:	00 00 00 00
+ 4b7:	85 db                	test   %ebx,%ebx
+ 4b9:	44 89 b4 24 94 00 00 	mov    %r14d,0x94(%rsp)
+ 4c0:	00
+ 4c1:	0f 94 44 24 0f       	sete   0xf(%rsp)
+ 4c6:	41 83 f9 06          	cmp    $0x6,%r9d
+ 4ca:	41 0f 97 c0          	seta   %r8b
+ 4ce:	44 84 44 24 0f       	test   %r8b,0xf(%rsp)
+ 4d3:	74 09                	je     4de <koblas_probe_v1+0x44e>
+ 4d5:	83 f8 06             	cmp    $0x6,%eax
+ 4d8:	0f 85 51 04 00 00    	jne    92f <koblas_probe_v1+0x89f>
+ 4de:	48 8d 3c bf          	lea    (%rdi,%rdi,4),%rdi
+ 4e2:	44 89 9c 24 98 00 00 	mov    %r11d,0x98(%rsp)
+ 4e9:	00
+ 4ea:	41 8b 7c ba 10       	mov    0x10(%r10,%rdi,4),%edi
+ 4ef:	85 ff                	test   %edi,%edi
+ 4f1:	0f 84 93 01 00 00    	je     68a <koblas_probe_v1+0x5fa>
+ 4f7:	83 f8 17             	cmp    $0x17,%eax
+ 4fa:	0f 84 9e 00 00 00    	je     59e <koblas_probe_v1+0x50e>
+ 500:	83 f8 18             	cmp    $0x18,%eax
+ 503:	0f 84 bf 03 00 00    	je     8c8 <koblas_probe_v1+0x838>
+ 509:	c7 84 24 9c 00 00 00 	movl   $0x2,0x9c(%rsp)
+ 510:	02 00 00 00
+ 514:	bb 04 00 00 00       	mov    $0x4,%ebx
+ 519:	41 bb 04 00 00 00    	mov    $0x4,%r11d
+ 51f:	41 b8 01 00 01 00    	mov    $0x10001,%r8d
+ 525:	41 ba 01 00 02 00    	mov    $0x20001,%r10d
+ 52b:	89 9c 24 a4 00 00 00 	mov    %ebx,0xa4(%rsp)
+ 532:	44 89 9c 24 a0 00 00 	mov    %r11d,0xa0(%rsp)
+ 539:	00
+ 53a:	c7 84 24 a8 00 00 00 	movl   $0x1,0xa8(%rsp)
+ 541:	01 00 00 00
+ 545:	89 94 24 ac 00 00 00 	mov    %edx,0xac(%rsp)
+ 54c:	44 89 84 24 b4 00 00 	mov    %r8d,0xb4(%rsp)
+ 553:	00
+ 554:	44 89 84 24 b0 00 00 	mov    %r8d,0xb0(%rsp)
+ 55b:	00
+ 55c:	44 89 94 24 b8 00 00 	mov    %r10d,0xb8(%rsp)
+ 563:	00
+ 564:	c7 84 24 bc 00 00 00 	movl   $0x8,0xbc(%rsp)
+ 56b:	08 00 00 00
+ 56f:	83 f8 03             	cmp    $0x3,%eax
+ 572:	0f 85 84 02 00 00    	jne    7fc <koblas_probe_v1+0x76c>
+ 578:	b9 03 00 00 00       	mov    $0x3,%ecx
+ 57d:	41 83 f9 06          	cmp    $0x6,%r9d
+ 581:	0f 87 1e 04 00 00    	ja     9a5 <koblas_probe_v1+0x915>
+ 587:	b8 08 00 00 00       	mov    $0x8,%eax
+ 58c:	89 84 24 c8 00 00 00 	mov    %eax,0xc8(%rsp)
+ 593:	85 ff                	test   %edi,%edi
+ 595:	75 58                	jne    5ef <koblas_probe_v1+0x55f>
+ 597:	89 c8                	mov    %ecx,%eax
+ 599:	e9 a5 fc ff ff       	jmp    243 <koblas_probe_v1+0x1b3>
+ 59e:	48 b8 04 00 00 00 04 	movabs $0x400000004,%rax
+ 5a5:	00 00 00
+ 5a8:	b9 05 00 00 00       	mov    $0x5,%ecx
+ 5ad:	c7 84 24 9c 00 00 00 	movl   $0x3,0x9c(%rsp)
+ 5b4:	03 00 00 00
+ 5b8:	48 89 84 24 a0 00 00 	mov    %rax,0xa0(%rsp)
+ 5bf:	00
+ 5c0:	48 83 e8 03          	sub    $0x3,%rax
+ 5c4:	48 89 84 24 a8 00 00 	mov    %rax,0xa8(%rsp)
+ 5cb:	00
+ 5cc:	b8 01 00 01 00       	mov    $0x10001,%eax
+ 5d1:	48 c1 e0 20          	shl    $0x20,%rax
+ 5d5:	48 89 84 24 b0 00 00 	mov    %rax,0xb0(%rsp)
+ 5dc:	00
+ 5dd:	48 b8 01 00 02 00 08 	movabs $0x800020001,%rax
+ 5e4:	00 00 00
+ 5e7:	48 89 84 24 b8 00 00 	mov    %rax,0xb8(%rsp)
+ 5ee:	00
+ 5ef:	c7 84 24 c8 00 00 00 	movl   $0x30,0xc8(%rsp)
+ 5f6:	30 00 00 00
+ 5fa:	89 c8                	mov    %ecx,%eax
+ 5fc:	e9 42 fc ff ff       	jmp    243 <koblas_probe_v1+0x1b3>
+ 601:	44 3b 0d 00 00 00 00 	cmp    0x0(%rip),%r9d        # 608 <koblas_probe_v1+0x578>
+ 608:	73 70                	jae    67a <koblas_probe_v1+0x5ea>
+ 60a:	48 8d 3d 00 00 00 00 	lea    0x0(%rip),%rdi        # 611 <koblas_probe_v1+0x581>
+ 611:	41 b8 01 00 00 00    	mov    $0x1,%r8d
+ 617:	4c 8d 97 e0 01 00 00 	lea    0x1e0(%rdi),%r10
+ 61e:	eb 2f                	jmp    64f <koblas_probe_v1+0x5bf>
+ 620:	66 2e 0f 1f 84 00 00 	cs nopw 0x0(%rax,%rax,1)
+ 627:	00 00 00
+ 62a:	66 66 2e 0f 1f 84 00 	data16 cs nopw 0x0(%rax,%rax,1)
+ 631:	00 00 00 00
+ 635:	66 66 2e 0f 1f 84 00 	data16 cs nopw 0x0(%rax,%rax,1)
+ 63c:	00 00 00 00
+ 640:	48 83 c7 14          	add    $0x14,%rdi
+ 644:	4c 39 d7             	cmp    %r10,%rdi
+ 647:	74 31                	je     67a <koblas_probe_v1+0x5ea>
+ 649:	44 8b 07             	mov    (%rdi),%r8d
+ 64c:	41 29 c1             	sub    %eax,%r9d
+ 64f:	41 8d 40 f0          	lea    -0x10(%r8),%eax
+ 653:	83 f8 07             	cmp    $0x7,%eax
+ 656:	19 c0                	sbb    %eax,%eax
+ 658:	83 e0 fe             	and    $0xfffffffe,%eax
+ 65b:	83 c0 03             	add    $0x3,%eax
+ 65e:	41 39 c1             	cmp    %eax,%r9d
+ 661:	73 dd                	jae    640 <koblas_probe_v1+0x5b0>
+ 663:	48 8d 05 00 00 00 00 	lea    0x0(%rip),%rax        # 66a <koblas_probe_v1+0x5da>
+ 66a:	41 c1 e0 04          	shl    $0x4,%r8d
+ 66e:	46 8b 14 88          	mov    (%rax,%r9,4),%r10d
+ 672:	45 01 c2             	add    %r8d,%r10d
+ 675:	e9 7c fd ff ff       	jmp    3f6 <koblas_probe_v1+0x366>
+ 67a:	b8 04 00 00 00       	mov    $0x4,%eax
+ 67f:	41 b8 04 00 00 00    	mov    $0x4,%r8d
+ 685:	e9 26 fd ff ff       	jmp    3b0 <koblas_probe_v1+0x320>
+ 68a:	c7 84 24 9c 00 00 00 	movl   $0x1,0x9c(%rsp)
+ 691:	01 00 00 00
+ 695:	83 f8 17             	cmp    $0x17,%eax
+ 698:	0f 84 93 01 00 00    	je     831 <koblas_probe_v1+0x7a1>
+ 69e:	83 f8 18             	cmp    $0x18,%eax
+ 6a1:	0f 84 79 02 00 00    	je     920 <koblas_probe_v1+0x890>
+ 6a7:	ba 01 00 00 00       	mov    $0x1,%edx
+ 6ac:	31 db                	xor    %ebx,%ebx
+ 6ae:	45 31 db             	xor    %r11d,%r11d
+ 6b1:	45 31 c0             	xor    %r8d,%r8d
+ 6b4:	31 ff                	xor    %edi,%edi
+ 6b6:	45 31 d2             	xor    %r10d,%r10d
+ 6b9:	e9 6d fe ff ff       	jmp    52b <koblas_probe_v1+0x49b>
+ 6be:	41 83 f8 01          	cmp    $0x1,%r8d
+ 6c2:	0f 84 6d fd ff ff    	je     435 <koblas_probe_v1+0x3a5>
+ 6c8:	41 83 f8 02          	cmp    $0x2,%r8d
+ 6cc:	74 7c                	je     74a <koblas_probe_v1+0x6ba>
+ 6ce:	41 bb 02 00 00 00    	mov    $0x2,%r11d
+ 6d4:	41 83 f8 03          	cmp    $0x3,%r8d
+ 6d8:	74 76                	je     750 <koblas_probe_v1+0x6c0>
+ 6da:	41 8d 58 ff          	lea    -0x1(%r8),%ebx
+ 6de:	c7 44 24 64 09 00 00 	movl   $0x9,0x64(%rsp)
+ 6e5:	00
+ 6e6:	4c 8d 15 00 00 00 00 	lea    0x0(%rip),%r10        # 6ed <koblas_probe_v1+0x65d>
+ 6ed:	41 89 df             	mov    %ebx,%r15d
+ 6f0:	83 fb 03             	cmp    $0x3,%ebx
+ 6f3:	0f 86 84 00 00 00    	jbe    77d <koblas_probe_v1+0x6ed>
+ 6f9:	c7 44 24 68 ff ff ff 	movl   $0xffffffff,0x68(%rsp)
+ 700:	ff
+ 701:	4c 8d 15 00 00 00 00 	lea    0x0(%rip),%r10        # 708 <koblas_probe_v1+0x678>
+ 708:	48 bb 01 00 00 00 01 	movabs $0x100000001,%rbx
+ 70f:	00 00 00
+ 712:	48 89 5c 24 70       	mov    %rbx,0x70(%rsp)
+ 717:	48 89 5c 24 78       	mov    %rbx,0x78(%rsp)
+ 71c:	48 89 9c 24 84 00 00 	mov    %rbx,0x84(%rsp)
+ 723:	00
+ 724:	c7 84 24 8c 00 00 00 	movl   $0x80,0x8c(%rsp)
+ 72b:	80 00 00 00
+ 72f:	4c 8d 04 bf          	lea    (%rdi,%rdi,4),%r8
+ 733:	4f 8b 5c 82 04       	mov    0x4(%r10,%r8,4),%r11
+ 738:	4c 89 9c 24 90 00 00 	mov    %r11,0x90(%rsp)
+ 73f:	00
+ 740:	47 8b 5c 82 0c       	mov    0xc(%r10,%r8,4),%r11d
+ 745:	e9 94 fd ff ff       	jmp    4de <koblas_probe_v1+0x44e>
+ 74a:	41 bb 01 00 00 00    	mov    $0x1,%r11d
+ 750:	4c 8d 15 00 00 00 00 	lea    0x0(%rip),%r10        # 757 <koblas_probe_v1+0x6c7>
+ 757:	44 8b 35 00 00 00 00 	mov    0x0(%rip),%r14d        # 75e <koblas_probe_v1+0x6ce>
+ 75e:	43 8b 1c 9a          	mov    (%r10,%r11,4),%ebx
+ 762:	45 8d 58 ff          	lea    -0x1(%r8),%r11d
+ 766:	45 89 df             	mov    %r11d,%r15d
+ 769:	41 21 de             	and    %ebx,%r14d
+ 76c:	44 39 f3             	cmp    %r14d,%ebx
+ 76f:	0f 84 32 01 00 00    	je     8a7 <koblas_probe_v1+0x817>
+ 775:	c7 44 24 64 05 00 00 	movl   $0x5,0x64(%rsp)
+ 77c:	00
+ 77d:	48 bb 01 00 00 00 01 	movabs $0x100000001,%rbx
+ 784:	00 00 00
+ 787:	45 89 fb             	mov    %r15d,%r11d
+ 78a:	47 8b 14 9a          	mov    (%r10,%r11,4),%r10d
+ 78e:	48 89 5c 24 70       	mov    %rbx,0x70(%rsp)
+ 793:	48 89 5c 24 78       	mov    %rbx,0x78(%rsp)
+ 798:	44 89 54 24 68       	mov    %r10d,0x68(%rsp)
+ 79d:	45 31 d2             	xor    %r10d,%r10d
+ 7a0:	41 83 f8 01          	cmp    $0x1,%r8d
+ 7a4:	41 0f 95 c2          	setne  %r10b
+ 7a8:	4c 6b df 14          	imul   $0x14,%rdi,%r11
+ 7ac:	44 89 94 24 84 00 00 	mov    %r10d,0x84(%rsp)
+ 7b3:	00
+ 7b4:	44 89 94 24 88 00 00 	mov    %r10d,0x88(%rsp)
+ 7bb:	00
+ 7bc:	4c 8d 15 00 00 00 00 	lea    0x0(%rip),%r10        # 7c3 <koblas_probe_v1+0x733>
+ 7c3:	4d 01 d3             	add    %r10,%r11
+ 7c6:	45 8b 7b 04          	mov    0x4(%r11),%r15d
+ 7ca:	45 8b 73 08          	mov    0x8(%r11),%r14d
+ 7ce:	45 8b 5b 0c          	mov    0xc(%r11),%r11d
+ 7d2:	41 83 f8 03          	cmp    $0x3,%r8d
+ 7d6:	0f 85 48 ff ff ff    	jne    724 <koblas_probe_v1+0x694>
+ 7dc:	c7 84 24 8c 00 00 00 	movl   $0x100,0x8c(%rsp)
+ 7e3:	00 01 00 00
+ 7e7:	44 89 bc 24 90 00 00 	mov    %r15d,0x90(%rsp)
+ 7ee:	00
+ 7ef:	44 89 b4 24 94 00 00 	mov    %r14d,0x94(%rsp)
+ 7f6:	00
+ 7f7:	e9 e2 fc ff ff       	jmp    4de <koblas_probe_v1+0x44e>
+ 7fc:	83 f8 12             	cmp    $0x12,%eax
+ 7ff:	0f 84 73 fd ff ff    	je     578 <koblas_probe_v1+0x4e8>
+ 805:	83 f8 06             	cmp    $0x6,%eax
+ 808:	0f 84 a1 01 00 00    	je     9af <koblas_probe_v1+0x91f>
+ 80e:	83 f8 14             	cmp    $0x14,%eax
+ 811:	0f 84 98 01 00 00    	je     9af <koblas_probe_v1+0x91f>
+ 817:	83 f8 0d             	cmp    $0xd,%eax
+ 81a:	75 60                	jne    87c <koblas_probe_v1+0x7ec>
+ 81c:	b9 11 00 00 00       	mov    $0x11,%ecx
+ 821:	c7 84 24 c8 00 00 00 	movl   $0x3,0xc8(%rsp)
+ 828:	03 00 00 00
+ 82c:	e9 62 fd ff ff       	jmp    593 <koblas_probe_v1+0x503>
+ 831:	bf 03 00 00 00       	mov    $0x3,%edi
+ 836:	ba 04 00 00 00       	mov    $0x4,%edx
+ 83b:	bb 01 00 00 00       	mov    $0x1,%ebx
+ 840:	45 31 c0             	xor    %r8d,%r8d
+ 843:	c7 84 24 a8 00 00 00 	movl   $0x1,0xa8(%rsp)
+ 84a:	01 00 00 00
+ 84e:	48 c1 e3 23          	shl    $0x23,%rbx
+ 852:	89 94 24 ac 00 00 00 	mov    %edx,0xac(%rsp)
+ 859:	4c 89 84 24 b0 00 00 	mov    %r8,0xb0(%rsp)
+ 860:	00
+ 861:	48 89 9c 24 b8 00 00 	mov    %rbx,0xb8(%rsp)
+ 868:	00
+ 869:	89 bc 24 9c 00 00 00 	mov    %edi,0x9c(%rsp)
+ 870:	31 ff                	xor    %edi,%edi
+ 872:	48 89 bc 24 a0 00 00 	mov    %rdi,0xa0(%rsp)
+ 879:	00
+ 87a:	31 ff                	xor    %edi,%edi
+ 87c:	8d 50 f6             	lea    -0xa(%rax),%edx
+ 87f:	83 e2 fd             	and    $0xfffffffd,%edx
+ 882:	0f 85 38 01 00 00    	jne    9c0 <koblas_probe_v1+0x930>
+ 888:	c7 84 24 c8 00 00 00 	movl   $0x1,0xc8(%rsp)
+ 88f:	01 00 00 00
+ 893:	b9 21 00 00 00       	mov    $0x21,%ecx
+ 898:	83 f8 0a             	cmp    $0xa,%eax
+ 89b:	75 84                	jne    821 <koblas_probe_v1+0x791>
+ 89d:	e9 f1 fc ff ff       	jmp    593 <koblas_probe_v1+0x503>
+ 8a2:	e8 00 00 00 00       	call   8a7 <koblas_probe_v1+0x817>
+ 8a7:	44 8b 35 00 00 00 00 	mov    0x0(%rip),%r14d        # 8ae <koblas_probe_v1+0x81e>
+ 8ae:	41 21 de             	and    %ebx,%r14d
+ 8b1:	41 39 de             	cmp    %ebx,%r14d
+ 8b4:	bb 00 00 00 00       	mov    $0x0,%ebx
+ 8b9:	41 be 06 00 00 00    	mov    $0x6,%r14d
+ 8bf:	41 0f 45 de          	cmovne %r14d,%ebx
+ 8c3:	e9 79 fb ff ff       	jmp    441 <koblas_probe_v1+0x3b1>
+ 8c8:	48 bb 04 00 00 00 04 	movabs $0x400000004,%rbx
+ 8cf:	00 00 00
+ 8d2:	c7 84 24 9c 00 00 00 	movl   $0x4,0x9c(%rsp)
+ 8d9:	04 00 00 00
+ 8dd:	48 89 9c 24 a0 00 00 	mov    %rbx,0xa0(%rsp)
+ 8e4:	00
+ 8e5:	48 bb 01 00 00 00 06 	movabs $0x600000001,%rbx
+ 8ec:	00 00 00
+ 8ef:	48 89 9c 24 a8 00 00 	mov    %rbx,0xa8(%rsp)
+ 8f6:	00
+ 8f7:	48 bb 01 00 01 00 01 	movabs $0x1000100010001,%rbx
+ 8fe:	00 01 00
+ 901:	48 89 9c 24 b0 00 00 	mov    %rbx,0xb0(%rsp)
+ 908:	00
+ 909:	48 bb 01 00 02 00 08 	movabs $0x800020001,%rbx
+ 910:	00 00 00
+ 913:	48 89 9c 24 b8 00 00 	mov    %rbx,0xb8(%rsp)
+ 91a:	00
+ 91b:	e9 5c ff ff ff       	jmp    87c <koblas_probe_v1+0x7ec>
+ 920:	bf 04 00 00 00       	mov    $0x4,%edi
+ 925:	ba 05 00 00 00       	mov    $0x5,%edx
+ 92a:	e9 0c ff ff ff       	jmp    83b <koblas_probe_v1+0x7ab>
+ 92f:	48 bb 01 00 00 00 01 	movabs $0x100000001,%rbx
+ 936:	00 00 00
+ 939:	c7 84 24 98 00 00 00 	movl   $0x1,0x98(%rsp)
+ 940:	01 00 00 00
+ 944:	48 89 9c 24 90 00 00 	mov    %rbx,0x90(%rsp)
+ 94b:	00
+ 94c:	83 f8 0c             	cmp    $0xc,%eax
+ 94f:	0f 85 35 fd ff ff    	jne    68a <koblas_probe_v1+0x5fa>
+ 955:	bb 01 00 00 40       	mov    $0x40000001,%ebx
+ 95a:	45 31 d2             	xor    %r10d,%r10d
+ 95d:	45 31 db             	xor    %r11d,%r11d
+ 960:	31 ff                	xor    %edi,%edi
+ 962:	48 c1 e3 02          	shl    $0x2,%rbx
+ 966:	4c 89 94 24 a0 00 00 	mov    %r10,0xa0(%rsp)
+ 96d:	00
+ 96e:	48 89 9c 24 98 00 00 	mov    %rbx,0x98(%rsp)
+ 975:	00
+ 976:	48 83 eb 03          	sub    $0x3,%rbx
+ 97a:	48 89 9c 24 a8 00 00 	mov    %rbx,0xa8(%rsp)
+ 981:	00
+ 982:	bb 01 00 00 00       	mov    $0x1,%ebx
+ 987:	48 c1 e3 23          	shl    $0x23,%rbx
+ 98b:	4c 89 9c 24 b0 00 00 	mov    %r11,0xb0(%rsp)
+ 992:	00
+ 993:	48 89 9c 24 b8 00 00 	mov    %rbx,0xb8(%rsp)
+ 99a:	00
+ 99b:	e9 65 fe ff ff       	jmp    805 <koblas_probe_v1+0x775>
+ 9a0:	b9 01 00 00 00       	mov    $0x1,%ecx
+ 9a5:	b8 01 00 00 00       	mov    $0x1,%eax
+ 9aa:	e9 dd fb ff ff       	jmp    58c <koblas_probe_v1+0x4fc>
+ 9af:	b9 09 00 00 00       	mov    $0x9,%ecx
+ 9b4:	41 83 f9 06          	cmp    $0x6,%r9d
+ 9b8:	0f 86 c9 fb ff ff    	jbe    587 <koblas_probe_v1+0x4f7>
+ 9be:	eb e5                	jmp    9a5 <koblas_probe_v1+0x915>
+ 9c0:	8d 50 e9             	lea    -0x17(%rax),%edx
+ 9c3:	83 fa 01             	cmp    $0x1,%edx
+ 9c6:	77 15                	ja     9dd <koblas_probe_v1+0x94d>
+ 9c8:	c7 84 24 c8 00 00 00 	movl   $0x1,0xc8(%rsp)
+ 9cf:	01 00 00 00
+ 9d3:	b9 05 00 00 00       	mov    $0x5,%ecx
+ 9d8:	e9 b6 fb ff ff       	jmp    593 <koblas_probe_v1+0x503>
+ 9dd:	41 83 f9 06          	cmp    $0x6,%r9d
+ 9e1:	0f 86 a0 fb ff ff    	jbe    587 <koblas_probe_v1+0x4f7>
+ 9e7:	83 f8 0f             	cmp    $0xf,%eax
+ 9ea:	75 b4                	jne    9a0 <koblas_probe_v1+0x910>
+ 9ec:	b8 04 00 00 00       	mov    $0x4,%eax
+ 9f1:	e9 96 fb ff ff       	jmp    58c <koblas_probe_v1+0x4fc>
+
+0000000000000000 <initialize_host>:
+   0:	f3 0f 1e fa          	endbr64
+   4:	48 b8 01 00 00 00 00 	movabs $0x10000000001,%rax
+   b:	01 00 00
+   e:	53                   	push   %rbx
+   f:	48 89 05 00 00 00 00 	mov    %rax,0x0(%rip)        # 16 <initialize_host+0x16>
+  16:	48 b8 01 00 00 00 3a 	movabs $0x3a00000001,%rax
+  1d:	00 00 00
+  20:	48 89 05 00 00 00 00 	mov    %rax,0x0(%rip)        # 27 <initialize_host+0x27>
+  27:	48 b8 01 00 00 00 01 	movabs $0x100000001,%rax
+  2e:	00 00 00
+  31:	48 89 05 00 00 00 00 	mov    %rax,0x0(%rip)        # 38 <initialize_host+0x38>
+  38:	31 c0                	xor    %eax,%eax
+  3a:	83 0d 00 00 00 00 07 	orl    $0x7,0x0(%rip)        # 41 <initialize_host+0x41>
+  41:	c7 05 00 00 00 00 01 	movl   $0x1,0x0(%rip)        # 4b <initialize_host+0x4b>
+  48:	00 00 00
+  4b:	0f a2                	cpuid
+  4d:	89 c7                	mov    %eax,%edi
+  4f:	31 c0                	xor    %eax,%eax
+  51:	0f a2                	cpuid
+  53:	89 de                	mov    %ebx,%esi
+  55:	81 fb 47 65 6e 75    	cmp    $0x756e6547,%ebx
+  5b:	0f 85 20 01 00 00    	jne    181 <initialize_host+0x181>
+  61:	81 fa 69 6e 65 49    	cmp    $0x49656e69,%edx
+  67:	0f 85 14 01 00 00    	jne    181 <initialize_host+0x181>
+  6d:	81 f9 6e 74 65 6c    	cmp    $0x6c65746e,%ecx
+  73:	0f 84 61 01 00 00    	je     1da <initialize_host+0x1da>
+  79:	85 ff                	test   %edi,%edi
+  7b:	0f 84 fe 00 00 00    	je     17f <initialize_host+0x17f>
+  81:	b8 01 00 00 00       	mov    $0x1,%eax
+  86:	0f a2                	cpuid
+  88:	89 c6                	mov    %eax,%esi
+  8a:	41 89 c0             	mov    %eax,%r8d
+  8d:	c1 ee 08             	shr    $0x8,%esi
+  90:	41 c1 e8 04          	shr    $0x4,%r8d
+  94:	83 e6 0f             	and    $0xf,%esi
+  97:	41 83 e0 0f          	and    $0xf,%r8d
+  9b:	83 fe 0f             	cmp    $0xf,%esi
+  9e:	0f 84 14 01 00 00    	je     1b8 <initialize_host+0x1b8>
+  a4:	41 b9 40 80 00 00    	mov    $0x8040,%r9d
+  aa:	89 35 00 00 00 00    	mov    %esi,0x0(%rip)        # b0 <initialize_host+0xb0>
+  b0:	49 0f a3 f1          	bt     %rsi,%r9
+  b4:	0f 82 10 01 00 00    	jb     1ca <initialize_host+0x1ca>
+  ba:	81 e2 00 00 00 04    	and    $0x4000000,%edx
+  c0:	44 89 05 00 00 00 00 	mov    %r8d,0x0(%rip)        # c7 <initialize_host+0xc7>
+  c7:	8b 35 00 00 00 00    	mov    0x0(%rip),%esi        # cd <initialize_host+0xcd>
+  cd:	74 09                	je     d8 <initialize_host+0xd8>
+  cf:	83 ce 01             	or     $0x1,%esi
+  d2:	89 35 00 00 00 00    	mov    %esi,0x0(%rip)        # d8 <initialize_host+0xd8>
+  d8:	f7 c1 00 00 00 10    	test   $0x10000000,%ecx
+  de:	74 09                	je     e9 <initialize_host+0xe9>
+  e0:	83 ce 02             	or     $0x2,%esi
+  e3:	89 35 00 00 00 00    	mov    %esi,0x0(%rip)        # e9 <initialize_host+0xe9>
+  e9:	41 89 f1             	mov    %esi,%r9d
+  ec:	f7 d1                	not    %ecx
+  ee:	41 83 e1 01          	and    $0x1,%r9d
+  f2:	81 e1 00 00 00 0c    	and    $0xc000000,%ecx
+  f8:	44 89 0d 00 00 00 00 	mov    %r9d,0x0(%rip)        # ff <initialize_host+0xff>
+  ff:	0f 84 e4 00 00 00    	je     1e9 <initialize_host+0x1e9>
+ 105:	83 ff 06             	cmp    $0x6,%edi
+ 108:	76 75                	jbe    17f <initialize_host+0x17f>
+ 10a:	45 31 c0             	xor    %r8d,%r8d
+ 10d:	b8 07 00 00 00       	mov    $0x7,%eax
+ 112:	31 c9                	xor    %ecx,%ecx
+ 114:	0f a2                	cpuid
+ 116:	89 df                	mov    %ebx,%edi
+ 118:	f6 c3 20             	test   $0x20,%bl
+ 11b:	74 09                	je     126 <initialize_host+0x126>
+ 11d:	83 ce 04             	or     $0x4,%esi
+ 120:	89 35 00 00 00 00    	mov    %esi,0x0(%rip)        # 126 <initialize_host+0x126>
+ 126:	81 e7 00 00 01 00    	and    $0x10000,%edi
+ 12c:	74 0a                	je     138 <initialize_host+0x138>
+ 12e:	81 0d 00 00 00 00 00 	orl    $0x100,0x0(%rip)        # 138 <initialize_host+0x138>
+ 135:	01 00 00
+ 138:	81 e2 00 00 00 01    	and    $0x1000000,%edx
+ 13e:	74 0a                	je     14a <initialize_host+0x14a>
+ 140:	81 0d 00 00 00 00 00 	orl    $0x800,0x0(%rip)        # 14a <initialize_host+0x14a>
+ 147:	08 00 00
+ 14a:	44 89 c0             	mov    %r8d,%eax
+ 14d:	f7 d0                	not    %eax
+ 14f:	a8 06                	test   $0x6,%al
+ 151:	75 12                	jne    165 <initialize_host+0x165>
+ 153:	8b 05 00 00 00 00    	mov    0x0(%rip),%eax        # 159 <initialize_host+0x159>
+ 159:	83 e0 06             	and    $0x6,%eax
+ 15c:	44 09 c8             	or     %r9d,%eax
+ 15f:	89 05 00 00 00 00    	mov    %eax,0x0(%rip)        # 165 <initialize_host+0x165>
+ 165:	41 f7 d0             	not    %r8d
+ 168:	41 80 e0 e6          	and    $0xe6,%r8b
+ 16c:	75 11                	jne    17f <initialize_host+0x17f>
+ 16e:	8b 05 00 00 00 00    	mov    0x0(%rip),%eax        # 174 <initialize_host+0x174>
+ 174:	25 00 01 00 00       	and    $0x100,%eax
+ 179:	09 05 00 00 00 00    	or     %eax,0x0(%rip)        # 17f <initialize_host+0x17f>
+ 17f:	5b                   	pop    %rbx
+ 180:	c3                   	ret
+ 181:	81 fe 41 75 74 68    	cmp    $0x68747541,%esi
+ 187:	40 0f 94 c6          	sete   %sil
+ 18b:	81 fa 65 6e 74 69    	cmp    $0x69746e65,%edx
+ 191:	0f 94 c0             	sete   %al
+ 194:	40 84 c6             	test   %al,%sil
+ 197:	0f 84 dc fe ff ff    	je     79 <initialize_host+0x79>
+ 19d:	81 f9 63 41 4d 44    	cmp    $0x444d4163,%ecx
+ 1a3:	0f 85 d0 fe ff ff    	jne    79 <initialize_host+0x79>
+ 1a9:	c7 05 00 00 00 00 02 	movl   $0x2,0x0(%rip)        # 1b3 <initialize_host+0x1b3>
+ 1b0:	00 00 00
+ 1b3:	e9 c1 fe ff ff       	jmp    79 <initialize_host+0x79>
+ 1b8:	89 c6                	mov    %eax,%esi
+ 1ba:	c1 ee 14             	shr    $0x14,%esi
+ 1bd:	40 0f b6 f6          	movzbl %sil,%esi
+ 1c1:	83 c6 0f             	add    $0xf,%esi
+ 1c4:	89 35 00 00 00 00    	mov    %esi,0x0(%rip)        # 1ca <initialize_host+0x1ca>
+ 1ca:	c1 e8 0c             	shr    $0xc,%eax
+ 1cd:	25 f0 00 00 00       	and    $0xf0,%eax
+ 1d2:	41 01 c0             	add    %eax,%r8d
+ 1d5:	e9 e0 fe ff ff       	jmp    ba <initialize_host+0xba>
+ 1da:	c7 05 00 00 00 00 01 	movl   $0x1,0x0(%rip)        # 1e4 <initialize_host+0x1e4>
+ 1e1:	00 00 00
+ 1e4:	e9 90 fe ff ff       	jmp    79 <initialize_host+0x79>
+ 1e9:	31 c9                	xor    %ecx,%ecx
+ 1eb:	0f 01 d0             	xgetbv
+ 1ee:	41 89 c0             	mov    %eax,%r8d
+ 1f1:	83 ff 06             	cmp    $0x6,%edi
+ 1f4:	0f 86 50 ff ff ff    	jbe    14a <initialize_host+0x14a>
+ 1fa:	e9 0e ff ff ff       	jmp    10d <initialize_host+0x10d>

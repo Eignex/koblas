@@ -129,3 +129,19 @@ The [scal and spgather investigation](reports/9096bd06b8f87c06e1a8b7d05912c2b124
 The [native scaling alignment follow-up](reports/9096bd06b8f87c06e1a8b7d05912c2b124b9997dd49a7894a304c4ae5c857247/20260912T134906Z-scal-alignment/README.md) isolates misaligned stores, validates guarded alignment through the native engine, and compares with oneMKL and OpenBLAS.
 
 The [OpenBLAS source follow-up](reports/9096bd06b8f87c06e1a8b7d05912c2b124b9997dd49a7894a304c4ae5c857247/20260912T141014Z-openblas-source/README.md) compares the Haswell loop, validates fixed pointer-relative blocks, and records the remaining vendor gap.
+
+## Exact ordinary native variants
+
+`jvm-c` and `native` retain their measured runtime policies. Use an explicit raw variant to bypass those
+thresholds for dense vector, panel, and tile arithmetic:
+
+```bash
+./gradlew :koblas-bench:jvmCRawBenchmark -Pbench.variant=avx2 -Pbench.operation=dot
+./gradlew :koblas-bench:nativeBenchmark -Pbench.variant=scalar -Pbench.operation=dot
+```
+
+Variants are `scalar`, `sse2`, `avx2`, and `neon`. A variant must be compiled into the artifact and usable on
+the current host; an unavailable exact request fails. Case records identify the actual native implementation
+symbol. Scalar Kotlin and JVM Vector API modes remain separate. Indexed sparse kernels keep their explicitly
+named scalar C policy, and transformation generation and portable orchestration retain their own components.
+Packed cases use the public exact engine interface; they no longer need private JVM binding access.

@@ -1,0 +1,1168 @@
+[==========] Running 505 tests from 51 test cases.
+[----------] Global test environment set-up.
+[----------] 4 tests from com.eignex.koblas.AdapterTest
+[ RUN      ] com.eignex.koblas.AdapterTest.gemv accepts a foreign matrix and vector
+[       OK ] com.eignex.koblas.AdapterTest.gemv accepts a foreign matrix and vector (34 ms)
+[ RUN      ] com.eignex.koblas.AdapterTest.the vector reductions accept a foreign vector
+[       OK ] com.eignex.koblas.AdapterTest.the vector reductions accept a foreign vector (4 ms)
+[ RUN      ] com.eignex.koblas.AdapterTest.axpy and copy accept a foreign source
+[       OK ] com.eignex.koblas.AdapterTest.axpy and copy accept a foreign source (0 ms)
+[ RUN      ] com.eignex.koblas.AdapterTest.a sparse operand still walks its stored entries against an adapter
+[       OK ] com.eignex.koblas.AdapterTest.a sparse operand still walks its stored entries against an adapter (1 ms)
+[----------] 4 tests from com.eignex.koblas.AdapterTest (46 ms total)
+
+[----------] 1 tests from com.eignex.koblas.BuiltinEnginesTest
+[ RUN      ] com.eignex.koblas.BuiltinEnginesTest.the scalar engine uses the scalar families
+[       OK ] com.eignex.koblas.BuiltinEnginesTest.the scalar engine uses the scalar families (0 ms)
+[----------] 1 tests from com.eignex.koblas.BuiltinEnginesTest (0 ms total)
+
+[----------] 1 tests from com.eignex.koblas.ExceptionsTest
+[ RUN      ] com.eignex.koblas.ExceptionsTest.a shape mismatch is a DimensionMismatch
+[       OK ] com.eignex.koblas.ExceptionsTest.a shape mismatch is a DimensionMismatch (6 ms)
+[----------] 1 tests from com.eignex.koblas.ExceptionsTest (6 ms total)
+
+[----------] 7 tests from com.eignex.koblas.GivensTest
+[ RUN      ] com.eignex.koblas.GivensTest.rotg generates the rotation that zeroes the second component
+[       OK ] com.eignex.koblas.GivensTest.rotg generates the rotation that zeroes the second component (3 ms)
+[ RUN      ] com.eignex.koblas.GivensTest.rotg on an all-zero pair is the identity rotation
+[       OK ] com.eignex.koblas.GivensTest.rotg on an all-zero pair is the identity rotation (0 ms)
+[ RUN      ] com.eignex.koblas.GivensTest.rotg survives components that square out of range
+[       OK ] com.eignex.koblas.GivensTest.rotg survives components that square out of range (0 ms)
+[ RUN      ] com.eignex.koblas.GivensTest.rot applies the rotation elementwise and preserves length
+[       OK ] com.eignex.koblas.GivensTest.rot applies the rotation elementwise and preserves length (3 ms)
+[ RUN      ] com.eignex.koblas.GivensTest.rotg and rot together zero the target entry
+[       OK ] com.eignex.koblas.GivensTest.rotg and rot together zero the target entry (1 ms)
+[ RUN      ] com.eignex.koblas.GivensTest.the rot kernel rotates the offset window and leaves the rest alone
+[       OK ] com.eignex.koblas.GivensTest.the rot kernel rotates the offset window and leaves the rest alone (0 ms)
+[ RUN      ] com.eignex.koblas.GivensTest.rot supports strided inputs and snapshots overlaps
+[       OK ] com.eignex.koblas.GivensTest.rot supports strided inputs and snapshots overlaps (1 ms)
+[----------] 7 tests from com.eignex.koblas.GivensTest (12 ms total)
+
+[----------] 13 tests from com.eignex.koblas.MatrixNormsTest
+[ RUN      ] com.eignex.koblas.MatrixNormsTest.norm1 is the maximum absolute column sum
+[       OK ] com.eignex.koblas.MatrixNormsTest.norm1 is the maximum absolute column sum (0 ms)
+[ RUN      ] com.eignex.koblas.MatrixNormsTest.normInf and normFro agree with direct sums
+[       OK ] com.eignex.koblas.MatrixNormsTest.normInf and normFro agree with direct sums (1 ms)
+[ RUN      ] com.eignex.koblas.MatrixNormsTest.normInf through a reused workspace repeats its answer
+[       OK ] com.eignex.koblas.MatrixNormsTest.normInf through a reused workspace repeats its answer (2 ms)
+[ RUN      ] com.eignex.koblas.MatrixNormsTest.norm1 and normInf carry a NaN through
+[       OK ] com.eignex.koblas.MatrixNormsTest.norm1 and normInf carry a NaN through (0 ms)
+[ RUN      ] com.eignex.koblas.MatrixNormsTest.a NaN in one column does not hide behind a larger clean column
+[       OK ] com.eignex.koblas.MatrixNormsTest.a NaN in one column does not hide behind a larger clean column (0 ms)
+[ RUN      ] com.eignex.koblas.MatrixNormsTest.normFro survives entries that square out of range
+[       OK ] com.eignex.koblas.MatrixNormsTest.normFro survives entries that square out of range (0 ms)
+[ RUN      ] com.eignex.koblas.MatrixNormsTest.sparse norm1 agrees with dense reference
+[       OK ] com.eignex.koblas.MatrixNormsTest.sparse norm1 agrees with dense reference (2 ms)
+[ RUN      ] com.eignex.koblas.MatrixNormsTest.sparse normInf agrees with dense reference
+[       OK ] com.eignex.koblas.MatrixNormsTest.sparse normInf agrees with dense reference (0 ms)
+[ RUN      ] com.eignex.koblas.MatrixNormsTest.sparse normFro agrees with dense reference
+[       OK ] com.eignex.koblas.MatrixNormsTest.sparse normFro agrees with dense reference (0 ms)
+[ RUN      ] com.eignex.koblas.MatrixNormsTest.sparse norms are zero for empty shapes
+[       OK ] com.eignex.koblas.MatrixNormsTest.sparse norms are zero for empty shapes (0 ms)
+[ RUN      ] com.eignex.koblas.MatrixNormsTest.sparse norm1 and normInf and normFro carry a NaN through
+[       OK ] com.eignex.koblas.MatrixNormsTest.sparse norm1 and normInf and normFro carry a NaN through (0 ms)
+[ RUN      ] com.eignex.koblas.MatrixNormsTest.sparse normFro survives entries that square out of range
+[       OK ] com.eignex.koblas.MatrixNormsTest.sparse normFro survives entries that square out of range (0 ms)
+[ RUN      ] com.eignex.koblas.MatrixNormsTest.sparse infinity norm reuses workspace
+[       OK ] com.eignex.koblas.MatrixNormsTest.sparse infinity norm reuses workspace (0 ms)
+[----------] 13 tests from com.eignex.koblas.MatrixNormsTest (11 ms total)
+
+[----------] 27 tests from com.eignex.koblas.MatrixOpsTest
+[ RUN      ] com.eignex.koblas.MatrixOpsTest.the gemv overload computes A x for dense and sparse x
+[       OK ] com.eignex.koblas.MatrixOpsTest.the gemv overload computes A x for dense and sparse x (2 ms)
+[ RUN      ] com.eignex.koblas.MatrixOpsTest.sparse and dense gemv agree on a random example
+[       OK ] com.eignex.koblas.MatrixOpsTest.sparse and dense gemv agree on a random example (2 ms)
+[ RUN      ] com.eignex.koblas.MatrixOpsTest.matrix vector operations match hand results over every storage pairing
+[       OK ] com.eignex.koblas.MatrixOpsTest.matrix vector operations match hand results over every storage pairing (6 ms)
+[ RUN      ] com.eignex.koblas.MatrixOpsTest.gemvInto applies alpha and beta like dgemv
+[       OK ] com.eignex.koblas.MatrixOpsTest.gemvInto applies alpha and beta like dgemv (1 ms)
+[ RUN      ] com.eignex.koblas.MatrixOpsTest.symvInto reads only the selected triangle
+[       OK ] com.eignex.koblas.MatrixOpsTest.symvInto reads only the selected triangle (6 ms)
+[ RUN      ] com.eignex.koblas.MatrixOpsTest.symvInto applies alpha and beta like dsymv
+[       OK ] com.eignex.koblas.MatrixOpsTest.symvInto applies alpha and beta like dsymv (1 ms)
+[ RUN      ] com.eignex.koblas.MatrixOpsTest.symvInto over one triangle agrees with the full ger sweep
+[       OK ] com.eignex.koblas.MatrixOpsTest.symvInto over one triangle agrees with the full ger sweep (1 ms)
+[ RUN      ] com.eignex.koblas.MatrixOpsTest.the matvec destinations reject mismatched shapes
+[       OK ] com.eignex.koblas.MatrixOpsTest.the matvec destinations reject mismatched shapes (2 ms)
+[ RUN      ] com.eignex.koblas.MatrixOpsTest.matvec adapters snapshot vector aliases before writing
+[       OK ] com.eignex.koblas.MatrixOpsTest.matvec adapters snapshot vector aliases before writing (1 ms)
+[ RUN      ] com.eignex.koblas.MatrixOpsTest.gemvInto snapshots matrix aliases before writing
+[       OK ] com.eignex.koblas.MatrixOpsTest.gemvInto snapshots matrix aliases before writing (1 ms)
+[ RUN      ] com.eignex.koblas.MatrixOpsTest.symvInto snapshots its matrix alias before writing
+[       OK ] com.eignex.koblas.MatrixOpsTest.symvInto snapshots its matrix alias before writing (0 ms)
+[ RUN      ] com.eignex.koblas.MatrixOpsTest.ger updates a matrix with alpha x y_transpose
+[       OK ] com.eignex.koblas.MatrixOpsTest.ger updates a matrix with alpha x y_transpose (0 ms)
+[ RUN      ] com.eignex.koblas.MatrixOpsTest.ger with sparse operands only touches nonzero rows and cols
+[       OK ] com.eignex.koblas.MatrixOpsTest.ger with sparse operands only touches nonzero rows and cols (1 ms)
+[ RUN      ] com.eignex.koblas.MatrixOpsTest.alpha zero makes axpy and ger no-ops
+[       OK ] com.eignex.koblas.MatrixOpsTest.alpha zero makes axpy and ger no-ops (0 ms)
+[ RUN      ] com.eignex.koblas.MatrixOpsTest.ger skips zero entries on both carriers
+[       OK ] com.eignex.koblas.MatrixOpsTest.ger skips zero entries on both carriers (0 ms)
+[ RUN      ] com.eignex.koblas.MatrixOpsTest.syr and syr2 match the equivalent ger sweeps
+[       OK ] com.eignex.koblas.MatrixOpsTest.syr and syr2 match the equivalent ger sweeps (1 ms)
+[ RUN      ] com.eignex.koblas.MatrixOpsTest.syr and syr2 over sparse operands match their dense equivalents
+[       OK ] com.eignex.koblas.MatrixOpsTest.syr and syr2 over sparse operands match their dense equivalents (5 ms)
+[ RUN      ] com.eignex.koblas.MatrixOpsTest.syr over a sparse operand storing a zero matches the dense update
+[       OK ] com.eignex.koblas.MatrixOpsTest.syr over a sparse operand storing a zero matches the dense update (0 ms)
+[ RUN      ] com.eignex.koblas.MatrixOpsTest.the symmetric updates write only the selected triangle
+[       OK ] com.eignex.koblas.MatrixOpsTest.the symmetric updates write only the selected triangle (0 ms)
+[ RUN      ] com.eignex.koblas.MatrixOpsTest.matrix operations reject mismatched shapes
+[       OK ] com.eignex.koblas.MatrixOpsTest.matrix operations reject mismatched shapes (1 ms)
+[ RUN      ] com.eignex.koblas.MatrixOpsTest.zeroStrictUpper clears above the diagonal and keeps the rest
+[       OK ] com.eignex.koblas.MatrixOpsTest.zeroStrictUpper clears above the diagonal and keeps the rest (0 ms)
+[ RUN      ] com.eignex.koblas.MatrixOpsTest.zeroStrictUpper zeroes whole columns past the last row
+[       OK ] com.eignex.koblas.MatrixOpsTest.zeroStrictUpper zeroes whole columns past the last row (0 ms)
+[ RUN      ] com.eignex.koblas.MatrixOpsTest.zeroStrictUpper keeps a tall matrix intact below the diagonal
+[       OK ] com.eignex.koblas.MatrixOpsTest.zeroStrictUpper keeps a tall matrix intact below the diagonal (0 ms)
+[ RUN      ] com.eignex.koblas.MatrixOpsTest.transpose round-trips and maps entries
+[       OK ] com.eignex.koblas.MatrixOpsTest.transpose round-trips and maps entries (1 ms)
+[ RUN      ] com.eignex.koblas.MatrixOpsTest.transpose agrees with the gemm transpose flag
+[       OK ] com.eignex.koblas.MatrixOpsTest.transpose agrees with the gemm transpose flag (4 ms)
+[ RUN      ] com.eignex.koblas.MatrixOpsTest.gemvInto honours beta on a matrix with no columns
+[       OK ] com.eignex.koblas.MatrixOpsTest.gemvInto honours beta on a matrix with no columns (0 ms)
+[ RUN      ] com.eignex.koblas.MatrixOpsTest.gemvInto scales by beta on a sparse matrix with no columns
+[       OK ] com.eignex.koblas.MatrixOpsTest.gemvInto scales by beta on a sparse matrix with no columns (0 ms)
+[----------] 27 tests from com.eignex.koblas.MatrixOpsTest (50 ms total)
+
+[----------] 9 tests from com.eignex.koblas.MatrixScalingTest
+[ RUN      ] com.eignex.koblas.MatrixScalingTest.scaleRows is the product of the diagonal with the matrix
+[       OK ] com.eignex.koblas.MatrixScalingTest.scaleRows is the product of the diagonal with the matrix (0 ms)
+[ RUN      ] com.eignex.koblas.MatrixScalingTest.scaleColumns is the product of the matrix with the diagonal
+[       OK ] com.eignex.koblas.MatrixScalingTest.scaleColumns is the product of the matrix with the diagonal (0 ms)
+[ RUN      ] com.eignex.koblas.MatrixScalingTest.the two directions compose to a two-sided scaling
+[       OK ] com.eignex.koblas.MatrixScalingTest.the two directions compose to a two-sided scaling (0 ms)
+[ RUN      ] com.eignex.koblas.MatrixScalingTest.scaleColumns on CSC agrees with the dense result and keeps the pattern
+[       OK ] com.eignex.koblas.MatrixScalingTest.scaleColumns on CSC agrees with the dense result and keeps the pattern (1 ms)
+[ RUN      ] com.eignex.koblas.MatrixScalingTest.a unit diagonal leaves the matrix alone
+[       OK ] com.eignex.koblas.MatrixScalingTest.a unit diagonal leaves the matrix alone (0 ms)
+[ RUN      ] com.eignex.koblas.MatrixScalingTest.a diagonal of the wrong length is rejected
+[       OK ] com.eignex.koblas.MatrixScalingTest.a diagonal of the wrong length is rejected (1 ms)
+[ RUN      ] com.eignex.koblas.MatrixScalingTest.sparse scaleRows agrees with dense reference
+[       OK ] com.eignex.koblas.MatrixScalingTest.sparse scaleRows agrees with dense reference (0 ms)
+[ RUN      ] com.eignex.koblas.MatrixScalingTest.row scaling keeps CSC storage including explicit zeros
+[       OK ] com.eignex.koblas.MatrixScalingTest.row scaling keeps CSC storage including explicit zeros (0 ms)
+[ RUN      ] com.eignex.koblas.MatrixScalingTest.sparse row scaling handles empty shapes
+[       OK ] com.eignex.koblas.MatrixScalingTest.sparse row scaling handles empty shapes (0 ms)
+[----------] 9 tests from com.eignex.koblas.MatrixScalingTest (7 ms total)
+
+[----------] 6 tests from com.eignex.koblas.MatrixSlicesTest
+[ RUN      ] com.eignex.koblas.MatrixSlicesTest.sparse column agrees with dense reference
+[       OK ] com.eignex.koblas.MatrixSlicesTest.sparse column agrees with dense reference (0 ms)
+[ RUN      ] com.eignex.koblas.MatrixSlicesTest.sparse row agrees with dense reference
+[       OK ] com.eignex.koblas.MatrixSlicesTest.sparse row agrees with dense reference (0 ms)
+[ RUN      ] com.eignex.koblas.MatrixSlicesTest.sparse row and column preserve explicit zeros and are independent
+[       OK ] com.eignex.koblas.MatrixSlicesTest.sparse row and column preserve explicit zeros and are independent (0 ms)
+[ RUN      ] com.eignex.koblas.MatrixSlicesTest.row and column return no stored entries for a row or column with none
+[       OK ] com.eignex.koblas.MatrixSlicesTest.row and column return no stored entries for a row or column with none (0 ms)
+[ RUN      ] com.eignex.koblas.MatrixSlicesTest.row and column handle empty shapes
+[       OK ] com.eignex.koblas.MatrixSlicesTest.row and column handle empty shapes (0 ms)
+[ RUN      ] com.eignex.koblas.MatrixSlicesTest.sparse extraction validates row and column indices
+[       OK ] com.eignex.koblas.MatrixSlicesTest.sparse extraction validates row and column indices (1 ms)
+[----------] 6 tests from com.eignex.koblas.MatrixSlicesTest (5 ms total)
+
+[----------] 17 tests from com.eignex.koblas.MatrixTest
+[ RUN      ] com.eignex.koblas.MatrixTest.DenseMatrix toArray on 0x0 returns empty array
+[       OK ] com.eignex.koblas.MatrixTest.DenseMatrix toArray on 0x0 returns empty array (0 ms)
+[ RUN      ] com.eignex.koblas.MatrixTest.DenseMatrix of rejects ragged rows
+[       OK ] com.eignex.koblas.MatrixTest.DenseMatrix of rejects ragged rows (0 ms)
+[ RUN      ] com.eignex.koblas.MatrixTest.DenseMatrix of supports an empty row set
+[       OK ] com.eignex.koblas.MatrixTest.DenseMatrix of supports an empty row set (0 ms)
+[ RUN      ] com.eignex.koblas.MatrixTest.DenseMatrix diagonal seeds entries
+[       OK ] com.eignex.koblas.MatrixTest.DenseMatrix diagonal seeds entries (0 ms)
+[ RUN      ] com.eignex.koblas.MatrixTest.DenseMatrix wrap aliases the backing array without copying
+[       OK ] com.eignex.koblas.MatrixTest.DenseMatrix wrap aliases the backing array without copying (0 ms)
+[ RUN      ] com.eignex.koblas.MatrixTest.DenseMatrix toArray returns a fresh copy
+[       OK ] com.eignex.koblas.MatrixTest.DenseMatrix toArray returns a fresh copy (0 ms)
+[ RUN      ] com.eignex.koblas.MatrixTest.DenseMatrix equals and hashCode respect content
+[       OK ] com.eignex.koblas.MatrixTest.DenseMatrix equals and hashCode respect content (1 ms)
+[ RUN      ] com.eignex.koblas.MatrixTest.DenseMatrix rejects a shape its backing cannot hold
+[       OK ] com.eignex.koblas.MatrixTest.DenseMatrix rejects a shape its backing cannot hold (2 ms)
+[ RUN      ] com.eignex.koblas.MatrixTest.DenseMatrix indexing rejects every address outside its shape
+[       OK ] com.eignex.koblas.MatrixTest.DenseMatrix indexing rejects every address outside its shape (2 ms)
+[ RUN      ] com.eignex.koblas.MatrixTest.column and row read the two axes of the same matrix
+[       OK ] com.eignex.koblas.MatrixTest.column and row read the two axes of the same matrix (0 ms)
+[ RUN      ] com.eignex.koblas.MatrixTest.column copies rather than aliasing the backing
+[       OK ] com.eignex.koblas.MatrixTest.column copies rather than aliasing the backing (0 ms)
+[ RUN      ] com.eignex.koblas.MatrixTest.column and row reject an index outside the shape
+[       OK ] com.eignex.koblas.MatrixTest.column and row reject an index outside the shape (1 ms)
+[ RUN      ] com.eignex.koblas.MatrixTest.DenseMatrix ofColumns reads the outer index as the column
+[       OK ] com.eignex.koblas.MatrixTest.DenseMatrix ofColumns reads the outer index as the column (0 ms)
+[ RUN      ] com.eignex.koblas.MatrixTest.DenseMatrix ofColumns is the transpose of of
+[       OK ] com.eignex.koblas.MatrixTest.DenseMatrix ofColumns is the transpose of of (0 ms)
+[ RUN      ] com.eignex.koblas.MatrixTest.DenseMatrix ofColumns rejects ragged columns and accepts none
+[       OK ] com.eignex.koblas.MatrixTest.DenseMatrix ofColumns rejects ragged columns and accepts none (0 ms)
+[ RUN      ] com.eignex.koblas.MatrixTest.DenseMatrix zero allocates a zero matrix and defaults to square
+[       OK ] com.eignex.koblas.MatrixTest.DenseMatrix zero allocates a zero matrix and defaults to square (0 ms)
+[ RUN      ] com.eignex.koblas.MatrixTest.DenseMatrix diagonal from a vector places each entry on the diagonal
+[       OK ] com.eignex.koblas.MatrixTest.DenseMatrix diagonal from a vector places each entry on the diagonal (0 ms)
+[----------] 17 tests from com.eignex.koblas.MatrixTest (14 ms total)
+
+[----------] 8 tests from com.eignex.koblas.ModifiedGivensTest
+[ RUN      ] com.eignex.koblas.ModifiedGivensTest.rotmg matches Netlib branch states
+[       OK ] com.eignex.koblas.ModifiedGivensTest.rotmg matches Netlib branch states (2 ms)
+[ RUN      ] com.eignex.koblas.ModifiedGivensTest.rotmg matches Netlib rescaling states
+[       OK ] com.eignex.koblas.ModifiedGivensTest.rotmg matches Netlib rescaling states (0 ms)
+[ RUN      ] com.eignex.koblas.ModifiedGivensTest.rotmg eliminates the second component across every rescaling path
+[       OK ] com.eignex.koblas.ModifiedGivensTest.rotmg eliminates the second component across every rescaling path (1 ms)
+[ RUN      ] com.eignex.koblas.ModifiedGivensTest.rotm applies modified Givens forms
+[       OK ] com.eignex.koblas.ModifiedGivensTest.rotm applies modified Givens forms (1 ms)
+[ RUN      ] com.eignex.koblas.ModifiedGivensTest.rotm on aliased dense vectors keeps the final write from y
+[       OK ] com.eignex.koblas.ModifiedGivensTest.rotm on aliased dense vectors keeps the final write from y (0 ms)
+[ RUN      ] com.eignex.koblas.ModifiedGivensTest.rotmg terminates for a non finite d1
+[       OK ] com.eignex.koblas.ModifiedGivensTest.rotmg terminates for a non finite d1 (0 ms)
+[ RUN      ] com.eignex.koblas.ModifiedGivensTest.rotm snapshots overlapping strided inputs
+[       OK ] com.eignex.koblas.ModifiedGivensTest.rotm snapshots overlapping strided inputs (0 ms)
+[ RUN      ] com.eignex.koblas.ModifiedGivensTest.rotm supports negative strided views
+[       OK ] com.eignex.koblas.ModifiedGivensTest.rotm supports negative strided views (0 ms)
+[----------] 8 tests from com.eignex.koblas.ModifiedGivensTest (8 ms total)
+
+[----------] 9 tests from com.eignex.koblas.NativeVariantTest
+[ RUN      ] com.eignex.koblas.NativeVariantTest.exact native variants preserve vector arithmetic
+[       OK ] com.eignex.koblas.NativeVariantTest.exact native variants preserve vector arithmetic (52 ms)
+[ RUN      ] com.eignex.koblas.NativeVariantTest.exact native variants preserve robust reductions
+[       OK ] com.eignex.koblas.NativeVariantTest.exact native variants preserve robust reductions (26 ms)
+[ RUN      ] com.eignex.koblas.NativeVariantTest.exact native variants preserve iamax ties and special values
+[       OK ] com.eignex.koblas.NativeVariantTest.exact native variants preserve iamax ties and special values (888 ms)
+[ RUN      ] com.eignex.koblas.NativeVariantTest.exact native variants preserve scaling storage
+[       OK ] com.eignex.koblas.NativeVariantTest.exact native variants preserve scaling storage (779 ms)
+[ RUN      ] com.eignex.koblas.NativeVariantTest.exact native variants preserve swaps and rotations
+[       OK ] com.eignex.koblas.NativeVariantTest.exact native variants preserve swaps and rotations (203 ms)
+[ RUN      ] com.eignex.koblas.NativeVariantTest.exact native variants preserve packed products
+[       OK ] com.eignex.koblas.NativeVariantTest.exact native variants preserve packed products (960 ms)
+[ RUN      ] com.eignex.koblas.NativeVariantTest.exact native variants preserve panel input aliases
+[       OK ] com.eignex.koblas.NativeVariantTest.exact native variants preserve panel input aliases (12 ms)
+[ RUN      ] com.eignex.koblas.NativeVariantTest.exact native zero work avoids empty input storage
+[       OK ] com.eignex.koblas.NativeVariantTest.exact native zero work avoids empty input storage (0 ms)
+[ RUN      ] com.eignex.koblas.NativeVariantTest.an unavailable exact variant fails before execution
+[       OK ] com.eignex.koblas.NativeVariantTest.an unavailable exact variant fails before execution (1 ms)
+[----------] 9 tests from com.eignex.koblas.NativeVariantTest (2927 ms total)
+
+[----------] 7 tests from com.eignex.koblas.OperatorsTest
+[ RUN      ] com.eignex.koblas.OperatorsTest.matrix product has expected entries
+[       OK ] com.eignex.koblas.OperatorsTest.matrix product has expected entries (0 ms)
+[ RUN      ] com.eignex.koblas.OperatorsTest.matrix-vector product agrees with gemv
+[       OK ] com.eignex.koblas.OperatorsTest.matrix-vector product agrees with gemv (0 ms)
+[ RUN      ] com.eignex.koblas.OperatorsTest.sparse matrix-vector product agrees with the sparse gemv
+[       OK ] com.eignex.koblas.OperatorsTest.sparse matrix-vector product agrees with the sparse gemv (0 ms)
+[ RUN      ] com.eignex.koblas.OperatorsTest.sum and difference agree with axpy on a copy
+[       OK ] com.eignex.koblas.OperatorsTest.sum and difference agree with axpy on a copy (1 ms)
+[ RUN      ] com.eignex.koblas.OperatorsTest.vector sum and difference agree entrywise
+[       OK ] com.eignex.koblas.OperatorsTest.vector sum and difference agree entrywise (0 ms)
+[ RUN      ] com.eignex.koblas.OperatorsTest.scalar multiplication commutes and negation is the -1 case
+[       OK ] com.eignex.koblas.OperatorsTest.scalar multiplication commutes and negation is the -1 case (0 ms)
+[ RUN      ] com.eignex.koblas.OperatorsTest.mismatched shapes are rejected
+[       OK ] com.eignex.koblas.OperatorsTest.mismatched shapes are rejected (1 ms)
+[----------] 7 tests from com.eignex.koblas.OperatorsTest (6 ms total)
+
+[----------] 1 tests from com.eignex.koblas.ReadmeSamplesTest
+[ RUN      ] com.eignex.koblas.ReadmeSamplesTest.the triplet sample builds the same matrix the column sample does
+[       OK ] com.eignex.koblas.ReadmeSamplesTest.the triplet sample builds the same matrix the column sample does (0 ms)
+[----------] 1 tests from com.eignex.koblas.ReadmeSamplesTest (1 ms total)
+
+[----------] 9 tests from com.eignex.koblas.SerializationTest
+[ RUN      ] com.eignex.koblas.SerializationTest.DenseMatrix round-trips through JSON for square rectangular and degenerate shapes
+[       OK ] com.eignex.koblas.SerializationTest.DenseMatrix round-trips through JSON for square rectangular and degenerate shapes (60 ms)
+[ RUN      ] com.eignex.koblas.SerializationTest.DenseMatrix wire form is its shape and a flat array
+[       OK ] com.eignex.koblas.SerializationTest.DenseMatrix wire form is its shape and a flat array (9 ms)
+[ RUN      ] com.eignex.koblas.SerializationTest.DenseVector round-trips including empty and singleton
+[       OK ] com.eignex.koblas.SerializationTest.DenseVector round-trips including empty and singleton (2 ms)
+[ RUN      ] com.eignex.koblas.SerializationTest.SparseVector round-trips including empty and stored-zero cases
+[       OK ] com.eignex.koblas.SerializationTest.SparseVector round-trips including empty and stored-zero cases (5 ms)
+[ RUN      ] com.eignex.koblas.SerializationTest.SparseVector deserialization rejects a negative size
+[       OK ] com.eignex.koblas.SerializationTest.SparseVector deserialization rejects a negative size (12 ms)
+[ RUN      ] com.eignex.koblas.SerializationTest.VectorStorage round-trips polymorphically preserving dense and sparse types
+[       OK ] com.eignex.koblas.SerializationTest.VectorStorage round-trips polymorphically preserving dense and sparse types (10 ms)
+[ RUN      ] com.eignex.koblas.SerializationTest.SparseMatrix round-trips through its CSC arrays
+[       OK ] com.eignex.koblas.SerializationTest.SparseMatrix round-trips through its CSC arrays (7 ms)
+[ RUN      ] com.eignex.koblas.SerializationTest.SparseMatrix encodes its structure rather than a dense grid
+[       OK ] com.eignex.koblas.SerializationTest.SparseMatrix encodes its structure rather than a dense grid (1 ms)
+[ RUN      ] com.eignex.koblas.SerializationTest.both matrix storages round-trip polymorphically through MatrixStorage
+[       OK ] com.eignex.koblas.SerializationTest.both matrix storages round-trip polymorphically through MatrixStorage (6 ms)
+[----------] 9 tests from com.eignex.koblas.SerializationTest (117 ms total)
+
+[----------] 19 tests from com.eignex.koblas.SparseMatrixTest
+[ RUN      ] com.eignex.koblas.SparseMatrixTest.CSC mat-vec multiplies a matrix and its transpose
+[       OK ] com.eignex.koblas.SparseMatrixTest.CSC mat-vec multiplies a matrix and its transpose (1 ms)
+[ RUN      ] com.eignex.koblas.SparseMatrixTest.ofColumns sums duplicate entries and sorts rows
+[       OK ] com.eignex.koblas.SparseMatrixTest.ofColumns sums duplicate entries and sorts rows (0 ms)
+[ RUN      ] com.eignex.koblas.SparseMatrixTest.get reads stored entries and returns zero elsewhere
+[       OK ] com.eignex.koblas.SparseMatrixTest.get reads stored entries and returns zero elsewhere (2 ms)
+[ RUN      ] com.eignex.koblas.SparseMatrixTest.stored column traversal rejects an index outside the shape
+[       OK ] com.eignex.koblas.SparseMatrixTest.stored column traversal rejects an index outside the shape (1 ms)
+[ RUN      ] com.eignex.koblas.SparseMatrixTest.structural copies cannot mutate CSC storage
+[       OK ] com.eignex.koblas.SparseMatrixTest.structural copies cannot mutate CSC storage (0 ms)
+[ RUN      ] com.eignex.koblas.SparseMatrixTest.get finds a stored zero and equality distinguishes it from an absent one
+[       OK ] com.eignex.koblas.SparseMatrixTest.get finds a stored zero and equality distinguishes it from an absent one (0 ms)
+[ RUN      ] com.eignex.koblas.SparseMatrixTest.toArray densifies to the logical matrix
+[       OK ] com.eignex.koblas.SparseMatrixTest.toArray densifies to the logical matrix (0 ms)
+[ RUN      ] com.eignex.koblas.SparseMatrixTest.equality and hashCode are structural
+[       OK ] com.eignex.koblas.SparseMatrixTest.equality and hashCode are structural (1 ms)
+[ RUN      ] com.eignex.koblas.SparseMatrixTest.the MatrixStorage gemv overload agrees with the dense equivalent
+[       OK ] com.eignex.koblas.SparseMatrixTest.the MatrixStorage gemv overload agrees with the dense equivalent (1 ms)
+[ RUN      ] com.eignex.koblas.SparseMatrixTest.rows may descend across a column boundary
+[       OK ] com.eignex.koblas.SparseMatrixTest.rows may descend across a column boundary (0 ms)
+[ RUN      ] com.eignex.koblas.SparseMatrixTest.ofTriplets builds the same matrix as ofColumns
+[       OK ] com.eignex.koblas.SparseMatrixTest.ofTriplets builds the same matrix as ofColumns (0 ms)
+[ RUN      ] com.eignex.koblas.SparseMatrixTest.ofTriplets orders arbitrary input and sums duplicates
+[       OK ] com.eignex.koblas.SparseMatrixTest.ofTriplets orders arbitrary input and sums duplicates (1 ms)
+[ RUN      ] com.eignex.koblas.SparseMatrixTest.ofTriplets handles an empty entry set and rejects out-of-range positions
+[       OK ] com.eignex.koblas.SparseMatrixTest.ofTriplets handles an empty entry set and rejects out-of-range positions (4 ms)
+[ RUN      ] com.eignex.koblas.SparseMatrixTest.wrap still rejects a pattern it cannot vouch for
+[       OK ] com.eignex.koblas.SparseMatrixTest.wrap still rejects a pattern it cannot vouch for (8 ms)
+[ RUN      ] com.eignex.koblas.SparseMatrixTest.the transpose round-trips and preserves stored zeros
+[       OK ] com.eignex.koblas.SparseMatrixTest.the transpose round-trips and preserves stored zeros (2 ms)
+[ RUN      ] com.eignex.koblas.SparseMatrixTest.the transpose handles degenerate shapes
+[       OK ] com.eignex.koblas.SparseMatrixTest.the transpose handles degenerate shapes (0 ms)
+[ RUN      ] com.eignex.koblas.SparseMatrixTest.wrap adopts CSC arrays
+[       OK ] com.eignex.koblas.SparseMatrixTest.wrap adopts CSC arrays (0 ms)
+[ RUN      ] com.eignex.koblas.SparseMatrixTest.withColumn replaces one column and leaves the rest
+[       OK ] com.eignex.koblas.SparseMatrixTest.withColumn replaces one column and leaves the rest (1 ms)
+[ RUN      ] com.eignex.koblas.SparseMatrixTest.withColumn rejects an entering column of the wrong length
+[       OK ] com.eignex.koblas.SparseMatrixTest.withColumn rejects an entering column of the wrong length (1 ms)
+[----------] 19 tests from com.eignex.koblas.SparseMatrixTest (38 ms total)
+
+[----------] 8 tests from com.eignex.koblas.SparseSymmetricRankUpdateTest
+[ RUN      ] com.eignex.koblas.SparseSymmetricRankUpdateTest.sparse syr agrees with the dense reference and preserves CSC
+[       OK ] com.eignex.koblas.SparseSymmetricRankUpdateTest.sparse syr agrees with the dense reference and preserves CSC (5 ms)
+[ RUN      ] com.eignex.koblas.SparseSymmetricRankUpdateTest.sparse syr2 accepts dense and sparse vectors and agrees with the dense reference
+[       OK ] com.eignex.koblas.SparseSymmetricRankUpdateTest.sparse syr2 accepts dense and sparse vectors and agrees with the dense reference (3 ms)
+[ RUN      ] com.eignex.koblas.SparseSymmetricRankUpdateTest.sparse rank updates retain cancelled fill and do not alias their inputs
+[       OK ] com.eignex.koblas.SparseSymmetricRankUpdateTest.sparse rank updates retain cancelled fill and do not alias their inputs (1 ms)
+[ RUN      ] com.eignex.koblas.SparseSymmetricRankUpdateTest.sparse rank updates match dense IEEE arithmetic for implicit zeros
+[       OK ] com.eignex.koblas.SparseSymmetricRankUpdateTest.sparse rank updates match dense IEEE arithmetic for implicit zeros (1 ms)
+[ RUN      ] com.eignex.koblas.SparseSymmetricRankUpdateTest.sparse syr excludes an explicitly stored zero in a sparse operand from its fill support
+[       OK ] com.eignex.koblas.SparseSymmetricRankUpdateTest.sparse syr excludes an explicitly stored zero in a sparse operand from its fill support (1 ms)
+[ RUN      ] com.eignex.koblas.SparseSymmetricRankUpdateTest.sparse syr2 excludes an explicitly stored zero in a sparse operand from its fill support
+[       OK ] com.eignex.koblas.SparseSymmetricRankUpdateTest.sparse syr2 excludes an explicitly stored zero in a sparse operand from its fill support (1 ms)
+[ RUN      ] com.eignex.koblas.SparseSymmetricRankUpdateTest.sparse syr keeps a positive sign on an underflowing pure fill entry
+[       OK ] com.eignex.koblas.SparseSymmetricRankUpdateTest.sparse syr keeps a positive sign on an underflowing pure fill entry (0 ms)
+[ RUN      ] com.eignex.koblas.SparseSymmetricRankUpdateTest.sparse rank updates support empty shapes and reject incompatible operands
+[       OK ] com.eignex.koblas.SparseSymmetricRankUpdateTest.sparse rank updates support empty shapes and reject incompatible operands (2 ms)
+[----------] 8 tests from com.eignex.koblas.SparseSymmetricRankUpdateTest (19 ms total)
+
+[----------] 9 tests from com.eignex.koblas.StridedViewOverlapTest
+[ RUN      ] com.eignex.koblas.StridedViewOverlapTest.views over different buffers never overlap
+[       OK ] com.eignex.koblas.StridedViewOverlapTest.views over different buffers never overlap (1 ms)
+[ RUN      ] com.eignex.koblas.StridedViewOverlapTest.an empty view overlaps nothing
+[       OK ] com.eignex.koblas.StridedViewOverlapTest.an empty view overlaps nothing (0 ms)
+[ RUN      ] com.eignex.koblas.StridedViewOverlapTest.column panels of one matrix do not overlap
+[       OK ] com.eignex.koblas.StridedViewOverlapTest.column panels of one matrix do not overlap (0 ms)
+[ RUN      ] com.eignex.koblas.StridedViewOverlapTest.row panels of one matrix do not overlap
+[       OK ] com.eignex.koblas.StridedViewOverlapTest.row panels of one matrix do not overlap (0 ms)
+[ RUN      ] com.eignex.koblas.StridedViewOverlapTest.blocks sharing a corner overlap
+[       OK ] com.eignex.koblas.StridedViewOverlapTest.blocks sharing a corner overlap (0 ms)
+[ RUN      ] com.eignex.koblas.StridedViewOverlapTest.every pair of blocks agrees with a scan of the entries they address
+[       OK ] com.eignex.koblas.StridedViewOverlapTest.every pair of blocks agrees with a scan of the entries they address (282 ms)
+[ RUN      ] com.eignex.koblas.StridedViewOverlapTest.views with unequal leading dimensions agree with a scan
+[       OK ] com.eignex.koblas.StridedViewOverlapTest.views with unequal leading dimensions agree with a scan (77 ms)
+[ RUN      ] com.eignex.koblas.StridedViewOverlapTest.a vector overlaps the matrix rows it runs through
+[       OK ] com.eignex.koblas.StridedViewOverlapTest.a vector overlaps the matrix rows it runs through (0 ms)
+[ RUN      ] com.eignex.koblas.StridedViewOverlapTest.a negatively strided vector is measured over the entries it reaches
+[       OK ] com.eignex.koblas.StridedViewOverlapTest.a negatively strided vector is measured over the entries it reaches (0 ms)
+[----------] 9 tests from com.eignex.koblas.StridedViewOverlapTest (365 ms total)
+
+[----------] 6 tests from com.eignex.koblas.StridedViewsTest
+[ RUN      ] com.eignex.koblas.StridedViewsTest.a panel borrows its parent buffer and leading dimension
+[       OK ] com.eignex.koblas.StridedViewsTest.a panel borrows its parent buffer and leading dimension (1 ms)
+[ RUN      ] com.eignex.koblas.StridedViewsTest.rows columns and overlapping panels remain live
+[       OK ] com.eignex.koblas.StridedViewsTest.rows columns and overlapping panels remain live (0 ms)
+[ RUN      ] com.eignex.koblas.StridedViewsTest.a negative stride presents a reversed borrowed slice
+[       OK ] com.eignex.koblas.StridedViewsTest.a negative stride presents a reversed borrowed slice (0 ms)
+[ RUN      ] com.eignex.koblas.StridedViewsTest.view construction rejects addresses outside the buffer
+[       OK ] com.eignex.koblas.StridedViewsTest.view construction rejects addresses outside the buffer (2 ms)
+[ RUN      ] com.eignex.koblas.StridedViewsTest.empty boundary panels keep a valid buffer offset
+[       OK ] com.eignex.koblas.StridedViewsTest.empty boundary panels keep a valid buffer offset (0 ms)
+[ RUN      ] com.eignex.koblas.StridedViewsTest.rows and columns of zero extent matrices produce empty vectors
+[       OK ] com.eignex.koblas.StridedViewsTest.rows and columns of zero extent matrices produce empty vectors (0 ms)
+[----------] 6 tests from com.eignex.koblas.StridedViewsTest (7 ms total)
+
+[----------] 2 tests from com.eignex.koblas.TestSupportTest
+[ RUN      ] com.eignex.koblas.TestSupportTest.assertClose accepts only matching infinities
+[       OK ] com.eignex.koblas.TestSupportTest.assertClose accepts only matching infinities (1 ms)
+[ RUN      ] com.eignex.koblas.TestSupportTest.assertClose rejects nan inputs
+[       OK ] com.eignex.koblas.TestSupportTest.assertClose rejects nan inputs (0 ms)
+[----------] 2 tests from com.eignex.koblas.TestSupportTest (2 ms total)
+
+[----------] 28 tests from com.eignex.koblas.VectorOpsTest
+[ RUN      ] com.eignex.koblas.VectorOpsTest.dot is symmetric and sparsity-agnostic
+[       OK ] com.eignex.koblas.VectorOpsTest.dot is symmetric and sparsity-agnostic (1 ms)
+[ RUN      ] com.eignex.koblas.VectorOpsTest.axpy adds alpha-scaled x to y for any sparsity
+[       OK ] com.eignex.koblas.VectorOpsTest.axpy adds alpha-scaled x to y for any sparsity (0 ms)
+[ RUN      ] com.eignex.koblas.VectorOpsTest.scale mutates in place and respects identity
+[       OK ] com.eignex.koblas.VectorOpsTest.scale mutates in place and respects identity (0 ms)
+[ RUN      ] com.eignex.koblas.VectorOpsTest.norm2 matches the hand value on dense and sparse
+[       OK ] com.eignex.koblas.VectorOpsTest.norm2 matches the hand value on dense and sparse (0 ms)
+[ RUN      ] com.eignex.koblas.VectorOpsTest.norm2 survives overflow and underflow via the rescale fallback
+[       OK ] com.eignex.koblas.VectorOpsTest.norm2 survives overflow and underflow via the rescale fallback (0 ms)
+[ RUN      ] com.eignex.koblas.VectorOpsTest.sum adds the entries for any storage
+[       OK ] com.eignex.koblas.VectorOpsTest.sum adds the entries for any storage (0 ms)
+[ RUN      ] com.eignex.koblas.VectorOpsTest.sum and asum differ once a sign does
+[       OK ] com.eignex.koblas.VectorOpsTest.sum and asum differ once a sign does (0 ms)
+[ RUN      ] com.eignex.koblas.VectorOpsTest.compensatedSum recovers what a naive sum loses
+[       OK ] com.eignex.koblas.VectorOpsTest.compensatedSum recovers what a naive sum loses (0 ms)
+[ RUN      ] com.eignex.koblas.VectorOpsTest.compensatedSum agrees with sum on benign input
+[       OK ] com.eignex.koblas.VectorOpsTest.compensatedSum agrees with sum on benign input (1 ms)
+[ RUN      ] com.eignex.koblas.VectorOpsTest.asum matches the hand value on dense and sparse
+[       OK ] com.eignex.koblas.VectorOpsTest.asum matches the hand value on dense and sparse (0 ms)
+[ RUN      ] com.eignex.koblas.VectorOpsTest.iamax returns the first maximal index and handles edge cases
+[       OK ] com.eignex.koblas.VectorOpsTest.iamax returns the first maximal index and handles edge cases (0 ms)
+[ RUN      ] com.eignex.koblas.VectorOpsTest.dense iamax agrees with the scalar reference across kernel boundaries
+[       OK ] com.eignex.koblas.VectorOpsTest.dense iamax agrees with the scalar reference across kernel boundaries (471 ms)
+[ RUN      ] com.eignex.koblas.VectorOpsTest.iamax reads a stored zero as the zero it is
+[       OK ] com.eignex.koblas.VectorOpsTest.iamax reads a stored zero as the zero it is (0 ms)
+[ RUN      ] com.eignex.koblas.VectorOpsTest.iamax preserves nan and logical index semantics
+[       OK ] com.eignex.koblas.VectorOpsTest.iamax preserves nan and logical index semantics (0 ms)
+[ RUN      ] com.eignex.koblas.VectorOpsTest.copy replicates dense and sparse sources and rejects size mismatch
+[       OK ] com.eignex.koblas.VectorOpsTest.copy replicates dense and sparse sources and rejects size mismatch (1 ms)
+[ RUN      ] com.eignex.koblas.VectorOpsTest.swap exchanges contents and rejects size mismatch
+[       OK ] com.eignex.koblas.VectorOpsTest.swap exchanges contents and rejects size mismatch (1 ms)
+[ RUN      ] com.eignex.koblas.VectorOpsTest.swap snapshots overlapping borrowed slices
+[       OK ] com.eignex.koblas.VectorOpsTest.swap snapshots overlapping borrowed slices (0 ms)
+[ RUN      ] com.eignex.koblas.VectorOpsTest.vector operations reject mismatched sizes
+[       OK ] com.eignex.koblas.VectorOpsTest.vector operations reject mismatched sizes (1 ms)
+[ RUN      ] com.eignex.koblas.VectorOpsTest.sparse against sparse dot matches the dense answer over merge shapes
+[       OK ] com.eignex.koblas.VectorOpsTest.sparse against sparse dot matches the dense answer over merge shapes (3 ms)
+[ RUN      ] com.eignex.koblas.VectorOpsTest.mixed sparse and dense dot agrees in both operand orders
+[       OK ] com.eignex.koblas.VectorOpsTest.mixed sparse and dense dot agrees in both operand orders (0 ms)
+[ RUN      ] com.eignex.koblas.VectorOpsTest.sparse dot ignores unstored entries in borrowed and foreign vectors
+[       OK ] com.eignex.koblas.VectorOpsTest.sparse dot ignores unstored entries in borrowed and foreign vectors (1 ms)
+[ RUN      ] com.eignex.koblas.VectorOpsTest.strided norms preserve infinity and nan semantics
+[       OK ] com.eignex.koblas.VectorOpsTest.strided norms preserve infinity and nan semantics (2 ms)
+[ RUN      ] com.eignex.koblas.VectorOpsTest.copy into dense storage preserves a borrowed source sharing its buffer
+[       OK ] com.eignex.koblas.VectorOpsTest.copy into dense storage preserves a borrowed source sharing its buffer (0 ms)
+[ RUN      ] com.eignex.koblas.VectorOpsTest.copy between overlapping borrowed slices preserves the input sequence
+[       OK ] com.eignex.koblas.VectorOpsTest.copy between overlapping borrowed slices preserves the input sequence (1 ms)
+[ RUN      ] com.eignex.koblas.VectorOpsTest.copy preserves sparse values shared with the destination
+[       OK ] com.eignex.koblas.VectorOpsTest.copy preserves sparse values shared with the destination (0 ms)
+[ RUN      ] com.eignex.koblas.VectorOpsTest.axpy preserves a borrowed source sharing the destination buffer
+[       OK ] com.eignex.koblas.VectorOpsTest.axpy preserves a borrowed source sharing the destination buffer (0 ms)
+[ RUN      ] com.eignex.koblas.VectorOpsTest.borrowed axpy with sparse input leaves unstored positions untouched
+[       OK ] com.eignex.koblas.VectorOpsTest.borrowed axpy with sparse input leaves unstored positions untouched (0 ms)
+[ RUN      ] com.eignex.koblas.VectorOpsTest.level-1 ops agree with naive references on random vectors
+[       OK ] com.eignex.koblas.VectorOpsTest.level-1 ops agree with naive references on random vectors (5 ms)
+[----------] 28 tests from com.eignex.koblas.VectorOpsTest (506 ms total)
+
+[----------] 15 tests from com.eignex.koblas.VectorTest
+[ RUN      ] com.eignex.koblas.VectorTest.vector indexing rejects every address outside its size
+[       OK ] com.eignex.koblas.VectorTest.vector indexing rejects every address outside its size (2 ms)
+[ RUN      ] com.eignex.koblas.VectorTest.vector factories reject negative sizes
+[       OK ] com.eignex.koblas.VectorTest.vector factories reject negative sizes (2 ms)
+[ RUN      ] com.eignex.koblas.VectorTest.DenseVector zero factory builds a zero-filled vector
+[       OK ] com.eignex.koblas.VectorTest.DenseVector zero factory builds a zero-filled vector (0 ms)
+[ RUN      ] com.eignex.koblas.VectorTest.DenseVector of copies its input
+[       OK ] com.eignex.koblas.VectorTest.DenseVector of copies its input (0 ms)
+[ RUN      ] com.eignex.koblas.VectorTest.DenseVector wrap aliases the backing array without copying
+[       OK ] com.eignex.koblas.VectorTest.DenseVector wrap aliases the backing array without copying (0 ms)
+[ RUN      ] com.eignex.koblas.VectorTest.DenseVector toDoubleArray returns a copy
+[       OK ] com.eignex.koblas.VectorTest.DenseVector toDoubleArray returns a copy (0 ms)
+[ RUN      ] com.eignex.koblas.VectorTest.DenseVector equals respects content
+[       OK ] com.eignex.koblas.VectorTest.DenseVector equals respects content (0 ms)
+[ RUN      ] com.eignex.koblas.VectorTest.SparseVector of copies its inputs
+[       OK ] com.eignex.koblas.VectorTest.SparseVector of copies its inputs (0 ms)
+[ RUN      ] com.eignex.koblas.VectorTest.SparseVector get returns zero for missing indices
+[       OK ] com.eignex.koblas.VectorTest.SparseVector get returns zero for missing indices (0 ms)
+[ RUN      ] com.eignex.koblas.VectorTest.SparseVector toDoubleArray materialises stored entries
+[       OK ] com.eignex.koblas.VectorTest.SparseVector toDoubleArray materialises stored entries (0 ms)
+[ RUN      ] com.eignex.koblas.VectorTest.SparseVector equals and hashCode respect content
+[       OK ] com.eignex.koblas.VectorTest.SparseVector equals and hashCode respect content (0 ms)
+[ RUN      ] com.eignex.koblas.VectorTest.of sorts by index and sums duplicates
+[       OK ] com.eignex.koblas.VectorTest.of sorts by index and sums duplicates (0 ms)
+[ RUN      ] com.eignex.koblas.VectorTest.get finds every stored entry by binary search
+[       OK ] com.eignex.koblas.VectorTest.get finds every stored entry by binary search (0 ms)
+[ RUN      ] com.eignex.koblas.VectorTest.copyIndices cannot mutate sparse structure
+[       OK ] com.eignex.koblas.VectorTest.copyIndices cannot mutate sparse structure (0 ms)
+[ RUN      ] com.eignex.koblas.VectorTest.SparseVector wrap adopts ascending arrays and validates them
+[       OK ] com.eignex.koblas.VectorTest.SparseVector wrap adopts ascending arrays and validates them (2 ms)
+[----------] 15 tests from com.eignex.koblas.VectorTest (14 ms total)
+
+[----------] 17 tests from com.eignex.koblas.WorkspaceTest
+[ RUN      ] com.eignex.koblas.WorkspaceTest.concurrent borrows are distinct and a released buffer comes back
+[       OK ] com.eignex.koblas.WorkspaceTest.concurrent borrows are distinct and a released buffer comes back (0 ms)
+[ RUN      ] com.eignex.koblas.WorkspaceTest.pools are keyed by width
+[       OK ] com.eignex.koblas.WorkspaceTest.pools are keyed by width (0 ms)
+[ RUN      ] com.eignex.koblas.WorkspaceTest.a pool deepens past its initial capacity
+[       OK ] com.eignex.koblas.WorkspaceTest.a pool deepens past its initial capacity (2 ms)
+[ RUN      ] com.eignex.koblas.WorkspaceTest.the width table grows past its initial capacity
+[       OK ] com.eignex.koblas.WorkspaceTest.the width table grows past its initial capacity (0 ms)
+[ RUN      ] com.eignex.koblas.WorkspaceTest.reserve pre-allocates without lending anything out
+[       OK ] com.eignex.koblas.WorkspaceTest.reserve pre-allocates without lending anything out (0 ms)
+[ RUN      ] com.eignex.koblas.WorkspaceTest.integer scratch is reserved and pooled independently
+[       OK ] com.eignex.koblas.WorkspaceTest.integer scratch is reserved and pooled independently (0 ms)
+[ RUN      ] com.eignex.koblas.WorkspaceTest.integer borrow returns reserved scratch after failure
+[       OK ] com.eignex.koblas.WorkspaceTest.integer borrow returns reserved scratch after failure (0 ms)
+[ RUN      ] com.eignex.koblas.WorkspaceTest.borrow returns the buffer even when the block throws
+[       OK ] com.eignex.koblas.WorkspaceTest.borrow returns the buffer even when the block throws (0 ms)
+[ RUN      ] com.eignex.koblas.WorkspaceTest.zero-length borrows are handed out like any other width
+[       OK ] com.eignex.koblas.WorkspaceTest.zero-length borrows are handed out like any other width (0 ms)
+[ RUN      ] com.eignex.koblas.WorkspaceTest.releasing a foreign buffer is an error
+[       OK ] com.eignex.koblas.WorkspaceTest.releasing a foreign buffer is an error (0 ms)
+[ RUN      ] com.eignex.koblas.WorkspaceTest.releasing a buffer twice is an error
+[       OK ] com.eignex.koblas.WorkspaceTest.releasing a buffer twice is an error (0 ms)
+[ RUN      ] com.eignex.koblas.WorkspaceTest.a double release leaves the remaining borrows distinct
+[       OK ] com.eignex.koblas.WorkspaceTest.a double release leaves the remaining borrows distinct (0 ms)
+[ RUN      ] com.eignex.koblas.WorkspaceTest.negative sizes and counts are rejected
+[       OK ] com.eignex.koblas.WorkspaceTest.negative sizes and counts are rejected (0 ms)
+[ RUN      ] com.eignex.koblas.WorkspaceTest.changing sizes does not retain every buffer
+[       OK ] com.eignex.koblas.WorkspaceTest.changing sizes does not retain every buffer (5287 ms)
+[ RUN      ] com.eignex.koblas.WorkspaceTest.the retained size cap survives a burst of active borrows
+[       OK ] com.eignex.koblas.WorkspaceTest.the retained size cap survives a burst of active borrows (1327 ms)
+[ RUN      ] com.eignex.koblas.WorkspaceTest.an outstanding borrow survives churn through other widths
+[       OK ] com.eignex.koblas.WorkspaceTest.an outstanding borrow survives churn through other widths (1643 ms)
+[ RUN      ] com.eignex.koblas.WorkspaceTest.a borrow without a workspace allocates and returns the block value
+[       OK ] com.eignex.koblas.WorkspaceTest.a borrow without a workspace allocates and returns the block value (1 ms)
+[----------] 17 tests from com.eignex.koblas.WorkspaceTest (8271 ms total)
+
+[----------] 5 tests from com.eignex.koblas.consumer.SparseOpsTest
+[ RUN      ] com.eignex.koblas.consumer.SparseOpsTest.prepare is available from the root package
+[       OK ] com.eignex.koblas.consumer.SparseOpsTest.prepare is available from the root package (2 ms)
+[ RUN      ] com.eignex.koblas.consumer.SparseOpsTest.symmetric vector extensions agree with the reference
+[       OK ] com.eignex.koblas.consumer.SparseOpsTest.symmetric vector extensions agree with the reference (2 ms)
+[ RUN      ] com.eignex.koblas.consumer.SparseOpsTest.symmetric matrix extension agrees with the reference
+[       OK ] com.eignex.koblas.consumer.SparseOpsTest.symmetric matrix extension agrees with the reference (3 ms)
+[ RUN      ] com.eignex.koblas.consumer.SparseOpsTest.rank product extensions agree with the reference
+[       OK ] com.eignex.koblas.consumer.SparseOpsTest.rank product extensions agree with the reference (8 ms)
+[ RUN      ] com.eignex.koblas.consumer.SparseOpsTest.scaled addition extension agrees with the reference
+[       OK ] com.eignex.koblas.consumer.SparseOpsTest.scaled addition extension agrees with the reference (2 ms)
+[----------] 5 tests from com.eignex.koblas.consumer.SparseOpsTest (21 ms total)
+
+[----------] 9 tests from com.eignex.koblas.dense.BlasTest
+[ RUN      ] com.eignex.koblas.dense.BlasTest.full gemv matches the naive reference across alpha beta and transpose
+[       OK ] com.eignex.koblas.dense.BlasTest.full gemv matches the naive reference across alpha beta and transpose (73 ms)
+[ RUN      ] com.eignex.koblas.dense.BlasTest.gemv forms zero products from nonzero alpha
+[       OK ] com.eignex.koblas.dense.BlasTest.gemv forms zero products from nonzero alpha (1 ms)
+[ RUN      ] com.eignex.koblas.dense.BlasTest.gemm reproduces the identity and is associative within tolerance
+[       OK ] com.eignex.koblas.dense.BlasTest.gemm reproduces the identity and is associative within tolerance (11 ms)
+[ RUN      ] com.eignex.koblas.dense.BlasTest.gemm preserves a rectangular result with zero depth
+[       OK ] com.eignex.koblas.dense.BlasTest.gemm preserves a rectangular result with zero depth (0 ms)
+[ RUN      ] com.eignex.koblas.dense.BlasTest.gemv and gemm reject incompatible shapes
+[       OK ] com.eignex.koblas.dense.BlasTest.gemv and gemm reject incompatible shapes (2 ms)
+[ RUN      ] com.eignex.koblas.dense.BlasTest.gemm forms zero products in every transpose mode
+[       OK ] com.eignex.koblas.dense.BlasTest.gemm forms zero products in every transpose mode (2 ms)
+[ RUN      ] com.eignex.koblas.dense.BlasTest.full gemm matches the naive reference across transpose flags alpha and beta
+[       OK ] com.eignex.koblas.dense.BlasTest.full gemm matches the naive reference across transpose flags alpha and beta (243 ms)
+[ RUN      ] com.eignex.koblas.dense.BlasTest.gemm agrees with a naive product across every cache tile boundary
+[       OK ] com.eignex.koblas.dense.BlasTest.gemm agrees with a naive product across every cache tile boundary (2715 ms)
+[ RUN      ] com.eignex.koblas.dense.BlasTest.syrk matches gemm over the selected triangle
+[       OK ] com.eignex.koblas.dense.BlasTest.syrk matches gemm over the selected triangle (70 ms)
+[----------] 9 tests from com.eignex.koblas.dense.BlasTest (3123 ms total)
+
+[----------] 5 tests from com.eignex.koblas.dense.DenseTuningTest
+[ RUN      ] com.eignex.koblas.dense.DenseTuningTest.the level three block keeps its measured shape
+[       OK ] com.eignex.koblas.dense.DenseTuningTest.the level three block keeps its measured shape (0 ms)
+[ RUN      ] com.eignex.koblas.dense.DenseTuningTest.every bundled C crossover keeps its measured length
+[       OK ] com.eignex.koblas.dense.DenseTuningTest.every bundled C crossover keeps its measured length (1 ms)
+[ RUN      ] com.eignex.koblas.dense.DenseTuningTest.the compiled in kernel thresholds keep their measured lengths
+[       OK ] com.eignex.koblas.dense.DenseTuningTest.the compiled in kernel thresholds keep their measured lengths (0 ms)
+[ RUN      ] com.eignex.koblas.dense.DenseTuningTest.the triangular block still fits the mask that indexes it
+[       OK ] com.eignex.koblas.dense.DenseTuningTest.the triangular block still fits the mask that indexes it (0 ms)
+[ RUN      ] com.eignex.koblas.dense.DenseTuningTest.the routines read the values the collection resolved
+[       OK ] com.eignex.koblas.dense.DenseTuningTest.the routines read the values the collection resolved (0 ms)
+[----------] 5 tests from com.eignex.koblas.dense.DenseTuningTest (4 ms total)
+
+[----------] 19 tests from com.eignex.koblas.dense.DenseVectorKernelsTest
+[ RUN      ] com.eignex.koblas.dense.DenseVectorKernelsTest.the platform scaling preserves offsets tails and exceptional values
+[       OK ] com.eignex.koblas.dense.DenseVectorKernelsTest.the platform scaling preserves offsets tails and exceptional values (484 ms)
+[ RUN      ] com.eignex.koblas.dense.DenseVectorKernelsTest.the scalar and platform arithmetic axpy kernels agree
+[       OK ] com.eignex.koblas.dense.DenseVectorKernelsTest.the scalar and platform arithmetic axpy kernels agree (1 ms)
+[ RUN      ] com.eignex.koblas.dense.DenseVectorKernelsTest.the platform arithmetic axpy does not take the DAXPY zero return
+[       OK ] com.eignex.koblas.dense.DenseVectorKernelsTest.the platform arithmetic axpy does not take the DAXPY zero return (1 ms)
+[ RUN      ] com.eignex.koblas.dense.DenseVectorKernelsTest.the compiled-in kernels satisfy the dense vector contract
+[       OK ] com.eignex.koblas.dense.DenseVectorKernelsTest.the compiled-in kernels satisfy the dense vector contract (1 ms)
+[ RUN      ] com.eignex.koblas.dense.DenseVectorKernelsTest.the compiled-in kernels keep the public scale and axpy noops
+[       OK ] com.eignex.koblas.dense.DenseVectorKernelsTest.the compiled-in kernels keep the public scale and axpy noops (0 ms)
+[ RUN      ] com.eignex.koblas.dense.DenseVectorKernelsTest.the scalar and platform dot4 kernels agree
+[       OK ] com.eignex.koblas.dense.DenseVectorKernelsTest.the scalar and platform dot4 kernels agree (1 ms)
+[ RUN      ] com.eignex.koblas.dense.DenseVectorKernelsTest.the scalar and platform axpy4 kernels agree
+[       OK ] com.eignex.koblas.dense.DenseVectorKernelsTest.the scalar and platform axpy4 kernels agree (1 ms)
+[ RUN      ] com.eignex.koblas.dense.DenseVectorKernelsTest.the scalar and platform dotAxpy kernels agree with aliased runs
+[       OK ] com.eignex.koblas.dense.DenseVectorKernelsTest.the scalar and platform dotAxpy kernels agree with aliased runs (1 ms)
+[ RUN      ] com.eignex.koblas.dense.DenseVectorKernelsTest.the compiled-in nrm2 survives components that square out of range
+[       OK ] com.eignex.koblas.dense.DenseVectorKernelsTest.the compiled-in nrm2 survives components that square out of range (0 ms)
+[ RUN      ] com.eignex.koblas.dense.DenseVectorKernelsTest.nrm2 survives out-of-range components at lengths that vectorize
+[       OK ] com.eignex.koblas.dense.DenseVectorKernelsTest.nrm2 survives out-of-range components at lengths that vectorize (0 ms)
+[ RUN      ] com.eignex.koblas.dense.DenseVectorKernelsTest.nrm2 agrees with the portable norm across offsets and lengths
+[       OK ] com.eignex.koblas.dense.DenseVectorKernelsTest.nrm2 agrees with the portable norm across offsets and lengths (2 ms)
+[ RUN      ] com.eignex.koblas.dense.DenseVectorKernelsTest.every kernel accepts a zero length run
+[       OK ] com.eignex.koblas.dense.DenseVectorKernelsTest.every kernel accepts a zero length run (0 ms)
+[ RUN      ] com.eignex.koblas.dense.DenseVectorKernelsTest.the compiled-in level-1 kernels agree with the scalar loops
+[       OK ] com.eignex.koblas.dense.DenseVectorKernelsTest.the compiled-in level-1 kernels agree with the scalar loops (35 ms)
+[ RUN      ] com.eignex.koblas.dense.DenseVectorKernelsTest.ssqd stays exact where the expanded form cancels
+[       OK ] com.eignex.koblas.dense.DenseVectorKernelsTest.ssqd stays exact where the expanded form cancels (0 ms)
+[ RUN      ] com.eignex.koblas.dense.DenseVectorKernelsTest.ssqd is symmetric and zero on equal or empty runs
+[       OK ] com.eignex.koblas.dense.DenseVectorKernelsTest.ssqd is symmetric and zero on equal or empty runs (1 ms)
+[ RUN      ] com.eignex.koblas.dense.DenseVectorKernelsTest.the compiled in iamax agrees with the scalar reference
+[       OK ] com.eignex.koblas.dense.DenseVectorKernelsTest.the compiled in iamax agrees with the scalar reference (615 ms)
+[ RUN      ] com.eignex.koblas.dense.DenseVectorKernelsTest.the compiled-in reductions agree with the scalar loops
+[       OK ] com.eignex.koblas.dense.DenseVectorKernelsTest.the compiled-in reductions agree with the scalar loops (23 ms)
+[ RUN      ] com.eignex.koblas.dense.DenseVectorKernelsTest.the compiled-in swap agrees with the scalar loop
+[       OK ] com.eignex.koblas.dense.DenseVectorKernelsTest.the compiled-in swap agrees with the scalar loop (46 ms)
+[ RUN      ] com.eignex.koblas.dense.DenseVectorKernelsTest.the compiled-in modified Givens kernels agree with the portable ones
+[       OK ] com.eignex.koblas.dense.DenseVectorKernelsTest.the compiled-in modified Givens kernels agree with the portable ones (38 ms)
+[----------] 19 tests from com.eignex.koblas.dense.DenseVectorKernelsTest (1264 ms total)
+
+[----------] 8 tests from com.eignex.koblas.dense.GemmtTest
+[ RUN      ] com.eignex.koblas.dense.GemmtTest.gemmt agrees with scalar oracle in every orientation
+[       OK ] com.eignex.koblas.dense.GemmtTest.gemmt agrees with scalar oracle in every orientation (14 ms)
+[ RUN      ] com.eignex.koblas.dense.GemmtTest.gemmt preserves the unselected triangle and zero no read rules
+[       OK ] com.eignex.koblas.dense.GemmtTest.gemmt preserves the unselected triangle and zero no read rules (1 ms)
+[ RUN      ] com.eignex.koblas.dense.GemmtTest.gemmt stages either aliased input
+[       OK ] com.eignex.koblas.dense.GemmtTest.gemmt stages either aliased input (3 ms)
+[ RUN      ] com.eignex.koblas.dense.GemmtTest.gemmt exceptional path evaluates stored dense products
+[       OK ] com.eignex.koblas.dense.GemmtTest.gemmt exceptional path evaluates stored dense products (0 ms)
+[ RUN      ] com.eignex.koblas.dense.GemmtTest.gemmt nontransposed path scales B before multiplying A
+[       OK ] com.eignex.koblas.dense.GemmtTest.gemmt nontransposed path scales B before multiplying A (0 ms)
+[ RUN      ] com.eignex.koblas.dense.GemmtTest.gemmt transposed path scales the completed overflowing dot
+[       OK ] com.eignex.koblas.dense.GemmtTest.gemmt transposed path scales the completed overflowing dot (0 ms)
+[ RUN      ] com.eignex.koblas.dense.GemmtTest.gemmt transposed path retains overflow before cancellation
+[       OK ] com.eignex.koblas.dense.GemmtTest.gemmt transposed path retains overflow before cancellation (0 ms)
+[ RUN      ] com.eignex.koblas.dense.GemmtTest.gemmt zero depth applies beta in every orientation
+[       OK ] com.eignex.koblas.dense.GemmtTest.gemmt zero depth applies beta in every orientation (0 ms)
+[----------] 8 tests from com.eignex.koblas.dense.GemmtTest (23 ms total)
+
+[----------] 3 tests from com.eignex.koblas.dense.PackedGemmTest
+[ RUN      ] com.eignex.koblas.dense.PackedGemmTest.configured packing blocks preserve a rectangular product
+[       OK ] com.eignex.koblas.dense.PackedGemmTest.configured packing blocks preserve a rectangular product (3 ms)
+[ RUN      ] com.eignex.koblas.dense.PackedGemmTest.the packed product on the portable tile agrees with a written out product
+[       OK ] com.eignex.koblas.dense.PackedGemmTest.the packed product on the portable tile agrees with a written out product (9744 ms)
+[ RUN      ] com.eignex.koblas.dense.PackedGemmTest.the packed product on the compiled in kernels agrees with a written out product
+[       OK ] com.eignex.koblas.dense.PackedGemmTest.the packed product on the compiled in kernels agrees with a written out product (8536 ms)
+[----------] 3 tests from com.eignex.koblas.dense.PackedGemmTest (18284 ms total)
+
+[----------] 14 tests from com.eignex.koblas.dense.PackedPanelsTest
+[ RUN      ] com.eignex.koblas.dense.PackedPanelsTest.left panels round trip across a partial edge
+[       OK ] com.eignex.koblas.dense.PackedPanelsTest.left panels round trip across a partial edge (3 ms)
+[ RUN      ] com.eignex.koblas.dense.PackedPanelsTest.right panels transpose and round trip
+[       OK ] com.eignex.koblas.dense.PackedPanelsTest.right panels transpose and round trip (1 ms)
+[ RUN      ] com.eignex.koblas.dense.PackedPanelsTest.symmetric packing never reads the poisoned triangle
+[       OK ] com.eignex.koblas.dense.PackedPanelsTest.symmetric packing never reads the poisoned triangle (1 ms)
+[ RUN      ] com.eignex.koblas.dense.PackedPanelsTest.triangular unit diagonal is materialized without reading
+[       OK ] com.eignex.koblas.dense.PackedPanelsTest.triangular unit diagonal is materialized without reading (1 ms)
+[ RUN      ] com.eignex.koblas.dense.PackedPanelsTest.left alpha preserves exceptional products and zero padding
+[       OK ] com.eignex.koblas.dense.PackedPanelsTest.left alpha preserves exceptional products and zero padding (0 ms)
+[ RUN      ] com.eignex.koblas.dense.PackedPanelsTest.triangular structural zero survives infinite alpha
+[       OK ] com.eignex.koblas.dense.PackedPanelsTest.triangular structural zero survives infinite alpha (0 ms)
+[ RUN      ] com.eignex.koblas.dense.PackedPanelsTest.same backing packing uses workspace staging
+[       OK ] com.eignex.koblas.dense.PackedPanelsTest.same backing packing uses workspace staging (0 ms)
+[ RUN      ] com.eignex.koblas.dense.PackedPanelsTest.same backing writeback uses workspace staging
+[       OK ] com.eignex.koblas.dense.PackedPanelsTest.same backing writeback uses workspace staging (0 ms)
+[ RUN      ] com.eignex.koblas.dense.PackedPanelsTest.padding restoration leaves valid entries unchanged
+[       OK ] com.eignex.koblas.dense.PackedPanelsTest.padding restoration leaves valid entries unchanged (0 ms)
+[ RUN      ] com.eignex.koblas.dense.PackedPanelsTest.packed panels feed the platform tile
+[       OK ] com.eignex.koblas.dense.PackedPanelsTest.packed panels feed the platform tile (0 ms)
+[ RUN      ] com.eignex.koblas.dense.PackedPanelsTest.packed trsm solves partial tiles in both directions
+[       OK ] com.eignex.koblas.dense.PackedPanelsTest.packed trsm solves partial tiles in both directions (3 ms)
+[ RUN      ] com.eignex.koblas.dense.PackedPanelsTest.packed gemm trsm accepts exact edge buffers
+[       OK ] com.eignex.koblas.dense.PackedPanelsTest.packed gemm trsm accepts exact edge buffers (3 ms)
+[ RUN      ] com.eignex.koblas.dense.PackedPanelsTest.packed trsm stages an aliased triangle
+[       OK ] com.eignex.koblas.dense.PackedPanelsTest.packed trsm stages an aliased triangle (0 ms)
+[ RUN      ] com.eignex.koblas.dense.PackedPanelsTest.panel sizes reject impossible arrays
+[       OK ] com.eignex.koblas.dense.PackedPanelsTest.panel sizes reject impossible arrays (0 ms)
+[----------] 14 tests from com.eignex.koblas.dense.PackedPanelsTest (21 ms total)
+
+[----------] 3 tests from com.eignex.koblas.dense.PackedTileOutputTest
+[ RUN      ] com.eignex.koblas.dense.PackedTileOutputTest.masked accumulation changes only the selected triangle
+[       OK ] com.eignex.koblas.dense.PackedTileOutputTest.masked accumulation changes only the selected triangle (0 ms)
+[ RUN      ] com.eignex.koblas.dense.PackedTileOutputTest.masked accumulation skips an outside tile without reads
+[       OK ] com.eignex.koblas.dense.PackedTileOutputTest.masked accumulation skips an outside tile without reads (0 ms)
+[ RUN      ] com.eignex.koblas.dense.PackedTileOutputTest.edge overwrite replaces valid entries and preserves outside entries
+[       OK ] com.eignex.koblas.dense.PackedTileOutputTest.edge overwrite replaces valid entries and preserves outside entries (0 ms)
+[----------] 3 tests from com.eignex.koblas.dense.PackedTileOutputTest (2 ms total)
+
+[----------] 3 tests from com.eignex.koblas.dense.PackedTriangularSolveTest
+[ RUN      ] com.eignex.koblas.dense.PackedTriangularSolveTest.packed trsm normalizes every BLAS variant
+[       OK ] com.eignex.koblas.dense.PackedTriangularSolveTest.packed trsm normalizes every BLAS variant (200 ms)
+[ RUN      ] com.eignex.koblas.dense.PackedTriangularSolveTest.ordinary left solve preserves singular zero pivot semantics
+[       OK ] com.eignex.koblas.dense.PackedTriangularSolveTest.ordinary left solve preserves singular zero pivot semantics (7 ms)
+[ RUN      ] com.eignex.koblas.dense.PackedTriangularSolveTest.ordinary solve preserves overflow and cancellation semantics
+[       OK ] com.eignex.koblas.dense.PackedTriangularSolveTest.ordinary solve preserves overflow and cancellation semantics (41 ms)
+[----------] 3 tests from com.eignex.koblas.dense.PackedTriangularSolveTest (249 ms total)
+
+[----------] 6 tests from com.eignex.koblas.dense.PackedTrmmTest
+[ RUN      ] com.eignex.koblas.dense.PackedTrmmTest.packed multiply agrees with a written out product for every flag combination
+[       OK ] com.eignex.koblas.dense.PackedTrmmTest.packed multiply agrees with a written out product for every flag combination (298 ms)
+[ RUN      ] com.eignex.koblas.dense.PackedTrmmTest.packed multiply crosses tile and cache block boundaries
+[       OK ] com.eignex.koblas.dense.PackedTrmmTest.packed multiply crosses tile and cache block boundaries (991 ms)
+[ RUN      ] com.eignex.koblas.dense.PackedTrmmTest.ordinary multiply applies alpha before the packed product
+[       OK ] com.eignex.koblas.dense.PackedTrmmTest.ordinary multiply applies alpha before the packed product (13 ms)
+[ RUN      ] com.eignex.koblas.dense.PackedTrmmTest.packed multiply snapshots a triangle that shares the result backing
+[       OK ] com.eignex.koblas.dense.PackedTrmmTest.packed multiply snapshots a triangle that shares the result backing (37 ms)
+[ RUN      ] com.eignex.koblas.dense.PackedTrmmTest.ordinary multiply preserves exceptional zero arithmetic
+[       OK ] com.eignex.koblas.dense.PackedTrmmTest.ordinary multiply preserves exceptional zero arithmetic (1 ms)
+[ RUN      ] com.eignex.koblas.dense.PackedTrmmTest.ordinary multiply preserves overflow and cancellation
+[       OK ] com.eignex.koblas.dense.PackedTrmmTest.ordinary multiply preserves overflow and cancellation (1 ms)
+[----------] 6 tests from com.eignex.koblas.dense.PackedTrmmTest (1344 ms total)
+
+[----------] 6 tests from com.eignex.koblas.dense.PackedTrsmTest
+[ RUN      ] com.eignex.koblas.dense.PackedTrsmTest.the portable packed solve agrees with a written out right product
+[       OK ] com.eignex.koblas.dense.PackedTrsmTest.the portable packed solve agrees with a written out right product (31 ms)
+[ RUN      ] com.eignex.koblas.dense.PackedTrsmTest.the packed solve skips zero triangle coefficients
+[       OK ] com.eignex.koblas.dense.PackedTrsmTest.the packed solve skips zero triangle coefficients (0 ms)
+[ RUN      ] com.eignex.koblas.dense.PackedTrsmTest.the packed solve divides by singular and subnormal diagonals
+[       OK ] com.eignex.koblas.dense.PackedTrsmTest.the packed solve divides by singular and subnormal diagonals (0 ms)
+[ RUN      ] com.eignex.koblas.dense.PackedTrsmTest.a unit diagonal is not read
+[       OK ] com.eignex.koblas.dense.PackedTrsmTest.a unit diagonal is not read (0 ms)
+[ RUN      ] com.eignex.koblas.dense.PackedTrsmTest.the compiled in packed kernels agree with their reference composition
+[       OK ] com.eignex.koblas.dense.PackedTrsmTest.the compiled in packed kernels agree with their reference composition (24 ms)
+[ RUN      ] com.eignex.koblas.dense.PackedTrsmTest.empty packed solves do not read operands
+[       OK ] com.eignex.koblas.dense.PackedTrsmTest.empty packed solves do not read operands (0 ms)
+[----------] 6 tests from com.eignex.koblas.dense.PackedTrsmTest (58 ms total)
+
+[----------] 10 tests from com.eignex.koblas.dense.StridedBlasTest
+[ RUN      ] com.eignex.koblas.dense.StridedBlasTest.strided gemm beta zero ignores poisoned output and preserves guards
+[       OK ] com.eignex.koblas.dense.StridedBlasTest.strided gemm beta zero ignores poisoned output and preserves guards (2 ms)
+[ RUN      ] com.eignex.koblas.dense.StridedBlasTest.gemv rejects reversed aliased vectors before mutating backing storage
+[       OK ] com.eignex.koblas.dense.StridedBlasTest.gemv rejects reversed aliased vectors before mutating backing storage (1 ms)
+[ RUN      ] com.eignex.koblas.dense.StridedBlasTest.norm2 over a strided view propagates a NaN entry
+[       OK ] com.eignex.koblas.dense.StridedBlasTest.norm2 over a strided view propagates a NaN entry (0 ms)
+[ RUN      ] com.eignex.koblas.dense.StridedBlasTest.strided gemv forms zero products from nonzero alpha
+[       OK ] com.eignex.koblas.dense.StridedBlasTest.strided gemv forms zero products from nonzero alpha (0 ms)
+[ RUN      ] com.eignex.koblas.dense.StridedBlasTest.strided gemm scales without forming products when alpha is zero
+[       OK ] com.eignex.koblas.dense.StridedBlasTest.strided gemm scales without forming products when alpha is zero (0 ms)
+[ RUN      ] com.eignex.koblas.dense.StridedBlasTest.gemv reads a panel and strided vectors without copies
+[       OK ] com.eignex.koblas.dense.StridedBlasTest.gemv reads a panel and strided vectors without copies (0 ms)
+[ RUN      ] com.eignex.koblas.dense.StridedBlasTest.strided gemv leaves its destination alone for an empty matrix
+[       OK ] com.eignex.koblas.dense.StridedBlasTest.strided gemv leaves its destination alone for an empty matrix (0 ms)
+[ RUN      ] com.eignex.koblas.dense.StridedBlasTest.gemm writes a panel while preserving its surrounding buffer
+[       OK ] com.eignex.koblas.dense.StridedBlasTest.gemm writes a panel while preserving its surrounding buffer (0 ms)
+[ RUN      ] com.eignex.koblas.dense.StridedBlasTest.view BLAS rejects an overlapping destination
+[       OK ] com.eignex.koblas.dense.StridedBlasTest.view BLAS rejects an overlapping destination (0 ms)
+[ RUN      ] com.eignex.koblas.dense.StridedBlasTest.vector operations mutate borrowed rows and slices
+[       OK ] com.eignex.koblas.dense.StridedBlasTest.vector operations mutate borrowed rows and slices (0 ms)
+[----------] 10 tests from com.eignex.koblas.dense.StridedBlasTest (10 ms total)
+
+[----------] 35 tests from com.eignex.koblas.dense.SymmetricBlasTest
+[ RUN      ] com.eignex.koblas.dense.SymmetricBlasTest.symm matches gemm on the full matrix across block boundaries
+[       OK ] com.eignex.koblas.dense.SymmetricBlasTest.symm matches gemm on the full matrix across block boundaries (1551 ms)
+[ RUN      ] com.eignex.koblas.dense.SymmetricBlasTest.symv matches gemv on the full matrix and reads only the selected triangle
+[       OK ] com.eignex.koblas.dense.SymmetricBlasTest.symv matches gemv on the full matrix and reads only the selected triangle (31 ms)
+[ RUN      ] com.eignex.koblas.dense.SymmetricBlasTest.symv matches gemv when x holds zeros
+[       OK ] com.eignex.koblas.dense.SymmetricBlasTest.symv matches gemv when x holds zeros (4 ms)
+[ RUN      ] com.eignex.koblas.dense.SymmetricBlasTest.symv four column traversal agrees with the scalar reference
+[       OK ] com.eignex.koblas.dense.SymmetricBlasTest.symv four column traversal agrees with the scalar reference (1017 ms)
+[ RUN      ] com.eignex.koblas.dense.SymmetricBlasTest.symv four column traversal preserves selected exceptional arithmetic
+[       OK ] com.eignex.koblas.dense.SymmetricBlasTest.symv four column traversal preserves selected exceptional arithmetic (181 ms)
+[ RUN      ] com.eignex.koblas.dense.SymmetricBlasTest.reference symv evaluates its diagonal product for a zero multiplier
+[       OK ] com.eignex.koblas.dense.SymmetricBlasTest.reference symv evaluates its diagonal product for a zero multiplier (0 ms)
+[ RUN      ] com.eignex.koblas.dense.SymmetricBlasTest.sparse syr follows dense BLAS arithmetic for implicit zeros
+[       OK ] com.eignex.koblas.dense.SymmetricBlasTest.sparse syr follows dense BLAS arithmetic for implicit zeros (0 ms)
+[ RUN      ] com.eignex.koblas.dense.SymmetricBlasTest.sparse syr2 follows dense BLAS arithmetic for implicit zeros
+[       OK ] com.eignex.koblas.dense.SymmetricBlasTest.sparse syr2 follows dense BLAS arithmetic for implicit zeros (0 ms)
+[ RUN      ] com.eignex.koblas.dense.SymmetricBlasTest.symv refuses a non-square matrix at every size
+[       OK ] com.eignex.koblas.dense.SymmetricBlasTest.symv refuses a non-square matrix at every size (2 ms)
+[ RUN      ] com.eignex.koblas.dense.SymmetricBlasTest.symm matches gemm on the full matrix and reads only the selected triangle
+[       OK ] com.eignex.koblas.dense.SymmetricBlasTest.symm matches gemm on the full matrix and reads only the selected triangle (29 ms)
+[ RUN      ] com.eignex.koblas.dense.SymmetricBlasTest.symm right multiplies from the right and reads only the selected triangle
+[       OK ] com.eignex.koblas.dense.SymmetricBlasTest.symm right multiplies from the right and reads only the selected triangle (5 ms)
+[ RUN      ] com.eignex.koblas.dense.SymmetricBlasTest.syrk triangle modes write only the selected triangle with strict beta semantics
+[       OK ] com.eignex.koblas.dense.SymmetricBlasTest.syrk triangle modes write only the selected triangle with strict beta semantics (21 ms)
+[ RUN      ] com.eignex.koblas.dense.SymmetricBlasTest.syrk through a reused workspace does not accumulate the previous call
+[       OK ] com.eignex.koblas.dense.SymmetricBlasTest.syrk through a reused workspace does not accumulate the previous call (5 ms)
+[ RUN      ] com.eignex.koblas.dense.SymmetricBlasTest.syrk preserves the netlib zero multiplier rule with infinities
+[       OK ] com.eignex.koblas.dense.SymmetricBlasTest.syrk preserves the netlib zero multiplier rule with infinities (1 ms)
+[ RUN      ] com.eignex.koblas.dense.SymmetricBlasTest.syrk preserves the netlib zero multiplier rule when finite scaling overflows
+[       OK ] com.eignex.koblas.dense.SymmetricBlasTest.syrk preserves the netlib zero multiplier rule when finite scaling overflows (1 ms)
+[ RUN      ] com.eignex.koblas.dense.SymmetricBlasTest.syrk snapshots an aliased destination
+[       OK ] com.eignex.koblas.dense.SymmetricBlasTest.syrk snapshots an aliased destination (2 ms)
+[ RUN      ] com.eignex.koblas.dense.SymmetricBlasTest.syr2k writes only the triangle it is given and scales only that
+[       OK ] com.eignex.koblas.dense.SymmetricBlasTest.syr2k writes only the triangle it is given and scales only that (9 ms)
+[ RUN      ] com.eignex.koblas.dense.SymmetricBlasTest.syr2k matches the gemm expansion in both orientations
+[       OK ] com.eignex.koblas.dense.SymmetricBlasTest.syr2k matches the gemm expansion in both orientations (2 ms)
+[ RUN      ] com.eignex.koblas.dense.SymmetricBlasTest.syr2k preserves exceptional rank two evaluation
+[       OK ] com.eignex.koblas.dense.SymmetricBlasTest.syr2k preserves exceptional rank two evaluation (1 ms)
+[ RUN      ] com.eignex.koblas.dense.SymmetricBlasTest.syr2k interleaves cross products before accumulation overflow
+[       OK ] com.eignex.koblas.dense.SymmetricBlasTest.syr2k interleaves cross products before accumulation overflow (0 ms)
+[ RUN      ] com.eignex.koblas.dense.SymmetricBlasTest.syr2k snapshots either aliased input
+[       OK ] com.eignex.koblas.dense.SymmetricBlasTest.syr2k snapshots either aliased input (8 ms)
+[ RUN      ] com.eignex.koblas.dense.SymmetricBlasTest.syrk crosses its cache tile boundaries
+[       OK ] com.eignex.koblas.dense.SymmetricBlasTest.syrk crosses its cache tile boundaries (8688 ms)
+[ RUN      ] com.eignex.koblas.dense.SymmetricBlasTest.syr2k crosses packed tile boundaries
+[       OK ] com.eignex.koblas.dense.SymmetricBlasTest.syr2k crosses packed tile boundaries (12 ms)
+[ RUN      ] com.eignex.koblas.dense.SymmetricBlasTest.syr2k crosses packed row block boundaries
+[       OK ] com.eignex.koblas.dense.SymmetricBlasTest.syr2k crosses packed row block boundaries (7917 ms)
+[ RUN      ] com.eignex.koblas.dense.SymmetricBlasTest.syr2k crosses packed column block boundaries
+[       OK ] com.eignex.koblas.dense.SymmetricBlasTest.syr2k crosses packed column block boundaries (15599 ms)
+[ RUN      ] com.eignex.koblas.dense.SymmetricBlasTest.syr2k crosses packed depth block boundaries
+[       OK ] com.eignex.koblas.dense.SymmetricBlasTest.syr2k crosses packed depth block boundaries (557 ms)
+[ RUN      ] com.eignex.koblas.dense.SymmetricBlasTest.left symm crosses its cache tile boundaries
+[       OK ] com.eignex.koblas.dense.SymmetricBlasTest.left symm crosses its cache tile boundaries (388 ms)
+[ RUN      ] com.eignex.koblas.dense.SymmetricBlasTest.right symm crosses its cache tile boundaries
+[       OK ] com.eignex.koblas.dense.SymmetricBlasTest.right symm crosses its cache tile boundaries (52 ms)
+[ RUN      ] com.eignex.koblas.dense.SymmetricBlasTest.symm handles empty shapes
+[       OK ] com.eignex.koblas.dense.SymmetricBlasTest.symm handles empty shapes (0 ms)
+[ RUN      ] com.eignex.koblas.dense.SymmetricBlasTest.symv with zero alpha overwrites the destination
+[       OK ] com.eignex.koblas.dense.SymmetricBlasTest.symv with zero alpha overwrites the destination (0 ms)
+[ RUN      ] com.eignex.koblas.dense.SymmetricBlasTest.symm leaves C alone when the operands do not line up
+[       OK ] com.eignex.koblas.dense.SymmetricBlasTest.symm leaves C alone when the operands do not line up (2 ms)
+[ RUN      ] com.eignex.koblas.dense.SymmetricBlasTest.syrk gives its workspace buffer back when the inner loop throws
+[       OK ] com.eignex.koblas.dense.SymmetricBlasTest.syrk gives its workspace buffer back when the inner loop throws (1 ms)
+[ RUN      ] com.eignex.koblas.dense.SymmetricBlasTest.syr2k through a reused workspace does not accumulate the previous call
+[       OK ] com.eignex.koblas.dense.SymmetricBlasTest.syr2k through a reused workspace does not accumulate the previous call (3 ms)
+[ RUN      ] com.eignex.koblas.dense.SymmetricBlasTest.syr2k gives its workspace buffers back when the inner loop throws
+[       OK ] com.eignex.koblas.dense.SymmetricBlasTest.syr2k gives its workspace buffers back when the inner loop throws (1 ms)
+[ RUN      ] com.eignex.koblas.dense.SymmetricBlasTest.syr2k exceptional fallback returns its workspace after failure
+[       OK ] com.eignex.koblas.dense.SymmetricBlasTest.syr2k exceptional fallback returns its workspace after failure (1 ms)
+[----------] 35 tests from com.eignex.koblas.dense.SymmetricBlasTest (36111 ms total)
+
+[----------] 19 tests from com.eignex.koblas.dense.TriangularTest
+[ RUN      ] com.eignex.koblas.dense.TriangularTest.the triangular block width fits the zero-pivot mask
+[       OK ] com.eignex.koblas.dense.TriangularTest.the triangular block width fits the zero-pivot mask (0 ms)
+[ RUN      ] com.eignex.koblas.dense.TriangularTest.trsv solves all eight flag combinations and never reads the opposite triangle
+[       OK ] com.eignex.koblas.dense.TriangularTest.trsv solves all eight flag combinations and never reads the opposite triangle (37 ms)
+[ RUN      ] com.eignex.koblas.dense.TriangularTest.trsm matches per-column trsv across the flag combinations
+[       OK ] com.eignex.koblas.dense.TriangularTest.trsm matches per-column trsv across the flag combinations (15 ms)
+[ RUN      ] com.eignex.koblas.dense.TriangularTest.trsm solves the multi-RHS system against a gemm residual check
+[       OK ] com.eignex.koblas.dense.TriangularTest.trsm solves the multi-RHS system against a gemm residual check (2 ms)
+[ RUN      ] com.eignex.koblas.dense.TriangularTest.trsm applies alpha to the solved matrix
+[       OK ] com.eignex.koblas.dense.TriangularTest.trsm applies alpha to the solved matrix (2 ms)
+[ RUN      ] com.eignex.koblas.dense.TriangularTest.trmv matches gemv on the explicit triangle for all flag combos
+[       OK ] com.eignex.koblas.dense.TriangularTest.trmv matches gemv on the explicit triangle for all flag combos (14 ms)
+[ RUN      ] com.eignex.koblas.dense.TriangularTest.trmm matches gemm on the explicit triangle for all flag combos
+[       OK ] com.eignex.koblas.dense.TriangularTest.trmm matches gemm on the explicit triangle for all flag combos (27 ms)
+[ RUN      ] com.eignex.koblas.dense.TriangularTest.trmm right multiplies from the right and matches gemm
+[       OK ] com.eignex.koblas.dense.TriangularTest.trmm right multiplies from the right and matches gemm (5 ms)
+[ RUN      ] com.eignex.koblas.dense.TriangularTest.trsm right inverts trmm right
+[       OK ] com.eignex.koblas.dense.TriangularTest.trsm right inverts trmm right (7 ms)
+[ RUN      ] com.eignex.koblas.dense.TriangularTest.triangular matrix operations cross the diagonal block boundary
+[       OK ] com.eignex.koblas.dense.TriangularTest.triangular matrix operations cross the diagonal block boundary (757 ms)
+[ RUN      ] com.eignex.koblas.dense.TriangularTest.trmv round-trips with trsv
+[       OK ] com.eignex.koblas.dense.TriangularTest.trmv round-trips with trsv (4 ms)
+[ RUN      ] com.eignex.koblas.dense.TriangularTest.trsv divides by a zero diagonal instead of reporting it
+[       OK ] com.eignex.koblas.dense.TriangularTest.trsv divides by a zero diagonal instead of reporting it (0 ms)
+[ RUN      ] com.eignex.koblas.dense.TriangularTest.nontransposed trsv skips a zero right hand side pivot
+[       OK ] com.eignex.koblas.dense.TriangularTest.nontransposed trsv skips a zero right hand side pivot (0 ms)
+[ RUN      ] com.eignex.koblas.dense.TriangularTest.transposed trsv divides a zero right hand side pivot
+[       OK ] com.eignex.koblas.dense.TriangularTest.transposed trsv divides a zero right hand side pivot (0 ms)
+[ RUN      ] com.eignex.koblas.dense.TriangularTest.transposed trsv forms products with zero triangle entries
+[       OK ] com.eignex.koblas.dense.TriangularTest.transposed trsv forms products with zero triangle entries (0 ms)
+[ RUN      ] com.eignex.koblas.dense.TriangularTest.right trsm skips zero triangle coefficients
+[       OK ] com.eignex.koblas.dense.TriangularTest.right trsm skips zero triangle coefficients (0 ms)
+[ RUN      ] com.eignex.koblas.dense.TriangularTest.right trmm skips zero triangle coefficients
+[       OK ] com.eignex.koblas.dense.TriangularTest.right trmm skips zero triangle coefficients (0 ms)
+[ RUN      ] com.eignex.koblas.dense.TriangularTest.blocked trsm retains products after a quotient underflows
+[       OK ] com.eignex.koblas.dense.TriangularTest.blocked trsm retains products after a quotient underflows (0 ms)
+[ RUN      ] com.eignex.koblas.dense.TriangularTest.trsv and trsm validate shapes
+[       OK ] com.eignex.koblas.dense.TriangularTest.trsv and trsm validate shapes (1 ms)
+[----------] 19 tests from com.eignex.koblas.dense.TriangularTest (881 ms total)
+
+[----------] 9 tests from com.eignex.koblas.internal.configuration.TuningTest
+[ RUN      ] com.eignex.koblas.internal.configuration.TuningTest.an absent override keeps the default
+[       OK ] com.eignex.koblas.internal.configuration.TuningTest.an absent override keeps the default (0 ms)
+[ RUN      ] com.eignex.koblas.internal.configuration.TuningTest.a blank override keeps the default
+[       OK ] com.eignex.koblas.internal.configuration.TuningTest.a blank override keeps the default (0 ms)
+[ RUN      ] com.eignex.koblas.internal.configuration.TuningTest.an integer override replaces the default
+[       OK ] com.eignex.koblas.internal.configuration.TuningTest.an integer override replaces the default (0 ms)
+[ RUN      ] com.eignex.koblas.internal.configuration.TuningTest.surrounding space does not stop an override parsing
+[       OK ] com.eignex.koblas.internal.configuration.TuningTest.surrounding space does not stop an override parsing (0 ms)
+[ RUN      ] com.eignex.koblas.internal.configuration.TuningTest.an unparseable override keeps the default
+[       OK ] com.eignex.koblas.internal.configuration.TuningTest.an unparseable override keeps the default (0 ms)
+[ RUN      ] com.eignex.koblas.internal.configuration.TuningTest.an override below the minimum keeps the default
+[       OK ] com.eignex.koblas.internal.configuration.TuningTest.an override below the minimum keeps the default (0 ms)
+[ RUN      ] com.eignex.koblas.internal.configuration.TuningTest.an override above the maximum keeps the default
+[       OK ] com.eignex.koblas.internal.configuration.TuningTest.an override above the maximum keeps the default (0 ms)
+[ RUN      ] com.eignex.koblas.internal.configuration.TuningTest.an override at either end of the range is accepted
+[       OK ] com.eignex.koblas.internal.configuration.TuningTest.an override at either end of the range is accepted (0 ms)
+[ RUN      ] com.eignex.koblas.internal.configuration.TuningTest.a key spells one property and one environment variable
+[       OK ] com.eignex.koblas.internal.configuration.TuningTest.a key spells one property and one environment variable (0 ms)
+[----------] 9 tests from com.eignex.koblas.internal.configuration.TuningTest (3 ms total)
+
+[----------] 8 tests from com.eignex.koblas.internal.kernels.NativeCatalogTest
+[ RUN      ] com.eignex.koblas.internal.kernels.NativeCatalogTest.ACE without double accumulation cannot serve double arithmetic
+[       OK ] com.eignex.koblas.internal.kernels.NativeCatalogTest.ACE without double accumulation cannot serve double arithmetic (1 ms)
+[ RUN      ] com.eignex.koblas.internal.kernels.NativeCatalogTest.AVX ten does not imply ACE availability
+[       OK ] com.eignex.koblas.internal.kernels.NativeCatalogTest.AVX ten does not imply ACE availability (1 ms)
+[ RUN      ] com.eignex.koblas.internal.kernels.NativeCatalogTest.build CPU and OS unavailability remain distinguishable
+[       OK ] com.eignex.koblas.internal.kernels.NativeCatalogTest.build CPU and OS unavailability remain distinguishable (0 ms)
+[ RUN      ] com.eignex.koblas.internal.kernels.NativeCatalogTest.permission and thread preparation have distinct lifetimes
+[       OK ] com.eignex.koblas.internal.kernels.NativeCatalogTest.permission and thread preparation have distinct lifetimes (0 ms)
+[ RUN      ] com.eignex.koblas.internal.kernels.NativeCatalogTest.a future double tile preserves geometry without streaming vector length
+[       OK ] com.eignex.koblas.internal.kernels.NativeCatalogTest.a future double tile preserves geometry without streaming vector length (0 ms)
+[ RUN      ] com.eignex.koblas.internal.kernels.NativeCatalogTest.unknown feature bits survive record decoding
+[       OK ] com.eignex.koblas.internal.kernels.NativeCatalogTest.unknown feature bits survive record decoding (0 ms)
+[ RUN      ] com.eignex.koblas.internal.kernels.NativeCatalogTest.record decoding rejects incompatible prefixes
+[       OK ] com.eignex.koblas.internal.kernels.NativeCatalogTest.record decoding rejects incompatible prefixes (1 ms)
+[ RUN      ] com.eignex.koblas.internal.kernels.NativeCatalogTest.real descriptors round trip through exact queries
+[       OK ] com.eignex.koblas.internal.kernels.NativeCatalogTest.real descriptors round trip through exact queries (8 ms)
+[----------] 8 tests from com.eignex.koblas.internal.kernels.NativeCatalogTest (16 ms total)
+
+[----------] 3 tests from com.eignex.koblas.sparse.IndexedSparseKernelsTest
+[ RUN      ] com.eignex.koblas.sparse.IndexedSparseKernelsTest.whole vector gather calls the selected slice implementation
+[       OK ] com.eignex.koblas.sparse.IndexedSparseKernelsTest.whole vector gather calls the selected slice implementation (0 ms)
+[ RUN      ] com.eignex.koblas.sparse.IndexedSparseKernelsTest.gather preserves slice boundaries and source values
+[       OK ] com.eignex.koblas.sparse.IndexedSparseKernelsTest.gather preserves slice boundaries and source values (7 ms)
+[ RUN      ] com.eignex.koblas.sparse.IndexedSparseKernelsTest.native gather retains ordered reads when buffers alias
+[       OK ] com.eignex.koblas.sparse.IndexedSparseKernelsTest.native gather retains ordered reads when buffers alias (0 ms)
+[----------] 3 tests from com.eignex.koblas.sparse.IndexedSparseKernelsTest (8 ms total)
+
+[----------] 19 tests from com.eignex.koblas.sparse.PlatformSparseKernelsTest
+[ RUN      ] com.eignex.koblas.sparse.PlatformSparseKernelsTest.dot against a dense operand matches the portable loop at every count
+[       OK ] com.eignex.koblas.sparse.PlatformSparseKernelsTest.dot against a dense operand matches the portable loop at every count (49 ms)
+[ RUN      ] com.eignex.koblas.sparse.PlatformSparseKernelsTest.dot against a sparse operand matches the portable merge
+[       OK ] com.eignex.koblas.sparse.PlatformSparseKernelsTest.dot against a sparse operand matches the portable merge (6 ms)
+[ RUN      ] com.eignex.koblas.sparse.PlatformSparseKernelsTest.axpy matches the portable sparse update
+[       OK ] com.eignex.koblas.sparse.PlatformSparseKernelsTest.axpy matches the portable sparse update (52 ms)
+[ RUN      ] com.eignex.koblas.sparse.PlatformSparseKernelsTest.scatter matches the portable sparse write
+[       OK ] com.eignex.koblas.sparse.PlatformSparseKernelsTest.scatter matches the portable sparse write (15 ms)
+[ RUN      ] com.eignex.koblas.sparse.PlatformSparseKernelsTest.gather matches the portable sparse read
+[       OK ] com.eignex.koblas.sparse.PlatformSparseKernelsTest.gather matches the portable sparse read (15 ms)
+[ RUN      ] com.eignex.koblas.sparse.PlatformSparseKernelsTest.gather zero matches the portable sparse move
+[       OK ] com.eignex.koblas.sparse.PlatformSparseKernelsTest.gather zero matches the portable sparse move (18 ms)
+[ RUN      ] com.eignex.koblas.sparse.PlatformSparseKernelsTest.the reductions match the portable loop at every count
+[       OK ] com.eignex.koblas.sparse.PlatformSparseKernelsTest.the reductions match the portable loop at every count (16 ms)
+[ RUN      ] com.eignex.koblas.sparse.PlatformSparseKernelsTest.the reductions survive values that would overflow a plain sum of squares
+[       OK ] com.eignex.koblas.sparse.PlatformSparseKernelsTest.the reductions survive values that would overflow a plain sum of squares (2 ms)
+[ RUN      ] com.eignex.koblas.sparse.PlatformSparseKernelsTest.dot rejects mismatched sizes on both paths
+[       OK ] com.eignex.koblas.sparse.PlatformSparseKernelsTest.dot rejects mismatched sizes on both paths (1 ms)
+[ RUN      ] com.eignex.koblas.sparse.PlatformSparseKernelsTest.raw indexed operations honor independent offsets
+[       OK ] com.eignex.koblas.sparse.PlatformSparseKernelsTest.raw indexed operations honor independent offsets (2 ms)
+[ RUN      ] com.eignex.koblas.sparse.PlatformSparseKernelsTest.raw reductions permit repeated unsorted support
+[       OK ] com.eignex.koblas.sparse.PlatformSparseKernelsTest.raw reductions permit repeated unsorted support (0 ms)
+[ RUN      ] com.eignex.koblas.sparse.PlatformSparseKernelsTest.raw empty slices at array ends are legal
+[       OK ] com.eignex.koblas.sparse.PlatformSparseKernelsTest.raw empty slices at array ends are legal (0 ms)
+[ RUN      ] com.eignex.koblas.sparse.PlatformSparseKernelsTest.raw mutations validate before changing the destination
+[       OK ] com.eignex.koblas.sparse.PlatformSparseKernelsTest.raw mutations validate before changing the destination (3 ms)
+[ RUN      ] com.eignex.koblas.sparse.PlatformSparseKernelsTest.raw operations reject invalid windows and dimensions
+[       OK ] com.eignex.koblas.sparse.PlatformSparseKernelsTest.raw operations reject invalid windows and dimensions (3 ms)
+[ RUN      ] com.eignex.koblas.sparse.PlatformSparseKernelsTest.raw axpy with zero alpha does not evaluate values
+[       OK ] com.eignex.koblas.sparse.PlatformSparseKernelsTest.raw axpy with zero alpha does not evaluate values (0 ms)
+[ RUN      ] com.eignex.koblas.sparse.PlatformSparseKernelsTest.raw scatter preserves explicit zeros and exceptional values
+[       OK ] com.eignex.koblas.sparse.PlatformSparseKernelsTest.raw scatter preserves explicit zeros and exceptional values (0 ms)
+[ RUN      ] com.eignex.koblas.sparse.PlatformSparseKernelsTest.indexed norm rescales and propagates nonfinite values
+[       OK ] com.eignex.koblas.sparse.PlatformSparseKernelsTest.indexed norm rescales and propagates nonfinite values (0 ms)
+[ RUN      ] com.eignex.koblas.sparse.PlatformSparseKernelsTest.container operations agree with raw indexed operations
+[       OK ] com.eignex.koblas.sparse.PlatformSparseKernelsTest.container operations agree with raw indexed operations (1 ms)
+[ RUN      ] com.eignex.koblas.sparse.PlatformSparseKernelsTest.platform raw leaves agree with scalar across long offset slices
+[       OK ] com.eignex.koblas.sparse.PlatformSparseKernelsTest.platform raw leaves agree with scalar across long offset slices (146 ms)
+[----------] 19 tests from com.eignex.koblas.sparse.PlatformSparseKernelsTest (340 ms total)
+
+[----------] 3 tests from com.eignex.koblas.sparse.PreparedSparseMatrixTest
+[ RUN      ] com.eignex.koblas.sparse.PreparedSparseMatrixTest.a prepared matrix is an immutable snapshot
+[       OK ] com.eignex.koblas.sparse.PreparedSparseMatrixTest.a prepared matrix is an immutable snapshot (0 ms)
+[ RUN      ] com.eignex.koblas.sparse.PreparedSparseMatrixTest.all prepared products agree with the reference
+[       OK ] com.eignex.koblas.sparse.PreparedSparseMatrixTest.all prepared products agree with the reference (6 ms)
+[ RUN      ] com.eignex.koblas.sparse.PreparedSparseMatrixTest.prepared symmetric products retain snapshot semantics
+[       OK ] com.eignex.koblas.sparse.PreparedSparseMatrixTest.prepared symmetric products retain snapshot semantics (0 ms)
+[----------] 3 tests from com.eignex.koblas.sparse.PreparedSparseMatrixTest (8 ms total)
+
+[----------] 4 tests from com.eignex.koblas.sparse.SparseAlgorithmsTest
+[ RUN      ] com.eignex.koblas.sparse.SparseAlgorithmsTest.gemv agrees across transpose alpha and beta variants
+[       OK ] com.eignex.koblas.sparse.SparseAlgorithmsTest.gemv agrees across transpose alpha and beta variants (7 ms)
+[ RUN      ] com.eignex.koblas.sparse.SparseAlgorithmsTest.transposed gemv preserves csc reduction order
+[       OK ] com.eignex.koblas.sparse.SparseAlgorithmsTest.transposed gemv preserves csc reduction order (1 ms)
+[ RUN      ] com.eignex.koblas.sparse.SparseAlgorithmsTest.gemv updates do not fuse multiplication and addition
+[       OK ] com.eignex.koblas.sparse.SparseAlgorithmsTest.gemv updates do not fuse multiplication and addition (0 ms)
+[ RUN      ] com.eignex.koblas.sparse.SparseAlgorithmsTest.gemv evaluates zero coefficient updates
+[       OK ] com.eignex.koblas.sparse.SparseAlgorithmsTest.gemv evaluates zero coefficient updates (0 ms)
+[----------] 4 tests from com.eignex.koblas.sparse.SparseAlgorithmsTest (10 ms total)
+
+[----------] 9 tests from com.eignex.koblas.sparse.SparseBlasTest
+[ RUN      ] com.eignex.koblas.sparse.SparseBlasTest.symmetric products read only the selected triangle
+[       OK ] com.eignex.koblas.sparse.SparseBlasTest.symmetric products read only the selected triangle (1 ms)
+[ RUN      ] com.eignex.koblas.sparse.SparseBlasTest.symmetric products stage aliases and honor scalar no reads
+[       OK ] com.eignex.koblas.sparse.SparseBlasTest.symmetric products stage aliases and honor scalar no reads (1 ms)
+[ RUN      ] com.eignex.koblas.sparse.SparseBlasTest.sparse result gemm supports scaling transpose and structure
+[       OK ] com.eignex.koblas.sparse.SparseBlasTest.sparse result gemm supports scaling transpose and structure (1 ms)
+[ RUN      ] com.eignex.koblas.sparse.SparseBlasTest.direct dense sparse product handles every transpose and aliases
+[       OK ] com.eignex.koblas.sparse.SparseBlasTest.direct dense sparse product handles every transpose and aliases (1 ms)
+[ RUN      ] com.eignex.koblas.sparse.SparseBlasTest.sparse syrk provides dense and selected sparse results
+[       OK ] com.eignex.koblas.sparse.SparseBlasTest.sparse syrk provides dense and selected sparse results (2 ms)
+[ RUN      ] com.eignex.koblas.sparse.SparseBlasTest.sparse syrk follows diagonal stored adjacency in both orientations
+[       OK ] com.eignex.koblas.sparse.SparseBlasTest.sparse syrk follows diagonal stored adjacency in both orientations (25 ms)
+[ RUN      ] com.eignex.koblas.sparse.SparseBlasTest.sparse syrk handles hypersparse rectangular adjacency
+[       OK ] com.eignex.koblas.sparse.SparseBlasTest.sparse syrk handles hypersparse rectangular adjacency (3 ms)
+[ RUN      ] com.eignex.koblas.sparse.SparseBlasTest.empty products retain requested shapes and scalar behavior
+[       OK ] com.eignex.koblas.sparse.SparseBlasTest.empty products retain requested shapes and scalar behavior (0 ms)
+[ RUN      ] com.eignex.koblas.sparse.SparseBlasTest.scaled addition retains union and subtraction direction
+[       OK ] com.eignex.koblas.sparse.SparseBlasTest.scaled addition retains union and subtraction direction (1 ms)
+[----------] 9 tests from com.eignex.koblas.sparse.SparseBlasTest (41 ms total)
+
+[----------] 8 tests from com.eignex.koblas.sparse.SparseGatherTest
+[ RUN      ] com.eignex.koblas.sparse.SparseGatherTest.gather takes the dense entries at the stored positions
+[       OK ] com.eignex.koblas.sparse.SparseGatherTest.gather takes the dense entries at the stored positions (0 ms)
+[ RUN      ] com.eignex.koblas.sparse.SparseGatherTest.gather leaves the dense vector it read untouched
+[       OK ] com.eignex.koblas.sparse.SparseGatherTest.gather leaves the dense vector it read untouched (0 ms)
+[ RUN      ] com.eignex.koblas.sparse.SparseGatherTest.gather keeps the pattern where the dense vector stores more
+[       OK ] com.eignex.koblas.sparse.SparseGatherTest.gather keeps the pattern where the dense vector stores more (0 ms)
+[ RUN      ] com.eignex.koblas.sparse.SparseGatherTest.gatherZero empties the dense vector at exactly the positions it read
+[       OK ] com.eignex.koblas.sparse.SparseGatherTest.gatherZero empties the dense vector at exactly the positions it read (0 ms)
+[ RUN      ] com.eignex.koblas.sparse.SparseGatherTest.gatherZero takes the same values a gather would
+[       OK ] com.eignex.koblas.sparse.SparseGatherTest.gatherZero takes the same values a gather would (0 ms)
+[ RUN      ] com.eignex.koblas.sparse.SparseGatherTest.gather undoes a scatter over the stored pattern
+[       OK ] com.eignex.koblas.sparse.SparseGatherTest.gather undoes a scatter over the stored pattern (0 ms)
+[ RUN      ] com.eignex.koblas.sparse.SparseGatherTest.gather rejects a dense vector of another length
+[       OK ] com.eignex.koblas.sparse.SparseGatherTest.gather rejects a dense vector of another length (0 ms)
+[ RUN      ] com.eignex.koblas.sparse.SparseGatherTest.gatherZero rejects a dense vector of another length
+[       OK ] com.eignex.koblas.sparse.SparseGatherTest.gatherZero rejects a dense vector of another length (0 ms)
+[----------] 8 tests from com.eignex.koblas.sparse.SparseGatherTest (4 ms total)
+
+[----------] 20 tests from com.eignex.koblas.sparse.SparseProductTest
+[ RUN      ] com.eignex.koblas.sparse.SparseProductTest.every transpose combination agrees with the dense product
+[       OK ] com.eignex.koblas.sparse.SparseProductTest.every transpose combination agrees with the dense product (5 ms)
+[ RUN      ] com.eignex.koblas.sparse.SparseProductTest.one right-hand side agrees with gemv
+[       OK ] com.eignex.koblas.sparse.SparseProductTest.one right-hand side agrees with gemv (0 ms)
+[ RUN      ] com.eignex.koblas.sparse.SparseProductTest.gemv forms zero products for stored entries only
+[       OK ] com.eignex.koblas.sparse.SparseProductTest.gemv forms zero products for stored entries only (0 ms)
+[ RUN      ] com.eignex.koblas.sparse.SparseProductTest.left sparse gemm forms zero products for stored entries
+[       OK ] com.eignex.koblas.sparse.SparseProductTest.left sparse gemm forms zero products for stored entries (0 ms)
+[ RUN      ] com.eignex.koblas.sparse.SparseProductTest.right sparse gemm forms zero products for stored entries
+[       OK ] com.eignex.koblas.sparse.SparseProductTest.right sparse gemm forms zero products for stored entries (0 ms)
+[ RUN      ] com.eignex.koblas.sparse.SparseProductTest.a beta of zero overwrites a destination it never reads
+[       OK ] com.eignex.koblas.sparse.SparseProductTest.a beta of zero overwrites a destination it never reads (0 ms)
+[ RUN      ] com.eignex.koblas.sparse.SparseProductTest.an alpha of zero leaves the destination scaled by beta alone
+[       OK ] com.eignex.koblas.sparse.SparseProductTest.an alpha of zero leaves the destination scaled by beta alone (0 ms)
+[ RUN      ] com.eignex.koblas.sparse.SparseProductTest.the product of a matrix and an identity is the matrix
+[       OK ] com.eignex.koblas.sparse.SparseProductTest.the product of a matrix and an identity is the matrix (0 ms)
+[ RUN      ] com.eignex.koblas.sparse.SparseProductTest.the convenience overload takes its shape from the operands
+[       OK ] com.eignex.koblas.sparse.SparseProductTest.the convenience overload takes its shape from the operands (0 ms)
+[ RUN      ] com.eignex.koblas.sparse.SparseProductTest.every transpose combination from the right agrees with the dense product
+[       OK ] com.eignex.koblas.sparse.SparseProductTest.every transpose combination from the right agrees with the dense product (4 ms)
+[ RUN      ] com.eignex.koblas.sparse.SparseProductTest.a dense operand that does not meet the sparse one from the right is rejected
+[       OK ] com.eignex.koblas.sparse.SparseProductTest.a dense operand that does not meet the sparse one from the right is rejected (0 ms)
+[ RUN      ] com.eignex.koblas.sparse.SparseProductTest.the sparse product agrees with the dense one
+[       OK ] com.eignex.koblas.sparse.SparseProductTest.the sparse product agrees with the dense one (4 ms)
+[ RUN      ] com.eignex.koblas.sparse.SparseProductTest.the sparse product keeps its rows ascending within a column
+[       OK ] com.eignex.koblas.sparse.SparseProductTest.the sparse product keeps its rows ascending within a column (2 ms)
+[ RUN      ] com.eignex.koblas.sparse.SparseProductTest.a sparse matrix times a sparse identity is the matrix
+[       OK ] com.eignex.koblas.sparse.SparseProductTest.a sparse matrix times a sparse identity is the matrix (0 ms)
+[ RUN      ] com.eignex.koblas.sparse.SparseProductTest.the sparse product keeps a stored zero of either operand
+[       OK ] com.eignex.koblas.sparse.SparseProductTest.the sparse product keeps a stored zero of either operand (0 ms)
+[ RUN      ] com.eignex.koblas.sparse.SparseProductTest.the sparse product keeps an entry the arithmetic cancels to zero
+[       OK ] com.eignex.koblas.sparse.SparseProductTest.the sparse product keeps an entry the arithmetic cancels to zero (0 ms)
+[ RUN      ] com.eignex.koblas.sparse.SparseProductTest.the sparse product assigns its first contribution directly
+[       OK ] com.eignex.koblas.sparse.SparseProductTest.the sparse product assigns its first contribution directly (0 ms)
+[ RUN      ] com.eignex.koblas.sparse.SparseProductTest.a sparse operand that does not meet the first is rejected
+[       OK ] com.eignex.koblas.sparse.SparseProductTest.a sparse operand that does not meet the first is rejected (1 ms)
+[ RUN      ] com.eignex.koblas.sparse.SparseProductTest.a destination of the wrong shape is rejected
+[       OK ] com.eignex.koblas.sparse.SparseProductTest.a destination of the wrong shape is rejected (0 ms)
+[ RUN      ] com.eignex.koblas.sparse.SparseProductTest.a second operand that does not meet the first is rejected
+[       OK ] com.eignex.koblas.sparse.SparseProductTest.a second operand that does not meet the first is rejected (0 ms)
+[----------] 20 tests from com.eignex.koblas.sparse.SparseProductTest (29 ms total)
+
+[----------] 26 tests from com.eignex.koblas.sparse.SparseSlicesTest
+[ RUN      ] com.eignex.koblas.sparse.SparseSlicesTest.clear touched validates then resets values and marks
+[       OK ] com.eignex.koblas.sparse.SparseSlicesTest.clear touched validates then resets values and marks (1 ms)
+[ RUN      ] com.eignex.koblas.sparse.SparseSlicesTest.clear touched accepts an empty end slice
+[       OK ] com.eignex.koblas.sparse.SparseSlicesTest.clear touched accepts an empty end slice (0 ms)
+[ RUN      ] com.eignex.koblas.sparse.SparseSlicesTest.clear touched failure precedes mutation
+[       OK ] com.eignex.koblas.sparse.SparseSlicesTest.clear touched failure precedes mutation (0 ms)
+[ RUN      ] com.eignex.koblas.sparse.SparseSlicesTest.checked dot preserves strict product and accumulation order
+[       OK ] com.eignex.koblas.sparse.SparseSlicesTest.checked dot preserves strict product and accumulation order (0 ms)
+[ RUN      ] com.eignex.koblas.sparse.SparseSlicesTest.checked dot latches exceptional arithmetic and preserves bits
+[       OK ] com.eignex.koblas.sparse.SparseSlicesTest.checked dot latches exceptional arithmetic and preserves bits (0 ms)
+[ RUN      ] com.eignex.koblas.sparse.SparseSlicesTest.checked dot validates before arithmetic or status mutation
+[       OK ] com.eignex.koblas.sparse.SparseSlicesTest.checked dot validates before arithmetic or status mutation (0 ms)
+[ RUN      ] com.eignex.koblas.sparse.SparseSlicesTest.scatter preserves first touch order across calls
+[       OK ] com.eignex.koblas.sparse.SparseSlicesTest.scatter preserves first touch order across calls (1 ms)
+[ RUN      ] com.eignex.koblas.sparse.SparseSlicesTest.scatter uses input slice offsets
+[       OK ] com.eignex.koblas.sparse.SparseSlicesTest.scatter uses input slice offsets (0 ms)
+[ RUN      ] com.eignex.koblas.sparse.SparseSlicesTest.scatter retains cancellation until compaction
+[       OK ] com.eignex.koblas.sparse.SparseSlicesTest.scatter retains cancellation until compaction (1 ms)
+[ RUN      ] com.eignex.koblas.sparse.SparseSlicesTest.zero alpha evaluates nonfinite arithmetic
+[       OK ] com.eignex.koblas.sparse.SparseSlicesTest.zero alpha evaluates nonfinite arithmetic (0 ms)
+[ RUN      ] com.eignex.koblas.sparse.SparseSlicesTest.first touch adds onto positive zero
+[       OK ] com.eignex.koblas.sparse.SparseSlicesTest.first touch adds onto positive zero (0 ms)
+[ RUN      ] com.eignex.koblas.sparse.SparseSlicesTest.gather clear compacts and clears every touched entry
+[       OK ] com.eignex.koblas.sparse.SparseSlicesTest.gather clear compacts and clears every touched entry (0 ms)
+[ RUN      ] com.eignex.koblas.sparse.SparseSlicesTest.active maximum ignores inactive rows
+[       OK ] com.eignex.koblas.sparse.SparseSlicesTest.active maximum ignores inactive rows (0 ms)
+[ RUN      ] com.eignex.koblas.sparse.SparseSlicesTest.active maximum reports nonfinite and empty support
+[       OK ] com.eignex.koblas.sparse.SparseSlicesTest.active maximum reports nonfinite and empty support (0 ms)
+[ RUN      ] com.eignex.koblas.sparse.SparseSlicesTest.candidate filter writes relative positions in input order
+[       OK ] com.eignex.koblas.sparse.SparseSlicesTest.candidate filter writes relative positions in input order (0 ms)
+[ RUN      ] com.eignex.koblas.sparse.SparseSlicesTest.empty slices at array ends do nothing
+[       OK ] com.eignex.koblas.sparse.SparseSlicesTest.empty slices at array ends do nothing (0 ms)
+[ RUN      ] com.eignex.koblas.sparse.SparseSlicesTest.scatter capacity failure precedes mutation
+[       OK ] com.eignex.koblas.sparse.SparseSlicesTest.scatter capacity failure precedes mutation (0 ms)
+[ RUN      ] com.eignex.koblas.sparse.SparseSlicesTest.scatter updates existing support at full capacity
+[       OK ] com.eignex.koblas.sparse.SparseSlicesTest.scatter updates existing support at full capacity (0 ms)
+[ RUN      ] com.eignex.koblas.sparse.SparseSlicesTest.scatter reserves capacity for actual new touches
+[       OK ] com.eignex.koblas.sparse.SparseSlicesTest.scatter reserves capacity for actual new touches (0 ms)
+[ RUN      ] com.eignex.koblas.sparse.SparseSlicesTest.checked scatter latches nonfinite and nonzero product underflow
+[       OK ] com.eignex.koblas.sparse.SparseSlicesTest.checked scatter latches nonfinite and nonzero product underflow (0 ms)
+[ RUN      ] com.eignex.koblas.sparse.SparseSlicesTest.gather clear capacity failure precedes clearing
+[       OK ] com.eignex.koblas.sparse.SparseSlicesTest.gather clear capacity failure precedes clearing (0 ms)
+[ RUN      ] com.eignex.koblas.sparse.SparseSlicesTest.overlapping integer windows are rejected before mutation
+[       OK ] com.eignex.koblas.sparse.SparseSlicesTest.overlapping integer windows are rejected before mutation (0 ms)
+[ RUN      ] com.eignex.koblas.sparse.SparseSlicesTest.invalid candidate thresholds precede output writes
+[       OK ] com.eignex.koblas.sparse.SparseSlicesTest.invalid candidate thresholds precede output writes (0 ms)
+[ RUN      ] com.eignex.koblas.sparse.SparseSlicesTest.candidate overlap is rejected before writes
+[       OK ] com.eignex.koblas.sparse.SparseSlicesTest.candidate overlap is rejected before writes (0 ms)
+[ RUN      ] com.eignex.koblas.sparse.SparseSlicesTest.invalid candidate row is rejected before writes
+[       OK ] com.eignex.koblas.sparse.SparseSlicesTest.invalid candidate row is rejected before writes (0 ms)
+[ RUN      ] com.eignex.koblas.sparse.SparseSlicesTest.state arrays of different dimensions are rejected as a shape mismatch
+[       OK ] com.eignex.koblas.sparse.SparseSlicesTest.state arrays of different dimensions are rejected as a shape mismatch (0 ms)
+[----------] 26 tests from com.eignex.koblas.sparse.SparseSlicesTest (18 ms total)
+
+[----------] 19 tests from com.eignex.koblas.sparse.SparseTriangularTest
+[ RUN      ] com.eignex.koblas.sparse.SparseTriangularTest.every direction agrees with the dense solve
+[       OK ] com.eignex.koblas.sparse.SparseTriangularTest.every direction agrees with the dense solve (7 ms)
+[ RUN      ] com.eignex.koblas.sparse.SparseTriangularTest.every direction agrees with dense triangular multiplication
+[       OK ] com.eignex.koblas.sparse.SparseTriangularTest.every direction agrees with dense triangular multiplication (11 ms)
+[ RUN      ] com.eignex.koblas.sparse.SparseTriangularTest.every direction agrees with the dense solve over several right-hand sides
+[       OK ] com.eignex.koblas.sparse.SparseTriangularTest.every direction agrees with the dense solve over several right-hand sides (12 ms)
+[ RUN      ] com.eignex.koblas.sparse.SparseTriangularTest.every matrix multiplication direction agrees with dense triangular multiplication
+[       OK ] com.eignex.koblas.sparse.SparseTriangularTest.every matrix multiplication direction agrees with dense triangular multiplication (52 ms)
+[ RUN      ] com.eignex.koblas.sparse.SparseTriangularTest.triangular multiplication treats a missing diagonal as zero without division
+[       OK ] com.eignex.koblas.sparse.SparseTriangularTest.triangular multiplication treats a missing diagonal as zero without division (0 ms)
+[ RUN      ] com.eignex.koblas.sparse.SparseTriangularTest.triangular multiplication snapshots an aliased triangular value buffer
+[       OK ] com.eignex.koblas.sparse.SparseTriangularTest.triangular multiplication snapshots an aliased triangular value buffer (0 ms)
+[ RUN      ] com.eignex.koblas.sparse.SparseTriangularTest.an alpha of zero empties a multiply destination without reading the triangle
+[       OK ] com.eignex.koblas.sparse.SparseTriangularTest.an alpha of zero empties a multiply destination without reading the triangle (0 ms)
+[ RUN      ] com.eignex.koblas.sparse.SparseTriangularTest.each column of a solve from the left is the one trsv gives it
+[       OK ] com.eignex.koblas.sparse.SparseTriangularTest.each column of a solve from the left is the one trsv gives it (1 ms)
+[ RUN      ] com.eignex.koblas.sparse.SparseTriangularTest.alpha scales the right-hand side before the solve
+[       OK ] com.eignex.koblas.sparse.SparseTriangularTest.alpha scales the right-hand side before the solve (0 ms)
+[ RUN      ] com.eignex.koblas.sparse.SparseTriangularTest.an alpha of zero empties the right-hand side without solving
+[       OK ] com.eignex.koblas.sparse.SparseTriangularTest.an alpha of zero empties the right-hand side without solving (0 ms)
+[ RUN      ] com.eignex.koblas.sparse.SparseTriangularTest.a right-hand side that does not meet the triangle is rejected on both sides
+[       OK ] com.eignex.koblas.sparse.SparseTriangularTest.a right-hand side that does not meet the triangle is rejected on both sides (1 ms)
+[ RUN      ] com.eignex.koblas.sparse.SparseTriangularTest.the solution reproduces the right-hand side
+[       OK ] com.eignex.koblas.sparse.SparseTriangularTest.the solution reproduces the right-hand side (1 ms)
+[ RUN      ] com.eignex.koblas.sparse.SparseTriangularTest.the opposite triangle is never read
+[       OK ] com.eignex.koblas.sparse.SparseTriangularTest.the opposite triangle is never read (1 ms)
+[ RUN      ] com.eignex.koblas.sparse.SparseTriangularTest.a missing or zero diagonal follows IEEE division
+[       OK ] com.eignex.koblas.sparse.SparseTriangularTest.a missing or zero diagonal follows IEEE division (0 ms)
+[ RUN      ] com.eignex.koblas.sparse.SparseTriangularTest.sparse trsm retains stored products after a quotient underflows
+[       OK ] com.eignex.koblas.sparse.SparseTriangularTest.sparse trsm retains stored products after a quotient underflows (0 ms)
+[ RUN      ] com.eignex.koblas.sparse.SparseTriangularTest.right sparse trsm skips explicit zero triangle coefficients
+[       OK ] com.eignex.koblas.sparse.SparseTriangularTest.right sparse trsm skips explicit zero triangle coefficients (0 ms)
+[ RUN      ] com.eignex.koblas.sparse.SparseTriangularTest.a singular left block solve follows IEEE division
+[       OK ] com.eignex.koblas.sparse.SparseTriangularTest.a singular left block solve follows IEEE division (0 ms)
+[ RUN      ] com.eignex.koblas.sparse.SparseTriangularTest.a singular right block solve follows IEEE division
+[       OK ] com.eignex.koblas.sparse.SparseTriangularTest.a singular right block solve follows IEEE division (0 ms)
+[ RUN      ] com.eignex.koblas.sparse.SparseTriangularTest.unitDiag takes the diagonal as one without reading it
+[       OK ] com.eignex.koblas.sparse.SparseTriangularTest.unitDiag takes the diagonal as one without reading it (0 ms)
+[----------] 19 tests from com.eignex.koblas.sparse.SparseTriangularTest (97 ms total)
+
+[----------] 1 tests from com.eignex.koblas.sparse.SparseTuningTest
+[ RUN      ] com.eignex.koblas.sparse.SparseTuningTest.the sparse crossovers keep their measured values
+[       OK ] com.eignex.koblas.sparse.SparseTuningTest.the sparse crossovers keep their measured values (0 ms)
+[----------] 1 tests from com.eignex.koblas.sparse.SparseTuningTest (0 ms total)
+
+[----------] 4 tests from com.eignex.koblas.sparse.internal.SparseColumnsTest
+[ RUN      ] com.eignex.koblas.sparse.internal.SparseColumnsTest.replacing columns in one pass matches replacing them one at a time
+[       OK ] com.eignex.koblas.sparse.internal.SparseColumnsTest.replacing columns in one pass matches replacing them one at a time (2 ms)
+[ RUN      ] com.eignex.koblas.sparse.internal.SparseColumnsTest.the last replacement of a column is the one that lands
+[       OK ] com.eignex.koblas.sparse.internal.SparseColumnsTest.the last replacement of a column is the one that lands (0 ms)
+[ RUN      ] com.eignex.koblas.sparse.internal.SparseColumnsTest.an entering column that stores a zero keeps it
+[       OK ] com.eignex.koblas.sparse.internal.SparseColumnsTest.an entering column that stores a zero keeps it (0 ms)
+[ RUN      ] com.eignex.koblas.sparse.internal.SparseColumnsTest.a snapshot does not follow later writes to the vector it was taken from
+[       OK ] com.eignex.koblas.sparse.internal.SparseColumnsTest.a snapshot does not follow later writes to the vector it was taken from (0 ms)
+[----------] 4 tests from com.eignex.koblas.sparse.internal.SparseColumnsTest (5 ms total)
+
+[----------] 1 tests from com.eignex.koblas.sparse.internal.SparseOwnershipTest
+[ RUN      ] com.eignex.koblas.sparse.internal.SparseOwnershipTest.symmetric rank scratch returns every buffer after failure
+[       OK ] com.eignex.koblas.sparse.internal.SparseOwnershipTest.symmetric rank scratch returns every buffer after failure (1 ms)
+[----------] 1 tests from com.eignex.koblas.sparse.internal.SparseOwnershipTest (1 ms total)
+
+[----------] 3 tests from com.eignex.koblas.sparse.internal.SparseTransposeTest
+[ RUN      ] com.eignex.koblas.sparse.internal.SparseTransposeTest.a raw transpose sorts a column a library left unordered
+[       OK ] com.eignex.koblas.sparse.internal.SparseTransposeTest.a raw transpose sorts a column a library left unordered (0 ms)
+[ RUN      ] com.eignex.koblas.sparse.internal.SparseTransposeTest.sortedCsc orders the rows within every column
+[       OK ] com.eignex.koblas.sparse.internal.SparseTransposeTest.sortedCsc orders the rows within every column (0 ms)
+[ RUN      ] com.eignex.koblas.sparse.internal.SparseTransposeTest.sortedCsc keeps a single transpose for a row form
+[       OK ] com.eignex.koblas.sparse.internal.SparseTransposeTest.sortedCsc keeps a single transpose for a row form (0 ms)
+[----------] 3 tests from com.eignex.koblas.sparse.internal.SparseTransposeTest (1 ms total)
+
+[----------] Global test environment tear-down
+[==========] 505 tests from 51 test cases ran. (74438 ms total)
+[  PASSED  ] 505 tests.

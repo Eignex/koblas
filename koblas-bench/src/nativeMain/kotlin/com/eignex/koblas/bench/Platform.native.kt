@@ -42,9 +42,10 @@ internal actual fun writeTextFile(path: String, text: String) = memScoped {
 }
 
 internal actual fun resolveEngine(mode: String): Pair<KoblasEngine, String> {
-    require(mode == "native") { "Native runner requires --mode=native" }
-    val engine = requireNotNull(BuiltinEngines.c) { "requested native C engine is unavailable" }
-    return engine to "native/${engine.vectorKernels.name}/${engine.sparseKernels.name}/packed-${engine.packedKernels.gemmTileRows}x${engine.packedKernels.gemmTileCols}"
+    require(mode == "native" || mode.startsWith("native-raw-")) { "Native runner requires --mode=native" }
+    val engine = rawNativeVariant(mode)?.let(BuiltinEngines::exactC)
+        ?: requireNotNull(BuiltinEngines.c) { "requested native C engine is unavailable" }
+    return engine to "$mode/${engine.vectorKernels.name}/${engine.sparseKernels.name}/packed-${engine.packedKernels.gemmTileRows}x${engine.packedKernels.gemmTileCols}"
 }
 
 internal actual fun runtimeIdentity(): String = "kotlin-native-2.4.10"

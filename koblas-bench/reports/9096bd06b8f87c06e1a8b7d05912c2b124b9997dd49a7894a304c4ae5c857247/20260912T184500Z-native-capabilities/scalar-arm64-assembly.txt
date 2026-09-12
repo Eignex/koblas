@@ -1,0 +1,35 @@
+0000000000000000 <koblas_dense_dot_scalar>:
+       0:	2f00e400 	movi	d0, #0x0
+       4:	7100049f 	cmp	w4, #0x1
+       8:	5400014b 	b.lt	30 <koblas_dense_dot_scalar+0x30>  // b.tstop
+       c:	8b21cc08 	add	x8, x0, w1, sxtw #3
+      10:	8b23cc49 	add	x9, x2, w3, sxtw #3
+      14:	2a0403ea 	mov	w10, w4
+      18:	fc408501 	ldr	d1, [x8], #8
+      1c:	f100054a 	subs	x10, x10, #0x1
+      20:	fc408522 	ldr	d2, [x9], #8
+      24:	1e620821 	fmul	d1, d1, d2
+      28:	1e612800 	fadd	d0, d0, d1
+      2c:	54ffff61 	b.ne	18 <koblas_dense_dot_scalar+0x18>  // b.any
+      30:	d65f03c0 	ret
+
+00000000000007e4 <koblas_dense_dot_axpy_scalar>:
+     7e4:	2f00e401 	movi	d1, #0x0
+     7e8:	710004df 	cmp	w6, #0x1
+     7ec:	540001eb 	b.lt	828 <koblas_dense_dot_axpy_scalar+0x44>  // b.tstop
+     7f0:	8b23cc48 	add	x8, x2, w3, sxtw #3
+     7f4:	8b25cc89 	add	x9, x4, w5, sxtw #3
+     7f8:	8b21cc0a 	add	x10, x0, w1, sxtw #3
+     7fc:	2a0603eb 	mov	w11, w6
+     800:	fc408502 	ldr	d2, [x8], #8
+     804:	f100056b 	subs	x11, x11, #0x1
+     808:	fc408523 	ldr	d3, [x9], #8
+     80c:	1e620804 	fmul	d4, d0, d2
+     810:	1e630842 	fmul	d2, d2, d3
+     814:	fd400143 	ldr	d3, [x10]
+     818:	1e632883 	fadd	d3, d4, d3
+     81c:	1e622821 	fadd	d1, d1, d2
+     820:	fc008543 	str	d3, [x10], #8
+     824:	54fffee1 	b.ne	800 <koblas_dense_dot_axpy_scalar+0x1c>  // b.any
+     828:	1e604020 	fmov	d0, d1
+     82c:	d65f03c0 	ret

@@ -16,46 +16,49 @@ import kotlinx.cinterop.usePinned
 internal val C_HOST_MIN_LENGTH = DenseTuning.nativeCMinLength
 
 /** The C vector kernels compiled into each Kotlin/Native host artifact. */
-internal object NativeCVectorKernels : DenseVectorKernels {
-    override val name: String get() = "c"
+internal class NativeCVectorKernels(private val bindings: NativeCKernelBindings, private val exact: Boolean) :
+    DenseVectorKernels {
+    override val name: String get() = "c-${bindings.variant.name.lowercase()}" + if (exact) "-raw" else "-policy"
 
     override fun dot(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int): Double = if (
-        len < C_HOST_MIN_LENGTH
+        len == 0 || (!exact && len < C_HOST_MIN_LENGTH)
     ) {
         scalarDot(a, aOff, b, bOff, len)
     } else {
         a.usePinned { ap ->
-            b.usePinned { bp -> koblas_dense_dot(ap.addressOf(0), aOff, bp.addressOf(0), bOff, len) }
+            b.usePinned { bp -> bindings.denseDot(ap.addressOf(0), aOff, bp.addressOf(0), bOff, len) }
         }
     }
 
     override fun axpy(y: DoubleArray, yOff: Int, alpha: Double, x: DoubleArray, xOff: Int, len: Int) {
-        if (alpha == 0.0) return
-        if (len < C_HOST_MIN_LENGTH) return scalarAxpy(y, yOff, alpha, x, xOff, len)
+        if (alpha == 0.0 || len == 0) return
+        if (!exact && len < C_HOST_MIN_LENGTH) return scalarAxpy(y, yOff, alpha, x, xOff, len)
         y.usePinned { yp ->
-            x.usePinned { xp -> koblas_dense_axpy(yp.addressOf(0), yOff, alpha, xp.addressOf(0), xOff, len) }
+            x.usePinned { xp -> bindings.denseAxpy(yp.addressOf(0), yOff, alpha, xp.addressOf(0), xOff, len) }
         }
     }
 
     override fun scale(v: DoubleArray, vOff: Int, alpha: Double, len: Int) {
-        if (alpha == 1.0) return
-        if (len < C_HOST_MIN_LENGTH) return scalarScale(v, vOff, alpha, len)
-        v.usePinned { vp -> koblas_dense_scale(vp.addressOf(0), vOff, alpha, len) }
+        if (alpha == 1.0 || len == 0) return
+        if (!exact && len < C_HOST_MIN_LENGTH) return scalarScale(v, vOff, alpha, len)
+        v.usePinned { vp -> bindings.denseScale(vp.addressOf(0), vOff, alpha, len) }
     }
 
     override fun nrm2(v: DoubleArray, vOff: Int, len: Int): Double =
-        if (len == 0) 0.0 else v.usePinned { vp -> koblas_dense_nrm2(vp.addressOf(0), vOff, len) }
+        if (len == 0) 0.0 else v.usePinned { vp -> bindings.denseNrm2(vp.addressOf(0), vOff, len) }
 
-    override fun iamax(v: DoubleArray, vOff: Int, len: Int): Int = if (len < C_HOST_MIN_LENGTH) {
+    override fun iamax(v: DoubleArray, vOff: Int, len: Int): Int = if (len == 0 ||
+        (!exact && len < C_HOST_MIN_LENGTH)
+    ) {
         scalarIamax(v, vOff, len)
     } else {
         v.usePinned { p ->
-            koblas_dense_iamax(p.addressOf(0), vOff, len)
+            bindings.denseIamax(p.addressOf(0), vOff, len)
         }
     }
 
     override fun asum(v: DoubleArray, vOff: Int, len: Int): Double =
-        if (len == 0) 0.0 else v.usePinned { vp -> koblas_dense_asum(vp.addressOf(0), vOff, len) }
+        if (len == 0) 0.0 else v.usePinned { vp -> bindings.denseAsum(vp.addressOf(0), vOff, len) }
 
     override fun rotmg(d1: Double, d2: Double, x1: Double, y1: Double): ModifiedGivens = portableRotmg(d1, d2, x1, y1)
 
@@ -73,7 +76,7 @@ internal object NativeCVectorKernels : DenseVectorKernels {
         if (transformation.flag == -2.0 || len == 0) return
         x.usePinned { xp ->
             y.usePinned { yp ->
-                koblas_dense_rotm(
+                bindings.denseRotm(
                     xp.addressOf(0), xOff, xStride, yp.addressOf(0), yOff, yStride, len,
                     transformation.h11, transformation.h12, transformation.h21, transformation.h22,
                 )
@@ -86,26 +89,26 @@ internal object NativeCVectorKernels : DenseVectorKernels {
         if (len == 0) return
         x.usePinned { xp ->
             y.usePinned { yp ->
-                koblas_dense_rotm(xp.addressOf(0), xOff, 1, yp.addressOf(0), yOff, 1, len, c, s, -s, c)
+                bindings.denseRotm(xp.addressOf(0), xOff, 1, yp.addressOf(0), yOff, 1, len, c, s, -s, c)
             }
         }
     }
 
     override fun sum(v: DoubleArray, vOff: Int, len: Int): Double =
-        if (len == 0) 0.0 else v.usePinned { p -> koblas_dense_sum(p.addressOf(0), vOff, len) }
+        if (len == 0) 0.0 else v.usePinned { p -> bindings.denseSum(p.addressOf(0), vOff, len) }
 
     override fun ssqd(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int): Double = if (len == 0) {
         0.0
     } else {
         a.usePinned { ap ->
-            b.usePinned { bp -> koblas_dense_ssqd(ap.addressOf(0), aOff, bp.addressOf(0), bOff, len) }
+            b.usePinned { bp -> bindings.denseSsqd(ap.addressOf(0), aOff, bp.addressOf(0), bOff, len) }
         }
     }
 
     override fun swap(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int) {
         if (len == 0) return
         a.usePinned { ap ->
-            b.usePinned { bp -> koblas_dense_swap(ap.addressOf(0), aOff, bp.addressOf(0), bOff, len) }
+            b.usePinned { bp -> bindings.denseSwap(ap.addressOf(0), aOff, bp.addressOf(0), bOff, len) }
         }
     }
 }

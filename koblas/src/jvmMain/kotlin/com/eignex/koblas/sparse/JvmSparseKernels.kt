@@ -3,7 +3,8 @@ package com.eignex.koblas.sparse
 import com.eignex.koblas.internal.kernels.JvmCKernelBindings
 
 /** Bundled C indexed kernels, with operations below their measured crossover retained by the scalar delegate. */
-internal object CIndexedSparseKernels : IndexedSparseKernels by ScalarIndexedSparseKernels {
+internal class CIndexedSparseKernels(private val bindings: JvmCKernelBindings) :
+    IndexedSparseKernels by ScalarIndexedSparseKernels {
     override fun dotDense(
         indices: IntArray,
         indexOffset: Int,
@@ -12,7 +13,7 @@ internal object CIndexedSparseKernels : IndexedSparseKernels by ScalarIndexedSpa
         count: Int,
         dense: DoubleArray,
     ): Double = if (count >= SparseTuning.dotDenseCCrossover) {
-        JvmCKernelBindings.sparseDotDense(indices, indexOffset, values, valueOffset, count, dense)
+        bindings.sparseDotDense(indices, indexOffset, values, valueOffset, count, dense)
     } else {
         ScalarIndexedSparseKernels.dotDense(indices, indexOffset, values, valueOffset, count, dense)
     }
@@ -27,7 +28,7 @@ internal object CIndexedSparseKernels : IndexedSparseKernels by ScalarIndexedSpa
         destination: DoubleArray,
     ) {
         if (count >= SparseTuning.cIndexedMutationCrossover) {
-            JvmCKernelBindings.sparseAxpy(indices, indexOffset, values, valueOffset, count, alpha, destination)
+            bindings.sparseAxpy(indices, indexOffset, values, valueOffset, count, alpha, destination)
         } else {
             ScalarIndexedSparseKernels.axpy(indices, indexOffset, values, valueOffset, count, alpha, destination)
         }
@@ -42,7 +43,7 @@ internal object CIndexedSparseKernels : IndexedSparseKernels by ScalarIndexedSpa
         destination: DoubleArray,
     ) {
         if (count >= SparseTuning.cIndexedMutationCrossover) {
-            JvmCKernelBindings.sparseScatter(indices, indexOffset, values, valueOffset, count, destination)
+            bindings.sparseScatter(indices, indexOffset, values, valueOffset, count, destination)
         } else {
             ScalarIndexedSparseKernels.scatter(indices, indexOffset, values, valueOffset, count, destination)
         }
@@ -50,7 +51,7 @@ internal object CIndexedSparseKernels : IndexedSparseKernels by ScalarIndexedSpa
 
     override fun nrm2(indices: IntArray, indexOffset: Int, count: Int, values: DoubleArray): Double =
         if (count >= SparseTuning.cIndexedNormCrossover) {
-            JvmCKernelBindings.sparseNrm2(indices, indexOffset, count, values)
+            bindings.sparseNrm2(indices, indexOffset, count, values)
         } else {
             ScalarIndexedSparseKernels.nrm2(indices, indexOffset, count, values)
         }

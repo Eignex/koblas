@@ -1,0 +1,124 @@
+0000000000000000 <koblas_dense_dot_scalar>:
+       0:	45 85 c0             	test   %r8d,%r8d
+       3:	7e 1e                	jle    23 <koblas_dense_dot_scalar+0x23>
+       5:	48 63 f6             	movslq %esi,%rsi
+       8:	48 63 c9             	movslq %ecx,%rcx
+       b:	45 89 c1             	mov    %r8d,%r9d
+       e:	44 89 c8             	mov    %r9d,%eax
+      11:	83 e0 03             	and    $0x3,%eax
+      14:	41 83 f8 04          	cmp    $0x4,%r8d
+      18:	73 0d                	jae    27 <koblas_dense_dot_scalar+0x27>
+      1a:	66 0f 57 c0          	xorpd  %xmm0,%xmm0
+      1e:	45 31 c0             	xor    %r8d,%r8d
+      21:	eb 7c                	jmp    9f <koblas_dense_dot_scalar+0x9f>
+      23:	0f 57 c0             	xorps  %xmm0,%xmm0
+      26:	c3                   	ret
+      27:	41 81 e1 fc ff ff 7f 	and    $0x7ffffffc,%r9d
+      2e:	4c 8d 14 f7          	lea    (%rdi,%rsi,8),%r10
+      32:	49 83 c2 18          	add    $0x18,%r10
+      36:	4c 8d 1c ca          	lea    (%rdx,%rcx,8),%r11
+      3a:	49 83 c3 18          	add    $0x18,%r11
+      3e:	66 0f 57 c0          	xorpd  %xmm0,%xmm0
+      42:	45 31 c0             	xor    %r8d,%r8d
+      45:	66 66 2e 0f 1f 84 00 	data16 cs nopw 0x0(%rax,%rax,1)
+      4c:	00 00 00 00
+      50:	f2 43 0f 10 4c c2 e8 	movsd  -0x18(%r10,%r8,8),%xmm1
+      57:	f2 43 0f 10 54 c2 f0 	movsd  -0x10(%r10,%r8,8),%xmm2
+      5e:	f2 43 0f 59 4c c3 e8 	mulsd  -0x18(%r11,%r8,8),%xmm1
+      65:	f2 43 0f 59 54 c3 f0 	mulsd  -0x10(%r11,%r8,8),%xmm2
+      6c:	f2 0f 58 c8          	addsd  %xmm0,%xmm1
+      70:	f2 43 0f 10 5c c2 f8 	movsd  -0x8(%r10,%r8,8),%xmm3
+      77:	f2 43 0f 59 5c c3 f8 	mulsd  -0x8(%r11,%r8,8),%xmm3
+      7e:	f2 0f 58 d1          	addsd  %xmm1,%xmm2
+      82:	f2 43 0f 10 04 c2    	movsd  (%r10,%r8,8),%xmm0
+      88:	f2 43 0f 59 04 c3    	mulsd  (%r11,%r8,8),%xmm0
+      8e:	f2 0f 58 da          	addsd  %xmm2,%xmm3
+      92:	f2 0f 58 c3          	addsd  %xmm3,%xmm0
+      96:	49 83 c0 04          	add    $0x4,%r8
+      9a:	4d 39 c1             	cmp    %r8,%r9
+      9d:	75 b1                	jne    50 <koblas_dense_dot_scalar+0x50>
+      9f:	48 85 c0             	test   %rax,%rax
+      a2:	74 32                	je     d6 <koblas_dense_dot_scalar+0xd6>
+      a4:	48 c1 e1 03          	shl    $0x3,%rcx
+      a8:	4a 8d 0c c1          	lea    (%rcx,%r8,8),%rcx
+      ac:	48 01 ca             	add    %rcx,%rdx
+      af:	48 c1 e6 03          	shl    $0x3,%rsi
+      b3:	4a 8d 0c c6          	lea    (%rsi,%r8,8),%rcx
+      b7:	48 01 cf             	add    %rcx,%rdi
+      ba:	31 c9                	xor    %ecx,%ecx
+      bc:	0f 1f 40 00          	nopl   0x0(%rax)
+      c0:	f2 0f 10 0c cf       	movsd  (%rdi,%rcx,8),%xmm1
+      c5:	f2 0f 59 0c ca       	mulsd  (%rdx,%rcx,8),%xmm1
+      ca:	f2 0f 58 c1          	addsd  %xmm1,%xmm0
+      ce:	48 ff c1             	inc    %rcx
+      d1:	48 39 c8             	cmp    %rcx,%rax
+      d4:	75 ea                	jne    c0 <koblas_dense_dot_scalar+0xc0>
+      d6:	c3                   	ret
+      d7:	66 0f 1f 84 00 00 00 	nopw   0x0(%rax,%rax,1)
+      de:	00 00
+
+00000000000010a0 <koblas_dense_dot_axpy_scalar>:
+    10a0:	41 57                	push   %r15
+    10a2:	41 56                	push   %r14
+    10a4:	53                   	push   %rbx
+    10a5:	44 8b 5c 24 20       	mov    0x20(%rsp),%r11d
+    10aa:	45 85 db             	test   %r11d,%r11d
+    10ad:	7e 1e                	jle    10cd <koblas_dense_dot_axpy_scalar+0x2d>
+    10af:	48 63 c1             	movslq %ecx,%rax
+    10b2:	49 63 c9             	movslq %r9d,%rcx
+    10b5:	48 63 f6             	movslq %esi,%rsi
+    10b8:	45 89 da             	mov    %r11d,%r10d
+    10bb:	41 83 fb 01          	cmp    $0x1,%r11d
+    10bf:	75 15                	jne    10d6 <koblas_dense_dot_axpy_scalar+0x36>
+    10c1:	66 0f 57 c9          	xorpd  %xmm1,%xmm1
+    10c5:	45 31 c9             	xor    %r9d,%r9d
+    10c8:	e9 88 00 00 00       	jmp    1155 <koblas_dense_dot_axpy_scalar+0xb5>
+    10cd:	66 0f 57 c9          	xorpd  %xmm1,%xmm1
+    10d1:	e9 b5 00 00 00       	jmp    118b <koblas_dense_dot_axpy_scalar+0xeb>
+    10d6:	45 89 d3             	mov    %r10d,%r11d
+    10d9:	41 81 e3 fe ff ff 7f 	and    $0x7ffffffe,%r11d
+    10e0:	48 8d 1c c2          	lea    (%rdx,%rax,8),%rbx
+    10e4:	48 83 c3 08          	add    $0x8,%rbx
+    10e8:	4d 8d 34 c8          	lea    (%r8,%rcx,8),%r14
+    10ec:	49 83 c6 08          	add    $0x8,%r14
+    10f0:	4c 8d 3c f7          	lea    (%rdi,%rsi,8),%r15
+    10f4:	49 83 c7 08          	add    $0x8,%r15
+    10f8:	66 0f 57 c9          	xorpd  %xmm1,%xmm1
+    10fc:	45 31 c9             	xor    %r9d,%r9d
+    10ff:	90                   	nop
+    1100:	f2 42 0f 10 54 cb f8 	movsd  -0x8(%rbx,%r9,8),%xmm2
+    1107:	f2 43 0f 10 5c ce f8 	movsd  -0x8(%r14,%r9,8),%xmm3
+    110e:	f2 0f 59 da          	mulsd  %xmm2,%xmm3
+    1112:	f2 0f 59 d0          	mulsd  %xmm0,%xmm2
+    1116:	f2 43 0f 58 54 cf f8 	addsd  -0x8(%r15,%r9,8),%xmm2
+    111d:	f2 0f 58 d9          	addsd  %xmm1,%xmm3
+    1121:	f2 43 0f 11 54 cf f8 	movsd  %xmm2,-0x8(%r15,%r9,8)
+    1128:	f2 42 0f 10 14 cb    	movsd  (%rbx,%r9,8),%xmm2
+    112e:	f2 43 0f 10 0c ce    	movsd  (%r14,%r9,8),%xmm1
+    1134:	f2 0f 59 ca          	mulsd  %xmm2,%xmm1
+    1138:	f2 0f 59 d0          	mulsd  %xmm0,%xmm2
+    113c:	f2 43 0f 58 14 cf    	addsd  (%r15,%r9,8),%xmm2
+    1142:	f2 0f 58 cb          	addsd  %xmm3,%xmm1
+    1146:	f2 43 0f 11 14 cf    	movsd  %xmm2,(%r15,%r9,8)
+    114c:	49 83 c1 02          	add    $0x2,%r9
+    1150:	4d 39 cb             	cmp    %r9,%r11
+    1153:	75 ab                	jne    1100 <koblas_dense_dot_axpy_scalar+0x60>
+    1155:	41 f6 c2 01          	test   $0x1,%r10b
+    1159:	74 30                	je     118b <koblas_dense_dot_axpy_scalar+0xeb>
+    115b:	48 8d 04 c2          	lea    (%rdx,%rax,8),%rax
+    115f:	49 8d 0c c8          	lea    (%r8,%rcx,8),%rcx
+    1163:	48 8d 14 f7          	lea    (%rdi,%rsi,8),%rdx
+    1167:	f2 42 0f 10 14 c8    	movsd  (%rax,%r9,8),%xmm2
+    116d:	f2 42 0f 10 1c c9    	movsd  (%rcx,%r9,8),%xmm3
+    1173:	f2 0f 59 da          	mulsd  %xmm2,%xmm3
+    1177:	f2 0f 58 cb          	addsd  %xmm3,%xmm1
+    117b:	f2 0f 59 c2          	mulsd  %xmm2,%xmm0
+    117f:	f2 42 0f 58 04 ca    	addsd  (%rdx,%r9,8),%xmm0
+    1185:	f2 42 0f 11 04 ca    	movsd  %xmm0,(%rdx,%r9,8)
+    118b:	66 0f 28 c1          	movapd %xmm1,%xmm0
+    118f:	5b                   	pop    %rbx
+    1190:	41 5e                	pop    %r14
+    1192:	41 5f                	pop    %r15
+    1194:	c3                   	ret
+    1195:	66 66 2e 0f 1f 84 00 	data16 cs nopw 0x0(%rax,%rax,1)
+    119c:	00 00 00 00
