@@ -1,0 +1,87 @@
+status=complete
+
+[capture]
+started_at=2026-09-13T21:58:48Z
+completed_at=2026-09-13T22:46:55Z
+source_commit=ce785a153829bcb3a484c3fe31e906de7e73d5cf
+dirty=false
+platform=Linux LTHCL001 7.0.0-31-generic #31-Ubuntu SMP PREEMPT_DYNAMIC Sat Aug  1 04:26:38 UTC 2026 x86_64 GNU/Linux
+operation=all
+suite=default
+selected_cases=215
+warmups=5
+requested_samples=5
+target_ns=200000000
+pass=1
+libraries=openblas,onemkl
+vendors_only=false
+requested_jvm_forks=2
+threads=1
+
+[toolchain]
+cc (Ubuntu 15.2.0-16ubuntu1) 15.2.0
+
+[hardware]
+architecture=x86_64
+vendor id=GenuineIntel
+model name=12th Gen Intel(R) Core(TM) i9-12900H
+cpu family=6
+model=154
+thread(s) per core=2
+core(s) per socket=14
+socket(s)=1
+stepping=3
+l1d cache=544 KiB (14 instances)
+l1i cache=704 KiB (14 instances)
+l2 cache=11.5 MiB (8 instances)
+l3 cache=24 MiB (1 instance)
+numa node(s)=1
+memory_kib=64221076
+
+[jvm-scalar]
+started_at=2026-09-13T21:58:48Z
+implementation=jvm-scalar/scalar/scalar/packed-4x4
+runtime=kotlin-2.4.10/jvm/Eclipse Adoptium/25.0.1
+harness=jmh-average-time/JMH-1.37
+warmup_target_ns=200000000
+completed_at=2026-09-13T22:11:32Z
+
+[jvm-c]
+started_at=2026-09-13T22:11:32Z
+implementation=jvm-c/scalar+c-avx2-raw-policy/c-scalar-indexed-policy/packed-4x4
+runtime=kotlin-2.4.10/jvm/Eclipse Adoptium/25.0.1
+harness=jmh-average-time/JMH-1.37
+warmup_target_ns=200000000
+completed_at=2026-09-13T22:24:44Z
+
+[jvm-simd]
+started_at=2026-09-13T22:24:44Z
+implementation=jvm-simd/simd(4 lanes)/simd-sparse/packed-8x4
+runtime=kotlin-2.4.10/jvm/Eclipse Adoptium/25.0.1
+harness=jmh-average-time/JMH-1.37
+warmup_target_ns=200000000
+completed_at=2026-09-13T22:37:35Z
+
+[native]
+started_at=2026-09-13T22:37:35Z
+implementation=native/scalar+c-avx2-raw-policy/c-scalar-indexed-policy/packed-4x4
+runtime=kotlin-native-2.4.10
+harness=native-calibrated
+warmup_target_ns=50000000
+completed_at=2026-09-13T22:42:46Z
+
+[openblas]
+started_at=2026-09-13T22:42:47Z
+implementation=openblas
+runtime=OpenBLAS 0.3.32 NO_LAPACKE DYNAMIC_ARCH NO_AFFINITY Haswell MAX_THREADS=128
+harness=vendor-calibrated
+warmup_target_ns=50000000
+completed_at=2026-09-13T22:44:25Z
+
+[onemkl]
+started_at=2026-09-13T22:44:28Z
+implementation=onemkl
+runtime=Intel(R) oneAPI Math Kernel Library Version 2026.1-Product Build 20260612 for Intel(R) 64 architecture applications
+harness=vendor-calibrated
+warmup_target_ns=50000000
+completed_at=2026-09-13T22:46:55Z
