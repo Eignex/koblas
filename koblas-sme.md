@@ -18,6 +18,7 @@ and runtime. Build independently selectable SME and SME2 implementations. Design
 AMD/Intel extensions, including AVX10, AMX, and the joint AI Compute Extensions (ACE). Choose among scalar Kotlin,
 JVM Vector API, ordinary C SIMD, and eligible matrix accelerators at the appropriate operation boundary.
 Keep mathematical semantics, explicit backend testing, reusable storage, and deterministic selection.
+Maximize shared portable Kotlin above the arithmetic kernels; performance work must preserve that ownership.
 
 Keep the implementation proportional to demonstrated needs. Build the shared contracts and both SME backends;
 add specialized layouts, schedules, or storage strategies when measurements justify their maintenance cost.
@@ -37,8 +38,8 @@ remain required; specialization and framework growth are separate decisions.
 2. Separate hardware facts, kernel/layout descriptions, native scheduling recommendations, and JVM crossover
    policy. A feature bit alone never establishes the fastest implementation.
 3. Replace engine-wide scalar/SIMD/C precedence with immutable, operation-specific execution plans.
-4. Make a matrix block or panel the native execution unit. Microtiles stay inside the native implementation;
-   the JVM does not enter C or streaming mode separately for every microtile.
+4. Keep Level 2/3 algorithms and outer scheduling in portable Kotlin. Use the smallest useful bounded native
+   arithmetic block or panel; its internal microtiles can share registers and streaming state within one call.
 5. Make packed data self-describing. Its logical dimensions, physical strides, layout version, and padding
    belong to the packed object, not to an implicit process-wide tile size.
 6. Separate ordinary vector width, matrix register microtile geometry, packing geometry, cache blocking, and
@@ -196,6 +197,24 @@ vector operation and SME2 for GEMM within the same engine.
 Keep one portable orchestration per Level 2/3 operation, with generic direct/packed/ordered strategies and an
 independently callable scalar oracle. Do not duplicate portable algorithms into SME and non-SME families.
 
+**Portable Kotlin ownership is a design priority.** Kotlin owns the BLAS algorithm, validation and alias staging,
+semantic fallback decisions, direct/packed selection, cache-block and panel traversal, global triangular
+ordering, packing/reuse strategy, workspace lifetime, and call splitting. This ownership applies equally to
+scalar Kotlin, JVM SIMD, ordinary C, SME, and SME2. A C backend must not become a second high-level BLAS engine.
+
+Native code executes a bounded arithmetic or layout primitive over explicit operands. It may own vector and
+microtile loops, local reduction/accumulation, edge stores, fused scaling, and substitution within one selected
+diagonal block. It also owns ABI/state safety checks and can reject an unsupported call before mutation.
+Kotlin retains operation-level eligibility/fallback policy and selects the next block. Scratch requirements
+are explicit and caller-managed; native code does not independently choose packing algorithms or cache blocks.
+
+Choose the smallest kernel boundary that preserves useful register or streaming-state reuse. Moving additional
+work across that boundary needs a concrete reuse requirement or measured end-to-end foreign-call benefit,
+including staging and latency. Fewer C calls alone is not a goal. A bounded block may happen to cover an entire
+small problem, but its implementation must remain a reusable primitive with no separate operation scheduler.
+Compare composed Kotlin scheduling against a proposed fused kernel. Keep the composed path available and avoid
+new interfaces or native variants when existing primitives suffice.
+
 Expose explicit engine/kernel selection for scalar Kotlin, JVM SIMD, ordinary C, SME, and SME2, with exact kernel
 IDs/widths available to tests and the benchmark harness. Existing `BuiltinEngines` and `PackedKernels` APIs can
 be replaced; do not retain misleading compatibility shims. A composed experimental engine may use baseline
@@ -220,7 +239,8 @@ validate shape and alias rules
 resolve semantic eligibility and zero-work behavior
 choose direct / packed / retained-packed algorithm and implementation
 allocate or borrow the selected scratch once
-execute bounded panel/block calls with scaling and writeback
+traverse cache blocks / panels / triangular dependencies in portable Kotlin
+execute selected bounded arithmetic or layout calls with scaling and writeback
 return with no native state or borrowed addresses retained
 ```
 
@@ -245,7 +265,7 @@ implementation. Keep the two ISA implementations separately compiled and attribu
 | `transposeBlocked` | ZA horizontal/vertical traversal over logical blocks. | Grouped ZA transfers and tuned memory scheduling. |
 | `dot4` | General multi-dot panel reduction; retain ordinary SIMD competition. | Variable-width multi-dot using grouped accumulation. No API limit of four outputs. |
 | `axpy4` | General column-panel update retaining output across more columns. | Grouped updates with output vectors retained in ZA across the panel. Preserve required coefficient evaluation. |
-| `dotAxpy` | Coupled dot/update leaf or symmetric block implementation. | Coupled grouped accumulation; prefer a whole SYMV block when that avoids repeated transfers. |
+| `dotAxpy` | Coupled dot/update leaf or symmetric block implementation. | Coupled grouped accumulation within one Kotlin-selected symmetric block; retain the outer SYMV traversal in Kotlin. |
 | `axpyArithmetic` | Ordinary/streaming vector alternative inside larger matrix calls. | Grouped matrix-update alternative; preserve evaluation of zero multipliers. |
 | `ger`, `syr`, `syr2` update loops | Direct outer-product tile updates with structural and zero-coefficient masks. | Grouped load/store and update variants. Keep a bandwidth-efficient ordinary SIMD alternative. |
 | `clearLeftPadding`, `clearRightPadding` | Ordinary fill remains a valid best implementation. | No dedicated streaming region solely to clear a short padding run. Fuse clearing into packing where possible. |
@@ -273,11 +293,11 @@ This is an algorithm/interface redesign, not just substitution of C leaves.
 | GEMM entry paths | Select direct, one-side-packed, both-sides-packed, or retained-packed execution before preparing data. Treat skinny shapes and small depth as distinct categories. |
 | `symm`, `gemmt`, `syrk`, `syr2k` | Share the new product infrastructure with explicit structural packing/output masks. Add a fused rank-2k update so both products can share output traffic; retain the reference evaluation path when needed. |
 | `accumulatePackedProductTile` | Move edges, selected-triangle stores, alpha/beta, and final writeback into block execution. Native masked stores replace routine Kotlin scratch/copyback. |
-| `packedTrsmCore` | Use independently tuned diagonal blocks and RHS panels. Separate dependency order from GEMM packing widths; update many RHS tiles per native call. Fuse the final update with the diagonal solve when beneficial. |
+| `packedTrsmCore` | Use independently tuned diagonal blocks and RHS panels. Separate dependency order from GEMM packing widths; update many RHS tiles per native call. Kotlin owns global dependency order; fuse only the local update and one selected diagonal solve when beneficial. |
 | `packedTrmmCore` | Use block products with correct dependency traversal or a source snapshot chosen by the plan. Share source packing and output handling across microtiles. |
 | `gerUpdate`, `syrUpdate`, `syr2Update` | Add direct rank-update block calls instead of one AXPY call per matrix column. Preserve selected-triangle and zero-source behavior. |
 | Strided/view entry paths | Route through the same planner rather than separate scalar default bodies. General strides remain supported by direct kernels or explicit panel packing. |
-| Packing/transpose paths | Route through `LayoutKernels`; portable code describes windows and structure, native code performs the chosen rearrangement. |
+| Packing/transpose paths | Kotlin chooses packing/reuse and traverses layout blocks; `LayoutKernels` executes each bounded rearrangement using scalar Kotlin or the selected backend. |
 
 Keep a separately callable scalar reference implementation for every new operation contract. Existing ordered
 fallbacks and numerical guards are valuable evidence, but they can be refactored into explicit semantic
@@ -355,8 +375,8 @@ Separate the data into four layers:
 
 1. **Structural catalog:** supported instructions, formats, legal geometries, alignment, and scratch formulas.
    Tuning cannot make an unsupported kernel legal.
-2. **Native schedule:** preferred implementation/width, microtile shape, cache blocks, unroll, prefetch choices,
-   and triangular/RHS blocks for each operation category.
+2. **Kernel and block schedule:** preferred implementation/width, microtile shape, unroll, and prefetch choices;
+   Kotlin-owned cache, panel, and triangular/RHS block sizes. Tuning data does not transfer traversal ownership to C.
 3. **Host-call policy:** scalar-to-C, JVM-SIMD-to-C, and Kotlin/Native-to-C decisions, with independent thresholds.
 4. **Algorithm policy:** direct versus packed, one versus two packed operands, rank-update versus product,
    retained-data reuse, and batch size limits.
@@ -446,8 +466,9 @@ generation. A source-level ACLE compile success is not a completed link/runtime 
 [LLVM SME ABI lowering](https://llvm.org/docs/AArch64SME.html)
 
 For JVM heap arrays, retain zero-copy critical FFM only for bounded compute calls. Batch a useful number of
-tiles inside each call while enforcing profile-defined work/latency limits. Split very large reductions and
-matrix work without breaking accumulation semantics. Measure GC/safepoint responsiveness as well as arithmetic
+tiles inside each call where reuse or measured overhead warrants it, while enforcing profile-defined work/latency
+limits. Kotlin selects and splits these calls; native batching must not absorb the outer BLAS traversal. Split
+very large reductions and matrix work without breaking accumulation semantics. Measure GC/safepoint responsiveness as well as arithmetic
 throughput. Add non-critical native-memory workspaces only if measurements show bounded heap-array calls cannot meet
 throughput/latency needs. Include staging cost and ownership in that comparison; a second storage strategy is
 not mandatory when the simpler path wins.
@@ -582,8 +603,8 @@ is unfinished. Every step ends with independent review in a separate fresh conte
 Do not maintain a second dependency roadmap here.
 
 Completion requires both SME and SME2 dense backends, the generic probe and future-width seam, shared portable
-orchestration, measured profiles, and verified numerical/storage contracts. Optional investigations may conclude
-with evidence that the existing route wins; they do not require shipping unused kernels or speculative APIs.
+orchestration with Kotlin-owned high-level algorithms and scheduling, measured profiles, and verified
+numerical/storage contracts. Optional investigations may conclude with evidence that the existing route wins; they do not require shipping unused kernels or speculative APIs.
 No old interface, group size, or crossover survives solely for compatibility.
 
 **15. Evidence and remaining empirical questions**

@@ -5,6 +5,13 @@ Status: implementation is tracked in the individual sessions and GitHub PRs; pla
 Architecture: [koblas-sme.md](koblas-sme.md). Keep one backend-neutral portable Level 2/3 orchestration per
 operation, with reusable strategies and backend-specific block kernels. Do not duplicate portable BLAS by ISA.
 
+**Maximize portable Kotlin above arithmetic kernels:** Kotlin owns algorithms, outer cache/panel traversal,
+global triangular dependencies, packing decisions, workspaces, and fallback policy. Native calls execute bounded
+primitives; internal microtile loops, local diagonal substitution, and register/streaming-state reuse are allowed.
+Use the smallest useful kernel boundary. Enlarging it requires concrete state/register reuse or measured
+end-to-end call-overhead benefit; fewer calls alone does not justify moving high-level BLAS into C.
+Architecture section 5 defines the ownership boundary for every PR.
+
 The target is independently selectable SME and SME2 kernels, an extensible C probe, explicit ordinary SIMD
 widths, operation-level planning, layout-bearing packed operands, measured runtime-specific defaults, and seams
 for future AMD/Intel AVX10, AMX, and ACE. Existing APIs and implementation structure may change.
@@ -317,7 +324,8 @@ together before accelerated implementations are added.
 **Final independent review (G7):** fresh separate session; model `gpt-6-astra`; reasoning `high`.
 
 - W05: immutable selection, checked shape arithmetic, separate scalar-C and SIMD-C policies, and truthful diagnostics.
-- W06: ownership/layout validation, scalar-oracle independence, alpha/beta and no-read semantics, and failure before mutation.
+- W06: ownership/layout validation, scalar-oracle independence, alpha/beta and no-read semantics, failure before mutation,
+  and contracts that preserve Kotlin-owned scheduling rather than embed a native BLAS engine.
 
 **PR 04 — Ordinary GEMM blocks and shared matrix/view execution**
 
@@ -332,7 +340,8 @@ Leave it open and ready for review without merging; mark the session goal comple
 Transition: ordinary backends implement the final block API, proving it is not an SME-only abstraction.
 
 - Implement direct and packed block products for ordinary C and JVM SIMD. Reuse valid arithmetic code where
-  helpful, but put the microtile loops inside the selected backend's block execution.
+  helpful, but put the microtile loops inside the selected backend's block execution. Kotlin chooses cache
+  blocks and call boundaries; native code consumes explicit operands and caller-managed scratch.
 - Add versioned C matrix execution bindings and block-level Kotlin/Native pinning. Add edge/masked stores and
   alpha/beta handling under the contract from W06.
 - Establish a conservative finite work bound for JVM critical calls now. W24 optimizes it; no interim PR may
@@ -348,7 +357,8 @@ Transition: `BuiltinBlas`/view defaults and per-tile Kotlin dispatch become shar
 
 - Route owning and view GEMM through one validation, alias, semantic-eligibility, and planning path.
 - Select direct, one-side-packed, both-side-packed, or retained-packed execution before allocating/packing.
-  Schedule cache blocks; backend code owns microtiles. Reuse workspace buffers across depth/row blocks.
+  Schedule cache blocks in portable Kotlin; backend code owns only the selected block's microtiles. Reuse
+  workspace buffers across depth/row blocks. Preserve this split for direct and packed paths.
 - Use explicit scaling/writeback semantics and document internal panel packing versus a full view copy.
 - Keep one portable GEMM orchestration for all exact and AUTO backend selections. Preserve independently
   callable reference arithmetic, not a second production portable implementation per ISA.
@@ -362,7 +372,8 @@ must be fixed before merge rather than hidden behind the future SME backend.
 **Final independent review (G7):** fresh separate session; model `gpt-6-astra`; reasoning `high`.
 
 - W07: C/JVM contract equivalence, edge handling, bounded calls, and allocation-free JVM vector helpers.
-- W08: owning/view parity, pack amortization, alias handling, and removal of per-microtile foreign calls.
+- W08: owning/view parity, pack amortization, aliases, useful native-call granularity, and Kotlin ownership of
+  outer scheduling/packing/workspaces; evidence must justify any proposed expansion of native scope.
 
 **PR 05 — SME execution boundaries and both FP64 product backends**
 
@@ -536,7 +547,8 @@ implicitly fixed by a backend's old 4-by-4 tile interface.
 Transition: solve order, RHS batching, and product geometry become independent.
 
 - Define diagonal-solve and fused update-and-solve block contracts; implement their scalar oracle and ordinary
-  C/JVM SIMD versions. Preserve division and zero-source/pivot semantics.
+  C/JVM SIMD versions. Preserve division and zero-source/pivot semantics. Limit substitution to one
+  Kotlin-selected diagonal block and local fusion to its explicit update; global solve order stays in Kotlin.
 - Rewrite one shared TRSM traversal with independently tuned diagonal and RHS blocks. Reuse the product/layout
   infrastructure, and keep numerical fallback eligibility independent of a particular backend.
 - Replace masks whose size was implicitly tied to a machine word where the final block design needs a wider
@@ -564,7 +576,8 @@ Leave it open and ready for review without merging; mark the session goal comple
 Transition: the shared solve traversal gains SME solve and fused product-subtraction/solve implementations.
 
 - Implement `trsmTile`'s replacement and `gemmTrsmTile`'s replacement for SME-only execution. Parallelize across
-  independent RHS entries; retain pivot dependency order.
+  independent RHS entries; retain pivot dependency order within the selected diagonal block. Do not move
+  the global TRSM traversal, packing strategy, or RHS/cache-block scheduling into C.
 - Keep residuals in registers where useful and include all transfers in benchmarks. A composition that uses
   ordinary SIMD for part of the solve reports that fact; exact kernel IDs identify the actual implementation.
 - Cover zero-depth solve-only calls, short diagonal/RHS blocks, nonunit and unit diagonals, and padded storage.
@@ -605,9 +618,12 @@ Transition: fixed `dot4`/`axpy4` calls become variable-width panel execution wit
 - Define and implement scalar, ordinary C, and JVM SIMD multi-dot/multi-column-update contracts. Include fused
   scaling/writeback and the correct zero-multiplier behavior.
 - Rewrite GEMV to schedule row/reduction panels and hold outputs across more columns or rows. Unify owning
-  and strided/view execution through validated windows.
+  and strided/view execution through validated windows. Keep outer row/reduction-panel traversal in portable
+  Kotlin. The panel kernel executes the requested window and performs local accumulation/writeback only.
 - Route small cases through cheap in-runtime kernels. Remove the four-output API limitation rather than adding
-  separate `dot8`, `dot16`, and SME-only portable loops.
+  separate `dot8`, `dot16`, and SME-only portable loops. JVM SIMD may use private fixed-group loops and
+  explicit vector accumulators beneath this variable-panel API; panel width and machine lanes stay separate.
+  Preserve inline vector-returning helpers and allocation checks rather than requiring dynamic vector arrays.
 - Migrate existing sparse panel consumers to this interface without changing their algorithms. Remove their
   four-column adapters here. Only unmigrated SYMV/rank consumers retain adapters, removed in W22 and W23.
 
@@ -621,7 +637,9 @@ Transition: both matrix backends execute the panel/GEMV contracts without new po
 - Add SME panel schedules and distinct SME2 vector-group schedules for the applicable multi-dot and update
   operations. Register exact IDs; unsupported candidates are explicit rather than disguised as accelerated.
 - Keep output/reduction state in the native region across a panel, rather than entering streaming mode once
-  per old four-column leaf. Handle stride/edge behavior through the shared contracts.
+  per old four-column leaf. Handle stride/edge behavior through the shared contracts. Bound the native scope
+  to a Kotlin-selected panel with useful state reuse; compare composed panel execution before widening it.
+  Do not add a separate whole-GEMV scheduler in C.
 - Preserve ordered coefficient evaluation where required, reduction semantics, and out/input alias rules.
 - Measure skinny products and direct GEMV against ordinary kernels. Do not assume a ZA-based panel wins merely
   because its instruction throughput is higher.
@@ -631,7 +649,8 @@ testable. If the native source diff becomes too large, split this PR by ISA whil
 
 **Final independent review (G7):** fresh separate session; model `gpt-6-astra`; reasoning `high`.
 
-- W20: variable panel widths, transpose/stride paths, accumulation order, and owning/view parity.
+- W20: variable panel widths, transpose/stride paths, accumulation order, owning/view parity, JVM allocation
+  behavior, and Kotlin-owned outer traversal.
 - W21: SME and SME2 panel identity, streaming amortization, reduction tails, and full GEMV costs.
 
 **PR 11 — Symmetric vector products and direct rank updates**
@@ -649,7 +668,8 @@ Transition: one symmetric block schedule replaces hard-coded regrouping and dupl
 - Define a coupled off-diagonal block update contributing both a block product and its transpose contribution;
   diagonal blocks read only the selected triangle.
 - Implement the scalar oracle and ordinary/SME/SME2 block kernels; share the same portable SYMV traversal.
-  Reuse components from W20 and W21 without reintroducing many foreign calls.
+  Reuse components from W20 and W21 with useful bounded calls. Kotlin selects and traverses diagonal and
+  off-diagonal blocks; a coupled native update must not grow into a separate whole-SYMV scheduler.
 - Rework the numerical eligibility checks for the actual new schedule. Use preflight checks or scratch-and-
   commit when required; never fall back after mutating y and apply the contribution again.
 - Remove the old SYMV four-column scheduler and its temporary panel adapters.
@@ -690,7 +710,10 @@ Leave it open and ready for review without merging; mark the session goal comple
 Transition: conservative safe call boundaries become measured per-runtime execution strategies.
 
 - Tune the amount of work per block/panel call without changing the shared mathematical traversal. Split long
-  reductions or depth blocks correctly and preserve first-contribution beta behavior.
+  reductions or depth blocks in Kotlin and preserve first-contribution beta behavior. Compare the existing
+  Kotlin composition against larger/fused native primitives, including staging and safepoint costs. Keep the
+  smaller boundary when no end-to-end gain or concrete state/register-reuse requirement justifies expansion.
+  Do not transfer algorithm choice, outer traversal, packing policy, or workspace ownership to C.
 - Measure whether bounded heap-array calls meet throughput/latency needs. Add a native-memory alternative
   only if justified, including staging, cleanup, reuse, ownership, and memory-budget costs. A second storage
   strategy is not required when the simpler route wins.
@@ -704,7 +727,8 @@ concurrent workloads. Exit: larger batches are justified by throughput and laten
 
 **Final independent review (G7):** fresh separate session; model `gpt-6-astra`; reasoning `high`.
 
-- W24: heap/native pointer lifetime, safepoints, concurrent workspaces, bounded calls, and beta across split reductions.
+- W24: heap/native pointer lifetime, safepoints, concurrent workspaces, bounded calls, beta across split reductions,
+  and evidence for any enlarged native primitive while high-level traversal remains portable Kotlin.
 
 **PR 13 — Calibration, vector evaluation, and measured AUTO defaults**
 
@@ -805,6 +829,9 @@ are enabled where verified, and future width/accelerator additions do not requir
 
 **Final acceptance checklist**
 
+- Level 2/3 algorithms, outer block/panel traversal, global triangular order, packing decisions, workspace
+  lifetime, and fallback policy remain in shared portable Kotlin. Native kernels implement bounded arithmetic/
+  layout primitives; any expanded boundary has concrete reuse justification or measured end-to-end evidence.
 - Every implementation PR began in a fresh session and ended with an independent fresh-session review of its
   final base/head pair. Model/effort, evidence, findings, resolutions, and handoffs are recorded for all PRs.
 - Every session created an explicit goal and delivered an open, non-draft GitHub PR with required CI green on
