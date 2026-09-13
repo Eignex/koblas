@@ -213,8 +213,9 @@ Leave it open and ready for review without merging; mark the session goal comple
 **Arm evidence available for this PR:** Dedicated Arm hosts will not become available. For this existing-kernel
 build and attribution transition, G2 accepts physical macOS Arm CI execution plus Linux Arm shared/static
 cross-builds and emulated ABI/numerical execution. A separate physical Linux Arm run is not a completion
-requirement for PR 02. Its G5 smoke comparison uses the available x86 host; NEON performance remains explicitly
-unmeasured rather than a pending acceptance gate. Retain the target/toolchain and execution evidence, and do
+requirement for PR 02. The retired x86 development host is for local validation only; its reports are not
+retained and do not establish performance acceptance. NEON performance remains explicitly unmeasured rather
+than a pending acceptance gate. Retain the target/toolchain and execution evidence, and do
 not infer Arm speedups or tune thresholds from x86 or emulation results. This exception does not establish
 SME/SME2 execution, validate new Arm performance policies, or change later PRs' activation requirements.
 

@@ -4,7 +4,7 @@ CPU benchmarks for Koblas, OpenBLAS, Accelerate, and oneMKL. Requires JDK 25 and
 
 ```bash
 # Full capture: JVM scalar, C, SIMD, native, and available platform vendors.
-koblas-bench/capture-report.sh --samples 10 --warmups 5 --target-ms 200 --forks 2
+koblas-bench/capture-report.sh --samples 5 --warmups 5 --target-ms 200 --forks 2
 
 # First three selected cases, one short sample, no warmup.
 koblas-bench/capture-report.sh --smoke
