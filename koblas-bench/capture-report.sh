@@ -17,7 +17,7 @@ vendors_only=false
 smoke=false
 
 usage() {
-  echo "usage: capture-report.sh [--libraries openblas,accelerate,onemkl|all] [--native-variant scalar|sse2|avx2|neon] [--vendors-only] [--smoke] [--output NEW_DIR] [--operation NAME|all] [--samples N] [--warmups N] [--target-ms N] [--forks N] [--pass N]" >&2
+  echo "usage: capture-report.sh [--libraries openblas,accelerate,onemkl|all] [--native-variant scalar|sse2|avx2|neon] [--vendors-only] [--smoke] [--output DIR] [--operation NAME|all] [--samples N] [--warmups N] [--target-ms N] [--forks N] [--pass N]" >&2
 }
 while (($#)); do
   case "$1" in
@@ -48,7 +48,17 @@ for vendor in "${vendors[@]}"; do
 done
 
 temporary=$(mktemp -d "${TMPDIR:-/tmp}/koblas-bench-report.XXXXXX")
-trap 'rm -rf "$temporary"' EXIT
+publication=
+cleanup() {
+  if [[ -n $publication ]]; then
+    if [[ ! -e $output && -d $publication/previous ]]; then
+      mv "$publication/previous" "$output" || return
+    fi
+    rm -rf "$publication"
+  fi
+  rm -rf "$temporary"
+}
+trap cleanup EXIT
 trap 'exit 130' INT
 trap 'exit 143' TERM
 {
@@ -71,20 +81,24 @@ trap 'exit 143' TERM
     echo "platform=$platform"
   fi
 } >"$temporary/hardware.txt"
+# Linux usable memory varies with kernel reservations; retain it only as run metadata.
+sed '/^memory_kib=/d' "$temporary/hardware.txt" | LC_ALL=C sort >"$temporary/hardware-key.txt"
 if command -v sha256sum >/dev/null 2>&1; then
-  hardware_hash=$(sha256sum "$temporary/hardware.txt" | awk '{ print $1 }')
+  hardware_hash=$(sha256sum "$temporary/hardware-key.txt" | awk '{ print $1 }')
 else
-  hardware_hash=$(shasum -a 256 "$temporary/hardware.txt" | awk '{ print $1 }')
+  hardware_hash=$(shasum -a 256 "$temporary/hardware-key.txt" | awk '{ print $1 }')
 fi
 commit=$(git -C "$root" rev-parse HEAD)
 dirty=false
 [[ -z $(git -C "$root" status --porcelain) ]] || dirty=true
-run_id="$(date -u +%Y%m%dT%H%M%SZ)-${commit:0:12}"
 if [[ -z $output ]]; then
-  if $vendors_only || $smoke || [[ $operation != all ]]; then output="$bench/build/benchmarks/$run_id-$$";
-  else output="$bench/reports/$hardware_hash/$run_id"; fi
+  if $vendors_only || $smoke || [[ $operation != all ]]; then output="$bench/build/benchmarks/$hardware_hash";
+  else output="$bench/reports/$hardware_hash"; fi
 fi
-[[ ! -e $output ]] || { echo "report already exists: $output" >&2; exit 2; }
+[[ $output == /* ]] || output="$PWD/$output"
+[[ ! -L $output && ( ! -e $output || -f $output/metadata.txt ) ]] || {
+  echo "output must be a report directory: $output" >&2; exit 2;
+}
 results="$temporary/results"
 mkdir "$results"
 metadata="$results/metadata.txt"
@@ -191,6 +205,8 @@ sed -e '1s/status=incomplete/status=complete/' \
   "$metadata" >"$temporary/metadata.txt"
 mv "$temporary/metadata.txt" "$metadata"
 mkdir -p "$(dirname "$output")"
-mkdir "$output"
-mv "$results/"* "$output/"
+publication=$(mktemp -d "$(dirname "$output")/.koblas-report.XXXXXX")
+mv "$results" "$publication/current"
+if [[ -d $output ]]; then mv "$output" "$publication/previous"; fi
+mv "$publication/current" "$output"
 echo "$output"

@@ -1,2 +1,0 @@
-case,status,comparison_kind,timing_mode,actual_kernel,samples,forks,median_ns,min_ns,max_ns
-dot+4096+uniform,ok,direct,arithmetic,policy,3,1,669.9622782546018,649.2098314824882,685.6566429370209

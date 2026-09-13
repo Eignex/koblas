@@ -1,2 +1,0 @@
-case,status,comparison_kind,timing_mode,actual_kernel,samples,forks,median_ns,min_ns,max_ns
-dot+4096+uniform,ok,direct,arithmetic,koblas_dense_dot_avx2,3,1,715.6696790052054,704.7565789473684,731.1494119915172
