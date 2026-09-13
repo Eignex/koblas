@@ -36,6 +36,8 @@ public class KoblasEngine internal constructor(
     /** Sparse-vector kernels used by sparse convenience operations. */
     public val sparseKernels: SparseKernels,
     internal val indexedSparseKernels: IndexedSparseKernels,
+    /** Ordinary C variant bound to native components; policy calls may retain in-runtime arithmetic. */
+    public val nativeVariant: NativeVariant? = null,
 ) : DenseBlas by BuiltinBlas(vectorKernels, panelKernels, packedKernels),
     SparseBlas by SparseAlgorithms(
         vectorKernels,
@@ -58,6 +60,16 @@ public expect object BuiltinEngines {
 
     /** Compiled C kernels, or null when they are unavailable. */
     public val c: KoblasEngine?
+
+    /** Native variants compiled into this artifact and usable on this host. */
+    public val nativeVariants: List<NativeVariant>
+
+    /**
+     * Dense C execution at the exact [variant], bypassing performance thresholds.
+     * Semantic early exits remain in force. Sparse policy and portable transformation generation retain
+     * their separately identified components. Throws if the selected variant is unavailable.
+     */
+    public fun exactC(variant: NativeVariant): KoblasEngine
 
     /** JVM Vector API kernels, or null when the Vector API module is unavailable or on a non-JVM target. */
     public val simd: KoblasEngine?

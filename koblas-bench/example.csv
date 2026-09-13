@@ -1,5 +1,0 @@
-run,id,implementation,pass,unit,source_commit,dirty,runtime,threads,warmups,target_ns,harness,warmup_target_ns,forks
-case,id,run_id,case,status,comparison_kind,timing_mode,actual_kernel,samples,forks,median_ns,min_ns,max_ns
-run,1,jvm-scalar/scalar/scalar/packed-4x4,1,ns,c344bccbeda7f52d0e683eada1c06daee7c3d22a,true,kotlin-2.4.10/jvm/Homebrew/25.0.4.1/JMH 1.37/forks=2,1,5,200000000,jmh-average-time,200000000,2
-case,1,1,dot+4096+uniform,ok,direct,arithmetic,policy,20,2,2145.6726125921386,2143.2421607942774,2152.2048225669246
-case,2,1,axpy+4096+uniform,ok,direct,reset-and-arithmetic,policy,20,2,767.75125214084539,763.50454105132667,773.4740379303995

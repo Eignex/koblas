@@ -116,8 +116,8 @@ class SparseSlicesWorkTest {
         assertEquals("composed", current.comparisonKind)
         assertEquals("slices-gather-v1", current.timingMode)
         assertEquals("sparse-slices", old.timingMode)
-        val settings = Settings("jvm-simd", "all", "cases.txt", "output.csv", 0, 1, 1_000_000, 1, "1", "source", "false")
-        val row = measurement(case, "jvm-simd", settings, 1, 1, 1, "1", "ok", current.comparisonKind, current.timingMode, "test")
+        val settings = Settings("jvm-simd", "all", "cases.txt", "output.csv", 0, 1, 1_000_000, 1)
+        val row = measurement(case, settings, 1, 1.0, "ok", current.comparisonKind, current.timingMode)
         assertEquals("portable-sparse-slices", row.case.last())
     }
 

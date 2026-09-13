@@ -2,10 +2,7 @@
 
 package com.eignex.koblas.dense
 
-import com.eignex.koblas.internal.kernels.koblas_dense_axpy4
-import com.eignex.koblas.internal.kernels.koblas_dense_axpy_arithmetic
-import com.eignex.koblas.internal.kernels.koblas_dense_dot4
-import com.eignex.koblas.internal.kernels.koblas_dense_dot_axpy
+import com.eignex.koblas.internal.kernels.NativeCKernelBindings
 import com.eignex.koblas.internal.numeric.scalarAxpy4
 import com.eignex.koblas.internal.numeric.scalarAxpyArithmetic
 import com.eignex.koblas.internal.numeric.scalarDotAxpy
@@ -13,7 +10,8 @@ import kotlinx.cinterop.addressOf
 import kotlinx.cinterop.usePinned
 
 /** Native compiled-C matrix-panel arithmetic with measured portable short-run fallbacks. */
-internal object NativeCPanelKernels : DensePanelKernels {
+internal class NativeCPanelKernels(private val bindings: NativeCKernelBindings, private val exact: Boolean) :
+    DensePanelKernels {
     override fun dot4(
         a: DoubleArray,
         aOff: Int,
@@ -31,7 +29,7 @@ internal object NativeCPanelKernels : DensePanelKernels {
         a.usePinned { ap ->
             b.usePinned { bp ->
                 out.usePinned { op ->
-                    koblas_dense_dot4(
+                    bindings.denseDot4(
                         ap.addressOf(0),
                         aOff,
                         stride,
@@ -58,10 +56,11 @@ internal object NativeCPanelKernels : DensePanelKernels {
         c3: Double,
         len: Int,
     ) {
-        if (len < C_HOST_MIN_LENGTH) return scalarAxpy4(y, yOff, a, aOff, stride, c0, c1, c2, c3, len)
+        if (len == 0) return
+        if (!exact && len < C_HOST_MIN_LENGTH) return scalarAxpy4(y, yOff, a, aOff, stride, c0, c1, c2, c3, len)
         y.usePinned { yp ->
             a.usePinned { ap ->
-                koblas_dense_axpy4(
+                bindings.denseAxpy4(
                     yp.addressOf(0), yOff, ap.addressOf(0), aOff, stride, c0, c1, c2, c3, len,
                 )
             }
@@ -78,11 +77,12 @@ internal object NativeCPanelKernels : DensePanelKernels {
         xOff: Int,
         len: Int,
     ): Double {
-        if (len < C_HOST_MIN_LENGTH) return scalarDotAxpy(y, yOff, alpha, a, aOff, x, xOff, len)
+        if (len == 0) return 0.0
+        if (!exact && len < C_HOST_MIN_LENGTH) return scalarDotAxpy(y, yOff, alpha, a, aOff, x, xOff, len)
         return y.usePinned { yp ->
             a.usePinned { ap ->
                 x.usePinned { xp ->
-                    koblas_dense_dot_axpy(
+                    bindings.denseDotAxpy(
                         yp.addressOf(0),
                         yOff,
                         alpha,
@@ -98,10 +98,11 @@ internal object NativeCPanelKernels : DensePanelKernels {
     }
 
     override fun axpyArithmetic(y: DoubleArray, yOff: Int, alpha: Double, x: DoubleArray, xOff: Int, len: Int) {
-        if (len < C_HOST_MIN_LENGTH) return scalarAxpyArithmetic(y, yOff, alpha, x, xOff, len)
+        if (len == 0) return
+        if (!exact && len < C_HOST_MIN_LENGTH) return scalarAxpyArithmetic(y, yOff, alpha, x, xOff, len)
         y.usePinned { yp ->
             x.usePinned { xp ->
-                koblas_dense_axpy_arithmetic(yp.addressOf(0), yOff, alpha, xp.addressOf(0), xOff, len)
+                bindings.denseAxpyArithmetic(yp.addressOf(0), yOff, alpha, xp.addressOf(0), xOff, len)
             }
         }
     }

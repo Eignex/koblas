@@ -14,8 +14,8 @@ class JvmCKernelSelectionTest {
             assertTrue(koblas.vectorKernels.name.startsWith("simd"))
             assertEquals("simd-sparse", koblas.sparseKernels.name)
         } else if (BuiltinEngines.c != null) {
-            assertEquals("c", koblas.vectorKernels.name)
-            assertEquals("c-sparse", koblas.sparseKernels.name)
+            assertEquals(BuiltinEngines.c!!.vectorKernels.name, koblas.vectorKernels.name)
+            assertEquals("c-scalar-indexed-policy", koblas.sparseKernels.name)
         } else {
             assertEquals("scalar", koblas.vectorKernels.name)
             assertEquals("scalar", koblas.sparseKernels.name)

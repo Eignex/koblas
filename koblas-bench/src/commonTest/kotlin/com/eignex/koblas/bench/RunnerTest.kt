@@ -2,49 +2,41 @@ package com.eignex.koblas.bench
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertTrue
 
 class RunnerTest {
     @Test
-    fun `report shares metadata and summarizes samples across forks`() {
+    fun `report summarizes samples across forks without run metadata`() {
         val case = Cases.parse("dot+4+uniform").single()
-        val settings = settings()
         val measurements = listOf(
-            measurement(case, "jvm-scalar", settings, 1, 10, 25, "2.5", "ok", "direct", "arithmetic", "runtime, \"build\""),
-            measurement(case, "jvm-scalar", settings, 2, 20, 70, "3.5", "ok", "direct", "arithmetic", "runtime, \"build\""),
+            measurement(case, settings(), 1, 2.5, "ok", "direct", "arithmetic"),
+            measurement(case, settings(), 2, 3.5, "ok", "direct", "arithmetic"),
         )
 
-        val records = reportCsv(measurements).lines()
+        val records = reportCsv(measurements).trim().lines()
 
-        assertEquals(1, records.count { it.startsWith("run,1,") })
-        assertEquals(1, records.count { it.startsWith("case,1,") })
-        assertTrue(records.single { it.startsWith("run,1,") }.contains("\"runtime, \"\"build\"\"\""))
-        assertTrue(records.single { it.startsWith("case,1,") }.endsWith(",2,2,3.0,2.5,3.5"))
-        assertEquals(0, records.count { it.startsWith("sample,") })
+        assertEquals(listOf(CSV_HEADER, "dot+4+uniform,ok,direct,arithmetic,policy,2,2,3.0,2.5,3.5"), records)
     }
 
     @Test
-    fun `unsupported case has metadata without an empty sample`() {
+    fun `unsupported case has no timing`() {
         val case = Cases.parse("dot+4+uniform").single()
-        val measurement = measurement(case, "jvm-scalar", settings(), 0, 0, 0, "", "unsupported", "unsupported", "arithmetic", "runtime")
+        val measurement = measurement(case, settings(), 0, null, "unsupported", "unsupported", "arithmetic")
 
-        val records = reportCsv(listOf(measurement)).lines()
+        val records = reportCsv(listOf(measurement)).trim().lines()
 
-        assertTrue(records.single { it.startsWith("case,1,") }.contains(",unsupported,"))
-        assertTrue(records.single { it.startsWith("case,1,") }.endsWith(",0,0,,,"))
-        assertEquals(0, records.count { it.startsWith("sample,1,") })
+        assertEquals(listOf(CSV_HEADER, "dot+4+uniform,unsupported,unsupported,arithmetic,unavailable,0,0,,,"), records)
     }
 
     @Test
     fun `packed case records omit derived metadata`() {
         val case = Cases.parse("gemm-tile+3x2x31+uniform+packed=4x4").single()
-        val measurement = measurement(case, "jvm-scalar", settings(), 1, 10, 25, "2.5", "ok", "partial", "raw-tile", "runtime")
+        val measurement = measurement(case, settings(), 1, 2.5, "ok", "partial", "raw-tile")
 
-        val records = reportCsv(listOf(measurement)).lines()
+        val records = reportCsv(listOf(measurement)).trim().lines()
 
-        assertEquals("case,1,1,gemm-tile+3x2x31+uniform+packed=4x4,ok,partial,raw-tile,portable-tile,1,1,2.5,2.5,2.5",
-            records.single { it.startsWith("case,1,") })
+        assertEquals("gemm-tile+3x2x31+uniform+packed=4x4,ok,partial,raw-tile,portable-tile,1,1,2.5,2.5,2.5",
+            records[1])
     }
 
-    private fun settings() = Settings("jvm-scalar", "all", "cases.txt", "output.csv", 0, 1, 1_000_000, 2, "1", "source", "false")
+    private fun settings() = Settings("jvm-scalar", "all", "cases.txt", "output.csv", 0, 1, 1_000_000, 2)
 }
