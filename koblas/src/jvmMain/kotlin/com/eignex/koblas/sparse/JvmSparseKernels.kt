@@ -69,7 +69,7 @@ internal object SimdIndexedSparseKernels : IndexedSparseKernels by ScalarIndexed
         valueOffset: Int,
         count: Int,
         dense: DoubleArray,
-    ): Double = if (SparseSimd.autoIndexedLoadEligible && count >= SparseTuning.simdIndexedCrossover) {
+    ): Double = if (SparseSimd.autoGatherEligible && count >= SparseTuning.simdIndexedCrossover) {
         SparseSimd.dot(indices, indexOffset, values, valueOffset, count, dense)
     } else {
         ScalarIndexedSparseKernels.dotDense(indices, indexOffset, values, valueOffset, count, dense)
@@ -137,7 +137,7 @@ internal object SimdIndexedSparseKernels : IndexedSparseKernels by ScalarIndexed
     }
 
     override fun nrm2(indices: IntArray, indexOffset: Int, count: Int, values: DoubleArray): Double =
-        if (SparseSimd.autoIndexedLoadEligible && count >= SparseTuning.simdIndexedCrossover) {
+        if (SparseSimd.autoGatherEligible && count >= SparseTuning.simdIndexedCrossover) {
             SparseSimd.nrm2(indices, indexOffset, count, values)
         } else {
             ScalarIndexedSparseKernels.nrm2(indices, indexOffset, count, values)
