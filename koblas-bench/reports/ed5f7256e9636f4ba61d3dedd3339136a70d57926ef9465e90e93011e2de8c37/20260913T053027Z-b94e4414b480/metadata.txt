@@ -1,0 +1,60 @@
+status=complete
+
+[capture]
+started_at=2026-09-13T05:30:27Z
+source_commit=b94e4414b480f01ec8efa500408af0c8ca8d832f
+dirty=false
+Linux 090a39e7cf5f 7.0.0-1012-aws #12~24.04.1-Ubuntu SMP PREEMPT Wed Aug 12 14:00:57 UTC 2026 x86_64 GNU/Linux
+operation=all warmups=5 samples=10 target_ms=200 forks=2 pass=1 libraries=openblas vendors_only=false
+
+[toolchain]
+cc (Ubuntu 15.2.0-16ubuntu1) 15.2.0
+
+[hardware]
+architecture=x86_64
+vendor id=GenuineIntel
+model name=Intel(R) Xeon(R) CPU E5-2680 v2 @ 2.80GHz
+cpu family=6
+model=62
+thread(s) per core=2
+core(s) per socket=4
+socket(s)=1
+stepping=4
+l1d cache=128 KiB (4 instances)
+l1i cache=128 KiB (4 instances)
+l2 cache=1 MiB (4 instances)
+l3 cache=25 MiB (1 instance)
+numa node(s)=1
+memory_kib=15336984
+
+[jvm-scalar]
+started_at=2026-09-13T05:30:27Z
+resolved implementation=jvm-scalar/scalar/scalar/packed-4x4 runtime=kotlin-2.4.10/jvm/Ubuntu/25.0.4 harness=JMH 1.37 forks=2
+threads=1
+completed_at=2026-09-13T05:51:19Z
+
+[jvm-c]
+started_at=2026-09-13T05:51:19Z
+resolved implementation=jvm-c/c/c-sparse/packed-4x4 runtime=kotlin-2.4.10/jvm/Ubuntu/25.0.4 harness=JMH 1.37 forks=2
+threads=1
+completed_at=2026-09-13T06:11:13Z
+
+[jvm-simd]
+started_at=2026-09-13T06:11:13Z
+resolved implementation=jvm-simd/simd(2 lanes)/simd-sparse/packed-4x4 runtime=kotlin-2.4.10/jvm/Ubuntu/25.0.4 harness=JMH 1.37 forks=2
+threads=1
+completed_at=2026-09-13T06:36:21Z
+
+[native]
+started_at=2026-09-13T06:36:21Z
+resolved implementation=native/c/c-sparse/packed-4x4 runtime=kotlin-native-2.4.10
+threads=1
+completed_at=2026-09-13T06:45:50Z
+
+[openblas]
+started_at=2026-09-13T06:45:51Z
+resolved implementation=openblas runtime=OpenBLAS 0.3.32 NO_LAPACKE DYNAMIC_ARCH NO_AFFINITY Sandybridge MAX_THREADS=128; compiler=15.2.0
+threads=1
+completed_at=2026-09-13T06:48:25Z
+
+completed_at=2026-09-13T06:48:25Z

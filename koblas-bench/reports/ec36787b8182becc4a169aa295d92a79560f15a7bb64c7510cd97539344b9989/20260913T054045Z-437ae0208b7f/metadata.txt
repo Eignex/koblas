@@ -1,0 +1,58 @@
+status=complete
+
+[capture]
+started_at=2026-09-13T05:40:45Z
+source_commit=437ae0208b7fffe9b36ca8ece042cce97c078909
+dirty=false
+Linux ed23e4ed2afe 7.0.0-1012-aws #12~24.04.1-Ubuntu SMP PREEMPT Wed Aug 12 13:54:00 UTC 2026 aarch64 GNU/Linux
+operation=all warmups=5 samples=10 target_ms=200 forks=2 pass=1 libraries=openblas vendors_only=false native_source=prebuilt
+
+[toolchain]
+cc (Ubuntu 15.2.0-16ubuntu1) 15.2.0
+
+[hardware]
+architecture=aarch64
+vendor id=ARM
+model name=Neoverse-V2
+model=1
+thread(s) per core=1
+socket(s)=-
+stepping=r0p1
+l1d cache=256 KiB (4 instances)
+l1i cache=256 KiB (4 instances)
+l2 cache=8 MiB (4 instances)
+l3 cache=36 MiB (1 instance)
+numa node(s)=1
+memory_kib=7941860
+
+[jvm-scalar]
+started_at=2026-09-13T05:40:45Z
+resolved implementation=jvm-scalar/scalar/scalar/packed-4x4 runtime=kotlin-2.4.10/jvm/Ubuntu/25.0.4 harness=JMH 1.37 forks=2
+threads=1
+completed_at=2026-09-13T06:00:17Z
+
+[jvm-c]
+started_at=2026-09-13T06:00:17Z
+resolved implementation=jvm-c/c/c-sparse/packed-4x4 runtime=kotlin-2.4.10/jvm/Ubuntu/25.0.4 harness=JMH 1.37 forks=2
+threads=1
+completed_at=2026-09-13T06:19:11Z
+
+[jvm-simd]
+started_at=2026-09-13T06:19:11Z
+resolved implementation=jvm-simd/simd(2 lanes)/simd-sparse/packed-4x4 runtime=kotlin-2.4.10/jvm/Ubuntu/25.0.4 harness=JMH 1.37 forks=2
+threads=1
+completed_at=2026-09-13T06:38:06Z
+
+[native]
+started_at=2026-09-13T06:38:06Z
+resolved implementation=native/c/c-sparse/packed-4x4 runtime=kotlin-native-2.4.10
+threads=1
+completed_at=2026-09-13T06:46:06Z
+
+[openblas]
+started_at=2026-09-13T06:46:07Z
+resolved implementation=openblas runtime=OpenBLAS 0.3.32 NO_LAPACKE DYNAMIC_ARCH NO_AFFINITY neoversev2 MAX_THREADS=128; compiler=15.2.0
+threads=1
+completed_at=2026-09-13T06:48:53Z
+
+completed_at=2026-09-13T06:48:53Z

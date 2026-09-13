@@ -1,0 +1,60 @@
+status=complete
+
+[capture]
+started_at=2026-09-13T05:31:08Z
+source_commit=b94e4414b480f01ec8efa500408af0c8ca8d832f
+dirty=false
+Linux 8e1dddf4db18 7.0.0-1012-aws #12~24.04.1-Ubuntu SMP PREEMPT Wed Aug 12 14:00:57 UTC 2026 x86_64 GNU/Linux
+operation=all warmups=5 samples=10 target_ms=200 forks=2 pass=1 libraries=openblas vendors_only=false
+
+[toolchain]
+cc (Ubuntu 15.2.0-16ubuntu1) 15.2.0
+
+[hardware]
+architecture=x86_64
+vendor id=AuthenticAMD
+model name=AMD EPYC 7R32
+cpu family=23
+model=49
+thread(s) per core=2
+core(s) per socket=2
+socket(s)=1
+stepping=0
+l1d cache=64 KiB (2 instances)
+l1i cache=64 KiB (2 instances)
+l2 cache=1 MiB (2 instances)
+l3 cache=8 MiB (1 instance)
+numa node(s)=1
+memory_kib=8003172
+
+[jvm-scalar]
+started_at=2026-09-13T05:31:08Z
+resolved implementation=jvm-scalar/scalar/scalar/packed-4x4 runtime=kotlin-2.4.10/jvm/Ubuntu/25.0.4 harness=JMH 1.37 forks=2
+threads=1
+completed_at=2026-09-13T05:51:59Z
+
+[jvm-c]
+started_at=2026-09-13T05:51:59Z
+resolved implementation=jvm-c/c/c-sparse/packed-4x4 runtime=kotlin-2.4.10/jvm/Ubuntu/25.0.4 harness=JMH 1.37 forks=2
+threads=1
+completed_at=2026-09-13T06:11:51Z
+
+[jvm-simd]
+started_at=2026-09-13T06:11:51Z
+resolved implementation=jvm-simd/simd(4 lanes)/simd-sparse/packed-8x4 runtime=kotlin-2.4.10/jvm/Ubuntu/25.0.4 harness=JMH 1.37 forks=2
+threads=1
+completed_at=2026-09-13T06:31:45Z
+
+[native]
+started_at=2026-09-13T06:31:45Z
+resolved implementation=native/c/c-sparse/packed-4x4 runtime=kotlin-native-2.4.10
+threads=1
+completed_at=2026-09-13T06:41:06Z
+
+[openblas]
+started_at=2026-09-13T06:41:07Z
+resolved implementation=openblas runtime=OpenBLAS 0.3.32 NO_LAPACKE DYNAMIC_ARCH NO_AFFINITY Zen MAX_THREADS=128; compiler=15.2.0
+threads=1
+completed_at=2026-09-13T06:43:48Z
+
+completed_at=2026-09-13T06:43:48Z
