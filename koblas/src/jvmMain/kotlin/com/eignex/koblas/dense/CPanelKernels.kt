@@ -1,17 +1,10 @@
 package com.eignex.koblas.dense
 
 import com.eignex.koblas.internal.kernels.JvmCKernelBindings
-import com.eignex.koblas.internal.numeric.scalarAxpy4
-import com.eignex.koblas.internal.numeric.scalarAxpyArithmetic
-import com.eignex.koblas.internal.numeric.scalarDot4
-import com.eignex.koblas.internal.numeric.scalarDotAxpy
 
-/** Bundled-C matrix-panel arithmetic with measured portable JVM fallbacks. */
-internal class CPanelKernels(private val bindings: JvmCKernelBindings, private val exact: Boolean) : DensePanelKernels {
-    private val dot4CCrossover = DenseTuning.jvmCDot4Crossover
-    private val axpy4CCrossover = DenseTuning.jvmCAxpy4Crossover
-    private val dotAxpyCCrossover = DenseTuning.jvmCDotAxpyCrossover
-
+/** Exact native panel leaves; performance policy is resolved before entering this implementation. */
+internal class CPanelKernels(private val bindings: JvmCKernelBindings) : DensePanelKernels {
+    @Suppress("LongParameterList")
     override fun dot4(
         a: DoubleArray,
         aOff: Int,
@@ -21,12 +14,9 @@ internal class CPanelKernels(private val bindings: JvmCKernelBindings, private v
         len: Int,
         out: DoubleArray,
         outOff: Int,
-    ) = if (!exact && len < dot4CCrossover) {
-        scalarDot4(a, aOff, stride, b, bOff, len, out, outOff)
-    } else {
-        bindings.denseDot4(a, aOff, stride, b, bOff, len, out, outOff)
-    }
+    ) = bindings.denseDot4(a, aOff, stride, b, bOff, len, out, outOff)
 
+    @Suppress("LongParameterList")
     override fun axpy4(
         y: DoubleArray,
         yOff: Int,
@@ -38,12 +28,9 @@ internal class CPanelKernels(private val bindings: JvmCKernelBindings, private v
         c2: Double,
         c3: Double,
         len: Int,
-    ) = if (!exact && len < axpy4CCrossover) {
-        scalarAxpy4(y, yOff, a, aOff, stride, c0, c1, c2, c3, len)
-    } else {
-        bindings.denseAxpy4(y, yOff, a, aOff, stride, c0, c1, c2, c3, len)
-    }
+    ) = bindings.denseAxpy4(y, yOff, a, aOff, stride, c0, c1, c2, c3, len)
 
+    @Suppress("LongParameterList")
     override fun dotAxpy(
         y: DoubleArray,
         yOff: Int,
@@ -53,16 +40,8 @@ internal class CPanelKernels(private val bindings: JvmCKernelBindings, private v
         x: DoubleArray,
         xOff: Int,
         len: Int,
-    ): Double = if (!exact && len < dotAxpyCCrossover) {
-        scalarDotAxpy(y, yOff, alpha, a, aOff, x, xOff, len)
-    } else {
-        bindings.denseDotAxpy(y, yOff, alpha, a, aOff, x, xOff, len)
-    }
+    ): Double = bindings.denseDotAxpy(y, yOff, alpha, a, aOff, x, xOff, len)
 
     override fun axpyArithmetic(y: DoubleArray, yOff: Int, alpha: Double, x: DoubleArray, xOff: Int, len: Int) =
-        if (exact) {
-            bindings.denseAxpyArithmetic(y, yOff, alpha, x, xOff, len)
-        } else {
-            scalarAxpyArithmetic(y, yOff, alpha, x, xOff, len)
-        }
+        bindings.denseAxpyArithmetic(y, yOff, alpha, x, xOff, len)
 }

@@ -14,11 +14,12 @@ class BenchmarkArmResolutionTest {
     }
 
     @Test
-    fun `jvm c mode resolves the exact built in engine`() {
+    fun `jvm c mode resolves the built in native policy`() {
         val (engine, identity) = resolveEngine("jvm-c")
         val packLeft = Cases.parse("pack-left+4x32+uniform+packed=4x4").single()
 
-        assertTrue(identity.startsWith("jvm-c/c-"), identity)
+        assertTrue(engine === com.eignex.koblas.BuiltinEngines.c)
+        assertTrue(identity.startsWith("jvm-c/${engine.vectorKernels.name}/"), identity)
         assertTrue(denseWork(packLeft, engine) != null)
     }
 

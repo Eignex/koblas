@@ -27,8 +27,7 @@ public fun main(args: Array<String>) {
     val settings = parseArguments(args)
     require(settings.mode in setOf("jvm-c", "jvm-simd", "jvm-scalar") || settings.mode.startsWith("jvm-c-raw-")) { "JMH supports only JVM benchmark modes" }
     val allCases = Cases.parse(readTextFile(settings.casesPath))
-    val selected = if (settings.operation == "all") allCases else allCases.filter { it.operation == settings.operation }
-    require(selected.isNotEmpty()) { "operation '${settings.operation}' selected no cases" }
+    val selected = Cases.select(allCases, settings.suite, settings.operation)
     val (engine, implementation) = resolveEngine(settings.mode)
     val supported = linkedMapOf<String, Pair<String, String>>()
     val rowsByCase = linkedMapOf<String, MutableList<Measurement>>()

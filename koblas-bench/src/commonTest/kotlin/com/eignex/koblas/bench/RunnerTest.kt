@@ -2,8 +2,39 @@ package com.eignex.koblas.bench
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 
 class RunnerTest {
+    @Test
+    fun `runner accepts an explicit targeted suite`() {
+        val defaults = parseArguments(arrayOf("--mode=jvm-scalar"))
+        val sweep = parseArguments(arrayOf("--mode=native", "--suite=sweep", "--operation=dot", "--warmups=0", "--samples=1", "--target-ms=1"))
+
+        assertEquals("default", defaults.suite)
+        assertEquals("sweep", sweep.suite)
+        assertEquals("dot", sweep.operation)
+        assertEquals(1_000_000L, sweep.targetNanos)
+        for (args in listOf(arrayOf("--suite=sweep"), arrayOf("--suite=other"), arrayOf("--suite=default", "--suite=sweep"))) {
+            assertFailsWith<IllegalArgumentException> { parseArguments(arrayOf("--mode=native") + args) }
+        }
+    }
+
+    @Test
+    fun `suite metadata does not change report comparison fields`() {
+        for (id in listOf("dot+4096+uniform", "gemm-tile+3x2x31+uniform+packed=4x4")) {
+            for (mode in listOf("jvm-scalar", "jvm-c-raw-scalar", "native-raw-scalar") +
+                if ("packed=" in id) emptyList() else listOf("jvm-c", "native")) {
+                val original = Cases.parse(id).single()
+                val shared = Cases.parse("$id+suite=default,sweep").single()
+                val settings = settings().copy(mode = mode)
+                val before = measurement(original, settings, 1, 2.5, "ok", "direct", "arithmetic")
+                val after = measurement(shared, settings.copy(suite = "sweep"), 1, 2.5, "ok", "direct", "arithmetic")
+
+                assertEquals(reportCsv(listOf(before)), reportCsv(listOf(after)))
+            }
+        }
+    }
+
     @Test
     fun `report summarizes samples across forks without run metadata`() {
         val case = Cases.parse("dot+4+uniform").single()

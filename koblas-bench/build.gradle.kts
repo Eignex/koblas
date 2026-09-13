@@ -31,6 +31,7 @@ dependencies {
 private fun benchmarkArguments(mode: String, jmh: Boolean): List<String> = listOf(
     "--mode=$mode",
     "--operation=${providers.gradleProperty("bench.operation").orElse("all").get()}",
+    "--suite=${providers.gradleProperty("bench.suite").orElse("default").get()}",
     "--cases=${providers.gradleProperty("bench.cases").orElse("koblas-bench/cases.txt").get()}",
     "--output=${providers.gradleProperty("bench.output").orElse("koblas-bench/build/benchmarks/$mode.csv").get()}",
     "--warmups=${providers.gradleProperty("bench.warmups").orElse("3").get()}",
