@@ -59,7 +59,9 @@ public interface PackedKernels {
      * Subtracts one packed product from the logical [validRows] by [order] edge of [x], then solves that edge
      * through [packedTriangle] using the [trsmTile] layout and triangle rules. [packedA] and [packedB] use the
      * [gemmTile] depth-group layouts. Entries of [x] outside the logical edge are preserved. A zero logical
-     * dimension performs no reads; a zero [depth] performs only the triangular solve.
+     * dimension performs no reads; a zero [depth] performs only the triangular solve. Kotlin selects this
+     * local update and solve block and owns the global triangular dependencies and traversal. The fused
+     * kernel may reuse registers within the selected block.
      */
     @Suppress("LongParameterList")
     public fun gemmTrsmTile(

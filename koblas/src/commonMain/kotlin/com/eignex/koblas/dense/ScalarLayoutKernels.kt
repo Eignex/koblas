@@ -4,6 +4,10 @@ package com.eignex.koblas.dense
  * Independently callable scalar packing and layout reference. Copies preserve bits when scale is one;
  * structural zeroes and all declared physical padding are positive zero. Aliases use one logical snapshot
  * before any write. Nonalias calls into caller-owned storage allocate no scratch.
+ *
+ * Kotlin callers choose packing layouts, allocate or reuse destination storage, and select source and
+ * destination windows. Native layout kernels may execute the selected bounded window; allocation and
+ * packing-strategy decisions remain in the shared Kotlin layer.
  */
 public object ScalarLayoutKernels {
     /** Allocates and packs a retained operand whose layout does not depend on the engine or current thread. */

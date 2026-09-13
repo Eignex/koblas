@@ -35,3 +35,11 @@ The default engine resolves immutable performance rules once, with separate scal
 crossovers. [com.eignex.koblas.KoblasEngine.explain] describes the actual component selected for a
 [DenseOperation] and length. Exact C engines bypass these rules while retaining capability checks and semantic
 no-work exits. Packed geometry compatibility remains required when composing legacy tile implementations.
+
+Shared portable Kotlin owns higher-level BLAS algorithms, cache and panel traversal, global triangular
+dependencies, packing strategy, workspace lifetime, backend selection, and semantic fallback policy.
+Native arithmetic and layout kernels receive explicit bounded windows selected by that Kotlin layer.
+Internal microtile loops, local diagonal substitution, and register or streaming-state reuse can stay inside
+a kernel. A fused update and solve covers one selected local block. Whole-operation GEMV/SYMV scheduling and
+global TRSM traversal remain portable Kotlin responsibilities. Larger native boundaries require a concrete
+state/register-reuse need or measured end-to-end call-overhead benefit; prefer the smallest useful boundary.
