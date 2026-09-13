@@ -1,0 +1,66 @@
+status=complete
+
+[capture]
+started_at=2026-09-12T23:28:57Z
+source_commit=f8409263880a223460fbb03f6cb82e9d3be19fa2
+dirty=false
+Linux 7074743a798c 6.18.44-99.149.amzn2023.x86_64 #2 SMP PREEMPT_DYNAMIC Tue Aug 25 21:16:03 UTC 2026 x86_64 GNU/Linux
+operation=all warmups=5 samples=10 target_ms=200 forks=2 pass=1 libraries=openblas,onemkl vendors_only=false
+
+[toolchain]
+cc (Ubuntu 15.2.0-16ubuntu1) 15.2.0
+
+[hardware]
+architecture=x86_64
+vendor id=GenuineIntel
+model name=Intel(R) Xeon(R) Platinum 8488C
+cpu family=6
+model=143
+thread(s) per core=2
+core(s) per socket=2
+socket(s)=1
+stepping=8
+l1d cache=96 KiB (2 instances)
+l1i cache=64 KiB (2 instances)
+l2 cache=4 MiB (2 instances)
+l3 cache=105 MiB (1 instance)
+numa node(s)=1
+memory_kib=7966224
+
+[jvm-scalar]
+started_at=2026-09-12T23:28:57Z
+resolved implementation=jvm-scalar/scalar/scalar/packed-4x4 runtime=kotlin-2.4.10/jvm/Ubuntu/25.0.4 harness=JMH 1.37 forks=2
+threads=1
+completed_at=2026-09-12T23:49:15Z
+
+[jvm-c]
+started_at=2026-09-12T23:49:15Z
+resolved implementation=jvm-c/c/c-sparse/packed-4x4 runtime=kotlin-2.4.10/jvm/Ubuntu/25.0.4 harness=JMH 1.37 forks=2
+threads=1
+completed_at=2026-09-13T00:08:41Z
+
+[jvm-simd]
+started_at=2026-09-13T00:08:41Z
+resolved implementation=jvm-simd/simd(8 lanes)/simd-sparse/packed-16x4 runtime=kotlin-2.4.10/jvm/Ubuntu/25.0.4 harness=JMH 1.37 forks=2
+threads=1
+completed_at=2026-09-13T00:23:25Z
+
+[native]
+started_at=2026-09-13T00:23:25Z
+resolved implementation=native/c/c-sparse/packed-4x4 runtime=kotlin-native-2.4.10
+threads=1
+completed_at=2026-09-13T00:32:11Z
+
+[openblas]
+started_at=2026-09-13T00:32:12Z
+resolved implementation=openblas runtime=OpenBLAS 0.3.32 NO_LAPACKE DYNAMIC_ARCH NO_AFFINITY SapphireRapids MAX_THREADS=128; compiler=15.2.0
+threads=1
+completed_at=2026-09-13T00:34:45Z
+
+[onemkl]
+started_at=2026-09-13T00:34:48Z
+resolved implementation=onemkl runtime=Intel(R) oneAPI Math Kernel Library Version 2026.1-Product Build 20260612 for Intel(R) 64 architecture applications; compiler=15.2.0
+threads=1
+completed_at=2026-09-13T00:38:41Z
+
+completed_at=2026-09-13T00:38:41Z
