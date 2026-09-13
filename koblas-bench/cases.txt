@@ -8,7 +8,7 @@ scal+4096+uniform
 nrm2+4096+uniform
 asum+4096+uniform+suite=default,sweep
 sum+4096+uniform+suite=default,sweep
-compensated-sum+4096+uniform+suite=default,sweep
+compensated-sum+4096+uniform
 iamax+64+uniform
 iamax+128+uniform
 iamax+256+uniform

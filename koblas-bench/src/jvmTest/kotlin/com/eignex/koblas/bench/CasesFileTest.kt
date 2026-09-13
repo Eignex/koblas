@@ -73,6 +73,9 @@ class CasesFileTest {
     fun `shared workload is canonical and bounded`() {
         val cases = Cases.parse(Files.readString(Path.of("cases.txt")))
 
+        assertEquals(setOf("dot", "sum", "asum", "ssqd", "dot4", "dot-axpy"),
+            cases.filter { "sweep" in it.suites }.map { it.operation }.toSet())
+        assertEquals(78, cases.count { "sweep" in it.suites })
         assertEquals(287, cases.size)
         assertEquals(215, Cases.select(cases).size)
         assertEquals(cases.size, cases.map { it.id }.toSet().size)
