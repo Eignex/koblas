@@ -27,3 +27,10 @@ and layouts; `tuningDiagnostics` reports invalid overrides. No rule is parsed or
 
 The packed and diagonal schedule values now also feed existing `DenseTuning` consumers, so each override is
 resolved once. Other family-specific tuning readers remain until their migration or the W27 audit.
+
+`BlockSchedule` belongs to the shared Kotlin traversal. Its cache/panel dimensions, independent triangular
+blocks, packing choices, and finite native-call work budget select explicit local kernel work. They do not
+transfer the surrounding BLAS algorithm or workspace lifetime to C. Native kernels may loop over internal
+microtiles or perform local diagonal substitution to reuse registers and streaming state; Kotlin still owns
+global dependency order, backend selection, and semantic fallback policy. Native code must not introduce a
+hidden tuning, allocation, or fallback framework. Retain independently callable portable scalar execution.

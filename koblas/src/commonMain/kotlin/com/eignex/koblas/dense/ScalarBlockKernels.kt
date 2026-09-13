@@ -48,10 +48,17 @@ public enum class DepthContribution {
  * have the matching left/right role. Layout and context rejection, scratch validation, and allocation occur
  * before output mutation. There is no retry after writes start.
  *
+ * Each call evaluates a caller-selected logical block. Shared portable Kotlin owns the Level 2/3 algorithm,
+ * cache and panel traversal, packing strategy, workspace lifetime, kernel selection, and semantic fallback
+ * policy. A native implementation of this contract receives an explicit bounded window of work; internal
+ * microtile loops may reuse registers or streaming state within that window. The scalar reference remains
+ * independently callable regardless of the selected backend.
+ *
  * Alpha zero or depth zero scales only selected C entries and does not read A or B. Beta zero never loads
  * original C. Unselected output, array gaps, and padding are untouched. Nonalias calls need no scratch;
  * aliases stage the selected result in caller scratch or one temporary array, then commit it. No workspace
- * or native state survives the call. Exact consumers validate a retained SVL restriction on every call.
+ * is retained by this object, and no native state survives the call. Callers may reuse their scratch and
+ * retained operands across blocks. Exact consumers validate a retained SVL restriction on every call.
  */
 public object ScalarBlockKernels {
     /**
