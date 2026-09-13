@@ -80,7 +80,6 @@ registerJvmBenchmark("jvmScalarBenchmark", "jvm-scalar", vectorModule = false)
 
 val hostTarget = when {
     System.getProperty("os.name").startsWith("Linux") && System.getProperty("os.arch") == "amd64" -> "LinuxX64"
-    System.getProperty("os.name").startsWith("Linux") && System.getProperty("os.arch") == "aarch64" -> "LinuxArm64"
     System.getProperty("os.name").startsWith("Mac") && System.getProperty("os.arch") == "aarch64" -> "MacosArm64"
     else -> null
 }
@@ -88,7 +87,7 @@ val hostTarget = when {
 tasks.register<Exec>("nativeBenchmark") {
     group = "benchmark"
     description = "Runs the shared cases through the exact native koblas C engine."
-    require(hostTarget != null) { "native benchmarks are supported on Linux x86-64, Linux ARM64, and macOS ARM64" }
+    require(hostTarget != null) { "native benchmarks are supported on Linux x86-64 and macOS ARM64" }
     dependsOn("linkReleaseExecutable$hostTarget")
     val targetDir = hostTarget!!.replaceFirstChar(Char::lowercase)
     commandLine(layout.buildDirectory.file("bin/$targetDir/releaseExecutable/koblas-bench.kexe").get().asFile.absolutePath)

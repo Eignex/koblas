@@ -13,10 +13,11 @@ target_ms=1000
 forks=2
 pass=1
 vendors_only=false
+native_executable=
 smoke=false
 
 usage() {
-  echo "usage: capture-report.sh [--libraries openblas,accelerate,onemkl|all] [--vendors-only] [--smoke] [--output NEW_DIR] [--operation NAME|all] [--samples N] [--warmups N] [--target-ms N] [--forks N] [--pass N]" >&2
+  echo "usage: capture-report.sh [--libraries openblas,accelerate,onemkl|all] [--vendors-only] [--native-executable FILE] [--smoke] [--output NEW_DIR] [--operation NAME|all] [--samples N] [--warmups N] [--target-ms N] [--forks N] [--pass N]" >&2
 }
 while (($#)); do
   case "$1" in
@@ -29,11 +30,13 @@ while (($#)); do
     --forks) forks=${2:?}; shift 2 ;;
     --pass) pass=${2:?}; shift 2 ;;
     --vendors-only) vendors_only=true; shift ;;
+    --native-executable) native_executable=${2:?}; shift 2 ;;
     --smoke) smoke=true; shift ;;
     --help|-h) usage; exit 0 ;;
     *) usage; exit 2 ;;
   esac
 done
+[[ -z $native_executable || -x $native_executable ]] || { echo "native executable is unavailable: $native_executable" >&2; exit 2; }
 if $smoke; then samples=1; warmups=0; target_ms=1; forks=1; fi
 platform=$(uname -s)
 if [[ $libraries == all ]]; then
@@ -100,7 +103,7 @@ cases="$temporary/cases.txt"
   echo "dirty=$dirty"
   uname -a
   git -C "$root" status --porcelain
-  echo "operation=$operation warmups=$warmups samples=$samples target_ms=$target_ms forks=$forks pass=$pass libraries=$libraries vendors_only=$vendors_only"
+  echo "operation=$operation warmups=$warmups samples=$samples target_ms=$target_ms forks=$forks pass=$pass libraries=$libraries vendors_only=$vendors_only native_source=$([[ -n $native_executable ]] && echo prebuilt || echo gradle)"
   env | LC_ALL=C sort | awk '/^KOBLAS_(DENSE|SPARSE)_/ { print }'
   printf '\n[toolchain]\n'
   cc --version | head -n 1
@@ -127,7 +130,16 @@ if ! $vendors_only; then
       jvm-scalar) task=jvmScalarBenchmark ;;
       jvm-c) task=jvmCBenchmark ;;
       jvm-simd) task=jvmSimdBenchmark ;;
-      native) task=nativeBenchmark ;;
+      native)
+        if [[ -n $native_executable ]]; then
+          run_target "$target" "$native_executable" \
+            --mode=native --operation="$operation" --cases="$cases" --output="$results/$target.csv" \
+            --warmups="$warmups" --samples="$samples" --target-ms="$target_ms" --pass="$pass" \
+            --source-commit="$commit" --dirty="$dirty"
+          continue
+        fi
+        task=nativeBenchmark
+        ;;
     esac
     run_target "$target" ./gradlew --no-daemon ":koblas-bench:$task" "${common[@]}" "-Pbench.forks=$forks" "-Pbench.output=$results/$target.csv"
   done
