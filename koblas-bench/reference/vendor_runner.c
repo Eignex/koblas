@@ -66,6 +66,7 @@ typedef struct {
     int dims[MAX_DIMS], dim_count;
     char option_names[MAX_OPTIONS][16], option_values[MAX_OPTIONS][32];
     int option_count;
+    int suites;
 } bench_case;
 
 typedef struct {
@@ -229,6 +230,27 @@ static void canonicalize_case(bench_case *s) {
     for(int i=0;i<s->option_count;++i)used+=(size_t)snprintf(s->id+used,sizeof(s->id)-used,"+%s=%s",s->option_names[i],s->option_values[i]);
 }
 
+static int suite_mask(const char *value) {
+    if (!strcmp(value, "default")) return 1;
+    if (!strcmp(value, "sweep")) return 2;
+    if (!strcmp(value, "default,sweep") || !strcmp(value, "sweep,default")) return 3;
+    fail("suite must list default and/or sweep once");
+    return 0;
+}
+
+static int select_cases(bench_case *cases, int count, const char *suite, const char *operation) {
+    if (strcmp(suite, "default") && strcmp(suite, "sweep")) fail("suite must be default or sweep");
+    if (!strcmp(suite, "sweep") && !strcmp(operation, "all")) fail("suite sweep requires a specific operation");
+    int mask = suite_mask(suite), selected = 0;
+    for (int i = 0; i < count; ++i) {
+        if ((cases[i].suites & mask) && (!strcmp(operation, "all") || !strcmp(cases[i].operation, operation))) {
+            cases[selected++] = cases[i];
+        }
+    }
+    if (!selected) fail("suite and operation selected no cases");
+    return selected;
+}
+
 static int parse_case(char *line, int line_number, bench_case *out) {
     while (*line == ' ' || *line == '\t') ++line;
     char *end = line + strlen(line); while (end > line && (end[-1] == '\n' || end[-1] == '\r' || end[-1] == ' ' || end[-1] == '\t')) *--end = 0;
@@ -242,7 +264,15 @@ static int parse_case(char *line, int line_number, bench_case *out) {
     while (dimension) { if (out->dim_count == MAX_DIMS || !*dimension) fail("malformed dimensions"); char *tail; long value = strtol(dimension,&tail,10); if(*tail || value<=0 || value>1000000) fail("invalid dimension"); out->dims[out->dim_count++] = (int)value; dimension=strtok_r(NULL,"x",&dimension_save); }
     if (out->dim_count != expected) { fprintf(stderr,"line %d: wrong dimension count\n",line_number); exit(2); }
     token = strtok_r(NULL, "+", &save); if (!token || (strcmp(token,"uniform") && strcmp(token,"triangular") && strcmp(token,"sparse-uniform") && strcmp(token,"sparse-triangular"))) fail("unknown fixture"); copy_field(out->fixture,sizeof(out->fixture),token,line_number,"fixture");
-    while ((token = strtok_r(NULL,"+",&save))) { char *equals = strchr(token,'='); if(!equals||equals==token||!equals[1]||strchr(equals+1,'=')) fail("malformed option"); *equals=0; int order=option_order(token); if(order<0 || option_present(out,token) || out->option_count==MAX_OPTIONS||!valid_option(token,equals+1)) fail("unknown, invalid, or duplicate option");copy_field(out->option_names[out->option_count],sizeof(out->option_names[0]),token,line_number,"option name");copy_field(out->option_values[out->option_count],sizeof(out->option_values[0]),equals+1,line_number,"option value");++out->option_count; }
+    int has_suite = 0;
+    out->suites = 1;
+    while ((token = strtok_r(NULL,"+",&save))) { char *equals = strchr(token,'='); if(!equals||equals==token||!equals[1]||strchr(equals+1,'=')) fail("malformed option"); *equals=0;
+        if (!strcmp(token, "suite")) {
+            if (has_suite++) fail("duplicate suite");
+            out->suites = suite_mask(equals + 1);
+            continue;
+        }
+        int order=option_order(token); if(order<0 || option_present(out,token) || out->option_count==MAX_OPTIONS||!valid_option(token,equals+1)) fail("unknown, invalid, or duplicate option");copy_field(out->option_names[out->option_count],sizeof(out->option_names[0]),token,line_number,"option name");copy_field(out->option_values[out->option_count],sizeof(out->option_values[0]),equals+1,line_number,"option value");++out->option_count; }
     int sparse = !strncmp(out->operation,"sp",2) || !strncmp(out->operation,"sparse-slices-",14);
     int triangular=triangular_fixture_operation(out->operation);const char *expected_fixture=sparse?(triangular?"sparse-triangular":"sparse-uniform"):(triangular?"triangular":"uniform");
     if(strcmp(out->fixture,expected_fixture))fail("incompatible fixture");
@@ -616,6 +646,8 @@ int main(int argc,char **argv){
     for(char *p=runtime;*p;++p)if(*p==','||*p=='\n'||*p=='\r')*p=';';
     fixture_check();numerical_check();
     int case_count=0;bench_case *cases=load_cases(cases_path,&case_count);
+    case_count = select_cases(cases, case_count, argument_value(argc, argv, "--suite", "default"),
+        argument_value(argc, argv, "--operation", "all"));
     FILE *output=fopen(output_path,"w");if(!output){perror(output_path);exit(2);}
     fputs("case,status,comparison_kind,timing_mode,actual_kernel,samples,forks,median_ns,min_ns,max_ns\n",output);
     volatile double sink=0;

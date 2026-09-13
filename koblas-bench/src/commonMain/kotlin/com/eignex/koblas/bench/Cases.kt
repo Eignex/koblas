@@ -6,6 +6,7 @@ internal data class BenchCase(
     val fixture: String,
     val options: Map<String, String>,
     val id: String,
+    val suites: Set<String> = setOf("default"),
 ) {
     fun option(name: String, default: String): String = options[name] ?: default
     fun flag(name: String, default: String = "N"): Boolean = option(name, default) == "T"
@@ -50,6 +51,18 @@ internal object Cases {
         return cases
     }
 
+    fun select(cases: List<BenchCase>, suite: String = "default", operation: String = "all"): List<BenchCase> {
+        validateSelection(suite, operation)
+        val selected = cases.filter { suite in it.suites && (operation == "all" || it.operation == operation) }
+        require(selected.isNotEmpty()) { "suite '$suite' and operation '$operation' selected no cases" }
+        return selected
+    }
+
+    fun validateSelection(suite: String, operation: String) {
+        require(suite in setOf("default", "sweep")) { "suite must be default or sweep" }
+        require(suite != "sweep" || operation != "all") { "suite sweep requires a specific operation" }
+    }
+
     private fun parseLine(line: String, lineNumber: Int): BenchCase {
         fun invalid(message: String): Nothing = throw IllegalArgumentException("line $lineNumber: $message")
         val parts = line.split('+')
@@ -63,8 +76,18 @@ internal object Cases {
         val fixture = parts[2]
         if (fixture !in fixtures) invalid("unknown fixture '$fixture'")
         val options = linkedMapOf<String, String>()
+        var suites: Set<String>? = null
         for (field in parts.drop(3)) {
             val pair = field.split('=', limit = 2)
+            if (pair.size == 2 && pair[0] == "suite") {
+                if (suites != null) invalid("duplicate suite")
+                val names = pair[1].split(',')
+                if (names.any { it !in setOf("default", "sweep") } || names.distinct().size != names.size) {
+                    invalid("suite must list default and/or sweep once")
+                }
+                suites = names.toSet()
+                continue
+            }
             if (pair.size != 2 || pair[0] !in optionOrder || pair[1].isEmpty()) invalid("unknown option '$field'")
             if (pair[0] in options) invalid("duplicate option '${pair[0]}'")
             validateOption(pair[0], pair[1], invalid = ::invalid)
@@ -73,7 +96,7 @@ internal object Cases {
         validateCompatibility(operation, dimensions, fixture, options, invalid = ::invalid)
         val ordered = optionOrder.filter { it in options }.associateWith { options.getValue(it) }
         val id = (listOf(operation, dimensions.joinToString("x"), fixture) + ordered.map { "${it.key}=${it.value}" }).joinToString("+")
-        return BenchCase(operation, dimensions, fixture, ordered, id)
+        return BenchCase(operation, dimensions, fixture, ordered, id, suites ?: setOf("default"))
     }
 
     private fun validateOption(name: String, value: String, invalid: (String) -> Nothing) {

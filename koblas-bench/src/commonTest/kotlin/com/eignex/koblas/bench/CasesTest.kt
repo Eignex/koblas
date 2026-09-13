@@ -6,6 +6,44 @@ import kotlin.test.assertFailsWith
 
 class CasesTest {
     @Test
+    fun `suite membership preserves workload identity`() {
+        for (id in listOf("dot+4096+uniform", "gemm-block+15x7x31+uniform+packed=4x4+timing=prepacked-compute")) {
+            val original = Cases.parse(id).single()
+            for (membership in listOf("default", "sweep", "default,sweep", "sweep,default")) {
+                val tagged = Cases.parse("$id+suite=$membership").single()
+                assertEquals(original.id, tagged.id)
+                assertEquals(original.options, tagged.options)
+                assertEquals(original.dimensions, tagged.dimensions)
+                assertFailsWith<IllegalArgumentException> { Cases.parse("$id\n$id+suite=$membership") }
+            }
+        }
+    }
+
+    @Test
+    fun `selection intersects suite and operation`() {
+        val cases = Cases.parse("""
+            dot+4096+uniform+suite=default,sweep
+            sum+4096+uniform
+            dot+7+uniform+suite=sweep
+            sum+7+uniform+suite=sweep
+        """.trimIndent())
+
+        assertEquals(listOf("dot+4096+uniform", "sum+4096+uniform"), Cases.select(cases).map { it.id })
+        assertEquals(listOf("dot+4096+uniform"), Cases.select(cases, operation = "dot").map { it.id })
+        assertEquals(listOf("dot+4096+uniform", "dot+7+uniform"), Cases.select(cases, "sweep", "dot").map { it.id })
+        for ((suite, operation) in listOf("sweep" to "all", "unknown" to "dot", "sweep" to "axpy", "default" to "unknown")) {
+            assertFailsWith<IllegalArgumentException> { Cases.select(cases, suite, operation) }
+        }
+    }
+
+    @Test
+    fun `parser rejects invalid suite membership`() {
+        for (suffix in listOf("", "all", "default,default", "sweep,", ",sweep", "default,other", "default+suite=sweep")) {
+            assertFailsWith<IllegalArgumentException> { Cases.parse("dot+7+uniform+suite=$suffix") }
+        }
+    }
+
+    @Test
     fun `parser accepts canonical cases`() {
         val cases = Cases.parse("""
             # comment

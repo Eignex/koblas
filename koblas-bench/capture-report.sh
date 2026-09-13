@@ -5,6 +5,7 @@ root=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 bench="$root/koblas-bench"
 libraries=all
 operation=all
+suite=default
 native_variant=
 cases="$bench/cases.txt"
 output=
@@ -17,12 +18,13 @@ vendors_only=false
 smoke=false
 
 usage() {
-  echo "usage: capture-report.sh [--libraries openblas,accelerate,onemkl|all] [--native-variant scalar|sse2|avx2|neon] [--vendors-only] [--smoke] [--output DIR] [--operation NAME|all] [--samples N] [--warmups N] [--target-ms N] [--forks N] [--pass N]" >&2
+  echo "usage: capture-report.sh [--libraries openblas,accelerate,onemkl|all] [--native-variant scalar|sse2|avx2|neon] [--vendors-only] [--smoke] [--output DIR] [--operation NAME|all] [--suite default|sweep] [--samples N] [--warmups N] [--target-ms N] [--forks N] [--pass N]" >&2
 }
 while (($#)); do
   case "$1" in
     --libraries) libraries=${2:?}; shift 2 ;;
     --native-variant) native_variant=${2:?}; shift 2 ;;
+    --suite) suite=${2:?}; shift 2 ;;
     --operation) operation=${2:?}; shift 2 ;;
     --output) output=${2:?}; shift 2 ;;
     --samples) samples=${2:?}; shift 2 ;;
@@ -37,6 +39,8 @@ while (($#)); do
   esac
 done
 [[ -z $native_variant || $native_variant == scalar || $native_variant == sse2 || $native_variant == avx2 || $native_variant == neon ]] || { usage; exit 2; }
+[[ $suite == default || $suite == sweep ]] || { echo "suite must be default or sweep" >&2; exit 2; }
+[[ $suite != sweep || $operation != all ]] || { echo "suite sweep requires a specific operation" >&2; exit 2; }
 if $smoke; then samples=1; warmups=0; target_ms=1; forks=1; fi
 platform=$(uname -s)
 if [[ $libraries == all ]]; then
@@ -102,12 +106,8 @@ fi
 results="$temporary/results"
 mkdir "$results"
 metadata="$results/metadata.txt"
-awk -F+ -v operation="$operation" -v smoke="$smoke" '
-  !/^[[:space:]]*($|#)/ && (operation == "all" || $1 == operation) {
-    print
-    if (smoke == "true" && ++count == 3) exit
-  }
-' "$cases" >"$temporary/cases.txt"
+awk -v operation="$operation" -v suite="$suite" -v smoke="$smoke" \
+  -f "$bench/select-cases.awk" "$cases" >"$temporary/cases.txt"
 cases="$temporary/cases.txt"
 {
   echo "status=incomplete"
@@ -117,7 +117,7 @@ cases="$temporary/cases.txt"
   echo "source_commit=$commit"
   echo "dirty=$dirty"
   echo "platform=$(uname -a)"
-  printf '%s\n' "operation=$operation" "warmups=$warmups" "requested_samples=$samples" \
+  printf '%s\n' "operation=$operation" "suite=$suite" "selected_cases=$(wc -l <"$cases" | tr -d ' ')" "warmups=$warmups" "requested_samples=$samples" \
     "target_ns=$((target_ms * 1000000))" "pass=$pass" "libraries=$libraries" "vendors_only=$vendors_only"
   if ! $vendors_only; then
     echo "requested_jvm_forks=$forks"
@@ -149,7 +149,7 @@ run_target() {
 }
 
 cd "$root"
-common=("-Pbench.operation=$operation" "-Pbench.cases=$cases" "-Pbench.warmups=$warmups" "-Pbench.samples=$samples" "-Pbench.targetMs=$target_ms")
+common=("-Pbench.operation=$operation" "-Pbench.suite=$suite" "-Pbench.cases=$cases" "-Pbench.warmups=$warmups" "-Pbench.samples=$samples" "-Pbench.targetMs=$target_ms")
 if ! $vendors_only; then
   c_target=jvm-c
   native_target=native
@@ -193,12 +193,14 @@ for vendor in "${vendors[@]}"; do
       ;;
   esac
   cc -std=c11 -O3 -ffp-contract=off -DNDEBUG -Wall -Wextra -Werror "$bench/reference/vendor_runner.c" "${flags[@]}" -lm -o "$temporary/$vendor"
+  cc -std=c11 -O3 -ffp-contract=off -DNDEBUG -Wall -Wextra -Werror "$bench/reference/cases_test.c" "${flags[@]}" -lm -o "$temporary/cases-test"
+  "$temporary/cases-test"
   if [[ $vendor == onemkl ]]; then
     cc -std=c11 -O3 -ffp-contract=off -DNDEBUG -Wall -Wextra -Werror "$bench/reference/sparse_slices_test.c" "${flags[@]}" -lm -o "$temporary/slices-test"
     "$temporary/slices-test"
   fi
   run_target "$vendor" "$temporary/$vendor" --cases="$cases" --output="$results/$vendor.csv" \
-    --samples="$samples" --warmups="$warmups" --target-ms="$target_ms"
+    --suite="$suite" --operation="$operation" --samples="$samples" --warmups="$warmups" --target-ms="$target_ms"
 done
 sed -e '1s/status=incomplete/status=complete/' \
   -e "s/^completed_at=pending$/completed_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)/" \
