@@ -43,10 +43,10 @@ internal object SimdSparseAllocationCheck {
         val indices = IntArray(ENTRY_COUNT) { 1 + it * 4 }
         val values = DoubleArray(ENTRY_COUNT) { it * 0.125 - 16.0 }
         val dense = DoubleArray(DIMENSION) { 1.0 + (it % 17) * 0.03125 }
-        val kernels = engine.sparseKernels
 
         assertAllocationFree("indexed dot") {
-            kernels.dot(indices, 0, values, 0, ENTRY_COUNT, dense)
+            // Exercise the Vector API leaf even where production prefers scalar indexed loads.
+            SparseSimd.dot(indices, 0, values, 0, ENTRY_COUNT, dense)
         }
         assertAllocationFree("indexed gather") {
             // Exercise the Vector API leaf even where production prefers scalar indexed loads.
@@ -54,7 +54,8 @@ internal object SimdSparseAllocationCheck {
             values[ENTRY_COUNT / 2]
         }
         assertAllocationFree("indexed norm") {
-            kernels.nrm2(indices, 0, ENTRY_COUNT, dense)
+            // Exercise the Vector API leaf even where production prefers scalar indexed loads.
+            SparseSimd.nrm2(indices, 0, ENTRY_COUNT, dense)
         }
     }
 
