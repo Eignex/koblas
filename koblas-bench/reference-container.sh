@@ -30,7 +30,11 @@ if ! docker info >/dev/null 2>&1; then
 fi
 
 image="koblas-vendors:$target"
-"${docker_command[@]}" build --progress plain --target "$target" --tag "$image" \
+build_arguments=()
+if "${docker_command[@]}" build --help 2>&1 | grep -q -- '--progress'; then
+    build_arguments+=(--progress plain)
+fi
+"${docker_command[@]}" build "${build_arguments[@]}" --target "$target" --tag "$image" \
     --file "$root/koblas-bench/Dockerfile" "$root/koblas-bench"
 docker_arguments=(
     --rm
