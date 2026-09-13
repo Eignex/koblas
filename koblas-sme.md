@@ -215,6 +215,23 @@ small problem, but its implementation must remain a reusable primitive with no s
 Compare composed Kotlin scheduling against a proposed fused kernel. Keep the composed path available and avoid
 new interfaces or native variants when existing primitives suffice.
 
+**Consolidate portable arithmetic.** Keep scalar Kotlin, JVM SIMD, and native C backend coverage. Reduce the
+portable layer to one straightforward scalar implementation per mathematical/semantic kernel contract, reused
+by production fallback and the independently callable oracle for accelerated kernels. Sharing those two scalar
+roles preserves oracle independence from JVM SIMD and native code; do not create separate copies just for tests.
+A new ISA, register width, microtile, packing geometry, or fused schedule does not require another optimized
+scalar implementation. Scalar execution can compose existing arithmetic and shared layout/window helpers when
+that preserves the contract; a reference must not call accelerated arithmetic or copy its implementation.
+
+Retain genuinely distinct ordered/robust numerical behavior, no-read rules, alias handling, and operation
+coverage. Test shared scalar semantics independently; comparing a fallback with the same function is not
+independent correctness evidence. Keep accelerated-path attribution in conformance tests. Consolidate old scalar
+panel/tile leaves, raw-array/view duplicates, and adapters as their callers migrate. Maintain additional scalar
+unrolling or packing strategies only for demonstrated runtime needs, not to mirror accelerated variants.
+Measure affected small-operation and scalar-only paths before removing an optimized scalar implementation;
+record the tradeoff and retain a minimal fast path when regressions make it necessary. Do not change the
+portable ownership of high-level BLAS algorithms to achieve this reduction.
+
 Expose explicit engine/kernel selection for scalar Kotlin, JVM SIMD, ordinary C, SME, and SME2, with exact kernel
 IDs/widths available to tests and the benchmark harness. Existing `BuiltinEngines` and `PackedKernels` APIs can
 be replaced; do not retain misleading compatibility shims. A composed experimental engine may use baseline
@@ -299,7 +316,8 @@ This is an algorithm/interface redesign, not just substitution of C leaves.
 | Strided/view entry paths | Route through the same planner rather than separate scalar default bodies. General strides remain supported by direct kernels or explicit panel packing. |
 | Packing/transpose paths | Kotlin chooses packing/reuse and traverses layout blocks; `LayoutKernels` executes each bounded rearrangement using scalar Kotlin or the selected backend. |
 
-Keep a separately callable scalar reference implementation for every new operation contract. Existing ordered
+Keep a separately callable scalar reference for every new semantic operation contract, using the same
+implementation as production scalar fallback where applicable. Existing ordered
 fallbacks and numerical guards are valuable evidence, but they can be refactored into explicit semantic
 eligibility checks instead of being entangled with a specific four-column traversal.
 
@@ -495,7 +513,8 @@ Define the common contracts before tuning or broad rewrites:
 - A declined fast path must leave output untouched. Once mutation starts, complete that selected algorithm;
   failure recovery must not double-apply an update.
 
-Refactor the scalar reference to express the new contracts, but do not define the oracle by calling the new C
+Refactor and consolidate scalar references to express the new contracts; fused contracts can compose existing
+scalar primitives when numerically equivalent. Do not define the oracle by calling the new C
 implementation. Keep ordered reference paths for cases that cannot safely use a regrouped schedule.
 
 **13. Validation and tuning workload**

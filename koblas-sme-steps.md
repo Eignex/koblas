@@ -12,6 +12,14 @@ Use the smallest useful kernel boundary. Enlarging it requires concrete state/re
 end-to-end call-overhead benefit; fewer calls alone does not justify moving high-level BLAS into C.
 Architecture section 5 defines the ownership boundary for every PR.
 
+Consolidate portable arithmetic while retaining scalar Kotlin, JVM SIMD, and native C coverage. Use one simple
+scalar implementation per semantic kernel contract for both production fallback and the accelerated-kernel
+oracle. Reuse scalar primitives/layout helpers for new fused or packed contracts when semantics permit; do not
+mirror every ISA, width, microtile, or schedule with another optimized scalar version. Preserve ordered/robust
+numerics, no-read/alias rules, and independent scalar-semantic tests. Family migrations remove superseded
+scalar leaves and adapters; measure small-operation and scalar-only effects before retiring optimized paths.
+This applies as each family migrates and does not require reopening completed foundation PRs solely for cleanup.
+
 The target is independently selectable SME and SME2 kernels, an extensible C probe, explicit ordinary SIMD
 widths, operation-level planning, layout-bearing packed operands, measured runtime-specific defaults, and seams
 for future AMD/Intel AVX10, AMX, and ACE. Existing APIs and implementation structure may change.
@@ -66,6 +74,10 @@ interface, packing format, or specialized kernel for every combination. oneMKL p
   format, and each has a removal owner in this document. Do not publish them as new public APIs. Keeping each
   intermediate PR buildable is an integration requirement, not a backward-compatibility commitment. Remove an
   adapter as soon as its last in-repository consumer migrates; prefer updating callers directly in the owning PR.
+- Consolidate each migrated family's portable arithmetic at the same time as its callers. Share production
+  scalar fallback and oracle implementations; retain genuinely distinct numerical contracts and only measured
+  scalar fast paths. Do not require a new scalar variant for each accelerated specialization. PR 14 audits
+  remaining duplicates; it is not a reason to defer removals already possible in an earlier PR.
 - Update relevant API dumps, KDoc, and test callers in the PR that changes an API. PR 14 finishes migration
   documentation; it is not permission to leave intermediate API checks broken.
 - Do not split PRs solely by source set when that leaves JVM or Native broken. A kernel contract change includes
@@ -321,6 +333,8 @@ Transition: raw panels and fixed microtiles become validated logical operands wi
   wrapping, sizes, permitted aliases, and retained-buffer lifetime independently of the initializing thread's SVL.
 - Define direct, one-side-packed, both-side-packed, and retained product modes with alpha/beta, selected output,
   logical m/n/k, scratch requirements, and first/subsequent depth contributions. Implement the scalar reference.
+  Reuse this implementation for production scalar execution. Share arithmetic across operand/layout modes
+  through validated access helpers where practical, rather than cloning a scalar loop for each native format.
 - Keep ordered numerical fallbacks and failure-before-mutation explicit. Multiple kernels may share a declared
   layout; product packing dimensions must not dictate triangular solve order.
 - Update in-repository callers/API dumps with the contract changes. Use temporary internal wrappers only for
@@ -334,7 +348,7 @@ together before accelerated implementations are added.
 
 - W05: immutable selection, checked shape arithmetic, separate scalar-C and SIMD-C policies, and truthful diagnostics.
 - W06: ownership/layout validation, scalar-oracle independence, alpha/beta and no-read semantics, failure before mutation,
-  and contracts that preserve Kotlin-owned scheduling rather than embed a native BLAS engine.
+  contracts that preserve Kotlin-owned scheduling, and one reusable scalar fallback/oracle per semantic contract.
 
 **PR 04 — Ordinary GEMM blocks and shared matrix/view execution**
 
@@ -807,7 +821,12 @@ Leave it open and ready for review without merging; mark the session goal comple
 Transition: any remaining bridge to the old architecture is removed; all callers use the final contracts.
 
 - Remove obsolete legacy C symbols, fixed-shape/four-column adapters, engine-wide precedence, old tuning
-  readers, and superseded packing/tile APIs. Keep intentional scalar references and generic numerical fallbacks.
+  readers, and superseded packing/tile APIs. Consolidate duplicate scalar tile/panel/view arithmetic and
+  fallback-versus-oracle copies. Keep one simple scalar implementation per semantic contract, genuinely distinct
+  ordered/robust fallbacks, and additional scalar fast paths only where runtime evidence justifies them.
+- Audit that fused/ISA/layout variants reuse scalar primitives where equivalent and that high-level portable
+  BLAS remains shared. Record small-operation and scalar-only before/after effects for retired optimized scalar
+  paths; no accelerated backend coverage is removed as part of this consolidation.
 - Finish source-level migration documentation for low-level/custom packed callers and config keys, with examples
   of exact selection, AUTO diagnostics, retained operands, and workspace ownership. Confirm all API dumps/KDoc.
 - Audit every owning/view Level 2/3 entry point and every benchmark identity. Verify there is one shared
@@ -822,7 +841,8 @@ are enabled where verified, and future width/accelerator additions do not requir
 
 **Final independent review (G7):** fresh separate session; model `gpt-6-astra`; reasoning `high`.
 
-- W27: complete adapter removal, public/view entry-point coverage, packaged catalog accuracy, and final hardware evidence.
+- W27: complete adapter/scalar-duplicate removal, shared fallback/oracle independence from accelerated code,
+  small-operation/scalar-only tradeoffs, public/view coverage, packaged catalog accuracy, and final hardware evidence.
 
 **Transition cleanup ownership**
 
@@ -831,6 +851,7 @@ are enabled where verified, and future width/accelerator additions do not requir
 | Old native symbol forwarding | PR 02 / W02 | Migrate callers directly within PR 02 where possible; later owning PRs remove remaining uses; PR 14 audits none remain. |
 | Hidden ISA clones | PR 02 / W02 | PR 02 / W04, in the same PR. |
 | Old tuning readers for unmigrated operations | PR 03 / W05 | Each family migration; PR 14 verifies none remain. |
+| Duplicate scalar leaves and fallback/oracle copies | Each contract/family migration | Remove when callers migrate; PR 14 audits residual duplicates and evidence for retained scalar fast paths. |
 | Old raw-panel wrapping | PR 03 / W06 | PRs 04 and 07–09; PR 14 covers residual public/harness callers. |
 | Old product/tile output helpers | PR 04 / W08 | PRs 07–09 after structured/triangular consumers migrate. |
 | Four-column panel adapters | PR 10 / W20 | Sparse callers migrate in PR 10; PR 11 / W22–W23 removes SYMV/rank-update consumers. |
@@ -841,6 +862,10 @@ are enabled where verified, and future width/accelerator additions do not requir
 - Level 2/3 algorithms, outer block/panel traversal, global triangular order, packing decisions, workspace
   lifetime, and fallback policy remain in shared portable Kotlin. Native kernels implement bounded arithmetic/
   layout primitives; any expanded boundary has concrete reuse justification or measured end-to-end evidence.
+- Scalar Kotlin, JVM SIMD, and native C coverage remains. Production scalar fallback and the accelerated-kernel
+  oracle share one simple implementation per semantic contract; no scalar clones exist solely to match ISA,
+  width, or microtile variants. Distinct numerical fallbacks remain, shared scalar semantics have independent
+  tests, and retained scalar optimizations have measured justification.
 - Every implementation PR began in a fresh session and ended with an independent fresh-session review of its
   final base/head pair. Model/effort, evidence, findings, resolutions, and handoffs are recorded for all PRs.
 - Every session created an explicit goal and delivered an open, non-draft GitHub PR with required CI green on
