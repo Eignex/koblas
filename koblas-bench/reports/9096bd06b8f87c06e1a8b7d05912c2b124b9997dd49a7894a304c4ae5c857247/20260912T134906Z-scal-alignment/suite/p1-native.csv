@@ -1,6 +1,0 @@
-case,status,comparison_kind,timing_mode,actual_kernel,samples,forks,median_ns,min_ns,max_ns
-scal+64+uniform+timing=arithmetic,ok,direct,arithmetic,policy,5,1,39.50068,39.410638,40.675774
-scal+256+uniform+timing=arithmetic,ok,direct,arithmetic,policy,5,1,43.606525,43.412708,43.741998
-scal+4096+uniform+timing=arithmetic,ok,direct,arithmetic,policy,5,1,228.8650562284881,227.98834720789534,230.01768791032882
-scal+65536+uniform+timing=arithmetic,ok,direct,arithmetic,policy,5,1,7594.965733552889,7571.117227319062,7601.531286756058
-scal+4096+uniform,ok,direct,reset-and-arithmetic,policy,5,1,829.4770725483942,825.4476148417118,831.3853136730538

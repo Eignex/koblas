@@ -1,8 +1,0 @@
-case,status,comparison_kind,timing_mode,actual_kernel,samples,forks,median_ns,min_ns,max_ns
-iamax+64+uniform,ok,direct,arithmetic,policy,5,1,50.225577,49.394676,50.783265
-iamax+128+uniform,ok,direct,arithmetic,policy,5,1,122.294569,109.278889,159.793668
-iamax+256+uniform,ok,direct,arithmetic,policy,5,1,171.55432,167.749543,175.767899
-iamax+512+uniform,ok,direct,arithmetic,policy,5,1,408.3506317000189,372.62633775733013,435.5991782508289
-iamax+1024+uniform,ok,direct,arithmetic,policy,5,1,590.075735573822,502.0175876155665,677.1196070323999
-iamax+4096+uniform,ok,direct,arithmetic,policy,5,1,1501.0979575318986,1222.2378991303244,1697.1501063289531
-iamax+65536+uniform,ok,direct,arithmetic,policy,5,1,15065.399071457408,13806.95666801238,15980.962454582155

@@ -1,8 +1,0 @@
-case,status,comparison_kind,timing_mode,actual_kernel,samples,forks,median_ns,min_ns,max_ns
-iamax+64+uniform,ok,direct,arithmetic,vendor-cblas,5,1,30.589362,30.547868,30.668808
-iamax+128+uniform,ok,direct,arithmetic,vendor-cblas,5,1,49.728347,49.625954,49.862385
-iamax+256+uniform,ok,direct,arithmetic,vendor-cblas,5,1,66.940522,66.671228,67.272821
-iamax+512+uniform,ok,direct,arithmetic,vendor-cblas,5,1,144.69841,144.345902,145.388906
-iamax+1024+uniform,ok,direct,arithmetic,vendor-cblas,5,1,215.52240753173828,214.31681060791016,217.99316215515137
-iamax+4096+uniform,ok,direct,arithmetic,vendor-cblas,5,1,567.3974914550781,563.220157623291,577.0467262268066
-iamax+65536+uniform,ok,direct,arithmetic,vendor-cblas,5,1,7960.11328125,7948.6656494140625,7998.85546875

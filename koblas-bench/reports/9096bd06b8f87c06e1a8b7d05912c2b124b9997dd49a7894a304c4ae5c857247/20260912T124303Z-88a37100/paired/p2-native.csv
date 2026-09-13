@@ -1,4 +1,0 @@
-case,status,comparison_kind,timing_mode,actual_kernel,samples,forks,median_ns,min_ns,max_ns
-scal+4096+uniform+timing=arithmetic,ok,direct,arithmetic,policy,5,1,589.1612089481199,581.2971680152308,600.5566158971918
-spgather+4096+sparse-uniform+density=0.25+timing=arithmetic,ok,direct,arithmetic,policy,5,1,314.4742910602653,309.3261587455004,315.4191124080717
-spgather+65536+sparse-uniform+density=0.25+timing=arithmetic,ok,direct,arithmetic,policy,5,1,7529.252180128663,7244.189278055754,7686.725375268049

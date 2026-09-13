@@ -13,8 +13,8 @@ koblas-bench/capture-report.sh --smoke
 koblas-bench/capture-report.sh --vendors-only --libraries openblas,accelerate
 ```
 
-Full reports go to `reports/<hardware-sha256>/<run-id>/`; smoke and vendor-only runs default to `build/benchmarks/`.
-Use `--output NEW_DIR` to override. Each report contains one CSV per target and `metadata.txt` with hardware,
+Full reports go to `reports/<hardware-sha256>/<run-id>/`; single-kernel, smoke and vendor-only runs default to `build/benchmarks/`.
+Use `--output NEW_DIR` to override. Each report contains only one CSV per target and `metadata.txt` with hardware,
 source revision, timing settings, execution timestamps, and actual runtime/library configurations.
 Each CSV records one row per case with sample/fork counts, median, minimum, and maximum ns/op.
 CSV files contain only case definitions, status, actual kernel and measured results; run settings and runtime
@@ -23,8 +23,9 @@ identity belong exclusively to `metadata.txt`. Capture is the only reporting scr
 Use `--native-variant scalar|sse2|avx2|neon` for exact raw C arithmetic in the JVM C and Native targets.
 Unavailable variants fail the capture. Kotlin scalar and JVM SIMD targets retain their distinct identities.
 
-[`cases.txt`](cases.txt) defines the workload. Filter with `--operation NAME` or `--suite packed`.
+[`cases.txt`](cases.txt) defines the workload. Reports run all cases; use `--operation NAME` for a single kernel.
 Compare matching cases and timing boundaries; prepared, one-shot, and packing-inclusive timings differ.
+New references must match the fixture, validation, buffer reuse, and numerical contract.
 Unsupported cases have no timing. A selected target failure stops capture; existing reports are never overwritten.
 
 For `scal` and `spgather`, `+timing=arithmetic` excludes resets; arithmetic scaling uses alpha = -1.

@@ -10,7 +10,7 @@ class CasesFileTest {
     fun `shared workload is canonical and bounded`() {
         val cases = Cases.parse(Files.readString(Path.of("cases.txt")))
 
-        assertEquals(189, cases.size)
+        assertEquals(215, cases.size)
         assertEquals(cases.size, cases.map { it.id }.toSet().size)
     }
 }

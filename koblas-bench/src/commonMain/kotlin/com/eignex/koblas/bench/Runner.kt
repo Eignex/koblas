@@ -136,7 +136,11 @@ internal fun measurement(
     comparisonKind: String,
     timingMode: String,
 ): Measurement = Measurement(
-    listOf(case.id, status, comparisonKind, timingMode, actualPackedKernel(case, settings.mode, status)),
+    listOf(
+        case.id, status, comparisonKind, timingMode,
+        if (status == "ok" && case.option("timing", "") == "reuse" && case.operation != "sparse-slices-reduce-dot-unchecked")
+            "portable-sparse-slices" else actualPackedKernel(case, settings.mode, status),
+    ),
     if (settings.mode.startsWith("jvm")) (sample - 1) / settings.samples + 1 else 1,
     nanos,
 )
@@ -164,7 +168,6 @@ private fun csvRecord(fields: List<String>): String = fields.joinToString(",", t
 private fun csv(value: String): String = if (value.any { it == ',' || it == '"' || it == '\n' }) {
     "\"${value.replace("\"", "\"\"")}\""
 } else value
-
 
 internal const val CSV_HEADER = "case,status,comparison_kind,timing_mode,actual_kernel,samples,forks,median_ns,min_ns,max_ns"
 private const val MAX_OPERATIONS = 1_000_000

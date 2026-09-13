@@ -1,4 +1,0 @@
-case,status,comparison_kind,timing_mode,actual_kernel,samples,forks,median_ns,min_ns,max_ns
-scal+4096+uniform+timing=arithmetic,ok,direct,arithmetic,vendor-cblas,5,1,579.4907073974609,577.2574310302734,589.4227905273438
-spgather+4096+sparse-uniform+density=0.25+timing=arithmetic,unsupported,unsupported,arithmetic,unavailable,0,0,,,
-spgather+65536+sparse-uniform+density=0.25+timing=arithmetic,unsupported,unsupported,arithmetic,unavailable,0,0,,,

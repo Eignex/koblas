@@ -1,6 +1,0 @@
-case,status,comparison_kind,timing_mode,actual_kernel,samples,forks,median_ns,min_ns,max_ns
-scal+64+uniform+timing=arithmetic,ok,direct,arithmetic,vendor-cblas,5,1,38.450538,37.712437,38.799755
-scal+256+uniform+timing=arithmetic,ok,direct,arithmetic,vendor-cblas,5,1,42.890927,42.795676,43.583344
-scal+4096+uniform+timing=arithmetic,ok,direct,arithmetic,vendor-cblas,5,1,196.68039321899414,195.44944763183594,198.164400100708
-scal+65536+uniform+timing=arithmetic,ok,direct,arithmetic,vendor-cblas,5,1,8050.0068359375,8007.988525390625,8126.376647949219
-scal+4096+uniform,ok,direct,reset-and-arithmetic,vendor-cblas,5,1,734.0476455688477,729.9407119750977,736.0684204101562
