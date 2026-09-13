@@ -1,0 +1,78 @@
+status=complete
+
+[capture]
+dirty=false
+native_source=gradle
+pass=1
+source_commit=f8409263880a223460fbb03f6cb82e9d3be19fa2
+target_ns=200000000
+threads=1
+unit=ns
+warmups=5
+
+[hardware]
+architecture=x86_64
+vendor id=GenuineIntel
+model name=Intel(R) Xeon(R) Platinum 8488C
+cpu family=6
+model=143
+thread(s) per core=2
+core(s) per socket=2
+socket(s)=1
+stepping=8
+l1d cache=96 KiB (2 instances)
+l1i cache=64 KiB (2 instances)
+l2 cache=4 MiB (2 instances)
+l3 cache=105 MiB (1 instance)
+numa node(s)=1
+memory_kib=7966224
+
+[jvm-c]
+harness=jmh-average-time/JMH-1.37
+implementation=jvm-c/c/c-sparse/packed-4x4
+requested_forks=2
+runtime=kotlin-2.4.10/jvm/Ubuntu/25.0.4
+warmup_target_ns=200000000
+
+[jvm-scalar]
+harness=jmh-average-time/JMH-1.37
+implementation=jvm-scalar/scalar/scalar/packed-4x4
+requested_forks=2
+runtime=kotlin-2.4.10/jvm/Ubuntu/25.0.4
+warmup_target_ns=200000000
+
+[jvm-simd]
+harness=jmh-average-time/JMH-1.37
+implementation=jvm-simd/simd(8 lanes)/simd-sparse/packed-16x4
+requested_forks=2
+runtime=kotlin-2.4.10/jvm/Ubuntu/25.0.4
+warmup_target_ns=200000000
+
+[native]
+harness=native-calibrated
+implementation=native/c/c-sparse/packed-4x4
+requested_forks=1
+runtime=kotlin-native-2.4.10
+warmup_target_ns=50000000
+
+[onemkl]
+harness=vendor-calibrated
+implementation=onemkl
+requested_forks=1
+runtime=Intel(R) oneAPI Math Kernel Library Version 2026.1-Product Build 20260612 for Intel(R) 64 architecture applications; compiler=15.2.0
+warmup_target_ns=50000000
+
+[openblas]
+harness=vendor-calibrated
+implementation=openblas
+requested_forks=1
+runtime=OpenBLAS 0.3.32 NO_LAPACKE DYNAMIC_ARCH NO_AFFINITY SapphireRapids MAX_THREADS=128; compiler=15.2.0
+warmup_target_ns=50000000
+
+[execution]
+jvm-scalar_started_at=2026-09-12T23:28:57Z
+jvm-c_started_at=2026-09-12T23:49:15Z
+jvm-simd_started_at=2026-09-13T00:08:41Z
+native_started_at=2026-09-13T00:23:25Z
+vendors_started_at=2026-09-13T00:32:12Z
+completed_at=2026-09-13T00:38:41Z
