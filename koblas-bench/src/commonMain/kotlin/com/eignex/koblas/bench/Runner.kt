@@ -20,14 +20,14 @@ internal data class Settings(
     val samples: Int,
     val targetNanos: Long,
     val forks: Int,
+    val suite: String = "default",
 )
 
 public fun main(args: Array<String>) {
     val settings = parseArguments(args)
     require(settings.mode == "native" || settings.mode.startsWith("native-raw-")) { "JVM benchmarks must run through the JMH entry point" }
     val allCases = Cases.parse(readTextFile(settings.casesPath))
-    val selected = if (settings.operation == "all") allCases else allCases.filter { it.operation == settings.operation }
-    require(selected.isNotEmpty()) { "operation '${settings.operation}' selected no cases" }
+    val selected = Cases.select(allCases, settings.suite, settings.operation)
     val (engine, implementation) = resolveEngine(settings.mode)
     val rows = ArrayList<Measurement>()
     var sink = 0.0
@@ -107,7 +107,7 @@ internal fun parseArguments(args: Array<String>): Settings {
         require(name !in values) { "duplicate argument --$name" }
         values[name] = value
     }
-    val allowed = setOf("mode", "operation", "cases", "output", "warmups", "samples", "target-ms", "forks")
+    val allowed = setOf("mode", "operation", "suite", "cases", "output", "warmups", "samples", "target-ms", "forks")
     require(values.keys.all { it in allowed }) { "unknown argument: ${values.keys.first { it !in allowed }}" }
     val mode = values["mode"] ?: error("--mode is required")
     require(mode in setOf("jvm-c", "jvm-simd", "jvm-scalar", "native") || rawNativeVariant(mode) != null) {
@@ -120,10 +120,13 @@ internal fun parseArguments(args: Array<String>): Settings {
     require(warmups >= 0 && samples > 0 && targetMillis in 1..60_000 && forks > 0) {
         "timing settings and forks must be positive, target-ms must not exceed 60000 (warmups may be zero)"
     }
+    val suite = values["suite"] ?: "default"
+    val operation = values["operation"] ?: "all"
+    Cases.validateSelection(suite, operation)
     return Settings(
-        mode, values["operation"] ?: "all", values["cases"] ?: "koblas-bench/cases.txt",
+        mode, operation, values["cases"] ?: "koblas-bench/cases.txt",
         values["output"] ?: "koblas-bench/build/benchmarks/$mode.csv", warmups, samples,
-        targetMillis * 1_000_000L, forks,
+        targetMillis * 1_000_000L, forks, suite,
     )
 }
 
