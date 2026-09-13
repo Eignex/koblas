@@ -3,9 +3,9 @@ package com.eignex.koblas.dense
 import com.eignex.koblas.internal.kernels.JvmCKernelBindings
 
 /** Bundled-C packed tiles with measured portable JVM fallbacks. */
-internal object CPackedKernels : PackedKernels {
-    private val GEMM_TILE_C_CROSSOVER = DenseTuning.jvmCGemmTileCrossover
-    private val GEMM_TRSM_TILE_C_CROSSOVER = DenseTuning.jvmCGemmTrsmTileCrossover
+internal class CPackedKernels(private val bindings: JvmCKernelBindings, private val exact: Boolean) : PackedKernels {
+    private val gemmTileCCrossover = DenseTuning.jvmCGemmTileCrossover
+    private val gemmTrsmTileCCrossover = DenseTuning.jvmCGemmTrsmTileCrossover
 
     override val gemmTileRows: Int get() = PortablePackedKernels.gemmTileRows
     override val gemmTileCols: Int get() = PortablePackedKernels.gemmTileCols
@@ -21,10 +21,10 @@ internal object CPackedKernels : PackedKernels {
         ldc: Int,
     ) {
         if (depth == 0) return
-        if (depth < GEMM_TILE_C_CROSSOVER) {
+        if (!exact && depth < gemmTileCCrossover) {
             PortablePackedKernels.gemmTile(depth, packedA, aOff, packedB, bOff, c, cOff, ldc)
         } else {
-            JvmCKernelBindings.denseGemmTile(depth, packedA, aOff, packedB, bOff, c, cOff, ldc)
+            bindings.denseGemmTile(depth, packedA, aOff, packedB, bOff, c, cOff, ldc)
         }
     }
 
@@ -37,16 +37,23 @@ internal object CPackedKernels : PackedKernels {
         unitDiag: Boolean,
         x: DoubleArray,
         xOff: Int,
-    ) = PortablePackedKernels.trsmTile(
-        validRows,
-        order,
-        packedTriangle,
-        triangleOff,
-        lower,
-        unitDiag,
-        x,
-        xOff,
-    )
+    ) {
+        if (validRows == 0 || order == 0) return
+        if (exact) {
+            bindings.denseTrsmTile(
+                validRows,
+                order,
+                packedTriangle,
+                triangleOff,
+                if (lower) 1 else 0,
+                if (unitDiag) 1 else 0,
+                x,
+                xOff,
+            )
+        } else {
+            PortablePackedKernels.trsmTile(validRows, order, packedTriangle, triangleOff, lower, unitDiag, x, xOff)
+        }
+    }
 
     override fun gemmTrsmTile(
         depth: Int,
@@ -64,16 +71,16 @@ internal object CPackedKernels : PackedKernels {
         xOff: Int,
     ) {
         if (validRows == 0 || order == 0) return
-        if (depth < GEMM_TRSM_TILE_C_CROSSOVER) {
+        if (!exact && depth < gemmTrsmTileCCrossover) {
             PortablePackedKernels.gemmTrsmTile(
                 depth, validRows, order, packedA, aOff, packedB, bOff,
                 packedTriangle, triangleOff, lower, unitDiag, x, xOff,
             )
             return
         }
-        JvmCKernelBindings.denseGemmTrsmTile(
+        bindings.denseGemmTrsmTile(
             depth, validRows, order, packedA, aOff, packedB, bOff,
-            packedTriangle, triangleOff, lower, unitDiag, x, xOff,
+            packedTriangle, triangleOff, if (lower) 1 else 0, if (unitDiag) 1 else 0, x, xOff,
         )
     }
 }

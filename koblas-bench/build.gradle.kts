@@ -27,15 +27,6 @@ dependencies {
     add("jvmMainAnnotationProcessor", "org.openjdk.jmh:jmh-generator-annprocess:1.37")
 }
 
-private val sourceCommit = providers.exec {
-    commandLine("git", "rev-parse", "HEAD")
-    workingDir(rootProject.projectDir)
-}.standardOutput.asText.map { it.trim() }
-private val sourceDirty = providers.exec {
-    commandLine("git", "status", "--porcelain", "--untracked-files=normal")
-    workingDir(rootProject.projectDir)
-}.standardOutput.asText.map { if (it.isBlank()) "false" else "true" }
-
 private fun benchmarkArguments(mode: String, jmh: Boolean): List<String> = listOf(
     "--mode=$mode",
     "--operation=${providers.gradleProperty("bench.operation").orElse("all").get()}",
@@ -44,20 +35,9 @@ private fun benchmarkArguments(mode: String, jmh: Boolean): List<String> = listO
     "--warmups=${providers.gradleProperty("bench.warmups").orElse("3").get()}",
     "--samples=${providers.gradleProperty("bench.samples").orElse("5").get()}",
     "--target-ms=${providers.gradleProperty("bench.targetMs").orElse("1000").get()}",
-    "--pass=${providers.gradleProperty("bench.pass").orElse("1").get()}",
-    "--source-commit=${sourceCommit.get()}",
-    "--dirty=${sourceDirty.get()}",
 ) + if (jmh) listOf("--forks=${providers.gradleProperty("bench.forks").orElse("2").get()}") else emptyList()
 
 val jvmCompilation = (kotlin.targets.getByName("jvm") as KotlinJvmTarget).compilations.getByName("main")
-// The benchmark calls existing internal JVM bindings to select exact C tiles without changing production dispatch.
-// Remove this friend access when the planned exact kernel selection API replaces the baseline adapter.
-jvmCompilation.compileTaskProvider.configure {
-    compilerOptions.freeCompilerArgs.add(configurations.named("jvmCompileClasspath").map { classpath ->
-        "-Xfriend-paths=" + classpath.files.single { it.name.startsWith("koblas-jvm-") }.absolutePath
-    })
-}
-
 val benchmarkJavaLauncher = javaToolchains.launcherFor { languageVersion.set(JavaLanguageVersion.of(25)) }
 
 fun registerJvmBenchmark(name: String, mode: String, vectorModule: Boolean) = tasks.register<JavaExec>(name) {
@@ -74,6 +54,7 @@ fun registerJvmBenchmark(name: String, mode: String, vectorModule: Boolean) = ta
 }
 
 registerJvmBenchmark("jvmCBenchmark", "jvm-c", vectorModule = false)
+registerJvmBenchmark("jvmCRawBenchmark", "jvm-c-raw-" + providers.gradleProperty("bench.variant").orElse("scalar").get(), vectorModule = false)
 registerJvmBenchmark("jvmSimdBenchmark", "jvm-simd", vectorModule = true)
 registerJvmBenchmark("jvmScalarBenchmark", "jvm-scalar", vectorModule = false)
 
@@ -91,7 +72,7 @@ tasks.register<Exec>("nativeBenchmark") {
     val targetDir = hostTarget!!.replaceFirstChar(Char::lowercase)
     commandLine(layout.buildDirectory.file("bin/$targetDir/releaseExecutable/koblas-bench.kexe").get().asFile.absolutePath)
     workingDir(rootProject.projectDir)
-    args(benchmarkArguments("native", jmh = false))
+    args(benchmarkArguments(providers.gradleProperty("bench.variant").map { "native-raw-$it" }.orElse("native").get(), jmh = false))
 }
 
 fun registerOpenBlasCompatibilityCheck(name: String, resolution: String) = tasks.register<Exec>(name) {

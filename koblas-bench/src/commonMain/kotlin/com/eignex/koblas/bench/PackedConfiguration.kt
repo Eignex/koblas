@@ -48,15 +48,45 @@ internal expect fun benchmarkPackedKernels(engine: com.eignex.koblas.KoblasEngin
 
 internal fun actualPackedKernel(case: BenchCase, mode: String, status: String): String {
     if (status != "ok") return "unavailable"
-    if ("packed" !in case.options) return "policy"
     val operation = case.operation
-    val component = when {
-        operation.startsWith("pack-") || operation.startsWith("write-") || operation.startsWith("clear-") -> "portable-layout"
-        operation == "packed-trsm" && mode.startsWith("jvm") -> "portable-solve"
-        mode == "jvm-scalar" -> "portable-tile"
-        mode == "jvm-simd" && operation == "gemm-trsm" -> "vector-update-portable-solve"
-        mode == "jvm-simd" -> "vector-tile"
-        else -> "c-tile"
+    val raw = rawNativeVariant(mode)
+    val suffix = raw?.name?.lowercase()
+    if ("packed" !in case.options) {
+        if (suffix == null) return "policy"
+        val leaf = when (operation) {
+            "scal" -> "scale"
+            "axpy-arithmetic" -> "axpy_arithmetic"
+            "dot-axpy" -> "dot_axpy"
+            "rot" -> "rotm"
+            "dot", "sum", "ssqd", "asum", "nrm2", "iamax", "axpy", "swap", "rotm", "dot4", "axpy4" -> operation
+            else -> return "portable-orchestration/native-$suffix"
+        }
+        return "koblas_dense_${leaf}_$suffix"
     }
-    return component
+    if (operation.startsWith("pack-") || operation.startsWith("write-") || operation.startsWith("clear-"))
+        return "portable-layout"
+    if (mode == "jvm-scalar") return "portable-tile"
+    if (mode == "jvm-simd") return when (operation) {
+        "packed-trsm" -> "portable-solve"
+        "gemm-trsm" -> "vector-update-portable-solve"
+        else -> "vector-tile"
+    }
+    val variant = suffix ?: requireNotNull(resolveEngine(mode).first.nativeVariant).name.lowercase()
+    val leaf = when (operation) {
+        "packed-trsm" -> "trsm_tile"
+        "gemm-trsm" -> "gemm_trsm_tile"
+        else -> "gemm_tile"
+    }
+    return "koblas_dense_${leaf}_$variant"
+}
+
+/** Exact native modes never choose a different variant when unavailable. */
+internal fun rawNativeVariant(mode: String): com.eignex.koblas.NativeVariant? {
+    val prefix = when {
+        mode.startsWith("jvm-c-raw-") -> "jvm-c-raw-"
+        mode.startsWith("native-raw-") -> "native-raw-"
+        else -> return null
+    }
+    return com.eignex.koblas.NativeVariant.entries.singleOrNull { it.name.lowercase() == mode.removePrefix(prefix) }
+        ?: error("unknown native variant in $mode")
 }

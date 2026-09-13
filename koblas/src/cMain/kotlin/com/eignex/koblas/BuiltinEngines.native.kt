@@ -6,6 +6,8 @@ import com.eignex.koblas.dense.NativeCVectorKernels
 import com.eignex.koblas.dense.PortablePackedKernels
 import com.eignex.koblas.dense.ScalarPanelKernels
 import com.eignex.koblas.dense.ScalarVectorKernels
+import com.eignex.koblas.internal.kernels.NativeCKernelBindings
+import com.eignex.koblas.internal.kernels.NativeCatalog
 import com.eignex.koblas.sparse.NativeCIndexedSparseKernels
 import com.eignex.koblas.sparse.ScalarIndexedSparseKernels
 import com.eignex.koblas.sparse.SparseKernelAdapter
@@ -22,15 +24,30 @@ public actual object BuiltinEngines {
             ScalarIndexedSparseKernels,
         )
 
-    /** C kernels compiled into this Native artifact. */
-    public actual val c: KoblasEngine? =
-        KoblasEngine(
-            NativeCVectorKernels,
-            NativeCPanelKernels,
-            NativeCPackedKernels,
-            SparseKernelAdapter("c-sparse", NativeCVectorKernels, NativeCIndexedSparseKernels),
-            NativeCIndexedSparseKernels,
+    /** Native C policy using the catalog's explicit ordinary implementation. */
+    public actual val c: KoblasEngine? by lazy {
+        NativeCatalog.defaultVariant?.let { nativeEngine(it, exact = false) }
+    }
+
+    /** Native variants available on this host. */
+    public actual val nativeVariants: List<NativeVariant> get() = NativeCatalog.variants
+
+    /** Binds exact dense native execution once, failing for unavailable variants. */
+    public actual fun exactC(variant: NativeVariant): KoblasEngine = nativeEngine(variant, exact = true)
+
+    private fun nativeEngine(variant: NativeVariant, exact: Boolean): KoblasEngine {
+        val bindings = NativeCKernelBindings(variant)
+        val vector = NativeCVectorKernels(bindings, exact)
+        val indexed = NativeCIndexedSparseKernels(bindings)
+        return KoblasEngine(
+            vector,
+            NativeCPanelKernels(bindings, exact),
+            NativeCPackedKernels(bindings, exact),
+            SparseKernelAdapter("c-scalar-indexed-policy", vector, indexed),
+            indexed,
+            variant,
         )
+    }
 
     /** SIMD is unavailable as a distinct Native engine. */
     public actual val simd: KoblasEngine? = null

@@ -605,7 +605,6 @@ static int compare_samples(const void *left, const void *right) {
 int main(int argc,char **argv){
     const char *cases_path=argument_value(argc,argv,"--cases","koblas-bench/cases.txt");const char *output_path=argument_value(argc,argv,"--output",NULL);if(!output_path)fail("--output is required");
     int warmups=atoi(argument_value(argc,argv,"--warmups","3")),samples=atoi(argument_value(argc,argv,"--samples","5"));long target_ms=strtol(argument_value(argc,argv,"--target-ms","100"),NULL,10);if(warmups<0||samples<1||target_ms<1)fail("invalid timing settings");uint64_t target_ns=(uint64_t)target_ms*UINT64_C(1000000);
-    const char *pass=argument_value(argc,argv,"--pass","1"),*commit=argument_value(argc,argv,"--source-commit","unknown"),*dirty=argument_value(argc,argv,"--dirty","unknown");
 #ifdef USE_MKL
     MKL_Set_Num_Threads(1);MKL_Set_Dynamic(0);char runtime[256]={0};MKL_Get_Version_String(runtime,sizeof(runtime));const char *implementation="onemkl";
 #elif defined(USE_ACCELERATE)
@@ -614,20 +613,16 @@ int main(int argc,char **argv){
 #else
     openblas_set_num_threads(1);char runtime[256]={0};snprintf(runtime,sizeof(runtime),"%s",openblas_get_config());const char *implementation="openblas";
 #endif
-    size_t runtime_length=strlen(runtime);snprintf(runtime+runtime_length,sizeof(runtime)-runtime_length,"; compiler=%s",__VERSION__);
     for(char *p=runtime;*p;++p)if(*p==','||*p=='\n'||*p=='\r')*p=';';
     fixture_check();numerical_check();
     int case_count=0;bench_case *cases=load_cases(cases_path,&case_count);
     FILE *output=fopen(output_path,"w");if(!output){perror(output_path);exit(2);}
-    fputs("run,id,implementation,pass,unit,source_commit,dirty,runtime,threads,warmups,target_ns,harness,warmup_target_ns,forks\n"
-        "case,id,run_id,case,status,comparison_kind,timing_mode,actual_kernel,samples,forks,median_ns,min_ns,max_ns\n",output);
-    fprintf(output,"run,1,%s,%s,ns,%s,%s,%s,1,%d,%" PRIu64 ",vendor-calibrated,%" PRIu64 ",1\n",
-        implementation,pass,commit,dirty,runtime,warmups,target_ns,target_ns/4>1000000?target_ns/4:UINT64_C(1000000));
+    fputs("case,status,comparison_kind,timing_mode,actual_kernel,samples,forks,median_ns,min_ns,max_ns\n",output);
     volatile double sink=0;
     double *timings = allocate(samples, sizeof(double));
     for(int index=0;index<case_count;++index){
         work w;setup_work(&w,&cases[index]);
-        fprintf(output,"case,%d,1,%s,%s,%s,%s",index+1,cases[index].id,w.supported?"ok":"unsupported",w.comparison,w.timing);
+        fprintf(output,"%s,%s,%s,%s",cases[index].id,w.supported?"ok":"unsupported",w.comparison,w.timing);
 #ifdef USE_ACCELERATE
         fprintf(output,",%s",w.supported?(w.actual_kernel?w.actual_kernel:"vendor-accelerate"):"unavailable");
 #else
@@ -650,5 +645,5 @@ int main(int argc,char **argv){
         free_work(&w);
     }
     fclose(output);free(timings);free(cases);fprintf(stderr,"wrote %d cases to %s (%s, sink=%g)\n",case_count,output_path,implementation,(double)sink);
-    printf("resolved implementation=%s runtime=%s\n",implementation,runtime);return 0;
+    printf("resolved implementation=%s runtime=%s harness=vendor-calibrated\n",implementation,runtime);return 0;
 }

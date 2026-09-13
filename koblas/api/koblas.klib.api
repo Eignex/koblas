@@ -10,6 +10,19 @@ open annotation class com.eignex.koblas/UnsafeKoblasApi : kotlin/Annotation { //
     constructor <init>() // com.eignex.koblas/UnsafeKoblasApi.<init>|<init>(){}[0]
 }
 
+final enum class com.eignex.koblas/NativeVariant : kotlin/Enum<com.eignex.koblas/NativeVariant> { // com.eignex.koblas/NativeVariant|null[0]
+    enum entry AVX2 // com.eignex.koblas/NativeVariant.AVX2|null[0]
+    enum entry NEON // com.eignex.koblas/NativeVariant.NEON|null[0]
+    enum entry SCALAR // com.eignex.koblas/NativeVariant.SCALAR|null[0]
+    enum entry SSE2 // com.eignex.koblas/NativeVariant.SSE2|null[0]
+
+    final val entries // com.eignex.koblas/NativeVariant.entries|#static{}entries[0]
+        final fun <get-entries>(): kotlin.enums/EnumEntries<com.eignex.koblas/NativeVariant> // com.eignex.koblas/NativeVariant.entries.<get-entries>|<get-entries>#static(){}[0]
+
+    final fun valueOf(kotlin/String): com.eignex.koblas/NativeVariant // com.eignex.koblas/NativeVariant.valueOf|valueOf#static(kotlin.String){}[0]
+    final fun values(): kotlin/Array<com.eignex.koblas/NativeVariant> // com.eignex.koblas/NativeVariant.values|values#static(){}[0]
+}
+
 abstract interface com.eignex.koblas.dense/DenseBlas { // com.eignex.koblas.dense/DenseBlas|null[0]
     abstract fun gemm(kotlin/Double, com.eignex.koblas/DenseMatrix, kotlin/Boolean, com.eignex.koblas/DenseMatrix, kotlin/Boolean, kotlin/Double, com.eignex.koblas/DenseMatrix, com.eignex.koblas/Workspace? = ...) // com.eignex.koblas.dense/DenseBlas.gemm|gemm(kotlin.Double;com.eignex.koblas.DenseMatrix;kotlin.Boolean;com.eignex.koblas.DenseMatrix;kotlin.Boolean;kotlin.Double;com.eignex.koblas.DenseMatrix;com.eignex.koblas.Workspace?){}[0]
     abstract fun gemmt(kotlin/Double, com.eignex.koblas/DenseMatrix, kotlin/Boolean, com.eignex.koblas/DenseMatrix, kotlin/Boolean, kotlin/Double, com.eignex.koblas/DenseMatrix, kotlin/Boolean = ..., com.eignex.koblas/Workspace? = ...) // com.eignex.koblas.dense/DenseBlas.gemmt|gemmt(kotlin.Double;com.eignex.koblas.DenseMatrix;kotlin.Boolean;com.eignex.koblas.DenseMatrix;kotlin.Boolean;kotlin.Double;com.eignex.koblas.DenseMatrix;kotlin.Boolean;com.eignex.koblas.Workspace?){}[0]
@@ -244,6 +257,8 @@ final class com.eignex.koblas/Givens { // com.eignex.koblas/Givens|null[0]
 final class com.eignex.koblas/KoblasEngine : com.eignex.koblas.dense/DenseBlas, com.eignex.koblas.sparse/SparseBlas { // com.eignex.koblas/KoblasEngine|null[0]
     final val name // com.eignex.koblas/KoblasEngine.name|{}name[0]
         final fun <get-name>(): kotlin/String // com.eignex.koblas/KoblasEngine.name.<get-name>|<get-name>(){}[0]
+    final val nativeVariant // com.eignex.koblas/KoblasEngine.nativeVariant|{}nativeVariant[0]
+        final fun <get-nativeVariant>(): com.eignex.koblas/NativeVariant? // com.eignex.koblas/KoblasEngine.nativeVariant.<get-nativeVariant>|<get-nativeVariant>(){}[0]
     final val packedKernels // com.eignex.koblas/KoblasEngine.packedKernels|{}packedKernels[0]
         final fun <get-packedKernels>(): com.eignex.koblas.dense/PackedKernels // com.eignex.koblas/KoblasEngine.packedKernels.<get-packedKernels>|<get-packedKernels>(){}[0]
     final val packedPanels // com.eignex.koblas/KoblasEngine.packedPanels|{}packedPanels[0]
@@ -494,10 +509,14 @@ final object com.eignex.koblas.sparse/SparseSlices { // com.eignex.koblas.sparse
 final object com.eignex.koblas/BuiltinEngines { // com.eignex.koblas/BuiltinEngines|null[0]
     final val c // com.eignex.koblas/BuiltinEngines.c|{}c[0]
         final fun <get-c>(): com.eignex.koblas/KoblasEngine? // com.eignex.koblas/BuiltinEngines.c.<get-c>|<get-c>(){}[0]
+    final val nativeVariants // com.eignex.koblas/BuiltinEngines.nativeVariants|{}nativeVariants[0]
+        final fun <get-nativeVariants>(): kotlin.collections/List<com.eignex.koblas/NativeVariant> // com.eignex.koblas/BuiltinEngines.nativeVariants.<get-nativeVariants>|<get-nativeVariants>(){}[0]
     final val scalar // com.eignex.koblas/BuiltinEngines.scalar|{}scalar[0]
         final fun <get-scalar>(): com.eignex.koblas/KoblasEngine // com.eignex.koblas/BuiltinEngines.scalar.<get-scalar>|<get-scalar>(){}[0]
     final val simd // com.eignex.koblas/BuiltinEngines.simd|{}simd[0]
         final fun <get-simd>(): com.eignex.koblas/KoblasEngine? // com.eignex.koblas/BuiltinEngines.simd.<get-simd>|<get-simd>(){}[0]
+
+    final fun exactC(com.eignex.koblas/NativeVariant): com.eignex.koblas/KoblasEngine // com.eignex.koblas/BuiltinEngines.exactC|exactC(com.eignex.koblas.NativeVariant){}[0]
 }
 
 final val com.eignex.koblas/koblas // com.eignex.koblas/koblas|{}koblas[0]

@@ -43,8 +43,8 @@ its reviewer covers the union of the package-specific risks. Checks need not be 
 PR 01 has already landed as [GitHub PR #540](https://github.com/Eignex/koblas/pull/540), merged on 2026-09-12 at
 `1be759ff`. Keep W01 as the acceptance record; audit existing results and carry forward missing target evidence
 instead of reopening or reimplementing it. Its follow-up simplifications use explicit named packed recipes,
-source-SHA provenance, and existing case/run/sample records rather than separate version labels or duplicated
-physical settings. New work begins with PR 02 after checking the accepted baseline.
+source-SHA provenance, one CSV row per case, and normalized run metadata in `metadata.txt` rather than
+separate version labels or duplicated physical settings. New work begins with PR 02 after checking the accepted baseline.
 
 Within merged PRs, update producers and consumers directly; do not introduce an adapter merely to bridge two
 work packages landing together. Temporary adapters are only for consumers in a later PR. Build the simple
@@ -216,6 +216,15 @@ fixture/timing/physical-work pairs. No production dispatch changes.
 **Goal:** Deliver one native build pipeline, a baseline-safe capability probe, and exact ordinary-width execution; OPEN the GitHub PR,
 pass all applicable gates and independent review, and get required CI green on the final reviewed head.
 Leave it open and ready for review without merging; mark the session goal complete only then.
+
+**Arm evidence available for this PR:** Dedicated Arm hosts will not become available. For this existing-kernel
+build and attribution transition, G2 accepts physical macOS Arm CI execution plus Linux Arm shared/static
+cross-builds and emulated ABI/numerical execution. A separate physical Linux Arm run is not a completion
+requirement for PR 02. The retired x86 development host is for local validation only; its reports are not
+retained and do not establish performance acceptance. NEON performance remains explicitly unmeasured rather
+than a pending acceptance gate. Retain the target/toolchain and execution evidence, and do
+not infer Arm speedups or tune thresholds from x86 or emulation results. This exception does not establish
+SME/SME2 execution, validate new Arm performance policies, or change later PRs' activation requirements.
 
 **W02 — Extract and unify native builds**
 

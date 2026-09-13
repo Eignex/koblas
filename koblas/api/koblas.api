@@ -1,6 +1,8 @@
 public final class com/eignex/koblas/BuiltinEngines {
 	public static final field INSTANCE Lcom/eignex/koblas/BuiltinEngines;
-	public static final fun getC ()Lcom/eignex/koblas/KoblasEngine;
+	public final fun exactC (Lcom/eignex/koblas/NativeVariant;)Lcom/eignex/koblas/KoblasEngine;
+	public final fun getC ()Lcom/eignex/koblas/KoblasEngine;
+	public final fun getNativeVariants ()Ljava/util/List;
 	public static final fun getScalar ()Lcom/eignex/koblas/KoblasEngine;
 	public static final fun getSimd ()Lcom/eignex/koblas/KoblasEngine;
 }
@@ -246,6 +248,7 @@ public final class com/eignex/koblas/KoblasEngine : com/eignex/koblas/dense/Dens
 	public fun gemv (Lcom/eignex/koblas/StridedMatrixView;Lcom/eignex/koblas/StridedVectorView;Z)[D
 	public fun ger (D[D[DLcom/eignex/koblas/DenseMatrix;)V
 	public final fun getName ()Ljava/lang/String;
+	public final fun getNativeVariant ()Lcom/eignex/koblas/NativeVariant;
 	public final fun getPackedKernels ()Lcom/eignex/koblas/dense/PackedKernels;
 	public final fun getPackedPanels ()Lcom/eignex/koblas/dense/PackedPanels;
 	public final fun getPanelKernels ()Lcom/eignex/koblas/dense/DensePanelKernels;
@@ -303,6 +306,16 @@ public final class com/eignex/koblas/ModifiedGivens {
 	public final fun getH21 ()D
 	public final fun getH22 ()D
 	public final fun getX1 ()D
+}
+
+public final class com/eignex/koblas/NativeVariant : java/lang/Enum {
+	public static final field AVX2 Lcom/eignex/koblas/NativeVariant;
+	public static final field NEON Lcom/eignex/koblas/NativeVariant;
+	public static final field SCALAR Lcom/eignex/koblas/NativeVariant;
+	public static final field SSE2 Lcom/eignex/koblas/NativeVariant;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lcom/eignex/koblas/NativeVariant;
+	public static fun values ()[Lcom/eignex/koblas/NativeVariant;
 }
 
 public final class com/eignex/koblas/NotPositiveDefinite : com/eignex/koblas/KoblasException {

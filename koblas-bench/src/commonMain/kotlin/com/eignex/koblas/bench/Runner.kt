@@ -8,7 +8,6 @@ internal expect fun readTextFile(path: String): String
 internal expect fun writeTextFile(path: String, text: String)
 internal expect fun resolveEngine(mode: String): Pair<KoblasEngine, String>
 internal expect fun runtimeIdentity(): String
-internal expect fun environment(name: String): String?
 private val clockOrigin = TimeSource.Monotonic.markNow()
 internal fun nanoTime(): Long = clockOrigin.elapsedNow().inWholeNanoseconds
 
@@ -21,14 +20,11 @@ internal data class Settings(
     val samples: Int,
     val targetNanos: Long,
     val forks: Int,
-    val pass: String,
-    val sourceCommit: String,
-    val dirty: String,
 )
 
 public fun main(args: Array<String>) {
     val settings = parseArguments(args)
-    require(settings.mode == "native") { "JVM benchmarks must run through the JMH entry point" }
+    require(settings.mode == "native" || settings.mode.startsWith("native-raw-")) { "JVM benchmarks must run through the JMH entry point" }
     val allCases = Cases.parse(readTextFile(settings.casesPath))
     val selected = if (settings.operation == "all") allCases else allCases.filter { it.operation == settings.operation }
     require(selected.isNotEmpty()) { "operation '${settings.operation}' selected no cases" }
@@ -38,7 +34,7 @@ public fun main(args: Array<String>) {
     for (case in selected) {
         val work = denseWork(case, engine) ?: sparseWork(case, engine)
         if (work == null) {
-            rows += measurement(case, implementation, settings, 0, 0, 0L, "", "unsupported", "unsupported", case.option("mode", "arithmetic"))
+            rows += measurement(case, settings, 0, null, "unsupported", "unsupported", case.option("mode", "arithmetic"))
             continue
         }
         try {
@@ -49,19 +45,16 @@ public fun main(args: Array<String>) {
                 val start = nanoTime()
                 repeat(operations) { sink += work.run() }
                 val elapsed = max(1L, nanoTime() - start)
-                rows += measurement(case, implementation, settings, sample, operations.toLong(), elapsed, formatDouble(elapsed.toDouble() / operations), "ok", work.comparisonKind, work.timingMode)
+                rows += measurement(case, settings, sample, elapsed.toDouble() / operations, "ok", work.comparisonKind, work.timingMode)
             }
-        } catch (failure: Throwable) {
-            rows += measurement(case, implementation, settings, 0, 0, 0L, "", "failed:${sanitize(failure.message ?: failure::class.simpleName ?: "error")}", work.comparisonKind, work.timingMode)
-            throw failure
         } finally {
             work.close()
         }
     }
     if (sink == Double.POSITIVE_INFINITY) throw IllegalStateException("unreachable result sink")
     writeTextFile(settings.outputPath, reportCsv(rows))
-    println("wrote ${selected.size} case summaries from ${rows.count { it.sample != null }} measurements to ${settings.outputPath}")
-    println("resolved implementation=$implementation runtime=${runtimeIdentity()}")
+    println("wrote ${selected.size} case summaries from ${rows.count { it.nanos != null }} measurements to ${settings.outputPath}")
+    println("resolved implementation=$implementation runtime=${runtimeIdentity()} harness=native-calibrated")
 }
 
 private data class Calibration(val operations: Int, val sink: Double)
@@ -114,10 +107,10 @@ internal fun parseArguments(args: Array<String>): Settings {
         require(name !in values) { "duplicate argument --$name" }
         values[name] = value
     }
-    val allowed = setOf("mode", "operation", "cases", "output", "warmups", "samples", "target-ms", "forks", "pass", "source-commit", "dirty")
+    val allowed = setOf("mode", "operation", "cases", "output", "warmups", "samples", "target-ms", "forks")
     require(values.keys.all { it in allowed }) { "unknown argument: ${values.keys.first { it !in allowed }}" }
     val mode = values["mode"] ?: error("--mode is required")
-    require(mode in setOf("jvm-c", "jvm-simd", "jvm-scalar", "native")) {
+    require(mode in setOf("jvm-c", "jvm-simd", "jvm-scalar", "native") || rawNativeVariant(mode) != null) {
         "mode must be jvm-c, jvm-simd, jvm-scalar, or native"
     }
     val warmups = values["warmups"]?.toIntOrNull() ?: 3
@@ -130,67 +123,43 @@ internal fun parseArguments(args: Array<String>): Settings {
     return Settings(
         mode, values["operation"] ?: "all", values["cases"] ?: "koblas-bench/cases.txt",
         values["output"] ?: "koblas-bench/build/benchmarks/$mode.csv", warmups, samples,
-        targetMillis * 1_000_000L, forks, values["pass"] ?: "1",
-        values["source-commit"] ?: environment("KOBLAS_SOURCE_COMMIT") ?: "unknown",
-        values["dirty"] ?: environment("KOBLAS_SOURCE_DIRTY") ?: "unknown",
+        targetMillis * 1_000_000L, forks,
     )
 }
 
 internal fun measurement(
     case: BenchCase,
-    implementation: String,
     settings: Settings,
     sample: Int,
-    operations: Long,
-    elapsed: Long,
-    nanosPerOperation: String,
+    nanos: Double?,
     status: String,
     comparisonKind: String,
     timingMode: String,
-    runtime: String = runtimeIdentity(),
 ): Measurement = Measurement(
-    run = listOf(
-        implementation, settings.pass, "ns", settings.sourceCommit,
-        settings.dirty, runtime, "1", settings.warmups.toString(), settings.targetNanos.toString(),
-        if (settings.mode.startsWith("jvm")) "jmh-average-time" else "native-calibrated",
-        (if (settings.mode.startsWith("jvm")) settings.targetNanos else max(1_000_000L, settings.targetNanos / 4)).toString(),
-        settings.forks.toString(),
-    ),
-    case = listOf(
+    listOf(
         case.id, status, comparisonKind, timingMode,
         if (status == "ok" && case.option("timing", "") == "reuse" && case.operation != "sparse-slices-reduce-dot-unchecked")
             "portable-sparse-slices" else actualPackedKernel(case, settings.mode, status),
     ),
-    sample = if (status != "ok") null else listOf(
-        (if (settings.mode.startsWith("jvm")) (sample - 1) / settings.samples + 1 else 1).toString(),
-        sample.toString(), operations.toString(), elapsed.toString(), nanosPerOperation,
-    ),
+    if (settings.mode.startsWith("jvm")) (sample - 1) / settings.samples + 1 else 1,
+    nanos,
 )
 
-internal data class Measurement(val run: List<String>, val case: List<String>, val sample: List<String>?)
+internal data class Measurement(val case: List<String>, val fork: Int, val nanos: Double?)
 
 internal fun reportCsv(measurements: List<Measurement>): String = buildString {
     appendLine(CSV_HEADER)
-    val runs = linkedMapOf<List<String>, Int>()
-    val cases = linkedMapOf<List<String>, MutableList<Measurement>>()
-    for (measurement in measurements) {
-        val runId = runs.getOrPut(measurement.run) {
-            (runs.size + 1).also { appendLine(csvRecord(listOf("run", it.toString()) + measurement.run)) }
-        }
-        val definition = listOf(runId.toString()) + measurement.case
-        cases.getOrPut(definition, ::arrayListOf).add(measurement)
-    }
-    for ((index, entry) in cases.entries.withIndex()) {
-        val samples = entry.value.mapNotNull { it.sample }
-        val values = samples.map { it.last().toDouble() }.sorted()
+    for ((case, rows) in measurements.groupBy { it.case }) {
+        val samples = rows.filter { it.nanos != null }
+        val values = samples.map { requireNotNull(it.nanos) }.sorted()
         require(values.all { it.isFinite() && it > 0 }) { "invalid measured timing" }
         val statistics = if (values.isEmpty()) listOf("", "", "") else {
             val middle = values.size / 2
             val median = if (values.size % 2 == 1) values[middle] else values[middle - 1] / 2 + values[middle] / 2
-            listOf(median, values.first(), values.last()).map(::formatDouble)
+            listOf(median, values.first(), values.last()).map(Double::toString)
         }
-        val counts = listOf(samples.size.toString(), samples.map { it.first() }.distinct().size.toString())
-        appendLine(csvRecord(listOf("case", (index + 1).toString()) + entry.key + counts + statistics))
+        val counts = listOf(samples.size.toString(), samples.map { it.fork }.distinct().size.toString())
+        appendLine(csvRecord(case + counts + statistics))
     }
 }
 
@@ -200,9 +169,5 @@ private fun csv(value: String): String = if (value.any { it == ',' || it == '"' 
     "\"${value.replace("\"", "\"\"")}\""
 } else value
 
-internal fun formatDouble(value: Double): String = value.toString()
-internal fun sanitize(value: String): String = value.replace(',', ';').replace('\n', ' ').take(160)
-
-internal const val CSV_HEADER = "run,id,implementation,pass,unit,source_commit,dirty,runtime,threads,warmups,target_ns,harness,warmup_target_ns,forks\n" +
-    "case,id,run_id,case,status,comparison_kind,timing_mode,actual_kernel,samples,forks,median_ns,min_ns,max_ns"
+internal const val CSV_HEADER = "case,status,comparison_kind,timing_mode,actual_kernel,samples,forks,median_ns,min_ns,max_ns"
 private const val MAX_OPERATIONS = 1_000_000
