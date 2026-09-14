@@ -20,11 +20,16 @@ internal object SparseTuning {
     /**
      * Stored entries from which the dot against a dense vector repays crossing into the bundled C library.
      *
-     * Measured twice on `SparseLevel1Benchmark`. At 163 stored entries the two are level, at 245 the C
-     * leads by point estimate, and at 409 it leads beyond both error bars and holds 1.2x to 1.4x from
-     * there to six thousand. This takes the length where the estimates turn.
+     * Re-measured on `koblas-bench` (`spdot-raw`) on an x86-64 AVX2 host across dense vectors of 65536 and
+     * 262144 elements: the C leaf's eight independent accumulators only pay off once the indexed load
+     * pattern outgrows L1 and starts hiding memory latency behind that instruction-level parallelism.
+     * Below that point the foreign call is pure overhead on top of identical scalar throughput, and from
+     * 256 to 2048 stored entries C measured 7% to 39% *slower* than the Kotlin loop, not faster. C first
+     * leads clearly at 4096 stored entries (1.3x to 1.5x, both sizes) and holds from there through 8192.
+     * This takes the length where the win becomes consistent rather than the old length where the two
+     * were first estimated level, which sat inside the still-losing range.
      */
-    val dotDenseCCrossover: Int = tuned("dot.dense.c.crossover", default = 256)
+    val dotDenseCCrossover: Int = tuned("dot.dense.c.crossover", default = 4096)
 
     /** Indexed updates shorter than this remain in Kotlin to avoid a foreign call. */
     val cIndexedMutationCrossover: Int = tuned("indexed.mutation.c.crossover", default = 4096)
