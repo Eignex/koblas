@@ -31,12 +31,21 @@ internal fun vendorFromMode(mode: String): Vendor? {
         ?: error("unknown vendor in mode $mode; expected one of ${Vendor.entries.map { it.name.lowercase() }}")
 }
 
-/** Opens the vendor a mode names, failing loudly rather than quietly measuring something else. */
+/**
+ * Opens the vendor a mode names, failing loudly rather than quietly measuring something else.
+ *
+ * The description carries the resolved file, the library's own version, and whether its single compute thread
+ * was confirmed against it. A library that would not hold to one thread never opens, so reaching this point at
+ * all is part of the evidence; recording which of the two it was keeps a report from claiming a check that a
+ * library with no thread-count entry point cannot support.
+ */
 internal fun openVendorForMode(mode: String): Pair<VendorBlas, String> {
     val vendor = vendorFromMode(mode) ?: error("$mode is not a vendor mode")
     val blas = openVendorBlas(vendor)
         ?: error("requested vendor ${vendor.vendorName} is not installed; it cannot be benchmarked on this host")
-    return blas to "$mode/${blas.vendor.vendorName}/${blas.libraryPath}/${blas.version}"
+    val description = "$mode/${blas.vendor.vendorName}/${blas.libraryPath}/" +
+        "${blas.version}/threads=${blas.threadEvidence.label}"
+    return blas to description
 }
 
 /**
