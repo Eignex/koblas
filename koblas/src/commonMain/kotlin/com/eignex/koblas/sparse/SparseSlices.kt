@@ -2,7 +2,6 @@ package com.eignex.koblas.sparse
 
 import com.eignex.koblas.requireIndex
 import com.eignex.koblas.requireShape
-import com.eignex.koblas.sparse.internal.SparseAccumulationKernels
 import kotlin.jvm.JvmOverloads
 import kotlin.jvm.JvmStatic
 
@@ -63,7 +62,7 @@ public object SparseSlices {
             accumulator, marks, epoch, touched, touchedOffset, touchedCount,
         )
 
-        return SparseAccumulationKernels.scatterWorkspace(
+        return SparsePrimitives.scatterWorkspace(
             alpha, indices, indexOffset, values, valueOffset, count,
             accumulator, marks, epoch, touched, touchedOffset, touchedCount,
         )
@@ -104,7 +103,7 @@ public object SparseSlices {
             accumulator, marks, epoch, touched, touchedOffset, touchedCount,
         )
 
-        return SparseAccumulationKernels.scatterWorkspaceChecked(
+        return SparsePrimitives.scatterWorkspaceChecked(
             alpha, indices, indexOffset, values, valueOffset, count,
             accumulator, marks, epoch, touched, touchedOffset, touchedCount,
             arithmeticStatus, statusOffset, ARITHMETIC_NONFINITE, ARITHMETIC_NONZERO_PRODUCT_UNDERFLOW,
@@ -140,7 +139,7 @@ public object SparseSlices {
             outValues,
             outValueOffset,
         )
-        return SparseAccumulationKernels.gatherWorkspace(
+        return SparsePrimitives.gatherWorkspace(
             touched, touchedOffset, touchedCount, accumulator,
             outIndices, outIndexOffset, outValues, outValueOffset,
             compactExactZeros, marks = null,
@@ -182,7 +181,7 @@ public object SparseSlices {
         )
         requireDistinct(marks, touched, "marks and touched")
         requireDistinct(marks, outIndices, "marks and output indices")
-        return SparseAccumulationKernels.gatherWorkspace(
+        return SparsePrimitives.gatherWorkspace(
             touched, touchedOffset, touchedCount, accumulator,
             outIndices, outIndexOffset, outValues, outValueOffset,
             compactExactZeros, marks,
@@ -295,7 +294,7 @@ public object SparseSlices {
         requireWindow(rowIndices.size, indexOffset, count, "row indices")
         requireWindow(values.size, valueOffset, count, "values")
         validateIndices(rowIndices, indexOffset, count, activeRows.size, "row indices")
-        return SparseAccumulationKernels.activeMaximum(
+        return SparsePrimitives.activeMaximum(
             rowIndices,
             indexOffset,
             values,
@@ -342,7 +341,7 @@ public object SparseSlices {
         requireNonoverlap(rowIndices, indexOffset, count, outPositions, outOffset, count, "row indices and candidates")
         validateIndices(rowIndices, indexOffset, count, activeRows.size, "row indices")
 
-        return SparseAccumulationKernels.selectPivotCandidates(
+        return SparsePrimitives.selectPivotCandidates(
             rowIndices, indexOffset, values, valueOffset, count, activeRows,
             absoluteTolerance, relativeThreshold * columnMaximum, outPositions, outOffset,
         )
