@@ -64,7 +64,9 @@ jobs:
         if: matrix.platform == 'linux-arm64'
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends gcc-aarch64-linux-gnu
+          # The C kernels cross-compile against the target libc, whose headers come from
+          # libc6-dev-arm64-cross. --no-install-recommends does not pull it in with the compiler.
+          sudo apt-get install -y --no-install-recommends gcc-aarch64-linux-gnu libc6-dev-arm64-cross
           echo "CC=aarch64-linux-gnu-gcc" >> "$GITHUB_ENV"
 
       - name: Build core JVM kernels
