@@ -20,17 +20,8 @@ class OperatorsTest {
         assertClose(doubleArrayOf(0.0, 2.0), (a * x).data, "a * x")
     }
 
-    @Test
-    fun `sparse matrix-vector product agrees with the sparse gemv`() {
-        val s = SparseMatrix.ofTriplets(
-            rows = 2,
-            cols = 2,
-            rowIdx = intArrayOf(0, 0, 1, 1),
-            colIdx = intArrayOf(0, 1, 0, 1),
-            values = doubleArrayOf(1.0, 2.0, 3.0, 4.0),
-        )
-        assertEquals(a * x, s * x, "the sparse and dense spellings of the same matrix should agree")
-    }
+    // A sparse spelling of the same product was compared against the dense one here. Matrix arithmetic takes
+    // dense storage now, so there is no second spelling to agree with.
 
     @Test
     fun `sum and difference agree with axpy on a copy`() {

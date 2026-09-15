@@ -74,13 +74,13 @@ class MatrixOpsTest {
                 doubleArrayOf(3.0, 0.0, -10.0, 0.25),
             ForeignRampVector(3) to doubleArrayOf(-1.0, 0.0, 1.0, -0.25),
         )
-        for (A in listOf<Matrix>(dense, sparseMatrix, foreign)) {
-            for ((x, expected) in vectors) {
-                assertClose(expected, (A * x).data, "product ${A::class.simpleName} ${x::class.simpleName}")
-                val out = DoubleArray(rows)
-                A.gemvInto(x, out)
-                assertClose(expected, out, "gemvInto ${A::class.simpleName} ${x::class.simpleName}")
-            }
+        // Sparse and foreign matrices were in this list while matrix arithmetic accepted any Matrix. The
+        // vector side stays general, which is what the several x values below still cover.
+        for ((x, expected) in vectors) {
+            assertClose(expected, (dense * x).data, "product ${x::class.simpleName}")
+            val out = DoubleArray(rows)
+            dense.gemvInto(x, out)
+            assertClose(expected, out, "gemvInto ${x::class.simpleName}")
         }
     }
 
@@ -208,18 +208,13 @@ class MatrixOpsTest {
 
     @Test
     fun `gemvInto snapshots matrix aliases before writing`() {
-        for (storage in 0..2) {
-            val destination = doubleArrayOf(1.0, 2.0, 3.0)
-            val matrix: Matrix = when (storage) {
-                0 -> DenseMatrix.wrap(3, 1, destination)
-                1 -> SparseMatrix.wrap(3, 1, intArrayOf(0, 3), intArrayOf(0, 1, 2), destination)
-                else -> StridedMatrixView(3, 1, destination)
-            }
+        // Sparse and strided receivers stood beside the dense one while matrix arithmetic was generic.
+        val destination = doubleArrayOf(1.0, 2.0, 3.0)
+        val matrix = DenseMatrix.wrap(3, 1, destination)
 
-            matrix.gemvInto(1.0, dense(2.0), 0.5, destination)
+        matrix.gemvInto(1.0, dense(2.0), 0.5, destination)
 
-            assertContentEquals(doubleArrayOf(2.5, 5.0, 7.5), destination, "storage $storage")
-        }
+        assertContentEquals(doubleArrayOf(2.5, 5.0, 7.5), destination)
     }
 
     @Test
@@ -470,15 +465,5 @@ class MatrixOpsTest {
         dense.gemvInto(1.0, DenseVector(DoubleArray(0)), 0.0, destination)
 
         assertContentEquals(doubleArrayOf(0.0, 0.0, 0.0), destination)
-    }
-
-    @Test
-    fun `gemvInto scales by beta on a sparse matrix with no columns`() {
-        val sparse = SparseMatrix.ofColumns(3, 0, emptyList())
-        val destination = doubleArrayOf(2.0, 4.0, 6.0)
-
-        sparse.gemvInto(1.0, DenseVector(DoubleArray(0)), 0.5, destination)
-
-        assertContentEquals(doubleArrayOf(1.0, 2.0, 3.0), destination)
     }
 }

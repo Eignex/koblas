@@ -4,7 +4,6 @@ package com.eignex.koblas.dense
 
 import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.DenseVector
-import com.eignex.koblas.Matrix
 import com.eignex.koblas.StridedMatrixView
 import com.eignex.koblas.StridedVectorView
 import com.eignex.koblas.Vector
@@ -140,15 +139,6 @@ internal fun denseStoredGemvUpdate(
     val rows = a.rows
     x.forEachStored { j, value ->
         if (value != 0.0) kernels.axpy(destination, 0, alpha * value, ad, j * rows, rows)
-    }
-}
-
-/** Adds a generic indexed matrix-vector product, visiting only entries represented by [x]. */
-internal fun genericStoredGemvUpdate(alpha: Double, a: Matrix, x: Vector, destination: DoubleArray) {
-    repeat(a.rows) { i ->
-        var sum = 0.0
-        x.forEachStored { j, value -> sum += a[i, j] * value }
-        destination[i] += alpha * sum
     }
 }
 

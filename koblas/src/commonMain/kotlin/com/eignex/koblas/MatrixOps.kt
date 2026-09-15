@@ -9,22 +9,24 @@ import com.eignex.koblas.dense.applyBeta
 import com.eignex.koblas.dense.denseStoredGemvUpdate
 import com.eignex.koblas.dense.denseSymmetricStoredGemvUpdate
 import com.eignex.koblas.dense.genericRankOneUpdate
-import com.eignex.koblas.dense.genericStoredGemvUpdate
 import kotlin.jvm.JvmOverloads
 
 /**
- * `y = alpha * A * x + beta * y` (BLAS `dgemv`) into [destination], for any [Matrix] against any
- * [Vector]. `beta == 0.0` overwrites [destination] without reading it, so a destination left holding
- * NaN still yields a clean product.
+ * `y = alpha * A * x + beta * y` (BLAS `dgemv`) into [destination], against any [Vector].
+ * `beta == 0.0` overwrites [destination] without reading it, so a destination left holding NaN still
+ * yields a clean product.
  *
- * A sparse or generic [x] is never materialised as a dense array: a dense `A` takes one column axpy per
- * stored entry of [x], and any other [Matrix], sparse storage included, falls back to indexed reads. Dense
- * storage on both sides dispatches straight to the backend's `gemv`.
+ * Dense storage only. This took any [Matrix] while a sparse matrix-vector product existed beside the dense
+ * one, and a generic receiver kept computing one for sparse storage after that product was removed; matrix
+ * arithmetic here is dense, and [x] stays general because a sparse or strided vector is Level 1.
+ *
+ * A sparse or generic [x] is never materialised as a dense array: it takes one column axpy per stored entry.
+ * Dense storage on both sides dispatches straight to the backend's `gemv`.
  *
  * Built-in operands may share [destination]'s backing array. They are snapshotted before [destination] is
  * scaled or written, so aliasing has the same result as a call over independent inputs.
  */
-public fun Matrix.gemvInto(alpha: Double, x: Vector, beta: Double, destination: DoubleArray) {
+public fun DenseMatrix.gemvInto(alpha: Double, x: Vector, beta: Double, destination: DoubleArray) {
     val a = this
     requireShape(a.cols == x.size) { "gemvInto shape mismatch: A is ${a.rows}x${a.cols}, x size ${x.size}" }
     requireShape(destination.size == a.rows) {
@@ -32,33 +34,23 @@ public fun Matrix.gemvInto(alpha: Double, x: Vector, beta: Double, destination: 
     }
     // The seams quick-return on a zero-extent operand before scaling, which is netlib's rule for gemv but
     // not the contract above: this one promises that `beta == 0.0` overwrites a destination that may arrive
-    // holding NaN. Settling it here keeps every storage combination answering the same way, where otherwise
-    // a dense 3x0 left the NaN in place and a generic one returned zeros.
+    // holding NaN. Settling it here keeps a zero-column matrix answering the same way as any other.
     if (alpha == 0.0 || a.cols == 0) {
         destination.prescale(beta)
         return
     }
     val stableX = x.stableFor(destination)
     val stableA = a.stableFor(destination)
-    if (stableX is DenseVector && stableA is DenseMatrix) {
+    if (stableX is DenseVector) {
         koblas.gemv(alpha, stableA, stableX.data, beta, destination)
         return
     }
     destination.prescale(beta)
-    when (stableA) {
-        is DenseMatrix -> {
-            denseStoredGemvUpdate(koblas.vectorKernels, alpha, stableA, stableX, destination)
-        }
-
-        // A CSC-specialized column walk lived here. That was a sparse matrix-vector product, which is the
-        // hidden Level 2 algorithm a generic signature is not allowed to keep, so sparse storage now reaches
-        // the same indexed path any other non-dense matrix does.
-        else -> genericStoredGemvUpdate(alpha, stableA, stableX, destination)
-    }
+    denseStoredGemvUpdate(koblas.vectorKernels, alpha, stableA, stableX, destination)
 }
 
 /** [gemvInto] with `alpha = 1, beta = 0`, so `destination` receives `A * x`. */
-public fun Matrix.gemvInto(x: Vector, destination: DoubleArray): Unit = gemvInto(1.0, x, 0.0, destination)
+public fun DenseMatrix.gemvInto(x: Vector, destination: DoubleArray): Unit = gemvInto(1.0, x, 0.0, destination)
 
 /**
  * `y = alpha * A * x + beta * y` for a symmetric `A` (BLAS `dsymv`) into [destination], accepting any
@@ -113,25 +105,6 @@ private fun Vector.stableFor(destination: DoubleArray): Vector = when (this) {
 
     is StridedVectorView -> if (data === destination) {
         StridedVectorView(data.copyOf(), offset, size, stride)
-    } else {
-        this
-    }
-
-    else -> this
-}
-
-/** Stable built-in matrix storage when [destination] is its live backing array. */
-private fun Matrix.stableFor(destination: DoubleArray): Matrix = when (this) {
-    is DenseMatrix -> stableFor(destination)
-
-    is SparseMatrix -> if (values === destination) {
-        SparseMatrix.wrapTrusted(rows, cols, colPtr, rowIdx, values.copyOf())
-    } else {
-        this
-    }
-
-    is StridedMatrixView -> if (data === destination) {
-        StridedMatrixView(rows, cols, data.copyOf(), offset, leadingDimension)
     } else {
         this
     }
