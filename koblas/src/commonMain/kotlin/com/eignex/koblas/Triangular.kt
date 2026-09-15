@@ -5,31 +5,30 @@
 package com.eignex.koblas
 
 import com.eignex.koblas.dense.DenseBlas
-import com.eignex.koblas.sparse.SparseBlas
 import kotlin.jvm.JvmOverloads
 
 /**
- * Solve `op(T) · x = b` in place (BLAS `dtrsv`) for dense or sparse storage; see [DenseBlas.trsv] and
- * [SparseBlas.trsv]. Reads only the triangle [lower] selects, and does not check the diagonal, so a singular
- * triangle yields infinities or NaNs.
+ * Solve `op(T) · x = b` in place (BLAS `dtrsv`); see [DenseBlas.trsv]. Reads only the triangle [lower]
+ * selects, and does not check the diagonal, so a singular triangle yields infinities or NaNs.
+ *
+ * Dense storage only. These took [MatrixStorage] while a sparse triangular solve existed beside the dense one;
+ * a sparse triangular solve is a solver workflow rather than a numerical leaf, and belongs to the consumer that
+ * owns its factors.
  */
 @JvmOverloads
-public fun MatrixStorage.trsv(
+public fun DenseMatrix.trsv(
     x: DoubleArray,
     lower: Boolean,
     transpose: Boolean = false,
     unitDiag: Boolean = false,
-): Unit = when (this) {
-    is DenseMatrix -> koblas.trsv(this, x, lower, transpose, unitDiag)
-    is SparseMatrix -> koblas.trsv(this, x, lower, transpose, unitDiag)
-}
+): Unit = koblas.trsv(this, x, lower, transpose, unitDiag)
 
 /** `B = alpha · op(T)⁻¹ · B`, or `B = alpha · B · op(T)⁻¹` when [right] (BLAS `dtrsm`); see
- *  [DenseBlas.trsm] and [SparseBlas.trsm]. Reads only the triangle [lower] selects, and a singular triangle
- *  yields infinities or NaNs. */
+ *  [DenseBlas.trsm]. Reads only the triangle [lower] selects, and a singular triangle yields infinities
+ *  or NaNs. */
 @Suppress("LongParameterList") // the BLAS dtrsm signature
 @JvmOverloads
-public fun MatrixStorage.trsm(
+public fun DenseMatrix.trsm(
     b: DenseMatrix,
     lower: Boolean,
     transpose: Boolean = false,
@@ -37,27 +36,21 @@ public fun MatrixStorage.trsm(
     right: Boolean = false,
     alpha: Double = 1.0,
     workspace: Workspace? = null,
-): Unit = when (this) {
-    is DenseMatrix -> koblas.trsm(this, b, lower, transpose, unitDiag, right, alpha, workspace)
-    is SparseMatrix -> koblas.trsm(this, b, lower, transpose, unitDiag, right, alpha, workspace)
-}
+): Unit = koblas.trsm(this, b, lower, transpose, unitDiag, right, alpha, workspace)
 
-/** Multiply `x = op(T) · x` in place (BLAS `dtrmv`) for dense or sparse storage. */
+/** Multiply `x = op(T) · x` in place (BLAS `dtrmv`). */
 @JvmOverloads
-public fun MatrixStorage.trmv(
+public fun DenseMatrix.trmv(
     x: DoubleArray,
     lower: Boolean,
     transpose: Boolean = false,
     unitDiag: Boolean = false,
-): Unit = when (this) {
-    is DenseMatrix -> koblas.trmv(this, x, lower, transpose, unitDiag)
-    is SparseMatrix -> koblas.trmv(this, x, lower, transpose, unitDiag)
-}
+): Unit = koblas.trmv(this, x, lower, transpose, unitDiag)
 
 /** `B = alpha · op(T) · B`, or `B = alpha · B · op(T)` when [right] (BLAS `dtrmm`). */
 @Suppress("LongParameterList") // the BLAS dtrmm signature
 @JvmOverloads
-public fun MatrixStorage.trmm(
+public fun DenseMatrix.trmm(
     b: DenseMatrix,
     lower: Boolean,
     transpose: Boolean = false,
@@ -65,7 +58,4 @@ public fun MatrixStorage.trmm(
     right: Boolean = false,
     alpha: Double = 1.0,
     workspace: Workspace? = null,
-): Unit = when (this) {
-    is DenseMatrix -> koblas.trmm(this, b, lower, transpose, unitDiag, right, alpha, workspace)
-    is SparseMatrix -> koblas.trmm(this, b, lower, transpose, unitDiag, right, alpha)
-}
+): Unit = koblas.trmm(this, b, lower, transpose, unitDiag, right, alpha, workspace)

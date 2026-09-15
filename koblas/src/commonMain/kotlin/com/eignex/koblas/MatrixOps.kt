@@ -10,8 +10,6 @@ import com.eignex.koblas.dense.denseStoredGemvUpdate
 import com.eignex.koblas.dense.denseSymmetricStoredGemvUpdate
 import com.eignex.koblas.dense.genericRankOneUpdate
 import com.eignex.koblas.dense.genericStoredGemvUpdate
-import com.eignex.koblas.sparse.internal.sparseSyr
-import com.eignex.koblas.sparse.internal.sparseSyr2
 import kotlin.jvm.JvmOverloads
 
 /**
@@ -20,9 +18,8 @@ import kotlin.jvm.JvmOverloads
  * NaN still yields a clean product.
  *
  * A sparse or generic [x] is never materialised as a dense array: a dense `A` takes one column axpy per
- * stored entry of [x], a sparse `A` walks the stored entries of each such column, and any other
- * [Matrix] falls back to indexed reads. Dense storage on both sides dispatches straight to the
- * backend, using the dense or sparse `gemv` overload selected by `A`.
+ * stored entry of [x], and any other [Matrix], sparse storage included, falls back to indexed reads. Dense
+ * storage on both sides dispatches straight to the backend's `gemv`.
  *
  * Built-in operands may share [destination]'s backing array. They are snapshotted before [destination] is
  * scaled or written, so aliasing has the same result as a call over independent inputs.
@@ -47,31 +44,15 @@ public fun Matrix.gemvInto(alpha: Double, x: Vector, beta: Double, destination: 
         koblas.gemv(alpha, stableA, stableX.data, beta, destination)
         return
     }
-    if (stableX is DenseVector && stableA is SparseMatrix) {
-        koblas.gemv(alpha, stableA, stableX.data, beta, destination)
-        return
-    }
     destination.prescale(beta)
     when (stableA) {
         is DenseMatrix -> {
             denseStoredGemvUpdate(koblas.vectorKernels, alpha, stableA, stableX, destination)
         }
 
-        is SparseMatrix -> stableX.forEachStored { j, v ->
-            if (v != 0.0) {
-                val scaled = alpha * v
-                koblas.indexedSparseKernels.axpy(
-                    stableA.rowIdx,
-                    stableA.colPtr[j],
-                    stableA.values,
-                    stableA.colPtr[j],
-                    stableA.colPtr[j + 1] - stableA.colPtr[j],
-                    scaled,
-                    destination,
-                )
-            }
-        }
-
+        // A CSC-specialized column walk lived here. That was a sparse matrix-vector product, which is the
+        // hidden Level 2 algorithm a generic signature is not allowed to keep, so sparse storage now reaches
+        // the same indexed path any other non-dense matrix does.
         else -> genericStoredGemvUpdate(alpha, stableA, stableX, destination)
     }
 }
@@ -191,32 +172,3 @@ public fun DenseMatrix.syr(alpha: Double, x: Vector, lower: Boolean = true): Uni
 @JvmOverloads
 public fun DenseMatrix.syr2(alpha: Double, x: Vector, y: Vector, lower: Boolean = true): Unit =
     koblas.syr2(alpha, x, y, this, lower)
-
-/**
- * Fresh CSC matrix holding `A + alpha * x * xT` in its [lower] or upper triangle. The other triangle is
- * copied unchanged. Unlike dense [DenseMatrix.syr], this is not in place: a rank update can introduce
- * entries that the source CSC pattern has no room to store.
- *
- * Existing explicit zeros survive. A coordinate reached by nonzero vector support is stored even when its
- * arithmetic cancels or underflows to zero, so the returned matrix never silently drops discovered fill.
- * The result owns independent structural and value arrays, and its rows ascend within every column.
- */
-@JvmOverloads
-public fun SparseMatrix.syr(alpha: Double, x: Vector, lower: Boolean = true): SparseMatrix {
-    requireSyrShape(this, x.size, "syr")
-    return sparseSyr(this, alpha, x, lower)
-}
-
-/**
- * Fresh CSC matrix holding `A + alpha * (x * yT + y * xT)` in its [lower] or upper triangle. The other
- * triangle is copied unchanged. This structural counterpart of dense [DenseMatrix.syr2] never mutates
- * its source, because newly nonzero entries may require CSC fill.
- *
- * Existing explicit zeros survive. A coordinate reached by nonzero vector support is stored even when its
- * two terms cancel or underflow to zero. The result has independent arrays and canonical ascending CSC rows.
- */
-@JvmOverloads
-public fun SparseMatrix.syr2(alpha: Double, x: Vector, y: Vector, lower: Boolean = true): SparseMatrix {
-    requireSyr2Shape(this, x.size, y.size, "syr2")
-    return sparseSyr2(this, alpha, x, y, lower)
-}
