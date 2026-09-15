@@ -1002,6 +1002,15 @@ public final class com/eignex/koblas/vendor/RouteKind : java/lang/Enum {
 	public static fun values ()[Lcom/eignex/koblas/vendor/RouteKind;
 }
 
+public final class com/eignex/koblas/vendor/ThreadEvidence : java/lang/Enum {
+	public static final field Confirmed Lcom/eignex/koblas/vendor/ThreadEvidence;
+	public static final field Unconfirmed Lcom/eignex/koblas/vendor/ThreadEvidence;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public final fun getLabel ()Ljava/lang/String;
+	public static fun valueOf (Ljava/lang/String;)Lcom/eignex/koblas/vendor/ThreadEvidence;
+	public static fun values ()[Lcom/eignex/koblas/vendor/ThreadEvidence;
+}
+
 public final class com/eignex/koblas/vendor/Vendor : java/lang/Enum {
 	public static final field Accelerate Lcom/eignex/koblas/vendor/Vendor;
 	public static final field Aocl Lcom/eignex/koblas/vendor/Vendor;
@@ -1030,6 +1039,7 @@ public abstract interface class com/eignex/koblas/vendor/VendorBlas {
 	public abstract fun ger (DLcom/eignex/koblas/dense/VectorWindow;Lcom/eignex/koblas/dense/VectorWindow;Lcom/eignex/koblas/dense/MatrixWindow;)V
 	public abstract fun getDirectlyImplemented ()Ljava/util/Set;
 	public abstract fun getLibraryPath ()Ljava/lang/String;
+	public abstract fun getThreadEvidence ()Lcom/eignex/koblas/vendor/ThreadEvidence;
 	public abstract fun getVendor ()Lcom/eignex/koblas/vendor/Vendor;
 	public abstract fun getVersion ()Ljava/lang/String;
 	public abstract fun iamax (Lcom/eignex/koblas/dense/VectorWindow;)I

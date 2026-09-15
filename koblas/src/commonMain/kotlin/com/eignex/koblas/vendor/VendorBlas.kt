@@ -30,6 +30,15 @@ public interface VendorBlas {
     public val version: String
 
     /**
+     * Whether the one compute thread every call runs on was confirmed against this library.
+     *
+     * A library that reported more than one thread after being held to one never became a binding at all, so
+     * this distinguishes a library that confirmed the requirement from one that cannot be asked. It is evidence
+     * for a report to carry, not a setting: there is nothing to change and no thread count to pass.
+     */
+    public val threadEvidence: ThreadEvidence
+
+    /**
      * The operations this library exports directly.
      *
      * An operation being listed does not authorize a benchmark case on its own: the same operation can still

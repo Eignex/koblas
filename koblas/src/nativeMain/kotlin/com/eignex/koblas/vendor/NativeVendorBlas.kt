@@ -105,7 +105,9 @@ internal class NativeVendorBlas private constructor(
      * sequential layer both makes the library usable and removes its workers. The thread count and dynamic
      * expansion are then fixed as well, so a build that resolves some other layer cannot grow workers back.
      *
-     * A library that ignores all of this is caught by [singleThreaded] rather than trusted.
+     * A library that ignores all of this is caught by [confirmSingleThread] rather than trusted. That read-back
+     * happens after the ABI probe, because the probe is itself arithmetic and must not be what resolves the
+     * layer.
      */
     private fun enforceSingleThread() {
         dlsym(handle, "MKL_Set_Threading_Layer")?.reinterpret<SetLayerFn>()?.invoke(MKL_SEQUENTIAL)
@@ -115,20 +117,69 @@ internal class NativeVendorBlas private constructor(
         }
     }
 
+    /** Set once at load, after [enforceSingleThread], and never again. */
+    override var threadEvidence: ThreadEvidence = ThreadEvidence.Unconfirmed
+        private set
+
     /**
-     * Whether the library now reports one compute thread, read back rather than assumed.
+     * Holds the library to one compute thread and records whether that could be read back.
      *
-     * A library that reports a thread count and reports more than one after being told otherwise is not
-     * supported and must not reach arithmetic. One that exposes no way to ask is accepted on the strength of
-     * the request, which is all there is to go on; [Vendor.Accelerate] is the case that matters, since it
-     * carries no thread-count entry point of its own.
+     * Returns false for a library that still reports more than one thread, which is how such a library is kept
+     * out of arithmetic entirely rather than becoming a silently multithreaded arm. One that exposes no way to
+     * ask is accepted on the strength of the request, which is all there is to go on; [Vendor.Accelerate] is
+     * the case that matters, since it carries no thread-count entry point of its own.
      */
-    private fun singleThreaded(): Boolean {
+    private fun confirmSingleThread(): Boolean {
         for (symbol in listOf("MKL_Get_Max_Threads", "openblas_get_num_threads", "bli_thread_get_num_threads")) {
             val fn = dlsym(handle, symbol)?.reinterpret<GetThreadsFn>() ?: continue
-            return fn() == 1
+            if (fn() != 1) return false
+            threadEvidence = ThreadEvidence.Confirmed
+            return true
         }
+        threadEvidence = ThreadEvidence.Unconfirmed
         return true
+    }
+
+    /**
+     * Whether the library matches the ABI Koblas binds and computes correctly through it.
+     *
+     * The integer width is read from what the build says about itself, because a call cannot distinguish it:
+     * a 32-bit argument arrives in a register whose upper half is zeroed, so an ILP64 routine reading 64 bits
+     * sees the same small value. Whether the library computes at all is settled by calling it with operands
+     * whose exact answer is known.
+     */
+    private fun verifiedAbi(): Boolean {
+        if (declaresWideIntegers(version)) return false
+        return probeDot() && probeGemm()
+    }
+
+    private fun probeDot(): Boolean {
+        val fn = dlsym(handle, VendorOperation.Dot.entryPoint)?.reinterpret<DotFn>() ?: return false
+        val pins = Pins()
+        try {
+            val x = AbiProbe.x
+            val y = AbiProbe.y
+            return fn(x.size, pins.pointer(x, 0), 1, pins.pointer(y, 0), 1) == AbiProbe.DOT
+        } finally {
+            pins.release()
+        }
+    }
+
+    private fun probeGemm(): Boolean {
+        val fn = dlsym(handle, VendorOperation.Gemm.entryPoint)?.reinterpret<GemmFn>() ?: return false
+        val pins = Pins()
+        try {
+            val a = AbiProbe.identity
+            val b = AbiProbe.operand
+            val c = DoubleArray(b.size)
+            fn(
+                Cblas.COL_MAJOR, Cblas.NO_TRANS, Cblas.NO_TRANS, 2, 2, 2, 1.0,
+                pins.pointer(a, 0), 2, pins.pointer(b, 0), 2, 0.0, pins.pointer(c, 0), 2,
+            )
+            return c.indices.all { c[it] == b[it] }
+        } finally {
+            pins.release()
+        }
     }
 
     override val directlyImplemented: Set<VendorOperation> =
@@ -615,13 +666,13 @@ internal class NativeVendorBlas private constructor(
         fun open(vendor: Vendor): NativeVendorBlas? {
             for (candidate in vendor.resolvedCandidates(getenv("HOME")?.toKString())) {
                 val handle = dlopen(candidate, RTLD_NOW) ?: continue
-                val complete = VendorOperation.entries.all {
-                    !it.required || dlsym(handle, it.entryPoint) != null
-                }
-                if (!complete) continue
+                if (missingRequiredSymbols { dlsym(handle, it) != null }.isNotEmpty()) continue
                 val blas = NativeVendorBlas(vendor, candidate, handle)
+                // Ordered: the single-thread configuration is established before the probe, because the probe
+                // is arithmetic and oneMKL resolves its threading layer on the first call that reaches it.
                 blas.enforceSingleThread()
-                if (!blas.singleThreaded()) continue
+                if (!blas.verifiedAbi()) continue
+                if (!blas.confirmSingleThread()) continue
                 return blas
             }
             return null

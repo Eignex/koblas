@@ -6,6 +6,7 @@ import java.lang.foreign.Linker
 import java.lang.foreign.MemorySegment
 import java.lang.foreign.SymbolLookup
 import java.lang.foreign.ValueLayout.ADDRESS
+import java.lang.foreign.ValueLayout.JAVA_DOUBLE
 import java.lang.foreign.ValueLayout.JAVA_INT
 import java.lang.invoke.MethodHandle
 
@@ -74,7 +75,9 @@ internal class JvmVendorLibrary private constructor(
      * sequential layer both makes the library usable and removes its workers. The thread count and dynamic
      * expansion are then fixed as well, so a build that resolves some other layer cannot grow workers back.
      *
-     * A library that ignores all of this is caught by [singleThreaded] rather than trusted.
+     * A library that ignores all of this is caught by [confirmSingleThread] rather than trusted. That read-back
+     * happens after the ABI probe, because the probe is itself arithmetic and must not be what resolves the
+     * layer.
      */
     private fun enforceSingleThread() {
         // Every call below sits in statement position with its handle in a local. invokeExact converts
@@ -90,21 +93,70 @@ internal class JvmVendorLibrary private constructor(
         }
     }
 
+    /** Set once at load, after [enforceSingleThread], and never again. */
+    var threadEvidence: ThreadEvidence = ThreadEvidence.Unconfirmed
+        private set
+
     /**
-     * Whether the library now reports one compute thread, read back rather than assumed.
+     * Reads back whether the library now runs on one compute thread, after [enforceSingleThread] has run.
      *
-     * A library that reports a thread count and reports more than one after being told otherwise is not
-     * supported and must not reach arithmetic, because every timing taken through it would be measuring
-     * something other than what the report says. A library that exposes no way to ask is accepted on the
-     * strength of the request, which is all there is to go on; [Vendor.Accelerate] is the case that matters,
-     * since it carries no thread-count entry point of its own.
+     * Returns false for a library that still reports more than one, which is how such a library is kept out of
+     * arithmetic entirely rather than becoming a silently multithreaded arm.
      */
-    fun singleThreaded(): Boolean {
+    fun confirmSingleThread(): Boolean {
         for (symbol in listOf("MKL_Get_Max_Threads", "openblas_get_num_threads", "bli_thread_get_num_threads")) {
             val handle = handleOrNull(symbol, FunctionDescriptor.of(JAVA_INT)) ?: continue
-            return (handle.invokeExact() as Int) == 1
+            if ((handle.invokeExact() as Int) != 1) return false
+            threadEvidence = ThreadEvidence.Confirmed
+            return true
         }
+        threadEvidence = ThreadEvidence.Unconfirmed
         return true
+    }
+
+    /**
+     * Whether the library matches the ABI Koblas binds and computes correctly through it.
+     *
+     * Two separate questions. The integer width cannot be settled by calling the library, so it is read from
+     * what the build says about itself; see [declaresWideIntegers]. Whether the library computes at all is
+     * settled by calling it, with operands whose exact answer is known, which is what catches an install that
+     * resolved every symbol but cannot execute.
+     */
+    fun verifiedAbi(): Boolean {
+        if (declaresWideIntegers(version)) return false
+        return probeDot() && probeGemm()
+    }
+
+    private fun probeDot(): Boolean {
+        val handle = handleOrNull(
+            VendorOperation.Dot.entryPoint,
+            FunctionDescriptor.of(JAVA_DOUBLE, JAVA_INT, ADDRESS, JAVA_INT, ADDRESS, JAVA_INT),
+        ) ?: return false
+        Arena.ofConfined().use { arena ->
+            val x = arena.allocateFrom(JAVA_DOUBLE, *AbiProbe.x)
+            val y = arena.allocateFrom(JAVA_DOUBLE, *AbiProbe.y)
+            return (handle.invokeExact(AbiProbe.x.size, x, 1, y, 1) as Double) == AbiProbe.DOT
+        }
+    }
+
+    private fun probeGemm(): Boolean {
+        val handle = handleOrNull(
+            VendorOperation.Gemm.entryPoint,
+            FunctionDescriptor.ofVoid(
+                JAVA_INT, JAVA_INT, JAVA_INT, JAVA_INT, JAVA_INT, JAVA_INT, JAVA_DOUBLE,
+                ADDRESS, JAVA_INT, ADDRESS, JAVA_INT, JAVA_DOUBLE, ADDRESS, JAVA_INT,
+            ),
+        ) ?: return false
+        Arena.ofConfined().use { arena ->
+            val a = arena.allocateFrom(JAVA_DOUBLE, *AbiProbe.identity)
+            val b = arena.allocateFrom(JAVA_DOUBLE, *AbiProbe.operand)
+            val c = arena.allocate(JAVA_DOUBLE, AbiProbe.operand.size.toLong())
+            handle.invokeExact(
+                Cblas.COL_MAJOR, Cblas.NO_TRANS, Cblas.NO_TRANS, 2, 2, 2, 1.0,
+                a, 2, b, 2, 0.0, c, 2,
+            )
+            return AbiProbe.operand.indices.all { c.getAtIndex(JAVA_DOUBLE, it.toLong()) == AbiProbe.operand[it] }
+        }
     }
 
     /** Whether [name] is exported. */
@@ -163,7 +215,9 @@ internal class JvmVendorLibrary private constructor(
          *
          * A library that opens but is missing part of the surface is rejected rather than half-bound, so a
          * partial or mismatched install fails here instead of at the first call that needs the missing piece.
-         * One that cannot be held to a single compute thread is rejected the same way, before any arithmetic.
+         * One whose ABI does not match, or that cannot compute a known answer, is rejected the same way. The
+         * single-thread requirement is then applied, and a library that will not hold to it fails loudly rather
+         * than silently becoming a multithreaded arm.
          */
         fun open(vendor: Vendor): JvmVendorLibrary? {
             val linker = try {
@@ -180,9 +234,12 @@ internal class JvmVendorLibrary private constructor(
                     continue // present but unloadable
                 }
                 val library = JvmVendorLibrary(vendor, candidate, lookup, linker)
-                if (VendorOperation.entries.any { it.required && !library.exports(it.entryPoint) }) continue
+                if (missingRequiredSymbols(library::exports).isNotEmpty()) continue
+                // Ordered: the single-thread configuration is established before the probe, because the probe
+                // is arithmetic and oneMKL resolves its threading layer on the first call that reaches it.
                 library.enforceSingleThread()
-                if (!library.singleThreaded()) continue
+                if (!library.verifiedAbi()) continue
+                if (!library.confirmSingleThread()) continue
                 return library
             }
             return null

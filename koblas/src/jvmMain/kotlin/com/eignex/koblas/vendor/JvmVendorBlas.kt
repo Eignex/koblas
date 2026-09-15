@@ -35,6 +35,7 @@ internal class JvmVendorBlas(
     override val vendor: Vendor get() = library.vendor
     override val libraryPath: String get() = library.resolvedFile
     override val version: String get() = library.version
+    override val threadEvidence: ThreadEvidence get() = library.threadEvidence
 
     override val directlyImplemented: Set<VendorOperation> = VendorOperation.entries
         .filterTo(LinkedHashSet()) { it !in suppressed && library.exports(it.entryPoint) }

@@ -40,15 +40,19 @@ class VendorConcurrencyTest {
     }
 
     @Test
-    fun `an opened library reports one compute thread`() {
+    fun `an opened library confirmed one compute thread where it can be asked`() {
         var checked = 0
         for (vendor in Vendor.entries) {
-            val library = JvmVendorLibrary.open(vendor) ?: continue
+            val blas = openVendorBlas(vendor) ?: continue
             checked++
 
-            // Read back from the library, not from the request. These are multithreaded builds by default:
-            // OpenBLAS reports one thread per core here until the load-time enforcement runs.
-            assertTrue(library.singleThreaded(), "${vendor.vendorName} reports more than one compute thread")
+            // These are multithreaded builds by default: OpenBLAS reports one thread per core here until the
+            // load-time enforcement runs, and a library that would not hold to one never opens at all.
+            assertEquals(
+                ThreadEvidence.Confirmed,
+                blas.threadEvidence,
+                "${vendor.vendorName} exports a thread count, so it should have been confirmed",
+            )
         }
         if (checked == 0) println("SKIPPED: no CBLAS library installed; thread enforcement was not verified here")
     }

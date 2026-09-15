@@ -148,6 +148,19 @@ final enum class com.eignex.koblas.vendor/RouteKind : kotlin/Enum<com.eignex.kob
     final fun values(): kotlin/Array<com.eignex.koblas.vendor/RouteKind> // com.eignex.koblas.vendor/RouteKind.values|values#static(){}[0]
 }
 
+final enum class com.eignex.koblas.vendor/ThreadEvidence : kotlin/Enum<com.eignex.koblas.vendor/ThreadEvidence> { // com.eignex.koblas.vendor/ThreadEvidence|null[0]
+    enum entry Confirmed // com.eignex.koblas.vendor/ThreadEvidence.Confirmed|null[0]
+    enum entry Unconfirmed // com.eignex.koblas.vendor/ThreadEvidence.Unconfirmed|null[0]
+
+    final val entries // com.eignex.koblas.vendor/ThreadEvidence.entries|#static{}entries[0]
+        final fun <get-entries>(): kotlin.enums/EnumEntries<com.eignex.koblas.vendor/ThreadEvidence> // com.eignex.koblas.vendor/ThreadEvidence.entries.<get-entries>|<get-entries>#static(){}[0]
+    final val label // com.eignex.koblas.vendor/ThreadEvidence.label|{}label[0]
+        final fun <get-label>(): kotlin/String // com.eignex.koblas.vendor/ThreadEvidence.label.<get-label>|<get-label>(){}[0]
+
+    final fun valueOf(kotlin/String): com.eignex.koblas.vendor/ThreadEvidence // com.eignex.koblas.vendor/ThreadEvidence.valueOf|valueOf#static(kotlin.String){}[0]
+    final fun values(): kotlin/Array<com.eignex.koblas.vendor/ThreadEvidence> // com.eignex.koblas.vendor/ThreadEvidence.values|values#static(){}[0]
+}
+
 final enum class com.eignex.koblas.vendor/Vendor : kotlin/Enum<com.eignex.koblas.vendor/Vendor> { // com.eignex.koblas.vendor/Vendor|null[0]
     enum entry Accelerate // com.eignex.koblas.vendor/Vendor.Accelerate|null[0]
     enum entry Aocl // com.eignex.koblas.vendor/Vendor.Aocl|null[0]
@@ -321,6 +334,8 @@ abstract interface com.eignex.koblas.vendor/VendorBlas { // com.eignex.koblas.ve
         abstract fun <get-directlyImplemented>(): kotlin.collections/Set<com.eignex.koblas.vendor/VendorOperation> // com.eignex.koblas.vendor/VendorBlas.directlyImplemented.<get-directlyImplemented>|<get-directlyImplemented>(){}[0]
     abstract val libraryPath // com.eignex.koblas.vendor/VendorBlas.libraryPath|{}libraryPath[0]
         abstract fun <get-libraryPath>(): kotlin/String // com.eignex.koblas.vendor/VendorBlas.libraryPath.<get-libraryPath>|<get-libraryPath>(){}[0]
+    abstract val threadEvidence // com.eignex.koblas.vendor/VendorBlas.threadEvidence|{}threadEvidence[0]
+        abstract fun <get-threadEvidence>(): com.eignex.koblas.vendor/ThreadEvidence // com.eignex.koblas.vendor/VendorBlas.threadEvidence.<get-threadEvidence>|<get-threadEvidence>(){}[0]
     abstract val vendor // com.eignex.koblas.vendor/VendorBlas.vendor|{}vendor[0]
         abstract fun <get-vendor>(): com.eignex.koblas.vendor/Vendor // com.eignex.koblas.vendor/VendorBlas.vendor.<get-vendor>|<get-vendor>(){}[0]
     abstract val version // com.eignex.koblas.vendor/VendorBlas.version|{}version[0]
