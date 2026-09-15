@@ -6,9 +6,9 @@ Koblas provides mutable owning `Double` containers, live strided dense views, va
 caller-owned workspaces, and packed arithmetic helpers. Dense matrices are column-major.
 
 Raw indexed sparse kernels operate on caller-owned slices without temporary storage. Stateless structural helpers
-for touched support and checked arithmetic are available through
-[SparseSlices][com.eignex.koblas.sparse.SparseSlices]; [Workspace][com.eignex.koblas.Workspace] remains the
-temporary-storage boundary for complete operations.
+for accumulation, touched support, and checked arithmetic are available through
+[SparsePrimitives][com.eignex.koblas.sparse.SparsePrimitives]; [Workspace][com.eignex.koblas.Workspace] remains
+the temporary-storage boundary for complete operations.
 
 [koblas][com.eignex.koblas.koblas] is an immutable engine selected once for the platform. JVM selection prefers
 the Vector API, then Koblas's bundled C kernels, then scalar Kotlin. Kotlin/Native uses the bundled C kernels

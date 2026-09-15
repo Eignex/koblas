@@ -111,17 +111,6 @@ spscatter-raw+65536+sparse-uniform+density=0.015625
 spscatter-raw+262144+sparse-uniform+density=0.03125
 spgather+4096+sparse-uniform+density=0.01
 spgather-zero+4096+sparse-uniform+density=0.01
-sparse-slices-scatter+512+sparse-uniform+density=0.25
-sparse-slices-scatter-checked+512+sparse-uniform+density=0.25
-sparse-slices-gather+512+sparse-uniform+density=0.25
-sparse-slices-gather-clear+512+sparse-uniform+density=0.25
-sparse-slices-clear+512+sparse-uniform+density=0.25
-sparse-slices-clear-local+512+sparse-uniform+density=0.25
-sparse-slices-reduce-dot-checked+512+sparse-uniform+density=0.25
-sparse-slices-reduce-dot-local+512+sparse-uniform+density=0.25
-sparse-slices-reduce-dot-unchecked+512+sparse-uniform+density=0.25
-sparse-slices-max+512+sparse-uniform+density=0.25
-sparse-slices-filter+512+sparse-uniform+density=0.25
 
 # Skinny, depth tails, and single through many RHS transition baselines.
 gemm+257x3x1+uniform
@@ -183,32 +172,6 @@ spgather+65536+sparse-uniform+density=0.01+timing=arithmetic
 spgather+65536+sparse-uniform+density=0.25+timing=arithmetic
 
 # Validated caller-owned scratch comparisons; timing labels distinguish these from historical slice cases.
-sparse-slices-cycle+64+sparse-uniform+density=0.125+timing=reuse+compact=N+locality=sorted
-sparse-slices-cycle+64+sparse-uniform+density=0.125+timing=reuse+compact=T+locality=sorted
-sparse-slices-cycle+64+sparse-uniform+density=0.125+timing=reuse+compact=N+locality=shuffled
-sparse-slices-cycle+64+sparse-uniform+density=0.125+timing=reuse+compact=T+locality=shuffled
-sparse-slices-cycle-checked+64+sparse-uniform+density=0.125+timing=reuse+compact=T+locality=shuffled
-sparse-slices-reduce-dot-checked+64+sparse-uniform+density=0.125+timing=reuse+locality=shuffled
-sparse-slices-reduce-dot-unchecked+64+sparse-uniform+density=0.125+timing=reuse+locality=shuffled
-sparse-slices-cycle+4096+sparse-uniform+density=0.0625+timing=reuse+compact=N+locality=sorted
-sparse-slices-cycle+4096+sparse-uniform+density=0.0625+timing=reuse+compact=T+locality=sorted
-sparse-slices-cycle+4096+sparse-uniform+density=0.0625+timing=reuse+compact=N+locality=shuffled
-sparse-slices-cycle+4096+sparse-uniform+density=0.0625+timing=reuse+compact=T+locality=shuffled
-sparse-slices-cycle-checked+4096+sparse-uniform+density=0.0625+timing=reuse+compact=T+locality=shuffled
-sparse-slices-reduce-dot-checked+4096+sparse-uniform+density=0.0625+timing=reuse+locality=shuffled
-sparse-slices-reduce-dot-unchecked+4096+sparse-uniform+density=0.0625+timing=reuse+locality=shuffled
-sparse-slices-cycle+65536+sparse-uniform+density=0.015625+timing=reuse+compact=N+locality=sorted
-sparse-slices-cycle+65536+sparse-uniform+density=0.015625+timing=reuse+compact=T+locality=sorted
-sparse-slices-cycle+65536+sparse-uniform+density=0.015625+timing=reuse+compact=N+locality=shuffled
-sparse-slices-cycle+65536+sparse-uniform+density=0.015625+timing=reuse+compact=T+locality=shuffled
-sparse-slices-cycle-checked+65536+sparse-uniform+density=0.015625+timing=reuse+compact=T+locality=shuffled
-sparse-slices-reduce-dot-checked+65536+sparse-uniform+density=0.015625+timing=reuse+locality=shuffled
-sparse-slices-reduce-dot-unchecked+65536+sparse-uniform+density=0.015625+timing=reuse+locality=shuffled
-sparse-slices-gather+4096+sparse-uniform+density=0.0625+timing=reuse+compact=T+locality=sorted
-sparse-slices-gather+4096+sparse-uniform+density=0.0625+timing=reuse+compact=T+locality=shuffled
-sparse-slices-gather-clear+4096+sparse-uniform+density=0.0625+timing=reuse+compact=T+locality=sorted
-sparse-slices-gather-clear+4096+sparse-uniform+density=0.0625+timing=reuse+compact=T+locality=shuffled
-sparse-slices-clear+4096+sparse-uniform+density=0.0625+timing=reuse+locality=shuffled
 
 # Opt-in coarse size sweeps. Shared n=4096 cases are listed above, once.
 # Explicit tiny inputs, SIMD tails, host-call neighborhoods, and larger working sets.
