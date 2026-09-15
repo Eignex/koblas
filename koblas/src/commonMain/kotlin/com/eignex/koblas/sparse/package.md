@@ -23,3 +23,8 @@ factorization state, and exact arithmetic remain outside these numerical leaves.
 
 Factorization and basis-solver contracts are not part of this library. A consumer that needs them owns its own
 factors on top of these numerical leaves.
+
+A stored exact zero is structural and survives. Arithmetic that produces zero does not drop its entry, so a
+pattern stays stable across updates and compaction removes only what a caller asks it to remove. A masked
+reduction over a selection that is empty returns the identity and reports no position, rather than reporting
+position zero, so an empty column is distinguishable from one whose first entry won.

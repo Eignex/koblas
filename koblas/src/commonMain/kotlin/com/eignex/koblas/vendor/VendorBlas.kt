@@ -18,6 +18,19 @@ import com.eignex.koblas.dense.VectorWindow
  *
  * Instances are immutable and safe to share. Scratch used for staging is exclusive to one call, so concurrent
  * calls on one instance do not interfere.
+ *
+ * Ownership is the same for every call here, and is what an owning-container seam above this one has to
+ * preserve. A window borrows its array and does not extend its life: the caller keeps it reachable for the
+ * call, nothing is retained afterwards, and no foreign pointer outlives the call that made it. An operand
+ * copied into native memory lives in that call's arena and is freed with it, because caching a copy of a
+ * mutable array across calls would be a correctness bug rather than an optimization. A call writes only what
+ * its destination window addresses, plus whatever padding that window's own leading dimension already spanned,
+ * which is carried across a transfer unchanged; storage outside the window is left as the caller left it.
+ * Distinct windows may share one array where an operation says so, as the triangular solves do for their
+ * in-place destination, and where an operation forbids overlap the call requires it rather than discovering it
+ * late. Concurrent readers are fine; a write overlapping another call's access is the caller's to order.
+ * Structure is declared rather than inferred, so an entry the structure says is absent is never read and an
+ * implicit unit diagonal may hold anything.
  */
 public interface VendorBlas {
     /** Which library this is. */
