@@ -12,7 +12,9 @@ the temporary-storage boundary for complete operations.
 
 [koblas][com.eignex.koblas.koblas] is an immutable engine selected once for the platform. JVM selection prefers
 the Vector API, then Koblas's bundled C kernels, then scalar Kotlin. Kotlin/Native uses the bundled C kernels
-with scalar fallbacks. Shared dense and sparse matrix algorithms are bound directly to those selected kernels.
+with scalar fallbacks. Shared dense matrix algorithms are bound directly to those selected kernels; sparse
+Level 1 reports through [routeOf][com.eignex.koblas.sparse.SparseKernels.routeOf] which kernel a given call
+reaches, because a selection that falls back is not evidence that its own kernel ran.
 
 Exact scalar, C, and SIMD engines are available through the experimental
 [BuiltinEngines][com.eignex.koblas.BuiltinEngines] construction seam for tests and benchmarks. Constructing one

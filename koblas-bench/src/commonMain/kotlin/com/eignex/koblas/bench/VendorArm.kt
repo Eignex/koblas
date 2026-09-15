@@ -12,13 +12,13 @@ import com.eignex.koblas.vendor.exactArmRejection
 import com.eignex.koblas.vendor.openVendorBlas
 
 /**
- * The work for one vendor benchmark case, or the reason there is none to time.
+ * The work for one benchmark case on one arm, or the reason there is none to time.
  *
  * A rejection is a result, not a failure. An arm that cannot run a case honestly is expected to say so and
  * leave the row without a timing, because the alternative is a number that answers a different question than
  * the one the case asks.
  */
-internal class VendorArm(val work: CaseWork?, val reason: String?)
+internal class ArmChoice(val work: CaseWork?, val reason: String?)
 
 /** The prefix a vendor mode carries for each runtime, which is also which entry point may run it. */
 internal const val JVM_VENDOR_PREFIX: String = "jvm-vendor-"
@@ -77,7 +77,7 @@ internal fun openVendorForMode(mode: String): Pair<VendorBlas, String> {
  * only a comparison if the work either side is the same.
  */
 @Suppress("LongMethod", "CyclomaticComplexMethod") // one branch per benchmarked operation
-internal fun vendorArm(case: BenchCase, blas: VendorBlas): VendorArm {
+internal fun vendorArm(case: BenchCase, blas: VendorBlas): ArmChoice {
     val d = case.dimensions
     val alpha = 0.875
     val beta = -0.25
@@ -109,15 +109,15 @@ internal fun vendorArm(case: BenchCase, blas: VendorBlas): VendorArm {
         vectors: List<VectorWindow>,
         timing: String,
         run: () -> Double,
-    ): VendorArm {
+    ): ArmChoice {
         // Both operand lists reach the route, so a case whose operands make the call no-work is described that
         // way and declined rather than timed as vendor arithmetic it never performed.
-        exactArmRejection(blas, operation, matrices, vectors)?.let { return VendorArm(null, it) }
+        exactArmRejection(blas, operation, matrices, vectors)?.let { return ArmChoice(null, it) }
         val route = blas.routeOf(operation, matrices, vectors)
-        return VendorArm(CaseWork(route.kind.name.lowercase(), timing, run, route = route), null)
+        return ArmChoice(CaseWork(route.kind.name.lowercase(), timing, run, kernel = vendorKernel(route)), null)
     }
 
-    fun declined(what: String) = VendorArm(null, "$what has no vendor entry point in the bound CBLAS surface")
+    fun declined(what: String) = ArmChoice(null, "$what has no vendor entry point in the bound CBLAS surface")
 
     return when (case.operation) {
         "dot" -> {

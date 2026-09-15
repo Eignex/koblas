@@ -1,7 +1,6 @@
 package com.eignex.koblas.bench
 
 import com.eignex.koblas.BuiltinEngines
-import com.eignex.koblas.vendor.RouteKind
 import com.eignex.koblas.vendor.Vendor
 import com.eignex.koblas.vendor.VendorBlas
 import com.eignex.koblas.vendor.openVendorBlas
@@ -90,13 +89,13 @@ class VendorArmTest {
         val case = Cases.parse("gemm+32x21x48+uniform").single()
 
         val work = assertNotNull(vendorArm(case, blas).work)
-        val route = assertNotNull(work.route, "a vendor arm must carry the route of the call it makes")
 
-        assertEquals(RouteKind.Direct, route.kind)
-        assertEquals(blas.vendor, route.vendor)
-        assertEquals("cblas_dgemm", route.entryPoint)
         assertEquals("direct", work.comparisonKind)
-        assertEquals("${blas.vendor.vendorName}/cblas_dgemm", vendorKernel(route))
+        assertEquals(
+            "${blas.vendor.vendorName}/cblas_dgemm",
+            work.kernel,
+            "a vendor arm must carry the entry point of the call it makes",
+        )
         work.close()
     }
 

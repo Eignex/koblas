@@ -1,18 +1,20 @@
 # Package com.eignex.koblas.sparse
 
-The sparse package contains low-level sparse BLAS and kernel building blocks. The public CSC containers and their
-high-level operations live in `com.eignex.koblas`, alongside the dense containers. General products support sparse
-or direct dense destinations. Symmetric products read exactly one selected CSC triangle, while triangular products
-and solves use explicit lower, transpose, unit-diagonal, and side flags. Sparse `syrk` returns either one triangle
-of a dense destination or a fresh selected-triangle CSC result; general products do not implicitly mirror it.
+The sparse package contains sparse Level 1 kernels and the generic numerical primitives they share. The public
+CSC containers live in `com.eignex.koblas`, alongside the dense containers. Sparse matrix products are not part
+of this library: a vector against a matrix column, or against a dense vector, is Level 1 work on a stored
+support, and anything above that belongs to the consumer that owns the algorithm.
 
-`addScaled` and sparse `+`/`-` are root-package algebra extensions. Prepared products retain immutable owned snapshots;
-transpose indexing may be cached without introducing descriptors or mutable global selection.
-
-[SparseKernels][com.eignex.koblas.sparse.SparseKernels] also exposes allocation-free raw indexed `dot`, `axpy`,
+[SparseKernels][com.eignex.koblas.sparse.SparseKernels] exposes allocation-free raw indexed `dot`, `axpy`,
 `scatter`, and stable norm operations. Their independent array windows are validated before arithmetic or
-mutation, then dispatched to the engine's scalar, bundled C, or JVM Vector API leaves. Reductions admit repeated
+mutation, then dispatched to the engine's scalar or JVM Vector API leaves. Reductions admit repeated
 and unsorted support with contribution semantics; indexed mutations require strictly ordered unique destinations.
+
+[routeOf][com.eignex.koblas.sparse.SparseKernels.routeOf] answers where one such call executes, from the
+decision the call itself makes. A selection is not evidence of what ran: a Vector API selection answers a call
+below its crossover, an operation it never vectorised, and a host whose indexed loads or stores it cannot use by
+handing the whole call to the scalar kernels, and a measurement that reads only the selection name publishes
+those as vector timings.
 
 [SparsePrimitives][com.eignex.koblas.sparse.SparsePrimitives] is a stateless collection of numerical leaves over
 caller-owned support, marks, accumulators, diagnostics, and output buffers, including the checked scatter that
@@ -20,12 +22,10 @@ reports nonfinite arithmetic and product underflow. It neither owns nor borrows 
 [Workspace][com.eignex.koblas.Workspace] is reserved for complete higher-level operations that genuinely need
 temporary alias staging, packing, accumulation, or multi-result scratch.
 
-The validated solver workflows that were assembled from these leaves are not part of this library. Pivot
-selection, permutations, dropping policy, factorization state, and exact arithmetic belong to the consumer that
-owns its factors; what remains here is the arithmetic those workflows are built from.
-
-Factorization and basis-solver contracts are not part of this library. A consumer that needs them owns its own
-factors on top of these numerical leaves.
+The validated solver workflows assembled from these leaves are not part of this library, and neither are
+factorization or basis-solver contracts. Pivot selection, permutations, dropping policy, factorization state,
+and exact arithmetic belong to the consumer that owns its factors; what remains here is the arithmetic those
+workflows are built from.
 
 A stored exact zero is structural and survives. Arithmetic that produces zero does not drop its entry, so a
 pattern stays stable across updates and compaction removes only what a caller asks it to remove. A masked

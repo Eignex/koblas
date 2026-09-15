@@ -779,17 +779,45 @@ public abstract interface class com/eignex/koblas/sparse/SparseKernels {
 	public abstract fun getName ()Ljava/lang/String;
 	public abstract fun nrm2 (Lcom/eignex/koblas/SparseVector;)D
 	public abstract fun nrm2 ([III[D)D
+	public abstract fun routeOf (Lcom/eignex/koblas/sparse/SparseOperation;I)Lcom/eignex/koblas/sparse/SparseRoute;
 	public abstract fun scatter (Lcom/eignex/koblas/SparseVector;[D)V
 	public abstract fun scatter ([II[DII[D)V
+}
+
+public final class com/eignex/koblas/sparse/SparseOperation : java/lang/Enum {
+	public static final field Asum Lcom/eignex/koblas/sparse/SparseOperation;
+	public static final field Axpy Lcom/eignex/koblas/sparse/SparseOperation;
+	public static final field DotDense Lcom/eignex/koblas/sparse/SparseOperation;
+	public static final field DotSparse Lcom/eignex/koblas/sparse/SparseOperation;
+	public static final field Gather Lcom/eignex/koblas/sparse/SparseOperation;
+	public static final field GatherZero Lcom/eignex/koblas/sparse/SparseOperation;
+	public static final field IndexedNrm2 Lcom/eignex/koblas/sparse/SparseOperation;
+	public static final field Nrm2 Lcom/eignex/koblas/sparse/SparseOperation;
+	public static final field Scatter Lcom/eignex/koblas/sparse/SparseOperation;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lcom/eignex/koblas/sparse/SparseOperation;
+	public static fun values ()[Lcom/eignex/koblas/sparse/SparseOperation;
 }
 
 public final class com/eignex/koblas/sparse/SparsePrimitives {
 	public static final field INSTANCE Lcom/eignex/koblas/sparse/SparsePrimitives;
 	public static final fun activeMaximum ([II[DII[Z)D
+	public static final fun clearWorkspace ([III[D[I)V
 	public static final fun gatherWorkspace ([III[D[II[DIZ[I)I
 	public static final fun scatterWorkspace (D[II[DII[D[II[III)I
 	public static final fun scatterWorkspaceChecked (D[II[DII[D[II[III[IIII)I
 	public static final fun selectPivotCandidates ([II[DII[ZDD[II)I
+}
+
+public final class com/eignex/koblas/sparse/SparseRoute {
+	public final fun getAdapter ()Ljava/lang/String;
+	public final fun getEntryPoint ()Ljava/lang/String;
+	public final fun getExactlyMeasurable ()Z
+	public final fun getImplementation ()Ljava/lang/String;
+	public final fun getKind ()Lcom/eignex/koblas/vendor/RouteKind;
+	public final fun getOperation ()Lcom/eignex/koblas/sparse/SparseOperation;
+	public final fun getReason ()Ljava/lang/String;
+	public fun toString ()Ljava/lang/String;
 }
 
 public final class com/eignex/koblas/vendor/Architecture : java/lang/Enum {

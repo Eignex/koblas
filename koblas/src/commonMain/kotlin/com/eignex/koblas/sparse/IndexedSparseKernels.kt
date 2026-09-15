@@ -2,6 +2,18 @@ package com.eignex.koblas.sparse
 
 /** Numerical leaves over trusted sorted indexed slices. Callers own shape and slice validation. */
 internal interface IndexedSparseKernels {
+    /** Short implementation identifier, and the answer [implementationFor] gives when nothing is handed on. */
+    val name: String
+
+    /**
+     * The implementation a call of this [operation] and [count] actually reaches.
+     *
+     * The dispatch itself reads this, so a described route cannot drift from the executed one. An
+     * implementation that falls back below a crossover, or that never overrode an operation at all, names what
+     * it falls back to rather than itself.
+     */
+    fun implementationFor(operation: SparseOperation, count: Int): String = name
+
     fun dotDense(indices: IntArray, values: DoubleArray, dense: DoubleArray): Double =
         dotDense(indices, 0, values, 0, values.size, dense)
 
