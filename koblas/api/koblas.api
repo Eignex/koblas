@@ -961,8 +961,8 @@ public final class com/eignex/koblas/vendor/CpuVendor : java/lang/Enum {
 }
 
 public final class com/eignex/koblas/vendor/ExactArmKt {
-	public static final fun exactArmRejection (Lcom/eignex/koblas/vendor/VendorBlas;Lcom/eignex/koblas/vendor/VendorOperation;Ljava/util/List;)Ljava/lang/String;
-	public static synthetic fun exactArmRejection$default (Lcom/eignex/koblas/vendor/VendorBlas;Lcom/eignex/koblas/vendor/VendorOperation;Ljava/util/List;ILjava/lang/Object;)Ljava/lang/String;
+	public static final fun exactArmRejection (Lcom/eignex/koblas/vendor/VendorBlas;Lcom/eignex/koblas/vendor/VendorOperation;Ljava/util/List;Ljava/util/List;)Ljava/lang/String;
+	public static synthetic fun exactArmRejection$default (Lcom/eignex/koblas/vendor/VendorBlas;Lcom/eignex/koblas/vendor/VendorOperation;Ljava/util/List;Ljava/util/List;ILjava/lang/Object;)Ljava/lang/String;
 }
 
 public final class com/eignex/koblas/vendor/HostPlatform {
@@ -1045,8 +1045,8 @@ public abstract interface class com/eignex/koblas/vendor/VendorBlas {
 	public abstract fun iamax (Lcom/eignex/koblas/dense/VectorWindow;)I
 	public abstract fun nrm2 (Lcom/eignex/koblas/dense/VectorWindow;)D
 	public abstract fun rot (Lcom/eignex/koblas/dense/VectorWindow;Lcom/eignex/koblas/dense/VectorWindow;DD)V
-	public abstract fun routeOf (Lcom/eignex/koblas/vendor/VendorOperation;Ljava/util/List;)Lcom/eignex/koblas/vendor/CallRoute;
-	public static synthetic fun routeOf$default (Lcom/eignex/koblas/vendor/VendorBlas;Lcom/eignex/koblas/vendor/VendorOperation;Ljava/util/List;ILjava/lang/Object;)Lcom/eignex/koblas/vendor/CallRoute;
+	public abstract fun routeOf (Lcom/eignex/koblas/vendor/VendorOperation;Ljava/util/List;Ljava/util/List;)Lcom/eignex/koblas/vendor/CallRoute;
+	public static synthetic fun routeOf$default (Lcom/eignex/koblas/vendor/VendorBlas;Lcom/eignex/koblas/vendor/VendorOperation;Ljava/util/List;Ljava/util/List;ILjava/lang/Object;)Lcom/eignex/koblas/vendor/CallRoute;
 	public abstract fun scal (DLcom/eignex/koblas/dense/VectorWindow;)V
 	public abstract fun swap (Lcom/eignex/koblas/dense/VectorWindow;Lcom/eignex/koblas/dense/VectorWindow;)V
 	public abstract fun symm (DLcom/eignex/koblas/dense/MatrixWindow;Lcom/eignex/koblas/dense/MatrixWindow;DLcom/eignex/koblas/dense/MatrixWindow;Z)V
@@ -1065,7 +1065,7 @@ public abstract interface class com/eignex/koblas/vendor/VendorBlas {
 }
 
 public final class com/eignex/koblas/vendor/VendorBlas$DefaultImpls {
-	public static synthetic fun routeOf$default (Lcom/eignex/koblas/vendor/VendorBlas;Lcom/eignex/koblas/vendor/VendorOperation;Ljava/util/List;ILjava/lang/Object;)Lcom/eignex/koblas/vendor/CallRoute;
+	public static synthetic fun routeOf$default (Lcom/eignex/koblas/vendor/VendorBlas;Lcom/eignex/koblas/vendor/VendorOperation;Ljava/util/List;Ljava/util/List;ILjava/lang/Object;)Lcom/eignex/koblas/vendor/CallRoute;
 	public static synthetic fun symm$default (Lcom/eignex/koblas/vendor/VendorBlas;DLcom/eignex/koblas/dense/MatrixWindow;Lcom/eignex/koblas/dense/MatrixWindow;DLcom/eignex/koblas/dense/MatrixWindow;ZILjava/lang/Object;)V
 	public static synthetic fun trmm$default (Lcom/eignex/koblas/vendor/VendorBlas;DLcom/eignex/koblas/dense/MatrixWindow;Lcom/eignex/koblas/dense/MatrixWindow;ZILjava/lang/Object;)V
 	public static synthetic fun trsm$default (Lcom/eignex/koblas/vendor/VendorBlas;DLcom/eignex/koblas/dense/MatrixWindow;Lcom/eignex/koblas/dense/MatrixWindow;ZILjava/lang/Object;)V

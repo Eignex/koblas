@@ -25,6 +25,45 @@ public enum class ThreadEvidence {
 }
 
 /**
+ * How one vendor is held to a single compute thread, and whether that can be read back.
+ *
+ * Declared per vendor rather than discovered by trying a list of symbols and accepting whatever answers. The
+ * difference matters: a build of a known vendor that does not expose the control that vendor is supposed to
+ * have is not a build this binding understands, and accepting it because no symbol matched would turn the
+ * invariant into a hope. Such a library is refused instead.
+ */
+internal enum class ThreadControl(
+    /** The entry point that fixes the count, or null where the vendor has none. */
+    val setter: String?,
+    /** The entry point that reads it back, or null where the vendor cannot be asked. */
+    val getter: String?,
+    /**
+     * Whether the control being absent means the build simply has no threading.
+     *
+     * True only for OpenMP-based vendors. ArmPL ships a serial build alongside its `_mp` one, and the serial
+     * build links no OpenMP runtime at all, so the absence of `omp_set_num_threads` is positive evidence that
+     * there are no worker threads rather than a missing control. For every other vendor the control is part of
+     * the library and its absence is a library this code does not recognize.
+     */
+    val absenceMeansSerial: Boolean = false,
+) {
+    /** oneMKL, which additionally takes the sequential layer and has dynamic expansion switched off. */
+    Mkl("MKL_Set_Num_Threads", "MKL_Get_Max_Threads"),
+
+    /** OpenBLAS. */
+    OpenBlas("openblas_set_num_threads", "openblas_get_num_threads"),
+
+    /** AOCL, whose BLAS is BLIS. */
+    Blis("bli_thread_set_num_threads", "bli_thread_get_num_threads"),
+
+    /** ArmPL, which threads through OpenMP when it threads at all. */
+    OpenMp("omp_set_num_threads", "omp_get_max_threads", absenceMeansSerial = true),
+
+    /** Accelerate, which has no entry point either way and is held through the environment. */
+    Environment(null, null),
+}
+
+/**
  * The only lever Accelerate has for its thread count, and the value Koblas fixes it at.
  *
  * Accelerate exports no thread-count entry point, so unlike every other supported vendor it cannot be told how

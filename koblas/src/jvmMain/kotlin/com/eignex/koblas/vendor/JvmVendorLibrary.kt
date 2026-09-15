@@ -82,18 +82,19 @@ internal class JvmVendorLibrary private constructor(
      * layer.
      */
     private fun enforceSingleThread() {
-        if (vendor == Vendor.Accelerate) limitAccelerateThreads()
         // Every call below sits in statement position with its handle in a local. invokeExact converts
         // nothing, and both a safe call and a lambda's trailing expression give the site a boxed return type
         // that will not match a void descriptor.
-        val layer = handleOrNull("MKL_Set_Threading_Layer", FunctionDescriptor.of(JAVA_INT, JAVA_INT))
-        if (layer != null) layer.invokeExact(MKL_SEQUENTIAL) as Int
-        val dynamic = handleOrNull("MKL_Set_Dynamic", FunctionDescriptor.ofVoid(JAVA_INT))
-        if (dynamic != null) dynamic.invokeExact(0)
-        for (symbol in listOf("MKL_Set_Num_Threads", "openblas_set_num_threads", "bli_thread_set_num_threads")) {
-            val handle = handleOrNull(symbol, FunctionDescriptor.ofVoid(JAVA_INT))
-            if (handle != null) handle.invokeExact(1)
+        if (vendor.threadControl == ThreadControl.Environment) limitAccelerateThreads()
+        if (vendor.threadControl == ThreadControl.Mkl) {
+            val layer = handleOrNull("MKL_Set_Threading_Layer", FunctionDescriptor.of(JAVA_INT, JAVA_INT))
+            if (layer != null) layer.invokeExact(MKL_SEQUENTIAL) as Int
+            val dynamic = handleOrNull("MKL_Set_Dynamic", FunctionDescriptor.ofVoid(JAVA_INT))
+            if (dynamic != null) dynamic.invokeExact(0)
         }
+        val setter = vendor.threadControl.setter ?: return
+        val handle = handleOrNull(setter, FunctionDescriptor.ofVoid(JAVA_INT)) ?: return
+        handle.invokeExact(1)
     }
 
     /**
@@ -127,13 +128,24 @@ internal class JvmVendorLibrary private constructor(
      * arithmetic entirely rather than becoming a silently multithreaded arm.
      */
     fun confirmSingleThread(): Boolean {
-        for (symbol in listOf("MKL_Get_Max_Threads", "openblas_get_num_threads", "bli_thread_get_num_threads")) {
-            val handle = handleOrNull(symbol, FunctionDescriptor.of(JAVA_INT)) ?: continue
-            if ((handle.invokeExact() as Int) != 1) return false
+        val control = vendor.threadControl
+        val getter = control.getter
+        if (getter == null) {
+            // Accelerate, held through the environment and unable to answer. Declared, not discovered.
+            threadEvidence = ThreadEvidence.Unconfirmed
+            return true
+        }
+        val handle = handleOrNull(getter, FunctionDescriptor.of(JAVA_INT))
+        if (handle == null) {
+            // A build of a known vendor that lacks the control that vendor has is not one this code knows.
+            // The single exception is an OpenMP vendor with no OpenMP runtime linked, which is the serial
+            // build and has no workers to bound in the first place.
+            if (!control.absenceMeansSerial) return false
             threadEvidence = ThreadEvidence.Confirmed
             return true
         }
-        threadEvidence = ThreadEvidence.Unconfirmed
+        if ((handle.invokeExact() as Int) != 1) return false
+        threadEvidence = ThreadEvidence.Confirmed
         return true
     }
 

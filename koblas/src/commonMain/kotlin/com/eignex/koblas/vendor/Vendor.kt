@@ -25,6 +25,8 @@ public enum class Vendor(
     internal val candidates: List<String>,
     /** The file name this vendor takes when the optional module bundles it, or null when it never is. */
     internal val bundledFile: String?,
+    /** How this vendor is held to one compute thread; see [ThreadControl]. */
+    internal val threadControl: ThreadControl,
     /** Whether [select] may return this vendor. */
     internal val selectable: Boolean,
 ) {
@@ -46,6 +48,7 @@ public enum class Vendor(
         "Accelerate",
         listOf("/System/Library/Frameworks/Accelerate.framework/Accelerate"),
         bundledFile = null,
+        threadControl = ThreadControl.Environment,
         selectable = true,
     ),
 
@@ -67,6 +70,7 @@ public enum class Vendor(
             "/opt/intel/oneapi/mkl/latest/lib/libmkl_rt.so.3",
         ),
         bundledFile = "libmkl_rt.so.3",
+        threadControl = ThreadControl.Mkl,
         selectable = true,
     ),
 
@@ -75,14 +79,16 @@ public enum class Vendor(
         "AOCL",
         listOf("libblis-mt.so.4", "libblis-mt.so", "libblis.so.4", "libblis.so"),
         bundledFile = "libblis-mt.so.4",
+        threadControl = ThreadControl.Blis,
         selectable = true,
     ),
 
     /** Arm Performance Libraries, in its LP64 form. */
     ArmPl(
         "ArmPL",
-        listOf("libarmpl_lp64_mp.so", "libarmpl_lp64.so", "libarmpl.so"),
+        listOf("libarmpl_lp64.so", "libarmpl.so", "libarmpl_lp64_mp.so"),
         bundledFile = "libarmpl_lp64.so",
+        threadControl = ThreadControl.OpenMp,
         selectable = true,
     ),
 
@@ -91,6 +97,7 @@ public enum class Vendor(
         "OpenBLAS",
         listOf("libopenblas.so.0", "libopenblas.so"),
         bundledFile = null,
+        threadControl = ThreadControl.OpenBlas,
         selectable = false,
     ),
     ;

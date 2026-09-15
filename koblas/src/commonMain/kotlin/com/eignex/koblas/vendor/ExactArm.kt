@@ -1,6 +1,7 @@
 package com.eignex.koblas.vendor
 
 import com.eignex.koblas.dense.MatrixWindow
+import com.eignex.koblas.dense.VectorWindow
 
 /**
  * Why a call may not be timed as an exact measurement of [blas] running [operation], or null when it may.
@@ -21,11 +22,12 @@ public fun exactArmRejection(
     blas: VendorBlas,
     operation: VendorOperation,
     matrices: List<MatrixWindow> = emptyList(),
+    vectors: List<VectorWindow> = emptyList(),
 ): String? {
     if (operation !in blas.directlyImplemented) {
         return "${blas.vendor.vendorName} does not implement ${operation.entryPoint} directly"
     }
-    val route = blas.routeOf(operation, matrices)
+    val route = blas.routeOf(operation, matrices, vectors)
     if (route.kind != RouteKind.Direct) {
         return "route is ${route.kind.name.lowercase()}, not a direct call: ${route.reason ?: route}"
     }
