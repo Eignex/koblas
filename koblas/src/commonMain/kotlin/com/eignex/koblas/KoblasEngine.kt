@@ -21,11 +21,11 @@ public val koblas: KoblasEngine = run {
 }
 
 /**
- * An immutable dense and sparse BLAS engine.
+ * An immutable dense BLAS engine carrying the sparse Level 1 kernels beside it.
  *
  * The default [koblas] instance is selected once for the platform. Tests and benchmarks can construct an
  * exact scalar, C, or SIMD composition from [BuiltinEngines] without changing process-global state. Each
- * composition binds its dense vector, dense panel, packed tile, indexed sparse, and sparse panel kernels once.
+ * composition binds its dense vector, dense panel, packed tile, and indexed sparse kernels once.
  */
 public class KoblasEngine internal constructor(
     /** Standalone contiguous dense-vector kernels. */

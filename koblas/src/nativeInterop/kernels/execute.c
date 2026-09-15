@@ -307,13 +307,6 @@ int32_t koblas_dense_rotm_v1(uint32_t kernel_id, double *x, int32_t x_off, int32
     return KOBLAS_OK;
 }
 
-
-
-
-
-
-
-
 int32_t koblas_dense_trsm_tile_v1(uint32_t kernel_id, int32_t valid_rows, int32_t order, const double *packed_triangle, int32_t triangle_off, int32_t lower, int32_t unit_diag, double *x, int32_t x_off) {
     uint32_t reason = koblas_kernel_reason(kernel_id, KOBLAS_OP_DENSE_TRSM_TILE);
     if (reason != KOBLAS_OK) return (int32_t)reason;

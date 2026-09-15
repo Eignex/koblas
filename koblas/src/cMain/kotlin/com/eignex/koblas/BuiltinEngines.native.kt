@@ -42,8 +42,7 @@ public actual object BuiltinEngines {
     private fun nativeEngine(variant: NativeVariant): KoblasEngine {
         val bindings = NativeCKernelBindings(variant)
         val vector = NativeCVectorKernels(bindings)
-        // The dense kernels here are C; sparse Level 1 is scalar. The indexed C sparse paths that used to sit
-        // beside them are gone, so a C engine no longer implies a C answer for an indexed sparse call.
+        // The dense kernels here are C; sparse Level 1 is scalar, because no indexed C sparse leaf is bundled.
         return KoblasEngine(
             vector,
             NativeCPanelKernels(bindings),

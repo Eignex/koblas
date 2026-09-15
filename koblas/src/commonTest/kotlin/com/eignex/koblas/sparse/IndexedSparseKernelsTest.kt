@@ -55,8 +55,8 @@ class IndexedSparseKernelsTest {
     }
 
     @Test
-    fun `native gather retains ordered reads when buffers alias`() {
-        val kernels = BuiltinEngines.c?.indexedSparseKernels ?: return
+    fun `simd gather retains ordered reads when buffers alias`() {
+        val kernels = BuiltinEngines.simd?.indexedSparseKernels ?: return
         val indices = IntArray(33) { it }
         val expected = DoubleArray(40) { it.toDouble() }
         val actual = expected.copyOf()

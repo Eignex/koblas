@@ -785,11 +785,11 @@ public abstract interface class com/eignex/koblas/sparse/SparseKernels {
 
 public final class com/eignex/koblas/sparse/SparsePrimitives {
 	public static final field INSTANCE Lcom/eignex/koblas/sparse/SparsePrimitives;
-	public final fun activeMaximum ([II[DII[Z)D
-	public final fun gatherWorkspace ([III[D[II[DIZ[I)I
-	public final fun scatterWorkspace (D[II[DII[D[II[III)I
-	public final fun scatterWorkspaceChecked (D[II[DII[D[II[III[IIII)I
-	public final fun selectPivotCandidates ([II[DII[ZDD[II)I
+	public static final fun activeMaximum ([II[DII[Z)D
+	public static final fun gatherWorkspace ([III[D[II[DIZ[I)I
+	public static final fun scatterWorkspace (D[II[DII[D[II[III)I
+	public static final fun scatterWorkspaceChecked (D[II[DII[D[II[III[IIII)I
+	public static final fun selectPivotCandidates ([II[DII[ZDD[II)I
 }
 
 public final class com/eignex/koblas/vendor/Architecture : java/lang/Enum {

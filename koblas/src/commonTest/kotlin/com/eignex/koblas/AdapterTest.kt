@@ -5,9 +5,6 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 
 class AdapterTest {
-    // A foreign Matrix reached gemv here. Matrix arithmetic takes dense storage now, so an adapter is a
-    // vector-side concern; the cases below are the ones that remain.
-
     @Test
     fun `the vector reductions accept a foreign vector`() {
         val x = ForeignRampVector(9)

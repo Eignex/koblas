@@ -11,7 +11,7 @@ public operator fun DenseMatrix.times(other: DenseMatrix): DenseMatrix = koblas.
  * Matrix-vector product into a fresh dense result, against any [Vector].
  * [gemvInto] writes into a destination the caller owns, and provides the alpha and beta scalars.
  *
- * Dense storage only, for the reason [gemvInto] gives.
+ * Dense matrix storage, for the reason [gemvInto] gives.
  */
 @kotlin.jvm.JvmName("multiply")
 public operator fun DenseMatrix.times(x: Vector): DenseVector {

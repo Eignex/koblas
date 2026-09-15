@@ -9,13 +9,6 @@ import kotlin.test.fail
 /** Tolerance for a chain of a few dozen flops, relative to `max(1, |expected|)`. */
 internal const val TIGHT_TOLERANCE = 1e-12
 
-/** A non-koblas matrix storage used to exercise public adapter fallbacks. */
-internal class ForeignSpdMatrix(override val rows: Int) : Matrix {
-    override val cols: Int get() = rows
-    override fun get(i: Int, j: Int): Double = if (i == j) rows + 2.0 else 1.0 / (1 + i + j)
-    override fun toArray(): Array<DoubleArray> = Array(rows) { i -> DoubleArray(cols) { j -> this[i, j] } }
-}
-
 /** A non-koblas vector storage used to exercise public adapter fallbacks. */
 internal class ForeignRampVector(override val size: Int) : Vector {
     override fun get(i: Int): Double = i * 0.5 - 1.0

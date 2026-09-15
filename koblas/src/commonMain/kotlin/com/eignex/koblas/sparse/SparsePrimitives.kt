@@ -1,7 +1,6 @@
-@file:Suppress("NOTHING_TO_INLINE") // keep run-level extraction from adding a hot call per CSC slice or column
-
 package com.eignex.koblas.sparse
 
+import kotlin.jvm.JvmStatic
 import kotlin.math.abs
 
 /**
@@ -14,7 +13,8 @@ import kotlin.math.abs
  * dense scratch array paired with a mark array and an epoch, so a column is touched without clearing the whole
  * dimension: a mark that does not equal the current epoch means the accumulator entry is stale and is
  * overwritten rather than added to. The touched list records which entries an epoch reached, so clearing costs
- * what was written rather than the dimension.
+ * what was written rather than the dimension. An epoch is never zero, because a cleared mark is zero and an
+ * epoch that collided with it would read every cleared entry as live.
  *
  * Scatter input indices, and touched indices used by a gather, must be unique within their slices; reductions
  * explicitly permit repeated indices. Uniqueness is a caller precondition, because checking it without
@@ -30,8 +30,11 @@ public object SparsePrimitives {
      * An index whose mark is not [epoch] is treated as absent: the accumulator entry is set to positive zero,
      * marked, and appended to [touched] before the contribution is added. So a caller reuses one dense
      * accumulator across columns without clearing it, and [touched] names exactly what to clear afterwards.
+     *
+     * [epoch] must not be zero, which is the value a cleared mark holds.
      */
     @Suppress("LongParameterList")
+    @JvmStatic
     public fun scatterWorkspace(
         alpha: Double,
         indices: IntArray,
@@ -46,6 +49,7 @@ public object SparsePrimitives {
         touchedOffset: Int,
         touchedCount: Int,
     ): Int {
+        require(epoch != 0) { "scatter epoch must be nonzero" }
         var total = touchedCount
         for (k in 0 until count) {
             val index = indices[indexOffset + k]
@@ -69,6 +73,7 @@ public object SparsePrimitives {
      * pass over a column reports everything it saw and the caller decides what it means.
      */
     @Suppress("LongParameterList")
+    @JvmStatic
     public fun scatterWorkspaceChecked(
         alpha: Double,
         indices: IntArray,
@@ -87,6 +92,7 @@ public object SparsePrimitives {
         nonfiniteFlag: Int,
         underflowFlag: Int,
     ): Int {
+        require(epoch != 0) { "scatter epoch must be nonzero" }
         var flags = arithmeticStatus[statusOffset]
         var total = touchedCount
         for (k in 0 until count) {
@@ -119,6 +125,7 @@ public object SparsePrimitives {
      * same pass.
      */
     @Suppress("LongParameterList")
+    @JvmStatic
     public fun gatherWorkspace(
         touched: IntArray,
         touchedOffset: Int,
@@ -157,6 +164,7 @@ public object SparsePrimitives {
      * entry returns NaN immediately, because a magnitude comparison against it would answer arbitrarily.
      */
     @Suppress("LongParameterList")
+    @JvmStatic
     public fun activeMaximum(
         rowIndices: IntArray,
         indexOffset: Int,
@@ -182,8 +190,13 @@ public object SparsePrimitives {
      * a second search. An entry that is nonfinite or exactly zero is never a candidate. This reports what is
      * eligible; which candidate to take, and what the tolerances should be, is pivot policy and belongs to the
      * consumer that owns the factorization.
+     *
+     * Both tolerances must be finite and nonnegative. A NaN cutoff, which is what scaling [activeMaximum] by a
+     * relative threshold yields for a column holding a nonfinite entry, fails every comparison and so reports
+     * an empty candidate set rather than the column it came from.
      */
     @Suppress("LongParameterList")
+    @JvmStatic
     public fun selectPivotCandidates(
         rowIndices: IntArray,
         indexOffset: Int,

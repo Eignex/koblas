@@ -11,6 +11,6 @@ import kotlin.test.assertEquals
 class SparseTuningTest {
     @Test
     fun `the sparse crossovers keep their measured values`() {
-        assertEquals(4096, SparseTuning.dotDenseCCrossover)
+        assertEquals(16, SparseTuning.simdIndexedCrossover)
     }
 }

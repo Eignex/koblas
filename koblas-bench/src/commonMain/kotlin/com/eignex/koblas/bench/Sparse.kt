@@ -1,17 +1,11 @@
 package com.eignex.koblas.bench
 
-import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.KoblasEngine
-import com.eignex.koblas.SparseMatrix
 
 internal fun sparseWork(case: BenchCase, engine: KoblasEngine): CaseWork? {
     if (!case.operation.startsWith("sp")) return null
     val density = case.option("density", "0.01").toDouble()
     val d = case.dimensions
-    val lower = case.option("uplo", "L") == "L"
-    val transpose = case.flag("transA")
-    val unit = case.option("diag", "N") == "U"
-    val mode = case.option("mode", "oneshot")
     return when (case.operation) {
         "spdot" -> {
             val x = Fixtures.sparseVector(d[0], density, 1); val y = Fixtures.vector(d[0], 2)
@@ -85,5 +79,3 @@ internal fun sparseWork(case: BenchCase, engine: KoblasEngine): CaseWork? {
         else -> null
     }
 }
-
-
