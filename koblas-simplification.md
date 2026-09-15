@@ -6,6 +6,10 @@ Make Koblas a small Kotlin Multiplatform BLAS library backed by vendor implement
 sparse Level 1 kernels and storage primitives. Vendor BLAS owns complete dense Level 2 and Level 3 operations.
 The default implementation is selected once and cannot be replaced or configured at runtime.
 
+**Koblas supports single-threaded execution only.** Every operation, including vendor BLAS calls, must execute
+with one compute thread. Multithreaded BLAS execution is unsupported, not an optional mode or future migration
+deliverable. This applies to oneMKL, AOCL, ArmPL, Accelerate, and every benchmark arm.
+
 This is the sole architecture and implementation plan. The former SME plans are deleted; their useful numerical,
 storage, attribution, and measurement requirements are incorporated here. No SME/SME2 or future-ISA work remains.
 
@@ -105,6 +109,23 @@ on every input.
 - Use only measured, checked-in Level 1 crossover rules where JVM Vector API or scalar execution wins.
 - Do not reuse thresholds measured for the removed C kernels.
 
+### Single-threaded execution requirement
+
+- Use sequential vendor libraries where available. Otherwise establish the vendor's supported single-thread
+  configuration once before its first arithmetic call, including disabling dynamic thread expansion as needed.
+  A backend/configuration that cannot enforce single-threaded execution is unsupported.
+- Expose no thread-count setting, parallel execution policy, worker pool, or multithreaded algorithm. Do not
+  change process-global thread settings around individual operations or enable vendor defaults that add workers.
+- Package only dependencies required for the selected single-thread implementation. Do not add a parallel
+  runtime merely to offer multithreaded execution.
+- Bench runs each operation with one compute thread. No multithreaded benchmark modes, throughput scaling
+  suites, or calibration against multithreaded vendor calls. Verify and record the effective configuration;
+  fail a selected benchmark arm if it cannot establish single-threaded execution.
+- Independent callers may make separate calls on different application threads, with separate mutable storage
+  and workspaces. Reentrancy/lifetime tests cover that safety only; they do not introduce internal parallelism.
+  The parallel work tracks below describe implementation work and independent measurement hosts, not runtime
+  multithreading support.
+
 ArmPL supplies the Linux ARM64 dense BLAS backend on both JVM and Native, using the same common CBLAS declarations
 and 32-bit BLAS integer contract. Include its required runtime payload in the optional bundle and its exact arm
 in bench. Accelerate remains the macOS ARM64 default. This adds no new OS target or ISA-specific kernel code.
@@ -156,9 +177,8 @@ inline requirement for JVM helpers returning `DoubleVector` and the existing uni
 Package only the required vendor runtime components. Verify target architecture, ABI, dependent libraries,
 redistribution notices, and extraction/link behavior for the published JVM and Native artifacts. A Native
 optional module must provide a tested link/package integration; JVM classpath discovery does not demonstrate
-Native integration. Runtime payload presence must not require provider registration. Fix the threading policy
-explicitly, preserve the benchmark's one-thread comparison, and avoid changing global thread settings on each
-operation. Do not claim single-thread behavior without checking the loaded vendor configuration.
+Native integration. Runtime payload presence must not require provider registration. Enforce the single-threaded
+execution requirement in production and bench, and verify it against the actual loaded vendor configuration.
 
 ## Benchmark implementation identity
 
@@ -272,7 +292,7 @@ continue operating until its named cutover PR; do not bridge it to the new API o
 2. Record the final operation/overload matrix and common primitive signatures. Decide nonstandard APIs such as
    GEMMT and any stronger numerical contracts that vendor BLAS cannot provide.
 3. Fix the four-vendor loading/fallback order, supported targets, LP64 ABI, artifact coordinates/layout,
-   bundled-versus-installed precedence, threading, and missing-backend behavior. ArmPL owns Linux ARM64;
+   bundled-versus-installed precedence, single-thread enforcement, and missing-backend behavior. ArmPL owns Linux ARM64;
    Accelerate owns macOS ARM64. K4 supplies optional payloads to this final loader without provider registration.
 4. Define the small typed binding/route contract and final owning/view signatures. Assign one owner to shared
    declarations, common signatures, Gradle coordinates, and loader policy before others build against them.
@@ -284,7 +304,8 @@ continue operating until its named cutover PR; do not bridge it to the new API o
 1. Implement direct CBLAS bindings for oneMKL, AOCL, ArmPL, and Accelerate on the supported JVM/Native targets.
    Share declarations and common argument rules; keep symbol resolution and pointer handling platform-specific.
 2. Implement fixed installed-library loading and the final bundle lookup convention. Verify ABI, library/symbol
-   identity, missing/partial libraries, independent explicit instances, and safe memory lifetimes.
+   identity, missing/partial libraries, independent explicit instances, safe memory lifetimes, and single-thread
+   enforcement for every supported vendor. Unsupported threading configurations must not enter arithmetic.
 3. Prove whole GEMM and submatrix calls with transfer-inclusive JVM execution and Native pinning. Cover Level 1,
    structured and triangular signatures too; do not defer ABI errors until the dense default switches.
 4. Attach direct coverage and concrete route information to actual bound calls. Add deliberately misrouted tests
@@ -332,9 +353,10 @@ kernel machinery and compatibility code are gone; K4 has no deferred cleanup res
 ### K4 — Runtime bundle, calibration, and final integration
 
 1. Package the required oneMKL, AOCL, and ArmPL runtime payloads in the optional module. Test actual JVM artifact
-   extraction/loading and Native link/package behavior, target/ABI/runtime dependencies, and required notices.
+   extraction/loading and Native link/package behavior, target/ABI/runtime dependencies, single-thread execution,
+   and required notices. Select sequential payloads where available; do not bundle optional multithread modes.
    Accelerate continues to use the system framework. Exercise installed, bundled, and missing-vendor paths.
-2. Reconfirm binding-derived attribution and thread configuration on each measurement host. Run the slim dense
+2. Reconfirm binding-derived attribution and effective single-thread execution on each measurement host. Run the slim dense
    and sparse Level 1 suites plus representative dense Level 2–3, including Linux ARM64 ArmPL on JVM and Native.
 3. Measure scalar-versus-vendor and SIMD-versus-vendor independently, including transfers and held-out cases.
    Check in only justified fixed Level 1 rules with provenance. Preserve conservative choices for unmeasured
@@ -381,6 +403,8 @@ request. No separate cleanup, compatibility, or dependency-bump PR is planned.
   consumer integration. Follow each consumer repository's verification instructions when changing it.
 - Reproduce exact-route attribution failures in tests before trusting crossover reports. Confirm representative
   report rows against actual bound calls, not just formatted names.
+- Verify single-thread execution for every supported vendor and packaged artifact. Multithreaded execution,
+  configurable thread counts, and multithreaded benchmark arms fail the acceptance criteria.
 - Distinguish cross-build success, emulated correctness, real-hardware execution, and measured performance in
   support claims. Missing target evidence remains explicit; unrelated foundation work may proceed.
 - Completion requires consumers migrated, old layers removed, benchmark attribution enforced, optional packaging
