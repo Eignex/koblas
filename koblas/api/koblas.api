@@ -526,6 +526,7 @@ public abstract interface class com/eignex/koblas/dense/DenseVectorKernels {
 	public abstract fun dot ([DI[DII)D
 	public abstract fun getName ()Ljava/lang/String;
 	public abstract fun iamax ([DII)I
+	public fun implementationFor (Lcom/eignex/koblas/dense/DenseOperation;I)Ljava/lang/String;
 	public abstract fun nrm2 ([DII)D
 	public abstract fun rot ([DI[DIIDD)V
 	public abstract fun rotm ([DII[DIIILcom/eignex/koblas/ModifiedGivens;)V
@@ -534,6 +535,10 @@ public abstract interface class com/eignex/koblas/dense/DenseVectorKernels {
 	public abstract fun ssqd ([DI[DII)D
 	public abstract fun sum ([DII)D
 	public abstract fun swap ([DI[DII)V
+}
+
+public final class com/eignex/koblas/dense/DenseVectorKernels$DefaultImpls {
+	public static fun implementationFor (Lcom/eignex/koblas/dense/DenseVectorKernels;Lcom/eignex/koblas/dense/DenseOperation;I)Ljava/lang/String;
 }
 
 public final class com/eignex/koblas/dense/DepthContribution : java/lang/Enum {

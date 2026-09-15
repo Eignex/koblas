@@ -13,6 +13,10 @@ internal class PolicyVectorKernels(
     private fun selected(operation: DenseOperation, length: Int): DenseVectorKernels =
         if (dispatch.usesNative(operation, length)) native else runtime
 
+    // The component answers, not this policy: naming the policy would name something that never runs.
+    override fun implementationFor(operation: DenseOperation, length: Int): String? =
+        selected(operation, length).implementationFor(operation, length)
+
     override fun dot(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int): Double =
         selected(DenseOperation.Dot, len).dot(a, aOff, b, bOff, len)
 

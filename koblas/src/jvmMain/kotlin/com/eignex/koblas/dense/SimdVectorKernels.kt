@@ -26,6 +26,27 @@ internal object SimdVectorKernels : DenseVectorKernels {
 
     private fun vectorizes(len: Int): Boolean = simdAvailable && len >= lanes
 
+    override fun implementationFor(operation: DenseOperation, length: Int): String? = when (operation) {
+        // The square sum is tried first and abandoned for the rescaling loop when it leaves the normal range,
+        // so which kernel produces the norm depends on the values rather than on the width.
+        DenseOperation.Nrm2 -> if (vectorizes(length)) null else ScalarVectorKernels.name
+
+        // Both strides must be one, and a flagged identity returns without arithmetic, so a width is not enough.
+        DenseOperation.Rotm -> null
+
+        DenseOperation.Iamax ->
+            if (vectorizes(length) && length >= IAMAX_CROSSOVER) name else ScalarVectorKernels.name
+
+        DenseOperation.Dot, DenseOperation.Sum, DenseOperation.Ssqd, DenseOperation.Asum,
+        DenseOperation.Axpy, DenseOperation.Scale, DenseOperation.Swap, DenseOperation.Rot,
+        -> if (vectorizes(length)) name else ScalarVectorKernels.name
+
+        // Packed, panel and fused operations belong to the other kernel families.
+        DenseOperation.Dot4, DenseOperation.Axpy4, DenseOperation.DotAxpy, DenseOperation.AxpyArithmetic,
+        DenseOperation.GemmTile, DenseOperation.TrsmTile, DenseOperation.GemmTrsmTile,
+        -> null
+    }
+
     override fun dot(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int): Double =
         if (vectorizes(len)) SimdOps.dot(a, aOff, b, bOff, len) else scalarDot(a, aOff, b, bOff, len)
 

@@ -1,6 +1,7 @@
 package com.eignex.koblas.sparse
 
 import com.eignex.koblas.SparseVector
+import com.eignex.koblas.dense.DenseOperation
 import com.eignex.koblas.dense.DenseVectorKernels
 import com.eignex.koblas.internal.numeric.euclideanNorm
 import com.eignex.koblas.requireIndex
@@ -138,17 +139,31 @@ internal class SparseKernelAdapter(
     private val indexedSparseKernels: IndexedSparseKernels,
 ) : SparseKernels {
     override fun routeOf(operation: SparseOperation, count: Int): SparseRoute {
-        // A stored support is one contiguous run, so these two are dense reductions wearing a sparse name.
-        // Nothing falls back: the selected dense kernel is the implementation, and the route says which.
+        // A stored support is one contiguous run, so these two are dense reductions wearing a sparse name, and
+        // the dense kernels answer for them. Those dispatch in turn, so the selection name is not the answer.
         if (operation == SparseOperation.Nrm2 || operation == SparseOperation.Asum) {
-            val dense = denseVectorKernels.name
+            val dense = if (operation == SparseOperation.Nrm2) DenseOperation.Nrm2 else DenseOperation.Asum
+            val selection = denseVectorKernels.name
+            val run = "a contiguous run of stored values"
+            val reached = denseVectorKernels.implementationFor(dense, count)
+                ?: return SparseRoute(
+                    operation,
+                    RouteKind.Composed,
+                    selection,
+                    operation.entryPoint,
+                    run,
+                    "$selection decides ${operation.entryPoint} on the values, so no kernel is named beforehand",
+                )
+            if (reached == selection) {
+                return SparseRoute(operation, RouteKind.Direct, reached, operation.entryPoint, run, null)
+            }
             return SparseRoute(
                 operation,
-                RouteKind.Direct,
-                dense,
+                RouteKind.Delegated,
+                reached,
                 operation.entryPoint,
-                adapter = "a contiguous run of stored values",
-                reason = null,
+                reached,
+                "$selection runs ${operation.entryPoint} of $count entries in $reached",
             )
         }
         val reached = indexedSparseKernels.implementationFor(operation, count)
