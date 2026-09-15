@@ -16,6 +16,12 @@ public object JvmBenchmarkBridge {
     @JvmStatic
     public fun create(mode: String, caseId: String, casesPath: String): JvmCaseWork {
         val case = Cases.parse(readTextFile(casesPath)).single { it.id == caseId }
+        if (vendorFromMode(mode) != null) {
+            val arm = vendorArm(case, openVendorForMode(mode).first)
+            // The fork already accepted this case, so a rejection here means the arm changed between the
+            // scan and the measurement rather than that the case was never admissible.
+            return JvmCaseWork(arm.work ?: error("vendor arm declined $caseId in the measured fork: ${arm.reason}"))
+        }
         val engine = resolveEngine(mode).first
         val work = denseWork(case, engine) ?: sparseWork(case, engine)
             ?: error("unsupported case passed to JMH: $caseId")
@@ -25,27 +31,38 @@ public object JvmBenchmarkBridge {
 
 public fun main(args: Array<String>) {
     val settings = parseArguments(args)
-    require(settings.mode in setOf("jvm-c", "jvm-simd", "jvm-scalar") || settings.mode.startsWith("jvm-c-raw-")) { "JMH supports only JVM benchmark modes" }
+    val vendorMode = vendorFromMode(settings.mode) != null
+    require(
+        settings.mode in setOf("jvm-c", "jvm-simd", "jvm-scalar") ||
+            settings.mode.startsWith("jvm-c-raw-") || vendorMode,
+    ) { "JMH supports only JVM benchmark modes" }
     val allCases = Cases.parse(readTextFile(settings.casesPath))
     val selected = Cases.select(allCases, settings.suite, settings.operation)
-    val (engine, implementation) = resolveEngine(settings.mode)
+    val vendor = if (vendorMode) openVendorForMode(settings.mode) else null
+    val engine = if (vendorMode) null else resolveEngine(settings.mode).first
+    val implementation = vendor?.second ?: resolveEngine(settings.mode).second
     val supported = linkedMapOf<String, Pair<String, String>>()
+    val routes = linkedMapOf<String, com.eignex.koblas.vendor.CallRoute>()
     val rowsByCase = linkedMapOf<String, MutableList<Measurement>>()
     for (case in selected) {
-        val work = denseWork(case, engine) ?: sparseWork(case, engine)
+        // Routes are resolved here, before any timing, so describing a call costs nothing inside the
+        // measured loop and an inadmissible arm is declined rather than timed.
+        val arm = vendor?.let { vendorArm(case, it.first) }
+        val work = arm?.work ?: engine?.let { denseWork(case, it) ?: sparseWork(case, it) }
         if (work == null) {
             rowsByCase.getOrPut(case.id, ::arrayListOf) += measurement(
-                case, settings, 0, null, "unsupported", "unsupported",
+                case, settings, 0, null, "unsupported", arm?.reason ?: "unsupported",
                 case.option("mode", "arithmetic"),
             )
         } else {
             supported[case.id] = work.comparisonKind to work.timingMode
+            work.route?.let { routes[case.id] = it }
             work.close()
         }
     }
     if (supported.isNotEmpty()) {
         val results = Runner(jmhOptions(settings, supported.keys)).run()
-        appendJmhRows(rowsByCase, results, allCases.associateBy { it.id }, supported, settings)
+        appendJmhRows(rowsByCase, results, allCases.associateBy { it.id }, supported, settings, routes)
     }
     writeRows(settings, selected, rowsByCase)
     println("wrote ${selected.size} case summaries from ${rowsByCase.values.sumOf { rows -> rows.count { it.nanos != null } }} measurements to ${settings.outputPath}")
@@ -78,6 +95,7 @@ private fun appendJmhRows(
     cases: Map<String, BenchCase>,
     supported: Map<String, Pair<String, String>>,
     settings: Settings,
+    routes: Map<String, com.eignex.koblas.vendor.CallRoute>,
 ) {
     for (result in results.sortedBy { it.params.getParam("caseId") }) {
         val caseId = result.params.getParam("caseId")
@@ -91,7 +109,7 @@ private fun appendJmhRows(
                 "invalid JMH result for $caseId"
             }
             rowsByCase.getOrPut(caseId, ::arrayListOf) += measurement(
-                case, settings, ++sample, nanosPerOperation, "ok", comparison, timing,
+                case, settings, ++sample, nanosPerOperation, "ok", comparison, timing, routes[caseId],
             )
         }
         require(sample == settings.samples * settings.forks) { "JMH returned $sample samples for $caseId" }

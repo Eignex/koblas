@@ -25,16 +25,25 @@ internal data class Settings(
 
 public fun main(args: Array<String>) {
     val settings = parseArguments(args)
-    require(settings.mode == "native" || settings.mode.startsWith("native-raw-")) { "JVM benchmarks must run through the JMH entry point" }
+    val vendorMode = vendorFromMode(settings.mode) != null
+    require(settings.mode == "native" || settings.mode.startsWith("native-raw-") || vendorMode) {
+        "JVM benchmarks must run through the JMH entry point"
+    }
     val allCases = Cases.parse(readTextFile(settings.casesPath))
     val selected = Cases.select(allCases, settings.suite, settings.operation)
-    val (engine, implementation) = resolveEngine(settings.mode)
+    val vendor = if (vendorMode) openVendorForMode(settings.mode) else null
+    val engine = if (vendorMode) null else resolveEngine(settings.mode).first
+    val implementation = vendor?.second ?: resolveEngine(settings.mode).second
     val rows = ArrayList<Measurement>()
     var sink = 0.0
     for (case in selected) {
-        val work = denseWork(case, engine) ?: sparseWork(case, engine)
+        val arm = vendor?.let { vendorArm(case, it.first) }
+        val work = arm?.work ?: engine?.let { denseWork(case, it) ?: sparseWork(case, it) }
         if (work == null) {
-            rows += measurement(case, settings, 0, null, "unsupported", "unsupported", case.option("mode", "arithmetic"))
+            rows += measurement(
+                case, settings, 0, null, "unsupported",
+                arm?.reason ?: "unsupported", case.option("mode", "arithmetic"),
+            )
             continue
         }
         try {
@@ -45,7 +54,10 @@ public fun main(args: Array<String>) {
                 val start = nanoTime()
                 repeat(operations) { sink += work.run() }
                 val elapsed = max(1L, nanoTime() - start)
-                rows += measurement(case, settings, sample, elapsed.toDouble() / operations, "ok", work.comparisonKind, work.timingMode)
+                rows += measurement(
+                    case, settings, sample, elapsed.toDouble() / operations, "ok",
+                    work.comparisonKind, work.timingMode, work.route,
+                )
             }
         } finally {
             work.close()
@@ -110,8 +122,11 @@ internal fun parseArguments(args: Array<String>): Settings {
     val allowed = setOf("mode", "operation", "suite", "cases", "output", "warmups", "samples", "target-ms", "forks")
     require(values.keys.all { it in allowed }) { "unknown argument: ${values.keys.first { it !in allowed }}" }
     val mode = values["mode"] ?: error("--mode is required")
-    require(mode in setOf("jvm-c", "jvm-simd", "jvm-scalar", "native") || rawNativeVariant(mode) != null) {
-        "mode must be jvm-c, jvm-simd, jvm-scalar, or native"
+    require(
+        mode in setOf("jvm-c", "jvm-simd", "jvm-scalar", "native") ||
+            rawNativeVariant(mode) != null || vendorFromMode(mode) != null,
+    ) {
+        "mode must be jvm-c, jvm-simd, jvm-scalar, native, or a jvm-vendor-/native-vendor- arm"
     }
     val warmups = values["warmups"]?.toIntOrNull() ?: 3
     val samples = values["samples"]?.toIntOrNull() ?: 5
@@ -138,11 +153,16 @@ internal fun measurement(
     status: String,
     comparisonKind: String,
     timingMode: String,
+    route: com.eignex.koblas.vendor.CallRoute? = null,
 ): Measurement = Measurement(
     listOf(
         case.id, status, comparisonKind, timingMode,
-        if (status == "ok" && case.option("timing", "") == "reuse" && case.operation != "sparse-slices-reduce-dot-unchecked")
-            "portable-sparse-slices" else actualPackedKernel(case, settings.mode, status),
+        when {
+            route != null -> vendorKernel(route)
+            status == "ok" && case.option("timing", "") == "reuse" &&
+                case.operation != "sparse-slices-reduce-dot-unchecked" -> "portable-sparse-slices"
+            else -> actualPackedKernel(case, settings.mode, status)
+        },
     ),
     if (settings.mode.startsWith("jvm")) (sample - 1) / settings.samples + 1 else 1,
     nanos,

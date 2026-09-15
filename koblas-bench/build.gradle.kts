@@ -54,6 +54,11 @@ fun registerJvmBenchmark(name: String, mode: String, vectorModule: Boolean) = ta
     if (vectorModule) jvmArgs("--add-modules=jdk.incubator.vector")
 }
 
+// The vendor arms run the same cases through the production bindings rather than a separate C wrapper, so
+// what a row reports is the route of the call that was timed. Pick the library with -Pbench.vendor=NAME.
+val benchVendor = providers.gradleProperty("bench.vendor").orElse("onemkl")
+
+registerJvmBenchmark("jvmVendorBenchmark", "jvm-vendor-${benchVendor.get()}", vectorModule = false)
 registerJvmBenchmark("jvmCBenchmark", "jvm-c", vectorModule = false)
 registerJvmBenchmark("jvmCRawBenchmark", "jvm-c-raw-" + providers.gradleProperty("bench.variant").orElse("scalar").get(), vectorModule = false)
 registerJvmBenchmark("jvmSimdBenchmark", "jvm-simd", vectorModule = true)
@@ -74,6 +79,17 @@ tasks.register<Exec>("nativeBenchmark") {
     commandLine(layout.buildDirectory.file("bin/$targetDir/releaseExecutable/koblas-bench.kexe").get().asFile.absolutePath)
     workingDir(rootProject.projectDir)
     args(benchmarkArguments(providers.gradleProperty("bench.variant").map { "native-raw-$it" }.orElse("native").get(), jmh = false))
+}
+
+tasks.register<Exec>("nativeVendorBenchmark") {
+    group = "benchmark"
+    description = "Runs the shared cases through a vendor BLAS bound by the production Native binding."
+    require(hostTarget != null) { "native benchmarks are supported on Linux x86-64 and macOS arm64" }
+    dependsOn("linkReleaseExecutable$hostTarget")
+    val targetDir = hostTarget!!.replaceFirstChar(Char::lowercase)
+    commandLine(layout.buildDirectory.file("bin/$targetDir/releaseExecutable/koblas-bench.kexe").get().asFile.absolutePath)
+    workingDir(rootProject.projectDir)
+    args(benchmarkArguments("native-vendor-${benchVendor.get()}", jmh = false))
 }
 
 fun registerOpenBlasCompatibilityCheck(name: String, resolution: String) = tasks.register<Exec>(name) {
