@@ -98,6 +98,112 @@ final enum class com.eignex.koblas.dense/ProductEvaluation : kotlin/Enum<com.eig
     final fun values(): kotlin/Array<com.eignex.koblas.dense/ProductEvaluation> // com.eignex.koblas.dense/ProductEvaluation.values|values#static(){}[0]
 }
 
+final enum class com.eignex.koblas.vendor/Architecture : kotlin/Enum<com.eignex.koblas.vendor/Architecture> { // com.eignex.koblas.vendor/Architecture|null[0]
+    enum entry Arm64 // com.eignex.koblas.vendor/Architecture.Arm64|null[0]
+    enum entry Other // com.eignex.koblas.vendor/Architecture.Other|null[0]
+    enum entry X86_64 // com.eignex.koblas.vendor/Architecture.X86_64|null[0]
+
+    final val entries // com.eignex.koblas.vendor/Architecture.entries|#static{}entries[0]
+        final fun <get-entries>(): kotlin.enums/EnumEntries<com.eignex.koblas.vendor/Architecture> // com.eignex.koblas.vendor/Architecture.entries.<get-entries>|<get-entries>#static(){}[0]
+
+    final fun valueOf(kotlin/String): com.eignex.koblas.vendor/Architecture // com.eignex.koblas.vendor/Architecture.valueOf|valueOf#static(kotlin.String){}[0]
+    final fun values(): kotlin/Array<com.eignex.koblas.vendor/Architecture> // com.eignex.koblas.vendor/Architecture.values|values#static(){}[0]
+}
+
+final enum class com.eignex.koblas.vendor/CpuVendor : kotlin/Enum<com.eignex.koblas.vendor/CpuVendor> { // com.eignex.koblas.vendor/CpuVendor|null[0]
+    enum entry Amd // com.eignex.koblas.vendor/CpuVendor.Amd|null[0]
+    enum entry Intel // com.eignex.koblas.vendor/CpuVendor.Intel|null[0]
+    enum entry Unknown // com.eignex.koblas.vendor/CpuVendor.Unknown|null[0]
+
+    final val entries // com.eignex.koblas.vendor/CpuVendor.entries|#static{}entries[0]
+        final fun <get-entries>(): kotlin.enums/EnumEntries<com.eignex.koblas.vendor/CpuVendor> // com.eignex.koblas.vendor/CpuVendor.entries.<get-entries>|<get-entries>#static(){}[0]
+
+    final fun valueOf(kotlin/String): com.eignex.koblas.vendor/CpuVendor // com.eignex.koblas.vendor/CpuVendor.valueOf|valueOf#static(kotlin.String){}[0]
+    final fun values(): kotlin/Array<com.eignex.koblas.vendor/CpuVendor> // com.eignex.koblas.vendor/CpuVendor.values|values#static(){}[0]
+}
+
+final enum class com.eignex.koblas.vendor/OperatingSystem : kotlin/Enum<com.eignex.koblas.vendor/OperatingSystem> { // com.eignex.koblas.vendor/OperatingSystem|null[0]
+    enum entry Linux // com.eignex.koblas.vendor/OperatingSystem.Linux|null[0]
+    enum entry MacOs // com.eignex.koblas.vendor/OperatingSystem.MacOs|null[0]
+    enum entry Other // com.eignex.koblas.vendor/OperatingSystem.Other|null[0]
+
+    final val entries // com.eignex.koblas.vendor/OperatingSystem.entries|#static{}entries[0]
+        final fun <get-entries>(): kotlin.enums/EnumEntries<com.eignex.koblas.vendor/OperatingSystem> // com.eignex.koblas.vendor/OperatingSystem.entries.<get-entries>|<get-entries>#static(){}[0]
+
+    final fun valueOf(kotlin/String): com.eignex.koblas.vendor/OperatingSystem // com.eignex.koblas.vendor/OperatingSystem.valueOf|valueOf#static(kotlin.String){}[0]
+    final fun values(): kotlin/Array<com.eignex.koblas.vendor/OperatingSystem> // com.eignex.koblas.vendor/OperatingSystem.values|values#static(){}[0]
+}
+
+final enum class com.eignex.koblas.vendor/RouteKind : kotlin/Enum<com.eignex.koblas.vendor/RouteKind> { // com.eignex.koblas.vendor/RouteKind|null[0]
+    enum entry Composed // com.eignex.koblas.vendor/RouteKind.Composed|null[0]
+    enum entry Delegated // com.eignex.koblas.vendor/RouteKind.Delegated|null[0]
+    enum entry Direct // com.eignex.koblas.vendor/RouteKind.Direct|null[0]
+    enum entry NoWork // com.eignex.koblas.vendor/RouteKind.NoWork|null[0]
+    enum entry Unsupported // com.eignex.koblas.vendor/RouteKind.Unsupported|null[0]
+
+    final val entries // com.eignex.koblas.vendor/RouteKind.entries|#static{}entries[0]
+        final fun <get-entries>(): kotlin.enums/EnumEntries<com.eignex.koblas.vendor/RouteKind> // com.eignex.koblas.vendor/RouteKind.entries.<get-entries>|<get-entries>#static(){}[0]
+
+    final fun valueOf(kotlin/String): com.eignex.koblas.vendor/RouteKind // com.eignex.koblas.vendor/RouteKind.valueOf|valueOf#static(kotlin.String){}[0]
+    final fun values(): kotlin/Array<com.eignex.koblas.vendor/RouteKind> // com.eignex.koblas.vendor/RouteKind.values|values#static(){}[0]
+}
+
+final enum class com.eignex.koblas.vendor/Vendor : kotlin/Enum<com.eignex.koblas.vendor/Vendor> { // com.eignex.koblas.vendor/Vendor|null[0]
+    enum entry Accelerate // com.eignex.koblas.vendor/Vendor.Accelerate|null[0]
+    enum entry Aocl // com.eignex.koblas.vendor/Vendor.Aocl|null[0]
+    enum entry ArmPl // com.eignex.koblas.vendor/Vendor.ArmPl|null[0]
+    enum entry OneMkl // com.eignex.koblas.vendor/Vendor.OneMkl|null[0]
+    enum entry OpenBlas // com.eignex.koblas.vendor/Vendor.OpenBlas|null[0]
+
+    final val entries // com.eignex.koblas.vendor/Vendor.entries|#static{}entries[0]
+        final fun <get-entries>(): kotlin.enums/EnumEntries<com.eignex.koblas.vendor/Vendor> // com.eignex.koblas.vendor/Vendor.entries.<get-entries>|<get-entries>#static(){}[0]
+    final val vendorName // com.eignex.koblas.vendor/Vendor.vendorName|{}vendorName[0]
+        final fun <get-vendorName>(): kotlin/String // com.eignex.koblas.vendor/Vendor.vendorName.<get-vendorName>|<get-vendorName>(){}[0]
+
+    final fun valueOf(kotlin/String): com.eignex.koblas.vendor/Vendor // com.eignex.koblas.vendor/Vendor.valueOf|valueOf#static(kotlin.String){}[0]
+    final fun values(): kotlin/Array<com.eignex.koblas.vendor/Vendor> // com.eignex.koblas.vendor/Vendor.values|values#static(){}[0]
+
+    final object Companion { // com.eignex.koblas.vendor/Vendor.Companion|null[0]
+        final fun select(com.eignex.koblas.vendor/HostPlatform): kotlin.collections/List<com.eignex.koblas.vendor/Vendor> // com.eignex.koblas.vendor/Vendor.Companion.select|select(com.eignex.koblas.vendor.HostPlatform){}[0]
+    }
+}
+
+final enum class com.eignex.koblas.vendor/VendorOperation : kotlin/Enum<com.eignex.koblas.vendor/VendorOperation> { // com.eignex.koblas.vendor/VendorOperation|null[0]
+    enum entry Asum // com.eignex.koblas.vendor/VendorOperation.Asum|null[0]
+    enum entry Axpy // com.eignex.koblas.vendor/VendorOperation.Axpy|null[0]
+    enum entry Copy // com.eignex.koblas.vendor/VendorOperation.Copy|null[0]
+    enum entry Dot // com.eignex.koblas.vendor/VendorOperation.Dot|null[0]
+    enum entry Gemm // com.eignex.koblas.vendor/VendorOperation.Gemm|null[0]
+    enum entry Gemmt // com.eignex.koblas.vendor/VendorOperation.Gemmt|null[0]
+    enum entry Gemv // com.eignex.koblas.vendor/VendorOperation.Gemv|null[0]
+    enum entry Ger // com.eignex.koblas.vendor/VendorOperation.Ger|null[0]
+    enum entry Iamax // com.eignex.koblas.vendor/VendorOperation.Iamax|null[0]
+    enum entry Nrm2 // com.eignex.koblas.vendor/VendorOperation.Nrm2|null[0]
+    enum entry Rot // com.eignex.koblas.vendor/VendorOperation.Rot|null[0]
+    enum entry Scal // com.eignex.koblas.vendor/VendorOperation.Scal|null[0]
+    enum entry Swap // com.eignex.koblas.vendor/VendorOperation.Swap|null[0]
+    enum entry Symm // com.eignex.koblas.vendor/VendorOperation.Symm|null[0]
+    enum entry Symv // com.eignex.koblas.vendor/VendorOperation.Symv|null[0]
+    enum entry Syr // com.eignex.koblas.vendor/VendorOperation.Syr|null[0]
+    enum entry Syr2 // com.eignex.koblas.vendor/VendorOperation.Syr2|null[0]
+    enum entry Syr2k // com.eignex.koblas.vendor/VendorOperation.Syr2k|null[0]
+    enum entry Syrk // com.eignex.koblas.vendor/VendorOperation.Syrk|null[0]
+    enum entry Trmm // com.eignex.koblas.vendor/VendorOperation.Trmm|null[0]
+    enum entry Trmv // com.eignex.koblas.vendor/VendorOperation.Trmv|null[0]
+    enum entry Trsm // com.eignex.koblas.vendor/VendorOperation.Trsm|null[0]
+    enum entry Trsv // com.eignex.koblas.vendor/VendorOperation.Trsv|null[0]
+
+    final val entries // com.eignex.koblas.vendor/VendorOperation.entries|#static{}entries[0]
+        final fun <get-entries>(): kotlin.enums/EnumEntries<com.eignex.koblas.vendor/VendorOperation> // com.eignex.koblas.vendor/VendorOperation.entries.<get-entries>|<get-entries>#static(){}[0]
+    final val entryPoint // com.eignex.koblas.vendor/VendorOperation.entryPoint|{}entryPoint[0]
+        final fun <get-entryPoint>(): kotlin/String // com.eignex.koblas.vendor/VendorOperation.entryPoint.<get-entryPoint>|<get-entryPoint>(){}[0]
+    final val level // com.eignex.koblas.vendor/VendorOperation.level|{}level[0]
+        final fun <get-level>(): kotlin/Int // com.eignex.koblas.vendor/VendorOperation.level.<get-level>|<get-level>(){}[0]
+
+    final fun valueOf(kotlin/String): com.eignex.koblas.vendor/VendorOperation // com.eignex.koblas.vendor/VendorOperation.valueOf|valueOf#static(kotlin.String){}[0]
+    final fun values(): kotlin/Array<com.eignex.koblas.vendor/VendorOperation> // com.eignex.koblas.vendor/VendorOperation.values|values#static(){}[0]
+}
+
 final enum class com.eignex.koblas/NativeVariant : kotlin/Enum<com.eignex.koblas/NativeVariant> { // com.eignex.koblas/NativeVariant|null[0]
     enum entry AVX2 // com.eignex.koblas/NativeVariant.AVX2|null[0]
     enum entry NEON // com.eignex.koblas/NativeVariant.NEON|null[0]
@@ -208,6 +314,42 @@ abstract interface com.eignex.koblas.sparse/SparseKernels { // com.eignex.koblas
     abstract fun nrm2(kotlin/IntArray, kotlin/Int, kotlin/Int, kotlin/DoubleArray): kotlin/Double // com.eignex.koblas.sparse/SparseKernels.nrm2|nrm2(kotlin.IntArray;kotlin.Int;kotlin.Int;kotlin.DoubleArray){}[0]
     abstract fun scatter(com.eignex.koblas/SparseVector, kotlin/DoubleArray) // com.eignex.koblas.sparse/SparseKernels.scatter|scatter(com.eignex.koblas.SparseVector;kotlin.DoubleArray){}[0]
     abstract fun scatter(kotlin/IntArray, kotlin/Int, kotlin/DoubleArray, kotlin/Int, kotlin/Int, kotlin/DoubleArray) // com.eignex.koblas.sparse/SparseKernels.scatter|scatter(kotlin.IntArray;kotlin.Int;kotlin.DoubleArray;kotlin.Int;kotlin.Int;kotlin.DoubleArray){}[0]
+}
+
+abstract interface com.eignex.koblas.vendor/VendorBlas { // com.eignex.koblas.vendor/VendorBlas|null[0]
+    abstract val directlyImplemented // com.eignex.koblas.vendor/VendorBlas.directlyImplemented|{}directlyImplemented[0]
+        abstract fun <get-directlyImplemented>(): kotlin.collections/Set<com.eignex.koblas.vendor/VendorOperation> // com.eignex.koblas.vendor/VendorBlas.directlyImplemented.<get-directlyImplemented>|<get-directlyImplemented>(){}[0]
+    abstract val libraryPath // com.eignex.koblas.vendor/VendorBlas.libraryPath|{}libraryPath[0]
+        abstract fun <get-libraryPath>(): kotlin/String // com.eignex.koblas.vendor/VendorBlas.libraryPath.<get-libraryPath>|<get-libraryPath>(){}[0]
+    abstract val vendor // com.eignex.koblas.vendor/VendorBlas.vendor|{}vendor[0]
+        abstract fun <get-vendor>(): com.eignex.koblas.vendor/Vendor // com.eignex.koblas.vendor/VendorBlas.vendor.<get-vendor>|<get-vendor>(){}[0]
+    abstract val version // com.eignex.koblas.vendor/VendorBlas.version|{}version[0]
+        abstract fun <get-version>(): kotlin/String // com.eignex.koblas.vendor/VendorBlas.version.<get-version>|<get-version>(){}[0]
+
+    abstract fun asum(com.eignex.koblas.dense/VectorWindow): kotlin/Double // com.eignex.koblas.vendor/VendorBlas.asum|asum(com.eignex.koblas.dense.VectorWindow){}[0]
+    abstract fun axpy(kotlin/Double, com.eignex.koblas.dense/VectorWindow, com.eignex.koblas.dense/VectorWindow) // com.eignex.koblas.vendor/VendorBlas.axpy|axpy(kotlin.Double;com.eignex.koblas.dense.VectorWindow;com.eignex.koblas.dense.VectorWindow){}[0]
+    abstract fun copy(com.eignex.koblas.dense/VectorWindow, com.eignex.koblas.dense/VectorWindow) // com.eignex.koblas.vendor/VendorBlas.copy|copy(com.eignex.koblas.dense.VectorWindow;com.eignex.koblas.dense.VectorWindow){}[0]
+    abstract fun dot(com.eignex.koblas.dense/VectorWindow, com.eignex.koblas.dense/VectorWindow): kotlin/Double // com.eignex.koblas.vendor/VendorBlas.dot|dot(com.eignex.koblas.dense.VectorWindow;com.eignex.koblas.dense.VectorWindow){}[0]
+    abstract fun gemm(kotlin/Double, com.eignex.koblas.dense/MatrixWindow, com.eignex.koblas.dense/MatrixWindow, kotlin/Double, com.eignex.koblas.dense/MatrixWindow) // com.eignex.koblas.vendor/VendorBlas.gemm|gemm(kotlin.Double;com.eignex.koblas.dense.MatrixWindow;com.eignex.koblas.dense.MatrixWindow;kotlin.Double;com.eignex.koblas.dense.MatrixWindow){}[0]
+    abstract fun gemmt(kotlin/Double, com.eignex.koblas.dense/MatrixWindow, com.eignex.koblas.dense/MatrixWindow, kotlin/Double, com.eignex.koblas.dense/MatrixWindow) // com.eignex.koblas.vendor/VendorBlas.gemmt|gemmt(kotlin.Double;com.eignex.koblas.dense.MatrixWindow;com.eignex.koblas.dense.MatrixWindow;kotlin.Double;com.eignex.koblas.dense.MatrixWindow){}[0]
+    abstract fun gemv(kotlin/Double, com.eignex.koblas.dense/MatrixWindow, com.eignex.koblas.dense/VectorWindow, kotlin/Double, com.eignex.koblas.dense/VectorWindow) // com.eignex.koblas.vendor/VendorBlas.gemv|gemv(kotlin.Double;com.eignex.koblas.dense.MatrixWindow;com.eignex.koblas.dense.VectorWindow;kotlin.Double;com.eignex.koblas.dense.VectorWindow){}[0]
+    abstract fun ger(kotlin/Double, com.eignex.koblas.dense/VectorWindow, com.eignex.koblas.dense/VectorWindow, com.eignex.koblas.dense/MatrixWindow) // com.eignex.koblas.vendor/VendorBlas.ger|ger(kotlin.Double;com.eignex.koblas.dense.VectorWindow;com.eignex.koblas.dense.VectorWindow;com.eignex.koblas.dense.MatrixWindow){}[0]
+    abstract fun iamax(com.eignex.koblas.dense/VectorWindow): kotlin/Int // com.eignex.koblas.vendor/VendorBlas.iamax|iamax(com.eignex.koblas.dense.VectorWindow){}[0]
+    abstract fun nrm2(com.eignex.koblas.dense/VectorWindow): kotlin/Double // com.eignex.koblas.vendor/VendorBlas.nrm2|nrm2(com.eignex.koblas.dense.VectorWindow){}[0]
+    abstract fun rot(com.eignex.koblas.dense/VectorWindow, com.eignex.koblas.dense/VectorWindow, kotlin/Double, kotlin/Double) // com.eignex.koblas.vendor/VendorBlas.rot|rot(com.eignex.koblas.dense.VectorWindow;com.eignex.koblas.dense.VectorWindow;kotlin.Double;kotlin.Double){}[0]
+    abstract fun routeOf(com.eignex.koblas.vendor/VendorOperation, kotlin.collections/List<com.eignex.koblas.dense/MatrixWindow> = ...): com.eignex.koblas.vendor/CallRoute // com.eignex.koblas.vendor/VendorBlas.routeOf|routeOf(com.eignex.koblas.vendor.VendorOperation;kotlin.collections.List<com.eignex.koblas.dense.MatrixWindow>){}[0]
+    abstract fun scal(kotlin/Double, com.eignex.koblas.dense/VectorWindow) // com.eignex.koblas.vendor/VendorBlas.scal|scal(kotlin.Double;com.eignex.koblas.dense.VectorWindow){}[0]
+    abstract fun swap(com.eignex.koblas.dense/VectorWindow, com.eignex.koblas.dense/VectorWindow) // com.eignex.koblas.vendor/VendorBlas.swap|swap(com.eignex.koblas.dense.VectorWindow;com.eignex.koblas.dense.VectorWindow){}[0]
+    abstract fun symm(kotlin/Double, com.eignex.koblas.dense/MatrixWindow, com.eignex.koblas.dense/MatrixWindow, kotlin/Double, com.eignex.koblas.dense/MatrixWindow, kotlin/Boolean = ...) // com.eignex.koblas.vendor/VendorBlas.symm|symm(kotlin.Double;com.eignex.koblas.dense.MatrixWindow;com.eignex.koblas.dense.MatrixWindow;kotlin.Double;com.eignex.koblas.dense.MatrixWindow;kotlin.Boolean){}[0]
+    abstract fun symv(kotlin/Double, com.eignex.koblas.dense/MatrixWindow, com.eignex.koblas.dense/VectorWindow, kotlin/Double, com.eignex.koblas.dense/VectorWindow) // com.eignex.koblas.vendor/VendorBlas.symv|symv(kotlin.Double;com.eignex.koblas.dense.MatrixWindow;com.eignex.koblas.dense.VectorWindow;kotlin.Double;com.eignex.koblas.dense.VectorWindow){}[0]
+    abstract fun syr(kotlin/Double, com.eignex.koblas.dense/VectorWindow, com.eignex.koblas.dense/MatrixWindow) // com.eignex.koblas.vendor/VendorBlas.syr|syr(kotlin.Double;com.eignex.koblas.dense.VectorWindow;com.eignex.koblas.dense.MatrixWindow){}[0]
+    abstract fun syr2(kotlin/Double, com.eignex.koblas.dense/VectorWindow, com.eignex.koblas.dense/VectorWindow, com.eignex.koblas.dense/MatrixWindow) // com.eignex.koblas.vendor/VendorBlas.syr2|syr2(kotlin.Double;com.eignex.koblas.dense.VectorWindow;com.eignex.koblas.dense.VectorWindow;com.eignex.koblas.dense.MatrixWindow){}[0]
+    abstract fun syr2k(kotlin/Double, com.eignex.koblas.dense/MatrixWindow, com.eignex.koblas.dense/MatrixWindow, kotlin/Double, com.eignex.koblas.dense/MatrixWindow) // com.eignex.koblas.vendor/VendorBlas.syr2k|syr2k(kotlin.Double;com.eignex.koblas.dense.MatrixWindow;com.eignex.koblas.dense.MatrixWindow;kotlin.Double;com.eignex.koblas.dense.MatrixWindow){}[0]
+    abstract fun syrk(kotlin/Double, com.eignex.koblas.dense/MatrixWindow, kotlin/Double, com.eignex.koblas.dense/MatrixWindow) // com.eignex.koblas.vendor/VendorBlas.syrk|syrk(kotlin.Double;com.eignex.koblas.dense.MatrixWindow;kotlin.Double;com.eignex.koblas.dense.MatrixWindow){}[0]
+    abstract fun trmm(kotlin/Double, com.eignex.koblas.dense/MatrixWindow, com.eignex.koblas.dense/MatrixWindow, kotlin/Boolean = ...) // com.eignex.koblas.vendor/VendorBlas.trmm|trmm(kotlin.Double;com.eignex.koblas.dense.MatrixWindow;com.eignex.koblas.dense.MatrixWindow;kotlin.Boolean){}[0]
+    abstract fun trmv(com.eignex.koblas.dense/MatrixWindow, com.eignex.koblas.dense/VectorWindow) // com.eignex.koblas.vendor/VendorBlas.trmv|trmv(com.eignex.koblas.dense.MatrixWindow;com.eignex.koblas.dense.VectorWindow){}[0]
+    abstract fun trsm(kotlin/Double, com.eignex.koblas.dense/MatrixWindow, com.eignex.koblas.dense/MatrixWindow, kotlin/Boolean = ...) // com.eignex.koblas.vendor/VendorBlas.trsm|trsm(kotlin.Double;com.eignex.koblas.dense.MatrixWindow;com.eignex.koblas.dense.MatrixWindow;kotlin.Boolean){}[0]
+    abstract fun trsv(com.eignex.koblas.dense/MatrixWindow, com.eignex.koblas.dense/VectorWindow) // com.eignex.koblas.vendor/VendorBlas.trsv|trsv(com.eignex.koblas.dense.MatrixWindow;com.eignex.koblas.dense.VectorWindow){}[0]
 }
 
 abstract interface com.eignex.koblas/Matrix { // com.eignex.koblas/Matrix|null[0]
@@ -374,6 +516,38 @@ final class com.eignex.koblas.dense/VectorWindow { // com.eignex.koblas.dense/Ve
         final fun <get-stride>(): kotlin/Int // com.eignex.koblas.dense/VectorWindow.stride.<get-stride>|<get-stride>(){}[0]
 
     final fun get(kotlin/Int): kotlin/Double // com.eignex.koblas.dense/VectorWindow.get|get(kotlin.Int){}[0]
+}
+
+final class com.eignex.koblas.vendor/CallRoute { // com.eignex.koblas.vendor/CallRoute|null[0]
+    final val adapter // com.eignex.koblas.vendor/CallRoute.adapter|{}adapter[0]
+        final fun <get-adapter>(): kotlin/String? // com.eignex.koblas.vendor/CallRoute.adapter.<get-adapter>|<get-adapter>(){}[0]
+    final val entryPoint // com.eignex.koblas.vendor/CallRoute.entryPoint|{}entryPoint[0]
+        final fun <get-entryPoint>(): kotlin/String? // com.eignex.koblas.vendor/CallRoute.entryPoint.<get-entryPoint>|<get-entryPoint>(){}[0]
+    final val exactlyMeasurable // com.eignex.koblas.vendor/CallRoute.exactlyMeasurable|{}exactlyMeasurable[0]
+        final fun <get-exactlyMeasurable>(): kotlin/Boolean // com.eignex.koblas.vendor/CallRoute.exactlyMeasurable.<get-exactlyMeasurable>|<get-exactlyMeasurable>(){}[0]
+    final val kind // com.eignex.koblas.vendor/CallRoute.kind|{}kind[0]
+        final fun <get-kind>(): com.eignex.koblas.vendor/RouteKind // com.eignex.koblas.vendor/CallRoute.kind.<get-kind>|<get-kind>(){}[0]
+    final val operation // com.eignex.koblas.vendor/CallRoute.operation|{}operation[0]
+        final fun <get-operation>(): com.eignex.koblas.vendor/VendorOperation // com.eignex.koblas.vendor/CallRoute.operation.<get-operation>|<get-operation>(){}[0]
+    final val reason // com.eignex.koblas.vendor/CallRoute.reason|{}reason[0]
+        final fun <get-reason>(): kotlin/String? // com.eignex.koblas.vendor/CallRoute.reason.<get-reason>|<get-reason>(){}[0]
+    final val vendor // com.eignex.koblas.vendor/CallRoute.vendor|{}vendor[0]
+        final fun <get-vendor>(): com.eignex.koblas.vendor/Vendor? // com.eignex.koblas.vendor/CallRoute.vendor.<get-vendor>|<get-vendor>(){}[0]
+
+    final fun toString(): kotlin/String // com.eignex.koblas.vendor/CallRoute.toString|toString(){}[0]
+}
+
+final class com.eignex.koblas.vendor/HostPlatform { // com.eignex.koblas.vendor/HostPlatform|null[0]
+    constructor <init>(com.eignex.koblas.vendor/OperatingSystem, com.eignex.koblas.vendor/Architecture, com.eignex.koblas.vendor/CpuVendor) // com.eignex.koblas.vendor/HostPlatform.<init>|<init>(com.eignex.koblas.vendor.OperatingSystem;com.eignex.koblas.vendor.Architecture;com.eignex.koblas.vendor.CpuVendor){}[0]
+
+    final val architecture // com.eignex.koblas.vendor/HostPlatform.architecture|{}architecture[0]
+        final fun <get-architecture>(): com.eignex.koblas.vendor/Architecture // com.eignex.koblas.vendor/HostPlatform.architecture.<get-architecture>|<get-architecture>(){}[0]
+    final val cpuVendor // com.eignex.koblas.vendor/HostPlatform.cpuVendor|{}cpuVendor[0]
+        final fun <get-cpuVendor>(): com.eignex.koblas.vendor/CpuVendor // com.eignex.koblas.vendor/HostPlatform.cpuVendor.<get-cpuVendor>|<get-cpuVendor>(){}[0]
+    final val operatingSystem // com.eignex.koblas.vendor/HostPlatform.operatingSystem|{}operatingSystem[0]
+        final fun <get-operatingSystem>(): com.eignex.koblas.vendor/OperatingSystem // com.eignex.koblas.vendor/HostPlatform.operatingSystem.<get-operatingSystem>|<get-operatingSystem>(){}[0]
+
+    final fun toString(): kotlin/String // com.eignex.koblas.vendor/HostPlatform.toString|toString(){}[0]
 }
 
 final class com.eignex.koblas/DenseMatrix : com.eignex.koblas/MatrixStorage { // com.eignex.koblas/DenseMatrix|null[0]
@@ -809,6 +983,9 @@ final fun (com.eignex.koblas/Vector).com.eignex.koblas/norm2(): kotlin/Double //
 final fun (com.eignex.koblas/Vector).com.eignex.koblas/sum(): kotlin/Double // com.eignex.koblas/sum|sum@com.eignex.koblas.Vector(){}[0]
 final fun (kotlin/Double).com.eignex.koblas/times(com.eignex.koblas/DenseMatrix): com.eignex.koblas/DenseMatrix // com.eignex.koblas/times|times@kotlin.Double(com.eignex.koblas.DenseMatrix){}[0]
 final fun (kotlin/Double).com.eignex.koblas/times(com.eignex.koblas/DenseVector): com.eignex.koblas/DenseVector // com.eignex.koblas/times|times@kotlin.Double(com.eignex.koblas.DenseVector){}[0]
+final fun com.eignex.koblas.vendor/exactArmRejection(com.eignex.koblas.vendor/VendorBlas, com.eignex.koblas.vendor/VendorOperation, kotlin.collections/List<com.eignex.koblas.dense/MatrixWindow> = ...): kotlin/String? // com.eignex.koblas.vendor/exactArmRejection|exactArmRejection(com.eignex.koblas.vendor.VendorBlas;com.eignex.koblas.vendor.VendorOperation;kotlin.collections.List<com.eignex.koblas.dense.MatrixWindow>){}[0]
+final fun com.eignex.koblas.vendor/hostPlatform(): com.eignex.koblas.vendor/HostPlatform // com.eignex.koblas.vendor/hostPlatform|hostPlatform(){}[0]
+final fun com.eignex.koblas.vendor/openVendorBlas(com.eignex.koblas.vendor/Vendor? = ...): com.eignex.koblas.vendor/VendorBlas? // com.eignex.koblas.vendor/openVendorBlas|openVendorBlas(com.eignex.koblas.vendor.Vendor?){}[0]
 final fun com.eignex.koblas/copy(com.eignex.koblas/Vector, com.eignex.koblas/DenseVector) // com.eignex.koblas/copy|copy(com.eignex.koblas.Vector;com.eignex.koblas.DenseVector){}[0]
 final fun com.eignex.koblas/copy(com.eignex.koblas/Vector, com.eignex.koblas/StridedVectorView) // com.eignex.koblas/copy|copy(com.eignex.koblas.Vector;com.eignex.koblas.StridedVectorView){}[0]
 final fun com.eignex.koblas/gather(com.eignex.koblas/SparseVector, com.eignex.koblas/DenseVector) // com.eignex.koblas/gather|gather(com.eignex.koblas.SparseVector;com.eignex.koblas.DenseVector){}[0]

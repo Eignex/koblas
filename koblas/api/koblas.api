@@ -931,3 +931,164 @@ public final class com/eignex/koblas/sparse/SparseSlices {
 	public static final fun scatterAxpyChecked (D[II[DII[D[II[III[II)I
 }
 
+public final class com/eignex/koblas/vendor/Architecture : java/lang/Enum {
+	public static final field Arm64 Lcom/eignex/koblas/vendor/Architecture;
+	public static final field Other Lcom/eignex/koblas/vendor/Architecture;
+	public static final field X86_64 Lcom/eignex/koblas/vendor/Architecture;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lcom/eignex/koblas/vendor/Architecture;
+	public static fun values ()[Lcom/eignex/koblas/vendor/Architecture;
+}
+
+public final class com/eignex/koblas/vendor/CallRoute {
+	public final fun getAdapter ()Ljava/lang/String;
+	public final fun getEntryPoint ()Ljava/lang/String;
+	public final fun getExactlyMeasurable ()Z
+	public final fun getKind ()Lcom/eignex/koblas/vendor/RouteKind;
+	public final fun getOperation ()Lcom/eignex/koblas/vendor/VendorOperation;
+	public final fun getReason ()Ljava/lang/String;
+	public final fun getVendor ()Lcom/eignex/koblas/vendor/Vendor;
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/eignex/koblas/vendor/CpuVendor : java/lang/Enum {
+	public static final field Amd Lcom/eignex/koblas/vendor/CpuVendor;
+	public static final field Intel Lcom/eignex/koblas/vendor/CpuVendor;
+	public static final field Unknown Lcom/eignex/koblas/vendor/CpuVendor;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lcom/eignex/koblas/vendor/CpuVendor;
+	public static fun values ()[Lcom/eignex/koblas/vendor/CpuVendor;
+}
+
+public final class com/eignex/koblas/vendor/ExactArmKt {
+	public static final fun exactArmRejection (Lcom/eignex/koblas/vendor/VendorBlas;Lcom/eignex/koblas/vendor/VendorOperation;Ljava/util/List;)Ljava/lang/String;
+	public static synthetic fun exactArmRejection$default (Lcom/eignex/koblas/vendor/VendorBlas;Lcom/eignex/koblas/vendor/VendorOperation;Ljava/util/List;ILjava/lang/Object;)Ljava/lang/String;
+}
+
+public final class com/eignex/koblas/vendor/HostPlatform {
+	public fun <init> (Lcom/eignex/koblas/vendor/OperatingSystem;Lcom/eignex/koblas/vendor/Architecture;Lcom/eignex/koblas/vendor/CpuVendor;)V
+	public final fun getArchitecture ()Lcom/eignex/koblas/vendor/Architecture;
+	public final fun getCpuVendor ()Lcom/eignex/koblas/vendor/CpuVendor;
+	public final fun getOperatingSystem ()Lcom/eignex/koblas/vendor/OperatingSystem;
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/eignex/koblas/vendor/JvmVendorBlasKt {
+	public static final fun openVendorBlas (Lcom/eignex/koblas/vendor/Vendor;)Lcom/eignex/koblas/vendor/VendorBlas;
+	public static synthetic fun openVendorBlas$default (Lcom/eignex/koblas/vendor/Vendor;ILjava/lang/Object;)Lcom/eignex/koblas/vendor/VendorBlas;
+}
+
+public final class com/eignex/koblas/vendor/OperatingSystem : java/lang/Enum {
+	public static final field Linux Lcom/eignex/koblas/vendor/OperatingSystem;
+	public static final field MacOs Lcom/eignex/koblas/vendor/OperatingSystem;
+	public static final field Other Lcom/eignex/koblas/vendor/OperatingSystem;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lcom/eignex/koblas/vendor/OperatingSystem;
+	public static fun values ()[Lcom/eignex/koblas/vendor/OperatingSystem;
+}
+
+public final class com/eignex/koblas/vendor/Platform_jvmKt {
+	public static final fun hostPlatform ()Lcom/eignex/koblas/vendor/HostPlatform;
+}
+
+public final class com/eignex/koblas/vendor/RouteKind : java/lang/Enum {
+	public static final field Composed Lcom/eignex/koblas/vendor/RouteKind;
+	public static final field Delegated Lcom/eignex/koblas/vendor/RouteKind;
+	public static final field Direct Lcom/eignex/koblas/vendor/RouteKind;
+	public static final field NoWork Lcom/eignex/koblas/vendor/RouteKind;
+	public static final field Unsupported Lcom/eignex/koblas/vendor/RouteKind;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lcom/eignex/koblas/vendor/RouteKind;
+	public static fun values ()[Lcom/eignex/koblas/vendor/RouteKind;
+}
+
+public final class com/eignex/koblas/vendor/Vendor : java/lang/Enum {
+	public static final field Accelerate Lcom/eignex/koblas/vendor/Vendor;
+	public static final field Aocl Lcom/eignex/koblas/vendor/Vendor;
+	public static final field ArmPl Lcom/eignex/koblas/vendor/Vendor;
+	public static final field Companion Lcom/eignex/koblas/vendor/Vendor$Companion;
+	public static final field OneMkl Lcom/eignex/koblas/vendor/Vendor;
+	public static final field OpenBlas Lcom/eignex/koblas/vendor/Vendor;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public final fun getVendorName ()Ljava/lang/String;
+	public static fun valueOf (Ljava/lang/String;)Lcom/eignex/koblas/vendor/Vendor;
+	public static fun values ()[Lcom/eignex/koblas/vendor/Vendor;
+}
+
+public final class com/eignex/koblas/vendor/Vendor$Companion {
+	public final fun select (Lcom/eignex/koblas/vendor/HostPlatform;)Ljava/util/List;
+}
+
+public abstract interface class com/eignex/koblas/vendor/VendorBlas {
+	public abstract fun asum (Lcom/eignex/koblas/dense/VectorWindow;)D
+	public abstract fun axpy (DLcom/eignex/koblas/dense/VectorWindow;Lcom/eignex/koblas/dense/VectorWindow;)V
+	public abstract fun copy (Lcom/eignex/koblas/dense/VectorWindow;Lcom/eignex/koblas/dense/VectorWindow;)V
+	public abstract fun dot (Lcom/eignex/koblas/dense/VectorWindow;Lcom/eignex/koblas/dense/VectorWindow;)D
+	public abstract fun gemm (DLcom/eignex/koblas/dense/MatrixWindow;Lcom/eignex/koblas/dense/MatrixWindow;DLcom/eignex/koblas/dense/MatrixWindow;)V
+	public abstract fun gemmt (DLcom/eignex/koblas/dense/MatrixWindow;Lcom/eignex/koblas/dense/MatrixWindow;DLcom/eignex/koblas/dense/MatrixWindow;)V
+	public abstract fun gemv (DLcom/eignex/koblas/dense/MatrixWindow;Lcom/eignex/koblas/dense/VectorWindow;DLcom/eignex/koblas/dense/VectorWindow;)V
+	public abstract fun ger (DLcom/eignex/koblas/dense/VectorWindow;Lcom/eignex/koblas/dense/VectorWindow;Lcom/eignex/koblas/dense/MatrixWindow;)V
+	public abstract fun getDirectlyImplemented ()Ljava/util/Set;
+	public abstract fun getLibraryPath ()Ljava/lang/String;
+	public abstract fun getVendor ()Lcom/eignex/koblas/vendor/Vendor;
+	public abstract fun getVersion ()Ljava/lang/String;
+	public abstract fun iamax (Lcom/eignex/koblas/dense/VectorWindow;)I
+	public abstract fun nrm2 (Lcom/eignex/koblas/dense/VectorWindow;)D
+	public abstract fun rot (Lcom/eignex/koblas/dense/VectorWindow;Lcom/eignex/koblas/dense/VectorWindow;DD)V
+	public abstract fun routeOf (Lcom/eignex/koblas/vendor/VendorOperation;Ljava/util/List;)Lcom/eignex/koblas/vendor/CallRoute;
+	public static synthetic fun routeOf$default (Lcom/eignex/koblas/vendor/VendorBlas;Lcom/eignex/koblas/vendor/VendorOperation;Ljava/util/List;ILjava/lang/Object;)Lcom/eignex/koblas/vendor/CallRoute;
+	public abstract fun scal (DLcom/eignex/koblas/dense/VectorWindow;)V
+	public abstract fun swap (Lcom/eignex/koblas/dense/VectorWindow;Lcom/eignex/koblas/dense/VectorWindow;)V
+	public abstract fun symm (DLcom/eignex/koblas/dense/MatrixWindow;Lcom/eignex/koblas/dense/MatrixWindow;DLcom/eignex/koblas/dense/MatrixWindow;Z)V
+	public static synthetic fun symm$default (Lcom/eignex/koblas/vendor/VendorBlas;DLcom/eignex/koblas/dense/MatrixWindow;Lcom/eignex/koblas/dense/MatrixWindow;DLcom/eignex/koblas/dense/MatrixWindow;ZILjava/lang/Object;)V
+	public abstract fun symv (DLcom/eignex/koblas/dense/MatrixWindow;Lcom/eignex/koblas/dense/VectorWindow;DLcom/eignex/koblas/dense/VectorWindow;)V
+	public abstract fun syr (DLcom/eignex/koblas/dense/VectorWindow;Lcom/eignex/koblas/dense/MatrixWindow;)V
+	public abstract fun syr2 (DLcom/eignex/koblas/dense/VectorWindow;Lcom/eignex/koblas/dense/VectorWindow;Lcom/eignex/koblas/dense/MatrixWindow;)V
+	public abstract fun syr2k (DLcom/eignex/koblas/dense/MatrixWindow;Lcom/eignex/koblas/dense/MatrixWindow;DLcom/eignex/koblas/dense/MatrixWindow;)V
+	public abstract fun syrk (DLcom/eignex/koblas/dense/MatrixWindow;DLcom/eignex/koblas/dense/MatrixWindow;)V
+	public abstract fun trmm (DLcom/eignex/koblas/dense/MatrixWindow;Lcom/eignex/koblas/dense/MatrixWindow;Z)V
+	public static synthetic fun trmm$default (Lcom/eignex/koblas/vendor/VendorBlas;DLcom/eignex/koblas/dense/MatrixWindow;Lcom/eignex/koblas/dense/MatrixWindow;ZILjava/lang/Object;)V
+	public abstract fun trmv (Lcom/eignex/koblas/dense/MatrixWindow;Lcom/eignex/koblas/dense/VectorWindow;)V
+	public abstract fun trsm (DLcom/eignex/koblas/dense/MatrixWindow;Lcom/eignex/koblas/dense/MatrixWindow;Z)V
+	public static synthetic fun trsm$default (Lcom/eignex/koblas/vendor/VendorBlas;DLcom/eignex/koblas/dense/MatrixWindow;Lcom/eignex/koblas/dense/MatrixWindow;ZILjava/lang/Object;)V
+	public abstract fun trsv (Lcom/eignex/koblas/dense/MatrixWindow;Lcom/eignex/koblas/dense/VectorWindow;)V
+}
+
+public final class com/eignex/koblas/vendor/VendorBlas$DefaultImpls {
+	public static synthetic fun routeOf$default (Lcom/eignex/koblas/vendor/VendorBlas;Lcom/eignex/koblas/vendor/VendorOperation;Ljava/util/List;ILjava/lang/Object;)Lcom/eignex/koblas/vendor/CallRoute;
+	public static synthetic fun symm$default (Lcom/eignex/koblas/vendor/VendorBlas;DLcom/eignex/koblas/dense/MatrixWindow;Lcom/eignex/koblas/dense/MatrixWindow;DLcom/eignex/koblas/dense/MatrixWindow;ZILjava/lang/Object;)V
+	public static synthetic fun trmm$default (Lcom/eignex/koblas/vendor/VendorBlas;DLcom/eignex/koblas/dense/MatrixWindow;Lcom/eignex/koblas/dense/MatrixWindow;ZILjava/lang/Object;)V
+	public static synthetic fun trsm$default (Lcom/eignex/koblas/vendor/VendorBlas;DLcom/eignex/koblas/dense/MatrixWindow;Lcom/eignex/koblas/dense/MatrixWindow;ZILjava/lang/Object;)V
+}
+
+public final class com/eignex/koblas/vendor/VendorOperation : java/lang/Enum {
+	public static final field Asum Lcom/eignex/koblas/vendor/VendorOperation;
+	public static final field Axpy Lcom/eignex/koblas/vendor/VendorOperation;
+	public static final field Copy Lcom/eignex/koblas/vendor/VendorOperation;
+	public static final field Dot Lcom/eignex/koblas/vendor/VendorOperation;
+	public static final field Gemm Lcom/eignex/koblas/vendor/VendorOperation;
+	public static final field Gemmt Lcom/eignex/koblas/vendor/VendorOperation;
+	public static final field Gemv Lcom/eignex/koblas/vendor/VendorOperation;
+	public static final field Ger Lcom/eignex/koblas/vendor/VendorOperation;
+	public static final field Iamax Lcom/eignex/koblas/vendor/VendorOperation;
+	public static final field Nrm2 Lcom/eignex/koblas/vendor/VendorOperation;
+	public static final field Rot Lcom/eignex/koblas/vendor/VendorOperation;
+	public static final field Scal Lcom/eignex/koblas/vendor/VendorOperation;
+	public static final field Swap Lcom/eignex/koblas/vendor/VendorOperation;
+	public static final field Symm Lcom/eignex/koblas/vendor/VendorOperation;
+	public static final field Symv Lcom/eignex/koblas/vendor/VendorOperation;
+	public static final field Syr Lcom/eignex/koblas/vendor/VendorOperation;
+	public static final field Syr2 Lcom/eignex/koblas/vendor/VendorOperation;
+	public static final field Syr2k Lcom/eignex/koblas/vendor/VendorOperation;
+	public static final field Syrk Lcom/eignex/koblas/vendor/VendorOperation;
+	public static final field Trmm Lcom/eignex/koblas/vendor/VendorOperation;
+	public static final field Trmv Lcom/eignex/koblas/vendor/VendorOperation;
+	public static final field Trsm Lcom/eignex/koblas/vendor/VendorOperation;
+	public static final field Trsv Lcom/eignex/koblas/vendor/VendorOperation;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public final fun getEntryPoint ()Ljava/lang/String;
+	public final fun getLevel ()I
+	public static fun valueOf (Ljava/lang/String;)Lcom/eignex/koblas/vendor/VendorOperation;
+	public static fun values ()[Lcom/eignex/koblas/vendor/VendorOperation;
+}
+
