@@ -9,6 +9,8 @@ import java.lang.foreign.ValueLayout.ADDRESS
 import java.lang.foreign.ValueLayout.JAVA_DOUBLE
 import java.lang.foreign.ValueLayout.JAVA_INT
 import java.lang.invoke.MethodHandle
+import java.nio.file.Files
+import java.nio.file.attribute.PosixFilePermissions
 
 /**
  * One opened vendor library and the symbols bound out of it.
@@ -80,6 +82,7 @@ internal class JvmVendorLibrary private constructor(
      * layer.
      */
     private fun enforceSingleThread() {
+        if (vendor == Vendor.Accelerate) limitAccelerateThreads()
         // Every call below sits in statement position with its handle in a local. invokeExact converts
         // nothing, and both a safe call and a lambda's trailing expression give the site a boxed return type
         // that will not match a void descriptor.
@@ -90,6 +93,26 @@ internal class JvmVendorLibrary private constructor(
         for (symbol in listOf("MKL_Set_Num_Threads", "openblas_set_num_threads", "bli_thread_set_num_threads")) {
             val handle = handleOrNull(symbol, FunctionDescriptor.ofVoid(JAVA_INT))
             if (handle != null) handle.invokeExact(1)
+        }
+    }
+
+    /**
+     * Sets Accelerate's thread limit in this process, before Accelerate performs any arithmetic.
+     *
+     * The JVM cannot change its own environment through `System.getenv`, so this reaches libc's `setenv`
+     * directly. Overwrite is on: a value inherited from the launching shell must not be able to weaken the
+     * invariant. See [ACCELERATE_THREAD_LIMIT] for why this is the only lever available.
+     */
+    private fun limitAccelerateThreads() {
+        val address = linker.defaultLookup().find("setenv").orElse(null) ?: return
+        val handle = linker.downcallHandle(
+            address,
+            FunctionDescriptor.of(JAVA_INT, ADDRESS, ADDRESS, JAVA_INT),
+        )
+        Arena.ofConfined().use { arena ->
+            val name = arena.allocateFrom(ACCELERATE_THREAD_LIMIT)
+            val value = arena.allocateFrom("1")
+            handle.invokeExact(name, value, 1) as Int
         }
     }
 
@@ -211,6 +234,38 @@ internal class JvmVendorLibrary private constructor(
         private const val PATH_BYTES = 4096L
 
         /**
+         * The extracted path of a bundled payload for [vendor], or null when the optional module is absent.
+         *
+         * Tried after every installed candidate, because an installed library is the one the operator chose;
+         * see [Bundle]. The payload has to reach the filesystem before it can be opened, since a library is
+         * loaded by path and not from a jar, and it is extracted with the same private permissions and
+         * delete-on-exit handling the bundled kernels use.
+         */
+        private fun bundled(vendor: Vendor): String? {
+            val resource = Bundle.path(vendor, hostPlatform()) ?: return null
+            val loader = Thread.currentThread().contextClassLoader ?: JvmVendorLibrary::class.java.classLoader
+            val stream = loader.getResourceAsStream(resource) ?: return null
+            return try {
+                val directory = Files.createTempDirectory("koblas-vendor-${vendor.name.lowercase()}-")
+                secure(directory, "rwx------")
+                val destination = directory.resolve(vendor.bundledFile!!)
+                stream.use { Files.copy(it, destination) }
+                secure(destination, "rw-------")
+                destination.toFile().deleteOnExit()
+                directory.toFile().deleteOnExit()
+                destination.toString()
+            } catch (_: java.io.IOException) {
+                null
+            }
+        }
+
+        private fun secure(path: java.nio.file.Path, permissions: String) {
+            runCatching {
+                Files.setPosixFilePermissions(path, PosixFilePermissions.fromString(permissions))
+            }
+        }
+
+        /**
          * Opens the first candidate of [vendor] that loads and exports every required CBLAS symbol, or null.
          *
          * A library that opens but is missing part of the surface is rejected rather than half-bound, so a
@@ -225,7 +280,8 @@ internal class JvmVendorLibrary private constructor(
             } catch (_: UnsupportedOperationException) {
                 return null
             }
-            for (candidate in vendor.resolvedCandidates(System.getProperty("user.home"))) {
+            val installed = vendor.resolvedCandidates(System.getProperty("user.home"))
+            for (candidate in installed + listOfNotNull(bundled(vendor))) {
                 val lookup = try {
                     SymbolLookup.libraryLookup(candidate, Arena.global())
                 } catch (_: IllegalArgumentException) {

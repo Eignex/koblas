@@ -58,6 +58,41 @@ class VendorLoadingTest {
     }
 
     @Test
+    fun `a bundled payload has one path that both runtimes read the same way`() {
+        val linux = HostPlatform(OperatingSystem.Linux, Architecture.X86_64, CpuVendor.Intel)
+        val arm = HostPlatform(OperatingSystem.Linux, Architecture.Arm64, CpuVendor.Unknown)
+
+        assertEquals("com/eignex/koblas/vendor/linux-x86_64/libmkl_rt.so.3", Bundle.path(Vendor.OneMkl, linux))
+        assertEquals("com/eignex/koblas/vendor/linux-arm64/libarmpl_lp64.so", Bundle.path(Vendor.ArmPl, arm))
+        assertEquals("com/eignex/koblas/vendor/linux-x86_64/libblis-mt.so.4", Bundle.path(Vendor.Aocl, linux))
+    }
+
+    @Test
+    fun `what is never bundled has no bundled path`() {
+        val macos = HostPlatform(OperatingSystem.MacOs, Architecture.Arm64, CpuVendor.Unknown)
+        val unsupported = HostPlatform(OperatingSystem.Other, Architecture.Other, CpuVendor.Unknown)
+
+        // Accelerate is part of the system and OpenBLAS is a bench reference, so neither ships a payload.
+        assertEquals(null, Bundle.path(Vendor.Accelerate, macos))
+        assertEquals(null, Bundle.path(Vendor.OpenBlas, macos))
+        assertEquals(null, Bundle.path(Vendor.OneMkl, unsupported))
+        assertEquals(null, Bundle.platform(unsupported))
+    }
+
+    @Test
+    fun `an installed library is preferred over a bundled one`() {
+        val blas = installed() ?: return skipped("bundled precedence")
+
+        // Nothing bundles a payload into this artifact, so a resolved library is necessarily an installed one,
+        // and its path is a real file rather than an extraction of a packaged resource.
+        assertTrue(blas.libraryPath.startsWith("/"), "resolved ${blas.libraryPath}")
+        assertTrue(
+            !blas.libraryPath.contains("koblas-vendor-"),
+            "an extracted payload was preferred over an installed library at ${blas.libraryPath}",
+        )
+    }
+
+    @Test
     fun `two instances of one vendor are independent of each other`() {
         val first = installed() ?: return skipped("independent instances")
         val second = assertNotNull(openVendorBlas(first.vendor), "the same vendor failed to open twice")

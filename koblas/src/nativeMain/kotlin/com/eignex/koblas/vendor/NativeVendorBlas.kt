@@ -13,15 +13,19 @@ import kotlinx.cinterop.CPointer
 import kotlinx.cinterop.CPointerVar
 import kotlinx.cinterop.DoubleVar
 import kotlinx.cinterop.allocArray
+import kotlinx.cinterop.convert
 import kotlinx.cinterop.get
 import kotlinx.cinterop.invoke
 import kotlinx.cinterop.memScoped
 import kotlinx.cinterop.reinterpret
+import kotlinx.cinterop.set
 import kotlinx.cinterop.toKString
 import platform.posix.RTLD_NOW
 import platform.posix.dlopen
 import platform.posix.dlsym
 import platform.posix.getenv
+import platform.posix.readlink
+import platform.posix.setenv
 import kotlin.math.abs
 
 private typealias Ptr = CPointer<DoubleVar>
@@ -110,6 +114,9 @@ internal class NativeVendorBlas private constructor(
      * layer.
      */
     private fun enforceSingleThread() {
+        // Accelerate has no thread-count entry point; see ACCELERATE_THREAD_LIMIT. Overwrite is on so a value
+        // inherited from the launching shell cannot weaken the invariant.
+        if (vendor == Vendor.Accelerate) setenv(ACCELERATE_THREAD_LIMIT, "1", 1)
         dlsym(handle, "MKL_Set_Threading_Layer")?.reinterpret<SetLayerFn>()?.invoke(MKL_SEQUENTIAL)
         dlsym(handle, "MKL_Set_Dynamic")?.reinterpret<SetThreadsFn>()?.invoke(0)
         for (symbol in listOf("MKL_Set_Num_Threads", "openblas_set_num_threads", "bli_thread_set_num_threads")) {
@@ -658,13 +665,40 @@ internal class NativeVendorBlas private constructor(
         private const val DL_INFO_BYTES = 32
 
         /**
+         * Where a bundled payload for [vendor] would sit beside a Native executable, or nothing when the
+         * combination is never bundled.
+         *
+         * Tried after every installed candidate, because an installed library is the one the operator chose;
+         * see [Bundle]. A Native binary has no classpath, so the same layout the JVM module publishes as
+         * resources is looked for on disk, relative to the working directory and to the executable itself.
+         * A path that does not exist simply fails to open and the search moves on.
+         */
+        private fun bundled(vendor: Vendor): List<String> {
+            val relative = Bundle.path(vendor, hostPlatform()) ?: return emptyList()
+            val roots = listOfNotNull(".", executableDirectory())
+            return roots.map { "$it/$relative" }
+        }
+
+        /** The directory holding this executable, read from the link the kernel maintains. */
+        private fun executableDirectory(): String? = memScoped {
+            val buffer = allocArray<ByteVar>(PATH_BYTES)
+            val length = readlink("/proc/self/exe", buffer, (PATH_BYTES - 1).convert())
+            if (length <= 0) return@memScoped null
+            buffer[length] = 0
+            buffer.toKString().substringBeforeLast('/', "").ifEmpty { null }
+        }
+
+        private const val PATH_BYTES = 4096
+
+        /**
          * Opens the first candidate of [vendor] that loads and exports every required CBLAS symbol, or null.
          *
          * A library that opens but is missing part of the surface is rejected rather than half-bound, so a
          * partial install fails here instead of at the first call that needs the missing piece.
          */
         fun open(vendor: Vendor): NativeVendorBlas? {
-            for (candidate in vendor.resolvedCandidates(getenv("HOME")?.toKString())) {
+            val installed = vendor.resolvedCandidates(getenv("HOME")?.toKString())
+            for (candidate in installed + bundled(vendor)) {
                 val handle = dlopen(candidate, RTLD_NOW) ?: continue
                 if (missingRequiredSymbols { dlsym(handle, it) != null }.isNotEmpty()) continue
                 val blas = NativeVendorBlas(vendor, candidate, handle)

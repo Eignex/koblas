@@ -25,6 +25,20 @@ public enum class ThreadEvidence {
 }
 
 /**
+ * The only lever Accelerate has for its thread count, and the value Koblas fixes it at.
+ *
+ * Accelerate exports no thread-count entry point, so unlike every other supported vendor it cannot be told how
+ * many threads to use through a call, and cannot be asked afterwards. What it does read is this variable, which
+ * is why the binding sets it in its own process before Accelerate performs any arithmetic rather than leaving
+ * the requirement to whoever launched the process. Setting it is how the invariant is established; it is not a
+ * configuration surface, and an inherited value is overwritten rather than honored.
+ *
+ * The consequence is recorded honestly: Accelerate reports [ThreadEvidence.Unconfirmed], because a variable
+ * that can be set but not read back is not the same evidence as a count the library returns.
+ */
+internal const val ACCELERATE_THREAD_LIMIT: String = "VECLIB_MAXIMUM_THREADS"
+
+/**
  * The required entry points [exports] does not have.
  *
  * Separated from the loaders so the rejection rule can be tested without a library that is partial in exactly

@@ -23,13 +23,29 @@ public enum class Vendor(
     public val vendorName: String,
     /** Library file names tried in order. The first that opens and exports [keySymbol] wins. */
     internal val candidates: List<String>,
+    /** The file name this vendor takes when the optional module bundles it, or null when it never is. */
+    internal val bundledFile: String?,
     /** Whether [select] may return this vendor. */
     internal val selectable: Boolean,
 ) {
-    /** Apple's system BLAS, supplied by macOS and never bundled. */
+    /**
+     * Apple's system BLAS, supplied by macOS and never bundled.
+     *
+     * The one supported vendor whose single compute thread cannot be read back. It exports no thread-count
+     * entry point, so the requirement is established through [ACCELERATE_THREAD_LIMIT] and reported as
+     * [ThreadEvidence.Unconfirmed] rather than claimed as checked.
+     *
+     * It stays selectable on that basis. The requirement the plan sets is that a backend be held to one thread,
+     * not that it be able to describe itself, and Accelerate can be held; treating an unreadable count as a
+     * failure to enforce would leave macOS with no vendor at all, which is not what naming Accelerate the macOS
+     * backend can mean. The cost is that its arm carries weaker evidence than the others, which its reports say.
+     * Nothing here has been exercised on macOS hardware, so the lever's timing against Accelerate's own
+     * initialization is the part still to confirm.
+     */
     Accelerate(
         "Accelerate",
         listOf("/System/Library/Frameworks/Accelerate.framework/Accelerate"),
+        bundledFile = null,
         selectable = true,
     ),
 
@@ -50,6 +66,7 @@ public enum class Vendor(
             "$USER_HOME/intel/oneapi/mkl/latest/lib/libmkl_rt.so.3",
             "/opt/intel/oneapi/mkl/latest/lib/libmkl_rt.so.3",
         ),
+        bundledFile = "libmkl_rt.so.3",
         selectable = true,
     ),
 
@@ -57,6 +74,7 @@ public enum class Vendor(
     Aocl(
         "AOCL",
         listOf("libblis-mt.so.4", "libblis-mt.so", "libblis.so.4", "libblis.so"),
+        bundledFile = "libblis-mt.so.4",
         selectable = true,
     ),
 
@@ -64,6 +82,7 @@ public enum class Vendor(
     ArmPl(
         "ArmPL",
         listOf("libarmpl_lp64_mp.so", "libarmpl_lp64.so", "libarmpl.so"),
+        bundledFile = "libarmpl_lp64.so",
         selectable = true,
     ),
 
@@ -71,6 +90,7 @@ public enum class Vendor(
     OpenBlas(
         "OpenBLAS",
         listOf("libopenblas.so.0", "libopenblas.so"),
+        bundledFile = null,
         selectable = false,
     ),
     ;
