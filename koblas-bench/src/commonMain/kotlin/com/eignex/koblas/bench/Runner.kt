@@ -25,15 +25,16 @@ internal data class Settings(
 
 public fun main(args: Array<String>) {
     val settings = parseArguments(args)
-    val vendorMode = vendorFromMode(settings.mode) != null
+    val vendorMode = vendorForRuntime(settings.mode, NATIVE_VENDOR_PREFIX) != null
     require(settings.mode == "native" || settings.mode.startsWith("native-raw-") || vendorMode) {
         "JVM benchmarks must run through the JMH entry point"
     }
     val allCases = Cases.parse(readTextFile(settings.casesPath))
     val selected = Cases.select(allCases, settings.suite, settings.operation)
     val vendor = if (vendorMode) openVendorForMode(settings.mode) else null
-    val engine = if (vendorMode) null else resolveEngine(settings.mode).first
-    val implementation = vendor?.second ?: resolveEngine(settings.mode).second
+    val resolved = if (vendorMode) null else resolveEngine(settings.mode)
+    val engine = resolved?.first
+    val implementation = vendor?.second ?: checkNotNull(resolved).second
     val rows = ArrayList<Measurement>()
     var sink = 0.0
     for (case in selected) {

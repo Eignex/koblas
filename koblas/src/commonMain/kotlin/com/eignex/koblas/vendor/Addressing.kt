@@ -78,21 +78,32 @@ internal fun stageInto(window: MatrixWindow, destination: DoubleArray) {
     }
 }
 
-/** Copies a packed column-major block back into the general [window] it was staged from. */
+/**
+ * Copies a packed column-major block back into the [window] it was staged from.
+ *
+ * Only entries the window actually stores are written. A structured destination is packed with its whole
+ * rectangle filled, because that is what BLAS is handed, but the vendor reads and writes one triangle of it;
+ * writing the rest back would put mirrored or implied values into storage the operation never touched and the
+ * caller may be using for something else. An implicit unit diagonal is skipped for the same reason.
+ */
 internal fun unstageFrom(source: DoubleArray, window: MatrixWindow) {
     var origin = 0
     for (column in 0 until window.columns) {
         for (row in 0 until window.rows) {
-            window.data[window.index(row, column)] = source[origin++]
+            val value = source[origin++]
+            if (stores(window, row, column)) window.data[window.index(row, column)] = value
         }
     }
 }
 
-/** Whether the window's entries can be written, which a structure with implicit entries forbids. */
-internal fun writable(window: MatrixWindow): Boolean = when (window.structure) {
-    MatrixStructure.General, MatrixStructure.SymmetricLower, MatrixStructure.SymmetricUpper,
-    MatrixStructure.TriangularLower, MatrixStructure.TriangularUpper,
-    -> true
-
-    MatrixStructure.UnitLower, MatrixStructure.UnitUpper -> false
+/** Whether [window] keeps the entry at ([row], [column]) in storage rather than implying it from structure. */
+internal fun stores(window: MatrixWindow, row: Int, column: Int): Boolean {
+    val diagonal = row.toLong() + window.diagonalOffset - column
+    return when (window.structure) {
+        MatrixStructure.General -> true
+        MatrixStructure.SymmetricLower, MatrixStructure.TriangularLower -> diagonal >= 0
+        MatrixStructure.SymmetricUpper, MatrixStructure.TriangularUpper -> diagonal <= 0
+        MatrixStructure.UnitLower -> diagonal > 0
+        MatrixStructure.UnitUpper -> diagonal < 0
+    }
 }

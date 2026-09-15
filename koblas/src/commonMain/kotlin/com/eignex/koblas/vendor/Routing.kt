@@ -45,26 +45,6 @@ internal fun routeFor(
     )
 }
 
-/** The route of a call whose own contract says there is nothing to do. */
-internal fun noWorkRoute(operation: VendorOperation, vendor: Vendor, reason: String): CallRoute = CallRoute(
-    operation = operation,
-    kind = RouteKind.NoWork,
-    vendor = vendor,
-    entryPoint = null,
-    adapter = null,
-    reason = reason,
-)
-
-/** The route of a call no supported vendor can serve. */
-internal fun unsupportedRoute(operation: VendorOperation, reason: String): CallRoute = CallRoute(
-    operation = operation,
-    kind = RouteKind.Unsupported,
-    vendor = null,
-    entryPoint = null,
-    adapter = null,
-    reason = reason,
-)
-
 /** How an operation is assembled when the selected vendor does not export it. */
 private fun compositionOf(operation: VendorOperation): String = when (operation) {
     VendorOperation.Gemmt -> "${VendorOperation.Gemm.entryPoint} plus triangle copy"

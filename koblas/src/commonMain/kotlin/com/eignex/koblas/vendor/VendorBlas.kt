@@ -2,6 +2,7 @@
 
 package com.eignex.koblas.vendor
 
+import com.eignex.koblas.dense.MatrixStructure
 import com.eignex.koblas.dense.MatrixWindow
 import com.eignex.koblas.dense.VectorWindow
 
@@ -91,7 +92,13 @@ public interface VendorBlas {
     /** `y = alpha · x + y`. */
     public fun axpy(alpha: Double, x: VectorWindow, y: VectorWindow)
 
-    /** `x = alpha · x`. */
+    /**
+     * `x = alpha · x`.
+     *
+     * A negatively strided window is passed with the increment's magnitude. BLAS defines `scal` to return
+     * without doing anything for a non-positive increment, so keeping the sign would silently leave the window
+     * unscaled; scaling is order-independent, so walking the same entries forwards gives the same result.
+     */
     public fun scal(alpha: Double, x: VectorWindow)
 
     /** `y = x`. */
@@ -157,6 +164,64 @@ public interface VendorBlas {
      * the route of a call says which one ran rather than leaving the name to imply the first.
      */
     public fun gemmt(alpha: Double, a: MatrixWindow, b: MatrixWindow, beta: Double, c: MatrixWindow)
+}
+
+/** Both bindings reject a mismatched pair of vector operands the same way, and with the same message. */
+internal fun requireSameLength(x: VectorWindow, y: VectorWindow, what: String) {
+    require(x.size == y.size) { "$what: vector sizes differ" }
+}
+
+/**
+ * A square operand with a stored triangle and a stored diagonal.
+ *
+ * None of the routines that take one carry a `diag` flag, so there is no way to tell the vendor that a
+ * diagonal is implied. A window that says its diagonal is implicit is therefore rejected rather than served by
+ * a call that would read or write it anyway; the triangular routines, which do carry the flag, take
+ * [requireTriangular] instead.
+ */
+internal fun requireStructured(a: MatrixWindow, what: String) {
+    val stored = a.structure != MatrixStructure.General &&
+        a.structure != MatrixStructure.UnitLower &&
+        a.structure != MatrixStructure.UnitUpper
+    require(stored) { "$what requires a stored triangle with a stored diagonal" }
+    require(a.rows == a.columns) { "$what requires a square matrix" }
+}
+
+/** A triangular operand, stored or with an implicit unit diagonal. */
+internal fun requireTriangular(a: MatrixWindow, what: String) {
+    val triangular = a.structure == MatrixStructure.TriangularLower ||
+        a.structure == MatrixStructure.TriangularUpper ||
+        a.structure == MatrixStructure.UnitLower ||
+        a.structure == MatrixStructure.UnitUpper
+    require(triangular) { "$what requires a triangular matrix" }
+    require(a.rows == a.columns) { "$what requires a square matrix" }
+}
+
+/**
+ * [VendorBlas.gemmt] assembled from a full [VendorBlas.gemm] plus a copy of the selected triangle, for a
+ * vendor that does not export `cblas_dgemmt`.
+ *
+ * The composition keeps the contract the direct call has: the triangle [c]'s structure does not select is
+ * neither read nor written, an implicit unit diagonal is left alone, and a zero [beta] does not read the
+ * destination. Which triangle that is comes from [uploFor], the same rule the direct call passes to the
+ * vendor, so the two paths cannot disagree about where the result lands. It costs a full product either way,
+ * which is why the route of the call says which path ran.
+ */
+internal fun VendorBlas.composeGemmt(alpha: Double, a: MatrixWindow, b: MatrixWindow, beta: Double, c: MatrixWindow) {
+    val order = c.rows
+    val product = DoubleArray(order * order)
+    gemm(alpha, a, b, 0.0, MatrixWindow(product, order, order))
+    val lower = uploFor(c, Addressing.ColumnMajor, Cblas.COL_MAJOR) == Cblas.LOWER
+    for (column in 0 until order) {
+        val from = if (lower) column else 0
+        val until = if (lower) order else column + 1
+        for (row in from until until) {
+            if (!stores(c, row, column)) continue
+            val index = c.index(row, column)
+            val previous = if (beta == 0.0) 0.0 else beta * c.data[index]
+            c.data[index] = previous + product[row + column * order]
+        }
+    }
 }
 
 /**

@@ -27,10 +27,28 @@ internal class NativeVector(
     private val base: Int,
     private val span: Int,
 ) {
-    /** Copies the operand back over the storage it came from. */
+    /**
+     * Copies the operand back over the storage it came from, entry by entry for a strided window.
+     *
+     * The span between the window's entries is not the window's to write. Copying it back would be harmless
+     * for a window that owns its storage alone, and wrong for two operands of one call that interleave in one
+     * array, as two rows of a column-major matrix do: each would put the other's pre-call snapshot back over
+     * the result the call just produced. A unit step has no gaps, so it keeps the bulk copy.
+     */
     fun writeBack() {
         if (span == 0) return
-        MemorySegment.copy(segment, JAVA_DOUBLE, 0L, window.data, base, span)
+        val step = abs(window.stride)
+        if (step == 1) {
+            MemorySegment.copy(segment, JAVA_DOUBLE, 0L, window.data, base, span)
+            return
+        }
+        var target = base
+        var source = 0L
+        repeat(window.size) {
+            window.data[target] = segment.getAtIndex(JAVA_DOUBLE, source)
+            target += step
+            source += step
+        }
     }
 }
 
@@ -64,13 +82,13 @@ internal class NativeMatrix(
     /** Copies the operand back over the storage it came from, unpacking a staged block on the way. */
     fun writeBack() {
         if (span == 0) return
+        if (addressing != Addressing.Staged) {
+            MemorySegment.copy(segment, JAVA_DOUBLE, 0L, window.data, base, span)
+            return
+        }
         val packed = DoubleArray(span)
         MemorySegment.copy(segment, JAVA_DOUBLE, 0L, packed, 0, span)
-        if (addressing == Addressing.Staged) {
-            unstageFrom(packed, window)
-        } else {
-            packed.copyInto(window.data, base)
-        }
+        unstageFrom(packed, window)
     }
 }
 

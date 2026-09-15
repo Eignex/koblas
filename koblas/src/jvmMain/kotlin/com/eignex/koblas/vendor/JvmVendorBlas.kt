@@ -2,7 +2,6 @@
 
 package com.eignex.koblas.vendor
 
-import com.eignex.koblas.dense.MatrixStructure
 import com.eignex.koblas.dense.MatrixWindow
 import com.eignex.koblas.dense.VectorWindow
 import java.lang.foreign.Arena
@@ -100,7 +99,7 @@ internal class JvmVendorBlas(
         if (x.size == 0) return
         Arena.ofConfined().use { arena ->
             val nx = arena.stage(x)
-            scalHandle.invokeExact(x.size, alpha, nx.segment, nx.increment)
+            scalHandle.invokeExact(x.size, alpha, nx.segment, abs(nx.increment))
             nx.writeBack()
         }
     }
@@ -288,6 +287,7 @@ internal class JvmVendorBlas(
     ) {
         requireStructured(a, "symm")
         require(c.rows == b.rows && c.columns == b.columns) { "symm: shapes do not conform" }
+        require(a.rows == if (rightSide) c.columns else c.rows) { "symm: the symmetric operand has the wrong order" }
         if (c.rows == 0 || c.columns == 0) return
         val operands = listOf(a, b, c)
         val layout = layoutOf(operands)
@@ -377,19 +377,12 @@ internal class JvmVendorBlas(
         }
     }
 
-    /**
-     * Direct where the vendor exports `cblas_dgemmt`, and otherwise a full [gemm] into scratch followed by a
-     * copy of the selected triangle.
-     *
-     * The composed path keeps the contract the direct one has: the opposite triangle of [c] is neither read
-     * nor written, and a zero [beta] does not read the destination. It costs a full product either way, which
-     * is the reason the route says which path ran rather than reporting both as `gemmt`.
-     */
+    /** Direct where the vendor exports `cblas_dgemmt`, and otherwise the shared composition. */
     override fun gemmt(alpha: Double, a: MatrixWindow, b: MatrixWindow, beta: Double, c: MatrixWindow) {
         requireStructured(c, "gemmt")
         require(a.columns == b.rows && c.rows == a.rows && c.columns == b.columns) { "gemmt: shapes do not conform" }
         if (c.rows == 0 || c.columns == 0) return
-        if (VendorOperation.Gemmt !in directlyImplemented) return composedGemmt(alpha, a, b, beta, c)
+        if (VendorOperation.Gemmt !in directlyImplemented) return composeGemmt(alpha, a, b, beta, c)
         val operands = listOf(a, b, c)
         val layout = layoutOf(operands)
         val addressing = effectiveAddressing(VendorOperation.Gemmt, operands)
@@ -404,23 +397,6 @@ internal class JvmVendorBlas(
                 nc.segment, nc.leadingDimension,
             )
             nc.writeBack()
-        }
-    }
-
-    private fun composedGemmt(alpha: Double, a: MatrixWindow, b: MatrixWindow, beta: Double, c: MatrixWindow) {
-        val order = c.rows
-        val product = DoubleArray(order * order)
-        gemm(alpha, a, b, 0.0, MatrixWindow(product, order, order))
-        val lower = c.structure == MatrixStructure.SymmetricLower ||
-            c.structure == MatrixStructure.TriangularLower
-        for (column in 0 until order) {
-            val from = if (lower) column else 0
-            val until = if (lower) order else column + 1
-            for (row in from until until) {
-                val index = c.index(row, column)
-                val updated = if (beta == 0.0) 0.0 else beta * c.data[index]
-                c.data[index] = updated + product[row + column * order]
-            }
         }
     }
 
@@ -558,24 +534,6 @@ internal class JvmVendorBlas(
             JAVA_INT, JAVA_INT, JAVA_INT, JAVA_INT, JAVA_INT, JAVA_INT, JAVA_INT, JAVA_DOUBLE,
             ADDRESS, JAVA_INT, ADDRESS, JAVA_INT,
         )
-
-        fun requireSameLength(x: VectorWindow, y: VectorWindow, what: String) {
-            require(x.size == y.size) { "$what: vector sizes differ" }
-        }
-
-        fun requireStructured(a: MatrixWindow, what: String) {
-            require(a.structure != MatrixStructure.General) { "$what requires a stored triangle" }
-            require(a.rows == a.columns) { "$what requires a square matrix" }
-        }
-
-        fun requireTriangular(a: MatrixWindow, what: String) {
-            val triangular = a.structure == MatrixStructure.TriangularLower ||
-                a.structure == MatrixStructure.TriangularUpper ||
-                a.structure == MatrixStructure.UnitLower ||
-                a.structure == MatrixStructure.UnitUpper
-            require(triangular) { "$what requires a triangular matrix" }
-            require(a.rows == a.columns) { "$what requires a square matrix" }
-        }
     }
 }
 

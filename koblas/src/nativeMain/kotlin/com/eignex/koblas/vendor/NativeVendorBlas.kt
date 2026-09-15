@@ -3,7 +3,6 @@
 
 package com.eignex.koblas.vendor
 
-import com.eignex.koblas.dense.MatrixStructure
 import com.eignex.koblas.dense.MatrixWindow
 import com.eignex.koblas.dense.VectorWindow
 import kotlinx.cinterop.ByteVar
@@ -21,6 +20,7 @@ import kotlinx.cinterop.reinterpret
 import kotlinx.cinterop.set
 import kotlinx.cinterop.toKString
 import platform.posix.RTLD_NOW
+import platform.posix.dlclose
 import platform.posix.dlopen
 import platform.posix.dlsym
 import platform.posix.getenv
@@ -157,7 +157,18 @@ internal class NativeVendorBlas private constructor(
      */
     private fun verifiedAbi(): Boolean {
         if (declaresWideIntegers(version)) return false
+        if (!declaredIntegerWidthMatches()) return false
         return probeDot() && probeGemm()
+    }
+
+    /**
+     * BLIS answers the integer-width question directly; see [BLIS_INTEGER_WIDTH].
+     *
+     * It takes no arguments and returns an `int`, which is the shape [GetThreadsFn] already names.
+     */
+    private fun declaredIntegerWidthMatches(): Boolean {
+        val fn = dlsym(handle, BLIS_INTEGER_WIDTH)?.reinterpret<GetThreadsFn>() ?: return true
+        return fn() == LP64_INTEGER_BITS
     }
 
     private fun probeDot(): Boolean {
@@ -189,8 +200,18 @@ internal class NativeVendorBlas private constructor(
         }
     }
 
+    /**
+     * Every entry point resolved once, at construction.
+     *
+     * `dlsym` is a lock and a hash lookup through the library's dependency chain, and doing it per call would
+     * put that on the path of every Level 1 operation, where it is a large fraction of the work being timed.
+     * The handle is held for the process, so what it resolves to cannot change underneath this.
+     */
+    private val entryPoints: Array<COpaquePointer?> =
+        Array(VendorOperation.entries.size) { dlsym(handle, VendorOperation.entries[it].entryPoint) }
+
     override val directlyImplemented: Set<VendorOperation> =
-        VendorOperation.entries.filterTo(LinkedHashSet()) { dlsym(handle, it.entryPoint) != null }
+        VendorOperation.entries.filterTo(LinkedHashSet()) { entryPoints[it.ordinal] != null }
 
     override fun routeOf(operation: VendorOperation, matrices: List<MatrixWindow>): CallRoute = routeFor(
         operation = operation,
@@ -200,7 +221,7 @@ internal class NativeVendorBlas private constructor(
         transfer = null,
     )
 
-    private fun symbol(operation: VendorOperation): COpaquePointer = checkNotNull(dlsym(handle, operation.entryPoint)) {
+    private fun symbol(operation: VendorOperation): COpaquePointer = checkNotNull(entryPoints[operation.ordinal]) {
         "${vendor.vendorName} at $libraryPath does not export ${operation.entryPoint}"
     }
 
@@ -269,7 +290,7 @@ internal class NativeVendorBlas private constructor(
         try {
             val px = pins.stage(x)
             val fn = symbol(VendorOperation.Scal).reinterpret<ScalFn>()
-            fn(x.size, alpha, px.pointer, px.increment)
+            fn(x.size, alpha, px.pointer, abs(px.increment))
         } finally {
             pins.release()
         }
@@ -480,6 +501,7 @@ internal class NativeVendorBlas private constructor(
     ) {
         requireStructured(a, "symm")
         require(c.rows == b.rows && c.columns == b.columns) { "symm: shapes do not conform" }
+        require(a.rows == if (rightSide) c.columns else c.rows) { "symm: the symmetric operand has the wrong order" }
         if (c.rows == 0 || c.columns == 0) return
         val operands = listOf(a, b, c)
         val layout = layoutOf(operands)
@@ -584,16 +606,12 @@ internal class NativeVendorBlas private constructor(
         }
     }
 
-    /**
-     * Direct where the vendor exports `cblas_dgemmt`, and otherwise a full [gemm] into scratch followed by a
-     * copy of the selected triangle. The composed path keeps the direct one's contract: the opposite triangle
-     * of [c] is neither read nor written, and a zero [beta] does not read the destination.
-     */
+    /** Direct where the vendor exports `cblas_dgemmt`, and otherwise the shared composition. */
     override fun gemmt(alpha: Double, a: MatrixWindow, b: MatrixWindow, beta: Double, c: MatrixWindow) {
         requireStructured(c, "gemmt")
         require(a.columns == b.rows && c.rows == a.rows && c.columns == b.columns) { "gemmt: shapes do not conform" }
         if (c.rows == 0 || c.columns == 0) return
-        if (VendorOperation.Gemmt !in directlyImplemented) return composedGemmt(alpha, a, b, beta, c)
+        if (VendorOperation.Gemmt !in directlyImplemented) return composeGemmt(alpha, a, b, beta, c)
         val operands = listOf(a, b, c)
         val layout = layoutOf(operands)
         val addressing = effectiveAddressing(VendorOperation.Gemmt, operands)
@@ -612,23 +630,6 @@ internal class NativeVendorBlas private constructor(
             pc.writeBack()
         } finally {
             pins.release()
-        }
-    }
-
-    private fun composedGemmt(alpha: Double, a: MatrixWindow, b: MatrixWindow, beta: Double, c: MatrixWindow) {
-        val order = c.rows
-        val product = DoubleArray(order * order)
-        gemm(alpha, a, b, 0.0, MatrixWindow(product, order, order))
-        val lower = c.structure == MatrixStructure.SymmetricLower ||
-            c.structure == MatrixStructure.TriangularLower
-        for (column in 0 until order) {
-            val from = if (lower) column else 0
-            val until = if (lower) order else column + 1
-            for (row in from until until) {
-                val index = c.index(row, column)
-                val updated = if (beta == 0.0) 0.0 else beta * c.data[index]
-                c.data[index] = updated + product[row + column * order]
-            }
         }
     }
 
@@ -700,7 +701,12 @@ internal class NativeVendorBlas private constructor(
             val installed = vendor.resolvedCandidates(getenv("HOME")?.toKString())
             for (candidate in installed + bundled(vendor)) {
                 val handle = dlopen(candidate, RTLD_NOW) ?: continue
-                if (missingRequiredSymbols { dlsym(handle, it) != null }.isNotEmpty()) continue
+                if (missingRequiredSymbols { dlsym(handle, it) != null }.isNotEmpty()) {
+                    // Nothing has been called into it yet, so it can go back the way it came rather than
+                    // staying mapped and competing for the global name of a symbol it half-exports.
+                    dlclose(handle)
+                    continue
+                }
                 val blas = NativeVendorBlas(vendor, candidate, handle)
                 // Ordered: the single-thread configuration is established before the probe, because the probe
                 // is arithmetic and oneMKL resolves its threading layer on the first call that reaches it.
@@ -710,24 +716,6 @@ internal class NativeVendorBlas private constructor(
                 return blas
             }
             return null
-        }
-
-        fun requireSameLength(x: VectorWindow, y: VectorWindow, what: String) {
-            require(x.size == y.size) { "$what: vector sizes differ" }
-        }
-
-        fun requireStructured(a: MatrixWindow, what: String) {
-            require(a.structure != MatrixStructure.General) { "$what requires a stored triangle" }
-            require(a.rows == a.columns) { "$what requires a square matrix" }
-        }
-
-        fun requireTriangular(a: MatrixWindow, what: String) {
-            val triangular = a.structure == MatrixStructure.TriangularLower ||
-                a.structure == MatrixStructure.TriangularUpper ||
-                a.structure == MatrixStructure.UnitLower ||
-                a.structure == MatrixStructure.UnitUpper
-            require(triangular) { "$what requires a triangular matrix" }
-            require(a.rows == a.columns) { "$what requires a square matrix" }
         }
     }
 }

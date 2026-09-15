@@ -53,13 +53,28 @@ internal fun missingRequiredSymbols(exports: (String) -> Boolean): List<String> 
  * The ABI cannot be settled by calling the library. On this calling convention a 32-bit argument is passed in
  * the low half of a register whose upper half is zeroed, so an ILP64 routine reading 64 bits sees the same small
  * value an LP64 one does, and every probe small enough to be safe agrees under both. What does distinguish them
- * is what the build says about itself: OpenBLAS and BLIS both advertise a 64-bit integer build in the string
- * they hand back, so a library claiming one under the unsuffixed CBLAS names is rejected rather than trusted.
+ * is what the build says about itself: OpenBLAS names its integer width in the configuration string it hands
+ * back, so a library claiming a wide one under the unsuffixed CBLAS names is rejected rather than trusted.
+ *
+ * A build that names no width here is not thereby accepted. BLIS answers the question directly instead, through
+ * [BLIS_INTEGER_WIDTH], and a loader asks that too rather than reading silence as an LP64 answer.
  */
 internal fun declaresWideIntegers(configuration: String): Boolean {
     val text = configuration.uppercase()
     return "USE64BITINT" in text || "INT64" in text || "ILP64" in text
 }
+
+/**
+ * BLIS's own report of its BLAS integer width in bits, which is better evidence than its version string.
+ *
+ * AOCL is BLIS, and its version string is a bare number that says nothing about the ABI. The entry point is
+ * absent from every other supported vendor, so a loader treats its absence as no answer rather than as an
+ * LP64 one and falls back to [declaresWideIntegers].
+ */
+internal const val BLIS_INTEGER_WIDTH: String = "bli_info_get_int_type_size"
+
+/** The integer width in bits that the unsuffixed CBLAS symbols carry. */
+internal const val LP64_INTEGER_BITS: Int = 32
 
 /**
  * A known-answer check the library must pass before any caller reaches it.

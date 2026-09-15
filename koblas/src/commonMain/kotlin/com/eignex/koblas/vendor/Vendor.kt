@@ -117,7 +117,10 @@ public enum class Vendor(
          * Operating system and architecture decide before CPU vendor does. An Arm part from an unfamiliar
          * manufacturer still takes the ArmPL route rather than falling off the end of a CPU-vendor check.
          */
-        public fun select(host: HostPlatform): List<Vendor> = when {
+        public fun select(host: HostPlatform): List<Vendor> = preference(host).filter { it.selectable }
+
+        /** The order alone, before [selectable] decides which of those a production caller may reach. */
+        private fun preference(host: HostPlatform): List<Vendor> = when {
             host.operatingSystem == OperatingSystem.MacOs -> listOf(Accelerate)
             host.architecture == Architecture.Arm64 -> listOf(ArmPl)
             host.architecture == Architecture.X86_64 && host.cpuVendor == CpuVendor.Amd -> listOf(Aocl, OneMkl)
