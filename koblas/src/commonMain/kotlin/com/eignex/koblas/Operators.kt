@@ -7,32 +7,6 @@ package com.eignex.koblas
 @kotlin.jvm.JvmName("multiply")
 public operator fun DenseMatrix.times(other: DenseMatrix): DenseMatrix = koblas.gemm(this, other)
 
-/** `A * B` for a sparse left operand and dense right operand, allocating dense storage through the active
- *  sparse backend. */
-@kotlin.jvm.JvmName("multiply")
-public operator fun SparseMatrix.times(other: DenseMatrix): DenseMatrix = koblas.gemm(this, other)
-
-/** `A * B` for a dense left operand and sparse right operand, allocating dense storage through the active
- *  sparse backend. */
-@kotlin.jvm.JvmName("multiply")
-public operator fun DenseMatrix.times(other: SparseMatrix): DenseMatrix {
-    val out = DenseMatrix.zero(rows, other.cols)
-    koblas.gemm(1.0, other, false, this, false, 0.0, out, right = true)
-    return out
-}
-
-/** `A * B` for sparse matrices, allocating the discovered sparse structure through the active backend. */
-@kotlin.jvm.JvmName("multiply")
-public operator fun SparseMatrix.times(other: SparseMatrix): SparseMatrix = koblas.gemm(this, other)
-
-/** `A + B`, allocating an owned CSC structural union. */
-@kotlin.jvm.JvmName("add")
-public operator fun SparseMatrix.plus(other: SparseMatrix): SparseMatrix = koblas.addScaled(1.0, this, false, other)
-
-/** `A - B`, allocating an owned CSC structural union. */
-@kotlin.jvm.JvmName("subtract")
-public operator fun SparseMatrix.minus(other: SparseMatrix): SparseMatrix = koblas.addScaled(-1.0, other, false, this)
-
 /**
  * Matrix-vector product into a fresh dense result for any [Matrix] against any [Vector].
  * [gemvInto] writes into a destination the caller owns, and provides the alpha and beta scalars.

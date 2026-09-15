@@ -32,10 +32,11 @@ final class JavaInteropSmoke {
             new int[] {0, 1},
             new double[] {2.0, 3.0}
         );
-        PreparedSparseMatrix prepared = Koblas.prepare(sparse);
-        double[] preparedResult = new double[2];
-        prepared.gemv(1.0, new double[] {4.0, 5.0}, 0.0, preparedResult);
-        assertArrayEquals(new double[] {8.0, 15.0}, preparedResult);
+        // Sparse storage stays reachable from Java; the prepared matrix-vector product that stood here went
+        // with the sparse Level 2-3 surface.
+        if (sparse.getRows() != 2 || sparse.getCols() != 2) {
+            throw new AssertionError("Java sparse storage accessors must report the built shape");
+        }
 
         Givens rotation = Koblas.rotg(3.0, 4.0);
         assertEquals(5.0, rotation.getR());

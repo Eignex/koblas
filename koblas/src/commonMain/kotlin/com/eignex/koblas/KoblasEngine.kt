@@ -6,10 +6,7 @@ package com.eignex.koblas
 import com.eignex.koblas.dense.*
 import com.eignex.koblas.internal.kernels.NativeCatalog
 import com.eignex.koblas.sparse.IndexedSparseKernels
-import com.eignex.koblas.sparse.SparseAlgorithms
-import com.eignex.koblas.sparse.SparseBlas
 import com.eignex.koblas.sparse.SparseKernels
-import com.eignex.koblas.sparse.SparsePanelKernels
 
 /** The immutable platform-selected BLAS engine used by top-level convenience operations. */
 @get:kotlin.jvm.JvmName("getDefault")
@@ -44,12 +41,7 @@ public class KoblasEngine internal constructor(
     public val nativeVariant: NativeVariant? = null,
     internal val dispatch: DenseDispatch? = null,
     internal val runtimeDescription: ((DenseOperation, Int) -> String)? = null,
-) : DenseBlas by BuiltinBlas(vectorKernels, panelKernels, packedKernels),
-    SparseBlas by SparseAlgorithms(
-        vectorKernels,
-        indexedSparseKernels,
-        SparsePanelKernels(vectorKernels, panelKernels),
-    ) {
+) : DenseBlas by BuiltinBlas(vectorKernels, panelKernels, packedKernels) {
     /** Packed panel operations bound to this engine's exact packed kernels. */
     public val packedPanels: PackedPanels = PackedPanels(packedKernels)
 

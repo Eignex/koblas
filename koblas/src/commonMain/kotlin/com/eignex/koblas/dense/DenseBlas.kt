@@ -218,7 +218,7 @@ public interface DenseBlas {
      *
      * The diagonal is divided by, not tested: `dtrsv` carries no `info` and reports nothing, so a singular
      * triangle yields infinities or NaNs and the caller who needs the distinction tests the diagonal first.
-     * The sparse [com.eignex.koblas.sparse.SparseBlas.trsv] follows the same rule.
+     *
      */
     public fun trsv(
         a: DenseMatrix,
