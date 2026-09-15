@@ -63,8 +63,8 @@ Level 2–3 algorithm behind.
 ### Klause
 
 The source audit of `/home/rasmus/Workspaces/klause` at `87181fd43` found no calls to Koblas sparse Level 2–3.
-Klause owns LU construction, hypersparse triangular solves, and Forrest–Tomlin updates already. HFactor is a
-JVM test comparison dependency, not its production solver.
+Klause owns LU construction, hypersparse triangular solves, and Forrest–Tomlin updates already, and depends on
+no Koblas factorization or basis artifact.
 
 Preserve common APIs for CSC construction and column iteration, triplet compression, indexed dot/norm/scatter/
 AXPY, dense AXPY, sparse accumulation, touched-index gather/compact/clear, masked absolute maximum, and scratch.
@@ -297,7 +297,7 @@ continue operating until its named cutover PR; do not bridge it to the new API o
 
 ### Before parallel work — fix the contracts in K1
 
-1. Recheck Koblas/Klause/Kumulant and HFactor call sites. Record baseline SHAs, preserve independent scalar test
+1. Recheck Koblas/Klause/Kumulant call sites. Record baseline SHAs, preserve independent scalar test
    oracles, and retain only baseline timings whose inputs, timing boundary, and executed implementation are known.
 2. Record the final operation/overload matrix and common primitive signatures. Decide nonstandard APIs such as
    GEMMT and any stronger numerical contracts that vendor BLAS cannot provide.
@@ -353,7 +353,7 @@ entry points, or forwarding compatibility code remain. Dense internals still nee
    retained overloads before accepting timings. Remove tile, panel, packing, and obsolete engine cases.
 4. Delete production portable dense Level 2–3, numerical C kernels/build tasks, probes/catalogs/profiles, packed
    and panel/tile APIs, policy wrappers, old tuning keys, and remaining obsolete C vendor-runner code. Move small
-   scalar correctness oracles to tests. Update all affected HFactor callers without changing its algorithms.
+   scalar correctness oracles to tests.
 5. Update API dumps, tests, docs, installation flags, and performance claims in this same PR. Verify U's Cholesky,
    rank-one updates, solves, regularization, and covariance against the candidate K3 artifact before landing.
 
@@ -404,8 +404,8 @@ request. No separate cleanup, compatibility, or dependency-bump PR is planned.
 
 ## Verification and completion
 
-- Run `./gradlew :koblas:check :koblas-bench:check lintDocs` for implementation changes. Use full `./gradlew check`
-  when changing HFactor or before pushing. Migrate the no-SIMD check to the new scalar/vendor behavior.
+- Run `./gradlew check lintDocs` for implementation changes. Migrate the no-SIMD check to the new scalar/vendor
+  behavior.
 - Exercise installed and bundled libraries, missing libraries, missing Vector API, JVM and Native, supported
   vendor/OS combinations, independent exact instances, concurrency, and warmed allocation behavior. Include
   absent native-access permission, wrong ABI, incomplete libraries, and version/symbol identity checks.

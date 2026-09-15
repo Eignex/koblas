@@ -15,5 +15,4 @@ plugins {
 include(
     ":koblas",
     ":koblas-bench",
-    ":koblas-hfactor",
 )

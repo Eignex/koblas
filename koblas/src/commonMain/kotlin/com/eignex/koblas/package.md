@@ -9,5 +9,5 @@ implementation attribution.
 
 High-level operations are extensions in this package, so ordinary use needs only `com.eignex.koblas.*`.
 Dense and sparse BLAS contracts live in `com.eignex.koblas.dense` and `com.eignex.koblas.sparse`; packed panels
-and sparse slices retain caller-owned storage and allocation contracts. Factorization and basis-solver APIs
-belong to the optional JVM `koblas-hfactor` artifact.
+and sparse slices retain caller-owned storage and allocation contracts. Factorization and basis solving are not
+part of this library; a consumer that needs them owns its own factors on top of these kernels.
