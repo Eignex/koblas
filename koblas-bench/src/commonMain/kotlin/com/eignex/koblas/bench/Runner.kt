@@ -158,12 +158,7 @@ internal fun measurement(
 ): Measurement = Measurement(
     listOf(
         case.id, status, comparisonKind, timingMode,
-        when {
-            route != null -> vendorKernel(route)
-            status == "ok" && case.option("timing", "") == "reuse" &&
-                case.operation != "sparse-slices-reduce-dot-unchecked" -> "portable-sparse-slices"
-            else -> actualPackedKernel(case, settings.mode, status)
-        },
+        if (route != null) vendorKernel(route) else actualPackedKernel(case, settings.mode, status),
     ),
     if (settings.mode.startsWith("jvm")) (sample - 1) / settings.samples + 1 else 1,
     nanos,

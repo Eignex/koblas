@@ -20,9 +20,6 @@ class OperatorsTest {
         assertClose(doubleArrayOf(0.0, 2.0), (a * x).data, "a * x")
     }
 
-    // A sparse spelling of the same product was compared against the dense one here. Matrix arithmetic takes
-    // dense storage now, so there is no second spelling to agree with.
-
     @Test
     fun `sum and difference agree with axpy on a copy`() {
         val sum = a + b

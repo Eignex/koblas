@@ -11,9 +11,8 @@ import kotlin.jvm.JvmOverloads
  * Solve `op(T) · x = b` in place (BLAS `dtrsv`); see [DenseBlas.trsv]. Reads only the triangle [lower]
  * selects, and does not check the diagonal, so a singular triangle yields infinities or NaNs.
  *
- * Dense storage only. These took [MatrixStorage] while a sparse triangular solve existed beside the dense one;
- * a sparse triangular solve is a solver workflow rather than a numerical leaf, and belongs to the consumer that
- * owns its factors.
+ * Dense storage only: a sparse triangular solve is a solver workflow rather than a numerical leaf, and belongs
+ * to the consumer that owns its factors.
  */
 @JvmOverloads
 public fun DenseMatrix.trsv(

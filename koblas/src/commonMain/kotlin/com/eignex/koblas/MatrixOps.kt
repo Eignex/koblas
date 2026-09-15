@@ -16,9 +16,8 @@ import kotlin.jvm.JvmOverloads
  * `beta == 0.0` overwrites [destination] without reading it, so a destination left holding NaN still
  * yields a clean product.
  *
- * Dense storage only. This took any [Matrix] while a sparse matrix-vector product existed beside the dense
- * one, and a generic receiver kept computing one for sparse storage after that product was removed; matrix
- * arithmetic here is dense, and [x] stays general because a sparse or strided vector is Level 1.
+ * Matrix arithmetic takes dense storage. [x] stays general, because a sparse or strided vector against a
+ * dense matrix is Level 1 work.
  *
  * A sparse or generic [x] is never materialised as a dense array: it takes one column axpy per stored entry.
  * Dense storage on both sides dispatches straight to the backend's `gemv`.
@@ -112,7 +111,7 @@ private fun Vector.stableFor(destination: DoubleArray): Vector = when (this) {
     else -> this
 }
 
-/** Dense specialization retained by [symvInto], whose matrix type is known statically. */
+/** Stable dense matrix storage when [destination] is its live backing array. */
 private fun DenseMatrix.stableFor(destination: DoubleArray): DenseMatrix =
     if (data === destination) DenseMatrix.wrap(rows, cols, data.copyOf()) else this
 

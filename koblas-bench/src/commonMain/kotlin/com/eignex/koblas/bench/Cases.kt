@@ -27,12 +27,9 @@ internal object Cases {
         "spdot" to 1, "spdot-raw" to 1, "spdot-sparse" to 1, "spaxpy" to 1, "spaxpy-raw" to 1,
         "spnrm2" to 1, "spnrm2-indexed" to 1, "spasum" to 1,
         "spscatter" to 1, "spscatter-raw" to 1, "spgather" to 1, "spgather-zero" to 1,
-        "spgemv" to 2, "spmm" to 3, "spgemm" to 3,
-        "spsymv" to 1, "spsymm" to 2, "sptrsv" to 1, "sptrmv" to 1, "sptrsm" to 2, "sptrmm" to 2,
-        "spsyrk-dense" to 2, "spsyrk-sparse" to 2, "spadd" to 2,
     )
     private val fixtures = setOf("uniform", "triangular", "sparse-uniform", "sparse-triangular")
-    private val optionOrder = listOf("density", "mode", "packed", "side", "uplo", "transA", "transB", "diag", "timing", "compact", "locality")
+    private val optionOrder = listOf("density", "packed", "side", "uplo", "transA", "transB", "diag", "timing")
 
     fun parse(text: String): List<BenchCase> {
         val cases = text.lineSequence().mapIndexedNotNull { index, raw ->
@@ -95,10 +92,7 @@ internal object Cases {
 
     private fun validateOption(name: String, value: String, invalid: (String) -> Nothing) {
         when (name) {
-            "compact" -> if (value !in setOf("N", "T")) invalid("invalid compaction '$value'")
-            "locality" -> if (value !in setOf("sorted", "shuffled")) invalid("invalid locality '$value'")
             "density" -> if (value.toDoubleOrNull()?.let { it > 0.0 && it <= 1.0 } != true) invalid("invalid density '$value'")
-            "mode" -> if (value !in setOf("prepared", "oneshot")) invalid("invalid mode '$value'")
             "packed" -> if (value !in setOf("4x4", "8x4")) invalid("unsupported packed recipe '$value'")
             "side" -> if (value !in setOf("L", "R")) invalid("invalid side '$value'")
             "uplo" -> if (value !in setOf("L", "U")) invalid("invalid uplo '$value'")
@@ -126,15 +120,12 @@ internal object Cases {
         val allowed = allowedOptions(operation, sparse)
         val incompatible = options.keys.firstOrNull { it !in allowed }
         if (incompatible != null) invalid("option '$incompatible' is incompatible with $operation")
-        if (operation in setOf("spgemv", "spmm", "spgemm", "spsymv", "spsymm", "sptrsv", "sptrmv", "sptrsm", "sptrmm") && "mode" !in options) invalid("$operation requires mode")
-        if (operation in ONESHOT_ONLY_OPERATIONS && options["mode"] != "oneshot") invalid("$operation supports only mode=oneshot")
         val required = requiredOptions(operation, sparse)
         val missing = required.firstOrNull { it !in options }
         if (missing != null) invalid("$operation requires option '$missing'")
         val defaults = mapOf("side" to "L", "uplo" to "L", "transA" to "N", "transB" to "N", "diag" to "N")
         val redundant = options.entries.firstOrNull { (name, value) -> name !in required && defaults[name] == value }
         if (redundant != null) invalid("redundant default option '${redundant.key}=${redundant.value}'")
-        if (sparse && options["side"] == "R") invalid("sparse right-side cases are unsupported")
         if (operation in setOf("scal", "spgather") && "timing" in options && options["timing"] != "arithmetic") {
             invalid("$operation supports only timing=arithmetic as an explicit override")
         }
@@ -150,7 +141,6 @@ internal object Cases {
         }
         if (operation == "gemm") add("transB")
         if (operation in setOf("scal", "spgather")) add("timing")
-        if (operation in MODE_OPERATIONS) add("mode")
     }
 
     private fun validatePackedBounds(
@@ -180,22 +170,20 @@ internal object Cases {
         if (operation == "gemm-block") required += "timing"
         when (operation) {
             "symv", "syr", "syr2" -> required += "uplo"
-            "symm", "spsymm" -> required += setOf("side", "uplo")
+            "symm" -> required += setOf("side", "uplo")
             "gemmt" -> required += setOf("uplo", "transA", "transB")
             "syrk", "syr2k" -> required += setOf("uplo", "transA")
-            "trsv", "trmv", "sptrsv", "sptrmv" -> required += setOf("uplo", "transA", "diag")
-            "trsm", "trmm", "sptrsm", "sptrmm" -> required += setOf("side", "uplo", "transA", "diag")
+            "trsv", "trmv" -> required += setOf("uplo", "transA", "diag")
+            "trsm", "trmm" -> required += setOf("side", "uplo", "transA", "diag")
             "packed-trsm", "gemm-trsm", "pack-triangular-left", "pack-triangular-right" -> required += setOf("uplo", "diag")
-            "pack-symmetric-left", "pack-symmetric-right", "spsymv", "spsyrk-dense", "spsyrk-sparse" -> required += "uplo"
+            "pack-symmetric-left", "pack-symmetric-right" -> required += "uplo"
         }
         return required
     }
 
-    private val MODE_OPERATIONS = setOf("spgemv", "spmm", "spgemm", "spsymv", "spsymm", "sptrsv", "sptrmv", "sptrsm", "sptrmm")
-    private val ONESHOT_ONLY_OPERATIONS = setOf("spsymv", "spsymm", "sptrsv", "sptrmv", "sptrsm", "sptrmm")
     private val TRIANGULAR_FIXTURE_OPERATIONS = setOf(
         "trsv", "trmv", "trsm", "trmm", "packed-trsm", "gemm-trsm", "pack-triangular-left",
-        "pack-triangular-right", "spsymv", "spsymm", "sptrsv", "sptrmv", "sptrsm", "sptrmm",
+        "pack-triangular-right",
     )
     private const val MAX_DIMENSION = 1_000_000
 }

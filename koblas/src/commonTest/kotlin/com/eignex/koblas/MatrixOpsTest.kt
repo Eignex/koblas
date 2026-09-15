@@ -43,9 +43,8 @@ class MatrixOpsTest {
     }
 
     @Test
-    fun `matrix vector operations match hand results over every storage pairing`() {
+    fun `matrix vector operations match hand results over every vector storage`() {
         val rows = 4
-        val cols = 3
         val entries = arrayOf(
             doubleArrayOf(1.0, 0.0, 2.0),
             doubleArrayOf(0.0, 0.0, 0.0),
@@ -53,19 +52,6 @@ class MatrixOpsTest {
             doubleArrayOf(0.0, 0.5, 1.5),
         )
         val dense = DenseMatrix.ofRows(entries)
-        val sparseMatrix = SparseMatrix.ofTriplets(
-            rows,
-            cols,
-            intArrayOf(0, 0, 2, 2, 3, 3),
-            intArrayOf(0, 2, 0, 1, 1, 2),
-            doubleArrayOf(1.0, 2.0, -3.0, 4.0, 0.5, 1.5),
-        )
-        val foreign = object : Matrix {
-            override val rows: Int get() = dense.rows
-            override val cols: Int get() = dense.cols
-            override fun get(i: Int, j: Int): Double = dense[i, j]
-            override fun toArray(): Array<DoubleArray> = dense.toArray()
-        }
         val vectors = listOf<Pair<Vector, DoubleArray>>(
             DenseVector.of(doubleArrayOf(2.0, -1.0, 0.5)) to doubleArrayOf(3.0, 0.0, -10.0, 0.25),
             SparseVector.of(3, intArrayOf(0, 2), doubleArrayOf(2.0, 0.5)) to
@@ -74,8 +60,6 @@ class MatrixOpsTest {
                 doubleArrayOf(3.0, 0.0, -10.0, 0.25),
             ForeignRampVector(3) to doubleArrayOf(-1.0, 0.0, 1.0, -0.25),
         )
-        // Sparse and foreign matrices were in this list while matrix arithmetic accepted any Matrix. The
-        // vector side stays general, which is what the several x values below still cover.
         for ((x, expected) in vectors) {
             assertClose(expected, (dense * x).data, "product ${x::class.simpleName}")
             val out = DoubleArray(rows)
@@ -208,7 +192,6 @@ class MatrixOpsTest {
 
     @Test
     fun `gemvInto snapshots matrix aliases before writing`() {
-        // Sparse and strided receivers stood beside the dense one while matrix arithmetic was generic.
         val destination = doubleArrayOf(1.0, 2.0, 3.0)
         val matrix = DenseMatrix.wrap(3, 1, destination)
 

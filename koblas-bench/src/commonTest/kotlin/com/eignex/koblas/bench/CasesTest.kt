@@ -49,10 +49,10 @@ class CasesTest {
             # comment
             dot+32+uniform
             gemm+32x21x48+uniform+transA=T
-            spgemv+257x129+sparse-uniform+density=0.01+mode=prepared
+            spdot+4096+sparse-uniform+density=0.01
         """.trimIndent())
 
-        assertEquals(listOf("dot", "gemm", "spgemv"), cases.map { it.operation })
+        assertEquals(listOf("dot", "gemm", "spdot"), cases.map { it.operation })
         assertEquals("gemm+32x21x48+uniform+transA=T", cases[1].id)
     }
 
@@ -63,9 +63,9 @@ class CasesTest {
         assertFailsWith<IllegalArgumentException> { Cases.parse("gemm+4x4+uniform") }
         assertFailsWith<IllegalArgumentException> { Cases.parse("dot+1000001+uniform") }
         assertFailsWith<IllegalArgumentException> { Cases.parse("dot+4+uniform+transA=T") }
-        assertFailsWith<IllegalArgumentException> { Cases.parse("spgemv+4x4+sparse-uniform+density=0.5+mode=prepared+transA=T") }
-        assertFailsWith<IllegalArgumentException> { Cases.parse("spsymv+8x8+sparse-uniform+density=0.25+mode=prepared+uplo=L") }
-        assertFailsWith<IllegalArgumentException> { Cases.parse("sptrsm+8x4+sparse-triangular+density=0.25+mode=oneshot+side=R+uplo=L+transA=N+diag=N") }
+        assertFailsWith<IllegalArgumentException> { Cases.parse("spdot+4096+sparse-uniform+density=0.01+transA=T") }
+        assertFailsWith<IllegalArgumentException> { Cases.parse("spdot+4096+uniform+density=0.01") }
+        assertFailsWith<IllegalArgumentException> { Cases.parse("spdot+4096+sparse-uniform") }
         assertFailsWith<IllegalArgumentException> { Cases.parse("gemm+4x4x4+triangular") }
         assertFailsWith<IllegalArgumentException> { Cases.parse("gemm-tile+9x4x32+uniform+packed=8x4") }
         assertFailsWith<IllegalArgumentException> { Cases.parse("dot+4+uniform\ndot+4+uniform") }

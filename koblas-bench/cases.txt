@@ -171,8 +171,6 @@ spgather+4096+sparse-uniform+density=0.25+timing=arithmetic
 spgather+65536+sparse-uniform+density=0.01+timing=arithmetic
 spgather+65536+sparse-uniform+density=0.25+timing=arithmetic
 
-# Validated caller-owned scratch comparisons; timing labels distinguish these from historical slice cases.
-
 # Opt-in coarse size sweeps. Shared n=4096 cases are listed above, once.
 # Explicit tiny inputs, SIMD tails, host-call neighborhoods, and larger working sets.
 dot+1+uniform+suite=sweep

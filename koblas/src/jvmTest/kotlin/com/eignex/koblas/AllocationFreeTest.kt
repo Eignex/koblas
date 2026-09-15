@@ -258,20 +258,13 @@ class AllocationFreeTest {
     }
 
     @Test
-    fun `sparse vector and matrix slice kernels allocate nothing`() {
+    fun `sparse vector kernels allocate nothing`() {
         val n = 128
-        val sparse = SparseMatrix.ofColumns(
-            n,
-            n,
-            List(n) { column -> listOf(column to 1.0, (column + 1) % n to 1e-8).sortedBy { it.first } },
-        )
         val vector = SparseVector.of(n, IntArray(n / 2) { it * 2 }, DoubleArray(n / 2) { it + 1.0 })
         val x = DoubleArray(n) { it * 0.01 }
-        val y = DoubleArray(n)
 
         val levelOneBytes = bytesPerIteration(1_000) { engine.sparseKernels.dot(vector, x) }
 
         assertTrue(levelOneBytes <= FLOOR_BYTES, "sparse level one allocated $levelOneBytes B per call")
-        assertTrue(sparse.nnz > 0 && y.size == n, "fixtures are the ones the level one call reads")
     }
 }

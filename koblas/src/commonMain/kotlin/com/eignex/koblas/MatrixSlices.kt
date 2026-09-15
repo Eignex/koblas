@@ -38,8 +38,8 @@ public fun SparseMatrix.column(j: Int): SparseVector {
  * every stored entry in the matrix to gather the ones in this row, and allocates arrays sized to its stored
  * entries. The returned vector is independent of this matrix, and explicitly stored zeros are preserved.
  *
- * Extracting every row this way costs `O(nnz * rows)`; use [transpose] once and read its columns instead when
- * the algorithm needs many rows.
+ * Extracting every row this way costs `O(nnz * rows)`, so an algorithm that needs many rows is better served
+ * by one row-oriented copy of its own than by repeating this scan.
  */
 public fun SparseMatrix.row(i: Int): SparseVector {
     requireIndex(i in 0 until rows) { "row $i outside [0,$rows)" }
