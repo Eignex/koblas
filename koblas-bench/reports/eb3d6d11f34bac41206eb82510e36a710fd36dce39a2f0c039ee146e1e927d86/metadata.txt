@@ -1,0 +1,71 @@
+status=complete
+
+[capture]
+dirty=false
+native_source=gradle
+pass=1
+source_commit=b94e4414b480f01ec8efa500408af0c8ca8d832f
+target_ns=200000000
+threads=1
+unit=ns
+warmups=5
+
+[hardware]
+architecture=x86_64
+vendor id=GenuineIntel
+model name=Intel(R) Xeon(R) CPU E5-2665 0 @ 2.40GHz
+cpu family=6
+model=45
+thread(s) per core=1
+core(s) per socket=2
+socket(s)=1
+stepping=7
+l1d cache=64 KiB (2 instances)
+l1i cache=64 KiB (2 instances)
+l2 cache=512 KiB (2 instances)
+l3 cache=40 MiB (2 instances)
+numa node(s)=1
+memory_kib=17468968
+
+[jvm-c]
+harness=jmh-average-time/JMH-1.37
+implementation=jvm-c/c/c-sparse/packed-4x4
+requested_forks=2
+runtime=kotlin-2.4.10/jvm/Ubuntu/25.0.4
+warmup_target_ns=200000000
+
+[jvm-scalar]
+harness=jmh-average-time/JMH-1.37
+implementation=jvm-scalar/scalar/scalar/packed-4x4
+requested_forks=2
+runtime=kotlin-2.4.10/jvm/Ubuntu/25.0.4
+warmup_target_ns=200000000
+
+[jvm-simd]
+harness=jmh-average-time/JMH-1.37
+implementation=jvm-simd/simd(2 lanes)/simd-sparse/packed-4x4
+requested_forks=2
+runtime=kotlin-2.4.10/jvm/Ubuntu/25.0.4
+warmup_target_ns=200000000
+
+[native]
+harness=native-calibrated
+implementation=native/c/c-sparse/packed-4x4
+requested_forks=1
+runtime=kotlin-native-2.4.10
+warmup_target_ns=50000000
+
+[openblas]
+harness=vendor-calibrated
+implementation=openblas
+requested_forks=1
+runtime=OpenBLAS 0.3.32 NO_LAPACKE DYNAMIC_ARCH NO_AFFINITY Nehalem MAX_THREADS=128; compiler=15.2.0
+warmup_target_ns=50000000
+
+[execution]
+jvm-scalar_started_at=2026-09-13T05:30:57Z
+jvm-c_started_at=2026-09-13T05:54:17Z
+jvm-simd_started_at=2026-09-13T06:15:44Z
+native_started_at=2026-09-13T06:43:36Z
+vendors_started_at=2026-09-13T06:54:29Z
+completed_at=2026-09-13T06:57:03Z

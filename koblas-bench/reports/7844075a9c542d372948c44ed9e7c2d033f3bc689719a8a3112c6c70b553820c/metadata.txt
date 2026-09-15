@@ -1,0 +1,69 @@
+status=complete
+
+[capture]
+dirty=false
+native_source=prebuilt
+pass=1
+source_commit=437ae0208b7fffe9b36ca8ece042cce97c078909
+target_ns=200000000
+threads=1
+unit=ns
+warmups=5
+
+[hardware]
+architecture=aarch64
+vendor id=ARM
+model name=Neoverse-V1
+model=1
+thread(s) per core=1
+socket(s)=-
+stepping=r1p1
+l1d cache=256 KiB (4 instances)
+l1i cache=256 KiB (4 instances)
+l2 cache=4 MiB (4 instances)
+l3 cache=32 MiB (1 instance)
+numa node(s)=1
+memory_kib=7941920
+
+[jvm-c]
+harness=jmh-average-time/JMH-1.37
+implementation=jvm-c/c/c-sparse/packed-4x4
+requested_forks=2
+runtime=kotlin-2.4.10/jvm/Ubuntu/25.0.4
+warmup_target_ns=200000000
+
+[jvm-scalar]
+harness=jmh-average-time/JMH-1.37
+implementation=jvm-scalar/scalar/scalar/packed-4x4
+requested_forks=2
+runtime=kotlin-2.4.10/jvm/Ubuntu/25.0.4
+warmup_target_ns=200000000
+
+[jvm-simd]
+harness=jmh-average-time/JMH-1.37
+implementation=jvm-simd/simd(4 lanes)/simd-sparse/packed-8x4
+requested_forks=2
+runtime=kotlin-2.4.10/jvm/Ubuntu/25.0.4
+warmup_target_ns=200000000
+
+[native]
+harness=native-calibrated
+implementation=native/c/c-sparse/packed-4x4
+requested_forks=1
+runtime=kotlin-native-2.4.10
+warmup_target_ns=50000000
+
+[openblas]
+harness=vendor-calibrated
+implementation=openblas
+requested_forks=1
+runtime=OpenBLAS 0.3.32 NO_LAPACKE DYNAMIC_ARCH NO_AFFINITY neoversev1 MAX_THREADS=128; compiler=15.2.0
+warmup_target_ns=50000000
+
+[execution]
+jvm-scalar_started_at=2026-09-13T05:41:58Z
+jvm-c_started_at=2026-09-13T06:02:28Z
+jvm-simd_started_at=2026-09-13T06:22:06Z
+native_started_at=2026-09-13T06:41:45Z
+vendors_started_at=2026-09-13T06:49:44Z
+completed_at=2026-09-13T06:52:32Z

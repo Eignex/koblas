@@ -15,10 +15,11 @@ target_ms=1000
 forks=2
 pass=1
 vendors_only=false
+native_executable=
 smoke=false
 
 usage() {
-  echo "usage: capture-report.sh [--libraries openblas,accelerate,onemkl|all] [--native-variant scalar|sse2|avx2|neon] [--vendors-only] [--smoke] [--output DIR] [--operation NAME|all] [--suite default|sweep] [--samples N] [--warmups N] [--target-ms N] [--forks N] [--pass N]" >&2
+  echo "usage: capture-report.sh [--libraries openblas,accelerate,onemkl|all] [--native-variant scalar|sse2|avx2|neon] [--native-executable FILE] [--vendors-only] [--smoke] [--output DIR] [--operation NAME|all] [--suite default|sweep] [--samples N] [--warmups N] [--target-ms N] [--forks N] [--pass N]" >&2
 }
 while (($#)); do
   case "$1" in
@@ -33,12 +34,14 @@ while (($#)); do
     --forks) forks=${2:?}; shift 2 ;;
     --pass) pass=${2:?}; shift 2 ;;
     --vendors-only) vendors_only=true; shift ;;
+    --native-executable) native_executable=${2:?}; shift 2 ;;
     --smoke) smoke=true; shift ;;
     --help|-h) usage; exit 0 ;;
     *) usage; exit 2 ;;
   esac
 done
 [[ -z $native_variant || $native_variant == scalar || $native_variant == sse2 || $native_variant == avx2 || $native_variant == neon ]] || { usage; exit 2; }
+[[ -z $native_executable || -x $native_executable ]] || { echo "native executable is unavailable: $native_executable" >&2; exit 2; }
 [[ $suite == default || $suite == sweep ]] || { echo "suite must be default or sweep" >&2; exit 2; }
 [[ $suite != sweep || $operation != all ]] || { echo "suite sweep requires a specific operation" >&2; exit 2; }
 if $smoke; then samples=1; warmups=0; target_ms=1; forks=1; fi
@@ -122,6 +125,7 @@ cases="$temporary/cases.txt"
   if ! $vendors_only; then
     echo "requested_jvm_forks=$forks"
     [[ -z $native_variant ]] || echo "requested_native_variant=$native_variant"
+    echo "native_source=$([[ -n $native_executable ]] && echo prebuilt || echo gradle)"
   fi
   env | LC_ALL=C sort | awk '/^KOBLAS_(DENSE|SPARSE)_/ { print }'
   echo "threads=1"
@@ -164,7 +168,16 @@ if ! $vendors_only; then
       jvm-c) task=jvmCBenchmark ;;
       jvm-c-raw-*) task=jvmCRawBenchmark ;;
       jvm-simd) task=jvmSimdBenchmark ;;
-      native*) task=nativeBenchmark ;;
+      native*)
+        if [[ -n $native_executable ]]; then
+          run_target "$target" "$native_executable" \
+            --mode="$target" --operation="$operation" --cases="$cases" --output="$results/$target.csv" \
+            --warmups="$warmups" --samples="$samples" --target-ms="$target_ms" --pass="$pass" \
+            --source-commit="$commit" --dirty="$dirty"
+          continue
+        fi
+        task=nativeBenchmark
+        ;;
     esac
     run_target "$target" ./gradlew --no-daemon ":koblas-bench:$task" "${common[@]}" "-Pbench.forks=$forks" "-Pbench.output=$results/$target.csv"
   done

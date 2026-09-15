@@ -11,7 +11,6 @@ import platform.posix.fclose
 import platform.posix.fgetc
 import platform.posix.fopen
 import platform.posix.fputs
-import platform.posix.mkdir
 
 internal actual fun readTextFile(path: String): String = memScoped {
     val file = fopen(path, "rb") ?: error("cannot open $path")
@@ -32,7 +31,7 @@ internal actual fun writeTextFile(path: String, text: String) = memScoped {
         var current = if (path.startsWith('/')) "/" else ""
         for (part in path.substring(0, separator).split('/').filter { it.isNotEmpty() }) {
             current = if (current == "/") "/$part" else if (current.isEmpty()) part else "$current/$part"
-            mkdir(current, 0x1ffu)
+            createDirectory(current)
         }
     }
     val file = fopen(path, "wb") ?: error("cannot open $path (create its parent directory first)")
