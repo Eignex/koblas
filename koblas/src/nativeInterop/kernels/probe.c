@@ -36,8 +36,6 @@ static const uint32_t variants[] = {
 #define VARIANT_COUNT (sizeof(variants) / sizeof(variants[0]))
 static koblas_probe_result_v1 host;
 
-/* Irregular indexed work has one explicit non-vectorized implementation. */
-static int scalar_only(uint32_t op) { return op >= KOBLAS_OP_SPARSE_DOT_DENSE && op <= KOBLAS_OP_SPARSE_GATHER_ZERO; }
 
 static uint32_t required_features(uint32_t variant) {
     switch (variant) {
@@ -63,7 +61,7 @@ __attribute__((constructor)) static void initialize_host(void) {
     host.abi_version = KOBLAS_ABI_VERSION;
     host.byte_size = sizeof(host);
     host.catalog_revision = 1;
-    host.kernel_count = (OPERATION_COUNT - 7) * VARIANT_COUNT + 7;
+    host.kernel_count = OPERATION_COUNT * VARIANT_COUNT;
 #if defined(__linux__)
     host.operating_system = 1;
 #elif defined(__APPLE__)
@@ -127,7 +125,6 @@ __attribute__((constructor)) static void initialize_host(void) {
 uint32_t koblas_kernel_reason(uint32_t id, uint32_t op) {
     if (op == 0 || op > OPERATION_COUNT || id / 16u != op) return KOBLAS_NOT_FOUND;
     uint32_t variant = id % 16u;
-    if (scalar_only(op) && variant != KOBLAS_SCALAR) return KOBLAS_NOT_BUILT;
     size_t i = 0;
     for (; i < VARIANT_COUNT && variants[i] != variant; i++) {}
     if (i == VARIANT_COUNT) return KOBLAS_NOT_BUILT;
@@ -178,11 +175,7 @@ int32_t koblas_probe_v1(const koblas_probe_request_v1 *request, koblas_probe_res
             if (request->index >= host.kernel_count) status = KOBLAS_NOT_FOUND;
             else {
                 uint32_t remaining = request->index;
-                for (size_t i = 0; i < OPERATION_COUNT; i++) {
-                    uint32_t count = scalar_only(operations[i].operation) ? 1 : VARIANT_COUNT;
-                    if (remaining < count) { id = operations[i].operation * 16u + variants[remaining]; break; }
-                    remaining -= count;
-                }
+                id = operations[remaining / VARIANT_COUNT].operation * 16u + variants[remaining % VARIANT_COUNT];
             }
         }
         uint32_t op = id / 16u, variant = id % 16u;
@@ -200,7 +193,7 @@ int32_t koblas_probe_v1(const koblas_probe_request_v1 *request, koblas_probe_res
                 value.logical_batch = entry->batch;
                 value.unroll = entry->unroll;
                 value.accumulators = entry->accumulators;
-                if (variant == KOBLAS_SCALAR && !entry->tile && !scalar_only(op) && op != KOBLAS_OP_DENSE_NRM2) {
+                if (variant == KOBLAS_SCALAR && !entry->tile && op != KOBLAS_OP_DENSE_NRM2) {
                     value.logical_batch = value.unroll = value.accumulators = 1;
                     if (op == KOBLAS_OP_DENSE_DOT4) value.accumulators = 4;
                 }
@@ -220,16 +213,16 @@ int32_t koblas_probe_v1(const koblas_probe_request_v1 *request, koblas_probe_res
                 value.output_layout = entry->tile ? KOBLAS_LAYOUT_COLUMN_MAJOR_FOUR_V1 : 0;
                 value.alignment = 8;
                 value.semantics = KOBLAS_SEMANTICS_ZERO_WORK_NO_READ;
-                if (op == KOBLAS_OP_DENSE_AXPY || op == KOBLAS_OP_SPARSE_AXPY)
+                if (op == KOBLAS_OP_DENSE_AXPY)
                     value.semantics |= KOBLAS_SEMANTICS_ZERO_ALPHA_NO_READ;
-                if (op == KOBLAS_OP_DENSE_NRM2 || op == KOBLAS_OP_SPARSE_NRM2)
+                if (op == KOBLAS_OP_DENSE_NRM2)
                     value.semantics |= KOBLAS_SEMANTICS_ROBUST_NORM;
                 if (op == KOBLAS_OP_DENSE_AXPY4) value.semantics |= KOBLAS_SEMANTICS_ORDERED_COEFFICIENTS;
                 if (op == KOBLAS_OP_DENSE_DOT4 || op == KOBLAS_OP_DENSE_GEMM_TILE)
                     value.semantics |= KOBLAS_SEMANTICS_DELAYED_OUTPUT;
                 if (op == KOBLAS_OP_DENSE_TRSM_TILE || op == KOBLAS_OP_DENSE_GEMM_TRSM_TILE)
                     value.semantics |= KOBLAS_SEMANTICS_UNIT_DIAGONAL_NO_READ;
-                value.addressing = scalar_only(op) ? KOBLAS_ADDRESS_INDEXED : KOBLAS_ADDRESS_CONTIGUOUS;
+                value.addressing = KOBLAS_ADDRESS_CONTIGUOUS;
                 if (op == KOBLAS_OP_DENSE_DOT4 || op == KOBLAS_OP_DENSE_AXPY4)
                     value.addressing |= KOBLAS_ADDRESS_COLUMN_STRIDE;
                 if (op == KOBLAS_OP_DENSE_ROTM) value.addressing = KOBLAS_ADDRESS_VECTOR_STRIDE;

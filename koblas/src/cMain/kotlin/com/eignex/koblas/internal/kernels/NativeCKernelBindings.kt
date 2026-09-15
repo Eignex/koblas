@@ -212,7 +212,7 @@ internal class NativeCKernelBindings(val variant: NativeVariant) {
     ) {
         val status =
             koblas_dense_trsm_tile_v1(
-                (23 * 16 + variant.id).toUInt(),
+                (16 * 16 + variant.id).toUInt(),
                 validRows,
                 order,
                 packedTriangle,
@@ -243,7 +243,7 @@ internal class NativeCKernelBindings(val variant: NativeVariant) {
     ) {
         val status =
             koblas_dense_gemm_trsm_tile_v1(
-                (24 * 16 + variant.id).toUInt(),
+                (17 * 16 + variant.id).toUInt(),
                 depth,
                 validRows,
                 order,

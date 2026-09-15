@@ -51,10 +51,10 @@ public enum class DenseOperation(internal val key: String, internal val nativeOp
     GemmTile("gemm.tile", 10),
 
     /** trsm tile execution. */
-    TrsmTile("trsm.tile", 23),
+    TrsmTile("trsm.tile", 16),
 
     /** gemm trsm tile execution. */
-    GemmTrsmTile("gemm.trsm.tile", 24),
+    GemmTrsmTile("gemm.trsm.tile", 17),
     ;
 
     internal val packed: Boolean get() = this == GemmTile || this == TrsmTile || this == GemmTrsmTile

@@ -272,7 +272,7 @@ internal class JvmCKernelBindings(val variant: NativeVariant) {
         xOff: Int,
     ) {
         val status = denseTrsmTileHandle.invokeExact(
-            23 * 16 + variant.id, validRows, order,
+            16 * 16 + variant.id, validRows, order,
             JvmArraySegments.of(
                 packedTriangle,
             ),
@@ -298,7 +298,7 @@ internal class JvmCKernelBindings(val variant: NativeVariant) {
         xOff: Int,
     ) {
         val status = denseGemmTrsmTileHandle.invokeExact(
-            24 * 16 + variant.id, depth, validRows, order,
+            17 * 16 + variant.id, depth, validRows, order,
             JvmArraySegments.of(
                 packedA,
             ),
