@@ -156,6 +156,32 @@ public object SparsePrimitives {
     }
 
     /**
+     * Returns the entries [touched] names to their cleared state, leaving [touched] itself alone.
+     *
+     * [gatherWorkspace] clears as it reads, which serves a caller that wants the column's values. This serves
+     * one that does not: a column abandoned partway, or one whose result was written somewhere else. Either
+     * way the accumulator has to be reusable before the next epoch, and clearing what an epoch reached costs
+     * what was written rather than the dimension.
+     *
+     * An accumulator entry is written as positive zero and its mark as zero, which is the value a scatter
+     * epoch is forbidden to take.
+     */
+    @JvmStatic
+    public fun clearWorkspace(
+        touched: IntArray,
+        touchedOffset: Int,
+        touchedCount: Int,
+        accumulator: DoubleArray,
+        marks: IntArray,
+    ) {
+        for (k in 0 until touchedCount) {
+            val index = touched[touchedOffset + k]
+            accumulator[index] = 0.0
+            marks[index] = 0
+        }
+    }
+
+    /**
      * The largest magnitude among the entries whose row is still active, or zero when none is.
      *
      * The mask is what makes this a primitive rather than a plain reduction: a solver eliminates rows as it
@@ -191,9 +217,10 @@ public object SparsePrimitives {
      * eligible; which candidate to take, and what the tolerances should be, is pivot policy and belongs to the
      * consumer that owns the factorization.
      *
-     * Both tolerances must be finite and nonnegative. A NaN cutoff, which is what scaling [activeMaximum] by a
-     * relative threshold yields for a column holding a nonfinite entry, fails every comparison and so reports
-     * an empty candidate set rather than the column it came from.
+     * Both tolerances must be finite and nonnegative, and are rejected rather than applied. Scaling
+     * [activeMaximum] by a relative threshold is the natural way to reach [relativeCutoff], and that yields NaN
+     * for a column holding a nonfinite entry. Every comparison against NaN is false, so admitting one would
+     * report an empty candidate set and a numerically broken column would read as merely unpivotable.
      */
     @Suppress("LongParameterList")
     @JvmStatic
@@ -209,6 +236,12 @@ public object SparsePrimitives {
         outPositions: IntArray,
         outOffset: Int,
     ): Int {
+        require(absoluteTolerance.isFinite() && absoluteTolerance >= 0.0) {
+            "absolute tolerance must be finite and nonnegative, got $absoluteTolerance"
+        }
+        require(relativeCutoff.isFinite() && relativeCutoff >= 0.0) {
+            "relative cutoff must be finite and nonnegative, got $relativeCutoff"
+        }
         var written = 0
         for (k in 0 until count) {
             if (!activeRows[rowIndices[indexOffset + k]]) continue
