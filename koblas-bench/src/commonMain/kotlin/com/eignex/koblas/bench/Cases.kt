@@ -30,12 +30,6 @@ internal object Cases {
         "spgemv" to 2, "spmm" to 3, "spgemm" to 3,
         "spsymv" to 1, "spsymm" to 2, "sptrsv" to 1, "sptrmv" to 1, "sptrsm" to 2, "sptrmm" to 2,
         "spsyrk-dense" to 2, "spsyrk-sparse" to 2, "spadd" to 2,
-        "sparse-slices-cycle" to 1, "sparse-slices-cycle-checked" to 1,
-        "sparse-slices-scatter" to 1, "sparse-slices-scatter-checked" to 1, "sparse-slices-gather" to 1,
-        "sparse-slices-gather-clear" to 1, "sparse-slices-clear" to 1, "sparse-slices-clear-local" to 1,
-        "sparse-slices-reduce-dot-checked" to 1, "sparse-slices-reduce-dot-local" to 1,
-        "sparse-slices-reduce-dot-unchecked" to 1,
-        "sparse-slices-max" to 1, "sparse-slices-filter" to 1,
     )
     private val fixtures = setOf("uniform", "triangular", "sparse-uniform", "sparse-triangular")
     private val optionOrder = listOf("density", "mode", "packed", "side", "uplo", "transA", "transB", "diag", "timing", "compact", "locality")
@@ -120,7 +114,7 @@ internal object Cases {
         options: Map<String, String>,
         invalid: (String) -> Nothing,
     ) {
-        val sparse = operation.startsWith("sp") || operation.startsWith("sparse-slices-")
+        val sparse = operation.startsWith("sp")
         val triangular = operation in TRIANGULAR_FIXTURE_OPERATIONS
         val expectedFixture = when {
             sparse && triangular -> "sparse-triangular"
@@ -144,12 +138,6 @@ internal object Cases {
         if (operation in setOf("scal", "spgather") && "timing" in options && options["timing"] != "arithmetic") {
             invalid("$operation supports only timing=arithmetic as an explicit override")
         }
-        if (operation in sparseSlicesComparisonOperations) {
-            if ("timing" in options && options["timing"] != "reuse") invalid("sparse slice comparisons require timing=reuse")
-            if ((operation.startsWith("sparse-slices-cycle") || "compact" in options || "locality" in options) && options["timing"] != "reuse") {
-                invalid("sparse slice comparison options require timing=reuse")
-            }
-        }
         validatePackedBounds(operation, dimensions, options, invalid)
         if ("packed" in required) PackedConfiguration.validate(operation, dimensions, options)
     }
@@ -162,11 +150,6 @@ internal object Cases {
         }
         if (operation == "gemm") add("transB")
         if (operation in setOf("scal", "spgather")) add("timing")
-        if (operation in sparseSlicesComparisonOperations) {
-            add("timing")
-            add("locality")
-            if (operation.startsWith("sparse-slices-cycle") || operation in setOf("sparse-slices-gather", "sparse-slices-gather-clear")) add("compact")
-        }
         if (operation in MODE_OPERATIONS) add("mode")
     }
 

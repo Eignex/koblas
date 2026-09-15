@@ -14,12 +14,15 @@ transpose indexing may be cached without introducing descriptors or mutable glob
 mutation, then dispatched to the engine's scalar, bundled C, or JVM Vector API leaves. Reductions admit repeated
 and unsorted support with contribution semantics; indexed mutations require strictly ordered unique destinations.
 
-[SparseSlices][com.eignex.koblas.sparse.SparseSlices] is a stateless collection of validated operations over
-caller-owned support, marks, accumulators, diagnostics, and output buffers. It includes ordered checked arithmetic
-and direct touched-support clearing. It neither owns nor borrows storage; [Workspace][com.eignex.koblas.Workspace]
-is reserved for complete higher-level operations that genuinely need temporary alias staging, packing,
-transposition, accumulation, or multi-result scratch. Pivot selection, permutations, dropping policy,
-factorization state, and exact arithmetic remain outside these numerical leaves.
+[SparsePrimitives][com.eignex.koblas.sparse.SparsePrimitives] is a stateless collection of numerical leaves over
+caller-owned support, marks, accumulators, diagnostics, and output buffers, including the checked scatter that
+reports nonfinite arithmetic and product underflow. It neither owns nor borrows storage;
+[Workspace][com.eignex.koblas.Workspace] is reserved for complete higher-level operations that genuinely need
+temporary alias staging, packing, accumulation, or multi-result scratch.
+
+The validated solver workflows that were assembled from these leaves are not part of this library. Pivot
+selection, permutations, dropping policy, factorization state, and exact arithmetic belong to the consumer that
+owns its factors; what remains here is the arithmetic those workflows are built from.
 
 Factorization and basis-solver contracts are not part of this library. A consumer that needs them owns its own
 factors on top of these numerical leaves.

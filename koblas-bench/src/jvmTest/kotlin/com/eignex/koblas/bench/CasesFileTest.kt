@@ -66,7 +66,7 @@ class CasesFileTest {
         val ids = defaults.joinToString("\n") { it.id }
         val digest = MessageDigest.getInstance("SHA-256").digest(ids.toByteArray()).joinToString("") { "%02x".format(it) }
 
-        assertEquals("ca84001137fd413d56924b808880c941a0594c81f9f5307139e9be756186c3b1", digest)
+        assertEquals("d1e65199ee3e1d9775c1a93902c92649488388f089f4c37245f901dc99a6e737", digest)
     }
 
     @Test
@@ -76,8 +76,8 @@ class CasesFileTest {
         assertEquals(setOf("dot", "sum", "asum", "ssqd", "dot4", "dot-axpy"),
             cases.filter { "sweep" in it.suites }.map { it.operation }.toSet())
         assertEquals(78, cases.count { "sweep" in it.suites })
-        assertEquals(272, cases.size)
-        assertEquals(200, Cases.select(cases).size)
+        assertEquals(235, cases.size)
+        assertEquals(163, Cases.select(cases).size)
         assertEquals(cases.size, cases.map { it.id }.toSet().size)
     }
 }

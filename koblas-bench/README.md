@@ -33,7 +33,7 @@ Use `--native-variant scalar|sse2|avx2|neon` for exact raw C arithmetic in the J
 Unavailable variants fail the capture. Kotlin scalar and JVM SIMD targets retain their distinct identities.
 
 [`cases.txt`](cases.txt) defines every workload and its selection membership. Ordinary captures run the
-200 default cases; `--operation NAME` intersects that suite with a single kernel. Use `--suite sweep`
+163 default cases; `--operation NAME` intersects that suite with a single kernel. Use `--suite sweep`
 with a specific `--operation NAME` to select its opt-in sizes. Sweeps currently cover `dot`, `sum`, `asum`,
 `ssqd`, `dot4`, and `dot-axpy`, with 12–15 explicit sizes per operation. `--smoke` takes the first three
 cases **after** both filters. An unknown suite, a sweep without an operation, or an empty intersection fails.
