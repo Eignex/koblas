@@ -21,5 +21,5 @@ is reserved for complete higher-level operations that genuinely need temporary a
 transposition, accumulation, or multi-result scratch. Pivot selection, permutations, dropping policy,
 factorization state, and exact arithmetic remain outside these numerical leaves.
 
-Factorization and basis-solver contracts live in the optional JVM `koblas-hfactor` artifact. The multiplatform
-BLAS module neither loads nor detects HFactor.
+Factorization and basis-solver contracts are not part of this library. A consumer that needs them owns its own
+factors on top of these numerical leaves.

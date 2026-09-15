@@ -16,5 +16,5 @@ with scalar fallbacks. Shared dense and sparse matrix algorithms are bound direc
 
 Exact scalar, C, and SIMD engines are available through the experimental
 [BuiltinEngines][com.eignex.koblas.BuiltinEngines] construction seam for tests and benchmarks. Constructing one
-does not change the default engine. Factorization and basis solving are outside this artifact; the optional JVM
-`koblas-hfactor` artifact exposes HFactor directly.
+does not change the default engine. Factorization and basis solving are outside this artifact: a consumer that
+needs them owns its own factors on top of these kernels.
