@@ -2,6 +2,7 @@ package com.eignex.koblas.vendor
 
 import com.eignex.koblas.dense.MatrixStructure
 import com.eignex.koblas.dense.MatrixWindow
+import com.eignex.koblas.dense.VectorWindow
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
@@ -19,7 +20,11 @@ private class MisroutedBlas(
     private val claimed: CallRoute,
     override val directlyImplemented: Set<VendorOperation> = delegate.directlyImplemented,
 ) : VendorBlas by delegate {
-    override fun routeOf(operation: VendorOperation, matrices: List<MatrixWindow>): CallRoute = claimed
+    override fun routeOf(
+        operation: VendorOperation,
+        matrices: List<MatrixWindow>,
+        vectors: List<VectorWindow>,
+    ): CallRoute = claimed
 }
 
 class VendorRouteTest {

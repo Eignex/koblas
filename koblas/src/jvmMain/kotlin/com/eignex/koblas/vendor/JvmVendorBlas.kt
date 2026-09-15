@@ -39,11 +39,16 @@ internal class JvmVendorBlas(
     override val directlyImplemented: Set<VendorOperation> = VendorOperation.entries
         .filterTo(LinkedHashSet()) { it !in suppressed && library.exports(it.entryPoint) }
 
-    override fun routeOf(operation: VendorOperation, matrices: List<MatrixWindow>): CallRoute = routeFor(
+    override fun routeOf(
+        operation: VendorOperation,
+        matrices: List<MatrixWindow>,
+        vectors: List<VectorWindow>,
+    ): CallRoute = routeFor(
         operation = operation,
         vendor = vendor,
         exported = operation in directlyImplemented,
         matrices = matrices,
+        vectors = vectors,
         transfer = TRANSFER,
     )
 
@@ -51,7 +56,7 @@ internal class JvmVendorBlas(
 
     override fun dot(x: VectorWindow, y: VectorWindow): Double {
         requireSameLength(x, y, "dot")
-        if (x.size == 0) return 0.0
+        if (noWorkReason(emptyList(), listOf(x)) != null) return 0.0
         return Arena.ofConfined().use { arena ->
             val nx = arena.stage(x)
             val ny = arena.stage(y)
@@ -60,7 +65,7 @@ internal class JvmVendorBlas(
     }
 
     override fun nrm2(x: VectorWindow): Double {
-        if (x.size == 0) return 0.0
+        if (noWorkReason(emptyList(), listOf(x)) != null) return 0.0
         return Arena.ofConfined().use { arena ->
             val nx = arena.stage(x)
             nrm2Handle.invokeExact(x.size, nx.segment, abs(nx.increment)) as Double
@@ -68,7 +73,7 @@ internal class JvmVendorBlas(
     }
 
     override fun asum(x: VectorWindow): Double {
-        if (x.size == 0) return 0.0
+        if (noWorkReason(emptyList(), listOf(x)) != null) return 0.0
         return Arena.ofConfined().use { arena ->
             val nx = arena.stage(x)
             asumHandle.invokeExact(x.size, nx.segment, abs(nx.increment)) as Double
@@ -76,7 +81,7 @@ internal class JvmVendorBlas(
     }
 
     override fun iamax(x: VectorWindow): Int {
-        if (x.size == 0) return 0
+        if (noWorkReason(emptyList(), listOf(x)) != null) return 0
         return Arena.ofConfined().use { arena ->
             val nx = arena.stage(x)
             val found = iamaxHandle.invokeExact(x.size, nx.segment, abs(nx.increment)) as Int
@@ -86,7 +91,7 @@ internal class JvmVendorBlas(
 
     override fun axpy(alpha: Double, x: VectorWindow, y: VectorWindow) {
         requireSameLength(x, y, "axpy")
-        if (x.size == 0) return
+        if (noWorkReason(emptyList(), listOf(x)) != null) return
         Arena.ofConfined().use { arena ->
             val nx = arena.stage(x)
             val ny = arena.stage(y)
@@ -96,7 +101,7 @@ internal class JvmVendorBlas(
     }
 
     override fun scal(alpha: Double, x: VectorWindow) {
-        if (x.size == 0) return
+        if (noWorkReason(emptyList(), listOf(x)) != null) return
         Arena.ofConfined().use { arena ->
             val nx = arena.stage(x)
             scalHandle.invokeExact(x.size, alpha, nx.segment, abs(nx.increment))
@@ -106,7 +111,7 @@ internal class JvmVendorBlas(
 
     override fun copy(x: VectorWindow, y: VectorWindow) {
         requireSameLength(x, y, "copy")
-        if (x.size == 0) return
+        if (noWorkReason(emptyList(), listOf(x)) != null) return
         Arena.ofConfined().use { arena ->
             val nx = arena.stage(x)
             val ny = arena.stage(y)
@@ -117,7 +122,7 @@ internal class JvmVendorBlas(
 
     override fun swap(x: VectorWindow, y: VectorWindow) {
         requireSameLength(x, y, "swap")
-        if (x.size == 0) return
+        if (noWorkReason(emptyList(), listOf(x)) != null) return
         Arena.ofConfined().use { arena ->
             val nx = arena.stage(x)
             val ny = arena.stage(y)
@@ -129,7 +134,7 @@ internal class JvmVendorBlas(
 
     override fun rot(x: VectorWindow, y: VectorWindow, c: Double, s: Double) {
         requireSameLength(x, y, "rot")
-        if (x.size == 0) return
+        if (noWorkReason(emptyList(), listOf(x)) != null) return
         Arena.ofConfined().use { arena ->
             val nx = arena.stage(x)
             val ny = arena.stage(y)
@@ -143,7 +148,7 @@ internal class JvmVendorBlas(
 
     override fun gemv(alpha: Double, a: MatrixWindow, x: VectorWindow, beta: Double, y: VectorWindow) {
         require(x.size == a.columns && y.size == a.rows) { "gemv: operand sizes do not match the matrix" }
-        if (a.rows == 0 || a.columns == 0) return
+        if (noWorkReason(listOf(a), emptyList()) != null) return
         val layout = layoutOf(listOf(a))
         val addressing = addressingUnder(a, layout, absorbs = true)
         Arena.ofConfined().use { arena ->
@@ -161,7 +166,7 @@ internal class JvmVendorBlas(
     override fun symv(alpha: Double, a: MatrixWindow, x: VectorWindow, beta: Double, y: VectorWindow) {
         requireStructured(a, "symv")
         require(x.size == a.columns && y.size == a.rows) { "symv: operand sizes do not match the matrix" }
-        if (a.rows == 0) return
+        if (noWorkReason(listOf(a), emptyList()) != null) return
         val layout = layoutOf(listOf(a))
         val addressing = addressingUnder(a, layout, absorbs = true)
         Arena.ofConfined().use { arena ->
@@ -178,7 +183,7 @@ internal class JvmVendorBlas(
 
     override fun ger(alpha: Double, x: VectorWindow, y: VectorWindow, a: MatrixWindow) {
         require(x.size == a.rows && y.size == a.columns) { "ger: operand sizes do not match the matrix" }
-        if (a.rows == 0 || a.columns == 0) return
+        if (noWorkReason(listOf(a), emptyList()) != null) return
         val layout = layoutOf(listOf(a))
         val addressing = addressingUnder(a, layout, absorbs = true)
         Arena.ofConfined().use { arena ->
@@ -196,7 +201,7 @@ internal class JvmVendorBlas(
     override fun syr(alpha: Double, x: VectorWindow, a: MatrixWindow) {
         requireStructured(a, "syr")
         require(x.size == a.rows) { "syr: operand size does not match the matrix" }
-        if (a.rows == 0) return
+        if (noWorkReason(listOf(a), emptyList()) != null) return
         val layout = layoutOf(listOf(a))
         val addressing = addressingUnder(a, layout, absorbs = true)
         Arena.ofConfined().use { arena ->
@@ -219,7 +224,7 @@ internal class JvmVendorBlas(
     override fun syr2(alpha: Double, x: VectorWindow, y: VectorWindow, a: MatrixWindow) {
         requireStructured(a, "syr2")
         require(x.size == a.rows && y.size == a.rows) { "syr2: operand sizes do not match the matrix" }
-        if (a.rows == 0) return
+        if (noWorkReason(listOf(a), emptyList()) != null) return
         val layout = layoutOf(listOf(a))
         val addressing = addressingUnder(a, layout, absorbs = true)
         Arena.ofConfined().use { arena ->
@@ -241,7 +246,7 @@ internal class JvmVendorBlas(
     private fun triangularVector(a: MatrixWindow, x: VectorWindow, handle: MethodHandle, what: String) {
         requireTriangular(a, what)
         require(x.size == a.rows) { "$what: operand size does not match the matrix" }
-        if (a.rows == 0) return
+        if (noWorkReason(listOf(a), emptyList()) != null) return
         val layout = layoutOf(listOf(a))
         val addressing = addressingUnder(a, layout, absorbs = true)
         Arena.ofConfined().use { arena ->
@@ -259,7 +264,7 @@ internal class JvmVendorBlas(
 
     override fun gemm(alpha: Double, a: MatrixWindow, b: MatrixWindow, beta: Double, c: MatrixWindow) {
         require(a.columns == b.rows && c.rows == a.rows && c.columns == b.columns) { "gemm: shapes do not conform" }
-        if (c.rows == 0 || c.columns == 0) return
+        if (noWorkReason(listOf(c), emptyList()) != null) return
         val operands = listOf(a, b, c)
         val layout = layoutOf(operands)
         val addressing = effectiveAddressing(VendorOperation.Gemm, operands)
@@ -288,7 +293,7 @@ internal class JvmVendorBlas(
         requireStructured(a, "symm")
         require(c.rows == b.rows && c.columns == b.columns) { "symm: shapes do not conform" }
         require(a.rows == if (rightSide) c.columns else c.rows) { "symm: the symmetric operand has the wrong order" }
-        if (c.rows == 0 || c.columns == 0) return
+        if (noWorkReason(listOf(c), emptyList()) != null) return
         val operands = listOf(a, b, c)
         val layout = layoutOf(operands)
         val addressing = effectiveAddressing(VendorOperation.Symm, operands)
@@ -308,7 +313,7 @@ internal class JvmVendorBlas(
     override fun syrk(alpha: Double, a: MatrixWindow, beta: Double, c: MatrixWindow) {
         requireStructured(c, "syrk")
         require(c.rows == a.rows) { "syrk: shapes do not conform" }
-        if (c.rows == 0) return
+        if (noWorkReason(listOf(c), emptyList()) != null) return
         val operands = listOf(a, c)
         val layout = layoutOf(operands)
         val addressing = effectiveAddressing(VendorOperation.Syrk, operands)
@@ -327,7 +332,7 @@ internal class JvmVendorBlas(
     override fun syr2k(alpha: Double, a: MatrixWindow, b: MatrixWindow, beta: Double, c: MatrixWindow) {
         requireStructured(c, "syr2k")
         require(c.rows == a.rows && a.rows == b.rows && a.columns == b.columns) { "syr2k: shapes do not conform" }
-        if (c.rows == 0) return
+        if (noWorkReason(listOf(c), emptyList()) != null) return
         val operands = listOf(a, b, c)
         val layout = layoutOf(operands)
         val addressing = effectiveAddressing(VendorOperation.Syr2k, operands)
@@ -361,7 +366,7 @@ internal class JvmVendorBlas(
     ) {
         requireTriangular(a, what)
         require(if (rightSide) a.rows == b.columns else a.rows == b.rows) { "$what: shapes do not conform" }
-        if (b.rows == 0 || b.columns == 0) return
+        if (noWorkReason(listOf(b), emptyList()) != null) return
         val operands = listOf(a, b)
         val layout = layoutOf(operands)
         val addressing = effectiveAddressing(operation, operands)
@@ -381,7 +386,7 @@ internal class JvmVendorBlas(
     override fun gemmt(alpha: Double, a: MatrixWindow, b: MatrixWindow, beta: Double, c: MatrixWindow) {
         requireStructured(c, "gemmt")
         require(a.columns == b.rows && c.rows == a.rows && c.columns == b.columns) { "gemmt: shapes do not conform" }
-        if (c.rows == 0 || c.columns == 0) return
+        if (noWorkReason(listOf(c), emptyList()) != null) return
         if (VendorOperation.Gemmt !in directlyImplemented) return composeGemmt(alpha, a, b, beta, c)
         val operands = listOf(a, b, c)
         val layout = layoutOf(operands)

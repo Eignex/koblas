@@ -116,12 +116,13 @@ internal class NativeVendorBlas private constructor(
     private fun enforceSingleThread() {
         // Accelerate has no thread-count entry point; see ACCELERATE_THREAD_LIMIT. Overwrite is on so a value
         // inherited from the launching shell cannot weaken the invariant.
-        if (vendor == Vendor.Accelerate) setenv(ACCELERATE_THREAD_LIMIT, "1", 1)
-        dlsym(handle, "MKL_Set_Threading_Layer")?.reinterpret<SetLayerFn>()?.invoke(MKL_SEQUENTIAL)
-        dlsym(handle, "MKL_Set_Dynamic")?.reinterpret<SetThreadsFn>()?.invoke(0)
-        for (symbol in listOf("MKL_Set_Num_Threads", "openblas_set_num_threads", "bli_thread_set_num_threads")) {
-            dlsym(handle, symbol)?.reinterpret<SetThreadsFn>()?.invoke(1)
+        if (vendor.threadControl == ThreadControl.Environment) setenv(ACCELERATE_THREAD_LIMIT, "1", 1)
+        if (vendor.threadControl == ThreadControl.Mkl) {
+            dlsym(handle, "MKL_Set_Threading_Layer")?.reinterpret<SetLayerFn>()?.invoke(MKL_SEQUENTIAL)
+            dlsym(handle, "MKL_Set_Dynamic")?.reinterpret<SetThreadsFn>()?.invoke(0)
         }
+        val setter = vendor.threadControl.setter ?: return
+        dlsym(handle, setter)?.reinterpret<SetThreadsFn>()?.invoke(1)
     }
 
     /** Set once at load, after [enforceSingleThread], and never again. */
@@ -137,13 +138,24 @@ internal class NativeVendorBlas private constructor(
      * the case that matters, since it carries no thread-count entry point of its own.
      */
     private fun confirmSingleThread(): Boolean {
-        for (symbol in listOf("MKL_Get_Max_Threads", "openblas_get_num_threads", "bli_thread_get_num_threads")) {
-            val fn = dlsym(handle, symbol)?.reinterpret<GetThreadsFn>() ?: continue
-            if (fn() != 1) return false
+        val control = vendor.threadControl
+        val getter = control.getter
+        if (getter == null) {
+            // Accelerate, held through the environment and unable to answer. Declared, not discovered.
+            threadEvidence = ThreadEvidence.Unconfirmed
+            return true
+        }
+        val fn = dlsym(handle, getter)?.reinterpret<GetThreadsFn>()
+        if (fn == null) {
+            // A build of a known vendor that lacks the control that vendor has is not one this code knows.
+            // The single exception is an OpenMP vendor with no OpenMP runtime linked, which is the serial
+            // build and has no worker threads to bound in the first place.
+            if (!control.absenceMeansSerial) return false
             threadEvidence = ThreadEvidence.Confirmed
             return true
         }
-        threadEvidence = ThreadEvidence.Unconfirmed
+        if (fn() != 1) return false
+        threadEvidence = ThreadEvidence.Confirmed
         return true
     }
 
@@ -213,11 +225,16 @@ internal class NativeVendorBlas private constructor(
     override val directlyImplemented: Set<VendorOperation> =
         VendorOperation.entries.filterTo(LinkedHashSet()) { entryPoints[it.ordinal] != null }
 
-    override fun routeOf(operation: VendorOperation, matrices: List<MatrixWindow>): CallRoute = routeFor(
+    override fun routeOf(
+        operation: VendorOperation,
+        matrices: List<MatrixWindow>,
+        vectors: List<VectorWindow>,
+    ): CallRoute = routeFor(
         operation = operation,
         vendor = vendor,
         exported = operation in directlyImplemented,
         matrices = matrices,
+        vectors = vectors,
         transfer = null,
     )
 
@@ -229,7 +246,7 @@ internal class NativeVendorBlas private constructor(
 
     override fun dot(x: VectorWindow, y: VectorWindow): Double {
         requireSameLength(x, y, "dot")
-        if (x.size == 0) return 0.0
+        if (noWorkReason(emptyList(), listOf(x)) != null) return 0.0
         val pins = Pins()
         try {
             val px = pins.stage(x)
@@ -246,7 +263,7 @@ internal class NativeVendorBlas private constructor(
     override fun asum(x: VectorWindow): Double = reduce(x, VendorOperation.Asum)
 
     private fun reduce(x: VectorWindow, operation: VendorOperation): Double {
-        if (x.size == 0) return 0.0
+        if (noWorkReason(emptyList(), listOf(x)) != null) return 0.0
         val pins = Pins()
         try {
             val px = pins.stage(x)
@@ -258,7 +275,7 @@ internal class NativeVendorBlas private constructor(
     }
 
     override fun iamax(x: VectorWindow): Int {
-        if (x.size == 0) return 0
+        if (noWorkReason(emptyList(), listOf(x)) != null) return 0
         val pins = Pins()
         try {
             val px = pins.stage(x)
@@ -272,7 +289,7 @@ internal class NativeVendorBlas private constructor(
 
     override fun axpy(alpha: Double, x: VectorWindow, y: VectorWindow) {
         requireSameLength(x, y, "axpy")
-        if (x.size == 0) return
+        if (noWorkReason(emptyList(), listOf(x)) != null) return
         val pins = Pins()
         try {
             val px = pins.stage(x)
@@ -285,7 +302,7 @@ internal class NativeVendorBlas private constructor(
     }
 
     override fun scal(alpha: Double, x: VectorWindow) {
-        if (x.size == 0) return
+        if (noWorkReason(emptyList(), listOf(x)) != null) return
         val pins = Pins()
         try {
             val px = pins.stage(x)
@@ -302,7 +319,7 @@ internal class NativeVendorBlas private constructor(
 
     private fun twoVector(x: VectorWindow, y: VectorWindow, operation: VendorOperation, what: String) {
         requireSameLength(x, y, what)
-        if (x.size == 0) return
+        if (noWorkReason(emptyList(), listOf(x)) != null) return
         val pins = Pins()
         try {
             val px = pins.stage(x)
@@ -316,7 +333,7 @@ internal class NativeVendorBlas private constructor(
 
     override fun rot(x: VectorWindow, y: VectorWindow, c: Double, s: Double) {
         requireSameLength(x, y, "rot")
-        if (x.size == 0) return
+        if (noWorkReason(emptyList(), listOf(x)) != null) return
         val pins = Pins()
         try {
             val px = pins.stage(x)
@@ -332,7 +349,7 @@ internal class NativeVendorBlas private constructor(
 
     override fun gemv(alpha: Double, a: MatrixWindow, x: VectorWindow, beta: Double, y: VectorWindow) {
         require(x.size == a.columns && y.size == a.rows) { "gemv: operand sizes do not match the matrix" }
-        if (a.rows == 0 || a.columns == 0) return
+        if (noWorkReason(listOf(a), emptyList()) != null) return
         val layout = layoutOf(listOf(a))
         val addressing = addressingUnder(a, layout, absorbs = true)
         val pins = Pins()
@@ -353,7 +370,7 @@ internal class NativeVendorBlas private constructor(
     override fun symv(alpha: Double, a: MatrixWindow, x: VectorWindow, beta: Double, y: VectorWindow) {
         requireStructured(a, "symv")
         require(x.size == a.columns && y.size == a.rows) { "symv: operand sizes do not match the matrix" }
-        if (a.rows == 0) return
+        if (noWorkReason(listOf(a), emptyList()) != null) return
         val layout = layoutOf(listOf(a))
         val addressing = addressingUnder(a, layout, absorbs = true)
         val pins = Pins()
@@ -373,7 +390,7 @@ internal class NativeVendorBlas private constructor(
 
     override fun ger(alpha: Double, x: VectorWindow, y: VectorWindow, a: MatrixWindow) {
         require(x.size == a.rows && y.size == a.columns) { "ger: operand sizes do not match the matrix" }
-        if (a.rows == 0 || a.columns == 0) return
+        if (noWorkReason(listOf(a), emptyList()) != null) return
         val layout = layoutOf(listOf(a))
         val addressing = addressingUnder(a, layout, absorbs = true)
         val pins = Pins()
@@ -395,7 +412,7 @@ internal class NativeVendorBlas private constructor(
     override fun syr(alpha: Double, x: VectorWindow, a: MatrixWindow) {
         requireStructured(a, "syr")
         require(x.size == a.rows) { "syr: operand size does not match the matrix" }
-        if (a.rows == 0) return
+        if (noWorkReason(listOf(a), emptyList()) != null) return
         val layout = layoutOf(listOf(a))
         val addressing = addressingUnder(a, layout, absorbs = true)
         val pins = Pins()
@@ -422,7 +439,7 @@ internal class NativeVendorBlas private constructor(
     override fun syr2(alpha: Double, x: VectorWindow, y: VectorWindow, a: MatrixWindow) {
         requireStructured(a, "syr2")
         require(x.size == a.rows && y.size == a.rows) { "syr2: operand sizes do not match the matrix" }
-        if (a.rows == 0) return
+        if (noWorkReason(listOf(a), emptyList()) != null) return
         val layout = layoutOf(listOf(a))
         val addressing = addressingUnder(a, layout, absorbs = true)
         val pins = Pins()
@@ -448,7 +465,7 @@ internal class NativeVendorBlas private constructor(
     private fun triangularVector(a: MatrixWindow, x: VectorWindow, operation: VendorOperation, what: String) {
         requireTriangular(a, what)
         require(x.size == a.rows) { "$what: operand size does not match the matrix" }
-        if (a.rows == 0) return
+        if (noWorkReason(listOf(a), emptyList()) != null) return
         val layout = layoutOf(listOf(a))
         val addressing = addressingUnder(a, layout, absorbs = true)
         val pins = Pins()
@@ -469,7 +486,7 @@ internal class NativeVendorBlas private constructor(
 
     override fun gemm(alpha: Double, a: MatrixWindow, b: MatrixWindow, beta: Double, c: MatrixWindow) {
         require(a.columns == b.rows && c.rows == a.rows && c.columns == b.columns) { "gemm: shapes do not conform" }
-        if (c.rows == 0 || c.columns == 0) return
+        if (noWorkReason(listOf(c), emptyList()) != null) return
         val operands = listOf(a, b, c)
         val layout = layoutOf(operands)
         val addressing = effectiveAddressing(VendorOperation.Gemm, operands)
@@ -502,7 +519,7 @@ internal class NativeVendorBlas private constructor(
         requireStructured(a, "symm")
         require(c.rows == b.rows && c.columns == b.columns) { "symm: shapes do not conform" }
         require(a.rows == if (rightSide) c.columns else c.rows) { "symm: the symmetric operand has the wrong order" }
-        if (c.rows == 0 || c.columns == 0) return
+        if (noWorkReason(listOf(c), emptyList()) != null) return
         val operands = listOf(a, b, c)
         val layout = layoutOf(operands)
         val addressing = effectiveAddressing(VendorOperation.Symm, operands)
@@ -526,7 +543,7 @@ internal class NativeVendorBlas private constructor(
     override fun syrk(alpha: Double, a: MatrixWindow, beta: Double, c: MatrixWindow) {
         requireStructured(c, "syrk")
         require(c.rows == a.rows) { "syrk: shapes do not conform" }
-        if (c.rows == 0) return
+        if (noWorkReason(listOf(c), emptyList()) != null) return
         val operands = listOf(a, c)
         val layout = layoutOf(operands)
         val addressing = effectiveAddressing(VendorOperation.Syrk, operands)
@@ -549,7 +566,7 @@ internal class NativeVendorBlas private constructor(
     override fun syr2k(alpha: Double, a: MatrixWindow, b: MatrixWindow, beta: Double, c: MatrixWindow) {
         requireStructured(c, "syr2k")
         require(c.rows == a.rows && a.rows == b.rows && a.columns == b.columns) { "syr2k: shapes do not conform" }
-        if (c.rows == 0) return
+        if (noWorkReason(listOf(c), emptyList()) != null) return
         val operands = listOf(a, b, c)
         val layout = layoutOf(operands)
         val addressing = effectiveAddressing(VendorOperation.Syr2k, operands)
@@ -586,7 +603,7 @@ internal class NativeVendorBlas private constructor(
     ) {
         requireTriangular(a, what)
         require(if (rightSide) a.rows == b.columns else a.rows == b.rows) { "$what: shapes do not conform" }
-        if (b.rows == 0 || b.columns == 0) return
+        if (noWorkReason(listOf(b), emptyList()) != null) return
         val operands = listOf(a, b)
         val layout = layoutOf(operands)
         val addressing = effectiveAddressing(operation, operands)
@@ -610,7 +627,7 @@ internal class NativeVendorBlas private constructor(
     override fun gemmt(alpha: Double, a: MatrixWindow, b: MatrixWindow, beta: Double, c: MatrixWindow) {
         requireStructured(c, "gemmt")
         require(a.columns == b.rows && c.rows == a.rows && c.columns == b.columns) { "gemmt: shapes do not conform" }
-        if (c.rows == 0 || c.columns == 0) return
+        if (noWorkReason(listOf(c), emptyList()) != null) return
         if (VendorOperation.Gemmt !in directlyImplemented) return composeGemmt(alpha, a, b, beta, c)
         val operands = listOf(a, b, c)
         val layout = layoutOf(operands)

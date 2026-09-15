@@ -61,12 +61,21 @@ public interface VendorBlas {
     public val directlyImplemented: Set<VendorOperation>
 
     /**
-     * What a call to [operation] over [matrices] would do, with the matrix operands given in the order the
-     * operation names them. Level 1 operations have none.
+     * What a call to [operation] over these operands would do, each list in the order the operation names them.
+     *
+     * Both lists matter, because a route describes one concrete call and not an operation in general. An
+     * operation asked about with no operands can only be answered in general terms, and the answer would be
+     * wrong for a call that returns without reaching BLAS: a dot over an empty window does no vendor work, and
+     * describing it as a direct vendor call is the attribution error this contract exists to prevent. Passing
+     * the operands the call will use is what makes the answer specific to it.
      *
      * Allocates, so callers resolve it before timing rather than inside a timed call.
      */
-    public fun routeOf(operation: VendorOperation, matrices: List<MatrixWindow> = emptyList()): CallRoute
+    public fun routeOf(
+        operation: VendorOperation,
+        matrices: List<MatrixWindow> = emptyList(),
+        vectors: List<VectorWindow> = emptyList(),
+    ): CallRoute
 
     /** `xᵀ · y`. */
     public fun dot(x: VectorWindow, y: VectorWindow): Double
