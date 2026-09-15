@@ -17,13 +17,6 @@
 #define koblas_dense_axpy4 KOBLAS_IMPL(koblas_dense_axpy4)
 #define koblas_dense_dot_axpy KOBLAS_IMPL(koblas_dense_dot_axpy)
 #define koblas_dense_rotm KOBLAS_IMPL(koblas_dense_rotm)
-#define koblas_sparse_dot_dense KOBLAS_IMPL(koblas_sparse_dot_dense)
-#define koblas_sparse_dot_sparse KOBLAS_IMPL(koblas_sparse_dot_sparse)
-#define koblas_sparse_axpy KOBLAS_IMPL(koblas_sparse_axpy)
-#define koblas_sparse_scatter KOBLAS_IMPL(koblas_sparse_scatter)
-#define koblas_sparse_nrm2 KOBLAS_IMPL(koblas_sparse_nrm2)
-#define koblas_sparse_gather KOBLAS_IMPL(koblas_sparse_gather)
-#define koblas_sparse_gather_zero KOBLAS_IMPL(koblas_sparse_gather_zero)
 #define koblas_dense_trsm_tile KOBLAS_IMPL(koblas_dense_trsm_tile)
 #define koblas_dense_gemm_trsm_tile KOBLAS_IMPL(koblas_dense_gemm_trsm_tile)
 
@@ -558,110 +551,13 @@ void koblas_dense_rotm(
 
 #if defined(KOBLAS_SCALAR_IMPL)
 /* Indexed loads cannot pack without a gather, but four chains still keep the adds off one another. */
-double koblas_sparse_dot_dense(
-    const int32_t *indices, int32_t index_off,
-    const double *values, int32_t value_off, int32_t len, const double *dense
-) {
-#define KOBLAS_SPARSE_DOT_DECLARE(q) double s##q = 0.0;
-#define KOBLAS_SPARSE_DOT_STEP(q) \
-    s##q += values[value_off + k + q] * dense[indices[index_off + k + q]];
-    KOBLAS_REPEAT(KOBLAS_SPARSE_DOT_DECLARE)
-    int32_t k = 0;
-    if (len >= KOBLAS_UNROLL_MIN) {
-        for (; k <= len - KOBLAS_ACCUMULATORS; k += KOBLAS_ACCUMULATORS) {
-            KOBLAS_REPEAT(KOBLAS_SPARSE_DOT_STEP)
-        }
-    }
-    double sum = KOBLAS_GATHER(s0, s1, s2, s3, s4, s5, s6, s7);
-#undef KOBLAS_SPARSE_DOT_DECLARE
-#undef KOBLAS_SPARSE_DOT_STEP
-    for (; k < len; k++) sum += values[value_off + k] * dense[indices[index_off + k]];
-    return sum;
-}
 
 /* A merge, so the accumulate waits on the index comparison rather than on itself; one chain is enough. */
-double koblas_sparse_dot_sparse(
-    const int32_t *a_indices, const double *a_values, int32_t a_len,
-    const int32_t *b_indices, const double *b_values, int32_t b_len
-) {
-    double sum = 0.0;
-    int32_t a = 0;
-    int32_t b = 0;
-    while (a < a_len && b < b_len) {
-        const int32_t ai = a_indices[a];
-        const int32_t bi = b_indices[b];
-        if (ai < bi) {
-            a++;
-        } else if (ai > bi) {
-            b++;
-        } else {
-            sum += a_values[a] * b_values[b];
-            a++;
-            b++;
-        }
-    }
-    return sum;
-}
 
-void koblas_sparse_axpy(
-    const int32_t *indices, int32_t index_off,
-    const double *values, int32_t value_off, int32_t len, double alpha, double *dense
-) {
-    if (alpha == 0.0) return;
-    for (int32_t k = 0; k < len; k++) {
-        /* Preserve portable gemv overflow semantics by preventing multiply-add contraction. */
-        volatile double increment = alpha * values[value_off + k];
-        dense[indices[index_off + k]] += increment;
-    }
-}
 
-void koblas_sparse_scatter(
-    const int32_t *indices, int32_t index_off,
-    const double *values, int32_t value_off, int32_t len, double *dense
-) {
-    for (int32_t k = 0; k < len; k++) dense[indices[index_off + k]] = values[value_off + k];
-}
 
-double koblas_sparse_nrm2(
-    const int32_t *indices, int32_t index_off, int32_t len, const double *values
-) {
-    double squares = 0.0;
-    for (int32_t k = 0; k < len; k++) {
-        const double value = values[indices[index_off + k]];
-        squares += value * value;
-    }
-    if (isfinite(squares) && squares >= 0x1p-1022) return sqrt(squares);
 
-    double maximum = 0.0;
-    for (int32_t k = 0; k < len; k++) {
-        const double magnitude = fabs(values[indices[index_off + k]]);
-        if (magnitude > maximum) maximum = magnitude;
-    }
-    if (maximum == 0.0 || isinf(maximum)) return sqrt(squares);
 
-    double scaled_squares = 0.0;
-    for (int32_t k = 0; k < len; k++) {
-        const double scaled = values[indices[index_off + k]] / maximum;
-        scaled_squares += scaled * scaled;
-    }
-    return maximum * sqrt(scaled_squares);
-}
-
-void koblas_sparse_gather(
-    const int32_t *indices, double *values, int32_t len, const double *dense
-) {
-    for (int32_t k = 0; k < len; k++) values[k] = dense[indices[k]];
-}
-
-void koblas_sparse_gather_zero(
-    const int32_t *indices, double *values, int32_t len, double *dense
-) {
-    for (int32_t k = 0; k < len; k++) {
-        const int32_t index = indices[k];
-        values[k] = dense[index];
-        dense[index] = 0.0;
-    }
-}
 
 #endif
 
