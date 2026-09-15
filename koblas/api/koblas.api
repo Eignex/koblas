@@ -783,6 +783,15 @@ public abstract interface class com/eignex/koblas/sparse/SparseKernels {
 	public abstract fun scatter ([II[DII[D)V
 }
 
+public final class com/eignex/koblas/sparse/SparsePrimitives {
+	public static final field INSTANCE Lcom/eignex/koblas/sparse/SparsePrimitives;
+	public final fun activeMaximum ([II[DII[Z)D
+	public final fun gatherWorkspace ([III[D[II[DIZ[I)I
+	public final fun scatterWorkspace (D[II[DII[D[II[III)I
+	public final fun scatterWorkspaceChecked (D[II[DII[D[II[III[IIII)I
+	public final fun selectPivotCandidates ([II[DII[ZDD[II)I
+}
+
 public final class com/eignex/koblas/sparse/SparseSlices {
 	public static final field ARITHMETIC_NONFINITE I
 	public static final field ARITHMETIC_NONZERO_PRODUCT_UNDERFLOW I
