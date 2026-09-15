@@ -35,15 +35,8 @@ KOBLAS_API int32_t koblas_dense_axpy4_v1(uint32_t kernel_id, double *y, int32_t 
 KOBLAS_API int32_t koblas_dense_dot_axpy_v1(uint32_t kernel_id, double *y, int32_t y_off, double alpha, const double *a, int32_t a_off, const double *x, int32_t x_off, int32_t len, double *result);
 #define KOBLAS_OP_DENSE_ROTM 15u
 KOBLAS_API int32_t koblas_dense_rotm_v1(uint32_t kernel_id, double *x, int32_t x_off, int32_t x_stride, double *y, int32_t y_off, int32_t y_stride, int32_t len, double h11, double h12, double h21, double h22);
-#define KOBLAS_OP_SPARSE_DOT_DENSE 16u
-#define KOBLAS_OP_SPARSE_DOT_SPARSE 17u
-#define KOBLAS_OP_SPARSE_AXPY 18u
-#define KOBLAS_OP_SPARSE_SCATTER 19u
-#define KOBLAS_OP_SPARSE_NRM2 20u
-#define KOBLAS_OP_SPARSE_GATHER 21u
-#define KOBLAS_OP_SPARSE_GATHER_ZERO 22u
-#define KOBLAS_OP_DENSE_TRSM_TILE 23u
+#define KOBLAS_OP_DENSE_TRSM_TILE 16u
 KOBLAS_API int32_t koblas_dense_trsm_tile_v1(uint32_t kernel_id, int32_t valid_rows, int32_t order, const double *packed_triangle, int32_t triangle_off, int32_t lower, int32_t unit_diag, double *x, int32_t x_off);
-#define KOBLAS_OP_DENSE_GEMM_TRSM_TILE 24u
+#define KOBLAS_OP_DENSE_GEMM_TRSM_TILE 17u
 KOBLAS_API int32_t koblas_dense_gemm_trsm_tile_v1(uint32_t kernel_id, int32_t depth, int32_t valid_rows, int32_t order, const double *packed_a, int32_t a_off, const double *packed_b, int32_t b_off, const double *packed_triangle, int32_t triangle_off, int32_t lower, int32_t unit_diag, double *x, int32_t x_off);
 #endif
