@@ -119,14 +119,15 @@ cases="$temporary/cases.txt"
   echo "platform=$(uname -a)"
   printf '%s\n' "operation=$operation" "suite=$suite" "selected_cases=$(wc -l <"$cases" | tr -d ' ')" "warmups=$warmups" "requested_samples=$samples" \
     "target_ns=$((target_ms * 1000000))" "pass=$pass" "libraries=$libraries" "vendors_only=$vendors_only"
+  echo "requested_jvm_forks=$forks"
   if ! $vendors_only; then
-    echo "requested_jvm_forks=$forks"
     [[ -z $native_variant ]] || echo "requested_native_variant=$native_variant"
   fi
   env | LC_ALL=C sort | awk '/^KOBLAS_(DENSE|SPARSE)_/ { print }'
   echo "threads=1"
   printf '\n[toolchain]\n'
-  cc --version | head -n 1
+  # Only the koblas C kernel arms still involve a C compiler; a vendor-only capture compiles no C at all.
+  if ! $vendors_only; then cc --version | head -n 1; fi
   printf '\n[hardware]\n'
   cat "$temporary/hardware.txt"
 } >"$metadata"
@@ -140,7 +141,7 @@ run_target() {
   awk '/^resolved implementation=/ {
     sub(/^resolved /, ""); sub(/ runtime=/, "\nruntime="); sub(/ harness=/, "\nharness="); print
   }' "$temporary/$target.log" >>"$metadata"
-  if [[ $target == jvm-* ]]; then
+  if [[ $target == jvm-* || $target == *-jvm ]]; then
     echo "warmup_target_ns=$((target_ms * 1000000))"
   else
     echo "warmup_target_ns=$((target_ms > 4 ? target_ms * 250000 : 1000000))"
@@ -169,38 +170,21 @@ if ! $vendors_only; then
     run_target "$target" ./gradlew --no-daemon ":koblas-bench:$task" "${common[@]}" "-Pbench.forks=$forks" "-Pbench.output=$results/$target.csv"
   done
 fi
-export OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 VECLIB_MAXIMUM_THREADS=1 MKL_NUM_THREADS=1 MKL_DYNAMIC=FALSE
+# Vendor arms run through the production Koblas bindings on both runtimes. There is one implementation of each
+# vendor call and one description of it, so what a row claims about the library that ran is the binding's own
+# answer rather than a second program's. Nothing here sets a thread count: the binding holds each library to one
+# compute thread at load, before any arithmetic, and refuses one it cannot hold, so an environment variable
+# would be a weaker second answer to a question that is already settled.
+#
+# The plain vendor target keeps its name and reaches the library the way the C program did, from native code
+# with no runtime between the caller's storage and the call. The JVM target is the same operation through the
+# JVM binding, which copies operands into native memory and reports that transfer as part of its route.
 for vendor in "${vendors[@]}"; do
-  flags=()
-  case "$vendor" in
-    openblas)
-      if [[ $platform == Darwin ]] && command -v brew >/dev/null 2>&1; then
-        prefix=$(brew --prefix openblas)
-        flags=("-I$prefix/include" "-L$prefix/lib" "-Wl,-rpath,$prefix/lib")
-      fi
-      flags+=(-lopenblas)
-      ;;
-    accelerate)
-      [[ $platform == Darwin ]] || { echo "Accelerate requires macOS" >&2; exit 2; }
-      flags=(-DUSE_ACCELERATE -DACCELERATE_NEW_LAPACK -framework Accelerate)
-      ;;
-    onemkl)
-      library=${ONEMKL_LIBRARY:-/home/rasmus/.local/share/koblas-onemkl/venv/lib/libmkl_rt.so.3}
-      [[ -f $library ]] || { echo "requested oneMKL library is missing: $library" >&2; exit 2; }
-      directory=$(dirname "$library")
-      flags=(-DUSE_MKL "$library" "-Wl,-rpath,$directory" -lpthread -ldl)
-      export LD_LIBRARY_PATH="$directory${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
-      ;;
-  esac
-  cc -std=c11 -O3 -ffp-contract=off -DNDEBUG -Wall -Wextra -Werror "$bench/reference/vendor_runner.c" "${flags[@]}" -lm -o "$temporary/$vendor"
-  cc -std=c11 -O3 -ffp-contract=off -DNDEBUG -Wall -Wextra -Werror "$bench/reference/cases_test.c" "${flags[@]}" -lm -o "$temporary/cases-test"
-  "$temporary/cases-test"
-  if [[ $vendor == onemkl ]]; then
-    cc -std=c11 -O3 -ffp-contract=off -DNDEBUG -Wall -Wextra -Werror "$bench/reference/sparse_slices_test.c" "${flags[@]}" -lm -o "$temporary/slices-test"
-    "$temporary/slices-test"
-  fi
-  run_target "$vendor" "$temporary/$vendor" --cases="$cases" --output="$results/$vendor.csv" \
-    --suite="$suite" --operation="$operation" --samples="$samples" --warmups="$warmups" --target-ms="$target_ms"
+  [[ $vendor != accelerate || $platform == Darwin ]] || { echo "Accelerate requires macOS" >&2; exit 2; }
+  run_target "$vendor" ./gradlew --no-daemon ":koblas-bench:nativeVendorBenchmark" "${common[@]}" \
+    "-Pbench.vendor=$vendor" "-Pbench.output=$results/$vendor.csv"
+  run_target "$vendor-jvm" ./gradlew --no-daemon ":koblas-bench:jvmVendorBenchmark" "${common[@]}" \
+    "-Pbench.vendor=$vendor" "-Pbench.forks=$forks" "-Pbench.output=$results/$vendor-jvm.csv"
 done
 sed -e '1s/status=incomplete/status=complete/' \
   -e "s/^completed_at=pending$/completed_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)/" \
