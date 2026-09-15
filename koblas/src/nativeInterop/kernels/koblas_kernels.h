@@ -36,19 +36,12 @@ KOBLAS_API int32_t koblas_dense_dot_axpy_v1(uint32_t kernel_id, double *y, int32
 #define KOBLAS_OP_DENSE_ROTM 15u
 KOBLAS_API int32_t koblas_dense_rotm_v1(uint32_t kernel_id, double *x, int32_t x_off, int32_t x_stride, double *y, int32_t y_off, int32_t y_stride, int32_t len, double h11, double h12, double h21, double h22);
 #define KOBLAS_OP_SPARSE_DOT_DENSE 16u
-KOBLAS_API int32_t koblas_sparse_dot_dense_v1(uint32_t kernel_id, const int32_t *indices, int32_t index_off, const double *values, int32_t value_off, int32_t len, const double *dense, double *result);
 #define KOBLAS_OP_SPARSE_DOT_SPARSE 17u
-KOBLAS_API int32_t koblas_sparse_dot_sparse_v1(uint32_t kernel_id, const int32_t *a_indices, const double *a_values, int32_t a_len, const int32_t *b_indices, const double *b_values, int32_t b_len, double *result);
 #define KOBLAS_OP_SPARSE_AXPY 18u
-KOBLAS_API int32_t koblas_sparse_axpy_v1(uint32_t kernel_id, const int32_t *indices, int32_t index_off, const double *values, int32_t value_off, int32_t len, double alpha, double *dense);
 #define KOBLAS_OP_SPARSE_SCATTER 19u
-KOBLAS_API int32_t koblas_sparse_scatter_v1(uint32_t kernel_id, const int32_t *indices, int32_t index_off, const double *values, int32_t value_off, int32_t len, double *dense);
 #define KOBLAS_OP_SPARSE_NRM2 20u
-KOBLAS_API int32_t koblas_sparse_nrm2_v1(uint32_t kernel_id, const int32_t *indices, int32_t index_off, int32_t len, const double *values, double *result);
 #define KOBLAS_OP_SPARSE_GATHER 21u
-KOBLAS_API int32_t koblas_sparse_gather_v1(uint32_t kernel_id, const int32_t *indices, double *values, int32_t len, const double *dense);
 #define KOBLAS_OP_SPARSE_GATHER_ZERO 22u
-KOBLAS_API int32_t koblas_sparse_gather_zero_v1(uint32_t kernel_id, const int32_t *indices, double *values, int32_t len, double *dense);
 #define KOBLAS_OP_DENSE_TRSM_TILE 23u
 KOBLAS_API int32_t koblas_dense_trsm_tile_v1(uint32_t kernel_id, int32_t valid_rows, int32_t order, const double *packed_triangle, int32_t triangle_off, int32_t lower, int32_t unit_diag, double *x, int32_t x_off);
 #define KOBLAS_OP_DENSE_GEMM_TRSM_TILE 24u

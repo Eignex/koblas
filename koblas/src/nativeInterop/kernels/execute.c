@@ -307,84 +307,12 @@ int32_t koblas_dense_rotm_v1(uint32_t kernel_id, double *x, int32_t x_off, int32
     return KOBLAS_OK;
 }
 
-int32_t koblas_sparse_dot_dense_v1(uint32_t kernel_id, const int32_t *indices, int32_t index_off, const double *values, int32_t value_off, int32_t len, const double *dense, double *result) {
-    uint32_t reason = koblas_kernel_reason(kernel_id, KOBLAS_OP_SPARSE_DOT_DENSE);
-    if (reason != KOBLAS_OK) return (int32_t)reason;
-    if (!result) return KOBLAS_INVALID_ARGUMENT;
-    if (len == 0) { *result = 0.0; return KOBLAS_OK; }
-    switch (kernel_id % 16u) {
-    case KOBLAS_SCALAR: *result = koblas_sparse_dot_dense_scalar(indices, index_off, values, value_off, len, dense); break;
-    default: return KOBLAS_NOT_BUILT;
-    }
-    return KOBLAS_OK;
-}
 
-int32_t koblas_sparse_dot_sparse_v1(uint32_t kernel_id, const int32_t *a_indices, const double *a_values, int32_t a_len, const int32_t *b_indices, const double *b_values, int32_t b_len, double *result) {
-    uint32_t reason = koblas_kernel_reason(kernel_id, KOBLAS_OP_SPARSE_DOT_SPARSE);
-    if (reason != KOBLAS_OK) return (int32_t)reason;
-    if (!result) return KOBLAS_INVALID_ARGUMENT;
-    switch (kernel_id % 16u) {
-    case KOBLAS_SCALAR: *result = koblas_sparse_dot_sparse_scalar(a_indices, a_values, a_len, b_indices, b_values, b_len); break;
-    default: return KOBLAS_NOT_BUILT;
-    }
-    return KOBLAS_OK;
-}
 
-int32_t koblas_sparse_axpy_v1(uint32_t kernel_id, const int32_t *indices, int32_t index_off, const double *values, int32_t value_off, int32_t len, double alpha, double *dense) {
-    uint32_t reason = koblas_kernel_reason(kernel_id, KOBLAS_OP_SPARSE_AXPY);
-    if (reason != KOBLAS_OK) return (int32_t)reason;
-    if (len == 0) return KOBLAS_OK;
-    switch (kernel_id % 16u) {
-    case KOBLAS_SCALAR: koblas_sparse_axpy_scalar(indices, index_off, values, value_off, len, alpha, dense); break;
-    default: return KOBLAS_NOT_BUILT;
-    }
-    return KOBLAS_OK;
-}
 
-int32_t koblas_sparse_scatter_v1(uint32_t kernel_id, const int32_t *indices, int32_t index_off, const double *values, int32_t value_off, int32_t len, double *dense) {
-    uint32_t reason = koblas_kernel_reason(kernel_id, KOBLAS_OP_SPARSE_SCATTER);
-    if (reason != KOBLAS_OK) return (int32_t)reason;
-    if (len == 0) return KOBLAS_OK;
-    switch (kernel_id % 16u) {
-    case KOBLAS_SCALAR: koblas_sparse_scatter_scalar(indices, index_off, values, value_off, len, dense); break;
-    default: return KOBLAS_NOT_BUILT;
-    }
-    return KOBLAS_OK;
-}
 
-int32_t koblas_sparse_nrm2_v1(uint32_t kernel_id, const int32_t *indices, int32_t index_off, int32_t len, const double *values, double *result) {
-    uint32_t reason = koblas_kernel_reason(kernel_id, KOBLAS_OP_SPARSE_NRM2);
-    if (reason != KOBLAS_OK) return (int32_t)reason;
-    if (!result) return KOBLAS_INVALID_ARGUMENT;
-    if (len == 0) { *result = 0.0; return KOBLAS_OK; }
-    switch (kernel_id % 16u) {
-    case KOBLAS_SCALAR: *result = koblas_sparse_nrm2_scalar(indices, index_off, len, values); break;
-    default: return KOBLAS_NOT_BUILT;
-    }
-    return KOBLAS_OK;
-}
 
-int32_t koblas_sparse_gather_v1(uint32_t kernel_id, const int32_t *indices, double *values, int32_t len, const double *dense) {
-    uint32_t reason = koblas_kernel_reason(kernel_id, KOBLAS_OP_SPARSE_GATHER);
-    if (reason != KOBLAS_OK) return (int32_t)reason;
-    if (len == 0) return KOBLAS_OK;
-    switch (kernel_id % 16u) {
-    case KOBLAS_SCALAR: koblas_sparse_gather_scalar(indices, values, len, dense); break;
-    default: return KOBLAS_NOT_BUILT;
-    }
-    return KOBLAS_OK;
-}
 
-int32_t koblas_sparse_gather_zero_v1(uint32_t kernel_id, const int32_t *indices, double *values, int32_t len, double *dense) {
-    uint32_t reason = koblas_kernel_reason(kernel_id, KOBLAS_OP_SPARSE_GATHER_ZERO);
-    if (reason != KOBLAS_OK) return (int32_t)reason;
-    if (len == 0) return KOBLAS_OK;
-    switch (kernel_id % 16u) {
-    case KOBLAS_SCALAR: koblas_sparse_gather_zero_scalar(indices, values, len, dense); break;
-    default: return KOBLAS_NOT_BUILT;
-    }
-    return KOBLAS_OK;
-}
 
 int32_t koblas_dense_trsm_tile_v1(uint32_t kernel_id, int32_t valid_rows, int32_t order, const double *packed_triangle, int32_t triangle_off, int32_t lower, int32_t unit_diag, double *x, int32_t x_off) {
     uint32_t reason = koblas_kernel_reason(kernel_id, KOBLAS_OP_DENSE_TRSM_TILE);

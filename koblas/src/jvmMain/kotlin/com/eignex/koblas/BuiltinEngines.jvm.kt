@@ -15,7 +15,6 @@ import com.eignex.koblas.dense.densePolicyEngine
 import com.eignex.koblas.dense.describeSimdComponent
 import com.eignex.koblas.internal.kernels.JvmCKernelBindings
 import com.eignex.koblas.internal.kernels.NativeCatalog
-import com.eignex.koblas.sparse.CIndexedSparseKernels
 import com.eignex.koblas.sparse.ScalarIndexedSparseKernels
 import com.eignex.koblas.sparse.SimdIndexedSparseKernels
 import com.eignex.koblas.sparse.SparseKernelAdapter
@@ -50,13 +49,14 @@ public actual object BuiltinEngines {
     private fun nativeEngine(variant: NativeVariant): KoblasEngine {
         val bindings = JvmCKernelBindings(variant)
         val vector = CVectorKernels(bindings)
-        val indexed = CIndexedSparseKernels(bindings)
+        // The dense kernels here are C; sparse Level 1 is scalar. The indexed C sparse paths that used to sit
+        // beside them are gone, so a C engine no longer implies a C answer for an indexed sparse call.
         return KoblasEngine(
             vector,
             CPanelKernels(bindings),
             CPackedKernels(bindings),
-            SparseKernelAdapter("c-scalar-indexed-policy", vector, indexed),
-            indexed,
+            SparseKernelAdapter("c-dense-scalar-sparse", vector, ScalarIndexedSparseKernels),
+            ScalarIndexedSparseKernels,
             variant,
         )
     }

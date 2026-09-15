@@ -23,13 +23,6 @@ internal object JvmNativeLibrary {
         "koblas_dense_axpy4_v1",
         "koblas_dense_dot_axpy_v1",
         "koblas_dense_rotm_v1",
-        "koblas_sparse_dot_dense_v1",
-        "koblas_sparse_dot_sparse_v1",
-        "koblas_sparse_axpy_v1",
-        "koblas_sparse_scatter_v1",
-        "koblas_sparse_nrm2_v1",
-        "koblas_sparse_gather_v1",
-        "koblas_sparse_gather_zero_v1",
         "koblas_dense_trsm_tile_v1",
         "koblas_dense_gemm_trsm_tile_v1",
     )
