@@ -46,13 +46,14 @@ class VendorConcurrencyTest {
             val blas = openVendorBlas(vendor) ?: continue
             checked++
 
-            // These are multithreaded builds by default: OpenBLAS reports one thread per core here until the
+            // These are multithreaded builds by default: OpenBLAS reports one thread per core until the
             // load-time enforcement runs, and a library that would not hold to one never opens at all.
-            assertEquals(
-                ThreadEvidence.Confirmed,
-                blas.threadEvidence,
-                "${vendor.vendorName} exports a thread count, so it should have been confirmed",
-            )
+            // Accelerate is the exception the evidence exists for: it exports no thread count to read back,
+            // so it is held through its environment lever and reported as unconfirmed rather than checked.
+            val expected =
+                if (vendor == Vendor.Accelerate) ThreadEvidence.Unconfirmed else ThreadEvidence.Confirmed
+
+            assertEquals(expected, blas.threadEvidence, "unexpected thread evidence for ${vendor.vendorName}")
         }
         if (checked == 0) println("SKIPPED: no CBLAS library installed; thread enforcement was not verified here")
     }
