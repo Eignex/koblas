@@ -1,6 +1,8 @@
 # koblas-bench
 
-CPU benchmarks for Koblas, OpenBLAS, Accelerate, and oneMKL. Requires JDK 25 and a C compiler.
+CPU benchmarks for Koblas, OpenBLAS, Accelerate, and oneMKL. Requires JDK 25; the koblas C kernel arms also
+need a C compiler. Vendor arms call each library through the production Koblas bindings on both runtimes, so a
+vendor row reports the route of the call that was timed.
 
 ```bash
 # Default capture: JVM scalar, C, SIMD, native, and available platform vendors.
@@ -63,6 +65,15 @@ Unsupported cases have no timing. A selected target failure stops capture and pr
 For `scal` and `spgather`, `+timing=arithmetic` excludes resets; arithmetic scaling uses alpha = -1.
 Default gather resets only the dense source; older captures also reset the sparse output, so compare those separately.
 
-Vendors use one thread. `--libraries all` selects OpenBLAS and Accelerate on macOS, OpenBLAS and oneMKL on Linux.
-Homebrew OpenBLAS is detected automatically. Accelerate requires macOS 15+ and includes sparse vectors and
-matrix products. For Linux oneMKL, set `ONEMKL_LIBRARY` to its runtime library path.
+Each vendor contributes two targets: `<vendor>` through the Native binding, which reaches the library from
+native code with nothing between the caller storage and the call, and `<vendor>-jvm` through the JVM binding,
+which copies operands into native memory and includes that transfer in the timing.
+
+Every BLAS invocation uses one compute thread. The binding establishes that at load, before any arithmetic, and
+refuses a library it cannot hold to one thread; there is no thread setting to pass. `--libraries all` selects
+OpenBLAS and Accelerate on macOS, OpenBLAS and oneMKL on Linux.
+Each binding resolves its own library and reports the file the symbols actually came from, so a row naming a
+vendor names the file that ran. The oneMKL candidates cover the loader path and the standard oneAPI prefixes,
+because the installer puts the library somewhere the loader does not search. Only the dense CBLAS surface is
+bound: Level 1 extensions, the fused panel kernels, the packed cases and everything sparse have no vendor entry
+point and are reported unsupported with a reason rather than timed through a substitute.

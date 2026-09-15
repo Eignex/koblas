@@ -92,23 +92,51 @@ tasks.register<Exec>("nativeVendorBenchmark") {
     args(benchmarkArguments("native-vendor-${benchVendor.get()}", jmh = false))
 }
 
-fun registerOpenBlasCompatibilityCheck(name: String, resolution: String) = tasks.register<Exec>(name) {
+// The CI entry points, which now exercise the production binding rather than a C program written against the
+// same library. They resolve OpenBLAS through the ordinary vendor arm, so a failure here is a real failure to
+// reach the library a report would name. They run the arm directly instead of going back through
+// capture-report.sh, which is what lets that script's vendor loop use Gradle without a build inside a build.
+// The task names and the resolution lines they print are fixed by the workflow that greps for them.
+private val smokeArguments = listOf(
+    "--operation=gemm", "--suite=default", "--cases=koblas-bench/cases.txt",
+    "--warmups=0", "--samples=1", "--target-ms=1",
+)
+
+tasks.register<JavaExec>("jvmSelectedBenchmark") {
     group = "verification"
-    description = "Runs an OpenBLAS smoke benchmark for the existing CI entry point."
-    commandLine("bash", rootProject.file("koblas-bench/capture-report.sh").absolutePath,
-        "--vendors-only", "--smoke", "--libraries", "openblas")
+    description = "Resolves OpenBLAS through the JVM vendor binding and runs one smoke case."
+    dependsOn(jvmCompilation.compileTaskProvider)
+    classpath(jvmCompilation.output.allOutputs, configurations.getByName("jvmRuntimeClasspath"))
+    mainClass.set("com.eignex.koblas.bench.JvmRunnerKt")
+    javaLauncher.set(benchmarkJavaLauncher)
     workingDir(rootProject.projectDir)
-    doLast { logger.lifecycle(resolution) }
+    args(
+        smokeArguments + listOf(
+            "--mode=jvm-vendor-openblas",
+            "--forks=1",
+            "--output=koblas-bench/build/benchmarks/openblas-smoke.csv",
+        ),
+    )
+    jvmArgs("--enable-native-access=ALL-UNNAMED")
+    doLast { logger.lifecycle("resolved: arm=openblas dense=openblas/cblas threading=1 thread") }
 }
 
-registerOpenBlasCompatibilityCheck(
-    "jvmSelectedBenchmark",
-    "resolved: arm=openblas dense=openblas/cblas threading=1 thread",
-)
-registerOpenBlasCompatibilityCheck(
-    "linuxX64SelectedBenchmark",
-    "resolved: arm=openblas dense=openblas/cblas-native threading=1 thread",
-)
+tasks.register<Exec>("linuxX64SelectedBenchmark") {
+    group = "verification"
+    description = "Resolves OpenBLAS through the Native vendor binding and runs one smoke case."
+    require(hostTarget != null) { "native benchmarks are supported on Linux x86-64 and macOS arm64" }
+    dependsOn("linkReleaseExecutable$hostTarget")
+    val targetDir = hostTarget!!.replaceFirstChar(Char::lowercase)
+    commandLine(layout.buildDirectory.file("bin/$targetDir/releaseExecutable/koblas-bench.kexe").get().asFile.absolutePath)
+    workingDir(rootProject.projectDir)
+    args(
+        smokeArguments + listOf(
+            "--mode=native-vendor-openblas",
+            "--output=koblas-bench/build/benchmarks/openblas-smoke-native.csv",
+        ),
+    )
+    doLast { logger.lifecycle("resolved: arm=openblas dense=openblas/cblas-native threading=1 thread") }
+}
 
 tasks.withType<Test>().configureEach {
     jvmArgs("--add-modules=jdk.incubator.vector", "--enable-native-access=ALL-UNNAMED")
