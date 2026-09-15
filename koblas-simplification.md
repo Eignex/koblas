@@ -10,6 +10,9 @@ The default implementation is selected once and cannot be replaced or configured
 split work on its input across multiple threads. Applications may call the same immutable binding from multiple
 threads at once, including with shared read-only inputs. This applies to oneMKL, AOCL, ArmPL, Accelerate, and every
 benchmark arm. The restriction is per invocation, not a process-wide limit of one active BLAS call.
+Different invocations may run in parallel. This behavior is static: no public API, constructor option, per-call
+flag, system property, environment override, or runtime configuration may enable internal multithreading or
+change the BLAS thread count.
 
 This is the sole architecture and implementation plan. The former SME plans are deleted; their useful numerical,
 storage, attribution, and measurement requirements are incorporated here. No SME/SME2 or future-ISA work remains.
@@ -117,6 +120,9 @@ on every input.
   A backend/configuration that cannot enforce single-threaded execution is unsupported.
 - Expose no thread-count setting, parallel execution policy, worker pool, or multithreaded algorithm. Do not
   change process-global thread settings around individual operations or enable vendor defaults that add workers.
+  The fixed single-thread configuration is an implementation detail established during initialization, not a
+  configurable default. Do not expose even a startup-only override. Vendor configuration must not silently
+  override this invariant.
 - Package only dependencies required for the selected single-thread implementation. Do not add a parallel
   runtime merely to offer multithreaded execution.
 - Bench runs each operation with one compute thread. No multithreaded benchmark modes, throughput scaling
