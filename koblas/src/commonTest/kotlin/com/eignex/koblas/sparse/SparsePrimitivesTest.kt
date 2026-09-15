@@ -227,7 +227,11 @@ class SparsePrimitivesTest {
     @Test
     fun `active maximum ignores inactive rows`() {
         val maximum = SparsePrimitives.activeMaximum(
-            intArrayOf(4, 1, 3), 0, doubleArrayOf(Double.POSITIVE_INFINITY, -7.0, 5.0), 0, 3,
+            intArrayOf(4, 1, 3),
+            0,
+            doubleArrayOf(Double.POSITIVE_INFINITY, -7.0, 5.0),
+            0,
+            3,
             BooleanArray(5) { it != 4 },
         )
 
@@ -238,10 +242,20 @@ class SparsePrimitivesTest {
     fun `active maximum reports nonfinite and empty support`() {
         val active = BooleanArray(3) { true }
         val nonfinite = SparsePrimitives.activeMaximum(
-            intArrayOf(0, 2), 0, doubleArrayOf(3.0, Double.NaN), 0, 2, active,
+            intArrayOf(0, 2),
+            0,
+            doubleArrayOf(3.0, Double.NaN),
+            0,
+            2,
+            active,
         )
         val empty = SparsePrimitives.activeMaximum(
-            intArrayOf(0, 2), 0, doubleArrayOf(3.0, 4.0), 0, 2, BooleanArray(3),
+            intArrayOf(0, 2),
+            0,
+            doubleArrayOf(3.0, 4.0),
+            0,
+            2,
+            BooleanArray(3),
         )
 
         assertTrue(nonfinite.isNaN())

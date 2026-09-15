@@ -23,8 +23,13 @@ public object JvmBenchmarkBridge {
             return JvmCaseWork(arm.work ?: error("vendor arm declined $caseId in the measured fork: ${arm.reason}"))
         }
         val engine = resolveEngine(mode).first
-        val work = denseWork(case, engine) ?: sparseWork(case, engine)
-            ?: error("unsupported case passed to JMH: $caseId")
+        val sparse = sparseArm(case, engine)
+        // Same contract as the vendor arm above: the scan admitted this case, so a decline now is a change of
+        // route between the scan and the measurement, not an inadmissible case.
+        if (sparse != null) {
+            return JvmCaseWork(sparse.work ?: error("sparse arm declined $caseId in the measured fork: ${sparse.reason}"))
+        }
+        val work = denseWork(case, engine) ?: error("unsupported case passed to JMH: $caseId")
         return JvmCaseWork(work)
     }
 }
@@ -43,27 +48,28 @@ public fun main(args: Array<String>) {
     val engine = resolved?.first
     val implementation = vendor?.second ?: checkNotNull(resolved).second
     val supported = linkedMapOf<String, Pair<String, String>>()
-    val routes = linkedMapOf<String, com.eignex.koblas.vendor.CallRoute>()
+    val kernels = linkedMapOf<String, String>()
     val rowsByCase = linkedMapOf<String, MutableList<Measurement>>()
     for (case in selected) {
         // Routes are resolved here, before any timing, so describing a call costs nothing inside the
         // measured loop and an inadmissible arm is declined rather than timed.
         val arm = vendor?.let { vendorArm(case, it.first) }
-        val work = arm?.work ?: engine?.let { denseWork(case, it) ?: sparseWork(case, it) }
+            ?: engine?.let { sparseArm(case, it) ?: denseWork(case, it)?.let { work -> ArmChoice(work, null) } }
+        val work = arm?.work
         if (work == null) {
             rowsByCase.getOrPut(case.id, ::arrayListOf) += measurement(
                 case, settings, 0, null, "unsupported", arm?.reason ?: "unsupported",
-                case.option("mode", "arithmetic"),
+                "arithmetic",
             )
         } else {
             supported[case.id] = work.comparisonKind to work.timingMode
-            work.route?.let { routes[case.id] = it }
+            work.kernel?.let { kernels[case.id] = it }
             work.close()
         }
     }
     if (supported.isNotEmpty()) {
         val results = Runner(jmhOptions(settings, supported.keys)).run()
-        appendJmhRows(rowsByCase, results, allCases.associateBy { it.id }, supported, settings, routes)
+        appendJmhRows(rowsByCase, results, allCases.associateBy { it.id }, supported, settings, kernels)
     }
     writeRows(settings, selected, rowsByCase)
     println("wrote ${selected.size} case summaries from ${rowsByCase.values.sumOf { rows -> rows.count { it.nanos != null } }} measurements to ${settings.outputPath}")
@@ -96,7 +102,7 @@ private fun appendJmhRows(
     cases: Map<String, BenchCase>,
     supported: Map<String, Pair<String, String>>,
     settings: Settings,
-    routes: Map<String, com.eignex.koblas.vendor.CallRoute>,
+    kernels: Map<String, String>,
 ) {
     for (result in results.sortedBy { it.params.getParam("caseId") }) {
         val caseId = result.params.getParam("caseId")
@@ -110,7 +116,7 @@ private fun appendJmhRows(
                 "invalid JMH result for $caseId"
             }
             rowsByCase.getOrPut(caseId, ::arrayListOf) += measurement(
-                case, settings, ++sample, nanosPerOperation, "ok", comparison, timing, routes[caseId],
+                case, settings, ++sample, nanosPerOperation, "ok", comparison, timing, kernels[caseId],
             )
         }
         require(sample == settings.samples * settings.forks) { "JMH returned $sample samples for $caseId" }

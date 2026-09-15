@@ -5,6 +5,7 @@ import com.eignex.koblas.dense.DenseVectorKernels
 import com.eignex.koblas.internal.numeric.euclideanNorm
 import com.eignex.koblas.requireIndex
 import com.eignex.koblas.requireShape
+import com.eignex.koblas.vendor.RouteKind
 
 /**
  * Sparse vector and indexed-slice numerical kernels selected by a [com.eignex.koblas.KoblasEngine].
@@ -15,6 +16,18 @@ import com.eignex.koblas.requireShape
 public interface SparseKernels {
     /** Short implementation identifier for diagnostics. */
     public val name: String
+
+    /**
+     * Where a call of this [operation] over [count] stored entries would execute.
+     *
+     * The same decision the call makes, asked before making it. [name] identifies the selection as a whole and
+     * cannot answer this: a Vector API selection still runs the scalar loop for a support shorter than its
+     * crossover, for an operation it never vectorised, and on a host whose indexed loads or stores it cannot
+     * use. A measurement that reads only [name] publishes those as vector timings.
+     *
+     * Building a route allocates, so it belongs before a timed region and never inside one.
+     */
+    public fun routeOf(operation: SparseOperation, count: Int): SparseRoute
 
     /** `xᵀ·y` for a sparse [x] against a dense [y] (Sparse BLAS `usdot`); walks only the stored entries. */
     public fun dot(x: SparseVector, y: DoubleArray): Double
@@ -118,6 +131,35 @@ internal class SparseKernelAdapter(
     private val denseVectorKernels: DenseVectorKernels,
     private val indexedSparseKernels: IndexedSparseKernels,
 ) : SparseKernels {
+    override fun routeOf(operation: SparseOperation, count: Int): SparseRoute {
+        // A stored support is one contiguous run, so these two are dense reductions wearing a sparse name.
+        // Nothing falls back: the selected dense kernel is the implementation, and the route says which.
+        if (operation == SparseOperation.Nrm2 || operation == SparseOperation.Asum) {
+            val dense = denseVectorKernels.name
+            return SparseRoute(
+                operation,
+                RouteKind.Direct,
+                dense,
+                operation.entryPoint,
+                adapter = "a contiguous run of stored values",
+                reason = null,
+            )
+        }
+        val reached = indexedSparseKernels.implementationFor(operation, count)
+        val own = indexedSparseKernels.name
+        if (reached == own) {
+            return SparseRoute(operation, RouteKind.Direct, own, operation.entryPoint, null, null)
+        }
+        return SparseRoute(
+            operation = operation,
+            kind = RouteKind.Delegated,
+            implementation = reached,
+            entryPoint = operation.entryPoint,
+            adapter = reached,
+            reason = "$own has no ${operation.entryPoint} kernel for $count entries on this host",
+        )
+    }
+
     override fun dot(x: SparseVector, y: DoubleArray): Double {
         requireShape(x.size == y.size) { "dot: sizes differ, ${x.size} vs ${y.size}" }
         return indexedSparseKernels.dotDense(x.indices, x.values, y)

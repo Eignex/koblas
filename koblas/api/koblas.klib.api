@@ -98,6 +98,24 @@ final enum class com.eignex.koblas.dense/ProductEvaluation : kotlin/Enum<com.eig
     final fun values(): kotlin/Array<com.eignex.koblas.dense/ProductEvaluation> // com.eignex.koblas.dense/ProductEvaluation.values|values#static(){}[0]
 }
 
+final enum class com.eignex.koblas.sparse/SparseOperation : kotlin/Enum<com.eignex.koblas.sparse/SparseOperation> { // com.eignex.koblas.sparse/SparseOperation|null[0]
+    enum entry Asum // com.eignex.koblas.sparse/SparseOperation.Asum|null[0]
+    enum entry Axpy // com.eignex.koblas.sparse/SparseOperation.Axpy|null[0]
+    enum entry DotDense // com.eignex.koblas.sparse/SparseOperation.DotDense|null[0]
+    enum entry DotSparse // com.eignex.koblas.sparse/SparseOperation.DotSparse|null[0]
+    enum entry Gather // com.eignex.koblas.sparse/SparseOperation.Gather|null[0]
+    enum entry GatherZero // com.eignex.koblas.sparse/SparseOperation.GatherZero|null[0]
+    enum entry IndexedNrm2 // com.eignex.koblas.sparse/SparseOperation.IndexedNrm2|null[0]
+    enum entry Nrm2 // com.eignex.koblas.sparse/SparseOperation.Nrm2|null[0]
+    enum entry Scatter // com.eignex.koblas.sparse/SparseOperation.Scatter|null[0]
+
+    final val entries // com.eignex.koblas.sparse/SparseOperation.entries|#static{}entries[0]
+        final fun <get-entries>(): kotlin.enums/EnumEntries<com.eignex.koblas.sparse/SparseOperation> // com.eignex.koblas.sparse/SparseOperation.entries.<get-entries>|<get-entries>#static(){}[0]
+
+    final fun valueOf(kotlin/String): com.eignex.koblas.sparse/SparseOperation // com.eignex.koblas.sparse/SparseOperation.valueOf|valueOf#static(kotlin.String){}[0]
+    final fun values(): kotlin/Array<com.eignex.koblas.sparse/SparseOperation> // com.eignex.koblas.sparse/SparseOperation.values|values#static(){}[0]
+}
+
 final enum class com.eignex.koblas.vendor/Architecture : kotlin/Enum<com.eignex.koblas.vendor/Architecture> { // com.eignex.koblas.vendor/Architecture|null[0]
     enum entry Arm64 // com.eignex.koblas.vendor/Architecture.Arm64|null[0]
     enum entry Other // com.eignex.koblas.vendor/Architecture.Other|null[0]
@@ -304,6 +322,7 @@ abstract interface com.eignex.koblas.sparse/SparseKernels { // com.eignex.koblas
     abstract fun gatherZero(com.eignex.koblas/SparseVector, kotlin/DoubleArray) // com.eignex.koblas.sparse/SparseKernels.gatherZero|gatherZero(com.eignex.koblas.SparseVector;kotlin.DoubleArray){}[0]
     abstract fun nrm2(com.eignex.koblas/SparseVector): kotlin/Double // com.eignex.koblas.sparse/SparseKernels.nrm2|nrm2(com.eignex.koblas.SparseVector){}[0]
     abstract fun nrm2(kotlin/IntArray, kotlin/Int, kotlin/Int, kotlin/DoubleArray): kotlin/Double // com.eignex.koblas.sparse/SparseKernels.nrm2|nrm2(kotlin.IntArray;kotlin.Int;kotlin.Int;kotlin.DoubleArray){}[0]
+    abstract fun routeOf(com.eignex.koblas.sparse/SparseOperation, kotlin/Int): com.eignex.koblas.sparse/SparseRoute // com.eignex.koblas.sparse/SparseKernels.routeOf|routeOf(com.eignex.koblas.sparse.SparseOperation;kotlin.Int){}[0]
     abstract fun scatter(com.eignex.koblas/SparseVector, kotlin/DoubleArray) // com.eignex.koblas.sparse/SparseKernels.scatter|scatter(com.eignex.koblas.SparseVector;kotlin.DoubleArray){}[0]
     abstract fun scatter(kotlin/IntArray, kotlin/Int, kotlin/DoubleArray, kotlin/Int, kotlin/Int, kotlin/DoubleArray) // com.eignex.koblas.sparse/SparseKernels.scatter|scatter(kotlin.IntArray;kotlin.Int;kotlin.DoubleArray;kotlin.Int;kotlin.Int;kotlin.DoubleArray){}[0]
 }
@@ -510,6 +529,25 @@ final class com.eignex.koblas.dense/VectorWindow { // com.eignex.koblas.dense/Ve
         final fun <get-stride>(): kotlin/Int // com.eignex.koblas.dense/VectorWindow.stride.<get-stride>|<get-stride>(){}[0]
 
     final fun get(kotlin/Int): kotlin/Double // com.eignex.koblas.dense/VectorWindow.get|get(kotlin.Int){}[0]
+}
+
+final class com.eignex.koblas.sparse/SparseRoute { // com.eignex.koblas.sparse/SparseRoute|null[0]
+    final val adapter // com.eignex.koblas.sparse/SparseRoute.adapter|{}adapter[0]
+        final fun <get-adapter>(): kotlin/String? // com.eignex.koblas.sparse/SparseRoute.adapter.<get-adapter>|<get-adapter>(){}[0]
+    final val entryPoint // com.eignex.koblas.sparse/SparseRoute.entryPoint|{}entryPoint[0]
+        final fun <get-entryPoint>(): kotlin/String // com.eignex.koblas.sparse/SparseRoute.entryPoint.<get-entryPoint>|<get-entryPoint>(){}[0]
+    final val exactlyMeasurable // com.eignex.koblas.sparse/SparseRoute.exactlyMeasurable|{}exactlyMeasurable[0]
+        final fun <get-exactlyMeasurable>(): kotlin/Boolean // com.eignex.koblas.sparse/SparseRoute.exactlyMeasurable.<get-exactlyMeasurable>|<get-exactlyMeasurable>(){}[0]
+    final val implementation // com.eignex.koblas.sparse/SparseRoute.implementation|{}implementation[0]
+        final fun <get-implementation>(): kotlin/String // com.eignex.koblas.sparse/SparseRoute.implementation.<get-implementation>|<get-implementation>(){}[0]
+    final val kind // com.eignex.koblas.sparse/SparseRoute.kind|{}kind[0]
+        final fun <get-kind>(): com.eignex.koblas.vendor/RouteKind // com.eignex.koblas.sparse/SparseRoute.kind.<get-kind>|<get-kind>(){}[0]
+    final val operation // com.eignex.koblas.sparse/SparseRoute.operation|{}operation[0]
+        final fun <get-operation>(): com.eignex.koblas.sparse/SparseOperation // com.eignex.koblas.sparse/SparseRoute.operation.<get-operation>|<get-operation>(){}[0]
+    final val reason // com.eignex.koblas.sparse/SparseRoute.reason|{}reason[0]
+        final fun <get-reason>(): kotlin/String? // com.eignex.koblas.sparse/SparseRoute.reason.<get-reason>|<get-reason>(){}[0]
+
+    final fun toString(): kotlin/String // com.eignex.koblas.sparse/SparseRoute.toString|toString(){}[0]
 }
 
 final class com.eignex.koblas.vendor/CallRoute { // com.eignex.koblas.vendor/CallRoute|null[0]
@@ -846,6 +884,7 @@ final object com.eignex.koblas.dense/ScalarLayoutKernels { // com.eignex.koblas.
 
 final object com.eignex.koblas.sparse/SparsePrimitives { // com.eignex.koblas.sparse/SparsePrimitives|null[0]
     final fun activeMaximum(kotlin/IntArray, kotlin/Int, kotlin/DoubleArray, kotlin/Int, kotlin/Int, kotlin/BooleanArray): kotlin/Double // com.eignex.koblas.sparse/SparsePrimitives.activeMaximum|activeMaximum(kotlin.IntArray;kotlin.Int;kotlin.DoubleArray;kotlin.Int;kotlin.Int;kotlin.BooleanArray){}[0]
+    final fun clearWorkspace(kotlin/IntArray, kotlin/Int, kotlin/Int, kotlin/DoubleArray, kotlin/IntArray) // com.eignex.koblas.sparse/SparsePrimitives.clearWorkspace|clearWorkspace(kotlin.IntArray;kotlin.Int;kotlin.Int;kotlin.DoubleArray;kotlin.IntArray){}[0]
     final fun gatherWorkspace(kotlin/IntArray, kotlin/Int, kotlin/Int, kotlin/DoubleArray, kotlin/IntArray, kotlin/Int, kotlin/DoubleArray, kotlin/Int, kotlin/Boolean, kotlin/IntArray?): kotlin/Int // com.eignex.koblas.sparse/SparsePrimitives.gatherWorkspace|gatherWorkspace(kotlin.IntArray;kotlin.Int;kotlin.Int;kotlin.DoubleArray;kotlin.IntArray;kotlin.Int;kotlin.DoubleArray;kotlin.Int;kotlin.Boolean;kotlin.IntArray?){}[0]
     final fun scatterWorkspace(kotlin/Double, kotlin/IntArray, kotlin/Int, kotlin/DoubleArray, kotlin/Int, kotlin/Int, kotlin/DoubleArray, kotlin/IntArray, kotlin/Int, kotlin/IntArray, kotlin/Int, kotlin/Int): kotlin/Int // com.eignex.koblas.sparse/SparsePrimitives.scatterWorkspace|scatterWorkspace(kotlin.Double;kotlin.IntArray;kotlin.Int;kotlin.DoubleArray;kotlin.Int;kotlin.Int;kotlin.DoubleArray;kotlin.IntArray;kotlin.Int;kotlin.IntArray;kotlin.Int;kotlin.Int){}[0]
     final fun scatterWorkspaceChecked(kotlin/Double, kotlin/IntArray, kotlin/Int, kotlin/DoubleArray, kotlin/Int, kotlin/Int, kotlin/DoubleArray, kotlin/IntArray, kotlin/Int, kotlin/IntArray, kotlin/Int, kotlin/Int, kotlin/IntArray, kotlin/Int, kotlin/Int, kotlin/Int): kotlin/Int // com.eignex.koblas.sparse/SparsePrimitives.scatterWorkspaceChecked|scatterWorkspaceChecked(kotlin.Double;kotlin.IntArray;kotlin.Int;kotlin.DoubleArray;kotlin.Int;kotlin.Int;kotlin.DoubleArray;kotlin.IntArray;kotlin.Int;kotlin.IntArray;kotlin.Int;kotlin.Int;kotlin.IntArray;kotlin.Int;kotlin.Int;kotlin.Int){}[0]

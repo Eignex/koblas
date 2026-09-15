@@ -6,6 +6,8 @@ import kotlin.math.sqrt
 
 /** Scalar indexed kernels used as the semantic oracle and universal fallback. */
 internal object ScalarIndexedSparseKernels : IndexedSparseKernels {
+    override val name: String = "scalar"
+
     override fun dotDense(
         indices: IntArray,
         indexOffset: Int,

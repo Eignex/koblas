@@ -39,11 +39,12 @@ public fun main(args: Array<String>) {
     var sink = 0.0
     for (case in selected) {
         val arm = vendor?.let { vendorArm(case, it.first) }
-        val work = arm?.work ?: engine?.let { denseWork(case, it) ?: sparseWork(case, it) }
+            ?: engine?.let { sparseArm(case, it) ?: denseWork(case, it)?.let { work -> ArmChoice(work, null) } }
+        val work = arm?.work
         if (work == null) {
             rows += measurement(
                 case, settings, 0, null, "unsupported",
-                arm?.reason ?: "unsupported", case.option("mode", "arithmetic"),
+                arm?.reason ?: "unsupported", "arithmetic",
             )
             continue
         }
@@ -57,7 +58,7 @@ public fun main(args: Array<String>) {
                 val elapsed = max(1L, nanoTime() - start)
                 rows += measurement(
                     case, settings, sample, elapsed.toDouble() / operations, "ok",
-                    work.comparisonKind, work.timingMode, work.route,
+                    work.comparisonKind, work.timingMode, work.kernel,
                 )
             }
         } finally {
@@ -154,11 +155,11 @@ internal fun measurement(
     status: String,
     comparisonKind: String,
     timingMode: String,
-    route: com.eignex.koblas.vendor.CallRoute? = null,
+    kernel: String? = null,
 ): Measurement = Measurement(
     listOf(
         case.id, status, comparisonKind, timingMode,
-        if (route != null) vendorKernel(route) else actualPackedKernel(case, settings.mode, status),
+        kernel ?: actualPackedKernel(case, settings.mode, status),
     ),
     if (settings.mode.startsWith("jvm")) (sample - 1) / settings.samples + 1 else 1,
     nanos,

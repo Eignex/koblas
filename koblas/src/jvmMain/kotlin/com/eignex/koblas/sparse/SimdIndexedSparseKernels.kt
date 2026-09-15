@@ -5,6 +5,31 @@ internal object SimdIndexedSparseKernels : IndexedSparseKernels by ScalarIndexed
     private val vectorScatter = configuredJvmVectorScatter()
     private val vectorGather = SparseSimd.autoGatherEligible
 
+    override val name: String = "simd"
+
+    override fun implementationFor(operation: SparseOperation, count: Int): String =
+        if (usesVector(operation, count)) name else ScalarIndexedSparseKernels.name
+
+    /**
+     * Whether this call reaches a vector kernel, which is the one decision every override below makes.
+     *
+     * Both the dispatch and [implementationFor] read it, so the route a benchmark is given and the path the
+     * call takes cannot disagree. The two masks differ because the host can support an indexed load without
+     * supporting an indexed store.
+     */
+    private fun usesVector(operation: SparseOperation, count: Int): Boolean {
+        if (count < SparseTuning.simdIndexedCrossover) return false
+        return when (operation) {
+            SparseOperation.DotDense, SparseOperation.Gather, SparseOperation.IndexedNrm2 -> vectorGather
+
+            SparseOperation.Axpy, SparseOperation.Scatter, SparseOperation.GatherZero -> vectorScatter
+
+            // A sparse-sparse dot has no vector form here, and the whole-vector reductions never reach the
+            // indexed kernels at all: they are contiguous runs the dense kernels take.
+            SparseOperation.DotSparse, SparseOperation.Nrm2, SparseOperation.Asum -> false
+        }
+    }
+
     override fun dotDense(
         indices: IntArray,
         indexOffset: Int,
@@ -12,7 +37,7 @@ internal object SimdIndexedSparseKernels : IndexedSparseKernels by ScalarIndexed
         valueOffset: Int,
         count: Int,
         dense: DoubleArray,
-    ): Double = if (SparseSimd.autoGatherEligible && count >= SparseTuning.simdIndexedCrossover) {
+    ): Double = if (usesVector(SparseOperation.DotDense, count)) {
         SparseSimd.dot(indices, indexOffset, values, valueOffset, count, dense)
     } else {
         ScalarIndexedSparseKernels.dotDense(indices, indexOffset, values, valueOffset, count, dense)
@@ -27,7 +52,7 @@ internal object SimdIndexedSparseKernels : IndexedSparseKernels by ScalarIndexed
         alpha: Double,
         destination: DoubleArray,
     ) {
-        if (vectorScatter && count >= SparseTuning.simdIndexedCrossover) {
+        if (usesVector(SparseOperation.Axpy, count)) {
             SparseSimd.axpy(indices, indexOffset, values, valueOffset, count, destination, alpha)
         } else {
             ScalarIndexedSparseKernels.axpy(indices, indexOffset, values, valueOffset, count, alpha, destination)
@@ -42,7 +67,7 @@ internal object SimdIndexedSparseKernels : IndexedSparseKernels by ScalarIndexed
         count: Int,
         destination: DoubleArray,
     ) {
-        if (vectorScatter && count >= SparseTuning.simdIndexedCrossover) {
+        if (usesVector(SparseOperation.Scatter, count)) {
             SparseSimd.scatter(indices, indexOffset, values, valueOffset, count, destination)
         } else {
             ScalarIndexedSparseKernels.scatter(indices, indexOffset, values, valueOffset, count, destination)
@@ -57,7 +82,7 @@ internal object SimdIndexedSparseKernels : IndexedSparseKernels by ScalarIndexed
         count: Int,
         source: DoubleArray,
     ) {
-        if (vectorGather && count >= SparseTuning.simdIndexedCrossover) {
+        if (usesVector(SparseOperation.Gather, count)) {
             SparseSimd.gather(indices, indexOffset, values, valueOffset, count, source)
         } else {
             ScalarIndexedSparseKernels.gather(indices, indexOffset, values, valueOffset, count, source)
@@ -72,7 +97,7 @@ internal object SimdIndexedSparseKernels : IndexedSparseKernels by ScalarIndexed
         count: Int,
         source: DoubleArray,
     ) {
-        if (vectorScatter && count >= SparseTuning.simdIndexedCrossover) {
+        if (usesVector(SparseOperation.GatherZero, count)) {
             SparseSimd.gatherZero(indices, indexOffset, values, valueOffset, count, source)
         } else {
             ScalarIndexedSparseKernels.gatherZero(indices, indexOffset, values, valueOffset, count, source)
@@ -80,7 +105,7 @@ internal object SimdIndexedSparseKernels : IndexedSparseKernels by ScalarIndexed
     }
 
     override fun nrm2(indices: IntArray, indexOffset: Int, count: Int, values: DoubleArray): Double =
-        if (SparseSimd.autoGatherEligible && count >= SparseTuning.simdIndexedCrossover) {
+        if (usesVector(SparseOperation.IndexedNrm2, count)) {
             SparseSimd.nrm2(indices, indexOffset, count, values)
         } else {
             ScalarIndexedSparseKernels.nrm2(indices, indexOffset, count, values)
