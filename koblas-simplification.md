@@ -22,7 +22,7 @@ explicitly decide any contract changes before deleting its implementation.
 | Component | Responsibility |
 |---|---|
 | `koblas` | Public containers/views, validation, workspace, dense BLAS bindings, dense/sparse Level 1, generic sparse primitives, immutable selection |
-| Optional vendor runtime module | Package oneMKL and AOCL BLAS binaries and their necessary runtime dependencies for JVM and supported Native targets |
+| Optional vendor runtime module | Package oneMKL, AOCL, and ArmPL BLAS binaries and their necessary runtime dependencies for JVM and supported Native targets |
 | `klause` | Sparse slice workflows, checked solver arithmetic, pivot policy, LU construction, hypersparse solves, Forrest–Tomlin updates |
 | `kumulant` | Cholesky factorization, rank-one factor updates, regularization policy, solves and covariance extraction built on Koblas |
 | `koblas-bench` | Slim operation inventory using production bindings, preserving the useful existing measurement and reporting machinery |
@@ -86,8 +86,10 @@ This follows the ordinary blocked structure used by
 
 ## Static vendor selection
 
-Use a closed vendor set and one readable selection function. Prefer Accelerate on macOS, AOCL on supported AMD
-hosts, and oneMKL on supported Intel hosts. Check supported OS/architecture, ABI, and library availability once.
+Use a closed vendor set and one readable selection function. Prefer Accelerate on macOS, Arm Performance Libraries
+(ArmPL) on Linux ARM64, AOCL on supported AMD x64 hosts, and oneMKL on supported Intel x64 hosts. Check OS and
+architecture before CPU vendor; an ARM processor from an unfamiliar vendor still takes the ArmPL route.
+Check supported OS/architecture, ABI, and library availability once.
 Define a short, fixed compatible fallback order before implementation; do not infer compatibility from successful
 library loading alone. The guarantee is a preferred available implementation, not the fastest possible function
 on every input.
@@ -103,9 +105,16 @@ on every input.
 - Use only measured, checked-in Level 1 crossover rules where JVM Vector API or scalar execution wins.
 - Do not reuse thresholds measured for the removed C kernels.
 
-Linux ARM64 has no supported vendor in the proposed set. Decide whether to narrow accelerator support or add a
-separately justified backend. This does not require dropping common storage/Level 1 support on that platform.
-Do not pull AOCL-Sparse or vendor sparse matrix APIs into scope to retain unused sparse Level 2–3 operations.
+ArmPL supplies the Linux ARM64 dense BLAS backend on both JVM and Native, using the same common CBLAS declarations
+and 32-bit BLAS integer contract. Include its required runtime payload in the optional bundle and its exact arm
+in bench. Accelerate remains the macOS ARM64 default. This adds no new OS target or ISA-specific kernel code.
+Use the chosen ArmPL release's documented ABI, library names, runtime dependencies, and redistribution terms;
+do not assume another vendor's packaging or threading details apply.
+[ArmPL installation and supported Linux platforms](https://learn.arm.com/install-guides/armpl/).
+
+Do not bind ArmPL's LAPACK, FFT, or sparse matrix interfaces, or pull AOCL-Sparse into scope to retain unused
+sparse Level 2–3 operations. A missing ArmPL installation and absent optional bundle use the same explicit
+missing-backend behavior as other platforms; Linux ARM64 accelerator support is part of this migration.
 
 ## Storage, numerical behavior, and foreign calls
 
@@ -203,6 +212,7 @@ belong in case IDs. No generic tracing framework or catalog schema is needed.
 | Exact JVM SIMD dot whose tiny-input or stride path delegates wholly to scalar | Skip the exact SIMD comparison with a reason |
 | Default dot choosing scalar or SIMD by size | Time the normal default call and record that actual choice |
 | JVM oneMKL GEMM with native-buffer transfers | Record oneMKL DGEMM plus JVM staging; include staging in the public-call timing |
+| JVM or Native Linux ARM64 GEMM | Record the resolved ArmPL CBLAS entry point and any runtime-specific transfers; do not infer its internal ISA |
 | Vendor arm for a Kotlin-only accumulator or compaction primitive | Unsupported for that arm; benchmark its actual Kotlin implementation once |
 | Alpha-zero operation that only scales the destination | Report the scaling implementation; do not claim the vendor product ran |
 | True empty/no-op call | A semantic overhead case only, not accelerated arithmetic evidence |
@@ -239,100 +249,126 @@ on repeated runs and held-out lengths/strides; prefer a simpler rule when result
 gets a documented conservative choice, not a claim of calibration. A raw leaf win cannot justify a slower public
 call. Do not add runtime overrides or an importer/configuration language to preserve the old tuning system.
 
-## Implementation sequence: three PRs total
+## Implementation sequence: four Koblas PRs and two consumer PRs
 
-Use **one implementation PR in Koblas**, **one in Kumulant**, and **one in Klause**. These are three repositories,
-so their changes cannot share a GitHub PR. Do not create separate foundation, packaging, benchmark, calibration,
-or cleanup PRs. The steps below are work within these three PRs, not additional PRs. Split only if a concrete
-integration/review blocker makes the combined change impractical; do not split merely by layer or source set.
+Use **four implementation PRs in Koblas**, **one in Kumulant**, and **one in Klause**: six total. Split the Koblas
+change at working subsystem boundaries, keeping JVM/Native support, tests, API dumps, docs, and deletion of the
+replaced subsystem together. No compatibility shims or separate cleanup PR. An untouched old subsystem can
+continue operating until its named cutover PR; do not bridge it to the new API or expose duplicate public APIs.
 
-| PR | Deliverable | Development dependency | Landing order |
-|---|---|---|---|
-| K — Koblas: `refactor: simplify vendor blas and benchmark routing` | Complete new API, all supported bindings, optional runtime bundle, Level 1/primitives, slim attributed bench, measured defaults, old code deleted | Start first; finalize contracts in step 1 | First, after all three candidate branches pass integration |
-| U — Kumulant: `refactor: own cholesky on the simplified blas api` | Direct API migration, Cholesky and rank-one updates, solves/covariance, dependency update | Start after K's contracts are fixed; work alongside K and L | Second, using the accepted K artifact |
-| L — Klause: `refactor: own sparse slice workflows` | Direct primitive/API migration, checked slices and pivot workflows, dependency updates | Start after K's contracts are fixed; work alongside K and U | Third, using accepted K and U artifacts |
-
-The three PRs are one coordinated migration. Test candidate artifacts before landing, then land K → U → L with
-matching dependency versions. K's merge does not upgrade existing consumer releases. Record the tested source
-SHAs/artifact versions so dependency resolution cannot silently use stale or incompatible snapshots. Candidate
-artifacts, a local repository, or supported composite builds provide integration; compatibility code does not.
-
-### Step 1 — Fix contracts and capture usable evidence (K; sequential foundation)
-
-1. Recheck current Koblas/Klause/Kumulant call sites, including Klause's transitive Kumulant use and in-repository
-   HFactor callers. Record exact baseline SHAs and preserve the small scalar test oracles before deleting code.
-2. Write the final operation/overload matrix: dense Level 1–3, sparse Level 1, generic primitives, and removals.
-   Resolve GEMMT and other nonstandard APIs explicitly. Specify the common sparse contracts needed by Klause.
-3. Fix the closed loading/fallback order, bundled-versus-installed precedence, target/ABI matrix, optional artifact
-   coordinates and Native linking, threading, and missing-backend behavior. Record the Linux ARM64 decision and
-   any changed numerical contracts. These decisions must be concrete before parallel binding work starts.
-4. Define the small typed binding and call-route contract, including direct coverage, delegation, tails, no-work,
-   unsupported cases, and buffer transfer reporting. Define owning/view signatures and ownership rules together.
-5. Preserve useful fixture/report tooling and capture only comparable baseline workloads where attribution is
-   established. Untrustworthy old labels cannot become baseline evidence merely because a timing exists.
-
-**Exit:** final signatures and decisions are recorded here or in the PR's contract diff; independent work has
-clear file ownership and shared contracts. No implementation depends on recreating the deleted SME plans.
-
-### Step 2 — Build independent parts in parallel (K, U, L)
-
-After step 1, the following tracks can proceed concurrently. Each track owns its implementation, tests, and
-related documentation; coordinate changes to shared contracts through one integration owner.
-
-| Track | Work | Waits for |
+| PR | Deliverable | Prerequisites for landing |
 |---|---|---|
-| K-A: JVM bindings | Direct FFM bindings, fixed JVM loading, symbol identity, memory transfers/workspace, complete public-call GEMM and submatrix proof | Step 1 ABI and window/route signatures |
-| K-B: Native bindings and bundle | Native interop, fixed loading/linking, shared declarations, JVM/Native runtime payload packaging and dependency checks | Step 1 ABI, artifact layout, and loading contract; final JVM load test also needs K-A |
-| K-C: Common API and Level 1 | Final containers/views/engine facade, scalar/SIMD dense and sparse Level 1, generic primitives, numerical/alias tests, direct call-site migration | Step 1 common contracts; full engine execution also needs K-A/K-B |
-| K-D: Slim bench | Reuse capture/JMH/Native/report tooling, trim cases, binding-derived identities and exact-arm checks, deliberately misrouted tests | Step 1 route contract; real timings wait for K-A/K-B/K-C integration |
-| U: Kumulant | Implement Cholesky/rank-one updates, migrate all old names/calls directly, update tests and docs | Step 1 dense signatures; execution checks wait for candidate K |
-| L: Klause | Move checked slice/pivot workflows, call common primitives directly, update tests and docs | Step 1 primitive signatures; full integration waits for candidate K and U |
+| K1 — `feat: add shared vendor blas bindings` | Final binding/route contracts, installed-library loading for oneMKL/AOCL/ArmPL/Accelerate on JVM and Native, safe memory calls, exact binding checks and bench attribution foundation | Contract decisions below |
+| K2 — `refactor: reduce sparse support to level one primitives` | Final common sparse primitives and Level 1 routing, slice workflow removal, sparse Level 2–3 deletion, matching slim sparse bench | K1; Klause candidate verifies the changed primitive/slice contract |
+| K3 — `refactor: route dense blas through vendor bindings` | Whole-operation dense cutover, final engine and views, scalar/SIMD Level 1, full slim bench migration, removal of numerical C/panel/tile/packed/dispatch machinery | K1 + K2; Kumulant candidate verifies the new dense API |
+| K4 — `feat: bundle vendor runtimes and calibrate defaults` | Optional oneMKL/AOCL/ArmPL runtime payloads, artifact tests, measured Level 1 choices, final consumer and performance evidence | K3; trusted attribution before calibration |
+| U — `refactor: own cholesky on the simplified blas api` | Direct Kumulant migration, Cholesky/rank-one updates, solves/covariance, dependency update | Final K4 artifact available |
+| L — `refactor: own sparse slice workflows` | Direct Klause migration, checked slices/pivot workflows, dependency updates | Final K4 and U artifacts available |
 
-JVM/Native or individual vendor bindings may be developed independently under the same ABI. They still land in
-one Koblas PR. Keep common signatures, shared declaration generation, Gradle coordinates, and the loader policy
-under one owner; those files must not acquire competing designs. Parallel work does not require a registry,
-temporary implementation of an old API, or an extra PR.
+### Before parallel work — fix the contracts in K1
 
-**Exit:** every final API has its implementation and call-route information; each track's focused checks pass.
-Consumer code targets the new API directly. Work not executable until integration is recorded as unverified.
+1. Recheck Koblas/Klause/Kumulant and HFactor call sites. Record baseline SHAs, preserve independent scalar test
+   oracles, and retain only baseline timings whose inputs, timing boundary, and executed implementation are known.
+2. Record the final operation/overload matrix and common primitive signatures. Decide nonstandard APIs such as
+   GEMMT and any stronger numerical contracts that vendor BLAS cannot provide.
+3. Fix the four-vendor loading/fallback order, supported targets, LP64 ABI, artifact coordinates/layout,
+   bundled-versus-installed precedence, threading, and missing-backend behavior. ArmPL owns Linux ARM64;
+   Accelerate owns macOS ARM64. K4 supplies optional payloads to this final loader without provider registration.
+4. Define the small typed binding/route contract and final owning/view signatures. Assign one owner to shared
+   declarations, common signatures, Gradle coordinates, and loader policy before others build against them.
 
-### Step 3 — Integrate, measure, and delete (K with U/L candidate integration; sequential gates)
+**Exit:** executable binding work and consumers can use fixed contracts. This is part of K1, not a planning PR.
 
-1. Integrate K-A through K-D. Verify actual binding execution against route descriptions before trusting timing
-   results. Check exact/default arms, whole-call scalar fallback, vector tails, views, and no-work paths.
-2. Verify a complete GEMM/submatrix call on JVM and Native, including required transfers, ownership, and safe
-   foreign-call behavior. Test installed/bundled/no-vendor configurations and the final threading policy.
-3. Run the slim representative benchmarks and separate Level 1 crossover measurements. Hardware-specific runs
-   can run in parallel on independent idle hosts. Serialize competing measurements on the same host. Apply only
-   supported measured rules; record conservative behavior for unmeasured combinations.
-4. Finish the immutable default, then delete the numerical C implementation, probe/catalog/profile machinery,
-   portable Level 2–3, panel/tile/packed APIs, obsolete cases and C vendor wrappers. Delete obsolete overloads and
-   forwarding paths too. Move independent scalar correctness oracles to tests; do not retain production copies.
-5. Update every in-repository caller, including any affected HFactor adapter, API dump, test, and documentation
-   directly. Keep HFactor algorithm changes out of scope. Remove stale installation flags, tuning keys, benchmark
-   modes, and performance claims in this same PR. There is no later cleanup PR.
-6. Build candidate K artifacts, then candidate U against K, then L against that exact K/U pair. Verify Cholesky
-   rank-one updates remain O(n²), strict/regularized behavior and covariance extraction, and Klause's checked
-   arithmetic and common-only integration. Run each repository's required checks on the final candidates.
+### K1 — Shared vendor bindings and exact identity
 
-**Exit:** the final three candidate branches integrate; the old architecture and all compatibility shims are
-absent from K. Published-artifact tests, real route evidence, and representative measurement reports are attached.
-Build success alone is insufficient when a required execution or attribution check is still missing.
+1. Implement direct CBLAS bindings for oneMKL, AOCL, ArmPL, and Accelerate on the supported JVM/Native targets.
+   Share declarations and common argument rules; keep symbol resolution and pointer handling platform-specific.
+2. Implement fixed installed-library loading and the final bundle lookup convention. Verify ABI, library/symbol
+   identity, missing/partial libraries, independent explicit instances, and safe memory lifetimes.
+3. Prove whole GEMM and submatrix calls with transfer-inclusive JVM execution and Native pinning. Cover Level 1,
+   structured and triangular signatures too; do not defer ABI errors until the dense default switches.
+4. Attach direct coverage and concrete route information to actual bound calls. Add deliberately misrouted tests
+   and the minimal existing-bench plumbing needed to exercise exact vendor calls. Migrate retained vendor cases
+   from the separate C wrapper directly; delete each replaced wrapper in this PR. K2/K3 trim their removed cases.
 
-### Step 4 — Review and land K → U → L (sequential)
+**Exit:** installed vendors are callable and attributable on both runtimes; exact requests cannot substitute
+another layer. Existing dense orchestration remains untouched until K3. New bindings are final implementation
+components, not a compatibility surface. Real execution evidence is separate from cross-build evidence.
 
-1. Review the complete K change, including deletion completeness, symbol/call identity, numerical contracts,
-   artifacts, and representative report rows. Resolve findings and rerun affected checks on the final head.
-2. Run the required repository gates and verify required CI for each PR. Land K and make its tested artifact
-   available; replace U's candidate dependency with that accepted version and verify U before landing it.
-3. Update L to accepted K/U versions, verify the resolved dependency pair and required checks, and land L.
-   Dependency bumps are included in U/L, not separate follow-up PRs. Never merge against an unavailable artifact.
-4. Confirm all three final versions match the integration evidence. Report unsupported/unmeasured targets
-   explicitly. Do not close the migration with deferred deletion, compatibility wrappers, or unresolved checks.
+### K2 — Common sparse primitives and sparse removal
 
-Implementation and focused tests can run in parallel as listed; contract decisions, shared integration,
-measurement-before-default activation, and artifact/dependency landing are ordered. Do not edit `.github/`
-without a separate request.
+1. Implement the final common accumulator, compression/compaction, touched-index, and masked-reduction APIs.
+   Keep caller-owned storage, duplicate/order/zero/nonfinite semantics, and allocation-free reuse explicit.
+2. Route sparse Level 1 through its final scalar/SIMD or available vendor implementation with truthful per-call
+   coverage. Remove replaced indexed C paths directly; exact vendors do not inherit Kotlin-only operations.
+3. Move solver-specific `SparseSlices` workflows to the L candidate branch and delete their Koblas entry points.
+   Delete sparse Level 2–3, prepared sparse machinery, and mixed overloads that preserve those algorithms.
+4. Migrate in-repository callers and sparse bench cases directly. Keep one benchmark for a common primitive,
+   validate actual routes, and remove sparse matrix and solver-workflow benchmarks from Koblas.
+5. Verify L's checked arithmetic/primitive integration against the candidate K2 artifact before landing K2.
+   Full L/Kumulant integration waits for K3/K4; this focused check does not claim that integration is complete.
+
+**Exit:** Koblas's sparse surface is storage, Level 1, and generic primitives. No sparse Level 2–3, old slice
+entry points, or forwarding compatibility code remain. Dense internals still needed by K3 are untouched.
+
+### K3 — Dense cutover and removal of the kernel architecture
+
+1. Replace dense Level 2–3 with whole vendor operations and use one validation/memory path for owning matrices
+   and views. Preserve offsets/leading dimensions, permitted aliases, no-read rules, and explicit transfer costs.
+2. Finish the immutable engine using the fixed vendor selection and final scalar/JVM SIMD Level 1 components.
+   Start with explicit conservative Level 1 choices; K4 adds only crossovers supported by the new measurements.
+3. Complete the slim benchmark migration to production calls and binding-derived routes. Preserve capture,
+   JMH/Native calibration, fixtures, filters, and report machinery. Verify exact/default distinctions and all
+   retained overloads before accepting timings. Remove tile, panel, packing, and obsolete engine cases.
+4. Delete production portable dense Level 2–3, numerical C kernels/build tasks, probes/catalogs/profiles, packed
+   and panel/tile APIs, policy wrappers, old tuning keys, and remaining obsolete C vendor-runner code. Move small
+   scalar correctness oracles to tests. Update all affected HFactor callers without changing its algorithms.
+5. Update API dumps, tests, docs, installation flags, and performance claims in this same PR. Verify U's Cholesky,
+   rank-one updates, solves, regularization, and covariance against the candidate K3 artifact before landing.
+
+**Exit:** the replacement architecture and slim attributed bench work with installed vendors. All superseded
+kernel machinery and compatibility code are gone; K4 has no deferred cleanup responsibility.
+
+### K4 — Runtime bundle, calibration, and final integration
+
+1. Package the required oneMKL, AOCL, and ArmPL runtime payloads in the optional module. Test actual JVM artifact
+   extraction/loading and Native link/package behavior, target/ABI/runtime dependencies, and required notices.
+   Accelerate continues to use the system framework. Exercise installed, bundled, and missing-vendor paths.
+2. Reconfirm binding-derived attribution and thread configuration on each measurement host. Run the slim dense
+   and sparse Level 1 suites plus representative dense Level 2–3, including Linux ARM64 ArmPL on JVM and Native.
+3. Measure scalar-versus-vendor and SIMD-versus-vendor independently, including transfers and held-out cases.
+   Check in only justified fixed Level 1 rules with provenance. Preserve conservative choices for unmeasured
+   combinations; do not infer ArmPL performance from another backend or from emulation.
+4. Build candidate K4 artifacts, then U against K4, then L against that exact K4/U pair. Verify numerical behavior,
+   O(n²) rank-one updates, checked sparse arithmetic, common-only Klause integration, and resolved dependencies.
+   Run each repository's required checks on the final candidates and review the complete artifact/report evidence.
+
+**Exit:** optional artifacts, measured choices, and both migrated consumers are verified. Required missing
+hardware or integration evidence is explicit unfinished work, not a reason to claim completion.
+
+### Parallel work and ordered gates
+
+| Work that can run in parallel | Earliest start | Must wait for |
+|---|---|---|
+| K1 JVM and Native/vendor implementations | K1 contracts fixed | One shared declaration/loader design; combined ABI and call tests before K1 lands |
+| K2 sparse primitives/removal and K1 binding implementation | Common signatures and route contract fixed | K1 lands before K2; L's focused sparse migration check |
+| K3 dense wrappers, engine migration, and bench work | K1 contracts fixed | Executable K1 bindings and accepted K2 for integration/landing |
+| K4 runtime packaging for each vendor/platform | K1 artifact layout and loader fixed | Final K3 runtime for artifact verification; no early measured defaults |
+| U Cholesky and L slice migration | Final dense/primitive signatures fixed in K1 | Candidate K2 for L's primitive tests; candidate K3 for U's dense tests; K4/U/L for final integration |
+| Vendor/hardware benchmark runs | K3's attribution checks pass and candidate K4 is stable | Independent idle hosts; serialize measurements that compete on one host |
+
+Development can overlap; land **K1 → K2 → K3 → K4 → U → L**. Rebase stacked work onto accepted prerequisites and
+rerun affected checks after integration. Shared contract decisions, actual-route verification before calibration,
+calibration before measured-default activation, and artifact publication before consumer dependency landing are
+ordered. Do not have independent tracks invent separate route descriptions or mutate shared Gradle/API files
+without coordination.
+
+Use candidate artifacts, a local repository, or supported composite builds for pre-merge integration. Record
+source SHAs and artifact versions; never rely on a stale mutable snapshot. Existing consumer releases stay on
+their old dependencies while candidate branches migrate directly, so no shim is needed. Review each PR's final
+head and verify its required checks before landing. Publish the accepted K4 artifact, land U against it, then
+land L against accepted K4/U versions; include dependency bumps in U/L. Do not edit `.github/` without a separate
+request. No separate cleanup, compatibility, or dependency-bump PR is planned.
 
 ## Verification and completion
 
