@@ -6,9 +6,10 @@ Make Koblas a small Kotlin Multiplatform BLAS library backed by vendor implement
 sparse Level 1 kernels and storage primitives. Vendor BLAS owns complete dense Level 2 and Level 3 operations.
 The default implementation is selected once and cannot be replaced or configured at runtime.
 
-**Koblas supports single-threaded execution only.** Every operation, including vendor BLAS calls, must execute
-with one compute thread. Multithreaded BLAS execution is unsupported, not an optional mode or future migration
-deliverable. This applies to oneMKL, AOCL, ArmPL, Accelerate, and every benchmark arm.
+**Every BLAS invocation uses one compute thread; the bindings remain concurrently callable.** A function must not
+split work on its input across multiple threads. Applications may call the same immutable binding from multiple
+threads at once, including with shared read-only inputs. This applies to oneMKL, AOCL, ArmPL, Accelerate, and every
+benchmark arm. The restriction is per invocation, not a process-wide limit of one active BLAS call.
 
 This is the sole architecture and implementation plan. The former SME plans are deleted; their useful numerical,
 storage, attribution, and measurement requirements are incorporated here. No SME/SME2 or future-ISA work remains.
@@ -109,7 +110,7 @@ on every input.
 - Use only measured, checked-in Level 1 crossover rules where JVM Vector API or scalar execution wins.
 - Do not reuse thresholds measured for the removed C kernels.
 
-### Single-threaded execution requirement
+### Single-threaded calls and concurrent bindings
 
 - Use sequential vendor libraries where available. Otherwise establish the vendor's supported single-thread
   configuration once before its first arithmetic call, including disabling dynamic thread expansion as needed.
@@ -121,10 +122,13 @@ on every input.
 - Bench runs each operation with one compute thread. No multithreaded benchmark modes, throughput scaling
   suites, or calibration against multithreaded vendor calls. Verify and record the effective configuration;
   fail a selected benchmark arm if it cannot establish single-threaded execution.
-- Independent callers may make separate calls on different application threads, with separate mutable storage
-  and workspaces. Reentrancy/lifetime tests cover that safety only; they do not introduce internal parallelism.
-  The parallel work tracks below describe implementation work and independent measurement hosts, not runtime
-  multithreading support.
+- Bindings must be reentrant and callable from any application thread. Concurrent calls through the same binding
+  are supported; do not serialize all arithmetic behind a global lock or require a designated caller thread.
+  Shared read-only inputs are allowed. Each in-flight call owns its mutable scratch/workspace; callers must
+  synchronize overlapping writes or writes overlapping another call's reads. Per-call alias rules still apply.
+- Test concurrent binding calls, shared read-only inputs, distinct outputs/workspaces, and safe initialization
+  and lifetime. These are binding safety tests, not multithreaded execution of a single BLAS function. Parallel
+  implementation tracks and measurements on independent hosts also remain allowed.
 
 ArmPL supplies the Linux ARM64 dense BLAS backend on both JVM and Native, using the same common CBLAS declarations
 and 32-bit BLAS integer contract. Include its required runtime payload in the optional bundle and its exact arm
@@ -403,8 +407,9 @@ request. No separate cleanup, compatibility, or dependency-bump PR is planned.
   consumer integration. Follow each consumer repository's verification instructions when changing it.
 - Reproduce exact-route attribution failures in tests before trusting crossover reports. Confirm representative
   report rows against actual bound calls, not just formatted names.
-- Verify single-thread execution for every supported vendor and packaged artifact. Multithreaded execution,
-  configurable thread counts, and multithreaded benchmark arms fail the acceptance criteria.
+- Verify one compute thread per BLAS invocation for every supported vendor and packaged artifact, plus concurrent
+  calls through shared bindings. Internal multithreaded arithmetic, configurable BLAS thread counts, and
+  benchmarks that split one invocation across workers fail the acceptance criteria.
 - Distinguish cross-build success, emulated correctness, real-hardware execution, and measured performance in
   support claims. Missing target evidence remains explicit; unrelated foundation work may proceed.
 - Completion requires consumers migrated, old layers removed, benchmark attribution enforced, optional packaging
