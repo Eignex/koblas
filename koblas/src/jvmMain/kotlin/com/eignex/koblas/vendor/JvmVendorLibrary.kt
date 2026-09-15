@@ -62,18 +62,49 @@ internal class JvmVendorLibrary private constructor(
     }
 
     /**
-     * Selects oneMKL's sequential layer, which is a condition of loading it rather than a thread setting.
+     * Pins the library to one compute thread per call, before any arithmetic reaches it.
      *
-     * oneMKL resolves its threading layer on first use and defaults to the Intel-threaded one, which needs an
-     * OpenMP runtime that a plain oneMKL install does not ship: on a host without `libiomp5` the first call
-     * fails with an undefined `omp_get_num_procs` rather than computing anything. Naming the sequential layer
-     * at load is what makes the library usable, and it is the layer that matches a library with no threading
-     * of its own to coordinate with. Nothing here is configurable and no thread count is ever set.
+     * Every one of these libraries is multithreaded by default, so this is what makes a call single-threaded
+     * rather than a preference expressed about it. It runs once, at load, and there is no way to reach it
+     * afterwards: the thread count is an invariant of the binding and not a setting it carries.
+     *
+     * oneMKL takes two steps. Its dispatcher resolves a threading layer on first use and defaults to the
+     * Intel-threaded one, which needs an OpenMP runtime a plain oneMKL install does not ship; on a host without
+     * `libiomp5` the first call dies with an undefined `omp_get_num_procs` instead of computing. Naming the
+     * sequential layer both makes the library usable and removes its workers. The thread count and dynamic
+     * expansion are then fixed as well, so a build that resolves some other layer cannot grow workers back.
+     *
+     * A library that ignores all of this is caught by [singleThreaded] rather than trusted.
      */
-    private fun selectSequentialLayer() {
-        // Resolved to a local first: a safe call makes the site's return type boxed, which invokeExact rejects.
-        val handle = handleOrNull("MKL_Set_Threading_Layer", FunctionDescriptor.of(JAVA_INT, JAVA_INT)) ?: return
-        handle.invokeExact(MKL_SEQUENTIAL) as Int
+    private fun enforceSingleThread() {
+        // Every call below sits in statement position with its handle in a local. invokeExact converts
+        // nothing, and both a safe call and a lambda's trailing expression give the site a boxed return type
+        // that will not match a void descriptor.
+        val layer = handleOrNull("MKL_Set_Threading_Layer", FunctionDescriptor.of(JAVA_INT, JAVA_INT))
+        if (layer != null) layer.invokeExact(MKL_SEQUENTIAL) as Int
+        val dynamic = handleOrNull("MKL_Set_Dynamic", FunctionDescriptor.ofVoid(JAVA_INT))
+        if (dynamic != null) dynamic.invokeExact(0)
+        for (symbol in listOf("MKL_Set_Num_Threads", "openblas_set_num_threads", "bli_thread_set_num_threads")) {
+            val handle = handleOrNull(symbol, FunctionDescriptor.ofVoid(JAVA_INT))
+            if (handle != null) handle.invokeExact(1)
+        }
+    }
+
+    /**
+     * Whether the library now reports one compute thread, read back rather than assumed.
+     *
+     * A library that reports a thread count and reports more than one after being told otherwise is not
+     * supported and must not reach arithmetic, because every timing taken through it would be measuring
+     * something other than what the report says. A library that exposes no way to ask is accepted on the
+     * strength of the request, which is all there is to go on; [Vendor.Accelerate] is the case that matters,
+     * since it carries no thread-count entry point of its own.
+     */
+    fun singleThreaded(): Boolean {
+        for (symbol in listOf("MKL_Get_Max_Threads", "openblas_get_num_threads", "bli_thread_get_num_threads")) {
+            val handle = handleOrNull(symbol, FunctionDescriptor.of(JAVA_INT)) ?: continue
+            return (handle.invokeExact() as Int) == 1
+        }
+        return true
     }
 
     /** Whether [name] is exported. */
@@ -132,6 +163,7 @@ internal class JvmVendorLibrary private constructor(
          *
          * A library that opens but is missing part of the surface is rejected rather than half-bound, so a
          * partial or mismatched install fails here instead of at the first call that needs the missing piece.
+         * One that cannot be held to a single compute thread is rejected the same way, before any arithmetic.
          */
         fun open(vendor: Vendor): JvmVendorLibrary? {
             val linker = try {
@@ -149,7 +181,8 @@ internal class JvmVendorLibrary private constructor(
                 }
                 val library = JvmVendorLibrary(vendor, candidate, lookup, linker)
                 if (VendorOperation.entries.any { it.required && !library.exports(it.entryPoint) }) continue
-                library.selectSequentialLayer()
+                library.enforceSingleThread()
+                if (!library.singleThreaded()) continue
                 return library
             }
             return null
