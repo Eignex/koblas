@@ -1,9 +1,12 @@
 package com.eignex.koblas.sparse
 
 import com.eignex.koblas.BuiltinEngines
+import com.eignex.koblas.SparseVector
+import com.eignex.koblas.koblas
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 
 class IndexedSparseKernelsTest {
     @Test
@@ -55,16 +58,12 @@ class IndexedSparseKernelsTest {
     }
 
     @Test
-    fun `simd gather retains ordered reads when buffers alias`() {
-        val kernels = BuiltinEngines.simd?.indexedSparseKernels ?: return
-        val indices = IntArray(33) { it }
-        val expected = DoubleArray(40) { it.toDouble() }
-        val actual = expected.copyOf()
-        ScalarIndexedSparseKernels.gather(indices, 0, expected, 3, indices.size, expected)
+    fun `gather rejects a source that is its own destination`() {
+        val x = SparseVector.of(4, intArrayOf(0, 1, 2, 3), doubleArrayOf(0.0, 1.0, 2.0, 3.0))
 
-        kernels.gather(indices, 0, actual, 3, indices.size, actual)
-
-        assertGatherAgreesWithReference(expected, actual, "aliased buffers")
+        assertFailsWith<IllegalArgumentException> { koblas.sparseKernels.gather(x, x.values) }
+        assertFailsWith<IllegalArgumentException> { koblas.sparseKernels.gatherZero(x, x.values) }
+        assertContentEquals(doubleArrayOf(0.0, 1.0, 2.0, 3.0), x.values)
     }
 
     private fun assertGatherAgreesWithReference(expected: DoubleArray, actual: DoubleArray, message: String) {

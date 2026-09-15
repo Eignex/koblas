@@ -101,6 +101,10 @@ public interface SparseKernels {
      * [scatter]. The pattern is what [x] already stores and does not change; a position of [from] that is
      * nonzero and unstored stays unread, so this narrows a dense vector to a pattern rather than sparsifying
      * it.
+     *
+     * [x]'s values and [from] must be distinct arrays, as they must be for [scatter]. Reading and writing one
+     * array through two index orders has no single answer: a scalar loop moves an entry per step while a
+     * vector kernel reads a whole block before storing it, so the two would disagree on the overlap.
      */
     public fun gather(x: SparseVector, from: DoubleArray)
 
@@ -108,6 +112,8 @@ public interface SparseKernels {
      * [gather], and zero in [from] the positions it read (Sparse BLAS `usgz`), leaving the rest of [from]
      * alone. The pair is one pass rather than two because the caller of a gather-and-zero wants [from]
      * emptied of exactly what it took.
+     *
+     * [x]'s values and [from] must be distinct arrays, for the reason [gather] gives.
      */
     public fun gatherZero(x: SparseVector, from: DoubleArray)
 
@@ -223,11 +229,13 @@ internal class SparseKernelAdapter(
 
     override fun gather(x: SparseVector, from: DoubleArray) {
         requireShape(x.size == from.size) { "gather: sizes differ, ${x.size} vs ${from.size}" }
+        require(x.values !== from) { "values and source must use distinct buffers" }
         indexedSparseKernels.gather(x.indices, x.values, from)
     }
 
     override fun gatherZero(x: SparseVector, from: DoubleArray) {
         requireShape(x.size == from.size) { "gatherZero: sizes differ, ${x.size} vs ${from.size}" }
+        require(x.values !== from) { "values and source must use distinct buffers" }
         indexedSparseKernels.gatherZero(x.indices, x.values, from)
     }
 
