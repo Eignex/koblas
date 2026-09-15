@@ -50,6 +50,8 @@ private typealias TriangularMatrixFn =
 private typealias VersionFn = CFunction<(Bytes?, Int) -> Unit>
 private typealias StringFn = CFunction<() -> Bytes?>
 private typealias SetLayerFn = CFunction<(Int) -> Int>
+private typealias SetThreadsFn = CFunction<(Int) -> Unit>
+private typealias GetThreadsFn = CFunction<() -> Int>
 private typealias DlAddrFn = CFunction<(COpaquePointer?, CPointer<ByteVar>?) -> Int>
 
 /**
@@ -91,16 +93,42 @@ internal class NativeVendorBlas private constructor(
     override val version: String by lazy { readVersion() }
 
     /**
-     * Selects oneMKL's sequential layer, which is a condition of loading it rather than a thread setting.
+     * Pins the library to one compute thread per call, before any arithmetic reaches it.
      *
-     * oneMKL resolves its threading layer on first use and defaults to the Intel-threaded one, which needs an
-     * OpenMP runtime that a plain oneMKL install does not ship: on a host without `libiomp5` the first call
-     * fails with an undefined `omp_get_num_procs` rather than computing anything. Naming the sequential layer
-     * at load is what makes the library usable, and it is the layer that matches a library with no threading
-     * of its own to coordinate with. Nothing here is configurable and no thread count is ever set.
+     * Every one of these libraries is multithreaded by default, so this is what makes a call single-threaded
+     * rather than a preference expressed about it. It runs once, at load, and there is no way to reach it
+     * afterwards: the thread count is an invariant of the binding and not a setting it carries.
+     *
+     * oneMKL takes two steps. Its dispatcher resolves a threading layer on first use and defaults to the
+     * Intel-threaded one, which needs an OpenMP runtime a plain oneMKL install does not ship; on a host without
+     * `libiomp5` the first call dies with an undefined `omp_get_num_procs` instead of computing. Naming the
+     * sequential layer both makes the library usable and removes its workers. The thread count and dynamic
+     * expansion are then fixed as well, so a build that resolves some other layer cannot grow workers back.
+     *
+     * A library that ignores all of this is caught by [singleThreaded] rather than trusted.
      */
-    private fun selectSequentialLayer() {
+    private fun enforceSingleThread() {
         dlsym(handle, "MKL_Set_Threading_Layer")?.reinterpret<SetLayerFn>()?.invoke(MKL_SEQUENTIAL)
+        dlsym(handle, "MKL_Set_Dynamic")?.reinterpret<SetThreadsFn>()?.invoke(0)
+        for (symbol in listOf("MKL_Set_Num_Threads", "openblas_set_num_threads", "bli_thread_set_num_threads")) {
+            dlsym(handle, symbol)?.reinterpret<SetThreadsFn>()?.invoke(1)
+        }
+    }
+
+    /**
+     * Whether the library now reports one compute thread, read back rather than assumed.
+     *
+     * A library that reports a thread count and reports more than one after being told otherwise is not
+     * supported and must not reach arithmetic. One that exposes no way to ask is accepted on the strength of
+     * the request, which is all there is to go on; [Vendor.Accelerate] is the case that matters, since it
+     * carries no thread-count entry point of its own.
+     */
+    private fun singleThreaded(): Boolean {
+        for (symbol in listOf("MKL_Get_Max_Threads", "openblas_get_num_threads", "bli_thread_get_num_threads")) {
+            val fn = dlsym(handle, symbol)?.reinterpret<GetThreadsFn>() ?: continue
+            return fn() == 1
+        }
+        return true
     }
 
     override val directlyImplemented: Set<VendorOperation> =
@@ -591,7 +619,10 @@ internal class NativeVendorBlas private constructor(
                     !it.required || dlsym(handle, it.entryPoint) != null
                 }
                 if (!complete) continue
-                return NativeVendorBlas(vendor, candidate, handle).also { it.selectSequentialLayer() }
+                val blas = NativeVendorBlas(vendor, candidate, handle)
+                blas.enforceSingleThread()
+                if (!blas.singleThreaded()) continue
+                return blas
             }
             return null
         }
