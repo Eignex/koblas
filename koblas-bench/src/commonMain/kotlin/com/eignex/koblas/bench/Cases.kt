@@ -27,6 +27,7 @@ internal object Cases {
         "spdot" to 1, "spdot-raw" to 1, "spdot-sparse" to 1, "spaxpy" to 1, "spaxpy-raw" to 1,
         "spnrm2" to 1, "spnrm2-indexed" to 1, "spasum" to 1,
         "spscatter" to 1, "spscatter-raw" to 1, "spgather" to 1, "spgather-zero" to 1,
+        "spaccumulate" to 1,
     )
     private val fixtures = setOf("uniform", "triangular", "sparse-uniform", "sparse-triangular")
     private val optionOrder = listOf("density", "packed", "side", "uplo", "transA", "transB", "diag", "timing")

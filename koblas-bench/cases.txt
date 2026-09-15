@@ -111,6 +111,7 @@ spscatter-raw+65536+sparse-uniform+density=0.015625
 spscatter-raw+262144+sparse-uniform+density=0.03125
 spgather+4096+sparse-uniform+density=0.01
 spgather-zero+4096+sparse-uniform+density=0.01
+spaccumulate+4096+sparse-uniform+density=0.01
 
 # Skinny, depth tails, and single through many RHS transition baselines.
 gemm+257x3x1+uniform
