@@ -20,6 +20,19 @@ public interface DenseVectorKernels {
     /** Short implementation identifier for diagnostics. */
     public val name: String
 
+    /**
+     * The implementation a call of this [operation] and [length] reaches, or null when its own values decide.
+     *
+     * [name] identifies a selection, which is not the same question: a selection that dispatches by length
+     * answers with one of its components, and a caller that reports the selection name has named something
+     * that did not run. An implementation which does not dispatch answers with itself, which is the default.
+     *
+     * Null is the honest answer where no width establishes the destination, as for a norm that retries through
+     * a rescaling loop when the square sum leaves the normal range. Such a call is not an exact measurement of
+     * either kernel, and asking after the fact would mean tracing inside the timed region.
+     */
+    public fun implementationFor(operation: DenseOperation, length: Int): String? = name
+
     /** Returns `sum(a[aOff + i] * b[bOff + i])` over [len] entries, or zero for an empty run. */
     public fun dot(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int): Double
 

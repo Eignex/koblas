@@ -47,13 +47,22 @@ public enum class SparseOperation(internal val entryPoint: String) {
  *
  * [implementation] is therefore the fact a comparison has to read: it names what executed, not what was asked.
  * A route is about one call at one width, and building one allocates, so a caller asks once and then times.
+ *
+ * A [RouteKind.Composed] route is the admission that no kernel can be named yet, which the whole-vector norm
+ * needs: it tries a square sum and abandons it for a rescaling loop when that leaves the normal range, so the
+ * values decide. Naming either kernel would be a guess, and establishing it after the fact would mean tracing
+ * inside the region being timed.
  */
 public class SparseRoute internal constructor(
     /** The operation requested. */
     public val operation: SparseOperation,
     /** How the call was served. */
     public val kind: RouteKind,
-    /** The implementation that ran, which is not always the one that was asked. */
+    /**
+     * The implementation that ran, which is not always the one that was asked.
+     *
+     * For a [RouteKind.Composed] route this is the selection that will choose, because no leaf can be named.
+     */
     public val implementation: String,
     /** The resolved leaf within [implementation]. */
     public val entryPoint: String,
