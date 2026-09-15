@@ -20,16 +20,32 @@ import com.eignex.koblas.vendor.openVendorBlas
  */
 internal class VendorArm(val work: CaseWork?, val reason: String?)
 
+/** The prefix a vendor mode carries for each runtime, which is also which entry point may run it. */
+internal const val JVM_VENDOR_PREFIX: String = "jvm-vendor-"
+
+/** The Native runtime's vendor-mode prefix. */
+internal const val NATIVE_VENDOR_PREFIX: String = "native-vendor-"
+
 /** The vendor a benchmark mode names, or null when the mode is not a vendor arm. */
 internal fun vendorFromMode(mode: String): Vendor? {
     val name = when {
-        mode.startsWith("jvm-vendor-") -> mode.removePrefix("jvm-vendor-")
-        mode.startsWith("native-vendor-") -> mode.removePrefix("native-vendor-")
+        mode.startsWith(JVM_VENDOR_PREFIX) -> mode.removePrefix(JVM_VENDOR_PREFIX)
+        mode.startsWith(NATIVE_VENDOR_PREFIX) -> mode.removePrefix(NATIVE_VENDOR_PREFIX)
         else -> return null
     }
     return Vendor.entries.singleOrNull { it.name.lowercase() == name }
         ?: error("unknown vendor in mode $mode; expected one of ${Vendor.entries.map { it.name.lowercase() }}")
 }
+
+/**
+ * The vendor a mode names for [prefix]'s runtime, or null when the mode is not that runtime's vendor arm.
+ *
+ * The prefix is what keeps a mode from being run by the wrong entry point. Both runtimes name the same
+ * vendors, so a check that only asked whether a mode named one would let the Native runner accept a
+ * `jvm-vendor-` mode and report its rows under a runtime that never ran them.
+ */
+internal fun vendorForRuntime(mode: String, prefix: String): Vendor? =
+    if (mode.startsWith(prefix)) vendorFromMode(mode) else null
 
 /**
  * Opens the vendor a mode names, failing loudly rather than quietly measuring something else.

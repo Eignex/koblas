@@ -103,6 +103,42 @@ class AddressingTest {
     }
 
     @Test
+    fun `the shared syr2k flag also copies when it is the first operand that disagrees`() {
+        // The flag comes off A, so B agreeing with the call's layout does not reconcile it with A. Both
+        // operands have to present the same way, and the one presenting row-major is the one packed.
+        val columnMajor = MatrixWindow(storage, 4, 4)
+        val rowMajor = MatrixWindow(storage, 4, 4).transpose()
+        val c = MatrixWindow(storage, 4, 4, structure = MatrixStructure.SymmetricLower)
+
+        val addressing = effectiveAddressing(VendorOperation.Syr2k, listOf(rowMajor, columnMajor, c))
+
+        assertEquals(Addressing.Staged, addressing[0])
+        assertEquals(Addressing.ColumnMajor, addressing[1])
+    }
+
+    @Test
+    fun `two row major syr2k operands agree with each other and need no copy`() {
+        val rowMajor = MatrixWindow(storage, 4, 4).transpose()
+        val c = MatrixWindow(storage, 4, 4, structure = MatrixStructure.SymmetricLower)
+
+        val addressing = effectiveAddressing(VendorOperation.Syr2k, listOf(rowMajor, rowMajor, c))
+
+        assertEquals(listOf(Addressing.RowMajor, Addressing.RowMajor), addressing.take(2))
+    }
+
+    @Test
+    fun `unstaging a structured window leaves the entries it does not store`() {
+        val destination = DoubleArray(9) { -1.0 }
+        val window = MatrixWindow(destination, 3, 3, structure = MatrixStructure.UnitLower)
+        val packed = DoubleArray(9) { it.toDouble() }
+
+        unstageFrom(packed, window)
+
+        // Column-major: only the strictly lower entries are stored, so only those are written back.
+        assertEquals(listOf(-1.0, 1.0, 2.0, -1.0, -1.0, 5.0, -1.0, -1.0, -1.0), destination.toList())
+    }
+
+    @Test
     fun `reading a stored triangle under the opposite layout flips which triangle blas finds`() {
         val lower = MatrixWindow(storage, 4, 4, structure = MatrixStructure.SymmetricLower)
 

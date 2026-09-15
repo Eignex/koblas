@@ -16,7 +16,7 @@ public object JvmBenchmarkBridge {
     @JvmStatic
     public fun create(mode: String, caseId: String, casesPath: String): JvmCaseWork {
         val case = Cases.parse(readTextFile(casesPath)).single { it.id == caseId }
-        if (vendorFromMode(mode) != null) {
+        if (vendorForRuntime(mode, JVM_VENDOR_PREFIX) != null) {
             val arm = vendorArm(case, openVendorForMode(mode).first)
             // The fork already accepted this case, so a rejection here means the arm changed between the
             // scan and the measurement rather than that the case was never admissible.
@@ -31,7 +31,7 @@ public object JvmBenchmarkBridge {
 
 public fun main(args: Array<String>) {
     val settings = parseArguments(args)
-    val vendorMode = vendorFromMode(settings.mode) != null
+    val vendorMode = vendorForRuntime(settings.mode, JVM_VENDOR_PREFIX) != null
     require(
         settings.mode in setOf("jvm-c", "jvm-simd", "jvm-scalar") ||
             settings.mode.startsWith("jvm-c-raw-") || vendorMode,
@@ -39,8 +39,9 @@ public fun main(args: Array<String>) {
     val allCases = Cases.parse(readTextFile(settings.casesPath))
     val selected = Cases.select(allCases, settings.suite, settings.operation)
     val vendor = if (vendorMode) openVendorForMode(settings.mode) else null
-    val engine = if (vendorMode) null else resolveEngine(settings.mode).first
-    val implementation = vendor?.second ?: resolveEngine(settings.mode).second
+    val resolved = if (vendorMode) null else resolveEngine(settings.mode)
+    val engine = resolved?.first
+    val implementation = vendor?.second ?: checkNotNull(resolved).second
     val supported = linkedMapOf<String, Pair<String, String>>()
     val routes = linkedMapOf<String, com.eignex.koblas.vendor.CallRoute>()
     val rowsByCase = linkedMapOf<String, MutableList<Measurement>>()

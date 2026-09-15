@@ -297,6 +297,101 @@ class JvmVendorBlasTest {
     }
 
     @Test
+    fun `syr2k agrees with the reference when its two inputs are addressed differently`() = withVendor { blas ->
+        // A and B share one transpose flag, so a row-major A and a column-major B cannot both stay in place.
+        val order = 3
+        val depth = 2
+        val a = MatrixWindow(values(order * depth, 34), depth, order).transpose()
+        val b = MatrixWindow(values(order * depth, 35), order, depth)
+        val storage = values(order * order, 36)
+        val c = MatrixWindow(storage, order, order, structure = MatrixStructure.SymmetricLower)
+        val expected = DoubleArray(order * order) { index ->
+            val row = index % order
+            val column = index / order
+            var sum = 0.0
+            for (k in 0 until depth) sum += a[row, k] * b[column, k] + b[row, k] * a[column, k]
+            0.5 * storage[index] + 1.25 * sum
+        }
+
+        blas.syr2k(1.25, a, b, 0.5, c)
+
+        for (column in 0 until order) {
+            for (row in column until order) {
+                val wanted = expected[row + column * order]
+                val actual = storage[row + column * order]
+                assertTrue(abs(wanted - actual) <= 1e-12 * maxOf(1.0, abs(wanted)), "syr2k at ($row, $column)")
+            }
+        }
+    }
+
+    @Test
+    fun `scal scales a negatively strided window`() = withVendor { blas ->
+        // BLAS returns without doing anything for a non-positive increment, so the sign must not be passed on.
+        val size = 5
+        val storage = values(size, 30)
+        val original = storage.copyOf()
+        val x = VectorWindow(storage, size, offset = size - 1, stride = -1)
+
+        blas.scal(2.0, x)
+
+        assertAgreesWithReference(DoubleArray(size) { 2.0 * original[it] }, storage, "scal negative stride")
+    }
+
+    @Test
+    fun `swap exchanges two interleaved windows of one array`() = withVendor { blas ->
+        // Two rows of a column-major matrix interleave in one array, which is what a pivot swap works on.
+        val size = 4
+        val lda = 3
+        val storage = values(lda * size, 31)
+        val original = storage.copyOf()
+        val first = VectorWindow(storage, size, offset = 0, stride = lda)
+        val second = VectorWindow(storage, size, offset = 1, stride = lda)
+
+        blas.swap(first, second)
+
+        for (index in 0 until size) {
+            assertEquals(original[1 + index * lda], storage[index * lda], "row 0 entry $index")
+            assertEquals(original[index * lda], storage[1 + index * lda], "row 1 entry $index")
+            assertEquals(original[2 + index * lda], storage[2 + index * lda], "row 2 entry $index")
+        }
+    }
+
+    @Test
+    fun `a staged symmetric destination keeps the triangle the call never wrote`() = withVendor { blas ->
+        val order = 3
+        val storage = values(24, 32)
+        val original = storage.copyOf()
+        // Neither stride is one, so the window cannot be addressed by BLAS and has to be packed and unpacked.
+        val a = MatrixWindow(
+            storage,
+            order,
+            order,
+            offset = 0,
+            rowStride = 2,
+            columnStride = 8,
+            structure = MatrixStructure.SymmetricLower,
+        )
+        val x = VectorWindow(values(order, 33), order)
+        assertEquals(Addressing.Staged, addressingOf(a))
+
+        blas.syr(1.5, x, a)
+
+        for (column in 0 until order) {
+            for (row in 0 until column) {
+                val index = row * 2 + column * 8
+                assertEquals(original[index], storage[index], "unstored entry at ($row, $column) was written")
+            }
+        }
+        for (column in 0 until order) {
+            for (row in column until order) {
+                val index = row * 2 + column * 8
+                val wanted = original[index] + 1.5 * x[row] * x[column]
+                assertTrue(abs(wanted - storage[index]) <= 1e-12 * maxOf(1.0, abs(wanted)), "syr at ($row, $column)")
+            }
+        }
+    }
+
+    @Test
     fun `the resolved library and version identify what actually ran`() = withVendor { blas ->
         assertTrue(blas.version.isNotEmpty(), "no version string")
         assertTrue(VendorOperation.Gemm in blas.directlyImplemented, "gemm should be directly implemented")

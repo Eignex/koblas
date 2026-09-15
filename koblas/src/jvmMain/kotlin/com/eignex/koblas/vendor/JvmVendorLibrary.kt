@@ -147,7 +147,14 @@ internal class JvmVendorLibrary private constructor(
      */
     fun verifiedAbi(): Boolean {
         if (declaresWideIntegers(version)) return false
+        if (!declaredIntegerWidthMatches()) return false
         return probeDot() && probeGemm()
+    }
+
+    /** BLIS answers the integer-width question directly; see [BLIS_INTEGER_WIDTH]. */
+    private fun declaredIntegerWidthMatches(): Boolean {
+        val handle = handleOrNull(BLIS_INTEGER_WIDTH, FunctionDescriptor.of(JAVA_INT)) ?: return true
+        return (handle.invokeExact() as Int) == LP64_INTEGER_BITS
     }
 
     private fun probeDot(): Boolean {
@@ -170,15 +177,16 @@ internal class JvmVendorLibrary private constructor(
                 ADDRESS, JAVA_INT, ADDRESS, JAVA_INT, JAVA_DOUBLE, ADDRESS, JAVA_INT,
             ),
         ) ?: return false
+        val expected = AbiProbe.operand
         Arena.ofConfined().use { arena ->
             val a = arena.allocateFrom(JAVA_DOUBLE, *AbiProbe.identity)
-            val b = arena.allocateFrom(JAVA_DOUBLE, *AbiProbe.operand)
-            val c = arena.allocate(JAVA_DOUBLE, AbiProbe.operand.size.toLong())
+            val b = arena.allocateFrom(JAVA_DOUBLE, *expected)
+            val c = arena.allocate(JAVA_DOUBLE, expected.size.toLong())
             handle.invokeExact(
                 Cblas.COL_MAJOR, Cblas.NO_TRANS, Cblas.NO_TRANS, 2, 2, 2, 1.0,
                 a, 2, b, 2, 0.0, c, 2,
             )
-            return AbiProbe.operand.indices.all { c.getAtIndex(JAVA_DOUBLE, it.toLong()) == AbiProbe.operand[it] }
+            return expected.indices.all { c.getAtIndex(JAVA_DOUBLE, it.toLong()) == expected[it] }
         }
     }
 
@@ -280,25 +288,30 @@ internal class JvmVendorLibrary private constructor(
             } catch (_: UnsupportedOperationException) {
                 return null
             }
-            val installed = vendor.resolvedCandidates(System.getProperty("user.home"))
-            for (candidate in installed + listOfNotNull(bundled(vendor))) {
-                val lookup = try {
-                    SymbolLookup.libraryLookup(candidate, Arena.global())
-                } catch (_: IllegalArgumentException) {
-                    continue // not on this machine
-                } catch (_: UnsatisfiedLinkError) {
-                    continue // present but unloadable
-                }
-                val library = JvmVendorLibrary(vendor, candidate, lookup, linker)
-                if (missingRequiredSymbols(library::exports).isNotEmpty()) continue
-                // Ordered: the single-thread configuration is established before the probe, because the probe
-                // is arithmetic and oneMKL resolves its threading layer on the first call that reaches it.
-                library.enforceSingleThread()
-                if (!library.verifiedAbi()) continue
-                if (!library.confirmSingleThread()) continue
-                return library
+            for (candidate in vendor.resolvedCandidates(System.getProperty("user.home"))) {
+                attempt(vendor, candidate, linker)?.let { return it }
             }
-            return null
+            // Only now is a payload worth unpacking. Extracting it up front would write a temporary copy of a
+            // whole vendor runtime on every open of a host that has one installed and never reads it.
+            return bundled(vendor)?.let { attempt(vendor, it, linker) }
+        }
+
+        private fun attempt(vendor: Vendor, candidate: String, linker: Linker): JvmVendorLibrary? {
+            val lookup = try {
+                SymbolLookup.libraryLookup(candidate, Arena.global())
+            } catch (_: IllegalArgumentException) {
+                return null // not on this machine
+            } catch (_: UnsatisfiedLinkError) {
+                return null // present but unloadable
+            }
+            val library = JvmVendorLibrary(vendor, candidate, lookup, linker)
+            if (missingRequiredSymbols(library::exports).isNotEmpty()) return null
+            // Ordered: the single-thread configuration is established before the probe, because the probe is
+            // arithmetic and oneMKL resolves its threading layer on the first call that reaches it.
+            library.enforceSingleThread()
+            if (!library.verifiedAbi()) return null
+            if (!library.confirmSingleThread()) return null
+            return library
         }
     }
 }
