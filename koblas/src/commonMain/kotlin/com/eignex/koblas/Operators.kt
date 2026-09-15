@@ -8,11 +8,13 @@ package com.eignex.koblas
 public operator fun DenseMatrix.times(other: DenseMatrix): DenseMatrix = koblas.gemm(this, other)
 
 /**
- * Matrix-vector product into a fresh dense result for any [Matrix] against any [Vector].
+ * Matrix-vector product into a fresh dense result, against any [Vector].
  * [gemvInto] writes into a destination the caller owns, and provides the alpha and beta scalars.
+ *
+ * Dense storage only, for the reason [gemvInto] gives.
  */
 @kotlin.jvm.JvmName("multiply")
-public operator fun Matrix.times(x: Vector): DenseVector {
+public operator fun DenseMatrix.times(x: Vector): DenseVector {
     requireShape(cols == x.size) { "times shape mismatch: A is ${rows}x$cols, x size ${x.size}" }
     val out = DenseVector(rows)
     gemvInto(x, out.data)

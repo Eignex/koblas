@@ -5,16 +5,8 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 
 class AdapterTest {
-    @Test
-    fun `gemv accepts a foreign matrix and vector`() {
-        val a = ForeignSpdMatrix(5)
-        val x = ForeignRampVector(5)
-        val viaAdapter = a * x
-        val viaStorage = DenseMatrix.ofRows(a.toArray()) * DenseVector.of(x.toDoubleArray())
-        for (i in 0 until 5) {
-            assertEquals(viaStorage[i], viaAdapter[i], 1e-12, "row $i")
-        }
-    }
+    // A foreign Matrix reached gemv here. Matrix arithmetic takes dense storage now, so an adapter is a
+    // vector-side concern; the cases below are the ones that remain.
 
     @Test
     fun `the vector reductions accept a foreign vector`() {
