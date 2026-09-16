@@ -12,11 +12,13 @@ import com.eignex.koblas.*
  * subnormal, or the order it accumulates in is the library's contract, and it can differ between vendors as it
  * differs between builds of one vendor. Code that needs a stronger guarantee than BLAS gives has to own it.
  *
- * Owning matrices and borrowed views reach the same entry point through the same window, so a view is not a
- * second algorithm under a shared name. A window carries the offset, the leading dimension, the transpose and
- * the stored structure, so BLAS-addressable storage is passed straight through. That is addressing, not
- * transfer: on the JVM every operand is still copied into native memory for the downcall, and a measurement of
- * one of these calls includes that copy.
+ * These are Koblas's own shapes for the same routines: array operands, booleans for the transpose and the
+ * stored triangle, and overloads that allocate a result. [com.eignex.koblas.vendor.Blas] is the standard's own
+ * shape underneath, and the transpose and structure travel beside an operand as flags there rather than being
+ * inferred from it.
+ *
+ * On the JVM every operand is copied into native memory for the downcall, so a measurement of one of these
+ * calls includes that copy. Kotlin/Native pins the caller's storage and passes it in place.
  *
  * Every operation here needs a library. On a host without one they raise
  * [com.eignex.koblas.vendor.MissingVendorException]; containers, Level 1 and the sparse primitives do not.

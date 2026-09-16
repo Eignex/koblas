@@ -3,7 +3,7 @@ package com.eignex.koblas.dense
 /**
  * The dense Level 1 operations, named so a caller can ask where one of them executes.
  *
- * Level 1 only: Level 2 and 3 belong to the vendor, and its operations are named by [com.eignex.koblas.vendor.VendorOperation]
+ * Level 1 only: Level 2 and 3 belong to the vendor, and its operations are named by [com.eignex.koblas.vendor.BlasOperation]
  * alongside the CBLAS symbols they resolve to.
  */
 public enum class DenseOperation {

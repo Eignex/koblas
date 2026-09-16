@@ -2,8 +2,8 @@ package com.eignex.koblas.bench
 
 import com.eignex.koblas.BuiltinEngines
 import com.eignex.koblas.vendor.Vendor
-import com.eignex.koblas.vendor.VendorBlas
-import com.eignex.koblas.vendor.openVendorBlas
+import com.eignex.koblas.vendor.Blas
+import com.eignex.koblas.vendor.openBlas
 import kotlin.math.abs
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -17,7 +17,7 @@ import kotlin.test.assertTrue
  * scalar arm on the same case means the two arms computed the same thing from the same fixtures.
  */
 class VendorArmTest {
-    private fun vendor(): VendorBlas? = openVendorBlas() ?: openVendorBlas(Vendor.OpenBlas)
+    private fun vendor(): Blas? = openBlas() ?: openBlas(Vendor.OpenBlas)
 
     private val dense = listOf(
         "dot+512+uniform",

@@ -5,7 +5,7 @@ import com.eignex.koblas.DenseVector
 import com.eignex.koblas.KoblasEngine
 import com.eignex.koblas.dense.DenseOperation
 import com.eignex.koblas.vendor.RouteKind
-import com.eignex.koblas.vendor.VendorOperation
+import com.eignex.koblas.vendor.BlasOperation
 import com.eignex.koblas.compensatedSum
 
 internal class CaseWork(
@@ -53,7 +53,7 @@ private fun level1(
  */
 private fun level23(
     engine: KoblasEngine,
-    operation: VendorOperation,
+    operation: BlasOperation,
     matrices: List<DenseMatrix>,
     timing: String,
     run: () -> Double,
@@ -133,31 +133,31 @@ internal fun denseWork(case: BenchCase, engine: KoblasEngine): CaseWork? {
             val m = d[0]; val n = d[1]; val trans = case.flag("transA")
             val a = Fixtures.matrix(if (trans) n else m, if (trans) m else n, 1)
             val x = Fixtures.vector(n, 2); val y0 = Fixtures.vector(m, 3); val y = y0.copyOf()
-            level23(engine, VendorOperation.Gemv, listOf(a), "reset-and-arithmetic") {
+            level23(engine, BlasOperation.Gemv, listOf(a), "reset-and-arithmetic") {
                 y0.copyInto(y); engine.gemv(alpha, a, x, beta, y, trans); y[0]
             }
         }
         "symv" -> {
             val n = d[0]; val lower = case.option("uplo", "L") == "L"; val a = Fixtures.matrix(n, n, 1)
             val x = Fixtures.vector(n, 2); val y0 = Fixtures.vector(n, 3); val y = y0.copyOf()
-            level23(engine, VendorOperation.Symv, listOf(a), "reset-and-arithmetic") {
+            level23(engine, BlasOperation.Symv, listOf(a), "reset-and-arithmetic") {
                 y0.copyInto(y); engine.symv(alpha, a, x, beta, y, lower); y[0]
             }
         }
-        "ger" -> matrixUpdate(engine, VendorOperation.Ger, d[0], d[1]) { matrix, x, y ->
+        "ger" -> matrixUpdate(engine, BlasOperation.Ger, d[0], d[1]) { matrix, x, y ->
             engine.ger(alpha, x, y, matrix)
         }
-        "syr" -> symmetricUpdate(engine, VendorOperation.Syr, d[0]) { matrix, x, _ ->
+        "syr" -> symmetricUpdate(engine, BlasOperation.Syr, d[0]) { matrix, x, _ ->
             engine.syr(alpha, DenseVector.wrap(x), matrix, case.option("uplo", "L") == "L")
         }
-        "syr2" -> symmetricUpdate(engine, VendorOperation.Syr2, d[0]) { matrix, x, y ->
+        "syr2" -> symmetricUpdate(engine, BlasOperation.Syr2, d[0]) { matrix, x, y ->
             engine.syr2(alpha, DenseVector.wrap(x), DenseVector.wrap(y), matrix, case.option("uplo", "L") == "L")
         }
         "trsv", "trmv" -> {
             val n = d[0]; val lower = case.option("uplo", "L") == "L"; val trans = case.flag("transA"); val unit = case.option("diag", "N") == "U"
             val a = Fixtures.triangular(n, 1, lower); val x0 = Fixtures.vector(n, 2); val x = x0.copyOf()
             val solve = case.operation == "trsv"
-            val operation = if (solve) VendorOperation.Trsv else VendorOperation.Trmv
+            val operation = if (solve) BlasOperation.Trsv else BlasOperation.Trmv
             level23(engine, operation, listOf(a), "reset-and-arithmetic") {
                 x0.copyInto(x)
                 if (solve) engine.trsv(a, x, lower, trans, unit) else engine.trmv(a, x, lower, trans, unit)
@@ -169,7 +169,7 @@ internal fun denseWork(case: BenchCase, engine: KoblasEngine): CaseWork? {
             val m = d[0]; val n = d[1]; val right = case.option("side", "L") == "R"; val lower = case.option("uplo", "L") == "L"
             val a = Fixtures.matrix(if (right) n else m, if (right) n else m, 1); val b = Fixtures.matrix(m, n, 2)
             val c0 = Fixtures.matrix(m, n, 3); val c = Fixtures.matrix(m, n, 3)
-            level23(engine, VendorOperation.Symm, listOf(a, b, c), "reset-and-arithmetic") {
+            level23(engine, BlasOperation.Symm, listOf(a, b, c), "reset-and-arithmetic") {
                 c0.data.copyInto(c.data); engine.symm(alpha, a, b, beta, c, lower, right); c.data[0]
             }
         }
@@ -177,7 +177,7 @@ internal fun denseWork(case: BenchCase, engine: KoblasEngine): CaseWork? {
             val n = d[0]; val k = d[1]; val ta = case.flag("transA"); val tb = case.flag("transB"); val lower = case.option("uplo", "L") == "L"
             val a = Fixtures.matrix(if (ta) k else n, if (ta) n else k, 1); val b = Fixtures.matrix(if (tb) n else k, if (tb) k else n, 2)
             val c0 = Fixtures.matrix(n, n, 3); val c = Fixtures.matrix(n, n, 3)
-            level23(engine, VendorOperation.Gemmt, listOf(a, b, c), "reset-and-arithmetic") {
+            level23(engine, BlasOperation.Gemmt, listOf(a, b, c), "reset-and-arithmetic") {
                 c0.data.copyInto(c.data); engine.gemmt(alpha, a, ta, b, tb, beta, c, lower); c.data[0]
             }
         }
@@ -186,7 +186,7 @@ internal fun denseWork(case: BenchCase, engine: KoblasEngine): CaseWork? {
             val a = Fixtures.matrix(if (trans) k else n, if (trans) n else k, 1); val b = Fixtures.matrix(a.rows, a.cols, 2)
             val c0 = Fixtures.matrix(n, n, 3); val c = Fixtures.matrix(n, n, 3)
             val single = case.operation == "syrk"
-            val operation = if (single) VendorOperation.Syrk else VendorOperation.Syr2k
+            val operation = if (single) BlasOperation.Syrk else BlasOperation.Syr2k
             val operands = if (single) listOf(a, c) else listOf(a, b, c)
             level23(engine, operation, operands, "reset-and-arithmetic") {
                 c0.data.copyInto(c.data)
@@ -212,7 +212,7 @@ private fun vectorReduction(
 
 private fun matrixUpdate(
     engine: KoblasEngine,
-    operation: VendorOperation,
+    operation: BlasOperation,
     rows: Int,
     cols: Int,
     run: (DenseMatrix, DoubleArray, DoubleArray) -> Unit,
@@ -226,7 +226,7 @@ private fun matrixUpdate(
 
 private fun symmetricUpdate(
     engine: KoblasEngine,
-    operation: VendorOperation,
+    operation: BlasOperation,
     size: Int,
     run: (DenseMatrix, DoubleArray, DoubleArray) -> Unit,
 ): CaseWork? {
@@ -242,7 +242,7 @@ private fun gemmWork(case: BenchCase, engine: KoblasEngine): CaseWork? {
     val a = Fixtures.matrix(if (ta) k else m, if (ta) m else k, 1)
     val b = Fixtures.matrix(if (tb) n else k, if (tb) k else n, 2)
     val original = Fixtures.matrix(m, n, 3); val c = Fixtures.matrix(m, n, 3)
-    return level23(engine, VendorOperation.Gemm, listOf(a, b, c), "reset-and-arithmetic") {
+    return level23(engine, BlasOperation.Gemm, listOf(a, b, c), "reset-and-arithmetic") {
         original.data.copyInto(c.data); engine.gemm(0.875, a, ta, b, tb, -0.25, c); c.data[0]
     }
 }
@@ -252,7 +252,7 @@ private fun triangularMatrixWork(case: BenchCase, engine: KoblasEngine): CaseWor
     val trans = case.flag("transA"); val unit = case.option("diag", "N") == "U"; val order = if (right) n else m
     val triangle = Fixtures.triangular(order, 1, lower); val original = Fixtures.matrix(m, n, 2); val b = Fixtures.matrix(m, n, 2)
     val solve = case.operation == "trsm"
-    val operation = if (solve) VendorOperation.Trsm else VendorOperation.Trmm
+    val operation = if (solve) BlasOperation.Trsm else BlasOperation.Trmm
     return level23(engine, operation, listOf(triangle, b), "reset-and-arithmetic") {
         original.data.copyInto(b.data)
         if (solve) engine.trsm(triangle, b, lower, trans, unit, right, 0.875)
