@@ -227,7 +227,14 @@ public fun DenseVector.axpy(alpha: Double, x: Vector) {
     }
 }
 
-/** `v = alpha * v`. */
+/**
+ * `v = alpha * v`.
+ *
+ * A zero multiplier zeroes the vector rather than necessarily multiplying through it. BLAS does not require
+ * the operand to be read at all in that case, and a library that writes zeros directly turns an entry holding
+ * a NaN, an infinity, or a negative zero into a positive zero instead of into the product. Which of the two a
+ * caller sees is the selected implementation's, as it is for [iamax].
+ */
 public fun DenseVector.scale(alpha: Double) {
     if (alpha == 1.0) return
     koblas.vectorKernels.scale(data, offset, alpha, size, stride)

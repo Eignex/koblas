@@ -244,7 +244,51 @@ internal fun assertIamaxHonoursItsContract(kernels: DenseVectorKernels) {
     }
 }
 
+/** Exact agreement with the scalar loop, which only an arm that falls back to it can owe. */
 internal fun assertScaleAgreesWithReference(kernels: DenseVectorKernels) {
+    forEachScaleFixture { off, len, alpha, expected, actual ->
+        kernels.scale(actual, off, alpha, len)
+        assertContentEquals(expected, actual, "${kernels.name} len=$len off=$off alpha=$alpha")
+    }
+}
+
+/**
+ * What every arm owes for a scaling, which is weaker than exact agreement at a zero multiplier.
+ *
+ * `dscal` does not require a zero multiplier to be multiplied through. A library may write zeros without
+ * reading the operand at all, and BLIS does so above its own width, so an entry holding a NaN, an infinity, or
+ * a negative zero comes back as a positive zero rather than as the product. Koblas passes that through rather
+ * than carving the routine out of the binding, the same way [assertIamaxHonoursItsContract] does. So the
+ * promise is this and no more: outside the window nothing moves, and inside it every entry is the product,
+ * except under a zero multiplier, where it is either the product or a zero of either sign.
+ */
+internal fun assertScaleHonoursItsContract(kernels: DenseVectorKernels) {
+    forEachScaleFixture { off, len, alpha, expected, actual ->
+        kernels.scale(actual, off, alpha, len)
+        val context = "${kernels.name} len=$len off=$off alpha=$alpha"
+        for (i in expected.indices) {
+            val want = expected[i]
+            val got = actual[i]
+            when {
+                i !in off until off + len -> assertEquals(want, got, "$context: wrote $got outside its window at $i")
+
+                // Either arm is allowed here: the product, or the zero a library writes without reading.
+                alpha == 0.0 -> assertTrue(
+                    got == 0.0 || got.toBits() == want.toBits(),
+                    "$context: a zero multiplier left $got at $i, neither a zero nor $want",
+                )
+
+                else -> assertEquals(want, got, "$context at $i")
+            }
+        }
+    }
+}
+
+/**
+ * The fixtures both scaling checks run over: every length around a vector boundary, every offset within a
+ * lane, and multipliers that include both zeros, both identities, and the exceptional values.
+ */
+private inline fun forEachScaleFixture(body: (Int, Int, Double, DoubleArray, DoubleArray) -> Unit) {
     val exceptional = doubleArrayOf(
         0.0,
         -0.0,
@@ -267,10 +311,7 @@ internal fun assertScaleAgreesWithReference(kernels: DenseVectorKernels) {
                 }
                 val actual = expected.copyOf()
                 ScalarVectorKernels.scale(expected, off, alpha, len)
-
-                kernels.scale(actual, off, alpha, len)
-
-                assertContentEquals(expected, actual, "${kernels.name} len=$len off=$off alpha=$alpha")
+                body(off, len, alpha, expected, actual)
             }
         }
     }

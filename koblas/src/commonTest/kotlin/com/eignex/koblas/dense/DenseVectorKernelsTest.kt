@@ -9,8 +9,14 @@ import kotlin.test.*
 
 class DenseVectorKernelsTest {
     @Test
-    fun `the platform scaling preserves offsets tails and exceptional values`() {
-        assertScaleAgreesWithReference(koblas.vectorKernels)
+    fun `the platform scaling preserves offsets tails and exceptional values`() =
+        assertScaleHonoursItsContract(koblas.vectorKernels)
+
+    /** The vectorised kernels fall back to the portable ones, so they owe exact agreement, not just the contract. */
+    @Test
+    fun `the simd scaling agrees exactly with the kernels it falls back to`() {
+        val simd = BuiltinEngines.simd ?: return
+        assertScaleAgreesWithReference(simd.vectorKernels)
     }
 
     @Test
