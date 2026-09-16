@@ -109,8 +109,13 @@ internal fun declaresWideIntegers(configuration: String): Boolean {
  * AOCL is BLIS, and its version string is a bare number that says nothing about the ABI. The entry point is
  * absent from every other supported vendor, so a loader treats its absence as no answer rather than as an
  * LP64 one and falls back to [declaresWideIntegers].
+ *
+ * The interface width is the one asked for, not `bli_info_get_int_type_size`, which reports the internal
+ * `gint_t` instead. A stock BLIS is built with 64-bit internal integers behind a 32-bit BLAS interface, so the
+ * internal answer is 64 for an LP64 and an ILP64 build alike: asking it rejects every correct library and
+ * distinguishes nothing.
  */
-internal const val BLIS_INTEGER_WIDTH: String = "bli_info_get_int_type_size"
+internal const val BLIS_INTEGER_WIDTH: String = "bli_info_get_blas_int_type_size"
 
 /** The integer width in bits that the unsuffixed CBLAS symbols carry. */
 internal const val LP64_INTEGER_BITS: Int = 32
