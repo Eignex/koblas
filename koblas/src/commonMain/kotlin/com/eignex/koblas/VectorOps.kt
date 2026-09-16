@@ -134,6 +134,12 @@ public fun copy(src: Vector, dst: DenseVector) {
         source.forEachStored { i, v -> dst[i] = v }
         return
     }
+    // Adjacent on both sides is a block move, which the platform does far better than a loop that bounds
+    // checks every entry. Any other spacing has to be walked, and that walk is the general case below.
+    if (source is DenseVector && source.stride == 1 && dst.stride == 1) {
+        source.data.copyInto(dst.data, dst.offset, source.offset, source.offset + dst.size)
+        return
+    }
     source.forEachStored { i, v -> dst[i] = v }
 }
 
