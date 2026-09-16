@@ -128,7 +128,7 @@ public final class com/eignex/koblas/Koblas {
 	public static final fun negate (Lcom/eignex/koblas/DenseMatrix;)Lcom/eignex/koblas/DenseMatrix;
 	public static final fun negate (Lcom/eignex/koblas/DenseVector;)Lcom/eignex/koblas/DenseVector;
 	public static final fun norm2 (Lcom/eignex/koblas/Vector;)D
-	public static final fun overlaps (Lcom/eignex/koblas/StridedVector;Lcom/eignex/koblas/StridedVector;)Z
+	public static final fun overlaps (Lcom/eignex/koblas/DenseVector;Lcom/eignex/koblas/DenseVector;)Z
 	public static final fun rot (Lcom/eignex/koblas/DenseVector;Lcom/eignex/koblas/DenseVector;DD)V
 	public static final fun rot (Lcom/eignex/koblas/StridedVector;Lcom/eignex/koblas/StridedVector;DD)V
 	public static final fun row (Lcom/eignex/koblas/DenseMatrix;I)Lcom/eignex/koblas/DenseVector;

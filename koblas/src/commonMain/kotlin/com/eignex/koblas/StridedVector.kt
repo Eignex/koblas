@@ -44,7 +44,7 @@ public class StridedVector @JvmOverloads constructor(
 }
 
 /** Whether these vectors address at least one common buffer entry. */
-public fun StridedVector.overlaps(other: StridedVector): Boolean {
+public fun DenseVector.overlaps(other: DenseVector): Boolean {
     if (data !== other.data) return false
     val first = if (size <= other.size) this else other
     val second = if (first === this) other else this
@@ -56,13 +56,19 @@ public fun StridedVector.overlaps(other: StridedVector): Boolean {
     return false
 }
 
-/** A borrowed view over this entire owned vector. */
-public fun DenseVector.asView(): StridedVector = StridedVector(data, 0, size)
+/** A borrowed view over this whole vector, keeping whatever origin and spacing it already has. */
+public fun DenseVector.asView(): StridedVector = StridedVector(data, offset, size, stride)
 
-/** A borrowed strided slice of this owned vector. */
+/**
+ * A borrowed strided slice, addressed in this vector's logical indices rather than its buffer's positions.
+ *
+ * The receiver's own origin and spacing compose with the ones asked for, so a slice of a slice addresses what
+ * the outer one addressed. Reading the arguments as buffer positions instead would silently move the window
+ * whenever the receiver was itself a view.
+ */
 @JvmOverloads
 public fun DenseVector.view(offset: Int, size: Int, stride: Int = 1): StridedVector =
-    StridedVector(data, offset, size, stride)
+    StridedVector(data, this.offset + offset * this.stride, size, this.stride * stride)
 
 private fun requireViewBounds(bufferSize: Int, offset: Int, size: Int, stride: Int, description: String) {
     if (size == 0) {

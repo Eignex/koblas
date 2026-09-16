@@ -18,8 +18,8 @@ internal class CaseWork(
      *
      * Attribution taken from here comes from the same decision the timed call acts on. That is the difference
      * from a kernel name rebuilt afterwards out of the mode and case strings, which is a second answer to the
-     * same question and can disagree with the first. Work with no route behind it leaves this null and keeps
-     * the reconstructed name until K3 replaces it for the dense cases.
+     * same question and can disagree with the first. It stays nullable because a declined case has no call to
+     * describe; a timed one with nothing here is refused by `measurement` rather than reported.
      */
     val kernel: String? = null,
 )

@@ -69,8 +69,13 @@ public interface DenseVectorKernels {
     public fun asum(v: DoubleArray, vOff: Int, len: Int, vStride: Int = 1): Double
 
     /**
-     * Zero-based index within the selected run of its first maximum absolute value, or `-1` when empty.
-     * NaNs are ignored; nonempty runs containing only zeros and NaNs return `0`.
+     * Zero-based index within the selected run of a maximum absolute value, or `-1` when empty. A nonempty
+     * run of zeros returns `0`.
+     *
+     * Which index is returned when the maximum is not unique, and what happens when the largest magnitude is
+     * a NaN, is this implementation's. `idamax` specifies neither: the portable kernels compare strictly, so
+     * ties go to the first and a NaN loses to a later finite entry, while a vendor may report the NaN's index
+     * and may resolve a tie the other way for a negatively spaced run.
      */
     public fun iamax(v: DoubleArray, vOff: Int, len: Int, vStride: Int = 1): Int
 

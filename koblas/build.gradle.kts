@@ -1,7 +1,3 @@
-import org.jetbrains.kotlin.konan.target.PlatformManager
-import org.jetbrains.kotlin.konan.target.KonanTarget
-import org.gradle.api.provider.ValueSource
-import org.gradle.api.provider.ValueSourceParameters
 import org.gradle.api.tasks.JavaExec
 import org.gradle.jvm.toolchain.JavaLanguageVersion
 import org.jetbrains.kotlin.gradle.tasks.KotlinJvmCompile
@@ -10,33 +6,6 @@ import org.jetbrains.kotlin.gradle.targets.jvm.KotlinJvmTarget
 plugins {
     id("com.eignex.kmp") version "1.3.3"
     kotlin("plugin.serialization") version "2.4.10"
-}
-
-// Apple toolchain discovery invokes xcrun; ValueSource makes its result a configuration-cache input.
-abstract class NativeKernelToolchain : ValueSource<List<String>, NativeKernelToolchain.Parameters> {
-    interface Parameters : ValueSourceParameters {
-        val nativeHome: Property<String>
-        val dataDirectory: Property<String>
-        val targetName: Property<String>
-    }
-
-    override fun obtain(): List<String> {
-        val manager = PlatformManager(parameters.nativeHome.get(), konanDataDir = parameters.dataDirectory.orNull?.takeIf(String::isNotEmpty))
-        val clang = manager.platform(KonanTarget.predefinedTargets.getValue(parameters.targetName.get())).clang
-        return listOf(clang.clangC().first(), clang.llvmAr().first()) + clang.clangArgs
-    }
-}
-
-abstract class PrepareNativeKernelToolchain : DefaultTask() {
-    @get:Input abstract val nativeHome: Property<String>
-    @get:Input @get:Optional abstract val dataDirectory: Property<String>
-    @get:Input abstract val targetName: Property<String>
-
-    @TaskAction
-    fun prepare() {
-        PlatformManager(nativeHome.get(), konanDataDir = dataDirectory.orNull?.takeIf(String::isNotEmpty))
-            .loader(KonanTarget.predefinedTargets.getValue(targetName.get())).downloadDependencies()
-    }
 }
 
 eignexPublish {
@@ -51,8 +20,8 @@ kotlin {
         freeCompilerArgs.add("-Xexpect-actual-classes")
         optIn.add("com.eignex.koblas.UnsafeKoblasApi")
     }
-    // The JVM C kernels use java.lang.foreign, finalized in 22 and used here with
-    // Linker.Option.critical. 25 is the current LTS-track release; this is the floor for JVM consumers.
+    // The vendor binding uses java.lang.foreign, finalized in 22. 25 is the current LTS-track release; this
+    // is the floor for JVM consumers.
     jvmToolchain(25)
     jvm {
         compilerOptions {
@@ -102,12 +71,12 @@ dokka {
     }
 }
 
-// JVM SIMD primitives in Primitives.kt use the incubator Vector API. Make the module visible to the
-// Kotlin compiler and at test runtime; downstream JVM consumers need the same flag.
+// The JVM SIMD kernels use the incubator Vector API. Make the module visible to the Kotlin compiler and at
+// test runtime; downstream JVM consumers need the same flag.
 tasks.withType<KotlinJvmCompile>().configureEach {
     compilerOptions.freeCompilerArgs.add("-Xadd-modules=jdk.incubator.vector")
 }
-// FFM downcalls are restricted methods: a warning on 25, an error later. The bundled JVM kernels use them.
+// FFM downcalls are restricted methods: a warning on 25, an error later. The vendor binding uses them.
 tasks.withType<Test>().configureEach {
     jvmArgs("--enable-native-access=ALL-UNNAMED")
     if (project.findProperty("koblas.noSimd") != "true") {

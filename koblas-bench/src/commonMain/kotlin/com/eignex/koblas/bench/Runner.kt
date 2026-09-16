@@ -26,7 +26,7 @@ internal data class Settings(
 public fun main(args: Array<String>) {
     val settings = parseArguments(args)
     val vendorMode = vendorForRuntime(settings.mode, NATIVE_VENDOR_PREFIX) != null
-    require(settings.mode == "native" || settings.mode.startsWith("native-raw-") || vendorMode) {
+    require(settings.mode == "native" || vendorMode) {
         "JVM benchmarks must run through the JMH entry point"
     }
     val allCases = Cases.parse(readTextFile(settings.casesPath))
@@ -43,8 +43,8 @@ public fun main(args: Array<String>) {
         val work = arm?.work
         if (work == null) {
             rows += measurement(
-                case, settings, 0, null, "unsupported",
-                arm?.reason ?: "unsupported", "arithmetic",
+                case, settings, 0, null, "unsupported", "unsupported",
+                case.option("timing", "arithmetic"), arm?.reason,
             )
             continue
         }
@@ -160,7 +160,8 @@ internal fun measurement(
         case.id, status, comparisonKind, timingMode,
         // A timed row carries the name the route gave it. There is no second answer rebuilt from the mode and
         // case strings any more, so a row with a timing and no route is a bug rather than a fallback.
-        if (status != "ok") "unavailable" else checkNotNull(kernel) {
+        // A declined row has no call to name, so this column carries why instead; a timed one must name it.
+        if (status != "ok") kernel ?: "unavailable" else checkNotNull(kernel) {
             "timed ${case.id} carries no route for the call it made"
         },
     ),

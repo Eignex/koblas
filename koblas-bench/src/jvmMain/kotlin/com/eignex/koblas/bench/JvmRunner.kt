@@ -38,8 +38,7 @@ public fun main(args: Array<String>) {
     val settings = parseArguments(args)
     val vendorMode = vendorForRuntime(settings.mode, JVM_VENDOR_PREFIX) != null
     require(
-        settings.mode in setOf("jvm-c", "jvm-simd", "jvm-scalar") ||
-            settings.mode.startsWith("jvm-c-raw-") || vendorMode,
+        settings.mode in setOf("jvm-simd", "jvm-scalar") || vendorMode,
     ) { "JMH supports only JVM benchmark modes" }
     val allCases = Cases.parse(readTextFile(settings.casesPath))
     val selected = Cases.select(allCases, settings.suite, settings.operation)
@@ -58,8 +57,8 @@ public fun main(args: Array<String>) {
         val work = arm?.work
         if (work == null) {
             rowsByCase.getOrPut(case.id, ::arrayListOf) += measurement(
-                case, settings, 0, null, "unsupported", arm?.reason ?: "unsupported",
-                "arithmetic",
+                case, settings, 0, null, "unsupported", "unsupported",
+                case.option("timing", "arithmetic"), arm?.reason,
             )
         } else {
             supported[case.id] = work.comparisonKind to work.timingMode

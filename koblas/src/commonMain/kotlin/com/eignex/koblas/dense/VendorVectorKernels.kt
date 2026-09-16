@@ -108,9 +108,18 @@ internal class VendorVectorKernels(
         }
     }
 
+    /**
+     * The library's, except over one run twice, which it would answer differently.
+     *
+     * [DenseVectorKernels.rot] promises that each pair is loaded before either result is stored, so equal runs
+     * are safe. Reference `drot` stores `x` and then reads `x` again to form `y`, so handing it one pointer
+     * twice leaves `(c + s) * v` where the portable and vectorised kernels leave `(c - s) * v`. That is the
+     * caller's own contract rather than something the standard leaves open, so the portable kernel keeps it.
+     */
     @Suppress("LongParameterList")
     override fun rot(x: DoubleArray, xOff: Int, y: DoubleArray, yOff: Int, len: Int, c: Double, s: Double) {
-        if (vendorRuns(len)) {
+        val oneRunTwice = x === y && xOff == yOff
+        if (vendorRuns(len) && !oneRunTwice) {
             blas.rot(vector(x, xOff, len, 1), vector(y, yOff, len, 1), c, s)
         } else {
             portable.rot(x, xOff, y, yOff, len, c, s)

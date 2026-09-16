@@ -27,19 +27,15 @@ concurrency:
   cancel-in-progress: ${{ github.ref_type != 'tag' }}
 
 jobs:
-  build-native-resources:
+  build-macos-publication:
     if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
-    name: Build bundled native resources for ${{ matrix.platform }}
+    name: Stage the macOS Native publication
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix:
         include:
-          - platform: linux-x86_64
-            runner: ubuntu-latest
-          - platform: linux-arm64
-            runner: ubuntu-latest
           - platform: macosx-arm64
             runner: macos-latest
 
@@ -59,27 +55,6 @@ jobs:
         with:
           cache-read-only: true
           cache-encryption-key: ${{ secrets.GRADLE_ENCRYPTION_KEY }}
-
-      - name: Install the Linux ARM64 cross-toolchain
-        if: matrix.platform == 'linux-arm64'
-        run: |
-          sudo apt-get update
-          # The C kernels cross-compile against the target libc, whose headers come from
-          # libc6-dev-arm64-cross. --no-install-recommends does not pull it in with the compiler.
-          sudo apt-get install -y --no-install-recommends gcc-aarch64-linux-gnu libc6-dev-arm64-cross
-          echo "CC=aarch64-linux-gnu-gcc" >> "$GITHUB_ENV"
-
-      - name: Build core JVM kernels
-        run: >-
-          ./gradlew --no-build-cache --no-configuration-cache --rerun-tasks
-          :koblas:buildJvmKernels -Pkoblas.kernels.platform=${{ matrix.platform }}
-
-      - name: Upload core JVM kernels
-        uses: actions/upload-artifact@v7
-        with:
-          name: kernels-${{ matrix.platform }}
-          path: koblas/build/kernels/resources
-          if-no-files-found: error
 
       - name: Resolve publication version
         if: matrix.platform == 'macosx-arm64'
@@ -137,7 +112,7 @@ jobs:
 
   publish:
     if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
-    needs: build-native-resources
+    needs: build-macos-publication
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
@@ -166,13 +141,6 @@ jobs:
           path: ~/.konan
           key: ${{ runner.os }}-konan-${{ hashFiles('**/*.gradle.kts') }}
           restore-keys: ${{ runner.os }}-konan-
-
-      - name: Download core JVM kernels
-        uses: actions/download-artifact@v8
-        with:
-          pattern: kernels-*
-          path: koblas/build/kernels/resources
-          merge-multiple: true
 
       - name: Download the macOS Native publication
         if: github.event_name != 'workflow_run'
@@ -210,14 +178,11 @@ jobs:
             echo "IS_SNAPSHOT=false" >> "$GITHUB_ENV"
           fi
 
-      - name: Verify core JVM kernels
-        run: ./gradlew :koblas:verifyJvmKernelResources -Pkoblas.kernels.prebuilt=true
-
       - name: Build and Test
         if: env.IS_SNAPSHOT == 'false'
         run: >-
           ./gradlew build -PciVersion=${{ env.RELEASE_VERSION }}
-          -Pkoblas.kernels.prebuilt=true
+         
 
       - name: Upload test reports
         if: always() && env.IS_SNAPSHOT == 'false'
@@ -238,7 +203,7 @@ jobs:
           ORG_GRADLE_PROJECT_signingPassword: ${{ secrets.SIGNING_PASSWORD }}
         run: >-
           ./gradlew publishAllPublicationsToMavenCentralStagingRepository
-          -PciVersion=${{ env.RELEASE_VERSION }} -Pkoblas.kernels.prebuilt=true
+          -PciVersion=${{ env.RELEASE_VERSION }}
 
       - name: Substitute the host-built macOS Native publication
         if: env.IS_SNAPSHOT == 'false' && env.DRY_RUN != 'true'
@@ -260,7 +225,7 @@ jobs:
           ORG_GRADLE_PROJECT_signingPassword: ${{ secrets.SIGNING_PASSWORD }}
         run: >-
           ./gradlew publishAllPublicationsToSonatypeSnapshotsRepository -PciVersion=${{ env.RELEASE_VERSION }}
-          -Pkoblas.kernels.prebuilt=true
+         
           -x :koblas:publishMacosArm64PublicationToSonatypeSnapshotsRepository
 
       - name: Detect pre-release

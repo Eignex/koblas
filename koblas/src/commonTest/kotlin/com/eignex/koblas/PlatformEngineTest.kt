@@ -14,11 +14,17 @@ import kotlin.test.assertNotEquals
  * running portable Kotlin everywhere would pass all of them.
  */
 class PlatformEngineTest {
+    /**
+     * Asks the arm itself, not what the host happens to have installed.
+     *
+     * A vendor being present does not make the JVM's Level 1 arm accelerated: the JVM deliberately never
+     * routes Level 1 to a library, so under `-Pkoblas.noSimd=true` on a host with oneMKL the engine is the
+     * portable one while a vendor exists. The kernels' own name is what says which arm was selected.
+     */
     @Test
     fun `a wide call reaches whichever accelerated arm this platform has`() {
-        val accelerated = koblas.vendor != null || koblas.vectorKernels.name != PORTABLE
-        if (!accelerated) {
-            println("SKIPPED: neither a Vector API module nor a CBLAS library here; no accelerated arm to reach")
+        if (koblas.vectorKernels.name == PORTABLE) {
+            println("SKIPPED: this platform selected the portable kernels; there is no accelerated arm to reach")
             return
         }
 
