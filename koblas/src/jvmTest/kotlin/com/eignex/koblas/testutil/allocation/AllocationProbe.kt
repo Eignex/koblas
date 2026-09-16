@@ -36,6 +36,8 @@ internal fun bytesPerIteration(iterations: Int, warmup: Int = 200, windows: Int 
     repeat(warmup) { allocationSink = block() } // let the JIT settle, since the first calls allocate profiling data
     val id = Thread.currentThread().threadId()
     var best = Double.MAX_VALUE
+    var first = Double.NaN
+    var last = Double.NaN
     var stable = 0
     var taken = 0
     while (stable < windows && taken < MAX_WINDOWS) {
@@ -43,11 +45,19 @@ internal fun bytesPerIteration(iterations: Int, warmup: Int = 200, windows: Int 
         repeat(iterations) { allocationSink = block() }
         val after = bean.getThreadAllocatedBytes(id)
         val per = (after - before).toDouble() / iterations
+        if (taken == 0) first = per
+        last = per
         // A window has to beat the best by a clear margin to count as the JIT still settling; matching it
         // within noise is what a settled loop does.
         stable = if (per < best * IMPROVEMENT) 0 else stable + 1
         best = minOf(best, per)
         taken++
+    }
+    // Hitting the cap means the loop was still moving when the budget ran out, so the number returned is a
+    // floor on what it costs rather than what it settles at. Say so: the shape of the run is what tells a
+    // reader whether the JIT was still working or the allocation is real.
+    if (taken == MAX_WINDOWS) {
+        println("allocation probe did not settle in $taken windows: first=$first last=$last best=$best")
     }
     return best
 }
@@ -56,4 +66,4 @@ internal fun bytesPerIteration(iterations: Int, warmup: Int = 200, windows: Int 
 private const val IMPROVEMENT = 0.9
 
 /** The longest this waits for a loop to settle, in windows. */
-private const val MAX_WINDOWS = 100
+private const val MAX_WINDOWS = 400
