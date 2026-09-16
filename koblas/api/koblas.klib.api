@@ -640,7 +640,6 @@ final fun (com.eignex.koblas/SparseMatrix).com.eignex.koblas/row(kotlin/Int): co
 final fun (com.eignex.koblas/SparseMatrix).com.eignex.koblas/withColumn(kotlin/Int, com.eignex.koblas/SparseVector): com.eignex.koblas/SparseMatrix // com.eignex.koblas/withColumn|withColumn@com.eignex.koblas.SparseMatrix(kotlin.Int;com.eignex.koblas.SparseVector){}[0]
 final fun (com.eignex.koblas/StridedVector).com.eignex.koblas/overlaps(com.eignex.koblas/StridedVector): kotlin/Boolean // com.eignex.koblas/overlaps|overlaps@com.eignex.koblas.StridedVector(com.eignex.koblas.StridedVector){}[0]
 final fun (com.eignex.koblas/Vector).com.eignex.koblas/asum(): kotlin/Double // com.eignex.koblas/asum|asum@com.eignex.koblas.Vector(){}[0]
-final fun (com.eignex.koblas/Vector).com.eignex.koblas/compensatedSum(): kotlin/Double // com.eignex.koblas/compensatedSum|compensatedSum@com.eignex.koblas.Vector(){}[0]
 final fun (com.eignex.koblas/Vector).com.eignex.koblas/dot(com.eignex.koblas/Vector): kotlin/Double // com.eignex.koblas/dot|dot@com.eignex.koblas.Vector(com.eignex.koblas.Vector){}[0]
 final fun (com.eignex.koblas/Vector).com.eignex.koblas/iamax(): kotlin/Int // com.eignex.koblas/iamax|iamax@com.eignex.koblas.Vector(){}[0]
 final fun (com.eignex.koblas/Vector).com.eignex.koblas/norm2(): kotlin/Double // com.eignex.koblas/norm2|norm2@com.eignex.koblas.Vector(){}[0]

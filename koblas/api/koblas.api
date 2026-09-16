@@ -108,7 +108,6 @@ public final class com/eignex/koblas/Koblas {
 	public static final fun axpy (Lcom/eignex/koblas/DenseVector;DLcom/eignex/koblas/Vector;)V
 	public static final fun column (Lcom/eignex/koblas/DenseMatrix;I)Lcom/eignex/koblas/DenseVector;
 	public static final fun column (Lcom/eignex/koblas/SparseMatrix;I)Lcom/eignex/koblas/SparseVector;
-	public static final fun compensatedSum (Lcom/eignex/koblas/Vector;)D
 	public static final fun copy (Lcom/eignex/koblas/Vector;Lcom/eignex/koblas/DenseVector;)V
 	public static final fun dot (Lcom/eignex/koblas/Vector;Lcom/eignex/koblas/Vector;)D
 	public static final synthetic fun forEachStored (Lcom/eignex/koblas/Vector;Lkotlin/jvm/functions/Function2;)V

@@ -6,7 +6,6 @@ import com.eignex.koblas.KoblasEngine
 import com.eignex.koblas.dense.DenseOperation
 import com.eignex.koblas.vendor.RouteKind
 import com.eignex.koblas.vendor.BlasOperation
-import com.eignex.koblas.compensatedSum
 
 internal class CaseWork(
     val comparisonKind: String,
@@ -96,11 +95,6 @@ internal fun denseWork(case: BenchCase, engine: KoblasEngine): CaseWork? {
         "nrm2" -> vectorReduction(engine, DenseOperation.Nrm2, d[0]) { x -> vectors.nrm2(x, 0, x.size) }
         "asum" -> vectorReduction(engine, DenseOperation.Asum, d[0]) { x -> vectors.asum(x, 0, x.size) }
         "sum" -> vectorReduction(engine, DenseOperation.Sum, d[0]) { x -> vectors.sum(x, 0, x.size) }
-        "compensated-sum" -> {
-            // Neumaier compensation is Koblas's own, with no kernel to select between and no BLAS routine.
-            val x = Fixtures.vector(d[0], 1)
-            CaseWork("direct", "arithmetic", { DenseVector.wrap(x).compensatedSum() }, kernel = "koblas/compensated-sum")
-        }
         "iamax" -> vectorReduction(engine, DenseOperation.Iamax, d[0]) { x -> vectors.iamax(x, 0, x.size).toDouble() }
         "swap" -> {
             val x0 = Fixtures.vector(d[0], 1); val y0 = Fixtures.vector(d[0], 2); val x = x0.copyOf(); val y = y0.copyOf()
