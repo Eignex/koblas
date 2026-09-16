@@ -20,7 +20,8 @@ import com.eignex.koblas.*
  * On the JVM every operand is copied into native memory for the downcall, so a measurement of one of these
  * calls includes that copy. Kotlin/Native pins the caller's storage and passes it in place.
  *
- * Every operation here needs a library. On a host without one they raise
+ * Every operation here but [transpose], which is a storage transform the standard has no entry point for,
+ * needs a library. On a host without one they raise
  * [com.eignex.koblas.vendor.MissingVendorException]; containers, Level 1 and the sparse primitives do not.
  */
 public interface DenseBlas {
@@ -129,8 +130,7 @@ public interface DenseBlas {
         right: Boolean = false,
     )
 
-    /** `A = A + alpha · x · yᵀ` (BLAS `dger`). The free `ger` accepts [VectorStorage] operands and takes a
-     *  sparse fast path. */
+    /** `A = A + alpha · x · yᵀ` (BLAS `dger`). */
     public fun ger(alpha: Double, x: DoubleArray, y: DoubleArray, a: DenseMatrix)
 
     /** `A += alpha · x · xᵀ` (BLAS `dsyr`), writing only the [lower] or upper triangle. [x] must be dense or

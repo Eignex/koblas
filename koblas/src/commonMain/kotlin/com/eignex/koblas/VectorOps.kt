@@ -135,8 +135,15 @@ public fun copy(src: Vector, dst: DenseVector) {
     requireSameSize(src.size, dst.size)
     val source = src.stableFor(dst)
     if (source is SparseVector) {
-        for (i in 0 until dst.size) dst[i] = 0.0
-        source.forEachStored { i, v -> dst[i] = v }
+        // A contiguous destination is one fill and one scatter through the indexed kernel; any other spacing
+        // has no kernel to reach, because the sparse seam addresses a pattern and carries no increment.
+        if (dst.offset == 0 && dst.stride == 1 && dst.data.size == dst.size) {
+            dst.data.fill(0.0)
+            koblas.sparseKernels.scatter(source, dst.data)
+        } else {
+            for (i in 0 until dst.size) dst[i] = 0.0
+            source.forEachStored { i, v -> dst[i] = v }
+        }
         return
     }
     // Adjacent on both sides is a block move, which the platform does far better than a loop that bounds
@@ -185,7 +192,9 @@ public fun gatherZero(x: SparseVector, from: ContiguousVector) {
  */
 public fun swap(a: DenseVector, b: DenseVector) {
     requireSameSize(a.size, b.size)
-    if (a.data === b.data) {
+    // Sharing a buffer is not the same as covering an entry of it. Two rows or columns of one matrix share
+    // their array and overlap nowhere, which is the case this overload exists for, so it reaches the kernel.
+    if (a.overlaps(b)) {
         val snapshotA = a.toDoubleArray()
         val snapshotB = b.toDoubleArray()
         for (i in 0 until a.size) a[i] = snapshotB[i]
@@ -205,6 +214,14 @@ public fun DenseVector.axpy(alpha: Double, x: Vector) {
     when (val source = x.stableFor(this)) {
         is DenseVector ->
             koblas.vectorKernels.axpy(data, offset, alpha, source.data, source.offset, size, stride, source.stride)
+
+        // The indexed sparse kernels walk the pattern, and have a vectorised form; the generic loop has
+        // neither, so it is what a foreign Vector implementation gets rather than what a SparseVector does.
+        is SparseVector -> if (offset == 0 && stride == 1) {
+            koblas.sparseKernels.axpy(data, alpha, source)
+        } else {
+            source.forEachStored { i, v -> this[i] += alpha * v }
+        }
 
         else -> source.forEachStored { i, v -> this[i] += alpha * v }
     }
