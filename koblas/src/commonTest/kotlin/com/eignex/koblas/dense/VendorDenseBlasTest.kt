@@ -2,9 +2,11 @@ package com.eignex.koblas.dense
 
 import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.DenseVector
+import com.eignex.koblas.DimensionMismatch
 import com.eignex.koblas.StridedVector
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
@@ -192,6 +194,26 @@ class VendorDenseBlasTest {
         assertFailsWithMissingVendor { blas.gemm(1.0, matrix(2), false, matrix(2), false, 0.0, matrix(2)) }
         assertFailsWithMissingVendor { blas.symv(1.0, matrix(2), DoubleArray(2), 0.0, DoubleArray(2), true) }
         assertFailsWithMissingVendor { blas.trsm(matrix(2), matrix(2, 1), lower = true) }
+    }
+
+    /**
+     * A bad shape is a bad shape whether or not the host has a library.
+     *
+     * The shape rules live beside the bindings that also apply them, so it would be easy to leave the check to
+     * the library and let a vendorless host answer a shape error with the missing library instead. These state
+     * that it does not: the seam checks first, and reports what the caller actually got wrong.
+     */
+    @Test
+    fun `a shape is rejected as a shape even where no library is installed`() {
+        val blas = VendorDenseBlas(null)
+
+        assertFailsWith<DimensionMismatch> { blas.gemv(1.0, matrix(3, 4), DoubleArray(2), 0.0, DoubleArray(3)) }
+        assertFailsWith<DimensionMismatch> { blas.gemm(1.0, matrix(3, 4), false, matrix(3, 3), false, 0.0, matrix(3)) }
+        assertFailsWith<DimensionMismatch> { blas.symv(1.0, matrix(3, 4), DoubleArray(4), 0.0, DoubleArray(3), true) }
+        assertFailsWith<DimensionMismatch> { blas.trsv(matrix(3, 4), DoubleArray(3), lower = true) }
+        assertFailsWith<DimensionMismatch> { blas.trsm(matrix(3), matrix(2, 2), lower = true) }
+        assertFailsWith<DimensionMismatch> { blas.syrk(1.0, matrix(3, 2), false, 0.0, matrix(2), lower = true) }
+        assertFailsWith<DimensionMismatch> { blas.ger(1.0, DoubleArray(2), DoubleArray(4), matrix(3, 4)) }
     }
 
     private fun assertFailsWithMissingVendor(body: () -> Unit) {
