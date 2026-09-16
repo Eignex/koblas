@@ -100,12 +100,6 @@ public final class com/eignex/koblas/DimensionMismatch : java/lang/IllegalArgume
 	public fun <init> (Ljava/lang/String;)V
 }
 
-public final class com/eignex/koblas/Givens {
-	public final fun getC ()D
-	public final fun getR ()D
-	public final fun getS ()D
-}
-
 public final class com/eignex/koblas/Koblas {
 	public static final fun add (Lcom/eignex/koblas/DenseMatrix;Lcom/eignex/koblas/DenseMatrix;)Lcom/eignex/koblas/DenseMatrix;
 	public static final fun add (Lcom/eignex/koblas/DenseVector;Lcom/eignex/koblas/DenseVector;)Lcom/eignex/koblas/DenseVector;
@@ -136,9 +130,8 @@ public final class com/eignex/koblas/Koblas {
 	public static final fun negate (Lcom/eignex/koblas/DenseVector;)Lcom/eignex/koblas/DenseVector;
 	public static final fun norm2 (Lcom/eignex/koblas/Vector;)D
 	public static final fun overlaps (Lcom/eignex/koblas/StridedVector;Lcom/eignex/koblas/StridedVector;)Z
-	public static final fun rot (Lcom/eignex/koblas/DenseVector;Lcom/eignex/koblas/DenseVector;Lcom/eignex/koblas/Givens;)V
-	public static final fun rot (Lcom/eignex/koblas/StridedVector;Lcom/eignex/koblas/StridedVector;Lcom/eignex/koblas/Givens;)V
-	public static final fun rotg (DD)Lcom/eignex/koblas/Givens;
+	public static final fun rot (Lcom/eignex/koblas/DenseVector;Lcom/eignex/koblas/DenseVector;DD)V
+	public static final fun rot (Lcom/eignex/koblas/StridedVector;Lcom/eignex/koblas/StridedVector;DD)V
 	public static final fun row (Lcom/eignex/koblas/DenseMatrix;I)Lcom/eignex/koblas/DenseVector;
 	public static final fun row (Lcom/eignex/koblas/SparseMatrix;I)Lcom/eignex/koblas/SparseVector;
 	public static final fun scale (Lcom/eignex/koblas/DenseVector;D)V

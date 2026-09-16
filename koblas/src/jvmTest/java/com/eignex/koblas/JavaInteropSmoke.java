@@ -36,8 +36,11 @@ final class JavaInteropSmoke {
         Koblas.getDefault().getSparseKernels().scatter(Koblas.column(sparse, 0), scattered);
         assertArrayEquals(new double[] {2.0, 0.0}, scattered);
 
-        Givens rotation = Koblas.rotg(3.0, 4.0);
-        assertEquals(5.0, rotation.getR());
+        DenseVector rotatedX = DenseVector.of(new double[] {3.0});
+        DenseVector rotatedY = DenseVector.of(new double[] {4.0});
+        // The rotation that takes (3, 4) to (5, 0); only the first is exact in binary, and this asserts bits.
+        Koblas.rot(rotatedX, rotatedY, 0.6, 0.8);
+        assertEquals(5.0, rotatedX.get(0));
 
         if (Koblas.getDefault() == null || BuiltinEngines.getScalar() == null) {
             throw new AssertionError("Java engine accessors must return engines");
