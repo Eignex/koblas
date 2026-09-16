@@ -23,7 +23,12 @@ and spacing, [routeOf][com.eignex.koblas.sparse.SparseKernels.routeOf] does the 
 [Blas.routeOf][com.eignex.koblas.vendor.Blas.routeOf] describes one concrete vendor call including
 whether it was direct or composed. A selection that falls back is not evidence that its own kernel ran.
 
-Exact Level 1 engines are available through the experimental
-[BuiltinEngines][com.eignex.koblas.BuiltinEngines] seam for tests and benchmarks. Constructing one does not
-change the default engine. Factorization and basis solving are outside this artifact: a consumer that needs
-them owns its own factors on top of these kernels.
+Naming a Level 1 implementation other than the selected one is for measuring the two against each other, so
+[BuiltinEngines][com.eignex.koblas.BuiltinEngines] sits behind
+[KoblasEngineApi][com.eignex.koblas.KoblasEngineApi] and production code uses
+[koblas][com.eignex.koblas.koblas]. The portable kernels are not an alternative to the vectorised ones at a
+given size: the vectorised ones already fall back to them below their lane width and for any strided run.
+Reaching either way does not change the default engine.
+
+Factorization and basis solving are outside this artifact: a consumer that needs them owns its own factors on
+top of these kernels.

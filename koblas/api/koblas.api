@@ -204,6 +204,9 @@ public final class com/eignex/koblas/KoblasEngine : com/eignex/koblas/dense/Dens
 	public fun trsv (Lcom/eignex/koblas/DenseMatrix;[DZZZ)V
 }
 
+public abstract interface annotation class com/eignex/koblas/KoblasEngineApi : java/lang/annotation/Annotation {
+}
+
 public abstract class com/eignex/koblas/KoblasException : java/lang/ArithmeticException {
 	public synthetic fun <init> (Ljava/lang/String;Lkotlin/jvm/internal/DefaultConstructorMarker;)V
 }

@@ -19,6 +19,7 @@ import com.eignex.koblas.vendor.openBlas
  * [selectedVendor], which is declared below and is itself deferred; resolving eagerly would read that
  * property's backing delegate before the initializer reached it and select against a null vendor.
  */
+@OptIn(KoblasEngineApi::class)
 @get:kotlin.jvm.JvmName("getDefault")
 public val koblas: KoblasEngine by lazy { BuiltinEngines.simd ?: BuiltinEngines.scalar }
 
@@ -67,9 +68,20 @@ public class KoblasEngine internal constructor(
     override fun toString(): String = "KoblasEngine($name)"
 }
 
-/** Built-in engines for implementation comparisons. */
+/**
+ * The Level 1 implementations, each beside the selected vendor, for measuring one against another.
+ *
+ * Not a menu of production choices, which is why it is behind [KoblasEngineApi]. [koblas] is the engine this
+ * platform selected, and on the JVM that is [simd], whose kernels already delegate to the portable ones below
+ * their lane width and for any strided run. So [scalar] is not a faster or slower alternative at a given
+ * size: it is the floor the vectorised kernels stand on, exposed on its own so a benchmark can time it and a
+ * conformance test can compare against it.
+ *
+ * Kotlin/Native has no Vector API, so [simd] is null there and [koblas] is [scalar].
+ */
+@KoblasEngineApi
 public expect object BuiltinEngines {
-    /** Pure Kotlin scalar Level 1 beside the selected vendor. */
+    /** The portable Kotlin Level 1 kernels beside the selected vendor. */
     public val scalar: KoblasEngine
 
     /** JVM Vector API Level 1, or null when the Vector API module is unavailable or on a non-JVM target. */

@@ -7,6 +7,7 @@ import com.eignex.koblas.sparse.SimdIndexedSparseKernels
 import com.eignex.koblas.sparse.SparseKernelAdapter
 
 /** JVM built-in engines. */
+@KoblasEngineApi
 public actual object BuiltinEngines {
     /** Pure Kotlin scalar Level 1 beside the selected vendor. */
     @get:JvmStatic
