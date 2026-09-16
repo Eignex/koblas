@@ -33,9 +33,9 @@ public class StridedVector @JvmOverloads constructor(
         return data[offset + i * stride]
     }
 
-    override fun set(i: Int, value: Double) {
+    override fun set(i: Int, v: Double) {
         requireInBounds(i, size)
-        data[offset + i * stride] = value
+        data[offset + i * stride] = v
     }
 
     override fun toDoubleArray(): DoubleArray = DoubleArray(size) { get(it) }
