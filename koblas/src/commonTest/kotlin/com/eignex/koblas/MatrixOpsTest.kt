@@ -2,6 +2,7 @@
 
 package com.eignex.koblas
 
+import com.eignex.koblas.dense.MatrixStructure
 import kotlin.random.Random
 import kotlin.test.*
 
@@ -15,7 +16,7 @@ class MatrixOpsTest {
     )
 
     @Test
-    fun `the gemv overload computes A x for dense and sparse x`() {
+    fun `the gemv overload computes A x`() {
         val A = DenseMatrix.ofRows(
             arrayOf(
                 doubleArrayOf(1.0, 2.0),
@@ -23,27 +24,13 @@ class MatrixOpsTest {
                 doubleArrayOf(5.0, 6.0),
             ),
         )
-        val xDense = dense(1.0, -1.0)
-        val xSparse = sparse(2, 0 to 1.0, 1 to -1.0)
+        val x = dense(1.0, -1.0)
         val expected = dense(1.0 * 1 + 2 * -1, 3.0 * 1 + 4 * -1, 5.0 * 1 + 6 * -1)
-        assertEquals(expected, A * xDense)
-        assertEquals(expected, A * xSparse)
+        assertEquals(expected, A * x)
     }
 
     @Test
-    fun `sparse and dense gemv agree on a random example`() {
-        val rng = Random(7)
-        val n = 8
-        val A = randomMatrix(n, n, rng)
-        val nz = (0 until n).filter { rng.nextBoolean() }
-        val xv = DoubleArray(n)
-        for (i in nz) xv[i] = rng.nextDouble(-1.0, 1.0)
-        val xSparse = SparseVector.of(n, nz.toIntArray(), nz.map { xv[it] }.toDoubleArray())
-        assertClose((A * DenseVector.of(xv)).data, (A * xSparse).data, "matrix vector dense vs sparse")
-    }
-
-    @Test
-    fun `matrix vector operations match hand results over every vector storage`() {
+    fun `matrix vector operations match hand results over every dense spacing`() {
         val rows = 4
         val entries = arrayOf(
             doubleArrayOf(1.0, 0.0, 2.0),
@@ -52,13 +39,12 @@ class MatrixOpsTest {
             doubleArrayOf(0.0, 0.5, 1.5),
         )
         val dense = DenseMatrix.ofRows(entries)
-        val vectors = listOf<Pair<Vector, DoubleArray>>(
+        // The same vector laid out adjacently and every second entry: both are dense, and the spacing is all
+        // the vendor is told apart from the pointer, so a product must not depend on which one it was given.
+        val vectors = listOf<Pair<DenseVector, DoubleArray>>(
             DenseVector.of(doubleArrayOf(2.0, -1.0, 0.5)) to doubleArrayOf(3.0, 0.0, -10.0, 0.25),
-            SparseVector.of(3, intArrayOf(0, 2), doubleArrayOf(2.0, 0.5)) to
-                doubleArrayOf(3.0, 0.0, -6.0, 0.75),
-            StridedVectorView(doubleArrayOf(2.0, 99.0, -1.0, 99.0, 0.5), 0, 3, 2) to
+            StridedVector(doubleArrayOf(2.0, 99.0, -1.0, 99.0, 0.5), 0, 3, 2) to
                 doubleArrayOf(3.0, 0.0, -10.0, 0.25),
-            ForeignRampVector(3) to doubleArrayOf(-1.0, 0.0, 1.0, -0.25),
         )
         for ((x, expected) in vectors) {
             assertClose(expected, (dense * x).data, "product ${x::class.simpleName}")
@@ -71,7 +57,7 @@ class MatrixOpsTest {
     @Test
     fun `gemvInto applies alpha and beta like dgemv`() {
         val A = DenseMatrix.ofRows(arrayOf(doubleArrayOf(1.0, 2.0), doubleArrayOf(3.0, 4.0)))
-        val xs = listOf<Vector>(dense(1.0, -1.0), sparse(2, 0 to 1.0, 1 to -1.0))
+        val xs = listOf(dense(1.0, -1.0), StridedVector(doubleArrayOf(1.0, 9.0, -1.0), 0, 2, 2))
         for (x in xs) {
             val context = x::class.simpleName
             // beta == 0 must overwrite rather than accumulate, so a poisoned destination stays clean.
@@ -96,10 +82,7 @@ class MatrixOpsTest {
         val full = randomMatrix(n, n, rng)
         for (j in 0 until n) for (i in 0 until j) full[i, j] = full[j, i]
         val values = randomVector(n, rng)
-        val xs = listOf<Vector>(
-            DenseVector.of(values),
-            SparseVector.of(n, intArrayOf(0, 3), doubleArrayOf(values[0], values[3])),
-        )
+        val xs = listOf(DenseVector.of(values), StridedVector(values, 0, n, 1))
         for (lower in listOf(true, false)) {
             // Only the named triangle may be read, so the other one holds NaN: any read poisons the result.
             val poisoned = DenseMatrix.wrap(n, n, full.data.copyOf())
@@ -120,7 +103,7 @@ class MatrixOpsTest {
     @Test
     fun `symvInto applies alpha and beta like dsymv`() {
         val A = DenseMatrix.ofRows(arrayOf(doubleArrayOf(2.0, 1.0), doubleArrayOf(1.0, 3.0)))
-        for (x in listOf<Vector>(dense(1.0, -1.0), sparse(2, 0 to 1.0, 1 to -1.0))) {
+        for (x in listOf(dense(1.0, -1.0), StridedVector(doubleArrayOf(1.0, 9.0, -1.0), 0, 2, 2))) {
             val context = x::class.simpleName
             val fresh = doubleArrayOf(Double.NaN, Double.NaN)
             A.symvInto(2.0, x, 0.0, fresh)
@@ -168,15 +151,14 @@ class MatrixOpsTest {
     @Test
     fun `matvec adapters snapshot vector aliases before writing`() {
         val matrix = DenseMatrix.diagonal(3)
-        for (sparse in booleanArrayOf(false, true)) {
+        for (reversed in booleanArrayOf(false, true)) {
             for (symmetric in booleanArrayOf(false, true)) {
                 val destination = doubleArrayOf(1.0, 2.0, 3.0)
                 val original = destination.copyOf()
-                val source = if (sparse) {
-                    SparseVector.wrap(3, intArrayOf(0, 1, 2), destination)
-                } else {
-                    StridedVectorView(destination, 2, 3, -1)
-                }
+                // The source reads the destination's own array, forwards or backwards, so a call that scales
+                // the destination before reading its input would see the scaled values instead.
+                val source =
+                    if (reversed) StridedVector(destination, 2, 3, -1) else StridedVector(destination, 0, 3, 1)
                 val expected = DoubleArray(3) { source[it] + 0.5 * original[it] }
 
                 if (symmetric) {
@@ -221,22 +203,6 @@ class MatrixOpsTest {
     }
 
     @Test
-    fun `ger with sparse operands only touches nonzero rows and cols`() {
-        val M = DenseMatrix.diagonal(3, 0.0)
-        M.ger(1.0, sparse(3, 1 to 2.0), sparse(3, 0 to 3.0, 2 to 4.0))
-        for (i in 0 until 3) {
-            for (j in 0 until 3) {
-                val expected = when {
-                    i == 1 && j == 0 -> 6.0
-                    i == 1 && j == 2 -> 8.0
-                    else -> 0.0
-                }
-                assertEquals(expected, M[i, j], 1e-12, "M[$i,$j]")
-            }
-        }
-    }
-
-    @Test
     fun `alpha zero makes axpy and ger no-ops`() {
         val y = DenseVector.of(doubleArrayOf(1.0, 2.0, 3.0))
         y.axpy(0.0, DenseVector.of(doubleArrayOf(9.0, 9.0, 9.0)))
@@ -249,18 +215,13 @@ class MatrixOpsTest {
     }
 
     @Test
-    fun `ger skips zero entries on both carriers`() {
-        val dense = DenseMatrix.diagonal(3, 0.0)
-        dense.ger(1.0, dense(0.0, 2.0, 0.0), dense(1.0, 1.0, 1.0))
+    fun `ger contributes nothing where an operand is zero`() {
+        val a = DenseMatrix.diagonal(3, 0.0)
+
+        a.ger(1.0, dense(0.0, 2.0, 0.0), dense(1.0, 1.0, 1.0))
+
         for (i in 0 until 3) {
-            for (j in 0 until 3) assertEquals(if (i == 1) 2.0 else 0.0, dense[i, j], 1e-12, "dense[$i,$j]")
-        }
-        val sparse = DenseMatrix.diagonal(3, 0.0)
-        sparse.ger(1.0, sparse(3, 0 to 0.0, 1 to 1.0), sparse(3, 2 to 5.0))
-        for (i in 0 until 3) {
-            for (j in 0 until 3) {
-                assertEquals(if (i == 1 && j == 2) 5.0 else 0.0, sparse[i, j], "sparse[$i,$j]")
-            }
+            for (j in 0 until 3) assertEquals(if (i == 1) 2.0 else 0.0, a[i, j], 1e-12, "a[$i,$j]")
         }
     }
 
@@ -283,51 +244,6 @@ class MatrixOpsTest {
         viaGer2.ger(-0.75, x, y)
         viaGer2.ger(-0.75, y, x)
         assertLowerTriangleClose(viaGer2, viaSyr2, "syr2 against two gers")
-    }
-
-    /**
-     * A sparse operand updates the outer product of its stored positions and leaves the rest of A alone, so
-     * it has to land exactly where the same vector densified does.
-     */
-    @Test
-    fun `syr and syr2 over sparse operands match their dense equivalents`() {
-        val n = 8
-        val xSparse = sparse(n, 1 to 2.0, 4 to -3.0, 7 to 0.5)
-        val ySparse = sparse(n, 0 to 1.5, 4 to 2.5)
-        val xDense = DenseVector.of(xSparse.toDoubleArray())
-        val yDense = DenseVector.of(ySparse.toDoubleArray())
-
-        for (lower in booleanArrayOf(true, false)) {
-            val sparseSyr = DenseMatrix(n, n)
-            sparseSyr.syr(1.5, xSparse, lower)
-            val denseSyr = DenseMatrix(n, n)
-            denseSyr.syr(1.5, xDense, lower)
-            assertClose(denseSyr, sparseSyr, "syr lower=$lower")
-
-            // Mixed storages as well, since only one operand of syr2 need be sparse.
-            for (pair in listOf(xSparse to ySparse, xSparse to yDense, xDense to ySparse)) {
-                val sparseSyr2 = DenseMatrix(n, n)
-                sparseSyr2.syr2(-0.75, pair.first, pair.second, lower)
-                val denseSyr2 = DenseMatrix(n, n)
-                denseSyr2.syr2(-0.75, xDense, yDense, lower)
-                assertClose(denseSyr2, sparseSyr2, "syr2 lower=$lower")
-            }
-        }
-    }
-
-    /** A sparse vector may store a zero, which contributes nothing and must not be mistaken for a position. */
-    @Test
-    fun `syr over a sparse operand storing a zero matches the dense update`() {
-        val n = 5
-        val stored = SparseVector.of(n, intArrayOf(0, 2, 3), doubleArrayOf(2.0, 0.0, -1.0))
-        val densified = DenseVector.of(stored.toDoubleArray())
-
-        val fromSparse = DenseMatrix(n, n)
-        fromSparse.syr(1.0, stored)
-        val fromDense = DenseMatrix(n, n)
-        fromDense.syr(1.0, densified)
-
-        assertClose(fromDense, fromSparse, "syr over a stored zero")
     }
 
     @Test
@@ -361,7 +277,7 @@ class MatrixOpsTest {
     }
 
     @Test
-    fun `zeroStrictUpper clears above the diagonal and keeps the rest`() {
+    fun `masking to a lower triangle clears above the diagonal and keeps the rest`() {
         val M = DenseMatrix.ofRows(
             arrayOf(
                 doubleArrayOf(1.0, 2.0, 3.0),
@@ -369,7 +285,7 @@ class MatrixOpsTest {
                 doubleArrayOf(7.0, 8.0, 9.0),
             ),
         )
-        M.zeroStrictUpper()
+        M.maskTo(MatrixStructure.TriangularLower)
         for (i in 0 until 3) {
             for (j in 0 until 3) {
                 val expected = if (i < j) 0.0 else (i * 3 + j + 1).toDouble()
@@ -385,9 +301,9 @@ class MatrixOpsTest {
     }
 
     @Test
-    fun `zeroStrictUpper zeroes whole columns past the last row`() {
+    fun `masking a wide matrix zeroes whole columns past the last row`() {
         val wide = DenseMatrix.wrap(2, 4, DoubleArray(8) { it + 1.0 })
-        wide.zeroStrictUpper()
+        wide.maskTo(MatrixStructure.TriangularLower)
         for (j in 0 until 4) {
             for (i in 0 until 2) {
                 val expected = if (i < j) 0.0 else (j * 2 + i + 1).toDouble()
@@ -397,10 +313,10 @@ class MatrixOpsTest {
     }
 
     @Test
-    fun `zeroStrictUpper keeps a tall matrix intact below the diagonal`() {
+    fun `masking a tall matrix keeps it intact below the diagonal`() {
         val tall = DenseMatrix.wrap(4, 2, DoubleArray(8) { it + 1.0 })
         val before = tall.data.copyOf()
-        tall.zeroStrictUpper()
+        tall.maskTo(MatrixStructure.TriangularLower)
         // Only (0,1) sits above the diagonal here, so every other entry survives.
         assertEquals(0.0, tall[0, 1], "(0,1)")
         for (j in 0 until 2) {
@@ -445,7 +361,7 @@ class MatrixOpsTest {
         val dense = DenseMatrix.zero(3, 0)
         val destination = doubleArrayOf(Double.NaN, Double.NaN, Double.NaN)
 
-        dense.gemvInto(1.0, DenseVector(DoubleArray(0)), 0.0, destination)
+        dense.gemvInto(1.0, DenseVector.zero(0), 0.0, destination)
 
         assertContentEquals(doubleArrayOf(0.0, 0.0, 0.0), destination)
     }

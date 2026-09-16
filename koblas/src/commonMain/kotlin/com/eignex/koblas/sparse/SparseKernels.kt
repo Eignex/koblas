@@ -11,8 +11,8 @@ import com.eignex.koblas.vendor.RouteKind
 /**
  * Sparse vector and indexed-slice numerical kernels selected by a [com.eignex.koblas.KoblasEngine].
  *
- * The raw overloads operate directly on caller-owned arrays and do not allocate or borrow a
- * [com.eignex.koblas.Workspace]. Structural policy remains with the caller.
+ * The raw overloads operate directly on caller-owned arrays and allocate nothing. Structural policy remains
+ * with the caller.
  */
 public interface SparseKernels {
     /** Short implementation identifier for diagnostics. */

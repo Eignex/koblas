@@ -2,21 +2,28 @@
 
 Dense and sparse BLAS for Kotlin Multiplatform.
 
-Koblas provides mutable owning `Double` containers, live strided dense views, validated CSC sparse storage,
-caller-owned workspaces, and packed arithmetic helpers. Dense matrices are column-major.
+Koblas provides mutable owning `Double` containers, dense vectors in either spacing, and validated CSC sparse
+storage. Dense matrices are column-major.
 
-Raw indexed sparse kernels operate on caller-owned slices without temporary storage. Stateless structural helpers
-for accumulation, touched support, and checked arithmetic are available through
-[SparsePrimitives][com.eignex.koblas.sparse.SparsePrimitives]; [Workspace][com.eignex.koblas.Workspace] remains
-the temporary-storage boundary for complete operations.
+Raw indexed sparse kernels operate on caller-owned slices without temporary storage. Stateless structural
+helpers for accumulation, touched support, and checked arithmetic are available through
+[SparsePrimitives][com.eignex.koblas.sparse.SparsePrimitives]; every buffer they write through is one the
+caller passed in, so nothing here allocates behind a hot loop.
 
-[koblas][com.eignex.koblas.koblas] is an immutable engine selected once for the platform. JVM selection prefers
-the Vector API, then Koblas's bundled C kernels, then scalar Kotlin. Kotlin/Native uses the bundled C kernels
-with scalar fallbacks. Shared dense matrix algorithms are bound directly to those selected kernels; sparse
-Level 1 reports through [routeOf][com.eignex.koblas.sparse.SparseKernels.routeOf] which kernel a given call
-reaches, because a selection that falls back is not evidence that its own kernel ran.
+[koblas][com.eignex.koblas.koblas] is an immutable engine selected once for the platform, and it is two
+halves. Level 1 and the sparse primitives are portable Kotlin, preferring the Vector API on the JVM and scalar
+Kotlin elsewhere; they keep working on any host. Level 2 and 3 are whole calls to an installed vendor BLAS and
+have no portable fallback, so they raise
+[MissingVendorException][com.eignex.koblas.vendor.MissingVendorException] where no supported library is
+present rather than substituting slower arithmetic under the same name.
 
-Exact scalar, C, and SIMD engines are available through the experimental
-[BuiltinEngines][com.eignex.koblas.BuiltinEngines] construction seam for tests and benchmarks. Constructing one
-does not change the default engine. Factorization and basis solving are outside this artifact: a consumer that
-needs them owns its own factors on top of these kernels.
+Both halves say what a call actually reached rather than what was selected.
+[explain][com.eignex.koblas.KoblasEngine.explain] names the Level 1 component for a given operation, length
+and spacing, [routeOf][com.eignex.koblas.sparse.SparseKernels.routeOf] does the same for sparse Level 1, and
+[VendorBlas.routeOf][com.eignex.koblas.vendor.VendorBlas.routeOf] describes one concrete vendor call including
+whether it was direct or composed. A selection that falls back is not evidence that its own kernel ran.
+
+Exact Level 1 engines are available through the experimental
+[BuiltinEngines][com.eignex.koblas.BuiltinEngines] seam for tests and benchmarks. Constructing one does not
+change the default engine. Factorization and basis solving are outside this artifact: a consumer that needs
+them owns its own factors on top of these kernels.

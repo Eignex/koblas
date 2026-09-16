@@ -4,7 +4,10 @@ import com.eignex.koblas.internal.configuration.tunedInt
 
 /**
  * Every dispatch crossover and search width the sparse routines apply, in one place and settable from
- * outside the build, as `DenseTuning` is for the dense half.
+ * outside the build.
+ *
+ * The dense half has no counterpart. Its Level 1 crossovers are measured constants beside the kernels that
+ * use them, and its Level 2 and 3 are whole vendor calls, which koblas does not configure.
  *
  * Each resolves from a JVM system property, then an environment variable, then the compiled-in default. The
  * property is `koblas.sparse.<name>` and the variable is its upper-case spelling with dots replaced by

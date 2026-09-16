@@ -15,22 +15,18 @@ internal data class BenchCase(
 
 internal object Cases {
     private val dimensionCounts = mapOf(
-        "dot" to 1, "axpy" to 1, "axpy-arithmetic" to 1, "scal" to 1, "nrm2" to 1, "asum" to 1, "sum" to 1,
+        "dot" to 1, "axpy" to 1, "scal" to 1, "nrm2" to 1, "asum" to 1, "sum" to 1,
         "compensated-sum" to 1, "iamax" to 1, "swap" to 1, "rot" to 1, "rotm" to 1, "rotmg" to 1,
-        "ssqd" to 1, "dot4" to 1, "axpy4" to 1, "dot-axpy" to 1,
         "gemv" to 2, "symv" to 1, "ger" to 2, "syr" to 1, "syr2" to 1, "trsv" to 1,
         "trmv" to 1, "gemm" to 3, "symm" to 2, "gemmt" to 2, "syrk" to 2, "syr2k" to 2,
-        "trsm" to 2, "trmm" to 2, "gemm-block" to 3, "gemm-tile" to 3, "packed-trsm" to 2, "gemm-trsm" to 3,
-        "pack-left" to 2, "pack-right" to 2, "pack-symmetric-left" to 2,
-        "pack-symmetric-right" to 2, "pack-triangular-left" to 2, "pack-triangular-right" to 2,
-        "write-left" to 2, "write-right" to 2, "clear-left-padding" to 2, "clear-right-padding" to 2,
+        "trsm" to 2, "trmm" to 2,
         "spdot" to 1, "spdot-raw" to 1, "spdot-sparse" to 1, "spaxpy" to 1, "spaxpy-raw" to 1,
         "spnrm2" to 1, "spnrm2-indexed" to 1, "spasum" to 1,
         "spscatter" to 1, "spscatter-raw" to 1, "spgather" to 1, "spgather-zero" to 1,
         "spaccumulate" to 1,
     )
     private val fixtures = setOf("uniform", "triangular", "sparse-uniform", "sparse-triangular")
-    private val optionOrder = listOf("density", "packed", "side", "uplo", "transA", "transB", "diag", "timing")
+    private val optionOrder = listOf("density", "side", "uplo", "transA", "transB", "diag", "timing")
 
     fun parse(text: String): List<BenchCase> {
         val cases = text.lineSequence().mapIndexedNotNull { index, raw ->
@@ -94,7 +90,6 @@ internal object Cases {
     private fun validateOption(name: String, value: String, invalid: (String) -> Nothing) {
         when (name) {
             "density" -> if (value.toDoubleOrNull()?.let { it > 0.0 && it <= 1.0 } != true) invalid("invalid density '$value'")
-            "packed" -> if (value !in setOf("4x4", "8x4")) invalid("unsupported packed recipe '$value'")
             "side" -> if (value !in setOf("L", "R")) invalid("invalid side '$value'")
             "uplo" -> if (value !in setOf("L", "U")) invalid("invalid uplo '$value'")
             "transA", "transB" -> if (value !in setOf("N", "T")) invalid("invalid transpose '$value'")
@@ -130,8 +125,6 @@ internal object Cases {
         if (operation in setOf("scal", "spgather") && "timing" in options && options["timing"] != "arithmetic") {
             invalid("$operation supports only timing=arithmetic as an explicit override")
         }
-        validatePackedBounds(operation, dimensions, options, invalid)
-        if ("packed" in required) PackedConfiguration.validate(operation, dimensions, options)
     }
 
     private fun allowedOptions(operation: String, sparse: Boolean): Set<String> = buildSet {
@@ -144,31 +137,9 @@ internal object Cases {
         if (operation in setOf("scal", "spgather")) add("timing")
     }
 
-    private fun validatePackedBounds(
-        operation: String,
-        dimensions: List<Int>,
-        options: Map<String, String>,
-        invalid: (String) -> Nothing,
-    ) {
-        val physical = options["packed"]?.split('x')?.map(String::toInt) ?: return
-        val (tileRows, tileColumns) = physical
-        val rowsBounded = operation in setOf(
-            "gemm-tile", "packed-trsm", "gemm-trsm", "pack-left", "pack-symmetric-left",
-            "pack-triangular-left", "write-left", "clear-left-padding",
-        )
-        val columnsBounded = operation in setOf(
-            "gemm-tile", "packed-trsm", "gemm-trsm", "pack-right", "pack-symmetric-right",
-            "pack-triangular-right", "write-right", "clear-right-padding",
-        )
-        if (rowsBounded && dimensions[0] > tileRows) invalid("logical rows exceed physical tile")
-        if (columnsBounded && dimensions[1] > tileColumns) invalid("logical columns exceed physical tile")
-    }
-
     private fun requiredOptions(operation: String, sparse: Boolean): Set<String> {
         val required = linkedSetOf<String>()
         if (sparse) required += "density"
-        if (operation in setOf("gemm-block", "gemm-tile", "packed-trsm", "gemm-trsm", "pack-left", "pack-right", "pack-symmetric-left", "pack-symmetric-right", "pack-triangular-left", "pack-triangular-right", "write-left", "write-right", "clear-left-padding", "clear-right-padding")) required += "packed"
-        if (operation == "gemm-block") required += "timing"
         when (operation) {
             "symv", "syr", "syr2" -> required += "uplo"
             "symm" -> required += setOf("side", "uplo")
@@ -176,15 +147,10 @@ internal object Cases {
             "syrk", "syr2k" -> required += setOf("uplo", "transA")
             "trsv", "trmv" -> required += setOf("uplo", "transA", "diag")
             "trsm", "trmm" -> required += setOf("side", "uplo", "transA", "diag")
-            "packed-trsm", "gemm-trsm", "pack-triangular-left", "pack-triangular-right" -> required += setOf("uplo", "diag")
-            "pack-symmetric-left", "pack-symmetric-right" -> required += "uplo"
         }
         return required
     }
 
-    private val TRIANGULAR_FIXTURE_OPERATIONS = setOf(
-        "trsv", "trmv", "trsm", "trmm", "packed-trsm", "gemm-trsm", "pack-triangular-left",
-        "pack-triangular-right",
-    )
+    private val TRIANGULAR_FIXTURE_OPERATIONS = setOf("trsv", "trmv", "trsm", "trmm")
     private const val MAX_DIMENSION = 1_000_000
 }

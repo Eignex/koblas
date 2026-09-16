@@ -7,17 +7,17 @@ internal expect fun systemPropertyOrNull(name: String): String?
 internal expect fun environmentVariableOrNull(name: String): String?
 
 /*
- * Reading one tuning entry, shared by the dense and sparse collections of them.
+ * Reading one tuning entry.
  *
- * The entries themselves live beside the routines they steer, in `DenseTuning` and `SparseTuning`, because
- * a block size means nothing without the measurement that chose it. What is common is only how a value is
- * found and what makes one unacceptable, which is here so the two collections cannot drift apart on either.
+ * The entries themselves live beside the routines they steer, in `SparseTuning`, because a crossover means
+ * nothing without the measurement that chose it. What is separable is only how a value is found and what
+ * makes one unacceptable, which is here so that a second collection could not drift away from the first.
  */
 
-/** The system property spelling of one tuning entry, for example `koblas.dense.level3.block.rows`. */
+/** The system property spelling of one tuning entry, for example `koblas.sparse.simd.min.width`. */
 internal fun tuningProperty(prefix: String, name: String): String = "koblas.$prefix.$name"
 
-/** The environment variable spelling of one tuning entry, for example `KOBLAS_DENSE_LEVEL3_BLOCK_ROWS`. */
+/** The environment variable spelling of one tuning entry, for example `KOBLAS_SPARSE_SIMD_MIN_WIDTH`. */
 internal fun tuningEnvironment(prefix: String, name: String): String =
     "KOBLAS_" + (prefix + "." + name).uppercase().replace('.', '_')
 

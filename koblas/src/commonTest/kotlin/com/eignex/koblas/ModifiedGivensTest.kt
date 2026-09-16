@@ -1,7 +1,7 @@
 package com.eignex.koblas
 
 import com.eignex.koblas.DenseVector
-import com.eignex.koblas.StridedVectorView
+import com.eignex.koblas.StridedVector
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
@@ -125,8 +125,8 @@ class ModifiedGivensTest {
     @Test
     fun `rotm snapshots overlapping strided inputs`() {
         val buffer = doubleArrayOf(1.0, 2.0, 3.0, 4.0, 5.0)
-        val x = StridedVectorView(buffer, offset = 0, size = 3)
-        val y = StridedVectorView(buffer, offset = 1, size = 3)
+        val x = StridedVector(buffer, offset = 0, size = 3)
+        val y = StridedVector(buffer, offset = 1, size = 3)
         val transformation = rotmg(1.0, 1.0, 2.0, 1.0)
 
         rotm(x, y, transformation)
@@ -138,8 +138,8 @@ class ModifiedGivensTest {
     fun `rotm supports negative strided views`() {
         val xData = doubleArrayOf(1.0, -1.0, 2.0, -2.0, 3.0)
         val yData = doubleArrayOf(4.0, -4.0, 5.0, -5.0, 6.0)
-        val x = StridedVectorView(xData, offset = 4, size = 3, stride = -2)
-        val y = StridedVectorView(yData, offset = 4, size = 3, stride = -2)
+        val x = StridedVector(xData, offset = 4, size = 3, stride = -2)
+        val y = StridedVector(yData, offset = 4, size = 3, stride = -2)
         val transformation = rotmg(1.0, 1.0, 1.0, 2.0)
 
         rotm(x, y, transformation)

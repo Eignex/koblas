@@ -14,29 +14,6 @@ class DenseVectorKernelsTest {
     }
 
     @Test
-    fun `the scalar and platform arithmetic axpy kernels agree`() {
-        val source = DoubleArray(47) { it * 0.125 - 2.0 }
-        val initial = DoubleArray(53) { 3.0 - it * 0.2 }
-        val expected = initial.copyOf()
-        val actual = initial.copyOf()
-
-        ScalarPanelKernels.axpyArithmetic(expected, 7, -0.75, source, 3, 31)
-        koblas.panelKernels.axpyArithmetic(actual, 7, -0.75, source, 3, 31)
-
-        assertClose(expected, actual, "arithmetic axpy")
-    }
-
-    @Test
-    fun `the platform arithmetic axpy does not take the DAXPY zero return`() {
-        val x = DoubleArray(64).also { it[17] = Double.POSITIVE_INFINITY }
-        val y = DoubleArray(64)
-
-        axpyArithmetic(koblas.panelKernels, y, 0, 0.0, x, 0, x.size)
-
-        assertTrue(y[17].isNaN())
-    }
-
-    @Test
     fun `the compiled-in kernels satisfy the dense vector contract`() {
         val k: DenseVectorKernels = koblas.vectorKernels
         assertTrue(k.name.isNotEmpty(), "the kernels must name themselves for engine attribution")
@@ -86,106 +63,6 @@ class DenseVectorKernelsTest {
     }
 
     @Test
-    fun `the scalar and platform dot4 kernels agree`() {
-        val a = DoubleArray(4 * 30) { it * 0.25 - 5.0 }
-        val b = DoubleArray(30) { 2.0 - it * 0.1 }
-        val stride = 30
-        val len = 23 // shorter than the stride, so a correct implementation reads only part of each column
-
-        val expected = DoubleArray(4)
-        for (r in 0 until 4) {
-            var s = 0.0
-            for (i in 0 until len) s += a[r * stride + i] * b[i]
-            expected[r] = s
-        }
-
-        val viaScalar = DoubleArray(4)
-        ScalarPanelKernels.dot4(a, 0, stride, b, 0, len, viaScalar, 0)
-
-        val viaPlatform = DoubleArray(4)
-        koblas.panelKernels.dot4(a, 0, stride, b, 0, len, viaPlatform, 0)
-
-        for (r in 0 until 4) {
-            assertEquals(expected[r], viaScalar[r], absoluteTolerance = 1e-12, message = "scalar row $r")
-            assertEquals(expected[r], viaPlatform[r], absoluteTolerance = 1e-12, message = "platform row $r")
-        }
-    }
-
-    @Test
-    fun `the scalar and platform axpy4 kernels agree`() {
-        val stride = 31
-        val a = DoubleArray(4 * stride) { it * 0.125 - 4.0 }
-        a[7] = Double.POSITIVE_INFINITY
-        val coefficients = doubleArrayOf(0.0, -2.0, 0.5, 3.0)
-        val initial = DoubleArray(35) { it * 0.25 }
-        val expected = initial.copyOf()
-        val off = 3
-        val len = 23
-        for (i in 0 until len) {
-            for (r in 0 until 4) expected[off + i] += coefficients[r] * a[r * stride + i]
-        }
-
-        val viaScalar = initial.copyOf()
-        ScalarPanelKernels.axpy4(
-            viaScalar, off, a, 0, stride,
-            coefficients[0], coefficients[1], coefficients[2], coefficients[3], len,
-        )
-        val viaPlatform = initial.copyOf()
-        koblas.panelKernels.axpy4(
-            viaPlatform, off, a, 0, stride,
-            coefficients[0], coefficients[1], coefficients[2], coefficients[3], len,
-        )
-
-        for (i in expected.indices) {
-            if (expected[i].isNaN()) {
-                assertTrue(viaScalar[i].isNaN(), "scalar index $i")
-                assertTrue(viaPlatform[i].isNaN(), "platform index $i")
-            } else {
-                assertEquals(expected[i], viaScalar[i], absoluteTolerance = 1e-12, message = "scalar index $i")
-                assertEquals(expected[i], viaPlatform[i], absoluteTolerance = 1e-12, message = "platform index $i")
-            }
-        }
-    }
-
-    @Test
-    fun `the scalar and platform dotAxpy kernels agree with aliased runs`() {
-        val a = DoubleArray(37) { it * 0.2 - 2.5 }
-        val initial = DoubleArray(39) { 3.0 - it * 0.1 }
-        val off = 5
-        val len = 27
-        val alpha = -0.75
-        var expectedDot = 0.0
-        val expected = initial.copyOf()
-        for (i in 0 until len) {
-            val ai = a[2 + i]
-            val xi = initial[off + i]
-            expectedDot += ai * xi
-            expected[off + i] += alpha * ai
-        }
-
-        val viaScalar = initial.copyOf()
-        val scalarDot = ScalarPanelKernels.dotAxpy(viaScalar, off, alpha, a, 2, viaScalar, off, len)
-        val viaPlatform = initial.copyOf()
-        val platformDot = koblas.panelKernels.dotAxpy(
-            viaPlatform,
-            off,
-            alpha,
-            a,
-            2,
-            viaPlatform,
-            off,
-            len,
-        )
-
-        assertEquals(expectedDot, scalarDot, absoluteTolerance = 1e-12)
-        assertEquals(expectedDot, platformDot, absoluteTolerance = 1e-12)
-        assertContentEquals(expected, viaScalar)
-        for (i in expected.indices) {
-            assertEquals(expected[i], viaPlatform[i], absoluteTolerance = 1e-12, message = "platform index $i")
-        }
-    }
-
-    @Test
     fun `the compiled-in nrm2 survives components that square out of range`() {
         val big = doubleArrayOf(3e200, 4e200)
         assertEquals(5e200, koblas.vectorKernels.nrm2(big, 0, 2), absoluteTolerance = 1e188)
@@ -219,7 +96,7 @@ class DenseVectorKernelsTest {
         val v = DoubleArray(300) { rng.nextDouble(-1.0, 1.0) }
         for (off in intArrayOf(0, 1, 7)) {
             for (len in intArrayOf(0, 1, 3, 8, 31, 128, 293)) {
-                val expected = euclideanNorm(v, off, len)
+                val expected = euclideanNorm(v, off, 1, len)
                 assertEquals(
                     expected,
                     koblas.vectorKernels.nrm2(v, off, len),
@@ -231,60 +108,27 @@ class DenseVectorKernelsTest {
     }
 
     /**
-     * The triangular and Householder kernels reach their last row with an empty tail, so every routine here
-     * is called with a zero length. Each must read nothing and return the identity.
+     * A caller walking a matrix reaches its last row or column with an empty tail, so every routine here is
+     * called with a zero length. Each must read nothing and return the identity.
      */
     @Test
     fun `every kernel accepts a zero length run`() {
         val vectorKernels = koblas.vectorKernels
-        val panelKernels = koblas.panelKernels
         val v = doubleArrayOf(1.0, 2.0, 3.0)
         assertEquals(0.0, vectorKernels.dot(v, 3, v, 3, 0), "dot over nothing")
         assertEquals(0.0, vectorKernels.nrm2(v, 3, 0), "nrm2 over nothing")
         assertEquals(0.0, vectorKernels.asum(v, 3, 0), "asum over nothing")
+        assertEquals(0.0, vectorKernels.sum(v, 3, 0), "sum over nothing")
+        assertEquals(-1, vectorKernels.iamax(v, 3, 0), "iamax over nothing")
         vectorKernels.axpy(v, 3, 2.0, v, 3, 0)
         vectorKernels.scale(v, 3, 2.0, 0)
+        vectorKernels.swap(v, 3, v, 3, 0)
         assertEquals(listOf(1.0, 2.0, 3.0), v.toList(), "a zero-length write touched the vector")
-        val quads = DoubleArray(4)
-        panelKernels.dot4(v, 3, 0, v, 3, 0, quads, 0)
-        assertEquals(listOf(0.0, 0.0, 0.0, 0.0), quads.toList(), "dot4 over nothing")
-        panelKernels.axpy4(v, 3, v, 3, 0, 1.0, 2.0, 3.0, 4.0, 0)
-        assertEquals(0.0, panelKernels.dotAxpy(v, 3, 2.0, v, 3, v, 3, 0), "dotAxpy over nothing")
-        assertEquals(listOf(1.0, 2.0, 3.0), v.toList(), "a fused zero-length write touched the vector")
     }
 
     @Test
     fun `the compiled-in level-1 kernels agree with the scalar loops`() =
         assertLevel1KernelsAgreeWithReference(koblas.vectorKernels)
-
-    @Test
-    fun `ssqd stays exact where the expanded form cancels`() {
-        // The identity sum(a - b)^2 == a.a - 2a.b + b.b holds in exact arithmetic and not in doubles: at
-        // this magnitude the three dots agree to fewer digits than the answer has, so an implementation
-        // that took the shortcut cannot return 1.0 here.
-        val a = doubleArrayOf(1e8, 1e8, 1e8)
-        val b = doubleArrayOf(1e8 + 1.0, 1e8, 1e8)
-        val expanded = koblas.vectorKernels.dot(a, 0, a, 0, 3) -
-            2.0 * koblas.vectorKernels.dot(a, 0, b, 0, 3) +
-            koblas.vectorKernels.dot(b, 0, b, 0, 3)
-        assertEquals(1.0, koblas.vectorKernels.ssqd(a, 0, b, 0, 3), "fused")
-        assertTrue(abs(expanded - 1.0) > 1e-3, "the expanded form should be the inexact one here: $expanded")
-    }
-
-    @Test
-    fun `ssqd is symmetric and zero on equal or empty runs`() {
-        val rng = Random(20260903)
-        for (len in intArrayOf(0, 1, 5, 64, 130)) {
-            val a = DoubleArray(len) { rng.nextDouble(-1.0, 1.0) }
-            val b = DoubleArray(len) { rng.nextDouble(-1.0, 1.0) }
-            assertEquals(
-                koblas.vectorKernels.ssqd(a, 0, b, 0, len),
-                koblas.vectorKernels.ssqd(b, 0, a, 0, len),
-                "symmetry len=$len",
-            )
-            assertEquals(0.0, koblas.vectorKernels.ssqd(a, 0, a, 0, len), "equal runs len=$len")
-        }
-    }
 
     @Test
     fun `the compiled in iamax agrees with the scalar reference`() =

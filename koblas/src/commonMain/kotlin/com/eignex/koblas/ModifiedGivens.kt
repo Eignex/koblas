@@ -4,7 +4,7 @@
 package com.eignex.koblas
 
 import com.eignex.koblas.DenseVector
-import com.eignex.koblas.StridedVectorView
+import com.eignex.koblas.StridedVector
 import com.eignex.koblas.asView
 import com.eignex.koblas.overlaps
 import kotlin.math.abs
@@ -169,7 +169,7 @@ internal fun portableRotmg(d1: Double, d2: Double, x1: Double, y1: Double): Modi
 
 /**
  * Apply a modified Givens [transformation] to each pair in [x] and [y] (BLAS `drotm`). Both vectors are
- * overwritten in place; when they share a backing array, the [StridedVectorView] overload's overlap
+ * overwritten in place; when they share a backing array, the [StridedVector] overload's overlap
  * handling applies, so at a shared physical entry the final write is from [y].
  */
 public fun rotm(x: DenseVector, y: DenseVector, transformation: ModifiedGivens) {
@@ -180,7 +180,7 @@ public fun rotm(x: DenseVector, y: DenseVector, transformation: ModifiedGivens) 
  * [rotm] over borrowed strided storage. Negative strides are supported. If the views overlap, both logical
  * input sequences are snapshotted before writing; at a shared physical entry the final write is from [y].
  */
-public fun rotm(x: StridedVectorView, y: StridedVectorView, transformation: ModifiedGivens) {
+public fun rotm(x: StridedVector, y: StridedVector, transformation: ModifiedGivens) {
     requireSameSize(x.size, y.size)
     if (transformation.flag == -2.0) return
     if (x.overlaps(y)) {

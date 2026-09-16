@@ -142,20 +142,3 @@ tasks.withType<Test>().configureEach {
     jvmArgs("--add-modules=jdk.incubator.vector", "--enable-native-access=ALL-UNNAMED")
 }
 
-val jvmTests = tasks.named<Test>("jvmTest")
-val fixedConfigurationTest = tasks.register<Test>("fixedConfigurationTest") {
-    group = "verification"
-    description = "Checks fixed packed work under different tuning defaults and a narrower JVM vector species."
-    dependsOn(jvmTests.map { it.testClassesDirs })
-    testClassesDirs = jvmTests.get().testClassesDirs
-    classpath = jvmTests.get().classpath
-    javaLauncher.set(benchmarkJavaLauncher)
-    filter { includeTestsMatching("com.eignex.koblas.bench.PackedConfigurationTest") }
-    systemProperty("koblas.dense.packed.block.rows", "3")
-    systemProperty("koblas.dense.packed.block.columns", "5")
-    systemProperty("koblas.dense.packed.block.depth", "7")
-    systemProperty("koblas.dense.jvm.c.gemm.tile.crossover", "1000000")
-    systemProperty("koblas.dense.jvm.c.gemm.trsm.tile.crossover", "1000000")
-    jvmArgs("-XX:MaxVectorSize=16")
-}
-tasks.named("check") { dependsOn(fixedConfigurationTest) }

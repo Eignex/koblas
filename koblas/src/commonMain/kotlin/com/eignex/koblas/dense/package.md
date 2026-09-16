@@ -1,45 +1,31 @@
 # Package com.eignex.koblas.dense
 
-Dense BLAS contracts and built-in implementations.
+Dense BLAS contracts and the implementations behind them.
 
-[DenseVectorKernels], [DensePanelKernels], and [PackedKernels] define separate contiguous-vector,
-matrix-panel, and padded-tile responsibilities. [DenseBlas] contains dense matrix algorithms bound to one immutable
-composition. The platform default is exposed through [com.eignex.koblas.koblas]; tests and benchmarks can
-construct independent exact engines through [com.eignex.koblas.BuiltinEngines].
+The surface splits at the level, not at the backend. [DenseVectorKernels] is Level 1: arithmetic over one run
+of a `DoubleArray`, taken as a buffer, an origin, a length and a step. It stays portable Kotlin because a
+foreign call over a single vector costs more than the arithmetic it carries, and because it has to keep
+working on a host with no library installed.
+
+[DenseBlas] is Level 2 and 3, and every operation on it is one whole call to the selected vendor BLAS.
+Koblas contributes shape and aliasing validation and nothing else: the arithmetic, including how zero
+multipliers, infinities and accumulation order are treated, is the library's. There is no portable fallback
+there, so an accelerator-dependent call on a host without a library raises
+[com.eignex.koblas.vendor.MissingVendorException] rather than quietly computing the same answer far slower
+under the same name.
+
+The platform default is exposed through [com.eignex.koblas.koblas], selected once and immutable. Tests and
+benchmarks reach an exact Level 1 selection through [com.eignex.koblas.BuiltinEngines], and
+[com.eignex.koblas.KoblasEngine.explain] names the component a [DenseOperation] of a given length and spacing
+actually reaches, so an attribution cannot claim a kernel the call did not run.
+
+Operands are the public containers. [com.eignex.koblas.DenseMatrix] is contiguous column-major, and
+[com.eignex.koblas.DenseVector] covers both dense spacings, adjacent entries and a fixed step, because a
+vendor takes either as a pointer and an increment. Structure and transposition travel beside an operand as
+flags rather than in its type: [MatrixStructure] says which triangle is stored and whether the diagonal is
+implied, and a transpose is a boolean the call passes through.
 
 `gemmt` is the triangular-result general product Netlib calls `GEMMTR`; OpenBLAS and oneMKL expose the common
 `cblas_dgemmt` spelling. It uses ordinary full column-major operands and a selected full-storage destination
-triangle, not conventional compact BLAS packed storage.
-
-[com.eignex.koblas.StridedMatrixView] and [com.eignex.koblas.StridedVectorView] are live zero-copy views.
-Operations preserve offsets, increments, and leading dimensions. Disjoint views may share storage, while an
-actual destination/input overlap is rejected where the BLAS contract does not permit aliasing.
-
-[MatrixWindow] and [VectorWindow] validate backing-buffer bounds with explicit strides. Matrix windows can
-represent general, symmetric, and triangular input, including implicit unit diagonals. Their transpose is a
-zero-copy window. [PackedMatrix] retains its buffer and a [PackedMatrixLayout] with an explicit role, group,
-physical strides, padding, and version. The layout does not depend on the engine that later consumes it.
-
-[ScalarLayoutKernels] packs, unpacks, and transposes these windows. [ScalarBlockKernels] is the independently
-callable product reference for direct, one-packed, both-packed, and retained operands. Alpha and beta apply to
-the logical values already represented by the operands. Prefer unscaled retained operands for reuse across
-changing alpha. [ProductEvaluation] distinguishes dot-then-scale arithmetic from ordered column updates;
-packing alone does not authorize reassociation. [BlockOutput] limits writes to a selected triangle, including
-blocks whose row and column origins differ. Aliased block calls stage output before committing it.
-
-These logical block contracts are the migration target for the existing fixed-tile [PackedPanels] callers.
-GEMM migrates in PR 04 of the repository implementation plan; structured and triangular consumers migrate
-in PRs 07–09. Internal panel packing can prepare strided windows without materializing a whole contiguous matrix.
-
-The default engine resolves immutable performance rules once, with separate scalar-to-C and SIMD-to-C
-crossovers. [com.eignex.koblas.KoblasEngine.explain] describes the actual component selected for a
-[DenseOperation] and length. Exact C engines bypass these rules while retaining capability checks and semantic
-no-work exits. Packed geometry compatibility remains required when composing legacy tile implementations.
-
-Shared portable Kotlin owns higher-level BLAS algorithms, cache and panel traversal, global triangular
-dependencies, packing strategy, workspace lifetime, backend selection, and semantic fallback policy.
-Native arithmetic and layout kernels receive explicit bounded windows selected by that Kotlin layer.
-Internal microtile loops, local diagonal substitution, and register or streaming-state reuse can stay inside
-a kernel. A fused update and solve covers one selected local block. Whole-operation GEMV/SYMV scheduling and
-global TRSM traversal remain portable Kotlin responsibilities. Larger native boundaries require a concrete
-state/register-reuse need or measured end-to-end call-overhead benefit; prefer the smallest useful boundary.
+triangle, not conventional compact BLAS packed storage. A vendor that does not export it composes the result
+from `gemm` plus a triangle copy, and the route of the call says which of the two ran.

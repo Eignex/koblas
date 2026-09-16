@@ -6,7 +6,7 @@ package com.eignex.koblas
 
 import com.eignex.koblas.DenseVector
 import com.eignex.koblas.SparseVector
-import com.eignex.koblas.StridedVectorView
+import com.eignex.koblas.StridedVector
 import com.eignex.koblas.Vector
 import com.eignex.koblas.dense.DenseVectorKernels
 import com.eignex.koblas.internal.numeric.euclideanNorm
@@ -22,7 +22,11 @@ public inline fun Vector.forEachStored(block: (i: Int, v: Double) -> Unit) {
     when (this) {
         is DenseVector -> {
             val d = data
-            for (i in 0 until d.size) block(i, d[i])
+            var p = offset
+            for (i in 0 until size) {
+                block(i, d[p])
+                p += stride
+            }
         }
 
         is SparseVector -> {
@@ -38,17 +42,12 @@ public inline fun Vector.forEachStored(block: (i: Int, v: Double) -> Unit) {
 /** `aT * b`. Sparse operands walk their stored entries only. */
 public infix fun Vector.dot(other: Vector): Double {
     requireSameSize(size, other.size)
-    if (this is StridedVectorView && other is StridedVectorView) {
-        var sum = 0.0
-        for (i in 0 until size) sum += data[offset + i * stride] * other.data[other.offset + i * other.stride]
-        return sum
-    }
     if (this is DenseVector && other is DenseVector) {
-        return koblas.vectorKernels.dot(data, 0, other.data, 0, size)
+        return koblas.vectorKernels.dot(data, offset, other.data, other.offset, size, stride, other.stride)
     }
     if (this is SparseVector && other is SparseVector) return koblas.sparseKernels.dot(this, other)
-    if (this is SparseVector && other is DenseVector) return koblas.sparseKernels.dot(this, other.data)
-    if (this is DenseVector && other is SparseVector) return koblas.sparseKernels.dot(other, data)
+    if (this is SparseVector && other is DenseVector) return koblas.sparseKernels.dot(this, other.densified())
+    if (this is DenseVector && other is SparseVector) return koblas.sparseKernels.dot(other, densified())
     if (this is SparseVector) {
         var sum = 0.0
         for (k in indices.indices) sum += values[k] * other[indices[k]]
@@ -65,10 +64,9 @@ public infix fun Vector.dot(other: Vector): Double {
  * finite input gives the correct norm.
  */
 public fun Vector.norm2(): Double = when (this) {
-    is DenseVector -> koblas.vectorKernels.nrm2(data, 0, size)
+    is DenseVector -> koblas.vectorKernels.nrm2(data, offset, size, stride)
     is SparseVector -> koblas.sparseKernels.nrm2(this)
-    is StridedVectorView -> stridedNorm2(this)
-    else -> euclideanNorm(toDoubleArray(), 0, size)
+    else -> euclideanNorm(toDoubleArray(), 0, 1, size)
 }
 
 /**
@@ -79,7 +77,7 @@ public fun Vector.norm2(): Double = when (this) {
  * that the rounding error of a naive sum matters.
  */
 public fun Vector.sum(): Double = when (this) {
-    is DenseVector -> koblas.vectorKernels.sum(data, 0, size)
+    is DenseVector -> koblas.vectorKernels.sum(data, offset, size, stride)
 
     else -> {
         var s = 0.0
@@ -104,7 +102,7 @@ public fun Vector.sum(): Double = when (this) {
  * compensator in its own state, which no vector routine can supply.
  */
 public fun Vector.compensatedSum(): Double = when (this) {
-    is DenseVector -> neumaierSum(data, 0, size)
+    is DenseVector -> neumaierSum(data, offset, stride, size)
 
     else -> {
         var s = 0.0
@@ -120,7 +118,7 @@ public fun Vector.compensatedSum(): Double = when (this) {
 
 /** Sum of absolute values (BLAS `dasum`). Sparse vectors sum over stored entries only. */
 public fun Vector.asum(): Double = when (this) {
-    is DenseVector -> koblas.vectorKernels.asum(data, 0, size)
+    is DenseVector -> koblas.vectorKernels.asum(data, offset, size, stride)
 
     is SparseVector -> koblas.sparseKernels.asum(this)
 
@@ -139,7 +137,7 @@ public fun Vector.asum(): Double = when (this) {
  * implicit zero. Strided views report their logical index rather than a backing-array offset.
  */
 public fun Vector.iamax(): Int {
-    if (this is DenseVector) return koblas.vectorKernels.iamax(data, 0, size)
+    if (this is DenseVector) return koblas.vectorKernels.iamax(data, offset, size, stride)
     if (size == 0) return -1
     var best = -1
     var bestAbs = 0.0
@@ -155,85 +153,67 @@ public fun Vector.iamax(): Int {
 
 /**
  * `dst = src` (BLAS `dcopy`). A sparse source zero-fills the destination first, so nothing survives.
- * A borrowed or sparse source sharing [dst]'s buffer is snapshotted before writing.
+ * A source sharing [dst]'s buffer is snapshotted before writing.
+ *
+ * One entry point for both dense spacings: [dst] is written through its own origin and step, so a contiguous
+ * destination and a borrowed slice of a longer buffer are the same call.
  */
 public fun copy(src: Vector, dst: DenseVector) {
     requireSameSize(src.size, dst.size)
-    if ((src is StridedVectorView && src.data === dst.data) || (src is SparseVector && src.values === dst.data)) {
-        src.toDoubleArray().copyInto(dst.data)
+    val source = src.stableFor(dst)
+    if (source is SparseVector) {
+        for (i in 0 until dst.size) dst[i] = 0.0
+        source.forEachStored { i, v -> dst[i] = v }
         return
     }
-    when (src) {
-        is DenseVector -> src.data.copyInto(dst.data)
-
-        is SparseVector -> {
-            dst.data.fill(0.0)
-            koblas.sparseKernels.scatter(src, dst.data)
-        }
-
-        else -> {
-            src.forEachStored { i, v -> dst.data[i] = v }
-        }
-    }
+    source.forEachStored { i, v -> dst[i] = v }
 }
 
-/**
- * `dst = src` into a borrowed strided destination. Overlapping built-in sources are snapshotted before
- * writing; disjoint operands are copied without materializing either one.
- */
-public fun copy(src: Vector, dst: StridedVectorView) {
-    requireSameSize(src.size, dst.size)
-    val source = src.stableFor(dst)
-    for (i in 0 until source.size) dst[i] = source[i]
-}
-
-/** Retains sparse support when snapshotting an input whose values may be overwritten through [destination]. */
-private fun Vector.stableFor(destination: StridedVectorView): Vector = when (this) {
-    is DenseVector -> if (data === destination.data) DenseVector.of(data) else this
+/** Snapshots an input whose values would be overwritten through [destination] before the first write. */
+private fun Vector.stableFor(destination: DenseVector): Vector = when (this) {
     is SparseVector -> if (values === destination.data) SparseVector.wrap(size, indices, values.copyOf()) else this
-    is StridedVectorView -> if (overlaps(destination)) DenseVector.wrap(toDoubleArray()) else this
+    is DenseVector -> if (data === destination.data) DenseVector.wrap(toDoubleArray()) else this
     else -> this
 }
+
+/** This vector's entries as a plain array, borrowing the backing one where its spacing already is that. */
+private fun DenseVector.densified(): DoubleArray =
+    if (offset == 0 && stride == 1 && data.size == size) data else toDoubleArray()
 
 /**
  * Read [from] at [x]'s stored positions into [x] (Sparse BLAS `usga`), the inverse of [copy] from a sparse
  * source. [x] keeps its pattern, so a nonzero of [from] at an unstored position is not read.
+ *
+ * [from] is the adjacent shape rather than any dense one. A pattern indexes its operand directly, which is
+ * what makes these routines worth having, and there is no increment to hand a stored position; the type says
+ * so instead of a check that would refuse a caller at run time.
  */
-public fun gather(x: SparseVector, from: DenseVector) {
+public fun gather(x: SparseVector, from: ContiguousVector) {
     requireSameSize(x.size, from.size)
     koblas.sparseKernels.gather(x, from.data)
 }
 
 /** [gather], and zero in [from] the positions it read (Sparse BLAS `usgz`). */
-public fun gatherZero(x: SparseVector, from: DenseVector) {
+public fun gatherZero(x: SparseVector, from: ContiguousVector) {
     requireSameSize(x.size, from.size)
     koblas.sparseKernels.gatherZero(x, from.data)
 }
 
-/** Exchange the contents of [a] and [b] (BLAS `dswap`). */
+/**
+ * Exchange the contents of [a] and [b] (BLAS `dswap`), including rows and columns of a dense matrix.
+ *
+ * Overlapping operands are snapshotted; at a shared physical entry the final write is from [b].
+ */
 public fun swap(a: DenseVector, b: DenseVector) {
     requireSameSize(a.size, b.size)
-    koblas.vectorKernels.swap(a.data, 0, b.data, 0, a.size)
-}
-
-/**
- * Exchanges two borrowed slices, including rows and columns of dense matrix views. Overlapping inputs are
- * snapshotted; at a shared physical entry the final write is from [b].
- */
-public fun swap(a: StridedVectorView, b: StridedVectorView) {
-    requireSameSize(a.size, b.size)
-    if (a.overlaps(b)) {
+    if (a.data === b.data) {
         val snapshotA = a.toDoubleArray()
         val snapshotB = b.toDoubleArray()
         for (i in 0 until a.size) a[i] = snapshotB[i]
         for (i in 0 until b.size) b[i] = snapshotA[i]
         return
     }
-    for (i in 0 until a.size) {
-        val value = a[i]
-        a[i] = b[i]
-        b[i] = value
-    }
+    koblas.vectorKernels.swap(a.data, a.offset, b.data, b.offset, a.size, a.stride, b.stride)
 }
 
 /**
@@ -243,58 +223,16 @@ public fun swap(a: StridedVectorView, b: StridedVectorView) {
 public fun DenseVector.axpy(alpha: Double, x: Vector) {
     requireSameSize(size, x.size)
     if (alpha == 0.0) return
-    val source = if (x is StridedVectorView && x.data === data) DenseVector.wrap(x.toDoubleArray()) else x
-    when (source) {
-        is DenseVector -> koblas.vectorKernels.axpy(data, 0, alpha, source.data, 0, size)
-        is SparseVector -> koblas.sparseKernels.axpy(data, alpha, source)
-        else -> source.forEachStored { i, v -> data[i] += alpha * v }
-    }
-}
+    when (val source = x.stableFor(this)) {
+        is DenseVector ->
+            koblas.vectorKernels.axpy(data, offset, alpha, source.data, source.offset, size, stride, source.stride)
 
-/**
- * `this = this + alpha * x` over a borrowed strided destination. Sparse inputs touch only stored positions;
- * overlapping built-in inputs are snapshotted before writing.
- */
-public fun StridedVectorView.axpy(alpha: Double, x: Vector) {
-    requireSameSize(size, x.size)
-    if (alpha == 0.0) return
-    x.stableFor(this).forEachStored { i, value -> this[i] += alpha * value }
+        else -> source.forEachStored { i, v -> this[i] += alpha * v }
+    }
 }
 
 /** `v = alpha * v`. */
 public fun DenseVector.scale(alpha: Double) {
     if (alpha == 1.0) return
-    koblas.vectorKernels.scale(data, 0, alpha, size)
-}
-
-/** `this = alpha * this` over a borrowed strided slice. */
-public fun StridedVectorView.scale(alpha: Double) {
-    if (alpha == 1.0) return
-    for (i in 0 until size) this[i] *= alpha
-}
-
-/** Scaled sum-of-squares over a strided vector, retaining `dnrm2` overflow and underflow behavior. */
-private fun stridedNorm2(vector: StridedVectorView): Double {
-    var scale = 0.0
-    var sumSquares = 1.0
-    for (i in 0 until vector.size) {
-        val value = abs(vector[i])
-        if (value.isNaN()) return Double.NaN
-        if (value.isInfinite()) {
-            // Repeated infinities must not form infinity / infinity in the rescaling recurrence.
-            scale = value
-            sumSquares = 1.0
-        } else if (value != 0.0) {
-            if (scale < value) {
-                val ratio = scale / value
-                sumSquares = 1.0 + sumSquares * ratio * ratio
-                scale = value
-            } else {
-                val ratio = value / scale
-                sumSquares += ratio * ratio
-            }
-        }
-    }
-    if (scale == 0.0) return 0.0
-    return scale * kotlin.math.sqrt(sumSquares)
+    koblas.vectorKernels.scale(data, offset, alpha, size, stride)
 }

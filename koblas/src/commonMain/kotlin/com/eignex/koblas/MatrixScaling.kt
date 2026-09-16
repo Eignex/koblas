@@ -4,49 +4,45 @@
 
 package com.eignex.koblas
 
-/** Scale row `i` by `d(i)` in place for dense or sparse storage: the product `D * A`. */
-public fun MatrixStorage.scaleRows(d: DoubleArray) {
-    requireShape(d.size == rows) { "scaleRows: d length ${d.size} != $rows rows" }
-    when (this) {
-        is DenseMatrix -> for (j in 0 until cols) {
-            val base = j * rows
-            for (i in 0 until rows) data[base + i] *= d[i]
-        }
-
-        is SparseMatrix -> for (k in values.indices) values[k] *= d[rowIdx[k]]
-    }
-}
-
-/** Scale column `j` by `d(j)` in place for dense or sparse storage: the product `A * D`. */
-public fun MatrixStorage.scaleColumns(d: DoubleArray) {
-    requireShape(d.size == cols) { "scaleColumns: d length ${d.size} != $cols columns" }
-    when (this) {
-        is DenseMatrix -> for (j in 0 until cols) {
-            val factor = d[j]
-            if (factor != 1.0) koblas.vectorKernels.scale(data, j * rows, factor, rows)
-        }
-
-        is SparseMatrix -> for (j in 0 until cols) {
-            val factor = d[j]
-            if (factor == 1.0) continue
-            for (k in colPtr[j] until colPtr[j + 1]) values[k] *= factor
-        }
-    }
-}
+import com.eignex.koblas.dense.MatrixStructure
 
 /**
- * Zero the strict upper triangle in place, leaving the diagonal and everything below it untouched.
+ * Makes the stored entries match what [structure] promises, in place.
  *
- * This is useful when only the lower triangle of a symmetric matrix should remain authoritative before the
- * matrix is compared, hashed, or serialized.
+ * A window's structure tells BLAS what to read; it says nothing about what the array holds. The two are the
+ * same question only until that buffer reaches a call taking it as a general matrix. A factor declared
+ * [MatrixStructure.UnitLower] may carry anything on its diagonal and above it, because a triangular call reads
+ * neither; hand the same buffer to `syrk`, which takes its operand as general, and that residue becomes
+ * arithmetic. This is how a caller makes the promise true before the hand-off.
  *
- * Each column's strict upper entries are contiguous in column-major storage, so this is one fill per column
- * rather than an indexed walk. In a matrix wider than it is tall, every column past the last row lies
+ * The triangle the structure declares unstored is filled with positive zero, and a unit diagonal is written as
+ * ones. A matrix need not be square: in one wider than it is tall, every column past the last row lies
  * entirely above the diagonal and is zeroed whole.
+ *
+ * Only the triangular and unit structures are masked. [MatrixStructure.General] stores everything and has
+ * nothing to mask; the symmetric structures mirror their stored triangle rather than zeroing the other, which
+ * writes a transpose rather than zeros and is a different operation under its own name.
  */
-public fun DenseMatrix.zeroStrictUpper() {
-    for (j in 1 until cols) {
-        val start = j * rows
-        data.fill(0.0, start, start + minOf(j, rows))
+public fun DenseMatrix.maskTo(structure: MatrixStructure) {
+    val lower = when (structure) {
+        MatrixStructure.TriangularLower, MatrixStructure.UnitLower -> true
+
+        MatrixStructure.TriangularUpper, MatrixStructure.UnitUpper -> false
+
+        MatrixStructure.General, MatrixStructure.SymmetricLower, MatrixStructure.SymmetricUpper ->
+            throw IllegalArgumentException("maskTo: $structure declares nothing unstored to zero")
+    }
+    for (j in 0 until cols) {
+        val base = j * rows
+        // Each column's masked entries are one contiguous run in column-major storage, so this is one fill
+        // per column rather than an indexed walk.
+        if (lower) {
+            data.fill(0.0, base, base + minOf(j, rows))
+        } else {
+            data.fill(0.0, base + minOf(j + 1, rows), base + rows)
+        }
+    }
+    if (structure == MatrixStructure.UnitLower || structure == MatrixStructure.UnitUpper) {
+        for (d in 0 until minOf(rows, cols)) data[d + d * rows] = 1.0
     }
 }

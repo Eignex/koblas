@@ -20,11 +20,11 @@ class AdapterTest {
     @Test
     fun `axpy and copy accept a foreign source`() {
         val x = ForeignRampVector(6)
-        val y = DenseVector(6)
+        val y = DenseVector.zero(6)
         y.axpy(2.0, x)
         for (i in 0 until 6) assertEquals(2.0 * x[i], y.data[i], 1e-12, "axpy at $i")
 
-        val dst = DenseVector(6)
+        val dst = DenseVector.zero(6)
         copy(x, dst)
         for (i in 0 until 6) assertEquals(x[i], dst.data[i], 1e-12, "copy at $i")
     }

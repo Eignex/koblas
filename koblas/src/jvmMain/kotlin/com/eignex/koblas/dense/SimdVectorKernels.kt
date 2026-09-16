@@ -17,7 +17,15 @@ internal val simdAvailable: Boolean = try {
 
 /** The JVM Vector API kernels without automatic C selection. */
 internal object SimdVectorKernels : DenseVectorKernels {
-    private val IAMAX_CROSSOVER = DenseTuning.simdIamaxCrossover
+    /**
+     * Width from which the vector search for the first largest magnitude beats the scalar one.
+     *
+     * A fixed measured constant rather than a tuning key. The index search carries a lane-position vector
+     * beside the magnitude one and reduces both, so it pays later than the plain reductions do; K4 revisits
+     * this against the new measurements, which is where a crossover is allowed to move.
+     */
+    private const val IAMAX_CROSSOVER = 256
+
     private val lanes: Int = if (simdAvailable) SimdOps.lanes() else 0
 
     override val name: String get() = "simd($lanes lanes)"
@@ -26,7 +34,23 @@ internal object SimdVectorKernels : DenseVectorKernels {
 
     private fun vectorizes(len: Int): Boolean = simdAvailable && len >= lanes
 
-    override fun implementationFor(operation: DenseOperation, length: Int): String? = when (operation) {
+    /**
+     * Whether a run of this width and spacing reaches a vector kernel.
+     *
+     * The Vector API loads a lane block from consecutive elements, so a stride other than one would have to be
+     * gathered. On this hardware that loses: the same measurement that keeps `SparseSimd` off AVX2 gathers
+     * applies here, and a gather-backed dot would be slower than the scalar loop it replaced. A strided run is
+     * therefore scalar work, and [implementationFor] says so rather than letting the selection name imply
+     * otherwise.
+     */
+    private fun vectorizes(len: Int, contiguous: Boolean): Boolean = contiguous && vectorizes(len)
+
+    override fun implementationFor(operation: DenseOperation, length: Int, contiguous: Boolean): String? {
+        if (!contiguous) return ScalarVectorKernels.name
+        return vectorisedImplementationFor(operation, length)
+    }
+
+    private fun vectorisedImplementationFor(operation: DenseOperation, length: Int): String? = when (operation) {
         // The square sum is tried first and abandoned for the rescaling loop when it leaves the normal range,
         // so which kernel produces the norm depends on the values rather than on the width.
         DenseOperation.Nrm2 -> if (vectorizes(length)) null else ScalarVectorKernels.name
@@ -37,56 +61,86 @@ internal object SimdVectorKernels : DenseVectorKernels {
         DenseOperation.Iamax ->
             if (vectorizes(length) && length >= IAMAX_CROSSOVER) name else ScalarVectorKernels.name
 
-        DenseOperation.Dot, DenseOperation.Sum, DenseOperation.Ssqd, DenseOperation.Asum,
+        DenseOperation.Dot, DenseOperation.Sum, DenseOperation.Asum,
         DenseOperation.Axpy, DenseOperation.Scale, DenseOperation.Swap, DenseOperation.Rot,
         -> if (vectorizes(length)) name else ScalarVectorKernels.name
-
-        // Packed, panel and fused operations belong to the other kernel families.
-        DenseOperation.Dot4, DenseOperation.Axpy4, DenseOperation.DotAxpy, DenseOperation.AxpyArithmetic,
-        DenseOperation.GemmTile, DenseOperation.TrsmTile, DenseOperation.GemmTrsmTile,
-        -> null
     }
 
-    override fun dot(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int): Double =
-        if (vectorizes(len)) SimdOps.dot(a, aOff, b, bOff, len) else scalarDot(a, aOff, b, bOff, len)
-
-    override fun sum(v: DoubleArray, vOff: Int, len: Int): Double =
-        if (vectorizes(len)) SimdOps.sum(v, vOff, len) else scalarSum(v, vOff, len)
-
-    override fun ssqd(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int): Double = if (vectorizes(len)) {
-        SimdOps.ssqd(a, aOff, b, bOff, len)
+    override fun dot(
+        a: DoubleArray,
+        aOff: Int,
+        b: DoubleArray,
+        bOff: Int,
+        len: Int,
+        aStride: Int,
+        bStride: Int,
+    ): Double = if (vectorizes(len, aStride == 1 && bStride == 1)) {
+        SimdOps.dot(a, aOff, b, bOff, len)
     } else {
-        scalarSsqd(a, aOff, b, bOff, len)
+        scalarDot(a, aOff, aStride, b, bOff, bStride, len)
     }
+
+    override fun sum(v: DoubleArray, vOff: Int, len: Int, vStride: Int): Double =
+        if (vectorizes(len, vStride == 1)) SimdOps.sum(v, vOff, len) else scalarSum(v, vOff, vStride, len)
 
     // No CBLAS or C routine generates the modified Givens transformation, so the portable one is the
     // implementation rather than a fallback.
     override fun rotmg(d1: Double, d2: Double, x1: Double, y1: Double): ModifiedGivens = portableRotmg(d1, d2, x1, y1)
 
-    override fun axpy(y: DoubleArray, yOff: Int, alpha: Double, x: DoubleArray, xOff: Int, len: Int) {
-        if (vectorizes(len)) SimdOps.axpy(y, yOff, alpha, x, xOff, len) else scalarAxpy(y, yOff, alpha, x, xOff, len)
+    @Suppress("LongParameterList")
+    override fun axpy(
+        y: DoubleArray,
+        yOff: Int,
+        alpha: Double,
+        x: DoubleArray,
+        xOff: Int,
+        len: Int,
+        yStride: Int,
+        xStride: Int,
+    ) {
+        if (vectorizes(len, yStride == 1 && xStride == 1)) {
+            SimdOps.axpy(y, yOff, alpha, x, xOff, len)
+        } else {
+            scalarAxpy(y, yOff, yStride, alpha, x, xOff, xStride, len)
+        }
     }
 
-    override fun scale(v: DoubleArray, vOff: Int, alpha: Double, len: Int) {
-        if (vectorizes(len)) SimdOps.scale(v, vOff, alpha, len) else scalarScale(v, vOff, alpha, len)
+    override fun scale(v: DoubleArray, vOff: Int, alpha: Double, len: Int, vStride: Int) {
+        if (vectorizes(
+                len,
+                vStride == 1,
+            )
+        ) {
+            SimdOps.scale(v, vOff, alpha, len)
+        } else {
+            scalarScale(v, vOff, vStride, alpha, len)
+        }
     }
 
-    override fun nrm2(v: DoubleArray, vOff: Int, len: Int): Double {
-        if (vectorizes(len)) {
+    override fun nrm2(v: DoubleArray, vOff: Int, len: Int, vStride: Int): Double {
+        if (vectorizes(len, vStride == 1)) {
             val squares = SimdOps.dot(v, vOff, v, vOff, len)
             if (squares.isFinite() && squares >= MIN_NORMAL) return sqrt(squares)
         }
-        return euclideanNorm(v, vOff, len)
+        return euclideanNorm(v, vOff, vStride, len)
     }
 
-    override fun iamax(v: DoubleArray, vOff: Int, len: Int): Int =
-        if (vectorizes(len) && len >= IAMAX_CROSSOVER) SimdOps.iamax(v, vOff, len) else scalarIamax(v, vOff, len)
+    override fun iamax(v: DoubleArray, vOff: Int, len: Int, vStride: Int): Int =
+        if (vectorizes(len, vStride == 1) && len >= IAMAX_CROSSOVER) {
+            SimdOps.iamax(v, vOff, len)
+        } else {
+            scalarIamax(v, vOff, vStride, len)
+        }
 
-    override fun asum(v: DoubleArray, vOff: Int, len: Int): Double =
-        if (vectorizes(len)) SimdOps.asum(v, vOff, len) else absoluteSum(v, vOff, len)
+    override fun asum(v: DoubleArray, vOff: Int, len: Int, vStride: Int): Double =
+        if (vectorizes(len, vStride == 1)) SimdOps.asum(v, vOff, len) else absoluteSum(v, vOff, vStride, len)
 
-    override fun swap(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int) {
-        if (vectorizes(len)) SimdOps.swap(a, aOff, b, bOff, len) else scalarSwap(a, aOff, b, bOff, len)
+    override fun swap(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int, aStride: Int, bStride: Int) {
+        if (vectorizes(len, aStride == 1 && bStride == 1)) {
+            SimdOps.swap(a, aOff, b, bOff, len)
+        } else {
+            scalarSwap(a, aOff, aStride, b, bOff, bStride, len)
+        }
     }
 
     @Suppress("LongParameterList")

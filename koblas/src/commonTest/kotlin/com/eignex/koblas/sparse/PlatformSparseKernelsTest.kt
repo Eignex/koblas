@@ -16,7 +16,7 @@ import kotlin.test.assertTrue
 class PlatformSparseKernelsTest {
 
     private val engines
-        get() = listOfNotNull(BuiltinEngines.scalar, BuiltinEngines.c, BuiltinEngines.simd).distinct()
+        get() = listOfNotNull(BuiltinEngines.scalar, BuiltinEngines.simd).distinct()
 
     private fun sparse(size: Int, nnz: Int, rng: Random): SparseVector {
         val stride = size / nnz

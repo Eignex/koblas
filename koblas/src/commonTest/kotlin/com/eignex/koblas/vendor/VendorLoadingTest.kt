@@ -1,7 +1,8 @@
 package com.eignex.koblas.vendor
 
-import com.eignex.koblas.dense.MatrixWindow
-import com.eignex.koblas.dense.VectorWindow
+import com.eignex.koblas.DenseMatrix
+import com.eignex.koblas.DenseVector
+import com.eignex.koblas.StridedVector
 import kotlin.math.abs
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -60,10 +61,10 @@ class VendorLoadingTest {
     @Test
     fun `a call that reaches no vendor work is not described as reaching it`() {
         val blas = installed() ?: return skipped("no-work routing")
-        val empty = VectorWindow(DoubleArray(0), 0)
-        val present = VectorWindow(doubleArrayOf(1.0, 2.0), 2)
-        val emptyMatrix = MatrixWindow(DoubleArray(0), 0, 0)
-        val matrix = MatrixWindow(DoubleArray(4) { it + 1.0 }, 2, 2)
+        val empty = DenseVector.wrap(DoubleArray(0))
+        val present = DenseVector.wrap(doubleArrayOf(1.0, 2.0))
+        val emptyMatrix = DenseMatrix.wrap(0, 0, DoubleArray(0))
+        val matrix = DenseMatrix.wrap(2, 2, DoubleArray(4) { it + 1.0 })
 
         val emptyDot = blas.routeOf(VendorOperation.Dot, emptyList(), listOf(empty, empty))
         val realDot = blas.routeOf(VendorOperation.Dot, emptyList(), listOf(present, present))
@@ -80,8 +81,8 @@ class VendorLoadingTest {
     fun `the no work rule the route reports is the one the call acts on`() {
         val blas = installed() ?: return skipped("no-work agreement")
         val untouched = doubleArrayOf(7.0, 8.0, 9.0)
-        val destination = VectorWindow(untouched, 0)
-        val source = VectorWindow(DoubleArray(0), 0)
+        val destination = StridedVector(untouched, 0, 0)
+        val source = DenseVector.wrap(DoubleArray(0))
 
         val route = blas.routeOf(VendorOperation.Axpy, emptyList(), listOf(source, destination))
         blas.axpy(2.0, source, destination)
@@ -137,7 +138,7 @@ class VendorLoadingTest {
         assertEquals(first.directlyImplemented, second.directlyImplemented)
 
         // Using one must not disturb the other: both compute the same answer from the same operands.
-        val x = VectorWindow(doubleArrayOf(1.0, 2.0, 3.0, 4.0), 4)
+        val x = DenseVector.wrap(doubleArrayOf(1.0, 2.0, 3.0, 4.0))
         assertEquals(first.dot(x, x), second.dot(x, x))
     }
 
@@ -154,8 +155,8 @@ class VendorLoadingTest {
     fun `a rejected call leaves the binding usable and its storage untouched`() {
         val blas = installed() ?: return skipped("failure cleanup")
         val values = doubleArrayOf(1.0, 2.0, 3.0, 4.0)
-        val x = VectorWindow(values, 4)
-        val shorter = VectorWindow(doubleArrayOf(1.0, 2.0), 2)
+        val x = DenseVector.wrap(values)
+        val shorter = DenseVector.wrap(doubleArrayOf(1.0, 2.0))
         val expected = blas.dot(x, x)
 
         repeat(200) {
@@ -170,18 +171,18 @@ class VendorLoadingTest {
     @Test
     fun `many failed and successful calls interleave without disturbing each other`() {
         val blas = installed() ?: return skipped("interleaved failures")
-        val a = MatrixWindow(DoubleArray(9) { it + 1.0 }, 3, 3)
-        val b = MatrixWindow(DoubleArray(9) { 9.0 - it }, 3, 3)
+        val a = DenseMatrix.wrap(3, 3, DoubleArray(9) { it + 1.0 })
+        val b = DenseMatrix.wrap(3, 3, DoubleArray(9) { 9.0 - it })
         val destination = DoubleArray(9)
-        val c = MatrixWindow(destination, 3, 3)
-        val mismatched = MatrixWindow(DoubleArray(4), 2, 2)
-        blas.gemm(1.0, a, b, 0.0, c)
+        val c = DenseMatrix.wrap(3, 3, destination)
+        val mismatched = DenseMatrix.wrap(2, 2, DoubleArray(4))
+        blas.gemm(1.0, a, false, b, false, 0.0, c)
         val expected = destination.copyOf()
 
         repeat(100) {
-            assertFailsWith<IllegalArgumentException> { blas.gemm(1.0, a, mismatched, 0.0, c) }
+            assertFailsWith<IllegalArgumentException> { blas.gemm(1.0, a, false, mismatched, false, 0.0, c) }
             destination.fill(0.0)
-            blas.gemm(1.0, a, b, 0.0, c)
+            blas.gemm(1.0, a, false, b, false, 0.0, c)
         }
 
         for (index in expected.indices) {

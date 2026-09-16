@@ -1,7 +1,8 @@
 package com.eignex.koblas.vendor
 
-import com.eignex.koblas.dense.MatrixWindow
-import com.eignex.koblas.dense.VectorWindow
+import com.eignex.koblas.DenseMatrix
+import com.eignex.koblas.DenseVector
+import com.eignex.koblas.dense.ReferenceBlas
 import java.util.concurrent.Callable
 import java.util.concurrent.CyclicBarrier
 import java.util.concurrent.Executors
@@ -64,9 +65,10 @@ class VendorConcurrencyTest {
             val threads = 8
             val order = 24
             val depth = 16
-            val a = MatrixWindow(values(order * depth, 1), order, depth)
-            val b = MatrixWindow(values(depth * order, 2), depth, order)
-            val expected = oracleGemm(1.0, a, b, 0.0, MatrixWindow(DoubleArray(order * order), order, order))
+            val a = DenseMatrix.wrap(order, depth, values(order * depth, 1))
+            val b = DenseMatrix.wrap(depth, order, values(depth * order, 2))
+            val expected = DenseMatrix.zero(order)
+            ReferenceBlas.gemm(1.0, a, false, b, false, 0.0, expected)
 
             val pool = Executors.newFixedThreadPool(threads)
             try {
@@ -75,14 +77,14 @@ class VendorConcurrencyTest {
                     Callable {
                         // Each thread owns its destination; a and b are shared and read only.
                         val destination = DoubleArray(order * order)
-                        val c = MatrixWindow(destination, order, order)
+                        val c = DenseMatrix.wrap(order, order, destination)
                         barrier.await(TIMEOUT_SECONDS, TimeUnit.SECONDS)
-                        repeat(REPEATS) { blas.gemm(1.0, a, b, 0.0, c) }
+                        repeat(REPEATS) { blas.gemm(1.0, a, false, b, false, 0.0, c) }
                         destination
                     }
                 }
                 for (future in pool.invokeAll(work)) {
-                    assertAgreesWithReference(expected, future.get(), "concurrent gemm")
+                    assertAgreesWithReference(expected.data, future.get(), "concurrent gemm")
                 }
             } finally {
                 pool.shutdownNow()
@@ -94,7 +96,7 @@ class VendorConcurrencyTest {
         val threads = 8
         val size = 64
         val shared = values(size, 3)
-        val x = VectorWindow(shared, size)
+        val x = DenseVector.wrap(shared)
 
         val pool = Executors.newFixedThreadPool(threads)
         try {
@@ -103,7 +105,7 @@ class VendorConcurrencyTest {
                 Callable {
                     val alpha = 1.0 + index
                     val destination = DoubleArray(size)
-                    val y = VectorWindow(destination, size)
+                    val y = DenseVector.wrap(destination)
                     barrier.await(TIMEOUT_SECONDS, TimeUnit.SECONDS)
                     repeat(REPEATS) {
                         destination.fill(0.0)
@@ -127,7 +129,7 @@ class VendorConcurrencyTest {
         val size = 64
         val shared = values(size, 4)
         val original = shared.copyOf()
-        val x = VectorWindow(shared, size)
+        val x = DenseVector.wrap(shared)
 
         val pool = Executors.newFixedThreadPool(threads)
         try {

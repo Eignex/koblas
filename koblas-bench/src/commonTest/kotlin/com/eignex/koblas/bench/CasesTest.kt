@@ -7,7 +7,7 @@ import kotlin.test.assertFailsWith
 class CasesTest {
     @Test
     fun `suite membership preserves workload identity`() {
-        for (id in listOf("dot+4096+uniform", "gemm-block+15x7x31+uniform+packed=4x4+timing=prepacked-compute")) {
+        for (id in listOf("dot+4096+uniform", "trsm+15x7+triangular+side=R+uplo=U+transA=T+diag=U")) {
             val original = Cases.parse(id).single()
             for (membership in listOf("default", "sweep", "default,sweep", "sweep,default")) {
                 val tagged = Cases.parse("$id+suite=$membership").single()
@@ -67,7 +67,8 @@ class CasesTest {
         assertFailsWith<IllegalArgumentException> { Cases.parse("spdot+4096+uniform+density=0.01") }
         assertFailsWith<IllegalArgumentException> { Cases.parse("spdot+4096+sparse-uniform") }
         assertFailsWith<IllegalArgumentException> { Cases.parse("gemm+4x4x4+triangular") }
-        assertFailsWith<IllegalArgumentException> { Cases.parse("gemm-tile+9x4x32+uniform+packed=8x4") }
+        assertFailsWith<IllegalArgumentException> { Cases.parse("gemm-tile+9x4x32+uniform") }
+        assertFailsWith<IllegalArgumentException> { Cases.parse("dot+4096+uniform+packed=4x4") }
         assertFailsWith<IllegalArgumentException> { Cases.parse("dot+4+uniform\ndot+4+uniform") }
     }
 
@@ -79,15 +80,12 @@ class CasesTest {
                 assertFailsWith<IllegalArgumentException> { Cases.parse("$operation+timing=$timing") }
             }
         }
-        assertFailsWith<IllegalArgumentException> {
-            Cases.parse("gemm-block+4x4x4+uniform+packed=4x4+timing=arithmetic")
-        }
     }
 
     @Test
     fun `option order does not change case identity`() {
-        val canonical = "gemm-block+15x7x31+uniform+packed=4x4+timing=prepacked-compute"
-        val reordered = "gemm-block+15x7x31+uniform+timing=prepacked-compute+packed=4x4"
+        val canonical = "trsm+15x7+triangular+side=R+uplo=U+transA=T+diag=U"
+        val reordered = "trsm+15x7+triangular+diag=U+transA=T+uplo=U+side=R"
 
         val expected = Cases.parse(canonical).single()
         val actual = Cases.parse(reordered).single()
@@ -96,21 +94,6 @@ class CasesTest {
         assertFailsWith<IllegalArgumentException> { Cases.parse("$canonical\n$reordered") }
     }
 
-    @Test
-    fun `recipe determines panel dimensions and timing`() {
-        val cases = Cases.parse("""
-            pack-left+3x31+uniform+packed=4x4
-            pack-right+31x2+uniform+packed=8x4
-            packed-trsm+3x2+triangular+packed=4x4+uplo=U+diag=U
-            write-right+31x2+uniform+packed=8x4
-        """.trimIndent())
-
-        val configurations = cases.map(::PackedConfiguration)
-
-        assertEquals(listOf(31, 31, 2, 31), configurations.map { it.depth })
-        assertEquals(listOf(4, 8, 4, 8), configurations.map { it.rows })
-        assertEquals(listOf("packing-only", "packing-only", "raw-tile", "layout-only"), configurations.map { it.timing })
-    }
 
     @Test
     fun `fixtures have stable golden digests`() {

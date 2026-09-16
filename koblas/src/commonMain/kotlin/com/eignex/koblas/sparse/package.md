@@ -18,9 +18,9 @@ those as vector timings.
 
 [SparsePrimitives][com.eignex.koblas.sparse.SparsePrimitives] is a stateless collection of numerical leaves over
 caller-owned support, marks, accumulators, diagnostics, and output buffers, including the checked scatter that
-reports nonfinite arithmetic and product underflow. It neither owns nor borrows storage;
-[Workspace][com.eignex.koblas.Workspace] is reserved for complete higher-level operations that genuinely need
-temporary alias staging, packing, accumulation, or multi-result scratch.
+reports nonfinite arithmetic and product underflow. It neither owns nor borrows storage: every buffer a
+routine writes through is one the caller passed in, which is what lets these run inside a hot loop without
+the collector noticing.
 
 The validated solver workflows assembled from these leaves are not part of this library, and neither are
 factorization or basis-solver contracts. Pivot selection, permutations, dropping policy, factorization state,

@@ -46,7 +46,7 @@ public fun rot(x: DenseVector, y: DenseVector, rotation: Givens) {
  * [rot] over borrowed strided storage. Negative strides are supported. If the views overlap, both logical
  * input sequences are snapshotted before writing; at a shared physical entry the final write is from [y].
  */
-public fun rot(x: StridedVectorView, y: StridedVectorView, rotation: Givens) {
+public fun rot(x: StridedVector, y: StridedVector, rotation: Givens) {
     requireSameSize(x.size, y.size)
     if (rotation.c == 1.0 && rotation.s == 0.0) return
     if (x.overlaps(y)) {

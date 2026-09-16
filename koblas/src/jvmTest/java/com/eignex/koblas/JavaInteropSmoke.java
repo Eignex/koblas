@@ -19,9 +19,9 @@ final class JavaInteropSmoke {
         double[] destination = new double[2];
         Koblas.gemvInto(matrix, vector, destination);
         assertArrayEquals(result.toDoubleArray(), destination);
-        assertEquals(4.0, Koblas.normInf(matrix));
+        assertEquals(8.0, Koblas.asum(vector));
 
-        StridedVectorView view = Koblas.asView(vector);
+        StridedVector view = Koblas.asView(vector);
         Koblas.scale(view, 2.0);
         assertArrayEquals(new double[] {6.0, 10.0}, vector.toDoubleArray());
 

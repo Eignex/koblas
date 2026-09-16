@@ -2,141 +2,93 @@ package com.eignex.koblas.internal.numeric
 
 import kotlin.math.abs
 
+/*
+ * Each run is walked by an induction variable rather than by multiplying the index, which is the shape the
+ * reference BLAS uses and keeps a stride from costing a multiply per element. A stride may be negative; the
+ * caller decides which end of its storage the logical first entry sits at.
+ */
+
 /** First index of the largest magnitude in the run, ignoring NaNs and retaining the first tie. */
-internal fun scalarIamax(v: DoubleArray, vOff: Int, len: Int): Int {
+internal fun scalarIamax(v: DoubleArray, vOff: Int, vStride: Int, len: Int): Int {
     if (len == 0) return -1
     var best = 0
     var bestAbs = 0.0
+    var iv = vOff
     for (i in 0 until len) {
-        val magnitude = abs(v[vOff + i])
+        val magnitude = abs(v[iv])
         if (magnitude > bestAbs) {
             bestAbs = magnitude
             best = i
         }
+        iv += vStride
     }
     return best
 }
 
-/** `a · b` over [len] elements from each offset. */
-internal fun scalarDot(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int): Double {
+/** `a · b` over [len] elements of each run. */
+@Suppress("LongParameterList") // two strided runs
+internal fun scalarDot(
+    a: DoubleArray,
+    aOff: Int,
+    aStride: Int,
+    b: DoubleArray,
+    bOff: Int,
+    bStride: Int,
+    len: Int,
+): Double {
     var s = 0.0
-    for (i in 0 until len) s += a[aOff + i] * b[bOff + i]
+    var ia = aOff
+    var ib = bOff
+    for (i in 0 until len) {
+        s += a[ia] * b[ib]
+        ia += aStride
+        ib += bStride
+    }
     return s
 }
 
 /** Exchange the two runs over [len] elements. */
-internal fun scalarSwap(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int) {
+@Suppress("LongParameterList") // two strided runs
+internal fun scalarSwap(a: DoubleArray, aOff: Int, aStride: Int, b: DoubleArray, bOff: Int, bStride: Int, len: Int) {
+    var ia = aOff
+    var ib = bOff
     for (i in 0 until len) {
-        val t = a[aOff + i]
-        a[aOff + i] = b[bOff + i]
-        b[bOff + i] = t
+        val t = a[ia]
+        a[ia] = b[ib]
+        b[ib] = t
+        ia += aStride
+        ib += bStride
     }
-}
-
-/** `sum (a - b)^2` over [len] elements, without materialising the difference. */
-internal fun scalarSsqd(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int): Double {
-    var s = 0.0
-    for (i in 0 until len) {
-        val d = a[aOff + i] - b[bOff + i]
-        s += d * d
-    }
-    return s
 }
 
 /** `y += alpha * x` over [len] elements. A zero [alpha] leaves y alone rather than adding zeroes. */
-internal fun scalarAxpy(y: DoubleArray, yOff: Int, alpha: Double, x: DoubleArray, xOff: Int, len: Int) {
+@Suppress("LongParameterList") // two strided runs plus the multiplier
+internal fun scalarAxpy(
+    y: DoubleArray,
+    yOff: Int,
+    yStride: Int,
+    alpha: Double,
+    x: DoubleArray,
+    xOff: Int,
+    xStride: Int,
+    len: Int,
+) {
     if (alpha == 0.0) return
-    scalarAxpyArithmetic(y, yOff, alpha, x, xOff, len)
-}
-
-/** AXPY arithmetic without the standalone BLAS routine's zero-scalar quick return. */
-internal fun scalarAxpyArithmetic(y: DoubleArray, yOff: Int, alpha: Double, x: DoubleArray, xOff: Int, len: Int) {
-    for (i in 0 until len) y[yOff + i] += alpha * x[xOff + i]
+    var iy = yOff
+    var ix = xOff
+    for (i in 0 until len) {
+        y[iy] += alpha * x[ix]
+        iy += yStride
+        ix += xStride
+    }
 }
 
 /** `v *= alpha` over [len] elements. A unit [alpha] leaves v alone. */
-internal fun scalarScale(v: DoubleArray, vOff: Int, alpha: Double, len: Int) {
+internal fun scalarScale(v: DoubleArray, vOff: Int, vStride: Int, alpha: Double, len: Int) {
     if (alpha == 1.0) return
-    for (i in 0 until len) v[vOff + i] *= alpha
-}
-
-/**
- * Four dots against one shared operand, as four accumulators over a single pass, so `b` is read once for
- * all four columns rather than once per column.
- */
-@Suppress("LongParameterList") // four column offsets plus the shared operand
-internal fun scalarDot4(
-    a: DoubleArray,
-    aOff: Int,
-    stride: Int,
-    b: DoubleArray,
-    bOff: Int,
-    len: Int,
-    out: DoubleArray,
-    outOff: Int,
-) {
-    val o1 = aOff + stride
-    val o2 = aOff + 2 * stride
-    val o3 = aOff + 3 * stride
-    var r0 = 0.0
-    var r1 = 0.0
-    var r2 = 0.0
-    var r3 = 0.0
+    var iv = vOff
     for (i in 0 until len) {
-        val bi = b[bOff + i]
-        r0 += a[aOff + i] * bi
-        r1 += a[o1 + i] * bi
-        r2 += a[o2 + i] * bi
-        r3 += a[o3 + i] * bi
+        v[iv] *= alpha
+        iv += vStride
     }
-    out[outOff] = r0
-    out[outOff + 1] = r1
-    out[outOff + 2] = r2
-    out[outOff + 3] = r3
-}
-
-/** Four equally spaced AXPY arithmetic runs fused around one load and store of the destination. */
-@Suppress("LongParameterList")
-internal fun scalarAxpy4(
-    y: DoubleArray,
-    yOff: Int,
-    a: DoubleArray,
-    aOff: Int,
-    stride: Int,
-    c0: Double,
-    c1: Double,
-    c2: Double,
-    c3: Double,
-    len: Int,
-) {
-    for (i in 0 until len) {
-        var value = y[yOff + i]
-        value += c0 * a[aOff + i]
-        value += c1 * a[aOff + stride + i]
-        value += c2 * a[aOff + 2 * stride + i]
-        value += c3 * a[aOff + 3 * stride + i]
-        y[yOff + i] = value
-    }
-}
-
-/** A dot product and arithmetic AXPY over the same left operand in one pass. */
-@Suppress("LongParameterList")
-internal fun scalarDotAxpy(
-    y: DoubleArray,
-    yOff: Int,
-    alpha: Double,
-    a: DoubleArray,
-    aOff: Int,
-    x: DoubleArray,
-    xOff: Int,
-    len: Int,
-): Double {
-    var sum = 0.0
-    for (i in 0 until len) {
-        val ai = a[aOff + i]
-        val xi = x[xOff + i]
-        sum += ai * xi
-        y[yOff + i] += alpha * ai
-    }
-    return sum
 }

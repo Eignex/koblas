@@ -3,99 +3,78 @@
 
 package com.eignex.koblas
 
-import com.eignex.koblas.dense.*
-import com.eignex.koblas.internal.kernels.NativeCatalog
+import com.eignex.koblas.dense.DenseBlas
+import com.eignex.koblas.dense.DenseOperation
+import com.eignex.koblas.dense.DenseVectorKernels
+import com.eignex.koblas.dense.VendorDenseBlas
 import com.eignex.koblas.sparse.IndexedSparseKernels
 import com.eignex.koblas.sparse.SparseKernels
-
-/** The immutable platform-selected BLAS engine used by top-level convenience operations. */
-@get:kotlin.jvm.JvmName("getDefault")
-public val koblas: KoblasEngine = run {
-    val simd = BuiltinEngines.simd
-    val c = BuiltinEngines.c
-    if (simd != null && c?.nativeVariant != null) {
-        densePolicyEngine(simd, BuiltinEngines.exactC(c.nativeVariant), RuntimeCompetitor.JvmVector)
-    } else {
-        simd ?: c ?: BuiltinEngines.scalar
-    }
-}
+import com.eignex.koblas.vendor.VendorBlas
+import com.eignex.koblas.vendor.openVendorBlas
 
 /**
- * An immutable dense BLAS engine carrying the sparse Level 1 kernels beside it.
+ * The immutable platform-selected BLAS engine used by top-level convenience operations.
  *
- * The default [koblas] instance is selected once for the platform. Tests and benchmarks can construct an
- * exact scalar, C, or SIMD composition from [BuiltinEngines] without changing process-global state. Each
- * composition binds its dense vector, dense panel, packed tile, and indexed sparse kernels once.
+ * Deferred rather than computed while this file's class initializes. Picking an engine reads
+ * [selectedVendor], which is declared below and is itself deferred; resolving eagerly would read that
+ * property's backing delegate before the initializer reached it and select against a null vendor.
+ */
+@get:kotlin.jvm.JvmName("getDefault")
+public val koblas: KoblasEngine by lazy { BuiltinEngines.simd ?: BuiltinEngines.scalar }
+
+/**
+ * An immutable engine: Kotlin Level 1 beside the vendor BLAS that serves Level 2 and 3.
+ *
+ * The split is deliberate. Level 1 is arithmetic over one run, where a foreign call costs more than the work,
+ * so it stays here and keeps working on a host with no library installed. Level 2 and 3 are whole operations a
+ * tuned library does far better than portable code, so they go to the vendor and have no fallback: an
+ * accelerator-dependent call on a host without a library raises rather than quietly computing something slower
+ * under the same name.
+ *
+ * Selected once for the platform and immutable afterwards. [BuiltinEngines] constructs exact scalar or SIMD
+ * compositions for tests and benchmarks without touching process-global state.
  */
 public class KoblasEngine internal constructor(
-    /** Standalone contiguous dense-vector kernels. */
+    /** Contiguous and strided dense Level 1 kernels. */
     public val vectorKernels: DenseVectorKernels,
-    /** Dense matrix-panel arithmetic kernels. */
-    public val panelKernels: DensePanelKernels,
-    /** Packed layout shape and tile arithmetic kernels. */
-    public val packedKernels: PackedKernels,
     /** Sparse-vector kernels used by sparse convenience operations. */
     public val sparseKernels: SparseKernels,
     internal val indexedSparseKernels: IndexedSparseKernels,
-    /** Ordinary C variant bound to native components; policy calls may retain in-runtime arithmetic. */
-    public val nativeVariant: NativeVariant? = null,
-    internal val dispatch: DenseDispatch? = null,
-    internal val runtimeDescription: ((DenseOperation, Int) -> String)? = null,
-) : DenseBlas by BuiltinBlas(vectorKernels, panelKernels, packedKernels) {
-    /** Packed panel operations bound to this engine's exact packed kernels. */
-    public val packedPanels: PackedPanels = PackedPanels(packedKernels)
-
+    /**
+     * The library serving Level 2 and 3, or null on a host where none was found.
+     *
+     * Public because attribution needs it: a benchmark asks the binding what a concrete call does, and the
+     * answer has to come from the same object that will run it rather than from the engine's name.
+     */
+    public val vendor: VendorBlas?,
+) : DenseBlas by VendorDenseBlas(vendor) {
     /** Short read-only implementation description for logs and benchmark attribution. */
-    public val name: String get() = "built-in/${vectorKernels.name}/${sparseKernels.name}"
+    public val name: String
+        get() = "${vectorKernels.name}/${sparseKernels.name}/${vendor?.vendor?.vendorName ?: "no vendor"}"
 
     /**
-     * Describes the selected implementation without performing arithmetic. [length] is the vector/panel
-     * length, product-tile depth, or standalone solve order. Semantic no-work exits still precede execution.
-     * Native IDs and layouts identify the selected component. Runtime descriptions identify scalar stages
-     * and potential data-dependent or stride fallbacks; inspecting length does not inspect operand values.
+     * The Level 1 implementation a call of this [operation] and [length] reaches, or null when its own values
+     * decide and no width settles it.
+     *
+     * [contiguous] is part of the question rather than a detail of it: a vector kernel loads a lane block from
+     * consecutive elements, so a strided run is scalar work whatever the width.
      */
-    public fun explain(operation: DenseOperation, length: Int): String {
+    public fun explain(operation: DenseOperation, length: Int, contiguous: Boolean = true): String? {
         require(length >= 0) { "negative operation length" }
-        dispatch?.let { return it.explain(operation, length) }
-        if (nativeVariant != null) {
-            val kernel = NativeCatalog.kernels.single {
-                it.variant == nativeVariant.id && it.operation == operation.nativeOperation
-            }
-            return describeNative(kernel)
-        }
-        runtimeDescription?.let { return it(operation, length) }
-        return if (operation.packed) {
-            "${vectorKernels.name} packed ${packedKernels.gemmTileRows}x${packedKernels.gemmTileCols}"
-        } else {
-            vectorKernels.name
-        }
+        return vectorKernels.implementationFor(operation, length, contiguous)
     }
-
-    /** Malformed performance overrides retained as read-only diagnostic messages. */
-    public val tuningDiagnostics: List<String>
-        get() = (dispatch?.profile ?: DenseProfiles.conservative).diagnostics
 
     override fun toString(): String = "KoblasEngine($name)"
 }
 
 /** Built-in engines for implementation comparisons. */
 public expect object BuiltinEngines {
-    /** Pure Kotlin scalar dense kernels and reference sparse kernels. */
+    /** Pure Kotlin scalar Level 1 beside the selected vendor. */
     public val scalar: KoblasEngine
 
-    /** Compiled C kernels, or null when they are unavailable. */
-    public val c: KoblasEngine?
-
-    /** Native variants compiled into this artifact and usable on this host. */
-    public val nativeVariants: List<NativeVariant>
-
-    /**
-     * Dense C execution at the exact [variant], bypassing performance thresholds.
-     * Semantic early exits remain in force. Sparse policy and portable transformation generation retain
-     * their separately identified components. Throws if the selected variant is unavailable.
-     */
-    public fun exactC(variant: NativeVariant): KoblasEngine
-
-    /** JVM Vector API kernels, or null when the Vector API module is unavailable or on a non-JVM target. */
+    /** JVM Vector API Level 1, or null when the Vector API module is unavailable or on a non-JVM target. */
     public val simd: KoblasEngine?
 }
+
+/** The vendor every built-in engine shares, resolved once. */
+internal val selectedVendor: VendorBlas? by lazy { openVendorBlas() }
