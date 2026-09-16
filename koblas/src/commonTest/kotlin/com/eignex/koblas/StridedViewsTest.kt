@@ -1,5 +1,6 @@
 package com.eignex.koblas
 
+import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
@@ -56,18 +57,34 @@ class StridedViewsTest {
      * The reachable form of the same mistake: a rotation through the general overload.
      *
      * `rot(x: DenseVector, y: DenseVector, c, s)` takes a view of each operand before rotating, so a view that
-     * forgot its receiver would rotate the wrong entries of the right array and report nothing.
+     * forgot its receiver would rotate the padding instead of the window and report nothing. The run is wide
+     * enough to vectorise under every platform's preferred species, so the kernel under test is the one
+     * production reaches rather than a scalar tail; that kernel fuses its multiply and add, so only the
+     * padding, which no arithmetic touches, is compared exactly.
      */
     @Test
     fun `a rotation over strided operands touches only the entries they address`() {
-        val xs = doubleArrayOf(9.0, 9.0, 3.0, 4.0)
-        val ys = doubleArrayOf(8.0, 8.0, 4.0, -3.0)
-        val x: DenseVector = StridedVector(xs, offset = 2, size = 2)
-        val y: DenseVector = StridedVector(ys, offset = 2, size = 2)
+        val rng = Random(20260916)
+        val n = 8
+        val pad = 2
+        val xs = randomVector(pad + n + pad, rng)
+        val ys = randomVector(pad + n + pad, rng)
+        val x0 = xs.copyOf()
+        val y0 = ys.copyOf()
+
+        // Typed as the shape that routes through asView, which is the overload that has to compose windows.
+        val x: DenseVector = StridedVector(xs, pad, n)
+        val y: DenseVector = StridedVector(ys, pad, n)
 
         rot(x, y, c = 0.6, s = 0.8)
 
-        assertContentEquals(doubleArrayOf(9.0, 9.0, 0.6 * 3.0 + 0.8 * 4.0, 0.6 * 4.0 + 0.8 * -3.0), xs)
-        assertContentEquals(doubleArrayOf(8.0, 8.0, 0.6 * 4.0 - 0.8 * 3.0, 0.6 * -3.0 - 0.8 * 4.0), ys)
+        for (i in 0 until n) {
+            assertClose(0.6 * x0[pad + i] + 0.8 * y0[pad + i], xs[pad + i], "x at $i")
+            assertClose(0.6 * y0[pad + i] - 0.8 * x0[pad + i], ys[pad + i], "y at $i")
+        }
+        for (i in listOf(0, 1, pad + n, pad + n + 1)) {
+            assertEquals(x0[i], xs[i], "x padding at $i")
+            assertEquals(y0[i], ys[i], "y padding at $i")
+        }
     }
 }
