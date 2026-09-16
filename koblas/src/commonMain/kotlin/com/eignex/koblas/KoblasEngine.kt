@@ -19,9 +19,22 @@ import com.eignex.koblas.vendor.openBlas
  * [selectedVendor], which is declared below and is itself deferred; resolving eagerly would read that
  * property's backing delegate before the initializer reached it and select against a null vendor.
  */
-@OptIn(KoblasEngineApi::class)
 @get:kotlin.jvm.JvmName("getDefault")
-public val koblas: KoblasEngine by lazy { BuiltinEngines.simd ?: BuiltinEngines.scalar }
+public val koblas: KoblasEngine by lazy { platformEngine() }
+
+/**
+ * The Level 1 arm this platform prefers, which is not the same arm on both.
+ *
+ * On the JVM the Vector API kernels win at every width, because reaching the library there copies both
+ * operands into native memory and so costs a pass over the data before any arithmetic happens. On
+ * Kotlin/Native there is no Vector API, the portable loops do not vectorise and pay a safepoint poll and a
+ * bounds check per element, and the binding pins the caller's array and passes it in place: so the library is
+ * the arm, above the width where its per-call cost is paid for.
+ *
+ * Either way the portable kernels are what the chosen arm calls below its own threshold, not a third engine
+ * beside it.
+ */
+internal expect fun platformEngine(): KoblasEngine
 
 /**
  * An immutable engine: Kotlin Level 1 beside the vendor BLAS that serves Level 2 and 3.
