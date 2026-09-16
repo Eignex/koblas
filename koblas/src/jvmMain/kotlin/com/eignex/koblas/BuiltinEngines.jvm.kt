@@ -35,3 +35,7 @@ public actual object BuiltinEngines {
         }
     }
 }
+
+/** The Vector API kernels where the module resolved, and the portable ones where it did not. */
+@OptIn(KoblasEngineApi::class)
+internal actual fun platformEngine(): KoblasEngine = BuiltinEngines.simd ?: BuiltinEngines.scalar
