@@ -73,7 +73,7 @@ internal class VendorDenseBlas(private val vendor: Blas?) : DenseBlas {
         requireGemmShape(a.rows, a.cols, transposeA, b.rows, b.cols, transposeB, c.rows, c.cols)
         requireShape(c.rows == c.cols) { "gemmt: destination must be square, got ${c.rows}x${c.cols}" }
         requireDistinctDestination(c.data, a.data, b.data, "gemmt")
-        blas.gemmt(alpha, a, transposeA, b, transposeB, beta, c, triangle(lower))
+        blas.gemmt(alpha, a, transposeA, b, transposeB, beta, c, symmetricStructure(lower))
     }
 
     override fun syrk(alpha: Double, a: DenseMatrix, transpose: Boolean, beta: Double, c: DenseMatrix, lower: Boolean) {
@@ -82,7 +82,7 @@ internal class VendorDenseBlas(private val vendor: Blas?) : DenseBlas {
             "syrk: destination must be ${order}x$order, got ${c.rows}x${c.cols}"
         }
         requireDistinctDestination(c.data, a.data, null, "syrk")
-        blas.syrk(alpha, a, transpose, beta, c, triangle(lower))
+        blas.syrk(alpha, a, transpose, beta, c, symmetricStructure(lower))
     }
 
     override fun symv(alpha: Double, a: DenseMatrix, x: DoubleArray, beta: Double, y: DoubleArray, lower: Boolean) {
@@ -116,13 +116,13 @@ internal class VendorDenseBlas(private val vendor: Blas?) : DenseBlas {
     override fun syr(alpha: Double, x: DenseVector, a: DenseMatrix, lower: Boolean) {
         requireShape(a.rows == a.cols) { "syr: matrix must be square, got ${a.rows}x${a.cols}" }
         requireShape(x.size == a.rows) { "syr: vector size ${x.size} does not match order ${a.rows}" }
-        blas.syr(alpha, x, a, triangle(lower))
+        blas.syr(alpha, x, a, symmetricStructure(lower))
     }
 
     override fun syr2(alpha: Double, x: DenseVector, y: DenseVector, a: DenseMatrix, lower: Boolean) {
         requireShape(a.rows == a.cols) { "syr2: matrix must be square, got ${a.rows}x${a.cols}" }
         requireShape(x.size == a.rows && y.size == a.rows) { "syr2: vector sizes do not match order ${a.rows}" }
-        blas.syr2(alpha, x, y, a, triangle(lower))
+        blas.syr2(alpha, x, y, a, symmetricStructure(lower))
     }
 
     override fun syr2k(
@@ -140,7 +140,7 @@ internal class VendorDenseBlas(private val vendor: Blas?) : DenseBlas {
             "syr2k: destination must be ${order}x$order, got ${c.rows}x${c.cols}"
         }
         requireDistinctDestination(c.data, a.data, b.data, "syr2k")
-        blas.syr2k(alpha, a, b, transpose, beta, c, triangle(lower))
+        blas.syr2k(alpha, a, b, transpose, beta, c, symmetricStructure(lower))
     }
 
     override fun trsv(a: DenseMatrix, x: DoubleArray, lower: Boolean, transpose: Boolean, unitDiag: Boolean) {
@@ -182,7 +182,14 @@ internal class VendorDenseBlas(private val vendor: Blas?) : DenseBlas {
     }
 }
 
-private fun triangle(lower: Boolean, unitDiag: Boolean = false): MatrixStructure = when {
+/**
+ * The triangle and diagonal a genuinely triangular operand declares.
+ *
+ * Only the four triangular routines use this. A symmetric destination takes [symmetricStructure] instead, even
+ * though both spellings reach the same CBLAS `uplo`: a rank update's destination is stored as a symmetric
+ * matrix is, and calling it triangular would declare the other half to be zeros it is not.
+ */
+private fun triangle(lower: Boolean, unitDiag: Boolean): MatrixStructure = when {
     unitDiag && lower -> MatrixStructure.UnitLower
     unitDiag -> MatrixStructure.UnitUpper
     lower -> MatrixStructure.TriangularLower
