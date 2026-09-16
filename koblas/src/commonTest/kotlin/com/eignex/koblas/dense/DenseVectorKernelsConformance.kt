@@ -1,7 +1,6 @@
 package com.eignex.koblas.dense
 
 import com.eignex.koblas.assertClose
-import com.eignex.koblas.rotg
 import kotlin.math.abs
 import kotlin.math.sqrt
 import kotlin.random.Random
@@ -51,7 +50,9 @@ internal fun assertLevel1KernelsAgreeWithReference(kernels: DenseVectorKernels) 
  * failure this catches is a leaf whose own rotation disagrees.
  */
 internal fun assertRotKernelAgreesWithReference(kernels: DenseVectorKernels) {
-    val rotation = rotg(3.0, 4.0)
+    // The rotation drotg(3, 4) produced, written out now that the generator is gone.
+    val c = 0.6
+    val s = 0.8
     for (len in intArrayOf(0, 1, 7, 63, 64, 65, 200)) {
         val pad = 3
         val x = DoubleArray(len + 2 * pad) { it * 0.25 - 4.0 }
@@ -60,8 +61,8 @@ internal fun assertRotKernelAgreesWithReference(kernels: DenseVectorKernels) {
         val expectedY = y.copyOf()
         val actualX = x.copyOf()
         val actualY = y.copyOf()
-        ScalarVectorKernels.rot(expectedX, pad, expectedY, pad, len, rotation.c, rotation.s)
-        kernels.rot(actualX, pad, actualY, pad, len, rotation.c, rotation.s)
+        ScalarVectorKernels.rot(expectedX, pad, expectedY, pad, len, c, s)
+        kernels.rot(actualX, pad, actualY, pad, len, c, s)
         assertClose(expectedX, actualX, context = "rot x len=$len")
         assertClose(expectedY, actualY, context = "rot y len=$len")
     }

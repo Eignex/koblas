@@ -449,15 +449,6 @@ final class com.eignex.koblas/DimensionMismatch : kotlin/IllegalArgumentExceptio
     constructor <init>(kotlin/String) // com.eignex.koblas/DimensionMismatch.<init>|<init>(kotlin.String){}[0]
 }
 
-final class com.eignex.koblas/Givens { // com.eignex.koblas/Givens|null[0]
-    final val c // com.eignex.koblas/Givens.c|{}c[0]
-        final fun <get-c>(): kotlin/Double // com.eignex.koblas/Givens.c.<get-c>|<get-c>(){}[0]
-    final val r // com.eignex.koblas/Givens.r|{}r[0]
-        final fun <get-r>(): kotlin/Double // com.eignex.koblas/Givens.r.<get-r>|<get-r>(){}[0]
-    final val s // com.eignex.koblas/Givens.s|{}s[0]
-        final fun <get-s>(): kotlin/Double // com.eignex.koblas/Givens.s.<get-s>|<get-s>(){}[0]
-}
-
 final class com.eignex.koblas/KoblasEngine : com.eignex.koblas.dense/DenseBlas { // com.eignex.koblas/KoblasEngine|null[0]
     final val name // com.eignex.koblas/KoblasEngine.name|{}name[0]
         final fun <get-name>(): kotlin/String // com.eignex.koblas/KoblasEngine.name.<get-name>|<get-name>(){}[0]
@@ -662,8 +653,7 @@ final fun com.eignex.koblas.vendor/openBlas(com.eignex.koblas.vendor/Vendor? = .
 final fun com.eignex.koblas/copy(com.eignex.koblas/Vector, com.eignex.koblas/DenseVector) // com.eignex.koblas/copy|copy(com.eignex.koblas.Vector;com.eignex.koblas.DenseVector){}[0]
 final fun com.eignex.koblas/gather(com.eignex.koblas/SparseVector, com.eignex.koblas/ContiguousVector) // com.eignex.koblas/gather|gather(com.eignex.koblas.SparseVector;com.eignex.koblas.ContiguousVector){}[0]
 final fun com.eignex.koblas/gatherZero(com.eignex.koblas/SparseVector, com.eignex.koblas/ContiguousVector) // com.eignex.koblas/gatherZero|gatherZero(com.eignex.koblas.SparseVector;com.eignex.koblas.ContiguousVector){}[0]
-final fun com.eignex.koblas/rot(com.eignex.koblas/DenseVector, com.eignex.koblas/DenseVector, com.eignex.koblas/Givens) // com.eignex.koblas/rot|rot(com.eignex.koblas.DenseVector;com.eignex.koblas.DenseVector;com.eignex.koblas.Givens){}[0]
-final fun com.eignex.koblas/rot(com.eignex.koblas/StridedVector, com.eignex.koblas/StridedVector, com.eignex.koblas/Givens) // com.eignex.koblas/rot|rot(com.eignex.koblas.StridedVector;com.eignex.koblas.StridedVector;com.eignex.koblas.Givens){}[0]
-final fun com.eignex.koblas/rotg(kotlin/Double, kotlin/Double): com.eignex.koblas/Givens // com.eignex.koblas/rotg|rotg(kotlin.Double;kotlin.Double){}[0]
+final fun com.eignex.koblas/rot(com.eignex.koblas/DenseVector, com.eignex.koblas/DenseVector, kotlin/Double, kotlin/Double) // com.eignex.koblas/rot|rot(com.eignex.koblas.DenseVector;com.eignex.koblas.DenseVector;kotlin.Double;kotlin.Double){}[0]
+final fun com.eignex.koblas/rot(com.eignex.koblas/StridedVector, com.eignex.koblas/StridedVector, kotlin/Double, kotlin/Double) // com.eignex.koblas/rot|rot(com.eignex.koblas.StridedVector;com.eignex.koblas.StridedVector;kotlin.Double;kotlin.Double){}[0]
 final fun com.eignex.koblas/swap(com.eignex.koblas/DenseVector, com.eignex.koblas/DenseVector) // com.eignex.koblas/swap|swap(com.eignex.koblas.DenseVector;com.eignex.koblas.DenseVector){}[0]
 final inline fun (com.eignex.koblas/Vector).com.eignex.koblas/forEachStored(kotlin/Function2<kotlin/Int, kotlin/Double, kotlin/Unit>) // com.eignex.koblas/forEachStored|forEachStored@com.eignex.koblas.Vector(kotlin.Function2<kotlin.Int,kotlin.Double,kotlin.Unit>){}[0]
