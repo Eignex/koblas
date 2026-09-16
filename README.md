@@ -54,10 +54,21 @@ On JVM, pass `--add-modules=jdk.incubator.vector` at runtime to enable the SIMD 
 Koblas uses portable Kotlin, which is also what the SIMD kernels fall back to below their lane width and for
 any strided run.
 
-Level 2 and Level 3 need an installed vendor BLAS. Koblas looks for oneMKL, AOCL and Arm Performance Libraries
+Level 2 and Level 3 need a vendor BLAS. Koblas looks for oneMKL, AOCL and Arm Performance Libraries
 by their usual file names and the prefixes their installers use, so no environment setup is required; the
 resolved file is reported back so a run says which library actually ran. On JVM those calls are foreign
-downcalls, so pass `--enable-native-access=ALL-UNNAMED`.
+downcalls, so pass `--enable-native-access=ALL-UNNAMED`. macOS uses Accelerate, which is part of the system.
+
+For a Linux x86-64 host with no vendor installed, the optional artifact below carries oneMKL:
+
+```kotlin
+runtimeOnly("com.eignex:koblas-vendor-runtime:<version>:linux-x86_64")
+```
+
+An installed library always wins over the packaged one. See
+[the vendor runtime guide](koblas-vendor-runtime/README.md) for the layout, for what a Native binary needs, and
+for building an AOCL or Arm Performance Libraries payload into your own application, which their licences allow
+and this project's artifacts may not carry.
 
 ## Quick start
 

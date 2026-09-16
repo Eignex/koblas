@@ -97,9 +97,27 @@ class VendorLoadingTest {
         val linux = HostPlatform(OperatingSystem.Linux, Architecture.X86_64, CpuVendor.Intel)
         val arm = HostPlatform(OperatingSystem.Linux, Architecture.Arm64, CpuVendor.Unknown)
 
-        assertEquals("com/eignex/koblas/vendor/linux-x86_64/libmkl_rt.so.3", Bundle.path(Vendor.OneMkl, linux))
-        assertEquals("com/eignex/koblas/vendor/linux-arm64/libarmpl_lp64.so", Bundle.path(Vendor.ArmPl, arm))
-        assertEquals("com/eignex/koblas/vendor/linux-x86_64/libblis-mt.so.4", Bundle.path(Vendor.Aocl, linux))
+        assertEquals("com/eignex/koblas/vendor/linux-x86_64/onemkl", Bundle.directory(Vendor.OneMkl, linux))
+        assertEquals(
+            "com/eignex/koblas/vendor/linux-x86_64/onemkl/libmkl_rt.so.3",
+            Bundle.entry(Vendor.OneMkl, linux),
+        )
+        assertEquals(
+            "com/eignex/koblas/vendor/linux-x86_64/onemkl/payload",
+            Bundle.manifest(Vendor.OneMkl, linux),
+        )
+        assertEquals("com/eignex/koblas/vendor/linux-arm64/armpl/libarmpl_lp64.so", Bundle.entry(Vendor.ArmPl, arm))
+        assertEquals("com/eignex/koblas/vendor/linux-x86_64/aocl/libblis.so.5", Bundle.entry(Vendor.Aocl, linux))
+    }
+
+    @Test
+    fun `a payload manifest that reaches outside its directory is rejected whole`() {
+        assertEquals(listOf("libblis.so.5"), Bundle.names("libblis.so.5\n"))
+        assertEquals(listOf("libmkl_rt.so.3", "libmkl_core.so.3"), Bundle.names("libmkl_rt.so.3\n\nlibmkl_core.so.3"))
+
+        // One escaping name discards the rest, so no part of a payload that misdescribes itself is unpacked.
+        assertEquals(emptyList(), Bundle.names("libblis.so.5\n../libmkl_rt.so.3"))
+        assertEquals(emptyList(), Bundle.names("sub/libblis.so.5"))
     }
 
     @Test
@@ -108,23 +126,43 @@ class VendorLoadingTest {
         val unsupported = HostPlatform(OperatingSystem.Other, Architecture.Other, CpuVendor.Unknown)
 
         // Accelerate is part of the system and OpenBLAS is a bench reference, so neither ships a payload.
-        assertEquals(null, Bundle.path(Vendor.Accelerate, macos))
-        assertEquals(null, Bundle.path(Vendor.OpenBlas, macos))
-        assertEquals(null, Bundle.path(Vendor.OneMkl, unsupported))
+        assertEquals(null, Bundle.entry(Vendor.Accelerate, macos))
+        assertEquals(null, Bundle.entry(Vendor.OpenBlas, macos))
+        assertEquals(null, Bundle.entry(Vendor.OneMkl, unsupported))
         assertEquals(null, Bundle.platform(unsupported))
     }
 
     @Test
     fun `an installed library is preferred over a bundled one`() {
         val blas = installed() ?: return skipped("bundled precedence")
+        // A run staging a payload with no library installed proves nothing about which of the two wins, so it
+        // says so instead of passing on the one candidate it had.
+        if (Bundle.isPayload(blas.libraryPath, blas.vendor, hostPlatform())) return skipped("bundled precedence")
 
-        // Nothing bundles a payload into this artifact, so a resolved library is necessarily an installed one,
-        // and its path is a real file rather than an extraction of a packaged resource.
+        // The resolved library is a real file rather than an unpacked copy of a packaged resource.
         assertTrue(blas.libraryPath.startsWith("/"), "resolved ${blas.libraryPath}")
-        assertTrue(
-            !blas.libraryPath.contains("koblas-vendor-"),
-            "an extracted payload was preferred over an installed library at ${blas.libraryPath}",
-        )
+    }
+
+    @Test
+    fun `a bundled payload opens and computes on whichever runtime found it`() {
+        val host = hostPlatform()
+        val vendor = Vendor.select(host).firstOrNull() ?: return skipped("payload loading")
+        val blas = openBlas(vendor) ?: return skipped("payload loading")
+        // An installed library answering is the ordinary case and says nothing about the payload. The staged
+        // runs are what reach the rest of this: the JVM's extraction of a packaged resource, and a Native
+        // binary opening the same layout where it lies on disk.
+        if (!Bundle.isPayload(blas.libraryPath, vendor, host)) {
+            return println("SKIPPED: an installed $vendor answered, so payload loading was not verified here")
+        }
+
+        // Small integers, so every product and sum is exact and the check is equality, not a tolerance.
+        val a = DenseMatrix.ofRows(arrayOf(doubleArrayOf(1.0, 3.0), doubleArrayOf(2.0, 4.0)))
+        val b = DenseMatrix.ofRows(arrayOf(doubleArrayOf(5.0, 7.0), doubleArrayOf(6.0, 8.0)))
+        val c = DenseMatrix.zero(2)
+        blas.gemm(1.0, a, false, b, false, 0.0, c)
+
+        assertEquals(listOf(23.0, 31.0, 34.0, 46.0), listOf(c[0, 0], c[0, 1], c[1, 0], c[1, 1]))
+        assertEquals(ThreadEvidence.Confirmed, blas.threadEvidence, "a packaged runtime is the sequential build")
     }
 
     @Test

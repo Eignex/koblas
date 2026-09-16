@@ -15,4 +15,5 @@ plugins {
 include(
     ":koblas",
     ":koblas-bench",
+    ":koblas-vendor-runtime",
 )

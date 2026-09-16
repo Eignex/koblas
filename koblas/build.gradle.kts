@@ -126,3 +126,18 @@ tasks.named<Jar>("jvmJar") {
         attributes("Automatic-Module-Name" to "com.eignex.koblas")
     }
 }
+
+// The Native half of the optional runtime check. A Native binary has no classpath, so a bundled payload is
+// found as a file: `-Pkoblas.nativePayload=true` runs the native tests in the directory the vendor runtime
+// module stages, with HOME emptied so that no installed library can answer in the payload's place. Without the
+// flag nothing here changes, and the native tests keep resolving installed libraries as usual.
+if (providers.gradleProperty("koblas.nativePayload").orNull == "true") {
+    val staged = rootProject.layout.projectDirectory.dir("koblas-vendor-runtime/build/native-payload")
+    val emptyHome = layout.buildDirectory.dir("native-payload-home")
+    tasks.withType<org.jetbrains.kotlin.gradle.targets.native.tasks.KotlinNativeHostTest>().configureEach {
+        dependsOn(":koblas-vendor-runtime:stageNativePayload")
+        doFirst { emptyHome.get().asFile.mkdirs() }
+        workingDir = staged.asFile.absolutePath
+        environment("HOME", emptyHome.get().asFile.absolutePath)
+    }
+}
