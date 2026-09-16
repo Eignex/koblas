@@ -64,8 +64,6 @@ fun registerJvmBenchmark(name: String, mode: String, vectorModule: Boolean) = ta
 val benchVendor = providers.gradleProperty("bench.vendor").orElse("onemkl")
 
 registerJvmBenchmark("jvmVendorBenchmark", "jvm-vendor-${benchVendor.get()}", vectorModule = false)
-registerJvmBenchmark("jvmCBenchmark", "jvm-c", vectorModule = false)
-registerJvmBenchmark("jvmCRawBenchmark", "jvm-c-raw-" + providers.gradleProperty("bench.variant").orElse("scalar").get(), vectorModule = false)
 registerJvmBenchmark("jvmSimdBenchmark", "jvm-simd", vectorModule = true)
 registerJvmBenchmark("jvmScalarBenchmark", "jvm-scalar", vectorModule = false)
 
@@ -77,13 +75,13 @@ val hostTarget = when {
 
 tasks.register<Exec>("nativeBenchmark") {
     group = "benchmark"
-    description = "Runs the shared cases through the exact native koblas C engine."
+    description = "Runs the shared cases through the native koblas engine."
     require(hostTarget != null) { "native benchmarks are supported on Linux x86-64 and macOS arm64" }
     dependsOn("linkReleaseExecutable$hostTarget")
     val targetDir = hostTarget!!.replaceFirstChar(Char::lowercase)
     commandLine(layout.buildDirectory.file("bin/$targetDir/releaseExecutable/koblas-bench.kexe").get().asFile.absolutePath)
     workingDir(rootProject.projectDir)
-    args(benchmarkArguments(providers.gradleProperty("bench.variant").map { "native-raw-$it" }.orElse("native").get(), jmh = false))
+    args(benchmarkArguments("native", jmh = false))
 }
 
 tasks.register<Exec>("nativeVendorBenchmark") {

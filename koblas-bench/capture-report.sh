@@ -6,7 +6,6 @@ bench="$root/koblas-bench"
 libraries=all
 operation=all
 suite=default
-native_variant=
 cases="$bench/cases.txt"
 output=
 samples=5
@@ -18,12 +17,11 @@ vendors_only=false
 smoke=false
 
 usage() {
-  echo "usage: capture-report.sh [--libraries openblas,accelerate,onemkl|all] [--native-variant scalar|sse2|avx2|neon] [--vendors-only] [--smoke] [--output DIR] [--operation NAME|all] [--suite default|sweep] [--samples N] [--warmups N] [--target-ms N] [--forks N] [--pass N]" >&2
+  echo "usage: capture-report.sh [--libraries openblas,accelerate,onemkl|all] [--vendors-only] [--smoke] [--output DIR] [--operation NAME|all] [--suite default|sweep] [--samples N] [--warmups N] [--target-ms N] [--forks N] [--pass N]" >&2
 }
 while (($#)); do
   case "$1" in
     --libraries) libraries=${2:?}; shift 2 ;;
-    --native-variant) native_variant=${2:?}; shift 2 ;;
     --suite) suite=${2:?}; shift 2 ;;
     --operation) operation=${2:?}; shift 2 ;;
     --output) output=${2:?}; shift 2 ;;
@@ -38,7 +36,6 @@ while (($#)); do
     *) usage; exit 2 ;;
   esac
 done
-[[ -z $native_variant || $native_variant == scalar || $native_variant == sse2 || $native_variant == avx2 || $native_variant == neon ]] || { usage; exit 2; }
 [[ $suite == default || $suite == sweep ]] || { echo "suite must be default or sweep" >&2; exit 2; }
 [[ $suite != sweep || $operation != all ]] || { echo "suite sweep requires a specific operation" >&2; exit 2; }
 if $smoke; then samples=1; warmups=0; target_ms=1; forks=1; fi
@@ -120,9 +117,6 @@ cases="$temporary/cases.txt"
   printf '%s\n' "operation=$operation" "suite=$suite" "selected_cases=$(wc -l <"$cases" | tr -d ' ')" "warmups=$warmups" "requested_samples=$samples" \
     "target_ns=$((target_ms * 1000000))" "pass=$pass" "libraries=$libraries" "vendors_only=$vendors_only"
   echo "requested_jvm_forks=$forks"
-  if ! $vendors_only; then
-    [[ -z $native_variant ]] || echo "requested_native_variant=$native_variant"
-  fi
   env | LC_ALL=C sort | awk '/^KOBLAS_(DENSE|SPARSE)_/ { print }'
   # Koblas arms are single-threaded by construction. Each vendor arm records what its binding read back from
   # the library it opened, in that target's own section, rather than being covered by a claim made here.
@@ -154,20 +148,11 @@ run_target() {
 cd "$root"
 common=("-Pbench.operation=$operation" "-Pbench.suite=$suite" "-Pbench.cases=$cases" "-Pbench.warmups=$warmups" "-Pbench.samples=$samples" "-Pbench.targetMs=$target_ms")
 if ! $vendors_only; then
-  c_target=jvm-c
-  native_target=native
-  if [[ -n $native_variant ]]; then
-    c_target=jvm-c-raw-$native_variant
-    native_target=native-raw-$native_variant
-    common+=("-Pbench.variant=$native_variant")
-  fi
-  for target in jvm-scalar "$c_target" jvm-simd "$native_target"; do
+  for target in jvm-scalar jvm-simd native; do
     case "$target" in
       jvm-scalar) task=jvmScalarBenchmark ;;
-      jvm-c) task=jvmCBenchmark ;;
-      jvm-c-raw-*) task=jvmCRawBenchmark ;;
       jvm-simd) task=jvmSimdBenchmark ;;
-      native*) task=nativeBenchmark ;;
+      native) task=nativeBenchmark ;;
     esac
     run_target "$target" ./gradlew --no-daemon ":koblas-bench:$task" "${common[@]}" "-Pbench.forks=$forks" "-Pbench.output=$results/$target.csv"
   done
