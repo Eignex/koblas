@@ -87,24 +87,6 @@ class VectorOpsTest {
     }
 
     @Test
-    fun `compensatedSum recovers what a naive sum loses`() {
-        // The exact total is 2. A naive left-to-right sum drops both ones against the large terms and
-        // answers 0, whichever order the large terms come in.
-        val values = doubleArrayOf(1.0, 1e100, 1.0, -1e100)
-        assertEquals(0.0, values.sum(), "the naive sum is the thing being fixed")
-        assertEquals(2.0, DenseVector.of(values).compensatedSum(), "dense")
-        val strided = StridedVector(DoubleArray(8) { values[it / 2] }, 0, 4, 2)
-        assertEquals(2.0, strided.compensatedSum(), "strided takes the same path as any generic storage")
-    }
-
-    @Test
-    fun `compensatedSum agrees with sum on benign input`() {
-        val rng = Random(20260903)
-        val v = DenseVector.of(randomVector(500, rng))
-        assertEquals(v.sum(), v.compensatedSum(), 1e-9, "no drift on well-scaled input")
-    }
-
-    @Test
     fun `asum matches the hand value on dense and sparse`() {
         assertEquals(7.0, DenseVector.of(doubleArrayOf(3.0, 0.0, -4.0)).asum())
         assertEquals(5.0, sparse.asum())
