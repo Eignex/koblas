@@ -139,9 +139,6 @@ public final class com/eignex/koblas/Koblas {
 	public static final fun rot (Lcom/eignex/koblas/DenseVector;Lcom/eignex/koblas/DenseVector;Lcom/eignex/koblas/Givens;)V
 	public static final fun rot (Lcom/eignex/koblas/StridedVector;Lcom/eignex/koblas/StridedVector;Lcom/eignex/koblas/Givens;)V
 	public static final fun rotg (DD)Lcom/eignex/koblas/Givens;
-	public static final fun rotm (Lcom/eignex/koblas/DenseVector;Lcom/eignex/koblas/DenseVector;Lcom/eignex/koblas/ModifiedGivens;)V
-	public static final fun rotm (Lcom/eignex/koblas/StridedVector;Lcom/eignex/koblas/StridedVector;Lcom/eignex/koblas/ModifiedGivens;)V
-	public static final fun rotmg (DDDD)Lcom/eignex/koblas/ModifiedGivens;
 	public static final fun row (Lcom/eignex/koblas/DenseMatrix;I)Lcom/eignex/koblas/DenseVector;
 	public static final fun row (Lcom/eignex/koblas/SparseMatrix;I)Lcom/eignex/koblas/SparseVector;
 	public static final fun scale (Lcom/eignex/koblas/DenseVector;D)V
@@ -232,17 +229,6 @@ public abstract interface class com/eignex/koblas/MatrixStorage : com/eignex/kob
 
 public final class com/eignex/koblas/MatrixStorage$Companion {
 	public final fun serializer ()Lkotlinx/serialization/KSerializer;
-}
-
-public final class com/eignex/koblas/ModifiedGivens {
-	public final fun getD1 ()D
-	public final fun getD2 ()D
-	public final fun getFlag ()D
-	public final fun getH11 ()D
-	public final fun getH12 ()D
-	public final fun getH21 ()D
-	public final fun getH22 ()D
-	public final fun getX1 ()D
 }
 
 public final class com/eignex/koblas/NotPositiveDefinite : com/eignex/koblas/KoblasException {
@@ -416,7 +402,6 @@ public final class com/eignex/koblas/dense/DenseOperation : java/lang/Enum {
 	public static final field Iamax Lcom/eignex/koblas/dense/DenseOperation;
 	public static final field Nrm2 Lcom/eignex/koblas/dense/DenseOperation;
 	public static final field Rot Lcom/eignex/koblas/dense/DenseOperation;
-	public static final field Rotm Lcom/eignex/koblas/dense/DenseOperation;
 	public static final field Scale Lcom/eignex/koblas/dense/DenseOperation;
 	public static final field Sum Lcom/eignex/koblas/dense/DenseOperation;
 	public static final field Swap Lcom/eignex/koblas/dense/DenseOperation;
@@ -440,8 +425,6 @@ public abstract interface class com/eignex/koblas/dense/DenseVectorKernels {
 	public abstract fun nrm2 ([DIII)D
 	public static synthetic fun nrm2$default (Lcom/eignex/koblas/dense/DenseVectorKernels;[DIIIILjava/lang/Object;)D
 	public abstract fun rot ([DI[DIIDD)V
-	public abstract fun rotm ([DII[DIIILcom/eignex/koblas/ModifiedGivens;)V
-	public abstract fun rotmg (DDDD)Lcom/eignex/koblas/ModifiedGivens;
 	public abstract fun scale ([DIDII)V
 	public static synthetic fun scale$default (Lcom/eignex/koblas/dense/DenseVectorKernels;[DIDIIILjava/lang/Object;)V
 	public abstract fun sum ([DIII)D
@@ -555,8 +538,6 @@ public abstract interface class com/eignex/koblas/vendor/Blas {
 	public abstract fun iamax (Lcom/eignex/koblas/DenseVector;)I
 	public abstract fun nrm2 (Lcom/eignex/koblas/DenseVector;)D
 	public abstract fun rot (Lcom/eignex/koblas/DenseVector;Lcom/eignex/koblas/DenseVector;DD)V
-	public abstract fun rotm (Lcom/eignex/koblas/DenseVector;Lcom/eignex/koblas/DenseVector;Lcom/eignex/koblas/ModifiedGivens;)V
-	public abstract fun rotmg (DDDD)Lcom/eignex/koblas/ModifiedGivens;
 	public abstract fun routeOf (Lcom/eignex/koblas/vendor/BlasOperation;Ljava/util/List;Ljava/util/List;)Lcom/eignex/koblas/vendor/CallRoute;
 	public static synthetic fun routeOf$default (Lcom/eignex/koblas/vendor/Blas;Lcom/eignex/koblas/vendor/BlasOperation;Ljava/util/List;Ljava/util/List;ILjava/lang/Object;)Lcom/eignex/koblas/vendor/CallRoute;
 	public abstract fun scal (DLcom/eignex/koblas/DenseVector;)V
@@ -595,8 +576,6 @@ public final class com/eignex/koblas/vendor/BlasOperation : java/lang/Enum {
 	public static final field Iamax Lcom/eignex/koblas/vendor/BlasOperation;
 	public static final field Nrm2 Lcom/eignex/koblas/vendor/BlasOperation;
 	public static final field Rot Lcom/eignex/koblas/vendor/BlasOperation;
-	public static final field Rotm Lcom/eignex/koblas/vendor/BlasOperation;
-	public static final field Rotmg Lcom/eignex/koblas/vendor/BlasOperation;
 	public static final field Scal Lcom/eignex/koblas/vendor/BlasOperation;
 	public static final field Swap Lcom/eignex/koblas/vendor/BlasOperation;
 	public static final field Symm Lcom/eignex/koblas/vendor/BlasOperation;

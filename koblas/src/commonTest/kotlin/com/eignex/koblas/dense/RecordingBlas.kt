@@ -4,7 +4,6 @@ package com.eignex.koblas.dense
 
 import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.DenseVector
-import com.eignex.koblas.ModifiedGivens
 import com.eignex.koblas.vendor.Blas
 import com.eignex.koblas.vendor.BlasOperation
 import com.eignex.koblas.vendor.CallRoute
@@ -118,14 +117,6 @@ internal class RecordingBlas(
 
     override fun rot(x: DenseVector, y: DenseVector, c: Double, s: Double) =
         record(BlasCall(BlasOperation.Rot, vectors = listOf(x, y), scalars = listOf(c, s)))
-
-    override fun rotmg(d1: Double, d2: Double, x1: Double, y1: Double): ModifiedGivens {
-        record(BlasCall(BlasOperation.Rotmg, scalars = listOf(d1, d2, x1, y1)))
-        return ModifiedGivens(d1, d2, x1, flag = -2.0, h11 = 0.0, h21 = 0.0, h12 = 0.0, h22 = 0.0)
-    }
-
-    override fun rotm(x: DenseVector, y: DenseVector, transformation: ModifiedGivens) =
-        record(BlasCall(BlasOperation.Rotm, vectors = listOf(x, y), scalars = listOf(transformation.flag)))
 
     override fun gemv(
         alpha: Double,

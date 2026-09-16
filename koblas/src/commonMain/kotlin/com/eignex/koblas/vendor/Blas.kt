@@ -4,7 +4,6 @@ package com.eignex.koblas.vendor
 
 import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.DenseVector
-import com.eignex.koblas.ModifiedGivens
 import com.eignex.koblas.dense.MatrixStructure
 
 /**
@@ -121,25 +120,6 @@ public interface Blas {
 
     /** Applies the plane rotation given by [c] and [s] to [x] and [y]. */
     public fun rot(x: DenseVector, y: DenseVector, c: Double, s: Double)
-
-    /**
-     * Generates the modified Givens transformation eliminating the second component, and the updated scaling
-     * state that goes with it (BLAS `drotmg`).
-     *
-     * The library owns the branch conditions, so a vendor whose reference translation differs at a boundary,
-     * a negative `d1` or a zero `d2 * y1`, answers differently from the portable one. Four scalars in and five
-     * out is far less work than the call that carries them, so this exists to be compared rather than because
-     * a downcall is the quick way to compute it.
-     */
-    public fun rotmg(d1: Double, d2: Double, x1: Double, y1: Double): ModifiedGivens
-
-    /**
-     * Applies a modified Givens [transformation] to `x` and `y` (BLAS `drotm`).
-     *
-     * An identity transformation, whose flag is `-2.0`, reads neither operand, which is the library's rule and
-     * not one imposed here.
-     */
-    public fun rotm(x: DenseVector, y: DenseVector, transformation: ModifiedGivens)
 
     /** `y = alpha · op(A) · x + beta · y`, transposing [a] when [transposeA]. */
     public fun gemv(alpha: Double, a: DenseMatrix, transposeA: Boolean, x: DenseVector, beta: Double, y: DenseVector)

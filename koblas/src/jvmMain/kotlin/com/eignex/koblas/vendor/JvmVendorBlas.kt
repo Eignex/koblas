@@ -4,11 +4,9 @@ package com.eignex.koblas.vendor
 
 import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.DenseVector
-import com.eignex.koblas.ModifiedGivens
 import com.eignex.koblas.dense.MatrixStructure
 import java.lang.foreign.Arena
 import java.lang.foreign.FunctionDescriptor
-import java.lang.foreign.MemorySegment
 import java.lang.foreign.ValueLayout.ADDRESS
 import java.lang.foreign.ValueLayout.JAVA_DOUBLE
 import java.lang.foreign.ValueLayout.JAVA_INT
@@ -142,38 +140,6 @@ internal class JvmVendorBlas(
             val nx = arena.stage(x)
             val ny = arena.stage(y)
             rotHandle.invokeExact(x.size, nx.segment, nx.increment, ny.segment, ny.increment, c, s)
-            nx.writeBack()
-            ny.writeBack()
-        }
-    }
-
-    override fun rotmg(d1: Double, d2: Double, x1: Double, y1: Double): ModifiedGivens {
-        val handle = rotmgHandle
-        return Arena.ofConfined().use { arena ->
-            // d1, d2 and x1 are read and written in place, so each goes over as its own cell.
-            val pd1 = arena.allocateFrom(JAVA_DOUBLE, d1)
-            val pd2 = arena.allocateFrom(JAVA_DOUBLE, d2)
-            val px1 = arena.allocateFrom(JAVA_DOUBLE, x1)
-            val param = arena.allocate(JAVA_DOUBLE, PARAM_ENTRIES.toLong())
-            handle.invokeExact(pd1, pd2, px1, y1, param)
-            param.readModifiedGivens(
-                pd1.get(JAVA_DOUBLE, 0),
-                pd2.get(JAVA_DOUBLE, 0),
-                px1.get(JAVA_DOUBLE, 0),
-            )
-        }
-    }
-
-    override fun rotm(x: DenseVector, y: DenseVector, transformation: ModifiedGivens) {
-        requireSameLength(x, y, "rotm")
-        if (noWorkReason(emptyList(), listOf(x)) != null) return
-        val handle = rotmHandle
-        Arena.ofConfined().use { arena ->
-            val nx = arena.stage(x)
-            val ny = arena.stage(y)
-            val param = arena.allocate(JAVA_DOUBLE, PARAM_ENTRIES.toLong())
-            param.writeModifiedGivens(transformation)
-            handle.invokeExact(x.size, nx.segment, nx.increment, ny.segment, ny.increment, param)
             nx.writeBack()
             ny.writeBack()
         }
@@ -528,14 +494,6 @@ internal class JvmVendorBlas(
         BlasOperation.Rot.entryPoint,
         FunctionDescriptor.ofVoid(JAVA_INT, ADDRESS, JAVA_INT, ADDRESS, JAVA_INT, JAVA_DOUBLE, JAVA_DOUBLE),
     )
-    private val rotmgHandle = library.handle(
-        BlasOperation.Rotmg.entryPoint,
-        FunctionDescriptor.ofVoid(ADDRESS, ADDRESS, ADDRESS, JAVA_DOUBLE, ADDRESS),
-    )
-    private val rotmHandle = library.handle(
-        BlasOperation.Rotm.entryPoint,
-        FunctionDescriptor.ofVoid(JAVA_INT, ADDRESS, JAVA_INT, ADDRESS, JAVA_INT, ADDRESS),
-    )
     private val gemvHandle = library.handle(
         BlasOperation.Gemv.entryPoint,
         FunctionDescriptor.ofVoid(
@@ -636,32 +594,3 @@ public actual fun openBlas(only: Vendor?): Blas? {
         JvmVendorLibrary.open(vendor)?.let(::JvmVendorBlas)
     }
 }
-
-/**
- * Entries in the BLAS modified-Givens parameter array.
- *
- * The array is `[flag, h11, h21, h12, h22]`, which is the 2x2 matrix in column-major order rather than the
- * reading order of its name. Writing it row-major transposes the rotation, and because the result is still a
- * plausible rotation nothing downstream would report it, so the order is named here once and used from both
- * directions.
- */
-private const val PARAM_ENTRIES = 5
-
-private fun MemorySegment.writeModifiedGivens(transformation: ModifiedGivens) {
-    setAtIndex(JAVA_DOUBLE, 0, transformation.flag)
-    setAtIndex(JAVA_DOUBLE, 1, transformation.h11)
-    setAtIndex(JAVA_DOUBLE, 2, transformation.h21)
-    setAtIndex(JAVA_DOUBLE, 3, transformation.h12)
-    setAtIndex(JAVA_DOUBLE, 4, transformation.h22)
-}
-
-private fun MemorySegment.readModifiedGivens(d1: Double, d2: Double, x1: Double): ModifiedGivens = ModifiedGivens(
-    d1 = d1,
-    d2 = d2,
-    x1 = x1,
-    flag = getAtIndex(JAVA_DOUBLE, 0),
-    h11 = getAtIndex(JAVA_DOUBLE, 1),
-    h21 = getAtIndex(JAVA_DOUBLE, 2),
-    h12 = getAtIndex(JAVA_DOUBLE, 3),
-    h22 = getAtIndex(JAVA_DOUBLE, 4),
-)

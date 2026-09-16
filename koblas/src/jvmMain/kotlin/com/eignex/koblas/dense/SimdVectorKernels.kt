@@ -1,10 +1,7 @@
 package com.eignex.koblas.dense
 
-import com.eignex.koblas.ModifiedGivens
-import com.eignex.koblas.applyModifiedGivens
 import com.eignex.koblas.internal.numeric.*
 import com.eignex.koblas.portableRot
-import com.eignex.koblas.portableRotmg
 import kotlin.math.sqrt
 
 /** Whether the incubating Vector API resolved without initializing its implementation classes. */
@@ -56,8 +53,6 @@ internal object SimdVectorKernels : DenseVectorKernels {
         DenseOperation.Nrm2 -> if (vectorizes(length)) null else ScalarVectorKernels.name
 
         // Both strides must be one, and a flagged identity returns without arithmetic, so a width is not enough.
-        DenseOperation.Rotm -> null
-
         DenseOperation.Iamax ->
             if (vectorizes(length) && length >= IAMAX_CROSSOVER) name else ScalarVectorKernels.name
 
@@ -82,10 +77,6 @@ internal object SimdVectorKernels : DenseVectorKernels {
 
     override fun sum(v: DoubleArray, vOff: Int, len: Int, vStride: Int): Double =
         if (vectorizes(len, vStride == 1)) SimdOps.sum(v, vOff, len) else scalarSum(v, vOff, vStride, len)
-
-    // No CBLAS or C routine generates the modified Givens transformation, so the portable one is the
-    // implementation rather than a fallback.
-    override fun rotmg(d1: Double, d2: Double, x1: Double, y1: Double): ModifiedGivens = portableRotmg(d1, d2, x1, y1)
 
     @Suppress("LongParameterList")
     override fun axpy(
@@ -143,40 +134,11 @@ internal object SimdVectorKernels : DenseVectorKernels {
         }
     }
 
-    @Suppress("LongParameterList")
-    override fun rotm(
-        x: DoubleArray,
-        xOff: Int,
-        xStride: Int,
-        y: DoubleArray,
-        yOff: Int,
-        yStride: Int,
-        len: Int,
-        transformation: ModifiedGivens,
-    ) {
-        if (transformation.flag == -2.0) return
-        if (vectorizes(len) && xStride == 1 && yStride == 1) {
-            SimdOps.rotm(
-                x,
-                xOff,
-                y,
-                yOff,
-                len,
-                transformation.h11,
-                transformation.h12,
-                transformation.h21,
-                transformation.h22,
-            )
-        } else {
-            applyModifiedGivens(x, xOff, xStride, y, yOff, yStride, len, transformation)
-        }
-    }
-
-    // A plane rotation is the modified Givens transformation (c, s, -s, c), so it goes to the same kernel.
+    // A plane rotation is two fused multiply-adds per lane, which is what the vector kernel below does.
     @Suppress("LongParameterList")
     override fun rot(x: DoubleArray, xOff: Int, y: DoubleArray, yOff: Int, len: Int, c: Double, s: Double) {
         if (vectorizes(len)) {
-            SimdOps.rotm(x, xOff, y, yOff, len, c, s, -s, c)
+            SimdOps.rot(x, xOff, y, yOff, len, c, s)
         } else {
             portableRot(x, xOff, y, yOff, len, c, s)
         }

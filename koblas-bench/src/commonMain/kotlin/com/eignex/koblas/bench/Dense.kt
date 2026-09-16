@@ -114,21 +114,6 @@ internal fun denseWork(case: BenchCase, engine: KoblasEngine): CaseWork? {
                 x0.copyInto(x); y0.copyInto(y); vectors.rot(x, 0, y, 0, d[0], 0.8, 0.6); x[0] + y[0]
             }
         }
-        "rotm" -> {
-            val x0 = Fixtures.vector(d[0], 1); val y0 = Fixtures.vector(d[0], 2); val x = x0.copyOf(); val y = y0.copyOf()
-            val transform = vectors.rotmg(1.0, 1.0, 2.0, 1.0)
-            level1(engine, DenseOperation.Rotm, d[0], "reset-and-arithmetic") {
-                x0.copyInto(x); y0.copyInto(y); vectors.rotm(x, 0, 1, y, 0, 1, d[0], transform); x[0] + y[0]
-            }
-        }
-        // The transformation is generated from four scalars, so there is no width to select an implementation
-        // by and the portable generator is the implementation rather than a fallback from one.
-        "rotmg" -> CaseWork(
-            "direct",
-            "arithmetic",
-            { vectors.rotmg(1.0, 1.0, 2.0, 1.0).let { it.d1 + it.d2 + it.x1 + it.flag } },
-            kernel = "${vectors.name}/rotmg",
-        )
         "gemv" -> {
             val m = d[0]; val n = d[1]; val trans = case.flag("transA")
             val a = Fixtures.matrix(if (trans) n else m, if (trans) m else n, 1)

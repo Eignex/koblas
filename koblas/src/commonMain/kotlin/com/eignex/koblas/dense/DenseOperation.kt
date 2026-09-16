@@ -33,7 +33,4 @@ public enum class DenseOperation {
 
     /** rot execution. */
     Rot,
-
-    /** rotm execution. */
-    Rotm,
 }
