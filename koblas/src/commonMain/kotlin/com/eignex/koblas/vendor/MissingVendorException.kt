@@ -27,7 +27,7 @@ public class MissingVendorException internal constructor(private val host: HostP
             // The raw candidate patterns rather than the resolved paths: {home} says which prefix is meant
             // without this message needing a platform seam of its own to expand it.
             vendors.joinTo(this, "; ") { vendor ->
-                val bundled = Bundle.path(vendor, host)?.let { " or bundle $it" } ?: ""
+                val bundled = Bundle.entry(vendor, host)?.let { " or bundle $it" } ?: ""
                 "${vendor.vendorName} (tried ${vendor.candidates.joinToString(", ")}$bundled)"
             }
             append(". Containers, Level 1 and the sparse primitives work without one.")

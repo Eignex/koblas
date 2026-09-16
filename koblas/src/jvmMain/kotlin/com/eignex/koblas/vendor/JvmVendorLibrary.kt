@@ -258,22 +258,33 @@ internal class JvmVendorLibrary private constructor(
          *
          * Tried after every installed candidate, because an installed library is the one the operator chose;
          * see [Bundle]. The payload has to reach the filesystem before it can be opened, since a library is
-         * loaded by path and not from a jar, and it is extracted with the same private permissions and
-         * delete-on-exit handling the bundled kernels use.
+         * loaded by path and not from a jar, and it is extracted with private permissions and delete-on-exit
+         * handling.
+         *
+         * The whole directory is extracted, not only the entry point, and into one directory, because a
+         * dispatching runtime finds the rest of itself beside the file that was opened. A file the manifest
+         * names but the artifact does not hold fails the extraction rather than leaving a payload that opens
+         * and then cannot compute.
          */
         private fun bundled(vendor: Vendor): String? {
-            val resource = Bundle.path(vendor, hostPlatform()) ?: return null
+            val host = hostPlatform()
+            val directory = Bundle.directory(vendor, host) ?: return null
             val loader = Thread.currentThread().contextClassLoader ?: JvmVendorLibrary::class.java.classLoader
-            val stream = loader.getResourceAsStream(resource) ?: return null
+            val manifest = loader.getResourceAsStream("$directory/${Bundle.MANIFEST}") ?: return null
+            val names = Bundle.names(manifest.use { it.readBytes().decodeToString() })
+            if (vendor.bundledFile !in names) return null
             return try {
-                val directory = Files.createTempDirectory("koblas-vendor-${vendor.name.lowercase()}-")
-                secure(directory, "rwx------")
-                val destination = directory.resolve(vendor.bundledFile!!)
-                stream.use { Files.copy(it, destination) }
-                secure(destination, "rw-------")
-                destination.toFile().deleteOnExit()
-                directory.toFile().deleteOnExit()
-                destination.toString()
+                val target = Files.createTempDirectory(Bundle.extraction(vendor))
+                secure(target, "rwx------")
+                target.toFile().deleteOnExit()
+                for (name in names) {
+                    val source = loader.getResourceAsStream("$directory/$name") ?: return null
+                    val destination = target.resolve(name)
+                    source.use { Files.copy(it, destination) }
+                    secure(destination, "rw-------")
+                    destination.toFile().deleteOnExit()
+                }
+                target.resolve(vendor.bundledFile!!).toString()
             } catch (_: java.io.IOException) {
                 null
             }

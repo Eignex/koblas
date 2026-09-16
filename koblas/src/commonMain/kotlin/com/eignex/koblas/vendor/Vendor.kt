@@ -74,11 +74,22 @@ public enum class Vendor(
         selectable = true,
     ),
 
-    /** AMD Optimizing CPU Libraries, whose BLAS is BLIS with the CBLAS interface compiled in. */
+    /**
+     * AMD Optimizing CPU Libraries, whose BLAS is BLIS with the CBLAS interface compiled in.
+     *
+     * The serial build comes first, and is the one bundled. AOCL ships BLIS twice, once linked against a
+     * threading runtime and once without, and both are held to one compute thread here; taking the serial
+     * build means the single-thread requirement is met by the binary rather than by a call that configures a
+     * pool down to one. The multithreaded build stays a candidate because a host may have only that one
+     * installed, and it is still correct, just configured rather than built that way.
+     *
+     * Two sonames, because two projects package this library. AMD's AOCL 5 carries `libblis.so.5`; a
+     * distribution's own BLIS package is a release behind at `libblis.so.4`.
+     */
     Aocl(
         "AOCL",
-        listOf("libblis-mt.so.4", "libblis-mt.so", "libblis.so.4", "libblis.so"),
-        bundledFile = "libblis-mt.so.4",
+        listOf("libblis.so.5", "libblis.so.4", "libblis.so", "libblis-mt.so.5", "libblis-mt.so.4", "libblis-mt.so"),
+        bundledFile = "libblis.so.5",
         threadControl = ThreadControl.Blis,
         selectable = true,
     ),

@@ -725,12 +725,15 @@ internal class NativeVendorBlas private constructor(
          * combination is never bundled.
          *
          * Tried after every installed candidate, because an installed library is the one the operator chose;
-         * see [Bundle]. A Native binary has no classpath, so the same Cblas.COL_MAJOR the JVM module publishes as
+         * see [Bundle]. A Native binary has no classpath, so the same layout the JVM module publishes as
          * resources is looked for on disk, relative to the working directory and to the executable itself.
          * A path that does not exist simply fails to open and the search moves on.
+         *
+         * Only the entry point is named here. Nothing is extracted, since the payload is already a directory
+         * of files, and a dispatching runtime finds the rest of itself beside the file that was opened.
          */
         private fun bundled(vendor: Vendor): List<String> {
-            val relative = Bundle.path(vendor, hostPlatform()) ?: return emptyList()
+            val relative = Bundle.entry(vendor, hostPlatform()) ?: return emptyList()
             val roots = listOfNotNull(".", executableDirectory())
             return roots.map { "$it/$relative" }
         }
