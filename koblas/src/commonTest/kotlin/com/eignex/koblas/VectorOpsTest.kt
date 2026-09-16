@@ -243,6 +243,23 @@ class VectorOpsTest {
         }
     }
 
+    /**
+     * Adjacent slices take a block move rather than the entry walk, and both origins have to survive it.
+     *
+     * A block move is described by three indices where the walk needed none, so a copy that lands at the
+     * wrong offset, or runs the wrong length, reads correct entries into the wrong place.
+     */
+    @Test
+    fun `copy between adjacent slices lands at both origins`() {
+        val source = StridedVector(doubleArrayOf(9.0, 9.0, 1.0, 2.0, 3.0, 9.0), offset = 2, size = 3)
+        val backing = DoubleArray(6) { -1.0 }
+        val destination = StridedVector(backing, offset = 1, size = 3)
+
+        copy(source, destination)
+
+        assertContentEquals(doubleArrayOf(-1.0, 1.0, 2.0, 3.0, -1.0, -1.0), backing)
+    }
+
     @Test
     fun `copy into dense storage preserves a borrowed source sharing its buffer`() {
         for (reverse in booleanArrayOf(false, true)) {
