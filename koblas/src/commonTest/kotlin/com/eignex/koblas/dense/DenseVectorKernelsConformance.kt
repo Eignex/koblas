@@ -6,6 +6,7 @@ import kotlin.math.sqrt
 import kotlin.random.Random
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 // The dense vector contract, over any implementation. The compiled-in kernels and a host binding must both
 // satisfy it, and a host kernels class exists only on the native targets, so the assertions live here rather
@@ -197,6 +198,49 @@ internal fun assertIamaxAgreesWithReference(kernels: DenseVectorKernels) {
         }
     }
     assertEquals(-1, kernels.iamax(DoubleArray(0), 0, 0), "empty backing array")
+}
+
+/**
+ * What every arm owes, which is weaker than exact agreement with the portable kernel.
+ *
+ * `idamax` leaves two things open: which index is returned when the maximum is not unique, and what happens
+ * when the largest magnitude is a NaN. The portable kernels compare strictly, so ties go to the first and a
+ * NaN loses; a vendor may report the NaN's index instead, and Koblas passes that through rather than carving
+ * the routine out of the binding. So the promise is this and no more: a logical index, in range, holding a
+ * maximum absolute value or a NaN.
+ */
+internal fun assertIamaxHonoursItsContract(kernels: DenseVectorKernels) {
+    val rng = Random(20260912)
+    for (len in intArrayOf(0, 1, 2, 7, 16, 17, 64, 255, 256, 257, 1024, 4097)) {
+        for (off in intArrayOf(0, 1, 3)) {
+            val inputs = listOf(
+                DoubleArray(len) { rng.nextDouble(-1.0, 1.0) },
+                DoubleArray(len) { it.toDouble() },
+                DoubleArray(len) { (len - it).toDouble() },
+                DoubleArray(len) { if (it % 2 == 0) -0.0 else 0.0 },
+                DoubleArray(len) { Double.NaN },
+                DoubleArray(len) { if (it % 3 == 0) Double.NaN else Double.MIN_VALUE },
+                DoubleArray(len) { if (it % 2 == 0) Double.NEGATIVE_INFINITY else Double.POSITIVE_INFINITY },
+            )
+            for ((fixture, input) in inputs.withIndex()) {
+                // Padding is larger than anything inside, so reading past either end is visible here.
+                val v = DoubleArray(off + len + 3) { Double.POSITIVE_INFINITY }
+                input.copyInto(v, off)
+                val context = "${kernels.name} len=$len off=$off fixture=$fixture"
+
+                val index = kernels.iamax(v, off, len)
+
+                if (len == 0) {
+                    assertEquals(-1, index, context)
+                    continue
+                }
+                assertTrue(index in 0 until len, "$context: $index is not a logical index")
+                val chosen = abs(v[off + index])
+                val best = (0 until len).map { abs(v[off + it]) }.filter { !it.isNaN() }.maxOrNull() ?: 0.0
+                assertTrue(chosen.isNaN() || chosen == best, "$context: chose $chosen, largest was $best")
+            }
+        }
+    }
 }
 
 internal fun assertScaleAgreesWithReference(kernels: DenseVectorKernels) {

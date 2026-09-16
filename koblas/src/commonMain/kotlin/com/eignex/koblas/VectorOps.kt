@@ -98,11 +98,16 @@ public fun Vector.asum(): Double = when (this) {
 }
 
 /**
- * Zero-based logical index of the first maximum absolute value (BLAS `idamax`), or `-1` when empty.
+ * Zero-based logical index of the maximum absolute value (BLAS `idamax`), or `-1` when empty.
  * Dense vectors use [DenseVectorKernels.iamax]; sparse vectors visit only their stored entries.
- * NaNs are ignored by the strict comparison; a later finite or infinite magnitude can therefore win after
- * a leading NaN. All-zero and all-NaN nonempty inputs return `0`, as do sparse inputs whose maximum is an
- * implicit zero. Strided views report their logical index rather than a backing-array offset.
+ * All-zero nonempty inputs return `0`, as do sparse inputs whose maximum is an implicit zero. Strided views
+ * report their logical index rather than a backing-array offset.
+ *
+ * Which index is returned when the maximum is not unique, and what happens when the largest magnitude is a
+ * NaN, is the selected implementation's. `idamax` specifies neither: the portable kernels compare strictly, so
+ * ties go to the first and a NaN loses to a later finite entry, while a vendor may report the NaN's index
+ * instead. A caller that needs one of those answers specifically has to test for it rather than infer it from
+ * this routine.
  */
 public fun Vector.iamax(): Int {
     if (this is DenseVector) return koblas.vectorKernels.iamax(data, offset, size, stride)
