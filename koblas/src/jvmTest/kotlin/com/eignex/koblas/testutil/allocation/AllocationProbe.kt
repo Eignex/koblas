@@ -18,8 +18,16 @@ internal fun allocatedBytes(block: () -> Any?): Long {
 }
 
 /**
- * Bytes [block] allocates per call, as the smallest of [windows] measurement windows of [iterations] calls.
+ * Bytes [block] allocates per call, as the smallest measurement window of [iterations] calls.
  * The minimum is what the loop costs once the JIT has settled; the other windows carry runtime noise.
+ *
+ * Windows are taken until [windows] of them in a row fail to improve on the best seen, so the wait for the
+ * JIT is as long as the machine needs rather than a fixed count. A vectorised loop allocates one object per
+ * vector operation until C2 compiles it and escape analysis removes them, and a few thousand calls of a
+ * microsecond-long kernel can finish while that compilation is still queued: on a fast host the first window
+ * is already clean and this returns in the same time as a fixed count, on a slow or loaded one it keeps
+ * measuring until the allocation stops falling. [MAX_WINDOWS] bounds that wait, so a loop the JIT never
+ * settles is reported rather than waited on forever.
  *
  * [block] deliberately takes no iteration index. A `(Int) -> Any?` would box one on every call, and above
  * `Integer`'s cache that is a sixteen-byte allocation charged to whatever is being measured.
@@ -28,11 +36,24 @@ internal fun bytesPerIteration(iterations: Int, warmup: Int = 200, windows: Int 
     repeat(warmup) { allocationSink = block() } // let the JIT settle, since the first calls allocate profiling data
     val id = Thread.currentThread().threadId()
     var best = Double.MAX_VALUE
-    repeat(windows) {
+    var stable = 0
+    var taken = 0
+    while (stable < windows && taken < MAX_WINDOWS) {
         val before = bean.getThreadAllocatedBytes(id)
         repeat(iterations) { allocationSink = block() }
         val after = bean.getThreadAllocatedBytes(id)
-        best = minOf(best, (after - before).toDouble() / iterations)
+        val per = (after - before).toDouble() / iterations
+        // A window has to beat the best by a clear margin to count as the JIT still settling; matching it
+        // within noise is what a settled loop does.
+        stable = if (per < best * IMPROVEMENT) 0 else stable + 1
+        best = minOf(best, per)
+        taken++
     }
     return best
 }
+
+/** How much a window must beat the best seen to count as the JIT still settling rather than as noise. */
+private const val IMPROVEMENT = 0.9
+
+/** The longest this waits for a loop to settle, in windows. */
+private const val MAX_WINDOWS = 100
