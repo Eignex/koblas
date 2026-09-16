@@ -1,13 +1,17 @@
 # Package com.eignex.koblas
 
-Owning and borrowed dense containers, validated CSC sparse containers, workspaces, the immutable
-[KoblasEngine], and free-function arithmetic over matrix and vector contracts.
+Owning dense containers, borrowed strided vectors, validated CSC sparse containers, the immutable
+[KoblasEngine], and free-function arithmetic over the matrix and vector contracts.
 
-The default [koblas] engine is selected once and cannot be replaced. [BuiltinEngines] constructs independent
-exact scalar, C, or SIMD engines for tests and benchmarks. [KoblasEngine.name] provides concise read-only
-implementation attribution.
+The default [koblas] engine is selected once and cannot be replaced. It binds the Level 1 arm this platform
+prefers — the Vector API kernels on the JVM, the vendor above its crossover on Kotlin/Native — to the vendor
+BLAS that serves Level 2 and 3. [KoblasEngine.explain] names the Level 1 implementation a call of a given
+operation, length and spacing actually reaches, and [KoblasEngine.name] is the short attribution for a log.
+Naming a different implementation is for measuring one against another, so [BuiltinEngines] sits behind
+[KoblasEngineApi].
 
-High-level operations are extensions in this package, so ordinary use needs only `com.eignex.koblas.*`.
-Dense and sparse BLAS contracts live in `com.eignex.koblas.dense` and `com.eignex.koblas.sparse`; packed panels
-and sparse slices retain caller-owned storage and allocation contracts. Factorization and basis solving are not
-part of this library; a consumer that needs them owns its own factors on top of these kernels.
+High-level operations are extensions in this package, so ordinary use needs only `com.eignex.koblas.*`. The
+BLAS contracts live in `com.eignex.koblas.dense`, `com.eignex.koblas.sparse` and `com.eignex.koblas.vendor`;
+the sparse primitives and the Level 1 kernels retain caller-owned storage and allocate nothing. Factorization
+and basis solving are not part of this library; a consumer that needs them owns its own factors on top of
+these kernels.

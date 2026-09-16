@@ -18,12 +18,20 @@
 Koblas provides dense and sparse double-precision linear algebra for Kotlin Multiplatform. It includes BLAS
 operations, mutable matrices and vectors, and views into existing storage.
 
-Koblas splits at the BLAS level. Level 1 and the sparse primitives are portable Kotlin, with JVM SIMD kernels
-where the Vector API is available, and they work on any host. Level 2 and Level 3 are whole calls to an
-installed vendor BLAS — oneMKL, AOCL, or Arm Performance Libraries — each held to one compute thread. Koblas
-validates shapes and aliasing there and contributes no arithmetic of its own. On a host with no supported
-library the containers, Level 1 and the sparse primitives keep working; an accelerator-dependent call raises
-rather than quietly computing something slower under the same name.
+Level 2 and Level 3 are whole calls to an installed vendor BLAS — oneMKL, AOCL, or Arm Performance Libraries —
+each held to one compute thread. Koblas validates shapes and aliasing there and contributes no arithmetic of
+its own. They have no fallback: on a host with no supported library they raise rather than quietly computing
+something slower under the same name.
+
+Level 1 picks the faster arm per platform. On the JVM that is the Vector API kernels, because reaching a
+foreign library there copies both operands into native memory and so costs a pass over the data before any
+arithmetic. On Kotlin/Native, which has no Vector API, does not vectorise these loops, and pins the caller's
+array rather than copying it, the vendor is the faster arm above the width where its per-call cost is paid for.
+Either way the portable Kotlin kernels are what the chosen arm falls back to below its own threshold, so Level
+1, the containers and the sparse primitives keep working on a host with no library at all.
+
+Where the standard leaves something open — which index `idamax` returns on a tie or a NaN, the order a sum
+accumulates in — the answer is the selected implementation's, and Koblas says so rather than promising one.
 
 Koblas itself has no external dependencies and is entirely Apache-2.0 licensed.
 

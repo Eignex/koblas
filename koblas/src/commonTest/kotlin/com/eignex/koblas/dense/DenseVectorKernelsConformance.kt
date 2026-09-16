@@ -14,10 +14,11 @@ import kotlin.test.assertTrue
 
 /**
  * The level-1 kernels against loops written out here, at a non-zero offset so an implementation that ignores
- * the offset fails. Lengths 63, 64 and 65 straddle the router's inclusive level-1 crossover, so both the
- * compiled-in and host paths are covered, and 31 and 32 straddle the unrolling threshold in the C kernels.
- * 600 clears any unrolled body a wide-lane host takes, whose own threshold scales with the lane count and so
- * sits above the shorter lengths here.
+ * the offset fails.
+ *
+ * The lengths straddle every boundary an arm can have: a lane width, whatever unrolling a vectorised body
+ * does, and the width at which the vendor arm crosses to the library. 600 clears an unrolled body on a
+ * wide-lane host, whose own threshold scales with the lane count and so sits above the shorter lengths here.
  */
 internal fun assertLevel1KernelsAgreeWithReference(kernels: DenseVectorKernels) {
     val rng = Random(20260731)

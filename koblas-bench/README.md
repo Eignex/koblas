@@ -1,11 +1,11 @@
 # koblas-bench
 
-CPU benchmarks for Koblas, OpenBLAS, Accelerate, and oneMKL. Requires JDK 25; the koblas C kernel arms also
-need a C compiler. Vendor arms call each library through the production Koblas bindings on both runtimes, so a
-vendor row reports the route of the call that was timed.
+CPU benchmarks for Koblas, OpenBLAS, Accelerate, and oneMKL. Requires JDK 25. Vendor arms call each library
+through the production Koblas bindings on both runtimes, so a vendor row reports the route of the call that
+was timed.
 
 ```bash
-# Default capture: JVM scalar, C, SIMD, native, and available platform vendors.
+# Default capture: JVM scalar and SIMD, native, and available platform vendors.
 koblas-bench/capture-report.sh --samples 5 --warmups 5 --target-ms 200 --forks 2
 
 # Coarse dot sweep across all targets; short timings for exploration only.
@@ -56,8 +56,6 @@ fixed workload entries, never generated from runtime widths or dispatch threshol
 or matrix sweeps the same way, varying useful options independently. Short exploratory timings are
 not evidence for changing production thresholds.
 
-Fixed packed recipes still require matching geometry; logical comparisons still require matching logical
-inputs and timing boundaries, with physical recipe differences made explicit.
 Compare matching cases and timing boundaries; prepared, one-shot, and packing-inclusive timings differ.
 New references must match the fixture, validation, buffer reuse, and numerical contract.
 Unsupported cases have no timing. A selected target failure stops capture and preserves the previous report.
@@ -75,5 +73,5 @@ OpenBLAS and Accelerate on macOS, OpenBLAS and oneMKL on Linux.
 Each binding resolves its own library and reports the file the symbols actually came from, so a row naming a
 vendor names the file that ran. The oneMKL candidates cover the loader path and the standard oneAPI prefixes,
 because the installer puts the library somewhere the loader does not search. Only the dense CBLAS surface is
-bound: Level 1 extensions, the fused panel kernels, the packed cases and everything sparse have no vendor entry
-point and are reported unsupported with a reason rather than timed through a substitute.
+bound: `sum`, which is not a BLAS routine, and everything sparse have no vendor entry point and are reported
+unsupported with a reason rather than timed through a substitute.
