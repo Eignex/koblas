@@ -34,8 +34,7 @@ public fun DenseMatrix.trsm(
     unitDiag: Boolean = false,
     right: Boolean = false,
     alpha: Double = 1.0,
-    workspace: Workspace? = null,
-): Unit = koblas.trsm(this, b, lower, transpose, unitDiag, right, alpha, workspace)
+): Unit = koblas.trsm(this, b, lower, transpose, unitDiag, right, alpha)
 
 /** Multiply `x = op(T) · x` in place (BLAS `dtrmv`). */
 @JvmOverloads
@@ -56,5 +55,4 @@ public fun DenseMatrix.trmm(
     unitDiag: Boolean = false,
     right: Boolean = false,
     alpha: Double = 1.0,
-    workspace: Workspace? = null,
-): Unit = koblas.trmm(this, b, lower, transpose, unitDiag, right, alpha, workspace)
+): Unit = koblas.trmm(this, b, lower, transpose, unitDiag, right, alpha)

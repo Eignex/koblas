@@ -3,8 +3,10 @@
 
 package com.eignex.koblas.vendor
 
-import com.eignex.koblas.dense.MatrixWindow
-import com.eignex.koblas.dense.VectorWindow
+import com.eignex.koblas.DenseMatrix
+import com.eignex.koblas.DenseVector
+import com.eignex.koblas.ModifiedGivens
+import com.eignex.koblas.dense.MatrixStructure
 import kotlinx.cinterop.ByteVar
 import kotlinx.cinterop.CFunction
 import kotlinx.cinterop.COpaquePointer
@@ -16,6 +18,7 @@ import kotlinx.cinterop.convert
 import kotlinx.cinterop.get
 import kotlinx.cinterop.invoke
 import kotlinx.cinterop.memScoped
+import kotlinx.cinterop.plus
 import kotlinx.cinterop.reinterpret
 import kotlinx.cinterop.set
 import kotlinx.cinterop.toKString
@@ -37,6 +40,8 @@ private typealias AxpyFn = CFunction<(Int, Double, Ptr?, Int, Ptr?, Int) -> Unit
 private typealias ScalFn = CFunction<(Int, Double, Ptr?, Int) -> Unit>
 private typealias CopyFn = CFunction<(Int, Ptr?, Int, Ptr?, Int) -> Unit>
 private typealias RotFn = CFunction<(Int, Ptr?, Int, Ptr?, Int, Double, Double) -> Unit>
+private typealias RotmgFn = CFunction<(Ptr?, Ptr?, Ptr?, Double, Ptr?) -> Unit>
+private typealias RotmFn = CFunction<(Int, Ptr?, Int, Ptr?, Int, Ptr?) -> Unit>
 private typealias GemvFn = CFunction<(Int, Int, Int, Int, Double, Ptr?, Int, Ptr?, Int, Double, Ptr?, Int) -> Unit>
 private typealias SymvFn = CFunction<(Int, Int, Int, Double, Ptr?, Int, Ptr?, Int, Double, Ptr?, Int) -> Unit>
 private typealias GerFn = CFunction<(Int, Int, Int, Double, Ptr?, Int, Ptr?, Int, Ptr?, Int) -> Unit>
@@ -227,8 +232,8 @@ internal class NativeVendorBlas private constructor(
 
     override fun routeOf(
         operation: VendorOperation,
-        matrices: List<MatrixWindow>,
-        vectors: List<VectorWindow>,
+        matrices: List<DenseMatrix>,
+        vectors: List<DenseVector>,
     ): CallRoute = routeFor(
         operation = operation,
         vendor = vendor,
@@ -244,7 +249,7 @@ internal class NativeVendorBlas private constructor(
 
     // Level 1. A vector window is always expressible, so these never stage and never compose.
 
-    override fun dot(x: VectorWindow, y: VectorWindow): Double {
+    override fun dot(x: DenseVector, y: DenseVector): Double {
         requireSameLength(x, y, "dot")
         if (noWorkReason(emptyList(), listOf(x)) != null) return 0.0
         val pins = Pins()
@@ -258,11 +263,11 @@ internal class NativeVendorBlas private constructor(
         }
     }
 
-    override fun nrm2(x: VectorWindow): Double = reduce(x, VendorOperation.Nrm2)
+    override fun nrm2(x: DenseVector): Double = reduce(x, VendorOperation.Nrm2)
 
-    override fun asum(x: VectorWindow): Double = reduce(x, VendorOperation.Asum)
+    override fun asum(x: DenseVector): Double = reduce(x, VendorOperation.Asum)
 
-    private fun reduce(x: VectorWindow, operation: VendorOperation): Double {
+    private fun reduce(x: DenseVector, operation: VendorOperation): Double {
         if (noWorkReason(emptyList(), listOf(x)) != null) return 0.0
         val pins = Pins()
         try {
@@ -274,7 +279,7 @@ internal class NativeVendorBlas private constructor(
         }
     }
 
-    override fun iamax(x: VectorWindow): Int {
+    override fun iamax(x: DenseVector): Int {
         if (noWorkReason(emptyList(), listOf(x)) != null) return 0
         val pins = Pins()
         try {
@@ -287,7 +292,7 @@ internal class NativeVendorBlas private constructor(
         }
     }
 
-    override fun axpy(alpha: Double, x: VectorWindow, y: VectorWindow) {
+    override fun axpy(alpha: Double, x: DenseVector, y: DenseVector) {
         requireSameLength(x, y, "axpy")
         if (noWorkReason(emptyList(), listOf(x)) != null) return
         val pins = Pins()
@@ -301,7 +306,7 @@ internal class NativeVendorBlas private constructor(
         }
     }
 
-    override fun scal(alpha: Double, x: VectorWindow) {
+    override fun scal(alpha: Double, x: DenseVector) {
         if (noWorkReason(emptyList(), listOf(x)) != null) return
         val pins = Pins()
         try {
@@ -313,11 +318,11 @@ internal class NativeVendorBlas private constructor(
         }
     }
 
-    override fun copy(x: VectorWindow, y: VectorWindow) = twoVector(x, y, VendorOperation.Copy, "copy")
+    override fun copy(x: DenseVector, y: DenseVector) = twoVector(x, y, VendorOperation.Copy, "copy")
 
-    override fun swap(x: VectorWindow, y: VectorWindow) = twoVector(x, y, VendorOperation.Swap, "swap")
+    override fun swap(x: DenseVector, y: DenseVector) = twoVector(x, y, VendorOperation.Swap, "swap")
 
-    private fun twoVector(x: VectorWindow, y: VectorWindow, operation: VendorOperation, what: String) {
+    private fun twoVector(x: DenseVector, y: DenseVector, operation: VendorOperation, what: String) {
         requireSameLength(x, y, what)
         if (noWorkReason(emptyList(), listOf(x)) != null) return
         val pins = Pins()
@@ -331,7 +336,7 @@ internal class NativeVendorBlas private constructor(
         }
     }
 
-    override fun rot(x: VectorWindow, y: VectorWindow, c: Double, s: Double) {
+    override fun rot(x: DenseVector, y: DenseVector, c: Double, s: Double) {
         requireSameLength(x, y, "rot")
         if (noWorkReason(emptyList(), listOf(x)) != null) return
         val pins = Pins()
@@ -345,21 +350,72 @@ internal class NativeVendorBlas private constructor(
         }
     }
 
-    // Level 2. One matrix operand, so the call runs under that matrix's own layout.
+    override fun rotmg(d1: Double, d2: Double, x1: Double, y1: Double): ModifiedGivens = memScoped {
+        // d1, d2 and x1 are read and written in place, so each goes over as its own cell.
+        val state = allocArray<DoubleVar>(3)
+        state[0] = d1
+        state[1] = d2
+        state[2] = x1
+        val param = allocArray<DoubleVar>(PARAM_ENTRIES)
+        val fn = symbol(VendorOperation.Rotmg).reinterpret<RotmgFn>()
+        fn(state, state + 1, state + 2, y1, param)
+        ModifiedGivens(
+            d1 = state[0],
+            d2 = state[1],
+            x1 = state[2],
+            flag = param[0],
+            h11 = param[1],
+            h21 = param[2],
+            h12 = param[3],
+            h22 = param[4],
+        )
+    }
 
-    override fun gemv(alpha: Double, a: MatrixWindow, x: VectorWindow, beta: Double, y: VectorWindow) {
-        require(x.size == a.columns && y.size == a.rows) { "gemv: operand sizes do not match the matrix" }
-        if (noWorkReason(listOf(a), emptyList()) != null) return
-        val layout = layoutOf(listOf(a))
-        val addressing = addressingUnder(a, layout, absorbs = true)
+    override fun rotm(x: DenseVector, y: DenseVector, transformation: ModifiedGivens) {
+        requireSameLength(x, y, "rotm")
+        if (noWorkReason(emptyList(), listOf(x)) != null) return
         val pins = Pins()
         try {
-            val pa = pins.stage(a, addressing)
+            val px = pins.stage(x)
+            val py = pins.stage(y)
+            memScoped {
+                val param = allocArray<DoubleVar>(PARAM_ENTRIES)
+                param[0] = transformation.flag
+                param[1] = transformation.h11
+                param[2] = transformation.h21
+                param[3] = transformation.h12
+                param[4] = transformation.h22
+                val fn = symbol(VendorOperation.Rotm).reinterpret<RotmFn>()
+                fn(x.size, px.pointer, px.increment, py.pointer, py.increment, param)
+            }
+        } finally {
+            pins.release()
+        }
+    }
+
+    // Level 2. One matrix operand, passed in place with its own row count as the leading dimension.
+
+    override fun gemv(
+        alpha: Double,
+        a: DenseMatrix,
+        transposeA: Boolean,
+        x: DenseVector,
+        beta: Double,
+        y: DenseVector,
+    ) {
+        // The flag decides which dimension each operand answers to, so reading it is part of the check.
+        val expectedX = if (transposeA) a.rows else a.cols
+        val expectedY = if (transposeA) a.cols else a.rows
+        require(x.size == expectedX && y.size == expectedY) { "gemv: operand sizes do not match the matrix" }
+        if (noWorkReason(listOf(a), emptyList()) != null) return
+        val pins = Pins()
+        try {
+            val pa = pins.stage(a)
             val px = pins.stage(x)
             val py = pins.stage(y)
             val fn = symbol(VendorOperation.Gemv).reinterpret<GemvFn>()
             fn(
-                layout, transposeFor(addressing, layout), a.rows, a.columns, alpha,
+                Cblas.COL_MAJOR, transposeFor(transposeA), a.rows, a.cols, alpha,
                 pa.pointer, pa.leadingDimension, px.pointer, px.increment, beta, py.pointer, py.increment,
             )
         } finally {
@@ -367,20 +423,25 @@ internal class NativeVendorBlas private constructor(
         }
     }
 
-    override fun symv(alpha: Double, a: MatrixWindow, x: VectorWindow, beta: Double, y: VectorWindow) {
-        requireStructured(a, "symv")
-        require(x.size == a.columns && y.size == a.rows) { "symv: operand sizes do not match the matrix" }
+    override fun symv(
+        alpha: Double,
+        a: DenseMatrix,
+        structure: MatrixStructure,
+        x: DenseVector,
+        beta: Double,
+        y: DenseVector,
+    ) {
+        requireStructured(a, structure, "symv")
+        require(x.size == a.cols && y.size == a.rows) { "symv: operand sizes do not match the matrix" }
         if (noWorkReason(listOf(a), emptyList()) != null) return
-        val layout = layoutOf(listOf(a))
-        val addressing = addressingUnder(a, layout, absorbs = true)
         val pins = Pins()
         try {
-            val pa = pins.stage(a, addressing)
+            val pa = pins.stage(a)
             val px = pins.stage(x)
             val py = pins.stage(y)
             val fn = symbol(VendorOperation.Symv).reinterpret<SymvFn>()
             fn(
-                layout, uploFor(a, addressing, layout), a.rows, alpha,
+                Cblas.COL_MAJOR, uploFor(structure), a.rows, alpha,
                 pa.pointer, pa.leadingDimension, px.pointer, px.increment, beta, py.pointer, py.increment,
             )
         } finally {
@@ -388,41 +449,36 @@ internal class NativeVendorBlas private constructor(
         }
     }
 
-    override fun ger(alpha: Double, x: VectorWindow, y: VectorWindow, a: MatrixWindow) {
-        require(x.size == a.rows && y.size == a.columns) { "ger: operand sizes do not match the matrix" }
+    override fun ger(alpha: Double, x: DenseVector, y: DenseVector, a: DenseMatrix) {
+        require(x.size == a.rows && y.size == a.cols) { "ger: operand sizes do not match the matrix" }
         if (noWorkReason(listOf(a), emptyList()) != null) return
-        val layout = layoutOf(listOf(a))
-        val addressing = addressingUnder(a, layout, absorbs = true)
         val pins = Pins()
         try {
-            val pa = pins.stage(a, addressing)
+            val pa = pins.stage(a)
             val px = pins.stage(x)
             val py = pins.stage(y)
             val fn = symbol(VendorOperation.Ger).reinterpret<GerFn>()
             fn(
-                layout, a.rows, a.columns, alpha,
+                Cblas.COL_MAJOR, a.rows, a.cols, alpha,
                 px.pointer, px.increment, py.pointer, py.increment, pa.pointer, pa.leadingDimension,
             )
-            pa.writeBack()
         } finally {
             pins.release()
         }
     }
 
-    override fun syr(alpha: Double, x: VectorWindow, a: MatrixWindow) {
-        requireStructured(a, "syr")
+    override fun syr(alpha: Double, x: DenseVector, a: DenseMatrix, structure: MatrixStructure) {
+        requireStructured(a, structure, "syr")
         require(x.size == a.rows) { "syr: operand size does not match the matrix" }
         if (noWorkReason(listOf(a), emptyList()) != null) return
-        val layout = layoutOf(listOf(a))
-        val addressing = addressingUnder(a, layout, absorbs = true)
         val pins = Pins()
         try {
-            val pa = pins.stage(a, addressing)
+            val pa = pins.stage(a)
             val px = pins.stage(x)
             val fn = symbol(VendorOperation.Syr).reinterpret<SyrFn>()
             fn(
-                layout,
-                uploFor(a, addressing, layout),
+                Cblas.COL_MAJOR,
+                uploFor(structure),
                 a.rows,
                 alpha,
                 px.pointer,
@@ -430,51 +486,55 @@ internal class NativeVendorBlas private constructor(
                 pa.pointer,
                 pa.leadingDimension,
             )
-            pa.writeBack()
         } finally {
             pins.release()
         }
     }
 
-    override fun syr2(alpha: Double, x: VectorWindow, y: VectorWindow, a: MatrixWindow) {
-        requireStructured(a, "syr2")
+    override fun syr2(alpha: Double, x: DenseVector, y: DenseVector, a: DenseMatrix, structure: MatrixStructure) {
+        requireStructured(a, structure, "syr2")
         require(x.size == a.rows && y.size == a.rows) { "syr2: operand sizes do not match the matrix" }
         if (noWorkReason(listOf(a), emptyList()) != null) return
-        val layout = layoutOf(listOf(a))
-        val addressing = addressingUnder(a, layout, absorbs = true)
         val pins = Pins()
         try {
-            val pa = pins.stage(a, addressing)
+            val pa = pins.stage(a)
             val px = pins.stage(x)
             val py = pins.stage(y)
             val fn = symbol(VendorOperation.Syr2).reinterpret<Syr2Fn>()
             fn(
-                layout, uploFor(a, addressing, layout), a.rows, alpha,
+                Cblas.COL_MAJOR, uploFor(structure), a.rows, alpha,
                 px.pointer, px.increment, py.pointer, py.increment, pa.pointer, pa.leadingDimension,
             )
-            pa.writeBack()
         } finally {
             pins.release()
         }
     }
 
-    override fun trsv(a: MatrixWindow, x: VectorWindow) = triangularVector(a, x, VendorOperation.Trsv, "trsv")
+    override fun trsv(a: DenseMatrix, structure: MatrixStructure, transposeA: Boolean, x: DenseVector) =
+        triangularVector(a, structure, transposeA, x, VendorOperation.Trsv, "trsv")
 
-    override fun trmv(a: MatrixWindow, x: VectorWindow) = triangularVector(a, x, VendorOperation.Trmv, "trmv")
+    override fun trmv(a: DenseMatrix, structure: MatrixStructure, transposeA: Boolean, x: DenseVector) =
+        triangularVector(a, structure, transposeA, x, VendorOperation.Trmv, "trmv")
 
-    private fun triangularVector(a: MatrixWindow, x: VectorWindow, operation: VendorOperation, what: String) {
-        requireTriangular(a, what)
+    @Suppress("LongParameterList") // the shared triangular vector signature plus its entry point
+    private fun triangularVector(
+        a: DenseMatrix,
+        structure: MatrixStructure,
+        transposeA: Boolean,
+        x: DenseVector,
+        operation: VendorOperation,
+        what: String,
+    ) {
+        requireTriangular(a, structure, what)
         require(x.size == a.rows) { "$what: operand size does not match the matrix" }
         if (noWorkReason(listOf(a), emptyList()) != null) return
-        val layout = layoutOf(listOf(a))
-        val addressing = addressingUnder(a, layout, absorbs = true)
         val pins = Pins()
         try {
-            val pa = pins.stage(a, addressing)
+            val pa = pins.stage(a)
             val px = pins.stage(x)
             val fn = symbol(operation).reinterpret<TriangularVectorFn>()
             fn(
-                layout, uploFor(a, addressing, layout), transposeFor(addressing, layout), diagFor(a),
+                Cblas.COL_MAJOR, uploFor(structure), transposeFor(transposeA), diagFor(structure),
                 a.rows, pa.pointer, pa.leadingDimension, px.pointer, px.increment,
             )
         } finally {
@@ -482,169 +542,210 @@ internal class NativeVendorBlas private constructor(
         }
     }
 
-    // Level 3. The layout is settled across every matrix operand before any of them is staged.
+    // Level 3. Every operand is contiguous column-major, so the layout is fixed and a transpose is a flag.
 
-    override fun gemm(alpha: Double, a: MatrixWindow, b: MatrixWindow, beta: Double, c: MatrixWindow) {
-        require(a.columns == b.rows && c.rows == a.rows && c.columns == b.columns) { "gemm: shapes do not conform" }
+    @Suppress("LongParameterList") // the BLAS dgemm signature
+    override fun gemm(
+        alpha: Double,
+        a: DenseMatrix,
+        transposeA: Boolean,
+        b: DenseMatrix,
+        transposeB: Boolean,
+        beta: Double,
+        c: DenseMatrix,
+    ) {
+        val depth = if (transposeA) a.rows else a.cols
+        require(c.rows == (if (transposeA) a.cols else a.rows)) { "gemm: shapes do not conform" }
+        require(c.cols == (if (transposeB) b.rows else b.cols)) { "gemm: shapes do not conform" }
+        require(depth == (if (transposeB) b.cols else b.rows)) { "gemm: shapes do not conform" }
         if (noWorkReason(listOf(c), emptyList()) != null) return
-        val operands = listOf(a, b, c)
-        val layout = layoutOf(operands)
-        val addressing = effectiveAddressing(VendorOperation.Gemm, operands)
         val pins = Pins()
         try {
-            val pa = pins.stage(a, addressing[0])
-            val pb = pins.stage(b, addressing[1])
-            val pc = pins.stage(c, addressing[2])
+            val pa = pins.stage(a)
+            val pb = pins.stage(b)
+            val pc = pins.stage(c)
             val fn = symbol(VendorOperation.Gemm).reinterpret<GemmFn>()
             fn(
-                layout, transposeFor(addressing[0], layout), transposeFor(addressing[1], layout),
-                c.rows, c.columns, a.columns, alpha,
+                Cblas.COL_MAJOR, transposeFor(transposeA), transposeFor(transposeB),
+                c.rows, c.cols, depth, alpha,
                 pa.pointer, pa.leadingDimension, pb.pointer, pb.leadingDimension, beta,
                 pc.pointer, pc.leadingDimension,
             )
-            pc.writeBack()
         } finally {
             pins.release()
         }
     }
 
+    @Suppress("LongParameterList") // the BLAS dsymm signature
     override fun symm(
         alpha: Double,
-        a: MatrixWindow,
-        b: MatrixWindow,
+        a: DenseMatrix,
+        structure: MatrixStructure,
+        b: DenseMatrix,
         beta: Double,
-        c: MatrixWindow,
+        c: DenseMatrix,
         rightSide: Boolean,
     ) {
-        requireStructured(a, "symm")
-        require(c.rows == b.rows && c.columns == b.columns) { "symm: shapes do not conform" }
-        require(a.rows == if (rightSide) c.columns else c.rows) { "symm: the symmetric operand has the wrong order" }
+        requireStructured(a, structure, "symm")
+        require(c.rows == b.rows && c.cols == b.cols) { "symm: shapes do not conform" }
+        require(a.rows == if (rightSide) c.cols else c.rows) { "symm: the symmetric operand has the wrong order" }
         if (noWorkReason(listOf(c), emptyList()) != null) return
-        val operands = listOf(a, b, c)
-        val layout = layoutOf(operands)
-        val addressing = effectiveAddressing(VendorOperation.Symm, operands)
         val pins = Pins()
         try {
-            val pa = pins.stage(a, addressing[0])
-            val pb = pins.stage(b, addressing[1])
-            val pc = pins.stage(c, addressing[2])
+            val pa = pins.stage(a)
+            val pb = pins.stage(b)
+            val pc = pins.stage(c)
             val fn = symbol(VendorOperation.Symm).reinterpret<SymmFn>()
             fn(
-                layout, sideFor(rightSide), uploFor(a, addressing[0], layout), c.rows, c.columns, alpha,
+                Cblas.COL_MAJOR, sideFor(rightSide), uploFor(structure), c.rows, c.cols, alpha,
                 pa.pointer, pa.leadingDimension, pb.pointer, pb.leadingDimension, beta,
                 pc.pointer, pc.leadingDimension,
             )
-            pc.writeBack()
         } finally {
             pins.release()
         }
     }
 
-    override fun syrk(alpha: Double, a: MatrixWindow, beta: Double, c: MatrixWindow) {
-        requireStructured(c, "syrk")
-        require(c.rows == a.rows) { "syrk: shapes do not conform" }
+    @Suppress("LongParameterList") // the BLAS dsyrk signature
+    override fun syrk(
+        alpha: Double,
+        a: DenseMatrix,
+        transposeA: Boolean,
+        beta: Double,
+        c: DenseMatrix,
+        structure: MatrixStructure,
+    ) {
+        requireStructured(c, structure, "syrk")
+        val depth = if (transposeA) a.rows else a.cols
+        require(c.rows == (if (transposeA) a.cols else a.rows)) { "syrk: shapes do not conform" }
         if (noWorkReason(listOf(c), emptyList()) != null) return
-        val operands = listOf(a, c)
-        val layout = layoutOf(operands)
-        val addressing = effectiveAddressing(VendorOperation.Syrk, operands)
         val pins = Pins()
         try {
-            val pa = pins.stage(a, addressing[0])
-            val pc = pins.stage(c, addressing[1])
+            val pa = pins.stage(a)
+            val pc = pins.stage(c)
             val fn = symbol(VendorOperation.Syrk).reinterpret<SyrkFn>()
             fn(
-                layout, uploFor(c, addressing[1], layout), transposeFor(addressing[0], layout),
-                c.rows, a.columns, alpha, pa.pointer, pa.leadingDimension, beta,
+                Cblas.COL_MAJOR, uploFor(structure), transposeFor(transposeA),
+                c.rows, depth, alpha, pa.pointer, pa.leadingDimension, beta,
                 pc.pointer, pc.leadingDimension,
             )
-            pc.writeBack()
         } finally {
             pins.release()
         }
     }
 
-    override fun syr2k(alpha: Double, a: MatrixWindow, b: MatrixWindow, beta: Double, c: MatrixWindow) {
-        requireStructured(c, "syr2k")
-        require(c.rows == a.rows && a.rows == b.rows && a.columns == b.columns) { "syr2k: shapes do not conform" }
+    @Suppress("LongParameterList") // the BLAS dsyr2k signature
+    override fun syr2k(
+        alpha: Double,
+        a: DenseMatrix,
+        b: DenseMatrix,
+        transposeA: Boolean,
+        beta: Double,
+        c: DenseMatrix,
+        structure: MatrixStructure,
+    ) {
+        requireStructured(c, structure, "syr2k")
+        val depth = if (transposeA) a.rows else a.cols
+        require(a.rows == b.rows && a.cols == b.cols) { "syr2k: shapes do not conform" }
+        require(c.rows == (if (transposeA) a.cols else a.rows)) { "syr2k: shapes do not conform" }
         if (noWorkReason(listOf(c), emptyList()) != null) return
-        val operands = listOf(a, b, c)
-        val layout = layoutOf(operands)
-        val addressing = effectiveAddressing(VendorOperation.Syr2k, operands)
         val pins = Pins()
         try {
-            val pa = pins.stage(a, addressing[0])
-            val pb = pins.stage(b, addressing[1])
-            val pc = pins.stage(c, addressing[2])
+            val pa = pins.stage(a)
+            val pb = pins.stage(b)
+            val pc = pins.stage(c)
             val fn = symbol(VendorOperation.Syr2k).reinterpret<Syr2kFn>()
             fn(
-                layout, uploFor(c, addressing[2], layout), transposeFor(addressing[0], layout),
-                c.rows, a.columns, alpha, pa.pointer, pa.leadingDimension,
+                Cblas.COL_MAJOR, uploFor(structure), transposeFor(transposeA),
+                c.rows, depth, alpha, pa.pointer, pa.leadingDimension,
                 pb.pointer, pb.leadingDimension, beta, pc.pointer, pc.leadingDimension,
             )
-            pc.writeBack()
         } finally {
             pins.release()
         }
     }
 
-    override fun trmm(alpha: Double, a: MatrixWindow, b: MatrixWindow, rightSide: Boolean) =
-        triangularMatrix(alpha, a, b, rightSide, VendorOperation.Trmm, "trmm")
+    @Suppress("LongParameterList") // the BLAS dtrmm signature
+    override fun trmm(
+        alpha: Double,
+        a: DenseMatrix,
+        structure: MatrixStructure,
+        transposeA: Boolean,
+        b: DenseMatrix,
+        rightSide: Boolean,
+    ) = triangularMatrix(alpha, a, structure, transposeA, b, rightSide, VendorOperation.Trmm, "trmm")
 
-    override fun trsm(alpha: Double, a: MatrixWindow, b: MatrixWindow, rightSide: Boolean) =
-        triangularMatrix(alpha, a, b, rightSide, VendorOperation.Trsm, "trsm")
+    @Suppress("LongParameterList") // the BLAS dtrsm signature
+    override fun trsm(
+        alpha: Double,
+        a: DenseMatrix,
+        structure: MatrixStructure,
+        transposeA: Boolean,
+        b: DenseMatrix,
+        rightSide: Boolean,
+    ) = triangularMatrix(alpha, a, structure, transposeA, b, rightSide, VendorOperation.Trsm, "trsm")
 
+    @Suppress("LongParameterList") // the shared triangular matrix signature plus its entry point
     private fun triangularMatrix(
         alpha: Double,
-        a: MatrixWindow,
-        b: MatrixWindow,
+        a: DenseMatrix,
+        structure: MatrixStructure,
+        transposeA: Boolean,
+        b: DenseMatrix,
         rightSide: Boolean,
         operation: VendorOperation,
         what: String,
     ) {
-        requireTriangular(a, what)
-        require(if (rightSide) a.rows == b.columns else a.rows == b.rows) { "$what: shapes do not conform" }
+        requireTriangular(a, structure, what)
+        require(if (rightSide) a.rows == b.cols else a.rows == b.rows) { "$what: shapes do not conform" }
         if (noWorkReason(listOf(b), emptyList()) != null) return
-        val operands = listOf(a, b)
-        val layout = layoutOf(operands)
-        val addressing = effectiveAddressing(operation, operands)
         val pins = Pins()
         try {
-            val pa = pins.stage(a, addressing[0])
-            val pb = pins.stage(b, addressing[1])
+            val pa = pins.stage(a)
+            val pb = pins.stage(b)
             val fn = symbol(operation).reinterpret<TriangularMatrixFn>()
             fn(
-                layout, sideFor(rightSide), uploFor(a, addressing[0], layout),
-                transposeFor(addressing[0], layout), diagFor(a), b.rows, b.columns, alpha,
+                Cblas.COL_MAJOR, sideFor(rightSide), uploFor(structure),
+                transposeFor(transposeA), diagFor(structure), b.rows, b.cols, alpha,
                 pa.pointer, pa.leadingDimension, pb.pointer, pb.leadingDimension,
             )
-            pb.writeBack()
         } finally {
             pins.release()
         }
     }
 
     /** Direct where the vendor exports `cblas_dgemmt`, and otherwise the shared composition. */
-    override fun gemmt(alpha: Double, a: MatrixWindow, b: MatrixWindow, beta: Double, c: MatrixWindow) {
-        requireStructured(c, "gemmt")
-        require(a.columns == b.rows && c.rows == a.rows && c.columns == b.columns) { "gemmt: shapes do not conform" }
+    @Suppress("LongParameterList") // the BLAS gemmt signature
+    override fun gemmt(
+        alpha: Double,
+        a: DenseMatrix,
+        transposeA: Boolean,
+        b: DenseMatrix,
+        transposeB: Boolean,
+        beta: Double,
+        c: DenseMatrix,
+        structure: MatrixStructure,
+    ) {
+        requireStructured(c, structure, "gemmt")
+        val depth = if (transposeA) a.rows else a.cols
+        require(c.rows == (if (transposeA) a.cols else a.rows)) { "gemmt: shapes do not conform" }
+        require(c.cols == (if (transposeB) b.rows else b.cols)) { "gemmt: shapes do not conform" }
         if (noWorkReason(listOf(c), emptyList()) != null) return
-        if (VendorOperation.Gemmt !in directlyImplemented) return composeGemmt(alpha, a, b, beta, c)
-        val operands = listOf(a, b, c)
-        val layout = layoutOf(operands)
-        val addressing = effectiveAddressing(VendorOperation.Gemmt, operands)
+        if (VendorOperation.Gemmt !in directlyImplemented) {
+            return composeGemmt(alpha, a, transposeA, b, transposeB, beta, c, structure)
+        }
         val pins = Pins()
         try {
-            val pa = pins.stage(a, addressing[0])
-            val pb = pins.stage(b, addressing[1])
-            val pc = pins.stage(c, addressing[2])
+            val pa = pins.stage(a)
+            val pb = pins.stage(b)
+            val pc = pins.stage(c)
             val fn = symbol(VendorOperation.Gemmt).reinterpret<GemmFn>()
             fn(
-                layout, uploFor(c, addressing[2], layout), transposeFor(addressing[0], layout),
-                transposeFor(addressing[1], layout), c.rows, a.columns, alpha,
+                Cblas.COL_MAJOR, uploFor(structure), transposeFor(transposeA),
+                transposeFor(transposeB), c.rows, depth, alpha,
                 pa.pointer, pa.leadingDimension, pb.pointer, pb.leadingDimension, beta,
                 pc.pointer, pc.leadingDimension,
             )
-            pc.writeBack()
         } finally {
             pins.release()
         }
@@ -687,7 +788,7 @@ internal class NativeVendorBlas private constructor(
          * combination is never bundled.
          *
          * Tried after every installed candidate, because an installed library is the one the operator chose;
-         * see [Bundle]. A Native binary has no classpath, so the same layout the JVM module publishes as
+         * see [Bundle]. A Native binary has no classpath, so the same Cblas.COL_MAJOR the JVM module publishes as
          * resources is looked for on disk, relative to the working directory and to the executable itself.
          * A path that does not exist simply fails to open and the search moves on.
          */
@@ -742,3 +843,12 @@ public actual fun openVendorBlas(only: Vendor?): VendorBlas? {
     val candidates = only?.let { listOf(it) } ?: Vendor.select(hostPlatform())
     return candidates.firstNotNullOfOrNull(NativeVendorBlas::open)
 }
+
+/**
+ * Entries in the BLAS modified-Givens parameter array.
+ *
+ * The array is `[flag, h11, h21, h12, h22]`, the 2x2 matrix in column-major order rather than the reading
+ * order of its name. Writing it row-major transposes the rotation into another plausible rotation, which
+ * nothing downstream would report, so the order is stated once and used from both directions.
+ */
+private const val PARAM_ENTRIES = 5

@@ -38,7 +38,7 @@ class IndexedSparseKernelsTest {
 
     @Test
     fun `gather preserves slice boundaries and source values`() {
-        for (engine in listOfNotNull(BuiltinEngines.c, BuiltinEngines.simd)) {
+        for (engine in listOfNotNull(BuiltinEngines.simd)) {
             for (count in listOf(0, 1, 3, 4, 7, 15, 16, 17, 31, 32, 33, 40, 127, 128, 129, 1024)) {
                 for (offset in listOf(0, 3)) {
                     val indices = IntArray(offset + count + 2) { if (it < offset) -1 else 2 * (it - offset) }

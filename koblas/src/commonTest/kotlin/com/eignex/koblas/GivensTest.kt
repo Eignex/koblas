@@ -97,8 +97,8 @@ class GivensTest {
     fun `rot supports strided inputs and snapshots overlaps`() {
         val rotation = rotg(3.0, 4.0)
         val backing = doubleArrayOf(1.0, 2.0, 3.0, 4.0, 5.0)
-        val x = StridedVectorView(backing, 0, 4)
-        val y = StridedVectorView(backing, 4, 4, -1)
+        val x = StridedVector(backing, 0, 4)
+        val y = StridedVector(backing, 4, 4, -1)
         val originalX = x.toDoubleArray()
         val originalY = y.toDoubleArray()
         val expected = backing.copyOf()

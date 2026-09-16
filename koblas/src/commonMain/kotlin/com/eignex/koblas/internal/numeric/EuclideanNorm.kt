@@ -10,31 +10,41 @@ internal const val MIN_NORMAL = 2.2250738585072014e-308
  * Euclidean norm of the run v(off until off + len), accurate over the whole double range (BLAS `dnrm2`).
  * When a plain sum of squares overflows or underflows, a second pass factors out the largest magnitude.
  */
-internal fun euclideanNorm(v: DoubleArray, off: Int, len: Int): Double {
+internal fun euclideanNorm(v: DoubleArray, off: Int, stride: Int, len: Int): Double {
     var s = 0.0
+    var iv = off
     for (i in 0 until len) {
-        val x = v[off + i]
+        val x = v[iv]
         s += x * x
+        iv += stride
     }
     if (s.isFinite() && s >= MIN_NORMAL) return sqrt(s)
     var amax = 0.0
+    iv = off
     for (i in 0 until len) {
-        val a = abs(v[off + i])
+        val a = abs(v[iv])
         if (a > amax) amax = a
+        iv += stride
     }
     if (amax == 0.0 || amax.isInfinite()) return sqrt(s)
     var t = 0.0
+    iv = off
     for (i in 0 until len) {
-        val r = v[off + i] / amax
+        val r = v[iv] / amax
         t += r * r
+        iv += stride
     }
     return amax * sqrt(t)
 }
 
 /** Plain sum over the run v(off until off + len). Not a BLAS routine: `dasum` sums absolute values. */
-internal fun scalarSum(v: DoubleArray, off: Int, len: Int): Double {
+internal fun scalarSum(v: DoubleArray, off: Int, stride: Int, len: Int): Double {
     var s = 0.0
-    for (i in 0 until len) s += v[off + i]
+    var iv = off
+    for (i in 0 until len) {
+        s += v[iv]
+        iv += stride
+    }
     return s
 }
 
@@ -47,21 +57,27 @@ internal fun scalarSum(v: DoubleArray, off: Int, len: Int): Double {
  * Neumaier's variant rather than plain Kahan because it compensates when the running total is smaller in
  * magnitude than the term being added, which is the case a naive sum handles worst.
  */
-internal fun neumaierSum(v: DoubleArray, off: Int, len: Int): Double {
+internal fun neumaierSum(v: DoubleArray, off: Int, stride: Int, len: Int): Double {
     var s = 0.0
     var compensation = 0.0
+    var iv = off
     for (i in 0 until len) {
-        val x = v[off + i]
+        val x = v[iv]
         val t = s + x
         compensation += if (abs(s) >= abs(x)) (s - t) + x else (x - t) + s
         s = t
+        iv += stride
     }
     return s + compensation
 }
 
 /** Sum of absolute values over the run v(off until off + len) (BLAS `dasum`). */
-internal fun absoluteSum(v: DoubleArray, off: Int, len: Int): Double {
+internal fun absoluteSum(v: DoubleArray, off: Int, stride: Int, len: Int): Double {
     var s = 0.0
-    for (i in 0 until len) s += abs(v[off + i])
+    var iv = off
+    for (i in 0 until len) {
+        s += abs(v[iv])
+        iv += stride
+    }
     return s
 }

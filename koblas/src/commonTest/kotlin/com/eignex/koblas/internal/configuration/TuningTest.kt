@@ -71,8 +71,8 @@ class TuningTest {
 
     @Test
     fun `a key spells one property and one environment variable`() {
-        assertEquals("koblas.dense.jvm.c.dot4.crossover", tuningProperty("dense", "jvm.c.dot4.crossover"))
-        assertEquals("KOBLAS_DENSE_JVM_C_DOT4_CROSSOVER", tuningEnvironment("dense", "jvm.c.dot4.crossover"))
+        assertEquals("koblas.sparse.simd.min.width", tuningProperty("sparse", "simd.min.width"))
+        assertEquals("KOBLAS_SPARSE_SIMD_MIN_WIDTH", tuningEnvironment("sparse", "simd.min.width"))
         assertEquals("koblas.sparse.dot.dense.c.crossover", tuningProperty("sparse", "dot.dense.c.crossover"))
         assertEquals("KOBLAS_SPARSE_DOT_DENSE_C_CROSSOVER", tuningEnvironment("sparse", "dot.dense.c.crossover"))
     }

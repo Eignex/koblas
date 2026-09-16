@@ -1,3 +1,0 @@
-headers = koblas_kernels.h
-package = com.eignex.koblas.internal.kernels
-staticLibraries = libkoblas_kernels.a

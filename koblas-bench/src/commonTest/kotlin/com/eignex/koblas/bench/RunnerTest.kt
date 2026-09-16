@@ -8,7 +8,9 @@ class RunnerTest {
     @Test
     fun `runner accepts an explicit targeted suite`() {
         val defaults = parseArguments(arrayOf("--mode=jvm-scalar"))
-        val sweep = parseArguments(arrayOf("--mode=native", "--suite=sweep", "--operation=dot", "--warmups=0", "--samples=1", "--target-ms=1"))
+        val sweep = parseArguments(
+            arrayOf("--mode=native", "--suite=sweep", "--operation=dot", "--warmups=0", "--samples=1", "--target-ms=1"),
+        )
 
         assertEquals("default", defaults.suite)
         assertEquals("sweep", sweep.suite)
@@ -21,14 +23,22 @@ class RunnerTest {
 
     @Test
     fun `suite metadata does not change report comparison fields`() {
-        for (id in listOf("dot+4096+uniform", "gemm-tile+3x2x31+uniform+packed=4x4")) {
-            for (mode in listOf("jvm-scalar", "jvm-c-raw-scalar", "native-raw-scalar") +
-                if ("packed=" in id) emptyList() else listOf("jvm-c", "native")) {
+        for (id in listOf("dot+4096+uniform", "gemm+15x7x31+uniform")) {
+            for (mode in listOf("jvm-scalar", "jvm-simd", "native")) {
                 val original = Cases.parse(id).single()
                 val shared = Cases.parse("$id+suite=default,sweep").single()
                 val settings = settings().copy(mode = mode)
-                val before = measurement(original, settings, 1, 2.5, "ok", "direct", "arithmetic")
-                val after = measurement(shared, settings.copy(suite = "sweep"), 1, 2.5, "ok", "direct", "arithmetic")
+                val before = measurement(original, settings, 1, 2.5, "ok", "direct", "arithmetic", "scalar/dot")
+                val after = measurement(
+                    shared,
+                    settings.copy(suite = "sweep"),
+                    1,
+                    2.5,
+                    "ok",
+                    "direct",
+                    "arithmetic",
+                    "scalar/dot",
+                )
 
                 assertEquals(reportCsv(listOf(before)), reportCsv(listOf(after)))
             }
@@ -39,13 +49,13 @@ class RunnerTest {
     fun `report summarizes samples across forks without run metadata`() {
         val case = Cases.parse("dot+4+uniform").single()
         val measurements = listOf(
-            measurement(case, settings(), 1, 2.5, "ok", "direct", "arithmetic"),
-            measurement(case, settings(), 2, 3.5, "ok", "direct", "arithmetic"),
+            measurement(case, settings(), 1, 2.5, "ok", "direct", "arithmetic", "scalar/dot"),
+            measurement(case, settings(), 2, 3.5, "ok", "direct", "arithmetic", "scalar/dot"),
         )
 
         val records = reportCsv(measurements).trim().lines()
 
-        assertEquals(listOf(CSV_HEADER, "dot+4+uniform,ok,direct,arithmetic,policy,2,2,3.0,2.5,3.5"), records)
+        assertEquals(listOf(CSV_HEADER, "dot+4+uniform,ok,direct,arithmetic,scalar/dot,2,2,3.0,2.5,3.5"), records)
     }
 
     @Test
@@ -58,15 +68,16 @@ class RunnerTest {
         assertEquals(listOf(CSV_HEADER, "dot+4+uniform,unsupported,unsupported,arithmetic,unavailable,0,0,,,"), records)
     }
 
+    /** A timed row that cannot say which call produced it is a bug, not a row with a missing field. */
     @Test
-    fun `packed case records omit derived metadata`() {
-        val case = Cases.parse("gemm-tile+3x2x31+uniform+packed=4x4").single()
-        val measurement = measurement(case, settings(), 1, 2.5, "ok", "partial", "raw-tile")
+    fun `a timed record without a route is refused rather than reported`() {
+        val case = Cases.parse("dot+4+uniform").single()
 
-        val records = reportCsv(listOf(measurement)).trim().lines()
+        val failure = assertFailsWith<IllegalStateException> {
+            measurement(case, settings(), 1, 2.5, "ok", "direct", "arithmetic")
+        }
 
-        assertEquals("gemm-tile+3x2x31+uniform+packed=4x4,ok,partial,raw-tile,portable-tile,1,1,2.5,2.5,2.5",
-            records[1])
+        assertEquals(true, "carries no route" in failure.message.orEmpty(), failure.message)
     }
 
     private fun settings() = Settings("jvm-scalar", "all", "cases.txt", "output.csv", 0, 1, 1_000_000, 2)

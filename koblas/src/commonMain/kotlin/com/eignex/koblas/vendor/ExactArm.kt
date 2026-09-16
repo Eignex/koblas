@@ -1,7 +1,7 @@
 package com.eignex.koblas.vendor
 
-import com.eignex.koblas.dense.MatrixWindow
-import com.eignex.koblas.dense.VectorWindow
+import com.eignex.koblas.DenseMatrix
+import com.eignex.koblas.DenseVector
 
 /**
  * Why a call may not be timed as an exact measurement of [blas] running [operation], or null when it may.
@@ -15,14 +15,14 @@ import com.eignex.koblas.dense.VectorWindow
  * that is exactly the shape of a benchmark that reports composition as vendor arithmetic. Cross-checking the
  * route against [VendorBlas.directlyImplemented] means both have to agree before a timing is admitted.
  *
- * Staging does not disqualify a call. A caller reaching the vendor through a window BLAS cannot address pays
- * the copy as part of reaching it, and the route says so; the arm is still measuring that vendor's work.
+ * The platform transfer does not disqualify a call. On the JVM every operand is copied into native memory to
+ * reach the library at all, and the route says so; the arm is still measuring that vendor's work.
  */
 public fun exactArmRejection(
     blas: VendorBlas,
     operation: VendorOperation,
-    matrices: List<MatrixWindow> = emptyList(),
-    vectors: List<VectorWindow> = emptyList(),
+    matrices: List<DenseMatrix> = emptyList(),
+    vectors: List<DenseVector> = emptyList(),
 ): String? {
     if (operation !in blas.directlyImplemented) {
         return "${blas.vendor.vendorName} does not implement ${operation.entryPoint} directly"

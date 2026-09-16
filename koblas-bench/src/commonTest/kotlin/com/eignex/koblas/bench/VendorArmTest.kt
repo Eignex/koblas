@@ -106,8 +106,8 @@ class VendorArmTest {
             println("SKIPPED: no CBLAS library installed; vendor declines were not verified on this host")
             return
         }
-        // Level 1 extensions, the fused panel kernels, the packed cases and everything sparse are Kotlin-only.
-        for (line in listOf("sum+512+uniform", "ssqd+512+uniform", "dot4+512+uniform", "spdot+512+sparse-uniform+density=0.01")) {
+        // The Level 1 extensions outside standard CBLAS and everything sparse are Kotlin-only.
+        for (line in listOf("sum+512+uniform", "compensated-sum+512+uniform", "spdot+512+sparse-uniform+density=0.01")) {
             val case = Cases.parse(line).single()
 
             val arm = vendorArm(case, blas)

@@ -39,10 +39,10 @@ class SerializationTest {
     fun `DenseVector round-trips including empty and singleton`() {
         for (v in listOf(
             DenseVector.of(doubleArrayOf(1.0, -2.0, 3.5)),
-            DenseVector(0),
+            DenseVector.zero(0),
             DenseVector.of(doubleArrayOf(9.0)),
         )) {
-            assertEquals(v, json.decodeFromString(DenseVector.serializer(), json.encodeToString(v)))
+            assertEquals(v, json.decodeFromString(ContiguousVector.serializer(), json.encodeToString(v)))
         }
     }
 

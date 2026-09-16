@@ -1,7 +1,5 @@
 package com.eignex.koblas.vendor
 
-import com.eignex.koblas.dense.MatrixWindow
-import com.eignex.koblas.dense.VectorWindow
 import kotlin.math.abs
 import kotlin.test.assertTrue
 import kotlin.test.fail
@@ -32,39 +30,13 @@ internal fun withVendor(body: (VendorBlas) -> Unit) {
     body(blas)
 }
 
-/** The plain definition of the product, read through the windows' own structure and strides. */
-internal fun oracleGemm(alpha: Double, a: MatrixWindow, b: MatrixWindow, beta: Double, c: MatrixWindow): DoubleArray {
-    val result = DoubleArray(c.rows * c.columns)
-    for (column in 0 until c.columns) {
-        for (row in 0 until c.rows) {
-            var sum = 0.0
-            for (k in 0 until a.columns) sum += a[row, k] * b[k, column]
-            val previous = if (beta == 0.0) 0.0 else beta * c[row, column]
-            result[row + column * c.rows] = previous + alpha * sum
-        }
-    }
-    return result
-}
-
-/** `y = alpha · A · x + beta · y` read the same way. */
-internal fun oracleGemv(alpha: Double, a: MatrixWindow, x: VectorWindow, beta: Double, y: VectorWindow): DoubleArray =
-    DoubleArray(y.size) { row ->
-        var sum = 0.0
-        for (k in 0 until a.columns) sum += a[row, k] * x[k]
-        (if (beta == 0.0) 0.0 else beta * y[row]) + alpha * sum
-    }
-
-/** Reads a window into a packed column-major array, so a result can be compared entry by entry. */
-internal fun MatrixWindow.toPacked(): DoubleArray {
-    val packed = DoubleArray(rows * columns)
-    for (column in 0 until columns) for (row in 0 until rows) packed[row + column * rows] = this[row, column]
-    return packed
-}
-
-/** Reads a vector window into a packed array. */
-internal fun VectorWindow.toPacked(): DoubleArray = DoubleArray(size) { this[it] }
-
-/** Asserts agreement with the oracle at a tolerance scaled to the magnitudes involved. */
+/**
+ * Asserts agreement with `ReferenceBlas` at a tolerance scaled to the magnitudes involved.
+ *
+ * The expected side comes from that oracle rather than from anything defined here: it already reads each
+ * operand through its structure and transpose, so a second definition beside it would only be another chance
+ * to encode the same mistake twice and call the agreement evidence.
+ */
 internal fun assertAgreesWithReference(expected: DoubleArray, actual: DoubleArray, what: String) {
     if (expected.size != actual.size) fail("$what: size ${actual.size}, expected ${expected.size}")
     for (index in expected.indices) {

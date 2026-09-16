@@ -1,9 +1,8 @@
 package com.eignex.koblas.bench
 
 import com.eignex.koblas.DenseMatrix
+import com.eignex.koblas.DenseVector
 import com.eignex.koblas.dense.MatrixStructure
-import com.eignex.koblas.dense.MatrixWindow
-import com.eignex.koblas.dense.VectorWindow
 import com.eignex.koblas.vendor.CallRoute
 import com.eignex.koblas.vendor.Vendor
 import com.eignex.koblas.vendor.VendorBlas
@@ -91,22 +90,20 @@ internal fun vendorArm(case: BenchCase, blas: VendorBlas): ArmChoice {
     fun structure(): MatrixStructure =
         if (lower) MatrixStructure.SymmetricLower else MatrixStructure.SymmetricUpper
 
-    fun triangle(order: Int, operand: Int): MatrixWindow {
-        val source = Fixtures.triangular(order, operand, lower)
-        val stored = when {
-            unit && lower -> MatrixStructure.UnitLower
-            unit -> MatrixStructure.UnitUpper
-            lower -> MatrixStructure.TriangularLower
-            else -> MatrixStructure.TriangularUpper
-        }
-        val window = MatrixWindow(source.data, order, order, structure = stored)
-        return if (transA) window.transpose() else window
+    fun triangle(order: Int, operand: Int): DenseMatrix = Fixtures.triangular(order, operand, lower)
+
+    /** The triangle and diagonal the case's flags declare, which travels beside the operand rather than in it. */
+    fun triangleStructure(): MatrixStructure = when {
+        unit && lower -> MatrixStructure.UnitLower
+        unit -> MatrixStructure.UnitUpper
+        lower -> MatrixStructure.TriangularLower
+        else -> MatrixStructure.TriangularUpper
     }
 
     fun arm(
         operation: VendorOperation,
-        matrices: List<MatrixWindow>,
-        vectors: List<VectorWindow>,
+        matrices: List<DenseMatrix>,
+        vectors: List<DenseVector>,
         timing: String,
         run: () -> Double,
     ): ArmChoice {
@@ -121,16 +118,16 @@ internal fun vendorArm(case: BenchCase, blas: VendorBlas): ArmChoice {
 
     return when (case.operation) {
         "dot" -> {
-            val x = VectorWindow(Fixtures.vector(d[0], 1), d[0])
-            val y = VectorWindow(Fixtures.vector(d[0], 2), d[0])
+            val x = DenseVector.wrap(Fixtures.vector(d[0], 1))
+            val y = DenseVector.wrap(Fixtures.vector(d[0], 2))
             arm(VendorOperation.Dot, emptyList(), listOf(x, y), "arithmetic") { blas.dot(x, y) }
         }
 
         "axpy" -> {
-            val x = VectorWindow(Fixtures.vector(d[0], 1), d[0])
+            val x = DenseVector.wrap(Fixtures.vector(d[0], 1))
             val initial = Fixtures.vector(d[0], 2)
             val target = initial.copyOf()
-            val y = VectorWindow(target, d[0])
+            val y = DenseVector.wrap(target)
             arm(VendorOperation.Axpy, emptyList(), listOf(x, y), "reset-and-arithmetic") {
                 initial.copyInto(target); blas.axpy(alpha, x, y); target[0]
             }
@@ -139,7 +136,7 @@ internal fun vendorArm(case: BenchCase, blas: VendorBlas): ArmChoice {
         "scal" -> {
             val initial = Fixtures.vector(d[0], 1)
             val values = initial.copyOf()
-            val x = VectorWindow(values, d[0])
+            val x = DenseVector.wrap(values)
             if (case.option("timing", "reset-and-arithmetic") == "arithmetic") {
                 // Negation keeps the magnitudes normal over arbitrarily many timed invocations.
                 arm(VendorOperation.Scal, emptyList(), listOf(x), "arithmetic") {
@@ -153,17 +150,17 @@ internal fun vendorArm(case: BenchCase, blas: VendorBlas): ArmChoice {
         }
 
         "nrm2" -> {
-            val x = VectorWindow(Fixtures.vector(d[0], 1), d[0])
+            val x = DenseVector.wrap(Fixtures.vector(d[0], 1))
             arm(VendorOperation.Nrm2, emptyList(), listOf(x), "arithmetic") { blas.nrm2(x) }
         }
 
         "asum" -> {
-            val x = VectorWindow(Fixtures.vector(d[0], 1), d[0])
+            val x = DenseVector.wrap(Fixtures.vector(d[0], 1))
             arm(VendorOperation.Asum, emptyList(), listOf(x), "arithmetic") { blas.asum(x) }
         }
 
         "iamax" -> {
-            val x = VectorWindow(Fixtures.vector(d[0], 1), d[0])
+            val x = DenseVector.wrap(Fixtures.vector(d[0], 1))
             arm(VendorOperation.Iamax, emptyList(), listOf(x), "arithmetic") { blas.iamax(x).toDouble() }
         }
 
@@ -172,8 +169,8 @@ internal fun vendorArm(case: BenchCase, blas: VendorBlas): ArmChoice {
             val y0 = Fixtures.vector(d[0], 2)
             val xs = x0.copyOf()
             val ys = y0.copyOf()
-            val x = VectorWindow(xs, d[0])
-            val y = VectorWindow(ys, d[0])
+            val x = DenseVector.wrap(xs)
+            val y = DenseVector.wrap(ys)
             arm(VendorOperation.Swap, emptyList(), listOf(x, y), "reset-and-arithmetic") {
                 x0.copyInto(xs); y0.copyInto(ys); blas.swap(x, y); xs[0] + ys[0]
             }
@@ -184,8 +181,8 @@ internal fun vendorArm(case: BenchCase, blas: VendorBlas): ArmChoice {
             val y0 = Fixtures.vector(d[0], 2)
             val xs = x0.copyOf()
             val ys = y0.copyOf()
-            val x = VectorWindow(xs, d[0])
-            val y = VectorWindow(ys, d[0])
+            val x = DenseVector.wrap(xs)
+            val y = DenseVector.wrap(ys)
             arm(VendorOperation.Rot, emptyList(), listOf(x, y), "reset-and-arithmetic") {
                 x0.copyInto(xs); y0.copyInto(ys); blas.rot(x, y, 0.8, 0.6); xs[0] + ys[0]
             }
@@ -195,26 +192,25 @@ internal fun vendorArm(case: BenchCase, blas: VendorBlas): ArmChoice {
             val m = d[0]
             val n = d[1]
             val source = Fixtures.matrix(if (transA) n else m, if (transA) m else n, 1)
-            val plain = MatrixWindow(source.data, source.rows, source.cols)
-            val a = if (transA) plain.transpose() else plain
-            val x = VectorWindow(Fixtures.vector(n, 2), n)
+            val a = source
+            val x = DenseVector.wrap(Fixtures.vector(n, 2))
             val y0 = Fixtures.vector(m, 3)
             val target = y0.copyOf()
-            val y = VectorWindow(target, m)
+            val y = DenseVector.wrap(target)
             arm(VendorOperation.Gemv, listOf(a), emptyList(), "reset-and-arithmetic") {
-                y0.copyInto(target); blas.gemv(alpha, a, x, beta, y); target[0]
+                y0.copyInto(target); blas.gemv(alpha, a, transA, x, beta, y); target[0]
             }
         }
 
         "symv" -> {
             val n = d[0]
-            val a = MatrixWindow(symmetric(n, 1).data, n, n, structure = structure())
-            val x = VectorWindow(Fixtures.vector(n, 2), n)
+            val a = symmetric(n, 1)
+            val x = DenseVector.wrap(Fixtures.vector(n, 2))
             val y0 = Fixtures.vector(n, 3)
             val target = y0.copyOf()
-            val y = VectorWindow(target, n)
+            val y = DenseVector.wrap(target)
             arm(VendorOperation.Symv, listOf(a), emptyList(), "reset-and-arithmetic") {
-                y0.copyInto(target); blas.symv(alpha, a, x, beta, y); target[0]
+                y0.copyInto(target); blas.symv(alpha, a, structure(), x, beta, y); target[0]
             }
         }
 
@@ -223,9 +219,9 @@ internal fun vendorArm(case: BenchCase, blas: VendorBlas): ArmChoice {
             val n = d[1]
             val original = Fixtures.matrix(m, n, 1)
             val target = Fixtures.matrix(m, n, 1)
-            val a = MatrixWindow(target.data, m, n)
-            val x = VectorWindow(Fixtures.vector(m, 2), m)
-            val y = VectorWindow(Fixtures.vector(n, 3), n)
+            val a = target
+            val x = DenseVector.wrap(Fixtures.vector(m, 2))
+            val y = DenseVector.wrap(Fixtures.vector(n, 3))
             arm(VendorOperation.Ger, listOf(a), emptyList(), "reset-and-arithmetic") {
                 original.data.copyInto(target.data); blas.ger(alpha, x, y, a); target.data[0]
             }
@@ -235,15 +231,16 @@ internal fun vendorArm(case: BenchCase, blas: VendorBlas): ArmChoice {
             val n = d[0]
             val original = Fixtures.matrix(n, n, 1)
             val target = Fixtures.matrix(n, n, 1)
-            val a = MatrixWindow(target.data, n, n, structure = structure())
-            val x = VectorWindow(Fixtures.vector(n, 2), n)
-            val y = VectorWindow(Fixtures.vector(n, 3), n)
+            val a = target
+            val x = DenseVector.wrap(Fixtures.vector(n, 2))
+            val y = DenseVector.wrap(Fixtures.vector(n, 3))
             val operation = if (case.operation == "syr") VendorOperation.Syr else VendorOperation.Syr2
-            val corner = if (lower) 0 else n * n - 1
             arm(operation, listOf(a), emptyList(), "reset-and-arithmetic") {
                 original.data.copyInto(target.data)
-                if (operation == VendorOperation.Syr) blas.syr(alpha, x, a) else blas.syr2(alpha, x, y, a)
-                target.data[corner]
+                if (operation == VendorOperation.Syr) blas.syr(alpha, x, a, structure()) else blas.syr2(alpha, x, y, a, structure())
+                // The same entry the portable arm returns. Both triangles contain (0, 0), so it is written
+                // either way, and reading a different corner per triangle would compare two different numbers.
+                target.data[0]
             }
         }
 
@@ -252,11 +249,11 @@ internal fun vendorArm(case: BenchCase, blas: VendorBlas): ArmChoice {
             val a = triangle(n, 1)
             val x0 = Fixtures.vector(n, 2)
             val values = x0.copyOf()
-            val x = VectorWindow(values, n)
+            val x = DenseVector.wrap(values)
             val operation = if (case.operation == "trsv") VendorOperation.Trsv else VendorOperation.Trmv
             arm(operation, listOf(a), emptyList(), "reset-and-arithmetic") {
                 x0.copyInto(values)
-                if (operation == VendorOperation.Trsv) blas.trsv(a, x) else blas.trmv(a, x)
+                if (operation == VendorOperation.Trsv) blas.trsv(a, triangleStructure(), transA, x) else blas.trmv(a, triangleStructure(), transA, x)
                 values[0]
             }
         }
@@ -265,14 +262,13 @@ internal fun vendorArm(case: BenchCase, blas: VendorBlas): ArmChoice {
             val (m, n, k) = d
             val left = Fixtures.matrix(if (transA) k else m, if (transA) m else k, 1)
             val rightMatrix = Fixtures.matrix(if (transB) n else k, if (transB) k else n, 2)
-            val a = MatrixWindow(left.data, left.rows, left.cols).let { if (transA) it.transpose() else it }
-            val b = MatrixWindow(rightMatrix.data, rightMatrix.rows, rightMatrix.cols)
-                .let { if (transB) it.transpose() else it }
+            val a = left
+            val b = rightMatrix
             val original = Fixtures.matrix(m, n, 3)
             val target = Fixtures.matrix(m, n, 3)
-            val c = MatrixWindow(target.data, m, n)
+            val c = target
             arm(VendorOperation.Gemm, listOf(a, b, c), emptyList(), "reset-and-arithmetic") {
-                original.data.copyInto(target.data); blas.gemm(alpha, a, b, beta, c); target.data[0]
+                original.data.copyInto(target.data); blas.gemm(alpha, a, transA, b, transB, beta, c); target.data[0]
             }
         }
 
@@ -280,14 +276,13 @@ internal fun vendorArm(case: BenchCase, blas: VendorBlas): ArmChoice {
             val m = d[0]
             val n = d[1]
             val order = if (right) n else m
-            val a = MatrixWindow(symmetric(order, 1).data, order, order, structure = structure())
-            val source = Fixtures.matrix(m, n, 2)
-            val b = MatrixWindow(source.data, m, n)
+            val a = symmetric(order, 1)
+            val b = Fixtures.matrix(m, n, 2)
             val original = Fixtures.matrix(m, n, 3)
             val target = Fixtures.matrix(m, n, 3)
-            val c = MatrixWindow(target.data, m, n)
+            val c = target
             arm(VendorOperation.Symm, listOf(a, b, c), emptyList(), "reset-and-arithmetic") {
-                original.data.copyInto(target.data); blas.symm(alpha, a, b, beta, c, right); target.data[0]
+                original.data.copyInto(target.data); blas.symm(alpha, a, structure(), b, beta, c, right); target.data[0]
             }
         }
 
@@ -296,14 +291,13 @@ internal fun vendorArm(case: BenchCase, blas: VendorBlas): ArmChoice {
             val k = d[1]
             val left = Fixtures.matrix(if (transA) k else n, if (transA) n else k, 1)
             val rightMatrix = Fixtures.matrix(if (transB) n else k, if (transB) k else n, 2)
-            val a = MatrixWindow(left.data, left.rows, left.cols).let { if (transA) it.transpose() else it }
-            val b = MatrixWindow(rightMatrix.data, rightMatrix.rows, rightMatrix.cols)
-                .let { if (transB) it.transpose() else it }
+            val a = left
+            val b = rightMatrix
             val original = Fixtures.matrix(n, n, 3)
             val target = Fixtures.matrix(n, n, 3)
-            val c = MatrixWindow(target.data, n, n, structure = structure())
+            val c = target
             arm(VendorOperation.Gemmt, listOf(a, b, c), emptyList(), "reset-and-arithmetic") {
-                original.data.copyInto(target.data); blas.gemmt(alpha, a, b, beta, c); target.data[0]
+                original.data.copyInto(target.data); blas.gemmt(alpha, a, transA, b, transB, beta, c, structure()); target.data[0]
             }
         }
 
@@ -312,17 +306,21 @@ internal fun vendorArm(case: BenchCase, blas: VendorBlas): ArmChoice {
             val k = d[1]
             val source = Fixtures.matrix(if (transA) k else n, if (transA) n else k, 1)
             val second = Fixtures.matrix(source.rows, source.cols, 2)
-            val a = MatrixWindow(source.data, source.rows, source.cols).let { if (transA) it.transpose() else it }
-            val b = MatrixWindow(second.data, second.rows, second.cols).let { if (transA) it.transpose() else it }
+            val a = source
+            val b = second
             val original = Fixtures.matrix(n, n, 3)
             val target = Fixtures.matrix(n, n, 3)
-            val c = MatrixWindow(target.data, n, n, structure = structure())
+            val c = target
             val single = case.operation == "syrk"
             val operation = if (single) VendorOperation.Syrk else VendorOperation.Syr2k
             val operands = if (single) listOf(a, c) else listOf(a, b, c)
             arm(operation, operands, emptyList(), "reset-and-arithmetic") {
                 original.data.copyInto(target.data)
-                if (single) blas.syrk(alpha, a, beta, c) else blas.syr2k(alpha, a, b, beta, c)
+                if (single) {
+                    blas.syrk(alpha, a, transA, beta, c, structure())
+                } else {
+                    blas.syr2k(alpha, a, b, transA, beta, c, structure())
+                }
                 target.data[0]
             }
         }
@@ -333,12 +331,16 @@ internal fun vendorArm(case: BenchCase, blas: VendorBlas): ArmChoice {
             val a = triangle(if (right) n else m, 1)
             val original = Fixtures.matrix(m, n, 2)
             val target = Fixtures.matrix(m, n, 2)
-            val b = MatrixWindow(target.data, m, n)
+            val b = target
             val solve = case.operation == "trsm"
             val operation = if (solve) VendorOperation.Trsm else VendorOperation.Trmm
             arm(operation, listOf(a, b), emptyList(), "reset-and-arithmetic") {
                 original.data.copyInto(target.data)
-                if (solve) blas.trsm(alpha, a, b, right) else blas.trmm(alpha, a, b, right)
+                if (solve) {
+                    blas.trsm(alpha, a, triangleStructure(), transA, b, right)
+                } else {
+                    blas.trmm(alpha, a, triangleStructure(), transA, b, right)
+                }
                 target.data[0]
             }
         }

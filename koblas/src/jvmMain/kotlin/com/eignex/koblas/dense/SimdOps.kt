@@ -1,6 +1,5 @@
 package com.eignex.koblas.dense
 
-import com.eignex.koblas.internal.numeric.scalarDot
 import jdk.incubator.vector.DoubleVector
 import jdk.incubator.vector.VectorOperators
 import kotlin.math.abs
@@ -15,12 +14,13 @@ internal object SimdOps {
     fun lanes(): Int = LANE
 
     /** Run length for four accumulators, scaled by the machine's lane count. */
-    private val UNROLL_MIN = DenseTuning.simdUnrollMinVectors * LANE
+    // Four accumulators pay for the reduce that combines them from this many vectors on.
+    private val UNROLL_MIN = 32 * LANE
 
     /**
      * One accumulator chains every multiply-add on the previous one's result, and an FMA's latency is
      * several times its throughput, so a single chain leaves most of the unit idle on a long run. Four
-     * independent chains keep it fed, which is why [dot4] already runs that many.
+     * independent chains keep it fed, which is what the long-run arm below runs.
      *
      * Two functions rather than one branching body so the short-length arm stays small enough for the JIT
      * to inline into its callers, which is what the four accumulators and the extra loop would cost it.
@@ -156,203 +156,11 @@ internal object SimdOps {
     }
 
     /**
-     * [dot]'s load pattern with a subtract fused in, so it inherits the same accumulator reasoning and the
-     * same [UNROLL_MIN]. That threshold is [dot]'s measurement adopted by analogy, not one of its own: the
-     * loop differs from dot's by one vector subtract against identical loads.
-     */
-    fun ssqd(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int): Double = if (len >= UNROLL_MIN) {
-        ssqdUnrolled(a, aOff, b, bOff, len)
-    } else {
-        ssqdOneChain(a, aOff, b, bOff, len)
-    }
-
-    private fun ssqdOneChain(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int): Double {
-        var i = 0
-        val bound = SPECIES.loopBound(len)
-        var sum = DoubleVector.zero(SPECIES)
-        while (i < bound) {
-            val d = DoubleVector.fromArray(SPECIES, a, aOff + i).sub(DoubleVector.fromArray(SPECIES, b, bOff + i))
-            sum = d.fma(d, sum)
-            i += LANE
-        }
-        var s = sum.reduceLanes(VectorOperators.ADD)
-        while (i < len) {
-            val d = a[aOff + i] - b[bOff + i]
-            s += d * d
-            i++
-        }
-        return s
-    }
-
-    /** [ssqd] past [UNROLL_MIN], where the four chains pay for the reduce that combines them. */
-    private fun ssqdUnrolled(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int): Double {
-        var s0 = DoubleVector.zero(SPECIES)
-        var s1 = DoubleVector.zero(SPECIES)
-        var s2 = DoubleVector.zero(SPECIES)
-        var s3 = DoubleVector.zero(SPECIES)
-        var i = 0
-        val unrolled = len - len % (4 * LANE)
-        while (i < unrolled) {
-            val d0 = DoubleVector.fromArray(SPECIES, a, aOff + i).sub(DoubleVector.fromArray(SPECIES, b, bOff + i))
-            s0 = d0.fma(d0, s0)
-            val d1 = DoubleVector.fromArray(SPECIES, a, aOff + i + LANE)
-                .sub(DoubleVector.fromArray(SPECIES, b, bOff + i + LANE))
-            s1 = d1.fma(d1, s1)
-            val d2 = DoubleVector.fromArray(SPECIES, a, aOff + i + 2 * LANE)
-                .sub(DoubleVector.fromArray(SPECIES, b, bOff + i + 2 * LANE))
-            s2 = d2.fma(d2, s2)
-            val d3 = DoubleVector.fromArray(SPECIES, a, aOff + i + 3 * LANE)
-                .sub(DoubleVector.fromArray(SPECIES, b, bOff + i + 3 * LANE))
-            s3 = d3.fma(d3, s3)
-            i += 4 * LANE
-        }
-        val head = s0.add(s1).add(s2.add(s3)).reduceLanes(VectorOperators.ADD)
-        return head + ssqdOneChain(a, aOff + unrolled, b, bOff + unrolled, len - unrolled)
-    }
-
-    /**
-     * Four rows against one shared vector, each b segment loaded once into four independent
-     * accumulators. [DenseBlas.gemv] wants this over four [dot] calls and their four reductions.
-     */
-    @Suppress("LongParameterList") // four row offsets plus the shared operand
-    fun dot4(
-        a: DoubleArray,
-        aOff: Int,
-        stride: Int,
-        b: DoubleArray,
-        bOff: Int,
-        len: Int,
-        out: DoubleArray,
-        outOff: Int,
-    ) {
-        var s0 = DoubleVector.zero(SPECIES)
-        var s1 = DoubleVector.zero(SPECIES)
-        var s2 = DoubleVector.zero(SPECIES)
-        var s3 = DoubleVector.zero(SPECIES)
-        val o1 = aOff + stride
-        val o2 = aOff + 2 * stride
-        val o3 = aOff + 3 * stride
-        var i = 0
-        val bound = SPECIES.loopBound(len)
-        while (i < bound) {
-            val vb = DoubleVector.fromArray(SPECIES, b, bOff + i)
-            s0 = DoubleVector.fromArray(SPECIES, a, aOff + i).fma(vb, s0)
-            s1 = DoubleVector.fromArray(SPECIES, a, o1 + i).fma(vb, s1)
-            s2 = DoubleVector.fromArray(SPECIES, a, o2 + i).fma(vb, s2)
-            s3 = DoubleVector.fromArray(SPECIES, a, o3 + i).fma(vb, s3)
-            i += LANE
-        }
-        var r0 = s0.reduceLanes(VectorOperators.ADD)
-        var r1 = s1.reduceLanes(VectorOperators.ADD)
-        var r2 = s2.reduceLanes(VectorOperators.ADD)
-        var r3 = s3.reduceLanes(VectorOperators.ADD)
-        while (i < len) {
-            val bi = b[bOff + i]
-            r0 += a[aOff + i] * bi
-            r1 += a[o1 + i] * bi
-            r2 += a[o2 + i] * bi
-            r3 += a[o3 + i] * bi
-            i++
-        }
-        out[outOff] = r0
-        out[outOff + 1] = r1
-        out[outOff + 2] = r2
-        out[outOff + 3] = r3
-    }
-
-    @Suppress("LongParameterList")
-    fun axpy4(
-        y: DoubleArray,
-        yOff: Int,
-        a: DoubleArray,
-        aOff: Int,
-        stride: Int,
-        c0: Double,
-        c1: Double,
-        c2: Double,
-        c3: Double,
-        len: Int,
-    ) {
-        val vc0 = DoubleVector.broadcast(SPECIES, c0)
-        val vc1 = DoubleVector.broadcast(SPECIES, c1)
-        val vc2 = DoubleVector.broadcast(SPECIES, c2)
-        val vc3 = DoubleVector.broadcast(SPECIES, c3)
-        val o1 = aOff + stride
-        val o2 = aOff + 2 * stride
-        val o3 = aOff + 3 * stride
-        var i = 0
-        val bound = SPECIES.loopBound(len)
-        while (i < bound) {
-            var value = DoubleVector.fromArray(SPECIES, y, yOff + i)
-            value = DoubleVector.fromArray(SPECIES, a, aOff + i).fma(vc0, value)
-            value = DoubleVector.fromArray(SPECIES, a, o1 + i).fma(vc1, value)
-            value = DoubleVector.fromArray(SPECIES, a, o2 + i).fma(vc2, value)
-            value = DoubleVector.fromArray(SPECIES, a, o3 + i).fma(vc3, value)
-            value.intoArray(y, yOff + i)
-            i += LANE
-        }
-        while (i < len) {
-            var value = y[yOff + i]
-            value += c0 * a[aOff + i]
-            value += c1 * a[o1 + i]
-            value += c2 * a[o2 + i]
-            value += c3 * a[o3 + i]
-            y[yOff + i] = value
-            i++
-        }
-    }
-
-    @Suppress("LongParameterList")
-    fun dotAxpy(
-        y: DoubleArray,
-        yOff: Int,
-        alpha: Double,
-        a: DoubleArray,
-        aOff: Int,
-        x: DoubleArray,
-        xOff: Int,
-        len: Int,
-    ): Double {
-        val alphaVector = DoubleVector.broadcast(SPECIES, alpha)
-        // If every product is smaller than this bound, even their absolute sum stays finite, so splitting
-        // the reduction across lanes cannot hide or introduce intermediate overflow. The rare exceptional
-        // path below replays the dot in scalar encounter order after retaining the SIMD AXPY update.
-        val safeProductLimit = if (len == 0) Double.MAX_VALUE else Double.MAX_VALUE / len
-        var requiresOrderedDot = false
-        var sum = DoubleVector.zero(SPECIES)
-        var i = 0
-        val bound = SPECIES.loopBound(len)
-        while (i < bound) {
-            val va = DoubleVector.fromArray(SPECIES, a, aOff + i)
-            val vx = DoubleVector.fromArray(SPECIES, x, xOff + i)
-            val products = va.mul(vx)
-            requiresOrderedDot = requiresOrderedDot ||
-                signStripped(products).compare(VectorOperators.GE, safeProductLimit).anyTrue()
-            sum = products.add(sum)
-            va.mul(alphaVector).add(DoubleVector.fromArray(SPECIES, y, yOff + i)).intoArray(y, yOff + i)
-            i += LANE
-        }
-        var result = sum.reduceLanes(VectorOperators.ADD)
-        while (i < len) {
-            val ai = a[aOff + i]
-            val xi = x[xOff + i]
-            requiresOrderedDot = requiresOrderedDot || abs(ai * xi) >= safeProductLimit
-            result += ai * xi
-            y[yOff + i] += alpha * ai
-            i++
-        }
-        return if (requiresOrderedDot) scalarDot(a, aOff, x, xOff, len) else result
-    }
-
-    /**
-     * A vector with every sign bit cleared, which is the absolute value of each lane.
+     * A lane-wise absolute value, as a mask over the sign bit rather than a branch.
      *
-     * The result is identical for every input, including negative zero, infinities and NaN.
-     *
-     * The `inline` keyword is load-bearing and must stay. A function returning a vector is one the JIT has
-     * to inline for the value to live in a register; otherwise the loop allocates a heap vector.
-     *
-     * Kotlin's warning does not account for avoiding that allocation.
+     * Inline because a helper returning a [DoubleVector] the JIT declines to inline makes the vector a heap
+     * object, and the loop then allocates once per iteration. Kotlin's warning does not account for avoiding
+     * that allocation.
      */
     @Suppress("NOTHING_TO_INLINE")
     private inline fun signStripped(v: DoubleVector): DoubleVector =
@@ -404,10 +212,6 @@ internal object SimdOps {
 
     fun axpy(y: DoubleArray, yOff: Int, alpha: Double, x: DoubleArray, xOff: Int, len: Int) {
         if (alpha == 0.0) return
-        axpyArithmetic(y, yOff, alpha, x, xOff, len)
-    }
-
-    fun axpyArithmetic(y: DoubleArray, yOff: Int, alpha: Double, x: DoubleArray, xOff: Int, len: Int) {
         val alphaVec = DoubleVector.broadcast(SPECIES, alpha)
         var i = 0
         val bound = SPECIES.loopBound(len)

@@ -31,34 +31,51 @@ public interface DenseVectorKernels {
      * a rescaling loop when the square sum leaves the normal range. Such a call is not an exact measurement of
      * either kernel, and asking after the fact would mean tracing inside the timed region.
      */
-    public fun implementationFor(operation: DenseOperation, length: Int): String? = name
+    public fun implementationFor(operation: DenseOperation, length: Int, contiguous: Boolean = true): String? = name
 
     /** Returns `sum(a[aOff + i] * b[bOff + i])` over [len] entries, or zero for an empty run. */
-    public fun dot(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int): Double
+    public fun dot(
+        a: DoubleArray,
+        aOff: Int,
+        b: DoubleArray,
+        bOff: Int,
+        len: Int,
+        aStride: Int = 1,
+        bStride: Int = 1,
+    ): Double
 
     /**
      * Adds `alpha * x[xOff + i]` into `y[yOff + i]` over [len] entries. A zero [alpha] returns without
      * evaluating the products, as required by standalone BLAS AXPY semantics.
      */
-    public fun axpy(y: DoubleArray, yOff: Int, alpha: Double, x: DoubleArray, xOff: Int, len: Int)
+    public fun axpy(
+        y: DoubleArray,
+        yOff: Int,
+        alpha: Double,
+        x: DoubleArray,
+        xOff: Int,
+        len: Int,
+        yStride: Int = 1,
+        xStride: Int = 1,
+    )
 
     /** Scales [len] entries in [v] by [alpha]. */
-    public fun scale(v: DoubleArray, vOff: Int, alpha: Double, len: Int)
+    public fun scale(v: DoubleArray, vOff: Int, alpha: Double, len: Int, vStride: Int = 1)
 
     /**
      * Returns the rescaled Euclidean norm over [len] entries, or zero for an empty run. Implementations
      * must avoid the avoidable overflow and underflow of a plain square-sum followed by a square root.
      */
-    public fun nrm2(v: DoubleArray, vOff: Int, len: Int): Double
+    public fun nrm2(v: DoubleArray, vOff: Int, len: Int, vStride: Int = 1): Double
 
     /** Sum of absolute values over [len] entries, or zero for an empty run. */
-    public fun asum(v: DoubleArray, vOff: Int, len: Int): Double
+    public fun asum(v: DoubleArray, vOff: Int, len: Int, vStride: Int = 1): Double
 
     /**
      * Zero-based index within the selected run of its first maximum absolute value, or `-1` when empty.
      * NaNs are ignored; nonempty runs containing only zeros and NaNs return `0`.
      */
-    public fun iamax(v: DoubleArray, vOff: Int, len: Int): Int
+    public fun iamax(v: DoubleArray, vOff: Int, len: Int, vStride: Int = 1): Int
 
     /** Constructs a modified Givens transformation. */
     public fun rotmg(d1: Double, d2: Double, x1: Double, y1: Double): ModifiedGivens
@@ -89,46 +106,53 @@ public interface DenseVectorKernels {
     public fun rot(x: DoubleArray, xOff: Int, y: DoubleArray, yOff: Int, len: Int, c: Double, s: Double)
 
     /** Exchanges [len] entries of the two runs. */
-    public fun swap(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int)
+    public fun swap(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int, aStride: Int = 1, bStride: Int = 1)
 
     /**
      * Returns the plain sum over [len] entries, or zero for an empty run. This is not compensated summation;
      * compiled leaves may reduce vector lanes as a tree.
      */
-    public fun sum(v: DoubleArray, vOff: Int, len: Int): Double
-
-    /**
-     * Returns `sum((a[aOff + i] - b[bOff + i])^2)` over [len] entries, or zero for an empty run. This is a
-     * single-pass squared distance and may overflow; it does not inherit the rescaling contract of [nrm2].
-     */
-    public fun ssqd(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int): Double
+    public fun sum(v: DoubleArray, vOff: Int, len: Int, vStride: Int = 1): Double
 }
 
 /** Pure Kotlin scalar kernels retained as the portable fallback and semantic reference for compiled leaves. */
 internal object ScalarVectorKernels : DenseVectorKernels {
     override val name: String get() = "scalar"
 
-    override fun dot(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int): Double =
-        scalarDot(a, aOff, b, bOff, len)
+    override fun dot(
+        a: DoubleArray,
+        aOff: Int,
+        b: DoubleArray,
+        bOff: Int,
+        len: Int,
+        aStride: Int,
+        bStride: Int,
+    ): Double = scalarDot(a, aOff, aStride, b, bOff, bStride, len)
 
-    override fun axpy(y: DoubleArray, yOff: Int, alpha: Double, x: DoubleArray, xOff: Int, len: Int) =
-        scalarAxpy(y, yOff, alpha, x, xOff, len)
+    override fun axpy(
+        y: DoubleArray,
+        yOff: Int,
+        alpha: Double,
+        x: DoubleArray,
+        xOff: Int,
+        len: Int,
+        yStride: Int,
+        xStride: Int,
+    ) = scalarAxpy(y, yOff, yStride, alpha, x, xOff, xStride, len)
 
-    override fun scale(v: DoubleArray, vOff: Int, alpha: Double, len: Int) = scalarScale(v, vOff, alpha, len)
+    override fun scale(v: DoubleArray, vOff: Int, alpha: Double, len: Int, vStride: Int) =
+        scalarScale(v, vOff, vStride, alpha, len)
 
-    override fun nrm2(v: DoubleArray, vOff: Int, len: Int): Double = euclideanNorm(v, vOff, len)
+    override fun nrm2(v: DoubleArray, vOff: Int, len: Int, vStride: Int): Double = euclideanNorm(v, vOff, vStride, len)
 
-    override fun asum(v: DoubleArray, vOff: Int, len: Int): Double = absoluteSum(v, vOff, len)
+    override fun asum(v: DoubleArray, vOff: Int, len: Int, vStride: Int): Double = absoluteSum(v, vOff, vStride, len)
 
-    override fun iamax(v: DoubleArray, vOff: Int, len: Int): Int = scalarIamax(v, vOff, len)
+    override fun iamax(v: DoubleArray, vOff: Int, len: Int, vStride: Int): Int = scalarIamax(v, vOff, vStride, len)
 
-    override fun sum(v: DoubleArray, vOff: Int, len: Int): Double = scalarSum(v, vOff, len)
+    override fun sum(v: DoubleArray, vOff: Int, len: Int, vStride: Int): Double = scalarSum(v, vOff, vStride, len)
 
-    override fun ssqd(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int): Double =
-        scalarSsqd(a, aOff, b, bOff, len)
-
-    override fun swap(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int) =
-        scalarSwap(a, aOff, b, bOff, len)
+    override fun swap(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int, aStride: Int, bStride: Int) =
+        scalarSwap(a, aOff, aStride, b, bOff, bStride, len)
 
     override fun rotmg(d1: Double, d2: Double, x1: Double, y1: Double): ModifiedGivens = portableRotmg(d1, d2, x1, y1)
 

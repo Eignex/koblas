@@ -2,16 +2,18 @@
 
 package com.eignex.koblas.vendor
 
+import com.eignex.koblas.DenseMatrix
+import com.eignex.koblas.DenseVector
+import com.eignex.koblas.ModifiedGivens
 import com.eignex.koblas.dense.MatrixStructure
-import com.eignex.koblas.dense.MatrixWindow
-import com.eignex.koblas.dense.VectorWindow
 
 /**
  * One vendor BLAS library, bound and callable.
  *
- * Operands are [MatrixWindow] and [VectorWindow], so an offset submatrix reaches BLAS as a leading dimension
- * rather than as a copy whenever its strides allow it. When they do not, the call stages a packed copy and
- * says so in its route; it never silently becomes a different algorithm.
+ * Operands are the storage types themselves: a [DenseMatrix] is contiguous column-major with a leading
+ * dimension equal to its row count, and a [DenseVector] is a pointer, a length and an increment. How a call
+ * reads an operand, its transpose and its stored triangle, travels beside it as a flag rather than inside it,
+ * because those describe the call rather than the storage.
  *
  * The ABI is fixed: double precision, 32-bit BLAS integers matching Kotlin [Int], and the unsuffixed CBLAS
  * symbols that carry it. A library whose integers are 64 bits is a different ABI and is rejected at load
@@ -73,18 +75,18 @@ public interface VendorBlas {
      */
     public fun routeOf(
         operation: VendorOperation,
-        matrices: List<MatrixWindow> = emptyList(),
-        vectors: List<VectorWindow> = emptyList(),
+        matrices: List<DenseMatrix> = emptyList(),
+        vectors: List<DenseVector> = emptyList(),
     ): CallRoute
 
     /** `xᵀ · y`. */
-    public fun dot(x: VectorWindow, y: VectorWindow): Double
+    public fun dot(x: DenseVector, y: DenseVector): Double
 
     /** `‖x‖₂`, computed by the vendor's own overflow-avoiding method. */
-    public fun nrm2(x: VectorWindow): Double
+    public fun nrm2(x: DenseVector): Double
 
     /** `Σ|xᵢ|`. */
-    public fun asum(x: VectorWindow): Double
+    public fun asum(x: DenseVector): Double
 
     /**
      * The index of the entry of largest magnitude, or 0 for an empty vector.
@@ -96,10 +98,10 @@ public interface VendorBlas {
      * one reports the last. That is a real difference from a single-pass forward scan, and it is documented
      * rather than papered over because no vendor flag expresses the forward-scan choice.
      */
-    public fun iamax(x: VectorWindow): Int
+    public fun iamax(x: DenseVector): Int
 
     /** `y = alpha · x + y`. */
-    public fun axpy(alpha: Double, x: VectorWindow, y: VectorWindow)
+    public fun axpy(alpha: Double, x: DenseVector, y: DenseVector)
 
     /**
      * `x = alpha · x`.
@@ -108,62 +110,132 @@ public interface VendorBlas {
      * without doing anything for a non-positive increment, so keeping the sign would silently leave the window
      * unscaled; scaling is order-independent, so walking the same entries forwards gives the same result.
      */
-    public fun scal(alpha: Double, x: VectorWindow)
+    public fun scal(alpha: Double, x: DenseVector)
 
     /** `y = x`. */
-    public fun copy(x: VectorWindow, y: VectorWindow)
+    public fun copy(x: DenseVector, y: DenseVector)
 
     /** Exchanges the entries of [x] and [y]. */
-    public fun swap(x: VectorWindow, y: VectorWindow)
+    public fun swap(x: DenseVector, y: DenseVector)
 
     /** Applies the plane rotation given by [c] and [s] to [x] and [y]. */
-    public fun rot(x: VectorWindow, y: VectorWindow, c: Double, s: Double)
+    public fun rot(x: DenseVector, y: DenseVector, c: Double, s: Double)
 
-    /** `y = alpha · op(A) · x + beta · y`, with the transpose taken from [a]. */
-    public fun gemv(alpha: Double, a: MatrixWindow, x: VectorWindow, beta: Double, y: VectorWindow)
+    /**
+     * Generates the modified Givens transformation eliminating the second component, and the updated scaling
+     * state that goes with it (BLAS `drotmg`).
+     *
+     * The library owns the branch conditions, so a vendor whose reference translation differs at a boundary,
+     * a negative `d1` or a zero `d2 * y1`, answers differently from the portable one. Four scalars in and five
+     * out is far less work than the call that carries them, so this exists to be compared rather than because
+     * a downcall is the quick way to compute it.
+     */
+    public fun rotmg(d1: Double, d2: Double, x1: Double, y1: Double): ModifiedGivens
 
-    /** `y = alpha · A · x + beta · y` for symmetric [a], whose structure selects the stored triangle. */
-    public fun symv(alpha: Double, a: MatrixWindow, x: VectorWindow, beta: Double, y: VectorWindow)
+    /**
+     * Applies a modified Givens [transformation] to `x` and `y` (BLAS `drotm`).
+     *
+     * An identity transformation, whose flag is `-2.0`, reads neither operand, which is the library's rule and
+     * not one imposed here.
+     */
+    public fun rotm(x: DenseVector, y: DenseVector, transformation: ModifiedGivens)
+
+    /** `y = alpha · op(A) · x + beta · y`, transposing [a] when [transposeA]. */
+    public fun gemv(alpha: Double, a: DenseMatrix, transposeA: Boolean, x: DenseVector, beta: Double, y: DenseVector)
+
+    /** `y = alpha · A · x + beta · y` for symmetric [a], whose [structure] selects the stored triangle. */
+    public fun symv(
+        alpha: Double,
+        a: DenseMatrix,
+        structure: MatrixStructure,
+        x: DenseVector,
+        beta: Double,
+        y: DenseVector,
+    )
 
     /** `A = alpha · x · yᵀ + A`. */
-    public fun ger(alpha: Double, x: VectorWindow, y: VectorWindow, a: MatrixWindow)
+    public fun ger(alpha: Double, x: DenseVector, y: DenseVector, a: DenseMatrix)
 
-    /** `A = alpha · x · xᵀ + A` in the triangle [a]'s structure selects. */
-    public fun syr(alpha: Double, x: VectorWindow, a: MatrixWindow)
+    /** `A = alpha · x · xᵀ + A` in the triangle [structure] selects. */
+    public fun syr(alpha: Double, x: DenseVector, a: DenseMatrix, structure: MatrixStructure)
 
-    /** `A = alpha · (x · yᵀ + y · xᵀ) + A` in the triangle [a]'s structure selects. */
-    public fun syr2(alpha: Double, x: VectorWindow, y: VectorWindow, a: MatrixWindow)
+    /** `A = alpha · (x · yᵀ + y · xᵀ) + A` in the triangle [structure] selects. */
+    public fun syr2(alpha: Double, x: DenseVector, y: DenseVector, a: DenseMatrix, structure: MatrixStructure)
 
-    /** Solves `op(A) · x = b` in place, with triangle, transpose and unit diagonal taken from [a]. */
-    public fun trsv(a: MatrixWindow, x: VectorWindow)
+    /** Solves `op(A) · x = b` in place; [structure] carries the triangle and unit diagonal. */
+    public fun trsv(a: DenseMatrix, structure: MatrixStructure, transposeA: Boolean, x: DenseVector)
 
-    /** `x = op(A) · x`, with triangle, transpose and unit diagonal taken from [a]. */
-    public fun trmv(a: MatrixWindow, x: VectorWindow)
+    /** `x = op(A) · x`; [structure] carries the triangle and unit diagonal. */
+    public fun trmv(a: DenseMatrix, structure: MatrixStructure, transposeA: Boolean, x: DenseVector)
 
-    /** `C = alpha · op(A) · op(B) + beta · C`, with each transpose taken from its own window. */
-    public fun gemm(alpha: Double, a: MatrixWindow, b: MatrixWindow, beta: Double, c: MatrixWindow)
+    /** `C = alpha · op(A) · op(B) + beta · C`, transposing each operand as its flag says. */
+    @Suppress("LongParameterList") // the BLAS dgemm signature
+    public fun gemm(
+        alpha: Double,
+        a: DenseMatrix,
+        transposeA: Boolean,
+        b: DenseMatrix,
+        transposeB: Boolean,
+        beta: Double,
+        c: DenseMatrix,
+    )
 
     /** `C = alpha · A · B + beta · C` for symmetric [a], or `C = alpha · B · A + beta · C` when [rightSide]. */
+    @Suppress("LongParameterList") // the BLAS dsymm signature
     public fun symm(
         alpha: Double,
-        a: MatrixWindow,
-        b: MatrixWindow,
+        a: DenseMatrix,
+        structure: MatrixStructure,
+        b: DenseMatrix,
         beta: Double,
-        c: MatrixWindow,
+        c: DenseMatrix,
         rightSide: Boolean = false,
     )
 
-    /** `C = alpha · op(A) · op(A)ᵀ + beta · C` in the triangle [c]'s structure selects. */
-    public fun syrk(alpha: Double, a: MatrixWindow, beta: Double, c: MatrixWindow)
+    /** `C = alpha · op(A) · op(A)ᵀ + beta · C` in the triangle [structure] selects. */
+    @Suppress("LongParameterList") // the BLAS dsyrk signature
+    public fun syrk(
+        alpha: Double,
+        a: DenseMatrix,
+        transposeA: Boolean,
+        beta: Double,
+        c: DenseMatrix,
+        structure: MatrixStructure,
+    )
 
-    /** `C = alpha · (op(A) · op(B)ᵀ + op(B) · op(A)ᵀ) + beta · C` in the triangle [c] selects. */
-    public fun syr2k(alpha: Double, a: MatrixWindow, b: MatrixWindow, beta: Double, c: MatrixWindow)
+    /** `C = alpha · (op(A) · op(B)ᵀ + op(B) · op(A)ᵀ) + beta · C` in the triangle [structure] selects. */
+    @Suppress("LongParameterList") // the BLAS dsyr2k signature
+    public fun syr2k(
+        alpha: Double,
+        a: DenseMatrix,
+        b: DenseMatrix,
+        transposeA: Boolean,
+        beta: Double,
+        c: DenseMatrix,
+        structure: MatrixStructure,
+    )
 
     /** `B = alpha · op(A) · B`, or `B = alpha · B · op(A)` when [rightSide], for triangular [a]. */
-    public fun trmm(alpha: Double, a: MatrixWindow, b: MatrixWindow, rightSide: Boolean = false)
+    @Suppress("LongParameterList") // the BLAS dtrmm signature
+    public fun trmm(
+        alpha: Double,
+        a: DenseMatrix,
+        structure: MatrixStructure,
+        transposeA: Boolean,
+        b: DenseMatrix,
+        rightSide: Boolean = false,
+    )
 
     /** Solves `op(A) · X = alpha · B`, or `X · op(A) = alpha · B` when [rightSide], in place over [b]. */
-    public fun trsm(alpha: Double, a: MatrixWindow, b: MatrixWindow, rightSide: Boolean = false)
+    @Suppress("LongParameterList") // the BLAS dtrsm signature
+    public fun trsm(
+        alpha: Double,
+        a: DenseMatrix,
+        structure: MatrixStructure,
+        transposeA: Boolean,
+        b: DenseMatrix,
+        rightSide: Boolean = false,
+    )
 
     /**
      * `C = alpha · op(A) · op(B) + beta · C` in the triangle [c]'s structure selects, leaving the other
@@ -172,11 +244,21 @@ public interface VendorBlas {
      * Direct where the vendor exports it and composed from [gemm] plus a triangle copy where it does not, so
      * the route of a call says which one ran rather than leaving the name to imply the first.
      */
-    public fun gemmt(alpha: Double, a: MatrixWindow, b: MatrixWindow, beta: Double, c: MatrixWindow)
+    @Suppress("LongParameterList") // the BLAS gemmt signature
+    public fun gemmt(
+        alpha: Double,
+        a: DenseMatrix,
+        transposeA: Boolean,
+        b: DenseMatrix,
+        transposeB: Boolean,
+        beta: Double,
+        c: DenseMatrix,
+        structure: MatrixStructure,
+    )
 }
 
 /** Both bindings reject a mismatched pair of vector operands the same way, and with the same message. */
-internal fun requireSameLength(x: VectorWindow, y: VectorWindow, what: String) {
+internal fun requireSameLength(x: DenseVector, y: DenseVector, what: String) {
     require(x.size == y.size) { "$what: vector sizes differ" }
 }
 
@@ -188,22 +270,22 @@ internal fun requireSameLength(x: VectorWindow, y: VectorWindow, what: String) {
  * a call that would read or write it anyway; the triangular routines, which do carry the flag, take
  * [requireTriangular] instead.
  */
-internal fun requireStructured(a: MatrixWindow, what: String) {
-    val stored = a.structure != MatrixStructure.General &&
-        a.structure != MatrixStructure.UnitLower &&
-        a.structure != MatrixStructure.UnitUpper
+internal fun requireStructured(a: DenseMatrix, structure: MatrixStructure, what: String) {
+    val stored = structure != MatrixStructure.General &&
+        structure != MatrixStructure.UnitLower &&
+        structure != MatrixStructure.UnitUpper
     require(stored) { "$what requires a stored triangle with a stored diagonal" }
-    require(a.rows == a.columns) { "$what requires a square matrix" }
+    require(a.rows == a.cols) { "$what requires a square matrix" }
 }
 
 /** A triangular operand, stored or with an implicit unit diagonal. */
-internal fun requireTriangular(a: MatrixWindow, what: String) {
-    val triangular = a.structure == MatrixStructure.TriangularLower ||
-        a.structure == MatrixStructure.TriangularUpper ||
-        a.structure == MatrixStructure.UnitLower ||
-        a.structure == MatrixStructure.UnitUpper
+internal fun requireTriangular(a: DenseMatrix, structure: MatrixStructure, what: String) {
+    val triangular = structure == MatrixStructure.TriangularLower ||
+        structure == MatrixStructure.TriangularUpper ||
+        structure == MatrixStructure.UnitLower ||
+        structure == MatrixStructure.UnitUpper
     require(triangular) { "$what requires a triangular matrix" }
-    require(a.rows == a.columns) { "$what requires a square matrix" }
+    require(a.rows == a.cols) { "$what requires a square matrix" }
 }
 
 /**
@@ -216,19 +298,28 @@ internal fun requireTriangular(a: MatrixWindow, what: String) {
  * vendor, so the two paths cannot disagree about where the result lands. It costs a full product either way,
  * which is why the route of the call says which path ran.
  */
-internal fun VendorBlas.composeGemmt(alpha: Double, a: MatrixWindow, b: MatrixWindow, beta: Double, c: MatrixWindow) {
+@Suppress("LongParameterList") // the BLAS gemmt signature
+internal fun VendorBlas.composeGemmt(
+    alpha: Double,
+    a: DenseMatrix,
+    transposeA: Boolean,
+    b: DenseMatrix,
+    transposeB: Boolean,
+    beta: Double,
+    c: DenseMatrix,
+    structure: MatrixStructure,
+) {
     val order = c.rows
-    val product = DoubleArray(order * order)
-    gemm(alpha, a, b, 0.0, MatrixWindow(product, order, order))
-    val lower = uploFor(c, Addressing.ColumnMajor, Cblas.COL_MAJOR) == Cblas.LOWER
+    val product = DenseMatrix.zero(order, order)
+    gemm(alpha, a, transposeA, b, transposeB, 0.0, product)
+    val lower = uploFor(structure) == Cblas.LOWER
     for (column in 0 until order) {
         val from = if (lower) column else 0
         val until = if (lower) order else column + 1
         for (row in from until until) {
-            if (!stores(c, row, column)) continue
-            val index = c.index(row, column)
+            val index = row + column * order
             val previous = if (beta == 0.0) 0.0 else beta * c.data[index]
-            c.data[index] = previous + product[row + column * order]
+            c.data[index] = previous + product.data[index]
         }
     }
 }

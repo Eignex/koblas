@@ -11,7 +11,7 @@ class CasesFileTest {
     @Test
     fun `dense sweeps share the default case and span bounded explicit sizes`() {
         val cases = Cases.parse(Files.readString(Path.of("cases.txt")))
-        for (operation in listOf("dot", "sum", "asum", "ssqd", "dot4", "dot-axpy")) {
+        for (operation in listOf("dot", "sum", "asum")) {
             val defaults = Cases.select(cases, operation = operation)
             val sweep = Cases.select(cases, "sweep", operation)
             assertEquals(listOf(4096), defaults.map { it.dimension(0) })
@@ -25,7 +25,7 @@ class CasesFileTest {
     @Test
     fun `capture selection agrees with Kotlin across suites and smoke limits`() {
         val cases = Cases.parse(Files.readString(Path.of("cases.txt")))
-        for ((suite, operation) in listOf("default" to "all", "default" to "dot", "sweep" to "dot", "sweep" to "dot4")) {
+        for ((suite, operation) in listOf("default" to "all", "default" to "dot", "sweep" to "dot", "sweep" to "sum")) {
             for (smoke in listOf(false, true)) {
                 val process = ProcessBuilder("awk", "-v", "suite=$suite", "-v", "operation=$operation", "-v", "smoke=$smoke",
                     "-f", "select-cases.awk", "cases.txt").redirectErrorStream(true).start()
@@ -66,18 +66,18 @@ class CasesFileTest {
         val ids = defaults.joinToString("\n") { it.id }
         val digest = MessageDigest.getInstance("SHA-256").digest(ids.toByteArray()).joinToString("") { "%02x".format(it) }
 
-        assertEquals("1033b88827f05f8a5f8d1d48a0a6ce1b592f147179e3c8f1e5289e7f3e2992f9", digest)
+        assertEquals("395d96c96b29df466429696fa7d08b53c00f47f2fe95f823f55b72a4a8185596", digest)
     }
 
     @Test
     fun `shared workload is canonical and bounded`() {
         val cases = Cases.parse(Files.readString(Path.of("cases.txt")))
 
-        assertEquals(setOf("dot", "sum", "asum", "ssqd", "dot4", "dot-axpy"),
+        assertEquals(setOf("dot", "sum", "asum"),
             cases.filter { "sweep" in it.suites }.map { it.operation }.toSet())
-        assertEquals(78, cases.count { "sweep" in it.suites })
-        assertEquals(236, cases.size)
-        assertEquals(164, Cases.select(cases).size)
+        assertEquals(39, cases.count { "sweep" in it.suites })
+        assertEquals(111, cases.size)
+        assertEquals(75, Cases.select(cases).size)
         assertEquals(cases.size, cases.map { it.id }.toSet().size)
     }
 }

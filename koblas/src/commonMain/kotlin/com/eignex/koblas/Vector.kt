@@ -16,20 +16,84 @@ public interface Vector {
     public fun toDoubleArray(): DoubleArray
 }
 
-/** The vector storages koblas itself defines, [DenseVector] and [SparseVector]. */
+/**
+ * The vector storages koblas defines and serializes, [ContiguousVector] and [SparseVector].
+ *
+ * This is about which types koblas owns the definition of, not about which own their buffers: either may be
+ * wrapped around an array the caller keeps a reference to.
+ */
 @Serializable
 public sealed interface VectorStorage : Vector
 
 /**
+ * A vector that stores every one of its entries, addressed as a buffer, an origin and a step.
+ *
+ * Dense is about what is stored, not about how it is spaced: a run of adjacent entries and every second entry
+ * of a longer buffer are both dense, and a BLAS call takes either as a pointer and an increment without
+ * knowing the difference. That is why this is the operand type the dense matrix routines declare. A vector
+ * storing a pattern is a different thing with no increment to hand over, so [SparseVector] is deliberately not
+ * one of these and does not compile where one is wanted.
+ *
+ * Sealed because the two shapes are the whole set: entries laid out one after another, or entries a fixed
+ * step apart. A caller that must tell them apart can do so exhaustively.
+ *
+ * Neither shape implies ownership. [of] and [zero] allocate, while [wrap] and the [StridedVector] constructor
+ * borrow an array the caller keeps; mutations stay visible through every reference either way. So a vector
+ * here says how its entries are spaced, and says nothing about who owns them.
+ */
+public sealed interface DenseVector : Vector {
+    /** Borrowed or owned backing array. */
+    public val data: DoubleArray
+
+    /** First physical entry of this vector within [data]. */
+    public val offset: Int
+
+    /** Physical distance between adjacent entries, which may be negative but is never zero. */
+    public val stride: Int
+
+    /** Writes (v) at index (i). */
+    public operator fun set(i: Int, v: Double)
+
+    /**
+     * Factories for dense vectors.
+     *
+     * Each names [ContiguousVector] rather than this interface, because every one of them produces that
+     * shape and a caller that wants the serializable storage should not have to narrow the result back.
+     */
+    public companion object {
+        /** Copy a `DoubleArray` into a fresh dense vector. */
+        @JvmStatic
+        public fun of(values: DoubleArray): ContiguousVector = ContiguousVector(values.copyOf())
+
+        /** A dense vector of [size] zeros. */
+        @JvmStatic
+        public fun zero(size: Int): ContiguousVector {
+            requireShape(size >= 0) { "negative size: $size" }
+            return ContiguousVector(DoubleArray(size))
+        }
+
+        /** Wrap an existing `DoubleArray` without copying; mutations remain visible through both references. */
+        @JvmStatic
+        public fun wrap(data: DoubleArray): ContiguousVector = ContiguousVector(data)
+    }
+}
+
+/**
+ * A dense vector that owns its whole buffer, so its entries are `data` itself.
+ *
  * @property data the flat backing array. The vector is mutable through it and [set]; do not use the vector as
  *   a hash-map key while mutating it.
  */
 @Serializable
 @SerialName("DenseVector")
-public class DenseVector internal constructor(public val data: DoubleArray) : VectorStorage {
+public class ContiguousVector internal constructor(public override val data: DoubleArray) :
+    VectorStorage,
+    DenseVector {
     internal constructor(size: Int) : this(DoubleArray(size))
 
     override val size: Int get() = data.size
+    override val offset: Int get() = 0
+    override val stride: Int get() = 1
 
     override fun get(i: Int): Double {
         requireInBounds(i, size)
@@ -38,34 +102,15 @@ public class DenseVector internal constructor(public val data: DoubleArray) : Ve
 
     override fun toDoubleArray(): DoubleArray = data.copyOf()
 
-    /** Writes (v) at index (i). */
-    public operator fun set(i: Int, v: Double) {
+    override fun set(i: Int, v: Double) {
         requireInBounds(i, size)
         data[i] = v
     }
 
     override fun equals(other: Any?): Boolean =
-        this === other || (other is DenseVector && data.contentEquals(other.data))
+        this === other || (other is ContiguousVector && data.contentEquals(other.data))
     override fun hashCode(): Int = data.contentHashCode()
     override fun toString(): String = "DenseVector(size=$size)"
-
-    /** Factories for dense vectors. */
-    public companion object {
-        /** Copy a `DoubleArray` into a fresh dense vector. */
-        @JvmStatic
-        public fun of(values: DoubleArray): DenseVector = DenseVector(values.copyOf())
-
-        /** A dense vector of [size] zeros. */
-        @JvmStatic
-        public fun zero(size: Int): DenseVector {
-            requireShape(size >= 0) { "negative size: $size" }
-            return DenseVector(size)
-        }
-
-        /** Wrap an existing `DoubleArray` without copying; mutations remain visible through both references. */
-        @JvmStatic
-        public fun wrap(data: DoubleArray): DenseVector = DenseVector(data)
-    }
 }
 
 /**

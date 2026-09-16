@@ -1,6 +1,5 @@
 package com.eignex.koblas.dense
 
-import com.eignex.koblas.BuiltinEngines
 import com.eignex.koblas.ModifiedGivens
 import com.eignex.koblas.assertClose
 import com.eignex.koblas.rotg
@@ -9,14 +8,6 @@ import kotlin.math.sqrt
 import kotlin.random.Random
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
-
-internal val ReferenceBlas: DenseBlas = BuiltinEngines.scalar
-
-internal fun testBlas(
-    vector: DenseVectorKernels = ScalarVectorKernels,
-    panel: DensePanelKernels = ScalarPanelKernels,
-    packed: PackedKernels = PortablePackedKernels,
-): DenseBlas = BuiltinBlas(vector, panel, packed)
 
 // The dense vector contract, over any implementation. The compiled-in kernels and a host binding must both
 // satisfy it, and a host kernels class exists only on the native targets, so the assertions live here rather
@@ -41,16 +32,6 @@ internal fun assertLevel1KernelsAgreeWithReference(kernels: DenseVectorKernels) 
             doubleArrayOf(expectedDot),
             doubleArrayOf(kernels.dot(a, pad, b, 0, len)),
             context = "dot len=$len",
-        )
-        var expectedSsqd = 0.0
-        for (i in 0 until len) {
-            val d = a[pad + i] - b[i]
-            expectedSsqd += d * d
-        }
-        assertClose(
-            doubleArrayOf(expectedSsqd),
-            doubleArrayOf(kernels.ssqd(a, pad, b, 0, len)),
-            context = "ssqd len=$len",
         )
         val expectedAxpy = b.copyOf()
         for (i in 0 until len) expectedAxpy[i] += 0.75 * a[pad + i]

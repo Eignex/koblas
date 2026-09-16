@@ -1,7 +1,7 @@
 package com.eignex.koblas.vendor
 
-import com.eignex.koblas.dense.MatrixWindow
-import com.eignex.koblas.dense.VectorWindow
+import com.eignex.koblas.DenseMatrix
+import com.eignex.koblas.DenseVector
 
 /**
  * The route of one call, derived from the operand addressing that the call itself acts on.
@@ -19,8 +19,8 @@ internal fun routeFor(
     operation: VendorOperation,
     vendor: Vendor,
     exported: Boolean,
-    matrices: List<MatrixWindow>,
-    vectors: List<VectorWindow>,
+    matrices: List<DenseMatrix>,
+    vectors: List<DenseVector>,
     transfer: String?,
 ): CallRoute {
     noWorkReason(matrices, vectors)?.let { return noWorkRoute(operation, vendor, it) }
@@ -34,10 +34,8 @@ internal fun routeFor(
             reason = "${vendor.vendorName} does not export ${operation.entryPoint}",
         )
     }
-    val staged = effectiveAddressing(operation, matrices).any { it == Addressing.Staged }
-    val adapter = listOfNotNull(transfer, if (staged) "packed copy" else null)
-        .takeIf { it.isNotEmpty() }
-        ?.joinToString(" plus ")
+    // Every operand is contiguous column-major, so the platform transfer is the only adaptation there is.
+    val adapter = transfer
     return CallRoute(
         operation = operation,
         kind = RouteKind.Direct,
@@ -56,9 +54,9 @@ internal fun routeFor(
  * exit is what this expresses; no scalar makes a call no-work, because none of the bound entry points is
  * skipped on a zero multiplier and inventing that would describe a call that does run as one that does not.
  */
-internal fun noWorkReason(matrices: List<MatrixWindow>, vectors: List<VectorWindow>): String? {
+internal fun noWorkReason(matrices: List<DenseMatrix>, vectors: List<DenseVector>): String? {
     if (vectors.any { it.size == 0 }) return "an operand has no entries"
-    if (matrices.any { it.rows == 0 || it.columns == 0 }) return "an operand has no entries"
+    if (matrices.any { it.rows == 0 || it.cols == 0 }) return "an operand has no entries"
     return null
 }
 

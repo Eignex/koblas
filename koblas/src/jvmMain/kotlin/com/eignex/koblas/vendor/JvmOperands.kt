@@ -1,7 +1,7 @@
 package com.eignex.koblas.vendor
 
-import com.eignex.koblas.dense.MatrixWindow
-import com.eignex.koblas.dense.VectorWindow
+import com.eignex.koblas.DenseMatrix
+import com.eignex.koblas.DenseVector
 import java.lang.foreign.Arena
 import java.lang.foreign.MemorySegment
 import java.lang.foreign.ValueLayout.JAVA_DOUBLE
@@ -21,31 +21,31 @@ import kotlin.math.abs
 internal class NativeVector(
     /** The native copy handed to BLAS. */
     val segment: MemorySegment,
-    /** The BLAS increment, which keeps the window's sign. */
+    /** The BLAS increment, which keeps the vector's sign. */
     val increment: Int,
-    private val window: VectorWindow,
+    private val vector: DenseVector,
     private val base: Int,
     private val span: Int,
 ) {
     /**
-     * Copies the operand back over the storage it came from, entry by entry for a strided window.
+     * Copies the operand back over the storage it came from, entry by entry for a strided vector.
      *
-     * The span between the window's entries is not the window's to write. Copying it back would be harmless
-     * for a window that owns its storage alone, and wrong for two operands of one call that interleave in one
+     * The span between a strided vector's entries is not its to write. Copying it back would be harmless for
+     * a vector that owns its storage alone, and wrong for two operands of one call that interleave in one
      * array, as two rows of a column-major matrix do: each would put the other's pre-call snapshot back over
      * the result the call just produced. A unit step has no gaps, so it keeps the bulk copy.
      */
     fun writeBack() {
         if (span == 0) return
-        val step = abs(window.stride)
+        val step = abs(vector.stride)
         if (step == 1) {
-            MemorySegment.copy(segment, JAVA_DOUBLE, 0L, window.data, base, span)
+            MemorySegment.copy(segment, JAVA_DOUBLE, 0L, vector.data, base, span)
             return
         }
         var target = base
         var source = 0L
-        repeat(window.size) {
-            window.data[target] = segment.getAtIndex(JAVA_DOUBLE, source)
+        repeat(vector.size) {
+            vector.data[target] = segment.getAtIndex(JAVA_DOUBLE, source)
             target += step
             source += step
         }
@@ -53,74 +53,56 @@ internal class NativeVector(
 }
 
 /**
- * Copies [window] into native memory.
+ * Copies [vector] into native memory.
  *
- * The copy starts at the lowest address the window reaches, not at its logical first entry, because that is
+ * The copy starts at the lowest address the vector reaches, not at its logical first entry, because that is
  * what BLAS expects: a negatively stepped vector is walked from the low end and the last entry reached is
- * treated as the logical first. Keeping the sign on the increment reproduces the window exactly.
+ * treated as the logical first. Keeping the sign on the increment reproduces the vector exactly.
  */
-internal fun Arena.stage(window: VectorWindow): NativeVector {
-    val base = baseIndex(window)
-    val span = if (window.size == 0) 0 else (window.size - 1) * abs(window.stride) + 1
+internal fun Arena.stage(vector: DenseVector): NativeVector {
+    val base = baseIndex(vector)
+    val span = if (vector.size == 0) 0 else (vector.size - 1) * abs(vector.stride) + 1
     val segment = allocate(JAVA_DOUBLE, maxOf(1, span).toLong())
-    if (span > 0) MemorySegment.copy(window.data, base, segment, JAVA_DOUBLE, 0L, span)
-    return NativeVector(segment, window.stride, window, base, span)
+    if (span > 0) MemorySegment.copy(vector.data, base, segment, JAVA_DOUBLE, 0L, span)
+    return NativeVector(segment, vector.stride, vector, base, span)
 }
 
-/** A matrix operand in native memory, either as a span of its own storage or as a packed block. */
+/** A matrix operand in native memory, always the whole contiguous column-major block. */
 internal class NativeMatrix(
     /** The native copy handed to BLAS. */
     val segment: MemorySegment,
-    /** The leading dimension that goes with [addressing]. */
+    /** The leading dimension, which for contiguous column-major storage is the row count. */
     val leadingDimension: Int,
-    /** How the window reached BLAS, which decides how it comes back. */
-    val addressing: Addressing,
-    private val window: MatrixWindow,
-    private val base: Int,
-    private val span: Int,
+    private val matrix: DenseMatrix,
 ) {
-    /** Copies the operand back over the storage it came from, unpacking a staged block on the way. */
+    /** Copies the operand back over the storage it came from. */
     fun writeBack() {
-        if (span == 0) return
-        if (addressing != Addressing.Staged) {
-            MemorySegment.copy(segment, JAVA_DOUBLE, 0L, window.data, base, span)
-            return
-        }
-        val packed = DoubleArray(span)
-        MemorySegment.copy(segment, JAVA_DOUBLE, 0L, packed, 0, span)
-        unstageFrom(packed, window)
+        if (matrix.data.isEmpty()) return
+        MemorySegment.copy(segment, JAVA_DOUBLE, 0L, matrix.data, 0, matrix.data.size)
     }
 }
 
 /**
- * Copies [window] into native memory under [addressing].
+ * Copies [matrix] into native memory.
  *
- * A directly addressed window keeps its own leading dimension and travels as the span from its offset to its
- * far corner, padding included. A staged one is packed column-major with its structure already applied, which
- * is why a packed operand is described to BLAS as column-major whatever the call's layout turns out to be.
- *
- * For a window with an implicit unit diagonal the span copied includes the diagonal storage the operation will
- * not read. Those values cannot reach the result: the vendor is told the diagonal is implicit and does not
- * load it. Nothing is written back for an input-only operand, so that storage stays as the caller left it.
+ * A dense matrix is its whole buffer, column-major, so the leading dimension is its row count and there is no
+ * offset to honour or padding to preserve. For a matrix a call reads under an implicit unit diagonal the copy
+ * still includes the diagonal storage: the vendor is told the diagonal is implicit and does not load it, and
+ * nothing is written back for an input-only operand, so that storage stays as the caller left it.
  */
-internal fun Arena.stage(window: MatrixWindow, addressing: Addressing): NativeMatrix {
-    if (addressing == Addressing.Staged) {
-        val span = window.rows * window.columns
-        val packed = DoubleArray(span)
-        stageInto(window, packed)
-        val segment = allocate(JAVA_DOUBLE, maxOf(1, span).toLong())
-        if (span > 0) MemorySegment.copy(packed, 0, segment, JAVA_DOUBLE, 0L, span)
-        return NativeMatrix(segment, maxOf(1, window.rows), addressing, window, 0, span)
-    }
-    val span = reachableSpan(window)
+internal fun Arena.stage(matrix: DenseMatrix): NativeMatrix {
+    val span = matrix.data.size
     val segment = allocate(JAVA_DOUBLE, maxOf(1, span).toLong())
-    if (span > 0) MemorySegment.copy(window.data, window.offset, segment, JAVA_DOUBLE, 0L, span)
-    return NativeMatrix(
-        segment,
-        leadingDimension(window, addressing),
-        addressing,
-        window,
-        window.offset,
-        span,
-    )
+    if (span > 0) MemorySegment.copy(matrix.data, 0, segment, JAVA_DOUBLE, 0L, span)
+    return NativeMatrix(segment, maxOf(1, matrix.rows), matrix)
 }
+
+/**
+ * The lowest storage index the vector touches, which is the pointer BLAS is handed.
+ *
+ * For a positive stride that is the vector's own offset. For a negative one it is the far end, because BLAS
+ * walks a negatively stepped vector from the lowest address upward and treats the last element it reaches as
+ * the logical first.
+ */
+internal fun baseIndex(vector: DenseVector): Int =
+    if (vector.stride >= 0) vector.offset else vector.offset + (vector.size - 1) * vector.stride

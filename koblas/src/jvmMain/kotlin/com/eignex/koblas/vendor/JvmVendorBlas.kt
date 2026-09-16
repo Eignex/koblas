@@ -2,10 +2,13 @@
 
 package com.eignex.koblas.vendor
 
-import com.eignex.koblas.dense.MatrixWindow
-import com.eignex.koblas.dense.VectorWindow
+import com.eignex.koblas.DenseMatrix
+import com.eignex.koblas.DenseVector
+import com.eignex.koblas.ModifiedGivens
+import com.eignex.koblas.dense.MatrixStructure
 import java.lang.foreign.Arena
 import java.lang.foreign.FunctionDescriptor
+import java.lang.foreign.MemorySegment
 import java.lang.foreign.ValueLayout.ADDRESS
 import java.lang.foreign.ValueLayout.JAVA_DOUBLE
 import java.lang.foreign.ValueLayout.JAVA_INT
@@ -41,8 +44,8 @@ internal class JvmVendorBlas(
 
     override fun routeOf(
         operation: VendorOperation,
-        matrices: List<MatrixWindow>,
-        vectors: List<VectorWindow>,
+        matrices: List<DenseMatrix>,
+        vectors: List<DenseVector>,
     ): CallRoute = routeFor(
         operation = operation,
         vendor = vendor,
@@ -54,7 +57,7 @@ internal class JvmVendorBlas(
 
     // Level 1. A vector window is always expressible, so these never stage and never compose.
 
-    override fun dot(x: VectorWindow, y: VectorWindow): Double {
+    override fun dot(x: DenseVector, y: DenseVector): Double {
         requireSameLength(x, y, "dot")
         if (noWorkReason(emptyList(), listOf(x)) != null) return 0.0
         return Arena.ofConfined().use { arena ->
@@ -64,7 +67,7 @@ internal class JvmVendorBlas(
         }
     }
 
-    override fun nrm2(x: VectorWindow): Double {
+    override fun nrm2(x: DenseVector): Double {
         if (noWorkReason(emptyList(), listOf(x)) != null) return 0.0
         return Arena.ofConfined().use { arena ->
             val nx = arena.stage(x)
@@ -72,7 +75,7 @@ internal class JvmVendorBlas(
         }
     }
 
-    override fun asum(x: VectorWindow): Double {
+    override fun asum(x: DenseVector): Double {
         if (noWorkReason(emptyList(), listOf(x)) != null) return 0.0
         return Arena.ofConfined().use { arena ->
             val nx = arena.stage(x)
@@ -80,7 +83,7 @@ internal class JvmVendorBlas(
         }
     }
 
-    override fun iamax(x: VectorWindow): Int {
+    override fun iamax(x: DenseVector): Int {
         if (noWorkReason(emptyList(), listOf(x)) != null) return 0
         return Arena.ofConfined().use { arena ->
             val nx = arena.stage(x)
@@ -89,7 +92,7 @@ internal class JvmVendorBlas(
         }
     }
 
-    override fun axpy(alpha: Double, x: VectorWindow, y: VectorWindow) {
+    override fun axpy(alpha: Double, x: DenseVector, y: DenseVector) {
         requireSameLength(x, y, "axpy")
         if (noWorkReason(emptyList(), listOf(x)) != null) return
         Arena.ofConfined().use { arena ->
@@ -100,7 +103,7 @@ internal class JvmVendorBlas(
         }
     }
 
-    override fun scal(alpha: Double, x: VectorWindow) {
+    override fun scal(alpha: Double, x: DenseVector) {
         if (noWorkReason(emptyList(), listOf(x)) != null) return
         Arena.ofConfined().use { arena ->
             val nx = arena.stage(x)
@@ -109,7 +112,7 @@ internal class JvmVendorBlas(
         }
     }
 
-    override fun copy(x: VectorWindow, y: VectorWindow) {
+    override fun copy(x: DenseVector, y: DenseVector) {
         requireSameLength(x, y, "copy")
         if (noWorkReason(emptyList(), listOf(x)) != null) return
         Arena.ofConfined().use { arena ->
@@ -120,7 +123,7 @@ internal class JvmVendorBlas(
         }
     }
 
-    override fun swap(x: VectorWindow, y: VectorWindow) {
+    override fun swap(x: DenseVector, y: DenseVector) {
         requireSameLength(x, y, "swap")
         if (noWorkReason(emptyList(), listOf(x)) != null) return
         Arena.ofConfined().use { arena ->
@@ -132,7 +135,7 @@ internal class JvmVendorBlas(
         }
     }
 
-    override fun rot(x: VectorWindow, y: VectorWindow, c: Double, s: Double) {
+    override fun rot(x: DenseVector, y: DenseVector, c: Double, s: Double) {
         requireSameLength(x, y, "rot")
         if (noWorkReason(emptyList(), listOf(x)) != null) return
         Arena.ofConfined().use { arena ->
@@ -144,72 +147,113 @@ internal class JvmVendorBlas(
         }
     }
 
-    // Level 2. One matrix operand, so the call runs under that matrix's own layout.
+    override fun rotmg(d1: Double, d2: Double, x1: Double, y1: Double): ModifiedGivens {
+        val handle = rotmgHandle
+        return Arena.ofConfined().use { arena ->
+            // d1, d2 and x1 are read and written in place, so each goes over as its own cell.
+            val pd1 = arena.allocateFrom(JAVA_DOUBLE, d1)
+            val pd2 = arena.allocateFrom(JAVA_DOUBLE, d2)
+            val px1 = arena.allocateFrom(JAVA_DOUBLE, x1)
+            val param = arena.allocate(JAVA_DOUBLE, PARAM_ENTRIES.toLong())
+            handle.invokeExact(pd1, pd2, px1, y1, param)
+            param.readModifiedGivens(
+                pd1.get(JAVA_DOUBLE, 0),
+                pd2.get(JAVA_DOUBLE, 0),
+                px1.get(JAVA_DOUBLE, 0),
+            )
+        }
+    }
 
-    override fun gemv(alpha: Double, a: MatrixWindow, x: VectorWindow, beta: Double, y: VectorWindow) {
-        require(x.size == a.columns && y.size == a.rows) { "gemv: operand sizes do not match the matrix" }
-        if (noWorkReason(listOf(a), emptyList()) != null) return
-        val layout = layoutOf(listOf(a))
-        val addressing = addressingUnder(a, layout, absorbs = true)
+    override fun rotm(x: DenseVector, y: DenseVector, transformation: ModifiedGivens) {
+        requireSameLength(x, y, "rotm")
+        if (noWorkReason(emptyList(), listOf(x)) != null) return
+        val handle = rotmHandle
         Arena.ofConfined().use { arena ->
-            val na = arena.stage(a, addressing)
+            val nx = arena.stage(x)
+            val ny = arena.stage(y)
+            val param = arena.allocate(JAVA_DOUBLE, PARAM_ENTRIES.toLong())
+            param.writeModifiedGivens(transformation)
+            handle.invokeExact(x.size, nx.segment, nx.increment, ny.segment, ny.increment, param)
+            nx.writeBack()
+            ny.writeBack()
+        }
+    }
+
+    // Level 2. One matrix operand, so the call runs under that matrix's own Cblas.COL_MAJOR.
+
+    override fun gemv(
+        alpha: Double,
+        a: DenseMatrix,
+        transposeA: Boolean,
+        x: DenseVector,
+        beta: Double,
+        y: DenseVector,
+    ) {
+        // The flag decides which dimension each operand answers to, so reading it is part of the check.
+        val expectedX = if (transposeA) a.rows else a.cols
+        val expectedY = if (transposeA) a.cols else a.rows
+        require(x.size == expectedX && y.size == expectedY) { "gemv: operand sizes do not match the matrix" }
+        if (noWorkReason(listOf(a), emptyList()) != null) return
+        Arena.ofConfined().use { arena ->
+            val na = arena.stage(a)
             val nx = arena.stage(x)
             val ny = arena.stage(y)
             gemvHandle.invokeExact(
-                layout, transposeFor(addressing, layout), a.rows, a.columns, alpha,
+                Cblas.COL_MAJOR, transposeFor(transposeA), a.rows, a.cols, alpha,
                 na.segment, na.leadingDimension, nx.segment, nx.increment, beta, ny.segment, ny.increment,
             )
             ny.writeBack()
         }
     }
 
-    override fun symv(alpha: Double, a: MatrixWindow, x: VectorWindow, beta: Double, y: VectorWindow) {
-        requireStructured(a, "symv")
-        require(x.size == a.columns && y.size == a.rows) { "symv: operand sizes do not match the matrix" }
+    override fun symv(
+        alpha: Double,
+        a: DenseMatrix,
+        structure: MatrixStructure,
+        x: DenseVector,
+        beta: Double,
+        y: DenseVector,
+    ) {
+        requireStructured(a, structure, "symv")
+        require(x.size == a.cols && y.size == a.rows) { "symv: operand sizes do not match the matrix" }
         if (noWorkReason(listOf(a), emptyList()) != null) return
-        val layout = layoutOf(listOf(a))
-        val addressing = addressingUnder(a, layout, absorbs = true)
         Arena.ofConfined().use { arena ->
-            val na = arena.stage(a, addressing)
+            val na = arena.stage(a)
             val nx = arena.stage(x)
             val ny = arena.stage(y)
             symvHandle.invokeExact(
-                layout, uploFor(a, addressing, layout), a.rows, alpha,
+                Cblas.COL_MAJOR, uploFor(structure), a.rows, alpha,
                 na.segment, na.leadingDimension, nx.segment, nx.increment, beta, ny.segment, ny.increment,
             )
             ny.writeBack()
         }
     }
 
-    override fun ger(alpha: Double, x: VectorWindow, y: VectorWindow, a: MatrixWindow) {
-        require(x.size == a.rows && y.size == a.columns) { "ger: operand sizes do not match the matrix" }
+    override fun ger(alpha: Double, x: DenseVector, y: DenseVector, a: DenseMatrix) {
+        require(x.size == a.rows && y.size == a.cols) { "ger: operand sizes do not match the matrix" }
         if (noWorkReason(listOf(a), emptyList()) != null) return
-        val layout = layoutOf(listOf(a))
-        val addressing = addressingUnder(a, layout, absorbs = true)
         Arena.ofConfined().use { arena ->
-            val na = arena.stage(a, addressing)
+            val na = arena.stage(a)
             val nx = arena.stage(x)
             val ny = arena.stage(y)
             gerHandle.invokeExact(
-                layout, a.rows, a.columns, alpha,
+                Cblas.COL_MAJOR, a.rows, a.cols, alpha,
                 nx.segment, nx.increment, ny.segment, ny.increment, na.segment, na.leadingDimension,
             )
             na.writeBack()
         }
     }
 
-    override fun syr(alpha: Double, x: VectorWindow, a: MatrixWindow) {
-        requireStructured(a, "syr")
+    override fun syr(alpha: Double, x: DenseVector, a: DenseMatrix, structure: MatrixStructure) {
+        requireStructured(a, structure, "syr")
         require(x.size == a.rows) { "syr: operand size does not match the matrix" }
         if (noWorkReason(listOf(a), emptyList()) != null) return
-        val layout = layoutOf(listOf(a))
-        val addressing = addressingUnder(a, layout, absorbs = true)
         Arena.ofConfined().use { arena ->
-            val na = arena.stage(a, addressing)
+            val na = arena.stage(a)
             val nx = arena.stage(x)
             syrHandle.invokeExact(
-                layout,
-                uploFor(a, addressing, layout),
+                Cblas.COL_MAJOR,
+                uploFor(structure),
                 a.rows,
                 alpha,
                 nx.segment,
@@ -221,60 +265,75 @@ internal class JvmVendorBlas(
         }
     }
 
-    override fun syr2(alpha: Double, x: VectorWindow, y: VectorWindow, a: MatrixWindow) {
-        requireStructured(a, "syr2")
+    override fun syr2(alpha: Double, x: DenseVector, y: DenseVector, a: DenseMatrix, structure: MatrixStructure) {
+        requireStructured(a, structure, "syr2")
         require(x.size == a.rows && y.size == a.rows) { "syr2: operand sizes do not match the matrix" }
         if (noWorkReason(listOf(a), emptyList()) != null) return
-        val layout = layoutOf(listOf(a))
-        val addressing = addressingUnder(a, layout, absorbs = true)
         Arena.ofConfined().use { arena ->
-            val na = arena.stage(a, addressing)
+            val na = arena.stage(a)
             val nx = arena.stage(x)
             val ny = arena.stage(y)
             syr2Handle.invokeExact(
-                layout, uploFor(a, addressing, layout), a.rows, alpha,
+                Cblas.COL_MAJOR, uploFor(structure), a.rows, alpha,
                 nx.segment, nx.increment, ny.segment, ny.increment, na.segment, na.leadingDimension,
             )
             na.writeBack()
         }
     }
 
-    override fun trsv(a: MatrixWindow, x: VectorWindow) = triangularVector(a, x, trsvHandle, "trsv")
+    override fun trsv(a: DenseMatrix, structure: MatrixStructure, transposeA: Boolean, x: DenseVector) =
+        triangularVector(a, structure, transposeA, x, trsvHandle, "trsv")
 
-    override fun trmv(a: MatrixWindow, x: VectorWindow) = triangularVector(a, x, trmvHandle, "trmv")
+    override fun trmv(a: DenseMatrix, structure: MatrixStructure, transposeA: Boolean, x: DenseVector) =
+        triangularVector(a, structure, transposeA, x, trmvHandle, "trmv")
 
-    private fun triangularVector(a: MatrixWindow, x: VectorWindow, handle: MethodHandle, what: String) {
-        requireTriangular(a, what)
+    @Suppress("LongParameterList") // the shared triangular vector signature plus its handle
+    private fun triangularVector(
+        a: DenseMatrix,
+        structure: MatrixStructure,
+        transposeA: Boolean,
+        x: DenseVector,
+        handle: MethodHandle,
+        what: String,
+    ) {
+        requireTriangular(a, structure, what)
         require(x.size == a.rows) { "$what: operand size does not match the matrix" }
         if (noWorkReason(listOf(a), emptyList()) != null) return
-        val layout = layoutOf(listOf(a))
-        val addressing = addressingUnder(a, layout, absorbs = true)
         Arena.ofConfined().use { arena ->
-            val na = arena.stage(a, addressing)
+            val na = arena.stage(a)
             val nx = arena.stage(x)
             handle.invokeExact(
-                layout, uploFor(a, addressing, layout), transposeFor(addressing, layout), diagFor(a),
+                Cblas.COL_MAJOR, uploFor(structure), transposeFor(transposeA), diagFor(structure),
                 a.rows, na.segment, na.leadingDimension, nx.segment, nx.increment,
             )
             nx.writeBack()
         }
     }
 
-    // Level 3. The layout is settled across every matrix operand before any of them is staged.
+    // Level 3. Every operand is contiguous column-major, so the layout is fixed and a transpose is a flag.
 
-    override fun gemm(alpha: Double, a: MatrixWindow, b: MatrixWindow, beta: Double, c: MatrixWindow) {
-        require(a.columns == b.rows && c.rows == a.rows && c.columns == b.columns) { "gemm: shapes do not conform" }
+    @Suppress("LongParameterList") // the BLAS dgemm signature
+    override fun gemm(
+        alpha: Double,
+        a: DenseMatrix,
+        transposeA: Boolean,
+        b: DenseMatrix,
+        transposeB: Boolean,
+        beta: Double,
+        c: DenseMatrix,
+    ) {
+        val depth = if (transposeA) a.rows else a.cols
+        require(c.rows == (if (transposeA) a.cols else a.rows)) { "gemm: shapes do not conform" }
+        require(c.cols == (if (transposeB) b.rows else b.cols)) { "gemm: shapes do not conform" }
+        require(depth == (if (transposeB) b.cols else b.rows)) { "gemm: shapes do not conform" }
         if (noWorkReason(listOf(c), emptyList()) != null) return
-        val operands = listOf(a, b, c)
-        val layout = layoutOf(operands)
-        val addressing = effectiveAddressing(VendorOperation.Gemm, operands)
         Arena.ofConfined().use { arena ->
-            val na = arena.stage(a, addressing[0])
-            val nb = arena.stage(b, addressing[1])
-            val nc = arena.stage(c, addressing[2])
+            val na = arena.stage(a)
+            val nb = arena.stage(b)
+            val nc = arena.stage(c)
             gemmHandle.invokeExact(
-                layout, transposeFor(addressing[0], layout), transposeFor(addressing[1], layout),
-                c.rows, c.columns, a.columns, alpha,
+                Cblas.COL_MAJOR, transposeFor(transposeA), transposeFor(transposeB),
+                c.rows, c.cols, depth, alpha,
                 na.segment, na.leadingDimension, nb.segment, nb.leadingDimension, beta,
                 nc.segment, nc.leadingDimension,
             )
@@ -282,27 +341,26 @@ internal class JvmVendorBlas(
         }
     }
 
+    @Suppress("LongParameterList") // the BLAS dsymm signature
     override fun symm(
         alpha: Double,
-        a: MatrixWindow,
-        b: MatrixWindow,
+        a: DenseMatrix,
+        structure: MatrixStructure,
+        b: DenseMatrix,
         beta: Double,
-        c: MatrixWindow,
+        c: DenseMatrix,
         rightSide: Boolean,
     ) {
-        requireStructured(a, "symm")
-        require(c.rows == b.rows && c.columns == b.columns) { "symm: shapes do not conform" }
-        require(a.rows == if (rightSide) c.columns else c.rows) { "symm: the symmetric operand has the wrong order" }
+        requireStructured(a, structure, "symm")
+        require(c.rows == b.rows && c.cols == b.cols) { "symm: shapes do not conform" }
+        require(a.rows == if (rightSide) c.cols else c.rows) { "symm: the symmetric operand has the wrong order" }
         if (noWorkReason(listOf(c), emptyList()) != null) return
-        val operands = listOf(a, b, c)
-        val layout = layoutOf(operands)
-        val addressing = effectiveAddressing(VendorOperation.Symm, operands)
         Arena.ofConfined().use { arena ->
-            val na = arena.stage(a, addressing[0])
-            val nb = arena.stage(b, addressing[1])
-            val nc = arena.stage(c, addressing[2])
+            val na = arena.stage(a)
+            val nb = arena.stage(b)
+            val nc = arena.stage(c)
             symmHandle.invokeExact(
-                layout, sideFor(rightSide), uploFor(a, addressing[0], layout), c.rows, c.columns, alpha,
+                Cblas.COL_MAJOR, sideFor(rightSide), uploFor(structure), c.rows, c.cols, alpha,
                 na.segment, na.leadingDimension, nb.segment, nb.leadingDimension, beta,
                 nc.segment, nc.leadingDimension,
             )
@@ -310,72 +368,99 @@ internal class JvmVendorBlas(
         }
     }
 
-    override fun syrk(alpha: Double, a: MatrixWindow, beta: Double, c: MatrixWindow) {
-        requireStructured(c, "syrk")
-        require(c.rows == a.rows) { "syrk: shapes do not conform" }
+    @Suppress("LongParameterList") // the BLAS dsyrk signature
+    override fun syrk(
+        alpha: Double,
+        a: DenseMatrix,
+        transposeA: Boolean,
+        beta: Double,
+        c: DenseMatrix,
+        structure: MatrixStructure,
+    ) {
+        requireStructured(c, structure, "syrk")
+        val depth = if (transposeA) a.rows else a.cols
+        require(c.rows == (if (transposeA) a.cols else a.rows)) { "syrk: shapes do not conform" }
         if (noWorkReason(listOf(c), emptyList()) != null) return
-        val operands = listOf(a, c)
-        val layout = layoutOf(operands)
-        val addressing = effectiveAddressing(VendorOperation.Syrk, operands)
         Arena.ofConfined().use { arena ->
-            val na = arena.stage(a, addressing[0])
-            val nc = arena.stage(c, addressing[1])
+            val na = arena.stage(a)
+            val nc = arena.stage(c)
             syrkHandle.invokeExact(
-                layout, uploFor(c, addressing[1], layout), transposeFor(addressing[0], layout),
-                c.rows, a.columns, alpha, na.segment, na.leadingDimension, beta,
+                Cblas.COL_MAJOR, uploFor(structure), transposeFor(transposeA),
+                c.rows, depth, alpha, na.segment, na.leadingDimension, beta,
                 nc.segment, nc.leadingDimension,
             )
             nc.writeBack()
         }
     }
 
-    override fun syr2k(alpha: Double, a: MatrixWindow, b: MatrixWindow, beta: Double, c: MatrixWindow) {
-        requireStructured(c, "syr2k")
-        require(c.rows == a.rows && a.rows == b.rows && a.columns == b.columns) { "syr2k: shapes do not conform" }
+    @Suppress("LongParameterList") // the BLAS dsyr2k signature
+    override fun syr2k(
+        alpha: Double,
+        a: DenseMatrix,
+        b: DenseMatrix,
+        transposeA: Boolean,
+        beta: Double,
+        c: DenseMatrix,
+        structure: MatrixStructure,
+    ) {
+        requireStructured(c, structure, "syr2k")
+        val depth = if (transposeA) a.rows else a.cols
+        require(a.rows == b.rows && a.cols == b.cols) { "syr2k: shapes do not conform" }
+        require(c.rows == (if (transposeA) a.cols else a.rows)) { "syr2k: shapes do not conform" }
         if (noWorkReason(listOf(c), emptyList()) != null) return
-        val operands = listOf(a, b, c)
-        val layout = layoutOf(operands)
-        val addressing = effectiveAddressing(VendorOperation.Syr2k, operands)
         Arena.ofConfined().use { arena ->
-            val na = arena.stage(a, addressing[0])
-            val nb = arena.stage(b, addressing[1])
-            val nc = arena.stage(c, addressing[2])
+            val na = arena.stage(a)
+            val nb = arena.stage(b)
+            val nc = arena.stage(c)
             syr2kHandle.invokeExact(
-                layout, uploFor(c, addressing[2], layout), transposeFor(addressing[0], layout),
-                c.rows, a.columns, alpha, na.segment, na.leadingDimension,
+                Cblas.COL_MAJOR, uploFor(structure), transposeFor(transposeA),
+                c.rows, depth, alpha, na.segment, na.leadingDimension,
                 nb.segment, nb.leadingDimension, beta, nc.segment, nc.leadingDimension,
             )
             nc.writeBack()
         }
     }
 
-    override fun trmm(alpha: Double, a: MatrixWindow, b: MatrixWindow, rightSide: Boolean) =
-        triangularMatrix(alpha, a, b, rightSide, trmmHandle, VendorOperation.Trmm, "trmm")
+    @Suppress("LongParameterList") // the BLAS dtrmm signature
+    override fun trmm(
+        alpha: Double,
+        a: DenseMatrix,
+        structure: MatrixStructure,
+        transposeA: Boolean,
+        b: DenseMatrix,
+        rightSide: Boolean,
+    ) = triangularMatrix(alpha, a, structure, transposeA, b, rightSide, trmmHandle, "trmm")
 
-    override fun trsm(alpha: Double, a: MatrixWindow, b: MatrixWindow, rightSide: Boolean) =
-        triangularMatrix(alpha, a, b, rightSide, trsmHandle, VendorOperation.Trsm, "trsm")
+    @Suppress("LongParameterList") // the BLAS dtrsm signature
+    override fun trsm(
+        alpha: Double,
+        a: DenseMatrix,
+        structure: MatrixStructure,
+        transposeA: Boolean,
+        b: DenseMatrix,
+        rightSide: Boolean,
+    ) = triangularMatrix(alpha, a, structure, transposeA, b, rightSide, trsmHandle, "trsm")
 
+    @Suppress("LongParameterList") // the shared triangular matrix signature plus its handle
     private fun triangularMatrix(
         alpha: Double,
-        a: MatrixWindow,
-        b: MatrixWindow,
+        a: DenseMatrix,
+        structure: MatrixStructure,
+        transposeA: Boolean,
+        b: DenseMatrix,
         rightSide: Boolean,
         handle: MethodHandle,
-        operation: VendorOperation,
         what: String,
     ) {
-        requireTriangular(a, what)
-        require(if (rightSide) a.rows == b.columns else a.rows == b.rows) { "$what: shapes do not conform" }
+        requireTriangular(a, structure, what)
+        require(if (rightSide) a.rows == b.cols else a.rows == b.rows) { "$what: shapes do not conform" }
         if (noWorkReason(listOf(b), emptyList()) != null) return
-        val operands = listOf(a, b)
-        val layout = layoutOf(operands)
-        val addressing = effectiveAddressing(operation, operands)
         Arena.ofConfined().use { arena ->
-            val na = arena.stage(a, addressing[0])
-            val nb = arena.stage(b, addressing[1])
+            val na = arena.stage(a)
+            val nb = arena.stage(b)
             handle.invokeExact(
-                layout, sideFor(rightSide), uploFor(a, addressing[0], layout),
-                transposeFor(addressing[0], layout), diagFor(a), b.rows, b.columns, alpha,
+                Cblas.COL_MAJOR, sideFor(rightSide), uploFor(structure),
+                transposeFor(transposeA), diagFor(structure), b.rows, b.cols, alpha,
                 na.segment, na.leadingDimension, nb.segment, nb.leadingDimension,
             )
             nb.writeBack()
@@ -383,21 +468,32 @@ internal class JvmVendorBlas(
     }
 
     /** Direct where the vendor exports `cblas_dgemmt`, and otherwise the shared composition. */
-    override fun gemmt(alpha: Double, a: MatrixWindow, b: MatrixWindow, beta: Double, c: MatrixWindow) {
-        requireStructured(c, "gemmt")
-        require(a.columns == b.rows && c.rows == a.rows && c.columns == b.columns) { "gemmt: shapes do not conform" }
+    @Suppress("LongParameterList") // the BLAS gemmt signature
+    override fun gemmt(
+        alpha: Double,
+        a: DenseMatrix,
+        transposeA: Boolean,
+        b: DenseMatrix,
+        transposeB: Boolean,
+        beta: Double,
+        c: DenseMatrix,
+        structure: MatrixStructure,
+    ) {
+        requireStructured(c, structure, "gemmt")
+        val depth = if (transposeA) a.rows else a.cols
+        require(c.rows == (if (transposeA) a.cols else a.rows)) { "gemmt: shapes do not conform" }
+        require(c.cols == (if (transposeB) b.rows else b.cols)) { "gemmt: shapes do not conform" }
         if (noWorkReason(listOf(c), emptyList()) != null) return
-        if (VendorOperation.Gemmt !in directlyImplemented) return composeGemmt(alpha, a, b, beta, c)
-        val operands = listOf(a, b, c)
-        val layout = layoutOf(operands)
-        val addressing = effectiveAddressing(VendorOperation.Gemmt, operands)
+        if (VendorOperation.Gemmt !in directlyImplemented) {
+            return composeGemmt(alpha, a, transposeA, b, transposeB, beta, c, structure)
+        }
         Arena.ofConfined().use { arena ->
-            val na = arena.stage(a, addressing[0])
-            val nb = arena.stage(b, addressing[1])
-            val nc = arena.stage(c, addressing[2])
+            val na = arena.stage(a)
+            val nb = arena.stage(b)
+            val nc = arena.stage(c)
             gemmtHandle().invokeExact(
-                layout, uploFor(c, addressing[2], layout), transposeFor(addressing[0], layout),
-                transposeFor(addressing[1], layout), c.rows, a.columns, alpha,
+                Cblas.COL_MAJOR, uploFor(structure), transposeFor(transposeA),
+                transposeFor(transposeB), c.rows, depth, alpha,
                 na.segment, na.leadingDimension, nb.segment, nb.leadingDimension, beta,
                 nc.segment, nc.leadingDimension,
             )
@@ -448,6 +544,14 @@ internal class JvmVendorBlas(
     private val rotHandle = library.handle(
         VendorOperation.Rot.entryPoint,
         FunctionDescriptor.ofVoid(JAVA_INT, ADDRESS, JAVA_INT, ADDRESS, JAVA_INT, JAVA_DOUBLE, JAVA_DOUBLE),
+    )
+    private val rotmgHandle = library.handle(
+        VendorOperation.Rotmg.entryPoint,
+        FunctionDescriptor.ofVoid(ADDRESS, ADDRESS, ADDRESS, JAVA_DOUBLE, ADDRESS),
+    )
+    private val rotmHandle = library.handle(
+        VendorOperation.Rotm.entryPoint,
+        FunctionDescriptor.ofVoid(JAVA_INT, ADDRESS, JAVA_INT, ADDRESS, JAVA_INT, ADDRESS),
     )
     private val gemvHandle = library.handle(
         VendorOperation.Gemv.entryPoint,
@@ -549,3 +653,32 @@ public actual fun openVendorBlas(only: Vendor?): VendorBlas? {
         JvmVendorLibrary.open(vendor)?.let(::JvmVendorBlas)
     }
 }
+
+/**
+ * Entries in the BLAS modified-Givens parameter array.
+ *
+ * The array is `[flag, h11, h21, h12, h22]`, which is the 2x2 matrix in column-major order rather than the
+ * reading order of its name. Writing it row-major transposes the rotation, and because the result is still a
+ * plausible rotation nothing downstream would report it, so the order is named here once and used from both
+ * directions.
+ */
+private const val PARAM_ENTRIES = 5
+
+private fun MemorySegment.writeModifiedGivens(transformation: ModifiedGivens) {
+    setAtIndex(JAVA_DOUBLE, 0, transformation.flag)
+    setAtIndex(JAVA_DOUBLE, 1, transformation.h11)
+    setAtIndex(JAVA_DOUBLE, 2, transformation.h21)
+    setAtIndex(JAVA_DOUBLE, 3, transformation.h12)
+    setAtIndex(JAVA_DOUBLE, 4, transformation.h22)
+}
+
+private fun MemorySegment.readModifiedGivens(d1: Double, d2: Double, x1: Double): ModifiedGivens = ModifiedGivens(
+    d1 = d1,
+    d2 = d2,
+    x1 = x1,
+    flag = getAtIndex(JAVA_DOUBLE, 0),
+    h11 = getAtIndex(JAVA_DOUBLE, 1),
+    h21 = getAtIndex(JAVA_DOUBLE, 2),
+    h12 = getAtIndex(JAVA_DOUBLE, 3),
+    h22 = getAtIndex(JAVA_DOUBLE, 4),
+)

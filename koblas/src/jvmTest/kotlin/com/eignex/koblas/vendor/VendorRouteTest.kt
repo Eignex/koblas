@@ -1,8 +1,7 @@
 package com.eignex.koblas.vendor
 
-import com.eignex.koblas.dense.MatrixStructure
-import com.eignex.koblas.dense.MatrixWindow
-import com.eignex.koblas.dense.VectorWindow
+import com.eignex.koblas.DenseMatrix
+import com.eignex.koblas.DenseVector
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
@@ -22,22 +21,20 @@ private class MisroutedBlas(
 ) : VendorBlas by delegate {
     override fun routeOf(
         operation: VendorOperation,
-        matrices: List<MatrixWindow>,
-        vectors: List<VectorWindow>,
+        matrices: List<DenseMatrix>,
+        vectors: List<DenseVector>,
     ): CallRoute = claimed
 }
 
 class VendorRouteTest {
-    private val storage = DoubleArray(400) { (it % 7).toDouble() + 1.0 }
-
-    private fun columnMajor(rows: Int, columns: Int, offset: Int = 0) =
-        MatrixWindow(storage, rows, columns, offset = offset, rowStride = 1, columnStride = 20)
+    private fun matrix(rows: Int, columns: Int, seed: Int = 0) =
+        DenseMatrix.wrap(rows, columns, DoubleArray(rows * columns) { ((it + seed) % 7).toDouble() + 1.0 })
 
     @Test
     fun `a direct call names the vendor its entry point and the transfer it paid`() = withVendor { blas ->
-        val a = columnMajor(3, 4)
-        val b = columnMajor(4, 5, offset = 100)
-        val c = columnMajor(3, 5, offset = 200)
+        val a = matrix(3, 4)
+        val b = matrix(4, 5, 1)
+        val c = matrix(3, 5, 2)
 
         val route = blas.routeOf(VendorOperation.Gemm, listOf(a, b, c))
 
@@ -50,19 +47,6 @@ class VendorRouteTest {
     }
 
     @Test
-    fun `a route admits a copy it had to make`() = withVendor { blas ->
-        val a = MatrixWindow(storage, 3, 4, offset = 0, rowStride = 2, columnStride = 40)
-        val b = columnMajor(4, 5, offset = 100)
-        val c = columnMajor(3, 5, offset = 200)
-
-        val route = blas.routeOf(VendorOperation.Gemm, listOf(a, b, c))
-
-        assertEquals(RouteKind.Direct, route.kind)
-        assertEquals("native buffer transfer plus packed copy", route.adapter)
-        assertTrue(route.exactlyMeasurable, "staging is part of reaching the vendor, not a different algorithm")
-    }
-
-    @Test
     fun `an operation the vendor does not export reports composition rather than its own name`() {
         val library = JvmVendorLibrary.open(Vendor.OpenBlas)
         if (library == null) {
@@ -70,17 +54,8 @@ class VendorRouteTest {
             return
         }
         val blas = JvmVendorBlas(library, suppressed = setOf(VendorOperation.Gemmt))
-        val c = MatrixWindow(
-            storage,
-            4,
-            4,
-            offset = 200,
-            rowStride = 1,
-            columnStride = 20,
-            structure = MatrixStructure.SymmetricLower,
-        )
 
-        val route = blas.routeOf(VendorOperation.Gemmt, listOf(columnMajor(4, 4), columnMajor(4, 4, 100), c))
+        val route = blas.routeOf(VendorOperation.Gemmt, listOf(matrix(4, 4), matrix(4, 4, 1), matrix(4, 4, 2)))
 
         assertEquals(RouteKind.Composed, route.kind)
         assertNull(route.entryPoint, "a composed call resolved no entry point of its own")
@@ -97,7 +72,7 @@ class VendorRouteTest {
         }
         val direct = JvmVendorBlas(library)
         val composed = JvmVendorBlas(library, suppressed = setOf(VendorOperation.Gemmt))
-        val operands = listOf(columnMajor(4, 4), columnMajor(4, 4, 100), columnMajor(4, 4, 200))
+        val operands = listOf(matrix(4, 4), matrix(4, 4, 1), matrix(4, 4, 2))
 
         assertNull(exactArmRejection(direct, VendorOperation.Gemm, operands))
         val rejection = exactArmRejection(composed, VendorOperation.Gemmt, operands)

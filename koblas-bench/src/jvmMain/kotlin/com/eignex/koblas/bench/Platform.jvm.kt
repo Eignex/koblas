@@ -16,11 +16,12 @@ internal actual fun writeTextFile(path: String, text: String) {
 internal actual fun resolveEngine(mode: String): Pair<KoblasEngine, String> {
     val engine = when (mode) {
         "jvm-scalar" -> BuiltinEngines.scalar
-        "jvm-c" -> requireNotNull(BuiltinEngines.c) { "requested jvm-c engine is unavailable" }
-        "jvm-simd" -> requireNotNull(BuiltinEngines.simd) { "requested jvm-simd engine is unavailable; launch with jdk.incubator.vector" }
-        else -> BuiltinEngines.exactC(rawNativeVariant(mode) ?: error("unknown JVM mode $mode"))
+        "jvm-simd" -> requireNotNull(BuiltinEngines.simd) {
+            "requested jvm-simd engine is unavailable; launch with jdk.incubator.vector"
+        }
+        else -> error("unknown JVM mode $mode")
     }
-    return engine to "$mode/${engine.vectorKernels.name}/${engine.sparseKernels.name}/packed-${engine.packedKernels.gemmTileRows}x${engine.packedKernels.gemmTileCols}"
+    return engine to "$mode/${engine.vectorKernels.name}/${engine.sparseKernels.name}"
 }
 
 internal actual fun runtimeIdentity(): String = "kotlin-2.4.10/jvm/${System.getProperty("java.vendor")}/${System.getProperty("java.version")}".replace(',', '_')
