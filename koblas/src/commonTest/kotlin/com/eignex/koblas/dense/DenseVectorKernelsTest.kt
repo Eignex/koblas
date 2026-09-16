@@ -131,8 +131,14 @@ class DenseVectorKernelsTest {
         assertLevel1KernelsAgreeWithReference(koblas.vectorKernels)
 
     @Test
-    fun `the compiled in iamax agrees with the scalar reference`() =
-        assertIamaxAgreesWithReference(koblas.vectorKernels)
+    fun `the compiled in iamax honours its contract`() = assertIamaxHonoursItsContract(koblas.vectorKernels)
+
+    /** The vectorised kernels fall back to the portable ones, so they owe exact agreement, not just the contract. */
+    @Test
+    fun `the simd iamax agrees exactly with the kernels it falls back to`() {
+        val simd = BuiltinEngines.simd ?: return
+        assertIamaxAgreesWithReference(simd.vectorKernels)
+    }
 
     @Test
     fun `the compiled-in reductions agree with the scalar loops`() =

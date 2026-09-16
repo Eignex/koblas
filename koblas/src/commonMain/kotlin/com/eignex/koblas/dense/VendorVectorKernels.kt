@@ -29,9 +29,8 @@ internal class VendorVectorKernels(
     private fun vendorRuns(len: Int): Boolean = len >= CROSSOVER
 
     override fun implementationFor(operation: DenseOperation, length: Int, contiguous: Boolean): String? = when {
-        // Neither reaches the library: sum is not a BLAS routine, and iamax is deliberately kept portable.
-        operation == DenseOperation.Sum || operation == DenseOperation.Iamax ->
-            portable.implementationFor(operation, length, contiguous)
+        // Not a BLAS routine, so there is no entry point to reach at any width.
+        operation == DenseOperation.Sum -> portable.implementationFor(operation, length, contiguous)
 
         vendorRuns(length) -> name
 
@@ -61,15 +60,15 @@ internal class VendorVectorKernels(
         if (vendorRuns(len)) blas.asum(vector(v, vOff, len, vStride)) else portable.asum(v, vOff, len, vStride)
 
     /**
-     * Always portable, because the vendor answers a different question on a NaN.
+     * The library's answer, which on a NaN is not the portable one.
      *
-     * `idamax` does not specify what happens when the largest magnitude is not a number. The reference and
-     * the portable kernel compare strictly, so a NaN loses and a later finite entry wins; oneMKL returns the
-     * NaN's index. Koblas documents the strict-comparison rule on [com.eignex.koblas.iamax], so sending this
-     * to the library would change an answer a caller was promised rather than only how fast it arrived.
-     * Every other routine here agrees with the portable one to within summation order.
+     * `idamax` does not specify what happens when the largest magnitude is not a number: the reference
+     * compares strictly, so a NaN loses to a later finite entry, while oneMKL returns the NaN's index. This
+     * routes like everything else rather than carving out an exception, so which of the two a caller sees is
+     * the selected implementation's, the same way the Level 2 and 3 arithmetic is.
      */
-    override fun iamax(v: DoubleArray, vOff: Int, len: Int, vStride: Int): Int = portable.iamax(v, vOff, len, vStride)
+    override fun iamax(v: DoubleArray, vOff: Int, len: Int, vStride: Int): Int =
+        if (vendorRuns(len)) blas.iamax(vector(v, vOff, len, vStride)) else portable.iamax(v, vOff, len, vStride)
 
     /** Not a BLAS routine, so this is always the portable loop. */
     override fun sum(v: DoubleArray, vOff: Int, len: Int, vStride: Int): Double = portable.sum(v, vOff, len, vStride)
