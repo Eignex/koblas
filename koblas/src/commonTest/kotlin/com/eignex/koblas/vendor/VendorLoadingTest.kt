@@ -18,7 +18,7 @@ import kotlin.test.assertTrue
  * host that happens to have a library missing exactly the right symbol is not something a test can rely on.
  */
 class VendorLoadingTest {
-    private fun installed(): VendorBlas? = openVendorBlas() ?: openVendorBlas(Vendor.OpenBlas)
+    private fun installed(): Blas? = openBlas() ?: openBlas(Vendor.OpenBlas)
 
     @Test
     fun `a library missing any required entry point is rejected rather than half bound`() {
@@ -66,9 +66,9 @@ class VendorLoadingTest {
         val emptyMatrix = DenseMatrix.wrap(0, 0, DoubleArray(0))
         val matrix = DenseMatrix.wrap(2, 2, DoubleArray(4) { it + 1.0 })
 
-        val emptyDot = blas.routeOf(VendorOperation.Dot, emptyList(), listOf(empty, empty))
-        val realDot = blas.routeOf(VendorOperation.Dot, emptyList(), listOf(present, present))
-        val emptyGemm = blas.routeOf(VendorOperation.Gemm, listOf(matrix, matrix, emptyMatrix))
+        val emptyDot = blas.routeOf(BlasOperation.Dot, emptyList(), listOf(empty, empty))
+        val realDot = blas.routeOf(BlasOperation.Dot, emptyList(), listOf(present, present))
+        val emptyGemm = blas.routeOf(BlasOperation.Gemm, listOf(matrix, matrix, emptyMatrix))
 
         assertEquals(RouteKind.NoWork, emptyDot.kind, "an empty dot performs no vendor work")
         assertEquals(null, emptyDot.entryPoint, "a call that never reached BLAS resolved no entry point")
@@ -84,7 +84,7 @@ class VendorLoadingTest {
         val destination = StridedVector(untouched, 0, 0)
         val source = DenseVector.wrap(DoubleArray(0))
 
-        val route = blas.routeOf(VendorOperation.Axpy, emptyList(), listOf(source, destination))
+        val route = blas.routeOf(BlasOperation.Axpy, emptyList(), listOf(source, destination))
         blas.axpy(2.0, source, destination)
 
         // The description said nothing ran; the call must agree by leaving the storage alone.
@@ -130,7 +130,7 @@ class VendorLoadingTest {
     @Test
     fun `two instances of one vendor are independent of each other`() {
         val first = installed() ?: return skipped("independent instances")
-        val second = assertNotNull(openVendorBlas(first.vendor), "the same vendor failed to open twice")
+        val second = assertNotNull(openBlas(first.vendor), "the same vendor failed to open twice")
 
         assertTrue(first !== second, "opening a vendor twice returned one shared instance")
         assertEquals(first.vendor, second.vendor)

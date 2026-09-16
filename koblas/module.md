@@ -20,7 +20,7 @@ present rather than substituting slower arithmetic under the same name.
 Both halves say what a call actually reached rather than what was selected.
 [explain][com.eignex.koblas.KoblasEngine.explain] names the Level 1 component for a given operation, length
 and spacing, [routeOf][com.eignex.koblas.sparse.SparseKernels.routeOf] does the same for sparse Level 1, and
-[VendorBlas.routeOf][com.eignex.koblas.vendor.VendorBlas.routeOf] describes one concrete vendor call including
+[Blas.routeOf][com.eignex.koblas.vendor.Blas.routeOf] describes one concrete vendor call including
 whether it was direct or composed. A selection that falls back is not evidence that its own kernel ran.
 
 Exact Level 1 engines are available through the experimental

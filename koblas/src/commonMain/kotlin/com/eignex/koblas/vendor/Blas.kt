@@ -8,7 +8,11 @@ import com.eignex.koblas.ModifiedGivens
 import com.eignex.koblas.dense.MatrixStructure
 
 /**
- * One vendor BLAS library, bound and callable.
+ * The BLAS entry points, in the shapes the standard gives them.
+ *
+ * Named for what it is rather than for who supplies it. Every routine here is one CBLAS call with that call's
+ * own arguments, and the package says where an implementation comes from; a caller wanting Koblas's own
+ * convenience shapes, array operands and boolean flags, wants [com.eignex.koblas.dense.DenseBlas] instead.
  *
  * Operands are the storage types themselves: a [DenseMatrix] is contiguous column-major with a leading
  * dimension equal to its row count, and a [DenseVector] is a pointer, a length and an increment. How a call
@@ -19,23 +23,20 @@ import com.eignex.koblas.dense.MatrixStructure
  * symbols that carry it. A library whose integers are 64 bits is a different ABI and is rejected at load
  * rather than producing wrong answers on large inputs.
  *
- * Instances are immutable and safe to share. Scratch used for staging is exclusive to one call, so concurrent
- * calls on one instance do not interfere.
+ * Instances are immutable and safe to share. Scratch used to reach the library is exclusive to one call, so
+ * concurrent calls on one instance do not interfere.
  *
- * Ownership is the same for every call here, and is what an owning-container seam above this one has to
- * preserve. A window borrows its array and does not extend its life: the caller keeps it reachable for the
- * call, nothing is retained afterwards, and no foreign pointer outlives the call that made it. An operand
- * copied into native memory lives in that call's arena and is freed with it, because caching a copy of a
- * mutable array across calls would be a correctness bug rather than an optimization. A call writes only what
- * its destination window addresses, plus whatever padding that window's own leading dimension already spanned,
- * which is carried across a transfer unchanged; storage outside the window is left as the caller left it.
- * Distinct windows may share one array where an operation says so, as the triangular solves do for their
- * in-place destination, and where an operation forbids overlap the call requires it rather than discovering it
- * late. Concurrent readers are fine; a write overlapping another call's access is the caller's to order.
- * Structure is declared rather than inferred, so an entry the structure says is absent is never read and an
- * implicit unit diagonal may hold anything.
+ * Ownership is the same for every call. An operand borrows its array and does not extend its life: the caller
+ * keeps it reachable for the call, nothing is retained afterwards, and no foreign pointer outlives the call
+ * that made it. An operand copied into native memory lives in that call's arena and is freed with it, because
+ * caching a copy of a mutable array across calls would be a correctness bug rather than an optimization.
+ * Two operands may share one array where an operation says so, as the triangular solves do for their in-place
+ * destination, and where an operation forbids overlap the call requires it rather than discovering it late.
+ * Concurrent readers are fine; a write overlapping another call's access is the caller's to order. Structure
+ * is declared rather than inferred, so an entry the structure says is absent is never read and an implicit
+ * unit diagonal may hold anything.
  */
-public interface VendorBlas {
+public interface Blas {
     /** Which library this is. */
     public val vendor: Vendor
 
@@ -58,23 +59,23 @@ public interface VendorBlas {
      * The operations this library exports directly.
      *
      * An operation being listed does not authorize a benchmark case on its own: the same operation can still
-     * decline a particular window. [routeOf] answers for a concrete call; this answers for the layer.
+     * decline a particular set of operands. [routeOf] answers for a concrete call; this answers for the layer.
      */
-    public val directlyImplemented: Set<VendorOperation>
+    public val directlyImplemented: Set<BlasOperation>
 
     /**
      * What a call to [operation] over these operands would do, each list in the order the operation names them.
      *
      * Both lists matter, because a route describes one concrete call and not an operation in general. An
      * operation asked about with no operands can only be answered in general terms, and the answer would be
-     * wrong for a call that returns without reaching BLAS: a dot over an empty window does no vendor work, and
+     * wrong for a call that returns without reaching BLAS: a dot over an empty vector does no vendor work, and
      * describing it as a direct vendor call is the attribution error this contract exists to prevent. Passing
      * the operands the call will use is what makes the answer specific to it.
      *
      * Allocates, so callers resolve it before timing rather than inside a timed call.
      */
     public fun routeOf(
-        operation: VendorOperation,
+        operation: BlasOperation,
         matrices: List<DenseMatrix> = emptyList(),
         vectors: List<DenseVector> = emptyList(),
     ): CallRoute
@@ -92,9 +93,9 @@ public interface VendorBlas {
      * The index of the entry of largest magnitude, or 0 for an empty vector.
      *
      * BLAS defines its three reductions to return zero for a non-positive increment rather than to walk the
-     * vector backwards, so a negatively strided window is passed with the increment's magnitude and reaches
+     * vector backwards, so a negatively strided vector is passed with the increment's magnitude and reaches
      * the same entries in the opposite order. For [nrm2] and [asum] the order does not matter. For this one it
-     * decides ties: among entries of equal largest magnitude a forward window reports the first and a backward
+     * decides ties: among entries of equal largest magnitude a forward vector reports the first and a backward
      * one reports the last. That is a real difference from a single-pass forward scan, and it is documented
      * rather than papered over because no vendor flag expresses the forward-scan choice.
      */
@@ -106,8 +107,8 @@ public interface VendorBlas {
     /**
      * `x = alpha · x`.
      *
-     * A negatively strided window is passed with the increment's magnitude. BLAS defines `scal` to return
-     * without doing anything for a non-positive increment, so keeping the sign would silently leave the window
+     * A negatively strided vector is passed with the increment's magnitude. BLAS defines `scal` to return
+     * without doing anything for a non-positive increment, so keeping the sign would silently leave the vector
      * unscaled; scaling is order-independent, so walking the same entries forwards gives the same result.
      */
     public fun scal(alpha: Double, x: DenseVector)
@@ -266,7 +267,7 @@ internal fun requireSameLength(x: DenseVector, y: DenseVector, what: String) {
  * A square operand with a stored triangle and a stored diagonal.
  *
  * None of the routines that take one carry a `diag` flag, so there is no way to tell the vendor that a
- * diagonal is implied. A window that says its diagonal is implicit is therefore rejected rather than served by
+ * diagonal is implied. An operand that says its diagonal is implicit is therefore rejected rather than served by
  * a call that would read or write it anyway; the triangular routines, which do carry the flag, take
  * [requireTriangular] instead.
  */
@@ -289,7 +290,7 @@ internal fun requireTriangular(a: DenseMatrix, structure: MatrixStructure, what:
 }
 
 /**
- * [VendorBlas.gemmt] assembled from a full [VendorBlas.gemm] plus a copy of the selected triangle, for a
+ * [Blas.gemmt] assembled from a full [Blas.gemm] plus a copy of the selected triangle, for a
  * vendor that does not export `cblas_dgemmt`.
  *
  * The composition keeps the contract the direct call has: the triangle [c]'s structure does not select is
@@ -299,7 +300,7 @@ internal fun requireTriangular(a: DenseMatrix, structure: MatrixStructure, what:
  * which is why the route of the call says which path ran.
  */
 @Suppress("LongParameterList") // the BLAS gemmt signature
-internal fun VendorBlas.composeGemmt(
+internal fun Blas.composeGemmt(
     alpha: Double,
     a: DenseMatrix,
     transposeA: Boolean,
@@ -334,4 +335,4 @@ internal fun VendorBlas.composeGemmt(
  * library without changing anything process-global. It also reaches [Vendor.OpenBlas], which [Vendor.select]
  * never returns.
  */
-public expect fun openVendorBlas(only: Vendor? = null): VendorBlas?
+public expect fun openBlas(only: Vendor? = null): Blas?

@@ -32,7 +32,7 @@ class VendorConcurrencyTest {
     @Test
     fun `every resolved vendor reports one compute thread`() {
         for (vendor in Vendor.entries) {
-            val blas = openVendorBlas(vendor) ?: continue
+            val blas = openBlas(vendor) ?: continue
 
             // A library that could not be held to one thread is refused at load, so resolving one is the
             // assertion: the count is not readable through the binding because it is not configurable.
@@ -44,7 +44,7 @@ class VendorConcurrencyTest {
     fun `an opened library confirmed one compute thread where it can be asked`() {
         var checked = 0
         for (vendor in Vendor.entries) {
-            val blas = openVendorBlas(vendor) ?: continue
+            val blas = openBlas(vendor) ?: continue
             checked++
 
             // These are multithreaded builds by default: OpenBLAS reports one thread per core until the

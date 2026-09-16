@@ -15,12 +15,12 @@ import kotlin.test.assertTrue
  * under the fixture's control, so a check that trusts any single one of them passes here.
  */
 private class MisroutedBlas(
-    private val delegate: VendorBlas,
+    private val delegate: Blas,
     private val claimed: CallRoute,
-    override val directlyImplemented: Set<VendorOperation> = delegate.directlyImplemented,
-) : VendorBlas by delegate {
+    override val directlyImplemented: Set<BlasOperation> = delegate.directlyImplemented,
+) : Blas by delegate {
     override fun routeOf(
-        operation: VendorOperation,
+        operation: BlasOperation,
         matrices: List<DenseMatrix>,
         vectors: List<DenseVector>,
     ): CallRoute = claimed
@@ -36,7 +36,7 @@ class VendorRouteTest {
         val b = matrix(4, 5, 1)
         val c = matrix(3, 5, 2)
 
-        val route = blas.routeOf(VendorOperation.Gemm, listOf(a, b, c))
+        val route = blas.routeOf(BlasOperation.Gemm, listOf(a, b, c))
 
         assertEquals(RouteKind.Direct, route.kind)
         assertEquals(blas.vendor, route.vendor)
@@ -53,9 +53,9 @@ class VendorRouteTest {
             println("SKIPPED: no CBLAS library installed; composed routing was not verified on this host")
             return
         }
-        val blas = JvmVendorBlas(library, suppressed = setOf(VendorOperation.Gemmt))
+        val blas = JvmVendorBlas(library, suppressed = setOf(BlasOperation.Gemmt))
 
-        val route = blas.routeOf(VendorOperation.Gemmt, listOf(matrix(4, 4), matrix(4, 4, 1), matrix(4, 4, 2)))
+        val route = blas.routeOf(BlasOperation.Gemmt, listOf(matrix(4, 4), matrix(4, 4, 1), matrix(4, 4, 2)))
 
         assertEquals(RouteKind.Composed, route.kind)
         assertNull(route.entryPoint, "a composed call resolved no entry point of its own")
@@ -71,11 +71,11 @@ class VendorRouteTest {
             return
         }
         val direct = JvmVendorBlas(library)
-        val composed = JvmVendorBlas(library, suppressed = setOf(VendorOperation.Gemmt))
+        val composed = JvmVendorBlas(library, suppressed = setOf(BlasOperation.Gemmt))
         val operands = listOf(matrix(4, 4), matrix(4, 4, 1), matrix(4, 4, 2))
 
-        assertNull(exactArmRejection(direct, VendorOperation.Gemm, operands))
-        val rejection = exactArmRejection(composed, VendorOperation.Gemmt, operands)
+        assertNull(exactArmRejection(direct, BlasOperation.Gemm, operands))
+        val rejection = exactArmRejection(composed, BlasOperation.Gemmt, operands)
         assertNotNull(rejection)
         assertTrue("does not implement" in rejection, "unexpected reason: $rejection")
     }
@@ -84,11 +84,11 @@ class VendorRouteTest {
     fun `a fixture claiming a direct route for an operation it does not implement is caught`() = withVendor { blas ->
         val fixture = MisroutedBlas(
             blas,
-            CallRoute(VendorOperation.Gemmt, RouteKind.Direct, blas.vendor, "cblas_dgemmt", null, null),
-            directlyImplemented = blas.directlyImplemented - VendorOperation.Gemmt,
+            CallRoute(BlasOperation.Gemmt, RouteKind.Direct, blas.vendor, "cblas_dgemmt", null, null),
+            directlyImplemented = blas.directlyImplemented - BlasOperation.Gemmt,
         )
 
-        val rejection = exactArmRejection(fixture, VendorOperation.Gemmt)
+        val rejection = exactArmRejection(fixture, BlasOperation.Gemmt)
 
         assertNotNull(rejection, "a direct-looking route for an unimplemented operation was admitted")
         assertTrue("does not implement" in rejection, "unexpected reason: $rejection")
@@ -99,10 +99,10 @@ class VendorRouteTest {
         val other = Vendor.entries.first { it != blas.vendor }
         val fixture = MisroutedBlas(
             blas,
-            CallRoute(VendorOperation.Gemm, RouteKind.Direct, other, "cblas_dgemm", null, null),
+            CallRoute(BlasOperation.Gemm, RouteKind.Direct, other, "cblas_dgemm", null, null),
         )
 
-        val rejection = exactArmRejection(fixture, VendorOperation.Gemm)
+        val rejection = exactArmRejection(fixture, BlasOperation.Gemm)
 
         assertNotNull(rejection, "a route naming another vendor was admitted")
         assertTrue("not ${blas.vendor.vendorName}" in rejection, "unexpected reason: $rejection")
@@ -112,10 +112,10 @@ class VendorRouteTest {
     fun `a fixture claiming the wrong entry point is caught`() = withVendor { blas ->
         val fixture = MisroutedBlas(
             blas,
-            CallRoute(VendorOperation.Gemm, RouteKind.Direct, blas.vendor, "cblas_dsymm", null, null),
+            CallRoute(BlasOperation.Gemm, RouteKind.Direct, blas.vendor, "cblas_dsymm", null, null),
         )
 
-        val rejection = exactArmRejection(fixture, VendorOperation.Gemm)
+        val rejection = exactArmRejection(fixture, BlasOperation.Gemm)
 
         assertNotNull(rejection, "a route resolving a different symbol was admitted")
         assertTrue("cblas_dsymm" in rejection, "unexpected reason: $rejection")
@@ -125,10 +125,10 @@ class VendorRouteTest {
     fun `a delegated route is never an exact measurement`() = withVendor { blas ->
         val fixture = MisroutedBlas(
             blas,
-            CallRoute(VendorOperation.Gemm, RouteKind.Delegated, blas.vendor, "cblas_dgemm", "scalar", null),
+            CallRoute(BlasOperation.Gemm, RouteKind.Delegated, blas.vendor, "cblas_dgemm", "scalar", null),
         )
 
-        val rejection = exactArmRejection(fixture, VendorOperation.Gemm)
+        val rejection = exactArmRejection(fixture, BlasOperation.Gemm)
 
         assertNotNull(rejection, "a delegated route was admitted as an exact arm")
         assertTrue("delegated" in rejection, "unexpected reason: $rejection")
@@ -136,14 +136,14 @@ class VendorRouteTest {
 
     @Test
     fun `a vendor that is not installed resolves to nothing rather than to another library`() {
-        val absent = Vendor.entries.filter { openVendorBlas(it) == null }
+        val absent = Vendor.entries.filter { openBlas(it) == null }
 
-        for (vendor in absent) assertNull(openVendorBlas(vendor), "${vendor.vendorName} resolved unexpectedly")
-        val installed = Vendor.entries.mapNotNull { openVendorBlas(it) }
+        for (vendor in absent) assertNull(openBlas(vendor), "${vendor.vendorName} resolved unexpectedly")
+        val installed = Vendor.entries.mapNotNull { openBlas(it) }
         for (blas in installed) {
             assertEquals(
                 blas.vendor,
-                blas.routeOf(VendorOperation.Gemm, emptyList()).vendor,
+                blas.routeOf(BlasOperation.Gemm, emptyList()).vendor,
                 "a resolved library reported a different vendor than the one requested",
             )
         }

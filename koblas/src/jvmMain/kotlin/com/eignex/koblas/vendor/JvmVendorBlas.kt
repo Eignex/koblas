@@ -32,18 +32,18 @@ internal class JvmVendorBlas(
      * there is otherwise no way to reach the composed path at all. Suppressing it is how a test exercises the
      * branch a vendor without it would take. Nothing in production passes anything here.
      */
-    private val suppressed: Set<VendorOperation> = emptySet(),
-) : VendorBlas {
+    private val suppressed: Set<BlasOperation> = emptySet(),
+) : Blas {
     override val vendor: Vendor get() = library.vendor
     override val libraryPath: String get() = library.resolvedFile
     override val version: String get() = library.version
     override val threadEvidence: ThreadEvidence get() = library.threadEvidence
 
-    override val directlyImplemented: Set<VendorOperation> = VendorOperation.entries
+    override val directlyImplemented: Set<BlasOperation> = BlasOperation.entries
         .filterTo(LinkedHashSet()) { it !in suppressed && library.exports(it.entryPoint) }
 
     override fun routeOf(
-        operation: VendorOperation,
+        operation: BlasOperation,
         matrices: List<DenseMatrix>,
         vectors: List<DenseVector>,
     ): CallRoute = routeFor(
@@ -484,7 +484,7 @@ internal class JvmVendorBlas(
         require(c.rows == (if (transposeA) a.cols else a.rows)) { "gemmt: shapes do not conform" }
         require(c.cols == (if (transposeB) b.rows else b.cols)) { "gemmt: shapes do not conform" }
         if (noWorkReason(listOf(c), emptyList()) != null) return
-        if (VendorOperation.Gemmt !in directlyImplemented) {
+        if (BlasOperation.Gemmt !in directlyImplemented) {
             return composeGemmt(alpha, a, transposeA, b, transposeB, beta, c, structure)
         }
         Arena.ofConfined().use { arena ->
@@ -504,15 +504,15 @@ internal class JvmVendorBlas(
     private fun gemmtHandle(): MethodHandle = checkNotNull(gemmtOrNull) { "gemmt is not exported" }
 
     private val dotHandle = library.handle(
-        VendorOperation.Dot.entryPoint,
+        BlasOperation.Dot.entryPoint,
         FunctionDescriptor.of(JAVA_DOUBLE, JAVA_INT, ADDRESS, JAVA_INT, ADDRESS, JAVA_INT),
     )
     private val nrm2Handle = library.handle(
-        VendorOperation.Nrm2.entryPoint,
+        BlasOperation.Nrm2.entryPoint,
         FunctionDescriptor.of(JAVA_DOUBLE, JAVA_INT, ADDRESS, JAVA_INT),
     )
     private val asumHandle = library.handle(
-        VendorOperation.Asum.entryPoint,
+        BlasOperation.Asum.entryPoint,
         FunctionDescriptor.of(JAVA_DOUBLE, JAVA_INT, ADDRESS, JAVA_INT),
     )
 
@@ -522,59 +522,59 @@ internal class JvmVendorBlas(
      * value either way and avoids depending on which one this library used.
      */
     private val iamaxHandle = library.handle(
-        VendorOperation.Iamax.entryPoint,
+        BlasOperation.Iamax.entryPoint,
         FunctionDescriptor.of(JAVA_INT, JAVA_INT, ADDRESS, JAVA_INT),
     )
     private val axpyHandle = library.handle(
-        VendorOperation.Axpy.entryPoint,
+        BlasOperation.Axpy.entryPoint,
         FunctionDescriptor.ofVoid(JAVA_INT, JAVA_DOUBLE, ADDRESS, JAVA_INT, ADDRESS, JAVA_INT),
     )
     private val scalHandle = library.handle(
-        VendorOperation.Scal.entryPoint,
+        BlasOperation.Scal.entryPoint,
         FunctionDescriptor.ofVoid(JAVA_INT, JAVA_DOUBLE, ADDRESS, JAVA_INT),
     )
     private val copyHandle = library.handle(
-        VendorOperation.Copy.entryPoint,
+        BlasOperation.Copy.entryPoint,
         FunctionDescriptor.ofVoid(JAVA_INT, ADDRESS, JAVA_INT, ADDRESS, JAVA_INT),
     )
     private val swapHandle = library.handle(
-        VendorOperation.Swap.entryPoint,
+        BlasOperation.Swap.entryPoint,
         FunctionDescriptor.ofVoid(JAVA_INT, ADDRESS, JAVA_INT, ADDRESS, JAVA_INT),
     )
     private val rotHandle = library.handle(
-        VendorOperation.Rot.entryPoint,
+        BlasOperation.Rot.entryPoint,
         FunctionDescriptor.ofVoid(JAVA_INT, ADDRESS, JAVA_INT, ADDRESS, JAVA_INT, JAVA_DOUBLE, JAVA_DOUBLE),
     )
     private val rotmgHandle = library.handle(
-        VendorOperation.Rotmg.entryPoint,
+        BlasOperation.Rotmg.entryPoint,
         FunctionDescriptor.ofVoid(ADDRESS, ADDRESS, ADDRESS, JAVA_DOUBLE, ADDRESS),
     )
     private val rotmHandle = library.handle(
-        VendorOperation.Rotm.entryPoint,
+        BlasOperation.Rotm.entryPoint,
         FunctionDescriptor.ofVoid(JAVA_INT, ADDRESS, JAVA_INT, ADDRESS, JAVA_INT, ADDRESS),
     )
     private val gemvHandle = library.handle(
-        VendorOperation.Gemv.entryPoint,
+        BlasOperation.Gemv.entryPoint,
         FunctionDescriptor.ofVoid(
             JAVA_INT, JAVA_INT, JAVA_INT, JAVA_INT, JAVA_DOUBLE, ADDRESS, JAVA_INT,
             ADDRESS, JAVA_INT, JAVA_DOUBLE, ADDRESS, JAVA_INT,
         ),
     )
     private val symvHandle = library.handle(
-        VendorOperation.Symv.entryPoint,
+        BlasOperation.Symv.entryPoint,
         FunctionDescriptor.ofVoid(
             JAVA_INT, JAVA_INT, JAVA_INT, JAVA_DOUBLE, ADDRESS, JAVA_INT,
             ADDRESS, JAVA_INT, JAVA_DOUBLE, ADDRESS, JAVA_INT,
         ),
     )
     private val gerHandle = library.handle(
-        VendorOperation.Ger.entryPoint,
+        BlasOperation.Ger.entryPoint,
         FunctionDescriptor.ofVoid(
             JAVA_INT, JAVA_INT, JAVA_INT, JAVA_DOUBLE, ADDRESS, JAVA_INT, ADDRESS, JAVA_INT, ADDRESS, JAVA_INT,
         ),
     )
     private val syrHandle = library.handle(
-        VendorOperation.Syr.entryPoint,
+        BlasOperation.Syr.entryPoint,
         FunctionDescriptor.ofVoid(
             JAVA_INT,
             JAVA_INT,
@@ -587,45 +587,45 @@ internal class JvmVendorBlas(
         ),
     )
     private val syr2Handle = library.handle(
-        VendorOperation.Syr2.entryPoint,
+        BlasOperation.Syr2.entryPoint,
         FunctionDescriptor.ofVoid(
             JAVA_INT, JAVA_INT, JAVA_INT, JAVA_DOUBLE, ADDRESS, JAVA_INT, ADDRESS, JAVA_INT, ADDRESS, JAVA_INT,
         ),
     )
-    private val trsvHandle = library.handle(VendorOperation.Trsv.entryPoint, TRIANGULAR_VECTOR)
-    private val trmvHandle = library.handle(VendorOperation.Trmv.entryPoint, TRIANGULAR_VECTOR)
+    private val trsvHandle = library.handle(BlasOperation.Trsv.entryPoint, TRIANGULAR_VECTOR)
+    private val trmvHandle = library.handle(BlasOperation.Trmv.entryPoint, TRIANGULAR_VECTOR)
     private val gemmHandle = library.handle(
-        VendorOperation.Gemm.entryPoint,
+        BlasOperation.Gemm.entryPoint,
         FunctionDescriptor.ofVoid(
             JAVA_INT, JAVA_INT, JAVA_INT, JAVA_INT, JAVA_INT, JAVA_INT, JAVA_DOUBLE,
             ADDRESS, JAVA_INT, ADDRESS, JAVA_INT, JAVA_DOUBLE, ADDRESS, JAVA_INT,
         ),
     )
     private val symmHandle = library.handle(
-        VendorOperation.Symm.entryPoint,
+        BlasOperation.Symm.entryPoint,
         FunctionDescriptor.ofVoid(
             JAVA_INT, JAVA_INT, JAVA_INT, JAVA_INT, JAVA_INT, JAVA_DOUBLE,
             ADDRESS, JAVA_INT, ADDRESS, JAVA_INT, JAVA_DOUBLE, ADDRESS, JAVA_INT,
         ),
     )
     private val syrkHandle = library.handle(
-        VendorOperation.Syrk.entryPoint,
+        BlasOperation.Syrk.entryPoint,
         FunctionDescriptor.ofVoid(
             JAVA_INT, JAVA_INT, JAVA_INT, JAVA_INT, JAVA_INT, JAVA_DOUBLE,
             ADDRESS, JAVA_INT, JAVA_DOUBLE, ADDRESS, JAVA_INT,
         ),
     )
     private val syr2kHandle = library.handle(
-        VendorOperation.Syr2k.entryPoint,
+        BlasOperation.Syr2k.entryPoint,
         FunctionDescriptor.ofVoid(
             JAVA_INT, JAVA_INT, JAVA_INT, JAVA_INT, JAVA_INT, JAVA_DOUBLE,
             ADDRESS, JAVA_INT, ADDRESS, JAVA_INT, JAVA_DOUBLE, ADDRESS, JAVA_INT,
         ),
     )
-    private val trmmHandle = library.handle(VendorOperation.Trmm.entryPoint, TRIANGULAR_MATRIX)
-    private val trsmHandle = library.handle(VendorOperation.Trsm.entryPoint, TRIANGULAR_MATRIX)
+    private val trmmHandle = library.handle(BlasOperation.Trmm.entryPoint, TRIANGULAR_MATRIX)
+    private val trsmHandle = library.handle(BlasOperation.Trsm.entryPoint, TRIANGULAR_MATRIX)
     private val gemmtOrNull = library.handleOrNull(
-        VendorOperation.Gemmt.entryPoint,
+        BlasOperation.Gemmt.entryPoint,
         FunctionDescriptor.ofVoid(
             JAVA_INT, JAVA_INT, JAVA_INT, JAVA_INT, JAVA_INT, JAVA_INT, JAVA_DOUBLE,
             ADDRESS, JAVA_INT, ADDRESS, JAVA_INT, JAVA_DOUBLE, ADDRESS, JAVA_INT,
@@ -647,7 +647,7 @@ internal class JvmVendorBlas(
 }
 
 /** Opens the preferred available vendor for this host, or null when none is installed. */
-public actual fun openVendorBlas(only: Vendor?): VendorBlas? {
+public actual fun openBlas(only: Vendor?): Blas? {
     val candidates = only?.let { listOf(it) } ?: Vendor.select(hostPlatform())
     return candidates.firstNotNullOfOrNull { vendor ->
         JvmVendorLibrary.open(vendor)?.let(::JvmVendorBlas)

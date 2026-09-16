@@ -8,8 +8,8 @@ import com.eignex.koblas.dense.DenseBlas
 import com.eignex.koblas.dense.applyBeta
 import com.eignex.koblas.dense.asVector
 import com.eignex.koblas.dense.symmetricStructure
+import com.eignex.koblas.vendor.Blas
 import com.eignex.koblas.vendor.MissingVendorException
-import com.eignex.koblas.vendor.VendorBlas
 import kotlin.jvm.JvmOverloads
 
 /**
@@ -128,4 +128,4 @@ public fun DenseMatrix.syr2(alpha: Double, x: DenseVector, y: DenseVector, lower
     koblas.syr2(alpha, x, y, this, lower)
 
 /** The selected library, or the failure a Level 2 call owes a host without one. */
-private fun vendorBlas(): VendorBlas = koblas.vendor ?: throw MissingVendorException()
+private fun vendorBlas(): Blas = koblas.vendor ?: throw MissingVendorException()

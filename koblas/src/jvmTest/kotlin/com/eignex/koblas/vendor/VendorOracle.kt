@@ -11,8 +11,8 @@ import kotlin.test.fail
  * use. OpenBLAS is the fallback because it shares the CBLAS transport, which is what these tests are about;
  * it is never selected in production.
  */
-internal val testVendor: VendorBlas? by lazy {
-    openVendorBlas() ?: openVendorBlas(Vendor.OpenBlas)
+internal val testVendor: Blas? by lazy {
+    openBlas() ?: openBlas(Vendor.OpenBlas)
 }
 
 /**
@@ -21,7 +21,7 @@ internal val testVendor: VendorBlas? by lazy {
  * A test that quietly passes because nothing was installed is worse than no test, so the skip says what was
  * missing on the way past rather than leaving a green result to be read as evidence.
  */
-internal fun withVendor(body: (VendorBlas) -> Unit) {
+internal fun withVendor(body: (Blas) -> Unit) {
     val blas = testVendor
     if (blas == null) {
         println("SKIPPED: no CBLAS library installed; vendor execution was not verified on this host")

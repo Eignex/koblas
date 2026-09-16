@@ -7,7 +7,7 @@ package com.eignex.koblas.vendor
  * and ArmPL is not assumed to. A vendor that lacks it composes the result instead, which is why the route of a
  * `gemmt` call says which of the two happened rather than naming the operation alone.
  */
-public enum class VendorOperation(
+public enum class BlasOperation(
     /** The CBLAS symbol, unsuffixed and therefore LP64. */
     public val entryPoint: String,
     /** The BLAS level, used to group report rows. */

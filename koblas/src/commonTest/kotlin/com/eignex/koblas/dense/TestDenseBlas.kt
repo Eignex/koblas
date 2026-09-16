@@ -1,7 +1,7 @@
 package com.eignex.koblas.dense
 
 import com.eignex.koblas.vendor.Vendor
-import com.eignex.koblas.vendor.openVendorBlas
+import com.eignex.koblas.vendor.openBlas
 
 /**
  * The dense Level 2 and 3 seam under test, or null when this host has no CBLAS at all.
@@ -15,7 +15,7 @@ import com.eignex.koblas.vendor.openVendorBlas
  * installed, which is most of them, and would do it by passing.
  */
 internal val testDenseBlas: DenseBlas? by lazy {
-    (openVendorBlas() ?: openVendorBlas(Vendor.OpenBlas))?.let { VendorDenseBlas(it) }
+    (openBlas() ?: openBlas(Vendor.OpenBlas))?.let { VendorDenseBlas(it) }
 }
 
 /**

@@ -9,8 +9,8 @@ import com.eignex.koblas.dense.DenseVectorKernels
 import com.eignex.koblas.dense.VendorDenseBlas
 import com.eignex.koblas.sparse.IndexedSparseKernels
 import com.eignex.koblas.sparse.SparseKernels
-import com.eignex.koblas.vendor.VendorBlas
-import com.eignex.koblas.vendor.openVendorBlas
+import com.eignex.koblas.vendor.Blas
+import com.eignex.koblas.vendor.openBlas
 
 /**
  * The immutable platform-selected BLAS engine used by top-level convenience operations.
@@ -46,7 +46,7 @@ public class KoblasEngine internal constructor(
      * Public because attribution needs it: a benchmark asks the binding what a concrete call does, and the
      * answer has to come from the same object that will run it rather than from the engine's name.
      */
-    public val vendor: VendorBlas?,
+    public val vendor: Blas?,
 ) : DenseBlas by VendorDenseBlas(vendor) {
     /** Short read-only implementation description for logs and benchmark attribution. */
     public val name: String
@@ -77,4 +77,4 @@ public expect object BuiltinEngines {
 }
 
 /** The vendor every built-in engine shares, resolved once. */
-internal val selectedVendor: VendorBlas? by lazy { openVendorBlas() }
+internal val selectedVendor: Blas? by lazy { openBlas() }

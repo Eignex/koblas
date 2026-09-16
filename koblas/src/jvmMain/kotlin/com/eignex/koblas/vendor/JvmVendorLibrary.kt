@@ -171,7 +171,7 @@ internal class JvmVendorLibrary private constructor(
 
     private fun probeDot(): Boolean {
         val handle = handleOrNull(
-            VendorOperation.Dot.entryPoint,
+            BlasOperation.Dot.entryPoint,
             FunctionDescriptor.of(JAVA_DOUBLE, JAVA_INT, ADDRESS, JAVA_INT, ADDRESS, JAVA_INT),
         ) ?: return false
         Arena.ofConfined().use { arena ->
@@ -183,7 +183,7 @@ internal class JvmVendorLibrary private constructor(
 
     private fun probeGemm(): Boolean {
         val handle = handleOrNull(
-            VendorOperation.Gemm.entryPoint,
+            BlasOperation.Gemm.entryPoint,
             FunctionDescriptor.ofVoid(
                 JAVA_INT, JAVA_INT, JAVA_INT, JAVA_INT, JAVA_INT, JAVA_INT, JAVA_DOUBLE,
                 ADDRESS, JAVA_INT, ADDRESS, JAVA_INT, JAVA_DOUBLE, ADDRESS, JAVA_INT,

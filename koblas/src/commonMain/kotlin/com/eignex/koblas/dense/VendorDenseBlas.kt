@@ -5,11 +5,11 @@ package com.eignex.koblas.dense
 import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.DenseVector
 import com.eignex.koblas.requireShape
+import com.eignex.koblas.vendor.Blas
 import com.eignex.koblas.vendor.MissingVendorException
-import com.eignex.koblas.vendor.VendorBlas
 
 /**
- * Dense Level 2 and 3 served by whole vendor BLAS calls over one window boundary.
+ * Dense Level 2 and 3 served by whole vendor BLAS calls across one boundary.
  *
  * Every public form, owning matrix or borrowed view, is validated and described the same way and then handed to
  * the same entry point, with the transpose and the stored triangle travelling beside the operand as flags.
@@ -21,8 +21,8 @@ import com.eignex.koblas.vendor.VendorBlas
  * an accelerator-dependent call has nothing to fall back to and a silent portable substitute would be a
  * different implementation reported under the same name.
  */
-internal class VendorDenseBlas(private val vendor: VendorBlas?) : DenseBlas {
-    private val blas: VendorBlas get() = vendor ?: throw MissingVendorException()
+internal class VendorDenseBlas(private val vendor: Blas?) : DenseBlas {
+    private val blas: Blas get() = vendor ?: throw MissingVendorException()
 
     override fun gemv(
         alpha: Double,
@@ -189,7 +189,7 @@ private fun triangle(lower: Boolean, unitDiag: Boolean = false): MatrixStructure
     else -> MatrixStructure.TriangularUpper
 }
 
-/** The stored triangle a symmetric operand declares, shared with the callers that build their own windows. */
+/** The stored triangle a symmetric operand declares, shared with the callers that state it themselves. */
 internal fun symmetricStructure(lower: Boolean): MatrixStructure =
     if (lower) MatrixStructure.SymmetricLower else MatrixStructure.SymmetricUpper
 

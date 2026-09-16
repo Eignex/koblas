@@ -305,13 +305,13 @@ class JvmVendorBlasTest {
     @Test
     fun `the resolved library and version identify what actually ran`() = withVendor { blas ->
         assertTrue(blas.version.isNotEmpty(), "no version string")
-        assertTrue(VendorOperation.Gemm in blas.directlyImplemented, "gemm should be directly implemented")
+        assertTrue(BlasOperation.Gemm in blas.directlyImplemented, "gemm should be directly implemented")
     }
 
     @Test
     fun `the reported library is the file the symbol came from not the name that was asked for`() {
         for (vendor in Vendor.entries) {
-            val blas = openVendorBlas(vendor) ?: continue
+            val blas = openBlas(vendor) ?: continue
 
             assertTrue(
                 blas.libraryPath.startsWith("/"),
