@@ -264,22 +264,17 @@ internal object SimdOps {
     }
 
     /**
-     * Apply the modified Givens matrix ([h11]/[h12]/[h21]/[h22]) to each pair in [x]/[y] a vector at a time,
-     * at unit stride only. Both operands of a lane are loaded before either is stored, so this stays correct
-     * even when [x] and [y] are the same array at the same offset.
+     * Apply the plane rotation ([c], [s]) to each pair in [x]/[y] a vector at a time, at unit stride only.
+     *
+     * Both operands of a lane are loaded before either is stored, so this stays correct even when [x] and [y]
+     * are the same array at the same offset.
      */
     @Suppress("LongParameterList")
-    fun rotm(
-        x: DoubleArray,
-        xOff: Int,
-        y: DoubleArray,
-        yOff: Int,
-        len: Int,
-        h11: Double,
-        h12: Double,
-        h21: Double,
-        h22: Double,
-    ) {
+    fun rot(x: DoubleArray, xOff: Int, y: DoubleArray, yOff: Int, len: Int, c: Double, s: Double) {
+        val h11 = c
+        val h12 = s
+        val h21 = -s
+        val h22 = c
         val h11Vec = DoubleVector.broadcast(SPECIES, h11)
         val h12Vec = DoubleVector.broadcast(SPECIES, h12)
         val h21Vec = DoubleVector.broadcast(SPECIES, h21)

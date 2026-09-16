@@ -142,8 +142,6 @@ class DenseVectorKernelsTest {
     fun `the compiled-in swap agrees with the scalar loop`() = assertSwapAgreesWithReference(koblas.vectorKernels)
 
     @Test
-    fun `the compiled-in modified Givens kernels agree with the portable ones`() {
-        assertModifiedGivensKernelsAgreeWithReference(koblas.vectorKernels)
+    fun `the compiled-in rot kernel agrees with the portable one`() =
         assertRotKernelAgreesWithReference(koblas.vectorKernels)
-    }
 }

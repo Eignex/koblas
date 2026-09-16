@@ -17,8 +17,6 @@ iamax+4096+uniform
 iamax+65536+uniform
 swap+4096+uniform
 rot+4096+uniform
-rotm+4096+uniform
-rotmg+1+uniform
 gemv+32x21+uniform
 gemv+129x31+uniform+transA=T
 symv+129+uniform+uplo=U

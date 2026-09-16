@@ -5,7 +5,6 @@ package com.eignex.koblas.vendor
 
 import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.DenseVector
-import com.eignex.koblas.ModifiedGivens
 import com.eignex.koblas.dense.MatrixStructure
 import kotlinx.cinterop.ByteVar
 import kotlinx.cinterop.CFunction
@@ -40,8 +39,6 @@ private typealias AxpyFn = CFunction<(Int, Double, Ptr?, Int, Ptr?, Int) -> Unit
 private typealias ScalFn = CFunction<(Int, Double, Ptr?, Int) -> Unit>
 private typealias CopyFn = CFunction<(Int, Ptr?, Int, Ptr?, Int) -> Unit>
 private typealias RotFn = CFunction<(Int, Ptr?, Int, Ptr?, Int, Double, Double) -> Unit>
-private typealias RotmgFn = CFunction<(Ptr?, Ptr?, Ptr?, Double, Ptr?) -> Unit>
-private typealias RotmFn = CFunction<(Int, Ptr?, Int, Ptr?, Int, Ptr?) -> Unit>
 private typealias GemvFn = CFunction<(Int, Int, Int, Int, Double, Ptr?, Int, Ptr?, Int, Double, Ptr?, Int) -> Unit>
 private typealias SymvFn = CFunction<(Int, Int, Int, Double, Ptr?, Int, Ptr?, Int, Double, Ptr?, Int) -> Unit>
 private typealias GerFn = CFunction<(Int, Int, Int, Double, Ptr?, Int, Ptr?, Int, Ptr?, Int) -> Unit>
@@ -345,49 +342,6 @@ internal class NativeVendorBlas private constructor(
             val py = pins.stage(y)
             val fn = symbol(BlasOperation.Rot).reinterpret<RotFn>()
             fn(x.size, px.pointer, px.increment, py.pointer, py.increment, c, s)
-        } finally {
-            pins.release()
-        }
-    }
-
-    override fun rotmg(d1: Double, d2: Double, x1: Double, y1: Double): ModifiedGivens = memScoped {
-        // d1, d2 and x1 are read and written in place, so each goes over as its own cell.
-        val state = allocArray<DoubleVar>(3)
-        state[0] = d1
-        state[1] = d2
-        state[2] = x1
-        val param = allocArray<DoubleVar>(PARAM_ENTRIES)
-        val fn = symbol(BlasOperation.Rotmg).reinterpret<RotmgFn>()
-        fn(state, state + 1, state + 2, y1, param)
-        ModifiedGivens(
-            d1 = state[0],
-            d2 = state[1],
-            x1 = state[2],
-            flag = param[0],
-            h11 = param[1],
-            h21 = param[2],
-            h12 = param[3],
-            h22 = param[4],
-        )
-    }
-
-    override fun rotm(x: DenseVector, y: DenseVector, transformation: ModifiedGivens) {
-        requireSameLength(x, y, "rotm")
-        if (noWorkReason(emptyList(), listOf(x)) != null) return
-        val pins = Pins()
-        try {
-            val px = pins.stage(x)
-            val py = pins.stage(y)
-            memScoped {
-                val param = allocArray<DoubleVar>(PARAM_ENTRIES)
-                param[0] = transformation.flag
-                param[1] = transformation.h11
-                param[2] = transformation.h21
-                param[3] = transformation.h12
-                param[4] = transformation.h22
-                val fn = symbol(BlasOperation.Rotm).reinterpret<RotmFn>()
-                fn(x.size, px.pointer, px.increment, py.pointer, py.increment, param)
-            }
         } finally {
             pins.release()
         }
@@ -826,12 +780,3 @@ public actual fun openBlas(only: Vendor?): Blas? {
     val candidates = only?.let { listOf(it) } ?: Vendor.select(hostPlatform())
     return candidates.firstNotNullOfOrNull(NativeVendorBlas::open)
 }
-
-/**
- * Entries in the BLAS modified-Givens parameter array.
- *
- * The array is `[flag, h11, h21, h12, h22]`, the 2x2 matrix in column-major order rather than the reading
- * order of its name. Writing it row-major transposes the rotation into another plausible rotation, which
- * nothing downstream would report, so the order is stated once and used from both directions.
- */
-private const val PARAM_ENTRIES = 5

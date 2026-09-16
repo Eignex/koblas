@@ -40,12 +40,6 @@ public enum class BlasOperation(
     /** Applies a plane rotation to `x` and `y`. */
     Rot("cblas_drot", 1),
 
-    /** Generates the modified Givens transformation that eliminates the second component. */
-    Rotmg("cblas_drotmg", 1),
-
-    /** Applies a modified Givens transformation to `x` and `y`. */
-    Rotm("cblas_drotm", 1),
-
     /** `y = alpha · op(A) · x + beta · y`. */
     Gemv("cblas_dgemv", 2),
 

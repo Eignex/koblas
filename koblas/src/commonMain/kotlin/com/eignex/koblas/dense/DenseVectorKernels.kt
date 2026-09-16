@@ -1,10 +1,7 @@
 package com.eignex.koblas.dense
 
-import com.eignex.koblas.ModifiedGivens
 import com.eignex.koblas.internal.numeric.*
 import com.eignex.koblas.portableRot
-import com.eignex.koblas.portableRotm
-import com.eignex.koblas.portableRotmg
 
 /**
  * Contiguous dense Level 1 operations that are independently useful outside matrix algorithms.
@@ -77,26 +74,6 @@ public interface DenseVectorKernels {
      */
     public fun iamax(v: DoubleArray, vOff: Int, len: Int, vStride: Int = 1): Int
 
-    /** Constructs a modified Givens transformation. */
-    public fun rotmg(d1: Double, d2: Double, x1: Double, y1: Double): ModifiedGivens
-
-    /**
-     * Applies a modified Givens [transformation] to two strided runs. Each pair is loaded before either
-     * result is stored. Equal runs are therefore safe, but callers must snapshot any other overlap whose
-     * stores could precede a later input load.
-     */
-    @Suppress("LongParameterList")
-    public fun rotm(
-        x: DoubleArray,
-        xOff: Int,
-        xStride: Int,
-        y: DoubleArray,
-        yOff: Int,
-        yStride: Int,
-        len: Int,
-        transformation: ModifiedGivens,
-    )
-
     /**
      * Applies the plane rotation `(c, s, -s, c)` to two contiguous runs. Each pair is loaded before either
      * result is stored. Equal runs are therefore safe, but callers must snapshot any other overlap whose
@@ -153,20 +130,6 @@ internal object ScalarVectorKernels : DenseVectorKernels {
 
     override fun swap(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int, aStride: Int, bStride: Int) =
         scalarSwap(a, aOff, aStride, b, bOff, bStride, len)
-
-    override fun rotmg(d1: Double, d2: Double, x1: Double, y1: Double): ModifiedGivens = portableRotmg(d1, d2, x1, y1)
-
-    @Suppress("LongParameterList")
-    override fun rotm(
-        x: DoubleArray,
-        xOff: Int,
-        xStride: Int,
-        y: DoubleArray,
-        yOff: Int,
-        yStride: Int,
-        len: Int,
-        transformation: ModifiedGivens,
-    ) = portableRotm(x, xOff, xStride, y, yOff, yStride, len, transformation)
 
     @Suppress("LongParameterList")
     override fun rot(x: DoubleArray, xOff: Int, y: DoubleArray, yOff: Int, len: Int, c: Double, s: Double) =
