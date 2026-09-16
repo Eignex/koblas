@@ -258,37 +258,6 @@ public interface Blas {
     )
 }
 
-/** Both bindings reject a mismatched pair of vector operands the same way, and with the same message. */
-internal fun requireSameLength(x: DenseVector, y: DenseVector, what: String) {
-    require(x.size == y.size) { "$what: vector sizes differ" }
-}
-
-/**
- * A square operand with a stored triangle and a stored diagonal.
- *
- * None of the routines that take one carry a `diag` flag, so there is no way to tell the vendor that a
- * diagonal is implied. An operand that says its diagonal is implicit is therefore rejected rather than served by
- * a call that would read or write it anyway; the triangular routines, which do carry the flag, take
- * [requireTriangular] instead.
- */
-internal fun requireStructured(a: DenseMatrix, structure: MatrixStructure, what: String) {
-    val stored = structure != MatrixStructure.General &&
-        structure != MatrixStructure.UnitLower &&
-        structure != MatrixStructure.UnitUpper
-    require(stored) { "$what requires a stored triangle with a stored diagonal" }
-    require(a.rows == a.cols) { "$what requires a square matrix" }
-}
-
-/** A triangular operand, stored or with an implicit unit diagonal. */
-internal fun requireTriangular(a: DenseMatrix, structure: MatrixStructure, what: String) {
-    val triangular = structure == MatrixStructure.TriangularLower ||
-        structure == MatrixStructure.TriangularUpper ||
-        structure == MatrixStructure.UnitLower ||
-        structure == MatrixStructure.UnitUpper
-    require(triangular) { "$what requires a triangular matrix" }
-    require(a.rows == a.cols) { "$what requires a square matrix" }
-}
-
 /**
  * [Blas.gemmt] assembled from a full [Blas.gemm] plus a copy of the selected triangle, for a
  * vendor that does not export `cblas_dgemmt`.

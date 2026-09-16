@@ -403,10 +403,7 @@ internal class NativeVendorBlas private constructor(
         beta: Double,
         y: DenseVector,
     ) {
-        // The flag decides which dimension each operand answers to, so reading it is part of the check.
-        val expectedX = if (transposeA) a.rows else a.cols
-        val expectedY = if (transposeA) a.cols else a.rows
-        require(x.size == expectedX && y.size == expectedY) { "gemv: operand sizes do not match the matrix" }
+        requireGemvOperands(a, transposeA, x, y)
         if (noWorkReason(listOf(a), emptyList()) != null) return
         val pins = Pins()
         try {
@@ -431,8 +428,7 @@ internal class NativeVendorBlas private constructor(
         beta: Double,
         y: DenseVector,
     ) {
-        requireStructured(a, structure, "symv")
-        require(x.size == a.cols && y.size == a.rows) { "symv: operand sizes do not match the matrix" }
+        requireSymvOperands(a, structure, x, y)
         if (noWorkReason(listOf(a), emptyList()) != null) return
         val pins = Pins()
         try {
@@ -450,7 +446,7 @@ internal class NativeVendorBlas private constructor(
     }
 
     override fun ger(alpha: Double, x: DenseVector, y: DenseVector, a: DenseMatrix) {
-        require(x.size == a.rows && y.size == a.cols) { "ger: operand sizes do not match the matrix" }
+        requireGerOperands(x, y, a)
         if (noWorkReason(listOf(a), emptyList()) != null) return
         val pins = Pins()
         try {
@@ -468,8 +464,7 @@ internal class NativeVendorBlas private constructor(
     }
 
     override fun syr(alpha: Double, x: DenseVector, a: DenseMatrix, structure: MatrixStructure) {
-        requireStructured(a, structure, "syr")
-        require(x.size == a.rows) { "syr: operand size does not match the matrix" }
+        requireSyrOperands(a, structure, "syr", x)
         if (noWorkReason(listOf(a), emptyList()) != null) return
         val pins = Pins()
         try {
@@ -492,8 +487,7 @@ internal class NativeVendorBlas private constructor(
     }
 
     override fun syr2(alpha: Double, x: DenseVector, y: DenseVector, a: DenseMatrix, structure: MatrixStructure) {
-        requireStructured(a, structure, "syr2")
-        require(x.size == a.rows && y.size == a.rows) { "syr2: operand sizes do not match the matrix" }
+        requireSyrOperands(a, structure, "syr2", x, y)
         if (noWorkReason(listOf(a), emptyList()) != null) return
         val pins = Pins()
         try {
@@ -525,8 +519,7 @@ internal class NativeVendorBlas private constructor(
         operation: BlasOperation,
         what: String,
     ) {
-        requireTriangular(a, structure, what)
-        require(x.size == a.rows) { "$what: operand size does not match the matrix" }
+        requireTriangularVectorOperands(a, structure, x, what)
         if (noWorkReason(listOf(a), emptyList()) != null) return
         val pins = Pins()
         try {
@@ -555,9 +548,7 @@ internal class NativeVendorBlas private constructor(
         c: DenseMatrix,
     ) {
         val depth = if (transposeA) a.rows else a.cols
-        require(c.rows == (if (transposeA) a.cols else a.rows)) { "gemm: shapes do not conform" }
-        require(c.cols == (if (transposeB) b.rows else b.cols)) { "gemm: shapes do not conform" }
-        require(depth == (if (transposeB) b.cols else b.rows)) { "gemm: shapes do not conform" }
+        requireGemmOperands(a, transposeA, b, transposeB, c)
         if (noWorkReason(listOf(c), emptyList()) != null) return
         val pins = Pins()
         try {
@@ -586,9 +577,7 @@ internal class NativeVendorBlas private constructor(
         c: DenseMatrix,
         rightSide: Boolean,
     ) {
-        requireStructured(a, structure, "symm")
-        require(c.rows == b.rows && c.cols == b.cols) { "symm: shapes do not conform" }
-        require(a.rows == if (rightSide) c.cols else c.rows) { "symm: the symmetric operand has the wrong order" }
+        requireSymmOperands(a, structure, b, c, rightSide)
         if (noWorkReason(listOf(c), emptyList()) != null) return
         val pins = Pins()
         try {
@@ -615,9 +604,8 @@ internal class NativeVendorBlas private constructor(
         c: DenseMatrix,
         structure: MatrixStructure,
     ) {
-        requireStructured(c, structure, "syrk")
+        requireSyrkOperands(a, transposeA, c, structure)
         val depth = if (transposeA) a.rows else a.cols
-        require(c.rows == (if (transposeA) a.cols else a.rows)) { "syrk: shapes do not conform" }
         if (noWorkReason(listOf(c), emptyList()) != null) return
         val pins = Pins()
         try {
@@ -644,10 +632,8 @@ internal class NativeVendorBlas private constructor(
         c: DenseMatrix,
         structure: MatrixStructure,
     ) {
-        requireStructured(c, structure, "syr2k")
+        requireSyr2kOperands(a, b, transposeA, c, structure)
         val depth = if (transposeA) a.rows else a.cols
-        require(a.rows == b.rows && a.cols == b.cols) { "syr2k: shapes do not conform" }
-        require(c.rows == (if (transposeA) a.cols else a.rows)) { "syr2k: shapes do not conform" }
         if (noWorkReason(listOf(c), emptyList()) != null) return
         val pins = Pins()
         try {
@@ -696,8 +682,7 @@ internal class NativeVendorBlas private constructor(
         operation: BlasOperation,
         what: String,
     ) {
-        requireTriangular(a, structure, what)
-        require(if (rightSide) a.rows == b.cols else a.rows == b.rows) { "$what: shapes do not conform" }
+        requireTriangularMatrixOperands(a, structure, b, rightSide, what)
         if (noWorkReason(listOf(b), emptyList()) != null) return
         val pins = Pins()
         try {
@@ -726,10 +711,8 @@ internal class NativeVendorBlas private constructor(
         c: DenseMatrix,
         structure: MatrixStructure,
     ) {
-        requireStructured(c, structure, "gemmt")
+        requireGemmtOperands(a, transposeA, b, transposeB, c, structure)
         val depth = if (transposeA) a.rows else a.cols
-        require(c.rows == (if (transposeA) a.cols else a.rows)) { "gemmt: shapes do not conform" }
-        require(c.cols == (if (transposeB) b.rows else b.cols)) { "gemmt: shapes do not conform" }
         if (noWorkReason(listOf(c), emptyList()) != null) return
         if (BlasOperation.Gemmt !in directlyImplemented) {
             return composeGemmt(alpha, a, transposeA, b, transposeB, beta, c, structure)
