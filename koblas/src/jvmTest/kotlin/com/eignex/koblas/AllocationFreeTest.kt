@@ -28,10 +28,10 @@ class AllocationFreeTest {
         val b = DoubleArray(n) { 1.0 / (it + 1) }
         val kernels = engine.vectorKernels
 
-        val dot = bytesPerIteration(1_000) { kernels.dot(a, 0, b, 0, n) }
-        val axpy = bytesPerIteration(1_000) { kernels.axpy(b, 0, 0.5, a, 0, n) }
-        val nrm2 = bytesPerIteration(1_000) { kernels.nrm2(a, 0, n) }
-        val strided = bytesPerIteration(1_000) { kernels.dot(a, 0, b, 0, n / 2, 2, 2) }
+        val dot = bytesPerIteration(1_000, FLOOR_BYTES) { kernels.dot(a, 0, b, 0, n) }
+        val axpy = bytesPerIteration(1_000, FLOOR_BYTES) { kernels.axpy(b, 0, 0.5, a, 0, n) }
+        val nrm2 = bytesPerIteration(1_000, FLOOR_BYTES) { kernels.nrm2(a, 0, n) }
+        val strided = bytesPerIteration(1_000, FLOOR_BYTES) { kernels.dot(a, 0, b, 0, n / 2, 2, 2) }
 
         assertTrue(dot <= FLOOR_BYTES, "dot allocated $dot B per call")
         assertTrue(axpy <= FLOOR_BYTES, "axpy allocated $axpy B per call")
@@ -45,7 +45,7 @@ class AllocationFreeTest {
         val vector = SparseVector.of(n, IntArray(n / 2) { it * 2 }, DoubleArray(n / 2) { it + 1.0 })
         val x = DoubleArray(n) { it * 0.01 }
 
-        val levelOneBytes = bytesPerIteration(1_000) { engine.sparseKernels.dot(vector, x) }
+        val levelOneBytes = bytesPerIteration(1_000, FLOOR_BYTES) { engine.sparseKernels.dot(vector, x) }
 
         assertTrue(levelOneBytes <= FLOOR_BYTES, "sparse level one allocated $levelOneBytes B per call")
     }
