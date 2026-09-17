@@ -9,8 +9,6 @@ import java.lang.foreign.ValueLayout.ADDRESS
 import java.lang.foreign.ValueLayout.JAVA_DOUBLE
 import java.lang.foreign.ValueLayout.JAVA_INT
 import java.lang.invoke.MethodHandle
-import java.nio.file.Files
-import java.nio.file.attribute.PosixFilePermissions
 
 /**
  * One opened vendor library and the symbols bound out of it.
@@ -254,49 +252,6 @@ internal class JvmVendorLibrary private constructor(
         private const val PATH_BYTES = 4096L
 
         /**
-         * The extracted path of a bundled payload for [vendor], or null when the optional module is absent.
-         *
-         * Tried after every installed candidate, because an installed library is the one the operator chose;
-         * see [Bundle]. The payload has to reach the filesystem before it can be opened, since a library is
-         * loaded by path and not from a jar, and it is extracted with private permissions and delete-on-exit
-         * handling.
-         *
-         * The whole directory is extracted, not only the entry point, and into one directory, because a
-         * dispatching runtime finds the rest of itself beside the file that was opened. A file the manifest
-         * names but the artifact does not hold fails the extraction rather than leaving a payload that opens
-         * and then cannot compute.
-         */
-        private fun bundled(vendor: Vendor): String? {
-            val host = hostPlatform()
-            val directory = Bundle.directory(vendor, host) ?: return null
-            val loader = Thread.currentThread().contextClassLoader ?: JvmVendorLibrary::class.java.classLoader
-            val manifest = loader.getResourceAsStream("$directory/${Bundle.MANIFEST}") ?: return null
-            val names = Bundle.names(manifest.use { it.readBytes().decodeToString() })
-            if (vendor.bundledFile !in names) return null
-            return try {
-                val target = Files.createTempDirectory(Bundle.extraction(vendor))
-                secure(target, "rwx------")
-                target.toFile().deleteOnExit()
-                for (name in names) {
-                    val source = loader.getResourceAsStream("$directory/$name") ?: return null
-                    val destination = target.resolve(name)
-                    source.use { Files.copy(it, destination) }
-                    secure(destination, "rw-------")
-                    destination.toFile().deleteOnExit()
-                }
-                target.resolve(vendor.bundledFile!!).toString()
-            } catch (_: java.io.IOException) {
-                null
-            }
-        }
-
-        private fun secure(path: java.nio.file.Path, permissions: String) {
-            runCatching {
-                Files.setPosixFilePermissions(path, PosixFilePermissions.fromString(permissions))
-            }
-        }
-
-        /**
          * Opens the first candidate of [vendor] that loads and exports every required CBLAS symbol, or null.
          *
          * A library that opens but is missing part of the surface is rejected rather than half-bound, so a
@@ -314,9 +269,7 @@ internal class JvmVendorLibrary private constructor(
             for (candidate in vendor.resolvedCandidates(System.getProperty("user.home"))) {
                 attempt(vendor, candidate, linker)?.let { return it }
             }
-            // Only now is a payload worth unpacking. Extracting it up front would write a temporary copy of a
-            // whole vendor runtime on every open of a host that has one installed and never reads it.
-            return bundled(vendor)?.let { attempt(vendor, it, linker) }
+            return null
         }
 
         private fun attempt(vendor: Vendor, candidate: String, linker: Linker): JvmVendorLibrary? {

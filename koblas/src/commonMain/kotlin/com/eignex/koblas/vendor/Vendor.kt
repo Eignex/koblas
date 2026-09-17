@@ -23,15 +23,13 @@ public enum class Vendor(
     public val vendorName: String,
     /** Library file names tried in order. The first that opens and exports [keySymbol] wins. */
     internal val candidates: List<String>,
-    /** The file name this vendor takes when the optional module bundles it, or null when it never is. */
-    internal val bundledFile: String?,
     /** How this vendor is held to one compute thread; see [ThreadControl]. */
     internal val threadControl: ThreadControl,
     /** Whether [select] may return this vendor. */
     internal val selectable: Boolean,
 ) {
     /**
-     * Apple's system BLAS, supplied by macOS and never bundled.
+     * Apple's system BLAS, supplied by macOS and installed with it.
      *
      * The one supported vendor whose single compute thread cannot be read back. It exports no thread-count
      * entry point, so the requirement is established through [ACCELERATE_THREAD_LIMIT] and reported as
@@ -47,7 +45,6 @@ public enum class Vendor(
     Accelerate(
         "Accelerate",
         listOf("/System/Library/Frameworks/Accelerate.framework/Accelerate"),
-        bundledFile = null,
         threadControl = ThreadControl.Environment,
         selectable = true,
     ),
@@ -69,7 +66,6 @@ public enum class Vendor(
             "$USER_HOME/intel/oneapi/mkl/latest/lib/libmkl_rt.so.3",
             "/opt/intel/oneapi/mkl/latest/lib/libmkl_rt.so.3",
         ),
-        bundledFile = "libmkl_rt.so.3",
         threadControl = ThreadControl.Mkl,
         selectable = true,
     ),
@@ -77,7 +73,7 @@ public enum class Vendor(
     /**
      * AMD Optimizing CPU Libraries, whose BLAS is BLIS with the CBLAS interface compiled in.
      *
-     * The serial build comes first, and is the one bundled. AOCL ships BLIS twice, once linked against a
+     * The serial build comes first. AOCL ships BLIS twice, once linked against a
      * threading runtime and once without, and both are held to one compute thread here; taking the serial
      * build means the single-thread requirement is met by the binary rather than by a call that configures a
      * pool down to one. The multithreaded build stays a candidate because a host may have only that one
@@ -89,7 +85,6 @@ public enum class Vendor(
     Aocl(
         "AOCL",
         listOf("libblis.so.5", "libblis.so.4", "libblis.so", "libblis-mt.so.5", "libblis-mt.so.4", "libblis-mt.so"),
-        bundledFile = "libblis.so.5",
         threadControl = ThreadControl.Blis,
         selectable = true,
     ),
@@ -98,7 +93,6 @@ public enum class Vendor(
     ArmPl(
         "ArmPL",
         listOf("libarmpl_lp64.so", "libarmpl.so", "libarmpl_lp64_mp.so"),
-        bundledFile = "libarmpl_lp64.so",
         threadControl = ThreadControl.OpenMp,
         selectable = true,
     ),
@@ -107,7 +101,6 @@ public enum class Vendor(
     OpenBlas(
         "OpenBLAS",
         listOf("libopenblas.so.0", "libopenblas.so"),
-        bundledFile = null,
         threadControl = ThreadControl.OpenBlas,
         selectable = false,
     ),
