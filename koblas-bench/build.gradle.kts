@@ -21,6 +21,7 @@ kotlin {
     }
     jvm()
     linuxX64 { binaries.executable { entryPoint = "com.eignex.koblas.bench.main"; baseName = "koblas-bench" } }
+    linuxArm64 { binaries.executable { entryPoint = "com.eignex.koblas.bench.main"; baseName = "koblas-bench" } }
     macosArm64 { binaries.executable { entryPoint = "com.eignex.koblas.bench.main"; baseName = "koblas-bench" } }
     sourceSets {
         commonMain.dependencies { implementation(project(":koblas")) }

@@ -22,6 +22,17 @@ koblas-bench/capture-report.sh --vendors-only --libraries openblas,accelerate
 On a hybrid CPU, pin the run: `taskset -c 2,4,6,8 koblas-bench/capture-report.sh …`. Otherwise it wanders
 between core types and the timings move with the scheduler.
 
+## Capturing in the reference container
+
+```bash
+koblas-bench/reference-container.sh all --samples 5 --warmups 5 --target-ms 200 --forks 2
+```
+
+Builds an image with a pinned JDK, OpenBLAS and oneMKL, mounts the repository, and captures inside it, so a
+report from a cloud host is comparable with one from a laptop. Takes `openblas`, `onemkl` or `all` before the
+capture options; `all` needs an x86-64 host, since oneMKL ships no ARM64 build. Requires Docker, and the
+report lands in the repository as usual because the working tree is mounted rather than copied.
+
 ## Options
 
 | Option | Effect |
