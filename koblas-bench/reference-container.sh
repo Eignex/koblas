@@ -29,6 +29,9 @@ if ! docker info >/dev/null 2>&1; then
     fi
 fi
 
+# BuildKit builds only the stages the target depends on. The legacy builder walks every stage above it in
+# the file, so an arm64 host asked for the armpl target would build the oneMKL stage first and fail there.
+export DOCKER_BUILDKIT=1
 image="koblas-vendors:$target"
 build_arguments=()
 if "${docker_command[@]}" build --help 2>&1 | grep -q -- '--progress'; then
