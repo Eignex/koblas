@@ -53,6 +53,31 @@ class PlatformEngineTest {
         assertNotEquals(vendorArm, koblas.explain(DenseOperation.Sum, WIDE))
     }
 
+    /**
+     * The measured crossovers differ by operation, and the routing has to differ with them.
+     *
+     * One width is enough to catch the mistake this guards against, which is a single constant creeping back:
+     * at 512 a dot has crossed and a norm has not, because `dnrm2` rescales for overflow safety per element
+     * while the portable kernel tries the plain sum of squares first. Only the Native arm routes Level 1 to a
+     * library at all, so everywhere else this says so rather than asserting the JVM into the same shape.
+     */
+    @Test
+    fun `each operation crosses to the vendor at its own measured width`() {
+        val vendor = koblas.vendor ?: return skipped("no library on this host")
+        val arm = "${vendor.vendor.vendorName.lowercase()}-level1"
+        if (koblas.vectorKernels.name != arm) return skipped("this platform keeps Level 1 off the library")
+
+        assertEquals(PORTABLE, koblas.explain(DenseOperation.Dot, 256), "a dot at 256 is still the loop's")
+        assertEquals(arm, koblas.explain(DenseOperation.Dot, 512), "a dot at 512 has crossed")
+        assertEquals(arm, koblas.explain(DenseOperation.Iamax, 256), "the index search crosses earliest")
+        assertEquals(PORTABLE, koblas.explain(DenseOperation.Nrm2, 512), "the robust norm crosses latest")
+        assertEquals(arm, koblas.explain(DenseOperation.Nrm2, 768), "and has crossed by 768")
+    }
+
+    private fun skipped(why: String) {
+        println("SKIPPED: $why; the per-operation crossovers were not exercised here")
+    }
+
     private companion object {
         const val PORTABLE = "scalar"
 

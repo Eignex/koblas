@@ -18,8 +18,13 @@ internal object SimdVectorKernels : DenseVectorKernels {
      * Width from which the vector search for the first largest magnitude beats the scalar one.
      *
      * A fixed measured constant rather than a tuning key. The index search carries a lane-position vector
-     * beside the magnitude one and reduces both, so it pays later than the plain reductions do; K4 revisits
-     * this against the new measurements, which is where a crossover is allowed to move.
+     * beside the magnitude one and reduces both, so it pays later than the plain reductions do.
+     *
+     * Measured, and unchanged by the measurement. This constant gates its own comparison: at the shipped
+     * value every narrower run takes the scalar kernel in both arms, so the two were timed once more with it
+     * lowered to the lane width. The vectorised search loses below 64, sits inside the noise from 64 to 192
+     * and loses outright at 128, and from 256 is ahead at every width measured, by 1.13 to 1.90. The capture
+     * is in `koblas-bench/reports/level1-crossover/jvm-iamax-gate-lowered/`, on the host named beside it.
      */
     private const val IAMAX_CROSSOVER = 256
 
