@@ -95,7 +95,8 @@ This follows the ordinary blocked structure used by
 ## Static vendor selection
 
 Use a closed vendor set and one readable selection function. Prefer Accelerate on macOS, Arm Performance Libraries
-(ArmPL) on Linux ARM64, AOCL on supported AMD x64 hosts, and oneMKL on supported Intel x64 hosts. Check OS and
+(ArmPL) on Linux ARM64, AOCL on supported AMD x64 hosts, and oneMKL on supported Intel x64 hosts, and end every
+Linux order with OpenBLAS so a host carrying only the distribution's BLAS computes instead of raising. Check OS and
 architecture before CPU vendor; an ARM processor from an unfamiliar vendor still takes the ArmPL route.
 Check supported OS/architecture, ABI, and library availability once.
 Define a short, fixed compatible fallback order before implementation; do not infer compatibility from successful

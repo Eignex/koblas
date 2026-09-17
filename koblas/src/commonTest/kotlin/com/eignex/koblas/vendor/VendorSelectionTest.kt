@@ -6,10 +6,12 @@ import kotlin.test.assertTrue
 
 class VendorSelectionTest {
     @Test
-    fun `macos prefers accelerate on every architecture`() {
+    fun `macos prefers accelerate on every architecture and needs no fallback behind it`() {
         for (architecture in Architecture.entries) {
             val host = HostPlatform(OperatingSystem.MacOs, architecture, CpuVendor.Unknown)
 
+            // A list of one is the whole macOS policy: Accelerate is part of the system and cannot be missing,
+            // so there is nothing for a last resort to catch.
             assertEquals(listOf(Vendor.Accelerate), Vendor.select(host))
         }
     }
@@ -41,17 +43,21 @@ class VendorSelectionTest {
 
     @Test
     fun `an unsupported host selects nothing rather than guessing`() {
-        val host = HostPlatform(OperatingSystem.Other, Architecture.Other, CpuVendor.Unknown)
+        // Neither half is enough on its own: the candidates are ELF sonames, so an unsupported operating
+        // system rules them out even on a supported architecture, and the reverse.
+        val neither = HostPlatform(OperatingSystem.Other, Architecture.Other, CpuVendor.Unknown)
+        val architecture = HostPlatform(OperatingSystem.Linux, Architecture.Other, CpuVendor.Unknown)
+        val system = HostPlatform(OperatingSystem.Other, Architecture.X86_64, CpuVendor.Intel)
 
-        assertEquals(emptyList(), Vendor.select(host))
+        assertEquals(emptyList(), Vendor.select(neither))
+        assertEquals(emptyList(), Vendor.select(architecture))
+        assertEquals(emptyList(), Vendor.select(system))
     }
 
     @Test
     fun `openblas is last wherever it is offered at all`() {
-        val linux = OperatingSystem.entries.filter { it != OperatingSystem.MacOs }.flatMap { os ->
-            listOf(Architecture.X86_64, Architecture.Arm64).flatMap { architecture ->
-                CpuVendor.entries.map { HostPlatform(os, architecture, it) }
-            }
+        val linux = listOf(Architecture.X86_64, Architecture.Arm64).flatMap { architecture ->
+            CpuVendor.entries.map { HostPlatform(OperatingSystem.Linux, architecture, it) }
         }
 
         // A tuned library wins wherever one is installed, so the fallback only decides what a host with none
@@ -61,13 +67,6 @@ class VendorSelectionTest {
             assertEquals(Vendor.OpenBlas, order.last(), "not the last resort on $host")
             assertTrue(order.size > 1, "nothing is preferred over the fallback on $host")
         }
-    }
-
-    @Test
-    fun `macos needs no fallback because accelerate cannot be missing`() {
-        val host = HostPlatform(OperatingSystem.MacOs, Architecture.Arm64, CpuVendor.Unknown)
-
-        assertEquals(listOf(Vendor.Accelerate), Vendor.select(host))
     }
 
     @Test

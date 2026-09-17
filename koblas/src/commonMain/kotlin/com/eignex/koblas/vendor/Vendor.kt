@@ -96,8 +96,13 @@ public enum class Vendor(
      * distribution build is compiled for whatever runs everywhere rather than for the part in front of it, so
      * where a tuned library is present that one is better; where none is, this is far better than nothing.
      *
-     * Nothing is taken on trust: a build advertising 64-bit integers is refused by the ABI probe, which
-     * distributions do ship, and one that will not hold to a single compute thread never becomes a binding.
+     * Nothing is taken on trust: a build advertising 64-bit integers, which distributions do ship, is refused
+     * by the ABI probe, and one that will not hold to a single compute thread never becomes a binding.
+     *
+     * Holding it reaches further than it does for the others. A tuned library is installed for this process,
+     * whereas the distribution's OpenBLAS is the one everything on the host shares, and the thread count is
+     * set in the loaded library rather than in Koblas, so anything else in this process that reached the same
+     * file runs on one compute thread as well.
      */
     OpenBlas(
         "OpenBLAS",
@@ -138,6 +143,10 @@ public enum class Vendor(
          */
         public fun select(host: HostPlatform): List<Vendor> = when {
             host.operatingSystem == OperatingSystem.MacOs -> listOf(Accelerate)
+
+            // Every candidate below is an ELF soname, so the operating system is part of the question and not
+            // only the architecture: offering them anywhere else would name libraries that cannot open there.
+            host.operatingSystem != OperatingSystem.Linux -> emptyList()
 
             host.architecture == Architecture.Arm64 -> listOf(ArmPl, OpenBlas)
 
