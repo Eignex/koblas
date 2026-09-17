@@ -24,7 +24,8 @@ internal val simdAvailable: Boolean = try {
  * against the portable loops they were meant to beat, and `scal` measured 0.44 to 0.55 above 512, which is
  * slower than doing nothing at all. They were removed rather than tuned: a second implementation that has to
  * be tested, kept allocation-free and explained, in exchange for nothing, is not a kernel but a liability.
- * The measurements are in `koblas-bench/reports/level1-crossover/`.
+ * Measured on 12th Gen Intel Core i9-12900H with the sweep suite, comparing the `jvm-scalar` and `jvm-simd`
+ * targets.
  *
  * `nrm2` is here because its fast path is a sum of squares, which is a reduction; it falls back to the
  * rescaling loop when a value leaves the normal range.
@@ -39,8 +40,9 @@ internal object SimdVectorKernels : DenseVectorKernels {
      * Measured, and unchanged by the measurement. This constant gates its own comparison: at the shipped
      * value every narrower run takes the scalar kernel in both arms, so the two were timed once more with it
      * lowered to the lane width. The vectorised search loses below 64, sits inside the noise from 64 to 192
-     * and loses outright at 128, and from 256 is ahead at every width measured, by 1.13 to 1.90. The capture
-     * is in `koblas-bench/reports/level1-crossover/jvm-iamax-gate-lowered/`, on the host named beside it.
+     * and loses outright at 128, and from 256 is ahead at every width measured, by 1.13 to 1.90. Repeating
+     * that means lowering this constant again and running the `iamax` sweep over the `jvm-scalar` and
+     * `jvm-simd` targets; the numbers above are from an i9-12900H.
      */
     private const val IAMAX_CROSSOVER = 256
 

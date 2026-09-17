@@ -148,8 +148,11 @@ internal class VendorVectorKernels(
          * grows to the size of the call. The two stragglers are late for reasons of their own, given below.
          *
          * Measured on 12th Gen Intel Core i9-12900H, P-cores 2/4/6/8 pinned, against oneMKL 2026.1 held to one
-         * compute thread, Kotlin/Native 2.4.10 linuxX64. The capture, its settings, the per-width ratios and
-         * the resolved library file are in `koblas-bench/reports/level1-crossover/`, over widths 1 to 262144.
+         * compute thread, Kotlin/Native 2.4.10 linuxX64, over widths 1 to 262144. Reproduced with
+         * `koblas-bench/capture-report.sh --libraries onemkl --suite sweep --operation <name> --samples 5
+         * --warmups 5 --target-ms 200 --forks 2`, once per operation, comparing the `native` and `onemkl`
+         * targets. Pinning matters on this part: its E-cores run a gigahertz slower and an unpinned run wanders
+         * between the two.
          *
          * These describe a binding whose per-call cost is 33 to 60 nanoseconds. An earlier one spent about 190
          * nanoseconds per call on objects describing each operand, and measured against that binding the same
