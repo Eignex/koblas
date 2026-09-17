@@ -14,7 +14,6 @@ import kotlinx.cinterop.CPointerVar
 import kotlinx.cinterop.DoubleVar
 import kotlinx.cinterop.addressOf
 import kotlinx.cinterop.allocArray
-import kotlinx.cinterop.convert
 import kotlinx.cinterop.get
 import kotlinx.cinterop.invoke
 import kotlinx.cinterop.memScoped
@@ -28,7 +27,6 @@ import platform.posix.dlclose
 import platform.posix.dlopen
 import platform.posix.dlsym
 import platform.posix.getenv
-import platform.posix.readlink
 import platform.posix.setenv
 import kotlin.math.abs
 
@@ -823,35 +821,6 @@ internal class NativeVendorBlas private constructor(
         private const val DL_INFO_BYTES = 32
 
         /**
-         * Where a bundled payload for [vendor] would sit beside a Native executable, or nothing when the
-         * combination is never bundled.
-         *
-         * Tried after every installed candidate, because an installed library is the one the operator chose;
-         * see [Bundle]. A Native binary has no classpath, so the same layout the JVM module publishes as
-         * resources is looked for on disk, relative to the working directory and to the executable itself.
-         * A path that does not exist simply fails to open and the search moves on.
-         *
-         * Only the entry point is named here. Nothing is extracted, since the payload is already a directory
-         * of files, and a dispatching runtime finds the rest of itself beside the file that was opened.
-         */
-        private fun bundled(vendor: Vendor): List<String> {
-            val relative = Bundle.entry(vendor, hostPlatform()) ?: return emptyList()
-            val roots = listOfNotNull(".", executableDirectory())
-            return roots.map { "$it/$relative" }
-        }
-
-        /** The directory holding this executable, read from the link the kernel maintains. */
-        private fun executableDirectory(): String? = memScoped {
-            val buffer = allocArray<ByteVar>(PATH_BYTES)
-            val length = readlink("/proc/self/exe", buffer, (PATH_BYTES - 1).convert())
-            if (length <= 0) return@memScoped null
-            buffer[length] = 0
-            buffer.toKString().substringBeforeLast('/', "").ifEmpty { null }
-        }
-
-        private const val PATH_BYTES = 4096
-
-        /**
          * Opens the first candidate of [vendor] that loads and exports every required CBLAS symbol, or null.
          *
          * A library that opens but is missing part of the surface is rejected rather than half-bound, so a
@@ -859,7 +828,7 @@ internal class NativeVendorBlas private constructor(
          */
         fun open(vendor: Vendor): NativeVendorBlas? {
             val installed = vendor.resolvedCandidates(getenv("HOME")?.toKString())
-            for (candidate in installed + bundled(vendor)) {
+            for (candidate in installed) {
                 val handle = dlopen(candidate, RTLD_NOW) ?: continue
                 if (missingRequiredSymbols { dlsym(handle, it) != null }.isNotEmpty()) {
                     // Nothing has been called into it yet, so it can go back the way it came rather than
