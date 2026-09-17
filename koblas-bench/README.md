@@ -52,14 +52,39 @@ koblas-bench/reference-container.sh armpl --samples 5 --warmups 5 --target-ms 20
 That stage downloads Arm Performance Libraries, which means accepting Arm's licence for it, and is why it is a
 separate target rather than part of `all`. The licence covers installing it on a machine you are using; it
 does not cover redistributing it, so an image built from that stage must not be published. ArmPL is worth the
-step because it is the only vendor Koblas selects on ARM64 — OpenBLAS is a reference arm and is never chosen
-in production, so a capture without ArmPL measures an arm no user reaches.
+step because it is the tuned library Koblas prefers on ARM64; OpenBLAS is what selection falls back to when
+none is installed, so a capture without ArmPL measures only the last resort.
+
+An ARM64 Linux capture is the JVM arms and `armpl-jvm` alone. The Kotlin/Native compiler ships no
+linux-aarch64 host, so the native executable cannot be built there at any version, which leaves `native` and
+the plain vendor targets unreachable rather than merely slow. `native_capable=false` in `metadata.txt` marks a
+report that ran under that limit.
+
+### Which hosts to capture
+
+The point of a fleet is the SIMD ladder, so each instance family is here for the vector width and generation
+it is the cheapest way to reach, and dropping one leaves a rung unmeasured rather than saving a duplicate.
+
+| Instance | Microarchitecture | Widest SIMD |
+|---|---|---|
+| `m2.xlarge` | Xeon E5-2665 Sandy Bridge | AVX, no FMA |
+| `c3.2xlarge` | Xeon E5-2680 v2 Ivy Bridge | AVX, no FMA |
+| `c4.2xlarge` | Xeon E5-2666 v3 Haswell | AVX2 with FMA3 |
+| `c5a.2xlarge` | AMD EPYC Zen 2 | AVX2 with FMA3 |
+| `c7i.2xlarge` | Xeon Sapphire Rapids | AVX-512 |
+| `c6g.2xlarge` | Graviton2 Neoverse-N1 | NEON |
+| `c7g.2xlarge` | Graviton3 Neoverse-V1 | SVE 256-bit |
+| `c8g.2xlarge` | Graviton4 Neoverse-V2 | SVE 128-bit |
+
+The pre-FMA rungs are the ones worth keeping even though nobody buys those instances now: a Vector API
+operation with no instruction behind it falls back to a software implementation per lane rather than
+refusing, and only a host without the instruction shows that.
 
 ## Options
 
 | Option | Effect |
 |---|---|
-| `--libraries openblas,accelerate,onemkl\|all` | Which vendors to run. `all` is OpenBLAS and oneMKL on Linux, OpenBLAS and Accelerate on macOS. |
+| `--libraries openblas,accelerate,onemkl,armpl\|all` | Which vendors to run. `all` is OpenBLAS with oneMKL on x86-64 Linux, ArmPL on ARM64 Linux and Accelerate on macOS. |
 | `--suite default\|sweep` | Case suite. `sweep` requires `--operation`. |
 | `--operation NAME\|all` | Intersects the suite with one kernel. |
 | `--samples N`, `--warmups N` | Measured and discarded repetitions per case. |
