@@ -1,0 +1,73 @@
+case,status,comparison_kind,timing_mode,actual_kernel,samples,forks,median_ns,min_ns,max_ns
+dot+4096+uniform,ok,direct,arithmetic,OpenBLAS/cblas_ddot,10,2,2917.7048376948833,2878.001926809979,3080.505757729502
+axpy+4096+uniform,ok,direct,reset-and-arithmetic,OpenBLAS/cblas_daxpy,10,2,4676.676607045826,4593.783337922173,4706.68895369347
+scal+4096+uniform,ok,direct,reset-and-arithmetic,OpenBLAS/cblas_dscal,10,2,3162.4186771404497,3101.27557653614,3196.75456068949
+nrm2+4096+uniform,ok,direct,arithmetic,OpenBLAS/cblas_dnrm2,10,2,2056.426668082527,2007.5952920190805,2109.2755381439824
+asum+4096+uniform,ok,direct,arithmetic,OpenBLAS/cblas_dasum,10,2,1131.4286194380722,1047.332087872984,1235.8259211021746
+sum+4096+uniform,unsupported,unsupported,arithmetic,sum has no vendor entry point in the bound CBLAS surface,0,0,,,
+iamax+64+uniform,ok,direct,arithmetic,OpenBLAS/cblas_idamax,10,2,84.1298464968352,69.6759313005533,90.446463215845
+iamax+128+uniform,ok,direct,arithmetic,OpenBLAS/cblas_idamax,10,2,118.69396629740694,117.39053983509481,127.32058517805092
+iamax+256+uniform,ok,direct,arithmetic,OpenBLAS/cblas_idamax,10,2,159.97216043186268,152.96849727483885,183.2589128362044
+iamax+512+uniform,ok,direct,arithmetic,OpenBLAS/cblas_idamax,10,2,264.5219924852209,247.35350550313007,294.021216434336
+iamax+1024+uniform,ok,direct,arithmetic,OpenBLAS/cblas_idamax,10,2,377.22445474318215,344.99647707687006,389.08978726463954
+iamax+4096+uniform,ok,direct,arithmetic,OpenBLAS/cblas_idamax,10,2,1547.5335286256336,1532.3424215301525,1661.4539976594208
+iamax+65536+uniform,ok,direct,arithmetic,OpenBLAS/cblas_idamax,10,2,29115.767018989463,28944.50837908119,29353.763161753923
+swap+4096+uniform,ok,direct,reset-and-arithmetic,OpenBLAS/cblas_dswap,10,2,6995.648445703303,6920.1086340384345,7074.552091066567
+rot+4096+uniform,ok,direct,reset-and-arithmetic,OpenBLAS/cblas_drot,10,2,6691.670958781373,6599.648926698981,6745.161550126369
+gemv+32x21+uniform,ok,direct,reset-and-arithmetic,OpenBLAS/cblas_dgemv,10,2,324.3493694010595,282.46268118036335,357.6572830061998
+gemv+129x31+uniform+transA=T,ok,direct,reset-and-arithmetic,OpenBLAS/cblas_dgemv,10,2,1678.4577809961752,1660.55943881993,1791.801978249982
+symv+129+uniform+uplo=U,ok,direct,reset-and-arithmetic,OpenBLAS/cblas_dsymv,10,2,7346.607457790662,7219.3991702741705,7371.219988956378
+ger+129x31+uniform,ok,direct,reset-and-arithmetic,OpenBLAS/cblas_dger,10,2,3361.2034393303647,3347.1302945207767,3514.821184150493
+syr+129+uniform+uplo=L,ok,direct,reset-and-arithmetic,OpenBLAS/cblas_dsyr,10,2,13330.796665786285,12988.472027518172,13557.852130325815
+syr2+129+uniform+uplo=U,ok,direct,reset-and-arithmetic,OpenBLAS/cblas_dsyr2,10,2,14502.868078913692,14433.171554146553,14660.021072656764
+trsv+129+triangular+uplo=L+transA=N+diag=N,ok,direct,reset-and-arithmetic,OpenBLAS/cblas_dtrsv,10,2,7446.2692428974005,7377.150436287324,7482.178746308825
+trmv+129+triangular+uplo=U+transA=T+diag=U,ok,direct,reset-and-arithmetic,OpenBLAS/cblas_dtrmv,10,2,7212.594712235015,7120.815781983777,7267.920018861765
+gemm+32x21x48+uniform,ok,direct,reset-and-arithmetic,OpenBLAS/cblas_dgemm,10,2,1691.613047749427,1639.762764041264,1848.486939574751
+gemm+129x31x257+uniform+transA=T,ok,direct,reset-and-arithmetic,OpenBLAS/cblas_dgemm,10,2,55215.278935606206,54857.32648026316,59705.48225469729
+gemm+65x127x33+uniform+transB=T,ok,direct,reset-and-arithmetic,OpenBLAS/cblas_dgemm,10,2,14420.924466391894,14311.654208946691,14499.508754160035
+symm+129x31+uniform+side=L+uplo=L,ok,direct,reset-and-arithmetic,OpenBLAS/cblas_dsymm,10,2,31469.39050183884,30516.660521103153,33599.39986592928
+symm+31x129+uniform+side=R+uplo=U,ok,direct,reset-and-arithmetic,OpenBLAS/cblas_dsymm,10,2,39098.0251953125,38924.97763951001,40484.362790697676
+gemmt+129x31+uniform+uplo=L+transA=N+transB=N,ok,direct,reset-and-arithmetic,OpenBLAS/cblas_dgemmt,10,2,39639.29867714053,39438.83353033885,39942.83735781281
+syrk+129x31+uniform+uplo=L+transA=N,ok,direct,reset-and-arithmetic,OpenBLAS/cblas_dsyrk,10,2,26303.987138733246,25965.85506682237,28278.69595931054
+syr2k+129x31+uniform+uplo=U+transA=T,ok,direct,reset-and-arithmetic,OpenBLAS/cblas_dsyr2k,10,2,33573.51965146519,33132.078106900546,35676.33458110517
+trsm+64x16+triangular+side=L+uplo=L+transA=N+diag=N,ok,direct,reset-and-arithmetic,OpenBLAS/cblas_dtrsm,10,2,7298.957081688219,7185.873550425448,7438.837725329864
+trsm+17x64+triangular+side=R+uplo=U+transA=T+diag=U,ok,direct,reset-and-arithmetic,OpenBLAS/cblas_dtrsm,10,2,6445.3382587185115,6358.251578513184,6540.372819340085
+trmm+64x16+triangular+side=L+uplo=U+transA=T+diag=N,ok,direct,reset-and-arithmetic,OpenBLAS/cblas_dtrmm,10,2,4240.60181879075,4072.097746960023,4596.681373449702
+trmm+17x64+triangular+side=R+uplo=L+transA=N+diag=U,ok,direct,reset-and-arithmetic,OpenBLAS/cblas_dtrmm,10,2,4228.415081582871,4114.742053538385,4286.654825808935
+spdot+4096+sparse-uniform+density=0.01,unsupported,unsupported,arithmetic,spdot has no vendor entry point in the bound CBLAS surface,0,0,,,
+spdot-raw+64+sparse-uniform+density=0.125,unsupported,unsupported,arithmetic,spdot-raw has no vendor entry point in the bound CBLAS surface,0,0,,,
+spdot-raw+4096+sparse-uniform+density=0.0625,unsupported,unsupported,arithmetic,spdot-raw has no vendor entry point in the bound CBLAS surface,0,0,,,
+spdot-raw+65536+sparse-uniform+density=0.015625,unsupported,unsupported,arithmetic,spdot-raw has no vendor entry point in the bound CBLAS surface,0,0,,,
+spdot-raw+262144+sparse-uniform+density=0.03125,unsupported,unsupported,arithmetic,spdot-raw has no vendor entry point in the bound CBLAS surface,0,0,,,
+spdot-sparse+4096+sparse-uniform+density=0.01,unsupported,unsupported,arithmetic,spdot-sparse has no vendor entry point in the bound CBLAS surface,0,0,,,
+spaxpy+4096+sparse-uniform+density=0.01,unsupported,unsupported,arithmetic,spaxpy has no vendor entry point in the bound CBLAS surface,0,0,,,
+spaxpy-raw+64+sparse-uniform+density=0.125,unsupported,unsupported,arithmetic,spaxpy-raw has no vendor entry point in the bound CBLAS surface,0,0,,,
+spaxpy-raw+4096+sparse-uniform+density=0.0625,unsupported,unsupported,arithmetic,spaxpy-raw has no vendor entry point in the bound CBLAS surface,0,0,,,
+spaxpy-raw+65536+sparse-uniform+density=0.015625,unsupported,unsupported,arithmetic,spaxpy-raw has no vendor entry point in the bound CBLAS surface,0,0,,,
+spaxpy-raw+262144+sparse-uniform+density=0.03125,unsupported,unsupported,arithmetic,spaxpy-raw has no vendor entry point in the bound CBLAS surface,0,0,,,
+spnrm2+4096+sparse-uniform+density=0.01,unsupported,unsupported,arithmetic,spnrm2 has no vendor entry point in the bound CBLAS surface,0,0,,,
+spnrm2-indexed+4096+sparse-uniform+density=0.01,unsupported,unsupported,arithmetic,spnrm2-indexed has no vendor entry point in the bound CBLAS surface,0,0,,,
+spnrm2-indexed+4096+sparse-uniform+density=0.5,unsupported,unsupported,arithmetic,spnrm2-indexed has no vendor entry point in the bound CBLAS surface,0,0,,,
+spnrm2-indexed+262144+sparse-uniform+density=0.03125,unsupported,unsupported,arithmetic,spnrm2-indexed has no vendor entry point in the bound CBLAS surface,0,0,,,
+spasum+4096+sparse-uniform+density=0.01,unsupported,unsupported,arithmetic,spasum has no vendor entry point in the bound CBLAS surface,0,0,,,
+spscatter+4096+sparse-uniform+density=0.01,unsupported,unsupported,arithmetic,spscatter has no vendor entry point in the bound CBLAS surface,0,0,,,
+spscatter-raw+64+sparse-uniform+density=0.125,unsupported,unsupported,arithmetic,spscatter-raw has no vendor entry point in the bound CBLAS surface,0,0,,,
+spscatter-raw+4096+sparse-uniform+density=0.0625,unsupported,unsupported,arithmetic,spscatter-raw has no vendor entry point in the bound CBLAS surface,0,0,,,
+spscatter-raw+65536+sparse-uniform+density=0.015625,unsupported,unsupported,arithmetic,spscatter-raw has no vendor entry point in the bound CBLAS surface,0,0,,,
+spscatter-raw+262144+sparse-uniform+density=0.03125,unsupported,unsupported,arithmetic,spscatter-raw has no vendor entry point in the bound CBLAS surface,0,0,,,
+spgather+4096+sparse-uniform+density=0.01,unsupported,unsupported,arithmetic,spgather has no vendor entry point in the bound CBLAS surface,0,0,,,
+spgather-zero+4096+sparse-uniform+density=0.01,unsupported,unsupported,arithmetic,spgather-zero has no vendor entry point in the bound CBLAS surface,0,0,,,
+spaccumulate+4096+sparse-uniform+density=0.01,unsupported,unsupported,arithmetic,spaccumulate has no vendor entry point in the bound CBLAS surface,0,0,,,
+gemm+257x3x1+uniform,ok,direct,reset-and-arithmetic,OpenBLAS/cblas_dgemm,10,2,426.23971127596826,408.78633967968625,467.8039424078633
+gemm+3x257x33+uniform,ok,direct,reset-and-arithmetic,OpenBLAS/cblas_dgemm,10,2,5761.647766017223,5701.331246086412,5831.787445799261
+gemm+127x5x65+uniform,ok,direct,reset-and-arithmetic,OpenBLAS/cblas_dgemm,10,2,5151.000855532508,5006.489565369523,5585.945180269358
+trsm+65x1+triangular+side=L+uplo=L+transA=N+diag=N,ok,direct,reset-and-arithmetic,OpenBLAS/cblas_dtrsm,10,2,2456.2555436635585,2436.828184341221,2551.2599890391407
+trsm+65x33+triangular+side=L+uplo=U+transA=T+diag=U,ok,direct,reset-and-arithmetic,OpenBLAS/cblas_dtrsm,10,2,14441.245951288327,14373.423082447573,14985.080119805316
+scal+64+uniform+timing=arithmetic,ok,direct,arithmetic,OpenBLAS/cblas_dscal,10,2,71.64372785272752,71.39928438874932,82.33184551418412
+scal+256+uniform+timing=arithmetic,ok,direct,arithmetic,OpenBLAS/cblas_dscal,10,2,141.6211360370145,133.10097360252888,153.89052243492912
+scal+4096+uniform+timing=arithmetic,ok,direct,arithmetic,OpenBLAS/cblas_dscal,10,2,2254.378211806501,2136.2046159586375,2357.31343705466
+scal+65536+uniform+timing=arithmetic,ok,direct,arithmetic,OpenBLAS/cblas_dscal,10,2,41526.91040882038,41139.62692702981,42956.437003648854
+spgather+4096+sparse-uniform+density=0.01+timing=arithmetic,unsupported,unsupported,arithmetic,spgather has no vendor entry point in the bound CBLAS surface,0,0,,,
+spgather+4096+sparse-uniform+density=0.25+timing=arithmetic,unsupported,unsupported,arithmetic,spgather has no vendor entry point in the bound CBLAS surface,0,0,,,
+spgather+65536+sparse-uniform+density=0.01+timing=arithmetic,unsupported,unsupported,arithmetic,spgather has no vendor entry point in the bound CBLAS surface,0,0,,,
+spgather+65536+sparse-uniform+density=0.25+timing=arithmetic,unsupported,unsupported,arithmetic,spgather has no vendor entry point in the bound CBLAS surface,0,0,,,
