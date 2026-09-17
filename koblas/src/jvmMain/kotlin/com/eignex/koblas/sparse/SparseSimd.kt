@@ -44,7 +44,9 @@ internal object SparseSimd {
         var sum = DoubleVector.zero(SPECIES)
         while (k < bound) {
             val gathered = indexedLoad(y, indices, indexOffset + k)
-            sum = DoubleVector.fromArray(SPECIES, values, valueOffset + k).fma(gathered, sum)
+            // Sparse BLAS dot products require the multiplication to round before the addition, and a fused
+            // multiply-add is a per-lane software call on a machine that has no instruction behind it.
+            sum = DoubleVector.fromArray(SPECIES, values, valueOffset + k).mul(gathered).add(sum)
             k += LANE
         }
         var s = sum.reduceLanes(VectorOperators.ADD)
@@ -154,7 +156,8 @@ internal object SparseSimd {
         var sum = DoubleVector.zero(SPECIES)
         while (k < bound) {
             val gathered = indexedLoad(values, indices, indexOffset + k)
-            sum = gathered.fma(gathered, sum)
+            // Squared separately from the sum for the reason the dot product above gives.
+            sum = gathered.mul(gathered).add(sum)
             k += LANE
         }
         var squares = sum.reduceLanes(VectorOperators.ADD)
