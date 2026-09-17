@@ -74,25 +74,44 @@ val hostTarget = when {
     else -> null
 }
 
-tasks.register<Exec>("nativeBenchmark") {
-    group = "benchmark"
+private val NO_NATIVE_HOST = "native benchmarks are supported on Linux x86-64 and macOS arm64"
+
+/**
+ * Registers a native benchmark where one can be built, and a task that says why not where one cannot.
+ *
+ * The Kotlin/Native compiler ships no linux-aarch64 host, so an arm64 Linux machine can run the JVM arms
+ * only. Refusing while the task is being configured took the whole project down with it, which left those
+ * arms unreachable too; refusing when the task runs leaves the rest of the module usable.
+ */
+fun registerNativeBenchmark(name: String, configure: Exec.() -> Unit) {
+    val target = hostTarget
+    if (target == null) {
+        tasks.register(name) {
+            group = "benchmark"
+            description = NO_NATIVE_HOST
+            doFirst { error(NO_NATIVE_HOST) }
+        }
+        return
+    }
+    tasks.register<Exec>(name) {
+        group = "benchmark"
+        dependsOn("linkReleaseExecutable$target")
+        val targetDir = target.replaceFirstChar(Char::lowercase)
+        commandLine(
+            layout.buildDirectory.file("bin/$targetDir/releaseExecutable/koblas-bench.kexe").get().asFile.absolutePath,
+        )
+        workingDir(rootProject.projectDir)
+        configure()
+    }
+}
+
+registerNativeBenchmark("nativeBenchmark") {
     description = "Runs the shared cases through the native koblas engine."
-    require(hostTarget != null) { "native benchmarks are supported on Linux x86-64 and macOS arm64" }
-    dependsOn("linkReleaseExecutable$hostTarget")
-    val targetDir = hostTarget!!.replaceFirstChar(Char::lowercase)
-    commandLine(layout.buildDirectory.file("bin/$targetDir/releaseExecutable/koblas-bench.kexe").get().asFile.absolutePath)
-    workingDir(rootProject.projectDir)
     args(benchmarkArguments("native", jmh = false))
 }
 
-tasks.register<Exec>("nativeVendorBenchmark") {
-    group = "benchmark"
+registerNativeBenchmark("nativeVendorBenchmark") {
     description = "Runs the shared cases through a vendor BLAS bound by the production Native binding."
-    require(hostTarget != null) { "native benchmarks are supported on Linux x86-64 and macOS arm64" }
-    dependsOn("linkReleaseExecutable$hostTarget")
-    val targetDir = hostTarget!!.replaceFirstChar(Char::lowercase)
-    commandLine(layout.buildDirectory.file("bin/$targetDir/releaseExecutable/koblas-bench.kexe").get().asFile.absolutePath)
-    workingDir(rootProject.projectDir)
     args(benchmarkArguments("native-vendor-${benchVendor.get()}", jmh = false))
 }
 
@@ -125,14 +144,9 @@ tasks.register<JavaExec>("jvmSelectedBenchmark") {
     doLast { logger.lifecycle("resolved: arm=openblas dense=openblas/cblas threading=1 thread") }
 }
 
-tasks.register<Exec>("linuxX64SelectedBenchmark") {
+registerNativeBenchmark("linuxX64SelectedBenchmark") {
     group = "verification"
     description = "Resolves OpenBLAS through the Native vendor binding and runs one smoke case."
-    require(hostTarget != null) { "native benchmarks are supported on Linux x86-64 and macOS arm64" }
-    dependsOn("linkReleaseExecutable$hostTarget")
-    val targetDir = hostTarget!!.replaceFirstChar(Char::lowercase)
-    commandLine(layout.buildDirectory.file("bin/$targetDir/releaseExecutable/koblas-bench.kexe").get().asFile.absolutePath)
-    workingDir(rootProject.projectDir)
     args(
         smokeArguments + listOf(
             "--mode=native-vendor-openblas",
