@@ -49,3 +49,38 @@ ENTRYPOINT ["/workspace/koblas-bench/capture-report.sh", "--libraries", "onemkl"
 FROM onemkl AS all
 
 ENTRYPOINT ["/workspace/koblas-bench/capture-report.sh", "--libraries", "all"]
+
+# Arm Performance Libraries, which is the only vendor Koblas selects on ARM64: OpenBLAS is a bench reference
+# and is never chosen in production, so a capture without this one measures an arm no user reaches.
+#
+# Building this stage downloads Arm Performance Libraries, which means accepting Arm's licence for it. That is
+# what the licence permits — installing it on a machine you are using. It does not permit redistributing it,
+# so this image must not be published anywhere.
+#
+# Arm ships one self-extracting installer per compiler inside a tar. Running it would accept the licence
+# non-interactively and write into system directories, so the payload after its marker line, an ordinary
+# gzipped tar, is carved out instead and the package extracted from that.
+FROM openblas AS armpl
+
+ARG ARMPL_VERSION=25.07
+ARG ARMPL_SHA256=28a0cdf84b1f8e61d1d1ea484f4e2ecf645f7d916bb002ed34d46f6eb2e41345
+
+RUN test "$(dpkg --print-architecture)" = arm64 \
+    && apt-get update \
+    && apt-get install --yes --no-install-recommends curl \
+    && curl --location --silent --show-error --output /tmp/armpl.tar \
+        "https://developer.arm.com/-/cdn-downloads/permalink/Arm-Performance-Libraries/Version_${ARMPL_VERSION}/arm-performance-libraries_${ARMPL_VERSION}_deb_gcc.tar" \
+    && echo "${ARMPL_SHA256}  /tmp/armpl.tar" | sha256sum --check --status \
+    && tar --extract --file /tmp/armpl.tar --directory /tmp \
+        "./arm-performance-libraries_${ARMPL_VERSION}_deb/arm-performance-libraries_${ARMPL_VERSION}_deb.sh" \
+    && installer="/tmp/arm-performance-libraries_${ARMPL_VERSION}_deb/arm-performance-libraries_${ARMPL_VERSION}_deb.sh" \
+    && start=$(awk '/^__START_OF_PAYLOAD__/ { print NR + 1; exit }' "$installer") \
+    && tail --lines "+$start" "$installer" | tar --extract --gzip --directory /tmp "armpl_${ARMPL_VERSION}_gcc.deb" \
+    && dpkg-deb --extract "/tmp/armpl_${ARMPL_VERSION}_gcc.deb" / \
+    && echo "/opt/arm/armpl_${ARMPL_VERSION}_gcc/lib" > /etc/ld.so.conf.d/armpl.conf \
+    && ldconfig \
+    && test -f "/opt/arm/armpl_${ARMPL_VERSION}_gcc/lib/libarmpl_lp64.so" \
+    && rm -rf /tmp/armpl.tar "/tmp/arm-performance-libraries_${ARMPL_VERSION}_deb" /tmp/armpl_*.deb \
+    && rm -rf /var/lib/apt/lists/*
+
+ENTRYPOINT ["/workspace/koblas-bench/capture-report.sh", "--libraries", "openblas,armpl"]

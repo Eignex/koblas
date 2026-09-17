@@ -40,12 +40,17 @@ done
 [[ $suite != sweep || $operation != all ]] || { echo "suite sweep requires a specific operation" >&2; exit 2; }
 if $smoke; then samples=1; warmups=0; target_ms=1; forks=1; fi
 platform=$(uname -s)
+# Whichever production vendor this platform selects, beside OpenBLAS as the reference arm. oneMKL has no
+# ARM64 build and ArmPL no x86-64 one, so the architecture decides here as much as the operating system does.
 if [[ $libraries == all ]]; then
-  if [[ $platform == Darwin ]]; then libraries=openblas,accelerate; else libraries=openblas,onemkl; fi
+  if [[ $platform == Darwin ]]; then libraries=openblas,accelerate
+  elif [[ $(uname -m) == aarch64 || $(uname -m) == arm64 ]]; then libraries=openblas,armpl
+  else libraries=openblas,onemkl; fi
 fi
 IFS=, read -r -a vendors <<<"$libraries"
 for vendor in "${vendors[@]}"; do
-  [[ $vendor == openblas || $vendor == accelerate || $vendor == onemkl ]] || { echo "unknown library: $vendor" >&2; exit 2; }
+  [[ $vendor == openblas || $vendor == accelerate || $vendor == onemkl || $vendor == armpl ]] ||
+    { echo "unknown library: $vendor" >&2; exit 2; }
 done
 
 temporary=$(mktemp -d "${TMPDIR:-/tmp}/koblas-bench-report.XXXXXX")
