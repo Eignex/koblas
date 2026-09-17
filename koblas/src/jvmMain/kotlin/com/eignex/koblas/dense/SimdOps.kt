@@ -18,9 +18,15 @@ internal object SimdOps {
     private val UNROLL_MIN = 32 * LANE
 
     /**
-     * One accumulator chains every multiply-add on the previous one's result, and an FMA's latency is
-     * several times its throughput, so a single chain leaves most of the unit idle on a long run. Four
-     * independent chains keep it fed, which is what the long-run arm below runs.
+     * One accumulator chains every addition on the previous one's result, and an add's latency is several
+     * times its throughput, so a single chain leaves most of the unit idle on a long run. Four independent
+     * chains keep it fed, which is what the long-run arm below runs.
+     *
+     * The product and the sum are separate operations rather than one fused multiply-add. BLAS requires the
+     * multiplication to round before the addition, which a fused one does not do, so the two are different
+     * results and only this one is the documented answer. A fused multiply-add is also not an instruction
+     * everywhere: a machine without one gets the Vector API's software fallback, which is a `Math.fma` call
+     * per lane and runs a thousand times slower than the scalar loop it was meant to beat.
      *
      * Two functions rather than one branching body so the short-length arm stays small enough for the JIT
      * to inline into its callers, which is what the four accumulators and the extra loop would cost it.
@@ -35,7 +41,7 @@ internal object SimdOps {
         while (i < bound) {
             val va = DoubleVector.fromArray(SPECIES, a, aOff + i)
             val vb = DoubleVector.fromArray(SPECIES, b, bOff + i)
-            sum = va.fma(vb, sum)
+            sum = va.mul(vb).add(sum)
             i += LANE
         }
         var s = sum.reduceLanes(VectorOperators.ADD)
@@ -56,13 +62,13 @@ internal object SimdOps {
         val unrolled = len - len % (4 * LANE)
         while (i < unrolled) {
             s0 = DoubleVector.fromArray(SPECIES, a, aOff + i)
-                .fma(DoubleVector.fromArray(SPECIES, b, bOff + i), s0)
+                .mul(DoubleVector.fromArray(SPECIES, b, bOff + i)).add(s0)
             s1 = DoubleVector.fromArray(SPECIES, a, aOff + i + LANE)
-                .fma(DoubleVector.fromArray(SPECIES, b, bOff + i + LANE), s1)
+                .mul(DoubleVector.fromArray(SPECIES, b, bOff + i + LANE)).add(s1)
             s2 = DoubleVector.fromArray(SPECIES, a, aOff + i + 2 * LANE)
-                .fma(DoubleVector.fromArray(SPECIES, b, bOff + i + 2 * LANE), s2)
+                .mul(DoubleVector.fromArray(SPECIES, b, bOff + i + 2 * LANE)).add(s2)
             s3 = DoubleVector.fromArray(SPECIES, a, aOff + i + 3 * LANE)
-                .fma(DoubleVector.fromArray(SPECIES, b, bOff + i + 3 * LANE), s3)
+                .mul(DoubleVector.fromArray(SPECIES, b, bOff + i + 3 * LANE)).add(s3)
             i += 4 * LANE
         }
         // What the unroll leaves over is under one unroll width, which is what the single chain is for.
