@@ -15,8 +15,12 @@ class CasesFileTest {
             val defaults = Cases.select(cases, operation = operation).toSet()
             val sweep = Cases.select(cases, "sweep", operation)
             // Sharing a workload with the default suite is what keeps a sweep comparable to an ordinary
-            // capture; a sweep of sizes nothing else runs would be its own incomparable scale.
-            assertTrue(sweep.any { it in defaults }, "$operation's sweep shares no case with its default suite")
+            // capture; a sweep of sizes nothing else runs would be its own incomparable scale. 4096 is the
+            // width every operation carries in both suites, so it is the one that has to be shared.
+            assertTrue(
+                sweep.any { it.dimension(0) == 4096 && it in defaults },
+                "$operation's sweep does not share its 4096 case with the default suite",
+            )
             assertTrue(sweep.size in 12..28, "$operation swept ${sweep.size} sizes")
             assertTrue(sweep.minOf { it.dimension(0) } <= 8, "$operation's sweep starts above the call overhead")
             assertEquals(262144, sweep.maxOf { it.dimension(0) }, operation)

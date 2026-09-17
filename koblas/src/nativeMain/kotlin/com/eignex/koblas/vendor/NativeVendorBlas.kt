@@ -256,20 +256,17 @@ internal class NativeVendorBlas private constructor(
     override fun asum(x: DenseVector): Double = rawAsum(x.data, x.offset, x.stride, x.size)
 
     /*
-     * The raw Level 1 surface, which is what the engine's kernels call.
+     * The raw Level 1 surface, which is what the engine's kernels call, and which the [DenseVector] methods
+     * above delegate to so that one implementation answers both.
      *
-     * Same arithmetic as the [DenseVector] methods, without the objects needed to describe an operand. At
-     * these widths those objects were the cost rather than the call: `cblas_ddot` over eight entries takes
-     * about eight nanoseconds, and a list for the no-work question, a holder for the pins, and a wrapper per
-     * operand came to twenty times that. The width where the library started to pay was mostly made of them.
+     * It takes a run apart rather than wrapping it because at these widths an object costs more than the
+     * arithmetic: `cblas_ddot` over eight entries takes about eight nanoseconds, and each allocation on this
+     * runtime is a few. That is also why the no-work question is a comparison against zero here rather than a
+     * list handed to a shared helper.
      *
-     * Each pin is taken by an inlined `usePinned`, which releases on the way out of the block including
-     * through an exception, so the guarantee the pin holder gave is kept without the holder.
+     * Each pin is taken by an inlined `usePinned`, which releases on the way out of its block including
+     * through an exception, so an operand is never left pinned by a call that threw.
      */
-
-    /** The lowest entry a run reaches, which is where BLAS starts when the stride runs backwards. */
-    private fun low(offset: Int, stride: Int, n: Int): Int = if (stride >= 0) offset else offset + (n - 1) * stride
-
     internal fun rawDot(
         a: DoubleArray,
         aOffset: Int,
@@ -285,9 +282,9 @@ internal class NativeVendorBlas private constructor(
             b.usePinned { pb ->
                 return fn(
                     n,
-                    pa.addressOf(low(aOffset, aStride, n)),
+                    pa.addressOf(baseIndex(aOffset, aStride, n)),
                     aStride,
-                    pb.addressOf(low(bOffset, bStride, n)),
+                    pb.addressOf(baseIndex(bOffset, bStride, n)),
                     bStride,
                 )
             }
@@ -304,7 +301,7 @@ internal class NativeVendorBlas private constructor(
         if (n == 0) return 0.0
         val fn = symbol(operation).reinterpret<ReduceFn>()
         a.usePinned { pinned ->
-            return fn(n, pinned.addressOf(low(offset, stride, n)), abs(stride))
+            return fn(n, pinned.addressOf(baseIndex(offset, stride, n)), abs(stride))
         }
     }
 
@@ -313,7 +310,7 @@ internal class NativeVendorBlas private constructor(
         if (n == 0) return 0
         val fn = symbol(BlasOperation.Iamax).reinterpret<IndexFn>()
         a.usePinned { pinned ->
-            val found = fn(n, pinned.addressOf(low(offset, stride, n)), abs(stride))
+            val found = fn(n, pinned.addressOf(baseIndex(offset, stride, n)), abs(stride))
             return if (stride >= 0) found else n - 1 - found
         }
     }
@@ -336,9 +333,9 @@ internal class NativeVendorBlas private constructor(
                 fn(
                     n,
                     alpha,
-                    px.addressOf(low(xOffset, xStride, n)),
+                    px.addressOf(baseIndex(xOffset, xStride, n)),
                     xStride,
-                    py.addressOf(low(yOffset, yStride, n)),
+                    py.addressOf(baseIndex(yOffset, yStride, n)),
                     yStride,
                 )
             }
@@ -349,7 +346,7 @@ internal class NativeVendorBlas private constructor(
         if (n == 0) return
         val fn = symbol(BlasOperation.Scal).reinterpret<ScalFn>()
         a.usePinned { pinned ->
-            fn(n, alpha, pinned.addressOf(low(offset, stride, n)), abs(stride))
+            fn(n, alpha, pinned.addressOf(baseIndex(offset, stride, n)), abs(stride))
         }
     }
 
@@ -369,9 +366,9 @@ internal class NativeVendorBlas private constructor(
             y.usePinned { py ->
                 fn(
                     n,
-                    px.addressOf(low(xOffset, xStride, n)),
+                    px.addressOf(baseIndex(xOffset, xStride, n)),
                     xStride,
-                    py.addressOf(low(yOffset, yStride, n)),
+                    py.addressOf(baseIndex(yOffset, yStride, n)),
                     yStride,
                 )
             }
@@ -382,8 +379,10 @@ internal class NativeVendorBlas private constructor(
     internal fun rawRot(
         x: DoubleArray,
         xOffset: Int,
+        xStride: Int,
         y: DoubleArray,
         yOffset: Int,
+        yStride: Int,
         n: Int,
         c: Double,
         s: Double,
@@ -392,7 +391,15 @@ internal class NativeVendorBlas private constructor(
         val fn = symbol(BlasOperation.Rot).reinterpret<RotFn>()
         x.usePinned { px ->
             y.usePinned { py ->
-                fn(n, px.addressOf(xOffset), 1, py.addressOf(yOffset), 1, c, s)
+                fn(
+                    n,
+                    px.addressOf(baseIndex(xOffset, xStride, n)),
+                    xStride,
+                    py.addressOf(baseIndex(yOffset, yStride, n)),
+                    yStride,
+                    c,
+                    s,
+                )
             }
         }
     }
@@ -429,22 +436,7 @@ internal class NativeVendorBlas private constructor(
 
     override fun rot(x: DenseVector, y: DenseVector, c: Double, s: Double) {
         requireSameLength(x, y, "rot")
-        // The strided form is the wrapped path's: `rot` is the one Level 1 call whose kernel contract differs
-        // from the library's over one run twice, and the raw entry takes the unit-stride case its caller has.
-        if (x.stride == 1 && y.stride == 1) {
-            rawRot(x.data, x.offset, y.data, y.offset, x.size, c, s)
-            return
-        }
-        if (noWorkReason(emptyList(), listOf(x)) != null) return
-        val pins = Pins()
-        try {
-            val px = pins.stage(x)
-            val py = pins.stage(y)
-            val fn = symbol(BlasOperation.Rot).reinterpret<RotFn>()
-            fn(x.size, px.pointer, px.increment, py.pointer, py.increment, c, s)
-        } finally {
-            pins.release()
-        }
+        rawRot(x.data, x.offset, x.stride, y.data, y.offset, y.stride, x.size, c, s)
     }
 
     // Level 2. One matrix operand, passed in place with its own row count as the leading dimension.

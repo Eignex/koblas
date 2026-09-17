@@ -82,5 +82,8 @@ internal fun Pins.stage(matrix: DenseMatrix): PinnedMatrix =
  * walks a negatively stepped vector from the lowest address upward and treats the last element it reaches as
  * the logical first.
  */
-internal fun baseIndex(vector: DenseVector): Int =
-    if (vector.stride >= 0) vector.offset else vector.offset + (vector.size - 1) * vector.stride
+internal fun baseIndex(vector: DenseVector): Int = baseIndex(vector.offset, vector.stride, vector.size)
+
+/** The same rule over a raw run, which is what the Level 1 entry points hand BLAS. */
+internal fun baseIndex(offset: Int, stride: Int, size: Int): Int =
+    if (stride >= 0) offset else offset + (size - 1) * stride
