@@ -33,6 +33,21 @@ report from a cloud host is comparable with one from a laptop. Takes `openblas`,
 capture options; `all` needs an x86-64 host, since oneMKL ships no ARM64 build. Requires Docker, and the
 report lands in the repository as usual because the working tree is mounted rather than copied.
 
+### On a cloud instance
+
+Install Docker, clone the repository, and run the command above. Reports are keyed by a hash of the hardware,
+so different instance types write to different directories and never overwrite each other.
+
+Take an instance that owns its cores. A burstable type throttles partway through a capture and a shared one
+gives the cores away, and either turns up as a slower arm rather than as an error. Sizes at or above the
+point where an instance holds a whole socket are what produce repeatable numbers, and pinning still applies:
+a vCPU is usually one hyperthread, so pin to every other one.
+
+An ARM64 instance captures OpenBLAS and the Koblas arms only. oneMKL has no ARM64 build, and Arm Performance
+Libraries is not in the image because its download requires accepting a licence, so Level 2 and 3 have no
+vendor to reach and report as unsupported. Installing ArmPL on the instance and capturing without the
+container is the way to cover that until the image can carry it.
+
 ## Options
 
 | Option | Effect |
