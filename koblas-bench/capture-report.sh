@@ -47,6 +47,11 @@ if [[ $libraries == all ]]; then
   elif [[ $(uname -m) == aarch64 || $(uname -m) == arm64 ]]; then libraries=openblas,armpl
   else libraries=openblas,onemkl; fi
 fi
+# The Kotlin/Native compiler ships no linux-aarch64 host, so an ARM64 Linux machine cannot build the native
+# executable at all and its capture is the JVM arms only. Recorded in metadata.txt so a report with no native
+# rows says which it is, a host that could not build them or a run that was asked for less.
+native_capable=true
+if [[ $platform == Linux && ( $(uname -m) == aarch64 || $(uname -m) == arm64 ) ]]; then native_capable=false; fi
 IFS=, read -r -a vendors <<<"$libraries"
 for vendor in "${vendors[@]}"; do
   [[ $vendor == openblas || $vendor == accelerate || $vendor == onemkl || $vendor == armpl ]] ||
@@ -121,6 +126,7 @@ cases="$temporary/cases.txt"
   echo "platform=$(uname -a)"
   printf '%s\n' "operation=$operation" "suite=$suite" "selected_cases=$(wc -l <"$cases" | tr -d ' ')" "warmups=$warmups" "requested_samples=$samples" \
     "target_ns=$((target_ms * 1000000))" "pass=$pass" "libraries=$libraries" "vendors_only=$vendors_only"
+  echo "native_capable=$native_capable"
   echo "requested_jvm_forks=$forks"
   env | LC_ALL=C sort | awk '/^KOBLAS_(DENSE|SPARSE)_/ { print }'
   # Koblas arms are single-threaded by construction. Each vendor arm records what its binding read back from
@@ -154,7 +160,7 @@ if ! $vendors_only; then
     case "$target" in
       jvm-scalar) task=jvmScalarBenchmark ;;
       jvm-simd) task=jvmSimdBenchmark ;;
-      native) task=nativeBenchmark ;;
+      native) $native_capable || continue; task=nativeBenchmark ;;
     esac
     run_target "$target" ./gradlew --no-daemon ":koblas-bench:$task" "${common[@]}" "-Pbench.forks=$forks" "-Pbench.output=$results/$target.csv"
   done
@@ -170,8 +176,10 @@ fi
 # JVM binding, which copies operands into native memory and reports that transfer as part of its route.
 for vendor in "${vendors[@]}"; do
   [[ $vendor != accelerate || $platform == Darwin ]] || { echo "Accelerate requires macOS" >&2; exit 2; }
-  run_target "$vendor" ./gradlew --no-daemon ":koblas-bench:nativeVendorBenchmark" "${common[@]}" \
-    "-Pbench.vendor=$vendor" "-Pbench.output=$results/$vendor.csv"
+  if $native_capable; then
+    run_target "$vendor" ./gradlew --no-daemon ":koblas-bench:nativeVendorBenchmark" "${common[@]}" \
+      "-Pbench.vendor=$vendor" "-Pbench.output=$results/$vendor.csv"
+  fi
   run_target "$vendor-jvm" ./gradlew --no-daemon ":koblas-bench:jvmVendorBenchmark" "${common[@]}" \
     "-Pbench.vendor=$vendor" "-Pbench.forks=$forks" "-Pbench.output=$results/$vendor-jvm.csv"
 done
