@@ -1,0 +1,92 @@
+status=complete
+
+[capture]
+started_at=2026-09-17T15:13:38Z
+completed_at=2026-09-17T15:38:10Z
+source_commit=fd36632d60d255b3997a746c269b70d8d2c11c6d
+dirty=false
+platform=Linux 67cc98731cd2 7.0.0-1012-aws #12~24.04.1-Ubuntu SMP PREEMPT Wed Aug 12 14:00:57 UTC 2026 x86_64 GNU/Linux
+operation=all
+suite=default
+selected_cases=72
+warmups=5
+requested_samples=5
+target_ns=200000000
+pass=1
+libraries=openblas,onemkl
+vendors_only=false
+requested_jvm_forks=2
+koblas_threads=1
+
+[hardware]
+architecture=x86_64
+vendor id=GenuineIntel
+model name=Intel(R) Xeon(R) Platinum 8488C
+cpu family=6
+model=143
+thread(s) per core=2
+core(s) per socket=4
+socket(s)=1
+stepping=8
+l1d cache=192 KiB (4 instances)
+l1i cache=128 KiB (4 instances)
+l2 cache=8 MiB (4 instances)
+l3 cache=105 MiB (1 instance)
+numa node(s)=1
+memory_kib=16077028
+
+[jvm-scalar]
+started_at=2026-09-17T15:13:38Z
+implementation=jvm-scalar/scalar/scalar
+runtime=kotlin-2.4.10/jvm/Ubuntu/25.0.4
+harness=jmh-average-time/JMH-1.37
+warmup_target_ns=200000000
+completed_at=2026-09-17T15:19:59Z
+
+[jvm-simd]
+started_at=2026-09-17T15:19:59Z
+implementation=jvm-simd/simd(8 lanes)/simd-sparse
+runtime=kotlin-2.4.10/jvm/Ubuntu/25.0.4
+harness=jmh-average-time/JMH-1.37
+warmup_target_ns=200000000
+completed_at=2026-09-17T15:25:11Z
+
+[native]
+started_at=2026-09-17T15:25:11Z
+implementation=native/scalar/scalar/oneMKL
+runtime=kotlin-native-2.4.10
+harness=native-calibrated
+warmup_target_ns=50000000
+completed_at=2026-09-17T15:28:04Z
+
+[openblas]
+started_at=2026-09-17T15:28:04Z
+implementation=native-vendor-openblas/OpenBLAS//usr/lib/x86_64-linux-gnu/libopenblas.so.0/OpenBLAS 0.3.32 NO_LAPACKE DYNAMIC_ARCH NO_AFFINITY SapphireRapids MAX_THREADS=128/threads=1-thread-confirmed
+runtime=kotlin-native-2.4.10
+harness=native-calibrated
+warmup_target_ns=50000000
+completed_at=2026-09-17T15:29:52Z
+
+[openblas-jvm]
+started_at=2026-09-17T15:29:52Z
+implementation=jvm-vendor-openblas/OpenBLAS//usr/lib/x86_64-linux-gnu/libopenblas.so.0/OpenBLAS 0.3.32 NO_LAPACKE DYNAMIC_ARCH NO_AFFINITY SapphireRapids MAX_THREADS=128/threads=1-thread-confirmed
+runtime=kotlin-2.4.10/jvm/Ubuntu/25.0.4
+harness=jmh-average-time/JMH-1.37
+warmup_target_ns=200000000
+completed_at=2026-09-17T15:33:22Z
+
+[onemkl]
+started_at=2026-09-17T15:33:22Z
+implementation=native-vendor-onemkl/oneMKL//opt/intel/oneapi/mkl/latest/lib/libmkl_rt.so.3/Intel(R) oneAPI Math Kernel Library Version 2026.1-Product Build 20260612 for Intel(R) 64 architecture applications/threads=1-thread-confirmed
+runtime=kotlin-native-2.4.10
+harness=native-calibrated
+warmup_target_ns=50000000
+completed_at=2026-09-17T15:34:44Z
+
+[onemkl-jvm]
+started_at=2026-09-17T15:34:44Z
+implementation=jvm-vendor-onemkl/oneMKL//opt/intel/oneapi/mkl/latest/lib/libmkl_rt.so.3/Intel(R) oneAPI Math Kernel Library Version 2026.1-Product Build 20260612 for Intel(R) 64 architecture applications/threads=1-thread-confirmed
+runtime=kotlin-2.4.10/jvm/Ubuntu/25.0.4
+harness=jmh-average-time/JMH-1.37
+warmup_target_ns=200000000
+completed_at=2026-09-17T15:38:10Z
