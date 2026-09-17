@@ -32,7 +32,7 @@ FROM openblas AS onemkl
 ARG MKL_DEB=intel-oneapi-mkl-core-2026.1-2026.1.0-236_amd64.deb
 ARG MKL_SHA256=3b230c02fc0ac44f8f71062c20cd883b37c6c1e00940dc0a7f13b02d9c47bd93
 
-RUN test "$(dpkg --print-architecture)" = amd64 \
+RUN if [ "$(dpkg --print-architecture)" != amd64 ]; then echo "no oneMKL for $(dpkg --print-architecture); stage left as is"; else true \
     && apt-get update \
     && apt-get install --yes --no-install-recommends curl \
     && curl --location --silent --show-error --output /tmp/mkl.deb \
@@ -42,7 +42,7 @@ RUN test "$(dpkg --print-architecture)" = amd64 \
     && ln --symbolic --no-target-directory /opt/intel/oneapi/mkl/2026.1 /opt/intel/oneapi/mkl/latest \
     && test -f /opt/intel/oneapi/mkl/latest/lib/libmkl_rt.so.3 \
     && rm /tmp/mkl.deb \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/*; fi
 
 ENTRYPOINT ["/workspace/koblas-bench/capture-report.sh", "--libraries", "onemkl"]
 
@@ -65,7 +65,7 @@ FROM openblas AS armpl
 ARG ARMPL_VERSION=25.07
 ARG ARMPL_SHA256=28a0cdf84b1f8e61d1d1ea484f4e2ecf645f7d916bb002ed34d46f6eb2e41345
 
-RUN test "$(dpkg --print-architecture)" = arm64 \
+RUN if [ "$(dpkg --print-architecture)" != arm64 ]; then echo "no ArmPL for $(dpkg --print-architecture); stage left as is"; else true \
     && apt-get update \
     && apt-get install --yes --no-install-recommends curl \
     && curl --location --silent --show-error --output /tmp/armpl.tar \
@@ -81,6 +81,6 @@ RUN test "$(dpkg --print-architecture)" = arm64 \
     && ldconfig \
     && test -f "/opt/arm/armpl_${ARMPL_VERSION}_gcc/lib/libarmpl_lp64.so" \
     && rm -rf /tmp/armpl.tar "/tmp/arm-performance-libraries_${ARMPL_VERSION}_deb" /tmp/armpl_*.deb \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/*; fi
 
 ENTRYPOINT ["/workspace/koblas-bench/capture-report.sh", "--libraries", "openblas,armpl"]
