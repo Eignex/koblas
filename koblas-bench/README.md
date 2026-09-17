@@ -65,20 +65,26 @@ report that ran under that limit.
 The point of a fleet is the SIMD ladder, so each instance family is here for the vector width and generation
 it is the cheapest way to reach, and dropping one leaves a rung unmeasured rather than saving a duplicate.
 
-| Instance | Microarchitecture | Widest SIMD |
-|---|---|---|
-| `m2.xlarge` | Xeon E5-2665 Sandy Bridge | AVX, no FMA |
-| `c3.2xlarge` | Xeon E5-2680 v2 Ivy Bridge | AVX, no FMA |
-| `c4.2xlarge` | Xeon E5-2666 v3 Haswell | AVX2 with FMA3 |
-| `c5a.2xlarge` | AMD EPYC Zen 2 | AVX2 with FMA3 |
-| `c7i.2xlarge` | Xeon Sapphire Rapids | AVX-512 |
-| `c6g.2xlarge` | Graviton2 Neoverse-N1 | NEON |
-| `c7g.2xlarge` | Graviton3 Neoverse-V1 | SVE 256-bit |
-| `c8g.2xlarge` | Graviton4 Neoverse-V2 | SVE 128-bit |
+| Instance | Microarchitecture | Widest SIMD | Double lanes |
+|---|---|---|---|
+| `m2.xlarge` | Xeon E5-2665 Sandy Bridge | AVX, no FMA3 | 2 |
+| `c3.2xlarge` | Xeon E5-2680 v2 Ivy Bridge | AVX, no FMA3 | 2 |
+| `c4.2xlarge` | Xeon E5-2666 v3 Haswell | AVX2 with FMA3 | 4 |
+| `c5a.2xlarge` | AMD EPYC 7R32 Zen 2 | AVX2 with FMA3 | 4 |
+| `c7i.2xlarge` | Xeon Platinum 8488C Sapphire Rapids | AVX-512 | 8 |
+| `c6g.2xlarge` | Graviton2 Neoverse-N1 | NEON | 2 |
+| `c7g.2xlarge` | Graviton3 Neoverse-V1 | SVE 256-bit | 4 |
+| `c8g.2xlarge` | Graviton4 Neoverse-V2 | SVE 128-bit | 2 |
 
-The pre-FMA rungs are the ones worth keeping even though nobody buys those instances now: a Vector API
-operation with no instruction behind it falls back to a software implementation per lane rather than
-refusing, and only a host without the instruction shows that.
+Lane counts are what `SPECIES_PREFERRED` resolved to on JDK 25, read back from each capture rather than
+derived from the instruction set: the AVX hosts get 128-bit vectors because HotSpot caps its vector size
+where only the first generation is present, and Graviton4's SVE is narrower than Graviton3's although it is
+the later part. Every rung therefore has to be measured rather than predicted, which is the reason to keep
+the list.
+
+The pre-FMA rungs earn their place even though nobody buys those instances now: a Vector API operation with
+no instruction behind it falls back to a software implementation per lane rather than refusing, and only a
+host without the instruction shows that.
 
 ## Options
 
