@@ -57,9 +57,10 @@ class PlatformEngineTest {
      * The measured crossovers differ by operation, and the routing has to differ with them.
      *
      * One width is enough to catch the mistake this guards against, which is a single constant creeping back:
-     * at 512 a dot has crossed and a norm has not, because `dnrm2` rescales for overflow safety per element
-     * while the portable kernel tries the plain sum of squares first. Only the Native arm routes Level 1 to a
-     * library at all, so everywhere else this says so rather than asserting the JVM into the same shape.
+     * at 96 a dot has crossed and a norm has not. `dnrm2` rescales for overflow safety per element where the
+     * portable kernel tries the plain sum of squares first, and `idamax` costs sixty nanoseconds or more
+     * before it looks at anything, so both are repaid later than the rest. Only the Native arm routes Level 1
+     * to a library at all, so everywhere else this says so rather than asserting the JVM into the same shape.
      */
     @Test
     fun `each operation crosses to the vendor at its own measured width`() {
@@ -67,11 +68,12 @@ class PlatformEngineTest {
         val arm = "${vendor.vendor.vendorName.lowercase()}-level1"
         if (koblas.vectorKernels.name != arm) return skipped("this platform keeps Level 1 off the library")
 
-        assertEquals(PORTABLE, koblas.explain(DenseOperation.Dot, 256), "a dot at 256 is still the loop's")
-        assertEquals(arm, koblas.explain(DenseOperation.Dot, 512), "a dot at 512 has crossed")
-        assertEquals(arm, koblas.explain(DenseOperation.Iamax, 256), "the index search crosses earliest")
-        assertEquals(PORTABLE, koblas.explain(DenseOperation.Nrm2, 512), "the robust norm crosses latest")
-        assertEquals(arm, koblas.explain(DenseOperation.Nrm2, 768), "and has crossed by 768")
+        assertEquals(PORTABLE, koblas.explain(DenseOperation.Dot, 32), "a dot at 32 is still the loop's")
+        assertEquals(arm, koblas.explain(DenseOperation.Dot, 96), "a dot at 96 has crossed")
+        assertEquals(PORTABLE, koblas.explain(DenseOperation.Nrm2, 96), "the robust norm crosses later")
+        assertEquals(PORTABLE, koblas.explain(DenseOperation.Iamax, 96), "and so does the index search")
+        assertEquals(arm, koblas.explain(DenseOperation.Nrm2, 128), "both have crossed by 128")
+        assertEquals(arm, koblas.explain(DenseOperation.Iamax, 128))
     }
 
     private fun skipped(why: String) {

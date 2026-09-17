@@ -11,8 +11,8 @@ helpers for accumulation, touched support, and checked arithmetic are available 
 caller passed in, so nothing here allocates behind a hot loop.
 
 [koblas][com.eignex.koblas.koblas] is an immutable engine selected once for the platform, and it is two
-halves. Level 1 and the sparse primitives are portable Kotlin, preferring the Vector API on the JVM and scalar
-Kotlin elsewhere; they keep working on any host. Level 2 and 3 are whole calls to an installed vendor BLAS and
+halves. Level 1 and the sparse primitives are portable Kotlin, preferring the Vector API reductions on the
+JVM and scalar Kotlin elsewhere; they keep working on any host. Level 2 and 3 are whole calls to an installed vendor BLAS and
 have no portable fallback, so they raise
 [MissingVendorException][com.eignex.koblas.vendor.MissingVendorException] where no supported library is
 present rather than substituting slower arithmetic under the same name.

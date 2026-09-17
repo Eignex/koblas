@@ -23,10 +23,12 @@ each held to one compute thread. Koblas validates shapes and aliasing there and 
 its own. They have no fallback: on a host with no supported library they raise rather than quietly computing
 something slower under the same name.
 
-Level 1 picks the faster arm per platform. On the JVM that is the Vector API kernels, because reaching a
-foreign library there copies both operands into native memory and so costs a pass over the data before any
-arithmetic. On Kotlin/Native, which has no Vector API, does not vectorise these loops, and pins the caller's
-array rather than copying it, the vendor is the faster arm above the width where its per-call cost is paid for.
+Level 1 picks the faster arm per platform. On the JVM that is the Vector API kernels for the reductions,
+because reaching a foreign library there copies both operands into native memory and so costs a pass over the
+data before any arithmetic. The elementwise operations are ordinary Kotlin loops, which HotSpot vectorises on
+its own; hand-written lanes measured no faster there, so there are none. On Kotlin/Native, which has no Vector
+API and does not vectorise these loops, the binding pins the caller's array rather than copying it and the
+vendor is the faster arm above the width where its per-call cost is paid for.
 Either way the portable Kotlin kernels are what the chosen arm falls back to below its own threshold, so Level
 1, the containers and the sparse primitives keep working on a host with no library at all.
 
@@ -50,8 +52,8 @@ implementation("com.eignex:koblas:<version>")
 Supported targets are JVM (JDK 25 or later), Linux x64/arm64, and macOS arm64. When the Vector API is made stable
 that will be the new JVM lowest target.
 
-On JVM, pass `--add-modules=jdk.incubator.vector` at runtime to enable the SIMD Level 1 kernels. Without it
-Koblas uses portable Kotlin, which is also what the SIMD kernels fall back to below their lane width and for
+On JVM, pass `--add-modules=jdk.incubator.vector` at runtime to enable the SIMD Level 1 reductions. Without it
+Koblas uses portable Kotlin, which is also what those kernels fall back to below their lane width and for
 any strided run.
 
 Level 2 and Level 3 need a vendor BLAS. Koblas looks for oneMKL, AOCL and Arm Performance Libraries
@@ -150,8 +152,9 @@ val product = multiply(koblas, a, b)
 
 Naming a Level 1 implementation other than the selected one is for measuring the two against each other, so
 `BuiltinEngines` sits behind the `KoblasEngineApi` opt-in. The portable kernels are not an alternative to the
-SIMD ones at a given size: the SIMD ones already fall back to them below their lane width and for any strided
-run. `KoblasEngine.explain(operation, length, contiguous)` names the implementation a given call reaches.
+SIMD ones at a given size: the SIMD ones already fall back to them below their lane width, for any strided
+run, and for every elementwise operation.
+`KoblasEngine.explain(operation, length, contiguous)` names the implementation a given call reaches.
 
 ## API structure
 

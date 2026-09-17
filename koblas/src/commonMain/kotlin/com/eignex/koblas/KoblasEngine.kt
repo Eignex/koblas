@@ -26,10 +26,11 @@ public val koblas: KoblasEngine by lazy { platformEngine() }
  * The Level 1 arm this platform prefers, which is not the same arm on both.
  *
  * On the JVM the Vector API kernels win at every width, because reaching the library there copies both
- * operands into native memory and so costs a pass over the data before any arithmetic happens. On
- * Kotlin/Native there is no Vector API, the portable loops do not vectorise and pay a safepoint poll and a
- * bounds check per element, and the binding pins the caller's array and passes it in place: so the library is
- * the arm, above the width where its per-call cost is paid for.
+ * operands into native memory and so costs a pass over the data before any arithmetic happens. They are the
+ * reductions only: an elementwise loop is vectorised by the JIT without being written in lanes, and a
+ * hand-written one measured no faster. On Kotlin/Native there is no Vector API, the portable loops do not
+ * vectorise and pay a safepoint poll and a bounds check per element, and the binding pins the caller's array
+ * and passes it in place: so the library is the arm, above the width where its per-call cost is paid for.
  *
  * Either way the portable kernels are what the chosen arm calls below its own threshold, not a third engine
  * beside it.
@@ -86,9 +87,9 @@ public class KoblasEngine internal constructor(
  *
  * Not a menu of production choices, which is why it is behind [KoblasEngineApi]. [koblas] is the engine this
  * platform selected, and on the JVM that is [simd], whose kernels already delegate to the portable ones below
- * their lane width and for any strided run. So [scalar] is not a faster or slower alternative at a given
- * size: it is the floor the vectorised kernels stand on, exposed on its own so a benchmark can time it and a
- * conformance test can compare against it.
+ * their lane width, for any strided run, and for every elementwise operation. So [scalar] is not a faster or
+ * slower alternative at a given size: it is the floor the vectorised kernels stand on, exposed on its own so a
+ * benchmark can time it and a conformance test can compare against it.
  *
  * Kotlin/Native has no Vector API, so [simd] is null there and [koblas] is [scalar].
  */

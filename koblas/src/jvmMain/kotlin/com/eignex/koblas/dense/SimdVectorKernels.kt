@@ -12,7 +12,23 @@ internal val simdAvailable: Boolean = try {
     false
 }
 
-/** The JVM Vector API kernels without automatic C selection. */
+/**
+ * The JVM Vector API kernels, which are the reductions and nothing else.
+ *
+ * A reduction is what the compiler cannot do for us. Vectorising a sum of doubles means adding them in a
+ * different order, which changes the answer, so HotSpot leaves the loop alone unless it is written in lanes.
+ * Writing it in lanes is worth 3 to 10 times the scalar loop for `dot`, `asum` and `sum` above 128.
+ *
+ * Elementwise work is the opposite: each element's result depends on nothing else, so the JIT vectorises the
+ * ordinary Kotlin loop by itself. Hand-written `axpy`, `scal`, `swap` and `rot` kernels measured 0.93 to 1.10
+ * against the portable loops they were meant to beat, and `scal` measured 0.44 to 0.55 above 512, which is
+ * slower than doing nothing at all. They were removed rather than tuned: a second implementation that has to
+ * be tested, kept allocation-free and explained, in exchange for nothing, is not a kernel but a liability.
+ * The measurements are in `koblas-bench/reports/level1-crossover/`.
+ *
+ * `nrm2` is here because its fast path is a sum of squares, which is a reduction; it falls back to the
+ * rescaling loop when a value leaves the normal range.
+ */
 internal object SimdVectorKernels : DenseVectorKernels {
     /**
      * Width from which the vector search for the first largest magnitude beats the scalar one.
@@ -62,8 +78,11 @@ internal object SimdVectorKernels : DenseVectorKernels {
             if (vectorizes(length) && length >= IAMAX_CROSSOVER) name else ScalarVectorKernels.name
 
         DenseOperation.Dot, DenseOperation.Sum, DenseOperation.Asum,
-        DenseOperation.Axpy, DenseOperation.Scale, DenseOperation.Swap, DenseOperation.Rot,
         -> if (vectorizes(length)) name else ScalarVectorKernels.name
+
+        // The elementwise four have no vector kernel here; see the class documentation.
+        DenseOperation.Axpy, DenseOperation.Scale, DenseOperation.Swap, DenseOperation.Rot,
+        -> ScalarVectorKernels.name
     }
 
     override fun dot(
@@ -93,25 +112,10 @@ internal object SimdVectorKernels : DenseVectorKernels {
         len: Int,
         yStride: Int,
         xStride: Int,
-    ) {
-        if (vectorizes(len, yStride == 1 && xStride == 1)) {
-            SimdOps.axpy(y, yOff, alpha, x, xOff, len)
-        } else {
-            scalarAxpy(y, yOff, yStride, alpha, x, xOff, xStride, len)
-        }
-    }
+    ) = scalarAxpy(y, yOff, yStride, alpha, x, xOff, xStride, len)
 
-    override fun scale(v: DoubleArray, vOff: Int, alpha: Double, len: Int, vStride: Int) {
-        if (vectorizes(
-                len,
-                vStride == 1,
-            )
-        ) {
-            SimdOps.scale(v, vOff, alpha, len)
-        } else {
-            scalarScale(v, vOff, vStride, alpha, len)
-        }
-    }
+    override fun scale(v: DoubleArray, vOff: Int, alpha: Double, len: Int, vStride: Int) =
+        scalarScale(v, vOff, vStride, alpha, len)
 
     override fun nrm2(v: DoubleArray, vOff: Int, len: Int, vStride: Int): Double {
         if (vectorizes(len, vStride == 1)) {
@@ -131,21 +135,10 @@ internal object SimdVectorKernels : DenseVectorKernels {
     override fun asum(v: DoubleArray, vOff: Int, len: Int, vStride: Int): Double =
         if (vectorizes(len, vStride == 1)) SimdOps.asum(v, vOff, len) else absoluteSum(v, vOff, vStride, len)
 
-    override fun swap(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int, aStride: Int, bStride: Int) {
-        if (vectorizes(len, aStride == 1 && bStride == 1)) {
-            SimdOps.swap(a, aOff, b, bOff, len)
-        } else {
-            scalarSwap(a, aOff, aStride, b, bOff, bStride, len)
-        }
-    }
+    override fun swap(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int, aStride: Int, bStride: Int) =
+        scalarSwap(a, aOff, aStride, b, bOff, bStride, len)
 
-    // A plane rotation is two fused multiply-adds per lane, which is what the vector kernel below does.
     @Suppress("LongParameterList")
-    override fun rot(x: DoubleArray, xOff: Int, y: DoubleArray, yOff: Int, len: Int, c: Double, s: Double) {
-        if (vectorizes(len)) {
-            SimdOps.rot(x, xOff, y, yOff, len, c, s)
-        } else {
-            portableRot(x, xOff, y, yOff, len, c, s)
-        }
-    }
+    override fun rot(x: DoubleArray, xOff: Int, y: DoubleArray, yOff: Int, len: Int, c: Double, s: Double) =
+        portableRot(x, xOff, y, yOff, len, c, s)
 }
