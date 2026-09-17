@@ -31,7 +31,10 @@ fi
 
 # BuildKit builds only the stages the target depends on. The legacy builder walks every stage above it in
 # the file, so an arm64 host asked for the armpl target would build the oneMKL stage first and fail there.
-export DOCKER_BUILDKIT=1
+# Only where buildx is present: Ubuntu's docker.io package ships without it, and BuildKit without buildx
+# refuses to build at all. The stage guards below make the legacy builder correct anyway, so this is an
+# optimisation rather than a requirement.
+if docker buildx version >/dev/null 2>&1; then export DOCKER_BUILDKIT=1; fi
 image="koblas-vendors:$target"
 build_arguments=()
 if "${docker_command[@]}" build --help 2>&1 | grep -q -- '--progress'; then
