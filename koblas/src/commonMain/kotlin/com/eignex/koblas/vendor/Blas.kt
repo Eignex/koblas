@@ -281,7 +281,7 @@ internal fun Blas.composeGemmt(
  * working on a host where it returns null; only the accelerator-dependent calls fail, and they fail clearly.
  *
  * [only] restricts the search to one vendor, which is how a test or an exact benchmark arm reaches a specific
- * library without changing anything process-global. It also reaches [Vendor.OpenBlas], which [Vendor.select]
- * never returns.
+ * library without changing anything process-global. Without it the order is [Vendor.select]'s, so a host with
+ * no tuned library still reaches [Vendor.OpenBlas] at the end of that order rather than nothing.
  */
 public expect fun openBlas(only: Vendor? = null): Blas?

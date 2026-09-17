@@ -58,6 +58,12 @@ Every BLAS invocation runs on one compute thread; there is no thread setting to 
 exports — `sum` and everything sparse — are reported unsupported on vendor targets rather than timed through a
 substitute.
 
+The Koblas targets carry their own Level 1 kernels but hand Level 2 and 3 to whichever library production
+selection resolved, and that order ends in OpenBLAS. On a host with no tuned library installed, their Level 2
+and 3 rows are therefore the same library the `openblas` target times, reached through the same binding, and
+comparing the two answers nothing. `metadata.txt` names the resolved file per target, which is what says
+whether that happened.
+
 ## Cases
 
 [`cases.txt`](cases.txt) lists every workload, one per line, as
