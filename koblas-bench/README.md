@@ -43,10 +43,17 @@ gives the cores away, and either turns up as a slower arm rather than as an erro
 point where an instance holds a whole socket are what produce repeatable numbers, and pinning still applies:
 a vCPU is usually one hyperthread, so pin to every other one.
 
-An ARM64 instance captures OpenBLAS and the Koblas arms only. oneMKL has no ARM64 build, and Arm Performance
-Libraries is not in the image because its download requires accepting a licence, so Level 2 and 3 have no
-vendor to reach and report as unsupported. Installing ArmPL on the instance and capturing without the
-container is the way to cover that until the image can carry it.
+On ARM64 use the `armpl` target rather than `all`, since oneMKL has no ARM64 build:
+
+```bash
+koblas-bench/reference-container.sh armpl --samples 5 --warmups 5 --target-ms 200 --forks 2
+```
+
+That stage downloads Arm Performance Libraries, which means accepting Arm's licence for it, and is why it is a
+separate target rather than part of `all`. The licence covers installing it on a machine you are using; it
+does not cover redistributing it, so an image built from that stage must not be published. ArmPL is worth the
+step because it is the only vendor Koblas selects on ARM64 — OpenBLAS is a reference arm and is never chosen
+in production, so a capture without ArmPL measures an arm no user reaches.
 
 ## Options
 
