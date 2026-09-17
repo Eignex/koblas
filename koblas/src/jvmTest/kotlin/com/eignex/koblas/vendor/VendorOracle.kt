@@ -7,13 +7,11 @@ import kotlin.test.fail
 /**
  * A vendor to test against, or null when this host has none installed.
  *
- * Production selection is tried first so that a host with a real vendor exercises the one it would actually
- * use. OpenBLAS is the fallback because it shares the CBLAS transport, which is what these tests are about;
- * it is never selected in production.
+ * Production selection, which ends in OpenBLAS on Linux, so a host with a tuned library exercises the one it
+ * would actually use and a host with only the distribution's BLAS still exercises the transport these tests
+ * are about.
  */
-internal val testVendor: Blas? by lazy {
-    openBlas() ?: openBlas(Vendor.OpenBlas)
-}
+internal val testVendor: Blas? by lazy { openBlas() }
 
 /**
  * Runs [body] against an installed vendor, or reports that it did not run.
