@@ -20,10 +20,8 @@ internal val simdAvailable: Boolean = try {
  * Writing it in lanes is worth 3 to 10 times the scalar loop for `dot`, `asum` and `sum` above 128.
  *
  * Elementwise work is the opposite: each element's result depends on nothing else, so the JIT vectorises the
- * ordinary Kotlin loop by itself. Hand-written `axpy`, `scal`, `swap` and `rot` kernels measured 0.93 to 1.10
- * against the portable loops they were meant to beat, and `scal` measured 0.44 to 0.55 above 512, which is
- * slower than doing nothing at all. They were removed rather than tuned: a second implementation that has to
- * be tested, kept allocation-free and explained, in exchange for nothing, is not a kernel but a liability.
+ * ordinary Kotlin loop by itself, and there is nothing here for `axpy`, `scal`, `swap` or `rot`. Written in
+ * lanes they measure 0.93 to 1.10 against the portable loops, and `scal` measures 0.44 to 0.55 above 512.
  * Measured on 12th Gen Intel Core i9-12900H with the sweep suite, comparing the `jvm-scalar` and `jvm-simd`
  * targets.
  *
@@ -37,12 +35,11 @@ internal object SimdVectorKernels : DenseVectorKernels {
      * A fixed measured constant rather than a tuning key. The index search carries a lane-position vector
      * beside the magnitude one and reduces both, so it pays later than the plain reductions do.
      *
-     * Measured, and unchanged by the measurement. This constant gates its own comparison: at the shipped
-     * value every narrower run takes the scalar kernel in both arms, so the two were timed once more with it
-     * lowered to the lane width. The vectorised search loses below 64, sits inside the noise from 64 to 192
-     * and loses outright at 128, and from 256 is ahead at every width measured, by 1.13 to 1.90. Repeating
-     * that means lowering this constant again and running the `iamax` sweep over the `jvm-scalar` and
-     * `jvm-simd` targets; the numbers above are from an i9-12900H.
+     * This constant gates its own comparison: at this value every narrower run takes the scalar kernel in
+     * both arms, so measuring it means lowering it to the lane width and running the `iamax` sweep over the
+     * `jvm-scalar` and `jvm-simd` targets. Doing that on an i9-12900H has the vectorised search losing below
+     * 64, inside the noise from 64 to 192, losing outright at 128, and ahead at every width from 256 upward
+     * by 1.13 to 1.90 — which is where it starts winning and staying ahead.
      */
     private const val IAMAX_CROSSOVER = 256
 

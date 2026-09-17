@@ -131,7 +131,7 @@ internal class VendorVectorKernels(
     override fun rot(x: DoubleArray, xOff: Int, y: DoubleArray, yOff: Int, len: Int, c: Double, s: Double) {
         val oneRunTwice = x === y && xOff == yOff
         if (vendorRuns(DenseOperation.Rot, len) && !oneRunTwice) {
-            blas.rawRot(x, xOff, y, yOff, len, c, s)
+            blas.rawRot(x, xOff, 1, y, yOff, 1, len, c, s)
         } else {
             portable.rot(x, xOff, y, yOff, len, c, s)
         }
@@ -154,11 +154,9 @@ internal class VendorVectorKernels(
          * targets. Pinning matters on this part: its E-cores run a gigahertz slower and an unpinned run wanders
          * between the two.
          *
-         * These describe a binding whose per-call cost is 33 to 60 nanoseconds. An earlier one spent about 190
-         * nanoseconds per call on objects describing each operand, and measured against that binding the same
-         * eight break-evens were 205 to 652: five times higher, in a different order, and grouped differently.
-         * A crossover is a property of the call as well as the arithmetic, so changing what a call costs
-         * invalidates these rather than shifting them.
+         * A crossover is a property of the call as much as of the arithmetic, so these hold only while a call
+         * costs what it costs here: 33 nanoseconds for one pinned operand and 42 for two. Anything that moves
+         * that figure calls for the sweep again rather than an adjustment to these.
          *
          * No other host has been measured. Another CPU or another library keeps these numbers only until
          * someone runs that sweep there, and nothing here is inferred from a backend that was not run.
