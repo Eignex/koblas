@@ -1,0 +1,73 @@
+case,status,comparison_kind,timing_mode,actual_kernel,samples,forks,median_ns,min_ns,max_ns
+dot+4096+uniform,ok,direct,arithmetic,simd(8 lanes)/dot,10,2,668.820472871236,663.9132258257024,689.0663618082147
+axpy+4096+uniform,ok,direct,reset-and-arithmetic,scalar/axpy,10,2,1321.1885811359855,1308.684487607089,1348.2160448917452
+scal+4096+uniform,ok,direct,reset-and-arithmetic,scalar/scale,10,2,916.6392545556864,898.8747524018703,928.1669122758237
+nrm2+4096+uniform,unsupported,unsupported,arithmetic,unavailable,0,0,,,
+asum+4096+uniform,ok,direct,arithmetic,simd(8 lanes)/asum,10,2,245.2541188827671,240.03552757423,247.11868843484405
+sum+4096+uniform,ok,direct,arithmetic,simd(8 lanes)/sum,10,2,147.80961888486982,120.98981263397864,174.96247811106696
+iamax+64+uniform,ok,direct,arithmetic,scalar/iamax,10,2,22.358192107622756,22.29108295755972,23.119677725455585
+iamax+128+uniform,ok,direct,arithmetic,scalar/iamax,10,2,45.69004507864563,45.51098637751399,46.134658906874904
+iamax+256+uniform,ok,direct,arithmetic,simd(8 lanes)/iamax,10,2,46.471383683379436,46.312809929883265,47.67411406965106
+iamax+512+uniform,ok,direct,arithmetic,simd(8 lanes)/iamax,10,2,89.58401343895713,81.69954485462006,96.54085824460232
+iamax+1024+uniform,ok,direct,arithmetic,simd(8 lanes)/iamax,10,2,136.56230569368864,135.98515803442038,137.82851168662475
+iamax+4096+uniform,ok,direct,arithmetic,simd(8 lanes)/iamax,10,2,392.19832158315523,388.05716950003585,398.5673607863816
+iamax+65536+uniform,ok,direct,arithmetic,simd(8 lanes)/iamax,10,2,7807.694101467863,7747.578053028837,7928.403933673671
+swap+4096+uniform,ok,direct,reset-and-arithmetic,scalar/swap,10,2,2460.0660071831826,2451.616198865516,2466.058886535999
+rot+4096+uniform,ok,direct,reset-and-arithmetic,scalar/rot,10,2,3287.0222380275136,2735.4193160383807,3854.154462462925
+gemv+32x21+uniform,ok,direct,reset-and-arithmetic,oneMKL/cblas_dgemv,10,2,285.92879354906415,267.7553431603269,328.2592356374607
+gemv+129x31+uniform+transA=T,ok,direct,reset-and-arithmetic,oneMKL/cblas_dgemv,10,2,1634.9304633225652,1586.9981602924502,1746.06455409293
+symv+129+uniform+uplo=U,ok,direct,reset-and-arithmetic,oneMKL/cblas_dsymv,10,2,6963.542270028316,6827.085379159847,6981.600209132102
+ger+129x31+uniform,ok,direct,reset-and-arithmetic,oneMKL/cblas_dger,10,2,3323.2025818941793,3313.130705119725,3404.1613555634867
+syr+129+uniform+uplo=L,ok,direct,reset-and-arithmetic,oneMKL/cblas_dsyr,10,2,12861.84433598767,12670.185557876084,13090.939665315727
+syr2+129+uniform+uplo=U,ok,direct,reset-and-arithmetic,oneMKL/cblas_dsyr2,10,2,13209.102484723826,13099.293709497939,13264.179422669491
+trsv+129+triangular+uplo=L+transA=N+diag=N,ok,direct,reset-and-arithmetic,oneMKL/cblas_dtrsv,10,2,6457.416472640469,6375.451458936584,6550.854488353834
+trmv+129+triangular+uplo=U+transA=T+diag=U,ok,direct,reset-and-arithmetic,oneMKL/cblas_dtrmv,10,2,6325.882861149204,6305.795819429579,6430.453470437018
+gemm+32x21x48+uniform,ok,direct,reset-and-arithmetic,oneMKL/cblas_dgemm,10,2,1846.927267112339,1770.8374197082549,1925.8081730445408
+gemm+129x31x257+uniform+transA=T,ok,direct,reset-and-arithmetic,oneMKL/cblas_dgemm,10,2,45249.27391592036,45080.87131608549,48459.66255144033
+gemm+65x127x33+uniform+transB=T,ok,direct,reset-and-arithmetic,oneMKL/cblas_dgemm,10,2,14690.337959341668,14620.394711854504,14823.013626601496
+symm+129x31+uniform+side=L+uplo=L,ok,direct,reset-and-arithmetic,oneMKL/cblas_dsymm,10,2,28046.953880849505,27783.981692094312,28776.05046728972
+symm+31x129+uniform+side=R+uplo=U,ok,direct,reset-and-arithmetic,oneMKL/cblas_dsymm,10,2,34810.443826160335,34636.91381100727,35653.81313400961
+gemmt+129x31+uniform+uplo=L+transA=N+transB=N,ok,direct,reset-and-arithmetic,oneMKL/cblas_dgemmt,10,2,24839.90233906504,24683.10127050697,25373.67047039432
+syrk+129x31+uniform+uplo=L+transA=N,ok,direct,reset-and-arithmetic,oneMKL/cblas_dsyrk,10,2,24508.41744785226,23920.388683299512,25716.64615186946
+syr2k+129x31+uniform+uplo=U+transA=T,ok,direct,reset-and-arithmetic,oneMKL/cblas_dsyr2k,10,2,34496.851272441214,34248.938995215314,37966.52954545455
+trsm+64x16+triangular+side=L+uplo=L+transA=N+diag=N,ok,direct,reset-and-arithmetic,oneMKL/cblas_dtrsm,10,2,3548.632004885794,3468.4888004154404,3633.110657670403
+trsm+17x64+triangular+side=R+uplo=U+transA=T+diag=U,ok,direct,reset-and-arithmetic,oneMKL/cblas_dtrsm,10,2,4381.006555820465,4282.919737236273,4464.416436155974
+trmm+64x16+triangular+side=L+uplo=U+transA=T+diag=N,ok,direct,reset-and-arithmetic,oneMKL/cblas_dtrmm,10,2,3616.321476608991,3453.9330310970145,3778.3196421155953
+trmm+17x64+triangular+side=R+uplo=L+transA=N+diag=U,ok,direct,reset-and-arithmetic,oneMKL/cblas_dtrmm,10,2,4602.480120427071,4499.898133992806,4888.94977904734
+spdot+4096+sparse-uniform+density=0.01,ok,direct,arithmetic,simd/dotDense,10,2,23.368621960644603,23.32356893292604,23.403626562621046
+spdot-raw+64+sparse-uniform+density=0.125,unsupported,unsupported,arithmetic,simd has no dotDense kernel for 8 entries on this host,0,0,,,
+spdot-raw+4096+sparse-uniform+density=0.0625,ok,direct,arithmetic,simd/dotDense,10,2,107.95706447176525,104.41677144237197,111.45627457851496
+spdot-raw+65536+sparse-uniform+density=0.015625,ok,direct,arithmetic,simd/dotDense,10,2,606.2490627756697,599.5630473930383,611.287925015805
+spdot-raw+262144+sparse-uniform+density=0.03125,ok,direct,arithmetic,simd/dotDense,10,2,4683.208591282955,4627.165053477789,4713.956688557776
+spdot-sparse+4096+sparse-uniform+density=0.01,unsupported,unsupported,arithmetic,simd has no dotSparse kernel for 41 entries on this host,0,0,,,
+spaxpy+4096+sparse-uniform+density=0.01,ok,direct,reset-and-arithmetic,simd/axpy,10,2,734.3782342063109,724.9921168274578,746.9387020217474
+spaxpy-raw+64+sparse-uniform+density=0.125,unsupported,unsupported,arithmetic,simd has no axpy kernel for 8 entries on this host,0,0,,,
+spaxpy-raw+4096+sparse-uniform+density=0.0625,ok,direct,reset-and-arithmetic,simd/axpy,10,2,898.5708799821057,825.0336088381392,901.4904427918033
+spaxpy-raw+65536+sparse-uniform+density=0.015625,ok,direct,reset-and-arithmetic,simd/axpy,10,2,12289.849491221408,12205.871127104172,12366.936909685783
+spaxpy-raw+262144+sparse-uniform+density=0.03125,ok,direct,reset-and-arithmetic,simd/axpy,10,2,142586.1252669039,142147.46770759404,143973.00215362528
+spnrm2+4096+sparse-uniform+density=0.01,unsupported,unsupported,arithmetic,"simd(8 lanes) decides nrm2 on the values, so no kernel is named beforehand",0,0,,,
+spnrm2-indexed+4096+sparse-uniform+density=0.01,ok,direct,arithmetic,simd/nrm2,10,2,25.36479059743452,25.330420591640358,25.745843240181095
+spnrm2-indexed+4096+sparse-uniform+density=0.5,ok,direct,arithmetic,simd/nrm2,10,2,739.6763412015935,734.3870324830244,741.650009080565
+spnrm2-indexed+262144+sparse-uniform+density=0.03125,ok,direct,arithmetic,simd/nrm2,10,2,4219.396222370449,4171.465658711317,4277.642733545535
+spasum+4096+sparse-uniform+density=0.01,ok,direct,arithmetic,simd(8 lanes)/asum,10,2,7.207990399066288,7.094888721658064,7.428616111633383
+spscatter+4096+sparse-uniform+density=0.01,ok,direct,reset-and-arithmetic,simd/scatter,10,2,733.5878561860713,721.3718484067446,742.8758353381448
+spscatter-raw+64+sparse-uniform+density=0.125,unsupported,unsupported,arithmetic,simd has no scatter kernel for 8 entries on this host,0,0,,,
+spscatter-raw+4096+sparse-uniform+density=0.0625,ok,direct,reset-and-arithmetic,simd/scatter,10,2,835.0773207532113,825.1025866227934,843.7353223929433
+spscatter-raw+65536+sparse-uniform+density=0.015625,ok,direct,reset-and-arithmetic,simd/scatter,10,2,12386.658632300387,12311.374492931776,12497.664506076659
+spscatter-raw+262144+sparse-uniform+density=0.03125,ok,direct,reset-and-arithmetic,simd/scatter,10,2,156807.93503836147,153960.12442396313,159582.53625498008
+spgather+4096+sparse-uniform+density=0.01,ok,direct,reset-and-arithmetic,simd/gather,10,2,693.7722829345262,684.1698757381889,702.4963185537877
+spgather-zero+4096+sparse-uniform+density=0.01,ok,direct,reset-and-arithmetic,simd/gatherZero,10,2,1106.7381196717483,747.3496573157582,1470.6998994797896
+spaccumulate+4096+sparse-uniform+density=0.01,unsupported,unsupported,arithmetic,"the generic primitives have one implementation, timed on the scalar arm",0,0,,,
+gemm+257x3x1+uniform,ok,direct,reset-and-arithmetic,oneMKL/cblas_dgemm,10,2,429.2598898427625,409.8100217392638,460.1545942690591
+gemm+3x257x33+uniform,ok,direct,reset-and-arithmetic,oneMKL/cblas_dgemm,10,2,6643.918306645768,6615.716295660215,6782.076722355891
+gemm+127x5x65+uniform,ok,direct,reset-and-arithmetic,oneMKL/cblas_dgemm,10,2,4716.695277977153,4582.375520952599,4803.195492511521
+trsm+65x1+triangular+side=L+uplo=L+transA=N+diag=N,ok,direct,reset-and-arithmetic,oneMKL/cblas_dtrsm,10,2,2381.806362089469,2358.8337943617207,2496.959495691429
+trsm+65x33+triangular+side=L+uplo=U+transA=T+diag=U,ok,direct,reset-and-arithmetic,oneMKL/cblas_dtrsm,10,2,5935.0307292766465,5841.829676741743,5990.610404762617
+scal+64+uniform+timing=arithmetic,ok,direct,arithmetic,scalar/scale,10,2,10.166909315216577,10.090621172206443,10.244616662835522
+scal+256+uniform+timing=arithmetic,ok,direct,arithmetic,scalar/scale,10,2,18.04752760503974,18.030225743082084,18.111289619323077
+scal+4096+uniform+timing=arithmetic,ok,direct,arithmetic,scalar/scale,10,2,157.54704798434926,157.08000006272792,158.46932619919835
+scal+65536+uniform+timing=arithmetic,ok,direct,arithmetic,scalar/scale,10,2,9796.495040528514,9743.623169367002,9869.454205054933
+spgather+4096+sparse-uniform+density=0.01+timing=arithmetic,ok,direct,arithmetic,simd/gather,10,2,18.567545373136774,18.511867256468555,18.856449570787685
+spgather+4096+sparse-uniform+density=0.25+timing=arithmetic,ok,direct,arithmetic,simd/gather,10,2,196.64712172043363,191.04990452293404,198.2671712987919
+spgather+65536+sparse-uniform+density=0.01+timing=arithmetic,ok,direct,arithmetic,simd/gather,10,2,213.60625418748475,189.7221217480981,226.1630092784299
+spgather+65536+sparse-uniform+density=0.25+timing=arithmetic,ok,direct,arithmetic,simd/gather,10,2,5039.032767638582,4975.509337902946,5095.352521832116
