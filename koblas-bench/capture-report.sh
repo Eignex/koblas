@@ -121,9 +121,6 @@ cases="$temporary/cases.txt"
   # Koblas arms are single-threaded by construction. Each vendor arm records what its binding read back from
   # the library it opened, in that target's own section, rather than being covered by a claim made here.
   echo "koblas_threads=1"
-  printf '\n[toolchain]\n'
-  # Only the koblas C kernel arms still involve a C compiler; a vendor-only capture compiles no C at all.
-  if ! $vendors_only; then cc --version | head -n 1; fi
   printf '\n[hardware]\n'
   cat "$temporary/hardware.txt"
 } >"$metadata"
