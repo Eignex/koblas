@@ -17,7 +17,7 @@ class CasesFileTest {
             // Sharing a workload with the default suite is what keeps a sweep comparable to an ordinary
             // capture; a sweep of sizes nothing else runs would be its own incomparable scale.
             assertTrue(sweep.any { it in defaults }, "$operation's sweep shares no case with its default suite")
-            assertTrue(sweep.size in 12..24, "$operation swept ${sweep.size} sizes")
+            assertTrue(sweep.size in 12..28, "$operation swept ${sweep.size} sizes")
             assertTrue(sweep.minOf { it.dimension(0) } <= 8, "$operation's sweep starts above the call overhead")
             assertEquals(262144, sweep.maxOf { it.dimension(0) }, operation)
         }
@@ -76,8 +76,8 @@ class CasesFileTest {
         val cases = Cases.parse(Files.readString(Path.of("cases.txt")))
 
         assertEquals(SWEPT, cases.filter { "sweep" in it.suites }.map { it.operation }.toSet())
-        assertEquals(151, cases.count { "sweep" in it.suites })
-        assertEquals(207, cases.size)
+        assertEquals(168, cases.count { "sweep" in it.suites })
+        assertEquals(224, cases.size)
         // The default suite is what an ordinary capture runs, and the sweeps did not enlarge it.
         assertEquals(72, Cases.select(cases).size)
         assertEquals(cases.size, cases.map { it.id }.toSet().size)

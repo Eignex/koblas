@@ -34,32 +34,44 @@ a substitute.
 Portable time divided by vendor time on Kotlin/Native. Break-even is interpolated between the two swept widths
 that bracket a ratio of 1.
 
-| Operation | Break-even | 256 | 384 | 512 | 768 | Best |
-|---|---|---|---|---|---|---|
-| `iamax` | 205 | 1.22 | 1.60 | 1.91 | 2.71 | 9.38 |
-| `rot` | 236 | 1.06 | 1.35 | 1.59 | 2.20 | 2.53 |
-| `scal` | 331 | 0.82 | 1.12 | 1.42 | 1.92 | 4.91 |
-| `dot` | 354 | 0.76 | 1.07 | 1.24 | 1.72 | 4.26 |
-| `asum` | 365 | 0.76 | 1.04 | 1.36 | 1.88 | 8.62 |
-| `axpy` | 373 | 0.77 | 1.02 | 1.22 | 1.58 | 2.26 |
-| `swap` | 403 | 0.75 | 0.97 | 1.16 | 1.42 | 1.65 |
-| `nrm2` | 652 | 0.58 | 0.74 | 0.88 | 1.09 | 2.06 |
+| Operation | Break-even | 32 | 64 | 96 | 128 | 256 | Best |
+|---|---|---|---|---|---|---|---|
+| `axpy` | 40 | 0.87 | 1.30 | 1.55 | 1.83 | 2.88 | 2.9 |
+| `scal` | 42 | 0.90 | 1.17 | 1.46 | 1.65 | 2.59 | 4.9 |
+| `asum` | 45 | 0.80 | 1.26 | 1.67 | 1.83 | 3.28 | 8.6 |
+| `rot` | 46 | 0.82 | 1.19 | 1.31 | 1.88 | 2.59 | 2.6 |
+| `dot` | 57 | 0.65 | 1.17 | 1.60 | 1.78 | 2.45 | 4.9 |
+| `swap` | 67 | 0.60 | 0.99 | 1.07 | 1.36 | 1.78 | 1.8 |
+| `nrm2` | 82 | 0.64 | 0.89 | 1.07 | 1.08 | 1.38 | 2.1 |
+| `iamax` | 100 | 0.33 | 0.66 | 0.89 | 1.99 | 3.55 | 9.4 |
 
-Three groups, because the ends do not overlap the middle and each has a reason: `iamax` and `rot` do several
-operations per element in the portable loop, `nrm2` is the one case where the library does the extra work
-(`dnrm2` rescales for overflow safety, where the portable kernel tries the plain sum of squares first), and the
-remaining five stream one arithmetic step per element.
+Two constants, because the eight fall into two groups with a gap between them. The first six meet the library
+where the portable loop's work grows to the size of a call: each vendor call costs a flat 33 to 60 ns whatever
+the width, and the loop costs about half a nanosecond per element. `nrm2` and `iamax` arrive later for reasons
+of their own — `dnrm2` rescales for overflow safety as it goes, so its cost grows with the width from the
+start, and `idamax` charges 60 to 120 ns before it looks at anything, which is oneMKL's own number and not the
+binding's: timed directly from C, `cblas_idamax` costs 89 ns over 64 entries where `cblas_dasum` costs 10.
 
-The elementwise operations give their advantage back at the widest widths: `swap` and `rot` return to 1.03 at
-262144, where both arms are bound by memory rather than by arithmetic. That is a reason to read the whole curve
-rather than the largest width alone, not a reason to route differently, since routing follows the width where
-the call is repaid.
+## These numbers belong to a particular binding
+
+An earlier binding spent about 190 ns per call on the objects that described each operand — a holder for the
+pins, a wrapper per operand, a vector object per operand, and a list allocated to ask whether there was work.
+Measured against it the same eight break-evens were 205 to 652: five times higher, in a different order, and
+grouped differently, with `iamax` first rather than last. A crossover is a property of the call as much as of
+the arithmetic, so a change to what a call costs invalidates these rather than shifting them.
+
+The per-call cost now is 33 ns for one pinned operand and 42 ns for two. Of that, about 9.5 ns is each pin,
+7.6 ns is the call itself as timed from C, and the rest is dispatch. Pinning is what it costs to hand a
+GC-managed array to C; reading the same data through a pinned `CPointer` instead of a `DoubleArray` measured
+five times slower per element, so there is no cheaper arrangement to move to.
 
 ## The JVM answers differently
 
-`jvm-simd.csv` against `onemkl-jvm.csv` has the vendor behind at every width of every operation. Reaching the
-library from the JVM copies both operands into native memory, so the call pays a pass over the data before it
-computes anything, and no width repays it. There is no JVM crossover to set.
+`jvm-simd.csv` against `onemkl-jvm.csv` has the vendor behind at every width of every operation, by 6 to 23
+times. Reaching the library from the JVM copies both operands into native memory, so the call pays a pass over
+the data before it computes anything. Even against `onemkl.csv`, which copies nothing and is the best the JVM
+could ever do, the Vector API kernels stay ahead into the hundreds of elements: for `asum` at 256, 18.4 ns
+against 48.6. There is no JVM crossover to set.
 
 ## `jvm-iamax-gate-lowered/`
 

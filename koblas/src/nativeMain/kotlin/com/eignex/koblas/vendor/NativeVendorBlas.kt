@@ -12,6 +12,7 @@ import kotlinx.cinterop.COpaquePointer
 import kotlinx.cinterop.CPointer
 import kotlinx.cinterop.CPointerVar
 import kotlinx.cinterop.DoubleVar
+import kotlinx.cinterop.addressOf
 import kotlinx.cinterop.allocArray
 import kotlinx.cinterop.convert
 import kotlinx.cinterop.get
@@ -21,6 +22,7 @@ import kotlinx.cinterop.plus
 import kotlinx.cinterop.reinterpret
 import kotlinx.cinterop.set
 import kotlinx.cinterop.toKString
+import kotlinx.cinterop.usePinned
 import platform.posix.RTLD_NOW
 import platform.posix.dlclose
 import platform.posix.dlopen
@@ -248,76 +250,170 @@ internal class NativeVendorBlas private constructor(
 
     override fun dot(x: DenseVector, y: DenseVector): Double {
         requireSameLength(x, y, "dot")
-        if (noWorkReason(emptyList(), listOf(x)) != null) return 0.0
-        val pins = Pins()
-        try {
-            val px = pins.stage(x)
-            val py = pins.stage(y)
-            val fn = symbol(BlasOperation.Dot).reinterpret<DotFn>()
-            return fn(x.size, px.pointer, px.increment, py.pointer, py.increment)
-        } finally {
-            pins.release()
+        return rawDot(x.data, x.offset, x.stride, y.data, y.offset, y.stride, x.size)
+    }
+
+    override fun nrm2(x: DenseVector): Double = rawNrm2(x.data, x.offset, x.stride, x.size)
+
+    override fun asum(x: DenseVector): Double = rawAsum(x.data, x.offset, x.stride, x.size)
+
+    /*
+     * The raw Level 1 surface, which is what the engine's kernels call.
+     *
+     * Same arithmetic as the [DenseVector] methods, without the objects needed to describe an operand. At
+     * these widths those objects were the cost rather than the call: `cblas_ddot` over eight entries takes
+     * about eight nanoseconds, and a list for the no-work question, a holder for the pins, and a wrapper per
+     * operand came to twenty times that. The width where the library started to pay was mostly made of them.
+     *
+     * Each pin is taken by an inlined `usePinned`, which releases on the way out of the block including
+     * through an exception, so the guarantee the pin holder gave is kept without the holder.
+     */
+
+    /** The lowest entry a run reaches, which is where BLAS starts when the stride runs backwards. */
+    private fun low(offset: Int, stride: Int, n: Int): Int = if (stride >= 0) offset else offset + (n - 1) * stride
+
+    internal fun rawDot(
+        a: DoubleArray,
+        aOffset: Int,
+        aStride: Int,
+        b: DoubleArray,
+        bOffset: Int,
+        bStride: Int,
+        n: Int,
+    ): Double {
+        if (n == 0) return 0.0
+        val fn = symbol(BlasOperation.Dot).reinterpret<DotFn>()
+        a.usePinned { pa ->
+            b.usePinned { pb ->
+                return fn(
+                    n,
+                    pa.addressOf(low(aOffset, aStride, n)),
+                    aStride,
+                    pb.addressOf(low(bOffset, bStride, n)),
+                    bStride,
+                )
+            }
         }
     }
 
-    override fun nrm2(x: DenseVector): Double = reduce(x, BlasOperation.Nrm2)
+    internal fun rawNrm2(a: DoubleArray, offset: Int, stride: Int, n: Int): Double =
+        rawReduce(a, offset, stride, n, BlasOperation.Nrm2)
 
-    override fun asum(x: DenseVector): Double = reduce(x, BlasOperation.Asum)
+    internal fun rawAsum(a: DoubleArray, offset: Int, stride: Int, n: Int): Double =
+        rawReduce(a, offset, stride, n, BlasOperation.Asum)
 
-    private fun reduce(x: DenseVector, operation: BlasOperation): Double {
-        if (noWorkReason(emptyList(), listOf(x)) != null) return 0.0
-        val pins = Pins()
-        try {
-            val px = pins.stage(x)
-            val fn = symbol(operation).reinterpret<ReduceFn>()
-            return fn(x.size, px.pointer, abs(px.increment))
-        } finally {
-            pins.release()
+    private fun rawReduce(a: DoubleArray, offset: Int, stride: Int, n: Int, operation: BlasOperation): Double {
+        if (n == 0) return 0.0
+        val fn = symbol(operation).reinterpret<ReduceFn>()
+        a.usePinned { pinned ->
+            return fn(n, pinned.addressOf(low(offset, stride, n)), abs(stride))
         }
     }
 
-    override fun iamax(x: DenseVector): Int {
-        if (noWorkReason(emptyList(), listOf(x)) != null) return 0
-        val pins = Pins()
-        try {
-            val px = pins.stage(x)
-            val fn = symbol(BlasOperation.Iamax).reinterpret<IndexFn>()
-            val found = fn(x.size, px.pointer, abs(px.increment))
-            return if (x.stride >= 0) found else x.size - 1 - found
-        } finally {
-            pins.release()
+    /** The index the library returns, restored to the caller's order when the stride runs backwards. */
+    internal fun rawIamax(a: DoubleArray, offset: Int, stride: Int, n: Int): Int {
+        if (n == 0) return 0
+        val fn = symbol(BlasOperation.Iamax).reinterpret<IndexFn>()
+        a.usePinned { pinned ->
+            val found = fn(n, pinned.addressOf(low(offset, stride, n)), abs(stride))
+            return if (stride >= 0) found else n - 1 - found
         }
     }
+
+    @Suppress("LongParameterList") // the BLAS daxpy signature, unwrapped
+    internal fun rawAxpy(
+        alpha: Double,
+        x: DoubleArray,
+        xOffset: Int,
+        xStride: Int,
+        y: DoubleArray,
+        yOffset: Int,
+        yStride: Int,
+        n: Int,
+    ) {
+        if (n == 0) return
+        val fn = symbol(BlasOperation.Axpy).reinterpret<AxpyFn>()
+        x.usePinned { px ->
+            y.usePinned { py ->
+                fn(
+                    n,
+                    alpha,
+                    px.addressOf(low(xOffset, xStride, n)),
+                    xStride,
+                    py.addressOf(low(yOffset, yStride, n)),
+                    yStride,
+                )
+            }
+        }
+    }
+
+    internal fun rawScal(alpha: Double, a: DoubleArray, offset: Int, stride: Int, n: Int) {
+        if (n == 0) return
+        val fn = symbol(BlasOperation.Scal).reinterpret<ScalFn>()
+        a.usePinned { pinned ->
+            fn(n, alpha, pinned.addressOf(low(offset, stride, n)), abs(stride))
+        }
+    }
+
+    @Suppress("LongParameterList") // the BLAS dswap signature, unwrapped
+    internal fun rawSwap(
+        x: DoubleArray,
+        xOffset: Int,
+        xStride: Int,
+        y: DoubleArray,
+        yOffset: Int,
+        yStride: Int,
+        n: Int,
+    ) {
+        if (n == 0) return
+        val fn = symbol(BlasOperation.Swap).reinterpret<CopyFn>()
+        x.usePinned { px ->
+            y.usePinned { py ->
+                fn(
+                    n,
+                    px.addressOf(low(xOffset, xStride, n)),
+                    xStride,
+                    py.addressOf(low(yOffset, yStride, n)),
+                    yStride,
+                )
+            }
+        }
+    }
+
+    @Suppress("LongParameterList") // the BLAS drot signature, unwrapped
+    internal fun rawRot(
+        x: DoubleArray,
+        xOffset: Int,
+        y: DoubleArray,
+        yOffset: Int,
+        n: Int,
+        c: Double,
+        s: Double,
+    ) {
+        if (n == 0) return
+        val fn = symbol(BlasOperation.Rot).reinterpret<RotFn>()
+        x.usePinned { px ->
+            y.usePinned { py ->
+                fn(n, px.addressOf(xOffset), 1, py.addressOf(yOffset), 1, c, s)
+            }
+        }
+    }
+
+    override fun iamax(x: DenseVector): Int = rawIamax(x.data, x.offset, x.stride, x.size)
 
     override fun axpy(alpha: Double, x: DenseVector, y: DenseVector) {
         requireSameLength(x, y, "axpy")
-        if (noWorkReason(emptyList(), listOf(x)) != null) return
-        val pins = Pins()
-        try {
-            val px = pins.stage(x)
-            val py = pins.stage(y)
-            val fn = symbol(BlasOperation.Axpy).reinterpret<AxpyFn>()
-            fn(x.size, alpha, px.pointer, px.increment, py.pointer, py.increment)
-        } finally {
-            pins.release()
-        }
+        rawAxpy(alpha, x.data, x.offset, x.stride, y.data, y.offset, y.stride, x.size)
     }
 
-    override fun scal(alpha: Double, x: DenseVector) {
-        if (noWorkReason(emptyList(), listOf(x)) != null) return
-        val pins = Pins()
-        try {
-            val px = pins.stage(x)
-            val fn = symbol(BlasOperation.Scal).reinterpret<ScalFn>()
-            fn(x.size, alpha, px.pointer, abs(px.increment))
-        } finally {
-            pins.release()
-        }
-    }
+    override fun scal(alpha: Double, x: DenseVector) = rawScal(alpha, x.data, x.offset, x.stride, x.size)
 
     override fun copy(x: DenseVector, y: DenseVector) = twoVector(x, y, BlasOperation.Copy, "copy")
 
-    override fun swap(x: DenseVector, y: DenseVector) = twoVector(x, y, BlasOperation.Swap, "swap")
+    override fun swap(x: DenseVector, y: DenseVector) {
+        requireSameLength(x, y, "swap")
+        rawSwap(x.data, x.offset, x.stride, y.data, y.offset, y.stride, x.size)
+    }
 
     private fun twoVector(x: DenseVector, y: DenseVector, operation: BlasOperation, what: String) {
         requireSameLength(x, y, what)
@@ -335,6 +431,12 @@ internal class NativeVendorBlas private constructor(
 
     override fun rot(x: DenseVector, y: DenseVector, c: Double, s: Double) {
         requireSameLength(x, y, "rot")
+        // The strided form is the wrapped path's: `rot` is the one Level 1 call whose kernel contract differs
+        // from the library's over one run twice, and the raw entry takes the unit-stride case its caller has.
+        if (x.stride == 1 && y.stride == 1) {
+            rawRot(x.data, x.offset, y.data, y.offset, x.size, c, s)
+            return
+        }
         if (noWorkReason(emptyList(), listOf(x)) != null) return
         val pins = Pins()
         try {

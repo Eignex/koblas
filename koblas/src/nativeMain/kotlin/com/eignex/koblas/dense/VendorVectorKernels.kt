@@ -1,26 +1,27 @@
 package com.eignex.koblas.dense
 
-import com.eignex.koblas.StridedVector
-import com.eignex.koblas.vendor.Blas
+import com.eignex.koblas.vendor.NativeVendorBlas
 
 /**
  * Level 1 served by the vendor above a width, and by the portable kernels below it.
  *
  * The vendor implements all of Level 1 except [sum], which is not a BLAS routine, so on a target with no
- * vectorised Kotlin the library is the faster arm for anything but a short run: Kotlin/Native emits a
- * safepoint poll and a bounds check per element and does not vectorise these loops at all, while the binding
- * pins the caller's array and passes it in place with no copy in either direction.
+ * vectorised Kotlin the library is the faster arm for anything but a short run. What the portable loop lacks
+ * is vector arithmetic: Kotlin/Native has no Vector API and LLVM will not reorder a floating-point reduction
+ * on its own, so it runs about half a nanosecond per element where the same dot in C runs at a tenth of that.
+ * Reading the same array through a pinned pointer instead, which has no bounds check, measured five times
+ * slower still, so the checks are not what to blame.
  *
- * What it costs is a foreign call and two operand wrappers per invocation, which is a fixed price against
- * arithmetic that grows with the width. [crossover] is where the arithmetic starts paying for it, and below
- * that the portable kernels run instead, which is also what happens when the operation has no vendor entry
- * point at all.
+ * What the call costs is a foreign call and a pin per operand, about ten nanoseconds each, which is a fixed
+ * price against arithmetic that grows with the width. [crossover] is where the arithmetic starts paying for
+ * it, and below that the portable kernels run instead, which is also what happens when the operation has no
+ * vendor entry point at all.
  *
  * Not used on the JVM. There every operand is copied into native memory to reach the library, so the call
  * costs a pass over the data before it computes anything, and the Vector API kernels win at every width.
  */
 internal class VendorVectorKernels(
-    private val blas: Blas,
+    private val blas: NativeVendorBlas,
     private val portable: DenseVectorKernels = ScalarVectorKernels,
 ) : DenseVectorKernels {
 
@@ -37,8 +38,6 @@ internal class VendorVectorKernels(
         else -> portable.implementationFor(operation, length, contiguous)
     }
 
-    private fun vector(v: DoubleArray, off: Int, len: Int, stride: Int) = StridedVector(v, off, len, stride)
-
     override fun dot(
         a: DoubleArray,
         aOff: Int,
@@ -48,21 +47,21 @@ internal class VendorVectorKernels(
         aStride: Int,
         bStride: Int,
     ): Double = if (vendorRuns(DenseOperation.Dot, len)) {
-        blas.dot(vector(a, aOff, len, aStride), vector(b, bOff, len, bStride))
+        blas.rawDot(a, aOff, aStride, b, bOff, bStride, len)
     } else {
         portable.dot(a, aOff, b, bOff, len, aStride, bStride)
     }
 
     override fun nrm2(v: DoubleArray, vOff: Int, len: Int, vStride: Int): Double =
         if (vendorRuns(DenseOperation.Nrm2, len)) {
-            blas.nrm2(vector(v, vOff, len, vStride))
+            blas.rawNrm2(v, vOff, vStride, len)
         } else {
             portable.nrm2(v, vOff, len, vStride)
         }
 
     override fun asum(v: DoubleArray, vOff: Int, len: Int, vStride: Int): Double =
         if (vendorRuns(DenseOperation.Asum, len)) {
-            blas.asum(vector(v, vOff, len, vStride))
+            blas.rawAsum(v, vOff, vStride, len)
         } else {
             portable.asum(v, vOff, len, vStride)
         }
@@ -77,7 +76,7 @@ internal class VendorVectorKernels(
      */
     override fun iamax(v: DoubleArray, vOff: Int, len: Int, vStride: Int): Int =
         if (vendorRuns(DenseOperation.Iamax, len)) {
-            blas.iamax(vector(v, vOff, len, vStride))
+            blas.rawIamax(v, vOff, vStride, len)
         } else {
             portable.iamax(v, vOff, len, vStride)
         }
@@ -97,7 +96,7 @@ internal class VendorVectorKernels(
         xStride: Int,
     ) {
         if (vendorRuns(DenseOperation.Axpy, len)) {
-            blas.axpy(alpha, vector(x, xOff, len, xStride), vector(y, yOff, len, yStride))
+            blas.rawAxpy(alpha, x, xOff, xStride, y, yOff, yStride, len)
         } else {
             portable.axpy(y, yOff, alpha, x, xOff, len, yStride, xStride)
         }
@@ -105,7 +104,7 @@ internal class VendorVectorKernels(
 
     override fun scale(v: DoubleArray, vOff: Int, alpha: Double, len: Int, vStride: Int) {
         if (vendorRuns(DenseOperation.Scale, len)) {
-            blas.scal(alpha, vector(v, vOff, len, vStride))
+            blas.rawScal(alpha, v, vOff, vStride, len)
         } else {
             portable.scale(v, vOff, alpha, len, vStride)
         }
@@ -114,7 +113,7 @@ internal class VendorVectorKernels(
     @Suppress("LongParameterList")
     override fun swap(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int, aStride: Int, bStride: Int) {
         if (vendorRuns(DenseOperation.Swap, len)) {
-            blas.swap(vector(a, aOff, len, aStride), vector(b, bOff, len, bStride))
+            blas.rawSwap(a, aOff, aStride, b, bOff, bStride, len)
         } else {
             portable.swap(a, aOff, b, bOff, len, aStride, bStride)
         }
@@ -132,7 +131,7 @@ internal class VendorVectorKernels(
     override fun rot(x: DoubleArray, xOff: Int, y: DoubleArray, yOff: Int, len: Int, c: Double, s: Double) {
         val oneRunTwice = x === y && xOff == yOff
         if (vendorRuns(DenseOperation.Rot, len) && !oneRunTwice) {
-            blas.rot(vector(x, xOff, len, 1), vector(y, yOff, len, 1), c, s)
+            blas.rawRot(x, xOff, y, yOff, len, c, s)
         } else {
             portable.rot(x, xOff, y, yOff, len, c, s)
         }
@@ -142,56 +141,54 @@ internal class VendorVectorKernels(
         /**
          * The width from which the foreign call beats the portable loop for [operation].
          *
-         * Three values rather than one, because the measured break-evens do not overlap: they run from 205 to
-         * 652, and the operations at the ends differ from the middle for reasons that are not noise. What
-         * decides the width is how much work each side does per element, so operations that share an answer
-         * share it for a reason and not by rounding.
+         * Two values, because the eight measured break-evens fall into two groups with a gap between them:
+         * `axpy` 40, `scal` 42, `asum` 45, `rot` 46, `dot` 57 and `swap` 67, then `nrm2` 82 and `iamax` 100.
+         * The six share a shape. Each vendor call costs a fixed 33 to 60 nanoseconds whatever the width, and
+         * the portable loop costs about half a nanosecond per element, so they meet where the loop's work
+         * grows to the size of the call. The two stragglers are late for reasons of their own, given below.
          *
          * Measured on 12th Gen Intel Core i9-12900H, P-cores 2/4/6/8 pinned, against oneMKL 2026.1 held to one
          * compute thread, Kotlin/Native 2.4.10 linuxX64. The capture, its settings, the per-width ratios and
-         * the resolved library file are in `koblas-bench/reports/level1-crossover/`, over widths 8 to 262144.
-         * A coarse pass at a quarter of those settings put every break-even within 8% of these.
+         * the resolved library file are in `koblas-bench/reports/level1-crossover/`, over widths 1 to 262144.
+         *
+         * These describe a binding whose per-call cost is 33 to 60 nanoseconds. An earlier one spent about 190
+         * nanoseconds per call on objects describing each operand, and measured against that binding the same
+         * eight break-evens were 205 to 652: five times higher, in a different order, and grouped differently.
+         * A crossover is a property of the call as well as the arithmetic, so changing what a call costs
+         * invalidates these rather than shifting them.
          *
          * No other host has been measured. Another CPU or another library keeps these numbers only until
          * someone runs that sweep there, and nothing here is inferred from a backend that was not run.
          */
         fun crossover(operation: DenseOperation): Int = when (operation) {
-            DenseOperation.Iamax, DenseOperation.Rot -> LOOP_HEAVY
-            DenseOperation.Nrm2 -> ROBUST_NORM
-            else -> STREAMING
+            DenseOperation.Nrm2, DenseOperation.Iamax -> LATE
+            else -> ORDINARY
         }
 
         /**
-         * One multiply or add per element on each side: `dot` 354, `asum` 365, `axpy` 373, `scal` 331, `swap`
-         * 403.
+         * `axpy`, `scal`, `asum`, `rot`, `dot` and `swap`, measuring 40 to 67.
          *
-         * Rounded up to the swept width from which every one of them is ahead rather than down to the earliest,
-         * because the two directions do not cost the same. Sending a call across too early makes it slower than
-         * the loop it replaced, which is a regression a caller sees; holding it back only forgoes a win. At 384
-         * `swap` is still 0.97, which is the one operation this value is marginally early for, and the same
-         * value is 1.02 to 1.12 for the other four.
+         * Rounded to where the latest of them arrives rather than the earliest, because the two directions do
+         * not cost the same: sending a call across too early makes it slower than the loop it replaced, which
+         * a caller sees, while holding it back only forgoes a win. At 64 the six run 0.99 to 1.30 against the
+         * portable loop, so none is sent early and the most any of them gives up is a few per cent between its
+         * own break-even and this width.
          */
-        const val STREAMING: Int = 384
+        const val ORDINARY: Int = 64
 
         /**
-         * Several operations per element in the portable loop, so the call is repaid sooner: `iamax` 205,
-         * `rot` 236.
+         * `nrm2` at 82 and `iamax` at 100, which arrive late for unrelated reasons.
          *
-         * `rot` computes two results from each pair and `iamax` carries a running index beside the magnitude,
-         * where the streaming kernels do one arithmetic step and move on. The portable side is what is slow
-         * here, not the library that is fast: by 1024 these reach 3.6 and 2.5 against the loop.
-         */
-        const val LOOP_HEAVY: Int = 256
-
-        /**
-         * `nrm2` alone, at 652, because here it is the library doing the extra work.
+         * `dnrm2` rescales for overflow safety as it goes, so unlike the others its cost grows with the width
+         * from the start: 37.8 nanoseconds at 8 entries and 73.6 at 128. The portable kernel tries the plain
+         * sum of squares first and only falls back to a rescaling loop when a value leaves the normal range,
+         * so it is doing less work, and the library's advantage is both later and smaller, reaching 2.06 where
+         * the plain reductions reach 4 to 9.
          *
-         * `dnrm2` rescales for overflow safety as it goes; the portable kernel tries the plain sum of squares
-         * first and only falls back to a rescaling loop when a value leaves the normal range. So the vendor
-         * carries a cost the portable loop usually does not pay, and it is repaid latest and least: 2.06 at
-         * the widest measured width, against 4 to 9 for the plain reductions. At [STREAMING] the library would
-         * still be 26% slower than the loop it replaced.
+         * `idamax` is the opposite: its entry costs 60 to 120 nanoseconds before any width matters, measured
+         * against the bare C call and so not this binding's doing, where `dasum` over the same operand costs 9.
+         * One value covers both, since the difference between 82 and 100 is worth less than a third constant.
          */
-        const val ROBUST_NORM: Int = 768
+        const val LATE: Int = 128
     }
 }

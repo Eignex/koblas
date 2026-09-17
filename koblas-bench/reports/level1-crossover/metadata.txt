@@ -1,14 +1,14 @@
 status=complete
 
 [capture]
-started_at=2026-09-17T05:17:38Z
-completed_at=2026-09-17T05:23:58Z
-source_commit=cf6cb6f31607d188d9d6772dabc71102cf08a5f0
+started_at=2026-09-17T07:43:00Z
+completed_at=2026-09-17T07:50:40Z
+source_commit=67cd39abc0b9dadcc42fc10dff23422cbb5d8aac
 dirty=true
 platform=Linux LTHCL001 7.0.0-31-generic #31-Ubuntu SMP PREEMPT_DYNAMIC Sat Aug  1 04:26:38 UTC 2026 x86_64 GNU/Linux
-operation=dot
+operation=dot,asum,sum,nrm2,iamax,axpy,scal,swap,rot (one capture each, concatenated)
 suite=sweep
-selected_cases=21
+selected_cases=26
 warmups=5
 requested_samples=5
 target_ns=200000000
@@ -39,41 +39,41 @@ numa node(s)=1
 memory_kib=64221076
 
 [jvm-scalar]
-started_at=2026-09-17T05:17:38Z
+started_at=2026-09-17T07:43:00Z
 implementation=jvm-scalar/scalar/scalar
 runtime=kotlin-2.4.10/jvm/Eclipse Adoptium/25.0.1
 harness=jmh-average-time/JMH-1.37
 warmup_target_ns=200000000
-completed_at=2026-09-17T05:19:18Z
+completed_at=2026-09-17T07:45:03Z
 
 [jvm-simd]
-started_at=2026-09-17T05:19:19Z
+started_at=2026-09-17T07:45:03Z
 implementation=jvm-simd/simd(4 lanes)/simd-sparse
 runtime=kotlin-2.4.10/jvm/Eclipse Adoptium/25.0.1
 harness=jmh-average-time/JMH-1.37
 warmup_target_ns=200000000
-completed_at=2026-09-17T05:20:59Z
+completed_at=2026-09-17T07:47:07Z
 
 [native]
-started_at=2026-09-17T05:20:59Z
+started_at=2026-09-17T07:47:07Z
 implementation=native/scalar/scalar/oneMKL
 runtime=kotlin-native-2.4.10
 harness=native-calibrated
 warmup_target_ns=50000000
-completed_at=2026-09-17T05:21:35Z
+completed_at=2026-09-17T07:47:49Z
 
 [onemkl]
-started_at=2026-09-17T05:21:35Z
+started_at=2026-09-17T07:47:49Z
 implementation=native-vendor-onemkl/oneMKL//home/rasmus/intel/oneapi/mkl/latest/lib/libmkl_rt.so.3/Intel(R) oneAPI Math Kernel Library Version 2026.1-Product Build 20260612 for Intel(R) 64 architecture applications/threads=1-thread-confirmed
 runtime=kotlin-native-2.4.10
 harness=native-calibrated
 warmup_target_ns=50000000
-completed_at=2026-09-17T05:22:17Z
+completed_at=2026-09-17T07:48:34Z
 
 [onemkl-jvm]
-started_at=2026-09-17T05:22:17Z
+started_at=2026-09-17T07:48:34Z
 implementation=jvm-vendor-onemkl/oneMKL//home/rasmus/intel/oneapi/mkl/latest/lib/libmkl_rt.so.3/Intel(R) oneAPI Math Kernel Library Version 2026.1-Product Build 20260612 for Intel(R) 64 architecture applications/threads=1-thread-confirmed
 runtime=kotlin-2.4.10/jvm/Eclipse Adoptium/25.0.1
 harness=jmh-average-time/JMH-1.37
 warmup_target_ns=200000000
-completed_at=2026-09-17T05:23:58Z
+completed_at=2026-09-17T07:50:40Z
