@@ -259,9 +259,10 @@ hardware-keyed reports, CSV aggregation, and preservation of the previous report
 Use the same production bindings on both runtimes instead of a separate vendor wrapper in the C runner.
 Keep sparse Level 1/generic primitive cases and representative dense Level 1–3 cases; remove tile/packing and
 unused sparse matrix cases. Keep narrow opt-in sweeps for actual Level 1 crossover decisions.
-Existing OpenBLAS comparisons may stay as a bench-only reference through the shared CBLAS transport; they do
-not add OpenBLAS to production selection or require a second vendor binding implementation. Do not recreate the
-same common primitive benchmark under every engine label.
+Existing OpenBLAS comparisons stay as the reference arm through the shared CBLAS transport, and do not require
+a second vendor binding implementation. OpenBLAS is also the last resort in production selection on Linux,
+after every tuned vendor: a host that has only the distribution's BLAS computes instead of raising, and the
+route names the library that ran. Do not recreate the same common primitive benchmark under every engine label.
 
 Preserve case identity and timing boundaries for comparable workloads. Full public-call measurements include
 required FFI and storage adaptation. Arithmetic-only measurements must say which setup/reset/copy costs they

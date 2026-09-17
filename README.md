@@ -58,9 +58,10 @@ any strided run.
 
 Level 2 and Level 3 need a vendor BLAS, installed on the host. Koblas ships none and packages none: it looks
 for oneMKL, AOCL and Arm Performance Libraries by their usual file names and the prefixes their installers
-use, so no environment setup is required, and the resolved file is reported back so a run says which library
-actually ran. On JVM those calls are foreign downcalls, so pass `--enable-native-access=ALL-UNNAMED`. macOS
-uses Accelerate, which is part of the system and needs no installation.
+use, so no environment setup is required, and falls back to OpenBLAS, which most distributions already carry.
+The tuned library wins wherever one is installed, and the resolved file is reported back so a run says which
+library actually ran rather than which one it would have preferred. On JVM those calls are foreign downcalls,
+so pass `--enable-native-access=ALL-UNNAMED`. macOS uses Accelerate, which is part of the system.
 
 ## Quick start
 

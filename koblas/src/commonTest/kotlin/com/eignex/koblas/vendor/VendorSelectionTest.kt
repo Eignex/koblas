@@ -19,7 +19,7 @@ class VendorSelectionTest {
         for (cpu in CpuVendor.entries) {
             val host = HostPlatform(OperatingSystem.Linux, Architecture.Arm64, cpu)
 
-            assertEquals(listOf(Vendor.ArmPl), Vendor.select(host))
+            assertEquals(listOf(Vendor.ArmPl, Vendor.OpenBlas), Vendor.select(host))
         }
     }
 
@@ -28,15 +28,15 @@ class VendorSelectionTest {
         val amd = HostPlatform(OperatingSystem.Linux, Architecture.X86_64, CpuVendor.Amd)
         val intel = HostPlatform(OperatingSystem.Linux, Architecture.X86_64, CpuVendor.Intel)
 
-        assertEquals(listOf(Vendor.Aocl, Vendor.OneMkl), Vendor.select(amd))
-        assertEquals(listOf(Vendor.OneMkl, Vendor.Aocl), Vendor.select(intel))
+        assertEquals(listOf(Vendor.Aocl, Vendor.OneMkl, Vendor.OpenBlas), Vendor.select(amd))
+        assertEquals(listOf(Vendor.OneMkl, Vendor.Aocl, Vendor.OpenBlas), Vendor.select(intel))
     }
 
     @Test
     fun `an unidentified x86 manufacturer still has a fallback order`() {
         val host = HostPlatform(OperatingSystem.Linux, Architecture.X86_64, CpuVendor.Unknown)
 
-        assertEquals(listOf(Vendor.OneMkl, Vendor.Aocl), Vendor.select(host))
+        assertEquals(listOf(Vendor.OneMkl, Vendor.Aocl, Vendor.OpenBlas), Vendor.select(host))
     }
 
     @Test
@@ -47,25 +47,37 @@ class VendorSelectionTest {
     }
 
     @Test
-    fun `openblas is never selected in production`() {
-        val hosts = OperatingSystem.entries.flatMap { os ->
-            Architecture.entries.flatMap { architecture ->
+    fun `openblas is last wherever it is offered at all`() {
+        val linux = OperatingSystem.entries.filter { it != OperatingSystem.MacOs }.flatMap { os ->
+            listOf(Architecture.X86_64, Architecture.Arm64).flatMap { architecture ->
                 CpuVendor.entries.map { HostPlatform(os, architecture, it) }
             }
         }
 
-        for (host in hosts) assertTrue(Vendor.OpenBlas !in Vendor.select(host), "selected on $host")
+        // A tuned library wins wherever one is installed, so the fallback only decides what a host with none
+        // does. Anywhere but last would make it the answer on hosts that have something better.
+        for (host in linux) {
+            val order = Vendor.select(host)
+            assertEquals(Vendor.OpenBlas, order.last(), "not the last resort on $host")
+            assertTrue(order.size > 1, "nothing is preferred over the fallback on $host")
+        }
     }
 
     @Test
-    fun `every selectable vendor is reachable from some host`() {
-        val selectable = Vendor.entries.filter { it.selectable }
+    fun `macos needs no fallback because accelerate cannot be missing`() {
+        val host = HostPlatform(OperatingSystem.MacOs, Architecture.Arm64, CpuVendor.Unknown)
+
+        assertEquals(listOf(Vendor.Accelerate), Vendor.select(host))
+    }
+
+    @Test
+    fun `every vendor is reachable from some host`() {
         val reached = OperatingSystem.entries.flatMap { os ->
             Architecture.entries.flatMap { architecture ->
                 CpuVendor.entries.flatMap { Vendor.select(HostPlatform(os, architecture, it)) }
             }
         }.toSet()
 
-        assertEquals(selectable.toSet(), reached)
+        assertEquals(Vendor.entries.toSet(), reached)
     }
 }

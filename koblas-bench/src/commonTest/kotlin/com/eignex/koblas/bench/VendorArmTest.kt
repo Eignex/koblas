@@ -17,7 +17,7 @@ import kotlin.test.assertTrue
  * scalar arm on the same case means the two arms computed the same thing from the same fixtures.
  */
 class VendorArmTest {
-    private fun vendor(): Blas? = openBlas() ?: openBlas(Vendor.OpenBlas)
+    private fun vendor(): Blas? = openBlas()
 
     private val dense = listOf(
         "dot+512+uniform",

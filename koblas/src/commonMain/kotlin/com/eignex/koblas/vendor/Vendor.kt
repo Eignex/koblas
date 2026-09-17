@@ -13,10 +13,6 @@ private const val USER_HOME: String = "{home}"
  *
  * The set is fixed at compile time. There is no provider registration and no way to add an implementation at
  * runtime, so [select] is the whole of the selection policy and can be read in one sitting.
- *
- * [OpenBlas] is a benchmark reference only. It shares the CBLAS transport with the production vendors, which
- * makes it useful as a comparison arm and as a way to exercise the transport on a host that has no production
- * vendor installed, but [select] never returns it.
  */
 public enum class Vendor(
     /** Name used in reports and route descriptions. */
@@ -25,8 +21,6 @@ public enum class Vendor(
     internal val candidates: List<String>,
     /** How this vendor is held to one compute thread; see [ThreadControl]. */
     internal val threadControl: ThreadControl,
-    /** Whether [select] may return this vendor. */
-    internal val selectable: Boolean,
 ) {
     /**
      * Apple's system BLAS, supplied by macOS and installed with it.
@@ -46,7 +40,6 @@ public enum class Vendor(
         "Accelerate",
         listOf("/System/Library/Frameworks/Accelerate.framework/Accelerate"),
         threadControl = ThreadControl.Environment,
-        selectable = true,
     ),
 
     /**
@@ -67,7 +60,6 @@ public enum class Vendor(
             "/opt/intel/oneapi/mkl/latest/lib/libmkl_rt.so.3",
         ),
         threadControl = ThreadControl.Mkl,
-        selectable = true,
     ),
 
     /**
@@ -86,7 +78,6 @@ public enum class Vendor(
         "AOCL",
         listOf("libblis.so.5", "libblis.so.4", "libblis.so", "libblis-mt.so.5", "libblis-mt.so.4", "libblis-mt.so"),
         threadControl = ThreadControl.Blis,
-        selectable = true,
     ),
 
     /** Arm Performance Libraries, in its LP64 form. */
@@ -94,15 +85,24 @@ public enum class Vendor(
         "ArmPL",
         listOf("libarmpl_lp64.so", "libarmpl.so", "libarmpl_lp64_mp.so"),
         threadControl = ThreadControl.OpenMp,
-        selectable = true,
     ),
 
-    /** Benchmark reference only, never selected in production. */
+    /**
+     * The last resort on Linux, and the comparison arm every benchmark runs against.
+     *
+     * Every other vendor is tuned for one vendor's parts and installed deliberately. OpenBLAS is what a
+     * distribution ships, so it is the library a host is most likely to already have and the only one that
+     * makes the difference between Level 2 and 3 working and raising. It is chosen last because a
+     * distribution build is compiled for whatever runs everywhere rather than for the part in front of it, so
+     * where a tuned library is present that one is better; where none is, this is far better than nothing.
+     *
+     * Nothing is taken on trust: a build advertising 64-bit integers is refused by the ABI probe, which
+     * distributions do ship, and one that will not hold to a single compute thread never becomes a binding.
+     */
     OpenBlas(
         "OpenBLAS",
         listOf("libopenblas.so.0", "libopenblas.so"),
         threadControl = ThreadControl.OpenBlas,
-        selectable = false,
     ),
     ;
 
@@ -127,15 +127,25 @@ public enum class Vendor(
          *
          * Operating system and architecture decide before CPU vendor does. An Arm part from an unfamiliar
          * manufacturer still takes the ArmPL route rather than falling off the end of a CPU-vendor check.
+         *
+         * Each Linux list ends in [OpenBlas], which is what makes the difference between a host with a
+         * distribution BLAS computing and raising. The tuned library wins wherever it is installed; the
+         * fallback only decides what happens when none is. macOS needs no fallback, because Accelerate is part
+         * of the system and cannot be missing.
+         *
+         * Which one answered is never a guess: the route and the resolved file name the library that ran, so a
+         * host that fell back says so rather than reporting the vendor it would have preferred.
          */
-        public fun select(host: HostPlatform): List<Vendor> = preference(host).filter { it.selectable }
-
-        /** The order alone, before [selectable] decides which of those a production caller may reach. */
-        private fun preference(host: HostPlatform): List<Vendor> = when {
+        public fun select(host: HostPlatform): List<Vendor> = when {
             host.operatingSystem == OperatingSystem.MacOs -> listOf(Accelerate)
-            host.architecture == Architecture.Arm64 -> listOf(ArmPl)
-            host.architecture == Architecture.X86_64 && host.cpuVendor == CpuVendor.Amd -> listOf(Aocl, OneMkl)
-            host.architecture == Architecture.X86_64 -> listOf(OneMkl, Aocl)
+
+            host.architecture == Architecture.Arm64 -> listOf(ArmPl, OpenBlas)
+
+            host.architecture == Architecture.X86_64 && host.cpuVendor == CpuVendor.Amd ->
+                listOf(Aocl, OneMkl, OpenBlas)
+
+            host.architecture == Architecture.X86_64 -> listOf(OneMkl, Aocl, OpenBlas)
+
             else -> emptyList()
         }
     }

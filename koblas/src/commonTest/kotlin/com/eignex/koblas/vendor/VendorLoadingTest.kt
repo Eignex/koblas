@@ -18,7 +18,7 @@ import kotlin.test.assertTrue
  * host that happens to have a library missing exactly the right symbol is not something a test can rely on.
  */
 class VendorLoadingTest {
-    private fun installed(): Blas? = openBlas() ?: openBlas(Vendor.OpenBlas)
+    private fun installed(): Blas? = openBlas()
 
     @Test
     fun `a library missing any required entry point is rejected rather than half bound`() {

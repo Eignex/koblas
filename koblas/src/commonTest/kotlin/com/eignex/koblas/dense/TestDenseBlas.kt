@@ -1,21 +1,19 @@
 package com.eignex.koblas.dense
 
-import com.eignex.koblas.vendor.Vendor
 import com.eignex.koblas.vendor.openBlas
 
 /**
  * The dense Level 2 and 3 seam under test, or null when this host has no CBLAS at all.
  *
- * Production selection is tried first, so a host with a supported vendor tests the one it would actually use.
- * OpenBLAS is the fallback because it exports the same CBLAS entry points, and the contract these tests state
- * is about those calls rather than about which library serves them; it stays unselectable in production, where
- * the choice is also about how a library is held to one thread.
+ * Production selection, which ends in OpenBLAS on Linux. A host with a tuned library tests the one it would
+ * actually use, and a host with only the distribution's BLAS tests the same CBLAS entry points, which is what
+ * the contract these tests state is about.
  *
- * Without this fallback the whole dense contract would go untested on every machine that has only OpenBLAS
+ * Without that last resort the whole dense contract would go untested on every machine that has only OpenBLAS
  * installed, which is most of them, and would do it by passing.
  */
 internal val testDenseBlas: DenseBlas? by lazy {
-    (openBlas() ?: openBlas(Vendor.OpenBlas))?.let { VendorDenseBlas(it) }
+    openBlas()?.let { VendorDenseBlas(it) }
 }
 
 /**
