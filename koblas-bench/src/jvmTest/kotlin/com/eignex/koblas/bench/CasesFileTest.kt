@@ -9,16 +9,17 @@ import kotlin.test.assertTrue
 
 class CasesFileTest {
     @Test
-    fun `dense sweeps share the default case and span bounded explicit sizes`() {
+    fun `dense sweeps share a default case and span bounded explicit sizes`() {
         val cases = Cases.parse(Files.readString(Path.of("cases.txt")))
-        for (operation in listOf("dot", "sum", "asum")) {
-            val defaults = Cases.select(cases, operation = operation)
+        for (operation in SWEPT) {
+            val defaults = Cases.select(cases, operation = operation).toSet()
             val sweep = Cases.select(cases, "sweep", operation)
-            assertEquals(listOf(4096), defaults.map { it.dimension(0) })
-            assertEquals(defaults, sweep.intersect(defaults.toSet()).toList())
-            assertTrue(sweep.size in 12..15)
-            assertEquals(1, sweep.minOf { it.dimension(0) })
-            assertEquals(262144, sweep.maxOf { it.dimension(0) })
+            // Sharing a workload with the default suite is what keeps a sweep comparable to an ordinary
+            // capture; a sweep of sizes nothing else runs would be its own incomparable scale.
+            assertTrue(sweep.any { it in defaults }, "$operation's sweep shares no case with its default suite")
+            assertTrue(sweep.size in 12..24, "$operation swept ${sweep.size} sizes")
+            assertTrue(sweep.minOf { it.dimension(0) } <= 8, "$operation's sweep starts above the call overhead")
+            assertEquals(262144, sweep.maxOf { it.dimension(0) }, operation)
         }
     }
 
@@ -39,7 +40,8 @@ class CasesFileTest {
 
     @Test
     fun `capture rejects invalid and empty selections`() {
-        for ((suite, operation) in listOf("sweep" to "all", "unknown" to "dot", "sweep" to "axpy", "default" to "unknown")) {
+        // gemm has no sweep, so asking for one is the empty intersection this rejects.
+        for ((suite, operation) in listOf("sweep" to "all", "unknown" to "dot", "sweep" to "gemm", "default" to "unknown")) {
             val process = ProcessBuilder("awk", "-v", "suite=$suite", "-v", "operation=$operation",
                 "-f", "select-cases.awk", "cases.txt").redirectErrorStream(true).start()
             val output = process.inputStream.bufferedReader().readText()
@@ -73,11 +75,16 @@ class CasesFileTest {
     fun `shared workload is canonical and bounded`() {
         val cases = Cases.parse(Files.readString(Path.of("cases.txt")))
 
-        assertEquals(setOf("dot", "sum", "asum"),
-            cases.filter { "sweep" in it.suites }.map { it.operation }.toSet())
-        assertEquals(39, cases.count { "sweep" in it.suites })
-        assertEquals(108, cases.size)
+        assertEquals(SWEPT, cases.filter { "sweep" in it.suites }.map { it.operation }.toSet())
+        assertEquals(151, cases.count { "sweep" in it.suites })
+        assertEquals(207, cases.size)
+        // The default suite is what an ordinary capture runs, and the sweeps did not enlarge it.
         assertEquals(72, Cases.select(cases).size)
         assertEquals(cases.size, cases.map { it.id }.toSet().size)
+    }
+
+    private companion object {
+        /** Every Level 1 operation with a crossover to locate, which is every one a vendor implements. */
+        val SWEPT = setOf("dot", "sum", "asum", "nrm2", "iamax", "axpy", "scal", "swap", "rot")
     }
 }

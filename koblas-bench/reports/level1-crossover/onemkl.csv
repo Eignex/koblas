@@ -1,0 +1,152 @@
+case,status,comparison_kind,timing_mode,actual_kernel,samples,forks,median_ns,min_ns,max_ns
+dot+4096+uniform,ok,direct,arithmetic,oneMKL/cblas_ddot,5,1,786.0333736999572,775.7559164806636,792.7258196007662
+dot+1+uniform,ok,direct,arithmetic,oneMKL/cblas_ddot,5,1,199.419023,196.462604,201.416483
+dot+7+uniform,ok,direct,arithmetic,oneMKL/cblas_ddot,5,1,195.624548,192.010453,197.562288
+dot+8+uniform,ok,direct,arithmetic,oneMKL/cblas_ddot,5,1,191.715406,187.65042,195.638336
+dot+9+uniform,ok,direct,arithmetic,oneMKL/cblas_ddot,5,1,193.264784,186.401002,194.18182
+dot+32+uniform,ok,direct,arithmetic,oneMKL/cblas_ddot,5,1,189.056247,184.467076,198.306792
+dot+47+uniform,ok,direct,arithmetic,oneMKL/cblas_ddot,5,1,198.182211,197.161506,199.854689
+dot+48+uniform,ok,direct,arithmetic,oneMKL/cblas_ddot,5,1,195.341876,187.199761,197.678235
+dot+49+uniform,ok,direct,arithmetic,oneMKL/cblas_ddot,5,1,195.805428,193.581135,200.856268
+dot+127+uniform,ok,direct,arithmetic,oneMKL/cblas_ddot,5,1,205.82540980442747,198.93056636200933,207.12690681710603
+dot+128+uniform,ok,direct,arithmetic,oneMKL/cblas_ddot,5,1,202.98377,195.199805,205.845648
+dot+129+uniform,ok,direct,arithmetic,oneMKL/cblas_ddot,5,1,200.82610673135233,195.52163161297835,204.1159231563179
+dot+1024+uniform,ok,direct,arithmetic,oneMKL/cblas_ddot,5,1,265.662646551805,261.786602623433,276.3695804462756
+dot+65536+uniform,ok,direct,arithmetic,oneMKL/cblas_ddot,5,1,7971.76351483407,7937.108431380213,8005.484384161357
+dot+262144+uniform,ok,direct,arithmetic,oneMKL/cblas_ddot,5,1,52470.68788777987,50825.243862961965,52638.17075802536
+dot+192+uniform,ok,direct,arithmetic,oneMKL/cblas_ddot,5,1,207.050228,204.804168,207.659387
+dot+256+uniform,ok,direct,arithmetic,oneMKL/cblas_ddot,5,1,207.11049289940703,204.06353117747372,215.20478101674337
+dot+384+uniform,ok,direct,arithmetic,oneMKL/cblas_ddot,5,1,215.68313762869136,215.26621841212238,220.1308428601779
+dot+512+uniform,ok,direct,arithmetic,oneMKL/cblas_ddot,5,1,239.82315177520286,236.81018523958014,240.3943984002143
+dot+768+uniform,ok,direct,arithmetic,oneMKL/cblas_ddot,5,1,251.60177205414004,244.63218701925643,256.28512539840796
+dot+16384+uniform,ok,direct,arithmetic,oneMKL/cblas_ddot,5,1,2155.866567444268,2139.4769577549855,2163.240161344248
+asum+4096+uniform,ok,direct,arithmetic,oneMKL/cblas_dasum,5,1,377.7752767706884,352.42103985117836,390.67545984159193
+asum+1+uniform,ok,direct,arithmetic,oneMKL/cblas_dasum,5,1,160.432723,157.738094,164.09296
+asum+7+uniform,ok,direct,arithmetic,oneMKL/cblas_dasum,5,1,160.332366,157.712181,163.133503
+asum+8+uniform,ok,direct,arithmetic,oneMKL/cblas_dasum,5,1,162.189728,156.870821,173.565773
+asum+9+uniform,ok,direct,arithmetic,oneMKL/cblas_dasum,5,1,162.454499,162.038046,162.801369
+asum+32+uniform,ok,direct,arithmetic,oneMKL/cblas_dasum,5,1,160.254144,155.827703,163.770488
+asum+127+uniform,ok,direct,arithmetic,oneMKL/cblas_dasum,5,1,172.374718,166.905068,173.793795
+asum+128+uniform,ok,direct,arithmetic,oneMKL/cblas_dasum,5,1,169.906789,161.565885,172.013626
+asum+129+uniform,ok,direct,arithmetic,oneMKL/cblas_dasum,5,1,164.487869,154.967077,170.950643
+asum+1024+uniform,ok,direct,arithmetic,oneMKL/cblas_dasum,5,1,222.45286533697046,208.81966368852812,224.52319547952018
+asum+65536+uniform,ok,direct,arithmetic,oneMKL/cblas_dasum,5,1,3596.6864887166794,3591.4360492232627,3615.030746600653
+asum+262144+uniform,ok,direct,arithmetic,oneMKL/cblas_dasum,5,1,33196.90807117071,30336.873646209388,33343.492392986074
+asum+192+uniform,ok,direct,arithmetic,oneMKL/cblas_dasum,5,1,164.785996,161.601964,165.973352
+asum+256+uniform,ok,direct,arithmetic,oneMKL/cblas_dasum,5,1,170.35843,168.895085,172.566025
+asum+384+uniform,ok,direct,arithmetic,oneMKL/cblas_dasum,5,1,181.881574,179.094138,185.672431
+asum+512+uniform,ok,direct,arithmetic,oneMKL/cblas_dasum,5,1,183.921242,175.338674,192.775947
+asum+768+uniform,ok,direct,arithmetic,oneMKL/cblas_dasum,5,1,195.97006041474359,195.02925804225987,196.83154231394875
+asum+16384+uniform,ok,direct,arithmetic,oneMKL/cblas_dasum,5,1,1424.844937522497,1382.7066814075865,1710.1090228141445
+sum+4096+uniform,unsupported,unsupported,arithmetic,sum has no vendor entry point in the bound CBLAS surface,0,0,,,
+sum+1+uniform,unsupported,unsupported,arithmetic,sum has no vendor entry point in the bound CBLAS surface,0,0,,,
+sum+7+uniform,unsupported,unsupported,arithmetic,sum has no vendor entry point in the bound CBLAS surface,0,0,,,
+sum+8+uniform,unsupported,unsupported,arithmetic,sum has no vendor entry point in the bound CBLAS surface,0,0,,,
+sum+9+uniform,unsupported,unsupported,arithmetic,sum has no vendor entry point in the bound CBLAS surface,0,0,,,
+sum+32+uniform,unsupported,unsupported,arithmetic,sum has no vendor entry point in the bound CBLAS surface,0,0,,,
+sum+127+uniform,unsupported,unsupported,arithmetic,sum has no vendor entry point in the bound CBLAS surface,0,0,,,
+sum+128+uniform,unsupported,unsupported,arithmetic,sum has no vendor entry point in the bound CBLAS surface,0,0,,,
+sum+129+uniform,unsupported,unsupported,arithmetic,sum has no vendor entry point in the bound CBLAS surface,0,0,,,
+sum+1024+uniform,unsupported,unsupported,arithmetic,sum has no vendor entry point in the bound CBLAS surface,0,0,,,
+sum+65536+uniform,unsupported,unsupported,arithmetic,sum has no vendor entry point in the bound CBLAS surface,0,0,,,
+sum+262144+uniform,unsupported,unsupported,arithmetic,sum has no vendor entry point in the bound CBLAS surface,0,0,,,
+sum+192+uniform,unsupported,unsupported,arithmetic,sum has no vendor entry point in the bound CBLAS surface,0,0,,,
+sum+256+uniform,unsupported,unsupported,arithmetic,sum has no vendor entry point in the bound CBLAS surface,0,0,,,
+sum+384+uniform,unsupported,unsupported,arithmetic,sum has no vendor entry point in the bound CBLAS surface,0,0,,,
+sum+512+uniform,unsupported,unsupported,arithmetic,sum has no vendor entry point in the bound CBLAS surface,0,0,,,
+sum+768+uniform,unsupported,unsupported,arithmetic,sum has no vendor entry point in the bound CBLAS surface,0,0,,,
+sum+16384+uniform,unsupported,unsupported,arithmetic,sum has no vendor entry point in the bound CBLAS surface,0,0,,,
+nrm2+4096+uniform,ok,direct,arithmetic,oneMKL/cblas_dnrm2,5,1,1116.7661174665643,1078.569856251876,1119.0774160913406
+nrm2+8+uniform,ok,direct,arithmetic,oneMKL/cblas_dnrm2,5,1,165.250357,164.178701,169.016952
+nrm2+16+uniform,ok,direct,arithmetic,oneMKL/cblas_dnrm2,5,1,168.003212,163.505018,169.393951
+nrm2+32+uniform,ok,direct,arithmetic,oneMKL/cblas_dnrm2,5,1,169.721912,167.181222,171.722221
+nrm2+64+uniform,ok,direct,arithmetic,oneMKL/cblas_dnrm2,5,1,183.254701,180.077656,185.72727
+nrm2+96+uniform,ok,direct,arithmetic,oneMKL/cblas_dnrm2,5,1,192.337332,191.60813,193.254307
+nrm2+128+uniform,ok,direct,arithmetic,oneMKL/cblas_dnrm2,5,1,198.918079,193.841547,199.874699
+nrm2+192+uniform,ok,direct,arithmetic,oneMKL/cblas_dnrm2,5,1,215.35926859534504,213.61289513621958,216.74263450088853
+nrm2+256+uniform,ok,direct,arithmetic,oneMKL/cblas_dnrm2,5,1,231.2121061869445,224.13854397996192,233.28603037371212
+nrm2+384+uniform,ok,direct,arithmetic,oneMKL/cblas_dnrm2,5,1,260.30713415378636,251.0267091594551,262.4261517530767
+nrm2+512+uniform,ok,direct,arithmetic,oneMKL/cblas_dnrm2,5,1,290.5688165535712,289.00670131780186,292.6828190744341
+nrm2+768+uniform,ok,direct,arithmetic,oneMKL/cblas_dnrm2,5,1,344.27083191584904,339.3623225876686,348.606748472519
+nrm2+1024+uniform,ok,direct,arithmetic,oneMKL/cblas_dnrm2,5,1,406.5071229189614,399.6237873121034,407.4183129360841
+nrm2+16384+uniform,ok,direct,arithmetic,oneMKL/cblas_dnrm2,5,1,3887.890596621424,3872.4882335709403,4260.186309930671
+nrm2+65536+uniform,ok,direct,arithmetic,oneMKL/cblas_dnrm2,5,1,14971.815868941567,14943.084402838593,15044.397402989582
+nrm2+262144+uniform,ok,direct,arithmetic,oneMKL/cblas_dnrm2,5,1,60125.21544960773,59509.27730838866,60498.233856366925
+iamax+64+uniform,ok,direct,arithmetic,oneMKL/cblas_idamax,5,1,222.76427426248168,220.4193690182514,226.01844072615827
+iamax+128+uniform,ok,direct,arithmetic,oneMKL/cblas_idamax,5,1,191.036198,186.860345,191.755827
+iamax+256+uniform,ok,direct,arithmetic,oneMKL/cblas_idamax,5,1,195.884195,194.464754,199.213283
+iamax+512+uniform,ok,direct,arithmetic,oneMKL/cblas_idamax,5,1,246.65837085697223,241.59467542550016,248.87584472977008
+iamax+1024+uniform,ok,direct,arithmetic,oneMKL/cblas_idamax,5,1,254.54639973217274,253.07074121191832,255.40151590224306
+iamax+4096+uniform,ok,direct,arithmetic,oneMKL/cblas_idamax,5,1,417.27792128538226,407.87920909197305,447.3615890053669
+iamax+8+uniform,ok,direct,arithmetic,oneMKL/cblas_idamax,5,1,218.263436083703,215.94629647651726,219.43563791770134
+iamax+16+uniform,ok,direct,arithmetic,oneMKL/cblas_idamax,5,1,219.28531174475188,218.24049376293743,220.3039860844686
+iamax+32+uniform,ok,direct,arithmetic,oneMKL/cblas_idamax,5,1,222.08786650501742,218.4303361049355,222.79179508863731
+iamax+96+uniform,ok,direct,arithmetic,oneMKL/cblas_idamax,5,1,222.02191308272256,219.7249872371039,226.85102097583373
+iamax+192+uniform,ok,direct,arithmetic,oneMKL/cblas_idamax,5,1,189.689388,187.642984,191.827762
+iamax+384+uniform,ok,direct,arithmetic,oneMKL/cblas_idamax,5,1,219.86444679382254,217.25824175824175,220.39830714524513
+iamax+768+uniform,ok,direct,arithmetic,oneMKL/cblas_idamax,5,1,253.96400147432595,249.91056676307414,255.1524654739994
+iamax+16384+uniform,ok,direct,arithmetic,oneMKL/cblas_idamax,5,1,1544.649941845687,1543.9476996310475,1549.2103876697452
+iamax+262144+uniform,ok,direct,arithmetic,oneMKL/cblas_idamax,5,1,29936.843064058532,29905.731372256236,30173.7594445274
+axpy+4096+uniform,ok,direct,reset-and-arithmetic,oneMKL/cblas_daxpy,5,1,1371.6305034700663,1368.453164452171,1373.389461484333
+axpy+8+uniform,ok,direct,reset-and-arithmetic,oneMKL/cblas_daxpy,5,1,195.634776,192.488148,199.353602
+axpy+16+uniform,ok,direct,reset-and-arithmetic,oneMKL/cblas_daxpy,5,1,197.026287,192.687738,199.932919
+axpy+32+uniform,ok,direct,reset-and-arithmetic,oneMKL/cblas_daxpy,5,1,199.948997,198.623841,201.183766
+axpy+64+uniform,ok,direct,reset-and-arithmetic,oneMKL/cblas_daxpy,5,1,199.86449925731088,194.5854031697526,203.71756535765599
+axpy+96+uniform,ok,direct,reset-and-arithmetic,oneMKL/cblas_daxpy,5,1,209.76775223148866,200.8206493090903,211.24022199415705
+axpy+128+uniform,ok,direct,reset-and-arithmetic,oneMKL/cblas_daxpy,5,1,206.06075795232775,204.11301729745958,211.35972919550966
+axpy+192+uniform,ok,direct,reset-and-arithmetic,oneMKL/cblas_daxpy,5,1,214.19969301076574,210.18060812602405,215.09184323477493
+axpy+256+uniform,ok,direct,reset-and-arithmetic,oneMKL/cblas_daxpy,5,1,218.93447919806977,212.24182171694838,223.70057027131216
+axpy+384+uniform,ok,direct,reset-and-arithmetic,oneMKL/cblas_daxpy,5,1,245.58518823852708,235.31947552310288,247.60979762886194
+axpy+512+uniform,ok,direct,reset-and-arithmetic,oneMKL/cblas_daxpy,5,1,261.2990471466234,259.2068509383526,261.8484240059735
+axpy+768+uniform,ok,direct,reset-and-arithmetic,oneMKL/cblas_daxpy,5,1,288.981121979319,281.0964104794122,290.0240793241129
+axpy+1024+uniform,ok,direct,reset-and-arithmetic,oneMKL/cblas_daxpy,5,1,320.479401867958,319.0876591097084,334.5841103107106
+axpy+16384+uniform,ok,direct,reset-and-arithmetic,oneMKL/cblas_daxpy,5,1,4611.344140111221,4595.664766827423,4617.037750651868
+axpy+65536+uniform,ok,direct,reset-and-arithmetic,oneMKL/cblas_daxpy,5,1,25292.455431754875,25205.250949607496,25344.06545961003
+axpy+262144+uniform,ok,direct,reset-and-arithmetic,oneMKL/cblas_daxpy,5,1,162210.98056680162,161589.0923076923,163020.008097166
+scal+64+uniform+timing=arithmetic,ok,direct,arithmetic,oneMKL/cblas_dscal,5,1,168.11203,166.917028,170.117865
+scal+256+uniform+timing=arithmetic,ok,direct,arithmetic,oneMKL/cblas_dscal,5,1,178.993524,174.603144,180.174954
+scal+4096+uniform+timing=arithmetic,ok,direct,arithmetic,oneMKL/cblas_dscal,5,1,393.8901646235728,382.17685961580327,402.3342691779331
+scal+8+uniform+timing=arithmetic,ok,direct,arithmetic,oneMKL/cblas_dscal,5,1,163.337552,161.65283,167.162569
+scal+16+uniform+timing=arithmetic,ok,direct,arithmetic,oneMKL/cblas_dscal,5,1,164.119928,162.706247,166.950417
+scal+32+uniform+timing=arithmetic,ok,direct,arithmetic,oneMKL/cblas_dscal,5,1,165.285383,162.01239,166.099738
+scal+96+uniform+timing=arithmetic,ok,direct,arithmetic,oneMKL/cblas_dscal,5,1,165.513343,164.47315,168.887878
+scal+128+uniform+timing=arithmetic,ok,direct,arithmetic,oneMKL/cblas_dscal,5,1,168.231248,162.646459,169.655536
+scal+192+uniform+timing=arithmetic,ok,direct,arithmetic,oneMKL/cblas_dscal,5,1,172.205357,167.661546,173.267934
+scal+384+uniform+timing=arithmetic,ok,direct,arithmetic,oneMKL/cblas_dscal,5,1,185.254792,180.517949,185.55442
+scal+512+uniform+timing=arithmetic,ok,direct,arithmetic,oneMKL/cblas_dscal,5,1,188.967733,183.61208,189.542555
+scal+768+uniform+timing=arithmetic,ok,direct,arithmetic,oneMKL/cblas_dscal,5,1,203.692997,196.811591,204.91873
+scal+1024+uniform+timing=arithmetic,ok,direct,arithmetic,oneMKL/cblas_dscal,5,1,218.9423905716917,213.2160752306988,219.53182370863834
+scal+16384+uniform+timing=arithmetic,ok,direct,arithmetic,oneMKL/cblas_dscal,5,1,1983.701175790093,1978.6061352507654,1985.6499257028313
+scal+262144+uniform+timing=arithmetic,ok,direct,arithmetic,oneMKL/cblas_dscal,5,1,71397.64011379801,70105.4694167852,74263.95981507824
+swap+4096+uniform,ok,direct,reset-and-arithmetic,oneMKL/cblas_dswap,5,1,2384.8722615517077,2372.5205204247586,2388.352111833923
+swap+8+uniform,ok,direct,reset-and-arithmetic,oneMKL/cblas_dswap,5,1,203.81913945836496,197.19779903821816,205.79309744368516
+swap+16+uniform,ok,direct,reset-and-arithmetic,oneMKL/cblas_dswap,5,1,202.52631170389188,199.34859945460136,204.7029089607686
+swap+32+uniform,ok,direct,reset-and-arithmetic,oneMKL/cblas_dswap,5,1,210.45732756246477,205.4844076385623,211.4101744395436
+swap+64+uniform,ok,direct,reset-and-arithmetic,oneMKL/cblas_dswap,5,1,221.3057024552606,216.78786076262284,222.06140579339083
+swap+96+uniform,ok,direct,reset-and-arithmetic,oneMKL/cblas_dswap,5,1,226.01391405307842,216.84791986058303,227.06289658794708
+swap+128+uniform,ok,direct,reset-and-arithmetic,oneMKL/cblas_dswap,5,1,221.45730547306516,218.4400155601369,225.20859103408768
+swap+192+uniform,ok,direct,reset-and-arithmetic,oneMKL/cblas_dswap,5,1,237.5998336201427,229.67646078775957,242.33297539221368
+swap+256+uniform,ok,direct,reset-and-arithmetic,oneMKL/cblas_dswap,5,1,243.57989609328075,241.4483841204773,247.969916589779
+swap+384+uniform,ok,direct,reset-and-arithmetic,oneMKL/cblas_dswap,5,1,274.89434371893947,274.1377006391902,276.4157928194133
+swap+512+uniform,ok,direct,reset-and-arithmetic,oneMKL/cblas_dswap,5,1,292.30642362253303,283.6121878796651,299.01929849954166
+swap+768+uniform,ok,direct,reset-and-arithmetic,oneMKL/cblas_dswap,5,1,350.2878731572243,342.3272427460016,352.51483813649116
+swap+1024+uniform,ok,direct,reset-and-arithmetic,oneMKL/cblas_dswap,5,1,396.5444185625631,386.2602958318495,416.4874764776511
+swap+16384+uniform,ok,direct,reset-and-arithmetic,oneMKL/cblas_dswap,5,1,8376.895590974953,8345.662926930243,8387.165058993996
+swap+65536+uniform,ok,direct,reset-and-arithmetic,oneMKL/cblas_dswap,5,1,70323.8382963989,67110.92624653739,71229.60630193906
+swap+262144+uniform,ok,direct,reset-and-arithmetic,oneMKL/cblas_dswap,5,1,367621.84162062616,365939.16574585636,370707.2449355433
+rot+4096+uniform,ok,direct,reset-and-arithmetic,oneMKL/cblas_drot,5,1,2449.8942910301607,2442.7501836075207,2453.640569917744
+rot+8+uniform,ok,direct,reset-and-arithmetic,oneMKL/cblas_drot,5,1,207.300409,206.774589,208.417976
+rot+16+uniform,ok,direct,reset-and-arithmetic,oneMKL/cblas_drot,5,1,206.64101757316578,205.99331715848047,208.46363428246477
+rot+32+uniform,ok,direct,reset-and-arithmetic,oneMKL/cblas_drot,5,1,211.30389601848995,205.6416810655262,213.21125327885633
+rot+64+uniform,ok,direct,reset-and-arithmetic,oneMKL/cblas_drot,5,1,216.82465405463554,215.50001536803143,223.18654375168774
+rot+96+uniform,ok,direct,reset-and-arithmetic,oneMKL/cblas_drot,5,1,226.82154887982605,219.51221427721467,229.59640202940253
+rot+128+uniform,ok,direct,reset-and-arithmetic,oneMKL/cblas_drot,5,1,229.5713299351251,219.73146663577387,232.7665141334569
+rot+192+uniform,ok,direct,reset-and-arithmetic,oneMKL/cblas_drot,5,1,237.59231347917463,236.5724063813527,245.0741497898357
+rot+256+uniform,ok,direct,reset-and-arithmetic,oneMKL/cblas_drot,5,1,259.26057326981993,249.35156193508692,260.90847599535704
+rot+384+uniform,ok,direct,reset-and-arithmetic,oneMKL/cblas_drot,5,1,292.68131280300236,285.92805024099783,293.38462359265816
+rot+512+uniform,ok,direct,reset-and-arithmetic,oneMKL/cblas_drot,5,1,325.14533344773935,309.03804378621396,326.16998848924123
+rot+768+uniform,ok,direct,reset-and-arithmetic,oneMKL/cblas_drot,5,1,349.9842269913566,347.41973052383355,368.89222284556945
+rot+1024+uniform,ok,direct,reset-and-arithmetic,oneMKL/cblas_drot,5,1,397.1230735542948,395.73512292226536,397.5546451677118
+rot+16384+uniform,ok,direct,reset-and-arithmetic,oneMKL/cblas_drot,5,1,8530.584038642386,8478.591775668974,8556.444387449774
+rot+65536+uniform,ok,direct,reset-and-arithmetic,oneMKL/cblas_drot,5,1,69883.39064200218,69224.52339499455,70126.79941965904
+rot+262144+uniform,ok,direct,reset-and-arithmetic,oneMKL/cblas_drot,5,1,371447.2044609665,369909.57063197024,371800.9628252788

@@ -1,0 +1,152 @@
+case,status,comparison_kind,timing_mode,actual_kernel,samples,forks,median_ns,min_ns,max_ns
+dot+4096+uniform,ok,direct,arithmetic,simd(4 lanes)/dot,10,2,563.1620755605027,547.9019083938119,567.4012618385981
+dot+1+uniform,ok,direct,arithmetic,scalar/dot,10,2,3.3135867045845537,3.2764865673042745,3.3893442720137132
+dot+7+uniform,ok,direct,arithmetic,simd(4 lanes)/dot,10,2,8.324313357921197,8.077691017664378,8.359401596724148
+dot+8+uniform,ok,direct,arithmetic,simd(4 lanes)/dot,10,2,4.80107931459467,4.727335009168533,4.865832359478026
+dot+9+uniform,ok,direct,arithmetic,simd(4 lanes)/dot,10,2,7.328933910461782,7.051971914964825,7.348949282948054
+dot+32+uniform,ok,direct,arithmetic,simd(4 lanes)/dot,10,2,6.883454836665904,6.613483942832803,6.903315398482529
+dot+47+uniform,ok,direct,arithmetic,simd(4 lanes)/dot,10,2,10.80366147487656,10.680732217206149,10.82995617709825
+dot+48+uniform,ok,direct,arithmetic,simd(4 lanes)/dot,10,2,8.564514056353623,8.232252558548295,8.675938657616094
+dot+49+uniform,ok,direct,arithmetic,simd(4 lanes)/dot,10,2,10.200349931060707,9.677137798319189,10.732264259078855
+dot+127+uniform,ok,direct,arithmetic,simd(4 lanes)/dot,10,2,16.734680279891577,16.40091036999546,17.538012584837915
+dot+128+uniform,ok,direct,arithmetic,simd(4 lanes)/dot,10,2,16.067130162786846,15.528572228672777,16.249137336766363
+dot+129+uniform,ok,direct,arithmetic,simd(4 lanes)/dot,10,2,16.893914068124964,16.570455757360875,17.22735941561658
+dot+1024+uniform,ok,direct,arithmetic,simd(4 lanes)/dot,10,2,81.6974548362343,67.417218325707,96.16033415339176
+dot+65536+uniform,ok,direct,arithmetic,simd(4 lanes)/dot,10,2,9791.800491103964,9634.223382749326,9836.01025515211
+dot+262144+uniform,ok,direct,arithmetic,simd(4 lanes)/dot,10,2,59945.50256848794,56831.69501133787,63489.37634749524
+dot+192+uniform,ok,direct,arithmetic,simd(4 lanes)/dot,10,2,20.513714421268844,19.945854966276265,22.41197580407312
+dot+256+uniform,ok,direct,arithmetic,simd(4 lanes)/dot,10,2,25.450596732227588,24.769786611864443,25.62217527160173
+dot+384+uniform,ok,direct,arithmetic,simd(4 lanes)/dot,10,2,35.469399104732204,34.43629581787607,40.35050370759273
+dot+512+uniform,ok,direct,arithmetic,simd(4 lanes)/dot,10,2,40.37141355058078,36.51123695014866,44.63607116319063
+dot+768+uniform,ok,direct,arithmetic,simd(4 lanes)/dot,10,2,58.46862544428836,51.01554520607292,74.34338434829229
+dot+16384+uniform,ok,direct,arithmetic,simd(4 lanes)/dot,10,2,2221.7418578119714,2149.8732961685946,2237.619052942229
+asum+4096+uniform,ok,direct,arithmetic,simd(4 lanes)/asum,10,2,253.43263518797107,250.33360647034942,326.9127902227015
+asum+1+uniform,ok,direct,arithmetic,scalar/asum,10,2,2.171849340301031,2.1240849516368505,2.18411983485621
+asum+7+uniform,ok,direct,arithmetic,simd(4 lanes)/asum,10,2,5.554641532499856,5.373957172152514,5.559673918484677
+asum+8+uniform,ok,direct,arithmetic,simd(4 lanes)/asum,10,2,3.5807254880479737,3.5039230229941323,3.6121619288763167
+asum+9+uniform,ok,direct,arithmetic,simd(4 lanes)/asum,10,2,4.892828319368878,4.694523012838158,5.267521829603142
+asum+32+uniform,ok,direct,arithmetic,simd(4 lanes)/asum,10,2,5.174343544839184,5.075881228891312,5.256218091221926
+asum+127+uniform,ok,direct,arithmetic,simd(4 lanes)/asum,10,2,14.040014292598991,13.653351200527121,14.236524386834471
+asum+128+uniform,ok,direct,arithmetic,simd(4 lanes)/asum,10,2,13.587405071387458,13.223017682259448,13.673687890878297
+asum+129+uniform,ok,direct,arithmetic,simd(4 lanes)/asum,10,2,14.200849951100416,13.886374236730974,14.36820320840571
+asum+1024+uniform,ok,direct,arithmetic,simd(4 lanes)/asum,10,2,67.9892704925194,65.7905616269449,88.69679002937488
+asum+65536+uniform,ok,direct,arithmetic,simd(4 lanes)/asum,10,2,5688.600044981722,5544.058419434365,5735.9037656903765
+asum+262144+uniform,ok,direct,arithmetic,simd(4 lanes)/asum,10,2,27824.03424080564,27257.820781696853,30577.06080048885
+asum+192+uniform,ok,direct,arithmetic,simd(4 lanes)/asum,10,2,16.987954437288685,15.944031032506965,23.017309448395338
+asum+256+uniform,ok,direct,arithmetic,simd(4 lanes)/asum,10,2,17.75304276150814,16.616668824250322,18.774430789095646
+asum+384+uniform,ok,direct,arithmetic,simd(4 lanes)/asum,10,2,30.166326845609277,29.892930770616445,36.67988433077879
+asum+512+uniform,ok,direct,arithmetic,simd(4 lanes)/asum,10,2,33.25133566765821,32.990014085973876,42.62334730306426
+asum+768+uniform,ok,direct,arithmetic,simd(4 lanes)/asum,10,2,48.83162192066666,45.30966821238715,68.61724004373592
+asum+16384+uniform,ok,direct,arithmetic,simd(4 lanes)/asum,10,2,1433.036525679705,1404.736926694038,1444.745367896599
+sum+4096+uniform,ok,direct,arithmetic,simd(4 lanes)/sum,10,2,156.74403174513964,156.20552881895318,197.45101635516323
+sum+1+uniform,ok,direct,arithmetic,scalar/sum,10,2,2.063360503573251,2.0381559194427887,2.0844901831446347
+sum+7+uniform,ok,direct,arithmetic,simd(4 lanes)/sum,10,2,5.09745543697459,4.976891146564297,5.156054877879907
+sum+8+uniform,ok,direct,arithmetic,simd(4 lanes)/sum,10,2,3.3997694726690777,3.3205484299205734,3.472850730151771
+sum+9+uniform,ok,direct,arithmetic,simd(4 lanes)/sum,10,2,4.670008010093428,4.535729153212924,4.714558702618884
+sum+32+uniform,ok,direct,arithmetic,simd(4 lanes)/sum,10,2,4.172076444990417,4.149503982364554,4.685468267477979
+sum+127+uniform,ok,direct,arithmetic,simd(4 lanes)/sum,10,2,11.255228965077427,10.993137485210713,11.297854623932269
+sum+128+uniform,ok,direct,arithmetic,simd(4 lanes)/sum,10,2,9.225481337482057,8.895439977881535,9.62877608417971
+sum+129+uniform,ok,direct,arithmetic,simd(4 lanes)/sum,10,2,10.745959637264704,10.040560440350289,11.378791830356025
+sum+1024+uniform,ok,direct,arithmetic,simd(4 lanes)/sum,10,2,42.505001945561375,40.92865628978371,48.76743020563537
+sum+65536+uniform,ok,direct,arithmetic,simd(4 lanes)/sum,10,2,4442.165034673094,4348.673895093651,4538.93356151963
+sum+262144+uniform,ok,direct,arithmetic,simd(4 lanes)/sum,10,2,25579.542649264513,24965.30523690773,30024.519190404797
+sum+192+uniform,ok,direct,arithmetic,simd(4 lanes)/sum,10,2,9.936636758513089,9.613323437084663,10.167031124441621
+sum+256+uniform,ok,direct,arithmetic,simd(4 lanes)/sum,10,2,15.677280509947323,15.051591269278548,15.755815323341963
+sum+384+uniform,ok,direct,arithmetic,simd(4 lanes)/sum,10,2,19.83575544397868,19.257359288782013,19.897411287338098
+sum+512+uniform,ok,direct,arithmetic,simd(4 lanes)/sum,10,2,24.181917815590438,23.54179362263535,28.276872485926273
+sum+768+uniform,ok,direct,arithmetic,simd(4 lanes)/sum,10,2,33.442572725636694,32.384957633356485,34.567946465908065
+sum+16384+uniform,ok,direct,arithmetic,simd(4 lanes)/sum,10,2,1114.5473463158219,1102.7488775898066,1130.996751026958
+nrm2+4096+uniform,unsupported,unsupported,arithmetic,unavailable,0,0,,,
+nrm2+8+uniform,unsupported,unsupported,arithmetic,unavailable,0,0,,,
+nrm2+16+uniform,unsupported,unsupported,arithmetic,unavailable,0,0,,,
+nrm2+32+uniform,unsupported,unsupported,arithmetic,unavailable,0,0,,,
+nrm2+64+uniform,unsupported,unsupported,arithmetic,unavailable,0,0,,,
+nrm2+96+uniform,unsupported,unsupported,arithmetic,unavailable,0,0,,,
+nrm2+128+uniform,unsupported,unsupported,arithmetic,unavailable,0,0,,,
+nrm2+192+uniform,unsupported,unsupported,arithmetic,unavailable,0,0,,,
+nrm2+256+uniform,unsupported,unsupported,arithmetic,unavailable,0,0,,,
+nrm2+384+uniform,unsupported,unsupported,arithmetic,unavailable,0,0,,,
+nrm2+512+uniform,unsupported,unsupported,arithmetic,unavailable,0,0,,,
+nrm2+768+uniform,unsupported,unsupported,arithmetic,unavailable,0,0,,,
+nrm2+1024+uniform,unsupported,unsupported,arithmetic,unavailable,0,0,,,
+nrm2+16384+uniform,unsupported,unsupported,arithmetic,unavailable,0,0,,,
+nrm2+65536+uniform,unsupported,unsupported,arithmetic,unavailable,0,0,,,
+nrm2+262144+uniform,unsupported,unsupported,arithmetic,unavailable,0,0,,,
+iamax+64+uniform,ok,direct,arithmetic,scalar/iamax,10,2,20.786034854455316,20.416372654922764,20.911344587489864
+iamax+128+uniform,ok,direct,arithmetic,scalar/iamax,10,2,42.74904599640813,41.626744641225095,43.60202758786908
+iamax+256+uniform,ok,direct,arithmetic,simd(4 lanes)/iamax,10,2,66.90761720001876,65.0705665054229,67.85079098180734
+iamax+512+uniform,ok,direct,arithmetic,simd(4 lanes)/iamax,10,2,127.84847237690829,124.46609326877218,136.35617553603157
+iamax+1024+uniform,ok,direct,arithmetic,simd(4 lanes)/iamax,10,2,200.74830509183045,195.32152683059897,225.6977238072037
+iamax+4096+uniform,ok,direct,arithmetic,simd(4 lanes)/iamax,10,2,628.0388404499697,594.5028073957285,630.4372921495516
+iamax+8+uniform,ok,direct,arithmetic,scalar/iamax,10,2,4.829266241791478,4.69830089793257,4.856306614516179
+iamax+16+uniform,ok,direct,arithmetic,scalar/iamax,10,2,7.82955875004547,7.666834387435896,8.04106404800957
+iamax+32+uniform,ok,direct,arithmetic,scalar/iamax,10,2,11.863016512883789,11.819884969943809,12.526227662927468
+iamax+96+uniform,ok,direct,arithmetic,scalar/iamax,10,2,29.965117250088497,29.824580697476623,31.409871279992732
+iamax+192+uniform,ok,direct,arithmetic,scalar/iamax,10,2,56.6420804056483,55.10629915622434,57.94317740075055
+iamax+384+uniform,ok,direct,arithmetic,simd(4 lanes)/iamax,10,2,93.14642345260177,90.23970458930351,93.46816183565745
+iamax+768+uniform,ok,direct,arithmetic,simd(4 lanes)/iamax,10,2,164.11636923039285,159.9766082747548,183.70331642441568
+iamax+16384+uniform,ok,direct,arithmetic,simd(4 lanes)/iamax,10,2,2384.1168993671745,2319.6846315252546,2753.7302351824073
+iamax+262144+uniform,ok,direct,arithmetic,simd(4 lanes)/iamax,10,2,54107.013290789175,52899.18186624372,54818.049835706464
+axpy+4096+uniform,ok,direct,reset-and-arithmetic,simd(4 lanes)/axpy,10,2,1200.0636009115726,1165.8357638727111,1245.4434621390753
+axpy+8+uniform,ok,direct,reset-and-arithmetic,simd(4 lanes)/axpy,10,2,7.267541018367216,7.0882540554943105,7.318334325919456
+axpy+16+uniform,ok,direct,reset-and-arithmetic,simd(4 lanes)/axpy,10,2,9.043457087378114,8.68528528061857,9.689612454787746
+axpy+32+uniform,ok,direct,reset-and-arithmetic,simd(4 lanes)/axpy,10,2,12.198271311708456,12.126774019144047,12.501139032697049
+axpy+64+uniform,ok,direct,reset-and-arithmetic,simd(4 lanes)/axpy,10,2,17.518737352836062,17.21910052226107,17.764434875159225
+axpy+96+uniform,ok,direct,reset-and-arithmetic,simd(4 lanes)/axpy,10,2,24.898432962782216,19.427665530961278,29.89593701489429
+axpy+128+uniform,ok,direct,reset-and-arithmetic,simd(4 lanes)/axpy,10,2,29.39020404916392,25.71461265927627,34.40289580327753
+axpy+192+uniform,ok,direct,reset-and-arithmetic,simd(4 lanes)/axpy,10,2,35.647936539123954,34.78601151712808,36.00087735220609
+axpy+256+uniform,ok,direct,reset-and-arithmetic,simd(4 lanes)/axpy,10,2,41.006449587550584,40.899160095047435,41.188308366809956
+axpy+384+uniform,ok,direct,reset-and-arithmetic,simd(4 lanes)/axpy,10,2,70.6896314993494,69.81436464743352,73.30615050569082
+axpy+512+uniform,ok,direct,reset-and-arithmetic,simd(4 lanes)/axpy,10,2,103.131573245843,70.43705472460353,125.84152922446438
+axpy+768+uniform,ok,direct,reset-and-arithmetic,simd(4 lanes)/axpy,10,2,151.87289345762025,146.93754349951985,157.86512417085987
+axpy+1024+uniform,ok,direct,reset-and-arithmetic,simd(4 lanes)/axpy,10,2,178.3654262143396,137.34626716528845,222.89449674592615
+axpy+16384+uniform,ok,direct,reset-and-arithmetic,simd(4 lanes)/axpy,10,2,4679.112316320159,4587.766993628821,4857.053290319451
+axpy+65536+uniform,ok,direct,reset-and-arithmetic,simd(4 lanes)/axpy,10,2,27432.079493600337,26123.22771760407,28850.69606571552
+axpy+262144+uniform,ok,direct,reset-and-arithmetic,simd(4 lanes)/axpy,10,2,188352.4822751697,177002.8700265252,196369.56568627452
+scal+64+uniform+timing=arithmetic,ok,direct,arithmetic,simd(4 lanes)/scale,10,2,7.606404881875553,7.4344890850826335,7.81976442659997
+scal+256+uniform+timing=arithmetic,ok,direct,arithmetic,simd(4 lanes)/scale,10,2,22.339658224387907,22.169277762316074,22.428195044655237
+scal+4096+uniform+timing=arithmetic,ok,direct,arithmetic,simd(4 lanes)/scale,10,2,378.563598948568,371.47830791129786,383.9442470814359
+scal+8+uniform+timing=arithmetic,ok,direct,arithmetic,simd(4 lanes)/scale,10,2,4.66834604987495,4.57170007840603,4.6877429078245045
+scal+16+uniform+timing=arithmetic,ok,direct,arithmetic,simd(4 lanes)/scale,10,2,4.45757569617713,4.413307361410842,4.4716825583316115
+scal+32+uniform+timing=arithmetic,ok,direct,arithmetic,simd(4 lanes)/scale,10,2,5.537755368996904,5.432049773957659,5.567068900088297
+scal+96+uniform+timing=arithmetic,ok,direct,arithmetic,simd(4 lanes)/scale,10,2,12.105071997635907,9.01926116075502,15.552564879049005
+scal+128+uniform+timing=arithmetic,ok,direct,arithmetic,simd(4 lanes)/scale,10,2,15.870051489831397,15.381217778984178,16.23518800711044
+scal+192+uniform+timing=arithmetic,ok,direct,arithmetic,simd(4 lanes)/scale,10,2,16.12234480463873,12.70898624324999,16.860621492601428
+scal+384+uniform+timing=arithmetic,ok,direct,arithmetic,simd(4 lanes)/scale,10,2,28.128033273211173,20.463473424498503,37.11497856025492
+scal+512+uniform+timing=arithmetic,ok,direct,arithmetic,simd(4 lanes)/scale,10,2,49.29094842686162,48.93477761500919,50.35203719600723
+scal+768+uniform+timing=arithmetic,ok,direct,arithmetic,simd(4 lanes)/scale,10,2,34.796641437919696,33.58843941963217,34.922536627919655
+scal+1024+uniform+timing=arithmetic,ok,direct,arithmetic,simd(4 lanes)/scale,10,2,97.47790315635368,93.36183153861683,99.64607471014868
+scal+16384+uniform+timing=arithmetic,ok,direct,arithmetic,simd(4 lanes)/scale,10,2,2110.4098184764325,2058.947978780277,2140.3556586429518
+scal+262144+uniform+timing=arithmetic,ok,direct,arithmetic,simd(4 lanes)/scale,10,2,81761.27819715475,80363.66439181051,83320.23720349564
+swap+4096+uniform,ok,direct,reset-and-arithmetic,simd(4 lanes)/swap,10,2,2339.2035739062453,2280.895475303791,2399.263469253338
+swap+8+uniform,ok,direct,reset-and-arithmetic,simd(4 lanes)/swap,10,2,10.40856284670272,10.044937846032303,10.654807540830049
+swap+16+uniform,ok,direct,reset-and-arithmetic,simd(4 lanes)/swap,10,2,12.491284203961305,12.247020457724009,12.838555401766454
+swap+32+uniform,ok,direct,reset-and-arithmetic,simd(4 lanes)/swap,10,2,16.809034456064115,16.212805086880877,17.462474745200932
+swap+64+uniform,ok,direct,reset-and-arithmetic,simd(4 lanes)/swap,10,2,20.04035715641116,19.453091192187713,20.19437253568604
+swap+96+uniform,ok,direct,reset-and-arithmetic,simd(4 lanes)/swap,10,2,35.86307498525673,26.9002486817261,44.63529970409536
+swap+128+uniform,ok,direct,reset-and-arithmetic,simd(4 lanes)/swap,10,2,49.38455171445641,44.15830130385725,53.63771220778609
+swap+192+uniform,ok,direct,reset-and-arithmetic,simd(4 lanes)/swap,10,2,65.66469560326306,42.653812468936096,85.52942644318547
+swap+256+uniform,ok,direct,reset-and-arithmetic,simd(4 lanes)/swap,10,2,92.15044885936734,88.76649339891551,98.8976288750416
+swap+384+uniform,ok,direct,reset-and-arithmetic,simd(4 lanes)/swap,10,2,142.98370969879866,139.13408158356148,144.62145328819753
+swap+512+uniform,ok,direct,reset-and-arithmetic,simd(4 lanes)/swap,10,2,160.04208185744253,114.44033455517342,208.9187776664161
+swap+768+uniform,ok,direct,reset-and-arithmetic,simd(4 lanes)/swap,10,2,285.0065378541834,278.09381281612093,292.42813425714155
+swap+1024+uniform,ok,direct,reset-and-arithmetic,simd(4 lanes)/swap,10,2,441.5863167361623,387.46631086229326,516.0041828487728
+swap+16384+uniform,ok,direct,reset-and-arithmetic,simd(4 lanes)/swap,10,2,8778.810589455348,8558.18144902757,8873.061496852
+swap+65536+uniform,ok,direct,reset-and-arithmetic,simd(4 lanes)/swap,10,2,72903.75301263039,68811.63436426118,75779.62996594778
+swap+262144+uniform,ok,direct,reset-and-arithmetic,simd(4 lanes)/swap,10,2,494564.3125212864,431638.974137931,593916.5118343196
+rot+4096+uniform,ok,direct,reset-and-arithmetic,simd(4 lanes)/rot,10,2,2448.231493545806,2442.803635789959,2486.9861810138063
+rot+8+uniform,ok,direct,reset-and-arithmetic,simd(4 lanes)/rot,10,2,11.874616966058856,11.609023588916708,12.067187278590103
+rot+16+uniform,ok,direct,reset-and-arithmetic,simd(4 lanes)/rot,10,2,14.413860042758348,14.114950314147066,14.825530820330009
+rot+32+uniform,ok,direct,reset-and-arithmetic,simd(4 lanes)/rot,10,2,19.511664795041447,18.742658800808602,20.25781524489881
+rot+64+uniform,ok,direct,reset-and-arithmetic,simd(4 lanes)/rot,10,2,32.288567440332784,26.815581367636554,36.701567560887874
+rot+96+uniform,ok,direct,reset-and-arithmetic,simd(4 lanes)/rot,10,2,35.62476249355462,33.52667003323862,37.558971908203354
+rot+128+uniform,ok,direct,reset-and-arithmetic,simd(4 lanes)/rot,10,2,43.77108614095223,42.737534098249924,51.22370667135171
+rot+192+uniform,ok,direct,reset-and-arithmetic,simd(4 lanes)/rot,10,2,59.9181131694359,57.443645991139796,71.46150169330222
+rot+256+uniform,ok,direct,reset-and-arithmetic,simd(4 lanes)/rot,10,2,92.20234766087577,83.75953444889056,103.49263205141663
+rot+384+uniform,ok,direct,reset-and-arithmetic,simd(4 lanes)/rot,10,2,148.2589824141142,145.41976623472857,170.9551938584376
+rot+512+uniform,ok,direct,reset-and-arithmetic,simd(4 lanes)/rot,10,2,183.96467852967163,157.85815742672256,237.39396925455821
+rot+768+uniform,ok,direct,reset-and-arithmetic,simd(4 lanes)/rot,10,2,304.45386646391853,296.0808244310952,307.80983897264576
+rot+1024+uniform,ok,direct,reset-and-arithmetic,simd(4 lanes)/rot,10,2,434.91806178378675,421.30718471369755,447.3520112630732
+rot+16384+uniform,ok,direct,reset-and-arithmetic,simd(4 lanes)/rot,10,2,9278.513187617576,9053.834750361795,9400.924745317121
+rot+65536+uniform,ok,direct,reset-and-arithmetic,simd(4 lanes)/rot,10,2,76150.59892221933,75078.85521380346,78057.18011695906
+rot+262144+uniform,ok,direct,reset-and-arithmetic,simd(4 lanes)/rot,10,2,389853.03836136614,361434.0974729242,448530.4272930649
