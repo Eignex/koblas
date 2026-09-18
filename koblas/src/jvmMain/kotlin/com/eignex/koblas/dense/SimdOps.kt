@@ -1,5 +1,6 @@
 package com.eignex.koblas.dense
 
+import com.eignex.koblas.internal.numeric.hardwareFusedMultiplyAdd
 import jdk.incubator.vector.DoubleVector
 import jdk.incubator.vector.VectorOperators
 import kotlin.math.abs
@@ -22,12 +23,8 @@ internal object SimdOps {
      * times its throughput, so a single chain leaves most of the unit idle on a long run. Four independent
      * chains keep it fed, which is what the long-run arm below runs.
      *
-     * The product and the sum are separate operations rather than one fused multiply-add, which the Vector
-     * API offers everywhere but has an instruction for only on some machines. Where there is none the
-     * fallback cannot be a multiply and an add, since those round twice and a fused one rounds once, so it
-     * computes the product exactly instead: a Math.fma call per lane, building three BigDecimals and
-     * multiplying them at unbounded precision. That is a thousand times the scalar loop this kernel exists to
-     * beat, and nothing at the call site says which machines will take it.
+     * The multiply-add fuses only where the machine has the instruction, which is what [multiplyAdd] decides
+     * and [hardwareFusedMultiplyAdd] explains.
      *
      * Two functions rather than one branching body so the short-length arm stays small enough for the JIT
      * to inline into its callers, which is what the four accumulators and the extra loop would cost it.
@@ -42,7 +39,7 @@ internal object SimdOps {
         while (i < bound) {
             val va = DoubleVector.fromArray(SPECIES, a, aOff + i)
             val vb = DoubleVector.fromArray(SPECIES, b, bOff + i)
-            sum = va.mul(vb).add(sum)
+            sum = multiplyAdd(va, vb, sum)
             i += LANE
         }
         var s = sum.reduceLanes(VectorOperators.ADD)
@@ -62,14 +59,26 @@ internal object SimdOps {
         var i = 0
         val unrolled = len - len % (4 * LANE)
         while (i < unrolled) {
-            s0 = DoubleVector.fromArray(SPECIES, a, aOff + i)
-                .mul(DoubleVector.fromArray(SPECIES, b, bOff + i)).add(s0)
-            s1 = DoubleVector.fromArray(SPECIES, a, aOff + i + LANE)
-                .mul(DoubleVector.fromArray(SPECIES, b, bOff + i + LANE)).add(s1)
-            s2 = DoubleVector.fromArray(SPECIES, a, aOff + i + 2 * LANE)
-                .mul(DoubleVector.fromArray(SPECIES, b, bOff + i + 2 * LANE)).add(s2)
-            s3 = DoubleVector.fromArray(SPECIES, a, aOff + i + 3 * LANE)
-                .mul(DoubleVector.fromArray(SPECIES, b, bOff + i + 3 * LANE)).add(s3)
+            s0 = multiplyAdd(
+                DoubleVector.fromArray(SPECIES, a, aOff + i),
+                DoubleVector.fromArray(SPECIES, b, bOff + i),
+                s0,
+            )
+            s1 = multiplyAdd(
+                DoubleVector.fromArray(SPECIES, a, aOff + i + LANE),
+                DoubleVector.fromArray(SPECIES, b, bOff + i + LANE),
+                s1,
+            )
+            s2 = multiplyAdd(
+                DoubleVector.fromArray(SPECIES, a, aOff + i + 2 * LANE),
+                DoubleVector.fromArray(SPECIES, b, bOff + i + 2 * LANE),
+                s2,
+            )
+            s3 = multiplyAdd(
+                DoubleVector.fromArray(SPECIES, a, aOff + i + 3 * LANE),
+                DoubleVector.fromArray(SPECIES, b, bOff + i + 3 * LANE),
+                s3,
+            )
             i += 4 * LANE
         }
         // What the unroll leaves over is under one unroll width, which is what the single chain is for.
@@ -161,6 +170,17 @@ internal object SimdOps {
         }
         return s
     }
+
+    /**
+     * One multiply-add, fused where [hardwareFusedMultiplyAdd] found the instruction and two operations
+     * where it did not.
+     *
+     * Inline for the reason [signStripped] gives, and because the test is then a constant the JIT folds, so
+     * one of the two forms reaches the loop and neither a branch nor the other form survives in it.
+     */
+    @Suppress("NOTHING_TO_INLINE")
+    private inline fun multiplyAdd(x: DoubleVector, y: DoubleVector, accumulator: DoubleVector): DoubleVector =
+        if (hardwareFusedMultiplyAdd) x.fma(y, accumulator) else x.mul(y).add(accumulator)
 
     /**
      * A lane-wise absolute value, as a mask over the sign bit rather than a branch.

@@ -1,5 +1,6 @@
 package com.eignex.koblas.sparse
 
+import com.eignex.koblas.internal.numeric.hardwareFusedMultiplyAdd
 import jdk.incubator.vector.DoubleVector
 import jdk.incubator.vector.VectorOperators
 
@@ -30,6 +31,17 @@ internal object SparseSimd {
         DoubleVector.fromArray(SPECIES, values, 0, indices, offset)
     }
 
+    /**
+     * One multiply-add, fused where [hardwareFusedMultiplyAdd] found the instruction and two operations
+     * where it did not.
+     *
+     * Inline for the reason [indexedLoad] gives, and because the test is then a constant the JIT folds, so
+     * one of the two forms reaches the loop and neither a branch nor the other form survives in it.
+     */
+    @Suppress("NOTHING_TO_INLINE")
+    private inline fun multiplyAdd(x: DoubleVector, y: DoubleVector, accumulator: DoubleVector): DoubleVector =
+        if (hardwareFusedMultiplyAdd) x.fma(y, accumulator) else x.mul(y).add(accumulator)
+
     @Suppress("LongParameterList")
     fun dot(
         indices: IntArray,
@@ -44,9 +56,7 @@ internal object SparseSimd {
         var sum = DoubleVector.zero(SPECIES)
         while (k < bound) {
             val gathered = indexedLoad(y, indices, indexOffset + k)
-            // A fused multiply-add is a per-lane software call on a machine with no instruction behind it,
-            // and the Vector API offers it the same way either way.
-            sum = DoubleVector.fromArray(SPECIES, values, valueOffset + k).mul(gathered).add(sum)
+            sum = multiplyAdd(DoubleVector.fromArray(SPECIES, values, valueOffset + k), gathered, sum)
             k += LANE
         }
         var s = sum.reduceLanes(VectorOperators.ADD)
@@ -73,7 +83,11 @@ internal object SparseSimd {
         while (k < bound) {
             val old = indexedLoad(y, indices, indexOffset + k)
             val increment = DoubleVector.fromArray(SPECIES, values, valueOffset + k)
-            // Separate operations for the reason the dot product above gives.
+            // Not [multiplyAdd], which the reductions use. A product that overflows to infinity stays
+            // infinite once it has rounded, where a fused one carries it and can land back in range, so the
+            // two disagree about whether a result exists at all rather than about its last bit. This loop
+            // also has an indexed load and an indexed store around every operation, so fusing the arithmetic
+            // between them buys nothing worth that.
             increment.mul(multiplier).add(old).intoArray(y, 0, indices, indexOffset + k)
             k += LANE
         }
@@ -156,8 +170,8 @@ internal object SparseSimd {
         var sum = DoubleVector.zero(SPECIES)
         while (k < bound) {
             val gathered = indexedLoad(values, indices, indexOffset + k)
-            // Squared separately from the sum for the reason the dot product above gives.
-            sum = gathered.mul(gathered).add(sum)
+            // Squaring is a multiply-add like any other, so it takes the same route.
+            sum = multiplyAdd(gathered, gathered, sum)
             k += LANE
         }
         var squares = sum.reduceLanes(VectorOperators.ADD)
