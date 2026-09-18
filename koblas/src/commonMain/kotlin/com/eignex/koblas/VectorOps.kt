@@ -20,7 +20,7 @@ import kotlin.math.abs
 public inline fun Vector.forEachStored(block: (i: Int, v: Double) -> Unit) {
     when (this) {
         is DenseVector -> {
-            val d = data
+            val d = values
             var p = offset
             for (i in 0 until size) {
                 block(i, d[p])
@@ -42,7 +42,7 @@ public inline fun Vector.forEachStored(block: (i: Int, v: Double) -> Unit) {
 public infix fun Vector.dot(other: Vector): Double {
     requireSameSize(size, other.size)
     if (this is DenseVector && other is DenseVector) {
-        return koblas.vectorKernels.dot(data, offset, other.data, other.offset, size, stride, other.stride)
+        return koblas.vectorKernels.dot(values, offset, other.values, other.offset, size, stride, other.stride)
     }
     if (this is SparseVector && other is SparseVector) return koblas.sparseKernels.dot(this, other)
     if (this is SparseVector && other is DenseVector) return koblas.sparseKernels.dot(this, other.densified())
@@ -63,7 +63,7 @@ public infix fun Vector.dot(other: Vector): Double {
  * finite input gives the correct norm.
  */
 public fun Vector.norm2(): Double = when (this) {
-    is DenseVector -> koblas.vectorKernels.nrm2(data, offset, size, stride)
+    is DenseVector -> koblas.vectorKernels.nrm2(values, offset, size, stride)
     is SparseVector -> koblas.sparseKernels.nrm2(this)
     else -> euclideanNorm(toDoubleArray(), 0, 1, size)
 }
@@ -75,7 +75,7 @@ public fun Vector.norm2(): Double = when (this) {
  * does not store are zero and contribute nothing.
  */
 public fun Vector.sum(): Double = when (this) {
-    is DenseVector -> koblas.vectorKernels.sum(data, offset, size, stride)
+    is DenseVector -> koblas.vectorKernels.sum(values, offset, size, stride)
 
     else -> {
         var s = 0.0
@@ -86,7 +86,7 @@ public fun Vector.sum(): Double = when (this) {
 
 /** Sum of absolute values (BLAS `dasum`). Sparse vectors sum over stored entries only. */
 public fun Vector.asum(): Double = when (this) {
-    is DenseVector -> koblas.vectorKernels.asum(data, offset, size, stride)
+    is DenseVector -> koblas.vectorKernels.asum(values, offset, size, stride)
 
     is SparseVector -> koblas.sparseKernels.asum(this)
 
@@ -110,7 +110,7 @@ public fun Vector.asum(): Double = when (this) {
  * this routine.
  */
 public fun Vector.iamax(): Int {
-    if (this is DenseVector) return koblas.vectorKernels.iamax(data, offset, size, stride)
+    if (this is DenseVector) return koblas.vectorKernels.iamax(values, offset, size, stride)
     if (size == 0) return -1
     var best = -1
     var bestAbs = 0.0
@@ -137,9 +137,9 @@ public fun copy(src: Vector, dst: DenseVector) {
     if (source is SparseVector) {
         // A contiguous destination is one fill and one scatter through the indexed kernel; any other spacing
         // has no kernel to reach, because the sparse seam addresses a pattern and carries no increment.
-        if (dst.offset == 0 && dst.stride == 1 && dst.data.size == dst.size) {
-            dst.data.fill(0.0)
-            koblas.sparseKernels.scatter(source, dst.data)
+        if (dst.offset == 0 && dst.stride == 1 && dst.values.size == dst.size) {
+            dst.values.fill(0.0)
+            koblas.sparseKernels.scatter(source, dst.values)
         } else {
             for (i in 0 until dst.size) dst[i] = 0.0
             source.forEachStored { i, v -> dst[i] = v }
@@ -149,7 +149,7 @@ public fun copy(src: Vector, dst: DenseVector) {
     // Adjacent on both sides is a block move, which the platform does far better than a loop that bounds
     // checks every entry. Any other spacing has to be walked, and that walk is the general case below.
     if (source is DenseVector && source.stride == 1 && dst.stride == 1) {
-        source.data.copyInto(dst.data, dst.offset, source.offset, source.offset + dst.size)
+        source.values.copyInto(dst.values, dst.offset, source.offset, source.offset + dst.size)
         return
     }
     source.forEachStored { i, v -> dst[i] = v }
@@ -157,14 +157,14 @@ public fun copy(src: Vector, dst: DenseVector) {
 
 /** Snapshots an input whose values would be overwritten through [destination] before the first write. */
 private fun Vector.stableFor(destination: DenseVector): Vector = when (this) {
-    is SparseVector -> if (values === destination.data) SparseVector.wrap(size, indices, values.copyOf()) else this
-    is DenseVector -> if (data === destination.data) DenseVector.wrap(toDoubleArray()) else this
+    is SparseVector -> if (values === destination.values) SparseVector.wrap(size, indices, values.copyOf()) else this
+    is DenseVector -> if (values === destination.values) DenseVector.wrap(toDoubleArray()) else this
     else -> this
 }
 
 /** This vector's entries as a plain array, borrowing the backing one where its spacing already is that. */
 private fun DenseVector.densified(): DoubleArray =
-    if (offset == 0 && stride == 1 && data.size == size) data else toDoubleArray()
+    if (offset == 0 && stride == 1 && values.size == size) values else toDoubleArray()
 
 /**
  * Read [from] at [x]'s stored positions into [x] (Sparse BLAS `usga`), the inverse of [copy] from a sparse
@@ -176,13 +176,13 @@ private fun DenseVector.densified(): DoubleArray =
  */
 public fun gather(x: SparseVector, from: ContiguousVector) {
     requireSameSize(x.size, from.size)
-    koblas.sparseKernels.gather(x, from.data)
+    koblas.sparseKernels.gather(x, from.values)
 }
 
 /** [gather], and zero in [from] the positions it read (Sparse BLAS `usgz`). */
 public fun gatherZero(x: SparseVector, from: ContiguousVector) {
     requireSameSize(x.size, from.size)
-    koblas.sparseKernels.gatherZero(x, from.data)
+    koblas.sparseKernels.gatherZero(x, from.values)
 }
 
 /**
@@ -201,7 +201,7 @@ public fun swap(a: DenseVector, b: DenseVector) {
         for (i in 0 until b.size) b[i] = snapshotA[i]
         return
     }
-    koblas.vectorKernels.swap(a.data, a.offset, b.data, b.offset, a.size, a.stride, b.stride)
+    koblas.vectorKernels.swap(a.values, a.offset, b.values, b.offset, a.size, a.stride, b.stride)
 }
 
 /**
@@ -213,12 +213,12 @@ public fun DenseVector.axpy(alpha: Double, x: Vector) {
     if (alpha == 0.0) return
     when (val source = x.stableFor(this)) {
         is DenseVector ->
-            koblas.vectorKernels.axpy(data, offset, alpha, source.data, source.offset, size, stride, source.stride)
+            koblas.vectorKernels.axpy(values, offset, alpha, source.values, source.offset, size, stride, source.stride)
 
         // The indexed sparse kernels walk the pattern, and have a vectorised form; the generic loop has
         // neither, so it is what a foreign Vector implementation gets rather than what a SparseVector does.
         is SparseVector -> if (offset == 0 && stride == 1) {
-            koblas.sparseKernels.axpy(data, alpha, source)
+            koblas.sparseKernels.axpy(values, alpha, source)
         } else {
             source.forEachStored { i, v -> this[i] += alpha * v }
         }
@@ -237,5 +237,5 @@ public fun DenseVector.axpy(alpha: Double, x: Vector) {
  */
 public fun DenseVector.scale(alpha: Double) {
     if (alpha == 1.0) return
-    koblas.vectorKernels.scale(data, offset, alpha, size, stride)
+    koblas.vectorKernels.scale(values, offset, alpha, size, stride)
 }

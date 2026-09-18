@@ -39,7 +39,7 @@ internal fun bytesPerIteration(
     windows: Int = 5,
     block: () -> Any?,
 ): Double {
-    repeat(warmup) { allocationSink = block() } // let the JIT settle, since the first calls allocate profiling data
+    repeat(warmup) { allocationSink = block() } // let the JIT settle, since the first calls allocate profiling values
     val id = Thread.currentThread().threadId()
     var best = Double.MAX_VALUE
     var taken = 0

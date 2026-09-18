@@ -37,12 +37,12 @@ public fun DenseMatrix.maskTo(structure: MatrixStructure) {
         // Each column's masked entries are one contiguous run in column-major storage, so this is one fill
         // per column rather than an indexed walk.
         if (lower) {
-            data.fill(0.0, base, base + minOf(j, rows))
+            values.fill(0.0, base, base + minOf(j, rows))
         } else {
-            data.fill(0.0, base + minOf(j + 1, rows), base + rows)
+            values.fill(0.0, base + minOf(j + 1, rows), base + rows)
         }
     }
     if (structure == MatrixStructure.UnitLower || structure == MatrixStructure.UnitUpper) {
-        for (d in 0 until minOf(rows, cols)) data[d + d * rows] = 1.0
+        for (d in 0 until minOf(rows, cols)) values[d + d * rows] = 1.0
     }
 }

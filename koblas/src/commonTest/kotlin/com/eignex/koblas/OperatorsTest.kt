@@ -16,8 +16,8 @@ class OperatorsTest {
 
     @Test
     fun `matrix-vector product agrees with gemv`() {
-        assertEquals(DenseVector.wrap(koblas.gemv(a, x.data)), a * x)
-        assertClose(doubleArrayOf(0.0, 2.0), (a * x).data, "a * x")
+        assertEquals(DenseVector.wrap(koblas.gemv(a, x.values)), a * x)
+        assertClose(doubleArrayOf(0.0, 2.0), (a * x).values, "a * x")
     }
 
     @Test
@@ -37,9 +37,9 @@ class OperatorsTest {
     @Test
     fun `vector sum and difference agree entrywise`() {
         val y = DenseVector.of(doubleArrayOf(0.5, 4.0))
-        assertClose(doubleArrayOf(2.5, 3.0), (x + y).data, "x + y")
-        assertClose(doubleArrayOf(1.5, -5.0), (x - y).data, "x - y")
-        assertTrue(doubleArrayOf(2.0, -1.0).contentEquals(x.data), "x should be untouched")
+        assertClose(doubleArrayOf(2.5, 3.0), (x + y).values, "x + y")
+        assertClose(doubleArrayOf(1.5, -5.0), (x - y).values, "x - y")
+        assertTrue(doubleArrayOf(2.0, -1.0).contentEquals(x.values), "x should be untouched")
     }
 
     @Test
@@ -49,7 +49,7 @@ class OperatorsTest {
         assertEquals(x * 2.0, 2.0 * x)
         assertEquals(x * -1.0, -x)
         assertEquals(6.0, (a * 2.0)[1, 0])
-        assertClose(doubleArrayOf(-2.0, 1.0), (-x).data, "-x")
+        assertClose(doubleArrayOf(-2.0, 1.0), (-x).values, "-x")
     }
 
     @Test

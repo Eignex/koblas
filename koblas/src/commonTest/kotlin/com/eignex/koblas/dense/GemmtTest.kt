@@ -17,8 +17,8 @@ class GemmtTest {
                 for (lower in booleanArrayOf(false, true)) {
                     val a = if (transposeA) DenseMatrix(k, n) else DenseMatrix(n, k)
                     val b = if (transposeB) DenseMatrix(n, k) else DenseMatrix(k, n)
-                    a.data.indices.forEach { a.data[it] = (it % 11 - 5) / 7.0 }
-                    b.data.indices.forEach { b.data[it] = (it % 13 - 6) / 9.0 }
+                    a.values.indices.forEach { a.values[it] = (it % 11 - 5) / 7.0 }
+                    b.values.indices.forEach { b.values[it] = (it % 13 - 6) / 9.0 }
                     val initial = DoubleArray(n * n) { (it - 4) / 8.0 }
                     val actual = DenseMatrix.wrap(n, n, initial.copyOf())
                     val expected = DenseMatrix.wrap(n, n, initial.copyOf())
@@ -26,7 +26,7 @@ class GemmtTest {
 
                     blas.gemmt(1.25, a, transposeA, b, transposeB, -0.5, actual, lower)
 
-                    assertClose(expected.data, actual.data, "tA=$transposeA tB=$transposeB lower=$lower", 1e-11)
+                    assertClose(expected.values, actual.values, "tA=$transposeA tB=$transposeB lower=$lower", 1e-11)
                 }
             }
         }
@@ -63,7 +63,7 @@ class GemmtTest {
 
                 blas.gemmt(Double.NaN, a, transposeA, b, transposeB, -2.0, c)
 
-                assertContentEquals(doubleArrayOf(-2.0, -4.0, 3.0, -8.0), c.data)
+                assertContentEquals(doubleArrayOf(-2.0, -4.0, 3.0, -8.0), c.values)
             }
         }
     }

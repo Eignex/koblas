@@ -10,8 +10,8 @@ class ReadmeSamplesTest {
         val s = SparseMatrix.ofTriplets(
             rows = 2,
             cols = 2,
-            rowIdx = intArrayOf(0, 1, 0, 1),
-            colIdx = intArrayOf(0, 0, 1, 1),
+            rowIndices = intArrayOf(0, 1, 0, 1),
+            colIndices = intArrayOf(0, 0, 1, 1),
             values = doubleArrayOf(2.0, 1.0, 1.0, 3.0),
         )
         val cols = listOf(listOf(0 to 2.0, 1 to 1.0), listOf(0 to 1.0, 1 to 3.0))

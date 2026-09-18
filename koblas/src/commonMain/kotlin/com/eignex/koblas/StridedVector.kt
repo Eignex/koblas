@@ -9,15 +9,15 @@ import com.eignex.koblas.requireShape
 import kotlin.jvm.JvmOverloads
 
 /**
- * A mutable live window of [size] entries in [data], starting at [offset] and separated by [stride].
+ * A mutable live window of [size] entries in [values], starting at [offset] and separated by [stride].
  *
  * The stepped shape of [DenseVector]: every entry is stored, so a vendor addresses it as a pointer and an
  * increment exactly as it does a contiguous one. Negative stride is supported when both ends remain in the
- * buffer. This shape always borrows [data] rather than copying it, so mutations through it or through any
+ * buffer. This shape always borrows [values] rather than copying it, so mutations through it or through any
  * other reference to the array are visible to each other.
  */
 public class StridedVector @JvmOverloads constructor(
-    public override val data: DoubleArray,
+    public override val values: DoubleArray,
     public override val offset: Int,
     override val size: Int,
     public override val stride: Int = 1,
@@ -25,17 +25,17 @@ public class StridedVector @JvmOverloads constructor(
     init {
         requireShape(size >= 0) { "negative size: $size" }
         require(stride != 0) { "stride must not be zero" }
-        requireViewBounds(data.size, offset, size, stride, "vector")
+        requireViewBounds(values.size, offset, size, stride, "vector")
     }
 
     override fun get(i: Int): Double {
         requireInBounds(i, size)
-        return data[offset + i * stride]
+        return values[offset + i * stride]
     }
 
     override fun set(i: Int, v: Double) {
         requireInBounds(i, size)
-        data[offset + i * stride] = v
+        values[offset + i * stride] = v
     }
 
     override fun toDoubleArray(): DoubleArray = DoubleArray(size) { get(it) }
@@ -45,7 +45,7 @@ public class StridedVector @JvmOverloads constructor(
 
 /** Whether these vectors address at least one common buffer entry. */
 public fun DenseVector.overlaps(other: DenseVector): Boolean {
-    if (data !== other.data) return false
+    if (values !== other.values) return false
     val first = if (size <= other.size) this else other
     val second = if (first === this) other else this
     for (i in 0 until first.size) {
@@ -57,7 +57,7 @@ public fun DenseVector.overlaps(other: DenseVector): Boolean {
 }
 
 /** A borrowed view over this whole vector, keeping whatever origin and spacing it already has. */
-public fun DenseVector.asView(): StridedVector = StridedVector(data, offset, size, stride)
+public fun DenseVector.asView(): StridedVector = StridedVector(values, offset, size, stride)
 
 /**
  * A borrowed strided slice, addressed in this vector's logical indices rather than its buffer's positions.
@@ -68,7 +68,7 @@ public fun DenseVector.asView(): StridedVector = StridedVector(data, offset, siz
  */
 @JvmOverloads
 public fun DenseVector.view(offset: Int, size: Int, stride: Int = 1): StridedVector =
-    StridedVector(data, this.offset + offset * this.stride, size, this.stride * stride)
+    StridedVector(values, this.offset + offset * this.stride, size, this.stride * stride)
 
 private fun requireViewBounds(bufferSize: Int, offset: Int, size: Int, stride: Int, description: String) {
     if (size == 0) {

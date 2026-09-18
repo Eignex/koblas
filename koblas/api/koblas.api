@@ -8,10 +8,10 @@ public final class com/eignex/koblas/ContiguousVector : com/eignex/koblas/DenseV
 	public static final field Companion Lcom/eignex/koblas/ContiguousVector$Companion;
 	public fun equals (Ljava/lang/Object;)Z
 	public fun get (I)D
-	public fun getData ()[D
 	public fun getOffset ()I
 	public fun getSize ()I
 	public fun getStride ()I
+	public fun getValues ()[D
 	public fun hashCode ()I
 	public fun set (ID)V
 	public fun toDoubleArray ()[D
@@ -41,8 +41,8 @@ public final class com/eignex/koblas/DenseMatrix : com/eignex/koblas/MatrixStora
 	public fun equals (Ljava/lang/Object;)Z
 	public fun get (II)D
 	public fun getCols ()I
-	public final fun getData ()[D
 	public fun getRows ()I
+	public final fun getValues ()[D
 	public fun hashCode ()I
 	public static final fun ofColumns ([[D)Lcom/eignex/koblas/DenseMatrix;
 	public static final fun ofRows ([[D)Lcom/eignex/koblas/DenseMatrix;
@@ -81,9 +81,9 @@ public final class com/eignex/koblas/DenseMatrix$Companion {
 
 public abstract interface class com/eignex/koblas/DenseVector : com/eignex/koblas/Vector {
 	public static final field Companion Lcom/eignex/koblas/DenseVector$Companion;
-	public abstract fun getData ()[D
 	public abstract fun getOffset ()I
 	public abstract fun getStride ()I
+	public abstract fun getValues ()[D
 	public static fun of ([D)Lcom/eignex/koblas/ContiguousVector;
 	public abstract fun set (ID)V
 	public static fun wrap ([D)Lcom/eignex/koblas/ContiguousVector;
@@ -244,10 +244,10 @@ public final class com/eignex/koblas/SparseMatrix : com/eignex/koblas/MatrixStor
 	public fun equals (Ljava/lang/Object;)Z
 	public final synthetic fun forEachInColumn (ILkotlin/jvm/functions/Function2;)V
 	public fun get (II)D
-	public final fun getColPtr ()[I
+	public final fun getColPointers ()[I
 	public fun getCols ()I
 	public final fun getNnz ()I
-	public final fun getRowIdx ()[I
+	public final fun getRowIndices ()[I
 	public fun getRows ()I
 	public final fun getValues ()[D
 	public fun hashCode ()I
@@ -313,10 +313,10 @@ public final class com/eignex/koblas/StridedVector : com/eignex/koblas/DenseVect
 	public fun <init> ([DIII)V
 	public synthetic fun <init> ([DIIIILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public fun get (I)D
-	public fun getData ()[D
 	public fun getOffset ()I
 	public fun getSize ()I
 	public fun getStride ()I
+	public fun getValues ()[D
 	public fun set (ID)V
 	public fun toDoubleArray ()[D
 	public fun toString ()Ljava/lang/String;

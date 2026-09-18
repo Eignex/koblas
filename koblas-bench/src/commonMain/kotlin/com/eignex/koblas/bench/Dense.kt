@@ -149,7 +149,7 @@ internal fun denseWork(case: BenchCase, engine: KoblasEngine): CaseWork? {
             val a = Fixtures.matrix(if (right) n else m, if (right) n else m, 1); val b = Fixtures.matrix(m, n, 2)
             val c0 = Fixtures.matrix(m, n, 3); val c = Fixtures.matrix(m, n, 3)
             level23(engine, BlasOperation.Symm, listOf(a, b, c), "reset-and-arithmetic") {
-                c0.data.copyInto(c.data); engine.symm(alpha, a, b, beta, c, lower, right); c.data[0]
+                c0.values.copyInto(c.values); engine.symm(alpha, a, b, beta, c, lower, right); c.values[0]
             }
         }
         "gemmt" -> {
@@ -157,7 +157,7 @@ internal fun denseWork(case: BenchCase, engine: KoblasEngine): CaseWork? {
             val a = Fixtures.matrix(if (ta) k else n, if (ta) n else k, 1); val b = Fixtures.matrix(if (tb) n else k, if (tb) k else n, 2)
             val c0 = Fixtures.matrix(n, n, 3); val c = Fixtures.matrix(n, n, 3)
             level23(engine, BlasOperation.Gemmt, listOf(a, b, c), "reset-and-arithmetic") {
-                c0.data.copyInto(c.data); engine.gemmt(alpha, a, ta, b, tb, beta, c, lower); c.data[0]
+                c0.values.copyInto(c.values); engine.gemmt(alpha, a, ta, b, tb, beta, c, lower); c.values[0]
             }
         }
         "syrk", "syr2k" -> {
@@ -168,10 +168,10 @@ internal fun denseWork(case: BenchCase, engine: KoblasEngine): CaseWork? {
             val operation = if (single) BlasOperation.Syrk else BlasOperation.Syr2k
             val operands = if (single) listOf(a, c) else listOf(a, b, c)
             level23(engine, operation, operands, "reset-and-arithmetic") {
-                c0.data.copyInto(c.data)
+                c0.values.copyInto(c.values)
                 if (single) engine.syrk(alpha, a, trans, beta, c, lower)
                 else engine.syr2k(alpha, a, b, trans, beta, c, lower)
-                c.data[0]
+                c.values[0]
             }
         }
         "trsm", "trmm" -> triangularMatrixWork(case, engine)
@@ -199,7 +199,7 @@ private fun matrixUpdate(
     val original = Fixtures.matrix(rows, cols, 1); val target = Fixtures.matrix(rows, cols, 1)
     val x = Fixtures.vector(rows, 2); val y = Fixtures.vector(cols, 3)
     return level23(engine, operation, listOf(target), "reset-and-arithmetic") {
-        original.data.copyInto(target.data); run(target, x, y); target.data[0]
+        original.values.copyInto(target.values); run(target, x, y); target.values[0]
     }
 }
 
@@ -212,7 +212,7 @@ private fun symmetricUpdate(
     val original = Fixtures.matrix(size, size, 1); val target = Fixtures.matrix(size, size, 1)
     val x = Fixtures.vector(size, 2); val y = Fixtures.vector(size, 3)
     return level23(engine, operation, listOf(target), "reset-and-arithmetic") {
-        original.data.copyInto(target.data); run(target, x, y); target.data[0]
+        original.values.copyInto(target.values); run(target, x, y); target.values[0]
     }
 }
 
@@ -222,7 +222,7 @@ private fun gemmWork(case: BenchCase, engine: KoblasEngine): CaseWork? {
     val b = Fixtures.matrix(if (tb) n else k, if (tb) k else n, 2)
     val original = Fixtures.matrix(m, n, 3); val c = Fixtures.matrix(m, n, 3)
     return level23(engine, BlasOperation.Gemm, listOf(a, b, c), "reset-and-arithmetic") {
-        original.data.copyInto(c.data); engine.gemm(0.875, a, ta, b, tb, -0.25, c); c.data[0]
+        original.values.copyInto(c.values); engine.gemm(0.875, a, ta, b, tb, -0.25, c); c.values[0]
     }
 }
 
@@ -233,10 +233,10 @@ private fun triangularMatrixWork(case: BenchCase, engine: KoblasEngine): CaseWor
     val solve = case.operation == "trsm"
     val operation = if (solve) BlasOperation.Trsm else BlasOperation.Trmm
     return level23(engine, operation, listOf(triangle, b), "reset-and-arithmetic") {
-        original.data.copyInto(b.data)
+        original.values.copyInto(b.values)
         if (solve) engine.trsm(triangle, b, lower, trans, unit, right, 0.875)
         else engine.trmm(triangle, b, lower, trans, unit, right, 0.875)
-        b.data[0]
+        b.values[0]
     }
 }
 

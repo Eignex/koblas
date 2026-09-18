@@ -25,7 +25,7 @@ class JvmVendorBlasTest {
     private fun vector(size: Int, seed: Int) = DenseVector.wrap(values(size, seed))
 
     /** A destination the oracle can write while the vendor writes the original. */
-    private fun DenseMatrix.copy() = DenseMatrix.wrap(rows, cols, data.copyOf())
+    private fun DenseMatrix.copy() = DenseMatrix.wrap(rows, cols, values.copyOf())
 
     @Test
     fun `gemm over whole matrices agrees with the reference`() = withVendor { blas ->
@@ -37,7 +37,7 @@ class JvmVendorBlasTest {
 
         blas.gemm(0.75, a, false, b, false, -0.25, c)
 
-        assertAgreesWithReference(expected.data, c.data, "gemm")
+        assertAgreesWithReference(expected.values, c.values, "gemm")
     }
 
     @Test
@@ -53,7 +53,7 @@ class JvmVendorBlasTest {
 
                 blas.gemm(1.0, a, transposeA, b, transposeB, 0.5, c)
 
-                assertAgreesWithReference(expected.data, c.data, "gemm transA=$transposeA transB=$transposeB")
+                assertAgreesWithReference(expected.values, c.values, "gemm transA=$transposeA transB=$transposeB")
             }
         }
     }
@@ -68,7 +68,7 @@ class JvmVendorBlasTest {
 
         blas.gemm(1.0, a, false, b, false, 0.0, c)
 
-        assertAgreesWithReference(clean.data, c.data, "gemm beta zero")
+        assertAgreesWithReference(clean.values, c.values, "gemm beta zero")
     }
 
     @Test
@@ -89,12 +89,12 @@ class JvmVendorBlasTest {
             val a = matrix(4, 3, 14)
             val x = vector(if (transpose) 4 else 3, 15)
             val y = vector(if (transpose) 3 else 4, 16)
-            val expected = y.data.copyOf()
-            ReferenceBlas.gemv(0.5, a, x.data, 2.0, expected, transpose)
+            val expected = y.values.copyOf()
+            ReferenceBlas.gemv(0.5, a, x.values, 2.0, expected, transpose)
 
             blas.gemv(0.5, a, transpose, x, 2.0, y)
 
-            assertAgreesWithReference(expected, y.data, "gemv transA=$transpose")
+            assertAgreesWithReference(expected, y.values, "gemv transA=$transpose")
         }
     }
 
@@ -109,11 +109,11 @@ class JvmVendorBlasTest {
         val x = vector(order, 18)
         val y = DenseVector.zero(order)
         val expected = DoubleArray(order)
-        ReferenceBlas.symv(1.0, a, x.data, 0.0, expected)
+        ReferenceBlas.symv(1.0, a, x.values, 0.0, expected)
 
         blas.symv(1.0, a, MatrixStructure.SymmetricLower, x, 0.0, y)
 
-        assertAgreesWithReference(expected, y.data, "symv")
+        assertAgreesWithReference(expected, y.values, "symv")
     }
 
     @Test
@@ -129,7 +129,7 @@ class JvmVendorBlasTest {
 
         blas.trsv(a, MatrixStructure.UnitLower, false, x)
 
-        assertAgreesWithReference(expected, x.data, "trsv unit diagonal")
+        assertAgreesWithReference(expected, x.values, "trsv unit diagonal")
     }
 
     @Test
@@ -144,7 +144,7 @@ class JvmVendorBlasTest {
         blas.trsv(triangular, MatrixStructure.TriangularLower, false, x)
         blas.trmv(triangular, MatrixStructure.TriangularLower, false, x)
 
-        assertAgreesWithReference(original, x.data, "trsv then trmv")
+        assertAgreesWithReference(original, x.values, "trsv then trmv")
     }
 
     @Test
@@ -158,7 +158,7 @@ class JvmVendorBlasTest {
 
         blas.syrk(1.0, a, false, 0.0, c, MatrixStructure.SymmetricLower)
 
-        assertAgreesWithReference(expected.data, c.data, "syrk")
+        assertAgreesWithReference(expected.values, c.values, "syrk")
     }
 
     @Test
@@ -237,7 +237,7 @@ class JvmVendorBlasTest {
 
         blas.gemmt(1.0, a, false, b, false, 0.0, c, MatrixStructure.SymmetricLower)
 
-        assertAgreesWithReference(expected.data, c.data, "gemmt")
+        assertAgreesWithReference(expected.values, c.values, "gemmt")
     }
 
     @Test
@@ -253,7 +253,7 @@ class JvmVendorBlasTest {
 
             blas.syr2k(1.25, a, b, transpose, 0.5, c, MatrixStructure.SymmetricLower)
 
-            assertAgreesWithReference(expected.data, c.data, "syr2k transA=$transpose")
+            assertAgreesWithReference(expected.values, c.values, "syr2k transA=$transpose")
         }
     }
 
@@ -299,7 +299,7 @@ class JvmVendorBlasTest {
 
         blas.syr(1.5, x, a, MatrixStructure.SymmetricLower)
 
-        assertAgreesWithReference(expected.data, a.data, "syr")
+        assertAgreesWithReference(expected.values, a.values, "syr")
     }
 
     @Test

@@ -47,7 +47,7 @@ class MatrixOpsTest {
                 doubleArrayOf(3.0, 0.0, -10.0, 0.25),
         )
         for ((x, expected) in vectors) {
-            assertClose(expected, (dense * x).data, "product ${x::class.simpleName}")
+            assertClose(expected, (dense * x).values, "product ${x::class.simpleName}")
             val out = DoubleArray(rows)
             dense.gemvInto(x, out)
             assertClose(expected, out, "gemvInto ${x::class.simpleName}")
@@ -85,7 +85,7 @@ class MatrixOpsTest {
         val xs = listOf(DenseVector.of(values), StridedVector(values, 0, n, 1))
         for (lower in listOf(true, false)) {
             // Only the named triangle may be read, so the other one holds NaN: any read poisons the result.
-            val poisoned = DenseMatrix.wrap(n, n, full.data.copyOf())
+            val poisoned = DenseMatrix.wrap(n, n, full.values.copyOf())
             for (j in 0 until n) {
                 for (i in 0 until n) {
                     val unread = if (lower) i < j else i > j
@@ -95,7 +95,7 @@ class MatrixOpsTest {
             for (x in xs) {
                 val out = DoubleArray(n)
                 poisoned.symvInto(x, out, lower)
-                assertClose((full * x).data, out, "symvInto lower=$lower ${x::class.simpleName}")
+                assertClose((full * x).values, out, "symvInto lower=$lower ${x::class.simpleName}")
             }
         }
     }
@@ -133,7 +133,7 @@ class MatrixOpsTest {
         val probe = randomVector(n, rng)
         val fromSyr = DoubleArray(n)
         viaSyr.symvInto(DenseVector.of(probe), fromSyr)
-        assertClose((viaGer * DenseVector.of(probe)).data, fromSyr, "syr-maintained symv")
+        assertClose((viaGer * DenseVector.of(probe)).values, fromSyr, "syr-maintained symv")
     }
 
     @Test
@@ -295,7 +295,7 @@ class MatrixOpsTest {
         // Column-major, so the cleared entries are the leading run of each column after the first.
         assertClose(
             doubleArrayOf(1.0, 4.0, 7.0, 0.0, 5.0, 8.0, 0.0, 0.0, 9.0),
-            M.data,
+            M.values,
             "backing buffer",
         )
     }
@@ -315,7 +315,7 @@ class MatrixOpsTest {
     @Test
     fun `masking a tall matrix keeps it intact below the diagonal`() {
         val tall = DenseMatrix.wrap(4, 2, DoubleArray(8) { it + 1.0 })
-        val before = tall.data.copyOf()
+        val before = tall.values.copyOf()
         tall.maskTo(MatrixStructure.TriangularLower)
         // Only (0,1) sits above the diagonal here, so every other entry survives.
         assertEquals(0.0, tall[0, 1], "(0,1)")

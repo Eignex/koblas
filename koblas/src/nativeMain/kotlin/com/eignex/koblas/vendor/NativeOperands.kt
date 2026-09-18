@@ -61,7 +61,7 @@ internal class PinnedVector(
 
 /** Pins [vector] for the call. Negative strides pass the low end with the sign kept on the increment. */
 internal fun Pins.stage(vector: DenseVector): PinnedVector =
-    PinnedVector(pointer(vector.data, baseIndex(vector)), vector.stride)
+    PinnedVector(pointer(vector.values, baseIndex(vector)), vector.stride)
 
 /** A matrix operand reaching BLAS in place, as the whole contiguous column-major block. */
 internal class PinnedMatrix(
@@ -73,7 +73,7 @@ internal class PinnedMatrix(
 
 /** Pins [matrix] for the call. */
 internal fun Pins.stage(matrix: DenseMatrix): PinnedMatrix =
-    PinnedMatrix(pointer(matrix.data, 0), maxOf(1, matrix.rows))
+    PinnedMatrix(pointer(matrix.values, 0), maxOf(1, matrix.rows))
 
 /**
  * The lowest storage index the vector touches, which is the pointer BLAS is handed.

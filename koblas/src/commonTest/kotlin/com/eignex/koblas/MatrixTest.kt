@@ -37,9 +37,9 @@ class MatrixTest {
 
     @Test
     fun `DenseMatrix wrap aliases the backing array without copying`() {
-        val data = doubleArrayOf(1.0, 2.0, 3.0, 4.0)
-        val m = DenseMatrix.wrap(2, 2, data)
-        data[0] = 99.0 // mutating the source is visible through the wrapped matrix
+        val values = doubleArrayOf(1.0, 2.0, 3.0, 4.0)
+        val m = DenseMatrix.wrap(2, 2, values)
+        values[0] = 99.0 // mutating the source is visible through the wrapped matrix
         assertEquals(99.0, m[0, 0], 0.0)
     }
 
@@ -91,8 +91,8 @@ class MatrixTest {
     @Test
     fun `column and row read the two axes of the same matrix`() {
         val m = DenseMatrix.ofRows(arrayOf(doubleArrayOf(1.0, 2.0, 3.0), doubleArrayOf(4.0, 5.0, 6.0)))
-        assertTrue(doubleArrayOf(2.0, 5.0).contentEquals(m.column(1).data), "column 1")
-        assertTrue(doubleArrayOf(4.0, 5.0, 6.0).contentEquals(m.row(1).data), "row 1")
+        assertTrue(doubleArrayOf(2.0, 5.0).contentEquals(m.column(1).values), "column 1")
+        assertTrue(doubleArrayOf(4.0, 5.0, 6.0).contentEquals(m.row(1).values), "row 1")
         for (j in 0 until m.cols) {
             val col = m.column(j)
             for (i in 0 until m.rows) assertEquals(m[i, j], col[i], "column $j entry $i")
@@ -129,7 +129,7 @@ class MatrixTest {
         assertEquals(2.0, m[1, 0])
         assertEquals(3.0, m[0, 1])
         assertEquals(4.0, m[1, 1])
-        assertTrue(doubleArrayOf(1.0, 2.0, 3.0, 4.0).contentEquals(m.data))
+        assertTrue(doubleArrayOf(1.0, 2.0, 3.0, 4.0).contentEquals(m.values))
     }
 
     @Test
@@ -159,7 +159,7 @@ class MatrixTest {
         val m = DenseMatrix.zero(2, 3)
         assertEquals(2, m.rows)
         assertEquals(3, m.cols)
-        assertTrue(m.data.all { it == 0.0 })
+        assertTrue(m.values.all { it == 0.0 })
         val square = DenseMatrix.zero(2)
         assertEquals(2, square.rows)
         assertEquals(2, square.cols)

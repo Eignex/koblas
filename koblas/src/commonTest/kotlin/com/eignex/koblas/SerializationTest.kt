@@ -31,7 +31,7 @@ class SerializationTest {
         assertEquals(2, obj.getValue("cols").jsonPrimitive.int)
         assertEquals(
             listOf(1.0, 3.0, 2.0, 4.0),
-            obj.getValue("data").jsonArray.map { it.jsonPrimitive.double },
+            obj.getValue("values").jsonArray.map { it.jsonPrimitive.double },
         )
     }
 
@@ -70,14 +70,17 @@ class SerializationTest {
     fun `VectorStorage round-trips polymorphically preserving dense and sparse types`() {
         val dense: VectorStorage = DenseVector.of(doubleArrayOf(1.0, 2.0))
         val sparse: VectorStorage = SparseVector.of(4, intArrayOf(0, 3), doubleArrayOf(1.0, 2.0))
-        val backDense = json.decodeFromString(
-            VectorStorage.serializer(),
-            json.encodeToString(VectorStorage.serializer(), dense),
-        )
-        val backSparse = json.decodeFromString(
-            VectorStorage.serializer(),
-            json.encodeToString(VectorStorage.serializer(), sparse),
-        )
+        val encodedDense = json.encodeToString(VectorStorage.serializer(), dense)
+        val encodedSparse = json.encodeToString(VectorStorage.serializer(), sparse)
+        val backDense = json.decodeFromString(VectorStorage.serializer(), encodedDense)
+        val backSparse = json.decodeFromString(VectorStorage.serializer(), encodedSparse)
+
+        // The serial name of each storage is its class name, as it is for the matrix storages. Asserted on
+        // both sides because it was true of only one of them: the contiguous vector encoded as the name of
+        // the interface it implements, which is a type a reader of the payload cannot decode into.
+        for ((storage, encoded) in listOf(dense to encodedDense, sparse to encodedSparse)) {
+            assertTrue(storage::class.simpleName!! in encoded, "expected a type discriminator in $encoded")
+        }
         assertTrue(backDense is DenseVector)
         assertTrue(backSparse is SparseVector)
         assertEquals(dense, backDense)
@@ -104,8 +107,8 @@ class SerializationTest {
     fun `SparseMatrix encodes its structure rather than a dense grid`() {
         val a = SparseMatrix.ofColumns(2, 2, listOf(listOf(1 to 5.0), emptyList()))
         val encoded = json.encodeToString(SparseMatrix.serializer(), a)
-        assertTrue(encoded.contains("colPtr"), "expected the CSC arrays in $encoded")
-        assertTrue(encoded.contains("rowIdx"), "expected the CSC arrays in $encoded")
+        assertTrue(encoded.contains("colPointers"), "expected the CSC arrays in $encoded")
+        assertTrue(encoded.contains("rowIndices"), "expected the CSC arrays in $encoded")
         assertTrue("0.0" !in encoded, "a structural zero leaked into the payload: $encoded")
     }
 

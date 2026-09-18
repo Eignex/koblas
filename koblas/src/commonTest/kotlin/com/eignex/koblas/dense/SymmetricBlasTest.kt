@@ -135,13 +135,13 @@ class SymmetricBlasTest {
                 val a = DenseMatrix.diagonal(if (right) 2 else 3)
                 val b = DenseMatrix(2, 3)
                 val c = DenseMatrix(2, 3)
-                c.data.fill(7.0)
+                c.values.fill(7.0)
                 assertFailsWith<DimensionMismatch>("symm right=$right beta=$beta should reject these shapes") {
                     koblas.symm(1.0, a, b, beta, c, lower = true, right = right)
                 }
                 assertTrue(
-                    c.data.all { it == 7.0 },
-                    "symm right=$right beta=$beta scaled C before rejecting the call: ${c.data.toList()}",
+                    c.values.all { it == 7.0 },
+                    "symm right=$right beta=$beta scaled C before rejecting the call: ${c.values.toList()}",
                 )
             }
         }
@@ -217,7 +217,7 @@ class SymmetricBlasTest {
                 val a = if (transpose) randomMatrix(k, n, rng) else randomMatrix(n, k, rng)
                 val b = if (transpose) randomMatrix(k, n, rng) else randomMatrix(n, k, rng)
                 val before = randomMatrix(n, n, rng)
-                val c = DenseMatrix.wrap(n, n, before.data.copyOf())
+                val c = DenseMatrix.wrap(n, n, before.values.copyOf())
 
                 blas.syr2k(0.5, a, b, transpose, beta = 2.0, c = c, lower = lower)
 

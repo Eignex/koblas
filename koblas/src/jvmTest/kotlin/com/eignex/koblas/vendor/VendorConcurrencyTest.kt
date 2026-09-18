@@ -84,7 +84,7 @@ class VendorConcurrencyTest {
                     }
                 }
                 for (future in pool.invokeAll(work)) {
-                    assertAgreesWithReference(expected.data, future.get(), "concurrent gemm")
+                    assertAgreesWithReference(expected.values, future.get(), "concurrent gemm")
                 }
             } finally {
                 pool.shutdownNow()

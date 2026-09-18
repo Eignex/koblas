@@ -31,37 +31,37 @@ internal fun replaceColumns(a: SparseMatrix, replacements: Map<Int, SparseVector
         }
         entering[column] = vector
     }
-    val colPtr = IntArray(a.cols + 1)
+    val colPointers = IntArray(a.cols + 1)
     for (j in 0 until a.cols) {
         var entries = 0
         val entering = entering[j]
         if (entering == null) {
-            entries = a.colPtr[j + 1] - a.colPtr[j]
+            entries = a.colPointers[j + 1] - a.colPointers[j]
         } else {
             entering.forEachStored { _, _ -> entries++ }
         }
-        colPtr[j + 1] = colPtr[j] + entries
+        colPointers[j + 1] = colPointers[j] + entries
     }
-    val rowIdx = IntArray(colPtr[a.cols])
-    val values = DoubleArray(colPtr[a.cols])
+    val rowIndices = IntArray(colPointers[a.cols])
+    val values = DoubleArray(colPointers[a.cols])
     var at = 0
     for (j in 0 until a.cols) {
         val entering = entering[j]
         if (entering == null) {
             a.forEachInColumn(j) { i, v ->
-                rowIdx[at] = i
+                rowIndices[at] = i
                 values[at] = v
                 at++
             }
         } else {
             entering.forEachStored { i, v ->
-                rowIdx[at] = i
+                rowIndices[at] = i
                 values[at] = v
                 at++
             }
         }
     }
-    return SparseMatrix.wrap(a.rows, a.cols, colPtr, rowIdx, values)
+    return SparseMatrix.wrap(a.rows, a.cols, colPointers, rowIndices, values)
 }
 
 /**

@@ -248,12 +248,12 @@ internal class NativeVendorBlas private constructor(
 
     override fun dot(x: DenseVector, y: DenseVector): Double {
         requireSameLength(x, y, "dot")
-        return rawDot(x.data, x.offset, x.stride, y.data, y.offset, y.stride, x.size)
+        return rawDot(x.values, x.offset, x.stride, y.values, y.offset, y.stride, x.size)
     }
 
-    override fun nrm2(x: DenseVector): Double = rawNrm2(x.data, x.offset, x.stride, x.size)
+    override fun nrm2(x: DenseVector): Double = rawNrm2(x.values, x.offset, x.stride, x.size)
 
-    override fun asum(x: DenseVector): Double = rawAsum(x.data, x.offset, x.stride, x.size)
+    override fun asum(x: DenseVector): Double = rawAsum(x.values, x.offset, x.stride, x.size)
 
     /*
      * The raw Level 1 surface, which is what the engine's kernels call, and which the [DenseVector] methods
@@ -404,20 +404,20 @@ internal class NativeVendorBlas private constructor(
         }
     }
 
-    override fun iamax(x: DenseVector): Int = rawIamax(x.data, x.offset, x.stride, x.size)
+    override fun iamax(x: DenseVector): Int = rawIamax(x.values, x.offset, x.stride, x.size)
 
     override fun axpy(alpha: Double, x: DenseVector, y: DenseVector) {
         requireSameLength(x, y, "axpy")
-        rawAxpy(alpha, x.data, x.offset, x.stride, y.data, y.offset, y.stride, x.size)
+        rawAxpy(alpha, x.values, x.offset, x.stride, y.values, y.offset, y.stride, x.size)
     }
 
-    override fun scal(alpha: Double, x: DenseVector) = rawScal(alpha, x.data, x.offset, x.stride, x.size)
+    override fun scal(alpha: Double, x: DenseVector) = rawScal(alpha, x.values, x.offset, x.stride, x.size)
 
     override fun copy(x: DenseVector, y: DenseVector) = twoVector(x, y, BlasOperation.Copy, "copy")
 
     override fun swap(x: DenseVector, y: DenseVector) {
         requireSameLength(x, y, "swap")
-        rawSwap(x.data, x.offset, x.stride, y.data, y.offset, y.stride, x.size)
+        rawSwap(x.values, x.offset, x.stride, y.values, y.offset, y.stride, x.size)
     }
 
     private fun twoVector(x: DenseVector, y: DenseVector, operation: BlasOperation, what: String) {
@@ -436,7 +436,7 @@ internal class NativeVendorBlas private constructor(
 
     override fun rot(x: DenseVector, y: DenseVector, c: Double, s: Double) {
         requireSameLength(x, y, "rot")
-        rawRot(x.data, x.offset, x.stride, y.data, y.offset, y.stride, x.size, c, s)
+        rawRot(x.values, x.offset, x.stride, y.values, y.offset, y.stride, x.size, c, s)
     }
 
     // Level 2. One matrix operand, passed in place with its own row count as the leading dimension.

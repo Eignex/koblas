@@ -32,7 +32,7 @@ public fun rot(x: StridedVector, y: StridedVector, c: Double, s: Double) {
         for (i in 0 until x.size) x[i] = snapshotX[i]
         for (i in 0 until y.size) y[i] = snapshotY[i]
     } else if (x.stride == 1 && y.stride == 1) {
-        koblas.vectorKernels.rot(x.data, x.offset, y.data, y.offset, x.size, c, s)
+        koblas.vectorKernels.rot(x.values, x.offset, y.values, y.offset, x.size, c, s)
     } else {
         for (i in 0 until x.size) {
             val xi = x[i]

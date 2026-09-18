@@ -202,5 +202,5 @@ internal fun requireGemmtOperands(
  * silent wrong answer, and it happens before anything is written.
  */
 internal fun requireDistinctDestination(c: DenseMatrix, a: DenseMatrix, b: DenseMatrix?, what: String) {
-    require(c.data !== a.data && c.data !== b?.data) { "$what: destination shares a buffer with an input" }
+    require(c.values !== a.values && c.values !== b?.values) { "$what: destination shares a buffer with an input" }
 }

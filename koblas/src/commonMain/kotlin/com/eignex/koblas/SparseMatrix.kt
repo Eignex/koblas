@@ -6,18 +6,19 @@ import kotlinx.serialization.Transient
 import kotlin.jvm.JvmStatic
 
 /**
- * Compressed-sparse-column form: column j occupies colPtr(j) until colPtr(j + 1) of [rowIdx] and [values],
- * rows strictly ascending. A stored zero is preserved, and a 64-bit-index host library needs a widening copy.
+ * Compressed-sparse-column form: column j occupies colPointers(j) until colPointers(j + 1) of
+ * [rowIndices] and [values], rows strictly ascending. A stored zero is preserved, and a 64-bit-index
+ * host library needs a widening copy.
  *
  * @property rows the number of rows.
  * @property cols the number of columns.
- * Use [copyColumnPointers], [copyRowIndices], or [forEachInColumn] for safe structural access. [colPtr] and
- * [rowIdx] are live zero-copy escape hatches for specialized kernels and require [UnsafeKoblasApi]; mutating
+ * Use [copyColumnPointers], [copyRowIndices], or [forEachInColumn] for safe structural access. [colPointers] and
+ * [rowIndices] are live zero-copy escape hatches for specialized kernels and require [UnsafeKoblasApi]; mutating
  * them can invalidate the CSC structure. [values] remains live so coefficients can be updated without
  * rebuilding the pattern; do not use the matrix as a hash-map key while mutating it.
  *
- * @property colPtr live column start offsets, length `cols + 1`; do not mutate.
- * @property rowIdx live row index of each stored entry, length `values.size`; do not mutate.
+ * @property colPointers live column start offsets, length `cols + 1`; do not mutate.
+ * @property rowIndices live row index of each stored entry, length `values.size`; do not mutate.
  * @property values the stored values, parallel to the row indices.
  */
 @Serializable
@@ -25,33 +26,35 @@ import kotlin.jvm.JvmStatic
 public class SparseMatrix internal constructor(
     override val rows: Int,
     override val cols: Int,
-    @property:UnsafeKoblasApi public val colPtr: IntArray,
-    @property:UnsafeKoblasApi public val rowIdx: IntArray,
+    @property:UnsafeKoblasApi public val colPointers: IntArray,
+    @property:UnsafeKoblasApi public val rowIndices: IntArray,
     public val values: DoubleArray,
     @Transient private val trustedPattern: Boolean = false,
 ) : MatrixStorage {
     init {
         requireNonNegativeShape(rows, cols)
-        requireShape(colPtr.size.toLong() == cols.toLong() + 1) {
-            "colPtr length ${colPtr.size} != cols+1 ${cols.toLong() + 1}"
+        requireShape(colPointers.size.toLong() == cols.toLong() + 1) {
+            "colPointers length ${colPointers.size} != cols+1 ${cols.toLong() + 1}"
         }
-        requireShape(rowIdx.size == values.size) { "rowIdx/values length mismatch: ${rowIdx.size} vs ${values.size}" }
-        require(colPtr[0] == 0) { "colPtr[0] ${colPtr[0]} != 0" }
-        require(colPtr[cols] == values.size) { "colPtr[cols] ${colPtr[cols]} != nnz ${values.size}" }
-        for (j in 0 until cols) require(colPtr[j] <= colPtr[j + 1]) { "colPtr not monotonic at $j" }
-        // The two passes over rowIdx, which is where an O(nnz) construction spends its checking. A producer
+        requireShape(rowIndices.size == values.size) {
+            "rowIndices/values length mismatch: ${rowIndices.size} vs ${values.size}"
+        }
+        require(colPointers[0] == 0) { "colPointers[0] ${colPointers[0]} != 0" }
+        require(colPointers[cols] == values.size) { "colPointers[cols] ${colPointers[cols]} != nnz ${values.size}" }
+        for (j in 0 until cols) require(colPointers[j] <= colPointers[j + 1]) { "colPointers not monotonic at $j" }
+        // The two passes over rowIndices, which is where an O(nnz) construction spends its checking. A producer
         // deriving this from a matrix that already holds the invariant skips them through [wrapTrusted];
         // everything reaching koblas from outside, a native library above all, still comes through here.
         if (!trustedPattern) {
-            for (k in rowIdx.indices) {
-                requireIndex(rowIdx[k] in 0 until rows) { "rowIdx[$k]=${rowIdx[k]} out of [0,$rows)" }
+            for (k in rowIndices.indices) {
+                requireIndex(rowIndices[k] in 0 until rows) { "rowIndices[$k]=${rowIndices[k]} out of [0,$rows)" }
             }
             // Rows must ascend strictly, or the binary search in get reports a stored entry as absent.
             for (j in 0 until cols) {
-                for (k in colPtr[j] + 1 until colPtr[j + 1]) {
-                    require(rowIdx[k - 1] < rowIdx[k]) {
+                for (k in colPointers[j] + 1 until colPointers[j + 1]) {
+                    require(rowIndices[k - 1] < rowIndices[k]) {
                         "rows must be strictly ascending within a column; column $j has " +
-                            "${rowIdx[k - 1]} then ${rowIdx[k]}"
+                            "${rowIndices[k - 1]} then ${rowIndices[k]}"
                     }
                 }
             }
@@ -65,7 +68,7 @@ public class SparseMatrix internal constructor(
     @kotlin.jvm.JvmSynthetic
     public inline fun forEachInColumn(j: Int, action: (row: Int, value: Double) -> Unit) {
         if (j !in 0 until cols) throw IndexOutOfBoundsException("index $j outside [0,$cols)")
-        for (k in colPtr[j] until colPtr[j + 1]) action(rowIdx[k], values[k])
+        for (k in colPointers[j] until colPointers[j + 1]) action(rowIndices[k], values[k])
     }
 
     /**
@@ -74,11 +77,11 @@ public class SparseMatrix internal constructor(
      */
     override fun get(i: Int, j: Int): Double {
         requireInBounds(i, j, rows, cols)
-        var lo = colPtr[j]
-        var hi = colPtr[j + 1] - 1
+        var lo = colPointers[j]
+        var hi = colPointers[j + 1] - 1
         while (lo <= hi) {
             val mid = (lo + hi) ushr 1
-            val row = rowIdx[mid]
+            val row = rowIndices[mid]
             when {
                 row < i -> lo = mid + 1
                 row > i -> hi = mid - 1
@@ -96,10 +99,10 @@ public class SparseMatrix internal constructor(
     }
 
     /** A copy of the CSC column start offsets, of length `cols + 1`. */
-    public fun copyColumnPointers(): IntArray = colPtr.copyOf()
+    public fun copyColumnPointers(): IntArray = colPointers.copyOf()
 
     /** A copy of the stored row indices, parallel to [values]. */
-    public fun copyRowIndices(): IntArray = rowIdx.copyOf()
+    public fun copyRowIndices(): IntArray = rowIndices.copyOf()
 
     /**
      * Structural equality over the shape and the CSC arrays, so two matrices differing only in which
@@ -109,15 +112,15 @@ public class SparseMatrix internal constructor(
         if (this === other) return true
         if (other !is SparseMatrix) return false
         return rows == other.rows && cols == other.cols &&
-            colPtr.contentEquals(other.colPtr) &&
-            rowIdx.contentEquals(other.rowIdx) &&
+            colPointers.contentEquals(other.colPointers) &&
+            rowIndices.contentEquals(other.rowIndices) &&
             values.contentEquals(other.values)
     }
 
     override fun hashCode(): Int {
         var h = rows * 31 + cols
-        h = 31 * h + colPtr.contentHashCode()
-        h = 31 * h + rowIdx.contentHashCode()
+        h = 31 * h + colPointers.contentHashCode()
+        h = 31 * h + rowIndices.contentHashCode()
         h = 31 * h + values.contentHashCode()
         return h
     }
@@ -139,63 +142,63 @@ public class SparseMatrix internal constructor(
             requireShape(nnzLong <= Int.MAX_VALUE) { "stored entry count $nnzLong exceeds Int capacity" }
             val nnz = nnzLong.toInt()
             // Flattened into triplets, so nothing boxes beyond the pairs the caller already holds.
-            val rowIdx = IntArray(nnz)
-            val colIdx = IntArray(nnz)
+            val rowIndices = IntArray(nnz)
+            val colIndices = IntArray(nnz)
             val values = DoubleArray(nnz)
             var k = 0
             for (j in 0 until cols) {
                 for ((i, v) in columns[j]) {
-                    rowIdx[k] = i
-                    colIdx[k] = j
+                    rowIndices[k] = i
+                    colIndices[k] = j
                     values[k] = v
                     k++
                 }
             }
-            return ofTriplets(rows, cols, rowIdx, colIdx, values)
+            return ofTriplets(rows, cols, rowIndices, colIndices, values)
         }
 
         /**
          * Builds a CSC matrix from parallel coordinate (triplet) arrays, where entry k is values(k) at
-         * (rowIdx(k), colIdx(k)). Any order, duplicate positions summed, inputs copied. `O(nnz + rows + cols)`.
+         * (rowIndices(k), colIndices(k)). Any order, duplicate positions summed, inputs copied. `O(nnz + rows + cols)`.
          */
         @JvmStatic
         public fun ofTriplets(
             rows: Int,
             cols: Int,
-            rowIdx: IntArray,
-            colIdx: IntArray,
+            rowIndices: IntArray,
+            colIndices: IntArray,
             values: DoubleArray,
         ): SparseMatrix {
             requireNonNegativeShape(rows, cols)
-            requireShape(rowIdx.size == colIdx.size && colIdx.size == values.size) {
-                "rowIdx/colIdx/values must align: ${rowIdx.size}, ${colIdx.size}, ${values.size}"
+            requireShape(rowIndices.size == colIndices.size && colIndices.size == values.size) {
+                "rowIndices/colIndices/values must align: ${rowIndices.size}, ${colIndices.size}, ${values.size}"
             }
             val nnz = values.size
             for (k in 0 until nnz) {
-                requireIndex(rowIdx[k] in 0 until rows) { "rowIdx[$k]=${rowIdx[k]} out of [0,$rows)" }
-                requireIndex(colIdx[k] in 0 until cols) { "colIdx[$k]=${colIdx[k]} out of [0,$cols)" }
+                requireIndex(rowIndices[k] in 0 until rows) { "rowIndices[$k]=${rowIndices[k]} out of [0,$rows)" }
+                requireIndex(colIndices[k] in 0 until cols) { "colIndices[$k]=${colIndices[k]} out of [0,$cols)" }
             }
 
             // Group by row, so that rowStart(i) is where row i's entries begin once scattered.
             val rowStart = IntArray(rows + 1)
-            for (k in 0 until nnz) rowStart[rowIdx[k] + 1]++
+            for (k in 0 until nnz) rowStart[rowIndices[k] + 1]++
             for (i in 0 until rows) rowStart[i + 1] += rowStart[i]
             val byRowCol = IntArray(nnz)
             val byRowVal = DoubleArray(nnz)
             val rowCursor = rowStart.copyOf()
             for (k in 0 until nnz) {
-                val p = rowCursor[rowIdx[k]]++
-                byRowCol[p] = colIdx[k]
+                val p = rowCursor[rowIndices[k]]++
+                byRowCol[p] = colIndices[k]
                 byRowVal[p] = values[k]
             }
 
             // Then by column, visiting rows in ascending order, so each column comes out ascending by row.
-            val colPtr = IntArray(cols + 1)
-            for (k in 0 until nnz) colPtr[byRowCol[k] + 1]++
-            for (j in 0 until cols) colPtr[j + 1] += colPtr[j]
+            val colPointers = IntArray(cols + 1)
+            for (k in 0 until nnz) colPointers[byRowCol[k] + 1]++
+            for (j in 0 until cols) colPointers[j + 1] += colPointers[j]
             val outRow = IntArray(nnz)
             val outVal = DoubleArray(nnz)
-            val colCursor = colPtr.copyOf()
+            val colCursor = colPointers.copyOf()
             for (i in 0 until rows) {
                 for (k in rowStart[i] until rowStart[i + 1]) {
                     val p = colCursor[byRowCol[k]]++
@@ -209,12 +212,12 @@ public class SparseMatrix internal constructor(
             var n = 0
             for (j in 0 until cols) {
                 outPtr[j] = n
-                var k = colPtr[j]
-                while (k < colPtr[j + 1]) {
+                var k = colPointers[j]
+                while (k < colPointers[j + 1]) {
                     val row = outRow[k]
                     var sum = outVal[k]
                     k++
-                    while (k < colPtr[j + 1] && outRow[k] == row) {
+                    while (k < colPointers[j + 1] && outRow[k] == row) {
                         sum += outVal[k]
                         k++
                     }
@@ -233,11 +236,16 @@ public class SparseMatrix internal constructor(
          * structural arrays cannot be recovered for mutation afterwards.
          */
         @JvmStatic
-        public fun wrap(rows: Int, cols: Int, colPtr: IntArray, rowIdx: IntArray, values: DoubleArray): SparseMatrix =
-            SparseMatrix(rows, cols, colPtr, rowIdx, values)
+        public fun wrap(
+            rows: Int,
+            cols: Int,
+            colPointers: IntArray,
+            rowIndices: IntArray,
+            values: DoubleArray,
+        ): SparseMatrix = SparseMatrix(rows, cols, colPointers, rowIndices, values)
 
         /**
-         * The same without the two passes over [rowIdx], for a producer whose output holds the pattern
+         * The same without the two passes over [rowIndices], for a producer whose output holds the pattern
          * invariant by construction.
          *
          * Only for arrays derived from a matrix that already holds it: a column copied from one, or a
@@ -247,9 +255,9 @@ public class SparseMatrix internal constructor(
         internal fun wrapTrusted(
             rows: Int,
             cols: Int,
-            colPtr: IntArray,
-            rowIdx: IntArray,
+            colPointers: IntArray,
+            rowIndices: IntArray,
             values: DoubleArray,
-        ): SparseMatrix = SparseMatrix(rows, cols, colPtr, rowIdx, values, trustedPattern = true)
+        ): SparseMatrix = SparseMatrix(rows, cols, colPointers, rowIndices, values, trustedPattern = true)
     }
 }
