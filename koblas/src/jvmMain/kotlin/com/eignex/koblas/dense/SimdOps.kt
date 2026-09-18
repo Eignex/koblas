@@ -22,16 +22,12 @@ internal object SimdOps {
      * times its throughput, so a single chain leaves most of the unit idle on a long run. Four independent
      * chains keep it fed, which is what the long-run arm below runs.
      *
-     * The product and the sum are separate operations rather than one fused multiply-add. BLAS requires the
-     * multiplication to round before the addition, which a fused one does not do, so the two are different
-     * results and only this one is the documented answer. Selecting between them per machine is therefore not
-     * open either, however the timings come out: it would make the result a property of the host.
-     *
-     * The same rounding rule is why the fused form is not merely a little slower where the hardware lacks the
-     * instruction. Rounding once cannot be emulated by a multiply and an add, which round twice, so the Vector
-     * API's fallback computes the product exactly. It is a Math.fma call per lane, and that call builds three
-     * BigDecimals and multiplies them at unbounded precision, which is a thousand times the scalar loop the
-     * kernel exists to beat.
+     * The product and the sum are separate operations rather than one fused multiply-add, which the Vector
+     * API offers everywhere but has an instruction for only on some machines. Where there is none the
+     * fallback cannot be a multiply and an add, since those round twice and a fused one rounds once, so it
+     * computes the product exactly instead: a Math.fma call per lane, building three BigDecimals and
+     * multiplying them at unbounded precision. That is a thousand times the scalar loop this kernel exists to
+     * beat, and nothing at the call site says which machines will take it.
      *
      * Two functions rather than one branching body so the short-length arm stays small enough for the JIT
      * to inline into its callers, which is what the four accumulators and the extra loop would cost it.
