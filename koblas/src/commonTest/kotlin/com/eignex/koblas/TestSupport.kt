@@ -52,7 +52,7 @@ internal fun assertClose(
         expected.rows == actual.rows && expected.cols == actual.cols,
         "$context: shape ${actual.rows}x${actual.cols}, expected ${expected.rows}x${expected.cols}",
     )
-    assertClose(expected.data, actual.data, context, tolerance)
+    assertClose(expected.values, actual.values, context, tolerance)
 }
 
 internal fun randomVector(n: Int, rng: Random): DoubleArray = DoubleArray(n) { rng.nextDouble(-1.0, 1.0) }
@@ -64,8 +64,8 @@ internal fun randomMatrix(rows: Int, cols: Int, rng: Random): DenseMatrix =
 internal fun sparseStorageExample(): SparseMatrix = SparseMatrix.ofTriplets(
     rows = 3,
     cols = 4,
-    rowIdx = intArrayOf(0, 2, 1, 0, 2),
-    colIdx = intArrayOf(0, 0, 1, 3, 3),
+    rowIndices = intArrayOf(0, 2, 1, 0, 2),
+    colIndices = intArrayOf(0, 0, 1, 3, 3),
     values = doubleArrayOf(1.0, -2.0, 3.0, 0.0, -4.0),
 )
 

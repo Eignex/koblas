@@ -11,7 +11,7 @@ class SparseMatrixTest {
 
     fun `ofColumns sums duplicate entries and sorts rows`() {
         val a = SparseMatrix.ofColumns(3, 1, listOf(listOf(2 to 1.0, 0 to 2.0, 2 to 3.0)))
-        assertTrue(intArrayOf(0, 2).contentEquals(a.rowIdx)) // ascending
+        assertTrue(intArrayOf(0, 2).contentEquals(a.rowIndices)) // ascending
         assertTrue(doubleArrayOf(2.0, 4.0).contentEquals(a.values)) // 1.0 + 3.0 summed at row 2
     }
 
@@ -100,8 +100,8 @@ class SparseMatrixTest {
         val viaTriplets = SparseMatrix.ofTriplets(
             rows = 2,
             cols = 3,
-            rowIdx = intArrayOf(0, 1, 0),
-            colIdx = intArrayOf(0, 1, 2),
+            rowIndices = intArrayOf(0, 1, 0),
+            colIndices = intArrayOf(0, 1, 2),
             values = doubleArrayOf(1.0, 3.0, 2.0),
         )
         assertEquals(viaTriplets, viaColumns)
@@ -112,8 +112,8 @@ class SparseMatrixTest {
         val a = SparseMatrix.ofTriplets(
             rows = 3,
             cols = 3,
-            rowIdx = intArrayOf(2, 1, 0, 1, 2),
-            colIdx = intArrayOf(2, 1, 0, 1, 0),
+            rowIndices = intArrayOf(2, 1, 0, 1, 2),
+            colIndices = intArrayOf(2, 1, 0, 1, 0),
             values = doubleArrayOf(9.0, 2.0, 1.0, 3.0, 7.0),
         )
         assertEquals(1.0, a[0, 0])
@@ -123,8 +123,8 @@ class SparseMatrixTest {
         assertEquals(0.0, a[0, 1])
         assertEquals(4, a.nnz, "the duplicate should be merged, not stored twice")
         for (j in 0 until a.cols) {
-            for (k in a.colPtr[j] + 1 until a.colPtr[j + 1]) {
-                assertTrue(a.rowIdx[k - 1] < a.rowIdx[k], "column $j is not ascending")
+            for (k in a.colPointers[j] + 1 until a.colPointers[j + 1]) {
+                assertTrue(a.rowIndices[k - 1] < a.rowIndices[k], "column $j is not ascending")
             }
         }
     }

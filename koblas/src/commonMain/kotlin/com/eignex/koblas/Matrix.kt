@@ -20,14 +20,19 @@ public interface Matrix {
     public fun toArray(): Array<DoubleArray>
 }
 
-/** The matrix storages koblas itself defines, [DenseMatrix] and [SparseMatrix]. */
+/**
+ * The matrix storages koblas itself defines, [DenseMatrix] and [SparseMatrix].
+ *
+ * Encoded on the terms [VectorStorage] states: the storage's own class name, the numbers under `values`, and
+ * each index array named for the axis it indexes.
+ */
 @Serializable
 public sealed interface MatrixStorage : Matrix
 
 /**
  * @property rows the number of rows.
  * @property cols the number of columns.
- * @property data the flat column-major backing of length `rows * cols`, entry `(i, j)` at `i + j * rows`.
+ * @property values the flat column-major backing of length `rows * cols`, entry `(i, j)` at `i + j * rows`.
  *   The matrix is mutable through this buffer and [set]; do not use it as a hash-map key while mutating it.
  */
 @Serializable
@@ -35,40 +40,40 @@ public sealed interface MatrixStorage : Matrix
 public class DenseMatrix internal constructor(
     override val rows: Int,
     override val cols: Int,
-    public val data: DoubleArray,
+    public val values: DoubleArray,
 ) : MatrixStorage {
     internal constructor(rows: Int, cols: Int = rows) : this(rows, cols, DoubleArray(entryCount(rows, cols)))
 
     init {
         requireNonNegativeShape(rows, cols)
-        requireShape(data.size.toLong() == rows.toLong() * cols) {
-            "data length ${data.size} does not match shape ${rows}x$cols (= ${rows.toLong() * cols})"
+        requireShape(values.size.toLong() == rows.toLong() * cols) {
+            "values length ${values.size} does not match shape ${rows}x$cols (= ${rows.toLong() * cols})"
         }
     }
 
     override fun get(i: Int, j: Int): Double {
         requireInBounds(i, j, rows, cols)
-        return data[i + j * rows]
+        return values[i + j * rows]
     }
 
     override fun toArray(): Array<DoubleArray> = Array(rows) { i ->
-        DoubleArray(cols) { j -> data[i + j * rows] }
+        DoubleArray(cols) { j -> values[i + j * rows] }
     }
 
     /** Writes (v) at row (i), column (j). */
     public operator fun set(i: Int, j: Int, v: Double) {
         requireInBounds(i, j, rows, cols)
-        data[i + j * rows] = v
+        values[i + j * rows] = v
     }
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (other !is DenseMatrix) return false
-        return rows == other.rows && cols == other.cols && data.contentEquals(other.data)
+        return rows == other.rows && cols == other.cols && values.contentEquals(other.values)
     }
     override fun hashCode(): Int {
         var h = rows * 31 + cols
-        h = 31 * h + data.contentHashCode()
+        h = 31 * h + values.contentHashCode()
         return h
     }
     override fun toString(): String = "DenseMatrix(${rows}x$cols)"
@@ -119,13 +124,13 @@ public class DenseMatrix internal constructor(
         public fun diagonal(values: DoubleArray): DenseMatrix {
             val n = values.size
             val m = DenseMatrix(n, n)
-            for (i in 0 until n) m.data[i + i * n] = values[i]
+            for (i in 0 until n) m.values[i + i * n] = values[i]
             return m
         }
 
         /** Wrap an existing flat `DoubleArray` without copying; mutations remain visible through both references. */
         @JvmStatic
-        public fun wrap(rows: Int, cols: Int, data: DoubleArray): DenseMatrix = DenseMatrix(rows, cols, data)
+        public fun wrap(rows: Int, cols: Int, values: DoubleArray): DenseMatrix = DenseMatrix(rows, cols, values)
 
         /** Entry count for a shape, validated first so a negative dimension reports a shape error. */
         private fun entryCount(rows: Int, cols: Int): Int {

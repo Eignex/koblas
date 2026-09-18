@@ -39,13 +39,13 @@ internal class NativeVector(
         if (span == 0) return
         val step = abs(vector.stride)
         if (step == 1) {
-            MemorySegment.copy(segment, JAVA_DOUBLE, 0L, vector.data, base, span)
+            MemorySegment.copy(segment, JAVA_DOUBLE, 0L, vector.values, base, span)
             return
         }
         var target = base
         var source = 0L
         repeat(vector.size) {
-            vector.data[target] = segment.getAtIndex(JAVA_DOUBLE, source)
+            vector.values[target] = segment.getAtIndex(JAVA_DOUBLE, source)
             target += step
             source += step
         }
@@ -63,7 +63,7 @@ internal fun Arena.stage(vector: DenseVector): NativeVector {
     val base = baseIndex(vector)
     val span = if (vector.size == 0) 0 else (vector.size - 1) * abs(vector.stride) + 1
     val segment = allocate(JAVA_DOUBLE, maxOf(1, span).toLong())
-    if (span > 0) MemorySegment.copy(vector.data, base, segment, JAVA_DOUBLE, 0L, span)
+    if (span > 0) MemorySegment.copy(vector.values, base, segment, JAVA_DOUBLE, 0L, span)
     return NativeVector(segment, vector.stride, vector, base, span)
 }
 
@@ -77,8 +77,8 @@ internal class NativeMatrix(
 ) {
     /** Copies the operand back over the storage it came from. */
     fun writeBack() {
-        if (matrix.data.isEmpty()) return
-        MemorySegment.copy(segment, JAVA_DOUBLE, 0L, matrix.data, 0, matrix.data.size)
+        if (matrix.values.isEmpty()) return
+        MemorySegment.copy(segment, JAVA_DOUBLE, 0L, matrix.values, 0, matrix.values.size)
     }
 }
 
@@ -91,9 +91,9 @@ internal class NativeMatrix(
  * nothing is written back for an input-only operand, so that storage stays as the caller left it.
  */
 internal fun Arena.stage(matrix: DenseMatrix): NativeMatrix {
-    val span = matrix.data.size
+    val span = matrix.values.size
     val segment = allocate(JAVA_DOUBLE, maxOf(1, span).toLong())
-    if (span > 0) MemorySegment.copy(matrix.data, 0, segment, JAVA_DOUBLE, 0L, span)
+    if (span > 0) MemorySegment.copy(matrix.values, 0, segment, JAVA_DOUBLE, 0L, span)
     return NativeMatrix(segment, maxOf(1, matrix.rows), matrix)
 }
 

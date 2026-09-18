@@ -82,7 +82,7 @@ class BlasTest {
             val right = product(a, product(b, c))
             val bound = 100.0 * n * eps * infNorm(a) * infNorm(b) * infNorm(c)
             var maxDiff = 0.0
-            for (k in left.data.indices) maxDiff = maxOf(maxDiff, abs(left.data[k] - right.data[k]))
+            for (k in left.values.indices) maxDiff = maxOf(maxDiff, abs(left.values[k] - right.values[k]))
             assertTrue(maxDiff <= bound + 1e-9, "gemm associativity n=$n: $maxDiff > $bound")
         }
     }
@@ -118,14 +118,14 @@ class BlasTest {
             for (tB in booleanArrayOf(false, true)) {
                 val a = if (tA) DenseMatrix(k, m) else DenseMatrix(m, k)
                 val b = if (tB) DenseMatrix(n, k) else DenseMatrix(k, n)
-                for (idx in a.data.indices) a.data[idx] = rng.nextDouble(-1.0, 1.0)
-                for (idx in b.data.indices) b.data[idx] = rng.nextDouble(-1.0, 1.0)
+                for (idx in a.values.indices) a.values[idx] = rng.nextDouble(-1.0, 1.0)
+                for (idx in b.values.indices) b.values[idx] = rng.nextDouble(-1.0, 1.0)
                 for (alpha in doubleArrayOf(0.0, 1.0, -2.0)) {
                     for (beta in doubleArrayOf(0.0, 1.0, 0.5)) {
                         // beta == 0 must overwrite without reading, so C starts poisoned with NaN.
                         val c0 = DenseMatrix(m, n)
-                        for (idx in c0.data.indices) {
-                            c0.data[idx] = if (beta == 0.0) Double.NaN else rng.nextDouble(-1.0, 1.0)
+                        for (idx in c0.values.indices) {
+                            c0.values[idx] = if (beta == 0.0) Double.NaN else rng.nextDouble(-1.0, 1.0)
                         }
                         val expected = DenseMatrix(m, n)
                         for (i in 0 until m) {
@@ -137,13 +137,14 @@ class BlasTest {
                                 expected[i, j] = alpha * s + (if (beta == 0.0) 0.0 else beta * c0[i, j])
                             }
                         }
-                        val c = DenseMatrix(m, n, c0.data.copyOf())
+                        val c = DenseMatrix(m, n, c0.values.copyOf())
                         blas.gemm(alpha, a, tA, b, tB, beta, c)
                         val bound = 100.0 * k * eps * (infNorm(a) * infNorm(b) + infNorm(expected))
-                        for (idx in c.data.indices) {
+                        for (idx in c.values.indices) {
                             assertTrue(
-                                abs(c.data[idx] - expected.data[idx]) <= bound + 1e-12,
-                                "gemm tA=$tA tB=$tB a=$alpha b=$beta at $idx: ${c.data[idx]} vs ${expected.data[idx]}",
+                                abs(c.values[idx] - expected.values[idx]) <= bound + 1e-12,
+                                "gemm tA=$tA tB=$tB a=$alpha b=$beta at $idx: " +
+                                    "${c.values[idx]} vs ${expected.values[idx]}",
                             )
                         }
                     }
@@ -158,17 +159,17 @@ class BlasTest {
         for ((n, k) in listOf(1 to 1, 4 to 7, 9 to 3)) {
             for (transpose in booleanArrayOf(false, true)) {
                 val a = if (transpose) DenseMatrix(k, n) else DenseMatrix(n, k)
-                for (idx in a.data.indices) a.data[idx] = rng.nextDouble(-1.0, 1.0)
+                for (idx in a.values.indices) a.values[idx] = rng.nextDouble(-1.0, 1.0)
                 for (alpha in doubleArrayOf(0.0, 1.0, -1.5)) {
                     for (beta in doubleArrayOf(0.0, 1.0, 0.5)) {
                         // C is asymmetric on purpose, since only syrk's alpha term is symmetric.
                         val c0 = DenseMatrix(n, n)
-                        for (idx in c0.data.indices) {
-                            c0.data[idx] = if (beta == 0.0) Double.NaN else rng.nextDouble(-1.0, 1.0)
+                        for (idx in c0.values.indices) {
+                            c0.values[idx] = if (beta == 0.0) Double.NaN else rng.nextDouble(-1.0, 1.0)
                         }
-                        val expected = DenseMatrix(n, n, if (beta == 0.0) DoubleArray(n * n) else c0.data.copyOf())
+                        val expected = DenseMatrix(n, n, if (beta == 0.0) DoubleArray(n * n) else c0.values.copyOf())
                         blas.gemm(alpha, a, transpose, a, !transpose, if (beta == 0.0) 0.0 else beta, expected)
-                        val c = DenseMatrix(n, n, c0.data.copyOf())
+                        val c = DenseMatrix(n, n, c0.values.copyOf())
                         blas.syrk(alpha, a, transpose, beta, c)
                         val bound = 100.0 * k * eps * (infNorm(a) * infNorm(a) + infNorm(expected)) + 1e-12
                         for (j in 0 until n) {

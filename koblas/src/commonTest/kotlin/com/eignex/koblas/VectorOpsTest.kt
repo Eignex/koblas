@@ -134,9 +134,9 @@ class VectorOpsTest {
     fun `copy replicates dense and sparse sources and rejects size mismatch`() {
         val dst = DenseVector.of(doubleArrayOf(9.0, 9.0, 9.0, 9.0, 9.0, 9.0))
         copy(sparse, dst) // sparse: must zero-fill the unstored slots
-        assertContentEquals(denseOfSparse.data, dst.data)
+        assertContentEquals(denseOfSparse.values, dst.values)
         copy(DenseVector.of(doubleArrayOf(1.0, 2.0, 3.0, 4.0, 5.0, 6.0)), dst)
-        assertContentEquals(doubleArrayOf(1.0, 2.0, 3.0, 4.0, 5.0, 6.0), dst.data)
+        assertContentEquals(doubleArrayOf(1.0, 2.0, 3.0, 4.0, 5.0, 6.0), dst.values)
         assertFailsWith<DimensionMismatch> { copy(DenseVector.zero(2), DenseVector.zero(3)) }
     }
 
@@ -145,8 +145,8 @@ class VectorOpsTest {
         val a = DenseVector.of(doubleArrayOf(1.0, 2.0))
         val b = DenseVector.of(doubleArrayOf(3.0, 4.0))
         swap(a, b)
-        assertContentEquals(doubleArrayOf(3.0, 4.0), a.data)
-        assertContentEquals(doubleArrayOf(1.0, 2.0), b.data)
+        assertContentEquals(doubleArrayOf(3.0, 4.0), a.values)
+        assertContentEquals(doubleArrayOf(1.0, 2.0), b.values)
         assertFailsWith<DimensionMismatch> { swap(DenseVector.zero(2), DenseVector.zero(3)) }
     }
 
@@ -333,7 +333,7 @@ class VectorOpsTest {
 
         destination.axpy(Double.POSITIVE_INFINITY, source)
 
-        assertContentEquals(expected.data.reversedArray(), backing)
+        assertContentEquals(expected.values.reversedArray(), backing)
     }
 
     @Test
@@ -341,15 +341,15 @@ class VectorOpsTest {
         val rng = Random(20260727)
         repeat(20) {
             val n = rng.nextInt(1, 200)
-            val data = DoubleArray(n) { rng.nextDouble(-100.0, 100.0) }
-            val v = DenseVector.of(data)
+            val values = DoubleArray(n) { rng.nextDouble(-100.0, 100.0) }
+            val v = DenseVector.of(values)
             var sumSq = 0.0
             var sumAbs = 0.0
             var maxIdx = 0
             for (i in 0 until n) {
-                sumSq += data[i] * data[i]
-                sumAbs += abs(data[i])
-                if (abs(data[i]) > abs(data[maxIdx])) maxIdx = i
+                sumSq += values[i] * values[i]
+                sumAbs += abs(values[i])
+                if (abs(values[i]) > abs(values[maxIdx])) maxIdx = i
             }
             assertTrue(abs(v.norm2() - sqrt(sumSq)) <= 1e-12 * sqrt(sumSq))
             assertTrue(abs(v.asum() - sumAbs) <= 1e-12 * sumAbs)

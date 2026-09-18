@@ -45,9 +45,9 @@ class VectorTest {
 
     @Test
     fun `DenseVector wrap aliases the backing array without copying`() {
-        val data = doubleArrayOf(1.0, 2.0)
-        val v = DenseVector.wrap(data)
-        data[1] = 42.0 // mutating the source is visible through the wrapped vector
+        val values = doubleArrayOf(1.0, 2.0)
+        val v = DenseVector.wrap(values)
+        values[1] = 42.0 // mutating the source is visible through the wrapped vector
         assertEquals(42.0, v[1], 0.0)
     }
 

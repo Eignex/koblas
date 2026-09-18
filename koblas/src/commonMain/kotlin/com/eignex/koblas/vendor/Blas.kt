@@ -268,8 +268,8 @@ internal fun Blas.composeGemmt(
         val until = if (lower) order else column + 1
         for (row in from until until) {
             val index = row + column * order
-            val previous = if (beta == 0.0) 0.0 else beta * c.data[index]
-            c.data[index] = previous + product.data[index]
+            val previous = if (beta == 0.0) 0.0 else beta * c.values[index]
+            c.values[index] = previous + product.values[index]
         }
     }
 }

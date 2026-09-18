@@ -19,7 +19,7 @@ import com.eignex.koblas.Vector
  */
 internal object ReferenceBlas {
     private fun at(a: DenseMatrix, i: Int, j: Int, transpose: Boolean): Double =
-        if (transpose) a.data[j + i * a.rows] else a.data[i + j * a.rows]
+        if (transpose) a.values[j + i * a.rows] else a.values[i + j * a.rows]
 
     /**
      * The `beta * C` term, which a zero beta contributes without reading what is there.
@@ -57,7 +57,7 @@ internal object ReferenceBlas {
             for (i in 0 until m) {
                 var sum = 0.0
                 for (p in 0 until depth) sum += at(a, i, p, transposeA) * at(b, p, j, transposeB)
-                c.data[i + j * c.rows] = alpha * sum + scaled(beta, c.data[i + j * c.rows])
+                c.values[i + j * c.rows] = alpha * sum + scaled(beta, c.values[i + j * c.rows])
             }
         }
     }
@@ -81,14 +81,14 @@ internal object ReferenceBlas {
                 if (!lower && i > j) continue
                 var sum = 0.0
                 for (p in 0 until depth) sum += at(a, i, p, transposeA) * at(b, p, j, transposeB)
-                c.data[i + j * n] = alpha * sum + scaled(beta, c.data[i + j * n])
+                c.values[i + j * n] = alpha * sum + scaled(beta, c.values[i + j * n])
             }
         }
     }
 
     /** The symmetric operand is read from the selected triangle and mirrored, never from the other half. */
     private fun symmetric(a: DenseMatrix, i: Int, j: Int, lower: Boolean): Double =
-        if (lower == (i >= j)) a.data[i + j * a.rows] else a.data[j + i * a.rows]
+        if (lower == (i >= j)) a.values[i + j * a.rows] else a.values[j + i * a.rows]
 
     @Suppress("LongParameterList") // the BLAS dsymv signature
     fun symv(alpha: Double, a: DenseMatrix, x: DoubleArray, beta: Double, y: DoubleArray, lower: Boolean = true) {
@@ -116,11 +116,11 @@ internal object ReferenceBlas {
             for (i in 0 until m) {
                 var sum = 0.0
                 if (right) {
-                    for (p in 0 until n) sum += b.data[i + p * b.rows] * symmetric(a, p, j, lower)
+                    for (p in 0 until n) sum += b.values[i + p * b.rows] * symmetric(a, p, j, lower)
                 } else {
-                    for (p in 0 until m) sum += symmetric(a, i, p, lower) * b.data[p + j * b.rows]
+                    for (p in 0 until m) sum += symmetric(a, i, p, lower) * b.values[p + j * b.rows]
                 }
-                c.data[i + j * m] = alpha * sum + scaled(beta, c.data[i + j * m])
+                c.values[i + j * m] = alpha * sum + scaled(beta, c.values[i + j * m])
             }
         }
     }
@@ -135,7 +135,7 @@ internal object ReferenceBlas {
                 if (!lower && i > j) continue
                 var sum = 0.0
                 for (p in 0 until depth) sum += at(a, i, p, transpose) * at(a, j, p, transpose)
-                c.data[i + j * n] = alpha * sum + scaled(beta, c.data[i + j * n])
+                c.values[i + j * n] = alpha * sum + scaled(beta, c.values[i + j * n])
             }
         }
     }
@@ -161,14 +161,14 @@ internal object ReferenceBlas {
                     sum += at(a, i, p, transpose) * at(b, j, p, transpose)
                     sum += at(b, i, p, transpose) * at(a, j, p, transpose)
                 }
-                c.data[i + j * n] = alpha * sum + scaled(beta, c.data[i + j * n])
+                c.values[i + j * n] = alpha * sum + scaled(beta, c.values[i + j * n])
             }
         }
     }
 
     fun ger(alpha: Double, x: DoubleArray, y: DoubleArray, a: DenseMatrix) {
         for (j in 0 until a.cols) {
-            for (i in 0 until a.rows) a.data[i + j * a.rows] += alpha * x[i] * y[j]
+            for (i in 0 until a.rows) a.values[i + j * a.rows] += alpha * x[i] * y[j]
         }
     }
 
@@ -177,7 +177,7 @@ internal object ReferenceBlas {
             for (i in 0 until a.rows) {
                 if (lower && i < j) continue
                 if (!lower && i > j) continue
-                a.data[i + j * a.rows] += alpha * x[i] * x[j]
+                a.values[i + j * a.rows] += alpha * x[i] * x[j]
             }
         }
     }
@@ -187,14 +187,14 @@ internal object ReferenceBlas {
             for (i in 0 until a.rows) {
                 if (lower && i < j) continue
                 if (!lower && i > j) continue
-                a.data[i + j * a.rows] += alpha * (x[i] * y[j] + y[i] * x[j])
+                a.values[i + j * a.rows] += alpha * (x[i] * y[j] + y[i] * x[j])
             }
         }
     }
 
     /** The triangle entry, with an implicit unit diagonal supplied rather than read. */
     private fun triangular(a: DenseMatrix, i: Int, j: Int, unitDiag: Boolean): Double =
-        if (unitDiag && i == j) 1.0 else a.data[i + j * a.rows]
+        if (unitDiag && i == j) 1.0 else a.values[i + j * a.rows]
 
     fun trsv(a: DenseMatrix, x: DoubleArray, lower: Boolean, transpose: Boolean = false, unitDiag: Boolean = false) {
         val n = a.rows
@@ -268,12 +268,12 @@ internal object ReferenceBlas {
         val sides = if (right) b.rows else b.cols
         val order = a.rows
         for (s in 0 until sides) {
-            val rhs = DoubleArray(order) { k -> if (right) b.data[s + k * b.rows] else b.data[k + s * b.rows] }
+            val rhs = DoubleArray(order) { k -> if (right) b.values[s + k * b.rows] else b.values[k + s * b.rows] }
             for (k in 0 until order) rhs[k] *= alpha
             val flipped = if (right) !transpose else transpose
             if (solve) trsv(a, rhs, lower, flipped, unitDiag) else trmv(a, rhs, lower, flipped, unitDiag)
             for (k in 0 until order) {
-                if (right) b.data[s + k * b.rows] = rhs[k] else b.data[k + s * b.rows] = rhs[k]
+                if (right) b.values[s + k * b.rows] = rhs[k] else b.values[k + s * b.rows] = rhs[k]
             }
         }
     }

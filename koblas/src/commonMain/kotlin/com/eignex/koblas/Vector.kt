@@ -21,6 +21,10 @@ public interface Vector {
  *
  * This is about which types koblas owns the definition of, not about which own their buffers: either may be
  * wrapped around an array the caller keeps a reference to.
+ *
+ * Encoded under the storage's own class name, with the numbers under `values` and any index array named for
+ * the axis it indexes, the same as [MatrixStorage]. A reader of one payload can then predict the others, and
+ * a name in a payload always resolves to the type that wrote it.
  */
 @Serializable
 public sealed interface VectorStorage : Vector
@@ -43,9 +47,9 @@ public sealed interface VectorStorage : Vector
  */
 public sealed interface DenseVector : Vector {
     /** Borrowed or owned backing array. */
-    public val data: DoubleArray
+    public val values: DoubleArray
 
-    /** First physical entry of this vector within [data]. */
+    /** First physical entry of this vector within [values]. */
     public val offset: Int
 
     /** Physical distance between adjacent entries, which may be negative but is never zero. */
@@ -74,42 +78,42 @@ public sealed interface DenseVector : Vector {
 
         /** Wrap an existing `DoubleArray` without copying; mutations remain visible through both references. */
         @JvmStatic
-        public fun wrap(data: DoubleArray): ContiguousVector = ContiguousVector(data)
+        public fun wrap(values: DoubleArray): ContiguousVector = ContiguousVector(values)
     }
 }
 
 /**
- * A dense vector that owns its whole buffer, so its entries are `data` itself.
+ * A dense vector that owns its whole buffer, so its entries are exactly [values], in order and complete.
  *
- * @property data the flat backing array. The vector is mutable through it and [set]; do not use the vector as
+ * @property values the flat backing array. The vector is mutable through it and [set]; do not use the vector as
  *   a hash-map key while mutating it.
  */
 @Serializable
-@SerialName("DenseVector")
-public class ContiguousVector internal constructor(public override val data: DoubleArray) :
+@SerialName("ContiguousVector")
+public class ContiguousVector internal constructor(public override val values: DoubleArray) :
     VectorStorage,
     DenseVector {
     internal constructor(size: Int) : this(DoubleArray(size))
 
-    override val size: Int get() = data.size
+    override val size: Int get() = values.size
     override val offset: Int get() = 0
     override val stride: Int get() = 1
 
     override fun get(i: Int): Double {
         requireInBounds(i, size)
-        return data[i]
+        return values[i]
     }
 
-    override fun toDoubleArray(): DoubleArray = data.copyOf()
+    override fun toDoubleArray(): DoubleArray = values.copyOf()
 
     override fun set(i: Int, v: Double) {
         requireInBounds(i, size)
-        data[i] = v
+        values[i] = v
     }
 
     override fun equals(other: Any?): Boolean =
-        this === other || (other is ContiguousVector && data.contentEquals(other.data))
-    override fun hashCode(): Int = data.contentHashCode()
+        this === other || (other is ContiguousVector && values.contentEquals(other.values))
+    override fun hashCode(): Int = values.contentHashCode()
     override fun toString(): String = "DenseVector(size=$size)"
 }
 

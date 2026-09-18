@@ -22,18 +22,18 @@ class RotTest {
         val n = 7
         val x = DenseVector.of(randomVector(n, rng))
         val y = DenseVector.of(randomVector(n, rng))
-        val x0 = x.data.copyOf()
-        val y0 = y.data.copyOf()
+        val x0 = x.values.copyOf()
+        val y0 = y.values.copyOf()
 
         rot(x, y, c, s)
 
         for (i in 0 until n) {
-            assertEquals(c * x0[i] + s * y0[i], x.data[i], 1e-12, "x at $i")
-            assertEquals(c * y0[i] - s * x0[i], y.data[i], 1e-12, "y at $i")
+            assertEquals(c * x0[i] + s * y0[i], x.values[i], 1e-12, "x at $i")
+            assertEquals(c * y0[i] - s * x0[i], y.values[i], 1e-12, "y at $i")
         }
         for (i in 0 until n) {
             val before = x0[i] * x0[i] + y0[i] * y0[i]
-            val after = x.data[i] * x.data[i] + y.data[i] * y.data[i]
+            val after = x.values[i] * x.values[i] + y.values[i] * y.values[i]
             assertEquals(before, after, 1e-12, "length changed at $i")
         }
     }
@@ -57,7 +57,7 @@ class RotTest {
 
         rot(x, y, c = 1.0, s = 0.0)
 
-        assertContentEquals(doubleArrayOf(1.0, 2.0), x.data, "the identity wrote through a NaN operand")
+        assertContentEquals(doubleArrayOf(1.0, 2.0), x.values, "the identity wrote through a NaN operand")
     }
 
     @Test

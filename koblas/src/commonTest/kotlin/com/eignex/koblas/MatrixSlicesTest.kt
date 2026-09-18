@@ -7,14 +7,14 @@ class MatrixSlicesTest {
     fun `sparse column agrees with dense reference`() {
         val sparse = sparseStorageExample()
         val dense = sparse.denseCopy()
-        for (j in 0 until sparse.cols) assertContentEquals(dense.column(j).data, sparse.column(j).toDoubleArray())
+        for (j in 0 until sparse.cols) assertContentEquals(dense.column(j).values, sparse.column(j).toDoubleArray())
     }
 
     @Test
     fun `sparse row agrees with dense reference`() {
         val sparse = sparseStorageExample()
         val dense = sparse.denseCopy()
-        for (i in 0 until sparse.rows) assertContentEquals(dense.row(i).data, sparse.row(i).toDoubleArray())
+        for (i in 0 until sparse.rows) assertContentEquals(dense.row(i).values, sparse.row(i).toDoubleArray())
     }
 
     @Test
@@ -40,8 +40,8 @@ class MatrixSlicesTest {
         val sparse = SparseMatrix.ofTriplets(
             rows = 4,
             cols = 3,
-            rowIdx = intArrayOf(0, 3),
-            colIdx = intArrayOf(0, 2),
+            rowIndices = intArrayOf(0, 3),
+            colIndices = intArrayOf(0, 2),
             values = doubleArrayOf(1.0, 2.0),
         )
 

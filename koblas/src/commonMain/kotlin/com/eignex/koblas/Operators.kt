@@ -26,7 +26,7 @@ public operator fun DenseMatrix.times(x: DenseVector): DenseVector {
 public operator fun DenseMatrix.times(alpha: Double): DenseMatrix = DenseMatrix.wrap(
     rows,
     cols,
-    scaledCopy(data, alpha),
+    scaledCopy(values, alpha),
 )
 
 /** `alpha * A`, allocating. [scale] multiplies in place. */
@@ -55,7 +55,7 @@ public operator fun DenseVector.minus(other: DenseVector): DenseVector = combine
 
 /** `alpha * x`, allocating. [scale] multiplies in place. */
 @kotlin.jvm.JvmName("multiply")
-public operator fun DenseVector.times(alpha: Double): DenseVector = DenseVector.wrap(scaledCopy(data, alpha))
+public operator fun DenseVector.times(alpha: Double): DenseVector = DenseVector.wrap(scaledCopy(values, alpha))
 
 /** `alpha * x`, allocating. [scale] multiplies in place. */
 @kotlin.jvm.JvmName("multiply")
@@ -70,18 +70,18 @@ private fun DenseMatrix.combine(other: DenseMatrix, alpha: Double, op: String): 
     requireShape(rows == other.rows && cols == other.cols) {
         "$op shape mismatch: ${rows}x$cols and ${other.rows}x${other.cols}"
     }
-    return DenseMatrix.wrap(rows, cols, axpyCopy(data, alpha, other.data))
+    return DenseMatrix.wrap(rows, cols, axpyCopy(values, alpha, other.values))
 }
 
 /** `x + alpha * y`. */
 private fun DenseVector.combine(other: DenseVector, alpha: Double, op: String): DenseVector {
     requireShape(size == other.size) { "$op size mismatch: $size vs ${other.size}" }
-    return DenseVector.wrap(axpyCopy(data, alpha, other.data))
+    return DenseVector.wrap(axpyCopy(values, alpha, other.values))
 }
 
-/** A fresh copy of [data] scaled by [alpha], which is what the allocating scalar products all return. */
-private fun scaledCopy(data: DoubleArray, alpha: Double): DoubleArray {
-    val out = data.copyOf()
+/** A fresh copy of [values] scaled by [alpha], which is what the allocating scalar products all return. */
+private fun scaledCopy(values: DoubleArray, alpha: Double): DoubleArray {
+    val out = values.copyOf()
     koblas.vectorKernels.scale(out, 0, alpha, out.size)
     return out
 }

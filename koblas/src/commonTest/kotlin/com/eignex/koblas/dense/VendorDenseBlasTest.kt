@@ -146,7 +146,7 @@ class VendorDenseBlasTest {
         blas.syr(1.0, x, matrix(4), lower = true)
 
         val handed = recorder.single().vectors.single()
-        assertSame(storage, handed.data, "the backing array was copied instead of passed")
+        assertSame(storage, handed.values, "the backing array was copied instead of passed")
         assertEquals(1, handed.offset, "the origin was lost")
         assertEquals(3, handed.stride, "the step was lost, so the call would read the wrong entries")
         assertEquals(4, handed.size)
@@ -161,8 +161,8 @@ class VendorDenseBlasTest {
         blas.gemv(1.0, matrix(3, 4), x, 0.0, y, transpose = false)
 
         val call = recorder.single()
-        assertSame(x, call.vectors[0].data, "x was copied on the way to the library")
-        assertSame(y, call.vectors[1].data, "y was copied, so the result would land in the copy")
+        assertSame(x, call.vectors[0].values, "x was copied on the way to the library")
+        assertSame(y, call.vectors[1].values, "y was copied, so the result would land in the copy")
         assertTrue(call.vectors.all { it.offset == 0 && it.stride == 1 }, "an array is adjacent from its start")
     }
 

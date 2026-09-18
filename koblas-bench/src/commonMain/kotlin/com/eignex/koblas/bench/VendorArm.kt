@@ -223,7 +223,7 @@ internal fun vendorArm(case: BenchCase, blas: Blas): ArmChoice {
             val x = DenseVector.wrap(Fixtures.vector(m, 2))
             val y = DenseVector.wrap(Fixtures.vector(n, 3))
             arm(BlasOperation.Ger, listOf(a), emptyList(), "reset-and-arithmetic") {
-                original.data.copyInto(target.data); blas.ger(alpha, x, y, a); target.data[0]
+                original.values.copyInto(target.values); blas.ger(alpha, x, y, a); target.values[0]
             }
         }
 
@@ -236,11 +236,11 @@ internal fun vendorArm(case: BenchCase, blas: Blas): ArmChoice {
             val y = DenseVector.wrap(Fixtures.vector(n, 3))
             val operation = if (case.operation == "syr") BlasOperation.Syr else BlasOperation.Syr2
             arm(operation, listOf(a), emptyList(), "reset-and-arithmetic") {
-                original.data.copyInto(target.data)
+                original.values.copyInto(target.values)
                 if (operation == BlasOperation.Syr) blas.syr(alpha, x, a, structure()) else blas.syr2(alpha, x, y, a, structure())
                 // The same entry the portable arm returns. Both triangles contain (0, 0), so it is written
                 // either way, and reading a different corner per triangle would compare two different numbers.
-                target.data[0]
+                target.values[0]
             }
         }
 
@@ -268,7 +268,7 @@ internal fun vendorArm(case: BenchCase, blas: Blas): ArmChoice {
             val target = Fixtures.matrix(m, n, 3)
             val c = target
             arm(BlasOperation.Gemm, listOf(a, b, c), emptyList(), "reset-and-arithmetic") {
-                original.data.copyInto(target.data); blas.gemm(alpha, a, transA, b, transB, beta, c); target.data[0]
+                original.values.copyInto(target.values); blas.gemm(alpha, a, transA, b, transB, beta, c); target.values[0]
             }
         }
 
@@ -282,7 +282,7 @@ internal fun vendorArm(case: BenchCase, blas: Blas): ArmChoice {
             val target = Fixtures.matrix(m, n, 3)
             val c = target
             arm(BlasOperation.Symm, listOf(a, b, c), emptyList(), "reset-and-arithmetic") {
-                original.data.copyInto(target.data); blas.symm(alpha, a, structure(), b, beta, c, right); target.data[0]
+                original.values.copyInto(target.values); blas.symm(alpha, a, structure(), b, beta, c, right); target.values[0]
             }
         }
 
@@ -297,7 +297,7 @@ internal fun vendorArm(case: BenchCase, blas: Blas): ArmChoice {
             val target = Fixtures.matrix(n, n, 3)
             val c = target
             arm(BlasOperation.Gemmt, listOf(a, b, c), emptyList(), "reset-and-arithmetic") {
-                original.data.copyInto(target.data); blas.gemmt(alpha, a, transA, b, transB, beta, c, structure()); target.data[0]
+                original.values.copyInto(target.values); blas.gemmt(alpha, a, transA, b, transB, beta, c, structure()); target.values[0]
             }
         }
 
@@ -315,13 +315,13 @@ internal fun vendorArm(case: BenchCase, blas: Blas): ArmChoice {
             val operation = if (single) BlasOperation.Syrk else BlasOperation.Syr2k
             val operands = if (single) listOf(a, c) else listOf(a, b, c)
             arm(operation, operands, emptyList(), "reset-and-arithmetic") {
-                original.data.copyInto(target.data)
+                original.values.copyInto(target.values)
                 if (single) {
                     blas.syrk(alpha, a, transA, beta, c, structure())
                 } else {
                     blas.syr2k(alpha, a, b, transA, beta, c, structure())
                 }
-                target.data[0]
+                target.values[0]
             }
         }
 
@@ -335,13 +335,13 @@ internal fun vendorArm(case: BenchCase, blas: Blas): ArmChoice {
             val solve = case.operation == "trsm"
             val operation = if (solve) BlasOperation.Trsm else BlasOperation.Trmm
             arm(operation, listOf(a, b), emptyList(), "reset-and-arithmetic") {
-                original.data.copyInto(target.data)
+                original.values.copyInto(target.values)
                 if (solve) {
                     blas.trsm(alpha, a, triangleStructure(), transA, b, right)
                 } else {
                     blas.trmm(alpha, a, triangleStructure(), transA, b, right)
                 }
-                target.data[0]
+                target.values[0]
             }
         }
 

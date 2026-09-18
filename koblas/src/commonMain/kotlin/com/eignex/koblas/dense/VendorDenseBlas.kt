@@ -45,7 +45,7 @@ internal class VendorDenseBlas(private val vendor: Blas?) : DenseBlas {
         // Kotlin loop instead of borrowing a BLAS-like extension that only some vendors export.
         val result = DenseMatrix(a.cols, a.rows)
         for (j in 0 until a.cols) {
-            for (i in 0 until a.rows) result.data[j + i * a.cols] = a.data[i + j * a.rows]
+            for (i in 0 until a.rows) result.values[j + i * a.cols] = a.values[i + j * a.rows]
         }
         return result
     }

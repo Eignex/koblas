@@ -92,14 +92,14 @@ private fun DoubleArray.prescale(beta: Double) = applyBeta(koblas.vectorKernels,
  * the original.
  */
 private fun DenseVector.stableFor(destination: DoubleArray): DenseVector = when {
-    data !== destination -> this
-    this is StridedVector -> StridedVector(data.copyOf(), offset, size, stride)
-    else -> DenseVector.wrap(data.copyOf())
+    values !== destination -> this
+    this is StridedVector -> StridedVector(values.copyOf(), offset, size, stride)
+    else -> DenseVector.wrap(values.copyOf())
 }
 
 /** Stable dense matrix storage when [destination] is its live backing array. */
 private fun DenseMatrix.stableFor(destination: DoubleArray): DenseMatrix =
-    if (data === destination) DenseMatrix.wrap(rows, cols, data.copyOf()) else this
+    if (values === destination) DenseMatrix.wrap(rows, cols, values.copyOf()) else this
 
 /**
  * Rank-one update `A = A + alpha * x * yT` (BLAS `dger`) in place. Subtract by passing

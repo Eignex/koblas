@@ -55,7 +55,7 @@ class TriangularTest {
                 for (unitDiag in booleanArrayOf(true, false)) {
                     val (t, _) = poisonedTriangle(rng, n, lower, unitDiag)
                     val b = randomMatrix(n, nrhs, rng)
-                    val viaTrsm = DenseMatrix(n, nrhs, b.data.copyOf())
+                    val viaTrsm = DenseMatrix(n, nrhs, b.values.copyOf())
                     blas.trsm(t, viaTrsm, lower, transpose, unitDiag)
                     for (c in 0 until nrhs) {
                         val col = DoubleArray(n) { b[it, c] }
@@ -98,7 +98,7 @@ class TriangularTest {
 
         blas.trsm(t, b, lower = true, alpha = alpha)
 
-        val expected = DenseMatrix(n, nrhs, DoubleArray(n * nrhs) { alpha * x.data[it] })
+        val expected = DenseMatrix(n, nrhs, DoubleArray(n * nrhs) { alpha * x.values[it] })
         assertClose(expected, b, "trsm alpha", tolerance = 1e-9)
     }
 
@@ -137,7 +137,7 @@ class TriangularTest {
                         val b = randomMatrix(n, p, rng)
                         val expected = DenseMatrix(n, p)
                         ReferenceBlas.gemm(alpha, explicit, transpose, b, false, 0.0, expected)
-                        val actual = DenseMatrix(n, p, b.data.copyOf())
+                        val actual = DenseMatrix(n, p, b.values.copyOf())
 
                         blas.trmm(t, actual, lower, transpose, unitDiag, alpha = alpha)
 
@@ -160,7 +160,7 @@ class TriangularTest {
                     val b = randomMatrix(rows, n, rng)
                     val expected = DenseMatrix(rows, n)
                     ReferenceBlas.gemm(1.0, b, false, explicit, transpose, 0.0, expected)
-                    val actual = DenseMatrix.wrap(rows, n, b.data.copyOf())
+                    val actual = DenseMatrix.wrap(rows, n, b.values.copyOf())
 
                     blas.trmm(t, actual, lower, transpose, unitDiag, right = true)
 
@@ -180,7 +180,7 @@ class TriangularTest {
                 for (unitDiag in booleanArrayOf(true, false)) {
                     val (t, _) = poisonedTriangle(rng, n, lower, unitDiag)
                     val x = randomMatrix(rows, n, rng)
-                    val b = DenseMatrix.wrap(rows, n, x.data.copyOf())
+                    val b = DenseMatrix.wrap(rows, n, x.values.copyOf())
 
                     blas.trmm(t, b, lower, transpose, unitDiag, right = true)
                     blas.trsm(t, b, lower, transpose, unitDiag, right = true)
