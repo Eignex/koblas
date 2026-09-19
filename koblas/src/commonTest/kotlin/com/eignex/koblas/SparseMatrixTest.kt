@@ -9,6 +9,7 @@ import kotlin.test.*
 
 class SparseMatrixTest {
 
+    @Test
     fun `ofColumns sums duplicate entries and sorts rows`() {
         val a = SparseMatrix.ofColumns(3, 1, listOf(listOf(2 to 1.0, 0 to 2.0, 2 to 3.0)))
         assertTrue(intArrayOf(0, 2).contentEquals(a.rowIndices)) // ascending
@@ -83,6 +84,7 @@ class SparseMatrixTest {
         assertTrue(a != different)
     }
 
+    @Test
     fun `rows may descend across a column boundary`() {
         // Within a column they must ascend, but the indices restart at each boundary.
         val ok = SparseMatrix(2, 2, intArrayOf(0, 1, 2), intArrayOf(1, 0), doubleArrayOf(5.0, 7.0))
@@ -189,6 +191,53 @@ class SparseMatrixTest {
         }
     }
 
+    @Test
+    fun `the transpose round-trips and preserves stored zeros`() {
+        val a = SparseMatrix.ofColumns(
+            3,
+            2,
+            listOf(
+                listOf(0 to 4.0, 1 to 0.0, 2 to -1.0),
+                listOf(1 to 7.0),
+            ),
+        )
+        val t = a.transpose()
+        assertEquals(2, t.rows)
+        assertEquals(3, t.cols)
+        assertEquals(a.nnz, t.nnz, "an explicitly stored zero was dropped")
+        for (i in 0 until a.rows) {
+            for (j in 0 until a.cols) assertEquals(a[i, j], t[j, i], "transpose at [$i,$j]")
+        }
+        assertEquals(a, t.transpose(), "transpose twice is not the original")
+    }
+
+    @Test
+    fun `the transpose handles degenerate shapes`() {
+        val empty = SparseMatrix.ofColumns(0, 0, emptyList())
+        assertEquals(empty, empty.transpose().transpose())
+        val noEntries = SparseMatrix.ofColumns(3, 2, listOf(emptyList(), emptyList()))
+        val t = noEntries.transpose()
+        assertEquals(2, t.rows)
+        assertEquals(3, t.cols)
+        assertEquals(0, t.nnz)
+    }
+
+    @Test
+    fun `CSC mat-vec multiplies a matrix and its transpose`() {
+        val a = SparseMatrix.ofColumns(
+            rows = 2,
+            cols = 3,
+            columns = listOf(
+                listOf(0 to 1.0),
+                listOf(1 to 3.0),
+                listOf(0 to 2.0),
+            ),
+        )
+        assertContentEquals(doubleArrayOf(7.0, 9.0), koblas.gemv(a, doubleArrayOf(1.0, 3.0, 3.0)))
+        assertContentEquals(doubleArrayOf(1.0, 6.0, 2.0), koblas.gemv(a, doubleArrayOf(1.0, 2.0), transpose = true))
+    }
+
+    @Test
     fun `wrap adopts CSC arrays`() {
         val a = SparseMatrix.wrap(2, 2, intArrayOf(0, 1, 2), intArrayOf(1, 0), doubleArrayOf(5.0, 7.0))
         assertEquals(5.0, a[1, 0])

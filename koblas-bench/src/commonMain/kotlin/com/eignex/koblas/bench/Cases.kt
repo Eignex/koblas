@@ -24,9 +24,13 @@ internal object Cases {
         "spnrm2" to 1, "spnrm2-indexed" to 1, "spasum" to 1,
         "spscatter" to 1, "spscatter-raw" to 1, "spgather" to 1, "spgather-zero" to 1,
         "spaccumulate" to 1,
+        "spgemv" to 2, "spmm" to 3, "spgemm" to 3,
+        "spsymv" to 1, "spsymm" to 2, "sptrsv" to 1, "sptrmv" to 1, "sptrsm" to 2, "sptrmm" to 2,
+        "spsyrk-dense" to 2, "spsyrk-sparse" to 2, "spadd" to 2,
+        "spmm-generic" to 3, "spmm-generic-right" to 3, "spgemm-generic" to 3,
     )
     private val fixtures = setOf("uniform", "triangular", "sparse-uniform", "sparse-triangular")
-    private val optionOrder = listOf("density", "side", "uplo", "transA", "transB", "diag", "timing")
+    private val optionOrder = listOf("density", "mode", "side", "uplo", "transA", "transB", "diag", "timing")
 
     fun parse(text: String): List<BenchCase> {
         val cases = text.lineSequence().mapIndexedNotNull { index, raw ->
@@ -90,6 +94,7 @@ internal object Cases {
     private fun validateOption(name: String, value: String, invalid: (String) -> Nothing) {
         when (name) {
             "density" -> if (value.toDoubleOrNull()?.let { it > 0.0 && it <= 1.0 } != true) invalid("invalid density '$value'")
+            "mode" -> if (value !in MODES) invalid("invalid mode '$value'")
             "side" -> if (value !in setOf("L", "R")) invalid("invalid side '$value'")
             "uplo" -> if (value !in setOf("L", "U")) invalid("invalid uplo '$value'")
             "transA", "transB" -> if (value !in setOf("N", "T")) invalid("invalid transpose '$value'")
@@ -116,6 +121,10 @@ internal object Cases {
         val allowed = allowedOptions(operation, sparse)
         val incompatible = options.keys.firstOrNull { it !in allowed }
         if (incompatible != null) invalid("option '$incompatible' is incompatible with $operation")
+        if (operation in MODE_OPERATIONS && "mode" !in options) invalid("$operation requires mode")
+        if (operation !in PREPARABLE_OPERATIONS && options["mode"] != null && options["mode"] != "oneshot") {
+            invalid("$operation supports only mode=oneshot")
+        }
         val required = requiredOptions(operation, sparse)
         val missing = required.firstOrNull { it !in options }
         if (missing != null) invalid("$operation requires option '$missing'")
@@ -135,6 +144,7 @@ internal object Cases {
         }
         if (operation == "gemm") add("transB")
         if (operation in setOf("scal", "spgather")) add("timing")
+        if (operation in MODE_OPERATIONS) add("mode")
     }
 
     private fun requiredOptions(operation: String, sparse: Boolean): Set<String> {
@@ -142,15 +152,32 @@ internal object Cases {
         if (sparse) required += "density"
         when (operation) {
             "symv", "syr", "syr2" -> required += "uplo"
-            "symm" -> required += setOf("side", "uplo")
+            "symm", "spsymm" -> required += setOf("side", "uplo")
             "gemmt" -> required += setOf("uplo", "transA", "transB")
             "syrk", "syr2k" -> required += setOf("uplo", "transA")
-            "trsv", "trmv" -> required += setOf("uplo", "transA", "diag")
-            "trsm", "trmm" -> required += setOf("side", "uplo", "transA", "diag")
+            "trsv", "trmv", "sptrsv", "sptrmv" -> required += setOf("uplo", "transA", "diag")
+            "trsm", "trmm", "sptrsm", "sptrmm" -> required += setOf("side", "uplo", "transA", "diag")
+            "spsymv", "spsyrk-dense", "spsyrk-sparse" -> required += "uplo"
         }
         return required
     }
 
-    private val TRIANGULAR_FIXTURE_OPERATIONS = setOf("trsv", "trmv", "trsm", "trmm")
+    /**
+     * How a prepared operand is accounted for.
+     *
+     * `oneshot` times the whole call with no snapshot. `prepared` times steady-state reuse of one built
+     * outside the timed region. `setup` times building it and nothing else, and `firstuse` times building it
+     * and the first call against it, which is where a derived orientation is paid for. The four are different
+     * logical work and are never compared with each other.
+     */
+    private val MODES = setOf("oneshot", "prepared", "setup", "firstuse")
+    private val MODE_OPERATIONS = setOf(
+        "spgemv", "spmm", "spgemm", "spsymv", "spsymm", "sptrsv", "sptrmv", "sptrsm", "sptrmm",
+        "spmm-generic", "spmm-generic-right", "spgemm-generic",
+    )
+    private val PREPARABLE_OPERATIONS = setOf("spgemv", "spmm", "spgemm")
+    private val TRIANGULAR_FIXTURE_OPERATIONS = setOf(
+        "trsv", "trmv", "trsm", "trmm", "spsymv", "spsymm", "sptrsv", "sptrmv", "sptrsm", "sptrmm",
+    )
     private const val MAX_DIMENSION = 1_000_000
 }
