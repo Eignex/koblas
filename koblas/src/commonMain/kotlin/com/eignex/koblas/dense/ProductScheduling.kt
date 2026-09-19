@@ -17,8 +17,9 @@ import com.eignex.koblas.borrow
  * carries `beta`.
  *
  * A product too small or too thin for that runs where the operands already are, as Level 2 panel work down
- * the columns of the destination. No copy, no padding, and the same arithmetic the matrix-vector routines
- * use, which is what makes a product with one column cost what a matrix-vector product costs.
+ * the columns of the destination. It avoids packing both operands; a strided coefficient column may still
+ * be gathered, and an accumulating column uses scratch. The arithmetic uses the same panel kernels as the
+ * matrix-vector routines.
  *
  * `beta` reaches an output window exactly once either way. In the blocked route the first depth block carries
  * it and every later one accumulates; in the panel route it is spent in the same pass that spends `alpha`,
@@ -219,7 +220,7 @@ private fun blockedProductCore(
 }
 
 /**
- * The product as Level 2 panel work, one destination column at a time, with no operand copied.
+ * The product as Level 2 panel work, one destination column at a time, without packing both operands.
  *
  * Untransposed on the left, a destination column is the columns of `op(A)` accumulated with the coefficients
  * standing in that column of `op(B)`, which is [DensePanelKernels.columnUpdate]. The accumulation happens in
