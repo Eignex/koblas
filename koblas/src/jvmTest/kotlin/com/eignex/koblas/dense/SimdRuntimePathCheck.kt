@@ -32,7 +32,8 @@ internal object SimdRuntimePathCheck {
                 "this process reports fma=$hardwareFusedMultiplyAdd, expected $expectedFma"
             }
         }
-        val panels = requireNotNull(BuiltinEngines.simd) { "no Vector API panel candidate" }.panelKernels
+        val engine = requireNotNull(BuiltinEngines.simd) { "no Vector API arm" }
+        val panels = engine.panelKernels
         check(panels.name == "simd-panel($lanes lanes)") { "the backend named ${panels.name} at $lanes lanes" }
 
         assertPanelKernelsAgreeWithReference(panels)
@@ -40,6 +41,11 @@ internal object SimdRuntimePathCheck {
         assertEmptyExtentsReadNothing(panels)
         assertPanelsStayInsideTheirWindows(panels)
         assertExecutionGroupIsUsable(panels)
+        // The route as well as the arithmetic. Which bodies a schedule reaches moves with the species: a
+        // symmetric traversal grouped by two cuts only even windows at an even order, so the same call is a
+        // composition at four lanes and direct at two. Checking only the raw panels here would leave that to
+        // whichever machine happened to run the ordinary tests.
+        assertRouteNamesExecutedBodies(panels)
 
         // The eligibility follows the species this process resolved, not the one it was written against.
         check(panels.implementationFor(PanelWork.MultiDot, lanes, 4) == panels.name) {
@@ -47,6 +53,12 @@ internal object SimdRuntimePathCheck {
         }
         check(panels.implementationFor(PanelWork.MultiDot, lanes - 1, 4) == PortablePanelKernels.name) {
             "a panel shorter than a lane block reached the vector body at $lanes lanes"
+        }
+        // Printed because it is the thing that moves with the species and is easy to assume instead of
+        // reading: a symmetric traversal grouped by two cuts only even windows at an even order.
+        for (order in intArrayOf(512, 513)) {
+            val route = engine.denseRouteOf(DenseMatrixOperation.Symv, DenseCall(order, order))
+            println("symv order $order at $lanes lanes: ${route.kind} ${route.components}")
         }
         println("panel conformance passed at $lanes lanes with fma=$hardwareFusedMultiplyAdd")
     }
