@@ -12,6 +12,7 @@ import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.DenseVector
 import com.eignex.koblas.Workspace
 import com.eignex.koblas.borrow
+import com.eignex.koblas.requireShape
 import com.eignex.koblas.vendor.*
 
 /**
@@ -25,8 +26,11 @@ import com.eignex.koblas.vendor.*
  * Level 3 is direct scalar traversal here and calls no panel, which [routeOf] reports rather than implying
  * otherwise from the engine's name.
  */
-internal class PortableDenseBlas(private val vectors: DenseVectorKernels, private val panels: DensePanelKernels) :
-    DenseBlas {
+internal class PortableDenseBlas(
+    private val vectors: DenseVectorKernels,
+    private val panels: DensePanelKernels,
+    private val products: DenseProductKernels = PortableProductKernels,
+) : DenseBlas {
     private fun scaled(beta: Double, previous: Double): Double = if (beta == 0.0) 0.0 else beta * previous
 
     override fun gemv(
@@ -114,6 +118,10 @@ internal class PortableDenseBlas(private val vectors: DenseVectorKernels, privat
         workspace: Workspace?,
     ) {
         requireGemmOperands(a, transposeA, b, transposeB, c)
+        // Nothing to write means nothing to stage and nothing to schedule. The extents the scratch would be
+        // sized from are the operands', which an empty destination says nothing about, so a product with no
+        // output would otherwise borrow a column or a pair of panels for a result that does not exist.
+        if (c.values.isEmpty()) return
         val depth = if (transposeA) a.rows else a.cols
         if (alpha == 0.0 || depth == 0) {
             scale(c.values, beta)
@@ -121,11 +129,18 @@ internal class PortableDenseBlas(private val vectors: DenseVectorKernels, privat
         }
         staged(workspace, a.values, a.values === c.values) { av ->
             staged(workspace, b.values, b.values === c.values) { bv ->
-                gemmCore(alpha, a, transposeA, av, b, transposeB, bv, beta, c, depth)
+                gemmCore(alpha, a, transposeA, av, b, transposeB, bv, beta, c, depth, workspace)
             }
         }
     }
 
+    /**
+     * The product itself, over operands already staged against an overlap with the destination.
+     *
+     * Which of the two routes runs is the extents' answer, not the engine's: a product with enough
+     * arithmetic to hide a copy is packed into the backend's tiles, and one without runs as panel work over
+     * the operands where they are. [routeOf] asks the same question of the same numbers.
+     */
     private fun gemmCore(
         alpha: Double,
         a: DenseMatrix,
@@ -137,21 +152,106 @@ internal class PortableDenseBlas(private val vectors: DenseVectorKernels, privat
         beta: Double,
         c: DenseMatrix,
         depth: Int,
+        workspace: Workspace?,
     ) {
         val m = c.rows
-        for (j in 0 until c.cols) {
-            for (i in 0 until m) {
-                var sum = 0.0
-                for (p in 0 until depth) {
-                    val left = if (transposeA) av[p + i * a.rows] else av[i + p * a.rows]
-                    val right = if (transposeB) bv[j + p * b.rows] else bv[p + j * b.rows]
-                    sum += left * right
-                }
-                val index = i + j * m
-                c.values[index] = alpha * sum + scaled(beta, c.values[index])
-            }
+        val n = c.cols
+        if (products.packsProduct(m, n, depth)) {
+            blockedProduct(
+                products, alpha, av, a.rows, transposeA, null, bv, b.rows, transposeB, null,
+                beta, c.values, m, m, n, depth, workspace,
+            )
+        } else {
+            directProduct(
+                panels, alpha, av, a.rows, transposeA, bv, b.rows, transposeB, beta, c.values, m,
+                m, n, depth, workspace,
+            )
         }
     }
+
+    /**
+     * `C = alpha · A · B + beta · C` where both operands are already packed for this backend's tile.
+     *
+     * The layouts are checked against the tile that will read them and against each other before anything is
+     * written, because a panel grouped for another shape or standing in the other operand's position reads
+     * neighbouring values as its own and leaves no trace in the result.
+     *
+     * No staging and no scratch: a packed operand owns storage of its own, so it cannot be the destination.
+     */
+    fun gemm(alpha: Double, a: PackedMatrix, b: PackedMatrix, beta: Double, c: DenseMatrix) {
+        a.layout.requireUsableBy(PackedRole.Left, products.tileRows)
+        b.layout.requireUsableBy(PackedRole.Right, products.tileColumns)
+        requirePackedProductShape(a.rows, a.columns, b.rows, b.columns, c)
+        if (c.values.isEmpty()) return
+        if (alpha == 0.0 || a.columns == 0) {
+            scale(c.values, beta)
+            return
+        }
+        blockedProduct(
+            products, alpha, NO_OPERAND, 0, false, a, NO_OPERAND, 0, false, b,
+            beta, c.values, c.rows, c.rows, c.cols, a.columns, null,
+        )
+    }
+
+    /** [gemm] with only the left operand retained; the right is packed for this call from [b]. */
+    fun gemm(
+        alpha: Double,
+        a: PackedMatrix,
+        b: DenseMatrix,
+        transposeB: Boolean,
+        beta: Double,
+        c: DenseMatrix,
+        workspace: Workspace?,
+    ) {
+        a.layout.requireUsableBy(PackedRole.Left, products.tileRows)
+        val rows = if (transposeB) b.cols else b.rows
+        val columns = if (transposeB) b.rows else b.cols
+        requirePackedProductShape(a.rows, a.columns, rows, columns, c)
+        if (c.values.isEmpty()) return
+        if (alpha == 0.0 || a.columns == 0) {
+            scale(c.values, beta)
+            return
+        }
+        staged(workspace, b.values, b.values === c.values) { bv ->
+            blockedProduct(
+                products, alpha, NO_OPERAND, 0, false, a, bv, b.rows, transposeB, null,
+                beta, c.values, c.rows, c.rows, c.cols, a.columns, workspace,
+            )
+        }
+    }
+
+    /** [gemm] with only the right operand retained; the left is packed for this call from [a]. */
+    fun gemm(
+        alpha: Double,
+        a: DenseMatrix,
+        transposeA: Boolean,
+        b: PackedMatrix,
+        beta: Double,
+        c: DenseMatrix,
+        workspace: Workspace?,
+    ) {
+        b.layout.requireUsableBy(PackedRole.Right, products.tileColumns)
+        val rows = if (transposeA) a.cols else a.rows
+        val columns = if (transposeA) a.rows else a.cols
+        requirePackedProductShape(rows, columns, b.rows, b.columns, c)
+        if (c.values.isEmpty()) return
+        if (alpha == 0.0 || columns == 0) {
+            scale(c.values, beta)
+            return
+        }
+        staged(workspace, a.values, a.values === c.values) { av ->
+            blockedProduct(
+                products, alpha, av, a.rows, transposeA, null, NO_OPERAND, 0, false, b,
+                beta, c.values, c.rows, c.rows, c.cols, columns, workspace,
+            )
+        }
+    }
+
+    /** `op(A)` packed for the left of a product against this backend's tile. */
+    fun packLeft(a: DenseMatrix, transpose: Boolean): PackedMatrix = packedLeft(a, transpose, products.tileRows)
+
+    /** `op(B)` packed for the right of a product against this backend's tile. */
+    fun packRight(b: DenseMatrix, transpose: Boolean): PackedMatrix = packedRight(b, transpose, products.tileColumns)
 
     override fun gemmt(
         alpha: Double,
@@ -688,6 +788,7 @@ internal class PortableDenseBlas(private val vectors: DenseVectorKernels, privat
                 "the call's own contract stops before the arithmetic, so only the destination scaling runs",
             )
         }
+        if (operation in PRODUCT_OPERATIONS) return productRoute(operation, call)
         val scaling = destinationScaling(operation, call, working = true)
         val work = panelWorkOf(operation)
             ?: return route(
@@ -698,6 +799,122 @@ internal class PortableDenseBlas(private val vectors: DenseVectorKernels, privat
                 "the arithmetic is this traversal's own; no panel or Level 1 kernel is called",
             )
         return panelRoute(operation, call, scaling, work)
+    }
+
+    /**
+     * What a matrix product executes, which is a question about its extents and how its operands arrived.
+     *
+     * A product with enough arithmetic to hide a copy is packed and runs in the backend's tiles; one without
+     * runs as panel work over the operands where they are. A call whose operands were packed beforehand
+     * always runs in the tiles, and names only the packing it still has to do, which is none where both
+     * panels were retained.
+     *
+     * The tile bodies come from walking the same block schedule the call executes and asking the backend
+     * about each block it hands over, so a body a block reaches is named and one that only an extent the
+     * schedule never cuts would reach is not.
+     */
+    private fun productRoute(operation: DenseMatrixOperation, call: DenseCall): DenseMatrixRoute {
+        val m = call.rows
+        val n = call.columns
+        val k = requireNotNull(call.depth) { "a product route needs the call's shared dimension" }
+        if (operation == DenseMatrixOperation.Gemm && !products.packsProduct(m, n, k)) {
+            return directProductRoute(operation, call)
+        }
+        val components = ArrayList<String>(4)
+        // In the order the schedule reaches them: the right panel belongs to the column and depth block and
+        // is packed first, the left panel to the row block inside it, and the tile after both.
+        if (operation == DenseMatrixOperation.Gemm || operation == DenseMatrixOperation.GemmPackedLeft) {
+            components.add("$PRODUCT_PACKING/right-panel")
+        }
+        if (operation == DenseMatrixOperation.Gemm || operation == DenseMatrixOperation.GemmPackedRight) {
+            components.add("$PRODUCT_PACKING/left-panel")
+        }
+        val bodies = productBodies(m, n, k)
+        components.addAll(bodies.map { "$it/product-block" })
+        val retained = operation != DenseMatrixOperation.Gemm
+        return route(
+            operation,
+            if (bodies.size > 1) RouteKind.Composed else RouteKind.Direct,
+            components,
+            0,
+            (
+                if (bodies.size > 1) {
+                    "the product is cut into cache blocks, and the rows its extents leave short of a whole " +
+                        "tile reach " + bodies.drop(1).joinToString(" and ")
+                } else {
+                    "the product is cut into cache blocks and every block reaches the same body"
+                }
+                ) + ", with beta carried by the first depth block" +
+                if (retained) "; a retained panel is read where it lies rather than packed again" else "",
+        )
+    }
+
+    /**
+     * Every tile body a blocked product of these extents reaches, in the order its schedule reaches them.
+     *
+     * Walked over the same blocks the call hands to [DenseProductKernels.productBlock], which is what makes
+     * this a description of the call rather than of its dimensions.
+     */
+    private fun productBodies(m: Int, n: Int, k: Int): List<String> {
+        val bodies = ArrayList<String>(2)
+        forEachProductBlock(
+            m,
+            n,
+            k,
+            productBlockRows(products, m),
+            productBlockColumns(products, n),
+            productBlockDepth(k),
+        ) { _, rowCount, _, columnCount, _, depth ->
+            for (body in products.implementationsFor(rowCount, columnCount, depth)) {
+                if (body !in bodies) bodies.add(body)
+            }
+        }
+        return bodies
+    }
+
+    /**
+     * A product small or thin enough to run where its operands are, reported over the panel windows it cuts.
+     *
+     * One destination column at a time, so the windows are the operand's own columns grouped as the backend
+     * recommended, and every one of them is as long as the reduction or the destination is.
+     *
+     * Which panel that is depends on the left transpose. Whether its shared vector is adjacent is a question
+     * only the reducing form has: a column update shares its destination strip, which this route always
+     * hands over adjacent, while a reduction shares the coefficient column, which a transposed right operand
+     * leaves strided by as many entries as the destination has columns. One destination column makes even
+     * that adjacent, which is why the stride is worked out rather than read off the flag.
+     */
+    private fun directProductRoute(operation: DenseMatrixOperation, call: DenseCall): DenseMatrixRoute {
+        val m = call.rows
+        val n = call.columns
+        val k = call.depth ?: 0
+        val work = if (call.transposeA) PanelWork.MultiDot else PanelWork.ColumnUpdate
+        val panelRows = if (call.transposeA) k else m
+        val panelColumns = if (call.transposeA) m else k
+        val strided = call.transposeA && call.transposeB && n != 1
+        val gathers = gathersCoefficients(panels, m, k, strided)
+        val contiguous = !strided || gathers
+        val group = panels.executionGroup(work, panelRows, panelColumns)
+        val leaves = ArrayList<String>(1)
+        forEachPanel(panelColumns, group) { _, width ->
+            val leaf = panels.implementationFor(work, panelRows, width, contiguous)
+            if (leaf !in leaves) leaves.add(leaf)
+        }
+        val entry = panelEntryPoint(work)
+        val staging = if (gathers) listOf("$PRODUCT_PACKING/right-column") else emptyList()
+        return route(
+            operation,
+            if (leaves.size > 1) RouteKind.Composed else RouteKind.Direct,
+            staging + leaves.map { "$it/$entry" },
+            group,
+            "too little arithmetic here to pay for packing, so the product runs as panel work down each " +
+                "destination column" +
+                if (gathers) {
+                    ", over a coefficient column gathered once so the reduction can vectorise"
+                } else {
+                    ", with nothing copied"
+                },
+        )
     }
 
     /** The panel a call of [operation] schedules, or null where it schedules none. */
@@ -850,3 +1067,25 @@ internal class PortableDenseBlas(private val vectors: DenseVectorKernels, privat
 
 /** The component name every built-in dense Level 2 and 3 call reports, whatever panels it calls. */
 internal const val DENSE_SCHEDULING: String = "portable-dense"
+
+/** The component name the copy into packed tile groups reports. The packers are portable on every engine. */
+internal const val PRODUCT_PACKING: String = "portable-pack"
+
+/** The entry points whose route is a product block schedule rather than a Level 2 panel one. */
+internal val PRODUCT_OPERATIONS: Set<DenseMatrixOperation> = setOf(
+    DenseMatrixOperation.Gemm,
+    DenseMatrixOperation.GemmPacked,
+    DenseMatrixOperation.GemmPackedLeft,
+    DenseMatrixOperation.GemmPackedRight,
+)
+
+/** Stands in for an operand that arrived packed, so no unpacked storage is read for that side. */
+internal val NO_OPERAND: DoubleArray = DoubleArray(0)
+
+/** The shapes a product between packed and dense operands needs, checked before the destination is touched. */
+internal fun requirePackedProductShape(rows: Int, depth: Int, rightRows: Int, columns: Int, c: DenseMatrix) {
+    requireShape(depth == rightRows) { "gemm: inner dimensions differ, $depth vs $rightRows" }
+    requireShape(c.rows == rows && c.cols == columns) {
+        "gemm: destination must be ${rows}x$columns, got ${c.rows}x${c.cols}"
+    }
+}

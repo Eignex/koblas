@@ -16,6 +16,9 @@ open annotation class com.eignex.koblas/UnsafeKoblasApi : kotlin/Annotation { //
 
 final enum class com.eignex.koblas.dense/DenseMatrixOperation : kotlin/Enum<com.eignex.koblas.dense/DenseMatrixOperation> { // com.eignex.koblas.dense/DenseMatrixOperation|null[0]
     enum entry Gemm // com.eignex.koblas.dense/DenseMatrixOperation.Gemm|null[0]
+    enum entry GemmPacked // com.eignex.koblas.dense/DenseMatrixOperation.GemmPacked|null[0]
+    enum entry GemmPackedLeft // com.eignex.koblas.dense/DenseMatrixOperation.GemmPackedLeft|null[0]
+    enum entry GemmPackedRight // com.eignex.koblas.dense/DenseMatrixOperation.GemmPackedRight|null[0]
     enum entry Gemmt // com.eignex.koblas.dense/DenseMatrixOperation.Gemmt|null[0]
     enum entry Gemv // com.eignex.koblas.dense/DenseMatrixOperation.Gemv|null[0]
     enum entry GemvTransposed // com.eignex.koblas.dense/DenseMatrixOperation.GemvTransposed|null[0]
@@ -72,6 +75,17 @@ final enum class com.eignex.koblas.dense/MatrixStructure : kotlin/Enum<com.eigne
 
     final fun valueOf(kotlin/String): com.eignex.koblas.dense/MatrixStructure // com.eignex.koblas.dense/MatrixStructure.valueOf|valueOf#static(kotlin.String){}[0]
     final fun values(): kotlin/Array<com.eignex.koblas.dense/MatrixStructure> // com.eignex.koblas.dense/MatrixStructure.values|values#static(){}[0]
+}
+
+final enum class com.eignex.koblas.dense/PackedRole : kotlin/Enum<com.eignex.koblas.dense/PackedRole> { // com.eignex.koblas.dense/PackedRole|null[0]
+    enum entry Left // com.eignex.koblas.dense/PackedRole.Left|null[0]
+    enum entry Right // com.eignex.koblas.dense/PackedRole.Right|null[0]
+
+    final val entries // com.eignex.koblas.dense/PackedRole.entries|#static{}entries[0]
+        final fun <get-entries>(): kotlin.enums/EnumEntries<com.eignex.koblas.dense/PackedRole> // com.eignex.koblas.dense/PackedRole.entries.<get-entries>|<get-entries>#static(){}[0]
+
+    final fun valueOf(kotlin/String): com.eignex.koblas.dense/PackedRole // com.eignex.koblas.dense/PackedRole.valueOf|valueOf#static(kotlin.String){}[0]
+    final fun values(): kotlin/Array<com.eignex.koblas.dense/PackedRole> // com.eignex.koblas.dense/PackedRole.values|values#static(){}[0]
 }
 
 final enum class com.eignex.koblas.dense/PanelWork : kotlin/Enum<com.eignex.koblas.dense/PanelWork> { // com.eignex.koblas.dense/PanelWork|null[0]
@@ -285,6 +299,19 @@ abstract interface com.eignex.koblas.dense/DensePanelKernels { // com.eignex.kob
     abstract fun rankUpdate(kotlin/Double, kotlin/DoubleArray, kotlin/Int, kotlin/Int, kotlin/DoubleArray, kotlin/Int, kotlin/Int, kotlin/Int, kotlin/Int, kotlin/DoubleArray, kotlin/Int, kotlin/Int) // com.eignex.koblas.dense/DensePanelKernels.rankUpdate|rankUpdate(kotlin.Double;kotlin.DoubleArray;kotlin.Int;kotlin.Int;kotlin.DoubleArray;kotlin.Int;kotlin.Int;kotlin.Int;kotlin.Int;kotlin.DoubleArray;kotlin.Int;kotlin.Int){}[0]
 }
 
+abstract interface com.eignex.koblas.dense/DenseProductKernels { // com.eignex.koblas.dense/DenseProductKernels|null[0]
+    abstract val name // com.eignex.koblas.dense/DenseProductKernels.name|{}name[0]
+        abstract fun <get-name>(): kotlin/String // com.eignex.koblas.dense/DenseProductKernels.name.<get-name>|<get-name>(){}[0]
+    abstract val tileColumns // com.eignex.koblas.dense/DenseProductKernels.tileColumns|{}tileColumns[0]
+        abstract fun <get-tileColumns>(): kotlin/Int // com.eignex.koblas.dense/DenseProductKernels.tileColumns.<get-tileColumns>|<get-tileColumns>(){}[0]
+    abstract val tileRows // com.eignex.koblas.dense/DenseProductKernels.tileRows|{}tileRows[0]
+        abstract fun <get-tileRows>(): kotlin/Int // com.eignex.koblas.dense/DenseProductKernels.tileRows.<get-tileRows>|<get-tileRows>(){}[0]
+
+    abstract fun implementationsFor(kotlin/Int, kotlin/Int, kotlin/Int): kotlin.collections/List<kotlin/String> // com.eignex.koblas.dense/DenseProductKernels.implementationsFor|implementationsFor(kotlin.Int;kotlin.Int;kotlin.Int){}[0]
+    abstract fun packsProduct(kotlin/Int, kotlin/Int, kotlin/Int): kotlin/Boolean // com.eignex.koblas.dense/DenseProductKernels.packsProduct|packsProduct(kotlin.Int;kotlin.Int;kotlin.Int){}[0]
+    abstract fun productBlock(kotlin/Double, kotlin/DoubleArray, kotlin/Int, kotlin/Int, kotlin/DoubleArray, kotlin/Int, kotlin/Int, kotlin/Int, kotlin/Int, kotlin/Int, kotlin/Double, kotlin/DoubleArray, kotlin/Int, kotlin/Int) // com.eignex.koblas.dense/DenseProductKernels.productBlock|productBlock(kotlin.Double;kotlin.DoubleArray;kotlin.Int;kotlin.Int;kotlin.DoubleArray;kotlin.Int;kotlin.Int;kotlin.Int;kotlin.Int;kotlin.Int;kotlin.Double;kotlin.DoubleArray;kotlin.Int;kotlin.Int){}[0]
+}
+
 abstract interface com.eignex.koblas.dense/DenseVectorKernels { // com.eignex.koblas.dense/DenseVectorKernels|null[0]
     abstract val name // com.eignex.koblas.dense/DenseVectorKernels.name|{}name[0]
         abstract fun <get-name>(): kotlin/String // com.eignex.koblas.dense/DenseVectorKernels.name.<get-name>|<get-name>(){}[0]
@@ -430,7 +457,7 @@ sealed interface com.eignex.koblas/VectorStorage : com.eignex.koblas/Vector { //
 }
 
 final class com.eignex.koblas.dense/DenseCall { // com.eignex.koblas.dense/DenseCall|null[0]
-    constructor <init>(kotlin/Int, kotlin/Int, kotlin/Double = ..., kotlin/Double = ..., kotlin/Boolean = ..., kotlin/Int? = ..., kotlin/Boolean = ...) // com.eignex.koblas.dense/DenseCall.<init>|<init>(kotlin.Int;kotlin.Int;kotlin.Double;kotlin.Double;kotlin.Boolean;kotlin.Int?;kotlin.Boolean){}[0]
+    constructor <init>(kotlin/Int, kotlin/Int, kotlin/Double = ..., kotlin/Double = ..., kotlin/Boolean = ..., kotlin/Int? = ..., kotlin/Boolean = ..., kotlin/Boolean = ..., kotlin/Boolean = ...) // com.eignex.koblas.dense/DenseCall.<init>|<init>(kotlin.Int;kotlin.Int;kotlin.Double;kotlin.Double;kotlin.Boolean;kotlin.Int?;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean){}[0]
 
     final val alpha // com.eignex.koblas.dense/DenseCall.alpha|{}alpha[0]
         final fun <get-alpha>(): kotlin/Double // com.eignex.koblas.dense/DenseCall.alpha.<get-alpha>|<get-alpha>(){}[0]
@@ -446,6 +473,10 @@ final class com.eignex.koblas.dense/DenseCall { // com.eignex.koblas.dense/Dense
         final fun <get-lower>(): kotlin/Boolean // com.eignex.koblas.dense/DenseCall.lower.<get-lower>|<get-lower>(){}[0]
     final val rows // com.eignex.koblas.dense/DenseCall.rows|{}rows[0]
         final fun <get-rows>(): kotlin/Int // com.eignex.koblas.dense/DenseCall.rows.<get-rows>|<get-rows>(){}[0]
+    final val transposeA // com.eignex.koblas.dense/DenseCall.transposeA|{}transposeA[0]
+        final fun <get-transposeA>(): kotlin/Boolean // com.eignex.koblas.dense/DenseCall.transposeA.<get-transposeA>|<get-transposeA>(){}[0]
+    final val transposeB // com.eignex.koblas.dense/DenseCall.transposeB|{}transposeB[0]
+        final fun <get-transposeB>(): kotlin/Boolean // com.eignex.koblas.dense/DenseCall.transposeB.<get-transposeB>|<get-transposeB>(){}[0]
 }
 
 final class com.eignex.koblas.dense/DenseMatrixRoute { // com.eignex.koblas.dense/DenseMatrixRoute|null[0]
@@ -469,6 +500,42 @@ final class com.eignex.koblas.dense/DenseMatrixRoute { // com.eignex.koblas.dens
         final fun <get-scheduling>(): kotlin/String // com.eignex.koblas.dense/DenseMatrixRoute.scheduling.<get-scheduling>|<get-scheduling>(){}[0]
 
     final fun toString(): kotlin/String // com.eignex.koblas.dense/DenseMatrixRoute.toString|toString(){}[0]
+}
+
+final class com.eignex.koblas.dense/PackedLayout { // com.eignex.koblas.dense/PackedLayout|null[0]
+    constructor <init>(com.eignex.koblas.dense/PackedRole, kotlin/Int, kotlin/Int, kotlin/Int) // com.eignex.koblas.dense/PackedLayout.<init>|<init>(com.eignex.koblas.dense.PackedRole;kotlin.Int;kotlin.Int;kotlin.Int){}[0]
+
+    final val columns // com.eignex.koblas.dense/PackedLayout.columns|{}columns[0]
+        final fun <get-columns>(): kotlin/Int // com.eignex.koblas.dense/PackedLayout.columns.<get-columns>|<get-columns>(){}[0]
+    final val depth // com.eignex.koblas.dense/PackedLayout.depth|{}depth[0]
+        final fun <get-depth>(): kotlin/Int // com.eignex.koblas.dense/PackedLayout.depth.<get-depth>|<get-depth>(){}[0]
+    final val extent // com.eignex.koblas.dense/PackedLayout.extent|{}extent[0]
+        final fun <get-extent>(): kotlin/Int // com.eignex.koblas.dense/PackedLayout.extent.<get-extent>|<get-extent>(){}[0]
+    final val group // com.eignex.koblas.dense/PackedLayout.group|{}group[0]
+        final fun <get-group>(): kotlin/Int // com.eignex.koblas.dense/PackedLayout.group.<get-group>|<get-group>(){}[0]
+    final val groupStride // com.eignex.koblas.dense/PackedLayout.groupStride|{}groupStride[0]
+        final fun <get-groupStride>(): kotlin/Int // com.eignex.koblas.dense/PackedLayout.groupStride.<get-groupStride>|<get-groupStride>(){}[0]
+    final val role // com.eignex.koblas.dense/PackedLayout.role|{}role[0]
+        final fun <get-role>(): com.eignex.koblas.dense/PackedRole // com.eignex.koblas.dense/PackedLayout.role.<get-role>|<get-role>(){}[0]
+    final val rows // com.eignex.koblas.dense/PackedLayout.rows|{}rows[0]
+        final fun <get-rows>(): kotlin/Int // com.eignex.koblas.dense/PackedLayout.rows.<get-rows>|<get-rows>(){}[0]
+    final val storageSize // com.eignex.koblas.dense/PackedLayout.storageSize|{}storageSize[0]
+        final fun <get-storageSize>(): kotlin/Int // com.eignex.koblas.dense/PackedLayout.storageSize.<get-storageSize>|<get-storageSize>(){}[0]
+
+    final fun index(kotlin/Int, kotlin/Int): kotlin/Int // com.eignex.koblas.dense/PackedLayout.index|index(kotlin.Int;kotlin.Int){}[0]
+    final fun toString(): kotlin/String // com.eignex.koblas.dense/PackedLayout.toString|toString(){}[0]
+}
+
+final class com.eignex.koblas.dense/PackedMatrix { // com.eignex.koblas.dense/PackedMatrix|null[0]
+    final val columns // com.eignex.koblas.dense/PackedMatrix.columns|{}columns[0]
+        final fun <get-columns>(): kotlin/Int // com.eignex.koblas.dense/PackedMatrix.columns.<get-columns>|<get-columns>(){}[0]
+    final val layout // com.eignex.koblas.dense/PackedMatrix.layout|{}layout[0]
+        final fun <get-layout>(): com.eignex.koblas.dense/PackedLayout // com.eignex.koblas.dense/PackedMatrix.layout.<get-layout>|<get-layout>(){}[0]
+    final val rows // com.eignex.koblas.dense/PackedMatrix.rows|{}rows[0]
+        final fun <get-rows>(): kotlin/Int // com.eignex.koblas.dense/PackedMatrix.rows.<get-rows>|<get-rows>(){}[0]
+
+    final fun get(kotlin/Int, kotlin/Int): kotlin/Double // com.eignex.koblas.dense/PackedMatrix.get|get(kotlin.Int;kotlin.Int){}[0]
+    final fun toString(): kotlin/String // com.eignex.koblas.dense/PackedMatrix.toString|toString(){}[0]
 }
 
 final class com.eignex.koblas.sparse/SparseCall { // com.eignex.koblas.sparse/SparseCall|null[0]
@@ -640,6 +707,8 @@ final class com.eignex.koblas/KoblasEngine : com.eignex.koblas.dense/DenseBlas, 
         final fun <get-name>(): kotlin/String // com.eignex.koblas/KoblasEngine.name.<get-name>|<get-name>(){}[0]
     final val panelKernels // com.eignex.koblas/KoblasEngine.panelKernels|{}panelKernels[0]
         final fun <get-panelKernels>(): com.eignex.koblas.dense/DensePanelKernels // com.eignex.koblas/KoblasEngine.panelKernels.<get-panelKernels>|<get-panelKernels>(){}[0]
+    final val productKernels // com.eignex.koblas/KoblasEngine.productKernels|{}productKernels[0]
+        final fun <get-productKernels>(): com.eignex.koblas.dense/DenseProductKernels // com.eignex.koblas/KoblasEngine.productKernels.<get-productKernels>|<get-productKernels>(){}[0]
     final val sparseImplementation // com.eignex.koblas/KoblasEngine.sparseImplementation|{}sparseImplementation[0]
         final fun <get-sparseImplementation>(): kotlin/String // com.eignex.koblas/KoblasEngine.sparseImplementation.<get-sparseImplementation>|<get-sparseImplementation>(){}[0]
     final val sparseKernels // com.eignex.koblas/KoblasEngine.sparseKernels|{}sparseKernels[0]
@@ -655,6 +724,9 @@ final class com.eignex.koblas/KoblasEngine : com.eignex.koblas.dense/DenseBlas, 
     final fun gemm(com.eignex.koblas/DenseMatrix, com.eignex.koblas/DenseMatrix): com.eignex.koblas/DenseMatrix // com.eignex.koblas/KoblasEngine.gemm|gemm(com.eignex.koblas.DenseMatrix;com.eignex.koblas.DenseMatrix){}[0]
     final fun gemm(com.eignex.koblas/SparseMatrix, com.eignex.koblas/DenseMatrix): com.eignex.koblas/DenseMatrix // com.eignex.koblas/KoblasEngine.gemm|gemm(com.eignex.koblas.SparseMatrix;com.eignex.koblas.DenseMatrix){}[0]
     final fun gemm(com.eignex.koblas/SparseMatrix, com.eignex.koblas/SparseMatrix): com.eignex.koblas/SparseMatrix // com.eignex.koblas/KoblasEngine.gemm|gemm(com.eignex.koblas.SparseMatrix;com.eignex.koblas.SparseMatrix){}[0]
+    final fun gemm(kotlin/Double, com.eignex.koblas.dense/PackedMatrix, com.eignex.koblas.dense/PackedMatrix, kotlin/Double, com.eignex.koblas/DenseMatrix) // com.eignex.koblas/KoblasEngine.gemm|gemm(kotlin.Double;com.eignex.koblas.dense.PackedMatrix;com.eignex.koblas.dense.PackedMatrix;kotlin.Double;com.eignex.koblas.DenseMatrix){}[0]
+    final fun gemm(kotlin/Double, com.eignex.koblas.dense/PackedMatrix, com.eignex.koblas/DenseMatrix, kotlin/Boolean, kotlin/Double, com.eignex.koblas/DenseMatrix, com.eignex.koblas/Workspace? = ...) // com.eignex.koblas/KoblasEngine.gemm|gemm(kotlin.Double;com.eignex.koblas.dense.PackedMatrix;com.eignex.koblas.DenseMatrix;kotlin.Boolean;kotlin.Double;com.eignex.koblas.DenseMatrix;com.eignex.koblas.Workspace?){}[0]
+    final fun gemm(kotlin/Double, com.eignex.koblas/DenseMatrix, kotlin/Boolean, com.eignex.koblas.dense/PackedMatrix, kotlin/Double, com.eignex.koblas/DenseMatrix, com.eignex.koblas/Workspace? = ...) // com.eignex.koblas/KoblasEngine.gemm|gemm(kotlin.Double;com.eignex.koblas.DenseMatrix;kotlin.Boolean;com.eignex.koblas.dense.PackedMatrix;kotlin.Double;com.eignex.koblas.DenseMatrix;com.eignex.koblas.Workspace?){}[0]
     final fun gemm(kotlin/Double, com.eignex.koblas/DenseMatrix, kotlin/Boolean, com.eignex.koblas/DenseMatrix, kotlin/Boolean, kotlin/Double, com.eignex.koblas/DenseMatrix, com.eignex.koblas/Workspace?) // com.eignex.koblas/KoblasEngine.gemm|gemm(kotlin.Double;com.eignex.koblas.DenseMatrix;kotlin.Boolean;com.eignex.koblas.DenseMatrix;kotlin.Boolean;kotlin.Double;com.eignex.koblas.DenseMatrix;com.eignex.koblas.Workspace?){}[0]
     final fun gemm(kotlin/Double, com.eignex.koblas/SparseMatrix, kotlin/Boolean, com.eignex.koblas/DenseMatrix, kotlin/Boolean, kotlin/Double, com.eignex.koblas/DenseMatrix, kotlin/Boolean, com.eignex.koblas/Workspace?) // com.eignex.koblas/KoblasEngine.gemm|gemm(kotlin.Double;com.eignex.koblas.SparseMatrix;kotlin.Boolean;com.eignex.koblas.DenseMatrix;kotlin.Boolean;kotlin.Double;com.eignex.koblas.DenseMatrix;kotlin.Boolean;com.eignex.koblas.Workspace?){}[0]
     final fun gemm(kotlin/Double, com.eignex.koblas/SparseMatrix, kotlin/Boolean, com.eignex.koblas/SparseMatrix, kotlin/Boolean): com.eignex.koblas/SparseMatrix // com.eignex.koblas/KoblasEngine.gemm|gemm(kotlin.Double;com.eignex.koblas.SparseMatrix;kotlin.Boolean;com.eignex.koblas.SparseMatrix;kotlin.Boolean){}[0]
@@ -666,6 +738,8 @@ final class com.eignex.koblas/KoblasEngine : com.eignex.koblas.dense/DenseBlas, 
     final fun gemv(kotlin/Double, com.eignex.koblas/SparseMatrix, kotlin/DoubleArray, kotlin/Double, kotlin/DoubleArray, kotlin/Boolean) // com.eignex.koblas/KoblasEngine.gemv|gemv(kotlin.Double;com.eignex.koblas.SparseMatrix;kotlin.DoubleArray;kotlin.Double;kotlin.DoubleArray;kotlin.Boolean){}[0]
     final fun ger(kotlin/Double, kotlin/DoubleArray, kotlin/DoubleArray, com.eignex.koblas/DenseMatrix) // com.eignex.koblas/KoblasEngine.ger|ger(kotlin.Double;kotlin.DoubleArray;kotlin.DoubleArray;com.eignex.koblas.DenseMatrix){}[0]
     final fun matrixRouteOf(com.eignex.koblas.sparse/SparseMatrixOperation, com.eignex.koblas.sparse/SparseCall): com.eignex.koblas.sparse/SparseMatrixRoute // com.eignex.koblas/KoblasEngine.matrixRouteOf|matrixRouteOf(com.eignex.koblas.sparse.SparseMatrixOperation;com.eignex.koblas.sparse.SparseCall){}[0]
+    final fun packLeft(com.eignex.koblas/DenseMatrix, kotlin/Boolean = ...): com.eignex.koblas.dense/PackedMatrix // com.eignex.koblas/KoblasEngine.packLeft|packLeft(com.eignex.koblas.DenseMatrix;kotlin.Boolean){}[0]
+    final fun packRight(com.eignex.koblas/DenseMatrix, kotlin/Boolean = ...): com.eignex.koblas.dense/PackedMatrix // com.eignex.koblas/KoblasEngine.packRight|packRight(com.eignex.koblas.DenseMatrix;kotlin.Boolean){}[0]
     final fun prepare(com.eignex.koblas/SparseMatrix): com.eignex.koblas/PreparedSparseMatrix // com.eignex.koblas/KoblasEngine.prepare|prepare(com.eignex.koblas.SparseMatrix){}[0]
     final fun symm(kotlin/Double, com.eignex.koblas/DenseMatrix, com.eignex.koblas/DenseMatrix, kotlin/Double, com.eignex.koblas/DenseMatrix, kotlin/Boolean, kotlin/Boolean, com.eignex.koblas/Workspace?) // com.eignex.koblas/KoblasEngine.symm|symm(kotlin.Double;com.eignex.koblas.DenseMatrix;com.eignex.koblas.DenseMatrix;kotlin.Double;com.eignex.koblas.DenseMatrix;kotlin.Boolean;kotlin.Boolean;com.eignex.koblas.Workspace?){}[0]
     final fun symm(kotlin/Double, com.eignex.koblas/SparseMatrix, com.eignex.koblas/DenseMatrix, kotlin/Double, com.eignex.koblas/DenseMatrix, kotlin/Boolean, kotlin/Boolean, com.eignex.koblas/Workspace?) // com.eignex.koblas/KoblasEngine.symm|symm(kotlin.Double;com.eignex.koblas.SparseMatrix;com.eignex.koblas.DenseMatrix;kotlin.Double;com.eignex.koblas.DenseMatrix;kotlin.Boolean;kotlin.Boolean;com.eignex.koblas.Workspace?){}[0]

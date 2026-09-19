@@ -52,8 +52,27 @@ public interface DenseBlas {
      */
     public fun transpose(a: DenseMatrix): DenseMatrix
 
-    /** `C = alpha · op(A) · op(B) + beta · C` (BLAS `dgemm`), with shapes `op(A): m×k`, `op(B): k×n`, `C: m×n`.
-     *  Built-in implementations snapshot an input that shares [c]; explicit vendor seams reject that overlap. */
+    /**
+     * `C = alpha · op(A) · op(B) + beta · C` (BLAS `dgemm`), with shapes `op(A): m×k`, `op(B): k×n`, `C: m×n`.
+     *
+     * Built-in implementations snapshot an input that shares [c]; explicit vendor seams reject that overlap.
+     * [workspace] lends that snapshot, the packed panels a blocked product copies its operands into, and the
+     * accumulating column an unpacked one uses. A zero [alpha] or an empty shared dimension scales [c] and
+     * reads no operand; a zero [beta] overwrites [c] without reading it, whatever stands there.
+     *
+     * In a built-in implementation [alpha] multiplies an accumulated sum of products, never an individual
+     * entry of an operand. Which partition of the shared dimension is summed before that multiplication is
+     * the schedule's: a product small enough to run where its operands lie sums the whole of it, and a
+     * blocked one sums a block of it at a time and adds the scaled results. For ordinary finite operands
+     * the difference between those is reassociation, of the same kind a regrouped sum always brings; where
+     * a partial sum overflows or cancels it can be larger than that, and with an infinite [alpha] it is
+     * categorical, since `alpha · (s₁ + s₂)` and `alpha · s₁ + alpha · s₂` need not agree and a call's
+     * extents decide which it gets. A sum that comes to zero against an infinite [alpha] is a NaN either
+     * way; what the placement rules out is a single zero *entry* of [a] or [b] producing one on its own.
+     *
+     * An explicit host binding is not held to that placement: a library is free to scale coefficients as it
+     * goes, and [com.eignex.koblas.vendor.Blas] keeps its own latitude where the standard leaves this open.
+     */
     @Suppress("LongParameterList") // the BLAS dgemm signature
     public fun gemm(
         alpha: Double,

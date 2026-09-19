@@ -288,6 +288,31 @@ internal object DenseReference {
         coefficients: DoubleArray,
     ) = DoubleArray(rows * columns) { at -> a[at] + (alpha * coefficients[at / rows]) * x[at % rows] }
 
+    /**
+     * `C = alpha·A·B + beta·C` over one product block, from the logical operands rather than packed ones.
+     *
+     * Written out here so that a block's answer is checked against the definition rather than against the
+     * packing that fed it: a packer and a tile that agree with each other and not with the product would
+     * otherwise pass.
+     */
+    @Suppress("LongParameterList") // the block, both logical operands and both multipliers
+    fun productBlock(
+        alpha: Double,
+        a: DoubleArray,
+        b: DoubleArray,
+        rows: Int,
+        columns: Int,
+        depth: Int,
+        beta: Double,
+        c: DoubleArray,
+    ) = DoubleArray(rows * columns) { at ->
+        val i = at % rows
+        val j = at / rows
+        var sum = 0.0
+        for (p in 0 until depth) sum += a[i + p * rows] * b[p + j * depth]
+        alpha * sum + scaled(beta, c[at])
+    }
+
     /** Fails when [actual] differs from [expected] anywhere in the whole buffer. */
     fun check(expected: DoubleArray, actual: DoubleArray, what: String) {
         check(expected.size == actual.size) { "$what: ${actual.size} entries, expected ${expected.size}" }

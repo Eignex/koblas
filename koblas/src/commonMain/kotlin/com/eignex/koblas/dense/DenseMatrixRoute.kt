@@ -44,6 +44,15 @@ public enum class DenseMatrixOperation(internal val entryPoint: String) {
     /** `C = alpha·op(A)·op(B) + beta·C`. */
     Gemm("gemm"),
 
+    /** The same product between two operands that were packed for the tile before the call. */
+    GemmPacked("gemm-packed"),
+
+    /** The same product with the left operand retained and the right packed for this call. */
+    GemmPackedLeft("gemm-packed-left"),
+
+    /** The same product with the right operand retained and the left packed for this call. */
+    GemmPackedRight("gemm-packed-right"),
+
     /** The same product written into one triangle of a square destination. */
     Gemmt("gemmt"),
 
@@ -77,14 +86,24 @@ public enum class DenseMatrixOperation(internal val entryPoint: String) {
  * @property alpha the multiplier the call will use.
  * @property beta the destination multiplier, or 1.0 for an operation that has none.
  * @property contiguous whether the vector the panel shares across its columns is adjacent in memory. A
- *   strided operand is scalar work at any width, so it is part of the question.
+ *   strided operand is scalar work at any width, so it is part of the question. A product does not read it:
+ *   both of its operands are whole matrices, so what its panels share follows from the extents and the
+ *   transpose flags and is worked out rather than declared.
  * @property depth the inner extent of a product, or null when the operation has none. Zero is a product over
  *   nothing, which is a call with nothing to do however large its operands are, so it is nullable rather than
- *   zero-defaulted.
+ *   zero-defaulted. A product operation requires it: which route such a call takes is a question about all
+ *   three extents, and a missing one is refused rather than read as none.
  * @property lower which triangle a selected-triangle operation reads, ignored by the rest. Part of the
  *   question because the windows a triangular traversal cuts are not the same on the two sides once a group
  *   covers more than one column.
+ * @property transposeA whether a product's left operand is transposed, ignored outside one. A product small
+ *   enough to run without packing is a reduction down stored columns when it is and an accumulation of them
+ *   when it is not, which are different panels.
+ * @property transposeB whether a product's right operand is transposed, ignored outside one. It decides
+ *   whether the coefficient vector an unpacked product shares across a panel is adjacent or strided, and a
+ *   strided one is scalar work at any width.
  */
+@Suppress("LongParameterList") // a call is the facts that decide what runs, each of which changes the answer
 public class DenseCall(
     public val rows: Int,
     public val columns: Int,
@@ -93,6 +112,8 @@ public class DenseCall(
     public val contiguous: Boolean = true,
     public val depth: Int? = null,
     public val lower: Boolean = true,
+    public val transposeA: Boolean = false,
+    public val transposeB: Boolean = false,
 ) {
     init {
         require(rows >= 0) { "negative row count" }

@@ -184,6 +184,77 @@ class AllocationFreeTest {
         assertTrue(multiply <= FLOOR_BYTES, "trmm with a workspace allocated $multiply B per call")
     }
 
+    /**
+     * The matrix product on both of its routes, at a depth that fits one block and one that does not.
+     *
+     * A lent workspace is what makes the blocked route allocation-free: the two packed panels are loans, so
+     * a repeated product over one shape reuses them. A retained pair of panels borrows nothing at all, since
+     * there is no copy left to make, and the small product takes the panel route which copies nothing either.
+     */
+    @Test
+    fun `matrix products reuse a workspace at both depths`() {
+        val portable = BuiltinEngines.scalar
+        val workspace = Workspace()
+        val wide = DenseMatrix.wrap(48, 48, DoubleArray(48 * 48) { 1.0 + (it % 13) * 0.125 })
+        val deepLeft = DenseMatrix.wrap(12, 400, DoubleArray(12 * 400) { 1.0 + (it % 7) * 0.25 })
+        val deepRight = DenseMatrix.wrap(400, 12, DoubleArray(400 * 12) { 0.5 + (it % 5) * 0.125 })
+        val deepTarget = DenseMatrix.wrap(12, 12, DoubleArray(144))
+        val small = DenseMatrix.wrap(5, 5, DoubleArray(25) { 1.0 + it })
+        val smallTarget = DenseMatrix.wrap(5, 5, DoubleArray(25))
+        val left = portable.packLeft(wide, transpose = false)
+        val right = portable.packRight(wide, transpose = false)
+        val packedTarget = DenseMatrix.wrap(48, 48, DoubleArray(48 * 48))
+        portable.gemm(1e-12, wide, false, wide, false, 1.0, packedTarget, workspace)
+        portable.gemm(1e-12, deepLeft, false, deepRight, false, 1.0, deepTarget, workspace)
+
+        val shallow = bytesPerIteration(50, FLOOR_BYTES) {
+            portable.gemm(1e-12, wide, false, wide, false, 1.0, packedTarget, workspace)
+            packedTarget
+        }
+        val deep = bytesPerIteration(50, FLOOR_BYTES) {
+            portable.gemm(1e-12, deepLeft, false, deepRight, false, 1.0, deepTarget, workspace)
+            deepTarget
+        }
+        val retained = bytesPerIteration(50, FLOOR_BYTES) {
+            portable.gemm(1e-12, left, right, 1.0, packedTarget)
+            packedTarget
+        }
+        portable.gemm(1e-12, small, false, small, false, 1.0, smallTarget, workspace)
+        val panelRoute = bytesPerIteration(200, FLOOR_BYTES) {
+            portable.gemm(1e-12, small, false, small, false, 1.0, smallTarget, workspace)
+            smallTarget
+        }
+
+        assertTrue(shallow <= FLOOR_BYTES, "a blocked product allocated $shallow B per call")
+        assertTrue(deep <= FLOOR_BYTES, "a product over several depth blocks allocated $deep B per call")
+        assertTrue(retained <= FLOOR_BYTES, "a retained product allocated $retained B per call")
+        assertTrue(panelRoute <= FLOOR_BYTES, "an unpacked product allocated $panelRoute B per call")
+    }
+
+    /**
+     * The one buffer an unpacked product takes when it is lent no workspace.
+     *
+     * It accumulates a destination column before spending the multipliers on it, which is what keeps alpha
+     * on a sum of products rather than on each coefficient. With a workspace that column is a loan, as the
+     * test above shows; without one it is an allocation per call, and this is what says how big.
+     */
+    @Test
+    fun `an unpacked product without a workspace takes one destination column`() {
+        val order = 64
+        val portable = BuiltinEngines.scalar
+        val a = DenseMatrix.wrap(order, 2, DoubleArray(order * 2) { 1.0 + (it % 13) * 0.125 })
+        val b = DenseMatrix.wrap(2, 2, DoubleArray(4) { 0.5 })
+        val c = DenseMatrix.wrap(order, 2, DoubleArray(order * 2))
+        val oneColumn = order * Double.SIZE_BYTES + ARRAY_HEADER_BYTES
+
+        val bytes = bytesPerIteration(500, oneColumn.toDouble()) {
+            portable.gemm(1e-12, a, false, b, false, 1.0, c)
+            c
+        }
+
+        assertTrue(bytes <= oneColumn + FLOOR_BYTES, "an unpacked product allocated $bytes B per call")
+    }
+
     @Test
     fun `sparse vector kernels allocate nothing`() {
         val n = 128

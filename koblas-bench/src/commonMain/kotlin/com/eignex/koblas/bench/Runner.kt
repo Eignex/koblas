@@ -39,7 +39,7 @@ public fun main(args: Array<String>) {
     var sink = 0.0
     for (case in selected) {
         val arm = vendor?.let { vendorArm(case, it.first) }
-            ?: engine?.let { sparseArm(case, it) ?: denseWork(case, it)?.let { work -> ArmChoice(work, null) } }
+            ?: engine?.let { sparseArm(case, it) ?: denseArm(case, it) }
         val work = arm?.work
         if (work == null) {
             rows += measurement(

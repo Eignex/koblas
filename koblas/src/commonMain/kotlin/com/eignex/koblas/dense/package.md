@@ -17,8 +17,21 @@ columns against one vector, [PanelWork.ColumnUpdate] accumulates several into on
 accumulates one window into several columns — and asks
 [DensePanelKernels.executionGroup] how many columns to hand over at a time. The answer is the local backend's,
 resolved from its own vector width and measured rules, and any other positive answer is equally correct. A
-panel group and a SIMD lane count are different numbers. Level 3 remains direct scalar traversal and calls no
-panel, which [com.eignex.koblas.KoblasEngine.denseRouteOf] reports rather than leaving to an engine's name.
+panel group and a SIMD lane count are different numbers.
+
+[DenseProductKernels] is the same seam one level up. A matrix product with enough arithmetic to hide a copy
+is cut into cache blocks, each operand block is copied into the grouped layout [PackedLayout] describes, and
+[DenseProductKernels.productBlock] accumulates a destination window from the two packed panels in a register
+tile of the backend's own shape. A product without that much arithmetic runs where its operands lie, as
+panel work down each destination column with nothing copied. [com.eignex.koblas.KoblasEngine.denseRouteOf]
+reports which of the two a call takes, together with the packing it performs and the tile bodies its blocks
+reach, rather than leaving any of it to an engine's name. A [PackedMatrix] is that copy kept: a caller
+multiplying one operand repeatedly packs it once and hands the panel to later products, which
+[com.eignex.koblas.KoblasEngine.packLeft] and [com.eignex.koblas.KoblasEngine.packRight] produce.
+
+A tile's rows and columns, a panel's execution group, a cache block and a SIMD lane count are four
+independent numbers. The remaining Level 3 routines are still direct scalar traversal and call neither a
+panel nor a tile, which the route also reports.
 
 Installed host bindings expose the same operation family separately. Their arithmetic and exceptional behavior
 belong to the resolved library, and their route reports its binary and entry point. A requested engine name is

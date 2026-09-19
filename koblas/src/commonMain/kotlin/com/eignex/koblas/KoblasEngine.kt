@@ -9,9 +9,12 @@ import com.eignex.koblas.dense.DenseMatrixOperation
 import com.eignex.koblas.dense.DenseMatrixRoute
 import com.eignex.koblas.dense.DenseOperation
 import com.eignex.koblas.dense.DensePanelKernels
+import com.eignex.koblas.dense.DenseProductKernels
 import com.eignex.koblas.dense.DenseVectorKernels
+import com.eignex.koblas.dense.PackedMatrix
 import com.eignex.koblas.dense.PortableDenseBlas
 import com.eignex.koblas.dense.PortablePanelKernels
+import com.eignex.koblas.dense.PortableProductKernels
 import com.eignex.koblas.sparse.IndexedSparseKernels
 import com.eignex.koblas.sparse.SPARSE_SCHEDULING
 import com.eignex.koblas.sparse.SparseAlgorithms
@@ -65,7 +68,9 @@ public class KoblasEngine internal constructor(
     public val vendor: Blas?,
     /** Panel arithmetic and the local execution grouping that dense and sparse algorithms schedule with. */
     public val panelKernels: DensePanelKernels = PortablePanelKernels,
-    private val denseBlas: PortableDenseBlas = PortableDenseBlas(vectorKernels, panelKernels),
+    /** Register-tile product arithmetic and the tile geometry dense products pack for. */
+    public val productKernels: DenseProductKernels = PortableProductKernels,
+    private val denseBlas: PortableDenseBlas = PortableDenseBlas(vectorKernels, panelKernels, productKernels),
     private val sparseBlas: SparseBlas = SparseAlgorithms(
         vectorKernels,
         indexedSparseKernels,
@@ -89,7 +94,7 @@ public class KoblasEngine internal constructor(
      * what answer that.
      */
     public val name: String
-        get() = "${vectorKernels.name}/${sparseKernels.name}/${panelKernels.name}"
+        get() = "${vectorKernels.name}/${sparseKernels.name}/${panelKernels.name}/${productKernels.name}"
 
     /**
      * What a built-in dense Level 2 or 3 call of this [operation] and shape actually executes.
@@ -101,6 +106,53 @@ public class KoblasEngine internal constructor(
      */
     public fun denseRouteOf(operation: DenseMatrixOperation, call: DenseCall): DenseMatrixRoute =
         denseBlas.routeOf(operation, call)
+
+    /**
+     * `op(A)` copied into the grouped layout this engine's product tile reads, for the left of a product.
+     *
+     * The copy a product would make per call, made once and kept. Worth it for an operand that is multiplied
+     * several times; a single product packs what it needs itself and this only moves that cost earlier.
+     *
+     * The result owns its storage and is independent of [a] afterwards. It is usable by an engine whose
+     * product tile has the same geometry as this one's and refused by any other, which
+     * [com.eignex.koblas.dense.PackedLayout] settles before a product writes anything.
+     */
+    public fun packLeft(a: DenseMatrix, transpose: Boolean = false): PackedMatrix = denseBlas.packLeft(a, transpose)
+
+    /** `op(B)` packed for the right of a product, the counterpart of [packLeft]. */
+    public fun packRight(b: DenseMatrix, transpose: Boolean = false): PackedMatrix = denseBlas.packRight(b, transpose)
+
+    /** `C = alpha · A · B + beta · C` between two retained panels, which copies nothing. */
+    public fun gemm(alpha: Double, a: PackedMatrix, b: PackedMatrix, beta: Double, c: DenseMatrix): Unit =
+        denseBlas.gemm(alpha, a, b, beta, c)
+
+    /**
+     * [gemm] with the left operand retained and the right packed for this call.
+     *
+     * [workspace] lends the right operand's packed panels and the staging a call takes when [b] shares [c].
+     */
+    @Suppress("LongParameterList") // the product, the transpose of the operand being packed, and the scratch
+    public fun gemm(
+        alpha: Double,
+        a: PackedMatrix,
+        b: DenseMatrix,
+        transposeB: Boolean,
+        beta: Double,
+        c: DenseMatrix,
+        workspace: Workspace? = null,
+    ): Unit = denseBlas.gemm(alpha, a, b, transposeB, beta, c, workspace)
+
+    /** [gemm] with the right operand retained and the left packed for this call. */
+    @Suppress("LongParameterList") // the product, the transpose of the operand being packed, and the scratch
+    public fun gemm(
+        alpha: Double,
+        a: DenseMatrix,
+        transposeA: Boolean,
+        b: PackedMatrix,
+        beta: Double,
+        c: DenseMatrix,
+        workspace: Workspace? = null,
+    ): Unit = denseBlas.gemm(alpha, a, transposeA, b, beta, c, workspace)
 
     /**
      * The Level 1 implementation a call of this [operation] and [length] reaches, or null when its own values

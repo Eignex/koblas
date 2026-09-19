@@ -117,12 +117,16 @@ class DenseMatrixRouteTest {
         assertEquals(RouteKind.NoWork, noDepth.kind)
     }
 
-    /** Level 3 is shared scalar traversal, and a row for it must not borrow a vector backend's name. */
+    /**
+     * The Level 3 routines that still run as shared scalar traversal must not borrow a backend's name.
+     *
+     * The matrix product is not among them any more: it reaches tiles or panels and says which. Everything
+     * else here is the traversal's own arithmetic until the stage that gives it blocks.
+     */
     @Test
     fun `a level three call names no panel on any engine`() {
         for (engine in engines) {
             for (operation in listOf(
-                DenseMatrixOperation.Gemm,
                 DenseMatrixOperation.Gemmt,
                 DenseMatrixOperation.Symm,
                 DenseMatrixOperation.Syrk,
@@ -233,9 +237,237 @@ class DenseMatrixRouteTest {
         assertContains(route.components.single(), "/scale")
     }
 
+    /** A product large enough to be packed names its tile and the two panels it packs into. */
+    @Test
+    fun `a packed product names the packing and the tile`() {
+        for (engine in engines) {
+            val route = engine.denseRouteOf(DenseMatrixOperation.Gemm, DenseCall(64, 64, 0.875, -0.25, depth = 64))
+
+            assertEquals(RouteKind.Direct, route.kind, engine.name)
+            assertEquals("gemm", route.entryPoint)
+            assertEquals(
+                listOf("portable-pack/right-panel", "portable-pack/left-panel") + wholeTileBody(engine),
+                route.components,
+                engine.name,
+            )
+            // A grouping is a panel's number, and a blocked product schedules no panel.
+            assertEquals(0, route.executionGroup, engine.name)
+        }
+    }
+
+    /**
+     * A product too small to pay for a copy names the panel it runs on, which depends on the left transpose.
+     *
+     * The two are different arithmetic over the same numbers: transposed, a destination entry is a reduction
+     * down a stored column, and untransposed, a destination column is those columns accumulated into it.
+     */
+    @Test
+    fun `a small product names the panel its transpose flags reach`() {
+        for (engine in engines) {
+            val plain = engine.denseRouteOf(DenseMatrixOperation.Gemm, DenseCall(5, 4, depth = 6))
+            val transposed = engine.denseRouteOf(
+                DenseMatrixOperation.Gemm,
+                DenseCall(5, 4, depth = 6, transposeA = true),
+            )
+
+            assertTrue(plain.components.any { it.endsWith("/column-update") }, "${engine.name} $plain")
+            assertTrue(transposed.components.any { it.endsWith("/multi-dot") }, "${engine.name} $transposed")
+            assertContains(assertNotNull(plain.reason), "packing")
+        }
+    }
+
+    /**
+     * A transposed right operand leaves the vector a reduction shares across its columns strided, and what
+     * the route does about that is the question here.
+     *
+     * Two destination columns, which is fewer than any tile is wide, so this product is never packed however
+     * long its other extents are; what varies below is only what the reduction's shared vector looks like.
+     */
+    @Test
+    fun `a small transposed product names the body its coefficient stride reaches`() {
+        for (engine in engines) {
+            val portable = PortablePanelKernels.name
+            val vectorBody = engine.panelKernels.implementationFor(PanelWork.MultiDot, 64, 4)
+            val gathered = engine.denseRouteOf(
+                DenseMatrixOperation.Gemm,
+                DenseCall(64, 2, depth = 64, transposeA = true, transposeB = true),
+            )
+            val tooFewRows = engine.denseRouteOf(
+                DenseMatrixOperation.Gemm,
+                DenseCall(2, 2, depth = 64, transposeA = true, transposeB = true),
+            )
+            val oneColumn = engine.denseRouteOf(
+                DenseMatrixOperation.Gemm,
+                DenseCall(64, 1, depth = 64, transposeA = true, transposeB = true),
+            )
+            val adjacent = engine.denseRouteOf(
+                DenseMatrixOperation.Gemm,
+                DenseCall(64, 2, depth = 64, transposeA = true),
+            )
+
+            // A strided column with rows enough to read it back is gathered once, on a backend where that
+            // changes which body the reduction reaches; a backend with one body gains nothing and copies
+            // nothing.
+            assertEquals(
+                vectorBody != portable,
+                gathered.components.any { it == "portable-pack/right-column" },
+                "${engine.name} $gathered",
+            )
+            assertEquals(listOf("$vectorBody/multi-dot"), gathered.components.takeLast(1), "$gathered")
+            // Too few destination rows to read a copied column back, so the strided body is what runs.
+            assertTrue(
+                tooFewRows.components.none { it == "portable-pack/right-column" },
+                "${engine.name} gathered a column two destination rows would read: $tooFewRows",
+            )
+            assertEquals(listOf("$portable/multi-dot"), tooFewRows.components, "$tooFewRows")
+            // One destination column leaves a transposed right operand adjacent already, so neither a copy
+            // nor the portable body is the right answer for it.
+            assertTrue(
+                oneColumn.components.none { it == "portable-pack/right-column" },
+                "${engine.name} gathered a column that was already adjacent: $oneColumn",
+            )
+            assertEquals(listOf("$vectorBody/multi-dot"), oneColumn.components, "$oneColumn")
+            assertEquals(listOf("$vectorBody/multi-dot"), adjacent.components, "$adjacent")
+        }
+    }
+
+    /**
+     * A column update shares its destination strip, which this route hands over adjacent whatever the right
+     * operand's transpose is, so a transposed right operand does not make it scalar work.
+     */
+    @Test
+    fun `an untransposed small product reaches the same body whichever way its right operand is stored`() {
+        for (engine in engines) {
+            val plain = engine.denseRouteOf(DenseMatrixOperation.Gemm, DenseCall(64, 2, depth = 64))
+            val transposed = engine.denseRouteOf(
+                DenseMatrixOperation.Gemm,
+                DenseCall(64, 2, depth = 64, transposeB = true),
+            )
+
+            assertEquals(
+                listOf("${engine.panelKernels.implementationFor(PanelWork.ColumnUpdate, 64, 4)}/column-update"),
+                plain.components,
+                engine.name,
+            )
+            assertEquals(plain.components, transposed.components, engine.name)
+        }
+    }
+
+    /** A retained panel is not packed again, and the route names only the packing a call still performs. */
+    @Test
+    fun `a product over retained panels names only the packing it still does`() {
+        val call = DenseCall(64, 64, 0.875, -0.25, depth = 64)
+        for (engine in engines) {
+            val tile = wholeTileBody(engine)
+            val both = engine.denseRouteOf(DenseMatrixOperation.GemmPacked, call)
+            val left = engine.denseRouteOf(DenseMatrixOperation.GemmPackedLeft, call)
+            val right = engine.denseRouteOf(DenseMatrixOperation.GemmPackedRight, call)
+
+            assertEquals(tile, both.components, engine.name)
+            assertEquals(listOf("portable-pack/right-panel") + tile, left.components, engine.name)
+            assertEquals(listOf("portable-pack/left-panel") + tile, right.components, engine.name)
+            assertEquals("gemm-packed", both.entryPoint)
+            assertEquals("gemm-packed-left", left.entryPoint)
+            assertEquals("gemm-packed-right", right.entryPoint)
+        }
+    }
+
+    /**
+     * The product route against the blocks the product really cut, on every built-in backend.
+     *
+     * The shapes are derived from the tile geometry this machine resolved, because what a route has to get
+     * right moves with it: a destination of two whole tiles reaches one body, one of a tile and a single row
+     * reaches whatever the remainder goes to as well, and a product long enough to be cut on each axis in
+     * turn reaches its bodies across several blocks. One shape is too small to be packed at all, so the
+     * assertion also covers a route that names no block because none ran.
+     */
+    @Test
+    fun `a product route names the tiles its blocks reached and carries beta once`() {
+        for (engine in engines) {
+            val tile = engine.productKernels
+            for ((m, n, k) in listOf(
+                Triple(2 * tile.tileRows, 4 * tile.tileColumns, 512),
+                Triple(tile.tileRows + 1, 4 * tile.tileColumns, 512),
+                Triple(tile.tileRows, 4 * tile.tileColumns, PRODUCT_BLOCK_DEPTH * 2 + 17),
+                Triple(PRODUCT_BLOCK_ROWS + tile.tileRows, 4 * tile.tileColumns, 64),
+                Triple(2 * tile.tileRows, PRODUCT_BLOCK_COLUMNS + tile.tileColumns, 64),
+                Triple(37, 29, 41),
+                Triple(5, 4, 6),
+            )) {
+                for (transposeA in booleanArrayOf(false, true)) {
+                    assertProductRouteNamesExecutedBlocks(
+                        engine.productKernels,
+                        engine.panelKernels,
+                        m,
+                        n,
+                        k,
+                        transposeA,
+                    )
+                }
+            }
+        }
+    }
+
+    /**
+     * A destination of whole tiles names one body, and one with a row left over names the remainder's too.
+     *
+     * The difference is a property of the backend rather than of the route, so what is asserted is that the
+     * route agrees with what the backend says about a block of that shape, on whichever backend this is.
+     */
+    @Test
+    fun `a block whose rows fill its tiles is direct and one with a remainder is composed`() {
+        for (engine in engines) {
+            val tile = engine.productKernels
+            val n = 4 * tile.tileColumns
+            val whole = engine.denseRouteOf(
+                DenseMatrixOperation.Gemm,
+                DenseCall(2 * tile.tileRows, n, depth = 512),
+            )
+            val remainder = engine.denseRouteOf(
+                DenseMatrixOperation.Gemm,
+                DenseCall(tile.tileRows + 1, n, depth = 512),
+            )
+            val wholeBodies = tile.implementationsFor(2 * tile.tileRows, n, 512)
+            val remainderBodies = tile.implementationsFor(tile.tileRows + 1, n, 512)
+
+            assertEquals(
+                wholeBodies.map { "$it/product-block" },
+                whole.components.filter { it.endsWith("/product-block") },
+                "${engine.name} $whole",
+            )
+            assertEquals(
+                remainderBodies.map { "$it/product-block" },
+                remainder.components.filter { it.endsWith("/product-block") },
+                "${engine.name} $remainder",
+            )
+            assertEquals(
+                if (wholeBodies.size > 1) RouteKind.Composed else RouteKind.Direct,
+                whole.kind,
+                "${engine.name} $whole",
+            )
+            assertEquals(
+                if (remainderBodies.size > 1) RouteKind.Composed else RouteKind.Direct,
+                remainder.kind,
+                "${engine.name} $remainder",
+            )
+        }
+    }
+
     private companion object {
         /** Longer than any window a backend distinguishes, so a search over it terminates. */
         const val LONG = 1024
+    }
+
+    /**
+     * The route components a block whose rows fill whole tiles produces on this engine.
+     *
+     * Asked of the backend about a block of exactly that shape, so a backend that serves whole tiles with
+     * two bodies would be described as it is rather than as this test assumed.
+     */
+    private fun wholeTileBody(engine: KoblasEngine): List<String> {
+        val products = engine.productKernels
+        return products.implementationsFor(products.tileRows, products.tileColumns, 64)
+            .map { "$it/product-block" }
     }
 
     private fun panelFor(engine: KoblasEngine, work: PanelWork, rows: Int): String =
