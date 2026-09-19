@@ -20,18 +20,15 @@ public interface SparseBlas {
     public fun prepare(a: SparseMatrix): PreparedSparseMatrix
 
     /**
-     * What a call of [operation] executes on this engine, over columns holding [entriesPerColumn] stored
-     * entries and, where a dense operand is walked contiguously, runs of [denseRun] elements.
+     * What a [call] of [operation] executes on this engine.
      *
-     * The same decision the call makes, asked before making it. An engine name cannot answer it: the sparse
-     * scheduling is this library's portable code whatever Level 1 kernels the engine selected, and the leaf
-     * one of its columns reaches depends on how long that column is.
+     * The same decisions the call makes, asked before making it. An engine name cannot answer it: the sparse
+     * scheduling is this library's portable code whatever Level 1 kernels the engine selected, and which
+     * kernel a unit of work reaches depends on the operand and the scalars the call is given. The descriptor
+     * therefore carries the call rather than a representative size, so a matrix whose columns reach two
+     * different kernels is reported as the composition it is instead of being averaged into one leaf.
      */
-    public fun matrixRouteOf(
-        operation: SparseMatrixOperation,
-        entriesPerColumn: Int,
-        denseRun: Int = 0,
-    ): SparseMatrixRoute
+    public fun matrixRouteOf(operation: SparseMatrixOperation, call: SparseCall): SparseMatrixRoute
 
     /**
      * In-place `y = alpha · op(A) · x + beta · y`, where `op(A)` is `Aᵀ` when [transpose]. Per BLAS

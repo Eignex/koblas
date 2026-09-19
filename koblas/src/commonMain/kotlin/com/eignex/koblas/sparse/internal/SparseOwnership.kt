@@ -72,7 +72,7 @@ internal inline fun <T> withSymmetricRankScratch(
 ): T = workspace.borrow(order) { sums ->
     workspace.borrowI32(order) { touchedAt ->
         workspace.borrowI32(order) { touched ->
-            workspace.borrowI32(sourceRows + 1) { rowPointers ->
+            workspace.borrowI32(scratchLength(sourceRows, "syrk")) { rowPointers ->
                 workspace.borrowI32(sourceEntries) { adjacentColumns ->
                     workspace.borrowI32(sourceEntries) { adjacentPositions ->
                         workspace.borrowI32(sourceRows) { rowCursor ->
