@@ -28,18 +28,22 @@ between core types and the timings move with the scheduler.
 koblas-bench/reference-container.sh all --samples 5 --warmups 5 --target-ms 200 --forks 2
 ```
 
-Builds an image with a pinned JDK, OpenBLAS, oneMKL and BLIS, mounts the repository, and captures inside it,
+Builds an image with a pinned JDK, OpenBLAS and oneMKL, mounts the repository, and captures inside it,
 so a report from a cloud host is comparable with one from a laptop. Takes `openblas`, `onemkl`, `aocl` or
 `all` before the capture options; `all` needs an x86-64 host, since oneMKL ships no ARM64 build. Requires
 Docker, and the report lands in the repository as usual because the working tree is mounted rather than
 copied.
 
-The `aocl` arm is the route production takes first on an AMD host, where `Vendor.select` puts it ahead of
-oneMKL. AMD's own build of it is behind a licence that does not permit redistribution, so the stage installs
-the distribution's BLIS, which carries the same `libblis.so.4` soname and the same CBLAS entry points and is
-the candidate Koblas already names. That measures the route rather than AMD's tuning of it, so read the
-resolved file in `metadata.txt` before comparing one of these numbers with a machine that installed AMD's
-package.
+On an AMD host use the `aocl` target, which adds the library `Vendor.select` puts ahead of oneMKL there:
+
+```bash
+koblas-bench/reference-container.sh aocl --samples 5 --warmups 5 --target-ms 200 --forks 2
+```
+
+That stage downloads AMD Optimizing CPU Libraries, which means accepting AMD's licence for it, and is why it
+is a separate target rather than part of `all`. The licence covers using it on a machine you are running it
+on; it does not cover redistributing it, so an image built from that stage must not be published. The same is
+true of `armpl` below, and it is why `all` names only the libraries an image may carry.
 
 ### On a cloud instance
 
@@ -133,7 +137,7 @@ selects with no fallback behind it.
 
 | Option | Effect |
 |---|---|
-| `--libraries openblas,accelerate,onemkl,aocl,armpl\|all` | Which vendors to run. `all` is OpenBLAS with oneMKL and AOCL on x86-64 Linux, ArmPL on ARM64 Linux, and Accelerate on macOS. |
+| `--libraries openblas,accelerate,onemkl,aocl,armpl\|all` | Which vendors to run. `all` is OpenBLAS with oneMKL on x86-64 Linux and Accelerate on macOS; AOCL and ArmPL are named explicitly, since their licences keep them out of `all`. |
 | `--suite default\|sweep` | Case suite. `sweep` requires `--operation`. |
 | `--operation NAME\|all` | Intersects the suite with one kernel. |
 | `--samples N`, `--warmups N` | Measured and discarded repetitions per case. |

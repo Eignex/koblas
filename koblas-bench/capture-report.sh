@@ -47,7 +47,7 @@ platform=$(uname -s)
 if [[ $libraries == all ]]; then
   if [[ $platform == Darwin ]]; then libraries=openblas,accelerate
   elif [[ $(uname -m) == aarch64 || $(uname -m) == arm64 ]]; then libraries=openblas,armpl
-  else libraries=openblas,onemkl,aocl; fi
+  else libraries=openblas,onemkl; fi
 fi
 # The Kotlin/Native compiler ships no linux-aarch64 host, so an ARM64 Linux machine cannot build the native
 # executable at all and its capture is the JVM arms only. Recorded in metadata.txt so a report with no native
