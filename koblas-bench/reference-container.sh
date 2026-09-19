@@ -6,14 +6,14 @@ root=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 target=all
 
 usage() {
-    echo "usage: koblas-bench/reference-container.sh [openblas|onemkl|armpl|all] [capture options]" >&2
+    echo "usage: koblas-bench/reference-container.sh [openblas|onemkl|aocl|armpl|all] [capture options]" >&2
 }
 
 if [[ "${1:-}" == --help || "${1:-}" == -h ]]; then
     usage
     exit 0
 fi
-if [[ "${1:-}" == openblas || "${1:-}" == onemkl || "${1:-}" == armpl || "${1:-}" == all ]]; then
+if [[ "${1:-}" == openblas || "${1:-}" == onemkl || "${1:-}" == aocl || "${1:-}" == armpl || "${1:-}" == all ]]; then
     target="$1"
     shift
 fi
