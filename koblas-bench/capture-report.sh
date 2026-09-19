@@ -186,10 +186,11 @@ run_native() {
   fi
 }
 if ! $vendors_only; then
-  for target in jvm-scalar jvm-simd; do
+  for target in jvm-scalar jvm-simd jvm-default; do
     case "$target" in
       jvm-scalar) task=jvmScalarBenchmark ;;
       jvm-simd) task=jvmSimdBenchmark ;;
+      jvm-default) task=jvmDefaultBenchmark ;;
     esac
     run_target "$target" ./gradlew --no-daemon ":koblas-bench:$task" "${common[@]}" "-Pbench.forks=$forks" "-Pbench.output=$results/$target.csv"
   done

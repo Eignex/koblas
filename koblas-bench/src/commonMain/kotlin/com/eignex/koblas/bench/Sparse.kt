@@ -3,7 +3,7 @@ package com.eignex.koblas.bench
 import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.KoblasEngine
 import com.eignex.koblas.Matrix
-import com.eignex.koblas.MatrixWorkspace
+import com.eignex.koblas.Workspace
 import com.eignex.koblas.PreparedSparseMatrix
 import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.gemmInto
@@ -189,7 +189,7 @@ internal fun sparseMatrixArm(case: BenchCase, engine: KoblasEngine): ArmChoice? 
     val mode = case.option("mode", "oneshot")
     val alpha = 0.875
     val beta = -0.25
-    val workspace = MatrixWorkspace()
+    val workspace = Workspace()
 
     fun arm(operation: SparseMatrixOperation, call: SparseCall, verify: () -> Unit, run: () -> Double) =
         publish(engine, operation, call, "oneshot", verify, run)
@@ -558,8 +558,9 @@ private fun declined(): ArmChoice =
  *
  * The generic entry point is the user-facing one, and it uses the engine this platform selected rather than
  * one a benchmark names: a caller holding a `Matrix` has no engine to pass. Timing it under an arm whose
- * engine is a different one would publish that engine's label over another engine's work, so the case runs
- * only on the arm whose engine is the selected one and reports the route that engine resolves.
+ * engine is a different one would publish that engine.s label over another engine.s work, so the case runs
+ * only on the arm whose engine is the selected one, which is `jvm-default`, and reports the route that
+ * engine resolves.
  */
 private fun genericArm(
     case: BenchCase,

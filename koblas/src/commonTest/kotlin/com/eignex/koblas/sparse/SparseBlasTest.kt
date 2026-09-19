@@ -1,8 +1,8 @@
 package com.eignex.koblas.sparse
 
 import com.eignex.koblas.DenseMatrix
-import com.eignex.koblas.MatrixWorkspace
 import com.eignex.koblas.SparseMatrix
+import com.eignex.koblas.Workspace
 import com.eignex.koblas.koblas
 import com.eignex.koblas.minus
 import com.eignex.koblas.plus
@@ -71,7 +71,7 @@ class SparseBlasTest {
         val sharedA = SparseMatrix.wrap(2, 2, intArrayOf(0, 2, 4), intArrayOf(0, 1, 0, 1), allShared)
         val sharedB = DenseMatrix.wrap(2, 2, allShared)
         val sharedC = DenseMatrix.wrap(2, 2, allShared)
-        koblas.symm(1.0, sharedA, sharedB, 0.0, sharedC, lower = true, workspace = MatrixWorkspace())
+        koblas.symm(1.0, sharedA, sharedB, 0.0, sharedC, lower = true, workspace = Workspace())
         assertContentEquals(doubleArrayOf(13.0, 21.0, 29.0, 46.0), sharedC.values)
     }
 
@@ -101,7 +101,7 @@ class SparseBlasTest {
         val expectedSparse = koblas.gemm(1.5, a, true, b, false)
         val c = DenseMatrix.wrap(3, 3, DoubleArray(9) { 2.0 })
 
-        koblas.gemm(1.5, a, true, b, false, -0.5, c, MatrixWorkspace())
+        koblas.gemm(1.5, a, true, b, false, -0.5, c, Workspace())
 
         for (j in 0 until 3) for (i in 0 until 3) assertEquals(expectedSparse[i, j] - 1.0, c[i, j])
 
@@ -109,7 +109,7 @@ class SparseBlasTest {
         val aliasedA = SparseMatrix.wrap(2, 2, intArrayOf(0, 2, 4), intArrayOf(0, 1, 0, 1), aliasedValues)
         val identity = SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 1.0), listOf(1 to 1.0)))
         val aliasedC = DenseMatrix.wrap(2, 2, aliasedValues)
-        koblas.gemm(1.0, aliasedA, false, identity, false, 0.0, aliasedC, MatrixWorkspace())
+        koblas.gemm(1.0, aliasedA, false, identity, false, 0.0, aliasedC, Workspace())
         assertContentEquals(doubleArrayOf(2.0, 3.0, 5.0, 7.0), aliasedC.values)
     }
 
@@ -121,7 +121,7 @@ class SparseBlasTest {
                 val sparse = koblas.syrk(a, transpose, lower)
                 val n = if (transpose) a.cols else a.rows
                 val dense = DenseMatrix.wrap(n, n, DoubleArray(n * n) { Double.NaN })
-                koblas.syrk(1.0, a, transpose, 0.0, dense, lower, MatrixWorkspace())
+                koblas.syrk(1.0, a, transpose, 0.0, dense, lower, Workspace())
                 for (j in 0 until n) {
                     for (i in 0 until n) {
                         if (if (lower) i >= j else i <= j) {

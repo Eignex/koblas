@@ -19,9 +19,12 @@ Koblas provides dense and sparse double-precision linear algebra for Kotlin Mult
 operations, mutable matrices and vectors, and views into existing storage.
 
 Dense and sparse Levels 2 and 3 have common Kotlin implementations, so ordinary matrix computation needs no
-installed numerical library. The current restoration is a portable scalar baseline; architecture-selected JVM
-panels and tiles are the next performance stages. Explicit oneMKL, AOCL, Arm Performance Libraries, Accelerate, and
-OpenBLAS bindings remain available for comparisons and Native acceleration, each held to one compute thread.
+installed numerical library. Their scheduling is shared and portable; the arithmetic inside a window is a
+panel, and which panels a machine uses is chosen locally. The JVM Vector API panels are measured but not yet
+activated: `BuiltinEngines.simd` holds them and an ordinary call keeps the portable ones until a crossover
+has been established across machines. Explicit oneMKL, AOCL, Arm Performance Libraries,
+Accelerate, and OpenBLAS bindings remain available for comparisons and Native acceleration, each held to one
+compute thread.
 
 Level 1 picks the faster arm per platform. On the JVM that is the Vector API kernels for the reductions,
 because reaching a foreign library there copies both operands into native memory and so costs a pass over the
@@ -143,7 +146,10 @@ Naming a Level 1 implementation other than the selected one is for measuring the
 `BuiltinEngines` sits behind the `KoblasEngineApi` opt-in. The portable kernels are not an alternative to the
 SIMD ones at a given size: the SIMD ones already fall back to them below their lane width, for any strided
 run, and for every elementwise operation.
-`KoblasEngine.explain(operation, length, contiguous)` names the implementation a given call reaches.
+`KoblasEngine.explain(operation, length, contiguous)` names the implementation a given Level 1 call reaches,
+and `KoblasEngine.denseRouteOf(operation, call)` does the same for a dense matrix call: the scheduling that
+owns it, the panel each window of it reaches at that window's own length, the grouping the backend
+recommended, and whether every unit of work reached the same body or the call is a composition.
 
 ## API structure
 

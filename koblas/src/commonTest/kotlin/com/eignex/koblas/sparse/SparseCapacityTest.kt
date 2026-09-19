@@ -2,8 +2,8 @@ package com.eignex.koblas.sparse
 
 import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.DimensionMismatch
-import com.eignex.koblas.MatrixWorkspace
 import com.eignex.koblas.SparseMatrix
+import com.eignex.koblas.Workspace
 import com.eignex.koblas.koblas
 import com.eignex.koblas.prepare
 import com.eignex.koblas.times
@@ -97,7 +97,7 @@ class SparseCapacityTest {
         val tall = tallEmpty(Int.MAX_VALUE)
         val destination = DenseMatrix.wrap(0, 0, DoubleArray(0))
 
-        koblas.syrk(1.0, tall, transpose = true, 0.5, destination, workspace = MatrixWorkspace())
+        koblas.syrk(1.0, tall, transpose = true, 0.5, destination, workspace = Workspace())
 
         assertEquals(0, destination.values.size)
     }

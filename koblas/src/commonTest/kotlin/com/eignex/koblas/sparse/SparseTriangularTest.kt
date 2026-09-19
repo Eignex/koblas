@@ -3,6 +3,7 @@ package com.eignex.koblas.sparse
 import com.eignex.koblas.*
 import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.SparseMatrix
+import com.eignex.koblas.dense.PanelWork
 import com.eignex.koblas.randomMatrix
 import kotlin.random.Random
 import kotlin.test.*
@@ -80,7 +81,7 @@ class SparseTriangularTest {
     fun `every direction agrees with the dense solve over several right-hand sides`() {
         val rng = Random(20260821)
         val n = 6
-        val rightHandSides = SPARSE_RHS_WIDTH + 1
+        val rightHandSides = partialPanelWidth(PanelWork.SparseRightHandSides)
         for (lower in booleanArrayOf(true, false)) {
             for (transpose in booleanArrayOf(false, true)) {
                 for (right in booleanArrayOf(false, true)) {
@@ -90,7 +91,7 @@ class SparseTriangularTest {
                     val fromDense = DenseMatrix.wrap(b.rows, b.cols, b.values.copyOf())
                     dense.trsm(fromDense, lower, transpose, right = right)
                     val fromSparse = DenseMatrix.wrap(b.rows, b.cols, b.values.copyOf())
-                    sparse.trsm(fromSparse, lower, transpose, right = right, workspace = MatrixWorkspace())
+                    sparse.trsm(fromSparse, lower, transpose, right = right, workspace = Workspace())
 
                     assertClose(
                         fromDense,
@@ -106,7 +107,7 @@ class SparseTriangularTest {
     @Test
     fun `every matrix multiplication direction agrees with dense triangular multiplication`() {
         val rng = Random(20260902)
-        val rightHandSides = SPARSE_RHS_WIDTH + 1
+        val rightHandSides = partialPanelWidth(PanelWork.SparseRightHandSides)
         for (n in intArrayOf(0, 1, 2, 6, 11)) {
             for (lower in booleanArrayOf(true, false)) {
                 for (transpose in booleanArrayOf(false, true)) {

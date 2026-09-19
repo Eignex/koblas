@@ -34,7 +34,7 @@ public fun DenseMatrix.gemvInto(alpha: Double, x: DenseVector, beta: Double, des
     }
     val stableX = x.stableFor(destination)
     val stableA = a.stableFor(destination)
-    koblas.gemv(alpha, stableA, stableX.toDoubleArray(), beta, destination)
+    koblas.gemv(alpha, stableA, stableX.asContiguousArray(), beta, destination)
 }
 
 /** [gemvInto] with `alpha = 1, beta = 0`, so `destination` receives `A * x`. */
@@ -67,7 +67,7 @@ public fun DenseMatrix.symvInto(
     }
     val stableX = x.stableFor(destination)
     val stableA = stableFor(destination)
-    koblas.symv(alpha, stableA, stableX.toDoubleArray(), beta, destination, lower)
+    koblas.symv(alpha, stableA, stableX.asContiguousArray(), beta, destination, lower)
 }
 
 /** [symvInto] with `alpha = 1, beta = 0`, so `destination` receives `A * x`. */
@@ -93,6 +93,17 @@ private fun DenseVector.stableFor(destination: DoubleArray): DenseVector = when 
     else -> DenseVector.wrap(values.copyOf())
 }
 
+/**
+ * This vector's own array where it is the whole of one in order, and a gathered copy where it is not.
+ *
+ * The Level 2 entry points take an array, so a window or a step has to be gathered into one before the call.
+ * A vector that already is its array in order is not a window and needs no copy, which is what keeps an
+ * ordinary call through these convenience paths from allocating a vector per invocation. A strided one still
+ * pays for its gather, which is the cost of addressing it that way.
+ */
+private fun DenseVector.asContiguousArray(): DoubleArray =
+    if (offset == 0 && stride == 1 && values.size == size) values else toDoubleArray()
+
 /** Stable dense matrix storage when [destination] is its live backing array. */
 private fun DenseMatrix.stableFor(destination: DoubleArray): DenseMatrix =
     if (values === destination) DenseMatrix.wrap(rows, cols, values.copyOf()) else this
@@ -106,7 +117,7 @@ public fun DenseMatrix.ger(alpha: Double, x: DenseVector, y: DenseVector) {
         "ger shape mismatch: A is ${rows}x$cols, x ${x.size}, y ${y.size}"
     }
     if (alpha == 0.0) return
-    koblas.ger(alpha, x.toDoubleArray(), y.toDoubleArray(), this)
+    koblas.ger(alpha, x.asContiguousArray(), y.asContiguousArray(), this)
 }
 
 /** Symmetric rank-1 update `A += alpha * x * xT` (BLAS `dsyr`) in place. See [DenseBlas.syr]. */

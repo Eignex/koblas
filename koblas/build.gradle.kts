@@ -103,7 +103,58 @@ val simdSparseAllocationCheck = tasks.register<JavaExec>("simdSparseAllocationCh
         "-XX:CompileThreshold=1000",
     )
 }
-tasks.named("check") { dependsOn(simdSparseAllocationCheck) }
+val simdDenseAllocationCheck = tasks.register<JavaExec>("simdDenseAllocationCheck") {
+    group = "verification"
+    description = "Checks allocation-free JVM SIMD dense panels and the whole Level 2 calls around them."
+    dependsOn("jvmTestClasses")
+    classpath(jvmTestCompilation.output.allOutputs, configurations.getByName("jvmTestRuntimeClasspath"))
+    mainClass.set("com.eignex.koblas.dense.SimdDenseAllocationCheck")
+    javaLauncher.set(allocationCheckJavaLauncher)
+    jvmArgs(
+        "--add-modules=jdk.incubator.vector",
+        "--enable-native-access=ALL-UNNAMED",
+        "-XX:-TieredCompilation",
+        "-XX:CompileThreshold=1000",
+    )
+}
+
+/**
+ * Runs the panel conformance in a process whose species or multiply-add was forced to something other than
+ * this machine's own.
+ *
+ * Both are fixed when the virtual machine starts, so a test task cannot reach either: the narrow-species and
+ * unfused paths are generated and taken only in a process started this way. Forcing a flag exercises the
+ * path; it says nothing about a machine that genuinely lacks the instruction.
+ */
+fun registerRuntimePathCheck(name: String, description: String, vararg extraArgs: String) =
+    tasks.register<JavaExec>(name) {
+        group = "verification"
+        this.description = description
+        dependsOn("jvmTestClasses")
+        classpath(jvmTestCompilation.output.allOutputs, configurations.getByName("jvmTestRuntimeClasspath"))
+        mainClass.set("com.eignex.koblas.dense.SimdRuntimePathCheck")
+        javaLauncher.set(allocationCheckJavaLauncher)
+        jvmArgs("--add-modules=jdk.incubator.vector", "--enable-native-access=ALL-UNNAMED", *extraArgs)
+    }
+
+// Two lanes rather than this host's four, which is the width of the narrowest species in the reference
+// fleet, and the unfused multiply-add that a pre-FMA host would take.
+val simdNarrowSpeciesCheck = registerRuntimePathCheck(
+    "simdNarrowSpeciesCheck",
+    "Checks the JVM panels against a species constrained to two lanes.",
+    "-XX:MaxVectorSize=16",
+)
+simdNarrowSpeciesCheck { args("2") }
+val simdNoFmaCheck = registerRuntimePathCheck(
+    "simdNoFmaCheck",
+    "Checks the JVM panels with the fused multiply-add disabled.",
+    "-XX:-UseFMA",
+)
+simdNoFmaCheck { args("", "false") }
+
+tasks.named("check") {
+    dependsOn(simdSparseAllocationCheck, simdDenseAllocationCheck, simdNarrowSpeciesCheck, simdNoFmaCheck)
+}
 
 // Kotlin emits a `$DefaultImpls` holder for every interface with a body, and a bridge for every method with
 // a default argument. Neither is reachable from Kotlin call sites, so both count as permanently uncovered and

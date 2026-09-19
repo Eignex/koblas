@@ -533,7 +533,7 @@ internal class NativeVendorBlas private constructor(
     }
 
     override fun syr2(alpha: Double, x: DenseVector, y: DenseVector, a: DenseMatrix, structure: MatrixStructure) {
-        requireSyrOperands(a, structure, "syr2", x, y)
+        requireSyr2Operands(a, structure, "syr2", x, y)
         if (noWorkReason(listOf(a), emptyList()) != null) return
         val pins = Pins()
         try {

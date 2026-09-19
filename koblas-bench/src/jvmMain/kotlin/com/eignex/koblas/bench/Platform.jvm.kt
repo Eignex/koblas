@@ -2,6 +2,7 @@ package com.eignex.koblas.bench
 
 import com.eignex.koblas.BuiltinEngines
 import com.eignex.koblas.KoblasEngine
+import com.eignex.koblas.koblas
 import java.nio.file.Files
 import java.nio.file.Path
 
@@ -19,9 +20,12 @@ internal actual fun resolveEngine(mode: String): Pair<KoblasEngine, String> {
         "jvm-simd" -> requireNotNull(BuiltinEngines.simd) {
             "requested jvm-simd engine is unavailable; launch with jdk.incubator.vector"
         }
+        // What an ordinary caller gets, which is a policy rather than an exact arm: its panels and kernels
+        // are whatever this platform selected, and its route is what says which those are.
+        "jvm-default" -> koblas
         else -> error("unknown JVM mode $mode")
     }
-    return engine to "$mode/${engine.vectorKernels.name}/${engine.sparseKernels.name}/${engine.denseImplementation}"
+    return engine to "$mode/${engine.name}"
 }
 
 internal actual fun runtimeIdentity(): String = "kotlin-2.4.10/jvm/${System.getProperty("java.vendor")}/${System.getProperty("java.version")}".replace(',', '_')

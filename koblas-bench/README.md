@@ -6,7 +6,7 @@ Requires JDK 25. `capture-report.sh` is the only reporting script.
 ## Running a capture
 
 ```bash
-# Full capture: JVM scalar and SIMD, Native, and the platform's vendors.
+# Full capture: the three JVM arms, Native, and the platform's vendors.
 koblas-bench/capture-report.sh --samples 5 --warmups 5 --target-ms 200 --forks 2
 
 # One operation across its opt-in sizes.
@@ -173,16 +173,28 @@ source revision and the resolved library files are in `metadata.txt` only.
 
 ## Targets
 
-Koblas contributes independent `jvm-scalar`, `jvm-simd` and `native` arms. Both JVM built-in arms use the
-portable scalar dense Level 2/3 component and the portable CSC sparse one, and report those components rather
-than implying SIMD or vendor execution; later panel/tile stages replace eligible components. Each vendor contributes two explicit arms: `<vendor>`
-through the Native binding, and `<vendor>-jvm` through the JVM binding, whose timing includes operand transfer.
+Koblas contributes independent `jvm-scalar`, `jvm-simd`, `jvm-default` and `native` arms. `jvm-scalar` is
+portable Kotlin at every level, and `jvm-simd` is every Vector API kernel this library owns. `jvm-default` is
+what an ordinary call gets, which is a policy rather than an exact arm: today that is `jvm-simd`'s Level 1
+with the portable dense panels, because the Level 2 panels are measured but not yet activated. Its rows are
+where the generic entry points are timed, since those use the selected engine and have none to be told. A
+comparison between `jvm-simd` and `jvm-default` is therefore a comparison of panels alone, since the two
+share everything else.
+
+Each vendor contributes two explicit arms: `<vendor>` through the Native binding, and `<vendor>-jvm`
+through the JVM binding, whose timing includes operand transfer.
 
 Every BLAS invocation runs on one compute thread; there is no thread setting to pass. Operations no vendor
 exports — `sum` and everything sparse — are reported unsupported on vendor targets rather than timed through a
 substitute.
 
-Built-in dense Level 2/3 rows name `portable-scalar/<operation>` and do not resolve a vendor. Built-in sparse
+Built-in dense Level 2/3 rows name `portable-dense/<operation>` and do not resolve a vendor. Where a window of
+work is handed to a panel or a Level 1 kernel they name that component too, as
+`portable-dense+<component>/<operation>@<group>`, where the group is how many logical columns the backend
+recommended handing over at a time. A group is not a lane count. Level 3 names no panel, because it is still
+the shared scalar traversal on every arm. A triangular or symmetric call whose windows shrink past a
+backend's shortest vector window reaches more than one body and is published as the composition it is; a
+call whose windows are all empty names no panel and no grouping at all. Built-in sparse
 Level 2/3 rows name `portable-csc/<operation>`, and where a unit of work is handed to a Level 1 kernel they
 name that component too, as `portable-csc+<component>/<operation>`: the sparse scheduling is this library's own
 portable code on every engine, so an arm whose Level 1 kernels are Vector API ones is not thereby running a
@@ -221,11 +233,20 @@ no prepared form. `+transA=T` transposes the sparse operand, which is what makes
 `setup`: a prepared transposed product derives its orientation once, and that derivation is inside the first
 use and outside the steady one.
 
+Before a dense Level 2 or 3 case is timed, its whole destination buffer is compared against an explicit
+scalar reference written from the textbook definition, which shares no code with the scheduling it checks.
+
 Before a sparse case is timed, its whole result is compared against an explicit scalar reference computed from
 the densified operands, and a fresh CSC result is compared against the support its operands' patterns reach as
 well. A prepared case is checked through a snapshot that has not been used yet, so the orientation a
 transposed call derives on first use is covered rather than assumed. A case that computes the wrong thing
 fails the capture instead of publishing a number.
+
+The `panel-multidot`, `panel-columnupdate`, `panel-coupled` and `panel-rankupdate` cases time one raw panel
+over the extents the case names, as rows by logical columns. The extents are the case's and never the
+backend's, so a tail of three columns is the same requested work on an arm that groups by two and one that
+groups by four; what the row records is which body those extents reached and which grouping the backend
+asked for. Each is checked against the written-out definition of its panel before it is timed.
 
 The `spmm-generic`, `spmm-generic-right` and `spgemm-generic` cases go through the common `Matrix` product with
 its dispatch included, the second of them with the sparse operand on the right of a dense one. That entry

@@ -49,7 +49,7 @@ public fun SparseMatrix.symm(
     c: DenseMatrix,
     lower: Boolean = true,
     right: Boolean = false,
-    workspace: MatrixWorkspace? = null,
+    workspace: Workspace? = null,
 ): Unit = koblas.symm(alpha, this, b, beta, c, lower, right, workspace)
 
 /** `C = alpha · op(A) · op(B) + beta · C` into a caller-owned dense destination, or the mirrored product
@@ -64,7 +64,7 @@ public fun SparseMatrix.gemmInto(
     beta: Double,
     c: DenseMatrix,
     right: Boolean = false,
-    workspace: MatrixWorkspace? = null,
+    workspace: Workspace? = null,
 ): Unit = koblas.gemm(alpha, this, transpose, b, transposeB, beta, c, right, workspace)
 
 /** Fresh CSC `alpha · op(A) · op(B)` for two sparse operands, retaining discovered structure. */
@@ -81,7 +81,7 @@ public fun SparseMatrix.gemmInto(
     transposeB: Boolean,
     beta: Double,
     c: DenseMatrix,
-    workspace: MatrixWorkspace? = null,
+    workspace: Workspace? = null,
 ): Unit = koblas.gemm(alpha, this, transpose, b, transposeB, beta, c, workspace)
 
 /** Fresh selected CSC triangle of `op(A) · op(A)ᵀ`. */
@@ -98,7 +98,7 @@ public fun SparseMatrix.syrk(
     beta: Double,
     c: DenseMatrix,
     lower: Boolean = true,
-    workspace: MatrixWorkspace? = null,
+    workspace: Workspace? = null,
 ): Unit = koblas.syrk(alpha, this, transpose, beta, c, lower, workspace)
 
 /** Fresh CSC `alpha · op(A) + B`, retaining the structural union. */

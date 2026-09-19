@@ -4,9 +4,14 @@
 package com.eignex.koblas
 
 import com.eignex.koblas.dense.DenseBlas
+import com.eignex.koblas.dense.DenseCall
+import com.eignex.koblas.dense.DenseMatrixOperation
+import com.eignex.koblas.dense.DenseMatrixRoute
 import com.eignex.koblas.dense.DenseOperation
+import com.eignex.koblas.dense.DensePanelKernels
 import com.eignex.koblas.dense.DenseVectorKernels
 import com.eignex.koblas.dense.PortableDenseBlas
+import com.eignex.koblas.dense.PortablePanelKernels
 import com.eignex.koblas.sparse.IndexedSparseKernels
 import com.eignex.koblas.sparse.SPARSE_SCHEDULING
 import com.eignex.koblas.sparse.SparseAlgorithms
@@ -58,17 +63,16 @@ public class KoblasEngine internal constructor(
     internal val indexedSparseKernels: IndexedSparseKernels,
     /** Optional installed host binding, retained for explicit host comparisons and attribution. */
     public val vendor: Blas?,
-    private val denseBlas: DenseBlas = PortableDenseBlas(),
+    /** Panel arithmetic and the local execution grouping that dense and sparse algorithms schedule with. */
+    public val panelKernels: DensePanelKernels = PortablePanelKernels,
+    private val denseBlas: PortableDenseBlas = PortableDenseBlas(vectorKernels, panelKernels),
     private val sparseBlas: SparseBlas = SparseAlgorithms(
         vectorKernels,
         indexedSparseKernels,
-        SparsePanelKernels(vectorKernels),
+        SparsePanelKernels(vectorKernels, panelKernels),
     ),
 ) : DenseBlas by denseBlas,
     SparseBlas by sparseBlas {
-    /** The component that serves built-in dense Level 2 and 3 calls. */
-    public val denseImplementation: String = "portable-scalar"
-
     /**
      * The component that owns built-in sparse Level 2 and 3 calls.
      *
@@ -77,9 +81,26 @@ public class KoblasEngine internal constructor(
      */
     public val sparseImplementation: String = SPARSE_SCHEDULING
 
-    /** Short read-only implementation description for logs and benchmark attribution. */
+    /**
+     * Short read-only description of what this engine selected, for logs.
+     *
+     * A selection, not a claim about execution: which of the selected implementations a given call reaches
+     * depends on its shape, and [denseRouteOf] and [com.eignex.koblas.sparse.SparseBlas.matrixRouteOf] are
+     * what answer that.
+     */
     public val name: String
-        get() = "${vectorKernels.name}/${sparseKernels.name}/$denseImplementation"
+        get() = "${vectorKernels.name}/${sparseKernels.name}/${panelKernels.name}"
+
+    /**
+     * What a built-in dense Level 2 or 3 call of this [operation] and shape actually executes.
+     *
+     * The dense counterpart of [com.eignex.koblas.sparse.SparseBlas.matrixRouteOf]. Traversal is this
+     * library's own portable code on every engine; the panels a window reaches are the selected backend's,
+     * and a window too short for one falls to the portable body. An engine's name says which backend was
+     * selected and nothing about which of its bodies a call ran.
+     */
+    public fun denseRouteOf(operation: DenseMatrixOperation, call: DenseCall): DenseMatrixRoute =
+        denseBlas.routeOf(operation, call)
 
     /**
      * The Level 1 implementation a call of this [operation] and [length] reaches, or null when its own values
@@ -99,11 +120,11 @@ public class KoblasEngine internal constructor(
 /**
  * Exact built-in implementations for tests and benchmarks.
  *
- * Not a menu of production choices, which is why it is behind [KoblasEngineApi]. [koblas] is the engine this
- * platform selected, and on the JVM that is [simd], whose kernels already delegate to the portable ones below
- * their lane width, for any strided run, and for every elementwise operation. So [scalar] is not a faster or
- * slower alternative at a given size: it is the floor the vectorised kernels stand on, exposed on its own so a
- * benchmark can time it and a conformance test can compare against it.
+ * Not a menu of production choices, which is why it is behind [KoblasEngineApi]. [koblas] is what this
+ * platform selected, which is a policy: it takes the kernels that have the evidence to be default and the
+ * portable ones everywhere else, so it need not be either engine here. [scalar] is not a faster or slower
+ * alternative to [simd] at a given size either: it is the floor the vectorised kernels stand on, exposed on
+ * its own so a benchmark can time it and a conformance test can compare against it.
  *
  * Kotlin/Native has no Vector API, so [simd] is null there and [koblas] is [scalar].
  */
@@ -112,7 +133,13 @@ public expect object BuiltinEngines {
     /** Portable Kotlin across all three levels. */
     public val scalar: KoblasEngine
 
-    /** JVM Vector API Level 1 with portable dense Level 2 and 3, or null when the module is unavailable. */
+    /**
+     * Every JVM Vector API kernel this library owns, or null when the module is unavailable.
+     *
+     * Not necessarily what [koblas] selected. A kernel is activated by default once it has the evidence for
+     * it, and the Level 2 panels do not yet, so on this platform the default is this arm's Level 1 with the
+     * portable panels. Which of them a given call reaches is what [KoblasEngine.denseRouteOf] answers.
+     */
     public val simd: KoblasEngine?
 }
 

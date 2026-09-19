@@ -19,7 +19,13 @@ import com.eignex.koblas.*
  * operands into native memory; Kotlin/Native pins caller storage for that binding.
  */
 public interface DenseBlas {
-    /** `y = alpha · op(A) · x + beta · y` (BLAS `dgemv`), with `op(A)` being `Aᵀ` when [transpose]. */
+    /**
+     * `y = alpha · op(A) · x + beta · y` (BLAS `dgemv`), with `op(A)` being `Aᵀ` when [transpose].
+     *
+     * [workspace] lends the staging a built-in call takes when [a] or [x] shares [y]. A call that needs no
+     * staging takes nothing from it.
+     */
+    @Suppress("LongParameterList") // the BLAS dgemv signature plus the workspace
     public fun gemv(
         alpha: Double,
         a: DenseMatrix,
@@ -27,6 +33,7 @@ public interface DenseBlas {
         beta: Double,
         y: DoubleArray,
         transpose: Boolean = false,
+        workspace: Workspace? = null,
     )
 
     /** [gemv] with `alpha = 1, beta = 0`, into a fresh result. */
@@ -56,6 +63,7 @@ public interface DenseBlas {
         transposeB: Boolean,
         beta: Double,
         c: DenseMatrix,
+        workspace: Workspace? = null,
     )
 
     /**
@@ -76,6 +84,7 @@ public interface DenseBlas {
         beta: Double,
         c: DenseMatrix,
         lower: Boolean = true,
+        workspace: Workspace? = null,
     )
 
     /** [gemm] with `alpha = 1, beta = 0`, into a fresh matrix. `A.cols` must equal `B.rows`. */
@@ -97,6 +106,7 @@ public interface DenseBlas {
         beta: Double,
         c: DenseMatrix,
         lower: Boolean = true,
+        workspace: Workspace? = null,
     )
 
     /** `y = alpha · A · x + beta · y` for a symmetric [a] (BLAS `dsymv`). Only the [lower] triangle is read,
@@ -122,6 +132,7 @@ public interface DenseBlas {
         c: DenseMatrix,
         lower: Boolean = true,
         right: Boolean = false,
+        workspace: Workspace? = null,
     )
 
     /** `A = A + alpha · x · yᵀ` (BLAS `dger`). */
@@ -148,6 +159,7 @@ public interface DenseBlas {
         beta: Double,
         c: DenseMatrix,
         lower: Boolean = true,
+        workspace: Workspace? = null,
     )
 
     /**
@@ -176,6 +188,7 @@ public interface DenseBlas {
         unitDiag: Boolean = false,
         right: Boolean = false,
         alpha: Double = 1.0,
+        workspace: Workspace? = null,
     )
 
     /** `x = op(T) · x` in place (BLAS `dtrmv`), the product counterpart of [trsv]. */
@@ -198,5 +211,6 @@ public interface DenseBlas {
         unitDiag: Boolean = false,
         right: Boolean = false,
         alpha: Double = 1.0,
+        workspace: Workspace? = null,
     )
 }
