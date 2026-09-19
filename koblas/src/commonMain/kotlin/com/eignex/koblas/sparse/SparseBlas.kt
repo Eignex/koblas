@@ -3,9 +3,9 @@
 package com.eignex.koblas.sparse
 
 import com.eignex.koblas.DenseMatrix
-import com.eignex.koblas.MatrixWorkspace
 import com.eignex.koblas.PreparedSparseMatrix
 import com.eignex.koblas.SparseMatrix
+import com.eignex.koblas.Workspace
 
 /**
  * Sparse Levels 2 and 3 over validated CSC storage, in portable Kotlin.
@@ -80,7 +80,7 @@ public interface SparseBlas {
         c: DenseMatrix,
         lower: Boolean = true,
         right: Boolean = false,
-        workspace: MatrixWorkspace? = null,
+        workspace: Workspace? = null,
     )
 
     /**
@@ -139,7 +139,7 @@ public interface SparseBlas {
         beta: Double,
         c: DenseMatrix,
         right: Boolean = false,
-        workspace: MatrixWorkspace? = null,
+        workspace: Workspace? = null,
     )
 
     /**
@@ -185,7 +185,7 @@ public interface SparseBlas {
         transposeB: Boolean,
         beta: Double,
         c: DenseMatrix,
-        workspace: MatrixWorkspace? = null,
+        workspace: Workspace? = null,
     )
 
     /**
@@ -200,7 +200,7 @@ public interface SparseBlas {
         beta: Double,
         c: DenseMatrix,
         lower: Boolean = true,
-        workspace: MatrixWorkspace? = null,
+        workspace: Workspace? = null,
     )
 
     /**
@@ -232,7 +232,7 @@ public interface SparseBlas {
         unitDiag: Boolean = false,
         right: Boolean = false,
         alpha: Double = 1.0,
-        workspace: MatrixWorkspace? = null,
+        workspace: Workspace? = null,
     )
 
     /**
@@ -249,7 +249,7 @@ public interface SparseBlas {
         unitDiag: Boolean = false,
         right: Boolean = false,
         alpha: Double = 1.0,
-        workspace: MatrixWorkspace? = null,
+        workspace: Workspace? = null,
     )
 
     /**

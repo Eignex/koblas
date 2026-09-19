@@ -14,11 +14,11 @@ import kotlin.test.assertTrue
  * asked for, or the workspace grows with the program's history. These check both ends and the nesting that
  * the sparse scheduling depends on.
  */
-class MatrixWorkspaceTest {
+class WorkspaceTest {
 
     @Test
     fun `a repeated loan of one length returns the same buffer`() {
-        val workspace = MatrixWorkspace()
+        val workspace = Workspace()
 
         val first = workspace.borrow(64) { it }
         val second = workspace.borrow(64) { it }
@@ -29,7 +29,7 @@ class MatrixWorkspaceTest {
 
     @Test
     fun `nested loans of one length are distinct buffers`() {
-        val workspace = MatrixWorkspace()
+        val workspace = Workspace()
 
         workspace.borrow(32) { outer ->
             workspace.borrow(32) { inner ->
@@ -43,7 +43,7 @@ class MatrixWorkspaceTest {
 
     @Test
     fun `a loan is returned when the work it was lent for throws`() {
-        val workspace = MatrixWorkspace()
+        val workspace = Workspace()
 
         assertFailsWith<IllegalStateException> {
             workspace.borrow(16) { error("the kernel failed") }
@@ -54,7 +54,7 @@ class MatrixWorkspaceTest {
 
     @Test
     fun `index loans behave as floating-point ones do`() {
-        val workspace = MatrixWorkspace()
+        val workspace = Workspace()
 
         val first = workspace.borrowI32(8) { it }
         workspace.borrowI32(8) { inner -> assertSame(first, inner) }
@@ -69,7 +69,7 @@ class MatrixWorkspaceTest {
      */
     @Test
     fun `a sweep over changing lengths retains a bounded number of them`() {
-        val workspace = MatrixWorkspace()
+        val workspace = Workspace()
 
         for (length in 1..64) workspace.borrow(length) { it[0] = length.toDouble() }
         val floating = workspace.idleLengths()
@@ -81,7 +81,7 @@ class MatrixWorkspaceTest {
 
     @Test
     fun `a sweep keeps the most recently returned lengths`() {
-        val workspace = MatrixWorkspace()
+        val workspace = Workspace()
 
         for (length in 1..64) workspace.borrow(length) { it[0] = length.toDouble() }
 
@@ -95,7 +95,7 @@ class MatrixWorkspaceTest {
      */
     @Test
     fun `alternating between two lengths keeps both resident`() {
-        val workspace = MatrixWorkspace()
+        val workspace = Workspace()
         workspace.borrow(128) { it[0] = 1.0 }
         workspace.borrow(256) { it[0] = 1.0 }
 
@@ -110,7 +110,7 @@ class MatrixWorkspaceTest {
 
     @Test
     fun `a negative length is rejected rather than allocated`() {
-        val workspace = MatrixWorkspace()
+        val workspace = Workspace()
 
         assertFailsWith<IllegalArgumentException> { workspace.borrow(-1) { it } }
     }

@@ -3,10 +3,10 @@
 package com.eignex.koblas.sparse
 
 import com.eignex.koblas.DenseMatrix
-import com.eignex.koblas.MatrixWorkspace
 import com.eignex.koblas.PreparedSparseMatrix
 import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.UnsafeKoblasApi
+import com.eignex.koblas.Workspace
 import com.eignex.koblas.borrow
 import com.eignex.koblas.dense.DenseOperation
 import com.eignex.koblas.dense.DenseVectorKernels
@@ -347,7 +347,7 @@ internal class SparseAlgorithms(
         c: DenseMatrix,
         lower: Boolean,
         right: Boolean,
-        workspace: MatrixWorkspace?,
+        workspace: Workspace?,
     ) {
         requireSquare(a, "symm")
         requireShape(c.rows == b.rows && c.cols == b.cols) {
@@ -423,7 +423,7 @@ internal class SparseAlgorithms(
         beta: Double,
         c: DenseMatrix,
         right: Boolean,
-        workspace: MatrixWorkspace?,
+        workspace: Workspace?,
     ) {
         // Multiplying the dense operand by the sparse one from the right is this product with the operands
         // the other way round, so the same derivation answers both.
@@ -490,7 +490,7 @@ internal class SparseAlgorithms(
         transposeB: Boolean,
         beta: Double,
         c: DenseMatrix,
-        workspace: MatrixWorkspace?,
+        workspace: Workspace?,
     ) {
         requireGemmShape(a, transposeA, b, transposeB, c)
         if (alpha == 0.0) {
@@ -521,7 +521,7 @@ internal class SparseAlgorithms(
         beta: Double,
         c: DenseMatrix,
         lower: Boolean,
-        workspace: MatrixWorkspace?,
+        workspace: Workspace?,
     ) {
         val n = if (transpose) a.cols else a.rows
         requireShape(c.rows == n && c.cols == n) { "syrk: C is ${c.rows}x${c.cols}, expected ${n}x$n" }
@@ -618,7 +618,7 @@ internal class SparseAlgorithms(
         unitDiag: Boolean,
         right: Boolean,
         alpha: Double,
-        workspace: MatrixWorkspace?,
+        workspace: Workspace?,
     ) {
         val n = requireTriangularMatrixShape(a, b, right, "trsm")
         if (alpha == 0.0) {
@@ -637,9 +637,11 @@ internal class SparseAlgorithms(
                     trsmRightCore(panelKernels, triangle, b, lower, !transpose, diagonal)
                 }
             } else {
-                workspace.borrow(SPARSE_RHS_WIDTH) { work ->
+                val group = panelKernels.rightHandSideGroup(n, rightHandSides)
+                // Twice the group, because a panel solve records which right-hand sides are live beside them.
+                workspace.borrow(2 * group) { work ->
                     withExplicitDiagonal(triangle, n, unitDiag, workspace) { diagonal ->
-                        trsmLeftCore(panelKernels, triangle, b, lower, transpose, diagonal, work)
+                        trsmLeftCore(panelKernels, triangle, b, lower, transpose, diagonal, work, group)
                     }
                 }
             }
@@ -655,7 +657,7 @@ internal class SparseAlgorithms(
         unitDiag: Boolean,
         right: Boolean,
         alpha: Double,
-        workspace: MatrixWorkspace?,
+        workspace: Workspace?,
     ) {
         val n = requireTriangularMatrixShape(a, b, right, "trmm")
         if (alpha == 0.0) {
@@ -670,8 +672,9 @@ internal class SparseAlgorithms(
                 if (right) {
                     trmmRightCore(panelKernels, triangle, b, lower, transpose, unitDiag, diagonal)
                 } else {
-                    workspace.borrow(SPARSE_RHS_WIDTH) { work ->
-                        trmmLeftCore(panelKernels, triangle, b, lower, transpose, unitDiag, diagonal, work)
+                    val group = panelKernels.rightHandSideGroup(n, if (right) b.rows else b.cols)
+                    workspace.borrow(2 * group) { work ->
+                        trmmLeftCore(panelKernels, triangle, b, lower, transpose, unitDiag, diagonal, work, group)
                     }
                 }
             }

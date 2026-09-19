@@ -39,9 +39,9 @@ public fun MatrixStorage.trsm(
     unitDiag: Boolean = false,
     right: Boolean = false,
     alpha: Double = 1.0,
-    workspace: MatrixWorkspace? = null,
+    workspace: Workspace? = null,
 ): Unit = when (this) {
-    is DenseMatrix -> koblas.trsm(this, b, lower, transpose, unitDiag, right, alpha)
+    is DenseMatrix -> koblas.trsm(this, b, lower, transpose, unitDiag, right, alpha, workspace)
     is SparseMatrix -> koblas.trsm(this, b, lower, transpose, unitDiag, right, alpha, workspace)
 }
 
@@ -67,8 +67,8 @@ public fun MatrixStorage.trmm(
     unitDiag: Boolean = false,
     right: Boolean = false,
     alpha: Double = 1.0,
-    workspace: MatrixWorkspace? = null,
+    workspace: Workspace? = null,
 ): Unit = when (this) {
-    is DenseMatrix -> koblas.trmm(this, b, lower, transpose, unitDiag, right, alpha)
+    is DenseMatrix -> koblas.trmm(this, b, lower, transpose, unitDiag, right, alpha, workspace)
     is SparseMatrix -> koblas.trmm(this, b, lower, transpose, unitDiag, right, alpha, workspace)
 }

@@ -1,7 +1,7 @@
 package com.eignex.koblas
 
 /**
- * Reusable scratch for alias-safe matrix products and sparse matrix algorithms.
+ * Reusable scratch for alias-safe matrix operations, taken by every routine that needs temporary storage.
  *
  * A workspace belongs to one invocation at a time. Independent calls may safely use distinct workspaces; calls
  * without one own their temporary storage. Its contents are implementation details and never retain an operand.
@@ -15,22 +15,24 @@ package com.eignex.koblas
  * lengths and drops the rest, so its memory reflects what the caller is working on rather than everything it
  * has ever worked on. Buffers currently on loan are never dropped, so nested loans remain safe.
  */
-public class MatrixWorkspace {
+public class Workspace {
     private val doubles = PooledBuffers<DoubleArray>()
     private val indices = PooledBuffers<IntArray>()
 
-    internal fun leftCopy(values: DoubleArray): DoubleArray = doubles.retained(0, values.size, ::DoubleArray)
-        .also { values.copyInto(it) }
-
-    internal fun rightCopy(values: DoubleArray): DoubleArray = doubles.retained(1, values.size, ::DoubleArray)
-        .also { values.copyInto(it) }
-
+    @PublishedApi
+    @kotlin.jvm.JvmSynthetic
     internal fun take(size: Int): DoubleArray = doubles.take(size, ::DoubleArray)
 
+    @PublishedApi
+    @kotlin.jvm.JvmSynthetic
     internal fun release(buffer: DoubleArray): Unit = doubles.release(buffer)
 
+    @PublishedApi
+    @kotlin.jvm.JvmSynthetic
     internal fun takeI32(size: Int): IntArray = indices.take(size, ::IntArray)
 
+    @PublishedApi
+    @kotlin.jvm.JvmSynthetic
     internal fun release(buffer: IntArray): Unit = indices.release(buffer)
 
     /** Idle floating-point buffers of [size]; an implementation diagnostic tests read to see reuse happen. */
@@ -50,9 +52,15 @@ public class MatrixWorkspace {
  * Borrows a vector of [size] for [block], allocating one when there is no workspace to lend it.
  *
  * Handed back in a `finally`, so a routine whose kernels throw does not strand the borrow. The receiver is
- * nullable because a workspace is optional wherever it is taken.
+ * nullable because a workspace is optional wherever it is taken, and Kotlin cannot carry both receivers under
+ * one name: nullability is not part of a JVM signature.
+ *
+ * Public because a caller composing its own algorithm on these kernels needs the same bounded scratch the
+ * library uses, and a workspace with no way to lend from it would be an object a caller could only
+ * pass along. It is `inline`, so the loan and its return are the caller's own code and no lambda survives.
  */
-internal inline fun <T> MatrixWorkspace?.borrow(size: Int, block: (DoubleArray) -> T): T {
+@kotlin.jvm.JvmSynthetic
+public inline fun <T> Workspace?.borrow(size: Int, block: (DoubleArray) -> T): T {
     val buffer = this?.take(size) ?: DoubleArray(size)
     try {
         return block(buffer)
@@ -62,7 +70,8 @@ internal inline fun <T> MatrixWorkspace?.borrow(size: Int, block: (DoubleArray) 
 }
 
 /** Index counterpart of [borrow]. */
-internal inline fun <T> MatrixWorkspace?.borrowI32(size: Int, block: (IntArray) -> T): T {
+@kotlin.jvm.JvmSynthetic
+public inline fun <T> Workspace?.borrowI32(size: Int, block: (IntArray) -> T): T {
     val buffer = this?.takeI32(size) ?: IntArray(size)
     try {
         return block(buffer)
@@ -88,7 +97,6 @@ internal inline fun <T> MatrixWorkspace?.borrowI32(size: Int, block: (IntArray) 
 private class PooledBuffers<A : Any> {
     private val idle = ArrayList<A>()
     private val lent = ArrayList<A>()
-    private val retained = HashMap<Int, A>()
 
     fun take(size: Int, allocate: (Int) -> A): A {
         require(size >= 0) { "buffer size must not be negative, got $size" }
@@ -104,21 +112,6 @@ private class PooledBuffers<A : Any> {
         lent.removeAt(index)
         makeRoomFor(sizeOf(buffer))
         idle += buffer
-    }
-
-    /**
-     * A buffer kept under [slot] across calls rather than lent for a scope.
-     *
-     * Alias staging needs its copy to outlive the borrow scope: the staged operand is read by the whole
-     * operation, so the copy is held by slot until a call asks for a different length. One buffer per slot,
-     * so this retains what the last call needed rather than everything every call has ever needed.
-     */
-    fun retained(slot: Int, size: Int, allocate: (Int) -> A): A {
-        val existing = retained[slot]
-        if (existing != null && sizeOf(existing) == size) return existing
-        val fresh = allocate(size)
-        retained[slot] = fresh
-        return fresh
     }
 
     fun available(size: Int): Int {

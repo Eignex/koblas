@@ -1,5 +1,6 @@
 package com.eignex.koblas
 
+import com.eignex.koblas.dense.PanelWork
 import kotlin.math.abs
 import kotlin.random.Random
 import kotlin.test.assertEquals
@@ -124,3 +125,16 @@ internal fun poisonedTriangle(rng: Random, n: Int, lower: Boolean, unitDiag: Boo
     }
     return poisoned to explicit
 }
+
+/**
+ * One more than the group the selected backend recommends for [work], so a call of this many columns always
+ * has a partial panel at the end whatever that backend chose.
+ *
+ * Asked with more columns than any backend would group, since the recommendation is capped by how many there
+ * are and a test that asked for its own width back would learn nothing.
+ */
+internal fun partialPanelWidth(work: PanelWork): Int =
+    koblas.panelKernels.executionGroup(work, UNGROUPED_EXTENT, UNGROUPED_EXTENT) + 1
+
+/** Wider than any grouping a backend recommends, so asking with it returns the recommendation itself. */
+private const val UNGROUPED_EXTENT = 1024

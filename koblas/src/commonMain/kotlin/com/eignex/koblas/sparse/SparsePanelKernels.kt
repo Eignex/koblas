@@ -1,22 +1,35 @@
 package com.eignex.koblas.sparse
 
 import com.eignex.koblas.dense.DenseOperation
+import com.eignex.koblas.dense.DensePanelKernels
 import com.eignex.koblas.dense.DenseVectorKernels
-
-/** Dense right-hand sides processed per walk of portable CSC storage. */
-internal const val SPARSE_RHS_WIDTH: Int = 4
+import com.eignex.koblas.dense.PanelWork
 
 /**
  * Portable sparse column and right-hand-side panel arithmetic.
  *
- * A panel here is a small group of dense right-hand sides visited together, so one walk of a sparse column's
- * indices and values serves several of them. The width is this file's own scheduling choice, not a vector
- * width: nothing below is written in lanes, and a caller never has to know either number.
+ * A panel here is a group of dense right-hand sides visited together, so one walk of a sparse column's
+ * indices and values serves several of them. How many is [rightHandSideGroup], which the local backend
+ * recommends through the same seam the dense panels use; it is not a vector width, since nothing below is
+ * written in lanes, and a caller never has to know either number.
  *
  * Contiguous whole-column work is where a selected Level 1 kernel is actually called, which is the only place
  * an engine's choice of dense kernels reaches a sparse matrix operation.
  */
-internal class SparsePanelKernels(private val denseVectors: DenseVectorKernels) {
+internal class SparsePanelKernels(
+    private val denseVectors: DenseVectorKernels,
+    private val densePanels: DensePanelKernels,
+) {
+
+    /**
+     * Dense right-hand sides to visit per walk of a sparse column, for a destination of [columns] of them.
+     *
+     * The sparse traversal is this file's, and the indices it reads are not something the dense panel
+     * contract knows about. What it takes from that contract is the grouping, so that this width follows the
+     * machine the same way the dense ones do instead of being a constant here.
+     */
+    fun rightHandSideGroup(rows: Int, columns: Int): Int =
+        densePanels.executionGroup(PanelWork.SparseRightHandSides, rows, columns)
 
     /** The Level 1 implementation a contiguous column update of [length] elements reaches, for attribution. */
     fun denseLeaf(operation: DenseOperation, length: Int): String? = denseVectors.implementationFor(operation, length)
@@ -239,7 +252,9 @@ internal class SparsePanelKernels(private val denseVectors: DenseVectorKernels) 
      *
      * A right-hand side that is exactly zero is skipped, which is [SparseBlas.trsv]'s rule carried to several
      * columns at once: it is what keeps a zero right-hand side from forming a product against a stored
-     * infinity. The mask records which ones are live so the update loop reads it rather than the values again.
+     * infinity. Which ones are live is recorded in the second half of [work], so the update loop reads that
+     * rather than the values again, and so no width is wider than the record can hold. [work] therefore needs
+     * twice [width] entries here, where the other panels need [width].
      */
     @Suppress("LongParameterList") // the column slice, its three triangle flags, and the panel window
     fun triangularPanelScatter(
@@ -258,7 +273,6 @@ internal class SparsePanelKernels(private val denseVectors: DenseVectorKernels) 
         width: Int,
         work: DoubleArray,
     ) {
-        var active = 0
         for (rhs in 0 until width) {
             val at = (columnStart + rhs) * leadingDimension + column
             val raw = dense[at]
@@ -267,8 +281,8 @@ internal class SparsePanelKernels(private val denseVectors: DenseVectorKernels) 
                 raw == 0.0 -> 0.0
                 else -> raw / diagonal
             }
+            work[width + rhs] = if (raw == 0.0) 0.0 else 1.0
             if (raw != 0.0) {
-                active = active or (1 shl rhs)
                 dense[at] = when {
                     solve -> work[rhs]
                     unitDiagonal -> raw
@@ -281,7 +295,7 @@ internal class SparsePanelKernels(private val denseVectors: DenseVectorKernels) 
             if (if (lower) row > column else row < column) {
                 val value = values[position]
                 for (rhs in 0 until width) {
-                    if (active and (1 shl rhs) != 0) {
+                    if (work[width + rhs] != 0.0) {
                         val at = (columnStart + rhs) * leadingDimension + row
                         if (solve) dense[at] -= value * work[rhs] else dense[at] += value * work[rhs]
                     }

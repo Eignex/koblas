@@ -227,7 +227,7 @@ internal class JvmVendorBlas(
     }
 
     override fun syr2(alpha: Double, x: DenseVector, y: DenseVector, a: DenseMatrix, structure: MatrixStructure) {
-        requireSyrOperands(a, structure, "syr2", x, y)
+        requireSyr2Operands(a, structure, "syr2", x, y)
         if (noWorkReason(listOf(a), emptyList()) != null) return
         Arena.ofConfined().use { arena ->
             val na = arena.stage(a)

@@ -4,6 +4,7 @@ package com.eignex.koblas.dense
 
 import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.DenseVector
+import com.eignex.koblas.Workspace
 import com.eignex.koblas.vendor.*
 
 /**
@@ -24,6 +25,10 @@ import com.eignex.koblas.vendor.*
  * primitives keep working there; every operation on this seam raises [MissingVendorException] instead, because
  * an accelerator-dependent call has nothing to fall back to and a silent portable substitute would be a
  * different implementation reported under the same name.
+ *
+ * A workspace offered here is not used, because there is nothing for it to lend. A whole-call vendor route
+ * hands the caller's storage to the library and rejects an overlap rather than staging around it, so it takes
+ * no scratch of its own; the parameter is on the seam because the built-in implementations do take one.
  */
 internal class VendorDenseBlas(private val vendor: Blas?) : DenseBlas {
     private val blas: Blas get() = vendor ?: throw MissingVendorException()
@@ -35,6 +40,7 @@ internal class VendorDenseBlas(private val vendor: Blas?) : DenseBlas {
         beta: Double,
         y: DoubleArray,
         transpose: Boolean,
+        workspace: Workspace?,
     ) {
         requireGemvOperands(a, transpose, x.asVector(), y.asVector())
         blas.gemv(alpha, a, transpose, x.asVector(), beta, y.asVector())
@@ -58,6 +64,7 @@ internal class VendorDenseBlas(private val vendor: Blas?) : DenseBlas {
         transposeB: Boolean,
         beta: Double,
         c: DenseMatrix,
+        workspace: Workspace?,
     ) {
         requireGemmOperands(a, transposeA, b, transposeB, c)
         requireDistinctDestination(c, a, b, "gemm")
@@ -73,13 +80,23 @@ internal class VendorDenseBlas(private val vendor: Blas?) : DenseBlas {
         beta: Double,
         c: DenseMatrix,
         lower: Boolean,
+        workspace: Workspace?,
     ) {
         requireGemmtOperands(a, transposeA, b, transposeB, c, symmetricStructure(lower))
         requireDistinctDestination(c, a, b, "gemmt")
         blas.gemmt(alpha, a, transposeA, b, transposeB, beta, c, symmetricStructure(lower))
     }
 
-    override fun syrk(alpha: Double, a: DenseMatrix, transpose: Boolean, beta: Double, c: DenseMatrix, lower: Boolean) {
+    @Suppress("LongParameterList") // the BLAS dsyrk signature plus the workspace
+    override fun syrk(
+        alpha: Double,
+        a: DenseMatrix,
+        transpose: Boolean,
+        beta: Double,
+        c: DenseMatrix,
+        lower: Boolean,
+        workspace: Workspace?,
+    ) {
         requireSyrkOperands(a, transpose, c, symmetricStructure(lower))
         requireDistinctDestination(c, a, null, "syrk")
         blas.syrk(alpha, a, transpose, beta, c, symmetricStructure(lower))
@@ -98,6 +115,7 @@ internal class VendorDenseBlas(private val vendor: Blas?) : DenseBlas {
         c: DenseMatrix,
         lower: Boolean,
         right: Boolean,
+        workspace: Workspace?,
     ) {
         requireSymmOperands(a, symmetricStructure(lower), b, c, right)
         requireDistinctDestination(c, a, b, "symm")
@@ -115,7 +133,7 @@ internal class VendorDenseBlas(private val vendor: Blas?) : DenseBlas {
     }
 
     override fun syr2(alpha: Double, x: DenseVector, y: DenseVector, a: DenseMatrix, lower: Boolean) {
-        requireSyrOperands(a, symmetricStructure(lower), "syr2", x, y)
+        requireSyr2Operands(a, symmetricStructure(lower), "syr2", x, y)
         blas.syr2(alpha, x, y, a, symmetricStructure(lower))
     }
 
@@ -127,6 +145,7 @@ internal class VendorDenseBlas(private val vendor: Blas?) : DenseBlas {
         beta: Double,
         c: DenseMatrix,
         lower: Boolean,
+        workspace: Workspace?,
     ) {
         requireSyr2kOperands(a, b, transpose, c, symmetricStructure(lower))
         requireDistinctDestination(c, a, b, "syr2k")
@@ -151,6 +170,7 @@ internal class VendorDenseBlas(private val vendor: Blas?) : DenseBlas {
         unitDiag: Boolean,
         right: Boolean,
         alpha: Double,
+        workspace: Workspace?,
     ) {
         requireTriangularMatrixOperands(a, triangle(lower, unitDiag), b, right, "trsm")
         requireDistinctDestination(b, a, null, "trsm")
@@ -165,6 +185,7 @@ internal class VendorDenseBlas(private val vendor: Blas?) : DenseBlas {
         unitDiag: Boolean,
         right: Boolean,
         alpha: Double,
+        workspace: Workspace?,
     ) {
         requireTriangularMatrixOperands(a, triangle(lower, unitDiag), b, right, "trmm")
         requireDistinctDestination(b, a, null, "trmm")

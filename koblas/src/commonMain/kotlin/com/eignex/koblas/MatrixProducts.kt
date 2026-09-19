@@ -49,7 +49,7 @@ public fun Matrix.gemmInto(
     transposeOther: Boolean,
     beta: Double,
     destination: DenseMatrix,
-    workspace: MatrixWorkspace? = null,
+    workspace: Workspace? = null,
 ) {
     val m = if (transpose) cols else rows
     val depth = if (transpose) rows else cols
@@ -99,7 +99,12 @@ public fun Matrix.gemmInto(
     }
 }
 
-/** The dense route, with either operand staged when it shares the destination's backing array. */
+/**
+ * The dense route, which is the dense product itself.
+ *
+ * Staging an operand that shares the destination is that product's own rule and its own loan, so this hands
+ * the workspace on rather than copying first and passing a matrix that no longer needs one.
+ */
 private fun denseProduct(
     alpha: Double,
     left: DenseMatrix,
@@ -108,20 +113,8 @@ private fun denseProduct(
     transposeOther: Boolean,
     beta: Double,
     destination: DenseMatrix,
-    workspace: MatrixWorkspace?,
-) {
-    val stableLeft = if (left.values === destination.values) {
-        DenseMatrix.wrap(left.rows, left.cols, workspace?.leftCopy(left.values) ?: left.values.copyOf())
-    } else {
-        left
-    }
-    val stableRight = if (right.values === destination.values) {
-        DenseMatrix.wrap(right.rows, right.cols, workspace?.rightCopy(right.values) ?: right.values.copyOf())
-    } else {
-        right
-    }
-    koblas.gemm(alpha, stableLeft, transpose, stableRight, transposeOther, beta, destination)
-}
+    workspace: Workspace?,
+) = koblas.gemm(alpha, left, transpose, right, transposeOther, beta, destination, workspace)
 
 /**
  * Dense column-major storage for an operand that is not already in it.
