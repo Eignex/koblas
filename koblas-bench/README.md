@@ -173,18 +173,25 @@ source revision and the resolved library files are in `metadata.txt` only.
 
 ## Targets
 
-Koblas contributes independent `jvm-scalar`, `jvm-simd` and `native` arms. In S1 both JVM built-in arms use the
-portable scalar Level 2/3 component and report that component rather than implying SIMD or vendor execution;
-later panel/tile stages replace eligible components. Each vendor contributes two explicit arms: `<vendor>`
+Koblas contributes independent `jvm-scalar`, `jvm-simd` and `native` arms. Both JVM built-in arms use the
+portable scalar dense Level 2/3 component and the portable CSC sparse one, and report those components rather
+than implying SIMD or vendor execution; later panel/tile stages replace eligible components. Each vendor contributes two explicit arms: `<vendor>`
 through the Native binding, and `<vendor>-jvm` through the JVM binding, whose timing includes operand transfer.
 
 Every BLAS invocation runs on one compute thread; there is no thread setting to pass. Operations no vendor
 exports — `sum` and everything sparse — are reported unsupported on vendor targets rather than timed through a
 substitute.
 
-Built-in Level 2/3 rows name `portable-scalar/<operation>` in S1 and do not resolve a vendor. Explicit host rows
-derive their entry point, resolved library binary, identity, version and threading evidence from the binding
-that performs the call. Existing binding route checks retain explicit no-work and composed-call attribution.
+Built-in dense Level 2/3 rows name `portable-scalar/<operation>` and do not resolve a vendor. Built-in sparse
+Level 2/3 rows name `portable-csc/<operation>`, and where a unit of work is handed to a Level 1 kernel they
+name that component too, as `portable-csc+<component>/<operation>`: the sparse scheduling is this library's own
+portable code on every engine, so an arm whose Level 1 kernels are Vector API ones is not thereby running a
+vectorised sparse product. The destination scaling a non-unit `beta` performs is a component like any other
+and is named. A `direct` row's components all ran; a `composed` row's are the ones the call can reach, because
+its columns straddle a kernel's crossover or because the traversal decides per unit whether the kernel is
+called at all, and the route says which. Explicit host rows derive their entry point, resolved library binary, identity, version and threading
+evidence from the binding that performs the call. Existing binding route checks retain explicit no-work and
+composed-call attribution.
 
 ## Cases
 
@@ -198,6 +205,35 @@ lines with the same fixture and options as the case they extend.
 
 `+timing=arithmetic` excludes the per-iteration reset for `scal` and `spgather`; arithmetic scaling uses
 alpha = -1. Compare only cases with matching options, since prepared and one-shot timings differ.
+
+`+mode=` says how a prepared sparse operand is accounted for, and the four values measure different logical
+work rather than the same work at different speeds:
+
+| Mode | Timed region |
+|---|---|
+| `oneshot` | The whole call, with no snapshot built at all. |
+| `prepared` | Steady-state reuse of a snapshot built before the timed region. |
+| `setup` | Building the snapshot, and nothing else. |
+| `firstuse` | Building the snapshot and calling it once, which is where a derived orientation is paid for. |
+
+`spgemv`, `spmm` and `spgemm` carry all four. Every other sparse matrix case is `mode=oneshot`, because it has
+no prepared form. `+transA=T` transposes the sparse operand, which is what makes `firstuse` differ from
+`setup`: a prepared transposed product derives its orientation once, and that derivation is inside the first
+use and outside the steady one.
+
+Before a sparse case is timed, its whole result is compared against an explicit scalar reference computed from
+the densified operands, and a fresh CSC result is compared against the support its operands' patterns reach as
+well. A prepared case is checked through a snapshot that has not been used yet, so the orientation a
+transposed call derives on first use is covered rather than assumed. A case that computes the wrong thing
+fails the capture instead of publishing a number.
+
+The `spmm-generic`, `spmm-generic-right` and `spgemm-generic` cases go through the common `Matrix` product with
+its dispatch included, the second of them with the sparse operand on the right of a dense one. That entry
+point uses the engine this platform selected rather than one a benchmark names, because a caller holding a
+`Matrix` has no engine to pass. They are therefore `default-policy` rows on the arm whose engine is the
+selected one, and are declined on every other arm rather than publishing that arm's label over another
+engine's work. On a Kotlin/Native host with an installed library the selected engine is not the `native` arm's
+scalar one, so these cases are declined there too.
 
 ## Direct Gradle runs
 

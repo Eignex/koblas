@@ -1,10 +1,14 @@
 package com.eignex.koblas.bench
 
 import com.eignex.koblas.BuiltinEngines
+import com.eignex.koblas.koblas
+import com.eignex.koblas.sparse.SparseCall
+import com.eignex.koblas.sparse.SparseMatrixOperation
 import kotlin.test.Test
 import kotlin.test.assertContains
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
@@ -107,5 +111,223 @@ class SparseTest {
 
         assertNull(arm.work)
         assertContains(assertNotNull(arm.reason), "no dotSparse kernel")
+    }
+
+    @Test
+    fun `a sparse matrix row names the portable scheduling on every engine`() {
+        for (engine in listOfNotNull(BuiltinEngines.scalar, BuiltinEngines.simd)) {
+            for (id in listOf(
+                "spsymv+65+sparse-triangular+density=0.05+mode=oneshot+uplo=L",
+                "spgemm+33x17x21+sparse-uniform+density=0.05+mode=oneshot",
+                "spsyrk-sparse+33x17+sparse-uniform+density=0.05+uplo=L",
+                "spadd+33x17+sparse-uniform+density=0.05",
+            )) {
+                val case = Cases.parse(id).single()
+                val work = assertNotNull(sparseArm(case, engine)?.work, "$id on ${engine.name}")
+                val kernel = assertNotNull(work.kernel, "$id on ${engine.name}")
+                assertTrue(kernel.startsWith("portable-csc"), "$id on ${engine.name} claimed $kernel")
+                assertTrue(kernel.endsWith("/${case.operation}"), kernel)
+            }
+        }
+    }
+
+    /**
+     * A row names the components its own route resolved, so the attribution and the call cannot disagree.
+     * The scattered product is the interesting one, because its leaf is the engine's indexed selection rather
+     * than the scheduling's own arithmetic.
+     */
+    @Test
+    fun `a scattered sparse product names the level one leaf its columns reach`() {
+        val case = Cases.parse("spgemv+64x32+sparse-uniform+density=0.5+mode=oneshot").single()
+        val engine = BuiltinEngines.scalar
+
+        val work = assertNotNull(sparseArm(case, engine)?.work)
+
+        val expected = engine.matrixRouteOf(
+            SparseMatrixOperation.Gemv,
+            SparseCall(Fixtures.sparse(64, 32, 0.5, 1), alpha = 0.875, beta = -0.25, destinationElements = 64, depth = 32),
+        )
+        assertEquals("${expected.implementation}/spgemv", work.kernel)
+        // A non-unit beta scales the destination through a dense kernel, and the row says so rather than
+        // naming only the indexed leaf the columns reach.
+        assertEquals("portable-csc+scalar/scale+scalar/axpy/spgemv", work.kernel)
+    }
+
+    @Test
+    fun `the four prepared boundaries are separate timings of different work`() {
+        val modes = listOf(
+            "oneshot" to "oneshot",
+            "prepared" to "prepared",
+            "setup" to "prepare",
+            "firstuse" to "prepare-and-first-use",
+        )
+        for ((mode, timing) in modes) {
+            val case = Cases.parse("spgemv+64x32+sparse-uniform+density=0.25+mode=$mode").single()
+
+            val work = assertNotNull(sparseArm(case, BuiltinEngines.scalar)?.work, mode)
+
+            assertEquals(timing, work.timingMode, mode)
+            assertTrue(work.run().isFinite(), "$mode produced no usable result")
+        }
+    }
+
+    /**
+     * Preparing a snapshot runs no arithmetic kernel, so a setup row may not carry the name of one. It is the
+     * copy that was timed, and the row has to say so or the number is attached to a call that never happened.
+     */
+    @Test
+    fun `a setup row names snapshot preparation rather than an arithmetic kernel`() {
+        val case = Cases.parse("spgemv+64x32+sparse-uniform+density=0.25+mode=setup").single()
+
+        val work = assertNotNull(sparseArm(case, BuiltinEngines.scalar)?.work)
+
+        assertEquals("portable-csc/spprepare", work.kernel)
+        assertEquals("prepare", work.timingMode)
+    }
+
+    /**
+     * First use is preparation plus one call, which is where a prepared transposed product derives its
+     * orientation. The row names both halves, because both ran inside the timed region.
+     */
+    @Test
+    fun `a first-use row names the preparation and the call it pays for`() {
+        val case = Cases.parse("spmm+33x4x21+sparse-uniform+density=0.05+mode=firstuse+transA=T").single()
+
+        val work = assertNotNull(sparseArm(case, BuiltinEngines.scalar)?.work)
+
+        assertEquals("composed", work.comparisonKind)
+        assertEquals("prepare-and-first-use", work.timingMode)
+        val kernel = assertNotNull(work.kernel)
+        assertTrue(kernel.startsWith("portable-csc/spprepare then "), kernel)
+        assertTrue(kernel.endsWith("/spmm"), kernel)
+    }
+
+    /**
+     * The generic entry point uses the engine this platform selected, not one a benchmark names. An arm whose
+     * engine is a different one would be publishing its own label over another engine's work, so it declines.
+     */
+    @Test
+    fun `the generic entry point is timed only on the arm whose engine it actually uses`() {
+        for (id in listOf(
+            "spmm-generic+33x4x21+sparse-uniform+density=0.05+mode=oneshot",
+            "spmm-generic-right+33x4x21+sparse-uniform+density=0.05+mode=oneshot",
+            "spgemm-generic+33x17x21+sparse-uniform+density=0.05+mode=oneshot",
+        )) {
+            val case = Cases.parse(id).single()
+            for (engine in listOfNotNull(BuiltinEngines.scalar, BuiltinEngines.simd)) {
+                val arm = assertNotNull(sparseArm(case, engine), id)
+                if (engine === koblas) {
+                    val work = assertNotNull(arm.work, "$id on the selected engine")
+                    assertEquals("default-policy", work.comparisonKind, id)
+                    assertEquals("oneshot-generic", work.timingMode, id)
+                    assertTrue(assertNotNull(work.kernel).startsWith("portable-csc"), id)
+                    assertTrue(work.run().isFinite(), id)
+                } else {
+                    assertNull(arm.work, "$id was timed under an engine it does not use")
+                    assertContains(assertNotNull(arm.reason), "platform-selected engine")
+                }
+            }
+        }
+    }
+
+    /**
+     * A prepared row times a snapshot the requested engine built, so its route is that engine's answer. This
+     * is the counterpart of the generic case: there the engine is fixed by the API, here it is the arm's.
+     */
+    @Test
+    fun `a prepared row times a snapshot built by the engine whose route it reports`() {
+        val case = Cases.parse("spgemv+64x32+sparse-uniform+density=0.25+mode=prepared").single()
+
+        for (engine in listOfNotNull(BuiltinEngines.scalar, BuiltinEngines.simd)) {
+            val work = assertNotNull(sparseArm(case, engine)?.work, engine.name)
+            val expected = engine.matrixRouteOf(
+                SparseMatrixOperation.Gemv,
+                SparseCall(Fixtures.sparse(64, 32, 0.25, 1), alpha = 0.875, beta = -0.25, destinationElements = 64, depth = 32),
+            )
+            assertEquals("${expected.implementation}/spgemv", work.kernel, engine.name)
+        }
+    }
+
+    /**
+     * Every sparse matrix operation, verified against the reference before it would be timed.
+     *
+     * Building an arm runs its check, so this is what proves the checks themselves execute for every case
+     * shape the file can hold: a transposed product, a right-hand side, both triangles and both result forms.
+     * The fixtures are small on purpose; the case file's own sizes are for measuring, not for checking.
+     */
+    @Test
+    fun `every sparse matrix operation verifies its result before it is timed`() {
+        for (id in listOf(
+            "spgemv+9x7+sparse-uniform+density=0.3+mode=oneshot",
+            "spgemv+9x7+sparse-uniform+density=0.3+mode=oneshot+transA=T",
+            "spgemv+9x7+sparse-uniform+density=0.3+mode=prepared",
+            "spgemv+9x7+sparse-uniform+density=0.3+mode=firstuse",
+            "spmm+9x3x7+sparse-uniform+density=0.3+mode=oneshot",
+            "spmm+9x3x7+sparse-uniform+density=0.3+mode=prepared+transA=T",
+            "spmm+9x3x7+sparse-uniform+density=0.3+mode=firstuse+transA=T",
+            "spgemm+9x5x7+sparse-uniform+density=0.3+mode=oneshot",
+            "spgemm+9x5x7+sparse-uniform+density=0.3+mode=prepared+transA=T",
+            "spsymv+9+sparse-triangular+density=0.3+mode=oneshot+uplo=L",
+            "spsymv+9+sparse-triangular+density=0.3+mode=oneshot+uplo=U",
+            "spsymm+9x3+sparse-triangular+density=0.3+mode=oneshot+side=L+uplo=L",
+            "spsymm+3x9+sparse-triangular+density=0.3+mode=oneshot+side=R+uplo=U",
+            "sptrsv+9+sparse-triangular+density=0.3+mode=oneshot+uplo=L+transA=N+diag=N",
+            "sptrsv+9+sparse-triangular+density=0.3+mode=oneshot+uplo=U+transA=T+diag=U",
+            "sptrmv+9+sparse-triangular+density=0.3+mode=oneshot+uplo=U+transA=T+diag=U",
+            "sptrsm+9x3+sparse-triangular+density=0.3+mode=oneshot+side=L+uplo=L+transA=N+diag=N",
+            "sptrsm+3x9+sparse-triangular+density=0.3+mode=oneshot+side=R+uplo=U+transA=T+diag=U",
+            "sptrmm+9x3+sparse-triangular+density=0.3+mode=oneshot+side=L+uplo=U+transA=T+diag=U",
+            "sptrmm+3x9+sparse-triangular+density=0.3+mode=oneshot+side=R+uplo=L+transA=N+diag=N",
+            "spsyrk-dense+9x5+sparse-uniform+density=0.3+uplo=U",
+            "spsyrk-dense+9x5+sparse-uniform+density=0.3+uplo=L",
+            "spsyrk-sparse+9x5+sparse-uniform+density=0.3+uplo=U",
+            "spsyrk-sparse+9x5+sparse-uniform+density=0.3+uplo=L",
+            "spadd+9x5+sparse-uniform+density=0.3",
+        )) {
+            val case = Cases.parse(id).single()
+            val work = assertNotNull(sparseArm(case, BuiltinEngines.scalar)?.work, id)
+            assertTrue(work.run().isFinite(), id)
+        }
+    }
+
+    /**
+     * The generic pairings on the engine that actually serves them, over a rectangular shape so a transposed
+     * operand cannot pass by being square.
+     */
+    @Test
+    fun `every generic pairing verifies its result on the selected engine`() {
+        for (id in listOf(
+            "spmm-generic+9x3x7+sparse-uniform+density=0.3+mode=oneshot",
+            "spmm-generic+9x3x7+sparse-uniform+density=0.3+mode=oneshot+transA=T",
+            "spmm-generic-right+9x3x7+sparse-uniform+density=0.3+mode=oneshot",
+            "spmm-generic-right+9x3x7+sparse-uniform+density=0.3+mode=oneshot+transA=T",
+            "spgemm-generic+9x5x7+sparse-uniform+density=0.3+mode=oneshot",
+        )) {
+            val case = Cases.parse(id).single()
+            val work = assertNotNull(sparseArm(case, koblas)?.work, id)
+            assertTrue(work.run().isFinite(), id)
+        }
+    }
+
+    @Test
+    fun `an option the generic allocating product cannot apply is rejected at parsing`() {
+        assertFailsWith<IllegalArgumentException> {
+            Cases.parse("spgemm-generic+9x5x7+sparse-uniform+density=0.3+mode=oneshot+transA=T")
+        }
+    }
+
+    /**
+     * A case whose own contract stops before the arithmetic has nothing to time, and says so rather than
+     * publishing the cost of scaling a destination under the name of the product that did not happen.
+     */
+    @Test
+    fun `a case with no arithmetic to do is declined rather than timed`() {
+        val empty = Fixtures.sparse(8, 8, 0.25, 1)
+        val route = BuiltinEngines.scalar.matrixRouteOf(
+            SparseMatrixOperation.GemmDense,
+            SparseCall(empty, alpha = 0.0, beta = 0.5, destinationElements = 64, depth = 32),
+        )
+
+        assertEquals("nowork", route.kind.name.lowercase())
     }
 }

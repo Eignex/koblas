@@ -6,6 +6,8 @@ package com.eignex.koblas
 
 import com.eignex.koblas.dense.DenseBlas
 import com.eignex.koblas.dense.applyBeta
+import com.eignex.koblas.sparse.internal.sparseSyr
+import com.eignex.koblas.sparse.internal.sparseSyr2
 import kotlin.jvm.JvmOverloads
 
 /**
@@ -120,3 +122,32 @@ public fun DenseMatrix.syr(alpha: Double, x: DenseVector, lower: Boolean = true)
 @JvmOverloads
 public fun DenseMatrix.syr2(alpha: Double, x: DenseVector, y: DenseVector, lower: Boolean = true): Unit =
     koblas.syr2(alpha, x, y, this, lower)
+
+/**
+ * Fresh CSC matrix holding `A + alpha * x * xT` in its [lower] or upper triangle. The other triangle is
+ * copied unchanged. Unlike dense [DenseMatrix.syr], this is not in place: a rank update can introduce
+ * entries that the source CSC pattern has no room to store.
+ *
+ * Existing explicit zeros survive. A coordinate reached by nonzero vector support is stored even when its
+ * arithmetic cancels or underflows to zero, so the returned matrix never silently drops discovered fill.
+ * The result owns independent structural and value arrays, and its rows ascend within every column.
+ */
+@JvmOverloads
+public fun SparseMatrix.syr(alpha: Double, x: Vector, lower: Boolean = true): SparseMatrix {
+    requireSyrShape(this, x.size, "syr")
+    return sparseSyr(this, alpha, x, lower)
+}
+
+/**
+ * Fresh CSC matrix holding `A + alpha * (x * yT + y * xT)` in its [lower] or upper triangle. The other
+ * triangle is copied unchanged. This structural counterpart of dense [DenseMatrix.syr2] never mutates
+ * its source, because newly nonzero entries may require CSC fill.
+ *
+ * Existing explicit zeros survive. A coordinate reached by nonzero vector support is stored even when its
+ * two terms cancel or underflow to zero. The result has independent arrays and canonical ascending CSC rows.
+ */
+@JvmOverloads
+public fun SparseMatrix.syr2(alpha: Double, x: Vector, y: Vector, lower: Boolean = true): SparseMatrix {
+    requireSyr2Shape(this, x.size, y.size, "syr2")
+    return sparseSyr2(this, alpha, x, y, lower)
+}
