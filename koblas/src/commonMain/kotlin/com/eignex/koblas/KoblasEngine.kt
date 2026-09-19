@@ -8,7 +8,11 @@ import com.eignex.koblas.dense.DenseOperation
 import com.eignex.koblas.dense.DenseVectorKernels
 import com.eignex.koblas.dense.PortableDenseBlas
 import com.eignex.koblas.sparse.IndexedSparseKernels
+import com.eignex.koblas.sparse.SPARSE_SCHEDULING
+import com.eignex.koblas.sparse.SparseAlgorithms
+import com.eignex.koblas.sparse.SparseBlas
 import com.eignex.koblas.sparse.SparseKernels
+import com.eignex.koblas.sparse.SparsePanelKernels
 import com.eignex.koblas.vendor.Blas
 import com.eignex.koblas.vendor.openBlas
 
@@ -55,9 +59,23 @@ public class KoblasEngine internal constructor(
     /** Optional installed host binding, retained for explicit host comparisons and attribution. */
     public val vendor: Blas?,
     private val denseBlas: DenseBlas = PortableDenseBlas(),
-) : DenseBlas by denseBlas {
-    /** The component that serves built-in Level 2 and 3 calls. */
+    private val sparseBlas: SparseBlas = SparseAlgorithms(
+        vectorKernels,
+        indexedSparseKernels,
+        SparsePanelKernels(vectorKernels),
+    ),
+) : DenseBlas by denseBlas,
+    SparseBlas by sparseBlas {
+    /** The component that serves built-in dense Level 2 and 3 calls. */
     public val denseImplementation: String = "portable-scalar"
+
+    /**
+     * The component that owns built-in sparse Level 2 and 3 calls.
+     *
+     * Always this library's portable CSC scheduling. The Level 1 kernels an individual column reaches are a
+     * separate question, and [com.eignex.koblas.sparse.SparseBlas.matrixRouteOf] is what answers it.
+     */
+    public val sparseImplementation: String = SPARSE_SCHEDULING
 
     /** Short read-only implementation description for logs and benchmark attribution. */
     public val name: String

@@ -59,6 +59,29 @@ spscatter-raw+65536+sparse-uniform+density=0.015625
 spscatter-raw+262144+sparse-uniform+density=0.03125
 spgather+4096+sparse-uniform+density=0.01
 spgather-zero+4096+sparse-uniform+density=0.01
+spgemv+257x129+sparse-uniform+density=0.01+mode=oneshot
+spgemv+257x129+sparse-uniform+density=0.01+mode=prepared
+spgemv+257x129+sparse-uniform+density=0.01+mode=setup
+spgemv+257x129+sparse-uniform+density=0.01+mode=firstuse
+spmm+257x8x129+sparse-uniform+density=0.01+mode=oneshot
+spmm+257x8x129+sparse-uniform+density=0.01+mode=prepared
+spmm-generic+257x8x129+sparse-uniform+density=0.01+mode=oneshot
+spmm-generic-right+257x8x129+sparse-uniform+density=0.01+mode=oneshot
+spgemm+129x97x65+sparse-uniform+density=0.01+mode=oneshot
+spgemm+129x97x65+sparse-uniform+density=0.01+mode=prepared
+spgemm-generic+129x97x65+sparse-uniform+density=0.01+mode=oneshot
+spsymv+129+sparse-triangular+density=0.02+mode=oneshot+uplo=L
+spsymm+129x8+sparse-triangular+density=0.02+mode=oneshot+side=L+uplo=L
+spsymm+8x129+sparse-triangular+density=0.02+mode=oneshot+side=R+uplo=U
+sptrsv+129+sparse-triangular+density=0.02+mode=oneshot+uplo=L+transA=N+diag=N
+sptrmv+129+sparse-triangular+density=0.02+mode=oneshot+uplo=U+transA=T+diag=U
+sptrsm+129x8+sparse-triangular+density=0.02+mode=oneshot+side=L+uplo=L+transA=N+diag=N
+sptrsm+8x129+sparse-triangular+density=0.02+mode=oneshot+side=R+uplo=U+transA=T+diag=U
+sptrmm+129x8+sparse-triangular+density=0.02+mode=oneshot+side=L+uplo=U+transA=T+diag=U
+sptrmm+8x129+sparse-triangular+density=0.02+mode=oneshot+side=R+uplo=L+transA=N+diag=N
+spsyrk-dense+129x65+sparse-uniform+density=0.02+uplo=U
+spsyrk-sparse+129x65+sparse-uniform+density=0.02+uplo=L
+spadd+129x65+sparse-uniform+density=0.02
 spaccumulate+4096+sparse-uniform+density=0.01
 
 # Skinny, depth tails, and single through many RHS transition baselines.
