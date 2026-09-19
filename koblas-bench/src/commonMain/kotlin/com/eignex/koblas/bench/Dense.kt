@@ -4,7 +4,6 @@ import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.DenseVector
 import com.eignex.koblas.KoblasEngine
 import com.eignex.koblas.dense.DenseOperation
-import com.eignex.koblas.vendor.RouteKind
 import com.eignex.koblas.vendor.BlasOperation
 
 internal class CaseWork(
@@ -45,10 +44,11 @@ private fun level1(
 }
 
 /**
- * Level 2 or 3 work, named by the route the binding reports for this call.
+ * Built-in Level 2 or 3 work, named by the component that the engine actually invokes.
  *
- * Null on a host with no library, and null for a call the binding would not serve directly, so a composed or
- * no-work route never reaches a row as if it were the vendor's arithmetic.
+ * S1 serves these calls with the common portable scalar implementation in both exact built-in compositions.
+ * Later SIMD stages may return a mixed component description here; the selected engine's name is deliberately
+ * not used as evidence of execution.
  */
 private fun level23(
     engine: KoblasEngine,
@@ -57,10 +57,9 @@ private fun level23(
     timing: String,
     run: () -> Double,
 ): CaseWork? {
-    val blas = engine.vendor ?: return null
-    val route = blas.routeOf(operation, matrices, emptyList())
-    if (route.kind != RouteKind.Direct) return null
-    return CaseWork(route.kind.name.lowercase(), timing, run, kernel = vendorKernel(route))
+    check(matrices.isNotEmpty()) { "a dense Level 2 or 3 case must describe its operands" }
+    val kernel = "${engine.denseImplementation}/${operation.name.lowercase()}"
+    return CaseWork("direct", timing, run, kernel = kernel)
 }
 
 internal fun denseWork(case: BenchCase, engine: KoblasEngine): CaseWork? {
@@ -239,4 +238,3 @@ private fun triangularMatrixWork(case: BenchCase, engine: KoblasEngine): CaseWor
         b.values[0]
     }
 }
-

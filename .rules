@@ -5,7 +5,7 @@ Kotlin Multiplatform BLAS and LAPACK.
 ## Verify
 
 - Run `./gradlew check lintDocs`.
-- Default tests use the platform-selected engine. `-Pkoblas.noSimd=true` withholds the Vector API module so the portable Level 1 kernels run instead. Level 2 and 3 need an installed vendor; without one those tests report a skip rather than passing silently. External OpenBLAS and oneMKL comparison lives in `koblas-bench`.
+- Default tests use the platform-selected engine. `-Pkoblas.noSimd=true` withholds the Vector API module; it does not hide installed libraries. Portable dense conformance is mandatory without a vendor. External host comparison lives in `koblas-bench`.
 
 ## Tests
 
@@ -22,7 +22,7 @@ Kotlin Multiplatform BLAS and LAPACK.
 - Dense matrices are column-major: `A(i, j)` is `i + j * rows`. Sparse matrices are validated CSC with ascending row indices per column.
 - The portable reference defines semantics. Host bindings use measured thresholds then fall back to it.
 - The default engine is immutable and selected once, and each platform picks its own Level 1 arm. Tests and benchmarks name an exact engine through `BuiltinEngines`, which is behind the `KoblasEngineApi` opt-in; do not add process-global installation or provider discovery.
-- Level 2 and 3 are whole vendor calls with no portable fallback. Where the standard leaves something open, such as which index `idamax` returns on a tie or a NaN, the answer is the selected implementation's and the KDoc says so rather than promising one.
+- Portable dense and sparse Levels 1–3 are the availability floor. JVM kernels are owned Kotlin/Vector API implementations; installed host bindings are optional and separately attributable. Where the standard leaves something open, such as which index `idamax` returns on a tie or a NaN, the answer is the selected implementation's and the KDoc says so rather than promising one.
 - `*Into` destinations may alias inputs; test the backing buffer.
 - A helper returning a `DoubleVector` must be `inline`. A vector returned from a call the JIT declines to inline becomes a heap object, so the loop allocates per operation and runs twenty to forty times slower, silently and only sometimes: the refusal depends on how close the whole compilation sits to its node budget, so a caller's size decides it. Suppress `NOTHING_TO_INLINE` and say why.
 

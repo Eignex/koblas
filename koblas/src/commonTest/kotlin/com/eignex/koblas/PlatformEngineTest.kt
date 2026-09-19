@@ -14,6 +14,17 @@ import kotlin.test.assertNotEquals
  * running portable Kotlin everywhere would pass all of them.
  */
 class PlatformEngineTest {
+    @OptIn(KoblasEngineApi::class)
+    @Test
+    fun `exact built in engines do not resolve or execute a host library`() {
+        assertEquals(null, BuiltinEngines.scalar.vendor)
+        assertEquals("portable-scalar", BuiltinEngines.scalar.denseImplementation)
+        BuiltinEngines.simd?.let {
+            assertEquals(null, it.vendor)
+            assertEquals("portable-scalar", it.denseImplementation)
+        }
+    }
+
     /**
      * Asks the arm itself, not what the host happens to have installed.
      *

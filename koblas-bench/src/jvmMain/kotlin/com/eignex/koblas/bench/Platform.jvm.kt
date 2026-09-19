@@ -21,7 +21,7 @@ internal actual fun resolveEngine(mode: String): Pair<KoblasEngine, String> {
         }
         else -> error("unknown JVM mode $mode")
     }
-    return engine to "$mode/${engine.vectorKernels.name}/${engine.sparseKernels.name}"
+    return engine to "$mode/${engine.vectorKernels.name}/${engine.sparseKernels.name}/${engine.denseImplementation}"
 }
 
 internal actual fun runtimeIdentity(): String = "kotlin-2.4.10/jvm/${System.getProperty("java.vendor")}/${System.getProperty("java.version")}".replace(',', '_')

@@ -9,18 +9,18 @@ import com.eignex.koblas.sparse.SparseKernelAdapter
 /** JVM built-in engines. */
 @KoblasEngineApi
 public actual object BuiltinEngines {
-    /** Pure Kotlin scalar Level 1 beside the selected vendor. */
+    /** Pure Kotlin scalar at every level, without resolving a host library. */
     @get:JvmStatic
     public actual val scalar: KoblasEngine by lazy {
         KoblasEngine(
             ScalarVectorKernels,
             SparseKernelAdapter("scalar", ScalarVectorKernels, ScalarIndexedSparseKernels),
             ScalarIndexedSparseKernels,
-            selectedVendor,
+            null,
         )
     }
 
-    /** Vector API Level 1 when the incubator module resolved at startup, beside the selected vendor. */
+    /** Vector API Level 1 with portable dense Level 2 and 3, without resolving a host library. */
     @get:JvmStatic
     public actual val simd: KoblasEngine? by lazy {
         if (SimdVectorKernels.isAvailable) {
@@ -28,7 +28,7 @@ public actual object BuiltinEngines {
                 SimdVectorKernels,
                 SparseKernelAdapter("simd-sparse", SimdVectorKernels, SimdIndexedSparseKernels),
                 SimdIndexedSparseKernels,
-                selectedVendor,
+                null,
             )
         } else {
             null

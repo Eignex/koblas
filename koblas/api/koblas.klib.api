@@ -454,6 +454,8 @@ final class com.eignex.koblas/DimensionMismatch : kotlin/IllegalArgumentExceptio
 }
 
 final class com.eignex.koblas/KoblasEngine : com.eignex.koblas.dense/DenseBlas { // com.eignex.koblas/KoblasEngine|null[0]
+    final val denseImplementation // com.eignex.koblas/KoblasEngine.denseImplementation|{}denseImplementation[0]
+        final fun <get-denseImplementation>(): kotlin/String // com.eignex.koblas/KoblasEngine.denseImplementation.<get-denseImplementation>|<get-denseImplementation>(){}[0]
     final val name // com.eignex.koblas/KoblasEngine.name|{}name[0]
         final fun <get-name>(): kotlin/String // com.eignex.koblas/KoblasEngine.name.<get-name>|<get-name>(){}[0]
     final val sparseKernels // com.eignex.koblas/KoblasEngine.sparseKernels|{}sparseKernels[0]
@@ -482,6 +484,10 @@ final class com.eignex.koblas/KoblasEngine : com.eignex.koblas.dense/DenseBlas {
     final fun trmv(com.eignex.koblas/DenseMatrix, kotlin/DoubleArray, kotlin/Boolean, kotlin/Boolean, kotlin/Boolean) // com.eignex.koblas/KoblasEngine.trmv|trmv(com.eignex.koblas.DenseMatrix;kotlin.DoubleArray;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean){}[0]
     final fun trsm(com.eignex.koblas/DenseMatrix, com.eignex.koblas/DenseMatrix, kotlin/Boolean, kotlin/Boolean, kotlin/Boolean, kotlin/Boolean, kotlin/Double) // com.eignex.koblas/KoblasEngine.trsm|trsm(com.eignex.koblas.DenseMatrix;com.eignex.koblas.DenseMatrix;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean;kotlin.Double){}[0]
     final fun trsv(com.eignex.koblas/DenseMatrix, kotlin/DoubleArray, kotlin/Boolean, kotlin/Boolean, kotlin/Boolean) // com.eignex.koblas/KoblasEngine.trsv|trsv(com.eignex.koblas.DenseMatrix;kotlin.DoubleArray;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean){}[0]
+}
+
+final class com.eignex.koblas/MatrixWorkspace { // com.eignex.koblas/MatrixWorkspace|null[0]
+    constructor <init>() // com.eignex.koblas/MatrixWorkspace.<init>|<init>(){}[0]
 }
 
 final class com.eignex.koblas/NotPositiveDefinite : com.eignex.koblas/KoblasException { // com.eignex.koblas/NotPositiveDefinite|null[0]
@@ -640,6 +646,9 @@ final fun (com.eignex.koblas/DenseVector).com.eignex.koblas/scale(kotlin/Double)
 final fun (com.eignex.koblas/DenseVector).com.eignex.koblas/times(kotlin/Double): com.eignex.koblas/DenseVector // com.eignex.koblas/times|times@com.eignex.koblas.DenseVector(kotlin.Double){}[0]
 final fun (com.eignex.koblas/DenseVector).com.eignex.koblas/unaryMinus(): com.eignex.koblas/DenseVector // com.eignex.koblas/unaryMinus|unaryMinus@com.eignex.koblas.DenseVector(){}[0]
 final fun (com.eignex.koblas/DenseVector).com.eignex.koblas/view(kotlin/Int, kotlin/Int, kotlin/Int = ...): com.eignex.koblas/StridedVector // com.eignex.koblas/view|view@com.eignex.koblas.DenseVector(kotlin.Int;kotlin.Int;kotlin.Int){}[0]
+final fun (com.eignex.koblas/Matrix).com.eignex.koblas/gemm(com.eignex.koblas/Matrix): com.eignex.koblas/Matrix // com.eignex.koblas/gemm|gemm@com.eignex.koblas.Matrix(com.eignex.koblas.Matrix){}[0]
+final fun (com.eignex.koblas/Matrix).com.eignex.koblas/gemmInto(kotlin/Double, kotlin/Boolean, com.eignex.koblas/Matrix, kotlin/Boolean, kotlin/Double, com.eignex.koblas/DenseMatrix, com.eignex.koblas/MatrixWorkspace? = ...) // com.eignex.koblas/gemmInto|gemmInto@com.eignex.koblas.Matrix(kotlin.Double;kotlin.Boolean;com.eignex.koblas.Matrix;kotlin.Boolean;kotlin.Double;com.eignex.koblas.DenseMatrix;com.eignex.koblas.MatrixWorkspace?){}[0]
+final fun (com.eignex.koblas/Matrix).com.eignex.koblas/times(com.eignex.koblas/Matrix): com.eignex.koblas/Matrix // com.eignex.koblas/times|times@com.eignex.koblas.Matrix(com.eignex.koblas.Matrix){}[0]
 final fun (com.eignex.koblas/SparseMatrix).com.eignex.koblas/column(kotlin/Int): com.eignex.koblas/SparseVector // com.eignex.koblas/column|column@com.eignex.koblas.SparseMatrix(kotlin.Int){}[0]
 final fun (com.eignex.koblas/SparseMatrix).com.eignex.koblas/row(kotlin/Int): com.eignex.koblas/SparseVector // com.eignex.koblas/row|row@com.eignex.koblas.SparseMatrix(kotlin.Int){}[0]
 final fun (com.eignex.koblas/SparseMatrix).com.eignex.koblas/withColumn(kotlin/Int, com.eignex.koblas/SparseVector): com.eignex.koblas/SparseMatrix // com.eignex.koblas/withColumn|withColumn@com.eignex.koblas.SparseMatrix(kotlin.Int;com.eignex.koblas.SparseVector){}[0]

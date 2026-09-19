@@ -5,24 +5,18 @@ package com.eignex.koblas.dense
 import com.eignex.koblas.*
 
 /**
- * Dense matrix routines, served by the vendor BLAS the platform selected.
+ * Dense matrix routines implemented portably by built-in engines and optionally by explicit host bindings.
  *
- * Arithmetic is the library's, not Koblas's. Koblas validates shapes and refuses operand overlap the standard
- * leaves undefined, then makes one whole call; what the library does with a zero multiplier, an infinity, a
- * subnormal, or the order it accumulates in is the library's contract, and it can differ between vendors as it
- * differs between builds of one vendor. Code that needs a stronger guarantee than BLAS gives has to own it.
+ * Built-in calls validate shapes, preserve zero-multiplier no-read rules and snapshot permitted aliases.
+ * Explicit vendor bindings retain their library's exceptional and accumulation behavior.
  *
  * These are Koblas's own shapes for the same routines: array operands, booleans for the transpose and the
  * stored triangle, and overloads that allocate a result. [com.eignex.koblas.vendor.Blas] is the standard's own
  * shape underneath, and the transpose and structure travel beside an operand as flags there rather than being
  * inferred from it.
  *
- * On the JVM every operand is copied into native memory for the downcall, so a measurement of one of these
- * calls includes that copy. Kotlin/Native pins the caller's storage and passes it in place.
- *
- * Every operation here but [transpose], which is a storage transform the standard has no entry point for,
- * needs a library. On a host without one they raise
- * [com.eignex.koblas.vendor.MissingVendorException]; containers, Level 1 and the sparse primitives do not.
+ * Portable calls run on the caller's thread and need no native access. On the JVM an explicit host call copies
+ * operands into native memory; Kotlin/Native pins caller storage for that binding.
  */
 public interface DenseBlas {
     /** `y = alpha · op(A) · x + beta · y` (BLAS `dgemv`), with `op(A)` being `Aᵀ` when [transpose]. */
@@ -52,7 +46,7 @@ public interface DenseBlas {
     public fun transpose(a: DenseMatrix): DenseMatrix
 
     /** `C = alpha · op(A) · op(B) + beta · C` (BLAS `dgemm`), with shapes `op(A): m×k`, `op(B): k×n`, `C: m×n`.
-     *  [c] must not share a buffer with either input. */
+     *  Built-in implementations snapshot an input that shares [c]; explicit vendor seams reject that overlap. */
     @Suppress("LongParameterList") // the BLAS dgemm signature
     public fun gemm(
         alpha: Double,
@@ -67,7 +61,7 @@ public interface DenseBlas {
     /**
      * `C = alpha · op(A) · op(B) + beta · C` in only the selected triangle (Netlib `GEMMTR`, commonly exposed
      * as `gemmt`). `op(A)` is `n×k`, `op(B)` is `k×n`, and [c] is `n×n`. The opposite triangle is neither read
-     * nor written. [c] must not share a buffer with either input.
+     * nor written. Built-in implementations snapshot input overlap with [c].
      *
      * Not every library exports it. Where one does not, the call is composed from `gemm` plus a triangle copy,
      * and the route of the call reports which of the two ran rather than leaving the name to imply the first.
@@ -93,7 +87,7 @@ public interface DenseBlas {
 
     /**
      * `C = alpha · A·Aᵀ + beta · C`, or `alpha · Aᵀ·A + beta · C` when [transpose] (BLAS `dsyrk`).
-     * Only the [lower] or upper triangle is written. [c] must not share a buffer with [a].
+     * Only the [lower] or upper triangle is written. Built-in implementations snapshot overlap with [c].
      */
     @Suppress("LongParameterList") // the BLAS dsyrk signature
     public fun syrk(
@@ -118,7 +112,7 @@ public interface DenseBlas {
     )
 
     /** `C = alpha · A · B + beta · C`, or `C = alpha · B · A + beta · C` when [right] (BLAS `dsymm`). Only the
-     *  [lower] triangle of [a] is read; [c] must not share a buffer with either input. */
+     *  [lower] triangle of [a] is read; built-in implementations snapshot input overlap with [c]. */
     @Suppress("LongParameterList") // the BLAS dsymm signature
     public fun symm(
         alpha: Double,
@@ -143,7 +137,7 @@ public interface DenseBlas {
 
     /**
      * `C = alpha · (op(A) · op(B)ᵀ + op(B) · op(A)ᵀ) + beta · C` (BLAS `dsyr2k`), where `op` transposes when
-     * [transpose]. Writes only the [lower] or upper triangle. [c] must not share a buffer with either input.
+     * [transpose]. Writes only the [lower] or upper triangle and snapshots input overlap in built-in engines.
      */
     @Suppress("LongParameterList") // the BLAS dsyr2k signature
     public fun syr2k(

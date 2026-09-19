@@ -9,13 +9,13 @@ import com.eignex.koblas.vendor.NativeVendorBlas
 /** Built-in engines on Kotlin/Native. */
 @KoblasEngineApi
 public actual object BuiltinEngines {
-    /** Pure Kotlin scalar Level 1 beside the selected vendor. */
+    /** Pure Kotlin scalar at every level, without resolving a host library. */
     public actual val scalar: KoblasEngine by lazy {
         KoblasEngine(
             ScalarVectorKernels,
             SparseKernelAdapter("scalar", ScalarVectorKernels, ScalarIndexedSparseKernels),
             ScalarIndexedSparseKernels,
-            selectedVendor,
+            null,
         )
     }
 

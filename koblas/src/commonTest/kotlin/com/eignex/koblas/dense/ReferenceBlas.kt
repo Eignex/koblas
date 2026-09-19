@@ -8,14 +8,12 @@ import com.eignex.koblas.Vector
 /**
  * A naive scalar oracle for the dense surface, defined by the textbook sums rather than by any kernel.
  *
- * This exists because the thing it replaced stopped being independent. The dense tests used to compare the
- * selected engine against `BuiltinEngines.scalar`, which was a portable implementation; now every engine
- * serves Level 2 and 3 from the same vendor, so that comparison would check the vendor against itself and
- * pass for any arithmetic at all. The oracle has to be written out separately to mean anything.
+ * This stays independent of shared production scheduling and kernel composition, so accelerated leaves and
+ * portable orchestration are never accepted merely by comparing an implementation with itself.
  *
  * Correctness before speed: every routine is the direct definition, column-major, with no blocking, no
  * accumulator splitting and no early exit beyond what the operation's contract states. A disagreement with a
- * vendor is a real question about one of the two, which is the whole point of keeping it.
+ * implementation is a real question about one of the two, which is the whole point of keeping it.
  */
 internal object ReferenceBlas {
     private fun at(a: DenseMatrix, i: Int, j: Int, transpose: Boolean): Double =
