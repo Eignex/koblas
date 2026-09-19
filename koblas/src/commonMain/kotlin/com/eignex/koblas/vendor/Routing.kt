@@ -23,7 +23,10 @@ internal fun routeFor(
     vectors: List<DenseVector>,
     transfer: String?,
 ): CallRoute {
-    noWorkReason(matrices, vectors)?.let { return noWorkRoute(operation, vendor, it) }
+    // Level 3 still scales a nonempty destination when the product depth is zero. Its destination is the
+    // last matrix operand, and it is the only extent the bindings use for their quick return.
+    val workMatrices = if (operation.level == 3) matrices.takeLast(1) else matrices
+    noWorkReason(workMatrices, vectors)?.let { return noWorkRoute(operation, vendor, it) }
     if (!exported) {
         return CallRoute(
             operation = operation,
@@ -50,8 +53,9 @@ internal fun routeFor(
  * Why this call has nothing to do, or null when it has.
  *
  * The one rule both the execution paths and [Blas.routeOf] read, so a call that returns without reaching
- * BLAS cannot be described as having reached it. Every operation here exits early on an empty operand, and that
- * exit is what this expresses; no scalar makes a call no-work, because none of the bound entry points is
+ * BLAS cannot be described as having reached it. Callers pass the operands whose extents govern their quick
+ * return: Level 3 passes only its destination because a zero product depth still scales it. No scalar makes
+ * a call no-work, because none of the bound entry points is
  * skipped on a zero multiplier and inventing that would describe a call that does run as one that does not.
  */
 internal fun noWorkReason(matrices: List<DenseMatrix>, vectors: List<DenseVector>): String? {
