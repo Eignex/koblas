@@ -46,30 +46,40 @@ RUN if [ "$(dpkg --print-architecture)" != amd64 ]; then echo "no oneMKL for $(d
 
 ENTRYPOINT ["/workspace/koblas-bench/capture-report.sh", "--libraries", "onemkl"]
 
-# AOCL, which production selects ahead of everything else on an AMD host, so a fleet without it has never
-# measured the library a process on that hardware reaches first.
-#
-# AMD's own build is behind a licence that does not permit redistribution. The distribution's BLIS is the
-# other packaging of the same library and is the candidate Koblas already names: same `libblis.so.4` soname,
-# the CBLAS entry points compiled in, and the serial flavour, so one compute thread is what the binary is
-# rather than what a call configures it to be. That is a real AOCL route and not AMD's tuning of it, which is
-# why the resolved file in the report is the thing to read before comparing a number here with one from a
-# machine that installed AMD's package.
-FROM onemkl AS aocl
-
-ARG BLIS_VERSION=1.1-3build1
-
-RUN if [ "$(dpkg --print-architecture)" != amd64 ]; then echo "no AOCL route for $(dpkg --print-architecture); stage left as is"; else true \
-    && apt-get update \
-    && apt-get install --yes --no-install-recommends "libblis4-serial=${BLIS_VERSION}" \
-    && test -e /usr/lib/x86_64-linux-gnu/libblis.so.4 \
-    && rm -rf /var/lib/apt/lists/*; fi
-
-ENTRYPOINT ["/workspace/koblas-bench/capture-report.sh", "--libraries", "openblas,aocl"]
-
-FROM aocl AS all
+FROM onemkl AS all
 
 ENTRYPOINT ["/workspace/koblas-bench/capture-report.sh", "--libraries", "all"]
+
+# AMD Optimizing CPU Libraries, which production selects ahead of everything else on an AMD host, so a fleet
+# without it has never measured the library a process on that hardware reaches first.
+#
+# Building this stage downloads AOCL, which means accepting AMD's licence for it. That licence permits using
+# it on a machine you are running it on and does not permit redistributing it, so this image must not be
+# published anywhere. That is why it sits outside `all` rather than inside it, exactly as the ArmPL stage
+# does, and why `--libraries all` still names only the libraries an image may carry.
+#
+# The LP64 tree is the one Koblas can call, since its indices are 32-bit, and the serial build within it is
+# the first candidate: one compute thread is then what the binary is rather than what a later call configures
+# it down to. AMD installs outside any directory the loader searches, so the path is registered here.
+FROM onemkl AS aocl
+
+ARG AOCL_VERSION=5.1.0
+ARG AOCL_SHA256=b27be8e8f564ee3417438748bc281b5398155c361dc9633af83c0e9fc94b8784
+
+RUN if [ "$(dpkg --print-architecture)" != amd64 ]; then echo "no AOCL for $(dpkg --print-architecture); stage left as is"; else true \
+    && apt-get update \
+    && apt-get install --yes --no-install-recommends curl \
+    && curl --location --silent --show-error --output /tmp/aocl.deb \
+        "https://download.amd.com/developer/eula/aocl/aocl-5-1/aocl-linux-gcc-${AOCL_VERSION}_1_amd64.deb" \
+    && echo "${AOCL_SHA256}  /tmp/aocl.deb" | sha256sum --check --status \
+    && dpkg-deb --extract /tmp/aocl.deb / \
+    && echo "/opt/AMD/aocl/aocl-linux-gcc-${AOCL_VERSION}/gcc/lib_LP64" > /etc/ld.so.conf.d/aocl.conf \
+    && ldconfig \
+    && test -f "/opt/AMD/aocl/aocl-linux-gcc-${AOCL_VERSION}/gcc/lib_LP64/libblis.so.5" \
+    && rm /tmp/aocl.deb \
+    && rm -rf /var/lib/apt/lists/*; fi
+
+ENTRYPOINT ["/workspace/koblas-bench/capture-report.sh", "--libraries", "openblas,onemkl,aocl"]
 
 # Arm Performance Libraries, the tuned library Koblas prefers on ARM64. OpenBLAS is what selection falls back
 # to where none is installed, so a capture without this one measures only the last resort.
