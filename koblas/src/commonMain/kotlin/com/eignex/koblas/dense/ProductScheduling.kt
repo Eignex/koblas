@@ -327,9 +327,11 @@ private fun reducedProduct(
  * one body for both gains nothing. And there have to be enough destination rows to read the gathered column
  * back several times, since the copy costs one pass over it and each destination row saves one strided pass.
  *
- * The minimum below is where the copy began to pay on one machine: the stage evidence has the reduction run
- * both ways over the same operands, with the copy behind at four destination rows and ahead from eight
- * upward, by more than twice from there on. A crossover across machines is a later stage's.
+ * The minimum below is where the copy is clearly ahead rather than where it first is. The stage evidence has
+ * the reduction run both ways over the same operands: from eight destination rows the copy leads by a wide
+ * margin at every depth long enough to have something to read back, and at four rows the two swap places
+ * between captures. Where the answer is that unclear the route that copies nothing is the one to take. One
+ * machine, and a crossover across machines is a later stage's.
  */
 internal fun gathersCoefficients(panels: DensePanelKernels, rows: Int, depth: Int, strided: Boolean): Boolean {
     if (!strided || rows < DIRECT_GATHER_MINIMUM_ROWS || depth <= 0) return false
@@ -338,7 +340,7 @@ internal fun gathersCoefficients(panels: DensePanelKernels, rows: Int, depth: In
         panels.implementationFor(PanelWork.MultiDot, depth, group, contiguous = false)
 }
 
-/** Destination rows from which a gathered coefficient column pays for the pass it costs, measured. */
+/** Destination rows from which a gathered coefficient column is measurably worth the pass it costs. */
 internal const val DIRECT_GATHER_MINIMUM_ROWS: Int = 8
 
 /**
