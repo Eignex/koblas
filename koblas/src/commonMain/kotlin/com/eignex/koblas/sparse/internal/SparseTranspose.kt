@@ -20,7 +20,8 @@ internal fun transposeCsc(a: SparseMatrix): SparseMatrix {
     val colPointers = a.colPointers
     val rowIndices = a.rowIndices
     val values = a.values
-    val outPointers = IntArray(rows + 1)
+    // The transpose has one column per source row, so this is where an unrepresentable row count is refused.
+    val outPointers = IntArray(pointerLength(rows, "transpose"))
     for (k in rowIndices.indices) outPointers[rowIndices[k] + 1]++
     for (i in 0 until rows) outPointers[i + 1] += outPointers[i]
     val outIndices = IntArray(values.size)

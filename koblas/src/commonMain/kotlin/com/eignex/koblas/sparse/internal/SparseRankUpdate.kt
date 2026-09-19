@@ -14,19 +14,29 @@ import com.eignex.koblas.requireShape
  * where two public extensions would sit on top of two hundred lines nothing else could reach.
  */
 
-/** `A + alpha·x·xᵀ` over the [lower] or upper triangle of a CSC [a], as a fresh matrix. */
+/**
+ * `A + alpha·x·xᵀ` over the [lower] or upper triangle of a CSC [a], as a fresh matrix.
+ *
+ * A zero [alpha] returns an independent copy of [a] without reading [x] at all. The vector is only sized by
+ * the public entry point, so an implementation of [Vector] that computes or refuses its entries is never asked
+ * for one by a rank update that contributes nothing.
+ */
 internal fun sparseSyr(a: SparseMatrix, alpha: Double, x: Vector, lower: Boolean): SparseMatrix {
-    val xs = x.toDoubleArray()
     if (alpha == 0.0) return a.sparseCopy()
+    val xs = x.toDoubleArray()
     if (!alpha.isFinite() || xs.any { !it.isFinite() }) return a.syrWithNonFinite(alpha, xs, lower)
     return a.syrFinite(alpha, xs, x.nonzeroSupport(xs), lower)
 }
 
-/** `A + alpha·(x·yᵀ + y·xᵀ)` over the [lower] or upper triangle of a CSC [a], as a fresh matrix. */
+/**
+ * `A + alpha·(x·yᵀ + y·xᵀ)` over the [lower] or upper triangle of a CSC [a], as a fresh matrix.
+ *
+ * A zero [alpha] reads neither vector, for the reason [sparseSyr] gives.
+ */
 internal fun sparseSyr2(a: SparseMatrix, alpha: Double, x: Vector, y: Vector, lower: Boolean): SparseMatrix {
+    if (alpha == 0.0) return a.sparseCopy()
     val xs = x.toDoubleArray()
     val ys = y.toDoubleArray()
-    if (alpha == 0.0) return a.sparseCopy()
     if (!alpha.isFinite() || xs.any { !it.isFinite() } || ys.any { !it.isFinite() }) {
         return a.syr2WithNonFinite(alpha, xs, ys, lower)
     }
