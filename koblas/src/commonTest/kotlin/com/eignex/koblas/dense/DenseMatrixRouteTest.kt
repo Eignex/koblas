@@ -1,122 +1,14 @@
 package com.eignex.koblas.dense
 
 import com.eignex.koblas.BuiltinEngines
-import com.eignex.koblas.DenseVector
 import com.eignex.koblas.KoblasEngine
 import com.eignex.koblas.koblas
-import com.eignex.koblas.randomMatrix
-import com.eignex.koblas.randomVector
 import com.eignex.koblas.vendor.RouteKind
-import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertContains
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
-
-/**
- * A backend that records every window handed to it and answers with one of two bodies by length.
- *
- * Two bodies because one would make any claim true: a route naming the only implementation there is cannot
- * be wrong about which windows reached it. With a threshold in the middle of a triangular traversal's
- * lengths, a route that enumerated extents instead of windows names a body no window reached.
- */
-private class RecordingPanels(private val group: Int, private val threshold: Int) : DensePanelKernels {
-    val windows = ArrayList<Int>()
-
-    override val name: String get() = "recording"
-
-    override fun executionGroup(work: PanelWork, rows: Int, columns: Int): Int =
-        if (columns <= 0) 1 else minOf(group, columns)
-
-    override fun implementationFor(work: PanelWork, rows: Int, columns: Int, contiguous: Boolean): String =
-        if (rows >= threshold) "wide" else "narrow"
-
-    override fun multiDot(
-        alpha: Double,
-        a: DoubleArray,
-        aOffset: Int,
-        lda: Int,
-        x: DoubleArray,
-        xOffset: Int,
-        xStride: Int,
-        rows: Int,
-        columns: Int,
-        beta: Double,
-        y: DoubleArray,
-        yOffset: Int,
-        yStride: Int,
-    ) {
-        windows.add(rows)
-        PortablePanelKernels.multiDot(
-            alpha, a, aOffset, lda, x, xOffset, xStride, rows, columns, beta, y, yOffset, yStride,
-        )
-    }
-
-    override fun columnUpdate(
-        alpha: Double,
-        a: DoubleArray,
-        aOffset: Int,
-        lda: Int,
-        x: DoubleArray,
-        xOffset: Int,
-        xStride: Int,
-        rows: Int,
-        columns: Int,
-        y: DoubleArray,
-        yOffset: Int,
-        yStride: Int,
-    ) {
-        windows.add(rows)
-        PortablePanelKernels.columnUpdate(
-            alpha, a, aOffset, lda, x, xOffset, xStride, rows, columns, y, yOffset, yStride,
-        )
-    }
-
-    override fun coupledUpdateDot(
-        alpha: Double,
-        a: DoubleArray,
-        aOffset: Int,
-        lda: Int,
-        x: DoubleArray,
-        xOffset: Int,
-        rows: Int,
-        columns: Int,
-        y: DoubleArray,
-        yOffset: Int,
-        coefficients: DoubleArray,
-        coefficientOffset: Int,
-        sums: DoubleArray,
-        sumOffset: Int,
-    ) {
-        windows.add(rows)
-        PortablePanelKernels.coupledUpdateDot(
-            alpha, a, aOffset, lda, x, xOffset, rows, columns, y, yOffset,
-            coefficients, coefficientOffset, sums, sumOffset,
-        )
-    }
-
-    override fun rankUpdate(
-        alpha: Double,
-        a: DoubleArray,
-        aOffset: Int,
-        lda: Int,
-        x: DoubleArray,
-        xOffset: Int,
-        xStride: Int,
-        rows: Int,
-        columns: Int,
-        coefficients: DoubleArray,
-        coefficientOffset: Int,
-        coefficientStride: Int,
-    ) {
-        windows.add(rows)
-        PortablePanelKernels.rankUpdate(
-            alpha, a, aOffset, lda, x, xOffset, xStride, rows, columns,
-            coefficients, coefficientOffset, coefficientStride,
-        )
-    }
-}
 
 /**
  * What a dense matrix call says it executes, which has to follow from the call rather than from the engine.
@@ -127,7 +19,7 @@ private class RecordingPanels(private val group: Int, private val threshold: Int
  */
 class DenseMatrixRouteTest {
     private val engines: List<KoblasEngine>
-        get() = listOfNotNull(BuiltinEngines.scalar, BuiltinEngines.simd, BuiltinEngines.simd)
+        get() = listOfNotNull(BuiltinEngines.scalar, BuiltinEngines.simd)
 
     @Test
     fun `a rectangular call names one panel and the grouping it will use`() {
@@ -182,24 +74,33 @@ class DenseMatrixRouteTest {
     }
 
     /**
-     * A triangular traversal's windows run from the full column down to nothing, so on a backend with a
-     * vector body they do not all reach the same one and the route says composed rather than picking.
+     * A triangular traversal's windows run from the full column down to nothing, so on a backend with more
+     * than one body they need not all reach the same one, and the route says which of the two it is.
+     *
+     * Which it is depends on the schedule and not on the order. A symmetric traversal grouped by two cuts
+     * only even windows at an even order, so a backend whose shortest vector window is two serves every one
+     * of them and the call really is direct; make the order odd and the last window is one long and the same
+     * call is a composition. Both are checked against what the traversal did rather than against a length
+     * the schedule never produces.
      */
     @Test
-    fun `a traversal whose windows shrink is composed where its backend has more than one body`() {
+    fun `a symmetric traversal is composed exactly when its own windows reach more than one body`() {
         for (engine in engines) {
-            val route = engine.denseRouteOf(DenseMatrixOperation.Symv, DenseCall(512, 512))
-            val bodies = (1..512).map { engine.panelKernels.implementationFor(PanelWork.CoupledDotUpdate, it, 512) }
-
-            if (bodies.distinct().size == 1) {
-                assertEquals(RouteKind.Direct, route.kind, engine.name)
-            } else {
-                assertEquals(RouteKind.Composed, route.kind, engine.name)
-                assertTrue(!route.exactlyMeasurable, engine.name)
-                assertEquals(bodies.distinct().size, route.components.size, route.toString())
-                assertContains(assertNotNull(route.reason), "shrink")
-            }
+            assertRouteNamesExecutedBodies(engine.panelKernels)
         }
+    }
+
+    /** A composition says so in its reason and refuses to be read as an exact measurement. */
+    @Test
+    fun `a composed route declines to stand for either of the bodies it names`() {
+        val composed = engines.asSequence()
+            .map { it.denseRouteOf(DenseMatrixOperation.Symv, DenseCall(513, 513)) }
+            .firstOrNull { it.kind == RouteKind.Composed }
+            ?: return println("SKIPPED: every backend here has one body, so no call is a composition")
+
+        assertTrue(!composed.exactlyMeasurable, composed.toString())
+        assertTrue(composed.components.size > 1, composed.toString())
+        assertContains(assertNotNull(composed.reason), "shrink")
     }
 
     @Test
@@ -255,67 +156,19 @@ class DenseMatrixRouteTest {
     }
 
     /**
-     * That the route's components are exactly the bodies the traversal's windows reach.
+     * The same check at groupings and body thresholds no real backend here produces.
      *
-     * Run against a backend that records what it is handed and answers by window length, so the claim is
-     * checked against execution rather than restated. Every operation that schedules a panel is covered, on
-     * both triangles and at groupings that leave an odd tail.
+     * A backend with one body cannot make the claim false, and a real one's threshold sits where its lane
+     * block is. Overriding both reaches the shapes in between, where a body changes part way through a
+     * schedule, which is the case a route derived from extents rather than windows gets wrong.
      */
     @Test
-    fun `a route names the bodies the windows of its own traversal reach`() {
-        val rng = Random(20260926)
-        for (n in intArrayOf(1, 2, 4, 5, 8, 11)) {
-            for (group in intArrayOf(1, 2, 3, 4)) {
-                for (threshold in intArrayOf(1, 2, 4, 8)) {
-                    for (lower in booleanArrayOf(true, false)) {
-                        for (operation in PANEL_OPERATIONS) {
-                            assertRouteMatchesExecution(operation, n, group, threshold, lower, rng)
-                        }
-                    }
-                }
+    fun `a route follows the schedule at groupings and thresholds no backend here has`() {
+        for (group in intArrayOf(1, 2, 3, 4)) {
+            for (threshold in intArrayOf(1, 2, 3, 4, 8)) {
+                assertRouteNamesExecutedBodies(PortablePanelKernels, group, threshold, SHORT_ROUTE_ORDERS)
             }
         }
-    }
-
-    private fun assertRouteMatchesExecution(
-        operation: DenseMatrixOperation,
-        n: Int,
-        group: Int,
-        threshold: Int,
-        lower: Boolean,
-        rng: Random,
-    ) {
-        val panels = RecordingPanels(group, threshold)
-        val blas = PortableDenseBlas(ScalarVectorKernels, panels)
-        val a = randomMatrix(n, n, rng)
-        for (i in 0 until n) a.values[i + i * n] = 2.0 + i % 3
-        val x = randomVector(n, rng)
-        val y = randomVector(n, rng)
-        when (operation) {
-            DenseMatrixOperation.Gemv -> blas.gemv(0.875, a, x, -0.25, y)
-            DenseMatrixOperation.GemvTransposed -> blas.gemv(0.875, a, x, -0.25, y, transpose = true)
-            DenseMatrixOperation.Symv -> blas.symv(0.875, a, x, -0.25, y, lower)
-            DenseMatrixOperation.Ger -> blas.ger(0.875, x, y, a)
-            DenseMatrixOperation.Syr -> blas.syr(0.875, DenseVector.wrap(x), a, lower)
-            DenseMatrixOperation.Trmv -> blas.trmv(a, x, lower)
-            DenseMatrixOperation.TrmvTransposed -> blas.trmv(a, x, lower, transpose = true)
-            DenseMatrixOperation.Trsv -> blas.trsv(a, x, lower)
-            DenseMatrixOperation.TrsvTransposed -> blas.trsv(a, x, lower, transpose = true)
-            else -> error("$operation schedules no panel")
-        }
-        val executed = panels.windows.filter { it > 0 }
-            .map { panels.implementationFor(PanelWork.MultiDot, it, 1) }
-            .distinct()
-        val route = blas.routeOf(operation, DenseCall(n, n, 0.875, -0.25, lower = lower))
-        val named = route.components.filterNot { it.endsWith("/scale") }.map { it.substringBefore('/') }
-        val context = "$operation n=$n group=$group threshold=$threshold lower=$lower"
-
-        assertEquals(executed, named, "$context: windows ${panels.windows}")
-        assertEquals(
-            if (executed.size > 1) RouteKind.Composed else RouteKind.Direct,
-            route.kind,
-            context,
-        )
     }
 
     /**
@@ -383,18 +236,6 @@ class DenseMatrixRouteTest {
     private companion object {
         /** Longer than any window a backend distinguishes, so a search over it terminates. */
         const val LONG = 1024
-
-        val PANEL_OPERATIONS = listOf(
-            DenseMatrixOperation.Gemv,
-            DenseMatrixOperation.GemvTransposed,
-            DenseMatrixOperation.Symv,
-            DenseMatrixOperation.Ger,
-            DenseMatrixOperation.Syr,
-            DenseMatrixOperation.Trmv,
-            DenseMatrixOperation.TrmvTransposed,
-            DenseMatrixOperation.Trsv,
-            DenseMatrixOperation.TrsvTransposed,
-        )
     }
 
     private fun panelFor(engine: KoblasEngine, work: PanelWork, rows: Int): String =
