@@ -8,8 +8,17 @@ foreign call over a single vector costs more than the arithmetic it carries, and
 working on a host with no library installed.
 
 [DenseBlas] is Level 2 and 3. Built-in engines implement it in common Kotlin, with validation, zero-multiplier
-no-read behavior and alias staging before mutation. This portable scalar implementation is the availability
-floor; later stages add architecture-selected JVM panels and tiles behind the same shared operations.
+no-read behavior and alias staging before mutation. That shared implementation owns traversal, windows and
+dependency order and is the same on every platform; the arithmetic inside a window is [DensePanelKernels].
+
+[DensePanelKernels] is the panel seam. A caller describes logical work — [PanelWork.MultiDot] reduces several
+columns against one vector, [PanelWork.ColumnUpdate] accumulates several into one destination window,
+[PanelWork.CoupledDotUpdate] does both in one pass for a symmetric traversal, and [PanelWork.RankUpdate]
+accumulates one window into several columns — and asks
+[DensePanelKernels.executionGroup] how many columns to hand over at a time. The answer is the local backend's,
+resolved from its own vector width and measured rules, and any other positive answer is equally correct. A
+panel group and a SIMD lane count are different numbers. Level 3 remains direct scalar traversal and calls no
+panel, which [com.eignex.koblas.KoblasEngine.denseRouteOf] reports rather than leaving to an engine's name.
 
 Installed host bindings expose the same operation family separately. Their arithmetic and exceptional behavior
 belong to the resolved library, and their route reports its binary and entry point. A requested engine name is

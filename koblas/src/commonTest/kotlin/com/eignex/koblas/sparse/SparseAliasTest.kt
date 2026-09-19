@@ -1,8 +1,8 @@
 package com.eignex.koblas.sparse
 
 import com.eignex.koblas.DenseMatrix
-import com.eignex.koblas.MatrixWorkspace
 import com.eignex.koblas.SparseMatrix
+import com.eignex.koblas.Workspace
 import com.eignex.koblas.assertClose
 import com.eignex.koblas.gemvInto
 import com.eignex.koblas.koblas
@@ -123,7 +123,7 @@ class SparseAliasTest {
                     transpose = transpose,
                     unitDiag = unitDiag,
                     alpha = 2.0,
-                    workspace = MatrixWorkspace(),
+                    workspace = Workspace(),
                 )
 
                 assertContentEquals(
@@ -191,7 +191,7 @@ class SparseAliasTest {
                                 transpose,
                                 right = right,
                                 alpha = -0.75,
-                                workspace = MatrixWorkspace(),
+                                workspace = Workspace(),
                             )
                         } else {
                             shared.trmm(
@@ -200,7 +200,7 @@ class SparseAliasTest {
                                 transpose,
                                 right = right,
                                 alpha = -0.75,
-                                workspace = MatrixWorkspace(),
+                                workspace = Workspace(),
                             )
                         }
 

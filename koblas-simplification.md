@@ -20,7 +20,10 @@ their resolved binary path, identity, available version/threading evidence, and 
 - S1 restores validated portable dense GEMV, SYMV, rank updates, triangular operations, GEMM, GEMMT, SYMM, SYRK,
   and SYR2K; defines generic matrix-product APIs; makes exact scalar/SIMD/host benchmark attribution truthful.
 - S2 restores sparse Level 2/3, prepared snapshots, and all dense/sparse product pairings without densification.
-- S3 adds architecture-selected logical panel kernels and owned JVM Level 2 acceleration.
+- S3 adds the architecture-selected logical panel seam and the owned JVM Level 2 bodies behind it. The dense
+  scheduling asks `DensePanelKernels` for a grouping and works at any positive answer; the Vector API bodies
+  are a candidate behind `BuiltinEngines.simdPanels` and the platform default keeps the portable ones, since
+  activating one is S8.
 - S4 adds JVM GEMM tiles, layouts and cache-blocked products.
 - S5 adds structured product and triangular JVM execution.
 - S6 accelerates sparse dense-RHS panels and prepared reuse.
@@ -28,7 +31,8 @@ their resolved binary path, identity, available version/threading evidence, and 
 - S8 calibrates defaults across real hardware and audits final coverage and attribution.
 
 Later stages are not implied complete by S1. In particular, an exact JVM SIMD engine may truthfully report a
-portable scalar Level 2/3 component until the corresponding owned kernel stage lands. A requested arm name is
+portable Level 2/3 component until the corresponding owned kernel stage lands, and after S3 the platform
+default does exactly that for the dense panels while the candidate arm reports its own. A requested arm name is
 never evidence of execution, and `koblas.noSimd` only withholds the Vector API module; vendor absence is verified
 separately.
 

@@ -19,7 +19,9 @@ present rather than substituting slower arithmetic under the same name.
 
 Both halves say what a call actually reached rather than what was selected.
 [explain][com.eignex.koblas.KoblasEngine.explain] names the Level 1 component for a given operation, length
-and spacing, [routeOf][com.eignex.koblas.sparse.SparseKernels.routeOf] does the same for sparse Level 1, and
+and spacing, [denseRouteOf][com.eignex.koblas.KoblasEngine.denseRouteOf] names what a dense matrix call
+executes including the panel each of its windows reaches and the grouping the backend recommended,
+[routeOf][com.eignex.koblas.sparse.SparseKernels.routeOf] does the same for sparse Level 1, and
 [Blas.routeOf][com.eignex.koblas.vendor.Blas.routeOf] describes one concrete vendor call including
 whether it was direct or composed. A selection that falls back is not evidence that its own kernel ran.
 

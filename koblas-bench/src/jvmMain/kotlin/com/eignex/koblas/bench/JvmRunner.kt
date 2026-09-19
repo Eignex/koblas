@@ -38,7 +38,7 @@ public fun main(args: Array<String>) {
     val settings = parseArguments(args)
     val vendorMode = vendorForRuntime(settings.mode, JVM_VENDOR_PREFIX) != null
     require(
-        settings.mode in setOf("jvm-simd", "jvm-scalar") || vendorMode,
+        settings.mode in setOf("jvm-simd", "jvm-default", "jvm-scalar") || vendorMode,
     ) { "JMH supports only JVM benchmark modes" }
     val allCases = Cases.parse(readTextFile(settings.casesPath))
     val selected = Cases.select(allCases, settings.suite, settings.operation)

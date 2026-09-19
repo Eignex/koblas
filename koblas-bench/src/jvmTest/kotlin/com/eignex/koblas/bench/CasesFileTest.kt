@@ -72,7 +72,7 @@ class CasesFileTest {
         val ids = defaults.joinToString("\n") { it.id }
         val digest = MessageDigest.getInstance("SHA-256").digest(ids.toByteArray()).joinToString("") { "%02x".format(it) }
 
-        assertEquals("cf1e00bdd07656d8ea6f70fcc7e5a45cf48c7504b2efc9e40413c071505aef99", digest)
+        assertEquals("c88425181d8a86beb97d8a5f755e79ea6570c40f4cfb26d1c9217615556b2c2f", digest)
     }
 
     @Test
@@ -81,9 +81,9 @@ class CasesFileTest {
 
         assertEquals(SWEPT, cases.filter { "sweep" in it.suites }.map { it.operation }.toSet())
         assertEquals(168, cases.count { "sweep" in it.suites })
-        assertEquals(256, cases.size)
+        assertEquals(284, cases.size)
         // The default suite is what an ordinary capture runs, and the sweeps did not enlarge it.
-        assertEquals(104, Cases.select(cases).size)
+        assertEquals(132, Cases.select(cases).size)
         assertEquals(cases.size, cases.map { it.id }.toSet().size)
     }
 

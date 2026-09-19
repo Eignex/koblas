@@ -125,9 +125,9 @@ internal fun parseArguments(args: Array<String>): Settings {
     require(values.keys.all { it in allowed }) { "unknown argument: ${values.keys.first { it !in allowed }}" }
     val mode = values["mode"] ?: error("--mode is required")
     require(
-        mode in setOf("jvm-simd", "jvm-scalar", "native") || vendorFromMode(mode) != null,
+        mode in setOf("jvm-simd", "jvm-default", "jvm-scalar", "native") || vendorFromMode(mode) != null,
     ) {
-        "mode must be jvm-simd, jvm-scalar, native, or a jvm-vendor-/native-vendor- arm"
+        "mode must be jvm-simd, jvm-default, jvm-scalar, native, or a jvm-vendor-/native-vendor- arm"
     }
     val warmups = values["warmups"]?.toInt() ?: 3
     val samples = values["samples"]?.toInt() ?: 5

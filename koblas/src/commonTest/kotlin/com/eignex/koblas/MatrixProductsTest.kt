@@ -42,7 +42,7 @@ class MatrixProductsTest {
         val right: Matrix = DenseMatrix.diagonal(2, 2.0)
         val destination = DenseMatrix.wrap(2, 2, backing)
 
-        left.gemmInto(1.0, true, right, false, 0.5, destination, MatrixWorkspace())
+        left.gemmInto(1.0, true, right, false, 0.5, destination, Workspace())
 
         assertContentEquals(doubleArrayOf(2.5, 5.5, 7.0, 10.0), destination.values)
     }
@@ -138,7 +138,7 @@ class MatrixProductsTest {
         val identity: Matrix = SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 1.0), listOf(1 to 1.0)))
         val destination = DenseMatrix.wrap(2, 2, backing)
 
-        (sparse as Matrix).gemmInto(1.0, false, identity, false, 0.0, destination, MatrixWorkspace())
+        (sparse as Matrix).gemmInto(1.0, false, identity, false, 0.0, destination, Workspace())
 
         assertContentEquals(doubleArrayOf(2.0, 3.0, 5.0, 7.0), destination.values, "left operand alias")
 
@@ -147,7 +147,7 @@ class MatrixProductsTest {
         val denseDestination = DenseMatrix.wrap(2, 2, denseBacking)
         val scale: Matrix = SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 2.0), listOf(1 to 2.0)))
 
-        (dense as Matrix).gemmInto(1.0, false, scale, false, 0.0, denseDestination, MatrixWorkspace())
+        (dense as Matrix).gemmInto(1.0, false, scale, false, 0.0, denseDestination, Workspace())
 
         assertContentEquals(doubleArrayOf(2.0, 0.0, 0.0, 2.0), denseDestination.values, "right operand alias")
     }

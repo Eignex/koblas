@@ -105,10 +105,12 @@ class VendorArmTest {
         val scalar = assertNotNull(denseWork(case, BuiltinEngines.scalar))
         val simdEngine = BuiltinEngines.simd
 
-        assertEquals("portable-scalar/gemm", scalar.kernel)
+        assertEquals("portable-dense/gemm", scalar.kernel)
         if (simdEngine != null) {
             val simd = assertNotNull(denseWork(case, simdEngine))
-            assertEquals("portable-scalar/gemm", simd.kernel)
+            // Level 3 is the shared scalar traversal on both arms, and the row says so rather than borrowing
+            // the Vector API label from the engine that was selected.
+            assertEquals("portable-dense/gemm", simd.kernel)
             simd.close()
         }
         scalar.close()

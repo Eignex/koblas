@@ -54,54 +54,90 @@ internal fun requireTriangular(a: DenseMatrix, structure: MatrixStructure, what:
     requireShape(a.rows == a.cols) { "$what requires a square matrix, got ${a.rows}x${a.cols}" }
 }
 
-/** `y = alpha · op(A) · x + beta · y`: the flag decides which dimension each vector answers to. */
-internal fun requireGemvOperands(a: DenseMatrix, transposeA: Boolean, x: DenseVector, y: DenseVector) {
+/**
+ * `y = alpha · op(A) · x + beta · y`: the flag decides which dimension each vector answers to.
+ *
+ * Sizes rather than operands, because a caller holding plain arrays has no vector to check and would have to
+ * wrap each one to ask. The wrappers are small, and a Level 2 call that allocates two of them per invocation
+ * is exactly the per-call cost the panels below it exist to avoid.
+ */
+internal fun requireGemvOperands(a: DenseMatrix, transposeA: Boolean, xSize: Int, ySize: Int) {
     val expectedX = if (transposeA) a.rows else a.cols
     val expectedY = if (transposeA) a.cols else a.rows
-    requireShape(x.size == expectedX && y.size == expectedY) {
+    requireShape(xSize == expectedX && ySize == expectedY) {
         "gemv: ${a.rows}x${a.cols} with transpose=$transposeA needs x=$expectedX and y=$expectedY, " +
-            "got x=${x.size} and y=${y.size}"
+            "got x=$xSize and y=$ySize"
     }
 }
 
-/** `y = alpha · A · x + beta · y` for a symmetric `A`. */
-internal fun requireSymvOperands(a: DenseMatrix, structure: MatrixStructure, x: DenseVector, y: DenseVector) {
+/** [requireGemvOperands] for a caller that already holds its operands as vectors. */
+internal fun requireGemvOperands(a: DenseMatrix, transposeA: Boolean, x: DenseVector, y: DenseVector): Unit =
+    requireGemvOperands(a, transposeA, x.size, y.size)
+
+/** `y = alpha · A · x + beta · y` for a symmetric `A`. Sizes for the reason [requireGemvOperands] gives. */
+internal fun requireSymvOperands(a: DenseMatrix, structure: MatrixStructure, xSize: Int, ySize: Int) {
     requireStructured(a, structure, "symv")
-    requireShape(x.size == a.cols && y.size == a.rows) {
-        "symv: order ${a.rows} needs x and y of that size, got x=${x.size} and y=${y.size}"
+    requireShape(xSize == a.cols && ySize == a.rows) {
+        "symv: order ${a.rows} needs x and y of that size, got x=$xSize and y=$ySize"
     }
 }
+
+/** [requireSymvOperands] for a caller that already holds its operands as vectors. */
+internal fun requireSymvOperands(a: DenseMatrix, structure: MatrixStructure, x: DenseVector, y: DenseVector): Unit =
+    requireSymvOperands(a, structure, x.size, y.size)
 
 /** `A = alpha · x · yᵀ + A`, whose vectors span the destination's two dimensions. */
-internal fun requireGerOperands(x: DenseVector, y: DenseVector, a: DenseMatrix) {
-    requireShape(x.size == a.rows && y.size == a.cols) {
-        "ger: ${a.rows}x${a.cols} needs x=${a.rows} and y=${a.cols}, got x=${x.size} and y=${y.size}"
+internal fun requireGerOperands(xSize: Int, ySize: Int, a: DenseMatrix) {
+    requireShape(xSize == a.rows && ySize == a.cols) {
+        "ger: ${a.rows}x${a.cols} needs x=${a.rows} and y=${a.cols}, got x=$xSize and y=$ySize"
     }
 }
 
-/** A symmetric rank update over one or two vectors of the destination's order. */
-internal fun requireSyrOperands(
+/** [requireGerOperands] for a caller that already holds its operands as vectors. */
+internal fun requireGerOperands(x: DenseVector, y: DenseVector, a: DenseMatrix): Unit =
+    requireGerOperands(x.size, y.size, a)
+
+/**
+ * A symmetric rank update over one or two vectors of the destination's order.
+ *
+ * Two entries rather than one taking a variable number, since every caller knows which of the two it is and
+ * a variable-length one allocates its array on each call.
+ */
+internal fun requireSyrOperands(a: DenseMatrix, structure: MatrixStructure, what: String, x: DenseVector) {
+    requireStructured(a, structure, what)
+    requireOrder(a, x.size, what)
+}
+
+/** [requireSyrOperands] for the two-vector update. */
+internal fun requireSyr2Operands(
     a: DenseMatrix,
     structure: MatrixStructure,
     what: String,
-    vararg vectors: DenseVector,
+    x: DenseVector,
+    y: DenseVector,
 ) {
     requireStructured(a, structure, what)
-    for (x in vectors) {
-        requireShape(x.size == a.rows) { "$what: order ${a.rows} needs a vector of that size, got ${x.size}" }
-    }
+    requireOrder(a, x.size, what)
+    requireOrder(a, y.size, what)
+}
+
+private fun requireOrder(a: DenseMatrix, size: Int, what: String) {
+    requireShape(size == a.rows) { "$what: order ${a.rows} needs a vector of that size, got $size" }
 }
 
 /** `op(T) · x = b` and `x = op(T) · x`, which solve or multiply in place over one vector. */
+internal fun requireTriangularVectorOperands(a: DenseMatrix, structure: MatrixStructure, xSize: Int, what: String) {
+    requireTriangular(a, structure, what)
+    requireShape(xSize == a.rows) { "$what: triangle order ${a.rows} does not match operand size $xSize" }
+}
+
+/** [requireTriangularVectorOperands] for a caller that already holds its operand as a vector. */
 internal fun requireTriangularVectorOperands(
     a: DenseMatrix,
     structure: MatrixStructure,
     x: DenseVector,
     what: String,
-) {
-    requireTriangular(a, structure, what)
-    requireShape(x.size == a.rows) { "$what: triangle order ${a.rows} does not match operand size ${x.size}" }
-}
+): Unit = requireTriangularVectorOperands(a, structure, x.size, what)
 
 /** `C = alpha · op(A) · op(B) + beta · C`, with `op(A): m×k`, `op(B): k×n` and `C: m×n`. */
 internal fun requireGemmOperands(

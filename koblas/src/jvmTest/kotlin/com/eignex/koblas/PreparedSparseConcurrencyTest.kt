@@ -49,7 +49,7 @@ class PreparedSparseConcurrencyTest {
             val results = pool.invokeAll(
                 (0 until THREADS).map { thread ->
                     Callable {
-                        val workspace = MatrixWorkspace()
+                        val workspace = Workspace()
                         val y = DoubleArray(ORDER)
                         val block = DenseMatrix.zero(ORDER, 2)
                         barrier.await(10, TimeUnit.SECONDS)

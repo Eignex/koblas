@@ -3,12 +3,13 @@
 Owning dense containers, borrowed strided vectors, validated CSC sparse containers, the immutable
 [KoblasEngine], and free-function arithmetic over the matrix and vector contracts.
 
-The default [koblas] engine is selected once and cannot be replaced. It binds the Level 1 arm this platform
-prefers to portable dense and sparse Levels 2 and 3. [KoblasEngine.explain] names the Level 1 implementation a
-call of a given operation, length and spacing actually reaches; [KoblasEngine.denseImplementation] and
-[KoblasEngine.sparseImplementation] name the current Level 2 and 3 components, and
-[com.eignex.koblas.sparse.SparseBlas.matrixRouteOf] names what a given sparse matrix call executes. Installed
-host bindings remain explicit alternatives with binding-derived attribution.
+The default [koblas] engine is selected once and cannot be replaced. It binds the Level 1 arm and the panel
+arithmetic this platform prefers to portable dense and sparse Levels 2 and 3. [KoblasEngine.explain] names the
+Level 1 implementation a call of a given operation, length and spacing actually reaches;
+[KoblasEngine.denseRouteOf] and [com.eignex.koblas.sparse.SparseBlas.matrixRouteOf] name what a given matrix
+call executes, including the execution grouping a panel was scheduled with, and
+[KoblasEngine.sparseImplementation] names the component that owns sparse traversal. Installed host bindings
+remain explicit alternatives with binding-derived attribution.
 Naming a different implementation is for measuring one against another, so [BuiltinEngines] sits behind
 [KoblasEngineApi].
 
