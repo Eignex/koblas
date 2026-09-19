@@ -6,6 +6,17 @@ import kotlin.test.assertFailsWith
 
 class RunnerTest {
     @Test
+    fun `runner rejects malformed numeric options instead of using defaults`() {
+        for (option in listOf("warmups", "samples", "target-ms", "forks")) {
+            for (value in listOf("", "many", "1.5", "999999999999999999999999")) {
+                assertFailsWith<IllegalArgumentException>("$option=$value") {
+                    parseArguments(arrayOf("--mode=native", "--$option=$value"))
+                }
+            }
+        }
+    }
+
+    @Test
     fun `runner accepts an explicit targeted suite`() {
         val defaults = parseArguments(arrayOf("--mode=jvm-scalar"))
         val sweep = parseArguments(

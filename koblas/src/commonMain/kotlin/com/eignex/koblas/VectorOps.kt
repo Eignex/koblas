@@ -217,7 +217,7 @@ public fun DenseVector.axpy(alpha: Double, x: Vector) {
 
         // The indexed sparse kernels walk the pattern, and have a vectorised form; the generic loop has
         // neither, so it is what a foreign Vector implementation gets rather than what a SparseVector does.
-        is SparseVector -> if (offset == 0 && stride == 1) {
+        is SparseVector -> if (offset == 0 && stride == 1 && values.size == size) {
             koblas.sparseKernels.axpy(values, alpha, source)
         } else {
             source.forEachStored { i, v -> this[i] += alpha * v }

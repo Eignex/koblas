@@ -129,10 +129,10 @@ internal fun parseArguments(args: Array<String>): Settings {
     ) {
         "mode must be jvm-simd, jvm-scalar, native, or a jvm-vendor-/native-vendor- arm"
     }
-    val warmups = values["warmups"]?.toIntOrNull() ?: 3
-    val samples = values["samples"]?.toIntOrNull() ?: 5
-    val targetMillis = values["target-ms"]?.toLongOrNull() ?: 1_000L
-    val forks = values["forks"]?.toIntOrNull() ?: 1
+    val warmups = values["warmups"]?.toInt() ?: 3
+    val samples = values["samples"]?.toInt() ?: 5
+    val targetMillis = values["target-ms"]?.toLong() ?: 1_000L
+    val forks = values["forks"]?.toInt() ?: 1
     require(warmups >= 0 && samples > 0 && targetMillis in 1..60_000 && forks > 0) {
         "timing settings and forks must be positive, target-ms must not exceed 60000 (warmups may be zero)"
     }

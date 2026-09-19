@@ -55,7 +55,11 @@ public operator fun DenseVector.minus(other: DenseVector): DenseVector = combine
 
 /** `alpha * x`, allocating. [scale] multiplies in place. */
 @kotlin.jvm.JvmName("multiply")
-public operator fun DenseVector.times(alpha: Double): DenseVector = DenseVector.wrap(scaledCopy(values, alpha))
+public operator fun DenseVector.times(alpha: Double): DenseVector {
+    val out = toDoubleArray()
+    koblas.vectorKernels.scale(out, 0, alpha, size)
+    return DenseVector.wrap(out)
+}
 
 /** `alpha * x`, allocating. [scale] multiplies in place. */
 @kotlin.jvm.JvmName("multiply")
@@ -76,7 +80,9 @@ private fun DenseMatrix.combine(other: DenseMatrix, alpha: Double, op: String): 
 /** `x + alpha * y`. */
 private fun DenseVector.combine(other: DenseVector, alpha: Double, op: String): DenseVector {
     requireShape(size == other.size) { "$op size mismatch: $size vs ${other.size}" }
-    return DenseVector.wrap(axpyCopy(values, alpha, other.values))
+    val out = toDoubleArray()
+    koblas.vectorKernels.axpy(out, 0, alpha, other.values, other.offset, size, xStride = other.stride)
+    return DenseVector.wrap(out)
 }
 
 /** A fresh copy of [values] scaled by [alpha], which is what the allocating scalar products all return. */

@@ -20,6 +20,33 @@ class VectorOpsTest {
     )
 
     @Test
+    fun `sparse axpy accepts a prefix view and preserves its padding`() {
+        for (size in intArrayOf(0, 3)) {
+            val backing = DoubleArray(7) { it + 0.5 }
+            val destination = StridedVector(backing, 0, size)
+            val source = if (size == 0) sparse(0) else sparse(size, 0 to 2.0, 2 to -1.0)
+            val expected = backing.copyOf()
+            BuiltinEngines.scalar.sparseKernels.axpy(
+                expected,
+                2.0,
+                source.indices,
+                0,
+                source.values,
+                0,
+                source.indices.size,
+            )
+
+            destination.axpy(2.0, source)
+
+            assertAxpyAgreesWithReference(expected, backing)
+        }
+    }
+
+    private fun assertAxpyAgreesWithReference(expected: DoubleArray, actual: DoubleArray) {
+        assertClose(expected, actual, "sparse axpy into prefix")
+    }
+
+    @Test
     fun `dot is symmetric and sparsity-agnostic`() {
         val a = dense(1.0, 2.0, 3.0, 4.0)
         val b = dense(0.5, 0.0, -1.0, 2.0)

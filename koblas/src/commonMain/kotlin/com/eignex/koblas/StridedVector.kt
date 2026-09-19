@@ -65,10 +65,24 @@ public fun DenseVector.asView(): StridedVector = StridedVector(values, offset, s
  * The receiver's own origin and spacing compose with the ones asked for, so a slice of a slice addresses what
  * the outer one addressed. Reading the arguments as buffer positions instead would silently move the window
  * whenever the receiver was itself a view.
+ *
+ * Both endpoints must lie within this vector's logical bounds. An empty slice may start at [DenseVector.size].
+ * A composed stride that cannot be represented as an [Int] is rejected.
  */
 @JvmOverloads
-public fun DenseVector.view(offset: Int, size: Int, stride: Int = 1): StridedVector =
-    StridedVector(values, this.offset + offset * this.stride, size, this.stride * stride)
+public fun DenseVector.view(offset: Int, size: Int, stride: Int = 1): StridedVector {
+    requireShape(size >= 0) { "negative size: $size" }
+    require(stride != 0) { "stride must not be zero" }
+    requireViewBounds(this.size, offset, size, stride, "logical vector")
+    val physicalStride = this.stride.toLong() * stride
+    requireShape(physicalStride in Int.MIN_VALUE.toLong()..Int.MAX_VALUE.toLong()) {
+        "composed stride $physicalStride exceeds Int capacity"
+    }
+    val physicalOffset = this.offset.toLong() + offset.toLong() * this.stride
+    // An empty slice has no physical entries; a stepped logical end can lie beyond either buffer end.
+    val origin = if (size == 0) physicalOffset.coerceIn(0L, values.size.toLong()) else physicalOffset
+    return StridedVector(values, origin.toInt(), size, physicalStride.toInt())
+}
 
 private fun requireViewBounds(bufferSize: Int, offset: Int, size: Int, stride: Int, description: String) {
     if (size == 0) {
