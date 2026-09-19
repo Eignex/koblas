@@ -1,7 +1,7 @@
 # koblas-bench
 
-CPU benchmarks for Koblas, OpenBLAS, Accelerate and oneMKL. Requires JDK 25. `capture-report.sh` is the only
-reporting script.
+CPU benchmarks for Koblas and the vendor libraries it selects: OpenBLAS, oneMKL, AOCL, ArmPL and Accelerate.
+Requires JDK 25. `capture-report.sh` is the only reporting script.
 
 ## Running a capture
 
@@ -28,10 +28,18 @@ between core types and the timings move with the scheduler.
 koblas-bench/reference-container.sh all --samples 5 --warmups 5 --target-ms 200 --forks 2
 ```
 
-Builds an image with a pinned JDK, OpenBLAS and oneMKL, mounts the repository, and captures inside it, so a
-report from a cloud host is comparable with one from a laptop. Takes `openblas`, `onemkl` or `all` before the
-capture options; `all` needs an x86-64 host, since oneMKL ships no ARM64 build. Requires Docker, and the
-report lands in the repository as usual because the working tree is mounted rather than copied.
+Builds an image with a pinned JDK, OpenBLAS, oneMKL and BLIS, mounts the repository, and captures inside it,
+so a report from a cloud host is comparable with one from a laptop. Takes `openblas`, `onemkl`, `aocl` or
+`all` before the capture options; `all` needs an x86-64 host, since oneMKL ships no ARM64 build. Requires
+Docker, and the report lands in the repository as usual because the working tree is mounted rather than
+copied.
+
+The `aocl` arm is the route production takes first on an AMD host, where `Vendor.select` puts it ahead of
+oneMKL. AMD's own build of it is behind a licence that does not permit redistribution, so the stage installs
+the distribution's BLIS, which carries the same `libblis.so.4` soname and the same CBLAS entry points and is
+the candidate Koblas already names. That measures the route rather than AMD's tuning of it, so read the
+resolved file in `metadata.txt` before comparing one of these numbers with a machine that installed AMD's
+package.
 
 ### On a cloud instance
 
@@ -55,15 +63,27 @@ does not cover redistributing it, so an image built from that stage must not be 
 step because it is the tuned library Koblas prefers on ARM64; OpenBLAS is what selection falls back to when
 none is installed, so a capture without ArmPL measures only the last resort.
 
-An ARM64 Linux capture is the JVM arms and `armpl-jvm` alone, and `native_capable=false` in `metadata.txt`
-marks a report that ran under that limit. The Kotlin/Native compiler ships no linux-aarch64 host, so the
-executable cannot be built on the machine being measured.
+The Kotlin/Native compiler ships no linux-aarch64 host, so an ARM64 machine cannot link the executable it
+would time. It can still run one. Build it on an x86-64 host, where the compiler cross-compiles to the
+target, carry it over, and name it:
 
-That is a limit on building in place, not on measuring. The compiler cross-compiles to `linuxArm64` from an
-x86-64 host, so the executable can be built elsewhere and carried to the instance. Nothing here does that
-yet, which is why the ARM rows of the ladder have no `native` or plain `armpl` numbers at all, and why the
-Level 1 kernels Koblas ships for `linuxArm64` are the only production code in the library that no benchmark
-has ever timed.
+```bash
+# On an x86-64 machine, in a clone of the repository.
+./gradlew :koblas-bench:linkReleaseExecutableLinuxArm64
+scp koblas-bench/build/bin/linuxArm64/releaseExecutable/koblas-bench.kexe instance:/home/ubuntu/
+
+# On the instance.
+koblas-bench/capture-report.sh --native-executable /home/ubuntu/koblas-bench.kexe \
+  --samples 5 --warmups 5 --target-ms 200 --forks 2
+```
+
+Without it the capture is the JVM arms and `armpl-jvm` alone, which `native_capable=false` in `metadata.txt`
+records. `native_executable` there says which binary produced the native rows, since one built on another
+machine is not the same evidence as one linked where it ran.
+
+Nothing about this is automatic, so an ARM capture that does not pass the flag silently covers less. The
+`linuxArm64` Level 1 kernels are shipped production code, and the plain `armpl` arm is the binding a Kotlin/
+Native consumer on that hardware actually uses.
 
 ### Which hosts to capture
 
@@ -97,17 +117,13 @@ eligible at one width and not the other, and both instruction set families.
 
 ### Not yet covered
 
-Three gaps, none of them a lane count.
-
-The ARM rungs have no `native` or plain `armpl` numbers, for the build reason given above. That leaves the
-`linuxArm64` Level 1 kernels as the only production code in the library nothing has ever timed, and it is a
-matter of carrying a cross-compiled executable to the instance rather than of anything being unmeasurable.
+Two gaps, neither of them a lane count. Both need a machine rather than a change here.
 
 The AMD rung is Zen 2, which stops at AVX2, so every AVX-512 number in the fleet is Intel's. AMD implements
 that width differently enough that it is not the same rung read twice, and `c7a.2xlarge` is where Zen 4 has
-it. The AMD host also selects its vendor differently: production tries AOCL first there, and the container
-builds no AOCL stage, so the library that a Koblas process on an AMD machine reaches before any other is one
-no capture has ever measured.
+it. That instance matters more than a missing width would on its own, because AMD is also where `Vendor.select`
+puts AOCL ahead of everything else, so it is the only host whose first-choice vendor is the one the `aocl`
+arm times.
 
 Accelerate and macOS are absent, and the Linux fleet cannot stand in. A dedicated Apple silicon machine is
 the way to cover it, physical or the EC2 kind that rents at a 24-hour minimum. It is the one vendor Koblas
@@ -117,7 +133,7 @@ selects with no fallback behind it.
 
 | Option | Effect |
 |---|---|
-| `--libraries openblas,accelerate,onemkl,armpl\|all` | Which vendors to run. `all` is OpenBLAS with oneMKL on x86-64 Linux, ArmPL on ARM64 Linux and Accelerate on macOS. |
+| `--libraries openblas,accelerate,onemkl,aocl,armpl\|all` | Which vendors to run. `all` is OpenBLAS with oneMKL and AOCL on x86-64 Linux, ArmPL on ARM64 Linux, and Accelerate on macOS. |
 | `--suite default\|sweep` | Case suite. `sweep` requires `--operation`. |
 | `--operation NAME\|all` | Intersects the suite with one kernel. |
 | `--samples N`, `--warmups N` | Measured and discarded repetitions per case. |
@@ -126,6 +142,7 @@ selects with no fallback behind it.
 | `--smoke` | First three selected cases at one short sample. |
 | `--vendors-only` | Skips the Koblas targets. |
 | `--output DIR` | Overrides the report directory. |
+| `--native-executable PATH` | Runs the native arms from this binary rather than linking one. The only way to reach them on ARM64 Linux. |
 | `--pass N` | Labels the run in `metadata.txt`. |
 
 ## Where results go
