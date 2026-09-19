@@ -28,19 +28,80 @@ class BlockedProductTest {
      *
      * The last is neither blocked on any axis nor a multiple of any tile, which is the edge case the three
      * before it do not have.
+     *
+     * The small extents follow the tile this machine resolved, because whether a product is packed at all
+     * depends on it: a shape that fills more than one tile at four rows fills none at sixteen, and the test
+     * would then quietly be checking the unpacked route. `packedExtent` is a tile and a remainder, and never
+     * so few that the product falls under the packing threshold.
      */
-    private val blockedShapes = listOf(
-        Triple(13, 11, PRODUCT_BLOCK_DEPTH * 2 + 17),
-        Triple(PRODUCT_BLOCK_ROWS * 2 + 7, 11, 13),
-        Triple(11, PRODUCT_BLOCK_COLUMNS * 2 + 5, 13),
-        Triple(37, 29, 41),
-    )
+    private fun blockedShapes(tile: DenseProductKernels): List<Triple<Int, Int, Int>> {
+        val rows = packedExtent(tile.tileRows)
+        val columns = packedExtent(tile.tileColumns)
+        return listOf(
+            Triple(rows, columns, PRODUCT_BLOCK_DEPTH * 2 + 17),
+            Triple(PRODUCT_BLOCK_ROWS * 2 + 7, columns, 13),
+            Triple(rows, PRODUCT_BLOCK_COLUMNS * 2 + 5, 13),
+            Triple(rows + 13, columns + 5, 41),
+        )
+    }
+
+    /** More than one whole [tile] and not a multiple of it, and enough of them to be worth packing. */
+    private fun packedExtent(tile: Int): Int = maxOf(tile + 1, SMALL_PACKED_EXTENT)
+
+    /**
+     * That the shapes above are packed at every tile geometry, not only the one this machine resolved.
+     *
+     * Whether a product is packed at all depends on the tile: four rows and sixteen rows disagree about
+     * whether a shape fills one, so a fixture chosen on one machine can quietly become a test of the
+     * unpacked route on another. That is not hypothetical, and it is not something a machine with four lanes
+     * can find by running anything, so the rule is asked directly at the widths this machine cannot resolve.
+     */
+    @Test
+    fun `the blocked shapes are packed at every tile geometry`() {
+        for (tileRows in intArrayOf(2, 4, 8, 16, 32)) {
+            val tile = TileGeometry(tileRows, 4)
+            for ((m, n, k) in blockedShapes(tile)) {
+                assertTrue(
+                    tile.packsProduct(m, n, k),
+                    "${m}x${n}x$k is not packed by a tile of $tileRows rows, so it would test the other route",
+                )
+            }
+        }
+    }
+
+    /** A tile of a stated shape that answers the shipped packing rule and nothing else. */
+    private class TileGeometry(override val tileRows: Int, override val tileColumns: Int) : DenseProductKernels {
+        override val name: String get() = "geometry(${tileRows}x$tileColumns)"
+
+        override fun implementationsFor(rows: Int, columns: Int, depth: Int): List<String> = listOf(name)
+
+        override fun packsProduct(rows: Int, columns: Int, depth: Int): Boolean =
+            packsProductByWork(rows, columns, depth, tileRows, tileColumns)
+
+        @Suppress("LongParameterList") // the product block contract
+        override fun productBlock(
+            alpha: Double,
+            packedA: DoubleArray,
+            aOffset: Int,
+            aGroupStride: Int,
+            packedB: DoubleArray,
+            bOffset: Int,
+            bGroupStride: Int,
+            rows: Int,
+            columns: Int,
+            depth: Int,
+            beta: Double,
+            c: DoubleArray,
+            cOffset: Int,
+            ldc: Int,
+        ): Unit = throw UnsupportedOperationException("this stands in for a geometry, not for arithmetic")
+    }
 
     @Test
     fun `a blocked product agrees with the reference across every transpose pair`() {
         val rng = Random(20261014)
         for (engine in engines) {
-            for ((m, n, k) in blockedShapes) {
+            for ((m, n, k) in blockedShapes(engine.productKernels)) {
                 for (transposeA in booleanArrayOf(false, true)) {
                     for (transposeB in booleanArrayOf(false, true)) {
                         checkProduct(engine, m, n, k, transposeA, transposeB, 0.875, -0.25, rng)
@@ -60,7 +121,7 @@ class BlockedProductTest {
     @Test
     fun `the blocked shapes reach the product tiles and a small one does not`() {
         for (engine in engines) {
-            for ((m, n, k) in blockedShapes) {
+            for ((m, n, k) in blockedShapes(engine.productKernels)) {
                 val route = engine.denseRouteOf(DenseMatrixOperation.Gemm, DenseCall(m, n, depth = k))
                 assertTrue(
                     route.components.any { it.endsWith("/product-block") },
@@ -90,10 +151,10 @@ class BlockedProductTest {
     @Test
     fun `a zero beta overwrites a poisoned destination over several depth blocks`() {
         val rng = Random(20261015)
-        val m = 13
-        val n = 11
         val k = PRODUCT_BLOCK_DEPTH * 2 + 9
         for (engine in engines) {
+            val m = packedExtent(engine.productKernels.tileRows)
+            val n = packedExtent(engine.productKernels.tileColumns)
             val a = randomMatrix(m, k, rng)
             val b = randomMatrix(k, n, rng)
             val expected = DenseMatrix(m, n, DoubleArray(m * n) { Double.NaN })
@@ -115,9 +176,9 @@ class BlockedProductTest {
     @Test
     fun `beta reaches the destination once whatever the depth was cut into`() {
         val rng = Random(20261016)
-        val m = 11
-        val n = 13
         for (engine in engines) {
+            val m = packedExtent(engine.productKernels.tileRows)
+            val n = packedExtent(engine.productKernels.tileColumns)
             for (k in intArrayOf(PRODUCT_BLOCK_DEPTH - 1, PRODUCT_BLOCK_DEPTH, PRODUCT_BLOCK_DEPTH + 1)) {
                 checkProduct(engine, m, n, k, transposeA = false, transposeB = false, 0.5, 2.0, rng)
             }
@@ -396,7 +457,13 @@ class BlockedProductTest {
     fun `a product over retained panels agrees with the reference`() {
         val rng = Random(20261021)
         for (engine in engines) {
-            for ((m, n, k) in listOf(Triple(37, 29, 41), Triple(13, 11, PRODUCT_BLOCK_DEPTH + 9), Triple(4, 4, 4))) {
+            val rows = packedExtent(engine.productKernels.tileRows)
+            val columns = packedExtent(engine.productKernels.tileColumns)
+            for ((m, n, k) in listOf(
+                Triple(37, 29, 41),
+                Triple(rows, columns, PRODUCT_BLOCK_DEPTH + 9),
+                Triple(4, 4, 4),
+            )) {
                 for (transposeA in booleanArrayOf(false, true)) {
                     for (transposeB in booleanArrayOf(false, true)) {
                         checkRetainedProduct(engine, m, n, k, transposeA, transposeB, rng)
@@ -520,5 +587,15 @@ class BlockedProductTest {
             "${engine.name} ${m}x${n}x$k tA=$transposeA tB=$transposeB",
             tolerance = 1e-10,
         )
+    }
+
+    private companion object {
+        /**
+         * The smallest extent these shapes use on an axis they are not blocking.
+         *
+         * Large enough that the product clears the packing threshold at every tile geometry this library
+         * resolves, and not a multiple of any of them, so the last tile on that axis is always a remainder.
+         */
+        const val SMALL_PACKED_EXTENT = 24
     }
 }

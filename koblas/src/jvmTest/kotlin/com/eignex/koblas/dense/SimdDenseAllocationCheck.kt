@@ -30,7 +30,12 @@ internal object SimdDenseAllocationCheck {
     /** A square product large enough to be packed and small enough to repeat thousands of times. */
     private const val PRODUCT_ORDER = 48
 
-    /** The other shape: too few rows and columns to block, and a depth that several blocks cover. */
+    /**
+     * The other shape: too few rows and columns to block, and a depth that several blocks cover.
+     *
+     * A floor rather than the extent itself. A tile sixteen rows deep would not pack twelve rows at all, so
+     * the caller raises this to something that machine's tile really packs and says so.
+     */
     private const val PRODUCT_NARROW = 12
     private const val PRODUCT_DEPTH = 400
 
@@ -190,20 +195,29 @@ internal object SimdDenseAllocationCheck {
 
     private fun checkWholeProducts(engine: KoblasEngine) {
         val workspace = Workspace()
+        // Both shapes have to be ones this machine's tile geometry really packs, or the deep probe would
+        // measure the unpacked route while claiming to measure depth blocks.
+        val narrow = maxOf(engine.productKernels.tileRows + 1, PRODUCT_NARROW)
+        require(engine.productKernels.packsProduct(narrow, narrow, PRODUCT_DEPTH)) {
+            "the deep product probe at ${narrow}x${narrow}x$PRODUCT_DEPTH is not packed on this machine"
+        }
+        require(engine.productKernels.packsProduct(PRODUCT_ORDER, PRODUCT_ORDER, PRODUCT_ORDER)) {
+            "the square product probe at $PRODUCT_ORDER cubed is not packed on this machine"
+        }
         val square = PRODUCT_ORDER * PRODUCT_ORDER
         val wide = DenseMatrix.wrap(PRODUCT_ORDER, PRODUCT_ORDER, DoubleArray(square) { 1.0 })
         val wideTarget = DenseMatrix.wrap(PRODUCT_ORDER, PRODUCT_ORDER, DoubleArray(square))
         val deepLeft = DenseMatrix.wrap(
-            PRODUCT_NARROW,
+            narrow,
             PRODUCT_DEPTH,
-            DoubleArray(PRODUCT_NARROW * PRODUCT_DEPTH) { 1.0 },
+            DoubleArray(narrow * PRODUCT_DEPTH) { 1.0 },
         )
         val deepRight = DenseMatrix.wrap(
             PRODUCT_DEPTH,
-            PRODUCT_NARROW,
-            DoubleArray(PRODUCT_DEPTH * PRODUCT_NARROW) { 0.5 },
+            narrow,
+            DoubleArray(PRODUCT_DEPTH * narrow) { 0.5 },
         )
-        val deepTarget = DenseMatrix.wrap(PRODUCT_NARROW, PRODUCT_NARROW, DoubleArray(PRODUCT_NARROW * PRODUCT_NARROW))
+        val deepTarget = DenseMatrix.wrap(narrow, narrow, DoubleArray(narrow * narrow))
         val left = engine.packLeft(wide, transpose = false)
         val right = engine.packRight(wide, transpose = false)
 
