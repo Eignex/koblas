@@ -1,5 +1,7 @@
 package com.eignex.koblas
 
+import com.eignex.koblas.dense.DenseCall
+import com.eignex.koblas.dense.DenseMatrixOperation
 import com.eignex.koblas.dense.DenseOperation
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -17,12 +19,70 @@ class PlatformEngineTest {
     @OptIn(KoblasEngineApi::class)
     @Test
     fun `exact built in engines do not resolve or execute a host library`() {
+        val call = DenseCall(WIDE, WIDE)
+
         assertEquals(null, BuiltinEngines.scalar.vendor)
-        assertEquals("portable-scalar", BuiltinEngines.scalar.denseImplementation)
+        assertEquals(
+            "portable-dense",
+            BuiltinEngines.scalar.denseRouteOf(DenseMatrixOperation.Gemm, call).scheduling,
+        )
+        assertEquals(
+            "scalar-panel/multi-dot",
+            BuiltinEngines.scalar.denseRouteOf(DenseMatrixOperation.GemvTransposed, call).components.single(),
+        )
         BuiltinEngines.simd?.let {
             assertEquals(null, it.vendor)
-            assertEquals("portable-scalar", it.denseImplementation)
+            assertEquals("portable-dense", it.denseRouteOf(DenseMatrixOperation.Gemm, call).scheduling)
         }
+    }
+
+    /**
+     * What the platform default runs, which is not everything that exists.
+     *
+     * The Vector API Level 1 kernels are the default and have been since they were measured. The Level 2
+     * panels are a candidate: correct, allocation-free and locally faster over most shapes, and behind over
+     * some small ones on the one machine that has timed them. Until that is settled across machines the
+     * default keeps the portable panels, and this is what says so rather than a sentence in a document.
+     */
+    @OptIn(KoblasEngineApi::class)
+    @Test
+    fun `the default engine keeps its level one arm and the portable panels`() {
+        val candidate = BuiltinEngines.simd ?: return println(
+            "SKIPPED: no Vector API panel candidate on this platform; default activation was not checked",
+        )
+
+        assertEquals(koblas.vectorKernels.name, candidate.vectorKernels.name, "the Level 1 arm is not the default's")
+        assertNotEquals(
+            candidate.panelKernels.name,
+            koblas.panelKernels.name,
+            "the panel candidate became the platform default without its evidence gate",
+        )
+        assertEquals(
+            "scalar-panel",
+            koblas.panelKernels.name,
+            "the platform default schedules panels other than the portable ones",
+        )
+    }
+
+    /**
+     * The panel backend is the platform's, and a matrix call says which of its bodies it reaches.
+     *
+     * A selection is not an execution: the Vector API backend hands a panel shorter than one lane block to the
+     * portable body, and this asks the route rather than the engine's name.
+     */
+    @OptIn(KoblasEngineApi::class)
+    @Test
+    fun `a wide panel reaches the vector body and a short one does not`() {
+        val simd = BuiltinEngines.simd ?: return println(
+            "SKIPPED: no Vector API engine on this host; the panel bodies a route names were not compared",
+        )
+        val work = DenseMatrixOperation.GemvTransposed
+
+        val wide = simd.denseRouteOf(work, DenseCall(WIDE, 4)).components.single()
+        val short = simd.denseRouteOf(work, DenseCall(1, 4)).components.single()
+
+        assertNotEquals(short, wide, "a wide panel and a single row named the same body")
+        assertEquals("scalar-panel/multi-dot", short)
     }
 
     /**

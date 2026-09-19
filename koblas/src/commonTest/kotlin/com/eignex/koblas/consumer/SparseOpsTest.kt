@@ -1,8 +1,8 @@
 package com.eignex.koblas.consumer
 
 import com.eignex.koblas.DenseMatrix
-import com.eignex.koblas.MatrixWorkspace
 import com.eignex.koblas.SparseMatrix
+import com.eignex.koblas.Workspace
 import com.eignex.koblas.addScaled
 import com.eignex.koblas.assertClose
 import com.eignex.koblas.gemm
@@ -75,7 +75,7 @@ class SparseOpsTest {
         val actual = DenseMatrix.wrap(2, 2, expected.values.copyOf())
         ReferenceSparseBlas.symm(0.75, source, right, -0.5, expected)
 
-        source.symm(0.75, right, -0.5, actual, workspace = MatrixWorkspace())
+        source.symm(0.75, right, -0.5, actual, workspace = Workspace())
 
         assertClose(expected, actual, "root symm")
     }
@@ -87,14 +87,14 @@ class SparseOpsTest {
         val expectedDense = DenseMatrix.wrap(2, 2, doubleArrayOf(1.0, 2.0, 3.0, 4.0))
         val actualDense = DenseMatrix.wrap(2, 2, expectedDense.values.copyOf())
         ReferenceSparseBlas.gemm(0.75, source, false, dense, false, -0.5, expectedDense)
-        source.gemmInto(0.75, false, dense, false, -0.5, actualDense, workspace = MatrixWorkspace())
+        source.gemmInto(0.75, false, dense, false, -0.5, actualDense, workspace = Workspace())
         assertClose(expectedDense, actualDense, "root sparse-dense gemmInto")
 
         val other = SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to -1.0), listOf(1 to 4.0)))
         val expectedSparse = DenseMatrix.wrap(2, 2, doubleArrayOf(1.0, 2.0, 3.0, 4.0))
         val actualSparse = DenseMatrix.wrap(2, 2, expectedSparse.values.copyOf())
         ReferenceSparseBlas.gemm(0.75, source, false, other, true, -0.5, expectedSparse)
-        source.gemmInto(0.75, false, other, true, -0.5, actualSparse, workspace = MatrixWorkspace())
+        source.gemmInto(0.75, false, other, true, -0.5, actualSparse, workspace = Workspace())
         assertClose(expectedSparse, actualSparse, "root sparse-sparse gemmInto")
 
         assertEquals(
@@ -113,7 +113,7 @@ class SparseOpsTest {
         ReferenceSparseBlas.syrk(1.25, source, false, 0.0, expectedDense)
 
         val actualSparse = source.syrk()
-        source.syrk(1.25, false, 0.0, actualDense, workspace = MatrixWorkspace())
+        source.syrk(1.25, false, 0.0, actualDense, workspace = Workspace())
 
         assertEquals(expectedSparse, actualSparse)
         assertClose(expectedDense, actualDense, "root syrk")

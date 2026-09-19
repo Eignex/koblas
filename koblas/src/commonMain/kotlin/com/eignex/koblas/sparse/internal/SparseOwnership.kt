@@ -1,9 +1,9 @@
 package com.eignex.koblas.sparse.internal
 
 import com.eignex.koblas.DenseMatrix
-import com.eignex.koblas.MatrixWorkspace
 import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.UnsafeKoblasApi
+import com.eignex.koblas.Workspace
 import com.eignex.koblas.borrow
 import com.eignex.koblas.borrowI32
 
@@ -17,7 +17,7 @@ import com.eignex.koblas.borrowI32
 internal inline fun <T> withStableSparse(
     a: SparseMatrix,
     destination: DoubleArray,
-    workspace: MatrixWorkspace?,
+    workspace: Workspace?,
     block: (SparseMatrix) -> T,
 ): T {
     if (a.values !== destination) return block(a)
@@ -31,7 +31,7 @@ internal inline fun <T> withStableSparse(
 internal inline fun <T> withStableDense(
     b: DenseMatrix,
     destination: DoubleArray,
-    workspace: MatrixWorkspace?,
+    workspace: Workspace?,
     block: (DenseMatrix) -> T,
 ): T {
     if (b.values !== destination) return block(b)
@@ -56,7 +56,7 @@ internal fun SparseMatrix.stableFor(destination: DoubleArray): SparseMatrix = if
  */
 @Suppress("LongParameterList")
 internal inline fun <T> withSymmetricRankScratch(
-    workspace: MatrixWorkspace?,
+    workspace: Workspace?,
     order: Int,
     sourceRows: Int,
     sourceEntries: Int,

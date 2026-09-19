@@ -3,19 +3,19 @@
 package com.eignex.koblas.sparse.internal
 
 import com.eignex.koblas.DenseMatrix
-import com.eignex.koblas.MatrixWorkspace
 import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.UnsafeKoblasApi
+import com.eignex.koblas.Workspace
 import com.eignex.koblas.borrow
-import com.eignex.koblas.sparse.SPARSE_RHS_WIDTH
 import com.eignex.koblas.sparse.SparsePanelKernels
 import kotlin.math.min
 
-/** Visits dense right-hand sides in panels, so one walk of a sparse column serves several of them. */
-internal inline fun forEachRhsPanel(columns: Int, action: (start: Int, width: Int) -> Unit) {
+/** Visits dense right-hand sides in panels of at most [group], so one walk of a sparse column serves several. */
+internal inline fun forEachRhsPanel(columns: Int, group: Int, action: (start: Int, width: Int) -> Unit) {
+    val step = if (group < 1) 1 else group
     var start = 0
     while (start < columns) {
-        val width = min(SPARSE_RHS_WIDTH, columns - start)
+        val width = min(step, columns - start)
         action(start, width)
         start += width
     }
@@ -35,11 +35,12 @@ internal fun multiplyFromTheLeft(
     m: Int,
     n: Int,
     k: Int,
-    workspace: MatrixWorkspace?,
+    workspace: Workspace?,
 ) {
     val leadingDimension = b.rows
-    workspace.borrow(SPARSE_RHS_WIDTH) { work ->
-        forEachRhsPanel(n) { columnStart, width ->
+    val group = kernels.rightHandSideGroup(m, n)
+    workspace.borrow(group) { work ->
+        forEachRhsPanel(n, group) { columnStart, width ->
             if (transposeA) {
                 for (outputRow in 0 until m) {
                     kernels.gatherProductPanel(
@@ -76,7 +77,7 @@ internal fun multiplyFromTheRight(
     transposeB: Boolean,
     c: DenseMatrix,
     m: Int,
-    workspace: MatrixWorkspace?,
+    workspace: Workspace?,
 ) {
     if (transposeB) {
         workspace.borrow(b.values.size) { packed ->

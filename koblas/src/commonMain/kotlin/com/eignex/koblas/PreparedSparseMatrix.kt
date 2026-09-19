@@ -68,7 +68,7 @@ public class PreparedSparseMatrix internal constructor(a: SparseMatrix, private 
         b: DenseMatrix,
         beta: Double,
         c: DenseMatrix,
-        workspace: MatrixWorkspace? = null,
+        workspace: Workspace? = null,
     ) {
         gemm(alpha, transposeA, b, false, beta, c, false, workspace)
     }
@@ -84,7 +84,7 @@ public class PreparedSparseMatrix internal constructor(a: SparseMatrix, private 
         beta: Double,
         c: DenseMatrix,
         right: Boolean,
-        workspace: MatrixWorkspace? = null,
+        workspace: Workspace? = null,
     ) {
         if (right) {
             requireGemmShape(b, transposeB, snapshot, transposeA, c)
@@ -110,7 +110,7 @@ public class PreparedSparseMatrix internal constructor(a: SparseMatrix, private 
         c: DenseMatrix,
         lower: Boolean = true,
         right: Boolean = false,
-        workspace: MatrixWorkspace? = null,
+        workspace: Workspace? = null,
     ) {
         algorithms.symm(alpha, snapshot, b, beta, c, lower, right, workspace)
     }
@@ -143,7 +143,7 @@ public class PreparedSparseMatrix internal constructor(a: SparseMatrix, private 
         transposeB: Boolean,
         beta: Double,
         c: DenseMatrix,
-        workspace: MatrixWorkspace? = null,
+        workspace: Workspace? = null,
     ) {
         requireGemmShape(snapshot, transposeA, b, transposeB, c)
         val depth = if (transposeA) snapshot.rows else snapshot.cols

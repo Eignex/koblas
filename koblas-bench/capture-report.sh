@@ -156,10 +156,11 @@ run_target() {
 cd "$root"
 common=("-Pbench.operation=$operation" "-Pbench.suite=$suite" "-Pbench.cases=$cases" "-Pbench.warmups=$warmups" "-Pbench.samples=$samples" "-Pbench.targetMs=$target_ms")
 if ! $vendors_only; then
-  for target in jvm-scalar jvm-simd native; do
+  for target in jvm-scalar jvm-simd jvm-default native; do
     case "$target" in
       jvm-scalar) task=jvmScalarBenchmark ;;
       jvm-simd) task=jvmSimdBenchmark ;;
+      jvm-default) task=jvmDefaultBenchmark ;;
       native) $native_capable || continue; task=nativeBenchmark ;;
     esac
     run_target "$target" ./gradlew --no-daemon ":koblas-bench:$task" "${common[@]}" "-Pbench.forks=$forks" "-Pbench.output=$results/$target.csv"

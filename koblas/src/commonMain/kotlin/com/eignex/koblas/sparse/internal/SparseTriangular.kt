@@ -3,9 +3,9 @@
 package com.eignex.koblas.sparse.internal
 
 import com.eignex.koblas.DenseMatrix
-import com.eignex.koblas.MatrixWorkspace
 import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.UnsafeKoblasApi
+import com.eignex.koblas.Workspace
 import com.eignex.koblas.borrow
 import com.eignex.koblas.sparse.SparsePanelKernels
 
@@ -16,7 +16,7 @@ internal inline fun withExplicitDiagonal(
     a: SparseMatrix,
     n: Int,
     unitDiag: Boolean,
-    workspace: MatrixWorkspace?,
+    workspace: Workspace?,
     crossinline block: (DoubleArray?) -> Unit,
 ) {
     if (unitDiag) {
@@ -41,11 +41,12 @@ internal fun trmmLeftCore(
     unitDiag: Boolean,
     diagonal: DoubleArray?,
     work: DoubleArray,
+    group: Int,
 ) {
     val n = a.rows
     val bd = b.values
     val order = if (lower != transpose) n - 1 downTo 0 else 0 until n
-    forEachRhsPanel(b.cols) { columnStart, width ->
+    forEachRhsPanel(b.cols, group) { columnStart, width ->
         for (j in order) {
             val dj = diagonal?.get(j) ?: 1.0
             if (!transpose) {
@@ -142,11 +143,12 @@ internal fun trsmLeftCore(
     transpose: Boolean,
     diagonal: DoubleArray?,
     work: DoubleArray,
+    group: Int,
 ) {
     val n = a.rows
     val bd = b.values
     val order = if (lower != transpose) 0 until n else n - 1 downTo 0
-    forEachRhsPanel(b.cols) { columnStart, width ->
+    forEachRhsPanel(b.cols, group) { columnStart, width ->
         for (j in order) {
             val divisor = diagonal?.get(j) ?: 1.0
             if (!transpose) {

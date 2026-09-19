@@ -66,6 +66,7 @@ val benchVendor = providers.gradleProperty("bench.vendor").orElse("onemkl")
 
 registerJvmBenchmark("jvmVendorBenchmark", "jvm-vendor-${benchVendor.get()}", vectorModule = false)
 registerJvmBenchmark("jvmSimdBenchmark", "jvm-simd", vectorModule = true)
+registerJvmBenchmark("jvmDefaultBenchmark", "jvm-default", vectorModule = true)
 registerJvmBenchmark("jvmScalarBenchmark", "jvm-scalar", vectorModule = false)
 
 val hostTarget = when {
