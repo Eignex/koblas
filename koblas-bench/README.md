@@ -55,10 +55,15 @@ does not cover redistributing it, so an image built from that stage must not be 
 step because it is the tuned library Koblas prefers on ARM64; OpenBLAS is what selection falls back to when
 none is installed, so a capture without ArmPL measures only the last resort.
 
-An ARM64 Linux capture is the JVM arms and `armpl-jvm` alone. The Kotlin/Native compiler ships no
-linux-aarch64 host, so the native executable cannot be built there at any version, which leaves `native` and
-the plain vendor targets unreachable rather than merely slow. `native_capable=false` in `metadata.txt` marks a
-report that ran under that limit.
+An ARM64 Linux capture is the JVM arms and `armpl-jvm` alone, and `native_capable=false` in `metadata.txt`
+marks a report that ran under that limit. The Kotlin/Native compiler ships no linux-aarch64 host, so the
+executable cannot be built on the machine being measured.
+
+That is a limit on building in place, not on measuring. The compiler cross-compiles to `linuxArm64` from an
+x86-64 host, so the executable can be built elsewhere and carried to the instance. Nothing here does that
+yet, which is why the ARM rows of the ladder have no `native` or plain `armpl` numbers at all, and why the
+Level 1 kernels Koblas ships for `linuxArm64` are the only production code in the library that no benchmark
+has ever timed.
 
 ### Which hosts to capture
 
@@ -92,7 +97,11 @@ eligible at one width and not the other, and both instruction set families.
 
 ### Not yet covered
 
-Two gaps, neither of them a lane count.
+Three gaps, none of them a lane count.
+
+The ARM rungs have no `native` or plain `armpl` numbers, for the build reason given above. That leaves the
+`linuxArm64` Level 1 kernels as the only production code in the library nothing has ever timed, and it is a
+matter of carrying a cross-compiled executable to the instance rather than of anything being unmeasurable.
 
 The AMD rung is Zen 2, which stops at AVX2, so every AVX-512 number in the fleet is Intel's. AMD implements
 that width differently enough that it is not the same rung read twice, and `c7a.2xlarge` is where Zen 4 has
@@ -100,9 +109,9 @@ it. The AMD host also selects its vendor differently: production tries AOCL firs
 builds no AOCL stage, so the library that a Koblas process on an AMD machine reaches before any other is one
 no capture has ever measured.
 
-Accelerate and macOS are absent, and the Linux fleet cannot stand in. EC2 does rent Apple silicon, at a
-24-hour minimum allocation, which is the price of covering the one vendor Koblas selects without a fallback
-behind it.
+Accelerate and macOS are absent, and the Linux fleet cannot stand in. A dedicated Apple silicon machine is
+the way to cover it, physical or the EC2 kind that rents at a 24-hour minimum. It is the one vendor Koblas
+selects with no fallback behind it.
 
 ## Options
 
@@ -126,10 +135,16 @@ Full captures write to `reports/<hardware-sha256>/`; single-operation, smoke and
 directory, and each successful run replaces what was there. A failing target stops the capture and leaves the
 previous report in place.
 
-Only captures from the cloud fleet below are committed. A developer machine is a fine place to run one, and
-`build/benchmarks/` is where it lands, but its numbers are not a reference: a laptop shares its cores with
-everything else running on it, throttles under sustained load, and cannot be reproduced by anyone else, so a
-report from one says less about the library than about the afternoon it was taken.
+A committed report comes from a machine kept for the purpose: nothing else running on it, a named part
+someone else can rent or buy, and cores it does not share. The cloud fleet above is how most rungs are
+reached, and a dedicated physical machine qualifies on the same terms, which is the only way to reach
+Accelerate.
+
+A machine being worked on does not qualify, whatever it is. Run captures there freely, since `--output` and
+the single-operation modes write to `build/benchmarks/` anyway, but a browser on the other desktop is enough
+to move the numbers: two runs here during recent work disagreed by a factor of two on lengths so large that
+the loop waits on memory and the arithmetic cannot matter. A report like that describes the afternoon rather
+than the library.
 
 A report holds one CSV per target plus `metadata.txt`. The CSV has one row per case with sample and fork
 counts and median, minimum and maximum ns/op, along with the kernel that actually ran. Run settings, hardware,
