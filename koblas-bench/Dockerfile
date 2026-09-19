@@ -46,12 +46,33 @@ RUN if [ "$(dpkg --print-architecture)" != amd64 ]; then echo "no oneMKL for $(d
 
 ENTRYPOINT ["/workspace/koblas-bench/capture-report.sh", "--libraries", "onemkl"]
 
-FROM onemkl AS all
+# AOCL, which production selects ahead of everything else on an AMD host, so a fleet without it has never
+# measured the library a process on that hardware reaches first.
+#
+# AMD's own build is behind a licence that does not permit redistribution. The distribution's BLIS is the
+# other packaging of the same library and is the candidate Koblas already names: same `libblis.so.4` soname,
+# the CBLAS entry points compiled in, and the serial flavour, so one compute thread is what the binary is
+# rather than what a call configures it to be. That is a real AOCL route and not AMD's tuning of it, which is
+# why the resolved file in the report is the thing to read before comparing a number here with one from a
+# machine that installed AMD's package.
+FROM onemkl AS aocl
+
+ARG BLIS_VERSION=1.1-3build1
+
+RUN if [ "$(dpkg --print-architecture)" != amd64 ]; then echo "no AOCL route for $(dpkg --print-architecture); stage left as is"; else true \
+    && apt-get update \
+    && apt-get install --yes --no-install-recommends "libblis4-serial=${BLIS_VERSION}" \
+    && test -e /usr/lib/x86_64-linux-gnu/libblis.so.4 \
+    && rm -rf /var/lib/apt/lists/*; fi
+
+ENTRYPOINT ["/workspace/koblas-bench/capture-report.sh", "--libraries", "openblas,aocl"]
+
+FROM aocl AS all
 
 ENTRYPOINT ["/workspace/koblas-bench/capture-report.sh", "--libraries", "all"]
 
-# Arm Performance Libraries, which is the only vendor Koblas selects on ARM64: OpenBLAS is a bench reference
-# and is never chosen in production, so a capture without this one measures an arm no user reaches.
+# Arm Performance Libraries, the tuned library Koblas prefers on ARM64. OpenBLAS is what selection falls back
+# to where none is installed, so a capture without this one measures only the last resort.
 #
 # Building this stage downloads Arm Performance Libraries, which means accepting Arm's licence for it. That is
 # what the licence permits — installing it on a machine you are using. It does not permit redistributing it,
