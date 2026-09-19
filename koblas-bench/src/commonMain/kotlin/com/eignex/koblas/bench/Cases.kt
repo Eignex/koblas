@@ -142,6 +142,8 @@ internal object Cases {
         when (operation) {
             "gemv", "gemm" -> add("transA")
         }
+        // The sparse operand's own orientation, which is what a prepared transposed product derives once.
+        if (operation in TRANSPOSABLE_SPARSE_OPERATIONS) add("transA")
         if (operation == "gemm") add("transB")
         if (operation in setOf("scal", "spgather")) add("timing")
         if (operation in MODE_OPERATIONS) add("mode")
@@ -176,6 +178,11 @@ internal object Cases {
         "spmm-generic", "spmm-generic-right", "spgemm-generic",
     )
     private val PREPARABLE_OPERATIONS = setOf("spgemv", "spmm", "spgemm")
+    // The allocating generic product has no transpose flag to carry, so spgemm-generic is not here: a case
+    // may only declare an option the call it makes actually applies.
+    private val TRANSPOSABLE_SPARSE_OPERATIONS = setOf(
+        "spgemv", "spmm", "spgemm", "spmm-generic", "spmm-generic-right",
+    )
     private val TRIANGULAR_FIXTURE_OPERATIONS = setOf(
         "trsv", "trmv", "trsm", "trmm", "spsymv", "spsymm", "sptrsv", "sptrmv", "sptrsm", "sptrmm",
     )

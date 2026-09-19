@@ -26,6 +26,12 @@ internal fun multiplySparse(
     lower: Boolean? = null,
 ): SparseMatrix {
     val rows = a.rows
+    // A product that can reach no position discovers no structure, and the scratch that would have found it
+    // is indexed by the result's rows. Allocating it for a result that is provably empty is what turns a
+    // valid tall-and-empty shape into an out-of-memory error rather than an empty matrix.
+    if (a.nnz == 0 || b.nnz == 0) {
+        return SparseMatrix.wrapTrusted(rows, b.cols, IntArray(b.cols + 1), IntArray(0), DoubleArray(0))
+    }
     val values = DoubleArray(rows)
     // Positive column epochs distinguish first touches without clearing between columns.
     val touchedIn = IntArray(rows)
@@ -104,14 +110,20 @@ internal fun multiplySparseInto(
 /** Fresh selected triangle of `op(A) · op(A)ᵀ` without materializing a transpose or full product. */
 internal fun symmetricRankProduct(a: SparseMatrix, transpose: Boolean, lower: Boolean): SparseMatrix {
     val order = if (transpose) a.cols else a.rows
+    val outerPointers = pointerLength(order, "syrk")
+    // As in the general product, a source with nothing stored reaches no position, and the row adjacency that
+    // would have found them is indexed by the source's rows.
+    if (a.nnz == 0) {
+        return SparseMatrix.wrapTrusted(order, order, IntArray(outerPointers), IntArray(0), DoubleArray(0))
+    }
     val sums = DoubleArray(order)
     val touchedAt = IntArray(order)
     val touched = IntArray(order)
-    val rowPointers = IntArray(a.rows + 1)
+    val rowPointers = IntArray(scratchLength(a.rows, "syrk"))
     val adjacentColumns = IntArray(a.nnz)
     val adjacentPositions = IntArray(a.nnz)
     buildRowAdjacency(a, rowPointers, adjacentColumns, adjacentPositions, IntArray(a.rows))
-    val outPointers = IntArray(order + 1)
+    val outPointers = IntArray(outerPointers)
     val builder = SupportBuilder(maxOf(1, a.nnz).toLong())
     for (j in 0 until order) {
         val used = accumulateRankColumn(
