@@ -54,4 +54,35 @@ class BenchmarkArmResolutionTest {
     fun `unknown mode fails instead of selecting a fallback`() {
         assertFailsWith<IllegalStateException> { resolveEngine("openblas") }
     }
+
+    /**
+     * The generic product reaches the measured fork through the bridge, not only through the scan.
+     *
+     * The scan and the measurement are two different seams: the scan decides which cases a fork is asked
+     * for, and the bridge builds the work inside it. A case admitted by one and dropped by the other looks
+     * like an unsupported row with no reason, which is what happened to `gemm-generic` before the bridge
+     * learned the dense arm. This holds both seams to the same answer.
+     */
+    @Test
+    fun `the generic product is built by the measured fork on the default arm and declined on an exact one`() {
+        val case = Cases.parse(readTextFile(CASES)).single { it.operation == "gemm-generic" }
+
+        val work = JvmBenchmarkBridge.create("jvm-default", case.id, CASES)
+
+        assertEquals("default-policy", work.comparisonKind)
+        assertTrue(!work.kernel.isNullOrEmpty(), "the default arm's generic row named no route")
+        work.close()
+
+        if (BuiltinEngines.simd !== koblas) {
+            val declined = assertFailsWith<IllegalStateException> {
+                JvmBenchmarkBridge.create("jvm-simd", case.id, CASES)
+            }
+            assertTrue("declined" in declined.message.orEmpty(), declined.message.orEmpty())
+        }
+    }
+
+    private companion object {
+        /** The workload the benchmark tasks read, resolved from the module directory the tests run in. */
+        const val CASES = "cases.txt"
+    }
 }
