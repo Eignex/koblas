@@ -596,6 +596,6 @@ class BlockedProductTest {
          * Large enough that the product clears the packing threshold at every tile geometry this library
          * resolves, and not a multiple of any of them, so the last tile on that axis is always a remainder.
          */
-        const val SMALL_PACKED_EXTENT = 24
+        const val SMALL_PACKED_EXTENT = 25
     }
 }

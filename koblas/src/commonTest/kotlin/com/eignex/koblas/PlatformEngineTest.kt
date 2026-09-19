@@ -21,7 +21,9 @@ class PlatformEngineTest {
     fun `exact built in engines do not resolve or execute a host library`() {
         val call = DenseCall(WIDE, WIDE)
         // A product route is a question about the shared dimension too, so the product call carries one.
-        val product = DenseCall(WIDE, WIDE, depth = WIDE)
+        // Matrix routes visit cache blocks, so the Level 1 crossover fixture would enumerate millions of
+        // blocks here. This bounded product is already large enough to exercise packed execution.
+        val product = DenseCall(256, 256, depth = 256)
 
         assertEquals(null, BuiltinEngines.scalar.vendor)
         assertEquals(
