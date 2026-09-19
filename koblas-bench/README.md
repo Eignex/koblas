@@ -86,6 +86,24 @@ The pre-FMA rungs earn their place even though nobody buys those instances now: 
 no instruction behind it falls back to a software implementation per lane rather than refusing, and only a
 host without the instruction shows that.
 
+Between them these cover every property the SIMD kernels branch on: each of the three lane counts, a host on
+each side of the fused multiply-add, both 256-bit and 512-bit x86 for the indexed loads and stores that are
+eligible at one width and not the other, and both instruction set families.
+
+### Not yet covered
+
+Two gaps, neither of them a lane count.
+
+The AMD rung is Zen 2, which stops at AVX2, so every AVX-512 number in the fleet is Intel's. AMD implements
+that width differently enough that it is not the same rung read twice, and `c7a.2xlarge` is where Zen 4 has
+it. The AMD host also selects its vendor differently: production tries AOCL first there, and the container
+builds no AOCL stage, so the library that a Koblas process on an AMD machine reaches before any other is one
+no capture has ever measured.
+
+Accelerate and macOS are absent, and the Linux fleet cannot stand in. EC2 does rent Apple silicon, at a
+24-hour minimum allocation, which is the price of covering the one vendor Koblas selects without a fallback
+behind it.
+
 ## Options
 
 | Option | Effect |
@@ -107,6 +125,11 @@ Full captures write to `reports/<hardware-sha256>/`; single-operation, smoke and
 `build/benchmarks/<hardware-sha256>/`. The hash covers sorted hardware facts, so identical machines share a
 directory, and each successful run replaces what was there. A failing target stops the capture and leaves the
 previous report in place.
+
+Only captures from the cloud fleet below are committed. A developer machine is a fine place to run one, and
+`build/benchmarks/` is where it lands, but its numbers are not a reference: a laptop shares its cores with
+everything else running on it, throttles under sustained load, and cannot be reproduced by anyone else, so a
+report from one says less about the library than about the afternoon it was taken.
 
 A report holds one CSV per target plus `metadata.txt`. The CSV has one row per case with sample and fork
 counts and median, minimum and maximum ns/op, along with the kernel that actually ran. Run settings, hardware,
