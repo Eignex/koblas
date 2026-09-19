@@ -15,16 +15,16 @@ import jdk.incubator.vector.DoubleVector
  * settles, which is why the shape is a measurement rather than a calculation.
  *
  * The stage evidence holds that measurement: six rectangles, each written out with its own named
- * accumulators and each checked allocation-free before it was timed, over the same logical product at four
- * shapes on one machine. This one was ahead of every other by about a third there. A machine with a
- * different register file or cache may want another, which is why the geometry is read from [tileRows] and
- * [tileColumns] by everything that packs for it rather than written into a caller.
+ * accumulators and each allocation-free, over the same logical product at several shapes on one machine.
+ * This one led at every one of them. That is one machine's answer, and a machine with a different register
+ * file or cache may want another, which is why the geometry is read from [tileRows] and [tileColumns] by
+ * everything that packs for it rather than written into a caller.
  *
  * A destination whose columns run out part way through a tile is the same body with fewer columns stored,
  * since the packed groups are full and their padding is positive zero. A destination whose *rows* run out
  * is not: that would need a masked store, and this implementation's was measured to cost an allocation per
  * stored vector. Those rows, at most [tileRows] minus one of them, are scalar, and [implementationsFor]
- * names that rather than letting the vector body's name cover it.
+ * names that rather than letting the vector body's name stand for it.
  *
  * Resolving the species is what initializing this costs, so a runtime without the module must not reach it:
  * [com.eignex.koblas.BuiltinEngines] offers no engine holding this backend there. Where the module is
