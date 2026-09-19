@@ -128,7 +128,29 @@ gemm+127x5x65+uniform
 trsm+65x1+triangular+side=L+uplo=L+transA=N+diag=N
 trsm+65x33+triangular+side=L+uplo=U+transA=T+diag=U
 
-# Larger blocks and reduction depths around tile boundaries.
+# Larger blocks and reduction depths around tile boundaries. The raw block cases state one block of work in
+# logical extents; which tiles a backend cuts it into is its own, and the row records which bodies it reached.
+gemm+256x256x256+uniform
+gemm+257x255x129+uniform
+gemm+384x128x512+uniform+transA=T
+gemm+128x384x256+uniform+transB=T
+gemm+1024x8x1024+uniform
+gemm+8x1024x1024+uniform
+gemm+64x64x128+uniform
+gemm+64x64x129+uniform
+gemm-generic+256x256x256+uniform
+gemm-pack+256x256x256+uniform
+gemm-packed+256x256x256+uniform
+gemm-packed-left+256x256x256+uniform
+gemm-packed-right+256x256x256+uniform
+product-block+8x4x16+uniform
+product-block+8x4x256+uniform
+product-block+64x64x128+uniform
+product-block+65x63x128+uniform
+# A thin right operand, where the reduction's coefficient column is strided and gathering it once is the
+# only copy worth making. Paired with the same work stored the other way round, which needs no gather.
+gemm+256x2x512+uniform+transA=T+transB=T
+gemm+256x2x512+uniform+transA=T
 
 # Level 1 arithmetic without fixture resets
 scal+64+uniform+timing=arithmetic+suite=default,sweep

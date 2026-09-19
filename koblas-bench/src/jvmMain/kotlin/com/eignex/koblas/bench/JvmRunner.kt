@@ -29,8 +29,10 @@ public object JvmBenchmarkBridge {
         if (sparse != null) {
             return JvmCaseWork(sparse.work ?: error("sparse arm declined $caseId in the measured fork: ${sparse.reason}"))
         }
-        val work = denseWork(case, engine) ?: error("unsupported case passed to JMH: $caseId")
-        return JvmCaseWork(work)
+        val dense = denseArm(case, engine) ?: error("unsupported case passed to JMH: $caseId")
+        return JvmCaseWork(
+            dense.work ?: error("dense arm declined $caseId in the measured fork: ${dense.reason}"),
+        )
     }
 }
 
@@ -53,7 +55,7 @@ public fun main(args: Array<String>) {
         // Routes are resolved here, before any timing, so describing a call costs nothing inside the
         // measured loop and an inadmissible arm is declined rather than timed.
         val arm = vendor?.let { vendorArm(case, it.first) }
-            ?: engine?.let { sparseArm(case, it) ?: denseWork(case, it)?.let { work -> ArmChoice(work, null) } }
+            ?: engine?.let { sparseArm(case, it) ?: denseArm(case, it) }
         val work = arm?.work
         if (work == null) {
             rowsByCase.getOrPut(case.id, ::arrayListOf) += measurement(

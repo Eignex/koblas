@@ -1,6 +1,7 @@
 package com.eignex.koblas.dense
 
 import com.eignex.koblas.BuiltinEngines
+import com.eignex.koblas.KoblasEngine
 import com.eignex.koblas.internal.numeric.hardwareFusedMultiplyAdd
 import jdk.incubator.vector.DoubleVector
 
@@ -60,6 +61,34 @@ internal object SimdRuntimePathCheck {
             val route = engine.denseRouteOf(DenseMatrixOperation.Symv, DenseCall(order, order))
             println("symv order $order at $lanes lanes: ${route.kind} ${route.components}")
         }
-        println("panel conformance passed at $lanes lanes with fma=$hardwareFusedMultiplyAdd")
+        checkProducts(engine, lanes)
+        println("panel and tile conformance passed at $lanes lanes with fma=$hardwareFusedMultiplyAdd")
+    }
+
+    /**
+     * The product tile at whatever species this process resolved, and the route over it.
+     *
+     * The tile's rows are lane blocks, so which destinations have a remainder and which do not moves with
+     * the species: the same product is one body wide at one width and a composition at another. A check that
+     * only ran the arithmetic would leave that to whichever machine happened to run the ordinary tests.
+     */
+    private fun checkProducts(engine: KoblasEngine, lanes: Int) {
+        val products = engine.productKernels
+        check(products.tileRows % lanes == 0) {
+            "the product tile has ${products.tileRows} rows, which is not lane blocks at $lanes lanes"
+        }
+        assertProductBlockAgreesWithReference(products)
+        assertEmptyProductBlockReadsNothing(products)
+        assertZeroBetaOverwritesPoison(products)
+        assertDepthSlicesAccumulate(products)
+        for ((m, n, k) in listOf(
+            Triple(products.tileRows * 4, products.tileColumns * 4, 64),
+            Triple(products.tileRows * 4 + 1, products.tileColumns * 4 + 1, 64),
+            Triple(37, 29, 41),
+        )) {
+            assertProductRouteNamesExecutedBlocks(products, engine.panelKernels, m, n, k)
+            val route = engine.denseRouteOf(DenseMatrixOperation.Gemm, DenseCall(m, n, depth = k))
+            println("gemm ${m}x${n}x$k at $lanes lanes: ${route.kind} ${route.components}")
+        }
     }
 }

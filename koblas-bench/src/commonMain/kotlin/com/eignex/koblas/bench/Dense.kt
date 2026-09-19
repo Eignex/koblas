@@ -3,11 +3,18 @@ package com.eignex.koblas.bench
 import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.DenseVector
 import com.eignex.koblas.KoblasEngine
+import com.eignex.koblas.Matrix
+import com.eignex.koblas.Workspace
+import com.eignex.koblas.gemmInto
 import com.eignex.koblas.dense.DenseCall
 import com.eignex.koblas.dense.DenseMatrixOperation
 import com.eignex.koblas.dense.DenseMatrixRoute
 import com.eignex.koblas.dense.DenseOperation
+import com.eignex.koblas.dense.DenseProductKernels
+import com.eignex.koblas.dense.PackedLayout
+import com.eignex.koblas.dense.PackedRole
 import com.eignex.koblas.dense.PanelWork
+import com.eignex.koblas.koblas
 import com.eignex.koblas.vendor.RouteKind
 
 internal class CaseWork(
@@ -155,6 +162,9 @@ internal fun denseWork(case: BenchCase, engine: KoblasEngine): CaseWork? {
             }
         }
         "panel-multidot", "panel-columnupdate", "panel-coupled", "panel-rankupdate" -> panelWork(case, engine)
+        "product-block" -> productBlockWork(case, engine)
+        "gemm-pack" -> packingWork(case, engine)
+        "gemm-packed", "gemm-packed-left", "gemm-packed-right" -> retainedProductWork(case, engine)
         "gemv" -> {
             val m = d[0]; val n = d[1]; val trans = case.flag("transA")
             val a = Fixtures.matrix(if (trans) n else m, if (trans) m else n, 1)
@@ -318,6 +328,167 @@ private fun panelWork(case: BenchCase, engine: KoblasEngine): CaseWork {
     }
 }
 
+/**
+ * The dense work for [case], or a reason this arm may not measure it.
+ *
+ * All but one case is an exact measurement on whichever engine the arm resolved. The generic product is not:
+ * it goes through the common `Matrix` entry point, which uses the engine this platform selected because a
+ * caller holding a `Matrix` has none to pass, so it is published once as a default-policy row.
+ */
+internal fun denseArm(case: BenchCase, engine: KoblasEngine): ArmChoice? = when (case.operation) {
+    "gemm-generic" -> genericProductArm(case, engine)
+    else -> denseWork(case, engine)?.let { ArmChoice(it, null) }
+}
+
+private fun genericProductArm(case: BenchCase, engine: KoblasEngine): ArmChoice {
+    if (engine !== koblas) {
+        return ArmChoice(
+            null,
+            "the common Matrix product uses the platform-selected engine, so ${case.operation} is timed once " +
+                "as a default-policy case on the arm whose engine that is",
+        )
+    }
+    val (m, n, k) = case.dimensions
+    val alpha = 0.875
+    val beta = -0.25
+    val a = Fixtures.matrix(m, k, 1)
+    val b = Fixtures.matrix(k, n, 2)
+    val c0 = Fixtures.matrix(m, n, 3)
+    val c = Fixtures.matrix(m, n, 3)
+    val route = koblas.denseRouteOf(DenseMatrixOperation.Gemm, DenseCall(m, n, alpha, beta, depth = k))
+    if (route.kind == RouteKind.NoWork) {
+        return ArmChoice(null, "this case's own contract stops before the arithmetic, so there is nothing to time")
+    }
+    val expected = DenseReference.gemm(alpha, a, false, b, false, beta, c0)
+    c0.values.copyInto(c.values)
+    (a as Matrix).gemmInto(alpha, false, b as Matrix, false, beta, c)
+    DenseReference.check(expected, c.values, "${case.id} generic product")
+    return ArmChoice(
+        CaseWork("default-policy", "reset-and-arithmetic", {
+            c0.values.copyInto(c.values)
+            (a as Matrix).gemmInto(alpha, false, b as Matrix, false, beta, c)
+            c.values[0]
+        }, kernel = denseMatrixKernel(route)),
+        null,
+    )
+}
+
+/**
+ * One raw product block over the extents the case names, on panels this case packed itself.
+ *
+ * The extents are the case's and never the backend's, so the same requested work is timed on an arm whose
+ * tile is four rows deep and one whose tile is eight. What the row records is which bodies those extents
+ * reached: a destination that fills whole tiles reaches one, and one that leaves a remainder reaches what
+ * the remainder goes to as well.
+ *
+ * The panels are filled through [PackedLayout.index], which is the layout's own published formula, rather
+ * than through the library's packer, so this times the block and not a packer checking itself.
+ */
+private fun productBlockWork(case: BenchCase, engine: KoblasEngine): CaseWork {
+    val (rows, columns, depth) = case.dimensions
+    val products = engine.productKernels
+    val alpha = 0.875
+    val beta = -0.25
+    val a = Fixtures.vector(rows * depth, 1)
+    val b = Fixtures.vector(depth * columns, 2)
+    val left = PackedLayout(PackedRole.Left, rows, depth, products.tileRows)
+    val right = PackedLayout(PackedRole.Right, depth, columns, products.tileColumns)
+    val packedA = DoubleArray(left.storageSize)
+    val packedB = DoubleArray(right.storageSize)
+    for (i in 0 until rows) for (p in 0 until depth) packedA[left.index(i, p)] = a[i + p * rows]
+    for (p in 0 until depth) for (j in 0 until columns) packedB[right.index(p, j)] = b[p + j * depth]
+    val c0 = Fixtures.vector(rows * columns, 3)
+    val c = c0.copyOf()
+    fun block() = products.productBlock(
+        alpha, packedA, 0, left.groupStride, packedB, 0, right.groupStride,
+        rows, columns, depth, beta, c, 0, rows,
+    )
+
+    val bodies = productBodies(products, rows, columns, depth)
+    val expected = DenseReference.productBlock(alpha, a, b, rows, columns, depth, beta, c0)
+    c0.copyInto(c)
+    block()
+    DenseReference.check(expected, c, case.id)
+    return CaseWork(
+        if (bodies.size > 1) "composed" else "direct",
+        "reset-and-arithmetic",
+        { c0.copyInto(c); block(); c[0] },
+        kernel = "${bodies.joinToString("+")}/product-block@${products.tileRows}x${products.tileColumns}",
+    )
+}
+
+/**
+ * Every body the blocks of this raw case reach, asked of the backend about the block it is handed.
+ *
+ * One block here, since the case hands the whole extent over in one call, so this is what that block
+ * reaches: the vector tile where the rows fill whole tiles, and whatever the rows left over reach as well.
+ */
+private fun productBodies(products: DenseProductKernels, rows: Int, columns: Int, depth: Int): List<String> =
+    products.implementationsFor(rows, columns, depth)
+
+/**
+ * Packing both operands and nothing else, which is what a retained panel costs before it saves anything.
+ *
+ * A setup row: it names the preparation rather than an arithmetic kernel, because no product happened. It is
+ * what the prepacked rows have to be read against, since those exclude exactly this.
+ */
+private fun packingWork(case: BenchCase, engine: KoblasEngine): CaseWork {
+    val (m, n, k) = case.dimensions
+    val a = Fixtures.matrix(m, k, 1)
+    val b = Fixtures.matrix(k, n, 2)
+
+    val left = engine.packLeft(a, transpose = false)
+    val right = engine.packRight(b, transpose = false)
+    for (i in 0 until m) for (p in 0 until k) {
+        check(left[i, p] == a[i, p]) { "${case.id}: left panel entry ($i, $p) is not the matrix it came from" }
+    }
+    for (p in 0 until k) for (j in 0 until n) {
+        check(right[p, j] == b[p, j]) { "${case.id}: right panel entry ($p, $j) is not the matrix it came from" }
+    }
+    return CaseWork("setup", "setup", {
+        engine.packLeft(a, transpose = false)[0, 0] + engine.packRight(b, transpose = false)[0, 0]
+    }, kernel = "portable-pack/pack-operands")
+}
+
+/**
+ * A product over operands packed before the timed region, with whichever of them this case retains.
+ *
+ * Three entry points rather than one with a flag, because they are three different amounts of work: the
+ * copy a call still makes is the difference between them, and a row that hid which one it was could not be
+ * read against the packing-only row beside it.
+ */
+private fun retainedProductWork(case: BenchCase, engine: KoblasEngine): CaseWork? {
+    val (m, n, k) = case.dimensions
+    val alpha = 0.875
+    val beta = -0.25
+    val a = Fixtures.matrix(m, k, 1)
+    val b = Fixtures.matrix(k, n, 2)
+    val c0 = Fixtures.matrix(m, n, 3)
+    val c = Fixtures.matrix(m, n, 3)
+    val workspace = Workspace()
+    val operation = when (case.operation) {
+        "gemm-packed" -> DenseMatrixOperation.GemmPacked
+        "gemm-packed-left" -> DenseMatrixOperation.GemmPackedLeft
+        else -> DenseMatrixOperation.GemmPackedRight
+    }
+    val left = if (operation != DenseMatrixOperation.GemmPackedRight) engine.packLeft(a, false) else null
+    val right = if (operation != DenseMatrixOperation.GemmPackedLeft) engine.packRight(b, false) else null
+    fun apply() = when {
+        left != null && right != null -> engine.gemm(alpha, left, right, beta, c)
+        left != null -> engine.gemm(alpha, left, b, false, beta, c, workspace)
+        else -> engine.gemm(alpha, a, false, checkNotNull(right), beta, c, workspace)
+    }
+    return level23(
+        engine, operation, DenseCall(m, n, alpha, beta, depth = k), "reset-and-arithmetic",
+        verify = {
+            val expected = DenseReference.gemm(alpha, a, false, b, false, beta, c0)
+            c0.values.copyInto(c.values)
+            apply()
+            DenseReference.check(expected, c.values, "${case.id} ${case.operation}")
+        },
+    ) { c0.values.copyInto(c.values); apply(); c.values[0] }
+}
+
 private fun rankUpdateWork(case: BenchCase, engine: KoblasEngine): CaseWork? {
     val alpha = 0.875
     val lower = case.option("uplo", "L") == "L"
@@ -384,7 +555,12 @@ private fun gemmWork(case: BenchCase, engine: KoblasEngine): CaseWork? {
     val b = Fixtures.matrix(if (tb) n else k, if (tb) k else n, 2)
     val original = Fixtures.matrix(m, n, 3); val c = Fixtures.matrix(m, n, 3)
     return level23(
-        engine, DenseMatrixOperation.Gemm, DenseCall(m, n, alpha, beta, depth = k), "reset-and-arithmetic",
+        engine,
+        DenseMatrixOperation.Gemm,
+        // The transpose flags are facts a product route needs: they decide which panel an unpacked product
+        // reaches and whether the vector it shares across a group is adjacent.
+        DenseCall(m, n, alpha, beta, depth = k, transposeA = ta, transposeB = tb),
+        "reset-and-arithmetic",
         verify = {
             val expected = DenseReference.gemm(alpha, a, ta, b, tb, beta, original)
             original.values.copyInto(c.values); engine.gemm(alpha, a, ta, b, tb, beta, c)

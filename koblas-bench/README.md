@@ -176,10 +176,10 @@ source revision and the resolved library files are in `metadata.txt` only.
 Koblas contributes independent `jvm-scalar`, `jvm-simd`, `jvm-default` and `native` arms. `jvm-scalar` is
 portable Kotlin at every level, and `jvm-simd` is every Vector API kernel this library owns. `jvm-default` is
 what an ordinary call gets, which is a policy rather than an exact arm: today that is `jvm-simd`'s Level 1
-with the portable dense panels, because the Level 2 panels are measured but not yet activated. Its rows are
-where the generic entry points are timed, since those use the selected engine and have none to be told. A
-comparison between `jvm-simd` and `jvm-default` is therefore a comparison of panels alone, since the two
-share everything else.
+with the portable dense panels and the portable product tile, because the Level 2 panels and the Level 3
+tiles are measured but not yet activated. Its rows are where the generic entry points are timed, since those
+use the selected engine and have none to be told. A comparison between `jvm-simd` and `jvm-default` is
+therefore a comparison of the matrix arithmetic alone, since the two share everything else.
 
 Each vendor contributes two explicit arms: `<vendor>` through the Native binding, and `<vendor>-jvm`
 through the JVM binding, whose timing includes operand transfer.
@@ -191,8 +191,16 @@ substitute.
 Built-in dense Level 2/3 rows name `portable-dense/<operation>` and do not resolve a vendor. Where a window of
 work is handed to a panel or a Level 1 kernel they name that component too, as
 `portable-dense+<component>/<operation>@<group>`, where the group is how many logical columns the backend
-recommended handing over at a time. A group is not a lane count. Level 3 names no panel, because it is still
-the shared scalar traversal on every arm. A triangular or symmetric call whose windows shrink past a
+recommended handing over at a time. A group is not a lane count.
+
+A matrix product names what it copies and what it computes with. One large enough to be packed reads
+`portable-dense+portable-pack/right-panel+portable-pack/left-panel+<tile>/product-block/gemm`, in the order
+the schedule reaches them, and a product whose rows leave a tile short names the body that remainder reaches
+as well and is published as the composition it is. One too small or too thin to pay for a copy names the
+panel it runs on instead, with the grouping the backend recommended, and names a gathered coefficient column
+where it makes one. A retained panel is not packed again, so `gemm-packed` names no packing at all and the
+mixed entry points name only the side they still copy. The other Level 3 routines name no panel and no tile,
+because they are still the shared scalar traversal on every arm. A triangular or symmetric call whose windows shrink past a
 backend's shortest vector window reaches more than one body and is published as the composition it is; a
 call whose windows are all empty names no panel and no grouping at all. Built-in sparse
 Level 2/3 rows name `portable-csc/<operation>`, and where a unit of work is handed to a Level 1 kernel they
@@ -248,9 +256,22 @@ backend's, so a tail of three columns is the same requested work on an arm that 
 groups by four; what the row records is which body those extents reached and which grouping the backend
 asked for. Each is checked against the written-out definition of its panel before it is timed.
 
-The `spmm-generic`, `spmm-generic-right` and `spgemm-generic` cases go through the common `Matrix` product with
-its dispatch included, the second of them with the sparse operand on the right of a dense one. That entry
-point uses the engine this platform selected rather than one a benchmark names, because a caller holding a
+The `product-block` cases time one raw product block over the extents the case names, as rows by columns by
+depth, on panels the case packs itself through the layout's own published index formula. The extents are the
+case's and never the backend's, so the same requested work is timed on an arm whose tile is four rows deep
+and one whose tile is eight; what the row records is which bodies those extents reached and the tile shape
+the backend cut them with.
+
+`gemm-pack` times packing both operands and nothing else, and reports preparation rather than an arithmetic
+kernel, because no product happened. `gemm-packed`, `gemm-packed-left` and `gemm-packed-right` time a product
+over operands packed before the timed region, retaining both of them or one. They are four different amounts
+of work rather than one row with a flag: the copy a call still makes is the difference between them, and the
+packing-only row is what the retained ones have to be read against. Every one of them is checked against the
+scalar reference before it is timed.
+
+The `gemm-generic`, `spmm-generic`, `spmm-generic-right` and `spgemm-generic` cases go through the common
+`Matrix` product with its dispatch included, the third of them with the sparse operand on the right of a
+dense one. That entry point uses the engine this platform selected rather than one a benchmark names, because a caller holding a
 `Matrix` has no engine to pass. They are therefore `default-policy` rows on the arm whose engine is the
 selected one, and are declined on every other arm rather than publishing that arm's label over another
 engine's work. On a Kotlin/Native host with an installed library the selected engine is not the `native` arm's

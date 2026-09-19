@@ -20,6 +20,8 @@ internal object Cases {
         "panel-multidot" to 2, "panel-columnupdate" to 2, "panel-coupled" to 2, "panel-rankupdate" to 2,
         "gemv" to 2, "symv" to 1, "ger" to 2, "syr" to 1, "syr2" to 1, "trsv" to 1,
         "trmv" to 1, "gemm" to 3, "symm" to 2, "gemmt" to 2, "syrk" to 2, "syr2k" to 2,
+        "product-block" to 3, "gemm-pack" to 3, "gemm-packed" to 3, "gemm-packed-left" to 3,
+        "gemm-packed-right" to 3, "gemm-generic" to 3,
         "trsm" to 2, "trmm" to 2,
         "spdot" to 1, "spdot-raw" to 1, "spdot-sparse" to 1, "spaxpy" to 1, "spaxpy-raw" to 1,
         "spnrm2" to 1, "spnrm2-indexed" to 1, "spasum" to 1,

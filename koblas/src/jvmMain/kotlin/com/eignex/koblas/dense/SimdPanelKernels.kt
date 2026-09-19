@@ -35,7 +35,14 @@ internal object SimdPanelKernels : DensePanelKernels {
     private val SPECIES = DoubleVector.SPECIES_PREFERRED
     private val LANE = if (simdAvailable) SPECIES.length() else 0
 
-    override val name: String get() = "simd-panel($LANE lanes)"
+    /**
+     * Built once. A name is constant for the life of this object, and rebuilding it per access would make
+     * every question about which body a shape reaches allocate, including the ones a scheduling decision
+     * asks on the way into a call.
+     */
+    private val NAME: String = "simd-panel($LANE lanes)"
+
+    override val name: String get() = NAME
 
     /**
      * Rows a panel needs before its vector body is reached, as whole lane blocks of this machine.

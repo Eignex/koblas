@@ -20,11 +20,13 @@ class PlatformEngineTest {
     @Test
     fun `exact built in engines do not resolve or execute a host library`() {
         val call = DenseCall(WIDE, WIDE)
+        // A product route is a question about the shared dimension too, so the product call carries one.
+        val product = DenseCall(WIDE, WIDE, depth = WIDE)
 
         assertEquals(null, BuiltinEngines.scalar.vendor)
         assertEquals(
             "portable-dense",
-            BuiltinEngines.scalar.denseRouteOf(DenseMatrixOperation.Gemm, call).scheduling,
+            BuiltinEngines.scalar.denseRouteOf(DenseMatrixOperation.Gemm, product).scheduling,
         )
         assertEquals(
             "scalar-panel/multi-dot",
@@ -32,7 +34,7 @@ class PlatformEngineTest {
         )
         BuiltinEngines.simd?.let {
             assertEquals(null, it.vendor)
-            assertEquals("portable-dense", it.denseRouteOf(DenseMatrixOperation.Gemm, call).scheduling)
+            assertEquals("portable-dense", it.denseRouteOf(DenseMatrixOperation.Gemm, product).scheduling)
         }
     }
 
