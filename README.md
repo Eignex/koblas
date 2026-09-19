@@ -18,10 +18,10 @@
 Koblas provides dense and sparse double-precision linear algebra for Kotlin Multiplatform. It includes BLAS
 operations, mutable matrices and vectors, and views into existing storage.
 
-Level 2 and Level 3 are whole calls to an installed vendor BLAS — oneMKL, AOCL, or Arm Performance Libraries —
-each held to one compute thread. Koblas validates shapes and aliasing there and contributes no arithmetic of
-its own. They have no fallback: on a host with no supported library they raise rather than quietly computing
-something slower under the same name.
+Dense Level 2 and Level 3 have common Kotlin implementations, so ordinary matrix computation needs no installed
+numerical library. The current restoration is a portable scalar baseline; architecture-selected JVM panels and
+tiles are the next performance stages. Explicit oneMKL, AOCL, Arm Performance Libraries, Accelerate, and
+OpenBLAS bindings remain available for comparisons and Native acceleration, each held to one compute thread.
 
 Level 1 picks the faster arm per platform. On the JVM that is the Vector API kernels for the reductions,
 because reaching a foreign library there copies both operands into native memory and so costs a pass over the
@@ -56,12 +56,10 @@ On JVM, pass `--add-modules=jdk.incubator.vector` at runtime to enable the SIMD 
 Koblas uses portable Kotlin, which is also what those kernels fall back to below their lane width and for
 any strided run.
 
-Level 2 and Level 3 need a vendor BLAS, installed on the host. Koblas ships none and packages none: it looks
-for oneMKL, AOCL and Arm Performance Libraries by their usual file names and the prefixes their installers
-use, so no environment setup is required, and falls back to OpenBLAS, which most distributions already carry.
-The tuned library wins wherever one is installed, and the resolved file is reported back so a run says which
-library actually ran rather than which one it would have preferred. On JVM those calls are foreign downcalls,
-so pass `--enable-native-access=ALL-UNNAMED`. macOS uses Accelerate, which is part of the system.
+Optional host comparisons need a vendor BLAS installed; Koblas ships and packages none. The binding reports the
+resolved binary file, identity and available version/thread evidence from the object that performs the call.
+On JVM explicit host calls use foreign downcalls, so pass `--enable-native-access=ALL-UNNAMED`. Portable and JVM
+SIMD built-in computation does not require native access. macOS host comparisons use system Accelerate.
 
 ## Quick start
 
@@ -153,18 +151,18 @@ Most application code needs only `com.eignex.koblas.*`. The root package contain
 containers, zero-copy vector views, allocating operators, and high-level operations. `Matrix` and `Vector` are
 read-only contracts that custom types can implement. `MatrixStorage` and `VectorStorage` identify Koblas's
 built-in dense and sparse containers, so storage-level operations can use one API and dispatch according to the
-actual storage. `DenseVector` is sealed over the two dense spacings, adjacent and strided, because a vendor
-takes either as a pointer and an increment; `SparseVector` is deliberately not one, so it does not compile where
-a dense operand is wanted. Matrix arithmetic takes dense storage.
+actual storage. `DenseVector` is sealed over the two dense spacings, adjacent and strided. Generic matrix
+products dispatch on runtime storage; S1 implements the dense route, while mixed and sparse products are the
+next restoration stage and currently fail explicitly rather than densifying inputs.
 
 The `com.eignex.koblas.dense`, `com.eignex.koblas.sparse` and `com.eignex.koblas.vendor` packages are the
 lower-level composition layer. `DenseBlas` exposes Koblas's dense BLAS signatures and `Blas` the standard's own
 argument shapes underneath them, while the kernel interfaces and sparse primitives support custom algorithms
 over caller-owned storage. Ordinary matrix and vector arithmetic does not require imports from these packages.
 
-`KoblasEngine` connects the layers: it binds the portable Level 1 and sparse kernels to the selected vendor and
-implements the dense BLAS contract on top. Root-package operators and extensions use the platform-selected
-`koblas` engine.
+`KoblasEngine` connects the layers: it binds Level 1 and sparse kernels to portable dense Levels 2 and 3.
+Installed host bindings are separately callable and retain their own execution identity. Root-package operators
+and extensions use the platform-selected `koblas` engine.
 
 ## Operations
 
@@ -173,7 +171,7 @@ implements the dense BLAS contract on top. Root-package operators and extensions
 | [Dense matrices](koblas/src/commonMain/kotlin/com/eignex/koblas/Matrix.kt), [sparse matrices](koblas/src/commonMain/kotlin/com/eignex/koblas/SparseMatrix.kt), [vectors](koblas/src/commonMain/kotlin/com/eignex/koblas/Vector.kt), and [strided vectors](koblas/src/commonMain/kotlin/com/eignex/koblas/StridedVector.kt) | Dense and sparse containers, array wrapping, factories, and borrowed views into existing vector storage. |
 | [Vector operations](koblas/src/commonMain/kotlin/com/eignex/koblas/VectorOps.kt) | Dense and sparse dot products, sums, norms, scaling, copy, swap, gather, scatter, and [plane rotations](koblas/src/commonMain/kotlin/com/eignex/koblas/Rot.kt). |
 | [Matrix helpers](koblas/src/commonMain/kotlin/com/eignex/koblas/MatrixOps.kt) | Allocating [operators](koblas/src/commonMain/kotlin/com/eignex/koblas/Operators.kt), matrix-vector products, rank updates, [triangular operations](koblas/src/commonMain/kotlin/com/eignex/koblas/Triangular.kt), [slices](koblas/src/commonMain/kotlin/com/eignex/koblas/MatrixSlices.kt), [scaling and masking](koblas/src/commonMain/kotlin/com/eignex/koblas/MatrixScaling.kt), and transpose. |
-| [Dense BLAS](koblas/src/commonMain/kotlin/com/eignex/koblas/dense/DenseBlas.kt) | General, symmetric, and triangular matrix products and solves, including `gemmt` and `syr2k`, served by the vendor. |
+| [Dense BLAS](koblas/src/commonMain/kotlin/com/eignex/koblas/dense/DenseBlas.kt) | Portable general, symmetric, and triangular matrix products and solves, including `gemmt` and `syr2k`. |
 | [Vendor binding](koblas/src/commonMain/kotlin/com/eignex/koblas/vendor/Blas.kt) | The CBLAS entry points in the standard's own argument shapes, library identity, single-thread evidence, and the route a concrete call takes. |
 | [Sparse kernels](koblas/src/commonMain/kotlin/com/eignex/koblas/sparse/SparseKernels.kt) and [primitives](koblas/src/commonMain/kotlin/com/eignex/koblas/sparse/SparsePrimitives.kt) | Allocation-free indexed arithmetic over caller-owned arrays, including accumulation, touched-index handling, diagnostics, and pivot candidates. |
 | [Engine](koblas/src/commonMain/kotlin/com/eignex/koblas/KoblasEngine.kt) | The selected engine, its Level 1 attribution, and the opt-in seam for naming an implementation to measure. |
@@ -208,13 +206,12 @@ val alignment = firstColumn dot everySecondEntry
 Matrices are passed whole. Level 2 and Level 3 take a `DenseMatrix` with its transpose and stored triangle
 travelling beside it as arguments, so there is no submatrix type to construct.
 
-Inputs and outputs may share an array only when the operation's documentation allows it. The rank updates and
-matrix products refuse a destination that shares a buffer with an input, because the standard leaves that
-undefined; the triangular solves write their destination in place by design.
+Portable `*Into` operations snapshot inputs that share a destination buffer. Explicit vendor bindings retain
+the vendor contract and reject undefined overlap. Triangular solves write their destination in place by design.
 
 For symmetric operations, Koblas reads only the triangle you select. Use `symv` or `symm` to treat that
 triangle as a full symmetric matrix.
 
-Koblas chooses its default engine once, and the engine is safe to share. Every vendor call runs on one compute
-thread, established when the library is opened and not configurable. Matrices, vectors, and views are mutable,
-so do not modify them while another thread is reading them.
+Koblas chooses its default engine once, and the engine is safe to share. Each portable invocation uses the
+calling thread; every vendor call uses one compute thread. Matrices, vectors, views and workspaces are mutable,
+so concurrent calls use distinct mutable outputs and workspaces.

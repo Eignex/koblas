@@ -9,7 +9,7 @@ plugins {
 }
 
 eignexPublish {
-    description.set("Dense and sparse BLAS for Kotlin Multiplatform over vendor BLAS with Kotlin Level 1 kernels.")
+    description.set("Portable dense and sparse BLAS for Kotlin Multiplatform with JVM SIMD and optional host bindings.")
     githubRepo.set("Eignex/koblas")
 }
 

@@ -4,9 +4,9 @@ Owning dense containers, borrowed strided vectors, validated CSC sparse containe
 [KoblasEngine], and free-function arithmetic over the matrix and vector contracts.
 
 The default [koblas] engine is selected once and cannot be replaced. It binds the Level 1 arm this platform
-prefers — the Vector API reductions on the JVM, the vendor above its crossover on Kotlin/Native — to the vendor
-BLAS that serves Level 2 and 3. [KoblasEngine.explain] names the Level 1 implementation a call of a given
-operation, length and spacing actually reaches, and [KoblasEngine.name] is the short attribution for a log.
+prefers to portable dense Level 2 and 3. [KoblasEngine.explain] names the Level 1 implementation a call of a
+given operation, length and spacing actually reaches; [KoblasEngine.denseImplementation] names the current
+dense component. Installed host bindings remain explicit alternatives with binding-derived attribution.
 Naming a different implementation is for measuring one against another, so [BuiltinEngines] sits behind
 [KoblasEngineApi].
 

@@ -6,19 +6,13 @@ package com.eignex.koblas
 
 import com.eignex.koblas.dense.DenseBlas
 import com.eignex.koblas.dense.applyBeta
-import com.eignex.koblas.dense.asVector
-import com.eignex.koblas.dense.symmetricStructure
-import com.eignex.koblas.vendor.Blas
-import com.eignex.koblas.vendor.MissingVendorException
 import kotlin.jvm.JvmOverloads
 
 /**
  * `y = alpha * A * x + beta * y` (BLAS `dgemv`) into [destination].
  *
- * Both operands are dense storage, which is what a vendor can address: [x] may be contiguous or strided, and
- * either reaches the library as a pointer and an increment. A [SparseVector] carries a pattern rather than an
- * increment and there is no entry point that takes one, so it is excluded by the type rather than refused at
- * the call.
+ * Both operands are dense storage: [x] may be contiguous or strided. A [SparseVector] carries a pattern rather
+ * than a stride and uses the sparse operation family, so it is excluded by the type.
  *
  * Operands may share [destination]'s backing array. They are snapshotted before [destination] is scaled or
  * written, so aliasing has the same result as a call over independent inputs.
@@ -38,7 +32,7 @@ public fun DenseMatrix.gemvInto(alpha: Double, x: DenseVector, beta: Double, des
     }
     val stableX = x.stableFor(destination)
     val stableA = a.stableFor(destination)
-    vendorBlas().gemv(alpha, stableA, transposeA = false, x = stableX, beta = beta, y = destination.asVector())
+    koblas.gemv(alpha, stableA, stableX.toDoubleArray(), beta, destination)
 }
 
 /** [gemvInto] with `alpha = 1, beta = 0`, so `destination` receives `A * x`. */
@@ -71,7 +65,7 @@ public fun DenseMatrix.symvInto(
     }
     val stableX = x.stableFor(destination)
     val stableA = stableFor(destination)
-    vendorBlas().symv(alpha, stableA, symmetricStructure(lower), stableX, beta, destination.asVector())
+    koblas.symv(alpha, stableA, stableX.toDoubleArray(), beta, destination, lower)
 }
 
 /** [symvInto] with `alpha = 1, beta = 0`, so `destination` receives `A * x`. */
@@ -110,7 +104,7 @@ public fun DenseMatrix.ger(alpha: Double, x: DenseVector, y: DenseVector) {
         "ger shape mismatch: A is ${rows}x$cols, x ${x.size}, y ${y.size}"
     }
     if (alpha == 0.0) return
-    vendorBlas().ger(alpha, x, y, this)
+    koblas.ger(alpha, x.toDoubleArray(), y.toDoubleArray(), this)
 }
 
 /** Symmetric rank-1 update `A += alpha * x * xT` (BLAS `dsyr`) in place. See [DenseBlas.syr]. */
@@ -126,6 +120,3 @@ public fun DenseMatrix.syr(alpha: Double, x: DenseVector, lower: Boolean = true)
 @JvmOverloads
 public fun DenseMatrix.syr2(alpha: Double, x: DenseVector, y: DenseVector, lower: Boolean = true): Unit =
     koblas.syr2(alpha, x, y, this, lower)
-
-/** The selected library, or the failure a Level 2 call owes a host without one. */
-private fun vendorBlas(): Blas = koblas.vendor ?: throw MissingVendorException()

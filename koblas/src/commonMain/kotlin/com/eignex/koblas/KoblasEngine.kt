@@ -6,7 +6,7 @@ package com.eignex.koblas
 import com.eignex.koblas.dense.DenseBlas
 import com.eignex.koblas.dense.DenseOperation
 import com.eignex.koblas.dense.DenseVectorKernels
-import com.eignex.koblas.dense.VendorDenseBlas
+import com.eignex.koblas.dense.PortableDenseBlas
 import com.eignex.koblas.sparse.IndexedSparseKernels
 import com.eignex.koblas.sparse.SparseKernels
 import com.eignex.koblas.vendor.Blas
@@ -38,13 +38,10 @@ public val koblas: KoblasEngine by lazy { platformEngine() }
 internal expect fun platformEngine(): KoblasEngine
 
 /**
- * An immutable engine: Kotlin Level 1 beside the vendor BLAS that serves Level 2 and 3.
+ * An immutable engine providing portable Kotlin BLAS at every level.
  *
- * The split is deliberate. Level 1 is arithmetic over one run, where a foreign call costs more than the work,
- * so it stays here and keeps working on a host with no library installed. Level 2 and 3 are whole operations a
- * tuned library does far better than portable code, so they go to the vendor and have no fallback: an
- * accelerator-dependent call on a host without a library raises rather than quietly computing something slower
- * under the same name.
+ * [vendor] records the separately callable installed host binding; it is not the implementation of built-in
+ * Level 2 and 3 calls. This distinction keeps scalar and JVM SIMD benchmark arms independent of host libraries.
  *
  * Selected once for the platform and immutable afterwards. [BuiltinEngines] constructs exact scalar or SIMD
  * compositions for tests and benchmarks without touching process-global state.
@@ -55,17 +52,16 @@ public class KoblasEngine internal constructor(
     /** Sparse-vector kernels used by sparse convenience operations. */
     public val sparseKernels: SparseKernels,
     internal val indexedSparseKernels: IndexedSparseKernels,
-    /**
-     * The library serving Level 2 and 3, or null on a host where none was found.
-     *
-     * Public because attribution needs it: a benchmark asks the binding what a concrete call does, and the
-     * answer has to come from the same object that will run it rather than from the engine's name.
-     */
+    /** Optional installed host binding, retained for explicit host comparisons and attribution. */
     public val vendor: Blas?,
-) : DenseBlas by VendorDenseBlas(vendor) {
+    private val denseBlas: DenseBlas = PortableDenseBlas(),
+) : DenseBlas by denseBlas {
+    /** The component that serves built-in Level 2 and 3 calls. */
+    public val denseImplementation: String = "portable-scalar"
+
     /** Short read-only implementation description for logs and benchmark attribution. */
     public val name: String
-        get() = "${vectorKernels.name}/${sparseKernels.name}/${vendor?.vendor?.vendorName ?: "no vendor"}"
+        get() = "${vectorKernels.name}/${sparseKernels.name}/$denseImplementation"
 
     /**
      * The Level 1 implementation a call of this [operation] and [length] reaches, or null when its own values
@@ -83,7 +79,7 @@ public class KoblasEngine internal constructor(
 }
 
 /**
- * The Level 1 implementations, each beside the selected vendor, for measuring one against another.
+ * Exact built-in implementations for tests and benchmarks.
  *
  * Not a menu of production choices, which is why it is behind [KoblasEngineApi]. [koblas] is the engine this
  * platform selected, and on the JVM that is [simd], whose kernels already delegate to the portable ones below
@@ -95,12 +91,12 @@ public class KoblasEngine internal constructor(
  */
 @KoblasEngineApi
 public expect object BuiltinEngines {
-    /** The portable Kotlin Level 1 kernels beside the selected vendor. */
+    /** Portable Kotlin across all three levels. */
     public val scalar: KoblasEngine
 
-    /** JVM Vector API Level 1, or null when the Vector API module is unavailable or on a non-JVM target. */
+    /** JVM Vector API Level 1 with portable dense Level 2 and 3, or null when the module is unavailable. */
     public val simd: KoblasEngine?
 }
 
-/** The vendor every built-in engine shares, resolved once. */
+/** Optional platform-default Native host binding, resolved once only when that platform policy asks for it. */
 internal val selectedVendor: Blas? by lazy { openBlas() }

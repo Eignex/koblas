@@ -100,6 +100,21 @@ class VendorArmTest {
     }
 
     @Test
+    fun `built in level three arms report portable arithmetic rather than an installed vendor`() {
+        val case = Cases.parse("gemm+32x21x48+uniform").single()
+        val scalar = assertNotNull(denseWork(case, BuiltinEngines.scalar))
+        val simdEngine = BuiltinEngines.simd
+
+        assertEquals("portable-scalar/gemm", scalar.kernel)
+        if (simdEngine != null) {
+            val simd = assertNotNull(denseWork(case, simdEngine))
+            assertEquals("portable-scalar/gemm", simd.kernel)
+            simd.close()
+        }
+        scalar.close()
+    }
+
+    @Test
     fun `an operation with no vendor entry point is declined with a reason rather than timed`() {
         val blas = vendor()
         if (blas == null) {

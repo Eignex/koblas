@@ -152,19 +152,18 @@ source revision and the resolved library files are in `metadata.txt` only.
 
 ## Targets
 
-Koblas contributes `jvm-scalar`, `jvm-simd` and `native`. Each vendor contributes two: `<vendor>` through the
-Native binding, and `<vendor>-jvm` through the JVM binding, whose timing includes copying the operands into
-native memory.
+Koblas contributes independent `jvm-scalar`, `jvm-simd` and `native` arms. In S1 both JVM built-in arms use the
+portable scalar Level 2/3 component and report that component rather than implying SIMD or vendor execution;
+later panel/tile stages replace eligible components. Each vendor contributes two explicit arms: `<vendor>`
+through the Native binding, and `<vendor>-jvm` through the JVM binding, whose timing includes operand transfer.
 
 Every BLAS invocation runs on one compute thread; there is no thread setting to pass. Operations no vendor
 exports — `sum` and everything sparse — are reported unsupported on vendor targets rather than timed through a
 substitute.
 
-The Koblas targets carry their own Level 1 kernels but hand Level 2 and 3 to whichever library production
-selection resolved, and that order ends in OpenBLAS. On a host with no tuned library installed, their Level 2
-and 3 rows are therefore the same library the `openblas` target times, reached through the same binding, and
-comparing the two answers nothing. `metadata.txt` names the resolved file per target, which is what says
-whether that happened.
+Built-in Level 2/3 rows name `portable-scalar/<operation>` in S1 and do not resolve a vendor. Explicit host rows
+derive their entry point, resolved library binary, identity, version and threading evidence from the binding
+that performs the call. Existing binding route checks retain explicit no-work and composed-call attribution.
 
 ## Cases
 

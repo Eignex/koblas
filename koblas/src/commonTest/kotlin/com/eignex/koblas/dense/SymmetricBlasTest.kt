@@ -260,20 +260,27 @@ class SymmetricBlasTest {
         }
     }
 
-    /**
-     * BLAS leaves a destination overlapping an input undefined, and nothing here copies one out of the way.
-     *
-     * The rank updates used to stage an aliased operand and keep working. They cannot now: the operands go
-     * straight to the library, so the only honest answer is to refuse the call rather than to hand the vendor
-     * a case its own contract does not cover and report whatever comes back.
-     */
     @Test
-    fun `the rank updates refuse a destination that shares a buffer with an input`() {
-        val shared = DenseMatrix.wrap(3, 3, DoubleArray(9))
-        val other = DenseMatrix(3, 3)
+    fun `the rank updates snapshot a destination that shares an input buffer`() {
+        val initial = DenseMatrix.ofRows(Array(3) { i -> DoubleArray(3) { j -> (i * 3 + j + 1).toDouble() / 7.0 } })
+        val other = DenseMatrix.wrap(3, 3, initial.values.copyOf()).also {
+            for (i in it.values.indices) it.values[i] += 0.25
+        }
 
-        assertFailsWith<IllegalArgumentException> { koblas.syrk(1.0, shared, false, 0.0, shared) }
-        assertFailsWith<IllegalArgumentException> { koblas.syr2k(1.0, shared, other, false, 0.0, shared) }
-        assertFailsWith<IllegalArgumentException> { koblas.syr2k(1.0, other, shared, false, 0.0, shared) }
+        val syrkExpected = DenseMatrix.wrap(3, 3, initial.values.copyOf())
+        ReferenceBlas.syrk(1.0, DenseMatrix.wrap(3, 3, initial.values.copyOf()), false, 0.0, syrkExpected)
+        val syrkActual = DenseMatrix.wrap(3, 3, initial.values.copyOf())
+        koblas.syrk(1.0, syrkActual, false, 0.0, syrkActual)
+        assertClose(syrkExpected, syrkActual, "aliased syrk")
+
+        for (aliasLeft in listOf(true, false)) {
+            val expected = DenseMatrix.wrap(3, 3, initial.values.copyOf())
+            val left = if (aliasLeft) DenseMatrix.wrap(3, 3, initial.values.copyOf()) else other
+            val right = if (aliasLeft) other else DenseMatrix.wrap(3, 3, initial.values.copyOf())
+            ReferenceBlas.syr2k(1.0, left, right, false, 0.0, expected)
+            val actual = DenseMatrix.wrap(3, 3, initial.values.copyOf())
+            koblas.syr2k(1.0, if (aliasLeft) actual else other, if (aliasLeft) other else actual, false, 0.0, actual)
+            assertClose(expected, actual, "aliased syr2k left=$aliasLeft")
+        }
     }
 }

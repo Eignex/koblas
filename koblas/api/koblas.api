@@ -113,6 +113,9 @@ public final class com/eignex/koblas/Koblas {
 	public static final synthetic fun forEachStored (Lcom/eignex/koblas/Vector;Lkotlin/jvm/functions/Function2;)V
 	public static final fun gather (Lcom/eignex/koblas/SparseVector;Lcom/eignex/koblas/ContiguousVector;)V
 	public static final fun gatherZero (Lcom/eignex/koblas/SparseVector;Lcom/eignex/koblas/ContiguousVector;)V
+	public static final fun gemm (Lcom/eignex/koblas/Matrix;Lcom/eignex/koblas/Matrix;)Lcom/eignex/koblas/Matrix;
+	public static final fun gemmInto (Lcom/eignex/koblas/Matrix;DZLcom/eignex/koblas/Matrix;ZDLcom/eignex/koblas/DenseMatrix;Lcom/eignex/koblas/MatrixWorkspace;)V
+	public static synthetic fun gemmInto$default (Lcom/eignex/koblas/Matrix;DZLcom/eignex/koblas/Matrix;ZDLcom/eignex/koblas/DenseMatrix;Lcom/eignex/koblas/MatrixWorkspace;ILjava/lang/Object;)V
 	public static final fun gemvInto (Lcom/eignex/koblas/DenseMatrix;DLcom/eignex/koblas/DenseVector;D[D)V
 	public static final fun gemvInto (Lcom/eignex/koblas/DenseMatrix;Lcom/eignex/koblas/DenseVector;[D)V
 	public static final fun ger (Lcom/eignex/koblas/DenseMatrix;DLcom/eignex/koblas/DenseVector;Lcom/eignex/koblas/DenseVector;)V
@@ -125,6 +128,7 @@ public final class com/eignex/koblas/Koblas {
 	public static final fun multiply (Lcom/eignex/koblas/DenseMatrix;Lcom/eignex/koblas/DenseMatrix;)Lcom/eignex/koblas/DenseMatrix;
 	public static final fun multiply (Lcom/eignex/koblas/DenseMatrix;Lcom/eignex/koblas/DenseVector;)Lcom/eignex/koblas/DenseVector;
 	public static final fun multiply (Lcom/eignex/koblas/DenseVector;D)Lcom/eignex/koblas/DenseVector;
+	public static final fun multiplyMatrices (Lcom/eignex/koblas/Matrix;Lcom/eignex/koblas/Matrix;)Lcom/eignex/koblas/Matrix;
 	public static final fun negate (Lcom/eignex/koblas/DenseMatrix;)Lcom/eignex/koblas/DenseMatrix;
 	public static final fun negate (Lcom/eignex/koblas/DenseVector;)Lcom/eignex/koblas/DenseVector;
 	public static final fun norm2 (Lcom/eignex/koblas/Vector;)D
@@ -186,6 +190,7 @@ public final class com/eignex/koblas/KoblasEngine : com/eignex/koblas/dense/Dens
 	public fun gemv (DLcom/eignex/koblas/DenseMatrix;[DD[DZ)V
 	public fun gemv (Lcom/eignex/koblas/DenseMatrix;[DZ)[D
 	public fun ger (D[D[DLcom/eignex/koblas/DenseMatrix;)V
+	public final fun getDenseImplementation ()Ljava/lang/String;
 	public final fun getName ()Ljava/lang/String;
 	public final fun getSparseKernels ()Lcom/eignex/koblas/sparse/SparseKernels;
 	public final fun getVectorKernels ()Lcom/eignex/koblas/dense/DenseVectorKernels;
@@ -224,6 +229,10 @@ public abstract interface class com/eignex/koblas/MatrixStorage : com/eignex/kob
 
 public final class com/eignex/koblas/MatrixStorage$Companion {
 	public final fun serializer ()Lkotlinx/serialization/KSerializer;
+}
+
+public final class com/eignex/koblas/MatrixWorkspace {
+	public fun <init> ()V
 }
 
 public final class com/eignex/koblas/NotPositiveDefinite : com/eignex/koblas/KoblasException {
