@@ -10,6 +10,12 @@ import org.openjdk.jmh.runner.options.TimeValue
 public class JvmCaseWork internal constructor(private val delegate: CaseWork) {
     public fun run(): Double = delegate.run()
     public fun close(): Unit = delegate.close()
+
+    /** How the row this work belongs to is published, which a test of the bridge checks. */
+    internal val comparisonKind: String get() = delegate.comparisonKind
+
+    /** The route this work's call resolved, which a timed row must carry. */
+    internal val kernel: String? get() = delegate.kernel
 }
 
 public object JvmBenchmarkBridge {
