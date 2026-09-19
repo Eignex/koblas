@@ -69,6 +69,12 @@ public fun SparseMatrix.row(i: Int): SparseVector {
 public fun DenseMatrix.transpose(): DenseMatrix = koblas.transpose(this)
 
 /**
+ * Fresh transposed matrix, still CSC, which makes this the CSC-to-CSR conversion as well. Explicitly stored
+ * zeros survive, since the transpose is structural rather than arithmetic.
+ */
+public fun SparseMatrix.transpose(): SparseMatrix = koblas.transpose(this)
+
+/**
  * Fresh matrix with column [column] replaced by [entering], still CSC. The replacement is structural, so an
  * explicitly stored zero in [entering] survives as one.
  */

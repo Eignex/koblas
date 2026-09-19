@@ -18,9 +18,9 @@
 Koblas provides dense and sparse double-precision linear algebra for Kotlin Multiplatform. It includes BLAS
 operations, mutable matrices and vectors, and views into existing storage.
 
-Dense Level 2 and Level 3 have common Kotlin implementations, so ordinary matrix computation needs no installed
-numerical library. The current restoration is a portable scalar baseline; architecture-selected JVM panels and
-tiles are the next performance stages. Explicit oneMKL, AOCL, Arm Performance Libraries, Accelerate, and
+Dense and sparse Levels 2 and 3 have common Kotlin implementations, so ordinary matrix computation needs no
+installed numerical library. The current restoration is a portable scalar baseline; architecture-selected JVM
+panels and tiles are the next performance stages. Explicit oneMKL, AOCL, Arm Performance Libraries, Accelerate, and
 OpenBLAS bindings remain available for comparisons and Native acceleration, each held to one compute thread.
 
 Level 1 picks the faster arm per platform. On the JVM that is the Vector API kernels for the reductions,
@@ -152,15 +152,17 @@ containers, zero-copy vector views, allocating operators, and high-level operati
 read-only contracts that custom types can implement. `MatrixStorage` and `VectorStorage` identify Koblas's
 built-in dense and sparse containers, so storage-level operations can use one API and dispatch according to the
 actual storage. `DenseVector` is sealed over the two dense spacings, adjacent and strided. Generic matrix
-products dispatch on runtime storage; S1 implements the dense route, while mixed and sparse products are the
-next restoration stage and currently fail explicitly rather than densifying inputs.
+products dispatch on runtime storage: dense by dense, dense by sparse, sparse by dense and sparse by sparse all
+reach the implementation their storage calls for, with no operand densified to get there. Two sparse operands
+give a CSC result and every other pairing a dense one, whatever the static types were.
 
 The `com.eignex.koblas.dense`, `com.eignex.koblas.sparse` and `com.eignex.koblas.vendor` packages are the
 lower-level composition layer. `DenseBlas` exposes Koblas's dense BLAS signatures and `Blas` the standard's own
 argument shapes underneath them, while the kernel interfaces and sparse primitives support custom algorithms
 over caller-owned storage. Ordinary matrix and vector arithmetic does not require imports from these packages.
 
-`KoblasEngine` connects the layers: it binds Level 1 and sparse kernels to portable dense Levels 2 and 3.
+`KoblasEngine` connects the layers: it binds Level 1 and sparse kernels to portable dense and sparse
+Levels 2 and 3.
 Installed host bindings are separately callable and retain their own execution identity. Root-package operators
 and extensions use the platform-selected `koblas` engine.
 
@@ -172,12 +174,15 @@ and extensions use the platform-selected `koblas` engine.
 | [Vector operations](koblas/src/commonMain/kotlin/com/eignex/koblas/VectorOps.kt) | Dense and sparse dot products, sums, norms, scaling, copy, swap, gather, scatter, and [plane rotations](koblas/src/commonMain/kotlin/com/eignex/koblas/Rot.kt). |
 | [Matrix helpers](koblas/src/commonMain/kotlin/com/eignex/koblas/MatrixOps.kt) | Allocating [operators](koblas/src/commonMain/kotlin/com/eignex/koblas/Operators.kt), matrix-vector products, rank updates, [triangular operations](koblas/src/commonMain/kotlin/com/eignex/koblas/Triangular.kt), [slices](koblas/src/commonMain/kotlin/com/eignex/koblas/MatrixSlices.kt), [scaling and masking](koblas/src/commonMain/kotlin/com/eignex/koblas/MatrixScaling.kt), and transpose. |
 | [Dense BLAS](koblas/src/commonMain/kotlin/com/eignex/koblas/dense/DenseBlas.kt) | Portable general, symmetric, and triangular matrix products and solves, including `gemmt` and `syr2k`. |
+| [Sparse BLAS](koblas/src/commonMain/kotlin/com/eignex/koblas/sparse/SparseBlas.kt) and [prepared snapshots](koblas/src/commonMain/kotlin/com/eignex/koblas/PreparedSparseMatrix.kt) | Portable CSC matrix-vector and matrix-matrix products on either side, symmetric and rank-k products, triangular multiply and solve, scaled addition, transpose, and immutable snapshots for repeated use. |
 | [Vendor binding](koblas/src/commonMain/kotlin/com/eignex/koblas/vendor/Blas.kt) | The CBLAS entry points in the standard's own argument shapes, library identity, single-thread evidence, and the route a concrete call takes. |
 | [Sparse kernels](koblas/src/commonMain/kotlin/com/eignex/koblas/sparse/SparseKernels.kt) and [primitives](koblas/src/commonMain/kotlin/com/eignex/koblas/sparse/SparsePrimitives.kt) | Allocation-free indexed arithmetic over caller-owned arrays, including accumulation, touched-index handling, diagnostics, and pivot candidates. |
 | [Engine](koblas/src/commonMain/kotlin/com/eignex/koblas/KoblasEngine.kt) | The selected engine, its Level 1 attribution, and the opt-in seam for naming an implementation to measure. |
 
-Sparse support is storage, Level 1, and the generic primitives. A consumer that needs sparse products or
-factorizations builds them on `SparsePrimitives` and owns its own factors.
+Sparse support is storage, Level 1, the generic primitives and portable Levels 2 and 3. Structural semantics
+are part of the contract: a stored zero participates, an absent position is never evaluated, a fresh result
+owns its arrays and its rows ascend within every column. Factorizations are not here; a consumer that needs one
+builds it on `SparsePrimitives` and owns its own factors.
 
 ## Error handling
 

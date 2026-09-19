@@ -108,4 +108,58 @@ class SparseTest {
         assertNull(arm.work)
         assertContains(assertNotNull(arm.reason), "no dotSparse kernel")
     }
+
+    @Test
+    fun `a sparse matrix row names the portable scheduling on every engine`() {
+        for (engine in listOfNotNull(BuiltinEngines.scalar, BuiltinEngines.simd)) {
+            for (id in listOf(
+                "spsymv+65+sparse-triangular+density=0.05+mode=oneshot+uplo=L",
+                "spgemm+33x17x21+sparse-uniform+density=0.05+mode=oneshot",
+                "spsyrk-sparse+33x17+sparse-uniform+density=0.05+uplo=L",
+                "spadd+33x17+sparse-uniform+density=0.05",
+            )) {
+                val case = Cases.parse(id).single()
+                val work = assertNotNull(sparseArm(case, engine)?.work, "$id on ${engine.name}")
+                assertEquals("portable-csc/${case.operation}", work.kernel, "$id on ${engine.name}")
+            }
+        }
+    }
+
+    @Test
+    fun `a scattered sparse product names the level one leaf its columns reach`() {
+        val case = Cases.parse("spgemv+64x32+sparse-uniform+density=0.5+mode=oneshot").single()
+
+        val work = assertNotNull(sparseArm(case, BuiltinEngines.scalar)?.work)
+
+        assertEquals("portable-csc+scalar/axpy/spgemv", work.kernel)
+    }
+
+    @Test
+    fun `the four prepared boundaries are separate timings of different work`() {
+        val modes = listOf("oneshot" to "oneshot", "prepared" to "prepared", "setup" to "prepare", "firstuse" to "prepare-and-first-use")
+        for ((mode, timing) in modes) {
+            val case = Cases.parse("spgemv+64x32+sparse-uniform+density=0.25+mode=$mode").single()
+
+            val work = assertNotNull(sparseArm(case, BuiltinEngines.scalar)?.work, mode)
+
+            assertEquals(timing, work.timingMode, mode)
+            assertTrue(work.run().isFinite(), "$mode produced no usable result")
+        }
+    }
+
+    @Test
+    fun `the generic entry point is timed with its dispatch on both operand sides`() {
+        for (id in listOf(
+            "spmm-generic+33x4x21+sparse-uniform+density=0.05+mode=oneshot",
+            "spmm-generic-right+33x4x21+sparse-uniform+density=0.05+mode=oneshot",
+            "spgemm-generic+33x17x21+sparse-uniform+density=0.05+mode=oneshot",
+        )) {
+            val case = Cases.parse(id).single()
+
+            val work = assertNotNull(sparseArm(case, BuiltinEngines.scalar)?.work, id)
+
+            assertEquals("oneshot-generic", work.timingMode, id)
+            assertTrue(work.run().isFinite(), id)
+        }
+    }
 }
