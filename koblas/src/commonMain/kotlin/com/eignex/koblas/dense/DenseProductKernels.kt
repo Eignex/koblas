@@ -12,12 +12,15 @@ package com.eignex.koblas.dense
  * numbers are independent, and an algorithm above this contract writes none of them into its loops.
  *
  * The packed layout is the one [PackedLayout] describes, and the two are one contract: an operand is packed
- * into groups this backend's tile can consume, so a panel packed for one tile shape is not usable by another.
- * [PackedLayout.group] carries the shape a panel was packed for and is what a consumer checks.
+ * into groups this backend's tile can consume along that operand's own axis. [PackedLayout.group] carries
+ * that width and is the whole of what a consumer checks, so a left panel grouped by eight is readable by an
+ * eight by four tile and by an eight by two one alike, and the other dimension is the other operand's
+ * business.
  *
- * Padding inside a packed group is positive zero, so a block whose extents do not fill its last tile
- * accumulates zeros there. Those lanes are never stored: a block writes exactly the `rows` by `columns`
- * window it was given and nothing beside it, which is what lets a caller select part of a destination.
+ * Padding inside a packed group is positive zero, and what that promises is where the results go rather than
+ * what they are: a padded zero against an infinite entry of the other operand evaluates to a NaN, and it
+ * stays in a lane the destination does not have. A block writes exactly the `rows` by `columns` window it
+ * was given and nothing beside it, which is what lets a caller select part of a destination.
  *
  * Scaling follows the BLAS convention and is applied once per block. `alpha` multiplies the product this
  * block accumulated, `beta` the destination window, and a zero `beta` overwrites without reading what is
@@ -74,7 +77,9 @@ public interface DenseProductKernels {
      * The arithmetic grows with `rows · columns · depth` and the copy with `rows · depth + depth · columns`,
      * so a product with any small extent pays for a copy it cannot amortise, and a matrix-vector shaped call
      * pays for one it can never amortise at all. Where this answers false the caller runs the product as
-     * panel work over the operands where they are, which is arithmetic with no copy in front of it.
+     * panel work over the operands where they are, which is what avoids copying both of them into tiles. It
+     * is not a promise that nothing is copied: that route may still gather one strided coefficient column,
+     * borrow a destination column to accumulate into, and stage an operand that shares the destination.
      *
      * The crossover is local: a tile that finishes more arithmetic per loaded value pays off a copy sooner.
      */
