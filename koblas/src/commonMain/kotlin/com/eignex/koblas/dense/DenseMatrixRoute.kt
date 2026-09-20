@@ -102,6 +102,11 @@ public enum class DenseMatrixOperation(internal val entryPoint: String) {
  * @property transposeB whether a product's right operand is transposed, ignored outside one. It decides
  *   whether the coefficient vector an unpacked product shares across a panel is adjacent or strided, and a
  *   strided one is scalar work at any width.
+ * @property right whether a two-sided operation has its structured operand on the right, ignored by the rest.
+ *   It decides which extent of the destination the right-hand sides are counted along and so how far apart
+ *   they lie, which is what a substitution over them has to work with. A unit diagonal is deliberately not
+ *   here: it removes a division from every step and changes no body any window reaches, so a route that took
+ *   it would be distinguishing calls that execute the same way.
  */
 @Suppress("LongParameterList") // a call is the facts that decide what runs, each of which changes the answer
 public class DenseCall(
@@ -114,6 +119,7 @@ public class DenseCall(
     public val lower: Boolean = true,
     public val transposeA: Boolean = false,
     public val transposeB: Boolean = false,
+    public val right: Boolean = false,
 ) {
     init {
         require(rows >= 0) { "negative row count" }
@@ -140,9 +146,12 @@ public class DenseCall(
  * [RouteKind.NoWork] is a call whose own contract stops before the arithmetic, where nothing but the
  * destination scaling runs.
  *
- * [executionGroup] is how many logical columns the backend recommended handing over at a time for this call,
- * and zero where the call schedules no panel. It is a grouping, not a lane count, and the two are different
- * numbers that agree only by coincidence.
+ * [executionGroup] is how many logical columns the backend recommended handing over at a time for the Level
+ * 2 panel work this call schedules, and zero where it schedules none or where the windows it cuts did not
+ * agree on one. It is a grouping, not a lane count, and the two are different numbers that agree only by
+ * coincidence. A triangular matrix call groups its right-hand sides as well, which is a separate number
+ * chosen by a separate backend; that one is named in [reason] rather than here, because a field holding
+ * whichever of the two was asked for last would describe neither.
  *
  * Building a route inspects the shape, so it belongs before a timed region and never inside one.
  */
@@ -157,7 +166,7 @@ public class DenseMatrixRoute internal constructor(
     public val entryPoint: String,
     /** Every panel implementation and Level 1 leaf the call reaches, in call order. */
     public val components: List<String>,
-    /** Logical columns the backend recommended per group, or zero where the call schedules no panel. */
+    /** Logical columns the panel backend recommended per group, or zero where no panel runs. */
     public val executionGroup: Int,
     /** What the components cover, what the traversal keeps for itself, or why the call is composed. */
     public val reason: String?,

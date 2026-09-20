@@ -18,19 +18,28 @@ import com.eignex.koblas.vendor.*
 /**
  * Common Kotlin dense BLAS used by every built-in engine without requiring a host library.
  *
- * This file owns validation, windows, triangle selection, dependency order and alias staging; [panels] owns
- * the arithmetic inside a window and how many columns of it are worth doing at once. Neither knows the
- * other's business: no extent here is a multiple of anything, and no loop below advances by four because a
- * backend once did.
+ * This file owns validation, triangle selection, alias staging and which shared schedule a call belongs to.
+ * What runs inside a window is a backend's: [panels] owns the arithmetic of a Level 2 window and how many
+ * columns of it are worth doing at once, [products] owns the register tile a product block is cut into, and
+ * [triangles] owns the substitution over one diagonal block. Neither side knows the other's business: no
+ * extent here is a multiple of anything, and no loop below advances by four because a backend once did.
  *
- * Level 3 is direct scalar traversal here and calls no panel, which [routeOf] reports rather than implying
- * otherwise from the engine's name.
+ * Level 3 is scheduled rather than written out. A product goes to shared product scheduling, which packs it
+ * into the backend's tiles or runs it as panel work over the operands where they lie; a selected triangle
+ * is the same schedule with the blocks outside it dropped and the ones across the diagonal merged; a
+ * symmetric operand is cut into diagonal blocks and the stored strips beside them, each an ordinary window;
+ * and a triangular routine is diagonal substitutions with those windows between them. Which of those a
+ * given call reaches, and which body inside it, is what [routeOf] answers rather than letting an engine's
+ * name imply it.
  */
 internal class PortableDenseBlas(
     private val vectors: DenseVectorKernels,
     private val panels: DensePanelKernels,
     private val products: DenseProductKernels = PortableProductKernels,
+    private val triangles: DenseTriangularKernels = PortableTriangularKernels,
 ) : DenseBlas {
+    private val routes = DenseRouteReporter(vectors, panels, products, triangles)
+
     private fun scaled(beta: Double, previous: Double): Double = if (beta == 0.0) 0.0 else beta * previous
 
     override fun gemv(
@@ -154,19 +163,10 @@ internal class PortableDenseBlas(
         depth: Int,
         workspace: Workspace?,
     ) {
-        val m = c.rows
-        val n = c.cols
-        if (products.packsProduct(m, n, depth)) {
-            blockedProduct(
-                products, alpha, av, a.rows, transposeA, null, bv, b.rows, transposeB, null,
-                beta, c.values, m, m, n, depth, workspace,
-            )
-        } else {
-            directProduct(
-                panels, alpha, av, a.rows, transposeA, bv, b.rows, transposeB, beta, c.values, m,
-                m, n, depth, workspace,
-            )
-        }
+        productWindow(
+            products, panels, alpha, av, 0, a.rows, transposeA, bv, 0, b.rows, transposeB,
+            beta, c.values, 0, c.rows, c.rows, c.cols, depth, OutputTriangle.Full, workspace,
+        )
     }
 
     /**
@@ -188,8 +188,8 @@ internal class PortableDenseBlas(
             return
         }
         blockedProduct(
-            products, alpha, NO_OPERAND, 0, false, a, NO_OPERAND, 0, false, b,
-            beta, c.values, c.rows, c.rows, c.cols, a.columns, null,
+            products, alpha, NO_OPERAND, 0, 0, false, a, NO_OPERAND, 0, 0, false, b,
+            beta, c.values, 0, c.rows, c.rows, c.cols, a.columns, OutputTriangle.Full, null,
         )
     }
 
@@ -214,8 +214,8 @@ internal class PortableDenseBlas(
         }
         staged(workspace, b.values, b.values === c.values) { bv ->
             blockedProduct(
-                products, alpha, NO_OPERAND, 0, false, a, bv, b.rows, transposeB, null,
-                beta, c.values, c.rows, c.rows, c.cols, a.columns, workspace,
+                products, alpha, NO_OPERAND, 0, 0, false, a, bv, 0, b.rows, transposeB, null,
+                beta, c.values, 0, c.rows, c.rows, c.cols, a.columns, OutputTriangle.Full, workspace,
             )
         }
     }
@@ -241,8 +241,8 @@ internal class PortableDenseBlas(
         }
         staged(workspace, a.values, a.values === c.values) { av ->
             blockedProduct(
-                products, alpha, av, a.rows, transposeA, null, NO_OPERAND, 0, false, b,
-                beta, c.values, c.rows, c.rows, c.cols, columns, workspace,
+                products, alpha, av, 0, a.rows, transposeA, null, NO_OPERAND, 0, 0, false, b,
+                beta, c.values, 0, c.rows, c.rows, c.cols, columns, OutputTriangle.Full, workspace,
             )
         }
     }
@@ -265,6 +265,10 @@ internal class PortableDenseBlas(
         workspace: Workspace?,
     ) {
         requireGemmtOperands(a, transposeA, b, transposeB, c, symmetricStructure(lower))
+        // Nothing to write means nothing to stage: the extents a staging loan would be sized from are the
+        // operands', which an empty destination says nothing about, and two empty operands that share one
+        // empty array would otherwise be staged against each other.
+        if (c.values.isEmpty()) return
         val depth = if (transposeA) a.rows else a.cols
         if (alpha == 0.0 || depth == 0) {
             scaleTriangle(c, beta, lower)
@@ -272,34 +276,11 @@ internal class PortableDenseBlas(
         }
         staged(workspace, a.values, a.values === c.values) { av ->
             staged(workspace, b.values, b.values === c.values) { bv ->
-                gemmtCore(alpha, a, transposeA, av, b, transposeB, bv, beta, c, lower, depth)
+                productWindow(
+                    products, panels, alpha, av, 0, a.rows, transposeA, bv, 0, b.rows, transposeB,
+                    beta, c.values, 0, c.rows, c.rows, c.cols, depth, selectedTriangle(lower), workspace,
+                )
             }
-        }
-    }
-
-    @Suppress("LongParameterList") // the gemmt signature, both staged operands and the resolved depth
-    private fun gemmtCore(
-        alpha: Double,
-        a: DenseMatrix,
-        transposeA: Boolean,
-        av: DoubleArray,
-        b: DenseMatrix,
-        transposeB: Boolean,
-        bv: DoubleArray,
-        beta: Double,
-        c: DenseMatrix,
-        lower: Boolean,
-        depth: Int,
-    ) {
-        forTriangle(c.rows, lower) { i, j ->
-            var sum = 0.0
-            for (p in 0 until depth) {
-                val left = if (transposeA) av[p + i * a.rows] else av[i + p * a.rows]
-                val right = if (transposeB) bv[j + p * b.rows] else bv[p + j * b.rows]
-                sum += left * right
-            }
-            val index = i + j * c.rows
-            c.values[index] = alpha * sum + scaled(beta, c.values[index])
         }
     }
 
@@ -372,48 +353,25 @@ internal class PortableDenseBlas(
         workspace: Workspace?,
     ) {
         requireSymmOperands(a, symmetricStructure(lower), b, c, right)
+        if (c.values.isEmpty()) return
         if (alpha == 0.0) {
-            scale(c.values, beta)
+            applyBeta(vectors, c.values, 0, c.values.size, beta)
             return
         }
         staged(workspace, a.values, a.values === c.values) { av ->
             staged(workspace, b.values, b.values === c.values) { bv ->
-                symmCore(alpha, a, av, b, bv, beta, c, lower, right)
+                // Spent once over the whole destination, because every entry of it is accumulated into by
+                // several of the windows the symmetric operand is cut into and none of them owns it. It is
+                // the Level 1 kernel over the whole buffer rather than a loop of this file's, which is what
+                // lets the route name the leaf that runs.
+                applyBeta(vectors, c.values, 0, c.values.size, beta)
+                symmetricProduct(
+                    products, panels, alpha, av, a.rows, lower, bv, b.rows, c.values, c.rows,
+                    c.rows, c.cols, right, workspace,
+                )
             }
         }
     }
-
-    @Suppress("LongParameterList") // the BLAS dsymm signature plus both staged operands
-    private fun symmCore(
-        alpha: Double,
-        a: DenseMatrix,
-        av: DoubleArray,
-        b: DenseMatrix,
-        bv: DoubleArray,
-        beta: Double,
-        c: DenseMatrix,
-        lower: Boolean,
-        right: Boolean,
-    ) {
-        for (j in 0 until c.cols) {
-            for (i in 0 until c.rows) {
-                var sum = 0.0
-                val depth = if (right) c.cols else c.rows
-                for (p in 0 until depth) {
-                    sum += if (right) {
-                        bv[i + p * b.rows] * symmetric(av, a.rows, p, j, lower)
-                    } else {
-                        symmetric(av, a.rows, i, p, lower) * bv[p + j * b.rows]
-                    }
-                }
-                val index = i + j * c.rows
-                c.values[index] = alpha * sum + scaled(beta, c.values[index])
-            }
-        }
-    }
-
-    private fun symmetric(values: DoubleArray, n: Int, i: Int, j: Int, lower: Boolean): Double =
-        if (lower == (i >= j)) values[i + j * n] else values[j + i * n]
 
     @Suppress("LongParameterList") // the BLAS dsyrk signature plus the workspace
     override fun syrk(
@@ -443,6 +401,19 @@ internal class PortableDenseBlas(
         productTriangle(alpha, a, b, transpose, beta, c, lower, doubled = true, workspace = workspace)
     }
 
+    /**
+     * `alpha · op(A) · op(B)ᵀ + beta · C` in one triangle, and the same with the operands swapped when
+     * [doubled].
+     *
+     * A rank-k update is a product whose right operand is the left one transposed, and a rank-2k update is
+     * the sum of the two products its definition names. Composing rather than fusing is deliberate: both
+     * halves are ordinary windows of shared product scheduling, so each is packed, blocked and tiled like
+     * any other product, while a fused traversal would need a second implementation of all of that to beat
+     * them together. The stage evidence compares the two.
+     *
+     * `beta` is carried by the first of the two and the second accumulates, which is how it reaches every
+     * selected entry exactly once.
+     */
     private fun productTriangle(
         alpha: Double,
         a: DenseMatrix,
@@ -454,49 +425,29 @@ internal class PortableDenseBlas(
         doubled: Boolean,
         workspace: Workspace?,
     ) {
+        if (c.values.isEmpty()) return
         val depth = if (transpose) a.rows else a.cols
         if (alpha == 0.0 || depth == 0) {
             scaleTriangle(c, beta, lower)
             return
         }
+        val selected = selectedTriangle(lower)
         // One operand staged at a time, and a rank update passes the same matrix twice, so the second loan
         // is skipped where both operands are that matrix and the first copy already stands for it.
         staged(workspace, a.values, a.values === c.values) { av ->
-            staged(workspace, b.values, b.values === c.values && b !== a) { bv ->
-                productTriangleCore(alpha, a, av, b, if (b === a) av else bv, transpose, beta, c, lower, doubled, depth)
-            }
-        }
-    }
-
-    @Suppress("LongParameterList") // the rank-update signature, both staged operands and the resolved depth
-    private fun productTriangleCore(
-        alpha: Double,
-        a: DenseMatrix,
-        av: DoubleArray,
-        b: DenseMatrix,
-        bv: DoubleArray,
-        transpose: Boolean,
-        beta: Double,
-        c: DenseMatrix,
-        lower: Boolean,
-        doubled: Boolean,
-        depth: Int,
-    ) {
-        forTriangle(c.rows, lower) { i, j ->
-            var sum = 0.0
-            for (p in 0 until depth) {
-                val aip = if (transpose) av[p + i * a.rows] else av[i + p * a.rows]
-                val ajp = if (transpose) av[p + j * a.rows] else av[j + p * a.rows]
+            staged(workspace, b.values, b.values === c.values && b !== a) { raw ->
+                val bv = if (b === a) av else raw
+                productWindow(
+                    products, panels, alpha, av, 0, a.rows, transpose, bv, 0, b.rows, !transpose,
+                    beta, c.values, 0, c.rows, c.rows, c.cols, depth, selected, workspace,
+                )
                 if (doubled) {
-                    val bip = if (transpose) bv[p + i * b.rows] else bv[i + p * b.rows]
-                    val bjp = if (transpose) bv[p + j * b.rows] else bv[j + p * b.rows]
-                    sum += aip * bjp + bip * ajp
-                } else {
-                    sum += aip * ajp
+                    productWindow(
+                        products, panels, alpha, bv, 0, b.rows, transpose, av, 0, a.rows, !transpose,
+                        1.0, c.values, 0, c.rows, c.rows, c.cols, depth, selected, workspace,
+                    )
                 }
             }
-            val index = i + j * c.rows
-            c.values[index] = alpha * sum + scaled(beta, c.values[index])
         }
     }
 
@@ -578,11 +529,6 @@ internal class PortableDenseBlas(
                 a.values[i + c * n] += alpha * (xv[xOrigin + i * xStep] * yc + yv[yOrigin + i * yStep] * xc)
             }
         }
-    }
-
-    private fun triangular(values: DoubleArray, n: Int, i: Int, j: Int, transpose: Boolean, unitDiag: Boolean): Double {
-        if (unitDiag && i == j) return 1.0
-        return if (transpose) values[j + i * n] else values[i + j * n]
     }
 
     /**
@@ -667,11 +613,11 @@ internal class PortableDenseBlas(
     ) = triangularMatrix(a, b, lower, transpose, unitDiag, right, alpha, solve = false, workspace = workspace)
 
     /**
-     * One right-hand side at a time, over a staged triangle and a borrowed copy of that side.
+     * Both triangular matrix routines, over a triangle staged against an overlap with the block it works on.
      *
-     * The right-hand side is gathered into its own array because the dependency chain runs down it while the
-     * block is stored the other way round for a right-side call. Both that gather and the triangle's staging
-     * are loans, so a caller repeating one shape pays for them once.
+     * The staging comes first and the scaling second. `alpha` is spent on the right-hand sides before the
+     * substitution, and where the triangle shares their buffer that write would otherwise reach the
+     * coefficients the substitution is about to read.
      */
     @Suppress("LongParameterList") // the BLAS dtrsm signature, which of the two it is, and the workspace
     private fun triangularMatrix(
@@ -695,57 +641,10 @@ internal class PortableDenseBlas(
         val order = a.rows
         if (sides == 0 || order == 0) return
         staged(workspace, a.values, a.values === b.values) { av ->
-            workspace.borrow(order) { rhs ->
-                for (s in 0 until sides) {
-                    for (k in 0 until order) {
-                        rhs[k] = alpha * if (right) b.values[s + k * b.rows] else b.values[k + s * b.rows]
-                    }
-                    val flipped = if (right) !transpose else transpose
-                    if (solve) {
-                        solve(av, order, rhs, lower, flipped, unitDiag)
-                    } else {
-                        multiplyTriangle(av, order, rhs, lower, flipped, unitDiag, workspace)
-                    }
-                    for (k in 0 until order) {
-                        if (right) b.values[s + k * b.rows] = rhs[k] else b.values[k + s * b.rows] = rhs[k]
-                    }
-                }
-            }
-        }
-    }
-
-    private fun solve(a: DoubleArray, n: Int, x: DoubleArray, lower: Boolean, transpose: Boolean, unitDiag: Boolean) {
-        val forward = lower != transpose
-        val order = if (forward) 0 until n else n - 1 downTo 0
-        for (i in order) {
-            var sum = x[i]
-            val inner = if (forward) 0 until i else i + 1 until n
-            for (j in inner) sum -= triangular(a, n, i, j, transpose, unitDiag) * x[j]
-            x[i] = sum / triangular(a, n, i, i, transpose, unitDiag)
-        }
-    }
-
-    /** `x = op(T) · x` over one right-hand side, reading a borrowed copy of it as the source. */
-    @Suppress("LongParameterList") // the triangle, its three flags and the workspace
-    private fun multiplyTriangle(
-        a: DoubleArray,
-        n: Int,
-        x: DoubleArray,
-        lower: Boolean,
-        transpose: Boolean,
-        unitDiag: Boolean,
-        workspace: Workspace?,
-    ) {
-        workspace.borrow(n) { source ->
-            x.copyInto(source, 0, 0, n)
-            for (i in 0 until n) {
-                var sum = 0.0
-                for (j in 0 until n) {
-                    val inTriangle = if (lower != transpose) j <= i else j >= i
-                    if (inTriangle) sum += triangular(a, n, i, j, transpose, unitDiag) * source[j]
-                }
-                x[i] = sum
-            }
+            triangularMatrix(
+                triangles, products, panels, vectors, av, order, b.values, b.rows, sides,
+                lower, transpose, unitDiag, right, alpha, solve, workspace,
+            )
         }
     }
 
@@ -772,298 +671,15 @@ internal class PortableDenseBlas(
     /**
      * What a call of [operation] with the facts in [call] executes.
      *
-     * Derived from the decisions the call itself makes rather than from its extents: the same grouping the
-     * traversal will ask for, and the panel implementation each window of that traversal reaches at its own
-     * length. The distinction matters where the windows are not all alike. A triangular traversal over four
-     * columns cuts windows of three, two, one and nothing, so on a machine whose lane block is four it never
-     * reaches a vector body at all, and a route derived from the order alone would say it did.
+     * Asked of the same backends this engine computes with, so a route is a description of what would run
+     * rather than of what an engine of this shape might run.
      */
-    fun routeOf(operation: DenseMatrixOperation, call: DenseCall): DenseMatrixRoute {
-        if (call.alpha == 0.0 || call.rows == 0 || call.columns == 0 || call.depth == 0) {
-            return route(
-                operation,
-                RouteKind.NoWork,
-                destinationScaling(operation, call, working = false),
-                0,
-                "the call's own contract stops before the arithmetic, so only the destination scaling runs",
-            )
-        }
-        if (operation in PRODUCT_OPERATIONS) return productRoute(operation, call)
-        val scaling = destinationScaling(operation, call, working = true)
-        val work = panelWorkOf(operation)
-            ?: return route(
-                operation,
-                RouteKind.Direct,
-                scaling,
-                0,
-                "the arithmetic is this traversal's own; no panel or Level 1 kernel is called",
-            )
-        return panelRoute(operation, call, scaling, work)
-    }
-
-    /**
-     * What a matrix product executes, which is a question about its extents and how its operands arrived.
-     *
-     * A product with enough arithmetic to hide a copy is packed and runs in the backend's tiles; one without
-     * runs as panel work over the operands where they are. A call whose operands were packed beforehand
-     * always runs in the tiles, and names only the packing it still has to do, which is none where both
-     * panels were retained.
-     *
-     * The tile bodies come from walking the same block schedule the call executes and asking the backend
-     * about each block it hands over, so a body a block reaches is named and one that only an extent the
-     * schedule never cuts would reach is not.
-     */
-    private fun productRoute(operation: DenseMatrixOperation, call: DenseCall): DenseMatrixRoute {
-        val m = call.rows
-        val n = call.columns
-        val k = requireNotNull(call.depth) { "a product route needs the call's shared dimension" }
-        if (operation == DenseMatrixOperation.Gemm && !products.packsProduct(m, n, k)) {
-            return directProductRoute(operation, call)
-        }
-        val components = ArrayList<String>(4)
-        // In the order the schedule reaches them: the right panel belongs to the column and depth block and
-        // is packed first, the left panel to the row block inside it, and the tile after both.
-        if (operation == DenseMatrixOperation.Gemm || operation == DenseMatrixOperation.GemmPackedLeft) {
-            components.add("$PRODUCT_PACKING/right-panel")
-        }
-        if (operation == DenseMatrixOperation.Gemm || operation == DenseMatrixOperation.GemmPackedRight) {
-            components.add("$PRODUCT_PACKING/left-panel")
-        }
-        val bodies = productBodies(m, n, k)
-        components.addAll(bodies.map { "$it/product-block" })
-        val retained = operation != DenseMatrixOperation.Gemm
-        return route(
-            operation,
-            if (bodies.size > 1) RouteKind.Composed else RouteKind.Direct,
-            components,
-            0,
-            (
-                if (bodies.size > 1) {
-                    "the product is cut into cache blocks, and the rows its extents leave short of a whole " +
-                        "tile reach " + bodies.drop(1).joinToString(" and ")
-                } else {
-                    "the product is cut into cache blocks and every block reaches the same body"
-                }
-                ) + ", with beta carried by the first depth block" +
-                if (retained) "; a retained panel is read where it lies rather than packed again" else "",
-        )
-    }
-
-    /**
-     * Every tile body a blocked product of these extents reaches, in the order its schedule reaches them.
-     *
-     * Walked over the same blocks the call hands to [DenseProductKernels.productBlock], which is what makes
-     * this a description of the call rather than of its dimensions.
-     */
-    private fun productBodies(m: Int, n: Int, k: Int): List<String> {
-        val bodies = ArrayList<String>(2)
-        forEachProductBlock(
-            m,
-            n,
-            k,
-            productBlockRows(products, m),
-            productBlockColumns(products, n),
-            productBlockDepth(k),
-        ) { _, rowCount, _, columnCount, _, depth ->
-            for (body in products.implementationsFor(rowCount, columnCount, depth)) {
-                if (body !in bodies) bodies.add(body)
-            }
-        }
-        return bodies
-    }
-
-    /**
-     * A product small or thin enough to run where its operands are, reported over the panel windows it cuts.
-     *
-     * One destination column at a time, so the windows are the operand's own columns grouped as the backend
-     * recommended, and every one of them is as long as the reduction or the destination is.
-     *
-     * Which panel that is depends on the left transpose. Whether its shared vector is adjacent is a question
-     * only the reducing form has: a column update shares its destination strip, which this route always
-     * hands over adjacent, while a reduction shares the coefficient column, which a transposed right operand
-     * leaves strided by as many entries as the destination has columns. One destination column makes even
-     * that adjacent, which is why the stride is worked out rather than read off the flag.
-     */
-    private fun directProductRoute(operation: DenseMatrixOperation, call: DenseCall): DenseMatrixRoute {
-        val m = call.rows
-        val n = call.columns
-        val k = call.depth ?: 0
-        val work = if (call.transposeA) PanelWork.MultiDot else PanelWork.ColumnUpdate
-        val panelRows = if (call.transposeA) k else m
-        val panelColumns = if (call.transposeA) m else k
-        val strided = call.transposeA && call.transposeB && n != 1
-        val gathers = gathersCoefficients(panels, m, k, strided)
-        val contiguous = !strided || gathers
-        val group = panels.executionGroup(work, panelRows, panelColumns)
-        val leaves = ArrayList<String>(1)
-        forEachPanel(panelColumns, group) { _, width ->
-            val leaf = panels.implementationFor(work, panelRows, width, contiguous)
-            if (leaf !in leaves) leaves.add(leaf)
-        }
-        val entry = panelEntryPoint(work)
-        val staging = if (gathers) listOf("$PRODUCT_PACKING/right-column") else emptyList()
-        return route(
-            operation,
-            if (leaves.size > 1) RouteKind.Composed else RouteKind.Direct,
-            staging + leaves.map { "$it/$entry" },
-            group,
-            "too little arithmetic here to pay for packing, so the product runs as panel work down each " +
-                "destination column" +
-                if (gathers) {
-                    ", over a coefficient column gathered once so the reduction can vectorise"
-                } else {
-                    ", with nothing copied"
-                },
-        )
-    }
-
-    /** The panel a call of [operation] schedules, or null where it schedules none. */
-    private fun panelWorkOf(operation: DenseMatrixOperation): PanelWork? = when (operation) {
-        DenseMatrixOperation.Gemv, DenseMatrixOperation.Trmv, DenseMatrixOperation.Trsv -> PanelWork.ColumnUpdate
-
-        DenseMatrixOperation.GemvTransposed, DenseMatrixOperation.TrmvTransposed,
-        DenseMatrixOperation.TrsvTransposed,
-        -> PanelWork.MultiDot
-
-        DenseMatrixOperation.Symv -> PanelWork.CoupledDotUpdate
-
-        DenseMatrixOperation.Ger, DenseMatrixOperation.Syr -> PanelWork.RankUpdate
-
-        else -> null
-    }
-
-    private fun route(
-        operation: DenseMatrixOperation,
-        kind: RouteKind,
-        components: List<String>,
-        group: Int,
-        reason: String?,
-    ): DenseMatrixRoute =
-        DenseMatrixRoute(operation, kind, DENSE_SCHEDULING, operation.entryPoint, components, group, reason)
-
-    /**
-     * The destination scaling component, which is a dense Level 1 `scale` when the multiplier is neither
-     * zero nor one.
-     *
-     * Which calls reach a kernel for it depends on whether the call does any work. An ordinary transposed
-     * matrix-vector product folds beta into the panel that writes each output, so it names no scaling; the
-     * same call with nothing to compute has no panel to fold it into and scales the destination through the
-     * kernel like the rest. The Level 3 routines scale their selected region with their own loop either way.
-     */
-    private fun destinationScaling(operation: DenseMatrixOperation, call: DenseCall, working: Boolean): List<String> {
-        val scales = when (operation) {
-            DenseMatrixOperation.Gemv, DenseMatrixOperation.Symv -> true
-            DenseMatrixOperation.GemvTransposed -> !working
-            else -> false
-        }
-        val elements = if (operation == DenseMatrixOperation.GemvTransposed) call.columns else call.rows
-        if (!scales || call.beta == 0.0 || call.beta == 1.0 || elements == 0) return emptyList()
-        val leaf = vectors.implementationFor(DenseOperation.Scale, elements)
-            ?: return listOf("${vectors.name}/scale")
-        return listOf("$leaf/scale")
-    }
-
-    /**
-     * A call whose arithmetic is panels of [work], reported over the windows its traversal will actually cut.
-     *
-     * A rectangular operand's windows are all as long as it is tall, so one implementation serves the whole
-     * call. A triangular or symmetric traversal's shrink towards the diagonal, so which of a backend's bodies
-     * they reach can differ between them and can be none of them, and the route says which of the three it is.
-     */
-    private fun panelRoute(
-        operation: DenseMatrixOperation,
-        call: DenseCall,
-        scaling: List<String>,
-        work: PanelWork,
-    ): DenseMatrixRoute {
-        val group = panels.executionGroup(work, call.rows, call.columns)
-        val entry = panelEntryPoint(work)
-        val leaves = ArrayList<String>(2)
-        forEachWindow(operation, call, group) { rows, width ->
-            if (rows > 0) {
-                val leaf = panels.implementationFor(work, rows, width, call.contiguous)
-                if (leaf !in leaves) leaves.add(leaf)
-            }
-        }
-        return when (leaves.size) {
-            // No panel runs, so there is no grouping to report either: the contract says zero where a
-            // call schedules none, and a recommendation nothing asked for is not one the call used.
-            0 -> route(
-                operation,
-                RouteKind.Direct,
-                scaling,
-                0,
-                "every window this traversal cuts is empty, so no panel runs and the arithmetic is its own",
-            )
-
-            1 -> route(
-                operation,
-                RouteKind.Direct,
-                scaling + "${leaves.single()}/$entry",
-                group,
-                "every window of this traversal reaches the same panel implementation at its own length",
-            )
-
-            else -> route(
-                operation,
-                RouteKind.Composed,
-                scaling + leaves.map { "$it/$entry" },
-                group,
-                "this traversal's windows shrink towards the diagonal, so they reach " +
-                    leaves.joinToString(" and ") + ", and its corner is the traversal's own arithmetic",
-            )
-        }
-    }
-
-    /**
-     * The windows a call of [operation] hands to its panel, as the length of each and how many columns it
-     * carries.
-     *
-     * Written out beside the traversals above rather than derived from them, so that a route and a call can
-     * be compared with each other. The lengths are what a triangle's storage leaves at each group, which is
-     * why the selected triangle and the grouping are both part of the question.
-     */
-    private inline fun forEachWindow(
-        operation: DenseMatrixOperation,
-        call: DenseCall,
-        group: Int,
-        action: (rows: Int, width: Int) -> Unit,
-    ) {
-        val n = call.rows
-        when (operation) {
-            DenseMatrixOperation.Symv ->
-                forEachPanel(n, group) { start, width ->
-                    action(if (call.lower) n - (start + width) else start, width)
-                }
-
-            DenseMatrixOperation.Syr ->
-                forEachPanel(n, group) { start, width ->
-                    action(if (call.lower) n - (start + width - 1) else start + 1, width)
-                }
-
-            // A triangular traversal's windows are every length below the order, and which end it starts
-            // from is the dependency order's, not the triangle's: a solve removes a finished entry from
-            // everything still to come, so its windows shrink, and a multiply consumes a column before the
-            // columns that would overwrite it, so its windows grow. Transposing swaps the two.
-            DenseMatrixOperation.Trsv, DenseMatrixOperation.TrmvTransposed ->
-                for (k in n - 1 downTo 0) action(k, 1)
-
-            DenseMatrixOperation.Trmv, DenseMatrixOperation.TrsvTransposed ->
-                for (k in 0 until n) action(k, 1)
-
-            // A rectangular operand's columns are all as long as it is tall, whatever the grouping.
-            else -> forEachPanel(call.columns, group) { _, width -> action(n, width) }
-        }
-    }
-
-    private fun panelEntryPoint(work: PanelWork): String = when (work) {
-        PanelWork.MultiDot -> "multi-dot"
-        PanelWork.ColumnUpdate -> "column-update"
-        PanelWork.CoupledDotUpdate -> "coupled-dot-update"
-        PanelWork.RankUpdate -> "rank-update"
-        PanelWork.SparseRightHandSides -> "sparse-rhs"
-    }
+    fun routeOf(operation: DenseMatrixOperation, call: DenseCall): DenseMatrixRoute = routes.routeOf(operation, call)
 }
+
+/** The part of a square destination a selected-triangle routine writes. */
+internal fun selectedTriangle(lower: Boolean): OutputTriangle =
+    if (lower) OutputTriangle.Lower else OutputTriangle.Upper
 
 /** The component name every built-in dense Level 2 and 3 call reports, whatever panels it calls. */
 internal const val DENSE_SCHEDULING: String = "portable-dense"
@@ -1071,12 +687,40 @@ internal const val DENSE_SCHEDULING: String = "portable-dense"
 /** The component name the copy into packed tile groups reports. The packers are portable on every engine. */
 internal const val PRODUCT_PACKING: String = "portable-pack"
 
+/**
+ * The component name the selected-triangle writeback reports.
+ *
+ * Its own name because it is arithmetic the tile did not do: a block straddling the diagonal accumulates
+ * whole tiles and then keeps part of each, and a route that named only the tile would claim the whole of it
+ * reached the destination.
+ */
+internal const val TRIANGLE_SELECTION: String = "portable-select"
+
+/** The component name the copy of one diagonal block of a symmetric operand into a full square reports. */
+internal const val SYMMETRIC_EXPANSION: String = "portable-mirror"
+
+/** The component name the copy of a block of right-hand sides into adjacent storage reports. */
+internal const val TRIANGULAR_GATHER: String = "portable-gather"
+
 /** The entry points whose route is a product block schedule rather than a Level 2 panel one. */
 internal val PRODUCT_OPERATIONS: Set<DenseMatrixOperation> = setOf(
     DenseMatrixOperation.Gemm,
     DenseMatrixOperation.GemmPacked,
     DenseMatrixOperation.GemmPackedLeft,
     DenseMatrixOperation.GemmPackedRight,
+)
+
+/** The entry points whose route is a product into one triangle of a square destination. */
+internal val TRIANGLE_PRODUCT_OPERATIONS: Set<DenseMatrixOperation> = setOf(
+    DenseMatrixOperation.Gemmt,
+    DenseMatrixOperation.Syrk,
+    DenseMatrixOperation.Syr2k,
+)
+
+/** The entry points whose route is a triangular block schedule rather than a product or a panel one. */
+internal val TRIANGULAR_MATRIX_OPERATIONS: Set<DenseMatrixOperation> = setOf(
+    DenseMatrixOperation.Trmm,
+    DenseMatrixOperation.Trsm,
 )
 
 /** Stands in for an operand that arrived packed, so no unpacked storage is read for that side. */

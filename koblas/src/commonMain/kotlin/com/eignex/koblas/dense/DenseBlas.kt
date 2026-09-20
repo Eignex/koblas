@@ -116,6 +116,9 @@ public interface DenseBlas {
     /**
      * `C = alpha · A·Aᵀ + beta · C`, or `alpha · Aᵀ·A + beta · C` when [transpose] (BLAS `dsyrk`).
      * Only the [lower] or upper triangle is written. Built-in implementations snapshot overlap with [c].
+     *
+     * One product, so [alpha] multiplies an accumulated sum exactly as [gemm] describes, with the same
+     * latitude over which partition of the shared dimension is summed before that multiplication.
      */
     @Suppress("LongParameterList") // the BLAS dsyrk signature
     public fun syrk(
@@ -168,6 +171,16 @@ public interface DenseBlas {
     /**
      * `C = alpha · (op(A) · op(B)ᵀ + op(B) · op(A)ᵀ) + beta · C` (BLAS `dsyr2k`), where `op` transposes when
      * [transpose]. Writes only the [lower] or upper triangle and snapshots input overlap in built-in engines.
+     *
+     * A built-in implementation composes the two products rather than fusing one traversal over both, so
+     * [alpha] multiplies each of the two accumulated sums separately and the scaled results are added:
+     * `alpha · s₁ + alpha · s₂` rather than `alpha · (s₁ + s₂)`. For ordinary finite operands that is a
+     * reassociation of the kind [gemm] already describes. Where it is more than that it is categorical: with
+     * an infinite [alpha] and one of the two sums coming to zero, this gives a NaN where a fused traversal
+     * would give an infinity. The composition is what lets each half be packed, blocked and tiled like any
+     * other product, and it is the semantics this library promises rather than an accident of scheduling.
+     *
+     * An explicit host binding is not held to it, for the reason [gemm] gives.
      */
     @Suppress("LongParameterList") // the BLAS dsyr2k signature
     public fun syr2k(

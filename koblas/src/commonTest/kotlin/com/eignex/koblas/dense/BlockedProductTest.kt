@@ -218,8 +218,10 @@ class BlockedProductTest {
 
             assertClose(expected.values, aliased.values, "${engine.name} aliased product", tolerance = 1e-10)
             val staged = order * order
-            val leftPanel = productBlockRows(tile, order) * productBlockDepth(order)
-            val rightPanel = productBlockColumns(tile, order) * productBlockDepth(order)
+            // The panels are borrowed at the capacity the scheduling rounds their extents up to, which is
+            // what lets a schedule whose windows shrink reuse one buffer for several of them.
+            val leftPanel = scratchCapacity(productBlockRows(tile, order) * productBlockDepth(order))
+            val rightPanel = scratchCapacity(productBlockColumns(tile, order) * productBlockDepth(order))
             // One staged copy of each aliased operand, and a packing panel for each side. At this order the
             // panels cover the whole of both operands, so on a machine whose blocks are no smaller than the
             // order every one of these lengths is the same.
@@ -434,16 +436,26 @@ class BlockedProductTest {
     fun `a repeated blocked product reuses its packing scratch`() {
         val rng = Random(20261019)
         val workspace = Workspace()
+        val engine = koblasEngineUnderTest()
+        val tile = engine.productKernels
         val a = randomMatrix(37, 41, rng)
         val b = randomMatrix(41, 29, rng)
         val c = randomMatrix(37, 29, rng)
+        // Counted as buffers rather than as lengths, because the two panels are borrowed at rounded
+        // capacities and a shape whose panels round to the same one leaves a single length behind.
+        val left = scratchCapacity(productBlockRows(tile, 37) * productBlockDepth(41))
+        val right = scratchCapacity(productBlockColumns(tile, 29) * productBlockDepth(41))
 
-        koblasEngineUnderTest().gemm(0.875, a, false, b, false, -0.25, c, workspace)
-        val afterOne = workspace.idleLengths()
-        repeat(3) { koblasEngineUnderTest().gemm(0.875, a, false, b, false, -0.25, c, workspace) }
+        engine.gemm(0.875, a, false, b, false, -0.25, c, workspace)
+        val afterOne = workspace.available(left) + if (right == left) 0 else workspace.available(right)
+        repeat(3) { engine.gemm(0.875, a, false, b, false, -0.25, c, workspace) }
 
         assertEquals(2, afterOne, "a blocked product did not borrow a panel for each operand")
-        assertEquals(afterOne, workspace.idleLengths(), "a repeated product kept asking for new panels")
+        assertEquals(
+            afterOne,
+            workspace.available(left) + if (right == left) 0 else workspace.available(right),
+            "a repeated product kept asking for new panels",
+        )
     }
 
     /**

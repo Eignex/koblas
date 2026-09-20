@@ -312,6 +312,17 @@ abstract interface com.eignex.koblas.dense/DenseProductKernels { // com.eignex.k
     abstract fun productBlock(kotlin/Double, kotlin/DoubleArray, kotlin/Int, kotlin/Int, kotlin/DoubleArray, kotlin/Int, kotlin/Int, kotlin/Int, kotlin/Int, kotlin/Int, kotlin/Double, kotlin/DoubleArray, kotlin/Int, kotlin/Int) // com.eignex.koblas.dense/DenseProductKernels.productBlock|productBlock(kotlin.Double;kotlin.DoubleArray;kotlin.Int;kotlin.Int;kotlin.DoubleArray;kotlin.Int;kotlin.Int;kotlin.Int;kotlin.Int;kotlin.Int;kotlin.Double;kotlin.DoubleArray;kotlin.Int;kotlin.Int){}[0]
 }
 
+abstract interface com.eignex.koblas.dense/DenseTriangularKernels { // com.eignex.koblas.dense/DenseTriangularKernels|null[0]
+    abstract val name // com.eignex.koblas.dense/DenseTriangularKernels.name|{}name[0]
+        abstract fun <get-name>(): kotlin/String // com.eignex.koblas.dense/DenseTriangularKernels.name.<get-name>|<get-name>(){}[0]
+
+    abstract fun diagonalMultiply(kotlin/DoubleArray, kotlin/Int, kotlin/Int, kotlin/Int, kotlin/Boolean, kotlin/Boolean, kotlin/Boolean, kotlin/DoubleArray, kotlin/Int, kotlin/Int, kotlin/Int, kotlin/Int) // com.eignex.koblas.dense/DenseTriangularKernels.diagonalMultiply|diagonalMultiply(kotlin.DoubleArray;kotlin.Int;kotlin.Int;kotlin.Int;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean;kotlin.DoubleArray;kotlin.Int;kotlin.Int;kotlin.Int;kotlin.Int){}[0]
+    abstract fun diagonalSolve(kotlin/DoubleArray, kotlin/Int, kotlin/Int, kotlin/Int, kotlin/Boolean, kotlin/Boolean, kotlin/Boolean, kotlin/DoubleArray, kotlin/Int, kotlin/Int, kotlin/Int, kotlin/Int) // com.eignex.koblas.dense/DenseTriangularKernels.diagonalSolve|diagonalSolve(kotlin.DoubleArray;kotlin.Int;kotlin.Int;kotlin.Int;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean;kotlin.DoubleArray;kotlin.Int;kotlin.Int;kotlin.Int;kotlin.Int){}[0]
+    abstract fun gathersRightHandSides(kotlin/Int, kotlin/Int, kotlin/Int): kotlin/Boolean // com.eignex.koblas.dense/DenseTriangularKernels.gathersRightHandSides|gathersRightHandSides(kotlin.Int;kotlin.Int;kotlin.Int){}[0]
+    abstract fun implementationsFor(kotlin/Int, kotlin/Int, kotlin/Boolean): kotlin.collections/List<kotlin/String> // com.eignex.koblas.dense/DenseTriangularKernels.implementationsFor|implementationsFor(kotlin.Int;kotlin.Int;kotlin.Boolean){}[0]
+    abstract fun rightHandSideGroup(kotlin/Int, kotlin/Int): kotlin/Int // com.eignex.koblas.dense/DenseTriangularKernels.rightHandSideGroup|rightHandSideGroup(kotlin.Int;kotlin.Int){}[0]
+}
+
 abstract interface com.eignex.koblas.dense/DenseVectorKernels { // com.eignex.koblas.dense/DenseVectorKernels|null[0]
     abstract val name // com.eignex.koblas.dense/DenseVectorKernels.name|{}name[0]
         abstract fun <get-name>(): kotlin/String // com.eignex.koblas.dense/DenseVectorKernels.name.<get-name>|<get-name>(){}[0]
@@ -457,7 +468,7 @@ sealed interface com.eignex.koblas/VectorStorage : com.eignex.koblas/Vector { //
 }
 
 final class com.eignex.koblas.dense/DenseCall { // com.eignex.koblas.dense/DenseCall|null[0]
-    constructor <init>(kotlin/Int, kotlin/Int, kotlin/Double = ..., kotlin/Double = ..., kotlin/Boolean = ..., kotlin/Int? = ..., kotlin/Boolean = ..., kotlin/Boolean = ..., kotlin/Boolean = ...) // com.eignex.koblas.dense/DenseCall.<init>|<init>(kotlin.Int;kotlin.Int;kotlin.Double;kotlin.Double;kotlin.Boolean;kotlin.Int?;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean){}[0]
+    constructor <init>(kotlin/Int, kotlin/Int, kotlin/Double = ..., kotlin/Double = ..., kotlin/Boolean = ..., kotlin/Int? = ..., kotlin/Boolean = ..., kotlin/Boolean = ..., kotlin/Boolean = ..., kotlin/Boolean = ...) // com.eignex.koblas.dense/DenseCall.<init>|<init>(kotlin.Int;kotlin.Int;kotlin.Double;kotlin.Double;kotlin.Boolean;kotlin.Int?;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean){}[0]
 
     final val alpha // com.eignex.koblas.dense/DenseCall.alpha|{}alpha[0]
         final fun <get-alpha>(): kotlin/Double // com.eignex.koblas.dense/DenseCall.alpha.<get-alpha>|<get-alpha>(){}[0]
@@ -471,6 +482,8 @@ final class com.eignex.koblas.dense/DenseCall { // com.eignex.koblas.dense/Dense
         final fun <get-depth>(): kotlin/Int? // com.eignex.koblas.dense/DenseCall.depth.<get-depth>|<get-depth>(){}[0]
     final val lower // com.eignex.koblas.dense/DenseCall.lower|{}lower[0]
         final fun <get-lower>(): kotlin/Boolean // com.eignex.koblas.dense/DenseCall.lower.<get-lower>|<get-lower>(){}[0]
+    final val right // com.eignex.koblas.dense/DenseCall.right|{}right[0]
+        final fun <get-right>(): kotlin/Boolean // com.eignex.koblas.dense/DenseCall.right.<get-right>|<get-right>(){}[0]
     final val rows // com.eignex.koblas.dense/DenseCall.rows|{}rows[0]
         final fun <get-rows>(): kotlin/Int // com.eignex.koblas.dense/DenseCall.rows.<get-rows>|<get-rows>(){}[0]
     final val transposeA // com.eignex.koblas.dense/DenseCall.transposeA|{}transposeA[0]
@@ -713,6 +726,8 @@ final class com.eignex.koblas/KoblasEngine : com.eignex.koblas.dense/DenseBlas, 
         final fun <get-sparseImplementation>(): kotlin/String // com.eignex.koblas/KoblasEngine.sparseImplementation.<get-sparseImplementation>|<get-sparseImplementation>(){}[0]
     final val sparseKernels // com.eignex.koblas/KoblasEngine.sparseKernels|{}sparseKernels[0]
         final fun <get-sparseKernels>(): com.eignex.koblas.sparse/SparseKernels // com.eignex.koblas/KoblasEngine.sparseKernels.<get-sparseKernels>|<get-sparseKernels>(){}[0]
+    final val triangularKernels // com.eignex.koblas/KoblasEngine.triangularKernels|{}triangularKernels[0]
+        final fun <get-triangularKernels>(): com.eignex.koblas.dense/DenseTriangularKernels // com.eignex.koblas/KoblasEngine.triangularKernels.<get-triangularKernels>|<get-triangularKernels>(){}[0]
     final val vectorKernels // com.eignex.koblas/KoblasEngine.vectorKernels|{}vectorKernels[0]
         final fun <get-vectorKernels>(): com.eignex.koblas.dense/DenseVectorKernels // com.eignex.koblas/KoblasEngine.vectorKernels.<get-vectorKernels>|<get-vectorKernels>(){}[0]
     final val vendor // com.eignex.koblas/KoblasEngine.vendor|{}vendor[0]

@@ -316,3 +316,18 @@ sum+40+uniform+suite=sweep
 sum+48+uniform+suite=sweep
 sum+64+uniform+suite=sweep
 sum+96+uniform+suite=sweep
+
+# Structured products and triangular schedules past the shared block extents, where the packed route and the
+# diagonal-block traversal are what run. The thin solve is here because its windows shrink with the order,
+# which is the scratch case a wide one cannot show.
+gemmt+192x192+uniform+uplo=L+transA=N+transB=N
+gemmt+192x192+uniform+uplo=U+transA=T+transB=T
+syrk+192x192+uniform+uplo=L+transA=N
+syr2k+192x192+uniform+uplo=L+transA=N
+symm+192x192+uniform+side=L+uplo=L
+symm+192x192+uniform+side=R+uplo=U
+trsm+256x64+triangular+side=L+uplo=L+transA=N+diag=N
+trsm+256x1+triangular+side=L+uplo=L+transA=N+diag=N
+trsm+64x256+triangular+side=R+uplo=L+transA=N+diag=N
+trsm+256x64+triangular+side=L+uplo=U+transA=T+diag=U
+trmm+256x64+triangular+side=L+uplo=U+transA=T+diag=N

@@ -178,4 +178,4 @@ private class PooledBuffers<A : Any> {
  * diagonal, a staged operand, an accumulator and the rank-update index scratch, with room for a caller
  * alternating between two shapes. A ninth length evicts the least recently returned one.
  */
-private const val MAX_IDLE_LENGTHS = 8
+internal const val MAX_IDLE_LENGTHS = 8

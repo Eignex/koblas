@@ -8,6 +8,7 @@ import com.eignex.koblas.randomVector
 import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 /**
  * That a workspace handed to a dense routine is used, and that using it changes nothing.
@@ -63,11 +64,14 @@ class DenseWorkspaceTest {
     }
 
     /**
-     * A solve whose triangle shares the block it solves, which holds the staged triangle and the gathered
-     * right-hand side at the same time and at two different lengths.
+     * A solve whose triangle shares the block it solves, which is the one staging a triangular call makes.
+     *
+     * An order inside a single diagonal block reaches nothing but the substitution, so the staged triangle
+     * is the whole of what the workspace lent and a second length appearing there would be scratch the call
+     * had no use for.
      */
     @Test
-    fun `a triangular solve stages its triangle and gathers its side from the same workspace`() {
+    fun `a triangular solve stages its triangle from the workspace and borrows nothing else`() {
         val rng = Random(20260929)
         val n = 5
         val workspace = Workspace()
@@ -80,26 +84,29 @@ class DenseWorkspaceTest {
 
         assertClose(expected.values, aliased.values, "trsm with its own triangle", tolerance = 1e-9)
         assertEquals(1, workspace.available(n * n), "the triangle was not staged from the workspace")
-        assertEquals(1, workspace.available(n), "the right-hand side was not gathered from the workspace")
+        assertEquals(1, workspace.idleLengths(), "the solve borrowed scratch besides its staged triangle")
     }
 
-    /** A second call over the same shape reuses the first call's buffers rather than asking for more. */
+    /**
+     * A second call over the same shape reuses the first call's buffers rather than asking for more.
+     *
+     * The order is past one diagonal block on purpose: below that a triangular call that stages nothing
+     * borrows nothing either, and a reuse check over no loans would pass without checking anything.
+     */
     @Test
     fun `a repeated call over one shape reuses the same scratch`() {
         val rng = Random(20260930)
-        val order = 5
+        val order = TRIANGULAR_DIAGONAL_BLOCK + 8
         val workspace = Workspace()
         val triangle = triangle(randomMatrix(order, order, rng), order)
-        val b = randomMatrix(order, 3, rng)
+        val b = randomMatrix(order, 4, rng)
 
         blas.trmm(triangle, b, lower = true, workspace = workspace)
-        val afterOne = workspace.available(order)
+        val afterOne = workspace.idleLengths()
         repeat(3) { blas.trmm(triangle, b, lower = true, workspace = workspace) }
 
-        // A triangular multiply holds the gathered side and the copy of it the product reads, both of the
-        // triangle's order, so one call leaves two behind and any number of them leave the same two.
-        assertEquals(2, afterOne, "a triangular multiply did not hold its two loans at once")
-        assertEquals(afterOne, workspace.available(order), "a repeated call kept asking for new buffers")
+        assertTrue(afterOne > 0, "a triangular multiply over several blocks borrowed nothing")
+        assertEquals(afterOne, workspace.idleLengths(), "a repeated call kept asking for new buffers")
     }
 
     /** A call whose contract stops before the arithmetic takes no loan, because it stages nothing. */

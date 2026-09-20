@@ -60,6 +60,61 @@ class DenseTest {
     }
 
     /**
+     * Every structured and triangular case names a route that carries the facts its call was made with.
+     *
+     * The route is built from the facts the case passes, so a case that omitted one would describe a
+     * different call from the one it times: a rank update whose transpose never reached the route would
+     * name the panels of the untransposed shape, and a solve whose side never reached it would name the
+     * wrong stride and so the wrong substitution body. Each pair below differs only in such a fact, and the
+     * rows are required to differ with it.
+     */
+    @OptIn(KoblasEngineApi::class)
+    @Test
+    fun `structured and triangular cases carry the facts their routes are built from`() {
+        val engines = listOfNotNull<KoblasEngine>(BuiltinEngines.scalar, BuiltinEngines.simd)
+        for (line in STRUCTURED_CASES) {
+            val case = Cases.parse(line).single()
+            for (engine in engines) {
+                val work = assertNotNull(denseWork(case, engine), "$line on ${engine.name}")
+                val kernel = assertNotNull(work.kernel, "$line on ${engine.name} named no route")
+
+                assertTrue(kernel.startsWith("portable-dense+"), "$line on ${engine.name} named $kernel")
+                // Every one of these shapes is past the crossover its route needs, so a row naming no
+                // block and no substitution would mean the case reached a route it was not chosen for.
+                assertTrue(
+                    "/product-block" in kernel || "/diagonal-solve" in kernel || "/diagonal-multiply" in kernel,
+                    "$line on ${engine.name} named $kernel",
+                )
+                assertTrue(work.run().isFinite(), "$line on ${engine.name} produced no finite sink")
+                work.close()
+            }
+        }
+    }
+
+    /**
+     * A fact that changes what runs changes the row, on the arm that owns the kernels it changes.
+     *
+     * The two solves below are the same shape on the same engine and differ only in their side. A left one
+     * leaves its right-hand sides strided and the vector backend gathers a block of them; a right one finds
+     * them adjacent and gathers nothing. A row that did not carry the side would publish one of those two
+     * under the other's name.
+     */
+    @OptIn(KoblasEngineApi::class)
+    @Test
+    fun `a triangular row names the gather its side decides`() {
+        val engine = BuiltinEngines.simd ?: return
+        fun kernelOf(line: String): String =
+            assertNotNull(assertNotNull(denseWork(Cases.parse(line).single(), engine)).kernel)
+
+        val left = kernelOf("trsm+96x16+triangular+side=L+uplo=L+transA=N+diag=N")
+        val right = kernelOf("trsm+16x96+triangular+side=R+uplo=L+transA=N+diag=N")
+
+        assertTrue("portable-gather/rhs-block" in left, left)
+        assertTrue("portable-gather/rhs-block" !in right, right)
+        assertTrue("diagonal-solve" in left && "diagonal-solve" in right, "$left and $right")
+    }
+
+    /**
      * The packing row names preparation, and the prepacked rows name the packing they still do.
      *
      * The three retained entry points are three different amounts of work, and a reader comparing them with
@@ -108,5 +163,34 @@ class DenseTest {
             assertNull(declined?.work, "the generic product was timed under ${other.name}")
             assertNotNull(declined?.reason, "a declined generic row carries no reason")
         }
+    }
+
+    private companion object {
+        /**
+         * One case of each structured and triangular entry point, in both of the orientations it has.
+         *
+         * Smaller than the shapes the workload carries, and deliberately. What is under test here is that
+         * a case passes the facts its route is built from, which the smallest shape that still takes the
+         * route shows as well as a large one; building each case runs its numerical preflight against the
+         * naive oracle, whose cost is the cube of the order. The shipped shapes are exercised by a capture
+         * against the harness, where the timing is the point and the preflight is paid once.
+         *
+         * Each order below is past the crossover its route needs: a square of forty-eight is packed into
+         * tiles on every backend here, and a triangle of ninety-six is more than one diagonal block, so a
+         * product runs between them.
+         */
+        val STRUCTURED_CASES = listOf(
+            "gemmt+48x48+uniform+uplo=L+transA=N+transB=N",
+            "gemmt+48x48+uniform+uplo=U+transA=T+transB=T",
+            "syrk+48x48+uniform+uplo=L+transA=N",
+            "syr2k+48x48+uniform+uplo=L+transA=N",
+            "symm+48x48+uniform+side=L+uplo=L",
+            "symm+48x48+uniform+side=R+uplo=U",
+            "trsm+96x16+triangular+side=L+uplo=L+transA=N+diag=N",
+            "trsm+96x1+triangular+side=L+uplo=L+transA=N+diag=N",
+            "trsm+16x96+triangular+side=R+uplo=L+transA=N+diag=N",
+            "trsm+96x16+triangular+side=L+uplo=U+transA=T+diag=U",
+            "trmm+96x16+triangular+side=L+uplo=U+transA=T+diag=N",
+        )
     }
 }
