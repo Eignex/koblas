@@ -176,8 +176,8 @@ source revision and the resolved library files are in `metadata.txt` only.
 Koblas contributes independent `jvm-scalar`, `jvm-simd`, `jvm-default` and `native` arms. `jvm-scalar` is
 portable Kotlin at every level, and `jvm-simd` is every Vector API kernel this library owns. `jvm-default` is
 what an ordinary call gets, which is a policy rather than an exact arm: today that is `jvm-simd`'s Level 1
-with the portable dense panels and the portable product tile, because the Level 2 panels and the Level 3
-tiles are measured but not yet activated. Its rows are where the generic entry points are timed, since those
+with the portable dense panels, the portable product tile and the portable diagonal substitution, because
+the Level 2 panels and the Level 3 tiles and substitutions are measured but not yet activated. Its rows are where the generic entry points are timed, since those
 use the selected engine and have none to be told. A comparison between `jvm-simd` and `jvm-default` is
 therefore a comparison of the matrix arithmetic alone, since the two share everything else.
 
@@ -199,8 +199,22 @@ the schedule reaches them, and a product whose rows leave a tile short names the
 as well and is published as the composition it is. One too small or too thin to pay for a copy names the
 panel it runs on instead, with the grouping the backend recommended, and names a gathered coefficient column
 where it makes one. A retained panel is not packed again, so `gemm-packed` names no packing at all and the
-mixed entry points name only the side they still copy. The other Level 3 routines name no panel and no tile,
-because they are still the shared scalar traversal on every arm. A triangular or symmetric call whose windows shrink past a
+mixed entry points name only the side they still copy.
+
+The structured Level 3 routines are the same schedule with their own regions. `gemmt`, `syrk` and `syr2k`
+name the packing and tile bodies of the product they are, plus `portable-select/triangle-tile` where a block
+straddles the diagonal and only part of its tile reaches the destination; `syr2k` is two such products and
+says so. `symm` names `portable-mirror/diagonal-block` for the copy of one diagonal block of its symmetric
+operand into a square, and then the windows the strips beside it become. A triangular routine names the
+substitution its diagonal blocks reach, as `<backend>/diagonal-solve` or `/diagonal-multiply`, preceded by
+`portable-gather/rhs-block` where the backend asked for a block of right-hand sides to be copied adjacent
+first, and followed by the windows the products between diagonal blocks became. So a solve over one
+right-hand side may name a portable substitution beside a Vector API panel, which is what it runs, and a
+route that named one engine for both would be hiding half the call. An order inside a single diagonal block
+names no product at all. The right-hand-side grouping is a separate number from the panel grouping the row
+carries and is named in the route's reason rather than in `@<group>`.
+
+A triangular or symmetric call whose windows shrink past a
 backend's shortest vector window reaches more than one body and is published as the composition it is; a
 call whose windows are all empty names no panel and no grouping at all. Built-in sparse
 Level 2/3 rows name `portable-csc/<operation>`, and where a unit of work is handed to a Level 1 kernel they

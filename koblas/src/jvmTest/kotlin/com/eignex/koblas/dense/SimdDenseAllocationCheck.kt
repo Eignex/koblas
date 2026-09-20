@@ -164,7 +164,9 @@ internal object SimdDenseAllocationCheck {
      * The other is the substitution itself. A left call leaves its right-hand sides strided and the backend
      * may gather a block of them; a right call finds them adjacent and gathers nothing; a unit diagonal
      * removes the division from every step; and a side count that is not a whole number of lane blocks ends
-     * in a scalar body. Each of those is a different arrangement of the same loop, and each is here.
+     * in a scalar body. Both substitutions run on both sides, so the multiply is checked over already
+     * adjacent right-hand sides as well as over gathered ones. Each of those is a different arrangement of
+     * the same loop, and each is here.
      */
     private fun checkTriangularOperations(engine: KoblasEngine) {
         checkTriangularOrder(engine, TRIANGULAR_BLOCKS * TRIANGULAR_DIAGONAL_BLOCK)
@@ -230,6 +232,22 @@ internal object SimdDenseAllocationCheck {
                 ) {
                     right.values.fill(1.0)
                     engine.trsm(
+                        triangle,
+                        right,
+                        lower = true,
+                        unitDiag = unitDiag,
+                        right = true,
+                        workspace = workspace,
+                    )
+                    right.values[0]
+                }
+                assertAllocationFree(
+                    "trmm right sides=$sides unit=$unitDiag",
+                    TRIANGULAR_WARMUP,
+                    TRIANGULAR_ITERATIONS,
+                ) {
+                    right.values.fill(1.0)
+                    engine.trmm(
                         triangle,
                         right,
                         lower = true,
