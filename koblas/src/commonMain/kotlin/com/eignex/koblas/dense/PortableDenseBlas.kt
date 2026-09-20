@@ -8,12 +8,7 @@
 
 package com.eignex.koblas.dense
 
-import com.eignex.koblas.DenseMatrix
-import com.eignex.koblas.DenseVector
-import com.eignex.koblas.Workspace
-import com.eignex.koblas.requireShape
-import com.eignex.koblas.staged
-import com.eignex.koblas.vendor.*
+import com.eignex.koblas.*
 
 /**
  * Common Kotlin dense BLAS used by every built-in engine without requiring a host library.
@@ -241,7 +236,7 @@ internal class PortableDenseBlas(
         lower: Boolean,
         workspace: Workspace?,
     ) {
-        requireGemmtOperands(a, transposeA, b, transposeB, c, symmetricStructure(lower))
+        requireGemmtOperands(a, transposeA, b, transposeB, c)
         // Nothing to write means nothing to stage: the extents a staging loan would be sized from are the
         // operands', which an empty destination says nothing about, and two empty operands that share one
         // empty array would otherwise be staged against each other.
@@ -270,7 +265,7 @@ internal class PortableDenseBlas(
      * cannot cover, which is scalar work here.
      */
     override fun symv(alpha: Double, a: DenseMatrix, x: DoubleArray, beta: Double, y: DoubleArray, lower: Boolean) {
-        requireSymvOperands(a, symmetricStructure(lower), x.size, y.size)
+        requireSymvOperands(a, x.size, y.size)
         val n = a.rows
         if (alpha == 0.0 || n == 0) {
             applyBeta(vectors, y, 0, y.size, beta)
@@ -329,7 +324,7 @@ internal class PortableDenseBlas(
         right: Boolean,
         workspace: Workspace?,
     ) {
-        requireSymmOperands(a, symmetricStructure(lower), b, c, right)
+        requireSymmOperands(a, b, c, right)
         if (c.values.isEmpty()) return
         if (alpha == 0.0) {
             applyBeta(vectors, c.values, 0, c.values.size, beta)
@@ -360,7 +355,7 @@ internal class PortableDenseBlas(
         lower: Boolean,
         workspace: Workspace?,
     ) {
-        requireSyrkOperands(a, transpose, c, symmetricStructure(lower))
+        requireSyrkOperands(a, transpose, c)
         productTriangle(alpha, a, a, transpose, beta, c, lower, doubled = false, workspace = workspace)
     }
 
@@ -374,7 +369,7 @@ internal class PortableDenseBlas(
         lower: Boolean,
         workspace: Workspace?,
     ) {
-        requireSyr2kOperands(a, b, transpose, c, symmetricStructure(lower))
+        requireSyr2kOperands(a, b, transpose, c)
         productTriangle(alpha, a, b, transpose, beta, c, lower, doubled = true, workspace = workspace)
     }
 
@@ -445,7 +440,7 @@ internal class PortableDenseBlas(
      * is left is the small triangle between the group's first and last column.
      */
     override fun syr(alpha: Double, x: DenseVector, a: DenseMatrix, lower: Boolean) {
-        requireSyrOperands(a, symmetricStructure(lower), "syr", x)
+        requireSyrOperands(a, x.size, "syr")
         val n = a.rows
         if (alpha == 0.0 || n == 0) return
         // A vector sharing the destination's buffer is copied, since the update writes what a later column
@@ -486,7 +481,7 @@ internal class PortableDenseBlas(
      * evidence.
      */
     override fun syr2(alpha: Double, x: DenseVector, y: DenseVector, a: DenseMatrix, lower: Boolean) {
-        requireSyr2Operands(a, symmetricStructure(lower), "syr2", x, y)
+        requireSyr2Operands(a, x.size, y.size, "syr2")
         val n = a.rows
         if (alpha == 0.0 || n == 0) return
         val stagedX = x.values === a.values
@@ -518,7 +513,7 @@ internal class PortableDenseBlas(
      * one step.
      */
     override fun trsv(a: DenseMatrix, x: DoubleArray, lower: Boolean, transpose: Boolean, unitDiag: Boolean) {
-        requireTriangularVectorOperands(a, triangle(lower, unitDiag), x.size, "trsv")
+        requireTriangularVectorOperands(a, x.size, "trsv")
         val n = a.rows
         val av = if (a.values === x) a.values.copyOf() else a.values
         val forward = lower != transpose
@@ -547,7 +542,7 @@ internal class PortableDenseBlas(
      * against entries not yet touched. Neither direction needs a copy of the input.
      */
     override fun trmv(a: DenseMatrix, x: DoubleArray, lower: Boolean, transpose: Boolean, unitDiag: Boolean) {
-        requireTriangularVectorOperands(a, triangle(lower, unitDiag), x.size, "trmv")
+        requireTriangularVectorOperands(a, x.size, "trmv")
         val n = a.rows
         val av = if (a.values === x) a.values.copyOf() else a.values
         // Untransposed, a column is consumed before the columns it would overwrite; transposed, a column is
@@ -609,7 +604,7 @@ internal class PortableDenseBlas(
         workspace: Workspace?,
     ) {
         val what = if (solve) "trsm" else "trmm"
-        requireTriangularMatrixOperands(a, triangle(lower, unitDiag), b, right, what)
+        requireTriangularMatrixOperands(a, b, right, what)
         if (alpha == 0.0) {
             b.values.fill(0.0)
             return

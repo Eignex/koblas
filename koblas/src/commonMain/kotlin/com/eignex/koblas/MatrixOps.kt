@@ -31,12 +31,8 @@ public fun DenseMatrix.gemvInto(
     transpose: Boolean = false,
 ) {
     val a = this
+    requireGemvOperands(a, transpose, x.size, destination.size)
     val depth = if (transpose) a.rows else a.cols
-    val outputs = if (transpose) a.cols else a.rows
-    requireShape(depth == x.size) { "gemvInto shape mismatch: A is ${a.rows}x${a.cols}, x size ${x.size}" }
-    requireShape(destination.size == outputs) {
-        "gemvInto: destination size ${destination.size} != $outputs"
-    }
     // The seams quick-return on a zero-extent operand before scaling, which is netlib's rule for gemv but
     // not the contract above: this one promises that `beta == 0.0` overwrites a destination that may arrive
     // holding NaN. Settling it here keeps a zero-column matrix answering the same way as any other.
@@ -70,9 +66,7 @@ public fun DenseMatrix.symvInto(
     destination: DoubleArray,
     lower: Boolean = true,
 ) {
-    requireSquare(this, "symvInto")
-    requireShape(cols == x.size) { "symvInto shape mismatch: A is ${rows}x$cols, x size ${x.size}" }
-    requireShape(destination.size == rows) { "symvInto: destination size ${destination.size} != rows $rows" }
+    requireSymvOperands(this, x.size, destination.size)
     if (alpha == 0.0) {
         destination.prescale(beta)
         return
@@ -94,9 +88,7 @@ private fun DoubleArray.prescale(beta: Double) = applyBeta(koblas.vectorKernels,
  * `alpha = -1.0`.
  */
 public fun DenseMatrix.ger(alpha: Double, x: DenseVector, y: DenseVector) {
-    requireShape(rows == x.size && cols == y.size) {
-        "ger shape mismatch: A is ${rows}x$cols, x ${x.size}, y ${y.size}"
-    }
+    requireGerOperands(x.size, y.size, this)
     if (alpha == 0.0) return
     koblas.ger(alpha, x.asContiguousArray(), y.asContiguousArray(), this)
 }
@@ -127,7 +119,7 @@ public fun DenseMatrix.syr2(alpha: Double, x: DenseVector, y: DenseVector, lower
  */
 @JvmOverloads
 public fun SparseMatrix.syr(alpha: Double, x: Vector, lower: Boolean = true): SparseMatrix {
-    requireSyrShape(this, x.size, "syr")
+    requireSyrOperands(this, x.size, "syr")
     return sparseSyr(this, alpha, x, lower)
 }
 
@@ -142,6 +134,6 @@ public fun SparseMatrix.syr(alpha: Double, x: Vector, lower: Boolean = true): Sp
  */
 @JvmOverloads
 public fun SparseMatrix.syr2(alpha: Double, x: Vector, y: Vector, lower: Boolean = true): SparseMatrix {
-    requireSyr2Shape(this, x.size, y.size, "syr2")
+    requireSyr2Operands(this, x.size, y.size, "syr2")
     return sparseSyr2(this, alpha, x, y, lower)
 }
