@@ -27,7 +27,7 @@ and a runtime without the module gets the portable engine throughout. Explicit o
 Libraries, Accelerate, and OpenBLAS bindings remain available for comparisons and Native acceleration, each
 held to one compute thread.
 
-On Kotlin/Native, where there is no Vector API and these loops do not vectorise, the default engine also
+On Kotlin/Native, where there is no Vector API, the default engine also
 hands a whole dense Level 2 or 3 call to an installed library once the call has enough arithmetic to pay for
 reaching it. Nothing depends on one being there: a host with no supported library computes every level in
 common Kotlin, and so does any call the library does not export, any call too small to pay for it, any

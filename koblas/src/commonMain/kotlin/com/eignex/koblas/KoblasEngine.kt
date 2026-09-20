@@ -218,12 +218,9 @@ public expect object BuiltinEngines {
     /**
      * Every JVM Vector API kernel this library owns, or null when the module is unavailable.
      *
-     * Also what [koblas] selected on that platform, and the same object rather than a second composition
-     * holding the same parts: a kernel is activated by default once it has the evidence for it, and the
-     * Level 1 kernels, the Level 2 panels, the Level 3 tiles and the diagonal substitutions now all have it.
-     * Which of their bodies a given call reaches is a separate question and
-     * [KoblasEngine.denseRouteOf] is what answers it: a window too short or too strided for a vector body
-     * runs the portable one, and the route names that rather than this arm.
+     * On the JVM, [koblas] selects this same engine when it is available. A window too short or too
+     * strided for a vector body runs a portable fallback; [KoblasEngine.denseRouteOf] identifies the
+     * bodies reached by a particular call rather than treating the whole engine as vectorized.
      */
     public val simd: KoblasEngine?
 }

@@ -89,10 +89,13 @@ Nothing about this is automatic, so an ARM capture that does not pass the flag s
 `linuxArm64` Level 1 kernels are shipped production code, and the plain `armpl` arm is the binding a Kotlin/
 Native consumer on that hardware actually uses.
 
+The restored matrix kernels require their own measurements; earlier Level 1 captures do not establish their performance.
+
 ### Which hosts to capture
 
-The point of a fleet is the SIMD ladder, so each instance family is here for the vector width and generation
-it is the cheapest way to reach, and dropping one leaves a rung unmeasured rather than saving a duplicate.
+The historical fleet provides a ladder of SIMD widths and generations. Its reports describe the source
+and operations recorded in each capture. The restored matrix kernels need separate captures on these hosts
+before those reports can support performance claims about them.
 
 | Instance | Microarchitecture | Widest SIMD | Double lanes |
 |---|---|---|---|
@@ -115,13 +118,17 @@ The pre-FMA rungs earn their place even though nobody buys those instances now: 
 no instruction behind it falls back to a software implementation per lane rather than refusing, and only a
 host without the instruction shows that.
 
-Between them these cover every property the SIMD kernels branch on: each of the three lane counts, a host on
-each side of the fused multiply-add, both 256-bit and 512-bit x86 for the indexed loads and stores that are
-eligible at one width and not the other, and both instruction set families.
+The historical captures cover three lane counts, hardware with and without fused multiply-add, 256-bit
+and 512-bit x86 indexed operations, and both instruction set families. That coverage describes the measured
+kernels; it does not establish cross-host performance for the restored Level 2 and 3 implementations.
 
 ### Not yet covered
 
-Two gaps, neither of them a lane count. Both need a machine rather than a change here.
+Further coverage gaps remain beyond the historical ladder.
+
+The historical ARM rungs have no `native` or plain `armpl` numbers, for the build reason given above.
+A cross-compiled executable can be carried to an ARM host for measurement. Compile-only validation does
+not provide Native timing evidence, and the restored matrix kernels need their own coverage too.
 
 The AMD rung is Zen 2, which stops at AVX2, so every AVX-512 number in the fleet is Intel's. AMD implements
 that width differently enough that it is not the same rung read twice, and `c7a.2xlarge` is where Zen 4 has
@@ -129,9 +136,9 @@ it. That instance matters more than a missing width would on its own, because AM
 puts AOCL ahead of everything else, so it is the only host whose first-choice vendor is the one the `aocl`
 arm times.
 
-Accelerate and macOS are absent, and the Linux fleet cannot stand in. A dedicated Apple silicon machine is
-the way to cover it, physical or the EC2 kind that rents at a 24-hour minimum. It is the one vendor Koblas
-selects with no fallback behind it.
+Accelerate and macOS are absent from this timed fleet, and Linux measurements cannot stand in for them.
+Correctness checks on macOS are separate from performance measurements on Apple hardware. The Native default
+uses portable Kotlin when an installed host call is unavailable or ineligible.
 
 ## Options
 
