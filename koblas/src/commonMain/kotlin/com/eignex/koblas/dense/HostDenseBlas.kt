@@ -79,13 +79,14 @@ internal class HostDenseBlas(
     /**
      * Whether this call goes to the library, asked before it writes anything.
      *
-     * [work] is what [HostDensePolicy.multiplyAdds] made of the call's own facts, and null there is not a
-     * small call: it is an operation with no entry point, a call whose contract stops before the arithmetic,
-     * or one that never stated the shared dimension it is defined over. All of them stay portable, and the
-     * route agrees because it asks this question of the same facts.
+     * [work] is what [HostDensePolicy.multiplyAdds] made of the call's own facts, and
+     * [HostDensePolicy.NO_HOST_CALL] there is not a small call: it is an operation with no entry point, a
+     * call whose contract stops before the arithmetic, or one that never stated the shared dimension it is
+     * defined over. All of them stay portable, and the route agrees because it asks this question of the
+     * same facts.
      */
-    private fun host(operation: DenseMatrixOperation, work: Long?): Boolean {
-        if (work == null) return false
+    private fun host(operation: DenseMatrixOperation, work: Long): Boolean {
+        if (work == HostDensePolicy.NO_HOST_CALL) return false
         val entry = HostDensePolicy.entryPointFor(operation) ?: return false
         if (entry !in host.directlyImplemented) return false
         return work >= minimumWork
@@ -96,10 +97,10 @@ internal class HostDenseBlas(
         operation: DenseMatrixOperation,
         rows: Int,
         columns: Int,
-        depth: Int? = null,
+        depth: Int = 1,
         alpha: Double = 1.0,
         right: Boolean = false,
-    ): Long? = HostDensePolicy.multiplyAdds(operation, rows, columns, depth, alpha, right)
+    ): Long = HostDensePolicy.multiplyAdds(operation, rows, columns, depth, alpha, right)
 
     override fun routeOf(operation: DenseMatrixOperation, call: DenseCall): DenseMatrixRoute {
         val work = HostDensePolicy.multiplyAdds(operation, call)
@@ -405,7 +406,7 @@ internal class HostDenseBlas(
         val what = if (solve) "trsm" else "trmm"
         requireTriangularMatrixOperands(a, b, right, what)
         // A zero alpha zeroes the right-hand sides and reads no coefficient, which this library states and a
-        // library need not; [HostDensePolicy] answers null for it and the portable path keeps it.
+        // library need not; [HostDensePolicy] refuses it and the portable path keeps it.
         if (!host(operation, work(operation, b.rows, b.cols, a.rows, alpha, right))) {
             if (solve) {
                 portable.trsm(a, b, lower, transpose, unitDiag, right, alpha, workspace)
@@ -524,33 +525,40 @@ internal object HostDensePolicy {
     }
 
     /**
-     * The multiply-adds a call may hand to a library, or null where it may not hand it any.
+     * The answer [multiplyAdds] gives for a call that may hand the library nothing, which is not a count.
      *
-     * Null covers three things that have one answer. An operation with no entry point of its own; a call
-     * whose own contract stops before the arithmetic; and a call that did not state the shared dimension its
-     * operation is defined over. Each belongs on the portable schedule, and the reason differs: the first has
-     * nowhere else to go, the second turns on no-read rules the standard leaves open, and the third is
-     * refused rather than answered.
+     * A negative value rather than zero, because zero multiply-adds is something a stated call can have and
+     * this is the absence of one. It covers three things with one answer: an operation with no entry point
+     * of its own, a call whose own contract stops before the arithmetic, and a call that did not state the
+     * shared dimension its operation is defined over. Each belongs on the portable schedule, and the reason
+     * differs: the first has nowhere else to go, the second turns on no-read rules the standard leaves open,
+     * and the third is refused rather than answered.
+     */
+    const val NO_HOST_CALL: Long = -1L
+
+    /**
+     * The multiply-adds a call may hand to a library, or [NO_HOST_CALL] where it may hand it none.
      *
      * The extents are [DenseCall]'s, so the execution paths and [HostDenseBlas.routeOf] pass the same facts
-     * and cannot disagree about which of them the call has.
+     * and cannot disagree about which of them the call has. An operation with no shared dimension passes a
+     * depth of one, which is the extent it is defined over rather than a stand-in for a missing fact; a
+     * missing one arrives only as a [DenseCall] and is refused by the overload that takes one.
      */
     @Suppress("LongParameterList", "CyclomaticComplexMethod") // the extents a call is measured over
     fun multiplyAdds(
         operation: DenseMatrixOperation,
         rows: Int,
         columns: Int,
-        depth: Int?,
+        depth: Int,
         alpha: Double,
         right: Boolean,
-    ): Long? {
-        if (entryPointFor(operation) == null) return null
-        if (needsDepth(operation) && depth == null) return null
+    ): Long {
+        if (entryPointFor(operation) == null) return NO_HOST_CALL
         // The rule the portable reporter stops on, restated over the same three extents.
-        if (alpha == 0.0 || rows == 0 || columns == 0 || depth == 0) return null
+        if (alpha == 0.0 || rows == 0 || columns == 0 || depth == 0) return NO_HOST_CALL
         val m = rows.toLong()
         val n = columns.toLong()
-        val k = (depth ?: 1).toLong()
+        val k = depth.toLong()
         return when (operation) {
             DenseMatrixOperation.Gemv, DenseMatrixOperation.GemvTransposed,
             DenseMatrixOperation.Symv, DenseMatrixOperation.Ger, DenseMatrixOperation.Syr2,
@@ -568,13 +576,20 @@ internal object HostDensePolicy {
             // The triangle's order is the depth, and the right-hand sides are B's other extent.
             DenseMatrixOperation.Trmm, DenseMatrixOperation.Trsm -> k * k * (if (right) m else n) / 2
 
-            else -> null
+            else -> NO_HOST_CALL
         }
     }
 
-    /** [multiplyAdds] over the extents a caller already holds as a [DenseCall]. */
-    fun multiplyAdds(operation: DenseMatrixOperation, call: DenseCall): Long? =
-        multiplyAdds(operation, call.rows, call.columns, call.depth, call.alpha, call.right)
+    /**
+     * [multiplyAdds] over the extents a caller already holds as a [DenseCall].
+     *
+     * A Level 3 operation whose call never stated its shared dimension is refused here rather than measured
+     * over the other two, which would describe a product nobody described.
+     */
+    fun multiplyAdds(operation: DenseMatrixOperation, call: DenseCall): Long {
+        if (needsDepth(operation) && call.depth == null) return NO_HOST_CALL
+        return multiplyAdds(operation, call.rows, call.columns, call.depth ?: 1, call.alpha, call.right)
+    }
 }
 
 /** The general route of one whole entry point, with no operands to settle a quick return from. */
