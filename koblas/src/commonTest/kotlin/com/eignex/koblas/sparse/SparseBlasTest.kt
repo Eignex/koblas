@@ -91,7 +91,7 @@ class SparseBlasTest {
         val zero = koblas.gemm(-0.0, a, true, b, false)
         assertContentEquals(actual.copyColumnPointers(), zero.copyColumnPointers())
         assertContentEquals(actual.copyRowIndices(), zero.copyRowIndices())
-        assertTrue(zero.values.all { it.toBits() == (-0.0).toBits() })
+        assertTrue(zero.values.all { it == 0.0 })
     }
 
     @Test
@@ -221,8 +221,8 @@ class SparseBlasTest {
 
         val aOnly = SparseMatrix.ofColumns(1, 1, listOf(listOf(0 to Double.NaN)))
         val empty = SparseMatrix.ofColumns(1, 1, listOf(emptyList()))
-        val signedZero = koblas.addScaled(-0.0, aOnly, false, empty)
-        assertEquals((-0.0).toBits(), signedZero.values.single().toBits())
+        val unread = koblas.addScaled(-0.0, aOnly, false, empty)
+        assertEquals(0.0, unread.values.single(), absoluteTolerance = 0.0)
     }
 
     @Test

@@ -5,10 +5,10 @@ package com.eignex.koblas.sparse.internal
 /**
  * Portable numerical leaves for the sparse accumulation contracts the matrix algorithms share.
  *
- * Product accumulation assigns its first contribution directly rather than adding to a zero, so a product
- * whose only term is a negative zero keeps its sign. The workspace accumulation
- * [com.eignex.koblas.sparse.SparsePrimitives] publishes starts from positive zero instead, which is why the
- * two are separate entry points rather than one with a flag.
+ * Product accumulation assigns a row's first contribution and adds to it afterwards, which is what the epoch
+ * marks are for. The workspace accumulation [com.eignex.koblas.sparse.SparsePrimitives] publishes starts from
+ * the zero it was cleared to instead, which is why the two are separate entry points rather than one with a
+ * flag.
  *
  * Every leaf writes only through the slices it is handed and allocates nothing.
  */
@@ -135,7 +135,7 @@ internal object SparseAccumulationKernels {
             when {
                 leftRow < rightRow -> {
                     outRows[outOffset + written] = leftRow
-                    outValues[outOffset + written] = if (alpha == 0.0) alpha else alpha * leftValues[left]
+                    outValues[outOffset + written] = if (alpha == 0.0) 0.0 else alpha * leftValues[left]
                     left++
                 }
 
@@ -226,7 +226,6 @@ internal object SparseAccumulationKernels {
         end: Int,
         firstRow: Int,
         lastRow: Int,
-        zero: Double,
         epoch: Int,
         sums: DoubleArray,
         marks: IntArray,
@@ -238,7 +237,7 @@ internal object SparseAccumulationKernels {
             val row = rowIndices[position]
             if (row < firstRow || row >= lastRow || marks[row] == epoch) continue
             marks[row] = epoch
-            sums[row] = zero
+            sums[row] = 0.0
             touched[used++] = row
         }
         return used
@@ -304,17 +303,10 @@ internal object SparseAccumulationKernels {
         outValues: DoubleArray,
         outOffset: Int,
     ) {
-        if (alpha == 0.0) {
-            for (at in 0 until touchedCount) {
-                outRows[outOffset + at] = touched[at]
-                outValues[outOffset + at] = alpha
-            }
-        } else {
-            for (at in 0 until touchedCount) {
-                val row = touched[at]
-                outRows[outOffset + at] = row
-                outValues[outOffset + at] = alpha * sums[row]
-            }
+        for (at in 0 until touchedCount) {
+            val row = touched[at]
+            outRows[outOffset + at] = row
+            outValues[outOffset + at] = alpha * sums[row]
         }
     }
 

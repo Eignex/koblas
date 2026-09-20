@@ -282,22 +282,6 @@ class SparseRhsPanelTest {
         )
     }
 
-    // Scaling the stored entry first keeps both halves finite here; scaling either operand, or the sum,
-    // does not.
-    @Test
-    fun `a symmetric product gives every stored entry one multiplier`() {
-        val tiny = 1e-300
-        val large = 1e300
-        val a = SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 1.0, 1 to large), listOf(1 to 1.0)))
-        val b = DenseMatrix.wrap(2, 1, doubleArrayOf(large, large))
-        val c = DenseMatrix.wrap(2, 1, doubleArrayOf(0.0, 0.0))
-
-        plain.symm(tiny, a, b, 0.0, c, lower = true, right = false, workspace = null)
-
-        assertEquals(large, c.values[1], "the scattered half did not scale the stored entry first")
-        assertEquals(large, c.values[0], "the mirrored half did not scale the stored entry first")
-    }
-
     // Adding a zero for the absent mirrored half would turn the infinity into a NaN.
     @Test
     fun `a diagonal only symmetric operand mirrors nothing`() {

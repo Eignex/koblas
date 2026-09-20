@@ -71,13 +71,8 @@ public interface SparseBlas {
      * neither input; `beta == 0.0` does not read [c]. Shared input and destination buffers are staged, with
      * [workspace] reused when supplied.
      *
-     * Where [alpha] multiplies is stated rather than left open, because with a non-finite operand it is not
-     * a rounding question. A built-in implementation gives every stored entry one multiplier,
-     * `alpha · value`, and spends it on both halves of the product that entry takes part in: the row the
-     * column is spread into and the row it is mirrored back into, term by term in the order the column is
-     * walked. With the sparse operand on the right the same multiplier updates a whole dense column. So an
-     * `alpha` of infinity against a stored zero is a NaN wherever that entry lands; for finite operands the
-     * grouping is the reassociation every product in this library is allowed.
+     * Which operand [alpha] is folded into, and the order the terms of one entry are summed in, are the
+     * implementation's, as in every product here.
      */
     @Suppress("LongParameterList")
     public fun symm(
@@ -167,7 +162,7 @@ public interface SparseBlas {
      * Fresh CSC `alpha · op(A) · op(B)`. Product support is discovered from stored positions, including
      * explicit zeros, retained cancellations, and underflowed values; rows are sorted within every column
      * and all result arrays are owned. When `alpha == 0.0`, the same structure is discovered without reading
-     * operand values and filled with alpha's signed zero.
+     * operand values, and every entry of it is zero.
      */
     @Suppress("LongParameterList")
     public fun gemm(
