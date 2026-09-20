@@ -416,7 +416,7 @@ internal class NativeVendorBlas private constructor(
 
     private fun twoVector(x: DenseVector, y: DenseVector, operation: BlasOperation, what: String) {
         requireSameSize(x.size, y.size, what)
-        if (noWorkReason(emptyList(), listOf(x)) != null) return
+        if (noWork(x)) return
         withPins { pins ->
             val px = pins.stage(x)
             val py = pins.stage(y)
@@ -441,7 +441,7 @@ internal class NativeVendorBlas private constructor(
         y: DenseVector,
     ) {
         requireGemvOperands(a, transposeA, x.size, y.size)
-        if (noWorkReason(listOf(a), emptyList()) != null) return
+        if (noWork(a)) return
         withPins { pins ->
             val pa = pins.stage(a)
             val px = pins.stage(x)
@@ -464,7 +464,7 @@ internal class NativeVendorBlas private constructor(
     ) {
         requireStructured(structure, "symv")
         requireSymvOperands(a, x.size, y.size)
-        if (noWorkReason(listOf(a), emptyList()) != null) return
+        if (noWork(a)) return
         withPins { pins ->
             val pa = pins.stage(a)
             val px = pins.stage(x)
@@ -479,7 +479,7 @@ internal class NativeVendorBlas private constructor(
 
     override fun ger(alpha: Double, x: DenseVector, y: DenseVector, a: DenseMatrix) {
         requireGerOperands(x.size, y.size, a)
-        if (noWorkReason(listOf(a), emptyList()) != null) return
+        if (noWork(a)) return
         withPins { pins ->
             val pa = pins.stage(a)
             val px = pins.stage(x)
@@ -495,7 +495,7 @@ internal class NativeVendorBlas private constructor(
     override fun syr(alpha: Double, x: DenseVector, a: DenseMatrix, structure: MatrixStructure) {
         requireStructured(structure, "syr")
         requireSyrOperands(a, x.size, "syr")
-        if (noWorkReason(listOf(a), emptyList()) != null) return
+        if (noWork(a)) return
         withPins { pins ->
             val pa = pins.stage(a)
             val px = pins.stage(x)
@@ -516,7 +516,7 @@ internal class NativeVendorBlas private constructor(
     override fun syr2(alpha: Double, x: DenseVector, y: DenseVector, a: DenseMatrix, structure: MatrixStructure) {
         requireStructured(structure, "syr2")
         requireSyr2Operands(a, x.size, y.size, "syr2")
-        if (noWorkReason(listOf(a), emptyList()) != null) return
+        if (noWork(a)) return
         withPins { pins ->
             val pa = pins.stage(a)
             val px = pins.stage(x)
@@ -546,7 +546,7 @@ internal class NativeVendorBlas private constructor(
     ) {
         requireTriangular(structure, what)
         requireTriangularVectorOperands(a, x.size, what)
-        if (noWorkReason(listOf(a), emptyList()) != null) return
+        if (noWork(a)) return
         withPins { pins ->
             val pa = pins.stage(a)
             val px = pins.stage(x)
@@ -572,7 +572,7 @@ internal class NativeVendorBlas private constructor(
     ) {
         val depth = if (transposeA) a.rows else a.cols
         requireGemmOperands(a, transposeA, b, transposeB, c)
-        if (noWorkReason(listOf(c), emptyList()) != null) return
+        if (noWork(c)) return
         withPins { pins ->
             val pa = pins.stage(a)
             val pb = pins.stage(b)
@@ -599,7 +599,7 @@ internal class NativeVendorBlas private constructor(
     ) {
         requireStructured(structure, "symm")
         requireSymmOperands(a, b, c, rightSide)
-        if (noWorkReason(listOf(c), emptyList()) != null) return
+        if (noWork(c)) return
         withPins { pins ->
             val pa = pins.stage(a)
             val pb = pins.stage(b)
@@ -625,7 +625,7 @@ internal class NativeVendorBlas private constructor(
         requireStructured(structure, "syrk")
         requireSyrkOperands(a, transposeA, c)
         val depth = if (transposeA) a.rows else a.cols
-        if (noWorkReason(listOf(c), emptyList()) != null) return
+        if (noWork(c)) return
         withPins { pins ->
             val pa = pins.stage(a)
             val pc = pins.stage(c)
@@ -651,7 +651,7 @@ internal class NativeVendorBlas private constructor(
         requireStructured(structure, "syr2k")
         requireSyr2kOperands(a, b, transposeA, c)
         val depth = if (transposeA) a.rows else a.cols
-        if (noWorkReason(listOf(c), emptyList()) != null) return
+        if (noWork(c)) return
         withPins { pins ->
             val pa = pins.stage(a)
             val pb = pins.stage(b)
@@ -698,7 +698,7 @@ internal class NativeVendorBlas private constructor(
     ) {
         requireTriangular(structure, what)
         requireTriangularMatrixOperands(a, b, rightSide, what)
-        if (noWorkReason(listOf(b), emptyList()) != null) return
+        if (noWork(b)) return
         withPins { pins ->
             val pa = pins.stage(a)
             val pb = pins.stage(b)
@@ -726,7 +726,7 @@ internal class NativeVendorBlas private constructor(
         requireStructured(structure, "gemmt")
         requireGemmtOperands(a, transposeA, b, transposeB, c)
         val depth = if (transposeA) a.rows else a.cols
-        if (noWorkReason(listOf(c), emptyList()) != null) return
+        if (noWork(c)) return
         if (BlasOperation.Gemmt !in directlyImplemented) {
             return composeGemmt(alpha, a, transposeA, b, transposeB, beta, c, structure)
         }

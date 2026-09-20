@@ -49,19 +49,34 @@ internal fun routeFor(
 }
 
 /**
+ * Whether [x] leaves a call with nothing to do.
+ *
+ * The rule itself, which an execution path asks of the one operand governing its quick return and
+ * [noWorkReason] asks of every operand a route was given. Stating it once is what keeps a call that returns
+ * without reaching BLAS from being described as having reached it, and asking it of an operand rather than
+ * of a list of them is what keeps the question off the arithmetic path's allocation budget.
+ */
+internal fun noWork(x: DenseVector): Boolean = x.size == 0
+
+/** The same rule over a matrix operand. */
+internal fun noWork(a: DenseMatrix): Boolean = a.rows == 0 || a.cols == 0
+
+/**
  * Why this call has nothing to do, or null when it has.
  *
- * The one rule both the execution paths and [Blas.routeOf] read, so a call that returns without reaching
- * BLAS cannot be described as having reached it. Callers pass the operands whose extents govern their quick
- * return: Level 3 passes only its destination because a zero product depth still scales it. No scalar makes a
- * call no-work, because none of the bound entry points is skipped on a zero multiplier and inventing that
- * would describe a call that does run as one that does not.
+ * Callers pass the operands whose extents govern their quick return: Level 3 passes only its destination
+ * because a zero product depth still scales it. No scalar makes a call no-work, because none of the bound
+ * entry points is skipped on a zero multiplier and inventing that would describe a call that does run as one
+ * that does not.
  */
 internal fun noWorkReason(matrices: List<DenseMatrix>, vectors: List<DenseVector>): String? {
-    if (vectors.any { it.size == 0 }) return "an operand has no entries"
-    if (matrices.any { it.rows == 0 || it.cols == 0 }) return "an operand has no entries"
+    for (i in vectors.indices) if (noWork(vectors[i])) return NO_ENTRIES
+    for (i in matrices.indices) if (noWork(matrices[i])) return NO_ENTRIES
     return null
 }
+
+/** What a call with an empty operand reports, which is the same for either operand shape. */
+private const val NO_ENTRIES = "an operand has no entries"
 
 /** The route of a call whose own contract says there is nothing to do. */
 internal fun noWorkRoute(operation: BlasOperation, vendor: Vendor, reason: String): CallRoute = CallRoute(
