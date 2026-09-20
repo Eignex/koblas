@@ -3,6 +3,7 @@ package com.eignex.koblas.sparse
 import com.eignex.koblas.BuiltinEngines
 import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.dense.DenseOperation
+import com.eignex.koblas.dense.PanelWork
 import com.eignex.koblas.vendor.RouteKind
 import kotlin.test.Test
 import kotlin.test.assertContains
@@ -231,12 +232,106 @@ class SparseMatrixRouteTest {
         )
         val real = engine.matrixRouteOf(
             SparseMatrixOperation.GemmDense,
-            SparseCall(a, alpha = 1.0, beta = 1.0, destinationElements = 4096, depth = 32),
+            SparseCall(
+                a,
+                alpha = 1.0,
+                beta = 1.0,
+                destinationElements = 4096,
+                depth = 32,
+                rightHandSides = 16,
+            ),
         )
 
         assertEquals(RouteKind.NoWork, emptyDestination.kind, "a destination with no elements")
         assertEquals(RouteKind.NoWork, emptyDepth.kind, "a product over nothing")
         assertEquals(RouteKind.Direct, real.kind, "a product with work to do")
+    }
+
+    /**
+     * A product whose facts leave out the right-hand side count is reported as undecided rather than as a
+     * call with no panel.
+     *
+     * The count is what the grouping, the staging and the bodies all follow from, so a route derived without
+     * it would be a confident answer about a call whose shape it does not know. Saying so is the difference
+     * between a missing fact and a fact that says nothing runs.
+     */
+    @Test
+    fun `a product with no right hand side count reports that its panels are underivable`() {
+        val engine = BuiltinEngines.scalar
+        val a = uniform(columns = 4, perColumn = 32)
+
+        val route = engine.matrixRouteOf(
+            SparseMatrixOperation.GemmDense,
+            SparseCall(a, alpha = 1.0, beta = 1.0, destinationElements = 4096, depth = 32),
+        )
+
+        assertEquals(RouteKind.Composed, route.kind)
+        assertTrue(route.components.none { it.endsWith("/sparse-rhs-scatter") }, route.toString())
+        assertTrue(route.reason.orEmpty().contains("no right-hand side count"), route.toString())
+    }
+
+    /**
+     * The same missing fact with no destination extent either, which is what a caller building the smallest
+     * possible descriptor gives.
+     *
+     * A call with nothing to do has already returned by the time the panels are asked about, so what is
+     * left is a call that will cut panels and a descriptor that does not say how many. Reporting a
+     * confident portable answer there was the defect; the destination extent is not a stand-in for the
+     * count, and a report reads the route's own flag rather than guessing from an empty component list.
+     */
+    @Test
+    fun `a product with neither destination nor right hand side facts is reported unresolved`() {
+        val engine = BuiltinEngines.scalar
+        val a = uniform(columns = 4, perColumn = 32)
+
+        val route = engine.matrixRouteOf(SparseMatrixOperation.GemmDense, SparseCall(a, alpha = 1.0))
+
+        assertEquals(RouteKind.Composed, route.kind)
+        assertEquals(false, route.resolved, route.toString())
+        assertTrue(route.components.none { it.endsWith("/sparse-rhs-scatter") }, route.toString())
+    }
+
+    /** An unresolved route still names what the facts do settle, such as a destination scaling. */
+    @Test
+    fun `an unresolved route keeps the scaling its facts do settle`() {
+        val engine = BuiltinEngines.scalar
+        val a = uniform(columns = 4, perColumn = 32)
+
+        val route = engine.matrixRouteOf(
+            SparseMatrixOperation.GemmDense,
+            SparseCall(a, alpha = 1.0, beta = -0.25, destinationElements = 4096, depth = 32),
+        )
+
+        assertEquals(false, route.resolved, route.toString())
+        assertTrue(route.components.any { it.endsWith("/scale") }, route.toString())
+    }
+
+    /** The geometry a call resolved is in its reason, which is a scheduling choice and not a lane count. */
+    @Test
+    fun `a product names the grouping and the last group it cut`() {
+        val engine = BuiltinEngines.scalar
+        val a = uniform(columns = 4, perColumn = 32)
+
+        val route = engine.matrixRouteOf(
+            SparseMatrixOperation.GemmDense,
+            SparseCall(
+                a,
+                alpha = 1.0,
+                beta = 1.0,
+                destinationElements = 4096,
+                depth = 32,
+                rightHandSides = 9,
+            ),
+        )
+
+        val group = BuiltinEngines.scalar.panelKernels.executionGroup(PanelWork.SparseRightHandSides, 32, 9)
+        assertEquals(group, route.executionGroup, "the route did not carry its grouping: $route")
+        assertEquals(9 % group, route.executionTail, "the route did not carry its last group: $route")
+        assertEquals(
+            if (9 % group == 0) "@$group" else "@$group+${9 % group}",
+            route.groupSuffix,
+            "the published grouping",
+        )
     }
 
     /**

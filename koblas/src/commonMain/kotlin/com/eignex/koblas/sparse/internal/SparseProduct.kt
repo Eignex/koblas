@@ -4,6 +4,7 @@ import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.UnsafeKoblasApi
 import com.eignex.koblas.requireShape
+import com.eignex.koblas.sparse.SparseTuning
 
 /**
  * `A · B` for two CSC operands, by Gustavson's method: one column of the result at a time, accumulated in a
@@ -62,10 +63,10 @@ internal fun multiplySparse(
             }
         }
         builder.reserve(used)
-        // Rows arrive in whatever order the contributing columns held them, and CSC wants them ascending.
-        // Sorted where they were collected, since the scratch is already this column's and nothing else
-        // reads it before the next column overwrites the same prefix.
-        touched.sort(0, used)
+        // Rows arrive in whatever order the contributing columns held them, and CSC wants them ascending,
+        // which is either a sort of what was collected or a sweep of the range it came from. The scratch is
+        // already this column's and nothing else reads it before the next column overwrites the same prefix.
+        orderTouchedRows(touchedIn, epoch, firstRow, lastRow, touched, used)
         SparseAccumulationKernels.emitScaledSupport(
             alpha,
             touched,
@@ -78,7 +79,7 @@ internal fun multiplySparse(
         builder.advance(used)
         outPointers[j + 1] = builder.size
     }
-    // Each column's rows were sorted where they were collected, and a scatter list holds each row once.
+    // Each column's rows were put in order where they were collected, and a scatter list holds each row once.
     return builder.finish(rows, b.cols, outPointers)
 }
 
@@ -131,7 +132,14 @@ internal fun symmetricRankProduct(a: SparseMatrix, transpose: Boolean, lower: Bo
             rowPointers, adjacentColumns, adjacentPositions,
         )
         builder.reserve(used)
-        touched.sort(0, used)
+        orderTouchedRows(
+            touchedAt,
+            j + 1,
+            if (lower) j else 0,
+            if (lower) order else j + 1,
+            touched,
+            used,
+        )
         SparseAccumulationKernels.emitScaledSupport(
             1.0,
             touched,
@@ -174,6 +182,34 @@ internal fun symmetricRankInto(
         SparseAccumulationKernels.addScaledSupportToDense(alpha, touched, used, sums, c.values, j * order)
     }
 }
+
+/**
+ * Puts the rows one column touched into ascending order, by whichever of the two ways is cheaper.
+ *
+ * Sorting costs with what the column holds and sweeping with the range it could have reached, so a column
+ * that touched most of its range is swept and a thin one is sorted. Both produce the same rows, and the
+ * sweep reads them from the marks the accumulation already wrote, so neither needs a pass of its own to set
+ * up. [SparseTuning.supportSweepFactor] is where the crossover between them is.
+ */
+@Suppress("LongParameterList") // the marks, the range they cover, and the list being ordered
+private fun orderTouchedRows(
+    marks: IntArray,
+    epoch: Int,
+    firstRow: Int,
+    lastRow: Int,
+    touched: IntArray,
+    used: Int,
+) {
+    if (used > 1 && sweepsTouchedRows(used, lastRow - firstRow)) {
+        SparseAccumulationKernels.collectTouchedRows(marks, epoch, firstRow, lastRow, touched)
+    } else {
+        touched.sort(0, used)
+    }
+}
+
+/** Whether a column that touched [used] of [range] rows is cheaper swept than sorted. */
+internal fun sweepsTouchedRows(used: Int, range: Int): Boolean =
+    range.toLong() <= used.toLong() * SparseTuning.supportSweepFactor
 
 /** Accumulates one selected rank-update column while adjacency and triangle scheduling stay structural policy. */
 @OptIn(UnsafeKoblasApi::class)

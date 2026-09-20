@@ -42,14 +42,37 @@ internal object Fixtures {
         return matrix
     }
 
-    fun sparse(rows: Int, cols: Int, density: Double, operand: Int, triangular: Boolean = false, lower: Boolean = true): SparseMatrix {
+    /**
+     * A sparse operand of the named support distribution.
+     *
+     * Where the stored entries are costs as much as how many there are, so a case names the distribution
+     * beside the density and the two are independent. `uniform` scatters the same count over every column;
+     * `banded` keeps a column's entries next to the diagonal, which is where a discretisation puts them and
+     * where a scatter's destination stays resident; `skewed` gives an eighth of the columns most of the
+     * entries; `empty` leaves a quarter of the columns with nothing stored; and `mixed` alternates short
+     * columns with long ones. The stored count per column is what changes, never the shape or the
+     * requested logical work.
+     */
+    @Suppress("LongParameterList") // the shape, the density, the distribution and the triangle flags
+    fun sparse(
+        rows: Int,
+        cols: Int,
+        density: Double,
+        operand: Int,
+        triangular: Boolean = false,
+        lower: Boolean = true,
+        support: String = "uniform",
+    ): SparseMatrix {
         val rowIndices = ArrayList<Int>()
         val columnIndices = ArrayList<Int>()
         val values = ArrayList<Double>()
-        val count = ((rows * density) + 0.5).toInt().coerceIn(1, rows)
+        val average = ((rows * density) + 0.5).toInt().coerceIn(1, rows)
         for (j in 0 until cols) {
+            val count = countFor(support, average, rows, j)
             val columnSeed = FIXTURE_SEED xor ((operand * 65537L + j) * -7046029254386353131L)
-            val candidates = Array(rows) { row -> Candidate(mix(columnSeed + row * -7046029254386353131L), row) }
+            val candidates = Array(rows) { row ->
+                Candidate(key(support, rows, cols, j, row, mix(columnSeed + row * -7046029254386353131L)), row)
+            }
             candidates.sortWith(compareBy<Candidate> { it.key }.thenBy { it.row })
             val selected = candidates.take(count).map { it.row }.sorted()
             val random = stream(operand * 104729 + j)
@@ -78,6 +101,33 @@ internal object Fixtures {
         val matrix = sparse(size, 1, density, operand)
         return SparseVector.of(size, matrix.copyRowIndices(), matrix.values)
     }
+
+    /** How many entries one column of this distribution holds, around [average]. */
+    private fun countFor(support: String, average: Int, rows: Int, column: Int): Int = when (support) {
+        "skewed" -> if (column % 8 == 0) (average * 6).coerceAtMost(rows) else (average / 4).coerceAtLeast(1)
+        "empty" -> if (column % 4 == 0) 0 else average
+        "mixed" -> if (column % 2 == 0) (average / 8).coerceAtLeast(1) else (average * 4).coerceAtMost(rows)
+        else -> average
+    }
+
+    /**
+     * The key a row is selected by, which is a hash except where the band decides the order.
+     *
+     * The lowest keys are taken, so putting the distance from the diagonal in the high bits and the hash in
+     * the low ones makes a banded column fall next to its diagonal without changing how many entries it
+     * holds or how they are drawn. The distance is at most the row count, which the case grammar bounds well
+     * below what the shift can carry, so the two halves never run into each other.
+     */
+    @Suppress("LongParameterList") // the distribution, the shape, the position and the hash
+    private fun key(support: String, rows: Int, cols: Int, column: Int, row: Int, hash: Long): Long {
+        if (support != "banded") return hash
+        val centre = if (cols <= 1) 0L else column.toLong() * (rows - 1) / (cols - 1)
+        val distance = (row - centre).let { if (it < 0) -it else it }
+        return (distance shl BAND_SHIFT) or (hash ushr (Long.SIZE_BITS - BAND_SHIFT))
+    }
+
+    /** Bits left for the hash under the distance, which is every bit the distance itself cannot need. */
+    private const val BAND_SHIFT = 40
 
     private data class Candidate(val key: Long, val row: Int)
 

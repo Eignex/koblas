@@ -76,7 +76,7 @@ class SparseNoReadTest {
         prepared.gemm(0.0, transposeA = true, b = DenseMatrix.diagonal(2), beta = 2.0, c = destination)
 
         assertContentEquals(doubleArrayOf(2.0, 4.0, 6.0, 8.0), destination.values)
-        assertFalse(prepared.transposeDerived, "a product contributing nothing built the transpose cache")
+        assertFalse(prepared.orientationDerived, "a product contributing nothing built the transpose cache")
     }
 
     @Test
@@ -88,7 +88,7 @@ class SparseNoReadTest {
         val expected = koblas.gemm(0.0, example(), true, other, false)
 
         assertEquals(expected, result, "the structure a zero multiplier discovers is the same either way")
-        assertFalse(prepared.transposeDerived, "a product contributing nothing built the transpose cache")
+        assertFalse(prepared.orientationDerived, "a product contributing nothing built the transpose cache")
     }
 
     @Test
@@ -101,7 +101,7 @@ class SparseNoReadTest {
 
         assertEquals(first, second)
         assertEquals(koblas.gemm(1.0, example(), true, other, false), first)
-        assertEquals(true, prepared.transposeDerived)
+        assertEquals(true, prepared.orientationDerived)
     }
 
     @Test
@@ -112,6 +112,6 @@ class SparseNoReadTest {
         val failure = runCatching { prepared.gemm(1.0, transposeA = true, b = mismatched, transposeB = false) }
 
         assertEquals(true, failure.isFailure)
-        assertFalse(prepared.transposeDerived, "a call rejected for its shape prepared an orientation first")
+        assertFalse(prepared.orientationDerived, "a call rejected for its shape prepared an orientation first")
     }
 }

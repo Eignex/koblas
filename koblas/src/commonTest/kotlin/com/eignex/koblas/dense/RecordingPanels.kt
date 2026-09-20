@@ -32,10 +32,15 @@ internal class RecordingPanels(
 
     override val name: String get() = "recording(${delegate.name})"
 
-    override fun executionGroup(work: PanelWork, rows: Int, columns: Int): Int = when {
-        group == null -> delegate.executionGroup(work, rows, columns)
+    override fun executionGroup(work: PanelWork, rows: Int, columns: Int, contiguous: Boolean): Int = when {
+        group == null -> delegate.executionGroup(work, rows, columns, contiguous)
         columns <= 0 -> 1
         else -> minOf(group, columns)
+    }
+
+    override fun prefersContiguous(work: PanelWork, rows: Int, columns: Int): Boolean = when (threshold) {
+        null -> delegate.prefersContiguous(work, rows, columns)
+        else -> rows >= threshold
     }
 
     override fun implementationFor(work: PanelWork, rows: Int, columns: Int, contiguous: Boolean): String = when {
@@ -44,9 +49,9 @@ internal class RecordingPanels(
         else -> "narrow"
     }
 
-    private fun record(work: PanelWork, rows: Int, columns: Int) {
+    private fun record(work: PanelWork, rows: Int, columns: Int, contiguous: Boolean = true) {
         windows.add(rows)
-        if (rows > 0) bodies.add(implementationFor(work, rows, columns))
+        if (rows > 0) bodies.add(implementationFor(work, rows, columns, contiguous))
     }
 
     override fun multiDot(
@@ -127,6 +132,70 @@ internal class RecordingPanels(
         delegate.rankUpdate(
             alpha, a, aOffset, lda, x, xOffset, xStride, rows, columns,
             coefficients, coefficientOffset, coefficientStride,
+        )
+    }
+
+    override fun indexedColumnUpdate(
+        alpha: Double,
+        a: DoubleArray,
+        aOffset: Int,
+        rowStride: Int,
+        indexStride: Int,
+        indices: IntArray,
+        values: DoubleArray,
+        fromIndex: Int,
+        columns: Int,
+        rows: Int,
+        y: DoubleArray,
+        yOffset: Int,
+    ) {
+        if (columns > 0) record(PanelWork.SparseRightHandSides, rows, columns, rowStride == 1)
+        delegate.indexedColumnUpdate(
+            alpha, a, aOffset, rowStride, indexStride, indices, values, fromIndex, columns, rows, y, yOffset,
+        )
+    }
+
+    override fun indexedRankUpdate(
+        alpha: Double,
+        a: DoubleArray,
+        aOffset: Int,
+        rowStride: Int,
+        indexStride: Int,
+        indices: IntArray,
+        values: DoubleArray,
+        fromIndex: Int,
+        columns: Int,
+        rows: Int,
+        x: DoubleArray,
+        xOffset: Int,
+    ) {
+        if (columns > 0) record(PanelWork.SparseRightHandSides, rows, columns, rowStride == 1)
+        delegate.indexedRankUpdate(
+            alpha, a, aOffset, rowStride, indexStride, indices, values, fromIndex, columns, rows, x, xOffset,
+        )
+    }
+
+    override fun indexedCoupledUpdate(
+        alpha: Double,
+        a: DoubleArray,
+        b: DoubleArray,
+        offset: Int,
+        rowStride: Int,
+        indexStride: Int,
+        indices: IntArray,
+        values: DoubleArray,
+        fromIndex: Int,
+        columns: Int,
+        rows: Int,
+        pivot: Int,
+        sums: DoubleArray,
+        sumOffset: Int,
+        excluded: Int,
+    ) {
+        if (columns > 0) record(PanelWork.SparseRightHandSides, rows, columns, rowStride == 1)
+        delegate.indexedCoupledUpdate(
+            alpha, a, b, offset, rowStride, indexStride, indices, values, fromIndex, columns, rows,
+            pivot, sums, sumOffset, excluded,
         )
     }
 }

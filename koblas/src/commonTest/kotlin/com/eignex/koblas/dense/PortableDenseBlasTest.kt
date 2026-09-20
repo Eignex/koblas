@@ -24,7 +24,7 @@ import kotlin.test.assertTrue
 private class RegroupedPanels(private val group: Int) : DensePanelKernels by PortablePanelKernels {
     override val name: String get() = "regrouped($group)"
 
-    override fun executionGroup(work: PanelWork, rows: Int, columns: Int): Int = group
+    override fun executionGroup(work: PanelWork, rows: Int, columns: Int, contiguous: Boolean): Int = group
 }
 
 /**

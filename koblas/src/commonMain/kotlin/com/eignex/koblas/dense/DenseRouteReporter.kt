@@ -546,6 +546,7 @@ internal class DenseRouteReporter(
         PanelWork.CoupledDotUpdate -> "coupled-dot-update"
         PanelWork.RankUpdate -> "rank-update"
         PanelWork.SparseRightHandSides -> "sparse-rhs"
+        PanelWork.SparseRightHandSideReduction -> "sparse-rhs-reduction"
     }
 }
 

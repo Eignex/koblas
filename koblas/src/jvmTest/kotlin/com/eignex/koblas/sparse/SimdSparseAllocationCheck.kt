@@ -1,6 +1,11 @@
 package com.eignex.koblas.sparse
 
 import com.eignex.koblas.BuiltinEngines
+import com.eignex.koblas.DenseMatrix
+import com.eignex.koblas.KoblasEngine
+import com.eignex.koblas.SparseMatrix
+import com.eignex.koblas.Workspace
+import com.eignex.koblas.dense.PanelWork
 import com.sun.management.ThreadMXBean
 import java.lang.management.ManagementFactory
 
@@ -9,14 +14,40 @@ import java.lang.management.ManagementFactory
  *
  * Kover's test instrumentation prevents HotSpot from scalar-replacing Vector API carriers, so this intentionally
  * runs through the `simdSparseAllocationCheck` Gradle task instead of a test task.
+ *
+ * Three kinds of probe. The indexed Level 1 leaves are the oldest and are still here; the two indexed panel
+ * leaves are where a group of right-hand sides is computed; and the whole sparse operations around them are
+ * what a caller writes, which a panel measured on its own cannot speak for. Each whole operation is handed a
+ * warmed workspace, because that is the contract a repeated call is held to: the scratch it borrows comes
+ * back and is lent again rather than allocated per call.
+ *
+ * Whether a body allocates depends on the width of the species and on whether a multiply-add is one
+ * instruction, and both are fixed when the virtual machine starts, so the Gradle tasks run this in three
+ * configurations rather than trusting one.
  */
 internal object SimdSparseAllocationCheck {
     internal const val ENTRY_COUNT = 512
     private const val DIMENSION = ENTRY_COUNT * 4
-    private const val MAX_BYTES_PER_CALL = 64.0
+    private const val MAX_BYTES_PER_CALL = 8.0
     private const val WARMUP_ITERATIONS = 20_000
     private const val MEASUREMENT_ITERATIONS = 10_000
     private const val MEASUREMENT_WINDOWS = 3
+
+    /** Right-hand sides the panel probes hand over, which is several lane blocks at any species. */
+    private const val PANEL_SIDES = 64
+
+    /** Stored entries one probed run holds, which is more than any backend's own grouping. */
+    private const val PANEL_ENTRIES = 32
+
+    /** A square operand large enough to stage and small enough to repeat thousands of times. */
+    private const val ORDER = 96
+
+    /** Right-hand sides a whole-operation probe carries, wider than one group and not a multiple of it. */
+    private const val SIDES = 13
+
+    /** One whole sparse call is the arithmetic of many panels, so it repeats fewer times. */
+    private const val OPERATION_WARMUP = 2_000
+    private const val OPERATION_ITERATIONS = 500
 
     private val allocationBean = ManagementFactory.getThreadMXBean() as ThreadMXBean
 
@@ -39,6 +70,10 @@ internal object SimdSparseAllocationCheck {
             "SIMD sparse allocation check uses $ENTRY_COUNT entries below " +
                 "the ${SparseTuning.simdIndexedCrossover}-entry crossover"
         }
+        val panels = engine.panelKernels
+        require(panels.implementationFor(PanelWork.SparseRightHandSides, PANEL_SIDES, PANEL_ENTRIES) == panels.name) {
+            "the panel probes use $PANEL_SIDES right-hand sides, which do not reach the vector body"
+        }
 
         val indices = IntArray(ENTRY_COUNT) { 1 + it * 4 }
         val values = DoubleArray(ENTRY_COUNT) { it * 0.125 - 16.0 }
@@ -57,24 +92,207 @@ internal object SimdSparseAllocationCheck {
             // Exercise the Vector API leaf even where production prefers scalar indexed loads.
             SparseSimd.nrm2(indices, 0, ENTRY_COUNT, dense)
         }
+        checkPanels(engine)
+        checkOperations(engine)
+    }
+
+    /** The two indexed panel leaves, over an adjacent group of right-hand sides and over a strided one. */
+    private fun checkPanels(engine: KoblasEngine) {
+        val panels = engine.panelKernels
+        val entries = PANEL_ENTRIES
+        val positions = 4 * entries
+        val indices = IntArray(entries) { it * 4 }
+        val values = DoubleArray(entries) { 0.5 + it * 0.125 }
+        val work = DoubleArray(PANEL_SIDES) { 1.0 + it * 0.25 }
+        for (adjacent in booleanArrayOf(true, false)) {
+            val rowStride = if (adjacent) 1 else positions
+            val indexStride = if (adjacent) PANEL_SIDES else 1
+            val block = DoubleArray(PANEL_SIDES * rowStride + positions * indexStride) { 1.0 + (it % 13) * 0.0625 }
+            val layout = if (adjacent) "adjacent" else "strided"
+            assertAllocationFree("indexed column update over $layout right-hand sides") {
+                panels.indexedColumnUpdate(
+                    0.875, block, 0, rowStride, indexStride, indices, values, 0, entries, PANEL_SIDES, work, 0,
+                )
+                work[0]
+            }
+            assertAllocationFree("indexed rank update over $layout right-hand sides") {
+                panels.indexedRankUpdate(
+                    0.875, block, 0, rowStride, indexStride, indices, values, 0, entries, PANEL_SIDES, work, 0,
+                )
+                block[0]
+            }
+            // The coupled pass reads one window and writes two, so it holds more live vectors than either
+            // of the two it fuses and is the one most likely to spill.
+            val source = DoubleArray(block.size) { 0.5 + (it % 11) * 0.125 }
+            // A row of the panel, which is where a symmetric column's mirrored half lands: as many entries
+            // as there are right-hand sides, spaced the way the panel spaces them.
+            val sums = DoubleArray(PANEL_SIDES * rowStride)
+            assertAllocationFree("indexed coupled update over $layout right-hand sides") {
+                panels.indexedCoupledUpdate(
+                    0.875, block, source, 0, rowStride, indexStride, indices, values, 0, entries,
+                    PANEL_SIDES, 0, sums, 0, -1,
+                )
+                sums[0]
+            }
+            assertAllocationFree("indexed coupled update with an excluded position over $layout sides") {
+                panels.indexedCoupledUpdate(
+                    0.875, block, source, 0, rowStride, indexStride, indices, values, 0, entries,
+                    PANEL_SIDES, 0, sums, 0, entries / 2,
+                )
+                sums[0]
+            }
+        }
+    }
+
+    /**
+     * The whole sparse operations a caller writes, each with a warmed workspace.
+     *
+     * The products are run in both orientations because they are different schedules, and the symmetric and
+     * triangular routines on both sides for the same reason. A fresh CSC result is not here: that call owns
+     * the arrays it returns, so its allocation is its answer rather than a leak.
+     */
+    private fun checkOperations(engine: KoblasEngine) {
+        val a = banded(ORDER, ORDER, 12)
+        val triangle = lowerTriangle(ORDER, 12)
+        val b = DenseMatrix.wrap(ORDER, SIDES, DoubleArray(ORDER * SIDES) { 1.0 + (it % 11) * 0.125 })
+        val wide = DenseMatrix.wrap(SIDES, ORDER, DoubleArray(ORDER * SIDES) { 1.0 + (it % 7) * 0.25 })
+        val c = DenseMatrix.wrap(ORDER, SIDES, DoubleArray(ORDER * SIDES))
+        val cWide = DenseMatrix.wrap(SIDES, ORDER, DoubleArray(ORDER * SIDES))
+        val x = DoubleArray(ORDER) { 1.0 + (it % 5) * 0.5 }
+        val y = DoubleArray(ORDER)
+        val workspace = Workspace()
+
+        for (transposeA in booleanArrayOf(false, true)) {
+            for (transposeB in booleanArrayOf(false, true)) {
+                val operand = if (transposeB) DenseMatrix.wrap(SIDES, ORDER, b.values) else b
+                assertAllocationFree(
+                    "sparse product transposeA=$transposeA transposeB=$transposeB",
+                    OPERATION_WARMUP,
+                    OPERATION_ITERATIONS,
+                ) {
+                    engine.gemm(0.875, a, transposeA, operand, transposeB, -0.25, c, false, workspace)
+                    c.values[0]
+                }
+            }
+        }
+        assertAllocationFree("sparse product from the right", OPERATION_WARMUP, OPERATION_ITERATIONS) {
+            engine.gemm(0.875, a, false, wide, false, -0.25, cWide, true, workspace)
+            cWide.values[0]
+        }
+        for (right in booleanArrayOf(false, true)) {
+            val operand = if (right) wide else b
+            val destination = if (right) cWide else c
+            assertAllocationFree("symmetric product right=$right", OPERATION_WARMUP, OPERATION_ITERATIONS) {
+                engine.symm(0.875, triangle, operand, -0.25, destination, true, right, workspace)
+                destination.values[0]
+            }
+            for (transpose in booleanArrayOf(false, true)) {
+                assertAllocationFree(
+                    "triangular solve right=$right transpose=$transpose",
+                    OPERATION_WARMUP,
+                    OPERATION_ITERATIONS,
+                ) {
+                    engine.trsm(triangle, operand, true, transpose, false, right, 0.875, workspace)
+                    operand.values[0]
+                }
+                assertAllocationFree(
+                    "triangular multiply right=$right transpose=$transpose",
+                    OPERATION_WARMUP,
+                    OPERATION_ITERATIONS,
+                ) {
+                    engine.trmm(triangle, operand, true, transpose, false, right, 0.875, workspace)
+                    operand.values[0]
+                }
+            }
+        }
+        for (transpose in booleanArrayOf(false, true)) {
+            assertAllocationFree("sparse gemv transpose=$transpose", OPERATION_WARMUP, OPERATION_ITERATIONS) {
+                engine.gemv(0.875, a, x, -0.25, y, transpose)
+                y[0]
+            }
+        }
+        assertAllocationFree("sparse symv", OPERATION_WARMUP, OPERATION_ITERATIONS) {
+            engine.symv(0.875, triangle, x, -0.25, y, true)
+            y[0]
+        }
+        assertAllocationFree("sparse rank update into a dense triangle", OPERATION_WARMUP, OPERATION_ITERATIONS) {
+            engine.syrk(0.875, a, false, -0.25, square, true, workspace)
+            square.values[0]
+        }
+    }
+
+    /** A square destination for the rank update, which is the one probe whose shape is the order twice. */
+    private val square = DenseMatrix.wrap(ORDER, ORDER, DoubleArray(ORDER * ORDER))
+
+    /** A banded operand, which is where a real sparse product's destination stays resident. */
+    private fun banded(rows: Int, cols: Int, width: Int): SparseMatrix {
+        val pointers = IntArray(cols + 1)
+        val indices = ArrayList<Int>()
+        val values = ArrayList<Double>()
+        for (j in 0 until cols) {
+            val centre = j * rows / cols
+            for (offset in -width..width) {
+                val row = centre + offset
+                if (row in 0 until rows) {
+                    indices.add(row)
+                    values.add(0.5 + (indices.size % 9) * 0.125)
+                }
+            }
+            pointers[j + 1] = indices.size
+        }
+        return SparseMatrix.wrap(rows, cols, pointers, indices.toIntArray(), values.toDoubleArray())
+    }
+
+    /** A lower triangle with a dominant diagonal, so the solve probes stay finite. */
+    private fun lowerTriangle(order: Int, width: Int): SparseMatrix {
+        val pointers = IntArray(order + 1)
+        val indices = ArrayList<Int>()
+        val values = ArrayList<Double>()
+        for (j in 0 until order) {
+            for (row in j until minOf(order, j + width)) {
+                indices.add(row)
+                values.add(if (row == j) 4.0 * width else 0.25)
+            }
+            pointers[j + 1] = indices.size
+        }
+        return SparseMatrix.wrap(order, order, pointers, indices.toIntArray(), values.toDoubleArray())
     }
 
     internal fun crossesSimdCrossover(crossover: Int): Boolean = ENTRY_COUNT >= crossover
 
-    private fun assertAllocationFree(name: String, block: () -> Double) {
-        val bytes = bytesPerIteration(block)
-        check(bytes <= MAX_BYTES_PER_CALL) { "$name allocated $bytes B per call" }
+    /**
+     * One probe, as an interface whose method returns a primitive.
+     *
+     * A Kotlin `() -> Double` is a `Function0<Double>`, which boxes its result unless the compiler manages
+     * to inline the call and take the object apart again. Several probes through one measurement loop is
+     * exactly where it stops doing that, and the box is then charged to whatever is being measured: every
+     * probe here read twenty-four bytes a call before this interface replaced the function type, which is
+     * the harness and not the kernels.
+     */
+    private fun interface Probe {
+        fun run(): Double
     }
 
-    private fun bytesPerIteration(block: () -> Double): Double {
-        repeat(WARMUP_ITERATIONS) { resultSink = block() }
+    private fun assertAllocationFree(
+        name: String,
+        warmup: Int = WARMUP_ITERATIONS,
+        iterations: Int = MEASUREMENT_ITERATIONS,
+        block: Probe,
+    ) {
+        val bytes = bytesPerIteration(block, warmup, iterations)
+        check(bytes <= MAX_BYTES_PER_CALL) { "$name allocated $bytes B per call" }
+        println("$name: $bytes B per call")
+    }
+
+    private fun bytesPerIteration(block: Probe, warmup: Int, iterations: Int): Double {
+        repeat(warmup) { resultSink = block.run() }
         val id = Thread.currentThread().threadId()
         var best = Double.MAX_VALUE
         repeat(MEASUREMENT_WINDOWS) {
             val before = allocationBean.getThreadAllocatedBytes(id)
-            repeat(MEASUREMENT_ITERATIONS) { resultSink = block() }
+            repeat(iterations) { resultSink = block.run() }
             val after = allocationBean.getThreadAllocatedBytes(id)
-            best = minOf(best, (after - before).toDouble() / MEASUREMENT_ITERATIONS)
+            best = minOf(best, (after - before).toDouble() / iterations)
         }
         return best
     }

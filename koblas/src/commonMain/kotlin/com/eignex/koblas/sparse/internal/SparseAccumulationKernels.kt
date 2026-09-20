@@ -356,6 +356,24 @@ internal object SparseAccumulationKernels {
         return used
     }
 
+    /**
+     * The rows this column touched, in ascending order, read back from the marks rather than sorted.
+     *
+     * The scatter collects rows in whatever order the contributing columns held them, and CSC wants them
+     * ascending. Two ways to get there: sort what was collected, which costs with the number of entries, or
+     * sweep the range the column could have reached, which costs with that range whatever the column holds.
+     * Which is cheaper depends on how much of the range was touched, and the caller decides with
+     * [sweepsTouchedRows].
+     */
+    @Suppress("LongParameterList")
+    inline fun collectTouchedRows(marks: IntArray, epoch: Int, firstRow: Int, lastRow: Int, touched: IntArray): Int {
+        var used = 0
+        for (row in firstRow until lastRow) {
+            if (marks[row] == epoch) touched[used++] = row
+        }
+        return used
+    }
+
     @Suppress("LongParameterList")
     inline fun emitScaledSupport(
         alpha: Double,

@@ -14,6 +14,62 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class SparseTest {
+    /**
+     * The prepared modes measure four different amounts of work, and the row says which.
+     *
+     * An amortized row is one preparation and all its uses as one batch, so its timing mode names the count
+     * rather than a call. Dividing it by that count is a per-use cost with the setup in it, which is the
+     * number to compare against a one-shot call; a prepared row is the steady state with the setup already
+     * paid, so the two answer different questions and the mode says which one a row is. The kernel a
+     * prepared row carries is the schedule the snapshot runs, which for a transposed product is not the one
+     * a one-shot call takes.
+     */
+    @Test
+    fun `prepared modes name the work they time`() {
+        val base = "spmm+9x4x7+sparse-uniform+density=0.25"
+        val setup = assertNotNull(work("$base+mode=setup"))
+        val firstUse = assertNotNull(work("$base+mode=firstuse"))
+        val amortized = assertNotNull(work("$base+mode=amortized+reuse=8"))
+        val prepared = assertNotNull(work("$base+mode=prepared"))
+
+        assertEquals("prepare", setup.timingMode)
+        assertEquals("prepare-and-first-use", firstUse.timingMode)
+        assertEquals("prepare-and-8-uses", amortized.timingMode)
+        assertEquals("prepared", prepared.timingMode)
+        assertContains(assertNotNull(setup.kernel), "spprepare")
+    }
+
+    /**
+     * A transposed prepared product reports the schedule the snapshot runs, and a first use names the
+     * orientation it derives on the way.
+     */
+    @Test
+    fun `a prepared transposed row reports the oriented schedule`() {
+        // Enough right-hand sides that the oriented schedule cuts a panel: a reduction over a strided block
+        // is written out by the traversal at any count, and what this row is about is which of the two
+        // traversals each mode names.
+        val base = "spmm+33x16x21+sparse-uniform+density=0.25+transA=T"
+        val oneShot = assertNotNull(work("$base+mode=oneshot"))
+        val prepared = assertNotNull(work("$base+mode=prepared"))
+        val firstUse = assertNotNull(work("$base+mode=firstuse"))
+
+        assertContains(assertNotNull(oneShot.kernel), "spmm@1")
+        assertContains(assertNotNull(prepared.kernel), "sparse-rhs-scatter")
+        assertContains(assertNotNull(firstUse.kernel), "sptranspose")
+    }
+
+    /** A timed body that produces an object keeps it observable, which is what makes the row about it. */
+    @Test
+    fun `a setup row retains the snapshot it built`() {
+        val setup = assertNotNull(work("spmm+9x4x7+sparse-uniform+density=0.25+mode=setup"))
+
+        setup.run()
+
+        assertEquals("PreparedSparseMatrix", Retained.describe())
+    }
+
+    private fun work(id: String): CaseWork? = sparseArm(Cases.parse(id).single(), koblas)?.work
+
     @Test
     fun `gather timing variants return the same values across repeated calls`() {
         val resetCase = Cases.parse("spgather+64+sparse-uniform+density=0.25").single()
@@ -199,7 +255,8 @@ class SparseTest {
         assertEquals("prepare-and-first-use", work.timingMode)
         val kernel = assertNotNull(work.kernel)
         assertTrue(kernel.startsWith("portable-csc/spprepare then "), kernel)
-        assertTrue(kernel.endsWith("/spmm"), kernel)
+        // The entry point, and then the grouping the call resolved, which a dense row publishes the same way.
+        assertTrue(kernel.substringAfterLast('/').startsWith("spmm@"), kernel)
     }
 
     /**

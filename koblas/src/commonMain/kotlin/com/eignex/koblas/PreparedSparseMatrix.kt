@@ -2,6 +2,10 @@ package com.eignex.koblas
 
 import com.eignex.koblas.sparse.SparseAlgorithms
 import com.eignex.koblas.sparse.SparseBlas
+import com.eignex.koblas.sparse.SparseCall
+import com.eignex.koblas.sparse.SparseMatrixOperation
+import com.eignex.koblas.sparse.SparseMatrixRoute
+import com.eignex.koblas.vendor.RouteKind
 import kotlin.jvm.JvmOverloads
 
 /**
@@ -181,6 +185,163 @@ public class PreparedSparseMatrix internal constructor(a: SparseMatrix, private 
     private fun reusesOrientation(alpha: Double, transpose: Boolean, depth: Int, outputs: Int): Boolean =
         transpose && alpha != 0.0 && depth > 0 && outputs > 0 && snapshot.nnz > 0
 
+    /**
+     * What a repeated call of this shape against the snapshot executes.
+     *
+     * The counterpart of [com.eignex.koblas.sparse.SparseBlas.matrixRouteOf] for a prepared operand, and not
+     * the same answer: where a transposed call reuses the derived orientation, what runs is the untransposed
+     * schedule over that orientation, which is a different traversal from the transposed one a one-shot call
+     * takes. Asking the one-shot route about a prepared call would name the schedule it does not run.
+     *
+     * [call]'s scalars and extents describe the call; its [SparseCall.matrix] is not read, because the
+     * operand is this snapshot in whichever orientation the call would use.
+     *
+     * Asking derives that orientation if a call of this shape would use one and it has not been built yet,
+     * exactly as the first such call would. A route inspects an operand and belongs outside a timed region
+     * anyway; what this adds is that asking about a snapshot is also what pays for its orientation, so a
+     * measurement of a cold first use must not ask about the snapshot it is going to time.
+     */
+    public fun matrixRouteOf(operation: SparseMatrixOperation, call: SparseCall): SparseMatrixRoute {
+        if (orientsOnAnotherOperand(operation) && call.transposeSparse) {
+            // A product against a second sparse operand decides on that operand: nothing is oriented for a
+            // call that reaches no position. These facts carry no second operand, so which of the two
+            // schedules runs is not derivable from them, and deriving an orientation to answer would both
+            // guess and pay for the guess.
+            return unsettled(operation, call)
+        }
+        val depth = if (call.transposeSparse) snapshot.rows else snapshot.cols
+        // Everything the orientation turns on except how much destination the call writes, which is the one
+        // fact a caller may leave out.
+        val couldOrient = orients(operation) &&
+            reusesOrientation(call.alpha, call.transposeSparse, depth, outputs = 1)
+        val outputs = call.destinationElements
+        if (couldOrient && outputs == null) {
+            // Omitted is not zero. A call of this shape with a destination to write derives the orientation
+            // and runs the untransposed schedule over it; one with an empty destination writes nothing and
+            // orients nothing. Reading the absence as zero picks the second, which is a transposed traversal
+            // reported as settled for a call that would take the other one, so the absence is said instead.
+            return unsettled(
+                operation,
+                call,
+                "a transposed product against this snapshot derives its orientation where it has a " +
+                    "destination to write and orients nothing where it has none, and these call facts do " +
+                    "not say how much destination there is",
+                // Nor what the panels are: the extent the orientation turns on is the extent a group of
+                // right-hand sides is cut from, so naming a width here would settle the same missing fact
+                // twice over.
+                keepTraversal = false,
+            )
+        }
+        val reuse = couldOrient && (outputs ?: 0) > 0
+        val operand = if (reuse) transposedSnapshot else snapshot
+        val route = algorithms.matrixRouteOf(
+            operation,
+            SparseCall(
+                operand,
+                call.alpha,
+                call.beta,
+                call.destinationElements,
+                call.depth,
+                call.updateRun,
+                call.rightHandSides,
+                if (reuse) false else call.transposeSparse,
+                call.transposeDense,
+                call.lower,
+            ),
+        )
+        if (!reuse) return route
+        return SparseMatrixRoute(
+            route.operation,
+            route.kind,
+            route.scheduling,
+            route.entryPoint,
+            route.components,
+            "against the snapshot's derived transpose, so the untransposed schedule runs; deriving it is a " +
+                "first use's cost and not a repeated one's" + (route.reason?.let { ". $it" } ?: ""),
+            route.executionGroup,
+            route.executionTail,
+            // Naming the orientation settles one fact and none of the others: a call whose own facts left
+            // the panels underivable is still underivable against the oriented snapshot.
+            route.resolved,
+        )
+    }
+
+    /** A route for a call whose schedule these facts do not settle, which names no traversal at all. */
+    private fun unsettled(
+        operation: SparseMatrixOperation,
+        call: SparseCall,
+        undecided: String = "a transposed product against a second sparse operand runs either the derived " +
+            "orientation or the snapshot itself, and which one depends on that operand, which these call " +
+            "facts do not carry",
+        keepTraversal: Boolean = true,
+    ): SparseMatrixRoute {
+        // The call's own facts first, against the snapshot as it stands. What they settle stays: a call
+        // with nothing to do is still a call with nothing to do whichever orientation it would have used,
+        // and a destination multiplier still scales a destination. What they do not settle is which of the
+        // two traversals runs, and only that is replaced by saying so.
+        val route = algorithms.matrixRouteOf(
+            operation,
+            SparseCall(
+                snapshot,
+                call.alpha,
+                call.beta,
+                call.destinationElements,
+                call.depth,
+                call.updateRun,
+                call.rightHandSides,
+                call.transposeSparse,
+                call.transposeDense,
+                call.lower,
+            ),
+        )
+        if (route.kind == RouteKind.NoWork) return route
+        return SparseMatrixRoute(
+            route.operation,
+            RouteKind.Composed,
+            route.scheduling,
+            route.entryPoint,
+            route.components.filter { it.endsWith("/scale") },
+            undecided + (if (keepTraversal) route.reason?.let { ". Whatever runs, $it" }.orEmpty() else ""),
+            if (keepTraversal) route.executionGroup else 0,
+            if (keepTraversal) route.executionTail else 0,
+            resolved = false,
+        )
+    }
+
+    /**
+     * Whether the transposed orientation has been derived, which is what a transposed call's first use pays
+     * for and a repeated one does not.
+     *
+     * A measurement that separates preparation, first use and steady state reads this to say which of the
+     * three a snapshot is in.
+     */
+    public val orientationDerived: Boolean get() = lazyTranspose.isInitialized()
+
+    /**
+     * Whether this operation's execution reuses the derived orientation, which is not every transposed call.
+     *
+     * A prepared matrix-vector product passes the flag straight to the operation, because a transposed CSC
+     * reduction needs no orientation to run and building one for it would be a cache nothing reads. The
+     * products against a dense block are the ones that orient, and answering this is what keeps a route from
+     * describing, or paying for, a traversal its call does not take.
+     *
+     * A `when` rather than a set, so that classifying an operation for a diagnostic costs a snapshot no
+     * collection of its own.
+     */
+    private fun orients(operation: SparseMatrixOperation): Boolean = when (operation) {
+        SparseMatrixOperation.GemmDense, SparseMatrixOperation.GemmDenseRight -> true
+        else -> false
+    }
+
+    /**
+     * Whether this operation orients on a fact these call facts do not carry, which is the second sparse
+     * operand a product against one is decided by.
+     */
+    private fun orientsOnAnotherOperand(operation: SparseMatrixOperation): Boolean = when (operation) {
+        SparseMatrixOperation.GemmSparse, SparseMatrixOperation.GemmSparseDense -> true
+        else -> false
+    }
+
     /** The shape a fresh sparse product needs, checked before any orientation is derived. */
     private fun requireProductShape(transposeA: Boolean, b: SparseMatrix, transposeB: Boolean) {
         val aRows = if (transposeA) snapshot.cols else snapshot.rows
@@ -189,7 +350,4 @@ public class PreparedSparseMatrix internal constructor(a: SparseMatrix, private 
         val bCols = if (transposeB) b.rows else b.cols
         requireShape(aCols == bRows) { "gemm: op(A) is ${aRows}x$aCols but op(B) is ${bRows}x$bCols" }
     }
-
-    /** Whether the derived transposed orientation has been built, for tests that assert it is not. */
-    internal val transposeDerived: Boolean get() = lazyTranspose.isInitialized()
 }

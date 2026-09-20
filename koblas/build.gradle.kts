@@ -89,20 +89,46 @@ tasks.withType<Test>().configureEach {
 // kernel into a coverage artifact. Run this check in its own, uninstrumented JVM with an explicit SIMD engine.
 val jvmTestCompilation = (kotlin.targets.getByName("jvm") as KotlinJvmTarget).compilations.getByName("test")
 val allocationCheckJavaLauncher = javaToolchains.launcherFor { languageVersion.set(JavaLanguageVersion.of(25)) }
-val simdSparseAllocationCheck = tasks.register<JavaExec>("simdSparseAllocationCheck") {
-    group = "verification"
-    description = "Checks allocation-free JVM SIMD indexed sparse dot, gather, and norm kernels outside Kover."
-    dependsOn("jvmTestClasses")
-    classpath(jvmTestCompilation.output.allOutputs, configurations.getByName("jvmTestRuntimeClasspath"))
-    mainClass.set("com.eignex.koblas.sparse.SimdSparseAllocationCheck")
-    javaLauncher.set(allocationCheckJavaLauncher)
-    jvmArgs(
-        "--add-modules=jdk.incubator.vector",
-        "--enable-native-access=ALL-UNNAMED",
-        "-XX:-TieredCompilation",
-        "-XX:CompileThreshold=1000",
-    )
-}
+/**
+ * The sparse allocation check in one runtime configuration.
+ *
+ * The indexed panels a sparse product hands its right-hand sides to are vector bodies with a hardware-gated
+ * multiply-add, so whether one allocates depends on the width of the species and on whether that add is one
+ * instruction. Both are fixed when the virtual machine starts, which is why each configuration is its own
+ * process and each one worth checking is registered here.
+ */
+fun registerSparseAllocationCheck(name: String, description: String, vararg extraArgs: String) =
+    tasks.register<JavaExec>(name) {
+        group = "verification"
+        this.description = description
+        dependsOn("jvmTestClasses")
+        classpath(jvmTestCompilation.output.allOutputs, configurations.getByName("jvmTestRuntimeClasspath"))
+        mainClass.set("com.eignex.koblas.sparse.SimdSparseAllocationCheck")
+        javaLauncher.set(allocationCheckJavaLauncher)
+        jvmArgs(
+            "--add-modules=jdk.incubator.vector",
+            "--enable-native-access=ALL-UNNAMED",
+            "-XX:-TieredCompilation",
+            "-XX:CompileThreshold=1000",
+            *extraArgs,
+        )
+    }
+
+val simdSparseAllocationCheck = registerSparseAllocationCheck(
+    "simdSparseAllocationCheck",
+    "Checks allocation-free JVM SIMD indexed sparse kernels, panels and whole calls, at this machine's width.",
+)
+val simdSparseAllocationCheckNoFma = registerSparseAllocationCheck(
+    "simdSparseAllocationCheckNoFma",
+    "Checks the same sparse kernels with the fused multiply-add disabled.",
+    "-XX:-UseFMA",
+)
+val simdSparseAllocationCheckNarrowNoFma = registerSparseAllocationCheck(
+    "simdSparseAllocationCheckNarrowNoFma",
+    "Checks the same sparse kernels with a two-lane species and the fused multiply-add disabled.",
+    "-XX:MaxVectorSize=16",
+    "-XX:-UseFMA",
+)
 /**
  * The dense allocation check in one runtime configuration.
  *
@@ -184,6 +210,8 @@ simdNoFmaCheck { args("", "false") }
 tasks.named("check") {
     dependsOn(
         simdSparseAllocationCheck,
+        simdSparseAllocationCheckNoFma,
+        simdSparseAllocationCheckNarrowNoFma,
         simdDenseAllocationCheck,
         simdDenseAllocationCheckNoFma,
         simdDenseAllocationCheckNarrowNoFma,

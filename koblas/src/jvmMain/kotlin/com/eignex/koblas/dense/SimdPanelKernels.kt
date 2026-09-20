@@ -72,21 +72,35 @@ internal object SimdPanelKernels : DensePanelKernels {
      * quoted here. It says which choice was ahead there; a lane count and a cache are not the same on the
      * next machine, which is why the number is not in this file.
      */
-    override fun executionGroup(work: PanelWork, rows: Int, columns: Int): Int {
-        if (!simdAvailable) return PortablePanelKernels.executionGroup(work, rows, columns)
-        val preferred = when (work) {
-            PanelWork.CoupledDotUpdate, PanelWork.RankUpdate -> NARROW_GROUP
-            PanelWork.SparseRightHandSides -> SPARSE_GROUP
+    override fun executionGroup(work: PanelWork, rows: Int, columns: Int, contiguous: Boolean): Int {
+        if (!simdAvailable) return PortablePanelKernels.executionGroup(work, rows, columns, contiguous)
+        val preferred = when {
+            work == PanelWork.SparseRightHandSideReduction && !contiguous -> SPARSE_REDUCTION_GROUP
+
+            work == PanelWork.SparseRightHandSides || work == PanelWork.SparseRightHandSideReduction ->
+                if (contiguous) ADJACENT_SPARSE_BLOCKS * LANE else SPARSE_GROUP
+
+            work == PanelWork.CoupledDotUpdate || work == PanelWork.RankUpdate -> NARROW_GROUP
+
             else -> WIDE_GROUP
         }
         return if (columns <= 0) 1 else minOf(preferred, columns)
     }
 
+    /**
+     * From two lane blocks of adjacent rows upward, which is wider than where the vector bodies start.
+     *
+     * One lane block is one vector operation per column, and a caller that copied a panel that narrow would
+     * pay a pass over its data for a single instruction's worth of arithmetic. A measured crossover of this
+     * backend's own rather than a structural minimum like the one [implementationFor] answers with: the
+     * copy was timed at both widths and the narrow one did not pay for itself. The measurement and its
+     * limits are in the stage evidence, since a figure quoted here would be one machine's.
+     */
+    override fun prefersContiguous(work: PanelWork, rows: Int, columns: Int): Boolean =
+        simdAvailable && rows >= COPY_WORTH_BLOCKS * LANE && !vectorizes(rows, contiguous = false)
+
     override fun implementationFor(work: PanelWork, rows: Int, columns: Int, contiguous: Boolean): String =
-        if (work == PanelWork.SparseRightHandSides) {
-            // The arithmetic behind this one belongs to the sparse traversal, which is portable everywhere.
-            PortablePanelKernels.implementationFor(work, rows, columns, contiguous)
-        } else if (vectorizes(rows, contiguous)) {
+        if (vectorizes(rows, contiguous)) {
             name
         } else {
             PortablePanelKernels.implementationFor(work, rows, columns, contiguous)
@@ -579,6 +593,260 @@ internal object SimdPanelKernels : DensePanelKernels {
         }
     }
 
+    /**
+     * The indexed column update in lanes of right-hand sides.
+     *
+     * The vectorised axis is the group of right-hand sides, which is the one with nothing to carry between
+     * its entries. The indices select where in the panel each column sits and are never themselves a vector
+     * operation, so no indexed load or store is involved and a host without one is unaffected.
+     */
+    override fun indexedColumnUpdate(
+        alpha: Double,
+        a: DoubleArray,
+        aOffset: Int,
+        rowStride: Int,
+        indexStride: Int,
+        indices: IntArray,
+        values: DoubleArray,
+        fromIndex: Int,
+        columns: Int,
+        rows: Int,
+        y: DoubleArray,
+        yOffset: Int,
+    ) {
+        if (rows <= 0 || columns <= 0) return
+        if (!vectorizes(rows, rowStride == 1)) {
+            PortablePanelKernels.indexedColumnUpdate(
+                alpha, a, aOffset, rowStride, indexStride, indices, values, fromIndex, columns, rows, y, yOffset,
+            )
+            return
+        }
+        var c = 0
+        while (c + NARROW_GROUP <= columns) {
+            indexedUpdateTwo(
+                a,
+                aOffset + indices[fromIndex + c] * indexStride,
+                aOffset + indices[fromIndex + c + 1] * indexStride,
+                rows,
+                y,
+                yOffset,
+                alpha * values[fromIndex + c],
+                alpha * values[fromIndex + c + 1],
+            )
+            c += NARROW_GROUP
+        }
+        while (c < columns) {
+            updateOne(
+                a,
+                aOffset + indices[fromIndex + c] * indexStride,
+                rows,
+                y,
+                yOffset,
+                alpha * values[fromIndex + c],
+            )
+            c++
+        }
+    }
+
+    private fun indexedUpdateTwo(
+        a: DoubleArray,
+        at0: Int,
+        at1: Int,
+        rows: Int,
+        y: DoubleArray,
+        yOffset: Int,
+        t0: Double,
+        t1: Double,
+    ) {
+        val c0 = DoubleVector.broadcast(SPECIES, t0)
+        val c1 = DoubleVector.broadcast(SPECIES, t1)
+        var i = 0
+        val bound = SPECIES.loopBound(rows)
+        while (i < bound) {
+            var acc = DoubleVector.fromArray(SPECIES, y, yOffset + i)
+            acc = multiplyAdd(DoubleVector.fromArray(SPECIES, a, at0 + i), c0, acc)
+            acc = multiplyAdd(DoubleVector.fromArray(SPECIES, a, at1 + i), c1, acc)
+            acc.intoArray(y, yOffset + i)
+            i += LANE
+        }
+        while (i < rows) {
+            y[yOffset + i] += t0 * a[at0 + i] + t1 * a[at1 + i]
+            i++
+        }
+    }
+
+    /** The indexed rank update in lanes of right-hand sides, the counterpart of [indexedColumnUpdate]. */
+    override fun indexedRankUpdate(
+        alpha: Double,
+        a: DoubleArray,
+        aOffset: Int,
+        rowStride: Int,
+        indexStride: Int,
+        indices: IntArray,
+        values: DoubleArray,
+        fromIndex: Int,
+        columns: Int,
+        rows: Int,
+        x: DoubleArray,
+        xOffset: Int,
+    ) {
+        if (rows <= 0 || columns <= 0) return
+        if (!vectorizes(rows, rowStride == 1)) {
+            PortablePanelKernels.indexedRankUpdate(
+                alpha, a, aOffset, rowStride, indexStride, indices, values, fromIndex, columns, rows, x, xOffset,
+            )
+            return
+        }
+        var c = 0
+        while (c + NARROW_GROUP <= columns) {
+            rankTwoAt(
+                a,
+                aOffset + indices[fromIndex + c] * indexStride,
+                aOffset + indices[fromIndex + c + 1] * indexStride,
+                x,
+                xOffset,
+                rows,
+                alpha * values[fromIndex + c],
+                alpha * values[fromIndex + c + 1],
+            )
+            c += NARROW_GROUP
+        }
+        while (c < columns) {
+            rankOne(a, aOffset + indices[fromIndex + c] * indexStride, x, xOffset, rows, alpha * values[fromIndex + c])
+            c++
+        }
+    }
+
+    private fun rankTwoAt(
+        a: DoubleArray,
+        at0: Int,
+        at1: Int,
+        x: DoubleArray,
+        xOffset: Int,
+        rows: Int,
+        t0: Double,
+        t1: Double,
+    ) {
+        val c0 = DoubleVector.broadcast(SPECIES, t0)
+        val c1 = DoubleVector.broadcast(SPECIES, t1)
+        var i = 0
+        val bound = SPECIES.loopBound(rows)
+        while (i < bound) {
+            val xv = DoubleVector.fromArray(SPECIES, x, xOffset + i)
+            multiplyAdd(xv, c0, DoubleVector.fromArray(SPECIES, a, at0 + i)).intoArray(a, at0 + i)
+            multiplyAdd(xv, c1, DoubleVector.fromArray(SPECIES, a, at1 + i)).intoArray(a, at1 + i)
+            i += LANE
+        }
+        while (i < rows) {
+            val v = x[xOffset + i]
+            a[at0 + i] += t0 * v
+            a[at1 + i] += t1 * v
+            i++
+        }
+    }
+
+    /**
+     * The coupled indexed pass in lanes of right-hand sides.
+     *
+     * One address serves both halves: the position a stored coefficient scatters into is the position the
+     * reduction reads back, so the walk computes it once and one broadcast coefficient drives both
+     * multiply-adds. The scattered half reads the pivot column where it stands, which is a load the loop
+     * repeats per position rather than a gather the caller pays for per column.
+     */
+    override fun indexedCoupledUpdate(
+        alpha: Double,
+        a: DoubleArray,
+        b: DoubleArray,
+        offset: Int,
+        rowStride: Int,
+        indexStride: Int,
+        indices: IntArray,
+        values: DoubleArray,
+        fromIndex: Int,
+        columns: Int,
+        rows: Int,
+        pivot: Int,
+        sums: DoubleArray,
+        sumOffset: Int,
+        excluded: Int,
+    ) {
+        if (rows <= 0 || columns <= 0) return
+        if (!vectorizes(rows, rowStride == 1)) {
+            PortablePanelKernels.indexedCoupledUpdate(
+                alpha, a, b, offset, rowStride, indexStride, indices, values, fromIndex, columns, rows,
+                pivot, sums, sumOffset, excluded,
+            )
+            return
+        }
+        for (c in 0 until columns) {
+            val t = alpha * values[fromIndex + c]
+            val at = offset + indices[fromIndex + c] * indexStride
+            // The exclusion is decided per position and never inside the lanes. A branch between the two
+            // stores leaves the loop with a merge the virtual machine will not eliminate the vector boxes
+            // across, and a body that allocates one object per lane block runs several times slower than the
+            // portable loop it is there to beat.
+            if (c == excluded) {
+                scatterOnly(t, a, at, b, pivot, rows)
+            } else {
+                scatterAndReduce(t, a, at, b, pivot, sums, sumOffset, rows)
+            }
+        }
+    }
+
+    /** One position of the coupled pass that scatters and is not reduced, which is a symmetric diagonal. */
+    private fun scatterOnly(t: Double, a: DoubleArray, at: Int, b: DoubleArray, pivot: Int, rows: Int) {
+        val coefficient = DoubleVector.broadcast(SPECIES, t)
+        var i = 0
+        val bound = SPECIES.loopBound(rows)
+        while (i < bound) {
+            multiplyAdd(
+                DoubleVector.fromArray(SPECIES, b, pivot + i),
+                coefficient,
+                DoubleVector.fromArray(SPECIES, a, at + i),
+            ).intoArray(a, at + i)
+            i += LANE
+        }
+        while (i < rows) {
+            a[at + i] += t * b[pivot + i]
+            i++
+        }
+    }
+
+    /** One position of the coupled pass that does both halves, which is every position but the diagonal. */
+    @Suppress("LongParameterList") // the multiplier, the two windows it lands in, and the one it reads
+    private fun scatterAndReduce(
+        t: Double,
+        a: DoubleArray,
+        at: Int,
+        b: DoubleArray,
+        pivot: Int,
+        sums: DoubleArray,
+        sumOffset: Int,
+        rows: Int,
+    ) {
+        val coefficient = DoubleVector.broadcast(SPECIES, t)
+        var i = 0
+        val bound = SPECIES.loopBound(rows)
+        while (i < bound) {
+            multiplyAdd(
+                DoubleVector.fromArray(SPECIES, b, pivot + i),
+                coefficient,
+                DoubleVector.fromArray(SPECIES, a, at + i),
+            ).intoArray(a, at + i)
+            multiplyAdd(
+                DoubleVector.fromArray(SPECIES, b, at + i),
+                coefficient,
+                DoubleVector.fromArray(SPECIES, sums, sumOffset + i),
+            ).intoArray(sums, sumOffset + i)
+            i += LANE
+        }
+        while (i < rows) {
+            a[at + i] += t * b[pivot + i]
+            sums[sumOffset + i] += t * b[at + i]
+            i++
+        }
+    }
+
     /** `y = alpha · sum + beta · y`, where a zero beta overwrites without reading the destination. */
     private fun store(y: DoubleArray, at: Int, alpha: Double, sum: Double, beta: Double) {
         y[at] = if (beta == 0.0) alpha * sum else alpha * sum + beta * y[at]
@@ -600,6 +868,14 @@ internal object SimdPanelKernels : DensePanelKernels {
     /** Lane blocks a panel needs before its vector body can run, which is one whole vector. */
     private const val MINIMUM_BLOCKS = 1
 
+    /**
+     * Lane blocks of adjacent rows a panel needs before a copy into adjacent storage pays for itself.
+     *
+     * Wider than [MINIMUM_BLOCKS], which is where the body starts running rather than where it is worth a
+     * pass over the data to reach. The stage evidence is where the comparison at each width is recorded.
+     */
+    private const val COPY_WORTH_BLOCKS = 2
+
     /** Columns grouped where one loaded vector serves all of them. */
     private const val WIDE_GROUP = 4
 
@@ -607,10 +883,36 @@ internal object SimdPanelKernels : DensePanelKernels {
     private const val NARROW_GROUP = 2
 
     /**
-     * Dense right-hand sides a sparse column walk serves at once.
+     * Dense right-hand sides a sparse column walk serves at once, where they are a leading dimension apart.
      *
-     * The arithmetic is the sparse traversal's scalar own, so this is not a vector width. It is the number of
-     * right-hand sides whose accumulators stay live while one column's indices and values are read.
+     * Not a vector width: a group this wide is what keeps one walk of a column's indices and values serving
+     * several right-hand sides, and the arithmetic over a strided group is the portable body whatever the
+     * species is. The same width the portable backend answers with, and measured the same way, since the
+     * body that runs over a strided group is that backend's.
      */
-    private const val SPARSE_GROUP = 4
+    private const val SPARSE_GROUP = 8
+
+    /**
+     * Right-hand sides a reduction over a strided block serves at once, which is one for the reason the
+     * portable backend gives: below a vector its accumulator wants a register rather than an array, and a
+     * strided block reaches no vector body here either.
+     */
+    private const val SPARSE_REDUCTION_GROUP = 1
+
+    /**
+     * Lane blocks of adjacent right-hand sides this backend asks for, which is a different question.
+     *
+     * Where they are adjacent the arithmetic over a group is whole vectors, so the group wants to be lane
+     * blocks rather than a count that has nothing to do with the species: a group of four on a machine with
+     * eight lanes would leave half of every vector idle. Several blocks rather than one, because the walk of
+     * a sparse column's indices is paid once for the whole group and a wider group spreads it further; the
+     * ceiling is what stays resident while that column is walked, and the sparse scheduling caps this again
+     * for its own staging buffer.
+     *
+     * Eight, from a sweep of the widths either side of it: the narrow ones lose across the grid, and the
+     * two widest are close enough that either is defensible, with the narrower of them ahead on the denser
+     * supports. Eight is the conservative end of that pair. The count is this backend's own, and the stage
+     * evidence holds the comparison and the spread it was chosen from.
+     */
+    private const val ADJACENT_SPARSE_BLOCKS = 8
 }

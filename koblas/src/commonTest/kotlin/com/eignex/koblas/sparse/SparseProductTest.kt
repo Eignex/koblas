@@ -3,6 +3,7 @@ package com.eignex.koblas.sparse
 import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.DimensionMismatch
 import com.eignex.koblas.SparseMatrix
+import com.eignex.koblas.UnsafeKoblasApi
 import com.eignex.koblas.Workspace
 import com.eignex.koblas.assertClose
 import com.eignex.koblas.dense.PanelWork
@@ -10,6 +11,7 @@ import com.eignex.koblas.koblas
 import com.eignex.koblas.partialPanelWidth
 import com.eignex.koblas.randomMatrix
 import com.eignex.koblas.randomVector
+import com.eignex.koblas.sparse.internal.sweepsTouchedRows
 import com.eignex.koblas.times
 import kotlin.random.Random
 import kotlin.test.Test
@@ -17,6 +19,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
+@OptIn(UnsafeKoblasApi::class)
 class SparseProductTest {
 
     private fun sparseAndDense(
@@ -251,6 +254,51 @@ class SparseProductTest {
                 assertTrue(i > previous, "column $j has $i after $previous")
                 previous = i
             }
+        }
+    }
+
+    /**
+     * A discovered column comes out ascending whichever way it was put in order.
+     *
+     * The rows of a column arrive in the order the contributing columns held them, and the scheduling either
+     * sorts what it collected or sweeps the range it came from, whichever is cheaper for that column. The
+     * two are different code over the same marks, so both are exercised here: a wide sparse product whose
+     * columns touch a fraction of their range, and a dense-ish one whose columns touch most of it. The
+     * predicate itself is asserted at both fixtures so this cannot quietly become one branch twice.
+     */
+    @Test
+    fun `a discovered column is ascending whether it was sorted or swept`() {
+        val rng = Random(20261020)
+        val cases = listOf(
+            Triple(96, 0.02, false),
+            Triple(24, 0.9, true),
+        )
+        for ((order, density, expectSweep) in cases) {
+            val (left, denseLeft) = sparseAndDense(order, order, rng, density = density)
+            val (right, denseRight) = sparseAndDense(order, order, rng, density = density)
+            val product = left * right
+            val context = "order=$order density=$density"
+
+            val swept = (0 until product.cols).count {
+                sweepsTouchedRows(product.colPointers[it + 1] - product.colPointers[it], order)
+            }
+            assertEquals(
+                expectSweep,
+                swept > product.cols / 2,
+                "$context put $swept of ${product.cols} columns through the sweep",
+            )
+            for (j in 0 until product.cols) {
+                var previous = -1
+                product.forEachInColumn(j) { i, _ ->
+                    assertTrue(i > previous, "$context column $j has $i after $previous")
+                    previous = i
+                }
+            }
+            val expected = DenseMatrix.zero(order, order)
+            koblas.gemm(1.0, denseLeft, false, denseRight, false, 0.0, expected)
+            val actual = DenseMatrix.zero(order, order)
+            for (j in 0 until product.cols) product.forEachInColumn(j) { i, v -> actual[i, j] = v }
+            assertClose(expected.values, actual.values, "$context product")
         }
     }
 

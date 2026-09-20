@@ -69,6 +69,30 @@ public fun main(args: Array<String>) {
     writeTextFile(settings.outputPath, reportCsv(rows))
     println("wrote ${selected.size} case summaries from ${rows.count { it.nanos != null }} measurements to ${settings.outputPath}")
     println("resolved implementation=$implementation runtime=${runtimeIdentity()} harness=native-calibrated")
+    println("last retained result=${Retained.describe()}")
+}
+
+/**
+ * Where a timed body puts an object it produced, so that producing it cannot be optimized away.
+ *
+ * A row that times preparation returns the snapshot's stored-entry count, which is a number the compiler can
+ * work out from the source operand without copying anything. Storing the snapshot itself makes it escape,
+ * which is what a measurement of copying has to establish before it can claim to have measured it. The same
+ * applies to a fresh sparse result, whose structural arrays a caller reading one value would not keep.
+ *
+ * Read once at the end of a run, so nothing about the field can be folded away either.
+ */
+internal object Retained {
+    private var value: Any? = null
+
+    /** Keeps [produced] observable and returns a number the timed loop consumes. */
+    fun retain(produced: Any?): Double {
+        value = produced
+        return 1.0
+    }
+
+    /** What the last timed body produced, which a runner reads so the field is not written for nothing. */
+    fun describe(): String = value?.let { it::class.simpleName } ?: "nothing"
 }
 
 private data class Calibration(val operations: Int, val sink: Double)

@@ -7,7 +7,6 @@ import com.eignex.koblas.PreparedSparseMatrix
 import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.UnsafeKoblasApi
 import com.eignex.koblas.Workspace
-import com.eignex.koblas.borrow
 import com.eignex.koblas.dense.DenseOperation
 import com.eignex.koblas.dense.DenseVectorKernels
 import com.eignex.koblas.dense.applyBeta
@@ -17,19 +16,23 @@ import com.eignex.koblas.requireShape
 import com.eignex.koblas.requireSquare
 import com.eignex.koblas.requireTriangularMatrixShape
 import com.eignex.koblas.sparse.internal.SparseAccumulationKernels
+import com.eignex.koblas.sparse.internal.forEachPanelWidth
 import com.eignex.koblas.sparse.internal.multiplyFromTheLeft
 import com.eignex.koblas.sparse.internal.multiplyFromTheRight
 import com.eignex.koblas.sparse.internal.multiplySparse
 import com.eignex.koblas.sparse.internal.multiplySparseInto
+import com.eignex.koblas.sparse.internal.multiplySymmetricFromTheLeft
+import com.eignex.koblas.sparse.internal.planRightHandSides
 import com.eignex.koblas.sparse.internal.pointerLength
+import com.eignex.koblas.sparse.internal.rhsStaged
+import com.eignex.koblas.sparse.internal.rhsWidth
 import com.eignex.koblas.sparse.internal.stableFor
 import com.eignex.koblas.sparse.internal.symmetricRankInto
 import com.eignex.koblas.sparse.internal.symmetricRankProduct
 import com.eignex.koblas.sparse.internal.transposeCsc
-import com.eignex.koblas.sparse.internal.trmmLeftCore
+import com.eignex.koblas.sparse.internal.triangularLeftCore
 import com.eignex.koblas.sparse.internal.trmmRightCore
 import com.eignex.koblas.sparse.internal.trmvCore
-import com.eignex.koblas.sparse.internal.trsmLeftCore
 import com.eignex.koblas.sparse.internal.trsmRightCore
 import com.eignex.koblas.sparse.internal.trsvCore
 import com.eignex.koblas.sparse.internal.withExplicitDiagonal
@@ -40,6 +43,131 @@ import com.eignex.koblas.vendor.RouteKind
 
 /** The component name every built-in sparse Level 2 and 3 call reports, whatever Level 1 kernels it calls. */
 internal const val SPARSE_SCHEDULING: String = "portable-csc"
+
+/** The component a call names where it copies a panel of right-hand sides into adjacent order and back. */
+internal const val SPARSE_STAGING: String = "portable-stage"
+
+/** The leaf name for a panel that reduces the rows a column stores into one output row. */
+private const val GATHER_PANEL: String = "sparse-rhs-gather"
+
+/** The leaf name for a panel that spreads one index across the rows a column stores. */
+private const val SCATTER_PANEL: String = "sparse-rhs-scatter"
+
+/** The leaf name for the two panels a symmetric column reaches, which are one of each. */
+private const val SYMMETRIC_PANEL: String = "sparse-rhs-mirror"
+
+/**
+ * Which runs of a sparse column a call hands to a panel, and what a staged call copies.
+ *
+ * The two are one description because they are the same question asked of one operation: what the panels
+ * are given decides which bodies run, and what has to be copied for them to be adjacent decides what the
+ * staging costs. A source is read into adjacent order and never written back; a destination is read in and
+ * written back, and a symmetric product does both because its two dense operands are different arrays.
+ *
+ * @property shape which run of a column one panel call is given, which differs by family: a general
+ *   product hands over every stored entry, a symmetric one hands over the selected part in a single
+ *   coupled pass with the diagonal in it, and a triangular one hands over the strictly triangular part.
+ * @property stagedComponents what a staged call copies, named as the route names it.
+ * @property stagedReason how that copy is described in a route's reason.
+ * @property writesOutSingleSide whether a group of one right-hand side is written out by the traversal instead
+ *   of handed to a panel. Every family is: one column spread into one right-hand side, or reduced into one
+ *   output, is a loop the traversal can run without the seam, and the seam costs more than it saves on a
+ *   single value. A triangular routine writes out the pivot and the one liveness flag with it, which the
+ *   panel keeps in a scratch array because at a group it has one per right-hand side.
+ * @param reduces whether this call's panels carry an accumulator per right-hand side rather than a window
+ *   of a destination, which is the shape the backend is asked about and may group differently. A triangular
+ *   routine answers with its own transpose flag instead, through `reduction`, since the direction that
+ *   gathers finished rows into a pivot reduces and the direction that spreads a pivot does not.
+ * @param solve which direction a triangular dependence runs, or null where the operation has none.
+ */
+private enum class PanelRuns(
+    val shape: RunShape,
+    val stagedComponents: List<String>,
+    val stagedReason: String,
+    val writesOutSingleSide: Boolean = true,
+    private val reduces: Boolean = false,
+    private val solve: Boolean? = null,
+) {
+    /** A product whose dense operand is the source that is staged, and whose destination is an accumulator. */
+    WholeColumnSource(
+        shape = RunShape.WholeColumn,
+        stagedComponents = listOf("rhs-source"),
+        stagedReason = "the dense operand is copied into adjacent right-hand sides, which is what lets a " +
+            "panel be a vector body, and nothing is written back through it; ",
+        reduces = true,
+    ),
+
+    /** A product whose destination is the dense block, which is staged and written back. */
+    WholeColumnDestination(
+        shape = RunShape.WholeColumn,
+        stagedComponents = listOf("rhs-destination"),
+        stagedReason = "the destination is copied into adjacent right-hand sides and written back, which " +
+            "is what lets a panel be a vector body; ",
+    ),
+
+    /** A symmetric product, whose selected run is scattered and mirrored back in one coupled pass. */
+    Symmetric(
+        shape = RunShape.SelectedRun,
+        stagedComponents = listOf("rhs-source", "rhs-destination"),
+        stagedReason = "both dense blocks are copied into adjacent right-hand sides and the destination is " +
+            "written back, which is what lets a panel be a vector body; ",
+    ),
+
+    /** A triangular solve, whose panels are the strictly triangular part of a column. */
+    TriangularSolve(
+        shape = RunShape.StrictRun,
+        stagedComponents = listOf("rhs-destination"),
+        stagedReason = "the block is copied into adjacent right-hand sides and written back, which is what " +
+            "lets a panel be a vector body; ",
+        solve = true,
+    ),
+
+    /** A triangular multiply, which is the same panels in the other dependence direction. */
+    TriangularMultiply(
+        shape = RunShape.StrictRun,
+        stagedComponents = listOf("rhs-destination"),
+        stagedReason = "the block is copied into adjacent right-hand sides and written back, which is what " +
+            "lets a panel be a vector body; ",
+        solve = false,
+    ),
+    ;
+
+    /**
+     * Whether the columns are visited from the first, which only a triangular routine answers with anything
+     * but yes.
+     *
+     * The same expression the triangular scheduling takes its direction from, because the route has to list
+     * the bodies in the order the traversal reached them and a dependence decides that order.
+     */
+    fun forward(lower: Boolean, transpose: Boolean): Boolean = solve?.let { lower != (transpose == it) } ?: true
+
+    /**
+     * Which of the two sparse panel shapes this call's leaves are, which a triangular routine answers with
+     * its own transpose flag.
+     *
+     * The gathering direction reduces finished rows into a pivot through the reduction leaf; the scattering
+     * direction spreads a pivot through the update one. Asking the backend about the shape that does not
+     * run would take a width chosen for the other body and report that body's name.
+     */
+    fun reduction(transpose: Boolean): Boolean = if (solve == null) reduces else transpose
+}
+
+/**
+ * Which run of a sparse column one panel call is handed.
+ *
+ * One call, one run. A symmetric column was two calls over two runs and is now one coupled pass over the
+ * selected one, and a route that still enumerated both would name a body for a call that never happens.
+ */
+private enum class RunShape {
+    /** Every stored entry of the column. */
+    WholeColumn,
+
+    /** The entries on the selected side of the diagonal, the diagonal included. */
+    SelectedRun,
+
+    /** The entries strictly off the diagonal on the selected side. */
+    StrictRun,
+}
 
 /**
  * Portable CSC matrix algorithms, bound to one engine's dense and indexed Level 1 kernels.
@@ -94,6 +222,64 @@ internal class SparseAlgorithms(
                     "the kernel, which skips a zero multiplier",
             )
 
+            SparseMatrixOperation.SymmRight -> wholeColumnRoute(
+                operation,
+                call,
+                scaling,
+                multiplies = false,
+                "each stored entry of the selected triangle updates two whole dense columns, and one whose " +
+                    "scaled coefficient is exactly zero is formed by the traversal rather than by the kernel",
+            )
+
+            SparseMatrixOperation.GemmDense -> panelRoute(
+                operation,
+                call,
+                scaling,
+                rows = productRows(call),
+                copiedPerSide = if (call.transposeSparse) productDepth(call).toLong() else 2L * productRows(call),
+                nativelyContiguous = call.transposeSparse && call.transposeDense,
+                runs = if (call.transposeSparse) PanelRuns.WholeColumnSource else PanelRuns.WholeColumnDestination,
+                leaf = if (call.transposeSparse) GATHER_PANEL else SCATTER_PANEL,
+                masked = false,
+                covered = if (call.transposeSparse) {
+                    "every stored entry of a column reduces into the panel's accumulators"
+                } else {
+                    "every stored entry of a column scatters across the panel's right-hand sides"
+                },
+            )
+
+            SparseMatrixOperation.SymmLeft -> panelRoute(
+                operation,
+                call,
+                scaling,
+                rows = call.matrix.rows,
+                copiedPerSide = 3L * call.matrix.rows,
+                nativelyContiguous = false,
+                runs = PanelRuns.Symmetric,
+                leaf = SYMMETRIC_PANEL,
+                masked = false,
+                covered = "each selected run of a column is scattered into the rows it stores and gathered " +
+                    "back into its own, which is two panels per column",
+            )
+
+            SparseMatrixOperation.TrsmLeft, SparseMatrixOperation.TrmmLeft -> panelRoute(
+                operation,
+                call,
+                scaling,
+                rows = call.matrix.rows,
+                copiedPerSide = 2L * call.matrix.rows,
+                nativelyContiguous = false,
+                runs = if (operation == SparseMatrixOperation.TrsmLeft) {
+                    PanelRuns.TriangularSolve
+                } else {
+                    PanelRuns.TriangularMultiply
+                },
+                leaf = if (call.transposeSparse) GATHER_PANEL else SCATTER_PANEL,
+                masked = !call.transposeSparse,
+                covered = "the strictly triangular part of every column is one panel, and the pivot itself is " +
+                    "the traversal's own division or multiplication",
+            )
+
             SparseMatrixOperation.TrsmRight -> wholeColumnRoute(
                 operation,
                 call,
@@ -119,13 +305,26 @@ internal class SparseAlgorithms(
         }
     }
 
+    @Suppress("LongParameterList") // the operation, how it was served, and the facts a report publishes
     private fun route(
         operation: SparseMatrixOperation,
         kind: RouteKind,
         components: List<String>,
         reason: String?,
-    ): SparseMatrixRoute =
-        SparseMatrixRoute(operation, kind, SPARSE_SCHEDULING, operation.entryPoint, components, reason)
+        group: Int = 0,
+        tail: Int = 0,
+        resolved: Boolean = true,
+    ): SparseMatrixRoute = SparseMatrixRoute(
+        operation,
+        kind,
+        SPARSE_SCHEDULING,
+        operation.entryPoint,
+        components,
+        reason,
+        group,
+        tail,
+        resolved,
+    )
 
     /**
      * Whether the call's own contract stops before any arithmetic.
@@ -211,6 +410,215 @@ internal class SparseAlgorithms(
                 leaves.joinToString(" and "),
         )
     }
+
+    /**
+     * A call whose unit of work is a group of right-hand sides handed to a panel leaf.
+     *
+     * The staging decision is the one the call itself makes, asked here through the same function, so a route
+     * cannot name an adjacent panel for a call that will run a strided one. Both widths a call uses are
+     * asked about, the plan's and whatever the last group is left with, because a short last group may reach
+     * a different body from the full ones.
+     */
+    @Suppress("LongParameterList") // the call, its two extents, the staging inputs and the two descriptions
+    private fun panelRoute(
+        operation: SparseMatrixOperation,
+        call: SparseCall,
+        scaling: List<String>,
+        rows: Int,
+        copiedPerSide: Long,
+        nativelyContiguous: Boolean,
+        runs: PanelRuns,
+        leaf: String,
+        masked: Boolean,
+        covered: String,
+    ): SparseMatrixRoute {
+        val a = call.matrix
+        // A call that reaches here has work to do, since a call without any returned before this. It writes
+        // a dense block, so it has right-hand sides, and how many decides the grouping, the staging and the
+        // bodies. Without that fact there is nothing to derive, and answering anyway would report a call
+        // with no panel for one that is about to run several. The destination extent does not stand in for
+        // it: a caller may give one and not the other, or neither.
+        if (call.rightHandSides <= 0) {
+            return route(
+                operation,
+                RouteKind.Composed,
+                scaling,
+                "these call facts carry no right-hand side count, so which panels this call cuts and which " +
+                    "bodies they reach is not derivable from them",
+                resolved = false,
+            )
+        }
+        // The same question the call itself asks, with the same panel shape: a route that left the shape
+        // out would report the width the other one of the two would have taken.
+        val plan = planRightHandSides(
+            panelKernels,
+            rows,
+            call.rightHandSides,
+            a.nnz,
+            copiedPerSide,
+            nativelyContiguous,
+            runs.reduction(call.transposeSparse),
+        )
+        val staged = rhsStaged(plan)
+        val width = rhsWidth(plan)
+        val components = ArrayList(scaling)
+        if (staged) for (copy in runs.stagedComponents) components.add("$SPARSE_STAGING/$copy")
+        val staging = if (staged) runs.stagedReason else ""
+        val tail = if (width > 0 && call.rightHandSides > width) call.rightHandSides % width else 0
+        // A group of one is the panel's arithmetic written out by the traversal, because the seam costs
+        // more than it saves on a single value. Which operations do that is the operation's own fact: a
+        // product spreads or reduces one column into one right-hand side directly, while a triangular
+        // routine keeps its panel at every width, since the pivot it writes and the liveness it records are
+        // that panel's work whatever its width. A last group of one is bypassed exactly as a whole call of
+        // one is, so both widths are asked about separately.
+        val bypassed = if (runs.writesOutSingleSide) 1 else 0
+        if (runs.writesOutSingleSide && width == 1) {
+            return route(
+                operation,
+                RouteKind.Direct,
+                components,
+                staging + "a single right-hand side is written out by the traversal rather than handed to a " +
+                    "panel",
+                width,
+                tail,
+            )
+        }
+        val leaves = panelLeaves(
+            a,
+            call,
+            width,
+            runs,
+            staged || nativelyContiguous,
+            bypassed,
+            runs.reduction(call.transposeSparse),
+        )
+        for (name in leaves) components.add("$name/$leaf")
+        if (bypassed != 0 && tail == bypassed && leaves.isNotEmpty()) {
+            return route(
+                operation,
+                RouteKind.Composed,
+                components,
+                staging + "the full groups reach " + leaves.joinToString(" and ") +
+                    (
+                        if (masked) {
+                            " where every right-hand side of a group is live, and keep the " +
+                                "written-out loop where one of them is not"
+                        } else {
+                            ""
+                        }
+                        ) +
+                    ", and the last group of one is written out by the traversal instead",
+                width,
+                tail,
+            )
+        }
+        if (leaves.isEmpty()) {
+            // Not the same as a call with nothing to do: this one walks its columns and writes its pivots,
+            // and what it never reaches is a panel. Naming a body here, vector or otherwise, would be
+            // reporting arithmetic that no selected run exists to perform.
+            return route(
+                operation,
+                RouteKind.Direct,
+                components,
+                staging + "no column has a selected run to hand over, so no panel body runs at all",
+                width,
+                tail,
+            )
+        }
+        if (masked) {
+            return route(
+                operation,
+                RouteKind.Composed,
+                components,
+                staging + "a group whose right-hand sides are all live reaches the panel, and one with a " +
+                    "zero right-hand side keeps the written-out loop that skips it",
+                width,
+                tail,
+            )
+        }
+        if (leaves.size > 1) {
+            return route(
+                operation,
+                RouteKind.Composed,
+                components,
+                staging + "this call's panels reach " + leaves.joinToString(" and "),
+                width,
+                tail,
+            )
+        }
+        return route(operation, RouteKind.Direct, components, staging + covered, width, tail)
+    }
+
+    /**
+     * The distinct panel implementations this call's panels reach, in first-seen order.
+     *
+     * Both extents of a panel are asked about as the call will actually have them: every group of
+     * right-hand sides the call cuts, including a short last one, against the length of every run a column
+     * really hands over. A triangular routine hands over the strictly triangular part of a column and a
+     * symmetric one hands over the selected part in one coupled pass, so a matrix storing only a diagonal,
+     * or only the triangle this call does not select, reaches no panel at all and is reported as reaching
+     * none.
+     */
+    @Suppress("LongParameterList") // the operand, the call, the geometry and what the traversal keeps
+    private fun panelLeaves(
+        a: SparseMatrix,
+        call: SparseCall,
+        width: Int,
+        runs: PanelRuns,
+        contiguous: Boolean,
+        bypassed: Int,
+        reduction: Boolean,
+    ): List<String> {
+        val leaves = ArrayList<String>(2)
+        forEachPanelWidth(call.rightHandSides, width) { group ->
+            if (group == bypassed) return@forEachPanelWidth
+            forEachSelectedRun(a, runs, call.lower, runs.forward(call.lower, call.transposeSparse)) { entries ->
+                val leaf = panelKernels.panelLeaf(group, entries, contiguous, reduction)
+                if (leaf !in leaves) leaves.add(leaf)
+            }
+        }
+        return leaves
+    }
+
+    /**
+     * The length of every nonempty run of stored entries this call hands to a panel, in the order it hands
+     * them over.
+     *
+     * The order is the traversal's rather than the matrix's. A triangular routine walks its columns in
+     * whichever direction its dependence runs, so a route that always scanned forward would list two bodies
+     * in the reverse of the order they ran, and first-seen order is what the component list promises.
+     */
+    private inline fun forEachSelectedRun(
+        a: SparseMatrix,
+        runs: PanelRuns,
+        lower: Boolean,
+        forward: Boolean,
+        action: (Int) -> Unit,
+    ) {
+        var step = 0
+        while (step < a.cols) {
+            val j = if (forward) step else a.cols - 1 - step
+            step++
+            val from = a.colPointers[j]
+            val to = a.colPointers[j + 1]
+            val length = when (runs.shape) {
+                RunShape.WholeColumn -> to - from
+
+                RunShape.SelectedRun -> selectedRunEnd(a.rowIndices, from, to, j, lower) -
+                    selectedRunStart(a.rowIndices, from, to, j, lower)
+
+                RunShape.StrictRun -> strictRunEnd(a.rowIndices, from, to, j, lower) -
+                    strictRunStart(a.rowIndices, from, to, j, lower)
+            }
+            if (length > 0) action(length)
+        }
+    }
+
+    /** Rows of `op(A)` for a product, which the sparse operand's own transpose flag decides. */
+    private fun productRows(call: SparseCall): Int = if (call.transposeSparse) call.matrix.cols else call.matrix.rows
+
+    /** The inner extent of a product, the counterpart of [productRows]. */
+    private fun productDepth(call: SparseCall): Int = if (call.transposeSparse) call.matrix.rows else call.matrix.cols
 
     /** The distinct indexed implementations the stored columns of [a] reach for [operation], in first-seen order. */
     private fun indexedLeaves(a: SparseMatrix, operation: SparseOperation): List<String> {
@@ -358,6 +766,10 @@ internal class SparseAlgorithms(
         } else {
             requireShape(b.rows == a.rows) { "symm: B has ${b.rows} rows, expected ${a.rows}" }
         }
+        // A destination with no elements is validated and then left alone, before any staging or loan. One
+        // of its two extents may be zero while the other is enormous, and a traversal over the long one
+        // would step through it to write nothing.
+        if (c.values.isEmpty()) return
         if (alpha == 0.0) {
             applyBeta(vectorKernels, c.values, 0, c.values.size, beta)
             return
@@ -365,8 +777,8 @@ internal class SparseAlgorithms(
         withStableSparse(a, c.values, workspace) { stableA ->
             withStableDense(b, c.values, workspace) { stableB ->
                 applyBeta(vectorKernels, c.values, 0, c.values.size, beta)
-                for (column in 0 until stableA.cols) {
-                    if (right) {
+                if (right) {
+                    for (column in 0 until stableA.cols) {
                         panelKernels.symmetricRightColumn(
                             alpha,
                             column,
@@ -379,21 +791,9 @@ internal class SparseAlgorithms(
                             stableB.rows,
                             lower,
                         )
-                    } else {
-                        panelKernels.symmetricLeftColumn(
-                            alpha,
-                            column,
-                            stableA.rowIndices,
-                            stableA.values,
-                            stableA.colPointers[column],
-                            stableA.colPointers[column + 1],
-                            stableB.values,
-                            c.values,
-                            stableB.rows,
-                            stableB.cols,
-                            lower,
-                        )
                     }
+                } else {
+                    multiplySymmetricFromTheLeft(panelKernels, alpha, stableA, stableB, c, lower, workspace)
                 }
             }
         }
@@ -427,11 +827,22 @@ internal class SparseAlgorithms(
     ) {
         // Multiplying the dense operand by the sparse one from the right is this product with the operands
         // the other way round, so the same derivation answers both.
-        val (m, k, n) = if (right) {
+        if (right) {
             requireGemmShape(b, transposeB, a, transposeA, c)
         } else {
             requireGemmShape(a, transposeA, b, transposeB, c)
         }
+        // The destination's extents are the product's once that holds, and the depth is the sparse operand's
+        // own inner one on the left and the dense operand's on the right.
+        val m = c.rows
+        val n = c.cols
+        val k = if (right) {
+            if (transposeB) b.rows else b.cols
+        } else {
+            if (transposeA) a.rows else a.cols
+        }
+        // As in symm: nothing to write is settled after validation and before anything is staged or lent.
+        if (c.values.isEmpty()) return
         if (alpha == 0.0) {
             applyBeta(vectorKernels, c.values, 0, c.values.size, beta)
             return
@@ -637,12 +1048,10 @@ internal class SparseAlgorithms(
                     trsmRightCore(panelKernels, triangle, b, lower, !transpose, diagonal)
                 }
             } else {
-                val group = panelKernels.rightHandSideGroup(n, rightHandSides)
-                // Twice the group, because a panel solve records which right-hand sides are live beside them.
-                workspace.borrow(2 * group) { work ->
-                    withExplicitDiagonal(triangle, n, unitDiag, workspace) { diagonal ->
-                        trsmLeftCore(panelKernels, triangle, b, lower, transpose, diagonal, work, group)
-                    }
+                withExplicitDiagonal(triangle, n, unitDiag, workspace) { diagonal ->
+                    triangularLeftCore(
+                        panelKernels, true, triangle, b, lower, transpose, unitDiag, diagonal, workspace,
+                    )
                 }
             }
         }
@@ -672,10 +1081,9 @@ internal class SparseAlgorithms(
                 if (right) {
                     trmmRightCore(panelKernels, triangle, b, lower, transpose, unitDiag, diagonal)
                 } else {
-                    val group = panelKernels.rightHandSideGroup(n, if (right) b.rows else b.cols)
-                    workspace.borrow(2 * group) { work ->
-                        trmmLeftCore(panelKernels, triangle, b, lower, transpose, unitDiag, diagonal, work, group)
-                    }
+                    triangularLeftCore(
+                        panelKernels, false, triangle, b, lower, transpose, unitDiag, diagonal, workspace,
+                    )
                 }
             }
         }

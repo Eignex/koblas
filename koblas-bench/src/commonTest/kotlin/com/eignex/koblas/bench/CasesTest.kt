@@ -3,6 +3,7 @@ package com.eignex.koblas.bench
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertTrue
 
 class CasesTest {
     @Test
@@ -94,6 +95,55 @@ class CasesTest {
         assertFailsWith<IllegalArgumentException> { Cases.parse("$canonical\n$reordered") }
     }
 
+
+    /**
+     * The support distribution is a fixture fact and the reuse count belongs to one mode, so both are
+     * rejected where they mean nothing rather than being accepted and ignored.
+     */
+    @Test
+    fun `a support distribution and a reuse count are accepted only where they apply`() {
+        val supported = Cases.parse("spmm+9x4x7+sparse-uniform+density=0.1+support=banded+mode=oneshot").single()
+        assertEquals("banded", supported.option("support", "uniform"))
+
+        assertFailsWith<IllegalArgumentException> { Cases.parse("spdot+4096+sparse-uniform+density=0.1+support=banded") }
+        assertFailsWith<IllegalArgumentException> {
+            Cases.parse("spmm+9x4x7+sparse-uniform+density=0.1+support=diagonal+mode=oneshot")
+        }
+        assertFailsWith<IllegalArgumentException> {
+            Cases.parse("spmm+9x4x7+sparse-uniform+density=0.1+mode=oneshot+reuse=4")
+        }
+        assertFailsWith<IllegalArgumentException> {
+            Cases.parse("spmm+9x4x7+sparse-uniform+density=0.1+mode=amortized")
+        }
+        assertFailsWith<IllegalArgumentException> {
+            Cases.parse("spsymm+9x4+sparse-triangular+density=0.1+mode=amortized+reuse=4+side=L+uplo=L")
+        }
+    }
+
+    /**
+     * Each distribution puts a different number of entries in a column at one density, which is what a
+     * measurement over them is comparing.
+     */
+    @Test
+    fun `support distributions differ in what each column stores`() {
+        val counts = listOf("uniform", "banded", "skewed", "empty", "mixed").associateWith { support ->
+            val matrix = Fixtures.sparse(32, 8, 0.25, 3, support = support)
+            (0 until matrix.cols).map { matrix.copyColumnPointers()[it + 1] - matrix.copyColumnPointers()[it] }
+        }
+        assertEquals(List(8) { 8 }, counts.getValue("uniform"))
+        assertEquals(List(8) { 8 }, counts.getValue("banded"))
+        assertEquals(listOf(32, 2, 2, 2, 2, 2, 2, 2), counts.getValue("skewed"))
+        assertEquals(listOf(0, 8, 8, 8, 0, 8, 8, 8), counts.getValue("empty"))
+        assertEquals(listOf(1, 32, 1, 32, 1, 32, 1, 32), counts.getValue("mixed"))
+        // A banded column keeps its entries next to the diagonal, which is the whole of what it changes.
+        val banded = Fixtures.sparse(32, 8, 0.0625, 3, support = "banded")
+        for (j in 0 until banded.cols) {
+            val centre = j * 31 / 7
+            banded.forEachInColumn(j) { row, _ ->
+                assertTrue(kotlin.math.abs(row - centre) <= 8, "column $j stored row $row away from $centre")
+            }
+        }
+    }
 
     @Test
     fun `fixtures have stable golden digests`() {
