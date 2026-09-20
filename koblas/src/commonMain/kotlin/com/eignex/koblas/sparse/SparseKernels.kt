@@ -146,6 +146,7 @@ internal class SparseKernelAdapter(
             return vectorRoute(
                 operation,
                 operation.entryPoint,
+                count,
                 denseVectorKernels.name,
                 denseVectorKernels.implementationFor(dense, count),
                 "a contiguous run of stored values",
@@ -154,6 +155,7 @@ internal class SparseKernelAdapter(
         return vectorRoute(
             operation,
             operation.entryPoint,
+            count,
             indexedSparseKernels.name,
             indexedSparseKernels.implementationFor(operation, count),
         )

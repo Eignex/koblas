@@ -12,7 +12,6 @@ import com.eignex.koblas.sparse.SparseMatrixOperation
 import com.eignex.koblas.sparse.SparseMatrixRoute
 import com.eignex.koblas.sparse.SparseOperation
 import com.eignex.koblas.sparse.SparsePrimitives
-import com.eignex.koblas.VectorRoute
 import com.eignex.koblas.times
 import com.eignex.koblas.vendor.RouteKind
 
@@ -46,7 +45,7 @@ internal fun sparseArm(case: BenchCase, engine: KoblasEngine): ArmChoice? {
         val route = engine.routeOf(operation, count)
         if (!route.exactlyMeasurable) return ArmChoice(null, requireNotNull(route.reason))
         val work = CaseWork(
-            route.kind.name.lowercase(), timing, run, result = result, kernel = sparseKernel(route),
+            route.kind.name.lowercase(), timing, run, result = result, kernel = vectorKernel(route),
         )
         return ArmChoice(work, null)
     }
@@ -157,9 +156,6 @@ internal fun sparseArm(case: BenchCase, engine: KoblasEngine): ArmChoice? {
         else -> sparseMatrixArm(case, engine)
     }
 }
-
-/** The attribution a sparse row carries, taken from the binding rather than rebuilt from the mode string. */
-internal fun sparseKernel(route: VectorRoute<SparseOperation>): String = "${route.implementation}/${route.entryPoint}"
 
 /** A nonzero scatter epoch; the accumulator is cleared between iterations, so one value serves every pass. */
 private const val EPOCH = 1

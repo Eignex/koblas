@@ -33,6 +33,16 @@ internal class VendorVectorKernels(
         // Not a BLAS routine, so there is no entry point to reach at any width.
         operation == DenseOperation.Sum -> portable.implementationFor(operation, length, contiguous)
 
+        // A spaced rotation has no kernel here and is the portable loop. A contiguous one keeps a run rotated
+        // against itself portable at every width, and a route carries no operand identity, so this call's
+        // facts do not settle which of the two it is.
+        operation == DenseOperation.Rot ->
+            if (contiguous && vendorRuns(operation, length)) {
+                null
+            } else {
+                portable.implementationFor(operation, length, contiguous)
+            }
+
         vendorRuns(operation, length) -> name
 
         else -> portable.implementationFor(operation, length, contiguous)

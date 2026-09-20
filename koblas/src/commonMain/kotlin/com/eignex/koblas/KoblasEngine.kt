@@ -166,15 +166,13 @@ public class KoblasEngine internal constructor(
         operation: DenseOperation,
         length: Int,
         contiguous: Boolean = true,
-    ): VectorRoute<DenseOperation> {
-        require(length >= 0) { "negative operation length" }
-        return vectorRoute(
-            operation,
-            operation.name.lowercase(),
-            vectorKernels.name,
-            vectorKernels.implementationFor(operation, length, contiguous),
-        )
-    }
+    ): VectorRoute<DenseOperation> = vectorRoute(
+        operation,
+        operation.name.lowercase(),
+        length,
+        vectorKernels.name,
+        vectorKernels.implementationFor(operation, length, contiguous),
+    )
 
     /** The route for a sparse vector call over [count] stored entries. */
     public fun routeOf(operation: SparseOperation, count: Int): VectorRoute<SparseOperation> =

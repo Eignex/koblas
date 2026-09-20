@@ -212,6 +212,15 @@ Every BLAS invocation runs on one compute thread; there is no thread setting to 
 exports — `sum` and everything sparse — are reported unsupported on vendor targets rather than timed through a
 substitute.
 
+A Level 1 row is published only where the call's own facts settle which kernel produced the result. A
+euclidean norm tries a plain sum of squares and retries through the rescaling loop when that leaves the
+normal range, so `nrm2`, `spnrm2` and `spnrm2-indexed` are declined on an arm whose vector kernel would start
+them rather than reported under either. A rotation on `native-default` is declined for the same reason: one
+run rotated against itself stays portable at every width, since reference `drot` reads an entry back after
+storing it, and a route carries no operand identity to tell the two cases apart. Each of those kernels is
+measured on the arms where one answer holds, which are the portable `jvm-scalar` and `native` arms and the
+explicit `<vendor>` arms.
+
 Built-in dense Level 2/3 rows name `portable-dense/<operation>` and do not resolve a vendor. Where a window of
 work is handed to a panel or a Level 1 kernel they name that component too, as
 `portable-dense+<component>/<operation>@<group>`, where the group is how many logical columns the backend

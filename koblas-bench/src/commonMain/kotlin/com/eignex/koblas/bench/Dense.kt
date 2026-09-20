@@ -3,6 +3,7 @@ package com.eignex.koblas.bench
 import com.eignex.koblas.DenseVector
 import com.eignex.koblas.KoblasEngine
 import com.eignex.koblas.Matrix
+import com.eignex.koblas.VectorRoute
 import com.eignex.koblas.Workspace
 import com.eignex.koblas.gemmInto
 import com.eignex.koblas.dense.DenseCall
@@ -51,11 +52,11 @@ private fun level1(
 ): CaseWork? {
     val route = engine.routeOf(operation, length)
     if (route.kind == RouteKind.Composed || route.kind == RouteKind.NoWork) return null
-    return CaseWork(
-        route.kind.name.lowercase(), timing, run, result = result,
-        kernel = "${route.implementation}/${route.entryPoint}",
-    )
+    return CaseWork(route.kind.name.lowercase(), timing, run, result = result, kernel = vectorKernel(route))
 }
+
+/** The attribution a Level 1 row carries, which is the same question for a dense run and a stored support. */
+internal fun vectorKernel(route: VectorRoute<*>): String = "${route.implementation}/${route.entryPoint}"
 
 /**
  * Built-in Level 2 or 3 work, named by the route the call itself resolves.
