@@ -5,8 +5,8 @@ import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.DenseVector
 import com.eignex.koblas.KoblasEngine
 import com.eignex.koblas.Workspace
-import com.sun.management.ThreadMXBean
-import java.lang.management.ManagementFactory
+import com.eignex.koblas.testutil.allocation.AllocationProbe
+import com.eignex.koblas.testutil.allocation.bytesPerCall
 
 /**
  * Runs allocation checks for the Vector API dense panels in an uninstrumented JVM.
@@ -65,11 +65,6 @@ internal object SimdDenseAllocationCheck {
 
     /** Wider than any grouping a backend recommends, so asking with it returns the recommendation itself. */
     private const val UNGROUPED_SIDES = 4_096
-
-    private val allocationBean = ManagementFactory.getThreadMXBean() as ThreadMXBean
-
-    @Volatile
-    private var resultSink = 0.0
 
     @JvmStatic
     fun main(args: Array<String>) {
@@ -489,34 +484,10 @@ internal object SimdDenseAllocationCheck {
         name: String,
         warmup: Int = WARMUP_ITERATIONS,
         iterations: Int = MEASUREMENT_ITERATIONS,
-        block: Work,
+        block: AllocationProbe,
     ) {
-        val bytes = bytesPerIteration(block, warmup, iterations)
+        val bytes = bytesPerCall(block, warmup, iterations, MEASUREMENT_WINDOWS)
         check(bytes <= MAX_BYTES_PER_CALL) { "$name allocated $bytes B per call" }
         println("$name allocated $bytes B per call")
-    }
-
-    /**
-     * One measured call.
-     *
-     * A named interface rather than a function type, because a `() -> Double` returns its result boxed and
-     * that box is charged to whatever is being measured. This one compiles to a primitive return, so the
-     * number is the call's own allocation and nothing else.
-     */
-    private fun interface Work {
-        fun run(): Double
-    }
-
-    private fun bytesPerIteration(block: Work, warmup: Int, iterations: Int): Double {
-        repeat(warmup) { resultSink = block.run() }
-        val id = Thread.currentThread().threadId()
-        var best = Double.MAX_VALUE
-        repeat(MEASUREMENT_WINDOWS) {
-            val before = allocationBean.getThreadAllocatedBytes(id)
-            repeat(iterations) { resultSink = block.run() }
-            val after = allocationBean.getThreadAllocatedBytes(id)
-            best = minOf(best, (after - before).toDouble() / iterations)
-        }
-        return best
     }
 }

@@ -6,8 +6,8 @@ import com.eignex.koblas.KoblasEngine
 import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.Workspace
 import com.eignex.koblas.dense.PanelWork
-import com.sun.management.ThreadMXBean
-import java.lang.management.ManagementFactory
+import com.eignex.koblas.testutil.allocation.AllocationProbe
+import com.eignex.koblas.testutil.allocation.bytesPerCall
 
 /**
  * Runs allocation checks for the Vector API indexed sparse paths in an uninstrumented JVM.
@@ -48,12 +48,6 @@ internal object SimdSparseAllocationCheck {
     /** One whole sparse call is the arithmetic of many panels, so it repeats fewer times. */
     private const val OPERATION_WARMUP = 2_000
     private const val OPERATION_ITERATIONS = 500
-
-    private val allocationBean = ManagementFactory.getThreadMXBean() as ThreadMXBean
-
-    /** A volatile result keeps read-only dot and norm calls observable to the optimizer. */
-    @Volatile
-    private var resultSink = 0.0
 
     @JvmStatic
     fun main(args: Array<String>) {
@@ -260,40 +254,14 @@ internal object SimdSparseAllocationCheck {
 
     internal fun crossesSimdCrossover(crossover: Int): Boolean = ENTRY_COUNT >= crossover
 
-    /**
-     * One probe, as an interface whose method returns a primitive.
-     *
-     * A Kotlin `() -> Double` is a `Function0<Double>`, which boxes its result unless the compiler manages
-     * to inline the call and take the object apart again. Several probes through one measurement loop is
-     * exactly where it stops doing that, and the box is then charged to whatever is being measured: every
-     * probe here read twenty-four bytes a call before this interface replaced the function type, which is
-     * the harness and not the kernels.
-     */
-    private fun interface Probe {
-        fun run(): Double
-    }
-
     private fun assertAllocationFree(
         name: String,
         warmup: Int = WARMUP_ITERATIONS,
         iterations: Int = MEASUREMENT_ITERATIONS,
-        block: Probe,
+        block: AllocationProbe,
     ) {
-        val bytes = bytesPerIteration(block, warmup, iterations)
+        val bytes = bytesPerCall(block, warmup, iterations, MEASUREMENT_WINDOWS)
         check(bytes <= MAX_BYTES_PER_CALL) { "$name allocated $bytes B per call" }
         println("$name: $bytes B per call")
-    }
-
-    private fun bytesPerIteration(block: Probe, warmup: Int, iterations: Int): Double {
-        repeat(warmup) { resultSink = block.run() }
-        val id = Thread.currentThread().threadId()
-        var best = Double.MAX_VALUE
-        repeat(MEASUREMENT_WINDOWS) {
-            val before = allocationBean.getThreadAllocatedBytes(id)
-            repeat(iterations) { resultSink = block.run() }
-            val after = allocationBean.getThreadAllocatedBytes(id)
-            best = minOf(best, (after - before).toDouble() / iterations)
-        }
-        return best
     }
 }
