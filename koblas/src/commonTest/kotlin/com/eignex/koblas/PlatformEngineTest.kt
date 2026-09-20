@@ -6,6 +6,7 @@ import com.eignex.koblas.dense.DenseOperation
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotEquals
+import kotlin.test.assertSame
 
 /**
  * Which Level 1 arm the default engine selected, which nothing else here would notice.
@@ -41,31 +42,40 @@ class PlatformEngineTest {
     }
 
     /**
-     * What the platform default runs, which is not everything that exists.
+     * What the platform default runs, which is every kernel this library owns where there are lanes for them.
      *
-     * The Vector API Level 1 kernels are the default and have been since they were measured. The Level 2
-     * panels are a candidate: correct, allocation-free and locally faster over most shapes, and behind over
-     * some small ones on the one machine that has timed them. Until that is settled across machines the
-     * default keeps the portable panels, and this is what says so rather than a sentence in a document.
+     * The Vector API Level 1 kernels have been the default since they were measured, and the Level 2 panels,
+     * the Level 3 tiles and the diagonal substitutions were held back from it while no crossover had been
+     * established. The final calibration established one and they are the default too, which makes the
+     * default and [BuiltinEngines.simd] one engine rather than two compositions that happen to agree. That
+     * identity is the assertion: a default rebuilt from the same parts would let the two drift apart, and a
+     * benchmark arm naming one while measuring the other is exactly what this stack has been avoiding.
+     *
+     * Where the module is absent there is nothing to select and the portable engine is the whole answer, so
+     * the second half of this says what the default is then rather than skipping.
      */
     @OptIn(KoblasEngineApi::class)
     @Test
-    fun `the default engine keeps its level one arm and the portable panels`() {
-        val candidate = BuiltinEngines.simd ?: return println(
-            "SKIPPED: no Vector API panel candidate on this platform; default activation was not checked",
-        )
+    fun `the platform default is the vector engine where there is one and the portable engine otherwise`() {
+        val vector = BuiltinEngines.simd
 
-        assertEquals(koblas.vectorKernels.name, candidate.vectorKernels.name, "the Level 1 arm is not the default's")
+        if (vector == null) {
+            // Kotlin/Native has no Vector API and a JVM without the module cannot reach one, so there is no
+            // vector backend to select and the matrix arithmetic is the portable code. Which Level 1 arm the
+            // default took is a separate question and the tests above are where it is asked.
+            assertEquals("scalar-panel", koblas.panelKernels.name)
+            assertEquals(BuiltinEngines.scalar.productKernels.name, koblas.productKernels.name)
+            assertEquals(BuiltinEngines.scalar.triangularKernels.name, koblas.triangularKernels.name)
+            return
+        }
+        assertSame(vector, koblas, "the platform default is a second composition rather than the measured arm")
         assertNotEquals(
-            candidate.panelKernels.name,
+            BuiltinEngines.scalar.panelKernels.name,
             koblas.panelKernels.name,
-            "the panel candidate became the platform default without its evidence gate",
+            "the default kept the portable panels after their crossover was established",
         )
-        assertEquals(
-            "scalar-panel",
-            koblas.panelKernels.name,
-            "the platform default schedules panels other than the portable ones",
-        )
+        assertNotEquals(BuiltinEngines.scalar.productKernels.name, koblas.productKernels.name)
+        assertNotEquals(BuiltinEngines.scalar.triangularKernels.name, koblas.triangularKernels.name)
     }
 
     /**

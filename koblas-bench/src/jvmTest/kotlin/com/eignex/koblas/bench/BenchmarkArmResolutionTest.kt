@@ -31,11 +31,14 @@ class BenchmarkArmResolutionTest {
     }
 
     /**
-     * The default arm is the platform's own policy, which is not the same object as any exact arm.
+     * The default arm is the platform's own policy, which is what the generic entry points use.
      *
-     * The generic entry points use the engine this platform selected, so a row for one of them has to be
-     * published on an arm whose engine is that. Naming it separately is also what keeps a default-policy
-     * measurement from being read as a measurement of the kernels an exact arm holds.
+     * The generic entry points take the engine this platform selected, so a row for one of them has to be
+     * published on an arm whose engine is that, and naming the arm separately is what keeps a default-policy
+     * row from being read as a measurement of an exact one. Where the module resolved that policy now
+     * selects the Vector API engine, so the two arms name the same object and a difference between their
+     * rows is the harness's noise rather than two implementations; where it did not, the default is the
+     * portable engine and `jvm-simd` refuses to run at all.
      */
     @Test
     fun `jvm default mode resolves the platform engine rather than an exact arm`() {
@@ -44,9 +47,9 @@ class BenchmarkArmResolutionTest {
         assertTrue(engine === koblas, "jvm-default resolved an engine other than the platform default")
         assertTrue(identity.startsWith("jvm-default/"), identity)
         assertEquals(
-            "scalar-panel",
-            engine.panelKernels.name,
-            "the platform default schedules panels other than the portable ones",
+            BuiltinEngines.simd ?: BuiltinEngines.scalar,
+            engine,
+            "the platform default is neither the Vector API engine nor the portable one",
         )
     }
 
