@@ -13,6 +13,7 @@ import com.eignex.koblas.dense.applyBeta
 import com.eignex.koblas.requireGemmShape
 import com.eignex.koblas.requireGemvShape
 import com.eignex.koblas.requireShape
+import com.eignex.koblas.requireSparseProductShape
 import com.eignex.koblas.requireSquare
 import com.eignex.koblas.requireTriangularMatrixShape
 import com.eignex.koblas.sparse.internal.SparseAccumulationKernels
@@ -870,11 +871,9 @@ internal class SparseAlgorithms(
         b: SparseMatrix,
         transposeB: Boolean,
     ): SparseMatrix {
+        requireSparseProductShape(a, transposeA, b, transposeB)
         val aRows = if (transposeA) a.cols else a.rows
-        val aCols = if (transposeA) a.rows else a.cols
-        val bRows = if (transposeB) b.cols else b.rows
         val bCols = if (transposeB) b.rows else b.cols
-        requireShape(aCols == bRows) { "gemm: op(A) is ${aRows}x$aCols but op(B) is ${bRows}x$bCols" }
         // Answered before either operand is oriented, because orienting allocates one pointer per row of the
         // operand and an operand may have more rows than an array can index even when the product it takes
         // part in is empty. Nothing stored on either side reaches no position either.
