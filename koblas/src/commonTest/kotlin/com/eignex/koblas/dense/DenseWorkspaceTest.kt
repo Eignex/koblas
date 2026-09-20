@@ -3,6 +3,7 @@ package com.eignex.koblas.dense
 import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.Workspace
 import com.eignex.koblas.assertClose
+import com.eignex.koblas.copyOf
 import com.eignex.koblas.randomMatrix
 import com.eignex.koblas.randomVector
 import kotlin.random.Random
@@ -53,9 +54,9 @@ class DenseWorkspaceTest {
         val n = 6
         val workspace = Workspace()
         val start = randomMatrix(n, n, rng)
-        val expected = copyOf(start)
-        ReferenceBlas.gemm(0.875, copyOf(start), false, copyOf(start), true, -0.25, expected)
-        val aliased = copyOf(start)
+        val expected = start.copyOf()
+        ReferenceBlas.gemm(0.875, start.copyOf(), false, start.copyOf(), true, -0.25, expected)
+        val aliased = start.copyOf()
 
         blas.gemm(0.875, aliased, false, aliased, true, -0.25, aliased, workspace)
 
@@ -76,9 +77,9 @@ class DenseWorkspaceTest {
         val n = 5
         val workspace = Workspace()
         val start = triangle(randomMatrix(n, n, rng), n)
-        val expected = copyOf(start)
-        ReferenceBlas.trsm(copyOf(start), expected, lower = true)
-        val aliased = copyOf(start)
+        val expected = start.copyOf()
+        ReferenceBlas.trsm(start.copyOf(), expected, lower = true)
+        val aliased = start.copyOf()
 
         blas.trsm(aliased, aliased, lower = true, workspace = workspace)
 
@@ -126,10 +127,8 @@ class DenseWorkspaceTest {
 
     /** A triangle with a dominant diagonal, so a solve over it is well conditioned. */
     private fun triangle(a: DenseMatrix, n: Int): DenseMatrix {
-        val t = copyOf(a)
+        val t = a.copyOf()
         for (i in 0 until n) t.values[i + i * n] = 3.0 + i % 2
         return t
     }
-
-    private fun copyOf(a: DenseMatrix) = DenseMatrix.wrap(a.rows, a.cols, a.values.copyOf())
 }

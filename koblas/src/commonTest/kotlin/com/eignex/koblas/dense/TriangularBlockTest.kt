@@ -6,6 +6,7 @@ import com.eignex.koblas.KoblasEngineApi
 import com.eignex.koblas.MAX_IDLE_LENGTHS
 import com.eignex.koblas.Workspace
 import com.eignex.koblas.assertClose
+import com.eignex.koblas.copyOf
 import com.eignex.koblas.poisonedTriangle
 import com.eignex.koblas.randomMatrix
 import kotlin.random.Random
@@ -55,7 +56,7 @@ class TriangularBlockTest {
             val solution = randomMatrix(if (right) sides else order, if (right) order else sides, rng)
             // The right-hand sides come from the reference multiply, so the check does not depend on the
             // solve it is checking.
-            val b = copyOf(solution)
+            val b = solution.copyOf()
             ReferenceBlas.trmm(triangle, b, lower, transpose, unitDiag, right)
 
             blas.trsm(triangle, b, lower, transpose, unitDiag, right)
@@ -72,9 +73,9 @@ class TriangularBlockTest {
         forEachCase { order, sides, lower, transpose, unitDiag ->
             val (triangle, _) = poisonedTriangle(rng, order, lower, unitDiag)
             val start = randomMatrix(if (right) sides else order, if (right) order else sides, rng)
-            val expected = copyOf(start)
+            val expected = start.copyOf()
             ReferenceBlas.trmm(triangle, expected, lower, transpose, unitDiag, right, ALPHA)
-            val actual = copyOf(start)
+            val actual = start.copyOf()
 
             blas.trmm(triangle, actual, lower, transpose, unitDiag, right, ALPHA)
 
@@ -182,13 +183,13 @@ class TriangularBlockTest {
             // A finite matrix throughout, because the operand it shares is the block as well as the
             // triangle: the poison a separate triangle carries above its diagonal would be data here.
             val triangle = dominantDiagonal(order)
-            val expected = copyOf(triangle)
+            val expected = triangle.copyOf()
             if (solve) {
-                ReferenceBlas.trsm(copyOf(triangle), expected, lower = true, alpha = ALPHA)
+                ReferenceBlas.trsm(triangle.copyOf(), expected, lower = true, alpha = ALPHA)
             } else {
-                ReferenceBlas.trmm(copyOf(triangle), expected, lower = true, alpha = ALPHA)
+                ReferenceBlas.trmm(triangle.copyOf(), expected, lower = true, alpha = ALPHA)
             }
-            val aliased = copyOf(triangle)
+            val aliased = triangle.copyOf()
 
             if (solve) {
                 blas.trsm(aliased, aliased, lower = true, alpha = ALPHA, workspace = workspace)
@@ -438,8 +439,6 @@ class TriangularBlockTest {
         unitDiag: Boolean,
         right: Boolean,
     ): String = "order=$order sides=$sides lower=$lower transpose=$transpose unit=$unitDiag right=$right"
-
-    private fun copyOf(a: DenseMatrix) = DenseMatrix.wrap(a.rows, a.cols, a.values.copyOf())
 
     /** A square whose diagonal dominates, so a solve over it is well conditioned and nothing in it is NaN. */
     private fun dominantDiagonal(order: Int): DenseMatrix {
