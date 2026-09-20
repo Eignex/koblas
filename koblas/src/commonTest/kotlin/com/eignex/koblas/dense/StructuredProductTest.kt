@@ -479,8 +479,8 @@ class StructuredProductTest {
     /**
      * A rank-2k route says it composes two products rather than fusing one traversal.
      *
-     * The composition is a decision this stage took after measuring it against a fused traversal, so the
-     * route says so rather than leaving a reader to infer one product from one operation name.
+     * The composition is a measured choice rather than a fused traversal, so the route says so rather
+     * than leaving a reader to infer one product from one operation name.
      */
     @Test
     @OptIn(KoblasEngineApi::class)

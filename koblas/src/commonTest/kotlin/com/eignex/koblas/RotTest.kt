@@ -8,9 +8,9 @@ import kotlin.test.assertEquals
 /**
  * The plane rotation, which is all of Givens that Koblas keeps.
  *
- * The generator, BLAS `drotg`, is gone: it turned two scalars into the cosine and sine below plus a rotated
- * length only it used, with no vectorised path and no caller anywhere. The rotations here are therefore
- * written out, and `(0.6, 0.8)` is the one `drotg(3, 4)` produced.
+ * Koblas has no generator: BLAS `drotg` turns two scalars into the cosine and sine below plus a rotated
+ * length only it uses, and it has no vectorised path and no caller here. The rotations are therefore
+ * written out, and `(0.6, 0.8)` is the one `drotg(3, 4)` produces.
  */
 class RotTest {
     private val c = 0.6

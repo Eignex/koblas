@@ -50,7 +50,7 @@ internal object SimdDenseAllocationCheck {
      * Diagonal blocks the triangular probe spans, past what a workspace retains distinct lengths for.
      *
      * The point of the probe is the scratch a schedule whose windows shrink asks for, and eight or fewer
-     * blocks would fit inside the retention bound without the rounding this stage added.
+     * blocks would fit inside the retention bound once rounding collapses their lengths.
      */
     private const val TRIANGULAR_BLOCKS = 10
 
