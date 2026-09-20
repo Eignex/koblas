@@ -666,11 +666,6 @@ final class com.eignex.koblas.vendor/HostPlatform { // com.eignex.koblas.vendor/
     final fun toString(): kotlin/String // com.eignex.koblas.vendor/HostPlatform.toString|toString(){}[0]
 }
 
-final class com.eignex.koblas.vendor/MissingVendorException : kotlin/IllegalStateException { // com.eignex.koblas.vendor/MissingVendorException|null[0]
-    final val message // com.eignex.koblas.vendor/MissingVendorException.message|{}message[0]
-        final fun <get-message>(): kotlin/String // com.eignex.koblas.vendor/MissingVendorException.message.<get-message>|<get-message>(){}[0]
-}
-
 final class com.eignex.koblas/ContiguousVector : com.eignex.koblas/DenseVector, com.eignex.koblas/VectorStorage { // com.eignex.koblas/ContiguousVector|null[0]
     final val offset // com.eignex.koblas/ContiguousVector.offset|{}offset[0]
         final fun <get-offset>(): kotlin/Int // com.eignex.koblas/ContiguousVector.offset.<get-offset>|<get-offset>(){}[0]

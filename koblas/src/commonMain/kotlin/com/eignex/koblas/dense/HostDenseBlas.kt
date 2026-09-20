@@ -55,11 +55,11 @@ internal const val HOST_STAGING: String = "host-stage/alias"
  * Dense Level 2 and 3 served by an installed host library where one is eligible, and portably where it is not.
  *
  * The composition a platform default takes when the host has a tuned library and this library's own Kotlin
- * arithmetic is not vectorised: Kotlin/Native today. It is not the explicit host seam. [VendorDenseBlas] is
- * that, and the difference is the point of both existing: the explicit seam raises where no library is
- * installed and rejects an operand that shares the destination, because a benchmark arm asking for a vendor
- * measurement must not be handed something else, while this one never raises for those reasons, because it
- * is what an ordinary call gets and an ordinary call is owed an answer.
+ * arithmetic is not vectorised: Kotlin/Native today. It is not the explicit host seam. [Blas] is that,
+ * reached directly by a caller that wants one library and nothing else, and admitted as a measurement only
+ * where [com.eignex.koblas.vendor.exactArmRejection] says the call reached its entry point. This layer
+ * refuses nothing for want of a library, because it is what an ordinary call gets and an ordinary call is
+ * owed an answer.
  *
  * Six things decide a call, in this order, all of them before anything is written:
  *
@@ -660,3 +660,6 @@ internal object HostDensePolicy {
 
 /** The general route of one whole entry point, with no operands to settle a quick return from. */
 private fun Blas.routeOf(operation: BlasOperation): CallRoute = routeOf(operation, emptyList(), emptyList())
+
+/** A caller-owned array as the contiguous vector operand BLAS takes. */
+internal fun DoubleArray.asVector(): DenseVector = DenseVector.wrap(this)

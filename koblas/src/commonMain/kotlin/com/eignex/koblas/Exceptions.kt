@@ -47,25 +47,6 @@ internal fun requireSameSize(a: Int, b: Int) {
 }
 
 /**
- * The shapes a solve needs: a right-hand side of [rows] entries and a destination of [cols].
- *
- * The two differ only for a least-squares solve, where `A` is taller than it is wide. A square factorization
- * passes its order twice, which is what makes this one check rather than one per shape of factorization.
- */
-internal fun requireSolveShapes(rows: Int, cols: Int, b: DoubleArray, out: DoubleArray) {
-    requireShape(b.size == rows) { "solve: b size ${b.size}, expected $rows" }
-    requireShape(out.size == cols) { "solve: out size ${out.size}, expected $cols" }
-}
-
-/** The same shapes for a solve over a panel of right-hand sides, which keeps its columns. */
-internal fun requireSolveShapes(rows: Int, cols: Int, b: DenseMatrix, out: DenseMatrix) {
-    requireShape(b.rows == rows) { "solve: B has ${b.rows} rows, expected $rows" }
-    requireShape(out.rows == cols && out.cols == b.cols) {
-        "solve: out is ${out.rows}x${out.cols}, expected ${cols}x${b.cols}"
-    }
-}
-
-/**
  * The operand lengths a gemv of a [rows] by [cols] matrix implies, checked against the [x] and [y] given.
  *
  * Which extent each vector takes is a consequence of [transpose], and deriving it is the same three lines

@@ -225,14 +225,3 @@ internal fun requireGemmtOperands(
     requireStructured(c, structure, "gemmt")
     requireGemmOperands(a, transposeA, b, transposeB, c, "gemmt")
 }
-
-/**
- * Refuses a destination that shares a buffer with an input.
- *
- * BLAS states that the destination of these operations does not overlap their inputs, and a vendor is free to
- * read an operand after writing part of the result. Rejecting here keeps that undefined case from becoming a
- * silent wrong answer, and it happens before anything is written.
- */
-internal fun requireDistinctDestination(c: DenseMatrix, a: DenseMatrix, b: DenseMatrix?, what: String) {
-    require(c.values !== a.values && c.values !== b?.values) { "$what: destination shares a buffer with an input" }
-}

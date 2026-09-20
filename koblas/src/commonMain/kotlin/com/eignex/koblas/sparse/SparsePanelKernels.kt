@@ -1,6 +1,5 @@
 package com.eignex.koblas.sparse
 
-import com.eignex.koblas.dense.DenseOperation
 import com.eignex.koblas.dense.DensePanelKernels
 import com.eignex.koblas.dense.DenseVectorKernels
 import com.eignex.koblas.dense.PanelWork
@@ -56,9 +55,6 @@ internal class SparsePanelKernels(
      */
     fun prefersAdjacentSides(width: Int, entries: Int, reduction: Boolean = false): Boolean =
         densePanels.prefersContiguous(panelWork(reduction), width, entries)
-
-    /** The Level 1 implementation a contiguous column update of [length] elements reaches, for attribution. */
-    fun denseLeaf(operation: DenseOperation, length: Int): String? = denseVectors.implementationFor(operation, length)
 
     /**
      * The panel body a group of [width] right-hand sides reaches, adjacent or a leading dimension apart.

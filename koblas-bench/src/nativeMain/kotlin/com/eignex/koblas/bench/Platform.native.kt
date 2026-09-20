@@ -6,7 +6,6 @@ import com.eignex.koblas.BuiltinEngines
 import com.eignex.koblas.KoblasEngine
 import com.eignex.koblas.koblas
 import kotlinx.cinterop.memScoped
-import kotlinx.cinterop.toKString
 import platform.posix.EOF
 import platform.posix.fclose
 import platform.posix.fgetc

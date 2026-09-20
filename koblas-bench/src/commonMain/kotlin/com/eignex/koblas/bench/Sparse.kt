@@ -1,6 +1,5 @@
 package com.eignex.koblas.bench
 
-import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.KoblasEngine
 import com.eignex.koblas.Matrix
 import com.eignex.koblas.Workspace
@@ -16,7 +15,6 @@ import com.eignex.koblas.sparse.SparsePrimitives
 import com.eignex.koblas.VectorRoute
 import com.eignex.koblas.times
 import com.eignex.koblas.vendor.RouteKind
-import kotlin.math.abs
 
 /**
  * The sparse work for one case on [engine], or the reason this engine cannot measure it, or null when the case
