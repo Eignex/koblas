@@ -8,20 +8,10 @@ import com.eignex.koblas.UnsafeKoblasApi
 import com.eignex.koblas.Workspace
 import com.eignex.koblas.borrow
 import com.eignex.koblas.dense.borrowOptional
+import com.eignex.koblas.dense.forEachPanel
 import com.eignex.koblas.sparse.SparsePanelKernels
 import com.eignex.koblas.sparse.SparseTuning
 import kotlin.math.min
-
-/** Visits dense right-hand sides in panels of at most [group], so one walk of a sparse column serves several. */
-internal inline fun forEachRhsPanel(columns: Int, group: Int, action: (start: Int, width: Int) -> Unit) {
-    val step = if (group < 1) 1 else group
-    var start = 0
-    while (start < columns) {
-        val width = min(step, columns - start)
-        action(start, width)
-        start += width
-    }
-}
 
 /**
  * How a sparse product with a dense block hands its right-hand sides to a panel leaf.
@@ -196,7 +186,7 @@ internal fun multiplyFromTheLeft(
     val staged = rhsStaged(plan)
     workspace.borrow(width) { work ->
         workspace.borrowOptional(if (staged) width * (if (transposeA) k else m) else 0) { panel ->
-            forEachRhsPanel(n, width) { columnStart, actual ->
+            forEachPanel(n, width) { columnStart, actual ->
                 if (transposeA) {
                     gatherPanel(
                         kernels, alpha, a, b, c, m, k, columnStart, actual, width, staged,
@@ -341,7 +331,7 @@ internal fun multiplySymmetricFromTheLeft(
     val panelSize = if (staged) width * n else 0
     workspace.borrowOptional(panelSize) { source ->
         workspace.borrowOptional(panelSize) { destination ->
-            forEachRhsPanel(sides, width) { columnStart, actual ->
+            forEachPanel(sides, width) { columnStart, actual ->
                 val from = if (staged) source else b.values
                 val into = if (staged) destination else c.values
                 val offset = if (staged) 0 else columnStart * ld
