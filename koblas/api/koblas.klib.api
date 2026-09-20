@@ -810,7 +810,7 @@ final class com.eignex.koblas/NotPositiveDefinite : com.eignex.koblas/KoblasExce
         final fun <get-position>(): kotlin/Int // com.eignex.koblas/NotPositiveDefinite.position.<get-position>|<get-position>(){}[0]
 }
 
-final class com.eignex.koblas/PreparedSparseMatrix { // com.eignex.koblas/PreparedSparseMatrix|null[0]
+final class com.eignex.koblas/PreparedSparseMatrix : com.eignex.koblas/Matrix { // com.eignex.koblas/PreparedSparseMatrix|null[0]
     final val cols // com.eignex.koblas/PreparedSparseMatrix.cols|{}cols[0]
         final fun <get-cols>(): kotlin/Int // com.eignex.koblas/PreparedSparseMatrix.cols.<get-cols>|<get-cols>(){}[0]
     final val nnz // com.eignex.koblas/PreparedSparseMatrix.nnz|{}nnz[0]
@@ -820,15 +820,13 @@ final class com.eignex.koblas/PreparedSparseMatrix { // com.eignex.koblas/Prepar
     final val rows // com.eignex.koblas/PreparedSparseMatrix.rows|{}rows[0]
         final fun <get-rows>(): kotlin/Int // com.eignex.koblas/PreparedSparseMatrix.rows.<get-rows>|<get-rows>(){}[0]
 
-    final fun gemm(com.eignex.koblas/SparseMatrix): com.eignex.koblas/SparseMatrix // com.eignex.koblas/PreparedSparseMatrix.gemm|gemm(com.eignex.koblas.SparseMatrix){}[0]
-    final fun gemm(kotlin/Double, kotlin/Boolean, com.eignex.koblas/SparseMatrix, kotlin/Boolean): com.eignex.koblas/SparseMatrix // com.eignex.koblas/PreparedSparseMatrix.gemm|gemm(kotlin.Double;kotlin.Boolean;com.eignex.koblas.SparseMatrix;kotlin.Boolean){}[0]
-    final fun gemmInto(kotlin/Double, kotlin/Boolean, com.eignex.koblas/DenseMatrix, kotlin/Boolean, kotlin/Double, com.eignex.koblas/DenseMatrix, kotlin/Boolean, com.eignex.koblas/Workspace? = ...) // com.eignex.koblas/PreparedSparseMatrix.gemmInto|gemmInto(kotlin.Double;kotlin.Boolean;com.eignex.koblas.DenseMatrix;kotlin.Boolean;kotlin.Double;com.eignex.koblas.DenseMatrix;kotlin.Boolean;com.eignex.koblas.Workspace?){}[0]
-    final fun gemmInto(kotlin/Double, kotlin/Boolean, com.eignex.koblas/DenseMatrix, kotlin/Double, com.eignex.koblas/DenseMatrix, com.eignex.koblas/Workspace? = ...) // com.eignex.koblas/PreparedSparseMatrix.gemmInto|gemmInto(kotlin.Double;kotlin.Boolean;com.eignex.koblas.DenseMatrix;kotlin.Double;com.eignex.koblas.DenseMatrix;com.eignex.koblas.Workspace?){}[0]
-    final fun gemmInto(kotlin/Double, kotlin/Boolean, com.eignex.koblas/SparseMatrix, kotlin/Boolean, kotlin/Double, com.eignex.koblas/DenseMatrix, com.eignex.koblas/Workspace? = ...) // com.eignex.koblas/PreparedSparseMatrix.gemmInto|gemmInto(kotlin.Double;kotlin.Boolean;com.eignex.koblas.SparseMatrix;kotlin.Boolean;kotlin.Double;com.eignex.koblas.DenseMatrix;com.eignex.koblas.Workspace?){}[0]
     final fun gemvInto(kotlin/Double, kotlin/DoubleArray, kotlin/Double, kotlin/DoubleArray, kotlin/Boolean = ...) // com.eignex.koblas/PreparedSparseMatrix.gemvInto|gemvInto(kotlin.Double;kotlin.DoubleArray;kotlin.Double;kotlin.DoubleArray;kotlin.Boolean){}[0]
+    final fun get(kotlin/Int, kotlin/Int): kotlin/Double // com.eignex.koblas/PreparedSparseMatrix.get|get(kotlin.Int;kotlin.Int){}[0]
     final fun routeOf(com.eignex.koblas.sparse/SparseMatrixOperation, com.eignex.koblas.sparse/SparseCall): com.eignex.koblas.sparse/SparseMatrixRoute // com.eignex.koblas/PreparedSparseMatrix.routeOf|routeOf(com.eignex.koblas.sparse.SparseMatrixOperation;com.eignex.koblas.sparse.SparseCall){}[0]
     final fun symmInto(kotlin/Double, com.eignex.koblas/DenseMatrix, kotlin/Double, com.eignex.koblas/DenseMatrix, kotlin/Boolean = ..., kotlin/Boolean = ..., com.eignex.koblas/Workspace? = ...) // com.eignex.koblas/PreparedSparseMatrix.symmInto|symmInto(kotlin.Double;com.eignex.koblas.DenseMatrix;kotlin.Double;com.eignex.koblas.DenseMatrix;kotlin.Boolean;kotlin.Boolean;com.eignex.koblas.Workspace?){}[0]
     final fun symvInto(kotlin/Double, kotlin/DoubleArray, kotlin/Double, kotlin/DoubleArray, kotlin/Boolean = ...) // com.eignex.koblas/PreparedSparseMatrix.symvInto|symvInto(kotlin.Double;kotlin.DoubleArray;kotlin.Double;kotlin.DoubleArray;kotlin.Boolean){}[0]
+    final fun toArray(): kotlin/Array<kotlin/DoubleArray> // com.eignex.koblas/PreparedSparseMatrix.toArray|toArray(){}[0]
+    final fun toString(): kotlin/String // com.eignex.koblas/PreparedSparseMatrix.toString|toString(){}[0]
 }
 
 final class com.eignex.koblas/SingularMatrix : com.eignex.koblas/KoblasException { // com.eignex.koblas/SingularMatrix|null[0]
@@ -987,6 +985,7 @@ final fun (com.eignex.koblas/DenseVector).com.eignex.koblas/times(kotlin/Double)
 final fun (com.eignex.koblas/DenseVector).com.eignex.koblas/unaryMinus(): com.eignex.koblas/DenseVector // com.eignex.koblas/unaryMinus|unaryMinus@com.eignex.koblas.DenseVector(){}[0]
 final fun (com.eignex.koblas/DenseVector).com.eignex.koblas/view(kotlin/Int, kotlin/Int, kotlin/Int = ...): com.eignex.koblas/StridedVector // com.eignex.koblas/view|view@com.eignex.koblas.DenseVector(kotlin.Int;kotlin.Int;kotlin.Int){}[0]
 final fun (com.eignex.koblas/Matrix).com.eignex.koblas/gemm(com.eignex.koblas/Matrix): com.eignex.koblas/Matrix // com.eignex.koblas/gemm|gemm@com.eignex.koblas.Matrix(com.eignex.koblas.Matrix){}[0]
+final fun (com.eignex.koblas/Matrix).com.eignex.koblas/gemm(kotlin/Double, kotlin/Boolean, com.eignex.koblas/Matrix, kotlin/Boolean): com.eignex.koblas/Matrix // com.eignex.koblas/gemm|gemm@com.eignex.koblas.Matrix(kotlin.Double;kotlin.Boolean;com.eignex.koblas.Matrix;kotlin.Boolean){}[0]
 final fun (com.eignex.koblas/Matrix).com.eignex.koblas/gemmInto(kotlin/Double, kotlin/Boolean, com.eignex.koblas/Matrix, kotlin/Boolean, kotlin/Double, com.eignex.koblas/DenseMatrix, com.eignex.koblas/Workspace? = ...) // com.eignex.koblas/gemmInto|gemmInto@com.eignex.koblas.Matrix(kotlin.Double;kotlin.Boolean;com.eignex.koblas.Matrix;kotlin.Boolean;kotlin.Double;com.eignex.koblas.DenseMatrix;com.eignex.koblas.Workspace?){}[0]
 final fun (com.eignex.koblas/Matrix).com.eignex.koblas/times(com.eignex.koblas/Matrix): com.eignex.koblas/Matrix // com.eignex.koblas/times|times@com.eignex.koblas.Matrix(com.eignex.koblas.Matrix){}[0]
 final fun (com.eignex.koblas/MatrixStorage).com.eignex.koblas/trmm(com.eignex.koblas/DenseMatrix, kotlin/Boolean, kotlin/Boolean = ..., kotlin/Boolean = ..., kotlin/Boolean = ..., kotlin/Double = ..., com.eignex.koblas/Workspace? = ...) // com.eignex.koblas/trmm|trmm@com.eignex.koblas.MatrixStorage(com.eignex.koblas.DenseMatrix;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean;kotlin.Double;com.eignex.koblas.Workspace?){}[0]

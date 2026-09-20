@@ -115,6 +115,7 @@ public final class com/eignex/koblas/Koblas {
 	public static final synthetic fun forEachStored (Lcom/eignex/koblas/Vector;Lkotlin/jvm/functions/Function2;)V
 	public static final fun gather (Lcom/eignex/koblas/SparseVector;Lcom/eignex/koblas/ContiguousVector;)V
 	public static final fun gatherZero (Lcom/eignex/koblas/SparseVector;Lcom/eignex/koblas/ContiguousVector;)V
+	public static final fun gemm (Lcom/eignex/koblas/Matrix;DZLcom/eignex/koblas/Matrix;Z)Lcom/eignex/koblas/Matrix;
 	public static final fun gemm (Lcom/eignex/koblas/Matrix;Lcom/eignex/koblas/Matrix;)Lcom/eignex/koblas/Matrix;
 	public static final fun gemm (Lcom/eignex/koblas/SparseMatrix;DZLcom/eignex/koblas/SparseMatrix;Z)Lcom/eignex/koblas/SparseMatrix;
 	public static final fun gemmInto (Lcom/eignex/koblas/Matrix;DZLcom/eignex/koblas/Matrix;ZDLcom/eignex/koblas/DenseMatrix;Lcom/eignex/koblas/Workspace;)V
@@ -323,25 +324,15 @@ public final class com/eignex/koblas/NotPositiveDefinite : com/eignex/koblas/Kob
 	public final fun getPosition ()I
 }
 
-public final class com/eignex/koblas/PreparedSparseMatrix {
-	public final fun gemm (DZLcom/eignex/koblas/SparseMatrix;Z)Lcom/eignex/koblas/SparseMatrix;
-	public final fun gemm (Lcom/eignex/koblas/SparseMatrix;)Lcom/eignex/koblas/SparseMatrix;
-	public final fun gemmInto (DZLcom/eignex/koblas/DenseMatrix;DLcom/eignex/koblas/DenseMatrix;)V
-	public final fun gemmInto (DZLcom/eignex/koblas/DenseMatrix;DLcom/eignex/koblas/DenseMatrix;Lcom/eignex/koblas/Workspace;)V
-	public final fun gemmInto (DZLcom/eignex/koblas/DenseMatrix;ZDLcom/eignex/koblas/DenseMatrix;Z)V
-	public final fun gemmInto (DZLcom/eignex/koblas/DenseMatrix;ZDLcom/eignex/koblas/DenseMatrix;ZLcom/eignex/koblas/Workspace;)V
-	public final fun gemmInto (DZLcom/eignex/koblas/SparseMatrix;ZDLcom/eignex/koblas/DenseMatrix;)V
-	public final fun gemmInto (DZLcom/eignex/koblas/SparseMatrix;ZDLcom/eignex/koblas/DenseMatrix;Lcom/eignex/koblas/Workspace;)V
-	public static synthetic fun gemmInto$default (Lcom/eignex/koblas/PreparedSparseMatrix;DZLcom/eignex/koblas/DenseMatrix;DLcom/eignex/koblas/DenseMatrix;Lcom/eignex/koblas/Workspace;ILjava/lang/Object;)V
-	public static synthetic fun gemmInto$default (Lcom/eignex/koblas/PreparedSparseMatrix;DZLcom/eignex/koblas/DenseMatrix;ZDLcom/eignex/koblas/DenseMatrix;ZLcom/eignex/koblas/Workspace;ILjava/lang/Object;)V
-	public static synthetic fun gemmInto$default (Lcom/eignex/koblas/PreparedSparseMatrix;DZLcom/eignex/koblas/SparseMatrix;ZDLcom/eignex/koblas/DenseMatrix;Lcom/eignex/koblas/Workspace;ILjava/lang/Object;)V
+public final class com/eignex/koblas/PreparedSparseMatrix : com/eignex/koblas/Matrix {
 	public final fun gemvInto (D[DD[D)V
 	public final fun gemvInto (D[DD[DZ)V
 	public static synthetic fun gemvInto$default (Lcom/eignex/koblas/PreparedSparseMatrix;D[DD[DZILjava/lang/Object;)V
-	public final fun getCols ()I
+	public fun get (II)D
+	public fun getCols ()I
 	public final fun getNnz ()I
 	public final fun getOrientationDerived ()Z
-	public final fun getRows ()I
+	public fun getRows ()I
 	public final fun routeOf (Lcom/eignex/koblas/sparse/SparseMatrixOperation;Lcom/eignex/koblas/sparse/SparseCall;)Lcom/eignex/koblas/sparse/SparseMatrixRoute;
 	public final fun symmInto (DLcom/eignex/koblas/DenseMatrix;DLcom/eignex/koblas/DenseMatrix;)V
 	public final fun symmInto (DLcom/eignex/koblas/DenseMatrix;DLcom/eignex/koblas/DenseMatrix;Z)V
@@ -351,6 +342,8 @@ public final class com/eignex/koblas/PreparedSparseMatrix {
 	public final fun symvInto (D[DD[D)V
 	public final fun symvInto (D[DD[DZ)V
 	public static synthetic fun symvInto$default (Lcom/eignex/koblas/PreparedSparseMatrix;D[DD[DZILjava/lang/Object;)V
+	public fun toArray ()[[D
+	public fun toString ()Ljava/lang/String;
 }
 
 public final class com/eignex/koblas/SingularMatrix : com/eignex/koblas/KoblasException {

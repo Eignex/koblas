@@ -98,13 +98,14 @@ storage access is needed.
 - `DenseMatrix` is column-major: `A(i, j)` is stored at `i + j * rows`.
 - `SparseMatrix` is validated CSC with ascending row indices. Stored zeros participate in arithmetic;
   absent entries are not evaluated, and cancellation does not implicitly remove stored entries.
-- `Matrix` products accept dense or sparse operands in either position, including independent transpose
-  flags. Two sparse operands produce a fresh CSC result; other built-in pairings produce dense results.
+- `Matrix` products accept dense, sparse or prepared sparse operands in either position, including independent
+  transpose flags. Two sparse operands produce a fresh CSC result; other built-in pairings produce dense results.
   `gemmInto` writes any pairing into a dense destination without densifying sparse inputs.
 - Arrays can be wrapped without copying. `StridedVector` and matrix row/column views borrow existing storage.
 - Built-in `*Into` paths support aliases through snapshotting. Explicit vendor bindings retain their own
   overlap contract. Symmetric operations read only the selected triangle; triangular solves write in place.
-- Prepared sparse matrices own their snapshots and can be shared by readers with separate mutable scratch.
+- Prepared sparse matrices are `Matrix` operands: they own their snapshots, run on the engine that prepared
+  them, and can be shared by readers with separate mutable scratch.
 - Each call uses one compute thread. Defaults are immutable; containers, views and workspaces are mutable.
 
 Shape mismatches throw `DimensionMismatch`; invalid indices throw `IndexOutOfBoundsException`; other invalid

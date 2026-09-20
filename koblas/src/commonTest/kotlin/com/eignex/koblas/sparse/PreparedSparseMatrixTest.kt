@@ -1,10 +1,15 @@
 package com.eignex.koblas.sparse
 
 import com.eignex.koblas.DenseMatrix
+import com.eignex.koblas.PreparedSparseMatrix
 import com.eignex.koblas.SparseMatrix
+import com.eignex.koblas.Workspace
 import com.eignex.koblas.assertClose
+import com.eignex.koblas.gemm
+import com.eignex.koblas.gemmInto
 import com.eignex.koblas.koblas
 import com.eignex.koblas.prepare
+import com.eignex.koblas.times
 import com.eignex.koblas.vendor.RouteKind
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
@@ -231,13 +236,61 @@ class PreparedSparseMatrixTest {
     }
 
     @Test
+    fun `a prepared matrix reads as the snapshot it copied`() {
+        val source = matrix()
+
+        val prepared = source.prepare()
+
+        assertEquals(source[2, 0], prepared[2, 0])
+        assertEquals(0.0, prepared[1, 0], "an absent position")
+        assertContentEquals(source.toArray()[1], prepared.toArray()[1])
+    }
+
+    @Test
+    fun `a prepared operand on the right of a dense one agrees with the one-shot call`() {
+        val source = matrix()
+        val prepared = source.prepare()
+        val dense = DenseMatrix.wrap(2, 3, doubleArrayOf(1.0, 2.0, 3.0, 4.0, 5.0, 6.0))
+        val expected = DenseMatrix.zero(2, 2)
+        koblas.gemm(1.0, source, false, dense, false, 0.0, expected, right = true)
+
+        val actual = DenseMatrix.zero(2, 2)
+        dense.gemmInto(1.0, false, prepared, false, 0.0, actual)
+
+        assertClose(expected, actual, "dense by prepared")
+    }
+
+    @Test
+    fun `two prepared operands give the sparse product of their snapshots`() {
+        val source = matrix()
+        val b = SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 2.0, 1 to -1.0), listOf(1 to 4.0)))
+
+        val product = source.prepare() * b.prepare()
+
+        assertEquals(koblas.gemm(source, b), product)
+    }
+
+    // Naming an engine to prepare with settles which kernels the products of that snapshot reach, so the
+    // common product surface asks it rather than the default engine.
+    @Test
+    fun `a prepared product runs on the engine that prepared the snapshot`() {
+        val recording = RecordingSparseBlas(koblas)
+        val prepared = PreparedSparseMatrix(matrix(), recording)
+        val destination = DenseMatrix.zero(3, 2)
+
+        prepared.gemmInto(1.0, false, DenseMatrix.diagonal(2), false, 0.0, destination)
+
+        assertEquals(1, recording.denseProducts)
+    }
+
+    @Test
     fun `all prepared products agree with the one-shot calls`() {
         val source = matrix()
         val prepared = koblas.prepare(source)
         val dense = DenseMatrix.wrap(2, 2, doubleArrayOf(1.0, 2.0, 3.0, 4.0))
         val expectedDense = koblas.gemm(source, dense)
         val actualDense = DenseMatrix.zero(3, 2)
-        prepared.gemmInto(1.0, false, dense, 0.0, actualDense)
+        prepared.gemmInto(1.0, false, dense, false, 0.0, actualDense)
         assertClose(expectedDense, actualDense, "dense product")
 
         val right = SparseMatrix.ofColumns(2, 1, listOf(listOf(0 to 2.0, 1 to -1.0)))
@@ -247,7 +300,7 @@ class PreparedSparseMatrixTest {
         val expectedTransposed = DenseMatrix.zero(2, 2)
         koblas.gemm(1.0, source, true, transposedDense, true, 0.0, expectedTransposed, right = false)
         val actualTransposed = DenseMatrix.zero(2, 2)
-        prepared.gemmInto(1.0, true, transposedDense, true, 0.0, actualTransposed, false)
+        prepared.gemmInto(1.0, true, transposedDense, true, 0.0, actualTransposed)
         assertClose(expectedTransposed, actualTransposed, "full dense product")
 
         val sparseDense = DenseMatrix.zero(3, 1)
@@ -311,10 +364,31 @@ class PreparedSparseMatrixTest {
 
         repeat(2) {
             val actual = DenseMatrix.zero(2, 2)
-            prepared.gemmInto(0.875, transpose = true, b = b, beta = -0.25, destination = actual)
+            prepared.gemmInto(0.875, true, b, false, -0.25, actual)
             assertContentEquals(expected.values, actual.values)
         }
 
         assertFalse(prepared.orientationDerived, "a repeated prepared dense product built the transpose cache")
+    }
+}
+
+/** An engine that counts the products reaching it, to see which one a prepared operand hands its call to. */
+private class RecordingSparseBlas(private val delegate: SparseBlas) : SparseBlas by delegate {
+    var denseProducts: Int = 0
+
+    @Suppress("LongParameterList") // the delegated dgemm signature
+    override fun gemm(
+        alpha: Double,
+        a: SparseMatrix,
+        transposeA: Boolean,
+        b: DenseMatrix,
+        transposeB: Boolean,
+        beta: Double,
+        c: DenseMatrix,
+        right: Boolean,
+        workspace: Workspace?,
+    ) {
+        denseProducts++
+        delegate.gemm(alpha, a, transposeA, b, transposeB, beta, c, right, workspace)
     }
 }

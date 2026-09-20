@@ -14,6 +14,12 @@ import kotlin.jvm.JvmOverloads
  * preparation do not reach it and nothing here holds a caller's mutable array. Create one with
  * [SparseMatrix.prepare].
  *
+ * A prepared matrix is an ordinary [Matrix] operand: [Matrix.gemm] and [Matrix.gemmInto] take one on either
+ * side, against a dense, sparse or prepared partner, and the pair of storages decides the product as it does
+ * for an unprepared one. Those products run on the engine the snapshot was prepared by. What remains here is
+ * the part the common product surface does not carry, which is the matrix-vector product and the symmetric
+ * interpretation of a square snapshot.
+ *
  * A prepared matrix is safe to share between concurrent readers using distinct destinations and workspaces.
  * A transposed product against a second sparse operand derives the opposite orientation on first use and
  * publishes it through a synchronized lazy, so a reader either sees a fully built transpose or builds it;
@@ -25,8 +31,8 @@ import kotlin.jvm.JvmOverloads
  * Preparation, the first transposed use of a sparse-sparse product and steady-state use therefore cost
  * different things, and a measurement that means to separate them has to reset between them.
  */
-public class PreparedSparseMatrix internal constructor(a: SparseMatrix, private val blas: SparseBlas) {
-    private val snapshot = SparseMatrix.wrapTrusted(
+public class PreparedSparseMatrix internal constructor(a: SparseMatrix, internal val blas: SparseBlas) : Matrix {
+    internal val snapshot: SparseMatrix = SparseMatrix.wrapTrusted(
         a.rows,
         a.cols,
         a.copyColumnPointers(),
@@ -35,16 +41,30 @@ public class PreparedSparseMatrix internal constructor(a: SparseMatrix, private 
     )
 
     private val lazyTranspose: Lazy<SparseMatrix> = lazy { blas.transpose(snapshot) }
-    private val transposedSnapshot: SparseMatrix get() = lazyTranspose.value
+
+    /**
+     * The opposite orientation, derived once and reused by every later call that asks for it.
+     *
+     * Only a transposed product against a second sparse operand asks, and only when the product reaches a
+     * position at all, because the coefficients of an operand a call never reads must stay unread and a
+     * snapshot with more rows than an array can index has no transpose to build.
+     */
+    internal val transposedSnapshot: SparseMatrix get() = lazyTranspose.value
 
     /** Rows in the prepared sparse matrix. */
-    public val rows: Int get() = snapshot.rows
+    override val rows: Int get() = snapshot.rows
 
     /** Columns in the prepared sparse matrix. */
-    public val cols: Int get() = snapshot.cols
+    override val cols: Int get() = snapshot.cols
 
     /** Stored entries copied into the snapshot. */
     public val nnz: Int get() = snapshot.nnz
+
+    /** The snapshot's entry at row (i), column (j), or `0.0` where it stores nothing. */
+    override fun get(i: Int, j: Int): Double = snapshot[i, j]
+
+    /** Materialises the snapshot into a fresh `rows × cols` array of rows; unstored entries stay zero. */
+    override fun toArray(): Array<DoubleArray> = snapshot.toArray()
 
     /**
      * In-place `y = alpha · op(A) · x + beta · y` against the prepared `A`.
@@ -77,48 +97,6 @@ public class PreparedSparseMatrix internal constructor(a: SparseMatrix, private 
         blas.symv(alpha, snapshot, x, beta, destination, lower)
     }
 
-    /** `C = alpha · op(A) · B + beta · C` against the prepared `A`. */
-    @Suppress("LongParameterList") // the BLAS dgemm signature plus the workspace
-    @JvmOverloads
-    public fun gemmInto(
-        alpha: Double,
-        transpose: Boolean,
-        b: DenseMatrix,
-        beta: Double,
-        destination: DenseMatrix,
-        workspace: Workspace? = null,
-    ) {
-        gemmInto(alpha, transpose, b, false, beta, destination, false, workspace)
-    }
-
-    /**
-     * Full sparse-dense product contract, including dense transpose and sparse side selection.
-     *
-     * Uses the stored snapshot and the original transpose flags on either side, without deriving another
-     * orientation. Deriving a transpose changes the CSC traversal as well as adding preparation work;
-     * dense products retain the same traversal as a one-shot call. Products against a second sparse
-     * operand have a separate policy and may reuse the cached transpose.
-     */
-    @Suppress("LongParameterList") // the BLAS dgemm signature, the side, and the workspace
-    @JvmOverloads
-    public fun gemmInto(
-        alpha: Double,
-        transpose: Boolean,
-        b: DenseMatrix,
-        transposeB: Boolean,
-        beta: Double,
-        destination: DenseMatrix,
-        right: Boolean,
-        workspace: Workspace? = null,
-    ) {
-        if (right) {
-            requireGemmOperands(b, transposeB, snapshot, transpose, destination)
-        } else {
-            requireGemmOperands(snapshot, transpose, b, transposeB, destination)
-        }
-        blas.gemm(alpha, snapshot, transpose, b, transposeB, beta, destination, right, workspace)
-    }
-
     /** Prepared selected-triangle symmetric matrix-matrix product; semantics match [SparseBlas.symm]. */
     @Suppress("LongParameterList") // the BLAS dsymm signature plus the workspace
     @JvmOverloads
@@ -133,75 +111,6 @@ public class PreparedSparseMatrix internal constructor(a: SparseMatrix, private 
     ) {
         blas.symm(alpha, snapshot, b, beta, destination, lower, right, workspace)
     }
-
-    /** `A · B` against the prepared `A`, into a fresh sparse matrix. */
-    public fun gemm(b: SparseMatrix): SparseMatrix = gemm(1.0, false, b, false)
-
-    /** Prepared sparse-result product with scaling and transpose controls. */
-    public fun gemm(alpha: Double, transpose: Boolean, b: SparseMatrix, transposeB: Boolean): SparseMatrix {
-        requireProductOperands(snapshot, transpose, b, transposeB, "gemm")
-        val depth = if (transpose) snapshot.rows else snapshot.cols
-        val outputs = if (transposeB) b.rows else b.cols
-        val rows = if (transpose) snapshot.cols else snapshot.rows
-        val work = if (b.nnz == 0 || rows == 0) 0 else outputs
-        return withOrientation(
-            transpose,
-            reusesOrientation(alpha, transpose, depth, work),
-        ) { oriented, stillTransposed ->
-            blas.gemm(alpha, oriented, stillTransposed, b, transposeB)
-        }
-    }
-
-    /** Prepared direct sparse-sparse-to-dense product. */
-    @Suppress("LongParameterList") // the BLAS dgemm signature plus the workspace
-    @JvmOverloads
-    public fun gemmInto(
-        alpha: Double,
-        transpose: Boolean,
-        b: SparseMatrix,
-        transposeB: Boolean,
-        beta: Double,
-        destination: DenseMatrix,
-        workspace: Workspace? = null,
-    ) {
-        requireGemmOperands(snapshot, transpose, b, transposeB, destination)
-        val depth = if (transpose) snapshot.rows else snapshot.cols
-        val work = if (b.nnz == 0) 0 else destination.values.size
-        withOrientation(transpose, reusesOrientation(alpha, transpose, depth, work)) { oriented, stillTransposed ->
-            blas.gemm(alpha, oriented, stillTransposed, b, transposeB, beta, destination, workspace)
-        }
-    }
-
-    /**
-     * Runs [block] with the snapshot in the orientation a call asks for, and the transpose flag still to apply.
-     *
-     * Only the products against a second sparse operand reach this. A transposed one with work to do reuses
-     * one derived transpose rather than building it per call, which is what preparing buys them: the
-     * calibration measured that schedule ahead of the transposed traversal for a sparse result and behind it
-     * for a dense one, so the two families differ here and the dense products pass their flag straight
-     * through. A call without work does not orient either: it hands back the snapshot and leaves the flag
-     * set, so the operation reaches its own no-read path and the numeric cache stays unbuilt. Owning the
-     * values is not a licence to read them for a product that contributes nothing, and a sparse result still
-     * discovers the same structure from the pattern alone. [reusesOrientation] is what decides which of the
-     * two a call is.
-     */
-    private inline fun <T> withOrientation(
-        transpose: Boolean,
-        reuse: Boolean,
-        block: (SparseMatrix, Boolean) -> T,
-    ): T = if (reuse) block(transposedSnapshot, false) else block(snapshot, transpose)
-
-    /**
-     * Whether a transposed call should derive and reuse the snapshot's transpose.
-     *
-     * Only a call that will traverse the operand. A zero multiplier reads no values, an empty destination or
-     * an empty inner extent computes nothing, and a snapshot with nothing stored reaches no position: in each
-     * case the operation has its own path that never looks at the coefficients, and building a transpose to
-     * reach it would both break the no-read contract and, for a snapshot with more rows than an array can
-     * index, turn a valid empty product into a shape error.
-     */
-    private fun reusesOrientation(alpha: Double, transpose: Boolean, depth: Int, outputs: Int): Boolean =
-        transpose && alpha != 0.0 && depth > 0 && outputs > 0 && snapshot.nnz > 0
 
     /**
      * What a repeated call of this shape against the snapshot executes.
@@ -274,6 +183,8 @@ public class PreparedSparseMatrix internal constructor(a: SparseMatrix, private 
      * this state before and after a call to identify orientation construction.
      */
     public val orientationDerived: Boolean get() = lazyTranspose.isInitialized()
+
+    override fun toString(): String = "PreparedSparseMatrix(${rows}x$cols, nnz=$nnz)"
 
     /**
      * Whether this operation orients on a fact these call facts do not carry, which is the second sparse
