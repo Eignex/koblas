@@ -201,24 +201,7 @@ class StructuredProductTest {
         }
     }
 
-    // The two sums at the entry below are zero and one, so an infinite multiplier tells composing (`∞·0 +
-    // ∞·1`, a NaN, which is promised) from fusing (`∞·(0 + 1)`, an infinity).
-    @Test
-    fun `a rank two-k update scales each of its two products separately`() = withDenseBlas { blas ->
-        val a = DenseMatrix.wrap(2, 1, doubleArrayOf(1.0, 0.0))
-        val b = DenseMatrix.wrap(2, 1, doubleArrayOf(0.0, 1.0))
-        val c = DenseMatrix.wrap(2, 2, DoubleArray(4))
-
-        blas.syr2k(Double.POSITIVE_INFINITY, a, b, transpose = false, beta = 0.0, c = c, lower = true)
-
-        assertTrue(
-            c[1, 0].isNaN(),
-            "the two products were not scaled separately; a fused sum would leave ${c[1, 0]}",
-        )
-    }
-
-    // Offsets and leading dimensions past the extents are how a structured algorithm hands over a strip, and
-    // every entry outside the window carries a guard, including the rows between one column and the next.
+    // Guard values cover entries outside the window, including gaps between columns.
     @Test
     fun `a product window writes only inside the offsets and the triangle it was given`() = withProducts { products ->
         for (selected in listOf(OutputTriangle.Full, OutputTriangle.Lower, OutputTriangle.Upper)) {

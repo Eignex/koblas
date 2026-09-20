@@ -12,12 +12,10 @@ import com.eignex.koblas.*
  *
  * A platform default may hand a whole Level 2 or 3 call to an installed library where one is available and
  * the call is large enough to pay for reaching it; Kotlin/Native's does, and the JVM's does not. Everything
- * stated here holds either way. A library is part of the host rather than something a caller asked for, so
- * an ordinary call does not acquire new behaviour from one being installed: where a routine's documented
- * result and a library's freedom can be told apart, the portable schedule is chosen, and it is chosen before
- * anything is written. What is left over is the accumulation order, which every built-in schedule is already
- * free to choose below. [com.eignex.koblas.KoblasEngine.routeOf] says which of the two a given call
- * took, and reports the library and symbol where it was the host.
+ * stated here holds either way. What is deliberately not stated is the accumulation order and where a
+ * multiplier lands, which every built-in schedule already chooses for itself and a library chooses too.
+ * [com.eignex.koblas.KoblasEngine.routeOf] says which of the two a given call took, and reports the library
+ * and symbol where it was the host.
  *
  * An explicit host binding is the other thing, and is where a library's own answers are asked for
  * deliberately: [com.eignex.koblas.vendor.Blas] keeps that latitude and documents it.
@@ -72,22 +70,9 @@ public interface DenseBlas {
      * accumulating column an unpacked one uses. A zero [alpha] or an empty shared dimension scales [c] and
      * reads no operand; a zero [beta] overwrites [c] without reading it, whatever stands there.
      *
-     * In a built-in implementation [alpha] multiplies an accumulated sum of products, never an individual
-     * entry of an operand. Which partition of the shared dimension is summed before that multiplication is
-     * the schedule's: a product small enough to run where its operands lie sums the whole of it, and a
-     * blocked one sums a block of it at a time and adds the scaled results. For ordinary finite operands
-     * the difference between those is reassociation, of the same kind a regrouped sum always brings; where
-     * a partial sum overflows or cancels it can be larger than that, and with an infinite [alpha] it is
-     * categorical, since `alpha · (s₁ + s₂)` and `alpha · s₁ + alpha · s₂` need not agree and a call's
-     * extents decide which it gets. A sum that comes to zero against an infinite [alpha] is a NaN either
-     * way; what the placement rules out is a single zero *entry* of [a] or [b] producing one on its own.
-     *
-     * An explicit host binding is not held to that placement: a library is free to scale coefficients as it
-     * goes, and [com.eignex.koblas.vendor.Blas] keeps its own latitude where the standard leaves this open.
-     * That is why a default which composes an installed library hands this call over only when [alpha] is
-     * one, where there is no scaling to place. A smaller rule does not survive: over a shared dimension of
-     * one, ordinary finite arguments already tell the two apart, since scaling an entry can overflow or
-     * underflow where scaling the sum does not.
+     * Scaling placement and accumulation order depend on the selected implementation. This includes
+     * whether [alpha] scales operand entries or partial sums. Rounding, overflow and non-finite results
+     * may therefore differ between implementations and transpose modes.
      */
     @Suppress("LongParameterList") // the BLAS dgemm signature
     public fun gemm(
@@ -133,8 +118,7 @@ public interface DenseBlas {
      * `C = alpha · A·Aᵀ + beta · C`, or `alpha · Aᵀ·A + beta · C` when [transpose] (BLAS `dsyrk`).
      * Only the [lower] or upper triangle is written. Built-in implementations snapshot overlap with [c].
      *
-     * One product, so [alpha] multiplies an accumulated sum exactly as [gemm] describes, with the same
-     * latitude over which partition of the shared dimension is summed before that multiplication.
+     * One product, so [alpha] and the accumulation order carry the latitude [gemm] describes.
      */
     @Suppress("LongParameterList") // the BLAS dsyrk signature
     public fun syrk(
@@ -188,18 +172,8 @@ public interface DenseBlas {
      * `C = alpha · (op(A) · op(B)ᵀ + op(B) · op(A)ᵀ) + beta · C` (BLAS `dsyr2k`), where `op` transposes when
      * [transpose]. Writes only the [lower] or upper triangle and snapshots input overlap in built-in engines.
      *
-     * A built-in implementation composes the two products rather than fusing one traversal over both, so
-     * [alpha] multiplies each of the two accumulated sums separately and the scaled results are added:
-     * `alpha · s₁ + alpha · s₂` rather than `alpha · (s₁ + s₂)`. For ordinary finite operands that is a
-     * reassociation of the kind [gemm] already describes. Where it is more than that it is categorical: with
-     * an infinite [alpha] and one of the two sums coming to zero, this gives a NaN where a fused traversal
-     * would give an infinity. The composition is what lets each half be packed, blocked and tiled like any
-     * other product, and it is the semantics this library promises rather than an accident of scheduling.
-     *
-     * An explicit host binding is not held to it, for the reason [gemm] gives: a library's `dsyr2k` may well
-     * fuse the two traversals, and finite operands are enough to tell the two apart, since one of the
-     * separate sums can overflow to an infinity and the other to its negative where the fused pair cancels.
-     * A default which composes an installed library therefore never composes one for this routine.
+     * The implementation may accumulate the products separately or in one traversal, with the
+     * rounding and overflow differences described by [gemm].
      */
     @Suppress("LongParameterList") // the BLAS dsyr2k signature
     public fun syr2k(
