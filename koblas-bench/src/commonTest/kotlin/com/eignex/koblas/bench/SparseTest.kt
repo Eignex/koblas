@@ -41,22 +41,26 @@ class SparseTest {
     }
 
     /**
-     * A transposed prepared product reports the schedule the snapshot runs, and a first use names the
-     * orientation it derives on the way.
+     * A prepared transposed product against a dense block reports the traversal a one-shot call takes.
+     *
+     * The snapshot derives no orientation for it, so `firstuse` is the preparation plus an ordinary call
+     * rather than the preparation plus a derivation, and a prepared row names the same panel body the
+     * one-shot row does. What preparing still buys is the copy of the structure and the coefficients, which
+     * `setup` is what times.
      */
     @Test
-    fun `a prepared transposed row reports the oriented schedule`() {
-        // Enough right-hand sides that the oriented schedule cuts a panel: a reduction over a strided block
-        // is written out by the traversal at any count, and what this row is about is which of the two
-        // traversals each mode names.
+    fun `a prepared transposed row reports the one-shot traversal`() {
+        // Enough right-hand sides that the traversal cuts a panel: a reduction over a strided block is
+        // written out by the traversal at any count, and what this row is about is which body each mode
+        // names.
         val base = "spmm+33x16x21+sparse-uniform+density=0.25+transA=T"
         val oneShot = assertNotNull(work("$base+mode=oneshot"))
         val prepared = assertNotNull(work("$base+mode=prepared"))
         val firstUse = assertNotNull(work("$base+mode=firstuse"))
 
         assertContains(assertNotNull(oneShot.kernel), "spmm@1")
-        assertContains(assertNotNull(prepared.kernel), "sparse-rhs-scatter")
-        assertContains(assertNotNull(firstUse.kernel), "sptranspose")
+        assertEquals(oneShot.kernel, prepared.kernel)
+        assertContains(assertNotNull(firstUse.kernel), "spprepare")
     }
 
     /** A timed body that produces an object keeps it observable, which is what makes the row about it. */

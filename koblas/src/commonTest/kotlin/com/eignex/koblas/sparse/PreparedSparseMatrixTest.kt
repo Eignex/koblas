@@ -32,12 +32,12 @@ class PreparedSparseMatrixTest {
     }
 
     /**
-     * A prepared transposed product runs the untransposed schedule over the derived orientation, which is a
-     * different traversal from the one a transposed one-shot call takes.
+     * A prepared transposed product against a dense block runs the transposed traversal over the snapshot.
      *
-     * The one-shot route reduces each column into an accumulator and the prepared one spreads each index
-     * across the destination, so a prepared call reported through the one-shot route would be named for a
-     * schedule it does not run.
+     * Deriving the opposite orientation and running the untransposed schedule over it is the other way this
+     * could go, and the calibration measured it slower: the transposed traversal reduces each stored column
+     * into one destination row, and the oriented one spreads each index across the destination. So the
+     * prepared route is the one-shot route, and asking for it builds nothing.
      */
     @Test
     fun `a prepared transposed product reports the schedule it actually runs`() {
@@ -47,9 +47,9 @@ class PreparedSparseMatrixTest {
             listOf(listOf(0 to 2.0, 2 to -1.0), listOf(1 to 3.0)),
         )
         val prepared = koblas.prepare(source)
-        // A transposed dense operand as well, so the one-shot reduction has its right-hand sides adjacent
-        // and reaches a panel: what this is about is which traversal each route names, and a reduction over
-        // a strided block is written out on both of them.
+        // A transposed dense operand as well, so the reduction has its right-hand sides adjacent and reaches
+        // a panel: what this is about is which traversal the route names, and a reduction over a strided
+        // block is written out by the traversal instead.
         val call = SparseCall(
             source,
             0.875,
@@ -68,15 +68,9 @@ class PreparedSparseMatrixTest {
             oneShot.components.any { it.endsWith("/sparse-rhs-gather") },
             "a transposed one-shot product did not reduce its columns: $oneShot",
         )
-        assertTrue(
-            reused.components.any { it.endsWith("/sparse-rhs-scatter") },
-            "a prepared transposed product did not report the oriented schedule: $reused",
-        )
-        assertTrue(prepared.orientationDerived, "asking about a reused orientation did not derive it")
-        assertTrue(
-            reused.reason.orEmpty().contains("derived transpose"),
-            "the prepared route did not say what it ran against: $reused",
-        )
+        assertEquals(oneShot.components, reused.components, "a prepared product named another traversal")
+        assertEquals(oneShot.executionGroup, reused.executionGroup)
+        assertFalse(prepared.orientationDerived, "a prepared sparse-dense product derived an orientation")
     }
 
     /**
@@ -124,66 +118,58 @@ class PreparedSparseMatrixTest {
         assertFalse(prepared.orientationDerived, "an undecided route derived an orientation anyway")
     }
 
-    /** A fact the call's own facts leave open stays open against the oriented snapshot as well. */
+    /** A fact the call's own facts leave open stays open against the snapshot as well. */
     @Test
-    fun `a prepared oriented route keeps an unresolved right hand side count`() {
+    fun `a prepared route keeps an unresolved right hand side count`() {
         val source = SparseMatrix.ofColumns(3, 2, listOf(listOf(0 to 2.0, 2 to -1.0), listOf(1 to 3.0)))
         val prepared = koblas.prepare(source)
+        val call = SparseCall(source, 0.875, -0.25, destinationElements = 8, depth = 3, transposeSparse = true)
 
-        val route = prepared.matrixRouteOf(
-            SparseMatrixOperation.GemmDense,
-            SparseCall(source, 0.875, -0.25, destinationElements = 8, depth = 3, transposeSparse = true),
-        )
+        val route = prepared.matrixRouteOf(SparseMatrixOperation.GemmDense, call)
 
+        assertEquals(koblas.matrixRouteOf(SparseMatrixOperation.GemmDense, call).resolved, route.resolved)
         assertEquals(false, route.resolved, route.toString())
-        assertTrue(prepared.orientationDerived, "the oriented schedule was not the one reported")
+        assertFalse(prepared.orientationDerived, "an unresolved route derived an orientation anyway")
     }
 
     /**
-     * A transposed prepared product whose destination extent is omitted says the orientation is undecided
-     * rather than reading the absence as an empty destination.
+     * How much destination a transposed sparse-dense call writes no longer decides which family of
+     * traversals it takes.
      *
-     * The two readings run different traversals. A call with a destination derives the orientation and runs
-     * the untransposed schedule over it; one with an empty destination writes nothing and orients nothing.
-     * Reporting the second for facts that do not say which is a settled answer to an unsettled question,
-     * and it names the traversal a real call of this shape would not take.
+     * It used to: the orientation a prepared call derived turned on there being a destination to write, so
+     * omitting the extent left the schedule undecided between the transposed traversal and the oriented
+     * one. A prepared product against a dense block now runs the traversal its own flags ask for, so the
+     * prepared route is the one-shot route for the same facts, extent or no extent, and what the extent
+     * still settles is the same thing it settles for a one-shot call.
      */
     @Test
-    fun `a prepared transposed product with no destination extent leaves its orientation undecided`() {
+    fun `a prepared transposed product names the one-shot traversal whether or not its extent is given`() {
         val source = matrix()
         val prepared = koblas.prepare(source)
-
-        val route = prepared.matrixRouteOf(
-            SparseMatrixOperation.GemmDense,
-            SparseCall(
-                source,
-                0.875,
-                -0.25,
-                depth = 3,
-                rightHandSides = 8,
-                transposeSparse = true,
-            ),
+        val withoutExtent = SparseCall(source, 0.875, -0.25, depth = 3, rightHandSides = 8, transposeSparse = true)
+        val withExtent = SparseCall(
+            source,
+            0.875,
+            -0.25,
+            destinationElements = 2 * 8,
+            depth = 3,
+            rightHandSides = 8,
+            transposeSparse = true,
         )
 
-        assertEquals(false, route.resolved, route.toString())
-        assertTrue(route.reason.orEmpty().contains("how much destination"), route.toString())
-        assertFalse(prepared.orientationDerived, "an undecided extent derived an orientation anyway")
-        // And the same facts with the extent supplied do settle it, which is what makes the absence the
-        // thing that was missing rather than something else about this call.
-        val settled = prepared.matrixRouteOf(
-            SparseMatrixOperation.GemmDense,
-            SparseCall(
-                source,
-                0.875,
-                -0.25,
-                destinationElements = 2 * 8,
-                depth = 3,
-                rightHandSides = 8,
-                transposeSparse = true,
-            ),
+        val open = prepared.matrixRouteOf(SparseMatrixOperation.GemmDense, withoutExtent)
+        val settled = prepared.matrixRouteOf(SparseMatrixOperation.GemmDense, withExtent)
+
+        assertEquals(
+            koblas.matrixRouteOf(SparseMatrixOperation.GemmDense, withoutExtent).toString(),
+            open.toString(),
+        )
+        assertEquals(
+            koblas.matrixRouteOf(SparseMatrixOperation.GemmDense, withExtent).toString(),
+            settled.toString(),
         )
         assertEquals(true, settled.resolved, settled.toString())
-        assertTrue(prepared.orientationDerived, "the settled route did not derive the orientation")
+        assertFalse(prepared.orientationDerived, "a prepared sparse-dense route derived an orientation")
     }
 
     /**
@@ -341,5 +327,30 @@ class PreparedSparseMatrixTest {
         prepared.gemv(1.0, doubleArrayOf(1.0, 1.0), 0.0, y)
 
         assertContentEquals(doubleArrayOf(2.0, 3.0), y)
+    }
+
+    /**
+     * A repeated transposed product against a dense block agrees with the one-shot call and builds nothing.
+     *
+     * The two families of prepared product differ here, and each is pinned: this one runs the transposed
+     * traversal over the stored orientation however many times it is called, and the sparse-sparse one
+     * above derives the opposite orientation once. Both sides of the split are checked against the one-shot
+     * answer, so the choice is a schedule rather than a different result.
+     */
+    @Test
+    fun `a repeated prepared transposed dense product agrees and derives nothing`() {
+        val source = matrix()
+        val prepared = source.prepare()
+        val b = DenseMatrix.wrap(3, 2, doubleArrayOf(1.5, -2.0, 0.5, 4.0, -1.0, 2.5))
+        val expected = DenseMatrix.zero(2, 2)
+        koblas.gemm(0.875, source, true, b, false, -0.25, expected)
+
+        repeat(2) {
+            val actual = DenseMatrix.zero(2, 2)
+            prepared.gemm(0.875, transposeA = true, b = b, beta = -0.25, c = actual)
+            assertContentEquals(expected.values, actual.values)
+        }
+
+        assertFalse(prepared.orientationDerived, "a repeated prepared dense product built the transpose cache")
     }
 }
