@@ -10,8 +10,7 @@ class VendorSelectionTest {
         for (architecture in Architecture.entries) {
             val host = HostPlatform(OperatingSystem.MacOs, architecture, CpuVendor.Unknown)
 
-            // A list of one is the whole macOS policy: Accelerate is part of the system and cannot be missing,
-            // so there is nothing for a last resort to catch.
+            // Accelerate is part of the system and cannot be missing, so nothing is left for a last resort.
             assertEquals(listOf(Vendor.Accelerate), Vendor.select(host))
         }
     }
@@ -60,8 +59,7 @@ class VendorSelectionTest {
             CpuVendor.entries.map { HostPlatform(OperatingSystem.Linux, architecture, it) }
         }
 
-        // A tuned library wins wherever one is installed, so the fallback only decides what a host with none
-        // does. Anywhere but last would make it the answer on hosts that have something better.
+        // Anywhere but last would make the fallback the answer on hosts that have something better.
         for (host in linux) {
             val order = Vendor.select(host)
             assertEquals(Vendor.OpenBlas, order.last(), "not the last resort on $host")

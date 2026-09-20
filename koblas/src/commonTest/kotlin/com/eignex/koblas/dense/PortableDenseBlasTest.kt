@@ -15,12 +15,8 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /**
- * A backend that recommends a grouping of its own, so the shared traversal can be run at widths no production
- * backend chooses.
- *
- * The arithmetic is the portable backend's, because what is under test here is the scheduling: the windows a
- * triangular or symmetric traversal cuts, the corner it keeps for itself, and the tail at the end of a panel
- * all move with the grouping, and every one of them has to come out the same.
+ * A backend that recommends a grouping of its own, so the shared traversal runs at widths no production
+ * backend chooses. The arithmetic stays the portable backend's, since the scheduling is what is under test.
  */
 private class RegroupedPanels(private val group: Int) : DensePanelKernels by PortablePanelKernels {
     override val name: String get() = "regrouped($group)"
@@ -29,11 +25,8 @@ private class RegroupedPanels(private val group: Int) : DensePanelKernels by Por
 }
 
 /**
- * The shared dense scheduling, at every grouping a backend might recommend.
- *
- * One backend's recommendation is one point of this sweep, so a traversal that happened to be right at four
- * columns and wrong at three would pass on this machine and fail on the next one. The oracle is
- * [ReferenceBlas], which is the textbook definition and shares no code with the scheduling.
+ * The shared dense scheduling, at every grouping a backend might recommend, since a traversal right at four
+ * columns and wrong at three would pass on this machine and fail on the next one.
  */
 class PortableDenseBlasTest {
     private val groups = intArrayOf(1, 2, 3, 5, 7, 64)
@@ -116,10 +109,7 @@ class PortableDenseBlasTest {
         }
     }
 
-    /**
-     * A rank update over a vector with a step, which reaches the panel without a copy and so has to address
-     * its window rather than assume adjacent entries.
-     */
+    // A vector with a step reaches the panel without a copy, so the panel has to address its window.
     @Test
     fun `a strided rank update agrees with the reference`() {
         val rng = Random(20260924)
@@ -171,14 +161,8 @@ class PortableDenseBlasTest {
         }
     }
 
-    /**
-     * Where alpha sits in a product, which is what an exceptional operand makes visible.
-     *
-     * The untransposed traversal scales each column's coefficient and then updates the destination, and the
-     * transposed one scales the finished reduction; both are where the reference BLAS puts it, and the two
-     * are not the same arithmetic. An infinite multiplier against a zero entry is NaN one way and an infinity
-     * the other, so the choice is pinned here rather than left to whichever grouping came last.
-     */
+    // The untransposed traversal scales each column's coefficient and the transposed one scales the finished
+    // reduction, both as reference BLAS does; an infinite multiplier against a zero entry separates them.
     @Test
     fun `alpha is scaled into the coefficient going down a column and into the sum going across one`() {
         val blas = blasFor(4)
@@ -198,16 +182,10 @@ class PortableDenseBlasTest {
         assertEquals(Double.POSITIVE_INFINITY, across[1])
     }
 
-    /**
-     * A zero coefficient is still multiplied, because this is a matrix product and not an `axpy`.
-     *
-     * Both orientations evaluate every position the traversal reaches, so a zero against an infinity is the
-     * NaN it evaluates to rather than a column skipped for being cheap.
-     */
+    // A zero coefficient is still multiplied: this is a matrix product and not an `axpy`.
     @Test
     fun `a zero entry of x still multiplies an infinity in the matrix`() {
-        // The infinity sits where the zero coefficient meets it in both directions: off the diagonal one way
-        // and down the same column the other.
+        // The infinity sits where the zero coefficient meets it in both directions.
         val a = DenseMatrix.wrap(2, 2, doubleArrayOf(1.0, Double.POSITIVE_INFINITY, Double.POSITIVE_INFINITY, 1.0))
         val x = doubleArrayOf(1.0, 0.0)
 

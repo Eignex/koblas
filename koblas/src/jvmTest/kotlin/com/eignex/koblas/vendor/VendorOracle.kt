@@ -4,20 +4,12 @@ import kotlin.math.abs
 import kotlin.test.assertTrue
 import kotlin.test.fail
 
-/**
- * A vendor to test against, or null when this host has none installed.
- *
- * Production selection, which ends in OpenBLAS on Linux, so a host with a tuned library exercises the one it
- * would actually use and a host with only the distribution's BLAS still exercises the transport these tests
- * are about.
- */
+/** A vendor to test against through production selection, or null when this host has none installed. */
 internal val testVendor: Blas? by lazy { openBlas() }
 
 /**
- * Runs [body] against an installed vendor, or reports that it did not run.
- *
- * A test that quietly passes because nothing was installed is worse than no test, so the skip says what was
- * missing on the way past rather than leaving a green result to be read as evidence.
+ * Runs [body] against an installed vendor, or reports that it did not run: a green result from a host with
+ * nothing installed must not be read as evidence.
  */
 internal fun withVendor(body: (Blas) -> Unit) {
     val blas = testVendor
@@ -29,11 +21,8 @@ internal fun withVendor(body: (Blas) -> Unit) {
 }
 
 /**
- * Asserts agreement with `ReferenceBlas` at a tolerance scaled to the magnitudes involved.
- *
- * The expected side comes from that oracle rather than from anything defined here: it already reads each
- * operand through its structure and transpose, so a second definition beside it would only be another chance
- * to encode the same mistake twice and call the agreement evidence.
+ * Asserts agreement with `ReferenceBlas` at a tolerance scaled to the magnitudes involved. The expected side
+ * comes from that oracle rather than a second definition here, which would only repeat the same mistake.
  */
 internal fun assertAgreesWithReference(expected: DoubleArray, actual: DoubleArray, what: String) {
     if (expected.size != actual.size) fail("$what: size ${actual.size}, expected ${expected.size}")

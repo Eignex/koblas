@@ -8,17 +8,11 @@ import kotlin.test.assertNotEquals
 import kotlin.test.assertTrue
 
 /**
- * The Vector API panels, and which of their bodies a given panel actually reaches.
+ * The Vector API panels, and which of their bodies a given panel actually reaches: a panel with fewer rows
+ * than a lane block, or one whose shared vector is strided, is portable work.
  *
- * The arithmetic is checked against the written-out definitions rather than against the portable backend, so
- * a body that agreed with the portable one only by delegating to it would still have to be right. What is
- * particular to this backend is where it stops: a panel with fewer rows than a lane block, or one whose
- * shared vector is strided, is portable work, and saying so is the difference between an attribution and a
- * label.
- *
- * Reached through the engine rather than by naming the object, because naming it resolves the species: on a
- * runtime without the module that is a linkage error before any test body runs, and that absence is exactly
- * one of the configurations this has to survive.
+ * Reached through the engine rather than by naming the object, because naming it resolves the species, which
+ * on a runtime without the module is a linkage error before any test body runs.
  */
 class SimdPanelKernelsTest {
     private val kernels: DensePanelKernels? = BuiltinEngines.simd?.panelKernels
@@ -65,11 +59,8 @@ class SimdPanelKernelsTest {
         }
     }
 
-    /**
-     * The sparse right-hand-side panel is vector work over adjacent right-hand sides and portable work over
-     * a strided group, which is the whole of what staging one buys and the reason a route asks about the
-     * layout rather than about the engine.
-     */
+    // Vector work over adjacent right-hand sides and portable work over a strided group, which is the whole
+    // of what staging one buys.
     @Test
     fun `the sparse right hand side panel names a vector body only where its sides are adjacent`() {
         val kernels = kernels ?: return skipped()
@@ -93,10 +84,8 @@ class SimdPanelKernelsTest {
         assertTrue(kernels.executionGroup(PanelWork.SparseRightHandSides, WIDE, 64) >= 1)
     }
 
-    /**
-     * The grouping is the backend's own choice and is not the lane count, which is the confusion the whole
-     * seam exists to prevent. They agree here only where the measurement happened to land on the same number.
-     */
+    // The grouping is the backend's own choice and is not the lane count; they agree only where the
+    // measurement happened to land on the same number.
     @Test
     fun `the recommended grouping is a column count rather than a lane count`() {
         val kernels = kernels ?: return skipped()

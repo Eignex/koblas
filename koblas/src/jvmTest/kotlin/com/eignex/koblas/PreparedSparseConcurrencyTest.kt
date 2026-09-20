@@ -10,12 +10,9 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /**
- * A prepared sparse matrix as several threads use it at once.
- *
- * The snapshot is immutable and the derived transpose is published through a synchronized lazy, so readers
- * with their own destinations and workspaces need no lock between them. The cases that matter are the ones
- * where the threads race to be the first transposed user, and where one thread mutates the source while the
- * others read the snapshot.
+ * A prepared sparse matrix as several threads use it at once. The snapshot is immutable and the derived
+ * transpose is published through a synchronized lazy, so readers with their own destinations and workspaces
+ * need no lock between them.
  */
 class PreparedSparseConcurrencyTest {
     private companion object {
@@ -55,8 +52,8 @@ class PreparedSparseConcurrencyTest {
                         barrier.await(10, TimeUnit.SECONDS)
                         repeat(50) {
                             prepared.gemv(1.0, x, 0.0, y)
-                            // Every thread races to be the first transposed reader, which is the publication
-                            // this is about: a half-built transpose would show up as a wrong or missing entry.
+                            // Every thread races to be the first transposed reader, and a half-built
+                            // transpose would show up as a wrong or missing entry.
                             prepared.gemm(
                                 1.0,
                                 transposeA = true,

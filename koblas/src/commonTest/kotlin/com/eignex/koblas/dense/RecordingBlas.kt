@@ -12,10 +12,8 @@ import com.eignex.koblas.vendor.ThreadEvidence
 import com.eignex.koblas.vendor.Vendor
 
 /**
- * One call as the binding received it.
- *
- * The operands are the objects that were handed over, not copies, so a test can ask both what they described
- * and whether they were the caller's own storage or something staged in front of it.
+ * One call as the binding received it. The operands are the objects that were handed over rather than
+ * copies, so a test can ask whether they were the caller's own storage or something staged in front of it.
  */
 internal class BlasCall(
     val operation: BlasOperation,
@@ -39,21 +37,13 @@ internal class BlasCall(
 }
 
 /**
- * A [Blas] that records what it was asked to do and computes nothing.
+ * A [Blas] that records what it was asked to do and computes nothing, which is how a `lower` arriving as an
+ * upper triangle, a `right` arriving as a left-side call, or an operand densified out of its own spacing is
+ * caught: a symmetric fixture or a self-inverting round trip answers correctly either way.
  *
- * Every other dense test asks whether the numbers came back right, which a symmetric fixture or a
- * self-inverting round trip can answer correctly even when a flag was translated the wrong way. This asks the
- * other question: what did Koblas actually hand the library. A `lower` that arrives as an upper triangle, a
- * `right` that arrives as a left-side call, or an operand quietly densified out of its own spacing all show up
- * here and nowhere else.
- *
- * It records at the [Blas] seam, so it pins the translation [VendorDenseBlas] performs: Koblas's booleans into
- * [MatrixStructure] and its arrays into [DenseVector]. It cannot pin what happens below that seam, because the
- * CBLAS integers, the leading dimension and the increment are produced inside the platform bindings; checking
- * those needs a real library, which is what the vendor conformance tests are for.
- *
- * Arithmetic is deliberately absent. A double that also computed would invite tests to assert results through
- * it, and those results would be this file's arithmetic rather than any library's.
+ * It records at the [Blas] seam, so it pins the translation [VendorDenseBlas] performs into [MatrixStructure]
+ * and [DenseVector], and nothing below it: the CBLAS integers, the leading dimension and the increment are
+ * produced inside the platform bindings, which the vendor conformance tests cover.
  */
 internal class RecordingBlas(
     override val vendor: Vendor = Vendor.OpenBlas,

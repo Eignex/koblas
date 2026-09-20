@@ -6,25 +6,19 @@ import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.Vector
 
 /**
- * A naive scalar oracle for the dense surface, defined by the textbook sums rather than by any kernel.
+ * A naive scalar oracle for the dense surface, defined by the textbook sums rather than by any kernel, and
+ * independent of the production scheduling so that no implementation is accepted by comparison with itself.
  *
- * This stays independent of shared production scheduling and kernel composition, so accelerated leaves and
- * portable orchestration are never accepted merely by comparing an implementation with itself.
- *
- * Correctness before speed: every routine is the direct definition, column-major, with no blocking, no
- * accumulator splitting and no early exit beyond what the operation's contract states. A disagreement with a
- * implementation is a real question about one of the two, which is the whole point of keeping it.
+ * Every routine is the direct definition, column-major, with no blocking, no accumulator splitting and no
+ * early exit beyond what the operation's contract states.
  */
 internal object ReferenceBlas {
     private fun at(a: DenseMatrix, i: Int, j: Int, transpose: Boolean): Double =
         if (transpose) a.values[j + i * a.rows] else a.values[i + j * a.rows]
 
     /**
-     * The `beta * C` term, which a zero beta contributes without reading what is there.
-     *
-     * BLAS states this for every routine that carries a beta, and it is not the same as multiplying by zero:
-     * a destination arriving as NaN or an infinity has to be overwritten, and `0.0 * NaN` is NaN. Tests poison
-     * their destination precisely to check it, so the oracle owes them the rule rather than the multiply.
+     * The `beta * C` term, which a zero beta contributes without reading what is there. That is not the same
+     * as multiplying by zero, since `0.0 * NaN` is NaN, and tests poison their destination to check it.
      */
     private fun scaled(beta: Double, previous: Double): Double = if (beta == 0.0) 0.0 else beta * previous
 

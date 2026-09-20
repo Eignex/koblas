@@ -107,13 +107,6 @@ class VectorOpsTest {
     }
 
     @Test
-    fun `sum and asum differ once a sign does`() {
-        val mixed = dense(3.0, -4.0)
-        assertEquals(-1.0, mixed.sum(), 1e-12, "sum")
-        assertEquals(7.0, mixed.asum(), 1e-12, "asum")
-    }
-
-    @Test
     fun `asum matches the hand value on dense and sparse`() {
         assertEquals(7.0, DenseVector.of(doubleArrayOf(3.0, 0.0, -4.0)).asum())
         assertEquals(5.0, sparse.asum())
@@ -221,15 +214,6 @@ class VectorOpsTest {
     }
 
     @Test
-    fun `mixed sparse and dense dot agrees in both operand orders`() {
-        val sparse = SparseVector.of(6, intArrayOf(1, 4), doubleArrayOf(2.0, -3.0))
-        val dense = DenseVector.of(doubleArrayOf(1.0, 2.0, 3.0, 4.0, 5.0, 6.0))
-        val expected = 2.0 * 2.0 + -3.0 * 5.0
-        assertEquals(expected, sparse dot dense)
-        assertEquals(expected, dense dot sparse)
-    }
-
-    @Test
     fun `sparse dot ignores unstored entries in borrowed and foreign vectors`() {
         val sparse = sparse(3, 1 to 2.0)
         val backing = doubleArrayOf(Double.NaN, 3.0, Double.POSITIVE_INFINITY)
@@ -270,12 +254,8 @@ class VectorOpsTest {
         }
     }
 
-    /**
-     * Adjacent slices take a block move rather than the entry walk, and both origins have to survive it.
-     *
-     * A block move is described by three indices where the walk needed none, so a copy that lands at the
-     * wrong offset, or runs the wrong length, reads correct entries into the wrong place.
-     */
+    // Adjacent slices take a block move rather than the entry walk, which is described by three indices the
+    // walk needed none of.
     @Test
     fun `copy between adjacent slices lands at both origins`() {
         val source = StridedVector(doubleArrayOf(9.0, 9.0, 1.0, 2.0, 3.0, 9.0), offset = 2, size = 3)

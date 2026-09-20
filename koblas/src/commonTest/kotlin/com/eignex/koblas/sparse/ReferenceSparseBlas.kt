@@ -9,18 +9,10 @@ import com.eignex.koblas.SparseMatrix
 /**
  * A naive oracle for the sparse surface, defined by traversal over stored entries rather than by any kernel.
  *
- * Independent of the production scheduling on purpose. It holds each operand as a list of stored coordinates
- * pulled through the public [SparseMatrix.forEachInColumn], and then writes the definition out: a product is a
- * loop over the coordinates the operands store, a fresh CSC result is built by sorting discovered coordinates,
- * and nothing here reuses an accumulator, an epoch, a panel or a transpose. A disagreement with the library is
- * therefore a real question about one of the two.
- *
- * Sparse semantics are stated here rather than inherited from a dense oracle. A position no operand stores is
- * never visited, so it forms no product and cannot turn an infinity into a NaN; a stored zero is visited like
- * any other entry. Densifying first would get both of those wrong, which is why the tests that exercise them
- * assert against hand-computed values instead of against any oracle at all.
- *
- * The one thing taken from the library is the sparse Level 1 selection, which these tests compare separately.
+ * Each operand is a list of stored coordinates pulled through the public [SparseMatrix.forEachInColumn], and
+ * nothing here reuses an accumulator, an epoch, a panel or a transpose. Sparse semantics are stated rather
+ * than inherited from a dense oracle: a position no operand stores is never visited, so it forms no product
+ * and cannot turn an infinity into a NaN, and a stored zero is visited like any other entry.
  */
 internal object ReferenceSparseBlas : SparseKernels by BuiltinEngines.scalar.sparseKernels {
 
@@ -229,11 +221,9 @@ internal object ReferenceSparseBlas : SparseKernels by BuiltinEngines.scalar.spa
     }
 
     /**
-     * A CSC matrix over discovered coordinates, sorted rather than accumulated.
-     *
-     * [SparseMatrix.ofTriplets] would sum duplicates, and the oracle has already summed them: what is left is
-     * to put the coordinates in CSC order, which is what makes this a second implementation of the ordering
-     * the library's builders also have to get right.
+     * A CSC matrix over discovered coordinates, sorted rather than accumulated. [SparseMatrix.ofTriplets]
+     * would sum duplicates, which the oracle has already done, so this is a second implementation of the
+     * ordering the library's builders also have to get right.
      */
     private fun build(rows: Int, cols: Int, entries: List<Entry>): SparseMatrix {
         val sorted = entries.sortedWith(compareBy({ it.col }, { it.row }))

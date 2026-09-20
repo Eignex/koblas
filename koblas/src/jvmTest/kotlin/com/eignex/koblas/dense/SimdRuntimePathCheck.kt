@@ -8,15 +8,9 @@ import jdk.incubator.vector.DoubleVector
 /**
  * Runs the panel contract on whatever species and multiply-add this JVM was started with.
  *
- * The bodies branch on two properties of the machine: how many lanes the preferred species has, and whether
- * a fused multiply-add has an instruction behind it. A test task cannot vary either, because both are fixed
- * when the virtual machine starts. This runs as its own process so the `simdNarrowSpeciesCheck` and
- * `simdNoFmaCheck` tasks can start it with `-XX:MaxVectorSize` and `-XX:-UseFMA` and hold the same
- * conformance to a narrower species and to the unfused arithmetic.
- *
- * Forcing a flag is not the same as owning the hardware. What this establishes is that the generated paths
- * are exercised and correct under each configuration, not how they perform on a machine that has no such
- * instruction.
+ * Both are fixed when the virtual machine starts, so a test task cannot vary them. This runs as its own
+ * process for the `simdNarrowSpeciesCheck` and `simdNoFmaCheck` tasks to start with `-XX:MaxVectorSize` and
+ * `-XX:-UseFMA`. Forcing a flag establishes that the generated paths are correct, not how they perform.
  */
 internal object SimdRuntimePathCheck {
     @JvmStatic
@@ -42,10 +36,8 @@ internal object SimdRuntimePathCheck {
         assertEmptyExtentsReadNothing(panels)
         assertPanelsStayInsideTheirWindows(panels)
         assertExecutionGroupIsUsable(panels)
-        // The route as well as the arithmetic. Which bodies a schedule reaches moves with the species: a
-        // symmetric traversal grouped by two cuts only even windows at an even order, so the same call is a
-        // composition at four lanes and direct at two. Checking only the raw panels here would leave that to
-        // whichever machine happened to run the ordinary tests.
+        // Which bodies a schedule reaches moves with the species, so the same call is a composition at four
+        // lanes and direct at two.
         assertRouteNamesExecutedBodies(panels)
 
         // The eligibility follows the species this process resolved, not the one it was written against.
@@ -55,8 +47,7 @@ internal object SimdRuntimePathCheck {
         check(panels.implementationFor(PanelWork.MultiDot, lanes - 1, 4) == PortablePanelKernels.name) {
             "a panel shorter than a lane block reached the vector body at $lanes lanes"
         }
-        // Printed because it is the thing that moves with the species and is easy to assume instead of
-        // reading: a symmetric traversal grouped by two cuts only even windows at an even order.
+        // Printed because it is what moves with the species and is easy to assume instead of reading.
         for (order in intArrayOf(512, 513)) {
             val route = engine.routeOf(DenseMatrixOperation.Symv, DenseCall(order, order))
             println("symv order $order at $lanes lanes: ${route.kind} ${route.components}")
@@ -66,11 +57,8 @@ internal object SimdRuntimePathCheck {
     }
 
     /**
-     * The product tile at whatever species this process resolved, and the route over it.
-     *
-     * The tile's rows are lane blocks, so which destinations have a remainder and which do not moves with
-     * the species: the same product is one body wide at one width and a composition at another. A check that
-     * only ran the arithmetic would leave that to whichever machine happened to run the ordinary tests.
+     * The product tile at whatever species this process resolved, and the route over it. The tile's rows are
+     * lane blocks, so which destinations have a remainder moves with the species.
      */
     private fun checkProducts(engine: KoblasEngine, lanes: Int) {
         val products = engine.productKernels

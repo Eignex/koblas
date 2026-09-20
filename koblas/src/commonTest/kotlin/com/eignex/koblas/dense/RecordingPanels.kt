@@ -7,17 +7,13 @@ import com.eignex.koblas.vendor.RouteKind
 import kotlin.random.Random
 import kotlin.test.assertEquals
 
-// A dense route claims something about the windows a call cuts, so checking it means recording those windows
-// rather than reasoning about the extents they were cut from: a length the schedule never produces tells
-// nothing about which bodies ran. The recorder below is what makes that check possible, and the assertions
-// that use it live beside it.
+// A route is checked against the windows a call really cut, not against the extents they were cut from: a
+// length the schedule never produces tells nothing about which bodies ran.
 
 /**
- * A backend that records the body each window it is handed reaches, and delegates the arithmetic.
- *
- * [group] and [threshold] override the delegate's grouping and its choice of body when they are given, which
- * is how a sweep reaches shapes a real backend's own answers never produce. Left null, this is the delegate
- * with a notebook, and the recording is of that backend at whatever species the runtime resolved.
+ * A backend that records the body each window it is handed reaches, and delegates the arithmetic. [group]
+ * and [threshold] override the delegate's grouping and its choice of body, which is how a sweep reaches
+ * shapes a real backend's own answers never produce.
  */
 internal class RecordingPanels(
     private val delegate: DensePanelKernels,
@@ -214,12 +210,9 @@ internal val PANEL_OPERATIONS: List<DenseMatrixOperation> = listOf(
 )
 
 /**
- * Orders that reach the boundaries a window schedule has.
- *
- * Odd and even both, because a symmetric traversal grouped by two cuts only even windows at an even order
- * and reaches a one-long one at an odd order, which decides whether a two-lane backend uses one body or two.
- * The short ones are where a triangle is narrower than a lane block, and the long one is where the schedule
- * is long enough that a body change in the middle of it is visible.
+ * Orders that reach the boundaries a window schedule has: odd and even, since a symmetric traversal grouped
+ * by two cuts only even windows at an even order; short ones, where a triangle is narrower than a lane
+ * block; and one long enough that a body change in the middle of the schedule is visible.
  */
 internal val ROUTE_ORDERS: IntArray = intArrayOf(1, 2, 3, 4, 5, 7, 8, 9, 16, 17, 33, 512)
 
@@ -227,12 +220,8 @@ internal val ROUTE_ORDERS: IntArray = intArrayOf(1, 2, 3, 4, 5, 7, 8, 9, 16, 17,
 internal val SHORT_ROUTE_ORDERS: IntArray = intArrayOf(1, 2, 3, 4, 5, 7, 8, 9, 17)
 
 /**
- * That [panels] routes every panel operation to exactly the bodies its own traversal reaches.
- *
- * The expectation comes from running the operation and recording what each window was handed to, so a route
- * derived from anything else than the schedule fails here. Both triangles and both transpose flags, because
- * the windows a triangular traversal cuts depend on both, and the orders above because whether a body
- * changes part way through a schedule depends on the order's parity as much as its size.
+ * That [panels] routes every panel operation to exactly the bodies its own traversal reaches, over both
+ * triangles and both transpose flags, since the windows a triangular traversal cuts depend on both.
  */
 internal fun assertRouteNamesExecutedBodies(
     panels: DensePanelKernels,

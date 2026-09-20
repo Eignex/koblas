@@ -15,13 +15,9 @@ import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
 /**
- * Shapes at the edge of what a CSC result can represent.
- *
- * A validated sparse matrix bounds its own column count, because holding one pointer per column plus a final
- * one is what makes it a matrix. Its row count is bounded by nothing, so an operation whose output has one
- * column per input row is where a row count that cannot be represented first becomes an array length. Every
- * fixture here is a tall empty matrix: it declares an enormous row count and stores nothing, so the shapes
- * are reached without allocating anything larger than a handful of entries.
+ * Shapes at the edge of what a CSC result can represent. A validated sparse matrix bounds its column count
+ * but not its row count, so an operation whose output has one column per input row is where an
+ * unrepresentable row count first becomes an array length. Every fixture is a tall empty matrix.
  */
 class SparseCapacityTest {
 
@@ -49,11 +45,8 @@ class SparseCapacityTest {
         assertContentEquals(intArrayOf(0, 0, 0, 0), transposed.copyColumnPointers())
     }
 
-    /**
-     * A product that can reach no position discovers no structure, and the scratch that would have found it
-     * is indexed by the result's rows. Allocating that for a provably empty result is what would turn a valid
-     * tall shape into an out-of-memory error rather than an empty matrix.
-     */
+    // The scratch that would find structure is indexed by the result's rows, so allocating it for a provably
+    // empty result turns a valid tall shape into an out-of-memory error.
     @Test
     fun `an empty product of a tall operand returns the shape without row-sized scratch`() {
         val tall = tallEmpty(Int.MAX_VALUE)
@@ -87,11 +80,8 @@ class SparseCapacityTest {
         assertTrue(failure.message!!.contains("more than one array can hold"), failure.message!!)
     }
 
-    /**
-     * The dense-destination rank update never builds a result of its own, so its limit is the scratch indexed
-     * by the source's rows. A source with nothing stored reaches no position, and the destination it was
-     * given is the whole of the answer.
-     */
+    // The dense-destination rank update builds no result of its own, so its limit is the scratch indexed by
+    // the source's rows.
     @Test
     fun `a dense rank update over a tall empty operand scales the triangle and stops`() {
         val tall = tallEmpty(Int.MAX_VALUE)
@@ -113,10 +103,7 @@ class SparseCapacityTest {
         assertContentEquals(doubleArrayOf(2.0, 4.0, 3.0, 8.0), destination.values)
     }
 
-    /**
-     * The shortcut that avoids row-sized scratch must not swallow a product that has structure to find. Both
-     * operands store an entry here, so the traversal runs and the position their patterns meet at survives.
-     */
+    // The shortcut that avoids row-sized scratch must not swallow a product with structure to find.
     @Test
     fun `the empty-result shortcut does not swallow a product that has structure`() {
         val a = SparseMatrix.ofColumns(2, 1, listOf(listOf(0 to 1.0)))
@@ -130,10 +117,8 @@ class SparseCapacityTest {
         assertEquals(2.0, product[0, 1])
     }
 
-    /**
-     * A prepared transposed product over the same tall shape. The result is empty and perfectly valid, so the
-     * snapshot must reach it without deriving a transpose whose pointer array could not exist.
-     */
+    // The result is empty and valid, so the snapshot must reach it without deriving a transpose whose
+    // pointer array could not exist.
     @Test
     fun `a prepared transposed product of a tall operand reaches its empty result`() {
         val prepared = tallEmpty(Int.MAX_VALUE).prepare()

@@ -7,12 +7,8 @@ import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
 /**
- * What a reusable workspace keeps and what it lets go.
- *
- * Two behaviours pull against each other. A repeated call over one shape has to get its buffers back, or the
- * workspace saves nothing; a caller sweeping changing shapes must not accumulate every buffer it has ever
- * asked for, or the workspace grows with the program's history. These check both ends and the nesting that
- * the sparse scheduling depends on.
+ * What a reusable workspace keeps and what it lets go: a repeated call over one shape has to get its buffers
+ * back, and a caller sweeping changing shapes must not accumulate every buffer it ever asked for.
  */
 class WorkspaceTest {
 
@@ -62,11 +58,7 @@ class WorkspaceTest {
         assertEquals(1, workspace.availableI32(8))
     }
 
-    /**
-     * The retention bound, seen from the outside: a workspace swept across many lengths keeps a small number
-     * of them rather than all of them. Without the bound this count would be the number of distinct lengths
-     * the sweep asked for, which is what makes a long-lived workspace grow without limit.
-     */
+    // Without the bound this count would be the number of distinct lengths the sweep asked for.
     @Test
     fun `a sweep over changing lengths retains a bounded number of them`() {
         val workspace = Workspace()
@@ -89,10 +81,7 @@ class WorkspaceTest {
         assertEquals(0, workspace.available(1), "the first length asked for was kept")
     }
 
-    /**
-     * Alternating between two shapes is the case the bound must not break: both stay resident, so neither
-     * call allocates after the first pass.
-     */
+    // Alternating between two shapes is the case the bound must not break.
     @Test
     fun `alternating between two lengths keeps both resident`() {
         val workspace = Workspace()

@@ -10,19 +10,9 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
-/**
- * What a dense matrix call says it executes, which has to follow from the call rather than from the engine.
- *
- * The question a route answers is not which backend was selected but which of its bodies this shape reaches,
- * and the two differ exactly where a window is too short for a vector or where a traversal's windows are not
- * all the same length.
- *
- * These ask the exact built-in engines rather than the platform default. What they are about is this
- * library's own dense schedule and the bodies it reaches, and a default is a policy: Kotlin/Native's hands a
- * call of some of these shapes to an installed library instead, which is a different question and is asked
- * where that policy lives. Asking the exact engines also makes the answers the same on every host, rather
- * than depending on what happens to be installed on one.
- */
+// A route answers which of a backend's bodies this call's windows reach, not which backend was selected.
+// These name the exact built-in engines rather than the platform default, which is a policy asked about
+// where it lives, so the answers do not depend on what happens to be installed on one host.
 class DenseMatrixRouteTest {
     private val engines: List<KoblasEngine>
         get() = listOfNotNull(BuiltinEngines.scalar, BuiltinEngines.simd)
@@ -55,10 +45,6 @@ class DenseMatrixRouteTest {
         }
     }
 
-    /**
-     * A non-unit destination multiplier is a Level 1 `scale` and is named, where zero and one are neither a
-     * kernel nor a read.
-     */
     @Test
     fun `the destination scaling a call performs is a component like any other`() {
         for (engine in engines) {
@@ -71,10 +57,7 @@ class DenseMatrixRouteTest {
         }
     }
 
-    /**
-     * A transposed product folds its destination multiplier into the panel that writes each output, so there
-     * is no separate scaling kernel to name.
-     */
+    // A transposed product folds the multiplier into the panel that writes each output.
     @Test
     fun `a transposed product applies beta inside its panel rather than through a kernel`() {
         for (engine in engines) {
@@ -85,16 +68,8 @@ class DenseMatrixRouteTest {
         }
     }
 
-    /**
-     * A triangular traversal's windows run from the full column down to nothing, so on a backend with more
-     * than one body they need not all reach the same one, and the route says which of the two it is.
-     *
-     * Which it is depends on the schedule and not on the order. A symmetric traversal grouped by two cuts
-     * only even windows at an even order, so a backend whose shortest vector window is two serves every one
-     * of them and the call really is direct; make the order odd and the last window is one long and the same
-     * call is a composition. Both are checked against what the traversal did rather than against a length
-     * the schedule never produces.
-     */
+    // A triangular traversal's windows run from the full column down to nothing, so whether they all reach
+    // one body depends on the schedule rather than the order; both are checked against what it cut.
     @Test
     fun `a symmetric traversal is composed exactly when its own windows reach more than one body`() {
         for (engine in engines) {
@@ -129,13 +104,8 @@ class DenseMatrixRouteTest {
         assertEquals(RouteKind.NoWork, noDepth.kind)
     }
 
-    /**
-     * Every structured Level 3 routine names the bodies it reaches, and none of them is an engine's name.
-     *
-     * The scheduling is this library's own on every engine, and what runs inside its windows is the
-     * selected backends' and nothing else. A component naming the engine would be the claim these routes
-     * exist to prevent: that a Vector API Level 1 selection makes a matrix routine vectorised.
-     */
+    // A component naming the engine would be the claim these routes exist to prevent: that a Vector API
+    // Level 1 selection makes a matrix routine vectorised.
     @Test
     fun `a structured level three call names the bodies it reaches and never the engine`() {
         for (engine in engines) {
@@ -170,14 +140,8 @@ class DenseMatrixRouteTest {
         }
     }
 
-    /**
-     * A triangular matrix call whose order fits one diagonal block schedules no product between blocks, and
-     * one that does not schedules both.
-     *
-     * Two calls of the same operation on the same engine, differing only in an extent, reaching different
-     * components. That is the property the reason strings claim and the one a route built from the operation
-     * name alone would get wrong.
-     */
+    // Two calls of the same operation on the same engine, differing only in an extent, reach different
+    // components: what a route built from the operation name alone would get wrong.
     @Test
     fun `a triangular solve names a product only where its order needs more than one block`() {
         for (engine in engines) {
@@ -219,13 +183,8 @@ class DenseMatrixRouteTest {
         }
     }
 
-    /**
-     * The same check at groupings and body thresholds no real backend here produces.
-     *
-     * A backend with one body cannot make the claim false, and a real one's threshold sits where its lane
-     * block is. Overriding both reaches the shapes in between, where a body changes part way through a
-     * schedule, which is the case a route derived from extents rather than windows gets wrong.
-     */
+    // Overriding the grouping and the threshold reaches shapes no real backend here produces, where a body
+    // changes part way through a schedule.
     @Test
     fun `a route follows the schedule at groupings and thresholds no backend here has`() {
         for (group in intArrayOf(1, 2, 3, 4)) {
@@ -235,10 +194,8 @@ class DenseMatrixRouteTest {
         }
     }
 
-    /**
-     * A triangle no wider than a lane block never reaches a vector body, because every window it cuts is
-     * shorter than the one before it and the first is already short of the block.
-     */
+    // Every window a triangle cuts is shorter than the one before it, so a triangle no wider than a lane
+    // block never reaches a vector body.
     @Test
     fun `a triangle narrower than the shortest vector window names only the portable body`() {
         val candidate = BuiltinEngines.simd ?: return println(
@@ -285,10 +242,7 @@ class DenseMatrixRouteTest {
         }
     }
 
-    /**
-     * A no-work transposed product still scales its destination through the kernel, because there is no panel
-     * left to fold the multiplier into.
-     */
+    // With no panel left to fold the multiplier into, a no-work transposed product scales through the kernel.
     @Test
     fun `a transposed product with no work names the scaling it still performs`() {
         val route = koblas.routeOf(DenseMatrixOperation.GemvTransposed, DenseCall(0, 64, 1.0, -0.25))
@@ -315,12 +269,8 @@ class DenseMatrixRouteTest {
         }
     }
 
-    /**
-     * A product too small to pay for a copy names the panel it runs on, which depends on the left transpose.
-     *
-     * The two are different arithmetic over the same numbers: transposed, a destination entry is a reduction
-     * down a stored column, and untransposed, a destination column is those columns accumulated into it.
-     */
+    // Transposed, a destination entry is a reduction down a stored column; untransposed, a destination
+    // column is those columns accumulated into it, so the panel named depends on the left transpose.
     @Test
     fun `a small product names the panel its transpose flags reach`() {
         for (engine in engines) {
@@ -336,13 +286,8 @@ class DenseMatrixRouteTest {
         }
     }
 
-    /**
-     * A transposed right operand leaves the vector a reduction shares across its columns strided, and what
-     * the route does about that is the question here.
-     *
-     * Two destination columns, which is fewer than any tile is wide, so this product is never packed however
-     * long its other extents are; what varies below is only what the reduction's shared vector looks like.
-     */
+    // Two destination columns, fewer than any tile is wide, so this product is never packed however long
+    // its other extents are and only the reduction's shared vector varies.
     @Test
     fun `a small transposed product names the body its coefficient stride reaches`() {
         for (engine in engines) {
@@ -391,10 +336,7 @@ class DenseMatrixRouteTest {
         }
     }
 
-    /**
-     * A column update shares its destination strip, which this route hands over adjacent whatever the right
-     * operand's transpose is, so a transposed right operand does not make it scalar work.
-     */
+    // A column update's shared strip is handed over adjacent whatever the right operand's transpose is.
     @Test
     fun `an untransposed small product reaches the same body whichever way its right operand is stored`() {
         for (engine in engines) {
@@ -432,15 +374,8 @@ class DenseMatrixRouteTest {
         }
     }
 
-    /**
-     * The product route against the blocks the product really cut, on every built-in backend.
-     *
-     * The shapes are derived from the tile geometry this machine resolved, because what a route has to get
-     * right moves with it: a destination of two whole tiles reaches one body, one of a tile and a single row
-     * reaches whatever the remainder goes to as well, and a product long enough to be cut on each axis in
-     * turn reaches its bodies across several blocks. One shape is too small to be packed at all, so the
-     * assertion also covers a route that names no block because none ran.
-     */
+    // The shapes are derived from the tile geometry this machine resolved, because what a route has to get
+    // right moves with it; one of them is too small to be packed at all.
     @Test
     fun `a product route names the tiles its blocks reached and carries beta once`() {
         for (engine in engines) {
@@ -468,12 +403,8 @@ class DenseMatrixRouteTest {
         }
     }
 
-    /**
-     * A destination of whole tiles names one body, and one with a row left over names the remainder's too.
-     *
-     * The difference is a property of the backend rather than of the route, so what is asserted is that the
-     * route agrees with what the backend says about a block of that shape, on whichever backend this is.
-     */
+    // Whether a remainder row reaches its own body is the backend's answer, so the route is asserted against
+    // what the backend says about a block of that shape.
     @Test
     fun `a block whose rows fill its tiles is direct and one with a remainder is composed`() {
         for (engine in engines) {
@@ -518,12 +449,7 @@ class DenseMatrixRouteTest {
         const val LONG = 1024
     }
 
-    /**
-     * The route components a block whose rows fill whole tiles produces on this engine.
-     *
-     * Asked of the backend about a block of exactly that shape, so a backend that serves whole tiles with
-     * two bodies would be described as it is rather than as this test assumed.
-     */
+    /** The components a block whose rows fill whole tiles produces, asked of the backend that will run it. */
     private fun wholeTileBody(engine: KoblasEngine): List<String> {
         val products = engine.productKernels
         return products.implementationsFor(products.tileRows, products.tileColumns, 64)
@@ -534,12 +460,8 @@ class DenseMatrixRouteTest {
         engine.panelKernels.implementationFor(work, rows, 16)
 
     /**
-     * The fewest rows at which this engine's backend answers with something other than the portable body,
-     * or null where it never does.
-     *
-     * Asked of the backend, because the answer is a property of its arithmetic and not of its grouping. A
-     * test that used the recommended group instead would be asserting the coincidence this seam exists to
-     * keep apart.
+     * The fewest rows at which this backend answers with something other than the portable body, or null
+     * where it never does. Asked of the backend, since the answer is its arithmetic and not its grouping.
      */
     private fun shortestVectorWindow(engine: KoblasEngine): Int? {
         val panels = engine.panelKernels

@@ -31,14 +31,9 @@ class BenchmarkArmResolutionTest {
     }
 
     /**
-     * The default arm is the platform's own policy, which is what the generic entry points use.
-     *
-     * The generic entry points take the engine this platform selected, so a row for one of them has to be
-     * published on an arm whose engine is that, and naming the arm separately is what keeps a default-policy
-     * row from being read as a measurement of an exact one. Where the module resolved that policy now
-     * selects the Vector API engine, so the two arms name the same object and a difference between their
-     * rows is the harness's noise rather than two implementations; where it did not, the default is the
-     * portable engine and `jvm-simd` refuses to run at all.
+     * The default arm is the platform's own policy, which is what the generic entry points use, so naming it
+     * separately keeps a default-policy row from being read as a measurement of an exact arm. Where the
+     * module resolved, the two arms name the same object; where it did not, `jvm-simd` refuses to run.
      */
     @Test
     fun `jvm default mode resolves the platform selection`() {
@@ -58,14 +53,8 @@ class BenchmarkArmResolutionTest {
         assertFailsWith<IllegalStateException> { resolveEngine("openblas") }
     }
 
-    /**
-     * The generic product reaches the measured fork through the bridge, not only through the scan.
-     *
-     * The scan and the measurement are two different seams: the scan decides which cases a fork is asked
-     * for, and the bridge builds the work inside it. A case admitted by one and dropped by the other looks
-     * like an unsupported row with no reason, which is what happened to `gemm-generic` before the bridge
-     * learned the dense arm. This holds both seams to the same answer.
-     */
+    // The scan decides which cases a fork is asked for and the bridge builds the work inside it, so a case
+    // admitted by one and dropped by the other looks like an unsupported row with no reason.
     @Test
     fun `the generic product is built by the measured fork on the default arm and declined on an exact one`() {
         val case = Cases.parse(readTextFile(CASES)).single { it.operation == "gemm-generic" }

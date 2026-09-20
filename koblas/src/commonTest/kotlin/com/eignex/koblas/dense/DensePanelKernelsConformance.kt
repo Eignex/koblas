@@ -149,10 +149,8 @@ private fun referenceIndexedRankUpdate(
 
 /**
  * Every panel of [kernels] against the definitions written out above, over extents that straddle any
- * grouping and any lane width, at a nonzero offset and a leading dimension wider than the window.
- *
- * The strides rotate with the extent rather than multiplying out, which keeps the sweep bounded while still
- * reaching a strided shared vector, a strided destination and a backwards source at several widths.
+ * grouping and any lane width, at a nonzero offset and a leading dimension wider than the window. The
+ * strides rotate with the extent rather than multiplying out, which keeps the sweep bounded.
  */
 internal fun assertPanelKernelsAgreeWithReference(kernels: DensePanelKernels) {
     val rng = Random(20260919)
@@ -233,14 +231,10 @@ private fun referenceIndexedCoupled(
 /**
  * The two indexed panels against their written-out definitions, in both layouts a sparse product hands them.
  *
- * The rows of one of these is a group of right-hand sides and its columns are the stored entries of one
- * sparse column, so the sweep is over both of those rather than over a rectangle: a group narrower than a
- * lane block, one that leaves a tail, and a column holding anything from nothing to more entries than any
- * grouping. Both layouts, because a panel whose right-hand sides are adjacent and one whose are a leading
- * dimension apart are different bodies on a vector backend and the same answer either way.
- *
- * The selected positions are spread rather than consecutive, which is what a sparse column's rows are, and
- * the window is inside a larger buffer with guard entries around it.
+ * The rows are a group of right-hand sides and the columns the stored entries of one sparse column, so the
+ * sweep is over both: a group narrower than a lane block, one that leaves a tail, and a column holding
+ * anything from nothing upwards. Adjacent and strided right-hand sides are different bodies on a vector
+ * backend and the same answer either way. The selected positions are spread rather than consecutive.
  */
 private fun assertIndexedPanelsAgreeWithReference(kernels: DensePanelKernels) {
     val rng = Random(20260930)
@@ -279,12 +273,11 @@ private fun assertIndexedPanelsAgreeWithReference(kernels: DensePanelKernels) {
                 )
                 assertClose(expectedScatter, actualScatter, "indexedRankUpdate $context")
 
-                // The coupled pass, with and without a position the reduction leaves out, which is where a
-                // symmetric column meets its own diagonal.
+                // With and without an excluded position, which is where a symmetric column meets its diagonal.
                 for (excluded in intArrayOf(-1, 0, maxOf(columns - 1, 0))) {
                     val source = DoubleArray(block.size) { block[it] * 0.5 - 0.25 }
-                    // A window of its own, and then one of the panel itself, which is what a symmetric
-                    // column's pivot row is and the layout the leaf has to address alike.
+                    // A pivot in a window of its own, and then one inside the panel: both layouts a
+                    // symmetric column's pivot row arrives in.
                     val sums = DoubleArray(PAD + maxOf(rows, 1) * rowStride + PAD) {
                         rng.nextDouble(-1.0, 1.0)
                     }
@@ -356,15 +349,8 @@ private fun assertCoupledAgrees(
 /**
  * That an address past what a word of twenty-one bits holds is addressed as itself.
  *
- * The three numbers a panel is given are an offset and two strides, and every one of them is an ordinary
- * array index that a legal window of a large dense operand can push past two million. Each of the three is
- * taken past that bound here in turn, and what is checked is that the entries the definition names are the
- * entries that moved.
- *
- * A strided panel has its right-hand sides a leading dimension apart, which is the row stride, and its
- * indexed axis adjacent; a staged one has them the other way round. Both orientations are covered, on one
- * buffer rather than three, since the arithmetic is a handful of entries and the buffer is what the test
- * costs.
+ * The offset and the two strides are ordinary array indices that a legal window of a large dense operand can
+ * push past two million, so each is taken past that bound in turn, in both panel orientations.
  */
 internal fun assertIndexedPanelsAddressPastAPackedBound(kernels: DensePanelKernels) {
     val bound = 1 shl 21
@@ -399,13 +385,9 @@ internal fun assertIndexedPanelsAddressPastAPackedBound(kernels: DensePanelKerne
 }
 
 /**
- * The rules a panel keeps that a random sweep cannot see.
- *
- * A zero beta overwrites a destination it never reads, which is what lets a caller pass an uninitialised one.
- * A zero coefficient is still multiplied, because this is matrix arithmetic and every position the traversal
- * reaches contributes what it evaluates to; the Level 1 `axpy` rule that returns without touching the
- * destination is the opposite one and must not leak in here. A backwards source is what a vector with a
- * negative step reaches these with.
+ * The rules a panel keeps that a random sweep cannot see: a zero beta overwrites a destination it never
+ * reads, and a zero coefficient is still multiplied, which is the opposite of the Level 1 `axpy` rule and
+ * must not leak in here. A backwards source is what a vector with a negative step reaches these with.
  */
 internal fun assertPanelContractHolds(kernels: DensePanelKernels) {
     val rows = 17
@@ -448,10 +430,8 @@ internal fun assertExecutionGroupIsUsable(kernels: DensePanelKernels) {
                 assertTrue(group >= 1, "$work recommended $group columns at $columns")
                 assertTrue(columns == 0 || group <= columns, "$work recommended $group of $columns columns")
             }
-            // A backend that recommends a copy must also name a different body for the copied layout, or a
-            // route would report the body the copy was not made for. The other direction is not required:
-            // a body may differ at a width where the copy is not worth making, and saying so is the point
-            // of asking the two questions separately.
+            // A backend that recommends a copy must name a different body for the copied layout, or a route
+            // would report the body the copy was not made for. The converse is not required.
             for (rows in intArrayOf(1, 2, 4, 8, 16, 512)) {
                 val prefers = kernels.prefersContiguous(work, rows, maxOf(columns, 1))
                 val differs = kernels.implementationFor(work, rows, maxOf(columns, 1), contiguous = true) !=
@@ -471,11 +451,9 @@ internal fun assertExecutionGroupIsUsable(kernels: DensePanelKernels) {
 }
 
 /**
- * The empty extents, which are settled by the contract rather than by where a loop sits.
- *
- * Every window here is passed as an array too short to index, so an implementation that read a coefficient
- * or a matrix entry before noticing the extent fails with an index error rather than quietly passing. A
- * multi-dot still writes its outputs, since those are selected by the columns and not by the rows.
+ * The empty extents. Every window is passed as an array too short to index, so an implementation that read
+ * an entry before noticing the extent fails with an index error rather than quietly passing. A multi-dot
+ * still writes its outputs, since those are selected by the columns and not by the rows.
  */
 internal fun assertEmptyExtentsReadNothing(kernels: DensePanelKernels) {
     val nothing = DoubleArray(0)
@@ -506,10 +484,9 @@ internal fun assertEmptyExtentsReadNothing(kernels: DensePanelKernels) {
 }
 
 /**
- * That a panel writes inside its window and nowhere else.
- *
- * The buffers are wider than the window on both sides and filled with a value no arithmetic here produces, so
- * a body that ran one lane past its bound, or wrote a masked tail through, changes a guard entry.
+ * That a panel writes inside its window and nowhere else. The buffers are wider than the window on both
+ * sides and filled with a value no arithmetic here produces, so a body that ran one lane past its bound, or
+ * wrote a masked tail through, changes a guard entry.
  */
 internal fun assertPanelsStayInsideTheirWindows(kernels: DensePanelKernels) {
     val guard = -12345.0
@@ -555,15 +532,9 @@ internal fun assertPanelsStayInsideTheirWindows(kernels: DensePanelKernels) {
 }
 
 /**
- * The excluded position, which is scattered and not reduced.
- *
- * Both halves at once would be wrong for a symmetric column's diagonal, which mirrors onto itself, so the
- * leaf takes the position that does only the first. The check is that the reduction reads nothing there:
- * the source at that position is a NaN, and a sum that touched it could not come back finite.
- *
- * The pivot is a column of its own, past the ones the positions address, because the scatter reads it on
- * every position including the excluded one; a shared column could only say which half the NaN came back
- * through.
+ * The excluded position, which is scattered and not reduced, as a symmetric column's diagonal needs. The
+ * source there is a NaN, so a sum that touched it could not come back finite. The pivot is a column of its
+ * own because the scatter reads it at every position, the excluded one included.
  */
 private fun assertExcludedPositionIsNotReduced(kernels: DensePanelKernels) {
     val width = vectorWidth(kernels) + 1
@@ -596,12 +567,9 @@ private fun assertExcludedPositionIsNotReduced(kernels: DensePanelKernels) {
 }
 
 /**
- * The zero-evaluation rule for the indexed panels, at a width the backend's own body runs over.
- *
- * A group of two right-hand sides is below a lane block on every machine, so a check written at that width
- * would only ever exercise the portable fallback and would say nothing about the vector body. The width
- * here is the narrowest adjacent one the backend answers with its own name, and the check is repeated one
- * wider, where the last right-hand side is a scalar tail: both have to form the product.
+ * The zero-evaluation rule for the indexed panels, at the narrowest width the backend answers for with its
+ * own body and again one wider, where the last right-hand side is a scalar tail. A fixed narrow width would
+ * only ever exercise the portable fallback.
  */
 private fun assertIndexedPanelsEvaluateZeroCoefficients(kernels: DensePanelKernels) {
     val full = vectorWidth(kernels)
@@ -649,12 +617,7 @@ private fun assertIndexedPanelsEvaluateZeroCoefficients(kernels: DensePanelKerne
     )
 }
 
-/**
- * The narrowest group of adjacent right-hand sides this backend answers for with its own body.
- *
- * A backend with no vector body answers with its own name at every width, which makes this one and leaves
- * the checks above running over the same bodies they would anyway.
- */
+/** The narrowest group of adjacent right-hand sides this backend answers for with its own body. */
 internal fun vectorWidth(kernels: DensePanelKernels): Int {
     for (width in 1..64) {
         if (kernels.implementationFor(PanelWork.SparseRightHandSides, width, 2) == kernels.name) return width

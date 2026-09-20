@@ -12,12 +12,9 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /**
- * That a workspace handed to a dense routine is used, and that using it changes nothing.
- *
- * Two questions, and they are separate. The result has to be the one [ReferenceBlas] computes from operands
- * that were never aliased, which is what catches a staging bug that both the lent and the unlent path would
- * otherwise share. And the loan has to actually happen, which is visible only as the buffers the workspace
- * holds afterwards: a routine that took the parameter and allocated anyway would pass the first question.
+ * That a workspace handed to a dense routine is used, and that using it changes nothing. The two are
+ * separate: a routine that took the parameter and allocated anyway would still compute the right answer, so
+ * the loan is checked as the buffers the workspace holds afterwards.
  */
 class DenseWorkspaceTest {
     private val blas: DenseBlas get() = testDenseBlas
@@ -64,13 +61,8 @@ class DenseWorkspaceTest {
         assertEquals(2, workspace.available(n * n), "the two staged operands did not take a loan each")
     }
 
-    /**
-     * A solve whose triangle shares the block it solves, which is the one staging a triangular call makes.
-     *
-     * An order inside a single diagonal block reaches nothing but the substitution, so the staged triangle
-     * is the whole of what the workspace lent and a second length appearing there would be scratch the call
-     * had no use for.
-     */
+    // An order inside one diagonal block reaches nothing but the substitution, so the staged triangle is the
+    // whole of what the workspace lent and a second length would be scratch the call had no use for.
     @Test
     fun `a triangular solve stages its triangle from the workspace and borrows nothing else`() {
         val rng = Random(20260929)
@@ -88,12 +80,8 @@ class DenseWorkspaceTest {
         assertEquals(1, workspace.idleLengths(), "the solve borrowed scratch besides its staged triangle")
     }
 
-    /**
-     * A second call over the same shape reuses the first call's buffers rather than asking for more.
-     *
-     * The order is past one diagonal block on purpose: below that a triangular call that stages nothing
-     * borrows nothing either, and a reuse check over no loans would pass without checking anything.
-     */
+    // The order is past one diagonal block, since below that the call borrows nothing and a reuse check over
+    // no loans would pass without checking anything.
     @Test
     fun `a repeated call over one shape reuses the same scratch`() {
         val rng = Random(20260930)

@@ -22,12 +22,9 @@ internal fun allocatedBytes(block: () -> Any?): Long {
  * [iterations] calls, sampling further windows until one comes in at [expected].
  *
  * A vectorised loop allocates one object per vector operation until C2 compiles it and escape analysis
- * removes them, and that compilation is triggered by invocation count and finished on another thread. Until
- * it lands the loop allocates steadily, so waiting for the measurement to hold still does not work: an
- * uncompiled loop looks exactly as settled as a finished one, and on a small runner the difference decides
- * the result run by run. Waiting for the number to reach [expected] instead waits for the event that
- * actually matters. [MAX_WINDOWS] bounds that wait, so a loop that really does allocate is reported rather
- * than waited on forever, and the run says it gave up.
+ * removes them. Until that lands the loop allocates steadily, so an uncompiled loop looks exactly as settled
+ * as a finished one and waiting for the number to hold still does not work; waiting for it to reach
+ * [expected] waits for the event that matters, bounded by [MAX_WINDOWS].
  *
  * [block] deliberately takes no iteration index. A `(Int) -> Any?` would box one on every call, and above
  * `Integer`'s cache that is a sixteen-byte allocation charged to whatever is being measured.
@@ -60,11 +57,9 @@ private const val MAX_WINDOWS = 400
 /**
  * One measured call of a probe run outside a test task.
  *
- * A named interface rather than a function type, because a `() -> Double` is a `Function0<Double>` and
- * returns its result boxed unless the compiler inlines the call and takes the object apart again. Several
- * probes through one measurement loop is exactly where it stops doing that, and the box is then charged to
- * whatever is being measured: the probes read twenty-four bytes a call before this interface replaced the
- * function type, which is the harness and not the kernels.
+ * A named interface rather than a function type, because a `() -> Double` returns its result boxed unless
+ * the compiler inlines the call, and several probes through one measurement loop is where it stops doing
+ * that; the box was then charged to the kernels as twenty-four bytes a call.
  */
 internal fun interface AllocationProbe {
     fun run(): Double

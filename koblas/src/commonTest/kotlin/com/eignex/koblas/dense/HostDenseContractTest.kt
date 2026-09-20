@@ -9,34 +9,20 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /**
- * The guarantees [DenseBlas] states, on an engine that has a library to hand.
+ * The two places [DenseBlas] states a result a legal `dgemm` or `dsyr2k` need not produce, so the two places
+ * an installed library has to be held back.
  *
- * A built-in call means the same thing on every platform. A library is part of the host rather than something
- * the caller asked for, so an ordinary call cannot start behaving differently because one is installed; where
- * a routine's documented result and a library's freedom can be told apart, the portable schedule has to be
- * chosen, and chosen before anything is written. These are the two places this library states a result that a
- * legal `dgemm` or `dsyr2k` need not produce, so they are the two places the policy has to hold back.
- *
- * Each case is run twice over. Once against a binding that records and computes nothing, where a call sent
- * across leaves the destination untouched and is caught twice, by the recorder and by the number; and once
- * against whatever library is installed, where a call sent across would come back with that library's answer.
- * Both are needed: the first fails on this host with no library at all, and the second is the one that would
- * notice a guard that holds only because the recorder is not a real library.
- *
- * Every fixture here is past [HostDensePolicy.MINIMUM_WORK], so the size rule is not what keeps these calls
- * at home. The policy runs at its own number rather than a forced one for the same reason.
+ * Each case runs twice: against a binding that records and computes nothing, where a call sent across leaves
+ * the destination untouched, and against whatever library is installed, which is what would notice a guard
+ * holding only because the recorder is not a real library. Every fixture is past
+ * [HostDensePolicy.MINIMUM_WORK], so the size rule is not what keeps these calls at home.
  */
 class HostDenseContractTest {
     private fun composed(host: Blas): HostDenseBlas =
         HostDenseBlas(PortableDenseBlas(ScalarVectorKernels, PortablePanelKernels), host)
 
-    /**
-     * `alpha` scales an accumulated sum, so a zero entry of an operand cannot produce a NaN on its own.
-     *
-     * Reference BLAS scales a coefficient as it goes in places, and an infinite multiplier against a stored
-     * zero is a NaN there. The product below is one everywhere it is defined, with every other term a zero
-     * times a zero, so the two answers are a matrix of infinities and a matrix of NaNs.
-     */
+    // Reference BLAS scales a coefficient as it goes in places, where an infinite multiplier against a
+    // stored zero is a NaN; here the two answers are a matrix of infinities and a matrix of NaNs.
     @Test
     fun `an infinite multiplier keeps the placement this library documents`() {
         val order = PRODUCT_ORDER
@@ -66,15 +52,9 @@ class HostDenseContractTest {
         assertEquals(emptyList(), recorder.calls.map { it.operation }, "the library was called")
     }
 
-    /**
-     * A rank-2k update is the two products it is defined as, composed rather than fused.
-     *
-     * Finite operands are enough to tell that apart, which is why no multiplier check would do here. Each
-     * separate sum below overflows, one to an infinity and the other to its negative, so composing them is a
-     * NaN; a traversal that added each pair of terms before accumulating would cancel them and return zero.
-     * The two sums are computed here by direct loops rather than through [ReferenceBlas], whose `syr2k` is
-     * the interleaved form and would give the other answer.
-     */
+    // Each separate sum overflows, one to an infinity and the other to its negative, so composing them is a
+    // NaN where an interleaved traversal would cancel them to zero. The sums are computed by direct loops
+    // rather than through [ReferenceBlas], whose `syr2k` is the interleaved form.
     @Test
     fun `a rank two-k update is never handed to a library because it is two separate products`() {
         val rows = PAIR_ROWS
@@ -112,16 +92,9 @@ class HostDenseContractTest {
         assertEquals(emptyList(), recorder.calls.map { it.operation }, "the library was called")
     }
 
-    /**
-     * `alpha` scales an accumulated sum over a shared dimension of one, where no partition can explain it.
-     *
-     * The multiplier here is finite and so are both operands, so neither a finiteness test nor the
-     * repartitioning [DenseBlas.gemm] already allows would hold this call back. What tells the two
-     * formulations apart is where the multiplier lands: scaling an operand entry overflows or underflows in
-     * places where scaling the sum does not. [PreScalingBlas] is one legal formulation that does the first,
-     * and the point of running against it is that a particular installed library scaling last would hide
-     * this.
-     */
+    // The multiplier and both operands are finite, so neither a finiteness test nor the repartitioning
+    // [DenseBlas.gemm] allows would hold this call back; only where the multiplier lands separates the two,
+    // and [PreScalingBlas] is a legal formulation that places it on an operand.
     @Test
     fun `a scaled product is kept here because a library may scale an operand instead`() {
         val depth = SINGLE_DEPTH
@@ -162,11 +135,7 @@ class HostDenseContractTest {
         }
     }
 
-    /**
-     * A unit multiplier on the same shape does go across, so the rule above is the multiplier's.
-     *
-     * Without this the cases above would pass on a policy that simply never reached a library.
-     */
+    // Without this the cases above would pass on a policy that simply never reached a library.
     @Test
     fun `a unit multiplier on the same product does reach the library`() {
         val order = PRODUCT_ORDER
@@ -200,11 +169,8 @@ class HostDenseContractTest {
     private class ScaledCase(val alpha: Double, val left: Double, val right: Double)
 
     /**
-     * A binding whose `gemm` scales the right operand before multiplying, which BLAS permits.
-     *
-     * Only `gemm` computes; everything else is the recording binding's, because nothing else is asked of it.
-     * It exists so a test can see what this library would return if a whole scaled product were handed to a
-     * library that places the multiplier the other way, on a host whose installed library happens not to.
+     * A binding whose `gemm` scales the right operand before multiplying, which BLAS permits, so the check
+     * holds on a host whose installed library happens to scale last. Only `gemm` computes.
      */
     private class PreScalingBlas(private val recorder: RecordingBlas = RecordingBlas()) : Blas by recorder {
         /** Every call the composition made, which for a correctly held-back product is none. */

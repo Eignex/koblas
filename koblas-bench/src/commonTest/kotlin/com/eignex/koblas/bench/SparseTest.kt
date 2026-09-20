@@ -16,14 +16,9 @@ import kotlin.test.assertTrue
 
 class SparseTest {
     /**
-     * The prepared modes measure four different amounts of work, and the row says which.
-     *
-     * An amortized row is one preparation and all its uses as one batch, so its timing mode names the count
-     * rather than a call. Dividing it by that count is a per-use cost with the setup in it, which is the
-     * number to compare against a one-shot call; a prepared row is the steady state with the setup already
-     * paid, so the two answer different questions and the mode says which one a row is. The kernel a
-     * prepared row carries is the schedule the snapshot runs, which for a transposed product is not the one
-     * a one-shot call takes.
+     * The prepared modes measure four different amounts of work, and the row says which: an amortized row is
+     * one preparation and all its uses as one batch, so its mode names the count rather than a call, where a
+     * prepared row is the steady state with the setup already paid.
      */
     @Test
     fun `prepared modes name the work they time`() {
@@ -41,18 +36,12 @@ class SparseTest {
     }
 
     /**
-     * A prepared transposed product against a dense block reports the traversal a one-shot call takes.
-     *
-     * The snapshot derives no orientation for it, so `firstuse` is the preparation plus an ordinary call
-     * rather than the preparation plus a derivation, and a prepared row names the same panel body the
-     * one-shot row does. What preparing still buys is the copy of the structure and the coefficients, which
-     * `setup` is what times.
+     * A prepared transposed product against a dense block reports the traversal a one-shot call takes, since
+     * the snapshot derives no orientation for it and only the structure copy is bought.
      */
     @Test
     fun `a prepared transposed row reports the one shot traversal`() {
-        // Enough right-hand sides that the traversal cuts a panel: a reduction over a strided block is
-        // written out by the traversal at any count, and what this row is about is which body each mode
-        // names.
+        // Enough right-hand sides that the traversal cuts a panel.
         val base = "spmm+33x16x21+sparse-uniform+density=0.25+transA=T"
         val oneShot = assertNotNull(work("$base+mode=oneshot"))
         val prepared = assertNotNull(work("$base+mode=prepared"))
@@ -192,11 +181,8 @@ class SparseTest {
         }
     }
 
-    /**
-     * A row names the components its own route resolved, so the attribution and the call cannot disagree.
-     * The scattered product is the interesting one, because its leaf is the engine's indexed selection rather
-     * than the scheduling's own arithmetic.
-     */
+    // The scattered product is the interesting one: its leaf is the engine's indexed selection rather than
+    // the scheduling's own arithmetic.
     @Test
     fun `a scattered sparse product names the level one leaf its columns reach`() {
         val case = Cases.parse("spgemv+64x32+sparse-uniform+density=0.5+mode=oneshot").single()
@@ -232,10 +218,8 @@ class SparseTest {
         }
     }
 
-    /**
-     * Preparing a snapshot runs no arithmetic kernel, so a setup row may not carry the name of one. It is the
-     * copy that was timed, and the row has to say so or the number is attached to a call that never happened.
-     */
+    // Preparing runs no arithmetic kernel, so a setup row naming one attaches its number to a call that
+    // never happened.
     @Test
     fun `a setup row names snapshot preparation rather than an arithmetic kernel`() {
         val case = Cases.parse("spgemv+64x32+sparse-uniform+density=0.25+mode=setup").single()
@@ -246,10 +230,7 @@ class SparseTest {
         assertEquals("prepare", work.timingMode)
     }
 
-    /**
-     * First use is preparation plus one call, which is where a prepared transposed product derives its
-     * orientation. The row names both halves, because both ran inside the timed region.
-     */
+    // First use is preparation plus one call, and both ran inside the timed region.
     @Test
     fun `a first-use row names the preparation and the call it pays for`() {
         val case = Cases.parse("spmm+33x4x21+sparse-uniform+density=0.05+mode=firstuse+transA=T").single()
@@ -264,10 +245,8 @@ class SparseTest {
         assertTrue(kernel.substringAfterLast('/').startsWith("spmm@"), kernel)
     }
 
-    /**
-     * The generic entry point uses the engine this platform selected, not one a benchmark names. An arm whose
-     * engine is a different one would be publishing its own label over another engine's work, so it declines.
-     */
+    // The generic entry point uses the selected engine, so an arm naming a different one would publish its
+    // own label over another engine's work.
     @Test
     fun `the generic entry point is timed only on the arm whose engine it actually uses`() {
         for (id in listOf(
@@ -292,10 +271,8 @@ class SparseTest {
         }
     }
 
-    /**
-     * A prepared row times a snapshot the requested engine built, so its route is that engine's answer. This
-     * is the counterpart of the generic case: there the engine is fixed by the API, here it is the arm's.
-     */
+    // The counterpart of the generic case: a snapshot is built by the requested engine rather than the
+    // selected one, so its route is that engine's answer.
     @Test
     fun `a prepared row times a snapshot built by the engine whose route it reports`() {
         val case = Cases.parse("spgemv+64x32+sparse-uniform+density=0.25+mode=prepared").single()
@@ -311,11 +288,9 @@ class SparseTest {
     }
 
     /**
-     * Every sparse matrix operation, verified against the reference before it would be timed.
-     *
-     * Building an arm runs its check, so this is what proves the checks themselves execute for every case
-     * shape the file can hold: a transposed product, a right-hand side, both triangles and both result forms.
-     * The fixtures are small on purpose; the case file's own sizes are for measuring, not for checking.
+     * Every sparse matrix operation, verified against the reference before it would be timed. Building an
+     * arm runs its check, so this proves the checks execute for every case shape the file can hold. The
+     * fixtures are small on purpose; the case file's own sizes are for measuring.
      */
     @Test
     fun `every sparse matrix operation verifies its result before it is timed`() {
@@ -378,10 +353,8 @@ class SparseTest {
         }
     }
 
-    /**
-     * A case whose own contract stops before the arithmetic has nothing to time, and says so rather than
-     * publishing the cost of scaling a destination under the name of the product that did not happen.
-     */
+    // A case stopping before the arithmetic says so rather than publishing the cost of scaling a destination
+    // under the name of the product that did not happen.
     @Test
     fun `a case with no arithmetic to do is declined rather than timed`() {
         val empty = Fixtures.sparse(8, 8, 0.25, 1)
@@ -394,12 +367,9 @@ class SparseTest {
     }
 
     /**
-     * Each dense storage layout is checked against its reference before it is timed.
-     *
-     * Constructing the arm runs the case's numerical preflight against the reference computed from the
-     * densified operands, so a layout that computed something else would fail here rather than publish a
-     * number. What the row adds over the untransposed one is which axis the right-hand sides lie along,
-     * which is the axis a panel is cut from.
+     * Each dense storage layout is checked against the reference computed from the densified operands as the
+     * arm is built. What a transposed row adds is which axis the right-hand sides lie along, which is the
+     * axis a panel is cut from.
      */
     @Test
     fun `a transposed dense operand passes numerical preflight`() {

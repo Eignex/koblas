@@ -17,20 +17,13 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /**
- * What a composed default computes, against the textbook definition rather than against itself.
+ * What a composed default computes, against the textbook definition rather than against itself. These need a
+ * library and say so where none is installed.
  *
- * These need a library, so they say so and stop where none is installed. What they are for is the half the
- * recording binding cannot reach: whether the operands, the leading dimensions, the increments and the
- * triangle flags that [HostDenseBlas] hands across actually describe the call it was given. A wrong `uplo` or
- * a transposed operand comes back as wrong numbers here and as nothing at all in a test that only counts
- * calls.
- *
- * The tolerance is loose on purpose. The arithmetic is the library's, which is free to accumulate in another
- * order, so agreement to the last bit is not what is being asked; a flag translated the wrong way misses by
- * far more than any accumulation order does.
- *
- * `minimumWork = 0` keeps the fixtures small enough to be read. Whether the size rule fires is settled
- * against the policy's own number in [HostDenseBlasTest], not here.
+ * What they reach that a recording binding cannot is whether the operands, leading dimensions, increments
+ * and triangle flags [HostDenseBlas] hands across describe the call it was given. The tolerance is loose,
+ * since the arithmetic is the library's; a mistranslated flag misses by far more than an accumulation order.
+ * `minimumWork = 0` keeps the fixtures readable, and the size rule is settled in [HostDenseBlasTest].
  */
 class HostDenseAgreementTest {
     private fun composed(host: Blas): HostDenseBlas =
@@ -49,14 +42,9 @@ class HostDenseAgreementTest {
     /**
      * Every routine these cases compute through actually reaches the library, or the coverage has lapsed.
      *
-     * The composition here admits any size, so what can send one of these calls back to the portable
-     * schedule is a compatibility rule or a library that does not export the entry point. Both are correct
-     * outcomes and a silent loss of coverage at the same time, so they are told apart rather than left to be
-     * noticed: an operation the installed binding does not export is named and skipped, and `syr2k`, which
-     * is meant to stay whatever the library exports, is asserted to stay.
-     *
-     * `gemmt` is the one this distinction is really for. Accelerate does not export `cblas_dgemmt`, so on
-     * macOS that row is portable and the composed `gemmt` path is genuinely unexercised there.
+     * An entry point the installed binding does not export is named and skipped, since that is a correct
+     * outcome and a silent loss of coverage at once: Accelerate has no `cblas_dgemmt`, so the composed
+     * `gemmt` path is genuinely unexercised on macOS. `syr2k` is asserted to stay portable.
      */
     @Test
     fun `every routine these cases cover reaches the library except the one that may not`() =
@@ -196,12 +184,8 @@ class HostDenseAgreementTest {
         assertClose(expected, actual, "ger", TOLERANCE)
     }
 
-    /**
-     * Every triangular traversal, with an implicit diagonal that is a NaN where the flag says it is implied.
-     *
-     * The poisoned fixture is what makes the unit-diagonal flag observable: a library that read the stored
-     * diagonal instead of taking it as one would come back all NaN rather than slightly wrong.
-     */
+    // A NaN on an implied diagonal makes the unit-diagonal flag observable: a library reading the stored
+    // diagonal comes back all NaN rather than slightly wrong.
     @Test
     fun `the triangular vector routines cover all eight traversals`() =
         withHost("the triangular vector routines") { blas, _ ->
@@ -280,11 +264,8 @@ class HostDenseAgreementTest {
     }
 
     /**
-     * `gemmt` and `syrk` go across; `syr2k` is here for its numbers and not as host coverage.
-     *
-     * The policy never hands a rank-2k update to a library, because this library documents it as two
-     * separately accumulated products and a library's own need not be. So its rows below check the portable
-     * schedule the composition falls back to, and [HostDenseContractTest] is where that fallback is asserted.
+     * `gemmt` and `syrk` go across; `syr2k` is here for its numbers only, since the policy never hands a
+     * rank-2k update to a library. [HostDenseContractTest] is where that fallback is asserted.
      */
     @Test
     fun `the triangle selected products write one triangle and leave the other alone`() =
@@ -318,12 +299,8 @@ class HostDenseAgreementTest {
             }
         }
 
-    /**
-     * An operand that is the destination's own buffer, which a whole-call binding cannot be handed.
-     *
-     * The staged copy is what makes these answerable at all, so the check is that the answer is the one the
-     * definition gives when the two are separate matrices, not merely that nothing crashed.
-     */
+    // An operand that is the destination's own buffer, which a whole-call binding cannot be handed, so the
+    // answer has to be the one the definition gives for two separate matrices.
     @Test
     fun `an operand sharing the destination gives the answer two separate operands would`() =
         withHost("the staged aliases") { blas, _ ->
@@ -408,12 +385,8 @@ class HostDenseAgreementTest {
         const val ALPHA = 0.75
 
         /**
-         * The multiplier `gemm`, `gemmt` and `syrk` carry here, which has to be one.
-         *
-         * Those three document their result as a multiplier applied to an accumulated sum, and the policy
-         * hands them to a library only where there is no multiplier to place. A scaled fixture would run
-         * these cases on the portable schedule instead and quietly stop covering the binding, which the
-         * route assertion below is the second guard against.
+         * The multiplier `gemm`, `gemmt` and `syrk` carry, which has to be one: the policy hands them to a
+         * library only where there is no multiplier to place, so a scaled fixture would stop covering it.
          */
         const val PLACED_ALPHA = 1.0
         const val BETA = -0.5

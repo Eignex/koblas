@@ -2,9 +2,8 @@
 
 package com.eignex.koblas.dense
 
-// A triangular route claims something about the diagonal blocks a call substitutes and the products between
-// them, so checking it means recording those blocks. The recorder below delegates the arithmetic, so a call
-// under it computes the same answer while saying what it was handed.
+// A triangular route is checked against the diagonal blocks a call really substituted; the recorder below
+// delegates the arithmetic, so a call under it computes the same answer while saying what it was handed.
 
 /** One diagonal block a triangular routine substituted, as the window and strides it was handed. */
 internal class DiagonalCall(

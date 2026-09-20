@@ -11,24 +11,14 @@ import com.eignex.koblas.dense.PanelWork
 import com.eignex.koblas.dense.PortablePanelKernels
 import com.eignex.koblas.dense.ScalarVectorKernels
 import com.eignex.koblas.koblas
-import kotlin.math.abs
 import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
-/**
- * The staged orientation, on every platform.
- *
- * Whether a call stages its right-hand sides is the backend's answer about its own bodies, so on a runtime
- * with no vector backend nothing would ever stage and this code would go untested. The backend below says
- * it prefers adjacent right-hand sides and delegates the arithmetic to the portable bodies, which makes the
- * staged schedule run everywhere while leaving the arithmetic the portable one: what is under test here is
- * the copy, the addressing and the writeback, not a vector body.
- *
- * Every case is checked against the same call in the caller's own layout and against [ReferenceSparseBlas],
- * which is a traversal over stored coordinates and shares no code with either.
- */
+// Whether a call stages is the backend's own answer, so a runtime with no vector backend would never stage
+// and leave this untested. [AdjacentPreferringPanels] asks for adjacent right-hand sides and keeps the
+// portable arithmetic, which puts the copy, the addressing and the writeback under test everywhere.
 class SparseRhsPanelTest {
     private val staging = engineWith(AdjacentPreferringPanels())
     private val plain = engineWith(PortablePanelKernels)
@@ -74,9 +64,7 @@ class SparseRhsPanelTest {
         val rng = Random(20261002)
         for (lower in booleanArrayOf(true, false)) {
             val order = ORDER
-            // A symmetric product copies three passes per right-hand side, so its operand has to hold that
-            // much more before the copy pays for itself; a thinner one runs in the caller's layout and would
-            // leave this test comparing two unstaged calls.
+            // A thinner operand runs unstaged and would leave this comparing two unstaged calls.
             val a = filled(order, rng)
             val b = randomDense(order, SIDES, rng)
             val c0 = randomDense(order, SIDES, rng)
@@ -105,8 +93,7 @@ class SparseRhsPanelTest {
                 for (unit in booleanArrayOf(false, true)) {
                     for (lower in booleanArrayOf(true, false)) {
                         val order = ORDER
-                        // Every position of the selected triangle, because the staging rule asks for two
-                        // passes per right-hand side and a thinner triangle would run unstaged.
+                        // A thinner triangle would run unstaged.
                         val t = wholeTriangle(order, lower, rng)
                         val source = randomDense(order, SIDES, rng)
                         val context = "solve=$solve transpose=$transpose unit=$unit lower=$lower"
@@ -136,13 +123,7 @@ class SparseRhsPanelTest {
         }
     }
 
-    /**
-     * The staged paths against an operand that shares the destination's buffer.
-     *
-     * Staging copies a block into adjacent order and writes it back, which is a second place an alias could
-     * be read after it was overwritten. The public calls stage an aliased operand before any of that, and
-     * the check is that the answer is the one an unaliased call gives.
-     */
+    // Staging writes a block back, which is a second place an alias could be read after being overwritten.
     @Test
     fun `a staged call reads the operand it was given when that operand is the destination`() {
         val rng = Random(20261006)
@@ -190,13 +171,8 @@ class SparseRhsPanelTest {
         )
     }
 
-    /**
-     * A staged triangular block whose triangle is stored in the block's own buffer.
-     *
-     * The order is odd so that a whole lower triangle holds a multiple of it, which is what lets one array
-     * be both the triangle's coefficients and the block's elements; that many entries is also what the
-     * staging rule asks for at this order, so the call really does stage.
-     */
+    // The order is odd so a whole lower triangle holds a multiple of it, which is what lets one array be
+    // both the triangle's coefficients and the block's elements.
     @Test
     fun `a staged triangular call reads the triangle it was given when the block is its values`() {
         val order = 17
@@ -229,13 +205,8 @@ class SparseRhsPanelTest {
         assertClose(expected.values, aliased.values, "a staged solve against its own triangle")
     }
 
-    /**
-     * A staged destination is copied in and written back, so an entry the product never reached has to come
-     * back as it went out rather than as the sum of nothing.
-     *
-     * A negative zero is what distinguishes the two: writing back a fresh accumulator would leave a positive
-     * one there, and every finite check in this file would still pass.
-     */
+    // A negative zero distinguishes writing the entry back from writing a fresh accumulator; every finite
+    // check in this file would pass either way.
     @Test
     fun `a staged destination returns an entry the product never reached`() {
         val rng = Random(20261004)
@@ -255,14 +226,8 @@ class SparseRhsPanelTest {
         }
     }
 
-    /**
-     * An operand with no elements to write is validated and then left alone.
-     *
-     * One extent of a dense block may be zero while the other is far larger than anything a test can walk,
-     * which is the case that separates returning early from planning a group traversal over nothing: the
-     * workspace is asked for nothing at all, and the call returns rather than stepping through a million
-     * empty panels.
-     */
+    // One extent is zero and the other is a million, which separates returning early from stepping through
+    // a million empty panels.
     @Test
     fun `an empty destination stages nothing and borrows nothing`() {
         val workspace = Workspace()
@@ -297,13 +262,7 @@ class SparseRhsPanelTest {
         assertEquals(afterFirst, workspace.idleLengths(), "a repeated staged call asked for new lengths")
     }
 
-    /**
-     * Where [alpha] multiplies, which is a question about categories rather than about rounding.
-     *
-     * The scattered half of a product forms `value · (alpha · B)` and the gathered half sums the stored
-     * products and scales once. With an alpha too small to be recovered and operands large enough to
-     * overflow, the two orders reach different answers, and this pins the one the implementation states.
-     */
+    // An alpha too small to recover against operands large enough to overflow separates the two orders.
     @Test
     fun `alpha multiplies where the product contract says it does`() {
         val tiny = 1e-300
@@ -323,14 +282,8 @@ class SparseRhsPanelTest {
         )
     }
 
-    /**
-     * The symmetric product gives each stored entry one multiplier and spends it on both halves.
-     *
-     * A stored entry too large to multiply by an operand, against a multiplier too small to be recovered
-     * afterwards, is where the three orders differ: scaling the entry first keeps both halves finite, and
-     * scaling either operand first, or the sum, does not. The two halves also have to agree with each
-     * other, which is what makes this one rule rather than two.
-     */
+    // Scaling the stored entry first keeps both halves finite here; scaling either operand, or the sum,
+    // does not.
     @Test
     fun `a symmetric product gives every stored entry one multiplier`() {
         val tiny = 1e-300
@@ -341,19 +294,11 @@ class SparseRhsPanelTest {
 
         plain.symm(tiny, a, b, 0.0, c, lower = true, right = false, workspace = null)
 
-        // (alpha · value) is one, so the scattered half and the mirrored half both stay finite.
         assertEquals(large, c.values[1], "the scattered half did not scale the stored entry first")
         assertEquals(large, c.values[0], "the mirrored half did not scale the stored entry first")
     }
 
-    /**
-     * A symmetric operand storing only its diagonal mirrors nothing, and the destination says so.
-     *
-     * The half that gathers rows back into a column has no row to gather here, and an implementation that
-     * added a zero for it anyway would turn an infinity into a NaN and a negative zero into a positive one.
-     * Checked through the public entry point at one right-hand side and at several, because the written-out
-     * column and the coupled panel are two implementations of the same rule.
-     */
+    // Adding a zero for the absent mirrored half would turn the infinity into a NaN.
     @Test
     fun `a diagonal only symmetric operand mirrors nothing`() {
         val a = SparseMatrix.ofColumns(1, 1, listOf(listOf(0 to 2.0)))
@@ -382,15 +327,8 @@ class SparseRhsPanelTest {
         }
     }
 
-    /**
-     * A row no stored entry reaches keeps what the destination multiplier left there, sign and all.
-     *
-     * The operand below stores one entry, on the diagonal of its second column, so the first row takes part
-     * in no product at all: not as a row something scatters into, and not as a column something mirrors
-     * back into. A traversal that added a zero for the mirrored half it does not have would turn the
-     * negative zero there into a positive one. The second row is touched, and a stored diagonal against a
-     * zero right-hand side does form its product, which is why only the first is asserted about.
-     */
+    // The only stored entry is on the diagonal of the second column, so the first row is neither scattered
+    // into nor mirrored back into; the second row is touched, which is why only the first is asserted about.
     @Test
     fun `a symmetric row no entry reaches keeps its sign`() {
         val a = SparseMatrix.ofColumns(2, 2, listOf(emptyList(), listOf(1 to 3.0)))
@@ -429,18 +367,8 @@ class SparseRhsPanelTest {
         }
     }
 
-    /**
-     * The triangular skip rule, in every layout and on every engine this runtime has.
-     *
-     * A right-hand side that is exactly zero on entry contributes no update, and liveness is read from the
-     * raw value before the division, so a pivot that underflows to zero still forms its stored products.
-     * Neither of those is the dense substitution's rule and neither may be lost to a panel that evaluates
-     * what the written-out loop skipped, so the fixture is run through the strided schedule, the staged one
-     * and whatever the platform selected.
-     *
-     * The first group below is all live and reaches the panel; the second holds a zero and keeps the
-     * written-out loop. Both have to agree with the same hand-computed answer.
-     */
+    // A right-hand side zero on entry contributes no update, and liveness is read from the raw value before
+    // the division, so a pivot that underflows to zero still forms its stored products.
     @Test
     fun `a zero right hand side keeps its skip in every layout`() {
         val triangle = SparseMatrix.ofColumns(
@@ -468,7 +396,6 @@ class SparseRhsPanelTest {
         }
     }
 
-    /** The same rule for the multiply, whose panel is the same one with the other sign. */
     @Test
     fun `a zero right hand side keeps its skip in a triangular multiply`() {
         val triangle = SparseMatrix.ofColumns(
@@ -490,14 +417,8 @@ class SparseRhsPanelTest {
         }
     }
 
-    /**
-     * The same two rules for a call with a single right-hand side, which no panel sees at all.
-     *
-     * One right-hand side is written out by the traversal rather than handed to a panel, so the skip and
-     * the raw-value liveness live in a leaf of their own and have to be checked there: a block of four
-     * cannot reach it, and a leaf that read the divided pivot instead of the raw one would pass every test
-     * above.
-     */
+    // One right-hand side is written out rather than handed to a panel, so the skip and the raw-value
+    // liveness live in a leaf of their own that a block of four cannot reach.
     @Test
     fun `a zero right hand side keeps its skip at one right hand side`() {
         val solveTriangle = SparseMatrix.ofColumns(
@@ -534,15 +455,8 @@ class SparseRhsPanelTest {
         }
     }
 
-    /**
-     * The same rule where the block really is staged, with one group holding a dead right-hand side and
-     * another all live.
-     *
-     * The two-by-two fixtures above are too small for the staging rule to pay for itself, so they check the
-     * semantics in the caller's layout on every engine and this checks them in the staged one. A right-hand
-     * side of zeros has no pivot to spread, so an infinite coefficient in the triangle never reaches it and
-     * every entry of it stays exactly zero; a live one does reach it and does not.
-     */
+    // The two-by-two fixtures above are too small to stage, so the same rule is checked here in the staged
+    // layout, with one group holding a dead right-hand side and another all live.
     @Test
     fun `a zero right hand side keeps its skip inside a staged panel`() {
         val order = 16
@@ -677,36 +591,18 @@ class SparseRhsPanelTest {
         },
     )
 
-    private fun triangle(order: Int, rng: Random): SparseMatrix {
-        val columns = List(order) { j ->
-            buildList {
-                for (i in j until order) {
-                    val value = if (i == j) 2.0 + abs(rng.nextDouble()) else rng.nextDouble(-1.0, 1.0)
-                    if (i == j || (i + j) % 3 != 0) add(i to value)
-                }
-            }
-        }
-        return SparseMatrix.ofColumns(order, order, columns)
-    }
-
     private companion object {
         const val ALPHA = 0.875
         const val BETA = -0.25
 
-        /**
-         * Extents the staging rule admits, which is what a staged test has to be built on.
-         *
-         * The rule asks for four stored entries per dense element a staged panel copies, and a destination
-         * is copied twice, so a product of this order needs most of its positions stored before the copy is
-         * worth making. A smaller fixture would silently compare two unstaged calls.
-         */
+        /** Extents the staging rule admits; a smaller fixture would silently compare two unstaged calls. */
         const val ORDER = 24
         const val DEPTH = 16
 
         /** A row of the operand with nothing stored, so the destination there is never reached. */
         const val EMPTY_ROW = 4
 
-        /** Wider than the grouping below, so a call cuts more than one group and leaves a short last one. */
+        /** Wider than the grouping, so a call cuts more than one group and leaves a short last one. */
         const val SIDES = 5
     }
 }
@@ -719,12 +615,11 @@ internal fun engineWith(panels: DensePanelKernels): SparseAlgorithms = SparseAlg
 )
 
 /**
- * A backend that asks for adjacent right-hand sides and computes with the portable bodies.
+ * A backend that asks for adjacent right-hand sides and computes with the portable bodies, so the staged
+ * schedule runs on a platform with no vector bodies at all.
  *
- * Not a vector backend and not pretending to be one: what it changes is the answer to the two questions the
- * sparse scheduling asks before it decides to copy, which is how the staged schedule is exercised on a
- * platform that has no vector bodies at all. [group] is deliberately not a lane count and not a power of
- * two, so a call cuts groups the shipped backends never would.
+ * [group] is deliberately not a lane count and not a power of two, so a call cuts groups the shipped
+ * backends never would.
  */
 internal open class AdjacentPreferringPanels(
     private val group: Int = 3,

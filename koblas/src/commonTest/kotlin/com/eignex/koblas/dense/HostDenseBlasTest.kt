@@ -14,18 +14,13 @@ import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
 /**
- * Which of the two implementations a composed default call reaches, and what it hands over when it is the
- * library's.
+ * Which of the two implementations a composed default call reaches, and what it hands over.
  *
- * The binding here records and computes nothing, which is the point: every other dense test asks whether the
- * numbers came back right, and a composition that quietly ran the portable schedule would answer that
- * correctly every time. These cases ask what was called instead, so a threshold that never fires, a packed
- * layout offered to a library that cannot read it, or an operand handed over while it still shares the
- * destination fails here and nowhere else.
- *
- * `minimumWork = 0` is what lets a three-by-three fixture stand for a call past the policy's size. The size
- * rule itself is a separate case below, tested against the policy's own number rather than against a fixture
- * large enough to cross it.
+ * The binding records and computes nothing, so these ask what was called rather than whether the numbers
+ * came back right: a threshold that never fires, a packed layout offered to a library that cannot read it,
+ * or an operand handed over while it still shares the destination fails here and nowhere else.
+ * `minimumWork = 0` lets a three-by-three fixture stand for a call past the policy's size, which is itself a
+ * separate case below.
  */
 class HostDenseBlasTest {
     private fun forced(
@@ -38,11 +33,9 @@ class HostDenseBlasTest {
         DenseMatrix.wrap(rows, cols, DoubleArray(rows * cols) { from + it })
 
     /**
-     * Thirteen of the fourteen bound Level 2 and 3 routines, in the order they are called.
-     *
-     * `syr2k` is the one missing, and its absence is asserted rather than passed over: this library documents
-     * it as two separately accumulated products, which a library's own `dsyr2k` need not be, so the policy
-     * never hands it over. [HostDenseContractTest] is where that guarantee is checked against the numbers.
+     * Thirteen of the fourteen bound Level 2 and 3 routines, in the order they are called. `syr2k`'s absence
+     * is asserted rather than passed over, since the policy never hands it over; [HostDenseContractTest] is
+     * where that guarantee is checked against the numbers.
      */
     @Test
     fun `every level two and three entry point reaches the library when the policy admits it`() {
@@ -106,12 +99,8 @@ class HostDenseBlasTest {
         )
     }
 
-    /**
-     * A retained panel is grouped for this library's own register tile, which no library has an argument for.
-     *
-     * Size is deliberately not what settles this: the fixture is well past the policy's number, so a route
-     * that named the library here would be doing it on the strength of the engine holding a binding.
-     */
+    // A retained panel is grouped for this library's own register tile, which no library has an argument
+    // for; the fixture is well past the policy's number, so size is not what settles it.
     @Test
     fun `a product over retained panels never names a library however large it is`() {
         val (_, blas) = forced()
@@ -138,12 +127,8 @@ class HostDenseBlasTest {
         assertEquals(DENSE_SCHEDULING, route.scheduling)
     }
 
-    /**
-     * The no-read rules are this library's, so a call that turns one on keeps the schedule that states it.
-     *
-     * Independent of the size rule, which is why the engine here admits work of any size: a zero multiplier
-     * has to stay portable even when every other fact would send it across.
-     */
+    // The engine here admits work of any size, so a zero multiplier stays portable even when every other
+    // fact would send the call across.
     @Test
     fun `a call whose contract stops before the arithmetic stays portable at any size`() {
         val (recorder, blas) = forced()
@@ -161,12 +146,8 @@ class HostDenseBlasTest {
         assertEquals(null, zeroAlpha.host)
     }
 
-    /**
-     * A route with no shared dimension is not a small call but an unstated one.
-     *
-     * The portable reporter refuses it, and a host branch that answered from the other two extents would be
-     * describing a product nobody described. Asked on an engine that would otherwise hand this over.
-     */
+    // A route with no shared dimension is unstated rather than small, so a host branch answering from the
+    // other two extents would describe a product nobody described.
     @Test
     fun `a level three route with no shared dimension is refused rather than answered`() {
         val (_, blas) = forced()

@@ -12,10 +12,8 @@ class HardwareFmaTest {
 
     @Test
     fun `anything but an enabled flag reads as no instruction`() {
-        // A runtime that publishes nothing, one that publishes something else, and the flag turned off are
-        // all the same answer here. Fusing on a machine without the instruction costs three orders of
-        // magnitude, and declining on one that has it costs a few percent, so an unrecognised answer takes
-        // the cheap mistake rather than guessing at the expensive one.
+        // Fusing without the instruction costs three orders of magnitude and declining with it costs a few
+        // percent, so an unrecognised answer takes the cheap mistake.
         for (reported in listOf(null, "", " ", "false", "TRUE", "1", "yes", "unknown")) {
             assertFalse(hardwareFmaAvailable(reported), "reported $reported")
         }
@@ -23,8 +21,7 @@ class HardwareFmaTest {
 
     @Test
     fun `the resolved answer agrees with the running virtual machine`() {
-        // HotSpot runs these tests and supports the flag, so the resolved value is not allowed to be the
-        // conservative default here: that would pass on every host and prove only that a boolean exists.
+        // HotSpot supports the flag, so accepting the conservative default here would pass on every host.
         assertTrue(hardwareFusedMultiplyAdd, "no fused multiply-add resolved on a HotSpot host")
     }
 }

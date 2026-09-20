@@ -9,10 +9,8 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
- * A layer that reports a route other than the one it takes.
- *
- * This is what the enforcement exists to catch. Every field a benchmark would read to justify a timing is
- * under the fixture's control, so a check that trusts any single one of them passes here.
+ * A layer that reports a route other than the one it takes. Every field a benchmark would read to justify a
+ * timing is under the fixture's control, so a check that trusts any single one of them passes here.
  */
 private class MisroutedBlas(
     private val delegate: Blas,

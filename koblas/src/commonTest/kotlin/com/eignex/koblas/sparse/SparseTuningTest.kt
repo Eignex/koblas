@@ -4,9 +4,8 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 
 /**
- * The compiled-in sparse defaults, pinned for the reason the dense ones are: collecting them must not move
- * a number a benchmark chose. A run whose environment sets one of the keys will fail here, which is the
- * intended reading.
+ * The compiled-in sparse defaults, pinned so that collecting them cannot move a number a benchmark chose. A
+ * run whose environment sets one of the keys will fail here, which is the intended reading.
  */
 class SparseTuningTest {
     @Test

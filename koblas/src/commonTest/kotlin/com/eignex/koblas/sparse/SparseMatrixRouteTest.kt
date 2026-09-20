@@ -11,14 +11,8 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
-/**
- * What a sparse matrix call reports about itself.
- *
- * The property under test is that the report names the code that runs rather than the engine that was asked
- * for. A whole sparse call is portable CSC scheduling on every engine, so an arm whose Level 1 kernels are
- * Vector API ones must not come out labelled as a vectorised sparse product, and a call whose units of work
- * reach two different kernels must not come out labelled as either one.
- */
+// A route names the code that runs rather than the engine that was asked for: a whole sparse call is
+// portable CSC scheduling on every engine, and a call reaching two kernels is labelled as neither.
 class SparseMatrixRouteTest {
 
     private companion object {
@@ -102,13 +96,8 @@ class SparseMatrixRouteTest {
         )
     }
 
-    /**
-     * Columns of one matrix need not be the same length, so they need not reach the same kernel. Naming one of
-     * them would publish the other's time under its label, which is the thing this reporting exists to stop.
-     *
-     * Which lengths straddle a crossover is the host's answer, not this test's: a host whose indexed stores
-     * the Vector API cannot use runs the scalar kernel at every length, and there is then no mixture to find.
-     */
+    // Which lengths straddle a crossover is the host's answer: a host that runs the scalar kernel at every
+    // indexed width has no mixture to find.
     @Test
     fun `columns that straddle the indexed crossover are reported as a composition`() {
         val engine = BuiltinEngines.simd ?: BuiltinEngines.scalar
@@ -146,11 +135,8 @@ class SparseMatrixRouteTest {
         assertContains(assertNotNull(route.reason), "ordered scalar dot")
     }
 
-    /**
-     * A sparse operand on the right turns every update into a whole dense column, so a Level 1 kernel really
-     * does run. It does not run for every stored entry, because the traversal skips the ones whose update is
-     * a zero multiplier, and a route that claimed otherwise would be naming a kernel for work it never saw.
-     */
+    // The dense leaf really does run, but not for every stored entry: the traversal skips a zero multiplier,
+    // so the route is a composition rather than the leaf alone.
     @Test
     fun `a sparse operand on the right is a composition of the dense leaf and the traversal`() {
         val engine = BuiltinEngines.simd ?: BuiltinEngines.scalar
@@ -190,10 +176,7 @@ class SparseMatrixRouteTest {
         assertEquals(emptyList(), filled.components)
     }
 
-    /**
-     * A zero multiplier does not stop an operation whose result is a fresh structure. The contract says the
-     * operand's values are not read, not that its positions are not found, so there is real work to report.
-     */
+    // A zero multiplier leaves the operand's values unread, not its positions unfound.
     @Test
     fun `a zero multiplier still reports work for a structural result`() {
         val route = BuiltinEngines.scalar.routeOf(
@@ -213,10 +196,6 @@ class SparseMatrixRouteTest {
         assertEquals(RouteKind.NoWork, route.kind)
     }
 
-    /**
-     * An operand with plenty stored and a destination with no elements is still a call with nothing to do.
-     * Only the extents can say so, which is why the descriptor carries them rather than the operand alone.
-     */
     @Test
     fun `an empty destination or depth reports no work whatever the operand holds`() {
         val engine = BuiltinEngines.scalar
@@ -247,48 +226,25 @@ class SparseMatrixRouteTest {
         assertEquals(RouteKind.Direct, real.kind, "a product with work to do")
     }
 
-    /**
-     * A product whose facts leave out the right-hand side count is reported as undecided rather than as a
-     * call with no panel.
-     *
-     * The count is what the grouping, the staging and the bodies all follow from, so a route derived without
-     * it would be a confident answer about a call whose shape it does not know. Saying so is the difference
-     * between a missing fact and a fact that says nothing runs.
-     */
+    // The right-hand side count is what the grouping, the staging and the bodies all follow from, and the
+    // destination extent is not a stand-in for it: without the count the panels are undecided, not absent.
     @Test
-    fun `a product with no right hand side count reports that its panels are underivable`() {
+    fun `a product with no right hand side count is reported unresolved`() {
         val engine = BuiltinEngines.scalar
         val a = uniform(columns = 4, perColumn = 32)
-
-        val route = engine.routeOf(
-            SparseMatrixOperation.GemmDense,
+        val calls = listOf(
             SparseCall(a, alpha = 1.0, beta = 1.0, destinationElements = 4096, depth = 32),
+            SparseCall(a, alpha = 1.0),
         )
 
-        assertEquals(RouteKind.Composed, route.kind)
-        assertTrue(route.components.none { it.endsWith("/sparse-rhs-scatter") }, route.toString())
-        assertTrue(route.reason.orEmpty().contains("no right-hand side count"), route.toString())
-    }
+        for (call in calls) {
+            val route = engine.routeOf(SparseMatrixOperation.GemmDense, call)
 
-    /**
-     * The same missing fact with no destination extent either, which is what a caller building the smallest
-     * possible descriptor gives.
-     *
-     * A call with nothing to do has already returned by the time the panels are asked about, so what is
-     * left is a call that will cut panels and a descriptor that does not say how many. Reporting a
-     * confident portable answer there was the defect; the destination extent is not a stand-in for the
-     * count, and a report reads the route's own flag rather than guessing from an empty component list.
-     */
-    @Test
-    fun `a product with neither destination nor right hand side facts is reported unresolved`() {
-        val engine = BuiltinEngines.scalar
-        val a = uniform(columns = 4, perColumn = 32)
-
-        val route = engine.routeOf(SparseMatrixOperation.GemmDense, SparseCall(a, alpha = 1.0))
-
-        assertEquals(RouteKind.Composed, route.kind)
-        assertEquals(false, route.resolved, route.toString())
-        assertTrue(route.components.none { it.endsWith("/sparse-rhs-scatter") }, route.toString())
+            assertEquals(RouteKind.Composed, route.kind, route.toString())
+            assertEquals(false, route.resolved, route.toString())
+            assertTrue(route.components.none { it.endsWith("/sparse-rhs-scatter") }, route.toString())
+            assertTrue(route.reason.orEmpty().contains("no right-hand side count"), route.toString())
+        }
     }
 
     /** An unresolved route still names what the facts do settle, such as a destination scaling. */
@@ -334,10 +290,7 @@ class SparseMatrixRouteTest {
         )
     }
 
-    /**
-     * An operation with no dense destination at all is not the same as one whose destination is empty, and a
-     * descriptor that folded the two together would report real work as none.
-     */
+    // A descriptor folding "no dense destination" together with "an empty one" would report real work as none.
     @Test
     fun `an operation with no dense destination is not mistaken for an empty one`() {
         val route = BuiltinEngines.scalar.routeOf(
@@ -348,11 +301,7 @@ class SparseMatrixRouteTest {
         assertEquals(RouteKind.Direct, route.kind)
     }
 
-    /**
-     * A triangular block with the triangle on the right names the dense kernel its column updates can reach.
-     * It cannot promise the kernel ran: a stored zero coefficient skips its update, and so does a position
-     * outside the selected triangle, so the route is composed and says which.
-     */
+    // A stored zero coefficient skips its update, so the named kernel is possible rather than certain.
     @Test
     fun `a triangle whose stored coefficients are all zero still names only a possible component`() {
         val engine = BuiltinEngines.scalar

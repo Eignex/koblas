@@ -12,27 +12,17 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
-/**
- * The matrix product where it is large enough to be packed and blocked, on every built-in engine.
- *
- * The shapes here are chosen to reach what block scheduling has that a small product does not: more than one
- * cache block on each axis, a depth cut into several blocks so that beta has somewhere to go wrong, and
- * extents that fill no tile exactly. Every answer is compared with [ReferenceBlas], which shares no code
- * with any of it.
- */
+// The shapes reach what block scheduling has that a small product does not: more than one cache block on
+// each axis, a depth cut into several blocks, and extents that fill no tile exactly.
 class BlockedProductTest {
     private val engines: List<KoblasEngine> get() = listOfNotNull(BuiltinEngines.scalar, BuiltinEngines.simd)
 
     /**
-     * Shapes that cross one block boundary each, kept small on the other two axes so the oracle is cheap.
+     * Shapes that cross one block boundary each, kept small on the other two axes so the oracle is cheap;
+     * the last is neither blocked on any axis nor a multiple of any tile.
      *
-     * The last is neither blocked on any axis nor a multiple of any tile, which is the edge case the three
-     * before it do not have.
-     *
-     * The small extents follow the tile this machine resolved, because whether a product is packed at all
-     * depends on it: a shape that fills more than one tile at four rows fills none at sixteen, and the test
-     * would then quietly be checking the unpacked route. `packedExtent` is a tile and a remainder, and never
-     * so few that the product falls under the packing threshold.
+     * The small extents follow the tile this machine resolved, because a shape that fills more than one tile
+     * at four rows fills none at sixteen and the test would then be checking the unpacked route.
      */
     private fun blockedShapes(tile: DenseProductKernels): List<Triple<Int, Int, Int>> {
         val rows = packedExtent(tile.tileRows)
@@ -48,14 +38,8 @@ class BlockedProductTest {
     /** More than one whole [tile] and not a multiple of it, and enough of them to be worth packing. */
     private fun packedExtent(tile: Int): Int = maxOf(tile + 1, SMALL_PACKED_EXTENT)
 
-    /**
-     * That the shapes above are packed at every tile geometry, not only the one this machine resolved.
-     *
-     * Whether a product is packed at all depends on the tile: four rows and sixteen rows disagree about
-     * whether a shape fills one, so a fixture chosen on one machine can quietly become a test of the
-     * unpacked route on another. That is not hypothetical, and it is not something a machine with four lanes
-     * can find by running anything, so the rule is asked directly at the widths this machine cannot resolve.
-     */
+    // A fixture chosen on one machine can quietly become a test of the unpacked route on another, which no
+    // amount of running finds here, so the packing rule is asked directly at the widths this host lacks.
     @Test
     fun `the blocked shapes are packed at every tile geometry`() {
         for (tileRows in intArrayOf(2, 4, 8, 16, 32)) {
@@ -111,13 +95,7 @@ class BlockedProductTest {
         }
     }
 
-    /**
-     * That these shapes really are the packed route, so the test above is not quietly checking the panel one.
-     *
-     * Asked of the route rather than assumed, and the route is what the call itself decides from. A shape
-     * whose rows fill whole tiles reaches one body and is direct; one that leaves a remainder reaches the
-     * body that remainder goes to as well, and is published as the composition it is.
-     */
+    // That these shapes really are the packed route, so the test above is not checking the panel one.
     @Test
     fun `the blocked shapes reach the product tiles and a small one does not`() {
         for (engine in engines) {
@@ -142,12 +120,8 @@ class BlockedProductTest {
         }
     }
 
-    /**
-     * A destination arriving as NaN, overwritten rather than multiplied, across several depth blocks.
-     *
-     * The depth is what makes it more than the tile's own rule: beta reaches the first depth block and
-     * nothing after it, so a later block reading the destination again would bring the poison back.
-     */
+    // Beta reaches the first depth block and nothing after it, so a later block reading the destination
+    // again would bring the poison back.
     @Test
     fun `a zero beta overwrites a poisoned destination over several depth blocks`() {
         val rng = Random(20261015)
@@ -167,12 +141,7 @@ class BlockedProductTest {
         }
     }
 
-    /**
-     * That beta is applied once across depth blocks, which the same product cut into one block cannot show.
-     *
-     * A depth that fits one block and a depth that does not are different traversals of the same arithmetic,
-     * and the reference answers both.
-     */
+    // A depth that fits one block and a depth that does not are different traversals of the same arithmetic.
     @Test
     fun `beta reaches the destination once whatever the depth was cut into`() {
         val rng = Random(20261016)
@@ -185,14 +154,8 @@ class BlockedProductTest {
         }
     }
 
-    /**
-     * A product whose operands are its own destination, staged so the packing reads what the caller gave.
-     *
-     * The lengths the workspace ends up holding follow from the tile geometry this machine resolved, since a
-     * packing panel covers whole tiles of the block it serves. They are worked out here from that geometry
-     * rather than written down, because a tile eight rows deep and one sixteen rows deep round the same
-     * order to different panels and neither is this test's business.
-     */
+    // The lengths the workspace holds are worked out from the resolved tile geometry rather than written
+    // down, since a packing panel covers whole tiles of the block it serves.
     @Test
     fun `a blocked product stages an operand that shares its destination`() {
         val rng = Random(20261017)
@@ -241,13 +204,8 @@ class BlockedProductTest {
         }
     }
 
-    /**
-     * That alpha multiplies an accumulated sum and never an entry of an operand, on both routes.
-     *
-     * An infinite alpha against a zero entry is what tells the two apart: scaling the entry gives a NaN that
-     * the sum then carries, and scaling the sum gives the infinity the definition asks for. Every dot here
-     * is exactly one, so the answer the contract states is one infinity per entry.
-     */
+    // An infinite alpha against a zero entry tells the two apart: scaling the entry gives a NaN the sum
+    // carries, and scaling the sum gives the infinity the definition asks for.
     @Test
     fun `alpha multiplies a sum of products rather than an entry of an operand`() {
         for (engine in engines) {
@@ -280,14 +238,8 @@ class BlockedProductTest {
         }
     }
 
-    /**
-     * The declared limit of that rule: which partition of the depth is summed before alpha is the schedule's.
-     *
-     * One depth block sums the whole shared dimension and multiplies once; two blocks multiply each of their
-     * sums and add the results, which for an infinite alpha against a block that sums to zero is a NaN. That
-     * is a consequence of blocking rather than an accident, and [com.eignex.koblas.dense.DenseBlas.gemm] says
-     * so; what is pinned here is that the behaviour is the stated one and not something else.
-     */
+    // The declared limit of that rule: two depth blocks multiply each of their sums and add the results,
+    // which for an infinite alpha against a block summing to zero is a NaN. [DenseBlas.gemm] says so.
     @Test
     fun `an infinite alpha follows the depth partition the schedule chose`() {
         for (engine in engines) {
@@ -328,13 +280,8 @@ class BlockedProductTest {
         }
     }
 
-    /**
-     * Extents with nothing in them, including one large enough that walking it would be the whole cost.
-     *
-     * A matrix with no rows and a hundred thousand columns has no entries, so the product has nothing to
-     * pack, nothing to compute and no group to step through; settling that before any of it is what keeps an
-     * empty shape cheap rather than proportional to the dimension it does not have.
-     */
+    // One extent is a hundred thousand and the other nothing, so a shape settled before the traversal is
+    // cheap rather than proportional to the dimension it does not have.
     @Test
     fun `a product over an empty extent does nothing and costs nothing`() {
         val wide = 1_000_000
@@ -355,14 +302,8 @@ class BlockedProductTest {
         }
     }
 
-    /**
-     * A destination with no entries takes no scratch on any of the product entry points.
-     *
-     * The scratch a product borrows is sized from its operands, which say nothing about whether there is an
-     * output to write. A left operand of a hundred and twenty-eight rows against a right operand of no
-     * columns would otherwise retain a column of that length for a result with no entries in it, and a
-     * larger operand a correspondingly larger one.
-     */
+    // Scratch is sized from the operands, which say nothing about whether there is an output to write, so a
+    // wide left operand against a right one of no columns would otherwise retain a column for nothing.
     @Test
     fun `an empty destination borrows nothing on any product entry point`() {
         val rng = Random(20261025)
@@ -458,13 +399,8 @@ class BlockedProductTest {
         )
     }
 
-    /**
-     * The three retained forms against the reference, over every transpose pair.
-     *
-     * A retained panel is packed from `op(A)`, so the transpose is spent at packing time and the product
-     * itself has none; what the pair still changes is what the panel has to contain. The mixed forms pack
-     * the other operand for the call, which is where the transpose flag survives.
-     */
+    // A retained panel is packed from `op(A)`, so the transpose is spent at packing time; the mixed forms
+    // pack the other operand for the call, which is where the flag survives.
     @Test
     fun `a product over retained panels agrees with the reference`() {
         val rng = Random(20261021)
@@ -502,12 +438,8 @@ class BlockedProductTest {
         }
     }
 
-    /**
-     * A mixed retained product whose dense operand is also its destination.
-     *
-     * The packing reads that operand block by block while the destination is being written, so without
-     * staging a later block would pack values the product itself had just produced.
-     */
+    // The packing reads the operand block by block while the destination is written, so without staging a
+    // later block would pack values the product itself had just produced.
     @Test
     fun `a mixed retained product stages a dense operand that shares its destination`() {
         val rng = Random(20261023)
@@ -603,10 +535,8 @@ class BlockedProductTest {
 
     private companion object {
         /**
-         * The smallest extent these shapes use on an axis they are not blocking.
-         *
-         * Large enough that the product clears the packing threshold at every tile geometry this library
-         * resolves, and not a multiple of any of them, so the last tile on that axis is always a remainder.
+         * The smallest extent these shapes use on an axis they are not blocking: over the packing threshold
+         * at every tile geometry, and a multiple of none of them so the last tile is always a remainder.
          */
         const val SMALL_PACKED_EXTENT = 25
     }
