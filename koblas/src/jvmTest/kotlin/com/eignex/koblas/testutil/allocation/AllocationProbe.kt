@@ -56,3 +56,40 @@ internal fun bytesPerIteration(
 
 /** The longest this waits for a loop to be compiled, in windows. */
 private const val MAX_WINDOWS = 400
+
+/**
+ * One measured call of a probe run outside a test task.
+ *
+ * A named interface rather than a function type, because a `() -> Double` is a `Function0<Double>` and
+ * returns its result boxed unless the compiler inlines the call and takes the object apart again. Several
+ * probes through one measurement loop is exactly where it stops doing that, and the box is then charged to
+ * whatever is being measured: the probes read twenty-four bytes a call before this interface replaced the
+ * function type, which is the harness and not the kernels.
+ */
+internal fun interface AllocationProbe {
+    fun run(): Double
+}
+
+/** Holds each probe's result so escape analysis cannot delete the allocation being measured. */
+@Volatile
+private var probeSink = 0.0
+
+/**
+ * Bytes [block] allocates per call, as the smallest of [windows] measurement windows of [iterations] calls
+ * taken after [warmup] calls have let the JIT settle.
+ *
+ * The smallest window rather than the mean, because a window that caught a compilation or a safepoint
+ * measures that event and not the loop.
+ */
+internal fun bytesPerCall(block: AllocationProbe, warmup: Int, iterations: Int, windows: Int): Double {
+    repeat(warmup) { probeSink = block.run() }
+    val id = Thread.currentThread().threadId()
+    var best = Double.MAX_VALUE
+    repeat(windows) {
+        val before = bean.getThreadAllocatedBytes(id)
+        repeat(iterations) { probeSink = block.run() }
+        val after = bean.getThreadAllocatedBytes(id)
+        best = minOf(best, (after - before).toDouble() / iterations)
+    }
+    return best
+}
