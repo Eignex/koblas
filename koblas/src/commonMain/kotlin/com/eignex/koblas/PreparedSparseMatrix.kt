@@ -112,9 +112,9 @@ public class PreparedSparseMatrix internal constructor(a: SparseMatrix, private 
         workspace: Workspace? = null,
     ) {
         if (right) {
-            requireGemmShape(b, transposeB, snapshot, transpose, destination)
+            requireGemmOperands(b, transposeB, snapshot, transpose, destination)
         } else {
-            requireGemmShape(snapshot, transpose, b, transposeB, destination)
+            requireGemmOperands(snapshot, transpose, b, transposeB, destination)
         }
         blas.gemm(alpha, snapshot, transpose, b, transposeB, beta, destination, right, workspace)
     }
@@ -139,7 +139,7 @@ public class PreparedSparseMatrix internal constructor(a: SparseMatrix, private 
 
     /** Prepared sparse-result product with scaling and transpose controls. */
     public fun gemm(alpha: Double, transpose: Boolean, b: SparseMatrix, transposeB: Boolean): SparseMatrix {
-        requireSparseProductShape(snapshot, transpose, b, transposeB)
+        requireProductOperands(snapshot, transpose, b, transposeB, "gemm")
         val depth = if (transpose) snapshot.rows else snapshot.cols
         val outputs = if (transposeB) b.rows else b.cols
         val rows = if (transpose) snapshot.cols else snapshot.rows
@@ -164,7 +164,7 @@ public class PreparedSparseMatrix internal constructor(a: SparseMatrix, private 
         destination: DenseMatrix,
         workspace: Workspace? = null,
     ) {
-        requireGemmShape(snapshot, transpose, b, transposeB, destination)
+        requireGemmOperands(snapshot, transpose, b, transposeB, destination)
         val depth = if (transpose) snapshot.rows else snapshot.cols
         val work = if (b.nnz == 0) 0 else destination.values.size
         withOrientation(transpose, reusesOrientation(alpha, transpose, depth, work)) { oriented, stillTransposed ->

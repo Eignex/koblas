@@ -3,9 +3,10 @@
 
 package com.eignex.koblas.vendor
 
-import com.eignex.koblas.DenseMatrix
-import com.eignex.koblas.DenseVector
+import com.eignex.koblas.*
 import com.eignex.koblas.dense.MatrixStructure
+import com.eignex.koblas.dense.requireStructured
+import com.eignex.koblas.dense.requireTriangular
 import kotlinx.cinterop.ByteVar
 import kotlinx.cinterop.CFunction
 import kotlinx.cinterop.COpaquePointer
@@ -240,7 +241,7 @@ internal class NativeVendorBlas private constructor(
     // Level 1. A vector window is always expressible, so these never stage and never compose.
 
     override fun dot(x: DenseVector, y: DenseVector): Double {
-        requireSameLength(x, y, "dot")
+        requireSameSize(x.size, y.size, "dot")
         return rawDot(x.values, x.offset, x.stride, y.values, y.offset, y.stride, x.size)
     }
 
@@ -400,7 +401,7 @@ internal class NativeVendorBlas private constructor(
     override fun iamax(x: DenseVector): Int = rawIamax(x.values, x.offset, x.stride, x.size)
 
     override fun axpy(alpha: Double, x: DenseVector, y: DenseVector) {
-        requireSameLength(x, y, "axpy")
+        requireSameSize(x.size, y.size, "axpy")
         rawAxpy(alpha, x.values, x.offset, x.stride, y.values, y.offset, y.stride, x.size)
     }
 
@@ -409,12 +410,12 @@ internal class NativeVendorBlas private constructor(
     override fun copy(x: DenseVector, y: DenseVector) = twoVector(x, y, BlasOperation.Copy, "copy")
 
     override fun swap(x: DenseVector, y: DenseVector) {
-        requireSameLength(x, y, "swap")
+        requireSameSize(x.size, y.size, "swap")
         rawSwap(x.values, x.offset, x.stride, y.values, y.offset, y.stride, x.size)
     }
 
     private fun twoVector(x: DenseVector, y: DenseVector, operation: BlasOperation, what: String) {
-        requireSameLength(x, y, what)
+        requireSameSize(x.size, y.size, what)
         if (noWorkReason(emptyList(), listOf(x)) != null) return
         withPins { pins ->
             val px = pins.stage(x)
@@ -425,7 +426,7 @@ internal class NativeVendorBlas private constructor(
     }
 
     override fun rot(x: DenseVector, y: DenseVector, c: Double, s: Double) {
-        requireSameLength(x, y, "rot")
+        requireSameSize(x.size, y.size, "rot")
         rawRot(x.values, x.offset, x.stride, y.values, y.offset, y.stride, x.size, c, s)
     }
 
@@ -439,7 +440,7 @@ internal class NativeVendorBlas private constructor(
         beta: Double,
         y: DenseVector,
     ) {
-        requireGemvOperands(a, transposeA, x, y)
+        requireGemvOperands(a, transposeA, x.size, y.size)
         if (noWorkReason(listOf(a), emptyList()) != null) return
         withPins { pins ->
             val pa = pins.stage(a)
@@ -461,7 +462,8 @@ internal class NativeVendorBlas private constructor(
         beta: Double,
         y: DenseVector,
     ) {
-        requireSymvOperands(a, structure, x, y)
+        requireStructured(structure, "symv")
+        requireSymvOperands(a, x.size, y.size)
         if (noWorkReason(listOf(a), emptyList()) != null) return
         withPins { pins ->
             val pa = pins.stage(a)
@@ -476,7 +478,7 @@ internal class NativeVendorBlas private constructor(
     }
 
     override fun ger(alpha: Double, x: DenseVector, y: DenseVector, a: DenseMatrix) {
-        requireGerOperands(x, y, a)
+        requireGerOperands(x.size, y.size, a)
         if (noWorkReason(listOf(a), emptyList()) != null) return
         withPins { pins ->
             val pa = pins.stage(a)
@@ -491,7 +493,8 @@ internal class NativeVendorBlas private constructor(
     }
 
     override fun syr(alpha: Double, x: DenseVector, a: DenseMatrix, structure: MatrixStructure) {
-        requireSyrOperands(a, structure, "syr", x)
+        requireStructured(structure, "syr")
+        requireSyrOperands(a, x.size, "syr")
         if (noWorkReason(listOf(a), emptyList()) != null) return
         withPins { pins ->
             val pa = pins.stage(a)
@@ -511,7 +514,8 @@ internal class NativeVendorBlas private constructor(
     }
 
     override fun syr2(alpha: Double, x: DenseVector, y: DenseVector, a: DenseMatrix, structure: MatrixStructure) {
-        requireSyr2Operands(a, structure, "syr2", x, y)
+        requireStructured(structure, "syr2")
+        requireSyr2Operands(a, x.size, y.size, "syr2")
         if (noWorkReason(listOf(a), emptyList()) != null) return
         withPins { pins ->
             val pa = pins.stage(a)
@@ -540,7 +544,8 @@ internal class NativeVendorBlas private constructor(
         operation: BlasOperation,
         what: String,
     ) {
-        requireTriangularVectorOperands(a, structure, x, what)
+        requireTriangular(structure, what)
+        requireTriangularVectorOperands(a, x.size, what)
         if (noWorkReason(listOf(a), emptyList()) != null) return
         withPins { pins ->
             val pa = pins.stage(a)
@@ -592,7 +597,8 @@ internal class NativeVendorBlas private constructor(
         c: DenseMatrix,
         rightSide: Boolean,
     ) {
-        requireSymmOperands(a, structure, b, c, rightSide)
+        requireStructured(structure, "symm")
+        requireSymmOperands(a, b, c, rightSide)
         if (noWorkReason(listOf(c), emptyList()) != null) return
         withPins { pins ->
             val pa = pins.stage(a)
@@ -616,7 +622,8 @@ internal class NativeVendorBlas private constructor(
         c: DenseMatrix,
         structure: MatrixStructure,
     ) {
-        requireSyrkOperands(a, transposeA, c, structure)
+        requireStructured(structure, "syrk")
+        requireSyrkOperands(a, transposeA, c)
         val depth = if (transposeA) a.rows else a.cols
         if (noWorkReason(listOf(c), emptyList()) != null) return
         withPins { pins ->
@@ -641,7 +648,8 @@ internal class NativeVendorBlas private constructor(
         c: DenseMatrix,
         structure: MatrixStructure,
     ) {
-        requireSyr2kOperands(a, b, transposeA, c, structure)
+        requireStructured(structure, "syr2k")
+        requireSyr2kOperands(a, b, transposeA, c)
         val depth = if (transposeA) a.rows else a.cols
         if (noWorkReason(listOf(c), emptyList()) != null) return
         withPins { pins ->
@@ -688,7 +696,8 @@ internal class NativeVendorBlas private constructor(
         operation: BlasOperation,
         what: String,
     ) {
-        requireTriangularMatrixOperands(a, structure, b, rightSide, what)
+        requireTriangular(structure, what)
+        requireTriangularMatrixOperands(a, b, rightSide, what)
         if (noWorkReason(listOf(b), emptyList()) != null) return
         withPins { pins ->
             val pa = pins.stage(a)
@@ -714,7 +723,8 @@ internal class NativeVendorBlas private constructor(
         c: DenseMatrix,
         structure: MatrixStructure,
     ) {
-        requireGemmtOperands(a, transposeA, b, transposeB, c, structure)
+        requireStructured(structure, "gemmt")
+        requireGemmtOperands(a, transposeA, b, transposeB, c)
         val depth = if (transposeA) a.rows else a.cols
         if (noWorkReason(listOf(c), emptyList()) != null) return
         if (BlasOperation.Gemmt !in directlyImplemented) {

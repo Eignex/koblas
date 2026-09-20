@@ -36,7 +36,7 @@ public inline fun Vector.forEachStored(block: (i: Int, v: Double) -> Unit) {
 
 /** `aT * b`. Sparse operands walk their stored entries only. */
 public infix fun Vector.dot(other: Vector): Double {
-    requireSameSize(size, other.size)
+    requireSameSize(size, other.size, "dot")
     if (this is DenseVector && other is DenseVector) {
         return koblas.vectorKernels.dot(values, offset, other.values, other.offset, size, stride, other.stride)
     }
@@ -128,7 +128,7 @@ public fun Vector.iamax(): Int {
  * destination and a borrowed slice of a longer buffer are the same call.
  */
 public fun copy(src: Vector, dst: DenseVector) {
-    requireSameSize(src.size, dst.size)
+    requireSameSize(src.size, dst.size, "copy")
     val source = src.stableFor(dst)
     if (source is SparseVector) {
         // A contiguous destination is one fill and one scatter through the indexed kernel; any other spacing
@@ -179,13 +179,13 @@ internal fun DenseVector.asContiguousArray(): DoubleArray = if (isWholeArray) va
  * so instead of a check that would refuse a caller at run time.
  */
 public fun gather(x: SparseVector, from: ContiguousVector) {
-    requireSameSize(x.size, from.size)
+    requireSameSize(x.size, from.size, "gather")
     koblas.sparseKernels.gather(x, from.values)
 }
 
 /** [gather], and zero in [from] the positions it read (Sparse BLAS `usgz`). */
 public fun gatherZero(x: SparseVector, from: ContiguousVector) {
-    requireSameSize(x.size, from.size)
+    requireSameSize(x.size, from.size, "gatherZero")
     koblas.sparseKernels.gatherZero(x, from.values)
 }
 
@@ -195,7 +195,7 @@ public fun gatherZero(x: SparseVector, from: ContiguousVector) {
  * Overlapping operands are snapshotted; at a shared physical entry the final write is from [b].
  */
 public fun swap(a: DenseVector, b: DenseVector) {
-    requireSameSize(a.size, b.size)
+    requireSameSize(a.size, b.size, "swap")
     // Sharing a buffer is not the same as covering an entry of it. Two rows or columns of one matrix share
     // their array and overlap nowhere, which is the case this overload exists for, so it reaches the kernel.
     if (a.overlaps(b)) {
@@ -213,7 +213,7 @@ public fun swap(a: DenseVector, b: DenseVector) {
  * destination buffer is snapshotted before writing.
  */
 public fun DenseVector.axpy(alpha: Double, x: Vector) {
-    requireSameSize(size, x.size)
+    requireSameSize(size, x.size, "axpy")
     if (alpha == 0.0) return
     when (val source = x.stableFor(this)) {
         is DenseVector ->

@@ -7,26 +7,11 @@
 
 package com.eignex.koblas.dense
 
-import com.eignex.koblas.DenseMatrix
-import com.eignex.koblas.DenseVector
-import com.eignex.koblas.Workspace
-import com.eignex.koblas.staged
+import com.eignex.koblas.*
 import com.eignex.koblas.vendor.Blas
 import com.eignex.koblas.vendor.BlasOperation
 import com.eignex.koblas.vendor.CallRoute
 import com.eignex.koblas.vendor.RouteKind
-import com.eignex.koblas.vendor.requireGemmOperands
-import com.eignex.koblas.vendor.requireGemmtOperands
-import com.eignex.koblas.vendor.requireGemvOperands
-import com.eignex.koblas.vendor.requireGerOperands
-import com.eignex.koblas.vendor.requireSymmOperands
-import com.eignex.koblas.vendor.requireSymvOperands
-import com.eignex.koblas.vendor.requireSyr2Operands
-import com.eignex.koblas.vendor.requireSyr2kOperands
-import com.eignex.koblas.vendor.requireSyrOperands
-import com.eignex.koblas.vendor.requireSyrkOperands
-import com.eignex.koblas.vendor.requireTriangularMatrixOperands
-import com.eignex.koblas.vendor.requireTriangularVectorOperands
 
 /**
  * A dense implementation that can say what one of its own calls executes.
@@ -168,7 +153,7 @@ internal class HostDenseBlas(
     override fun transpose(a: DenseMatrix): DenseMatrix = portable.transpose(a)
 
     override fun symv(alpha: Double, a: DenseMatrix, x: DoubleArray, beta: Double, y: DoubleArray, lower: Boolean) {
-        requireSymvOperands(a, symmetricStructure(lower), x.size, y.size)
+        requireSymvOperands(a, x.size, y.size)
         if (!host(DenseMatrixOperation.Symv, work(DenseMatrixOperation.Symv, a.rows, a.cols, alpha = alpha))) {
             portable.symv(alpha, a, x, beta, y, lower)
             return
@@ -201,7 +186,7 @@ internal class HostDenseBlas(
     }
 
     override fun syr(alpha: Double, x: DenseVector, a: DenseMatrix, lower: Boolean) {
-        requireSyrOperands(a, symmetricStructure(lower), "syr", x)
+        requireSyrOperands(a, x.size, "syr")
         if (!host(DenseMatrixOperation.Syr, work(DenseMatrixOperation.Syr, a.rows, a.cols, alpha = alpha))) {
             portable.syr(alpha, x, a, lower)
             return
@@ -212,7 +197,7 @@ internal class HostDenseBlas(
     }
 
     override fun syr2(alpha: Double, x: DenseVector, y: DenseVector, a: DenseMatrix, lower: Boolean) {
-        requireSyr2Operands(a, symmetricStructure(lower), "syr2", x, y)
+        requireSyr2Operands(a, x.size, y.size, "syr2")
         if (!host(DenseMatrixOperation.Syr2, work(DenseMatrixOperation.Syr2, a.rows, a.cols, alpha = alpha))) {
             portable.syr2(alpha, x, y, a, lower)
             return
@@ -243,7 +228,7 @@ internal class HostDenseBlas(
         operation: DenseMatrixOperation,
         what: String,
     ) {
-        requireTriangularVectorOperands(a, triangle(lower, unitDiag), x.size, what)
+        requireTriangularVectorOperands(a, x.size, what)
         val solve = operation == DenseMatrixOperation.Trsv || operation == DenseMatrixOperation.TrsvTransposed
         if (!host(operation, work(operation, a.rows, a.cols))) {
             if (solve) {
@@ -301,7 +286,7 @@ internal class HostDenseBlas(
         lower: Boolean,
         workspace: Workspace?,
     ) {
-        requireGemmtOperands(a, transposeA, b, transposeB, c, symmetricStructure(lower))
+        requireGemmtOperands(a, transposeA, b, transposeB, c)
         val depth = if (transposeA) a.rows else a.cols
         val gemmt = DenseMatrixOperation.Gemmt
         if (!host(gemmt, work(gemmt, c.rows, c.cols, depth, alpha))) {
@@ -324,7 +309,7 @@ internal class HostDenseBlas(
         lower: Boolean,
         workspace: Workspace?,
     ) {
-        requireSyrkOperands(a, transpose, c, symmetricStructure(lower))
+        requireSyrkOperands(a, transpose, c)
         val depth = if (transpose) a.rows else a.cols
         val syrk = DenseMatrixOperation.Syrk
         if (!host(syrk, work(syrk, c.rows, c.cols, depth, alpha))) {
@@ -346,7 +331,7 @@ internal class HostDenseBlas(
         lower: Boolean,
         workspace: Workspace?,
     ) {
-        requireSyr2kOperands(a, b, transpose, c, symmetricStructure(lower))
+        requireSyr2kOperands(a, b, transpose, c)
         val depth = if (transpose) a.rows else a.cols
         val syr2k = DenseMatrixOperation.Syr2k
         if (!host(syr2k, work(syr2k, c.rows, c.cols, depth, alpha))) {
@@ -370,7 +355,7 @@ internal class HostDenseBlas(
         right: Boolean,
         workspace: Workspace?,
     ) {
-        requireSymmOperands(a, symmetricStructure(lower), b, c, right)
+        requireSymmOperands(a, b, c, right)
         val symm = DenseMatrixOperation.Symm
         if (!host(symm, work(symm, c.rows, c.cols, a.rows, alpha))) {
             portable.symm(alpha, a, b, beta, c, lower, right, workspace)
@@ -418,7 +403,7 @@ internal class HostDenseBlas(
     ) {
         val solve = operation == DenseMatrixOperation.Trsm
         val what = if (solve) "trsm" else "trmm"
-        requireTriangularMatrixOperands(a, triangle(lower, unitDiag), b, right, what)
+        requireTriangularMatrixOperands(a, b, right, what)
         // A zero alpha zeroes the right-hand sides and reads no coefficient, which this library states and a
         // library need not; [HostDensePolicy] answers null for it and the portable path keeps it.
         if (!host(operation, work(operation, b.rows, b.cols, a.rows, alpha, right))) {

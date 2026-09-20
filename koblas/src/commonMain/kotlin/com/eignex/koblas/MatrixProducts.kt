@@ -19,7 +19,7 @@ import com.eignex.koblas.dense.applyBeta
  * once into dense column-major storage, and a sparse operand beside it still keeps its own traversal.
  */
 public fun Matrix.gemm(other: Matrix): Matrix {
-    requireShape(cols == other.rows) { "gemm: inner dimensions differ, $cols vs ${other.rows}" }
+    requireProductOperands(this, false, other, false, "gemm")
     if (this is SparseMatrix && other is SparseMatrix) return koblas.gemm(this, other)
     val result = DenseMatrix.zero(rows, other.cols)
     gemmInto(1.0, false, other, false, 0.0, result)
@@ -52,14 +52,7 @@ public fun Matrix.gemmInto(
     destination: DenseMatrix,
     workspace: Workspace? = null,
 ) {
-    val m = if (transpose) cols else rows
-    val depth = if (transpose) rows else cols
-    val otherDepth = if (transposeOther) other.cols else other.rows
-    val n = if (transposeOther) other.rows else other.cols
-    requireShape(depth == otherDepth) { "gemmInto: inner dimensions differ, $depth vs $otherDepth" }
-    requireShape(destination.rows == m && destination.cols == n) {
-        "gemmInto: destination must be ${m}x$n, got ${destination.rows}x${destination.cols}"
-    }
+    requireGemmOperands(this, transpose, other, transposeOther, destination, "gemmInto")
     // Before either operand is looked at, so a zero multiplier reads nothing at all. A custom Matrix can
     // compute its entries, and staging one to discover that alpha contributes nothing would be a call the
     // contract says does not happen.

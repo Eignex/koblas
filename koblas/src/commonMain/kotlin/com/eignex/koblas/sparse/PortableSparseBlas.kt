@@ -2,20 +2,10 @@
 
 package com.eignex.koblas.sparse
 
-import com.eignex.koblas.DenseMatrix
-import com.eignex.koblas.PreparedSparseMatrix
-import com.eignex.koblas.SparseMatrix
-import com.eignex.koblas.UnsafeKoblasApi
-import com.eignex.koblas.Workspace
+import com.eignex.koblas.*
 import com.eignex.koblas.dense.DenseOperation
 import com.eignex.koblas.dense.DenseVectorKernels
 import com.eignex.koblas.dense.applyBeta
-import com.eignex.koblas.requireGemmShape
-import com.eignex.koblas.requireGemvShape
-import com.eignex.koblas.requireShape
-import com.eignex.koblas.requireSparseProductShape
-import com.eignex.koblas.requireSquare
-import com.eignex.koblas.requireTriangularMatrixShape
 import com.eignex.koblas.sparse.internal.SparseAccumulationKernels
 import com.eignex.koblas.sparse.internal.forEachPanelWidth
 import com.eignex.koblas.sparse.internal.multiplyFromTheLeft
@@ -38,7 +28,6 @@ import com.eignex.koblas.sparse.internal.trsmRightCore
 import com.eignex.koblas.sparse.internal.trsvCore
 import com.eignex.koblas.sparse.internal.withExplicitDiagonal
 import com.eignex.koblas.sparse.internal.withSymmetricRankScratch
-import com.eignex.koblas.staged
 import com.eignex.koblas.vendor.RouteKind
 
 /** The component name every built-in sparse Level 2 and 3 call reports, whatever Level 1 kernels it calls. */
@@ -677,7 +666,7 @@ internal class PortableSparseBlas(
         y: DoubleArray,
         transpose: Boolean,
     ) {
-        requireGemvShape(a, transpose, x.size, y.size)
+        requireGemvOperands(a, transpose, x.size, y.size)
         // The no-read shortcut comes first: a zero multiplier or a zero extent reads neither operand, and
         // scaling the destination is all that is left to do.
         if (alpha == 0.0 || a.rows == 0 || a.cols == 0) {
@@ -723,9 +712,7 @@ internal class PortableSparseBlas(
     override fun transpose(a: SparseMatrix): SparseMatrix = transposeCsc(a)
 
     override fun symv(alpha: Double, a: SparseMatrix, x: DoubleArray, beta: Double, y: DoubleArray, lower: Boolean) {
-        requireSquare(a, "symv")
-        requireShape(x.size == a.rows) { "symv: x length ${x.size} != ${a.rows}" }
-        requireShape(y.size == a.rows) { "symv: y length ${y.size} != ${a.rows}" }
+        requireSymvOperands(a, x.size, y.size)
         if (alpha == 0.0) {
             applyBeta(vectorKernels, y, 0, y.size, beta)
             return
@@ -759,15 +746,7 @@ internal class PortableSparseBlas(
         right: Boolean,
         workspace: Workspace?,
     ) {
-        requireSquare(a, "symm")
-        requireShape(c.rows == b.rows && c.cols == b.cols) {
-            "symm: C is ${c.rows}x${c.cols} but B is ${b.rows}x${b.cols}"
-        }
-        if (right) {
-            requireShape(b.cols == a.rows) { "symm right: B has ${b.cols} cols, expected ${a.rows}" }
-        } else {
-            requireShape(b.rows == a.rows) { "symm: B has ${b.rows} rows, expected ${a.rows}" }
-        }
+        requireSymmOperands(a, b, c, right)
         // A destination with no elements is validated and then left alone, before any staging or loan. One
         // of its two extents may be zero while the other is enormous, and a traversal over the long one
         // would step through it to write nothing.
@@ -802,16 +781,14 @@ internal class PortableSparseBlas(
     }
 
     override fun trsv(a: SparseMatrix, x: DoubleArray, lower: Boolean, transpose: Boolean, unitDiag: Boolean) {
-        requireSquare(a, "trsv")
-        requireShape(x.size == a.rows) { "trsv: x length ${x.size} != ${a.rows}" }
+        requireTriangularVectorOperands(a, x.size, "trsv")
         // The substitution overwrites x as it goes, so a triangle sharing that buffer is snapshotted first:
         // every column it has yet to reach must still hold the coefficients the caller supplied.
         trsvCore(panelKernels, a.stableFor(x), x, lower, transpose, unitDiag)
     }
 
     override fun trmv(a: SparseMatrix, x: DoubleArray, lower: Boolean, transpose: Boolean, unitDiag: Boolean) {
-        requireSquare(a, "trmv")
-        requireShape(x.size == a.rows) { "trmv: x length ${x.size} != ${a.rows}" }
+        requireTriangularVectorOperands(a, x.size, "trmv")
         trmvCore(panelKernels, a.stableFor(x), x, lower, transpose, unitDiag)
     }
 
@@ -830,9 +807,9 @@ internal class PortableSparseBlas(
         // Multiplying the dense operand by the sparse one from the right is this product with the operands
         // the other way round, so the same derivation answers both.
         if (right) {
-            requireGemmShape(b, transposeB, a, transposeA, c)
+            requireGemmOperands(b, transposeB, a, transposeA, c)
         } else {
-            requireGemmShape(a, transposeA, b, transposeB, c)
+            requireGemmOperands(a, transposeA, b, transposeB, c)
         }
         // The destination's extents are the product's once that holds, and the depth is the sparse operand's
         // own inner one on the left and the dense operand's on the right.
@@ -872,7 +849,7 @@ internal class PortableSparseBlas(
         b: SparseMatrix,
         transposeB: Boolean,
     ): SparseMatrix {
-        requireSparseProductShape(a, transposeA, b, transposeB)
+        requireProductOperands(a, transposeA, b, transposeB, "gemm")
         val aRows = if (transposeA) a.cols else a.rows
         val bCols = if (transposeB) b.rows else b.cols
         // Answered before either operand is oriented, because orienting allocates one pointer per row of the
@@ -895,7 +872,7 @@ internal class PortableSparseBlas(
         c: DenseMatrix,
         workspace: Workspace?,
     ) {
-        requireGemmShape(a, transposeA, b, transposeB, c)
+        requireGemmOperands(a, transposeA, b, transposeB, c)
         if (alpha == 0.0) {
             applyBeta(vectorKernels, c.values, 0, c.values.size, beta)
             return
@@ -927,7 +904,7 @@ internal class PortableSparseBlas(
         workspace: Workspace?,
     ) {
         val n = if (transpose) a.cols else a.rows
-        requireShape(c.rows == n && c.cols == n) { "syrk: C is ${c.rows}x${c.cols}, expected ${n}x$n" }
+        requireSyrkOperands(a, transpose, c)
         if (alpha == 0.0) {
             scaleTriangle(c, n, beta, lower)
             return
@@ -964,9 +941,7 @@ internal class PortableSparseBlas(
     override fun addScaled(alpha: Double, a: SparseMatrix, transposeA: Boolean, b: SparseMatrix): SparseMatrix {
         val rows = if (transposeA) a.cols else a.rows
         val cols = if (transposeA) a.rows else a.cols
-        requireShape(rows == b.rows && cols == b.cols) {
-            "addScaled: op(A) is ${rows}x$cols but B is ${b.rows}x${b.cols}"
-        }
+        requireSameShape(rows, cols, b, "addScaled")
         // Neither side contributes a position, so the union is empty and no orientation is built for it.
         if (a.nnz == 0 && b.nnz == 0) return emptyResult(rows, cols, "addScaled")
         val left = oriented(a, transposeA, alpha != 0.0)
@@ -1015,7 +990,8 @@ internal class PortableSparseBlas(
         alpha: Double,
         workspace: Workspace?,
     ) {
-        val n = requireTriangularMatrixShape(a, b, right, "trsm")
+        requireTriangularMatrixOperands(a, b, right, "trsm")
+        val n = a.rows
         if (alpha == 0.0) {
             b.values.fill(0.0)
             return
@@ -1052,7 +1028,8 @@ internal class PortableSparseBlas(
         alpha: Double,
         workspace: Workspace?,
     ) {
-        val n = requireTriangularMatrixShape(a, b, right, "trmm")
+        requireTriangularMatrixOperands(a, b, right, "trmm")
+        val n = a.rows
         if (alpha == 0.0) {
             b.values.fill(0.0)
             return

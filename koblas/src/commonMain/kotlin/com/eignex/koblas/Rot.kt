@@ -25,7 +25,7 @@ public fun rot(x: DenseVector, y: DenseVector, c: Double, s: Double) {
  * input sequences are snapshotted before writing; at a shared physical entry the final write is from [y].
  */
 public fun rot(x: StridedVector, y: StridedVector, c: Double, s: Double) {
-    requireSameSize(x.size, y.size)
+    requireSameSize(x.size, y.size, "rot")
     if (c == 1.0 && s == 0.0) return
     if (x.overlaps(y)) {
         val snapshotX = x.toDoubleArray()

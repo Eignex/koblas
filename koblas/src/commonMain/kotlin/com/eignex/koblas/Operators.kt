@@ -39,7 +39,6 @@ public operator fun SparseMatrix.minus(other: SparseMatrix): SparseMatrix = kobl
  */
 @kotlin.jvm.JvmName("multiply")
 public operator fun DenseMatrix.times(x: DenseVector): DenseVector {
-    requireShape(cols == x.size) { "times shape mismatch: A is ${rows}x$cols, x size ${x.size}" }
     val out = DoubleArray(rows)
     gemvInto(1.0, x, 0.0, out)
     return DenseVector.wrap(out)
@@ -95,15 +94,13 @@ public operator fun DenseVector.unaryMinus(): DenseVector = this * -1.0
 
 /** `A + alpha * B` as a single `axpy` over the flat backings. */
 private fun DenseMatrix.combine(other: DenseMatrix, alpha: Double, op: String): DenseMatrix {
-    requireShape(rows == other.rows && cols == other.cols) {
-        "$op shape mismatch: ${rows}x$cols and ${other.rows}x${other.cols}"
-    }
+    requireSameShape(rows, cols, other, op)
     return DenseMatrix.wrap(rows, cols, axpyCopy(values, alpha, other.values))
 }
 
 /** `x + alpha * y`. */
 private fun DenseVector.combine(other: DenseVector, alpha: Double, op: String): DenseVector {
-    requireShape(size == other.size) { "$op size mismatch: $size vs ${other.size}" }
+    requireSameSize(size, other.size, op)
     val out = toDoubleArray()
     koblas.vectorKernels.axpy(out, 0, alpha, other.values, other.offset, size, xStride = other.stride)
     return DenseVector.wrap(out)
