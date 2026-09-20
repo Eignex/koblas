@@ -133,17 +133,13 @@ class PreparedSparseMatrixTest {
     }
 
     /**
-     * How much destination a transposed sparse-dense call writes no longer decides which family of
-     * traversals it takes.
+     * Prepared and one-shot routes retain the same uncertainty when destination facts are omitted.
      *
-     * It used to: the orientation a prepared call derived turned on there being a destination to write, so
-     * omitting the extent left the schedule undecided between the transposed traversal and the oriented
-     * one. A prepared product against a dense block now runs the traversal its own flags ask for, so the
-     * prepared route is the one-shot route for the same facts, extent or no extent, and what the extent
-     * still settles is the same thing it settles for a one-shot call.
+     * The extent can still affect scaling and no-work attribution, so each route is compared using the
+     * same supplied facts. Neither query should initialize a transpose for a sparse-dense product.
      */
     @Test
-    fun `a prepared transposed product names the one-shot traversal whether or not its extent is given`() {
+    fun `a prepared transposed product names the one shot traversal whether or not its extent is given`() {
         val source = matrix()
         val prepared = koblas.prepare(source)
         val withoutExtent = SparseCall(source, 0.875, -0.25, depth = 3, rightHandSides = 8, transposeSparse = true)

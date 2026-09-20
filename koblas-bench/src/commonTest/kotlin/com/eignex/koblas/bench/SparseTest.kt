@@ -49,7 +49,7 @@ class SparseTest {
      * `setup` is what times.
      */
     @Test
-    fun `a prepared transposed row reports the one-shot traversal`() {
+    fun `a prepared transposed row reports the one shot traversal`() {
         // Enough right-hand sides that the traversal cuts a panel: a reduction over a strided block is
         // written out by the traversal at any count, and what this row is about is which body each mode
         // names.

@@ -42,27 +42,18 @@ class PlatformEngineTest {
     }
 
     /**
-     * What the platform default runs, which is every kernel this library owns where there are lanes for them.
+     * The JVM default shares the exact SIMD engine, so benchmark selection and ordinary calls agree.
      *
-     * The Vector API Level 1 kernels have been the default since they were measured, and the Level 2 panels,
-     * the Level 3 tiles and the diagonal substitutions were held back from it while no crossover had been
-     * established. The final calibration established one and they are the default too, which makes the
-     * default and [BuiltinEngines.simd] one engine rather than two compositions that happen to agree. That
-     * identity is the assertion: a default rebuilt from the same parts would let the two drift apart, and a
-     * benchmark arm naming one while measuring the other is exactly what this stack has been avoiding.
-     *
-     * Where the module is absent there is nothing to select and the portable engine is the whole answer, so
-     * the second half of this says what the default is then rather than skipping.
+     * Without the Vector API the owned matrix backends are portable. Kotlin/Native can still compose
+     * whole host calls over those backends; host routing is checked separately.
      */
     @OptIn(KoblasEngineApi::class)
     @Test
-    fun `the platform default is the vector engine where there is one and the portable engine otherwise`() {
+    fun `the platform selects vector matrix backends where available`() {
         val vector = BuiltinEngines.simd
 
         if (vector == null) {
-            // Kotlin/Native has no Vector API and a JVM without the module cannot reach one, so there is no
-            // vector backend to select and the matrix arithmetic is the portable code. Which Level 1 arm the
-            // default took is a separate question and the tests above are where it is asked.
+            // These are the owned matrix backends; Native whole-call host routing is independent of them.
             assertEquals("scalar-panel", koblas.panelKernels.name)
             assertEquals(BuiltinEngines.scalar.productKernels.name, koblas.productKernels.name)
             assertEquals(BuiltinEngines.scalar.triangularKernels.name, koblas.triangularKernels.name)
@@ -72,7 +63,7 @@ class PlatformEngineTest {
         assertNotEquals(
             BuiltinEngines.scalar.panelKernels.name,
             koblas.panelKernels.name,
-            "the default kept the portable panels after their crossover was established",
+            "an available vector panel backend was not selected",
         )
         assertNotEquals(BuiltinEngines.scalar.productKernels.name, koblas.productKernels.name)
         assertNotEquals(BuiltinEngines.scalar.triangularKernels.name, koblas.triangularKernels.name)
