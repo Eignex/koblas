@@ -106,11 +106,9 @@ val simdSparseAllocationCheck = tasks.register<JavaExec>("simdSparseAllocationCh
 /**
  * The dense allocation check in one runtime configuration.
  *
- * A kernel that keeps its accumulators in registers on this machine need not on another, and the two things
- * that decide it are the width of the species and whether a multiply-add is one instruction. Both are fixed
- * when the virtual machine starts, so the only way to check the other configuration is another process. The
- * configurations below are registered rather than left to a reviewer to remember, because the first time a
- * tile spilled without a fused multiply-add it was found by a reviewer and not by this build.
+ * Whether a kernel allocates depends on the width of the species and on whether a multiply-add is one
+ * instruction, and both are fixed when the virtual machine starts. So each configuration needs its own
+ * process, and each one worth checking is registered here rather than left to be remembered.
  */
 fun registerDenseAllocationCheck(name: String, description: String, vararg extraArgs: String) =
     tasks.register<JavaExec>(name) {
@@ -134,9 +132,14 @@ val simdDenseAllocationCheck = registerDenseAllocationCheck(
     "Checks allocation-free JVM SIMD dense kernels and the whole calls around them, at this machine's width.",
 )
 
-// Two lanes rather than this host's four, and the unfused multiply-add a pre-FMA host would take. Both at
-// once, because a step that takes two instructions instead of one is what leaves the most values live and
-// the narrower species is the fleet's floor.
+// The unfused multiply-add a pre-FMA host would take, at this host's width and at the two lanes that are
+// the reference fleet's floor. Both, because both have been measured to allocate where the fused path does
+// not, and a gate at one width would not have caught the other.
+val simdDenseAllocationCheckNoFma = registerDenseAllocationCheck(
+    "simdDenseAllocationCheckNoFma",
+    "Checks the same kernels with the fused multiply-add disabled.",
+    "-XX:-UseFMA",
+)
 val simdDenseAllocationCheckNarrowNoFma = registerDenseAllocationCheck(
     "simdDenseAllocationCheckNarrowNoFma",
     "Checks the same kernels with a two-lane species and the fused multiply-add disabled.",
@@ -182,6 +185,7 @@ tasks.named("check") {
     dependsOn(
         simdSparseAllocationCheck,
         simdDenseAllocationCheck,
+        simdDenseAllocationCheckNoFma,
         simdDenseAllocationCheckNarrowNoFma,
         simdNarrowSpeciesCheck,
         simdNoFmaCheck,
