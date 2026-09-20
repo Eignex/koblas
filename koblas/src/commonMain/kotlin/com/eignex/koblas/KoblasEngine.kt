@@ -201,11 +201,14 @@ public class KoblasEngine internal constructor(
  *
  * Not a menu of production choices, which is why it is behind [KoblasEngineApi]. [koblas] is what this
  * platform selected, which is a policy: it takes the kernels that have the evidence to be default and the
- * portable ones everywhere else, so it need not be either engine here. [scalar] is not a faster or slower
- * alternative to [simd] at a given size either: it is the floor the vectorised kernels stand on, exposed on
- * its own so a benchmark can time it and a conformance test can compare against it.
+ * portable ones everywhere else. On the JVM that policy currently arrives at [simd] itself, and holding the
+ * two apart is still the point, because which engine a policy lands on is a measurement's conclusion and
+ * not something a benchmark arm may assume. [scalar] is not a faster or slower alternative to [simd] at a
+ * given size either: it is the floor the vectorised kernels stand on, exposed on its own so a benchmark can
+ * time it and a conformance test can compare against it.
  *
- * Kotlin/Native has no Vector API, so [simd] is null there and [koblas] is [scalar].
+ * Kotlin/Native has no Vector API, so [simd] is null there and the selected engine is [scalar] where no
+ * host library is installed and a composition over that library where one is.
  */
 @KoblasEngineApi
 public expect object BuiltinEngines {
@@ -215,9 +218,12 @@ public expect object BuiltinEngines {
     /**
      * Every JVM Vector API kernel this library owns, or null when the module is unavailable.
      *
-     * Not necessarily what [koblas] selected. A kernel is activated by default once it has the evidence for
-     * it, and the Level 2 panels do not yet, so on this platform the default is this arm's Level 1 with the
-     * portable panels. Which of them a given call reaches is what [KoblasEngine.denseRouteOf] answers.
+     * Also what [koblas] selected on that platform, and the same object rather than a second composition
+     * holding the same parts: a kernel is activated by default once it has the evidence for it, and the
+     * Level 1 kernels, the Level 2 panels, the Level 3 tiles and the diagonal substitutions now all have it.
+     * Which of their bodies a given call reaches is a separate question and
+     * [KoblasEngine.denseRouteOf] is what answers it: a window too short or too strided for a vector body
+     * runs the portable one, and the route names that rather than this arm.
      */
     public val simd: KoblasEngine?
 }

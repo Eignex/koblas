@@ -20,11 +20,12 @@ operations, mutable matrices and vectors, and views into existing storage.
 
 Dense and sparse Levels 2 and 3 have common Kotlin implementations, so ordinary matrix computation needs no
 installed numerical library. Their scheduling is shared and portable; the arithmetic inside a window is a
-panel, and which panels a machine uses is chosen locally. The JVM Vector API panels are measured but not yet
-activated: `BuiltinEngines.simd` holds them and an ordinary call keeps the portable ones until a crossover
-has been established across machines. Explicit oneMKL, AOCL, Arm Performance Libraries,
-Accelerate, and OpenBLAS bindings remain available for comparisons and Native acceleration, each held to one
-compute thread.
+panel, and which panels a machine uses is chosen locally. On the JVM an ordinary call uses the Vector API
+panels, product tiles and diagonal substitutions this library owns, which is the same engine
+`BuiltinEngines.simd` names; a window too short or too strided for a vector body falls to the portable one,
+and a runtime without the module gets the portable engine throughout. Explicit oneMKL, AOCL, Arm Performance
+Libraries, Accelerate, and OpenBLAS bindings remain available for comparisons and Native acceleration, each
+held to one compute thread.
 
 On Kotlin/Native, where there is no Vector API and these loops do not vectorise, the default engine also
 hands a whole dense Level 2 or 3 call to an installed library once the call has enough arithmetic to pay for
