@@ -101,13 +101,8 @@ class VendorArmTest {
         work.close()
     }
 
-    /**
-     * A built-in product names this library's own traversal, packing and tile, and not an installed library.
-     *
-     * The shape is whole tiles on both axes for every geometry this machine can resolve, so the row has to
-     * name the arithmetic body a full tile reaches and must not name the scalar edge; a SIMD arm that
-     * quietly fell back to the portable tile would differ from the scalar arm's row, and both are checked.
-     */
+    // The shape is whole tiles on both axes for every geometry this machine can resolve, so the row names
+    // the body a full tile reaches and never the scalar edge.
     @Test
     fun `built in level three arms name their own packing and tile rather than an installed vendor`() {
         val case = Cases.parse("gemm+64x64x64+uniform").single()

@@ -1,10 +1,8 @@
-// Workers are the concurrency primitive Kotlin/Native exposes today. The replacement is not here yet, and a
-// test of concurrent calls needs more than one thread, so the obsolete marker is accepted rather than worked
-// around; nothing production-side depends on it.
+// Workers are the only multi-thread primitive Kotlin/Native exposes today, so the obsolete marker is
+// accepted rather than worked around; nothing production-side depends on it.
 @file:OptIn(kotlin.native.concurrent.ObsoleteWorkersApi::class)
-// Backtick test names are this repository's convention, and detekt's default exclusions for them cover the
-// standard test paths but not `nativeTest`. Stated here rather than changed in the shared lint configuration,
-// which is the convention plugin's. Nothing else is relaxed: every case below carries its own documentation.
+// detekt exempts backtick test names and undocumented test functions on the standard test paths only, and
+// this is not one of them, so each case below carries its own KDoc.
 @file:Suppress("FunctionNaming")
 
 package com.eignex.koblas
@@ -20,26 +18,14 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /**
- * One compute thread per call, and any number of callers at once.
+ * One compute thread per call, and any number of callers at once, on the platform whose default reaches a
+ * library. Each worker owns its destination and its workspace; the operands are shared and read only, and
+ * both halves are asserted.
  *
- * The two only conflict if the composition keeps mutable state behind the call, which is what this rules out
- * for the platform whose default reaches a library: the engine is immutable, the binding is documented to be,
- * and the scratch an aliased call borrows comes from the workspace the caller passed. So the same engine
- * serves every worker without a lock and without a designated caller, and each worker's answer has to be the
- * one it would have got alone.
- *
- * Each worker owns its destination and its workspace; the operands are shared and read only. Both halves are
- * asserted: every destination matches the definition, and the shared inputs come back unchanged.
- *
- * The fixtures are sized past [com.eignex.koblas.dense.HostDensePolicy.MINIMUM_WORK] on purpose, and each
- * case asserts the route of the exact call each worker will make. Without that the same test would pass on a
- * policy that never reached a library, which is what it exists to exercise. Where no library is installed the
- * route is the portable one and the case says so; that run is real coverage of the portable schedule under
- * concurrency, and it is not evidence about concurrent host calls.
- *
- * Every worker carries a unit multiplier, because that is what the policy admits for a product, and their
- * results are told apart by their own destination multiplier instead. A per-worker multiplier would have left
- * seven of the eight on the portable schedule while one route assertion said otherwise.
+ * Each case asserts the route of the exact call its workers will make, or the same test would pass on a
+ * policy that never reached a library; where none is installed the route is the portable one and the case
+ * says so. Every worker carries a unit multiplier, which is what the policy admits for a product, and is
+ * told apart by its own destination multiplier instead.
  */
 class NativeHostConcurrencyTest {
     private class Task(val a: DenseMatrix, val b: DenseMatrix, val beta: Double)
@@ -57,20 +43,14 @@ class NativeHostConcurrencyTest {
         assertEquals("cblas_dgemm", route.host?.entryPoint, "$what reached a different entry point")
     }
 
-    /**
-     * Eight workers, one shared pair of operands, and a destination and a workspace each.
-     *
-     * The route is asserted first, so a run where the calls never reached the library says so rather than
-     * passing as though it had.
-     */
+    /** Eight workers, one shared pair of operands, and a destination and a workspace each. */
     @Test
     fun `concurrent dense calls over shared inputs give each caller the answer it would get alone`() {
         val rng = Random(31)
         val a = randomMatrix(ORDER, DEPTH, rng)
         val b = randomMatrix(DEPTH, ORDER, rng)
         val untouched = a.values.copyOf() to b.values.copyOf()
-        // One assertion per worker, over the exact call that worker will make, so no worker is represented
-        // by another's route.
+        // One assertion per worker, so no worker is represented by another's route.
         for (index in 0 until WORKERS) {
             assertRouteMatchesInstalledLibrary(
                 DenseCall(ORDER, ORDER, alpha = 1.0, beta = betaFor(index), depth = DEPTH),
@@ -108,10 +88,8 @@ class NativeHostConcurrencyTest {
     }
 
     /**
-     * The same, over calls that have to stage an operand against the destination they share.
-     *
-     * This is the path that borrows, so it is the one where a workspace shared by accident or a buffer
-     * retained across calls would show up as one worker reading another's staging.
+     * The staging path is the one that borrows, so a workspace shared by accident or a buffer retained
+     * across calls shows up here as one worker reading another's staging.
      */
     @Test
     fun `concurrent calls that stage an alias keep their own scratch`() {
@@ -144,12 +122,7 @@ class NativeHostConcurrencyTest {
         }
     }
 
-    /**
-     * The library the cases above reached reports one compute thread, or exports no way to be asked.
-     *
-     * On its own this says nothing about those cases, which is why they assert their own routes; what it
-     * adds is that the binding they reached is one that was held to a single thread before any arithmetic.
-     */
+    /** The library the cases above reached reports one compute thread, or exports no way to be asked. */
     @Test
     fun `the composed default runs on a library held to one compute thread`() {
         val vendor = koblas.vendor ?: return println(

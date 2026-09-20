@@ -26,13 +26,8 @@ class DenseTest {
         assertContentEquals(initial, work.result)
     }
 
-    /**
-     * Every product case runs its preflight, names a route and times something.
-     *
-     * The preflight is inside building the work, so a case that computed the wrong thing fails here rather
-     * than publishing a number; what this adds on top is that each of the new entry points is reachable and
-     * carries the attribution its row will be written with.
-     */
+    // The preflight is inside building the work, so a case computing the wrong thing fails here rather than
+    // publishing a number.
     @OptIn(KoblasEngineApi::class)
     @Test
     fun `every product case names the route of the call it makes`() {
@@ -59,15 +54,8 @@ class DenseTest {
         }
     }
 
-    /**
-     * Every structured and triangular case names a route that carries the facts its call was made with.
-     *
-     * The route is built from the facts the case passes, so a case that omitted one would describe a
-     * different call from the one it times: a rank update whose transpose never reached the route would
-     * name the panels of the untransposed shape, and a solve whose side never reached it would name the
-     * wrong stride and so the wrong substitution body. Each pair below differs only in such a fact, and the
-     * rows are required to differ with it.
-     */
+    // A case that omitted a fact would describe a different call from the one it times, so each pair below
+    // differs only in such a fact and the rows are required to differ with it.
     @OptIn(KoblasEngineApi::class)
     @Test
     fun `structured and triangular cases carry the facts their routes are built from`() {
@@ -79,8 +67,8 @@ class DenseTest {
                 val kernel = assertNotNull(work.kernel, "$line on ${engine.name} named no route")
 
                 assertTrue(kernel.startsWith("portable-dense+"), "$line on ${engine.name} named $kernel")
-                // Every one of these shapes is past the crossover its route needs, so a row naming no
-                // block and no substitution would mean the case reached a route it was not chosen for.
+                // Every shape is past the crossover its route needs, so a row naming no block and no
+                // substitution would mean the case reached a route it was not chosen for.
                 assertTrue(
                     "/product-block" in kernel || "/diagonal-solve" in kernel || "/diagonal-multiply" in kernel,
                     "$line on ${engine.name} named $kernel",
@@ -91,14 +79,8 @@ class DenseTest {
         }
     }
 
-    /**
-     * A fact that changes what runs changes the row, on the arm that owns the kernels it changes.
-     *
-     * The two solves below are the same shape on the same engine and differ only in their side. A left one
-     * leaves its right-hand sides strided and the vector backend gathers a block of them; a right one finds
-     * them adjacent and gathers nothing. A row that did not carry the side would publish one of those two
-     * under the other's name.
-     */
+    // The two solves are the same shape on the same engine and differ only in their side: a left one leaves
+    // its right-hand sides strided and the backend gathers them, where a right one finds them adjacent.
     @OptIn(KoblasEngineApi::class)
     @Test
     fun `a triangular row names the gather its side decides`() {
@@ -114,12 +96,8 @@ class DenseTest {
         assertTrue("diagonal-solve" in left && "diagonal-solve" in right, "$left and $right")
     }
 
-    /**
-     * The packing row names preparation, and the prepacked rows name the packing they still do.
-     *
-     * The three retained entry points are three different amounts of work, and a reader comparing them with
-     * the packing-only row has to be able to tell which is which from the row itself.
-     */
+    // The three retained entry points are three different amounts of work, and a reader comparing them with
+    // the packing-only row has to tell which is which from the row itself.
     @OptIn(KoblasEngineApi::class)
     @Test
     fun `the packed rows say which copies they still make`() {
@@ -142,12 +120,8 @@ class DenseTest {
         )
     }
 
-    /**
-     * The generic product is a default-policy row and is declined on every arm but the selected engine's.
-     *
-     * A caller holding a `Matrix` has no engine to pass, so timing it under another arm's label would
-     * publish that label over the selected engine's work.
-     */
+    // A caller holding a `Matrix` has no engine to pass, so timing the generic product under another arm's
+    // label would publish that label over the selected engine's work.
     @OptIn(KoblasEngineApi::class)
     @Test
     fun `the generic product is timed once on the arm whose engine is the selected one`() {
@@ -168,17 +142,12 @@ class DenseTest {
 
     private companion object {
         /**
-         * One case of each structured and triangular entry point, in both of the orientations it has.
+         * One case of each structured and triangular entry point, in both orientations. Deliberately smaller
+         * than the shapes the workload carries, since each case's preflight costs the cube of the order and
+         * what is under test is which facts reach the route.
          *
-         * Smaller than the shapes the workload carries, and deliberately. What is under test here is that
-         * a case passes the facts its route is built from, which the smallest shape that still takes the
-         * route shows as well as a large one; building each case runs its numerical preflight against the
-         * naive oracle, whose cost is the cube of the order. The shipped shapes are exercised by a capture
-         * against the harness, where the timing is the point and the preflight is paid once.
-         *
-         * Each order below is past the crossover its route needs: a square of forty-eight is packed into
-         * tiles on every backend here, and a triangle of ninety-six is more than one diagonal block, so a
-         * product runs between them.
+         * Each order is past the crossover its route needs: a square of forty-eight is packed into tiles on
+         * every backend here, and a triangle of ninety-six is more than one diagonal block.
          */
         val STRUCTURED_CASES = listOf(
             "gemmt+48x48+uniform+uplo=L+transA=N+transB=N",

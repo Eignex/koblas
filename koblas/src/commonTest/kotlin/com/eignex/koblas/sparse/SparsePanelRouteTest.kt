@@ -12,16 +12,8 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
-/**
- * That a sparse route names the panel bodies the call actually ran.
- *
- * A route claims something about the runs of stored entries a call hands over, and checking that means
- * recording what was handed over rather than reasoning from a column's length: a triangular routine passes
- * the strictly triangular part of a column, a symmetric one passes the selected part in one coupled pass,
- * a product passes the whole column, and a matrix can store nothing that any of them selects. The backend
- * below writes down every run it is given and computes with the portable bodies, so the comparison is
- * between the route and the execution.
- */
+// A route is compared against the runs a recording backend was actually handed, not against a column's
+// length: what a call selects from a column differs by routine and can be empty.
 class SparsePanelRouteTest {
 
     @Test
@@ -124,13 +116,8 @@ class SparsePanelRouteTest {
         }
     }
 
-    /**
-     * A triangle storing only its diagonal hands over nothing, so no panel body runs and none is named.
-     *
-     * Naming one here would be the whole failure this check exists for: the columns are not empty, and a
-     * route that read their lengths rather than their selected runs would report a body, on a vector
-     * backend a vector one, for arithmetic that never happened.
-     */
+    // The columns are not empty, so a route that read their lengths rather than their selected runs would
+    // name a body for arithmetic that never happened.
     @Test
     fun `a diagonal only triangle reaches no panel at all`() {
         val recorder = RecordingRhsPanels()
@@ -150,7 +137,6 @@ class SparsePanelRouteTest {
         assertEquals(RouteKind.Direct, route.kind)
     }
 
-    /** A matrix storing only the triangle this call does not select is the same question from the other side. */
     @Test
     fun `a matrix storing only the unselected triangle reaches no panel at all`() {
         val recorder = RecordingRhsPanels()
@@ -179,12 +165,6 @@ class SparsePanelRouteTest {
         assertEquals(emptyList(), panelBodies(route), "an unselected triangle named a panel body")
     }
 
-    /**
-     * A last group narrower than the recommendation, and a backend whose body depends on the width.
-     *
-     * The route asks about both widths a call cuts, so a short last group that reaches a different body is
-     * named beside the full ones and the call is published as the composition it is.
-     */
     @Test
     fun `a short last group of right hand sides is named beside the full ones`() {
         val recorder = RecordingRhsPanels(group = 4, minimumRows = 4)
@@ -216,13 +196,8 @@ class SparsePanelRouteTest {
         assertEquals(RouteKind.Composed, route.kind)
     }
 
-    /**
-     * The same question for a traversal that runs the other way.
-     *
-     * A triangular multiply walks its columns from the far end where a solve walks them from the near one,
-     * so a route that always scanned forward would name the same two bodies in the reverse of the order
-     * they ran. First-seen order is what a component list promises, so the check is the list itself.
-     */
+    // A multiply walks its columns from the far end where a solve walks them from the near one, so a route
+    // that always scanned forward would name the two bodies in the reverse of the order they ran.
     @Test
     fun `a count sensitive backend names the bodies of a reversed traversal in the order they ran`() {
         for (solve in booleanArrayOf(true, false)) {
@@ -256,48 +231,6 @@ class SparsePanelRouteTest {
         }
     }
 
-    /**
-     * A backend whose choice of body depends on how many stored entries a run holds.
-     *
-     * Neither shipped backend asks that question today, and a route that assumed so would be reporting the
-     * whole column's length for a run that is shorter. The fixture's columns straddle the threshold.
-     */
-    @Test
-    fun `a count sensitive backend names every body its runs reached`() {
-        val recorder = RecordingRhsPanels(entryThreshold = 3)
-        val engine = engineWith(recorder)
-        val order = 24
-        val columns = List(order) { j ->
-            // Short columns and long ones alternate, so the runs straddle the backend's threshold.
-            if (j % 2 == 0) {
-                listOf(j to 2.0 + j) + (j + 1 until order).map { it to 1.0 }
-            } else {
-                listOf(j to 2.0 + j) + (minOf(j + 1, order - 1) until order).map { it to 0.5 }
-            }
-        }
-        val t = SparseMatrix.ofColumns(
-            order,
-            order,
-            columns.map { it.distinctBy { e -> e.first }.sortedBy { e -> e.first } },
-        )
-        val b = dense(order, SIDES, Random(20261017))
-
-        engine.trsm(t, b, true, false, false, false, 0.875, Workspace())
-        val route = engine.routeOf(
-            SparseMatrixOperation.TrsmLeft,
-            SparseCall(t, 0.875, destinationElements = b.values.size, rightHandSides = SIDES, lower = true),
-        )
-
-        assertTrue(recorder.bodies().size > 1, "the fixture reached one body: ${recorder.runs}")
-        assertEquals(recorder.bodies(), panelBodies(route))
-    }
-
-    /**
-     * A single right-hand side is the panel's arithmetic written out, and the route says so.
-     *
-     * The answer is the same either way, so what this checks is the attribution: no panel body ran, and
-     * naming one would be reporting a seam the traversal did not use.
-     */
     @Test
     fun `a single right hand side names no panel body`() {
         val recorder = RecordingRhsPanels()
@@ -319,13 +252,6 @@ class SparsePanelRouteTest {
         assertEquals(1, route.executionGroup)
     }
 
-    /**
-     * The same answer whichever path a call takes, to the rounding a grouped sum is allowed.
-     *
-     * A panel sums a column's entries in its own grouping and the written-out column sums them as it reaches
-     * them, which is the reassociation every grouped product here may make; what may not differ is which
-     * products were formed or where they landed.
-     */
     @Test
     fun `a single right hand side agrees with the panel over the same operand`() {
         val engine = engineWith(AdjacentPreferringPanels())
@@ -354,13 +280,6 @@ class SparsePanelRouteTest {
         }
     }
 
-    /**
-     * A triangular routine writes out one right-hand side too, and its route says so.
-     *
-     * What the panel keeps for a group, the liveness of each right-hand side, is one branch here, so there
-     * is nothing left for the seam to carry. Both directions are checked because they are different leaves:
-     * one spreads a finished pivot and the other reduces into it.
-     */
     @Test
     fun `a triangular call writes out one right hand side`() {
         for (solve in booleanArrayOf(true, false)) {
@@ -397,13 +316,6 @@ class SparsePanelRouteTest {
         }
     }
 
-    /**
-     * A triangular column written out agrees with the same column through a panel, in both directions.
-     *
-     * The written-out leaf carries the substitution's own rules, the skip and the raw-value liveness, as
-     * well as its arithmetic, so what it has to match is the panel over right-hand sides that are all live,
-     * which is where the panel and the traversal are specified to agree.
-     */
     @Test
     fun `a single right hand side agrees with the triangular panel`() {
         val engine = engineWith(AdjacentPreferringPanels())
@@ -443,13 +355,8 @@ class SparsePanelRouteTest {
         }
     }
 
-    /**
-     * A product whose last group holds one right-hand side runs that group written out and the full ones
-     * through panels, and the route names both halves.
-     *
-     * The tail is the case a bypass written as a property of the whole call would get wrong: the call is
-     * neither all panel nor all traversal.
-     */
+    // A tail of one is neither all panel nor all traversal, which a bypass written as a property of the
+    // whole call would get wrong.
     @Test
     fun `a product with a last group of one names the panels and the written out tail`() {
         for (symmetric in booleanArrayOf(false, true)) {
@@ -489,14 +396,8 @@ class SparsePanelRouteTest {
         }
     }
 
-    /**
-     * The same tail for a triangular routine, in both directions, with the liveness rule named beside it.
-     *
-     * The scattering direction's panel is not unconditional the way a product's is: a group whose
-     * right-hand sides are all live reaches the leaf and a group holding a zero keeps the written-out loop
-     * that skips it, so the route has to say both or a reader would take the named body for one that always
-     * runs. The gathering direction has no such rule, and its route may not claim one.
-     */
+    // The scattering direction's panel is conditional on every right-hand side being live, so its route has
+    // to say so; the gathering direction has no such rule and may not claim one.
     @Test
     fun `a triangular call with a last group of one names the panels the tail and the liveness rule`() {
         for (solve in booleanArrayOf(true, false)) {
@@ -537,14 +438,8 @@ class SparsePanelRouteTest {
         }
     }
 
-    /**
-     * A symmetric column is one coupled pass over its selected run, and the route names one body for it.
-     *
-     * The fixture is what separates that from the two-pass shape it replaced: one column stores every row,
-     * so its selected run and its strictly triangular run are different lengths, and a backend whose body
-     * depends on the length answers differently for the two. A route that still enumerated both would name
-     * a second body for a call that is never made.
-     */
+    // The one stored column's selected run and its strictly triangular run are different lengths, so a
+    // count-sensitive backend answers differently for the two and a route enumerating both would show it.
     @Test
     fun `a symmetric column names one body for its coupled run`() {
         val recorder = RecordingRhsPanels(group = 4, minimumRows = 1, entryThreshold = 3)
@@ -645,14 +540,7 @@ class SparsePanelRouteTest {
         },
     )
 
-    /**
-     * A triangle whose strictly triangular runs straddle a count-sensitive backend's threshold, with the
-     * short runs at the end the traversal reaches last.
-     *
-     * The first half of the columns hold long runs and the second half short ones, in the order a forward
-     * traversal meets them, so a solve and a multiply over the same matrix reach the two bodies in opposite
-     * orders.
-     */
+    /** Long runs in the first half of the columns and short ones in the second, straddling the threshold. */
     private fun straddling(order: Int, lower: Boolean): SparseMatrix = SparseMatrix.ofColumns(
         order,
         order,
@@ -690,10 +578,7 @@ class SparsePanelRouteTest {
     }
 }
 
-/**
- * One run of stored entries handed to a panel: how many right-hand sides, how many entries, and which of
- * the two sparse panel shapes it was, since a backend may answer differently for each.
- */
+/** One run of stored entries handed to a panel. */
 internal data class RecordedRun(val rows: Int, val columns: Int, val contiguous: Boolean, val work: PanelWork)
 
 /** A backend that writes down every run it is handed and computes with the portable bodies. */

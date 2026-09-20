@@ -37,13 +37,8 @@ class StridedViewsTest {
         assertContentEquals(doubleArrayOf(2.0, 2.0, 6.0, 4.0, 10.0, 6.0, 14.0, 8.0), backing)
     }
 
-    /**
-     * Taking a view of a view addresses what the outer one addressed.
-     *
-     * `DenseVector` covers both spacings, so these are reached with a strided receiver as readily as an owned
-     * one. Building the result from the buffer alone would move the window silently: every entry read would
-     * still be in range and no call would fail, the answer would just be about different numbers.
-     */
+    // Building the result from the buffer alone would move the window silently: every entry read would still
+    // be in range and no call would fail, the answer would just be about different numbers.
     @Test
     fun `a view of a strided vector composes with the window it already had`() {
         val backing = DoubleArray(12) { it.toDouble() }
@@ -53,15 +48,9 @@ class StridedViewsTest {
         assertContentEquals(doubleArrayOf(4.0, 8.0), outer.view(offset = 1, size = 2, stride = 2).toDoubleArray())
     }
 
-    /**
-     * The reachable form of the same mistake: a rotation through the general overload.
-     *
-     * `rot(x: DenseVector, y: DenseVector, c, s)` takes a view of each operand before rotating, so a view that
-     * forgot its receiver would rotate the padding instead of the window and report nothing. The run is wide
-     * enough to vectorise under every platform's preferred species, so the kernel under test is the one
-     * production reaches rather than a scalar tail; that kernel fuses its multiply and add, so only the
-     * padding, which no arithmetic touches, is compared exactly.
-     */
+    // `rot` takes a view of each operand before rotating, so a view that forgot its receiver would rotate the
+    // padding and report nothing. The run vectorises everywhere, and that kernel fuses its multiply and add,
+    // so only the padding is compared exactly.
     @Test
     fun `a rotation over strided operands touches only the entries they address`() {
         val rng = Random(20260916)

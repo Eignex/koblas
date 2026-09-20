@@ -16,16 +16,8 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
-/**
- * The Level 3 routines whose destination or whose operand is a triangle, over the blocks they are scheduled
- * with.
- *
- * Two routes and two structures meet here, so the shapes are derived from the resolved backend rather than
- * written down: whether a window is packed into tiles depends on the tile the engine chose, and a fixture
- * with a fixed small extent would take the packed route on a machine with a narrow tile and the unpacked one
- * on a wider machine without either being noticed. Every shape below states which route it means and checks
- * that it got it.
- */
+// Shapes are derived from the resolved backend rather than written down: a fixed extent takes the packed
+// route on a narrow tile and the unpacked one on a wide machine, so every shape checks which it got.
 class StructuredProductTest {
     private val rng = Random(20261102)
 
@@ -104,14 +96,8 @@ class StructuredProductTest {
         }
     }
 
-    /**
-     * Every entry of the opposite triangle survives a call that writes the selected one.
-     *
-     * A NaN standing there is what makes this a check rather than a coincidence: a block or a tile that
-     * wrote outside the selection would leave a number where one is not allowed, and one that read outside
-     * it would carry the NaN into the result. Both routes and both triangles, since the packed one masks at
-     * the tile and the unpacked one shortens each destination column.
-     */
+    // A NaN outside the selection catches both a write outside it and a read of it; both routes, since the
+    // packed one masks at the tile and the unpacked one shortens each destination column.
     @Test
     fun `a selected-triangle product leaves the opposite triangle exactly as it found it`() = withDenseBlas { blas ->
         for ((order, depth) in shapes()) {
@@ -137,15 +123,8 @@ class StructuredProductTest {
         }
     }
 
-    /**
-     * A depth cut into several blocks still spends the destination multiplier once.
-     *
-     * Both halves of that have to be true of the same call, so the shape is derived from the backend until
-     * it is packed and then pushed past one cache block of depth, and the blocks the schedule produces are
-     * recorded and checked before anything is asserted about the result. A fixture that only looked large
-     * would take the unpacked route on a machine with a wider tile, where the depth is never cut at all and
-     * the property under test never arises.
-     */
+    // The shape is grown until it is packed and then pushed past one cache block of depth, and the blocks
+    // the schedule produced are checked first: on a wider tile the depth would never be cut at all.
     @Test
     fun `beta reaches a selected entry once however the depth is cut`() = withProducts { products ->
         val order = blockedOrder(products)
@@ -195,12 +174,8 @@ class StructuredProductTest {
         }
     }
 
-    /**
-     * A rank update whose operand is its destination, at a shape that is packed into tiles.
-     *
-     * The staged copy is what the packers read, so an order small enough to take the unpacked route would
-     * leave the packed one unchecked against the alias it is allowed to have.
-     */
+    // The staged copy is what the packers read, so an order small enough to take the unpacked route would
+    // leave the packed one unchecked against the alias it is allowed to have.
     @Test
     fun `a packed rank update over its own destination agrees with the oracle`() = withProducts { products ->
         val order = packedSquareOrder(products)
@@ -226,14 +201,8 @@ class StructuredProductTest {
         }
     }
 
-    /**
-     * A rank-2k update scales each of the two products it is composed of, separately.
-     *
-     * The two sums at the entry below are zero and one, so an infinite multiplier tells the composition
-     * apart from a fused traversal: composing gives `∞·0 + ∞·1`, which is a NaN, and fusing would give
-     * `∞·(0 + 1)`, which is an infinity. This library promises the first, and a finite random fixture
-     * cannot tell which of the two it got.
-     */
+    // The two sums at the entry below are zero and one, so an infinite multiplier tells composing (`∞·0 +
+    // ∞·1`, a NaN, which is promised) from fusing (`∞·(0 + 1)`, an infinity).
     @Test
     fun `a rank two-k update scales each of its two products separately`() = withDenseBlas { blas ->
         val a = DenseMatrix.wrap(2, 1, doubleArrayOf(1.0, 0.0))
@@ -248,16 +217,8 @@ class StructuredProductTest {
         )
     }
 
-    /**
-     * A product window touches its own window and nothing around it, wherever the caller put it.
-     *
-     * Offsets and leading dimensions past the extents are how a structured algorithm hands over a strip of
-     * a triangle or a block of its own right-hand sides, so the scheduling has to be exact about both: an
-     * off-by-one in an offset, a leading dimension read as an extent, or a selected triangle applied to the
-     * window's coordinates instead of the destination's all show up here and nowhere in a result that is
-     * only compared against an oracle. Every entry outside the window carries a guard, including the rows a
-     * leading dimension leaves between one column and the next.
-     */
+    // Offsets and leading dimensions past the extents are how a structured algorithm hands over a strip, and
+    // every entry outside the window carries a guard, including the rows between one column and the next.
     @Test
     fun `a product window writes only inside the offsets and the triangle it was given`() = withProducts { products ->
         for (selected in listOf(OutputTriangle.Full, OutputTriangle.Lower, OutputTriangle.Upper)) {
@@ -424,13 +385,8 @@ class StructuredProductTest {
         assertClose(expected.values, aliased.values, "symm into its own dense operand", TOLERANCE)
     }
 
-    /**
-     * A structured call with no output returns before it stages anything.
-     *
-     * Every operand here shares one empty array, so a call that tested for an alias before testing for an
-     * empty destination would take a staging loan for a result that does not exist. The shapes are legal
-     * and the answers are all "nothing to do", which is the case a validation-then-stage order gets wrong.
-     */
+    // Every operand shares one empty array, so a call testing for an alias before testing for an empty
+    // destination would take a staging loan for a result that does not exist.
     @Test
     fun `a structured call with no output borrows nothing`() = withDenseBlas { blas ->
         val workspace = Workspace()
@@ -450,12 +406,7 @@ class StructuredProductTest {
         assertEquals(0, workspace.idleLengths(), "a call with no output borrowed scratch it had no use for")
     }
 
-    /**
-     * The route names the tiles the blocks reached and the merge the straddling ones needed.
-     *
-     * Run under a recorder, so the claim is checked against the blocks the schedule produced rather than
-     * against the extents it was asked about.
-     */
+    // Run under a recorder, so the claim is checked against the blocks the schedule produced.
     @Test
     fun `a selected-triangle route names the blocks the call really cut`() = withProducts { products ->
         val panels = panelsFor(products)
@@ -476,12 +427,6 @@ class StructuredProductTest {
         }
     }
 
-    /**
-     * A rank-2k route says it composes two products rather than fusing one traversal.
-     *
-     * The composition is a measured choice rather than a fused traversal, so the route says so rather
-     * than leaving a reader to infer one product from one operation name.
-     */
     @Test
     @OptIn(KoblasEngineApi::class)
     fun `a rank two-k route reports the composition it is`() {
@@ -541,10 +486,8 @@ internal fun withProducts(body: (DenseProductKernels) -> Unit) {
 internal fun defaultProducts(): DenseProductKernels = BuiltinEngines.simd?.productKernels ?: PortableProductKernels
 
 /**
- * A destination order past several of this backend's tiles and one row short of a whole number of them.
- *
- * Read from the backend rather than written down, because a fixed order fills a narrow tile exactly and
- * leaves a wide one short, and the edge is the case the selected writeback exists for.
+ * A destination order past several of this backend's tiles and one row short of a whole number of them,
+ * read from the backend because a fixed order fills a narrow tile exactly and leaves a wide one short.
  */
 internal fun blockedOrder(products: DenseProductKernels): Int = 4 * maxOf(products.tileRows, products.tileColumns) + 1
 
@@ -561,10 +504,8 @@ internal fun blockedDepth(products: DenseProductKernels, order: Int): Int {
 private const val MAXIMUM_FIXTURE_DEPTH = 4096
 
 /**
- * A square order at which a product of it by itself is packed, and which leaves a row edge.
- *
- * A rank update's operand and its destination can share a buffer only where the two have the same shape, so
- * the packed alias case needs an order whose cube is past the packing crossover rather than a rectangle.
+ * A square order at which a product of it by itself is packed and which leaves a row edge; a rank update's
+ * operand can share its destination only at one shape, so the packed alias case cannot use a rectangle.
  */
 internal fun packedSquareOrder(products: DenseProductKernels): Int {
     var order = blockedOrder(products)

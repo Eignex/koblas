@@ -11,11 +11,9 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 /**
- * What a library has to satisfy before a caller reaches it, and what survives a caller's mistake.
- *
- * These run on every target, so the Native binding's pinning and cleanup are covered as well as the JVM's
- * transfers. The rules that do not need a library to exercise are tested against the rule itself, because a
- * host that happens to have a library missing exactly the right symbol is not something a test can rely on.
+ * What a library has to satisfy before a caller reaches it, and what survives a caller's mistake. The rules
+ * that do not need a library are tested against the rule itself, since a host that happens to have one
+ * missing exactly the right symbol is not something a test can rely on.
  */
 class VendorLoadingTest {
     private fun installed(): Blas? = openBlas()

@@ -12,18 +12,15 @@ import com.eignex.koblas.testutil.allocation.bytesPerCall
 /**
  * Runs allocation checks for the Vector API indexed sparse paths in an uninstrumented JVM.
  *
- * Kover's test instrumentation prevents HotSpot from scalar-replacing Vector API carriers, so this intentionally
- * runs through the `simdSparseAllocationCheck` Gradle task instead of a test task.
+ * Kover's test instrumentation prevents HotSpot from scalar-replacing Vector API carriers, so this
+ * intentionally runs through the `simdSparseAllocationCheck` Gradle task instead of a test task.
  *
- * Three kinds of probe. The indexed Level 1 leaves are the oldest and are still here; the two indexed panel
- * leaves are where a group of right-hand sides is computed; and the whole sparse operations around them are
- * what a caller writes, which a panel measured on its own cannot speak for. Each whole operation is handed a
- * warmed workspace, because that is the contract a repeated call is held to: the scratch it borrows comes
- * back and is lent again rather than allocated per call.
+ * Three kinds of probe: the indexed Level 1 leaves, the two indexed panel leaves, and the whole sparse
+ * operations around them, which a panel measured on its own cannot speak for. Each whole operation is handed
+ * a warmed workspace, which is the contract a repeated call is held to.
  *
- * Whether a body allocates depends on the width of the species and on whether a multiply-add is one
- * instruction, and both are fixed when the virtual machine starts, so the Gradle tasks run this in three
- * configurations rather than trusting one.
+ * Whether a body allocates depends on the species width and on whether a multiply-add is one instruction,
+ * both fixed at virtual machine start, so the Gradle tasks run this in three configurations.
  */
 internal object SimdSparseAllocationCheck {
     internal const val ENTRY_COUNT = 512
@@ -115,11 +112,9 @@ internal object SimdSparseAllocationCheck {
                 )
                 block[0]
             }
-            // The coupled pass reads one window and writes two, so it holds more live vectors than either
-            // of the two it fuses and is the one most likely to spill.
+            // The coupled pass holds more live vectors than either of the two it fuses, so it spills first.
             val source = DoubleArray(block.size) { 0.5 + (it % 11) * 0.125 }
-            // A row of the panel, which is where a symmetric column's mirrored half lands: as many entries
-            // as there are right-hand sides, spaced the way the panel spaces them.
+            // A row of the panel, where a symmetric column's mirrored half lands.
             val sums = DoubleArray(PANEL_SIDES * rowStride)
             assertAllocationFree("indexed coupled update over $layout right-hand sides") {
                 panels.indexedCoupledUpdate(
@@ -139,11 +134,8 @@ internal object SimdSparseAllocationCheck {
     }
 
     /**
-     * The whole sparse operations a caller writes, each with a warmed workspace.
-     *
-     * The products are run in both orientations because they are different schedules, and the symmetric and
-     * triangular routines on both sides for the same reason. A fresh CSC result is not here: that call owns
-     * the arrays it returns, so its allocation is its answer rather than a leak.
+     * The whole sparse operations a caller writes, each with a warmed workspace, in both orientations since
+     * those are different schedules. A fresh CSC result is not here: its allocation is its answer.
      */
     private fun checkOperations(engine: KoblasEngine) {
         val a = banded(ORDER, ORDER, 12)

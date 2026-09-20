@@ -8,12 +8,9 @@ import kotlin.random.Random
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
-// The product block contract, over any implementation. Every backend has to satisfy it at every extent,
-// including extents that do not fill its tile, so the assertions live here rather than beside one of them.
-//
-// The packed operands below are built from the index formula the contract states, written out again rather
-// than taken from the production packer. A block read through the same code that wrote it would agree with
-// itself whatever either of them did.
+// The product block contract, over any implementation, at every extent including ones that do not fill a
+// tile. The packed operands are built from the contract's index formula rather than the production packer,
+// since a block read through the code that wrote it would agree with itself whatever either did.
 
 /** Guard entries around and inside the destination buffer, so an implementation that overruns fails. */
 private const val GUARD = 3
@@ -133,12 +130,7 @@ internal fun assertEmptyProductBlockReadsNothing(kernels: DenseProductKernels) {
     }
 }
 
-/**
- * That a poisoned destination is overwritten rather than multiplied, which is what a zero beta means.
- *
- * A NaN standing in the output would survive `0.0 * NaN`, so this is the difference between the contract and
- * an arithmetic shortcut that looks like it.
- */
+/** That a zero beta overwrites rather than multiplies, which `0.0 * NaN` would not. */
 internal fun assertZeroBetaOverwritesPoison(kernels: DenseProductKernels) {
     val rows = kernels.tileRows + 1
     val columns = kernels.tileColumns + 1
@@ -163,11 +155,9 @@ internal fun assertZeroBetaOverwritesPoison(kernels: DenseProductKernels) {
 }
 
 /**
- * That a retained panel is read in depth slices, which is what the group stride is for.
- *
- * The panels here are packed over the whole shared dimension once, as a retained operand is, and the block
- * reads a window of it. Accumulating the slices in turn has to reach the same product as one whole block,
- * with beta carried by the first of them.
+ * That a retained panel is read in depth slices, which is what the group stride is for: the panels are
+ * packed over the whole shared dimension once, and accumulating the slices in turn has to reach the same
+ * product as one whole block, with beta carried by the first.
  */
 internal fun assertDepthSlicesAccumulate(kernels: DenseProductKernels) {
     val rng = Random(20261004)

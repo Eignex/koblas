@@ -153,14 +153,8 @@ class CasesTest {
         assertEquals(listOf(0, 3, 6, 9, 12, 15), sparse.copyColumnPointers().toList())
     }
 
-    /**
-     * The dense operand's storage is a fact about a sparse product and about nothing else here.
-     *
-     * A sparse product against a dense block can take that block either way round, and which way it is
-     * stored decides whether a group of right-hand sides is adjacent rows or adjacent columns. The other
-     * sparse operations have no such operand, or no flag for it on the entry point the case calls, so the
-     * option is refused there rather than parsed and ignored.
-     */
+    // How the dense block is stored decides whether a group of right-hand sides is adjacent rows or adjacent
+    // columns; the other sparse operations have no such operand, so the option is refused there.
     @Test
     fun `a transposed dense operand is accepted only where a sparse product takes one`() {
         for (operation in listOf("spmm", "spmm-generic")) {

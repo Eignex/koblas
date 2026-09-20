@@ -9,11 +9,6 @@ import kotlin.test.*
 @Suppress("VariableNaming") // single-letter matrix and vector names track math conventions
 class MatrixOpsTest {
     private fun dense(vararg values: Double) = DenseVector.of(values)
-    private fun sparse(size: Int, vararg entries: Pair<Int, Double>) = SparseVector.of(
-        size,
-        entries.map { it.first }.toIntArray(),
-        entries.map { it.second }.toDoubleArray(),
-    )
 
     @Test
     fun `the gemv overload computes A x`() {
@@ -39,8 +34,7 @@ class MatrixOpsTest {
             doubleArrayOf(0.0, 0.5, 1.5),
         )
         val dense = DenseMatrix.ofRows(entries)
-        // The same vector laid out adjacently and every second entry: both are dense, and the spacing is all
-        // the vendor is told apart from the pointer, so a product must not depend on which one it was given.
+        // Adjacent and every second entry: the spacing is all a vendor is told apart from the pointer.
         val vectors = listOf<Pair<DenseVector, DoubleArray>>(
             DenseVector.of(doubleArrayOf(2.0, -1.0, 0.5)) to doubleArrayOf(3.0, 0.0, -10.0, 0.25),
             StridedVector(doubleArrayOf(2.0, 99.0, -1.0, 99.0, 0.5), 0, 3, 2) to
@@ -121,8 +115,7 @@ class MatrixOpsTest {
 
     @Test
     fun `symvInto over one triangle agrees with the full ger sweep`() {
-        // The point of the routine: a caller can keep its matrix with syr, which writes one triangle, and
-        // still take products against it.
+        // A caller can keep its matrix with syr, which writes one triangle, and still take products with it.
         val n = 4
         val rng = Random(17)
         val x = randomVector(n, rng)
@@ -155,8 +148,7 @@ class MatrixOpsTest {
             for (symmetric in booleanArrayOf(false, true)) {
                 val destination = doubleArrayOf(1.0, 2.0, 3.0)
                 val original = destination.copyOf()
-                // The source reads the destination's own array, forwards or backwards, so a call that scales
-                // the destination before reading its input would see the scaled values instead.
+                // A call that scaled the destination before reading its input would see the scaled values.
                 val source =
                     if (reversed) StridedVector(destination, 2, 3, -1) else StridedVector(destination, 0, 3, 1)
                 val expected = DoubleArray(3) { source[it] + 0.5 * original[it] }

@@ -4,8 +4,8 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 
 /**
- * The resolution rule the dense and sparse tuning collections share, exercised on the decision itself
- * rather than through a process whose environment a test would have to rewrite.
+ * The resolution rule the dense and sparse tuning collections share, exercised on the decision itself rather
+ * than through a process whose environment a test would have to rewrite.
  */
 class TuningTest {
     @Test

@@ -5,14 +5,9 @@ import kotlin.test.Test
 import kotlin.test.assertTrue
 
 /**
- * The seams a caller may run inside a hot loop without the collector noticing.
- *
- * Level 1 and the sparse primitives take raw arrays and offsets precisely so a caller sweeping a matrix can
- * reach them per sub-range without wrapping anything, and this is what holds them to it. Level 2 and 3 make no
- * such promise on their own. The sparse matrix algorithms do, given a workspace: their staging, accumulator
- * and panel scratch are loans, so a repeated call over the same shapes reuses them instead of allocating. An
- * operation that discovers a new structure, such as a fresh CSC product, allocates its result by definition
- * and is not measured here.
+ * The seams a caller may run inside a hot loop without the collector noticing: Level 1 and the sparse
+ * primitives unconditionally, and the matrix algorithms given a workspace to take their scratch from. An
+ * operation that discovers a new structure allocates its result by definition and is not measured here.
  */
 class AllocationFreeTest {
 
@@ -45,12 +40,9 @@ class AllocationFreeTest {
     }
 
     /**
-     * The dense Level 2 callers a user writes, on the portable panels.
-     *
-     * Kover's instrumentation keeps HotSpot from scalar-replacing a Vector API carrier, so the same calls on
-     * the vector panels are measured by the `simdDenseAllocationCheck` task in an uninstrumented JVM instead.
-     * What this covers is the scheduling around them: a staging copy, an operand wrapper made for a shape
-     * check, or a source copy inside a triangular multiply would all show up here.
+     * The dense Level 2 callers a user writes, on the portable panels. Kover's instrumentation keeps HotSpot
+     * from scalar-replacing a Vector API carrier, so the vector panels are measured by the
+     * `simdDenseAllocationCheck` task instead; what this covers is the scheduling around them.
      */
     @Test
     fun `dense level two calls allocate nothing`() {
@@ -101,11 +93,7 @@ class AllocationFreeTest {
         assertTrue(trsv <= FLOOR_BYTES, "trsv allocated $trsv B per call")
     }
 
-    /**
-     * The public convenience callers, which take a vector rather than an array.
-     *
-     * A contiguous vector is its array already and is passed through, so these allocate nothing.
-     */
+    /** The convenience callers, which pass a contiguous vector through as the array it already is. */
     @Test
     fun `contiguous convenience calls allocate nothing`() {
         val n = 128
@@ -127,13 +115,8 @@ class AllocationFreeTest {
     }
 
     /**
-     * A strided operand is a window, and the array entry point it reaches has to be handed one array, so the
-     * gather is real and is measured rather than wished away.
-     *
-     * The bound is an upper one rather than an equality, because a later stage that addressed a step without
-     * gathering would be an improvement and should not have to change a test to land. The probe is told what
-     * to expect so it stops as soon as it sees it, instead of waiting out every window for a target this call
-     * cannot reach.
+     * A strided operand is gathered into an array, which is measured rather than wished away. The bound is
+     * an upper one, because addressing a step without gathering would be an improvement.
      */
     @Test
     fun `a strided convenience operand is gathered once per call`() {
@@ -153,11 +136,8 @@ class AllocationFreeTest {
     }
 
     /**
-     * A dense Level 3 call lent a workspace, which is where its staging and its right-hand side come from.
-     *
-     * Without one these allocate by design: a solve gathers each right-hand side and a multiply copies it
-     * again as its source. With one, and after a warm call has made the loans exist, a repeated call over
-     * the same shape asks for the same buffers and allocates nothing.
+     * A dense Level 3 call lent a workspace. Without one these allocate by design: a solve gathers each
+     * right-hand side and a multiply copies it again as its source.
      */
     @Test
     fun `dense level three calls reuse a workspace`() {
@@ -185,11 +165,8 @@ class AllocationFreeTest {
     }
 
     /**
-     * The matrix product on both of its routes, at a depth that fits one block and one that does not.
-     *
-     * A lent workspace is what makes the blocked route allocation-free: the two packed panels are loans, so
-     * a repeated product over one shape reuses them. A retained pair of panels borrows nothing at all, since
-     * there is no copy left to make, and the small product takes the panel route which copies nothing either.
+     * The matrix product on both of its routes, at a depth that fits one block and one that does not. The
+     * blocked route's two packed panels are loans; a retained pair borrows nothing, having no copy left.
      */
     @Test
     fun `matrix products reuse a workspace at both depths`() {
@@ -232,11 +209,8 @@ class AllocationFreeTest {
     }
 
     /**
-     * The one buffer an unpacked product takes when it is lent no workspace.
-     *
-     * It accumulates a destination column before spending the multipliers on it, which is what keeps alpha
-     * on a sum of products rather than on each coefficient. With a workspace that column is a loan, as the
-     * test above shows; without one it is an allocation per call, and this is what says how big.
+     * The one buffer an unpacked product takes when it is lent no workspace: the destination column it
+     * accumulates before spending the multipliers, which is what keeps alpha on a sum of products.
      */
     @Test
     fun `an unpacked product without a workspace takes one destination column`() {

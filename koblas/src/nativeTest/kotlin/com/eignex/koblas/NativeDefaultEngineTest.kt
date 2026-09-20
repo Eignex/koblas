@@ -1,6 +1,5 @@
-// Backtick test names are this repository's convention, and detekt's default exclusions for them cover the
-// standard test paths but not `nativeTest`. Stated here rather than changed in the shared lint configuration,
-// which is the convention plugin's. Nothing else is relaxed: every case below carries its own documentation.
+// detekt exempts backtick test names and undocumented test functions on the standard test paths only, and
+// this is not one of them, so each case below carries its own KDoc.
 @file:Suppress("FunctionNaming")
 
 package com.eignex.koblas
@@ -15,16 +14,11 @@ import kotlin.test.assertNotEquals
 import kotlin.test.assertTrue
 
 /**
- * What this platform's default actually does with an installed library, which nothing common can ask.
+ * What this platform's default does with an installed library. Kotlin/Native is the one platform whose
+ * default composes a host library into ordinary dense Level 2 and 3 calls, and the portable schedule
+ * computes the same answers, so these read the route rather than the numbers.
  *
- * Kotlin/Native is the one platform whose default composes a host library into ordinary dense Level 2 and 3
- * calls, because its own arithmetic there is scalar and stays scalar. Everything else in the suite would pass
- * with the composition missing, since the portable schedule computes the same answers; these cases read the
- * route instead, so a default that quietly stopped reaching the library fails here.
- *
- * Every case says what it could not check where no library is installed, rather than passing silently. That
- * is the same host this library is expected to work on with nothing installed at all, and the portable
- * assertions below run there either way.
+ * Every case says what it could not check where no library is installed, rather than passing silently.
  */
 class NativeDefaultEngineTest {
     private fun skipped(what: String) {
@@ -32,10 +26,8 @@ class NativeDefaultEngineTest {
     }
 
     /**
-     * The whole call goes to the library, and the route names which library, which symbol and which binary.
-     *
-     * An engine holding a binding is not evidence that a call reached it, so this asks the route for the call
-     * it is about to describe and checks the identity against the binding the engine actually holds.
+     * An engine holding a binding is not evidence that a call reached it, so the route's identity is checked
+     * against the binding the engine actually holds.
      */
     @Test
     fun `a product past the policy's size is one whole vendor call and says which`() {
@@ -67,10 +59,8 @@ class NativeDefaultEngineTest {
     }
 
     /**
-     * A retained panel is grouped for this library's own register tile, which a library cannot read.
-     *
-     * Deliberately over the size at which the ordinary product goes across, so what settles it is the layout
-     * and not the extents.
+     * A retained panel is grouped for this library's own register tile, which a library cannot read; the
+     * shape is over the size at which the ordinary product goes across, so the layout is what settles it.
      */
     @Test
     fun `a product over retained panels stays this library's own however large it is`() {
@@ -86,13 +76,9 @@ class NativeDefaultEngineTest {
     }
 
     /**
-     * A portable dense route can still reach the library, because this platform's Level 1 arm is the library.
-     *
-     * So `host == null` on a route means no single vendor entry point served the whole call, and not that no
-     * library ran. The matrix-vector product below is too small to be handed over whole, and its destination
-     * scaling is long enough to cross the Level 1 crossover, so the route is the portable schedule with a
-     * vendor leaf named in its components. A reader who took the absent whole-call route for the absence of
-     * the library would have this one backwards.
+     * This platform's Level 1 arm is the library, so `host == null` on a route means no single vendor entry
+     * point served the whole call and not that no library ran: below, a vendor leaf is named in the
+     * components of a portable schedule.
      */
     @Test
     fun `a portable route still names the vendor level one leaf it reaches`() {
@@ -118,11 +104,8 @@ class NativeDefaultEngineTest {
     }
 
     /**
-     * Portability without a library, which is the property the whole composition must not cost.
-     *
-     * The exact portable engine is the floor: it resolves nothing, and every level computes there. Asserting
-     * it here as well as in the common suite is what says the Native default's composition did not reach into
-     * it.
+     * The exact portable engine is the floor: it resolves nothing and every level computes there, which is
+     * what says the Native default's composition did not reach into it.
      */
     @OptIn(KoblasEngineApi::class)
     @Test

@@ -11,12 +11,9 @@ import kotlin.test.assertNotEquals
 import kotlin.test.assertSame
 
 /**
- * Which Level 1 arm the default engine selected, which nothing else here would notice.
- *
- * Each platform prefers a different one: the Vector API kernels on the JVM, where reaching a foreign library
- * copies both operands first, and the vendor on Kotlin/Native, which pins them instead and has no Vector API.
- * Every other test asks only for a correct answer, and both arms give that, so a default that quietly kept
- * running portable Kotlin everywhere would pass all of them.
+ * Which Level 1 arm the default engine selected: the Vector API kernels on the JVM, where reaching a foreign
+ * library copies both operands first, and the vendor on Kotlin/Native, which pins them instead. Every other
+ * test asks only for a correct answer, which both arms give.
  */
 class PlatformEngineTest {
     @OptIn(KoblasEngineApi::class)
@@ -39,9 +36,8 @@ class PlatformEngineTest {
     @Test
     fun `exact built in engines do not resolve or execute a host library`() {
         val call = DenseCall(WIDE, WIDE)
-        // A product route is a question about the shared dimension too, so the product call carries one.
         // Matrix routes visit cache blocks, so the Level 1 crossover fixture would enumerate millions of
-        // blocks here. This bounded product is already large enough to exercise packed execution.
+        // them; this bounded product is already large enough to be packed.
         val product = DenseCall(256, 256, depth = 256)
 
         assertEquals(null, BuiltinEngines.scalar.vendor)
@@ -59,12 +55,8 @@ class PlatformEngineTest {
         }
     }
 
-    /**
-     * The JVM default shares the exact SIMD engine, so benchmark selection and ordinary calls agree.
-     *
-     * Without the Vector API the owned matrix backends are portable. Kotlin/Native can still compose
-     * whole host calls over those backends; host routing is checked separately.
-     */
+    // Without the Vector API the owned matrix backends are portable; Kotlin/Native can still compose whole
+    // host calls over them, which is checked separately.
     @OptIn(KoblasEngineApi::class)
     @Test
     fun `the platform selects vector matrix backends where available`() {
@@ -87,12 +79,8 @@ class PlatformEngineTest {
         assertNotEquals(BuiltinEngines.scalar.triangularKernels.name, koblas.triangularKernels.name)
     }
 
-    /**
-     * The panel backend is the platform's, and a matrix call says which of its bodies it reaches.
-     *
-     * A selection is not an execution: the Vector API backend hands a panel shorter than one lane block to the
-     * portable body, and this asks the route rather than the engine's name.
-     */
+    // A selection is not an execution: the Vector API backend hands a panel shorter than one lane block to
+    // the portable body, so this asks the route rather than the engine's name.
     @OptIn(KoblasEngineApi::class)
     @Test
     fun `a wide panel reaches the vector body and a short one does not`() {
@@ -108,13 +96,8 @@ class PlatformEngineTest {
         assertEquals("scalar-panel/multi-dot", short)
     }
 
-    /**
-     * Asks the arm itself, not what the host happens to have installed.
-     *
-     * A vendor being present does not make the JVM's Level 1 arm accelerated: the JVM deliberately never
-     * routes Level 1 to a library, so under `-Pkoblas.noSimd=true` on a host with oneMKL the engine is the
-     * portable one while a vendor exists. The kernels' own name is what says which arm was selected.
-     */
+    // The JVM never routes Level 1 to a library, so under `-Pkoblas.noSimd=true` on a host with oneMKL the
+    // arm is the portable one while a vendor exists; the kernels' own name is what says which was selected.
     @Test
     fun `a wide call reaches whichever accelerated arm this platform has`() {
         if (koblas.vectorKernels.name == PORTABLE) {
@@ -133,12 +116,8 @@ class PlatformEngineTest {
         assertEquals(PORTABLE, koblas.routeOf(DenseOperation.Dot, 1).implementation)
     }
 
-    /**
-     * `sum` is not a BLAS routine, so no library exports one to reach.
-     *
-     * It still vectorises where there are lanes to use, which is why this says where it cannot go rather than
-     * where it must stay.
-     */
+    // `sum` is not a BLAS routine, so no library exports one to reach, but it still vectorises where there
+    // are lanes: the assertion is where it cannot go rather than where it must stay.
     @Test
     fun `sum never names a vendor because none exports it`() {
         val vendor = koblas.vendor ?: return
@@ -148,13 +127,9 @@ class PlatformEngineTest {
     }
 
     /**
-     * The measured crossovers differ by operation, and the routing has to differ with them.
-     *
-     * One width is enough to catch the mistake this guards against, which is a single constant creeping back:
-     * at 96 a dot has crossed and a norm has not. `dnrm2` rescales for overflow safety per element where the
-     * portable kernel tries the plain sum of squares first, and `idamax` costs sixty nanoseconds or more
-     * before it looks at anything, so both are repaid later than the rest. Only the Native arm routes Level 1
-     * to a library at all, so everywhere else this says so rather than asserting the JVM into the same shape.
+     * The measured crossovers differ by operation, and one width is enough to catch a single constant
+     * creeping back: at 96 a dot has crossed and a norm has not, because `dnrm2` rescales per element where
+     * the portable kernel tries the plain sum of squares first. Only the Native arm routes Level 1 at all.
      */
     @Test
     fun `each operation crosses to the vendor at its own measured width`() {

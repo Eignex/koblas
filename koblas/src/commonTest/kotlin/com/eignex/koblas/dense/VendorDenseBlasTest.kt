@@ -11,12 +11,8 @@ import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
 /**
- * What Koblas hands the library, rather than what comes back.
- *
- * Every flag here maps a Koblas boolean onto a BLAS argument, and a wrong mapping is invisible to an agreement
- * test whenever the fixture is symmetric, the operand square, or the operation its own inverse. These cases
- * read the call itself, so `lower` arriving as an upper triangle fails here even where the arithmetic would
- * still have come out right.
+ * What Koblas hands the library, rather than what comes back. A flag mapped the wrong way is invisible to an
+ * agreement test whenever the fixture is symmetric, the operand square, or the operation its own inverse.
  */
 class VendorDenseBlasTest {
     private fun recorded(): Pair<RecordingBlas, DenseBlas> {
@@ -196,13 +192,7 @@ class VendorDenseBlasTest {
         assertFailsWithMissingVendor { blas.trsm(matrix(2), matrix(2, 1), lower = true) }
     }
 
-    /**
-     * A bad shape is a bad shape whether or not the host has a library.
-     *
-     * The shape rules live beside the bindings that also apply them, so it would be easy to leave the check to
-     * the library and let a vendorless host answer a shape error with the missing library instead. These state
-     * that it does not: the seam checks first, and reports what the caller actually got wrong.
-     */
+    // A vendorless host must answer a shape error with the shape error rather than with the missing library.
     @Test
     fun `a shape is rejected as a shape even where no library is installed`() {
         val blas = VendorDenseBlas(null)

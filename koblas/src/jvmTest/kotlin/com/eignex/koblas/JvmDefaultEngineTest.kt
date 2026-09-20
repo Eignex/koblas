@@ -13,14 +13,9 @@ import kotlin.test.assertTrue
 /**
  * That the JVM default stays out of host libraries, which is a policy and not an accident of this host.
  *
- * Kotlin/Native's default composes an installed library into whole dense Level 2 and 3 calls. The JVM's does
- * not, and the reason is measured rather than stylistic: reaching a library from here copies every operand
- * into native memory first, so the call costs a pass over the data before any arithmetic, and the Vector API
- * kernels are ahead without it. A host binding remains explicitly callable for applications and comparisons.
- *
- * The consequence worth pinning is what it buys: ordinary JVM execution resolves no library, so whether one
- * is installed, whether it loads, and whether this process was given native access cannot affect it. These
- * cases assert that from inside a process that does have a library available, which is the case where a
+ * Reaching a library from here copies every operand into native memory first, so the call costs a pass over
+ * the data before any arithmetic and the Vector API kernels are ahead without it; a host binding remains
+ * explicitly callable. These cases run inside a process that does have a library available, which is where a
  * composition would show up.
  */
 class JvmDefaultEngineTest {
@@ -49,12 +44,7 @@ class JvmDefaultEngineTest {
         }
     }
 
-    /**
-     * The same call computed on all three arms, with a library present and none of them reaching it.
-     *
-     * A route says which schedule was chosen; this says the chosen one computes, which is the half a route
-     * cannot cover.
-     */
+    // A route says which schedule was chosen; this says the chosen one computes.
     @OptIn(KoblasEngineApi::class)
     @Test
     fun `every jvm arm computes a dense product without any library`() {
@@ -70,13 +60,8 @@ class JvmDefaultEngineTest {
         }
     }
 
-    /**
-     * An explicit binding stays reachable and stays transfer-inclusive.
-     *
-     * The transfer is not an implementation detail to hide: on this platform every operand is copied into
-     * native memory to reach the library, and a measurement of the call includes that copy. The route says
-     * so, which is what keeps a JVM vendor arm honest about what it is timing.
-     */
+    // Every operand is copied into native memory to reach the library, and the route says so, which is what
+    // keeps a JVM vendor arm honest about what it is timing.
     @Test
     fun `an explicit jvm host call names the transfer it pays for`() {
         val blas = openBlas() ?: return println(

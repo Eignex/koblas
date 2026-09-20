@@ -75,9 +75,8 @@ class SerializationTest {
         val backDense = json.decodeFromString(VectorStorage.serializer(), encodedDense)
         val backSparse = json.decodeFromString(VectorStorage.serializer(), encodedSparse)
 
-        // The serial name of each storage is its class name, as it is for the matrix storages. Asserted on
-        // both sides because it was true of only one of them: the contiguous vector encoded as the name of
-        // the interface it implements, which is a type a reader of the payload cannot decode into.
+        // The serial name of each storage is its class name; the contiguous vector once encoded as the
+        // interface it implements, which a reader of the payload cannot decode into.
         for ((storage, encoded) in listOf(dense to encodedDense, sparse to encodedSparse)) {
             assertTrue(storage::class.simpleName!! in encoded, "expected a type discriminator in $encoded")
         }

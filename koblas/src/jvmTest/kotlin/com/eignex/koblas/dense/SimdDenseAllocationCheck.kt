@@ -13,11 +13,8 @@ import com.eignex.koblas.testutil.allocation.bytesPerCall
  *
  * Kover's test instrumentation prevents HotSpot from scalar-replacing Vector API carriers, which turns an
  * allocation-free panel into a coverage artifact, so this runs through the `simdDenseAllocationCheck` Gradle
- * task rather than a test task.
- *
- * Whole operations, not only raw panels. A panel measured on its own can be allocation-free while the caller
- * around it is not, and it is the caller a user writes; the raw panels are here beside them so a regression
- * says which of the two moved.
+ * task rather than a test task. Whole operations are measured beside the raw panels, so a regression says
+ * which of the two moved.
  */
 internal object SimdDenseAllocationCheck {
     private const val ORDER = 512
@@ -30,12 +27,7 @@ internal object SimdDenseAllocationCheck {
     /** A square product large enough to be packed and small enough to repeat thousands of times. */
     private const val PRODUCT_ORDER = 48
 
-    /**
-     * The other shape: too few rows and columns to block, and a depth that several blocks cover.
-     *
-     * A floor rather than the extent itself. A tile sixteen rows deep would not pack twelve rows at all, so
-     * the caller raises this to something that machine's tile really packs and says so.
-     */
+    /** Too few rows and columns to block over a depth several blocks cover; a floor the caller raises. */
     private const val PRODUCT_NARROW = 12
     private const val PRODUCT_DEPTH = 400
 
@@ -46,12 +38,7 @@ internal object SimdDenseAllocationCheck {
     /** A square order the structured probes use, raised where a machine's tile needs more than three of it. */
     private const val STRUCTURED_ORDER = 49
 
-    /**
-     * Diagonal blocks the triangular probe spans, past what a workspace retains distinct lengths for.
-     *
-     * The point of the probe is the scratch a schedule whose windows shrink asks for, and eight or fewer
-     * blocks would fit inside the retention bound once rounding collapses their lengths.
-     */
+    /** Diagonal blocks the triangular probe spans, past what a workspace retains distinct lengths for. */
     private const val TRIANGULAR_BLOCKS = 10
 
     /** One triangular call is the arithmetic of a whole product, so it repeats fewer times still. */
@@ -106,12 +93,8 @@ internal object SimdDenseAllocationCheck {
     }
 
     /**
-     * The Level 3 routines whose destination or operand is a triangle, as complete calls.
-     *
-     * These reach paths no rectangular product does: a block straddling the diagonal accumulates into a
-     * borrowed tile and merges part of it out, a symmetric operand's diagonal blocks are written into a
-     * borrowed square, and a rank-2k update runs the whole schedule twice. All of that is scratch taken
-     * from a workspace and handed back, so a loan that escaped or a wrapper that survived shows up here.
+     * The Level 3 routines whose destination or operand is a triangle, as complete calls. These reach
+     * borrowed tiles and squares no rectangular product does, so a loan that escaped shows up here.
      */
     private fun checkStructuredProducts(engine: KoblasEngine) {
         val products = engine.productKernels
@@ -148,27 +131,14 @@ internal object SimdDenseAllocationCheck {
     }
 
     /**
-     * The triangular routines, over the two things about them a narrow probe would miss.
-     *
-     * One is the thin call: a left solve over a single right-hand side accumulates a destination column for
-     * every diagonal block, and those columns are all different lengths, so a schedule that borrowed at the
-     * exact extent would exhaust what a workspace retains and allocate again on every warmed call. The
-     * order here is past eight diagonal blocks for that reason, which neither a short call nor a wide one
-     * reaches.
-     *
-     * The other is the substitution itself. A left call leaves its right-hand sides strided and the backend
-     * may gather a block of them; a right call finds them adjacent and gathers nothing; a unit diagonal
-     * removes the division from every step; and a side count that is not a whole number of lane blocks ends
-     * in a scalar body. Both substitutions run on both sides, so the multiply is checked over already
-     * adjacent right-hand sides as well as over gathered ones. Each of those is a different arrangement of
-     * the same loop, and each is here.
+     * The triangular routines over the two things a narrow probe would miss: the thin call, whose shrinking
+     * windows are more distinct lengths than a workspace retains, and the substitution's own arrangements,
+     * since a left call leaves its right-hand sides strided where a right call finds them adjacent.
      */
     private fun checkTriangularOperations(engine: KoblasEngine) {
         checkTriangularOrder(engine, TRIANGULAR_BLOCKS * TRIANGULAR_DIAGONAL_BLOCK)
-        // A second order several octaves above the first, over a single right-hand side. What the schedule
-        // borrows has to be bounded by its own blocks rather than by the call, and a bound demonstrated at
-        // one size would be a property of that size. Fewer repetitions, because one call of this is the
-        // arithmetic of many of the other.
+        // A second order several octaves above the first, since a bound demonstrated at one size would be a
+        // property of that size.
         checkThinSolve(engine, WIDE_TRIANGULAR_BLOCKS * TRIANGULAR_DIAGONAL_BLOCK)
     }
 
@@ -257,15 +227,9 @@ internal object SimdDenseAllocationCheck {
     }
 
     /**
-     * The product tile and the products around it, at a depth that fits one block and one that does not.
-     *
-     * A tile holds its accumulators in vector registers for the whole depth of a block, so a compilation
-     * that declined to scalar-replace one of them would allocate once per depth step, and a short depth is
-     * where that is least likely to be hidden. The complete products are here for the same reason the Level
-     * 2 callers are: the scheduling around a tile has packing, staging and a workspace loan in it, none of
-     * which the raw tile can show.
-     *
-     * Fewer iterations than a panel takes, because one call of these is the arithmetic of many panels.
+     * The product tile and the products around it, at a depth that fits one block and one that does not. A
+     * tile holds its accumulators in vector registers for a whole block, so a compilation that declined to
+     * scalar-replace one would allocate once per depth step.
      */
     private fun checkProducts(engine: KoblasEngine) {
         val products = engine.productKernels
@@ -300,12 +264,9 @@ internal object SimdDenseAllocationCheck {
     }
 
     /**
-     * The two edges a destination can have, each on its own.
-     *
-     * A destination whose rows stop part way through a lane block takes a different writeback from one whose
-     * rows fill it, and one whose columns stop early stores fewer of them; neither is what a probe over
-     * whole tiles exercises. Both are here because the writeback is where a compilation that stopped keeping
-     * the accumulators in registers shows up, and the edges are the paths a full tile never takes.
+     * The two edges a destination can have, each on its own: a row edge takes a different writeback from a
+     * whole tile and a column edge stores fewer columns, and the writeback is where accumulators that
+     * stopped living in registers show up.
      */
     private fun checkShortEdges(products: DenseProductKernels, tileRows: Int, tileColumns: Int) {
         val depth = 32
@@ -339,11 +300,9 @@ internal object SimdDenseAllocationCheck {
     }
 
     /**
-     * A block of many tiles, which is where a tile is reached from inside a loop rather than on its own.
-     *
-     * A microkernel measured by itself can be allocation-free while the same code inlined into a traversal
-     * is not, because how much a compiler will keep in registers depends on how large the method it is
-     * compiling became. This is the smallest caller that has that shape.
+     * A block of many tiles. A microkernel measured by itself can be allocation-free while the same code
+     * inlined into a traversal is not, since what a compiler keeps in registers depends on the size of the
+     * method it ended up compiling.
      */
     private fun checkBlockOfTiles(products: DenseProductKernels, tileRows: Int, tileColumns: Int) {
         val depth = 64
@@ -408,12 +367,8 @@ internal object SimdDenseAllocationCheck {
     }
 
     /**
-     * The route a product too small to pay for packing takes, in both of its forms.
-     *
-     * The accumulating form borrows a destination column and the reducing form may borrow a coefficient
-     * column to gather a strided one into; both come from the workspace, so a repeated call over one shape
-     * asks for the same buffers. Neither reaches a product tile, and both are what a skinny operand gets,
-     * so they belong beside the blocked probes rather than instead of them.
+     * The route a product too small to pay for packing takes, in both of its forms: the accumulating one
+     * borrows a destination column and the reducing one may borrow a coefficient column to gather into.
      */
     private fun checkUnpackedProducts(engine: KoblasEngine, workspace: Workspace) {
         val rows = 256

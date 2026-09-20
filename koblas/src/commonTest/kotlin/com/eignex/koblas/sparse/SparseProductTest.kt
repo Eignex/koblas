@@ -256,15 +256,8 @@ class SparseProductTest {
         }
     }
 
-    /**
-     * A discovered column comes out ascending whichever way it was put in order.
-     *
-     * The rows of a column arrive in the order the contributing columns held them, and the scheduling either
-     * sorts what it collected or sweeps the range it came from, whichever is cheaper for that column. The
-     * two are different code over the same marks, so both are exercised here: a wide sparse product whose
-     * columns touch a fraction of their range, and a dense-ish one whose columns touch most of it. The
-     * predicate itself is asserted at both fixtures so this cannot quietly become one branch twice.
-     */
+    // A discovered column is either sorted or swept back into ascending order, whichever is cheaper for it,
+    // so both fixtures below assert which branch they took as well as the result.
     @Test
     fun `a discovered column is ascending whether it was sorted or swept`() {
         val rng = Random(20261020)
@@ -310,11 +303,7 @@ class SparseProductTest {
         assertEquals(a, a * identity, "A times I should give A back")
     }
 
-    /**
-     * The pattern of the product is what the patterns of the operands meet at. A stored zero is a position
-     * either of them holds, so it selects and scatters like any other entry rather than being skipped for
-     * the value it carries.
-     */
+    // A stored zero is a position the patterns meet at, so it selects and scatters like any other entry.
     @Test
     fun `the sparse product keeps a stored zero of either operand`() {
         val one = SparseMatrix.ofColumns(1, 1, listOf(listOf(0 to 1.0)))
@@ -327,7 +316,6 @@ class SparseProductTest {
 
     @Test
     fun `the sparse product keeps an entry the arithmetic cancels to zero`() {
-        // The single entry of the product is 1 * 1 + 1 * -1, a position the patterns meet at all the same.
         val a = SparseMatrix.ofColumns(1, 2, listOf(listOf(0 to 1.0), listOf(0 to 1.0)))
         val b = SparseMatrix.ofColumns(2, 1, listOf(listOf(0 to 1.0, 1 to -1.0)))
 

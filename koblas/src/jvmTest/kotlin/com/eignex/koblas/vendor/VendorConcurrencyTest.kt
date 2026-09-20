@@ -13,12 +13,9 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /**
- * The two halves of the threading requirement.
- *
- * One compute thread per invocation, and bindings that stay callable from any number of application threads at
- * once. These pull in opposite directions only if the binding hides shared mutable state behind the call, which
- * is what the concurrent cases are here to rule out: each call owns its own scratch, so the same immutable
- * binding serves every thread without a lock and without a designated caller.
+ * The two halves of the threading requirement: one compute thread per invocation, and bindings callable from
+ * any number of application threads at once. Those conflict only if a binding hides shared mutable state
+ * behind the call, which the concurrent cases are here to rule out.
  */
 class VendorConcurrencyTest {
     private fun values(size: Int, seed: Int): DoubleArray {
@@ -47,10 +44,8 @@ class VendorConcurrencyTest {
             val blas = openBlas(vendor) ?: continue
             checked++
 
-            // These are multithreaded builds by default: OpenBLAS reports one thread per core until the
-            // load-time enforcement runs, and a library that would not hold to one never opens at all.
-            // Accelerate is the exception the evidence exists for: it exports no thread count to read back,
-            // so it is held through its environment lever and reported as unconfirmed rather than checked.
+            // These are multithreaded builds by default, and one that would not hold to a single thread never
+            // opens at all. Accelerate exports no count to read back, so it is reported as unconfirmed.
             val expected =
                 if (vendor == Vendor.Accelerate) ThreadEvidence.Unconfirmed else ThreadEvidence.Confirmed
 

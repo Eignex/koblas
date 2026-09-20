@@ -21,11 +21,8 @@ internal class ProductBlockCall(
     val beta: Double,
     val destination: Int,
     /**
-     * The array the block accumulated into.
-     *
-     * Recorded because a selected-triangle schedule writes some blocks somewhere else: a block straddling
-     * the diagonal goes into a tile of scratch and only its selected entries are merged out of it, and a
-     * test that could not tell the two apart could not check that the merge is named.
+     * The array the block accumulated into, recorded because a block straddling the diagonal goes into a
+     * tile of scratch and only its selected entries are merged out of it.
      */
     val into: DoubleArray,
 )
@@ -71,22 +68,13 @@ internal class RecordingProducts(private val delegate: DenseProductKernels) : De
     }
 }
 
-/**
- * The bodies one recorded block reaches, asked of the backend about the block it was really handed.
- *
- * Derived from the block the traversal produced rather than from the call's extents, which is the
- * distinction the whole recording exists for.
- */
+/** The bodies one recorded block reaches, asked of the backend about the block it was really handed. */
 private fun bodiesOf(products: DenseProductKernels, block: ProductBlockCall): List<String> =
     products.implementationsFor(block.rows, block.columns, block.depth)
 
 /**
- * That a product's route names the tile its blocks reached, and that beta reached each of them once.
- *
- * Both halves come from running the product and watching it rather than from reasoning about the extents:
- * which window each block wrote, and which of the blocks writing a given window carried the caller's beta.
- * A depth cut into several blocks has to leave exactly one of them carrying it, and every other one
- * accumulating, which is the rule the whole of the blocking rests on.
+ * That a product's route names the tile its blocks reached, and that beta reached each of them once: a depth
+ * cut into several blocks leaves exactly one carrying it and every other accumulating.
  */
 internal fun assertProductRouteNamesExecutedBlocks(
     products: DenseProductKernels,
@@ -134,11 +122,9 @@ internal fun assertProductRouteNamesExecutedBlocks(
 /**
  * That a triangle-selected product's route names the bodies its blocks reached and the merge they needed.
  *
- * The schedule cuts three kinds of block and the route has to distinguish them: one wholly in the selected
- * triangle, which reaches the destination directly; one straddling the diagonal, which accumulates into a
- * tile of scratch so that the merge can keep part of it; and one wholly outside, which is never scheduled.
- * Only running the product shows which of the three each block was, which is why the destination array is
- * recorded and compared with the call's own.
+ * The schedule cuts three kinds of block: one wholly in the selected triangle, which reaches the destination
+ * directly; one straddling the diagonal, which accumulates into scratch so the merge can keep part of it;
+ * and one wholly outside, which is never scheduled. Only running the product shows which each block was.
  */
 internal fun assertTriangleProductRouteNamesExecutedBlocks(
     products: DenseProductKernels,

@@ -14,11 +14,8 @@ import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
 /**
- * Packed operands: what their layout promises, what they own, and what refuses to read them.
- *
- * The expected physical positions come from the index formula the contract states, written out here rather
- * than taken from the packer, so a packer and a reader that agree with each other but not with the contract
- * fail rather than pass.
+ * Packed operands: what their layout promises, what they own, and what refuses to read them. The expected
+ * physical positions are written out from the contract's index formula rather than taken from the packer.
  */
 class PackedMatrixTest {
     private val engines: List<KoblasEngine> get() = listOfNotNull(BuiltinEngines.scalar, BuiltinEngines.simd)
@@ -32,8 +29,7 @@ class PackedMatrixTest {
                 val left = engine.packLeft(a, transpose)
                 val right = engine.packRight(a, transpose)
 
-                // Either way the logical operand is 13 by 7, since the transposed source is stored the
-                // other way round; what changes is which stride the packer walks to produce it.
+                // The logical operand is 13 by 7 either way; what changes is the stride the packer walks.
                 assertEquals(13, left.rows, "${engine.name} left rows")
                 assertEquals(7, left.columns, "${engine.name} left columns")
                 for (i in 0 until left.rows) {
@@ -104,13 +100,8 @@ class PackedMatrixTest {
         assertFailsWith<DimensionMismatch> { PackedLayout(PackedRole.Left, 100_000, 100_000, 4) }
     }
 
-    /**
-     * An operand with no entries describes itself rather than the product of extents it never uses.
-     *
-     * A left panel of no rows and two billion columns holds nothing, so its strides are zero and its storage
-     * is empty; working out how long a group would have been would overflow an intermediate that nothing
-     * reads.
-     */
+    // A left panel of no rows and two billion columns holds nothing, so working out how long a group would
+    // have been would overflow an intermediate that nothing reads.
     @Test
     fun `an empty layout has no storage whatever its other extent is`() {
         for (layout in listOf(
@@ -202,12 +193,8 @@ class PackedMatrixTest {
     }
 
     /**
-     * A panel is compatible with the grouping it was packed along, and nothing is said about the other one.
-     *
-     * A left panel grouped by eight rows is what an eight by four tile reads and what an eight by two tile
-     * reads; the column width is the right operand's business. This runs the product through a backend whose
-     * tile is as many rows deep as the engine's and only two columns wide, over the engine's own left panel,
-     * and compares the answer with the oracle.
+     * A panel is compatible with the grouping it was packed along and nothing is said about the other: a
+     * left panel grouped by eight rows is read by an eight by four tile and by an eight by two tile alike.
      */
     @Test
     fun `a panel is usable by any tile grouped the same way along its own axis`() {
@@ -242,10 +229,8 @@ class PackedMatrixTest {
     }
 
     /**
-     * A tile as many rows deep as the engine's and two columns wide, written out from the layout formula.
-     *
-     * Here to show that compatibility follows the grouping of the operand rather than the whole tile shape,
-     * so it does the arithmetic the plain way and makes no claim to be fast.
+     * A tile as many rows deep as the engine's and two columns wide, written out from the layout formula so
+     * that compatibility can be shown to follow the operand's grouping rather than the whole tile shape.
      */
     private class NarrowColumnProducts(override val tileRows: Int) : DenseProductKernels {
         override val name: String get() = "narrow-tile(${tileRows}x$tileColumns)"

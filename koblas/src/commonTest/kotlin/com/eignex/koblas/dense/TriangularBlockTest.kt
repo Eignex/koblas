@@ -14,19 +14,9 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
-/**
- * The triangular matrix routines over the blocks they are scheduled with.
- *
- * All sixteen flag combinations on each of the two routines run through one algorithm, so the sweep below is
- * the whole of it rather than a sample: a side, a triangle, a transpose and a diagonal mode between them
- * decide which entry of the triangle is a coefficient, which direction the substitution runs in and which
- * operand of the product between blocks is the triangle, and getting any of those wrong is a wrong answer
- * and not a slow one.
- *
- * The orders cross the diagonal block deliberately. Below it a call is one substitution and no product at
- * all, which is a different path from the one a real solve takes, and a suite that only checked small
- * triangles would be checking the easy half.
- */
+// The sixteen flag combinations between them decide which entry is a coefficient, which direction the
+// substitution runs and which operand of the product between blocks is the triangle, so the sweep is the
+// whole of it. The orders cross the diagonal block, below which a call is one substitution and no product.
 class TriangularBlockTest {
     private val rng = Random(20261103)
 
@@ -87,15 +77,8 @@ class TriangularBlockTest {
             )
         }
 
-    /**
-     * The diagonal is divided by, and dividing is not multiplying by a reciprocal.
-     *
-     * A subnormal diagonal is where the two part company: its reciprocal overflows, so a substitution that
-     * multiplied by one would answer with an infinity where the division has a finite answer to give. The
-     * comparison is exact rather than close, because there is nothing approximate about the difference.
-     *
-     * The right-hand sides are several lane blocks wide, so the vector body is the one being asked.
-     */
+    // A subnormal diagonal's reciprocal overflows, so multiplying by one answers with an infinity where the
+    // division is finite; the right-hand sides are several lane blocks wide so the vector body is asked.
     @Test
     fun `a solve divides by a subnormal diagonal rather than multiplying by its reciprocal`() = withDenseBlas { blas ->
         val sides = VECTOR_SIDES + 1
@@ -127,13 +110,8 @@ class TriangularBlockTest {
         }
     }
 
-    /**
-     * A singular diagonal produces what the division produces and is not detected.
-     *
-     * The BLAS solves carry no status and report nothing, so a zero pivot is an infinity or a NaN in the
-     * result, and the caller who needs the distinction tests the diagonal first. Both cases are here
-     * because they are different: a nonzero numerator over zero is an infinity and a zero one is a NaN.
-     */
+    // The BLAS solves carry no status, so a zero pivot is whatever the division gives: an infinity for a
+    // nonzero numerator and a NaN for a zero one.
     @Test
     fun `a zero pivot yields the infinity or the NaN the division yields`() = withDenseBlas { blas ->
         val sides = VECTOR_SIDES + 1
@@ -169,12 +147,8 @@ class TriangularBlockTest {
         }
     }
 
-    /**
-     * A triangle that shares the block it works on is read as the caller supplied it.
-     *
-     * The scaling by alpha writes the block before the substitution starts, so a call that scaled first and
-     * staged afterwards would feed the substitution coefficients the caller never gave it.
-     */
+    // Scaling by alpha writes the block before the substitution starts, so a call that scaled first and
+    // staged afterwards would feed the substitution coefficients the caller never gave it.
     @Test
     fun `a triangle sharing its own block is staged before the block is scaled`() = withDenseBlas { blas ->
         val order = TRIANGULAR_DIAGONAL_BLOCK + 3
@@ -201,15 +175,8 @@ class TriangularBlockTest {
         }
     }
 
-    /**
-     * A long thin call reuses its scratch instead of asking for a new length at every block.
-     *
-     * The windows of a triangular schedule shrink: a left solve of this order over one right-hand side
-     * accumulates a destination column for each of sixteen diagonal blocks, and those columns are all
-     * different lengths. A workspace lends by exact length and keeps a bounded number of them, so asking at
-     * the exact extent would cycle every one of them out of the pool and allocate again on every warmed
-     * call, which neither a wide call nor a short one would show.
-     */
+    // The windows of a triangular schedule shrink, so a column accumulated at each of sixteen diagonal
+    // blocks is sixteen lengths; a workspace lends by exact length and keeps a bounded number of them.
     @Test
     fun `a long thin solve keeps its scratch inside what a workspace retains`() = withDenseBlas { blas ->
         // Three orders an octave apart, because the claim is that what the schedule borrows is bounded by
@@ -269,13 +236,8 @@ class TriangularBlockTest {
         assertEquals(afterOne, workspace.idleLengths(), "symm asked for a new length on a repeated call")
     }
 
-    /**
-     * A substitution backend recommends a grouping inside the work it was asked about.
-     *
-     * The contract is the backend's to keep rather than the caller's to impose: the shared scheduling does
-     * clamp what it is given, but a backend whose recommendation is wider than the call has right-hand
-     * sides has answered a question about work that is not there, and the next caller need not clamp.
-     */
+    // The scheduling does clamp what it is given, but a recommendation wider than the call has right-hand
+    // sides answers about work that is not there, and the next caller need not clamp.
     @Test
     fun `a substitution backend recommends a group inside the sides it was asked about`() =
         withBackends { _, _, triangles ->
@@ -294,13 +256,8 @@ class TriangularBlockTest {
             }
         }
 
-    /**
-     * The route names the substitutions and the products the call really ran.
-     *
-     * Under both recorders at once, so each half of the claim is checked against what the schedule handed
-     * over: which diagonal blocks were substituted, with which flags and strides, and which product windows
-     * ran between them.
-     */
+    // Under both recorders at once, so each half of the claim is checked against what the schedule handed
+    // over: the diagonal blocks substituted and the product windows run between them.
     @Test
     fun `a triangular route names the diagonal blocks and products the call really cut`() = withBackends {
             panels,
@@ -406,12 +363,7 @@ class TriangularBlockTest {
         return covered.size
     }
 
-    /**
-     * Every flag combination on one side, at three orders and two side counts.
-     *
-     * The side is the caller's, not a loop here: each side is a complete sweep of the other flags, and a
-     * case that ran both would do twice the work before it could say which of the two failed.
-     */
+    /** Every flag combination on one side, at three orders and two side counts. */
     private inline fun forEachCase(
         body: (order: Int, sides: Int, lower: Boolean, transpose: Boolean, unitDiag: Boolean) -> Unit,
     ) {
@@ -457,11 +409,8 @@ class TriangularBlockTest {
 }
 
 /**
- * Right-hand sides enough to fill whatever the substitution backend groups them in.
- *
- * Read from the backend rather than written down, for the reason the product fixtures are: a count that
- * fills one machine's lane block leaves another's empty, and a vector body nothing reaches is one nothing
- * checks. Where there is no vector backend the number only has to be more than one.
+ * Right-hand sides enough to fill whatever the substitution backend groups them in, read from the backend
+ * because a count that fills one machine's lane block leaves another's empty.
  */
 @OptIn(KoblasEngineApi::class)
 internal val VECTOR_SIDES: Int = BuiltinEngines.simd
