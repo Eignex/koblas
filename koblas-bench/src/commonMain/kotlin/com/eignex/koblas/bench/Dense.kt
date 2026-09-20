@@ -199,7 +199,11 @@ internal fun denseWork(case: BenchCase, engine: KoblasEngine): CaseWork? {
             val a = Fixtures.matrix(if (right) n else m, if (right) n else m, 1); val b = Fixtures.matrix(m, n, 2)
             val c0 = Fixtures.matrix(m, n, 3); val c = Fixtures.matrix(m, n, 3)
             level23(
-                engine, DenseMatrixOperation.Symm, DenseCall(m, n, alpha, beta, depth = a.rows, lower = lower),
+                engine,
+                DenseMatrixOperation.Symm,
+                // The side is a fact the route needs: it decides which operand of the product the
+                // symmetric one is and which extent of the destination its strips are cut along.
+                DenseCall(m, n, alpha, beta, depth = a.rows, lower = lower, right = right),
                 "reset-and-arithmetic",
                 verify = {
                     val expected = DenseReference.symm(alpha, a, lower, right, b, beta, c0)
@@ -213,7 +217,10 @@ internal fun denseWork(case: BenchCase, engine: KoblasEngine): CaseWork? {
             val a = Fixtures.matrix(if (ta) k else n, if (ta) n else k, 1); val b = Fixtures.matrix(if (tb) n else k, if (tb) k else n, 2)
             val c0 = Fixtures.matrix(n, n, 3); val c = Fixtures.matrix(n, n, 3)
             level23(
-                engine, DenseMatrixOperation.Gemmt, DenseCall(n, n, alpha, beta, depth = k, lower = lower), "reset-and-arithmetic",
+                engine,
+                DenseMatrixOperation.Gemmt,
+                DenseCall(n, n, alpha, beta, depth = k, lower = lower, transposeA = ta, transposeB = tb),
+                "reset-and-arithmetic",
                 verify = {
                     val expected = DenseReference.gemmt(alpha, a, ta, b, tb, beta, c0, lower)
                     c0.values.copyInto(c.values); engine.gemmt(alpha, a, ta, b, tb, beta, c, lower)
@@ -228,7 +235,12 @@ internal fun denseWork(case: BenchCase, engine: KoblasEngine): CaseWork? {
             val single = case.operation == "syrk"
             val operation = if (single) DenseMatrixOperation.Syrk else DenseMatrixOperation.Syr2k
             level23(
-                engine, operation, DenseCall(n, n, alpha, beta, depth = k, lower = lower), "reset-and-arithmetic",
+                engine,
+                operation,
+                // A rank update's right operand is its left one transposed, so the one flag decides both
+                // and the route works the second out rather than being told a separate one.
+                DenseCall(n, n, alpha, beta, depth = k, lower = lower, transposeA = trans),
+                "reset-and-arithmetic",
                 verify = {
                     val expected = DenseReference.syrk(alpha, a, b, trans, beta, c0, lower, doubled = !single)
                     c0.values.copyInto(c.values)
@@ -582,7 +594,12 @@ private fun triangularMatrixWork(case: BenchCase, engine: KoblasEngine): CaseWor
         engine.trmm(triangle, b, lower, trans, unit, right, alpha)
     }
     return level23(
-        engine, operation, DenseCall(m, n, alpha, depth = order, lower = lower), "reset-and-arithmetic",
+        engine,
+        operation,
+        // Side and transpose together decide which corner of the triangle a coefficient comes from and
+        // which direction the substitution runs, so both travel with the call.
+        DenseCall(m, n, alpha, depth = order, lower = lower, transposeA = trans, right = right),
+        "reset-and-arithmetic",
         verify = {
             val expected = if (solve) {
                 DenseReference.trsm(triangle, original, lower, trans, unit, right, alpha)

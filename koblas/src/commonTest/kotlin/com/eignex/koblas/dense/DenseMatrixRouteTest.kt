@@ -118,14 +118,18 @@ class DenseMatrixRouteTest {
     }
 
     /**
-     * The Level 3 routines that still run as shared scalar traversal must not borrow a backend's name.
+     * Every structured Level 3 routine names the bodies it reaches, and none of them is an engine's name.
      *
-     * The matrix product is not among them any more: it reaches tiles or panels and says which. Everything
-     * else here is the traversal's own arithmetic until the stage that gives it blocks.
+     * The scheduling is this library's own on every engine, and what runs inside its windows is the
+     * selected backends' and nothing else. A component naming the engine would be the claim these routes
+     * exist to prevent: that a Vector API Level 1 selection makes a matrix routine vectorised.
      */
     @Test
-    fun `a level three call names no panel on any engine`() {
+    fun `a structured level three call names the bodies it reaches and never the engine`() {
         for (engine in engines) {
+            val bodies = engine.productKernels.implementationsFor(64, 16, 32) +
+                engine.triangularKernels.implementationsFor(16, 16, true) +
+                engine.triangularKernels.implementationsFor(16, 16, false)
             for (operation in listOf(
                 DenseMatrixOperation.Gemmt,
                 DenseMatrixOperation.Symm,
@@ -134,12 +138,56 @@ class DenseMatrixRouteTest {
                 DenseMatrixOperation.Trsm,
                 DenseMatrixOperation.Trmm,
             )) {
-                val route = engine.denseRouteOf(operation, DenseCall(64, 16, 1.0, -0.25, depth = 32))
+                val route = engine.denseRouteOf(
+                    operation,
+                    DenseCall(64, 64, 1.0, -0.25, depth = 64),
+                )
 
-                assertEquals(emptyList(), route.components, "$operation on ${engine.name}")
-                assertEquals(0, route.executionGroup, "$operation on ${engine.name}")
-                assertEquals("portable-dense", route.implementation)
+                assertEquals("portable-dense", route.scheduling, "$operation on ${engine.name}")
+                assertTrue(route.components.isNotEmpty(), "$operation on ${engine.name} named nothing")
+                assertTrue(
+                    route.components.none { it.substringBefore('/') == engine.name },
+                    "$operation on ${engine.name} named the engine: ${route.components}",
+                )
+                val named = route.components.map { it.substringBefore('/') }
+                assertTrue(
+                    named.any { it in bodies || it.startsWith("portable-") || it.endsWith("-panel") },
+                    "$operation on ${engine.name} named ${route.components}",
+                )
             }
+        }
+    }
+
+    /**
+     * A triangular matrix call whose order fits one diagonal block schedules no product between blocks, and
+     * one that does not schedules both.
+     *
+     * Two calls of the same operation on the same engine, differing only in an extent, reaching different
+     * components. That is the property the reason strings claim and the one a route built from the operation
+     * name alone would get wrong.
+     */
+    @Test
+    fun `a triangular solve names a product only where its order needs more than one block`() {
+        for (engine in engines) {
+            val single = engine.denseRouteOf(DenseMatrixOperation.Trsm, DenseCall(8, 4, depth = 8))
+            val several = engine.denseRouteOf(
+                DenseMatrixOperation.Trsm,
+                DenseCall(4 * TRIANGULAR_DIAGONAL_BLOCK, 64, depth = 4 * TRIANGULAR_DIAGONAL_BLOCK),
+            )
+
+            assertTrue(
+                single.components.none { it.endsWith("/product-block") || it.endsWith("/column-update") },
+                "${engine.name} named a product in ${single.components} for an order inside one block",
+            )
+            assertTrue(
+                single.components.any { it.endsWith("/diagonal-solve") },
+                "${engine.name} named ${single.components} and no substitution",
+            )
+            assertContains(assertNotNull(single.reason), "no product runs between them")
+            assertTrue(
+                several.components.any { it.endsWith("/product-block") || it.endsWith("/column-update") },
+                "${engine.name} named ${several.components} for an order of several blocks",
+            )
         }
     }
 

@@ -20,6 +20,14 @@ internal class ProductBlockCall(
     val depth: Int,
     val beta: Double,
     val destination: Int,
+    /**
+     * The array the block accumulated into.
+     *
+     * Recorded because a selected-triangle schedule writes some blocks somewhere else: a block straddling
+     * the diagonal goes into a tile of scratch and only its selected entries are merged out of it, and a
+     * test that could not tell the two apart could not check that the merge is named.
+     */
+    val into: DoubleArray,
 )
 
 /** A product backend that records every block it is handed and delegates the arithmetic. */
@@ -55,7 +63,7 @@ internal class RecordingProducts(private val delegate: DenseProductKernels) : De
         cOffset: Int,
         ldc: Int,
     ) {
-        blocks.add(ProductBlockCall(rows, columns, depth, beta, cOffset))
+        blocks.add(ProductBlockCall(rows, columns, depth, beta, cOffset, c))
         delegate.productBlock(
             alpha, packedA, aOffset, aGroupStride, packedB, bOffset, bGroupStride,
             rows, columns, depth, beta, c, cOffset, ldc,
@@ -121,4 +129,68 @@ internal fun assertProductRouteNamesExecutedBlocks(
         assertEquals(blocks.first(), scaled.single(), "$context: beta did not go to the first depth block")
         assertEquals(k, blocks.sumOf { it.depth }, "$context: window $window did not cover the depth")
     }
+}
+
+/**
+ * That a triangle-selected product's route names the bodies its blocks reached and the merge they needed.
+ *
+ * The schedule cuts three kinds of block and the route has to distinguish them: one wholly in the selected
+ * triangle, which reaches the destination directly; one straddling the diagonal, which accumulates into a
+ * tile of scratch so that the merge can keep part of it; and one wholly outside, which is never scheduled.
+ * Only running the product shows which of the three each block was, which is why the destination array is
+ * recorded and compared with the call's own.
+ */
+internal fun assertTriangleProductRouteNamesExecutedBlocks(
+    products: DenseProductKernels,
+    panels: DensePanelKernels,
+    n: Int,
+    k: Int,
+    lower: Boolean,
+    transposeA: Boolean = false,
+    transposeB: Boolean = false,
+) {
+    val rng = Random(20261101)
+    val recorder = RecordingProducts(products)
+    val blas = PortableDenseBlas(ScalarVectorKernels, panels, recorder)
+    val a = randomMatrix(if (transposeA) k else n, if (transposeA) n else k, rng)
+    val b = randomMatrix(if (transposeB) n else k, if (transposeB) k else n, rng)
+    val c = DenseMatrix(n, n, DoubleArray(n * n) { rng.nextDouble(-1.0, 1.0) })
+    val context = "${n}x$k lower=$lower tA=$transposeA tB=$transposeB on ${products.name}"
+
+    blas.gemmt(0.875, a, transposeA, b, transposeB, -0.25, c, lower)
+
+    val route = blas.routeOf(
+        DenseMatrixOperation.Gemmt,
+        DenseCall(n, n, 0.875, -0.25, depth = k, lower = lower, transposeA = transposeA, transposeB = transposeB),
+    )
+    val tiles = route.components.filter { it.endsWith("/product-block") }.map { it.substringBefore('/') }
+    val reached = recorder.blocks.flatMap { bodiesOf(products, it) }.distinct()
+    assertEquals(reached, tiles, "$context: the route named $tiles")
+
+    val merged = recorder.blocks.any { it.into !== c.values }
+    assertEquals(
+        merged,
+        route.components.any { it == "$TRIANGLE_SELECTION/triangle-tile" },
+        "$context: the merge ran=$merged and the route said otherwise in ${route.components}",
+    )
+    for (block in recorder.blocks) {
+        if (block.into !== c.values) {
+            assertEquals(0.0, block.beta, "$context: a tile merged afterwards scaled the scratch it wrote")
+        }
+    }
+    val outside = recorder.blocks.none { it.into === c.values && unselectedWindow(it, n, lower) }
+    assertTrue(outside, "$context: a block wrote into the triangle the call does not select")
+}
+
+/** Whether a block written straight into the destination lies anywhere outside the selected triangle. */
+private fun unselectedWindow(block: ProductBlockCall, n: Int, lower: Boolean): Boolean {
+    val row = block.destination % n
+    val column = block.destination / n
+    return !insideTriangle(
+        row,
+        block.rows,
+        column,
+        block.columns,
+        if (lower) OutputTriangle.Lower else OutputTriangle.Upper,
+    )
 }

@@ -43,6 +43,29 @@ internal object SimdDenseAllocationCheck {
     private const val PRODUCT_WARMUP = 2_000
     private const val PRODUCT_ITERATIONS = 200
 
+    /** A square order the structured probes use, raised where a machine's tile needs more than three of it. */
+    private const val STRUCTURED_ORDER = 49
+
+    /**
+     * Diagonal blocks the triangular probe spans, past what a workspace retains distinct lengths for.
+     *
+     * The point of the probe is the scratch a schedule whose windows shrink asks for, and eight or fewer
+     * blocks would fit inside the retention bound without the rounding this stage added.
+     */
+    private const val TRIANGULAR_BLOCKS = 10
+
+    /** One triangular call is the arithmetic of a whole product, so it repeats fewer times still. */
+    private const val TRIANGULAR_WARMUP = 600
+    private const val TRIANGULAR_ITERATIONS = 40
+
+    /** Diagonal blocks the second triangular probe spans, several octaves of extent above the first. */
+    private const val WIDE_TRIANGULAR_BLOCKS = 32
+    private const val WIDE_WARMUP = 200
+    private const val WIDE_ITERATIONS = 20
+
+    /** Wider than any grouping a backend recommends, so asking with it returns the recommendation itself. */
+    private const val UNGROUPED_SIDES = 4_096
+
     private val allocationBean = ManagementFactory.getThreadMXBean() as ThreadMXBean
 
     @Volatile
@@ -83,6 +106,141 @@ internal object SimdDenseAllocationCheck {
         }
         checkWholeOperations(engine)
         checkProducts(engine)
+        checkStructuredProducts(engine)
+        checkTriangularOperations(engine)
+    }
+
+    /**
+     * The Level 3 routines whose destination or operand is a triangle, as complete calls.
+     *
+     * These reach paths no rectangular product does: a block straddling the diagonal accumulates into a
+     * borrowed tile and merges part of it out, a symmetric operand's diagonal blocks are written into a
+     * borrowed square, and a rank-2k update runs the whole schedule twice. All of that is scratch taken
+     * from a workspace and handed back, so a loan that escaped or a wrapper that survived shows up here.
+     */
+    private fun checkStructuredProducts(engine: KoblasEngine) {
+        val products = engine.productKernels
+        val order = maxOf(products.tileRows * 3 + 1, STRUCTURED_ORDER)
+        require(products.packsProduct(order, order, order)) {
+            "the structured probe at $order cubed is not packed on this machine"
+        }
+        val workspace = Workspace()
+        val square = order * order
+        val a = DenseMatrix.wrap(order, order, DoubleArray(square) { 1.0 + (it % 13) * 0.125 })
+        val b = DenseMatrix.wrap(order, order, DoubleArray(square) { 0.5 + (it % 7) * 0.25 })
+        val c = DenseMatrix.wrap(order, order, DoubleArray(square))
+
+        for (lower in booleanArrayOf(true, false)) {
+            assertAllocationFree("gemmt lower=$lower", PRODUCT_WARMUP, PRODUCT_ITERATIONS) {
+                engine.gemmt(1e-12, a, false, b, false, -0.25, c, lower, workspace)
+                c.values[0]
+            }
+            assertAllocationFree("syrk lower=$lower", PRODUCT_WARMUP, PRODUCT_ITERATIONS) {
+                engine.syrk(1e-12, a, false, -0.25, c, lower, workspace)
+                c.values[0]
+            }
+            assertAllocationFree("syr2k lower=$lower", PRODUCT_WARMUP, PRODUCT_ITERATIONS) {
+                engine.syr2k(1e-12, a, b, false, -0.25, c, lower, workspace)
+                c.values[0]
+            }
+        }
+        for (right in booleanArrayOf(false, true)) {
+            assertAllocationFree("symm right=$right", PRODUCT_WARMUP, PRODUCT_ITERATIONS) {
+                engine.symm(1e-12, a, b, -0.25, c, lower = true, right = right, workspace = workspace)
+                c.values[0]
+            }
+        }
+    }
+
+    /**
+     * The triangular routines, over the two things about them a narrow probe would miss.
+     *
+     * One is the thin call: a left solve over a single right-hand side accumulates a destination column for
+     * every diagonal block, and those columns are all different lengths, so a schedule that borrowed at the
+     * exact extent would exhaust what a workspace retains and allocate again on every warmed call. The
+     * order here is past eight diagonal blocks for that reason, which neither a short call nor a wide one
+     * reaches.
+     *
+     * The other is the substitution itself. A left call leaves its right-hand sides strided and the backend
+     * may gather a block of them; a right call finds them adjacent and gathers nothing; a unit diagonal
+     * removes the division from every step; and a side count that is not a whole number of lane blocks ends
+     * in a scalar body. Each of those is a different arrangement of the same loop, and each is here.
+     */
+    private fun checkTriangularOperations(engine: KoblasEngine) {
+        checkTriangularOrder(engine, TRIANGULAR_BLOCKS * TRIANGULAR_DIAGONAL_BLOCK)
+        // A second order several octaves above the first, over a single right-hand side. What the schedule
+        // borrows has to be bounded by its own blocks rather than by the call, and a bound demonstrated at
+        // one size would be a property of that size. Fewer repetitions, because one call of this is the
+        // arithmetic of many of the other.
+        checkThinSolve(engine, WIDE_TRIANGULAR_BLOCKS * TRIANGULAR_DIAGONAL_BLOCK)
+    }
+
+    private fun checkThinSolve(engine: KoblasEngine, order: Int) {
+        val workspace = Workspace()
+        val triangle = dominantTriangle(order)
+        val b = DenseMatrix.wrap(order, 1, DoubleArray(order))
+
+        assertAllocationFree("trsm left order=$order sides=1", WIDE_WARMUP, WIDE_ITERATIONS) {
+            b.values.fill(1.0)
+            engine.trsm(triangle, b, lower = true, workspace = workspace)
+            b.values[0]
+        }
+    }
+
+    private fun dominantTriangle(order: Int): DenseMatrix {
+        val triangle = DenseMatrix.wrap(
+            order,
+            order,
+            DoubleArray(order * order) { 0.25 + (it % 11) * 0.0625 },
+        )
+        for (i in 0 until order) triangle.values[i + i * order] = 4.0
+        return triangle
+    }
+
+    private fun checkTriangularOrder(engine: KoblasEngine, order: Int) {
+        val workspace = Workspace()
+        val triangle = dominantTriangle(order)
+        val group = engine.triangularKernels.rightHandSideGroup(TRIANGULAR_DIAGONAL_BLOCK, UNGROUPED_SIDES)
+        for (sides in intArrayOf(1, group + 1)) {
+            val left = DenseMatrix.wrap(order, sides, DoubleArray(order * sides))
+            val right = DenseMatrix.wrap(sides, order, DoubleArray(sides * order))
+            for (unitDiag in booleanArrayOf(false, true)) {
+                assertAllocationFree(
+                    "trsm left sides=$sides unit=$unitDiag",
+                    TRIANGULAR_WARMUP,
+                    TRIANGULAR_ITERATIONS,
+                ) {
+                    left.values.fill(1.0)
+                    engine.trsm(triangle, left, lower = true, unitDiag = unitDiag, workspace = workspace)
+                    left.values[0]
+                }
+                assertAllocationFree(
+                    "trmm left sides=$sides unit=$unitDiag",
+                    TRIANGULAR_WARMUP,
+                    TRIANGULAR_ITERATIONS,
+                ) {
+                    left.values.fill(1.0)
+                    engine.trmm(triangle, left, lower = true, unitDiag = unitDiag, workspace = workspace)
+                    left.values[0]
+                }
+                assertAllocationFree(
+                    "trsm right sides=$sides unit=$unitDiag",
+                    TRIANGULAR_WARMUP,
+                    TRIANGULAR_ITERATIONS,
+                ) {
+                    right.values.fill(1.0)
+                    engine.trsm(
+                        triangle,
+                        right,
+                        lower = true,
+                        unitDiag = unitDiag,
+                        right = true,
+                        workspace = workspace,
+                    )
+                    right.values[0]
+                }
+            }
+        }
     }
 
     /**

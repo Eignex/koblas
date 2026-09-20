@@ -72,9 +72,9 @@ class CasesFileTest {
         val ids = defaults.joinToString("\n") { it.id }
         val digest = MessageDigest.getInstance("SHA-256").digest(ids.toByteArray()).joinToString("") { "%02x".format(it) }
 
-        // The product cases were added to the end of the Level 3 section and nothing was renamed or
-        // removed, so every historical identity is still in this digest and a rename would still break it.
-        assertEquals("93f97532804d74449ffb61a4349df075888a8666d9a54316997be5de8738ee8d", digest)
+        // The structured and triangular cases were appended and nothing was renamed or removed, so every
+        // historical identity is still in this digest and a rename would still break it.
+        assertEquals("b7a64645d1d4c6c216f4c4a2b5a6efee4d13e08c8d9986eaf9e7a74b4b18dd20", digest)
     }
 
     @Test
@@ -83,9 +83,9 @@ class CasesFileTest {
 
         assertEquals(SWEPT, cases.filter { "sweep" in it.suites }.map { it.operation }.toSet())
         assertEquals(168, cases.count { "sweep" in it.suites })
-        assertEquals(303, cases.size)
+        assertEquals(314, cases.size)
         // The default suite is what an ordinary capture runs, and the sweeps did not enlarge it.
-        assertEquals(151, Cases.select(cases).size)
+        assertEquals(162, Cases.select(cases).size)
         assertEquals(cases.size, cases.map { it.id }.toSet().size)
     }
 

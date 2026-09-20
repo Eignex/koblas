@@ -149,7 +149,7 @@ internal fun packedLeft(a: DenseMatrix, transpose: Boolean, group: Int): PackedM
     val depth = if (transpose) a.rows else a.cols
     val layout = PackedLayout(PackedRole.Left, rows, depth, group)
     val values = DoubleArray(layout.storageSize)
-    packLeftPanel(a.values, a.rows, transpose, 0, 0, rows, depth, values, 0, group)
+    packLeftPanel(a.values, 0, a.rows, transpose, 0, 0, rows, depth, values, 0, group)
     return PackedMatrix(values, layout)
 }
 
@@ -159,7 +159,7 @@ internal fun packedRight(b: DenseMatrix, transpose: Boolean, group: Int): Packed
     val columns = if (transpose) b.rows else b.cols
     val layout = PackedLayout(PackedRole.Right, depth, columns, group)
     val values = DoubleArray(layout.storageSize)
-    packRightPanel(b.values, b.rows, transpose, 0, 0, depth, columns, values, 0, group)
+    packRightPanel(b.values, 0, b.rows, transpose, 0, 0, depth, columns, values, 0, group)
     return PackedMatrix(values, layout)
 }
 
@@ -167,11 +167,15 @@ internal fun packedRight(b: DenseMatrix, transpose: Boolean, group: Int): Packed
  * Copies the `rows` by `depth` window of `op(A)` starting at ([rowStart], [depthStart]) into left groups.
  *
  * [lda] is the stored leading dimension of the source, before [transpose] is considered, so an untransposed
- * operand's rows are adjacent and a transposed one's are [lda] apart. A group the window does not fill is
- * padded with positive zero, which is what lets a tile accumulate over it and store nothing there.
+ * operand's rows are adjacent and a transposed one's are [lda] apart. [sourceOffset] is where the operand's
+ * own logical origin sits in [source], which is how a strip of a larger matrix is packed without being
+ * copied out of it first; a caller works it out from the transpose it is passing. A group the window does
+ * not fill is padded with positive zero, which is what lets a tile accumulate over it and store nothing
+ * there.
  */
 internal fun packLeftPanel(
     source: DoubleArray,
+    sourceOffset: Int,
     lda: Int,
     transpose: Boolean,
     rowStart: Int,
@@ -193,13 +197,13 @@ internal fun packLeftPanel(
         while (step < depth) {
             var lane = 0
             if (transpose) {
-                val base = depthStart + step + (rowStart + row) * lda
+                val base = sourceOffset + depthStart + step + (rowStart + row) * lda
                 while (lane < present) {
                     destination[target + lane] = source[base + lane * lda]
                     lane++
                 }
             } else {
-                val base = rowStart + row + (depthStart + step) * lda
+                val base = sourceOffset + rowStart + row + (depthStart + step) * lda
                 while (lane < present) {
                     destination[target + lane] = source[base + lane]
                     lane++
@@ -216,6 +220,7 @@ internal fun packLeftPanel(
 /** The right-operand counterpart of [packLeftPanel], grouping columns of `op(B)` instead of rows. */
 internal fun packRightPanel(
     source: DoubleArray,
+    sourceOffset: Int,
     ldb: Int,
     transpose: Boolean,
     depthStart: Int,
@@ -235,13 +240,13 @@ internal fun packRightPanel(
         while (step < depth) {
             var lane = 0
             if (transpose) {
-                val base = columnStart + column + (depthStart + step) * ldb
+                val base = sourceOffset + columnStart + column + (depthStart + step) * ldb
                 while (lane < present) {
                     destination[target + lane] = source[base + lane]
                     lane++
                 }
             } else {
-                val base = depthStart + step + (columnStart + column) * ldb
+                val base = sourceOffset + depthStart + step + (columnStart + column) * ldb
                 while (lane < present) {
                     destination[target + lane] = source[base + lane * ldb]
                     lane++

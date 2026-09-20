@@ -10,11 +10,13 @@ import com.eignex.koblas.dense.DenseMatrixRoute
 import com.eignex.koblas.dense.DenseOperation
 import com.eignex.koblas.dense.DensePanelKernels
 import com.eignex.koblas.dense.DenseProductKernels
+import com.eignex.koblas.dense.DenseTriangularKernels
 import com.eignex.koblas.dense.DenseVectorKernels
 import com.eignex.koblas.dense.PackedMatrix
 import com.eignex.koblas.dense.PortableDenseBlas
 import com.eignex.koblas.dense.PortablePanelKernels
 import com.eignex.koblas.dense.PortableProductKernels
+import com.eignex.koblas.dense.PortableTriangularKernels
 import com.eignex.koblas.sparse.IndexedSparseKernels
 import com.eignex.koblas.sparse.SPARSE_SCHEDULING
 import com.eignex.koblas.sparse.SparseAlgorithms
@@ -70,7 +72,10 @@ public class KoblasEngine internal constructor(
     public val panelKernels: DensePanelKernels = PortablePanelKernels,
     /** Register-tile product arithmetic and the tile geometry dense products pack for. */
     public val productKernels: DenseProductKernels = PortableProductKernels,
-    private val denseBlas: PortableDenseBlas = PortableDenseBlas(vectorKernels, panelKernels, productKernels),
+    /** Diagonal-block substitution and the right-hand-side grouping triangular routines schedule with. */
+    public val triangularKernels: DenseTriangularKernels = PortableTriangularKernels,
+    private val denseBlas: PortableDenseBlas =
+        PortableDenseBlas(vectorKernels, panelKernels, productKernels, triangularKernels),
     private val sparseBlas: SparseBlas = SparseAlgorithms(
         vectorKernels,
         indexedSparseKernels,
@@ -94,7 +99,8 @@ public class KoblasEngine internal constructor(
      * what answer that.
      */
     public val name: String
-        get() = "${vectorKernels.name}/${sparseKernels.name}/${panelKernels.name}/${productKernels.name}"
+        get() = "${vectorKernels.name}/${sparseKernels.name}/${panelKernels.name}/${productKernels.name}/" +
+            triangularKernels.name
 
     /**
      * What a built-in dense Level 2 or 3 call of this [operation] and shape actually executes.
