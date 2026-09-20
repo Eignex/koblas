@@ -158,7 +158,7 @@ private fun Vector.stableFor(destination: DenseVector): Vector = when (this) {
     else -> this
 }
 
-/** Whether this vector is the whole of [values] in order, so an entry point taking an array may be handed it. */
+/** Whether this vector spans its entire backing array in order. */
 internal val DenseVector.isWholeArray: Boolean
     get() = offset == 0 && stride == 1 && values.size == size
 
