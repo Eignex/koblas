@@ -13,10 +13,11 @@ their fresh results. Factorization and solver workflows are outside this artifac
 
 [BuiltinEngines][com.eignex.koblas.BuiltinEngines], behind the
 [KoblasEngineApi][com.eignex.koblas.KoblasEngineApi] opt-in, names exact engines for tests and benchmarks.
-[KoblasEngine.explain][com.eignex.koblas.KoblasEngine.explain] and
-[KoblasEngine.denseRouteOf][com.eignex.koblas.KoblasEngine.denseRouteOf] report the bodies an operation reaches,
-including composed execution. [Blas.routeOf][com.eignex.koblas.vendor.Blas.routeOf] describes a host call and
-its resolved binding. Selecting an engine does not imply every operation uses the same kernel.
+[KoblasEngine.routeOf][com.eignex.koblas.KoblasEngine.routeOf] inspects dense and sparse vector and matrix
+calls through the same overloaded getter. Routes name the implementation and any fallback; a composed
+route identifies multiple components or a choice that depends on values not supplied to the getter.
+[Blas.routeOf][com.eignex.koblas.vendor.Blas.routeOf] describes an explicit host call. The host binding
+exposes its resolved binary, version and thread evidence.
 
 # Package com.eignex.koblas
 
@@ -53,7 +54,7 @@ called `cblas_dgemmt` or composed the operation.
 # Package com.eignex.koblas.sparse
 
 [SparseBlas] provides portable CSC matrix-vector and matrix-matrix products, symmetric/rank-k operations,
-triangular multiply/solve, scaled addition and transpose. Its [SparseBlas.matrixRouteOf] reports portable
+triangular multiply/solve, scaled addition and transpose. Its [SparseBlas.routeOf] reports portable
 structural traversal together with the scalar, SIMD or host components actually reached.
 
 Stored zeros participate, cancellation retains an entry, and an absent position is never evaluated. Fresh

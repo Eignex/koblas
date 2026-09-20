@@ -195,7 +195,7 @@ public class PreparedSparseMatrix internal constructor(a: SparseMatrix, private 
     /**
      * What a repeated call of this shape against the snapshot executes.
      *
-     * The counterpart of [com.eignex.koblas.sparse.SparseBlas.matrixRouteOf] for a prepared operand. For
+     * The counterpart of [com.eignex.koblas.sparse.SparseBlas.routeOf] for a prepared operand. For
      * every product against a dense block it is the same answer, because such a call runs the schedule its
      * own flags ask for over the stored orientation, exactly as a one-shot call does. What differs is a
      * product against a second sparse operand, which may run the derived orientation instead; that operand
@@ -204,7 +204,7 @@ public class PreparedSparseMatrix internal constructor(a: SparseMatrix, private 
      * [call]'s scalars and extents describe the call; its [SparseCall.matrix] is not read, because the
      * operand is this snapshot.
      */
-    public fun matrixRouteOf(operation: SparseMatrixOperation, call: SparseCall): SparseMatrixRoute {
+    public fun routeOf(operation: SparseMatrixOperation, call: SparseCall): SparseMatrixRoute {
         if (orientsOnAnotherOperand(operation) && call.transposeSparse) {
             // A product against a second sparse operand decides on that operand: nothing is oriented for a
             // call that reaches no position. These facts carry no second operand, so which of the two
@@ -217,7 +217,7 @@ public class PreparedSparseMatrix internal constructor(a: SparseMatrix, private 
 
     /** [call]'s scalars and extents asked of the snapshot, which is the operand a prepared call has. */
     private fun routeAgainstSnapshot(operation: SparseMatrixOperation, call: SparseCall): SparseMatrixRoute =
-        algorithms.matrixRouteOf(
+        algorithms.routeOf(
             operation,
             SparseCall(
                 snapshot,

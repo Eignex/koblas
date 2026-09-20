@@ -41,7 +41,7 @@ class JvmDefaultEngineTest {
         val engines = listOfNotNull(koblas, BuiltinEngines.scalar, BuiltinEngines.simd)
 
         for (engine in engines) {
-            val route = engine.denseRouteOf(DenseMatrixOperation.Gemm, product)
+            val route = engine.routeOf(DenseMatrixOperation.Gemm, product)
 
             assertEquals("portable-dense", route.scheduling, "${engine.name} composed a library")
             assertEquals(null, route.host, "${engine.name} named a vendor call")

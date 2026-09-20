@@ -29,15 +29,15 @@ class PlatformEngineTest {
         assertEquals(null, BuiltinEngines.scalar.vendor)
         assertEquals(
             "portable-dense",
-            BuiltinEngines.scalar.denseRouteOf(DenseMatrixOperation.Gemm, product).scheduling,
+            BuiltinEngines.scalar.routeOf(DenseMatrixOperation.Gemm, product).scheduling,
         )
         assertEquals(
             "scalar-panel/multi-dot",
-            BuiltinEngines.scalar.denseRouteOf(DenseMatrixOperation.GemvTransposed, call).components.single(),
+            BuiltinEngines.scalar.routeOf(DenseMatrixOperation.GemvTransposed, call).components.single(),
         )
         BuiltinEngines.simd?.let {
             assertEquals(null, it.vendor)
-            assertEquals("portable-dense", it.denseRouteOf(DenseMatrixOperation.Gemm, product).scheduling)
+            assertEquals("portable-dense", it.routeOf(DenseMatrixOperation.Gemm, product).scheduling)
         }
     }
 
@@ -83,8 +83,8 @@ class PlatformEngineTest {
         )
         val work = DenseMatrixOperation.GemvTransposed
 
-        val wide = simd.denseRouteOf(work, DenseCall(WIDE, 4)).components.single()
-        val short = simd.denseRouteOf(work, DenseCall(1, 4)).components.single()
+        val wide = simd.routeOf(work, DenseCall(WIDE, 4)).components.single()
+        val short = simd.routeOf(work, DenseCall(1, 4)).components.single()
 
         assertNotEquals(short, wide, "a wide panel and a single row named the same body")
         assertEquals("scalar-panel/multi-dot", short)
@@ -104,7 +104,7 @@ class PlatformEngineTest {
             return
         }
 
-        val wide = koblas.explain(DenseOperation.Dot, WIDE)
+        val wide = koblas.routeOf(DenseOperation.Dot, WIDE).implementation
 
         assertNotEquals(PORTABLE, wide, "a wide dot stayed on the portable kernels")
     }
@@ -112,7 +112,7 @@ class PlatformEngineTest {
     /** Below any arm's threshold the call overhead outweighs the arithmetic, so the portable loop runs. */
     @Test
     fun `a single entry call stays with the portable kernels`() {
-        assertEquals(PORTABLE, koblas.explain(DenseOperation.Dot, 1))
+        assertEquals(PORTABLE, koblas.routeOf(DenseOperation.Dot, 1).implementation)
     }
 
     /**
@@ -126,7 +126,7 @@ class PlatformEngineTest {
         val vendor = koblas.vendor ?: return
         val vendorArm = "${vendor.vendor.vendorName.lowercase()}-level1"
 
-        assertNotEquals(vendorArm, koblas.explain(DenseOperation.Sum, WIDE))
+        assertNotEquals(vendorArm, koblas.routeOf(DenseOperation.Sum, WIDE).implementation)
     }
 
     /**
@@ -144,12 +144,12 @@ class PlatformEngineTest {
         val arm = "${vendor.vendor.vendorName.lowercase()}-level1"
         if (koblas.vectorKernels.name != arm) return skipped("this platform keeps Level 1 off the library")
 
-        assertEquals(PORTABLE, koblas.explain(DenseOperation.Dot, 32), "a dot at 32 is still the loop's")
-        assertEquals(arm, koblas.explain(DenseOperation.Dot, 96), "a dot at 96 has crossed")
-        assertEquals(PORTABLE, koblas.explain(DenseOperation.Nrm2, 96), "the robust norm crosses later")
-        assertEquals(PORTABLE, koblas.explain(DenseOperation.Iamax, 96), "and so does the index search")
-        assertEquals(arm, koblas.explain(DenseOperation.Nrm2, 128), "both have crossed by 128")
-        assertEquals(arm, koblas.explain(DenseOperation.Iamax, 128))
+        assertEquals(PORTABLE, koblas.routeOf(DenseOperation.Dot, 32).implementation, "a dot at 32 is still the loop's")
+        assertEquals(arm, koblas.routeOf(DenseOperation.Dot, 96).implementation, "a dot at 96 has crossed")
+        assertEquals(PORTABLE, koblas.routeOf(DenseOperation.Nrm2, 96).implementation, "the robust norm crosses later")
+        assertEquals(PORTABLE, koblas.routeOf(DenseOperation.Iamax, 96).implementation, "and so does the index search")
+        assertEquals(arm, koblas.routeOf(DenseOperation.Nrm2, 128).implementation, "both have crossed by 128")
+        assertEquals(arm, koblas.routeOf(DenseOperation.Iamax, 128).implementation)
     }
 
     private fun skipped(why: String) {

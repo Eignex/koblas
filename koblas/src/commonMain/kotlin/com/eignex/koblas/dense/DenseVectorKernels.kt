@@ -18,7 +18,7 @@ public interface DenseVectorKernels {
     public val name: String
 
     /**
-     * The implementation a call of this [operation] and [length] reaches, or null when its own values decide.
+     * The implementation a call reaches, or null when values or aliasing decide which implementation finishes.
      *
      * [name] identifies a selection, which is not the same question: a selection that dispatches by length
      * answers with one of its components, and a caller that reports the selection name has named something

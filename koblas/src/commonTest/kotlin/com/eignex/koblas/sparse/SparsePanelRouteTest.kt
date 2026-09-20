@@ -38,7 +38,7 @@ class SparsePanelRouteTest {
                 val c = dense(m, SIDES, rng)
 
                 engine.gemm(0.875, a, transposeA, b, transposeB, -0.25, c, right = false, workspace = Workspace())
-                val route = engine.matrixRouteOf(
+                val route = engine.routeOf(
                     SparseMatrixOperation.GemmDense,
                     SparseCall(
                         a,
@@ -72,7 +72,7 @@ class SparsePanelRouteTest {
             val c = dense(order, SIDES, rng)
 
             engine.symm(0.875, a, b, -0.25, c, lower, right = false, workspace = Workspace())
-            val route = engine.matrixRouteOf(
+            val route = engine.routeOf(
                 SparseMatrixOperation.SymmLeft,
                 SparseCall(
                     a,
@@ -104,7 +104,7 @@ class SparsePanelRouteTest {
                 } else {
                     engine.trmm(t, b, true, transpose, false, false, 0.875, Workspace())
                 }
-                val route = engine.matrixRouteOf(
+                val route = engine.routeOf(
                     if (solve) SparseMatrixOperation.TrsmLeft else SparseMatrixOperation.TrmmLeft,
                     SparseCall(
                         t,
@@ -140,7 +140,7 @@ class SparsePanelRouteTest {
         val b = dense(order, SIDES, Random(20261013))
 
         engine.trsm(t, b, true, false, false, false, 0.875, Workspace())
-        val route = engine.matrixRouteOf(
+        val route = engine.routeOf(
             SparseMatrixOperation.TrsmLeft,
             SparseCall(t, 0.875, destinationElements = b.values.size, rightHandSides = SIDES, lower = true),
         )
@@ -162,7 +162,7 @@ class SparsePanelRouteTest {
         val c = dense(order, SIDES, Random(20261015))
 
         engine.symm(0.875, a, b, -0.25, c, lower = true, right = false, workspace = Workspace())
-        val route = engine.matrixRouteOf(
+        val route = engine.routeOf(
             SparseMatrixOperation.SymmLeft,
             SparseCall(
                 a,
@@ -198,7 +198,7 @@ class SparsePanelRouteTest {
         val c = dense(m, sides, rng)
 
         engine.gemm(0.875, a, false, b, false, -0.25, c, right = false, workspace = Workspace())
-        val route = engine.matrixRouteOf(
+        val route = engine.routeOf(
             SparseMatrixOperation.GemmDense,
             SparseCall(
                 a,
@@ -238,7 +238,7 @@ class SparsePanelRouteTest {
                 } else {
                     engine.trmm(t, b, lower, false, false, false, 0.875, Workspace())
                 }
-                val route = engine.matrixRouteOf(
+                val route = engine.routeOf(
                     if (solve) SparseMatrixOperation.TrsmLeft else SparseMatrixOperation.TrmmLeft,
                     SparseCall(
                         t,
@@ -283,7 +283,7 @@ class SparsePanelRouteTest {
         val b = dense(order, SIDES, Random(20261017))
 
         engine.trsm(t, b, true, false, false, false, 0.875, Workspace())
-        val route = engine.matrixRouteOf(
+        val route = engine.routeOf(
             SparseMatrixOperation.TrsmLeft,
             SparseCall(t, 0.875, destinationElements = b.values.size, rightHandSides = SIDES, lower = true),
         )
@@ -308,7 +308,7 @@ class SparsePanelRouteTest {
         val c = dense(ORDER, 1, rng)
 
         engine.gemm(0.875, a, false, b, false, -0.25, c, right = false, workspace = Workspace())
-        val route = engine.matrixRouteOf(
+        val route = engine.routeOf(
             SparseMatrixOperation.GemmDense,
             SparseCall(a, 0.875, -0.25, destinationElements = ORDER, depth = DEPTH, rightHandSides = 1),
         )
@@ -376,7 +376,7 @@ class SparsePanelRouteTest {
                 } else {
                     engine.trmm(t, b, true, transpose, false, false, 0.875, Workspace())
                 }
-                val route = engine.matrixRouteOf(
+                val route = engine.routeOf(
                     if (solve) SparseMatrixOperation.TrsmLeft else SparseMatrixOperation.TrmmLeft,
                     SparseCall(
                         t,
@@ -466,7 +466,7 @@ class SparsePanelRouteTest {
             } else {
                 engine.gemm(0.875, a, false, b, false, -0.25, c, right = false, workspace = Workspace())
             }
-            val route = engine.matrixRouteOf(
+            val route = engine.routeOf(
                 if (symmetric) SparseMatrixOperation.SymmLeft else SparseMatrixOperation.GemmDense,
                 SparseCall(
                     a,
@@ -513,7 +513,7 @@ class SparsePanelRouteTest {
                 } else {
                     engine.trmm(t, b, true, transpose, false, false, 0.875, Workspace())
                 }
-                val route = engine.matrixRouteOf(
+                val route = engine.routeOf(
                     if (solve) SparseMatrixOperation.TrsmLeft else SparseMatrixOperation.TrmmLeft,
                     SparseCall(
                         t,
@@ -560,7 +560,7 @@ class SparsePanelRouteTest {
         val c = dense(order, sides, Random(20261026))
 
         engine.symm(0.875, a, b, -0.25, c, lower = true, right = false, workspace = Workspace())
-        val route = engine.matrixRouteOf(
+        val route = engine.routeOf(
             SparseMatrixOperation.SymmLeft,
             SparseCall(
                 a,
@@ -587,14 +587,14 @@ class SparsePanelRouteTest {
         val k = DEPTH
         val a = spread(m, k, rng)
 
-        val scatter = engine.matrixRouteOf(
+        val scatter = engine.routeOf(
             SparseMatrixOperation.GemmDense,
             SparseCall(a, 0.875, -0.25, destinationElements = m * SIDES, depth = k, rightHandSides = SIDES),
         )
         assertEquals(listOf("$SPARSE_STAGING/rhs-destination"), staging(scatter), "the scattered half")
 
         val transposed = spread(k, m, rng)
-        val gather = engine.matrixRouteOf(
+        val gather = engine.routeOf(
             SparseMatrixOperation.GemmDense,
             SparseCall(
                 transposed,
@@ -608,7 +608,7 @@ class SparsePanelRouteTest {
         )
         assertEquals(listOf("$SPARSE_STAGING/rhs-source"), staging(gather), "the gathered half")
 
-        val symmetric = engine.matrixRouteOf(
+        val symmetric = engine.routeOf(
             SparseMatrixOperation.SymmLeft,
             SparseCall(
                 filled(m, rng),

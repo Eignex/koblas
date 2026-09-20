@@ -28,7 +28,7 @@ public interface SparseBlas {
      * therefore carries the call rather than a representative size, so a matrix whose columns reach two
      * different kernels is reported as the composition it is instead of being averaged into one leaf.
      */
-    public fun matrixRouteOf(operation: SparseMatrixOperation, call: SparseCall): SparseMatrixRoute
+    public fun routeOf(operation: SparseMatrixOperation, call: SparseCall): SparseMatrixRoute
 
     /**
      * In-place `y = alpha · op(A) · x + beta · y`, where `op(A)` is `Aᵀ` when [transpose]. Per BLAS

@@ -37,7 +37,7 @@ class SparseMatrixRouteTest {
         val a = uniform(columns = 4, perColumn = 32)
         for (engine in listOfNotNull(BuiltinEngines.scalar, BuiltinEngines.simd)) {
             for (operation in SparseMatrixOperation.entries) {
-                val route = engine.matrixRouteOf(
+                val route = engine.routeOf(
                     operation,
                     SparseCall(a, destinationElements = 512, depth = 32, updateRun = 512),
                 )
@@ -53,7 +53,7 @@ class SparseMatrixRouteTest {
 
     @Test
     fun `an operation whose arithmetic is its own traversal names no component`() {
-        val route = BuiltinEngines.scalar.matrixRouteOf(
+        val route = BuiltinEngines.scalar.routeOf(
             SparseMatrixOperation.GemmSparse,
             SparseCall(uniform(columns = 2, perColumn = 8)),
         )
@@ -69,16 +69,16 @@ class SparseMatrixRouteTest {
         val engine = BuiltinEngines.simd ?: BuiltinEngines.scalar
         val a = uniform(columns = 2, perColumn = 8)
 
-        val scaled = engine.matrixRouteOf(
+        val scaled = engine.routeOf(
             SparseMatrixOperation.Symv,
             SparseCall(a, alpha = 1.0, beta = 0.5, destinationElements = 4096),
         )
-        val overwritten = engine.matrixRouteOf(
+        val overwritten = engine.routeOf(
             SparseMatrixOperation.Symv,
             SparseCall(a, alpha = 1.0, beta = 0.0, destinationElements = 4096),
         )
 
-        val expected = assertNotNull(engine.explain(DenseOperation.Scale, 4096))
+        val expected = assertNotNull(engine.routeOf(DenseOperation.Scale, 4096).implementation)
         assertEquals(listOf("$expected/scale"), scaled.components, "a non-unit beta scales the destination")
         assertEquals(emptyList(), overwritten.components, "a zero beta fills rather than scaling")
     }
@@ -86,8 +86,8 @@ class SparseMatrixRouteTest {
     @Test
     fun `a scattered gemv names the indexed leaf its columns reach`() {
         val engine = BuiltinEngines.simd ?: BuiltinEngines.scalar
-        val short = engine.matrixRouteOf(SparseMatrixOperation.Gemv, SparseCall(uniform(4, 1)))
-        val long = engine.matrixRouteOf(SparseMatrixOperation.Gemv, SparseCall(uniform(4, 4096)))
+        val short = engine.routeOf(SparseMatrixOperation.Gemv, SparseCall(uniform(4, 1)))
+        val long = engine.routeOf(SparseMatrixOperation.Gemv, SparseCall(uniform(4, 4096)))
 
         for (route in listOf(short, long)) {
             val component = route.components.single()
@@ -125,7 +125,7 @@ class SparseMatrixRouteTest {
             listOf(listOf(0 to 1.0), List(LONG_COLUMN) { row -> row to (row + 1.0) }),
         )
 
-        val route = engine.matrixRouteOf(SparseMatrixOperation.Gemv, SparseCall(mixed))
+        val route = engine.routeOf(SparseMatrixOperation.Gemv, SparseCall(mixed))
 
         assertEquals(RouteKind.Composed, route.kind)
         assertEquals(listOf("$short/axpy", "$long/axpy"), route.components)
@@ -137,7 +137,7 @@ class SparseMatrixRouteTest {
     fun `a transposed gemv names the ordered scalar dot its contract fixes`() {
         val engine = BuiltinEngines.simd ?: BuiltinEngines.scalar
 
-        val route = engine.matrixRouteOf(
+        val route = engine.routeOf(
             SparseMatrixOperation.GemvTransposed,
             SparseCall(uniform(4, 4096)),
         )
@@ -155,7 +155,7 @@ class SparseMatrixRouteTest {
     fun `a sparse operand on the right is a composition of the dense leaf and the traversal`() {
         val engine = BuiltinEngines.simd ?: BuiltinEngines.scalar
 
-        val route = engine.matrixRouteOf(
+        val route = engine.routeOf(
             SparseMatrixOperation.GemmDenseRight,
             SparseCall(uniform(2, 8), alpha = 1.0, beta = 1.0, updateRun = 4096),
         )
@@ -164,7 +164,7 @@ class SparseMatrixRouteTest {
         assertEquals(RouteKind.Composed, route.kind)
         assertTrue(component.endsWith("/axpy"), "right-side product reported $component")
         assertEquals(
-            assertNotNull(engine.explain(DenseOperation.Axpy, 4096)),
+            assertNotNull(engine.routeOf(DenseOperation.Axpy, 4096).implementation),
             component.substringBefore('/'),
             "the leaf must be the one a dense Level 1 axpy of that width reaches",
         )
@@ -175,11 +175,11 @@ class SparseMatrixRouteTest {
         val engine = BuiltinEngines.scalar
         val a = uniform(columns = 2, perColumn = 8)
 
-        val scaled = engine.matrixRouteOf(
+        val scaled = engine.routeOf(
             SparseMatrixOperation.GemmDense,
             SparseCall(a, alpha = 0.0, beta = 0.5, destinationElements = 4096),
         )
-        val filled = engine.matrixRouteOf(
+        val filled = engine.routeOf(
             SparseMatrixOperation.TrsmLeft,
             SparseCall(a, alpha = 0.0, destinationElements = 4096),
         )
@@ -196,7 +196,7 @@ class SparseMatrixRouteTest {
      */
     @Test
     fun `a zero multiplier still reports work for a structural result`() {
-        val route = BuiltinEngines.scalar.matrixRouteOf(
+        val route = BuiltinEngines.scalar.routeOf(
             SparseMatrixOperation.AddScaled,
             SparseCall(uniform(2, 8), alpha = 0.0),
         )
@@ -208,7 +208,7 @@ class SparseMatrixRouteTest {
     fun `an empty operand reports no work`() {
         val empty = SparseMatrix.ofColumns(0, 0, emptyList())
 
-        val route = BuiltinEngines.scalar.matrixRouteOf(SparseMatrixOperation.Symv, SparseCall(empty))
+        val route = BuiltinEngines.scalar.routeOf(SparseMatrixOperation.Symv, SparseCall(empty))
 
         assertEquals(RouteKind.NoWork, route.kind)
     }
@@ -222,15 +222,15 @@ class SparseMatrixRouteTest {
         val engine = BuiltinEngines.scalar
         val a = uniform(columns = 4, perColumn = 32)
 
-        val emptyDestination = engine.matrixRouteOf(
+        val emptyDestination = engine.routeOf(
             SparseMatrixOperation.GemmDense,
             SparseCall(a, alpha = 1.0, beta = 1.0, destinationElements = 0, depth = 32),
         )
-        val emptyDepth = engine.matrixRouteOf(
+        val emptyDepth = engine.routeOf(
             SparseMatrixOperation.GemmDense,
             SparseCall(a, alpha = 1.0, beta = 1.0, destinationElements = 4096, depth = 0),
         )
-        val real = engine.matrixRouteOf(
+        val real = engine.routeOf(
             SparseMatrixOperation.GemmDense,
             SparseCall(
                 a,
@@ -260,7 +260,7 @@ class SparseMatrixRouteTest {
         val engine = BuiltinEngines.scalar
         val a = uniform(columns = 4, perColumn = 32)
 
-        val route = engine.matrixRouteOf(
+        val route = engine.routeOf(
             SparseMatrixOperation.GemmDense,
             SparseCall(a, alpha = 1.0, beta = 1.0, destinationElements = 4096, depth = 32),
         )
@@ -284,7 +284,7 @@ class SparseMatrixRouteTest {
         val engine = BuiltinEngines.scalar
         val a = uniform(columns = 4, perColumn = 32)
 
-        val route = engine.matrixRouteOf(SparseMatrixOperation.GemmDense, SparseCall(a, alpha = 1.0))
+        val route = engine.routeOf(SparseMatrixOperation.GemmDense, SparseCall(a, alpha = 1.0))
 
         assertEquals(RouteKind.Composed, route.kind)
         assertEquals(false, route.resolved, route.toString())
@@ -297,7 +297,7 @@ class SparseMatrixRouteTest {
         val engine = BuiltinEngines.scalar
         val a = uniform(columns = 4, perColumn = 32)
 
-        val route = engine.matrixRouteOf(
+        val route = engine.routeOf(
             SparseMatrixOperation.GemmDense,
             SparseCall(a, alpha = 1.0, beta = -0.25, destinationElements = 4096, depth = 32),
         )
@@ -312,7 +312,7 @@ class SparseMatrixRouteTest {
         val engine = BuiltinEngines.scalar
         val a = uniform(columns = 4, perColumn = 32)
 
-        val route = engine.matrixRouteOf(
+        val route = engine.routeOf(
             SparseMatrixOperation.GemmDense,
             SparseCall(
                 a,
@@ -340,7 +340,7 @@ class SparseMatrixRouteTest {
      */
     @Test
     fun `an operation with no dense destination is not mistaken for an empty one`() {
-        val route = BuiltinEngines.scalar.matrixRouteOf(
+        val route = BuiltinEngines.scalar.routeOf(
             SparseMatrixOperation.SyrkSparse,
             SparseCall(uniform(columns = 4, perColumn = 32), depth = 32),
         )
@@ -358,7 +358,7 @@ class SparseMatrixRouteTest {
         val engine = BuiltinEngines.scalar
         val zeros = SparseMatrix.ofColumns(3, 3, List(3) { j -> (j until 3).map { it to 0.0 } })
 
-        val route = engine.matrixRouteOf(
+        val route = engine.routeOf(
             SparseMatrixOperation.TrsmRight,
             SparseCall(zeros, alpha = 1.0, destinationElements = 12, updateRun = 4),
         )
@@ -370,7 +370,7 @@ class SparseMatrixRouteTest {
 
     @Test
     fun `preparing a snapshot reports the copy rather than an arithmetic kernel`() {
-        val route = BuiltinEngines.scalar.matrixRouteOf(
+        val route = BuiltinEngines.scalar.routeOf(
             SparseMatrixOperation.Prepare,
             SparseCall(uniform(2, 8)),
         )

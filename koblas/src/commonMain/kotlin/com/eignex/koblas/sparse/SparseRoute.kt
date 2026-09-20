@@ -5,8 +5,8 @@ import com.eignex.koblas.vendor.RouteKind
 /**
  * A sparse Level 1 entry point, named so a caller can ask where a call of a given width would go.
  *
- * The width is the only route-relevant argument these operations have: every one of them walks a stored
- * support, and the choice between a vector kernel and its scalar fallback is made on how long that support is.
+ * The support width settles size-based dispatch. Norms can also depend on values, so their route is
+ * composed whenever a vector square sum may retry through the portable rescaling loop.
  */
 public enum class SparseOperation(internal val entryPoint: String) {
     /** A sparse vector against a dense one, over an index and a value window. */
@@ -48,8 +48,8 @@ public enum class SparseOperation(internal val entryPoint: String) {
  * [implementation] is therefore the fact a comparison has to read: it names what executed, not what was asked.
  * A route is about one call at one width, and building one allocates, so a caller asks once and then times.
  *
- * A [RouteKind.Composed] route is the admission that no kernel can be named yet, which the whole-vector norm
- * needs: it tries a square sum and abandons it for a rescaling loop when that leaves the normal range, so the
+ * A [RouteKind.Composed] route is the admission that no kernel can be named yet, which vectorized norms
+ * need: they try a square sum and abandon it for a rescaling loop when that leaves the normal range, so the
  * values decide. Naming either kernel would be a guess, and establishing it after the fact would mean tracing
  * inside the region being timed.
  */

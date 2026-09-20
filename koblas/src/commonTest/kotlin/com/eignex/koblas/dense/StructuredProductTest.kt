@@ -486,7 +486,7 @@ class StructuredProductTest {
     @OptIn(KoblasEngineApi::class)
     fun `a rank two-k route reports the composition it is`() {
         for (engine in listOfNotNull(BuiltinEngines.scalar, BuiltinEngines.simd)) {
-            val route = engine.denseRouteOf(
+            val route = engine.routeOf(
                 DenseMatrixOperation.Syr2k,
                 DenseCall(64, 64, 0.875, -0.25, depth = 64),
             )

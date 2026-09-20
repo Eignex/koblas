@@ -41,7 +41,7 @@ class NativeDefaultEngineTest {
     fun `a product past the policy's size is one whole vendor call and says which`() {
         val vendor = koblas.vendor ?: return skipped("the composed dense route")
 
-        val route = koblas.denseRouteOf(DenseMatrixOperation.Gemm, DenseCall(ORDER, ORDER, depth = ORDER))
+        val route = koblas.routeOf(DenseMatrixOperation.Gemm, DenseCall(ORDER, ORDER, depth = ORDER))
 
         assertEquals(HOST_SCHEDULING, route.scheduling, "the default did not compose the installed library")
         assertEquals(RouteKind.Direct, route.kind)
@@ -60,7 +60,7 @@ class NativeDefaultEngineTest {
     fun `a small call keeps the portable schedule beside the library`() {
         if (koblas.vendor == null) return skipped("the fallback below the policy's size")
 
-        val route = koblas.denseRouteOf(DenseMatrixOperation.Gemm, DenseCall(SMALL, SMALL, depth = SMALL))
+        val route = koblas.routeOf(DenseMatrixOperation.Gemm, DenseCall(SMALL, SMALL, depth = SMALL))
 
         assertNotEquals(HOST_SCHEDULING, route.scheduling, "a small product was sent to the library")
         assertEquals(null, route.host)
@@ -78,7 +78,7 @@ class NativeDefaultEngineTest {
         val call = DenseCall(ORDER, ORDER, depth = ORDER)
 
         for (operation in PACKED) {
-            val route = koblas.denseRouteOf(operation, call)
+            val route = koblas.routeOf(operation, call)
 
             assertNotEquals(HOST_SCHEDULING, route.scheduling, "$operation was labelled a host call")
             assertEquals(null, route.host, "$operation carried a vendor call")
@@ -101,7 +101,7 @@ class NativeDefaultEngineTest {
         if (koblas.vectorKernels.name != arm) return skipped("this platform keeps Level 1 off the library")
         val call = DenseCall(LONG_COLUMN, FEW_COLUMNS, beta = 0.5)
 
-        val route = koblas.denseRouteOf(DenseMatrixOperation.Gemv, call)
+        val route = koblas.routeOf(DenseMatrixOperation.Gemv, call)
 
         assertNotEquals(HOST_SCHEDULING, route.scheduling, "a small matrix-vector product was handed over")
         assertEquals(null, route.host, "a call this library scheduled carried a whole-call vendor route")
@@ -132,7 +132,7 @@ class NativeDefaultEngineTest {
         val c = DenseMatrix.zero(SMALL, SMALL)
 
         engine.gemm(1.0, a, false, a, false, 0.0, c)
-        val route = engine.denseRouteOf(DenseMatrixOperation.Gemm, DenseCall(ORDER, ORDER, depth = ORDER))
+        val route = engine.routeOf(DenseMatrixOperation.Gemm, DenseCall(ORDER, ORDER, depth = ORDER))
 
         assertEquals(null, engine.vendor, "the exact portable engine resolved a host library")
         assertEquals("portable-dense", route.scheduling)

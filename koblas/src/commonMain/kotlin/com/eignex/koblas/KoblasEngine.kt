@@ -12,6 +12,7 @@ import com.eignex.koblas.dense.DensePanelKernels
 import com.eignex.koblas.dense.DenseProductKernels
 import com.eignex.koblas.dense.DenseTriangularKernels
 import com.eignex.koblas.dense.DenseVectorKernels
+import com.eignex.koblas.dense.DenseVectorRoute
 import com.eignex.koblas.dense.HostDenseBlas
 import com.eignex.koblas.dense.PackedMatrix
 import com.eignex.koblas.dense.PortableDenseBlas
@@ -24,8 +25,11 @@ import com.eignex.koblas.sparse.SPARSE_SCHEDULING
 import com.eignex.koblas.sparse.SparseAlgorithms
 import com.eignex.koblas.sparse.SparseBlas
 import com.eignex.koblas.sparse.SparseKernels
+import com.eignex.koblas.sparse.SparseOperation
 import com.eignex.koblas.sparse.SparsePanelKernels
+import com.eignex.koblas.sparse.SparseRoute
 import com.eignex.koblas.vendor.Blas
+import com.eignex.koblas.vendor.RouteKind
 import com.eignex.koblas.vendor.openBlas
 
 /**
@@ -61,7 +65,7 @@ internal expect fun platformEngine(): KoblasEngine
  * [BuiltinEngines.simd] never resolve one, so a scalar or JVM SIMD benchmark arm is independent of host
  * libraries by construction. A platform default may also compose it into ordinary dense Level 2 and 3 calls
  * under a fixed policy, which Kotlin/Native's does; holding a binding is not evidence that a given call
- * reached it, and [denseRouteOf] is what answers that for one call.
+ * reached it, and [routeOf] is what answers that for one call.
  *
  * Selected once for the platform and immutable afterwards. [BuiltinEngines] constructs exact scalar or SIMD
  * compositions for tests and benchmarks without touching process-global state.
@@ -102,7 +106,7 @@ public class KoblasEngine internal constructor(
      * The component that owns built-in sparse Level 2 and 3 calls.
      *
      * Always this library's portable CSC scheduling. The Level 1 kernels an individual column reaches are a
-     * separate question, and [com.eignex.koblas.sparse.SparseBlas.matrixRouteOf] is what answers it.
+     * separate question, and [com.eignex.koblas.sparse.SparseBlas.routeOf] is what answers it.
      */
     public val sparseImplementation: String = SPARSE_SCHEDULING
 
@@ -110,8 +114,7 @@ public class KoblasEngine internal constructor(
      * Short read-only description of what this engine selected, for logs.
      *
      * A selection, not a claim about execution: which of the selected implementations a given call reaches
-     * depends on its shape, and [denseRouteOf] and [com.eignex.koblas.sparse.SparseBlas.matrixRouteOf] are
-     * what answer that.
+     * depends on its shape. The [routeOf] overloads describe concrete dense and sparse calls.
      */
     public val name: String
         get() = "${vectorKernels.name}/${sparseKernels.name}/${panelKernels.name}/${productKernels.name}/" +
@@ -120,9 +123,8 @@ public class KoblasEngine internal constructor(
     /**
      * What a built-in dense Level 2 or 3 call of this [operation] and shape actually executes.
      *
-     * The dense counterpart of [com.eignex.koblas.sparse.SparseBlas.matrixRouteOf]. Traversal is this
-     * library's own portable code wherever this library schedules the call; the panels a window reaches are
-     * the selected backend's, and a window too short for one falls to the portable body. An engine's name
+     * Traversal is this library's own portable code wherever this library schedules the call. Its panels use
+     * the selected backend, and a window too short for one falls to the portable body. An engine's name
      * says which backend was selected and nothing about which of its bodies a call ran.
      *
      * Where the platform default composes an installed library, a call with enough arithmetic for it is one
@@ -131,7 +133,7 @@ public class KoblasEngine internal constructor(
      * with no entry point of its own, such as a product between operands packed for this library's register
      * tile, reports the portable schedule it really runs however large it is.
      */
-    public fun denseRouteOf(operation: DenseMatrixOperation, call: DenseCall): DenseMatrixRoute =
+    public fun routeOf(operation: DenseMatrixOperation, call: DenseCall): DenseMatrixRoute =
         dense.routeOf(operation, call)
 
     /**
@@ -182,16 +184,33 @@ public class KoblasEngine internal constructor(
     ): Unit = denseBlas.gemm(alpha, a, transposeA, b, beta, c, workspace)
 
     /**
-     * The Level 1 implementation a call of this [operation] and [length] reaches, or null when its own values
-     * decide and no width settles it.
+     * The route for a dense vector call of this [operation] and [length].
      *
-     * [contiguous] is part of the question rather than a detail of it: a vector kernel loads a lane block from
-     * consecutive elements, so a strided run is scalar work whatever the width.
+     * [contiguous] says whether the operands have unit stride. A composed route means values or aliasing
+     * decide which implementation finishes the call; inspecting a route does not execute it.
      */
-    public fun explain(operation: DenseOperation, length: Int, contiguous: Boolean = true): String? {
+    public fun routeOf(operation: DenseOperation, length: Int, contiguous: Boolean = true): DenseVectorRoute {
         require(length >= 0) { "negative operation length" }
-        return vectorKernels.implementationFor(operation, length, contiguous)
+        val selection = vectorKernels.name
+        if (length == 0) {
+            return DenseVectorRoute(operation, RouteKind.NoWork, selection, "the vector is empty")
+        }
+        val reached = vectorKernels.implementationFor(operation, length, contiguous)
+            ?: return DenseVectorRoute(
+                operation,
+                RouteKind.Composed,
+                selection,
+                "values or aliasing decide which implementation completes the call",
+            )
+        return if (reached == selection) {
+            DenseVectorRoute(operation, RouteKind.Direct, reached, null)
+        } else {
+            DenseVectorRoute(operation, RouteKind.Delegated, reached, "$selection falls back to $reached")
+        }
     }
+
+    /** The route for a sparse vector call over [count] stored entries. */
+    public fun routeOf(operation: SparseOperation, count: Int): SparseRoute = sparseKernels.routeOf(operation, count)
 
     override fun toString(): String = "KoblasEngine($name)"
 }
@@ -219,7 +238,7 @@ public expect object BuiltinEngines {
      * Every JVM Vector API kernel this library owns, or null when the module is unavailable.
      *
      * On the JVM, [koblas] selects this same engine when it is available. A window too short or too
-     * strided for a vector body runs a portable fallback; [KoblasEngine.denseRouteOf] identifies the
+     * strided for a vector body runs a portable fallback; [KoblasEngine.routeOf] identifies the
      * bodies reached by a particular call rather than treating the whole engine as vectorized.
      */
     public val simd: KoblasEngine?

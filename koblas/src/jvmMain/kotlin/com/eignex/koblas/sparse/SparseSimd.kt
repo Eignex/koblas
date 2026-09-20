@@ -9,6 +9,8 @@ internal object SparseSimd {
     private val SPECIES = DoubleVector.SPECIES_PREFERRED
     private val LANE = SPECIES.length()
 
+    val lanes: Int get() = LANE
+
     val autoScatterEligible: Boolean
         get() = SPECIES.vectorBitSize() == 512 && System.getProperty("os.arch").orEmpty() in X86_ARCHITECTURES
 

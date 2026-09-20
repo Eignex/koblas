@@ -50,8 +50,12 @@ private fun level1(
     result: DoubleArray? = null,
     run: () -> Double,
 ): CaseWork? {
-    val implementation = engine.explain(operation, length) ?: return null
-    return CaseWork("direct", timing, run, result = result, kernel = "$implementation/${operation.name.lowercase()}")
+    val route = engine.routeOf(operation, length)
+    if (route.kind == RouteKind.Composed || route.kind == RouteKind.NoWork) return null
+    return CaseWork(
+        route.kind.name.lowercase(), timing, run, result = result,
+        kernel = "${route.implementation}/${route.entryPoint}",
+    )
 }
 
 /**
@@ -74,7 +78,7 @@ private fun level23(
     verify: () -> Unit,
     run: () -> Double,
 ): CaseWork? {
-    val route = engine.denseRouteOf(operation, call)
+    val route = engine.routeOf(operation, call)
     if (route.kind == RouteKind.NoWork) return null
     verify()
     return CaseWork(route.kind.name.lowercase(), timing, run, kernel = denseMatrixKernel(route))
@@ -368,7 +372,7 @@ private fun genericProductArm(case: BenchCase, engine: KoblasEngine): ArmChoice 
     val b = Fixtures.matrix(k, n, 2)
     val c0 = Fixtures.matrix(m, n, 3)
     val c = Fixtures.matrix(m, n, 3)
-    val route = koblas.denseRouteOf(DenseMatrixOperation.Gemm, DenseCall(m, n, alpha, beta, depth = k))
+    val route = koblas.routeOf(DenseMatrixOperation.Gemm, DenseCall(m, n, alpha, beta, depth = k))
     if (route.kind == RouteKind.NoWork) {
         return ArmChoice(null, "this case's own contract stops before the arithmetic, so there is nothing to time")
     }

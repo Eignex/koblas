@@ -61,8 +61,8 @@ class PreparedSparseMatrixTest {
             transposeDense = true,
         )
 
-        val oneShot = koblas.matrixRouteOf(SparseMatrixOperation.GemmDense, call)
-        val reused = prepared.matrixRouteOf(SparseMatrixOperation.GemmDense, call)
+        val oneShot = koblas.routeOf(SparseMatrixOperation.GemmDense, call)
+        val reused = prepared.routeOf(SparseMatrixOperation.GemmDense, call)
 
         assertTrue(
             oneShot.components.any { it.endsWith("/sparse-rhs-gather") },
@@ -90,11 +90,11 @@ class PreparedSparseMatrixTest {
             transposeSparse = true,
         )
 
-        val route = prepared.matrixRouteOf(SparseMatrixOperation.GemvTransposed, call)
+        val route = prepared.routeOf(SparseMatrixOperation.GemvTransposed, call)
 
         assertFalse(prepared.orientationDerived, "a prepared transposed gemv derived an orientation")
         assertEquals(
-            koblas.matrixRouteOf(SparseMatrixOperation.GemvTransposed, call).components,
+            koblas.routeOf(SparseMatrixOperation.GemvTransposed, call).components,
             route.components,
             "a prepared transposed gemv reported something other than the call it makes",
         )
@@ -108,7 +108,7 @@ class PreparedSparseMatrixTest {
     fun `a prepared transposed sparse product reports that its schedule is undecided`() {
         val prepared = matrix().prepare()
 
-        val route = prepared.matrixRouteOf(
+        val route = prepared.routeOf(
             SparseMatrixOperation.GemmSparse,
             SparseCall(matrix(), 1.0, transposeSparse = true, depth = 3),
         )
@@ -125,9 +125,9 @@ class PreparedSparseMatrixTest {
         val prepared = koblas.prepare(source)
         val call = SparseCall(source, 0.875, -0.25, destinationElements = 8, depth = 3, transposeSparse = true)
 
-        val route = prepared.matrixRouteOf(SparseMatrixOperation.GemmDense, call)
+        val route = prepared.routeOf(SparseMatrixOperation.GemmDense, call)
 
-        assertEquals(koblas.matrixRouteOf(SparseMatrixOperation.GemmDense, call).resolved, route.resolved)
+        assertEquals(koblas.routeOf(SparseMatrixOperation.GemmDense, call).resolved, route.resolved)
         assertEquals(false, route.resolved, route.toString())
         assertFalse(prepared.orientationDerived, "an unresolved route derived an orientation anyway")
     }
@@ -153,15 +153,15 @@ class PreparedSparseMatrixTest {
             transposeSparse = true,
         )
 
-        val open = prepared.matrixRouteOf(SparseMatrixOperation.GemmDense, withoutExtent)
-        val settled = prepared.matrixRouteOf(SparseMatrixOperation.GemmDense, withExtent)
+        val open = prepared.routeOf(SparseMatrixOperation.GemmDense, withoutExtent)
+        val settled = prepared.routeOf(SparseMatrixOperation.GemmDense, withExtent)
 
         assertEquals(
-            koblas.matrixRouteOf(SparseMatrixOperation.GemmDense, withoutExtent).toString(),
+            koblas.routeOf(SparseMatrixOperation.GemmDense, withoutExtent).toString(),
             open.toString(),
         )
         assertEquals(
-            koblas.matrixRouteOf(SparseMatrixOperation.GemmDense, withExtent).toString(),
+            koblas.routeOf(SparseMatrixOperation.GemmDense, withExtent).toString(),
             settled.toString(),
         )
         assertEquals(true, settled.resolved, settled.toString())
@@ -176,7 +176,7 @@ class PreparedSparseMatrixTest {
     fun `a prepared transposed product with an empty destination orients nothing`() {
         val prepared = matrix().prepare()
 
-        val route = prepared.matrixRouteOf(
+        val route = prepared.routeOf(
             SparseMatrixOperation.GemmDense,
             SparseCall(
                 matrix(),
@@ -203,7 +203,7 @@ class PreparedSparseMatrixTest {
         val prepared = matrix().prepare()
         val destination = 3 * 4
 
-        val scaled = prepared.matrixRouteOf(
+        val scaled = prepared.routeOf(
             SparseMatrixOperation.GemmSparseDense,
             SparseCall(
                 matrix(),
@@ -214,7 +214,7 @@ class PreparedSparseMatrixTest {
                 transposeSparse = true,
             ),
         )
-        val empty = prepared.matrixRouteOf(
+        val empty = prepared.routeOf(
             SparseMatrixOperation.GemmSparseDense,
             SparseCall(matrix(), 1.0, -0.25, destinationElements = 0, depth = 3, transposeSparse = true),
         )
@@ -231,7 +231,7 @@ class PreparedSparseMatrixTest {
     fun `a prepared route for a call with no work derives no orientation`() {
         val prepared = matrix().prepare()
 
-        prepared.matrixRouteOf(
+        prepared.routeOf(
             SparseMatrixOperation.GemmDense,
             SparseCall(
                 matrix(),

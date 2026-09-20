@@ -7,8 +7,11 @@ internal object SimdIndexedSparseKernels : IndexedSparseKernels by ScalarIndexed
 
     override val name: String = "simd"
 
-    override fun implementationFor(operation: SparseOperation, count: Int): String =
-        if (usesVector(operation, count)) name else ScalarIndexedSparseKernels.name
+    override fun implementationFor(operation: SparseOperation, count: Int): String? = when {
+        !usesVector(operation, count) -> ScalarIndexedSparseKernels.name
+        operation == SparseOperation.IndexedNrm2 -> null
+        else -> name
+    }
 
     /**
      * Whether this call reaches a vector kernel, which is the one decision every override below makes.
@@ -18,7 +21,7 @@ internal object SimdIndexedSparseKernels : IndexedSparseKernels by ScalarIndexed
      * supporting an indexed store.
      */
     private fun usesVector(operation: SparseOperation, count: Int): Boolean {
-        if (count < SparseTuning.simdIndexedCrossover) return false
+        if (count < SparseTuning.simdIndexedCrossover || count < SparseSimd.lanes) return false
         return when (operation) {
             SparseOperation.DotDense, SparseOperation.Gather, SparseOperation.IndexedNrm2 -> vectorGather
 

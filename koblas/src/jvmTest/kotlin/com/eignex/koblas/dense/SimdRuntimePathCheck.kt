@@ -58,7 +58,7 @@ internal object SimdRuntimePathCheck {
         // Printed because it is the thing that moves with the species and is easy to assume instead of
         // reading: a symmetric traversal grouped by two cuts only even windows at an even order.
         for (order in intArrayOf(512, 513)) {
-            val route = engine.denseRouteOf(DenseMatrixOperation.Symv, DenseCall(order, order))
+            val route = engine.routeOf(DenseMatrixOperation.Symv, DenseCall(order, order))
             println("symv order $order at $lanes lanes: ${route.kind} ${route.components}")
         }
         checkProducts(engine, lanes)
@@ -87,7 +87,7 @@ internal object SimdRuntimePathCheck {
             Triple(37, 29, 41),
         )) {
             assertProductRouteNamesExecutedBlocks(products, engine.panelKernels, m, n, k)
-            val route = engine.denseRouteOf(DenseMatrixOperation.Gemm, DenseCall(m, n, depth = k))
+            val route = engine.routeOf(DenseMatrixOperation.Gemm, DenseCall(m, n, depth = k))
             println("gemm ${m}x${n}x$k at $lanes lanes: ${route.kind} ${route.components}")
         }
     }

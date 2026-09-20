@@ -46,7 +46,7 @@ class NativeHostConcurrencyTest {
 
     /** Whether the call this test makes is the one the default hands to a library, asserted not assumed. */
     private fun assertRouteMatchesInstalledLibrary(call: DenseCall, what: String) {
-        val route = koblas.denseRouteOf(DenseMatrixOperation.Gemm, call)
+        val route = koblas.routeOf(DenseMatrixOperation.Gemm, call)
         val vendor = koblas.vendor
         if (vendor == null) {
             println("SKIPPED: no CBLAS library installed; $what exercised the portable schedule instead")
