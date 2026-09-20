@@ -48,8 +48,7 @@ kotlin {
     }
 }
 
-// Dokka site is the canonical user documentation. Module-level and per-package prose live in
-// adjacent .md files referenced here.
+// Module and package overviews share one Dokka include.
 dokka {
     moduleName.set("koblas")
     dokkaSourceSets.configureEach {
@@ -62,12 +61,7 @@ dokka {
         }
     }
     dokkaSourceSets.named("commonMain") {
-        includes.from(
-            "module.md",
-            "src/commonMain/kotlin/com/eignex/koblas/package.md",
-            "src/commonMain/kotlin/com/eignex/koblas/dense/package.md",
-            "src/commonMain/kotlin/com/eignex/koblas/sparse/package.md",
-        )
+        includes.from("module.md")
     }
 }
 

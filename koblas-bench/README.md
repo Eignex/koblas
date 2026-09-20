@@ -6,7 +6,7 @@ Requires JDK 25. `capture-report.sh` is the only reporting script.
 ## Running a capture
 
 ```bash
-# Full capture: the three JVM arms, Native, and the platform's vendors.
+# Full capture: three JVM arms, two Native arms, and the platform's vendors.
 koblas-bench/capture-report.sh --samples 5 --warmups 5 --target-ms 200 --forks 2
 
 # One operation across its opt-in sizes.
@@ -89,8 +89,6 @@ Nothing about this is automatic, so an ARM capture that does not pass the flag s
 `linuxArm64` Level 1 kernels are shipped production code, and the plain `armpl` arm is the binding a Kotlin/
 Native consumer on that hardware actually uses.
 
-The restored matrix kernels require their own measurements; earlier Level 1 captures do not establish their performance.
-
 ### Which hosts to capture
 
 The historical fleet provides a ladder of SIMD widths and generations. Its reports describe the source
@@ -118,17 +116,13 @@ The pre-FMA rungs earn their place even though nobody buys those instances now: 
 no instruction behind it falls back to a software implementation per lane rather than refusing, and only a
 host without the instruction shows that.
 
-The historical captures cover three lane counts, hardware with and without fused multiply-add, 256-bit
-and 512-bit x86 indexed operations, and both instruction set families. That coverage describes the measured
-kernels; it does not establish cross-host performance for the restored Level 2 and 3 implementations.
-
 ### Not yet covered
 
 Further coverage gaps remain beyond the historical ladder.
 
 The historical ARM rungs have no `native` or plain `armpl` numbers, for the build reason given above.
 A cross-compiled executable can be carried to an ARM host for measurement. Compile-only validation does
-not provide Native timing evidence, and the restored matrix kernels need their own coverage too.
+not provide Native timing evidence.
 
 The AMD rung is Zen 2, which stops at AVX2, so every AVX-512 number in the fleet is Intel's. AMD implements
 that width differently enough that it is not the same rung read twice, and `c7a.2xlarge` is where Zen 4 has
@@ -144,7 +138,7 @@ uses portable Kotlin when an installed host call is unavailable or ineligible.
 
 | Option | Effect |
 |---|---|
-| `--libraries openblas,accelerate,onemkl,aocl,armpl\|all` | Which vendors to run. `all` is OpenBLAS with oneMKL on x86-64 Linux and Accelerate on macOS; AOCL and ArmPL are named explicitly, since their licences keep them out of `all`. |
+| `--libraries openblas,accelerate,onemkl,aocl,armpl\|all` | Which vendors to run. `all` selects OpenBLAS plus oneMKL on x86-64 Linux, ArmPL on ARM64 Linux, or Accelerate on macOS. The container image target `all` is separate and excludes AOCL/ArmPL. |
 | `--suite default\|sweep` | Case suite. `sweep` requires `--operation`. |
 | `--operation NAME\|all` | Intersects the suite with one kernel. |
 | `--samples N`, `--warmups N` | Measured and discarded repetitions per case. |
