@@ -114,15 +114,17 @@ class VendorArmTest {
         val scalar = assertNotNull(denseWork(case, BuiltinEngines.scalar))
         val simdEngine = BuiltinEngines.simd
 
-        assertEquals(expectedProductKernel(BuiltinEngines.scalar), scalar.kernel)
-        assertTrue("scalar-tile" in scalar.kernel!!, scalar.kernel!!)
+        val scalarKernel = assertNotNull(scalar.kernel)
+        assertEquals(expectedProductKernel(BuiltinEngines.scalar), scalarKernel)
+        assertTrue("scalar-tile" in scalarKernel, scalarKernel)
         if (simdEngine != null) {
             val simd = assertNotNull(denseWork(case, simdEngine))
 
-            assertEquals(expectedProductKernel(simdEngine), simd.kernel)
-            assertTrue("simd-tile" in simd.kernel!!, "the vector arm fell back to ${simd.kernel}")
-            assertTrue("scalar-tile-edge" !in simd.kernel!!, "a whole-tile shape named an edge: ${simd.kernel}")
-            assertNotEquals(scalar.kernel, simd.kernel, "both arms named the same product arithmetic")
+            val simdKernel = assertNotNull(simd.kernel)
+            assertEquals(expectedProductKernel(simdEngine), simdKernel)
+            assertTrue("simd-tile" in simdKernel, "the vector arm fell back to $simdKernel")
+            assertTrue("scalar-tile-edge" !in simdKernel, "a whole-tile shape named an edge: $simdKernel")
+            assertNotEquals(scalarKernel, simdKernel, "both arms named the same product arithmetic")
             simd.close()
         }
         scalar.close()
