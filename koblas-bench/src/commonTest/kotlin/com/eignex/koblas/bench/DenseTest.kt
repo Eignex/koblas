@@ -154,8 +154,9 @@ class DenseTest {
         val case = Cases.parse("gemm-generic+64x64x64+uniform").single()
 
         val selected = denseArm(case, koblas)
-        assertEquals("default-policy", assertNotNull(selected?.work).comparisonKind)
-        assertNotNull(selected?.work?.kernel)
+        val work = assertNotNull(selected?.work)
+        assertEquals("default-policy", work.comparisonKind)
+        assertNotNull(work.kernel)
 
         val other = listOfNotNull(BuiltinEngines.scalar, BuiltinEngines.simd).firstOrNull { it !== koblas }
         if (other != null) {
