@@ -24,13 +24,11 @@ import com.eignex.koblas.vendor.*
  * [triangles] owns the substitution over one diagonal block. Neither side knows the other's business: no
  * extent here is a multiple of anything, and no loop below advances by four because a backend once did.
  *
- * Level 3 is scheduled rather than written out. A product goes to shared product scheduling, which packs it
- * into the backend's tiles or runs it as panel work over the operands where they lie; a selected triangle
- * is the same schedule with the blocks outside it dropped and the ones across the diagonal merged; a
- * symmetric operand is cut into diagonal blocks and the stored strips beside them, each an ordinary window;
- * and a triangular routine is diagonal substitutions with those windows between them. Which of those a
- * given call reaches, and which body inside it, is what [routeOf] answers rather than letting an engine's
- * name imply it.
+ * Level 3 is scheduled rather than written out. A product goes to shared product scheduling, a selected
+ * triangle is the same schedule with the blocks outside it dropped and the ones across the diagonal merged,
+ * a symmetric operand is cut into diagonal blocks and the stored strips beside them, and a triangular
+ * routine is diagonal substitutions with those windows between them. Which of those a given call reaches,
+ * and which body inside it, is what [routeOf] answers rather than letting an engine's name imply it.
  */
 internal class PortableDenseBlas(
     private val vectors: DenseVectorKernels,
@@ -146,9 +144,8 @@ internal class PortableDenseBlas(
     /**
      * The product itself, over operands already staged against an overlap with the destination.
      *
-     * Which of the two routes runs is the extents' answer, not the engine's: a product with enough
-     * arithmetic to hide a copy is packed into the backend's tiles, and one without runs as panel work over
-     * the operands where they are. [routeOf] asks the same question of the same numbers.
+     * Which of the two routes runs is the extents' answer rather than the engine's, and [routeOf] asks the
+     * same question of the same numbers.
      */
     private fun gemmCore(
         alpha: Double,
@@ -409,7 +406,7 @@ internal class PortableDenseBlas(
      * the sum of the two products its definition names. Composing rather than fusing is deliberate: both
      * halves are ordinary windows of shared product scheduling, so each is packed, blocked and tiled like
      * any other product, while a fused traversal would need a second implementation of all of that to beat
-     * them together. The stage evidence compares the two.
+     * them together. The local evidence compares the two.
      *
      * `beta` is carried by the first of the two and the second accumulates, which is how it reaches every
      * selected entry exactly once.
@@ -502,7 +499,7 @@ internal class PortableDenseBlas(
      * `A += alpha · (x · yᵀ + y · xᵀ)` over the stored triangle.
      *
      * The arithmetic stays here rather than becoming two rank updates through [DensePanelKernels], because
-     * the composition was measured and does not win outright. Each entry takes both contributions in one
+     * the composition was measured and does not win outright: each entry takes both contributions in one
      * read-modify-write where two passes take two, and the composed form was behind at the smaller orders,
      * level in the middle and ahead at the larger ones. Adopting it would mean choosing a crossover from one
      * machine's numbers for a modest best case, so the simpler path is kept; the comparison is in the stage
@@ -646,13 +643,6 @@ internal class PortableDenseBlas(
                 lower, transpose, unitDiag, right, alpha, solve, workspace,
             )
         }
-    }
-
-    private fun triangle(lower: Boolean, unitDiag: Boolean): MatrixStructure = when {
-        unitDiag && lower -> MatrixStructure.UnitLower
-        unitDiag -> MatrixStructure.UnitUpper
-        lower -> MatrixStructure.TriangularLower
-        else -> MatrixStructure.TriangularUpper
     }
 
     private fun scale(values: DoubleArray, beta: Double) {

@@ -30,9 +30,7 @@ public enum class PackedRole {
  * here: a heap `DoubleArray` gives natural alignment and nothing stronger, and the one fact a consumer needs
  * beyond the extents is [group]. That has to match the one tile dimension this operand is grouped along,
  * which is [DenseProductKernels.tileRows] for a left panel and [DenseProductKernels.tileColumns] for a right
- * one, and nothing about the other dimension: a left panel grouped by eight is readable by an eight by four
- * tile and by an eight by two one alike, and a right panel grouped by four by an eight by four tile and a
- * four by four one. [requireUsableBy] refuses the rest, before anything is written.
+ * one, and nothing about the other dimension. [requireUsableBy] refuses the rest, before anything is written.
  *
  * An operand with no rows or no columns has no entries and needs no storage. Its strides are zero rather
  * than a product of extents it never uses, so that a matrix with a large empty dimension describes itself

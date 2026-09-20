@@ -12,11 +12,11 @@ import com.eignex.koblas.Workspace
  * `Σ M(p, q) · X(q, r)` over `M`'s own triangle, where `M(p, q)` is an entry of `T` read directly or
  * transposed. Which of the two it is depends on the side and the transpose together, because solving
  * `X · op(T) = B` for a row of `X` is solving `op(T)ᵀ · x = b` for a column, and the flags meet there.
- * Everything below that point — the direction of the substitution, which block updates which, and what the
- * product between them looks like — follows from `M`, so none of it is written out four times.
+ * Everything below that point, the direction of the substitution, which block updates which, and what the
+ * product between them looks like, follows from `M`, so none of it is written out four times.
  *
- * The blocks are two and they are independent of each other and of everything under them. The diagonal block
- * is how much of the dependency chain one substitution covers, and it is this file's own number. The
+ * The blocks are two and they are independent of each other and of everything under them: the diagonal block
+ * is how much of the dependency chain one substitution covers, which is this file's own number, and the
  * right-hand sides handed over together are [DenseTriangularKernels.rightHandSideGroup]'s answer. Neither is
  * a lane count, a register tile or a cache block: the product between the blocks is an ordinary window of
  * shared product scheduling and picks its own geometry, and the substitution inside a diagonal block picks
@@ -96,16 +96,15 @@ internal inline fun forEachTriangularBlock(
 /**
  * The groups of right-hand sides one diagonal block is substituted in, in the order it takes them.
  *
- * The backend's recommendation governs every call and not only the gathered ones. A copy is the reason the
- * grouping was worth asking about, but it is not the only thing it decides: the substitution reads its
+ * The backend's recommendation governs every call and not only the gathered ones: the substitution reads its
  * block of sides once for every step before the one it is on, so how wide that block is decides what stays
- * resident whether the sides were copied or were already adjacent. Reporting one width while handing over
- * another would be the difference between a description and a guess, so there is one traversal here,
- * walked by the execution below and by the route that describes it.
+ * resident whether the sides were copied or were already adjacent. One traversal, walked by the execution
+ * below and by the route that describes it, because reporting one width while handing over another would be
+ * the difference between a description and a guess.
  *
- * A backend that wants every side at once says so, which is what the portable one answers, and then this
- * is a single group. The last group of a call whose sides do not divide is shorter than the rest, and it is
- * the one a route that assumed they were all full would miss.
+ * A backend that wants every side at once says so, which is what the portable one answers, and then this is
+ * a single group. The last group of a call whose sides do not divide is shorter than the rest, and it is the
+ * one a route that assumed they were all full would miss.
  */
 internal inline fun forEachRightHandSideGroup(sides: Int, group: Int, action: (first: Int, lanes: Int) -> Unit) {
     var first = 0

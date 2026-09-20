@@ -14,7 +14,7 @@ import jdk.incubator.vector.VectorOperators
  * lanes instead. A column update and a rank update are elementwise, where the same reordering is not a
  * question; what these add is that the destination strip stays in registers while several columns accumulate
  * into it. Whether either is faster than what the compiler makes of the portable loop is a measurement rather
- * than a property of the source, and the stage evidence is where the comparison is recorded.
+ * than a property of the source, and the local evidence is where the comparison is recorded.
  *
  * These are not what an ordinary call runs yet. [com.eignex.koblas.BuiltinEngines.simd] is the arm that holds
  * them and is where they are measured; the platform default keeps the portable panels until a crossover has
@@ -24,8 +24,7 @@ import jdk.incubator.vector.VectorOperators
  * column's lanes run down its rows.
  *
  * A panel shorter than one lane block and a strided operand the Vector API would have to gather both fall to
- * [PortablePanelKernels], and [implementationFor] says which of the two a given panel reaches rather than
- * letting the selection's name imply the vector one.
+ * [PortablePanelKernels], and [implementationFor] says which of the two a given panel reaches.
  *
  * Resolving the species is what initializing this costs, so a runtime without the module must not reach it at
  * all: [com.eignex.koblas.BuiltinEngines] offers no engine holding this backend there, and the portable one
@@ -67,9 +66,8 @@ internal object SimdPanelKernels : DensePanelKernels {
      * rank-update bodies below are two columns wide, so asking for four would only mean two calls fused into
      * one, and for a triangular caller a wider group also grows the scalar corner with the square of it.
      *
-     * The comparison is one shared machine's at four lanes and is kept with the stage evidence rather than
-     * quoted here. It says which choice was ahead there; a lane count and a cache are not the same on the
-     * next machine, which is why the number is not in this file.
+     * The comparison is one shared machine's at four lanes and is kept with the local evidence rather than
+     * quoted here, since a lane count and a cache are not the same on the next machine.
      */
     override fun executionGroup(work: PanelWork, rows: Int, columns: Int, contiguous: Boolean): Int {
         if (!simdAvailable) return PortablePanelKernels.executionGroup(work, rows, columns, contiguous)
@@ -93,7 +91,7 @@ internal object SimdPanelKernels : DensePanelKernels {
      * pay a pass over its data for a single instruction's worth of arithmetic. A measured crossover of this
      * backend's own rather than a structural minimum like the one [implementationFor] answers with: the
      * copy was timed at both widths and the narrow one did not pay for itself. The measurement and its
-     * limits are in the stage evidence, since a figure quoted here would be one machine's.
+     * limits are in the local evidence, since a figure quoted here would be one machine's.
      */
     override fun prefersContiguous(work: PanelWork, rows: Int, columns: Int): Boolean =
         simdAvailable && rows >= COPY_WORTH_BLOCKS * LANE && !vectorizes(rows, contiguous = false)
@@ -871,7 +869,7 @@ internal object SimdPanelKernels : DensePanelKernels {
      * Lane blocks of adjacent rows a panel needs before a copy into adjacent storage pays for itself.
      *
      * Wider than [MINIMUM_BLOCKS], which is where the body starts running rather than where it is worth a
-     * pass over the data to reach. The stage evidence is where the comparison at each width is recorded.
+     * pass over the data to reach. The local evidence is where the comparison at each width is recorded.
      */
     private const val COPY_WORTH_BLOCKS = 2
 

@@ -39,7 +39,7 @@ internal object SimdVectorKernels : DenseVectorKernels {
      * both arms, so measuring it means lowering it to the lane width and running the `iamax` sweep over the
      * `jvm-scalar` and `jvm-simd` targets. Doing that on an i9-12900H has the vectorised search losing below
      * 64, inside the noise from 64 to 192, losing outright at 128, and ahead at every width from 256 upward
-     * by 1.13 to 1.90 — which is where it starts winning and staying ahead.
+     * by 1.13 to 1.90, which is where it starts winning and staying ahead.
      */
     private const val IAMAX_CROSSOVER = 256
 

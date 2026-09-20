@@ -47,8 +47,6 @@ internal class VendorDenseBlas(private val vendor: Blas?) : DenseBlas {
     }
 
     override fun transpose(a: DenseMatrix): DenseMatrix {
-        // A storage transform rather than arithmetic: the standard has no entry point for it, so it stays a
-        // Kotlin loop instead of borrowing a BLAS-like extension that only some vendors export.
         val result = DenseMatrix(a.cols, a.rows)
         for (j in 0 until a.cols) {
             for (i in 0 until a.rows) result.values[j + i * a.cols] = a.values[i + j * a.rows]

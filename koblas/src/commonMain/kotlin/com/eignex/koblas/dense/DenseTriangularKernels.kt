@@ -31,11 +31,10 @@ package com.eignex.koblas.dense
  * subnormal diagonal has no finite reciprocal to multiply by, and an infinite or zero one is a result the
  * caller is entitled to see rather than an error this contract detects.
  *
- * The block being substituted is written in place, and the triangle is read while that happens, so the
- * storage holding the right-hand sides must be disjoint from the storage holding the triangle. These
- * leaves check nothing; a public matrix call whose triangle shares its block stages a copy of the triangle
- * before it reaches one, which is where that guarantee is kept. Nothing else about the two is assumed: the
- * triangle may be any window of a larger array, and the sides may be strided through one.
+ * The block is written in place while the triangle is read, so the storage holding the right-hand sides must
+ * be disjoint from the storage holding the triangle. These leaves check nothing; a public matrix call whose
+ * triangle shares its block stages a copy of the triangle before it reaches one. Nothing else about the two
+ * is assumed: the triangle may be any window of a larger array, and the sides may be strided through one.
  *
  * Implementations validate nothing and allocate nothing. A block with no steps or no right-hand sides does
  * nothing and reads nothing.
@@ -49,9 +48,9 @@ public interface DenseTriangularKernels {
      * over [sides] of them.
      *
      * Always at least one and never more than [sides] when that is positive. It is a grouping and not a lane
-     * count, and it is independent of the register tile a product block is cut into, of the panel grouping a
-     * Level 2 window uses and of the diagonal block the scheduling chose: a diagonal block is as wide as the
-     * dependency chain is long, and this is how much of the work beside it is done together.
+     * count, and it is independent of the register tile, the panel grouping and the diagonal block the
+     * scheduling chose: a diagonal block is as wide as the dependency chain is long, and this is how much of
+     * the work beside it is done together.
      */
     public fun rightHandSideGroup(order: Int, sides: Int): Int
 
@@ -69,8 +68,7 @@ public interface DenseTriangularKernels {
      * Every arithmetic body a diagonal block of these extents reaches, in the order it reaches them.
      *
      * A list for the reason [DenseProductKernels.implementationsFor] is one: a block whose right-hand sides
-     * do not fill a lane block may reach a different body for the remainder than for the rest, and a route
-     * that named only the first would name something part of the call did not run.
+     * do not fill a lane block may reach a different body for the remainder than for the rest.
      *
      * [contiguous] is part of the question rather than a detail of it: a vector body loads a lane block of
      * independent right-hand sides from consecutive entries, so a block whose right-hand sides are strided is

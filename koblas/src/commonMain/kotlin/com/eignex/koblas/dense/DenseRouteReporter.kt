@@ -426,9 +426,9 @@ internal class DenseRouteReporter(
      *
      * Most of Level 3 folds the multiplier into the product block or the panel that writes each output, and
      * scales what is left of its selected region with a loop of its own, which is no kernel and is named as
-     * nothing. A symmetric product cannot: every entry of its destination is accumulated into by several of
-     * the windows the symmetric operand is cut into and none of them owns it, so the multiplier is a pass
-     * of its own over the whole buffer, it is the Level 1 kernel that makes it, and the route says so.
+     * nothing. A symmetric product cannot: none of the windows its operand is cut into owns an entry of the
+     * destination, so the multiplier is a pass of its own over the whole buffer, made by the Level 1 kernel
+     * the route then names.
      */
     private fun destinationScaling(operation: DenseMatrixOperation, call: DenseCall, working: Boolean): List<String> {
         val scales = when (operation) {

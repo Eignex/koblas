@@ -9,20 +9,19 @@ package com.eignex.koblas.dense
  * logical: how many rows, how many columns and how many steps of the shared dimension, plus where the
  * destination window is. What this backend owns is the register tile it cuts that rectangle into, which is
  * [tileRows] by [tileColumns] and is not a lane count, a panel execution group or a cache block. Those four
- * numbers are independent, and an algorithm above this contract writes none of them into its loops.
+ * numbers are independent, and no algorithm above this contract writes one of them into its loops.
  *
  * The packed layout is the one [PackedLayout] describes, and the two are one contract: an operand is packed
  * into groups this backend's tile can consume along that operand's own axis. [PackedLayout.group] carries
  * that width and is the whole of what a consumer checks, so a left panel grouped by eight is readable by an
- * eight by four tile and by an eight by two one alike, and the other dimension is the other operand's
- * business.
+ * eight by four tile and by an eight by two one alike.
  *
  * Padding inside a packed group is positive zero, and what that promises is where the results go rather than
  * what they are: a padded zero against an infinite entry of the other operand evaluates to a NaN, and it
  * stays in a lane the destination does not have. A block writes exactly the `rows` by `columns` window it
  * was given and nothing beside it, which is what lets a caller select part of a destination.
  *
- * Scaling follows the BLAS convention and is applied once per block. `alpha` multiplies the product this
+ * Scaling follows the BLAS convention and is applied once per block: `alpha` multiplies the product this
  * block accumulated, `beta` the destination window, and a zero `beta` overwrites without reading what is
  * there. A caller splitting the shared dimension into several depth blocks passes the real `beta` to the
  * first and `1.0` to every later one, which is how beta reaches an output exactly once however the depth
@@ -52,19 +51,16 @@ public interface DenseProductKernels {
     /**
      * Every arithmetic body a block of these extents reaches, in the order it reaches them.
      *
-     * A list rather than a name, because a block is not one tile. It is cut into tiles of [tileRows] by
-     * [tileColumns] plus whichever edges its extents leave, and those need not reach the same body: a
-     * destination whose rows stop part way through a lane block is a different writeback from one whose rows
-     * fill it, and an implementation may serve the two differently. A block that fills its tiles exactly
-     * answers with one entry; one with a remainder answers with what the remainder reaches as well.
+     * A list rather than a name, because a block is not one tile: it is cut into tiles of [tileRows] by
+     * [tileColumns] plus whichever edges its extents leave, and those need not reach the same body. A
+     * destination whose rows stop part way through a lane block is a different writeback from one whose
+     * rows fill it, so a block that fills its tiles exactly answers with one entry and one with a remainder
+     * answers with what the remainder reaches as well.
      *
-     * The extents are a block's, which is what [productBlock] is called with. Asking about a whole product
-     * would be asking about extents no call hands over, and a caller describing a whole product asks this of
-     * each block its schedule cuts instead.
-     *
-     * A block with no extent runs nothing and answers with nothing. [name] identifies a selection, which is
-     * a different question: a backend whose tile needs a vector unit answers with the portable body where it
-     * has none, and a caller reporting the selection would have named something that did not run.
+     * The extents are a block's, which is what [productBlock] is called with; a caller describing a whole
+     * product asks this of each block its schedule cuts. A block with no extent runs nothing and answers
+     * with nothing. [name] identifies a selection instead, which is a different question: a backend whose
+     * tile needs a vector unit answers here with the portable body where it has none.
      *
      * Building a list belongs where a route is built, before a timed region and never inside one.
      */
