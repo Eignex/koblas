@@ -11,9 +11,11 @@ import com.eignex.koblas.gemv
 import com.eignex.koblas.gemvInto
 import com.eignex.koblas.prepare
 import com.eignex.koblas.sparse.ReferenceSparseBlas
-import com.eignex.koblas.symm
+import com.eignex.koblas.symmInto
 import com.eignex.koblas.symv
+import com.eignex.koblas.symvInto
 import com.eignex.koblas.syrk
+import com.eignex.koblas.syrkInto
 import com.eignex.koblas.transpose
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
@@ -30,7 +32,7 @@ class SparseOpsTest {
         val prepared = source.prepare()
         source.values.fill(Double.NaN)
         val actual = DoubleArray(source.rows)
-        prepared.gemv(1.0, INPUT, 0.0, actual)
+        prepared.gemvInto(1.0, INPUT, 0.0, actual)
 
         assertContentEquals(expected, actual)
     }
@@ -61,7 +63,7 @@ class SparseOpsTest {
         val actual = doubleArrayOf(2.0, -3.0)
         val expectedInto = actual.copyOf()
         ReferenceSparseBlas.symv(0.5, source, INPUT, -2.0, expectedInto)
-        source.symv(0.5, INPUT, -2.0, actual)
+        source.symvInto(0.5, INPUT, -2.0, actual)
 
         assertContentEquals(expected, allocated)
         assertContentEquals(expectedInto, actual)
@@ -75,7 +77,7 @@ class SparseOpsTest {
         val actual = DenseMatrix.wrap(2, 2, expected.values.copyOf())
         ReferenceSparseBlas.symm(0.75, source, right, -0.5, expected)
 
-        source.symm(0.75, right, -0.5, actual, workspace = Workspace())
+        source.symmInto(0.75, right, -0.5, actual, workspace = Workspace())
 
         assertClose(expected, actual, "root symm")
     }
@@ -113,7 +115,7 @@ class SparseOpsTest {
         ReferenceSparseBlas.syrk(1.25, source, false, 0.0, expectedDense)
 
         val actualSparse = source.syrk()
-        source.syrk(1.25, false, 0.0, actualDense, workspace = Workspace())
+        source.syrkInto(1.25, false, 0.0, actualDense, workspace = Workspace())
 
         assertEquals(expectedSparse, actualSparse)
         assertClose(expectedDense, actualDense, "root syrk")

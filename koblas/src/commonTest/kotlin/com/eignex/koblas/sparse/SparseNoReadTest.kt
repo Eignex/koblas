@@ -73,7 +73,7 @@ class SparseNoReadTest {
         val prepared = example().prepare()
         val destination = DenseMatrix.wrap(2, 2, doubleArrayOf(1.0, 2.0, 3.0, 4.0))
 
-        prepared.gemm(0.0, transposeA = true, b = DenseMatrix.diagonal(2), beta = 2.0, c = destination)
+        prepared.gemmInto(0.0, transpose = true, b = DenseMatrix.diagonal(2), beta = 2.0, destination = destination)
 
         assertContentEquals(doubleArrayOf(2.0, 4.0, 6.0, 8.0), destination.values)
         assertFalse(prepared.orientationDerived, "a product contributing nothing built the transpose cache")
@@ -84,7 +84,7 @@ class SparseNoReadTest {
         val prepared = example().prepare()
         val other = SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 1.0), listOf(1 to 1.0)))
 
-        val result = prepared.gemm(0.0, transposeA = true, b = other, transposeB = false)
+        val result = prepared.gemm(0.0, transpose = true, b = other, transposeB = false)
         val expected = koblas.gemm(0.0, example(), true, other, false)
 
         assertEquals(expected, result, "the structure a zero multiplier discovers is the same either way")
@@ -96,8 +96,8 @@ class SparseNoReadTest {
         val prepared = example().prepare()
         val other = SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 1.0), listOf(1 to 1.0)))
 
-        val first = prepared.gemm(1.0, transposeA = true, b = other, transposeB = false)
-        val second = prepared.gemm(1.0, transposeA = true, b = other, transposeB = false)
+        val first = prepared.gemm(1.0, transpose = true, b = other, transposeB = false)
+        val second = prepared.gemm(1.0, transpose = true, b = other, transposeB = false)
 
         assertEquals(first, second)
         assertEquals(koblas.gemm(1.0, example(), true, other, false), first)
@@ -109,7 +109,7 @@ class SparseNoReadTest {
         val prepared = example().prepare()
         val mismatched = SparseMatrix.ofColumns(3, 3, List(3) { emptyList() })
 
-        val failure = runCatching { prepared.gemm(1.0, transposeA = true, b = mismatched, transposeB = false) }
+        val failure = runCatching { prepared.gemm(1.0, transpose = true, b = mismatched, transposeB = false) }
 
         assertEquals(true, failure.isFailure)
         assertFalse(prepared.orientationDerived, "a call rejected for its shape prepared an orientation first")

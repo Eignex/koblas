@@ -82,10 +82,10 @@ class SparseAliasTest {
     fun `a prepared product reads the input vector it was given when it is the destination`() {
         val prepared = example().prepare()
         val expected = doubleArrayOf(1.0, 2.0)
-        prepared.gemv(1.0, doubleArrayOf(1.0, 2.0), 0.0, expected)
+        prepared.gemvInto(1.0, doubleArrayOf(1.0, 2.0), 0.0, expected)
 
         val shared = doubleArrayOf(1.0, 2.0)
-        prepared.gemv(1.0, shared, 0.0, shared)
+        prepared.gemvInto(1.0, shared, 0.0, shared)
 
         assertContentEquals(expected, shared)
     }

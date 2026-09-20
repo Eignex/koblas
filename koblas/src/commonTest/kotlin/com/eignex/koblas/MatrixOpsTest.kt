@@ -70,6 +70,24 @@ class MatrixOpsTest {
     }
 
     @Test
+    fun `gemvInto transposes the matrix like the sparse extension of the same name`() {
+        val rng = Random(20260920)
+        val A = randomMatrix(4, 3, rng)
+        val x = randomVector(4, rng)
+        val expected = randomVector(3, rng)
+        val actual = expected.copyOf()
+
+        koblas.gemv(0.75, A, x, -0.5, expected, transpose = true)
+        A.gemvInto(0.75, DenseVector.wrap(x), -0.5, actual, transpose = true)
+
+        assertClose(expected, actual, "transposed gemvInto")
+        val fresh = DoubleArray(3)
+        A.gemvInto(DenseVector.wrap(x), fresh, transpose = true)
+        koblas.gemv(1.0, A, x, 0.0, expected, transpose = true)
+        assertClose(expected, fresh, "transposed gemvInto shorthand")
+    }
+
+    @Test
     fun `symvInto reads only the selected triangle`() {
         val n = 5
         val rng = Random(13)

@@ -200,6 +200,18 @@ class MatrixProductsTest {
         assertEquals(DenseMatrix::class, (foreign * (backing.transpose() as Matrix))::class)
     }
 
+    @Test
+    fun `a foreign operand with no columns keeps its rows`() {
+        val foreign: Matrix = ForeignMatrix(DenseMatrix.zero(3, 0))
+        val right: Matrix = DenseMatrix.zero(0, 2)
+        val destination = DenseMatrix.wrap(3, 2, doubleArrayOf(1.0, 2.0, 3.0, 4.0, 5.0, 6.0))
+
+        foreign.gemmInto(1.0, false, right, false, 2.0, destination)
+
+        assertContentEquals(doubleArrayOf(2.0, 4.0, 6.0, 8.0, 10.0, 12.0), destination.values)
+        assertEquals(3, (foreign * right).rows, "the allocating product keeps the row count too")
+    }
+
     private fun sparseOf(rows: Int, cols: Int, rng: Random): SparseMatrix = SparseMatrix.ofColumns(
         rows,
         cols,

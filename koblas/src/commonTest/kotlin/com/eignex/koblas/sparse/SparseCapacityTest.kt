@@ -124,7 +124,13 @@ class SparseCapacityTest {
         val prepared = tallEmpty(Int.MAX_VALUE).prepare()
         val destination = DenseMatrix.zero(0, 0)
 
-        prepared.gemm(1.0, transposeA = true, b = DenseMatrix.zero(Int.MAX_VALUE, 0), beta = 0.0, c = destination)
+        prepared.gemmInto(
+            1.0,
+            transpose = true,
+            b = DenseMatrix.zero(Int.MAX_VALUE, 0),
+            beta = 0.0,
+            destination = destination,
+        )
 
         assertEquals(0, destination.values.size)
     }
@@ -133,7 +139,7 @@ class SparseCapacityTest {
     fun `a prepared transposed sparse product of a tall operand reaches its empty result`() {
         val prepared = tallEmpty(Int.MAX_VALUE).prepare()
 
-        val product = prepared.gemm(1.0, transposeA = true, b = tallEmpty(Int.MAX_VALUE), transposeB = false)
+        val product = prepared.gemm(1.0, transpose = true, b = tallEmpty(Int.MAX_VALUE), transposeB = false)
 
         assertEquals(0, product.rows)
         assertEquals(0, product.cols)

@@ -55,29 +55,41 @@ public class PreparedSparseMatrix internal constructor(a: SparseMatrix, private 
      */
     @Suppress("LongParameterList") // the BLAS dgemv signature
     @JvmOverloads
-    public fun gemv(alpha: Double, x: DoubleArray, beta: Double, y: DoubleArray, transpose: Boolean = false) {
-        algorithms.gemv(alpha, snapshot, x, beta, y, transpose)
+    public fun gemvInto(
+        alpha: Double,
+        x: DoubleArray,
+        beta: Double,
+        destination: DoubleArray,
+        transpose: Boolean = false,
+    ) {
+        algorithms.gemv(alpha, snapshot, x, beta, destination, transpose)
     }
 
     /** Prepared selected-triangle symmetric matrix-vector product; semantics match [SparseBlas.symv]. */
     @Suppress("LongParameterList") // the BLAS dsymv signature
     @JvmOverloads
-    public fun symv(alpha: Double, x: DoubleArray, beta: Double, y: DoubleArray, lower: Boolean = true) {
-        algorithms.symv(alpha, snapshot, x, beta, y, lower)
+    public fun symvInto(
+        alpha: Double,
+        x: DoubleArray,
+        beta: Double,
+        destination: DoubleArray,
+        lower: Boolean = true,
+    ) {
+        algorithms.symv(alpha, snapshot, x, beta, destination, lower)
     }
 
     /** `C = alpha · op(A) · B + beta · C` against the prepared `A`. */
     @Suppress("LongParameterList") // the BLAS dgemm signature plus the workspace
     @JvmOverloads
-    public fun gemm(
+    public fun gemmInto(
         alpha: Double,
-        transposeA: Boolean,
+        transpose: Boolean,
         b: DenseMatrix,
         beta: Double,
-        c: DenseMatrix,
+        destination: DenseMatrix,
         workspace: Workspace? = null,
     ) {
-        gemm(alpha, transposeA, b, false, beta, c, false, workspace)
+        gemmInto(alpha, transpose, b, false, beta, destination, false, workspace)
     }
 
     /**
@@ -90,52 +102,52 @@ public class PreparedSparseMatrix internal constructor(a: SparseMatrix, private 
      */
     @Suppress("LongParameterList") // the BLAS dgemm signature, the side, and the workspace
     @JvmOverloads
-    public fun gemm(
+    public fun gemmInto(
         alpha: Double,
-        transposeA: Boolean,
+        transpose: Boolean,
         b: DenseMatrix,
         transposeB: Boolean,
         beta: Double,
-        c: DenseMatrix,
+        destination: DenseMatrix,
         right: Boolean,
         workspace: Workspace? = null,
     ) {
         if (right) {
-            requireGemmShape(b, transposeB, snapshot, transposeA, c)
+            requireGemmShape(b, transposeB, snapshot, transpose, destination)
         } else {
-            requireGemmShape(snapshot, transposeA, b, transposeB, c)
+            requireGemmShape(snapshot, transpose, b, transposeB, destination)
         }
-        algorithms.gemm(alpha, snapshot, transposeA, b, transposeB, beta, c, right, workspace)
+        algorithms.gemm(alpha, snapshot, transpose, b, transposeB, beta, destination, right, workspace)
     }
 
     /** Prepared selected-triangle symmetric matrix-matrix product; semantics match [SparseBlas.symm]. */
     @Suppress("LongParameterList") // the BLAS dsymm signature plus the workspace
     @JvmOverloads
-    public fun symm(
+    public fun symmInto(
         alpha: Double,
         b: DenseMatrix,
         beta: Double,
-        c: DenseMatrix,
+        destination: DenseMatrix,
         lower: Boolean = true,
         right: Boolean = false,
         workspace: Workspace? = null,
     ) {
-        algorithms.symm(alpha, snapshot, b, beta, c, lower, right, workspace)
+        algorithms.symm(alpha, snapshot, b, beta, destination, lower, right, workspace)
     }
 
     /** `A · B` against the prepared `A`, into a fresh sparse matrix. */
     public fun gemm(b: SparseMatrix): SparseMatrix = gemm(1.0, false, b, false)
 
     /** Prepared sparse-result product with scaling and transpose controls. */
-    public fun gemm(alpha: Double, transposeA: Boolean, b: SparseMatrix, transposeB: Boolean): SparseMatrix {
-        requireSparseProductShape(snapshot, transposeA, b, transposeB)
-        val depth = if (transposeA) snapshot.rows else snapshot.cols
+    public fun gemm(alpha: Double, transpose: Boolean, b: SparseMatrix, transposeB: Boolean): SparseMatrix {
+        requireSparseProductShape(snapshot, transpose, b, transposeB)
+        val depth = if (transpose) snapshot.rows else snapshot.cols
         val outputs = if (transposeB) b.rows else b.cols
-        val rows = if (transposeA) snapshot.cols else snapshot.rows
+        val rows = if (transpose) snapshot.cols else snapshot.rows
         val work = if (b.nnz == 0 || rows == 0) 0 else outputs
         return withOrientation(
-            transposeA,
-            reusesOrientation(alpha, transposeA, depth, work),
+            transpose,
+            reusesOrientation(alpha, transpose, depth, work),
         ) { oriented, stillTransposed ->
             algorithms.gemm(alpha, oriented, stillTransposed, b, transposeB)
         }
@@ -144,20 +156,20 @@ public class PreparedSparseMatrix internal constructor(a: SparseMatrix, private 
     /** Prepared direct sparse-sparse-to-dense product. */
     @Suppress("LongParameterList") // the BLAS dgemm signature plus the workspace
     @JvmOverloads
-    public fun gemm(
+    public fun gemmInto(
         alpha: Double,
-        transposeA: Boolean,
+        transpose: Boolean,
         b: SparseMatrix,
         transposeB: Boolean,
         beta: Double,
-        c: DenseMatrix,
+        destination: DenseMatrix,
         workspace: Workspace? = null,
     ) {
-        requireGemmShape(snapshot, transposeA, b, transposeB, c)
-        val depth = if (transposeA) snapshot.rows else snapshot.cols
-        val work = if (b.nnz == 0) 0 else c.values.size
-        withOrientation(transposeA, reusesOrientation(alpha, transposeA, depth, work)) { oriented, stillTransposed ->
-            algorithms.gemm(alpha, oriented, stillTransposed, b, transposeB, beta, c, workspace)
+        requireGemmShape(snapshot, transpose, b, transposeB, destination)
+        val depth = if (transpose) snapshot.rows else snapshot.cols
+        val work = if (b.nnz == 0) 0 else destination.values.size
+        withOrientation(transpose, reusesOrientation(alpha, transpose, depth, work)) { oriented, stillTransposed ->
+            algorithms.gemm(alpha, oriented, stillTransposed, b, transposeB, beta, destination, workspace)
         }
     }
 

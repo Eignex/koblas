@@ -107,15 +107,18 @@ public fun Matrix.gemmInto(
  * A [DenseMatrix] is used where it lies. Anything else is read once through [Matrix.get], which is the only
  * access the common contract offers; a [SparseMatrix] never arrives here, because every pairing routes it to
  * the sparse implementation that walks its stored entries instead.
+ *
+ * Both extents are carried over rather than rediscovered from the entries, because an operand with no
+ * columns has no column to read its row count back from. A staging that inferred the shape would turn an
+ * `m × 0` operand into a `0 × 0` one and reject the product its own shapes permit.
  */
 private fun denseOperand(matrix: Matrix): DenseMatrix = when (matrix) {
     is DenseMatrix -> matrix
 
-    // Written straight into the column-major storage the product reads, rather than into a column at a time
-    // that a second pass would then copy: the entries are read once and stored once.
-    else -> DenseMatrix.zero(matrix.rows, matrix.cols).also { into ->
+    else -> DenseMatrix.zero(matrix.rows, matrix.cols).also { staged ->
         for (j in 0 until matrix.cols) {
-            for (i in 0 until matrix.rows) into.values[i + j * matrix.rows] = matrix[i, j]
+            val base = j * staged.rows
+            for (i in 0 until staged.rows) staged.values[base + i] = matrix[i, j]
         }
     }
 }

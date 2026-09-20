@@ -114,7 +114,7 @@ public class ContiguousVector internal constructor(public override val values: D
     override fun equals(other: Any?): Boolean =
         this === other || (other is ContiguousVector && values.contentEquals(other.values))
     override fun hashCode(): Int = values.contentHashCode()
-    override fun toString(): String = "DenseVector(size=$size)"
+    override fun toString(): String = "ContiguousVector(size=$size)"
 }
 
 /**
@@ -149,6 +149,9 @@ public class SparseVector internal constructor(
             }
         }
     }
+
+    /** Number of stored entries, counted as [SparseMatrix.nnz] counts a matrix's. */
+    public val nnz: Int get() = values.size
 
     /** The stored value at (i), or 0.0 where nothing is stored. */
     override fun get(i: Int): Double {
@@ -187,7 +190,7 @@ public class SparseVector internal constructor(
         h = 31 * h + values.contentHashCode()
         return h
     }
-    override fun toString(): String = "SparseVector(size=$size, nnz=${indices.size})"
+    override fun toString(): String = "SparseVector(size=$size, nnz=$nnz)"
 
     /** Factories for sparse vectors. */
     public companion object {

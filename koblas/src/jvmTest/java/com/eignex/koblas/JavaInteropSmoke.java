@@ -38,7 +38,7 @@ final class JavaInteropSmoke {
 
         PreparedSparseMatrix prepared = Koblas.prepare(sparse);
         double[] preparedResult = new double[2];
-        prepared.gemv(1.0, new double[] {4.0, 5.0}, 0.0, preparedResult);
+        prepared.gemvInto(1.0, new double[] {4.0, 5.0}, 0.0, preparedResult);
         assertArrayEquals(new double[] {8.0, 15.0}, preparedResult);
         assertArrayEquals(new double[] {8.0, 15.0}, Koblas.gemv(sparse, new double[] {4.0, 5.0}));
 
