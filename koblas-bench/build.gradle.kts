@@ -111,6 +111,11 @@ registerNativeBenchmark("nativeBenchmark") {
     args(benchmarkArguments("native", jmh = false))
 }
 
+registerNativeBenchmark("nativeDefaultBenchmark") {
+    description = "Runs the shared cases through the engine this platform selects, which may compose a library."
+    args(benchmarkArguments("native-default", jmh = false))
+}
+
 registerNativeBenchmark("nativeVendorBenchmark") {
     description = "Runs the shared cases through a vendor BLAS bound by the production Native binding."
     args(benchmarkArguments("native-vendor-${benchVendor.get()}", jmh = false))

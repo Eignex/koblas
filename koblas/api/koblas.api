@@ -522,8 +522,9 @@ public final class com/eignex/koblas/dense/DenseBlas$DefaultImpls {
 }
 
 public final class com/eignex/koblas/dense/DenseCall {
-	public fun <init> (IIDDZLjava/lang/Integer;ZZZZ)V
-	public synthetic fun <init> (IIDDZLjava/lang/Integer;ZZZZILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun <init> (IIDDZLjava/lang/Integer;ZZZZZ)V
+	public synthetic fun <init> (IIDDZLjava/lang/Integer;ZZZZZILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun getAliased ()Z
 	public final fun getAlpha ()D
 	public final fun getBeta ()D
 	public final fun getColumns ()I
@@ -567,6 +568,7 @@ public final class com/eignex/koblas/dense/DenseMatrixRoute {
 	public final fun getEntryPoint ()Ljava/lang/String;
 	public final fun getExactlyMeasurable ()Z
 	public final fun getExecutionGroup ()I
+	public final fun getHost ()Lcom/eignex/koblas/vendor/CallRoute;
 	public final fun getImplementation ()Ljava/lang/String;
 	public final fun getKind ()Lcom/eignex/koblas/vendor/RouteKind;
 	public final fun getOperation ()Lcom/eignex/koblas/dense/DenseMatrixOperation;

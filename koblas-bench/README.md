@@ -173,13 +173,31 @@ source revision and the resolved library files are in `metadata.txt` only.
 
 ## Targets
 
-Koblas contributes independent `jvm-scalar`, `jvm-simd`, `jvm-default` and `native` arms. `jvm-scalar` is
-portable Kotlin at every level, and `jvm-simd` is every Vector API kernel this library owns. `jvm-default` is
-what an ordinary call gets, which is a policy rather than an exact arm: today that is `jvm-simd`'s Level 1
-with the portable dense panels, the portable product tile and the portable diagonal substitution, because
-the Level 2 panels and the Level 3 tiles and substitutions are measured but not yet activated. Its rows are where the generic entry points are timed, since those
+Koblas contributes independent `jvm-scalar`, `jvm-simd`, `jvm-default`, `native` and `native-default` arms.
+`jvm-scalar` is portable Kotlin at every level, and `jvm-simd` is every Vector API kernel this library owns.
+`jvm-default` is what an ordinary call gets, which is a policy rather than an exact arm: today that is
+`jvm-simd`'s Level 1 with the portable dense panels, the portable product tile and the portable diagonal
+substitution, because the Level 2 panels and the Level 3 tiles and substitutions are measured but not yet
+activated. Its rows are where the generic entry points are timed, since those
 use the selected engine and have none to be told. A comparison between `jvm-simd` and `jvm-default` is
 therefore a comparison of the matrix arithmetic alone, since the two share everything else.
+
+`native` and `native-default` are the same split on Kotlin/Native and are two different engines rather than
+one named twice. `native` is the exact portable arm: common Kotlin at every level, resolving no library at
+all, which is what a comparison against this library's own arithmetic needs. `native-default` is the engine
+an ordinary call there gets, which is a policy: its Level 1 is the installed library above the measured
+per-operation widths, and a whole dense Level 2 or 3 call goes to that library once the call has enough
+arithmetic to pay for reaching it and the routine's documented result is one a library also gives. Rows on
+that arm therefore mix routes, and each says which it took. Its `metadata.txt` section carries the resolved
+library file, the library's own version string and the threading evidence the binding read back, so a report
+records which binary produced the rows that reached one. A `native-default` row is a default-policy
+measurement of that composition and not an exact measurement of either side of it; the `native` arm and the
+explicit `<vendor>` arms are where each side is measured on its own.
+
+Sparse has no bound host entry point at all on either runtime. Every sparse Level 2 and 3 row on
+`native-default` is this library's own CSC scheduling, exactly as on `native`, and only the Level 1 kernel a
+column reaches can be the library's. No supported vendor's sparse API is bound here, so sparse acceleration
+is not something a Kotlin/Native user gets from installing one.
 
 Each vendor contributes two explicit arms: `<vendor>` through the Native binding, and `<vendor>-jvm`
 through the JVM binding, whose timing includes operand transfer.
@@ -238,6 +256,13 @@ it, and a `firstuse` row names the preparation and that derivation ahead of it.
 
 A row whose route could not settle what the call runs from the facts that call carries is marked
 `+unresolved` before its entry point rather than published as though one schedule had been established.
+
+A dense Level 2 or 3 row on `native-default` whose whole call went to the installed library reads
+`host-dense+<vendor>/<symbol>/<operation>`, and one that stayed on this library's schedule reads the
+`portable-dense...` forms above, including the vendor Level 1 leaf where a window of work reached one. So the
+absence of `host-dense` on a row is not the absence of the library, and the components are what say which
+leaves ran. A call that had to copy an operand sharing its destination before the library could take it names
+that copy as `host-stage/alias`.
 
 Explicit host rows derive their entry point, resolved library binary, identity, version and threading
 evidence from the binding that performs the call. Existing binding route checks retain explicit no-work and
@@ -321,8 +346,8 @@ The `gemm-generic`, `spmm-generic`, `spmm-generic-right` and `spgemm-generic` ca
 dense one. That entry point uses the engine this platform selected rather than one a benchmark names, because a caller holding a
 `Matrix` has no engine to pass. They are therefore `default-policy` rows on the arm whose engine is the
 selected one, and are declined on every other arm rather than publishing that arm's label over another
-engine's work. On a Kotlin/Native host with an installed library the selected engine is not the `native` arm's
-scalar one, so these cases are declined there too.
+engine's work. On Kotlin/Native that arm is `native-default`; the exact portable `native` arm is not the
+selected engine and declines them.
 
 ## Direct Gradle runs
 
@@ -331,6 +356,7 @@ scalar one, so these cases are declined there too.
   -Pbench.samples=5 -Pbench.warmups=5 -Pbench.targetMs=200 -Pbench.forks=2
 ```
 
-Tasks are `jvmScalarBenchmark`, `jvmSimdBenchmark`, `nativeBenchmark`, `nativeVendorBenchmark` and
-`jvmVendorBenchmark`; the vendor tasks take `-Pbench.vendor=NAME`. Native and vendor executables accept
-`--suite=sweep --operation=dot` directly. Omitting the suite selects `default`.
+Tasks are `jvmScalarBenchmark`, `jvmSimdBenchmark`, `jvmDefaultBenchmark`, `nativeBenchmark`,
+`nativeDefaultBenchmark`, `nativeVendorBenchmark` and `jvmVendorBenchmark`; the vendor tasks take
+`-Pbench.vendor=NAME`. Native and vendor executables accept `--suite=sweep --operation=dot` directly.
+Omitting the suite selects `default`.

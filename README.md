@@ -26,6 +26,16 @@ has been established across machines. Explicit oneMKL, AOCL, Arm Performance Lib
 Accelerate, and OpenBLAS bindings remain available for comparisons and Native acceleration, each held to one
 compute thread.
 
+On Kotlin/Native, where there is no Vector API and these loops do not vectorise, the default engine also
+hands a whole dense Level 2 or 3 call to an installed library once the call has enough arithmetic to pay for
+reaching it. Nothing depends on one being there: a host with no supported library computes every level in
+common Kotlin, and so does any call the library does not export, any call too small to pay for it, any
+product over operands packed for this library's own register tile, and any routine whose documented result a
+library need not give. `KoblasEngine.denseRouteOf` says which of the two a concrete call took and names the
+resolved library and symbol where it was the second. The JVM default composes no library at all. Sparse is
+this library's own scheduling on both runtimes: no supported vendor's sparse API is bound, so installing one
+does not accelerate a sparse matrix operation.
+
 Level 1 picks the faster arm per platform. On the JVM that is the Vector API kernels for the reductions,
 because reaching a foreign library there copies both operands into native memory and so costs a pass over the
 data before any arithmetic. The elementwise operations are ordinary Kotlin loops, which HotSpot vectorises on
@@ -62,7 +72,10 @@ any strided run.
 Optional host comparisons need a vendor BLAS installed; Koblas ships and packages none. The binding reports the
 resolved binary file, identity and available version/thread evidence from the object that performs the call.
 On JVM explicit host calls use foreign downcalls, so pass `--enable-native-access=ALL-UNNAMED`. Portable and JVM
-SIMD built-in computation does not require native access. macOS host comparisons use system Accelerate.
+SIMD built-in computation does not require native access, and the JVM default resolves no library, so whether
+one is installed or loadable cannot affect it. Kotlin/Native host acceleration needs no flag: the binding is
+resolved through the dynamic loader at first use and the portable schedule runs where it is not. macOS host
+comparisons use system Accelerate.
 
 ## Quick start
 

@@ -12,11 +12,13 @@ import com.eignex.koblas.dense.DensePanelKernels
 import com.eignex.koblas.dense.DenseProductKernels
 import com.eignex.koblas.dense.DenseTriangularKernels
 import com.eignex.koblas.dense.DenseVectorKernels
+import com.eignex.koblas.dense.HostDenseBlas
 import com.eignex.koblas.dense.PackedMatrix
 import com.eignex.koblas.dense.PortableDenseBlas
 import com.eignex.koblas.dense.PortablePanelKernels
 import com.eignex.koblas.dense.PortableProductKernels
 import com.eignex.koblas.dense.PortableTriangularKernels
+import com.eignex.koblas.dense.RoutedDenseBlas
 import com.eignex.koblas.sparse.IndexedSparseKernels
 import com.eignex.koblas.sparse.SPARSE_SCHEDULING
 import com.eignex.koblas.sparse.SparseAlgorithms
@@ -52,10 +54,14 @@ public val koblas: KoblasEngine by lazy { platformEngine() }
 internal expect fun platformEngine(): KoblasEngine
 
 /**
- * An immutable engine providing portable Kotlin BLAS at every level.
+ * An immutable engine providing portable Kotlin BLAS at every level, optionally composing a host library.
  *
- * [vendor] records the separately callable installed host binding; it is not the implementation of built-in
- * Level 2 and 3 calls. This distinction keeps scalar and JVM SIMD benchmark arms independent of host libraries.
+ * [vendor] records the installed host binding this engine can reach. It is separately callable for explicit
+ * host comparisons and attribution, and on most engines it is nothing else: [BuiltinEngines.scalar] and
+ * [BuiltinEngines.simd] never resolve one, so a scalar or JVM SIMD benchmark arm is independent of host
+ * libraries by construction. A platform default may also compose it into ordinary dense Level 2 and 3 calls
+ * under a fixed policy, which Kotlin/Native's does; holding a binding is not evidence that a given call
+ * reached it, and [denseRouteOf] is what answers that for one call.
  *
  * Selected once for the platform and immutable afterwards. [BuiltinEngines] constructs exact scalar or SIMD
  * compositions for tests and benchmarks without touching process-global state.
@@ -76,12 +82,21 @@ public class KoblasEngine internal constructor(
     public val triangularKernels: DenseTriangularKernels = PortableTriangularKernels,
     private val denseBlas: PortableDenseBlas =
         PortableDenseBlas(vectorKernels, panelKernels, productKernels, triangularKernels),
+    /**
+     * The installed library this engine's ordinary dense Level 2 and 3 calls may be composed from.
+     *
+     * Separate from [vendor] rather than read off it, because the two answer different questions. A platform
+     * default that composes one passes the same binding to both; an engine retaining a binding only so a
+     * caller can reach it explicitly passes it as [vendor] alone, and its dense calls stay portable.
+     */
+    hostDense: Blas? = null,
+    private val dense: RoutedDenseBlas = hostDense?.let { HostDenseBlas(denseBlas, it) } ?: denseBlas,
     private val sparseBlas: SparseBlas = SparseAlgorithms(
         vectorKernels,
         indexedSparseKernels,
         SparsePanelKernels(vectorKernels, panelKernels),
     ),
-) : DenseBlas by denseBlas,
+) : DenseBlas by dense,
     SparseBlas by sparseBlas {
     /**
      * The component that owns built-in sparse Level 2 and 3 calls.
@@ -106,12 +121,18 @@ public class KoblasEngine internal constructor(
      * What a built-in dense Level 2 or 3 call of this [operation] and shape actually executes.
      *
      * The dense counterpart of [com.eignex.koblas.sparse.SparseBlas.matrixRouteOf]. Traversal is this
-     * library's own portable code on every engine; the panels a window reaches are the selected backend's,
-     * and a window too short for one falls to the portable body. An engine's name says which backend was
-     * selected and nothing about which of its bodies a call ran.
+     * library's own portable code wherever this library schedules the call; the panels a window reaches are
+     * the selected backend's, and a window too short for one falls to the portable body. An engine's name
+     * says which backend was selected and nothing about which of its bodies a call ran.
+     *
+     * Where the platform default composes an installed library, a call with enough arithmetic for it is one
+     * whole vendor entry point instead, and the route names which library, which symbol and what this
+     * library still did around it. The answer comes from the decision the call itself makes, so an operation
+     * with no entry point of its own, such as a product between operands packed for this library's register
+     * tile, reports the portable schedule it really runs however large it is.
      */
     public fun denseRouteOf(operation: DenseMatrixOperation, call: DenseCall): DenseMatrixRoute =
-        denseBlas.routeOf(operation, call)
+        dense.routeOf(operation, call)
 
     /**
      * `op(A)` copied into the grouped layout this engine's product tile reads, for the left of a product.

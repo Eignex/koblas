@@ -200,7 +200,7 @@ internal class VendorDenseBlas(private val vendor: Blas?) : DenseBlas {
  * though both spellings reach the same CBLAS `uplo`: a rank update's destination is stored as a symmetric
  * matrix is, and calling it triangular would declare the other half to be zeros it is not.
  */
-private fun triangle(lower: Boolean, unitDiag: Boolean): MatrixStructure = when {
+internal fun triangle(lower: Boolean, unitDiag: Boolean): MatrixStructure = when {
     unitDiag && lower -> MatrixStructure.UnitLower
     unitDiag -> MatrixStructure.UnitUpper
     lower -> MatrixStructure.TriangularLower
