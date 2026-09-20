@@ -116,25 +116,22 @@ internal object SimdProductKernels : DenseProductKernels {
     }
 
     /**
-     * One whole tile, in as many accumulators as this runtime can hold at once.
+     * One whole tile, in as many accumulators as this runtime is measured to hold.
      *
-     * Where the machine has a fused multiply-add, a step of the depth is eight instructions into eight
-     * accumulators and nothing else is live but the two loaded rows and the broadcast coefficient. Where it
-     * does not, the same step is a multiply into a temporary and then an add, so it asks the compiler to
-     * keep eight more vector values alive at once, and the compiler stops keeping them in registers: it
-     * materialises some of them on the heap, which a probe sees as bytes per call and the arithmetic sees
-     * as about half the throughput. Two of the four columns at a time fit either way, at the cost of
-     * reading the left panel twice.
+     * Where the machine has a fused multiply-add, a step of the depth is one instruction per accumulator and
+     * eight of them are held at once. Where it does not, [multiplyAdd] is a multiply and then an add, and an
+     * allocation probe over this body finds bytes per call on the whole-tile path: the same amount at every
+     * depth, and none where a destination leaves a column or a row of the tile short. The smaller body below
+     * holds four accumulators instead, and is measured allocation-free in that configuration.
      *
      * So the decomposition follows the same gate the arithmetic does. This is not a change of geometry:
      * [tileRows] and [tileColumns] are what they were, the packed layout is unchanged, and each destination
-     * entry still accumulates its own products in depth order, so both routes give the same answer bit for
-     * bit as each other. What differs is how many of them are in flight.
+     * entry accumulates its own products in depth order either way, so the split and unsplit forms of the
+     * unfused body agree bit for bit. The fused body is a different arithmetic and is not held to that.
      *
-     * The stage evidence has both bodies measured at both widths. With the instruction, eight accumulators
-     * lead the split by about 1.5x and neither allocates; without it, eight allocate and run at about half
-     * the split's rate. One machine, and the choice here is between two bodies of one kernel rather than a
-     * crossover between shapes.
+     * Which body a configuration wants is a measurement and not a preference: with the instruction the
+     * eight-accumulator body is both allocation-free and faster, and without it the split one is. The stage
+     * evidence holds both at both widths.
      */
     private fun tile(
         depth: Int,
@@ -162,11 +159,12 @@ internal object SimdProductKernels : DenseProductKernels {
     }
 
     /**
-     * Two columns of a tile in four accumulators, which is what fits where a step takes two instructions.
+     * Two columns of a tile in four accumulators, for the configuration the whole tile allocates in.
      *
      * The rows are both lane blocks, so each loaded left vector still serves both of this pair's columns,
      * and the padding of a group the destination does not fill is accumulated and then not stored, exactly
-     * as the whole tile does.
+     * as the whole tile does. The left panel is read once per pair rather than once per tile, which is what
+     * the smaller set of accumulators costs.
      */
     private fun columnPair(
         depth: Int,
