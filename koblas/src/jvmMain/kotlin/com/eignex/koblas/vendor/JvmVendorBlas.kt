@@ -58,7 +58,7 @@ internal class JvmVendorBlas(
 
     override fun dot(x: DenseVector, y: DenseVector): Double {
         requireSameSize(x.size, y.size, "dot")
-        if (noWorkReason(emptyList(), listOf(x)) != null) return 0.0
+        if (noWork(x)) return 0.0
         return Arena.ofConfined().use { arena ->
             val nx = arena.stage(x)
             val ny = arena.stage(y)
@@ -67,7 +67,7 @@ internal class JvmVendorBlas(
     }
 
     override fun nrm2(x: DenseVector): Double {
-        if (noWorkReason(emptyList(), listOf(x)) != null) return 0.0
+        if (noWork(x)) return 0.0
         return Arena.ofConfined().use { arena ->
             val nx = arena.stage(x)
             nrm2Handle.invokeExact(x.size, nx.segment, abs(nx.increment)) as Double
@@ -75,7 +75,7 @@ internal class JvmVendorBlas(
     }
 
     override fun asum(x: DenseVector): Double {
-        if (noWorkReason(emptyList(), listOf(x)) != null) return 0.0
+        if (noWork(x)) return 0.0
         return Arena.ofConfined().use { arena ->
             val nx = arena.stage(x)
             asumHandle.invokeExact(x.size, nx.segment, abs(nx.increment)) as Double
@@ -83,7 +83,7 @@ internal class JvmVendorBlas(
     }
 
     override fun iamax(x: DenseVector): Int {
-        if (noWorkReason(emptyList(), listOf(x)) != null) return 0
+        if (noWork(x)) return 0
         return Arena.ofConfined().use { arena ->
             val nx = arena.stage(x)
             val found = iamaxHandle.invokeExact(x.size, nx.segment, abs(nx.increment)) as Int
@@ -93,7 +93,7 @@ internal class JvmVendorBlas(
 
     override fun axpy(alpha: Double, x: DenseVector, y: DenseVector) {
         requireSameSize(x.size, y.size, "axpy")
-        if (noWorkReason(emptyList(), listOf(x)) != null) return
+        if (noWork(x)) return
         Arena.ofConfined().use { arena ->
             val nx = arena.stage(x)
             val ny = arena.stage(y)
@@ -103,7 +103,7 @@ internal class JvmVendorBlas(
     }
 
     override fun scal(alpha: Double, x: DenseVector) {
-        if (noWorkReason(emptyList(), listOf(x)) != null) return
+        if (noWork(x)) return
         Arena.ofConfined().use { arena ->
             val nx = arena.stage(x)
             scalHandle.invokeExact(x.size, alpha, nx.segment, abs(nx.increment))
@@ -113,7 +113,7 @@ internal class JvmVendorBlas(
 
     override fun copy(x: DenseVector, y: DenseVector) {
         requireSameSize(x.size, y.size, "copy")
-        if (noWorkReason(emptyList(), listOf(x)) != null) return
+        if (noWork(x)) return
         Arena.ofConfined().use { arena ->
             val nx = arena.stage(x)
             val ny = arena.stage(y)
@@ -124,7 +124,7 @@ internal class JvmVendorBlas(
 
     override fun swap(x: DenseVector, y: DenseVector) {
         requireSameSize(x.size, y.size, "swap")
-        if (noWorkReason(emptyList(), listOf(x)) != null) return
+        if (noWork(x)) return
         Arena.ofConfined().use { arena ->
             val nx = arena.stage(x)
             val ny = arena.stage(y)
@@ -136,7 +136,7 @@ internal class JvmVendorBlas(
 
     override fun rot(x: DenseVector, y: DenseVector, c: Double, s: Double) {
         requireSameSize(x.size, y.size, "rot")
-        if (noWorkReason(emptyList(), listOf(x)) != null) return
+        if (noWork(x)) return
         Arena.ofConfined().use { arena ->
             val nx = arena.stage(x)
             val ny = arena.stage(y)
@@ -157,7 +157,7 @@ internal class JvmVendorBlas(
         y: DenseVector,
     ) {
         requireGemvOperands(a, transposeA, x.size, y.size)
-        if (noWorkReason(listOf(a), emptyList()) != null) return
+        if (noWork(a)) return
         Arena.ofConfined().use { arena ->
             val na = arena.stage(a)
             val nx = arena.stage(x)
@@ -180,7 +180,7 @@ internal class JvmVendorBlas(
     ) {
         requireStructured(structure, "symv")
         requireSymvOperands(a, x.size, y.size)
-        if (noWorkReason(listOf(a), emptyList()) != null) return
+        if (noWork(a)) return
         Arena.ofConfined().use { arena ->
             val na = arena.stage(a)
             val nx = arena.stage(x)
@@ -195,7 +195,7 @@ internal class JvmVendorBlas(
 
     override fun ger(alpha: Double, x: DenseVector, y: DenseVector, a: DenseMatrix) {
         requireGerOperands(x.size, y.size, a)
-        if (noWorkReason(listOf(a), emptyList()) != null) return
+        if (noWork(a)) return
         Arena.ofConfined().use { arena ->
             val na = arena.stage(a)
             val nx = arena.stage(x)
@@ -211,7 +211,7 @@ internal class JvmVendorBlas(
     override fun syr(alpha: Double, x: DenseVector, a: DenseMatrix, structure: MatrixStructure) {
         requireStructured(structure, "syr")
         requireSyrOperands(a, x.size, "syr")
-        if (noWorkReason(listOf(a), emptyList()) != null) return
+        if (noWork(a)) return
         Arena.ofConfined().use { arena ->
             val na = arena.stage(a)
             val nx = arena.stage(x)
@@ -232,7 +232,7 @@ internal class JvmVendorBlas(
     override fun syr2(alpha: Double, x: DenseVector, y: DenseVector, a: DenseMatrix, structure: MatrixStructure) {
         requireStructured(structure, "syr2")
         requireSyr2Operands(a, x.size, y.size, "syr2")
-        if (noWorkReason(listOf(a), emptyList()) != null) return
+        if (noWork(a)) return
         Arena.ofConfined().use { arena ->
             val na = arena.stage(a)
             val nx = arena.stage(x)
@@ -262,7 +262,7 @@ internal class JvmVendorBlas(
     ) {
         requireTriangular(structure, what)
         requireTriangularVectorOperands(a, x.size, what)
-        if (noWorkReason(listOf(a), emptyList()) != null) return
+        if (noWork(a)) return
         Arena.ofConfined().use { arena ->
             val na = arena.stage(a)
             val nx = arena.stage(x)
@@ -288,7 +288,7 @@ internal class JvmVendorBlas(
     ) {
         val depth = if (transposeA) a.rows else a.cols
         requireGemmOperands(a, transposeA, b, transposeB, c)
-        if (noWorkReason(listOf(c), emptyList()) != null) return
+        if (noWork(c)) return
         Arena.ofConfined().use { arena ->
             val na = arena.stage(a)
             val nb = arena.stage(b)
@@ -315,7 +315,7 @@ internal class JvmVendorBlas(
     ) {
         requireStructured(structure, "symm")
         requireSymmOperands(a, b, c, rightSide)
-        if (noWorkReason(listOf(c), emptyList()) != null) return
+        if (noWork(c)) return
         Arena.ofConfined().use { arena ->
             val na = arena.stage(a)
             val nb = arena.stage(b)
@@ -341,7 +341,7 @@ internal class JvmVendorBlas(
         requireStructured(structure, "syrk")
         requireSyrkOperands(a, transposeA, c)
         val depth = if (transposeA) a.rows else a.cols
-        if (noWorkReason(listOf(c), emptyList()) != null) return
+        if (noWork(c)) return
         Arena.ofConfined().use { arena ->
             val na = arena.stage(a)
             val nc = arena.stage(c)
@@ -367,7 +367,7 @@ internal class JvmVendorBlas(
         requireStructured(structure, "syr2k")
         requireSyr2kOperands(a, b, transposeA, c)
         val depth = if (transposeA) a.rows else a.cols
-        if (noWorkReason(listOf(c), emptyList()) != null) return
+        if (noWork(c)) return
         Arena.ofConfined().use { arena ->
             val na = arena.stage(a)
             val nb = arena.stage(b)
@@ -414,7 +414,7 @@ internal class JvmVendorBlas(
     ) {
         requireTriangular(structure, what)
         requireTriangularMatrixOperands(a, b, rightSide, what)
-        if (noWorkReason(listOf(b), emptyList()) != null) return
+        if (noWork(b)) return
         Arena.ofConfined().use { arena ->
             val na = arena.stage(a)
             val nb = arena.stage(b)
@@ -442,7 +442,7 @@ internal class JvmVendorBlas(
         requireStructured(structure, "gemmt")
         requireGemmtOperands(a, transposeA, b, transposeB, c)
         val depth = if (transposeA) a.rows else a.cols
-        if (noWorkReason(listOf(c), emptyList()) != null) return
+        if (noWork(c)) return
         if (BlasOperation.Gemmt !in directlyImplemented) {
             return composeGemmt(alpha, a, transposeA, b, transposeB, beta, c, structure)
         }
