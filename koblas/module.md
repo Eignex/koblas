@@ -1,47 +1,70 @@
 # Module koblas
 
-Dense and sparse BLAS for Kotlin Multiplatform.
+Portable double-precision dense and sparse BLAS Levels 1–3 for Kotlin Multiplatform.
 
-Koblas provides mutable owning `Double` containers, dense vectors in either spacing, and validated CSC sparse
-storage. Dense matrices are column-major.
+The immutable [koblas][com.eignex.koblas.koblas] engine uses owned Vector API kernels on a JVM with the
+incubator module, and portable Kotlin without it. Kotlin/Native composes optional installed host calls with
+portable fallback. Explicit vendor bindings preserve their own arithmetic and overlap contracts and raise
+[MissingVendorException][com.eignex.koblas.vendor.MissingVendorException] when no supported library is present.
 
-Levels 1 to 3 are common Kotlin for both dense and sparse operands, so ordinary matrix computation needs no
-installed numerical library. Dense Level 2 and 3 scheduling is shared and portable; the arithmetic inside a
-window is a panel, a product block or a diagonal substitution, and which bodies a machine uses is chosen
-locally.
+[Workspace][com.eignex.koblas.Workspace] reuses temporary storage with bounded retention. It belongs to one
+invocation at a time; concurrent calls need separate outputs and scratch. Allocating operations still own
+their fresh results. Factorization and solver workflows are outside this artifact.
 
-Raw indexed sparse kernels operate on caller-owned slices without temporary storage. Stateless structural
-helpers for accumulation, touched support, and checked arithmetic are available through
-[SparsePrimitives][com.eignex.koblas.sparse.SparsePrimitives]; every buffer they write through is one the
-caller passed in, so nothing here allocates behind a hot loop. Routines that need scratch of their own take a
-[Workspace][com.eignex.koblas.Workspace], which lends by exact length and retains a bounded number of
-lengths, so a repeated call over one shape allocates nothing.
+[BuiltinEngines][com.eignex.koblas.BuiltinEngines], behind the
+[KoblasEngineApi][com.eignex.koblas.KoblasEngineApi] opt-in, names exact engines for tests and benchmarks.
+[KoblasEngine.explain][com.eignex.koblas.KoblasEngine.explain] and
+[KoblasEngine.denseRouteOf][com.eignex.koblas.KoblasEngine.denseRouteOf] report the bodies an operation reaches,
+including composed execution. [Blas.routeOf][com.eignex.koblas.vendor.Blas.routeOf] describes a host call and
+its resolved binding. Selecting an engine does not imply every operation uses the same kernel.
 
-[koblas][com.eignex.koblas.koblas] is an immutable engine selected once for the platform. On the JVM it is
-the Vector API kernels this library owns where the incubator module resolved and the portable ones where it
-did not. On Kotlin/Native, which has no Vector API, it is the portable schedule plus an installed host
-library where one is present, both for Level 1 above its measured widths and for a whole dense Level 2 or 3
-call with enough arithmetic to pay for reaching it. Neither platform depends on a library being there: a host
-with no supported one computes every level in common Kotlin. Bindings are also explicitly callable on their
-own, and that seam has no portable fallback by design, so it raises
-[MissingVendorException][com.eignex.koblas.vendor.MissingVendorException] where no supported library is
-present rather than substituting this library's arithmetic under a vendor's name.
+# Package com.eignex.koblas
 
-Every part of the library says what a call actually reached rather than what was selected.
-[explain][com.eignex.koblas.KoblasEngine.explain] names the Level 1 component for a given operation, length
-and spacing, [denseRouteOf][com.eignex.koblas.KoblasEngine.denseRouteOf] names what a dense matrix call
-executes including the bodies its windows reach and the grouping the backend recommended,
-[matrixRouteOf][com.eignex.koblas.sparse.SparseBlas.matrixRouteOf] does the same for a sparse matrix call,
-[routeOf][com.eignex.koblas.sparse.SparseKernels.routeOf] for sparse Level 1, and
-[Blas.routeOf][com.eignex.koblas.vendor.Blas.routeOf] describes one concrete vendor call including
-whether it was direct or composed. A selection that falls back is not evidence that its own kernel ran.
+Owning dense and sparse containers, borrowed vector views, [Workspace] and high-level arithmetic.
+Ordinary use needs only `com.eignex.koblas.*`; [Matrix] and [Vector] are read-only contracts custom types can
+implement. Dense matrices are column-major and sparse matrices are validated CSC.
 
-Naming an implementation other than the selected one is for measuring the two against each other, so
-[BuiltinEngines][com.eignex.koblas.BuiltinEngines] sits behind
-[KoblasEngineApi][com.eignex.koblas.KoblasEngineApi] and production code uses
-[koblas][com.eignex.koblas.koblas]. The portable kernels are not an alternative to the vectorised ones at a
-given size: the vectorised ones already fall back to them below their lane width and for any strided run.
-Reaching either way does not change the default engine.
+[Matrix.gemm] and [Matrix.gemmInto] dispatch on runtime storage with dense or sparse operands on either side.
+Two sparse operands produce CSC storage; other built-in pairings produce dense storage. No sparse operand is
+densified to reach a kernel. [PreparedSparseMatrix] owns a snapshot for repeated operations.
 
-Factorization and basis solving are outside this artifact: a consumer that needs them owns its own factors on
-top of these kernels.
+# Package com.eignex.koblas.dense
+
+[DenseVectorKernels] supplies Level 1 arithmetic over array windows and strides. [DenseBlas] supplies the
+Level 2 and 3 contracts, with shared portable traversal, validation, no-read behavior and alias staging.
+
+The arithmetic inside each window is selected through three backend contracts:
+
+- [DensePanelKernels] executes [PanelWork] and recommends a logical [DensePanelKernels.executionGroup].
+- [DenseProductKernels] executes product blocks using a backend-selected register tile and [PackedLayout].
+- [DenseTriangularKernels] executes diagonal substitutions and recommends a
+  [DenseTriangularKernels.rightHandSideGroup].
+
+Panel groups, SIMD lanes, register tiles, diagonal blocks and cache blocks are independent dimensions.
+Structured products reuse the shared schedule over the selected region; their routes report the bodies each
+window reaches. Packing and coefficient gathering borrow scoped scratch from [com.eignex.koblas.Workspace].
+[PackedMatrix] retains a packed operand for repeated products.
+
+Operands use public containers; transposition and [MatrixStructure] travel as flags. `gemmt` is the
+triangle-selected general product Netlib calls `GEMMTR`: full column-major operands and a full-storage
+selected output triangle, not compact BLAS packed storage. Explicit host routes report whether the binding
+called `cblas_dgemmt` or composed the operation.
+
+# Package com.eignex.koblas.sparse
+
+[SparseBlas] provides portable CSC matrix-vector and matrix-matrix products, symmetric/rank-k operations,
+triangular multiply/solve, scaled addition and transpose. Its [SparseBlas.matrixRouteOf] reports portable
+structural traversal together with the scalar, SIMD or host components actually reached.
+
+Stored zeros participate, cancellation retains an entry, and an absent position is never evaluated. Fresh
+results own their arrays with ascending row indices. [com.eignex.koblas.PreparedSparseMatrix] owns copies of
+both structure and values; sparse-sparse products may reuse a safely published transpose, while dense products
+use the stored snapshot. Mutable scratch belongs to each invocation, so snapshots support concurrent readers.
+
+[SparseKernels] supplies allocation-free indexed arithmetic over validated caller-owned windows. Reductions
+admit repeated/unsorted support with contribution semantics; indexed mutations require sorted unique
+destinations. [SparseKernels.routeOf] reports each call's actual implementation and fallback.
+
+[SparsePrimitives] provides stateless arithmetic over caller-owned support, marks, accumulators, diagnostics
+and output buffers. Pivot selection, permutations, dropping policies, factors and solver state belong to the
+consumer. Empty masked reductions return the identity and report no position.
