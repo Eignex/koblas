@@ -4,7 +4,6 @@ import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
 
-/** What staging an aliased operand costs: the entries it addresses, in the order it addresses them. */
 class StagingTest {
 
     @Test
