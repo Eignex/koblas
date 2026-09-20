@@ -37,10 +37,9 @@ Supported targets: JVM on JDK 25 or later, Linux x64/arm64, and macOS arm64.
 - Explicit JVM host bindings also need `--enable-native-access=ALL-UNNAMED`. Supported vendors include
   OpenBLAS, oneMKL, AOCL, Arm Performance Libraries and Accelerate.
 
-The immutable `koblas` engine is selected once. An operation can combine SIMD, portable and host components;
-selection alone does not identify what executed. `explain`, `denseRouteOf` and `SparseBlas.matrixRouteOf`
-report actual execution. Host bindings report the resolved binary, version and available thread evidence.
-`BuiltinEngines`, behind the `KoblasEngineApi` opt-in, names exact engines for tests and benchmarks.
+Engine selection is automatic. Use `koblas.routeOf(...)` to inspect how a dense or sparse call will run,
+including any fallback. The [benchmark guide](koblas-bench/README.md) covers explicit engine selection
+and identifying the host library used.
 
 ## Kotlin
 

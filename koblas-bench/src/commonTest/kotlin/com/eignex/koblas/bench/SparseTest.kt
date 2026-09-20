@@ -204,7 +204,7 @@ class SparseTest {
 
         val work = assertNotNull(sparseArm(case, engine)?.work)
 
-        val expected = engine.matrixRouteOf(
+        val expected = engine.routeOf(
             SparseMatrixOperation.Gemv,
             SparseCall(Fixtures.sparse(64, 32, 0.5, 1), alpha = 0.875, beta = -0.25, destinationElements = 64, depth = 32),
         )
@@ -302,7 +302,7 @@ class SparseTest {
 
         for (engine in listOfNotNull(BuiltinEngines.scalar, BuiltinEngines.simd)) {
             val work = assertNotNull(sparseArm(case, engine)?.work, engine.name)
-            val expected = engine.matrixRouteOf(
+            val expected = engine.routeOf(
                 SparseMatrixOperation.Gemv,
                 SparseCall(Fixtures.sparse(64, 32, 0.25, 1), alpha = 0.875, beta = -0.25, destinationElements = 64, depth = 32),
             )
@@ -385,7 +385,7 @@ class SparseTest {
     @Test
     fun `a case with no arithmetic to do is declined rather than timed`() {
         val empty = Fixtures.sparse(8, 8, 0.25, 1)
-        val route = BuiltinEngines.scalar.matrixRouteOf(
+        val route = BuiltinEngines.scalar.routeOf(
             SparseMatrixOperation.GemmDense,
             SparseCall(empty, alpha = 0.0, beta = 0.5, destinationElements = 64, depth = 32),
         )
@@ -421,7 +421,7 @@ class SparseTest {
             .single()
         val a = Fixtures.sparse(21, 33, 0.25, 1)
         fun route(transposeDense: Boolean) = sparseMatrixKernel(
-            engine.matrixRouteOf(
+            engine.routeOf(
                 SparseMatrixOperation.GemmDense,
                 SparseCall(
                     a, alpha = 0.875, beta = -0.25, destinationElements = 33 * 16, depth = 21,

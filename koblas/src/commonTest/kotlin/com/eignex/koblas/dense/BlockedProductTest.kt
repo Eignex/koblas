@@ -122,19 +122,19 @@ class BlockedProductTest {
     fun `the blocked shapes reach the product tiles and a small one does not`() {
         for (engine in engines) {
             for ((m, n, k) in blockedShapes(engine.productKernels)) {
-                val route = engine.denseRouteOf(DenseMatrixOperation.Gemm, DenseCall(m, n, depth = k))
+                val route = engine.routeOf(DenseMatrixOperation.Gemm, DenseCall(m, n, depth = k))
                 assertTrue(
                     route.components.any { it.endsWith("/product-block") },
                     "${engine.name} ${m}x${n}x$k named ${route.components}",
                 )
             }
             val tile = engine.productKernels
-            val whole = engine.denseRouteOf(
+            val whole = engine.routeOf(
                 DenseMatrixOperation.Gemm,
                 DenseCall(tile.tileRows * 8, tile.tileColumns * 8, depth = 64),
             )
             assertEquals(RouteKind.Direct, whole.kind, "${engine.name} $whole")
-            val small = engine.denseRouteOf(DenseMatrixOperation.Gemm, DenseCall(5, 4, depth = 6))
+            val small = engine.routeOf(DenseMatrixOperation.Gemm, DenseCall(5, 4, depth = 6))
             assertTrue(
                 small.components.none { it.endsWith("/product-block") },
                 "${engine.name} packed a product with nothing to amortise it over: ${small.components}",

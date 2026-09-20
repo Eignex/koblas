@@ -139,6 +139,10 @@ internal class SparseKernelAdapter(
     private val indexedSparseKernels: IndexedSparseKernels,
 ) : SparseKernels {
     override fun routeOf(operation: SparseOperation, count: Int): SparseRoute {
+        require(count >= 0) { "negative operation length" }
+        if (count == 0) {
+            return SparseRoute(operation, RouteKind.NoWork, name, operation.entryPoint, null, "the support is empty")
+        }
         // A stored support is one contiguous run, so these two are dense reductions wearing a sparse name, and
         // the dense kernels answer for them. Those dispatch in turn, so the selection name is not the answer.
         if (operation == SparseOperation.Nrm2 || operation == SparseOperation.Asum) {
@@ -166,8 +170,16 @@ internal class SparseKernelAdapter(
                 "$selection runs ${operation.entryPoint} of $count entries in $reached",
             )
         }
-        val reached = indexedSparseKernels.implementationFor(operation, count)
         val own = indexedSparseKernels.name
+        val reached = indexedSparseKernels.implementationFor(operation, count)
+            ?: return SparseRoute(
+                operation,
+                RouteKind.Composed,
+                own,
+                operation.entryPoint,
+                null,
+                "the indexed norm may retry through the portable rescaling loop depending on the values",
+            )
         if (reached == own) {
             return SparseRoute(operation, RouteKind.Direct, own, operation.entryPoint, null, null)
         }

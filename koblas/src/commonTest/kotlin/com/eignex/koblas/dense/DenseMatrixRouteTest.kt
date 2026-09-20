@@ -30,7 +30,7 @@ class DenseMatrixRouteTest {
     @Test
     fun `a rectangular call names one panel and the grouping it will use`() {
         for (engine in engines) {
-            val route = engine.denseRouteOf(DenseMatrixOperation.Gemv, DenseCall(64, 16, 1.0, 1.0))
+            val route = engine.routeOf(DenseMatrixOperation.Gemv, DenseCall(64, 16, 1.0, 1.0))
 
             assertEquals(RouteKind.Direct, route.kind, engine.name)
             assertEquals("portable-dense", route.scheduling)
@@ -45,8 +45,8 @@ class DenseMatrixRouteTest {
     fun `a transposed matrix vector product is a different entry point from the untransposed one`() {
         val call = DenseCall(64, 16)
         for (engine in engines) {
-            val plain = engine.denseRouteOf(DenseMatrixOperation.Gemv, call)
-            val transposed = engine.denseRouteOf(DenseMatrixOperation.GemvTransposed, call)
+            val plain = engine.routeOf(DenseMatrixOperation.Gemv, call)
+            val transposed = engine.routeOf(DenseMatrixOperation.GemvTransposed, call)
 
             assertEquals("gemv", plain.entryPoint, engine.name)
             assertEquals("gemv-transposed", transposed.entryPoint, engine.name)
@@ -62,8 +62,8 @@ class DenseMatrixRouteTest {
     @Test
     fun `the destination scaling a call performs is a component like any other`() {
         for (engine in engines) {
-            val scaled = engine.denseRouteOf(DenseMatrixOperation.Gemv, DenseCall(64, 16, 1.0, -0.25))
-            val overwritten = engine.denseRouteOf(DenseMatrixOperation.Gemv, DenseCall(64, 16, 1.0, 0.0))
+            val scaled = engine.routeOf(DenseMatrixOperation.Gemv, DenseCall(64, 16, 1.0, -0.25))
+            val overwritten = engine.routeOf(DenseMatrixOperation.Gemv, DenseCall(64, 16, 1.0, 0.0))
 
             assertEquals(2, scaled.components.size, scaled.toString())
             assertContains(scaled.components.first(), "/scale")
@@ -78,7 +78,7 @@ class DenseMatrixRouteTest {
     @Test
     fun `a transposed product applies beta inside its panel rather than through a kernel`() {
         for (engine in engines) {
-            val route = engine.denseRouteOf(DenseMatrixOperation.GemvTransposed, DenseCall(64, 16, 1.0, -0.25))
+            val route = engine.routeOf(DenseMatrixOperation.GemvTransposed, DenseCall(64, 16, 1.0, -0.25))
 
             assertEquals(1, route.components.size, route.toString())
             assertContains(route.components.single(), "multi-dot")
@@ -106,7 +106,7 @@ class DenseMatrixRouteTest {
     @Test
     fun `a composed route declines to stand for either of the bodies it names`() {
         val composed = engines.asSequence()
-            .map { it.denseRouteOf(DenseMatrixOperation.Symv, DenseCall(513, 513)) }
+            .map { it.routeOf(DenseMatrixOperation.Symv, DenseCall(513, 513)) }
             .firstOrNull { it.kind == RouteKind.Composed }
             ?: return println("SKIPPED: every backend here has one body, so no call is a composition")
 
@@ -117,9 +117,9 @@ class DenseMatrixRouteTest {
 
     @Test
     fun `a call whose contract stops before the arithmetic reports no work`() {
-        val noAlpha = koblas.denseRouteOf(DenseMatrixOperation.Gemv, DenseCall(64, 16, 0.0, -0.25))
-        val empty = koblas.denseRouteOf(DenseMatrixOperation.Gemv, DenseCall(0, 16))
-        val noDepth = koblas.denseRouteOf(DenseMatrixOperation.Gemm, DenseCall(64, 16, depth = 0))
+        val noAlpha = koblas.routeOf(DenseMatrixOperation.Gemv, DenseCall(64, 16, 0.0, -0.25))
+        val empty = koblas.routeOf(DenseMatrixOperation.Gemv, DenseCall(0, 16))
+        val noDepth = koblas.routeOf(DenseMatrixOperation.Gemm, DenseCall(64, 16, depth = 0))
 
         assertEquals(RouteKind.NoWork, noAlpha.kind)
         // The destination is still scaled, and that scaling is the one component such a call executes.
@@ -150,7 +150,7 @@ class DenseMatrixRouteTest {
                 DenseMatrixOperation.Trsm,
                 DenseMatrixOperation.Trmm,
             )) {
-                val route = engine.denseRouteOf(
+                val route = engine.routeOf(
                     operation,
                     DenseCall(64, 64, 1.0, -0.25, depth = 64),
                 )
@@ -181,8 +181,8 @@ class DenseMatrixRouteTest {
     @Test
     fun `a triangular solve names a product only where its order needs more than one block`() {
         for (engine in engines) {
-            val single = engine.denseRouteOf(DenseMatrixOperation.Trsm, DenseCall(8, 4, depth = 8))
-            val several = engine.denseRouteOf(
+            val single = engine.routeOf(DenseMatrixOperation.Trsm, DenseCall(8, 4, depth = 8))
+            val several = engine.routeOf(
                 DenseMatrixOperation.Trsm,
                 DenseCall(4 * TRIANGULAR_DIAGONAL_BLOCK, 64, depth = 4 * TRIANGULAR_DIAGONAL_BLOCK),
             )
@@ -207,7 +207,7 @@ class DenseMatrixRouteTest {
     @Test
     fun `a strided operand reaches the portable body whatever the width`() {
         for (engine in engines) {
-            val route = engine.denseRouteOf(
+            val route = engine.routeOf(
                 DenseMatrixOperation.Syr,
                 DenseCall(512, 512, contiguous = false),
             )
@@ -257,7 +257,7 @@ class DenseMatrixRouteTest {
             DenseMatrixOperation.TrsvTransposed,
             DenseMatrixOperation.Trmv,
         )) {
-            val route = candidate.denseRouteOf(operation, DenseCall(order, order))
+            val route = candidate.routeOf(operation, DenseCall(order, order))
 
             assertTrue(
                 route.components.none { it.startsWith("simd") },
@@ -276,7 +276,7 @@ class DenseMatrixRouteTest {
                 DenseMatrixOperation.Trmv,
                 DenseMatrixOperation.TrsvTransposed,
             )) {
-                val route = engine.denseRouteOf(operation, DenseCall(1, 1))
+                val route = engine.routeOf(operation, DenseCall(1, 1))
 
                 assertEquals(emptyList(), route.components, "$operation of order one on ${engine.name}")
                 assertEquals(RouteKind.Direct, route.kind)
@@ -291,7 +291,7 @@ class DenseMatrixRouteTest {
      */
     @Test
     fun `a transposed product with no work names the scaling it still performs`() {
-        val route = koblas.denseRouteOf(DenseMatrixOperation.GemvTransposed, DenseCall(0, 64, 1.0, -0.25))
+        val route = koblas.routeOf(DenseMatrixOperation.GemvTransposed, DenseCall(0, 64, 1.0, -0.25))
 
         assertEquals(RouteKind.NoWork, route.kind)
         assertContains(route.components.single(), "/scale")
@@ -301,7 +301,7 @@ class DenseMatrixRouteTest {
     @Test
     fun `a packed product names the packing and the tile`() {
         for (engine in engines) {
-            val route = engine.denseRouteOf(DenseMatrixOperation.Gemm, DenseCall(64, 64, 0.875, -0.25, depth = 64))
+            val route = engine.routeOf(DenseMatrixOperation.Gemm, DenseCall(64, 64, 0.875, -0.25, depth = 64))
 
             assertEquals(RouteKind.Direct, route.kind, engine.name)
             assertEquals("gemm", route.entryPoint)
@@ -324,8 +324,8 @@ class DenseMatrixRouteTest {
     @Test
     fun `a small product names the panel its transpose flags reach`() {
         for (engine in engines) {
-            val plain = engine.denseRouteOf(DenseMatrixOperation.Gemm, DenseCall(5, 4, depth = 6))
-            val transposed = engine.denseRouteOf(
+            val plain = engine.routeOf(DenseMatrixOperation.Gemm, DenseCall(5, 4, depth = 6))
+            val transposed = engine.routeOf(
                 DenseMatrixOperation.Gemm,
                 DenseCall(5, 4, depth = 6, transposeA = true),
             )
@@ -348,19 +348,19 @@ class DenseMatrixRouteTest {
         for (engine in engines) {
             val portable = PortablePanelKernels.name
             val vectorBody = engine.panelKernels.implementationFor(PanelWork.MultiDot, 64, 4)
-            val gathered = engine.denseRouteOf(
+            val gathered = engine.routeOf(
                 DenseMatrixOperation.Gemm,
                 DenseCall(64, 2, depth = 64, transposeA = true, transposeB = true),
             )
-            val tooFewRows = engine.denseRouteOf(
+            val tooFewRows = engine.routeOf(
                 DenseMatrixOperation.Gemm,
                 DenseCall(2, 2, depth = 64, transposeA = true, transposeB = true),
             )
-            val oneColumn = engine.denseRouteOf(
+            val oneColumn = engine.routeOf(
                 DenseMatrixOperation.Gemm,
                 DenseCall(64, 1, depth = 64, transposeA = true, transposeB = true),
             )
-            val adjacent = engine.denseRouteOf(
+            val adjacent = engine.routeOf(
                 DenseMatrixOperation.Gemm,
                 DenseCall(64, 2, depth = 64, transposeA = true),
             )
@@ -398,8 +398,8 @@ class DenseMatrixRouteTest {
     @Test
     fun `an untransposed small product reaches the same body whichever way its right operand is stored`() {
         for (engine in engines) {
-            val plain = engine.denseRouteOf(DenseMatrixOperation.Gemm, DenseCall(64, 2, depth = 64))
-            val transposed = engine.denseRouteOf(
+            val plain = engine.routeOf(DenseMatrixOperation.Gemm, DenseCall(64, 2, depth = 64))
+            val transposed = engine.routeOf(
                 DenseMatrixOperation.Gemm,
                 DenseCall(64, 2, depth = 64, transposeB = true),
             )
@@ -419,9 +419,9 @@ class DenseMatrixRouteTest {
         val call = DenseCall(64, 64, 0.875, -0.25, depth = 64)
         for (engine in engines) {
             val tile = wholeTileBody(engine)
-            val both = engine.denseRouteOf(DenseMatrixOperation.GemmPacked, call)
-            val left = engine.denseRouteOf(DenseMatrixOperation.GemmPackedLeft, call)
-            val right = engine.denseRouteOf(DenseMatrixOperation.GemmPackedRight, call)
+            val both = engine.routeOf(DenseMatrixOperation.GemmPacked, call)
+            val left = engine.routeOf(DenseMatrixOperation.GemmPackedLeft, call)
+            val right = engine.routeOf(DenseMatrixOperation.GemmPackedRight, call)
 
             assertEquals(tile, both.components, engine.name)
             assertEquals(listOf("portable-pack/right-panel") + tile, left.components, engine.name)
@@ -479,11 +479,11 @@ class DenseMatrixRouteTest {
         for (engine in engines) {
             val tile = engine.productKernels
             val n = 4 * tile.tileColumns
-            val whole = engine.denseRouteOf(
+            val whole = engine.routeOf(
                 DenseMatrixOperation.Gemm,
                 DenseCall(2 * tile.tileRows, n, depth = 512),
             )
-            val remainder = engine.denseRouteOf(
+            val remainder = engine.routeOf(
                 DenseMatrixOperation.Gemm,
                 DenseCall(tile.tileRows + 1, n, depth = 512),
             )

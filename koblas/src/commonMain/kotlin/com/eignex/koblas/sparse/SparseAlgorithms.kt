@@ -174,7 +174,7 @@ private enum class RunShape {
  *
  * Traversal, structure, alias staging, triangle selection and arithmetic order are written here and are the
  * same on every platform. The kernels are reached only where a unit of work is a contiguous run or an indexed
- * slice; [matrixRouteOf] is what says which of the two a given call is.
+ * slice; [routeOf] is what says which of the two a given call is.
  */
 @Suppress("TooManyFunctions") // the sparse BLAS surface
 @OptIn(UnsafeKoblasApi::class)
@@ -185,7 +185,7 @@ internal class SparseAlgorithms(
 ) : SparseBlas {
     override fun prepare(a: SparseMatrix): PreparedSparseMatrix = PreparedSparseMatrix(a, this)
 
-    override fun matrixRouteOf(operation: SparseMatrixOperation, call: SparseCall): SparseMatrixRoute {
+    override fun routeOf(operation: SparseMatrixOperation, call: SparseCall): SparseMatrixRoute {
         if (operation == SparseMatrixOperation.Prepare) {
             return route(
                 operation,
@@ -625,7 +625,9 @@ internal class SparseAlgorithms(
         val leaves = ArrayList<String>(2)
         for (j in 0 until a.cols) {
             val length = a.colPointers[j + 1] - a.colPointers[j]
-            val leaf = indexedKernels.implementationFor(operation, length)
+            val leaf = requireNotNull(indexedKernels.implementationFor(operation, length)) {
+                "matrix indexed updates must have a shape-determined implementation"
+            }
             if (leaf !in leaves) leaves.add(leaf)
         }
         return leaves

@@ -45,7 +45,7 @@ internal fun sparseArm(case: BenchCase, engine: KoblasEngine): ArmChoice? {
         result: DoubleArray? = null,
         run: () -> Double,
     ): ArmChoice {
-        val route = kernels.routeOf(operation, count)
+        val route = engine.routeOf(operation, count)
         if (!route.exactlyMeasurable) return ArmChoice(null, requireNotNull(route.reason))
         val work = CaseWork(
             route.kind.name.lowercase(), timing, run, result = result, kernel = sparseKernel(route),
@@ -604,7 +604,7 @@ private fun publish(
     verify: () -> Unit,
     run: () -> Double,
 ): ArmChoice {
-    val route = engine.matrixRouteOf(operation, call)
+    val route = engine.routeOf(operation, call)
     if (route.kind == RouteKind.NoWork) return declined()
     verify()
     return ArmChoice(CaseWork(route.kind.name.lowercase(), timing, run, kernel = sparseMatrixKernel(route)), null)
@@ -637,7 +637,7 @@ private fun genericArm(
                 "as a default-policy case on the arm whose engine that is",
         )
     }
-    val route = koblas.matrixRouteOf(operation, call)
+    val route = koblas.routeOf(operation, call)
     if (route.kind == RouteKind.NoWork) return declined()
     verify()
     return ArmChoice(
@@ -672,7 +672,7 @@ private fun preparedArm(
     prepared: (PreparedSparseMatrix) -> Double,
 ): ArmChoice {
     if (mode == "setup") {
-        val route = engine.matrixRouteOf(SparseMatrixOperation.Prepare, SparseCall(source))
+        val route = engine.routeOf(SparseMatrixOperation.Prepare, SparseCall(source))
         return ArmChoice(
             CaseWork(
                 route.kind.name.lowercase(),
@@ -685,7 +685,7 @@ private fun preparedArm(
             null,
         )
     }
-    val oneShotRoute = engine.matrixRouteOf(operation, call)
+    val oneShotRoute = engine.routeOf(operation, call)
     if (oneShotRoute.kind == RouteKind.NoWork) return declined()
     verifyOneShot()
     if (mode == "oneshot") {
@@ -701,14 +701,14 @@ private fun preparedArm(
     // orientation takes the untransposed schedule over it. One diagnostic snapshot answers both questions,
     // and it is a throwaway so that asking does not warm the snapshot a timed row is about to build.
     val diagnostic = engine.prepare(source)
-    val preparedRoute = diagnostic.matrixRouteOf(operation, call)
+    val preparedRoute = diagnostic.routeOf(operation, call)
     // One real call against the throwaway snapshot, which settles by observation what a route cannot settle
     // from the facts a call carries: a product against a second sparse operand orients on that operand.
     prepared(diagnostic)
     if (mode == "firstuse" || mode == "amortized") {
-        val prepare = engine.matrixRouteOf(SparseMatrixOperation.Prepare, SparseCall(source))
+        val prepare = engine.routeOf(SparseMatrixOperation.Prepare, SparseCall(source))
         val orientation = if (diagnostic.orientationDerived) {
-            " then ${engine.matrixRouteOf(SparseMatrixOperation.Transpose, SparseCall(source)).entryPoint}"
+            " then ${engine.routeOf(SparseMatrixOperation.Transpose, SparseCall(source)).entryPoint}"
         } else {
             ""
         }

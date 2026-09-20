@@ -561,7 +561,7 @@ class SparseRhsPanelTest {
         for (side in intArrayOf(0, 2, 3)) for (row in 0 until order) source[row + side * order] = 1.0
         val b = DenseMatrix.wrap(order, sides, source.copyOf())
 
-        val route = staging.matrixRouteOf(
+        val route = staging.routeOf(
             SparseMatrixOperation.TrsmLeft,
             SparseCall(triangle, 1.0, destinationElements = b.values.size, rightHandSides = sides, lower = true),
         )
@@ -606,7 +606,7 @@ class SparseRhsPanelTest {
         m: Int,
         n: Int,
         k: Int,
-    ): List<String> = staging.matrixRouteOf(
+    ): List<String> = staging.routeOf(
         SparseMatrixOperation.GemmDense,
         SparseCall(
             a,
@@ -646,7 +646,7 @@ class SparseRhsPanelTest {
         sides: Int,
         transpose: Boolean,
         lower: Boolean,
-    ): Boolean = staging.matrixRouteOf(
+    ): Boolean = staging.routeOf(
         operation,
         SparseCall(
             a,

@@ -32,7 +32,7 @@ public actual object BuiltinEngines {
  * composed engine below falls back to the same code for an operation the library does not export, a call too
  * small to pay for reaching it, a call whose no-read rules this library states and the standard leaves open,
  * and a product over operands packed for this library's own register tile, which no library has an argument
- * for. Which of the two a given call took is [KoblasEngine.denseRouteOf]'s answer, not this function's.
+ * for. Which of the two a given call took is [KoblasEngine.routeOf]'s answer, not this function's.
  *
  * Why compose at all here: this target has no Vector API, LLVM will not reorder a floating-point reduction
  * on its own, and a bounds check and a safepoint poll are paid per element, so the portable arithmetic is

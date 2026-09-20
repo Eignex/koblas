@@ -16,7 +16,7 @@ import com.eignex.koblas.*
  * an ordinary call does not acquire new behaviour from one being installed: where a routine's documented
  * result and a library's freedom can be told apart, the portable schedule is chosen, and it is chosen before
  * anything is written. What is left over is the accumulation order, which every built-in schedule is already
- * free to choose below. [com.eignex.koblas.KoblasEngine.denseRouteOf] says which of the two a given call
+ * free to choose below. [com.eignex.koblas.KoblasEngine.routeOf] says which of the two a given call
  * took, and reports the library and symbol where it was the host.
  *
  * An explicit host binding is the other thing, and is where a library's own answers are asked for
