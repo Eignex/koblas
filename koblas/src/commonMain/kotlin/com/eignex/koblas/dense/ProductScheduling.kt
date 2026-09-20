@@ -276,6 +276,41 @@ internal fun insideTriangle(
     OutputTriangle.Upper -> row + rowCount - 1 <= column
 }
 
+/**
+ * The register tiles a block straddling the diagonal is cut into, skipping the ones it may not write.
+ *
+ * One walk, taken by the execution below and by the route that describes it. `whole` is true where every
+ * entry of a tile is selected, which is the tile that reaches the destination directly; a tile that
+ * straddles accumulates first and only its selected entries are merged.
+ */
+internal inline fun forEachSelectedTile(
+    kernels: DenseProductKernels,
+    row: Int,
+    rowCount: Int,
+    column: Int,
+    columnCount: Int,
+    selected: OutputTriangle,
+    action: (tileRow: Int, rows: Int, tileColumn: Int, columns: Int, whole: Boolean) -> Unit,
+) {
+    val tileRows = kernels.tileRows
+    val tileColumns = kernels.tileColumns
+    var tileColumn = 0
+    while (tileColumn < columnCount) {
+        val columns = if (tileColumns < columnCount - tileColumn) tileColumns else columnCount - tileColumn
+        var tileRow = 0
+        while (tileRow < rowCount) {
+            val rows = if (tileRows < rowCount - tileRow) tileRows else rowCount - tileRow
+            val at = row + tileRow
+            val from = column + tileColumn
+            if (!outsideTriangle(at, rows, from, columns, selected)) {
+                action(tileRow, rows, tileColumn, columns, insideTriangle(at, rows, from, columns, selected))
+            }
+            tileRow += tileRows
+        }
+        tileColumn += tileColumns
+    }
+}
+
 /** The block traversal itself, over panels that are either retained or packed into [left] and [right]. */
 @Suppress("CyclomaticComplexMethod") // the traversal, its lazy packing and the three positions of a block
 private fun blockedProductCore(
@@ -405,35 +440,31 @@ private fun selectedBlock(
     edge: DoubleArray,
 ) {
     val tileRows = kernels.tileRows
-    val tileColumns = kernels.tileColumns
-    var tileColumn = 0
-    while (tileColumn < columnCount) {
-        val columns = if (tileColumns < columnCount - tileColumn) tileColumns else columnCount - tileColumn
-        var tileRow = 0
-        while (tileRow < rowCount) {
-            val rows = if (tileRows < rowCount - tileRow) tileRows else rowCount - tileRow
-            val at = row + tileRow
-            val from = column + tileColumn
-            if (!outsideTriangle(at, rows, from, columns, selected)) {
-                val leftTile = leftBase + tileRow / tileRows * leftStride
-                val rightTile = rightBase + tileColumn / tileColumns * rightStride
-                val target = cOffset + at + from * ldc
-                if (insideTriangle(at, rows, from, columns, selected)) {
-                    kernels.productBlock(
-                        alpha, leftPanel, leftTile, leftStride, rightPanel, rightTile, rightStride,
-                        rows, columns, depth, beta, c, target, ldc,
-                    )
-                } else {
-                    kernels.productBlock(
-                        alpha, leftPanel, leftTile, leftStride, rightPanel, rightTile, rightStride,
-                        rows, columns, depth, 0.0, edge, 0, tileRows,
-                    )
-                    mergeSelected(edge, tileRows, rows, columns, beta, c, target, ldc, at, from, selected)
-                }
-            }
-            tileRow += tileRows
+    forEachSelectedTile(
+        kernels,
+        row,
+        rowCount,
+        column,
+        columnCount,
+        selected,
+    ) { tileRow, rows, tileColumn, columns, whole ->
+        val leftTile = leftBase + tileRow / tileRows * leftStride
+        val rightTile = rightBase + tileColumn / kernels.tileColumns * rightStride
+        val at = row + tileRow
+        val from = column + tileColumn
+        val target = cOffset + at + from * ldc
+        if (whole) {
+            kernels.productBlock(
+                alpha, leftPanel, leftTile, leftStride, rightPanel, rightTile, rightStride,
+                rows, columns, depth, beta, c, target, ldc,
+            )
+        } else {
+            kernels.productBlock(
+                alpha, leftPanel, leftTile, leftStride, rightPanel, rightTile, rightStride,
+                rows, columns, depth, 0.0, edge, 0, tileRows,
+            )
+            mergeSelected(edge, tileRows, rows, columns, beta, c, target, ldc, at, from, selected)
         }
-        tileColumn += tileColumns
     }
 }
 
@@ -526,7 +557,7 @@ internal fun directProduct(
         return
     }
     val chunk = directColumnBlock(m)
-    val group = panels.executionGroup(PanelWork.ColumnUpdate, chunk, k)
+    val group = directPanelGroup(panels, m, k, transposeA = false)
     workspace.borrowOptional(scratchCapacity(chunk)) { accumulated ->
         for (j in 0 until n) {
             val start = selectedRow(j, m, selected)
@@ -566,6 +597,24 @@ internal fun directProduct(
  */
 internal fun directColumnBlock(m: Int): Int = if (m < PRODUCT_BLOCK_ROWS) m else PRODUCT_BLOCK_ROWS
 
+/**
+ * The panel the unpacked route's arithmetic is, and how many of its columns the backend recommends handing
+ * over at a time.
+ *
+ * A transposed left operand reduces down stored columns and an untransposed one accumulates them into the
+ * destination, which are different panels over different shapes. The execution and the route ask here, so a
+ * route cannot report a grouping the call did not use.
+ */
+internal fun directPanelWork(transposeA: Boolean): PanelWork =
+    if (transposeA) PanelWork.MultiDot else PanelWork.ColumnUpdate
+
+/** The grouping for [directPanelWork], over the panel shape that route really cuts. */
+internal fun directPanelGroup(panels: DensePanelKernels, m: Int, k: Int, transposeA: Boolean): Int = if (transposeA) {
+    panels.executionGroup(PanelWork.MultiDot, k, m)
+} else {
+    panels.executionGroup(PanelWork.ColumnUpdate, directColumnBlock(m), k)
+}
+
 /** The transposed-left half of [directProduct], with or without the gathered coefficient column. */
 private fun reducedProduct(
     panels: DensePanelKernels,
@@ -588,7 +637,7 @@ private fun reducedProduct(
     selected: OutputTriangle,
     workspace: Workspace?,
 ) {
-    val group = panels.executionGroup(PanelWork.MultiDot, k, m)
+    val group = directPanelGroup(panels, m, k, transposeA = true)
     if (!gathersCoefficients(panels, m, k, coefficientStride != 1)) {
         for (j in 0 until n) {
             val first = selectedRow(j, m, selected)

@@ -274,11 +274,10 @@ internal class PortableDenseBlas(
         val av = if (a.values === y) a.values.copyOf() else a.values
         val xv = if (x === y) x.copyOf() else x
         applyBeta(vectors, y, 0, y.size, beta)
-        forEachPanel(n, panels.executionGroup(PanelWork.CoupledDotUpdate, n, n)) { start, width ->
+        val group = panels.executionGroup(PanelWork.CoupledDotUpdate, n, n)
+        forEachTrianglePanel(n, group, lower, fromDiagonal = false) { start, width, window, rows ->
             symmetricCorner(alpha, av, n, xv, y, start, width, lower)
-            val rows = if (lower) n - (start + width) else start
             if (rows > 0) {
-                val window = if (lower) start + width else 0
                 panels.coupledUpdateDot(
                     alpha, av, window + start * n, n, xv, window, rows, width, y, window, xv, start, y, start,
                 )
@@ -449,7 +448,8 @@ internal class PortableDenseBlas(
         val xv = if (staged) x.toDoubleArray() else x.values
         val origin = if (staged) 0 else x.offset
         val step = if (staged) 1 else x.stride
-        forEachPanel(n, panels.executionGroup(PanelWork.RankUpdate, n, n)) { start, width ->
+        val group = panels.executionGroup(PanelWork.RankUpdate, n, n)
+        forEachTrianglePanel(n, group, lower, fromDiagonal = true) { start, width, window, rows ->
             // The corner is the rows between the group's first and last column, where the columns stop
             // agreeing about which of them are stored; everything past it is the window they share.
             val cornerFirst = if (lower) start else start + 1
@@ -461,8 +461,6 @@ internal class PortableDenseBlas(
                     a.values[i + c * n] += coefficient * xv[origin + i * step]
                 }
             }
-            val window = if (lower) start + width - 1 else 0
-            val rows = if (lower) n - window else start + 1
             panels.rankUpdate(
                 alpha, a.values, window + start * n, n, xv, origin + window * step, step, rows, width,
                 xv, origin + start * step, step,
@@ -516,18 +514,12 @@ internal class PortableDenseBlas(
         requireTriangularVectorOperands(a, x.size, "trsv")
         val n = a.rows
         val av = if (a.values === x) a.values.copyOf() else a.values
-        val forward = lower != transpose
-        for (step in 0 until n) {
-            val j = if (forward) step else n - 1 - step
+        forEachTriangularColumn(n, lower, ascending = lower != transpose) { j, window, rows ->
             if (transpose) {
-                val rows = if (forward) j else n - 1 - j
-                val window = if (forward) 0 else j + 1
                 if (rows > 0) panels.multiDot(-1.0, av, window + j * n, n, x, window, 1, rows, 1, 1.0, x, j, 1)
                 if (!unitDiag) x[j] = x[j] / av[j + j * n]
             } else {
                 if (!unitDiag) x[j] = x[j] / av[j + j * n]
-                val rows = if (forward) n - 1 - j else j
-                val window = if (forward) j + 1 else 0
                 if (rows > 0) panels.columnUpdate(-1.0, av, window + j * n, n, x, j, 1, rows, 1, x, window, 1)
             }
         }
@@ -547,11 +539,7 @@ internal class PortableDenseBlas(
         val av = if (a.values === x) a.values.copyOf() else a.values
         // Untransposed, a column is consumed before the columns it would overwrite; transposed, a column is
         // produced from entries later columns have not reached yet. The two run in opposite directions.
-        val ascending = transpose == lower
-        for (step in 0 until n) {
-            val j = if (ascending) step else n - 1 - step
-            val rows = if (lower) n - 1 - j else j
-            val window = if (lower) j + 1 else 0
+        forEachTriangularColumn(n, lower, ascending = transpose == lower) { j, window, rows ->
             if (transpose) {
                 if (!unitDiag) x[j] = av[j + j * n] * x[j]
                 if (rows > 0) panels.multiDot(1.0, av, window + j * n, n, x, window, 1, rows, 1, 1.0, x, j, 1)
