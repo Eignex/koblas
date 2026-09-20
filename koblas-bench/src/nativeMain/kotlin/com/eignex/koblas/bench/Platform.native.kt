@@ -4,6 +4,7 @@ package com.eignex.koblas.bench
 
 import com.eignex.koblas.BuiltinEngines
 import com.eignex.koblas.KoblasEngine
+import com.eignex.koblas.koblas
 import kotlinx.cinterop.memScoped
 import kotlinx.cinterop.toKString
 import platform.posix.EOF
@@ -39,11 +40,28 @@ internal actual fun writeTextFile(path: String, text: String) = memScoped {
     finally { fclose(file) }
 }
 
+/**
+ * The two Koblas arms this runtime has, which are different engines rather than one engine named twice.
+ *
+ * `native` is the exact portable one: common Kotlin at every level, resolving no library, which is what a
+ * comparison against this platform's own arithmetic needs. `native-default` is what an ordinary call gets,
+ * which on this platform is a policy that hands a whole dense Level 2 or 3 call to an installed library once
+ * there is enough arithmetic to pay for reaching it. The generic entry points have no engine to be told, so
+ * their rows belong on the second and are declined on the first.
+ *
+ * The identity carries the library where the default composed one, so a report says which binary the rows
+ * that reached it were produced by rather than leaving the arm's name to imply it.
+ */
 internal actual fun resolveEngine(mode: String): Pair<KoblasEngine, String> {
     // Kotlin/Native has one Level 1 selection, the scalar kernels; the Vector API is a JVM module.
-    require(mode == "native") { "Native runner requires --mode=native" }
-    val engine = BuiltinEngines.scalar
-    return engine to "$mode/${engine.name}"
+    require(mode == "native" || mode == "native-default") {
+        "Native runner requires --mode=native or --mode=native-default"
+    }
+    val engine = if (mode == "native-default") koblas else BuiltinEngines.scalar
+    val host = engine.vendor?.let {
+        "/${it.vendor.vendorName}/${it.libraryPath}/${it.version}/threads=${it.threadEvidence.label}"
+    } ?: ""
+    return engine to "$mode/${engine.name}$host"
 }
 
 internal actual fun runtimeIdentity(): String = "kotlin-native-2.4.10"

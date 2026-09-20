@@ -194,7 +194,10 @@ if ! $vendors_only; then
     esac
     run_target "$target" ./gradlew --no-daemon ":koblas-bench:$task" "${common[@]}" "-Pbench.forks=$forks" "-Pbench.output=$results/$target.csv"
   done
-  if $native_capable; then run_native native native nativeBenchmark; fi
+  if $native_capable; then
+    run_native native native nativeBenchmark
+    run_native native-default native-default nativeDefaultBenchmark
+  fi
 fi
 # Vendor arms run through the production Koblas bindings on both runtimes. There is one implementation of each
 # vendor call and one description of it, so what a row claims about the library that ran is the binding's own

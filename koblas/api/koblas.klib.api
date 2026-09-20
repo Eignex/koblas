@@ -474,8 +474,10 @@ sealed interface com.eignex.koblas/VectorStorage : com.eignex.koblas/Vector { //
 }
 
 final class com.eignex.koblas.dense/DenseCall { // com.eignex.koblas.dense/DenseCall|null[0]
-    constructor <init>(kotlin/Int, kotlin/Int, kotlin/Double = ..., kotlin/Double = ..., kotlin/Boolean = ..., kotlin/Int? = ..., kotlin/Boolean = ..., kotlin/Boolean = ..., kotlin/Boolean = ..., kotlin/Boolean = ...) // com.eignex.koblas.dense/DenseCall.<init>|<init>(kotlin.Int;kotlin.Int;kotlin.Double;kotlin.Double;kotlin.Boolean;kotlin.Int?;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean){}[0]
+    constructor <init>(kotlin/Int, kotlin/Int, kotlin/Double = ..., kotlin/Double = ..., kotlin/Boolean = ..., kotlin/Int? = ..., kotlin/Boolean = ..., kotlin/Boolean = ..., kotlin/Boolean = ..., kotlin/Boolean = ..., kotlin/Boolean = ...) // com.eignex.koblas.dense/DenseCall.<init>|<init>(kotlin.Int;kotlin.Int;kotlin.Double;kotlin.Double;kotlin.Boolean;kotlin.Int?;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean){}[0]
 
+    final val aliased // com.eignex.koblas.dense/DenseCall.aliased|{}aliased[0]
+        final fun <get-aliased>(): kotlin/Boolean // com.eignex.koblas.dense/DenseCall.aliased.<get-aliased>|<get-aliased>(){}[0]
     final val alpha // com.eignex.koblas.dense/DenseCall.alpha|{}alpha[0]
         final fun <get-alpha>(): kotlin/Double // com.eignex.koblas.dense/DenseCall.alpha.<get-alpha>|<get-alpha>(){}[0]
     final val beta // com.eignex.koblas.dense/DenseCall.beta|{}beta[0]
@@ -507,6 +509,8 @@ final class com.eignex.koblas.dense/DenseMatrixRoute { // com.eignex.koblas.dens
         final fun <get-exactlyMeasurable>(): kotlin/Boolean // com.eignex.koblas.dense/DenseMatrixRoute.exactlyMeasurable.<get-exactlyMeasurable>|<get-exactlyMeasurable>(){}[0]
     final val executionGroup // com.eignex.koblas.dense/DenseMatrixRoute.executionGroup|{}executionGroup[0]
         final fun <get-executionGroup>(): kotlin/Int // com.eignex.koblas.dense/DenseMatrixRoute.executionGroup.<get-executionGroup>|<get-executionGroup>(){}[0]
+    final val host // com.eignex.koblas.dense/DenseMatrixRoute.host|{}host[0]
+        final fun <get-host>(): com.eignex.koblas.vendor/CallRoute? // com.eignex.koblas.dense/DenseMatrixRoute.host.<get-host>|<get-host>(){}[0]
     final val implementation // com.eignex.koblas.dense/DenseMatrixRoute.implementation|{}implementation[0]
         final fun <get-implementation>(): kotlin/String // com.eignex.koblas.dense/DenseMatrixRoute.implementation.<get-implementation>|<get-implementation>(){}[0]
     final val kind // com.eignex.koblas.dense/DenseMatrixRoute.kind|{}kind[0]

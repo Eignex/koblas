@@ -10,6 +10,18 @@ import com.eignex.koblas.*
  * Built-in calls validate shapes, preserve zero-multiplier no-read rules and snapshot permitted aliases.
  * Explicit vendor bindings retain their library's exceptional and accumulation behavior.
  *
+ * A platform default may hand a whole Level 2 or 3 call to an installed library where one is available and
+ * the call is large enough to pay for reaching it; Kotlin/Native's does, and the JVM's does not. Everything
+ * stated here holds either way. A library is part of the host rather than something a caller asked for, so
+ * an ordinary call does not acquire new behaviour from one being installed: where a routine's documented
+ * result and a library's freedom can be told apart, the portable schedule is chosen, and it is chosen before
+ * anything is written. What is left over is the accumulation order, which every built-in schedule is already
+ * free to choose below. [com.eignex.koblas.KoblasEngine.denseRouteOf] says which of the two a given call
+ * took, and reports the library and symbol where it was the host.
+ *
+ * An explicit host binding is the other thing, and is where a library's own answers are asked for
+ * deliberately: [com.eignex.koblas.vendor.Blas] keeps that latitude and documents it.
+ *
  * These are Koblas's own shapes for the same routines: array operands, booleans for the transpose and the
  * stored triangle, and overloads that allocate a result. [com.eignex.koblas.vendor.Blas] is the standard's own
  * shape underneath, and the transpose and structure travel beside an operand as flags there rather than being
@@ -72,6 +84,8 @@ public interface DenseBlas {
      *
      * An explicit host binding is not held to that placement: a library is free to scale coefficients as it
      * goes, and [com.eignex.koblas.vendor.Blas] keeps its own latitude where the standard leaves this open.
+     * That is why a default which composes an installed library keeps this call for itself whenever [alpha]
+     * is not finite, which is the only way the placement is observable.
      */
     @Suppress("LongParameterList") // the BLAS dgemm signature
     public fun gemm(
@@ -180,7 +194,10 @@ public interface DenseBlas {
      * would give an infinity. The composition is what lets each half be packed, blocked and tiled like any
      * other product, and it is the semantics this library promises rather than an accident of scheduling.
      *
-     * An explicit host binding is not held to it, for the reason [gemm] gives.
+     * An explicit host binding is not held to it, for the reason [gemm] gives: a library's `dsyr2k` may well
+     * fuse the two traversals, and finite operands are enough to tell the two apart, since one of the
+     * separate sums can overflow to an infinity and the other to its negative where the fused pair cancels.
+     * A default which composes an installed library therefore never composes one for this routine.
      */
     @Suppress("LongParameterList") // the BLAS dsyr2k signature
     public fun syr2k(

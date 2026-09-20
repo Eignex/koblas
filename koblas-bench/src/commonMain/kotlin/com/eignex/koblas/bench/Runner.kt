@@ -26,7 +26,7 @@ internal data class Settings(
 public fun main(args: Array<String>) {
     val settings = parseArguments(args)
     val vendorMode = vendorForRuntime(settings.mode, NATIVE_VENDOR_PREFIX) != null
-    require(settings.mode == "native" || vendorMode) {
+    require(settings.mode == "native" || settings.mode == "native-default" || vendorMode) {
         "JVM benchmarks must run through the JMH entry point"
     }
     val allCases = Cases.parse(readTextFile(settings.casesPath))
@@ -149,9 +149,11 @@ internal fun parseArguments(args: Array<String>): Settings {
     require(values.keys.all { it in allowed }) { "unknown argument: ${values.keys.first { it !in allowed }}" }
     val mode = values["mode"] ?: error("--mode is required")
     require(
-        mode in setOf("jvm-simd", "jvm-default", "jvm-scalar", "native") || vendorFromMode(mode) != null,
+        mode in setOf("jvm-simd", "jvm-default", "jvm-scalar", "native", "native-default") ||
+            vendorFromMode(mode) != null,
     ) {
-        "mode must be jvm-simd, jvm-default, jvm-scalar, native, or a jvm-vendor-/native-vendor- arm"
+        "mode must be jvm-simd, jvm-default, jvm-scalar, native, native-default, or a " +
+            "jvm-vendor-/native-vendor- arm"
     }
     val warmups = values["warmups"]?.toInt() ?: 3
     val samples = values["samples"]?.toInt() ?: 5

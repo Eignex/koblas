@@ -37,7 +37,7 @@ internal class PortableDenseBlas(
     private val panels: DensePanelKernels,
     private val products: DenseProductKernels = PortableProductKernels,
     private val triangles: DenseTriangularKernels = PortableTriangularKernels,
-) : DenseBlas {
+) : RoutedDenseBlas {
     private val routes = DenseRouteReporter(vectors, panels, products, triangles)
 
     private fun scaled(beta: Double, previous: Double): Double = if (beta == 0.0) 0.0 else beta * previous
@@ -674,7 +674,8 @@ internal class PortableDenseBlas(
      * Asked of the same backends this engine computes with, so a route is a description of what would run
      * rather than of what an engine of this shape might run.
      */
-    fun routeOf(operation: DenseMatrixOperation, call: DenseCall): DenseMatrixRoute = routes.routeOf(operation, call)
+    override fun routeOf(operation: DenseMatrixOperation, call: DenseCall): DenseMatrixRoute =
+        routes.routeOf(operation, call)
 }
 
 /** The part of a square destination a selected-triangle routine writes. */

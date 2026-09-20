@@ -16,6 +16,12 @@ import kotlin.test.assertTrue
  * The question a route answers is not which backend was selected but which of its bodies this shape reaches,
  * and the two differ exactly where a window is too short for a vector or where a traversal's windows are not
  * all the same length.
+ *
+ * These ask the exact built-in engines rather than the platform default. What they are about is this
+ * library's own dense schedule and the bodies it reaches, and a default is a policy: Kotlin/Native's hands a
+ * call of some of these shapes to an installed library instead, which is a different question and is asked
+ * where that policy lives. Asking the exact engines also makes the answers the same on every host, rather
+ * than depending on what happens to be installed on one.
  */
 class DenseMatrixRouteTest {
     private val engines: List<KoblasEngine>
@@ -38,13 +44,15 @@ class DenseMatrixRouteTest {
     @Test
     fun `a transposed matrix vector product is a different entry point from the untransposed one`() {
         val call = DenseCall(64, 16)
-        val plain = koblas.denseRouteOf(DenseMatrixOperation.Gemv, call)
-        val transposed = koblas.denseRouteOf(DenseMatrixOperation.GemvTransposed, call)
+        for (engine in engines) {
+            val plain = engine.denseRouteOf(DenseMatrixOperation.Gemv, call)
+            val transposed = engine.denseRouteOf(DenseMatrixOperation.GemvTransposed, call)
 
-        assertEquals("gemv", plain.entryPoint)
-        assertEquals("gemv-transposed", transposed.entryPoint)
-        assertContains(plain.components.single(), "column-update")
-        assertContains(transposed.components.single(), "multi-dot")
+            assertEquals("gemv", plain.entryPoint, engine.name)
+            assertEquals("gemv-transposed", transposed.entryPoint, engine.name)
+            assertContains(plain.components.single(), "column-update")
+            assertContains(transposed.components.single(), "multi-dot")
+        }
     }
 
     /**
@@ -53,12 +61,14 @@ class DenseMatrixRouteTest {
      */
     @Test
     fun `the destination scaling a call performs is a component like any other`() {
-        val scaled = koblas.denseRouteOf(DenseMatrixOperation.Gemv, DenseCall(64, 16, 1.0, -0.25))
-        val overwritten = koblas.denseRouteOf(DenseMatrixOperation.Gemv, DenseCall(64, 16, 1.0, 0.0))
+        for (engine in engines) {
+            val scaled = engine.denseRouteOf(DenseMatrixOperation.Gemv, DenseCall(64, 16, 1.0, -0.25))
+            val overwritten = engine.denseRouteOf(DenseMatrixOperation.Gemv, DenseCall(64, 16, 1.0, 0.0))
 
-        assertEquals(2, scaled.components.size, scaled.toString())
-        assertContains(scaled.components.first(), "/scale")
-        assertEquals(1, overwritten.components.size, overwritten.toString())
+            assertEquals(2, scaled.components.size, scaled.toString())
+            assertContains(scaled.components.first(), "/scale")
+            assertEquals(1, overwritten.components.size, overwritten.toString())
+        }
     }
 
     /**
@@ -67,10 +77,12 @@ class DenseMatrixRouteTest {
      */
     @Test
     fun `a transposed product applies beta inside its panel rather than through a kernel`() {
-        val route = koblas.denseRouteOf(DenseMatrixOperation.GemvTransposed, DenseCall(64, 16, 1.0, -0.25))
+        for (engine in engines) {
+            val route = engine.denseRouteOf(DenseMatrixOperation.GemvTransposed, DenseCall(64, 16, 1.0, -0.25))
 
-        assertEquals(1, route.components.size, route.toString())
-        assertContains(route.components.single(), "multi-dot")
+            assertEquals(1, route.components.size, route.toString())
+            assertContains(route.components.single(), "multi-dot")
+        }
     }
 
     /**

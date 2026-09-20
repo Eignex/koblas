@@ -1,5 +1,6 @@
 package com.eignex.koblas.dense
 
+import com.eignex.koblas.vendor.CallRoute
 import com.eignex.koblas.vendor.RouteKind
 
 /**
@@ -107,6 +108,11 @@ public enum class DenseMatrixOperation(internal val entryPoint: String) {
  *   they lie, which is what a substitution over them has to work with. A unit diagonal is deliberately not
  *   here: it removes a division from every step and changes no body any window reaches, so a route that took
  *   it would be distinguishing calls that execute the same way.
+ * @property aliased whether an input operand shares the destination's backing buffer. A built-in schedule
+ *   stages a copy of it and reaches the same bodies either way, so the portable route ignores this; a
+ *   composition that hands the whole call to a host library cannot, since a whole-call binding takes the
+ *   caller's storage as it lies and has no argument for saying that two of its operands are one buffer. The
+ *   copy is a component of that call, and a route that omitted it would be describing a different call.
  */
 @Suppress("LongParameterList") // a call is the facts that decide what runs, each of which changes the answer
 public class DenseCall(
@@ -120,6 +126,7 @@ public class DenseCall(
     public val transposeA: Boolean = false,
     public val transposeB: Boolean = false,
     public val right: Boolean = false,
+    public val aliased: Boolean = false,
 ) {
     init {
         require(rows >= 0) { "negative row count" }
@@ -153,6 +160,13 @@ public class DenseCall(
  * chosen by a separate backend; that one is named in [reason] rather than here, because a field holding
  * whichever of the two was asked for last would describe neither.
  *
+ * [host] is the whole-call vendor route underneath a call an engine handed over entire, and it is a narrower
+ * statement than it looks. Its absence says that no single vendor entry point served this call; it does not
+ * say that no library ran. Kotlin/Native's default gives its portable dense schedule the vendor's Level 1
+ * kernels, so a call that stayed on that schedule can still reach a library for a window of work, and
+ * [components] is where such a leaf is named. Reading the two together is what distinguishes a call handed
+ * over whole from one this library scheduled and handed pieces of.
+ *
  * Building a route inspects the shape, so it belongs before a timed region and never inside one.
  */
 public class DenseMatrixRoute internal constructor(
@@ -170,6 +184,13 @@ public class DenseMatrixRoute internal constructor(
     public val executionGroup: Int,
     /** What the components cover, what the traversal keeps for itself, or why the call is composed. */
     public val reason: String?,
+    /**
+     * The whole-call vendor route this call was handed to, or null when no single entry point served it.
+     *
+     * Null is not the same as no library: a portable schedule may still call one for a window of work, and
+     * [components] names that leaf where it does.
+     */
+    public val host: CallRoute? = null,
 ) {
     /** The full attribution: the scheduling, plus every component it calls. */
     public val implementation: String
@@ -192,6 +213,7 @@ public class DenseMatrixRoute internal constructor(
         append(' ')
         append(entryPoint)
         if (executionGroup > 0) append(" group=").append(executionGroup)
+        host?.let { append(" host=").append(it) }
         reason?.let { append(" (").append(it).append(')') }
     }
 }
