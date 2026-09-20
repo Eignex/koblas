@@ -134,8 +134,7 @@ internal fun productWindow(
  * for the arithmetic a triangle discards would be answering one of those questions on its behalf.
  *
  * So a triangle-selected window takes the rectangle's own eligibility. Such a window finishes about half
- * the arithmetic per copied value that the rectangle does, so its own crossover sits somewhere above the
- * rectangle's and this rule packs a band of shapes a little sooner than a rule of its own would. The
+ * the arithmetic per copied value that the rectangle does, so a separate crossover could be higher. The
  * calibration left that as it is, for the reason [packsProductByWork] records: the rectangle's own
  * threshold did not separate its wins from its losses on the measured host either, so a second threshold
  * fitted beside it would be fitted to the same data. Route and execution both ask this one function, so
