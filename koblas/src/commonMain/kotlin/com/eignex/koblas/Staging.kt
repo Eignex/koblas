@@ -27,14 +27,7 @@ internal inline fun <T> staged(workspace: Workspace?, a: DenseMatrix, aliased: B
     }
 }
 
-/**
- * [staged] for a vector operand, which the copy holds one entry after another.
- *
- * The loan is the operand's own length rather than its buffer's, so a short window or a stepped view of a
- * long array costs what it addresses instead of what it happens to lie in. Nothing downstream can tell the
- * difference: a vector is read through its origin and step, and the copy's are the contiguous ones. The
- * entries arrive in the operand's logical order either way, so a negative step reads back as it did.
- */
+/** Copies only the logical vector entries, so a short strided view does not stage its entire backing array. */
 internal inline fun <T> staged(workspace: Workspace?, x: DenseVector, aliased: Boolean, block: (DenseVector) -> T): T {
     if (!aliased) return block(x)
     return workspace.borrow(x.size) { copy ->
@@ -73,16 +66,8 @@ internal fun DenseVector.gatherInto(destination: DoubleArray) {
 }
 
 /**
- * [block] over [matrix] in dense column-major storage, adapting an operand that is not already in it.
- *
- * A [DenseMatrix] is used where it lies. Anything else is read once through [Matrix.get], which is the only
- * access the common contract offers, into storage [workspace] lends for the call and takes back afterwards,
- * so a repeated product over one shape adapts into the buffer it already has. A [SparseMatrix] never arrives
- * here, because every pairing routes it to the sparse implementation that walks its stored entries instead.
- *
- * Both extents are carried over rather than rediscovered from the entries, because an operand with no
- * columns has no column to read its row count back from. An adaptation that inferred the shape would turn an
- * `m × 0` operand into a `0 × 0` one and reject the product its own shapes permit.
+ * Adapts a non-sparse operand into dense storage borrowed for [block]. Dense operands pass through unchanged.
+ * Both extents are retained even when empty; sparse operands must be dispatched before reaching this helper.
  */
 internal inline fun <T> denseOperand(workspace: Workspace?, matrix: Matrix, block: (DenseMatrix) -> T): T {
     if (matrix is DenseMatrix) return block(matrix)

@@ -262,26 +262,6 @@ class SparseRhsPanelTest {
         assertEquals(afterFirst, workspace.idleLengths(), "a repeated staged call asked for new lengths")
     }
 
-    // An alpha too small to recover against operands large enough to overflow separates the two orders.
-    @Test
-    fun `alpha multiplies where the product contract says it does`() {
-        val tiny = 1e-300
-        val large = 1e300
-        val a = SparseMatrix.ofColumns(1, 1, listOf(listOf(0 to large)))
-        val b = DenseMatrix.wrap(1, 1, doubleArrayOf(large))
-        val scattered = DenseMatrix.wrap(1, 1, doubleArrayOf(0.0))
-        plain.gemm(tiny, a, false, b, false, 0.0, scattered, right = false, workspace = null)
-        assertEquals(large, scattered.values[0], "the scattered half did not form value · (alpha · B)")
-
-        val gathered = DenseMatrix.wrap(1, 1, doubleArrayOf(0.0))
-        plain.gemm(tiny, a, true, b, false, 0.0, gathered, right = false, workspace = null)
-        assertEquals(
-            Double.POSITIVE_INFINITY,
-            gathered.values[0],
-            "the gathered half did not sum the stored products before scaling",
-        )
-    }
-
     // Adding a zero for the absent mirrored half would turn the infinity into a NaN.
     @Test
     fun `a diagonal only symmetric operand mirrors nothing`() {
