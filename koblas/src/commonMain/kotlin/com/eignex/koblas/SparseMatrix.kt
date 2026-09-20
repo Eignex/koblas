@@ -10,13 +10,13 @@ import kotlin.jvm.JvmStatic
  * [rowIndices] and [values], rows strictly ascending. A stored zero is preserved, and a 64-bit-index
  * host library needs a widening copy.
  *
- * @property rows the number of rows.
- * @property cols the number of columns.
  * Use [copyColumnPointers], [copyRowIndices], or [forEachInColumn] for safe structural access. [colPointers] and
  * [rowIndices] are live zero-copy escape hatches for specialized kernels and require [UnsafeKoblasApi]; mutating
  * them can invalidate the CSC structure. [values] remains live so coefficients can be updated without
  * rebuilding the pattern; do not use the matrix as a hash-map key while mutating it.
  *
+ * @property rows the number of rows.
+ * @property cols the number of columns.
  * @property colPointers live column start offsets, length `cols + 1`; do not mutate.
  * @property rowIndices live row index of each stored entry, length `values.size`; do not mutate.
  * @property values the stored values, parallel to the row indices.

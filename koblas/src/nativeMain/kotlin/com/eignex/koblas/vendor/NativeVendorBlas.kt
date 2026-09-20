@@ -149,9 +149,8 @@ internal class NativeVendorBlas private constructor(
         }
         val fn = dlsym(handle, getter)?.reinterpret<GetThreadsFn>()
         if (fn == null) {
-            // A build of a known vendor that lacks the control that vendor has is not one this code knows.
-            // The single exception is an OpenMP vendor with no OpenMP runtime linked, which is the serial
-            // build and has no worker threads to bound in the first place.
+            // A build of a known vendor without that vendor's control is not one this code knows; see
+            // ThreadControl.absenceMeansSerial for the one reading of an absent control that is positive.
             if (!control.absenceMeansSerial) return false
             threadEvidence = ThreadEvidence.Confirmed
             return true

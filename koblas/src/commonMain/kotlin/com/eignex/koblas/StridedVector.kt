@@ -3,9 +3,6 @@
 
 package com.eignex.koblas
 
-import com.eignex.koblas.requireInBounds
-import com.eignex.koblas.requireNonNegativeShape
-import com.eignex.koblas.requireShape
 import kotlin.jvm.JvmOverloads
 
 /**

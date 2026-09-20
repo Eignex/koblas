@@ -10,14 +10,10 @@ import com.eignex.koblas.requireShape
 /*
  * What every BLAS call requires of its operands, stated once.
  *
- * These used to be written out three times: in the seam above, and again in each of the two platform bindings,
- * which between them restated thirty identical lines. Nothing kept the copies in step, and they did drift: a
- * `gemv` shape check that ignored the transpose flag had to be found and fixed in both bindings separately.
- *
- * So the rule lives here and the bindings call it. Both platforms are held to the same contract by
- * construction rather than by review, and a caller who reaches a binding directly, which the benchmark module
- * and the Level 2 convenience extensions both do, is checked exactly as one going through
- * [com.eignex.koblas.dense.DenseBlas] is.
+ * The seam above and both platform bindings call these rather than restating them, so the two platforms are
+ * held to the same contract by construction rather than by review. A caller who reaches a binding directly,
+ * which the benchmark module and the Level 2 convenience extensions both do, is checked exactly as one going
+ * through [com.eignex.koblas.dense.DenseBlas] is.
  *
  * A shape failure raises [com.eignex.koblas.DimensionMismatch] through [requireShape], which is what the public
  * surface documents; a structure or aliasing failure is an ordinary argument error.

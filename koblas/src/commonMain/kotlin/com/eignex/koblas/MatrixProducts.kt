@@ -86,7 +86,9 @@ public fun Matrix.gemmInto(
                 right = true, workspace = workspace,
             )
 
-        else -> denseProduct(
+        // Staging an operand that shares the destination is the dense product's own rule and its own loan,
+        // so the workspace is handed on rather than copied from here into a matrix that no longer needs one.
+        else -> koblas.gemm(
             alpha,
             denseOperand(left),
             transpose,
@@ -98,23 +100,6 @@ public fun Matrix.gemmInto(
         )
     }
 }
-
-/**
- * The dense route, which is the dense product itself.
- *
- * Staging an operand that shares the destination is that product's own rule and its own loan, so this hands
- * the workspace on rather than copying first and passing a matrix that no longer needs one.
- */
-private fun denseProduct(
-    alpha: Double,
-    left: DenseMatrix,
-    transpose: Boolean,
-    right: DenseMatrix,
-    transposeOther: Boolean,
-    beta: Double,
-    destination: DenseMatrix,
-    workspace: Workspace?,
-) = koblas.gemm(alpha, left, transpose, right, transposeOther, beta, destination, workspace)
 
 /**
  * Dense column-major storage for an operand that is not already in it.
