@@ -7,14 +7,10 @@ incubator module, and portable Kotlin without it. Kotlin/Native composes optiona
 portable fallback. Explicit vendor bindings preserve their own arithmetic and overlap contracts;
 [openBlas][com.eignex.koblas.vendor.openBlas] returns null on a host with no supported library.
 
-The source runs in one direction. `com.eignex.koblas` holds the containers,
-[Workspace][com.eignex.koblas.Workspace] and the convenience extensions, which are written over the BLAS
-contracts and reach the default engine to do it. `com.eignex.koblas.dense` and `com.eignex.koblas.sparse`
-hold those contracts, the portable scheduling that implements them and the backend kernel seams each
-platform fills. `com.eignex.koblas.vendor` holds the explicit host bindings, which a platform default may
-compose into dense calls. Nothing below the contracts reads
-[koblas][com.eignex.koblas.koblas]: a kernel or a schedule is reached through the engine it was selected
-into, never through the default.
+Container conveniences in `com.eignex.koblas` call the BLAS contracts through the default engine.
+The `dense` and `sparse` packages contain those contracts, portable schedules and backend kernel interfaces.
+The `vendor` package contains explicit host bindings, which the Native engine may compose into dense calls.
+Schedules and kernels receive their dependencies from the engine; they do not read the global default.
 
 [Workspace][com.eignex.koblas.Workspace] reuses temporary storage with bounded retention. It belongs to one
 invocation at a time; concurrent calls need separate outputs and scratch. Allocating operations still own
