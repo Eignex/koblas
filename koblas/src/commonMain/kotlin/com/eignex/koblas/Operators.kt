@@ -39,6 +39,7 @@ public operator fun SparseMatrix.minus(other: SparseMatrix): SparseMatrix = kobl
  */
 @kotlin.jvm.JvmName("multiply")
 public operator fun DenseMatrix.times(x: DenseVector): DenseVector {
+    requireGemvOperands(this, false, x.size, rows)
     val out = DoubleArray(rows)
     gemvInto(1.0, x, 0.0, out)
     return DenseVector.wrap(out)

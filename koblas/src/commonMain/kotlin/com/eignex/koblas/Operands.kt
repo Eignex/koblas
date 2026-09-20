@@ -2,22 +2,9 @@
 
 package com.eignex.koblas
 
-/*
- * What every BLAS call requires of its operands' extents, stated once.
- *
- * Neutral on purpose: the convenience extensions, the portable dense and sparse schedules, the host
- * composition and both vendor bindings call these rather than restating them, so every layer is held to the
- * same contract by construction rather than by review. A caller who reaches a binding directly, which the
- * benchmark module does, is checked exactly as one going through [com.eignex.koblas.dense.DenseBlas] is.
- *
- * The operand is a [Matrix] because only its extents are read here, so a CSC operand answers the same
- * question a dense one does. Vectors arrive as sizes: a caller holding plain arrays has no vector to check
- * and would otherwise allocate a wrapper for each one on every call.
- *
- * Whether a declared [com.eignex.koblas.dense.MatrixStructure] suits the routine is a separate question,
- * asked by the bindings that take one from their caller; see `requireStructured` beside that enum.
- *
- * A failure raises [DimensionMismatch] through [requireShape], which is what the public surface documents.
+/* Shared extent checks for conveniences, portable schedules and direct host bindings.
+ * Matrix inputs supply shape only; vector lengths avoid allocating wrappers for arrays.
+ * Caller-supplied structure flags are validated separately in dense/MatrixStructure.kt.
  */
 
 /** Two vector operands the call reads in step. */

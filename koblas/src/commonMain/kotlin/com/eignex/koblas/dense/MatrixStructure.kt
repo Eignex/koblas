@@ -42,16 +42,7 @@ internal fun triangle(lower: Boolean, unitDiag: Boolean): MatrixStructure = when
 internal fun symmetricStructure(lower: Boolean): MatrixStructure =
     if (lower) MatrixStructure.SymmetricLower else MatrixStructure.SymmetricUpper
 
-/**
- * A structure with a stored triangle and a stored diagonal, which the symmetric routines require.
- *
- * None of them carries a `diag` flag, so there is no way to tell a binding that a diagonal is implied. A
- * structure that says its diagonal is implicit is therefore rejected rather than served by a call that would
- * read or write it anyway; the triangular routines, which do carry the flag, take [requireTriangular].
- *
- * The extents are not this question. A caller states its structure and its operands separately, and the
- * operand checks in `com.eignex.koblas` already require the square shape both of these imply.
- */
+/** Symmetric bindings have no unit-diagonal flag, so they require a stored triangle and diagonal. */
 internal fun requireStructured(structure: MatrixStructure, what: String) {
     val stored = structure != MatrixStructure.General &&
         structure != MatrixStructure.UnitLower &&
