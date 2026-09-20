@@ -16,7 +16,7 @@ import kotlin.test.assertTrue
 /**
  * The triangular matrix routines over the blocks they are scheduled with.
  *
- * All eight flag combinations on each of the two routines run through one algorithm, so the sweep below is
+ * All sixteen flag combinations on each of the two routines run through one algorithm, so the sweep below is
  * the whole of it rather than a sample: a side, a triangle, a transpose and a diagonal mode between them
  * decide which entry of the triangle is a coefficient, which direction the substitution runs in and which
  * operand of the product between blocks is the triangle, and getting any of those wrong is a wrong answer
