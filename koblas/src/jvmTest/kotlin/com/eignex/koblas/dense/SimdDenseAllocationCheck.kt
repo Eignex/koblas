@@ -5,6 +5,10 @@ import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.DenseVector
 import com.eignex.koblas.KoblasEngine
 import com.eignex.koblas.Workspace
+import com.eignex.koblas.dot
+import com.eignex.koblas.gemmInto
+import com.eignex.koblas.gemvInto
+import com.eignex.koblas.koblas
 import com.eignex.koblas.testutil.allocation.AllocationProbe
 import com.eignex.koblas.testutil.allocation.bytesPerCall
 
@@ -87,9 +91,74 @@ internal object SimdDenseAllocationCheck {
             a[0]
         }
         checkWholeOperations(engine)
+        checkDefaultDispatch()
+        checkHostComposition(engine)
         checkProducts(engine)
         checkStructuredProducts(engine)
         checkTriangularOperations(engine)
+    }
+
+    /**
+     * The entry points a caller who names no engine reaches, which are the ones with dispatch in front of
+     * them.
+     *
+     * Each of these reads [koblas] on every call, so a default access that built an engine would show up
+     * here rather than only on the first one. What is being measured past that is the dispatch itself: the
+     * generic product decides its storage pairing per call, and neither that decision nor the convenience
+     * wrappers around it may build a descriptor or a route to make it.
+     */
+    private fun checkDefaultDispatch() {
+        val matrix = DenseMatrix.wrap(ORDER, ORDER, DoubleArray(ORDER * ORDER) { 1.0 + (it % 13) * 0.125 })
+        val x = DenseVector.wrap(DoubleArray(ORDER) { 1.0 + (it % 7) * 0.25 })
+        val y = DenseVector.wrap(DoubleArray(ORDER) { 0.5 })
+        val destination = DoubleArray(ORDER)
+        val workspace = Workspace()
+        val left = DenseMatrix.wrap(PRODUCT_ORDER, PRODUCT_ORDER, DoubleArray(PRODUCT_ORDER * PRODUCT_ORDER) { 1.0 })
+        val right = DenseMatrix.wrap(PRODUCT_ORDER, PRODUCT_ORDER, DoubleArray(PRODUCT_ORDER * PRODUCT_ORDER) { 0.5 })
+        val product = DenseMatrix.wrap(PRODUCT_ORDER, PRODUCT_ORDER, DoubleArray(PRODUCT_ORDER * PRODUCT_ORDER))
+
+        assertAllocationFree("dot through the default engine") { x dot y }
+        assertAllocationFree("gemvInto through the default engine") {
+            matrix.gemvInto(0.875, x, -0.25, destination)
+            destination[0]
+        }
+        assertAllocationFree("generic product", PRODUCT_WARMUP, PRODUCT_ITERATIONS) {
+            left.gemmInto(1e-12, false, right, false, -0.25, product, workspace)
+            product.values[0]
+        }
+    }
+
+    /**
+     * The eligibility test a composed default makes in front of every dense call it is asked for.
+     *
+     * A binding exporting nothing is what isolates it: no call is handed over, so what remains is the
+     * decision plus the portable schedule underneath, both of which are already known to be free. That
+     * decision is the Kotlin/Native default's, and it runs on every dense Level 2 and 3 call including the
+     * small ones that stay portable, which is why it is worth a gate on a runtime that never takes it.
+     */
+    private fun checkHostComposition(engine: KoblasEngine) {
+        val portable = PortableDenseBlas(
+            engine.vectorKernels,
+            engine.panelKernels,
+            engine.productKernels,
+            engine.triangularKernels,
+        )
+        val composed = HostDenseBlas(portable, RecordingBlas(directlyImplemented = emptySet()))
+        val matrix = DenseMatrix.wrap(ORDER, ORDER, DoubleArray(ORDER * ORDER) { 1.0 + (it % 13) * 0.125 })
+        val x = DoubleArray(ORDER) { 1.0 + (it % 7) * 0.25 }
+        val y = DoubleArray(ORDER) { 0.5 }
+        val workspace = Workspace()
+        val left = DenseMatrix.wrap(PRODUCT_ORDER, PRODUCT_ORDER, DoubleArray(PRODUCT_ORDER * PRODUCT_ORDER) { 1.0 })
+        val product = DenseMatrix.wrap(PRODUCT_ORDER, PRODUCT_ORDER, DoubleArray(PRODUCT_ORDER * PRODUCT_ORDER))
+
+        assertAllocationFree("gemv behind a host composition") {
+            composed.gemv(0.875, matrix, x, -0.25, y)
+            y[0]
+        }
+        assertAllocationFree("gemm behind a host composition", PRODUCT_WARMUP, PRODUCT_ITERATIONS) {
+            composed.gemm(1e-12, left, false, left, false, -0.25, product, workspace)
+            product.values[0]
+        }
     }
 
     /**
@@ -402,6 +471,7 @@ internal object SimdDenseAllocationCheck {
         val y = DoubleArray(ORDER) { 0.5 }
         val target = DoubleArray(ORDER) { 1.0 }
         val vector = DenseVector.wrap(x)
+        val second = DenseVector.wrap(y)
 
         assertAllocationFree("gemv") {
             engine.gemv(0.875, matrix, x, -0.25, y)
@@ -421,6 +491,10 @@ internal object SimdDenseAllocationCheck {
         }
         assertAllocationFree("syr") {
             engine.syr(1e-12, vector, matrix)
+            matrix.values[0]
+        }
+        assertAllocationFree("syr2") {
+            engine.syr2(1e-12, vector, second, matrix)
             matrix.values[0]
         }
         assertAllocationFree("trmv") {
