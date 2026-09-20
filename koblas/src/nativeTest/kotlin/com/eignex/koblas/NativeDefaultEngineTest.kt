@@ -6,10 +6,12 @@ package com.eignex.koblas
 
 import com.eignex.koblas.dense.DenseCall
 import com.eignex.koblas.dense.DenseMatrixOperation
+import com.eignex.koblas.dense.DenseOperation
 import com.eignex.koblas.sparse.SPARSE_SCHEDULING
 import com.eignex.koblas.vendor.RouteKind
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNotEquals
 import kotlin.test.assertTrue
 
@@ -95,6 +97,25 @@ class NativeDefaultEngineTest {
             route.components.any { it.startsWith(arm) },
             "the portable route did not name the vendor Level 1 leaf it reaches: ${route.components}",
         )
+    }
+
+    /**
+     * A rotation is the one Level 1 call whose width does not settle which kernel runs it.
+     *
+     * One run rotated against itself stays portable at every width, because reference `drot` reads an entry
+     * back after storing it and this library's kernels promise it does not. A route carries no operand
+     * identity, so it names neither kernel rather than promising the library a distinct pair would reach.
+     */
+    @Test
+    fun `a wide rotation is not an exact measurement of either kernel`() {
+        val vendor = koblas.vendor ?: return skipped("the rotation's alias-dependent route")
+        val arm = "${vendor.vendor.vendorName.lowercase()}-level1"
+        if (koblas.vectorKernels.name != arm) return skipped("this platform keeps Level 1 off the library")
+
+        val route = koblas.routeOf(DenseOperation.Rot, LONG_COLUMN)
+
+        assertEquals(RouteKind.Composed, route.kind)
+        assertFalse(route.exactlyMeasurable, "a rotation was published as an exact kernel measurement")
     }
 
     /** Sparse has no bound host entry point at all, so it is this library's scheduling on every engine. */

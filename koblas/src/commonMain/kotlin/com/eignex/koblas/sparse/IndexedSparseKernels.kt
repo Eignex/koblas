@@ -6,13 +6,15 @@ internal interface IndexedSparseKernels {
     val name: String
 
     /**
-     * The implementation a call of this [operation] and [count] actually reaches.
+     * The implementation a call of this [operation] and [count] reaches, or null when its values decide.
      *
      * The dispatch itself reads this, so a described route cannot drift from the executed one. An
      * implementation that falls back below a crossover, or that never overrode an operation at all, names what
-     * it falls back to rather than itself.
+     * it falls back to rather than itself. Null is the honest answer where no width establishes which kernel
+     * produces the result, as for the indexed norm that retries through the rescaling loop when its square sum
+     * leaves the normal range.
      */
-    fun implementationFor(operation: SparseOperation, count: Int): String = name
+    fun implementationFor(operation: SparseOperation, count: Int): String? = name
 
     fun dotDense(indices: IntArray, values: DoubleArray, dense: DoubleArray): Double =
         dotDense(indices, 0, values, 0, values.size, dense)

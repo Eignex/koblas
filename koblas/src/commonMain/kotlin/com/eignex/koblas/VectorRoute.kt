@@ -6,7 +6,8 @@ import com.eignex.koblas.vendor.RouteKind
  * The route for a dense or sparse vector operation, inspected before running it.
  *
  * A delegated route names the fallback. A composed route names the selected backend because the operand
- * values decide which implementation finishes the call. Route construction belongs outside timed work.
+ * values decide which implementation finishes the call, and an empty one performs no arithmetic for either
+ * to be measured by. Route construction belongs outside timed work.
  */
 public class VectorRoute<O : Enum<O>> internal constructor(
     /** The operation requested. */
@@ -33,31 +34,38 @@ public class VectorRoute<O : Enum<O>> internal constructor(
     }
 }
 
-/** Classifies the same selected and reached implementations for both vector families. */
+/** Shared dense and sparse classification, including empty and value-dependent calls. */
 internal fun <O : Enum<O>> vectorRoute(
     operation: O,
     entryPoint: String,
+    length: Int,
     selection: String,
     reached: String?,
     adapter: String? = null,
-): VectorRoute<O> = when {
-    reached == null -> VectorRoute(
-        operation,
-        RouteKind.Composed,
-        selection,
-        entryPoint,
-        adapter,
-        "$selection decides $entryPoint based on the values",
-    )
+): VectorRoute<O> {
+    require(length >= 0) { "negative operation length" }
+    if (length == 0) {
+        return VectorRoute(operation, RouteKind.NoWork, selection, entryPoint, adapter, "an operand has no entries")
+    }
+    return when {
+        reached == null -> VectorRoute(
+            operation,
+            RouteKind.Composed,
+            selection,
+            entryPoint,
+            adapter,
+            "$selection decides $entryPoint based on the values",
+        )
 
-    reached == selection -> VectorRoute(operation, RouteKind.Direct, reached, entryPoint, adapter, null)
+        reached == selection -> VectorRoute(operation, RouteKind.Direct, reached, entryPoint, adapter, null)
 
-    else -> VectorRoute(
-        operation,
-        RouteKind.Delegated,
-        reached,
-        entryPoint,
-        reached,
-        "$selection has no $entryPoint kernel for this call",
-    )
+        else -> VectorRoute(
+            operation,
+            RouteKind.Delegated,
+            reached,
+            entryPoint,
+            reached,
+            "$selection has no $entryPoint kernel for this call",
+        )
+    }
 }
