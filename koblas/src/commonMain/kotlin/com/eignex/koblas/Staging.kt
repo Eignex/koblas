@@ -71,3 +71,33 @@ internal fun DenseVector.gatherInto(destination: DoubleArray) {
     }
     for (i in 0 until size) destination[i] = values[offset + i * stride]
 }
+
+/**
+ * [block] over [matrix] in dense column-major storage, adapting an operand that is not already in it.
+ *
+ * A [DenseMatrix] is used where it lies. Anything else is read once through [Matrix.get], which is the only
+ * access the common contract offers, into storage [workspace] lends for the call and takes back afterwards,
+ * so a repeated product over one shape adapts into the buffer it already has. A [SparseMatrix] never arrives
+ * here, because every pairing routes it to the sparse implementation that walks its stored entries instead.
+ *
+ * Both extents are carried over rather than rediscovered from the entries, because an operand with no
+ * columns has no column to read its row count back from. An adaptation that inferred the shape would turn an
+ * `m × 0` operand into a `0 × 0` one and reject the product its own shapes permit.
+ */
+internal inline fun <T> denseOperand(workspace: Workspace?, matrix: Matrix, block: (DenseMatrix) -> T): T {
+    if (matrix is DenseMatrix) return block(matrix)
+    val rows = matrix.rows
+    val cols = matrix.cols
+    requireNonNegativeShape(rows, cols)
+    val entries = rows.toLong() * cols
+    requireShape(entries <= Int.MAX_VALUE) {
+        "operand ${rows}x$cols needs $entries entries, more than one array can hold"
+    }
+    return workspace.borrow(entries.toInt()) { values ->
+        for (j in 0 until cols) {
+            val base = j * rows
+            for (i in 0 until rows) values[base + i] = matrix[i, j]
+        }
+        block(DenseMatrix.wrap(rows, cols, values))
+    }
+}

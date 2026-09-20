@@ -40,7 +40,8 @@ public operator fun Matrix.times(other: Matrix): Matrix = gemm(other)
  * overwrites [destination] without reading it.
  *
  * Built-in operands may share [destination]'s backing array and are snapshotted before it is written.
- * [workspace] lends that staging and the sparse scratch, so a repeated call over the same shapes reuses it.
+ * [workspace] lends that staging, the sparse scratch and the storage a foreign operand is adapted into, so a
+ * repeated call over the same shapes reuses it.
  */
 public fun Matrix.gemmInto(
     alpha: Double,
@@ -72,53 +73,28 @@ public fun Matrix.gemmInto(
         left is SparseMatrix && right is SparseMatrix ->
             koblas.gemm(alpha, left, transpose, right, transposeOther, beta, destination, workspace)
 
-        left is SparseMatrix ->
+        left is SparseMatrix -> denseOperand(workspace, right) { dense ->
             koblas.gemm(
-                alpha, left, transpose, denseOperand(right), transposeOther, beta, destination,
+                alpha, left, transpose, dense, transposeOther, beta, destination,
                 right = false, workspace = workspace,
             )
+        }
 
-        right is SparseMatrix ->
+        right is SparseMatrix -> denseOperand(workspace, left) { dense ->
             // The sparse operand names itself in the sparse signature, so the side flag is what puts it on
             // the right of the dense one rather than transposing the whole product to get it there.
             koblas.gemm(
-                alpha, right, transposeOther, denseOperand(left), transpose, beta, destination,
+                alpha, right, transposeOther, dense, transpose, beta, destination,
                 right = true, workspace = workspace,
             )
+        }
 
         // Staging an operand that shares the destination is the dense product's own rule and its own loan,
         // so the workspace is handed on rather than copied from here into a matrix that no longer needs one.
-        else -> koblas.gemm(
-            alpha,
-            denseOperand(left),
-            transpose,
-            denseOperand(right),
-            transposeOther,
-            beta,
-            destination,
-            workspace,
-        )
-    }
-}
-
-/**
- * Dense column-major storage for an operand that is not already in it.
- *
- * A [DenseMatrix] is used where it lies. Anything else is read once through [Matrix.get], which is the only
- * access the common contract offers; a [SparseMatrix] never arrives here, because every pairing routes it to
- * the sparse implementation that walks its stored entries instead.
- *
- * Both extents are carried over rather than rediscovered from the entries, because an operand with no
- * columns has no column to read its row count back from. A staging that inferred the shape would turn an
- * `m × 0` operand into a `0 × 0` one and reject the product its own shapes permit.
- */
-private fun denseOperand(matrix: Matrix): DenseMatrix = when (matrix) {
-    is DenseMatrix -> matrix
-
-    else -> DenseMatrix.zero(matrix.rows, matrix.cols).also { staged ->
-        for (j in 0 until matrix.cols) {
-            val base = j * staged.rows
-            for (i in 0 until staged.rows) staged.values[base + i] = matrix[i, j]
+        else -> denseOperand(workspace, left) { denseLeft ->
+            denseOperand(workspace, right) { denseRight ->
+                koblas.gemm(alpha, denseLeft, transpose, denseRight, transposeOther, beta, destination, workspace)
+            }
         }
     }
 }
