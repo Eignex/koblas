@@ -48,10 +48,11 @@ internal object SimdPanelKernels : DensePanelKernels {
      * Rows a panel needs before its vector body is reached, as whole lane blocks of this machine.
      *
      * One block is the structural minimum: below it there is no whole vector to load and the body cannot
-     * run at all. It is not a measured crossover, and this stage does not set one. What the local timings
-     * say is that the whole Level 2 callers are ahead of the portable ones from a few rows upward and within
-     * the run-to-run band below that, on one machine; turning that into a threshold is calibration and
-     * belongs where calibration is done.
+     * run at all. No measured crossover sits above it. The calibration timed whole Level 2 operations at
+     * orders of twelve and below, where a vector body has one or two blocks to work with, at the preferred
+     * width and at two lanes and with the fused multiply-add on and off; none of those was behind the
+     * portable panels on the measured host. That is one host, so the number here stays the structural
+     * minimum rather than becoming a tuned constant that another machine would have to undo.
      */
     private val VECTOR_MINIMUM = MINIMUM_BLOCKS * LANE
 
