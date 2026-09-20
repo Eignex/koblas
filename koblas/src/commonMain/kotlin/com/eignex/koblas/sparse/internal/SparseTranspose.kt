@@ -10,8 +10,6 @@ import com.eignex.koblas.UnsafeKoblasApi
  * The result holds the CSC invariant by construction rather than by checking: the walk visits source columns
  * in order, so each output column collects its entries by ascending source column, and an input with no
  * repeated coordinate yields no repeated row.
- *
- * Kept as a representation helper so the sparse algorithms can reuse the CSC walk directly.
  */
 @OptIn(UnsafeKoblasApi::class)
 internal fun transposeCsc(a: SparseMatrix): SparseMatrix {

@@ -14,10 +14,10 @@ internal expect fun environmentVariableOrNull(name: String): String?
  * makes one unacceptable, which is here so that a second collection could not drift away from the first.
  */
 
-/** The system property spelling of one tuning entry, for example `koblas.sparse.simd.min.width`. */
+/** The system property spelling of one tuning entry, for example `koblas.sparse.indexed.simd.crossover`. */
 internal fun tuningProperty(prefix: String, name: String): String = "koblas.$prefix.$name"
 
-/** The environment variable spelling of one tuning entry, for example `KOBLAS_SPARSE_SIMD_MIN_WIDTH`. */
+/** The environment variable spelling of one tuning entry, for example `KOBLAS_SPARSE_INDEXED_SIMD_CROSSOVER`. */
 internal fun tuningEnvironment(prefix: String, name: String): String =
     "KOBLAS_" + (prefix + "." + name).uppercase().replace('.', '_')
 

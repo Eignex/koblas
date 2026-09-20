@@ -38,13 +38,12 @@ internal fun routeFor(
         )
     }
     // Every operand is contiguous column-major, so the platform transfer is the only adaptation there is.
-    val adapter = transfer
     return CallRoute(
         operation = operation,
         kind = RouteKind.Direct,
         vendor = vendor,
         entryPoint = operation.entryPoint,
-        adapter = adapter,
+        adapter = transfer,
         reason = null,
     )
 }
@@ -54,9 +53,9 @@ internal fun routeFor(
  *
  * The one rule both the execution paths and [Blas.routeOf] read, so a call that returns without reaching
  * BLAS cannot be described as having reached it. Callers pass the operands whose extents govern their quick
- * return: Level 3 passes only its destination because a zero product depth still scales it. No scalar makes
- * a call no-work, because none of the bound entry points is
- * skipped on a zero multiplier and inventing that would describe a call that does run as one that does not.
+ * return: Level 3 passes only its destination because a zero product depth still scales it. No scalar makes a
+ * call no-work, because none of the bound entry points is skipped on a zero multiplier and inventing that
+ * would describe a call that does run as one that does not.
  */
 internal fun noWorkReason(matrices: List<DenseMatrix>, vectors: List<DenseVector>): String? {
     if (vectors.any { it.size == 0 }) return "an operand has no entries"

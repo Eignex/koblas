@@ -93,17 +93,6 @@ private fun DenseVector.stableFor(destination: DoubleArray): DenseVector = when 
     else -> DenseVector.wrap(values.copyOf())
 }
 
-/**
- * This vector's own array where it is the whole of one in order, and a gathered copy where it is not.
- *
- * The Level 2 entry points take an array, so a window or a step has to be gathered into one before the call.
- * A vector that already is its array in order is not a window and needs no copy, which is what keeps an
- * ordinary call through these convenience paths from allocating a vector per invocation. A strided one still
- * pays for its gather, which is the cost of addressing it that way.
- */
-private fun DenseVector.asContiguousArray(): DoubleArray =
-    if (offset == 0 && stride == 1 && values.size == size) values else toDoubleArray()
-
 /** Stable dense matrix storage when [destination] is its live backing array. */
 private fun DenseMatrix.stableFor(destination: DoubleArray): DenseMatrix =
     if (values === destination) DenseMatrix.wrap(rows, cols, values.copyOf()) else this

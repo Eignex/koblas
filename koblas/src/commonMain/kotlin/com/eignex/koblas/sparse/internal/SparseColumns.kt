@@ -20,21 +20,21 @@ import com.eignex.koblas.requireShape
 @OptIn(UnsafeKoblasApi::class)
 internal fun replaceColumns(a: SparseMatrix, replacements: Map<Int, SparseVector>): SparseMatrix {
     if (replacements.isEmpty()) return a
-    // Scattered once rather than probed per column. `replacements[j]` boxes its key on every lookup above
-    // the Integer cache, and both passes below would run one lookup for each of `a.cols` columns to find
-    // the handful that are actually replaced.
-    val entering = arrayOfNulls<SparseVector>(a.cols)
+    // Scattered into an array once rather than probed per column. `replacements[j]` boxes its key on every
+    // lookup above the Integer cache, and both passes below would run one lookup for each of `a.cols`
+    // columns to find the handful that are actually replaced.
+    val byColumn = arrayOfNulls<SparseVector>(a.cols)
     for ((column, vector) in replacements) {
         requireIndex(column in 0 until a.cols) { "replaceColumns: column $column is outside 0..${a.cols - 1}" }
         requireShape(vector.size == a.rows) {
             "replaceColumns: entering column $column has ${vector.size} entries, expected ${a.rows}"
         }
-        entering[column] = vector
+        byColumn[column] = vector
     }
     val colPointers = IntArray(a.cols + 1)
     for (j in 0 until a.cols) {
         var entries = 0
-        val entering = entering[j]
+        val entering = byColumn[j]
         if (entering == null) {
             entries = a.colPointers[j + 1] - a.colPointers[j]
         } else {
@@ -46,7 +46,7 @@ internal fun replaceColumns(a: SparseMatrix, replacements: Map<Int, SparseVector
     val values = DoubleArray(colPointers[a.cols])
     var at = 0
     for (j in 0 until a.cols) {
-        val entering = entering[j]
+        val entering = byColumn[j]
         if (entering == null) {
             a.forEachInColumn(j) { i, v ->
                 rowIndices[at] = i

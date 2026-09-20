@@ -29,12 +29,10 @@ public enum class Vendor(
      * entry point, so the requirement is established through [ACCELERATE_THREAD_LIMIT] and reported as
      * [ThreadEvidence.Unconfirmed] rather than claimed as checked.
      *
-     * It stays selectable on that basis. The requirement the plan sets is that a backend be held to one thread,
-     * not that it be able to describe itself, and Accelerate can be held; treating an unreadable count as a
-     * failure to enforce would leave macOS with no vendor at all, which is not what naming Accelerate the macOS
-     * backend can mean. The cost is that its arm carries weaker evidence than the others, which its reports say.
-     * Nothing here has been exercised on macOS hardware, so the lever's timing against Accelerate's own
-     * initialization is the part still to confirm.
+     * It stays selectable on that basis: the requirement is that a backend be held to one thread, not that it
+     * be able to describe itself, and Accelerate can be held. Treating an unreadable count as a failure to
+     * enforce would leave macOS with no vendor at all. The cost is that its arm carries weaker evidence than
+     * the others, which its reports say.
      */
     Accelerate(
         "Accelerate",

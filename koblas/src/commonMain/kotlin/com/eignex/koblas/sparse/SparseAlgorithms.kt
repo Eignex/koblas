@@ -155,8 +155,8 @@ private enum class PanelRuns(
 /**
  * Which run of a sparse column one panel call is handed.
  *
- * One call, one run. A symmetric column was two calls over two runs and is now one coupled pass over the
- * selected one, and a route that still enumerated both would name a body for a call that never happens.
+ * One call, one run, including the symmetric column: its two halves are one coupled pass over the selected
+ * run, so a route that enumerated both would name a body for a call that never happens.
  */
 private enum class RunShape {
     /** Every stored entry of the column. */
@@ -878,15 +878,7 @@ internal class SparseAlgorithms(
         // Answered before either operand is oriented, because orienting allocates one pointer per row of the
         // operand and an operand may have more rows than an array can index even when the product it takes
         // part in is empty. Nothing stored on either side reaches no position either.
-        if (a.nnz == 0 || b.nnz == 0 || aRows == 0 || bCols == 0) {
-            return SparseMatrix.wrapTrusted(
-                aRows,
-                bCols,
-                IntArray(pointerLength(bCols, "gemm")),
-                IntArray(0),
-                DoubleArray(0),
-            )
-        }
+        if (a.nnz == 0 || b.nnz == 0 || aRows == 0 || bCols == 0) return emptyResult(aRows, bCols, "gemm")
         val left = oriented(a, transposeA, alpha != 0.0)
         val right = oriented(b, transposeB, alpha != 0.0)
         return multiplySparse(left, right, alpha)
@@ -975,16 +967,8 @@ internal class SparseAlgorithms(
         requireShape(rows == b.rows && cols == b.cols) {
             "addScaled: op(A) is ${rows}x$cols but B is ${b.rows}x${b.cols}"
         }
-        if (a.nnz == 0 && b.nnz == 0) {
-            // Neither side contributes a position, so the union is empty and no orientation is built for it.
-            return SparseMatrix.wrapTrusted(
-                rows,
-                cols,
-                IntArray(pointerLength(cols, "addScaled")),
-                IntArray(0),
-                DoubleArray(0),
-            )
-        }
+        // Neither side contributes a position, so the union is empty and no orientation is built for it.
+        if (a.nnz == 0 && b.nnz == 0) return emptyResult(rows, cols, "addScaled")
         val left = oriented(a, transposeA, alpha != 0.0)
         val union = left.nnz.toLong() + b.nnz
         requireShape(
@@ -1088,6 +1072,18 @@ internal class SparseAlgorithms(
             }
         }
     }
+
+    /**
+     * A CSC result of this shape with nothing stored, for a call whose operands reach no position. [what]
+     * names the operation in the one error this raises, a column count no array of pointers can hold.
+     */
+    private fun emptyResult(rows: Int, cols: Int, what: String): SparseMatrix = SparseMatrix.wrapTrusted(
+        rows,
+        cols,
+        IntArray(pointerLength(cols, what)),
+        IntArray(0),
+        DoubleArray(0),
+    )
 
     /** `beta · C` over exactly the selected triangle, honoring the zero-beta overwrite convention. */
     private fun scaleTriangle(c: DenseMatrix, n: Int, beta: Double, lower: Boolean) {

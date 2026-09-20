@@ -212,7 +212,12 @@ public class PreparedSparseMatrix internal constructor(a: SparseMatrix, private 
             // guess and pay for the guess.
             return unsettled(operation, call)
         }
-        return algorithms.matrixRouteOf(
+        return routeAgainstSnapshot(operation, call)
+    }
+
+    /** [call]'s scalars and extents asked of the snapshot, which is the operand a prepared call has. */
+    private fun routeAgainstSnapshot(operation: SparseMatrixOperation, call: SparseCall): SparseMatrixRoute =
+        algorithms.matrixRouteOf(
             operation,
             SparseCall(
                 snapshot,
@@ -227,36 +232,14 @@ public class PreparedSparseMatrix internal constructor(a: SparseMatrix, private 
                 call.lower,
             ),
         )
-    }
 
     /** A route for a call whose schedule these facts do not settle, which names no traversal at all. */
-    private fun unsettled(
-        operation: SparseMatrixOperation,
-        call: SparseCall,
-        undecided: String = "a transposed product against a second sparse operand runs either the derived " +
-            "orientation or the snapshot itself, and which one depends on that operand, which these call " +
-            "facts do not carry",
-        keepTraversal: Boolean = true,
-    ): SparseMatrixRoute {
+    private fun unsettled(operation: SparseMatrixOperation, call: SparseCall): SparseMatrixRoute {
         // The call's own facts first, against the snapshot as it stands. What they settle stays: a call
         // with nothing to do is still a call with nothing to do whichever orientation it would have used,
         // and a destination multiplier still scales a destination. What they do not settle is which of the
         // two traversals runs, and only that is replaced by saying so.
-        val route = algorithms.matrixRouteOf(
-            operation,
-            SparseCall(
-                snapshot,
-                call.alpha,
-                call.beta,
-                call.destinationElements,
-                call.depth,
-                call.updateRun,
-                call.rightHandSides,
-                call.transposeSparse,
-                call.transposeDense,
-                call.lower,
-            ),
-        )
+        val route = routeAgainstSnapshot(operation, call)
         if (route.kind == RouteKind.NoWork) return route
         return SparseMatrixRoute(
             route.operation,
@@ -264,9 +247,9 @@ public class PreparedSparseMatrix internal constructor(a: SparseMatrix, private 
             route.scheduling,
             route.entryPoint,
             route.components.filter { it.endsWith("/scale") },
-            undecided + (if (keepTraversal) route.reason?.let { ". Whatever runs, $it" }.orEmpty() else ""),
-            if (keepTraversal) route.executionGroup else 0,
-            if (keepTraversal) route.executionTail else 0,
+            UNDECIDED_ORIENTATION + route.reason?.let { ". Whatever runs, $it" }.orEmpty(),
+            route.executionGroup,
+            route.executionTail,
             resolved = false,
         )
     }
@@ -299,3 +282,8 @@ public class PreparedSparseMatrix internal constructor(a: SparseMatrix, private 
         requireShape(aCols == bRows) { "gemm: op(A) is ${aRows}x$aCols but op(B) is ${bRows}x$bCols" }
     }
 }
+
+/** What an unsettled route says in place of the traversal a second sparse operand would have decided. */
+private const val UNDECIDED_ORIENTATION: String =
+    "a transposed product against a second sparse operand runs either the derived orientation or the " +
+        "snapshot itself, and which one depends on that operand, which these call facts do not carry"

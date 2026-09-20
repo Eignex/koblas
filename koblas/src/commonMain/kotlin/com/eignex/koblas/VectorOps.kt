@@ -4,10 +4,6 @@
 
 package com.eignex.koblas
 
-import com.eignex.koblas.DenseVector
-import com.eignex.koblas.SparseVector
-import com.eignex.koblas.StridedVector
-import com.eignex.koblas.Vector
 import com.eignex.koblas.dense.DenseVectorKernels
 import com.eignex.koblas.internal.numeric.euclideanNorm
 import kotlin.math.abs
@@ -45,8 +41,8 @@ public infix fun Vector.dot(other: Vector): Double {
         return koblas.vectorKernels.dot(values, offset, other.values, other.offset, size, stride, other.stride)
     }
     if (this is SparseVector && other is SparseVector) return koblas.sparseKernels.dot(this, other)
-    if (this is SparseVector && other is DenseVector) return koblas.sparseKernels.dot(this, other.densified())
-    if (this is DenseVector && other is SparseVector) return koblas.sparseKernels.dot(other, densified())
+    if (this is SparseVector && other is DenseVector) return koblas.sparseKernels.dot(this, other.asContiguousArray())
+    if (this is DenseVector && other is SparseVector) return koblas.sparseKernels.dot(other, asContiguousArray())
     if (this is SparseVector) {
         var sum = 0.0
         for (k in indices.indices) sum += values[k] * other[indices[k]]
@@ -137,7 +133,7 @@ public fun copy(src: Vector, dst: DenseVector) {
     if (source is SparseVector) {
         // A contiguous destination is one fill and one scatter through the indexed kernel; any other spacing
         // has no kernel to reach, because the sparse seam addresses a pattern and carries no increment.
-        if (dst.offset == 0 && dst.stride == 1 && dst.values.size == dst.size) {
+        if (dst.isWholeArray) {
             dst.values.fill(0.0)
             koblas.sparseKernels.scatter(source, dst.values)
         } else {
@@ -162,9 +158,17 @@ private fun Vector.stableFor(destination: DenseVector): Vector = when (this) {
     else -> this
 }
 
-/** This vector's entries as a plain array, borrowing the backing one where its spacing already is that. */
-private fun DenseVector.densified(): DoubleArray =
-    if (offset == 0 && stride == 1 && values.size == size) values else toDoubleArray()
+/** Whether this vector is the whole of [values] in order, so an entry point taking an array may be handed it. */
+internal val DenseVector.isWholeArray: Boolean
+    get() = offset == 0 && stride == 1 && values.size == size
+
+/**
+ * This vector's own array where it [isWholeArray], and a gathered copy where it is not.
+ *
+ * Keeps an ordinary call through these convenience paths from allocating; a window or a step still pays for
+ * its gather, which is the cost of addressing it that way.
+ */
+internal fun DenseVector.asContiguousArray(): DoubleArray = if (isWholeArray) values else toDoubleArray()
 
 /**
  * Read [from] at [x]'s stored positions into [x] (Sparse BLAS `usga`), the inverse of [copy] from a sparse
@@ -217,7 +221,7 @@ public fun DenseVector.axpy(alpha: Double, x: Vector) {
 
         // The indexed sparse kernels walk the pattern, and have a vectorised form; the generic loop has
         // neither, so it is what a foreign Vector implementation gets rather than what a SparseVector does.
-        is SparseVector -> if (offset == 0 && stride == 1 && values.size == size) {
+        is SparseVector -> if (isWholeArray) {
             koblas.sparseKernels.axpy(values, alpha, source)
         } else {
             source.forEachStored { i, v -> this[i] += alpha * v }
