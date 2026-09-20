@@ -1006,10 +1006,6 @@ public final class com/eignex/koblas/vendor/JvmVendorBlasKt {
 	public static synthetic fun openBlas$default (Lcom/eignex/koblas/vendor/Vendor;ILjava/lang/Object;)Lcom/eignex/koblas/vendor/Blas;
 }
 
-public final class com/eignex/koblas/vendor/MissingVendorException : java/lang/IllegalStateException {
-	public fun getMessage ()Ljava/lang/String;
-}
-
 public final class com/eignex/koblas/vendor/OperatingSystem : java/lang/Enum {
 	public static final field Linux Lcom/eignex/koblas/vendor/OperatingSystem;
 	public static final field MacOs Lcom/eignex/koblas/vendor/OperatingSystem;

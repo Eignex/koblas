@@ -41,7 +41,7 @@ internal class BlasCall(
  * upper triangle, a `right` arriving as a left-side call, or an operand densified out of its own spacing is
  * caught: a symmetric fixture or a self-inverting round trip answers correctly either way.
  *
- * It records at the [Blas] seam, so it pins the translation [VendorDenseBlas] performs into [MatrixStructure]
+ * It records at the [Blas] seam, so it pins the translation [HostDenseBlas] performs into [MatrixStructure]
  * and [DenseVector], and nothing below it: the CBLAS integers, the leading dimension and the increment are
  * produced inside the platform bindings, which the vendor conformance tests cover.
  */

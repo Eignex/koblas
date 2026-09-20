@@ -4,8 +4,8 @@ Portable double-precision dense and sparse BLAS Levels 1–3 for Kotlin Multipla
 
 The immutable [koblas][com.eignex.koblas.koblas] engine uses owned Vector API kernels on a JVM with the
 incubator module, and portable Kotlin without it. Kotlin/Native composes optional installed host calls with
-portable fallback. Explicit vendor bindings preserve their own arithmetic and overlap contracts and raise
-[MissingVendorException][com.eignex.koblas.vendor.MissingVendorException] when no supported library is present.
+portable fallback. Explicit vendor bindings preserve their own arithmetic and overlap contracts;
+[openBlas][com.eignex.koblas.vendor.openBlas] returns null on a host with no supported library.
 
 [Workspace][com.eignex.koblas.Workspace] reuses temporary storage with bounded retention. It belongs to one
 invocation at a time; concurrent calls need separate outputs and scratch. Allocating operations still own

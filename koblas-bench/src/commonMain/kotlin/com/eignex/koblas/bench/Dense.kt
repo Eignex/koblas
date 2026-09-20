@@ -1,6 +1,5 @@
 package com.eignex.koblas.bench
 
-import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.DenseVector
 import com.eignex.koblas.KoblasEngine
 import com.eignex.koblas.Matrix
