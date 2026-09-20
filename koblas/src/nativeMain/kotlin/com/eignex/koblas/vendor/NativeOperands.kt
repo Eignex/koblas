@@ -17,7 +17,8 @@ import kotlinx.cinterop.pin
  * pointer, so there is no copy in either direction and no transfer to name in the route; that is the
  * substantive difference from the JVM binding, where a non-critical downcall cannot take heap memory at all.
  *
- * Every pin is released in a `finally`, so an exception thrown out of a call does not leave storage pinned.
+ * Pins are taken through [withPins], which releases them in a `finally`, so an exception thrown out of a
+ * call does not leave storage pinned.
  */
 internal class Pins {
     private val pinned = ArrayList<Pinned<DoubleArray>>(PINS)
@@ -87,3 +88,18 @@ internal fun baseIndex(vector: DenseVector): Int = baseIndex(vector.offset, vect
 /** The same rule over a raw run, which is what the Level 1 entry points hand BLAS. */
 internal fun baseIndex(offset: Int, stride: Int, size: Int): Int =
     if (stride >= 0) offset else offset + (size - 1) * stride
+
+/**
+ * Runs [block] with pins taken for one call, releasing every one of them on the way out.
+ *
+ * The Kotlin/Native counterpart of the JVM binding's confined arena: a call that raises gives the caller's
+ * storage back exactly as one that returns does, so nothing stays pinned past the call that pinned it.
+ */
+internal inline fun <T> withPins(block: (Pins) -> T): T {
+    val pins = Pins()
+    try {
+        return block(pins)
+    } finally {
+        pins.release()
+    }
+}
