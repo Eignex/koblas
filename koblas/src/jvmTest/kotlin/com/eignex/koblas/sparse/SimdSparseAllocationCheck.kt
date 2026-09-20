@@ -3,9 +3,11 @@ package com.eignex.koblas.sparse
 import com.eignex.koblas.BuiltinEngines
 import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.KoblasEngine
+import com.eignex.koblas.Matrix
 import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.Workspace
 import com.eignex.koblas.dense.PanelWork
+import com.eignex.koblas.gemmInto
 import com.eignex.koblas.testutil.allocation.AllocationProbe
 import com.eignex.koblas.testutil.allocation.bytesPerCall
 
@@ -204,6 +206,34 @@ internal object SimdSparseAllocationCheck {
         assertAllocationFree("sparse rank update into a dense triangle", OPERATION_WARMUP, OPERATION_ITERATIONS) {
             engine.syrk(0.875, a, false, -0.25, square, true, workspace)
             square.values[0]
+        }
+        checkGenericDispatch(a, b, wide, c, cWide, workspace)
+    }
+
+    /**
+     * The generic product, which decides its storage pairing per call rather than being told it.
+     *
+     * A caller holding a [Matrix] names no engine and no pairing, so this is where a descriptor built to
+     * make that decision, or an operand adapted to reach a kernel, would show up. Both sides are probed
+     * because a sparse operand keeps its own traversal on either, and the side it is on is what the dense
+     * one is read through.
+     */
+    @Suppress("LongParameterList") // the two operands, the two destinations they need, and the scratch
+    private fun checkGenericDispatch(
+        a: Matrix,
+        b: Matrix,
+        wide: Matrix,
+        c: DenseMatrix,
+        cWide: DenseMatrix,
+        workspace: Workspace,
+    ) {
+        assertAllocationFree("generic product with a sparse left operand", OPERATION_WARMUP, OPERATION_ITERATIONS) {
+            a.gemmInto(0.875, false, b, false, -0.25, c, workspace)
+            c.values[0]
+        }
+        assertAllocationFree("generic product with a sparse right operand", OPERATION_WARMUP, OPERATION_ITERATIONS) {
+            wide.gemmInto(0.875, false, a, false, -0.25, cWide, workspace)
+            cWide.values[0]
         }
     }
 
