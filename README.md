@@ -30,11 +30,14 @@ On Kotlin/Native, where there is no Vector API and these loops do not vectorise,
 hands a whole dense Level 2 or 3 call to an installed library once the call has enough arithmetic to pay for
 reaching it. Nothing depends on one being there: a host with no supported library computes every level in
 common Kotlin, and so does any call the library does not export, any call too small to pay for it, any
-product over operands packed for this library's own register tile, and any routine whose documented result a
-library need not give. `KoblasEngine.denseRouteOf` says which of the two a concrete call took and names the
-resolved library and symbol where it was the second. The JVM default composes no library at all. Sparse is
-this library's own scheduling on both runtimes: no supported vendor's sparse API is bound, so installing one
-does not accelerate a sparse matrix operation.
+product over operands packed for this library's own register tile, and any routine or multiplier whose
+documented result a library need not give. `KoblasEngine.denseRouteOf` says which of the two a concrete call
+took and names the resolved library and symbol where it was the second. The JVM default composes no library
+at all.
+
+Sparse scheduling is this library's own on both runtimes, because no supported vendor's sparse API is bound
+here. Only the Level 1 kernel a column reaches can be a library's, which on Kotlin/Native it is above the
+measured widths, and `SparseBlas.matrixRouteOf` names it where it happens.
 
 Level 1 picks the faster arm per platform. On the JVM that is the Vector API kernels for the reductions,
 because reaching a foreign library there copies both operands into native memory and so costs a pass over the

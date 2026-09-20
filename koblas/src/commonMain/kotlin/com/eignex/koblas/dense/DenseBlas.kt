@@ -84,8 +84,10 @@ public interface DenseBlas {
      *
      * An explicit host binding is not held to that placement: a library is free to scale coefficients as it
      * goes, and [com.eignex.koblas.vendor.Blas] keeps its own latitude where the standard leaves this open.
-     * That is why a default which composes an installed library keeps this call for itself whenever [alpha]
-     * is not finite, which is the only way the placement is observable.
+     * That is why a default which composes an installed library hands this call over only when [alpha] is
+     * one, where there is no scaling to place. A smaller rule does not survive: over a shared dimension of
+     * one, ordinary finite arguments already tell the two apart, since scaling an entry can overflow or
+     * underflow where scaling the sum does not.
      */
     @Suppress("LongParameterList") // the BLAS dgemm signature
     public fun gemm(

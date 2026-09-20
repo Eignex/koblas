@@ -32,13 +32,17 @@ import kotlin.test.assertTrue
  * asserted: every destination matches the definition, and the shared inputs come back unchanged.
  *
  * The fixtures are sized past [com.eignex.koblas.dense.HostDensePolicy.MINIMUM_WORK] on purpose, and each
- * case asserts the route the call it makes resolves to. Without that the same test would pass on a policy
- * that never reached a library, which is what it exists to exercise. Where no library is installed the route
- * is the portable one and the case says so; that run is real coverage of the portable schedule under
+ * case asserts the route of the exact call each worker will make. Without that the same test would pass on a
+ * policy that never reached a library, which is what it exists to exercise. Where no library is installed the
+ * route is the portable one and the case says so; that run is real coverage of the portable schedule under
  * concurrency, and it is not evidence about concurrent host calls.
+ *
+ * Every worker carries a unit multiplier, because that is what the policy admits for a product, and their
+ * results are told apart by their own destination multiplier instead. A per-worker multiplier would have left
+ * seven of the eight on the portable schedule while one route assertion said otherwise.
  */
 class NativeHostConcurrencyTest {
-    private class Task(val a: DenseMatrix, val b: DenseMatrix, val alpha: Double)
+    private class Task(val a: DenseMatrix, val b: DenseMatrix, val beta: Double)
 
     /** Whether the call this test makes is the one the default hands to a library, asserted not assumed. */
     private fun assertRouteMatchesInstalledLibrary(call: DenseCall, what: String) {
@@ -65,26 +69,38 @@ class NativeHostConcurrencyTest {
         val a = randomMatrix(ORDER, DEPTH, rng)
         val b = randomMatrix(DEPTH, ORDER, rng)
         val untouched = a.values.copyOf() to b.values.copyOf()
-        assertRouteMatchesInstalledLibrary(DenseCall(ORDER, ORDER, depth = DEPTH), "the concurrent product")
+        // One assertion per worker, over the exact call that worker will make, so no worker is represented
+        // by another's route.
+        for (index in 0 until WORKERS) {
+            assertRouteMatchesInstalledLibrary(
+                DenseCall(ORDER, ORDER, alpha = 1.0, beta = betaFor(index), depth = DEPTH),
+                "the concurrent product of worker $index",
+            )
+        }
 
         val futures = (0 until WORKERS).map { index ->
             val worker = Worker.start()
-            worker to worker.execute(TransferMode.SAFE, { Task(a, b, 1.0 + index) }) { task ->
+            worker to worker.execute(TransferMode.SAFE, { Task(a, b, betaFor(index)) }) { task ->
                 // Every worker owns these two; nothing below them is shared but the read-only operands.
-                val destination = DenseMatrix.zero(task.a.rows, task.b.cols)
+                val destination = DenseMatrix.wrap(
+                    task.a.rows,
+                    task.b.cols,
+                    DoubleArray(task.a.rows * task.b.cols) { 1.0 },
+                )
                 val workspace = Workspace()
                 repeat(REPEATS) {
-                    koblas.gemm(task.alpha, task.a, false, task.b, false, 0.0, destination, workspace)
+                    destination.values.fill(1.0)
+                    koblas.gemm(1.0, task.a, false, task.b, false, task.beta, destination, workspace)
                 }
-                task.alpha to destination.values
+                task.beta to destination.values
             }
         }
 
         for ((worker, future) in futures) {
-            val (alpha, actual) = future.result
-            val expected = DenseMatrix.zero(ORDER, ORDER)
-            ReferenceBlas.gemm(alpha, a, false, b, false, 0.0, expected)
-            assertClose(expected.values, actual, "concurrent gemm alpha=$alpha", TOLERANCE)
+            val (beta, actual) = future.result
+            val expected = DenseMatrix.wrap(ORDER, ORDER, DoubleArray(ORDER * ORDER) { 1.0 })
+            ReferenceBlas.gemm(1.0, a, false, b, false, beta, expected)
+            assertClose(expected.values, actual, "concurrent gemm beta=$beta", TOLERANCE)
             worker.requestTermination().result
         }
         assertEquals(untouched.first.toList(), a.values.toList(), "a shared operand was written")
@@ -104,7 +120,7 @@ class NativeHostConcurrencyTest {
         val expected = DenseMatrix.zero(ORDER, ORDER)
         ReferenceBlas.gemm(1.0, square, false, square, false, 0.0, expected)
         assertRouteMatchesInstalledLibrary(
-            DenseCall(ORDER, ORDER, depth = ORDER, aliased = true),
+            DenseCall(ORDER, ORDER, alpha = 1.0, depth = ORDER, aliased = true),
             "the concurrent staged product",
         )
 
@@ -145,6 +161,9 @@ class NativeHostConcurrencyTest {
             "the default composed a library that was not held to one compute thread",
         )
     }
+
+    /** A destination multiplier that is this worker's own, so no two workers expect the same answer. */
+    private fun betaFor(index: Int): Double = 0.5 + index
 
     private companion object {
         const val WORKERS = 8

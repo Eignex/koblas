@@ -187,17 +187,20 @@ one named twice. `native` is the exact portable arm: common Kotlin at every leve
 all, which is what a comparison against this library's own arithmetic needs. `native-default` is the engine
 an ordinary call there gets, which is a policy: its Level 1 is the installed library above the measured
 per-operation widths, and a whole dense Level 2 or 3 call goes to that library once the call has enough
-arithmetic to pay for reaching it and the routine's documented result is one a library also gives. Rows on
+arithmetic to pay for reaching it and the routine's documented result is one a library also gives. The
+second condition is why a `gemm`, `gemmt` or `syrk` row carrying a multiplier other than one reads as
+portable: those three document their result as a multiplier applied to an accumulated sum, and a library may
+legally scale an operand instead, so a scaled one of them stays on this library's schedule. Rows on
 that arm therefore mix routes, and each says which it took. Its `metadata.txt` section carries the resolved
 library file, the library's own version string and the threading evidence the binding read back, so a report
 records which binary produced the rows that reached one. A `native-default` row is a default-policy
 measurement of that composition and not an exact measurement of either side of it; the `native` arm and the
 explicit `<vendor>` arms are where each side is measured on its own.
 
-Sparse has no bound host entry point at all on either runtime. Every sparse Level 2 and 3 row on
-`native-default` is this library's own CSC scheduling, exactly as on `native`, and only the Level 1 kernel a
-column reaches can be the library's. No supported vendor's sparse API is bound here, so sparse acceleration
-is not something a Kotlin/Native user gets from installing one.
+No whole sparse entry point is bound on either runtime, so every sparse Level 2 and 3 row on
+`native-default` names this library's own CSC scheduling exactly as on `native`. What can differ between the
+two is the Level 1 kernel a column reaches, which on `native-default` is the library's above the measured
+widths and is named as a component where it runs.
 
 Each vendor contributes two explicit arms: `<vendor>` through the Native binding, and `<vendor>-jvm`
 through the JVM binding, whose timing includes operand transfer.
@@ -347,7 +350,8 @@ dense one. That entry point uses the engine this platform selected rather than o
 `Matrix` has no engine to pass. They are therefore `default-policy` rows on the arm whose engine is the
 selected one, and are declined on every other arm rather than publishing that arm's label over another
 engine's work. On Kotlin/Native that arm is `native-default`; the exact portable `native` arm is not the
-selected engine and declines them.
+selected engine and declines them. On a Kotlin/Native host with no library installed the two arms resolve to
+the same engine, so both admit these rows and both are that host's default policy.
 
 ## Direct Gradle runs
 
