@@ -36,7 +36,7 @@ class PreparedSparseConcurrencyTest {
         val source = banded(ORDER)
         val prepared = source.prepare()
         val x = DoubleArray(ORDER) { it * 0.125 }
-        val expected = DoubleArray(ORDER).also { prepared.gemv(1.0, x, 0.0, it) }
+        val expected = DoubleArray(ORDER).also { prepared.gemvInto(1.0, x, 0.0, it) }
         val expectedTransposed = DoubleArray(ORDER)
         koblas.gemv(1.0, koblas.transpose(source), x, 0.0, expectedTransposed)
 
@@ -51,15 +51,14 @@ class PreparedSparseConcurrencyTest {
                         val block = DenseMatrix.zero(ORDER, 2)
                         barrier.await(10, TimeUnit.SECONDS)
                         repeat(50) {
-                            prepared.gemv(1.0, x, 0.0, y)
-                            // Every thread races to be the first transposed reader, and a half-built
-                            // transpose would show up as a wrong or missing entry.
-                            prepared.gemm(
+                            prepared.gemvInto(1.0, x, 0.0, y)
+                            // Concurrent first readers must see a fully built transpose.
+                            prepared.gemmInto(
                                 1.0,
-                                transposeA = true,
+                                transpose = true,
                                 b = block,
                                 beta = 0.0,
-                                c = block,
+                                destination = block,
                                 workspace = workspace,
                             )
                         }
@@ -76,7 +75,7 @@ class PreparedSparseConcurrencyTest {
             assertTrue(pool.awaitTermination(30, TimeUnit.SECONDS), "the pool did not stop")
         }
 
-        val transposed = DoubleArray(ORDER).also { prepared.gemv(1.0, x, 0.0, it, transpose = true) }
+        val transposed = DoubleArray(ORDER).also { prepared.gemvInto(1.0, x, 0.0, it, transpose = true) }
         assertContentEquals(expectedTransposed, transposed, "the shared transpose was left inconsistent")
     }
 
@@ -85,7 +84,7 @@ class PreparedSparseConcurrencyTest {
         val source = banded(ORDER)
         val prepared = source.prepare()
         val x = DoubleArray(ORDER) { 1.0 }
-        val expected = DoubleArray(ORDER).also { prepared.gemv(1.0, x, 0.0, it) }
+        val expected = DoubleArray(ORDER).also { prepared.gemvInto(1.0, x, 0.0, it) }
 
         val pool = Executors.newFixedThreadPool(2)
         try {
@@ -93,7 +92,7 @@ class PreparedSparseConcurrencyTest {
             val reads = pool.submit(
                 Callable {
                     val y = DoubleArray(ORDER)
-                    repeat(1_000) { prepared.gemv(1.0, x, 0.0, y) }
+                    repeat(1_000) { prepared.gemvInto(1.0, x, 0.0, y) }
                     y
                 },
             )

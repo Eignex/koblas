@@ -19,9 +19,9 @@ public fun SparseMatrix.gemvInto(
     alpha: Double,
     x: DoubleArray,
     beta: Double,
-    y: DoubleArray,
+    destination: DoubleArray,
     transpose: Boolean = false,
-): Unit = koblas.gemv(alpha, this, x, beta, y, transpose)
+): Unit = koblas.gemv(alpha, this, x, beta, destination, transpose)
 
 /** Symmetric product with [x] into a fresh dense vector, reading only this matrix's selected triangle. */
 @JvmOverloads
@@ -31,26 +31,26 @@ public fun SparseMatrix.symv(x: DoubleArray, lower: Boolean = true): DoubleArray
 /** Symmetric `y = alpha · A · x + beta · y`, reading only this matrix's selected triangle. */
 @Suppress("LongParameterList") // the BLAS dsymv signature
 @JvmOverloads
-public fun SparseMatrix.symv(
+public fun SparseMatrix.symvInto(
     alpha: Double,
     x: DoubleArray,
     beta: Double,
-    y: DoubleArray,
+    destination: DoubleArray,
     lower: Boolean = true,
-): Unit = koblas.symv(alpha, this, x, beta, y, lower)
+): Unit = koblas.symv(alpha, this, x, beta, destination, lower)
 
-/** Symmetric sparse-dense product into [c], with this selected-triangle matrix on either side. */
+/** Symmetric sparse-dense product into [destination], with this selected-triangle matrix on either side. */
 @Suppress("LongParameterList") // the BLAS dsymm signature plus the workspace
 @JvmOverloads
-public fun SparseMatrix.symm(
+public fun SparseMatrix.symmInto(
     alpha: Double,
     b: DenseMatrix,
     beta: Double,
-    c: DenseMatrix,
+    destination: DenseMatrix,
     lower: Boolean = true,
     right: Boolean = false,
     workspace: Workspace? = null,
-): Unit = koblas.symm(alpha, this, b, beta, c, lower, right, workspace)
+): Unit = koblas.symm(alpha, this, b, beta, destination, lower, right, workspace)
 
 /** `C = alpha · op(A) · op(B) + beta · C` into a caller-owned dense destination, or the mirrored product
  *  when [right]; see [com.eignex.koblas.sparse.SparseBlas.gemm]. */
@@ -62,10 +62,10 @@ public fun SparseMatrix.gemmInto(
     b: DenseMatrix,
     transposeB: Boolean,
     beta: Double,
-    c: DenseMatrix,
+    destination: DenseMatrix,
     right: Boolean = false,
     workspace: Workspace? = null,
-): Unit = koblas.gemm(alpha, this, transpose, b, transposeB, beta, c, right, workspace)
+): Unit = koblas.gemm(alpha, this, transpose, b, transposeB, beta, destination, right, workspace)
 
 /** Fresh CSC `alpha · op(A) · op(B)` for two sparse operands, retaining discovered structure. */
 public fun SparseMatrix.gemm(alpha: Double, transpose: Boolean, b: SparseMatrix, transposeB: Boolean): SparseMatrix =
@@ -80,26 +80,26 @@ public fun SparseMatrix.gemmInto(
     b: SparseMatrix,
     transposeB: Boolean,
     beta: Double,
-    c: DenseMatrix,
+    destination: DenseMatrix,
     workspace: Workspace? = null,
-): Unit = koblas.gemm(alpha, this, transpose, b, transposeB, beta, c, workspace)
+): Unit = koblas.gemm(alpha, this, transpose, b, transposeB, beta, destination, workspace)
 
 /** Fresh selected CSC triangle of `op(A) · op(A)ᵀ`. */
 @JvmOverloads
 public fun SparseMatrix.syrk(transpose: Boolean = false, lower: Boolean = true): SparseMatrix =
     koblas.syrk(this, transpose, lower)
 
-/** Dense selected-triangle sparse rank-k product into [c]. */
+/** Dense selected-triangle sparse rank-k product into [destination]. */
 @Suppress("LongParameterList") // the BLAS dsyrk signature plus the workspace
 @JvmOverloads
-public fun SparseMatrix.syrk(
+public fun SparseMatrix.syrkInto(
     alpha: Double,
     transpose: Boolean,
     beta: Double,
-    c: DenseMatrix,
+    destination: DenseMatrix,
     lower: Boolean = true,
     workspace: Workspace? = null,
-): Unit = koblas.syrk(alpha, this, transpose, beta, c, lower, workspace)
+): Unit = koblas.syrk(alpha, this, transpose, beta, destination, lower, workspace)
 
 /** Fresh CSC `alpha · op(A) + B`, retaining the structural union. */
 public fun SparseMatrix.addScaled(alpha: Double, transpose: Boolean, b: SparseMatrix): SparseMatrix =

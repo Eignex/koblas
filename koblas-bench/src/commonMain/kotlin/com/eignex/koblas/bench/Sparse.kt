@@ -218,11 +218,11 @@ internal fun sparseMatrixArm(case: BenchCase, engine: KoblasEngine): ArmChoice? 
                 },
                 verifyPrepared = { snapshot ->
                     y0.copyInto(y)
-                    snapshot.gemv(alpha, x, beta, y, transpose)
+                    snapshot.gemvInto(alpha, x, beta, y, transpose)
                     SparseReference.check(expected, y, "${case.id} prepared gemv")
                 },
                 oneShot = { y0.copyInto(y); engine.gemv(alpha, a, x, beta, y, transpose); y[0] },
-                prepared = { snapshot -> y0.copyInto(y); snapshot.gemv(alpha, x, beta, y, transpose); y[0] },
+                prepared = { snapshot -> y0.copyInto(y); snapshot.gemvInto(alpha, x, beta, y, transpose); y[0] },
             )
         }
 
@@ -267,7 +267,7 @@ internal fun sparseMatrixArm(case: BenchCase, engine: KoblasEngine): ArmChoice? 
                     },
                     verifyPrepared = { snapshot ->
                         c0.values.copyInto(c.values)
-                        snapshot.gemm(alpha, transpose, b, transposeDense, beta, c, right = false, workspace)
+                        snapshot.gemmInto(alpha, transpose, b, transposeDense, beta, c, right = false, workspace)
                         SparseReference.check(expected, SparseReference.dense(c), "${case.id} prepared product")
                     },
                     oneShot = {
@@ -277,7 +277,7 @@ internal fun sparseMatrixArm(case: BenchCase, engine: KoblasEngine): ArmChoice? 
                     },
                     prepared = { snapshot ->
                         c0.values.copyInto(c.values)
-                        snapshot.gemm(alpha, transpose, b, transposeDense, beta, c, right = false, workspace)
+                        snapshot.gemmInto(alpha, transpose, b, transposeDense, beta, c, right = false, workspace)
                         c.values[0]
                     },
                 )

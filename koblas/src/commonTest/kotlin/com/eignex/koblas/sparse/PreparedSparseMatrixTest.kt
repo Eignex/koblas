@@ -26,7 +26,7 @@ class PreparedSparseMatrixTest {
         source.values.fill(100.0)
 
         val actual = DoubleArray(3)
-        prepared.gemv(1.0, doubleArrayOf(4.0, 5.0), 0.0, actual)
+        prepared.gemvInto(1.0, doubleArrayOf(4.0, 5.0), 0.0, actual)
 
         assertContentEquals(doubleArrayOf(8.0, 15.0, -4.0), actual)
     }
@@ -237,7 +237,7 @@ class PreparedSparseMatrixTest {
         val dense = DenseMatrix.wrap(2, 2, doubleArrayOf(1.0, 2.0, 3.0, 4.0))
         val expectedDense = koblas.gemm(source, dense)
         val actualDense = DenseMatrix.zero(3, 2)
-        prepared.gemm(1.0, false, dense, 0.0, actualDense)
+        prepared.gemmInto(1.0, false, dense, 0.0, actualDense)
         assertClose(expectedDense, actualDense, "dense product")
 
         val right = SparseMatrix.ofColumns(2, 1, listOf(listOf(0 to 2.0, 1 to -1.0)))
@@ -247,11 +247,11 @@ class PreparedSparseMatrixTest {
         val expectedTransposed = DenseMatrix.zero(2, 2)
         koblas.gemm(1.0, source, true, transposedDense, true, 0.0, expectedTransposed, right = false)
         val actualTransposed = DenseMatrix.zero(2, 2)
-        prepared.gemm(1.0, true, transposedDense, true, 0.0, actualTransposed, false)
+        prepared.gemmInto(1.0, true, transposedDense, true, 0.0, actualTransposed, false)
         assertClose(expectedTransposed, actualTransposed, "full dense product")
 
         val sparseDense = DenseMatrix.zero(3, 1)
-        prepared.gemm(2.0, false, right, false, 0.0, sparseDense)
+        prepared.gemmInto(2.0, false, right, false, 0.0, sparseDense)
         val expectedSparseDense = DenseMatrix.zero(3, 1)
         koblas.gemm(2.0, source, false, right, false, 0.0, expectedSparseDense)
         assertClose(expectedSparseDense, sparseDense, "direct sparse dense result")
@@ -275,12 +275,12 @@ class PreparedSparseMatrixTest {
         val prepared = koblas.prepare(source)
         source.values.fill(Double.NaN)
         val y = DoubleArray(2)
-        prepared.symv(1.0, doubleArrayOf(7.0, 11.0), 0.0, y)
+        prepared.symvInto(1.0, doubleArrayOf(7.0, 11.0), 0.0, y)
         assertContentEquals(doubleArrayOf(47.0, 76.0), y)
 
         val b = DenseMatrix.wrap(2, 1, doubleArrayOf(7.0, 11.0))
         val c = DenseMatrix.zero(2, 1)
-        prepared.symm(1.0, b, 0.0, c)
+        prepared.symmInto(1.0, b, 0.0, c)
         assertContentEquals(y, c.values)
     }
 
@@ -294,7 +294,7 @@ class PreparedSparseMatrixTest {
 
         values[0] = Double.NaN
         val y = DoubleArray(2)
-        prepared.gemv(1.0, doubleArrayOf(1.0, 1.0), 0.0, y)
+        prepared.gemvInto(1.0, doubleArrayOf(1.0, 1.0), 0.0, y)
 
         assertContentEquals(doubleArrayOf(2.0, 3.0), y)
     }
@@ -311,7 +311,7 @@ class PreparedSparseMatrixTest {
 
         repeat(2) {
             val actual = DenseMatrix.zero(2, 2)
-            prepared.gemm(0.875, transposeA = true, b = b, beta = -0.25, c = actual)
+            prepared.gemmInto(0.875, transpose = true, b = b, beta = -0.25, destination = actual)
             assertContentEquals(expected.values, actual.values)
         }
 

@@ -11,7 +11,9 @@ import com.eignex.koblas.sparse.internal.sparseSyr2
 import kotlin.jvm.JvmOverloads
 
 /**
- * `y = alpha * A * x + beta * y` (BLAS `dgemv`) into [destination].
+ * `y = alpha * op(A) * x + beta * y` (BLAS `dgemv`) into [destination], with `op(A)` being `Aᵀ` when
+ * [transpose]. [SparseMatrix.gemvInto] is the counterpart over CSC storage, in the same order over a plain
+ * array.
  *
  * Both operands are dense storage: [x] may be contiguous or strided. A [SparseVector] carries a pattern rather
  * than a stride and uses the sparse operation family, so it is excluded by the type.
@@ -19,26 +21,38 @@ import kotlin.jvm.JvmOverloads
  * Operands may share [destination]'s backing array. They are snapshotted before [destination] is scaled or
  * written, so aliasing has the same result as a call over independent inputs.
  */
-public fun DenseMatrix.gemvInto(alpha: Double, x: DenseVector, beta: Double, destination: DoubleArray) {
+@Suppress("LongParameterList") // the BLAS dgemv signature
+@JvmOverloads
+public fun DenseMatrix.gemvInto(
+    alpha: Double,
+    x: DenseVector,
+    beta: Double,
+    destination: DoubleArray,
+    transpose: Boolean = false,
+) {
     val a = this
-    requireShape(a.cols == x.size) { "gemvInto shape mismatch: A is ${a.rows}x${a.cols}, x size ${x.size}" }
-    requireShape(destination.size == a.rows) {
-        "gemvInto: destination size ${destination.size} != rows ${a.rows}"
+    val depth = if (transpose) a.rows else a.cols
+    val outputs = if (transpose) a.cols else a.rows
+    requireShape(depth == x.size) { "gemvInto shape mismatch: A is ${a.rows}x${a.cols}, x size ${x.size}" }
+    requireShape(destination.size == outputs) {
+        "gemvInto: destination size ${destination.size} != $outputs"
     }
     // The seams quick-return on a zero-extent operand before scaling, which is netlib's rule for gemv but
     // not the contract above: this one promises that `beta == 0.0` overwrites a destination that may arrive
     // holding NaN. Settling it here keeps a zero-column matrix answering the same way as any other.
-    if (alpha == 0.0 || a.cols == 0) {
+    if (alpha == 0.0 || depth == 0) {
         destination.prescale(beta)
         return
     }
     val stableX = x.stableFor(destination)
     val stableA = a.stableFor(destination)
-    koblas.gemv(alpha, stableA, stableX.asContiguousArray(), beta, destination)
+    koblas.gemv(alpha, stableA, stableX.asContiguousArray(), beta, destination, transpose)
 }
 
-/** [gemvInto] with `alpha = 1, beta = 0`, so `destination` receives `A * x`. */
-public fun DenseMatrix.gemvInto(x: DenseVector, destination: DoubleArray): Unit = gemvInto(1.0, x, 0.0, destination)
+/** [gemvInto] with `alpha = 1, beta = 0`, so `destination` receives `op(A) * x`. */
+@JvmOverloads
+public fun DenseMatrix.gemvInto(x: DenseVector, destination: DoubleArray, transpose: Boolean = false): Unit =
+    gemvInto(1.0, x, 0.0, destination, transpose)
 
 /**
  * `y = alpha * A * x + beta * y` for a symmetric `A` (BLAS `dsymv`) into [destination]. Only the [lower]
