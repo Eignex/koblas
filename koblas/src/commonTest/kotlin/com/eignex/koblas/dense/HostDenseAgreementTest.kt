@@ -36,26 +36,31 @@ class HostDenseAgreementTest {
     private fun composed(host: Blas): HostDenseBlas =
         HostDenseBlas(PortableDenseBlas(ScalarVectorKernels, PortablePanelKernels), host, minimumWork = 0)
 
-    private inline fun withHost(what: String, block: (HostDenseBlas) -> Unit) {
+    /** The composition and the binding under it, or a line saying what this host could not check. */
+    private inline fun withHost(what: String, block: (HostDenseBlas, Blas) -> Unit) {
         val host = openBlas()
         if (host == null) {
             println("SKIPPED: no CBLAS library installed; $what was not verified on this host")
             return
         }
-        block(composed(host))
+        block(composed(host), host)
     }
 
     /**
      * Every routine these cases compute through actually reaches the library, or the coverage has lapsed.
      *
-     * The composition here admits any size, so the only thing that can send one of these calls back to the
-     * portable schedule is a compatibility rule. That is a correct outcome and a silent loss of coverage at
-     * the same time, so it is asserted rather than left to be noticed. `syr2k` is the one that is meant to
-     * stay, and it is listed as such.
+     * The composition here admits any size, so what can send one of these calls back to the portable
+     * schedule is a compatibility rule or a library that does not export the entry point. Both are correct
+     * outcomes and a silent loss of coverage at the same time, so they are told apart rather than left to be
+     * noticed: an operation the installed binding does not export is named and skipped, and `syr2k`, which
+     * is meant to stay whatever the library exports, is asserted to stay.
+     *
+     * `gemmt` is the one this distinction is really for. Accelerate does not export `cblas_dgemmt`, so on
+     * macOS that row is portable and the composed `gemmt` path is genuinely unexercised there.
      */
     @Test
     fun `every routine these cases cover reaches the library except the one that may not`() =
-        withHost("the routing behind these cases") { blas ->
+        withHost("the routing behind these cases") { blas, host ->
             val order = ORDER
             val admitted = listOf(
                 DenseMatrixOperation.Gemv to DenseCall(ROWS, COLUMNS, alpha = ALPHA, beta = BETA),
@@ -77,6 +82,14 @@ class HostDenseAgreementTest {
             )
 
             for ((operation, call) in admitted) {
+                val entry = requireNotNull(HostDensePolicy.entryPointFor(operation))
+                if (entry !in host.directlyImplemented) {
+                    println(
+                        "SKIPPED: ${host.vendor.vendorName} does not export ${entry.entryPoint}; " +
+                            "the composed $operation path was not exercised on this host",
+                    )
+                    continue
+                }
                 val route = blas.routeOf(operation, call)
                 assertEquals(HOST_SCHEDULING, route.scheduling, "$operation no longer reaches the library")
                 assertTrue(route.host != null, "$operation named no vendor call")
@@ -90,7 +103,7 @@ class HostDenseAgreementTest {
 
     @Test
     fun `the matrix vector routines agree with the definition on both orientations`() =
-        withHost("the matrix-vector routines") { blas ->
+        withHost("the matrix-vector routines") { blas, _ ->
             val rng = Random(11)
             val a = randomMatrix(ROWS, COLUMNS, rng)
             for (transpose in booleanArrayOf(false, true)) {
@@ -107,7 +120,9 @@ class HostDenseAgreementTest {
         }
 
     @Test
-    fun `the symmetric routines read only the triangle they were given`() = withHost("the symmetric routines") { blas ->
+    fun `the symmetric routines read only the triangle they were given`() = withHost(
+        "the symmetric routines",
+    ) { blas, _ ->
         val rng = Random(12)
         for (lower in booleanArrayOf(true, false)) {
             val (full, poisoned) = poisonedSymmetric(rng, ORDER, lower)
@@ -131,7 +146,7 @@ class HostDenseAgreementTest {
 
     @Test
     fun `a symmetric product from the right is the other side and not the same call`() =
-        withHost("the right-side symmetric product") { blas ->
+        withHost("the right-side symmetric product") { blas, _ ->
             val rng = Random(14)
             val (full, poisoned) = poisonedSymmetric(rng, ORDER, lower = true)
             val b = randomMatrix(SIDES, ORDER, rng)
@@ -145,7 +160,7 @@ class HostDenseAgreementTest {
         }
 
     @Test
-    fun `the rank updates write only the selected triangle`() = withHost("the rank updates") { blas ->
+    fun `the rank updates write only the selected triangle`() = withHost("the rank updates") { blas, _ ->
         val rng = Random(16)
         for (lower in booleanArrayOf(true, false)) {
             val x = DenseVector.wrap(randomVector(ORDER, rng))
@@ -167,7 +182,7 @@ class HostDenseAgreementTest {
     }
 
     @Test
-    fun `a general rank update covers the whole destination`() = withHost("ger") { blas ->
+    fun `a general rank update covers the whole destination`() = withHost("ger") { blas, _ ->
         val rng = Random(18)
         val x = randomVector(ROWS, rng)
         val y = randomVector(COLUMNS, rng)
@@ -189,7 +204,7 @@ class HostDenseAgreementTest {
      */
     @Test
     fun `the triangular vector routines cover all eight traversals`() =
-        withHost("the triangular vector routines") { blas ->
+        withHost("the triangular vector routines") { blas, _ ->
             val rng = Random(19)
             for (lower in booleanArrayOf(true, false)) {
                 for (transpose in booleanArrayOf(false, true)) {
@@ -217,7 +232,7 @@ class HostDenseAgreementTest {
 
     @Test
     fun `the triangular matrix routines cover both sides and both traversals`() =
-        withHost("the triangular matrix routines") { blas ->
+        withHost("the triangular matrix routines") { blas, _ ->
             val rng = Random(20)
             for (lower in booleanArrayOf(true, false)) {
                 for (transpose in booleanArrayOf(false, true)) {
@@ -246,7 +261,7 @@ class HostDenseAgreementTest {
         }
 
     @Test
-    fun `a product agrees on every combination of transposes`() = withHost("the product") { blas ->
+    fun `a product agrees on every combination of transposes`() = withHost("the product") { blas, _ ->
         val rng = Random(21)
         for (transposeA in booleanArrayOf(false, true)) {
             for (transposeB in booleanArrayOf(false, true)) {
@@ -273,7 +288,7 @@ class HostDenseAgreementTest {
      */
     @Test
     fun `the triangle selected products write one triangle and leave the other alone`() =
-        withHost("the triangle-selected products") { blas ->
+        withHost("the triangle-selected products") { blas, _ ->
             val rng = Random(22)
             for (lower in booleanArrayOf(true, false)) {
                 val a = randomMatrix(ORDER, DEPTH, rng)
@@ -311,7 +326,7 @@ class HostDenseAgreementTest {
      */
     @Test
     fun `an operand sharing the destination gives the answer two separate operands would`() =
-        withHost("the staged aliases") { blas ->
+        withHost("the staged aliases") { blas, _ ->
             val rng = Random(23)
             val workspace = Workspace()
             val square = wellConditioned(ORDER, rng)
@@ -338,7 +353,7 @@ class HostDenseAgreementTest {
 
     @Test
     fun `a zero multiplier scales the destination and reads no operand`() =
-        withHost("the zero-multiplier no-read rule") { blas ->
+        withHost("the zero-multiplier no-read rule") { blas, _ ->
             val poisoned = DenseMatrix.wrap(ORDER, ORDER, DoubleArray(ORDER * ORDER) { Double.NaN })
             val destination = DenseMatrix.wrap(ORDER, ORDER, DoubleArray(ORDER * ORDER) { 2.0 + it })
             val expected = DoubleArray(ORDER * ORDER) { BETA * (2.0 + it) }
@@ -350,7 +365,7 @@ class HostDenseAgreementTest {
 
     @Test
     fun `a zero destination multiplier overwrites whatever stood there`() =
-        withHost("the zero-beta no-read rule") { blas ->
+        withHost("the zero-beta no-read rule") { blas, _ ->
             val rng = Random(24)
             val a = randomMatrix(ROWS, DEPTH, rng)
             val b = randomMatrix(DEPTH, COLUMNS, rng)
@@ -364,7 +379,7 @@ class HostDenseAgreementTest {
         }
 
     @Test
-    fun `a bad shape is refused before anything is written`() = withHost("shape validation") { blas ->
+    fun `a bad shape is refused before anything is written`() = withHost("shape validation") { blas, _ ->
         val a = DenseMatrix.zero(ROWS, DEPTH)
         val destination = DenseMatrix.wrap(ROWS, COLUMNS, DoubleArray(ROWS * COLUMNS) { 3.0 })
 
