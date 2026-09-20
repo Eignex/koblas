@@ -94,28 +94,6 @@ internal inline fun forEachTriangularBlock(
 }
 
 /**
- * The groups of right-hand sides one diagonal block is substituted in, in the order it takes them.
- *
- * The backend's recommendation governs every call and not only the gathered ones: the substitution reads its
- * block of sides once for every step before the one it is on, so how wide that block is decides what stays
- * resident whether the sides were copied or were already adjacent. One traversal, walked by the execution
- * below and by the route that describes it, because reporting one width while handing over another would be
- * the difference between a description and a guess.
- *
- * A backend that wants every side at once says so, which is what the portable one answers, and then this is
- * a single group. The last group of a call whose sides do not divide is shorter than the rest, and it is the
- * one a route that assumed they were all full would miss.
- */
-internal inline fun forEachRightHandSideGroup(sides: Int, group: Int, action: (first: Int, lanes: Int) -> Unit) {
-    var first = 0
-    while (first < sides) {
-        val lanes = if (group < sides - first) group else sides - first
-        action(first, lanes)
-        first += lanes
-    }
-}
-
-/**
  * `B = alpha · op(T)⁻¹ · B` or `B = alpha · op(T) · B`, from either side, over a triangle already staged
  * against an overlap with [b].
  *
@@ -173,7 +151,14 @@ internal fun triangularMatrix(
     }
 }
 
-/** Right-hand sides one diagonal substitution takes at a time, kept inside what the call actually has. */
+/**
+ * Right-hand sides one diagonal substitution takes at a time, kept inside what the call actually has.
+ *
+ * The backend's recommendation governs every call and not only the gathered ones: the substitution reads its
+ * block of sides once for every step before the one it is on, so how wide that block is decides what stays
+ * resident whether the sides were copied or were already adjacent. A backend that wants every side at once
+ * says so, which is what the portable one answers, and then the substitution is a single group.
+ */
 internal fun triangularGroup(triangles: DenseTriangularKernels, block: Int, sides: Int): Int {
     val recommended = triangles.rightHandSideGroup(block, sides)
     val bounded = if (recommended > sides) sides else recommended
@@ -205,7 +190,7 @@ private fun diagonalStep(
     gathers: Boolean,
     gathered: DoubleArray,
 ) {
-    forEachRightHandSideGroup(sides, group) { first, lanes ->
+    forEachPanel(sides, group) { first, lanes ->
         val origin = start * orderStride + first * rhsStride
         if (!gathers) {
             substitute(

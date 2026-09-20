@@ -356,7 +356,7 @@ internal class DenseRouteReporter(
         val entry = if (solve) "diagonal-solve" else "diagonal-multiply"
         val before = parts.components.size
         forEachTriangularBlock(order, block, mLower, solve) { _, size, _, targetCount, _, sourceCount ->
-            forEachRightHandSideGroup(sides, group) { _, lanes ->
+            forEachPanel(sides, group) { _, lanes ->
                 for (body in triangles.implementationsFor(size, lanes, gathers || rhsStride == 1)) {
                     parts.add("$body/$entry")
                 }
