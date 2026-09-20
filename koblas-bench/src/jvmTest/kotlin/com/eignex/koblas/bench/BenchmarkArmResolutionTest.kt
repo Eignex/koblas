@@ -41,7 +41,7 @@ class BenchmarkArmResolutionTest {
      * portable engine and `jvm-simd` refuses to run at all.
      */
     @Test
-    fun `jvm default mode resolves the platform engine rather than an exact arm`() {
+    fun `jvm default mode resolves the platform selection`() {
         val (engine, identity) = resolveEngine("jvm-default")
 
         assertTrue(engine === koblas, "jvm-default resolved an engine other than the platform default")
