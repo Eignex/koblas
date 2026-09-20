@@ -152,4 +152,28 @@ class CasesTest {
         assertEquals("e6ac2de9cae9ebe8", digest(sparse.values))
         assertEquals(listOf(0, 3, 6, 9, 12, 15), sparse.copyColumnPointers().toList())
     }
+
+    /**
+     * The dense operand's storage is a fact about a sparse product and about nothing else here.
+     *
+     * A sparse product against a dense block can take that block either way round, and which way it is
+     * stored decides whether a group of right-hand sides is adjacent rows or adjacent columns. The other
+     * sparse operations have no such operand, or no flag for it on the entry point the case calls, so the
+     * option is refused there rather than parsed and ignored.
+     */
+    @Test
+    fun `a transposed dense operand is accepted only where a sparse product takes one`() {
+        for (operation in listOf("spmm", "spmm-generic")) {
+            val case = Cases.parse("$operation+9x4x7+sparse-uniform+density=0.25+mode=oneshot+transB=T").single()
+            assertEquals("T", case.option("transB", "N"))
+            assertEquals("$operation+9x4x7+sparse-uniform+density=0.25+mode=oneshot+transB=T", case.id)
+        }
+        for (id in listOf(
+            "spmm-right+9x4x7+sparse-uniform+density=0.25+mode=oneshot+transB=T",
+            "spgemv+9x7+sparse-uniform+density=0.25+mode=oneshot+transB=T",
+            "spgemm+9x5x7+sparse-uniform+density=0.25+mode=oneshot+transB=T",
+        )) {
+            assertFailsWith<IllegalArgumentException> { Cases.parse(id) }
+        }
+    }
 }

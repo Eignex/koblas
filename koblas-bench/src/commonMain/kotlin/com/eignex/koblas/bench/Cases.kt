@@ -157,6 +157,9 @@ internal object Cases {
         // The sparse operand's own orientation, which is what a prepared transposed product derives once.
         if (operation in TRANSPOSABLE_SPARSE_OPERATIONS) add("transA")
         if (operation == "gemm") add("transB")
+        // Dense storage changes the axis available to a right-hand side panel. The benchmark currently
+        // exposes this flag for left-sparse products; the production right-sparse API also supports it.
+        if (operation in setOf("spmm", "spmm-generic")) add("transB")
         if (operation in setOf("scal", "spgather")) add("timing")
         if (operation in MODE_OPERATIONS) add("mode")
         if (operation in PREPARABLE_OPERATIONS) add("reuse")

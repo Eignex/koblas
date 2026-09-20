@@ -185,6 +185,7 @@ internal fun sparseMatrixArm(case: BenchCase, engine: KoblasEngine): ArmChoice? 
     val d = case.dimensions
     val lower = case.option("uplo", "L") == "L"
     val transpose = case.flag("transA")
+    val transposeDense = case.flag("transB")
     val unit = case.option("diag", "U") == "U"
     val right = case.option("side", "L") == "R"
     val mode = case.option("mode", "oneshot")
@@ -231,27 +232,31 @@ internal fun sparseMatrixArm(case: BenchCase, engine: KoblasEngine): ArmChoice? 
             val (m, n, k) = d
             val a = Fixtures.sparse(if (transpose) k else m, if (transpose) m else k, density, 1, support = support)
             val reference = a.toArray()
-            val b = Fixtures.matrix(k, n, 2)
+            // Transposed storage puts the right-hand sides in adjacent rows. The seeded fixture is
+            // reshaped for this layout; the reference uses these same stored values and transpose flag.
+            val b = if (transposeDense) Fixtures.matrix(n, k, 2) else Fixtures.matrix(k, n, 2)
             val c0 = Fixtures.matrix(m, n, 3)
             val c = Fixtures.matrix(m, n, 3)
             val expected = SparseReference.gemm(
-                alpha, reference, transpose, SparseReference.dense(b), false, beta, SparseReference.dense(c0),
+                alpha, reference, transpose, SparseReference.dense(b), transposeDense, beta,
+                SparseReference.dense(c0),
             )
             val call = SparseCall(
                 a, alpha, beta,
                 destinationElements = c.values.size, depth = k, rightHandSides = n, transposeSparse = transpose,
+                transposeDense = transposeDense,
             )
             if (case.operation == "spmm-generic") {
                 genericArm(
                     case, engine, SparseMatrixOperation.GemmDense, call,
                     verify = {
                         c0.values.copyInto(c.values)
-                        (a as Matrix).gemmInto(alpha, transpose, b as Matrix, false, beta, c, workspace)
+                        (a as Matrix).gemmInto(alpha, transpose, b as Matrix, transposeDense, beta, c, workspace)
                         SparseReference.check(expected, SparseReference.dense(c), "${case.id} generic product")
                     },
                 ) {
                     c0.values.copyInto(c.values)
-                    (a as Matrix).gemmInto(alpha, transpose, b as Matrix, false, beta, c, workspace)
+                    (a as Matrix).gemmInto(alpha, transpose, b as Matrix, transposeDense, beta, c, workspace)
                     c.values[0]
                 }
             } else {
@@ -259,22 +264,22 @@ internal fun sparseMatrixArm(case: BenchCase, engine: KoblasEngine): ArmChoice? 
                     case, engine, SparseMatrixOperation.GemmDense, call, mode, a,
                     verifyOneShot = {
                         c0.values.copyInto(c.values)
-                        engine.gemm(alpha, a, transpose, b, false, beta, c, workspace = workspace)
+                        engine.gemm(alpha, a, transpose, b, transposeDense, beta, c, workspace = workspace)
                         SparseReference.check(expected, SparseReference.dense(c), "${case.id} product")
                     },
                     verifyPrepared = { snapshot ->
                         c0.values.copyInto(c.values)
-                        snapshot.gemm(alpha, transpose, b, beta, c, workspace)
+                        snapshot.gemm(alpha, transpose, b, transposeDense, beta, c, right = false, workspace)
                         SparseReference.check(expected, SparseReference.dense(c), "${case.id} prepared product")
                     },
                     oneShot = {
                         c0.values.copyInto(c.values)
-                        engine.gemm(alpha, a, transpose, b, false, beta, c, workspace = workspace)
+                        engine.gemm(alpha, a, transpose, b, transposeDense, beta, c, workspace = workspace)
                         c.values[0]
                     },
                     prepared = { snapshot ->
                         c0.values.copyInto(c.values)
-                        snapshot.gemm(alpha, transpose, b, beta, c, workspace)
+                        snapshot.gemm(alpha, transpose, b, transposeDense, beta, c, right = false, workspace)
                         c.values[0]
                     },
                 )
