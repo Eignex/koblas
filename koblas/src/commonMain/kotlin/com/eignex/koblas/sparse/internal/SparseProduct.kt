@@ -53,7 +53,7 @@ internal fun multiplySparse(
             used = if (alpha == 0.0) {
                 SparseAccumulationKernels.accumulateProductPattern(
                     a.rowIndices, a.colPointers[l], a.colPointers[l + 1], firstRow, lastRow,
-                    alpha, epoch, values, touchedIn, touched, used,
+                    epoch, values, touchedIn, touched, used,
                 )
             } else {
                 SparseAccumulationKernels.accumulateProductSlice(
