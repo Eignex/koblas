@@ -85,26 +85,29 @@ internal class DenseRouteReporter(
         }
     }
 
+    /** The route these parts describe, composed where one unit of work reached a body another did not. */
+    private fun Parts.route(operation: DenseMatrixOperation, reason: String): DenseMatrixRoute =
+        route(operation, if (composed) RouteKind.Composed else RouteKind.Direct, components, group, reason)
+
     /**
      * What one product window of these extents executes, appended to [parts].
      *
      * The same question [productWindow] answers when it runs: a window with enough arithmetic to hide a copy
      * of both operands is packed into the backend's tiles, and one without runs as panel work over the
      * operands where they lie. [packLeft] and [packRight] are false where an operand arrived packed, since
-     * the copy it would name has already happened.
+     * the copy it would name has already happened. The answer comes back, so a caller that has to describe
+     * the choice asks it once rather than again.
      */
     private fun addProductWindow(
         parts: Parts,
         call: WindowShape,
         packLeft: Boolean = true,
         packRight: Boolean = true,
-    ) {
-        if (call.rows <= 0 || call.columns <= 0) return
-        if (packsWindow(products, call.rows, call.columns, call.depth, call.selected)) {
-            addBlockedWindow(parts, call, packLeft, packRight)
-        } else {
-            addDirectWindow(parts, call)
-        }
+    ): Boolean {
+        if (call.rows <= 0 || call.columns <= 0) return false
+        val packs = packsWindow(products, call.rows, call.columns, call.depth, call.selected)
+        if (packs) addBlockedWindow(parts, call, packLeft, packRight) else addDirectWindow(parts, call)
+        return packs
     }
 
     /** The packing and tile bodies a blocked window reaches, taken from walking its own block schedule. */
@@ -144,29 +147,9 @@ internal class DenseRouteReporter(
         column: Int,
         columnCount: Int,
         depth: Int,
-    ) {
-        val tileRows = products.tileRows
-        val tileColumns = products.tileColumns
-        var tileColumn = 0
-        while (tileColumn < columnCount) {
-            val columns = if (tileColumns < columnCount - tileColumn) tileColumns else columnCount - tileColumn
-            var tileRow = 0
-            while (tileRow < rowCount) {
-                val rows = if (tileRows < rowCount - tileRow) tileRows else rowCount - tileRow
-                val at = row + tileRow
-                val from = column + tileColumn
-                if (!outsideTriangle(at, rows, from, columns, call.selected)) {
-                    for (body in products.implementationsFor(rows, columns, depth)) {
-                        parts.add("$body/product-block")
-                    }
-                    if (!insideTriangle(at, rows, from, columns, call.selected)) {
-                        parts.add("$TRIANGLE_SELECTION/triangle-tile")
-                    }
-                }
-                tileRow += tileRows
-            }
-            tileColumn += tileColumns
-        }
+    ) = forEachSelectedTile(products, row, rowCount, column, columnCount, call.selected) { _, rows, _, columns, whole ->
+        for (body in products.implementationsFor(rows, columns, depth)) parts.add("$body/product-block")
+        if (!whole) parts.add("$TRIANGLE_SELECTION/triangle-tile")
     }
 
     /**
@@ -179,14 +162,12 @@ internal class DenseRouteReporter(
      * why the stride is worked out rather than read off the flag.
      */
     private fun addDirectWindow(parts: Parts, call: WindowShape) {
-        val work = if (call.transposeA) PanelWork.MultiDot else PanelWork.ColumnUpdate
+        val work = directPanelWork(call.transposeA)
         val chunk = directColumnBlock(call.rows)
-        val panelRows = if (call.transposeA) call.depth else chunk
-        val panelColumns = if (call.transposeA) call.rows else call.depth
         val strided = call.transposeA && call.rightStride != 1
         val gathers = gathersCoefficients(panels, call.rows, call.depth, strided)
         val contiguous = !strided || gathers
-        val group = panels.executionGroup(work, panelRows, panelColumns)
+        val group = directPanelGroup(panels, call.rows, call.depth, call.transposeA)
         if (gathers) parts.add("$PRODUCT_PACKING/right-column")
         val entry = panelEntryPoint(work)
         val before = parts.components.size
@@ -196,7 +177,7 @@ internal class DenseRouteReporter(
             val rows = selectedRows(column, call.rows, call.selected)
             if (call.transposeA) {
                 forEachPanel(rows, group) { _, width ->
-                    parts.add("${panels.implementationFor(work, panelRows, width, contiguous)}/$entry")
+                    parts.add("${panels.implementationFor(work, call.depth, width, contiguous)}/$entry")
                 }
             } else {
                 // The accumulating route cuts each column into chunks of a bounded height, so the last
@@ -228,7 +209,7 @@ internal class DenseRouteReporter(
         val parts = Parts()
         val retained = operation != DenseMatrixOperation.Gemm
         val shape = WindowShape(call.rows, call.columns, k, call.transposeA, call.transposeB, OutputTriangle.Full)
-        if (retained) {
+        val packed = if (retained) {
             // A packed operand is already in the tiles, so the window is blocked whatever its extents are.
             addBlockedWindow(
                 parts,
@@ -236,15 +217,12 @@ internal class DenseRouteReporter(
                 packLeft = operation == DenseMatrixOperation.GemmPackedRight,
                 packRight = operation == DenseMatrixOperation.GemmPackedLeft,
             )
+            true
         } else {
             addProductWindow(parts, shape)
         }
-        val packed = retained || packsWindow(products, call.rows, call.columns, k, OutputTriangle.Full)
-        return route(
+        return parts.route(
             operation,
-            if (parts.composed) RouteKind.Composed else RouteKind.Direct,
-            parts.components,
-            parts.group,
             if (packed) {
                 "the product is cut into cache blocks, with beta carried by the first depth block" +
                     if (retained) "; a retained panel is read where it lies rather than packed again" else ""
@@ -271,11 +249,8 @@ internal class DenseRouteReporter(
         addProductWindow(parts, shape)
         val pairs = operation == DenseMatrixOperation.Syr2k
         if (pairs) parts.composed = true
-        return route(
+        return parts.route(
             operation,
-            if (parts.composed) RouteKind.Composed else RouteKind.Direct,
-            parts.components,
-            parts.group,
             (
                 if (pairs) {
                     "the rank update is the two products it is defined as, composed rather than fused, each "
@@ -320,11 +295,8 @@ internal class DenseRouteReporter(
             }
         }
         if (order > block) parts.composed = true
-        return route(
+        return parts.route(
             operation,
-            if (parts.composed) RouteKind.Composed else RouteKind.Direct,
-            parts.components,
-            parts.group,
             "the symmetric operand is cut into diagonal blocks and the stored strips beside them; a strip " +
                 "is multiplied as stored and again transposed, which is the half that is not stored, and " +
                 "only a diagonal block is copied",
@@ -375,11 +347,8 @@ internal class DenseRouteReporter(
         // A call whose order is not a multiple of the block ends on a shorter one, and the substitution that
         // block reaches need not be the one the full blocks reached.
         if (parts.components.size - before > 1) parts.composed = true
-        return route(
+        return parts.route(
             operation,
-            if (parts.composed) RouteKind.Composed else RouteKind.Direct,
-            parts.components,
-            parts.group,
             "the dependency chain is cut into diagonal blocks of $block, each substituted over $group " +
                 "right-hand sides at a time" +
                 (if (gathers) " in a gathered copy of them" else " where they lie") +
@@ -442,9 +411,7 @@ internal class DenseRouteReporter(
             else -> call.rows
         }
         if (!scales || call.beta == 0.0 || call.beta == 1.0 || elements == 0) return emptyList()
-        val leaf = vectors.implementationFor(DenseOperation.Scale, elements)
-            ?: return listOf("${vectors.name}/scale")
-        return listOf("$leaf/scale")
+        return scaleComponent(vectors, elements)
     }
 
     /**
@@ -503,9 +470,9 @@ internal class DenseRouteReporter(
      * The windows a call of [operation] hands to its panel, as the length of each and how many columns it
      * carries.
      *
-     * Written out beside the traversals rather than derived from them, so that a route and a call can be
-     * compared with each other. The lengths are what a triangle's storage leaves at each group, which is
-     * why the selected triangle and the grouping are both part of the question.
+     * Each traversal is walked through the same helper the call itself walks, so the lengths are the ones
+     * the schedule really cuts: what a triangle's storage leaves at each group, in the order the dependence
+     * reaches it.
      */
     private inline fun forEachWindow(
         operation: DenseMatrixOperation,
@@ -516,24 +483,28 @@ internal class DenseRouteReporter(
         val n = call.rows
         when (operation) {
             DenseMatrixOperation.Symv ->
-                forEachPanel(n, group) { start, width ->
-                    action(if (call.lower) n - (start + width) else start, width)
+                forEachTrianglePanel(n, group, call.lower, fromDiagonal = false) { _, width, _, rows ->
+                    action(rows, width)
                 }
 
             DenseMatrixOperation.Syr ->
-                forEachPanel(n, group) { start, width ->
-                    action(if (call.lower) n - (start + width - 1) else start + 1, width)
+                forEachTrianglePanel(n, group, call.lower, fromDiagonal = true) { _, width, _, rows ->
+                    action(rows, width)
                 }
 
             // A triangular traversal's windows are every length below the order, and which end it starts
             // from is the dependency order's, not the triangle's: a solve removes a finished entry from
             // everything still to come, so its windows shrink, and a multiply consumes a column before the
             // columns that would overwrite it, so its windows grow. Transposing swaps the two.
-            DenseMatrixOperation.Trsv, DenseMatrixOperation.TrmvTransposed ->
-                for (k in n - 1 downTo 0) action(k, 1)
-
-            DenseMatrixOperation.Trmv, DenseMatrixOperation.TrsvTransposed ->
-                for (k in 0 until n) action(k, 1)
+            DenseMatrixOperation.Trsv, DenseMatrixOperation.TrmvTransposed,
+            DenseMatrixOperation.Trmv, DenseMatrixOperation.TrsvTransposed,
+            -> {
+                val ascending = call.lower == (
+                    operation == DenseMatrixOperation.Trsv ||
+                        operation == DenseMatrixOperation.TrmvTransposed
+                    )
+                forEachTriangularColumn(n, call.lower, ascending) { _, _, rows -> action(rows, 1) }
+            }
 
             // A rectangular operand's columns are all as long as it is tall, whatever the grouping.
             else -> forEachPanel(call.columns, group) { _, width -> action(n, width) }

@@ -104,6 +104,15 @@ internal fun applyBeta(k: DenseVectorKernels, v: DoubleArray, off: Int, len: Int
     }
 }
 
+/**
+ * The `scale` component a destination multiplier of [elements] entries reaches, as a route names it.
+ *
+ * One answer for the dense and sparse schedules, which scale a destination the same way: the leaf the
+ * backend resolves for that length, or the backend's own name where it decides on the values instead.
+ */
+internal fun scaleComponent(vectors: DenseVectorKernels, elements: Int): List<String> =
+    listOf("${vectors.implementationFor(DenseOperation.Scale, elements) ?: vectors.name}/scale")
+
 /** Pure Kotlin scalar kernels retained as the portable fallback and semantic reference for compiled leaves. */
 internal object ScalarVectorKernels : DenseVectorKernels {
     override val name: String get() = "scalar"
