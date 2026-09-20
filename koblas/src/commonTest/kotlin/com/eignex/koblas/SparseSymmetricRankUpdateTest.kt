@@ -81,18 +81,28 @@ class SparseSymmetricRankUpdateTest {
     }
 
     @Test
-    fun `sparse rank updates match dense IEEE arithmetic for implicit zeros`() {
-        val source = SparseMatrix.ofColumns(3, 3, listOf(emptyList(), emptyList(), emptyList()))
-        val x = SparseVector.of(3, intArrayOf(0), doubleArrayOf(Double.POSITIVE_INFINITY))
+    fun `nonfinite operands do not expand sparse rank update support`() {
+        val source = SparseMatrix.ofColumns(3, 3, List(3) { emptyList() })
         val y = SparseVector.of(3, intArrayOf(2), doubleArrayOf(2.0))
 
-        for (lower in booleanArrayOf(true, false)) {
-            val expected = source.denseCopy()
-            ReferenceBlas.syr2(1.0, x, y, expected, lower)
+        for (alpha in doubleArrayOf(1.0, Double.POSITIVE_INFINITY, Double.NaN)) {
+            for (value in doubleArrayOf(1.0, Double.POSITIVE_INFINITY, Double.NaN)) {
+                val sparse = SparseVector.of(3, intArrayOf(0, 1), doubleArrayOf(value, 0.0))
+                for (x in listOf<Vector>(sparse, DenseVector.of(sparse.toDoubleArray()))) {
+                    for (lower in booleanArrayOf(true, false)) {
+                        val rankOne = source.syr(alpha, x, lower)
+                        val rankTwo = source.syr2(alpha, x, y, lower)
 
-            val actual = source.syr2(1.0, x, y, lower)
-
-            assertMatrixEquals(expected, actual, "lower=$lower")
+                        assertContentEquals(intArrayOf(0, 1, 1, 1), rankOne.copyColumnPointers())
+                        assertContentEquals(intArrayOf(0), rankOne.copyRowIndices())
+                        assertContentEquals(
+                            if (lower) intArrayOf(0, 1, 1, 1) else intArrayOf(0, 0, 0, 1),
+                            rankTwo.copyColumnPointers(),
+                        )
+                        assertContentEquals(intArrayOf(if (lower) 2 else 0), rankTwo.copyRowIndices())
+                    }
+                }
+            }
         }
     }
 

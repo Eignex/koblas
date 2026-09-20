@@ -122,6 +122,7 @@ public fun DenseMatrix.syr2(alpha: Double, x: DenseVector, y: DenseVector, lower
  *
  * Existing explicit zeros survive. A coordinate reached by nonzero vector support is stored even when its
  * arithmetic cancels or underflows to zero, so the returned matrix never silently drops discovered fill.
+ * Zero vector entries are skipped, including with non-finite operands; dense NaN propagation is not guaranteed.
  * The result owns independent structural and value arrays, and its rows ascend within every column.
  */
 @JvmOverloads
@@ -136,7 +137,8 @@ public fun SparseMatrix.syr(alpha: Double, x: Vector, lower: Boolean = true): Sp
  * its source, because newly nonzero entries may require CSC fill.
  *
  * Existing explicit zeros survive. A coordinate reached by nonzero vector support is stored even when its
- * two terms cancel or underflow to zero. The result has independent arrays and canonical ascending CSC rows.
+ * two terms cancel or underflow to zero. Zero vector entries are skipped as in [SparseMatrix.syr].
+ * The result has independent arrays and canonical ascending CSC rows.
  */
 @JvmOverloads
 public fun SparseMatrix.syr2(alpha: Double, x: Vector, y: Vector, lower: Boolean = true): SparseMatrix {

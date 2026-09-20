@@ -24,8 +24,7 @@ import com.eignex.koblas.requireShape
 internal fun sparseSyr(a: SparseMatrix, alpha: Double, x: Vector, lower: Boolean): SparseMatrix {
     if (alpha == 0.0) return a.sparseCopy()
     val xs = x.toDoubleArray()
-    if (!alpha.isFinite() || xs.any { !it.isFinite() }) return a.syrWithNonFinite(alpha, xs, lower)
-    return a.syrFinite(alpha, xs, x.nonzeroSupport(xs), lower)
+    return a.syrSupported(alpha, xs, x.nonzeroSupport(xs), lower)
 }
 
 /**
@@ -37,10 +36,7 @@ internal fun sparseSyr2(a: SparseMatrix, alpha: Double, x: Vector, y: Vector, lo
     if (alpha == 0.0) return a.sparseCopy()
     val xs = x.toDoubleArray()
     val ys = y.toDoubleArray()
-    if (!alpha.isFinite() || xs.any { !it.isFinite() } || ys.any { !it.isFinite() }) {
-        return a.syr2WithNonFinite(alpha, xs, ys, lower)
-    }
-    return a.syr2Finite(alpha, xs, x.nonzeroSupport(xs), ys, y.nonzeroSupport(ys), lower)
+    return a.syr2Supported(alpha, xs, x.nonzeroSupport(xs), ys, y.nonzeroSupport(ys), lower)
 }
 
 @OptIn(UnsafeKoblasApi::class)
@@ -52,7 +48,7 @@ private fun SparseMatrix.sparseCopy(): SparseMatrix = SparseMatrix.wrapTrusted(
     values.copyOf(),
 )
 
-private fun SparseMatrix.syrFinite(alpha: Double, x: DoubleArray, support: IntArray, lower: Boolean): SparseMatrix {
+private fun SparseMatrix.syrSupported(alpha: Double, x: DoubleArray, support: IntArray, lower: Boolean): SparseMatrix {
     val out = SparseRankMatrixBuilder(rows, cols, nnz)
     for (j in 0 until cols) {
         out.beginColumn(j)
@@ -65,7 +61,7 @@ private fun SparseMatrix.syrFinite(alpha: Double, x: DoubleArray, support: IntAr
 }
 
 @Suppress("LongParameterList") // both update vectors with their supports
-private fun SparseMatrix.syr2Finite(
+private fun SparseMatrix.syr2Supported(
     alpha: Double,
     x: DoubleArray,
     xSupport: IntArray,
@@ -84,30 +80,6 @@ private fun SparseMatrix.syr2Finite(
             alpha, j, x, xSupport, if (y[j] == 0.0) xEnd else xStart, xEnd,
             y, ySupport, if (x[j] == 0.0) yEnd else yStart, yEnd, this,
         )
-    }
-    return out.build()
-}
-
-/* Non-finite operands need the dense BLAS visitation order: zero times infinity can itself introduce NaN fill. */
-private fun SparseMatrix.syrWithNonFinite(alpha: Double, x: DoubleArray, lower: Boolean): SparseMatrix {
-    val out = SparseRankMatrixBuilder(rows, cols, nnz)
-    for (j in 0 until cols) {
-        out.beginColumn(j)
-        out.appendRankOneDense(alpha, j, x, lower, this)
-    }
-    return out.build()
-}
-
-private fun SparseMatrix.syr2WithNonFinite(
-    alpha: Double,
-    x: DoubleArray,
-    y: DoubleArray,
-    lower: Boolean,
-): SparseMatrix {
-    val out = SparseRankMatrixBuilder(rows, cols, nnz)
-    for (j in 0 until cols) {
-        out.beginColumn(j)
-        out.appendRankTwoDense(alpha, j, x, y, lower, this)
     }
     return out.build()
 }
@@ -211,31 +183,6 @@ private class SparseRankMatrixBuilder(private val rows: Int, private val cols: I
         )
         size += SparseAccumulationKernels.mergeRankTwoColumn(
             alpha, column, x, xSupport, xStart, xEnd, y, ySupport, yStart, yEnd,
-            source.rowIndices, source.values, source.colPointers[column], source.colPointers[column + 1],
-            rowIndices, coefficients, size,
-        )
-    }
-
-    fun appendRankOneDense(alpha: Double, column: Int, x: DoubleArray, lower: Boolean, source: SparseMatrix) {
-        ensureCapacity(rows.toLong())
-        size += SparseAccumulationKernels.updateRankOneDenseColumn(
-            alpha, column, x, lower, rows,
-            source.rowIndices, source.values, source.colPointers[column], source.colPointers[column + 1],
-            rowIndices, coefficients, size,
-        )
-    }
-
-    fun appendRankTwoDense(
-        alpha: Double,
-        column: Int,
-        x: DoubleArray,
-        y: DoubleArray,
-        lower: Boolean,
-        source: SparseMatrix,
-    ) {
-        ensureCapacity(rows.toLong())
-        size += SparseAccumulationKernels.updateRankTwoDenseColumn(
-            alpha, column, x, y, lower, rows,
             source.rowIndices, source.values, source.colPointers[column], source.colPointers[column + 1],
             rowIndices, coefficients, size,
         )
