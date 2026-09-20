@@ -9,9 +9,8 @@ package com.eignex.koblas.dense
 
 import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.DenseVector
-import com.eignex.koblas.StridedVector
 import com.eignex.koblas.Workspace
-import com.eignex.koblas.borrow
+import com.eignex.koblas.staged
 import com.eignex.koblas.vendor.Blas
 import com.eignex.koblas.vendor.BlasOperation
 import com.eignex.koblas.vendor.CallRoute
@@ -164,8 +163,8 @@ internal class HostDenseBlas(
             portable.gemv(alpha, a, x, beta, y, transpose, workspace)
             return
         }
-        stagedMatrix(workspace, a, a.values === y) { sa ->
-            stagedArray(workspace, x, x === y) { sx ->
+        staged(workspace, a, a.values === y) { sa ->
+            staged(workspace, x, x === y) { sx ->
                 host.gemv(alpha, sa, transpose, sx.asVector(), beta, y.asVector())
             }
         }
@@ -179,8 +178,8 @@ internal class HostDenseBlas(
             portable.symv(alpha, a, x, beta, y, lower)
             return
         }
-        stagedMatrix(null, a, a.values === y) { sa ->
-            stagedArray(null, x, x === y) { sx ->
+        staged(null, a, a.values === y) { sa ->
+            staged(null, x, x === y) { sx ->
                 host.symv(alpha, sa, symmetricStructure(lower), sx.asVector(), beta, y.asVector())
             }
         }
@@ -199,8 +198,8 @@ internal class HostDenseBlas(
             portable.ger(alpha, x, y, a)
             return
         }
-        stagedArray(null, x, x === a.values) { sx ->
-            stagedArray(null, y, y === a.values) { sy ->
+        staged(null, x, x === a.values) { sx ->
+            staged(null, y, y === a.values) { sy ->
                 host.ger(alpha, sx.asVector(), sy.asVector(), a)
             }
         }
@@ -212,7 +211,7 @@ internal class HostDenseBlas(
             portable.syr(alpha, x, a, lower)
             return
         }
-        stagedVector(null, x, x.values === a.values) { sx ->
+        staged(null, x, x.values === a.values) { sx ->
             host.syr(alpha, sx, a, symmetricStructure(lower))
         }
     }
@@ -223,8 +222,8 @@ internal class HostDenseBlas(
             portable.syr2(alpha, x, y, a, lower)
             return
         }
-        stagedVector(null, x, x.values === a.values) { sx ->
-            stagedVector(null, y, y.values === a.values) { sy ->
+        staged(null, x, x.values === a.values) { sx ->
+            staged(null, y, y.values === a.values) { sy ->
                 host.syr2(alpha, sx, sy, a, symmetricStructure(lower))
             }
         }
@@ -260,7 +259,7 @@ internal class HostDenseBlas(
             return
         }
         // The triangle is the only operand that can share the destination, since x is the destination.
-        stagedMatrix(null, a, a.values === x) { sa ->
+        staged(null, a, a.values === x) { sa ->
             val structure = triangle(lower, unitDiag)
             if (solve) {
                 host.trsv(sa, structure, transpose, x.asVector())
@@ -289,8 +288,8 @@ internal class HostDenseBlas(
             portable.gemm(alpha, a, transposeA, b, transposeB, beta, c, workspace)
             return
         }
-        stagedMatrix(workspace, a, a.values === c.values) { sa ->
-            stagedMatrix(workspace, b, b.values === c.values) { sb ->
+        staged(workspace, a, a.values === c.values) { sa ->
+            staged(workspace, b, b.values === c.values) { sb ->
                 host.gemm(alpha, sa, transposeA, sb, transposeB, beta, c)
             }
         }
@@ -314,8 +313,8 @@ internal class HostDenseBlas(
             portable.gemmt(alpha, a, transposeA, b, transposeB, beta, c, lower, workspace)
             return
         }
-        stagedMatrix(workspace, a, a.values === c.values) { sa ->
-            stagedMatrix(workspace, b, b.values === c.values) { sb ->
+        staged(workspace, a, a.values === c.values) { sa ->
+            staged(workspace, b, b.values === c.values) { sb ->
                 host.gemmt(alpha, sa, transposeA, sb, transposeB, beta, c, symmetricStructure(lower))
             }
         }
@@ -337,7 +336,7 @@ internal class HostDenseBlas(
             portable.syrk(alpha, a, transpose, beta, c, lower, workspace)
             return
         }
-        stagedMatrix(workspace, a, a.values === c.values) { sa ->
+        staged(workspace, a, a.values === c.values) { sa ->
             host.syrk(alpha, sa, transpose, beta, c, symmetricStructure(lower))
         }
     }
@@ -359,8 +358,8 @@ internal class HostDenseBlas(
             portable.syr2k(alpha, a, b, transpose, beta, c, lower, workspace)
             return
         }
-        stagedMatrix(workspace, a, a.values === c.values) { sa ->
-            stagedMatrix(workspace, b, b.values === c.values) { sb ->
+        staged(workspace, a, a.values === c.values) { sa ->
+            staged(workspace, b, b.values === c.values) { sb ->
                 host.syr2k(alpha, sa, sb, transpose, beta, c, symmetricStructure(lower))
             }
         }
@@ -382,8 +381,8 @@ internal class HostDenseBlas(
             portable.symm(alpha, a, b, beta, c, lower, right, workspace)
             return
         }
-        stagedMatrix(workspace, a, a.values === c.values) { sa ->
-            stagedMatrix(workspace, b, b.values === c.values) { sb ->
+        staged(workspace, a, a.values === c.values) { sa ->
+            staged(workspace, b, b.values === c.values) { sb ->
                 host.symm(alpha, sa, symmetricStructure(lower), sb, beta, c, rightSide = right)
             }
         }
@@ -435,61 +434,13 @@ internal class HostDenseBlas(
             }
             return
         }
-        stagedMatrix(workspace, a, a.values === b.values) { sa ->
+        staged(workspace, a, a.values === b.values) { sa ->
             val structure = triangle(lower, unitDiag)
             if (solve) {
                 host.trsm(alpha, sa, structure, transpose, b, rightSide = right)
             } else {
                 host.trmm(alpha, sa, structure, transpose, b, rightSide = right)
             }
-        }
-    }
-
-    /**
-     * [block] with a copy of [a] when [aliased], and with [a] itself when it is not.
-     *
-     * The loan lasts the call, which is exactly how long the library reads it for. A whole-call binding takes
-     * the caller's storage as it lies and has no way to be told that two of its operands are one buffer, so
-     * the separation is made here rather than asked of the library.
-     */
-    private inline fun <T> stagedMatrix(
-        workspace: Workspace?,
-        a: DenseMatrix,
-        aliased: Boolean,
-        block: (DenseMatrix) -> T,
-    ): T {
-        if (!aliased) return block(a)
-        return workspace.borrow(a.values.size) { copy ->
-            a.values.copyInto(copy)
-            block(DenseMatrix.wrap(a.rows, a.cols, copy))
-        }
-    }
-
-    /** [stagedMatrix] for an operand a caller handed over as a plain array. */
-    private inline fun <T> stagedArray(
-        workspace: Workspace?,
-        values: DoubleArray,
-        aliased: Boolean,
-        block: (DoubleArray) -> T,
-    ): T {
-        if (!aliased) return block(values)
-        return workspace.borrow(values.size) { copy ->
-            values.copyInto(copy)
-            block(copy)
-        }
-    }
-
-    /** [stagedMatrix] for a vector operand, whose origin and spacing the copy keeps. */
-    private inline fun <T> stagedVector(
-        workspace: Workspace?,
-        x: DenseVector,
-        aliased: Boolean,
-        block: (DenseVector) -> T,
-    ): T {
-        if (!aliased) return block(x)
-        return workspace.borrow(x.values.size) { copy ->
-            x.values.copyInto(copy)
-            block(StridedVector(copy, x.offset, x.size, x.stride))
         }
     }
 }

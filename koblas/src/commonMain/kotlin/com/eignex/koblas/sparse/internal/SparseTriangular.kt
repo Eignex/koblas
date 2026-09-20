@@ -90,8 +90,10 @@ internal fun triangularLeftCore(
     )
     val width = rhsWidth(plan)
     val staged = rhsStaged(plan)
-    // Twice the width, because a panel scatter records which right-hand sides are live beside them.
-    workspace.borrow(2 * width) { work ->
+    // Twice the width, because a panel scatter records which right-hand sides are live beside them. A call
+    // whose panels are all one right-hand side wide writes the pivot out itself and reaches no panel, so it
+    // takes no loan rather than leaving a length in the workspace that nothing reads.
+    workspace.borrowOptional(if (width > 1 && sides > 1) 2 * width else 0) { work ->
         workspace.borrowOptional(if (staged) width * n else 0) { panel ->
             forEachPanel(sides, width) { columnStart, actual ->
                 val dense = if (staged) panel else bd

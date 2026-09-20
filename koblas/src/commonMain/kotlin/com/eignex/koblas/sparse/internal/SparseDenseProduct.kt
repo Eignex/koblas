@@ -184,7 +184,10 @@ internal fun multiplyFromTheLeft(
     }
     val width = rhsWidth(plan)
     val staged = rhsStaged(plan)
-    workspace.borrow(width) { work ->
+    // The panel scratch is the panel leaf's, and a call whose panels are all one right-hand side wide never
+    // reaches one. Taking the loan anyway would leave a length in the workspace that nothing reads, which
+    // counts against the few it retains for the shapes the caller is actually working on.
+    workspace.borrowOptional(if (width > 1 && n > 1) width else 0) { work ->
         workspace.borrowOptional(if (staged) width * (if (transposeA) k else m) else 0) { panel ->
             forEachPanel(n, width) { columnStart, actual ->
                 if (transposeA) {

@@ -11,8 +11,8 @@ package com.eignex.koblas.dense
 import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.DenseVector
 import com.eignex.koblas.Workspace
-import com.eignex.koblas.borrow
 import com.eignex.koblas.requireShape
+import com.eignex.koblas.staged
 import com.eignex.koblas.vendor.*
 
 /**
@@ -85,26 +85,6 @@ internal class PortableDenseBlas(
             forEachPanel(a.cols, panels.executionGroup(PanelWork.ColumnUpdate, rows, a.cols)) { start, width ->
                 panels.columnUpdate(alpha, stableA, start * rows, rows, stableX, start, 1, rows, width, y, 0, 1)
             }
-        }
-    }
-
-    /**
-     * [block] with a copy of [values] when [aliased], and with [values] itself when it is not.
-     *
-     * The copy is a loan for the duration of the call, so a caller repeating one shape reuses the same
-     * staging buffer instead of allocating one each time. Where nothing is aliased there is no loan at all,
-     * which is what keeps an ordinary call from touching the workspace.
-     */
-    private inline fun <T> staged(
-        workspace: Workspace?,
-        values: DoubleArray,
-        aliased: Boolean,
-        block: (DoubleArray) -> T,
-    ): T {
-        if (!aliased) return block(values)
-        return workspace.borrow(values.size) { copy ->
-            values.copyInto(copy)
-            block(copy)
         }
     }
 
