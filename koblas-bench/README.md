@@ -298,7 +298,10 @@ work rather than the same work at different speeds:
 `spgemv`, `spmm` and `spgemm` carry all five; `spmm-right` has no prepared form and carries `oneshot`
 alone, as every other sparse matrix case does. `+transA=T` transposes the sparse operand, which is what
 makes `firstuse` differ from `setup`: a prepared transposed product derives its orientation once, and that
-derivation is inside the first use and outside the steady one.
+derivation is inside the first use and outside the steady one. `+transB=T` on `spmm` and `spmm-generic`
+stores the dense operand the other way round, so the right-hand sides a panel is cut from become adjacent
+rows rather than adjacent columns. It is the same result over a different layout, and which layout a
+derived orientation pays off in is a separate question from which one a one-shot call is faster in.
 
 An `amortized` row reports one preparation and all `reuse` uses together: its unit of work is the batch, and
 the comparison a break-even needs is that batch against the same number of one-shot calls. Dividing it by

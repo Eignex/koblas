@@ -9,6 +9,7 @@ import kotlin.test.assertContains
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertNotEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
@@ -386,5 +387,50 @@ class SparseTest {
         )
 
         assertEquals("nowork", route.kind.name.lowercase())
+    }
+
+    /**
+     * Each dense storage layout is checked against its reference before it is timed.
+     *
+     * Constructing the arm runs the case's numerical preflight against the reference computed from the
+     * densified operands, so a layout that computed something else would fail here rather than publish a
+     * number. What the row adds over the untransposed one is which axis the right-hand sides lie along,
+     * which is the axis a panel is cut from.
+     */
+    @Test
+    fun `a transposed dense operand passes numerical preflight`() {
+        val base = "spmm+33x16x21+sparse-uniform+density=0.25"
+
+        val columnMajor = assertNotNull(work("$base+mode=oneshot"))
+        val rowMajor = assertNotNull(work("$base+mode=oneshot+transB=T"))
+        val preparedRowMajor = assertNotNull(work("$base+mode=prepared+transA=T+transB=T"))
+
+        assertContains(assertNotNull(columnMajor.kernel), "spmm")
+        assertContains(assertNotNull(rowMajor.kernel), "spmm")
+        assertContains(assertNotNull(preparedRowMajor.kernel), "spmm")
+    }
+
+    @Test
+    fun `a transposed dense operand reports its actual traversal`() {
+        val engine = BuiltinEngines.scalar
+        val case = Cases.parse("spmm+33x16x21+sparse-uniform+density=0.25+mode=oneshot+transA=T+transB=T")
+            .single()
+        val a = Fixtures.sparse(21, 33, 0.25, 1)
+        fun route(transposeDense: Boolean) = sparseMatrixKernel(
+            engine.matrixRouteOf(
+                SparseMatrixOperation.GemmDense,
+                SparseCall(
+                    a, alpha = 0.875, beta = -0.25, destinationElements = 33 * 16, depth = 21,
+                    rightHandSides = 16, transposeSparse = true, transposeDense = transposeDense,
+                ),
+            ),
+        )
+        val expected = route(true)
+        val wrongLayout = route(false)
+
+        val actual = assertNotNull(sparseArm(case, engine)?.work).kernel
+
+        assertNotEquals(wrongLayout, expected)
+        assertEquals(expected, actual)
     }
 }
