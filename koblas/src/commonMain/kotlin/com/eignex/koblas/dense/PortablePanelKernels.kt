@@ -28,7 +28,7 @@ internal object PortablePanelKernels : DensePanelKernels {
      * group would only change how many calls the traversal makes, and for a triangular caller it also grows
      * the scalar corner with the square of the width.
      *
-     * The comparison is in the stage evidence rather than here, because a figure in this file would be one
+     * The comparison is in the local evidence rather than here, because a figure in this file would be one
      * machine's and the benchmark suites are where a quotable number comes from.
      */
     override fun executionGroup(work: PanelWork, rows: Int, columns: Int, contiguous: Boolean): Int {

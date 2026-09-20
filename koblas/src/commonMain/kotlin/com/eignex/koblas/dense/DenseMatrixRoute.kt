@@ -86,10 +86,9 @@ public enum class DenseMatrixOperation(internal val entryPoint: String) {
  * @property columns the stored columns of that operand.
  * @property alpha the multiplier the call will use.
  * @property beta the destination multiplier, or 1.0 for an operation that has none.
- * @property contiguous whether the vector the panel shares across its columns is adjacent in memory. A
- *   strided operand is scalar work at any width, so it is part of the question. A product does not read it:
- *   both of its operands are whole matrices, so what its panels share follows from the extents and the
- *   transpose flags and is worked out rather than declared.
+ * @property contiguous whether the vector the panel shares across its columns is adjacent in memory, since a
+ *   strided operand is scalar work at any width. A product does not read it: both of its operands are whole
+ *   matrices, so what its panels share follows from the extents and the transpose flags.
  * @property depth the inner extent of a product, or null when the operation has none. Zero is a product over
  *   nothing, which is a call with nothing to do however large its operands are, so it is nullable rather than
  *   zero-defaulted. A product operation requires it: which route such a call takes is a question about all
@@ -106,8 +105,8 @@ public enum class DenseMatrixOperation(internal val entryPoint: String) {
  * @property right whether a two-sided operation has its structured operand on the right, ignored by the rest.
  *   It decides which extent of the destination the right-hand sides are counted along and so how far apart
  *   they lie, which is what a substitution over them has to work with. A unit diagonal is deliberately not
- *   here: it removes a division from every step and changes no body any window reaches, so a route that took
- *   it would be distinguishing calls that execute the same way.
+ *   here: it changes no body any window reaches, so a route that took it would be distinguishing calls that
+ *   execute the same way.
  * @property aliased whether an input operand shares the destination's backing buffer. A built-in schedule
  *   stages a copy of it and reaches the same bodies either way, so the portable route ignores this; a
  *   composition that hands the whole call to a host library cannot, since a whole-call binding takes the
@@ -155,17 +154,16 @@ public class DenseCall(
  *
  * [executionGroup] is how many logical columns the backend recommended handing over at a time for the Level
  * 2 panel work this call schedules, and zero where it schedules none or where the windows it cuts did not
- * agree on one. It is a grouping, not a lane count, and the two are different numbers that agree only by
- * coincidence. A triangular matrix call groups its right-hand sides as well, which is a separate number
- * chosen by a separate backend; that one is named in [reason] rather than here, because a field holding
- * whichever of the two was asked for last would describe neither.
+ * agree on one. It is a grouping, not a lane count. A triangular matrix call groups its right-hand sides as
+ * well, which is a separate number chosen by a separate backend; that one is named in [reason] rather than
+ * here, because a field holding whichever of the two was asked for last would describe neither.
  *
  * [host] is the whole-call vendor route underneath a call an engine handed over entire, and it is a narrower
- * statement than it looks. Its absence says that no single vendor entry point served this call; it does not
- * say that no library ran. Kotlin/Native's default gives its portable dense schedule the vendor's Level 1
- * kernels, so a call that stayed on that schedule can still reach a library for a window of work, and
- * [components] is where such a leaf is named. Reading the two together is what distinguishes a call handed
- * over whole from one this library scheduled and handed pieces of.
+ * statement than it looks: its absence says that no single vendor entry point served this call, not that no
+ * library ran. Kotlin/Native's default gives its portable dense schedule the vendor's Level 1 kernels, so a
+ * call that stayed on that schedule can still reach a library for a window of work, and [components] is
+ * where such a leaf is named. Reading the two together is what distinguishes a call handed over whole from
+ * one this library scheduled and handed pieces of.
  *
  * Building a route inspects the shape, so it belongs before a timed region and never inside one.
  */

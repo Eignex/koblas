@@ -70,21 +70,20 @@ public enum class PanelWork {
  * columns does nothing and reads nothing. A panel with no rows reads no matrix, no shared vector and no
  * coefficient: the three whose destination is the row window write nothing at all, and [multiDot] still
  * writes its own outputs, which the columns select rather than the rows, so with a nonzero `beta` it reads
- * those outputs and scales them. A caller may therefore pass whatever it likes for a window with no extent,
- * and the guards below are what that promise rests on.
+ * those outputs and scales them. A caller may therefore pass whatever it likes for a window with no extent.
  *
  * Implementations read and write only the windows their offsets and extents select, validate nothing, and
  * allocate nothing. A caller that needs several results supplies the array they are written into.
  *
- * Every window a call writes must be disjoint from every source window it reads. The two windows a coupled
- * pass writes must also be disjoint, except for the overlap between corresponding right-hand sides explicitly
- * supported by [indexedCoupledUpdate]. A destination read as part of writing it is not a
- * source: accumulating into the window already there is what most of these do, and a nonzero `beta` reading
- * the output it scales is the same thing. Disjoint windows of one backing array are fine, and so is one
- * source overlapping another: a rank update over a single vector passes the same window twice on purpose.
- * What is not supported is a source overlapping a destination, such as a rank update whose vector lies
- * inside the panel it writes. These leaves check nothing; a public matrix call stages an operand that would
- * break the rule before it reaches one, which is where that guarantee is kept.
+ * Every window a call writes must be disjoint from every source window it reads, and the two windows a
+ * coupled pass writes must be disjoint from each other, except for the overlap [indexedCoupledUpdate]
+ * supports between corresponding right-hand sides. A destination read as part of writing it is not a source:
+ * accumulating into the window already there is what most of these do, and a nonzero `beta` reading the
+ * output it scales is the same thing. Disjoint windows of one backing array are fine, and so is one source
+ * overlapping another, which a rank update over a single vector does on purpose. What is not supported is a
+ * source overlapping a destination, such as a rank update whose vector lies inside the panel it writes.
+ * These leaves check nothing; a public matrix call stages an operand that would break the rule before it
+ * reaches one, which is where that guarantee is kept.
  */
 public interface DensePanelKernels {
     /** Short implementation identifier for diagnostics. */
@@ -312,22 +311,20 @@ public interface DensePanelKernels {
      * Both halves read [b]: the scattered one reads the [rows] entries from [pivot] spaced [rowStride]
      * apart, which is one indexed column of the same window, and the reduced one reads the column each
      * position selects. A caller therefore hands over no coefficients of its own, because gathering that
-     * column into a scratch first would be a pass over it per column of the sparse operand, which is what
-     * this shape exists to avoid.
+     * column into a scratch first would be a pass over it per column of the sparse operand.
      *
      * [a] and [b] are windows of the same shape addressed alike, from [offset] with the two strides
      * [indexedColumnUpdate] describes; a symmetric product passes its destination and its source, which are
      * different arrays. The reduction lands in [rows] entries from [sumOffset] spaced [rowStride] apart.
      * This window may coincide with one indexed column of [a], with each reduction entry overlapping only
-     * the scatter entry for the same logical right-hand side. An overlap between different right-hand sides
+     * the scatter entry for the same logical right-hand side; an overlap between different right-hand sides
      * is unsupported. Where both updates target the same entry, the scatter is applied before the reduction
      * for each stored position. All source windows remain disjoint from both destination windows.
      *
      * [excluded] is a position relative to this run, in `0 until columns`, whose product is scattered but
      * not reduced; `-1` excludes none. The column of [b] it selects is not read, though [pivot] still is,
-     * because the scatter runs at that position like any other. A symmetric column excludes its own
-     * diagonal because that contribution is already scattered into the pivot row; the exclusion suppresses
-     * that second contribution, while the scatter still writes the overlapping destination.
+     * because the scatter runs at that position like any other. A symmetric column excludes its own diagonal
+     * because that contribution is already scattered into the pivot row.
      *
      * Every product is formed, as everywhere in this contract, and the reduction is accumulated into rather
      * than written, so its terms reach the destination in the order the run is walked.

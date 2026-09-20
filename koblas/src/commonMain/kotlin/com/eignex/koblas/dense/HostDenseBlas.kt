@@ -57,10 +57,10 @@ internal const val HOST_STAGING: String = "host-stage/alias"
  *
  * The composition a platform default takes when the host has a tuned library and this library's own Kotlin
  * arithmetic is not vectorised: Kotlin/Native today. It is not the explicit host seam. [VendorDenseBlas] is
- * that, and the difference is the point of both existing. The explicit seam raises where no library is
+ * that, and the difference is the point of both existing: the explicit seam raises where no library is
  * installed and rejects an operand that shares the destination, because a benchmark arm asking for a vendor
- * measurement must not be handed something else; this one never raises for those reasons, because it is what
- * an ordinary call gets and an ordinary call is owed an answer.
+ * measurement must not be handed something else, while this one never raises for those reasons, because it
+ * is what an ordinary call gets and an ordinary call is owed an answer.
  *
  * Six things decide a call, in this order, all of them before anything is written:
  *
@@ -84,8 +84,7 @@ internal const val HOST_STAGING: String = "host-stage/alias"
  * library's, which is latitude [DenseBlas.gemm] already states for any built-in schedule. The rest of the
  * contract is unchanged and belongs to this layer: shapes are validated before anything is written, a zero
  * multiplier reads no operand, an unselected triangle is neither read nor written, and an input that shares
- * the destination's buffer is staged into scratch first. A whole-call binding cannot take that overlap, so
- * the copy is made here and lent by [Workspace] like any other.
+ * the destination's buffer is staged into scratch first, since a whole-call binding cannot take that overlap.
  *
  * Immutable and safe to share. A call takes scratch from the workspace it was given and nothing else, so
  * independent calls with distinct workspaces and distinct destinations do not interact; the binding underneath
@@ -254,13 +253,7 @@ internal class HostDenseBlas(
         val solve = operation == DenseMatrixOperation.Trsv || operation == DenseMatrixOperation.TrsvTransposed
         if (!host(operation, work(operation, a.rows, a.cols))) {
             if (solve) {
-                portable.trsv(
-                    a,
-                    x,
-                    lower,
-                    transpose,
-                    unitDiag,
-                )
+                portable.trsv(a, x, lower, transpose, unitDiag)
             } else {
                 portable.trmv(a, x, lower, transpose, unitDiag)
             }
@@ -514,8 +507,7 @@ internal class HostDenseBlas(
  * states for it on every platform, and a library is installed by the host rather than chosen by the caller,
  * so an ordinary call cannot acquire new latitude from one being present. Where compatibility is not
  * something this policy can establish, the portable schedule is chosen, and it is chosen before anything is
- * written. Callers who want a library's own answers ask for one through [com.eignex.koblas.vendor.Blas],
- * which documents that latitude and is reached deliberately.
+ * written. Callers who want a library's own answers ask for one through [com.eignex.koblas.vendor.Blas].
  *
  * One size threshold for all of them rather than one per operation. The eight Level 1 break-evens that the
  * Kotlin/Native vector kernels split differ because a per-call cost of a few tens of nanoseconds is most of
@@ -631,8 +623,8 @@ internal object HostDensePolicy {
      * neither a finiteness test nor the repartitioning [DenseBlas.gemm] already allows covers them.
      *
      * A unit multiplier does: with nothing to scale, where the scaling would have gone cannot be observed.
-     * The cost is that a scaled product of those three routines keeps this library's schedule, which is a
-     * fallback the plan permits and which happens before anything is written.
+     * The cost is that a scaled product of those three routines keeps this library's schedule, which is the
+     * conservative fallback and is taken before anything is written.
      *
      * Every other bound routine is unrestricted here, because [DenseBlas] promises nothing about where their
      * multiplier lands and the route of the call names the library that answered.

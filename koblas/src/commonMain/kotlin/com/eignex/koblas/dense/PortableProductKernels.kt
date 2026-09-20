@@ -47,9 +47,6 @@ internal object PortableProductKernels : DenseProductKernels {
         ldc: Int,
     ) {
         if (rows <= 0 || columns <= 0) return
-        // The destination multiplier is spent here, once for the whole window, and the tiles below only
-        // accumulate. A zero multiplier fills rather than multiplies, so the values standing in the output
-        // take no part, which is the rule a caller handing over uninitialised storage relies on.
         scaleProductWindow(beta, c, cOffset, ldc, rows, columns)
         if (depth <= 0) return
         var column = 0
@@ -193,18 +190,13 @@ internal fun scaleProductWindow(beta: Double, c: DoubleArray, cOffset: Int, ldc:
  * one tile cannot fill the tiles it would pack into, and a small product pays the copy against too little
  * arithmetic to hide it behind; both run as panel work over the operands where they are instead.
  *
- * The limit is where the copy starts winning consistently rather than where it first wins. The stage
- * evidence compares the two schedules over the same operands on one machine. The original sampled shapes
- * favored packing above this threshold; below it, the winner varied within the run-to-run band. This is a
- * conservative rule for avoiding small copies, not a promise that every larger shape benefits from packing.
- *
- * The calibration looked for a second condition to put beside this one and did not find a defensible one.
- * It measured products this rule packs where the unpacked schedule was faster, thin ones above all, and
- * others of the same arithmetic per copied value, the same total work or the same short extent where
- * packing was faster; the same extents also changed sign with the left operand's storage. No single
- * quantity separated the two groups, so the threshold is unchanged and the shapes where it costs something
- * on that host are recorded with the stage evidence rather than fitted to. It remains one machine's
- * crossover.
+ * The limit is where the copy starts winning consistently rather than where it first wins, and it remains
+ * one machine's crossover. The local evidence compares the two schedules over the same operands: the
+ * sampled shapes favored packing above this threshold, and below it the winner varied within the
+ * run-to-run band. The calibration also looked for a second condition to put beside this one and found
+ * none defensible, since no quantity it measured separated the shapes packing loses on, thin ones above
+ * all, from the ones it wins. The threshold is therefore unchanged, and the shapes where it costs
+ * something on that host are recorded with the local evidence rather than fitted to.
  */
 internal fun packsProductByWork(rows: Int, columns: Int, depth: Int, tileRows: Int, tileColumns: Int): Boolean =
     rows >= tileRows && columns >= tileColumns &&

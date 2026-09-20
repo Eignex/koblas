@@ -130,15 +130,14 @@ internal fun productWindow(
  * The backend is asked about the window's real extents, a selected-triangle one included. Those extents are
  * what the schedule hands it: the same cache blocks over the same operands, with the blocks lying wholly in
  * the other triangle dropped. A backend may answer from the depth, from a minimum dimension or from a tail
- * rather than from a product of the three, and a caller that passed it a smaller shared dimension to stand
- * for the arithmetic a triangle discards would be answering one of those questions on its behalf.
+ * rather than from a product of the three, so a caller that passed a smaller shared dimension to stand for
+ * the arithmetic a triangle discards would be answering one of those questions on its behalf.
  *
  * So a triangle-selected window takes the rectangle's own eligibility. Such a window finishes about half
  * the arithmetic per copied value that the rectangle does, so a separate crossover could be higher. The
  * calibration left that as it is, for the reason [packsProductByWork] records: the rectangle's own
- * threshold did not separate its wins from its losses on the measured host either, so a second threshold
- * fitted beside it would be fitted to the same data. Route and execution both ask this one function, so
- * however it is answered they agree.
+ * threshold did not separate its wins from its losses on the measured host either. Route and execution both
+ * ask this one function, so however it is answered they agree.
  */
 @Suppress("UNUSED_PARAMETER") // the selected triangle is part of the question even where the answer ignores it
 internal fun packsWindow(kernels: DenseProductKernels, m: Int, n: Int, k: Int, selected: OutputTriangle): Boolean =
@@ -379,11 +378,10 @@ private fun blockedProductCore(
  * accumulates into [edge] with no destination multiplier, and the merge below is what spends that
  * multiplier, once, on the entries the call is allowed to write. A tile wholly outside runs nothing.
  *
- * How many tiles straddle is the tile's shape's answer and is not one: a row of tiles crosses the diagonal
- * over as many of them as the tile's rows cover columns, so a tile of eight rows by four columns straddles
- * twice along each row and a tile whose sides were chosen independently may straddle more. What is bounded
- * is what a straddling tile discards, which is part of one tile rather than part of a cache block, and that
- * is the whole reason the merge happens here rather than over the enclosing block.
+ * How many tiles straddle is the tile shape's own answer and is not one: a row of tiles crosses the diagonal
+ * over as many of them as the tile's rows cover columns. What is bounded is what a straddling tile discards,
+ * which is part of one tile rather than part of a cache block, and that is the whole reason the merge
+ * happens here rather than over the enclosing block.
  */
 private fun selectedBlock(
     kernels: DenseProductKernels,
@@ -442,8 +440,7 @@ private fun selectedBlock(
 /**
  * The selected entries of an accumulated tile, added into the destination with its multiplier spent once.
  *
- * A zero multiplier overwrites without reading, which is the destination's contract and the reason the
- * merge cannot simply add: a NaN standing in an output that the call is about to overwrite would survive.
+ * A zero multiplier overwrites without reading, for the reason [scaleProductWindow] gives.
  */
 private fun mergeSelected(
     edge: DoubleArray,
@@ -558,11 +555,11 @@ internal fun directProduct(
  *
  * A destination column is accumulated in a borrowed buffer before both multipliers are spent on it, and
  * borrowing one as long as the column would make the buffer's length a function of the call's order. The
- * schedules above cut windows whose extents shrink, so that function takes a new value at every block, and
- * a workspace lending by exact length would hand back a buffer nothing asks for again. Cutting the column
- * instead puts a ceiling on the length independent of the order: every chunk but the last is exactly this
- * many rows, and the arithmetic is unchanged because the rows of a destination column are independent of
- * each other and the multipliers are still spent once on each.
+ * schedules above cut windows whose extents shrink, so a workspace lending by exact length would hand back
+ * a buffer nothing asks for again. Cutting the column instead puts a ceiling on the length independent of
+ * the order: every chunk but the last is exactly this many rows, and the arithmetic is unchanged because
+ * the rows of a destination column are independent of each other and the multipliers are still spent once
+ * on each.
  *
  * The same number as a cache block's rows, because it is the same question: how much of a destination to
  * keep live while the shared dimension is walked.
@@ -639,15 +636,14 @@ internal fun selectedRows(j: Int, m: Int, selected: OutputTriangle): Int = when 
  *
  * Three conditions, and all of them have to hold for the copy to be worth making. The column has to be
  * strided, because an adjacent one is already what a vector body wants. The gather has to change which body
- * the reduction reaches, which is the backend's own answer and not an assumption about it: a backend with
- * one body for both gains nothing. And there have to be enough destination rows to read the gathered column
- * back several times, since the copy costs one pass over it and each destination row saves one strided pass.
+ * the reduction reaches, which is the backend's own answer and not an assumption about it. And there have to
+ * be enough destination rows to read the gathered column back several times, since the copy costs one pass
+ * over it and each destination row saves one strided pass.
  *
- * The minimum below is where the copy is clearly ahead rather than where it first is. The stage evidence has
- * the reduction run both ways over the same operands: from eight destination rows the copy leads by a wide
- * margin at every depth long enough to have something to read back, and at four rows the two swap places
- * between captures. Where the answer is that unclear the route that copies nothing is the one to take. One
- * machine, and a crossover across machines is a later stage's.
+ * [DIRECT_GATHER_MINIMUM_ROWS] is where the copy is clearly ahead rather than where it first is. The local
+ * evidence has the reduction run both ways over the same operands: from eight destination rows the copy
+ * leads by a wide margin at every depth long enough to have something to read back, and at four rows the two
+ * swap places between captures. That is one machine, and it establishes no crossover for another host.
  */
 internal fun gathersCoefficients(panels: DensePanelKernels, rows: Int, depth: Int, strided: Boolean): Boolean {
     if (!strided || rows < DIRECT_GATHER_MINIMUM_ROWS || depth <= 0) return false
@@ -660,10 +656,8 @@ internal fun gathersCoefficients(panels: DensePanelKernels, rows: Int, depth: In
 internal const val DIRECT_GATHER_MINIMUM_ROWS: Int = 8
 
 /**
- * `c = alpha · accumulated + beta · c` over one destination column.
- *
- * A zero [beta] overwrites without reading what is there, which is the destination's contract and not an
- * arithmetic shortcut: a NaN standing in the output would survive a multiply by zero.
+ * `c = alpha · accumulated + beta · c` over one destination column, where a zero [beta] overwrites without
+ * reading what is there, as the destination's contract requires rather than as an arithmetic shortcut.
  */
 private fun writeScaledColumn(
     alpha: Double,
@@ -683,19 +677,18 @@ private fun writeScaledColumn(
 /**
  * The buffer length a scratch request of [size] is made at, which is the next power of two above it.
  *
- * A workspace lends by exact length and retains a bounded number of lengths, so scratch asked for at the
- * exact extent of a window is reused only where the windows repeat. A structured schedule's do not: a
+ * A workspace lends by exact length and retains a bounded number of lengths, so scratch asked for at a
+ * window's exact extent is reused only where the windows repeat. A structured schedule's do not: a
  * triangular solve of order one thousand over a single right-hand side accumulates a destination column for
- * each of its sixteen diagonal blocks, and those columns shrink with the order. Every one of them would be
- * a fresh allocation on every warmed call, and a probe over a wide call or a short one would not see it.
+ * each of its sixteen diagonal blocks, and those columns shrink with the order, so each of them would be a
+ * fresh allocation on every warmed call.
  *
- * Rounding up collapses a run of nearby extents onto one buffer. It is not by itself a bound: an order
- * large enough spans more octaves than any retention holds, so what keeps the count bounded is that the
- * extents themselves are bounded, by [directColumnBlock] for an accumulating column and by the cache block
- * for a packed panel. Rounding is what absorbs what is left, which is the variation below those ceilings.
- * What it costs is a buffer up to twice the window it serves, which beside the operands a Level 3 call
- * already holds is small, and a caller reads only the entries it asked for. Above the largest power of two
- * an array length holds, the request passes through.
+ * Rounding up collapses a run of nearby extents onto one buffer. It is not itself the bound: the extents
+ * are bounded already, by [directColumnBlock] for an accumulating column and by the cache block for a
+ * packed panel, and rounding absorbs the variation below those ceilings. What it costs is a buffer up to
+ * twice the window it serves, which beside the operands a Level 3 call already holds is small, and a caller
+ * reads only the entries it asked for. Above the largest power of two an array length holds, the request
+ * passes through.
  */
 internal fun scratchCapacity(size: Int): Int {
     if (size <= 1 || size > LARGEST_ROUNDED_SCRATCH) return size

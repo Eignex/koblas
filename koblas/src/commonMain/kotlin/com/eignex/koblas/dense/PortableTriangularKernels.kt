@@ -9,11 +9,9 @@ package com.eignex.koblas.dense
  * held in a local while the coefficients before it are removed from it, so a block of order `s` reads each
  * of the other steps once per step rather than writing the destination once per pair.
  *
- * Nothing here is grouped, so [rightHandSideGroup] hands over every right-hand side the caller has: the
- * chunking exists for a backend whose arithmetic wants a fixed number of independent values, and cutting the
- * loop into pieces it has no use for would only cost the calls. Nothing here is helped by adjacency either,
- * so [gathersRightHandSides] declines every copy: the strided loads a right-side call makes are what this
- * backend would make anyway.
+ * Nothing here is grouped, so [rightHandSideGroup] hands over every right-hand side the caller has, and
+ * nothing here is helped by adjacency, so [gathersRightHandSides] declines every copy: the strided loads a
+ * right-side call makes are what this backend would make anyway.
  */
 internal object PortableTriangularKernels : DenseTriangularKernels {
     override val name: String get() = NAME

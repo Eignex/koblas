@@ -14,7 +14,7 @@ import jdk.incubator.vector.DoubleVector
  * machine can hold before it starts spilling is its own architecture's answer and not something a lane count
  * settles, which is why the shape is a measurement rather than a calculation.
  *
- * The stage evidence holds that measurement: six rectangles, each written out with its own named
+ * The local evidence holds that measurement: six rectangles, each written out with its own named
  * accumulators and each allocation-free, over the same logical product at several shapes on one machine.
  * This one led at every one of them. That is one machine's answer, and a machine with a different register
  * file or cache may want another, which is why the geometry is read from [tileRows] and [tileColumns] by
@@ -120,18 +120,15 @@ internal object SimdProductKernels : DenseProductKernels {
      *
      * Where the machine has a fused multiply-add, a step of the depth is one instruction per accumulator and
      * eight of them are held at once. Where it does not, [multiplyAdd] is a multiply and then an add, and an
-     * allocation probe over this body finds bytes per call on the whole-tile path: the same amount at every
-     * depth, and none where a destination leaves a column or a row of the tile short. The smaller body below
-     * holds four accumulators instead, and is measured allocation-free in that configuration.
+     * allocation probe over this body finds bytes per call on the whole-tile path, the same amount at every
+     * depth; that configuration runs the four-accumulator body below instead, which the same probe finds
+     * allocation-free.
      *
-     * So the decomposition follows the same gate the arithmetic does. This is not a change of geometry:
-     * [tileRows] and [tileColumns] are what they were, the packed layout is unchanged, and each destination
-     * entry accumulates its own products in depth order either way, so the split and unsplit forms of the
-     * unfused body agree bit for bit. The fused body is a different arithmetic and is not held to that.
-     *
-     * Which body a configuration wants is a measurement and not a preference: with the instruction the
-     * eight-accumulator body is both allocation-free and faster, and without it the split one is. The stage
-     * evidence holds both at both widths.
+     * The split is not a change of geometry: [tileRows] and [tileColumns] are what they were, the packed
+     * layout is unchanged, and each destination entry accumulates its own products in depth order either
+     * way, so the split and unsplit forms of the unfused body agree bit for bit. The fused body is a
+     * different arithmetic and is not held to that. Which body a configuration wants is a measurement and
+     * not a preference, and the local evidence holds both at both widths.
      */
     private fun tile(
         depth: Int,
