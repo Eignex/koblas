@@ -110,5 +110,12 @@ public fun Matrix.gemmInto(
  */
 private fun denseOperand(matrix: Matrix): DenseMatrix = when (matrix) {
     is DenseMatrix -> matrix
-    else -> DenseMatrix.ofColumns(Array(matrix.cols) { j -> DoubleArray(matrix.rows) { i -> matrix[i, j] } })
+
+    // Written straight into the column-major storage the product reads, rather than into a column at a time
+    // that a second pass would then copy: the entries are read once and stored once.
+    else -> DenseMatrix.zero(matrix.rows, matrix.cols).also { into ->
+        for (j in 0 until matrix.cols) {
+            for (i in 0 until matrix.rows) into.values[i + j * matrix.rows] = matrix[i, j]
+        }
+    }
 }

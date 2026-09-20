@@ -37,9 +37,8 @@ import com.eignex.koblas.sparse.internal.trmvCore
 import com.eignex.koblas.sparse.internal.trsmRightCore
 import com.eignex.koblas.sparse.internal.trsvCore
 import com.eignex.koblas.sparse.internal.withExplicitDiagonal
-import com.eignex.koblas.sparse.internal.withStableDense
-import com.eignex.koblas.sparse.internal.withStableSparse
 import com.eignex.koblas.sparse.internal.withSymmetricRankScratch
+import com.eignex.koblas.staged
 import com.eignex.koblas.vendor.RouteKind
 
 /** The component name every built-in sparse Level 2 and 3 call reports, whatever Level 1 kernels it calls. */
@@ -775,8 +774,8 @@ internal class SparseAlgorithms(
             applyBeta(vectorKernels, c.values, 0, c.values.size, beta)
             return
         }
-        withStableSparse(a, c.values, workspace) { stableA ->
-            withStableDense(b, c.values, workspace) { stableB ->
+        staged(workspace, a, a.values === c.values) { stableA ->
+            staged(workspace, b, b.values === c.values) { stableB ->
                 applyBeta(vectorKernels, c.values, 0, c.values.size, beta)
                 if (right) {
                     for (column in 0 until stableA.cols) {
@@ -848,8 +847,8 @@ internal class SparseAlgorithms(
             applyBeta(vectorKernels, c.values, 0, c.values.size, beta)
             return
         }
-        withStableSparse(a, c.values, workspace) { stableA ->
-            withStableDense(b, c.values, workspace) { stableB ->
+        staged(workspace, a, a.values === c.values) { stableA ->
+            staged(workspace, b, b.values === c.values) { stableB ->
                 applyBeta(vectorKernels, c.values, 0, c.values.size, beta)
                 if (right) {
                     multiplyFromTheRight(
@@ -905,8 +904,8 @@ internal class SparseAlgorithms(
             applyBeta(vectorKernels, c.values, 0, c.values.size, beta)
             return
         }
-        withStableSparse(a, c.values, workspace) { stableA ->
-            withStableSparse(b, c.values, workspace) { stableB ->
+        staged(workspace, a, a.values === c.values) { stableA ->
+            staged(workspace, b, b.values === c.values) { stableB ->
                 val left = oriented(stableA, transposeA, true)
                 val right = oriented(stableB, transposeB, true)
                 applyBeta(vectorKernels, c.values, 0, c.values.size, beta)
@@ -938,7 +937,7 @@ internal class SparseAlgorithms(
             scaleTriangle(c, n, beta, lower)
             return
         }
-        withStableSparse(a, c.values, workspace) { stableA ->
+        staged(workspace, a, a.values === c.values) { stableA ->
             scaleTriangle(c, n, beta, lower)
             withSymmetricRankScratch(workspace, n, stableA.rows, stableA.nnz) {
                     sums,
@@ -1024,7 +1023,7 @@ internal class SparseAlgorithms(
         if (rightHandSides == 0) return
         // The triangle is snapshotted before alpha scales the block, not after: a triangle sharing the block's
         // buffer would otherwise be solved against its own scaled coefficients.
-        withStableSparse(a, b.values, workspace) { triangle ->
+        staged(workspace, a, a.values === b.values) { triangle ->
             if (alpha != 1.0) vectorKernels.scale(b.values, 0, alpha, b.values.size)
             if (right) {
                 withExplicitDiagonal(triangle, n, unitDiag, workspace) { diagonal ->
@@ -1057,7 +1056,7 @@ internal class SparseAlgorithms(
             return
         }
         if (n == 0) return
-        withStableSparse(a, b.values, workspace) { triangle ->
+        staged(workspace, a, a.values === b.values) { triangle ->
             if (alpha != 1.0) vectorKernels.scale(b.values, 0, alpha, b.values.size)
             // The diagonal is read once for every right-hand side rather than once per column, as trsm does.
             withExplicitDiagonal(triangle, n, unitDiag, workspace) { diagonal ->
@@ -1102,18 +1101,12 @@ internal class SparseAlgorithms(
      *
      * A zero alpha discovers the same structure without reading coefficients, so the transposed pattern is
      * built over zeroed values rather than over the caller's: the contract says alpha of zero reads no
-     * operand value, and a transpose that copied them would break it before the product ever ran.
+     * operand value, and a transpose that copied them would break it before the product ever ran. The
+     * structure is shared rather than copied, because the transpose reads it and writes a fresh result.
      */
     private fun oriented(a: SparseMatrix, transpose: Boolean, readValues: Boolean): SparseMatrix {
         if (!transpose) return a
         if (readValues) return transposeCsc(a)
-        val patternOnly = SparseMatrix.wrapTrusted(
-            a.rows,
-            a.cols,
-            a.copyColumnPointers(),
-            a.copyRowIndices(),
-            DoubleArray(a.nnz),
-        )
-        return transposeCsc(patternOnly)
+        return transposeCsc(SparseMatrix.wrapTrusted(a.rows, a.cols, a.colPointers, a.rowIndices, DoubleArray(a.nnz)))
     }
 }
