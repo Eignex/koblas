@@ -175,12 +175,14 @@ source revision and the resolved library files are in `metadata.txt` only.
 
 Koblas contributes independent `jvm-scalar`, `jvm-simd`, `jvm-default`, `native` and `native-default` arms.
 `jvm-scalar` is portable Kotlin at every level, and `jvm-simd` is every Vector API kernel this library owns.
-`jvm-default` is what an ordinary call gets, which is a policy rather than an exact arm: today that is
-`jvm-simd`'s Level 1 with the portable dense panels, the portable product tile and the portable diagonal
-substitution, because the Level 2 panels and the Level 3 tiles and substitutions are measured but not yet
-activated. Its rows are where the generic entry points are timed, since those
-use the selected engine and have none to be told. A comparison between `jvm-simd` and `jvm-default` is
-therefore a comparison of the matrix arithmetic alone, since the two share everything else.
+`jvm-default` is what an ordinary call gets, which is a policy rather than an exact arm. On a JVM with the
+incubator module that policy now selects `jvm-simd`'s engine, so the two arms name one object and a
+difference between their rows is this harness's run-to-run band rather than two implementations; without the
+module it selects the portable engine and `jvm-simd` refuses to run at all. The arm is still named
+separately, because which engine a policy lands on is a conclusion a capture may report and not one a row
+may assume, and because its rows are where the generic entry points are timed: those use the selected engine
+and have none to be told. The comparison that says what the Vector API kernels are worth is `jvm-simd`
+against `jvm-scalar`.
 
 `native` and `native-default` are the same split on Kotlin/Native and are two different engines rather than
 one named twice. `native` is the exact portable arm: common Kotlin at every level, resolving no library at
@@ -253,9 +255,11 @@ copied its right-hand sides into adjacent order first names that copy as `portab
 `portable-stage/rhs-destination` — a source is read in, a destination is read in and written back, and a
 symmetric product does both. The body named is the one the runs a call actually hands over reached, so a
 triangular matrix storing only its diagonal, or a symmetric operand storing only the triangle the call does
-not select, names no panel at all. A prepared row reports the schedule the snapshot runs rather than the
-one-shot schedule: a transposed product against a reused orientation takes the untransposed traversal over
-it, and a `firstuse` row names the preparation and that derivation ahead of it.
+not select, names no panel at all. A prepared row reports the schedule the snapshot runs. For a product
+against a dense block that is the schedule a one-shot call of the same facts runs, because the snapshot
+takes the transpose flag rather than deriving the opposite orientation; for a transposed product against a
+second sparse operand it is the untransposed traversal over the derived orientation, and a `firstuse` row
+names the preparation and that derivation ahead of it.
 
 A row whose route could not settle what the call runs from the facts that call carries is marked
 `+unresolved` before its entry point rather than published as though one schedule had been established.
@@ -292,16 +296,18 @@ work rather than the same work at different speeds:
 | `oneshot` | The whole call, with no snapshot built at all. |
 | `prepared` | Steady-state reuse of a snapshot built before the timed region. |
 | `setup` | Building the snapshot, and nothing else. |
-| `firstuse` | Building the snapshot and calling it once, which is where a derived orientation is paid for. |
+| `firstuse` | Building the snapshot and calling it once, which is where a sparse-sparse product's derived orientation is paid for. |
 | `amortized` | Building one snapshot and using it `reuse` times, read against that many one-shot calls. |
 
 `spgemv`, `spmm` and `spgemm` carry all five; `spmm-right` has no prepared form and carries `oneshot`
-alone, as every other sparse matrix case does. `+transA=T` transposes the sparse operand, which is what
-makes `firstuse` differ from `setup`: a prepared transposed product derives its orientation once, and that
-derivation is inside the first use and outside the steady one. `+transB=T` on `spmm` and `spmm-generic`
-stores the dense operand the other way round, so the right-hand sides a panel is cut from become adjacent
-rows rather than adjacent columns. It is the same result over a different layout, and which layout a
-derived orientation pays off in is a separate question from which one a one-shot call is faster in.
+alone, as every other sparse matrix case does. `+transA=T` transposes the sparse operand. For `spgemm` that
+is what makes `firstuse` differ from `setup`: a prepared transposed product against a second sparse operand
+derives its orientation once, and that derivation is inside the first use and outside the steady one. For
+`spgemv` and `spmm` it does not, because those take the flag to the traversal and derive nothing, which the
+calibration measured faster than the oriented schedule. `+transB=T` on `spmm` and `spmm-generic` stores the
+dense operand the other way round, so the right-hand sides a panel is cut from become adjacent rows rather
+than adjacent columns. It is the same result over a different layout, and the two layouts are separate rows
+rather than one.
 
 An `amortized` row reports one preparation and all `reuse` uses together: its unit of work is the batch, and
 the comparison a break-even needs is that batch against the same number of one-shot calls. Dividing it by
@@ -321,8 +327,8 @@ scalar reference written from the textbook definition, which shares no code with
 
 Before a sparse case is timed, its whole result is compared against an explicit scalar reference computed from
 the densified operands, and a fresh CSC result is compared against the support its operands' patterns reach as
-well. A prepared case is checked through a snapshot that has not been used yet, so the orientation a
-transposed call derives on first use is covered rather than assumed. A case that computes the wrong thing
+well. A prepared case is checked through a snapshot that has not been used yet, so what a transposed call
+derives or does not derive on first use is covered rather than assumed. A case that computes the wrong thing
 fails the capture instead of publishing a number.
 
 The `panel-multidot`, `panel-columnupdate`, `panel-coupled` and `panel-rankupdate` cases time one raw panel
@@ -352,9 +358,11 @@ The `gemm-generic`, `spmm-generic`, `spmm-generic-right` and `spgemm-generic` ca
 dense one. That entry point uses the engine this platform selected rather than one a benchmark names, because a caller holding a
 `Matrix` has no engine to pass. They are therefore `default-policy` rows on the arm whose engine is the
 selected one, and are declined on every other arm rather than publishing that arm's label over another
-engine's work. On Kotlin/Native that arm is `native-default`; the exact portable `native` arm is not the
-selected engine and declines them. On a Kotlin/Native host with no library installed the two arms resolve to
-the same engine, so both admit these rows and both are that host's default policy.
+engine's work. On a JVM with the incubator module `jvm-simd` is the selected engine, so it admits them
+beside `jvm-default` and both rows are that runtime's default policy; without the module `jvm-scalar` is,
+and it admits them instead. On Kotlin/Native that arm is `native-default`; the exact portable `native` arm
+is not the selected engine and declines them. On a Kotlin/Native host with no library installed the two arms
+resolve to the same engine, so both admit these rows and both are that host's default policy.
 
 ## Direct Gradle runs
 
