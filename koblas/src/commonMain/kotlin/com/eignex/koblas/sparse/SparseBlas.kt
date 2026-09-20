@@ -70,6 +70,14 @@ public interface SparseBlas {
      * sparse [a] as symmetric from exactly its selected [lower] or upper triangle. `alpha == 0.0` reads
      * neither input; `beta == 0.0` does not read [c]. Shared input and destination buffers are staged, with
      * [workspace] reused when supplied.
+     *
+     * Where [alpha] multiplies is stated rather than left open, because with a non-finite operand it is not
+     * a rounding question. A built-in implementation gives every stored entry one multiplier,
+     * `alpha · value`, and spends it on both halves of the product that entry takes part in: the row the
+     * column is spread into and the row it is mirrored back into, term by term in the order the column is
+     * walked. With the sparse operand on the right the same multiplier updates a whole dense column. So an
+     * `alpha` of infinity against a stored zero is a NaN wherever that entry lands; for finite operands the
+     * grouping is the reassociation every product in this library is allowed.
      */
     @Suppress("LongParameterList")
     public fun symm(

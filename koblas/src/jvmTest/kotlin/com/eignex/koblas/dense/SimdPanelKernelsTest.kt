@@ -66,16 +66,29 @@ class SimdPanelKernelsTest {
     }
 
     /**
-     * The sparse right-hand-side grouping is a scheduling number for a traversal written in portable Kotlin,
-     * so this backend recommends one without claiming the arithmetic.
+     * The sparse right-hand-side panel is vector work over adjacent right-hand sides and portable work over
+     * a strided group, which is the whole of what staging one buys and the reason a route asks about the
+     * layout rather than about the engine.
      */
     @Test
-    fun `the sparse right hand side panel is never named a vector body`() {
+    fun `the sparse right hand side panel names a vector body only where its sides are adjacent`() {
         val kernels = kernels ?: return skipped()
+        val lanes = lanes(kernels)
 
         assertEquals(
-            PortablePanelKernels.name,
+            kernels.name,
             kernels.implementationFor(PanelWork.SparseRightHandSides, WIDE, 4),
+            "adjacent right-hand sides",
+        )
+        assertEquals(
+            PortablePanelKernels.name,
+            kernels.implementationFor(PanelWork.SparseRightHandSides, WIDE, 4, contiguous = false),
+            "strided right-hand sides",
+        )
+        assertEquals(
+            PortablePanelKernels.name,
+            kernels.implementationFor(PanelWork.SparseRightHandSides, lanes - 1, 4),
+            "fewer adjacent right-hand sides than one lane block",
         )
         assertTrue(kernels.executionGroup(PanelWork.SparseRightHandSides, WIDE, 64) >= 1)
     }
@@ -121,7 +134,7 @@ class SimdPanelKernelsTest {
     /** The species this backend resolved, read back from the name it publishes. */
     private fun lanes(kernels: DensePanelKernels): Int = kernels.name.substringAfter('(').substringBefore(' ').toInt()
 
-    private fun vectorised() = PanelWork.entries.filter { it != PanelWork.SparseRightHandSides }
+    private fun vectorised() = PanelWork.entries
 
     private fun skipped() {
         println("SKIPPED: no Vector API module on this runtime; the panel bodies were not exercised")

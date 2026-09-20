@@ -71,6 +71,19 @@ class DensePanelKernelsTest {
     }
 
     /**
+     * An address past what a word of twenty-one bits holds, on every backend.
+     *
+     * One test rather than three, because it allocates buffers wide enough to reach past that bound and the
+     * arithmetic in it is a handful of entries.
+     */
+    @Test
+    fun `the indexed panels address past a packed bound`() {
+        assertIndexedPanelsAddressPastAPackedBound(PortablePanelKernels)
+        assertIndexedPanelsAddressPastAPackedBound(koblas.panelKernels)
+        BuiltinEngines.simd?.panelKernels?.let(::assertIndexedPanelsAddressPastAPackedBound)
+    }
+
+    /**
      * A logical panel is the same arithmetic however it is split, which is what lets a caller use a grouping
      * other than the one it was given.
      *
@@ -92,7 +105,20 @@ class DensePanelKernelsTest {
         val wholeUpdate = start.copyOf()
         kernels.columnUpdate(0.875, a, 0, rows, x, 0, 1, rows, columns, wholeUpdate, 0, 1)
 
+        val indices = IntArray(columns) { it }
+        val coefficients = DoubleArray(columns) { rng.nextDouble(-1.0, 1.0) }
+        val wholeIndexed = start.copyOf()
+        kernels.indexedColumnUpdate(0.875, a, 0, 1, rows, indices, coefficients, 0, columns, rows, wholeIndexed, 0)
+
         for (group in intArrayOf(1, 2, 3, 5, 7, 16)) {
+            val splitIndexed = start.copyOf()
+            forEachPanel(columns, group) { at, width ->
+                kernels.indexedColumnUpdate(
+                    0.875, a, 0, 1, rows, indices, coefficients, at, width, rows, splitIndexed, 0,
+                )
+            }
+            assertClose(wholeIndexed, splitIndexed, "indexedColumnUpdate split by $group")
+
             val split = start.copyOf()
             forEachPanel(columns, group) { at, width ->
                 kernels.multiDot(0.875, a, at * rows, rows, x, 0, 1, rows, width, -0.25, split, at, 1)

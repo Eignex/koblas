@@ -22,8 +22,11 @@ public enum class SparseMatrixOperation(internal val entryPoint: String) {
     /** Selected-triangle symmetric matrix-vector product. */
     Symv("spsymv"),
 
-    /** Selected-triangle symmetric product against a dense block. */
-    Symm("spsymm"),
+    /** Selected-triangle symmetric product with the sparse operand on the left of a dense block. */
+    SymmLeft("spsymm"),
+
+    /** The same product with the sparse operand on the right, where every update is a whole dense column. */
+    SymmRight("spsymm-right"),
 
     /** `C = alpha·op(A)·op(B) + beta·C` for a sparse `A` and a dense `B`. */
     GemmDense("spmm"),
@@ -91,6 +94,20 @@ public enum class SparseMatrixOperation(internal val entryPoint: String) {
  *   nothing, which is also a call with nothing to do.
  * @property updateRun contiguous dense elements one update covers, for an operation whose unit of work is a
  *   whole dense column, or 0 when it has no such unit.
+ * @property rightHandSides dense right-hand sides an operation with a dense block carries, or 0 when it has
+ *   none. How many are visited together, and whether they are staged adjacent first, follow from this and
+ *   from what the operand holds.
+ * @property transposeSparse whether the sparse operand is transposed, which decides whether a product
+ *   reduces a column into one output row or spreads one index across the rows it stores.
+ * @property transposeDense whether the dense operand is transposed, which decides whether its right-hand
+ *   sides are already adjacent.
+ * @property lower which triangle a symmetric or triangular operation selects, which decides how much of
+ *   each column it hands to a panel and whether it hands over anything at all. An operation with no
+ *   selected triangle ignores it.
+ *
+ * A unit diagonal is deliberately not among these. It removes a division from a pivot and changes no body
+ * any panel reaches, because the run a panel is handed is the strictly triangular part of a column either
+ * way.
  */
 public class SparseCall(
     public val matrix: SparseMatrix,
@@ -99,11 +116,16 @@ public class SparseCall(
     public val destinationElements: Int? = null,
     public val depth: Int? = null,
     public val updateRun: Int = 0,
+    public val rightHandSides: Int = 0,
+    public val transposeSparse: Boolean = false,
+    public val transposeDense: Boolean = false,
+    public val lower: Boolean = true,
 ) {
     init {
         require(destinationElements == null || destinationElements >= 0) { "negative destination element count" }
         require(depth == null || depth >= 0) { "negative product depth" }
         require(updateRun >= 0) { "negative update run length" }
+        require(rightHandSides >= 0) { "negative right-hand side count" }
     }
 }
 
@@ -142,6 +164,32 @@ public class SparseMatrixRoute internal constructor(
     public val components: List<String>,
     /** What the components cover, what the traversal keeps for itself, or why the call is composed. */
     public val reason: String?,
+    /**
+     * Right-hand sides this call visits per walk of a sparse column, or zero where it groups none.
+     *
+     * The local geometry the backend recommended for the layout this call will have, within the ceiling the
+     * sparse scheduling keeps for a staged copy. It is not a lane count: a group of four right-hand sides
+     * and four lanes are different numbers that agree on some machines.
+     */
+    public val executionGroup: Int = 0,
+    /**
+     * Right-hand sides in the last group, where that group is shorter than [executionGroup], or zero where
+     * every group is full.
+     *
+     * Named separately because a short last group may reach a different body from the full ones, which is
+     * what makes such a call a composition.
+     */
+    public val executionTail: Int = 0,
+    /**
+     * Whether the facts this route was asked about settle what the call runs.
+     *
+     * False where a decision depends on something a [SparseCall] does not carry, such as the second operand
+     * a prepared transposed sparse product orients on, or a right-hand side count a caller left out. Such a
+     * route still names whatever is known, the destination scaling included, and [reason] says what is not.
+     * A report has to publish this rather than infer it from an empty component list, since a call can be
+     * undecided and still scale a destination.
+     */
+    public val resolved: Boolean = true,
 ) {
     /** The full attribution: the scheduling, plus every component it calls. */
     public val implementation: String
@@ -155,6 +203,14 @@ public class SparseMatrixRoute internal constructor(
      */
     public val exactlyMeasurable: Boolean get() = kind == RouteKind.Direct
 
+    /** The grouping as a report writes it: the width, and the last group where one is short. */
+    public val groupSuffix: String
+        get() = when {
+            executionGroup <= 0 -> ""
+            executionTail > 0 -> "@$executionGroup+$executionTail"
+            else -> "@$executionGroup"
+        }
+
     override fun toString(): String = buildString {
         append(operation.name.lowercase())
         append(' ')
@@ -163,6 +219,8 @@ public class SparseMatrixRoute internal constructor(
         append(implementation)
         append(' ')
         append(entryPoint)
+        append(groupSuffix)
+        if (!resolved) append(" unresolved")
         reason?.let { append(" (").append(it).append(')') }
     }
 }

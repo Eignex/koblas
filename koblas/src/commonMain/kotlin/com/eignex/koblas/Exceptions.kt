@@ -110,20 +110,15 @@ internal fun requireGemvShape(a: Matrix, transpose: Boolean, x: Int, y: Int): Ge
     requireGemvShape(a.rows, a.cols, transpose, x, y)
 
 /**
- * The extents a gemm derives from its operands: `op(A)` is [m] by [k] and `op(B)` is [k] by [n].
- *
- * Three extents do not fit one `Long` the way [GemvShape] packs two, and a gemm's work dwarfs one record.
- */
-internal data class GemmShape(val m: Int, val k: Int, val n: Int)
-
-/**
- * The extents `op(A)·op(B)` into [c] implies, with both invariants checked: that the operands meet, and that
- * the destination is the shape their product has.
+ * Both invariants of `op(A)·op(B)` into [c]: that the operands meet, and that the destination is the shape
+ * their product has. Nothing is returned, because once this passes the destination's own extents are the
+ * product's and the depth is one expression at the call site, which is allocation-free at every call rather
+ * than wherever the virtual machine manages to take a record of the three apart again.
  *
  * A caller multiplying the second operand by the first from the right passes them the other way round, since
  * that product is this one with the operands swapped.
  */
-internal fun requireGemmShape(a: Matrix, transposeA: Boolean, b: Matrix, transposeB: Boolean, c: Matrix): GemmShape =
+internal fun requireGemmShape(a: Matrix, transposeA: Boolean, b: Matrix, transposeB: Boolean, c: Matrix): Unit =
     requireGemmShape(a.rows, a.cols, transposeA, b, transposeB, c)
 
 /**
@@ -138,14 +133,13 @@ internal fun requireGemmShape(
     b: Matrix,
     transposeB: Boolean,
     c: Matrix,
-): GemmShape {
+) {
     val m = if (transposeA) aCols else aRows
     val k = if (transposeA) aRows else aCols
     val kB = if (transposeB) b.cols else b.rows
     val n = if (transposeB) b.rows else b.cols
     requireShape(k == kB) { "gemm: op(A) is ${m}x$k but op(B) is ${kB}x$n" }
     requireShape(c.rows == m && c.cols == n) { "gemm: C is ${c.rows}x${c.cols}, expected ${m}x$n" }
-    return GemmShape(m, k, n)
 }
 
 /**

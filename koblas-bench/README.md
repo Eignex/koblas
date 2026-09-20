@@ -223,7 +223,23 @@ portable code on every engine, so an arm whose Level 1 kernels are Vector API on
 vectorised sparse product. The destination scaling a non-unit `beta` performs is a component like any other
 and is named. A `direct` row's components all ran; a `composed` row's are the ones the call can reach, because
 its columns straddle a kernel's crossover or because the traversal decides per unit whether the kernel is
-called at all, and the route says which. Explicit host rows derive their entry point, resolved library binary, identity, version and threading
+called at all, and the route says which. A sparse Level 2 or 3 row whose unit of work is a group of
+right-hand sides carries that grouping as
+`@<group>`, or `@<group>+<tail>` where the last group is shorter, which is the local geometry the backend
+recommended and not a lane count. It names the panel body that group reached, as
+`<backend>/sparse-rhs-gather`, `/sparse-rhs-scatter` or `/sparse-rhs-mirror`, and a call that
+copied its right-hand sides into adjacent order first names that copy as `portable-stage/rhs-source` or
+`portable-stage/rhs-destination` — a source is read in, a destination is read in and written back, and a
+symmetric product does both. The body named is the one the runs a call actually hands over reached, so a
+triangular matrix storing only its diagonal, or a symmetric operand storing only the triangle the call does
+not select, names no panel at all. A prepared row reports the schedule the snapshot runs rather than the
+one-shot schedule: a transposed product against a reused orientation takes the untransposed traversal over
+it, and a `firstuse` row names the preparation and that derivation ahead of it.
+
+A row whose route could not settle what the call runs from the facts that call carries is marked
+`+unresolved` before its entry point rather than published as though one schedule had been established.
+
+Explicit host rows derive their entry point, resolved library binary, identity, version and threading
 evidence from the binding that performs the call. Existing binding route checks retain explicit no-work and
 composed-call attribution.
 
@@ -240,7 +256,7 @@ lines with the same fixture and options as the case they extend.
 `+timing=arithmetic` excludes the per-iteration reset for `scal` and `spgather`; arithmetic scaling uses
 alpha = -1. Compare only cases with matching options, since prepared and one-shot timings differ.
 
-`+mode=` says how a prepared sparse operand is accounted for, and the four values measure different logical
+`+mode=` says how a prepared sparse operand is accounted for, and the five values measure different logical
 work rather than the same work at different speeds:
 
 | Mode | Timed region |
@@ -249,11 +265,25 @@ work rather than the same work at different speeds:
 | `prepared` | Steady-state reuse of a snapshot built before the timed region. |
 | `setup` | Building the snapshot, and nothing else. |
 | `firstuse` | Building the snapshot and calling it once, which is where a derived orientation is paid for. |
+| `amortized` | Building one snapshot and using it `reuse` times, read against that many one-shot calls. |
 
-`spgemv`, `spmm` and `spgemm` carry all four. Every other sparse matrix case is `mode=oneshot`, because it has
-no prepared form. `+transA=T` transposes the sparse operand, which is what makes `firstuse` differ from
-`setup`: a prepared transposed product derives its orientation once, and that derivation is inside the first
-use and outside the steady one.
+`spgemv`, `spmm` and `spgemm` carry all five; `spmm-right` has no prepared form and carries `oneshot`
+alone, as every other sparse matrix case does. `+transA=T` transposes the sparse operand, which is what
+makes `firstuse` differ from `setup`: a prepared transposed product derives its orientation once, and that
+derivation is inside the first use and outside the steady one.
+
+An `amortized` row reports one preparation and all `reuse` uses together: its unit of work is the batch, and
+the comparison a break-even needs is that batch against the same number of one-shot calls. Dividing it by
+`reuse` is a valid derived per-use cost with the setup spread through it, which is the number to compare
+against a single `oneshot` row. What that derived figure is not is a `prepared` row, which is the steady
+state with the setup already paid; comparing the two says how much of a prepared call's advantage the
+preparation has eaten at that many uses.
+
+`+support=` draws the sparse operand's stored entries from a named distribution at the density the case
+already gives, because where they are costs as much as how many there are. `uniform` scatters the same count
+over every column, `banded` keeps a column's entries next to the diagonal, `skewed` gives an eighth of the
+columns most of the entries, `empty` leaves a quarter of them storing nothing, and `mixed` alternates short
+columns with long ones. Only a case whose operand is a sparse matrix takes it.
 
 Before a dense Level 2 or 3 case is timed, its whole destination buffer is compared against an explicit
 scalar reference written from the textbook definition, which shares no code with the scheduling it checks.
@@ -282,6 +312,9 @@ over operands packed before the timed region, retaining both of them or one. The
 of work rather than one row with a flag: the copy a call still makes is the difference between them, and the
 packing-only row is what the retained ones have to be read against. Every one of them is checked against the
 scalar reference before it is timed.
+
+`spmm-right` is the sparse operand on the right of a dense one through the engine the row is published
+under, which is what makes it an exact arm rather than the default-policy `spmm-generic-right` beside it.
 
 The `gemm-generic`, `spmm-generic`, `spmm-generic-right` and `spgemm-generic` cases go through the common
 `Matrix` product with its dispatch included, the third of them with the sparse operand on the right of a

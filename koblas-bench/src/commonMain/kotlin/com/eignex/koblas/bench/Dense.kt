@@ -113,6 +113,7 @@ private fun panelEntryPoint(work: PanelWork): String = when (work) {
     PanelWork.CoupledDotUpdate -> "coupled-dot-update"
     PanelWork.RankUpdate -> "rank-update"
     PanelWork.SparseRightHandSides -> "sparse-rhs"
+    PanelWork.SparseRightHandSideReduction -> "sparse-rhs-reduction"
 }
 
 @Suppress("LongMethod", "CyclomaticComplexMethod") // one branch per benchmarked operation

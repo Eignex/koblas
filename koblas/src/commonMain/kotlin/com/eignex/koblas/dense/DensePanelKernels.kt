@@ -23,13 +23,30 @@ public enum class PanelWork {
     RankUpdate,
 
     /**
-     * Dense right-hand sides visited together while a sparse operand's indices and values are walked once.
+     * Dense right-hand sides visited together while a sparse operand's indices and values are walked once,
+     * where the panel's destination is the dense block.
      *
-     * The arithmetic belongs to the sparse traversal, which reads indices this contract knows nothing about,
-     * so there is no kernel here for it. What a sparse caller takes from this contract is the grouping, so
-     * that its right-hand-side width is the local backend's choice rather than a constant of its own.
+     * Two questions carry this name. [DensePanelKernels.executionGroup] answers how many right-hand sides a
+     * sparse traversal should hand over at a time, where `columns` is how many there are to choose from.
+     * [DensePanelKernels.indexedRankUpdate] and [DensePanelKernels.indexedCoupledUpdate] are the arithmetic
+     * over one such group, where the group is the panel's `rows` and the stored entries it walks are its
+     * `columns`, so a backend that vectorises does it across the right-hand sides and never across the
+     * indices.
      */
     SparseRightHandSides,
+
+    /**
+     * The same panel with the destination the other way round: one accumulator per right-hand side, which a
+     * column of a transposed sparse operand reduces into.
+     *
+     * Its own entry because a backend may want a different amount of work in it. What the two shapes do
+     * with a group differs: an update spreads a coefficient over a destination window, where a wider group
+     * spends one walk of the column's indices on more of it; a reduction carries an accumulator per
+     * right-hand side, which a group of one can keep in a register and a wider group has to keep in the
+     * array the caller supplied. [DensePanelKernels.indexedColumnUpdate] is the arithmetic over a group of
+     * this shape.
+     */
+    SparseRightHandSideReduction,
 }
 
 /**
@@ -59,8 +76,9 @@ public enum class PanelWork {
  * Implementations read and write only the windows their offsets and extents select, validate nothing, and
  * allocate nothing. A caller that needs several results supplies the array they are written into.
  *
- * Every window a call writes must be disjoint from every source window it reads, and the two windows a
- * coupled pass writes must be disjoint from each other. A destination read as part of writing it is not a
+ * Every window a call writes must be disjoint from every source window it reads. The two windows a coupled
+ * pass writes must also be disjoint, except for the overlap between corresponding right-hand sides explicitly
+ * supported by [indexedCoupledUpdate]. A destination read as part of writing it is not a
  * source: accumulating into the window already there is what most of these do, and a nonzero `beta` reading
  * the output it scales is the same thing. Disjoint windows of one backing array are fine, and so is one
  * source overlapping another: a rank update over a single vector passes the same window twice on purpose.
@@ -79,8 +97,31 @@ public interface DensePanelKernels {
      * Always at least one and never more than [columns] when [columns] is positive. The answer is a local
      * tuning choice made from the resolved vector width and small measured rules, and it is not a lane count:
      * a group of four columns and four lanes are different numbers that happen to agree on some machines.
+     *
+     * [contiguous] is part of the question for the same reason it is part of [implementationFor]'s: a backend
+     * whose body over adjacent entries is a different body may want a different amount of work in it. A
+     * caller that will hand over a strided window has to say so, or it is given a recommendation for a body
+     * it is not going to reach. A scheduling of its own may then take less than what was recommended, for a
+     * cache or a workspace it is keeping within; passing less is always correct.
      */
-    public fun executionGroup(work: PanelWork, rows: Int, columns: Int): Int
+    public fun executionGroup(work: PanelWork, rows: Int, columns: Int, contiguous: Boolean = true): Int
+
+    /**
+     * Whether a panel of these extents is worth copying into adjacent rows before it is handed over.
+     *
+     * A caller that can copy a strided window into adjacent storage needs to know whether the copy buys
+     * anything before it pays for it, and the answer is the backend's, because only the backend knows what
+     * its body does with the two layouts. A portable body reads one entry at a time either way and says no
+     * at every extent. A vector body says yes where the panel is wide enough that the arithmetic it gains
+     * outweighs a pass over the data, which is not the same width as the one where its body starts running:
+     * one lane block is a single vector operation per column, and a copy is not repaid by that.
+     *
+     * This is a recommendation about copying rather than a claim about which body runs, and the two are
+     * asked separately. Where it is true, [implementationFor] also names a different body for the two
+     * layouts, so that a route reports the body the copy was made for; where it is false the body may still
+     * differ, and the caller has simply been told not to pay for the difference.
+     */
+    public fun prefersContiguous(work: PanelWork, rows: Int, columns: Int): Boolean
 
     /**
      * The arithmetic implementation a panel of this [work] and these extents reaches.
@@ -187,5 +228,126 @@ public interface DensePanelKernels {
         coefficients: DoubleArray,
         coefficientOffset: Int,
         coefficientStride: Int,
+    )
+
+    /**
+     * `y(i) += Σ (alpha · values(c)) · a(i, indices(c))` over a panel whose columns an index array selects.
+     *
+     * The sparse counterpart of [columnUpdate], and the shape a sparse column takes when its dense operand
+     * carries several right-hand sides. [rows] is the group of right-hand sides, which is the axis with no
+     * dependences between its entries and therefore the one a backend may vectorise; [columns] is how many
+     * stored entries the column contributes, read as `indices` and `values` from [fromIndex] onward.
+     *
+     * An entry of the panel is at `aOffset + i · rowStride + indices(c) · indexStride`, which is two strides
+     * rather than a leading dimension because either axis may be the contiguous one. A dense block in
+     * column-major storage has its right-hand sides a leading dimension apart, and one staged into
+     * right-hand-side-major order has them adjacent; the arithmetic is the same and only the strides differ.
+     * [implementationFor] answers which body a given panel reaches, and a caller that wants the vector one
+     * has to make [rowStride] one for it.
+     *
+     * The destination is [rows] adjacent entries from [yOffset] and is accumulated into. Every product is
+     * formed, as everywhere in this contract: a stored zero of a sparse operand is a position its pattern
+     * reaches, so a zero against an infinity is a NaN the caller asked for.
+     */
+    public fun indexedColumnUpdate(
+        alpha: Double,
+        a: DoubleArray,
+        aOffset: Int,
+        rowStride: Int,
+        indexStride: Int,
+        indices: IntArray,
+        values: DoubleArray,
+        fromIndex: Int,
+        columns: Int,
+        rows: Int,
+        y: DoubleArray,
+        yOffset: Int,
+    )
+
+    /**
+     * `a(i, indices(c)) += (alpha · values(c)) · x(i)`, the indexed counterpart of [rankUpdate].
+     *
+     * The destination is the panel and [x] is the source window of [rows] adjacent entries, addressed as
+     * [indexedColumnUpdate] describes.
+     *
+     * Every logical entry this call writes must have an address of its own. Two things are needed for that
+     * and the caller owns both: the selected positions must be distinct, which a validated CSC column's
+     * ascending row indices are, and the two strides must describe a panel that does not fold onto itself,
+     * which they fail to do where a stride is zero or where one is a multiple of the other inside the
+     * extents in play. A backend may hold several entries in registers at once, so two logical entries
+     * sharing an address would lose an update rather than apply both. This is the one precondition these two
+     * leaves do not share: a reduction may read a position twice, a scatter may not write one twice.
+     *
+     * Nothing here is validated, as nowhere in this contract is. A public matrix call passes windows of its
+     * own storage, where the strides come from a layout that already holds.
+     */
+    public fun indexedRankUpdate(
+        alpha: Double,
+        a: DoubleArray,
+        aOffset: Int,
+        rowStride: Int,
+        indexStride: Int,
+        indices: IntArray,
+        values: DoubleArray,
+        fromIndex: Int,
+        columns: Int,
+        rows: Int,
+        x: DoubleArray,
+        xOffset: Int,
+    )
+
+    /**
+     * One pass over an indexed panel that both scatters into the positions it selects and reduces them.
+     *
+     * For every position `c` of the run, with `t = alpha · values(c)`:
+     * `a(i, indices(c)) += t · b[pivot + i · rowStride]`, and `sums(i) += t · b(i, indices(c))` unless `c`
+     * is [excluded].
+     *
+     * This is [indexedRankUpdate] and [indexedColumnUpdate] over one walk of the same run, and the indexed
+     * counterpart of [coupledUpdateDot]. It is here for the same reason that one is: a symmetric traversal
+     * stores one triangle, every stored entry serves the column it sits in and the row it mirrors into, and
+     * reading it once is half the index work of reading it twice. One multiplier serves both halves, so a
+     * caller applies its own scaling through [alpha] rather than pre-scaling one side of the pair.
+     *
+     * Both halves read [b]: the scattered one reads the [rows] entries from [pivot] spaced [rowStride]
+     * apart, which is one indexed column of the same window, and the reduced one reads the column each
+     * position selects. A caller therefore hands over no coefficients of its own, because gathering that
+     * column into a scratch first would be a pass over it per column of the sparse operand, which is what
+     * this shape exists to avoid.
+     *
+     * [a] and [b] are windows of the same shape addressed alike, from [offset] with the two strides
+     * [indexedColumnUpdate] describes; a symmetric product passes its destination and its source, which are
+     * different arrays. The reduction lands in [rows] entries from [sumOffset] spaced [rowStride] apart.
+     * This window may coincide with one indexed column of [a], with each reduction entry overlapping only
+     * the scatter entry for the same logical right-hand side. An overlap between different right-hand sides
+     * is unsupported. Where both updates target the same entry, the scatter is applied before the reduction
+     * for each stored position. All source windows remain disjoint from both destination windows.
+     *
+     * [excluded] is a position relative to this run, in `0 until columns`, whose product is scattered but
+     * not reduced; `-1` excludes none. The column of [b] it selects is not read, though [pivot] still is,
+     * because the scatter runs at that position like any other. A symmetric column excludes its own
+     * diagonal because that contribution is already scattered into the pivot row; the exclusion suppresses
+     * that second contribution, while the scatter still writes the overlapping destination.
+     *
+     * Every product is formed, as everywhere in this contract, and the reduction is accumulated into rather
+     * than written, so its terms reach the destination in the order the run is walked.
+     */
+    @Suppress("LongParameterList") // the panel, its two windows, the run, and both results
+    public fun indexedCoupledUpdate(
+        alpha: Double,
+        a: DoubleArray,
+        b: DoubleArray,
+        offset: Int,
+        rowStride: Int,
+        indexStride: Int,
+        indices: IntArray,
+        values: DoubleArray,
+        fromIndex: Int,
+        columns: Int,
+        rows: Int,
+        pivot: Int,
+        sums: DoubleArray,
+        sumOffset: Int,
+        excluded: Int,
     )
 }

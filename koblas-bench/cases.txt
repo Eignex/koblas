@@ -119,6 +119,57 @@ spsyrk-dense+129x65+sparse-uniform+density=0.02+uplo=U
 spsyrk-dense+129x65+sparse-uniform+density=0.02+uplo=L
 spsyrk-sparse+129x65+sparse-uniform+density=0.02+uplo=L
 spadd+129x65+sparse-uniform+density=0.02
+# The support distributions, at one shape and one density, because where the stored entries are costs as
+# much as how many there are: a band keeps a scatter's destination resident, a skewed support puts most of
+# the work in an eighth of the columns, an empty one leaves a quarter of them with nothing, and a mixed one
+# alternates short columns with long.
+spmm+257x8x129+sparse-uniform+density=0.01+support=banded+mode=oneshot
+spmm+257x8x129+sparse-uniform+density=0.01+support=skewed+mode=oneshot
+spmm+257x8x129+sparse-uniform+density=0.01+support=empty+mode=oneshot
+spmm+257x8x129+sparse-uniform+density=0.01+support=mixed+mode=oneshot
+spmm+257x8x129+sparse-uniform+density=0.01+support=banded+mode=oneshot+transA=T
+# Right-hand side counts, which is what a panel of them is cut from, and two densities either side of where
+# staging a panel adjacent pays for its copy.
+spmm+257x1x129+sparse-uniform+density=0.01+mode=oneshot
+spmm+257x32x129+sparse-uniform+density=0.01+mode=oneshot
+spmm+257x64x129+sparse-uniform+density=0.01+mode=oneshot
+spmm+257x8x129+sparse-uniform+density=0.1+mode=oneshot
+spmm+257x8x129+sparse-uniform+density=0.25+mode=oneshot
+spmm+257x64x129+sparse-uniform+density=0.25+mode=oneshot
+spmm+257x64x129+sparse-uniform+density=0.25+mode=oneshot+transA=T
+# The same product with the sparse operand on the right, on the arm the row is published under rather than
+# through the generic entry point, whose engine is the platform's.
+spmm-right+257x8x129+sparse-uniform+density=0.01+mode=oneshot
+spmm-right+257x8x129+sparse-uniform+density=0.25+mode=oneshot
+spmm-right+257x8x129+sparse-uniform+density=0.01+mode=oneshot+transA=T
+# Reuse counts, which is where a snapshot's setup is paid back: an amortized row is one preparation and that
+# many uses, divided by the count, and is read against the one-shot row of the same case.
+spmm+257x8x129+sparse-uniform+density=0.01+mode=amortized+reuse=2
+spmm+257x8x129+sparse-uniform+density=0.01+mode=amortized+reuse=8
+spmm+257x8x129+sparse-uniform+density=0.01+mode=amortized+reuse=32+transA=T
+spgemv+257x129+sparse-uniform+density=0.01+mode=amortized+reuse=8+transA=T
+spgemm+129x97x65+sparse-uniform+density=0.01+mode=amortized+reuse=8+transA=T
+# The matrix-vector product over every distribution, where a scatter's conflicts and a reduction's gathers
+# are what separate them.
+spgemv+257x129+sparse-uniform+density=0.01+support=banded+mode=oneshot
+spgemv+257x129+sparse-uniform+density=0.01+support=skewed+mode=oneshot
+spgemv+257x129+sparse-uniform+density=0.01+support=banded+mode=oneshot+transA=T
+spgemv+257x129+sparse-uniform+density=0.1+mode=oneshot
+# Sparse against sparse, where the cost is discovery and accumulation rather than panels.
+spgemm+129x97x65+sparse-uniform+density=0.01+support=banded+mode=oneshot
+spgemm+129x97x65+sparse-uniform+density=0.01+support=skewed+mode=oneshot
+spgemm+129x97x65+sparse-uniform+density=0.1+mode=oneshot
+spgemm+129x97x65+sparse-uniform+density=0.25+mode=oneshot
+spsyrk-dense+129x65+sparse-uniform+density=0.1+uplo=L
+spsyrk-sparse+129x65+sparse-uniform+density=0.1+uplo=L
+# The symmetric and triangular block routines at a denser support and more right-hand sides, which is where
+# a panel of them is worth staging adjacent.
+spsymm+129x64+sparse-triangular+density=0.1+mode=oneshot+side=L+uplo=L
+spsymm+64x129+sparse-triangular+density=0.1+mode=oneshot+side=R+uplo=L
+sptrsm+129x64+sparse-triangular+density=0.1+mode=oneshot+side=L+uplo=L+transA=N+diag=N
+sptrsm+129x64+sparse-triangular+density=0.1+mode=oneshot+side=L+uplo=L+transA=T+diag=N
+sptrmm+129x64+sparse-triangular+density=0.1+mode=oneshot+side=L+uplo=L+transA=N+diag=N
+sptrsm+129x64+sparse-triangular+density=0.1+support=banded+mode=oneshot+side=L+uplo=L+transA=N+diag=N
 spaccumulate+4096+sparse-uniform+density=0.01
 
 # Skinny, depth tails, and single through many RHS transition baselines.
