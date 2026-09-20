@@ -625,9 +625,7 @@ internal class SparseAlgorithms(
         val leaves = ArrayList<String>(2)
         for (j in 0 until a.cols) {
             val length = a.colPointers[j + 1] - a.colPointers[j]
-            val leaf = requireNotNull(indexedKernels.implementationFor(operation, length)) {
-                "matrix indexed updates must have a shape-determined implementation"
-            }
+            val leaf = indexedKernels.implementationFor(operation, length)
             if (leaf !in leaves) leaves.add(leaf)
         }
         return leaves

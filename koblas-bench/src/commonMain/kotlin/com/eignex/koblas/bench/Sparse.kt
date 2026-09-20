@@ -13,7 +13,7 @@ import com.eignex.koblas.sparse.SparseMatrixOperation
 import com.eignex.koblas.sparse.SparseMatrixRoute
 import com.eignex.koblas.sparse.SparseOperation
 import com.eignex.koblas.sparse.SparsePrimitives
-import com.eignex.koblas.sparse.SparseRoute
+import com.eignex.koblas.VectorRoute
 import com.eignex.koblas.times
 import com.eignex.koblas.vendor.RouteKind
 import kotlin.math.abs
@@ -161,7 +161,7 @@ internal fun sparseArm(case: BenchCase, engine: KoblasEngine): ArmChoice? {
 }
 
 /** The attribution a sparse row carries, taken from the binding rather than rebuilt from the mode string. */
-internal fun sparseKernel(route: SparseRoute): String = "${route.implementation}/${route.entryPoint}"
+internal fun sparseKernel(route: VectorRoute<SparseOperation>): String = "${route.implementation}/${route.entryPoint}"
 
 /** A nonzero scatter epoch; the accumulator is cleared between iterations, so one value serves every pass. */
 private const val EPOCH = 1

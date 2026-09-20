@@ -1,6 +1,7 @@
 package com.eignex.koblas.sparse
 
 import com.eignex.koblas.SparseMatrix
+import com.eignex.koblas.VectorRoute
 import com.eignex.koblas.vendor.RouteKind
 
 /**
@@ -132,7 +133,7 @@ public class SparseCall(
 /**
  * What a built-in sparse Level 2 or 3 call executes, derived from the same decisions the call makes.
  *
- * The sparse counterpart of [SparseRoute] one level up: a whole sparse call is CSC scheduling written in this
+ * The sparse counterpart of [VectorRoute] one level up: a whole sparse call is CSC scheduling written in this
  * library, which may hand individual units of work to Level 1 kernels the engine selected. Neither half may
  * stand for the other. An engine whose Level 1 kernels are Vector API ones does not thereby execute a
  * vectorised sparse product, and reporting the engine's name would claim exactly that.

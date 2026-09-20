@@ -12,7 +12,6 @@ import com.eignex.koblas.dense.DensePanelKernels
 import com.eignex.koblas.dense.DenseProductKernels
 import com.eignex.koblas.dense.DenseTriangularKernels
 import com.eignex.koblas.dense.DenseVectorKernels
-import com.eignex.koblas.dense.DenseVectorRoute
 import com.eignex.koblas.dense.HostDenseBlas
 import com.eignex.koblas.dense.PackedMatrix
 import com.eignex.koblas.dense.PortableDenseBlas
@@ -27,9 +26,7 @@ import com.eignex.koblas.sparse.SparseBlas
 import com.eignex.koblas.sparse.SparseKernels
 import com.eignex.koblas.sparse.SparseOperation
 import com.eignex.koblas.sparse.SparsePanelKernels
-import com.eignex.koblas.sparse.SparseRoute
 import com.eignex.koblas.vendor.Blas
-import com.eignex.koblas.vendor.RouteKind
 import com.eignex.koblas.vendor.openBlas
 
 /**
@@ -42,33 +39,15 @@ import com.eignex.koblas.vendor.openBlas
 @get:kotlin.jvm.JvmName("getDefault")
 public val koblas: KoblasEngine by lazy { platformEngine() }
 
-/**
- * The Level 1 arm this platform prefers, which is not the same arm on both.
- *
- * On the JVM the Vector API kernels win at every width, because reaching the library there copies both
- * operands into native memory and so costs a pass over the data before any arithmetic happens. They are the
- * reductions only: an elementwise loop is vectorised by the JIT without being written in lanes, and a
- * hand-written one measured no faster. On Kotlin/Native there is no Vector API, the portable loops do not
- * vectorise and pay a safepoint poll and a bounds check per element, and the binding pins the caller's array
- * and passes it in place: so the library is the arm, above the width where its per-call cost is paid for.
- *
- * Either way the portable kernels are what the chosen arm calls below its own threshold, not a third engine
- * beside it.
- */
+/** JVM SIMD when available; Native host composition when available; portable Kotlin otherwise. */
 internal expect fun platformEngine(): KoblasEngine
 
 /**
- * An immutable engine providing portable Kotlin BLAS at every level, optionally composing a host library.
+ * Immutable dense and sparse BLAS with portable fallbacks.
  *
- * [vendor] records the installed host binding this engine can reach. It is separately callable for explicit
- * host comparisons and attribution, and on most engines it is nothing else: [BuiltinEngines.scalar] and
- * [BuiltinEngines.simd] never resolve one, so a scalar or JVM SIMD benchmark arm is independent of host
- * libraries by construction. A platform default may also compose it into ordinary dense Level 2 and 3 calls
- * under a fixed policy, which Kotlin/Native's does; holding a binding is not evidence that a given call
- * reached it, and [routeOf] is what answers that for one call.
- *
- * Selected once for the platform and immutable afterwards. [BuiltinEngines] constructs exact scalar or SIMD
- * compositions for tests and benchmarks without touching process-global state.
+ * [koblas] is the platform default. [BuiltinEngines] provides exact portable and JVM SIMD compositions
+ * for tests and benchmarks, neither of which loads a host library. On Native, the default may compose
+ * [vendor] into eligible calls. The [routeOf] overloads describe which implementations a call reaches.
  */
 public class KoblasEngine internal constructor(
     /** Contiguous and strided dense Level 1 kernels. */
@@ -121,17 +100,11 @@ public class KoblasEngine internal constructor(
             triangularKernels.name
 
     /**
-     * What a built-in dense Level 2 or 3 call of this [operation] and shape actually executes.
+     * The route for a dense matrix [operation] with the supplied [call] facts.
      *
-     * Traversal is this library's own portable code wherever this library schedules the call. Its panels use
-     * the selected backend, and a window too short for one falls to the portable body. An engine's name
-     * says which backend was selected and nothing about which of its bodies a call ran.
-     *
-     * Where the platform default composes an installed library, a call with enough arithmetic for it is one
-     * whole vendor entry point instead, and the route names which library, which symbol and what this
-     * library still did around it. The answer comes from the decision the call itself makes, so an operation
-     * with no entry point of its own, such as a product between operands packed for this library's register
-     * tile, reports the portable schedule it really runs however large it is.
+     * Names the panels and kernels reached by the shared schedule, including short-window fallbacks.
+     * A whole-call host route identifies the library and entry point. Products over retained packed
+     * operands use this engine's product kernels, since host libraries cannot read that layout.
      */
     public fun routeOf(operation: DenseMatrixOperation, call: DenseCall): DenseMatrixRoute =
         dense.routeOf(operation, call)
@@ -186,48 +159,35 @@ public class KoblasEngine internal constructor(
     /**
      * The route for a dense vector call of this [operation] and [length].
      *
-     * [contiguous] says whether the operands have unit stride. A composed route means values or aliasing
+     * [contiguous] says whether the operands have unit stride. A composed route means values
      * decide which implementation finishes the call; inspecting a route does not execute it.
      */
-    public fun routeOf(operation: DenseOperation, length: Int, contiguous: Boolean = true): DenseVectorRoute {
+    public fun routeOf(
+        operation: DenseOperation,
+        length: Int,
+        contiguous: Boolean = true,
+    ): VectorRoute<DenseOperation> {
         require(length >= 0) { "negative operation length" }
-        val selection = vectorKernels.name
-        if (length == 0) {
-            return DenseVectorRoute(operation, RouteKind.NoWork, selection, "the vector is empty")
-        }
-        val reached = vectorKernels.implementationFor(operation, length, contiguous)
-            ?: return DenseVectorRoute(
-                operation,
-                RouteKind.Composed,
-                selection,
-                "values or aliasing decide which implementation completes the call",
-            )
-        return if (reached == selection) {
-            DenseVectorRoute(operation, RouteKind.Direct, reached, null)
-        } else {
-            DenseVectorRoute(operation, RouteKind.Delegated, reached, "$selection falls back to $reached")
-        }
+        return vectorRoute(
+            operation,
+            operation.name.lowercase(),
+            vectorKernels.name,
+            vectorKernels.implementationFor(operation, length, contiguous),
+        )
     }
 
     /** The route for a sparse vector call over [count] stored entries. */
-    public fun routeOf(operation: SparseOperation, count: Int): SparseRoute = sparseKernels.routeOf(operation, count)
+    public fun routeOf(operation: SparseOperation, count: Int): VectorRoute<SparseOperation> =
+        sparseKernels.routeOf(operation, count)
 
     override fun toString(): String = "KoblasEngine($name)"
 }
 
 /**
- * Exact built-in implementations for tests and benchmarks.
+ * Exact portable and JVM SIMD engines for tests and benchmarks, without changing the default [koblas].
  *
- * Not a menu of production choices, which is why it is behind [KoblasEngineApi]. [koblas] is what this
- * platform selected, which is a policy: it takes the kernels that have the evidence to be default and the
- * portable ones everywhere else. On the JVM that policy currently arrives at [simd] itself, and holding the
- * two apart is still the point, because which engine a policy lands on is a measurement's conclusion and
- * not something a benchmark arm may assume. [scalar] is not a faster or slower alternative to [simd] at a
- * given size either: it is the floor the vectorised kernels stand on, exposed on its own so a benchmark can
- * time it and a conformance test can compare against it.
- *
- * Kotlin/Native has no Vector API, so [simd] is null there and the selected engine is [scalar] where no
- * host library is installed and a composition over that library where one is.
+ * The JVM default currently selects [simd] when available and [scalar] otherwise. Native has no SIMD
+ * engine and composes an installed host library with portable fallbacks, or uses [scalar] without one.
  */
 @KoblasEngineApi
 public expect object BuiltinEngines {
