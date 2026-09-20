@@ -13,14 +13,7 @@ import com.eignex.koblas.sparse.SparsePanelKernels
 
 /* Shared triangular scheduling over reusable sparse column and RHS-panel leaves. */
 
-/**
- * The columns of a triangle of [order] in dependency order, ascending when [forward] and descending when not.
- *
- * A direction and a counter rather than a range object. Which end the dependence starts from is one boolean,
- * and a descending progression built from it is an object the virtual machine has been observed keeping,
- * which charges every call of a warmed solve for a walk it already knew how to take. Inline, so a caller gets
- * that walk as its own loop.
- */
+/** Walks triangle columns in dependency order without allocating a descending progression. */
 internal inline fun forEachTriangleColumn(order: Int, forward: Boolean, action: (column: Int) -> Unit) {
     var step = 0
     while (step < order) {

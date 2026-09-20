@@ -89,12 +89,7 @@ internal fun baseIndex(vector: DenseVector): Int = baseIndex(vector.offset, vect
 internal fun baseIndex(offset: Int, stride: Int, size: Int): Int =
     if (stride >= 0) offset else offset + (size - 1) * stride
 
-/**
- * Runs [block] with pins taken for one call, releasing every one of them on the way out.
- *
- * The Kotlin/Native counterpart of the JVM binding's confined arena: a call that raises gives the caller's
- * storage back exactly as one that returns does, so nothing stays pinned past the call that pinned it.
- */
+/** Releases every pin when [block] returns or throws. */
 internal inline fun <T> withPins(block: (Pins) -> T): T {
     val pins = Pins()
     try {
