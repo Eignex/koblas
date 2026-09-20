@@ -20,7 +20,11 @@ their fresh results. Factorization and solver workflows are outside this artifac
 [KoblasEngineApi][com.eignex.koblas.KoblasEngineApi] opt-in, names exact engines for tests and benchmarks.
 [KoblasEngine.routeOf][com.eignex.koblas.KoblasEngine.routeOf] inspects dense and sparse vector and matrix
 calls through the same overloaded getter. Routes name the implementation and any fallback; a composed
-route identifies multiple components or a choice that depends on values not supplied to the getter.
+route identifies multiple components or a choice that depends on values not supplied to the getter. A matrix
+product is describable with the operands themselves rather than with facts rebuilt beside them: the getter
+takes both matrices, their transposes, the scalars and the destination, and answers as [MatrixRoute][com.eignex.koblas.MatrixRoute] whichever
+storage pairing serves the call. A [com.eignex.koblas.PreparedSparseMatrix] answers the same way, and a second
+sparse operand settles the orientation such a call runs without deriving one.
 [Blas.routeOf][com.eignex.koblas.vendor.Blas.routeOf] describes an explicit host call. The host binding
 exposes its resolved binary, version and thread evidence.
 

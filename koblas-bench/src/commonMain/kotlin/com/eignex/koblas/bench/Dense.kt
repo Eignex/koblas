@@ -3,18 +3,20 @@ package com.eignex.koblas.bench
 import com.eignex.koblas.DenseVector
 import com.eignex.koblas.KoblasEngine
 import com.eignex.koblas.Matrix
+import com.eignex.koblas.MatrixRoute
 import com.eignex.koblas.VectorRoute
 import com.eignex.koblas.Workspace
-import com.eignex.koblas.gemmInto
 import com.eignex.koblas.dense.DenseCall
 import com.eignex.koblas.dense.DenseMatrixOperation
-import com.eignex.koblas.dense.DenseMatrixRoute
 import com.eignex.koblas.dense.DenseOperation
 import com.eignex.koblas.dense.DenseProductKernels
 import com.eignex.koblas.dense.PackedLayout
 import com.eignex.koblas.dense.PackedRole
 import com.eignex.koblas.dense.PanelWork
+import com.eignex.koblas.gemmInto
 import com.eignex.koblas.koblas
+import com.eignex.koblas.routeOf
+import com.eignex.koblas.sparse.SparseMatrixRoute
 import com.eignex.koblas.vendor.RouteKind
 
 internal class CaseWork(
@@ -81,12 +83,25 @@ private fun level23(
     val route = engine.routeOf(operation, call)
     if (route.kind == RouteKind.NoWork) return null
     verify()
-    return CaseWork(route.kind.name.lowercase(), timing, run, kernel = denseMatrixKernel(route))
+    return CaseWork(route.kind.name.lowercase(), timing, run, kernel = matrixKernel(route))
 }
 
-/** The attribution a dense matrix row carries, taken from the route the call resolved. */
-internal fun denseMatrixKernel(route: DenseMatrixRoute): String =
-    "${route.implementation}/${route.entryPoint}" + if (route.executionGroup > 0) "@${route.executionGroup}" else ""
+/**
+ * The attribution a matrix row carries, taken from the route the call resolved.
+ *
+ * The grouping is published beside the implementation because it is the local geometry a reader needs to make
+ * sense of the number, and it is not a lane count. A sparse row adds what only a sparse route has: a short
+ * last group, and whether the facts the route was asked about settled what the call runs.
+ */
+internal fun matrixKernel(route: MatrixRoute): String = when (route) {
+    is SparseMatrixRoute -> {
+        val unresolved = if (route.resolved) "" else "+unresolved"
+        "${route.implementation}$unresolved/${route.entryPoint}${route.groupSuffix}"
+    }
+
+    else -> "${route.implementation}/${route.entryPoint}" +
+        if (route.executionGroup > 0) "@${route.executionGroup}" else ""
+}
 
 /**
  * Raw panel work, named by the implementation that panel's own extents reach and the group it was given.
@@ -372,7 +387,7 @@ private fun genericProductArm(case: BenchCase, engine: KoblasEngine): ArmChoice 
     val b = Fixtures.matrix(k, n, 2)
     val c0 = Fixtures.matrix(m, n, 3)
     val c = Fixtures.matrix(m, n, 3)
-    val route = koblas.routeOf(DenseMatrixOperation.Gemm, DenseCall(m, n, alpha, beta, depth = k))
+    val route = koblas.routeOf(alpha, a, false, b, false, beta, c)
     if (route.kind == RouteKind.NoWork) {
         return ArmChoice(null, "this case's own contract stops before the arithmetic, so there is nothing to time")
     }
@@ -385,7 +400,7 @@ private fun genericProductArm(case: BenchCase, engine: KoblasEngine): ArmChoice 
             c0.values.copyInto(c.values)
             (a as Matrix).gemmInto(alpha, false, b as Matrix, false, beta, c)
             c.values[0]
-        }, kernel = denseMatrixKernel(route)),
+        }, kernel = matrixKernel(route)),
         null,
     )
 }

@@ -1,5 +1,6 @@
 package com.eignex.koblas.sparse
 
+import com.eignex.koblas.MatrixRoute
 import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.VectorRoute
 import com.eignex.koblas.vendor.RouteKind
@@ -156,15 +157,15 @@ public class SparseMatrixRoute internal constructor(
     /** The operation requested. */
     public val operation: SparseMatrixOperation,
     /** How the call was served. */
-    public val kind: RouteKind,
+    override val kind: RouteKind,
     /** The component that owns traversal, structure and arithmetic order. */
-    public val scheduling: String,
+    override val scheduling: String,
     /** The resolved entry point within [scheduling]. */
-    public val entryPoint: String,
+    override val entryPoint: String,
     /** Every Level 1 implementation and leaf the call reaches, in call order. */
-    public val components: List<String>,
+    override val components: List<String>,
     /** What the components cover, what the traversal keeps for itself, or why the call is composed. */
-    public val reason: String?,
+    override val reason: String?,
     /**
      * Right-hand sides this call visits per walk of a sparse column, or zero where it groups none.
      *
@@ -172,7 +173,7 @@ public class SparseMatrixRoute internal constructor(
      * sparse scheduling keeps for a staged copy. It is not a lane count: a group of four right-hand sides
      * and four lanes are different numbers that agree on some machines.
      */
-    public val executionGroup: Int = 0,
+    override val executionGroup: Int = 0,
     /**
      * Right-hand sides in the last group, where that group is shorter than [executionGroup], or zero where
      * every group is full.
@@ -191,9 +192,9 @@ public class SparseMatrixRoute internal constructor(
      * undecided and still scale a destination.
      */
     public val resolved: Boolean = true,
-) {
+) : MatrixRoute {
     /** The full attribution: the scheduling, plus every component it calls. */
-    public val implementation: String
+    override val implementation: String
         get() = if (components.isEmpty()) scheduling else components.joinToString("+", prefix = "$scheduling+")
 
     /**
@@ -202,7 +203,7 @@ public class SparseMatrixRoute internal constructor(
      * A call whose units of work do not all reach the same implementation is reported [RouteKind.Composed] so
      * a benchmark publishes it as a composition rather than under either name on its own.
      */
-    public val exactlyMeasurable: Boolean get() = kind == RouteKind.Direct
+    override val exactlyMeasurable: Boolean get() = kind == RouteKind.Direct
 
     /** The grouping as a report writes it: the width, and the last group where one is short. */
     public val groupSuffix: String

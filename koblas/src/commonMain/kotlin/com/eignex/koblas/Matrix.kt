@@ -133,7 +133,7 @@ public class DenseMatrix internal constructor(
         public fun wrap(rows: Int, cols: Int, values: DoubleArray): DenseMatrix = DenseMatrix(rows, cols, values)
 
         /** Entry count for a shape, validated first so a negative dimension reports a shape error. */
-        private fun entryCount(rows: Int, cols: Int): Int {
+        internal fun entryCount(rows: Int, cols: Int): Int {
             requireNonNegativeShape(rows, cols)
             val count = rows.toLong() * cols
             requireShape(count <= Int.MAX_VALUE) {

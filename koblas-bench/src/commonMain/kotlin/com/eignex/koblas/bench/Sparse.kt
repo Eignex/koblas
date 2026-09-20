@@ -2,12 +2,14 @@ package com.eignex.koblas.bench
 
 import com.eignex.koblas.KoblasEngine
 import com.eignex.koblas.Matrix
-import com.eignex.koblas.Workspace
+import com.eignex.koblas.MatrixRoute
 import com.eignex.koblas.PreparedSparseMatrix
 import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.gemm
+import com.eignex.koblas.Workspace
 import com.eignex.koblas.gemmInto
 import com.eignex.koblas.koblas
+import com.eignex.koblas.routeOf
 import com.eignex.koblas.sparse.SparseCall
 import com.eignex.koblas.sparse.SparseMatrixOperation
 import com.eignex.koblas.sparse.SparseMatrixRoute
@@ -243,7 +245,7 @@ internal fun sparseMatrixArm(case: BenchCase, engine: KoblasEngine): ArmChoice? 
             )
             if (case.operation == "spmm-generic") {
                 genericArm(
-                    case, engine, SparseMatrixOperation.GemmDense, call,
+                    case, engine, koblas.routeOf(alpha, a, transpose, b, transposeDense, beta, c),
                     verify = {
                         c0.values.copyInto(c.values)
                         (a as Matrix).gemmInto(alpha, transpose, b as Matrix, transposeDense, beta, c, workspace)
@@ -331,11 +333,7 @@ internal fun sparseMatrixArm(case: BenchCase, engine: KoblasEngine): ArmChoice? 
                 beta, SparseReference.dense(mirror0),
             )
             genericArm(
-                case, engine, SparseMatrixOperation.GemmDenseRight,
-                SparseCall(
-                    a, alpha, beta,
-                    destinationElements = mirror.values.size, depth = m, updateRun = mirror.rows,
-                ),
+                case, engine, koblas.routeOf(alpha, leftDense, false, a, transpose, beta, mirror),
                 verify = {
                     mirror0.values.copyInto(mirror.values)
                     (leftDense as Matrix).gemmInto(alpha, false, a as Matrix, transpose, beta, mirror, workspace)
@@ -359,7 +357,7 @@ internal fun sparseMatrixArm(case: BenchCase, engine: KoblasEngine): ArmChoice? 
             val call = SparseCall(a, depth = k, transposeSparse = transpose)
             if (case.operation == "spgemm-generic") {
                 genericArm(
-                    case, engine, SparseMatrixOperation.GemmSparse, call,
+                    case, engine, koblas.routeOf(1.0, a, false, b, false),
                     verify = {
                         val product = (a as Matrix) * (b as Matrix)
                         SparseReference.checkSparse(
@@ -372,6 +370,9 @@ internal fun sparseMatrixArm(case: BenchCase, engine: KoblasEngine): ArmChoice? 
             } else {
                 preparedArm(
                     case, engine, SparseMatrixOperation.GemmSparse, call, mode, a,
+                    // The second operand is what decides which orientation a transposed prepared product
+                    // runs, so the row names that orientation instead of publishing an undecided route.
+                    routeOfPrepared = { engine.routeOf(1.0, it, transpose, b, false) as SparseMatrixRoute },
                     verifyOneShot = {
                         SparseReference.checkSparse(
                             expected, support, engine.gemm(1.0, a, transpose, b, false), "${case.id} product",
@@ -602,7 +603,7 @@ private fun publish(
     val route = engine.routeOf(operation, call)
     if (route.kind == RouteKind.NoWork) return declined()
     verify()
-    return ArmChoice(CaseWork(route.kind.name.lowercase(), timing, run, kernel = sparseMatrixKernel(route)), null)
+    return ArmChoice(CaseWork(route.kind.name.lowercase(), timing, run, kernel = matrixKernel(route)), null)
 }
 
 private fun declined(): ArmChoice =
@@ -620,8 +621,7 @@ private fun declined(): ArmChoice =
 private fun genericArm(
     case: BenchCase,
     engine: KoblasEngine,
-    operation: SparseMatrixOperation,
-    call: SparseCall,
+    route: MatrixRoute,
     verify: () -> Unit,
     run: () -> Double,
 ): ArmChoice {
@@ -632,11 +632,10 @@ private fun genericArm(
                 "as a default-policy case on the arm whose engine that is",
         )
     }
-    val route = koblas.routeOf(operation, call)
     if (route.kind == RouteKind.NoWork) return declined()
     verify()
     return ArmChoice(
-        CaseWork("default-policy", "oneshot-generic", run, kernel = sparseMatrixKernel(route)),
+        CaseWork("default-policy", "oneshot-generic", run, kernel = matrixKernel(route)),
         null,
     )
 }
@@ -661,6 +660,7 @@ private fun preparedArm(
     call: SparseCall,
     mode: String,
     source: SparseMatrix,
+    routeOfPrepared: (PreparedSparseMatrix) -> SparseMatrixRoute = { it.routeOf(operation, call) },
     verifyOneShot: () -> Unit,
     verifyPrepared: (PreparedSparseMatrix) -> Unit,
     oneShot: () -> Double,
@@ -675,7 +675,7 @@ private fun preparedArm(
                 // The snapshot itself, not its length: what this row times is the copying, and a count the
                 // compiler can take from the source operand would let that copying disappear.
                 { Retained.retain(engine.prepare(source)) },
-                kernel = sparseMatrixKernel(route),
+                kernel = matrixKernel(route),
             ),
             null,
         )
@@ -685,7 +685,7 @@ private fun preparedArm(
     verifyOneShot()
     if (mode == "oneshot") {
         return ArmChoice(
-            CaseWork(oneShotRoute.kind.name.lowercase(), mode, oneShot, kernel = sparseMatrixKernel(oneShotRoute)),
+            CaseWork(oneShotRoute.kind.name.lowercase(), mode, oneShot, kernel = matrixKernel(oneShotRoute)),
             null,
         )
     }
@@ -696,9 +696,9 @@ private fun preparedArm(
     // orientation takes the untransposed schedule over it. One diagnostic snapshot answers both questions,
     // and it is a throwaway so that asking does not warm the snapshot a timed row is about to build.
     val diagnostic = engine.prepare(source)
-    val preparedRoute = diagnostic.routeOf(operation, call)
-    // One real call against the throwaway snapshot, which settles by observation what a route cannot settle
-    // from the facts a call carries: a product against a second sparse operand orients on that operand.
+    val preparedRoute = routeOfPrepared(diagnostic)
+    // One real call against the throwaway snapshot, so that what a first use builds is an observation of the
+    // snapshot rather than a reading of the route, which is what the prepare-and-first-use row is about.
     prepared(diagnostic)
     if (mode == "firstuse" || mode == "amortized") {
         val prepare = engine.routeOf(SparseMatrixOperation.Prepare, SparseCall(source))
@@ -708,7 +708,7 @@ private fun preparedArm(
             ""
         }
         val kernel = "${prepare.implementation}/${prepare.entryPoint}$orientation then " +
-            sparseMatrixKernel(preparedRoute)
+            matrixKernel(preparedRoute)
         val reuse = if (mode == "firstuse") 1 else case.option("reuse", "1").toInt()
         val timing = if (mode == "firstuse") "prepare-and-first-use" else "prepare-and-$reuse-uses"
         return ArmChoice(
@@ -734,20 +734,9 @@ private fun preparedArm(
     return ArmChoice(
         CaseWork(
             preparedRoute.kind.name.lowercase(), mode, { prepared(snapshot) },
-            kernel = sparseMatrixKernel(preparedRoute),
+            kernel = matrixKernel(preparedRoute),
         ),
         null,
     )
 }
 
-/**
- * The attribution a sparse matrix row carries, taken from the route the call resolved.
- *
- * The grouping is published beside the implementation, as a dense row publishes its panel grouping, because
- * it is the local geometry a reader needs to make sense of the number and it is not a lane count. A route
- * that could not settle what a call runs says so here rather than only in a reason nothing publishes.
- */
-internal fun sparseMatrixKernel(route: SparseMatrixRoute): String {
-    val unresolved = if (route.resolved) "" else "+unresolved"
-    return "${route.implementation}$unresolved/${route.entryPoint}${route.groupSuffix}"
-}
