@@ -197,8 +197,15 @@ internal fun scaleProductWindow(beta: Double, c: DoubleArray, cOffset: Int, ldc:
  * evidence compares the two schedules over the same operands on one machine: from here upward packing is
  * ahead on both backends and by a widening margin, and below it the two are within the run-to-run band and
  * which of them leads changes from one shape to the next. Where the answer is that unclear, the route that
- * copies nothing is the one to take. This is one machine's crossover and not a calibrated constant;
- * calibration across machines is a later stage's.
+ * copies nothing is the one to take.
+ *
+ * The calibration looked for a second condition to put beside this one and did not find a defensible one.
+ * It measured products this rule packs where the unpacked schedule was faster, thin ones above all, and
+ * others of the same arithmetic per copied value, the same total work or the same short extent where
+ * packing was faster; the same extents also changed sign with the left operand's storage. No single
+ * quantity separated the two groups, so the threshold is unchanged and the shapes where it costs something
+ * on that host are recorded with the stage evidence rather than fitted to. It remains one machine's
+ * crossover.
  */
 internal fun packsProductByWork(rows: Int, columns: Int, depth: Int, tileRows: Int, tileColumns: Int): Boolean =
     rows >= tileRows && columns >= tileColumns &&
