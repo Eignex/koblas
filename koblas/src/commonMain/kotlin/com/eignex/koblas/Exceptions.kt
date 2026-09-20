@@ -1,7 +1,5 @@
 package com.eignex.koblas
 
-import kotlin.jvm.JvmInline
-
 /** Operands whose shapes do not fit the routine. */
 public class DimensionMismatch(message: String) : IllegalArgumentException(message)
 
@@ -68,45 +66,20 @@ internal fun requireSolveShapes(rows: Int, cols: Int, b: DenseMatrix, out: Dense
 }
 
 /**
- * The lengths a gemv's operands must have, for a caller that needs them after the check.
- *
- * Both extents ride in one `Long` so the check hands them back without a heap object. A record here would
- * be allocated on every gemv, which the JVM removes only once the caller has reached the top compilation
- * tier and Kotlin/Native never removes.
- */
-@JvmInline
-internal value class GemvShape(private val packed: Long) {
-    constructor(inputs: Int, outputs: Int) : this(packExtents(inputs, outputs))
-
-    val inputs: Int get() = firstExtent(packed)
-    val outputs: Int get() = secondExtent(packed)
-}
-
-private fun packExtents(first: Int, second: Int): Long =
-    (first.toLong() shl Int.SIZE_BITS) or (second.toLong() and INT_MASK)
-
-private fun firstExtent(packed: Long): Int = (packed ushr Int.SIZE_BITS).toInt()
-
-private fun secondExtent(packed: Long): Int = packed.toInt()
-
-private const val INT_MASK = 0xFFFF_FFFFL
-
-/**
  * The operand lengths a gemv of a [rows] by [cols] matrix implies, checked against the [x] and [y] given.
  *
  * Which extent each vector takes is a consequence of [transpose], and deriving it is the same three lines
  * wherever a gemv is entered, so every layer that checks its arguments asks here instead.
  */
-internal fun requireGemvShape(rows: Int, cols: Int, transpose: Boolean, x: Int, y: Int): GemvShape {
+internal fun requireGemvShape(rows: Int, cols: Int, transpose: Boolean, x: Int, y: Int) {
     val inputs = if (transpose) rows else cols
     val outputs = if (transpose) cols else rows
     requireShape(x == inputs) { "gemv: x length $x != $inputs" }
     requireShape(y == outputs) { "gemv: y length $y != $outputs" }
-    return GemvShape(inputs, outputs)
 }
 
 /** The same check for a caller holding the operand rather than its extents. */
-internal fun requireGemvShape(a: Matrix, transpose: Boolean, x: Int, y: Int): GemvShape =
+internal fun requireGemvShape(a: Matrix, transpose: Boolean, x: Int, y: Int): Unit =
     requireGemvShape(a.rows, a.cols, transpose, x, y)
 
 /**
@@ -120,6 +93,18 @@ internal fun requireGemvShape(a: Matrix, transpose: Boolean, x: Int, y: Int): Ge
  */
 internal fun requireGemmShape(a: Matrix, transposeA: Boolean, b: Matrix, transposeB: Boolean, c: Matrix): Unit =
     requireGemmShape(a.rows, a.cols, transposeA, b, transposeB, c)
+
+/**
+ * The shapes a fresh sparse product needs, which is that the two oriented operands meet. There is no
+ * destination to check against: a product with a result of its own takes the extents that follow.
+ */
+internal fun requireSparseProductShape(a: Matrix, transposeA: Boolean, b: Matrix, transposeB: Boolean) {
+    val aRows = if (transposeA) a.cols else a.rows
+    val aCols = if (transposeA) a.rows else a.cols
+    val bRows = if (transposeB) b.cols else b.rows
+    val bCols = if (transposeB) b.rows else b.cols
+    requireShape(aCols == bRows) { "gemm: op(A) is ${aRows}x$aCols but op(B) is ${bRows}x$bCols" }
+}
 
 /**
  * The same check for a caller holding the first operand's extents rather than the operand, which the sparse
@@ -142,44 +127,6 @@ internal fun requireGemmShape(
     requireShape(c.rows == m && c.cols == n) { "gemm: C is ${c.rows}x${c.cols}, expected ${m}x$n" }
 }
 
-/**
- * The order and depth a `syrk` or `syr2k` works over, after checking C against them.
- *
- * Packed into one `Long` for the same reason as [GemvShape]: a syrk sits on per-observation update paths.
- */
-@JvmInline
-internal value class SyrkShape(private val packed: Long) {
-    constructor(order: Int, depth: Int) : this(packExtents(order, depth))
-
-    val order: Int get() = firstExtent(packed)
-    val depth: Int get() = secondExtent(packed)
-
-    operator fun component1(): Int = order
-    operator fun component2(): Int = depth
-}
-
-/** [SyrkShape] for [a] under [transpose], having checked that C is square and matches the order. */
-internal fun requireSyrkShape(a: DenseMatrix, transpose: Boolean, c: DenseMatrix, what: String): SyrkShape {
-    val n = if (transpose) a.cols else a.rows
-    val k = if (transpose) a.rows else a.cols
-    requireShape(c.rows == n && c.cols == n) { "$what: C is ${c.rows}x${c.cols}, expected ${n}x$n" }
-    return SyrkShape(n, k)
-}
-
-/** [SyrkShape] for a `syr2k`, having checked B against A and C against the order. */
-internal fun requireSyr2kShape(
-    a: DenseMatrix,
-    b: DenseMatrix,
-    transpose: Boolean,
-    c: DenseMatrix,
-    what: String,
-): SyrkShape {
-    requireShape(b.rows == a.rows && b.cols == a.cols) {
-        "$what: B is ${b.rows}x${b.cols}, expected ${a.rows}x${a.cols} to match A"
-    }
-    return requireSyrkShape(a, transpose, c, what)
-}
-
 /** Checks the symmetric matrix of a `syr` against its vector, returning its dimension. */
 internal fun requireSyrShape(a: Matrix, x: Int, what: String): Int {
     requireSquare(a, what)
@@ -193,15 +140,6 @@ internal fun requireSyr2Shape(a: Matrix, x: Int, y: Int, what: String): Int {
     requireSquare(a, what)
     val n = a.rows
     requireShape(x == n && y == n) { "$what: operand lengths $x and $y must both be $n" }
-    return n
-}
-
-/** Checks a symmetric matrix against the two vectors of a `symv`, returning its dimension. */
-internal fun requireSymvShape(a: DenseMatrix, x: Int, y: Int): Int {
-    requireSquare(a, "symv")
-    val n = a.rows
-    requireShape(x == n) { "symv: x length $x != $n" }
-    requireShape(y == n) { "symv: y length $y != $n" }
     return n
 }
 

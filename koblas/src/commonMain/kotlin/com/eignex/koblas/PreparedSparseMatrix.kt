@@ -128,7 +128,7 @@ public class PreparedSparseMatrix internal constructor(a: SparseMatrix, private 
 
     /** Prepared sparse-result product with scaling and transpose controls. */
     public fun gemm(alpha: Double, transposeA: Boolean, b: SparseMatrix, transposeB: Boolean): SparseMatrix {
-        requireProductShape(transposeA, b, transposeB)
+        requireSparseProductShape(snapshot, transposeA, b, transposeB)
         val depth = if (transposeA) snapshot.rows else snapshot.cols
         val outputs = if (transposeB) b.rows else b.cols
         val rows = if (transposeA) snapshot.cols else snapshot.rows
@@ -271,15 +271,6 @@ public class PreparedSparseMatrix internal constructor(a: SparseMatrix, private 
     private fun orientsOnAnotherOperand(operation: SparseMatrixOperation): Boolean = when (operation) {
         SparseMatrixOperation.GemmSparse, SparseMatrixOperation.GemmSparseDense -> true
         else -> false
-    }
-
-    /** The shape a fresh sparse product needs, checked before any orientation is derived. */
-    private fun requireProductShape(transposeA: Boolean, b: SparseMatrix, transposeB: Boolean) {
-        val aRows = if (transposeA) snapshot.cols else snapshot.rows
-        val aCols = if (transposeA) snapshot.rows else snapshot.cols
-        val bRows = if (transposeB) b.cols else b.rows
-        val bCols = if (transposeB) b.rows else b.cols
-        requireShape(aCols == bRows) { "gemm: op(A) is ${aRows}x$aCols but op(B) is ${bRows}x$bCols" }
     }
 }
 
