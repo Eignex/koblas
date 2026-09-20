@@ -194,10 +194,9 @@ internal fun scaleProductWindow(beta: Double, c: DoubleArray, cOffset: Int, ldc:
  * arithmetic to hide it behind; both run as panel work over the operands where they are instead.
  *
  * The limit is where the copy starts winning consistently rather than where it first wins. The stage
- * evidence compares the two schedules over the same operands on one machine: from here upward packing is
- * ahead on both backends and by a widening margin, and below it the two are within the run-to-run band and
- * which of them leads changes from one shape to the next. Where the answer is that unclear, the route that
- * copies nothing is the one to take.
+ * evidence compares the two schedules over the same operands on one machine. The original sampled shapes
+ * favored packing above this threshold; below it, the winner varied within the run-to-run band. This is a
+ * conservative rule for avoiding small copies, not a promise that every larger shape benefits from packing.
  *
  * The calibration looked for a second condition to put beside this one and did not find a defensible one.
  * It measured products this rule packs where the unpacked schedule was faster, thin ones above all, and
