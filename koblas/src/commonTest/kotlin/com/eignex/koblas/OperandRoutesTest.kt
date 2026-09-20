@@ -2,9 +2,10 @@ package com.eignex.koblas
 
 import com.eignex.koblas.dense.DenseCall
 import com.eignex.koblas.dense.DenseMatrixOperation
+import com.eignex.koblas.dense.scaleComponent
 import com.eignex.koblas.sparse.SparseCall
-import com.eignex.koblas.sparse.SparseMatrixRoute
 import com.eignex.koblas.sparse.SparseMatrixOperation
+import com.eignex.koblas.sparse.SparseMatrixRoute
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -127,6 +128,56 @@ class OperandRoutesTest {
         assertTrue(route.resolved, route.toString())
         assertTrue(route.reason.orEmpty().contains("no prepared orientation is derived"), route.toString())
         assertFalse(prepared.orientationDerived, "a call reaching no position derived an orientation")
+    }
+
+    @Test
+    @OptIn(KoblasEngineApi::class)
+    fun `prepared operands report their bound engine on either side`() {
+        val source = sparse(8, 8)
+        val prepared = BuiltinEngines.scalar.prepare(source)
+        val block = dense(8, 8)
+        val destination = dense(8, 8)
+
+        for (left in booleanArrayOf(true, false)) {
+            val route = if (left) {
+                koblas.routeOf(ALPHA, prepared, false, block, false, BETA, destination)
+            } else {
+                koblas.routeOf(ALPHA, block, false, prepared, false, BETA, destination)
+            }
+            val expected = if (left) {
+                BuiltinEngines.scalar.routeOf(ALPHA, source, false, block, false, BETA, destination)
+            } else {
+                BuiltinEngines.scalar.routeOf(ALPHA, block, false, source, false, BETA, destination)
+            }
+
+            assertEquals(expected.components, route.components)
+            assertEquals(expected.kind, route.kind)
+        }
+    }
+
+    @Test
+    fun `zero alpha routes name the generic destination scaling`() {
+        val destination = dense(4, 5)
+        val prepared = koblas.prepare(sparse(4, 3))
+
+        for (a in listOf<Matrix>(PoisonMatrix(4, 3), prepared)) {
+            val route = koblas.routeOf(0.0, a, false, PoisonMatrix(3, 5), false, BETA, destination)
+
+            assertEquals(scaleComponent(koblas.vectorKernels, 20), route.components)
+            assertFalse(route.exactlyMeasurable)
+            assertFalse(prepared.orientationDerived)
+        }
+    }
+
+    @Test
+    fun `a prepared right transpose is described without building it`() {
+        val prepared = koblas.prepare(sparse(4, 3))
+
+        val route = koblas.routeOf(1.0, sparse(2, 3), false, prepared, true) as SparseMatrixRoute
+
+        assertTrue(route.resolved)
+        assertTrue(route.reason.orEmpty().contains("derived on first use"))
+        assertFalse(prepared.orientationDerived)
     }
 
     private companion object {

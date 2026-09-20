@@ -8,6 +8,7 @@ import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.Workspace
 import com.eignex.koblas.dense.PanelWork
 import com.eignex.koblas.gemmInto
+import com.eignex.koblas.koblas
 import com.eignex.koblas.testutil.allocation.AllocationProbe
 import com.eignex.koblas.testutil.allocation.bytesPerCall
 
@@ -233,6 +234,15 @@ internal object SimdSparseAllocationCheck {
         }
         assertAllocationFree("generic product with a sparse right operand", OPERATION_WARMUP, OPERATION_ITERATIONS) {
             wide.gemmInto(0.875, false, a, false, -0.25, cWide, workspace)
+            cWide.values[0]
+        }
+        val prepared: Matrix = koblas.prepare(a as SparseMatrix)
+        assertAllocationFree("generic product with a prepared left operand", OPERATION_WARMUP, OPERATION_ITERATIONS) {
+            prepared.gemmInto(0.875, false, b, false, -0.25, c, workspace)
+            c.values[0]
+        }
+        assertAllocationFree("generic product with a prepared right operand", OPERATION_WARMUP, OPERATION_ITERATIONS) {
+            wide.gemmInto(0.875, false, prepared, false, -0.25, cWide, workspace)
             cWide.values[0]
         }
     }
