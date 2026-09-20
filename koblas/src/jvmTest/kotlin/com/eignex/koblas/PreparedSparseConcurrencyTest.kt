@@ -39,6 +39,9 @@ class PreparedSparseConcurrencyTest {
         val expected = DoubleArray(ORDER).also { prepared.gemvInto(1.0, x, 0.0, it) }
         val expectedTransposed = DoubleArray(ORDER)
         koblas.gemv(1.0, koblas.transpose(source), x, 0.0, expectedTransposed)
+        // Through the one-shot call, so the snapshot's own orientation is still unbuilt when the pool starts.
+        val expectedProduct = DenseMatrix.zero(ORDER, ORDER)
+        koblas.gemm(1.0, source, true, source, false, 0.0, expectedProduct)
 
         val barrier = CyclicBarrier(THREADS)
         val pool = Executors.newFixedThreadPool(THREADS)
@@ -48,20 +51,15 @@ class PreparedSparseConcurrencyTest {
                     Callable {
                         val workspace = Workspace()
                         val y = DoubleArray(ORDER)
-                        val block = DenseMatrix.zero(ORDER, 2)
+                        val product = DenseMatrix.zero(ORDER, ORDER)
                         barrier.await(10, TimeUnit.SECONDS)
                         repeat(50) {
                             prepared.gemvInto(1.0, x, 0.0, y)
-                            // Concurrent first readers must see a fully built transpose.
-                            prepared.gemmInto(
-                                1.0,
-                                transpose = true,
-                                b = block,
-                                beta = 0.0,
-                                destination = block,
-                                workspace = workspace,
-                            )
+                            // A transposed product against a second sparse operand, which is the family that
+                            // derives the orientation: concurrent first readers must see a fully built one.
+                            prepared.gemmInto(1.0, true, source, false, 0.0, product, workspace)
                         }
+                        assertContentEquals(expectedProduct.values, product.values, "thread $thread product")
                         thread to y
                     }
                 },

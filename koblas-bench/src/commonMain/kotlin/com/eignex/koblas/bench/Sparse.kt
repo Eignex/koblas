@@ -5,6 +5,7 @@ import com.eignex.koblas.Matrix
 import com.eignex.koblas.Workspace
 import com.eignex.koblas.PreparedSparseMatrix
 import com.eignex.koblas.SparseMatrix
+import com.eignex.koblas.gemm
 import com.eignex.koblas.gemmInto
 import com.eignex.koblas.koblas
 import com.eignex.koblas.sparse.SparseCall
@@ -263,7 +264,7 @@ internal fun sparseMatrixArm(case: BenchCase, engine: KoblasEngine): ArmChoice? 
                     },
                     verifyPrepared = { snapshot ->
                         c0.values.copyInto(c.values)
-                        snapshot.gemmInto(alpha, transpose, b, transposeDense, beta, c, right = false, workspace)
+                        snapshot.gemmInto(alpha, transpose, b, transposeDense, beta, c, workspace)
                         SparseReference.check(expected, SparseReference.dense(c), "${case.id} prepared product")
                     },
                     oneShot = {
@@ -273,7 +274,7 @@ internal fun sparseMatrixArm(case: BenchCase, engine: KoblasEngine): ArmChoice? 
                     },
                     prepared = { snapshot ->
                         c0.values.copyInto(c.values)
-                        snapshot.gemmInto(alpha, transpose, b, transposeDense, beta, c, right = false, workspace)
+                        snapshot.gemmInto(alpha, transpose, b, transposeDense, beta, c, workspace)
                         c.values[0]
                     },
                 )
@@ -378,7 +379,7 @@ internal fun sparseMatrixArm(case: BenchCase, engine: KoblasEngine): ArmChoice? 
                     },
                     verifyPrepared = { snapshot ->
                         SparseReference.checkSparse(
-                            expected, support, snapshot.gemm(1.0, transpose, b, false),
+                            expected, support, snapshot.gemm(1.0, transpose, b, false) as SparseMatrix,
                             "${case.id} prepared product",
                         )
                     },

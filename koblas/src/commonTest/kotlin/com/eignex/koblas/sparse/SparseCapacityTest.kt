@@ -4,6 +4,8 @@ import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.DimensionMismatch
 import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.Workspace
+import com.eignex.koblas.gemm
+import com.eignex.koblas.gemmInto
 import com.eignex.koblas.koblas
 import com.eignex.koblas.prepare
 import com.eignex.koblas.times
@@ -124,13 +126,7 @@ class SparseCapacityTest {
         val prepared = tallEmpty(Int.MAX_VALUE).prepare()
         val destination = DenseMatrix.zero(0, 0)
 
-        prepared.gemmInto(
-            1.0,
-            transpose = true,
-            b = DenseMatrix.zero(Int.MAX_VALUE, 0),
-            beta = 0.0,
-            destination = destination,
-        )
+        prepared.gemmInto(1.0, true, DenseMatrix.zero(Int.MAX_VALUE, 0), false, 0.0, destination)
 
         assertEquals(0, destination.values.size)
     }
@@ -139,7 +135,7 @@ class SparseCapacityTest {
     fun `a prepared transposed sparse product of a tall operand reaches its empty result`() {
         val prepared = tallEmpty(Int.MAX_VALUE).prepare()
 
-        val product = prepared.gemm(1.0, transpose = true, b = tallEmpty(Int.MAX_VALUE), transposeB = false)
+        val product = prepared.gemm(1.0, true, tallEmpty(Int.MAX_VALUE), false) as SparseMatrix
 
         assertEquals(0, product.rows)
         assertEquals(0, product.cols)
