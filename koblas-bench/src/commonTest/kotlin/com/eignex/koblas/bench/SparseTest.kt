@@ -390,7 +390,7 @@ class SparseTest {
         val case = Cases.parse("spmm+33x16x21+sparse-uniform+density=0.25+mode=oneshot+transA=T+transB=T")
             .single()
         val a = Fixtures.sparse(21, 33, 0.25, 1)
-        fun route(transposeDense: Boolean) = sparseMatrixKernel(
+        fun route(transposeDense: Boolean) = matrixKernel(
             engine.routeOf(
                 SparseMatrixOperation.GemmDense,
                 SparseCall(

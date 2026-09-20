@@ -160,6 +160,12 @@ public final class com/eignex/koblas/Koblas {
 	public static final fun prepare (Lcom/eignex/koblas/SparseMatrix;)Lcom/eignex/koblas/PreparedSparseMatrix;
 	public static final fun rot (Lcom/eignex/koblas/DenseVector;Lcom/eignex/koblas/DenseVector;DD)V
 	public static final fun rot (Lcom/eignex/koblas/StridedVector;Lcom/eignex/koblas/StridedVector;DD)V
+	public static final fun routeOf (Lcom/eignex/koblas/KoblasEngine;DLcom/eignex/koblas/Matrix;ZLcom/eignex/koblas/Matrix;Z)Lcom/eignex/koblas/MatrixRoute;
+	public static final fun routeOf (Lcom/eignex/koblas/KoblasEngine;DLcom/eignex/koblas/Matrix;ZLcom/eignex/koblas/Matrix;ZDLcom/eignex/koblas/DenseMatrix;)Lcom/eignex/koblas/MatrixRoute;
+	public static final fun routeOf (Lcom/eignex/koblas/PreparedSparseMatrix;DZLcom/eignex/koblas/DenseMatrix;ZDLcom/eignex/koblas/DenseMatrix;Z)Lcom/eignex/koblas/sparse/SparseMatrixRoute;
+	public static final fun routeOf (Lcom/eignex/koblas/PreparedSparseMatrix;DZLcom/eignex/koblas/SparseMatrix;Z)Lcom/eignex/koblas/sparse/SparseMatrixRoute;
+	public static final fun routeOf (Lcom/eignex/koblas/PreparedSparseMatrix;DZLcom/eignex/koblas/SparseMatrix;ZDLcom/eignex/koblas/DenseMatrix;)Lcom/eignex/koblas/sparse/SparseMatrixRoute;
+	public static synthetic fun routeOf$default (Lcom/eignex/koblas/PreparedSparseMatrix;DZLcom/eignex/koblas/DenseMatrix;ZDLcom/eignex/koblas/DenseMatrix;ZILjava/lang/Object;)Lcom/eignex/koblas/sparse/SparseMatrixRoute;
 	public static final fun row (Lcom/eignex/koblas/DenseMatrix;I)Lcom/eignex/koblas/DenseVector;
 	public static final fun row (Lcom/eignex/koblas/SparseMatrix;I)Lcom/eignex/koblas/SparseVector;
 	public static final fun scale (Lcom/eignex/koblas/DenseVector;D)V
@@ -308,6 +314,17 @@ public abstract interface class com/eignex/koblas/Matrix {
 	public abstract fun getCols ()I
 	public abstract fun getRows ()I
 	public abstract fun toArray ()[[D
+}
+
+public abstract interface class com/eignex/koblas/MatrixRoute {
+	public abstract fun getComponents ()Ljava/util/List;
+	public abstract fun getEntryPoint ()Ljava/lang/String;
+	public abstract fun getExactlyMeasurable ()Z
+	public abstract fun getExecutionGroup ()I
+	public abstract fun getImplementation ()Ljava/lang/String;
+	public abstract fun getKind ()Lcom/eignex/koblas/vendor/RouteKind;
+	public abstract fun getReason ()Ljava/lang/String;
+	public abstract fun getScheduling ()Ljava/lang/String;
 }
 
 public abstract interface class com/eignex/koblas/MatrixStorage : com/eignex/koblas/Matrix {
@@ -573,17 +590,17 @@ public final class com/eignex/koblas/dense/DenseMatrixOperation : java/lang/Enum
 	public static fun values ()[Lcom/eignex/koblas/dense/DenseMatrixOperation;
 }
 
-public final class com/eignex/koblas/dense/DenseMatrixRoute {
-	public final fun getComponents ()Ljava/util/List;
-	public final fun getEntryPoint ()Ljava/lang/String;
-	public final fun getExactlyMeasurable ()Z
-	public final fun getExecutionGroup ()I
+public final class com/eignex/koblas/dense/DenseMatrixRoute : com/eignex/koblas/MatrixRoute {
+	public fun getComponents ()Ljava/util/List;
+	public fun getEntryPoint ()Ljava/lang/String;
+	public fun getExactlyMeasurable ()Z
+	public fun getExecutionGroup ()I
 	public final fun getHost ()Lcom/eignex/koblas/vendor/CallRoute;
-	public final fun getImplementation ()Ljava/lang/String;
-	public final fun getKind ()Lcom/eignex/koblas/vendor/RouteKind;
+	public fun getImplementation ()Ljava/lang/String;
+	public fun getKind ()Lcom/eignex/koblas/vendor/RouteKind;
 	public final fun getOperation ()Lcom/eignex/koblas/dense/DenseMatrixOperation;
-	public final fun getReason ()Ljava/lang/String;
-	public final fun getScheduling ()Ljava/lang/String;
+	public fun getReason ()Ljava/lang/String;
+	public fun getScheduling ()Ljava/lang/String;
 	public fun toString ()Ljava/lang/String;
 }
 
@@ -842,19 +859,19 @@ public final class com/eignex/koblas/sparse/SparseMatrixOperation : java/lang/En
 	public static fun values ()[Lcom/eignex/koblas/sparse/SparseMatrixOperation;
 }
 
-public final class com/eignex/koblas/sparse/SparseMatrixRoute {
-	public final fun getComponents ()Ljava/util/List;
-	public final fun getEntryPoint ()Ljava/lang/String;
-	public final fun getExactlyMeasurable ()Z
-	public final fun getExecutionGroup ()I
+public final class com/eignex/koblas/sparse/SparseMatrixRoute : com/eignex/koblas/MatrixRoute {
+	public fun getComponents ()Ljava/util/List;
+	public fun getEntryPoint ()Ljava/lang/String;
+	public fun getExactlyMeasurable ()Z
+	public fun getExecutionGroup ()I
 	public final fun getExecutionTail ()I
 	public final fun getGroupSuffix ()Ljava/lang/String;
-	public final fun getImplementation ()Ljava/lang/String;
-	public final fun getKind ()Lcom/eignex/koblas/vendor/RouteKind;
+	public fun getImplementation ()Ljava/lang/String;
+	public fun getKind ()Lcom/eignex/koblas/vendor/RouteKind;
 	public final fun getOperation ()Lcom/eignex/koblas/sparse/SparseMatrixOperation;
-	public final fun getReason ()Ljava/lang/String;
+	public fun getReason ()Ljava/lang/String;
 	public final fun getResolved ()Z
-	public final fun getScheduling ()Ljava/lang/String;
+	public fun getScheduling ()Ljava/lang/String;
 	public fun toString ()Ljava/lang/String;
 }
 

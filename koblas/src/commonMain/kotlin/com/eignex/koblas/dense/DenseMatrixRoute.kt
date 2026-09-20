@@ -1,5 +1,6 @@
 package com.eignex.koblas.dense
 
+import com.eignex.koblas.MatrixRoute
 import com.eignex.koblas.vendor.CallRoute
 import com.eignex.koblas.vendor.RouteKind
 
@@ -171,17 +172,17 @@ public class DenseMatrixRoute internal constructor(
     /** The operation requested. */
     public val operation: DenseMatrixOperation,
     /** How the call was served. */
-    public val kind: RouteKind,
+    override val kind: RouteKind,
     /** The component that owns traversal, windows and arithmetic order. */
-    public val scheduling: String,
+    override val scheduling: String,
     /** The resolved entry point within [scheduling]. */
-    public val entryPoint: String,
+    override val entryPoint: String,
     /** Every panel implementation and Level 1 leaf the call reaches, in call order. */
-    public val components: List<String>,
+    override val components: List<String>,
     /** Logical columns the panel backend recommended per group, or zero where no panel runs. */
-    public val executionGroup: Int,
+    override val executionGroup: Int,
     /** What the components cover, what the traversal keeps for itself, or why the call is composed. */
-    public val reason: String?,
+    override val reason: String?,
     /**
      * The whole-call vendor route this call was handed to, or null when no single entry point served it.
      *
@@ -189,9 +190,9 @@ public class DenseMatrixRoute internal constructor(
      * [components] names that leaf where it does.
      */
     public val host: CallRoute? = null,
-) {
+) : MatrixRoute {
     /** The full attribution: the scheduling, plus every component it calls. */
-    public val implementation: String
+    override val implementation: String
         get() = if (components.isEmpty()) scheduling else components.joinToString("+", prefix = "$scheduling+")
 
     /**
@@ -200,7 +201,7 @@ public class DenseMatrixRoute internal constructor(
      * A call whose units of work do not all reach the same implementation is reported [RouteKind.Composed] so
      * a benchmark publishes it as a composition rather than under either name on its own.
      */
-    public val exactlyMeasurable: Boolean get() = kind == RouteKind.Direct
+    override val exactlyMeasurable: Boolean get() = kind == RouteKind.Direct
 
     override fun toString(): String = buildString {
         append(operation.name.lowercase())

@@ -132,7 +132,7 @@ public fun Matrix.gemmInto(
  * A [PreparedSparseMatrix] is the snapshot it copied: it takes part in a product as the sparse matrix it
  * holds, and those arrays stay behind this seam rather than being handed to a caller.
  */
-private fun storedCsc(matrix: Matrix): SparseMatrix? = when (matrix) {
+internal fun storedCsc(matrix: Matrix): SparseMatrix? = when (matrix) {
     is SparseMatrix -> matrix
     is PreparedSparseMatrix -> matrix.snapshot
     else -> null
@@ -151,7 +151,7 @@ private fun orientationFor(matrix: Matrix, transpose: Boolean, reached: Boolean)
     if (transpose && reached && matrix is PreparedSparseMatrix) matrix.transposedSnapshot else null
 
 /** Whether a product between two sparse operands evaluates any position, which decides what is read. */
-private fun reachesAPosition(alpha: Double, left: SparseMatrix, right: SparseMatrix): Boolean =
+internal fun reachesAPosition(alpha: Double, left: SparseMatrix, right: SparseMatrix): Boolean =
     alpha != 0.0 && left.nnz > 0 && right.nnz > 0
 
 /**
@@ -161,6 +161,5 @@ private fun reachesAPosition(alpha: Double, left: SparseMatrix, right: SparseMat
  * the common surface, so naming an engine to prepare with is not quietly undone by the product. Two prepared
  * operands from different engines run on the left one's, and a product with none runs on the default engine.
  */
-private fun sparseEngine(left: Matrix, right: Matrix): SparseBlas =
+internal fun sparseEngine(left: Matrix, right: Matrix): SparseBlas =
     (left as? PreparedSparseMatrix ?: right as? PreparedSparseMatrix)?.blas ?: koblas
-
