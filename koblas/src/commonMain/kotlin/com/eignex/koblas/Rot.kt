@@ -3,6 +3,8 @@
 
 package com.eignex.koblas
 
+import com.eignex.koblas.internal.numeric.scalarRot
+
 /**
  * Apply a plane rotation (BLAS `drot`). Each pair `(x_i, y_i)` becomes `(c*x_i + s*y_i, c*y_i - s*x_i)`,
  * so both [x] and [y] are overwritten in place. Dense vectors use the same overlap semantics as the
@@ -28,7 +30,7 @@ public fun rot(x: StridedVector, y: StridedVector, c: Double, s: Double) {
     if (x.overlaps(y)) {
         val snapshotX = x.toDoubleArray()
         val snapshotY = y.toDoubleArray()
-        portableRot(snapshotX, 0, snapshotY, 0, x.size, c, s)
+        scalarRot(snapshotX, 0, snapshotY, 0, x.size, c, s)
         for (i in 0 until x.size) x[i] = snapshotX[i]
         for (i in 0 until y.size) y[i] = snapshotY[i]
     } else if (x.stride == 1 && y.stride == 1) {
@@ -40,17 +42,5 @@ public fun rot(x: StridedVector, y: StridedVector, c: Double, s: Double) {
             x[i] = c * xi + s * yi
             y[i] = c * yi - s * xi
         }
-    }
-}
-
-/** Portable backend implementation of plane rotation application. */
-@Suppress("LongParameterList")
-@kotlin.jvm.JvmSynthetic
-internal fun portableRot(x: DoubleArray, xOff: Int, y: DoubleArray, yOff: Int, len: Int, c: Double, s: Double) {
-    for (i in 0 until len) {
-        val xi = x[xOff + i]
-        val yi = y[yOff + i]
-        x[xOff + i] = c * xi + s * yi
-        y[yOff + i] = c * yi - s * xi
     }
 }

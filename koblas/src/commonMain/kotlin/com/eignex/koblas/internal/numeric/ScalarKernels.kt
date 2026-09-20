@@ -92,3 +92,14 @@ internal fun scalarScale(v: DoubleArray, vOff: Int, vStride: Int, alpha: Double,
         iv += vStride
     }
 }
+
+/** Apply the plane rotation `(c, s, -s, c)` to [len] elements of each run, loading each pair before storing. */
+@Suppress("LongParameterList") // two runs plus the rotation
+internal fun scalarRot(x: DoubleArray, xOff: Int, y: DoubleArray, yOff: Int, len: Int, c: Double, s: Double) {
+    for (i in 0 until len) {
+        val xi = x[xOff + i]
+        val yi = y[yOff + i]
+        x[xOff + i] = c * xi + s * yi
+        y[yOff + i] = c * yi - s * xi
+    }
+}

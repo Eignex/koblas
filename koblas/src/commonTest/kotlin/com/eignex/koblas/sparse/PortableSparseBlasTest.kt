@@ -9,7 +9,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
-class SparseAlgorithmsTest {
+class PortableSparseBlasTest {
     private val engines: List<KoblasEngine>
         get() = listOfNotNull(BuiltinEngines.scalar, BuiltinEngines.simd).distinct()
 
