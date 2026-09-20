@@ -1,7 +1,6 @@
 package com.eignex.koblas
 
-/** Shared shape checks for container operations and portable BLAS. */
-/** The shape every factorization and triangular routine needs, naming [what] so the message says which one. */
+/** Requires a square operand, naming [what] in a failure. */
 internal fun requireSquare(a: Matrix, what: String) {
     requireShape(a.rows == a.cols) { "$what requires a square matrix; got ${a.rows}x${a.cols}" }
 }
@@ -11,12 +10,7 @@ internal fun requireSameSize(a: Int, b: Int) {
     requireShape(a == b) { "size mismatch: $a vs $b" }
 }
 
-/**
- * The operand lengths a gemv of a [rows] by [cols] matrix implies, checked against the [x] and [y] given.
- *
- * Which extent each vector takes is a consequence of [transpose], and deriving it is the same three lines
- * wherever a gemv is entered, so every layer that checks its arguments asks here instead.
- */
+/** Checks the input and output lengths for the requested orientation. */
 internal fun requireGemvShape(rows: Int, cols: Int, transpose: Boolean, x: Int, y: Int) {
     val inputs = if (transpose) rows else cols
     val outputs = if (transpose) cols else rows
@@ -28,22 +22,11 @@ internal fun requireGemvShape(rows: Int, cols: Int, transpose: Boolean, x: Int, 
 internal fun requireGemvShape(a: Matrix, transpose: Boolean, x: Int, y: Int): Unit =
     requireGemvShape(a.rows, a.cols, transpose, x, y)
 
-/**
- * Both invariants of `op(A)·op(B)` into [c]: that the operands meet, and that the destination is the shape
- * their product has. Nothing is returned, because once this passes the destination's own extents are the
- * product's and the depth is one expression at the call site, which is allocation-free at every call rather
- * than wherever the virtual machine manages to take a record of the three apart again.
- *
- * A caller multiplying the second operand by the first from the right passes them the other way round, since
- * that product is this one with the operands swapped.
- */
+/** Checks the shared dimension and destination shape of `op(A) · op(B)`. */
 internal fun requireGemmShape(a: Matrix, transposeA: Boolean, b: Matrix, transposeB: Boolean, c: Matrix): Unit =
     requireGemmShape(a.rows, a.cols, transposeA, b, transposeB, c)
 
-/**
- * The shapes a fresh sparse product needs, which is that the two oriented operands meet. There is no
- * destination to check against: a product with a result of its own takes the extents that follow.
- */
+/** Checks the shared dimension of a product with a fresh sparse destination. */
 internal fun requireSparseProductShape(a: Matrix, transposeA: Boolean, b: Matrix, transposeB: Boolean) {
     val aRows = if (transposeA) a.cols else a.rows
     val aCols = if (transposeA) a.rows else a.cols
@@ -52,10 +35,7 @@ internal fun requireSparseProductShape(a: Matrix, transposeA: Boolean, b: Matrix
     requireShape(aCols == bRows) { "gemm: op(A) is ${aRows}x$aCols but op(B) is ${bRows}x$bCols" }
 }
 
-/**
- * The same check for a caller holding the first operand's extents rather than the operand, which the sparse
- * bindings do: what they hold is a descriptor of a matrix the library owns.
- */
+/** Product shape checks using the first operand's extents. */
 @Suppress("LongParameterList") // the first operand's extents in place of the operand itself
 internal fun requireGemmShape(
     aRows: Int,
