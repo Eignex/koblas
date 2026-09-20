@@ -3,6 +3,7 @@ package com.eignex.koblas.vendor
 import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.DenseVector
 import com.eignex.koblas.StridedVector
+import com.eignex.koblas.copyOf
 import com.eignex.koblas.dense.MatrixStructure
 import com.eignex.koblas.dense.ReferenceBlas
 import kotlin.math.abs
@@ -24,15 +25,12 @@ class JvmVendorBlasTest {
 
     private fun vector(size: Int, seed: Int) = DenseVector.wrap(values(size, seed))
 
-    /** A destination the oracle can write while the vendor writes the original. */
-    private fun DenseMatrix.copy() = DenseMatrix.wrap(rows, cols, values.copyOf())
-
     @Test
     fun `gemm over whole matrices agrees with the reference`() = withVendor { blas ->
         val a = matrix(3, 4, 1)
         val b = matrix(4, 5, 2)
         val c = matrix(3, 5, 3)
-        val expected = c.copy()
+        val expected = c.copyOf()
         ReferenceBlas.gemm(0.75, a, false, b, false, -0.25, expected)
 
         blas.gemm(0.75, a, false, b, false, -0.25, c)
@@ -48,7 +46,7 @@ class JvmVendorBlasTest {
                 val a = if (transposeA) matrix(4, 3, 5) else matrix(3, 4, 5)
                 val b = if (transposeB) matrix(5, 4, 6) else matrix(4, 5, 6)
                 val c = matrix(3, 5, 7)
-                val expected = c.copy()
+                val expected = c.copyOf()
                 ReferenceBlas.gemm(1.0, a, transposeA, b, transposeB, 0.5, expected)
 
                 blas.gemm(1.0, a, transposeA, b, transposeB, 0.5, c)
@@ -153,7 +151,7 @@ class JvmVendorBlasTest {
         val a = matrix(order, 3, 23)
         val c = DenseMatrix.wrap(order, order, DoubleArray(order * order) { 7.0 })
         // The oracle skips the unselected triangle, so its untouched 7.0 is part of what agreement means.
-        val expected = c.copy()
+        val expected = c.copyOf()
         ReferenceBlas.syrk(1.0, a, false, 0.0, expected)
 
         blas.syrk(1.0, a, false, 0.0, c, MatrixStructure.SymmetricLower)
@@ -232,7 +230,7 @@ class JvmVendorBlasTest {
         val a = matrix(order, 3, 28)
         val b = matrix(3, order, 29)
         val c = DenseMatrix.wrap(order, order, DoubleArray(order * order) { 5.0 })
-        val expected = c.copy()
+        val expected = c.copyOf()
         ReferenceBlas.gemmt(1.0, a, false, b, false, 0.0, expected)
 
         blas.gemmt(1.0, a, false, b, false, 0.0, c, MatrixStructure.SymmetricLower)
@@ -248,7 +246,7 @@ class JvmVendorBlasTest {
             val a = if (transpose) matrix(depth, order, 34) else matrix(order, depth, 34)
             val b = if (transpose) matrix(depth, order, 35) else matrix(order, depth, 35)
             val c = DenseMatrix.wrap(order, order, values(order * order, 36))
-            val expected = c.copy()
+            val expected = c.copyOf()
             ReferenceBlas.syr2k(1.25, a, b, transpose, 0.5, expected)
 
             blas.syr2k(1.25, a, b, transpose, 0.5, c, MatrixStructure.SymmetricLower)
@@ -294,7 +292,7 @@ class JvmVendorBlasTest {
         val order = 3
         val a = DenseMatrix.wrap(order, order, values(order * order, 32))
         val x = vector(order, 33)
-        val expected = a.copy()
+        val expected = a.copyOf()
         ReferenceBlas.syr(1.5, x, expected)
 
         blas.syr(1.5, x, a, MatrixStructure.SymmetricLower)

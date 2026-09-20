@@ -88,9 +88,9 @@ class SparseTriangularTest {
                     val (sparse, dense) = triangle(n, lower, rng)
                     val b = if (right) randomMatrix(rightHandSides, n, rng) else randomMatrix(n, rightHandSides, rng)
 
-                    val fromDense = DenseMatrix.wrap(b.rows, b.cols, b.values.copyOf())
+                    val fromDense = b.copyOf()
                     dense.trsm(fromDense, lower, transpose, right = right)
-                    val fromSparse = DenseMatrix.wrap(b.rows, b.cols, b.values.copyOf())
+                    val fromSparse = b.copyOf()
                     sparse.trsm(fromSparse, lower, transpose, right = right, workspace = Workspace())
 
                     assertClose(
@@ -123,9 +123,9 @@ class SparseTriangularTest {
                             } else {
                                 randomMatrix(n, rightHandSides, rng)
                             }
-                            val expected = DenseMatrix.wrap(b.rows, b.cols, b.values.copyOf())
+                            val expected = b.copyOf()
                             dense.trmm(expected, lower, transpose, unitDiag, right, alpha = -0.75)
-                            val actual = DenseMatrix.wrap(b.rows, b.cols, b.values.copyOf())
+                            val actual = b.copyOf()
                             sparse.trmm(actual, lower, transpose, unitDiag, right, alpha = -0.75)
 
                             assertClose(

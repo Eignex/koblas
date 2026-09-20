@@ -6,6 +6,7 @@ import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.DenseVector
 import com.eignex.koblas.StridedVector
 import com.eignex.koblas.assertClose
+import com.eignex.koblas.copyOf
 import com.eignex.koblas.randomMatrix
 import com.eignex.koblas.randomVector
 import kotlin.random.Random
@@ -94,21 +95,21 @@ class PortableDenseBlasTest {
                 val y = randomVector(n, rng)
                 val start = randomMatrix(n, n, rng)
                 for (lower in booleanArrayOf(true, false)) {
-                    val expected = copyOf(start)
+                    val expected = start.copyOf()
                     ReferenceBlas.syr(0.875, DenseVector.wrap(x), expected, lower)
-                    val actual = copyOf(start)
+                    val actual = start.copyOf()
                     blas.syr(0.875, DenseVector.wrap(x), actual, lower)
                     assertClose(expected, actual, "syr group=$group n=$n lower=$lower")
 
-                    val expectedTwo = copyOf(start)
+                    val expectedTwo = start.copyOf()
                     ReferenceBlas.syr2(0.875, DenseVector.wrap(x), DenseVector.wrap(y), expectedTwo, lower)
-                    val actualTwo = copyOf(start)
+                    val actualTwo = start.copyOf()
                     blas.syr2(0.875, DenseVector.wrap(x), DenseVector.wrap(y), actualTwo, lower)
                     assertClose(expectedTwo, actualTwo, "syr2 group=$group n=$n lower=$lower")
                 }
-                val expectedGer = copyOf(start)
+                val expectedGer = start.copyOf()
                 ReferenceBlas.ger(0.875, x, y, expectedGer)
-                val actualGer = copyOf(start)
+                val actualGer = start.copyOf()
                 blas.ger(0.875, x, y, actualGer)
                 assertClose(expectedGer, actualGer, "ger group=$group n=$n")
             }
@@ -131,9 +132,9 @@ class PortableDenseBlasTest {
             val dense = DenseVector.of(DoubleArray(n) { view[it] })
             for (lower in booleanArrayOf(true, false)) {
                 val start = randomMatrix(n, n, rng)
-                val expected = copyOf(start)
+                val expected = start.copyOf()
                 ReferenceBlas.syr(0.875, dense, expected, lower)
-                val actual = copyOf(start)
+                val actual = start.copyOf()
                 blas.syr(0.875, view, actual, lower)
                 assertClose(expected, actual, "strided syr stride=$stride lower=$lower")
             }
@@ -228,6 +229,4 @@ class PortableDenseBlasTest {
         for (i in 0 until n) a.values[i + i * n] = 2.0 + (i % 3)
         return a
     }
-
-    private fun copyOf(a: DenseMatrix) = DenseMatrix.wrap(a.rows, a.cols, a.values.copyOf())
 }

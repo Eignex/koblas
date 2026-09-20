@@ -130,7 +130,7 @@ class NativeHostConcurrencyTest {
                 val workspace = Workspace()
                 var last = DoubleArray(0)
                 repeat(REPEATS) {
-                    val shared = DenseMatrix.wrap(operand.rows, operand.cols, operand.values.copyOf())
+                    val shared = operand.copyOf()
                     koblas.gemm(1.0, shared, false, shared, false, 0.0, shared, workspace)
                     last = shared.values
                 }

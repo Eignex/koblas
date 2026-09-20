@@ -5,6 +5,7 @@ import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.KoblasEngineApi
 import com.eignex.koblas.Workspace
 import com.eignex.koblas.assertClose
+import com.eignex.koblas.copyOf
 import com.eignex.koblas.poisonedSymmetric
 import com.eignex.koblas.randomMatrix
 import kotlin.random.Random
@@ -59,8 +60,8 @@ class StructuredProductTest {
                         val a = randomMatrix(if (transposeA) depth else order, if (transposeA) order else depth, rng)
                         val b = randomMatrix(if (transposeB) order else depth, if (transposeB) depth else order, rng)
                         val start = randomMatrix(order, order, rng)
-                        val expected = copyOf(start)
-                        val actual = copyOf(start)
+                        val expected = start.copyOf()
+                        val actual = start.copyOf()
                         ReferenceBlas.gemmt(0.875, a, transposeA, b, transposeB, -0.25, expected, lower)
 
                         blas.gemmt(0.875, a, transposeA, b, transposeB, -0.25, actual, lower)
@@ -87,14 +88,14 @@ class StructuredProductTest {
                     val start = randomMatrix(order, order, rng)
                     val context = "${order}x$depth transpose=$transpose lower=$lower"
 
-                    val syrk = copyOf(start)
-                    val syrkExpected = copyOf(start)
+                    val syrk = start.copyOf()
+                    val syrkExpected = start.copyOf()
                     ReferenceBlas.syrk(0.875, a, transpose, -0.25, syrkExpected, lower)
                     blas.syrk(0.875, a, transpose, -0.25, syrk, lower)
                     assertClose(syrkExpected.values, syrk.values, "syrk $context", TOLERANCE)
 
-                    val syr2k = copyOf(start)
-                    val syr2kExpected = copyOf(start)
+                    val syr2k = start.copyOf()
+                    val syr2kExpected = start.copyOf()
                     ReferenceBlas.syr2k(0.875, a, b, transpose, -0.25, syr2kExpected, lower)
                     blas.syr2k(0.875, a, b, transpose, -0.25, syr2k, lower)
                     assertClose(syr2kExpected.values, syr2k.values, "syr2k $context", TOLERANCE)
@@ -186,8 +187,8 @@ class StructuredProductTest {
             }
 
             val start = randomMatrix(order, order, rng)
-            val expected = copyOf(start)
-            val actual = copyOf(start)
+            val expected = start.copyOf()
+            val actual = start.copyOf()
             ReferenceBlas.gemmt(0.875, a, false, b, false, -0.25, expected, lower)
             blas.gemmt(0.875, a, false, b, false, -0.25, actual, lower)
             assertClose(expected.values, actual.values, "gemmt over several depth blocks lower=$lower", TOLERANCE)
@@ -210,9 +211,9 @@ class StructuredProductTest {
         val blas = PortableDenseBlas(ScalarVectorKernels, panelsFor(products), products)
         val start = randomMatrix(order, order, rng)
         for (lower in booleanArrayOf(false, true)) {
-            val expected = copyOf(start)
-            ReferenceBlas.syrk(0.875, copyOf(start), false, -0.25, expected, lower)
-            val aliased = copyOf(start)
+            val expected = start.copyOf()
+            ReferenceBlas.syrk(0.875, start.copyOf(), false, -0.25, expected, lower)
+            val aliased = start.copyOf()
 
             blas.syrk(0.875, aliased, false, -0.25, aliased, lower)
 
@@ -287,7 +288,7 @@ class StructuredProductTest {
         val a = randomMatrix(if (transposeA) depth else order, if (transposeA) order else depth, rng)
         val b = randomMatrix(if (transposeB) order else depth, if (transposeB) depth else order, rng)
         val start = randomMatrix(order, order, rng)
-        val expected = copyOf(start)
+        val expected = start.copyOf()
         if (selected == OutputTriangle.Full) {
             ReferenceBlas.gemm(ALPHA, a, transposeA, b, transposeB, BETA, expected)
         } else {
@@ -359,8 +360,8 @@ class StructuredProductTest {
                     val columns = if (right) order else sides
                     val b = randomMatrix(rows, columns, rng)
                     val start = randomMatrix(rows, columns, rng)
-                    val expected = copyOf(start)
-                    val actual = copyOf(start)
+                    val expected = start.copyOf()
+                    val actual = start.copyOf()
                     // The oracle takes the full symmetric matrix, so its answer does not depend on which
                     // half this call was given.
                     ReferenceBlas.symm(0.875, full, b, -0.25, expected, lower = true, right = right)
@@ -398,9 +399,9 @@ class StructuredProductTest {
         val order = 2 * PORTABLE_PRODUCT_TILE + 1
         val start = randomMatrix(order, order, rng)
         for (lower in booleanArrayOf(false, true)) {
-            val expected = copyOf(start)
-            ReferenceBlas.syrk(0.875, copyOf(start), false, -0.25, expected, lower)
-            val aliased = copyOf(start)
+            val expected = start.copyOf()
+            ReferenceBlas.syrk(0.875, start.copyOf(), false, -0.25, expected, lower)
+            val aliased = start.copyOf()
 
             blas.syrk(0.875, aliased, false, -0.25, aliased, lower)
 
@@ -414,9 +415,9 @@ class StructuredProductTest {
         val order = SYMMETRIC_BLOCK + 3
         val (full, poisoned) = poisonedSymmetric(rng, order, lower = true)
         val start = randomMatrix(order, order, rng)
-        val expected = copyOf(start)
-        ReferenceBlas.symm(0.875, full, copyOf(start), -0.25, expected, lower = true)
-        val aliased = copyOf(start)
+        val expected = start.copyOf()
+        ReferenceBlas.symm(0.875, full, start.copyOf(), -0.25, expected, lower = true)
+        val aliased = start.copyOf()
 
         blas.symm(0.875, poisoned, aliased, -0.25, aliased, lower = true)
 
@@ -512,8 +513,6 @@ class StructuredProductTest {
 
     /** The same for a symmetric operand, whose blocks are the order's rather than the destination's. */
     private fun symmetricShapes(): List<Pair<Int, Int>> = listOf(SYMMETRIC_BLOCK + 3 to 7, directOrder to 2, 1 to 3)
-
-    private fun copyOf(a: DenseMatrix) = DenseMatrix.wrap(a.rows, a.cols, a.values.copyOf())
 
     private companion object {
         const val TOLERANCE = 1e-9

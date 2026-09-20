@@ -5,6 +5,7 @@ import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.Workspace
 import com.eignex.koblas.assertClose
+import com.eignex.koblas.copyOf
 import com.eignex.koblas.dense.DensePanelKernels
 import com.eignex.koblas.dense.PanelWork
 import com.eignex.koblas.dense.PortablePanelKernels
@@ -593,7 +594,7 @@ class SparseRhsPanelTest {
         c0: DenseMatrix,
         engine: SparseAlgorithms,
     ): DenseMatrix {
-        val c = DenseMatrix.wrap(c0.rows, c0.cols, c0.values.copyOf())
+        val c = c0.copyOf()
         engine.gemm(ALPHA, a, transposeA, b, transposeB, BETA, c, right = false, workspace = Workspace())
         return c
     }

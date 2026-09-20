@@ -61,6 +61,9 @@ internal fun randomVector(n: Int, rng: Random): DoubleArray = DoubleArray(n) { r
 internal fun randomMatrix(rows: Int, cols: Int, rng: Random): DenseMatrix =
     DenseMatrix.wrap(rows, cols, DoubleArray(rows * cols) { rng.nextDouble(-1.0, 1.0) })
 
+/** An independent copy, so a call can write one of them while the other stays readable. */
+internal fun DenseMatrix.copyOf(): DenseMatrix = DenseMatrix.wrap(rows, cols, values.copyOf())
+
 /** CSC fixture with empty columns, irregular rows, and an explicitly stored zero. */
 internal fun sparseStorageExample(): SparseMatrix = SparseMatrix.ofTriplets(
     rows = 3,

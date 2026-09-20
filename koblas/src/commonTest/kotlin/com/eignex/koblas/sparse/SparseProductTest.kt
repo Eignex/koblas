@@ -6,6 +6,7 @@ import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.UnsafeKoblasApi
 import com.eignex.koblas.Workspace
 import com.eignex.koblas.assertClose
+import com.eignex.koblas.copyOf
 import com.eignex.koblas.dense.PanelWork
 import com.eignex.koblas.koblas
 import com.eignex.koblas.partialPanelWidth
@@ -43,8 +44,6 @@ class SparseProductTest {
         return SparseMatrix.ofColumns(rows, cols, columns) to dense
     }
 
-    private fun copyOf(m: DenseMatrix) = DenseMatrix.wrap(m.rows, m.cols, m.values.copyOf())
-
     @Test
     fun `every transpose combination agrees with the dense product`() {
         val rng = Random(20260826)
@@ -57,9 +56,9 @@ class SparseProductTest {
                 val b = if (transposeB) randomMatrix(rightHandSides, k, rng) else randomMatrix(k, rightHandSides, rng)
                 val c = randomMatrix(m, rightHandSides, rng)
 
-                val fromDense = copyOf(c)
+                val fromDense = c.copyOf()
                 koblas.gemm(0.75, dense, transposeA, b, transposeB, -0.5, fromDense)
-                val fromSparse = copyOf(c)
+                val fromSparse = c.copyOf()
                 koblas.gemm(0.75, sparse, transposeA, b, transposeB, -0.5, fromSparse, workspace = Workspace())
 
                 assertClose(fromDense, fromSparse, "transposeA=$transposeA transposeB=$transposeB")
@@ -78,9 +77,9 @@ class SparseProductTest {
                 val b = if (transposeB) randomMatrix(k, 4, rng) else randomMatrix(4, k, rng)
                 val c = randomMatrix(4, n, rng)
 
-                val fromDense = copyOf(c)
+                val fromDense = c.copyOf()
                 koblas.gemm(0.75, b, transposeB, dense, transposeA, -0.5, fromDense)
-                val fromSparse = copyOf(c)
+                val fromSparse = c.copyOf()
                 koblas.gemm(
                     0.75, sparse, transposeA, b, transposeB, -0.5, fromSparse,
                     right = true, workspace = Workspace(),
@@ -155,7 +154,7 @@ class SparseProductTest {
         val c = randomMatrix(4, 2, rng)
         val expected = DenseMatrix.wrap(4, 2, DoubleArray(8) { c.values[it] * 2.0 })
 
-        val actual = copyOf(c)
+        val actual = c.copyOf()
         koblas.gemm(0.0, sparse, false, b, false, 2.0, actual)
 
         assertClose(expected, actual, "alpha = 0")
@@ -230,7 +229,7 @@ class SparseProductTest {
                 val k = if (transposeA) 5 else 3
                 val (b, _) = sparseAndDense(if (transposeB) n else k, if (transposeB) k else n, rng)
                 val expected = randomMatrix(m, n, rng)
-                val actual = copyOf(expected)
+                val actual = expected.copyOf()
 
                 ReferenceSparseBlas.gemm(0.5, a, transposeA, b, transposeB, -0.25, expected)
                 koblas.gemm(0.5, a, transposeA, b, transposeB, -0.25, actual, Workspace())
