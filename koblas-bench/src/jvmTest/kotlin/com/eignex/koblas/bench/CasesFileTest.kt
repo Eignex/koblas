@@ -72,8 +72,8 @@ class CasesFileTest {
         val ids = defaults.joinToString("\n") { it.id }
         val digest = MessageDigest.getInstance("SHA-256").digest(ids.toByteArray()).joinToString("") { "%02x".format(it) }
 
-        // The structured, triangular and sparse support cases were appended and nothing was renamed or
-        // removed, so every historical identity is still in this digest and a rename would still break it.
+        // Cases are appended, never renamed or removed, so every historical identity is still in this
+        // digest and a rename would break it.
         assertEquals("e08cdb28d3f90e8e2838922f453529f0423051e7a5e5a318cc01ea376dc9a852", digest)
     }
 

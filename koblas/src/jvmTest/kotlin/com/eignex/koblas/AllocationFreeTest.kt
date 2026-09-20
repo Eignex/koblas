@@ -50,7 +50,7 @@ class AllocationFreeTest {
      * Kover's instrumentation keeps HotSpot from scalar-replacing a Vector API carrier, so the same calls on
      * the vector panels are measured by the `simdDenseAllocationCheck` task in an uninstrumented JVM instead.
      * What this covers is the scheduling around them: a staging copy, an operand wrapper made for a shape
-     * check, or a source copy a triangular multiply used to take would all show up here.
+     * check, or a source copy inside a triangular multiply would all show up here.
      */
     @Test
     fun `dense level two calls allocate nothing`() {

@@ -52,7 +52,7 @@ internal fun assertLevel1KernelsAgreeWithReference(kernels: DenseVectorKernels) 
  * failure this catches is a leaf whose own rotation disagrees.
  */
 internal fun assertRotKernelAgreesWithReference(kernels: DenseVectorKernels) {
-    // The rotation drotg(3, 4) produced, written out now that the generator is gone.
+    // The rotation BLAS drotg(3, 4) produces, written out because koblas exposes no generator.
     val c = 0.6
     val s = 0.8
     for (len in intArrayOf(0, 1, 7, 63, 64, 65, 200)) {
