@@ -13,13 +13,6 @@ package com.eignex.koblas.sparse.internal
  * Every leaf writes only through the slices it is handed and allocates nothing.
  */
 internal object SparseAccumulationKernels {
-    /*
-     * The two dense-column rank updates write every selected position rather than skipping a column whose
-     * update coefficient is zero. Netlib's dsyr and dsyr2 skip it; the dense implementation here does not,
-     * because the product it would skip is `0 * infinity` and that is a NaN the caller asked for. These are
-     * reached only when an operand is non-finite, and agreeing with the dense routine over the same values is
-     * the whole reason that path exists.
-     */
     @Suppress("LongParameterList")
     inline fun mergeRankOneColumn(
         alpha: Double,
@@ -114,79 +107,6 @@ internal object SparseAccumulationKernels {
                 outValues[outOffset + written] = value
             }
             written++
-        }
-        return written
-    }
-
-    @Suppress("LongParameterList")
-    inline fun updateRankOneDenseColumn(
-        alpha: Double,
-        column: Int,
-        x: DoubleArray,
-        lower: Boolean,
-        rows: Int,
-        sourceRows: IntArray,
-        sourceValues: DoubleArray,
-        sourceStart: Int,
-        sourceEnd: Int,
-        outRows: IntArray,
-        outValues: DoubleArray,
-        outOffset: Int,
-    ): Int {
-        var source = sourceStart
-        var written = 0
-        for (row in 0 until rows) {
-            val stored = source < sourceEnd && sourceRows[source] == row
-            val selected = if (lower) row >= column else row <= column
-            if (selected) {
-                outRows[outOffset + written] = row
-                outValues[outOffset + written] = (if (stored) sourceValues[source] else 0.0) +
-                    (alpha * x[column]) * x[row]
-                written++
-                if (stored) source++
-            } else if (stored) {
-                outRows[outOffset + written] = row
-                outValues[outOffset + written] = sourceValues[source++]
-                written++
-            }
-        }
-        return written
-    }
-
-    @Suppress("LongParameterList")
-    inline fun updateRankTwoDenseColumn(
-        alpha: Double,
-        column: Int,
-        x: DoubleArray,
-        y: DoubleArray,
-        lower: Boolean,
-        rows: Int,
-        sourceRows: IntArray,
-        sourceValues: DoubleArray,
-        sourceStart: Int,
-        sourceEnd: Int,
-        outRows: IntArray,
-        outValues: DoubleArray,
-        outOffset: Int,
-    ): Int {
-        var source = sourceStart
-        var written = 0
-        for (row in 0 until rows) {
-            val stored = source < sourceEnd && sourceRows[source] == row
-            val selected = if (lower) row >= column else row <= column
-            if (selected) {
-                var value = if (stored) sourceValues[source] else 0.0
-                value += (alpha * y[column]) * x[row]
-                value += (alpha * x[column]) * y[row]
-                outRows[outOffset + written] = row
-                outValues[outOffset + written] = value
-                written++
-                if (stored) source++
-            } else if (stored) {
-                outRows[outOffset + written] = row
-                outValues[outOffset + written] = sourceValues[source++]
-                written++
-            }
         }
         return written
     }

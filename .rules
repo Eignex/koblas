@@ -20,7 +20,7 @@ Kotlin Multiplatform BLAS and LAPACK.
 - Public concrete containers use the intentional unprefixed names (`DenseMatrix`, `SparseMatrix`, `DenseVector`,
   `SparseVector`); do not restore `F64` aliases. A future element family needs an explicit API and seam design.
 - Dense matrices are column-major: `A(i, j)` is `i + j * rows`. Sparse matrices are validated CSC with ascending row indices per column.
-- The portable reference defines semantics. Host bindings use measured thresholds then fall back to it.
+- Follow BLAS numerical contracts without adding stricter guarantees for non-finite values or arithmetic order. The portable reference is the conformance oracle; unreleased behavior is not a compatibility constraint. Host bindings use measured thresholds then fall back to it.
 - The default engine is immutable and selected once, and each platform picks its own Level 1 arm. Tests and benchmarks name an exact engine through `BuiltinEngines`, which is behind the `KoblasEngineApi` opt-in; do not add process-global installation or provider discovery.
 - Sparse products keep structure: a stored zero participates, an absent position is never evaluated, a fresh result owns its arrays with rows ascending per column, and no operand is densified to reach a kernel. A prepared snapshot owns its copies and keeps no mutable scratch, so concurrent readers need only their own destinations and workspaces.
 - A sparse whole-call route names the portable CSC scheduling and, where one runs, the Level 1 leaf a column reaches. An engine's Level 1 selection is never evidence that a sparse matrix operation vectorised.
