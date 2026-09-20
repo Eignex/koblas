@@ -9,7 +9,8 @@ working on a host with no library installed.
 
 [DenseBlas] is Level 2 and 3. Built-in engines implement it in common Kotlin, with validation, zero-multiplier
 no-read behavior and alias staging before mutation. That shared implementation owns traversal, windows and
-dependency order and is the same on every platform; the arithmetic inside a window is [DensePanelKernels].
+dependency order and is the same on every platform; the arithmetic inside a window is a panel, a product
+block or a diagonal substitution.
 
 [DensePanelKernels] is the panel seam. A caller describes logical work — [PanelWork.MultiDot] reduces several
 columns against one vector, [PanelWork.ColumnUpdate] accumulates several into one destination window,
@@ -29,18 +30,28 @@ reach, rather than leaving any of it to an engine's name. A [PackedMatrix] is th
 multiplying one operand repeatedly packs it once and hands the panel to later products, which
 [com.eignex.koblas.KoblasEngine.packLeft] and [com.eignex.koblas.KoblasEngine.packRight] produce.
 
-A tile's rows and columns, a panel's execution group, a cache block and a SIMD lane count are four
-independent numbers. The remaining Level 3 routines are still direct scalar traversal and call neither a
-panel nor a tile, which the route also reports.
+[DenseTriangularKernels] is the third seam, the substitution over one diagonal block across independent
+right-hand sides, and [DenseTriangularKernels.rightHandSideGroup] is how many of those the backend asks for
+at a time.
+Every structured Level 3 routine is this same shared schedule over its own region rather than a traversal of
+its own: a selected triangle drops the blocks outside it and merges the ones across the diagonal, a symmetric
+operand is diagonal blocks plus the stored strips beside them, and a triangular routine is diagonal
+substitutions with ordinary product windows between them. The route reports the bodies a call's own windows
+reached, so a call whose windows shrink past a backend's shortest one is published as the composition it is.
+
+A tile's rows and columns, a panel's execution group, a right-hand-side group, a cache block and a SIMD lane
+count are independent numbers.
+
+Scratch for staging and gathering comes from a [com.eignex.koblas.Workspace] the caller may pass, which lends
+by exact length and keeps a bounded number of lengths, so repeated calls over one shape allocate nothing and
+a call given none owns its own temporaries.
 
 Installed host bindings expose the same operation family separately. Their arithmetic and exceptional behavior
 belong to the resolved library, and their route reports its binary and entry point. A requested engine name is
 never used as proof that such a binding ran.
 
-The platform default is exposed through [com.eignex.koblas.koblas], selected once and immutable. Tests and
-benchmarks reach exact portable and JVM SIMD compositions through [com.eignex.koblas.BuiltinEngines], and
-[com.eignex.koblas.KoblasEngine.explain] names the component a [DenseOperation] of a given length and spacing
-actually reaches, so an attribution cannot claim a kernel the call did not run.
+[com.eignex.koblas.KoblasEngine.explain] names the component a [DenseOperation] of a given length and
+spacing actually reaches, so an attribution cannot claim a kernel the call did not run.
 
 Operands are the public containers. [com.eignex.koblas.DenseMatrix] is contiguous column-major, and
 [com.eignex.koblas.DenseVector] covers both dense spacings, adjacent entries and a fixed step, because a
