@@ -1,7 +1,6 @@
 package com.eignex.koblas.dense
 
 import com.eignex.koblas.internal.numeric.*
-import com.eignex.koblas.portableRot
 
 /**
  * Contiguous dense Level 1 operations that are independently useful outside matrix algorithms.
@@ -97,6 +96,14 @@ public interface DenseVectorKernels {
     public fun sum(v: DoubleArray, vOff: Int, len: Int, vStride: Int = 1): Double
 }
 
+/** `v = beta * v` over the [len] entries from [off], honoring the `beta == 0` overwrite convention. */
+internal fun applyBeta(k: DenseVectorKernels, v: DoubleArray, off: Int, len: Int, beta: Double) {
+    when {
+        beta == 0.0 -> v.fill(0.0, off, off + len)
+        beta != 1.0 -> k.scale(v, off, beta, len)
+    }
+}
+
 /** Pure Kotlin scalar kernels retained as the portable fallback and semantic reference for compiled leaves. */
 internal object ScalarVectorKernels : DenseVectorKernels {
     override val name: String get() = "scalar"
@@ -138,5 +145,5 @@ internal object ScalarVectorKernels : DenseVectorKernels {
 
     @Suppress("LongParameterList")
     override fun rot(x: DoubleArray, xOff: Int, y: DoubleArray, yOff: Int, len: Int, c: Double, s: Double) =
-        portableRot(x, xOff, y, yOff, len, c, s)
+        scalarRot(x, xOff, y, yOff, len, c, s)
 }

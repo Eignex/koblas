@@ -20,8 +20,8 @@ import com.eignex.koblas.dense.PortableProductKernels
 import com.eignex.koblas.dense.PortableTriangularKernels
 import com.eignex.koblas.dense.RoutedDenseBlas
 import com.eignex.koblas.sparse.IndexedSparseKernels
+import com.eignex.koblas.sparse.PortableSparseBlas
 import com.eignex.koblas.sparse.SPARSE_SCHEDULING
-import com.eignex.koblas.sparse.SparseAlgorithms
 import com.eignex.koblas.sparse.SparseBlas
 import com.eignex.koblas.sparse.SparseKernels
 import com.eignex.koblas.sparse.SparseOperation
@@ -74,7 +74,7 @@ public class KoblasEngine internal constructor(
      */
     hostDense: Blas? = null,
     private val dense: RoutedDenseBlas = hostDense?.let { HostDenseBlas(denseBlas, it) } ?: denseBlas,
-    private val sparseBlas: SparseBlas = SparseAlgorithms(
+    private val sparseBlas: SparseBlas = PortableSparseBlas(
         vectorKernels,
         indexedSparseKernels,
         SparsePanelKernels(vectorKernels, panelKernels),

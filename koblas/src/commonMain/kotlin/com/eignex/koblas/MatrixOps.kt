@@ -44,9 +44,7 @@ public fun DenseMatrix.gemvInto(
         destination.prescale(beta)
         return
     }
-    val stableX = x.stableFor(destination)
-    val stableA = a.stableFor(destination)
-    koblas.gemv(alpha, stableA, stableX.asContiguousArray(), beta, destination, transpose)
+    koblas.gemv(alpha, a, x.asContiguousArray(), beta, destination, transpose)
 }
 
 /** [gemvInto] with `alpha = 1, beta = 0`, so `destination` receives `op(A) * x`. */
@@ -79,9 +77,7 @@ public fun DenseMatrix.symvInto(
         destination.prescale(beta)
         return
     }
-    val stableX = x.stableFor(destination)
-    val stableA = stableFor(destination)
-    koblas.symv(alpha, stableA, stableX.asContiguousArray(), beta, destination, lower)
+    koblas.symv(alpha, this, x.asContiguousArray(), beta, destination, lower)
 }
 
 /** [symvInto] with `alpha = 1, beta = 0`, so `destination` receives `A * x`. */
@@ -92,24 +88,6 @@ public fun DenseMatrix.symvInto(x: DenseVector, destination: DoubleArray, lower:
 /** The `beta * y` half of a matvec. A zero [beta] overwrites without reading, as BLAS specifies, so the
  *  destination's previous contents cannot poison the result. */
 private fun DoubleArray.prescale(beta: Double) = applyBeta(koblas.vectorKernels, this, 0, size, beta)
-
-/**
- * A snapshot when [destination] is this vector's live backing array, and the vector itself otherwise.
- *
- * BLAS leaves a destination overlapping an input undefined, so an operand that would be rewritten under the
- * call is copied first and the call sees the values it was given. Exhaustive over the two dense shapes: the
- * copy keeps the window's own origin and spacing, because those address the copy exactly as they addressed
- * the original.
- */
-private fun DenseVector.stableFor(destination: DoubleArray): DenseVector = when {
-    values !== destination -> this
-    this is StridedVector -> StridedVector(values.copyOf(), offset, size, stride)
-    else -> DenseVector.wrap(values.copyOf())
-}
-
-/** Stable dense matrix storage when [destination] is its live backing array. */
-private fun DenseMatrix.stableFor(destination: DoubleArray): DenseMatrix =
-    if (values === destination) DenseMatrix.wrap(rows, cols, values.copyOf()) else this
 
 /**
  * Rank-one update `A = A + alpha * x * yT` (BLAS `dger`) in place. Subtract by passing

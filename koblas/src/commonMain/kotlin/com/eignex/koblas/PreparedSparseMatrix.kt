@@ -1,6 +1,5 @@
 package com.eignex.koblas
 
-import com.eignex.koblas.sparse.SparseAlgorithms
 import com.eignex.koblas.sparse.SparseBlas
 import com.eignex.koblas.sparse.SparseCall
 import com.eignex.koblas.sparse.SparseMatrixOperation
@@ -26,7 +25,7 @@ import kotlin.jvm.JvmOverloads
  * Preparation, the first transposed use of a sparse-sparse product and steady-state use therefore cost
  * different things, and a measurement that means to separate them has to reset between them.
  */
-public class PreparedSparseMatrix internal constructor(a: SparseMatrix, private val algorithms: SparseAlgorithms) {
+public class PreparedSparseMatrix internal constructor(a: SparseMatrix, private val blas: SparseBlas) {
     private val snapshot = SparseMatrix.wrapTrusted(
         a.rows,
         a.cols,
@@ -35,7 +34,7 @@ public class PreparedSparseMatrix internal constructor(a: SparseMatrix, private 
         a.values.copyOf(),
     )
 
-    private val lazyTranspose: Lazy<SparseMatrix> = lazy { algorithms.transpose(snapshot) }
+    private val lazyTranspose: Lazy<SparseMatrix> = lazy { blas.transpose(snapshot) }
     private val transposedSnapshot: SparseMatrix get() = lazyTranspose.value
 
     /** Rows in the prepared sparse matrix. */
@@ -62,7 +61,7 @@ public class PreparedSparseMatrix internal constructor(a: SparseMatrix, private 
         destination: DoubleArray,
         transpose: Boolean = false,
     ) {
-        algorithms.gemv(alpha, snapshot, x, beta, destination, transpose)
+        blas.gemv(alpha, snapshot, x, beta, destination, transpose)
     }
 
     /** Prepared selected-triangle symmetric matrix-vector product; semantics match [SparseBlas.symv]. */
@@ -75,7 +74,7 @@ public class PreparedSparseMatrix internal constructor(a: SparseMatrix, private 
         destination: DoubleArray,
         lower: Boolean = true,
     ) {
-        algorithms.symv(alpha, snapshot, x, beta, destination, lower)
+        blas.symv(alpha, snapshot, x, beta, destination, lower)
     }
 
     /** `C = alpha · op(A) · B + beta · C` against the prepared `A`. */
@@ -117,7 +116,7 @@ public class PreparedSparseMatrix internal constructor(a: SparseMatrix, private 
         } else {
             requireGemmShape(snapshot, transpose, b, transposeB, destination)
         }
-        algorithms.gemm(alpha, snapshot, transpose, b, transposeB, beta, destination, right, workspace)
+        blas.gemm(alpha, snapshot, transpose, b, transposeB, beta, destination, right, workspace)
     }
 
     /** Prepared selected-triangle symmetric matrix-matrix product; semantics match [SparseBlas.symm]. */
@@ -132,7 +131,7 @@ public class PreparedSparseMatrix internal constructor(a: SparseMatrix, private 
         right: Boolean = false,
         workspace: Workspace? = null,
     ) {
-        algorithms.symm(alpha, snapshot, b, beta, destination, lower, right, workspace)
+        blas.symm(alpha, snapshot, b, beta, destination, lower, right, workspace)
     }
 
     /** `A · B` against the prepared `A`, into a fresh sparse matrix. */
@@ -149,7 +148,7 @@ public class PreparedSparseMatrix internal constructor(a: SparseMatrix, private 
             transpose,
             reusesOrientation(alpha, transpose, depth, work),
         ) { oriented, stillTransposed ->
-            algorithms.gemm(alpha, oriented, stillTransposed, b, transposeB)
+            blas.gemm(alpha, oriented, stillTransposed, b, transposeB)
         }
     }
 
@@ -169,7 +168,7 @@ public class PreparedSparseMatrix internal constructor(a: SparseMatrix, private 
         val depth = if (transpose) snapshot.rows else snapshot.cols
         val work = if (b.nnz == 0) 0 else destination.values.size
         withOrientation(transpose, reusesOrientation(alpha, transpose, depth, work)) { oriented, stillTransposed ->
-            algorithms.gemm(alpha, oriented, stillTransposed, b, transposeB, beta, destination, workspace)
+            blas.gemm(alpha, oriented, stillTransposed, b, transposeB, beta, destination, workspace)
         }
     }
 
@@ -229,7 +228,7 @@ public class PreparedSparseMatrix internal constructor(a: SparseMatrix, private 
 
     /** [call]'s scalars and extents asked of the snapshot, which is the operand a prepared call has. */
     private fun routeAgainstSnapshot(operation: SparseMatrixOperation, call: SparseCall): SparseMatrixRoute =
-        algorithms.routeOf(
+        blas.routeOf(
             operation,
             SparseCall(
                 snapshot,

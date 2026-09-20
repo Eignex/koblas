@@ -1,7 +1,6 @@
 package com.eignex.koblas.dense
 
 import com.eignex.koblas.internal.numeric.*
-import com.eignex.koblas.portableRot
 import kotlin.math.sqrt
 
 /** Whether the incubating Vector API resolved without initializing its implementation classes. */
@@ -139,5 +138,5 @@ internal object SimdVectorKernels : DenseVectorKernels {
 
     @Suppress("LongParameterList")
     override fun rot(x: DoubleArray, xOff: Int, y: DoubleArray, yOff: Int, len: Int, c: Double, s: Double) =
-        portableRot(x, xOff, y, yOff, len, c, s)
+        scalarRot(x, xOff, y, yOff, len, c, s)
 }

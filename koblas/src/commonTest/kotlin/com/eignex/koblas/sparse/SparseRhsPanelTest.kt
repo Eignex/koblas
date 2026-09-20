@@ -506,7 +506,7 @@ class SparseRhsPanelTest {
         b: DenseMatrix,
         transposeB: Boolean,
         c0: DenseMatrix,
-        engine: SparseAlgorithms,
+        engine: PortableSparseBlas,
     ): DenseMatrix {
         val c = c0.copyOf()
         engine.gemm(ALPHA, a, transposeA, b, transposeB, BETA, c, right = false, workspace = Workspace())
@@ -608,7 +608,7 @@ class SparseRhsPanelTest {
 }
 
 /** An engine's sparse algorithms over a chosen panel backend, which is what selects the staged schedule. */
-internal fun engineWith(panels: DensePanelKernels): SparseAlgorithms = SparseAlgorithms(
+internal fun engineWith(panels: DensePanelKernels): PortableSparseBlas = PortableSparseBlas(
     ScalarVectorKernels,
     ScalarIndexedSparseKernels,
     SparsePanelKernels(ScalarVectorKernels, panels),

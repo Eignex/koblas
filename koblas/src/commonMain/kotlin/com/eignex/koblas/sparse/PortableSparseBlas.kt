@@ -178,7 +178,7 @@ private enum class RunShape {
  */
 @Suppress("TooManyFunctions") // the sparse BLAS surface
 @OptIn(UnsafeKoblasApi::class)
-internal class SparseAlgorithms(
+internal class PortableSparseBlas(
     private val vectorKernels: DenseVectorKernels,
     private val indexedKernels: IndexedSparseKernels,
     private val panelKernels: SparsePanelKernels,
