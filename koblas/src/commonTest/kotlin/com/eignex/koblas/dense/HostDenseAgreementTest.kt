@@ -42,9 +42,7 @@ class HostDenseAgreementTest {
     /**
      * Every routine these cases compute through actually reaches the library, or the coverage has lapsed.
      *
-     * An entry point the installed binding does not export is named and skipped, since that is a correct
-     * outcome and a silent loss of coverage at once: Accelerate has no `cblas_dgemmt`, so the composed
-     * `gemmt` path is genuinely unexercised on macOS. `syr2k` is asserted to stay portable.
+     * Unsupported entry points are reported as skipped so portable fallback cannot masquerade as host coverage.
      */
     @Test
     fun `every routine these cases cover reaches the library except the one that may not`() =
@@ -61,12 +59,10 @@ class HostDenseAgreementTest {
                 DenseMatrixOperation.Symm to DenseCall(order, SIDES, alpha = ALPHA, beta = BETA, depth = order),
                 DenseMatrixOperation.Trsm to DenseCall(order, SIDES, alpha = ALPHA, depth = order),
                 DenseMatrixOperation.Trmm to DenseCall(order, SIDES, alpha = ALPHA, depth = order),
-                DenseMatrixOperation.Gemm to
-                    DenseCall(ROWS, COLUMNS, alpha = PLACED_ALPHA, beta = BETA, depth = DEPTH),
-                DenseMatrixOperation.Gemmt to
-                    DenseCall(order, order, alpha = PLACED_ALPHA, beta = BETA, depth = DEPTH),
-                DenseMatrixOperation.Syrk to
-                    DenseCall(order, order, alpha = PLACED_ALPHA, beta = BETA, depth = DEPTH),
+                DenseMatrixOperation.Gemm to DenseCall(ROWS, COLUMNS, alpha = ALPHA, beta = BETA, depth = DEPTH),
+                DenseMatrixOperation.Gemmt to DenseCall(order, order, alpha = ALPHA, beta = BETA, depth = DEPTH),
+                DenseMatrixOperation.Syrk to DenseCall(order, order, alpha = ALPHA, beta = BETA, depth = DEPTH),
+                DenseMatrixOperation.Syr2k to DenseCall(order, order, alpha = ALPHA, beta = BETA, depth = DEPTH),
             )
 
             for ((operation, call) in admitted) {
@@ -82,11 +78,6 @@ class HostDenseAgreementTest {
                 assertEquals(HOST_SCHEDULING, route.scheduling, "$operation no longer reaches the library")
                 assertTrue(route.host != null, "$operation named no vendor call")
             }
-            val pair = blas.routeOf(
-                DenseMatrixOperation.Syr2k,
-                DenseCall(order, order, alpha = PLACED_ALPHA, beta = BETA, depth = DEPTH),
-            )
-            assertEquals(DENSE_SCHEDULING, pair.scheduling, "a rank-2k update reached the library")
         }
 
     @Test
@@ -253,20 +244,16 @@ class HostDenseAgreementTest {
                 val b = if (transposeB) randomMatrix(COLUMNS, DEPTH, rng) else randomMatrix(DEPTH, COLUMNS, rng)
                 val base = randomMatrix(ROWS, COLUMNS, rng)
                 val expected = DenseMatrix.wrap(ROWS, COLUMNS, base.values.copyOf())
-                ReferenceBlas.gemm(PLACED_ALPHA, a, transposeA, b, transposeB, BETA, expected)
+                ReferenceBlas.gemm(ALPHA, a, transposeA, b, transposeB, BETA, expected)
 
                 val actual = DenseMatrix.wrap(ROWS, COLUMNS, base.values.copyOf())
-                blas.gemm(PLACED_ALPHA, a, transposeA, b, transposeB, BETA, actual)
+                blas.gemm(ALPHA, a, transposeA, b, transposeB, BETA, actual)
 
                 assertClose(expected, actual, "gemm transA=$transposeA transB=$transposeB", TOLERANCE)
             }
         }
     }
 
-    /**
-     * `gemmt` and `syrk` go across; `syr2k` is here for its numbers only, since the policy never hands a
-     * rank-2k update to a library. [HostDenseContractTest] is where that fallback is asserted.
-     */
     @Test
     fun `the triangle selected products write one triangle and leave the other alone`() =
         withHost("the triangle-selected products") { blas, _ ->
@@ -278,14 +265,14 @@ class HostDenseAgreementTest {
                 val where = "lower=$lower"
 
                 val expectedGemmt = DenseMatrix.wrap(ORDER, ORDER, base.values.copyOf())
-                ReferenceBlas.gemmt(PLACED_ALPHA, a, false, b, false, BETA, expectedGemmt, lower)
+                ReferenceBlas.gemmt(ALPHA, a, false, b, false, BETA, expectedGemmt, lower)
                 val actualGemmt = DenseMatrix.wrap(ORDER, ORDER, base.values.copyOf())
-                blas.gemmt(PLACED_ALPHA, a, false, b, false, BETA, actualGemmt, lower)
+                blas.gemmt(ALPHA, a, false, b, false, BETA, actualGemmt, lower)
 
                 val expectedSyrk = DenseMatrix.wrap(ORDER, ORDER, base.values.copyOf())
-                ReferenceBlas.syrk(PLACED_ALPHA, a, false, BETA, expectedSyrk, lower)
+                ReferenceBlas.syrk(ALPHA, a, false, BETA, expectedSyrk, lower)
                 val actualSyrk = DenseMatrix.wrap(ORDER, ORDER, base.values.copyOf())
-                blas.syrk(PLACED_ALPHA, a, false, BETA, actualSyrk, lower)
+                blas.syrk(ALPHA, a, false, BETA, actualSyrk, lower)
 
                 val other = randomMatrix(ORDER, DEPTH, rng)
                 val expectedSyr2k = DenseMatrix.wrap(ORDER, ORDER, base.values.copyOf())
@@ -310,9 +297,9 @@ class HostDenseAgreementTest {
             val separate = DenseMatrix.wrap(ORDER, ORDER, square.values.copyOf())
 
             val expectedProduct = DenseMatrix.wrap(ORDER, ORDER, square.values.copyOf())
-            ReferenceBlas.gemm(PLACED_ALPHA, separate, false, separate, false, BETA, expectedProduct)
+            ReferenceBlas.gemm(ALPHA, separate, false, separate, false, BETA, expectedProduct)
             val product = DenseMatrix.wrap(ORDER, ORDER, square.values.copyOf())
-            blas.gemm(PLACED_ALPHA, product, false, product, false, BETA, product, workspace)
+            blas.gemm(ALPHA, product, false, product, false, BETA, product, workspace)
 
             val expectedSolve = DenseMatrix.wrap(ORDER, ORDER, square.values.copyOf())
             ReferenceBlas.trsm(separate, expectedSolve, lower = true, alpha = ALPHA)
@@ -348,9 +335,9 @@ class HostDenseAgreementTest {
             val b = randomMatrix(DEPTH, COLUMNS, rng)
             val destination = DenseMatrix.wrap(ROWS, COLUMNS, DoubleArray(ROWS * COLUMNS) { Double.NaN })
             val expected = DenseMatrix.zero(ROWS, COLUMNS)
-            ReferenceBlas.gemm(PLACED_ALPHA, a, false, b, false, 0.0, expected)
+            ReferenceBlas.gemm(ALPHA, a, false, b, false, 0.0, expected)
 
-            blas.gemm(PLACED_ALPHA, a, false, b, false, 0.0, destination)
+            blas.gemm(ALPHA, a, false, b, false, 0.0, destination)
 
             assertClose(expected, destination, "gemm over a poisoned destination", TOLERANCE)
         }
@@ -384,11 +371,6 @@ class HostDenseAgreementTest {
         const val SIDES = 4
         const val ALPHA = 0.75
 
-        /**
-         * The multiplier `gemm`, `gemmt` and `syrk` carry, which has to be one: the policy hands them to a
-         * library only where there is no multiplier to place, so a scaled fixture would stop covering it.
-         */
-        const val PLACED_ALPHA = 1.0
         const val BETA = -0.5
 
         /** Loose enough for another accumulation order, far tighter than any mistranslated flag. */

@@ -61,27 +61,23 @@ internal const val HOST_STAGING: String = "host-stage/alias"
  * refuses nothing for want of a library, because it is what an ordinary call gets and an ordinary call is
  * owed an answer.
  *
- * Six things decide a call, in this order, all of them before anything is written:
+ * Five things decide a call, in this order, all of them before anything is written:
  *
  *  1. The operation has a CBLAS entry point of its own. A product between operands packed for this library's
  *     own register tile does not: the layout is ours and a library cannot read it, so those calls stay on the
  *     portable schedule and their routes say so.
  *  2. This library exports that entry point. `gemmt` is the one a supported vendor may legitimately lack, and
  *     composing it from a full product plus a triangle copy is work this library would be doing anyway.
- *  3. What [DenseBlas] promises for this routine and this multiplier is something a library also gives.
- *     [HostDensePolicy.structurallyCompatible] and [HostDensePolicy.multiplierIsCompatible] are the whole of
- *     that question, and both are answered before a write rather than discovered from a result.
- *  4. The call states the shared dimension its operation is defined over. A Level 3 route with none is not a
+ *  3. The call states the shared dimension its operation is defined over. A Level 3 route with none is not a
  *     small call but an unstated one, and the portable path is where that is refused rather than answered.
- *  5. The call does arithmetic at all. A zero multiplier, an empty extent or an empty shared dimension is a
+ *  4. The call does arithmetic at all. A zero multiplier, an empty extent or an empty shared dimension is a
  *     call whose no-read rules this library states and a vendor is not held to, so the portable path keeps
  *     them rather than the policy having to reason about what a given library does with them.
- *  6. There is enough arithmetic to pay for reaching the library. See [HostDensePolicy.MINIMUM_WORK].
+ *  5. There is enough arithmetic to pay for reaching the library. See [HostDensePolicy.MINIMUM_WORK].
  *
- * A call that gets here is one where the library's freedom cannot be told apart from what [DenseBlas]
- * promises, so what comes back is what an ordinary call is owed. Within that, the accumulation order is the
- * library's, which is latitude [DenseBlas.gemm] already states for any built-in schedule. The rest of the
- * contract is unchanged and belongs to this layer: shapes are validated before anything is written, a zero
+ * What comes back is what an ordinary call is owed. The accumulation order and the placement of a multiplier
+ * are the library's, which is latitude [DenseBlas.gemm] states for any implementation of these routines. The
+ * rest of the contract belongs to this layer: shapes are validated before anything is written, a zero
  * multiplier reads no operand, an unselected triangle is neither read nor written, and an input that shares
  * the destination's buffer is staged into scratch first, since a whole-call binding cannot take that overlap.
  *
@@ -99,10 +95,9 @@ internal class HostDenseBlas(
      * Whether this call goes to the library, asked before it writes anything.
      *
      * [work] is what [HostDensePolicy.multiplyAdds] made of the call's own facts, and null there is not a
-     * small call: it is an operation with no entry point, a routine or a multiplier whose documented
-     * behaviour a library need not share, a call whose contract stops before the arithmetic, or one that
-     * never stated the shared dimension it is defined over. All of them stay portable, and the route agrees
-     * because it asks this question of the same facts.
+     * small call: it is an operation with no entry point, a call whose contract stops before the arithmetic,
+     * or one that never stated the shared dimension it is defined over. All of them stay portable, and the
+     * route agrees because it asks this question of the same facts.
      */
     private fun host(operation: DenseMatrixOperation, work: Long?): Boolean {
         if (work == null) return false
@@ -448,17 +443,13 @@ internal class HostDenseBlas(
 /**
  * When a whole dense call is handed to an installed library rather than run on the portable schedule.
  *
- * A conservative fixed policy rather than a tuned one. Three questions settle it. Is this operation one whole
+ * A conservative fixed policy rather than a tuned one. Two questions settle it. Is this operation one whole
  * CBLAS entry point that the library exports, and does the call carry the facts that settle its own shape;
- * can a library's own freedom be told apart from what [DenseBlas] promises for this call, in which case the
- * promise decides and the call stays here; and has the arithmetic grown to a size where a foreign call and a
- * pin per operand are a small part of it.
+ * and has the arithmetic grown to a size where a foreign call and a pin per operand are a small part of it.
  *
- * The middle question is the one that is not about speed. A built-in call keeps the behaviour [DenseBlas]
- * states for it on every platform, and a library is installed by the host rather than chosen by the caller,
- * so an ordinary call cannot acquire new latitude from one being present. Where compatibility is not
- * something this policy can establish, the portable schedule is chosen, and it is chosen before anything is
- * written. Callers who want a library's own answers ask for one through [com.eignex.koblas.vendor.Blas].
+ * Nothing here holds a call back over arithmetic. [DenseBlas] states the accumulation order and the placement
+ * of a multiplier as the selected implementation's, so there is no promise a library could contradict, and a
+ * call's route names which one answered it.
  *
  * One size threshold for all of them rather than one per operation. The eight Level 1 break-evens that the
  * Kotlin/Native vector kernels split differ because a per-call cost of a few tens of nanoseconds is most of
@@ -530,60 +521,6 @@ internal object HostDensePolicy {
     }
 
     /**
-     * Whether a library may serve [operation] at all without changing what [DenseBlas] promises for it.
-     *
-     * One entry, and it is [DenseMatrixOperation.Syr2k]. That routine is documented as the two products it
-     * is defined as, composed rather than fused, so its result is `alpha · s₁ + alpha · s₂` where each sum
-     * is accumulated on its own. A library's `dsyr2k` may legitimately walk both at once and add the pair of
-     * terms before accumulating, and the two are not the same function of finite operands: with two rows and
-     * a shared dimension whose columns are `[1, -1]` against a second operand of halved maxima, one of the
-     * separate sums overflows to an infinity and the other to its negative, so composing gives a NaN where
-     * an interleaved traversal cancels each pair and gives zero. Nothing about the operands or the scalars
-     * distinguishes the two cheaply, so this routine is not handed over.
-     *
-     * The other thirteen have no such statement of their own, and what they do promise about the placement
-     * of a multiplier is kept by [multiplierIsCompatible] instead.
-     */
-    fun structurallyCompatible(operation: DenseMatrixOperation): Boolean = operation != DenseMatrixOperation.Syr2k
-
-    /**
-     * The routines whose result [DenseBlas] states as a multiplier applied to an accumulated sum.
-     *
-     * [DenseBlas.gemm] says it, [DenseBlas.syrk] says it scales its one product exactly as `gemm` describes,
-     * and `gemmt` is that product restricted to a triangle. The rest of the bound surface states no placement
-     * at all, so a library's own is the selected implementation's answer there, which is what this library
-     * says about everything the standard leaves open.
-     */
-    private val SCALES_AN_ACCUMULATED_SUM = setOf(
-        DenseMatrixOperation.Gemm,
-        DenseMatrixOperation.Gemmt,
-        DenseMatrixOperation.Syrk,
-    )
-
-    /**
-     * Whether a library may serve a call carrying this [alpha] without changing what [DenseBlas] promises.
-     *
-     * For the routines in [SCALES_AN_ACCUMULATED_SUM] the rule is that there is no multiplier to place: the
-     * multiplier is one. Nothing weaker survives, and the reason is that a library may legally scale an
-     * operand before multiplying, which reference BLAS does in places. Over a shared dimension of one there
-     * is no partition of a sum to explain the difference, and two finite fixtures settle it. With a
-     * multiplier of `Double.MAX_VALUE` against an operand entry of zero and another of two, this library's
-     * `(0 · 2) · alpha` is zero while pre-scaling the two gives an infinity and then a NaN. With a
-     * multiplier of a half against `Double.MAX_VALUE` and two, this library's `(MAX · 2) · alpha` overflows
-     * to an infinity while pre-scaling the two leaves `MAX` finite. Both are ordinary finite arguments, so
-     * neither a finiteness test nor the repartitioning [DenseBlas.gemm] already allows covers them.
-     *
-     * A unit multiplier does: with nothing to scale, where the scaling would have gone cannot be observed.
-     * The cost is that a scaled product of those three routines keeps this library's schedule, which is the
-     * conservative fallback and is taken before anything is written.
-     *
-     * Every other bound routine is unrestricted here, because [DenseBlas] promises nothing about where their
-     * multiplier lands and the route of the call names the library that answered.
-     */
-    fun multiplierIsCompatible(operation: DenseMatrixOperation, alpha: Double): Boolean =
-        alpha == 1.0 || operation !in SCALES_AN_ACCUMULATED_SUM
-
-    /**
      * Whether [operation] needs a shared dimension of its own before anything about it can be settled.
      *
      * The same rule the portable reporter holds to, and holding to it here is what keeps a host route from
@@ -604,13 +541,11 @@ internal object HostDensePolicy {
     /**
      * The multiply-adds a call may hand to a library, or null where it may not hand it any.
      *
-     * Null covers five things that have one answer. An operation with no entry point of its own; a routine
-     * whose documented behaviour a library need not share, which is [structurallyCompatible]; a multiplier
-     * this routine documents the placement of, which is [multiplierIsCompatible]; a call whose own contract
-     * stops before the arithmetic; and a call that did not state the shared dimension its operation is
-     * defined over. Each of them belongs on the portable schedule, and the reason differs: the
-     * first has nowhere else to go, the second and third are promises this library made, the fourth turns on
-     * no-read rules the standard leaves open, and the fifth is refused rather than answered.
+     * Null covers three things that have one answer. An operation with no entry point of its own; a call
+     * whose own contract stops before the arithmetic; and a call that did not state the shared dimension its
+     * operation is defined over. Each belongs on the portable schedule, and the reason differs: the first has
+     * nowhere else to go, the second turns on no-read rules the standard leaves open, and the third is
+     * refused rather than answered.
      *
      * The extents are [DenseCall]'s, so the execution paths and [HostDenseBlas.routeOf] pass the same facts
      * and cannot disagree about which of them the call has.
@@ -625,7 +560,6 @@ internal object HostDensePolicy {
         right: Boolean,
     ): Long? {
         if (entryPointFor(operation) == null) return null
-        if (!structurallyCompatible(operation) || !multiplierIsCompatible(operation, alpha)) return null
         if (needsDepth(operation) && depth == null) return null
         // The rule the portable reporter stops on, restated over the same three extents.
         if (alpha == 0.0 || rows == 0 || columns == 0 || depth == 0) return null

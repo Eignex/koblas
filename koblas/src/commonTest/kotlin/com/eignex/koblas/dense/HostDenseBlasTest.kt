@@ -32,11 +32,7 @@ class HostDenseBlasTest {
     private fun matrix(rows: Int, cols: Int = rows, from: Double = 1.0) =
         DenseMatrix.wrap(rows, cols, DoubleArray(rows * cols) { from + it })
 
-    /**
-     * Thirteen of the fourteen bound Level 2 and 3 routines, in the order they are called. `syr2k`'s absence
-     * is asserted rather than passed over, since the policy never hands it over; [HostDenseContractTest] is
-     * where that guarantee is checked against the numbers.
-     */
+    /** All fourteen bound Level 2 and 3 routines, in the order they are called. */
     @Test
     fun `every level two and three entry point reaches the library when the policy admits it`() {
         val a = matrix(ORDER)
@@ -48,7 +44,7 @@ class HostDenseBlasTest {
         val expected = listOf(
             BlasOperation.Gemv, BlasOperation.Symv, BlasOperation.Ger, BlasOperation.Syr, BlasOperation.Syr2,
             BlasOperation.Trsv, BlasOperation.Trmv, BlasOperation.Gemm, BlasOperation.Gemmt, BlasOperation.Syrk,
-            BlasOperation.Symm, BlasOperation.Trsm, BlasOperation.Trmm,
+            BlasOperation.Syr2k, BlasOperation.Symm, BlasOperation.Trsm, BlasOperation.Trmm,
         )
         val (recorder, blas) = forced()
 
@@ -68,6 +64,21 @@ class HostDenseBlasTest {
         blas.trmm(a, matrix(ORDER), lower = true)
 
         assertContentEquals(expected, recorder.calls.map { it.operation })
+    }
+
+    @Test
+    fun `a scaled product reaches the library on the same terms as an unscaled one`() {
+        val (recorder, blas) = forced()
+        val a = matrix(ORDER)
+
+        blas.gemm(SCALE, a, false, a, false, 0.0, matrix(ORDER))
+        val route = blas.routeOf(
+            DenseMatrixOperation.Gemm,
+            DenseCall(ORDER, ORDER, alpha = SCALE, depth = ORDER),
+        )
+
+        assertEquals(listOf(BlasOperation.Gemm), recorder.calls.map { it.operation })
+        assertEquals(HOST_SCHEDULING, route.scheduling)
     }
 
     @Test
@@ -226,6 +237,8 @@ class HostDenseBlasTest {
 
         /** Past [HostDensePolicy.MINIMUM_WORK] as a cubic product, and still a fixture a test can hold. */
         const val CROSSING_ORDER = 64
+
+        const val SCALE = 0.75
 
         val PACKED = listOf(
             DenseMatrixOperation.GemmPacked,
