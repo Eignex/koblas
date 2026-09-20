@@ -113,12 +113,62 @@ class HostDenseContractTest {
     }
 
     /**
-     * The same routine with a finite multiplier does go across, so the guard above is the multiplier's.
+     * `alpha` scales an accumulated sum over a shared dimension of one, where no partition can explain it.
      *
-     * Without this the first case would pass on a policy that simply never reached a library.
+     * The multiplier here is finite and so are both operands, so neither a finiteness test nor the
+     * repartitioning [DenseBlas.gemm] already allows would hold this call back. What tells the two
+     * formulations apart is where the multiplier lands: scaling an operand entry overflows or underflows in
+     * places where scaling the sum does not. [PreScalingBlas] is one legal formulation that does the first,
+     * and the point of running against it is that a particular installed library scaling last would hide
+     * this.
      */
     @Test
-    fun `a finite multiplier on the same product does reach the library`() {
+    fun `a scaled product is kept here because a library may scale an operand instead`() {
+        val depth = SINGLE_DEPTH
+        val order = SCALED_ORDER
+        for (case in SCALED_CASES) {
+            val a = DenseMatrix.wrap(order, depth, DoubleArray(order * depth) { case.left })
+            val b = DenseMatrix.wrap(depth, order, DoubleArray(depth * order) { case.right })
+            val fake = PreScalingBlas()
+            val blas = composed(fake)
+
+            // What the two formulations give, computed here so the fixture is shown to tell them apart.
+            val owned = (case.left * case.right) * case.alpha
+            val preScaled = case.left * (case.alpha * case.right)
+            val direct = DenseMatrix.zero(order, order)
+            // A second instance, so that what [fake] recorded is only what the composition asked of it.
+            PreScalingBlas().gemm(case.alpha, a, false, b, false, 0.0, direct)
+
+            val route = blas.routeOf(
+                DenseMatrixOperation.Gemm,
+                DenseCall(order, order, alpha = case.alpha, beta = 0.0, depth = depth),
+            )
+            val c = DenseMatrix.zero(order, order)
+            blas.gemm(case.alpha, a, false, b, false, 0.0, c)
+
+            assertTrue(order.toLong() * order * depth >= HostDensePolicy.MINIMUM_WORK, "fixture below the policy")
+            assertTrue(
+                owned.toRawBits() != preScaled.toRawBits(),
+                "the fixture does not tell the two placements apart: both give $owned",
+            )
+            assertEquals(preScaled.toRawBits(), direct.values[0].toRawBits(), "the fake does not pre-scale")
+            assertEquals(DENSE_SCHEDULING, route.scheduling, "a scaled product was sent to a library")
+            assertEquals(null, route.host)
+            assertEquals(emptyList(), fake.recorded(), "the library was called for a scaled product")
+            assertTrue(
+                c.values.all { it.toRawBits() == owned.toRawBits() },
+                "alpha ${case.alpha} placed the multiplier on an operand: got ${c.values[0]}, owned is $owned",
+            )
+        }
+    }
+
+    /**
+     * A unit multiplier on the same shape does go across, so the rule above is the multiplier's.
+     *
+     * Without this the cases above would pass on a policy that simply never reached a library.
+     */
+    @Test
+    fun `a unit multiplier on the same product does reach the library`() {
         val order = PRODUCT_ORDER
         val a = DenseMatrix.wrap(order, order, DoubleArray(order * order) { 1.0 + it % 3 })
         val recorder = RecordingBlas()
@@ -140,9 +190,77 @@ class HostDenseContractTest {
         return listOfNotNull(recorder, installed)
     }
 
+    /**
+     * One of the two finite fixtures that separate the placements, with the answer each one gives.
+     *
+     * @property alpha the multiplier, finite and not one.
+     * @property left every entry of the left operand.
+     * @property right every entry of the right operand.
+     */
+    private class ScaledCase(val alpha: Double, val left: Double, val right: Double)
+
+    /**
+     * A binding whose `gemm` scales the right operand before multiplying, which BLAS permits.
+     *
+     * Only `gemm` computes; everything else is the recording binding's, because nothing else is asked of it.
+     * It exists so a test can see what this library would return if a whole scaled product were handed to a
+     * library that places the multiplier the other way, on a host whose installed library happens not to.
+     */
+    private class PreScalingBlas(private val recorder: RecordingBlas = RecordingBlas()) : Blas by recorder {
+        /** Every call the composition made, which for a correctly held-back product is none. */
+        fun recorded(): List<BlasOperation> = recorder.calls.map { it.operation }
+
+        override fun gemm(
+            alpha: Double,
+            a: DenseMatrix,
+            transposeA: Boolean,
+            b: DenseMatrix,
+            transposeB: Boolean,
+            beta: Double,
+            c: DenseMatrix,
+        ) {
+            recorder.gemm(alpha, a, transposeA, b, transposeB, beta, c)
+            val depth = if (transposeA) a.rows else a.cols
+            for (column in 0 until c.cols) {
+                for (row in 0 until c.rows) {
+                    var sum = 0.0
+                    for (step in 0 until depth) {
+                        val left = if (transposeA) a.values[step + row * a.rows] else a.values[row + step * a.rows]
+                        val right = if (transposeB) {
+                            b.values[column + step * b.rows]
+                        } else {
+                            b.values[
+                                step +
+                                    column * b.rows,
+                            ]
+                        }
+                        sum += left * (alpha * right)
+                    }
+                    val previous = if (beta == 0.0) 0.0 else beta * c.values[row + column * c.rows]
+                    c.values[row + column * c.rows] = sum + previous
+                }
+            }
+        }
+    }
+
     private companion object {
         /** Past the policy's size as a cubic product, so only the multiplier decides. */
         const val PRODUCT_ORDER = 16
+
+        /** One step, so no partition of a shared dimension can account for a difference. */
+        const val SINGLE_DEPTH = 1
+
+        /** With [SINGLE_DEPTH], past the policy's size, so only the multiplier holds the call back. */
+        const val SCALED_ORDER = 32
+
+        /**
+         * Two finite fixtures, one overflowing where the multiplier lands on the operand and one where it
+         * does not. Together they rule out a finiteness test standing in for the unit-multiplier rule.
+         */
+        val SCALED_CASES = listOf(
+            ScaledCase(Double.MAX_VALUE, left = 0.0, right = 2.0),
+            ScaledCase(0.5, left = Double.MAX_VALUE, right = 2.0),
+        )
 
         /** Two rows, so one off-diagonal entry carries the whole question. */
         const val PAIR_ROWS = 2

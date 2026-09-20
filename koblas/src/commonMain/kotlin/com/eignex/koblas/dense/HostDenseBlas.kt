@@ -527,25 +527,19 @@ internal object HostDensePolicy {
     /**
      * The multiply-add count from which a whole call is handed over.
      *
-     * Where the two meet is a property of the call rather than of the arithmetic: reaching a library on
-     * Kotlin/Native costs a foreign call and a pin per operand whatever the extents are, measured at about
-     * 290 nanoseconds for the smallest call either library would take, while the portable schedule there
-     * costs its arithmetic at roughly a nanosecond per multiply-add. So the crossing sits in the hundreds,
-     * and it is latest for the shape with the least arithmetic per operand, which is the matrix-vector
-     * product: over the ladder below it crosses between 256 and 576 multiply-adds, and a product of the same
-     * volume has already crossed at 512.
+     * Deliberately on the late side of where the two sides meet, because the errors are not symmetric:
+     * handing a call over too early makes it slower than the loop it replaced, and holding one back only
+     * forgoes a win. It is a fixed conservative policy and not a tuned number.
      *
-     * This number is deliberately past that rather than at it, because the two directions do not cost the
-     * same: sending a call over early makes it slower than the loop it replaced, which a caller sees, while
-     * holding one back only forgoes a win. At this width every shape measured was between 1.9 and 7.3 times
-     * the portable schedule, and the most any of them gives up between its own crossing and here is one call.
-     *
-     * Measured on 12th Gen Intel Core i9-12900H, P-cores 2/4/6/8 pinned, Kotlin/Native 2.4.10 linuxX64,
-     * against oneMKL 2026.1 and OpenBLAS 0.3.32 each held to one compute thread, over a size ladder for
-     * `gemm`, `gemv` and `trsm` through the `koblas-bench` native arms. A shared desktop, so these are
-     * diagnostics rather than a report: what they establish is which side of the line a size falls on, not a
-     * speedup. Another CPU, another library or another Kotlin target keeps this number only until someone
-     * runs that ladder there, and nothing here is inferred from a backend that was not run.
+     * The size was chosen from a bounded local ladder of `gemm`, `gemv` and `trsm` on one machine, comparing
+     * this library's exact portable Native arm against the explicit oneMKL and OpenBLAS ones through
+     * `koblas-bench`. What those rows establish is roughly where the arithmetic grows past the cost of
+     * reaching a library, which on that host was in the hundreds of multiply-adds. Their limits are as
+     * important: they are an explicit whole-call binding rather than this composition, so they do not include
+     * the validation, eligibility and operand wrapping around it; they are one CPU, two libraries and one
+     * Kotlin target; and they were taken on a shared desktop. So this is not a speedup figure and not a
+     * crossing anyone should assume holds elsewhere. Another host calls for that ladder again rather than an
+     * adjustment to this.
      */
     const val MINIMUM_WORK: Long = 1024L
 
@@ -610,22 +604,41 @@ internal object HostDensePolicy {
     fun structurallyCompatible(operation: DenseMatrixOperation): Boolean = operation != DenseMatrixOperation.Syr2k
 
     /**
+     * The routines whose result [DenseBlas] states as a multiplier applied to an accumulated sum.
+     *
+     * [DenseBlas.gemm] says it, [DenseBlas.syrk] says it scales its one product exactly as `gemm` describes,
+     * and `gemmt` is that product restricted to a triangle. The rest of the bound surface states no placement
+     * at all, so a library's own is the selected implementation's answer there, which is what this library
+     * says about everything the standard leaves open.
+     */
+    private val SCALES_AN_ACCUMULATED_SUM = setOf(
+        DenseMatrixOperation.Gemm,
+        DenseMatrixOperation.Gemmt,
+        DenseMatrixOperation.Syrk,
+    )
+
+    /**
      * Whether a library may serve a call carrying this [alpha] without changing what [DenseBlas] promises.
      *
-     * [DenseBlas.gemm] states that a built-in multiplier scales an accumulated sum and never an individual
-     * entry of an operand, and names what that rules out: a single zero entry producing a NaN on its own. A
-     * library is free to scale coefficients as it goes, and reference BLAS does exactly that in places, so
-     * the two answers part company as soon as the multiplier is an infinity or a NaN and an operand holds a
-     * zero. A finite multiplier cannot produce that, because a finite number times zero is zero wherever it
-     * is applied.
+     * For the routines in [SCALES_AN_ACCUMULATED_SUM] the rule is that there is no multiplier to place: the
+     * multiplier is one. Nothing weaker survives, and the reason is that a library may legally scale an
+     * operand before multiplying, which reference BLAS does in places. Over a shared dimension of one there
+     * is no partition of a sum to explain the difference, and two finite fixtures settle it. With a
+     * multiplier of `Double.MAX_VALUE` against an operand entry of zero and another of two, this library's
+     * `(0 · 2) · alpha` is zero while pre-scaling the two gives an infinity and then a NaN. With a
+     * multiplier of a half against `Double.MAX_VALUE` and two, this library's `(MAX · 2) · alpha` overflows
+     * to an infinity while pre-scaling the two leaves `MAX` finite. Both are ordinary finite arguments, so
+     * neither a finiteness test nor the repartitioning [DenseBlas.gemm] already allows covers them.
      *
-     * So the rule is that the multiplier is finite. It is one comparison, it needs nothing of the operands,
-     * and the calls it holds back are the ones nobody makes by accident. What it deliberately does not try
-     * to do is decide the cases where reassociating a sum overflows or cancels: [DenseBlas.gemm] already
-     * states that a built-in schedule may partition the shared dimension as it likes, so those differences
-     * are inside the promise rather than outside it.
+     * A unit multiplier does: with nothing to scale, where the scaling would have gone cannot be observed.
+     * The cost is that a scaled product of those three routines keeps this library's schedule, which is a
+     * fallback the plan permits and which happens before anything is written.
+     *
+     * Every other bound routine is unrestricted here, because [DenseBlas] promises nothing about where their
+     * multiplier lands and the route of the call names the library that answered.
      */
-    fun multiplierIsCompatible(alpha: Double): Boolean = alpha.isFinite()
+    fun multiplierIsCompatible(operation: DenseMatrixOperation, alpha: Double): Boolean =
+        alpha == 1.0 || operation !in SCALES_AN_ACCUMULATED_SUM
 
     /**
      * Whether [operation] needs a shared dimension of its own before anything about it can be settled.
@@ -650,9 +663,9 @@ internal object HostDensePolicy {
      *
      * Null covers five things that have one answer. An operation with no entry point of its own; a routine
      * whose documented behaviour a library need not share, which is [structurallyCompatible]; a multiplier
-     * that would make the placement of the multiplier observable, which is [multiplierIsCompatible]; a call
-     * whose own contract stops before the arithmetic; and a call that did not state the shared dimension its
-     * operation is defined over. Each of them belongs on the portable schedule, and the reason differs: the
+     * this routine documents the placement of, which is [multiplierIsCompatible]; a call whose own contract
+     * stops before the arithmetic; and a call that did not state the shared dimension its operation is
+     * defined over. Each of them belongs on the portable schedule, and the reason differs: the
      * first has nowhere else to go, the second and third are promises this library made, the fourth turns on
      * no-read rules the standard leaves open, and the fifth is refused rather than answered.
      *
@@ -669,7 +682,7 @@ internal object HostDensePolicy {
         right: Boolean,
     ): Long? {
         if (entryPointFor(operation) == null) return null
-        if (!structurallyCompatible(operation) || !multiplierIsCompatible(alpha)) return null
+        if (!structurallyCompatible(operation) || !multiplierIsCompatible(operation, alpha)) return null
         if (needsDepth(operation) && depth == null) return null
         // The rule the portable reporter stops on, restated over the same three extents.
         if (alpha == 0.0 || rows == 0 || columns == 0 || depth == 0) return null
