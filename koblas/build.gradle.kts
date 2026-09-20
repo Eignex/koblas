@@ -103,20 +103,46 @@ val simdSparseAllocationCheck = tasks.register<JavaExec>("simdSparseAllocationCh
         "-XX:CompileThreshold=1000",
     )
 }
-val simdDenseAllocationCheck = tasks.register<JavaExec>("simdDenseAllocationCheck") {
-    group = "verification"
-    description = "Checks allocation-free JVM SIMD dense panels and the whole Level 2 calls around them."
-    dependsOn("jvmTestClasses")
-    classpath(jvmTestCompilation.output.allOutputs, configurations.getByName("jvmTestRuntimeClasspath"))
-    mainClass.set("com.eignex.koblas.dense.SimdDenseAllocationCheck")
-    javaLauncher.set(allocationCheckJavaLauncher)
-    jvmArgs(
-        "--add-modules=jdk.incubator.vector",
-        "--enable-native-access=ALL-UNNAMED",
-        "-XX:-TieredCompilation",
-        "-XX:CompileThreshold=1000",
-    )
-}
+/**
+ * The dense allocation check in one runtime configuration.
+ *
+ * A kernel that keeps its accumulators in registers on this machine need not on another, and the two things
+ * that decide it are the width of the species and whether a multiply-add is one instruction. Both are fixed
+ * when the virtual machine starts, so the only way to check the other configuration is another process. The
+ * configurations below are registered rather than left to a reviewer to remember, because the first time a
+ * tile spilled without a fused multiply-add it was found by a reviewer and not by this build.
+ */
+fun registerDenseAllocationCheck(name: String, description: String, vararg extraArgs: String) =
+    tasks.register<JavaExec>(name) {
+        group = "verification"
+        this.description = description
+        dependsOn("jvmTestClasses")
+        classpath(jvmTestCompilation.output.allOutputs, configurations.getByName("jvmTestRuntimeClasspath"))
+        mainClass.set("com.eignex.koblas.dense.SimdDenseAllocationCheck")
+        javaLauncher.set(allocationCheckJavaLauncher)
+        jvmArgs(
+            "--add-modules=jdk.incubator.vector",
+            "--enable-native-access=ALL-UNNAMED",
+            "-XX:-TieredCompilation",
+            "-XX:CompileThreshold=1000",
+            *extraArgs,
+        )
+    }
+
+val simdDenseAllocationCheck = registerDenseAllocationCheck(
+    "simdDenseAllocationCheck",
+    "Checks allocation-free JVM SIMD dense kernels and the whole calls around them, at this machine's width.",
+)
+
+// Two lanes rather than this host's four, and the unfused multiply-add a pre-FMA host would take. Both at
+// once, because a step that takes two instructions instead of one is what leaves the most values live and
+// the narrower species is the fleet's floor.
+val simdDenseAllocationCheckNarrowNoFma = registerDenseAllocationCheck(
+    "simdDenseAllocationCheckNarrowNoFma",
+    "Checks the same kernels with a two-lane species and the fused multiply-add disabled.",
+    "-XX:MaxVectorSize=16",
+    "-XX:-UseFMA",
+)
 
 /**
  * Runs the panel conformance in a process whose species or multiply-add was forced to something other than
@@ -153,7 +179,13 @@ val simdNoFmaCheck = registerRuntimePathCheck(
 simdNoFmaCheck { args("", "false") }
 
 tasks.named("check") {
-    dependsOn(simdSparseAllocationCheck, simdDenseAllocationCheck, simdNarrowSpeciesCheck, simdNoFmaCheck)
+    dependsOn(
+        simdSparseAllocationCheck,
+        simdDenseAllocationCheck,
+        simdDenseAllocationCheckNarrowNoFma,
+        simdNarrowSpeciesCheck,
+        simdNoFmaCheck,
+    )
 }
 
 // Kotlin emits a `$DefaultImpls` holder for every interface with a body, and a bridge for every method with

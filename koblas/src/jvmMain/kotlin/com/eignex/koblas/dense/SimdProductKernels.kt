@@ -115,7 +115,97 @@ internal object SimdProductKernels : DenseProductKernels {
         }
     }
 
+    /**
+     * One whole tile, in as many accumulators as this runtime can hold at once.
+     *
+     * Where the machine has a fused multiply-add, a step of the depth is eight instructions into eight
+     * accumulators and nothing else is live but the two loaded rows and the broadcast coefficient. Where it
+     * does not, the same step is a multiply into a temporary and then an add, so it asks the compiler to
+     * keep eight more vector values alive at once, and the compiler stops keeping them in registers: it
+     * materialises some of them on the heap, which a probe sees as bytes per call and the arithmetic sees
+     * as about half the throughput. Two of the four columns at a time fit either way, at the cost of
+     * reading the left panel twice.
+     *
+     * So the decomposition follows the same gate the arithmetic does. This is not a change of geometry:
+     * [tileRows] and [tileColumns] are what they were, the packed layout is unchanged, and each destination
+     * entry still accumulates its own products in depth order, so both routes give the same answer bit for
+     * bit as each other. What differs is how many of them are in flight.
+     *
+     * The stage evidence has both bodies measured at both widths. With the instruction, eight accumulators
+     * lead the split by about 1.5x and neither allocates; without it, eight allocate and run at about half
+     * the split's rate. One machine, and the choice here is between two bodies of one kernel rather than a
+     * crossover between shapes.
+     */
     private fun tile(
+        depth: Int,
+        a: DoubleArray,
+        aOffset: Int,
+        b: DoubleArray,
+        bOffset: Int,
+        alpha: Double,
+        c: DoubleArray,
+        cOffset: Int,
+        ldc: Int,
+        presentColumns: Int,
+    ) {
+        if (!hardwareFusedMultiplyAdd) {
+            columnPair(depth, a, aOffset, b, bOffset, 0, alpha, c, cOffset, ldc, presentColumns)
+            if (presentColumns > COLUMN_PAIR) {
+                columnPair(
+                    depth, a, aOffset, b, bOffset, COLUMN_PAIR, alpha, c, cOffset + COLUMN_PAIR * ldc, ldc,
+                    presentColumns - COLUMN_PAIR,
+                )
+            }
+            return
+        }
+        fusedTile(depth, a, aOffset, b, bOffset, alpha, c, cOffset, ldc, presentColumns)
+    }
+
+    /**
+     * Two columns of a tile in four accumulators, which is what fits where a step takes two instructions.
+     *
+     * The rows are both lane blocks, so each loaded left vector still serves both of this pair's columns,
+     * and the padding of a group the destination does not fill is accumulated and then not stored, exactly
+     * as the whole tile does.
+     */
+    private fun columnPair(
+        depth: Int,
+        a: DoubleArray,
+        aOffset: Int,
+        b: DoubleArray,
+        bOffset: Int,
+        firstColumn: Int,
+        alpha: Double,
+        c: DoubleArray,
+        cOffset: Int,
+        ldc: Int,
+        presentColumns: Int,
+    ) {
+        var c00 = DoubleVector.zero(SPECIES)
+        var c10 = DoubleVector.zero(SPECIES)
+        var c01 = DoubleVector.zero(SPECIES)
+        var c11 = DoubleVector.zero(SPECIES)
+        var ap = aOffset
+        var bp = bOffset + firstColumn
+        var step = 0
+        while (step < depth) {
+            val a0 = DoubleVector.fromArray(SPECIES, a, ap)
+            val a1 = DoubleVector.fromArray(SPECIES, a, ap + LANE)
+            var coefficient = DoubleVector.broadcast(SPECIES, b[bp])
+            c00 = multiplyAdd(a0, coefficient, c00)
+            c10 = multiplyAdd(a1, coefficient, c10)
+            coefficient = DoubleVector.broadcast(SPECIES, b[bp + 1])
+            c01 = multiplyAdd(a0, coefficient, c01)
+            c11 = multiplyAdd(a1, coefficient, c11)
+            ap += ROWS
+            bp += TILE_COLUMNS
+            step++
+        }
+        storeColumn(c, cOffset, alpha, c00, c10)
+        if (presentColumns > 1) storeColumn(c, cOffset + ldc, alpha, c01, c11)
+    }
+
+    private fun fusedTile(
         depth: Int,
         a: DoubleArray,
         aOffset: Int,
@@ -243,6 +333,9 @@ internal object SimdProductKernels : DenseProductKernels {
 
     /** Destination columns one tile holds, which is a register budget and not a lane count. */
     private const val TILE_COLUMNS = 4
+
+    /** Destination columns one pass covers where a step takes two instructions instead of one. */
+    private const val COLUMN_PAIR = 2
 
     /** What the scalar last row block reports, so a vector body's name never stands for it. */
     private const val EDGE_NAME = "scalar-tile-edge"

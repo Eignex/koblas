@@ -7,7 +7,7 @@ import com.eignex.koblas.Workspace
 /*
  * Shared scheduling for `B = alpha · op(T)⁻¹ · B` and `B = alpha · op(T) · B`, from either side.
  *
- * All eight flag combinations are one algorithm. Write the right-hand sides as `X(p, r)`, with `p` stepping
+ * All sixteen flag combinations are one algorithm. Write the right-hand sides as `X(p, r)`, with `p` stepping
  * along the order of the triangle and `r` choosing one of the independent sides; then every variant is
  * `Σ M(p, q) · X(q, r)` over `M`'s own triangle, where `M(p, q)` is an entry of `T` read directly or
  * transposed. Which of the two it is depends on the side and the transpose together, because solving
