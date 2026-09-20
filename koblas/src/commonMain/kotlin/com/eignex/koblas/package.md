@@ -1,17 +1,16 @@
 # Package com.eignex.koblas
 
 Owning dense containers, borrowed strided vectors, validated CSC sparse containers, the immutable
-[KoblasEngine], and free-function arithmetic over the matrix and vector contracts.
+[KoblasEngine], the reusable [Workspace] routines take their scratch from, and free-function arithmetic over
+the matrix and vector contracts.
 
-The default [koblas] engine is selected once and cannot be replaced. It binds the Level 1 arm and the panel
-arithmetic this platform prefers to portable dense and sparse Levels 2 and 3. [KoblasEngine.explain] names the
-Level 1 implementation a call of a given operation, length and spacing actually reaches;
-[KoblasEngine.denseRouteOf] and [com.eignex.koblas.sparse.SparseBlas.matrixRouteOf] name what a given matrix
-call executes, including the execution grouping a panel was scheduled with, and
-[KoblasEngine.sparseImplementation] names the component that owns sparse traversal. Installed host bindings
-remain explicit alternatives with binding-derived attribution.
-Naming a different implementation is for measuring one against another, so [BuiltinEngines] sits behind
-[KoblasEngineApi].
+The default [koblas] engine is selected once and cannot be replaced; the module page describes what each
+platform selects. What a call executed is a separate question from what was selected, and these answer it:
+[KoblasEngine.explain] for a Level 1 call of a given operation, length and spacing,
+[KoblasEngine.denseRouteOf] and [com.eignex.koblas.sparse.SparseBlas.matrixRouteOf] for a matrix call
+including the execution grouping a panel was scheduled with, and [KoblasEngine.sparseImplementation] for the
+component that owns sparse traversal. Naming a different implementation is for measuring one against
+another, so [BuiltinEngines] sits behind [KoblasEngineApi].
 
 High-level operations are extensions in this package, so ordinary use needs only `com.eignex.koblas.*`. The
 BLAS contracts live in `com.eignex.koblas.dense`, `com.eignex.koblas.sparse` and `com.eignex.koblas.vendor`;
