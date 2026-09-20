@@ -3,6 +3,8 @@ package com.eignex.koblas
 import com.eignex.koblas.dense.DenseCall
 import com.eignex.koblas.dense.DenseMatrixOperation
 import com.eignex.koblas.dense.DenseOperation
+import com.eignex.koblas.sparse.SparseOperation
+import com.eignex.koblas.vendor.RouteKind
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotEquals
@@ -17,6 +19,22 @@ import kotlin.test.assertSame
  * running portable Kotlin everywhere would pass all of them.
  */
 class PlatformEngineTest {
+    @OptIn(KoblasEngineApi::class)
+    @Test
+    fun `dense and sparse vectors expose the same route contract`() {
+        val engine = BuiltinEngines.scalar
+        val routes = listOf(
+            engine.routeOf(DenseOperation.Dot, 16),
+            engine.routeOf(SparseOperation.DotDense, 16),
+        )
+
+        for (route in routes) {
+            assertEquals(RouteKind.Direct, route.kind)
+            assertEquals("scalar", route.implementation)
+            assertEquals(true, route.exactlyMeasurable)
+        }
+    }
+
     @OptIn(KoblasEngineApi::class)
     @Test
     fun `exact built in engines do not resolve or execute a host library`() {

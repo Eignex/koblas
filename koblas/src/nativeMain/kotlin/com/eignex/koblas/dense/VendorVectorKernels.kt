@@ -33,9 +33,6 @@ internal class VendorVectorKernels(
         // Not a BLAS routine, so there is no entry point to reach at any width.
         operation == DenseOperation.Sum -> portable.implementationFor(operation, length, contiguous)
 
-        // The route has no alias facts; equal runs stay portable even above the crossover.
-        operation == DenseOperation.Rot && vendorRuns(operation, length) -> null
-
         vendorRuns(operation, length) -> name
 
         else -> portable.implementationFor(operation, length, contiguous)

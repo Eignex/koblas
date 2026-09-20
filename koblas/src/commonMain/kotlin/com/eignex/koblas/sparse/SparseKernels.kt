@@ -1,12 +1,13 @@
 package com.eignex.koblas.sparse
 
 import com.eignex.koblas.SparseVector
+import com.eignex.koblas.VectorRoute
 import com.eignex.koblas.dense.DenseOperation
 import com.eignex.koblas.dense.DenseVectorKernels
 import com.eignex.koblas.internal.numeric.euclideanNorm
 import com.eignex.koblas.requireIndex
 import com.eignex.koblas.requireShape
-import com.eignex.koblas.vendor.RouteKind
+import com.eignex.koblas.vectorRoute
 
 /**
  * Sparse vector and indexed-slice numerical kernels selected by a [com.eignex.koblas.KoblasEngine].
@@ -28,7 +29,7 @@ public interface SparseKernels {
      *
      * Building a route allocates, so it belongs before a timed region and never inside one.
      */
-    public fun routeOf(operation: SparseOperation, count: Int): SparseRoute
+    public fun routeOf(operation: SparseOperation, count: Int): VectorRoute<SparseOperation>
 
     /** `xᵀ·y` for a sparse [x] against a dense [y] (Sparse BLAS `usdot`); walks only the stored entries. */
     public fun dot(x: SparseVector, y: DoubleArray): Double
@@ -138,58 +139,23 @@ internal class SparseKernelAdapter(
     private val denseVectorKernels: DenseVectorKernels,
     private val indexedSparseKernels: IndexedSparseKernels,
 ) : SparseKernels {
-    override fun routeOf(operation: SparseOperation, count: Int): SparseRoute {
-        require(count >= 0) { "negative operation length" }
-        if (count == 0) {
-            return SparseRoute(operation, RouteKind.NoWork, name, operation.entryPoint, null, "the support is empty")
-        }
-        // A stored support is one contiguous run, so these two are dense reductions wearing a sparse name, and
-        // the dense kernels answer for them. Those dispatch in turn, so the selection name is not the answer.
+    override fun routeOf(operation: SparseOperation, count: Int): VectorRoute<SparseOperation> {
+        // Whole-support reductions use contiguous dense kernels; the other operations use indexed kernels.
         if (operation == SparseOperation.Nrm2 || operation == SparseOperation.Asum) {
             val dense = if (operation == SparseOperation.Nrm2) DenseOperation.Nrm2 else DenseOperation.Asum
-            val selection = denseVectorKernels.name
-            val run = "a contiguous run of stored values"
-            val reached = denseVectorKernels.implementationFor(dense, count)
-                ?: return SparseRoute(
-                    operation,
-                    RouteKind.Composed,
-                    selection,
-                    operation.entryPoint,
-                    run,
-                    "$selection decides ${operation.entryPoint} on the values, so no kernel is named beforehand",
-                )
-            if (reached == selection) {
-                return SparseRoute(operation, RouteKind.Direct, reached, operation.entryPoint, run, null)
-            }
-            return SparseRoute(
+            return vectorRoute(
                 operation,
-                RouteKind.Delegated,
-                reached,
                 operation.entryPoint,
-                reached,
-                "$selection runs ${operation.entryPoint} of $count entries in $reached",
+                denseVectorKernels.name,
+                denseVectorKernels.implementationFor(dense, count),
+                "a contiguous run of stored values",
             )
         }
-        val own = indexedSparseKernels.name
-        val reached = indexedSparseKernels.implementationFor(operation, count)
-            ?: return SparseRoute(
-                operation,
-                RouteKind.Composed,
-                own,
-                operation.entryPoint,
-                null,
-                "the indexed norm may retry through the portable rescaling loop depending on the values",
-            )
-        if (reached == own) {
-            return SparseRoute(operation, RouteKind.Direct, own, operation.entryPoint, null, null)
-        }
-        return SparseRoute(
-            operation = operation,
-            kind = RouteKind.Delegated,
-            implementation = reached,
-            entryPoint = operation.entryPoint,
-            adapter = reached,
-            reason = "$own has no ${operation.entryPoint} kernel for $count entries on this host",
+        return vectorRoute(
+            operation,
+            operation.entryPoint,
+            indexedSparseKernels.name,
+            indexedSparseKernels.implementationFor(operation, count),
         )
     }
 

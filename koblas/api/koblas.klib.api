@@ -381,7 +381,7 @@ abstract interface com.eignex.koblas.sparse/SparseKernels { // com.eignex.koblas
     abstract fun gatherZero(com.eignex.koblas/SparseVector, kotlin/DoubleArray) // com.eignex.koblas.sparse/SparseKernels.gatherZero|gatherZero(com.eignex.koblas.SparseVector;kotlin.DoubleArray){}[0]
     abstract fun nrm2(com.eignex.koblas/SparseVector): kotlin/Double // com.eignex.koblas.sparse/SparseKernels.nrm2|nrm2(com.eignex.koblas.SparseVector){}[0]
     abstract fun nrm2(kotlin/IntArray, kotlin/Int, kotlin/Int, kotlin/DoubleArray): kotlin/Double // com.eignex.koblas.sparse/SparseKernels.nrm2|nrm2(kotlin.IntArray;kotlin.Int;kotlin.Int;kotlin.DoubleArray){}[0]
-    abstract fun routeOf(com.eignex.koblas.sparse/SparseOperation, kotlin/Int): com.eignex.koblas.sparse/SparseRoute // com.eignex.koblas.sparse/SparseKernels.routeOf|routeOf(com.eignex.koblas.sparse.SparseOperation;kotlin.Int){}[0]
+    abstract fun routeOf(com.eignex.koblas.sparse/SparseOperation, kotlin/Int): com.eignex.koblas/VectorRoute<com.eignex.koblas.sparse/SparseOperation> // com.eignex.koblas.sparse/SparseKernels.routeOf|routeOf(com.eignex.koblas.sparse.SparseOperation;kotlin.Int){}[0]
     abstract fun scatter(com.eignex.koblas/SparseVector, kotlin/DoubleArray) // com.eignex.koblas.sparse/SparseKernels.scatter|scatter(com.eignex.koblas.SparseVector;kotlin.DoubleArray){}[0]
     abstract fun scatter(kotlin/IntArray, kotlin/Int, kotlin/DoubleArray, kotlin/Int, kotlin/Int, kotlin/DoubleArray) // com.eignex.koblas.sparse/SparseKernels.scatter|scatter(kotlin.IntArray;kotlin.Int;kotlin.DoubleArray;kotlin.Int;kotlin.Int;kotlin.DoubleArray){}[0]
 }
@@ -473,6 +473,25 @@ sealed interface com.eignex.koblas/VectorStorage : com.eignex.koblas/Vector { //
     }
 }
 
+final class <#A: kotlin/Enum<#A>> com.eignex.koblas/VectorRoute { // com.eignex.koblas/VectorRoute|null[0]
+    final val adapter // com.eignex.koblas/VectorRoute.adapter|{}adapter[0]
+        final fun <get-adapter>(): kotlin/String? // com.eignex.koblas/VectorRoute.adapter.<get-adapter>|<get-adapter>(){}[0]
+    final val entryPoint // com.eignex.koblas/VectorRoute.entryPoint|{}entryPoint[0]
+        final fun <get-entryPoint>(): kotlin/String // com.eignex.koblas/VectorRoute.entryPoint.<get-entryPoint>|<get-entryPoint>(){}[0]
+    final val exactlyMeasurable // com.eignex.koblas/VectorRoute.exactlyMeasurable|{}exactlyMeasurable[0]
+        final fun <get-exactlyMeasurable>(): kotlin/Boolean // com.eignex.koblas/VectorRoute.exactlyMeasurable.<get-exactlyMeasurable>|<get-exactlyMeasurable>(){}[0]
+    final val implementation // com.eignex.koblas/VectorRoute.implementation|{}implementation[0]
+        final fun <get-implementation>(): kotlin/String // com.eignex.koblas/VectorRoute.implementation.<get-implementation>|<get-implementation>(){}[0]
+    final val kind // com.eignex.koblas/VectorRoute.kind|{}kind[0]
+        final fun <get-kind>(): com.eignex.koblas.vendor/RouteKind // com.eignex.koblas/VectorRoute.kind.<get-kind>|<get-kind>(){}[0]
+    final val operation // com.eignex.koblas/VectorRoute.operation|{}operation[0]
+        final fun <get-operation>(): #A // com.eignex.koblas/VectorRoute.operation.<get-operation>|<get-operation>(){}[0]
+    final val reason // com.eignex.koblas/VectorRoute.reason|{}reason[0]
+        final fun <get-reason>(): kotlin/String? // com.eignex.koblas/VectorRoute.reason.<get-reason>|<get-reason>(){}[0]
+
+    final fun toString(): kotlin/String // com.eignex.koblas/VectorRoute.toString|toString(){}[0]
+}
+
 final class com.eignex.koblas.dense/DenseCall { // com.eignex.koblas.dense/DenseCall|null[0]
     constructor <init>(kotlin/Int, kotlin/Int, kotlin/Double = ..., kotlin/Double = ..., kotlin/Boolean = ..., kotlin/Int? = ..., kotlin/Boolean = ..., kotlin/Boolean = ..., kotlin/Boolean = ..., kotlin/Boolean = ..., kotlin/Boolean = ...) // com.eignex.koblas.dense/DenseCall.<init>|<init>(kotlin.Int;kotlin.Int;kotlin.Double;kotlin.Double;kotlin.Boolean;kotlin.Int?;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean){}[0]
 
@@ -523,23 +542,6 @@ final class com.eignex.koblas.dense/DenseMatrixRoute { // com.eignex.koblas.dens
         final fun <get-scheduling>(): kotlin/String // com.eignex.koblas.dense/DenseMatrixRoute.scheduling.<get-scheduling>|<get-scheduling>(){}[0]
 
     final fun toString(): kotlin/String // com.eignex.koblas.dense/DenseMatrixRoute.toString|toString(){}[0]
-}
-
-final class com.eignex.koblas.dense/DenseVectorRoute { // com.eignex.koblas.dense/DenseVectorRoute|null[0]
-    final val entryPoint // com.eignex.koblas.dense/DenseVectorRoute.entryPoint|{}entryPoint[0]
-        final fun <get-entryPoint>(): kotlin/String // com.eignex.koblas.dense/DenseVectorRoute.entryPoint.<get-entryPoint>|<get-entryPoint>(){}[0]
-    final val exactlyMeasurable // com.eignex.koblas.dense/DenseVectorRoute.exactlyMeasurable|{}exactlyMeasurable[0]
-        final fun <get-exactlyMeasurable>(): kotlin/Boolean // com.eignex.koblas.dense/DenseVectorRoute.exactlyMeasurable.<get-exactlyMeasurable>|<get-exactlyMeasurable>(){}[0]
-    final val implementation // com.eignex.koblas.dense/DenseVectorRoute.implementation|{}implementation[0]
-        final fun <get-implementation>(): kotlin/String // com.eignex.koblas.dense/DenseVectorRoute.implementation.<get-implementation>|<get-implementation>(){}[0]
-    final val kind // com.eignex.koblas.dense/DenseVectorRoute.kind|{}kind[0]
-        final fun <get-kind>(): com.eignex.koblas.vendor/RouteKind // com.eignex.koblas.dense/DenseVectorRoute.kind.<get-kind>|<get-kind>(){}[0]
-    final val operation // com.eignex.koblas.dense/DenseVectorRoute.operation|{}operation[0]
-        final fun <get-operation>(): com.eignex.koblas.dense/DenseOperation // com.eignex.koblas.dense/DenseVectorRoute.operation.<get-operation>|<get-operation>(){}[0]
-    final val reason // com.eignex.koblas.dense/DenseVectorRoute.reason|{}reason[0]
-        final fun <get-reason>(): kotlin/String? // com.eignex.koblas.dense/DenseVectorRoute.reason.<get-reason>|<get-reason>(){}[0]
-
-    final fun toString(): kotlin/String // com.eignex.koblas.dense/DenseVectorRoute.toString|toString(){}[0]
 }
 
 final class com.eignex.koblas.dense/PackedLayout { // com.eignex.koblas.dense/PackedLayout|null[0]
@@ -630,25 +632,6 @@ final class com.eignex.koblas.sparse/SparseMatrixRoute { // com.eignex.koblas.sp
         final fun <get-scheduling>(): kotlin/String // com.eignex.koblas.sparse/SparseMatrixRoute.scheduling.<get-scheduling>|<get-scheduling>(){}[0]
 
     final fun toString(): kotlin/String // com.eignex.koblas.sparse/SparseMatrixRoute.toString|toString(){}[0]
-}
-
-final class com.eignex.koblas.sparse/SparseRoute { // com.eignex.koblas.sparse/SparseRoute|null[0]
-    final val adapter // com.eignex.koblas.sparse/SparseRoute.adapter|{}adapter[0]
-        final fun <get-adapter>(): kotlin/String? // com.eignex.koblas.sparse/SparseRoute.adapter.<get-adapter>|<get-adapter>(){}[0]
-    final val entryPoint // com.eignex.koblas.sparse/SparseRoute.entryPoint|{}entryPoint[0]
-        final fun <get-entryPoint>(): kotlin/String // com.eignex.koblas.sparse/SparseRoute.entryPoint.<get-entryPoint>|<get-entryPoint>(){}[0]
-    final val exactlyMeasurable // com.eignex.koblas.sparse/SparseRoute.exactlyMeasurable|{}exactlyMeasurable[0]
-        final fun <get-exactlyMeasurable>(): kotlin/Boolean // com.eignex.koblas.sparse/SparseRoute.exactlyMeasurable.<get-exactlyMeasurable>|<get-exactlyMeasurable>(){}[0]
-    final val implementation // com.eignex.koblas.sparse/SparseRoute.implementation|{}implementation[0]
-        final fun <get-implementation>(): kotlin/String // com.eignex.koblas.sparse/SparseRoute.implementation.<get-implementation>|<get-implementation>(){}[0]
-    final val kind // com.eignex.koblas.sparse/SparseRoute.kind|{}kind[0]
-        final fun <get-kind>(): com.eignex.koblas.vendor/RouteKind // com.eignex.koblas.sparse/SparseRoute.kind.<get-kind>|<get-kind>(){}[0]
-    final val operation // com.eignex.koblas.sparse/SparseRoute.operation|{}operation[0]
-        final fun <get-operation>(): com.eignex.koblas.sparse/SparseOperation // com.eignex.koblas.sparse/SparseRoute.operation.<get-operation>|<get-operation>(){}[0]
-    final val reason // com.eignex.koblas.sparse/SparseRoute.reason|{}reason[0]
-        final fun <get-reason>(): kotlin/String? // com.eignex.koblas.sparse/SparseRoute.reason.<get-reason>|<get-reason>(){}[0]
-
-    final fun toString(): kotlin/String // com.eignex.koblas.sparse/SparseRoute.toString|toString(){}[0]
 }
 
 final class com.eignex.koblas.vendor/CallRoute { // com.eignex.koblas.vendor/CallRoute|null[0]
@@ -797,9 +780,9 @@ final class com.eignex.koblas/KoblasEngine : com.eignex.koblas.dense/DenseBlas, 
     final fun packRight(com.eignex.koblas/DenseMatrix, kotlin/Boolean = ...): com.eignex.koblas.dense/PackedMatrix // com.eignex.koblas/KoblasEngine.packRight|packRight(com.eignex.koblas.DenseMatrix;kotlin.Boolean){}[0]
     final fun prepare(com.eignex.koblas/SparseMatrix): com.eignex.koblas/PreparedSparseMatrix // com.eignex.koblas/KoblasEngine.prepare|prepare(com.eignex.koblas.SparseMatrix){}[0]
     final fun routeOf(com.eignex.koblas.dense/DenseMatrixOperation, com.eignex.koblas.dense/DenseCall): com.eignex.koblas.dense/DenseMatrixRoute // com.eignex.koblas/KoblasEngine.routeOf|routeOf(com.eignex.koblas.dense.DenseMatrixOperation;com.eignex.koblas.dense.DenseCall){}[0]
-    final fun routeOf(com.eignex.koblas.dense/DenseOperation, kotlin/Int, kotlin/Boolean = ...): com.eignex.koblas.dense/DenseVectorRoute // com.eignex.koblas/KoblasEngine.routeOf|routeOf(com.eignex.koblas.dense.DenseOperation;kotlin.Int;kotlin.Boolean){}[0]
+    final fun routeOf(com.eignex.koblas.dense/DenseOperation, kotlin/Int, kotlin/Boolean = ...): com.eignex.koblas/VectorRoute<com.eignex.koblas.dense/DenseOperation> // com.eignex.koblas/KoblasEngine.routeOf|routeOf(com.eignex.koblas.dense.DenseOperation;kotlin.Int;kotlin.Boolean){}[0]
     final fun routeOf(com.eignex.koblas.sparse/SparseMatrixOperation, com.eignex.koblas.sparse/SparseCall): com.eignex.koblas.sparse/SparseMatrixRoute // com.eignex.koblas/KoblasEngine.routeOf|routeOf(com.eignex.koblas.sparse.SparseMatrixOperation;com.eignex.koblas.sparse.SparseCall){}[0]
-    final fun routeOf(com.eignex.koblas.sparse/SparseOperation, kotlin/Int): com.eignex.koblas.sparse/SparseRoute // com.eignex.koblas/KoblasEngine.routeOf|routeOf(com.eignex.koblas.sparse.SparseOperation;kotlin.Int){}[0]
+    final fun routeOf(com.eignex.koblas.sparse/SparseOperation, kotlin/Int): com.eignex.koblas/VectorRoute<com.eignex.koblas.sparse/SparseOperation> // com.eignex.koblas/KoblasEngine.routeOf|routeOf(com.eignex.koblas.sparse.SparseOperation;kotlin.Int){}[0]
     final fun symm(kotlin/Double, com.eignex.koblas/DenseMatrix, com.eignex.koblas/DenseMatrix, kotlin/Double, com.eignex.koblas/DenseMatrix, kotlin/Boolean, kotlin/Boolean, com.eignex.koblas/Workspace?) // com.eignex.koblas/KoblasEngine.symm|symm(kotlin.Double;com.eignex.koblas.DenseMatrix;com.eignex.koblas.DenseMatrix;kotlin.Double;com.eignex.koblas.DenseMatrix;kotlin.Boolean;kotlin.Boolean;com.eignex.koblas.Workspace?){}[0]
     final fun symm(kotlin/Double, com.eignex.koblas/SparseMatrix, com.eignex.koblas/DenseMatrix, kotlin/Double, com.eignex.koblas/DenseMatrix, kotlin/Boolean, kotlin/Boolean, com.eignex.koblas/Workspace?) // com.eignex.koblas/KoblasEngine.symm|symm(kotlin.Double;com.eignex.koblas.SparseMatrix;com.eignex.koblas.DenseMatrix;kotlin.Double;com.eignex.koblas.DenseMatrix;kotlin.Boolean;kotlin.Boolean;com.eignex.koblas.Workspace?){}[0]
     final fun symv(kotlin/Double, com.eignex.koblas/DenseMatrix, kotlin/DoubleArray, kotlin/Double, kotlin/DoubleArray, kotlin/Boolean) // com.eignex.koblas/KoblasEngine.symv|symv(kotlin.Double;com.eignex.koblas.DenseMatrix;kotlin.DoubleArray;kotlin.Double;kotlin.DoubleArray;kotlin.Boolean){}[0]

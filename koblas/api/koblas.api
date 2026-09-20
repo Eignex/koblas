@@ -264,10 +264,10 @@ public final class com/eignex/koblas/KoblasEngine : com/eignex/koblas/dense/Dens
 	public static synthetic fun packRight$default (Lcom/eignex/koblas/KoblasEngine;Lcom/eignex/koblas/DenseMatrix;ZILjava/lang/Object;)Lcom/eignex/koblas/dense/PackedMatrix;
 	public fun prepare (Lcom/eignex/koblas/SparseMatrix;)Lcom/eignex/koblas/PreparedSparseMatrix;
 	public final fun routeOf (Lcom/eignex/koblas/dense/DenseMatrixOperation;Lcom/eignex/koblas/dense/DenseCall;)Lcom/eignex/koblas/dense/DenseMatrixRoute;
-	public final fun routeOf (Lcom/eignex/koblas/dense/DenseOperation;IZ)Lcom/eignex/koblas/dense/DenseVectorRoute;
+	public final fun routeOf (Lcom/eignex/koblas/dense/DenseOperation;IZ)Lcom/eignex/koblas/VectorRoute;
 	public fun routeOf (Lcom/eignex/koblas/sparse/SparseMatrixOperation;Lcom/eignex/koblas/sparse/SparseCall;)Lcom/eignex/koblas/sparse/SparseMatrixRoute;
-	public final fun routeOf (Lcom/eignex/koblas/sparse/SparseOperation;I)Lcom/eignex/koblas/sparse/SparseRoute;
-	public static synthetic fun routeOf$default (Lcom/eignex/koblas/KoblasEngine;Lcom/eignex/koblas/dense/DenseOperation;IZILjava/lang/Object;)Lcom/eignex/koblas/dense/DenseVectorRoute;
+	public final fun routeOf (Lcom/eignex/koblas/sparse/SparseOperation;I)Lcom/eignex/koblas/VectorRoute;
+	public static synthetic fun routeOf$default (Lcom/eignex/koblas/KoblasEngine;Lcom/eignex/koblas/dense/DenseOperation;IZILjava/lang/Object;)Lcom/eignex/koblas/VectorRoute;
 	public fun symm (DLcom/eignex/koblas/DenseMatrix;Lcom/eignex/koblas/DenseMatrix;DLcom/eignex/koblas/DenseMatrix;ZZLcom/eignex/koblas/Workspace;)V
 	public fun symm (DLcom/eignex/koblas/SparseMatrix;Lcom/eignex/koblas/DenseMatrix;DLcom/eignex/koblas/DenseMatrix;ZZLcom/eignex/koblas/Workspace;)V
 	public fun symv (DLcom/eignex/koblas/DenseMatrix;[DD[DZ)V
@@ -446,6 +446,17 @@ public abstract interface class com/eignex/koblas/Vector {
 	public abstract fun get (I)D
 	public abstract fun getSize ()I
 	public abstract fun toDoubleArray ()[D
+}
+
+public final class com/eignex/koblas/VectorRoute {
+	public final fun getAdapter ()Ljava/lang/String;
+	public final fun getEntryPoint ()Ljava/lang/String;
+	public final fun getExactlyMeasurable ()Z
+	public final fun getImplementation ()Ljava/lang/String;
+	public final fun getKind ()Lcom/eignex/koblas/vendor/RouteKind;
+	public final fun getOperation ()Ljava/lang/Enum;
+	public final fun getReason ()Ljava/lang/String;
+	public fun toString ()Ljava/lang/String;
 }
 
 public abstract interface class com/eignex/koblas/VectorStorage : com/eignex/koblas/Vector {
@@ -668,16 +679,6 @@ public final class com/eignex/koblas/dense/DenseVectorKernels$DefaultImpls {
 	public static synthetic fun swap$default (Lcom/eignex/koblas/dense/DenseVectorKernels;[DI[DIIIIILjava/lang/Object;)V
 }
 
-public final class com/eignex/koblas/dense/DenseVectorRoute {
-	public final fun getEntryPoint ()Ljava/lang/String;
-	public final fun getExactlyMeasurable ()Z
-	public final fun getImplementation ()Ljava/lang/String;
-	public final fun getKind ()Lcom/eignex/koblas/vendor/RouteKind;
-	public final fun getOperation ()Lcom/eignex/koblas/dense/DenseOperation;
-	public final fun getReason ()Ljava/lang/String;
-	public fun toString ()Ljava/lang/String;
-}
-
 public final class com/eignex/koblas/dense/MatrixStructure : java/lang/Enum {
 	public static final field General Lcom/eignex/koblas/dense/MatrixStructure;
 	public static final field SymmetricLower Lcom/eignex/koblas/dense/MatrixStructure;
@@ -812,7 +813,7 @@ public abstract interface class com/eignex/koblas/sparse/SparseKernels {
 	public abstract fun getName ()Ljava/lang/String;
 	public abstract fun nrm2 (Lcom/eignex/koblas/SparseVector;)D
 	public abstract fun nrm2 ([III[D)D
-	public abstract fun routeOf (Lcom/eignex/koblas/sparse/SparseOperation;I)Lcom/eignex/koblas/sparse/SparseRoute;
+	public abstract fun routeOf (Lcom/eignex/koblas/sparse/SparseOperation;I)Lcom/eignex/koblas/VectorRoute;
 	public abstract fun scatter (Lcom/eignex/koblas/SparseVector;[D)V
 	public abstract fun scatter ([II[DII[D)V
 }
@@ -882,17 +883,6 @@ public final class com/eignex/koblas/sparse/SparsePrimitives {
 	public static final fun scatterWorkspace (D[II[DII[D[II[III)I
 	public static final fun scatterWorkspaceChecked (D[II[DII[D[II[III[IIII)I
 	public static final fun selectPivotCandidates ([II[DII[ZDD[II)I
-}
-
-public final class com/eignex/koblas/sparse/SparseRoute {
-	public final fun getAdapter ()Ljava/lang/String;
-	public final fun getEntryPoint ()Ljava/lang/String;
-	public final fun getExactlyMeasurable ()Z
-	public final fun getImplementation ()Ljava/lang/String;
-	public final fun getKind ()Lcom/eignex/koblas/vendor/RouteKind;
-	public final fun getOperation ()Lcom/eignex/koblas/sparse/SparseOperation;
-	public final fun getReason ()Ljava/lang/String;
-	public fun toString ()Ljava/lang/String;
 }
 
 public final class com/eignex/koblas/vendor/Architecture : java/lang/Enum {
