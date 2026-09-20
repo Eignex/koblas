@@ -26,14 +26,10 @@ public actual object BuiltinEngines {
     /**
      * Every Vector API kernel this library owns, which is the arm a measurement of them names.
      *
-     * This is also what an ordinary call on this platform gets where the module resolved, so the two are
-     * one engine rather than one engine named twice: the Level 2 panels, the Level 3 tiles and the diagonal
-     * substitutions were held back from the default while no crossover had been established, and the final
-     * calibration established one. Twenty-four whole operations chosen for where a vector body could lose —
-     * orders below one execution group, products whose rows leave most of a tile empty, single right-hand
-     * side solves — put this arm ahead of the portable matrix arithmetic at every one of them, over two
-     * independent passes and a third at triple the warmup. What it does not settle is any machine but the
-     * one it ran on, which is why the bodies below still fall back by shape rather than by policy.
+     * The JVM default uses this same engine when the module is available. Matrix operations keep their
+     * shared scheduling and use vector bodies where the window permits them, with portable fallbacks
+     * reported by the operation's route. Local calibration supports this selection on the measured host;
+     * it does not establish performance on every architecture.
      *
      * The availability test comes before [SimdPanelKernels] is named, and has to: resolving that object's
      * species is what initializing it does, so on a runtime without the module naming it at all is a linkage

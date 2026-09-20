@@ -83,14 +83,10 @@ public class PreparedSparseMatrix internal constructor(a: SparseMatrix, private 
     /**
      * Full sparse-dense product contract, including dense transpose and sparse side selection.
      *
-     * The transpose is taken by the operation's own flag rather than by the derived orientation, for the
-     * reason [gemv] gives and for one of its own. A transposed product against a dense block reduces each
-     * stored column into one destination row where it stands; the untransposed schedule over a derived
-     * transpose spreads each stored index across the destination instead, and the calibration measured that
-     * second traversal behind the first in eight of the nine prepared shapes timed for it, by up to a third,
-     * on top of the pass and the second copy of the matrix that deriving it costs. So a prepared
-     * sparse-dense product costs nothing to prepare beyond the snapshot and leaves the cache unbuilt; the
-     * orientation is for the products against a second sparse operand, which are measured the other way.
+     * Uses the stored snapshot and the original transpose flags on either side, without deriving another
+     * orientation. Deriving a transpose changes the CSC traversal as well as adding preparation work;
+     * dense products retain the same traversal as a one-shot call. Products against a second sparse
+     * operand have a separate policy and may reuse the cached transpose.
      */
     @Suppress("LongParameterList") // the BLAS dgemm signature, the side, and the workspace
     @JvmOverloads
@@ -279,9 +275,9 @@ public class PreparedSparseMatrix internal constructor(a: SparseMatrix, private 
      * Whether the transposed orientation has been derived, which some transposed calls pay for once.
      *
      * Only a transposed product against a second sparse operand derives one; a product against a dense
-     * block and a matrix-vector product both run the transposed traversal over the stored orientation and
-     * leave this false however often they are called. A measurement that separates preparation, first use
-     * and steady state reads this to say which of the three a snapshot is in.
+     * block and a matrix-vector product use the stored orientation and do not initialize this cache.
+     * An orientation already derived by a sparse-sparse product remains cached. A benchmark can inspect
+     * this state before and after a call to identify orientation construction.
      */
     public val orientationDerived: Boolean get() = lazyTranspose.isInitialized()
 
