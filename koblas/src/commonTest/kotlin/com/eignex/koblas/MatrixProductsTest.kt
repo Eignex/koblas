@@ -201,6 +201,29 @@ class MatrixProductsTest {
     }
 
     @Test
+    fun `a foreign operand is adapted into the workspace and handed back`() {
+        val foreign: Matrix = ForeignMatrix(randomMatrix(3, 2, Random(20260927)))
+        val right: Matrix = DenseMatrix.diagonal(2, 2.0)
+        val destination = DenseMatrix.zero(3, 2)
+        val workspace = Workspace()
+
+        repeat(2) { foreign.gemmInto(1.0, false, right, false, 0.0, destination, workspace) }
+
+        assertEquals(1, workspace.available(6), "the second call adapted into fresh storage")
+    }
+
+    @Test
+    fun `a foreign operand reading the destination is adapted before it is written`() {
+        val backing = doubleArrayOf(1.0, 2.0, 3.0, 4.0)
+        val foreign: Matrix = ForeignMatrix(DenseMatrix.wrap(2, 2, backing))
+        val destination = DenseMatrix.wrap(2, 2, backing)
+
+        foreign.gemmInto(1.0, false, DenseMatrix.diagonal(2, 2.0) as Matrix, false, 0.0, destination, Workspace())
+
+        assertContentEquals(doubleArrayOf(2.0, 4.0, 6.0, 8.0), destination.values)
+    }
+
+    @Test
     fun `a foreign operand with no columns keeps its rows`() {
         val foreign: Matrix = ForeignMatrix(DenseMatrix.zero(3, 0))
         val right: Matrix = DenseMatrix.zero(0, 2)
