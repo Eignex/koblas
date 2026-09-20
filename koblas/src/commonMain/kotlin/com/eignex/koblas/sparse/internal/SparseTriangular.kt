@@ -8,9 +8,26 @@ import com.eignex.koblas.UnsafeKoblasApi
 import com.eignex.koblas.Workspace
 import com.eignex.koblas.borrow
 import com.eignex.koblas.dense.borrowOptional
+import com.eignex.koblas.dense.forEachPanel
 import com.eignex.koblas.sparse.SparsePanelKernels
 
 /* Shared triangular scheduling over reusable sparse column and RHS-panel leaves. */
+
+/**
+ * The columns of a triangle of [order] in dependency order, ascending when [forward] and descending when not.
+ *
+ * A direction and a counter rather than a range object. Which end the dependence starts from is one boolean,
+ * and a descending progression built from it is an object the virtual machine has been observed keeping,
+ * which charges every call of a warmed solve for a walk it already knew how to take. Inline, so a caller gets
+ * that walk as its own loop.
+ */
+internal inline fun forEachTriangleColumn(order: Int, forward: Boolean, action: (column: Int) -> Unit) {
+    var step = 0
+    while (step < order) {
+        action(if (forward) step else order - 1 - step)
+        step++
+    }
+}
 
 /** Runs [block] with the diagonal of [a] borrowed from [workspace], or null when [unitDiag] takes it as 1. */
 internal inline fun withExplicitDiagonal(
@@ -59,9 +76,6 @@ internal fun triangularLeftCore(
     val bd = b.values
     val sides = b.cols
     if (n == 0 || sides == 0) return
-    // A direction rather than a range object. Which end the dependence starts from is one boolean, and a
-    // descending progression built from it is an object the virtual machine has been observed keeping,
-    // which charges every call of a warmed solve for a walk it already knew how to take.
     val forward = lower != (transpose == solve)
     // The gathering direction reduces finished rows into a pivot and the scattering one spreads a pivot,
     // which are the two panel shapes a backend answers about separately.
@@ -79,16 +93,13 @@ internal fun triangularLeftCore(
     // Twice the width, because a panel scatter records which right-hand sides are live beside them.
     workspace.borrow(2 * width) { work ->
         workspace.borrowOptional(if (staged) width * n else 0) { panel ->
-            forEachRhsPanel(sides, width) { columnStart, actual ->
+            forEachPanel(sides, width) { columnStart, actual ->
                 val dense = if (staged) panel else bd
                 val offset = if (staged) 0 else columnStart * n
                 val rhsStride = if (staged) 1 else n
                 val indexStride = if (staged) width else 1
                 if (staged) stageRhsPanel(bd, columnStart * n, n, 1, n, actual, panel, width)
-                var step = 0
-                while (step < n) {
-                    val j = if (forward) step else n - 1 - step
-                    step++
+                forEachTriangleColumn(n, forward) { j ->
                     val dj = diagonal?.get(j) ?: 1.0
                     if (actual == 1) {
                         if (!transpose) {
@@ -143,12 +154,7 @@ internal fun trmmRightCore(
     if (rows == 0) return
     val n = a.rows
     val gather = !transpose
-    // A direction rather than a range object, as in the left-hand core and for the same measured reason.
-    val forward = lower == gather
-    var step = 0
-    while (step < n) {
-        val l = if (forward) step else n - 1 - step
-        step++
+    forEachTriangleColumn(n, lower == gather) { l ->
         kernels.triangularRightColumn(
             false, gather, l, lower, unitDiag, diagonal?.get(l) ?: 1.0,
             a.rowIndices, a.values, a.colPointers[l], a.colPointers[l + 1], b.values, rows,
@@ -173,12 +179,7 @@ internal fun trmvCore(
     transpose: Boolean,
     unitDiag: Boolean,
 ) {
-    val n = a.rows
-    val forward = lower == transpose
-    var step = 0
-    while (step < n) {
-        val j = if (forward) step else n - 1 - step
-        step++
+    forEachTriangleColumn(a.rows, lower == transpose) { j ->
         if (!transpose) {
             val xj = x[j]
             if (xj != 0.0) {
@@ -207,12 +208,7 @@ internal fun trsmRightCore(
     val rows = b.rows
     if (rows == 0) return
     val gather = !transpose
-    val n = a.rows
-    val forward = lower != transpose
-    var step = 0
-    while (step < n) {
-        val j = if (forward) step else n - 1 - step
-        step++
+    forEachTriangleColumn(a.rows, lower != transpose) { j ->
         kernels.triangularRightColumn(
             true, gather, j, lower, diagonal == null, diagonal?.get(j) ?: 1.0,
             a.rowIndices, a.values, a.colPointers[j], a.colPointers[j + 1], b.values, rows,
@@ -231,16 +227,11 @@ internal fun trsvCore(
     transpose: Boolean,
     unitDiag: Boolean,
 ) {
-    val n = a.rows
     // Forward when a finished unknown feeds later columns, backward when it feeds earlier ones.
-    val forward = lower != transpose
-    var step = 0
-    while (step < n) {
-        val j = if (forward) step else n - 1 - step
-        step++
+    forEachTriangleColumn(a.rows, lower != transpose) { j ->
         if (!transpose) {
             val raw = x[j]
-            if (raw == 0.0) continue
+            if (raw == 0.0) return@forEachTriangleColumn
             val xj = if (unitDiag) raw else raw / a[j, j]
             x[j] = xj
             kernels.triangularAxpy(j, lower, a.rowIndices, a.values, a.colPointers[j], a.colPointers[j + 1], -xj, x)
