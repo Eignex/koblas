@@ -22,6 +22,35 @@ internal inline fun forEachTriangleColumn(order: Int, forward: Boolean, action: 
     }
 }
 
+/**
+ * Which direction a triangular dependence runs, in one expression for the execution and the route: a route
+ * lists the bodies in the order the traversal reached them, and this is what fixes that order.
+ */
+internal fun triangularForward(lower: Boolean, transpose: Boolean, solve: Boolean): Boolean =
+    lower != (transpose == solve)
+
+/**
+ * The plan a triangular routine takes over a block of right-hand sides, for the execution and the route.
+ *
+ * The block is both the source and the destination, so a staged copy is read in and written back, and the
+ * direction that gathers finished rows into a pivot is the shape the backend is asked about.
+ */
+internal fun triangularRhsPlan(
+    kernels: SparsePanelKernels,
+    order: Int,
+    sides: Int,
+    entries: Int,
+    transpose: Boolean,
+): Int = planRightHandSides(
+    kernels,
+    order,
+    sides,
+    entries,
+    copiedPerSide = 2L * order,
+    nativelyContiguous = false,
+    reduction = transpose,
+)
+
 /** Runs [block] with the diagonal of [a] borrowed from [workspace], or null when [unitDiag] takes it as 1. */
 internal inline fun withExplicitDiagonal(
     a: SparseMatrix,
@@ -69,18 +98,10 @@ internal fun triangularLeftCore(
     val bd = b.values
     val sides = b.cols
     if (n == 0 || sides == 0) return
-    val forward = lower != (transpose == solve)
+    val forward = triangularForward(lower, transpose, solve)
     // The gathering direction reduces finished rows into a pivot and the scattering one spreads a pivot,
     // which are the two panel shapes a backend answers about separately.
-    val plan = planRightHandSides(
-        kernels,
-        n,
-        sides,
-        a.nnz,
-        copiedPerSide = 2L * n,
-        nativelyContiguous = false,
-        reduction = transpose,
-    )
+    val plan = triangularRhsPlan(kernels, n, sides, a.nnz, transpose)
     val width = rhsWidth(plan)
     val staged = rhsStaged(plan)
     // Twice the width, because a panel scatter records which right-hand sides are live beside them. A call

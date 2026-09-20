@@ -75,6 +75,44 @@ internal fun planRightHandSides(
 /** Right-hand sides the scheduling is willing to hold staged at once, whatever a backend would like. */
 private fun stagedPanelCap(): Int = SparseTuning.contiguousRhsPanel
 
+/**
+ * The plan a sparse-by-dense product takes, asked by the execution and by the route that describes it.
+ *
+ * What a staged copy pays for is what the direction reads: a transposed operand reduces a column into an
+ * accumulator of its own, so the copy is the dense source and one already in right-hand-side order needs
+ * none; an untransposed one spreads a column across the destination, which is read in and written back.
+ */
+internal fun productRhsPlan(
+    kernels: SparsePanelKernels,
+    rows: Int,
+    sides: Int,
+    depth: Int,
+    entries: Int,
+    transposeSparse: Boolean,
+    transposeDense: Boolean,
+): Int = if (transposeSparse) {
+    planRightHandSides(
+        kernels,
+        rows,
+        sides,
+        entries,
+        copiedPerSide = depth.toLong(),
+        nativelyContiguous = transposeDense,
+        reduction = true,
+    )
+} else {
+    planRightHandSides(kernels, rows, sides, entries, copiedPerSide = 2L * rows, nativelyContiguous = false)
+}
+
+/**
+ * The plan a symmetric sparse product takes, whose staging copies both dense blocks and writes one back.
+ *
+ * Three passes over a right-hand side against the two a general product's destination costs, which is why
+ * the two weigh the copy differently. One answer for the execution and the route.
+ */
+internal fun symmetricRhsPlan(kernels: SparsePanelKernels, order: Int, sides: Int, entries: Int): Int =
+    planRightHandSides(kernels, order, sides, entries, copiedPerSide = 3L * order, nativelyContiguous = false)
+
 /** The width in a plan from [planRightHandSides]. */
 internal fun rhsWidth(plan: Int): Int = if (plan < 0) -plan else plan
 
@@ -169,19 +207,7 @@ internal fun multiplyFromTheLeft(
     // The dense operand as (inner, right-hand side), which its own transpose flag decides.
     val bRhsStride = if (transposeB) 1 else ldb
     val bIndexStride = if (transposeB) ldb else 1
-    val plan = if (transposeA) {
-        planRightHandSides(
-            kernels,
-            m,
-            n,
-            a.nnz,
-            copiedPerSide = k.toLong(),
-            nativelyContiguous = transposeB,
-            reduction = true,
-        )
-    } else {
-        planRightHandSides(kernels, m, n, a.nnz, copiedPerSide = 2L * m, nativelyContiguous = false)
-    }
+    val plan = productRhsPlan(kernels, m, n, k, a.nnz, transposeA, transposeB)
     val width = rhsWidth(plan)
     val staged = rhsStaged(plan)
     // The panel scratch is the panel leaf's, and a call whose panels are all one right-hand side wide never
@@ -328,7 +354,7 @@ internal fun multiplySymmetricFromTheLeft(
     val sides = b.cols
     val ld = b.rows
     if (n == 0 || sides == 0) return
-    val plan = planRightHandSides(kernels, n, sides, a.nnz, copiedPerSide = 3L * n, nativelyContiguous = false)
+    val plan = symmetricRhsPlan(kernels, n, sides, a.nnz)
     val width = rhsWidth(plan)
     val staged = rhsStaged(plan)
     val panelSize = if (staged) width * n else 0
