@@ -14,6 +14,11 @@ import com.eignex.koblas.Workspace
  * holds and participates like any other entry; an absent position is never evaluated, so a product against an
  * infinity in the dense operand stays zero where the sparse operand stores nothing. An operation returning a
  * fresh matrix owns every array it hands back, and its rows ascend strictly within each column.
+ *
+ * Every routine that can allocate scratch takes a [Workspace] to lend it, whether that scratch is the
+ * snapshot of an operand overlapping the destination or the dense staging a Level 3 schedule works through.
+ * A call that needs none takes nothing from the one it is handed. An operation returning a fresh matrix
+ * still allocates that result, which is what it was asked for rather than scratch.
  */
 public interface SparseBlas {
     /** Copies [a] into an immutable snapshot for repeated products. */
@@ -37,8 +42,12 @@ public interface SparseBlas {
      *
      * Only stored entries are visited, so an implicit zero of [a] forms no product: a column [a] does not
      * store leaves [y] untouched even where [x] holds an infinity. A stored zero does form its product.
+     *
+     * [x] and [a]'s coefficients may share [y]'s buffer and are snapshotted before [y] is scaled, with
+     * [workspace] lending the snapshot. A structural array is never a destination, so an aliased sparse
+     * operand shares it and only its coefficients are copied.
      */
-    @Suppress("LongParameterList") // the BLAS dgemv signature
+    @Suppress("LongParameterList") // the BLAS dgemv signature plus the workspace
     public fun gemv(
         alpha: Double,
         a: SparseMatrix,
@@ -46,6 +55,7 @@ public interface SparseBlas {
         beta: Double,
         y: DoubleArray,
         transpose: Boolean = false,
+        workspace: Workspace? = null,
     )
 
     /**
@@ -53,7 +63,7 @@ public interface SparseBlas {
      * [lower] or upper stored triangle is read; the other triangle and implicit zeros are ignored. A stored
      * off-diagonal entry contributes to both mirrored positions. `alpha == 0.0` reads neither [a] nor [x],
      * and `beta == 0.0` overwrites [y] without reading it. Aliasing [x] with [y], or [a]'s values with [y],
-     * is supported through internal staging.
+     * is supported through the staging [gemv] describes, which [workspace] lends.
      */
     @Suppress("LongParameterList")
     public fun symv(
@@ -63,6 +73,7 @@ public interface SparseBlas {
         beta: Double,
         y: DoubleArray,
         lower: Boolean = true,
+        workspace: Workspace? = null,
     )
 
     /**
@@ -95,13 +106,18 @@ public interface SparseBlas {
      * not reported: division by a zero diagonal follows IEEE 754 arithmetic when that diagonal is reached.
      * A right-hand side that is already exactly zero contributes no update, which is what keeps a column of
      * zeros from forming `0 · infinity` against a stored coefficient.
+     *
+     * The substitution overwrites [x] as it goes, so coefficients sharing that buffer are snapshotted before
+     * the first write and [workspace] lends the snapshot.
      */
+    @Suppress("LongParameterList") // the BLAS dtrsv signature plus the workspace
     public fun trsv(
         a: SparseMatrix,
         x: DoubleArray,
         lower: Boolean,
         transpose: Boolean = false,
         unitDiag: Boolean = false,
+        workspace: Workspace? = null,
     )
 
     /**
@@ -109,14 +125,16 @@ public interface SparseBlas {
      * [lower] or upper triangle is read; [unitDiag] treats its diagonal as one without reading it.
      *
      * Unlike [trsv], this performs no division and therefore has no singularity behavior: a missing diagonal
-     * is simply zero. The destination may share [a]'s value buffer.
+     * is simply zero. The destination may share [a]'s value buffer, staged as in [trsv].
      */
+    @Suppress("LongParameterList") // the BLAS dtrmv signature plus the workspace
     public fun trmv(
         a: SparseMatrix,
         x: DoubleArray,
         lower: Boolean,
         transpose: Boolean = false,
         unitDiag: Boolean = false,
+        workspace: Workspace? = null,
     )
 
     /**

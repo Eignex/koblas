@@ -86,3 +86,19 @@ internal inline fun <T> denseOperand(workspace: Workspace?, matrix: Matrix, bloc
         block(DenseMatrix.wrap(rows, cols, values))
     }
 }
+
+/**
+ * [block] over this vector's entries as one contiguous array, which a seam taking a plain array needs.
+ *
+ * A vector spanning its own array in order is passed through; a window or a step is gathered into a
+ * workspace loan for the call rather than into a fresh array, so a repeated call over a strided operand
+ * allocates nothing. The gather also snapshots, so an operand reached this way needs no staging of its own
+ * against a destination it overlaps.
+ */
+internal inline fun <T> contiguous(workspace: Workspace?, x: DenseVector, block: (DoubleArray) -> T): T {
+    if (x.isWholeArray) return block(x.values)
+    return workspace.borrow(x.size) { gathered ->
+        x.gatherInto(gathered)
+        block(gathered)
+    }
+}

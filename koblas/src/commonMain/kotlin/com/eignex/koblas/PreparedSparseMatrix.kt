@@ -72,7 +72,7 @@ public class PreparedSparseMatrix internal constructor(a: SparseMatrix, internal
      * The transpose is taken by the operation's own flag rather than by the derived orientation, so a
      * transposed matrix-vector product costs nothing to prepare and leaves the cache alone.
      */
-    @Suppress("LongParameterList") // the BLAS dgemv signature
+    @Suppress("LongParameterList") // the BLAS dgemv signature plus the workspace
     @JvmOverloads
     public fun gemvInto(
         alpha: Double,
@@ -80,12 +80,13 @@ public class PreparedSparseMatrix internal constructor(a: SparseMatrix, internal
         beta: Double,
         destination: DoubleArray,
         transpose: Boolean = false,
+        workspace: Workspace? = null,
     ) {
-        blas.gemv(alpha, snapshot, x, beta, destination, transpose)
+        blas.gemv(alpha, snapshot, x, beta, destination, transpose, workspace)
     }
 
     /** Prepared selected-triangle symmetric matrix-vector product; semantics match [SparseBlas.symv]. */
-    @Suppress("LongParameterList") // the BLAS dsymv signature
+    @Suppress("LongParameterList") // the BLAS dsymv signature plus the workspace
     @JvmOverloads
     public fun symvInto(
         alpha: Double,
@@ -93,8 +94,9 @@ public class PreparedSparseMatrix internal constructor(a: SparseMatrix, internal
         beta: Double,
         destination: DoubleArray,
         lower: Boolean = true,
+        workspace: Workspace? = null,
     ) {
-        blas.symv(alpha, snapshot, x, beta, destination, lower)
+        blas.symv(alpha, snapshot, x, beta, destination, lower, workspace)
     }
 
     /** Prepared selected-triangle symmetric matrix-matrix product; semantics match [SparseBlas.symm]. */

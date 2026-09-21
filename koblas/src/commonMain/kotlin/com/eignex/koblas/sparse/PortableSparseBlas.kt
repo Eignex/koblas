@@ -19,7 +19,6 @@ import com.eignex.koblas.sparse.internal.pointerLength
 import com.eignex.koblas.sparse.internal.productRhsPlan
 import com.eignex.koblas.sparse.internal.rhsStaged
 import com.eignex.koblas.sparse.internal.rhsWidth
-import com.eignex.koblas.sparse.internal.stableFor
 import com.eignex.koblas.sparse.internal.symmetricRankInto
 import com.eignex.koblas.sparse.internal.symmetricRankProduct
 import com.eignex.koblas.sparse.internal.symmetricRhsPlan
@@ -620,7 +619,7 @@ internal class PortableSparseBlas(
         return route(operation, RouteKind.Composed, components, skip)
     }
 
-    @Suppress("LongParameterList") // the BLAS dgemv signature
+    @Suppress("LongParameterList") // the BLAS dgemv signature plus the workspace
     override fun gemv(
         alpha: Double,
         a: SparseMatrix,
@@ -628,6 +627,7 @@ internal class PortableSparseBlas(
         beta: Double,
         y: DoubleArray,
         transpose: Boolean,
+        workspace: Workspace?,
     ) {
         requireGemvOperands(a, transpose, x.size, y.size)
         // The no-read shortcut comes first: a zero multiplier or a zero extent reads neither operand, and
@@ -638,8 +638,22 @@ internal class PortableSparseBlas(
         }
         // Then the snapshots, before the destination is written. Either operand may be the destination's own
         // buffer, and scaling it first would feed the product values the caller never supplied.
-        val stableX = if (x === y) x.copyOf() else x
-        val stableA = a.stableFor(y)
+        staged(workspace, x, x === y) { stableX ->
+            staged(workspace, a, a.values === y) { stableA ->
+                gemvCore(alpha, stableA, stableX, beta, y, transpose)
+            }
+        }
+    }
+
+    @Suppress("LongParameterList") // the BLAS dgemv signature, over the snapshots taken for it
+    private fun gemvCore(
+        alpha: Double,
+        stableA: SparseMatrix,
+        stableX: DoubleArray,
+        beta: Double,
+        y: DoubleArray,
+        transpose: Boolean,
+    ) {
         applyBeta(vectorKernels, y, 0, y.size, beta)
         if (transpose) {
             for (j in 0 until stableA.cols) {
@@ -674,27 +688,38 @@ internal class PortableSparseBlas(
 
     override fun transpose(a: SparseMatrix): SparseMatrix = transposeCsc(a)
 
-    override fun symv(alpha: Double, a: SparseMatrix, x: DoubleArray, beta: Double, y: DoubleArray, lower: Boolean) {
+    @Suppress("LongParameterList") // the BLAS dsymv signature plus the workspace
+    override fun symv(
+        alpha: Double,
+        a: SparseMatrix,
+        x: DoubleArray,
+        beta: Double,
+        y: DoubleArray,
+        lower: Boolean,
+        workspace: Workspace?,
+    ) {
         requireSymvOperands(a, x.size, y.size)
         if (alpha == 0.0) {
             applyBeta(vectorKernels, y, 0, y.size, beta)
             return
         }
-        val stableA = a.stableFor(y)
-        val stableX = if (x === y) x.copyOf() else x
-        applyBeta(vectorKernels, y, 0, y.size, beta)
-        for (column in 0 until stableA.cols) {
-            panelKernels.symmetricVectorColumn(
-                alpha,
-                column,
-                stableA.rowIndices,
-                stableA.values,
-                stableA.colPointers[column],
-                stableA.colPointers[column + 1],
-                stableX,
-                y,
-                lower,
-            )
+        staged(workspace, x, x === y) { stableX ->
+            staged(workspace, a, a.values === y) { stableA ->
+                applyBeta(vectorKernels, y, 0, y.size, beta)
+                for (column in 0 until stableA.cols) {
+                    panelKernels.symmetricVectorColumn(
+                        alpha,
+                        column,
+                        stableA.rowIndices,
+                        stableA.values,
+                        stableA.colPointers[column],
+                        stableA.colPointers[column + 1],
+                        stableX,
+                        y,
+                        lower,
+                    )
+                }
+            }
         }
     }
 
@@ -743,16 +768,36 @@ internal class PortableSparseBlas(
         }
     }
 
-    override fun trsv(a: SparseMatrix, x: DoubleArray, lower: Boolean, transpose: Boolean, unitDiag: Boolean) {
+    @Suppress("LongParameterList") // the BLAS dtrsv signature plus the workspace
+    override fun trsv(
+        a: SparseMatrix,
+        x: DoubleArray,
+        lower: Boolean,
+        transpose: Boolean,
+        unitDiag: Boolean,
+        workspace: Workspace?,
+    ) {
         requireTriangularVectorOperands(a, x.size, "trsv")
         // The substitution overwrites x as it goes, so a triangle sharing that buffer is snapshotted first:
         // every column it has yet to reach must still hold the coefficients the caller supplied.
-        trsvCore(panelKernels, a.stableFor(x), x, lower, transpose, unitDiag)
+        staged(workspace, a, a.values === x) { stable ->
+            trsvCore(panelKernels, stable, x, lower, transpose, unitDiag)
+        }
     }
 
-    override fun trmv(a: SparseMatrix, x: DoubleArray, lower: Boolean, transpose: Boolean, unitDiag: Boolean) {
+    @Suppress("LongParameterList") // the BLAS dtrmv signature plus the workspace
+    override fun trmv(
+        a: SparseMatrix,
+        x: DoubleArray,
+        lower: Boolean,
+        transpose: Boolean,
+        unitDiag: Boolean,
+        workspace: Workspace?,
+    ) {
         requireTriangularVectorOperands(a, x.size, "trmv")
-        trmvCore(panelKernels, a.stableFor(x), x, lower, transpose, unitDiag)
+        staged(workspace, a, a.values === x) { stable ->
+            trmvCore(panelKernels, stable, x, lower, transpose, unitDiag)
+        }
     }
 
     @Suppress("LongParameterList") // the BLAS dgemm signature, plus the side the sparse operand sits on

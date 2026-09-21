@@ -136,6 +136,63 @@ class AllocationFreeTest {
     }
 
     /**
+     * The same call lent a workspace, where the gather is a loan and the per-call cost goes away. This is
+     * what the previous test's bound is an upper one against: the storage a caller addresses its operand
+     * through stops deciding whether a repeated call allocates.
+     */
+    @Test
+    fun `a strided convenience operand lent a workspace allocates nothing`() {
+        val n = 128
+        val a = DenseMatrix.wrap(n, n, DoubleArray(n * n) { 1.0 + (it % 13) * 0.125 })
+        val buffer = DoubleArray(2 * n) { 1.0 + (it % 7) * 0.25 }
+        val strided = StridedVector(buffer, 0, n, 2)
+        val destination = DoubleArray(n)
+        val workspace = Workspace()
+        a.gemvInto(1e-12, strided, 1.0, destination, workspace = workspace)
+
+        val gathered = bytesPerIteration(1_000, FLOOR_BYTES) {
+            a.gemvInto(1e-12, strided, 1.0, destination, workspace = workspace)
+            destination
+        }
+
+        assertTrue(gathered <= FLOOR_BYTES, "a strided gemvInto with a workspace allocated $gathered B per call")
+    }
+
+    /**
+     * The dense and sparse Level 2 calls whose operand is the buffer they write, which is the one case those
+     * routines take scratch for. Without a workspace each snapshots into a fresh array per call.
+     */
+    @Test
+    fun `aliased level two calls reuse a workspace`() {
+        val n = 128
+        val portable = BuiltinEngines.scalar
+        val a = DenseMatrix.wrap(n, n, DoubleArray(n * n) { 1.0 + (it % 13) * 0.125 })
+        val y = DoubleArray(n) { 1.0 + (it % 7) * 0.25 }
+        val sparse = SparseMatrix.ofColumns(n, n, List(n) { j -> listOf((j + 1) % n to 1.0 + j % 5) })
+        val coefficients = sparse.values
+        val workspace = Workspace()
+        portable.gemv(1e-12, a, y, 1.0, y, workspace = workspace)
+        koblas.gemv(1e-12, sparse, coefficients, 1.0, coefficients, workspace = workspace)
+
+        val dense = bytesPerIteration(400, FLOOR_BYTES) {
+            portable.gemv(1e-12, a, y, 1.0, y, workspace = workspace)
+            y
+        }
+        val symmetric = bytesPerIteration(400, FLOOR_BYTES) {
+            portable.symv(1e-12, a, y, 1.0, y, workspace = workspace)
+            y
+        }
+        val csc = bytesPerIteration(400, FLOOR_BYTES) {
+            koblas.gemv(1e-12, sparse, coefficients, 1.0, coefficients, workspace = workspace)
+            coefficients
+        }
+
+        assertTrue(dense <= FLOOR_BYTES, "an aliased gemv with a workspace allocated $dense B per call")
+        assertTrue(symmetric <= FLOOR_BYTES, "an aliased symv with a workspace allocated $symmetric B per call")
+        assertTrue(csc <= FLOOR_BYTES, "an aliased sparse gemv with a workspace allocated $csc B per call")
+    }
+
+    /**
      * A dense Level 3 call lent a workspace. Without one these allocate by design: a solve gathers each
      * right-hand side and a multiply copies it again as its source.
      */

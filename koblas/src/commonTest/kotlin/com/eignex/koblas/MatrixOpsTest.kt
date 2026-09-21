@@ -375,4 +375,25 @@ class MatrixOpsTest {
 
         assertContentEquals(doubleArrayOf(0.0, 0.0, 0.0), destination)
     }
+
+    /**
+     * The gather a stepped operand needs to reach a seam addressing one array, taken from the workspace when
+     * there is one. It is the convenience layer's own allocation rather than any seam's, so it is the layer
+     * that has to lend it.
+     */
+    @Test
+    fun `a strided matvec operand is gathered from the workspace it was given`() {
+        val n = 6
+        val backing = DoubleArray(2 * n) { 1.0 + it }
+        val x = StridedVector(backing, 0, n, 2)
+        val A = DenseMatrix.wrap(n, n, DoubleArray(n * n) { 1.0 + (it % 5) * 0.25 })
+        val expected = DoubleArray(n).also { A.gemvInto(x, it) }
+        val workspace = Workspace()
+        val destination = DoubleArray(n)
+
+        A.gemvInto(x, destination, workspace = workspace)
+
+        assertContentEquals(expected, destination)
+        assertEquals(1, workspace.available(n), "the gather did not come from the workspace")
+    }
 }
