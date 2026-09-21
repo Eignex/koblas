@@ -13,7 +13,7 @@ public fun SparseMatrix.prepare(): PreparedSparseMatrix = koblas.prepare(this)
 public fun SparseMatrix.gemv(x: DoubleArray, transpose: Boolean = false): DoubleArray = koblas.gemv(this, x, transpose)
 
 /** In-place `y = alpha · op(A) · x + beta · y`; see [com.eignex.koblas.sparse.SparseBlas.gemv]. */
-@Suppress("LongParameterList") // the BLAS dgemv signature
+@Suppress("LongParameterList") // the BLAS dgemv signature plus the workspace
 @JvmOverloads
 public fun SparseMatrix.gemvInto(
     alpha: Double,
@@ -21,7 +21,8 @@ public fun SparseMatrix.gemvInto(
     beta: Double,
     destination: DoubleArray,
     transpose: Boolean = false,
-): Unit = koblas.gemv(alpha, this, x, beta, destination, transpose)
+    workspace: Workspace? = null,
+): Unit = koblas.gemv(alpha, this, x, beta, destination, transpose, workspace)
 
 /** Symmetric product with [x] into a fresh dense vector, reading only this matrix's selected triangle. */
 @JvmOverloads
@@ -29,7 +30,7 @@ public fun SparseMatrix.symv(x: DoubleArray, lower: Boolean = true): DoubleArray
     DoubleArray(rows).also { koblas.symv(1.0, this, x, 0.0, it, lower) }
 
 /** Symmetric `y = alpha · A · x + beta · y`, reading only this matrix's selected triangle. */
-@Suppress("LongParameterList") // the BLAS dsymv signature
+@Suppress("LongParameterList") // the BLAS dsymv signature plus the workspace
 @JvmOverloads
 public fun SparseMatrix.symvInto(
     alpha: Double,
@@ -37,7 +38,8 @@ public fun SparseMatrix.symvInto(
     beta: Double,
     destination: DoubleArray,
     lower: Boolean = true,
-): Unit = koblas.symv(alpha, this, x, beta, destination, lower)
+    workspace: Workspace? = null,
+): Unit = koblas.symv(alpha, this, x, beta, destination, lower, workspace)
 
 /** Symmetric sparse-dense product into [destination], with this selected-triangle matrix on either side. */
 @Suppress("LongParameterList") // the BLAS dsymm signature plus the workspace

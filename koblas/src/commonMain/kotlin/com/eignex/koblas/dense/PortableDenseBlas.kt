@@ -264,15 +264,42 @@ internal class PortableDenseBlas(
      * one read, and the square corner where a group's columns overlap each other is the remainder that walk
      * cannot cover, which is scalar work here.
      */
-    override fun symv(alpha: Double, a: DenseMatrix, x: DoubleArray, beta: Double, y: DoubleArray, lower: Boolean) {
+    @Suppress("LongParameterList") // the BLAS dsymv signature plus the workspace
+    override fun symv(
+        alpha: Double,
+        a: DenseMatrix,
+        x: DoubleArray,
+        beta: Double,
+        y: DoubleArray,
+        lower: Boolean,
+        workspace: Workspace?,
+    ) {
         requireSymvOperands(a, x.size, y.size)
         val n = a.rows
         if (alpha == 0.0 || n == 0) {
             applyBeta(vectors, y, 0, y.size, beta)
             return
         }
-        val av = if (a.values === y) a.values.copyOf() else a.values
-        val xv = if (x === y) x.copyOf() else x
+        // Snapshots before the destination is scaled, for the reason gemv takes them: either operand may be
+        // the destination's own buffer, and beta would otherwise overwrite values still to be read.
+        staged(workspace, a.values, a.values === y) { av ->
+            staged(workspace, x, x === y) { xv ->
+                symvCore(alpha, a, av, xv, beta, y, lower)
+            }
+        }
+    }
+
+    @Suppress("LongParameterList") // the operands, their snapshots and the BLAS dsymv scalars
+    private fun symvCore(
+        alpha: Double,
+        a: DenseMatrix,
+        av: DoubleArray,
+        xv: DoubleArray,
+        beta: Double,
+        y: DoubleArray,
+        lower: Boolean,
+    ) {
+        val n = a.rows
         applyBeta(vectors, y, 0, y.size, beta)
         val group = panels.executionGroup(PanelWork.CoupledDotUpdate, n, n)
         forEachTrianglePanel(n, group, lower, fromDiagonal = false) { start, width, window, rows ->
@@ -422,13 +449,15 @@ internal class PortableDenseBlas(
         }
     }
 
-    override fun ger(alpha: Double, x: DoubleArray, y: DoubleArray, a: DenseMatrix) {
+    override fun ger(alpha: Double, x: DoubleArray, y: DoubleArray, a: DenseMatrix, workspace: Workspace?) {
         requireGerOperands(x.size, y.size, a)
         if (alpha == 0.0 || a.rows == 0) return
-        val xv = if (x === a.values) x.copyOf() else x
-        val yv = if (y === a.values) y.copyOf() else y
-        forEachPanel(a.cols, panels.executionGroup(PanelWork.RankUpdate, a.rows, a.cols)) { start, width ->
-            panels.rankUpdate(alpha, a.values, start * a.rows, a.rows, xv, 0, 1, a.rows, width, yv, start, 1)
+        staged(workspace, x, x === a.values) { xv ->
+            staged(workspace, y, y === a.values) { yv ->
+                forEachPanel(a.cols, panels.executionGroup(PanelWork.RankUpdate, a.rows, a.cols)) { start, width ->
+                    panels.rankUpdate(alpha, a.values, start * a.rows, a.rows, xv, 0, 1, a.rows, width, yv, start, 1)
+                }
+            }
         }
     }
 
@@ -438,33 +467,35 @@ internal class PortableDenseBlas(
      * Every column of a group stores the rows below the last of them, which is the window they share; what
      * is left is the small triangle between the group's first and last column.
      */
-    override fun syr(alpha: Double, x: DenseVector, a: DenseMatrix, lower: Boolean) {
+    @Suppress("LongParameterList") // the BLAS dsyr signature plus the workspace
+    override fun syr(alpha: Double, x: DenseVector, a: DenseMatrix, lower: Boolean, workspace: Workspace?) {
         requireSyrOperands(a, x.size, "syr")
         val n = a.rows
         if (alpha == 0.0 || n == 0) return
         // A vector sharing the destination's buffer is copied, since the update writes what a later column
-        // would otherwise read back as its coefficient.
-        val staged = x.values === a.values
-        val xv = if (staged) x.toDoubleArray() else x.values
-        val origin = if (staged) 0 else x.offset
-        val step = if (staged) 1 else x.stride
-        val group = panels.executionGroup(PanelWork.RankUpdate, n, n)
-        forEachTrianglePanel(n, group, lower, fromDiagonal = true) { start, width, window, rows ->
-            // The corner is the rows between the group's first and last column, where the columns stop
-            // agreeing about which of them are stored; everything past it is the window they share.
-            val cornerFirst = if (lower) start else start + 1
-            val cornerLast = if (lower) start + width - 1 else start + width
-            for (c in start until start + width) {
-                val coefficient = alpha * xv[origin + c * step]
-                for (i in cornerFirst until cornerLast) {
-                    if (if (lower) i < c else i > c) continue
-                    a.values[i + c * n] += coefficient * xv[origin + i * step]
+        // would otherwise read back as its coefficient. The copy is contiguous, whatever the source's step.
+        staged(workspace, x, x.values === a.values) { sx ->
+            val xv = sx.values
+            val origin = sx.offset
+            val step = sx.stride
+            val group = panels.executionGroup(PanelWork.RankUpdate, n, n)
+            forEachTrianglePanel(n, group, lower, fromDiagonal = true) { start, width, window, rows ->
+                // The corner is the rows between the group's first and last column, where the columns stop
+                // agreeing about which of them are stored; everything past it is the window they share.
+                val cornerFirst = if (lower) start else start + 1
+                val cornerLast = if (lower) start + width - 1 else start + width
+                for (c in start until start + width) {
+                    val coefficient = alpha * xv[origin + c * step]
+                    for (i in cornerFirst until cornerLast) {
+                        if (if (lower) i < c else i > c) continue
+                        a.values[i + c * n] += coefficient * xv[origin + i * step]
+                    }
                 }
+                panels.rankUpdate(
+                    alpha, a.values, window + start * n, n, xv, origin + window * step, step, rows, width,
+                    xv, origin + start * step, step,
+                )
             }
-            panels.rankUpdate(
-                alpha, a.values, window + start * n, n, xv, origin + window * step, step, rows, width,
-                xv, origin + start * step, step,
-            )
         }
     }
 
@@ -478,18 +509,33 @@ internal class PortableDenseBlas(
      * machine's numbers for a modest best case, so the simpler path is kept; the comparison is in the stage
      * evidence.
      */
-    override fun syr2(alpha: Double, x: DenseVector, y: DenseVector, a: DenseMatrix, lower: Boolean) {
+    @Suppress("LongParameterList") // the BLAS dsyr2 signature plus the workspace
+    override fun syr2(
+        alpha: Double,
+        x: DenseVector,
+        y: DenseVector,
+        a: DenseMatrix,
+        lower: Boolean,
+        workspace: Workspace?,
+    ) {
         requireSyr2Operands(a, x.size, y.size, "syr2")
         val n = a.rows
         if (alpha == 0.0 || n == 0) return
-        val stagedX = x.values === a.values
-        val stagedY = y.values === a.values
-        val xv = if (stagedX) x.toDoubleArray() else x.values
-        val yv = if (stagedY) y.toDoubleArray() else y.values
-        val xOrigin = if (stagedX) 0 else x.offset
-        val xStep = if (stagedX) 1 else x.stride
-        val yOrigin = if (stagedY) 0 else y.offset
-        val yStep = if (stagedY) 1 else y.stride
+        staged(workspace, x, x.values === a.values) { sx ->
+            staged(workspace, y, y.values === a.values) { sy ->
+                syr2Core(alpha, sx, sy, a, lower)
+            }
+        }
+    }
+
+    private fun syr2Core(alpha: Double, x: DenseVector, y: DenseVector, a: DenseMatrix, lower: Boolean) {
+        val n = a.rows
+        val xv = x.values
+        val yv = y.values
+        val xOrigin = x.offset
+        val xStep = x.stride
+        val yOrigin = y.offset
+        val yStep = y.stride
         for (c in 0 until n) {
             val first = if (lower) c else 0
             val last = if (lower) n else c + 1
@@ -510,17 +556,26 @@ internal class PortableDenseBlas(
      * substitution's and cannot be grouped away; what a panel covers is the independent arithmetic within
      * one step.
      */
-    override fun trsv(a: DenseMatrix, x: DoubleArray, lower: Boolean, transpose: Boolean, unitDiag: Boolean) {
+    @Suppress("LongParameterList") // the BLAS dtrsv signature plus the workspace
+    override fun trsv(
+        a: DenseMatrix,
+        x: DoubleArray,
+        lower: Boolean,
+        transpose: Boolean,
+        unitDiag: Boolean,
+        workspace: Workspace?,
+    ) {
         requireTriangularVectorOperands(a, x.size, "trsv")
         val n = a.rows
-        val av = if (a.values === x) a.values.copyOf() else a.values
-        forEachTriangularColumn(n, lower, ascending = lower != transpose) { j, window, rows ->
-            if (transpose) {
-                if (rows > 0) panels.multiDot(-1.0, av, window + j * n, n, x, window, 1, rows, 1, 1.0, x, j, 1)
-                if (!unitDiag) x[j] = x[j] / av[j + j * n]
-            } else {
-                if (!unitDiag) x[j] = x[j] / av[j + j * n]
-                if (rows > 0) panels.columnUpdate(-1.0, av, window + j * n, n, x, j, 1, rows, 1, x, window, 1)
+        staged(workspace, a.values, a.values === x) { av ->
+            forEachTriangularColumn(n, lower, ascending = lower != transpose) { j, window, rows ->
+                if (transpose) {
+                    if (rows > 0) panels.multiDot(-1.0, av, window + j * n, n, x, window, 1, rows, 1, 1.0, x, j, 1)
+                    if (!unitDiag) x[j] = x[j] / av[j + j * n]
+                } else {
+                    if (!unitDiag) x[j] = x[j] / av[j + j * n]
+                    if (rows > 0) panels.columnUpdate(-1.0, av, window + j * n, n, x, j, 1, rows, 1, x, window, 1)
+                }
             }
         }
     }
@@ -533,19 +588,28 @@ internal class PortableDenseBlas(
      * columns are walked away from the diagonal; transposed, an entry is the reduction of its own column
      * against entries not yet touched. Neither direction needs a copy of the input.
      */
-    override fun trmv(a: DenseMatrix, x: DoubleArray, lower: Boolean, transpose: Boolean, unitDiag: Boolean) {
+    @Suppress("LongParameterList") // the BLAS dtrmv signature plus the workspace
+    override fun trmv(
+        a: DenseMatrix,
+        x: DoubleArray,
+        lower: Boolean,
+        transpose: Boolean,
+        unitDiag: Boolean,
+        workspace: Workspace?,
+    ) {
         requireTriangularVectorOperands(a, x.size, "trmv")
         val n = a.rows
-        val av = if (a.values === x) a.values.copyOf() else a.values
-        // Untransposed, a column is consumed before the columns it would overwrite; transposed, a column is
-        // produced from entries later columns have not reached yet. The two run in opposite directions.
-        forEachTriangularColumn(n, lower, ascending = transpose == lower) { j, window, rows ->
-            if (transpose) {
-                if (!unitDiag) x[j] = av[j + j * n] * x[j]
-                if (rows > 0) panels.multiDot(1.0, av, window + j * n, n, x, window, 1, rows, 1, 1.0, x, j, 1)
-            } else {
-                if (rows > 0) panels.columnUpdate(1.0, av, window + j * n, n, x, j, 1, rows, 1, x, window, 1)
-                if (!unitDiag) x[j] = av[j + j * n] * x[j]
+        staged(workspace, a.values, a.values === x) { av ->
+            // Untransposed, a column is consumed before the columns it would overwrite; transposed, a column
+            // is produced from entries later columns have not reached yet. The two run in opposite directions.
+            forEachTriangularColumn(n, lower, ascending = transpose == lower) { j, window, rows ->
+                if (transpose) {
+                    if (!unitDiag) x[j] = av[j + j * n] * x[j]
+                    if (rows > 0) panels.multiDot(1.0, av, window + j * n, n, x, window, 1, rows, 1, 1.0, x, j, 1)
+                } else {
+                    if (rows > 0) panels.columnUpdate(1.0, av, window + j * n, n, x, j, 1, rows, 1, x, window, 1)
+                    if (!unitDiag) x[j] = av[j + j * n] * x[j]
+                }
             }
         }
     }

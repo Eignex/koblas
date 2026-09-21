@@ -57,8 +57,10 @@ val product = a * b
 val y = a * x
 ```
 
-Operators allocate results. BLAS-style and `*Into` calls write into caller-owned destinations; supply a
-`Workspace` where supported to reuse staging and packing scratch:
+Operators allocate results. BLAS-style and `*Into` calls write into caller-owned destinations, and every
+routine that can take scratch accepts a `Workspace` to lend it, whether that scratch is the snapshot of an
+operand overlapping the destination, the gather a strided vector needs, or the panels a blocked product
+packs:
 
 ```kotlin
 val result = DenseMatrix.zero(2, 2)
@@ -69,8 +71,9 @@ repeat(1_000) {
 }
 ```
 
-A workspace retains a bounded set of buffers. It does not eliminate allocations for fresh results or every
-convenience operation. Concurrent calls need distinct destinations and workspaces.
+A workspace retains a bounded set of buffers, and a call that needs none takes nothing from the one it is
+handed. It does not eliminate the result a fresh-result overload allocates, nor the arrays a sparse operation
+discovering new structure has to build. Concurrent calls need distinct destinations and workspaces.
 
 ## Java
 

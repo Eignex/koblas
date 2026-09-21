@@ -10,6 +10,10 @@ import com.eignex.koblas.*
  * Built-in calls validate shapes, preserve zero-multiplier no-read rules and snapshot permitted aliases.
  * Explicit vendor bindings retain their library's exceptional and accumulation behavior.
  *
+ * Every routine that can allocate scratch takes a [Workspace] to lend it, whether that scratch is an alias
+ * snapshot, a gathered operand or the panels a blocked product packs. A call that needs none takes nothing
+ * from the one it is handed, so passing one costs a routine that does not use it nothing.
+ *
  * A platform default may hand a whole Level 2 or 3 call to an installed library where one is available and
  * the call is large enough to pay for reaching it; Kotlin/Native's does, and the JVM's does not. Everything
  * stated here holds either way. What is deliberately not stated is the accumulation order and where a
@@ -132,8 +136,8 @@ public interface DenseBlas {
     )
 
     /** `y = alpha · A · x + beta · y` for a symmetric [a] (BLAS `dsymv`). Only the [lower] triangle is read,
-     *  diagonal included. */
-    @Suppress("LongParameterList") // the BLAS dsymv signature
+     *  diagonal included. [workspace] lends the staging an overlap with [y] takes, as in [gemv]. */
+    @Suppress("LongParameterList") // the BLAS dsymv signature plus the workspace
     public fun symv(
         alpha: Double,
         a: DenseMatrix,
@@ -141,6 +145,7 @@ public interface DenseBlas {
         beta: Double,
         y: DoubleArray,
         lower: Boolean = true,
+        workspace: Workspace? = null,
     )
 
     /** `C = alpha · A · B + beta · C`, or `C = alpha · B · A + beta · C` when [right] (BLAS `dsymm`). Only the
@@ -157,16 +162,26 @@ public interface DenseBlas {
         workspace: Workspace? = null,
     )
 
-    /** `A = A + alpha · x · yᵀ` (BLAS `dger`). */
-    public fun ger(alpha: Double, x: DoubleArray, y: DoubleArray, a: DenseMatrix)
+    /** `A = A + alpha · x · yᵀ` (BLAS `dger`). A vector sharing [a]'s buffer is snapshotted, and
+     *  [workspace] lends that snapshot. */
+    public fun ger(alpha: Double, x: DoubleArray, y: DoubleArray, a: DenseMatrix, workspace: Workspace? = null)
 
     /** `A += alpha · x · xᵀ` (BLAS `dsyr`), writing only the [lower] or upper triangle. [x] must be dense or
-     *  strided storage, which is what a vendor can address. */
-    public fun syr(alpha: Double, x: DenseVector, a: DenseMatrix, lower: Boolean = true)
+     *  strided storage, which is what a vendor can address. Overlap staging follows [ger]. */
+    @Suppress("LongParameterList") // the BLAS dsyr signature plus the workspace
+    public fun syr(alpha: Double, x: DenseVector, a: DenseMatrix, lower: Boolean = true, workspace: Workspace? = null)
 
     /** `A += alpha · (x · yᵀ + y · xᵀ)` (BLAS `dsyr2`), writing only the [lower] or upper triangle. Operand
-     *  storage follows [syr]. */
-    public fun syr2(alpha: Double, x: DenseVector, y: DenseVector, a: DenseMatrix, lower: Boolean = true)
+     *  storage and overlap staging follow [syr]. */
+    @Suppress("LongParameterList") // the BLAS dsyr2 signature plus the workspace
+    public fun syr2(
+        alpha: Double,
+        x: DenseVector,
+        y: DenseVector,
+        a: DenseMatrix,
+        lower: Boolean = true,
+        workspace: Workspace? = null,
+    )
 
     /**
      * `C = alpha · (op(A) · op(B)ᵀ + op(B) · op(A)ᵀ) + beta · C` (BLAS `dsyr2k`), where `op` transposes when
@@ -193,13 +208,18 @@ public interface DenseBlas {
      *
      * The diagonal is divided by, not tested: `dtrsv` carries no `info` and reports nothing, so a singular
      * triangle yields infinities or NaNs and the caller who needs the distinction tests the diagonal first.
+     *
+     * The substitution overwrites [x] as it goes, so a triangle sharing that buffer is snapshotted first and
+     * [workspace] lends the snapshot.
      */
+    @Suppress("LongParameterList") // the BLAS dtrsv signature plus the workspace
     public fun trsv(
         a: DenseMatrix,
         x: DoubleArray,
         lower: Boolean,
         transpose: Boolean = false,
         unitDiag: Boolean = false,
+        workspace: Workspace? = null,
     )
 
     /** `B = alpha · op(T)⁻¹ · B` in place, or `B = alpha · B · op(T)⁻¹` when [right] (BLAS `dtrsm`). Flags
@@ -216,13 +236,16 @@ public interface DenseBlas {
         workspace: Workspace? = null,
     )
 
-    /** `x = op(T) · x` in place (BLAS `dtrmv`), the product counterpart of [trsv]. */
+    /** `x = op(T) · x` in place (BLAS `dtrmv`), the product counterpart of [trsv], whose overlap staging and
+     *  [workspace] it shares. */
+    @Suppress("LongParameterList") // the BLAS dtrmv signature plus the workspace
     public fun trmv(
         a: DenseMatrix,
         x: DoubleArray,
         lower: Boolean,
         transpose: Boolean = false,
         unitDiag: Boolean = false,
+        workspace: Workspace? = null,
     )
 
     /** `B = alpha · op(T) · B`, or `B = alpha · B · op(T)` when [right] (BLAS `dtrmm`), the counterpart of

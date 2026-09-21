@@ -153,14 +153,23 @@ internal class HostDenseBlas(
 
     override fun transpose(a: DenseMatrix): DenseMatrix = portable.transpose(a)
 
-    override fun symv(alpha: Double, a: DenseMatrix, x: DoubleArray, beta: Double, y: DoubleArray, lower: Boolean) {
+    @Suppress("LongParameterList") // the BLAS dsymv signature plus the workspace
+    override fun symv(
+        alpha: Double,
+        a: DenseMatrix,
+        x: DoubleArray,
+        beta: Double,
+        y: DoubleArray,
+        lower: Boolean,
+        workspace: Workspace?,
+    ) {
         requireSymvOperands(a, x.size, y.size)
         if (!host(DenseMatrixOperation.Symv, work(DenseMatrixOperation.Symv, a.rows, a.cols, alpha = alpha))) {
-            portable.symv(alpha, a, x, beta, y, lower)
+            portable.symv(alpha, a, x, beta, y, lower, workspace)
             return
         }
-        staged(null, a, a.values === y) { sa ->
-            staged(null, x, x === y) { sx ->
+        staged(workspace, a, a.values === y) { sa ->
+            staged(workspace, x, x === y) { sx ->
                 host.symv(alpha, sa, symmetricStructure(lower), sx.asVector(), beta, y.asVector())
             }
         }
@@ -173,53 +182,79 @@ internal class HostDenseBlas(
      * anything this layer chooses. A strided vector needs no staging of its own: an increment is what BLAS
      * addresses a vector with, so the binding passes the caller's spacing through unchanged.
      */
-    override fun ger(alpha: Double, x: DoubleArray, y: DoubleArray, a: DenseMatrix) {
+    override fun ger(alpha: Double, x: DoubleArray, y: DoubleArray, a: DenseMatrix, workspace: Workspace?) {
         requireGerOperands(x.size, y.size, a)
         if (!host(DenseMatrixOperation.Ger, work(DenseMatrixOperation.Ger, a.rows, a.cols, alpha = alpha))) {
-            portable.ger(alpha, x, y, a)
+            portable.ger(alpha, x, y, a, workspace)
             return
         }
-        staged(null, x, x === a.values) { sx ->
-            staged(null, y, y === a.values) { sy ->
+        staged(workspace, x, x === a.values) { sx ->
+            staged(workspace, y, y === a.values) { sy ->
                 host.ger(alpha, sx.asVector(), sy.asVector(), a)
             }
         }
     }
 
-    override fun syr(alpha: Double, x: DenseVector, a: DenseMatrix, lower: Boolean) {
+    @Suppress("LongParameterList") // the BLAS dsyr signature plus the workspace
+    override fun syr(alpha: Double, x: DenseVector, a: DenseMatrix, lower: Boolean, workspace: Workspace?) {
         requireSyrOperands(a, x.size, "syr")
         if (!host(DenseMatrixOperation.Syr, work(DenseMatrixOperation.Syr, a.rows, a.cols, alpha = alpha))) {
-            portable.syr(alpha, x, a, lower)
+            portable.syr(alpha, x, a, lower, workspace)
             return
         }
-        staged(null, x, x.values === a.values) { sx ->
+        staged(workspace, x, x.values === a.values) { sx ->
             host.syr(alpha, sx, a, symmetricStructure(lower))
         }
     }
 
-    override fun syr2(alpha: Double, x: DenseVector, y: DenseVector, a: DenseMatrix, lower: Boolean) {
+    @Suppress("LongParameterList") // the BLAS dsyr2 signature plus the workspace
+    override fun syr2(
+        alpha: Double,
+        x: DenseVector,
+        y: DenseVector,
+        a: DenseMatrix,
+        lower: Boolean,
+        workspace: Workspace?,
+    ) {
         requireSyr2Operands(a, x.size, y.size, "syr2")
         if (!host(DenseMatrixOperation.Syr2, work(DenseMatrixOperation.Syr2, a.rows, a.cols, alpha = alpha))) {
-            portable.syr2(alpha, x, y, a, lower)
+            portable.syr2(alpha, x, y, a, lower, workspace)
             return
         }
-        staged(null, x, x.values === a.values) { sx ->
-            staged(null, y, y.values === a.values) { sy ->
+        staged(workspace, x, x.values === a.values) { sx ->
+            staged(workspace, y, y.values === a.values) { sy ->
                 host.syr2(alpha, sx, sy, a, symmetricStructure(lower))
             }
         }
     }
 
-    override fun trsv(a: DenseMatrix, x: DoubleArray, lower: Boolean, transpose: Boolean, unitDiag: Boolean) {
+    @Suppress("LongParameterList") // the BLAS dtrsv signature plus the workspace
+    override fun trsv(
+        a: DenseMatrix,
+        x: DoubleArray,
+        lower: Boolean,
+        transpose: Boolean,
+        unitDiag: Boolean,
+        workspace: Workspace?,
+    ) {
         val operation = if (transpose) DenseMatrixOperation.TrsvTransposed else DenseMatrixOperation.Trsv
-        triangularVector(a, x, lower, transpose, unitDiag, operation, "trsv")
+        triangularVector(a, x, lower, transpose, unitDiag, operation, "trsv", workspace)
     }
 
-    override fun trmv(a: DenseMatrix, x: DoubleArray, lower: Boolean, transpose: Boolean, unitDiag: Boolean) {
+    @Suppress("LongParameterList") // the BLAS dtrmv signature plus the workspace
+    override fun trmv(
+        a: DenseMatrix,
+        x: DoubleArray,
+        lower: Boolean,
+        transpose: Boolean,
+        unitDiag: Boolean,
+        workspace: Workspace?,
+    ) {
         val operation = if (transpose) DenseMatrixOperation.TrmvTransposed else DenseMatrixOperation.Trmv
-        triangularVector(a, x, lower, transpose, unitDiag, operation, "trmv")
+        triangularVector(a, x, lower, transpose, unitDiag, operation, "trmv", workspace)
     }
 
+    @Suppress("LongParameterList") // the BLAS triangular signature, the operation it names and the workspace
     private fun triangularVector(
         a: DenseMatrix,
         x: DoubleArray,
@@ -228,19 +263,20 @@ internal class HostDenseBlas(
         unitDiag: Boolean,
         operation: DenseMatrixOperation,
         what: String,
+        workspace: Workspace?,
     ) {
         requireTriangularVectorOperands(a, x.size, what)
         val solve = operation == DenseMatrixOperation.Trsv || operation == DenseMatrixOperation.TrsvTransposed
         if (!host(operation, work(operation, a.rows, a.cols))) {
             if (solve) {
-                portable.trsv(a, x, lower, transpose, unitDiag)
+                portable.trsv(a, x, lower, transpose, unitDiag, workspace)
             } else {
-                portable.trmv(a, x, lower, transpose, unitDiag)
+                portable.trmv(a, x, lower, transpose, unitDiag, workspace)
             }
             return
         }
         // The triangle is the only operand that can share the destination, since x is the destination.
-        staged(null, a, a.values === x) { sa ->
+        staged(workspace, a, a.values === x) { sa ->
             val structure = triangle(lower, unitDiag)
             if (solve) {
                 host.trsv(sa, structure, transpose, x.asVector())

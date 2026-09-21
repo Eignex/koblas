@@ -16,15 +16,17 @@ import kotlin.jvm.JvmOverloads
  * The two storages differ in one place the contract names: a missing sparse diagonal entry is the sparse
  * representation of zero and is divided by as such, so it behaves as an explicitly stored zero would.
  */
+@Suppress("LongParameterList") // the BLAS dtrsv signature plus the workspace
 @JvmOverloads
 public fun MatrixStorage.trsv(
     x: DoubleArray,
     lower: Boolean,
     transpose: Boolean = false,
     unitDiag: Boolean = false,
+    workspace: Workspace? = null,
 ): Unit = when (this) {
-    is DenseMatrix -> koblas.trsv(this, x, lower, transpose, unitDiag)
-    is SparseMatrix -> koblas.trsv(this, x, lower, transpose, unitDiag)
+    is DenseMatrix -> koblas.trsv(this, x, lower, transpose, unitDiag, workspace)
+    is SparseMatrix -> koblas.trsv(this, x, lower, transpose, unitDiag, workspace)
 }
 
 /** `B = alpha · op(T)⁻¹ · B`, or `B = alpha · B · op(T)⁻¹` when [right] (BLAS `dtrsm`); see
@@ -46,15 +48,17 @@ public fun MatrixStorage.trsm(
 }
 
 /** Multiply `x = op(T) · x` in place (BLAS `dtrmv`) for dense or sparse storage. */
+@Suppress("LongParameterList") // the BLAS dtrmv signature plus the workspace
 @JvmOverloads
 public fun MatrixStorage.trmv(
     x: DoubleArray,
     lower: Boolean,
     transpose: Boolean = false,
     unitDiag: Boolean = false,
+    workspace: Workspace? = null,
 ): Unit = when (this) {
-    is DenseMatrix -> koblas.trmv(this, x, lower, transpose, unitDiag)
-    is SparseMatrix -> koblas.trmv(this, x, lower, transpose, unitDiag)
+    is DenseMatrix -> koblas.trmv(this, x, lower, transpose, unitDiag, workspace)
+    is SparseMatrix -> koblas.trmv(this, x, lower, transpose, unitDiag, workspace)
 }
 
 /** `B = alpha · op(T) · B`, or `B = alpha · B · op(T)` when [right] (BLAS `dtrmm`). */
