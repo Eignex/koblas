@@ -12,7 +12,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
-class JvmVendorBlasTest {
+class BlasTest {
     private fun values(size: Int, seed: Int = 1): DoubleArray {
         var state = seed
         return DoubleArray(size) {

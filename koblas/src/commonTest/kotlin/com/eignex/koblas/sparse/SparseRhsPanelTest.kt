@@ -24,7 +24,7 @@ class SparseRhsPanelTest {
     private val plain = engineWith(PortablePanelKernels)
 
     @Test
-    fun `a staged product agrees with the same product in the caller's layout`() {
+    fun `a staged product agrees with the same product in the layout of the caller`() {
         val rng = Random(20261001)
         for (transposeA in booleanArrayOf(false, true)) {
             for (transposeB in booleanArrayOf(false, true)) {
@@ -60,7 +60,7 @@ class SparseRhsPanelTest {
     }
 
     @Test
-    fun `a staged symmetric product agrees with the same product in the caller's layout`() {
+    fun `a staged symmetric product agrees with the same product in the layout of the caller`() {
         val rng = Random(20261002)
         for (lower in booleanArrayOf(true, false)) {
             val order = ORDER
@@ -86,7 +86,7 @@ class SparseRhsPanelTest {
     }
 
     @Test
-    fun `a staged triangular block agrees with the same call in the caller's layout`() {
+    fun `a staged triangular block agrees with the same call in the layout of the caller`() {
         val rng = Random(20261003)
         for (solve in booleanArrayOf(true, false)) {
             for (transpose in booleanArrayOf(false, true)) {

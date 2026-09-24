@@ -72,7 +72,7 @@ class PreparedSparseMatrixTest {
     }
 
     @Test
-    fun `a prepared transposed gemv keeps the snapshot's own orientation`() {
+    fun `a prepared transposed gemv keeps the orientation of the snapshot`() {
         val source = matrix()
         val prepared = koblas.prepare(source)
         val call = SparseCall(

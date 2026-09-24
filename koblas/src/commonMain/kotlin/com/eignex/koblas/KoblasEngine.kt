@@ -186,6 +186,7 @@ public class KoblasEngine internal constructor(
  *
  * The JVM default currently selects [simd] when available and [scalar] otherwise. Native has no SIMD
  * engine and composes an installed host library with portable fallbacks, or uses [scalar] without one.
+ * Android composes the OpenBLAS its package bundles in the same way, or uses [scalar] where it did not load.
  */
 @KoblasEngineApi
 public expect object BuiltinEngines {

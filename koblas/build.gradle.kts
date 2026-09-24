@@ -1,11 +1,16 @@
+import com.android.build.api.artifact.SingleArtifact
+import com.eignex.koblas.gradle.BuildAndroidOpenBlas
+import com.eignex.koblas.gradle.DownloadVerified
+import com.eignex.koblas.gradle.LinkAndroidShim
+import com.eignex.koblas.gradle.ReleaseLikeTestManifest
 import org.gradle.api.tasks.JavaExec
 import org.gradle.jvm.toolchain.JavaLanguageVersion
-import org.jetbrains.kotlin.gradle.tasks.KotlinJvmCompile
 import org.jetbrains.kotlin.gradle.targets.jvm.KotlinJvmTarget
 
 plugins {
     id("com.eignex.kmp") version "1.3.3"
     kotlin("plugin.serialization") version "2.4.10"
+    id("com.android.kotlin.multiplatform.library")
 }
 
 eignexPublish {
@@ -21,11 +26,32 @@ kotlin {
         optIn.add("com.eignex.koblas.UnsafeKoblasApi")
     }
     // The vendor binding uses java.lang.foreign, finalized in 22. 25 is the current LTS-track release; this
-    // is the floor for JVM consumers.
+    // is the floor for desktop JVM consumers.
     jvmToolchain(25)
     jvm {
         compilerOptions {
             jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_25)
+            // The JVM SIMD kernels use the incubator Vector API. Downstream JVM consumers need the same flag.
+            freeCompilerArgs.add("-Xadd-modules=jdk.incubator.vector")
+        }
+    }
+    // ART has neither the Vector API nor java.lang.foreign, and no system BLAS to reach through them, so
+    // Android is its own target on the portable engine rather than a consumer of the desktop jar.
+    android {
+        namespace = "com.eignex.koblas"
+        compileSdk = 36
+        // A device test APK is dexed at the library's minSdk, and dex before version 040 (API 30) forbids the
+        // spaces every backtick test name has; the test APK has no minSdk of its own. A device run raises it
+        // with `-Pkoblas.android.testMinSdk=30`, and a build without the property, a published one included,
+        // keeps 24.
+        minSdk = providers.gradleProperty("koblas.android.testMinSdk").orNull?.toInt() ?: 24
+        withHostTest {}
+        // The same common suite, on a device, which is the only place the bundled OpenBLAS can load.
+        withDeviceTestBuilder { sourceSetTreeName = "test" }.configure {
+            instrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        }
+        compilerOptions {
+            jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
         }
     }
     linuxX64(); linuxArm64()
@@ -45,7 +71,14 @@ kotlin {
             implementation("org.jetbrains.kotlinx:kotlinx-serialization-core:1.11.0")
             implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.11.0")
         }
+        getByName("androidDeviceTest").dependencies {
+            implementation("androidx.test:runner:1.7.0")
+        }
     }
+}
+
+repositories {
+    google()
 }
 
 // Module and package overviews share one Dokka include.
@@ -65,13 +98,15 @@ dokka {
     }
 }
 
-// The JVM SIMD kernels use the incubator Vector API. Make the module visible to the Kotlin compiler and at
-// test runtime; downstream JVM consumers need the same flag.
-tasks.withType<KotlinJvmCompile>().configureEach {
-    compilerOptions.freeCompilerArgs.add("-Xadd-modules=jdk.incubator.vector")
+// kbuild drops detekt's compilation-level JVM pair because it analyses commonMain in one module with the
+// target's actuals, where resolution breaks; Android's pair has the same shape and the per-source-set tasks
+// still cover its files.
+val androidCompilationDetekt = setOf("detektMainAndroid", "detektHostTestAndroid", "detektDeviceTestAndroid")
+tasks.matching { it.name in androidCompilationDetekt }.configureEach {
+    enabled = false
 }
 // FFM downcalls are restricted methods: a warning on 25, an error later. The vendor binding uses them.
-tasks.withType<Test>().configureEach {
+tasks.named<Test>("jvmTest") {
     jvmArgs("--enable-native-access=ALL-UNNAMED")
     if (project.findProperty("koblas.noSimd") != "true") {
         jvmArgs("--add-modules=jdk.incubator.vector")
@@ -233,5 +268,98 @@ kover {
 tasks.named<Jar>("jvmJar") {
     manifest {
         attributes("Automatic-Module-Name" to "com.eignex.koblas")
+    }
+}
+
+// The bundled Android OpenBLAS. Android ships no BLAS and ART has no foreign function interface, so the AAR
+// carries its own: a pinned OpenBLAS release built static and single-threaded, linked with the JNI shim into
+// one library per ABI, with every OpenBLAS symbol hidden. Only packaging needs it; compiling and host tests
+// do not, so a machine without the NDK can still build and test everything else.
+val androidOpenBlasVersion = "0.3.34"
+val androidOpenBlasSha256 = "cd7e129868320cc2d033afa920e31202dfe0b8066a5b66661900ccc0f197dfed"
+val androidNdkVersion = providers.gradleProperty("koblas.android.ndkVersion").get()
+val androidNativeMinSdk = 24
+
+/** One Android ABI: its clang triple, OpenBLAS's baseline target, and the cores its dispatch may pick. */
+class AndroidAbi(val name: String, val triple: String, val target: String, val cores: String)
+
+// Each core's dispatch table keeps its kernels alive, so the list is what the library's size is made of. On
+// arm64 it is every core a phone can carry and none of the server parts OpenBLAS also targets. x86_64 is the
+// emulator on a developer's or CI host, so it takes the desktop cores behind a baseline that assumes nothing
+// past what the Android x86_64 ABI already requires, which keeps AVX2 out of the code every core shares.
+val androidAbis = listOf(
+    AndroidAbi(
+        "arm64-v8a",
+        "aarch64-linux-android",
+        "ARMV8",
+        "ARMV8 CORTEXA53 CORTEXA57 NEOVERSEN1 NEOVERSEN2 ARMV8SVE ARMV9SME",
+    ),
+    AndroidAbi("x86_64", "x86_64-linux-android", "PRESCOTT", "HASWELL ZEN SKYLAKEX"),
+)
+
+/** The NDK's host prebuilt directory, which is the only part of the path that depends on the build machine. */
+val ndkHostTag: String = when {
+    System.getProperty("os.name").startsWith("Linux") -> "linux-x86_64"
+    System.getProperty("os.name").startsWith("Mac") -> "darwin-x86_64"
+    else -> "unsupported"
+}
+
+val androidToolchain = androidComponents.sdkComponents.sdkDirectory.map {
+    it.dir("ndk/$androidNdkVersion/toolchains/llvm/prebuilt/$ndkHostTag/bin")
+}
+
+val downloadAndroidOpenBlas = tasks.register<DownloadVerified>("downloadAndroidOpenBlas") {
+    url.set(
+        "https://github.com/OpenMathLib/OpenBLAS/releases/download/v$androidOpenBlasVersion/" +
+            "OpenBLAS-$androidOpenBlasVersion.tar.gz",
+    )
+    sha256.set(androidOpenBlasSha256)
+    destination.set(layout.buildDirectory.file("android-native/OpenBLAS-$androidOpenBlasVersion.tar.gz"))
+}
+
+val androidShims = androidAbis.map { abi ->
+    val suffix = abi.name.split('-', '_').joinToString("") { part -> part.replaceFirstChar(Char::uppercase) }
+    val openBlas = tasks.register<BuildAndroidOpenBlas>("buildAndroidOpenBlas$suffix") {
+        source.set(downloadAndroidOpenBlas.flatMap { it.destination })
+        version.set(androidOpenBlasVersion)
+        ndkVersion.set(androidNdkVersion)
+        minSdk.set(androidNativeMinSdk)
+        triple.set(abi.triple)
+        target.set(abi.target)
+        cores.set(abi.cores)
+        toolchain.set(androidToolchain)
+        workDirectory.set(layout.buildDirectory.dir("android-native/openblas-src-${abi.name}"))
+        library.set(layout.buildDirectory.file("android-native/${abi.name}/libopenblas.a"))
+    }
+    tasks.register<LinkAndroidShim>("linkAndroidShim$suffix") {
+        shim.set(layout.projectDirectory.file("src/androidMain/c/koblas_openblas.c"))
+        this.openBlas.set(openBlas.flatMap { it.library })
+        this.abi.set(abi.name)
+        ndkVersion.set(androidNdkVersion)
+        minSdk.set(androidNativeMinSdk)
+        triple.set(abi.triple)
+        toolchain.set(androidToolchain)
+        outputDirectory.set(layout.buildDirectory.dir("android-native/jniLibs-${abi.name}"))
+    }
+}
+
+// A measurement on the device wants the process a release application runs in, so a run passing
+// `-Pkoblas.android.releaseLikeTests=true` gets a test APK that is not debuggable. Conformance runs keep the
+// default, where a failure can still be debugged.
+val releaseLikeTests = providers.gradleProperty("koblas.android.releaseLikeTests").orNull == "true"
+
+androidComponents.onVariants { variant ->
+    androidShims.forEach { shim ->
+        variant.sources.jniLibs?.addGeneratedSourceDirectory(shim, LinkAndroidShim::outputDirectory)
+    }
+    if (releaseLikeTests) {
+        variant.deviceTests.forEach { (name, test) ->
+            val rewrite = tasks.register<ReleaseLikeTestManifest>(
+                "releaseLike${name.replaceFirstChar(Char::uppercase)}Manifest",
+            )
+            test.artifacts.use(rewrite)
+                .wiredWithFiles(ReleaseLikeTestManifest::merged, ReleaseLikeTestManifest::updated)
+                .toTransform(SingleArtifact.MERGED_MANIFEST)
+        }
     }
 }
