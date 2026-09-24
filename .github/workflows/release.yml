@@ -114,7 +114,8 @@ jobs:
     if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
     needs: build-macos-publication
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    # The Android publication builds OpenBLAS for two ABIs, which a cold run spends most of an hour on.
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@v6
         with:
@@ -141,6 +142,14 @@ jobs:
           path: ~/.konan
           key: ${{ runner.os }}-konan-${{ hashFiles('**/*.gradle.kts') }}
           restore-keys: ${{ runner.os }}-konan-
+
+      # The Android publication carries an OpenBLAS built with exactly this NDK.
+      - name: Install the Android NDK
+        run: |
+          set -eu
+          ndk=$(sed -n 's/^koblas.android.ndkVersion=//p' gradle.properties)
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "ndk;$ndk" > /dev/null
+          test -d "$ANDROID_HOME/ndk/$ndk"
 
       - name: Download the macOS Native publication
         if: github.event_name != 'workflow_run'
