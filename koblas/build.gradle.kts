@@ -277,14 +277,16 @@ tasks.named<Jar>("jvmJar") {
 // do not, so a machine without the NDK can still build and test everything else.
 val androidOpenBlasVersion = "0.3.34"
 val androidOpenBlasSha256 = "cd7e129868320cc2d033afa920e31202dfe0b8066a5b66661900ccc0f197dfed"
-val androidNdkVersion = "30.0.16248370"
+val androidNdkVersion = providers.gradleProperty("koblas.android.ndkVersion").get()
 val androidNativeMinSdk = 24
 
 /** One Android ABI: its clang triple, OpenBLAS's baseline target, and the cores its dispatch may pick. */
 class AndroidAbi(val name: String, val triple: String, val target: String, val cores: String)
 
-// Every core a phone can carry, and none of the server parts OpenBLAS also targets; each core's dispatch
-// table keeps its kernels alive, so the list is what the library's size is made of.
+// Each core's dispatch table keeps its kernels alive, so the list is what the library's size is made of. On
+// arm64 it is every core a phone can carry and none of the server parts OpenBLAS also targets. x86_64 is the
+// emulator on a developer's or CI host, so it takes the desktop cores behind a baseline that assumes nothing
+// past what the Android x86_64 ABI already requires, which keeps AVX2 out of the code every core shares.
 val androidAbis = listOf(
     AndroidAbi(
         "arm64-v8a",
@@ -292,6 +294,7 @@ val androidAbis = listOf(
         "ARMV8",
         "ARMV8 CORTEXA53 CORTEXA57 NEOVERSEN1 NEOVERSEN2 ARMV8SVE ARMV9SME",
     ),
+    AndroidAbi("x86_64", "x86_64-linux-android", "PRESCOTT", "HASWELL ZEN SKYLAKEX"),
 )
 
 /** The NDK's host prebuilt directory, which is the only part of the path that depends on the build machine. */
