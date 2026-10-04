@@ -57,7 +57,7 @@ internal actual fun platformEngine(): KoblasEngine {
     val level1 = (vendor as? NativeVendorBlas)?.let { VendorVectorKernels(it) } ?: ScalarVectorKernels
     return KoblasEngine(
         level1,
-        SparseKernelAdapter("scalar", ScalarVectorKernels, ScalarIndexedSparseKernels),
+        SparseKernelAdapter("scalar", level1, ScalarIndexedSparseKernels),
         ScalarIndexedSparseKernels,
         vendor,
         hostDense = vendor,

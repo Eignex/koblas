@@ -32,6 +32,24 @@ class PlatformEngineTest {
         }
     }
 
+    @Test
+    fun `stored value reductions use the platform selected dense level one arm`() {
+        val operations = listOf(
+            SparseOperation.Nrm2 to DenseOperation.Nrm2,
+            SparseOperation.Asum to DenseOperation.Asum,
+        )
+        for ((sparse, dense) in operations) {
+            for (count in listOf(0, 1, 63, 64, 96, 127, 128, 256)) {
+                val expected = koblas.routeOf(dense, count)
+
+                val actual = koblas.routeOf(sparse, count)
+
+                assertEquals(expected.implementation, actual.implementation, "$sparse at $count")
+                assertEquals(expected.kind, actual.kind, "$sparse at $count")
+            }
+        }
+    }
+
     @OptIn(KoblasEngineApi::class)
     @Test
     fun `exact built in engines do not resolve or execute a host library`() {
