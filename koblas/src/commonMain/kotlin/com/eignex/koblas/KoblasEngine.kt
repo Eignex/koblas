@@ -23,6 +23,7 @@ import com.eignex.koblas.sparse.IndexedSparseKernels
 import com.eignex.koblas.sparse.PortableSparseBlas
 import com.eignex.koblas.sparse.SPARSE_SCHEDULING
 import com.eignex.koblas.sparse.SparseBlas
+import com.eignex.koblas.sparse.SparseKernelAdapter
 import com.eignex.koblas.sparse.SparseKernels
 import com.eignex.koblas.sparse.SparseOperation
 import com.eignex.koblas.sparse.SparsePanelKernels
@@ -52,8 +53,6 @@ internal expect fun platformEngine(): KoblasEngine
 public class KoblasEngine internal constructor(
     /** Contiguous and strided dense Level 1 kernels. */
     public val vectorKernels: DenseVectorKernels,
-    /** Sparse-vector kernels used by sparse convenience operations. */
-    public val sparseKernels: SparseKernels,
     internal val indexedSparseKernels: IndexedSparseKernels,
     /** Optional installed host binding, retained for explicit host comparisons and attribution. */
     public val vendor: Blas?,
@@ -63,6 +62,7 @@ public class KoblasEngine internal constructor(
     public val productKernels: DenseProductKernels = PortableProductKernels,
     /** Diagonal-block substitution and the right-hand-side grouping triangular routines schedule with. */
     public val triangularKernels: DenseTriangularKernels = PortableTriangularKernels,
+    sparseKernelName: String = indexedSparseKernels.name,
     private val denseBlas: PortableDenseBlas =
         PortableDenseBlas(vectorKernels, panelKernels, productKernels, triangularKernels),
     /**
@@ -81,6 +81,9 @@ public class KoblasEngine internal constructor(
     ),
 ) : DenseBlas by dense,
     SparseBlas by sparseBlas {
+    /** Sparse-vector kernels composed from this engine's dense and indexed Level 1 selections. */
+    public val sparseKernels: SparseKernels = SparseKernelAdapter(sparseKernelName, vectorKernels, indexedSparseKernels)
+
     /**
      * The component that owns built-in sparse Level 2 and 3 calls.
      *

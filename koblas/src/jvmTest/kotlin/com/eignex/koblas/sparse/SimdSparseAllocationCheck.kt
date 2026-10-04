@@ -75,7 +75,7 @@ internal object SimdSparseAllocationCheck {
 
         assertAllocationFree("indexed dot") {
             // Exercise the Vector API leaf even where production prefers scalar indexed loads.
-            SparseSimd.dot(indices, 0, values, 0, ENTRY_COUNT, dense)
+            SparseSimd.dotDense(indices, 0, values, 0, ENTRY_COUNT, dense)
         }
         assertAllocationFree("indexed gather") {
             // Exercise the Vector API leaf even where production prefers scalar indexed loads.
@@ -85,6 +85,16 @@ internal object SimdSparseAllocationCheck {
         assertAllocationFree("indexed norm") {
             // Exercise the Vector API leaf even where production prefers scalar indexed loads.
             SparseSimd.nrm2(indices, 0, ENTRY_COUNT, dense)
+        }
+        assertAllocationFree("dispatched indexed dot") {
+            SimdIndexedSparseKernels.dotDense(indices, values, dense)
+        }
+        assertAllocationFree("dispatched indexed gather") {
+            SimdIndexedSparseKernels.gather(indices, values, dense)
+            values[ENTRY_COUNT / 2]
+        }
+        assertAllocationFree("dispatched indexed norm") {
+            SimdIndexedSparseKernels.nrm2(indices, 0, ENTRY_COUNT, dense)
         }
         checkPanels(engine)
         checkOperations(engine)

@@ -5,7 +5,16 @@ import jdk.incubator.vector.DoubleVector
 import jdk.incubator.vector.VectorOperators
 
 /** Its own object so the initializer, which touches DoubleVector, runs only once the module is present. */
-internal object SparseSimd {
+internal object SparseSimd : IndexedSparseKernels {
+    override val name: String = "simd"
+
+    // Rescaling depends on values; sparse intersections always use the scalar merge.
+    override fun implementationFor(operation: SparseOperation, count: Int): String? = when (operation) {
+        SparseOperation.IndexedNrm2 -> null
+        SparseOperation.DotSparse -> ScalarIndexedSparseKernels.name
+        else -> name
+    }
+
     private val SPECIES = DoubleVector.SPECIES_PREFERRED
     private val LANE = SPECIES.length()
 
@@ -46,130 +55,130 @@ internal object SparseSimd {
         if (hardwareFusedMultiplyAdd) x.fma(y, accumulator) else x.mul(y).add(accumulator)
 
     @Suppress("LongParameterList")
-    fun dot(
+    override fun dotDense(
         indices: IntArray,
         indexOffset: Int,
         values: DoubleArray,
         valueOffset: Int,
-        len: Int,
-        y: DoubleArray,
+        count: Int,
+        dense: DoubleArray,
     ): Double {
         var k = 0
-        val bound = SPECIES.loopBound(len)
+        val bound = SPECIES.loopBound(count)
         var sum = DoubleVector.zero(SPECIES)
         while (k < bound) {
-            val gathered = indexedLoad(y, indices, indexOffset + k)
+            val gathered = indexedLoad(dense, indices, indexOffset + k)
             sum = multiplyAdd(DoubleVector.fromArray(SPECIES, values, valueOffset + k), gathered, sum)
             k += LANE
         }
         var s = sum.reduceLanes(VectorOperators.ADD)
-        while (k < len) {
-            s += values[valueOffset + k] * y[indices[indexOffset + k]]
+        while (k < count) {
+            s += values[valueOffset + k] * dense[indices[indexOffset + k]]
             k++
         }
         return s
     }
 
     @Suppress("LongParameterList")
-    fun axpy(
+    override fun axpy(
         indices: IntArray,
         indexOffset: Int,
         values: DoubleArray,
         valueOffset: Int,
-        len: Int,
-        y: DoubleArray,
+        count: Int,
         alpha: Double,
+        destination: DoubleArray,
     ) {
         var k = 0
-        val bound = SPECIES.loopBound(len)
+        val bound = SPECIES.loopBound(count)
         val multiplier = DoubleVector.broadcast(SPECIES, alpha)
         while (k < bound) {
-            val old = indexedLoad(y, indices, indexOffset + k)
+            val old = indexedLoad(destination, indices, indexOffset + k)
             val increment = DoubleVector.fromArray(SPECIES, values, valueOffset + k)
             // Not [multiplyAdd], which the reductions use. A product that overflows to infinity stays
             // infinite once it has rounded, where a fused one carries it and can land back in range, so the
             // two disagree about whether a result exists at all rather than about its last bit. This loop
             // also has an indexed load and an indexed store around every operation, so fusing the arithmetic
             // between them buys nothing worth that.
-            increment.mul(multiplier).add(old).intoArray(y, 0, indices, indexOffset + k)
+            increment.mul(multiplier).add(old).intoArray(destination, 0, indices, indexOffset + k)
             k += LANE
         }
-        while (k < len) {
-            y[indices[indexOffset + k]] += alpha * values[valueOffset + k]
+        while (k < count) {
+            destination[indices[indexOffset + k]] += alpha * values[valueOffset + k]
             k++
         }
     }
 
     @Suppress("LongParameterList")
-    fun scatter(
+    override fun scatter(
         indices: IntArray,
         indexOffset: Int,
         values: DoubleArray,
         valueOffset: Int,
-        len: Int,
-        out: DoubleArray,
+        count: Int,
+        destination: DoubleArray,
     ) {
         var k = 0
-        val bound = SPECIES.loopBound(len)
+        val bound = SPECIES.loopBound(count)
         while (k < bound) {
-            DoubleVector.fromArray(SPECIES, values, valueOffset + k).intoArray(out, 0, indices, indexOffset + k)
+            DoubleVector.fromArray(SPECIES, values, valueOffset + k).intoArray(destination, 0, indices, indexOffset + k)
             k += LANE
         }
-        while (k < len) {
-            out[indices[indexOffset + k]] = values[valueOffset + k]
+        while (k < count) {
+            destination[indices[indexOffset + k]] = values[valueOffset + k]
             k++
         }
     }
 
     @Suppress("LongParameterList")
-    fun gather(
+    override fun gather(
         indices: IntArray,
         indexOffset: Int,
         values: DoubleArray,
         valueOffset: Int,
-        len: Int,
-        from: DoubleArray,
+        count: Int,
+        source: DoubleArray,
     ) {
         var k = 0
-        val bound = SPECIES.loopBound(len)
+        val bound = SPECIES.loopBound(count)
         while (k < bound) {
-            indexedLoad(from, indices, indexOffset + k).intoArray(values, valueOffset + k)
+            indexedLoad(source, indices, indexOffset + k).intoArray(values, valueOffset + k)
             k += LANE
         }
-        while (k < len) {
-            values[valueOffset + k] = from[indices[indexOffset + k]]
+        while (k < count) {
+            values[valueOffset + k] = source[indices[indexOffset + k]]
             k++
         }
     }
 
     @Suppress("LongParameterList")
-    fun gatherZero(
+    override fun gatherZero(
         indices: IntArray,
         indexOffset: Int,
         values: DoubleArray,
         valueOffset: Int,
-        len: Int,
-        from: DoubleArray,
+        count: Int,
+        source: DoubleArray,
     ) {
         var k = 0
-        val bound = SPECIES.loopBound(len)
+        val bound = SPECIES.loopBound(count)
         val zero = DoubleVector.zero(SPECIES)
         while (k < bound) {
-            indexedLoad(from, indices, indexOffset + k).intoArray(values, valueOffset + k)
-            zero.intoArray(from, 0, indices, indexOffset + k)
+            indexedLoad(source, indices, indexOffset + k).intoArray(values, valueOffset + k)
+            zero.intoArray(source, 0, indices, indexOffset + k)
             k += LANE
         }
-        while (k < len) {
+        while (k < count) {
             val index = indices[indexOffset + k]
-            values[valueOffset + k] = from[index]
-            from[index] = 0.0
+            values[valueOffset + k] = source[index]
+            source[index] = 0.0
             k++
         }
     }
 
-    fun nrm2(indices: IntArray, indexOffset: Int, len: Int, values: DoubleArray): Double {
+    override fun nrm2(indices: IntArray, indexOffset: Int, count: Int, values: DoubleArray): Double {
         var k = 0
-        val bound = SPECIES.loopBound(len)
+        val bound = SPECIES.loopBound(count)
         var sum = DoubleVector.zero(SPECIES)
         while (k < bound) {
             val gathered = indexedLoad(values, indices, indexOffset + k)
@@ -178,14 +187,31 @@ internal object SparseSimd {
             k += LANE
         }
         var squares = sum.reduceLanes(VectorOperators.ADD)
-        while (k < len) {
+        while (k < count) {
             val value = values[indices[indexOffset + k]]
             squares += value * value
             k++
         }
         if (squares.isFinite() && squares >= java.lang.Double.MIN_NORMAL) return kotlin.math.sqrt(squares)
-        return ScalarIndexedSparseKernels.nrm2(indices, indexOffset, len, values)
+        return ScalarIndexedSparseKernels.nrm2(indices, indexOffset, count, values)
     }
+
+    @Suppress("LongParameterList")
+    override fun dotSparse(
+        xIndices: IntArray,
+        xIndexOffset: Int,
+        xValues: DoubleArray,
+        xValueOffset: Int,
+        xCount: Int,
+        yIndices: IntArray,
+        yIndexOffset: Int,
+        yValues: DoubleArray,
+        yValueOffset: Int,
+        yCount: Int,
+    ): Double = ScalarIndexedSparseKernels.dotSparse(
+        xIndices, xIndexOffset, xValues, xValueOffset, xCount,
+        yIndices, yIndexOffset, yValues, yValueOffset, yCount,
+    )
 
     private val X86_ARCHITECTURES = setOf("amd64", "x86_64", "x64")
 }
