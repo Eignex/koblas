@@ -7,7 +7,6 @@ import com.eignex.koblas.dense.SimdTriangularKernels
 import com.eignex.koblas.dense.SimdVectorKernels
 import com.eignex.koblas.sparse.ScalarIndexedSparseKernels
 import com.eignex.koblas.sparse.SimdIndexedSparseKernels
-import com.eignex.koblas.sparse.SparseKernelAdapter
 
 /** JVM built-in engines. */
 @KoblasEngineApi
@@ -17,7 +16,6 @@ public actual object BuiltinEngines {
     public actual val scalar: KoblasEngine by lazy {
         KoblasEngine(
             ScalarVectorKernels,
-            SparseKernelAdapter("scalar", ScalarVectorKernels, ScalarIndexedSparseKernels),
             ScalarIndexedSparseKernels,
             null,
         )
@@ -40,12 +38,12 @@ public actual object BuiltinEngines {
         if (SimdVectorKernels.isAvailable) {
             KoblasEngine(
                 SimdVectorKernels,
-                SparseKernelAdapter("simd-sparse", SimdVectorKernels, SimdIndexedSparseKernels),
                 SimdIndexedSparseKernels,
                 null,
                 SimdPanelKernels,
                 SimdProductKernels,
                 SimdTriangularKernels,
+                sparseKernelName = "simd-sparse",
             )
         } else {
             null

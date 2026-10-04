@@ -3,7 +3,6 @@ package com.eignex.koblas
 import com.eignex.koblas.dense.ScalarVectorKernels
 import com.eignex.koblas.dense.VendorVectorKernels
 import com.eignex.koblas.sparse.ScalarIndexedSparseKernels
-import com.eignex.koblas.sparse.SparseKernelAdapter
 import com.eignex.koblas.vendor.NativeVendorBlas
 
 /** Built-in engines on Kotlin/Native. */
@@ -13,7 +12,6 @@ public actual object BuiltinEngines {
     public actual val scalar: KoblasEngine by lazy {
         KoblasEngine(
             ScalarVectorKernels,
-            SparseKernelAdapter("scalar", ScalarVectorKernels, ScalarIndexedSparseKernels),
             ScalarIndexedSparseKernels,
             null,
         )
@@ -57,7 +55,6 @@ internal actual fun platformEngine(): KoblasEngine {
     val level1 = (vendor as? NativeVendorBlas)?.let { VendorVectorKernels(it) } ?: ScalarVectorKernels
     return KoblasEngine(
         level1,
-        SparseKernelAdapter("scalar", level1, ScalarIndexedSparseKernels),
         ScalarIndexedSparseKernels,
         vendor,
         hostDense = vendor,

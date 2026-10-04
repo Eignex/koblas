@@ -117,7 +117,7 @@ class JvmVectorScatterTest {
             ReferenceSparseBlas.axpy(expected, -0.75, x)
 
             val actual = dense.copyOf()
-            SparseSimd.axpy(x.indices, 0, x.values, 0, x.values.size, actual, -0.75)
+            SparseSimd.axpy(x.indices, 0, x.values, 0, x.values.size, -0.75, actual)
 
             assertClose(expected, actual, "axpy nnz=${x.values.size}")
         }
@@ -129,7 +129,7 @@ class JvmVectorScatterTest {
         val count = 256
         val destination = DoubleArray(count) { -1e308 }
 
-        SparseSimd.axpy(IntArray(count) { it }, 0, DoubleArray(count) { 1e308 }, 0, count, destination, 2.0)
+        SparseSimd.axpy(IntArray(count) { it }, 0, DoubleArray(count) { 1e308 }, 0, count, 2.0, destination)
 
         assertTrue(destination.all { it == Double.POSITIVE_INFINITY })
     }
