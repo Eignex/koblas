@@ -173,13 +173,32 @@ public class SparseMatrix internal constructor(
             requireShape(rowIndices.size == colIndices.size && colIndices.size == values.size) {
                 "rowIndices/colIndices/values must align: ${rowIndices.size}, ${colIndices.size}, ${values.size}"
             }
-            val nnz = values.size
-            for (k in 0 until nnz) {
+            requireTripletIndices(rows, cols, rowIndices, colIndices)
+            // Each pass is its own method: one body holding every loop is compiled again for each loop entered
+            // on-stack, and a large matrix enters all of them on its first call.
+            val byRow = groupByRow(rows, rowIndices, colIndices, values)
+            val byCol = groupByColumn(rows, cols, byRow)
+            return sumAdjacentDuplicates(rows, cols, byCol)
+        }
+
+        private fun requireTripletIndices(rows: Int, cols: Int, rowIndices: IntArray, colIndices: IntArray) {
+            for (k in rowIndices.indices) {
                 requireIndex(rowIndices[k] in 0 until rows) { "rowIndices[$k]=${rowIndices[k]} out of [0,$rows)" }
                 requireIndex(colIndices[k] in 0 until cols) { "colIndices[$k]=${colIndices[k]} out of [0,$cols)" }
             }
+        }
 
-            // Group by row, so that rowStart(i) is where row i's entries begin once scattered.
+        // Triplets grouped by row: row i's column indices and values sit at [start(i), start(i + 1)).
+        private class TripletRuns(val start: IntArray, val index: IntArray, val value: DoubleArray)
+
+        // Group by row, so that rowStart(i) is where row i's entries begin once scattered.
+        private fun groupByRow(
+            rows: Int,
+            rowIndices: IntArray,
+            colIndices: IntArray,
+            values: DoubleArray,
+        ): TripletRuns {
+            val nnz = values.size
             val rowStart = IntArray(rows + 1)
             for (k in 0 until nnz) rowStart[rowIndices[k] + 1]++
             for (i in 0 until rows) rowStart[i + 1] += rowStart[i]
@@ -191,23 +210,33 @@ public class SparseMatrix internal constructor(
                 byRowCol[p] = colIndices[k]
                 byRowVal[p] = values[k]
             }
+            return TripletRuns(rowStart, byRowCol, byRowVal)
+        }
 
-            // Then by column, visiting rows in ascending order, so each column comes out ascending by row.
+        // Then by column, visiting rows in ascending order, so each column comes out ascending by row.
+        private fun groupByColumn(rows: Int, cols: Int, byRow: TripletRuns): TripletRuns {
+            val nnz = byRow.index.size
             val colPointers = IntArray(cols + 1)
-            for (k in 0 until nnz) colPointers[byRowCol[k] + 1]++
+            for (k in 0 until nnz) colPointers[byRow.index[k] + 1]++
             for (j in 0 until cols) colPointers[j + 1] += colPointers[j]
             val outRow = IntArray(nnz)
             val outVal = DoubleArray(nnz)
             val colCursor = colPointers.copyOf()
             for (i in 0 until rows) {
-                for (k in rowStart[i] until rowStart[i + 1]) {
-                    val p = colCursor[byRowCol[k]]++
+                for (k in byRow.start[i] until byRow.start[i + 1]) {
+                    val p = colCursor[byRow.index[k]]++
                     outRow[p] = i
-                    outVal[p] = byRowVal[k]
+                    outVal[p] = byRow.value[k]
                 }
             }
+            return TripletRuns(colPointers, outRow, outVal)
+        }
 
-            // Duplicates are now adjacent within a column, so summing them is one forward pass in place.
+        // Duplicates are now adjacent within a column, so summing them is one forward pass in place.
+        private fun sumAdjacentDuplicates(rows: Int, cols: Int, byCol: TripletRuns): SparseMatrix {
+            val colPointers = byCol.start
+            val outRow = byCol.index
+            val outVal = byCol.value
             val outPtr = IntArray(cols + 1)
             var n = 0
             for (j in 0 until cols) {
