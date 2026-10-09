@@ -11,6 +11,54 @@ import kotlin.test.assertTrue
  * scratch and copies beside that result instead.
  */
 class AllocationFreeTest {
+    @Test
+    fun `overlapping contiguous copy allocates nothing`() {
+        val n = 512
+        val backing = DoubleArray(n + 1) { it * 0.01 }
+        val source = StridedVector(backing, 0, n)
+        val destination = StridedVector(backing, 1, n)
+
+        val bytes = bytesPerIteration(1_000, FLOOR_BYTES) {
+            copy(source, destination)
+            backing
+        }
+
+        assertTrue(bytes <= FLOOR_BYTES, "overlapping copy allocated $bytes B per call")
+    }
+
+    @Test
+    fun `disjoint shared buffer vector updates allocate nothing`() {
+        val n = 512
+        val backing = DoubleArray(2 * n) { it * 0.01 }
+        val source = StridedVector(backing, 0, n, 2)
+        val destination = StridedVector(backing, 1, n, 2)
+        for (operation in listOf<() -> Unit>(
+            { copy(source, destination) },
+            { destination.axpy(1e-12, source) },
+            { swap(source, destination) },
+        )) {
+            val bytes = bytesPerIteration(1_000, FLOOR_BYTES) {
+                operation()
+                backing
+            }
+
+            assertTrue(bytes <= FLOOR_BYTES, "shared buffer update allocated $bytes B per call")
+        }
+    }
+
+    @Test
+    fun `sparse dot against a dense view allocates nothing`() {
+        val n = 512
+        val backing = DoubleArray(2 * n) { it * 0.01 }
+        val sparse = SparseVector.wrap(n, intArrayOf(0, 7, n - 1), doubleArrayOf(1.5, 0.0, -2.0))
+        for (stride in intArrayOf(-2, -1, 1, 2)) {
+            val view = StridedVector(backing, if (stride < 0) 2 * n - 2 else 1, n, stride)
+
+            val bytes = bytesPerIteration(1_000, FLOOR_BYTES) { sparse dot view }
+
+            assertTrue(bytes <= FLOOR_BYTES, "sparse view dot allocated $bytes B per call")
+        }
+    }
 
     private companion object {
         /** Allowance for effects that are not koblas's (instrumentation, index boxing, JIT noise). */

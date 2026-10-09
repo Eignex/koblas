@@ -386,3 +386,15 @@ trmm+256x64+triangular+side=L+uplo=U+transA=T+diag=N
 # Sparse addition over identical banded patterns and a larger mixed union.
 spadd+129x65+sparse-uniform+density=0.02+support=banded
 spadd+257x129+sparse-uniform+density=0.1
+
+# Level 1 vector entry points over shared or strided buffers
+copy-overlap+64+uniform
+copy-overlap+4096+uniform
+axpy-views+64+uniform
+axpy-views+4096+uniform
+swap-views+64+uniform
+swap-views+4096+uniform
+spdot-view+64+sparse-uniform+density=0.01
+spdot-view+4096+sparse-uniform+density=0.01
+spdot-view+64+sparse-uniform+density=1.0
+spdot-view+4096+sparse-uniform+density=1.0

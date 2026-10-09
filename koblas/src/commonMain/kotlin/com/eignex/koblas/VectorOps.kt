@@ -41,8 +41,12 @@ public infix fun Vector.dot(other: Vector): Double {
         return koblas.vectorKernels.dot(values, offset, other.values, other.offset, size, stride, other.stride)
     }
     if (this is SparseVector && other is SparseVector) return koblas.sparseKernels.dot(this, other)
-    if (this is SparseVector && other is DenseVector) return koblas.sparseKernels.dot(this, other.asContiguousArray())
-    if (this is DenseVector && other is SparseVector) return koblas.sparseKernels.dot(other, asContiguousArray())
+    if (this is SparseVector && other is DenseVector && other.isWholeArray) {
+        return koblas.sparseKernels.dot(this, other.values)
+    }
+    if (this is DenseVector && other is SparseVector && isWholeArray) return koblas.sparseKernels.dot(other, values)
+    // A view needs only the entries the sparse operand stores; gathering its whole logical extent would
+    // make both the scratch and the reads scale with size rather than with the stored support.
     if (this is SparseVector) {
         var sum = 0.0
         for (k in indices.indices) sum += values[k] * other[indices[k]]
@@ -122,7 +126,8 @@ public fun Vector.iamax(): Int {
 
 /**
  * `dst = src` (BLAS `dcopy`). A sparse source zero-fills the destination first, so nothing survives.
- * A source sharing [dst]'s buffer is snapshotted before writing.
+ * Overlapping dense slices with unit stride use an overlap-safe block move. Other overlapping sources are
+ * snapshotted before writing.
  * Custom [Vector] implementations are also snapshotted, since their backing storage is opaque.
  *
  * One entry point for both dense spacings: [dst] is written through its own origin and step, so a contiguous
@@ -130,6 +135,11 @@ public fun Vector.iamax(): Int {
  */
 public fun copy(src: Vector, dst: DenseVector) {
     requireSameSize(src.size, dst.size, "copy")
+    // copyInto preserves an overlapping source, so an adjacent block needs no separate snapshot.
+    if (src is DenseVector && src.stride == 1 && dst.stride == 1) {
+        src.values.copyInto(dst.values, dst.offset, src.offset, src.offset + dst.size)
+        return
+    }
     val source = src.stableFor(dst)
     if (source is SparseVector) {
         // A contiguous destination is one fill and one scatter through the indexed kernel; any other spacing
@@ -143,8 +153,7 @@ public fun copy(src: Vector, dst: DenseVector) {
         }
         return
     }
-    // Adjacent on both sides is a block move, which the platform does far better than a loop that bounds
-    // checks every entry. Any other spacing has to be walked, and that walk is the general case below.
+    // An opaque or overlapping source may now be a contiguous snapshot, which can also use a block move.
     if (source is DenseVector && source.stride == 1 && dst.stride == 1) {
         source.values.copyInto(dst.values, dst.offset, source.offset, source.offset + dst.size)
         return
@@ -155,21 +164,13 @@ public fun copy(src: Vector, dst: DenseVector) {
 /** Snapshots known aliases and opaque storage, which may read [destination] without exposing its buffer. */
 private fun Vector.stableFor(destination: DenseVector): Vector = when (this) {
     is SparseVector -> if (values === destination.values) SparseVector.wrap(size, indices, values.copyOf()) else this
-    is DenseVector -> if (values === destination.values) DenseVector.wrap(toDoubleArray()) else this
+    is DenseVector -> if (overlaps(destination)) DenseVector.wrap(toDoubleArray()) else this
     else -> DenseVector.wrap(toDoubleArray())
 }
 
 /** Whether this vector spans its entire backing array in order. */
 internal val DenseVector.isWholeArray: Boolean
     get() = offset == 0 && stride == 1 && values.size == size
-
-/**
- * This vector's own array where it [isWholeArray], and a gathered copy where it is not.
- *
- * Keeps an ordinary call through these convenience paths from allocating; a window or a step still pays for
- * its gather, which is the cost of addressing it that way.
- */
-internal fun DenseVector.asContiguousArray(): DoubleArray = if (isWholeArray) values else toDoubleArray()
 
 /**
  * Read [from] at [x]'s stored positions into [x] (Sparse BLAS `usga`), the inverse of [copy] from a sparse
@@ -210,8 +211,8 @@ public fun swap(a: DenseVector, b: DenseVector) {
 }
 
 /**
- * `y = y + alpha * x`. A sparse `x` touches only the positions it stores. A borrowed [x] sharing the
- * destination buffer is snapshotted before writing.
+ * `y = y + alpha * x`. A sparse `x` touches only the positions it stores. A dense [x] overlapping the
+ * destination, or sparse values sharing its buffer, is snapshotted before writing.
  * Custom [Vector] implementations are also snapshotted, since their backing storage is opaque.
  */
 public fun DenseVector.axpy(alpha: Double, x: Vector) {

@@ -9,6 +9,83 @@ import kotlin.random.Random
 import kotlin.test.*
 
 class VectorOpsTest {
+    @Test
+    fun `sparse dot against dense views agrees with the scalar reference`() {
+        val source = sparse(5, 0 to 2.0, 2 to -1.5, 4 to 0.0)
+        for (stride in intArrayOf(-3, -1, 1, 3)) {
+            val backing = DoubleArray(18) { it * 0.125 - 0.75 }
+            val view = StridedVector(backing, if (stride > 0) 2 else 14, 5, stride)
+            val expected = BuiltinEngines.scalar.sparseKernels.dot(source, view.toDoubleArray())
+
+            assertDotAgreesWithReference(expected, source dot view)
+            assertDotAgreesWithReference(expected, view dot source)
+        }
+    }
+
+    @Test
+    fun `sparse dot against dense views evaluates stored zeros`() {
+        val source = sparse(3, 1 to 0.0)
+        val view = StridedVector(doubleArrayOf(Double.NaN, 1.0, Double.POSITIVE_INFINITY, 1.0, Double.NaN), 0, 3, 2)
+        val expected = BuiltinEngines.scalar.sparseKernels.dot(source, view.toDoubleArray())
+
+        assertDotAgreesWithReference(expected, source dot view)
+        assertDotAgreesWithReference(expected, view dot source)
+    }
+
+    private fun assertDotAgreesWithReference(expected: Double, actual: Double) {
+        if (expected.isNaN()) assertTrue(actual.isNaN()) else assertEquals(expected, actual, 1e-12)
+    }
+
+    @Test
+    fun `shared buffer axpy agrees with the scalar snapshot reference`() {
+        for ((sourceOffset, destinationOffset, stride) in listOf(
+            Triple(0, 1, 2),
+            Triple(8, 9, -2),
+            Triple(0, 5, 1),
+            Triple(0, 1, 1),
+        )) {
+            val backing = DoubleArray(10) { it + 0.25 }
+            val source = StridedVector(backing, sourceOffset, 5, stride)
+            val destination = StridedVector(backing, destinationOffset, 5, stride)
+            val expected = backing.copyOf()
+            BuiltinEngines.scalar.vectorKernels.axpy(
+                expected,
+                destinationOffset,
+                0.75,
+                source.toDoubleArray(),
+                0,
+                5,
+                stride,
+            )
+
+            destination.axpy(0.75, source)
+
+            assertAxpyAgreesWithReference(expected, backing)
+        }
+    }
+
+    @Test
+    fun `shared buffer copy preserves the snapshot sequence and padding`() {
+        for ((sourceOffset, destinationOffset, stride) in listOf(
+            Triple(0, 1, 2),
+            Triple(8, 9, -2),
+            Triple(0, 5, 1),
+            Triple(0, 1, 1),
+            Triple(1, 0, 1),
+        )) {
+            val backing = DoubleArray(10) { it + 0.25 }
+            val source = StridedVector(backing, sourceOffset, 5, stride)
+            val destination = StridedVector(backing, destinationOffset, 5, stride)
+            val expected = backing.copyOf()
+            val snapshot = source.toDoubleArray()
+            for (i in snapshot.indices) expected[destinationOffset + i * stride] = snapshot[i]
+
+            copy(source, destination)
+
+            assertContentEquals(expected, backing)
+        }
+    }
+
     private class ForeignVector(private val backing: DenseVector) : Vector {
         override val size: Int get() = backing.size
         override fun get(i: Int): Double = backing[i]

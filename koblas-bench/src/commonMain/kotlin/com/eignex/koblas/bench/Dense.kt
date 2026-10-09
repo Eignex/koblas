@@ -363,12 +363,12 @@ private fun panelWork(case: BenchCase, engine: KoblasEngine): CaseWork {
 /**
  * The dense work for [case], or a reason this arm may not measure it.
  *
- * All but one case is an exact measurement on whichever engine the arm resolved. The generic product is not:
- * it goes through the common `Matrix` entry point, which uses the engine this platform selected because a
- * caller holding a `Matrix` has none to pass, so it is published once as a default-policy row.
+ * Raw cases are exact measurements on whichever engine the arm resolved. Generic matrix and vector entry
+ * points select their engine themselves, so those cases are published as default-policy rows.
  */
 internal fun denseArm(case: BenchCase, engine: KoblasEngine): ArmChoice? = when (case.operation) {
     "gemm-generic" -> genericProductArm(case, engine)
+    "copy-overlap", "axpy-views", "swap-views" -> vectorViewsArm(case, engine)
     else -> denseWork(case, engine)?.let { ArmChoice(it, null) }
 }
 
