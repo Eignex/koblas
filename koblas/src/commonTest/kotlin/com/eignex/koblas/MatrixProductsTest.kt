@@ -153,6 +153,47 @@ class MatrixProductsTest {
     }
 
     @Test
+    fun `empty products do not adapt a foreign operand`() {
+        val order = Int.MAX_VALUE
+        for (foreignOnLeft in booleanArrayOf(false, true)) {
+            for (transpose in booleanArrayOf(false, true)) {
+                for (transposeOther in booleanArrayOf(false, true)) {
+                    val foreign: Matrix = PoisonMatrix(order, order)
+                    val empty: Matrix = if (foreignOnLeft) {
+                        if (transposeOther) DenseMatrix.zero(0, order) else DenseMatrix.zero(order, 0)
+                    } else {
+                        if (transpose) DenseMatrix.zero(order, 0) else DenseMatrix.zero(0, order)
+                    }
+                    val left = if (foreignOnLeft) foreign else empty
+                    val right = if (foreignOnLeft) empty else foreign
+                    val rows = if (foreignOnLeft) order else 0
+                    val cols = if (foreignOnLeft) 0 else order
+                    val destination = DenseMatrix.zero(rows, cols)
+
+                    left.gemmInto(1.0, transpose, right, transposeOther, 0.0, destination, Workspace())
+                    val result = left.gemm(1.0, transpose, right, transposeOther)
+
+                    assertEquals(rows, result.rows)
+                    assertEquals(cols, result.cols)
+                    assertContentEquals(DoubleArray(0), (result as DenseMatrix).values)
+                    assertContentEquals(DoubleArray(0), destination.values)
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `empty products reject incompatible operands before returning`() {
+        val left: Matrix = PoisonMatrix(2, 3)
+        val right: Matrix = DenseMatrix.zero(4, 0)
+        val destination = DenseMatrix.zero(2, 0)
+
+        assertFailsWith<DimensionMismatch> {
+            left.gemmInto(1.0, false, right, false, 0.0, destination)
+        }
+    }
+
+    @Test
     fun `a zero alpha never reads either operand`() {
         val destination = DenseMatrix.wrap(2, 2, doubleArrayOf(1.0, 2.0, 3.0, 4.0))
 

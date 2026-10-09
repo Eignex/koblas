@@ -123,6 +123,7 @@ public fun Vector.iamax(): Int {
 /**
  * `dst = src` (BLAS `dcopy`). A sparse source zero-fills the destination first, so nothing survives.
  * A source sharing [dst]'s buffer is snapshotted before writing.
+ * Custom [Vector] implementations are also snapshotted, since their backing storage is opaque.
  *
  * One entry point for both dense spacings: [dst] is written through its own origin and step, so a contiguous
  * destination and a borrowed slice of a longer buffer are the same call.
@@ -151,11 +152,11 @@ public fun copy(src: Vector, dst: DenseVector) {
     source.forEachStored { i, v -> dst[i] = v }
 }
 
-/** Snapshots an input whose values would be overwritten through [destination] before the first write. */
+/** Snapshots known aliases and opaque storage, which may read [destination] without exposing its buffer. */
 private fun Vector.stableFor(destination: DenseVector): Vector = when (this) {
     is SparseVector -> if (values === destination.values) SparseVector.wrap(size, indices, values.copyOf()) else this
     is DenseVector -> if (values === destination.values) DenseVector.wrap(toDoubleArray()) else this
-    else -> this
+    else -> DenseVector.wrap(toDoubleArray())
 }
 
 /** Whether this vector spans its entire backing array in order. */
@@ -211,6 +212,7 @@ public fun swap(a: DenseVector, b: DenseVector) {
 /**
  * `y = y + alpha * x`. A sparse `x` touches only the positions it stores. A borrowed [x] sharing the
  * destination buffer is snapshotted before writing.
+ * Custom [Vector] implementations are also snapshotted, since their backing storage is opaque.
  */
 public fun DenseVector.axpy(alpha: Double, x: Vector) {
     requireSameSize(size, x.size, "axpy")
