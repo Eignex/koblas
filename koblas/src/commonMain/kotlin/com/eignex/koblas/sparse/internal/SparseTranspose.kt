@@ -10,9 +10,12 @@ import com.eignex.koblas.UnsafeKoblasApi
  * The result holds the CSC invariant by construction rather than by checking: the walk visits source columns
  * in order, so each output column collects its entries by ascending source column, and an input with no
  * repeated coordinate yields no repeated row.
+ *
+ * When [readValues] is false only the pattern is copied and the result's values remain zero, so a zero
+ * multiplier can orient an operand without reading its coefficients or allocating a zeroed source copy.
  */
 @OptIn(UnsafeKoblasApi::class)
-internal fun transposeCsc(a: SparseMatrix): SparseMatrix {
+internal fun transposeCsc(a: SparseMatrix, readValues: Boolean = true): SparseMatrix {
     val rows = a.rows
     val cols = a.cols
     val colPointers = a.colPointers
@@ -24,13 +27,16 @@ internal fun transposeCsc(a: SparseMatrix): SparseMatrix {
     for (i in 0 until rows) outPointers[i + 1] += outPointers[i]
     val outIndices = IntArray(values.size)
     val outValues = DoubleArray(values.size)
-    val next = outPointers.copyOf()
+    // Each start becomes its column's end as entries arrive. Shifting those ends back to starts afterwards
+    // lets the result's own pointers carry the cursors instead of allocating another array of row count.
     for (j in 0 until cols) {
         for (k in colPointers[j] until colPointers[j + 1]) {
-            val slot = next[rowIndices[k]]++
+            val slot = outPointers[rowIndices[k]]++
             outIndices[slot] = j
-            outValues[slot] = values[k]
+            if (readValues) outValues[slot] = values[k]
         }
     }
+    for (i in rows downTo 1) outPointers[i] = outPointers[i - 1]
+    outPointers[0] = 0
     return SparseMatrix.wrapTrusted(cols, rows, outPointers, outIndices, outValues)
 }
