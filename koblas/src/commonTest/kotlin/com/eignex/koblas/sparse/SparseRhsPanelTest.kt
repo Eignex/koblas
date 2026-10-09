@@ -28,14 +28,15 @@ class SparseRhsPanelTest {
     fun `transposed products leave empty columns at their scaled value`() {
         val order = 8
         val a = SparseMatrix.ofColumns(
-            order, order,
+            order,
+            order,
             List(order) { column ->
-            when (column) {
-                0 -> emptyList()
-                1 -> listOf(1 to 0.0)
-                else -> List(order) { it to 1.0 }
-            }
-        }
+                when (column) {
+                    0 -> emptyList()
+                    1 -> listOf(1 to 0.0)
+                    else -> List(order) { it to 1.0 }
+                }
+            },
         )
         for (sides in intArrayOf(1, 3, 8)) {
             for (transposeB in booleanArrayOf(false, true)) {
