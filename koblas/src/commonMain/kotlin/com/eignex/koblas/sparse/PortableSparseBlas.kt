@@ -353,6 +353,9 @@ internal class PortableSparseBlas(
         if (call.destinationElements == 0 || call.depth == 0) return true
         val emptyOperand = a.rows == 0 || a.cols == 0
         return when (operation) {
+            // A transposed matvec skips empty columns before reaching the ordered dot kernel.
+            SparseMatrixOperation.GemvTransposed -> call.alpha == 0.0 || emptyOperand || a.nnz == 0
+
             // An operation returning a fresh structural result still discovers its pattern when the multiplier
             // is zero. The contract says the operand's values are not read, not that its positions are not
             // found, so this is work even though no coefficient is loaded.
