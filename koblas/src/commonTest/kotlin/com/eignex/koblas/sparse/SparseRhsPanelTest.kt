@@ -13,6 +13,7 @@ import com.eignex.koblas.dense.ScalarVectorKernels
 import com.eignex.koblas.koblas
 import kotlin.random.Random
 import kotlin.test.Test
+import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
@@ -22,6 +23,52 @@ import kotlin.test.assertTrue
 class SparseRhsPanelTest {
     private val staging = engineWith(AdjacentPreferringPanels())
     private val plain = engineWith(PortablePanelKernels)
+
+    @Test
+    fun `transposed products leave empty columns at their scaled value`() {
+        val order = 8
+        val a = SparseMatrix.ofColumns(
+            order, order,
+            List(order) { column ->
+            when (column) {
+                0 -> emptyList()
+                1 -> listOf(1 to 0.0)
+                else -> List(order) { it to 1.0 }
+            }
+        }
+        )
+        for (sides in intArrayOf(1, 3, 8)) {
+            for (transposeB in booleanArrayOf(false, true)) {
+                val b = if (transposeB) {
+                    DenseMatrix.wrap(sides, order, DoubleArray(order * sides) { 2.0 })
+                } else {
+                    DenseMatrix.wrap(order, sides, DoubleArray(order * sides) { 2.0 })
+                }
+                for (alpha in doubleArrayOf(1.0, Double.POSITIVE_INFINITY)) {
+                    for (beta in doubleArrayOf(0.0, 1.0, 0.5)) {
+                        val initial = DoubleArray(order * sides) { if (beta == 0.0) Double.NaN else -0.0 }
+                        val expected = DenseMatrix.wrap(order, sides, initial.copyOf())
+                        ReferenceSparseBlas.gemm(alpha, a, true, b, transposeB, beta, expected)
+
+                        for ((name, engine) in engines()) {
+                            val actual = DenseMatrix.wrap(order, sides, initial.copyOf())
+                            engine.gemm(alpha, a, true, b, transposeB, beta, actual, workspace = Workspace())
+
+                            assertGemmAgreesWithReference(
+                                expected.values,
+                                actual.values,
+                                "$name sides=$sides transposeB=$transposeB alpha=$alpha beta=$beta",
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private fun assertGemmAgreesWithReference(expected: DoubleArray, actual: DoubleArray, context: String) {
+        assertContentEquals(expected, actual, context)
+    }
 
     @Test
     fun `a staged product agrees with the same product in the caller's layout`() {

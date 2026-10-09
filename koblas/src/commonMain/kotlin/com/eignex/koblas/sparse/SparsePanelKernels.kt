@@ -199,6 +199,7 @@ internal class SparsePanelKernels(
         cRhsStride: Int,
         work: DoubleArray,
     ) {
+        if (fromIndex == toIndex) return
         work.fill(0.0, 0, width)
         densePanels.indexedColumnUpdate(
             1.0, b, offset, rhsStride, indexStride, rowIndices, values, fromIndex, toIndex - fromIndex,
@@ -266,6 +267,7 @@ internal class SparsePanelKernels(
         c: DoubleArray,
         cOffset: Int,
     ) {
+        if (fromIndex == toIndex) return
         var sum = 0.0
         for (position in fromIndex until toIndex) {
             sum += values[position] * b[offset + rowIndices[position] * indexStride]

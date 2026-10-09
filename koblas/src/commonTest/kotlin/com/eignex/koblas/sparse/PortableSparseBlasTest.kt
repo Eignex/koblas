@@ -6,6 +6,7 @@ import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.assertClose
 import kotlin.random.Random
 import kotlin.test.Test
+import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
@@ -38,6 +39,30 @@ class PortableSparseBlasTest {
                 }
             }
         }
+    }
+
+    @Test
+    fun `transposed gemv leaves empty columns at their scaled value`() {
+        val matrix = SparseMatrix.ofColumns(3, 3, listOf(emptyList(), listOf(1 to 0.0), listOf(2 to 3.0)))
+        val x = DoubleArray(3) { 2.0 }
+        for (alpha in doubleArrayOf(1.0, Double.POSITIVE_INFINITY)) {
+            for (beta in doubleArrayOf(0.0, 1.0, 0.5)) {
+                val initial = DoubleArray(3) { if (beta == 0.0) Double.NaN else -0.0 }
+                val expected = initial.copyOf()
+                ReferenceSparseBlas.gemv(alpha, matrix, x, beta, expected, transpose = true)
+
+                for (engine in engines) {
+                    val actual = initial.copyOf()
+                    engine.gemv(alpha, matrix, x, beta, actual, transpose = true)
+
+                    assertGemvAgreesWithReference(expected, actual, "${engine.name} alpha=$alpha beta=$beta")
+                }
+            }
+        }
+    }
+
+    private fun assertGemvAgreesWithReference(expected: DoubleArray, actual: DoubleArray, context: String) {
+        assertContentEquals(expected, actual, context)
     }
 
     @Test
