@@ -132,6 +132,31 @@ class SparseMatrixTest {
     }
 
     @Test
+    fun `empty factories preserve tall shapes without row scratch`() {
+        for (rows in intArrayOf(0, 2, Int.MAX_VALUE)) {
+            for (cols in intArrayOf(0, 2)) {
+                val expected = SparseMatrix.wrap(rows, cols, IntArray(cols + 1), IntArray(0), DoubleArray(0))
+
+                val triplets = SparseMatrix.ofTriplets(rows, cols, IntArray(0), IntArray(0), DoubleArray(0))
+                val columns = SparseMatrix.ofColumns(rows, cols, List(cols) { emptyList() })
+
+                assertEquals(expected, triplets, "triplets ${rows}x$cols")
+                assertEquals(expected, columns, "columns ${rows}x$cols")
+            }
+        }
+    }
+
+    @Test
+    fun `triplet factories reject unrepresentable array lengths as shape errors`() {
+        assertFailsWith<DimensionMismatch> {
+            SparseMatrix.ofTriplets(0, Int.MAX_VALUE, IntArray(0), IntArray(0), DoubleArray(0))
+        }
+        assertFailsWith<DimensionMismatch> {
+            SparseMatrix.ofTriplets(Int.MAX_VALUE, 1, intArrayOf(0), intArrayOf(0), doubleArrayOf(1.0))
+        }
+    }
+
+    @Test
     fun `ofTriplets handles an empty entry set and rejects out-of-range positions`() {
         val empty = SparseMatrix.ofTriplets(2, 2, IntArray(0), IntArray(0), DoubleArray(0))
         assertEquals(0, empty.nnz)
