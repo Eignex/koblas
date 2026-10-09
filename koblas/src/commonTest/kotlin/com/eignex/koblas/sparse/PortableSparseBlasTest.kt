@@ -66,6 +66,63 @@ class PortableSparseBlasTest {
     }
 
     @Test
+    fun `scaled addition agrees for matching disjoint and overlapping patterns`() {
+        val a = SparseMatrix.ofColumns(
+            5,
+            4,
+            listOf(listOf(0 to 2.0, 3 to 0.0), emptyList(), listOf(1 to -1.0), listOf(3 to 4.0)),
+        )
+        val matching = SparseMatrix.ofColumns(
+            5,
+            4,
+            listOf(listOf(0 to -2.0, 3 to 1.0), emptyList(), listOf(1 to 0.0), listOf(3 to 2.0)),
+        )
+        val disjoint = SparseMatrix.ofColumns(
+            5,
+            4,
+            listOf(listOf(1 to 3.0), emptyList(), listOf(2 to 0.0), listOf(4 to -2.0)),
+        )
+        val overlapping = SparseMatrix.ofColumns(
+            5,
+            4,
+            listOf(listOf(0 to 3.0, 4 to 1.0), emptyList(), listOf(2 to 0.0), listOf(3 to -2.0)),
+        )
+        for (b in listOf(matching, disjoint, overlapping)) {
+            for (alpha in doubleArrayOf(0.0, 1.0, -0.75)) {
+                val left = SparseMatrix.wrap(
+                    a.rows,
+                    a.cols,
+                    a.copyColumnPointers(),
+                    a.copyRowIndices(),
+                    DoubleArray(a.nnz) { if (alpha == 0.0) Double.NaN else a.values[it] },
+                )
+                for (transpose in booleanArrayOf(false, true)) {
+                    val source = if (transpose) ReferenceSparseBlas.transpose(left) else left
+                    val expected = ReferenceSparseBlas.addScaled(alpha, source, transpose, b)
+
+                    for (engine in engines) {
+                        val actual = engine.addScaled(alpha, source, transpose, b)
+
+                        assertAddScaledAgreesWithReference(
+                            expected,
+                            actual,
+                            "${engine.name} alpha=$alpha transpose=$transpose",
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    private fun assertAddScaledAgreesWithReference(expected: SparseMatrix, actual: SparseMatrix, context: String) {
+        assertEquals(expected.rows, actual.rows, context)
+        assertEquals(expected.cols, actual.cols, context)
+        assertContentEquals(expected.copyColumnPointers(), actual.copyColumnPointers(), context)
+        assertContentEquals(expected.copyRowIndices(), actual.copyRowIndices(), context)
+        assertClose(expected.values, actual.values, context)
+    }
+
+    @Test
     fun `transposed gemv preserves csc reduction order`() {
         val values = DoubleArray(256)
         val matrix = singleColumn(values)

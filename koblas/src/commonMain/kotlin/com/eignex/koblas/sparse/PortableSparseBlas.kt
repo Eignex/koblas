@@ -955,6 +955,16 @@ internal class PortableSparseBlas(
         // Neither side contributes a position, so the union is empty and no orientation is built for it.
         if (a.nnz == 0 && b.nnz == 0) return emptyResult(rows, cols, "addScaled")
         val left = oriented(a, transposeA, alpha != 0.0)
+        // An identical pattern needs neither a structural merge nor room for a second copy of every entry.
+        // Different patterns usually disagree at an early row, before every column pointer needs comparing.
+        if (left.rowIndices.contentEquals(b.rowIndices) && left.colPointers.contentEquals(b.colPointers)) {
+            val values = if (alpha == 0.0) {
+                b.values.copyOf()
+            } else {
+                DoubleArray(left.nnz) { alpha * left.values[it] + b.values[it] }
+            }
+            return SparseMatrix.wrapTrusted(rows, cols, left.copyColumnPointers(), left.copyRowIndices(), values)
+        }
         val union = left.nnz.toLong() + b.nnz
         requireShape(
             union <= Int.MAX_VALUE,
@@ -984,8 +994,8 @@ internal class PortableSparseBlas(
             left.rows,
             left.cols,
             pointers,
-            rowIndices.copyOf(count),
-            values.copyOf(count),
+            if (count == rowIndices.size) rowIndices else rowIndices.copyOf(count),
+            if (count == values.size) values else values.copyOf(count),
         )
     }
 
@@ -1089,13 +1099,11 @@ internal class PortableSparseBlas(
      * [a] in the requested orientation, materializing a transpose only where one is asked for.
      *
      * A zero alpha discovers the same structure without reading coefficients, so the transposed pattern is
-     * built over zeroed values rather than over the caller's: the contract says alpha of zero reads no
-     * operand value, and a transpose that copied them would break it before the product ever ran. The
-     * structure is shared rather than copied, because the transpose reads it and writes a fresh result.
+     * built without copying coefficients: the contract says alpha of zero reads no operand value, and a
+     * transpose that copied them would break it before the product ever ran.
      */
     private fun oriented(a: SparseMatrix, transpose: Boolean, readValues: Boolean): SparseMatrix {
         if (!transpose) return a
-        if (readValues) return transposeCsc(a)
-        return transposeCsc(SparseMatrix.wrapTrusted(a.rows, a.cols, a.colPointers, a.rowIndices, DoubleArray(a.nnz)))
+        return transposeCsc(a, readValues)
     }
 }

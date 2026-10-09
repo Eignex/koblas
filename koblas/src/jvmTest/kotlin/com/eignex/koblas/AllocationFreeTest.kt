@@ -7,7 +7,8 @@ import kotlin.test.assertTrue
 /**
  * The seams a caller may run inside a hot loop without the collector noticing: Level 1 and the sparse
  * primitives unconditionally, and the matrix algorithms given a workspace to take their scratch from. An
- * operation that discovers a new structure allocates its result by definition and is not measured here.
+ * operation that discovers a new structure allocates its result by definition; its probes bound the extra
+ * scratch and copies beside that result instead.
  */
 class AllocationFreeTest {
 
@@ -295,6 +296,78 @@ class AllocationFreeTest {
         val levelOneBytes = bytesPerIteration(1_000, FLOOR_BYTES) { engine.sparseKernels.dot(vector, x) }
 
         assertTrue(levelOneBytes <= FLOOR_BYTES, "sparse level one allocated $levelOneBytes B per call")
+    }
+
+    @Test
+    fun `a sparse transpose allocates only result storage`() {
+        val rows = 128
+        val columns = 4
+        val a = SparseMatrix.ofColumns(
+            rows,
+            columns,
+            List(columns) { j ->
+                List(32) { i -> (i * 4 + j) to (i + 1.0) }
+            },
+        )
+        val resultBytes = 3 * ARRAY_HEADER_BYTES + (rows + 1) * Int.SIZE_BYTES +
+            a.nnz * (Int.SIZE_BYTES + Double.SIZE_BYTES)
+
+        val bytes = bytesPerIteration(100, resultBytes + FLOOR_BYTES) { engine.transpose(a) }
+
+        assertTrue(bytes <= resultBytes + FLOOR_BYTES, "sparse transpose allocated $bytes B per call")
+    }
+
+    @Test
+    fun `a sparse addition with matching or disjoint patterns allocates only result storage`() {
+        val rows = 128
+        val columns = 4
+        val a = SparseMatrix.ofColumns(
+            rows,
+            columns,
+            List(columns) {
+                List(32) { i -> (i * 4) to (i + 1.0) }
+            },
+        )
+        for (overlap in booleanArrayOf(false, true)) {
+            val b = SparseMatrix.ofColumns(
+                rows,
+                columns,
+                List(columns) {
+                    List(32) { i -> (i * 4 + if (overlap) 0 else 1) to (i + 0.5) }
+                },
+            )
+            val entries = if (overlap) a.nnz else a.nnz + b.nnz
+            val resultBytes = 3 * ARRAY_HEADER_BYTES + (columns + 1) * Int.SIZE_BYTES +
+                entries * (Int.SIZE_BYTES + Double.SIZE_BYTES)
+
+            val bytes = bytesPerIteration(200, resultBytes + FLOOR_BYTES) { engine.addScaled(0.5, a, false, b) }
+
+            assertTrue(
+                bytes <= resultBytes + FLOOR_BYTES,
+                "sparse addition overlap=$overlap allocated $bytes B per call",
+            )
+        }
+    }
+
+    @Test
+    fun `a zero alpha transposed sparse addition allocates only orientation and result storage`() {
+        val rows = 128
+        val columns = 4
+        val a = SparseMatrix.ofColumns(
+            rows,
+            columns,
+            List(columns) {
+                List(32) { i -> (i * 4) to Double.NaN }
+            },
+        )
+        val transposed = engine.transpose(a)
+        val resultBytes = 3 * ARRAY_HEADER_BYTES + (columns + 1) * Int.SIZE_BYTES +
+            a.nnz * (Int.SIZE_BYTES + Double.SIZE_BYTES)
+        val budget = 2 * (resultBytes + FLOOR_BYTES)
+
+        val bytes = bytesPerIteration(100, budget) { engine.addScaled(0.0, transposed, true, a) }
+
+        assertTrue(bytes <= budget, "zero alpha transposed sparse addition allocated $bytes B per call")
     }
 
     @Test

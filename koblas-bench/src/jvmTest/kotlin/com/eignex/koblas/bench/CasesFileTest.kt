@@ -73,7 +73,7 @@ class CasesFileTest {
 
         // Cases are appended, never renamed or removed, so every historical identity is still in this
         // digest and a rename would break it.
-        assertEquals("e08cdb28d3f90e8e2838922f453529f0423051e7a5e5a318cc01ea376dc9a852", digest)
+        assertEquals("4ef7b29947ed046ecb930bb66f21394ef7dd6c5fedf5d26ddd106ab0c14ff77a", digest)
     }
 
     @Test
@@ -82,9 +82,9 @@ class CasesFileTest {
 
         assertEquals(SWEPT, cases.filter { "sweep" in it.suites }.map { it.operation }.toSet())
         assertEquals(168, cases.count { "sweep" in it.suites })
-        assertEquals(350, cases.size)
+        assertEquals(352, cases.size)
         // The default suite is what an ordinary capture runs, and the sweeps did not enlarge it.
-        assertEquals(198, Cases.select(cases).size)
+        assertEquals(200, Cases.select(cases).size)
         assertEquals(cases.size, cases.map { it.id }.toSet().size)
     }
 

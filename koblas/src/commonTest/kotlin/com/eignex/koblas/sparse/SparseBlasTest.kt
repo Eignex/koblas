@@ -2,6 +2,7 @@ package com.eignex.koblas.sparse
 
 import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.SparseMatrix
+import com.eignex.koblas.UnsafeKoblasApi
 import com.eignex.koblas.Workspace
 import com.eignex.koblas.koblas
 import com.eignex.koblas.minus
@@ -9,6 +10,7 @@ import com.eignex.koblas.plus
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
+import kotlin.test.assertNotSame
 import kotlin.test.assertTrue
 
 class SparseBlasTest {
@@ -223,6 +225,27 @@ class SparseBlasTest {
         val empty = SparseMatrix.ofColumns(1, 1, listOf(emptyList()))
         val unread = koblas.addScaled(-0.0, aOnly, false, empty)
         assertEquals(0.0, unread.values.single(), absoluteTolerance = 0.0)
+    }
+
+    @Test
+    @OptIn(UnsafeKoblasApi::class)
+    fun `scaled addition owns its buffers for matching and disjoint patterns`() {
+        val a = SparseMatrix.ofColumns(4, 2, listOf(listOf(0 to 2.0), listOf(2 to 3.0)))
+        for (overlap in booleanArrayOf(false, true)) {
+            val b = SparseMatrix.ofColumns(
+                4,
+                2,
+                listOf(listOf((if (overlap) 0 else 1) to 4.0), listOf((if (overlap) 2 else 3) to 5.0)),
+            )
+
+            val result = koblas.addScaled(0.5, a, false, b)
+
+            for (operand in listOf(a, b)) {
+                assertNotSame(operand.colPointers, result.colPointers)
+                assertNotSame(operand.rowIndices, result.rowIndices)
+                assertNotSame(operand.values, result.values)
+            }
+        }
     }
 
     @Test

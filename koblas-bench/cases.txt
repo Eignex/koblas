@@ -382,3 +382,7 @@ trsm+256x1+triangular+side=L+uplo=L+transA=N+diag=N
 trsm+64x256+triangular+side=R+uplo=L+transA=N+diag=N
 trsm+256x64+triangular+side=L+uplo=U+transA=T+diag=U
 trmm+256x64+triangular+side=L+uplo=U+transA=T+diag=N
+
+# Sparse addition over identical banded patterns and a larger mixed union.
+spadd+129x65+sparse-uniform+density=0.02+support=banded
+spadd+257x129+sparse-uniform+density=0.1
