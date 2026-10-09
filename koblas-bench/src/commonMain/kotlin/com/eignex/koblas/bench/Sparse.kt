@@ -54,6 +54,7 @@ internal fun sparseArm(case: BenchCase, engine: KoblasEngine): ArmChoice? {
     }
 
     return when (case.operation) {
+        "spdot-view" -> vectorViewsArm(case, engine)
         "spaccumulate" -> {
             // The generic primitives are one implementation for every engine, so this is timed once rather
             // than repeated under each label, where it would compare a selection against a copy of itself.
@@ -739,4 +740,3 @@ private fun preparedArm(
         null,
     )
 }
-

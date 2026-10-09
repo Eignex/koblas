@@ -295,6 +295,14 @@ membership is not part of a case's identity, so retagging leaves historical comp
 Sweeps exist for `dot`, `sum`, `asum`, `nrm2`, `iamax`, `axpy`, `scal`, `swap` and `rot`. To add sizes, add
 lines with the same fixture and options as the case they extend.
 
+`copy-overlap` copies adjacent overlapping slices of one buffer. `axpy-views` and `swap-views` use disjoint
+interleaved views of one buffer, and `spdot-view` reduces a sparse vector against a dense view with stride
+two. These include the public vector entry point's alias checks and storage adaptation, so they are
+default-policy rows on the selected engine's arm. Their `portable-vector` attribution names the wrapper,
+followed by the array copy, scalar sparse view reduction or routed dense Level 1 leaf it actually reaches.
+Mutating cases reset the whole shared buffer inside the timed region; dot times only the reduction. Before
+timing, each is compared against the explicit scalar engine, including the mutating call's whole buffer.
+
 `+timing=arithmetic` excludes the per-iteration reset for `scal` and `spgather`; arithmetic scaling uses
 alpha = -1. Compare only cases with matching options, since prepared and one-shot timings differ.
 

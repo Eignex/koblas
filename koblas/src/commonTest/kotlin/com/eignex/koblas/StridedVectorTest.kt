@@ -7,6 +7,45 @@ import kotlin.test.assertFailsWith
 
 class StridedVectorTest {
     @Test
+    fun `overlap agrees with physical index intersection`() {
+        val backing = DoubleArray(8)
+        val views = buildList {
+            for (stride in intArrayOf(-3, -2, -1, 1, 2, 3)) {
+                for (offset in 0..backing.size) {
+                    for (size in 0..4) {
+                        val last = offset + (size - 1) * stride
+                        if (size == 0 || (offset in backing.indices && last in backing.indices)) {
+                            add(StridedVector(backing, offset, size, stride))
+                        }
+                    }
+                }
+            }
+        }
+        val addressed = views.map { view -> (0 until view.size).map { view.offset + it * view.stride }.toSet() }
+
+        for (i in views.indices) {
+            for (j in views.indices) {
+                val expected = addressed[i].any { it in addressed[j] }
+
+                assertEquals(expected, views[i].overlaps(views[j]), "${views[i]} against ${views[j]}")
+            }
+        }
+    }
+
+    @Test
+    fun `overlap handles extreme singleton strides and independent buffers`() {
+        val backing = DoubleArray(2)
+        for (stride in intArrayOf(Int.MIN_VALUE, Int.MAX_VALUE)) {
+            val singleton = StridedVector(backing, 0, 1, stride)
+
+            assertEquals(true, singleton.overlaps(StridedVector(backing, 0, 2)))
+            assertEquals(false, singleton.overlaps(StridedVector(backing, 1, 1, stride)))
+            assertEquals(false, singleton.overlaps(StridedVector(backing, 0, 0, stride)))
+            assertEquals(false, singleton.overlaps(StridedVector(backing.copyOf(), 0, 1, stride)))
+        }
+    }
+
+    @Test
     fun `nested views cannot escape the logical parent`() {
         val parent = StridedVector(DoubleArray(12), 4, 3)
 

@@ -42,7 +42,16 @@ public class StridedVector @JvmOverloads constructor(
 
 /** Whether these vectors address at least one common buffer entry. */
 public fun DenseVector.overlaps(other: DenseVector): Boolean {
-    if (values !== other.values) return false
+    if (values !== other.values || size == 0 || other.size == 0) return false
+    val last = offset.toLong() + (size - 1).toLong() * stride
+    val otherLast = other.offset.toLong() + (other.size - 1).toLong() * other.stride
+    val low = maxOf(minOf(offset.toLong(), last), minOf(other.offset.toLong(), otherLast))
+    val high = minOf(maxOf(offset.toLong(), last), maxOf(other.offset.toLong(), otherLast))
+    if (low > high) return false
+    // Rows share one spacing and columns have separated bounds. For equal spacings the intersecting
+    // bounds contain a shared entry exactly when the two origins belong to the same index lattice.
+    val step = kotlin.math.abs(stride.toLong())
+    if (step == kotlin.math.abs(other.stride.toLong())) return (offset.toLong() - other.offset) % step == 0L
     val first = if (size <= other.size) this else other
     val second = if (first === this) other else this
     for (i in 0 until first.size) {
