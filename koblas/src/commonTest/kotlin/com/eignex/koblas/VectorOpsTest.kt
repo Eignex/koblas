@@ -9,6 +9,12 @@ import kotlin.random.Random
 import kotlin.test.*
 
 class VectorOpsTest {
+    private class ForeignVector(private val backing: DenseVector) : Vector {
+        override val size: Int get() = backing.size
+        override fun get(i: Int): Double = backing[i]
+        override fun toDoubleArray(): DoubleArray = backing.toDoubleArray()
+    }
+
     private val sparse = SparseVector.of(6, intArrayOf(4, 1), doubleArrayOf(-3.0, 2.0))
     private val denseOfSparse = DenseVector.of(doubleArrayOf(0.0, 2.0, 0.0, 0.0, -3.0, 0.0))
 
@@ -265,6 +271,45 @@ class VectorOpsTest {
         copy(source, destination)
 
         assertContentEquals(doubleArrayOf(-1.0, 1.0, 2.0, 3.0, -1.0, -1.0), backing)
+    }
+
+    @Test
+    fun `copy snapshots a foreign source sharing the destination buffer`() {
+        for (borrowed in booleanArrayOf(false, true)) {
+            val backing = if (borrowed) {
+                doubleArrayOf(9.0, 1.0, 2.0, 3.0, 4.0, 9.0)
+            } else {
+                doubleArrayOf(1.0, 2.0, 3.0, 4.0)
+            }
+            val destination = if (borrowed) StridedVector(backing, 1, 4) else DenseVector.wrap(backing)
+            val source = ForeignVector(StridedVector(backing, destination.offset + 3, 4, -1))
+            val expected = backing.copyOf()
+            val snapshot = source.toDoubleArray()
+            snapshot.copyInto(expected, destination.offset)
+
+            copy(source, destination)
+
+            assertContentEquals(expected, backing)
+        }
+    }
+
+    @Test
+    fun `axpy snapshots a foreign source sharing the destination buffer`() {
+        for (borrowed in booleanArrayOf(false, true)) {
+            val backing = if (borrowed) {
+                doubleArrayOf(9.0, 1.0, 2.0, 3.0, 4.0, 9.0)
+            } else {
+                doubleArrayOf(1.0, 2.0, 3.0, 4.0)
+            }
+            val destination = if (borrowed) StridedVector(backing, 1, 4) else DenseVector.wrap(backing)
+            val source = ForeignVector(StridedVector(backing, destination.offset + 3, 4, -1))
+            val expected = backing.copyOf()
+            BuiltinEngines.scalar.vectorKernels.axpy(expected, destination.offset, 2.0, source.toDoubleArray(), 0, 4)
+
+            destination.axpy(2.0, source)
+
+            assertAxpyAgreesWithReference(expected, backing)
+        }
     }
 
     @Test

@@ -64,6 +64,7 @@ public operator fun Matrix.times(other: Matrix): Matrix = gemm(other)
  * before anything is written, and a zero [alpha] scales [destination] without reading either operand, so a
  * matrix whose entries are expensive or absent is never touched for a product that contributes nothing. A
  * zero [beta] overwrites [destination] without reading it.
+ * An empty [destination] returns after validation without reading either operand.
  *
  * Built-in operands may share [destination]'s backing array and are snapshotted before it is written.
  * [workspace] reuses alias snapshots, sparse scratch and temporary dense storage for custom operands.
@@ -78,6 +79,8 @@ public fun Matrix.gemmInto(
     workspace: Workspace? = null,
 ) {
     requireGemmOperands(this, transpose, other, transposeOther, destination, "gemmInto")
+    // An unused custom operand need not fit in dense storage, so settle this before adapting either side.
+    if (destination.values.isEmpty()) return
     // Before either operand is looked at, so a zero multiplier reads nothing at all. A custom Matrix can
     // compute its entries, and staging one to discover that alpha contributes nothing would be a call the
     // contract says does not happen.
