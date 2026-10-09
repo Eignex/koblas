@@ -182,7 +182,6 @@ jobs:
         if: env.IS_SNAPSHOT == 'false'
         run: >-
           ./gradlew build -PciVersion=${{ env.RELEASE_VERSION }}
-         
 
       - name: Upload test reports
         if: always() && env.IS_SNAPSHOT == 'false'
@@ -225,7 +224,6 @@ jobs:
           ORG_GRADLE_PROJECT_signingPassword: ${{ secrets.SIGNING_PASSWORD }}
         run: >-
           ./gradlew publishAllPublicationsToSonatypeSnapshotsRepository -PciVersion=${{ env.RELEASE_VERSION }}
-         
           -x :koblas:publishMacosArm64PublicationToSonatypeSnapshotsRepository
 
       - name: Detect pre-release
