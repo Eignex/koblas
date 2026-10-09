@@ -135,6 +135,39 @@ class SparseMatrixRouteTest {
         assertContains(assertNotNull(route.reason), "ordered scalar dot")
     }
 
+    @Test
+    fun `an empty transposed gemv reports only destination scaling`() {
+        val a = SparseMatrix.ofColumns(2, 3, List(3) { emptyList() })
+        for (engine in listOfNotNull(BuiltinEngines.scalar, BuiltinEngines.simd)) {
+            for (beta in listOf(0.0, 1.0, 0.5)) {
+                val route = engine.routeOf(
+                    SparseMatrixOperation.GemvTransposed,
+                    SparseCall(a, beta = beta, destinationElements = 3, depth = 2),
+                )
+
+                val expected = if (beta == 0.5) {
+                    listOf("${assertNotNull(engine.routeOf(DenseOperation.Scale, 3).implementation)}/scale")
+                } else {
+                    emptyList()
+                }
+                assertEquals(RouteKind.NoWork, route.kind, "${engine.name} beta $beta")
+                assertEquals(expected, route.components, "${engine.name} beta $beta")
+                assertTrue(!route.exactlyMeasurable)
+            }
+        }
+    }
+
+    @Test
+    fun `a stored zero in transposed gemv still reports the scalar dot`() {
+        val a = SparseMatrix.ofColumns(2, 3, listOf(emptyList(), listOf(0 to 0.0), emptyList()))
+        for (engine in listOfNotNull(BuiltinEngines.scalar, BuiltinEngines.simd)) {
+            val route = engine.routeOf(SparseMatrixOperation.GemvTransposed, SparseCall(a))
+
+            assertEquals(RouteKind.Direct, route.kind, engine.name)
+            assertEquals(listOf("scalar/dotDense"), route.components, engine.name)
+        }
+    }
+
     // The dense leaf really does run, but not for every stored entry: the traversal skips a zero multiplier,
     // so the route is a composition rather than the leaf alone.
     @Test
