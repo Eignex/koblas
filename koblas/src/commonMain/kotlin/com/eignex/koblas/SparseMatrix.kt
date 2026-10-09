@@ -1,5 +1,7 @@
 package com.eignex.koblas
 
+import com.eignex.koblas.sparse.internal.pointerLength
+import com.eignex.koblas.sparse.internal.scratchLength
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
@@ -174,6 +176,11 @@ public class SparseMatrix internal constructor(
                 "rowIndices/colIndices/values must align: ${rowIndices.size}, ${colIndices.size}, ${values.size}"
             }
             requireTripletIndices(rows, cols, rowIndices, colIndices)
+            val pointers = pointerLength(cols, "ofTriplets")
+            // No stored position needs ordering, so even a row extent larger than scratch can index is valid.
+            if (values.isEmpty()) {
+                return SparseMatrix.wrapTrusted(rows, cols, IntArray(pointers), IntArray(0), DoubleArray(0))
+            }
             // Each pass is its own method: one body holding every loop is compiled again for each loop entered
             // on-stack, and a large matrix enters all of them on its first call.
             val byRow = groupByRow(rows, rowIndices, colIndices, values)
@@ -199,7 +206,7 @@ public class SparseMatrix internal constructor(
             values: DoubleArray,
         ): TripletRuns {
             val nnz = values.size
-            val rowStart = IntArray(rows + 1)
+            val rowStart = IntArray(scratchLength(rows, "ofTriplets"))
             for (k in 0 until nnz) rowStart[rowIndices[k] + 1]++
             for (i in 0 until rows) rowStart[i + 1] += rowStart[i]
             val byRowCol = IntArray(nnz)
