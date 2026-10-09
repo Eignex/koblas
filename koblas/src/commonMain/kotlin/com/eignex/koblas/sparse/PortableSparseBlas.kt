@@ -658,13 +658,15 @@ internal class PortableSparseBlas(
         if (transpose) {
             for (j in 0 until stableA.cols) {
                 val start = stableA.colPointers[j]
+                val end = stableA.colPointers[j + 1]
+                if (start == end) continue
                 // CSC gemv promises one input-order accumulation chain; a raw dot permits backend reassociation.
                 val sum = ScalarIndexedSparseKernels.dotDense(
                     stableA.rowIndices,
                     start,
                     stableA.values,
                     start,
-                    stableA.colPointers[j + 1] - start,
+                    end - start,
                     stableX,
                 )
                 y[j] += alpha * sum
