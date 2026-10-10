@@ -20,6 +20,7 @@ internal object Cases {
         "copy-overlap" to 1, "axpy-views" to 1, "swap-views" to 1, "spdot-view" to 1,
         "panel-multidot" to 2, "panel-columnupdate" to 2, "panel-coupled" to 2, "panel-rankupdate" to 2,
         "gemv" to 2, "symv" to 1, "ger" to 2, "syr" to 1, "syr2" to 1, "trsv" to 1,
+        "ger-shrinking" to 1, "ger-window-shrinking" to 1, "panel-rankupdate-shrinking" to 1,
         "trmv" to 1, "gemm" to 3, "symm" to 2, "gemmt" to 2, "syrk" to 2, "syr2k" to 2,
         "product-block" to 3, "gemm-pack" to 3, "gemm-packed" to 3, "gemm-packed-left" to 3,
         "gemm-packed-right" to 3, "gemm-generic" to 3,
@@ -72,6 +73,9 @@ internal object Cases {
             it.toIntOrNull()?.takeIf { value -> value in 1..MAX_DIMENSION } ?: invalid("invalid positive dimension '$it'")
         }
         if (dimensions.size != count) invalid("$operation requires $count dimensions")
+        if (operation in setOf("ger-shrinking", "ger-window-shrinking", "panel-rankupdate-shrinking") && dimensions[0] < 2) {
+            invalid("$operation requires an order of at least two")
+        }
         val fixture = parts[2]
         if (fixture !in fixtures) invalid("unknown fixture '$fixture'")
         val options = linkedMapOf<String, String>()

@@ -63,6 +63,23 @@ class HostDenseBlasTest {
     }
 
     @Test
+    fun `a windowed rank update stays portable even when host policy admits all sizes`() {
+        val (recorder, blas) = forced()
+        val a = matrix(6)
+        val expected = matrix(6)
+        val x = DoubleArray(6) { if (it == 0) 0.0 else it.toDouble() }
+        ReferenceBlas.ger(-1.0, x, x, expected)
+
+        blas.ger(-1.0, x, x, a, 1, 1, 5, 5, 1, 1)
+        val route = blas.routeOf(DenseMatrixOperation.GerWindow, DenseCall(5, 5, alpha = -1.0))
+
+        assertContentEquals(expected.values, a.values)
+        assertEquals(emptyList(), recorder.calls)
+        assertEquals(DENSE_SCHEDULING, route.scheduling)
+        assertEquals(null, route.host)
+    }
+
+    @Test
     fun `a scaled product reaches the library on the same terms as an unscaled one`() {
         val (recorder, blas) = forced()
         val a = matrix(ORDER)

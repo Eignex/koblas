@@ -7,6 +7,14 @@ import kotlin.test.assertTrue
 
 class CasesTest {
     @Test
+    fun `shrinking rank update batches require a nonempty sequence`() {
+        for (operation in listOf("ger-shrinking", "ger-window-shrinking", "panel-rankupdate-shrinking")) {
+            assertFailsWith<IllegalArgumentException> { Cases.parse("$operation+1+uniform") }
+            assertEquals(listOf(6), Cases.parse("$operation+6+uniform").single().dimensions)
+        }
+    }
+
+    @Test
     fun `suite membership preserves workload identity`() {
         for (id in listOf("dot+4096+uniform", "trsm+15x7+triangular+side=R+uplo=U+transA=T+diag=U")) {
             val original = Cases.parse(id).single()

@@ -23,6 +23,12 @@ import kotlin.test.assertTrue
  * `minimumWork = 0` keeps fixtures small; [HostDenseBlasTest] covers the size policy.
  */
 class HostDenseAgreementTest {
+    @Test
+    fun `host GER agrees with the reference on shrinking supports and extreme finite inputs`() =
+        withHost("GER shrinking supports") { blas, _ ->
+            assertShrinkingGerAgreesWithReference { x, y, a -> blas.ger(-1.0, x, y, a) }
+        }
+
     private fun composed(host: Blas): HostDenseBlas =
         HostDenseBlas(PortableDenseBlas(ScalarVectorKernels, PortablePanelKernels), host, minimumWork = 0)
 

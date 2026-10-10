@@ -268,6 +268,7 @@ public final class com/eignex/koblas/KoblasEngine : com/eignex/koblas/dense/Dens
 	public fun gemv (DLcom/eignex/koblas/SparseMatrix;[DD[DZLcom/eignex/koblas/Workspace;)V
 	public fun gemv (Lcom/eignex/koblas/DenseMatrix;[DZ)[D
 	public fun gemv (Lcom/eignex/koblas/SparseMatrix;[DZ)[D
+	public fun ger (D[D[DLcom/eignex/koblas/DenseMatrix;IIIIIILcom/eignex/koblas/Workspace;)V
 	public fun ger (D[D[DLcom/eignex/koblas/DenseMatrix;Lcom/eignex/koblas/Workspace;)V
 	public final fun getName ()Ljava/lang/String;
 	public final fun getPanelKernels ()Lcom/eignex/koblas/dense/DensePanelKernels;
@@ -515,7 +516,9 @@ public abstract interface class com/eignex/koblas/dense/DenseBlas {
 	public fun gemv (Lcom/eignex/koblas/DenseMatrix;[DZ)[D
 	public static synthetic fun gemv$default (Lcom/eignex/koblas/dense/DenseBlas;DLcom/eignex/koblas/DenseMatrix;[DD[DZLcom/eignex/koblas/Workspace;ILjava/lang/Object;)V
 	public static synthetic fun gemv$default (Lcom/eignex/koblas/dense/DenseBlas;Lcom/eignex/koblas/DenseMatrix;[DZILjava/lang/Object;)[D
+	public abstract fun ger (D[D[DLcom/eignex/koblas/DenseMatrix;IIIIIILcom/eignex/koblas/Workspace;)V
 	public abstract fun ger (D[D[DLcom/eignex/koblas/DenseMatrix;Lcom/eignex/koblas/Workspace;)V
+	public static synthetic fun ger$default (Lcom/eignex/koblas/dense/DenseBlas;D[D[DLcom/eignex/koblas/DenseMatrix;IIIIIILcom/eignex/koblas/Workspace;ILjava/lang/Object;)V
 	public static synthetic fun ger$default (Lcom/eignex/koblas/dense/DenseBlas;D[D[DLcom/eignex/koblas/DenseMatrix;Lcom/eignex/koblas/Workspace;ILjava/lang/Object;)V
 	public abstract fun symm (DLcom/eignex/koblas/DenseMatrix;Lcom/eignex/koblas/DenseMatrix;DLcom/eignex/koblas/DenseMatrix;ZZLcom/eignex/koblas/Workspace;)V
 	public static synthetic fun symm$default (Lcom/eignex/koblas/dense/DenseBlas;DLcom/eignex/koblas/DenseMatrix;Lcom/eignex/koblas/DenseMatrix;DLcom/eignex/koblas/DenseMatrix;ZZLcom/eignex/koblas/Workspace;ILjava/lang/Object;)V
@@ -547,6 +550,7 @@ public final class com/eignex/koblas/dense/DenseBlas$DefaultImpls {
 	public static fun gemv (Lcom/eignex/koblas/dense/DenseBlas;Lcom/eignex/koblas/DenseMatrix;[DZ)[D
 	public static synthetic fun gemv$default (Lcom/eignex/koblas/dense/DenseBlas;DLcom/eignex/koblas/DenseMatrix;[DD[DZLcom/eignex/koblas/Workspace;ILjava/lang/Object;)V
 	public static synthetic fun gemv$default (Lcom/eignex/koblas/dense/DenseBlas;Lcom/eignex/koblas/DenseMatrix;[DZILjava/lang/Object;)[D
+	public static synthetic fun ger$default (Lcom/eignex/koblas/dense/DenseBlas;D[D[DLcom/eignex/koblas/DenseMatrix;IIIIIILcom/eignex/koblas/Workspace;ILjava/lang/Object;)V
 	public static synthetic fun ger$default (Lcom/eignex/koblas/dense/DenseBlas;D[D[DLcom/eignex/koblas/DenseMatrix;Lcom/eignex/koblas/Workspace;ILjava/lang/Object;)V
 	public static synthetic fun symm$default (Lcom/eignex/koblas/dense/DenseBlas;DLcom/eignex/koblas/DenseMatrix;Lcom/eignex/koblas/DenseMatrix;DLcom/eignex/koblas/DenseMatrix;ZZLcom/eignex/koblas/Workspace;ILjava/lang/Object;)V
 	public static synthetic fun symv$default (Lcom/eignex/koblas/dense/DenseBlas;DLcom/eignex/koblas/DenseMatrix;[DD[DZLcom/eignex/koblas/Workspace;ILjava/lang/Object;)V
@@ -585,6 +589,7 @@ public final class com/eignex/koblas/dense/DenseMatrixOperation : java/lang/Enum
 	public static final field Gemv Lcom/eignex/koblas/dense/DenseMatrixOperation;
 	public static final field GemvTransposed Lcom/eignex/koblas/dense/DenseMatrixOperation;
 	public static final field Ger Lcom/eignex/koblas/dense/DenseMatrixOperation;
+	public static final field GerWindow Lcom/eignex/koblas/dense/DenseMatrixOperation;
 	public static final field Symm Lcom/eignex/koblas/dense/DenseMatrixOperation;
 	public static final field Symv Lcom/eignex/koblas/dense/DenseMatrixOperation;
 	public static final field Syr Lcom/eignex/koblas/dense/DenseMatrixOperation;
