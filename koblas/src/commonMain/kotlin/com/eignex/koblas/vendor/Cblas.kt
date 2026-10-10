@@ -1,6 +1,7 @@
 package com.eignex.koblas.vendor
 
 import com.eignex.koblas.dense.MatrixStructure
+import kotlin.math.abs
 
 /**
  * The CBLAS enumeration values and the rules for mapping Koblas operands onto them.
@@ -59,3 +60,6 @@ internal fun diagFor(structure: MatrixStructure): Int = when (structure) {
 
 /** The side flag for a two-sided Level 3 call. */
 internal fun sideFor(rightSide: Boolean): Int = if (rightSide) Cblas.RIGHT else Cblas.LEFT
+
+/** A singleton never advances, and its legal stride may have an unrepresentable positive magnitude. */
+internal fun positiveIncrement(stride: Int, size: Int): Int = if (size == 1) 1 else abs(stride)

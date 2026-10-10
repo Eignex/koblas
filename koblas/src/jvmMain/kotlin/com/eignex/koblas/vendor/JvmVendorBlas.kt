@@ -12,7 +12,6 @@ import java.lang.foreign.ValueLayout.ADDRESS
 import java.lang.foreign.ValueLayout.JAVA_DOUBLE
 import java.lang.foreign.ValueLayout.JAVA_INT
 import java.lang.invoke.MethodHandle
-import kotlin.math.abs
 
 /**
  * A vendor BLAS reached through `java.lang.foreign`.
@@ -70,7 +69,7 @@ internal class JvmVendorBlas(
         if (noWork(x)) return 0.0
         return Arena.ofConfined().use { arena ->
             val nx = arena.stage(x)
-            nrm2Handle.invokeExact(x.size, nx.segment, abs(nx.increment)) as Double
+            nrm2Handle.invokeExact(x.size, nx.segment, positiveIncrement(nx.increment, x.size)) as Double
         }
     }
 
@@ -78,7 +77,7 @@ internal class JvmVendorBlas(
         if (noWork(x)) return 0.0
         return Arena.ofConfined().use { arena ->
             val nx = arena.stage(x)
-            asumHandle.invokeExact(x.size, nx.segment, abs(nx.increment)) as Double
+            asumHandle.invokeExact(x.size, nx.segment, positiveIncrement(nx.increment, x.size)) as Double
         }
     }
 
@@ -86,7 +85,7 @@ internal class JvmVendorBlas(
         if (noWork(x)) return 0
         return Arena.ofConfined().use { arena ->
             val nx = arena.stage(x)
-            val found = iamaxHandle.invokeExact(x.size, nx.segment, abs(nx.increment)) as Int
+            val found = iamaxHandle.invokeExact(x.size, nx.segment, positiveIncrement(nx.increment, x.size)) as Int
             if (x.stride >= 0) found else x.size - 1 - found
         }
     }
@@ -106,7 +105,7 @@ internal class JvmVendorBlas(
         if (noWork(x)) return
         Arena.ofConfined().use { arena ->
             val nx = arena.stage(x)
-            scalHandle.invokeExact(x.size, alpha, nx.segment, abs(nx.increment))
+            scalHandle.invokeExact(x.size, alpha, nx.segment, positiveIncrement(nx.increment, x.size))
             nx.writeBack()
         }
     }
