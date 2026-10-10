@@ -26,12 +26,9 @@ internal class CaseWork(
     val close: () -> Unit = {},
     val result: DoubleArray? = null,
     /**
-     * What ran, as the route of the call this work makes reported it.
+     * Attribution from the timed call's resolved route.
      *
-     * Attribution taken from here comes from the same decision the timed call acts on. That is the difference
-     * from a kernel name rebuilt afterwards out of the mode and case strings, which is a second answer to the
-     * same question and can disagree with the first. It stays nullable because a declined case has no call to
-     * describe; a timed one with nothing here is refused by `measurement` rather than reported.
+     * Declined cases have no call to describe. [measurement] requires a route for every timed row.
      */
     val kernel: String? = null,
 )
@@ -63,11 +60,9 @@ internal fun vectorKernel(route: VectorRoute<*>): String = "${route.implementati
 /**
  * Built-in Level 2 or 3 work, named by the route the call itself resolves.
  *
- * The scheduling is this library's own portable code on every engine, and the route says so; where a window
- * of work reaches a panel or a Level 1 kernel, the route names the one that window reaches at its own length.
- * An arm therefore never publishes a scalar traversal under a SIMD label because the engine selected
- * vectorised kernels, and a call whose windows do not all reach the same body is published as the composition
- * it is rather than under either name.
+ * Routes name the shared portable schedule and the bodies its windows reach at their actual extents.
+ * Calls reaching multiple bodies are reported as compositions, so engine selection alone cannot label
+ * scalar work as SIMD.
  *
  * [verify] runs before anything is timed and compares the whole destination buffer against [DenseReference].
  */
@@ -485,9 +480,7 @@ private fun packingWork(case: BenchCase, engine: KoblasEngine): CaseWork {
 /**
  * A product over operands packed before the timed region, with whichever of them this case retains.
  *
- * Three entry points rather than one with a flag, because they are three different amounts of work: the
- * copy a call still makes is the difference between them, and a row that hid which one it was could not be
- * read against the packing-only row beside it.
+ * Separate entry points expose the remaining packing cost for comparison with the packing-only row.
  */
 private fun retainedProductWork(case: BenchCase, engine: KoblasEngine): CaseWork? {
     val (m, n, k) = case.dimensions

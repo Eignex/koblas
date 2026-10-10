@@ -11,10 +11,7 @@ import com.eignex.koblas.vendor.RouteKind
 import com.eignex.koblas.vendor.ThreadEvidence
 import com.eignex.koblas.vendor.Vendor
 
-/**
- * One call as the binding received it. The operands are the objects that were handed over rather than
- * copies, so a test can ask whether they were the caller's own storage or something staged in front of it.
- */
+/** Records operand identities so tests can distinguish caller storage from staged copies. */
 internal class BlasCall(
     val operation: BlasOperation,
     val matrices: List<DenseMatrix> = emptyList(),
@@ -37,13 +34,11 @@ internal class BlasCall(
 }
 
 /**
- * A [Blas] that records what it was asked to do and computes nothing, which is how a `lower` arriving as an
- * upper triangle, a `right` arriving as a left-side call, or an operand densified out of its own spacing is
- * caught: a symmetric fixture or a self-inverting round trip answers correctly either way.
+ * Records [Blas] calls without computing, exposing flag and storage translation errors that
+ * symmetric fixtures or round trips can conceal.
  *
- * It records at the [Blas] seam, so it pins the translation [HostDenseBlas] performs into [MatrixStructure]
- * and [DenseVector], and nothing below it: the CBLAS integers, the leading dimension and the increment are
- * produced inside the platform bindings, which the vendor conformance tests cover.
+ * This covers [HostDenseBlas] translation into [MatrixStructure] and [DenseVector]. Platform
+ * vendor tests cover the CBLAS integers, leading dimensions and increments produced below this seam.
  */
 internal class RecordingBlas(
     override val vendor: Vendor = Vendor.OpenBlas,

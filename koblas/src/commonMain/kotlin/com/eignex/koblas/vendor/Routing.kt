@@ -23,8 +23,7 @@ internal fun routeFor(
     vectors: List<DenseVector>,
     transfer: String?,
 ): CallRoute {
-    // Level 3 still scales a nonempty destination when the product depth is zero. Its destination is the
-    // last matrix operand, and it is the only extent the bindings use for their quick return.
+    // Level 3 scales a nonempty destination even at zero product depth; only its extent controls quick return.
     val workMatrices = if (operation.level == 3) matrices.takeLast(1) else matrices
     noWorkReason(workMatrices, vectors)?.let { return noWorkRoute(operation, vendor, it) }
     if (!exported) {
@@ -37,7 +36,6 @@ internal fun routeFor(
             reason = "${vendor.vendorName} does not export ${operation.entryPoint}",
         )
     }
-    // Every operand is contiguous column-major, so the platform transfer is the only adaptation there is.
     return CallRoute(
         operation = operation,
         kind = RouteKind.Direct,

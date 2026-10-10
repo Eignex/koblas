@@ -8,9 +8,7 @@ import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
-// The dense vector contract, over any implementation. The compiled-in kernels and a host binding must both
-// satisfy it, and a host kernels class exists only on the native targets, so the assertions live here rather
-// than beside either caller.
+// Shared conformance assertions cover owned kernels and Native host bindings.
 
 /**
  * The level-1 kernels against loops written out here, at a non-zero offset so an implementation that ignores
@@ -46,11 +44,7 @@ internal fun assertLevel1KernelsAgreeWithReference(kernels: DenseVectorKernels) 
     }
 }
 
-/**
- * Plane rotation against the portable kernel implementation. Every leaf gets this: a leaf that inherited a
- * rotation instead of implementing one would pass, but there is no such leaf to inherit from, so the
- * failure this catches is a leaf whose own rotation disagrees.
- */
+/** Plane rotation agreement with the portable kernel for every implementation. */
 internal fun assertRotKernelAgreesWithReference(kernels: DenseVectorKernels) {
     // The rotation BLAS drotg(3, 4) produces, written out because koblas exposes no generator.
     val c = 0.6
@@ -202,13 +196,8 @@ internal fun assertIamaxAgreesWithReference(kernels: DenseVectorKernels) {
 }
 
 /**
- * What every arm owes, which is weaker than exact agreement with the portable kernel.
- *
- * `idamax` leaves two things open: which index is returned when the maximum is not unique, and what happens
- * when the largest magnitude is a NaN. The portable kernels compare strictly, so ties go to the first and a
- * NaN loses; a vendor may report the NaN's index instead, and Koblas passes that through rather than carving
- * the routine out of the binding. So the promise is this and no more: a logical index, in range, holding a
- * maximum absolute value or a NaN.
+ * `idamax` permits implementation-specific tie and NaN selection. Require an in-range logical
+ * index holding a maximum absolute value or a NaN; the portable loop's first-tie policy is narrower.
  */
 internal fun assertIamaxHonoursItsContract(kernels: DenseVectorKernels) {
     val rng = Random(20260912)
@@ -253,14 +242,10 @@ internal fun assertScaleAgreesWithReference(kernels: DenseVectorKernels) {
 }
 
 /**
- * What every arm owes for a scaling, which is weaker than exact agreement at a zero multiplier.
- *
- * `dscal` does not require a zero multiplier to be multiplied through. A library may write zeros without
- * reading the operand at all, and BLIS does so above its own width, so an entry holding a NaN, an infinity, or
- * a negative zero comes back as a positive zero rather than as the product. Koblas passes that through rather
- * than carving the routine out of the binding, the same way [assertIamaxHonoursItsContract] does. So the
- * promise is this and no more: outside the window nothing moves, and inside it every entry is the product,
- * except under a zero multiplier, where it is either the product or a zero of either sign.
+ * `dscal` may write zeros without reading the operand when its multiplier is zero. Require
+ * untouched padding and the product inside the window, allowing either signed zero in place of
+ * the product for a zero multiplier. Like [assertIamaxHonoursItsContract], this admits vendor
+ * behavior allowed by BLAS.
  */
 internal fun assertScaleHonoursItsContract(kernels: DenseVectorKernels) {
     forEachScaleFixture { off, len, alpha, expected, actual ->

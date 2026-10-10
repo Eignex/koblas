@@ -34,8 +34,7 @@ public fun DenseMatrix.maskTo(structure: MatrixStructure) {
     }
     for (j in 0 until cols) {
         val base = j * rows
-        // Each column's masked entries are one contiguous run in column-major storage, so this is one fill
-        // per column rather than an indexed walk.
+        // Masked entries form one contiguous fill per column in column-major storage.
         if (lower) {
             values.fill(0.0, base, base + minOf(j, rows))
         } else {

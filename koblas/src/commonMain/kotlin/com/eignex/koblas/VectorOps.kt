@@ -142,8 +142,7 @@ public fun copy(src: Vector, dst: DenseVector) {
     }
     val source = src.stableFor(dst)
     if (source is SparseVector) {
-        // A contiguous destination is one fill and one scatter through the indexed kernel; any other spacing
-        // has no kernel to reach, because the sparse seam addresses a pattern and carries no increment.
+        // Only contiguous destinations can use the indexed kernel, whose seam carries no increment.
         if (dst.isWholeArray) {
             dst.values.fill(0.0)
             koblas.sparseKernels.scatter(source, dst.values)
@@ -198,8 +197,7 @@ public fun gatherZero(x: SparseVector, from: ContiguousVector) {
  */
 public fun swap(a: DenseVector, b: DenseVector) {
     requireSameSize(a.size, b.size, "swap")
-    // Sharing a buffer is not the same as covering an entry of it. Two rows or columns of one matrix share
-    // their array and overlap nowhere, which is the case this overload exists for, so it reaches the kernel.
+    // Rows or columns can share a matrix buffer without overlapping and still reach the kernel.
     if (a.overlaps(b)) {
         val snapshotA = a.toDoubleArray()
         val snapshotB = b.toDoubleArray()
@@ -222,8 +220,7 @@ public fun DenseVector.axpy(alpha: Double, x: Vector) {
         is DenseVector ->
             koblas.vectorKernels.axpy(values, offset, alpha, source.values, source.offset, size, stride, source.stride)
 
-        // The indexed sparse kernels walk the pattern, and have a vectorised form; the generic loop has
-        // neither, so it is what a foreign Vector implementation gets rather than what a SparseVector does.
+        // SparseVector uses indexed kernels; foreign Vector implementations use the generic loop.
         is SparseVector -> if (isWholeArray) {
             koblas.sparseKernels.axpy(values, alpha, source)
         } else {

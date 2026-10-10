@@ -12,7 +12,7 @@ class SerializationTest {
     fun `DenseMatrix round-trips through JSON for square rectangular and degenerate shapes`() {
         val cases = listOf(
             DenseMatrix.ofRows(arrayOf(doubleArrayOf(1.0, 2.0), doubleArrayOf(3.0, 4.0))),
-            DenseMatrix.ofRows(arrayOf(doubleArrayOf(1.0, 2.0, 3.0))), // 1x3
+            DenseMatrix.ofRows(arrayOf(doubleArrayOf(1.0, 2.0, 3.0))),
             DenseMatrix(1, 1).also { it[0, 0] = 7.5 },
             DenseMatrix(3, 0), // 3 empty rows survive (cols=0)
             DenseMatrix(0, 0),
@@ -75,8 +75,7 @@ class SerializationTest {
         val backDense = json.decodeFromString(VectorStorage.serializer(), encodedDense)
         val backSparse = json.decodeFromString(VectorStorage.serializer(), encodedSparse)
 
-        // The serial name of each storage is its class name; the contiguous vector once encoded as the
-        // interface it implements, which a reader of the payload cannot decode into.
+        // Concrete storage names let the payload decode into the same container type.
         for ((storage, encoded) in listOf(dense to encodedDense, sparse to encodedSparse)) {
             assertTrue(storage::class.simpleName!! in encoded, "expected a type discriminator in $encoded")
         }

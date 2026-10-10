@@ -81,9 +81,7 @@ public fun Matrix.gemmInto(
     requireGemmOperands(this, transpose, other, transposeOther, destination, "gemmInto")
     // An unused custom operand need not fit in dense storage, so settle this before adapting either side.
     if (destination.values.isEmpty()) return
-    // Before either operand is looked at, so a zero multiplier reads nothing at all. A custom Matrix can
-    // compute its entries, and staging one to discover that alpha contributes nothing would be a call the
-    // contract says does not happen.
+    // A zero multiplier must read no operand, including entries computed by a custom Matrix.
     if (alpha == 0.0) {
         applyBeta(koblas.vectorKernels, destination.values, 0, destination.values.size, beta)
         return

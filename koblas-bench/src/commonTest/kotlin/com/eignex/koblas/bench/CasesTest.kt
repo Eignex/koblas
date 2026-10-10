@@ -135,7 +135,6 @@ class CasesTest {
         assertEquals(listOf(32, 2, 2, 2, 2, 2, 2, 2), counts.getValue("skewed"))
         assertEquals(listOf(0, 8, 8, 8, 0, 8, 8, 8), counts.getValue("empty"))
         assertEquals(listOf(1, 32, 1, 32, 1, 32, 1, 32), counts.getValue("mixed"))
-        // A banded column keeps its entries next to the diagonal, which is the whole of what it changes.
         val banded = Fixtures.sparse(32, 8, 0.0625, 3, support = "banded")
         for (j in 0 until banded.cols) {
             val centre = j * 31 / 7

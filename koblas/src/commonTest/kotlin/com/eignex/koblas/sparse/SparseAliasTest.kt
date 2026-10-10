@@ -14,12 +14,8 @@ import kotlin.test.Test
 import kotlin.test.assertContentEquals
 
 /**
- * Operands that share the buffer a call writes into.
- *
- * `*Into` destinations may alias their inputs, which means an operand is worth exactly what it held when the
- * call began. Every case here runs the same call twice, once over independent buffers and once over shared
- * ones, and requires the two to agree. The independent run is the oracle, so what is asserted is the contract
- * rather than any particular staging.
+ * `*Into` destinations may alias inputs. Shared-buffer calls must agree with independent-buffer
+ * calls using the values present at entry, regardless of staging.
  */
 class SparseAliasTest {
 

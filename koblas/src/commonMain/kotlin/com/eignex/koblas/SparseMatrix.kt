@@ -44,9 +44,7 @@ public class SparseMatrix internal constructor(
         require(colPointers[0] == 0) { "colPointers[0] ${colPointers[0]} != 0" }
         require(colPointers[cols] == values.size) { "colPointers[cols] ${colPointers[cols]} != nnz ${values.size}" }
         for (j in 0 until cols) require(colPointers[j] <= colPointers[j + 1]) { "colPointers not monotonic at $j" }
-        // The two passes over rowIndices, which is where an O(nnz) construction spends its checking. A producer
-        // deriving this from a matrix that already holds the invariant skips them through [wrapTrusted];
-        // everything reaching koblas from outside, a native library above all, still comes through here.
+        // External inputs must validate CSC invariants; trusted matrix-derived producers skip these passes.
         if (!trustedPattern) {
             for (k in rowIndices.indices) {
                 requireIndex(rowIndices[k] in 0 until rows) { "rowIndices[$k]=${rowIndices[k]} out of [0,$rows)" }
@@ -143,7 +141,7 @@ public class SparseMatrix internal constructor(
             for (column in columns) nnzLong += column.size
             requireShape(nnzLong <= Int.MAX_VALUE) { "stored entry count $nnzLong exceeds Int capacity" }
             val nnz = nnzLong.toInt()
-            // Flattened into triplets, so nothing boxes beyond the pairs the caller already holds.
+            // Flattening into triplets avoids boxing beyond the caller's pairs.
             val rowIndices = IntArray(nnz)
             val colIndices = IntArray(nnz)
             val values = DoubleArray(nnz)
@@ -181,8 +179,7 @@ public class SparseMatrix internal constructor(
             if (values.isEmpty()) {
                 return SparseMatrix.wrapTrusted(rows, cols, IntArray(pointers), IntArray(0), DoubleArray(0))
             }
-            // Each pass is its own method: one body holding every loop is compiled again for each loop entered
-            // on-stack, and a large matrix enters all of them on its first call.
+            // Separate methods avoid recompiling every loop during each on-stack replacement.
             val byRow = groupByRow(rows, rowIndices, colIndices, values)
             val byCol = groupByColumn(rows, cols, byRow)
             return sumAdjacentDuplicates(rows, cols, byCol)
@@ -219,7 +216,7 @@ public class SparseMatrix internal constructor(
             return TripletRuns(rowEnds, byRowCol, byRowVal)
         }
 
-        // Then by column, visiting rows in ascending order, so each column comes out ascending by row.
+        // Visiting rows in ascending order produces ascending row indices in each column.
         private fun groupByColumn(rows: Int, cols: Int, byRow: TripletRuns): TripletRuns {
             val nnz = byRow.index.size
             val columnEnds = IntArray(cols + 1)
@@ -240,7 +237,7 @@ public class SparseMatrix internal constructor(
             return TripletRuns(columnEnds, outRow, outVal)
         }
 
-        // Duplicates are now adjacent within a column, so summing them is one forward pass in place.
+        // Adjacent duplicates can be summed in place.
         private fun sumAdjacentDuplicates(rows: Int, cols: Int, byCol: TripletRuns): SparseMatrix {
             val colPointers = byCol.ends
             val outRow = byCol.index

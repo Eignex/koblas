@@ -64,9 +64,7 @@ internal inline fun forEachTriangularBlock(
         sourceCount: Int,
     ) -> Unit,
 ) {
-    // A solve runs with the substitution: a lower system is finished from its first step. A multiply runs
-    // against it, because a step of a lower product is the sum of the steps at or before it and those have
-    // to still hold what they arrived with.
+    // Solve in dependency order; multiply in reverse order to preserve input values until their last use.
     val ascending = if (solve) lower else !lower
     var boundary = if (ascending) 0 else order
     while (if (ascending) boundary < order else boundary > 0) {
@@ -79,9 +77,7 @@ internal inline fun forEachTriangularBlock(
         }
         val end = if (ascending) if (order - boundary > block) boundary + block else order else boundary
         val size = end - start
-        // The part of the order this block still has business with is whatever the substitution has not
-        // reached. For a solve that is the steps after it in dependency order, which it removes itself from;
-        // for a multiply it is the same range, which it reads.
+        // The remaining dependency range receives a solve update or supplies the multiply inputs.
         val restStart = if (ascending) end else 0
         val restCount = if (ascending) order - end else start
         if (solve) {

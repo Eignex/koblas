@@ -17,12 +17,7 @@ internal fun requireSquare(a: Matrix, what: String) {
     requireShape(a.rows == a.cols) { "$what requires a square matrix, got ${a.rows}x${a.cols}" }
 }
 
-/**
- * Two operands of one shape, the extents given rather than the first operand.
- *
- * A caller that transposes one side knows its own oriented extents and has no operand in that orientation to
- * pass, which is the whole of what this compares.
- */
+/** Compares explicit, possibly transposed extents against [b] without allocating an oriented operand. */
 internal fun requireSameShape(rows: Int, cols: Int, b: Matrix, what: String) {
     requireShape(rows == b.rows && cols == b.cols) {
         "$what: ${rows}x$cols and ${b.rows}x${b.cols}, which must match"
@@ -54,12 +49,7 @@ internal fun requireGerOperands(xSize: Int, ySize: Int, a: Matrix) {
     }
 }
 
-/**
- * A symmetric rank update over one or two vectors of the destination's order.
- *
- * Two entries rather than one taking a variable number, since every caller knows which of the two it is and
- * a variable-length one allocates its array on each call.
- */
+/** Symmetric rank update validation; separate one- and two-vector entries avoid vararg allocation. */
 internal fun requireSyrOperands(a: Matrix, xSize: Int, what: String) {
     requireSquare(a, what)
     requireOrder(a, xSize, what)

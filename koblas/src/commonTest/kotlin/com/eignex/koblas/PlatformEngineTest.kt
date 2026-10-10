@@ -11,9 +11,8 @@ import kotlin.test.assertNotEquals
 import kotlin.test.assertSame
 
 /**
- * Which Level 1 arm the default engine selected: the Vector API kernels on the JVM, where reaching a foreign
- * library copies both operands first, and the vendor on Kotlin/Native, which pins them instead. Every other
- * test asks only for a correct answer, which both arms give.
+ * Checks the default Level 1 arm: Vector API kernels on the JVM, where host calls copy operands,
+ * and a vendor on Kotlin/Native, where operands can be pinned.
  */
 class PlatformEngineTest {
     @OptIn(KoblasEngineApi::class)
@@ -145,9 +144,8 @@ class PlatformEngineTest {
     }
 
     /**
-     * The measured crossovers differ by operation, and one width is enough to catch a single constant
-     * creeping back: at 96 a dot has crossed and a norm has not, because `dnrm2` rescales per element where
-     * the portable kernel tries the plain sum of squares first. Only the Native arm routes Level 1 at all.
+     * Native Level 1 crossovers differ by operation: at 96 a dot has crossed and a norm has not.
+     * `dnrm2` rescales per element while the portable norm first tries a plain sum of squares.
      */
     @Test
     fun `each operation crosses to the vendor at its own measured width`() {

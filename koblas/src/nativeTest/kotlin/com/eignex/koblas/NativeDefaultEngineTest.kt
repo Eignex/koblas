@@ -16,11 +16,8 @@ import kotlin.test.assertNotEquals
 import kotlin.test.assertTrue
 
 /**
- * What this platform's default does with an installed library. Kotlin/Native is the one platform whose
- * default composes a host library into ordinary dense Level 2 and 3 calls, and the portable schedule
- * computes the same answers, so these read the route rather than the numbers.
- *
- * Every case says what it could not check where no library is installed, rather than passing silently.
+ * Checks Native default host composition through routes, since the portable schedule computes
+ * the same answers. Missing libraries are reported explicitly.
  */
 class NativeDefaultEngineTest {
     private fun skipped(what: String) {
@@ -100,11 +97,9 @@ class NativeDefaultEngineTest {
     }
 
     /**
-     * A rotation is the one Level 1 call whose width does not settle which kernel runs it.
-     *
-     * One run rotated against itself stays portable at every width, because reference `drot` reads an entry
-     * back after storing it and this library's kernels promise it does not. A route carries no operand
-     * identity, so it names neither kernel rather than promising the library a distinct pair would reach.
+     * Aliased rotations stay portable because reference `drot` reads an entry after storing it,
+     * while owned kernels read both inputs before writing. Routes omit operand identity, so width cannot
+     * settle the selected kernel.
      */
     @Test
     fun `a wide rotation is not an exact measurement of either kernel`() {
@@ -124,10 +119,7 @@ class NativeDefaultEngineTest {
         assertEquals(SPARSE_SCHEDULING, koblas.sparseImplementation)
     }
 
-    /**
-     * The exact portable engine is the floor: it resolves nothing and every level computes there, which is
-     * what says the Native default's composition did not reach into it.
-     */
+    /** The exact portable engine resolves no host binding and provides the availability floor. */
     @OptIn(KoblasEngineApi::class)
     @Test
     fun `the exact portable engine computes every level without a library`() {

@@ -17,9 +17,8 @@ import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
 /**
- * Shapes at the edge of what a CSC result can represent. A validated sparse matrix bounds its column count
- * but not its row count, so an operation whose output has one column per input row is where an
- * unrepresentable row count first becomes an array length. Every fixture is a tall empty matrix.
+ * CSC bounds its column count but not its row count. Tall empty fixtures expose operations
+ * that turn an unrepresentable row count into a pointer-array length.
  */
 class SparseCapacityTest {
 
@@ -101,7 +100,6 @@ class SparseCapacityTest {
 
         koblas.syrk(1.0, empty, transpose = false, 2.0, destination, lower = true)
 
-        // The upper triangle is untouched, and the lower one is doubled.
         assertContentEquals(doubleArrayOf(2.0, 4.0, 3.0, 8.0), destination.values)
     }
 

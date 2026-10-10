@@ -18,14 +18,11 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /**
- * One compute thread per call, and any number of callers at once, on the platform whose default reaches a
- * library. Each worker owns its destination and its workspace; the operands are shared and read only, and
- * both halves are asserted.
+ * Checks single-threaded host computation with concurrent callers. Workers share read-only
+ * operands and own their destinations and workspaces.
  *
- * Each case asserts the route of the exact call its workers will make, or the same test would pass on a
- * policy that never reached a library; where none is installed the route is the portable one and the case
- * says so. Every worker carries a unit multiplier, which is what the policy admits for a product, and is
- * told apart by its own destination multiplier instead.
+ * Each worker's exact call route is checked so portable fallback cannot imply host coverage.
+ * Unit product multipliers satisfy the host policy; distinct destination multipliers identify workers.
  */
 class NativeHostConcurrencyTest {
     private class Task(val a: DenseMatrix, val b: DenseMatrix, val beta: Double)

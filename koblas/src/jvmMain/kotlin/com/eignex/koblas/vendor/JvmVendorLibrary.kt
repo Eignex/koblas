@@ -11,20 +11,14 @@ import java.lang.foreign.ValueLayout.JAVA_INT
 import java.lang.invoke.MethodHandle
 
 /**
- * One opened vendor library and the symbols bound out of it.
+ * Vendor library and symbols bound from its own handle.
  *
- * The lookup is the library's own, never the process-global one. That distinction is the whole point on a host
- * with more than one BLAS loaded: `cblas_dgemm` resolves in several of them, and a default lookup would hand
- * back whichever the dynamic loader happened to bind first, so a run labelled oneMKL could be executing
- * OpenBLAS. Resolving against the handle returned for a named file means the label and the code agree.
+ * A process-global lookup could resolve another loaded BLAS, making the vendor label inaccurate.
+ * Handles are bound once and share the library's [Arena.global] lifetime.
  *
- * Handles are bound once and held for the process. There is no per-call lookup, and the [Arena.global] lifetime
- * means no handle can outlive its library.
- *
- * Every handle is bound without [Linker.Option.critical]. A vendor BLAS call is not a bounded leaf: it can run
- * for a long time, allocate, and coordinate its own worker threads, and a thread inside a critical downcall
- * holds off a safepoint until it returns. The cost is that operands are copied into native memory rather than
- * pinned in place, which is real and is reported as part of the route rather than hidden.
+ * Downcalls omit [Linker.Option.critical]: vendor routines can allocate, run for long periods and
+ * coordinate worker threads. Critical calls would hold off safepoints. Native operand copies are
+ * required and reported in the route.
  */
 internal class JvmVendorLibrary private constructor(
     /** Which vendor this library is. */
@@ -38,13 +32,8 @@ internal class JvmVendorLibrary private constructor(
     val version: String by lazy { readVersion() }
 
     /**
-     * The file the key symbol actually came from, asked of the dynamic loader rather than assumed.
-     *
-     * The candidate that opened is not the same thing. A bare soname matches a library already loaded into the
-     * process by some earlier absolute-path open, so the name Koblas asked for can resolve without that name
-     * being findable on its own, and two runs can record different strings for one file depending only on what
-     * ran first. Asking the loader which object a resolved symbol belongs to gives the file that will actually
-     * execute, which is what a report naming a vendor needs to stand on.
+     * File reported by the dynamic loader for the key symbol. A requested soname can resolve to an
+     * already-loaded absolute path, so the candidate name alone does not identify the executing file.
      */
     val resolvedFile: String by lazy { symbolOwner(vendor.keySymbol) ?: path }
 
@@ -63,21 +52,12 @@ internal class JvmVendorLibrary private constructor(
     }
 
     /**
-     * Pins the library to one compute thread per call, before any arithmetic reaches it.
+     * Configure one compute thread before any arithmetic.
      *
-     * Every one of these libraries is multithreaded by default, so this is what makes a call single-threaded
-     * rather than a preference expressed about it. It runs once, at load, and there is no way to reach it
-     * afterwards: the thread count is an invariant of the binding and not a setting it carries.
-     *
-     * oneMKL takes two steps. Its dispatcher resolves a threading layer on first use and defaults to the
-     * Intel-threaded one, which needs an OpenMP runtime a plain oneMKL install does not ship; on a host without
-     * `libiomp5` the first call dies with an undefined `omp_get_num_procs` instead of computing. Naming the
-     * sequential layer both makes the library usable and removes its workers. The thread count and dynamic
-     * expansion are then fixed as well, so a build that resolves some other layer cannot grow workers back.
-     *
-     * A library that ignores all of this is caught by [confirmSingleThread] rather than trusted. That read-back
-     * happens after the ABI probe, because the probe is itself arithmetic and must not be what resolves the
-     * layer.
+     * oneMKL must select its sequential layer before first use to avoid resolving a threaded layer
+     * that requires an unavailable OpenMP runtime. Thread count and dynamic expansion are fixed too.
+     * [confirmSingleThread] checks the result after the ABI probe; configuration precedes the probe
+     * because the probe itself can resolve the threading layer.
      */
     private fun enforceSingleThread() {
         // Every call below sits in statement position with its handle in a local. invokeExact converts
@@ -96,11 +76,9 @@ internal class JvmVendorLibrary private constructor(
     }
 
     /**
-     * Sets Accelerate's thread limit in this process, before Accelerate performs any arithmetic.
-     *
-     * The JVM cannot change its own environment through `System.getenv`, so this reaches libc's `setenv`
-     * directly. Overwrite is on: a value inherited from the launching shell must not be able to weaken the
-     * invariant. See [ACCELERATE_THREAD_LIMIT] for why this is the only lever available.
+     * Set Accelerate's process thread limit before arithmetic through libc `setenv`.
+     * [ACCELERATE_THREAD_LIMIT] is its available control; overwrite inherited values so they cannot
+     * weaken the single-thread invariant.
      */
     private fun limitAccelerateThreads() {
         val address = linker.defaultLookup().find("setenv").orElse(null) ?: return
@@ -120,10 +98,8 @@ internal class JvmVendorLibrary private constructor(
         private set
 
     /**
-     * Reads back whether the library now runs on one compute thread, after [enforceSingleThread] has run.
-     *
-     * Returns false for a library that still reports more than one, which is how such a library is kept out of
-     * arithmetic entirely rather than becoming a silently multithreaded arm.
+     * Read back the thread count after [enforceSingleThread]. A library still reporting multiple
+     * threads is rejected before arithmetic.
      */
     fun confirmSingleThread(): Boolean {
         val control = vendor.threadControl
@@ -147,12 +123,8 @@ internal class JvmVendorLibrary private constructor(
     }
 
     /**
-     * Whether the library matches the ABI Koblas binds and computes correctly through it.
-     *
-     * Two separate questions. The integer width cannot be settled by calling the library, so it is read from
-     * what the build says about itself; see [declaresWideIntegers]. Whether the library computes at all is
-     * settled by calling it, with operands whose exact answer is known, which is what catches an install that
-     * resolved every symbol but cannot execute.
+     * Check ABI compatibility through the build's integer-width declaration; see [declaresWideIntegers].
+     * A known-answer arithmetic probe separately rejects libraries that bind but cannot execute.
      */
     fun verifiedAbi(): Boolean {
         if (declaresWideIntegers(version)) return false
@@ -251,13 +223,8 @@ internal class JvmVendorLibrary private constructor(
         private const val PATH_BYTES = 4096L
 
         /**
-         * Opens the first candidate of [vendor] that loads and exports every required CBLAS symbol, or null.
-         *
-         * A library that opens but is missing part of the surface is rejected rather than half-bound, so a
-         * partial or mismatched install fails here instead of at the first call that needs the missing piece.
-         * One whose ABI does not match, or that cannot compute a known answer, is rejected the same way. The
-         * single-thread requirement is then applied, and a library that will not hold to it fails loudly rather
-         * than silently becoming a multithreaded arm.
+         * Open the first [vendor] candidate with every required CBLAS symbol, or null. Reject partial
+         * installs before arithmetic; the ABI and single-thread checks must also succeed.
          */
         fun open(vendor: Vendor): JvmVendorLibrary? {
             val linker = try {

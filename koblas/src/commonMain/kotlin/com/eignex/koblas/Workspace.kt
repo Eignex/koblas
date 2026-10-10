@@ -1,19 +1,15 @@
 package com.eignex.koblas
 
 /**
- * Reusable scratch for alias-safe matrix operations, taken by every routine that needs temporary storage.
+ * Reusable scratch for alias-safe matrix operations.
  *
- * A workspace belongs to one invocation at a time. Independent calls may safely use distinct workspaces; calls
- * without one own their temporary storage. Its contents are implementation details and never retain an operand.
+ * A workspace belongs to one invocation at a time. Independent calls may use distinct workspaces; calls
+ * without one own their temporary storage. Buffers never retain an operand and are returned even if
+ * arithmetic throws.
  *
- * Buffers are lent for the duration of one nested scope and handed back afterwards, so a routine whose
- * arithmetic throws does not strand a loan. Reuse is by exact length: a workspace lends a buffer of the size
- * asked for or allocates one, which keeps a repeated call over the same shapes allocation-free without making
- * a length mismatch silently read stale entries beyond what it wrote.
- *
- * Retention is bounded. A workspace reused across changing shapes keeps a small number of recently returned
- * lengths and drops the rest, so its memory reflects what the caller is working on rather than everything it
- * has ever worked on. Buffers currently on loan are never dropped, so nested loans remain safe.
+ * Reuse is by exact length, keeping repeated shapes allocation-free without exposing stale tail entries.
+ * Retention keeps a bounded number of recently returned lengths, so changing shapes cannot grow the pool
+ * indefinitely. Active loans remain valid through nested calls.
  */
 public class Workspace {
     private val doubles = PooledBuffers<DoubleArray>()
@@ -51,13 +47,9 @@ public class Workspace {
 /**
  * Borrows a vector of [size] for [block], allocating one when there is no workspace to lend it.
  *
- * Handed back in a `finally`, so a routine whose kernels throw does not strand the borrow. The receiver is
- * nullable because a workspace is optional wherever it is taken, and Kotlin cannot carry both receivers under
- * one name: nullability is not part of a JVM signature.
- *
- * Public because a caller composing its own algorithm on these kernels needs the same bounded scratch the
- * library uses, and a workspace with no way to lend from it would be an object a caller could only
- * pass along. It is `inline`, so the loan and its return are the caller's own code and no lambda survives.
+ * The buffer is returned in `finally`, including when a kernel throws. The nullable receiver supports
+ * optional workspaces; JVM signatures cannot distinguish overloads by receiver nullability.
+ * Inlining lets callers compose algorithms with bounded scratch without allocating a lambda.
  */
 @kotlin.jvm.JvmSynthetic
 public inline fun <T> Workspace?.borrow(size: Int, block: (DoubleArray) -> T): T {
@@ -81,18 +73,13 @@ public inline fun <T> Workspace?.borrowI32(size: Int, block: (IntArray) -> T): T
 }
 
 /**
- * Buffers of one primitive element type, lent by exact length and retained under an explicit bound.
+ * Primitive buffers lent by exact length and retained under a bound on idle lengths.
  *
- * Two bounds, because a workspace is reused in two different ways. A repeated call over one shape asks for the
- * same few lengths every time, so every idle buffer has to survive or the reuse is worthless: that is what
- * [MAX_IDLE_LENGTHS] leaves room for. A caller sweeping changing shapes asks for a new length each time, and
- * retaining every one of them would make a workspace grow with the history of the program rather than with
- * what it is holding: that is what evicting the least recently returned length prevents. Within one length the
- * count is already bounded, because only a buffer this workspace lent can be returned to it.
+ * [MAX_IDLE_LENGTHS] accommodates repeated shapes; evicting the least recently returned length bounds
+ * retention across changing shapes. Only lent buffers can be returned, bounding the count within a length.
  *
- * Idle buffers are searched linearly. The widest scheduling here holds seven loans at once, and the idle list
- * is bounded by the two rules above, so both lists stay short enough that a map keyed by length would cost an
- * allocation per distinct size to save a walk over a handful of entries.
+ * Linear searches avoid a map allocation per length. The idle list is bounded, and the widest schedule
+ * holds seven loans at once, so both lists remain small.
  */
 private class PooledBuffers<A : Any> {
     private val idle = ArrayList<A>()
@@ -120,13 +107,7 @@ private class PooledBuffers<A : Any> {
         return count
     }
 
-    /**
-     * Distinct idle lengths, which is what the retention bound is over.
-     *
-     * Counted by scanning rather than by collecting into a set, because returning a buffer asks this on every
-     * release and a set would allocate there. The idle list is bounded by the retention rule itself, so the
-     * scan is over a handful of entries.
-     */
+    /** Counts distinct idle lengths without allocating a set on every release. */
     fun idleLengths(): Int {
         var count = 0
         for (i in idle.indices) {
@@ -142,12 +123,7 @@ private class PooledBuffers<A : Any> {
         return count
     }
 
-    /**
-     * Drops the least recently returned length when admitting [size] would exceed the bound.
-     *
-     * The idle list is in return order, so its first entry names that length. Every buffer of it goes, because
-     * a length is what a caller asks for and half of one is of no use to the next call.
-     */
+    /** Evicts all buffers of the least recently returned length when [size] would exceed the bound. */
     private fun makeRoomFor(size: Int) {
         if (idleWithSize(size) >= 0 || idleLengths() < MAX_IDLE_LENGTHS) return
         val oldest = sizeOf(idle[0])

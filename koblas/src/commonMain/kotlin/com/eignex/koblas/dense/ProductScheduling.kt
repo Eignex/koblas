@@ -6,30 +6,16 @@ import com.eignex.koblas.Workspace
 import com.eignex.koblas.borrow
 
 /*
- * Shared scheduling for `C = alpha * op(A) * op(B) + beta * C`, over any product backend.
+ * Shared scheduling for `C = alpha * op(A) * op(B) + beta * C`.
  *
- * Two routes, and which one a call takes is a question about its extents rather than about its engine.
+ * Large products use cache blocks packed for [DenseProductKernels.productBlock]; small or thin products
+ * use Level 2 panels over the original storage, with scratch for accumulating columns or strided coefficients.
+ * The schedule owns traversal and applies beta once per output window: in the first depth block for packed
+ * products, or in the final column write for panels. Backends own the arithmetic within those windows.
  *
- * A product large enough to hide a copy is cut into cache blocks, each operand block is packed into the
- * groups the backend's tile reads, and [DenseProductKernels.productBlock] accumulates the destination window
- * from them. The packing is portable Kotlin here, one copy per block, and the tile arithmetic is the
- * backend's. Everything about the traversal is this file's: which blocks, in which order, and which of them
- * carries `beta`.
- *
- * A product too small or too thin for that runs where the operands already are, as Level 2 panel work down
- * the columns of the destination. It avoids packing both operands; a strided coefficient column may still
- * be gathered, and an accumulating column uses scratch. The arithmetic uses the same panel kernels as the
- * matrix-vector routines.
- *
- * `beta` reaches an output window exactly once either way. In the blocked route the first depth block carries
- * it and every later one accumulates; in the panel route it is spent in the same pass that spends `alpha`,
- * which is the write at the end of a destination column or the write a reduction already makes.
- *
- * Every operand arrives as a window: an array, the offset its logical origin sits at and a leading dimension.
- * That is what lets a structured algorithm above this file hand over a strip of a triangle or a block of its
- * own right-hand sides without copying it out first, and it is why the offsets are flat. A caller computes
- * one from the transpose it is passing, since `op(A)`'s origin is `row + column · lda` where the operand is
- * stored as it reads and `column + row · lda` where it is transposed.
+ * Array windows carry offsets and leading dimensions so structured routines can pass strips and blocks
+ * without copying. An origin at logical (row, column) is `row + column * lda` in stored orientation and
+ * `column + row * lda` when transposed.
  */
 
 /** Destination rows one cache block covers. */
@@ -52,12 +38,7 @@ internal const val PRODUCT_BLOCK_DEPTH: Int = 128
 private val NO_PANEL = DoubleArray(0)
 
 /**
- * [borrow] for a loan a call may not need, which is one of no entries.
- *
- * A product between two retained panels copies nothing, a rectangular one selects no triangle and a
- * triangular call whose backend declines to gather copies no right-hand sides, so each asks for scratch of
- * no length. Taking that from the workspace would leave a zero length behind in it, which counts against
- * what it retains for the shapes the caller is actually working on, so it is not taken at all.
+ * Optional [borrow] that skips zero-length loans so unused scratch does not consume workspace retention.
  */
 internal inline fun <T> Workspace?.borrowOptional(size: Int, block: (DoubleArray) -> T): T =
     if (size == 0) block(NO_PANEL) else borrow(size, block)
@@ -81,12 +62,8 @@ internal enum class OutputTriangle {
 }
 
 /**
- * The product route a window of this shape takes, executed.
- *
- * One question asked in one place: a product with enough arithmetic to hide a copy of both operands is
- * packed into the backend's tiles, and one without runs as panel work over the operands where they lie.
- * Every caller in this library goes through here, so a structured algorithm handing over a strip of its own
- * takes the route that strip's extents earn rather than the one the whole call would have earned.
+ * Executes the route selected by this window's extents, including strips passed by structured routines.
+ * Packing must amortize both operand copies; other windows use panels over the original storage.
  */
 internal fun productWindow(
     kernels: DenseProductKernels,
@@ -125,19 +102,12 @@ internal fun productWindow(
 }
 
 /**
- * Whether a window of these extents is packed into the backend's tiles.
+ * Whether a window is packed, using its actual extents even for a selected triangle.
  *
- * The backend is asked about the window's real extents, a selected-triangle one included. Those extents are
- * what the schedule hands it: the same cache blocks over the same operands, with the blocks lying wholly in
- * the other triangle dropped. A backend may answer from the depth, from a minimum dimension or from a tail
- * rather than from a product of the three, so a caller that passed a smaller shared dimension to stand for
- * the arithmetic a triangle discards would be answering one of those questions on its behalf.
- *
- * So a triangle-selected window takes the rectangle's own eligibility. Such a window finishes about half
- * the arithmetic per copied value that the rectangle does, so a separate crossover could be higher. The
- * calibration left that as it is, for the reason [packsProductByWork] records: the rectangle's own
- * threshold did not separate its wins from its losses on the measured host either. Route and execution both
- * ask this one function, so however it is answered they agree.
+ * Backends may decide from depth, minimum dimensions or tails, so reducing depth to represent discarded
+ * triangle work would distort their inputs. Selected triangles use the rectangular crossover; their
+ * lower arithmetic per copied value may merit a higher threshold, but [packsProductByWork] records no
+ * reliable secondary criterion. Routing and execution share this decision.
  */
 @Suppress("UNUSED_PARAMETER") // the selected triangle is part of the question even where the answer ignores it
 internal fun packsWindow(kernels: DenseProductKernels, m: Int, n: Int, k: Int, selected: OutputTriangle): Boolean =
@@ -357,11 +327,9 @@ private fun blockedProductCore(
         blockColumns,
         blockDepth,
     ) { row, rowCount, column, columnCount, step, depth ->
-        // A block in the triangle the call does not write is not scheduled at all, so neither operand is
-        // packed for it and the destination beneath it is never touched.
+        // Skip blocks outside the selected triangle without packing operands or touching the destination.
         if (!outsideTriangle(row, rowCount, column, columnCount, selected)) {
-            // The right panel belongs to the column and depth block, and the row loop is inside both, so it
-            // is packed when either of them moves and read where it lies for every row block after that.
+            // Reuse the right panel across row blocks for the same column and depth block.
             if (column != packedColumn || step != packedStep) {
                 if (retainedB == null) {
                     packRightPanel(
@@ -386,8 +354,7 @@ private fun blockedProductCore(
                 leftStride = retainedA.layout.groupStride
                 leftBase = row / tileRows * leftStride + step * tileRows
             }
-            // Every later depth block adds to what the first one left, so beta reaches an output window
-            // once however the shared dimension was cut.
+            // Apply beta only in the first depth block; later blocks accumulate.
             val blockBeta = if (step == 0) beta else 1.0
             if (insideTriangle(row, rowCount, column, columnCount, selected)) {
                 kernels.productBlock(

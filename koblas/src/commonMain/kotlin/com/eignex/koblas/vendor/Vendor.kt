@@ -142,8 +142,7 @@ public enum class Vendor(
         public fun select(host: HostPlatform): List<Vendor> = when {
             host.operatingSystem == OperatingSystem.MacOs -> listOf(Accelerate)
 
-            // Every candidate below is an ELF soname, so the operating system is part of the question and not
-            // only the architecture: offering them anywhere else would name libraries that cannot open there.
+            // These ELF sonames are candidates only on operating systems that can load them.
             host.operatingSystem != OperatingSystem.Linux -> emptyList()
 
             host.architecture == Architecture.Arm64 -> listOf(ArmPl, OpenBlas)

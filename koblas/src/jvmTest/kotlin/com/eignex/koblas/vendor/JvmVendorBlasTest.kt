@@ -40,7 +40,7 @@ class JvmVendorBlasTest {
 
     @Test
     fun `gemm transposes each operand the flag selects`() = withVendor { blas ->
-        // The flags are the whole of what a transposed operand costs now, so each combination has to land.
+        // Transposition is passed through flags, so every combination must reach the binding correctly.
         for (transposeA in listOf(false, true)) {
             for (transposeB in listOf(false, true)) {
                 val a = if (transposeA) matrix(4, 3, 5) else matrix(3, 4, 5)

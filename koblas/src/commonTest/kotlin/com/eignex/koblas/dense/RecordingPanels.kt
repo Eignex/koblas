@@ -11,9 +11,8 @@ import kotlin.test.assertEquals
 // length the schedule never produces tells nothing about which bodies ran.
 
 /**
- * A backend that records the body each window it is handed reaches, and delegates the arithmetic. [group]
- * and [threshold] override the delegate's grouping and its choice of body, which is how a sweep reaches
- * shapes a real backend's own answers never produce.
+ * Records window bodies while delegating arithmetic. [group] and [threshold] overrides exercise
+ * schedule shapes that production backends do not select.
  */
 internal class RecordingPanels(
     private val delegate: DensePanelKernels,

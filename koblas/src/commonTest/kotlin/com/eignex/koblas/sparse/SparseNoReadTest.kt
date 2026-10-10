@@ -16,12 +16,8 @@ import kotlin.test.assertFalse
 import kotlin.test.fail
 
 /**
- * Operands a call promises not to read.
- *
- * A zero multiplier contributes nothing, and the contracts say so rather than saying the product happens to
- * be zero. The difference is visible only to an operand that cannot be read at all, which is what these
- * poisoned implementations are: a `Vector` from outside the library may compute its entries, refuse them, or
- * cost something to produce, and a rank update that reads one for a multiplier of zero has broken its word.
+ * Zero multipliers must leave operands unread. Poisoned [Vector] implementations make reads
+ * observable even when the numerical contribution would be zero.
  */
 class SparseNoReadTest {
 
@@ -65,11 +61,7 @@ class SparseNoReadTest {
         assertContentEquals(doubleArrayOf(2.0, 3.0, 5.0), result.values)
     }
 
-    /**
-     * Preparing a snapshot copies values; using it for a product that contributes nothing must not. The
-     * derived transposed orientation is the observable part: a zero multiplier leaves it unbuilt, so the
-     * snapshot still costs nothing beyond what it was asked for.
-     */
+    /** A zero multiplier must leave a prepared snapshot's derived transpose unbuilt. */
     @Test
     fun `a zero multiplier prepared product does not derive the transposed orientation`() {
         val prepared = example().prepare()

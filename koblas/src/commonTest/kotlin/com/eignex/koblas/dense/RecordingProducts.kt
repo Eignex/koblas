@@ -9,9 +9,7 @@ import kotlin.random.Random
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
-// A product route claims something about the blocks a call cuts, so checking it means recording those
-// blocks. The recorder below delegates the arithmetic, so a call under it computes the same answer while
-// saying what it was handed.
+// Recording executed blocks lets route checks follow the actual schedule while retaining its arithmetic.
 
 /** One block a product scheduled, as the destination window it wrote and the scaling it carried. */
 internal class ProductBlockCall(

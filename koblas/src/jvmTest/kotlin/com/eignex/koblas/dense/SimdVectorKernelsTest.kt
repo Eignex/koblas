@@ -5,13 +5,9 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /**
- * Which kernel the Vector API arm reaches, which is not the same answer for every operation.
- *
- * Only the reductions have a vector kernel here. The elementwise operations are ordinary Kotlin loops that
- * HotSpot vectorises on its own, and hand-written lanes measured no faster and in one case half the speed, so
- * they were removed. A caller cannot see that from a result, since both kernels compute the same thing, which
- * is why what the arm reports about itself is worth a test: this is the difference between an arm that dropped
- * work it did not need and one that quietly stopped vectorising.
+ * Checks per-operation routing on the Vector API arm. Reductions use explicit vector kernels;
+ * elementwise operations use Kotlin loops that HotSpot vectorises. Routes distinguish these bodies
+ * even when their numerical results agree.
  */
 class SimdVectorKernelsTest {
     private val kernels = SimdVectorKernels

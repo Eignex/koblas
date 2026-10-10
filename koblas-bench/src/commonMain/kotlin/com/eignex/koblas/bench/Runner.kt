@@ -73,14 +73,10 @@ public fun main(args: Array<String>) {
 }
 
 /**
- * Where a timed body puts an object it produced, so that producing it cannot be optimized away.
+ * Keeps timed objects observable so escape analysis cannot eliminate their construction.
  *
- * A row that times preparation returns the snapshot's stored-entry count, which is a number the compiler can
- * work out from the source operand without copying anything. Storing the snapshot itself makes it escape,
- * which is what a measurement of copying has to establish before it can claim to have measured it. The same
- * applies to a fresh sparse result, whose structural arrays a caller reading one value would not keep.
- *
- * Read once at the end of a run, so nothing about the field can be folded away either.
+ * A snapshot's entry count or one sparse result value does not require retaining its arrays. Storing the
+ * object and reading it at the end of the run ensures preparation and result allocation remain measured.
  */
 internal object Retained {
     private var value: Any? = null
@@ -184,9 +180,7 @@ internal fun measurement(
 ): Measurement = Measurement(
     listOf(
         case.id, status, comparisonKind, timingMode,
-        // A timed row carries the name the route gave it. There is no second answer rebuilt from the mode and
-        // case strings any more, so a row with a timing and no route is a bug rather than a fallback.
-        // A declined row has no call to name, so this column carries why instead; a timed one must name it.
+        // Timed rows require the resolved route; declined rows carry the rejection reason.
         if (status != "ok") kernel ?: "unavailable" else checkNotNull(kernel) {
             "timed ${case.id} carries no route for the call it made"
         },

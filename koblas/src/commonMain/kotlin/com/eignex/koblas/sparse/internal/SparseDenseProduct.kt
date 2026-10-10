@@ -14,38 +14,23 @@ import com.eignex.koblas.sparse.SparseTuning
 import kotlin.math.min
 
 /**
- * How a sparse product with a dense block hands its right-hand sides to a panel leaf.
+ * Chooses right-hand-side grouping and staging for a sparse product with a dense block.
  *
- * Two things are decided together, because each is only worth having with the other. The width is how many
- * right-hand sides one walk of a sparse column serves; staging is whether the block is copied into
- * right-hand-side-major order first, which is what makes those right-hand sides adjacent and so the only way
- * a backend with a vector body can use one on a column-major operand.
+ * Staging makes right-hand sides adjacent for vector panels. The backend recommends a width for the
+ * resulting layout; [SparseTuning.contiguousRhsPanel] caps retained staging storage. Copy only when the
+ * backend prefers adjacent panels and the accelerated arithmetic outweighs the copy. Already-adjacent
+ * inputs need no copy, and the portable backend never stages.
  *
- * The width is the backend's recommendation for the layout the panel will actually have, capped by
- * [SparseTuning.contiguousRhsPanel] where a copy has to be held in a buffer. Those are two different
- * questions and neither is the other's: the backend knows what its body wants, and the scheduling knows how
- * much of a dense block it is willing to keep staged while one sparse column is walked.
+ * The width is negated for staging to avoid allocating a plan object; [rhsWidth] and [rhsStaged] decode it.
  *
- * Staging is chosen where the backend says an adjacent panel is a different proposition from a strided one,
- * and where the arithmetic it accelerates is worth the copy it costs. The portable backend says it is not,
- * so it never stages and pays nothing for the question; a call whose right-hand sides are already adjacent
- * takes the adjacent width with no copy at all.
- *
- * The answer is one number rather than a pair, so that asking costs no allocation on the way into a call:
- * the width, negated where the block is staged. [rhsWidth] and [rhsStaged] read it back.
- *
- * @param kernels the sparse panel seam, which is what asks the backend both of its questions.
- * @param rows rows of the destination, which is part of the grouping question a backend is asked.
- * @param sides right-hand sides the call has.
- * @param entries stored entries the traversal will walk for each of them.
- * @param copiedPerSide dense elements a staged panel copies per right-hand side, counting a destination
- *   twice because it is read in and written back. In `Long`, since an extent and a count that are both
- *   valid can multiply past what an `Int` holds, and a wrapped cost would invert the decision it feeds.
- * @param nativelyContiguous whether the caller's own layout already has its right-hand sides adjacent, in
- *   which case the adjacent width is taken without any copy at all.
- * @param reduction which of the two sparse panel shapes this call runs, since a group of right-hand sides
- *   that each carry an accumulator is a different proposition from a group that each carry a window of a
- *   destination. The backend answers for both; this only says which one is being asked about.
+ * @param kernels backend sparse panel kernels.
+ * @param rows destination rows used to choose grouping.
+ * @param sides right-hand-side count.
+ * @param entries stored entries traversed per right-hand side.
+ * @param copiedPerSide elements copied per staged right-hand side, counting a destination twice for
+ *   read and write. `Long` prevents valid extents from overflowing the copy-cost calculation.
+ * @param nativelyContiguous whether right-hand sides are already adjacent.
+ * @param reduction whether panels reduce into accumulators or update destination windows.
  */
 @Suppress("LongParameterList") // the seam, the two extents, the copy's cost and what the direction admits
 internal fun planRightHandSides(
@@ -67,7 +52,7 @@ internal fun planRightHandSides(
     if (entries <= 0) return strided
     // A backend that does no better over an adjacent panel gains nothing from the copy.
     if (!kernels.prefersAdjacentSides(adjacent, entries, reduction)) return strided
-    // And one that does gains it only where the arithmetic the copy accelerates outweighs the copy itself.
+    // Pack only when the accelerated arithmetic outweighs the copy.
     if (entries.toLong() < SparseTuning.stagedRhsCrossover.toLong() * copiedPerSide) return strided
     return -adjacent
 }
@@ -200,19 +185,15 @@ internal fun multiplyFromTheLeft(
     k: Int,
     workspace: Workspace?,
 ) {
-    // Before the plan and before any loan: a call with nothing to write has nothing to stage or walk, and
-    // an empty axis may be paired with a long one, where a traversal would step through it for nothing.
+    // Return before staging or traversing: an empty axis may be paired with an enormous one.
     if (m == 0 || n == 0 || k == 0) return
     val ldb = b.rows
-    // The dense operand as (inner, right-hand side), which its own transpose flag decides.
     val bRhsStride = if (transposeB) 1 else ldb
     val bIndexStride = if (transposeB) ldb else 1
     val plan = productRhsPlan(kernels, m, n, k, a.nnz, transposeA, transposeB)
     val width = rhsWidth(plan)
     val staged = rhsStaged(plan)
-    // The panel scratch is the panel leaf's, and a call whose panels are all one right-hand side wide never
-    // reaches one. Taking the loan anyway would leave a length in the workspace that nothing reads, which
-    // counts against the few it retains for the shapes the caller is actually working on.
+    // Single-right-hand-side groups reach no panel; avoid retaining unused scratch in the workspace.
     workspace.borrowOptional(if (width > 1 && n > 1) width else 0) { work ->
         workspace.borrowOptional(if (staged) width * (if (transposeA) k else m) else 0) { panel ->
             forEachPanel(n, width) { columnStart, actual ->

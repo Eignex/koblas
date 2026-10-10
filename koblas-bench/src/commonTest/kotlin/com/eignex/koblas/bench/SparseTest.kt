@@ -41,7 +41,6 @@ class SparseTest {
      */
     @Test
     fun `a prepared transposed row reports the one shot traversal`() {
-        // Enough right-hand sides that the traversal cuts a panel.
         val base = "spmm+33x16x21+sparse-uniform+density=0.25+transA=T"
         val oneShot = assertNotNull(work("$base+mode=oneshot"))
         val prepared = assertNotNull(work("$base+mode=prepared"))
@@ -95,8 +94,7 @@ class SparseTest {
             println("SKIPPED: no Vector API engine on this host; delegation enforcement was not verified")
             return
         }
-        // Two stored entries sit far below the vector crossover, so the Vector API selection hands the whole
-        // call to the scalar kernels. Timing it here would publish the scalar loop as a SIMD measurement.
+        // Below the vector crossover, timing this arm would mislabel scalar work as SIMD.
         val case = Cases.parse("spdot+8+sparse-uniform+density=0.25").single()
 
         val arm = assertNotNull(sparseArm(case, simd))
@@ -181,8 +179,7 @@ class SparseTest {
         }
     }
 
-    // The scattered product is the interesting one: its leaf is the engine's indexed selection rather than
-    // the scheduling's own arithmetic.
+    // Scattered products use the engine's indexed leaf.
     @Test
     fun `a scattered sparse product names the level one leaf its columns reach`() {
         val case = Cases.parse("spgemv+64x32+sparse-uniform+density=0.5+mode=oneshot").single()
@@ -195,8 +192,7 @@ class SparseTest {
             SparseCall(Fixtures.sparse(64, 32, 0.5, 1), alpha = 0.875, beta = -0.25, destinationElements = 64, depth = 32),
         )
         assertEquals("${expected.implementation}/spgemv", work.kernel)
-        // A non-unit beta scales the destination through a dense kernel, and the row says so rather than
-        // naming only the indexed leaf the columns reach.
+        // Non-unit beta adds a dense scaling kernel to the indexed product route.
         assertEquals("portable-csc+scalar/scale+scalar/axpy/spgemv", work.kernel)
     }
 
@@ -218,8 +214,7 @@ class SparseTest {
         }
     }
 
-    // Preparing runs no arithmetic kernel, so a setup row naming one attaches its number to a call that
-    // never happened.
+    // Setup attribution must exclude arithmetic kernels.
     @Test
     fun `a setup row names snapshot preparation rather than an arithmetic kernel`() {
         val case = Cases.parse("spgemv+64x32+sparse-uniform+density=0.25+mode=setup").single()
@@ -230,7 +225,6 @@ class SparseTest {
         assertEquals("prepare", work.timingMode)
     }
 
-    // First use is preparation plus one call, and both ran inside the timed region.
     @Test
     fun `a first-use row names the preparation and the call it pays for`() {
         val case = Cases.parse("spmm+33x4x21+sparse-uniform+density=0.05+mode=firstuse+transA=T").single()
@@ -241,7 +235,6 @@ class SparseTest {
         assertEquals("prepare-and-first-use", work.timingMode)
         val kernel = assertNotNull(work.kernel)
         assertTrue(kernel.startsWith("portable-csc/spprepare then "), kernel)
-        // The entry point, and then the grouping the call resolved, which a dense row publishes the same way.
         assertTrue(kernel.substringAfterLast('/').startsWith("spmm@"), kernel)
     }
 
@@ -353,8 +346,7 @@ class SparseTest {
         }
     }
 
-    // A case stopping before the arithmetic says so rather than publishing the cost of scaling a destination
-    // under the name of the product that did not happen.
+    // No-work cases must not report destination scaling as product arithmetic.
     @Test
     fun `a case with no arithmetic to do is declined rather than timed`() {
         val empty = Fixtures.sparse(8, 8, 0.25, 1)

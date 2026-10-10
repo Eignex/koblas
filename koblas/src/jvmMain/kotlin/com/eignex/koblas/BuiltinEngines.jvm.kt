@@ -22,16 +22,12 @@ public actual object BuiltinEngines {
     }
 
     /**
-     * Every Vector API kernel this library owns, which is the arm a measurement of them names.
+     * Owned Vector API kernels, also used by the JVM default when the module is available.
+     * Matrix operations retain shared scheduling and report portable fallbacks through their routes.
+     * Local calibration supports this selection on the measured host, not every architecture.
      *
-     * The JVM default uses this same engine when the module is available. Matrix operations keep their
-     * shared scheduling and use vector bodies where the window permits them, with portable fallbacks
-     * reported by the operation's route. Local calibration supports this selection on the measured host;
-     * it does not establish performance on every architecture.
-     *
-     * The availability test comes before [SimdPanelKernels] is named, and has to: resolving that object's
-     * species is what initializing it does, so on a runtime without the module naming it at all is a linkage
-     * error rather than a null.
+     * Check availability before referencing [SimdPanelKernels]: its species initialization would
+     * cause a linkage error on a runtime without the module.
      */
     @get:JvmStatic
     public actual val simd: KoblasEngine? by lazy {

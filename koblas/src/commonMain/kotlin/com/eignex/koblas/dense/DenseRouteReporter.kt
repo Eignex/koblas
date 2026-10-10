@@ -112,8 +112,7 @@ internal class DenseRouteReporter(
 
     /** The packing and tile bodies a blocked window reaches, taken from walking its own block schedule. */
     private fun addBlockedWindow(parts: Parts, call: WindowShape, packLeft: Boolean, packRight: Boolean) {
-        // In the order the schedule reaches them: the right panel belongs to the column and depth block and
-        // is packed first, the left panel to the row block inside it, and the tile after both.
+        // Report panels and tiles in schedule order: right panel, left panel, then tile.
         if (packRight) parts.add("$PRODUCT_PACKING/right-panel")
         if (packLeft) parts.add("$PRODUCT_PACKING/left-panel")
         val before = parts.components.size
@@ -172,17 +171,14 @@ internal class DenseRouteReporter(
         val entry = panelEntryPoint(work)
         val before = parts.components.size
         for (column in 0 until call.columns) {
-            // A selected triangle shortens each destination column, so the panels a column reaches are as
-            // long as the triangle is wide there rather than as long as the operand is.
+            // Selected triangles shorten destination columns, so report their actual panel lengths.
             val rows = selectedRows(column, call.rows, call.selected)
             if (call.transposeA) {
                 forEachPanel(rows, group) { _, width ->
                     parts.add("${panels.implementationFor(work, call.depth, width, contiguous)}/$entry")
                 }
             } else {
-                // The accumulating route cuts each column into chunks of a bounded height, so the last
-                // chunk of a column is a shorter panel than the ones before it and need not reach the
-                // same body.
+                // A shorter final chunk can reach a different panel body.
                 var offset = 0
                 while (offset < rows) {
                     val height = if (chunk < rows - offset) chunk else rows - offset
@@ -344,8 +340,7 @@ internal class DenseRouteReporter(
                 }
             }
         }
-        // A call whose order is not a multiple of the block ends on a shorter one, and the substitution that
-        // block reaches need not be the one the full blocks reached.
+        // A shorter final diagonal block can reach a different substitution body.
         if (parts.components.size - before > 1) parts.composed = true
         return parts.route(
             operation,
@@ -437,8 +432,7 @@ internal class DenseRouteReporter(
             }
         }
         return when (leaves.size) {
-            // No panel runs, so there is no grouping to report either: the contract says zero where a
-            // call schedules none, and a recommendation nothing asked for is not one the call used.
+            // Report zero grouping when no panel is scheduled.
             0 -> route(
                 operation,
                 RouteKind.Direct,
@@ -492,10 +486,8 @@ internal class DenseRouteReporter(
                     action(rows, width)
                 }
 
-            // A triangular traversal's windows are every length below the order, and which end it starts
-            // from is the dependency order's, not the triangle's: a solve removes a finished entry from
-            // everything still to come, so its windows shrink, and a multiply consumes a column before the
-            // columns that would overwrite it, so its windows grow. Transposing swaps the two.
+            // Solve windows shrink as unknowns finish; multiply windows grow to preserve inputs.
+            // Transposition reverses the dependency order.
             DenseMatrixOperation.Trsv, DenseMatrixOperation.TrmvTransposed,
             DenseMatrixOperation.Trmv, DenseMatrixOperation.TrsvTransposed,
             -> {
@@ -506,7 +498,6 @@ internal class DenseRouteReporter(
                 forEachTriangularColumn(n, call.lower, ascending) { _, _, rows -> action(rows, 1) }
             }
 
-            // A rectangular operand's columns are all as long as it is tall, whatever the grouping.
             else -> forEachPanel(call.columns, group) { _, width -> action(n, width) }
         }
     }

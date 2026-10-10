@@ -114,8 +114,7 @@ private fun KoblasEngine.productRoute(
             } else {
                 "no prepared orientation is derived"
             }
-            // Sparse-sparse products perform their own arithmetic, so no per-column SIMD leaf depends on
-            // the derived pattern. The schedule can be named without building that pattern to inspect it.
+            // Sparse-sparse arithmetic has no per-column SIMD leaf, so routing needs no derived pattern.
             SparseMatrixRoute(
                 route.operation, if (empty) RouteKind.NoWork else route.kind, route.scheduling,
                 route.entryPoint, route.components, "$orientation; ${route.reason.orEmpty()}",

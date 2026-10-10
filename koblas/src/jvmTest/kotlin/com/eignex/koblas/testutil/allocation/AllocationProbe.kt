@@ -21,13 +21,12 @@ internal fun allocatedBytes(block: () -> Any?): Long {
  * Bytes [block] allocates per call, as the smallest of at least [windows] measurement windows of
  * [iterations] calls, sampling further windows until one comes in at [expected].
  *
- * A vectorised loop allocates one object per vector operation until C2 compiles it and escape analysis
- * removes them. Until that lands the loop allocates steadily, so an uncompiled loop looks exactly as settled
- * as a finished one and waiting for the number to hold still does not work; waiting for it to reach
- * [expected] waits for the event that matters, bounded by [MAX_WINDOWS].
+ * Vector operations allocate until C2 escape analysis removes their carriers. Stable allocation
+ * is therefore insufficient evidence of compilation; sampling waits for [expected], bounded by
+ * [MAX_WINDOWS].
  *
- * [block] deliberately takes no iteration index. A `(Int) -> Any?` would box one on every call, and above
- * `Integer`'s cache that is a sixteen-byte allocation charged to whatever is being measured.
+ * [block] takes no iteration index because boxing indices beyond `Integer`'s cache would be
+ * charged to the operation being measured.
  */
 internal fun bytesPerIteration(
     iterations: Int,
@@ -57,9 +56,8 @@ private const val MAX_WINDOWS = 400
 /**
  * One measured call of a probe run outside a test task.
  *
- * A named interface rather than a function type, because a `() -> Double` returns its result boxed unless
- * the compiler inlines the call, and several probes through one measurement loop is where it stops doing
- * that; the box was then charged to the kernels as twenty-four bytes a call.
+ * A named interface avoids boxing the result of a `() -> Double` when the compiler cannot inline
+ * the call through the measurement loop.
  */
 internal fun interface AllocationProbe {
     fun run(): Double

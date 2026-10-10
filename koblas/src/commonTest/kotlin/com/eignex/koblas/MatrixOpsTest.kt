@@ -377,9 +377,8 @@ class MatrixOpsTest {
     }
 
     /**
-     * The gather a stepped operand needs to reach a seam addressing one array, taken from the workspace when
-     * there is one. It is the convenience layer's own allocation rather than any seam's, so it is the layer
-     * that has to lend it.
+     * Stepped operands need a gather to reach an array-based seam. The convenience layer must
+     * borrow that buffer from the workspace when supplied.
      */
     @Test
     fun `a strided matvec operand is gathered from the workspace it was given`() {

@@ -190,13 +190,9 @@ internal fun scaleProductWindow(beta: Double, c: DoubleArray, cOffset: Int, ldc:
  * one tile cannot fill the tiles it would pack into, and a small product pays the copy against too little
  * arithmetic to hide it behind; both run as panel work over the operands where they are instead.
  *
- * The limit is where the copy starts winning consistently rather than where it first wins, and it remains
- * one machine's crossover. The local evidence compares the two schedules over the same operands: the
- * sampled shapes favored packing above this threshold, and below it the winner varied within the
- * run-to-run band. The calibration also looked for a second condition to put beside this one and found
- * none defensible, since no quantity it measured separated the shapes packing loses on, thin ones above
- * all, from the ones it wins. The threshold is therefore unchanged, and the shapes where it costs
- * something on that host are recorded with the local evidence rather than fitted to.
+ * The threshold reflects a measured crossover on one host. Sampled shapes favored packing above it,
+ * while winners below it varied within the run-to-run band. Thin shapes can still lose above it;
+ * no measured secondary condition separated those losses reliably.
  */
 internal fun packsProductByWork(rows: Int, columns: Int, depth: Int, tileRows: Int, tileColumns: Int): Boolean =
     rows >= tileRows && columns >= tileColumns &&

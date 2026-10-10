@@ -84,8 +84,7 @@ class SimdPanelKernelsTest {
         assertTrue(kernels.executionGroup(PanelWork.SparseRightHandSides, WIDE, 64) >= 1)
     }
 
-    // The grouping is the backend's own choice and is not the lane count; they agree only where the
-    // measurement happened to land on the same number.
+    // Column grouping is independent of the species lane count.
     @Test
     fun `the recommended grouping is a column count rather than a lane count`() {
         val kernels = kernels ?: return skipped()

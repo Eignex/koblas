@@ -11,25 +11,16 @@ import kotlinx.cinterop.addressOf
 import kotlinx.cinterop.pin
 
 /**
- * Operands held in place for the duration of one call.
- *
- * Kotlin/Native hands BLAS the caller's own storage. Every operand is pinned and passed as an interior
- * pointer, so there is no copy in either direction and no transfer to name in the route; that is the
- * substantive difference from the JVM binding, where a non-critical downcall cannot take heap memory at all.
- *
- * Pins are taken through [withPins], which releases them in a `finally`, so an exception thrown out of a
- * call does not leave storage pinned.
+ * Operands pinned in place for one call. Interior pointers reach the caller's storage without
+ * copies. [withPins] releases every pin in `finally`, including when a call throws.
  */
 internal class Pins {
     private val pinned = ArrayList<Pinned<DoubleArray>>(PINS)
 
     /**
-     * Pins [array] and returns a pointer to its entry at [index].
-     *
-     * An operand with no entries has no address to take: `addressOf` on an empty array raises rather than
-     * returning a pointer nothing would dereference. BLAS still takes such an operand, because a zero depth
-     * is a defined call that scales the destination, so a placeholder is pinned in its place. The extent
-     * passed beside it is zero, so the library never reads through it.
+     * Pin [array] and return its entry at [index]. Empty operands use a placeholder because
+     * `addressOf` requires storage, while BLAS allows zero extents, including a zero-depth product
+     * that scales the destination. The library does not read the placeholder.
      */
     fun pointer(array: DoubleArray, index: Int): CPointer<DoubleVar> {
         val storage = if (array.isEmpty()) EMPTY_OPERAND else array
@@ -77,11 +68,8 @@ internal fun Pins.stage(matrix: DenseMatrix): PinnedMatrix =
     PinnedMatrix(pointer(matrix.values, 0), maxOf(1, matrix.rows))
 
 /**
- * The lowest storage index the vector touches, which is the pointer BLAS is handed.
- *
- * For a positive stride that is the vector's own offset. For a negative one it is the far end, because BLAS
- * walks a negatively stepped vector from the lowest address upward and treats the last element it reaches as
- * the logical first.
+ * Lowest storage index passed to BLAS. Negative increments retain their sign but start at the
+ * low address, allowing BLAS to reconstruct the logical first entry at the high end.
  */
 internal fun baseIndex(vector: DenseVector): Int = baseIndex(vector.offset, vector.stride, vector.size)
 

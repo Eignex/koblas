@@ -7,9 +7,8 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 
 /**
- * That a workspace handed to a sparse Level 2 routine is used. The answers these calls produce are
- * [SparseAliasTest]'s subject; what is checked here is that the snapshot an overlap forces comes from the
- * loan rather than from a fresh array, which is invisible to a caller reading the result.
+ * Checks that alias snapshots borrow workspace buffers. [SparseAliasTest] covers their numerical
+ * results; fresh allocation and borrowing produce the same answers.
  */
 class SparseWorkspaceTest {
 
@@ -56,10 +55,7 @@ class SparseWorkspaceTest {
         }
     }
 
-    /**
-     * What a staged sparse operand costs, which is one loan rather than three: a structural array is never a
-     * destination, so the snapshot shares the pointers and row indices and copies the coefficients alone.
-     */
+    /** Sparse staging copies only coefficients: structural arrays cannot alias a dense destination. */
     @Test
     fun `a staged sparse operand copies its coefficients and shares its structure`() {
         val workspace = Workspace()

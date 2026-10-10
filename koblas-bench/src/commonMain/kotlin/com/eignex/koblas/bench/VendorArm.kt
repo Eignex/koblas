@@ -13,9 +13,7 @@ import com.eignex.koblas.vendor.openBlas
 /**
  * The work for one benchmark case on one arm, or the reason there is none to time.
  *
- * A rejection is a result, not a failure. An arm that cannot run a case honestly is expected to say so and
- * leave the row without a timing, because the alternative is a number that answers a different question than
- * the one the case asks.
+ * Rejected arms leave the row untimed so measurements remain attributable to the requested implementation.
  */
 internal class ArmChoice(val work: CaseWork?, val reason: String?)
 
@@ -39,9 +37,7 @@ internal fun vendorFromMode(mode: String): Vendor? {
 /**
  * The vendor a mode names for [prefix]'s runtime, or null when the mode is not that runtime's vendor arm.
  *
- * The prefix is what keeps a mode from being run by the wrong entry point. Both runtimes name the same
- * vendors, so a check that only asked whether a mode named one would let the Native runner accept a
- * `jvm-vendor-` mode and report its rows under a runtime that never ran them.
+ * The runtime prefix prevents a runner from publishing another runtime's vendor mode.
  */
 internal fun vendorForRuntime(mode: String, prefix: String): Vendor? =
     if (mode.startsWith(prefix)) vendorFromMode(mode) else null
@@ -49,10 +45,8 @@ internal fun vendorForRuntime(mode: String, prefix: String): Vendor? =
 /**
  * Opens the vendor a mode names, failing loudly rather than quietly measuring something else.
  *
- * The description carries the resolved file, the library's own version, and whether its single compute thread
- * was confirmed against it. A library that would not hold to one thread never opens, so reaching this point at
- * all is part of the evidence; recording which of the two it was keeps a report from claiming a check that a
- * library with no thread-count entry point cannot support.
+ * The description records the resolved file, version and single-thread evidence. Libraries that cannot
+ * hold to one thread are rejected; those without a thread-count entry point cannot claim confirmation.
  */
 internal fun openVendorForMode(mode: String): Pair<Blas, String> {
     val vendor = vendorFromMode(mode) ?: error("$mode is not a vendor mode")
@@ -66,14 +60,9 @@ internal fun openVendorForMode(mode: String): Pair<Blas, String> {
 /**
  * The work for [case] through [blas], or a reason it is not an admissible measurement.
  *
- * Two things have to hold before a case is timed. The binding has to be able to run the operation over these
- * operands as a direct vendor call, which [exactArmRejection] decides; and the case has to be one the CBLAS
- * surface covers at all. Level 1 extensions like `sum` and `ssqd`, the fused panel kernels, the packed and tile
- * cases, and everything sparse have no vendor entry point, so they are declined here rather than quietly
- * measured through a Kotlin substitute wearing a vendor label.
- *
- * Fixtures, scalars and timing boundaries are the ones the other arms use, because a comparison between arms is
- * only a comparison if the work either side is the same.
+ * [exactArmRejection] requires a direct vendor call over these operands. Cases outside the bound CBLAS
+ * surface are declined, including `sum`, `ssqd`, fused panels, packed tiles and sparse operations.
+ * Fixtures, scalars and timing boundaries match the other arms to keep comparisons equivalent.
  */
 @Suppress("LongMethod", "CyclomaticComplexMethod") // one branch per benchmarked operation
 internal fun vendorArm(case: BenchCase, blas: Blas): ArmChoice {
@@ -107,8 +96,7 @@ internal fun vendorArm(case: BenchCase, blas: Blas): ArmChoice {
         timing: String,
         run: () -> Double,
     ): ArmChoice {
-        // Both operand lists reach the route, so a case whose operands make the call no-work is described that
-        // way and declined rather than timed as vendor arithmetic it never performed.
+        // Include both operand lists so no-work calls are rejected before timing.
         exactArmRejection(blas, operation, matrices, vectors)?.let { return ArmChoice(null, it) }
         val route = blas.routeOf(operation, matrices, vectors)
         return ArmChoice(CaseWork(route.kind.name.lowercase(), timing, run, kernel = vendorKernel(route)), null)

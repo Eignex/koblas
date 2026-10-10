@@ -8,9 +8,8 @@ import kotlin.random.Random
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
-// The product block contract, over any implementation, at every extent including ones that do not fill a
-// tile. The packed operands are built from the contract's index formula rather than the production packer,
-// since a block read through the code that wrote it would agree with itself whatever either did.
+// Independent packing from the contract's index formula prevents packer and kernel errors from cancelling.
+// Extents include partial tiles for every implementation.
 
 /** Guard entries around and inside the destination buffer, so an implementation that overruns fails. */
 private const val GUARD = 3
@@ -110,11 +109,7 @@ private fun assertUntouchedOutside(
     }
 }
 
-/**
- * That a block reads no packed panel where its own extents say there is nothing to read.
- *
- * Handed empty arrays, so anything read at all is an index out of bounds rather than a wrong number.
- */
+/** Empty arrays make any forbidden packed-panel read fail with an index error. */
 internal fun assertEmptyProductBlockReadsNothing(kernels: DenseProductKernels) {
     val nothing = DoubleArray(0)
     val c = DoubleArray(12) { 1.0 + it }
@@ -155,9 +150,8 @@ internal fun assertZeroBetaOverwritesPoison(kernels: DenseProductKernels) {
 }
 
 /**
- * That a retained panel is read in depth slices, which is what the group stride is for: the panels are
- * packed over the whole shared dimension once, and accumulating the slices in turn has to reach the same
- * product as one whole block, with beta carried by the first.
+ * Depth slices of retained panels must agree with one whole block, using the group stride
+ * from full-depth packing and applying beta only to the first slice.
  */
 internal fun assertDepthSlicesAccumulate(kernels: DenseProductKernels) {
     val rng = Random(20261004)

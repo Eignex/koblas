@@ -11,19 +11,14 @@ package com.eignex.koblas.dense
 import com.eignex.koblas.*
 
 /**
- * Common Kotlin dense BLAS used by every built-in engine without requiring a host library.
+ * Common Kotlin dense BLAS with validation, triangle selection, alias staging and shared scheduling.
  *
- * This file owns validation, triangle selection, alias staging and which shared schedule a call belongs to.
- * What runs inside a window is a backend's: [panels] owns the arithmetic of a Level 2 window and how many
- * columns of it are worth doing at once, [products] owns the register tile a product block is cut into, and
- * [triangles] owns the substitution over one diagonal block. Neither side knows the other's business: no
- * extent here is a multiple of anything, and no loop below advances by four because a backend once did.
+ * [panels] owns Level 2 arithmetic and column grouping, [products] owns product tiles, and [triangles]
+ * owns diagonal substitution. Schedules use backend recommendations without assuming a fixed width.
  *
- * Level 3 is scheduled rather than written out. A product goes to shared product scheduling, a selected
- * triangle is the same schedule with the blocks outside it dropped and the ones across the diagonal merged,
- * a symmetric operand is cut into diagonal blocks and the stored strips beside them, and a triangular
- * routine is diagonal substitutions with those windows between them. Which of those a given call reaches,
- * and which body inside it, is what [routeOf] answers rather than letting an engine's name imply it.
+ * Structured Level 3 calls share product scheduling: selected triangles skip or merge blocks, symmetric
+ * operands expose diagonal blocks and stored strips, and triangular routines interleave substitutions
+ * with product windows. [routeOf] reports the windows and backend bodies a call actually reaches.
  */
 internal class PortableDenseBlas(
     private val vectors: DenseVectorKernels,
@@ -50,9 +45,7 @@ internal class PortableDenseBlas(
             applyBeta(vectors, y, 0, y.size, beta)
             return
         }
-        // Snapshots before the destination is touched: either operand may be the destination's own buffer,
-        // and scaling it first would feed the product values the caller never supplied. The loan is scoped to
-        // the call, which is exactly how long a staged operand is read for.
+        // Snapshot aliased operands before scaling the destination, and retain them for the call.
         staged(workspace, a.values, a.values === y) { stableA ->
             staged(workspace, x, x === y) { stableX ->
                 gemvCore(alpha, a, stableA, stableX, beta, y, transpose)
@@ -71,7 +64,6 @@ internal class PortableDenseBlas(
     ) {
         val rows = a.rows
         if (transpose) {
-            // Each output is one column reduced against x, and beta reaches it exactly once, in the panel.
             forEachPanel(a.cols, panels.executionGroup(PanelWork.MultiDot, rows, a.cols)) { start, width ->
                 panels.multiDot(alpha, stableA, start * rows, rows, stableX, 0, 1, rows, width, beta, y, start, 1)
             }
@@ -100,9 +92,7 @@ internal class PortableDenseBlas(
         workspace: Workspace?,
     ) {
         requireGemmOperands(a, transposeA, b, transposeB, c)
-        // Nothing to write means nothing to stage and nothing to schedule. The extents the scratch would be
-        // sized from are the operands', which an empty destination says nothing about, so a product with no
-        // output would otherwise borrow a column or a pair of panels for a result that does not exist.
+        // Return before borrowing operand-sized scratch for an empty destination.
         if (c.values.isEmpty()) return
         val depth = if (transposeA) a.rows else a.cols
         if (alpha == 0.0 || depth == 0) {
@@ -237,9 +227,7 @@ internal class PortableDenseBlas(
         workspace: Workspace?,
     ) {
         requireGemmtOperands(a, transposeA, b, transposeB, c)
-        // Nothing to write means nothing to stage: the extents a staging loan would be sized from are the
-        // operands', which an empty destination says nothing about, and two empty operands that share one
-        // empty array would otherwise be staged against each other.
+        // An empty destination needs no staging, even when operands share an empty array.
         if (c.values.isEmpty()) return
         val depth = if (transposeA) a.rows else a.cols
         if (alpha == 0.0 || depth == 0) {
@@ -280,8 +268,7 @@ internal class PortableDenseBlas(
             applyBeta(vectors, y, 0, y.size, beta)
             return
         }
-        // Snapshots before the destination is scaled, for the reason gemv takes them: either operand may be
-        // the destination's own buffer, and beta would otherwise overwrite values still to be read.
+        // Snapshot aliased operands before beta overwrites values still needed by the product.
         staged(workspace, a.values, a.values === y) { av ->
             staged(workspace, x, x === y) { xv ->
                 symvCore(alpha, a, av, xv, beta, y, lower)
@@ -358,10 +345,8 @@ internal class PortableDenseBlas(
         }
         staged(workspace, a.values, a.values === c.values) { av ->
             staged(workspace, b.values, b.values === c.values) { bv ->
-                // Spent once over the whole destination, because every entry of it is accumulated into by
-                // several of the windows the symmetric operand is cut into and none of them owns it. It is
-                // the Level 1 kernel over the whole buffer rather than a loop of this file's, which is what
-                // lets the route name the leaf that runs.
+                // Scale once because multiple symmetric windows accumulate into each destination entry.
+                // Using the Level 1 kernel keeps its leaf visible in the route.
                 applyBeta(vectors, c.values, 0, c.values.size, beta)
                 symmetricProduct(
                     products, panels, alpha, av, a.rows, lower, bv, b.rows, c.values, c.rows,
@@ -430,8 +415,7 @@ internal class PortableDenseBlas(
             return
         }
         val selected = selectedTriangle(lower)
-        // One operand staged at a time, and a rank update passes the same matrix twice, so the second loan
-        // is skipped where both operands are that matrix and the first copy already stands for it.
+        // Rank updates pass the same matrix twice; reuse its first staged copy.
         staged(workspace, a.values, a.values === c.values) { av ->
             staged(workspace, b.values, b.values === c.values && b !== a) { raw ->
                 val bv = if (b === a) av else raw
@@ -472,16 +456,14 @@ internal class PortableDenseBlas(
         requireSyrOperands(a, x.size, "syr")
         val n = a.rows
         if (alpha == 0.0 || n == 0) return
-        // A vector sharing the destination's buffer is copied, since the update writes what a later column
-        // would otherwise read back as its coefficient. The copy is contiguous, whatever the source's step.
+        // Snapshot an aliased vector before updates overwrite coefficients needed by later columns.
         staged(workspace, x, x.values === a.values) { sx ->
             val xv = sx.values
             val origin = sx.offset
             val step = sx.stride
             val group = panels.executionGroup(PanelWork.RankUpdate, n, n)
             forEachTrianglePanel(n, group, lower, fromDiagonal = true) { start, width, window, rows ->
-                // The corner is the rows between the group's first and last column, where the columns stop
-                // agreeing about which of them are stored; everything past it is the window they share.
+                // Only the diagonal corner has differing stored rows; the remaining window is shared by the group.
                 val cornerFirst = if (lower) start else start + 1
                 val cornerLast = if (lower) start + width - 1 else start + width
                 for (c in start until start + width) {
@@ -600,8 +582,7 @@ internal class PortableDenseBlas(
         requireTriangularVectorOperands(a, x.size, "trmv")
         val n = a.rows
         staged(workspace, a.values, a.values === x) { av ->
-            // Untransposed, a column is consumed before the columns it would overwrite; transposed, a column
-            // is produced from entries later columns have not reached yet. The two run in opposite directions.
+            // Traverse in opposite directions for transpose variants to preserve values until their last use.
             forEachTriangularColumn(n, lower, ascending = transpose == lower) { j, window, rows ->
                 if (transpose) {
                     if (!unitDiag) x[j] = av[j + j * n] * x[j]

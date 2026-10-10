@@ -7,12 +7,9 @@ import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.SparseMatrix
 
 /**
- * A naive oracle for the sparse surface, defined by traversal over stored entries rather than by any kernel.
- *
- * Each operand is a list of stored coordinates pulled through the public [SparseMatrix.forEachInColumn], and
- * nothing here reuses an accumulator, an epoch, a panel or a transpose. Sparse semantics are stated rather
- * than inherited from a dense oracle: a position no operand stores is never visited, so it forms no product
- * and cannot turn an infinity into a NaN, and a stored zero is visited like any other entry.
+ * Independent sparse oracle using stored coordinates from [SparseMatrix.forEachInColumn].
+ * Absent positions form no product; stored zeros participate. Dense expansion would lose that
+ * distinction for non-finite values.
  */
 internal object ReferenceSparseBlas : SparseKernels by BuiltinEngines.scalar.sparseKernels {
 
@@ -221,9 +218,8 @@ internal object ReferenceSparseBlas : SparseKernels by BuiltinEngines.scalar.spa
     }
 
     /**
-     * A CSC matrix over discovered coordinates, sorted rather than accumulated. [SparseMatrix.ofTriplets]
-     * would sum duplicates, which the oracle has already done, so this is a second implementation of the
-     * ordering the library's builders also have to get right.
+     * Builds sorted CSC arrays independently of [SparseMatrix.ofTriplets], so the oracle does not
+     * inherit the production builder's ordering or duplicate handling.
      */
     private fun build(rows: Int, cols: Int, entries: List<Entry>): SparseMatrix {
         val sorted = entries.sortedWith(compareBy({ it.col }, { it.row }))

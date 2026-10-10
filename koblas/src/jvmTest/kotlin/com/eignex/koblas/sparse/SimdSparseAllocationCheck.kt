@@ -13,17 +13,11 @@ import com.eignex.koblas.testutil.allocation.AllocationProbe
 import com.eignex.koblas.testutil.allocation.bytesPerCall
 
 /**
- * Runs allocation checks for the Vector API indexed sparse paths in an uninstrumented JVM.
+ * Runs indexed Level 1, panel and whole-operation allocation checks in an uninstrumented JVM.
+ * Kover prevents HotSpot from scalar-replacing Vector API carriers, so the
+ * `simdSparseAllocationCheck` task supplies warmed workspaces outside a test task.
  *
- * Kover's test instrumentation prevents HotSpot from scalar-replacing Vector API carriers, so this
- * intentionally runs through the `simdSparseAllocationCheck` Gradle task instead of a test task.
- *
- * Three kinds of probe: the indexed Level 1 leaves, the two indexed panel leaves, and the whole sparse
- * operations around them, which a panel measured on its own cannot speak for. Each whole operation is handed
- * a warmed workspace, which is the contract a repeated call is held to.
- *
- * Whether a body allocates depends on the species width and on whether a multiply-add is one instruction,
- * both fixed at virtual machine start, so the Gradle tasks run this in three configurations.
+ * Species width and FMA are fixed at JVM start; separate Gradle configurations cover both.
  */
 internal object SimdSparseAllocationCheck {
     internal const val ENTRY_COUNT = 512
@@ -264,12 +258,8 @@ internal object SimdSparseAllocationCheck {
     }
 
     /**
-     * The generic product, which decides its storage pairing per call rather than being told it.
-     *
-     * A caller holding a [Matrix] names no engine and no pairing, so this is where a descriptor built to
-     * make that decision, or an operand adapted to reach a kernel, would show up. Both sides are probed
-     * because a sparse operand keeps its own traversal on either, and the side it is on is what the dense
-     * one is read through.
+     * Measures generic [Matrix] dispatch and adaptation on both operand sides. A sparse operand
+     * retains its traversal on either side, while the dense operand's access pattern changes.
      */
     @Suppress("LongParameterList") // the two operands, the two destinations they need, and the scratch
     private fun checkGenericDispatch(

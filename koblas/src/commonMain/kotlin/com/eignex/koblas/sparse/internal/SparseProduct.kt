@@ -27,9 +27,7 @@ internal fun multiplySparse(
     lower: Boolean? = null,
 ): SparseMatrix {
     val rows = a.rows
-    // A product that can reach no position discovers no structure, and the scratch that would have found it
-    // is indexed by the result's rows. Allocating it for a result that is provably empty is what turns a
-    // valid tall-and-empty shape into an out-of-memory error rather than an empty matrix.
+    // Return before allocating row-indexed scratch: a tall empty result must not exhaust memory.
     if (a.nnz == 0 || b.nnz == 0) {
         return SparseMatrix.wrapTrusted(rows, b.cols, IntArray(b.cols + 1), IntArray(0), DoubleArray(0))
     }
@@ -48,8 +46,7 @@ internal fun multiplySparse(
         val lastRow = if (lower == false) j + 1 else rows
         for (bp in b.colPointers[j] until b.colPointers[j + 1]) {
             val l = b.rowIndices[bp]
-            // A stored zero of B contributes its column of A as stored zeros rather than dropping it: the
-            // pattern of the product is the pattern of the operands, whatever the arithmetic makes of it.
+            // Stored zeros preserve the product pattern, including the stored positions of the corresponding A column.
             used = if (alpha == 0.0) {
                 SparseAccumulationKernels.accumulateProductPattern(
                     a.rowIndices, a.colPointers[l], a.colPointers[l + 1], firstRow, lastRow,
@@ -63,9 +60,7 @@ internal fun multiplySparse(
             }
         }
         builder.reserve(used)
-        // Rows arrive in whatever order the contributing columns held them, and CSC wants them ascending,
-        // which is either a sort of what was collected or a sweep of the range it came from. The scratch is
-        // already this column's and nothing else reads it before the next column overwrites the same prefix.
+        // CSC requires ascending rows; sort the collected rows or sweep their range using this column's scratch.
         orderTouchedRows(touchedIn, epoch, firstRow, lastRow, touched, used)
         SparseAccumulationKernels.emitScaledSupport(
             alpha,
@@ -79,7 +74,6 @@ internal fun multiplySparse(
         builder.advance(used)
         outPointers[j + 1] = builder.size
     }
-    // Each column's rows were put in order where they were collected, and a scatter list holds each row once.
     return builder.finish(rows, b.cols, outPointers)
 }
 
@@ -112,8 +106,7 @@ internal fun multiplySparseInto(
 internal fun symmetricRankProduct(a: SparseMatrix, transpose: Boolean, lower: Boolean): SparseMatrix {
     val order = if (transpose) a.cols else a.rows
     val outerPointers = pointerLength(order, "syrk")
-    // As in the general product, a source with nothing stored reaches no position, and the row adjacency that
-    // would have found them is indexed by the source's rows.
+    // An empty source needs no row-indexed adjacency scratch.
     if (a.nnz == 0) {
         return SparseMatrix.wrapTrusted(order, order, IntArray(outerPointers), IntArray(0), DoubleArray(0))
     }
