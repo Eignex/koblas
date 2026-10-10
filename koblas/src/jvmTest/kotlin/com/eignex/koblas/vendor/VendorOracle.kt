@@ -1,5 +1,6 @@
 package com.eignex.koblas.vendor
 
+import com.eignex.koblas.assertClose
 import kotlin.math.abs
 import kotlin.test.assertTrue
 import kotlin.test.fail
@@ -34,6 +35,11 @@ internal fun assertAgreesWithReference(expected: DoubleArray, actual: DoubleArra
             "$what: entry $index was ${actual[index]}, expected ${expected[index]}",
         )
     }
+}
+
+/** Compares a scalar reduction with the explicit scalar kernel oracle. */
+internal fun assertAgreesWithReference(expected: Double, actual: Double, what: String) {
+    assertClose(expected, actual, what, TOLERANCE)
 }
 
 /** Loose enough for a different summation order, tight enough to catch a wrong index or flag. */

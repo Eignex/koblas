@@ -87,7 +87,7 @@ class SparseAliasTest {
     }
 
     @Test
-    fun `trsv solves against the triangle it was given when the right-hand side is its values`() {
+    fun `trsv solves against the triangle it was given when the right hand side is its values`() {
         // A column whose diagonal is missing, so the solve divides by zero and every later column depends on
         // a coefficient the substitution would already have overwritten.
         val pointers = intArrayOf(0, 2, 3, 3)

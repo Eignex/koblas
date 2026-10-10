@@ -99,7 +99,7 @@ class StructuredProductTest {
     // A NaN outside the selection catches both a write outside it and a read of it; both routes, since the
     // packed one masks at the tile and the unpacked one shortens each destination column.
     @Test
-    fun `a selected-triangle product leaves the opposite triangle exactly as it found it`() = withDenseBlas { blas ->
+    fun `a selected triangle product leaves the opposite triangle exactly as it found it`() = withDenseBlas { blas ->
         for ((order, depth) in shapes()) {
             for (lower in booleanArrayOf(false, true)) {
                 val a = randomMatrix(order, depth, rng)
@@ -391,7 +391,7 @@ class StructuredProductTest {
 
     // Run under a recorder, so the claim is checked against the blocks the schedule produced.
     @Test
-    fun `a selected-triangle route names the blocks the call really cut`() = withProducts { products ->
+    fun `a selected triangle route names the blocks the call really cut`() = withProducts { products ->
         val panels = panelsFor(products)
         val order = blockedOrder(products)
         val depth = blockedDepth(products, order)
@@ -412,7 +412,7 @@ class StructuredProductTest {
 
     @Test
     @OptIn(KoblasEngineApi::class)
-    fun `a rank two-k route reports the composition it is`() {
+    fun `a rank two k route reports the composition it is`() {
         for (engine in listOfNotNull(BuiltinEngines.scalar, BuiltinEngines.simd)) {
             val route = engine.routeOf(
                 DenseMatrixOperation.Syr2k,
@@ -456,47 +456,3 @@ class StructuredProductTest {
         const val C_ORIGIN = 5
     }
 }
-
-/** Runs [body] against every product backend this platform has, which is what decides the block geometry. */
-@OptIn(KoblasEngineApi::class)
-internal fun withProducts(body: (DenseProductKernels) -> Unit) {
-    body(PortableProductKernels)
-    BuiltinEngines.simd?.let { body(it.productKernels) }
-}
-
-/** The product backend of the engine whose scheduling the conformance checks above run under. */
-@OptIn(KoblasEngineApi::class)
-internal fun defaultProducts(): DenseProductKernels = BuiltinEngines.simd?.productKernels ?: PortableProductKernels
-
-/**
- * A destination order past several of this backend's tiles and one row short of a whole number of them,
- * read from the backend because a fixed order fills a narrow tile exactly and leaves a wide one short.
- */
-internal fun blockedOrder(products: DenseProductKernels): Int = 4 * maxOf(products.tileRows, products.tileColumns) + 1
-
-/** The smallest depth at which a triangle-selected product of this order is packed into tiles. */
-internal fun blockedDepth(products: DenseProductKernels, order: Int): Int {
-    var depth = 8
-    while (depth < MAXIMUM_FIXTURE_DEPTH && !packsWindow(products, order, order, depth, OutputTriangle.Lower)) {
-        depth *= 2
-    }
-    return depth
-}
-
-/** A bound on the fixtures above, so a backend that never packs produces a test that fails rather than hangs. */
-private const val MAXIMUM_FIXTURE_DEPTH = 4096
-
-/**
- * A square order at which a product of it by itself is packed and which leaves a row edge; a rank update's
- * operand can share its destination only at one shape, so the packed alias case cannot use a rectangle.
- */
-internal fun packedSquareOrder(products: DenseProductKernels): Int {
-    var order = blockedOrder(products)
-    while (order < MAXIMUM_FIXTURE_ORDER && !packsWindow(products, order, order, order, OutputTriangle.Lower)) {
-        order += products.tileRows
-    }
-    return order
-}
-
-/** A bound on the search above, for the reason [MAXIMUM_FIXTURE_DEPTH] is one. */
-private const val MAXIMUM_FIXTURE_ORDER = 512

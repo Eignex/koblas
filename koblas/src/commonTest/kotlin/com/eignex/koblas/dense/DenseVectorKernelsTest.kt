@@ -1,9 +1,7 @@
 package com.eignex.koblas.dense
 
 import com.eignex.koblas.*
-import com.eignex.koblas.internal.numeric.euclideanNorm
 import kotlin.math.sqrt
-import kotlin.random.Random
 import kotlin.test.*
 
 class DenseVectorKernelsTest {
@@ -19,12 +17,12 @@ class DenseVectorKernelsTest {
     }
 
     @Test
-    fun `the compiled-in kernels name themselves for engine attribution`() {
+    fun `the compiled in kernels name themselves for engine attribution`() {
         assertTrue(koblas.vectorKernels.name.isNotEmpty())
     }
 
     @Test
-    fun `the compiled-in kernels keep the public scale and axpy noops`() {
+    fun `the compiled in kernels keep the public scale and axpy noops`() {
         val x = DoubleArray(64) { Double.POSITIVE_INFINITY }
         val y = DoubleArray(64)
 
@@ -36,46 +34,37 @@ class DenseVectorKernelsTest {
     }
 
     @Test
-    fun `nrm2 survives components that square out of range at every length`() {
-        val pair = doubleArrayOf(3e200, 4e200)
-        assertEquals(5e200, koblas.vectorKernels.nrm2(pair, 0, 2), absoluteTolerance = 1e188)
-        val tinyPair = doubleArrayOf(3e-200, 4e-200)
-        assertEquals(5e-200, koblas.vectorKernels.nrm2(tinyPair, 0, 2), absoluteTolerance = 1e-212)
+    fun `the scalar norm rescales components whose squares exceed the exponent range`() {
+        for (scale in doubleArrayOf(1e200, 1e-200)) {
+            val input = doubleArrayOf(3.0 * scale, 4.0 * scale)
 
-        for (len in intArrayOf(16, 33, 64)) {
-            val big = DoubleArray(len) { 1e200 }
-            val expected = sqrt(len.toDouble()) * 1e200
-            assertEquals(
-                expected,
-                koblas.vectorKernels.nrm2(big, 0, len),
-                absoluteTolerance = expected * 1e-12,
-            )
-            val tiny = DoubleArray(len) { 1e-200 }
-            val expectedTiny = sqrt(len.toDouble()) * 1e-200
-            assertEquals(
-                expectedTiny,
-                koblas.vectorKernels.nrm2(tiny, 0, len),
-                absoluteTolerance = expectedTiny * 1e-12,
-            )
+            val actual = ScalarVectorKernels.nrm2(input, 0, input.size)
+
+            assertEquals(5.0 * scale, actual, absoluteTolerance = scale * 1e-12)
         }
     }
 
     @Test
-    fun `nrm2 agrees with the portable norm across offsets and lengths`() {
-        val rng = Random(20260815)
-        val v = DoubleArray(300) { rng.nextDouble(-1.0, 1.0) }
-        for (off in intArrayOf(0, 1, 7)) {
-            for (len in intArrayOf(0, 1, 3, 8, 31, 128, 293)) {
-                val expected = euclideanNorm(v, off, 1, len)
-                assertEquals(
-                    expected,
-                    koblas.vectorKernels.nrm2(v, off, len),
-                    absoluteTolerance = 1e-12 * (expected + 1.0),
-                    message = "off $off len $len",
-                )
+    fun `the scalar norm preserves equal components across lengths`() {
+        for (length in intArrayOf(16, 33, 64)) {
+            for (scale in doubleArrayOf(1e200, 1e-200)) {
+                val input = DoubleArray(length) { scale }
+                val expected = sqrt(length.toDouble()) * scale
+
+                val actual = ScalarVectorKernels.nrm2(input, 0, length)
+
+                assertEquals(expected, actual, absoluteTolerance = expected * 1e-12)
             }
         }
     }
+
+    @Test
+    fun `norm agrees with the scalar oracle at extreme magnitudes`() =
+        assertNormExtremesAgreeWithReference(koblas.vectorKernels)
+
+    @Test
+    fun `norm agrees with the scalar oracle across offsets and lengths`() =
+        assertNormWindowsAgreeWithReference(koblas.vectorKernels)
 
     /**
      * A caller walking a matrix reaches its last row or column with an empty tail, so every routine here is
@@ -97,7 +86,7 @@ class DenseVectorKernelsTest {
     }
 
     @Test
-    fun `the compiled-in level-1 kernels agree with the scalar loops`() =
+    fun `the compiled in level one kernels agree with the scalar loops`() =
         assertLevel1KernelsAgreeWithReference(koblas.vectorKernels)
 
     @Test
@@ -111,13 +100,13 @@ class DenseVectorKernelsTest {
     }
 
     @Test
-    fun `the compiled-in reductions agree with the scalar loops`() =
+    fun `the compiled in reductions agree with the scalar loops`() =
         assertReductionsAgreeWithReference(koblas.vectorKernels)
 
     @Test
-    fun `the compiled-in swap agrees with the scalar loop`() = assertSwapAgreesWithReference(koblas.vectorKernels)
+    fun `the compiled in swap agrees with the scalar loop`() = assertSwapAgreesWithReference(koblas.vectorKernels)
 
     @Test
-    fun `the compiled-in rot kernel agrees with the portable one`() =
+    fun `the compiled in rot kernel agrees with the portable one`() =
         assertRotKernelAgreesWithReference(koblas.vectorKernels)
 }

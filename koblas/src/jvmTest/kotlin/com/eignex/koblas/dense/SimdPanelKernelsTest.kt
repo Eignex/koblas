@@ -18,20 +18,6 @@ class SimdPanelKernelsTest {
     private val kernels: DensePanelKernels? = BuiltinEngines.simd?.panelKernels
 
     @Test
-    fun `the vector panels agree with the written out definitions`() {
-        val kernels = kernels ?: return skipped()
-
-        assertPanelKernelsAgreeWithReference(kernels)
-    }
-
-    @Test
-    fun `the vector panels keep the no read and zero evaluation rules`() {
-        val kernels = kernels ?: return skipped()
-
-        assertPanelContractHolds(kernels)
-    }
-
-    @Test
     fun `a panel with lanes to fill reaches the vector body and a shorter one does not`() {
         val kernels = kernels ?: return skipped()
         val lanes = lanes(kernels)

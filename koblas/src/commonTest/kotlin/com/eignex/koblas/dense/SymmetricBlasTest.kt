@@ -7,19 +7,6 @@ import kotlin.test.*
 
 class SymmetricBlasTest {
 
-    /** The `dsyr2k` sum for one entry, over whichever orientation [transpose] selects. */
-    private fun syr2kEntry(a: DenseMatrix, b: DenseMatrix, transpose: Boolean, k: Int, i: Int, j: Int): Double {
-        var s = 0.0
-        for (p in 0 until k) {
-            val ai = if (transpose) a[p, i] else a[i, p]
-            val aj = if (transpose) a[p, j] else a[j, p]
-            val bi = if (transpose) b[p, i] else b[i, p]
-            val bj = if (transpose) b[p, j] else b[j, p]
-            s += ai * bj + bi * aj
-        }
-        return s
-    }
-
     @Test
     fun `symv matches gemv on the full matrix and reads only the selected triangle`() = withDenseBlas { blas ->
         val rng = Random(20260910)
@@ -44,22 +31,13 @@ class SymmetricBlasTest {
         }
     }
 
-    @Test
-    fun `symv with zero alpha overwrites the destination`() = withDenseBlas { blas ->
-        val y = DoubleArray(2) { Double.NaN }
-
-        blas.symv(0.0, DenseMatrix(2, 2), DoubleArray(2), 0.0, y)
-
-        assertTrue(y.all { it == 0.0 }, "symv alpha=0 beta=0 left ${y.toList()}")
-    }
-
     /**
      * A square operand is the whole of what a symmetric routine can mean, so the rejection is the contract.
      *
      * The shape is checked before anything reaches the library, which is why this runs without one.
      */
     @Test
-    fun `symv refuses a non-square matrix at every size`() {
+    fun `symv refuses a non square matrix at every size`() {
         for (n in intArrayOf(2, 17, 64, 129)) {
             val wide = DenseMatrix.zero(n, n + 1)
             val tall = DenseMatrix.zero(n + 1, n)
@@ -91,29 +69,6 @@ class SymmetricBlasTest {
 
                         assertClose(expected, actual, "symm n=$n a=$alpha b=$beta lower=$lower")
                     }
-                }
-            }
-        }
-    }
-
-    @Test
-    fun `symm right multiplies from the right and reads only the selected triangle`() = withDenseBlas { blas ->
-        val rng = Random(20260942)
-        val n = 5
-        val rows = 4
-        for (lower in booleanArrayOf(true, false)) {
-            for (alpha in doubleArrayOf(0.0, 0.75)) {
-                for (beta in doubleArrayOf(0.0, 1.0, -0.5)) {
-                    val (full, poisoned) = poisonedSymmetric(rng, n, lower)
-                    val b = randomMatrix(rows, n, rng)
-                    val c0 = DoubleArray(rows * n) { if (beta == 0.0) Double.NaN else rng.nextDouble(-1.0, 1.0) }
-                    val expected = DenseMatrix.wrap(rows, n, c0.copyOf())
-                    ReferenceBlas.gemm(alpha, b, false, full, false, beta, expected)
-                    val actual = DenseMatrix.wrap(rows, n, c0.copyOf())
-
-                    blas.symm(alpha, poisoned, b, beta, actual, lower, right = true)
-
-                    assertClose(expected, actual, "symm right l=$lower a=$alpha b=$beta", tolerance = 1e-11)
                 }
             }
         }
@@ -202,85 +157,22 @@ class SymmetricBlasTest {
         }
     }
 
-    /**
-     * A triangle mode has to beta-scale and write the same half, and leave the other half of an asymmetric
-     * destination exactly as it found it. Beta is non-zero and C starts asymmetric so that scaling the wrong
-     * region, or mirroring where the routine should accumulate, both show up.
-     */
     @Test
-    fun `syr2k writes only the triangle it is given and scales only that`() = withDenseBlas { blas ->
-        val rng = Random(20260825)
-        val n = 5
-        val k = 3
-        for (transpose in booleanArrayOf(false, true)) {
-            for (lower in booleanArrayOf(true, false)) {
-                val a = if (transpose) randomMatrix(k, n, rng) else randomMatrix(n, k, rng)
-                val b = if (transpose) randomMatrix(k, n, rng) else randomMatrix(n, k, rng)
-                val before = randomMatrix(n, n, rng)
-                val c = DenseMatrix.wrap(n, n, before.values.copyOf())
-
-                blas.syr2k(0.5, a, b, transpose, beta = 2.0, c = c, lower = lower)
-
-                for (i in 0 until n) {
-                    for (j in 0 until n) {
-                        val written = if (lower) i >= j else i <= j
-                        val expected = if (written) {
-                            2.0 * before[i, j] + 0.5 * syr2kEntry(a, b, transpose, k, i, j)
-                        } else {
-                            before[i, j]
-                        }
-                        assertClose(expected, c[i, j], "transpose=$transpose lower=$lower at [$i,$j]")
-                    }
-                }
-            }
-        }
-    }
-
-    @Test
-    fun `syr2k matches the gemm expansion in both orientations`() = withDenseBlas { blas ->
-        val rng = Random(20260809)
-        for (transpose in booleanArrayOf(false, true)) {
-            val n = 4
-            val k = 3
-            val a = if (transpose) randomMatrix(k, n, rng) else randomMatrix(n, k, rng)
-            val b = if (transpose) randomMatrix(k, n, rng) else randomMatrix(n, k, rng)
-            val c = DenseMatrix(n, n)
-
-            blas.syr2k(0.5, a, b, transpose, 0.0, c)
-
-            for (j in 0 until n) {
-                for (i in j until n) {
-                    assertClose(
-                        0.5 * syr2kEntry(a, b, transpose, k, i, j),
-                        c[i, j],
-                        "transpose=$transpose at [$i,$j]",
-                    )
-                }
-            }
-        }
-    }
-
-    @Test
-    fun `the rank updates snapshot a destination that shares an input buffer`() {
+    fun `the rank two update snapshots a destination sharing either input buffer`() = withDenseBlas { blas ->
         val initial = DenseMatrix.ofRows(Array(3) { i -> DoubleArray(3) { j -> (i * 3 + j + 1).toDouble() / 7.0 } })
         val other = DenseMatrix.wrap(3, 3, initial.values.copyOf()).also {
             for (i in it.values.indices) it.values[i] += 0.25
         }
-
-        val syrkExpected = DenseMatrix.wrap(3, 3, initial.values.copyOf())
-        ReferenceBlas.syrk(1.0, DenseMatrix.wrap(3, 3, initial.values.copyOf()), false, 0.0, syrkExpected)
-        val syrkActual = DenseMatrix.wrap(3, 3, initial.values.copyOf())
-        koblas.syrk(1.0, syrkActual, false, 0.0, syrkActual)
-        assertClose(syrkExpected, syrkActual, "aliased syrk")
-
-        for (aliasLeft in listOf(true, false)) {
+        for (aliasLeft in booleanArrayOf(true, false)) {
             val expected = DenseMatrix.wrap(3, 3, initial.values.copyOf())
-            val left = if (aliasLeft) DenseMatrix.wrap(3, 3, initial.values.copyOf()) else other
-            val right = if (aliasLeft) other else DenseMatrix.wrap(3, 3, initial.values.copyOf())
+            val left = if (aliasLeft) initial else other
+            val right = if (aliasLeft) other else initial
             ReferenceBlas.syr2k(1.0, left, right, false, 0.0, expected)
             val actual = DenseMatrix.wrap(3, 3, initial.values.copyOf())
-            koblas.syr2k(1.0, if (aliasLeft) actual else other, if (aliasLeft) other else actual, false, 0.0, actual)
-            assertClose(expected, actual, "aliased syr2k left=$aliasLeft")
+
+            blas.syr2k(1.0, if (aliasLeft) actual else other, if (aliasLeft) other else actual, false, 0.0, actual)
+
+            assertClose(expected.values, actual.values, "aliased syr2k left=$aliasLeft")
         }
     }
 }

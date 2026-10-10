@@ -71,10 +71,54 @@ class DenseMatrixRouteTest {
     // A triangular traversal's windows run from the full column down to nothing, so whether they all reach
     // one body depends on the schedule rather than the order; both are checked against what it cut.
     @Test
-    fun `a symmetric traversal is composed exactly when its own windows reach more than one body`() {
+    fun `short symmetric traversals name the bodies their windows reach`() {
         for (engine in engines) {
-            assertRouteNamesExecutedBodies(engine.panelKernels)
+            assertRouteNamesExecutedBodies(engine.panelKernels, orders = SHORT_ROUTE_ORDERS + intArrayOf(16, 33))
         }
+    }
+
+    @Test
+    fun `wide candidate upper product panels name the bodies their windows reach`() {
+        val panels = BuiltinEngines.simd?.panelKernels ?: return
+        assertRouteNamesExecutedBodies(
+            panels,
+            orders = intArrayOf(512),
+            lowerModes = booleanArrayOf(false),
+            operations = PRODUCT_PANEL_OPERATIONS,
+        )
+    }
+
+    @Test
+    fun `wide candidate upper triangular panels name the bodies their windows reach`() {
+        val panels = BuiltinEngines.simd?.panelKernels ?: return
+        assertRouteNamesExecutedBodies(
+            panels,
+            orders = intArrayOf(512),
+            lowerModes = booleanArrayOf(false),
+            operations = TRIANGULAR_PANEL_OPERATIONS,
+        )
+    }
+
+    @Test
+    fun `wide candidate lower product panels name the bodies their windows reach`() {
+        val panels = BuiltinEngines.simd?.panelKernels ?: return
+        assertRouteNamesExecutedBodies(
+            panels,
+            orders = intArrayOf(512),
+            lowerModes = booleanArrayOf(true),
+            operations = PRODUCT_PANEL_OPERATIONS,
+        )
+    }
+
+    @Test
+    fun `wide candidate lower triangular panels name the bodies their windows reach`() {
+        val panels = BuiltinEngines.simd?.panelKernels ?: return
+        assertRouteNamesExecutedBodies(
+            panels,
+            orders = intArrayOf(512),
+            lowerModes = booleanArrayOf(true),
+            operations = TRIANGULAR_PANEL_OPERATIONS,
+        )
     }
 
     /** A composition says so in its reason and refuses to be read as an exact measurement. */

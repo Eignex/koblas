@@ -14,6 +14,7 @@ import kotlin.native.concurrent.TransferMode
 import kotlin.native.concurrent.Worker
 import kotlin.random.Random
 import kotlin.test.Test
+import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
@@ -80,8 +81,8 @@ class NativeHostConcurrencyTest {
             assertClose(expected.values, actual, "concurrent gemm beta=$beta", TOLERANCE)
             worker.requestTermination().result
         }
-        assertEquals(untouched.first.toList(), a.values.toList(), "a shared operand was written")
-        assertEquals(untouched.second.toList(), b.values.toList(), "a shared operand was written")
+        assertContentEquals(untouched.first, a.values, "a shared operand was written")
+        assertContentEquals(untouched.second, b.values, "a shared operand was written")
     }
 
     /**

@@ -29,7 +29,7 @@ class VectorTest {
     }
 
     @Test
-    fun `DenseVector zero factory builds a zero-filled vector`() {
+    fun `DenseVector zero factory builds a zero filled vector`() {
         val z = DenseVector.zero(3)
         assertEquals(3, z.size)
         for (i in 0 until 3) assertEquals(0.0, z[i])

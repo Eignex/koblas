@@ -38,7 +38,7 @@ class VendorLoadingTest {
     }
 
     @Test
-    fun `a build advertising 64 bit integers is not the abi koblas binds`() {
+    fun `a build advertising sixty four bit integers is not the abi koblas binds`() {
         assertTrue(declaresWideIntegers("OpenBLAS 0.3.32 USE64BITINT DYNAMIC_ARCH"))
         assertTrue(declaresWideIntegers("BLIS 0.9.0 ilp64"))
         assertTrue(declaresWideIntegers("something INT64 something"))

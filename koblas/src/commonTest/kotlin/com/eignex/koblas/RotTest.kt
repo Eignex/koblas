@@ -1,5 +1,6 @@
 package com.eignex.koblas
 
+import com.eignex.koblas.dense.ScalarVectorKernels
 import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
@@ -66,18 +67,16 @@ class RotTest {
         val y = DoubleArray(7) { 10.0 * (it + 1) }
         val expectedX = x.copyOf()
         val expectedY = y.copyOf()
-        // The two runs start at different offsets, so x(2 + i) pairs with y(3 + i).
-        for (i in 0 until 3) {
-            expectedX[2 + i] = c * x[2 + i] + s * y[3 + i]
-            expectedY[3 + i] = c * y[3 + i] - s * x[2 + i]
-        }
+        ScalarVectorKernels.rot(expectedX, 2, expectedY, 3, 3, c, s)
 
         koblas.vectorKernels.rot(x, 2, y, 3, 3, c, s)
 
-        for (i in x.indices) {
-            assertEquals(expectedX[i], x[i], 1e-12, "x[$i]")
-            assertEquals(expectedY[i], y[i], 1e-12, "y[$i]")
-        }
+        assertRotationAgreesWithReference(expectedX, x, "offset x")
+        assertRotationAgreesWithReference(expectedY, y, "offset y")
+    }
+
+    private fun assertRotationAgreesWithReference(expected: DoubleArray, actual: DoubleArray, context: String) {
+        assertClose(expected, actual, context)
     }
 
     @Test

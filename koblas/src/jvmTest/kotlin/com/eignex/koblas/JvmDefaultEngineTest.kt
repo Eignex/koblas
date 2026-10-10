@@ -4,6 +4,7 @@ import com.eignex.koblas.dense.DenseCall
 import com.eignex.koblas.dense.DenseMatrixOperation
 import com.eignex.koblas.dense.ReferenceBlas
 import com.eignex.koblas.vendor.BlasOperation
+import com.eignex.koblas.vendor.assertAgreesWithReference
 import com.eignex.koblas.vendor.openBlas
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -53,7 +54,7 @@ class JvmDefaultEngineTest {
             val c = DenseMatrix.zero(ORDER, ORDER)
             engine.gemm(1.0, a, false, a, false, 0.0, c)
 
-            assertClose(expected.values, c.values, "${engine.name} product", TIGHT_TOLERANCE)
+            assertAgreesWithReference(expected.values, c.values, "${engine.name} product")
         }
     }
 

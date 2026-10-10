@@ -7,6 +7,7 @@ package com.eignex.koblas
 import com.eignex.koblas.dense.DenseCall
 import com.eignex.koblas.dense.DenseMatrixOperation
 import com.eignex.koblas.dense.DenseOperation
+import com.eignex.koblas.dense.ReferenceBlas
 import com.eignex.koblas.sparse.SPARSE_SCHEDULING
 import com.eignex.koblas.vendor.RouteKind
 import kotlin.test.Test
@@ -29,7 +30,7 @@ class NativeDefaultEngineTest {
      * against the binding the engine actually holds.
      */
     @Test
-    fun `a product past the policy's size is one whole vendor call and says which`() {
+    fun `a product past the policy size names its whole vendor call`() {
         val vendor = koblas.vendor ?: return skipped("the composed dense route")
 
         val route = koblas.routeOf(DenseMatrixOperation.Gemm, DenseCall(ORDER, ORDER, depth = ORDER))
@@ -62,7 +63,7 @@ class NativeDefaultEngineTest {
      * shape is over the size at which the ordinary product goes across, so the layout is what settles it.
      */
     @Test
-    fun `a product over retained panels stays this library's own however large it is`() {
+    fun `a product over retained panels keeps the portable schedule at every size`() {
         if (koblas.vendor == null) return skipped("the retained-layout fallback")
         val call = DenseCall(ORDER, ORDER, depth = ORDER)
 
@@ -122,17 +123,19 @@ class NativeDefaultEngineTest {
     /** The exact portable engine resolves no host binding and provides the availability floor. */
     @OptIn(KoblasEngineApi::class)
     @Test
-    fun `the exact portable engine computes every level without a library`() {
+    fun `the exact portable engine computes a dense product without a library`() {
         val engine = BuiltinEngines.scalar
         val a = DenseMatrix.wrap(SMALL, SMALL, DoubleArray(SMALL * SMALL) { 1.0 + it })
         val c = DenseMatrix.zero(SMALL, SMALL)
+        val expected = DenseMatrix.zero(SMALL, SMALL)
+        ReferenceBlas.gemm(1.0, a, false, a, false, 0.0, expected)
 
         engine.gemm(1.0, a, false, a, false, 0.0, c)
         val route = engine.routeOf(DenseMatrixOperation.Gemm, DenseCall(ORDER, ORDER, depth = ORDER))
 
         assertEquals(null, engine.vendor, "the exact portable engine resolved a host library")
         assertEquals("portable-dense", route.scheduling)
-        assertTrue(c.values.any { it != 0.0 }, "the portable product computed nothing")
+        assertClose(expected.values, c.values, "the portable product")
     }
 
     private companion object {

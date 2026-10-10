@@ -38,7 +38,7 @@ class SparseOpsTest {
     }
 
     @Test
-    fun `the allocating and in-place matrix-vector extensions agree with the reference`() {
+    fun `the allocating and in place matrix vector extensions agree with the reference`() {
         val source = matrix()
         val expected = DoubleArray(source.rows)
         ReferenceSparseBlas.gemv(1.0, source, INPUT, 0.0, expected)

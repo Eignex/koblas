@@ -1,17 +1,22 @@
-package com.eignex.koblas
+package com.eignex.koblas.sparse.internal
 
 import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.DenseVector
+import com.eignex.koblas.DimensionMismatch
 import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.SparseVector
+import com.eignex.koblas.Vector
 import com.eignex.koblas.dense.ReferenceBlas
+import com.eignex.koblas.denseCopy
+import com.eignex.koblas.syr
+import com.eignex.koblas.syr2
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
-class SparseSymmetricRankUpdateTest {
+class SparseRankUpdateTest {
 
     @Test
     fun `sparse syr agrees with the dense reference and preserves CSC`() {
@@ -40,7 +45,7 @@ class SparseSymmetricRankUpdateTest {
     }
 
     @Test
-    fun `sparse syr2 accepts dense and sparse vectors and agrees with the dense reference`() {
+    fun `sparse syr two accepts dense and sparse vectors and agrees with the dense reference`() {
         val source = SparseMatrix.ofColumns(
             4,
             4,
@@ -124,7 +129,7 @@ class SparseSymmetricRankUpdateTest {
     }
 
     @Test
-    fun `sparse syr2 excludes an explicitly stored zero in a sparse operand from its fill support`() {
+    fun `sparse syr two excludes an explicitly stored zero in a sparse operand from its fill support`() {
         val source = SparseMatrix.ofColumns(3, 3, listOf(emptyList(), emptyList(), emptyList()))
         val x = SparseVector.of(3, intArrayOf(0, 1, 2), doubleArrayOf(1.0, 0.0, 2.0))
         val y = SparseVector.of(3, intArrayOf(0, 2), doubleArrayOf(-3.0, 4.0))

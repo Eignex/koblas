@@ -46,7 +46,7 @@ class WorkspaceTest {
     }
 
     @Test
-    fun `index loans behave as floating-point ones do`() {
+    fun `index loans behave as floating point ones do`() {
         val workspace = Workspace()
 
         val first = workspace.borrowI32(8) { it }

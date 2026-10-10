@@ -9,7 +9,7 @@ class SerializationTest {
     private val json = Json
 
     @Test
-    fun `DenseMatrix round-trips through JSON for square rectangular and degenerate shapes`() {
+    fun `DenseMatrix round trips through JSON for square rectangular and degenerate shapes`() {
         val cases = listOf(
             DenseMatrix.ofRows(arrayOf(doubleArrayOf(1.0, 2.0), doubleArrayOf(3.0, 4.0))),
             DenseMatrix.ofRows(arrayOf(doubleArrayOf(1.0, 2.0, 3.0))),
@@ -36,7 +36,7 @@ class SerializationTest {
     }
 
     @Test
-    fun `DenseVector round-trips including empty and singleton`() {
+    fun `DenseVector round trips including empty and singleton`() {
         for (v in listOf(
             DenseVector.of(doubleArrayOf(1.0, -2.0, 3.5)),
             DenseVector.zero(0),
@@ -47,7 +47,7 @@ class SerializationTest {
     }
 
     @Test
-    fun `SparseVector round-trips including empty and stored-zero cases`() {
+    fun `SparseVector round trips including empty and stored zero cases`() {
         for (v in listOf(
             SparseVector.of(5, intArrayOf(2, 0), doubleArrayOf(3.0, 1.0)), // of sorts these on the way in
             SparseVector.of(4, IntArray(0), DoubleArray(0)),
@@ -67,7 +67,7 @@ class SerializationTest {
     }
 
     @Test
-    fun `VectorStorage round-trips polymorphically preserving dense and sparse types`() {
+    fun `VectorStorage round trips polymorphically preserving dense and sparse types`() {
         val dense: VectorStorage = DenseVector.of(doubleArrayOf(1.0, 2.0))
         val sparse: VectorStorage = SparseVector.of(4, intArrayOf(0, 3), doubleArrayOf(1.0, 2.0))
         val encodedDense = json.encodeToString(VectorStorage.serializer(), dense)
@@ -86,7 +86,7 @@ class SerializationTest {
     }
 
     @Test
-    fun `SparseMatrix round-trips through its CSC arrays`() {
+    fun `SparseMatrix round trips through its CSC arrays`() {
         for (a in listOf(
             SparseMatrix.ofColumns(3, 2, listOf(listOf(0 to 1.0, 2 to 3.0), listOf(1 to 2.0))),
             SparseMatrix(2, 1, intArrayOf(0, 1), intArrayOf(1), doubleArrayOf(0.0)), // a stored zero
@@ -111,7 +111,7 @@ class SerializationTest {
     }
 
     @Test
-    fun `both matrix storages round-trip polymorphically through MatrixStorage`() {
+    fun `both matrix storages round trip polymorphically through MatrixStorage`() {
         val storages: List<MatrixStorage> = listOf(
             SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 1.0), listOf(1 to 2.0))),
             DenseMatrix.ofRows(arrayOf(doubleArrayOf(1.0, 2.0), doubleArrayOf(3.0, 4.0))),

@@ -6,7 +6,7 @@ import kotlin.test.*
 class MatrixTest {
 
     @Test
-    fun `DenseMatrix toArray on 0x0 returns empty array`() {
+    fun `DenseMatrix toArray on x returns empty array`() {
         val m = DenseMatrix(0, 0)
         assertEquals(0, m.toArray().size)
     }

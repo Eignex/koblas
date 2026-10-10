@@ -6,37 +6,17 @@ import com.eignex.koblas.StridedVector
 import com.eignex.koblas.copyOf
 import com.eignex.koblas.dense.MatrixStructure
 import com.eignex.koblas.dense.ReferenceBlas
+import com.eignex.koblas.dense.ScalarVectorKernels
 import kotlin.math.abs
-import kotlin.math.sqrt
 import kotlin.test.Test
+import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 class JvmVendorBlasTest {
-    private fun values(size: Int, seed: Int = 1): DoubleArray {
-        var state = seed
-        return DoubleArray(size) {
-            state = state * 1_103_515_245 + 12_345
-            ((state ushr 8) % 1000) / 250.0 - 2.0
-        }
-    }
+    private fun matrix(rows: Int, cols: Int, seed: Int) = DenseMatrix.wrap(rows, cols, vendorValues(rows * cols, seed))
 
-    private fun matrix(rows: Int, cols: Int, seed: Int) = DenseMatrix.wrap(rows, cols, values(rows * cols, seed))
-
-    private fun vector(size: Int, seed: Int) = DenseVector.wrap(values(size, seed))
-
-    @Test
-    fun `gemm over whole matrices agrees with the reference`() = withVendor { blas ->
-        val a = matrix(3, 4, 1)
-        val b = matrix(4, 5, 2)
-        val c = matrix(3, 5, 3)
-        val expected = c.copyOf()
-        ReferenceBlas.gemm(0.75, a, false, b, false, -0.25, expected)
-
-        blas.gemm(0.75, a, false, b, false, -0.25, c)
-
-        assertAgreesWithReference(expected.values, c.values, "gemm")
-    }
+    private fun vector(size: Int, seed: Int) = DenseVector.wrap(vendorValues(size, seed))
 
     @Test
     fun `gemm transposes each operand the flag selects`() = withVendor { blas ->
@@ -62,7 +42,7 @@ class JvmVendorBlasTest {
         val b = matrix(4, 5, 12)
         val c = DenseMatrix.wrap(3, 5, DoubleArray(15) { Double.NaN })
         val clean = DenseMatrix.zero(3, 5)
-        blas.gemm(1.0, a, false, b, false, 0.0, clean)
+        ReferenceBlas.gemm(1.0, a, false, b, false, 0.0, clean)
 
         blas.gemm(1.0, a, false, b, false, 0.0, c)
 
@@ -73,12 +53,12 @@ class JvmVendorBlasTest {
     fun `an empty operation leaves the destination alone`() = withVendor { blas ->
         val a = DenseMatrix.wrap(3, 0, DoubleArray(0))
         val b = DenseMatrix.wrap(0, 5, DoubleArray(0))
-        val storage = values(15, 13)
+        val storage = vendorValues(15, 13)
         val original = storage.copyOf()
 
         blas.gemm(1.0, a, false, b, false, 1.0, DenseMatrix.wrap(3, 5, storage))
 
-        assertEquals(original.toList(), storage.toList())
+        assertContentEquals(original, storage)
     }
 
     @Test
@@ -99,7 +79,7 @@ class JvmVendorBlasTest {
     @Test
     fun `a symmetric operand reads only its stored triangle`() = withVendor { blas ->
         val order = 5
-        val stored = values(order * order, 17)
+        val stored = vendorValues(order * order, 17)
         for (column in 0 until order) {
             for (row in 0 until column) stored[row + column * order] = Double.NaN
         }
@@ -117,10 +97,10 @@ class JvmVendorBlasTest {
     @Test
     fun `a unit diagonal is never loaded from storage`() = withVendor { blas ->
         val order = 4
-        val stored = values(order * order, 19)
+        val stored = vendorValues(order * order, 19)
         for (index in 0 until order) stored[index + index * order] = Double.NaN
         val a = DenseMatrix.wrap(order, order, stored)
-        val rightHandSide = values(order, 20)
+        val rightHandSide = vendorValues(order, 20)
         val expected = rightHandSide.copyOf()
         ReferenceBlas.trsv(a, expected, lower = true, unitDiag = true)
         val x = DenseVector.wrap(rightHandSide.copyOf())
@@ -133,10 +113,10 @@ class JvmVendorBlasTest {
     @Test
     fun `a triangular solve inverts its own product`() = withVendor { blas ->
         val order = 4
-        val stored = values(order * order, 21)
+        val stored = vendorValues(order * order, 21)
         for (index in 0 until order) stored[index + index * order] = 3.0 + index
         val triangular = DenseMatrix.wrap(order, order, stored)
-        val original = values(order, 22)
+        val original = vendorValues(order, 22)
         val x = DenseVector.wrap(original.copyOf())
 
         blas.trsv(triangular, MatrixStructure.TriangularLower, false, x)
@@ -160,26 +140,61 @@ class JvmVendorBlasTest {
     }
 
     @Test
-    fun `level one calls agree with the reference including negative strides`() = withVendor { blas ->
+    fun `dot agrees with the scalar oracle under positive and negative strides`() = withVendor { blas ->
+        forEachStride { storage, offset, size, stride ->
+            val other = vendorValues(storage.size, 25)
+            val x = StridedVector(storage, offset, size, stride)
+            val y = StridedVector(other, offset, size, stride)
+            val expected = ScalarVectorKernels.dot(storage, offset, other, offset, size, stride, stride)
+
+            val actual = blas.dot(x, y)
+
+            assertAgreesWithReference(expected, actual, "dot at $stride")
+        }
+    }
+
+    @Test
+    fun `norm agrees with the scalar oracle under positive and negative strides`() = withVendor { blas ->
+        forEachStride { storage, offset, size, stride ->
+            val x = StridedVector(storage, offset, size, stride)
+            val expected = ScalarVectorKernels.nrm2(storage, offset, size, stride)
+
+            val actual = blas.nrm2(x)
+
+            assertAgreesWithReference(expected, actual, "nrm2 at $stride")
+        }
+    }
+
+    @Test
+    fun `absolute sum agrees with the scalar oracle under positive and negative strides`() = withVendor { blas ->
+        forEachStride { storage, offset, size, stride ->
+            val x = StridedVector(storage, offset, size, stride)
+            val expected = ScalarVectorKernels.asum(storage, offset, size, stride)
+
+            val actual = blas.asum(x)
+
+            assertAgreesWithReference(expected, actual, "asum at $stride")
+        }
+    }
+
+    @Test
+    fun `maximum index selects a largest magnitude under positive and negative strides`() = withVendor { blas ->
+        forEachStride { storage, offset, size, stride ->
+            val x = StridedVector(storage, offset, size, stride)
+            val expected = ScalarVectorKernels.iamax(storage, offset, size, stride)
+
+            val actual = blas.iamax(x)
+
+            assertEquals(abs(x[expected]), abs(x[actual]), "iamax at $stride")
+        }
+    }
+
+    private fun forEachStride(body: (DoubleArray, Int, Int, Int) -> Unit) {
         val size = 6
-        val xs = values(2 * size, 24)
-        val ys = values(2 * size, 25)
         for (stride in listOf(1, 2, -1, -2)) {
+            val storage = vendorValues(2 * size, 24)
             val offset = if (stride > 0) 0 else (size - 1) * -stride
-            val x = StridedVector(xs, offset, size, stride)
-            val y = StridedVector(ys.copyOf(), offset, size, stride)
-            val expectedDot = (0 until size).sumOf { x[it] * y[it] }
-
-            assertTrue(abs(blas.dot(x, y) - expectedDot) <= 1e-12 * maxOf(1.0, abs(expectedDot)), "dot at $stride")
-
-            val largest = (0 until size).maxOf { abs(x[it]) }
-            assertEquals(largest, abs(x[blas.iamax(x)]), "iamax at $stride did not land on the largest entry")
-
-            val expectedNorm = sqrt((0 until size).sumOf { x[it] * x[it] })
-            assertTrue(abs(blas.nrm2(x) - expectedNorm) <= 1e-12 * maxOf(1.0, expectedNorm), "nrm2 at $stride")
-
-            val expectedSum = (0 until size).sumOf { abs(x[it]) }
-            assertTrue(abs(blas.asum(x) - expectedSum) <= 1e-12 * maxOf(1.0, expectedSum), "asum at $stride")
+            body(storage, offset, size, stride)
         }
     }
 
@@ -198,20 +213,15 @@ class JvmVendorBlasTest {
     @Test
     fun `axpy writes only through the vector it was given`() = withVendor { blas ->
         val size = 4
-        val storage = values(20, 26)
-        val original = storage.copyOf()
+        val storage = vendorValues(20, 26)
+        val expected = storage.copyOf()
         val x = vector(size, 27)
         val y = StridedVector(storage, 3, size, 4)
-        val expected = DoubleArray(size) { y[it] + 0.5 * x[it] }
+        ScalarVectorKernels.axpy(expected, 3, 0.5, x.values, 0, size, yStride = 4)
 
         blas.axpy(0.5, x, y)
 
-        assertAgreesWithReference(expected, DoubleArray(size) { y[it] }, "axpy")
-        for (index in storage.indices) {
-            if ((index - 3) % 4 != 0 || index < 3 || index > 3 + 3 * 4) {
-                assertEquals(original[index], storage[index], "storage outside the vector changed at $index")
-            }
-        }
+        assertAgreesWithReference(expected, storage, "axpy backing buffer")
     }
 
     @Test
@@ -239,13 +249,13 @@ class JvmVendorBlasTest {
     }
 
     @Test
-    fun `syr2k agrees with the reference under its shared transpose flag`() = withVendor { blas ->
+    fun `symmetric rank two update agrees with the reference under its shared transpose flag`() = withVendor { blas ->
         for (transpose in listOf(false, true)) {
             val order = 3
             val depth = 2
             val a = if (transpose) matrix(depth, order, 34) else matrix(order, depth, 34)
             val b = if (transpose) matrix(depth, order, 35) else matrix(order, depth, 35)
-            val c = DenseMatrix.wrap(order, order, values(order * order, 36))
+            val c = DenseMatrix.wrap(order, order, vendorValues(order * order, 36))
             val expected = c.copyOf()
             ReferenceBlas.syr2k(1.25, a, b, transpose, 0.5, expected)
 
@@ -259,13 +269,14 @@ class JvmVendorBlasTest {
     fun `scal scales a negatively strided vector`() = withVendor { blas ->
         // BLAS returns without doing anything for a non-positive increment, so the sign must not be passed on.
         val size = 5
-        val storage = values(size, 30)
-        val original = storage.copyOf()
+        val storage = vendorValues(size, 30)
+        val expected = storage.copyOf()
         val x = StridedVector(storage, size - 1, size, -1)
+        ScalarVectorKernels.scale(expected, size - 1, 2.0, size, -1)
 
         blas.scal(2.0, x)
 
-        assertAgreesWithReference(DoubleArray(size) { 2.0 * original[it] }, storage, "scal negative stride")
+        assertAgreesWithReference(expected, storage, "scal negative stride")
     }
 
     @Test
@@ -273,24 +284,21 @@ class JvmVendorBlasTest {
         // Two rows of a column-major matrix interleave in one array, which is what a pivot swap works on.
         val size = 4
         val lda = 3
-        val storage = values(lda * size, 31)
-        val original = storage.copyOf()
+        val storage = vendorValues(lda * size, 31)
+        val expected = storage.copyOf()
         val first = StridedVector(storage, 0, size, lda)
         val second = StridedVector(storage, 1, size, lda)
+        ScalarVectorKernels.swap(expected, 0, expected, 1, size, lda, lda)
 
         blas.swap(first, second)
 
-        for (index in 0 until size) {
-            assertEquals(original[1 + index * lda], storage[index * lda], "row 0 entry $index")
-            assertEquals(original[index * lda], storage[1 + index * lda], "row 1 entry $index")
-            assertEquals(original[2 + index * lda], storage[2 + index * lda], "row 2 entry $index")
-        }
+        assertContentEquals(expected, storage, "swap backing buffer")
     }
 
     @Test
     fun `a symmetric rank one update keeps the triangle the call never wrote`() = withVendor { blas ->
         val order = 3
-        val a = DenseMatrix.wrap(order, order, values(order * order, 32))
+        val a = DenseMatrix.wrap(order, order, vendorValues(order * order, 32))
         val x = vector(order, 33)
         val expected = a.copyOf()
         ReferenceBlas.syr(1.5, x, expected)

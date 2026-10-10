@@ -3,14 +3,14 @@ package com.eignex.koblas.vendor
 import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.DenseVector
 import com.eignex.koblas.dense.ReferenceBlas
+import com.eignex.koblas.dense.ScalarVectorKernels
 import java.util.concurrent.Callable
 import java.util.concurrent.CyclicBarrier
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
-import kotlin.math.abs
 import kotlin.test.Test
+import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
-import kotlin.test.assertTrue
 
 /**
  * The two halves of the threading requirement: one compute thread per invocation, and bindings callable from
@@ -18,14 +18,6 @@ import kotlin.test.assertTrue
  * behind the call, which the concurrent cases are here to rule out.
  */
 class VendorConcurrencyTest {
-    private fun values(size: Int, seed: Int): DoubleArray {
-        var state = seed
-        return DoubleArray(size) {
-            state = state * 1_103_515_245 + 12_345
-            ((state ushr 8) % 1000) / 250.0 - 2.0
-        }
-    }
-
     @Test
     fun `every resolved vendor reports one compute thread`() {
         for (vendor in Vendor.entries) {
@@ -60,8 +52,8 @@ class VendorConcurrencyTest {
             val threads = 8
             val order = 24
             val depth = 16
-            val a = DenseMatrix.wrap(order, depth, values(order * depth, 1))
-            val b = DenseMatrix.wrap(depth, order, values(depth * order, 2))
+            val a = DenseMatrix.wrap(order, depth, vendorValues(order * depth, 1))
+            val b = DenseMatrix.wrap(depth, order, vendorValues(depth * order, 2))
             val expected = DenseMatrix.zero(order)
             ReferenceBlas.gemm(1.0, a, false, b, false, 0.0, expected)
 
@@ -87,10 +79,10 @@ class VendorConcurrencyTest {
         }
 
     @Test
-    fun `concurrent level one calls keep each caller's own output`() = withVendor { blas ->
+    fun `concurrent level one calls keep independent outputs`() = withVendor { blas ->
         val threads = 8
         val size = 64
-        val shared = values(size, 3)
+        val shared = vendorValues(size, 3)
         val x = DenseVector.wrap(shared)
 
         val pool = Executors.newFixedThreadPool(threads)
@@ -111,7 +103,9 @@ class VendorConcurrencyTest {
             }
             for (future in pool.invokeAll(work)) {
                 val (alpha, actual) = future.get()
-                assertAgreesWithReference(DoubleArray(size) { alpha * shared[it] }, actual, "concurrent axpy")
+                val expected = DoubleArray(size)
+                ScalarVectorKernels.axpy(expected, 0, alpha, shared, 0, size)
+                assertAgreesWithReference(expected, actual, "concurrent axpy")
             }
         } finally {
             pool.shutdownNow()
@@ -122,7 +116,7 @@ class VendorConcurrencyTest {
     fun `a shared input is not disturbed by concurrent readers`() = withVendor { blas ->
         val threads = 8
         val size = 64
-        val shared = values(size, 4)
+        val shared = vendorValues(size, 4)
         val original = shared.copyOf()
         val x = DenseVector.wrap(shared)
 
@@ -137,12 +131,12 @@ class VendorConcurrencyTest {
                     total / REPEATS
                 }
             }
-            val expected = (0 until size).sumOf { shared[it] * shared[it] }
+            val expected = ScalarVectorKernels.dot(shared, 0, shared, 0, size)
             for (future in pool.invokeAll(work)) {
                 val actual = future.get()
-                assertTrue(abs(actual - expected) <= 1e-9 * maxOf(1.0, expected), "concurrent dot was $actual")
+                assertAgreesWithReference(expected, actual, "concurrent dot")
             }
-            assertEquals(original.toList(), shared.toList(), "a read-only input was written")
+            assertContentEquals(original, shared, "a read-only input was written")
         } finally {
             pool.shutdownNow()
         }

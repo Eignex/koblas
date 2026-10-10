@@ -1,4 +1,4 @@
-package com.eignex.koblas.sparse
+package com.eignex.koblas.sparse.internal
 
 import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.DimensionMismatch
@@ -49,7 +49,7 @@ class SparseCapacityTest {
     // The scratch that would find structure is indexed by the result's rows, so allocating it for a provably
     // empty result turns a valid tall shape into an out-of-memory error.
     @Test
-    fun `an empty product of a tall operand returns the shape without row-sized scratch`() {
+    fun `an empty product of a tall operand returns the shape without row sized scratch`() {
         val tall = tallEmpty(Int.MAX_VALUE)
         val square = tallEmpty(rows = 0, cols = 0)
 
@@ -105,7 +105,7 @@ class SparseCapacityTest {
 
     // The shortcut that avoids row-sized scratch must not swallow a product with structure to find.
     @Test
-    fun `the empty-result shortcut does not swallow a product that has structure`() {
+    fun `the empty result shortcut does not swallow a product that has structure`() {
         val a = SparseMatrix.ofColumns(2, 1, listOf(listOf(0 to 1.0)))
         val b = SparseMatrix.ofColumns(1, 2, listOf(emptyList(), listOf(0 to 2.0)))
 

@@ -2,7 +2,6 @@ package com.eignex.koblas.dense
 
 import com.eignex.koblas.assertClose
 import kotlin.math.abs
-import kotlin.math.sqrt
 import kotlin.random.Random
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
@@ -11,7 +10,7 @@ import kotlin.test.assertTrue
 // Shared conformance assertions cover owned kernels and Native host bindings.
 
 /**
- * The level-1 kernels against loops written out here, at a non-zero offset so an implementation that ignores
+ * The level-1 kernels against the explicit scalar oracle, at a non-zero offset so an implementation that ignores
  * the offset fails.
  *
  * The lengths straddle every boundary an arm can have: a lane width, whatever unrolling a vectorised body
@@ -24,20 +23,19 @@ internal fun assertLevel1KernelsAgreeWithReference(kernels: DenseVectorKernels) 
         val pad = 3
         val a = DoubleArray(len + pad) { rng.nextDouble(-1.0, 1.0) }
         val b = DoubleArray(len + pad) { rng.nextDouble(-1.0, 1.0) }
-        var expectedDot = 0.0
-        for (i in 0 until len) expectedDot += a[pad + i] * b[i]
+        val expectedDot = ScalarVectorKernels.dot(a, pad, b, 0, len)
         assertClose(
             doubleArrayOf(expectedDot),
             doubleArrayOf(kernels.dot(a, pad, b, 0, len)),
             context = "dot len=$len",
         )
         val expectedAxpy = b.copyOf()
-        for (i in 0 until len) expectedAxpy[i] += 0.75 * a[pad + i]
+        ScalarVectorKernels.axpy(expectedAxpy, 0, 0.75, a, pad, len)
         val actualAxpy = b.copyOf()
         kernels.axpy(actualAxpy, 0, 0.75, a, pad, len)
         assertClose(expectedAxpy, actualAxpy, context = "axpy len=$len")
         val expectedScale = a.copyOf()
-        for (i in 0 until len) expectedScale[pad + i] *= -0.5
+        ScalarVectorKernels.scale(expectedScale, pad, -0.5, len)
         val actualScale = a.copyOf()
         kernels.scale(actualScale, pad, -0.5, len)
         assertClose(expectedScale, actualScale, context = "scale len=$len")
@@ -74,20 +72,14 @@ internal fun assertSwapAgreesWithReference(kernels: DenseVectorKernels) {
         val pad = 3
         val a = DoubleArray(len + 2 * pad) { rng.nextDouble(-1.0, 1.0) }
         val b = DoubleArray(len + 2 * pad) { rng.nextDouble(-1.0, 1.0) }
-        val aBefore = a.copyOf()
-        val bBefore = b.copyOf()
+        val expectedA = a.copyOf()
+        val expectedB = b.copyOf()
+        ScalarVectorKernels.swap(expectedA, pad, expectedB, pad, len)
+
         kernels.swap(a, pad, b, pad, len)
-        for (i in 0 until len) {
-            assertEquals(bBefore[pad + i], a[pad + i], "swap len=$len a($i)")
-            assertEquals(aBefore[pad + i], b[pad + i], "swap len=$len b($i)")
-        }
-        // Everything outside the run has to survive, which is what an overrunning vector store would break.
-        for (i in 0 until pad) {
-            assertEquals(aBefore[i], a[i], "swap len=$len wrote before a")
-            assertEquals(bBefore[i], b[i], "swap len=$len wrote before b")
-            assertEquals(aBefore[pad + len + i], a[pad + len + i], "swap len=$len wrote past a")
-            assertEquals(bBefore[pad + len + i], b[pad + len + i], "swap len=$len wrote past b")
-        }
+
+        assertContentEquals(expectedA, a, "swap len=$len a")
+        assertContentEquals(expectedB, b, "swap len=$len b")
     }
 }
 
@@ -103,19 +95,17 @@ internal fun assertReductionsAgreeWithReference(kernels: DenseVectorKernels) {
             val v = DoubleArray(len + pad) { rng.nextDouble(-1.0, 1.0) * scale }
             val ctx = "len=$len scale=$scale"
             assertClose(
-                doubleArrayOf(rescaledNorm(v, pad, len)),
+                doubleArrayOf(ScalarVectorKernels.nrm2(v, pad, len)),
                 doubleArrayOf(kernels.nrm2(v, pad, len)),
                 context = "nrm2 $ctx",
             )
-            var expectedSum = 0.0
-            for (i in 0 until len) expectedSum += v[pad + i]
+            val expectedSum = ScalarVectorKernels.sum(v, pad, len)
             assertClose(
                 doubleArrayOf(expectedSum),
                 doubleArrayOf(kernels.sum(v, pad, len)),
                 context = "sum $ctx",
             )
-            var expectedAsum = 0.0
-            for (i in 0 until len) expectedAsum += abs(v[pad + i])
+            val expectedAsum = ScalarVectorKernels.asum(v, pad, len)
             assertClose(
                 doubleArrayOf(expectedAsum),
                 doubleArrayOf(kernels.asum(v, pad, len)),
@@ -126,22 +116,6 @@ internal fun assertReductionsAgreeWithReference(kernels: DenseVectorKernels) {
     val zeros = DoubleArray(80)
     assertEquals(0.0, kernels.nrm2(zeros, 0, 80), "nrm2 of zeros")
     assertEquals(0.0, kernels.asum(zeros, 0, 80), "asum of zeros")
-}
-
-/** The rescaled two-pass norm, written out so the oracle does not use the implementation under test. */
-private fun rescaledNorm(v: DoubleArray, off: Int, len: Int): Double {
-    var amax = 0.0
-    for (i in 0 until len) {
-        val a = abs(v[off + i])
-        if (a > amax) amax = a
-    }
-    if (amax == 0.0) return 0.0
-    var sum = 0.0
-    for (i in 0 until len) {
-        val scaled = v[off + i] / amax
-        sum += scaled * scaled
-    }
-    return amax * sqrt(sum)
 }
 
 /** Exact index agreement across vector boundaries, padding, ties, and exceptional magnitudes. */
@@ -298,6 +272,48 @@ private inline fun forEachScaleFixture(body: (Int, Int, Double, DoubleArray, Dou
                 ScalarVectorKernels.scale(expected, off, alpha, len)
                 body(off, len, alpha, expected, actual)
             }
+        }
+    }
+}
+
+/** Norms whose components square outside the exponent range, compared with the scalar oracle. */
+internal fun assertNormExtremesAgreeWithReference(kernels: DenseVectorKernels) {
+    val pair = doubleArrayOf(3e200, 4e200)
+    assertEquals(ScalarVectorKernels.nrm2(pair, 0, 2), kernels.nrm2(pair, 0, 2), absoluteTolerance = 1e188)
+    val tinyPair = doubleArrayOf(3e-200, 4e-200)
+    assertEquals(ScalarVectorKernels.nrm2(tinyPair, 0, 2), kernels.nrm2(tinyPair, 0, 2), absoluteTolerance = 1e-212)
+
+    for (len in intArrayOf(16, 33, 64)) {
+        val big = DoubleArray(len) { 1e200 }
+        val expected = ScalarVectorKernels.nrm2(big, 0, len)
+        assertEquals(
+            expected,
+            kernels.nrm2(big, 0, len),
+            absoluteTolerance = expected * 1e-12,
+        )
+        val tiny = DoubleArray(len) { 1e-200 }
+        val expectedTiny = ScalarVectorKernels.nrm2(tiny, 0, len)
+        assertEquals(
+            expectedTiny,
+            kernels.nrm2(tiny, 0, len),
+            absoluteTolerance = expectedTiny * 1e-12,
+        )
+    }
+}
+
+/** Offset windows and empty tails compared with the scalar oracle. */
+internal fun assertNormWindowsAgreeWithReference(kernels: DenseVectorKernels) {
+    val rng = Random(20260815)
+    val v = DoubleArray(300) { rng.nextDouble(-1.0, 1.0) }
+    for (off in intArrayOf(0, 1, 7)) {
+        for (len in intArrayOf(0, 1, 3, 8, 31, 128, 293)) {
+            val expected = ScalarVectorKernels.nrm2(v, off, len)
+            assertEquals(
+                expected,
+                kernels.nrm2(v, off, len),
+                absoluteTolerance = 1e-12 * (expected + 1.0),
+                message = "off $off len $len",
+            )
         }
     }
 }

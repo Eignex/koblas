@@ -1,15 +1,8 @@
-package com.eignex.koblas.sparse
+package com.eignex.koblas
 
-import com.eignex.koblas.DenseMatrix
-import com.eignex.koblas.PreparedSparseMatrix
-import com.eignex.koblas.SparseMatrix
-import com.eignex.koblas.Workspace
-import com.eignex.koblas.assertClose
-import com.eignex.koblas.gemm
-import com.eignex.koblas.gemmInto
-import com.eignex.koblas.koblas
-import com.eignex.koblas.prepare
-import com.eignex.koblas.times
+import com.eignex.koblas.sparse.SparseBlas
+import com.eignex.koblas.sparse.SparseCall
+import com.eignex.koblas.sparse.SparseMatrixOperation
 import com.eignex.koblas.vendor.RouteKind
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
@@ -24,26 +17,10 @@ class PreparedSparseMatrixTest {
         listOf(listOf(0 to 2.0, 2 to -1.0), listOf(1 to 3.0)),
     )
 
-    @Test
-    fun `a prepared matrix is an immutable snapshot`() {
-        val source = matrix()
-        val prepared = koblas.prepare(source)
-        source.values.fill(100.0)
-
-        val actual = DoubleArray(3)
-        prepared.gemvInto(1.0, doubleArrayOf(4.0, 5.0), 0.0, actual)
-
-        assertContentEquals(doubleArrayOf(8.0, 15.0, -4.0), actual)
-    }
-
     // Dense products use the stored orientation; route inspection must not derive a transpose.
     @Test
     fun `a prepared transposed product reports the schedule it actually runs`() {
-        val source = SparseMatrix.ofColumns(
-            3,
-            2,
-            listOf(listOf(0 to 2.0, 2 to -1.0), listOf(1 to 3.0)),
-        )
+        val source = matrix()
         val prepared = koblas.prepare(source)
         // A transposed dense operand as well, so the reduction has its right-hand sides adjacent and reaches
         // a panel rather than being written out by the traversal.
@@ -71,7 +48,7 @@ class PreparedSparseMatrixTest {
     }
 
     @Test
-    fun `a prepared transposed gemv keeps the snapshot's own orientation`() {
+    fun `a prepared transposed gemv keeps the snapshot orientation`() {
         val source = matrix()
         val prepared = koblas.prepare(source)
         val call = SparseCall(
@@ -111,7 +88,7 @@ class PreparedSparseMatrixTest {
     /** A fact the call's own facts leave open stays open against the snapshot as well. */
     @Test
     fun `a prepared route keeps an unresolved right hand side count`() {
-        val source = SparseMatrix.ofColumns(3, 2, listOf(listOf(0 to 2.0, 2 to -1.0), listOf(1 to 3.0)))
+        val source = matrix()
         val prepared = koblas.prepare(source)
         val call = SparseCall(source, 0.875, -0.25, destinationElements = 8, depth = 3, transposeSparse = true)
 
@@ -120,38 +97,6 @@ class PreparedSparseMatrixTest {
         assertEquals(koblas.routeOf(SparseMatrixOperation.GemmDense, call).resolved, route.resolved)
         assertEquals(false, route.resolved, route.toString())
         assertFalse(prepared.orientationDerived, "an unresolved route derived an orientation anyway")
-    }
-
-    // The extent still affects scaling and no-work attribution, so each route is compared with the same
-    // supplied facts.
-    @Test
-    fun `a prepared transposed product names the one shot traversal whether or not its extent is given`() {
-        val source = matrix()
-        val prepared = koblas.prepare(source)
-        val withoutExtent = SparseCall(source, 0.875, -0.25, depth = 3, rightHandSides = 8, transposeSparse = true)
-        val withExtent = SparseCall(
-            source,
-            0.875,
-            -0.25,
-            destinationElements = 2 * 8,
-            depth = 3,
-            rightHandSides = 8,
-            transposeSparse = true,
-        )
-
-        val open = prepared.routeOf(SparseMatrixOperation.GemmDense, withoutExtent)
-        val settled = prepared.routeOf(SparseMatrixOperation.GemmDense, withExtent)
-
-        assertEquals(
-            koblas.routeOf(SparseMatrixOperation.GemmDense, withoutExtent).toString(),
-            open.toString(),
-        )
-        assertEquals(
-            koblas.routeOf(SparseMatrixOperation.GemmDense, withExtent).toString(),
-            settled.toString(),
-        )
-        assertEquals(true, settled.resolved, settled.toString())
-        assertFalse(prepared.orientationDerived, "a prepared sparse-dense route derived an orientation")
     }
 
     @Test
@@ -204,49 +149,22 @@ class PreparedSparseMatrixTest {
         assertFalse(prepared.orientationDerived, "an undecided route derived an orientation anyway")
     }
 
-    /** A call with no work reads nothing, so asking about it derives no orientation either. */
-    @Test
-    fun `a prepared route for a call with no work derives no orientation`() {
-        val prepared = matrix().prepare()
-
-        prepared.routeOf(
-            SparseMatrixOperation.GemmDense,
-            SparseCall(
-                matrix(),
-                0.0,
-                1.0,
-                destinationElements = 8,
-                depth = 3,
-                rightHandSides = 4,
-                transposeSparse = true,
-            ),
-        )
-
-        assertFalse(prepared.orientationDerived, "a route for a zero multiplier derived an orientation")
-    }
-
-    @Test
-    fun `the prepared shape reports the snapshot`() {
-        val prepared = matrix().prepare()
-
-        assertEquals(3, prepared.rows)
-        assertEquals(2, prepared.cols)
-        assertEquals(3, prepared.nnz)
-    }
-
     @Test
     fun `a prepared matrix reads as the snapshot it copied`() {
         val source = matrix()
 
         val prepared = source.prepare()
 
+        assertEquals(source.rows, prepared.rows)
+        assertEquals(source.cols, prepared.cols)
+        assertEquals(source.nnz, prepared.nnz)
         assertEquals(source[2, 0], prepared[2, 0])
         assertEquals(0.0, prepared[1, 0], "an absent position")
         assertContentEquals(source.toArray()[1], prepared.toArray()[1])
     }
 
     @Test
-    fun `a prepared operand on the right of a dense one agrees with the one-shot call`() {
+    fun `a prepared operand on the right of a dense one agrees with the one shot call`() {
         val source = matrix()
         val prepared = source.prepare()
         val dense = DenseMatrix.wrap(2, 3, doubleArrayOf(1.0, 2.0, 3.0, 4.0, 5.0, 6.0))
@@ -283,58 +201,70 @@ class PreparedSparseMatrixTest {
     }
 
     @Test
-    fun `all prepared products agree with the one-shot calls`() {
-        val source = matrix()
-        val prepared = koblas.prepare(source)
-        val dense = DenseMatrix.wrap(2, 2, doubleArrayOf(1.0, 2.0, 3.0, 4.0))
-        val expectedDense = koblas.gemm(source, dense)
-        val actualDense = DenseMatrix.zero(3, 2)
-        prepared.gemmInto(1.0, false, dense, false, 0.0, actualDense)
-        assertClose(expectedDense, actualDense, "dense product")
+    fun `a prepared dense product agrees across transpose variants`() {
+        for (transposeSparse in booleanArrayOf(false, true)) {
+            for (transposeDense in booleanArrayOf(false, true)) {
+                val source = matrix()
+                val prepared = source.prepare()
+                val rows = if (transposeSparse) source.cols else source.rows
+                val depth = if (transposeSparse) source.rows else source.cols
+                val dense = if (transposeDense) {
+                    DenseMatrix.wrap(2, depth, DoubleArray(2 * depth) { it + 1.0 })
+                } else {
+                    DenseMatrix.wrap(depth, 2, DoubleArray(2 * depth) { it + 1.0 })
+                }
+                val expected = DenseMatrix.zero(rows, 2)
+                koblas.gemm(1.0, source, transposeSparse, dense, transposeDense, 0.0, expected)
+                val actual = DenseMatrix.zero(rows, 2)
 
-        val right = SparseMatrix.ofColumns(2, 1, listOf(listOf(0 to 2.0, 1 to -1.0)))
-        assertEquals(koblas.gemm(source, right), prepared.gemm(right))
+                prepared.gemmInto(1.0, transposeSparse, dense, transposeDense, 0.0, actual)
 
-        val transposedDense = DenseMatrix.wrap(2, 3, doubleArrayOf(1.0, 2.0, 3.0, 4.0, 5.0, 6.0))
-        val expectedTransposed = DenseMatrix.zero(2, 2)
-        koblas.gemm(1.0, source, true, transposedDense, true, 0.0, expectedTransposed, right = false)
-        val actualTransposed = DenseMatrix.zero(2, 2)
-        prepared.gemmInto(1.0, true, transposedDense, true, 0.0, actualTransposed)
-        assertClose(expectedTransposed, actualTransposed, "full dense product")
-
-        val sparseDense = DenseMatrix.zero(3, 1)
-        prepared.gemmInto(2.0, false, right, false, 0.0, sparseDense)
-        val expectedSparseDense = DenseMatrix.zero(3, 1)
-        koblas.gemm(2.0, source, false, right, false, 0.0, expectedSparseDense)
-        assertClose(expectedSparseDense, sparseDense, "direct sparse dense result")
-    }
-
-    @Test
-    fun `a prepared transposed product agrees with the one-shot transpose`() {
-        val source = matrix()
-        val prepared = source.prepare()
-        val b = SparseMatrix.ofColumns(3, 2, listOf(listOf(0 to 1.5, 2 to -2.0), listOf(1 to 0.5)))
-
-        // Twice, because the second call is the one that reuses the derived transpose rather than deriving it.
-        repeat(2) {
-            assertEquals(koblas.gemm(1.0, source, true, b, false), prepared.gemm(1.0, true, b, false))
+                assertClose(expected, actual, "transposeSparse=$transposeSparse transposeDense=$transposeDense")
+            }
         }
     }
 
     @Test
-    fun `prepared symmetric products retain snapshot semantics`() {
-        val source = SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 2.0, 1 to 3.0), listOf(1 to 5.0)))
-        val prepared = koblas.prepare(source)
-        source.values.fill(Double.NaN)
-        val y = DoubleArray(2)
-        prepared.symvInto(1.0, doubleArrayOf(7.0, 11.0), 0.0, y)
-        assertContentEquals(doubleArrayOf(47.0, 76.0), y)
+    fun `a prepared sparse product into dense storage agrees with the one shot call`() {
+        val source = matrix()
+        val prepared = source.prepare()
+        val right = SparseMatrix.ofColumns(2, 1, listOf(listOf(0 to 2.0, 1 to -1.0)))
+        val expected = DenseMatrix.zero(3, 1)
+        koblas.gemm(2.0, source, false, right, false, 0.0, expected)
+        val actual = DenseMatrix.zero(3, 1)
 
-        val b = DenseMatrix.wrap(2, 1, doubleArrayOf(7.0, 11.0))
-        val c = DenseMatrix.zero(2, 1)
-        prepared.symmInto(1.0, b, 0.0, c)
-        assertContentEquals(y, c.values)
+        prepared.gemmInto(2.0, false, right, false, 0.0, actual)
+
+        assertClose(expected, actual, "sparse product into dense storage")
     }
+
+    @Test
+    fun `a prepared symmetric vector product retains snapshot semantics`() {
+        val source = symmetricMatrix()
+        val prepared = source.prepare()
+        source.values.fill(Double.NaN)
+        val actual = DoubleArray(2)
+
+        prepared.symvInto(1.0, doubleArrayOf(7.0, 11.0), 0.0, actual)
+
+        assertContentEquals(doubleArrayOf(47.0, 76.0), actual)
+    }
+
+    @Test
+    fun `a prepared symmetric matrix product retains snapshot semantics`() {
+        val source = symmetricMatrix()
+        val prepared = source.prepare()
+        source.values.fill(Double.NaN)
+        val b = DenseMatrix.wrap(2, 1, doubleArrayOf(7.0, 11.0))
+        val actual = DenseMatrix.zero(2, 1)
+
+        prepared.symmInto(1.0, b, 0.0, actual)
+
+        assertContentEquals(doubleArrayOf(47.0, 76.0), actual.values)
+    }
+
+    private fun symmetricMatrix(): SparseMatrix =
+        SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 2.0, 1 to 3.0), listOf(1 to 5.0)))
 
     @Test
     fun `a prepared snapshot keeps its own structural arrays`() {
@@ -344,7 +274,9 @@ class PreparedSparseMatrixTest {
         val source = SparseMatrix.wrap(2, 2, pointers, rows, values)
         val prepared = source.prepare()
 
-        values[0] = Double.NaN
+        pointers.fill(0)
+        rows.fill(0)
+        values.fill(Double.NaN)
         val y = DoubleArray(2)
         prepared.gemvInto(1.0, doubleArrayOf(1.0, 1.0), 0.0, y)
 

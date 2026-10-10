@@ -78,7 +78,7 @@ class HostDenseBlasTest {
     }
 
     @Test
-    fun `a call below the policy's size stays on the portable schedule`() {
+    fun `a call below the policy s size stays on the portable schedule`() {
         val (recorder, blas) = forced(minimumWork = HostDensePolicy.MINIMUM_WORK)
         val a = matrix(ORDER)
         val c = matrix(ORDER)
@@ -187,7 +187,7 @@ class HostDenseBlasTest {
     }
 
     @Test
-    fun `the staged copy is borrowed from the caller's workspace`() {
+    fun `the staged copy is borrowed from the caller s workspace`() {
         val (_, blas) = forced()
         val workspace = Workspace()
         val shared = DoubleArray(ORDER * ORDER) { 1.0 + it }
