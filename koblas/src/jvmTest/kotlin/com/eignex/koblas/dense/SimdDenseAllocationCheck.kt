@@ -518,6 +518,15 @@ internal object SimdDenseAllocationCheck {
             engine.ger(1e-12, x, y, matrix)
             matrix.values[0]
         }
+        val tiny = DenseMatrix.zero(6)
+        val tinyX = DoubleArray(6) { it / 8.0 }
+        val tinyY = DoubleArray(6) { (6 - it) / 16.0 }
+        assertAllocationFree("windowed ger shrinking batch") {
+            for (start in 1..5) {
+                engine.ger(-1.0, tinyX, tinyY, tiny, start, start, 6 - start, 6 - start, start, start)
+            }
+            tiny.values.last()
+        }
         assertAllocationFree("syr") {
             engine.syr(1e-12, vector, matrix)
             matrix.values[0]

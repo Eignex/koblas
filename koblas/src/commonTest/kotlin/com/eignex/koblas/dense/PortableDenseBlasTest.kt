@@ -2,11 +2,13 @@
 
 package com.eignex.koblas.dense
 
+import com.eignex.koblas.BuiltinEngines
 import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.DenseVector
 import com.eignex.koblas.StridedVector
 import com.eignex.koblas.assertClose
 import com.eignex.koblas.copyOf
+import com.eignex.koblas.koblas
 import com.eignex.koblas.randomMatrix
 import com.eignex.koblas.randomVector
 import kotlin.random.Random
@@ -29,6 +31,13 @@ private class RegroupedPanels(private val group: Int) : DensePanelKernels by Por
  * columns and wrong at three would pass on this machine and fail on the next one.
  */
 class PortableDenseBlasTest {
+    @Test
+    fun `GER agrees with the reference on shrinking supports and extreme finite inputs`() {
+        for (engine in listOfNotNull(BuiltinEngines.scalar, BuiltinEngines.simd, koblas).distinct()) {
+            assertShrinkingGerAgreesWithReference { x, y, a -> engine.ger(-1.0, x, y, a) }
+        }
+    }
+
     private val groups = intArrayOf(1, 2, 3, 5, 7, 64)
 
     private fun blasFor(group: Int): DenseBlas = PortableDenseBlas(ScalarVectorKernels, RegroupedPanels(group))

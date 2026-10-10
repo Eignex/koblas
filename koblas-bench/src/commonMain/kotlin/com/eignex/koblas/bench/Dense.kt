@@ -207,6 +207,7 @@ internal fun denseWork(case: BenchCase, engine: KoblasEngine): CaseWork? {
             ) { y0.copyInto(y); engine.symv(alpha, a, x, beta, y, lower); y[0] }
         }
         "ger", "syr", "syr2" -> rankUpdateWork(case, engine)
+        "ger-shrinking", "ger-window-shrinking", "panel-rankupdate-shrinking" -> shrinkingRankUpdateWork(case, engine)
         "trsv", "trmv" -> triangularVectorWork(case, engine)
         "gemm" -> gemmWork(case, engine)
         "symm" -> {

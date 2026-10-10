@@ -49,6 +49,33 @@ internal fun requireGerOperands(xSize: Int, ySize: Int, a: Matrix) {
     }
 }
 
+/** Validates each rank-update window with subtraction, so overflowing end offsets cannot pass. */
+internal fun requireGerWindowOperands(
+    xSize: Int,
+    ySize: Int,
+    a: Matrix,
+    rowOffset: Int,
+    columnOffset: Int,
+    rows: Int,
+    columns: Int,
+    xOffset: Int,
+    yOffset: Int,
+) {
+    requireShape(rows >= 0 && columns >= 0) { "ger: negative window shape ${rows}x$columns" }
+    requireShape(rowOffset >= 0 && rowOffset <= a.rows && rows <= a.rows - rowOffset) {
+        "ger: row window offset=$rowOffset length=$rows outside ${a.rows} rows"
+    }
+    requireShape(columnOffset >= 0 && columnOffset <= a.cols && columns <= a.cols - columnOffset) {
+        "ger: column window offset=$columnOffset length=$columns outside ${a.cols} columns"
+    }
+    requireShape(xOffset >= 0 && xOffset <= xSize && rows <= xSize - xOffset) {
+        "ger: x window offset=$xOffset length=$rows outside length $xSize"
+    }
+    requireShape(yOffset >= 0 && yOffset <= ySize && columns <= ySize - yOffset) {
+        "ger: y window offset=$yOffset length=$columns outside length $ySize"
+    }
+}
+
 /** Symmetric rank update validation; separate one- and two-vector entries avoid vararg allocation. */
 internal fun requireSyrOperands(a: Matrix, xSize: Int, what: String) {
     requireSquare(a, what)

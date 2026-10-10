@@ -18,6 +18,23 @@ internal inline fun <T> staged(
     }
 }
 
+/** Snapshots only a selected array window, retaining its original offset when no staging is needed. */
+@Suppress("LongParameterList") // the selected window and the callback that retains its addressing
+internal inline fun <T> staged(
+    workspace: Workspace?,
+    values: DoubleArray,
+    offset: Int,
+    length: Int,
+    aliased: Boolean,
+    block: (DoubleArray, Int) -> T,
+): T {
+    if (!aliased) return block(values, offset)
+    return workspace.borrow(length) { copy ->
+        values.copyInto(copy, 0, offset, offset + length)
+        block(copy, 0)
+    }
+}
+
 /** [staged] for a dense matrix operand, whose shape the copy keeps. */
 internal inline fun <T> staged(workspace: Workspace?, a: DenseMatrix, aliased: Boolean, block: (DenseMatrix) -> T): T {
     if (!aliased) return block(a)

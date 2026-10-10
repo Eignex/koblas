@@ -32,6 +32,26 @@ class DenseMatrixRouteTest {
     }
 
     @Test
+    fun `a windowed rank update reports the rectangle body and no work for empty extents`() {
+        for (engine in engines) {
+            for (extent in 1..5) {
+                val call = DenseCall(extent, extent, alpha = -1.0)
+                val route = engine.routeOf(DenseMatrixOperation.GerWindow, call)
+                val full = engine.routeOf(DenseMatrixOperation.Ger, call)
+
+                assertEquals("ger-window", route.entryPoint)
+                assertEquals(full.components, route.components)
+                assertEquals(full.executionGroup, route.executionGroup)
+            }
+            for (call in listOf(DenseCall(0, 5), DenseCall(5, 0), DenseCall(5, 5, alpha = 0.0))) {
+                val route = engine.routeOf(DenseMatrixOperation.GerWindow, call)
+                assertEquals(RouteKind.NoWork, route.kind)
+                assertEquals(emptyList(), route.components)
+            }
+        }
+    }
+
+    @Test
     fun `a transposed matrix vector product is a different entry point from the untransposed one`() {
         val call = DenseCall(64, 16)
         for (engine in engines) {
