@@ -29,7 +29,6 @@ import platform.posix.dlopen
 import platform.posix.dlsym
 import platform.posix.getenv
 import platform.posix.setenv
-import kotlin.math.abs
 
 private typealias Ptr = CPointer<DoubleVar>
 private typealias Bytes = CPointer<ByteVar>
@@ -295,7 +294,7 @@ internal class NativeVendorBlas private constructor(
         if (n == 0) return 0.0
         val fn = symbol(operation).reinterpret<ReduceFn>()
         a.usePinned { pinned ->
-            return fn(n, pinned.addressOf(baseIndex(offset, stride, n)), abs(stride))
+            return fn(n, pinned.addressOf(baseIndex(offset, stride, n)), positiveIncrement(stride, n))
         }
     }
 
@@ -304,7 +303,7 @@ internal class NativeVendorBlas private constructor(
         if (n == 0) return 0
         val fn = symbol(BlasOperation.Iamax).reinterpret<IndexFn>()
         a.usePinned { pinned ->
-            val found = fn(n, pinned.addressOf(baseIndex(offset, stride, n)), abs(stride))
+            val found = fn(n, pinned.addressOf(baseIndex(offset, stride, n)), positiveIncrement(stride, n))
             return if (stride >= 0) found else n - 1 - found
         }
     }
@@ -340,7 +339,7 @@ internal class NativeVendorBlas private constructor(
         if (n == 0) return
         val fn = symbol(BlasOperation.Scal).reinterpret<ScalFn>()
         a.usePinned { pinned ->
-            fn(n, alpha, pinned.addressOf(baseIndex(offset, stride, n)), abs(stride))
+            fn(n, alpha, pinned.addressOf(baseIndex(offset, stride, n)), positiveIncrement(stride, n))
         }
     }
 
