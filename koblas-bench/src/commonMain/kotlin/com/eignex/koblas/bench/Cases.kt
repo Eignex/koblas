@@ -28,6 +28,7 @@ internal object Cases {
         "spnrm2" to 1, "spnrm2-indexed" to 1, "spasum" to 1,
         "spscatter" to 1, "spscatter-raw" to 1, "spgather" to 1, "spgather-zero" to 1,
         "spaccumulate" to 1,
+        "spbuild-triplets" to 2, "spbuild-duplicates" to 2,
         "spgemv" to 2, "spmm" to 3, "spmm-right" to 3, "spgemm" to 3,
         "spsymv" to 1, "spsymm" to 2, "sptrsv" to 1, "sptrmv" to 1, "sptrsm" to 2, "sptrmm" to 2,
         "spsyrk-dense" to 2, "spsyrk-sparse" to 2, "spadd" to 2,
@@ -212,6 +213,7 @@ internal object Cases {
     private val SUPPORT_OPERATIONS = setOf(
         "spgemv", "spmm", "spmm-right", "spgemm", "spsymv", "spsymm", "sptrsv", "sptrmv", "sptrsm", "sptrmm",
         "spsyrk-dense", "spsyrk-sparse", "spadd", "spmm-generic", "spmm-generic-right", "spgemm-generic",
+        "spbuild-triplets", "spbuild-duplicates",
     )
     private const val MAX_DIMENSION = 1_000_000
 

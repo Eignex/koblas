@@ -303,6 +303,12 @@ followed by the array copy, scalar sparse view reduction or routed dense Level 1
 Mutating cases reset the whole shared buffer inside the timed region; dot times only the reduction. Before
 timing, each is compared against the explicit scalar engine, including the mutating call's whole buffer.
 
+`spbuild-triplets` constructs CSC storage from reversed coordinate arrays. `spbuild-duplicates` repeats each
+coordinate twice with half its value, so it also measures duplicate reduction and trimming. Both include
+the fresh result and all factory scratch in their `construction` timing and retain the complete result.
+They are portable construction, measured on the scalar arm as `portable-csc/ofTriplets`. A separate scalar
+coordinate sum checks values, stored support and CSC ordering before timing.
+
 `+timing=arithmetic` excludes the per-iteration reset for `scal` and `spgather`; arithmetic scaling uses
 alpha = -1. Compare only cases with matching options, since prepared and one-shot timings differ.
 

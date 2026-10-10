@@ -195,10 +195,10 @@ public class SparseMatrix internal constructor(
             }
         }
 
-        // Triplets grouped by row: row i's column indices and values sit at [start(i), start(i + 1)).
-        private class TripletRuns(val start: IntArray, val index: IntArray, val value: DoubleArray)
+        // A run ends at ends(i) and starts at the preceding run's end, or zero for the first run.
+        private class TripletRuns(val ends: IntArray, val index: IntArray, val value: DoubleArray)
 
-        // Group by row, so that rowStart(i) is where row i's entries begin once scattered.
+        // Scatter advances each start to its run's end, which the next pass can consume without a copy.
         private fun groupByRow(
             rows: Int,
             rowIndices: IntArray,
@@ -206,54 +206,57 @@ public class SparseMatrix internal constructor(
             values: DoubleArray,
         ): TripletRuns {
             val nnz = values.size
-            val rowStart = IntArray(scratchLength(rows, "ofTriplets"))
-            for (k in 0 until nnz) rowStart[rowIndices[k] + 1]++
-            for (i in 0 until rows) rowStart[i + 1] += rowStart[i]
+            val rowEnds = IntArray(scratchLength(rows, "ofTriplets"))
+            for (k in 0 until nnz) rowEnds[rowIndices[k] + 1]++
+            for (i in 0 until rows) rowEnds[i + 1] += rowEnds[i]
             val byRowCol = IntArray(nnz)
             val byRowVal = DoubleArray(nnz)
-            val rowCursor = rowStart.copyOf()
             for (k in 0 until nnz) {
-                val p = rowCursor[rowIndices[k]]++
+                val p = rowEnds[rowIndices[k]]++
                 byRowCol[p] = colIndices[k]
                 byRowVal[p] = values[k]
             }
-            return TripletRuns(rowStart, byRowCol, byRowVal)
+            return TripletRuns(rowEnds, byRowCol, byRowVal)
         }
 
         // Then by column, visiting rows in ascending order, so each column comes out ascending by row.
         private fun groupByColumn(rows: Int, cols: Int, byRow: TripletRuns): TripletRuns {
             val nnz = byRow.index.size
-            val colPointers = IntArray(cols + 1)
-            for (k in 0 until nnz) colPointers[byRow.index[k] + 1]++
-            for (j in 0 until cols) colPointers[j + 1] += colPointers[j]
+            val columnEnds = IntArray(cols + 1)
+            for (k in 0 until nnz) columnEnds[byRow.index[k] + 1]++
+            for (j in 0 until cols) columnEnds[j + 1] += columnEnds[j]
             val outRow = IntArray(nnz)
             val outVal = DoubleArray(nnz)
-            val colCursor = colPointers.copyOf()
+            var start = 0
             for (i in 0 until rows) {
-                for (k in byRow.start[i] until byRow.start[i + 1]) {
-                    val p = colCursor[byRow.index[k]]++
+                val end = byRow.ends[i]
+                for (k in start until end) {
+                    val p = columnEnds[byRow.index[k]]++
                     outRow[p] = i
                     outVal[p] = byRow.value[k]
                 }
+                start = end
             }
-            return TripletRuns(colPointers, outRow, outVal)
+            return TripletRuns(columnEnds, outRow, outVal)
         }
 
         // Duplicates are now adjacent within a column, so summing them is one forward pass in place.
         private fun sumAdjacentDuplicates(rows: Int, cols: Int, byCol: TripletRuns): SparseMatrix {
-            val colPointers = byCol.start
+            val colPointers = byCol.ends
             val outRow = byCol.index
             val outVal = byCol.value
-            val outPtr = IntArray(cols + 1)
             var n = 0
+            var start = 0
             for (j in 0 until cols) {
-                outPtr[j] = n
-                var k = colPointers[j]
-                while (k < colPointers[j + 1]) {
+                // Read the end before lending this slot to the compacted column's start pointer.
+                val end = colPointers[j]
+                colPointers[j] = n
+                var k = start
+                while (k < end) {
                     val row = outRow[k]
                     var sum = outVal[k]
                     k++
-                    while (k < colPointers[j + 1] && outRow[k] == row) {
+                    while (k < end && outRow[k] == row) {
                         sum += outVal[k]
                         k++
                     }
@@ -261,9 +264,16 @@ public class SparseMatrix internal constructor(
                     outVal[n] = sum
                     n++
                 }
+                start = end
             }
-            outPtr[cols] = n
-            return SparseMatrix(rows, cols, outPtr, outRow.copyOf(n), outVal.copyOf(n))
+            colPointers[cols] = n
+            return wrapTrusted(
+                rows,
+                cols,
+                colPointers,
+                if (n == outRow.size) outRow else outRow.copyOf(n),
+                if (n == outVal.size) outVal else outVal.copyOf(n),
+            )
         }
 
         /**

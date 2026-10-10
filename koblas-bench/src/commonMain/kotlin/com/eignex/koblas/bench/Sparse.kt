@@ -1,6 +1,7 @@
 package com.eignex.koblas.bench
 
 import com.eignex.koblas.KoblasEngine
+import com.eignex.koblas.BuiltinEngines
 import com.eignex.koblas.Matrix
 import com.eignex.koblas.MatrixRoute
 import com.eignex.koblas.PreparedSparseMatrix
@@ -54,6 +55,13 @@ internal fun sparseArm(case: BenchCase, engine: KoblasEngine): ArmChoice? {
     }
 
     return when (case.operation) {
+        "spbuild-triplets", "spbuild-duplicates" -> {
+            if (engine !== BuiltinEngines.scalar) {
+                ArmChoice(null, "the sparse factory is portable construction, timed on the scalar arm")
+            } else {
+                ArmChoice(sparseFactoryWork(case), null)
+            }
+        }
         "spdot-view" -> vectorViewsArm(case, engine)
         "spaccumulate" -> {
             // The generic primitives are one implementation for every engine, so this is timed once rather

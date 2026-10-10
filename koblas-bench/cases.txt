@@ -398,3 +398,9 @@ spdot-view+64+sparse-uniform+density=0.01
 spdot-view+4096+sparse-uniform+density=0.01
 spdot-view+64+sparse-uniform+density=1.0
 spdot-view+4096+sparse-uniform+density=1.0
+
+# Sparse construction used by LP columns and basis factors
+spbuild-triplets+129x65+sparse-uniform+density=0.1
+spbuild-triplets+257x129+sparse-uniform+density=0.05+support=empty
+spbuild-triplets+512x512+sparse-uniform+density=0.01+support=banded
+spbuild-duplicates+129x65+sparse-uniform+density=0.1
