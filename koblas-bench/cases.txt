@@ -404,3 +404,25 @@ spbuild-triplets+129x65+sparse-uniform+density=0.1
 spbuild-triplets+257x129+sparse-uniform+density=0.05+support=empty
 spbuild-triplets+512x512+sparse-uniform+density=0.01+support=banded
 spbuild-duplicates+129x65+sparse-uniform+density=0.1
+
+# Raw indexed windows used by sparse solvers, including the selected engine fallback.
+spdot-slice+64+sparse-uniform+density=0.0625
+spdot-slice+128+sparse-uniform+density=0.125
+spdot-slice+512+sparse-uniform+density=0.125
+spdot-slice+2048+sparse-uniform+density=0.125
+spdot-slice+8192+sparse-uniform+density=0.125
+spnrm2-slice+64+sparse-uniform+density=0.0625
+spnrm2-slice+128+sparse-uniform+density=0.125
+spnrm2-slice+512+sparse-uniform+density=0.125
+spnrm2-slice+2048+sparse-uniform+density=0.125
+spnrm2-slice+8192+sparse-uniform+density=0.125
+spaxpy-slice+64+sparse-uniform+density=0.0625
+spaxpy-slice+128+sparse-uniform+density=0.125
+spaxpy-slice+512+sparse-uniform+density=0.125
+spaxpy-slice+2048+sparse-uniform+density=0.125
+spaxpy-slice+8192+sparse-uniform+density=0.125
+spscatter-slice+64+sparse-uniform+density=0.0625
+spscatter-slice+128+sparse-uniform+density=0.125
+spscatter-slice+512+sparse-uniform+density=0.125
+spscatter-slice+2048+sparse-uniform+density=0.125
+spscatter-slice+8192+sparse-uniform+density=0.125
