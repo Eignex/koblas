@@ -303,6 +303,15 @@ followed by the array copy, scalar sparse view reduction or routed dense Level 1
 Mutating cases reset the whole shared buffer inside the timed region; dot times only the reduction. Before
 timing, each is compared against the explicit scalar engine, including the mutating call's whole buffer.
 
+`spdot-slice`, `spnrm2-slice`, `spaxpy-slice` and `spscatter-slice` use the raw indexed overloads with index
+offset three and value offset five, surrounded by invalid indices and NaN padding. These match the array
+windows sparse solvers pass from CSC columns and indexed workspaces. They include validation and dispatch
+through the platform-selected engine, so they are default-policy rows even when that engine delegates to a
+scalar indexed leaf. Their attribution includes `portable-index-validation` and the leaf the route names;
+a value-dependent vector norm names its possible scalar rescaling as well. Reductions time arithmetic alone;
+mutations reset the dense destination inside the timed region. A separate sequential reduction checks dot
+and norm, and the explicit scalar engine checks the complete mutation destination before timing.
+
 `spbuild-triplets` constructs CSC storage from reversed coordinate arrays. `spbuild-duplicates` repeats each
 coordinate twice with half its value, so it also measures duplicate reduction and trimming. Both include
 the fresh result and all factory scratch in their `construction` timing and retain the complete result.

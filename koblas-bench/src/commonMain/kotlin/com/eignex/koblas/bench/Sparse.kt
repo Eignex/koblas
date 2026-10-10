@@ -63,6 +63,7 @@ internal fun sparseArm(case: BenchCase, engine: KoblasEngine): ArmChoice? {
             }
         }
         "spdot-view" -> vectorViewsArm(case, engine)
+        "spdot-slice", "spnrm2-slice", "spaxpy-slice", "spscatter-slice" -> sparseSlicesArm(case, engine)
         "spaccumulate" -> {
             // The generic primitives are one implementation for every engine, so this is timed once rather
             // than repeated under each label, where it would compare a selection against a copy of itself.
