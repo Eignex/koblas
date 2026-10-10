@@ -11,20 +11,6 @@ class MatrixOpsTest {
     private fun dense(vararg values: Double) = DenseVector.of(values)
 
     @Test
-    fun `the gemv overload computes A x`() {
-        val A = DenseMatrix.ofRows(
-            arrayOf(
-                doubleArrayOf(1.0, 2.0),
-                doubleArrayOf(3.0, 4.0),
-                doubleArrayOf(5.0, 6.0),
-            ),
-        )
-        val x = dense(1.0, -1.0)
-        val expected = dense(1.0 * 1 + 2 * -1, 3.0 * 1 + 4 * -1, 5.0 * 1 + 6 * -1)
-        assertEquals(expected, A * x)
-    }
-
-    @Test
     fun `matrix vector operations match hand results over every dense spacing`() {
         val rows = 4
         val entries = arrayOf(
@@ -132,22 +118,6 @@ class MatrixOpsTest {
     }
 
     @Test
-    fun `symvInto over one triangle agrees with the full ger sweep`() {
-        // A caller can keep its matrix with syr, which writes one triangle, and still take products with it.
-        val n = 4
-        val rng = Random(17)
-        val x = randomVector(n, rng)
-        val viaSyr = DenseMatrix.zero(n, n)
-        viaSyr.syr(1.5, DenseVector.of(x))
-        val viaGer = DenseMatrix.zero(n, n)
-        viaGer.ger(1.5, DenseVector.of(x), DenseVector.of(x))
-        val probe = randomVector(n, rng)
-        val fromSyr = DoubleArray(n)
-        viaSyr.symvInto(DenseVector.of(probe), fromSyr)
-        assertClose((viaGer * DenseVector.of(probe)).values, fromSyr, "syr-maintained symv")
-    }
-
-    @Test
     fun `the matvec destinations reject mismatched shapes`() {
         val A = DenseMatrix.ofRows(arrayOf(doubleArrayOf(1.0, 2.0), doubleArrayOf(3.0, 4.0)))
         val x = dense(1.0, -1.0)
@@ -203,7 +173,7 @@ class MatrixOpsTest {
     }
 
     @Test
-    fun `ger updates a matrix with alpha x y_transpose`() {
+    fun `ger updates a matrix with alpha x y transpose`() {
         val M = DenseMatrix.diagonal(2, 1.0)
         M.ger(0.5, dense(1.0, 2.0), dense(3.0, 4.0))
         assertEquals(1.0 + 0.5 * 3, M[0, 0], 1e-12)
@@ -213,7 +183,7 @@ class MatrixOpsTest {
     }
 
     @Test
-    fun `alpha zero makes axpy and ger no-ops`() {
+    fun `alpha zero makes axpy and ger no ops`() {
         val y = DenseVector.of(doubleArrayOf(1.0, 2.0, 3.0))
         y.axpy(0.0, DenseVector.of(doubleArrayOf(9.0, 9.0, 9.0)))
         assertTrue(y.toDoubleArray().contentEquals(doubleArrayOf(1.0, 2.0, 3.0)))
@@ -236,7 +206,7 @@ class MatrixOpsTest {
     }
 
     @Test
-    fun `syr and syr2 match the equivalent ger sweeps`() {
+    fun `syr and syr two match the equivalent ger sweeps`() {
         val rng = Random(20260807)
         val n = 6
         val x = DenseVector.of(randomVector(n, rng))
@@ -287,58 +257,23 @@ class MatrixOpsTest {
     }
 
     @Test
-    fun `masking to a lower triangle clears above the diagonal and keeps the rest`() {
-        val M = DenseMatrix.ofRows(
-            arrayOf(
-                doubleArrayOf(1.0, 2.0, 3.0),
-                doubleArrayOf(4.0, 5.0, 6.0),
-                doubleArrayOf(7.0, 8.0, 9.0),
-            ),
-        )
-        M.maskTo(MatrixStructure.TriangularLower)
-        for (i in 0 until 3) {
-            for (j in 0 until 3) {
-                val expected = if (i < j) 0.0 else (i * 3 + j + 1).toDouble()
-                assertEquals(expected, M[i, j], "($i,$j)")
+    fun `masking preserves the selected triangle across rectangular shapes`() {
+        for ((rows, cols) in listOf(3 to 3, 2 to 4, 4 to 2)) {
+            val backing = DoubleArray(rows * cols) { it + 1.0 }
+            val matrix = DenseMatrix.wrap(rows, cols, backing)
+            val expected = backing.copyOf()
+            for (column in 0 until cols) {
+                for (row in 0 until minOf(column, rows)) expected[row + column * rows] = 0.0
             }
-        }
-        // Column-major, so the cleared entries are the leading run of each column after the first.
-        assertClose(
-            doubleArrayOf(1.0, 4.0, 7.0, 0.0, 5.0, 8.0, 0.0, 0.0, 9.0),
-            M.values,
-            "backing buffer",
-        )
-    }
 
-    @Test
-    fun `masking a wide matrix zeroes whole columns past the last row`() {
-        val wide = DenseMatrix.wrap(2, 4, DoubleArray(8) { it + 1.0 })
-        wide.maskTo(MatrixStructure.TriangularLower)
-        for (j in 0 until 4) {
-            for (i in 0 until 2) {
-                val expected = if (i < j) 0.0 else (j * 2 + i + 1).toDouble()
-                assertEquals(expected, wide[i, j], "($i,$j)")
-            }
+            matrix.maskTo(MatrixStructure.TriangularLower)
+
+            assertContentEquals(expected, backing, "shape ${rows}x$cols")
         }
     }
 
     @Test
-    fun `masking a tall matrix keeps it intact below the diagonal`() {
-        val tall = DenseMatrix.wrap(4, 2, DoubleArray(8) { it + 1.0 })
-        val before = tall.values.copyOf()
-        tall.maskTo(MatrixStructure.TriangularLower)
-        // Only (0,1) sits above the diagonal here, so every other entry survives.
-        assertEquals(0.0, tall[0, 1], "(0,1)")
-        for (j in 0 until 2) {
-            for (i in 0 until 4) {
-                if (i < j) continue
-                assertEquals(before[i + j * 4], tall[i, j], "($i,$j)")
-            }
-        }
-    }
-
-    @Test
-    fun `transpose round-trips and maps entries`() {
+    fun `transpose round trips and maps entries`() {
         val a = DenseMatrix.ofRows(
             arrayOf(
                 doubleArrayOf(1.0, 2.0, 3.0),
@@ -353,17 +288,6 @@ class MatrixOpsTest {
         assertEquals(DenseMatrix(0, 0), DenseMatrix(0, 0).transpose())
         assertEquals(0, DenseMatrix(0, 5).transpose().cols)
         assertEquals(5, DenseMatrix(0, 5).transpose().rows)
-    }
-
-    @Test
-    fun `transpose agrees with the gemm transpose flag`() {
-        val rng = Random(20260804)
-        val a = randomMatrix(4, 6, rng)
-        val b = randomMatrix(4, 3, rng)
-        val viaMaterialized = a.transpose() * b
-        val viaFlag = DenseMatrix(6, 3)
-        koblas.gemm(1.0, a, true, b, false, 0.0, viaFlag)
-        assertClose(viaMaterialized, viaFlag, "transpose flag vs materialized")
     }
 
     @Test

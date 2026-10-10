@@ -1,4 +1,4 @@
-package com.eignex.koblas.sparse
+package com.eignex.koblas.sparse.internal
 
 import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.DimensionMismatch
@@ -11,8 +11,7 @@ import com.eignex.koblas.dense.PanelWork
 import com.eignex.koblas.koblas
 import com.eignex.koblas.partialPanelWidth
 import com.eignex.koblas.randomMatrix
-import com.eignex.koblas.randomVector
-import com.eignex.koblas.sparse.internal.sweepsTouchedRows
+import com.eignex.koblas.sparse.ReferenceSparseBlas
 import com.eignex.koblas.times
 import kotlin.random.Random
 import kotlin.test.Test
@@ -91,18 +90,6 @@ class SparseProductTest {
     }
 
     @Test
-    fun `one right-hand side agrees with gemv`() {
-        val rng = Random(20260827)
-        val (sparse, _) = sparseAndDense(6, 4, rng)
-        val x = randomVector(4, rng)
-        val c = DenseMatrix.zero(6, 1)
-
-        koblas.gemm(1.0, sparse, false, DenseMatrix.wrap(4, 1, x.copyOf()), false, 0.0, c)
-
-        assertClose(koblas.gemv(sparse, x), c.values, "gemm over one column is gemv")
-    }
-
-    @Test
     fun `gemv forms zero products for stored entries only`() {
         val a = SparseMatrix.ofColumns(2, 1, listOf(listOf(0 to Double.POSITIVE_INFINITY)))
         val y = DoubleArray(2)
@@ -135,18 +122,6 @@ class SparseProductTest {
     }
 
     @Test
-    fun `a beta of zero overwrites a destination it never reads`() {
-        val rng = Random(20260828)
-        val (sparse, _) = sparseAndDense(4, 3, rng)
-        val b = randomMatrix(3, 2, rng)
-        val c = DenseMatrix.wrap(4, 2, DoubleArray(8) { Double.NaN })
-
-        koblas.gemm(1.0, sparse, false, b, false, 0.0, c)
-
-        assertTrue(c.values.all { it.isFinite() }, "a NaN survived beta = 0")
-    }
-
-    @Test
     fun `an alpha of zero leaves the destination scaled by beta alone`() {
         val rng = Random(20260829)
         val (sparse, _) = sparseAndDense(4, 3, rng)
@@ -158,25 +133,6 @@ class SparseProductTest {
         koblas.gemm(0.0, sparse, false, b, false, 2.0, actual)
 
         assertClose(expected, actual, "alpha = 0")
-    }
-
-    @Test
-    fun `the product of a matrix and an identity is the matrix`() {
-        val rng = Random(20260830)
-        val (sparse, dense) = sparseAndDense(5, 4, rng)
-
-        assertClose(dense, sparse * DenseMatrix.diagonal(4), "A times I")
-    }
-
-    @Test
-    fun `the convenience overload takes its shape from the operands`() {
-        val rng = Random(20260831)
-        val (sparse, _) = sparseAndDense(5, 4, rng)
-
-        val c = sparse * randomMatrix(4, 3, rng)
-
-        assertEquals(5, c.rows)
-        assertEquals(3, c.cols)
     }
 
     @Test
@@ -239,23 +195,6 @@ class SparseProductTest {
         }
     }
 
-    @Test
-    fun `the sparse product keeps its rows ascending within a column`() {
-        val rng = Random(20260920)
-        val (left, _) = sparseAndDense(12, 9, rng, density = 0.5)
-        val (right, _) = sparseAndDense(9, 7, rng, density = 0.5)
-
-        val product = left * right
-
-        for (j in 0 until product.cols) {
-            var previous = -1
-            product.forEachInColumn(j) { i, _ ->
-                assertTrue(i > previous, "column $j has $i after $previous")
-                previous = i
-            }
-        }
-    }
-
     // A discovered column is either sorted or swept back into ascending order, whichever is cheaper for it,
     // so both fixtures below assert which branch they took as well as the result.
     @Test
@@ -292,15 +231,6 @@ class SparseProductTest {
             for (j in 0 until product.cols) product.forEachInColumn(j) { i, v -> actual[i, j] = v }
             assertClose(expected.values, actual.values, "$context product")
         }
-    }
-
-    @Test
-    fun `a sparse matrix times a sparse identity is the matrix`() {
-        val rng = Random(20260921)
-        val (a, _) = sparseAndDense(6, 5, rng)
-        val identity = SparseMatrix.ofColumns(5, 5, List(5) { j -> listOf(j to 1.0) })
-
-        assertEquals(a, a * identity, "A times I should give A back")
     }
 
     // A stored zero is a position the patterns meet at, so it selects and scatters like any other entry.

@@ -16,26 +16,6 @@ import kotlin.test.assertTrue
 
 class SparseTest {
     /**
-     * The prepared modes measure four different amounts of work, and the row says which: an amortized row is
-     * one preparation and all its uses as one batch, so its mode names the count rather than a call, where a
-     * prepared row is the steady state with the setup already paid.
-     */
-    @Test
-    fun `prepared modes name the work they time`() {
-        val base = "spmm+9x4x7+sparse-uniform+density=0.25"
-        val setup = assertNotNull(work("$base+mode=setup"))
-        val firstUse = assertNotNull(work("$base+mode=firstuse"))
-        val amortized = assertNotNull(work("$base+mode=amortized+reuse=8"))
-        val prepared = assertNotNull(work("$base+mode=prepared"))
-
-        assertEquals("prepare", setup.timingMode)
-        assertEquals("prepare-and-first-use", firstUse.timingMode)
-        assertEquals("prepare-and-8-uses", amortized.timingMode)
-        assertEquals("prepared", prepared.timingMode)
-        assertContains(assertNotNull(setup.kernel), "spprepare")
-    }
-
-    /**
      * A prepared transposed product against a dense block reports the traversal a one-shot call takes, since
      * the snapshot derives no orientation for it and only the structure copy is bought.
      */
@@ -88,19 +68,24 @@ class SparseTest {
     }
 
     @Test
-    fun `an exact arm declines a case its own kernels do not run`() {
+    fun `an exact arm declines delegated and value dependent kernels`() {
         val simd = BuiltinEngines.simd
         if (simd == null) {
-            println("SKIPPED: no Vector API engine on this host; delegation enforcement was not verified")
+            println("SKIPPED: no Vector API engine on this host; exact arm rejection was not verified")
             return
         }
-        // Below the vector crossover, timing this arm would mislabel scalar work as SIMD.
-        val case = Cases.parse("spdot+8+sparse-uniform+density=0.25").single()
+        for ((id, reason) in listOf(
+            "spdot+8+sparse-uniform+density=0.25" to "simd has no dotDense kernel",
+            "spnrm2+4096+sparse-uniform+density=0.25" to "on the values",
+            "spdot-sparse+65536+sparse-uniform+density=0.25" to "no dotSparse kernel",
+        )) {
+            val case = Cases.parse(id).single()
 
-        val arm = assertNotNull(sparseArm(case, simd))
+            val arm = assertNotNull(sparseArm(case, simd))
 
-        assertNull(arm.work, "a delegated call is not a measurement of the arm that was asked for")
-        assertContains(assertNotNull(arm.reason), "simd has no dotDense kernel")
+            assertNull(arm.work, id)
+            assertContains(assertNotNull(arm.reason), reason, message = id)
+        }
     }
 
     @Test
@@ -127,38 +112,6 @@ class SparseTest {
         val work = assertNotNull(sparseArm(case, BuiltinEngines.scalar)?.work)
 
         assertEquals("scalar/asum", work.kernel)
-    }
-
-    @Test
-    fun `a reduction whose kernel the values decide is not an exact comparison`() {
-        val simd = BuiltinEngines.simd
-        if (simd == null) {
-            println("SKIPPED: no Vector API engine on this host; the norm route was not verified")
-            return
-        }
-        // The vector path computes a square sum and abandons it for the rescaling loop outside the normal
-        // range, so at a vectorising width the kernel that finishes the norm depends on the stored values.
-        val case = Cases.parse("spnrm2+4096+sparse-uniform+density=0.25").single()
-
-        val arm = assertNotNull(sparseArm(case, simd))
-
-        assertNull(arm.work)
-        assertContains(assertNotNull(arm.reason), "on the values")
-    }
-
-    @Test
-    fun `an operation the vector kernels never implemented is declined at any width`() {
-        val simd = BuiltinEngines.simd
-        if (simd == null) {
-            println("SKIPPED: no Vector API engine on this host; delegation enforcement was not verified")
-            return
-        }
-        val case = Cases.parse("spdot-sparse+65536+sparse-uniform+density=0.25").single()
-
-        val arm = assertNotNull(sparseArm(case, simd))
-
-        assertNull(arm.work)
-        assertContains(assertNotNull(arm.reason), "no dotSparse kernel")
     }
 
     @Test
@@ -197,12 +150,13 @@ class SparseTest {
     }
 
     @Test
-    fun `the four prepared boundaries are separate timings of different work`() {
+    fun `prepared boundaries name the work they time`() {
         val modes = listOf(
             "oneshot" to "oneshot",
             "prepared" to "prepared",
             "setup" to "prepare",
             "firstuse" to "prepare-and-first-use",
+            "amortized+reuse=8" to "prepare-and-8-uses",
         )
         for ((mode, timing) in modes) {
             val case = Cases.parse("spgemv+64x32+sparse-uniform+density=0.25+mode=$mode").single()
@@ -226,7 +180,7 @@ class SparseTest {
     }
 
     @Test
-    fun `a first-use row names the preparation and the call it pays for`() {
+    fun `a first use row names the preparation and the call it pays for`() {
         val case = Cases.parse("spmm+33x4x21+sparse-uniform+density=0.05+mode=firstuse+transA=T").single()
 
         val work = assertNotNull(sparseArm(case, BuiltinEngines.scalar)?.work)
@@ -243,12 +197,14 @@ class SparseTest {
     @Test
     fun `the generic entry point is timed only on the arm whose engine it actually uses`() {
         for (id in listOf(
-            "spmm-generic+33x4x21+sparse-uniform+density=0.05+mode=oneshot",
-            "spmm-generic-right+33x4x21+sparse-uniform+density=0.05+mode=oneshot",
-            "spgemm-generic+33x17x21+sparse-uniform+density=0.05+mode=oneshot",
+            "spmm-generic+9x3x7+sparse-uniform+density=0.3+mode=oneshot",
+            "spmm-generic+9x3x7+sparse-uniform+density=0.3+mode=oneshot+transA=T",
+            "spmm-generic-right+9x3x7+sparse-uniform+density=0.3+mode=oneshot",
+            "spmm-generic-right+9x3x7+sparse-uniform+density=0.3+mode=oneshot+transA=T",
+            "spgemm-generic+9x5x7+sparse-uniform+density=0.3+mode=oneshot",
         )) {
             val case = Cases.parse(id).single()
-            for (engine in listOfNotNull(BuiltinEngines.scalar, BuiltinEngines.simd)) {
+            for (engine in listOfNotNull(koblas, BuiltinEngines.scalar, BuiltinEngines.simd).distinct()) {
                 val arm = assertNotNull(sparseArm(case, engine), id)
                 if (engine === koblas) {
                     val work = assertNotNull(arm.work, "$id on the selected engine")
@@ -320,42 +276,11 @@ class SparseTest {
         }
     }
 
-    /**
-     * The generic pairings on the engine that actually serves them, over a rectangular shape so a transposed
-     * operand cannot pass by being square.
-     */
-    @Test
-    fun `every generic pairing verifies its result on the selected engine`() {
-        for (id in listOf(
-            "spmm-generic+9x3x7+sparse-uniform+density=0.3+mode=oneshot",
-            "spmm-generic+9x3x7+sparse-uniform+density=0.3+mode=oneshot+transA=T",
-            "spmm-generic-right+9x3x7+sparse-uniform+density=0.3+mode=oneshot",
-            "spmm-generic-right+9x3x7+sparse-uniform+density=0.3+mode=oneshot+transA=T",
-            "spgemm-generic+9x5x7+sparse-uniform+density=0.3+mode=oneshot",
-        )) {
-            val case = Cases.parse(id).single()
-            val work = assertNotNull(sparseArm(case, koblas)?.work, id)
-            assertTrue(work.run().isFinite(), id)
-        }
-    }
-
     @Test
     fun `an option the generic allocating product cannot apply is rejected at parsing`() {
         assertFailsWith<IllegalArgumentException> {
             Cases.parse("spgemm-generic+9x5x7+sparse-uniform+density=0.3+mode=oneshot+transA=T")
         }
-    }
-
-    // No-work cases must not report destination scaling as product arithmetic.
-    @Test
-    fun `a case with no arithmetic to do is declined rather than timed`() {
-        val empty = Fixtures.sparse(8, 8, 0.25, 1)
-        val route = BuiltinEngines.scalar.routeOf(
-            SparseMatrixOperation.GemmDense,
-            SparseCall(empty, alpha = 0.0, beta = 0.5, destinationElements = 64, depth = 32),
-        )
-
-        assertEquals("nowork", route.kind.name.lowercase())
     }
 
     /**

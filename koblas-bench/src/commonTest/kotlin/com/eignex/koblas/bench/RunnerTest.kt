@@ -18,15 +18,24 @@ class RunnerTest {
 
     @Test
     fun `runner accepts an explicit targeted suite`() {
-        val defaults = parseArguments(arrayOf("--mode=jvm-scalar"))
         val sweep = parseArguments(
             arrayOf("--mode=native", "--suite=sweep", "--operation=dot", "--warmups=0", "--samples=1", "--target-ms=1"),
         )
 
-        assertEquals("default", defaults.suite)
         assertEquals("sweep", sweep.suite)
         assertEquals("dot", sweep.operation)
         assertEquals(1_000_000L, sweep.targetNanos)
+    }
+
+    @Test
+    fun `runner uses the default suite when none is supplied`() {
+        val settings = parseArguments(arrayOf("--mode=jvm-scalar"))
+
+        assertEquals("default", settings.suite)
+    }
+
+    @Test
+    fun `runner rejects invalid suite selections`() {
         for (args in listOf(arrayOf("--suite=sweep"), arrayOf("--suite=other"), arrayOf("--suite=default", "--suite=sweep"))) {
             assertFailsWith<IllegalArgumentException> { parseArguments(arrayOf("--mode=native") + args) }
         }

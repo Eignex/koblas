@@ -17,18 +17,32 @@ import kotlin.test.assertTrue
 // The sixteen flag combinations between them decide which entry is a coefficient, which direction the
 // substitution runs and which operand of the product between blocks is the triangle, so the sweep is the
 // whole of it. The orders cross the diagonal block, below which a call is one substitution and no product.
-class TriangularBlockTest {
+class TriangularSchedulingTest {
     private val rng = Random(20261103)
 
     @Test
-    fun `trsm solves every uplo transpose and diagonal mode from the left`() = withDenseBlas { blas ->
-        assertSolves(blas, right = false)
-    }
+    fun `trsm solves every transpose and diagonal mode from the left with an upper triangle`() =
+        withDenseBlas { blas ->
+            assertSolves(blas, right = false, lower = false)
+        }
 
     @Test
-    fun `trsm solves every uplo transpose and diagonal mode from the right`() = withDenseBlas { blas ->
-        assertSolves(blas, right = true)
-    }
+    fun `trsm solves every transpose and diagonal mode from the left with a lower triangle`() =
+        withDenseBlas { blas ->
+            assertSolves(blas, right = false, lower = true)
+        }
+
+    @Test
+    fun `trsm solves every transpose and diagonal mode from the right with an upper triangle`() =
+        withDenseBlas { blas ->
+            assertSolves(blas, right = true, lower = false)
+        }
+
+    @Test
+    fun `trsm solves every transpose and diagonal mode from the right with a lower triangle`() =
+        withDenseBlas { blas ->
+            assertSolves(blas, right = true, lower = true)
+        }
 
     @Test
     fun `trmm multiplies every uplo transpose and diagonal mode from the left`() = withDenseBlas { blas ->
@@ -40,16 +54,16 @@ class TriangularBlockTest {
         assertMultiplies(blas, right = true)
     }
 
-    private fun assertSolves(blas: DenseBlas, right: Boolean) =
-        forEachCase { order, sides, lower, transpose, unitDiag ->
+    private fun assertSolves(blas: DenseBlas, right: Boolean, lower: Boolean) =
+        forEachCase(booleanArrayOf(lower)) { order, sides, lower, transpose, unitDiag ->
             val (triangle, _) = poisonedTriangle(rng, order, lower, unitDiag)
             val solution = randomMatrix(if (right) sides else order, if (right) order else sides, rng)
             // The right-hand sides come from the reference multiply, so the check does not depend on the
             // solve it is checking.
             val b = solution.copyOf()
-            ReferenceBlas.trmm(triangle, b, lower, transpose, unitDiag, right)
+            ReferenceBlas.trmm(triangle, b, lower, transpose, unitDiag, right, 1.0 / ALPHA)
 
-            blas.trsm(triangle, b, lower, transpose, unitDiag, right)
+            blas.trsm(triangle, b, lower, transpose, unitDiag, right, ALPHA)
 
             assertClose(
                 solution.values,
@@ -175,51 +189,75 @@ class TriangularBlockTest {
         }
     }
 
-    // The windows of a triangular schedule shrink, so a column accumulated at each of sixteen diagonal
-    // blocks is sixteen lengths; a workspace lends by exact length and keeps a bounded number of them.
+    // Twenty four shrinking windows exceed the workspace retention limit and expose scratch sized by call order.
     @Test
-    fun `a long thin solve keeps its scratch inside what a workspace retains`() = withDenseBlas { blas ->
-        // Geometrically spaced orders exceed the workspace's eight retained lengths, checking that scratch
-        // stays bounded by schedule blocks across call sizes.
-        for (blocks in intArrayOf(9, 17, 24)) longThinScratch(blas, blocks * TRIANGULAR_DIAGONAL_BLOCK)
+    fun `portable trmm retains bounded scratch over twenty four blocks`() {
+        val blas = testDenseBlas
+        longThinScratch(blas, 24 * TRIANGULAR_DIAGONAL_BLOCK, solve = false)
     }
 
-    private fun longThinScratch(blas: DenseBlas, order: Int) {
-        val workspace = Workspace()
-        for (solve in booleanArrayOf(false, true)) {
-            val triangle = dominantDiagonal(order)
-            val b = randomMatrix(order, 1, rng)
+    @Test
+    fun `portable trsm retains bounded scratch over twenty four blocks`() {
+        val blas = testDenseBlas
+        longThinScratch(blas, 24 * TRIANGULAR_DIAGONAL_BLOCK, solve = true)
+    }
 
+    @Test
+    fun `candidate trmm retains bounded scratch over twenty four blocks`() {
+        val blas = BuiltinEngines.simd ?: return
+        longThinScratch(blas, 24 * TRIANGULAR_DIAGONAL_BLOCK, solve = false)
+    }
+
+    @Test
+    fun `candidate trsm retains bounded scratch over twenty four blocks`() {
+        val blas = BuiltinEngines.simd ?: return
+        longThinScratch(blas, 24 * TRIANGULAR_DIAGONAL_BLOCK, solve = true)
+    }
+
+    private fun longThinScratch(blas: DenseBlas, order: Int, solve: Boolean) {
+        val workspace = Workspace()
+        val triangle = dominantDiagonal(order)
+        val b = randomMatrix(order, 1, rng)
+
+        if (solve) {
+            blas.trsm(triangle, b, lower = true, workspace = workspace)
+        } else {
+            blas.trmm(triangle, b, lower = true, workspace = workspace)
+        }
+        val afterOne = workspace.idleLengths()
+        repeat(3) {
             if (solve) {
                 blas.trsm(triangle, b, lower = true, workspace = workspace)
             } else {
                 blas.trmm(triangle, b, lower = true, workspace = workspace)
             }
-            val afterOne = workspace.idleLengths()
-            repeat(3) {
-                if (solve) {
-                    blas.trsm(triangle, b, lower = true, workspace = workspace)
-                } else {
-                    blas.trmm(triangle, b, lower = true, workspace = workspace)
-                }
-            }
-
-            assertTrue(afterOne > 0, "a call over ${order / TRIANGULAR_DIAGONAL_BLOCK} blocks borrowed nothing")
-            assertTrue(
-                afterOne <= MAX_IDLE_LENGTHS,
-                "order $order solve=$solve left $afterOne lengths behind, past what a workspace retains",
-            )
-            assertEquals(
-                afterOne,
-                workspace.idleLengths(),
-                "order $order solve=$solve asked for a new length on a repeated call",
-            )
         }
+
+        assertTrue(afterOne > 0, "a call over ${order / TRIANGULAR_DIAGONAL_BLOCK} blocks borrowed nothing")
+        assertTrue(
+            afterOne <= MAX_IDLE_LENGTHS,
+            "order $order solve=$solve left $afterOne lengths behind, past what a workspace retains",
+        )
+        assertEquals(
+            afterOne,
+            workspace.idleLengths(),
+            "order $order solve=$solve asked for a new length on a repeated call",
+        )
     }
 
     /** The same for a symmetric product, whose strips beside the diagonal shrink the same way. */
     @Test
-    fun `a long thin symmetric product keeps its scratch inside what a workspace retains`() = withDenseBlas { blas ->
+    fun `a long thin portable symmetric product retains bounded scratch`() {
+        assertSymmetricScratchIsBounded(testDenseBlas)
+    }
+
+    @Test
+    fun `a long thin candidate symmetric product retains bounded scratch`() {
+        val blas = BuiltinEngines.simd ?: return
+        assertSymmetricScratchIsBounded(blas)
+    }
+
+    private fun assertSymmetricScratchIsBounded(blas: DenseBlas) {
         val order = 16 * SYMMETRIC_BLOCK
         val workspace = Workspace()
         val a = dominantDiagonal(order)
@@ -258,20 +296,33 @@ class TriangularBlockTest {
     // Under both recorders at once, so each half of the claim is checked against what the schedule handed
     // over: the diagonal blocks substituted and the product windows run between them.
     @Test
-    fun `a triangular route names the diagonal blocks and products the call really cut`() = withBackends {
-            panels,
-            products,
-            triangles,
-        ->
-        for (right in booleanArrayOf(false, true)) {
+    fun `trmm routes name executed diagonal blocks and products from the left`() {
+        assertTriangularRoutes(right = false, solve = false)
+    }
+
+    @Test
+    fun `trmm routes name executed diagonal blocks and products from the right`() {
+        assertTriangularRoutes(right = true, solve = false)
+    }
+
+    @Test
+    fun `trsm routes name executed diagonal blocks and products from the left`() {
+        assertTriangularRoutes(right = false, solve = true)
+    }
+
+    @Test
+    fun `trsm routes name executed diagonal blocks and products from the right`() {
+        assertTriangularRoutes(right = true, solve = true)
+    }
+
+    private fun assertTriangularRoutes(right: Boolean, solve: Boolean) =
+        withBackends { panels, products, triangles ->
             for (lower in booleanArrayOf(false, true)) {
                 for (transpose in booleanArrayOf(false, true)) {
-                    assertTriangularRoute(panels, products, triangles, lower, transpose, right, solve = true)
-                    assertTriangularRoute(panels, products, triangles, lower, transpose, right, solve = false)
+                    assertTriangularRoute(panels, products, triangles, lower, transpose, right, solve)
                 }
             }
         }
-    }
 
     @Suppress("LongParameterList") // the backends under test plus the three flags the route depends on
     private fun assertTriangularRoute(
@@ -364,13 +415,14 @@ class TriangularBlockTest {
 
     /** Every flag combination on one side, at three orders and two side counts. */
     private inline fun forEachCase(
+        lowerModes: BooleanArray = booleanArrayOf(false, true),
         body: (order: Int, sides: Int, lower: Boolean, transpose: Boolean, unitDiag: Boolean) -> Unit,
     ) {
         // One order inside a single diagonal block, one that fills it exactly, and one that leaves a short
         // last block; one side count below a lane block and one that leaves a tail above it.
         for (order in intArrayOf(1, TRIANGULAR_DIAGONAL_BLOCK, TRIANGULAR_DIAGONAL_BLOCK + 5)) {
             for (sides in intArrayOf(1, VECTOR_SIDES + 3)) {
-                for (lower in booleanArrayOf(false, true)) {
+                for (lower in lowerModes) {
                     for (transpose in booleanArrayOf(false, true)) {
                         for (unitDiag in booleanArrayOf(false, true)) {
                             body(order, sides, lower, transpose, unitDiag)

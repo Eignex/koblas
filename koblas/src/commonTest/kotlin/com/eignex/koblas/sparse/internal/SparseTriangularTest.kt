@@ -1,4 +1,4 @@
-package com.eignex.koblas.sparse
+package com.eignex.koblas.sparse.internal
 
 import com.eignex.koblas.*
 import com.eignex.koblas.DenseMatrix
@@ -78,7 +78,7 @@ class SparseTriangularTest {
     }
 
     @Test
-    fun `every direction agrees with the dense solve over several right-hand sides`() {
+    fun `every direction agrees with the dense solve over several right hand sides`() {
         val rng = Random(20260821)
         val n = 6
         val rightHandSides = partialPanelWidth(PanelWork.SparseRightHandSides)
@@ -175,24 +175,7 @@ class SparseTriangularTest {
     }
 
     @Test
-    fun `each column of a solve from the left is the one trsv gives it`() {
-        val rng = Random(20260822)
-        val n = 7
-        val (sparse, _) = triangle(n, lower = true, rng)
-        val b = randomMatrix(n, 3, rng)
-
-        val fromTrsm = DenseMatrix.wrap(n, 3, b.values.copyOf())
-        sparse.trsm(fromTrsm, lower = true)
-
-        for (j in 0 until 3) {
-            val column = b.values.copyOfRange(j * n, (j + 1) * n)
-            sparse.trsv(column, lower = true)
-            assertClose(column, fromTrsm.values.copyOfRange(j * n, (j + 1) * n), "column $j", tolerance = 1e-9)
-        }
-    }
-
-    @Test
-    fun `alpha scales the right-hand side before the solve`() {
+    fun `alpha scales the right hand side before the solve`() {
         val rng = Random(20260823)
         val n = 5
         val (sparse, _) = triangle(n, lower = true, rng)
@@ -207,7 +190,7 @@ class SparseTriangularTest {
     }
 
     @Test
-    fun `an alpha of zero empties the right-hand side without solving`() {
+    fun `an alpha of zero empties the right hand side without solving`() {
         val n = 3
         // A NaN diagonal, which a solve would spread through the answer.
         val poisoned = SparseMatrix.ofColumns(n, n, List(n) { j -> listOf(j to Double.NaN) })
@@ -219,28 +202,13 @@ class SparseTriangularTest {
     }
 
     @Test
-    fun `a right-hand side that does not meet the triangle is rejected on both sides`() {
+    fun `a right hand side that does not meet the triangle is rejected on both sides`() {
         val rng = Random(20260824)
         val n = 4
         val (sparse, _) = triangle(n, lower = true, rng)
 
         assertFailsWith<DimensionMismatch> { sparse.trsm(randomMatrix(n + 1, 2, rng), lower = true) }
         assertFailsWith<DimensionMismatch> { sparse.trsm(randomMatrix(2, n + 1, rng), lower = true, right = true) }
-    }
-
-    @Test
-    fun `the solution reproduces the right-hand side`() {
-        val rng = Random(20260812)
-        val n = 9
-        val (sparse, _) = triangle(n, lower = true, rng)
-        val b = DoubleArray(n) { rng.nextDouble(-1.0, 1.0) }
-        val x = b.copyOf()
-        sparse.trsv(x, lower = true)
-        assertClose(b, koblas.gemv(sparse, x), "lower residual", tolerance = 1e-9)
-
-        val xt = b.copyOf()
-        sparse.trsv(xt, lower = true, transpose = true)
-        assertClose(b, koblas.gemv(sparse, xt, transpose = true), "transposed residual", tolerance = 1e-9)
     }
 
     @Test

@@ -195,18 +195,25 @@ internal class RecordingPanels(
     }
 }
 
-/** Every operation that schedules a panel, which is every one a route can name a body for. */
-internal val PANEL_OPERATIONS: List<DenseMatrixOperation> = listOf(
+/** Product and rank update operations that schedule panels. */
+internal val PRODUCT_PANEL_OPERATIONS: List<DenseMatrixOperation> = listOf(
     DenseMatrixOperation.Gemv,
     DenseMatrixOperation.GemvTransposed,
     DenseMatrixOperation.Symv,
     DenseMatrixOperation.Ger,
     DenseMatrixOperation.Syr,
+)
+
+/** Triangular operations that schedule panels around the diagonal. */
+internal val TRIANGULAR_PANEL_OPERATIONS: List<DenseMatrixOperation> = listOf(
     DenseMatrixOperation.Trmv,
     DenseMatrixOperation.TrmvTransposed,
     DenseMatrixOperation.Trsv,
     DenseMatrixOperation.TrsvTransposed,
 )
+
+/** Every operation that schedules a panel, which is every one a route can name a body for. */
+internal val PANEL_OPERATIONS: List<DenseMatrixOperation> = PRODUCT_PANEL_OPERATIONS + TRIANGULAR_PANEL_OPERATIONS
 
 /**
  * Orders that reach the boundaries a window schedule has: odd and even, since a symmetric traversal grouped
@@ -222,16 +229,19 @@ internal val SHORT_ROUTE_ORDERS: IntArray = intArrayOf(1, 2, 3, 4, 5, 7, 8, 9, 1
  * That [panels] routes every panel operation to exactly the bodies its own traversal reaches, over both
  * triangles and both transpose flags, since the windows a triangular traversal cuts depend on both.
  */
+@Suppress("LongParameterList") // independent schedule dimensions share one assertion
 internal fun assertRouteNamesExecutedBodies(
     panels: DensePanelKernels,
     group: Int? = null,
     threshold: Int? = null,
     orders: IntArray = ROUTE_ORDERS,
+    lowerModes: BooleanArray = booleanArrayOf(true, false),
+    operations: List<DenseMatrixOperation> = PANEL_OPERATIONS,
 ) {
     val rng = Random(20260926)
     for (n in orders) {
-        for (lower in booleanArrayOf(true, false)) {
-            for (operation in PANEL_OPERATIONS) {
+        for (lower in lowerModes) {
+            for (operation in operations) {
                 assertRouteNamesExecutedBodies(operation, panels, n, lower, group, threshold, rng)
             }
         }

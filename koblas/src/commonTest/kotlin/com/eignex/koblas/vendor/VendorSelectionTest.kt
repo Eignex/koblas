@@ -25,7 +25,7 @@ class VendorSelectionTest {
     }
 
     @Test
-    fun `x86 order puts the matching manufacturer first`() {
+    fun `x eighty six order puts the matching manufacturer first`() {
         val amd = HostPlatform(OperatingSystem.Linux, Architecture.X86_64, CpuVendor.Amd)
         val intel = HostPlatform(OperatingSystem.Linux, Architecture.X86_64, CpuVendor.Intel)
 
@@ -34,7 +34,7 @@ class VendorSelectionTest {
     }
 
     @Test
-    fun `an unidentified x86 manufacturer still has a fallback order`() {
+    fun `an unidentified x eighty six manufacturer still has a fallback order`() {
         val host = HostPlatform(OperatingSystem.Linux, Architecture.X86_64, CpuVendor.Unknown)
 
         assertEquals(listOf(Vendor.OneMkl, Vendor.Aocl, Vendor.OpenBlas), Vendor.select(host))

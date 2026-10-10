@@ -242,7 +242,7 @@ class SparseMatrixTest {
     }
 
     @Test
-    fun `ofTriplets handles an empty entry set and rejects out-of-range positions`() {
+    fun `ofTriplets handles an empty entry set and rejects out of range positions`() {
         val empty = SparseMatrix.ofTriplets(2, 2, IntArray(0), IntArray(0), DoubleArray(0))
         assertEquals(0, empty.nnz)
         assertEquals(0.0, empty[1, 1])
@@ -299,7 +299,7 @@ class SparseMatrixTest {
     }
 
     @Test
-    fun `the transpose round-trips and preserves stored zeros`() {
+    fun `the transpose round trips and preserves stored zeros`() {
         val a = SparseMatrix.ofColumns(
             3,
             2,
@@ -330,7 +330,7 @@ class SparseMatrixTest {
     }
 
     @Test
-    fun `CSC mat-vec multiplies a matrix and its transpose`() {
+    fun `CSC mat vec multiplies a matrix and its transpose`() {
         val a = SparseMatrix.ofColumns(
             rows = 2,
             cols = 3,

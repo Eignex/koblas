@@ -3,9 +3,7 @@ package com.eignex.koblas
 import com.eignex.koblas.dense.DenseVectorKernels
 import com.eignex.koblas.dense.ScalarVectorKernels
 import com.eignex.koblas.dense.assertIamaxHonoursItsContract
-import kotlin.math.abs
 import kotlin.math.sqrt
-import kotlin.random.Random
 import kotlin.test.*
 
 class VectorOpsTest {
@@ -72,8 +70,10 @@ class VectorOpsTest {
             Triple(0, 5, 1),
             Triple(0, 1, 1),
             Triple(1, 0, 1),
+            Triple(2, 7, 1),
+            Triple(9, 8, -1),
         )) {
-            val backing = DoubleArray(10) { it + 0.25 }
+            val backing = DoubleArray(14) { it + 0.25 }
             val source = StridedVector(backing, sourceOffset, 5, stride)
             val destination = StridedVector(backing, destinationOffset, 5, stride)
             val expected = backing.copyOf()
@@ -130,7 +130,7 @@ class VectorOpsTest {
     }
 
     @Test
-    fun `dot is symmetric and sparsity-agnostic`() {
+    fun `dot is symmetric and sparsity agnostic`() {
         val a = dense(1.0, 2.0, 3.0, 4.0)
         val b = dense(0.5, 0.0, -1.0, 2.0)
         val bSparse = sparse(4, 0 to 0.5, 2 to -1.0, 3 to 2.0)
@@ -143,7 +143,7 @@ class VectorOpsTest {
     }
 
     @Test
-    fun `axpy adds alpha-scaled x to y for any sparsity`() {
+    fun `axpy adds alpha scaled x to y for any sparsity`() {
         val y = DenseVector.of(doubleArrayOf(1.0, 2.0, 3.0))
         y.axpy(2.0, sparse(3, 0 to 1.0, 2 to -1.0))
         assertEquals(dense(3.0, 2.0, 1.0), y)
@@ -159,7 +159,7 @@ class VectorOpsTest {
     }
 
     @Test
-    fun `norm2 matches the hand value on dense and sparse`() {
+    fun `norm two matches the hand value on dense and sparse`() {
         assertEquals(5.0, DenseVector.of(doubleArrayOf(3.0, 0.0, -4.0)).norm2())
         assertEquals(sqrt(13.0), sparse.norm2(), 1e-15)
         assertEquals(0.0, DenseVector.zero(4).norm2())
@@ -167,7 +167,7 @@ class VectorOpsTest {
     }
 
     @Test
-    fun `norm2 survives overflow and underflow via the rescale fallback`() {
+    fun `norm two survives overflow and underflow via the rescale fallback`() {
         assertEquals(5.0e200, DenseVector.of(doubleArrayOf(3.0e200, 0.0, -4.0e200)).norm2(), 1e186)
         assertEquals(5.0e-200, DenseVector.of(doubleArrayOf(3.0e-200, 4.0e-200)).norm2(), 1e-214)
         assertEquals(1.0e-300, DenseVector.of(doubleArrayOf(1.0e-300)).norm2(), 1e-314)
@@ -337,19 +337,6 @@ class VectorOpsTest {
         }
     }
 
-    // Adjacent slices take a block move rather than the entry walk, which is described by three indices the
-    // walk needed none of.
-    @Test
-    fun `copy between adjacent slices lands at both origins`() {
-        val source = StridedVector(doubleArrayOf(9.0, 9.0, 1.0, 2.0, 3.0, 9.0), offset = 2, size = 3)
-        val backing = DoubleArray(6) { -1.0 }
-        val destination = StridedVector(backing, offset = 1, size = 3)
-
-        copy(source, destination)
-
-        assertContentEquals(doubleArrayOf(-1.0, 1.0, 2.0, 3.0, -1.0, -1.0), backing)
-    }
-
     @Test
     fun `copy snapshots a foreign source sharing the destination buffer`() {
         for (borrowed in booleanArrayOf(false, true)) {
@@ -403,22 +390,6 @@ class VectorOpsTest {
     }
 
     @Test
-    fun `copy between overlapping borrowed slices preserves the input sequence`() {
-        for (stride in intArrayOf(1, -1)) {
-            val backing = doubleArrayOf(1.0, 2.0, 3.0, 4.0, 5.0)
-            val source = StridedVector(backing, if (stride > 0) 0 else 4, 4, stride)
-            val destination = StridedVector(backing, if (stride > 0) 1 else 3, 4, stride)
-            val expected = backing.copyOf()
-            val snapshot = source.toDoubleArray()
-            for (i in snapshot.indices) expected[destination.offset + i * stride] = snapshot[i]
-
-            copy(source, destination)
-
-            assertContentEquals(expected, backing)
-        }
-    }
-
-    @Test
     fun `copy preserves sparse values shared with the destination`() {
         for (borrowed in booleanArrayOf(false, true)) {
             val backing = doubleArrayOf(1.0, 2.0, 3.0)
@@ -465,24 +436,85 @@ class VectorOpsTest {
         assertContentEquals(expected.values.reversedArray(), backing)
     }
 
+    private fun assertReductionAgreesWithReference(expected: Double, actual: Double, context: String) {
+        assertClose(expected, actual, context)
+    }
+
     @Test
-    fun `level-1 ops agree with naive references on random vectors`() {
-        val rng = Random(20260727)
-        repeat(20) {
-            val n = rng.nextInt(1, 200)
-            val values = DoubleArray(n) { rng.nextDouble(-100.0, 100.0) }
-            val v = DenseVector.of(values)
-            var sumSq = 0.0
-            var sumAbs = 0.0
-            var maxIdx = 0
-            for (i in 0 until n) {
-                sumSq += values[i] * values[i]
-                sumAbs += abs(values[i])
-                if (abs(values[i]) > abs(values[maxIdx])) maxIdx = i
-            }
-            assertTrue(abs(v.norm2() - sqrt(sumSq)) <= 1e-12 * sqrt(sumSq))
-            assertTrue(abs(v.asum() - sumAbs) <= 1e-12 * sumAbs)
-            assertEquals(maxIdx, v.iamax())
+    fun `the norm accepts a foreign vector`() {
+        val source = ForeignRampVector(9)
+        val values = source.toDoubleArray()
+        val expected = ScalarVectorKernels.nrm2(values, 0, values.size)
+
+        val actual = source.norm2()
+
+        assertReductionAgreesWithReference(expected, actual, "foreign norm")
+    }
+
+    @Test
+    fun `the absolute sum accepts a foreign vector`() {
+        val source = ForeignRampVector(9)
+        val values = source.toDoubleArray()
+        val expected = ScalarVectorKernels.asum(values, 0, values.size)
+
+        val actual = source.asum()
+
+        assertReductionAgreesWithReference(expected, actual, "foreign asum")
+    }
+
+    @Test
+    fun `the index search accepts a foreign vector`() {
+        val source = ForeignRampVector(9)
+        val values = source.toDoubleArray()
+        val expected = ScalarVectorKernels.iamax(values, 0, values.size)
+
+        val actual = source.iamax()
+
+        assertEquals(expected, actual)
+    }
+
+    @Test
+    fun `dot accepts a foreign vector on either side`() {
+        val source = ForeignRampVector(9)
+        val values = source.toDoubleArray()
+        val dense = DenseVector.of(values)
+        val expected = ScalarVectorKernels.dot(values, 0, values, 0, values.size)
+
+        for ((left, right) in listOf(source to source, dense to source, source to dense)) {
+            val actual = left dot right
+
+            assertReductionAgreesWithReference(expected, actual, "foreign dot")
         }
+    }
+
+    @Test
+    fun `axpy accepts a foreign source`() {
+        val source = ForeignRampVector(6)
+        val destination = DenseVector.zero(6)
+        val expected = DoubleArray(6) { 2.0 * source[it] }
+
+        destination.axpy(2.0, source)
+
+        assertClose(expected, destination.values, "foreign axpy")
+    }
+
+    @Test
+    fun `copy accepts a foreign source`() {
+        val source = ForeignRampVector(6)
+        val destination = DenseVector.zero(6)
+
+        copy(source, destination)
+
+        assertContentEquals(source.toDoubleArray(), destination.values)
+    }
+
+    @Test
+    fun `a sparse operand still walks its stored entries against an adapter`() {
+        val sparse = SparseVector.of(6, intArrayOf(1, 4), doubleArrayOf(2.0, -3.0))
+        val ramp = ForeignRampVector(6)
+        var expected = 0.0
+        for (i in 0 until 6) expected += sparse[i] * ramp[i]
+        assertEquals(expected, sparse dot ramp, 1e-12)
+        assertEquals(expected, ramp dot sparse, 1e-12)
     }
 }

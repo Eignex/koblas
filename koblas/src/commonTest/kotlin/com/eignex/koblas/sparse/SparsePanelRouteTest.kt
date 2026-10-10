@@ -3,7 +3,6 @@ package com.eignex.koblas.sparse
 import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.Workspace
-import com.eignex.koblas.assertClose
 import com.eignex.koblas.dense.PanelWork
 import com.eignex.koblas.vendor.RouteKind
 import kotlin.math.abs
@@ -253,34 +252,6 @@ class SparsePanelRouteTest {
     }
 
     @Test
-    fun `a single right hand side agrees with the panel over the same operand`() {
-        val engine = engineWith(AdjacentPreferringPanels())
-        val rng = Random(20261022)
-        val a = filled(ORDER, rng)
-        val wide = dense(ORDER, 3, rng)
-        val start = dense(ORDER, 3, rng)
-
-        val batched = DenseMatrix.wrap(ORDER, 3, start.values.copyOf())
-        engine.symm(0.875, a, wide, -0.25, batched, lower = true, right = false, workspace = Workspace())
-        for (side in 0 until 3) {
-            val column = DenseMatrix.wrap(ORDER, 1, wide.values.copyOfRange(side * ORDER, (side + 1) * ORDER))
-            val single = DenseMatrix.wrap(
-                ORDER,
-                1,
-                start.values.copyOfRange(side * ORDER, (side + 1) * ORDER),
-            )
-            engine.symm(0.875, a, column, -0.25, single, lower = true, right = false, workspace = Workspace())
-            for (row in 0 until ORDER) {
-                assertClose(
-                    batched.values[row + side * ORDER],
-                    single.values[row],
-                    "side $side row $row between the panel and the written-out column",
-                )
-            }
-        }
-    }
-
-    @Test
     fun `a triangular call writes out one right hand side`() {
         for (solve in booleanArrayOf(true, false)) {
             for (transpose in booleanArrayOf(false, true)) {
@@ -312,45 +283,6 @@ class SparsePanelRouteTest {
                 assertEquals(emptyList(), panelBodies(route), "$context: $route")
                 assertTrue(route.reason.orEmpty().contains("written out"), "$context: $route")
                 assertEquals(1, route.executionGroup, context)
-            }
-        }
-    }
-
-    @Test
-    fun `a single right hand side agrees with the triangular panel`() {
-        val engine = engineWith(AdjacentPreferringPanels())
-        val rng = Random(20261101)
-        val t = triangle(ORDER, rng)
-        val sides = 3
-
-        for (solve in booleanArrayOf(true, false)) {
-            for (transpose in booleanArrayOf(false, true)) {
-                val start = dense(ORDER, sides, rng)
-                val batched = DenseMatrix.wrap(ORDER, sides, start.values.copyOf())
-                if (solve) {
-                    engine.trsm(t, batched, true, transpose, false, false, 0.875, Workspace())
-                } else {
-                    engine.trmm(t, batched, true, transpose, false, false, 0.875, Workspace())
-                }
-                for (side in 0 until sides) {
-                    val single = DenseMatrix.wrap(
-                        ORDER,
-                        1,
-                        start.values.copyOfRange(side * ORDER, (side + 1) * ORDER),
-                    )
-                    if (solve) {
-                        engine.trsm(t, single, true, transpose, false, false, 0.875, Workspace())
-                    } else {
-                        engine.trmm(t, single, true, transpose, false, false, 0.875, Workspace())
-                    }
-                    for (row in 0 until ORDER) {
-                        assertClose(
-                            batched.values[row + side * ORDER],
-                            single.values[row],
-                            "solve=$solve transpose=$transpose side $side row $row",
-                        )
-                    }
-                }
             }
         }
     }

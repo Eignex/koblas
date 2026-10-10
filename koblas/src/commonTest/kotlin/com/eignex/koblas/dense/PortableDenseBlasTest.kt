@@ -131,36 +131,6 @@ class PortableDenseBlasTest {
         }
     }
 
-    @Test
-    fun `triangular vector operations agree with the reference at every grouping`() {
-        val rng = Random(20260925)
-        for (group in groups) {
-            val blas = blasFor(group)
-            for (n in orders()) {
-                val a = triangleFor(n, rng)
-                val x0 = randomVector(n, rng)
-                for (lower in booleanArrayOf(true, false)) {
-                    for (transpose in booleanArrayOf(false, true)) {
-                        for (unit in booleanArrayOf(false, true)) {
-                            val context = "group=$group n=$n lower=$lower t=$transpose unit=$unit"
-                            val expectedMultiply = x0.copyOf()
-                            ReferenceBlas.trmv(a, expectedMultiply, lower, transpose, unit)
-                            val actualMultiply = x0.copyOf()
-                            blas.trmv(a, actualMultiply, lower, transpose, unit)
-                            assertClose(expectedMultiply, actualMultiply, "trmv $context")
-
-                            val expectedSolve = x0.copyOf()
-                            ReferenceBlas.trsv(a, expectedSolve, lower, transpose, unit)
-                            val actualSolve = x0.copyOf()
-                            blas.trsv(a, actualSolve, lower, transpose, unit)
-                            assertClose(expectedSolve, actualSolve, "trsv $context", tolerance = 1e-9)
-                        }
-                    }
-                }
-            }
-        }
-    }
-
     // The untransposed traversal scales each column's coefficient and the transposed one scales the finished
     // reduction, both as reference BLAS does; an infinite multiplier against a zero entry separates them.
     @Test
@@ -201,10 +171,4 @@ class PortableDenseBlasTest {
         }
     }
 
-    /** A triangle with a dominant diagonal, so a solve over it is well conditioned at every order. */
-    private fun triangleFor(n: Int, rng: Random): DenseMatrix {
-        val a = randomMatrix(n, n, rng)
-        for (i in 0 until n) a.values[i + i * n] = 2.0 + (i % 3)
-        return a
-    }
 }

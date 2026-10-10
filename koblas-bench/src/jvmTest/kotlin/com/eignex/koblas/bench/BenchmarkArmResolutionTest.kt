@@ -2,6 +2,7 @@ package com.eignex.koblas.bench
 
 import com.eignex.koblas.BuiltinEngines
 import com.eignex.koblas.koblas
+import java.nio.file.Files
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -53,28 +54,37 @@ class BenchmarkArmResolutionTest {
         assertFailsWith<IllegalStateException> { resolveEngine("openblas") }
     }
 
-    // The scan decides which cases a fork is asked for and the bridge builds the work inside it, so a case
-    // admitted by one and dropped by the other looks like an unsupported row with no reason.
     @Test
-    fun `the generic product is built by the measured fork on the default arm and declined on an exact one`() {
-        val case = Cases.parse(readTextFile(CASES)).single { it.operation == "gemm-generic" }
-
-        val work = JvmBenchmarkBridge.create("jvm-default", case.id, CASES)
-
-        assertEquals("default-policy", work.comparisonKind)
-        assertTrue(!work.kernel.isNullOrEmpty(), "the default arm's generic row named no route")
-        work.close()
-
-        if (BuiltinEngines.simd !== koblas) {
-            val declined = assertFailsWith<IllegalStateException> {
-                JvmBenchmarkBridge.create("jvm-simd", case.id, CASES)
-            }
-            assertTrue("declined" in declined.message.orEmpty(), declined.message.orEmpty())
+    fun `the generic product is built by the measured fork on the default arm`() = withGenericCase { case, path ->
+        val work = JvmBenchmarkBridge.create("jvm-default", case.id, path)
+        try {
+            assertEquals("default-policy", work.comparisonKind)
+            assertTrue(!work.kernel.isNullOrEmpty(), "the default arm's generic row named no route")
+        } finally {
+            work.close()
         }
     }
 
-    private companion object {
-        /** The workload the benchmark tasks read, resolved from the module directory the tests run in. */
-        const val CASES = "cases.txt"
+    @Test
+    fun `the generic product is declined by the measured fork on an exact arm`() = withGenericCase { case, path ->
+        if (BuiltinEngines.simd === koblas) return@withGenericCase
+
+        val declined = assertFailsWith<IllegalStateException> {
+            JvmBenchmarkBridge.create("jvm-simd", case.id, path)
+        }
+
+        assertTrue("declined" in declined.message.orEmpty(), declined.message.orEmpty())
+    }
+
+    private fun withGenericCase(body: (BenchCase, String) -> Unit) {
+        // The bridge reads its case file, but its admission rule is independent of the benchmark workload size.
+        val case = Cases.parse("gemm-generic+15x7x31+uniform").single()
+        val path = Files.createTempFile("koblas-generic-case-", ".txt")
+        try {
+            Files.writeString(path, case.id)
+            body(case, path.toString())
+        } finally {
+            Files.deleteIfExists(path)
+        }
     }
 }

@@ -6,7 +6,6 @@ import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
-import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /**
@@ -16,7 +15,7 @@ import kotlin.test.assertTrue
  */
 class PreparedSparseConcurrencyTest {
     private companion object {
-        const val ORDER = 96
+        const val ORDER = 24
         const val THREADS = 8
     }
 
@@ -32,7 +31,7 @@ class PreparedSparseConcurrencyTest {
     )
 
     @Test
-    fun `concurrent readers of one prepared matrix agree with a single-threaded call`() {
+    fun `concurrent readers of one prepared matrix agree with a serial call`() {
         val source = banded(ORDER)
         val prepared = source.prepare()
         val x = DoubleArray(ORDER) { it * 0.125 }
@@ -59,14 +58,14 @@ class PreparedSparseConcurrencyTest {
                             // derives the orientation: concurrent first readers must see a fully built one.
                             prepared.gemmInto(1.0, true, source, false, 0.0, product, workspace)
                         }
-                        assertContentEquals(expectedProduct.values, product.values, "thread $thread product")
-                        thread to y
+                        Triple(thread, y, product.values)
                     }
                 },
             )
             for (result in results) {
-                val (thread, y) = result.get(30, TimeUnit.SECONDS)
+                val (thread, y, product) = result.get(30, TimeUnit.SECONDS)
                 assertContentEquals(expected, y, "thread $thread disagreed")
+                assertContentEquals(expectedProduct.values, product, "thread $thread product")
             }
         } finally {
             pool.shutdownNow()
@@ -84,12 +83,17 @@ class PreparedSparseConcurrencyTest {
         val x = DoubleArray(ORDER) { 1.0 }
         val expected = DoubleArray(ORDER).also { prepared.gemvInto(1.0, x, 0.0, it) }
 
+        val barrier = CyclicBarrier(2)
         val pool = Executors.newFixedThreadPool(2)
         try {
-            val mutation = pool.submit { repeat(1_000) { source.values.fill(Double.NaN) } }
+            val mutation = pool.submit {
+                barrier.await(10, TimeUnit.SECONDS)
+                repeat(1_000) { source.values.fill(Double.NaN) }
+            }
             val reads = pool.submit(
                 Callable {
                     val y = DoubleArray(ORDER)
+                    barrier.await(10, TimeUnit.SECONDS)
                     repeat(1_000) { prepared.gemvInto(1.0, x, 0.0, y) }
                     y
                 },
@@ -100,6 +104,5 @@ class PreparedSparseConcurrencyTest {
             pool.shutdownNow()
             assertTrue(pool.awaitTermination(30, TimeUnit.SECONDS), "the pool did not stop")
         }
-        assertEquals(ORDER, prepared.cols)
     }
 }

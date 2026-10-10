@@ -14,7 +14,7 @@ import kotlin.test.assertTrue
 
 // The shapes reach what block scheduling has that a small product does not: more than one cache block on
 // each axis, a depth cut into several blocks, and extents that fill no tile exactly.
-class BlockedProductTest {
+class ProductSchedulingTest {
     private val engines: List<KoblasEngine> get() = listOfNotNull(BuiltinEngines.scalar, BuiltinEngines.simd)
 
     /**
@@ -79,15 +79,30 @@ class BlockedProductTest {
     }
 
     @Test
-    fun `a blocked product agrees with the reference across every transpose pair`() {
+    fun `a blocked product agrees with the reference for untransposed operands`() {
+        assertBlockedProductsAgreeWithReference(false, false)
+    }
+
+    @Test
+    fun `a blocked product agrees with the reference for a transposed left operand`() {
+        assertBlockedProductsAgreeWithReference(true, false)
+    }
+
+    @Test
+    fun `a blocked product agrees with the reference for a transposed right operand`() {
+        assertBlockedProductsAgreeWithReference(false, true)
+    }
+
+    @Test
+    fun `a blocked product agrees with the reference for transposed operands`() {
+        assertBlockedProductsAgreeWithReference(true, true)
+    }
+
+    private fun assertBlockedProductsAgreeWithReference(transposeA: Boolean, transposeB: Boolean) {
         val rng = Random(20261014)
         for (engine in engines) {
             for ((m, n, k) in blockedShapes(engine.productKernels)) {
-                for (transposeA in booleanArrayOf(false, true)) {
-                    for (transposeB in booleanArrayOf(false, true)) {
-                        checkProduct(engine, m, n, k, transposeA, transposeB, 0.875, -0.25, rng)
-                    }
-                }
+                checkProduct(engine, m, n, k, transposeA, transposeB, 0.875, -0.25, rng)
             }
         }
     }

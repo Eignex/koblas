@@ -60,7 +60,7 @@ class MatrixProductsTest {
     }
 
     @Test
-    fun `every pairing agrees with the storage-specific call through variables typed as Matrix`() {
+    fun `every pairing agrees with the storage specific call through variables typed as Matrix`() {
         val rng = Random(20260924)
         val denseLeft = randomMatrix(4, 3, rng)
         val denseRight = randomMatrix(3, 5, rng)
@@ -89,7 +89,7 @@ class MatrixProductsTest {
     }
 
     @Test
-    fun `every transpose pair reaches the same result as the storage-specific call`() {
+    fun `every transpose pair reaches the same result as the storage specific call`() {
         val rng = Random(20260925)
         for (transpose in booleanArrayOf(false, true)) {
             for (transposeOther in booleanArrayOf(false, true)) {
