@@ -8,6 +8,91 @@ import com.eignex.koblas.withColumn
 import kotlin.test.*
 
 class SparseMatrixTest {
+    @Test
+    fun `triplet construction agrees with the scalar coordinate reference`() {
+        for (rows in intArrayOf(1, 3, 8)) {
+            for (columns in intArrayOf(1, 3, 6)) {
+            for (count in intArrayOf(0, 1, 17, 64)) {
+                val indices = IntArray(count) { (it * 5 + 1) % rows }
+                val columnIndices = IntArray(count) { (it * 7 + 1) % columns }
+                val values = DoubleArray(count) { (it % 5 - 2).toDouble() }
+                val expected = coordinateReference(rows, columns, indices, columnIndices, values)
+
+                val actual = SparseMatrix.ofTriplets(rows, columns, indices, columnIndices, values)
+
+                assertTripletsAgreesWithReference(expected, actual)
+            }
+        }
+        }
+    }
+
+    @Test
+    fun `triplet construction preserves empty runs and stored zeros`() {
+        val indices = intArrayOf(5, 1, 5, 1, 3, 1)
+        val columns = intArrayOf(3, 1, 3, 3, 1, 1)
+        val values = doubleArrayOf(1.5, -0.0, -1.5, 4.0, 0.0, -0.0)
+        val expected = coordinateReference(8, 6, indices, columns, values)
+
+        val actual = SparseMatrix.ofTriplets(8, 6, indices, columns, values)
+
+        assertTripletsAgreesWithReference(expected, actual)
+    }
+
+    @Test
+    fun `triplet results own arrays independently of inputs and other calls`() {
+        for (copies in intArrayOf(1, 2)) {
+            val indices = IntArray(4 * copies) { (it / copies * 3 + 1) % 8 }
+            val columns = IntArray(indices.size) { it / copies % 3 }
+            val values = DoubleArray(indices.size) { it + 0.25 }
+            val expected = coordinateReference(8, 3, indices, columns, values)
+            val first = SparseMatrix.ofTriplets(8, 3, indices, columns, values)
+            val second = SparseMatrix.ofTriplets(8, 3, indices, columns, values)
+
+            indices.fill(-1)
+            columns.fill(-1)
+            values.fill(-99.0)
+
+            assertTripletsAgreesWithReference(expected, first)
+            first.colPointers.fill(-1)
+            first.rowIndices.fill(-1)
+            first.values.fill(-99.0)
+            assertTripletsAgreesWithReference(expected, second)
+        }
+    }
+
+    private fun coordinateReference(
+        rows: Int,
+        columns: Int,
+        indices: IntArray,
+        columnIndices: IntArray,
+        values: DoubleArray,
+    ): SparseMatrix {
+        val stored = BooleanArray(rows * columns)
+        val dense = DoubleArray(stored.size)
+        for (k in indices.indices) {
+            val position = indices[k] + columnIndices[k] * rows
+            dense[position] = if (stored[position]) dense[position] + values[k] else values[k]
+            stored[position] = true
+        }
+        val pointers = IntArray(columns + 1)
+        val resultRows = IntArray(stored.count { it })
+        val resultValues = DoubleArray(resultRows.size)
+        var count = 0
+        for (j in 0 until columns) {
+            for (i in 0 until rows) {
+                if (stored[i + j * rows]) {
+                resultRows[count] = i
+                resultValues[count++] = dense[i + j * rows]
+            }
+            }
+            pointers[j + 1] = count
+        }
+        return SparseMatrix.wrap(rows, columns, pointers, resultRows, resultValues)
+    }
+
+    private fun assertTripletsAgreesWithReference(expected: SparseMatrix, actual: SparseMatrix) {
+        assertEquals(expected, actual, "triplet construction")
+    }
 
     @Test
     fun `ofColumns sums duplicate entries and sorts rows`() {

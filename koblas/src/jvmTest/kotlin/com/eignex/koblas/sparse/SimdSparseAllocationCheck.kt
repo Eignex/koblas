@@ -96,8 +96,50 @@ internal object SimdSparseAllocationCheck {
         assertAllocationFree("dispatched indexed norm") {
             SimdIndexedSparseKernels.nrm2(indices, 0, ENTRY_COUNT, dense)
         }
+        checkPublicSlices(engine)
         checkPanels(engine)
         checkOperations(engine)
+    }
+
+    /** The validated raw overloads consumers use, with independent offsets into padded arrays. */
+    private fun checkPublicSlices(engine: KoblasEngine) {
+        val indexOffset = 3
+        val valueOffset = 5
+        val indices = IntArray(ENTRY_COUNT + 7) {
+            if (it in indexOffset until indexOffset + ENTRY_COUNT) {
+                1 + (it - indexOffset) * 4
+            } else {
+                -1
+            }
+        }
+        val values = DoubleArray(ENTRY_COUNT + 9) {
+            if (it in valueOffset until valueOffset + ENTRY_COUNT) {
+                0.5 + (it - valueOffset) * 0.125
+            } else {
+                Double.NaN
+            }
+        }
+        val dense = DoubleArray(DIMENSION) { 1.0 + (it % 17) * 0.03125 }
+        val large = DoubleArray(DIMENSION) { 1e200 }
+        val kernels = engine.sparseKernels
+
+        assertAllocationFree("public indexed dot with independent offsets") {
+            kernels.dot(indices, indexOffset, values, valueOffset, ENTRY_COUNT, dense)
+        }
+        assertAllocationFree("public indexed axpy with independent offsets") {
+            kernels.axpy(dense, 1e-12, indices, indexOffset, values, valueOffset, ENTRY_COUNT)
+            dense[1]
+        }
+        assertAllocationFree("public indexed scatter with independent offsets") {
+            kernels.scatter(indices, indexOffset, values, valueOffset, ENTRY_COUNT, dense)
+            dense[1]
+        }
+        assertAllocationFree("public indexed norm with an offset") {
+            kernels.nrm2(indices, indexOffset, ENTRY_COUNT, dense)
+        }
+        assertAllocationFree("public indexed norm with rescaling") {
+            kernels.nrm2(indices, indexOffset, ENTRY_COUNT, large)
+        }
     }
 
     /** The two indexed panel leaves, over an adjacent group of right-hand sides and over a strided one. */

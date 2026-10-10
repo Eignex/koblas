@@ -12,6 +12,31 @@ import kotlin.test.assertTrue
  */
 class AllocationFreeTest {
     @Test
+    fun `triplet construction reuses cursor and full result arrays`() {
+        val rows = 128
+        val columns = 4
+        val unique = 32
+        for (copies in intArrayOf(1, 2)) {
+            val count = copies * unique
+            val indices = IntArray(count) { (it / copies % 8) * 4 }
+            val columnIndices = IntArray(count) { it / copies / 8 }
+            val values = DoubleArray(count) { 1.0 + it * 0.125 }
+            val rowScratch = ARRAY_HEADER_BYTES + (rows + 1) * Int.SIZE_BYTES + 4
+            val pointers = ARRAY_HEADER_BYTES + (columns + 1) * Int.SIZE_BYTES + 4
+            val runs = 2 * (2 * ARRAY_HEADER_BYTES + count * (Int.SIZE_BYTES + Double.SIZE_BYTES))
+            val compact = if (copies == 1) 0 else 2 * ARRAY_HEADER_BYTES + unique * (Int.SIZE_BYTES + Double.SIZE_BYTES)
+            // Two run descriptors, the result object, alignment and the probe's fixed allowance.
+            val budget = rowScratch + pointers + runs + compact + 2 * FLOOR_BYTES
+
+            val bytes = bytesPerIteration(1_000, budget) {
+                SparseMatrix.ofTriplets(rows, columns, indices, columnIndices, values)
+            }
+
+            assertTrue(bytes <= budget, "triplet copies=$copies allocated $bytes B per call against $budget")
+        }
+    }
+
+    @Test
     fun `overlapping contiguous copy allocates nothing`() {
         val n = 512
         val backing = DoubleArray(n + 1) { it * 0.01 }
