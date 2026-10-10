@@ -6,9 +6,8 @@ package com.eignex.koblas.dense
  * The portable panel arithmetic every platform has, and the floor a vector backend falls back to.
  *
  * Written as ordinary Kotlin loops with two private specializations, four columns and two, behind a
- * one-column remainder. Four is where the old `dot4` and `axpy4` bodies land: a group that wide reads the
- * shared vector once for four columns instead of once each. The widths are this file's own and appear in no
- * algorithm above it.
+ * one-column remainder. A four-column group reads the shared vector once for four columns instead of
+ * once each. The widths are this file's own and appear in no algorithm above it.
  *
  * The two indexed panels group by two rather than four. Their columns are the stored entries of one sparse
  * column, which is a handful for an ordinary sparsity, so a wider group would spend most calls in its

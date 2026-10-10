@@ -201,8 +201,7 @@ public class SparseVector internal constructor(
             requireShape(indices.size == values.size) {
                 "indices/values must align: ${indices.size} vs ${values.size}"
             }
-            // Index in the high half and position in the low, so one primitive sort orders by index and
-            // keeps equal indices in the order given, which is what summing duplicates in one pass needs.
+            // Packing the index above the original position preserves input order when summing duplicates.
             val order = LongArray(indices.size) { (indices[it].toLong() shl Int.SIZE_BITS) or it.toLong() }
             order.sort()
             val idx = IntArray(indices.size)

@@ -61,15 +61,10 @@ private typealias GetThreadsFn = CFunction<() -> Int>
 private typealias DlAddrFn = CFunction<(COpaquePointer?, CPointer<ByteVar>?) -> Int>
 
 /**
- * A vendor BLAS reached through `dlopen` and typed function pointers.
+ * Vendor BLAS reached through `dlopen` and typed function pointers.
  *
- * The library handle is opened once and held for the process, and every symbol is resolved out of that handle
- * rather than out of the global namespace. The distinction matters on a host with more than one BLAS loaded:
- * a global lookup for `cblas_dgemm` returns whichever the loader bound first, so a run labelled with one
- * vendor could be executing another.
- *
- * Operands are pinned rather than copied, so a call reaches the caller's own storage directly and the route of
- * a directly addressed call names no adapter at all.
+ * Resolve symbols once from the library's own handle so another loaded BLAS cannot supply them.
+ * Pinned operands reach caller storage directly, requiring no transfer adapter in the route.
  */
 internal class NativeVendorBlas private constructor(
     override val vendor: Vendor,
@@ -77,11 +72,8 @@ internal class NativeVendorBlas private constructor(
     private val handle: COpaquePointer,
 ) : Blas {
     /**
-     * The file the key symbol actually came from, asked of the dynamic loader rather than assumed.
-     *
-     * The candidate that opened is not the same thing: a bare soname matches a library already loaded into the
-     * process by some earlier absolute-path open, so two runs can record different strings for one file
-     * depending only on what ran first.
+     * File reported by the dynamic loader for the key symbol. A bare soname can resolve to an
+     * already-loaded absolute path, so the candidate name alone does not identify the executing file.
      */
     override val libraryPath: String by lazy { symbolOwner() ?: candidate }
 
@@ -99,21 +91,12 @@ internal class NativeVendorBlas private constructor(
     override val version: String by lazy { readVersion() }
 
     /**
-     * Pins the library to one compute thread per call, before any arithmetic reaches it.
+     * Configure one compute thread before any arithmetic.
      *
-     * Every one of these libraries is multithreaded by default, so this is what makes a call single-threaded
-     * rather than a preference expressed about it. It runs once, at load, and there is no way to reach it
-     * afterwards: the thread count is an invariant of the binding and not a setting it carries.
-     *
-     * oneMKL takes two steps. Its dispatcher resolves a threading layer on first use and defaults to the
-     * Intel-threaded one, which needs an OpenMP runtime a plain oneMKL install does not ship; on a host without
-     * `libiomp5` the first call dies with an undefined `omp_get_num_procs` instead of computing. Naming the
-     * sequential layer both makes the library usable and removes its workers. The thread count and dynamic
-     * expansion are then fixed as well, so a build that resolves some other layer cannot grow workers back.
-     *
-     * A library that ignores all of this is caught by [confirmSingleThread] rather than trusted. That read-back
-     * happens after the ABI probe, because the probe is itself arithmetic and must not be what resolves the
-     * layer.
+     * oneMKL must select its sequential layer before first use to avoid resolving a threaded layer
+     * that requires an unavailable OpenMP runtime. Thread count and dynamic expansion are fixed too.
+     * [confirmSingleThread] checks the result after the ABI probe; configuration precedes the probe
+     * because the probe itself can resolve the threading layer.
      */
     private fun enforceSingleThread() {
         // Accelerate has no thread-count entry point; see ACCELERATE_THREAD_LIMIT. Overwrite is on so a value
@@ -132,12 +115,8 @@ internal class NativeVendorBlas private constructor(
         private set
 
     /**
-     * Holds the library to one compute thread and records whether that could be read back.
-     *
-     * Returns false for a library that still reports more than one thread, which is how such a library is kept
-     * out of arithmetic entirely rather than becoming a silently multithreaded arm. One that exposes no way to
-     * ask is accepted on the strength of the request, which is all there is to go on; [Vendor.Accelerate] is
-     * the case that matters, since it carries no thread-count entry point of its own.
+     * Check the configured thread count, rejecting libraries that still report multiple threads.
+     * [Vendor.Accelerate] has no read-back entry point and is accepted using its environment control.
      */
     private fun confirmSingleThread(): Boolean {
         val control = vendor.threadControl
@@ -208,11 +187,8 @@ internal class NativeVendorBlas private constructor(
     }
 
     /**
-     * Every entry point resolved once, at construction.
-     *
-     * `dlsym` is a lock and a hash lookup through the library's dependency chain, and doing it per call would
-     * put that on the path of every Level 1 operation, where it is a large fraction of the work being timed.
-     * The handle is held for the process, so what it resolves to cannot change underneath this.
+     * Resolve entry points once: per-call `dlsym` locking and lookup would dominate short Level 1
+     * calls. The library handle remains alive for the process.
      */
     private val entryPoints: Array<COpaquePointer?> =
         Array(BlasOperation.entries.size) { dlsym(handle, BlasOperation.entries[it].entryPoint) }
@@ -249,16 +225,10 @@ internal class NativeVendorBlas private constructor(
     override fun asum(x: DenseVector): Double = rawAsum(x.values, x.offset, x.stride, x.size)
 
     /*
-     * The raw Level 1 surface, which is what the engine's kernels call, and which the [DenseVector] methods
-     * above delegate to so that one implementation answers both.
+     * Raw Level 1 runs avoid allocating operand wrappers for short calls. [DenseVector] methods
+     * above delegate to the same implementation.
      *
-     * It takes a run apart rather than wrapping it because at these widths an object costs more than the
-     * arithmetic: `cblas_ddot` over eight entries takes about eight nanoseconds, and each allocation on this
-     * runtime is a few. That is also why the no-work question is a comparison against zero here rather than a
-     * list handed to a shared helper.
-     *
-     * Each pin is taken by an inlined `usePinned`, which releases on the way out of its block including
-     * through an exception, so an operand is never left pinned by a call that threw.
+     * Inlined `usePinned` releases each pin even when a call throws.
      */
     internal fun rawDot(
         a: DoubleArray,
@@ -776,18 +746,15 @@ internal class NativeVendorBlas private constructor(
         private const val DL_INFO_BYTES = 32
 
         /**
-         * Opens the first candidate of [vendor] that loads and exports every required CBLAS symbol, or null.
-         *
-         * A library that opens but is missing part of the surface is rejected rather than half-bound, so a
-         * partial install fails here instead of at the first call that needs the missing piece.
+         * Open the first [vendor] candidate with every required CBLAS symbol, or null. Reject partial
+         * installs before arithmetic; the ABI and single-thread checks must also succeed.
          */
         fun open(vendor: Vendor): NativeVendorBlas? {
             val installed = vendor.resolvedCandidates(getenv("HOME")?.toKString())
             for (candidate in installed) {
                 val handle = dlopen(candidate, RTLD_NOW) ?: continue
                 if (missingRequiredSymbols { dlsym(handle, it) != null }.isNotEmpty()) {
-                    // Nothing has been called into it yet, so it can go back the way it came rather than
-                    // staying mapped and competing for the global name of a symbol it half-exports.
+                    // No calls have used this handle; unload the partial library to avoid symbol conflicts.
                     dlclose(handle)
                     continue
                 }

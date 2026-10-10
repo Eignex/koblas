@@ -11,7 +11,7 @@ public class JvmCaseWork internal constructor(private val delegate: CaseWork) {
     public fun run(): Double = delegate.run()
     public fun close(): Unit = delegate.close()
 
-    /** How the row this work belongs to is published, which a test of the bridge checks. */
+    /** The comparison category published for this work. */
     internal val comparisonKind: String get() = delegate.comparisonKind
 
     /** The route this work's call resolved, which a timed row must carry. */
@@ -24,14 +24,12 @@ public object JvmBenchmarkBridge {
         val case = Cases.parse(readTextFile(casesPath)).single { it.id == caseId }
         if (vendorForRuntime(mode, JVM_VENDOR_PREFIX) != null) {
             val arm = vendorArm(case, openVendorForMode(mode).first)
-            // The fork already accepted this case, so a rejection here means the arm changed between the
-            // scan and the measurement rather than that the case was never admissible.
+            // A rejection after admission means the route changed between the scan and the fork.
             return JvmCaseWork(arm.work ?: error("vendor arm declined $caseId in the measured fork: ${arm.reason}"))
         }
         val engine = resolveEngine(mode).first
         val sparse = sparseArm(case, engine)
-        // Same contract as the vendor arm above: the scan admitted this case, so a decline now is a change of
-        // route between the scan and the measurement, not an inadmissible case.
+        // Admitted cases must remain supported in the measured fork.
         if (sparse != null) {
             return JvmCaseWork(sparse.work ?: error("sparse arm declined $caseId in the measured fork: ${sparse.reason}"))
         }
@@ -58,8 +56,7 @@ public fun main(args: Array<String>) {
     val kernels = linkedMapOf<String, String>()
     val rowsByCase = linkedMapOf<String, MutableList<Measurement>>()
     for (case in selected) {
-        // Routes are resolved here, before any timing, so describing a call costs nothing inside the
-        // measured loop and an inadmissible arm is declined rather than timed.
+        // Resolve routes outside timing and decline unsupported arms before starting JMH.
         val arm = vendor?.let { vendorArm(case, it.first) }
             ?: engine?.let { sparseArm(case, it) ?: denseArm(case, it) }
         val work = arm?.work

@@ -8,15 +8,11 @@ import java.lang.foreign.ValueLayout.JAVA_DOUBLE
 import kotlin.math.abs
 
 /**
- * Operands crossing into native memory for the duration of one call.
+ * Operands copied into native memory for one call.
  *
- * Every JVM vendor call copies. That is a consequence of binding without [java.lang.foreign.Linker.Option
- * .critical], which is the right trade for an opaque vendor routine but means a heap segment is not accepted,
- * so there is no in-place path to fall back to. The copy is not hidden: it is what the route's transfer
- * adapter names, and a measurement of the public call includes it.
- *
- * The arena is confined to the calling thread and closed on the way out, including on an exception, so no
- * segment outlives the call that made it and concurrent calls share nothing.
+ * Non-critical downcalls cannot accept heap segments. The route names the transfer adapter so
+ * measurements include this copy. A confined arena closes even on exceptions; concurrent calls
+ * share no segments.
  */
 internal class NativeVector(
     /** The native copy handed to BLAS. */
@@ -28,12 +24,8 @@ internal class NativeVector(
     private val span: Int,
 ) {
     /**
-     * Copies the operand back over the storage it came from, entry by entry for a strided vector.
-     *
-     * The span between a strided vector's entries is not its to write. Copying it back would be harmless for
-     * a vector that owns its storage alone, and wrong for two operands of one call that interleave in one
-     * array, as two rows of a column-major matrix do: each would put the other's pre-call snapshot back over
-     * the result the call just produced. A unit step has no gaps, so it keeps the bulk copy.
+     * Write back only the vector's entries. Copying gaps in a strided span could overwrite another
+     * interleaved operand's result with its pre-call snapshot. Unit strides allow a bulk copy.
      */
     fun writeBack() {
         if (span == 0) return
@@ -83,12 +75,9 @@ internal class NativeMatrix(
 }
 
 /**
- * Copies [matrix] into native memory.
- *
- * A dense matrix is its whole buffer, column-major, so the leading dimension is its row count and there is no
- * offset to honour or padding to preserve. For a matrix a call reads under an implicit unit diagonal the copy
- * still includes the diagonal storage: the vendor is told the diagonal is implicit and does not load it, and
- * nothing is written back for an input-only operand, so that storage stays as the caller left it.
+ * Copy the contiguous column-major buffer with the row count as leading dimension. Implicit
+ * unit diagonals remain in the copy, but the vendor's diagonal flag prevents reading them;
+ * input-only operands are not written back.
  */
 internal fun Arena.stage(matrix: DenseMatrix): NativeMatrix {
     val span = matrix.values.size
@@ -98,11 +87,8 @@ internal fun Arena.stage(matrix: DenseMatrix): NativeMatrix {
 }
 
 /**
- * The lowest storage index the vector touches, which is the pointer BLAS is handed.
- *
- * For a positive stride that is the vector's own offset. For a negative one it is the far end, because BLAS
- * walks a negatively stepped vector from the lowest address upward and treats the last element it reaches as
- * the logical first.
+ * Lowest storage index passed to BLAS. Negative increments retain their sign but start at the
+ * low address, allowing BLAS to reconstruct the logical first entry at the high end.
  */
 internal fun baseIndex(vector: DenseVector): Int =
     if (vector.stride >= 0) vector.offset else vector.offset + (vector.size - 1) * vector.stride

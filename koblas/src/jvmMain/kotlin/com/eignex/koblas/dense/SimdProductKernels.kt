@@ -6,30 +6,18 @@ import com.eignex.koblas.internal.numeric.hardwareFusedMultiplyAdd
 import jdk.incubator.vector.DoubleVector
 
 /**
- * The JVM Vector API product tile, with the portable tile underneath it.
+ * JVM Vector API product tile with portable fallbacks.
  *
- * Two lane blocks of destination rows by four destination columns, held in eight vector accumulators for the
- * whole depth of a block. Two lane blocks of rows is what makes each broadcast coefficient serve two vector
- * multiply-adds, and four columns is what makes each loaded left vector serve four. How many live vectors a
- * machine can hold before it starts spilling is its own architecture's answer and not something a lane count
- * settles, which is why the shape is a measurement rather than a calculation.
+ * Two lane blocks of rows and four columns reuse each broadcast coefficient twice and each left
+ * vector four times. The shape depends on the register budget, independently of the lane count;
+ * packers obtain it through [tileRows] and [tileColumns].
  *
- * The local evidence holds that measurement: six rectangles, each written out with its own named
- * accumulators and each allocation-free, over the same logical product at several shapes on one machine.
- * This one led at every one of them. That is one machine's answer, and a machine with a different register
- * file or cache may want another, which is why the geometry is read from [tileRows] and [tileColumns] by
- * everything that packs for it rather than written into a caller.
+ * Packed column groups have positive-zero padding, so partial columns use the full tile body with
+ * fewer stores. Partial rows use the scalar edge because masked stores allocate on this
+ * implementation. [implementationsFor] reports both bodies when needed.
  *
- * A destination whose columns run out part way through a tile is the same body with fewer columns stored,
- * since the packed groups are full and their padding is positive zero. A destination whose *rows* run out
- * is not: that would need a masked store, and this implementation's was measured to cost an allocation per
- * stored vector. Those rows, at most [tileRows] minus one of them, are scalar, and [implementationsFor]
- * names that rather than letting the vector body's name stand for it.
- *
- * Resolving the species is what initializing this costs, so a runtime without the module must not reach it:
- * [com.eignex.koblas.BuiltinEngines] offers no engine holding this backend there. Where the module is
- * present but the object is asked for a product anyway, the portable tile is what runs, and
- * [implementationsFor] says so.
+ * Species initialization requires the Vector API module. [com.eignex.koblas.BuiltinEngines] checks
+ * availability before constructing an engine with this backend.
  */
 internal object SimdProductKernels : DenseProductKernels {
     private val SPECIES = DoubleVector.SPECIES_PREFERRED
@@ -87,9 +75,7 @@ internal object SimdProductKernels : DenseProductKernels {
             return
         }
         if (rows <= 0 || columns <= 0) return
-        // Spent once for the whole window, which leaves the tiles below with one writeback and no branch on
-        // the multiplier. Three writeback forms meeting at one store is what makes a compiler stop keeping
-        // the accumulators in registers, and this tile holds eight of them.
+        // Apply beta once: branched tile writeback prevents keeping accumulators in registers.
         scaleProductWindow(beta, c, cOffset, ldc, rows, columns)
         if (depth <= 0) return
         var column = 0
@@ -116,19 +102,11 @@ internal object SimdProductKernels : DenseProductKernels {
     }
 
     /**
-     * One whole tile, in as many accumulators as this runtime is measured to hold.
+     * Uses eight accumulators with hardware FMA, or two passes of four without it.
      *
-     * Where the machine has a fused multiply-add, a step of the depth is one instruction per accumulator and
-     * eight of them are held at once. Where it does not, [multiplyAdd] is a multiply and then an add, and an
-     * allocation probe over this body finds bytes per call on the whole-tile path, the same amount at every
-     * depth; that configuration runs the four-accumulator body below instead, which the same probe finds
-     * allocation-free.
-     *
-     * The split is not a change of geometry: [tileRows] and [tileColumns] are what they were, the packed
-     * layout is unchanged, and each destination entry accumulates its own products in depth order either
-     * way, so the split and unsplit forms of the unfused body agree bit for bit. The fused body is a
-     * different arithmetic and is not held to that. Which body a configuration wants is a measurement and
-     * not a preference, and the local evidence holds both at both widths.
+     * The unfused eight-accumulator body allocates on the measured runtime; [columnPair] avoids that
+     * allocation at the cost of reading the left panel twice. Both use the same packed geometry and
+     * accumulate each entry in depth order. Fused arithmetic can round differently.
      */
     private fun tile(
         depth: Int,
@@ -156,12 +134,8 @@ internal object SimdProductKernels : DenseProductKernels {
     }
 
     /**
-     * Two columns of a tile in four accumulators, for the configuration the whole tile allocates in.
-     *
-     * The rows are both lane blocks, so each loaded left vector still serves both of this pair's columns,
-     * and the padding of a group the destination does not fill is accumulated and then not stored, exactly
-     * as the whole tile does. The left panel is read once per pair rather than once per tile, which is what
-     * the smaller set of accumulators costs.
+     * Four accumulators avoid allocation in the unfused configuration. Each loaded left vector serves
+     * both columns; partial columns accumulate padding without storing it.
      */
     private fun columnPair(
         depth: Int,
@@ -249,14 +223,10 @@ internal object SimdProductKernels : DenseProductKernels {
     }
 
     /**
-     * The last row block of a destination whose rows do not fill a whole tile, in scalar arithmetic.
+     * Scalar row edge, bounded by [tileRows] minus one rows.
      *
-     * The packed panel is padded and could be read by the vector body; what cannot be is the destination,
-     * whose column ends part way through a lane block, and whose next column begins immediately after. The
-     * Vector API offers a masked store for exactly this, and on this implementation it costs an allocation
-     * per stored vector, which an allocation probe over a product with an edge shows and one without hides.
-     * So the edge is scalar, it is at most [tileRows] minus one rows of the whole product, and
-     * [implementationsFor] names it rather than letting the vector body's name stand for it.
+     * Packed inputs are padded, but destination columns end inside a lane block. Masked stores allocate
+     * per vector on this implementation, so [implementationsFor] reports a scalar edge instead.
      */
     private fun edgeTile(
         depth: Int,
@@ -297,15 +267,10 @@ internal object SimdProductKernels : DenseProductKernels {
     }
 
     /**
-     * `c += alpha · accumulated` over a whole lane block, one straight-line writeback and no branch.
+     * `c += alpha · accumulated` over a whole lane block.
      *
-     * Inline, and measured to need it. A helper that takes a [DoubleVector] is as much of a risk as one that
-     * returns one: an argument has to exist as a value at the call, so where the compiler declines to inline
-     * the call the accumulators this tile holds in registers become heap objects. So does a writeback with a
-     * branch in it, because the vectors the branches produce meet at the store; that is why the destination
-     * multiplier is spent before the tiles rather than inside them. Both were measured here rather than
-     * reasoned about: an uninstrumented probe over a whole product is what caught each of them, which is why
-     * one runs over this tile, over a block of them and over the products around it.
+     * Inline to keep [DoubleVector] arguments in registers rather than materializing heap objects.
+     * A branch at writeback also prevents allocation elimination, so beta is applied before the tiles.
      */
     @Suppress("NOTHING_TO_INLINE")
     private inline fun store(c: DoubleArray, at: Int, alpha: Double, accumulated: DoubleVector) {

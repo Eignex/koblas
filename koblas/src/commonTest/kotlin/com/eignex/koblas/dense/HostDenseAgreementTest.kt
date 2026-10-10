@@ -17,13 +17,10 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /**
- * What a composed default computes, against the textbook definition rather than against itself. These need a
- * library and say so where none is installed.
- *
- * What they reach that a recording binding cannot is whether the operands, leading dimensions, increments
- * and triangle flags [HostDenseBlas] hands across describe the call it was given. The tolerance is loose,
- * since the arithmetic is the library's; a mistranslated flag misses by far more than an accumulation order.
- * `minimumWork = 0` keeps the fixtures readable, and the size rule is settled in [HostDenseBlasTest].
+ * Checks composed host calls against the independent reference, reporting unavailable libraries.
+ * Real bindings expose operand, stride and flag translation below the recording seam. A loose
+ * tolerance admits the library's accumulation order while catching incorrect translation.
+ * `minimumWork = 0` keeps fixtures small; [HostDenseBlasTest] covers the size policy.
  */
 class HostDenseAgreementTest {
     private fun composed(host: Blas): HostDenseBlas =

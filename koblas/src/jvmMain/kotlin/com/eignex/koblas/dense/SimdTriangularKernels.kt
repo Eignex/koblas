@@ -6,29 +6,18 @@ import com.eignex.koblas.internal.numeric.hardwareFusedMultiplyAdd
 import jdk.incubator.vector.DoubleVector
 
 /**
- * The JVM Vector API diagonal substitution, with the portable one underneath it.
+ * JVM Vector API diagonal substitution with portable fallbacks.
  *
- * What is vectorised here is the one thing about a triangular routine that is parallel: the right-hand
- * sides. The substitution down a block's order is a dependency chain and stays one, step after step; across
- * the sides nothing depends on anything, so a lane block of them is one step of that chain done at once.
- * Every side in a lane block divides by the same diagonal and subtracts the same coefficient, so the
- * coefficient is broadcast and the sides are loaded, which is the opposite of what a vectorised
- * matrix-vector product does with the same triangle.
+ * Lanes cover independent right-hand sides; substitution steps remain a dependency chain.
+ * Coefficients and diagonals are broadcast across the sides.
  *
- * The division is a division. Substituting a reciprocal multiply would be the usual way to get a vector
- * divide out of a loop and it is not done: a solve is asked about singular and near-singular triangles more
- * than about any other kind, and a reciprocal changes the answer exactly there. A subnormal diagonal has no
- * finite reciprocal, so the multiply gives an infinity where the division gives a finite number, and the
- * result of dividing by a zero or an infinity is what the caller asked to see.
+ * Use division directly: a reciprocal of a subnormal diagonal can overflow even when the quotient
+ * is finite. Zero and infinite diagonals also retain division semantics.
  *
- * Two things fall through to [PortableTriangularKernels], and [implementationsFor] names them rather than
- * letting this object's name stand for them. Right-hand sides the caller left strided cannot be loaded as a
- * lane block at all, which is why [gathersRightHandSides] asks for a copy where one is worth making and why
- * a call that declines it runs the portable body. And the sides a last lane block does not fill are portable
- * as well, at most one lane block short of the whole.
- *
- * Resolving the species is what initializing this costs, so a runtime without the module must not reach it:
- * [com.eignex.koblas.BuiltinEngines] offers no engine holding this backend there.
+ * Strided sides and incomplete lane blocks use [PortableTriangularKernels];
+ * [implementationsFor] reports those bodies. [gathersRightHandSides] requests a copy when it can
+ * amortize vector loads. Species initialization requires the Vector API module, checked by
+ * [com.eignex.koblas.BuiltinEngines] before using this backend.
  */
 internal object SimdTriangularKernels : DenseTriangularKernels {
     private val SPECIES = DoubleVector.SPECIES_PREFERRED
@@ -40,31 +29,22 @@ internal object SimdTriangularKernels : DenseTriangularKernels {
     override val name: String get() = NAME
 
     /**
-     * Lane blocks of right-hand sides one substitution walks before moving to the next.
-     *
-     * The block of sides a substitution is working on is read once per step for every step before it, so
-     * the whole of it wants to stay resident: a diagonal block of sixty-four steps by this many sides is a
-     * few kilobytes, which is the size at which that means something. It is a grouping and not a lane
-     * count, and the two are different numbers that agree only by coincidence.
+     * Group right-hand sides so the block repeatedly read during substitution stays resident.
+     * This cache grouping is independent of the lane count.
      */
     private const val GROUP_BLOCKS = 4
 
     override fun rightHandSideGroup(order: Int, sides: Int): Int {
         if (!simdAvailable) return PortableTriangularKernels.rightHandSideGroup(order, sides)
         val recommended = GROUP_BLOCKS * LANE
-        // Never more than the call has, which is this contract's own bound rather than something a caller
-        // is left to impose: a recommendation wider than the work is not a recommendation about the work.
         if (sides in 1 until recommended) return sides
         return if (sides < 1) 1 else recommended
     }
 
     /**
-     * Strided right-hand sides are worth gathering once there are enough of them to fill a lane block.
-     *
-     * The copy is two passes over one diagonal block's worth of the caller's data and it buys every step of
-     * that block a vector load instead of a strided one, so it is paid once and read back `order` times.
-     * Below one lane block there is no vector body to reach and the copy would buy nothing; at one step
-     * there is nothing to read back and the substitution is a division the caller could have done in place.
+     * Gather strided sides when they fill a lane block and the diagonal block has multiple steps.
+     * The copy is paid once and reused through the block; fewer sides reach no vector body, and a
+     * single step offers no reuse.
      */
     override fun gathersRightHandSides(rhsStride: Int, order: Int, sides: Int): Boolean =
         simdAvailable && rhsStride != 1 && sides >= LANE && order > 1
@@ -146,12 +126,8 @@ internal object SimdTriangularKernels : DenseTriangularKernels {
     }
 
     /**
-     * One lane block of right-hand sides substituted through the whole diagonal block.
-     *
-     * The lane block is the outer loop on purpose. Every step reads each step before it, so the piece of the
-     * block being worked on is read `size` times over; walking the whole order for one lane block at a time
-     * is what keeps that piece where it was last touched, and walking every lane block per step would sweep
-     * the whole width between one use and the next.
+     * Walk a whole diagonal block per lane block of sides to keep repeatedly read values resident.
+     * Interchanging the loops would sweep all sides between successive uses.
      */
     private fun solveBlock(
         t: DoubleArray,

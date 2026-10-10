@@ -41,8 +41,7 @@ internal object PortableTriangularKernels : DenseTriangularKernels {
         for (r in 0 until sides) {
             val column = xOffset + r * rhsStride
             for (step in 0 until size) {
-                // A lower block is finished from its first step and an upper one from its last, which is the
-                // order in which a step's coefficients are already known.
+                // Substitute in dependency order so each dependent value is already solved.
                 val p = if (lower) step else size - 1 - step
                 var value = x[column + p * orderStride]
                 val inner = if (lower) 0 until p else p + 1 until size
@@ -73,8 +72,7 @@ internal object PortableTriangularKernels : DenseTriangularKernels {
         for (r in 0 until sides) {
             val column = xOffset + r * rhsStride
             for (step in 0 until size) {
-                // Opposite to the solve: a step of a lower block is the sum of the steps at or before it, so
-                // the last is formed first and every step it reads still holds what it arrived with.
+                // Multiply in reverse dependency order to preserve input values until their last use.
                 val p = if (lower) size - 1 - step else step
                 val own = x[column + p * orderStride]
                 var value = if (unitDiag) own else triangleEntry(t, n, start, p, p, transposed) * own

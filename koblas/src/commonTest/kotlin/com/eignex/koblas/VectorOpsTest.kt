@@ -154,7 +154,7 @@ class VectorOpsTest {
         val v = DenseVector.of(doubleArrayOf(1.0, -2.0, 3.0))
         v.scale(0.5)
         assertEquals(dense(0.5, -1.0, 1.5), v)
-        v.scale(1.0) // no-op
+        v.scale(1.0)
         assertEquals(dense(0.5, -1.0, 1.5), v)
     }
 

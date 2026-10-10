@@ -622,11 +622,8 @@ private fun declined(): ArmChoice =
 /**
  * A row for the common `Matrix` product, which is a default-policy measurement rather than an exact arm.
  *
- * The generic entry point is the user-facing one, and it uses the engine this platform selected rather than
- * one a benchmark names: a caller holding a `Matrix` has no engine to pass. Timing it under an arm whose
- * engine is a different one would publish that engine.s label over another engine.s work, so the case runs
- * only on the arm whose engine is the selected one, which is `jvm-default`, and reports the route that
- * engine resolves.
+ * The generic entry point uses the platform-selected engine. Only the arm holding that engine may time
+ * it, so the row's label and resolved route describe the same work.
  */
 private fun genericArm(
     case: BenchCase,
@@ -651,16 +648,13 @@ private fun genericArm(
 }
 
 /**
- * The four accounting boundaries a prepared operand has.
+ * Separate timing boundaries for snapshot preparation and products.
  *
- * `oneshot` never builds a snapshot. `prepared` builds one outside the timed region and times reuse. `setup`
- * times building one alone, and reports snapshot preparation rather than the arithmetic kernel of a call that
- * did not happen. `firstuse` times building one and calling it once, which is where a derived orientation is
- * paid for, and reports the composition of the two. Comparing across them is comparing different work, so
- * they are separate cases rather than one row with an option.
+ * `oneshot` uses no snapshot; `prepared` times reuse after preparation; `setup` times preparation alone;
+ * `firstuse` times preparation plus one product, including any derived orientation. Each row attributes
+ * only the work inside its boundary.
  *
- * Both paths are checked against the reference before anything is timed, and the prepared check runs against
- * a snapshot that has not been used yet, so a cold transposed first use is covered rather than assumed.
+ * Reference checks run before timing. The prepared check uses a fresh snapshot to cover cold first use.
  */
 @Suppress("LongParameterList", "LongMethod") // the operation, its route, the five modes and both call shapes
 private fun preparedArm(

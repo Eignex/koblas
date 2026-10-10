@@ -15,19 +15,13 @@ internal object SimdOps {
     fun lanes(): Int = LANE
 
     /** Run length for four accumulators, scaled by the machine's lane count. */
-    // Four accumulators pay for the reduce that combines them from this many vectors on.
     private val UNROLL_MIN = 32 * LANE
 
     /**
-     * One accumulator chains every addition on the previous one's result, and an add's latency is several
-     * times its throughput, so a single chain leaves most of the unit idle on a long run. Four independent
-     * chains keep it fed, which is what the long-run arm below runs.
+     * Four independent accumulators hide addition latency on long runs. [multiplyAdd] uses FMA only
+     * when [hardwareFusedMultiplyAdd] enables the instruction.
      *
-     * The multiply-add fuses only where the machine has the instruction, which is what [multiplyAdd] decides
-     * and [hardwareFusedMultiplyAdd] explains.
-     *
-     * Two functions rather than one branching body so the short-length arm stays small enough for the JIT
-     * to inline into its callers, which is what the four accumulators and the extra loop would cost it.
+     * Keep short and unrolled bodies separate so the short body remains small enough for JIT inlining.
      */
     fun dot(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int): Double =
         if (len >= UNROLL_MIN) dotUnrolled(a, aOff, b, bOff, len) else dotOneChain(a, aOff, b, bOff, len)
@@ -81,7 +75,6 @@ internal object SimdOps {
             )
             i += 4 * LANE
         }
-        // What the unroll leaves over is under one unroll width, which is what the single chain is for.
         val head = s0.add(s1).add(s2.add(s3)).reduceLanes(VectorOperators.ADD)
         return head + dotOneChain(a, aOff + unrolled, b, bOff + unrolled, len - unrolled)
     }
@@ -194,9 +187,8 @@ internal object SimdOps {
         v.reinterpretAsLongs().lanewise(VectorOperators.AND, SIGN_MASK).reinterpretAsDoubles()
 
     /**
-     * Absolute values summed. Vectorized because the JIT will not do it: splitting a sum across lanes
-     * reorders the additions, which is a different result in floating point, so HotSpot leaves an FP-add
-     * reduction alone however hot it gets. Four accumulators for the reason [dot] gives.
+     * Explicit lanes permit the reordered floating-point reduction that HotSpot will not generate
+     * from a scalar loop. Four accumulators hide dependency latency as in [dot].
      */
     fun asum(v: DoubleArray, vOff: Int, len: Int): Double =
         if (len >= UNROLL_MIN) asumUnrolled(v, vOff, len) else asumOneChain(v, vOff, len)
@@ -232,7 +224,6 @@ internal object SimdOps {
             s3 = s3.add(signStripped(DoubleVector.fromArray(SPECIES, v, vOff + i + 3 * LANE)))
             i += 4 * LANE
         }
-        // What the unroll leaves over is under one unroll width, which is what the single chain is for.
         val head = s0.add(s1).add(s2.add(s3)).reduceLanes(VectorOperators.ADD)
         return head + asumOneChain(v, vOff + unrolled, len - unrolled)
     }

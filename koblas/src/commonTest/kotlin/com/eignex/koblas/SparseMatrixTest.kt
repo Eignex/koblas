@@ -97,7 +97,7 @@ class SparseMatrixTest {
     @Test
     fun `ofColumns sums duplicate entries and sorts rows`() {
         val a = SparseMatrix.ofColumns(3, 1, listOf(listOf(2 to 1.0, 0 to 2.0, 2 to 3.0)))
-        assertTrue(intArrayOf(0, 2).contentEquals(a.rowIndices)) // ascending
+        assertTrue(intArrayOf(0, 2).contentEquals(a.rowIndices))
         assertTrue(doubleArrayOf(2.0, 4.0).contentEquals(a.values)) // 1.0 + 3.0 summed at row 2
     }
 
@@ -263,10 +263,7 @@ class SparseMatrixTest {
         }
     }
 
-    /**
-     * The pattern scan is how a CSC from outside koblas is admitted at all, a native library's above all, so
-     * it stays on the path those arrive by even though producers that own the invariant now skip it.
-     */
+    /** External CSC input must validate its pattern; trusted producers may rely on their own invariants. */
     @Test
     fun `wrap still rejects a pattern it cannot vouch for`() {
         assertFailsWith<DimensionMismatch>("a short column pointer array") {

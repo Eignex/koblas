@@ -347,18 +347,14 @@ internal class PortableSparseBlas(
      */
     private fun noWork(operation: SparseMatrixOperation, call: SparseCall): Boolean {
         val a = call.matrix
-        // An empty destination or an empty inner extent is a call with nothing to compute, whatever its
-        // operand holds. A destination the operation does not have is not the same as one with no elements,
-        // which is why these arrive as null rather than as zero.
+        // Null means no destination extent was supplied; zero means the destination is empty.
         if (call.destinationElements == 0 || call.depth == 0) return true
         val emptyOperand = a.rows == 0 || a.cols == 0
         return when (operation) {
             // A transposed matvec skips empty columns before reaching the ordered dot kernel.
             SparseMatrixOperation.GemvTransposed -> call.alpha == 0.0 || emptyOperand || a.nnz == 0
 
-            // An operation returning a fresh structural result still discovers its pattern when the multiplier
-            // is zero. The contract says the operand's values are not read, not that its positions are not
-            // found, so this is work even though no coefficient is loaded.
+            // A fresh structural result discovers its pattern even at zero alpha, without reading coefficients.
             SparseMatrixOperation.GemmSparse, SparseMatrixOperation.AddScaled,
             SparseMatrixOperation.SyrkSparse, SparseMatrixOperation.Transpose,
             -> emptyOperand
@@ -441,11 +437,7 @@ internal class PortableSparseBlas(
         covered: String,
     ): SparseMatrixRoute {
         val a = call.matrix
-        // A call that reaches here has work to do, since a call without any returned before this. It writes
-        // a dense block, so it has right-hand sides, and how many decides the grouping, the staging and the
-        // bodies. Without that fact there is nothing to derive, and answering anyway would report a call
-        // with no panel for one that is about to run several. The destination extent does not stand in for
-        // it: a caller may give one and not the other, or neither.
+        // Panel routing requires the right-hand-side count; destination extent cannot substitute for it.
         if (call.rightHandSides <= 0) {
             return route(
                 operation,
@@ -463,9 +455,7 @@ internal class PortableSparseBlas(
         if (staged) for (copy in runs.stagedComponents) components.add("$SPARSE_STAGING/$copy")
         val staging = if (staged) runs.stagedReason else ""
         val tail = if (width > 0 && call.rightHandSides > width) call.rightHandSides % width else 0
-        // A group of one right-hand side is the panel's arithmetic written out by the traversal, because the
-        // seam costs more than it saves on a single value. A last group of one is bypassed exactly as a
-        // whole call of one is, so both widths are asked about separately.
+        // Single-right-hand-side groups bypass the panel seam to avoid its overhead, including a final tail.
         val single = width == 1
         val masked = runs.masked(call.transposeSparse)
         val leaves = if (single) {
@@ -494,9 +484,7 @@ internal class PortableSparseBlas(
                         ) +
                     ", and the last group of one is written out by the traversal instead"
 
-            // An empty list is not the same as a call with nothing to do: this one walks its columns and
-            // writes its pivots, and what it never reaches is a panel. Naming a body here, vector or
-            // otherwise, would report arithmetic that no selected run exists to perform.
+            // No selected run reaches a panel, but the traversal still walks columns and writes pivots.
             leaves.isEmpty() ->
                 RouteKind.Direct to
                     "no column has a selected run to hand over, so no panel body runs at all"
@@ -602,8 +590,7 @@ internal class PortableSparseBlas(
         multiplies: Boolean,
         skip: String,
     ): SparseMatrixRoute {
-        // Composed rather than direct, because the traversal decides per stored entry whether the named
-        // kernel is called at all. The component is what this call can reach, not what it is certain to run.
+        // The traversal decides per stored entry whether this component runs, so the route is composed.
         val axpy = vectorKernels.implementationFor(DenseOperation.Axpy, call.updateRun)
         val components = ArrayList(scaling)
         if (axpy == null) {
@@ -633,14 +620,12 @@ internal class PortableSparseBlas(
         workspace: Workspace?,
     ) {
         requireGemvOperands(a, transpose, x.size, y.size)
-        // The no-read shortcut comes first: a zero multiplier or a zero extent reads neither operand, and
-        // scaling the destination is all that is left to do.
+        // Zero alpha or zero extent reads neither operand; only destination scaling remains.
         if (alpha == 0.0 || a.rows == 0 || a.cols == 0) {
             applyBeta(vectorKernels, y, 0, y.size, beta)
             return
         }
-        // Then the snapshots, before the destination is written. Either operand may be the destination's own
-        // buffer, and scaling it first would feed the product values the caller never supplied.
+        // Snapshot aliased operands before destination scaling overwrites their coefficients.
         staged(workspace, x, x === y) { stableX ->
             staged(workspace, a, a.values === y) { stableA ->
                 gemvCore(alpha, stableA, stableX, beta, y, transpose)
@@ -740,9 +725,7 @@ internal class PortableSparseBlas(
         workspace: Workspace?,
     ) {
         requireSymmOperands(a, b, c, right)
-        // A destination with no elements is validated and then left alone, before any staging or loan. One
-        // of its two extents may be zero while the other is enormous, and a traversal over the long one
-        // would step through it to write nothing.
+        // Return before staging or loans: an empty axis may be paired with an enormous one.
         if (c.values.isEmpty()) return
         if (alpha == 0.0) {
             applyBeta(vectorKernels, c.values, 0, c.values.size, beta)
@@ -783,8 +766,7 @@ internal class PortableSparseBlas(
         workspace: Workspace?,
     ) {
         requireTriangularVectorOperands(a, x.size, "trsv")
-        // The substitution overwrites x as it goes, so a triangle sharing that buffer is snapshotted first:
-        // every column it has yet to reach must still hold the coefficients the caller supplied.
+        // Snapshot an aliased triangle before substitution overwrites coefficients needed by later columns.
         staged(workspace, a, a.values === x) { stable ->
             trsvCore(panelKernels, stable, x, lower, transpose, unitDiag)
         }
@@ -817,15 +799,12 @@ internal class PortableSparseBlas(
         right: Boolean,
         workspace: Workspace?,
     ) {
-        // Multiplying the dense operand by the sparse one from the right is this product with the operands
-        // the other way round, so the same derivation answers both.
+        // Right-side multiplication uses the same derivation with operands reversed.
         if (right) {
             requireGemmOperands(b, transposeB, a, transposeA, c)
         } else {
             requireGemmOperands(a, transposeA, b, transposeB, c)
         }
-        // The destination's extents are the product's once that holds, and the depth is the sparse operand's
-        // own inner one on the left and the dense operand's on the right.
         val m = c.rows
         val n = c.cols
         val k = if (right) {
@@ -833,7 +812,6 @@ internal class PortableSparseBlas(
         } else {
             if (transposeA) a.rows else a.cols
         }
-        // As in symm: nothing to write is settled after validation and before anything is staged or lent.
         if (c.values.isEmpty()) return
         if (alpha == 0.0) {
             applyBeta(vectorKernels, c.values, 0, c.values.size, beta)
@@ -865,9 +843,8 @@ internal class PortableSparseBlas(
         requireProductOperands(a, transposeA, b, transposeB, "gemm")
         val aRows = if (transposeA) a.cols else a.rows
         val bCols = if (transposeB) b.rows else b.cols
-        // Answered before either operand is oriented, because orienting allocates one pointer per row of the
-        // operand and an operand may have more rows than an array can index even when the product it takes
-        // part in is empty. Nothing stored on either side reaches no position either.
+        // Return before orienting: transpose pointers are row-indexed and may exceed array limits
+        // even when the product is empty.
         if (a.nnz == 0 || b.nnz == 0 || aRows == 0 || bCols == 0) return emptyResult(aRows, bCols, "gemm")
         val left = oriented(a, transposeA, alpha != 0.0)
         val right = oriented(b, transposeB, alpha != 0.0)
@@ -891,8 +868,7 @@ internal class PortableSparseBlas(
             return
         }
         if (a.nnz == 0 || b.nnz == 0) {
-            // No position is reached, so the destination scaling is the whole of the answer and neither
-            // operand is oriented. The same reasoning as the fresh sparse product above.
+            // Only destination scaling remains; avoid row-indexed orientation scratch.
             applyBeta(vectorKernels, c.values, 0, c.values.size, beta)
             return
         }
@@ -923,9 +899,7 @@ internal class PortableSparseBlas(
             return
         }
         if (a.nnz == 0 || n == 0) {
-            // Nothing is stored to reach a position with, so the triangle is scaled and the row adjacency
-            // that would have found one is never built. Its scratch is indexed by the source's rows, which a
-            // matrix may have more of than an array can hold.
+            // An empty pattern needs only triangle scaling, avoiding potentially oversized row-indexed adjacency.
             scaleTriangle(c, n, beta, lower)
             return
         }
@@ -955,7 +929,6 @@ internal class PortableSparseBlas(
         val rows = if (transposeA) a.cols else a.rows
         val cols = if (transposeA) a.rows else a.cols
         requireSameShape(rows, cols, b, "addScaled")
-        // Neither side contributes a position, so the union is empty and no orientation is built for it.
         if (a.nnz == 0 && b.nnz == 0) return emptyResult(rows, cols, "addScaled")
         val left = oriented(a, transposeA, alpha != 0.0)
         // An identical pattern needs neither a structural merge nor room for a second copy of every entry.
@@ -1022,8 +995,7 @@ internal class PortableSparseBlas(
         if (n == 0) return
         val rightHandSides = if (right) b.rows else b.cols
         if (rightHandSides == 0) return
-        // The triangle is snapshotted before alpha scales the block, not after: a triangle sharing the block's
-        // buffer would otherwise be solved against its own scaled coefficients.
+        // Snapshot an aliased triangle before alpha scales the right-hand sides and changes its coefficients.
         staged(workspace, a, a.values === b.values) { triangle ->
             if (alpha != 1.0) vectorKernels.scale(b.values, 0, alpha, b.values.size)
             if (right) {
@@ -1060,7 +1032,7 @@ internal class PortableSparseBlas(
         if (n == 0) return
         staged(workspace, a, a.values === b.values) { triangle ->
             if (alpha != 1.0) vectorKernels.scale(b.values, 0, alpha, b.values.size)
-            // The diagonal is read once for every right-hand side rather than once per column, as trsm does.
+            // Unlike trsm, trmm reads the diagonal once per right-hand side.
             withExplicitDiagonal(triangle, n, unitDiag, workspace) { diagonal ->
                 if (right) {
                     trmmRightCore(panelKernels, triangle, b, lower, transpose, unitDiag, diagonal)

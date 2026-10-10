@@ -71,8 +71,7 @@ class CasesFileTest {
         val ids = defaults.joinToString("\n") { it.id }
         val digest = MessageDigest.getInstance("SHA-256").digest(ids.toByteArray()).joinToString("") { "%02x".format(it) }
 
-        // Cases are appended, never renamed or removed, so every historical identity is still in this
-        // digest and a rename would break it.
+        // The digest protects benchmark identities used to compare captures.
         assertEquals("df285d162119ebafa5460e24779839ad63efb8234999e3c82129fea53dd1569d", digest)
     }
 
@@ -83,7 +82,6 @@ class CasesFileTest {
         assertEquals(SWEPT, cases.filter { "sweep" in it.suites }.map { it.operation }.toSet())
         assertEquals(168, cases.count { "sweep" in it.suites })
         assertEquals(386, cases.size)
-        // The default suite is what an ordinary capture runs, and the sweeps did not enlarge it.
         assertEquals(234, Cases.select(cases).size)
         assertEquals(cases.size, cases.map { it.id }.toSet().size)
     }

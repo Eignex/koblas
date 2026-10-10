@@ -179,9 +179,8 @@ class TriangularBlockTest {
     // blocks is sixteen lengths; a workspace lends by exact length and keeps a bounded number of them.
     @Test
     fun `a long thin solve keeps its scratch inside what a workspace retains`() = withDenseBlas { blas ->
-        // Three orders an octave apart, because the claim is that what the schedule borrows is bounded by
-        // its own blocks rather than by the call: a bound that only held at one size would be a property of
-        // that size. Each is past the eight distinct lengths a workspace retains, counted in blocks.
+        // Geometrically spaced orders exceed the workspace's eight retained lengths, checking that scratch
+        // stays bounded by schedule blocks across call sizes.
         for (blocks in intArrayOf(9, 17, 24)) longThinScratch(blas, blocks * TRIANGULAR_DIAGONAL_BLOCK)
     }
 

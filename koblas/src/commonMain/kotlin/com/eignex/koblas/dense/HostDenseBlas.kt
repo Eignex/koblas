@@ -106,9 +106,7 @@ internal class HostDenseBlas(
         val work = HostDensePolicy.multiplyAdds(operation, call)
         if (!host(operation, work)) return portable.routeOf(operation, call)
         val entry = requireNotNull(HostDensePolicy.entryPointFor(operation))
-        // Asked with no operands, which is the general answer, and sound only because the three questions the
-        // operand lists exist for have already been settled above: this call does work, it is one whole entry
-        // point, and the library exports it. What the binding still contributes is its own platform transfer.
+        // Work, whole-entry-point eligibility and exports are settled above; only platform transfer remains.
         val hostRoute = host.routeOf(entry)
         val components = ArrayList<String>(2)
         if (call.aliased) components.add(HOST_STAGING)
@@ -126,8 +124,6 @@ internal class HostDenseBlas(
             host = hostRoute,
         )
     }
-
-    // Level 2. One matrix operand, whose extents are the whole of the arithmetic.
 
     override fun gemv(
         alpha: Double,
@@ -286,7 +282,7 @@ internal class HostDenseBlas(
         }
     }
 
-    // Level 3. Every operand is contiguous column-major, so only an overlap with the destination is staged.
+    // Contiguous column-major operands need staging only when they overlap the destination.
 
     override fun gemm(
         alpha: Double,
@@ -441,8 +437,8 @@ internal class HostDenseBlas(
         val solve = operation == DenseMatrixOperation.Trsm
         val what = if (solve) "trsm" else "trmm"
         requireTriangularMatrixOperands(a, b, right, what)
-        // A zero alpha zeroes the right-hand sides and reads no coefficient, which this library states and a
-        // library need not; [HostDensePolicy] refuses it and the portable path keeps it.
+        // This API reads no coefficients when alpha is zero; HostDensePolicy uses the portable path
+        // when the host library cannot guarantee that contract.
         if (!host(operation, work(operation, b.rows, b.cols, a.rows, alpha, right))) {
             if (solve) {
                 portable.trsm(a, b, lower, transpose, unitDiag, right, alpha, workspace)
@@ -590,7 +586,6 @@ internal object HostDensePolicy {
         right: Boolean,
     ): Long {
         if (entryPointFor(operation) == null) return NO_HOST_CALL
-        // The rule the portable reporter stops on, restated over the same three extents.
         if (alpha == 0.0 || rows == 0 || columns == 0 || depth == 0) return NO_HOST_CALL
         val m = rows.toLong()
         val n = columns.toLong()
@@ -609,7 +604,6 @@ internal object HostDensePolicy {
 
             DenseMatrixOperation.Gemmt, DenseMatrixOperation.Syrk -> m * n * k / 2
 
-            // The triangle's order is the depth, and the right-hand sides are B's other extent.
             DenseMatrixOperation.Trmm, DenseMatrixOperation.Trsm -> k * k * (if (right) m else n) / 2
 
             else -> NO_HOST_CALL

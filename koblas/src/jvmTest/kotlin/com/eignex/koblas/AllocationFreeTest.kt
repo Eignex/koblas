@@ -5,10 +5,8 @@ import kotlin.test.Test
 import kotlin.test.assertTrue
 
 /**
- * The seams a caller may run inside a hot loop without the collector noticing: Level 1 and the sparse
- * primitives unconditionally, and the matrix algorithms given a workspace to take their scratch from. An
- * operation that discovers a new structure allocates its result by definition; its probes bound the extra
- * scratch and copies beside that result instead.
+ * Checks allocation-free Level 1 and sparse primitives, and matrix calls with warmed workspaces.
+ * Fresh sparse results allocate their structure; those probes bound additional scratch and copies.
  */
 class AllocationFreeTest {
     @Test
@@ -189,8 +187,8 @@ class AllocationFreeTest {
     }
 
     /**
-     * A strided operand is gathered into an array, which is measured rather than wished away. The bound is
-     * an upper one, because addressing a step without gathering would be an improvement.
+     * A strided operand may require a gather array. The allocation bound also admits implementations
+     * that address the stride directly.
      */
     @Test
     fun `a strided convenience operand is gathered once per call`() {
@@ -209,11 +207,7 @@ class AllocationFreeTest {
         assertTrue(gathered <= oneGather + FLOOR_BYTES, "a strided gemvInto allocated $gathered B per call")
     }
 
-    /**
-     * The same call lent a workspace, where the gather is a loan and the per-call cost goes away. This is
-     * what the previous test's bound is an upper one against: the storage a caller addresses its operand
-     * through stops deciding whether a repeated call allocates.
-     */
+    /** A workspace lends the gather buffer so repeated strided calls allocate no fresh array. */
     @Test
     fun `a strided convenience operand lent a workspace allocates nothing`() {
         val n = 128

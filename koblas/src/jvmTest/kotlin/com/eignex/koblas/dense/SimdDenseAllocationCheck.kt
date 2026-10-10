@@ -137,13 +137,8 @@ internal object SimdDenseAllocationCheck {
     }
 
     /**
-     * The entry points a caller who names no engine reaches, which are the ones with dispatch in front of
-     * them.
-     *
-     * Each of these reads [koblas] on every call, so a default access that built an engine would show up
-     * here rather than only on the first one. What is being measured past that is the dispatch itself: the
-     * generic product decides its storage pairing per call, and neither that decision nor the convenience
-     * wrappers around it may build a descriptor or a route to make it.
+     * Measures default-engine lookup and dispatch through convenience and generic entry points.
+     * Storage selection and wrappers must allocate no descriptors or routes.
      */
     private fun checkDefaultDispatch() {
         val matrix = DenseMatrix.wrap(ORDER, ORDER, DoubleArray(ORDER * ORDER) { 1.0 + (it % 13) * 0.125 })
@@ -167,12 +162,8 @@ internal object SimdDenseAllocationCheck {
     }
 
     /**
-     * The eligibility test a composed default makes in front of every dense call it is asked for.
-     *
-     * A binding exporting nothing is what isolates it: no call is handed over, so what remains is the
-     * decision plus the portable schedule underneath, both of which are already known to be free. That
-     * decision is the Kotlin/Native default's, and it runs on every dense Level 2 and 3 call including the
-     * small ones that stay portable, which is why it is worth a gate on a runtime that never takes it.
+     * Measures dense host eligibility with a binding that exports no routines. This isolates the
+     * policy decision plus portable scheduling, including small calls that stay portable on Native.
      */
     private fun checkHostComposition(engine: KoblasEngine) {
         val portable = PortableDenseBlas(

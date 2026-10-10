@@ -8,28 +8,20 @@ import com.eignex.koblas.vendor.RouteKind
 import kotlin.jvm.JvmOverloads
 
 /**
- * An immutable snapshot of one sparse matrix, prepared for repeated products.
+ * An immutable snapshot of one sparse matrix, prepared for repeated products with [SparseMatrix.prepare].
+ * It owns copies of structure and coefficients, so source mutations do not affect it.
  *
- * The snapshot owns copies of the structure and the coefficients, so changes to the source matrix after
- * preparation do not reach it and nothing here holds a caller's mutable array. Create one with
- * [SparseMatrix.prepare].
+ * As a [Matrix], it supports [Matrix.gemm] and [Matrix.gemmInto] on either side of dense, sparse or prepared
+ * operands, using the engine that prepared it. Matrix-vector and selected-triangle symmetric operations
+ * are also available here.
  *
- * A prepared matrix is an ordinary [Matrix] operand: [Matrix.gemm] and [Matrix.gemmInto] take one on either
- * side, against a dense, sparse or prepared partner, and the pair of storages decides the product as it does
- * for an unprepared one. Those products run on the engine the snapshot was prepared by. What remains here is
- * the part the common product surface does not carry, which is the matrix-vector product and the symmetric
- * interpretation of a square snapshot.
+ * Concurrent readers may share the snapshot with distinct destinations and workspaces. Transposed
+ * sparse-sparse products lazily derive and safely publish the opposite orientation once. Dense-block and
+ * matrix-vector products traverse the stored orientation directly, which measured faster than deriving
+ * a transpose. Mutable scratch belongs to each invocation.
  *
- * A prepared matrix is safe to share between concurrent readers using distinct destinations and workspaces.
- * A transposed product against a second sparse operand derives the opposite orientation on first use and
- * publishes it through a synchronized lazy, so a reader either sees a fully built transpose or builds it;
- * no reader can observe a half-initialized one. The products against a dense block and the matrix-vector
- * products take their transpose flag straight to the operation and derive nothing, because the transposed
- * traversal over the stored orientation measured faster than the untransposed one over a derived transpose.
- * Mutable scratch is never kept here: it belongs to the invocation, which is what keeps concurrent use safe.
- *
- * Preparation, the first transposed use of a sparse-sparse product and steady-state use therefore cost
- * different things, and a measurement that means to separate them has to reset between them.
+ * Preparation, the first transposed sparse-sparse use and steady-state use have distinct costs;
+ * measurements must reset the snapshot to separate them.
  */
 public class PreparedSparseMatrix internal constructor(a: SparseMatrix, internal val blas: SparseBlas) : Matrix {
     internal val snapshot: SparseMatrix = SparseMatrix.wrapTrusted(
@@ -43,11 +35,8 @@ public class PreparedSparseMatrix internal constructor(a: SparseMatrix, internal
     private val lazyTranspose: Lazy<SparseMatrix> = lazy { blas.transpose(snapshot) }
 
     /**
-     * The opposite orientation, derived once and reused by every later call that asks for it.
-     *
-     * Only a transposed product against a second sparse operand asks, and only when the product reaches a
-     * position at all, because the coefficients of an operand a call never reads must stay unread and a
-     * snapshot with more rows than an array can index has no transpose to build.
+     * Lazily cached transpose, requested only by transposed sparse-sparse products that reach a position.
+     * Skipping unused transposes preserves the no-read contract and supports row counts beyond array limits.
      */
     internal val transposedSnapshot: SparseMatrix get() = lazyTranspose.value
 
@@ -115,23 +104,15 @@ public class PreparedSparseMatrix internal constructor(a: SparseMatrix, internal
     }
 
     /**
-     * What a repeated call of this shape against the snapshot executes.
+     * Reports execution against the snapshot, like [com.eignex.koblas.sparse.SparseBlas.routeOf].
      *
-     * The counterpart of [com.eignex.koblas.sparse.SparseBlas.routeOf] for a prepared operand. For
-     * every product against a dense block it is the same answer, because such a call runs the schedule its
-     * own flags ask for over the stored orientation, exactly as a one-shot call does. What differs is a
-     * product against a second sparse operand, which may run the derived orientation instead; that operand
-     * is not among these facts, so the answer says the schedule is unsettled rather than guessing it.
-     *
-     * [call]'s scalars and extents describe the call; its [SparseCall.matrix] is not read, because the
-     * operand is this snapshot.
+     * Dense-block calls traverse stored orientation. Transposed sparse-sparse calls depend on a second
+     * operand absent from these facts, so their schedule is reported as unsettled.
+     * [call] supplies scalars and extents; [SparseCall.matrix] is ignored in favor of this snapshot.
      */
     public fun routeOf(operation: SparseMatrixOperation, call: SparseCall): SparseMatrixRoute {
         if (orientsOnAnotherOperand(operation) && call.transposeSparse) {
-            // A product against a second sparse operand decides on that operand: nothing is oriented for a
-            // call that reaches no position. These facts carry no second operand, so which of the two
-            // schedules runs is not derivable from them, and deriving an orientation to answer would both
-            // guess and pay for the guess.
+            // The missing second operand decides whether any position is reached and a transpose is needed.
             return unsettled(operation, call)
         }
         return routeAgainstSnapshot(operation, call)
@@ -157,10 +138,7 @@ public class PreparedSparseMatrix internal constructor(a: SparseMatrix, internal
 
     /** A route for a call whose schedule these facts do not settle, which names no traversal at all. */
     private fun unsettled(operation: SparseMatrixOperation, call: SparseCall): SparseMatrixRoute {
-        // The call's own facts first, against the snapshot as it stands. What they settle stays: a call
-        // with nothing to do is still a call with nothing to do whichever orientation it would have used,
-        // and a destination multiplier still scales a destination. What they do not settle is which of the
-        // two traversals runs, and only that is replaced by saying so.
+        // Preserve no-work and scaling facts; only the traversal depends on the missing operand.
         val route = routeAgainstSnapshot(operation, call)
         if (route.kind == RouteKind.NoWork) return route
         return SparseMatrixRoute(

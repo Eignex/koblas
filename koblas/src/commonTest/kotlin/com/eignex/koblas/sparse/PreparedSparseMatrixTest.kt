@@ -36,8 +36,7 @@ class PreparedSparseMatrixTest {
         assertContentEquals(doubleArrayOf(8.0, 15.0, -4.0), actual)
     }
 
-    // Deriving the opposite orientation is the other way this could go, and the calibration measured it
-    // slower, so the prepared route is the one-shot route and asking for it builds nothing.
+    // Dense products use the stored orientation; route inspection must not derive a transpose.
     @Test
     fun `a prepared transposed product reports the schedule it actually runs`() {
         val source = SparseMatrix.ofColumns(

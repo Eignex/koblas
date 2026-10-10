@@ -43,7 +43,7 @@ internal object SparseTuning {
      * between those two is this number, and a product too sparse to pay it runs where its operands already
      * are.
      *
-     * Four, from the stage evidence: the band just below it measured no better than the caller's own layout,
+     * The measured ratio is four: the band just below it was no better than the caller's own layout,
      * and above it the copy pays and keeps paying as the support thickens. A gathering product copies half
      * as much as a scattering one, so the same ratio admits it at half the density, which is what a ratio
      * rather than a density is for.

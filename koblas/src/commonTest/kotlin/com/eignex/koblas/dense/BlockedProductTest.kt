@@ -18,11 +18,8 @@ class BlockedProductTest {
     private val engines: List<KoblasEngine> get() = listOfNotNull(BuiltinEngines.scalar, BuiltinEngines.simd)
 
     /**
-     * Shapes that cross one block boundary each, kept small on the other two axes so the oracle is cheap;
-     * the last is neither blocked on any axis nor a multiple of any tile.
-     *
-     * The small extents follow the tile this machine resolved, because a shape that fills more than one tile
-     * at four rows fills none at sixteen and the test would then be checking the unpacked route.
+     * Shapes cross each block boundary while keeping the other axes small for the oracle.
+     * Tile-derived extents ensure packing on wide species and leave remainder tiles.
      */
     private fun blockedShapes(tile: DenseProductKernels): List<Triple<Int, Int, Int>> {
         val rows = packedExtent(tile.tileRows)

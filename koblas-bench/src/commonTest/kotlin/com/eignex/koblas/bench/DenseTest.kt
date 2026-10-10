@@ -26,8 +26,7 @@ class DenseTest {
         assertContentEquals(initial, work.result)
     }
 
-    // The preflight is inside building the work, so a case computing the wrong thing fails here rather than
-    // publishing a number.
+    // Preflight must reject incorrect work before publishing a timing.
     @OptIn(KoblasEngineApi::class)
     @Test
     fun `every product case names the route of the call it makes`() {
@@ -54,8 +53,7 @@ class DenseTest {
         }
     }
 
-    // A case that omitted a fact would describe a different call from the one it times, so each pair below
-    // differs only in such a fact and the rows are required to differ with it.
+    // Each pair changes one call fact that must appear in route attribution.
     @OptIn(KoblasEngineApi::class)
     @Test
     fun `structured and triangular cases carry the facts their routes are built from`() {
@@ -67,8 +65,7 @@ class DenseTest {
                 val kernel = assertNotNull(work.kernel, "$line on ${engine.name} named no route")
 
                 assertTrue(kernel.startsWith("portable-dense+"), "$line on ${engine.name} named $kernel")
-                // Every shape is past the crossover its route needs, so a row naming no block and no
-                // substitution would mean the case reached a route it was not chosen for.
+                // These shapes exceed the block and substitution crossovers.
                 assertTrue(
                     "/product-block" in kernel || "/diagonal-solve" in kernel || "/diagonal-multiply" in kernel,
                     "$line on ${engine.name} named $kernel",
@@ -96,8 +93,7 @@ class DenseTest {
         assertTrue("diagonal-solve" in left && "diagonal-solve" in right, "$left and $right")
     }
 
-    // The three retained entry points are three different amounts of work, and a reader comparing them with
-    // the packing-only row has to tell which is which from the row itself.
+    // Retained entry points must expose their remaining packing cost in the row.
     @OptIn(KoblasEngineApi::class)
     @Test
     fun `the packed rows say which copies they still make`() {

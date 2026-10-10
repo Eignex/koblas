@@ -37,9 +37,8 @@ public fun DenseMatrix.gemvInto(
     val a = this
     requireGemvOperands(a, transpose, x.size, destination.size)
     val depth = if (transpose) a.rows else a.cols
-    // The seams quick-return on a zero-extent operand before scaling, which is netlib's rule for gemv but
-    // not the contract above: this one promises that `beta == 0.0` overwrites a destination that may arrive
-    // holding NaN. Settling it here keeps a zero-column matrix answering the same way as any other.
+    // Unlike the BLAS gemv quick return, this API must overwrite NaN when beta is zero,
+    // including for a zero-column matrix.
     if (alpha == 0.0 || depth == 0) {
         destination.prescale(beta)
         return

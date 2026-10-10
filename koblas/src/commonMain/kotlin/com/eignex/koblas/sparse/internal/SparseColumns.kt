@@ -20,9 +20,7 @@ import com.eignex.koblas.requireShape
 @OptIn(UnsafeKoblasApi::class)
 internal fun replaceColumns(a: SparseMatrix, replacements: Map<Int, SparseVector>): SparseMatrix {
     if (replacements.isEmpty()) return a
-    // Scattered into an array once rather than probed per column. `replacements[j]` boxes its key on every
-    // lookup above the Integer cache, and both passes below would run one lookup for each of `a.cols`
-    // columns to find the handful that are actually replaced.
+    // Index replacements once to avoid boxed map lookups for every column in both passes.
     val byColumn = arrayOfNulls<SparseVector>(a.cols)
     for ((column, vector) in replacements) {
         requireIndex(column in 0 until a.cols) { "replaceColumns: column $column is outside 0..${a.cols - 1}" }

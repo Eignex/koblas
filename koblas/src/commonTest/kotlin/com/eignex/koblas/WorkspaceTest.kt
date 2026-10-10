@@ -6,10 +6,7 @@ import kotlin.test.assertFailsWith
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
-/**
- * What a reusable workspace keeps and what it lets go: a repeated call over one shape has to get its buffers
- * back, and a caller sweeping changing shapes must not accumulate every buffer it ever asked for.
- */
+/** Repeated calls of one shape must reuse buffers; changing shapes must retain only a bounded set. */
 class WorkspaceTest {
 
     @Test

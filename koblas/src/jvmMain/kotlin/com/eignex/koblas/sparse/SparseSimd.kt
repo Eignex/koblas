@@ -95,11 +95,7 @@ internal object SparseSimd : IndexedSparseKernels {
         while (k < bound) {
             val old = indexedLoad(destination, indices, indexOffset + k)
             val increment = DoubleVector.fromArray(SPECIES, values, valueOffset + k)
-            // Not [multiplyAdd], which the reductions use. A product that overflows to infinity stays
-            // infinite once it has rounded, where a fused one carries it and can land back in range, so the
-            // two disagree about whether a result exists at all rather than about its last bit. This loop
-            // also has an indexed load and an indexed store around every operation, so fusing the arithmetic
-            // between them buys nothing worth that.
+            // Keep separate rounding: a product overflowing to infinity must not be rescued by FMA.
             increment.mul(multiplier).add(old).intoArray(destination, 0, indices, indexOffset + k)
             k += LANE
         }
@@ -182,7 +178,6 @@ internal object SparseSimd : IndexedSparseKernels {
         var sum = DoubleVector.zero(SPECIES)
         while (k < bound) {
             val gathered = indexedLoad(values, indices, indexOffset + k)
-            // Squaring is a multiply-add like any other, so it takes the same route.
             sum = multiplyAdd(gathered, gathered, sum)
             k += LANE
         }

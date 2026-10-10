@@ -29,16 +29,9 @@ internal val simdAvailable: Boolean = try {
  */
 internal object SimdVectorKernels : DenseVectorKernels {
     /**
-     * Width from which the vector search for the first largest magnitude beats the scalar one.
-     *
-     * A fixed measured constant rather than a tuning key. The index search carries a lane-position vector
-     * beside the magnitude one and reduces both, so it pays later than the plain reductions do.
-     *
-     * This constant gates its own comparison: at this value every narrower run takes the scalar kernel in
-     * both arms, so measuring it means lowering it to the lane width and running the `iamax` sweep over the
-     * `jvm-scalar` and `jvm-simd` targets. Doing that on an i9-12900H has the vectorised search losing below
-     * 64, inside the noise from 64 to 192, losing outright at 128, and ahead at every width from 256 upward
-     * by 1.13 to 1.90, which is where it starts winning and staying ahead.
+     * Measured crossover for the vector magnitude reduction and first-match search. The search needs
+     * an additional pass, so it pays later than plain reductions. The sweep on an i9-12900H found a
+     * consistent advantage from 256 entries upward.
      */
     private const val IAMAX_CROSSOVER = 256
 
@@ -51,13 +44,8 @@ internal object SimdVectorKernels : DenseVectorKernels {
     private fun vectorizes(len: Int): Boolean = simdAvailable && len >= lanes
 
     /**
-     * Whether a run of this width and spacing reaches a vector kernel.
-     *
-     * The Vector API loads a lane block from consecutive elements, so a stride other than one would have to be
-     * gathered. On this hardware that loses: the same measurement that keeps `SparseSimd` off AVX2 gathers
-     * applies here, and a gather-backed dot would be slower than the scalar loop it replaced. A strided run is
-     * therefore scalar work, and [implementationFor] says so rather than letting the selection name imply
-     * otherwise.
+     * Strided runs stay scalar because Vector API gathers lose to scalar indexed loads on the measured
+     * hardware. [implementationFor] reports that fallback.
      */
     private fun vectorizes(len: Int, contiguous: Boolean): Boolean = contiguous && vectorizes(len)
 
@@ -71,7 +59,6 @@ internal object SimdVectorKernels : DenseVectorKernels {
         // so which kernel produces the norm depends on the values rather than on the width.
         DenseOperation.Nrm2 -> if (vectorizes(length)) null else ScalarVectorKernels.name
 
-        // Both strides must be one, and a flagged identity returns without arithmetic, so a width is not enough.
         DenseOperation.Iamax ->
             if (vectorizes(length) && length >= IAMAX_CROSSOVER) name else ScalarVectorKernels.name
 

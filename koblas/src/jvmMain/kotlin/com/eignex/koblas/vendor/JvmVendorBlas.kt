@@ -24,11 +24,8 @@ import java.lang.invoke.MethodHandle
 internal class JvmVendorBlas(
     private val library: JvmVendorLibrary,
     /**
-     * Operations to treat as absent however the library is built.
-     *
-     * Whether a vendor exports `cblas_dgemmt` is a property of the install, so on a host whose library has it
-     * there is otherwise no way to reach the composed path at all. Suppressing it is how a test exercises the
-     * branch a vendor without it would take. Nothing in production passes anything here.
+     * Suppress selected exports to test composed fallbacks even when the installed vendor supplies
+     * the optional entry point. Production calls leave this empty.
      */
     private val suppressed: Set<BlasOperation> = emptySet(),
 ) : Blas {

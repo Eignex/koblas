@@ -7,9 +7,7 @@ import kotlin.random.Random
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
-// The panel contract, over any implementation. Every backend has to satisfy it at every extent, including
-// extents narrower than its own grouping and shorter than a vector, so the assertions live here rather than
-// beside one of them.
+// Shared panel conformance covers extents below each backend's grouping and lane width.
 
 /** A window inside a larger buffer, so an implementation that ignores an offset or a leading dimension fails. */
 private const val PAD = 3
@@ -148,9 +146,8 @@ private fun referenceIndexedRankUpdate(
 }
 
 /**
- * Every panel of [kernels] against the definitions written out above, over extents that straddle any
- * grouping and any lane width, at a nonzero offset and a leading dimension wider than the window. The
- * strides rotate with the extent rather than multiplying out, which keeps the sweep bounded.
+ * Checks [kernels] against independent definitions across lane and grouping boundaries,
+ * nonzero offsets and padded leading dimensions. Strides rotate with extent to bound the sweep.
  */
 internal fun assertPanelKernelsAgreeWithReference(kernels: DensePanelKernels) {
     val rng = Random(20260919)
@@ -229,12 +226,9 @@ private fun referenceIndexedCoupled(
 }
 
 /**
- * The two indexed panels against their written-out definitions, in both layouts a sparse product hands them.
- *
- * The rows are a group of right-hand sides and the columns the stored entries of one sparse column, so the
- * sweep is over both: a group narrower than a lane block, one that leaves a tail, and a column holding
- * anything from nothing upwards. Adjacent and strided right-hand sides are different bodies on a vector
- * backend and the same answer either way. The selected positions are spread rather than consecutive.
+ * Checks indexed panels over both sparse-product layouts: rows are right-hand sides and
+ * columns are stored entries. Counts straddle lane boundaries and include empty sparse columns;
+ * spread indices exercise gathering in both adjacent and strided groups.
  */
 private fun assertIndexedPanelsAgreeWithReference(kernels: DensePanelKernels) {
     val rng = Random(20260930)
@@ -347,10 +341,8 @@ private fun assertCoupledAgrees(
 }
 
 /**
- * That an address past what a word of twenty-one bits holds is addressed as itself.
- *
- * The offset and the two strides are ordinary array indices that a legal window of a large dense operand can
- * push past two million, so each is taken past that bound in turn, in both panel orientations.
+ * Offsets and strides are full array indices. Each is tested beyond twenty-one bits in both
+ * panel orientations, as a legal large dense window can require.
  */
 internal fun assertIndexedPanelsAddressPastAPackedBound(kernels: DensePanelKernels) {
     val bound = 1 shl 21
@@ -385,9 +377,8 @@ internal fun assertIndexedPanelsAddressPastAPackedBound(kernels: DensePanelKerne
 }
 
 /**
- * The rules a panel keeps that a random sweep cannot see: a zero beta overwrites a destination it never
- * reads, and a zero coefficient is still multiplied, which is the opposite of the Level 1 `axpy` rule and
- * must not leak in here. A backwards source is what a vector with a negative step reaches these with.
+ * Zero beta must overwrite without reading the destination. Zero coefficients still form
+ * products, unlike Level 1 `axpy`. Negative strides exercise backwards sources.
  */
 internal fun assertPanelContractHolds(kernels: DensePanelKernels) {
     val rows = 17
@@ -451,9 +442,8 @@ internal fun assertExecutionGroupIsUsable(kernels: DensePanelKernels) {
 }
 
 /**
- * The empty extents. Every window is passed as an array too short to index, so an implementation that read
- * an entry before noticing the extent fails with an index error rather than quietly passing. A multi-dot
- * still writes its outputs, since those are selected by the columns and not by the rows.
+ * Too-short arrays expose forbidden reads at empty extents. Multi-dot still writes outputs
+ * selected by its columns even when it has no rows.
  */
 internal fun assertEmptyExtentsReadNothing(kernels: DensePanelKernels) {
     val nothing = DoubleArray(0)
@@ -483,11 +473,7 @@ internal fun assertEmptyExtentsReadNothing(kernels: DensePanelKernels) {
     )
 }
 
-/**
- * That a panel writes inside its window and nowhere else. The buffers are wider than the window on both
- * sides and filled with a value no arithmetic here produces, so a body that ran one lane past its bound, or
- * wrote a masked tail through, changes a guard entry.
- */
+/** Guard values around each window expose overruns and stores through masked tails. */
 internal fun assertPanelsStayInsideTheirWindows(kernels: DensePanelKernels) {
     val guard = -12345.0
     for (rows in intArrayOf(1, 3, 5, 8, 13)) {
@@ -532,9 +518,8 @@ internal fun assertPanelsStayInsideTheirWindows(kernels: DensePanelKernels) {
 }
 
 /**
- * The excluded position, which is scattered and not reduced, as a symmetric column's diagonal needs. The
- * source there is a NaN, so a sum that touched it could not come back finite. The pivot is a column of its
- * own because the scatter reads it at every position, the excluded one included.
+ * The excluded diagonal is scattered but not reduced. A NaN there exposes forbidden reduction;
+ * a separate pivot column remains readable by the scatter, including at that position.
  */
 private fun assertExcludedPositionIsNotReduced(kernels: DensePanelKernels) {
     val width = vectorWidth(kernels) + 1
@@ -567,9 +552,8 @@ private fun assertExcludedPositionIsNotReduced(kernels: DensePanelKernels) {
 }
 
 /**
- * The zero-evaluation rule for the indexed panels, at the narrowest width the backend answers for with its
- * own body and again one wider, where the last right-hand side is a scalar tail. A fixed narrow width would
- * only ever exercise the portable fallback.
+ * Checks zero evaluation at the backend's first owned-body width and one width wider for a
+ * scalar tail. Fixed narrow fixtures could exercise only portable fallback.
  */
 private fun assertIndexedPanelsEvaluateZeroCoefficients(kernels: DensePanelKernels) {
     val full = vectorWidth(kernels)
@@ -609,7 +593,6 @@ private fun assertIndexedPanelsEvaluateZeroCoefficients(kernels: DensePanelKerne
             assertTrue(coupledPanel[i].isNaN(), "a zero coupled coefficient skipped its scatter at lane $i")
         }
     }
-    // And the widths really were the two sides of this backend's own boundary.
     assertEquals(
         kernels.implementationFor(PanelWork.SparseRightHandSides, full, 2),
         kernels.name,

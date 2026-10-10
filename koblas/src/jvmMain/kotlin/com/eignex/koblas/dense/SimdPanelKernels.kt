@@ -7,49 +7,30 @@ import jdk.incubator.vector.DoubleVector
 import jdk.incubator.vector.VectorOperators
 
 /**
- * The JVM Vector API panel arithmetic, with the portable bodies underneath it.
+ * JVM Vector API panel arithmetic with [PortablePanelKernels] fallbacks.
  *
- * A multi-dot and a coupled pass are reductions, and splitting a floating point sum across lanes changes the
- * answer, which is why the portable loops are written in the order they are and why these are written in
- * lanes instead. A column update and a rank update are elementwise, where the same reordering is not a
- * question; what these add is that the destination strip stays in registers while several columns accumulate
- * into it. Whether either is faster than what the compiler makes of the portable loop is a measurement rather
- * than a property of the source, and the local evidence is where the comparison is recorded.
+ * Explicit lanes allow floating-point reductions to reorder additions. Column and rank updates
+ * keep a destination strip in registers while several columns accumulate into it. Column grouping
+ * is independent of the lane count: lanes run down rows.
  *
- * These are not what an ordinary call runs yet. [com.eignex.koblas.BuiltinEngines.simd] is the arm that holds
- * them and is where they are measured; the platform default keeps the portable panels until a crossover has
- * been established, which is a decision with its own evidence rather than a consequence of writing them.
- *
- * The grouping below is this backend's own, and it is not a lane count: the panels group columns, and a
- * column's lanes run down its rows.
- *
- * A panel shorter than one lane block and a strided operand the Vector API would have to gather both fall to
- * [PortablePanelKernels], and [implementationFor] says which of the two a given panel reaches.
- *
- * Resolving the species is what initializing this costs, so a runtime without the module must not reach it at
- * all: [com.eignex.koblas.BuiltinEngines] offers no engine holding this backend there, and the portable one
- * is what every call then schedules against.
+ * Short panels and strided operands requiring gathers use the portable bodies;
+ * [implementationFor] reports the body reached. Species initialization requires the Vector API
+ * module, so [com.eignex.koblas.BuiltinEngines] checks availability before using this backend.
  */
 internal object SimdPanelKernels : DensePanelKernels {
     private val SPECIES = DoubleVector.SPECIES_PREFERRED
     private val LANE = if (simdAvailable) SPECIES.length() else 0
 
     /**
-     * Built once. A name is constant for the life of this object, and rebuilding it per access would make
-     * every question about which body a shape reaches allocate, including the ones a scheduling decision
-     * asks on the way into a call.
+     * Cache the name so route queries, including scheduling decisions, do not allocate.
      */
     private val NAME: String = "simd-panel($LANE lanes)"
 
     override val name: String get() = NAME
 
     /**
-     * Rows a panel needs before its vector body is reached, as whole lane blocks of this machine.
-     *
-     * One block is the structural minimum: below it there is no whole vector to load and the body cannot
-     * run at all. Selected small-operation measurements were near parity with or ahead of portable
-     * panels on the measured host, without establishing a robust higher crossover. The number here stays
-     * the structural minimum; the local evidence does not establish a performance bound on other machines.
+     * Structural minimum of one whole lane block. Measurements did not establish a robust higher
+     * crossover on the measured host; this does not promise a performance bound on other machines.
      */
     private val VECTOR_MINIMUM = MINIMUM_BLOCKS * LANE
 
@@ -58,16 +39,9 @@ internal object SimdPanelKernels : DensePanelKernels {
         simdAvailable && contiguous && rows >= VECTOR_MINIMUM
 
     /**
-     * Four columns for the two panels whose columns share one loaded vector, two for the two that do not.
-     *
-     * A multi-dot holds one accumulator per column and a column update holds one destination strip, and
-     * either way every column of a group is served by the same loaded vector, so a wider group pays for more
-     * arithmetic with each load; four measured ahead of two at every extent tried. The coupled and
-     * rank-update bodies below are two columns wide, so asking for four would only mean two calls fused into
-     * one, and for a triangular caller a wider group also grows the scalar corner with the square of it.
-     *
-     * The comparison is one shared machine's at four lanes and is kept with the local evidence rather than
-     * quoted here, since a lane count and a cache are not the same on the next machine.
+     * Multi-dot and column-update groups reuse one loaded vector across four columns. Coupled and
+     * rank-update bodies are two columns wide; wider groups would repeat those bodies and grow a
+     * triangular caller's scalar corner quadratically. Group sizes reflect measurements on one host.
      */
     override fun executionGroup(work: PanelWork, rows: Int, columns: Int, contiguous: Boolean): Int {
         if (!simdAvailable) return PortablePanelKernels.executionGroup(work, rows, columns, contiguous)
@@ -85,13 +59,8 @@ internal object SimdPanelKernels : DensePanelKernels {
     }
 
     /**
-     * From two lane blocks of adjacent rows upward, which is wider than where the vector bodies start.
-     *
-     * One lane block is one vector operation per column, and a caller that copied a panel that narrow would
-     * pay a pass over its data for a single instruction's worth of arithmetic. A measured crossover of this
-     * backend's own rather than a structural minimum like the one [implementationFor] answers with: the
-     * copy was timed at both widths and the narrow one did not pay for itself. The measurement and its
-     * limits are in the local evidence, since a figure quoted here would be one machine's.
+     * Pack from two lane blocks of adjacent rows. At one block, copying the panel costs a data pass for
+     * one vector operation per column and did not pay for itself on the measured host.
      */
     override fun prefersContiguous(work: PanelWork, rows: Int, columns: Int): Boolean =
         simdAvailable && rows >= COPY_WORTH_BLOCKS * LANE && !vectorizes(rows, contiguous = false)
@@ -743,12 +712,10 @@ internal object SimdPanelKernels : DensePanelKernels {
     }
 
     /**
-     * The coupled indexed pass in lanes of right-hand sides.
+     * Coupled indexed pass over lanes of right-hand sides.
      *
-     * One address serves both halves: the position a stored coefficient scatters into is the position the
-     * reduction reads back, so the walk computes it once and one broadcast coefficient drives both
-     * multiply-adds. The scattered half reads the pivot column where it stands, which is a load the loop
-     * repeats per position rather than a gather the caller pays for per column.
+     * Scatter and reduction share an address and a broadcast coefficient. Loading the pivot column
+     * in the loop avoids gathering it into a separate buffer for each column.
      */
     override fun indexedCoupledUpdate(
         alpha: Double,
@@ -778,10 +745,7 @@ internal object SimdPanelKernels : DensePanelKernels {
         for (c in 0 until columns) {
             val t = alpha * values[fromIndex + c]
             val at = offset + indices[fromIndex + c] * indexStride
-            // The exclusion is decided per position and never inside the lanes. A branch between the two
-            // stores leaves the loop with a merge the virtual machine will not eliminate the vector boxes
-            // across, and a body that allocates one object per lane block runs several times slower than the
-            // portable loop it is there to beat.
+            // Separate bodies avoid a branch between stores that prevents vector allocation elimination.
             if (c == excluded) {
                 scatterOnly(t, a, at, b, pivot, rows)
             } else {
@@ -866,10 +830,7 @@ internal object SimdPanelKernels : DensePanelKernels {
     private const val MINIMUM_BLOCKS = 1
 
     /**
-     * Lane blocks of adjacent rows a panel needs before a copy into adjacent storage pays for itself.
-     *
-     * Wider than [MINIMUM_BLOCKS], which is where the body starts running rather than where it is worth a
-     * pass over the data to reach. The local evidence is where the comparison at each width is recorded.
+     * Packing threshold in lane blocks, above [MINIMUM_BLOCKS] because a copy must pay for its data pass.
      */
     private const val COPY_WORTH_BLOCKS = 2
 
@@ -880,36 +841,20 @@ internal object SimdPanelKernels : DensePanelKernels {
     private const val NARROW_GROUP = 2
 
     /**
-     * Dense right-hand sides a sparse column walk serves at once, where they are a leading dimension apart.
-     *
-     * Not a vector width: a group this wide is what keeps one walk of a column's indices and values serving
-     * several right-hand sides, and the arithmetic over a strided group is the portable body whatever the
-     * species is. The same width the portable backend answers with, and measured the same way, since the
-     * body that runs over a strided group is that backend's.
+     * Group strided right-hand sides to share one walk of the sparse column. These use the portable
+     * body and its group width, independently of the species.
      */
     private const val SPARSE_GROUP = 8
 
     /**
-     * Right-hand sides a reduction over a strided block serves at once, which is one for the reason the
-     * portable backend gives: below a vector its accumulator wants a register rather than an array, and a
-     * strided block reaches no vector body here either.
+     * A strided reduction uses one right-hand side so its scalar accumulator can stay in a register.
      */
     private const val SPARSE_REDUCTION_GROUP = 1
 
     /**
-     * Lane blocks of adjacent right-hand sides this backend asks for, which is a different question.
-     *
-     * Where they are adjacent the arithmetic over a group is whole vectors, so the group wants to be lane
-     * blocks rather than a count that has nothing to do with the species: a group of four on a machine with
-     * eight lanes would leave half of every vector idle. Several blocks rather than one, because the walk of
-     * a sparse column's indices is paid once for the whole group and a wider group spreads it further; the
-     * ceiling is what stays resident while that column is walked, and the sparse scheduling caps this again
-     * for its own staging buffer.
-     *
-     * Eight, from a sweep of the widths either side of it: the narrow ones lose across the grid, and the
-     * two widest are close enough that either is defensible, with the narrower of them ahead on the denser
-     * supports. Eight is the conservative end of that pair. The count is this backend's own, and the stage
-     * evidence holds the comparison and the spread it was chosen from.
+     * Group adjacent right-hand sides in whole lane blocks to use every lane and amortize the sparse
+     * index walk. Eight blocks are the conservative choice from the measured near-parity pair; sparse
+     * scheduling caps the group again to fit its staging buffer.
      */
     private const val ADJACENT_SPARSE_BLOCKS = 8
 }

@@ -3,10 +3,7 @@ package com.eignex.koblas.sparse
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
-/**
- * The compiled-in sparse defaults, pinned so that collecting them cannot move a number a benchmark chose. A
- * run whose environment sets one of the keys will fail here, which is the intended reading.
- */
+/** Pins compiled-in sparse defaults. Environment overrides intentionally cause these checks to fail. */
 class SparseTuningTest {
     @Test
     fun `the sparse crossovers keep their measured values`() {

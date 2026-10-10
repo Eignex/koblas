@@ -120,8 +120,7 @@ class PlatformSparseKernelsTest {
         for (nnz in counts) {
             val rng = Random(nnz * 6151)
             val x = sparse(nnz * 8, nnz, rng)
-            // Both reduce over the stored values, so a vectorized kernel sums lanes in a different order and
-            // the bound scales with the count, as it does for dot above.
+            // Vector reductions reorder stored values, so the tolerance scales with their count.
             val expectedAsum = ReferenceSparseBlas.asum(x)
             val actualAsum = koblas.sparseKernels.asum(x)
             assertTrue(

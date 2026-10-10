@@ -11,12 +11,9 @@ import kotlin.test.assertNotEquals
 import kotlin.test.assertTrue
 
 /**
- * That the JVM default stays out of host libraries, which is a policy and not an accident of this host.
- *
- * Reaching a library from here copies every operand into native memory first, so the call costs a pass over
- * the data before any arithmetic and the Vector API kernels are ahead without it; a host binding remains
- * explicitly callable. These cases run inside a process that does have a library available, which is where a
- * composition would show up.
+ * Checks that the JVM default uses owned kernels even with a host library installed. Host calls
+ * copy operands into native memory, adding a data pass before arithmetic; bindings remain
+ * explicitly callable.
  */
 class JvmDefaultEngineTest {
     @Test

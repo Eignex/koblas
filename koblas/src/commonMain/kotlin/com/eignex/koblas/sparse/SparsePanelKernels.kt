@@ -132,16 +132,13 @@ internal class SparsePanelKernels(
         val end = selectedRunEnd(rowIndices, fromIndex, toIndex, column, lower)
         if (start >= end) return
         val pivot = offset + column * indexStride
-        // The diagonal is the one stored entry that scatters and is not gathered back, and an ascending run
-        // puts it at the inner end of the selected part if it is stored at all.
+        // The diagonal scatters without mirroring and lies at the inner end of an ascending selected run.
         val diagonal = when {
             lower && rowIndices[start] == column -> 0
             !lower && rowIndices[end - 1] == column -> end - start - 1
             else -> -1
         }
-        // Both halves read the source through the same layout, so nothing is gathered into a scratch first,
-        // and the mirrored half lands in the destination's own pivot row as the walk reaches it: the row is
-        // already there, and a column that mirrors nothing leaves it exactly as it was.
+        // Both halves read the same source layout; the mirrored half accumulates directly into the pivot row.
         densePanels.indexedCoupledUpdate(
             alpha, c, b, offset, rhsStride, indexStride, rowIndices, values, start, end - start, width,
             pivot, c, pivot, diagonal,
@@ -180,7 +177,7 @@ internal class SparsePanelKernels(
      *
      * The reduction lands in [work], which is adjacent whatever the dense block's layout is, so this half of
      * the product vectorises as soon as the block's own right-hand sides are adjacent. [alpha] scales the
-     * finished sum, as it did when this was written out here.
+     * finished sum.
      */
     @Suppress("LongParameterList") // the column slice, the dense window, and the output panel
     fun gatherProductPanel(
@@ -240,19 +237,11 @@ internal class SparsePanelKernels(
     }
 
     /**
-     * The three panels above with one right-hand side, written out.
+     * Single-right-hand-side product arithmetic without panel-call, fill and grouping overhead.
      *
-     * A panel of one is the arithmetic below with the width loop removed, and it is here because the panel
-     * machinery is what a narrow call cannot pay for: a group of one spends a call into the seam, a fill and
-     * a grouped loop on a single value. A product over one right-hand side measured slower through the
-     * panels than the same call before this stage, on columns holding a handful of entries where that
-     * overhead is the whole cost; the comparison is in the stage evidence.
-     *
-     * Every product the panel forms is formed here, over the same entries in the same order, and a reduction
-     * is summed as the traversal reaches it. A panel that groups its entries sums them in its own grouping
-     * instead, so the two agree to within the reassociation this library allows a grouped product rather
-     * than bit for bit. What also changes is that a route names the traversal rather than a panel body,
-     * because that is what runs.
+     * Products visit the same entries in traversal order. Grouped panels may reassociate reductions,
+     * so agreement follows the allowed numerical tolerance rather than requiring identical bits.
+     * Routes name the traversal because no panel body runs.
      */
     @Suppress("LongParameterList") // the column slice, the dense window, and the single output
     fun gatherProductColumn(
@@ -315,9 +304,7 @@ internal class SparsePanelKernels(
         if (start >= end) return
         val pivot = offset + column * indexStride
         val coefficient = b[pivot]
-        // One pass for both halves, as the panel makes over a group: the stored entry is read once and
-        // spends its one multiplier on the row it scatters into and on the row it mirrors back into, and
-        // the diagonal is the one entry that does only the first.
+        // Read each stored entry once for both halves; the diagonal contributes only once.
         for (position in start until end) {
             val row = rowIndices[position]
             val t = alpha * values[position]
@@ -420,8 +407,7 @@ internal class SparsePanelKernels(
     ) {
         val pivot = offset + column * indexStride
         val raw = dense[pivot]
-        // A right-hand side that is exactly zero is dead, which leaves the pivot as it stands and spreads
-        // nothing; it is the rule the panel records per right-hand side, with one to record.
+        // Skip a zero right-hand side to preserve its pivot and avoid spreading nonfinite coefficients.
         if (raw == 0.0) return
         val coefficient = if (solve) raw / diagonal else raw
         dense[pivot] = when {
@@ -693,8 +679,7 @@ internal fun strictRunEnd(rowIndices: IntArray, from: Int, to: Int, column: Int,
  * The first position in the ascending run `[from, to)` whose row index is at least [row].
  */
 internal fun lowerBound(rowIndices: IntArray, from: Int, to: Int, row: Int): Int {
-    // A matrix that stores only the triangle it is asked about answers at one end or the other for every
-    // column, so the two endpoints are checked before the run is halved.
+    // Triangle-only storage puts each boundary at an endpoint, avoiding binary search.
     if (from >= to || rowIndices[from] >= row) return from
     if (rowIndices[to - 1] < row) return to
     var low = from + 1

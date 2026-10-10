@@ -14,13 +14,9 @@ import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
 /**
- * Which of the two implementations a composed default call reaches, and what it hands over.
- *
- * The binding records and computes nothing, so these ask what was called rather than whether the numbers
- * came back right: a threshold that never fires, a packed layout offered to a library that cannot read it,
- * or an operand handed over while it still shares the destination fails here and nowhere else.
- * `minimumWork = 0` lets a three-by-three fixture stand for a call past the policy's size, which is itself a
- * separate case below.
+ * Checks host selection and argument translation with a recording binding. Routes expose
+ * inactive thresholds, incompatible packed layouts and unstaged aliases. `minimumWork = 0`
+ * keeps fixtures small; a separate case checks the size policy.
  */
 class HostDenseBlasTest {
     private fun forced(
