@@ -435,11 +435,47 @@ internal class PortableDenseBlas(
 
     override fun ger(alpha: Double, x: DoubleArray, y: DoubleArray, a: DenseMatrix, workspace: Workspace?) {
         requireGerOperands(x.size, y.size, a)
-        if (alpha == 0.0 || a.rows == 0) return
-        staged(workspace, x, x === a.values) { xv ->
-            staged(workspace, y, y === a.values) { yv ->
-                forEachPanel(a.cols, panels.executionGroup(PanelWork.RankUpdate, a.rows, a.cols)) { start, width ->
-                    panels.rankUpdate(alpha, a.values, start * a.rows, a.rows, xv, 0, 1, a.rows, width, yv, start, 1)
+        gerWindow(alpha, x, y, a, 0, 0, a.rows, a.cols, 0, 0, workspace)
+    }
+
+    override fun ger(
+        alpha: Double,
+        x: DoubleArray,
+        y: DoubleArray,
+        a: DenseMatrix,
+        rowOffset: Int,
+        columnOffset: Int,
+        rows: Int,
+        columns: Int,
+        xOffset: Int,
+        yOffset: Int,
+        workspace: Workspace?,
+    ) {
+        requireGerWindowOperands(x.size, y.size, a, rowOffset, columnOffset, rows, columns, xOffset, yOffset)
+        gerWindow(alpha, x, y, a, rowOffset, columnOffset, rows, columns, xOffset, yOffset, workspace)
+    }
+
+    private fun gerWindow(
+        alpha: Double,
+        x: DoubleArray,
+        y: DoubleArray,
+        a: DenseMatrix,
+        rowOffset: Int,
+        columnOffset: Int,
+        rows: Int,
+        columns: Int,
+        xOffset: Int,
+        yOffset: Int,
+        workspace: Workspace?,
+    ) {
+        if (alpha == 0.0 || rows == 0 || columns == 0) return
+        staged(workspace, x, xOffset, rows, x === a.values) { xv, xo ->
+            staged(workspace, y, yOffset, columns, y === a.values) { yv, yo ->
+                forEachPanel(columns, panels.executionGroup(PanelWork.RankUpdate, rows, columns)) { start, width ->
+                    panels.rankUpdate(
+                        alpha, a.values, rowOffset + (columnOffset + start) * a.rows, a.rows,
+                        xv, xo, 1, rows, width, yv, yo + start, 1,
+                    )
                 }
             }
         }

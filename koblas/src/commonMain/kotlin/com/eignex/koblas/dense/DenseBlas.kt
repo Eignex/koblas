@@ -166,6 +166,34 @@ public interface DenseBlas {
      *  [workspace] lends that snapshot. */
     public fun ger(alpha: Double, x: DoubleArray, y: DoubleArray, a: DenseMatrix, workspace: Workspace? = null)
 
+    /**
+     * `A(rowOffset + i, columnOffset + j) += alpha · x(xOffset + i) · y(yOffset + j)` for
+     * `0 <= i < rows` and `0 <= j < columns`. Entries outside this rectangle are untouched.
+     *
+     * The destination retains [a]'s column-major leading dimension. Built-in panel kernels update it
+     * directly, without copying the rectangle or allocating vector views. All matrix and vector ranges
+     * are validated before writing, including when [alpha] is zero or either extent is empty.
+     *
+     * A vector sharing [a]'s buffer is snapshotted over only its selected range; [workspace] lends that
+     * snapshot. A zero [alpha] or an empty rectangle reads no entries and takes no scratch.
+     * For [com.eignex.koblas.KoblasEngine.routeOf], use [DenseMatrixOperation.GerWindow] with the rectangle's
+     * [rows] and [columns], rather than the full matrix shape.
+     */
+    @Suppress("LongParameterList") // the rank update and its three independently addressed windows
+    public fun ger(
+        alpha: Double,
+        x: DoubleArray,
+        y: DoubleArray,
+        a: DenseMatrix,
+        rowOffset: Int,
+        columnOffset: Int,
+        rows: Int,
+        columns: Int,
+        xOffset: Int = 0,
+        yOffset: Int = 0,
+        workspace: Workspace? = null,
+    )
+
     /** `A += alpha · x · xᵀ` (BLAS `dsyr`), writing only the [lower] or upper triangle. [x] must be dense or
      *  strided storage, which is what a vendor can address. Overlap staging follows [ger]. */
     @Suppress("LongParameterList") // the BLAS dsyr signature plus the workspace

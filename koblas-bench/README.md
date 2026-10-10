@@ -22,6 +22,41 @@ koblas-bench/capture-report.sh --vendors-only --libraries openblas,accelerate
 On a hybrid CPU, pin the run: `taskset -c 2,4,6,8 koblas-bench/capture-report.sh …`. Otherwise it wanders
 between core types and the timings move with the scheduler.
 
+## Shrinking rank updates
+
+Three default operations compare the trailing updates of a small dense LU workload:
+
+| Operation | Timed work |
+|---|---|
+| `ger-shrinking` | `n - 1` full-buffer `ger(-1.0, x, y, A)` calls with zero prefixes |
+| `ger-window-shrinking` | The same updates through the validated windowed GER API |
+| `panel-rankupdate-shrinking` | The same rectangles passed directly to raw panel kernels |
+
+Orders 5, 6 and 7 bracket the consumer's dense-selection boundary; 34 and 198 are larger controls, outside
+its production dense path. Order 6 is primary: a synthetic matrix with 31 nonzeros out of 36, then five
+updates with vector supports 5, 4, 3, 2 and 1. Mixed-sign coefficients avoid an all-positive special case.
+These fixtures reproduce the workload shape and density, rather than a captured basis's coefficients.
+
+Matrix and vector buffers are disjoint and reused. Each support has a prepared vector pair, so timing
+includes warmed call dispatch and arithmetic, and excludes vector preparation, matrix resets, allocation
+of fixtures, pivot search, swaps, division and sparse conversion. A sample repeatedly accumulates the
+batch into the same matrix. Setup checks the whole matrix against the scalar oracle and restores it before
+timing. A row reports nanoseconds **per batch**, not per individual GER or complete factorization.
+The raw panel row omits public validation and alias handling; it isolates panel work from those public API costs.
+Routes name every body reached by the shrinking windows, including scalar tails.
+
+```bash
+# Repeat for ger-shrinking and panel-rankupdate-shrinking to compare the three paths.
+taskset -c 2 koblas-bench/capture-report.sh --operation ger-window-shrinking \
+  --samples 5 --warmups 5 --target-ms 200 --forks 2
+```
+
+Explicit vendor arms support only the full-buffer batch, since the binding API has no rectangle offsets
+or parent leading dimension. A host-composed engine keeps windowed GER on its portable schedule. Capture
+GC allocation data separately with JMH profiling when investigating JVM dispatch; the ordinary CSV has
+no allocation column. The JVM verification gate checks the warmed five-window batch for allocations.
+These GER-only timings cannot establish a complete LU speedup.
+
 ## Capturing in the reference container
 
 ```bash

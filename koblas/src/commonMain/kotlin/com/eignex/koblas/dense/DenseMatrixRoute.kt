@@ -25,6 +25,9 @@ public enum class DenseMatrixOperation(internal val entryPoint: String) {
     /** `A += alpha·x·yᵀ`. */
     Ger("ger"),
 
+    /** Rank-one update of a rectangle within an existing matrix, using the owned panel kernels. */
+    GerWindow("ger-window"),
+
     /** `A += alpha·x·xᵀ` in the selected triangle. */
     Syr("syr"),
 
@@ -83,8 +86,10 @@ public enum class DenseMatrixOperation(internal val entryPoint: String) {
  * single representative length instead would name an implementation the call reaches only sometimes, which is
  * the thing route reporting exists to prevent.
  *
- * @property rows the stored rows of the operand a panel walks, which is the length of one of its columns.
- * @property columns the stored columns of that operand.
+ * @property rows the stored rows of the operand a panel walks, or the rectangle's row count for
+ *   [DenseMatrixOperation.GerWindow].
+ * @property columns the stored columns of that operand, or the rectangle's column count for
+ *   [DenseMatrixOperation.GerWindow].
  * @property alpha the multiplier the call will use.
  * @property beta the destination multiplier, or 1.0 for an operation that has none.
  * @property contiguous whether the vector the panel shares across its columns is adjacent in memory, since a

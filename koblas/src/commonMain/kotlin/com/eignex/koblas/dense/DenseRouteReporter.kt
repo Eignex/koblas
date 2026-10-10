@@ -365,7 +365,7 @@ internal class DenseRouteReporter(
 
         DenseMatrixOperation.Symv -> PanelWork.CoupledDotUpdate
 
-        DenseMatrixOperation.Ger, DenseMatrixOperation.Syr -> PanelWork.RankUpdate
+        DenseMatrixOperation.Ger, DenseMatrixOperation.GerWindow, DenseMatrixOperation.Syr -> PanelWork.RankUpdate
 
         else -> null
     }

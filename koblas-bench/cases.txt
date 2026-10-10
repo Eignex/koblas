@@ -41,6 +41,23 @@ gemv+32x21+uniform
 gemv+129x31+uniform+transA=T
 symv+129+uniform+uplo=U
 ger+129x31+uniform
+# One batch is order minus one full-buffer GER calls, with trailing supports shrinking to one.
+ger-shrinking+5+uniform
+ger-shrinking+6+uniform
+ger-shrinking+7+uniform
+ger-shrinking+34+uniform
+ger-shrinking+198+uniform
+ger-window-shrinking+5+uniform
+ger-window-shrinking+6+uniform
+ger-window-shrinking+7+uniform
+ger-window-shrinking+34+uniform
+ger-window-shrinking+198+uniform
+# Raw trailing windows expose the arithmetic a windowed GER API could reach, including scalar tails.
+panel-rankupdate-shrinking+5+uniform
+panel-rankupdate-shrinking+6+uniform
+panel-rankupdate-shrinking+7+uniform
+panel-rankupdate-shrinking+34+uniform
+panel-rankupdate-shrinking+198+uniform
 syr+129+uniform+uplo=L
 syr2+129+uniform+uplo=U
 trsv+129+triangular+uplo=L+transA=N+diag=N

@@ -29,7 +29,7 @@ class CasesFileTest {
     @Test
     fun `capture selection agrees with Kotlin across suites and smoke limits`() {
         val cases = Cases.parse(Files.readString(Path.of("cases.txt")))
-        for ((suite, operation) in listOf("default" to "all", "default" to "dot", "sweep" to "dot", "sweep" to "sum")) {
+        for ((suite, operation) in listOf("default" to "all", "default" to "dot", "default" to "ger-window-shrinking", "sweep" to "dot", "sweep" to "sum")) {
             for (smoke in listOf(false, true)) {
                 val process = ProcessBuilder("awk", "-v", "suite=$suite", "-v", "operation=$operation", "-v", "smoke=$smoke",
                     "-f", "select-cases.awk", "cases.txt").redirectErrorStream(true).start()
@@ -72,7 +72,7 @@ class CasesFileTest {
         val digest = MessageDigest.getInstance("SHA-256").digest(ids.toByteArray()).joinToString("") { "%02x".format(it) }
 
         // The digest protects benchmark identities used to compare captures.
-        assertEquals("df285d162119ebafa5460e24779839ad63efb8234999e3c82129fea53dd1569d", digest)
+        assertEquals("5563229db179aef1386ef9abb3e6b486d3c5c492c8b105bfad544f455e027b1f", digest)
     }
 
     @Test
@@ -81,8 +81,8 @@ class CasesFileTest {
 
         assertEquals(SWEPT, cases.filter { "sweep" in it.suites }.map { it.operation }.toSet())
         assertEquals(168, cases.count { "sweep" in it.suites })
-        assertEquals(386, cases.size)
-        assertEquals(234, Cases.select(cases).size)
+        assertEquals(401, cases.size)
+        assertEquals(249, Cases.select(cases).size)
         assertEquals(cases.size, cases.map { it.id }.toSet().size)
     }
 

@@ -215,6 +215,19 @@ internal fun vendorArm(case: BenchCase, blas: Blas): ArmChoice {
             }
         }
 
+        "ger-shrinking" -> {
+            val fixture = ShrinkingRankUpdate(d[0])
+            val x = fixture.x.map { DenseVector.wrap(it) }
+            val y = fixture.y.map { DenseVector.wrap(it) }
+            val run = {
+                for (step in x.indices) blas.ger(-1.0, x[step], y[step], fixture.matrix)
+                fixture.matrix.values.last()
+            }
+            val choice = arm(BlasOperation.Ger, listOf(fixture.matrix), x + y, "arithmetic", run)
+            if (choice.work != null) fixture.verify(case.id, run)
+            choice
+        }
+
         "syr", "syr2" -> {
             val n = d[0]
             val original = Fixtures.matrix(n, n, 1)

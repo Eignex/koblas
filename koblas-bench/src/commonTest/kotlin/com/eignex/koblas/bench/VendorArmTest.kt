@@ -35,6 +35,11 @@ class VendorArmTest {
         "symv+48+uniform+uplo=L",
         "symv+48+uniform+uplo=U",
         "ger+64x48+uniform",
+        "ger-shrinking+5+uniform",
+        "ger-shrinking+6+uniform",
+        "ger-shrinking+7+uniform",
+        "ger-shrinking+34+uniform",
+        "ger-shrinking+198+uniform",
         "syr+48+uniform+uplo=L",
         "syr2+48+uniform+uplo=U",
         "trsv+48+triangular+uplo=L+transA=N+diag=N",
@@ -78,6 +83,17 @@ class VendorArmTest {
             )
             work.close()
             reference.close()
+        }
+    }
+
+    @Test
+    fun `vendor arms decline windowed batches without a rectangle binding`() {
+        val blas = vendor() ?: return
+        for (operation in listOf("ger-window-shrinking", "panel-rankupdate-shrinking")) {
+            val choice = vendorArm(Cases.parse("$operation+6+uniform").single(), blas)
+
+            assertNull(choice.work)
+            assertNotNull(choice.reason)
         }
     }
 

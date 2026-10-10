@@ -191,6 +191,22 @@ internal class HostDenseBlas(
         }
     }
 
+    // Whole-matrix bindings do not expose window offsets or leading dimensions.
+    @Suppress("LongParameterList") // the rank update and its three independently addressed windows
+    override fun ger(
+        alpha: Double,
+        x: DoubleArray,
+        y: DoubleArray,
+        a: DenseMatrix,
+        rowOffset: Int,
+        columnOffset: Int,
+        rows: Int,
+        columns: Int,
+        xOffset: Int,
+        yOffset: Int,
+        workspace: Workspace?,
+    ): Unit = portable.ger(alpha, x, y, a, rowOffset, columnOffset, rows, columns, xOffset, yOffset, workspace)
+
     @Suppress("LongParameterList") // the BLAS dsyr signature plus the workspace
     override fun syr(alpha: Double, x: DenseVector, a: DenseMatrix, lower: Boolean, workspace: Workspace?) {
         requireSyrOperands(a, x.size, "syr")
@@ -498,7 +514,8 @@ internal object HostDensePolicy {
     /**
      * The CBLAS entry point [operation] is one whole call to, or null where it is not one at all.
      *
-     * The packed products are the operations with no entry point. Their operands are grouped for this
+     * Windowed GER stays portable because the binding exposes neither offsets nor a parent leading
+     * dimension. Packed products also have no entry point. Their operands are grouped for this
      * library's own register tile, which is a layout of ours and not one a library has an argument for, so a
      * call over a retained panel stays on the portable schedule however large it is. An engine holding a
      * vendor binding is not evidence that such a call reached it, which is what keeps the route honest.
@@ -532,6 +549,7 @@ internal object HostDensePolicy {
 
         DenseMatrixOperation.Trsm -> BlasOperation.Trsm
 
+        DenseMatrixOperation.GerWindow,
         DenseMatrixOperation.GemmPacked,
         DenseMatrixOperation.GemmPackedLeft,
         DenseMatrixOperation.GemmPackedRight,

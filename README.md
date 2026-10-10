@@ -75,6 +75,24 @@ A workspace retains a bounded set of buffers, and a call that needs none takes n
 handed. It does not eliminate the result a fresh-result overload allocates, nor the arrays a sparse operation
 discovering new structure has to build. Concurrent calls need distinct destinations and workspaces.
 
+A rank update can target a rectangle in a reused matrix. For example, a trailing update after pivot `k`
+uses the original matrix and vector buffers:
+
+```kotlin
+val start = k + 1
+val extent = matrix.rows - start
+koblas.ger(
+    -1.0, multipliers, pivotRow, matrix,
+    rowOffset = start, columnOffset = start, rows = extent, columns = extent,
+    xOffset = start, yOffset = start,
+)
+```
+
+The window retains the matrix's leading dimension and leaves other entries untouched. Nonaliasing calls
+allocate no views or scratch; aliased vectors are snapshotted over their selected ranges. Windowed GER uses
+owned panel kernels on every platform. Inspect it with `DenseMatrixOperation.GerWindow` and a `DenseCall`
+whose rows and columns describe the rectangle.
+
 ## Java
 
 Factories are static methods, and Kotlin operators/extensions are exposed through `Koblas`. Common calls
