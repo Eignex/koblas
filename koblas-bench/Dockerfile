@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 
-# A fixed machine to capture reference reports on, so that a number from a cloud host is comparable with one
-# from a laptop: same JDK, same OpenBLAS, same oneMKL, pinned by digest and version rather than by whatever
+# A fixed machine to capture reference reports on, so that a number from one machine is comparable with one
+# from another: same JDK, same OpenBLAS, same oneMKL, pinned by digest and version rather than by whatever
 # the base image happens to carry today.
 
 ARG UBUNTU_IMAGE=ubuntu@sha256:513c074113a871b51a8d16ab445c88779d6452d937a164fb5cc479f32668a41d

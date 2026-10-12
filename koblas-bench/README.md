@@ -64,7 +64,7 @@ koblas-bench/reference-container.sh all --samples 5 --warmups 5 --target-ms 200 
 ```
 
 Builds an image with a pinned JDK, OpenBLAS and oneMKL, mounts the repository, and captures inside it,
-so a report from a cloud host is comparable with one from a laptop. Takes `openblas`, `onemkl`, `aocl` or
+so a report from one machine is comparable with one from another. Takes `openblas`, `onemkl`, `aocl` or
 `all` before the capture options; `all` needs an x86-64 host, since oneMKL ships no ARM64 build. Requires
 Docker, and the report lands in the repository as usual because the working tree is mounted rather than
 copied.
@@ -80,15 +80,7 @@ is a separate target rather than part of `all`. The licence covers using it on a
 on; it does not cover redistributing it, so an image built from that stage must not be published. The same is
 true of `armpl` below, and it is why `all` names only the libraries an image may carry.
 
-### On a cloud instance
-
-Install Docker, clone the repository, and run the command above. Reports are keyed by a hash of the hardware,
-so different instance types write to different directories and never overwrite each other.
-
-Take an instance that owns its cores. A burstable type throttles partway through a capture and a shared one
-gives the cores away, and either turns up as a slower arm rather than as an error. Sizes at or above the
-point where an instance holds a whole socket are what produce repeatable numbers, and pinning still applies:
-a vCPU is usually one hyperthread, so pin to every other one.
+### On ARM64
 
 On ARM64 use the `armpl` target rather than `all`, since oneMKL has no ARM64 build:
 
@@ -109,10 +101,10 @@ target, carry it over, and name it:
 ```bash
 # On an x86-64 machine, in a clone of the repository.
 ./gradlew :koblas-bench:linkReleaseExecutableLinuxArm64
-scp koblas-bench/build/bin/linuxArm64/releaseExecutable/koblas-bench.kexe instance:/home/ubuntu/
+scp koblas-bench/build/bin/linuxArm64/releaseExecutable/koblas-bench.kexe arm-host:
 
-# On the instance.
-koblas-bench/capture-report.sh --native-executable /home/ubuntu/koblas-bench.kexe \
+# On the ARM64 host.
+koblas-bench/capture-report.sh --native-executable ~/koblas-bench.kexe \
   --samples 5 --warmups 5 --target-ms 200 --forks 2
 ```
 
@@ -126,28 +118,27 @@ Native consumer on that hardware actually uses.
 
 ### Which hosts to capture
 
-The historical fleet provides a ladder of SIMD widths and generations. Its reports describe the source
-and operations recorded in each capture. The restored matrix kernels need separate captures on these hosts
-before those reports can support performance claims about them.
+The historical captures provide a ladder of SIMD widths and generations. The restored matrix kernels need
+separate captures on these microarchitectures before any report can support performance claims about them.
 
-| Instance | Microarchitecture | Widest SIMD | Double lanes |
-|---|---|---|---|
-| `m2.xlarge` | Xeon E5-2665 Sandy Bridge | AVX, no FMA3 | 2 |
-| `c3.2xlarge` | Xeon E5-2680 v2 Ivy Bridge | AVX, no FMA3 | 2 |
-| `c4.2xlarge` | Xeon E5-2666 v3 Haswell | AVX2 with FMA3 | 4 |
-| `c5a.2xlarge` | AMD EPYC 7R32 Zen 2 | AVX2 with FMA3 | 4 |
-| `c7i.2xlarge` | Xeon Platinum 8488C Sapphire Rapids | AVX-512 | 8 |
-| `c6g.2xlarge` | Graviton2 Neoverse-N1 | NEON | 2 |
-| `c7g.2xlarge` | Graviton3 Neoverse-V1 | SVE 256-bit | 4 |
-| `c8g.2xlarge` | Graviton4 Neoverse-V2 | SVE 128-bit | 2 |
+| Microarchitecture | Widest SIMD | Double lanes |
+|---|---|---|
+| Sandy Bridge | AVX, no FMA3 | 2 |
+| Ivy Bridge | AVX, no FMA3 | 2 |
+| Haswell | AVX2 with FMA3 | 4 |
+| Zen 2 | AVX2 with FMA3 | 4 |
+| Sapphire Rapids | AVX-512 | 8 |
+| Neoverse-N1 | NEON | 2 |
+| Neoverse-V1 | SVE 256-bit | 4 |
+| Neoverse-V2 | SVE 128-bit | 2 |
 
 Lane counts are what `SPECIES_PREFERRED` resolved to on JDK 25, read back from each capture rather than
 derived from the instruction set: the AVX hosts get 128-bit vectors because HotSpot caps its vector size
-where only the first generation is present, and Graviton4's SVE is narrower than Graviton3's although it is
-the later part. Every rung therefore has to be measured rather than predicted, which is the reason to keep
+where only the first generation is present, and Neoverse-V2's SVE is narrower than Neoverse-V1's although it
+is the later part. Every rung therefore has to be measured rather than predicted, which is the reason to keep
 the list.
 
-The pre-FMA rungs earn their place even though nobody buys those instances now: a Vector API operation with
+The pre-FMA rungs earn their place even though nobody buys those parts now: a Vector API operation with
 no instruction behind it falls back to a software implementation per lane rather than refusing, and only a
 host without the instruction shows that.
 
@@ -159,13 +150,13 @@ The historical ARM rungs have no `native` or plain `armpl` numbers, for the buil
 A cross-compiled executable can be carried to an ARM host for measurement. Compile-only validation does
 not provide Native timing evidence.
 
-The AMD rung is Zen 2, which stops at AVX2, so every AVX-512 number in the fleet is Intel's. AMD implements
-that width differently enough that it is not the same rung read twice, and `c7a.2xlarge` is where Zen 4 has
-it. That instance matters more than a missing width would on its own, because AMD is also where `Vendor.select`
+The AMD rung is Zen 2, which stops at AVX2, so every AVX-512 number on the ladder is Intel's. AMD implements
+that width differently enough that it is not the same rung read twice, and Zen 4 is where AMD has it. That
+host matters more than a missing width would on its own, because AMD is also where `Vendor.select`
 puts AOCL ahead of everything else, so it is the only host whose first-choice vendor is the one the `aocl`
 arm times.
 
-Accelerate and macOS are absent from this timed fleet, and Linux measurements cannot stand in for them.
+Accelerate and macOS are absent from this ladder, and Linux measurements cannot stand in for them.
 Correctness checks on macOS are separate from performance measurements on Apple hardware. The Native default
 uses portable Kotlin when an installed host call is unavailable or ineligible.
 
@@ -193,9 +184,8 @@ directory, and each successful run replaces what was there. A failing target sto
 previous report in place.
 
 A committed report comes from a machine kept for the purpose: nothing else running on it, a named part
-someone else can rent or buy, and cores it does not share. The cloud fleet above is how most rungs are
-reached, and a dedicated physical machine qualifies on the same terms, which is the only way to reach
-Accelerate.
+someone else can rent or buy, and cores it does not share. Accelerate is reachable only on a dedicated Apple
+machine that meets the same terms.
 
 A machine being worked on does not qualify, whatever it is. Run captures there freely, since `--output` and
 the single-operation modes write to `build/benchmarks/` anyway, but a browser on the other desktop is enough
