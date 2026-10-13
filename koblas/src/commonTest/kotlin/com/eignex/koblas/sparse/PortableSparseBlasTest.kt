@@ -1,18 +1,90 @@
 package com.eignex.koblas.sparse
 
 import com.eignex.koblas.BuiltinEngines
+import com.eignex.koblas.DenseMatrix
+import com.eignex.koblas.DimensionMismatch
 import com.eignex.koblas.KoblasEngine
 import com.eignex.koblas.SparseMatrix
+import com.eignex.koblas.Workspace
 import com.eignex.koblas.assertClose
 import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
 class PortableSparseBlasTest {
-    private val engines: List<KoblasEngine>
-        get() = listOfNotNull(BuiltinEngines.scalar, BuiltinEngines.simd).distinct()
+    private val engines: List<KoblasEngine> = listOfNotNull(BuiltinEngines.scalar, BuiltinEngines.simd).distinct()
+    private val emptyTrmmTriangles = listOf(
+        SparseMatrix.ofColumns(3, 3, List(3) { listOf(it to 2.0) }),
+        SparseMatrix.wrap(3, 3, IntArray(4), IntArray(0), DoubleArray(0)),
+    )
+
+    @Test
+    fun `trmm on the left with no right hand sides borrows nothing`() {
+        assertEmptyTrmmBorrowsNothing(right = false)
+    }
+
+    @Test
+    fun `trmm on the right with no right hand sides borrows nothing`() {
+        assertEmptyTrmmBorrowsNothing(right = true)
+    }
+
+    private fun assertEmptyTrmmBorrowsNothing(right: Boolean) {
+        for (engine in engines) {
+            for (a in emptyTrmmTriangles) {
+                val order = a.rows
+                for (lower in booleanArrayOf(false, true)) {
+                    for (transpose in booleanArrayOf(false, true)) {
+                        for (unitDiag in booleanArrayOf(false, true)) {
+                            // An empty triangle shares the backing to exercise alias staging as well.
+                            val backing = if (a.nnz == 0) a.values else DoubleArray(0)
+                            val b = if (right) {
+                                DenseMatrix.wrap(0, order, backing)
+                            } else {
+                                DenseMatrix.wrap(order, 0, backing)
+                            }
+                            val workspace = Workspace()
+                            val context = "${engine.name} nnz=${a.nnz} right=$right lower=$lower " +
+                                "transpose=$transpose unitDiag=$unitDiag"
+
+                            engine.trmm(a, b, lower, transpose, unitDiag, right, 1.0, workspace)
+
+                            assertContentEquals(DoubleArray(0), backing, context)
+                            assertEquals(0, workspace.idleLengths(), context)
+                            assertEquals(0, workspace.idleI32Lengths(), context)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `trmm with no right hand sides still validates dimensions`() {
+        val order = 3
+        val triangles = listOf(
+            SparseMatrix.wrap(order, order, IntArray(order + 1), IntArray(0), DoubleArray(0)),
+            SparseMatrix.wrap(order, order + 1, IntArray(order + 2), IntArray(0), DoubleArray(0)),
+        )
+        for (engine in engines) {
+            for (a in triangles) {
+                for (right in booleanArrayOf(false, true)) {
+                    val dimension = if (a.rows == a.cols) order + 1 else order
+                    val b = if (right) DenseMatrix.zero(0, dimension) else DenseMatrix.zero(dimension, 0)
+                    val workspace = Workspace()
+
+                    assertFailsWith<DimensionMismatch>("${engine.name} shape=${a.rows} by ${a.cols} right=$right") {
+                        engine.trmm(a, b, lower = true, right = right, workspace = workspace)
+                    }
+
+                    assertEquals(0, workspace.idleLengths())
+                    assertEquals(0, workspace.idleI32Lengths())
+                }
+            }
+        }
+    }
 
     @Test
     fun `gemv agrees across transpose alpha and beta variants`() {
