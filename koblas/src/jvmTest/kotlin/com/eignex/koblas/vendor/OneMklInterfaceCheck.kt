@@ -40,7 +40,11 @@ internal object OneMklInterfaceCheck {
     private fun checkInheritedInterface() {
         val library = assertNotNull(JvmVendorLibrary.open(Vendor.OneMkl), "installed oneMKL failed LP64 loading")
         val interfaceLayer = library.handle("MKL_Set_Interface_Layer", FunctionDescriptor.of(JAVA_INT, JAVA_INT))
-        assertEquals(MKL_LP64, interfaceLayer.invokeExact(-1) as Int, "the inherited ILP64 interface was not overridden")
+        assertEquals(
+            MKL_LP64,
+            interfaceLayer.invokeExact(-1) as Int,
+            "the inherited ILP64 interface was not overridden",
+        )
         assertEquals(ThreadEvidence.Confirmed, library.threadEvidence)
         val blas = JvmVendorBlas(library)
         val x = DenseVector.wrap(vendorValues(7, 31))
