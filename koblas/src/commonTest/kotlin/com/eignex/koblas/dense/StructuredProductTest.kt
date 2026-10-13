@@ -299,28 +299,70 @@ class StructuredProductTest {
         for ((order, sides) in symmetricShapes()) {
             for (lower in booleanArrayOf(false, true)) {
                 for (right in booleanArrayOf(false, true)) {
-                    val (full, poisoned) = poisonedSymmetric(rng, order, lower)
-                    val rows = if (right) sides else order
-                    val columns = if (right) order else sides
-                    val b = randomMatrix(rows, columns, rng)
-                    val start = randomMatrix(rows, columns, rng)
-                    val expected = start.copyOf()
-                    val actual = start.copyOf()
-                    // The oracle takes the full symmetric matrix, so its answer does not depend on which
-                    // half this call was given.
-                    ReferenceBlas.symm(0.875, full, b, -0.25, expected, lower = true, right = right)
-
-                    blas.symm(0.875, poisoned, b, -0.25, actual, lower, right)
-
-                    assertClose(
-                        expected.values,
-                        actual.values,
-                        "symm order=$order sides=$sides lower=$lower right=$right",
-                        TOLERANCE,
-                    )
+                    assertSymmetricProductAgreesWithReference(blas, order, sides, lower, right)
                 }
             }
         }
+    }
+
+    @Test
+    fun `symm agrees with the oracle over three blocks from the left with an upper triangle`() =
+        withDenseBlas { blas ->
+            assertSymmetricProductAgreesWithReference(
+                blas, 2 * SYMMETRIC_BLOCK + 3, VECTOR_SIDES + 3, lower = false, right = false,
+            )
+        }
+
+    @Test
+    fun `symm agrees with the oracle over three blocks from the left with a lower triangle`() =
+        withDenseBlas { blas ->
+            assertSymmetricProductAgreesWithReference(
+                blas, 2 * SYMMETRIC_BLOCK + 3, VECTOR_SIDES + 3, lower = true, right = false,
+            )
+        }
+
+    @Test
+    fun `symm agrees with the oracle over three blocks from the right with an upper triangle`() =
+        withDenseBlas { blas ->
+            assertSymmetricProductAgreesWithReference(
+                blas, 2 * SYMMETRIC_BLOCK + 3, VECTOR_SIDES + 3, lower = false, right = true,
+            )
+        }
+
+    @Test
+    fun `symm agrees with the oracle over three blocks from the right with a lower triangle`() =
+        withDenseBlas { blas ->
+            assertSymmetricProductAgreesWithReference(
+                blas, 2 * SYMMETRIC_BLOCK + 3, VECTOR_SIDES + 3, lower = true, right = true,
+            )
+        }
+
+    private fun assertSymmetricProductAgreesWithReference(
+        blas: DenseBlas,
+        order: Int,
+        sides: Int,
+        lower: Boolean,
+        right: Boolean,
+    ) {
+        val (full, poisoned) = poisonedSymmetric(rng, order, lower)
+        val rows = if (right) sides else order
+        val columns = if (right) order else sides
+        val b = randomMatrix(rows, columns, rng)
+        val start = randomMatrix(rows, columns, rng)
+        val expected = start.copyOf()
+        val actual = start.copyOf()
+        // The oracle takes the full symmetric matrix, so its answer does not depend on which
+        // half this call was given.
+        ReferenceBlas.symm(0.875, full, b, -0.25, expected, lower = true, right = right)
+
+        blas.symm(0.875, poisoned, b, -0.25, actual, lower, right)
+
+        assertClose(
+            expected.values,
+            actual.values,
+            "symm order=$order sides=$sides lower=$lower right=$right",
+            TOLERANCE,
+        )
     }
 
     /** A symmetric product with nothing to add still overwrites its destination rather than scaling it. */

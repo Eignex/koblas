@@ -54,9 +54,75 @@ class TriangularSchedulingTest {
         assertMultiplies(blas, right = true)
     }
 
-    private fun assertSolves(blas: DenseBlas, right: Boolean, lower: Boolean) =
-        forEachCase(booleanArrayOf(lower)) { order, sides, lower, transpose, unitDiag ->
+    @Test
+    fun `trsm agrees with the oracle over three blocks from the left with an upper triangle`() =
+        withDenseBlas { blas ->
+            assertSolves(blas, right = false, lower = false, shapes = threeBlockShapes())
+        }
+
+    @Test
+    fun `trsm agrees with the oracle over three blocks from the left with a lower triangle`() =
+        withDenseBlas { blas ->
+            assertSolves(blas, right = false, lower = true, shapes = threeBlockShapes())
+        }
+
+    @Test
+    fun `trsm agrees with the oracle over three blocks from the right with an upper triangle`() =
+        withDenseBlas { blas ->
+            assertSolves(blas, right = true, lower = false, shapes = threeBlockShapes())
+        }
+
+    @Test
+    fun `trsm agrees with the oracle over three blocks from the right with a lower triangle`() =
+        withDenseBlas { blas ->
+            assertSolves(blas, right = true, lower = true, shapes = threeBlockShapes())
+        }
+
+    @Test
+    fun `trmm agrees with the oracle over three blocks from the left with an upper triangle`() =
+        withDenseBlas { blas ->
+            assertMultiplies(blas, right = false, lowerModes = booleanArrayOf(false), shapes = threeBlockShapes())
+        }
+
+    @Test
+    fun `trmm agrees with the oracle over three blocks from the left with a lower triangle`() =
+        withDenseBlas { blas ->
+            assertMultiplies(blas, right = false, lowerModes = booleanArrayOf(true), shapes = threeBlockShapes())
+        }
+
+    @Test
+    fun `trmm agrees with the oracle over three blocks from the right with an upper triangle`() =
+        withDenseBlas { blas ->
+            assertMultiplies(blas, right = true, lowerModes = booleanArrayOf(false), shapes = threeBlockShapes())
+        }
+
+    @Test
+    fun `trmm agrees with the oracle over three blocks from the right with a lower triangle`() =
+        withDenseBlas { blas ->
+            assertMultiplies(blas, right = true, lowerModes = booleanArrayOf(true), shapes = threeBlockShapes())
+        }
+
+    /** Two full diagonal blocks and a tail, with a partial backend-derived right-hand-side group. */
+    private fun threeBlockShapes(): List<Pair<Int, Int>> =
+        listOf(2 * TRIANGULAR_DIAGONAL_BLOCK + 5 to VECTOR_SIDES + 3)
+
+    private fun assertSolves(
+        blas: DenseBlas,
+        right: Boolean,
+        lower: Boolean,
+        shapes: List<Pair<Int, Int>> = triangularShapes(),
+    ) =
+        forEachCase(booleanArrayOf(lower), shapes) { order, sides, lower, transpose, unitDiag ->
             val (triangle, _) = poisonedTriangle(rng, order, lower, unitDiag)
+            // Keep the larger unit-diagonal fixtures well conditioned so error in constructing the right-hand
+            // sides cannot dominate the scheduling comparison.
+            if (order > 2 * TRIANGULAR_DIAGONAL_BLOCK) {
+                for (column in 0 until order) {
+                    for (row in 0 until order) {
+                        if (row != column) triangle[row, column] /= order
+                    }
+                }
+            }
             val solution = randomMatrix(if (right) sides else order, if (right) order else sides, rng)
             // The right-hand sides come from the reference multiply, so the check does not depend on the
             // solve it is checking.
@@ -73,8 +139,13 @@ class TriangularSchedulingTest {
             )
         }
 
-    private fun assertMultiplies(blas: DenseBlas, right: Boolean) =
-        forEachCase { order, sides, lower, transpose, unitDiag ->
+    private fun assertMultiplies(
+        blas: DenseBlas,
+        right: Boolean,
+        lowerModes: BooleanArray = booleanArrayOf(false, true),
+        shapes: List<Pair<Int, Int>> = triangularShapes(),
+    ) =
+        forEachCase(lowerModes, shapes) { order, sides, lower, transpose, unitDiag ->
             val (triangle, _) = poisonedTriangle(rng, order, lower, unitDiag)
             val start = randomMatrix(if (right) sides else order, if (right) order else sides, rng)
             val expected = start.copyOf()
@@ -413,25 +484,28 @@ class TriangularSchedulingTest {
         return covered.size
     }
 
-    /** Every flag combination on one side, at three orders and two side counts. */
+    /** Every transpose and diagonal mode for the selected triangles and shapes. */
     private inline fun forEachCase(
-        lowerModes: BooleanArray = booleanArrayOf(false, true),
+        lowerModes: BooleanArray,
+        shapes: List<Pair<Int, Int>>,
         body: (order: Int, sides: Int, lower: Boolean, transpose: Boolean, unitDiag: Boolean) -> Unit,
     ) {
-        // One order inside a single diagonal block, one that fills it exactly, and one that leaves a short
-        // last block; one side count below a lane block and one that leaves a tail above it.
-        for (order in intArrayOf(1, TRIANGULAR_DIAGONAL_BLOCK, TRIANGULAR_DIAGONAL_BLOCK + 5)) {
-            for (sides in intArrayOf(1, VECTOR_SIDES + 3)) {
-                for (lower in lowerModes) {
-                    for (transpose in booleanArrayOf(false, true)) {
-                        for (unitDiag in booleanArrayOf(false, true)) {
-                            body(order, sides, lower, transpose, unitDiag)
-                        }
+        for ((order, sides) in shapes) {
+            for (lower in lowerModes) {
+                for (transpose in booleanArrayOf(false, true)) {
+                    for (unitDiag in booleanArrayOf(false, true)) {
+                        body(order, sides, lower, transpose, unitDiag)
                     }
                 }
             }
         }
     }
+
+    /** One single block, one full block and one short tail, with narrow and grouped right-hand sides. */
+    private fun triangularShapes(): List<Pair<Int, Int>> =
+        intArrayOf(1, TRIANGULAR_DIAGONAL_BLOCK, TRIANGULAR_DIAGONAL_BLOCK + 5).flatMap { order ->
+            listOf(order to 1, order to VECTOR_SIDES + 3)
+        }
 
     @Suppress("LongParameterList") // the shape and the four flags, which is what identifies a case
     private fun describe(

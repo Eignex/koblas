@@ -433,6 +433,56 @@ class ProductSchedulingTest {
         }
     }
 
+    @Test
+    fun `a retained product crosses a row block with untransposed operands`() {
+        assertRetainedProductCrossesBlock(rowBlock = true, transposeA = false, transposeB = false)
+    }
+
+    @Test
+    fun `a retained product crosses a row block with a transposed left operand`() {
+        assertRetainedProductCrossesBlock(rowBlock = true, transposeA = true, transposeB = false)
+    }
+
+    @Test
+    fun `a retained product crosses a row block with a transposed right operand`() {
+        assertRetainedProductCrossesBlock(rowBlock = true, transposeA = false, transposeB = true)
+    }
+
+    @Test
+    fun `a retained product crosses a row block with transposed operands`() {
+        assertRetainedProductCrossesBlock(rowBlock = true, transposeA = true, transposeB = true)
+    }
+
+    @Test
+    fun `a retained product crosses a column block with untransposed operands`() {
+        assertRetainedProductCrossesBlock(rowBlock = false, transposeA = false, transposeB = false)
+    }
+
+    @Test
+    fun `a retained product crosses a column block with a transposed left operand`() {
+        assertRetainedProductCrossesBlock(rowBlock = false, transposeA = true, transposeB = false)
+    }
+
+    @Test
+    fun `a retained product crosses a column block with a transposed right operand`() {
+        assertRetainedProductCrossesBlock(rowBlock = false, transposeA = false, transposeB = true)
+    }
+
+    @Test
+    fun `a retained product crosses a column block with transposed operands`() {
+        assertRetainedProductCrossesBlock(rowBlock = false, transposeA = true, transposeB = true)
+    }
+
+    private fun assertRetainedProductCrossesBlock(rowBlock: Boolean, transposeA: Boolean, transposeB: Boolean) {
+        val rng = Random(20261026)
+        for (engine in engines) {
+            val tile = engine.productKernels
+            val m = tile.tileRows + 1 + if (rowBlock) PRODUCT_BLOCK_ROWS else 0
+            val n = tile.tileColumns + 1 + if (rowBlock) 0 else PRODUCT_BLOCK_COLUMNS
+            checkRetainedProduct(engine, m, n, PRODUCT_BLOCK_DEPTH + 3, transposeA, transposeB, rng)
+        }
+    }
+
     /** A retained product with nothing to compute scales its destination and reads no panel. */
     @Test
     fun `a retained product with no work scales its destination`() {
