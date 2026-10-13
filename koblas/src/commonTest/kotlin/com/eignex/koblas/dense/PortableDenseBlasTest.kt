@@ -41,6 +41,16 @@ class PortableDenseBlasTest {
         }
     }
 
+    @Test
+    fun `product aliases agree with the reference and share one snapshot`() {
+        withDenseBlas { blas -> assertDenseProductAliasesAgreeWithReference(blas) }
+    }
+
+    @Test
+    fun `rectangular product aliases retain their operand shapes`() {
+        withDenseBlas { blas -> assertRectangularProductAliasesAgreeWithReference(blas) }
+    }
+
     private val groups = intArrayOf(1, 2, 3, 5, 7, 64)
 
     private fun blasFor(group: Int): DenseBlas = PortableDenseBlas(ScalarVectorKernels, RegroupedPanels(group))

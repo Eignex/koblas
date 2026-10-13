@@ -97,10 +97,8 @@ internal class PortableDenseBlas(
             scale(c.values, beta)
             return
         }
-        staged(workspace, a.values, a.values === c.values) { av ->
-            staged(workspace, b.values, b.values === c.values) { bv ->
-                gemmCore(alpha, a, transposeA, av, b, transposeB, bv, beta, c, depth, workspace)
-            }
+        stagedOperands(workspace, a.values, b.values, c.values) { av, bv ->
+            gemmCore(alpha, a, transposeA, av, b, transposeB, bv, beta, c, depth, workspace)
         }
     }
 
@@ -232,13 +230,11 @@ internal class PortableDenseBlas(
             scaleTriangle(c, beta, lower)
             return
         }
-        staged(workspace, a.values, a.values === c.values) { av ->
-            staged(workspace, b.values, b.values === c.values) { bv ->
-                productWindow(
-                    products, panels, alpha, av, 0, a.rows, transposeA, bv, 0, b.rows, transposeB,
-                    beta, c.values, 0, c.rows, c.rows, c.cols, depth, selectedTriangle(lower), workspace,
-                )
-            }
+        stagedOperands(workspace, a.values, b.values, c.values) { av, bv ->
+            productWindow(
+                products, panels, alpha, av, 0, a.rows, transposeA, bv, 0, b.rows, transposeB,
+                beta, c.values, 0, c.rows, c.rows, c.cols, depth, selectedTriangle(lower), workspace,
+            )
         }
     }
 
@@ -341,16 +337,14 @@ internal class PortableDenseBlas(
             applyBeta(vectors, c.values, 0, c.values.size, beta)
             return
         }
-        staged(workspace, a.values, a.values === c.values) { av ->
-            staged(workspace, b.values, b.values === c.values) { bv ->
-                // Scale once because multiple symmetric windows accumulate into each destination entry.
-                // Using the Level 1 kernel keeps its leaf visible in the route.
-                applyBeta(vectors, c.values, 0, c.values.size, beta)
-                symmetricProduct(
-                    products, panels, alpha, av, a.rows, lower, bv, b.rows, c.values, c.rows,
-                    c.rows, c.cols, right, workspace,
-                )
-            }
+        stagedOperands(workspace, a.values, b.values, c.values) { av, bv ->
+            // Scale once because multiple symmetric windows accumulate into each destination entry.
+            // Using the Level 1 kernel keeps its leaf visible in the route.
+            applyBeta(vectors, c.values, 0, c.values.size, beta)
+            symmetricProduct(
+                products, panels, alpha, av, a.rows, lower, bv, b.rows, c.values, c.rows,
+                c.rows, c.cols, right, workspace,
+            )
         }
     }
 
@@ -413,20 +407,16 @@ internal class PortableDenseBlas(
             return
         }
         val selected = selectedTriangle(lower)
-        // Rank updates pass the same matrix twice; reuse its first staged copy.
-        staged(workspace, a.values, a.values === c.values) { av ->
-            staged(workspace, b.values, b.values === c.values && b !== a) { raw ->
-                val bv = if (b === a) av else raw
+        stagedOperands(workspace, a.values, b.values, c.values) { av, bv ->
+            productWindow(
+                products, panels, alpha, av, 0, a.rows, transpose, bv, 0, b.rows, !transpose,
+                beta, c.values, 0, c.rows, c.rows, c.cols, depth, selected, workspace,
+            )
+            if (doubled) {
                 productWindow(
-                    products, panels, alpha, av, 0, a.rows, transpose, bv, 0, b.rows, !transpose,
-                    beta, c.values, 0, c.rows, c.rows, c.cols, depth, selected, workspace,
+                    products, panels, alpha, bv, 0, b.rows, transpose, av, 0, a.rows, !transpose,
+                    1.0, c.values, 0, c.rows, c.rows, c.cols, depth, selected, workspace,
                 )
-                if (doubled) {
-                    productWindow(
-                        products, panels, alpha, bv, 0, b.rows, transpose, av, 0, a.rows, !transpose,
-                        1.0, c.values, 0, c.rows, c.rows, c.cols, depth, selected, workspace,
-                    )
-                }
             }
         }
     }

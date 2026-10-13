@@ -43,11 +43,10 @@ class DenseWorkspaceTest {
     }
 
     /**
-     * A product whose two operands are both its destination, which is two staging loans of one length at
-     * once. A loan that overwrote the other would show up as the wrong answer rather than as a leak.
+     * A product whose two operands are both its destination needs one immutable snapshot for both reads.
      */
     @Test
-    fun `a product with both operands sharing the destination stages each of them`() {
+    fun `a product with both operands sharing the destination stages them once`() {
         val rng = Random(20260928)
         val n = 6
         val workspace = Workspace()
@@ -59,7 +58,7 @@ class DenseWorkspaceTest {
         blas.gemm(0.875, aliased, false, aliased, true, -0.25, aliased, workspace)
 
         assertClose(expected.values, aliased.values, "gemm with both operands aliased")
-        assertEquals(2, workspace.available(n * n), "the two staged operands did not take a loan each")
+        assertEquals(1, workspace.available(n * n), "the shared operands did not reuse one snapshot")
     }
 
     // An order inside one diagonal block reaches nothing but the substitution, so the staged triangle is the

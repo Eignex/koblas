@@ -197,13 +197,13 @@ class ProductSchedulingTest {
             // what lets a schedule whose windows shrink reuse one buffer for several of them.
             val leftPanel = scratchCapacity(productBlockRows(tile, order) * productBlockDepth(order))
             val rightPanel = scratchCapacity(productBlockColumns(tile, order) * productBlockDepth(order))
-            // One staged copy of each aliased operand, and a packing panel for each side. At this order the
-            // panels cover the whole of both operands, so on a machine whose blocks are no smaller than the
-            // order every one of these lengths is the same.
+            // One shared operand snapshot and a packing panel for each side. At this order the panels
+            // cover the whole of both operands, so on a machine whose blocks are no smaller than the order
+            // every one of these lengths is the same.
             assertEquals(
-                expectedLoans(staged, listOf(staged, staged, leftPanel, rightPanel)),
+                expectedLoans(staged, listOf(staged, leftPanel, rightPanel)),
                 workspace.available(staged),
-                "${engine.name} did not stage both aliased operands and pack both panels from the workspace",
+                "${engine.name} did not share the operand snapshot and pack both panels from the workspace",
             )
 
             val separate = Workspace()
