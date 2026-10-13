@@ -110,7 +110,9 @@ class BlasTest {
             val forward = strideVector(stride, 3, 24)
             val entries = doubleArrayOf(1.0, 5.0, 2.0, -5.0, 3.0, 0.5)
             for (i in entries.indices) forward.values[forward.offset + i * stride] = entries[i]
-            val backward = StridedVector(forward.values, forward.offset + (forward.size - 1) * stride, forward.size, -stride)
+            val backward = StridedVector(
+                forward.values, forward.offset + (forward.size - 1) * stride, forward.size, -stride,
+            )
             val expected = scalar.iamax(forward.values, forward.offset, forward.size, stride)
 
             val actualForward = vendor.iamax(forward)
