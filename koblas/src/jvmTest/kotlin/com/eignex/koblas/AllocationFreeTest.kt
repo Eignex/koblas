@@ -170,22 +170,29 @@ class AllocationFreeTest(
         ) + identicalMappingProbes()
 
         private fun identicalMappingProbes(): List<Array<Any>> = buildList {
-            for ((shape, stride) in listOf("contiguous" to 1, "stepped" to 3, "reversed" to -1, "reversed stepped" to -3)) {
+            val shapes = listOf("contiguous" to 1, "stepped" to 3, "reversed" to -1, "reversed stepped" to -3)
+            for ((shape, stride) in shapes) {
                 for (sameWrapper in booleanArrayOf(false, true)) {
                     val wrappers = if (sameWrapper) "self" else "distinct wrappers"
                     val name = "identical $shape vector $wrappers"
-                    add(arrayOf<Any>("$name copy allocates nothing", 1_000, with(IdenticalMappingFixture(stride, sameWrapper)) { {
-                        copy(source, destination)
-                        backing
-                    } }))
-                    add(arrayOf<Any>("$name axpy allocates nothing", 1_000, with(IdenticalMappingFixture(stride, sameWrapper)) { {
-                        destination.axpy(1e-12, source)
-                        backing
-                    } }))
-                    add(arrayOf<Any>("$name swap allocates nothing", 1_000, with(IdenticalMappingFixture(stride, sameWrapper)) { {
-                        swap(source, destination)
-                        backing
-                    } }))
+                    add(arrayOf<Any>(
+                        "$name copy allocates nothing", 1_000, with(IdenticalMappingFixture(stride, sameWrapper)) { {
+                            copy(source, destination)
+                            backing
+                        } },
+                    ))
+                    add(arrayOf<Any>(
+                        "$name axpy allocates nothing", 1_000, with(IdenticalMappingFixture(stride, sameWrapper)) { {
+                            destination.axpy(1e-12, source)
+                            backing
+                        } },
+                    ))
+                    add(arrayOf<Any>(
+                        "$name swap allocates nothing", 1_000, with(IdenticalMappingFixture(stride, sameWrapper)) { {
+                            swap(source, destination)
+                            backing
+                        } },
+                    ))
                 }
             }
         }
