@@ -82,7 +82,7 @@ internal object Fixtures {
                 columnIndices += j
                 values += if (triangular && row == j) 2.0 + kotlin.math.abs(random.nextDouble()) else random.nextDouble()
             }
-            if (triangular && j < rows && rowIndices.lastOrNull() != j && selected.none { it == j }) {
+            if (triangular && j < rows && selected.none { it == j }) {
                 rowIndices += j
                 columnIndices += j
                 values += 2.0 + kotlin.math.abs(random.nextDouble())
