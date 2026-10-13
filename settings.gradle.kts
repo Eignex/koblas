@@ -15,4 +15,5 @@ plugins {
 include(
     ":koblas",
     ":koblas-bench",
+    ":koblas-bench:jmh",
 )

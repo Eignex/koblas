@@ -14,6 +14,7 @@ eignexBuild {
 kotlin {
     applyDefaultHierarchyTemplate()
     compilerOptions {
+        allWarningsAsErrors.set(true)
         freeCompilerArgs.add("-Xexpect-actual-classes")
         // Timing one Level 1 implementation against another is what this module is for, so naming an engine
         // is its ordinary business rather than something to opt into per file.
@@ -25,12 +26,12 @@ kotlin {
     macosArm64 { binaries.executable { entryPoint = "com.eignex.koblas.bench.main"; baseName = "koblas-bench" } }
     sourceSets {
         commonMain.dependencies { implementation(project(":koblas")) }
-        jvmMain.dependencies { implementation("org.openjdk.jmh:jmh-core:1.37") }
+        jvmMain.dependencies { implementation(project(":koblas-bench:jmh")) }
     }
 }
 
 dependencies {
-    add("jvmMainAnnotationProcessor", "org.openjdk.jmh:jmh-generator-annprocess:1.37")
+    add("jvmMainAnnotationProcessor", project(":koblas-bench:jmh"))
 }
 
 private fun benchmarkArguments(mode: String, jmh: Boolean): List<String> = listOf(
@@ -146,7 +147,7 @@ tasks.register<JavaExec>("jvmSelectedBenchmark") {
             "--output=koblas-bench/build/benchmarks/openblas-smoke.csv",
         ),
     )
-    jvmArgs("--enable-native-access=ALL-UNNAMED")
+    jvmArgs("--enable-native-access=ALL-UNNAMED", "--sun-misc-unsafe-memory-access=deny")
     doLast { logger.lifecycle("resolved: arm=openblas dense=openblas/cblas threading=1 thread") }
 }
 
@@ -165,4 +166,3 @@ registerNativeBenchmark("linuxX64SelectedBenchmark") {
 tasks.withType<Test>().configureEach {
     jvmArgs("--add-modules=jdk.incubator.vector", "--enable-native-access=ALL-UNNAMED")
 }
-

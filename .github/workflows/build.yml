@@ -18,6 +18,7 @@ on:
 
 permissions:
   contents: read
+  actions: read
 
 # A newer push supersedes any in-flight run for the same ref.
 concurrency:
@@ -386,10 +387,15 @@ jobs:
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 15
     steps:
-      - uses: actions/download-artifact@v8
+      - uses: actions/checkout@v6
         with:
-          name: linux-arm64-tests
-          path: build
+          ref: ${{ inputs.ref || github.sha }}
+      - name: Download and verify Linux arm64 tests
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >-
+          python3 .github/scripts/download-artifact.py
+          "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID" linux-arm64-tests build
       - name: Run portable native conformance on arm64
         run: |
           set -euo pipefail

@@ -4,6 +4,7 @@
 import contextlib
 import importlib.util
 import io
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -18,6 +19,43 @@ SCRIPTS = Path(__file__).resolve().parent
 spec = importlib.util.spec_from_file_location("release_bundle", SCRIPTS / "check-release-bundle.py")
 bundle_checker = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(bundle_checker)
+download_spec = importlib.util.spec_from_file_location("artifact_download", SCRIPTS / "download-artifact.py")
+artifact_download = importlib.util.module_from_spec(download_spec)
+download_spec.loader.exec_module(artifact_download)
+
+
+class DownloadArtifactTest(unittest.TestCase):
+    def setUp(self):
+        self.directory = tempfile.TemporaryDirectory()
+        self.addCleanup(self.directory.cleanup)
+        self.root = Path(self.directory.name)
+        self.archive = self.root / "artifact.zip"
+        with zipfile.ZipFile(self.archive, "w") as bundle:
+            bundle.writestr("nested/publication.pom", b"publication")
+        self.digest = "sha256:" + hashlib.sha256(self.archive.read_bytes()).hexdigest()
+        self.destination = self.root / "extracted"
+
+    def test_valid_archive_is_verified_and_extracted(self):
+        artifact_download.extract_verified_archive(self.archive, self.digest, self.destination)
+        self.assertEqual((self.destination / "nested/publication.pom").read_bytes(), b"publication")
+
+    def test_corrupt_archive_is_rejected_before_extraction(self):
+        with self.assertRaisesRegex(ValueError, "digest mismatch"):
+            artifact_download.extract_verified_archive(self.archive, "sha256:wrong", self.destination)
+        self.assertFalse(self.destination.exists())
+
+    def test_missing_digest_is_rejected_before_extraction(self):
+        with self.assertRaisesRegex(ValueError, "no SHA-256 digest"):
+            artifact_download.extract_verified_archive(self.archive, None, self.destination)
+        self.assertFalse(self.destination.exists())
+
+    def test_paths_outside_destination_are_rejected(self):
+        with zipfile.ZipFile(self.archive, "w") as bundle:
+            bundle.writestr("../outside.pom", b"publication")
+        digest = "sha256:" + hashlib.sha256(self.archive.read_bytes()).hexdigest()
+        with self.assertRaisesRegex(ValueError, "unsafe artifact path"):
+            artifact_download.extract_verified_archive(self.archive, digest, self.destination)
+        self.assertFalse((self.root / "outside.pom").exists())
 
 
 class ResolveReleaseVersionTest(unittest.TestCase):
