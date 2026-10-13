@@ -17,21 +17,20 @@ import kotlin.math.abs
 internal class NativeVector(
     /** The native copy handed to BLAS. */
     val segment: MemorySegment,
-    /** The BLAS increment, which keeps the vector's sign. */
+    /** The packed BLAS increment, which keeps the vector's sign except for a singleton. */
     val increment: Int,
     private val vector: DenseVector,
     private val base: Int,
-    private val span: Int,
 ) {
     /**
      * Write back only the vector's entries. Copying gaps in a strided span could overwrite another
      * interleaved operand's result with its pre-call snapshot. Unit strides allow a bulk copy.
      */
     fun writeBack() {
-        if (span == 0) return
-        val step = abs(vector.stride)
+        if (vector.size == 0) return
+        val step = if (vector.size == 1) 1 else abs(vector.stride)
         if (step == 1) {
-            MemorySegment.copy(segment, JAVA_DOUBLE, 0L, vector.values, base, span)
+            MemorySegment.copy(segment, JAVA_DOUBLE, 0L, vector.values, base, vector.size)
             return
         }
         var target = base
@@ -39,24 +38,36 @@ internal class NativeVector(
         repeat(vector.size) {
             vector.values[target] = segment.getAtIndex(JAVA_DOUBLE, source)
             target += step
-            source += step
+            source++
         }
     }
 }
 
 /**
- * Copies [vector] into native memory.
+ * Packs only the addressed entries of [vector] into native memory in ascending physical order.
  *
  * The copy starts at the lowest address the vector reaches, not at its logical first entry, because that is
  * what BLAS expects: a negatively stepped vector is walked from the low end and the last entry reached is
- * treated as the logical first. Keeping the sign on the increment reproduces the vector exactly.
+ * treated as the logical first. A signed unit increment reproduces that traversal over the packed entries.
+ * A singleton uses increment one because its stride is never traversed.
  */
 internal fun Arena.stage(vector: DenseVector): NativeVector {
     val base = baseIndex(vector)
-    val span = if (vector.size == 0) 0 else (vector.size - 1) * abs(vector.stride) + 1
-    val segment = allocate(JAVA_DOUBLE, maxOf(1, span).toLong())
-    if (span > 0) MemorySegment.copy(vector.values, base, segment, JAVA_DOUBLE, 0L, span)
-    return NativeVector(segment, vector.stride, vector, base, span)
+    val segment = allocate(JAVA_DOUBLE, maxOf(1, vector.size).toLong())
+    val step = if (vector.size <= 1) 1 else abs(vector.stride)
+    if (vector.size > 0) {
+        if (step == 1) {
+            MemorySegment.copy(vector.values, base, segment, JAVA_DOUBLE, 0L, vector.size)
+        } else {
+            var source = base
+            repeat(vector.size) { target ->
+                segment.setAtIndex(JAVA_DOUBLE, target.toLong(), vector.values[source])
+                source += step
+            }
+        }
+    }
+    val increment = if (vector.size <= 1 || vector.stride > 0) 1 else -1
+    return NativeVector(segment, increment, vector, base)
 }
 
 /** A matrix operand in native memory, always the whole contiguous column-major block. */
@@ -91,4 +102,4 @@ internal fun Arena.stage(matrix: DenseMatrix): NativeMatrix {
  * low address, allowing BLAS to reconstruct the logical first entry at the high end.
  */
 internal fun baseIndex(vector: DenseVector): Int =
-    if (vector.stride >= 0) vector.offset else vector.offset + (vector.size - 1) * vector.stride
+    if (vector.size <= 1 || vector.stride >= 0) vector.offset else vector.offset + (vector.size - 1) * vector.stride

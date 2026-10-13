@@ -154,6 +154,26 @@ class JvmVendorBlasTest {
     }
 
     @Test
+    fun `dot preserves independently strided operand directions`() = withVendor { blas ->
+        val size = 4
+        for (xStride in listOf(4099, -4099)) {
+            for (yStride in listOf(8191, -8191)) {
+                val xStorage = vendorValues(3 * abs(xStride) + 5, 37)
+                val yStorage = vendorValues(3 * abs(yStride) + 7, 38)
+                val xOffset = if (xStride > 0) 2 else 2 + 3 * -xStride
+                val yOffset = if (yStride > 0) 3 else 3 + 3 * -yStride
+                val x = StridedVector(xStorage, xOffset, size, xStride)
+                val y = StridedVector(yStorage, yOffset, size, yStride)
+                val expected = ScalarVectorKernels.dot(xStorage, xOffset, yStorage, yOffset, size, xStride, yStride)
+
+                val actual = blas.dot(x, y)
+
+                assertAgreesWithReference(expected, actual, "dot strides $xStride and $yStride")
+            }
+        }
+    }
+
+    @Test
     fun `norm agrees with the scalar oracle under positive and negative strides`() = withVendor { blas ->
         forEachStride { storage, offset, size, stride ->
             val x = StridedVector(storage, offset, size, stride)
@@ -191,8 +211,8 @@ class JvmVendorBlasTest {
 
     private fun forEachStride(body: (DoubleArray, Int, Int, Int) -> Unit) {
         val size = 6
-        for (stride in listOf(1, 2, -1, -2)) {
-            val storage = vendorValues(2 * size, 24)
+        for (stride in listOf(1, 2, -1, -2, 4099, -4099)) {
+            val storage = vendorValues((size - 1) * abs(stride) + 2, 24)
             val offset = if (stride > 0) 0 else (size - 1) * -stride
             body(storage, offset, size, stride)
         }
@@ -200,14 +220,18 @@ class JvmVendorBlasTest {
 
     @Test
     fun `a backward vector reports the last of several equal maxima`() = withVendor { blas ->
-        val storage = doubleArrayOf(1.0, 5.0, 2.0, 5.0, 3.0)
+        val entries = doubleArrayOf(1.0, 5.0, 2.0, 5.0, 3.0)
+        for (stride in listOf(1, 4099)) {
+            val storage = DoubleArray(4 * stride + 3)
+            entries.forEachIndexed { index, value -> storage[1 + index * stride] = value }
 
-        val forward = blas.iamax(StridedVector(storage, 0, 5, 1))
-        val backward = blas.iamax(StridedVector(storage, 4, 5, -1))
+            val forward = blas.iamax(StridedVector(storage, 1, 5, stride))
+            val backward = blas.iamax(StridedVector(storage, 1 + 4 * stride, 5, -stride))
 
-        // The backward vector reads [3, 5, 2, 5, 1], whose equal maxima sit at logical 1 and 3.
-        assertEquals(1, forward, "a forward vector reports the first largest entry")
-        assertEquals(3, backward, "a backward vector reports the last of the equal maxima")
+            // The backward vector reads [3, 5, 2, 5, 1], whose equal maxima sit at logical 1 and 3.
+            assertEquals(1, forward, "a forward vector reports the first largest entry at stride $stride")
+            assertEquals(3, backward, "a backward vector reports the last of the equal maxima at stride $stride")
+        }
     }
 
     @Test
@@ -222,6 +246,27 @@ class JvmVendorBlasTest {
         blas.axpy(0.5, x, y)
 
         assertAgreesWithReference(expected, storage, "axpy backing buffer")
+    }
+
+    @Test
+    fun `axpy scatters into an independently strided destination`() = withVendor { blas ->
+        val size = 4
+        for (xStride in listOf(4099, -4099)) {
+            for (yStride in listOf(8191, -8191)) {
+                val xStorage = vendorValues(3 * abs(xStride) + 5, 39)
+                val yStorage = vendorValues(3 * abs(yStride) + 7, 40)
+                val expected = yStorage.copyOf()
+                val xOffset = if (xStride > 0) 2 else 2 + 3 * -xStride
+                val yOffset = if (yStride > 0) 3 else 3 + 3 * -yStride
+                val x = StridedVector(xStorage, xOffset, size, xStride)
+                val y = StridedVector(yStorage, yOffset, size, yStride)
+                ScalarVectorKernels.axpy(expected, yOffset, 0.5, xStorage, xOffset, size, yStride = yStride, xStride = xStride)
+
+                blas.axpy(0.5, x, y)
+
+                assertAgreesWithReference(expected, yStorage, "axpy backing buffer at strides $xStride and $yStride")
+            }
+        }
     }
 
     @Test
