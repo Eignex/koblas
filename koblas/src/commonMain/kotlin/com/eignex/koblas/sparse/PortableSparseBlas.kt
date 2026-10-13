@@ -1030,6 +1030,8 @@ internal class PortableSparseBlas(
             return
         }
         if (n == 0) return
+        val rightHandSides = if (right) b.rows else b.cols
+        if (rightHandSides == 0) return
         staged(workspace, a, a.values === b.values) { triangle ->
             if (alpha != 1.0) vectorKernels.scale(b.values, 0, alpha, b.values.size)
             // Unlike trsm, trmm reads the diagonal once per right-hand side.
