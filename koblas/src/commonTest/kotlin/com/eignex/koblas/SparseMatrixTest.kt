@@ -10,19 +10,19 @@ import kotlin.test.*
 class SparseMatrixTest {
     @Test
     fun `triplet construction agrees with the scalar coordinate reference`() {
-        for (rows in intArrayOf(1, 3, 8)) {
+        for (rows in intArrayOf(1, 3, 8, 17, 18, 64, 65)) {
             for (columns in intArrayOf(1, 3, 6)) {
-            for (count in intArrayOf(0, 1, 17, 64)) {
-                val indices = IntArray(count) { (it * 5 + 1) % rows }
-                val columnIndices = IntArray(count) { (it * 7 + 1) % columns }
-                val values = DoubleArray(count) { (it % 5 - 2).toDouble() }
-                val expected = coordinateReference(rows, columns, indices, columnIndices, values)
+                for (count in intArrayOf(0, 1, 17, 64)) {
+                    val indices = IntArray(count) { (it * 5 + 1) % rows }
+                    val columnIndices = IntArray(count) { (it * 7 + 1) % columns }
+                    val values = DoubleArray(count) { (it % 5 - 2).toDouble() }
+                    val expected = coordinateReference(rows, columns, indices, columnIndices, values)
 
-                val actual = SparseMatrix.ofTriplets(rows, columns, indices, columnIndices, values)
+                    val actual = SparseMatrix.ofTriplets(rows, columns, indices, columnIndices, values)
 
-                assertTripletsAgreesWithReference(expected, actual)
+                    assertTripletsAgreesWithReference(expected, actual)
+                }
             }
-        }
         }
     }
 
@@ -40,23 +40,77 @@ class SparseMatrixTest {
 
     @Test
     fun `triplet results own arrays independently of inputs and other calls`() {
-        for (copies in intArrayOf(1, 2)) {
-            val indices = IntArray(4 * copies) { (it / copies * 3 + 1) % 8 }
-            val columns = IntArray(indices.size) { it / copies % 3 }
-            val values = DoubleArray(indices.size) { it + 0.25 }
-            val expected = coordinateReference(8, 3, indices, columns, values)
-            val first = SparseMatrix.ofTriplets(8, 3, indices, columns, values)
-            val second = SparseMatrix.ofTriplets(8, 3, indices, columns, values)
+        for (rows in intArrayOf(8, Int.MAX_VALUE)) {
+            for (copies in intArrayOf(1, 2)) {
+                val indices = IntArray(4 * copies) { (it / copies * 3 + 1) % 8 }
+                val columns = IntArray(indices.size) { it / copies % 3 }
+                val values = DoubleArray(indices.size) { it + 0.25 }
+                val reference = coordinateReference(8, 3, indices, columns, values)
+                val expected = SparseMatrix.wrap(
+                    rows, 3, reference.copyColumnPointers(),
+                    reference.copyRowIndices().map { if (it == 7) rows - 1 else it }.toIntArray(),
+                    reference.values.copyOf(),
+                )
+                for (k in indices.indices) if (indices[k] == 7) indices[k] = rows - 1
+                val first = SparseMatrix.ofTriplets(rows, 3, indices, columns, values)
+                val second = SparseMatrix.ofTriplets(rows, 3, indices, columns, values)
 
-            indices.fill(-1)
-            columns.fill(-1)
-            values.fill(-99.0)
+                indices.fill(-1)
+                columns.fill(-1)
+                values.fill(-99.0)
 
-            assertTripletsAgreesWithReference(expected, first)
+                assertTripletsAgreesWithReference(expected, first)
+                first.colPointers.fill(-1)
+                first.rowIndices.fill(-1)
+                first.values.fill(-99.0)
+                assertTripletsAgreesWithReference(expected, second)
+            }
+        }
+    }
+
+    @Test
+    fun `sparse factories preserve canonical support across row extents`() {
+        val indices = intArrayOf(2, 0, 1, 2, 2, 0, 2, 1, 0, 0, 2, 2)
+        val columns = intArrayOf(3, 1, 1, 1, 3, 3, 3, 3, 1, 3, 1, 4)
+        val values = doubleArrayOf(1e16, -0.0, 0.0, 5.0, 1.0, 4.0, -1e16, -2.0, -0.0, -4.0, -5.0, 9.0)
+        val reference = coordinateReference(3, 6, indices, columns, values)
+        for (rows in intArrayOf(3, values.size, values.size + 1, 10_000_000, Int.MAX_VALUE)) {
+            val expandedRows = intArrayOf(0, rows / 2, rows - 1)
+            val expected = SparseMatrix.wrap(
+                rows, 6, reference.copyColumnPointers(),
+                reference.copyRowIndices().map { expandedRows[it] }.toIntArray(),
+                reference.values.copyOf(),
+            )
+            val inputRows = indices.map { expandedRows[it] }.toIntArray()
+            val columnData = List(6) { j ->
+                indices.indices.filter { columns[it] == j }.map { inputRows[it] to values[it] }
+            }
+
+            val triplets = SparseMatrix.ofTriplets(rows, 6, inputRows, columns, values)
+            val fromColumns = SparseMatrix.ofColumns(rows, 6, columnData)
+
+            assertTripletsAgreesWithReference(expected, triplets)
+            assertEquals(expected, fromColumns, "column construction with $rows rows")
+        }
+    }
+
+    @Test
+    fun `column results own storage independently of lists and other calls`() {
+        for (rows in intArrayOf(3, Int.MAX_VALUE)) {
+            val column = mutableListOf(rows - 1 to 2.0, 0 to 1.0, rows - 1 to -2.0)
+            val columns = mutableListOf<List<Pair<Int, Double>>>(column, emptyList())
+            val expected = SparseMatrix.wrap(rows, 2, intArrayOf(0, 2, 2), intArrayOf(0, rows - 1), doubleArrayOf(1.0, 0.0))
+            val first = SparseMatrix.ofColumns(rows, 2, columns)
+            val second = SparseMatrix.ofColumns(rows, 2, columns)
+
+            column.clear()
+            columns.clear()
+
+            assertEquals(expected, first)
             first.colPointers.fill(-1)
             first.rowIndices.fill(-1)
             first.values.fill(-99.0)
-            assertTripletsAgreesWithReference(expected, second)
+            assertEquals(expected, second)
         }
     }
 
@@ -232,12 +286,9 @@ class SparseMatrixTest {
     }
 
     @Test
-    fun `triplet factories reject unrepresentable array lengths as shape errors`() {
+    fun `triplet factories reject unrepresentable pointer lengths as shape errors`() {
         assertFailsWith<DimensionMismatch> {
             SparseMatrix.ofTriplets(0, Int.MAX_VALUE, IntArray(0), IntArray(0), DoubleArray(0))
-        }
-        assertFailsWith<DimensionMismatch> {
-            SparseMatrix.ofTriplets(Int.MAX_VALUE, 1, intArrayOf(0), intArrayOf(0), doubleArrayOf(1.0))
         }
     }
 
@@ -248,11 +299,20 @@ class SparseMatrixTest {
         assertEquals(0.0, empty[1, 1])
         assertEquals(2, empty.rows)
 
-        assertFailsWith<IndexOutOfBoundsException> {
-            SparseMatrix.ofTriplets(2, 2, intArrayOf(2), intArrayOf(0), doubleArrayOf(1.0))
-        }
-        assertFailsWith<IndexOutOfBoundsException> {
-            SparseMatrix.ofTriplets(2, 2, intArrayOf(0), intArrayOf(2), doubleArrayOf(1.0))
+        for (rows in intArrayOf(2, Int.MAX_VALUE)) {
+            for (invalidRow in intArrayOf(-1, rows)) {
+                assertFailsWith<IndexOutOfBoundsException> {
+                    SparseMatrix.ofTriplets(rows, 2, intArrayOf(invalidRow), intArrayOf(0), doubleArrayOf(1.0))
+                }
+                assertFailsWith<IndexOutOfBoundsException> {
+                    SparseMatrix.ofColumns(rows, 2, listOf(listOf(invalidRow to 1.0), emptyList()))
+                }
+            }
+            for (invalidColumn in intArrayOf(-1, 2)) {
+                assertFailsWith<IndexOutOfBoundsException> {
+                    SparseMatrix.ofTriplets(rows, 2, intArrayOf(0), intArrayOf(invalidColumn), doubleArrayOf(1.0))
+                }
+            }
         }
         assertFailsWith<DimensionMismatch> {
             SparseMatrix.ofTriplets(2, 2, intArrayOf(0, 1), intArrayOf(0), doubleArrayOf(1.0))

@@ -159,7 +159,9 @@ public class SparseMatrix internal constructor(
 
         /**
          * Builds a CSC matrix from parallel coordinate (triplet) arrays, where entry k is values(k) at
-         * (rowIndices(k), colIndices(k)). Any order, duplicate positions summed, inputs copied. `O(nnz + rows + cols)`.
+         * (rowIndices(k), colIndices(k)). Any order, duplicate positions summed in input order, inputs copied.
+         * Uses `O(nnz + cols)` storage. Construction is `O(nnz + rows + cols)` when `rows <= nnz`,
+         * otherwise `O(nnz log nnz + cols)` without scanning the row domain.
          */
         @JvmStatic
         public fun ofTriplets(
@@ -179,6 +181,11 @@ public class SparseMatrix internal constructor(
             if (values.isEmpty()) {
                 return SparseMatrix.wrapTrusted(rows, cols, IntArray(pointers), IntArray(0), DoubleArray(0))
             }
+            // Counting is linear when its row table is bounded by the stored input.
+            if (rows > values.size) {
+                val byCol = groupSortedRowsByColumn(cols, rowIndices, colIndices, values)
+                return sumAdjacentDuplicates(rows, cols, byCol)
+            }
             // Separate methods avoid recompiling every loop during each on-stack replacement.
             val byRow = groupByRow(rows, rowIndices, colIndices, values)
             val byCol = groupByColumn(rows, cols, byRow)
@@ -194,6 +201,30 @@ public class SparseMatrix internal constructor(
 
         // A run ends at ends(i) and starts at the preceding run's end, or zero for the first run.
         private class TripletRuns(val ends: IntArray, val index: IntArray, val value: DoubleArray)
+
+        private fun groupSortedRowsByColumn(
+            cols: Int,
+            rowIndices: IntArray,
+            colIndices: IntArray,
+            values: DoubleArray,
+        ): TripletRuns {
+            val nnz = values.size
+            // The input position breaks row ties, so even an unstable sort keeps duplicate addition order.
+            val order = LongArray(nnz) { (rowIndices[it].toLong() shl Int.SIZE_BITS) or it.toLong() }
+            order.sort()
+            val columnEnds = IntArray(cols + 1)
+            for (j in colIndices) columnEnds[j + 1]++
+            for (j in 0 until cols) columnEnds[j + 1] += columnEnds[j]
+            val outRow = IntArray(nnz)
+            val outVal = DoubleArray(nnz)
+            for (encoded in order) {
+                val k = encoded.toInt()
+                val p = columnEnds[colIndices[k]]++
+                outRow[p] = rowIndices[k]
+                outVal[p] = values[k]
+            }
+            return TripletRuns(columnEnds, outRow, outVal)
+        }
 
         // Scatter advances each start to its run's end, which the next pass can consume without a copy.
         private fun groupByRow(
