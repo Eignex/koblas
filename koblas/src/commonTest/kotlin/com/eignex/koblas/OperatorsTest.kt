@@ -67,6 +67,27 @@ class OperatorsTest {
     }
 
     @Test
+    fun `matrix products reject inner dimensions before result capacity in every typed pairing`() {
+        val denseLeft = DenseMatrix.zero(Int.MAX_VALUE, 0)
+        val sparseLeft = SparseMatrix.wrap(Int.MAX_VALUE, 0, intArrayOf(0), intArrayOf(), doubleArrayOf())
+        val denseRight = DenseMatrix.zero(1, 2)
+        val sparseRight = SparseMatrix.wrap(1, 2, intArrayOf(0, 0, 0), intArrayOf(), doubleArrayOf())
+        // The dense result exceeds capacity without allocating; every operand has bounded storage.
+        val products = listOf<() -> Matrix>(
+            { denseLeft * denseRight },
+            { denseLeft * sparseRight },
+            { sparseLeft * denseRight },
+            { sparseLeft * sparseRight },
+        )
+
+        for (product in products) {
+            val failure = assertFailsWith<DimensionMismatch> { product() }
+
+            assertEquals("gemm: inner dimensions differ, 0 vs 1", failure.message)
+        }
+    }
+
+    @Test
     fun `matrix vector product agrees with gemv`() {
         assertEquals(DenseVector.wrap(koblas.gemv(a, x.values)), a * x)
         assertClose(doubleArrayOf(0.0, 2.0), (a * x).values, "a * x")

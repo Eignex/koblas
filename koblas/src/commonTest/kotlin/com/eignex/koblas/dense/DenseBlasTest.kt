@@ -76,6 +76,16 @@ class DenseBlasTest {
     }
 
     @Test
+    fun `allocating gemm rejects inner dimensions before result capacity`() = withDenseBlas { blas ->
+        val a = DenseMatrix.zero(Int.MAX_VALUE, 0)
+        val b = DenseMatrix.zero(1, 2)
+
+        val failure = assertFailsWith<DimensionMismatch> { blas.gemm(a, b) }
+
+        assertEquals("gemm: inner dimensions differ, 0 vs 1", failure.message)
+    }
+
+    @Test
     fun `gemm agrees with the scalar oracle for a tall result in every mode`() = withDenseBlas { blas ->
         checkGemmShape(blas, Random(20260728), m = 5, k = 7, n = 4)
     }

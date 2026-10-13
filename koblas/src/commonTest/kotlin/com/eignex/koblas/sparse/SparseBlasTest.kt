@@ -1,6 +1,7 @@
 package com.eignex.koblas.sparse
 
 import com.eignex.koblas.DenseMatrix
+import com.eignex.koblas.DimensionMismatch
 import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.UnsafeKoblasApi
 import com.eignex.koblas.Workspace
@@ -10,10 +11,21 @@ import com.eignex.koblas.plus
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertNotSame
 import kotlin.test.assertTrue
 
 class SparseBlasTest {
+    @Test
+    fun `allocating gemm rejects inner dimensions before result capacity`() {
+        val a = SparseMatrix.wrap(Int.MAX_VALUE, 0, intArrayOf(0), intArrayOf(), doubleArrayOf())
+        val b = DenseMatrix.zero(1, 2)
+
+        val failure = assertFailsWith<DimensionMismatch> { koblas.gemm(a, b) }
+
+        assertEquals("gemm: inner dimensions differ, 0 vs 1", failure.message)
+    }
+
     private fun selected(lower: Boolean): SparseMatrix = if (lower) {
         SparseMatrix.ofColumns(
             3,

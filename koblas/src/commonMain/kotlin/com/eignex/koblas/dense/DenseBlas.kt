@@ -52,7 +52,9 @@ public interface DenseBlas {
 
     /** [gemv] with `alpha = 1, beta = 0`, into a fresh result. */
     public fun gemv(a: DenseMatrix, x: DoubleArray, transpose: Boolean = false): DoubleArray {
-        val y = DoubleArray(if (transpose) a.cols else a.rows)
+        val size = if (transpose) a.cols else a.rows
+        requireGemvOperands(a, transpose, x.size, size)
+        val y = DoubleArray(size)
         gemv(1.0, a, x, 0.0, y, transpose)
         return y
     }
@@ -113,6 +115,7 @@ public interface DenseBlas {
 
     /** [gemm] with `alpha = 1, beta = 0`, into a fresh matrix. `A.cols` must equal `B.rows`. */
     public fun gemm(a: DenseMatrix, b: DenseMatrix): DenseMatrix {
+        requireProductOperands(a, false, b, false, "gemm")
         val c = DenseMatrix(a.rows, b.cols)
         gemm(1.0, a, transposeA = false, b, transposeB = false, beta = 0.0, c = c)
         return c
