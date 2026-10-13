@@ -52,7 +52,20 @@ internal class JvmVendorLibrary private constructor(
     }
 
     /**
-     * Configure one compute thread before any arithmetic.
+     * Select and verify oneMKL's LP64 interface before any other oneMKL call.
+     *
+     * The setter overrides an inherited `MKL_INTERFACE_LAYER` and returns the selected interface.
+     * A missing setter or a runtime already fixed to another interface must not reach ABI probes.
+     */
+    private fun establishIntegerInterface(): Boolean {
+        if (vendor != Vendor.OneMkl) return true
+        val handle = handleOrNull("MKL_Set_Interface_Layer", FunctionDescriptor.of(JAVA_INT, JAVA_INT))
+            ?: return false
+        return (handle.invokeExact(MKL_LP64) as Int) == MKL_LP64
+    }
+
+    /**
+     * Configure one compute thread after integer interface selection and before any arithmetic.
      *
      * oneMKL must select its sequential layer before first use to avoid resolving a threaded layer
      * that requires an unavailable OpenMP runtime. Thread count and dynamic expansion are fixed too.
@@ -248,8 +261,8 @@ internal class JvmVendorLibrary private constructor(
             }
             val library = JvmVendorLibrary(vendor, candidate, lookup, linker)
             if (missingRequiredSymbols(library::exports).isNotEmpty()) return null
-            // Ordered: the single-thread configuration is established before the probe, because the probe is
-            // arithmetic and oneMKL resolves its threading layer on the first call that reaches it.
+            // oneMKL interface selection must precede dynamic/thread controls, version reads and probes.
+            if (!library.establishIntegerInterface()) return null
             library.enforceSingleThread()
             if (!library.verifiedAbi()) return null
             if (!library.confirmSingleThread()) return null

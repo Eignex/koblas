@@ -1,0 +1,107 @@
+package com.eignex.koblas.vendor
+
+import com.eignex.koblas.DenseMatrix
+import com.eignex.koblas.DenseVector
+import com.eignex.koblas.copyOf
+import com.eignex.koblas.dense.ReferenceBlas
+import com.eignex.koblas.dense.ScalarVectorKernels
+import java.lang.foreign.Arena
+import java.lang.foreign.FunctionDescriptor
+import java.lang.foreign.Linker
+import java.lang.foreign.SymbolLookup
+import java.lang.foreign.ValueLayout.JAVA_INT
+import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
+import kotlin.test.assertNull
+
+/**
+ * Checks oneMKL initialization in a fresh process, where no other test can select its interface first.
+ *
+ * The Gradle checks launch with an ILP64 environment. The inherited case must override it and compute
+ * through LP64; the initialized case must reject an interface another caller already fixed to ILP64.
+ * Symbol lookup establishes availability without calling oneMKL before the loader gets its turn.
+ */
+internal object OneMklInterfaceCheck {
+    @JvmStatic
+    fun main(args: Array<String>) {
+        assertEquals("ILP64", System.getenv("MKL_INTERFACE_LAYER"))
+        val lookup = installedRuntime()
+        if (lookup == null) {
+            println("SKIPPED: no complete oneMKL runtime installed; interface selection was not verified")
+            return
+        }
+        when (args.single()) {
+            "inherited" -> checkInheritedInterface(lookup)
+            "initialized" -> checkInitializedInterface(lookup)
+            else -> error("unknown interface check")
+        }
+    }
+
+    private fun checkInheritedInterface(lookup: SymbolLookup) {
+        val library = assertNotNull(JvmVendorLibrary.open(Vendor.OneMkl), "installed oneMKL failed LP64 loading")
+        assertEquals(MKL_LP64, selectedInterface(lookup), "the inherited ILP64 interface was not overridden")
+        assertEquals(ThreadEvidence.Confirmed, library.threadEvidence)
+        val blas = JvmVendorBlas(library)
+        val x = DenseVector.wrap(vendorValues(7, 31))
+        val y = DenseVector.wrap(vendorValues(7, 32))
+        val expectedDot = ScalarVectorKernels.dot(x.values, 0, y.values, 0, x.size)
+        val a = DenseMatrix.wrap(3, 4, vendorValues(12, 33))
+        val b = DenseMatrix.wrap(4, 2, vendorValues(8, 34))
+        val c = DenseMatrix.wrap(3, 2, vendorValues(6, 35))
+        val expected = c.copyOf()
+        ReferenceBlas.gemm(0.5, a, false, b, false, 0.25, expected)
+
+        val dot = blas.dot(x, y)
+        blas.gemm(0.5, a, false, b, false, 0.25, c)
+
+        assertAgreesWithReference(expectedDot, dot, "oneMKL LP64 dot")
+        assertAgreesWithReference(expected.values, c.values, "oneMKL LP64 gemm")
+        println("oneMKL inherited ILP64 overridden: ${library.version}; LP64 dot and gemm passed")
+    }
+
+    private fun checkInitializedInterface(lookup: SymbolLookup) {
+        val linker = Linker.nativeLinker()
+        val layer = linker.downcallHandle(
+            lookup.find("MKL_Set_Threading_Layer").orElseThrow(),
+            FunctionDescriptor.of(JAVA_INT, JAVA_INT),
+        )
+        layer.invokeExact(1) as Int // Avoid an optional OpenMP dependency when initializing the runtime.
+        val threads = linker.downcallHandle(
+            lookup.find("MKL_Get_Max_Threads").orElseThrow(),
+            FunctionDescriptor.of(JAVA_INT),
+        )
+        threads.invokeExact() as Int // Fix the inherited interface before Koblas opens the same runtime.
+        assertEquals(ILP64, selectedInterface(lookup))
+
+        val library = JvmVendorLibrary.open(Vendor.OneMkl)
+
+        assertNull(library, "a runtime already initialized with ILP64 must be rejected before arithmetic")
+        assertEquals(ILP64, selectedInterface(lookup))
+        println("oneMKL already initialized with ILP64 was safely rejected")
+    }
+
+    /** An invalid request queries an already selected layer without changing it. */
+    private fun selectedInterface(lookup: SymbolLookup): Int {
+        val handle = Linker.nativeLinker().downcallHandle(
+            lookup.find("MKL_Set_Interface_Layer").orElseThrow(),
+            FunctionDescriptor.of(JAVA_INT, JAVA_INT),
+        )
+        return handle.invokeExact(-1) as Int
+    }
+
+    private fun installedRuntime(): SymbolLookup? {
+        for (candidate in Vendor.OneMkl.resolvedCandidates(System.getProperty("user.home"))) {
+            val lookup = try {
+                SymbolLookup.libraryLookup(candidate, Arena.global())
+            } catch (_: IllegalArgumentException) {
+                continue
+            } catch (_: UnsatisfiedLinkError) {
+                continue
+            }
+            if (missingRequiredSymbols { lookup.find(it).isPresent }.isEmpty()) return lookup
+        }
+        return null
+    }
+
+    private const val ILP64 = 1
+}
