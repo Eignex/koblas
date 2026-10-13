@@ -28,8 +28,6 @@ internal class PortableDenseBlas(
 ) : RoutedDenseBlas {
     private val routes = DenseRouteReporter(vectors, panels, products, triangles)
 
-    private fun scaled(beta: Double, previous: Double): Double = if (beta == 0.0) 0.0 else beta * previous
-
     override fun gemv(
         alpha: Double,
         a: DenseMatrix,
@@ -690,16 +688,19 @@ internal class PortableDenseBlas(
     }
 
     private fun scale(values: DoubleArray, beta: Double) {
+        if (beta == 1.0) return
         if (beta == 0.0) values.fill(0.0) else for (i in values.indices) values[i] *= beta
     }
 
-    private fun scaleTriangle(c: DenseMatrix, beta: Double, lower: Boolean) = forTriangle(c.rows, lower) { i, j ->
-        val index = i + j * c.rows
-        c.values[index] = scaled(beta, c.values[index])
-    }
-
-    private inline fun forTriangle(n: Int, lower: Boolean, action: (Int, Int) -> Unit) {
-        for (j in 0 until n) for (i in 0 until n) if ((lower && i >= j) || (!lower && i <= j)) action(i, j)
+    private fun scaleTriangle(c: DenseMatrix, beta: Double, lower: Boolean) {
+        if (beta == 1.0) return
+        val n = c.rows
+        for (j in 0 until n) {
+            val first = j * n + if (lower) j else 0
+            val last = j * n + if (lower) n else j + 1
+            if (beta == 0.0) c.values.fill(0.0, first, last)
+            else for (index in first until last) c.values[index] *= beta
+        }
     }
 
     /**
