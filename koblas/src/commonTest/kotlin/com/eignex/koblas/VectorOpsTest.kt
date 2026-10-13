@@ -8,6 +8,76 @@ import kotlin.test.*
 
 class VectorOpsTest {
     @Test
+    fun `identical mapping axpy agrees with the scalar snapshot reference`() {
+        val inputs = doubleArrayOf(
+            1.5e200, -1.5e200, 0.75, -0.0, 0.0, Double.POSITIVE_INFINITY, Double.NEGATIVE_INFINITY, Double.NaN,
+        )
+        for (alpha in doubleArrayOf(0.0, -0.0, 0.75, -1.0, -1.0000000000000002)) {
+            for ((source, destination) in identicalDenseMappings()) {
+                for (i in 0 until source.size) source[i] = inputs[i % inputs.size]
+                val expected = source.values.copyOf()
+                BuiltinEngines.scalar.vectorKernels.axpy(
+                    expected, destination.offset, alpha, source.toDoubleArray(), 0, source.size, destination.stride,
+                )
+
+                destination.axpy(alpha, source)
+
+                assertAxpyAgreesWithReference(expected, source.values)
+            }
+        }
+    }
+
+    @Test
+    fun `identical mapping copy preserves the full backing buffer`() {
+        for ((source, destination) in identicalDenseMappings()) {
+            val expected = source.values.copyOf()
+
+            copy(source, destination)
+
+            assertContentEquals(expected, source.values)
+        }
+    }
+
+    @Test
+    fun `identical mapping swap preserves the full backing buffer`() {
+        for ((source, destination) in identicalDenseMappings()) {
+            val expected = source.values.copyOf()
+
+            swap(source, destination)
+
+            assertContentEquals(expected, source.values)
+        }
+    }
+
+    private fun identicalDenseMappings(): List<Pair<DenseVector, DenseVector>> = buildList {
+        for (size in intArrayOf(0, 1, 5, 129)) {
+            for (sameWrapper in booleanArrayOf(false, true)) {
+                val whole = DenseVector.wrap(DoubleArray(size) { it + 0.25 })
+                add(whole to if (sameWrapper) whole else whole.asView())
+                for (stride in intArrayOf(1, 3, -1, -3)) {
+                    val backing = DoubleArray(3 * size + 4) { it + 0.25 }
+                    val offset = if (stride > 0 || size == 0) 2 else 2 + (size - 1) * -stride
+                    val source = StridedVector(backing, offset, size, stride)
+                    add(source to if (sameWrapper) source else source.asView())
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `reversed overlapping axpy agrees with the scalar snapshot reference`() {
+        val backing = DoubleArray(12) { it + 0.25 }
+        val source = StridedVector(backing, 2, 5)
+        val destination = StridedVector(backing, 6, 5, -1)
+        val expected = backing.copyOf()
+        BuiltinEngines.scalar.vectorKernels.axpy(expected, 6, 0.75, source.toDoubleArray(), 0, 5, -1)
+
+        destination.axpy(0.75, source)
+
+        assertAxpyAgreesWithReference(expected, backing)
+    }
+
+    @Test
     fun `sparse dot against dense views agrees with the scalar reference`() {
         val source = sparse(5, 0 to 2.0, 2 to -1.5, 4 to 0.0)
         for (stride in intArrayOf(-3, -1, 1, 3)) {
@@ -126,7 +196,14 @@ class VectorOpsTest {
     }
 
     private fun assertAxpyAgreesWithReference(expected: DoubleArray, actual: DoubleArray) {
-        assertClose(expected, actual, "sparse axpy into prefix")
+        assertEquals(expected.size, actual.size)
+        for (i in expected.indices) {
+            when {
+                expected[i].isNaN() -> assertTrue(actual[i].isNaN(), "axpy backing index $i should be NaN")
+                expected[i] == 0.0 -> assertEquals(expected[i].toBits(), actual[i].toBits(), "axpy backing index $i")
+                else -> assertClose(expected[i], actual[i], "axpy backing index $i")
+            }
+        }
     }
 
     @Test

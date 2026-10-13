@@ -167,7 +167,36 @@ class AllocationFreeTest(
                 engine.trmm(sparse, multiplyBlock, lower = true, workspace = workspace)
                 multiplyBlock
             } }),
-        )
+        ) + identicalMappingProbes()
+
+        private fun identicalMappingProbes(): List<Array<Any>> = buildList {
+            for ((shape, stride) in listOf("contiguous" to 1, "stepped" to 3, "reversed" to -1, "reversed stepped" to -3)) {
+                for (sameWrapper in booleanArrayOf(false, true)) {
+                    val wrappers = if (sameWrapper) "self" else "distinct wrappers"
+                    val name = "identical $shape vector $wrappers"
+                    add(arrayOf<Any>("$name copy allocates nothing", 1_000, with(IdenticalMappingFixture(stride, sameWrapper)) { {
+                        copy(source, destination)
+                        backing
+                    } }))
+                    add(arrayOf<Any>("$name axpy allocates nothing", 1_000, with(IdenticalMappingFixture(stride, sameWrapper)) { {
+                        destination.axpy(1e-12, source)
+                        backing
+                    } }))
+                    add(arrayOf<Any>("$name swap allocates nothing", 1_000, with(IdenticalMappingFixture(stride, sameWrapper)) { {
+                        swap(source, destination)
+                        backing
+                    } }))
+                }
+            }
+        }
+    }
+
+    private class IdenticalMappingFixture(stride: Int, sameWrapper: Boolean) {
+        val n = 512
+        val backing = DoubleArray(3 * n + 4) { it * 0.01 }
+        val offset = if (stride > 0) 2 else 2 + (n - 1) * -stride
+        val source = StridedVector(backing, offset, n, stride)
+        val destination = if (sameWrapper) source else source.asView()
     }
 
     private class SharedBufferFixture {
