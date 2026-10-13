@@ -1,6 +1,9 @@
 package com.eignex.koblas.internal.numeric
 
+import com.sun.management.HotSpotDiagnosticMXBean
+import java.lang.management.ManagementFactory
 import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
@@ -21,7 +24,15 @@ class HardwareFmaTest {
 
     @Test
     fun `the resolved answer agrees with the running virtual machine`() {
-        // HotSpot supports the flag, so accepting the conservative default here would pass on every host.
-        assertTrue(hardwareFusedMultiplyAdd, "no fused multiply-add resolved on a HotSpot host")
+        assertHardwareFmaAgreesWithVm()
     }
+}
+
+/** Also checked in the runtime harness, where `UseFMA` is explicitly disabled. */
+internal fun assertHardwareFmaAgreesWithVm() {
+    val reported = runCatching {
+        ManagementFactory.getPlatformMXBean(HotSpotDiagnosticMXBean::class.java).getVMOption("UseFMA").value
+    }.getOrNull()
+
+    assertEquals(reported == "true", hardwareFusedMultiplyAdd, "the VM reported UseFMA=$reported")
 }

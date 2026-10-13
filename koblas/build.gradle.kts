@@ -168,8 +168,7 @@ val simdDenseAllocationCheckNarrowNoFma = registerDenseAllocationCheck(
 )
 
 /**
- * Runs the panel conformance in a process whose species or multiply-add was forced to something other than
- * this machine's own.
+ * Runs panel, product and diagonal substitution conformance with a forced species or multiply-add flag.
  *
  * Both are fixed when the virtual machine starts, so a test task cannot reach either: the narrow-species and
  * unfused paths are generated and taken only in a process started this way. Forcing a flag exercises the
@@ -190,13 +189,13 @@ fun registerRuntimePathCheck(name: String, description: String, vararg extraArgs
 // fleet, and the unfused multiply-add that a pre-FMA host would take.
 val simdNarrowSpeciesCheck = registerRuntimePathCheck(
     "simdNarrowSpeciesCheck",
-    "Checks the JVM panels against a species constrained to two lanes.",
+    "Checks JVM panels, products and substitutions against a species constrained to two lanes.",
     "-XX:MaxVectorSize=16",
 )
 simdNarrowSpeciesCheck { args("2") }
 val simdNoFmaCheck = registerRuntimePathCheck(
     "simdNoFmaCheck",
-    "Checks the JVM panels with the fused multiply-add disabled.",
+    "Checks JVM panels, products and substitutions with the fused multiply-add disabled.",
     "-XX:-UseFMA",
 )
 simdNoFmaCheck { args("", "false") }
