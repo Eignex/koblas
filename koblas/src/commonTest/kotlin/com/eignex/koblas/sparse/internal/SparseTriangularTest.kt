@@ -127,7 +127,11 @@ class SparseTriangularTest {
                                 "unit=$unitDiag right=$right"
                             assertClose(expected, actual, context)
                             if (!right) {
-                                val operation = if (solve) SparseMatrixOperation.TrsmLeft else SparseMatrixOperation.TrmmLeft
+                                val operation = if (solve) {
+                                    SparseMatrixOperation.TrsmLeft
+                                } else {
+                                    SparseMatrixOperation.TrmmLeft
+                                }
                                 val route = engine.routeOf(
                                     operation,
                                     SparseCall(
