@@ -83,6 +83,32 @@ tasks.withType<Test>().configureEach {
 // kernel into a coverage artifact. Run this check in its own, uninstrumented JVM with an explicit SIMD engine.
 val jvmTestCompilation = (kotlin.targets.getByName("jvm") as KotlinJvmTarget).compilations.getByName("test")
 val allocationCheckJavaLauncher = javaToolchains.launcherFor { languageVersion.set(JavaLanguageVersion.of(25)) }
+
+/** oneMKL interface selection is process state, so each configuration needs a fresh JVM. */
+fun registerOneMklInterfaceCheck(name: String, description: String, mode: String) =
+    tasks.register<JavaExec>(name) {
+        group = "verification"
+        this.description = description
+        dependsOn("jvmTestClasses")
+        classpath(jvmTestCompilation.output.allOutputs, configurations.getByName("jvmTestRuntimeClasspath"))
+        mainClass.set("com.eignex.koblas.vendor.OneMklInterfaceCheck")
+        javaLauncher.set(allocationCheckJavaLauncher)
+        environment("MKL_INTERFACE_LAYER", "ILP64")
+        maxHeapSize = "128m"
+        jvmArgs("--enable-native-access=ALL-UNNAMED", "-XX:ActiveProcessorCount=1")
+        args(mode)
+    }
+
+val oneMklInheritedInterfaceCheck = registerOneMklInterfaceCheck(
+    "oneMklInheritedInterfaceCheck",
+    "Checks oneMKL LP64 loading and arithmetic with an inherited ILP64 environment, when installed.",
+    "inherited",
+)
+val oneMklInitializedInterfaceCheck = registerOneMklInterfaceCheck(
+    "oneMklInitializedInterfaceCheck",
+    "Checks safe rejection of a oneMKL runtime already initialized with ILP64, when installed.",
+    "initialized",
+)
 /**
  * The sparse allocation check in one runtime configuration.
  *
@@ -203,6 +229,8 @@ simdNoFmaCheck { args("", "false") }
 
 tasks.named("check") {
     dependsOn(
+        oneMklInheritedInterfaceCheck,
+        oneMklInitializedInterfaceCheck,
         simdSparseAllocationCheck,
         simdSparseAllocationCheckNoFma,
         simdSparseAllocationCheckNarrowNoFma,

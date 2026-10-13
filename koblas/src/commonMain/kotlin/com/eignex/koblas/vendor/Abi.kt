@@ -91,12 +91,14 @@ internal fun missingRequiredSymbols(exports: (String) -> Boolean): List<String> 
  *
  * The ABI cannot be settled by calling the library. On this calling convention a 32-bit argument is passed in
  * the low half of a register whose upper half is zeroed, so an ILP64 routine reading 64 bits sees the same small
- * value an LP64 one does, and every probe small enough to be safe agrees under both. What does distinguish them
- * is what the build says about itself: OpenBLAS names its integer width in the configuration string it hands
- * back, so a library claiming a wide one under the unsuffixed CBLAS names is rejected rather than trusted.
+ * value an LP64 one does. A small dot probe can agree under both, while another ABI mismatch can crash the
+ * process. What does distinguish them is what the build says about itself: OpenBLAS names its integer width
+ * in the configuration string it hands back, so a library claiming a wide one under the unsuffixed CBLAS
+ * names is rejected rather than trusted.
  *
  * A build that names no width here is not thereby accepted. BLIS answers the question directly instead, through
- * [BLIS_INTEGER_WIDTH], and a loader asks that too rather than reading silence as an LP64 answer.
+ * [BLIS_INTEGER_WIDTH], and a loader asks that too rather than reading silence as an LP64 answer. oneMKL's
+ * interface is selected and verified separately before reading its version or making arithmetic probes.
  */
 internal fun declaresWideIntegers(configuration: String): Boolean {
     val text = configuration.uppercase()
@@ -119,6 +121,9 @@ internal const val BLIS_INTEGER_WIDTH: String = "bli_info_get_blas_int_type_size
 
 /** The integer width in bits that the unsuffixed CBLAS symbols carry. */
 internal const val LP64_INTEGER_BITS: Int = 32
+
+/** oneMKL's `MKL_INTERFACE_LP64`, selecting the 32-bit integer interface of its dispatching runtime. */
+internal const val MKL_LP64: Int = 0
 
 /**
  * A known-answer check the library must pass before any caller reaches it.
