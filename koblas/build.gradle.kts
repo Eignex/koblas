@@ -96,6 +96,7 @@ fun registerOneMklInterfaceCheck(name: String, description: String, mode: String
         environment("MKL_INTERFACE_LAYER", "ILP64")
         maxHeapSize = "128m"
         jvmArgs("--enable-native-access=ALL-UNNAMED", "-XX:ActiveProcessorCount=1")
+        systemProperty("koblas.requireOneMkl", providers.gradleProperty("koblas.requireOneMkl").orElse("false").get())
         args(mode)
     }
 

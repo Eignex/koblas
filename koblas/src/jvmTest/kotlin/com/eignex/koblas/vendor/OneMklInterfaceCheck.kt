@@ -20,6 +20,7 @@ import kotlin.test.assertNull
  * The Gradle checks launch with an ILP64 environment. The inherited case must override it and compute
  * through LP64; the initialized case must reject an interface another caller already fixed to ILP64.
  * Symbol lookup establishes availability without calling oneMKL before the loader gets its turn.
+ * CI sets `koblas.requireOneMkl` so an absent runtime fails instead of leaving these checks unverified.
  */
 internal object OneMklInterfaceCheck {
     @JvmStatic
@@ -27,6 +28,9 @@ internal object OneMklInterfaceCheck {
         assertEquals("ILP64", System.getenv("MKL_INTERFACE_LAYER"))
         val runtimes = installedRuntimes()
         if (runtimes.isEmpty()) {
+            check(System.getProperty("koblas.requireOneMkl") != "true") {
+                "oneMKL interface verification requires a complete installed runtime"
+            }
             println("SKIPPED: no complete oneMKL runtime installed; interface selection was not verified")
             return
         }

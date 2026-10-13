@@ -5,10 +5,18 @@ on:
     branches: [ main ]
   pull_request:
   workflow_dispatch:
+  workflow_call:
+    inputs:
+      ref:
+        type: string
+        default: ''
+
+permissions:
+  contents: read
 
 # A newer push supersedes any in-flight run for the same ref.
 concurrency:
-  group: build-${{ github.ref }}
+  group: build-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -21,6 +29,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
         with:
+          ref: ${{ inputs.ref || github.sha }}
           fetch-depth: 2
 
       - name: Set up JDK
@@ -46,12 +55,8 @@ jobs:
       - name: Grant execute permission for Gradle
         run: chmod +x gradlew
 
-      # Dense Level 2 and 3 are the vendor's arithmetic, so koblas's own tests need a library the production
-      # selector will actually choose. OpenBLAS is not one: it stays unselectable in production, where how a
-      # library is held to one thread is part of the choice. BLIS is, through the AOCL arm, and its serial
-      # build has no worker threads to hold in the first place. Without a vendor here the whole dense surface
-      # fails with MissingVendorException while macOS passes on Accelerate, which would leave the Linux
-      # bindings, both the FFM downcalls and the Kotlin/Native dlopen, unexercised.
+      # Exercise Linux host bindings as well as the portable conformance floor. Serial BLIS reaches the
+      # AOCL arm without worker threads; OpenBLAS has its own benchmark comparator job below.
       - name: Cache the vendor library packages
         id: vendor-packages
         uses: actions/cache@v5
@@ -83,6 +88,9 @@ jobs:
 
       - name: Run linter
         run: ./gradlew lintDocs
+
+      - name: Validate CI scripts
+        run: python3 .github/scripts/test-ci-scripts.py
 
       - name: Run tests with coverage
         run: ./gradlew :koblas:check :koblas-bench:check :koblas:koverXmlReport
@@ -117,6 +125,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
         with:
+          ref: ${{ inputs.ref || github.sha }}
           fetch-depth: 2
 
       - name: Set up JDK
@@ -223,6 +232,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
         with:
+          ref: ${{ inputs.ref || github.sha }}
           fetch-depth: 2
 
       - name: Set up JDK
@@ -258,4 +268,135 @@ jobs:
           path: |
             koblas/build/reports/tests/
             koblas/build/test-results/
+          if-no-files-found: ignore
+
+  test-portable-jvm:
+    name: Run JVM tests without the Vector API
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.ref || github.sha }}
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 25
+      - uses: gradle/actions/setup-gradle@v6
+        with:
+          cache-read-only: false
+          cache-encryption-key: ${{ secrets.GRADLE_ENCRYPTION_KEY }}
+      - name: Run portable JVM conformance
+        run: ./gradlew :koblas:jvmTest :koblas-bench:jvmTest -Pkoblas.noSimd=true
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-reports-portable-jvm
+          path: |
+            koblas/build/reports/tests/
+            koblas/build/test-results/
+            koblas-bench/build/reports/tests/
+            koblas-bench/build/test-results/
+          if-no-files-found: ignore
+
+  test-onemkl:
+    name: Validate oneMKL interface selection and JVM bindings
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.ref || github.sha }}
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 25
+      - uses: gradle/actions/setup-gradle@v6
+        with:
+          cache-read-only: false
+          cache-encryption-key: ${{ secrets.GRADLE_ENCRYPTION_KEY }}
+      - name: Cache oneMKL runtime package
+        uses: actions/cache@v5
+        with:
+          path: ~/onemkl-packages
+          key: onemkl-${{ runner.os }}-${{ hashFiles('.github/scripts/install-onemkl.sh') }}
+      - name: Install oneMKL
+        timeout-minutes: 30
+        run: .github/scripts/install-onemkl.sh "$HOME/onemkl-packages"
+      - name: Require both oneMKL interface checks and run JVM tests
+        run: >-
+          ./gradlew :koblas:oneMklInheritedInterfaceCheck :koblas:oneMklInitializedInterfaceCheck
+          :koblas:jvmTest -Pkoblas.requireOneMkl=true
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-reports-onemkl
+          path: |
+            koblas/build/reports/tests/
+            koblas/build/test-results/
+          if-no-files-found: ignore
+
+  # Kotlin/Native builds final Linux binaries on x64 hosts. Execute the cross-built tests on real arm64.
+  build-linux-arm64-tests:
+    name: Build Linux arm64 native tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.ref || github.sha }}
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 25
+      - uses: gradle/actions/setup-gradle@v6
+        with:
+          cache-read-only: false
+          cache-encryption-key: ${{ secrets.GRADLE_ENCRYPTION_KEY }}
+      - name: Cache Kotlin/Native toolchain
+        uses: actions/cache@v5
+        with:
+          path: ~/.konan
+          key: ${{ runner.os }}-konan-${{ hashFiles('**/*.gradle.kts') }}
+          restore-keys: ${{ runner.os }}-konan-
+      - name: Cross-compile native conformance tests
+        run: ./gradlew :koblas:linkDebugTestLinuxArm64 :koblas-bench:linkDebugTestLinuxArm64
+      - name: Package test executables
+        run: |
+          mkdir -p build
+          tar -czf build/linux-arm64-tests.tar.gz \
+            koblas/build/bin/linuxArm64/debugTest/test.kexe \
+            koblas-bench/build/bin/linuxArm64/debugTest/test.kexe
+      - uses: actions/upload-artifact@v7
+        with:
+          name: linux-arm64-tests
+          path: build/linux-arm64-tests.tar.gz
+          if-no-files-found: error
+
+  test-linux-arm64:
+    name: Run Linux arm64 native tests
+    needs: build-linux-arm64-tests
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 15
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: linux-arm64-tests
+          path: build
+      - name: Run portable native conformance on arm64
+        run: |
+          set -euo pipefail
+          test "$(uname -m)" = aarch64
+          tar -xzf build/linux-arm64-tests.tar.gz
+          mkdir -p build/test-results/linuxArm64
+          koblas/build/bin/linuxArm64/debugTest/test.kexe 2>&1 | tee build/test-results/linuxArm64/koblas.log
+          koblas-bench/build/bin/linuxArm64/debugTest/test.kexe 2>&1 | tee build/test-results/linuxArm64/koblas-bench.log
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-reports-linux-arm64
+          path: build/test-results/linuxArm64/
           if-no-files-found: ignore

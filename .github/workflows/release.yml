@@ -14,12 +14,12 @@ on:
   workflow_dispatch:
     inputs:
       dryRun:
-        description: Run the release build and publish nothing
+        description: Build and inspect the signed release bundle without publishing
         type: boolean
         default: false
 
 permissions:
-  contents: write
+  contents: read
 
 # Superseded snapshot runs are pointless, but a tag publish must never be cancelled.
 concurrency:
@@ -27,216 +27,188 @@ concurrency:
   cancel-in-progress: ${{ github.ref_type != 'tag' }}
 
 jobs:
-  build-macos-publication:
+  prepare:
     if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
-    name: Stage the macOS Native publication
-    runs-on: ${{ matrix.runner }}
-    timeout-minutes: 45
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - platform: macosx-arm64
-            runner: macos-latest
-
+    name: Resolve publication version and revision
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      is_snapshot: ${{ steps.version.outputs.is_snapshot }}
+      dry_run: ${{ steps.version.outputs.dry_run }}
+      revision: ${{ steps.version.outputs.revision }}
     steps:
       - uses: actions/checkout@v6
         with:
           ref: ${{ github.event.workflow_run.head_sha || github.sha }}
           fetch-depth: 0
+      - name: Resolve publication version
+        id: version
+        env:
+          DRY_RUN: ${{ inputs.dryRun || false }}
+        run: .github/scripts/resolve-release-version.sh
 
+  # Automatic snapshots already have a successful build of this revision. Tags and manual runs use
+  # the same validation as pull requests, including macOS and the optional runtime configurations.
+  validate:
+    if: github.event_name != 'workflow_run'
+    needs: prepare
+    uses: ./.github/workflows/build.yml
+    with:
+      ref: ${{ needs.prepare.outputs.revision }}
+    secrets: inherit
+
+  build-macos-publication:
+    if: >-
+      !cancelled() && needs.prepare.result == 'success' &&
+      (needs.validate.result == 'success' ||
+      (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success'))
+    needs: [prepare, validate]
+    name: Stage the macOS Native publication
+    runs-on: macos-latest
+    timeout-minutes: 45
+    env:
+      RELEASE_VERSION: ${{ needs.prepare.outputs.version }}
+      IS_SNAPSHOT: ${{ needs.prepare.outputs.is_snapshot }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ needs.prepare.outputs.revision }}
       - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: 25
-
-      - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v6
+      - uses: gradle/actions/setup-gradle@v6
         with:
           cache-read-only: true
           cache-encryption-key: ${{ secrets.GRADLE_ENCRYPTION_KEY }}
-
-      - name: Resolve publication version
-        if: matrix.platform == 'macosx-arm64'
-        run: |
-          next_patch() {
-            local last base major minor patch
-            last=$(git tag --list 'v*' --sort=-v:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | head -n1)
-            base="${last:-v0.0.0}"
-            base="${base#v}"
-            IFS=. read -r major minor patch <<<"$base"
-            echo "${major:-0}.${minor:-0}.$(( ${patch:-0} + 1 ))"
-          }
-          if [[ "${{ inputs.dryRun }}" == "true" ]]; then
-            version="$(next_patch)"
-          elif [[ "$GITHUB_REF_TYPE" == "tag" ]]; then
-            version="${GITHUB_REF_NAME#v}"
-          else
-            version="$(next_patch)-SNAPSHOT"
-          fi
-          echo "RELEASE_VERSION=$version" >> "$GITHUB_ENV"
-          if [[ "$version" == *-SNAPSHOT ]]; then
-            echo "IS_SNAPSHOT=true" >> "$GITHUB_ENV"
-          else
-            echo "IS_SNAPSHOT=false" >> "$GITHUB_ENV"
-          fi
-
       - name: Stage the macOS Native publication
-        if: matrix.platform == 'macosx-arm64' && env.IS_SNAPSHOT == 'false'
+        if: env.IS_SNAPSHOT == 'false'
         env:
           ORG_GRADLE_PROJECT_signingKey: ${{ secrets.SIGNING_KEY }}
           ORG_GRADLE_PROJECT_signingPassword: ${{ secrets.SIGNING_PASSWORD }}
         run: >-
           ./gradlew :koblas:publishMacosArm64PublicationToMavenCentralStagingRepository
-          -PciVersion=${{ env.RELEASE_VERSION }}
-
+          -PciVersion="$RELEASE_VERSION"
       - name: Upload the macOS Native publication
-        if: matrix.platform == 'macosx-arm64' && env.IS_SNAPSHOT == 'false'
+        if: env.IS_SNAPSHOT == 'false'
         uses: actions/upload-artifact@v7
         with:
           name: koblas-macos-publication
           path: koblas/build/maven-central-publishing/staging-repository
           include-hidden-files: true
           if-no-files-found: error
-
       - name: Publish the macOS Native snapshot
-        if: matrix.platform == 'macosx-arm64' && env.IS_SNAPSHOT == 'true'
+        if: env.IS_SNAPSHOT == 'true'
         env:
           ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.CENTRAL_PORTAL_USER }}
           ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.CENTRAL_PORTAL_PASSWORD }}
-          ORG_GRADLE_PROJECT_signingKey: ${{ secrets.SIGNING_KEY }}
-          ORG_GRADLE_PROJECT_signingPassword: ${{ secrets.SIGNING_PASSWORD }}
         run: >-
           ./gradlew :koblas:publishMacosArm64PublicationToSonatypeSnapshotsRepository
-          -PciVersion=${{ env.RELEASE_VERSION }}
+          -PciVersion="$RELEASE_VERSION"
 
   publish:
-    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
-    needs: build-macos-publication
+    if: >-
+      !cancelled() && needs.prepare.result == 'success' && needs.build-macos-publication.result == 'success'
+    needs: [prepare, build-macos-publication]
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    permissions:
+      contents: write
+    env:
+      RELEASE_VERSION: ${{ needs.prepare.outputs.version }}
+      IS_SNAPSHOT: ${{ needs.prepare.outputs.is_snapshot }}
+      DRY_RUN: ${{ needs.prepare.outputs.dry_run }}
     steps:
       - uses: actions/checkout@v6
         with:
-          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
-          # Tags are needed to derive the next snapshot version on a main push.
-          fetch-depth: 0
-
+          ref: ${{ needs.prepare.outputs.revision }}
       - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: 25
-
-      # Reads the build and configuration caches build.yml writes, read-only so release runs
-      # never seed them.
-      - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v6
+      - uses: gradle/actions/setup-gradle@v6
         with:
           cache-read-only: true
           cache-encryption-key: ${{ secrets.GRADLE_ENCRYPTION_KEY }}
-
       - name: Cache Kotlin/Native toolchain
         uses: actions/cache@v5
         with:
           path: ~/.konan
           key: ${{ runner.os }}-konan-${{ hashFiles('**/*.gradle.kts') }}
           restore-keys: ${{ runner.os }}-konan-
-
       - name: Download the macOS Native publication
-        if: github.event_name != 'workflow_run'
+        if: env.IS_SNAPSHOT == 'false'
         uses: actions/download-artifact@v8
         with:
           name: koblas-macos-publication
           path: build/macos-staging
-
-      # A tag publishes that exact version as a release. Any other ref publishes a snapshot of the
-      # next patch, so main always has a consumable build. A dry run takes the release path as far
-      # as the tests and stops, so the tag path can be exercised on demand.
-      - name: Resolve Version
-        run: |
-          next_patch() {
-            # Release tags only; a prerelease tag must not advance the line.
-            local last base major minor patch
-            last=$(git tag --list 'v*' --sort=-v:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | head -n1)
-            base="${last:-v0.0.0}"
-            base="${base#v}"
-            IFS=. read -r major minor patch <<<"$base"
-            echo "${major:-0}.${minor:-0}.$(( ${patch:-0} + 1 ))"
-          }
-          if [[ "${{ inputs.dryRun }}" == "true" ]]; then
-            version="$(next_patch)"
-            echo "DRY_RUN=true" >> "$GITHUB_ENV"
-          elif [[ "$GITHUB_REF_TYPE" == "tag" ]]; then
-            version="${GITHUB_REF_NAME#v}"
-          else
-            version="$(next_patch)-SNAPSHOT"
-          fi
-          echo "RELEASE_VERSION=$version" >> "$GITHUB_ENV"
-          if [[ "$version" == *-SNAPSHOT ]]; then
-            echo "IS_SNAPSHOT=true" >> "$GITHUB_ENV"
-          else
-            echo "IS_SNAPSHOT=false" >> "$GITHUB_ENV"
-          fi
-
       - name: Build and Test
         if: env.IS_SNAPSHOT == 'false'
-        run: >-
-          ./gradlew build -PciVersion=${{ env.RELEASE_VERSION }}
-
+        run: ./gradlew build lintDocs -PciVersion="$RELEASE_VERSION"
       - name: Upload test reports
         if: always() && env.IS_SNAPSHOT == 'false'
         uses: actions/upload-artifact@v7
         with:
-          name: test-reports
+          name: release-test-reports
           path: |
-            build/reports/tests/
-            build/test-results/
+            koblas/build/reports/tests/
+            koblas/build/test-results/
+            koblas-bench/build/reports/tests/
+            koblas-bench/build/test-results/
           if-no-files-found: ignore
-
       - name: Stage publications for Maven Central
-        if: env.IS_SNAPSHOT == 'false' && env.DRY_RUN != 'true'
+        if: env.IS_SNAPSHOT == 'false'
         env:
-          ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.CENTRAL_PORTAL_USER }}
-          ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.CENTRAL_PORTAL_PASSWORD }}
           ORG_GRADLE_PROJECT_signingKey: ${{ secrets.SIGNING_KEY }}
           ORG_GRADLE_PROJECT_signingPassword: ${{ secrets.SIGNING_PASSWORD }}
         run: >-
-          ./gradlew publishAllPublicationsToMavenCentralStagingRepository
-          -PciVersion=${{ env.RELEASE_VERSION }}
-
+          ./gradlew :koblas:publishAllPublicationsToMavenCentralStagingRepository
+          -PciVersion="$RELEASE_VERSION"
+          -x :koblas:publishMacosArm64PublicationToMavenCentralStagingRepository
       - name: Substitute the host-built macOS Native publication
-        if: env.IS_SNAPSHOT == 'false' && env.DRY_RUN != 'true'
+        if: env.IS_SNAPSHOT == 'false'
         run: cp -R build/macos-staging/. koblas/build/maven-central-publishing/staging-repository/
-
+      - name: Create Maven Central bundle
+        if: env.IS_SNAPSHOT == 'false'
+        run: ./gradlew :koblas:mavenCentralBundle -PciVersion="$RELEASE_VERSION"
+      - name: Inspect the signed Maven Central bundle
+        if: env.IS_SNAPSHOT == 'false'
+        env:
+          SIGNING_KEY: ${{ secrets.SIGNING_KEY }}
+        run: >-
+          python3 .github/scripts/check-release-bundle.py
+          koblas/build/maven-central-publishing/bundle.zip "$RELEASE_VERSION"
+      - name: Upload inspected release bundle
+        if: env.IS_SNAPSHOT == 'false'
+        uses: actions/upload-artifact@v7
+        with:
+          name: koblas-release-bundle
+          path: koblas/build/maven-central-publishing/bundle.zip
+          if-no-files-found: error
       - name: Publish to Maven Central (Portal)
         if: env.IS_SNAPSHOT == 'false' && env.DRY_RUN != 'true'
         env:
           ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.CENTRAL_PORTAL_USER }}
           ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.CENTRAL_PORTAL_PASSWORD }}
-        run: ./gradlew mavenCentralBundle uploadMavenCentralBundle
-
+        run: ./gradlew :koblas:uploadMavenCentralBundle -PciVersion="$RELEASE_VERSION"
       - name: Publish to Sonatype Snapshots
-        if: env.IS_SNAPSHOT == 'true'
+        if: env.IS_SNAPSHOT == 'true' && env.DRY_RUN != 'true'
         env:
           ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.CENTRAL_PORTAL_USER }}
           ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.CENTRAL_PORTAL_PASSWORD }}
-          ORG_GRADLE_PROJECT_signingKey: ${{ secrets.SIGNING_KEY }}
-          ORG_GRADLE_PROJECT_signingPassword: ${{ secrets.SIGNING_PASSWORD }}
         run: >-
-          ./gradlew publishAllPublicationsToSonatypeSnapshotsRepository -PciVersion=${{ env.RELEASE_VERSION }}
+          ./gradlew :koblas:publishAllPublicationsToSonatypeSnapshotsRepository -PciVersion="$RELEASE_VERSION"
           -x :koblas:publishMacosArm64PublicationToSonatypeSnapshotsRepository
-
       - name: Detect pre-release
-        if: github.ref_type == 'tag' && env.IS_SNAPSHOT == 'false'
+        if: github.ref_type == 'tag' && env.IS_SNAPSHOT == 'false' && env.DRY_RUN != 'true'
         run: |
           if [[ "$RELEASE_VERSION" == *"-"* ]]; then
             echo "IS_PRERELEASE=true" >> "$GITHUB_ENV"
           else
             echo "IS_PRERELEASE=false" >> "$GITHUB_ENV"
           fi
-
       - name: Create GitHub Release
-        if: github.ref_type == 'tag' && env.IS_SNAPSHOT == 'false'
+        if: github.ref_type == 'tag' && env.IS_SNAPSHOT == 'false' && env.DRY_RUN != 'true'
         uses: softprops/action-gh-release@v2
         with:
           prerelease: ${{ env.IS_PRERELEASE }}
