@@ -6,6 +6,8 @@ import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.PreparedSparseMatrix
 import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.Workspace
+import com.eignex.koblas.requireGemvOperands
+import com.eignex.koblas.requireProductOperands
 
 /**
  * Sparse Levels 2 and 3 over validated CSC storage, in portable Kotlin.
@@ -284,13 +286,16 @@ public interface SparseBlas {
 
     /** `A · x`, or `Aᵀ · x` when [transpose], into a fresh result. */
     public fun gemv(a: SparseMatrix, x: DoubleArray, transpose: Boolean = false): DoubleArray {
-        val y = DoubleArray(if (transpose) a.cols else a.rows)
+        val size = if (transpose) a.cols else a.rows
+        requireGemvOperands(a, transpose, x.size, size)
+        val y = DoubleArray(size)
         gemv(1.0, a, x, 0.0, y, transpose)
         return y
     }
 
     /** [gemm] with `alpha = 1, beta = 0`, into a fresh matrix. `A.cols` must equal `B.rows`. */
     public fun gemm(a: SparseMatrix, b: DenseMatrix): DenseMatrix {
+        requireProductOperands(a, false, b, false, "gemm")
         val c = DenseMatrix.zero(a.rows, b.cols)
         gemm(1.0, a, transposeA = false, b, transposeB = false, beta = 0.0, c = c)
         return c

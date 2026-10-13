@@ -2,6 +2,8 @@ package com.eignex.koblas
 
 import com.eignex.koblas.testutil.allocation.bytesPerIteration
 import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
 /**
@@ -9,6 +11,36 @@ import kotlin.test.assertTrue
  * Fresh sparse results allocate their structure; those probes bound additional scratch and copies.
  */
 class AllocationStorageTest {
+    @Test
+    fun `allocating gemv rejects incompatible vectors before oversized results`() {
+        val x = doubleArrayOf(1.0)
+        val sparse = SparseMatrix.wrap(Int.MAX_VALUE, 0, intArrayOf(0), intArrayOf(), doubleArrayOf())
+        for (engine in listOfNotNull(BuiltinEngines.scalar, BuiltinEngines.simd, koblas).distinct()) {
+            for (transpose in booleanArrayOf(false, true)) {
+                // The JVM rejects Int.MAX_VALUE array lengths before allocating elements.
+                val dense = if (transpose) DenseMatrix.zero(0, Int.MAX_VALUE) else DenseMatrix.zero(Int.MAX_VALUE, 0)
+
+                val denseFailure = assertFailsWith<DimensionMismatch> { engine.gemv(dense, x, transpose) }
+                val sparseFailure = assertFailsWith<DimensionMismatch> { engine.gemv(sparse, x, transpose) }
+
+                val denseRows = if (transpose) 0 else Int.MAX_VALUE
+                val denseCols = if (transpose) Int.MAX_VALUE else 0
+                assertEquals(
+                    "gemv: ${denseRows}x$denseCols with transpose=$transpose needs x=0 and y=${Int.MAX_VALUE}, " +
+                        "got x=1 and y=${Int.MAX_VALUE}",
+                    denseFailure.message,
+                )
+                val sparseX = if (transpose) Int.MAX_VALUE else 0
+                val sparseY = if (transpose) 0 else Int.MAX_VALUE
+                assertEquals(
+                    "gemv: ${Int.MAX_VALUE}x0 with transpose=$transpose needs x=$sparseX and y=$sparseY, " +
+                        "got x=1 and y=$sparseY",
+                    sparseFailure.message,
+                )
+            }
+        }
+    }
+
     @Test
     fun `triplet construction reuses cursor and full result arrays`() {
         val rows = 128
