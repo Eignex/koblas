@@ -99,7 +99,9 @@ class SparseMatrixTest {
         for (rows in intArrayOf(3, Int.MAX_VALUE)) {
             val column = mutableListOf(rows - 1 to 2.0, 0 to 1.0, rows - 1 to -2.0)
             val columns = mutableListOf<List<Pair<Int, Double>>>(column, emptyList())
-            val expected = SparseMatrix.wrap(rows, 2, intArrayOf(0, 2, 2), intArrayOf(0, rows - 1), doubleArrayOf(1.0, 0.0))
+            val expected = SparseMatrix.wrap(
+                rows, 2, intArrayOf(0, 2, 2), intArrayOf(0, rows - 1), doubleArrayOf(1.0, 0.0),
+            )
             val first = SparseMatrix.ofColumns(rows, 2, columns)
             val second = SparseMatrix.ofColumns(rows, 2, columns)
 
