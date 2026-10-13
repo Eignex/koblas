@@ -28,7 +28,7 @@ internal fun multiplySparse(
 ): SparseMatrix {
     val rows = a.rows
     // Return before allocating row-indexed scratch: a tall empty result must not exhaust memory.
-    if (a.nnz == 0 || b.nnz == 0) {
+    if (a.nnz == 0 || !reachesStoredColumn(a, b)) {
         return SparseMatrix.wrapTrusted(rows, b.cols, IntArray(b.cols + 1), IntArray(0), DoubleArray(0))
     }
     val values = DoubleArray(rows)
@@ -75,6 +75,16 @@ internal fun multiplySparse(
         outPointers[j + 1] = builder.size
     }
     return builder.finish(rows, b.cols, outPointers)
+}
+
+/** Stops at the first populated column of [a] selected by [b], without reading either operand's values. */
+@OptIn(UnsafeKoblasApi::class)
+private fun reachesStoredColumn(a: SparseMatrix, b: SparseMatrix): Boolean {
+    // A reached product pays only for the prefix up to its first match, rather than a full support pass.
+    for (column in b.rowIndices) {
+        if (a.colPointers[column] != a.colPointers[column + 1]) return true
+    }
+    return false
 }
 
 /**

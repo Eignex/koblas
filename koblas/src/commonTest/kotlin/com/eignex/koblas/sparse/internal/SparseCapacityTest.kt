@@ -14,6 +14,7 @@ import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertNotSame
 import kotlin.test.assertTrue
 
 /**
@@ -59,6 +60,53 @@ class SparseCapacityTest {
         assertEquals(0, product.cols)
         assertEquals(0, product.nnz)
         assertContentEquals(intArrayOf(0), product.copyColumnPointers())
+    }
+
+    @Test
+    fun `nonempty disjoint operands return a tall empty product without row sized scratch`() {
+        val a = SparseMatrix.wrap(Int.MAX_VALUE, 2, intArrayOf(0, 1, 1), intArrayOf(0), doubleArrayOf(1.0))
+        val b = SparseMatrix.wrap(2, 1, intArrayOf(0, 1), intArrayOf(1), doubleArrayOf(2.0))
+
+        val product = a * b
+
+        assertEquals(Int.MAX_VALUE, product.rows)
+        assertEquals(1, product.cols)
+        assertEquals(0, product.nnz)
+        assertContentEquals(intArrayOf(0, 0), product.copyColumnPointers())
+        assertContentEquals(intArrayOf(), product.copyRowIndices())
+        assertContentEquals(doubleArrayOf(), product.values)
+    }
+
+    @Test
+    fun `disjoint products own fresh empty arrays`() {
+        val a = SparseMatrix.wrap(3, 2, intArrayOf(0, 1, 1), intArrayOf(0), doubleArrayOf(1.0))
+        val b = SparseMatrix.wrap(2, 2, intArrayOf(0, 0, 1), intArrayOf(1), doubleArrayOf(2.0))
+
+        val first = a * b
+        val second = a * b
+
+        assertNotSame(a.colPointers, first.colPointers)
+        assertNotSame(b.colPointers, first.colPointers)
+        assertNotSame(first.colPointers, second.colPointers)
+        assertNotSame(first.rowIndices, second.rowIndices)
+        assertNotSame(first.values, second.values)
+        assertContentEquals(intArrayOf(0, 0, 0), first.copyColumnPointers())
+    }
+
+    @Test
+    fun `a later reached column keeps stored zeros in the product pattern`() {
+        for ((leftValue, rightValue) in listOf(0.0 to 2.0, 1.0 to 0.0)) {
+            val a = SparseMatrix.wrap(3, 2, intArrayOf(0, 0, 1), intArrayOf(2), doubleArrayOf(leftValue))
+            val b = SparseMatrix.wrap(2, 2, intArrayOf(0, 1, 2), intArrayOf(0, 1), doubleArrayOf(1.0, rightValue))
+
+            val product = a * b
+
+            assertEquals(3, product.rows)
+            assertEquals(2, product.cols)
+            assertContentEquals(intArrayOf(0, 0, 1), product.copyColumnPointers())
+            assertContentEquals(intArrayOf(2), product.copyRowIndices())
+            assertContentEquals(doubleArrayOf(0.0), product.values)
+        }
     }
 
     @Test
