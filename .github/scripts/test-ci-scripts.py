@@ -95,7 +95,10 @@ class CheckReleaseBundleTest(unittest.TestCase):
               <developers><developer><id>ci</id></developer></developers>
               <scm><url>https://example.invalid</url><connection>scm:git:https://example.invalid</connection></scm>
             </project>'''.encode()
-            module = json.dumps({"component": {"group": "com.eignex", "module": artifact, "version": "0.1.1"}}).encode()
+            component = {"group": "com.eignex", "module": "koblas", "version": "0.1.1"}
+            if artifact != "koblas":
+                component["url"] = "../../koblas/0.1.1/koblas-0.1.1.module"
+            module = json.dumps({"component": component}).encode()
             payloads = {".pom": pom, ".module": module, f".{extension}": b"binary",
                         "-sources.jar": b"sources", "-javadoc.jar": b"docs"}
             if artifact == "koblas":

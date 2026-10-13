@@ -70,8 +70,11 @@ def check_bundle(path, version, signing_key):
                 if not pom.findtext("/".join(f"m:{part}" for part in field.split("/")), namespaces=ns):
                     raise ValueError(f"missing POM {field}: {artifact}")
             component = json.loads(payloads[base + ".module"])["component"]
-            if (component["group"], component["module"], component["version"]) != ("com.eignex", artifact, version):
+            # Target descriptors identify the common KMP component and refer back to its root publication.
+            if (component["group"], component["module"], component["version"]) != ("com.eignex", "koblas", version):
                 raise ValueError(f"wrong module coordinates: {artifact}")
+            if artifact != "koblas" and component.get("url") != f"../../koblas/{version}/koblas-{version}.module":
+                raise ValueError(f"wrong root module reference: {artifact}")
 
         for name in payloads:
             if name + ".asc" not in entries:
