@@ -55,7 +55,9 @@ jobs:
     uses: ./.github/workflows/build.yml
     with:
       ref: ${{ needs.prepare.outputs.revision }}
-    secrets: inherit
+    secrets:
+      GRADLE_ENCRYPTION_KEY: ${{ secrets.GRADLE_ENCRYPTION_KEY }}
+      CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
   build-macos-publication:
     if: >-
