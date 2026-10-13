@@ -25,21 +25,22 @@ internal object OneMklInterfaceCheck {
     @JvmStatic
     fun main(args: Array<String>) {
         assertEquals("ILP64", System.getenv("MKL_INTERFACE_LAYER"))
-        val lookup = installedRuntime()
-        if (lookup == null) {
+        val runtimes = installedRuntimes()
+        if (runtimes.isEmpty()) {
             println("SKIPPED: no complete oneMKL runtime installed; interface selection was not verified")
             return
         }
         when (args.single()) {
-            "inherited" -> checkInheritedInterface(lookup)
-            "initialized" -> checkInitializedInterface(lookup)
+            "inherited" -> checkInheritedInterface()
+            "initialized" -> checkInitializedInterface(runtimes)
             else -> error("unknown interface check")
         }
     }
 
-    private fun checkInheritedInterface(lookup: SymbolLookup) {
+    private fun checkInheritedInterface() {
         val library = assertNotNull(JvmVendorLibrary.open(Vendor.OneMkl), "installed oneMKL failed LP64 loading")
-        assertEquals(MKL_LP64, selectedInterface(lookup), "the inherited ILP64 interface was not overridden")
+        val interfaceLayer = library.handle("MKL_Set_Interface_Layer", FunctionDescriptor.of(JAVA_INT, JAVA_INT))
+        assertEquals(MKL_LP64, interfaceLayer.invokeExact(-1) as Int, "the inherited ILP64 interface was not overridden")
         assertEquals(ThreadEvidence.Confirmed, library.threadEvidence)
         val blas = JvmVendorBlas(library)
         val x = DenseVector.wrap(vendorValues(7, 31))
@@ -59,7 +60,18 @@ internal object OneMklInterfaceCheck {
         println("oneMKL inherited ILP64 overridden: ${library.version}; LP64 dot and gemm passed")
     }
 
-    private fun checkInitializedInterface(lookup: SymbolLookup) {
+    private fun checkInitializedInterface(runtimes: List<SymbolLookup>) {
+        // A second installed version is a valid fallback unless it too has already been fixed to ILP64.
+        runtimes.forEach(::initializeRuntime)
+
+        val library = JvmVendorLibrary.open(Vendor.OneMkl)
+
+        assertNull(library, "a runtime already initialized with ILP64 must be rejected before arithmetic")
+        for (lookup in runtimes) assertEquals(ILP64, selectedInterface(lookup))
+        println("oneMKL already initialized with ILP64 was safely rejected")
+    }
+
+    private fun initializeRuntime(lookup: SymbolLookup) {
         val linker = Linker.nativeLinker()
         val layer = linker.downcallHandle(
             lookup.find("MKL_Set_Threading_Layer").orElseThrow(),
@@ -72,12 +84,6 @@ internal object OneMklInterfaceCheck {
         )
         threads.invokeExact() as Int // Fix the inherited interface before Koblas opens the same runtime.
         assertEquals(ILP64, selectedInterface(lookup))
-
-        val library = JvmVendorLibrary.open(Vendor.OneMkl)
-
-        assertNull(library, "a runtime already initialized with ILP64 must be rejected before arithmetic")
-        assertEquals(ILP64, selectedInterface(lookup))
-        println("oneMKL already initialized with ILP64 was safely rejected")
     }
 
     /** An invalid request queries an already selected layer without changing it. */
@@ -89,7 +95,8 @@ internal object OneMklInterfaceCheck {
         return handle.invokeExact(-1) as Int
     }
 
-    private fun installedRuntime(): SymbolLookup? {
+    private fun installedRuntimes(): List<SymbolLookup> {
+        val runtimes = mutableListOf<SymbolLookup>()
         for (candidate in Vendor.OneMkl.resolvedCandidates(System.getProperty("user.home"))) {
             val lookup = try {
                 SymbolLookup.libraryLookup(candidate, Arena.global())
@@ -98,9 +105,9 @@ internal object OneMklInterfaceCheck {
             } catch (_: UnsatisfiedLinkError) {
                 continue
             }
-            if (missingRequiredSymbols { lookup.find(it).isPresent }.isEmpty()) return lookup
+            if (missingRequiredSymbols { lookup.find(it).isPresent }.isEmpty()) runtimes.add(lookup)
         }
-        return null
+        return runtimes
     }
 
     private const val ILP64 = 1
