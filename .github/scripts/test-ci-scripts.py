@@ -100,6 +100,8 @@ class CheckReleaseBundleTest(unittest.TestCase):
                         "-sources.jar": b"sources", "-javadoc.jar": b"docs"}
             if artifact == "koblas":
                 payloads["-kotlin-tooling-metadata.json"] = b"{}"
+            if artifact == "koblas-macosarm64":
+                payloads["-metadata.jar"] = b"metadata"
             for suffix, data in payloads.items():
                 cls.entries[base + suffix] = data
                 cls.entries[base + suffix + ".asc"] = subprocess.run(

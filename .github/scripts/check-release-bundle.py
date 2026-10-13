@@ -40,6 +40,8 @@ def check_bundle(path, version, signing_key):
             filenames.update((f"{base}-sources.jar", f"{base}-javadoc.jar"))
             if artifact == "koblas":
                 filenames.add(f"{base}-kotlin-tooling-metadata.json")
+            if ARTIFACTS[artifact] == "klib":
+                filenames.add(f"{base}-metadata.jar")
             filename = parts[4]
             for suffix in CHECKSUMS:
                 if filename.endswith(f".{suffix}"):
