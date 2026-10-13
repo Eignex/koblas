@@ -126,8 +126,8 @@ public fun Vector.iamax(): Int {
 
 /**
  * `dst = src` (BLAS `dcopy`). A sparse source zero-fills the destination first, so nothing survives.
- * Overlapping dense slices with unit stride use an overlap-safe block move. Other overlapping sources are
- * snapshotted before writing.
+ * Identical dense mappings are a no-op. Overlapping dense slices with unit stride use an overlap-safe block
+ * move. Other overlapping sources are snapshotted before writing.
  * Custom [Vector] implementations are also snapshotted, since their backing storage is opaque.
  *
  * One entry point for both dense spacings: [dst] is written through its own origin and step, so a contiguous
@@ -135,6 +135,7 @@ public fun Vector.iamax(): Int {
  */
 public fun copy(src: Vector, dst: DenseVector) {
     requireSameSize(src.size, dst.size, "copy")
+    if (src is DenseVector && src.hasIdenticalMapping(dst)) return
     // copyInto preserves an overlapping source, so an adjacent block needs no separate snapshot.
     if (src is DenseVector && src.stride == 1 && dst.stride == 1) {
         src.values.copyInto(dst.values, dst.offset, src.offset, src.offset + dst.size)
@@ -160,10 +161,19 @@ public fun copy(src: Vector, dst: DenseVector) {
     source.forEachStored { i, v -> dst[i] = v }
 }
 
-/** Snapshots known aliases and opaque storage, which may read [destination] without exposing its buffer. */
+/** Whether every logical index addresses the same physical entry in both vectors. */
+private fun DenseVector.hasIdenticalMapping(other: DenseVector): Boolean =
+    values === other.values && offset == other.offset && size == other.size && stride == other.stride
+
+/** Snapshots partial aliases and opaque storage, which may read [destination] without exposing its buffer. */
 private fun Vector.stableFor(destination: DenseVector): Vector = when (this) {
     is SparseVector -> if (values === destination.values) SparseVector.wrap(size, indices, values.copyOf()) else this
-    is DenseVector -> if (overlaps(destination)) DenseVector.wrap(toDoubleArray()) else this
+    // Equal mappings have no cross-index dependency: each entry is read before its own write.
+    is DenseVector -> if (!hasIdenticalMapping(destination) && overlaps(destination)) {
+        DenseVector.wrap(toDoubleArray())
+    } else {
+        this
+    }
     else -> DenseVector.wrap(toDoubleArray())
 }
 
@@ -193,10 +203,12 @@ public fun gatherZero(x: SparseVector, from: ContiguousVector) {
 /**
  * Exchange the contents of [a] and [b] (BLAS `dswap`), including rows and columns of a dense matrix.
  *
- * Overlapping operands are snapshotted; at a shared physical entry the final write is from [b].
+ * Identical mappings are a no-op. Other overlapping operands are snapshotted; at a shared physical entry
+ * the final write is from [b].
  */
 public fun swap(a: DenseVector, b: DenseVector) {
     requireSameSize(a.size, b.size, "swap")
+    if (a.hasIdenticalMapping(b)) return
     // Rows or columns can share a matrix buffer without overlapping and still reach the kernel.
     if (a.overlaps(b)) {
         val snapshotA = a.toDoubleArray()
@@ -209,8 +221,9 @@ public fun swap(a: DenseVector, b: DenseVector) {
 }
 
 /**
- * `y = y + alpha * x`. A sparse `x` touches only the positions it stores. A dense [x] overlapping the
- * destination, or sparse values sharing its buffer, is snapshotted before writing.
+ * `y = y + alpha * x`. A sparse `x` touches only the positions it stores. A dense [x] with an identical
+ * mapping is read directly; other dense overlaps, or sparse values sharing the destination buffer, are
+ * snapshotted before writing.
  * Custom [Vector] implementations are also snapshotted, since their backing storage is opaque.
  */
 public fun DenseVector.axpy(alpha: Double, x: Vector) {
