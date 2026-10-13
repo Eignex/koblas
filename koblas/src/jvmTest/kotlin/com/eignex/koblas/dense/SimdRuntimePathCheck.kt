@@ -2,11 +2,16 @@ package com.eignex.koblas.dense
 
 import com.eignex.koblas.BuiltinEngines
 import com.eignex.koblas.KoblasEngine
+import com.eignex.koblas.assertClose
+import com.eignex.koblas.internal.numeric.assertHardwareFmaAgreesWithVm
 import com.eignex.koblas.internal.numeric.hardwareFusedMultiplyAdd
+import com.eignex.koblas.poisonedTriangle
 import jdk.incubator.vector.DoubleVector
+import kotlin.random.Random
+import kotlin.test.assertEquals
 
 /**
- * Runs the panel contract on whatever species and multiply-add this JVM was started with.
+ * Runs the panel, product and diagonal substitution contracts on this JVM's species and multiply-add.
  *
  * Both are fixed when the virtual machine starts, so a test task cannot vary them. This runs as its own
  * process for the `simdNarrowSpeciesCheck` and `simdNoFmaCheck` tasks to start with `-XX:MaxVectorSize` and
@@ -17,6 +22,7 @@ internal object SimdRuntimePathCheck {
     fun main(args: Array<String>) {
         val lanes = DoubleVector.SPECIES_PREFERRED.length()
         println("preferred lanes=$lanes hardware fma=$hardwareFusedMultiplyAdd")
+        assertHardwareFmaAgreesWithVm()
         val expectedLanes = args.getOrNull(0)?.toIntOrNull()
         if (expectedLanes != null) {
             check(lanes == expectedLanes) { "this process resolved $lanes lanes, expected $expectedLanes" }
@@ -53,7 +59,12 @@ internal object SimdRuntimePathCheck {
             println("symv order $order at $lanes lanes: ${route.kind} ${route.components}")
         }
         checkProducts(engine, lanes)
-        println("panel and tile conformance passed at $lanes lanes with fma=$hardwareFusedMultiplyAdd")
+        val triangles = engine.triangularKernels
+        check(triangles.name == "simd-substitution($lanes lanes)") {
+            "the backend named ${triangles.name} at $lanes lanes"
+        }
+        assertTriangularKernelsAgreeWithReference(triangles, lanes)
+        println("panel, tile and substitution conformance passed at $lanes lanes with fma=$hardwareFusedMultiplyAdd")
     }
 
     /**
@@ -77,6 +88,70 @@ internal object SimdRuntimePathCheck {
             assertProductRouteNamesExecutedBlocks(products, engine.panelKernels, m, n, k)
             val route = engine.routeOf(DenseMatrixOperation.Gemm, DenseCall(m, n, depth = k))
             println("gemm ${m}x${n}x$k at $lanes lanes: ${route.kind} ${route.components}")
+        }
+    }
+
+    /**
+     * At least two steps are needed to reach multiply-subtract in a solve and multiply-add in a product.
+     * Lane boundaries distinguish the vector body, its portable tail and the wholly portable fallback.
+     */
+    private fun assertTriangularKernelsAgreeWithReference(kernels: DenseTriangularKernels, lanes: Int) {
+        val rng = Random(20261013)
+        val order = 3
+        val n = order + 2
+        val start = 1
+        val xOffset = 3
+        for (sides in intArrayOf(lanes - 1, lanes, lanes + 1)) {
+            for (rhsStride in intArrayOf(1, 2)) {
+                val orderStride = sides * rhsStride + 2
+                val bodies = when {
+                    rhsStride != 1 || sides < lanes -> listOf(PortableTriangularKernels.name)
+                    sides == lanes -> listOf(kernels.name)
+                    else -> listOf(kernels.name, PortableTriangularKernels.name)
+                }
+                assertEquals(
+                    bodies,
+                    kernels.implementationsFor(order, sides, rhsStride == 1),
+                    "diagonal block order=$order sides=$sides rhsStride=$rhsStride",
+                )
+                for (lower in booleanArrayOf(false, true)) {
+                    for (transposed in booleanArrayOf(false, true)) {
+                        for (unitDiag in booleanArrayOf(false, true)) {
+                            val (triangle, _) = poisonedTriangle(rng, n, lower != transposed, unitDiag)
+                            val initial = DoubleArray(xOffset + order * orderStride + 4) { -17.0 }
+                            for (p in 0 until order) {
+                                for (r in 0 until sides) {
+                                    initial[xOffset + p * orderStride + r * rhsStride] = rng.nextDouble(-1.0, 1.0)
+                                }
+                            }
+                            for (solve in booleanArrayOf(false, true)) {
+                                val expected = initial.copyOf()
+                                val actual = initial.copyOf()
+                                for ((backend, x) in listOf(PortableTriangularKernels to expected, kernels to actual)) {
+                                    if (solve) {
+                                        backend.diagonalSolve(
+                                            triangle.values, n, start, order, transposed, lower, unitDiag,
+                                            x, xOffset, orderStride, rhsStride, sides,
+                                        )
+                                    } else {
+                                        backend.diagonalMultiply(
+                                            triangle.values, n, start, order, transposed, lower, unitDiag,
+                                            x, xOffset, orderStride, rhsStride, sides,
+                                        )
+                                    }
+                                }
+
+                                assertClose(
+                                    expected,
+                                    actual,
+                                    "diagonal solve=$solve lower=$lower transposed=$transposed unit=$unitDiag " +
+                                        "sides=$sides rhsStride=$rhsStride bodies=$bodies",
+                                )
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 }
