@@ -3,6 +3,13 @@
 CPU benchmarks for Koblas and the vendor libraries it selects: OpenBLAS, oneMKL, AOCL, ArmPL and Accelerate.
 Requires JDK 25. `capture-report.sh` is the only reporting script.
 
+The JVM harness and annotation processor are built together from pinned
+[OpenJDK JMH sources](https://github.com/openjdk/jmh/tree/a194eead0136bb66e5e59e4fdb2e18543e730929).
+This revision removes the deprecated `sun.misc.Unsafe` field-layout probes still present in JMH 1.37.
+The source archive is checked by SHA-256, and reports carry the JMH version and revision. This harness is
+an unreleased upstream build; historical 1.37 reports retain their original attribution. The JMH subproject
+supplies only benchmark tooling and publishes no library artifacts.
+
 ## Running a capture
 
 ```bash

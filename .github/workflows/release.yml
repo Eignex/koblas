@@ -20,6 +20,7 @@ on:
 
 permissions:
   contents: read
+  actions: read
 
 # Superseded snapshot runs are pointless, but a tag publish must never be cancelled.
 concurrency:
@@ -116,6 +117,7 @@ jobs:
     timeout-minutes: 45
     permissions:
       contents: write
+      actions: read
     env:
       RELEASE_VERSION: ${{ needs.prepare.outputs.version }}
       IS_SNAPSHOT: ${{ needs.prepare.outputs.is_snapshot }}
@@ -140,10 +142,11 @@ jobs:
           restore-keys: ${{ runner.os }}-konan-
       - name: Download the macOS Native publication
         if: env.IS_SNAPSHOT == 'false'
-        uses: actions/download-artifact@v8
-        with:
-          name: koblas-macos-publication
-          path: build/macos-staging
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >-
+          python3 .github/scripts/download-artifact.py
+          "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID" koblas-macos-publication build/macos-staging
       - name: Build and Test
         if: env.IS_SNAPSHOT == 'false'
         run: ./gradlew build lintDocs -PciVersion="$RELEASE_VERSION"

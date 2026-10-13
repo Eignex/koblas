@@ -18,8 +18,8 @@
 Koblas provides dense and sparse double-precision BLAS Levels 1–3 for Kotlin Multiplatform.
 Portable Kotlin implementations work without an installed numerical library. JVM performance uses owned
 Vector API kernels; Kotlin/Native can accelerate eligible calls through installed host libraries.
-Koblas has no external runtime dependencies and is Apache-2.0 licensed. It bundles no vendor libraries or
-custom native numerical kernels.
+Koblas is Apache-2.0 licensed. Its container serializers use kotlinx-serialization-core, exposed as an API
+dependency. It bundles no vendor libraries or custom native numerical kernels.
 
 ## Setup
 

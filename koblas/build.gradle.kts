@@ -17,6 +17,7 @@ kotlin {
     explicitApi()
     applyDefaultHierarchyTemplate()
     compilerOptions {
+        allWarningsAsErrors.set(true)
         freeCompilerArgs.add("-Xexpect-actual-classes")
         optIn.add("com.eignex.koblas.UnsafeKoblasApi")
     }
@@ -33,7 +34,7 @@ kotlin {
 
     sourceSets {
         commonMain.dependencies {
-            compileOnly("org.jetbrains.kotlinx:kotlinx-serialization-core:1.11.0")
+            api("org.jetbrains.kotlinx:kotlinx-serialization-core:1.11.0")
         }
         // Conformance tests compare a vectorised kernel against the portable one that defines its semantics,
         // which means naming an engine. Opting in for the test source sets and not for main is what keeps
