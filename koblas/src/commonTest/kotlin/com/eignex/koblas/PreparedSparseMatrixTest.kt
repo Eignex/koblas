@@ -1,5 +1,6 @@
 package com.eignex.koblas
 
+import com.eignex.koblas.sparse.ReferenceSparseBlas
 import com.eignex.koblas.sparse.SparseBlas
 import com.eignex.koblas.sparse.SparseCall
 import com.eignex.koblas.sparse.SparseMatrixOperation
@@ -175,6 +176,58 @@ class PreparedSparseMatrixTest {
         dense.gemmInto(1.0, false, prepared, false, 0.0, actual)
 
         assertClose(expected, actual, "dense by prepared")
+    }
+
+    @Test
+    fun `lazy transposed sparse products keep the snapshot after source mutation`() {
+        for (engine in listOfNotNull(BuiltinEngines.scalar, BuiltinEngines.simd).distinct()) {
+            for (preparedOnLeft in booleanArrayOf(true, false)) {
+                val pointers = intArrayOf(0, 2, 3, 5)
+                val rows = intArrayOf(0, 3, 1, 0, 2)
+                val values = doubleArrayOf(2.0, -1.0, 0.0, -2.0, 3.0)
+                val source = SparseMatrix.wrap(4, 3, pointers, rows, values)
+                val other = if (preparedOnLeft) {
+                    SparseMatrix.ofColumns(4, 2, listOf(
+                        listOf(0 to 1.0, 1 to 2.0, 3 to 2.0), listOf(1 to 0.0, 2 to -1.0),
+                    ))
+                } else {
+                    SparseMatrix.ofColumns(2, 3, listOf(
+                        listOf(0 to 1.0, 1 to -1.0), listOf(1 to 0.0), listOf(0 to 1.0),
+                    ))
+                }
+                val expected = if (preparedOnLeft) {
+                    ReferenceSparseBlas.gemm(0.875, source, true, other, false)
+                } else {
+                    ReferenceSparseBlas.gemm(0.875, other, false, source, true)
+                }
+                val prepared = engine.prepare(source)
+                assertFalse(prepared.orientationDerived)
+                values.fill(Double.NaN)
+                pointers.fill(0)
+                rows.fill(0)
+
+                repeat(2) { use ->
+                    val actual = if (preparedOnLeft) {
+                        prepared.gemm(0.875, true, other, false)
+                    } else {
+                        other.gemm(0.875, false, prepared, true)
+                    }
+                    assertTrue(actual is SparseMatrix)
+                    assertSparseProductAgreesWithReference(
+                        expected, actual, "${engine.name} left=$preparedOnLeft use=$use",
+                    )
+                    assertTrue(prepared.orientationDerived)
+                }
+            }
+        }
+    }
+
+    private fun assertSparseProductAgreesWithReference(expected: SparseMatrix, actual: SparseMatrix, context: String) {
+        assertEquals(expected.rows, actual.rows, context)
+        assertEquals(expected.cols, actual.cols, context)
+        assertContentEquals(expected.copyColumnPointers(), actual.copyColumnPointers(), context)
+        assertContentEquals(expected.copyRowIndices(), actual.copyRowIndices(), context)
+        assertClose(expected.values, actual.values, context)
     }
 
     @Test

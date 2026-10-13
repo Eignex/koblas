@@ -7,6 +7,8 @@ import com.eignex.koblas.KoblasEngine
 import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.Workspace
 import com.eignex.koblas.assertClose
+import com.eignex.koblas.copyOf
+import com.eignex.koblas.sparse.internal.withSymmetricRankScratch
 import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
@@ -20,6 +22,63 @@ class PortableSparseBlasTest {
         SparseMatrix.ofColumns(3, 3, List(3) { listOf(it to 2.0) }),
         SparseMatrix.wrap(3, 3, IntArray(4), IntArray(0), DoubleArray(0)),
     )
+
+    @Test
+    fun `dense syrk reuses dirty scratch across different patterns and triangle flags`() {
+        val patterns = listOf(
+            SparseMatrix.ofColumns(5, 4, listOf(
+                listOf(0 to 2.0, 2 to -1.0), listOf(1 to 3.0, 4 to 0.0),
+                emptyList(), listOf(0 to -2.0, 3 to 4.0),
+            )),
+            SparseMatrix.ofColumns(5, 4, listOf(
+                listOf(1 to -1.0, 3 to 2.0), emptyList(),
+                listOf(0 to 0.0, 2 to 3.0, 4 to -2.0), listOf(2 to 1.0),
+            )),
+        )
+        for (engine in engines) {
+            val workspace = Workspace()
+            // Epoch one collides with the first column unless marks are cleared; nonzero row counts
+            // expose an adjacency builder that assumes its borrowed pointers are fresh.
+            for (transpose in booleanArrayOf(false, true)) {
+                for (a in patterns) {
+                    val order = if (transpose) a.cols else a.rows
+                    withSymmetricRankScratch(workspace, order, a.rows, a.nnz) {
+                            sums, marks, touched, pointers, columns, positions, cursor ->
+                        sums.fill(Double.NaN)
+                        for (buffer in listOf(marks, touched, pointers, columns, positions, cursor)) buffer.fill(1)
+                    }
+                }
+            }
+            repeat(2) { pass ->
+                for (transpose in booleanArrayOf(false, true)) {
+                    for (lower in booleanArrayOf(true, false)) {
+                        for ((pattern, a) in patterns.withIndex()) {
+                            val order = if (transpose) a.cols else a.rows
+                            val initial = DenseMatrix.wrap(order, order, DoubleArray(order * order) { -1000.0 - it })
+                            for (j in 0 until order) for (i in 0 until order) {
+                                if (if (lower) i >= j else i <= j) initial[i, j] = (i - j) * 0.25
+                            }
+                            val expected = initial.copyOf()
+                            val actual = initial.copyOf()
+                            ReferenceSparseBlas.syrk(0.875, a, transpose, -0.25, expected, lower)
+
+                            engine.syrk(0.875, a, transpose, -0.25, actual, lower, workspace)
+
+                            val context = "${engine.name} pass=$pass pattern=$pattern transpose=$transpose lower=$lower"
+                            assertSyrkAgreesWithReference(expected, actual, context)
+                            for (j in 0 until order) for (i in 0 until order) {
+                                if (if (lower) i < j else i > j) assertEquals(initial[i, j], actual[i, j], context)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private fun assertSyrkAgreesWithReference(expected: DenseMatrix, actual: DenseMatrix, context: String) {
+        assertClose(expected, actual, context)
+    }
 
     @Test
     fun `trmm on the left with no right hand sides borrows nothing`() {

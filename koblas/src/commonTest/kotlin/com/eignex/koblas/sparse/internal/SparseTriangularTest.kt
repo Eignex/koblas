@@ -4,6 +4,10 @@ import com.eignex.koblas.*
 import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.dense.PanelWork
+import com.eignex.koblas.dense.ReferenceBlas
+import com.eignex.koblas.sparse.SPARSE_STAGING
+import com.eignex.koblas.sparse.SparseCall
+import com.eignex.koblas.sparse.SparseMatrixOperation
 import com.eignex.koblas.randomMatrix
 import kotlin.random.Random
 import kotlin.test.*
@@ -78,62 +82,73 @@ class SparseTriangularTest {
     }
 
     @Test
-    fun `every direction agrees with the dense solve over several right hand sides`() {
-        val rng = Random(20260821)
-        val n = 6
-        val rightHandSides = partialPanelWidth(PanelWork.SparseRightHandSides)
-        for (lower in booleanArrayOf(true, false)) {
-            for (transpose in booleanArrayOf(false, true)) {
-                for (right in booleanArrayOf(false, true)) {
-                    val (sparse, dense) = triangle(n, lower, rng)
-                    val b = if (right) randomMatrix(rightHandSides, n, rng) else randomMatrix(n, rightHandSides, rng)
-
-                    val fromDense = b.copyOf()
-                    dense.trsm(fromDense, lower, transpose, right = right)
-                    val fromSparse = b.copyOf()
-                    sparse.trsm(fromSparse, lower, transpose, right = right, workspace = Workspace())
-
-                    assertClose(
-                        fromDense,
-                        fromSparse,
-                        "n=$n lower=$lower transpose=$transpose right=$right",
-                        tolerance = 1e-9,
-                    )
-                }
-            }
-        }
+    fun `matrix solves agree with the scalar reference across triangle flags`() {
+        assertTriangularAgreesWithReference(solve = true)
     }
 
     @Test
-    fun `every matrix multiplication direction agrees with dense triangular multiplication`() {
-        val rng = Random(20260902)
-        val rightHandSides = partialPanelWidth(PanelWork.SparseRightHandSides)
-        for (n in intArrayOf(0, 1, 2, 6, 11)) {
+    fun `matrix multiplies agree with the scalar reference across triangle flags`() {
+        assertTriangularAgreesWithReference(solve = false)
+    }
+
+    private fun assertTriangularAgreesWithReference(solve: Boolean) {
+        val rng = Random(20261013)
+        val order = 32
+        for (engine in listOfNotNull(BuiltinEngines.scalar, BuiltinEngines.simd).distinct()) {
             for (lower in booleanArrayOf(true, false)) {
                 for (transpose in booleanArrayOf(false, true)) {
+                    val work = if (transpose) PanelWork.SparseRightHandSideReduction else PanelWork.SparseRightHandSides
+                    val group = engine.panelKernels.executionGroup(
+                        work, order, 1024, contiguous = engine == BuiltinEngines.simd,
+                    )
+                    val sides = group + 1
                     for (unitDiag in booleanArrayOf(false, true)) {
-                        for (right in booleanArrayOf(false, true)) {
-                            val (sparse, dense) = triangle(n, lower, rng)
-                            val b = if (right) {
-                                randomMatrix(
-                                    rightHandSides,
-                                    n,
-                                    rng,
-                                )
-                            } else {
-                                randomMatrix(n, rightHandSides, rng)
+                        // Small off-diagonal entries keep the implicit unit triangle well conditioned too.
+                        val dense = wellConditioned(order, rng)
+                        val sparse = SparseMatrix.ofColumns(order, order, List(order) { j ->
+                            val rows = if (lower) j until order else 0..j
+                            rows.map { i ->
+                                if (i != j) dense[i, j] /= order
+                                i to if (unitDiag && i == j) Double.NaN else dense[i, j]
                             }
-                            val expected = b.copyOf()
-                            dense.trmm(expected, lower, transpose, unitDiag, right, alpha = -0.75)
-                            val actual = b.copyOf()
-                            sparse.trmm(actual, lower, transpose, unitDiag, right, alpha = -0.75)
-
-                            assertClose(
-                                expected,
-                                actual,
-                                "n=$n lower=$lower transpose=$transpose unit=$unitDiag right=$right",
-                                tolerance = 1e-9,
-                            )
+                        })
+                        for (right in booleanArrayOf(false, true)) {
+                            val input = if (right) randomMatrix(sides, order, rng) else randomMatrix(order, sides, rng)
+                            val expected = input.copyOf()
+                            val actual = input.copyOf()
+                            if (solve) {
+                                ReferenceBlas.trsm(dense, expected, lower, transpose, unitDiag, right, alpha = -0.75)
+                                engine.trsm(sparse, actual, lower, transpose, unitDiag, right, -0.75, Workspace())
+                            } else {
+                                ReferenceBlas.trmm(dense, expected, lower, transpose, unitDiag, right, alpha = -0.75)
+                                engine.trmm(sparse, actual, lower, transpose, unitDiag, right, -0.75, Workspace())
+                            }
+                            val context = "${engine.name} solve=$solve lower=$lower transpose=$transpose " +
+                                "unit=$unitDiag right=$right"
+                            assertClose(expected, actual, context)
+                            if (!right) {
+                                val operation = if (solve) SparseMatrixOperation.TrsmLeft else SparseMatrixOperation.TrmmLeft
+                                val route = engine.routeOf(
+                                    operation,
+                                    SparseCall(
+                                        sparse, -0.75, destinationElements = order * sides, depth = order,
+                                        rightHandSides = sides, transposeSparse = transpose, lower = lower,
+                                    ),
+                                )
+                                assertEquals(group, route.executionGroup, context)
+                                assertEquals(if (group > 1) 1 else 0, route.executionTail, context)
+                                if (engine == BuiltinEngines.simd) {
+                                    val leaf = if (transpose) "sparse-rhs-gather" else "sparse-rhs-scatter"
+                                    assertTrue(
+                                        route.components.any { it == "${engine.panelKernels.name}/$leaf" },
+                                        "$context: $route",
+                                    )
+                                    assertTrue(
+                                        route.components.any { it.startsWith("$SPARSE_STAGING/") },
+                                        "$context: $route",
+                                    )
+                                }
+                            }
                         }
                     }
                 }
