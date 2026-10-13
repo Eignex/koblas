@@ -3,6 +3,7 @@ package com.eignex.koblas.dense
 import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.DenseVector
 import com.eignex.koblas.Workspace
+import com.eignex.koblas.vendor.Blas
 import com.eignex.koblas.vendor.BlasOperation
 import com.eignex.koblas.vendor.RouteKind
 import kotlin.test.Test
@@ -204,6 +205,51 @@ class HostDenseBlasTest {
     }
 
     @Test
+    fun `shared operands reach the library through one snapshot`() {
+        for (operation in listOf(BlasOperation.Gemm, BlasOperation.Gemmt, BlasOperation.Symm, BlasOperation.Syr2k)) {
+            for (sameMatrix in booleanArrayOf(false, true)) {
+                for (useWorkspace in booleanArrayOf(false, true)) {
+                    val (recorder, blas) = forced()
+                    val c = matrix(ORDER)
+                    val b = if (sameMatrix) c else DenseMatrix.wrap(ORDER, ORDER, c.values)
+                    val workspace = if (useWorkspace) Workspace() else null
+
+                    when (operation) {
+                        BlasOperation.Gemm -> blas.gemm(0.875, c, false, b, true, -0.25, c, workspace)
+                        BlasOperation.Gemmt -> blas.gemmt(0.875, c, false, b, true, -0.25, c, workspace = workspace)
+                        BlasOperation.Symm -> blas.symm(0.875, c, b, -0.25, c, workspace = workspace)
+                        BlasOperation.Syr2k -> blas.syr2k(0.875, c, b, true, -0.25, c, workspace = workspace)
+                        else -> error("unexpected product $operation")
+                    }
+
+                    val call = recorder.single()
+                    assertEquals(operation, call.operation)
+                    assertSame(call.matrices[0].values, call.matrices[1].values, "$operation duplicated its snapshot")
+                    assertNotSame(c.values, call.matrices[0].values, "$operation did not stage the shared input")
+                    assertContentEquals(c.values, call.matrices[0].values)
+                    workspace?.let { assertEquals(1, it.available(ORDER * ORDER)) }
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `host product aliases agree with the reference and share one snapshot`() {
+        val portable = PortableDenseBlas(ScalarVectorKernels, PortablePanelKernels)
+        val blas = HostDenseBlas(portable, ReferenceProductBlas(), minimumWork = 0)
+
+        assertDenseProductAliasesAgreeWithReference(blas)
+    }
+
+    @Test
+    fun `host rectangular product aliases retain their operand shapes`() {
+        val portable = PortableDenseBlas(ScalarVectorKernels, PortablePanelKernels)
+        val blas = HostDenseBlas(portable, ReferenceProductBlas(), minimumWork = 0)
+
+        assertRectangularProductAliasesAgreeWithReference(blas)
+    }
+
+    @Test
     fun `the staged copy is borrowed from the caller s workspace`() {
         val (_, blas) = forced()
         val workspace = Workspace()
@@ -269,4 +315,49 @@ class HostDenseBlasTest {
             DenseMatrixOperation.Trsm,
         )
     }
+}
+
+/** Computes host products from the received operands, so staging is checked without an installed library. */
+@Suppress("LongParameterList") // the host BLAS product signatures
+private class ReferenceProductBlas : Blas by RecordingBlas() {
+    override fun gemm(
+        alpha: Double,
+        a: DenseMatrix,
+        transposeA: Boolean,
+        b: DenseMatrix,
+        transposeB: Boolean,
+        beta: Double,
+        c: DenseMatrix,
+    ) = ReferenceBlas.gemm(alpha, a, transposeA, b, transposeB, beta, c)
+
+    override fun gemmt(
+        alpha: Double,
+        a: DenseMatrix,
+        transposeA: Boolean,
+        b: DenseMatrix,
+        transposeB: Boolean,
+        beta: Double,
+        c: DenseMatrix,
+        structure: MatrixStructure,
+    ) = ReferenceBlas.gemmt(alpha, a, transposeA, b, transposeB, beta, c, structure == MatrixStructure.SymmetricLower)
+
+    override fun symm(
+        alpha: Double,
+        a: DenseMatrix,
+        structure: MatrixStructure,
+        b: DenseMatrix,
+        beta: Double,
+        c: DenseMatrix,
+        rightSide: Boolean,
+    ) = ReferenceBlas.symm(alpha, a, b, beta, c, structure == MatrixStructure.SymmetricLower, rightSide)
+
+    override fun syr2k(
+        alpha: Double,
+        a: DenseMatrix,
+        b: DenseMatrix,
+        transposeA: Boolean,
+        beta: Double,
+        c: DenseMatrix,
+        structure: MatrixStructure,
+    ) = ReferenceBlas.syr2k(alpha, a, b, transposeA, beta, c, structure == MatrixStructure.SymmetricLower)
 }

@@ -18,6 +18,34 @@ internal inline fun <T> staged(
     }
 }
 
+/** Stages product operands against [destination], sharing a snapshot of identical backing arrays. */
+internal inline fun <T> stagedOperands(
+    workspace: Workspace?,
+    a: DoubleArray,
+    b: DoubleArray,
+    destination: DoubleArray,
+    block: (DoubleArray, DoubleArray) -> T,
+): T = staged(workspace, a, a === destination) { av ->
+    if (a === b) {
+        block(av, av)
+    } else {
+        staged(workspace, b, b === destination) { bv -> block(av, bv) }
+    }
+}
+
+/** Matrix counterpart of [stagedOperands], retaining each operand's own shape over shared storage. */
+internal inline fun <T> stagedOperands(
+    workspace: Workspace?,
+    a: DenseMatrix,
+    b: DenseMatrix,
+    destination: DenseMatrix,
+    block: (DenseMatrix, DenseMatrix) -> T,
+): T = stagedOperands(workspace, a.values, b.values, destination.values) { av, bv ->
+    val sa = if (av === a.values) a else DenseMatrix.wrap(a.rows, a.cols, av)
+    val sb = if (bv === b.values) b else DenseMatrix.wrap(b.rows, b.cols, bv)
+    block(sa, sb)
+}
+
 /** Snapshots only a selected array window, retaining its original offset when no staging is needed. */
 @Suppress("LongParameterList") // the selected window and the callback that retains its addressing
 internal inline fun <T> staged(

@@ -317,10 +317,8 @@ internal class HostDenseBlas(
             portable.gemm(alpha, a, transposeA, b, transposeB, beta, c, workspace)
             return
         }
-        staged(workspace, a, a.values === c.values) { sa ->
-            staged(workspace, b, b.values === c.values) { sb ->
-                host.gemm(alpha, sa, transposeA, sb, transposeB, beta, c)
-            }
+        stagedOperands(workspace, a, b, c) { sa, sb ->
+            host.gemm(alpha, sa, transposeA, sb, transposeB, beta, c)
         }
     }
 
@@ -342,10 +340,8 @@ internal class HostDenseBlas(
             portable.gemmt(alpha, a, transposeA, b, transposeB, beta, c, lower, workspace)
             return
         }
-        staged(workspace, a, a.values === c.values) { sa ->
-            staged(workspace, b, b.values === c.values) { sb ->
-                host.gemmt(alpha, sa, transposeA, sb, transposeB, beta, c, symmetricStructure(lower))
-            }
+        stagedOperands(workspace, a, b, c) { sa, sb ->
+            host.gemmt(alpha, sa, transposeA, sb, transposeB, beta, c, symmetricStructure(lower))
         }
     }
 
@@ -387,10 +383,8 @@ internal class HostDenseBlas(
             portable.syr2k(alpha, a, b, transpose, beta, c, lower, workspace)
             return
         }
-        staged(workspace, a, a.values === c.values) { sa ->
-            staged(workspace, b, b.values === c.values) { sb ->
-                host.syr2k(alpha, sa, sb, transpose, beta, c, symmetricStructure(lower))
-            }
+        stagedOperands(workspace, a, b, c) { sa, sb ->
+            host.syr2k(alpha, sa, sb, transpose, beta, c, symmetricStructure(lower))
         }
     }
 
@@ -410,10 +404,8 @@ internal class HostDenseBlas(
             portable.symm(alpha, a, b, beta, c, lower, right, workspace)
             return
         }
-        staged(workspace, a, a.values === c.values) { sa ->
-            staged(workspace, b, b.values === c.values) { sb ->
-                host.symm(alpha, sa, symmetricStructure(lower), sb, beta, c, rightSide = right)
-            }
+        stagedOperands(workspace, a, b, c) { sa, sb ->
+            host.symm(alpha, sa, symmetricStructure(lower), sb, beta, c, rightSide = right)
         }
     }
 
