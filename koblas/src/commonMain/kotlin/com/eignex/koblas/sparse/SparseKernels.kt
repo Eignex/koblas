@@ -1,5 +1,6 @@
 package com.eignex.koblas.sparse
 
+import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.SparseVector
 import com.eignex.koblas.VectorRoute
 import com.eignex.koblas.dense.DenseOperation
@@ -33,6 +34,27 @@ public interface SparseKernels {
 
     /** `xᵀ·y` for a sparse [x] against a dense [y] (Sparse BLAS `usdot`); walks only the stored entries. */
     public fun dot(x: SparseVector, y: DoubleArray): Double
+
+    /**
+     * Dot product of [column] of [matrix] with [dense], whose length must equal [SparseMatrix.rows].
+     * Only stored entries participate, including explicit zeros; absent positions are never evaluated.
+     * Reads the current [SparseMatrix.values] on every call and permits that array to be [dense].
+     *
+     * Built-in implementations reuse the matrix's validated CSC support and call the indexed dot leaf
+     * at the column's offsets without copying or rescanning indices. [routeOf] with [SparseOperation.DotDense]
+     * and the column's stored count describes that leaf. Custom implementations default to the validated
+     * raw [dot] overload. The matrix's structural arrays must remain unchanged, as [SparseMatrix.wrap] requires;
+     * this call retains no arrays or column view after returning.
+     *
+     * @throws IndexOutOfBoundsException if [column] is outside the matrix's columns.
+     * @throws IllegalArgumentException if [dense] has the wrong length.
+     */
+    public fun dotColumn(matrix: SparseMatrix, column: Int, dense: DoubleArray): Double {
+        validateColumnDot(matrix, column, dense)
+        val start = matrix.colPointers[column]
+        val count = matrix.colPointers[column + 1] - start
+        return dot(matrix.rowIndices, start, matrix.values, start, count, dense)
+    }
 
     /**
      * Returns the dot product of [count] indexed [values] and [dense]. Index and value windows are independent.
@@ -166,6 +188,13 @@ internal class SparseKernelAdapter(
         return indexedSparseKernels.dotDense(x.indices, x.values, y)
     }
 
+    override fun dotColumn(matrix: SparseMatrix, column: Int, dense: DoubleArray): Double {
+        validateColumnDot(matrix, column, dense)
+        val start = matrix.colPointers[column]
+        val count = matrix.colPointers[column + 1] - start
+        return indexedSparseKernels.dotDense(matrix.rowIndices, start, matrix.values, start, count, dense)
+    }
+
     override fun dot(
         indices: IntArray,
         indexOffset: Int,
@@ -257,6 +286,11 @@ internal class SparseKernelAdapter(
         require(values !== destination) { "values and destination must use distinct buffers" }
         validateSparseIndices(indices, indexOffset, count, destination.size, strictlyIncreasing = true)
     }
+}
+
+private fun validateColumnDot(matrix: SparseMatrix, column: Int, dense: DoubleArray) {
+    requireIndex(column in 0 until matrix.cols) { "column $column is outside [0, ${matrix.cols})" }
+    requireShape(matrix.rows == dense.size) { "dotColumn: sizes differ, ${matrix.rows} vs ${dense.size}" }
 }
 
 private fun requireSparseWindow(length: Int, offset: Int, count: Int, name: String) {

@@ -840,6 +840,7 @@ public abstract interface class com/eignex/koblas/sparse/SparseKernels {
 	public abstract fun dot (Lcom/eignex/koblas/SparseVector;Lcom/eignex/koblas/SparseVector;)D
 	public abstract fun dot (Lcom/eignex/koblas/SparseVector;[D)D
 	public abstract fun dot ([II[DII[D)D
+	public fun dotColumn (Lcom/eignex/koblas/SparseMatrix;I[D)D
 	public abstract fun gather (Lcom/eignex/koblas/SparseVector;[D)V
 	public abstract fun gatherZero (Lcom/eignex/koblas/SparseVector;[D)V
 	public abstract fun getName ()Ljava/lang/String;
@@ -848,6 +849,10 @@ public abstract interface class com/eignex/koblas/sparse/SparseKernels {
 	public abstract fun routeOf (Lcom/eignex/koblas/sparse/SparseOperation;I)Lcom/eignex/koblas/VectorRoute;
 	public abstract fun scatter (Lcom/eignex/koblas/SparseVector;[D)V
 	public abstract fun scatter ([II[DII[D)V
+}
+
+public final class com/eignex/koblas/sparse/SparseKernels$DefaultImpls {
+	public static fun dotColumn (Lcom/eignex/koblas/sparse/SparseKernels;Lcom/eignex/koblas/SparseMatrix;I[D)D
 }
 
 public final class com/eignex/koblas/sparse/SparseMatrixOperation : java/lang/Enum {

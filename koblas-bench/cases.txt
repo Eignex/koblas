@@ -443,3 +443,13 @@ spscatter-slice+128+sparse-uniform+density=0.125
 spscatter-slice+512+sparse-uniform+density=0.125
 spscatter-slice+2048+sparse-uniform+density=0.125
 spscatter-slice+8192+sparse-uniform+density=0.125
+
+# Matched selected CSC columns at 8, 64, 512 and 4096 stored entries, all at offset three.
+spdot-column+64+sparse-uniform+density=0.125
+spdot-column+512+sparse-uniform+density=0.125
+spdot-column+4096+sparse-uniform+density=0.125
+spdot-column+32768+sparse-uniform+density=0.125
+spdot-column-raw+64+sparse-uniform+density=0.125
+spdot-column-raw+512+sparse-uniform+density=0.125
+spdot-column-raw+4096+sparse-uniform+density=0.125
+spdot-column-raw+32768+sparse-uniform+density=0.125

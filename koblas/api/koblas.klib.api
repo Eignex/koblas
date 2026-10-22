@@ -386,6 +386,7 @@ abstract interface com.eignex.koblas.sparse/SparseKernels { // com.eignex.koblas
     abstract fun routeOf(com.eignex.koblas.sparse/SparseOperation, kotlin/Int): com.eignex.koblas/VectorRoute<com.eignex.koblas.sparse/SparseOperation> // com.eignex.koblas.sparse/SparseKernels.routeOf|routeOf(com.eignex.koblas.sparse.SparseOperation;kotlin.Int){}[0]
     abstract fun scatter(com.eignex.koblas/SparseVector, kotlin/DoubleArray) // com.eignex.koblas.sparse/SparseKernels.scatter|scatter(com.eignex.koblas.SparseVector;kotlin.DoubleArray){}[0]
     abstract fun scatter(kotlin/IntArray, kotlin/Int, kotlin/DoubleArray, kotlin/Int, kotlin/Int, kotlin/DoubleArray) // com.eignex.koblas.sparse/SparseKernels.scatter|scatter(kotlin.IntArray;kotlin.Int;kotlin.DoubleArray;kotlin.Int;kotlin.Int;kotlin.DoubleArray){}[0]
+    open fun dotColumn(com.eignex.koblas/SparseMatrix, kotlin/Int, kotlin/DoubleArray): kotlin/Double // com.eignex.koblas.sparse/SparseKernels.dotColumn|dotColumn(com.eignex.koblas.SparseMatrix;kotlin.Int;kotlin.DoubleArray){}[0]
 }
 
 abstract interface com.eignex.koblas.vendor/Blas { // com.eignex.koblas.vendor/Blas|null[0]
