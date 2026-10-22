@@ -116,7 +116,17 @@ internal object SimdSparseAllocationCheck {
         val dense = DoubleArray(DIMENSION) { 1.0 + (it % 17) * 0.03125 }
         val large = DoubleArray(DIMENSION) { 1e200 }
         val kernels = engine.sparseKernels
+        val matrix = SparseMatrix.wrap(
+            DIMENSION,
+            2,
+            intArrayOf(0, 1, ENTRY_COUNT + 1),
+            intArrayOf(0) + IntArray(ENTRY_COUNT) { 1 + it * 4 },
+            doubleArrayOf(7.0) + DoubleArray(ENTRY_COUNT) { 0.5 + it * 0.125 },
+        )
 
+        assertAllocationFree("public column dot with an offset") {
+            kernels.dotColumn(matrix, 1, dense)
+        }
         assertAllocationFree("public indexed dot with independent offsets") {
             kernels.dot(indices, indexOffset, values, valueOffset, ENTRY_COUNT, dense)
         }

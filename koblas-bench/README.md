@@ -64,6 +64,27 @@ GC allocation data separately with JMH profiling when investigating JVM dispatch
 no allocation column. The JVM verification gate checks the warmed five-window batch for allocations.
 These GER-only timings cannot establish a complete LU speedup.
 
+## Selected CSC column dots
+
+`spdot-column` and `spdot-column-raw` price the same column at a nonzero offset through
+`SparseKernels.dotColumn` and the validated raw `dot` overload. The four default cases store 8, 64, 512
+and 4096 entries. Both include public validation and the indexed leaf; the column API reuses validated
+support while the raw API checks every index. Construction and dense-vector setup are outside timing.
+Each case is checked against the scalar indexed dot before measurement. Neighboring columns contain NaNs
+to catch a window that reads outside its column.
+
+These composed rows name the actual indexed leaf even when a SIMD engine selects a scalar fallback.
+Compare matching cases on the same arm; an engine label alone does not establish vectorization.
+
+```bash
+# Repeat with spdot-column-raw for the matched raw path.
+taskset -c 2 koblas-bench/capture-report.sh --operation spdot-column \
+  --samples 5 --warmups 5 --target-ms 200 --forks 2
+```
+
+These are repeated-call API measurements. They exclude matrix construction and solver work, so a consumer
+needs a separate setup-inclusive solver A/B before claiming an end-to-end improvement.
+
 ## Capturing in the reference container
 
 ```bash

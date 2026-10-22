@@ -75,6 +75,8 @@ use the stored snapshot. Mutable scratch belongs to each invocation, so snapshot
 [SparseKernels] supplies allocation-free indexed arithmetic over validated caller-owned windows. Reductions
 admit repeated/unsorted support with contribution semantics; indexed mutations require sorted unique
 destinations. [SparseKernels.routeOf] reports each call's actual implementation and fallback.
+[SparseKernels.dotColumn] reads a selected CSC column against a dense array, reusing the matrix's validated
+support without extracting a vector or rescanning indices. Coefficient updates remain visible on every call.
 
 [SparsePrimitives] provides stateless arithmetic over caller-owned support, marks, accumulators, diagnostics
 and output buffers. Pivot selection, permutations, dropping policies, factors and solver state belong to the
