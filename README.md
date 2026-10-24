@@ -15,7 +15,7 @@
 [![codecov](https://codecov.io/gh/eignex/koblas/branch/main/graph/badge.svg)](https://codecov.io/gh/eignex/koblas)
 [![License](https://img.shields.io/github/license/eignex/koblas)](https://github.com/eignex/koblas/blob/main/LICENSE)
 
-Koblas provides dense and sparse double-precision BLAS Levels 1–3 for Kotlin Multiplatform.
+Koblas provides dense and sparse double-precision BLAS Levels 1–3 and dense Cholesky factorization for Kotlin Multiplatform.
 Portable Kotlin implementations work without an installed numerical library. JVM performance uses owned
 Vector API kernels; Kotlin/Native can accelerate eligible calls through installed host libraries.
 Koblas is Apache-2.0 licensed. Its container serializers use kotlinx-serialization-core, exposed as an API

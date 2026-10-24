@@ -688,6 +688,17 @@ final class com.eignex.koblas.vendor/HostPlatform { // com.eignex.koblas.vendor/
     final fun toString(): kotlin/String // com.eignex.koblas.vendor/HostPlatform.toString|toString(){}[0]
 }
 
+final class com.eignex.koblas/CholeskyFactor { // com.eignex.koblas/CholeskyFactor|null[0]
+    final val size // com.eignex.koblas/CholeskyFactor.size|{}size[0]
+        final fun <get-size>(): kotlin/Int // com.eignex.koblas/CholeskyFactor.size.<get-size>|<get-size>(){}[0]
+
+    final fun logDeterminant(): kotlin/Double // com.eignex.koblas/CholeskyFactor.logDeterminant|logDeterminant(){}[0]
+    final fun lowerFactor(): com.eignex.koblas/DenseMatrix // com.eignex.koblas/CholeskyFactor.lowerFactor|lowerFactor(){}[0]
+    final fun solve(com.eignex.koblas/DenseMatrix): com.eignex.koblas/DenseMatrix // com.eignex.koblas/CholeskyFactor.solve|solve(com.eignex.koblas.DenseMatrix){}[0]
+    final fun solve(kotlin/DoubleArray): kotlin/DoubleArray // com.eignex.koblas/CholeskyFactor.solve|solve(kotlin.DoubleArray){}[0]
+    final fun solveLower(com.eignex.koblas/DenseMatrix, kotlin/Boolean = ...): com.eignex.koblas/DenseMatrix // com.eignex.koblas/CholeskyFactor.solveLower|solveLower(com.eignex.koblas.DenseMatrix;kotlin.Boolean){}[0]
+}
+
 final class com.eignex.koblas/ContiguousVector : com.eignex.koblas/DenseVector, com.eignex.koblas/VectorStorage { // com.eignex.koblas/ContiguousVector|null[0]
     final val offset // com.eignex.koblas/ContiguousVector.offset|{}offset[0]
         final fun <get-offset>(): kotlin/Int // com.eignex.koblas/ContiguousVector.offset.<get-offset>|<get-offset>(){}[0]
@@ -980,6 +991,7 @@ final object com.eignex.koblas/BuiltinEngines { // com.eignex.koblas/BuiltinEngi
 final val com.eignex.koblas/koblas // com.eignex.koblas/koblas|{}koblas[0]
     final fun <get-koblas>(): com.eignex.koblas/KoblasEngine // com.eignex.koblas/koblas.<get-koblas>|<get-koblas>(){}[0]
 
+final fun (com.eignex.koblas/DenseMatrix).com.eignex.koblas/cholesky(kotlin/Boolean = ...): com.eignex.koblas/CholeskyFactor // com.eignex.koblas/cholesky|cholesky@com.eignex.koblas.DenseMatrix(kotlin.Boolean){}[0]
 final fun (com.eignex.koblas/DenseMatrix).com.eignex.koblas/column(kotlin/Int): com.eignex.koblas/DenseVector // com.eignex.koblas/column|column@com.eignex.koblas.DenseMatrix(kotlin.Int){}[0]
 final fun (com.eignex.koblas/DenseMatrix).com.eignex.koblas/gemvInto(com.eignex.koblas/DenseVector, kotlin/DoubleArray, kotlin/Boolean = ..., com.eignex.koblas/Workspace? = ...) // com.eignex.koblas/gemvInto|gemvInto@com.eignex.koblas.DenseMatrix(com.eignex.koblas.DenseVector;kotlin.DoubleArray;kotlin.Boolean;com.eignex.koblas.Workspace?){}[0]
 final fun (com.eignex.koblas/DenseMatrix).com.eignex.koblas/gemvInto(kotlin/Double, com.eignex.koblas/DenseVector, kotlin/Double, kotlin/DoubleArray, kotlin/Boolean = ..., com.eignex.koblas/Workspace? = ...) // com.eignex.koblas/gemvInto|gemvInto@com.eignex.koblas.DenseMatrix(kotlin.Double;com.eignex.koblas.DenseVector;kotlin.Double;kotlin.DoubleArray;kotlin.Boolean;com.eignex.koblas.Workspace?){}[0]
