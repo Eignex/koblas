@@ -4,6 +4,21 @@ public final class com/eignex/koblas/BuiltinEngines {
 	public static final fun getSimd ()Lcom/eignex/koblas/KoblasEngine;
 }
 
+public final class com/eignex/koblas/CholeskyFactor {
+	public final fun getSize ()I
+	public final fun logDeterminant ()D
+	public final fun lowerFactor ()Lcom/eignex/koblas/DenseMatrix;
+	public final fun solve (Lcom/eignex/koblas/DenseMatrix;)Lcom/eignex/koblas/DenseMatrix;
+	public final fun solve ([D)[D
+	public final fun solveLower (Lcom/eignex/koblas/DenseMatrix;Z)Lcom/eignex/koblas/DenseMatrix;
+	public static synthetic fun solveLower$default (Lcom/eignex/koblas/CholeskyFactor;Lcom/eignex/koblas/DenseMatrix;ZILjava/lang/Object;)Lcom/eignex/koblas/DenseMatrix;
+}
+
+public final class com/eignex/koblas/CholeskyFactorKt {
+	public static final fun cholesky (Lcom/eignex/koblas/DenseMatrix;Z)Lcom/eignex/koblas/CholeskyFactor;
+	public static synthetic fun cholesky$default (Lcom/eignex/koblas/DenseMatrix;ZILjava/lang/Object;)Lcom/eignex/koblas/CholeskyFactor;
+}
+
 public final class com/eignex/koblas/ContiguousVector : com/eignex/koblas/DenseVector, com/eignex/koblas/VectorStorage {
 	public static final field Companion Lcom/eignex/koblas/ContiguousVector$Companion;
 	public fun equals (Ljava/lang/Object;)Z

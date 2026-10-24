@@ -15,7 +15,7 @@ public sealed class KoblasException(message: String) : ArithmeticException(messa
 public class SingularMatrix(public val position: Int, message: String) : KoblasException(message)
 
 /**
- * A sparse Cholesky or a strict `L·D·Lᵀ` met a pivot that was zero, negative or NaN.
+ * A positive-definite factorization met a nonpositive or nonfinite pivot.
  *
  * @property position the 0-based column whose pivot failed.
  * @property pivot the offending diagonal value.

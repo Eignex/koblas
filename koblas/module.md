@@ -14,7 +14,7 @@ Schedules and kernels receive their dependencies from the engine; they do not re
 
 [Workspace][com.eignex.koblas.Workspace] reuses temporary storage with bounded retention. It belongs to one
 invocation at a time; concurrent calls need separate outputs and scratch. Allocating operations still own
-their fresh results. Factorization and solver workflows are outside this artifact.
+their fresh results. Dense positive-definite factorization is available through [com.eignex.koblas.cholesky].
 
 [BuiltinEngines][com.eignex.koblas.BuiltinEngines], behind the
 [KoblasEngineApi][com.eignex.koblas.KoblasEngineApi] opt-in, names exact engines for tests and benchmarks.
@@ -38,6 +38,15 @@ implement. Dense matrices are column-major and sparse matrices are validated CSC
 operands on either side. Two sparse operands produce CSC storage; other built-in pairings produce dense
 storage. No sparse operand is densified to reach a kernel. [PreparedSparseMatrix] owns a snapshot for repeated
 operations and takes part in those products as the sparse matrix it copied.
+
+## Positive-definite factorization
+
+[com.eignex.koblas.cholesky] reads one triangle of a dense symmetric matrix and returns
+an owned [com.eignex.koblas.CholeskyFactor]. It exposes lower factors, log determinants,
+and vector or multiple-right-hand-side solves. Factorization uses a portable unblocked
+schedule with the selected dense dot kernels; solves use existing triangular BLAS.
+No jitter or statistical regularization is added. Nonpositive or nonfinite pivots fail
+with [com.eignex.koblas.NotPositiveDefinite].
 
 # Package com.eignex.koblas.dense
 
