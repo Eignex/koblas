@@ -2,7 +2,14 @@ import org.gradle.api.tasks.JavaExec
 import org.gradle.jvm.toolchain.JavaLanguageVersion
 import org.jetbrains.kotlin.gradle.targets.jvm.KotlinJvmTarget
 
-plugins { id("com.eignex.kmp") version "1.3.3" }
+plugins { id("com.eignex.kmp") version "1.3.5-SNAPSHOT" }
+
+repositories {
+    maven("https://central.sonatype.com/repository/maven-snapshots/") {
+        mavenContent { snapshotsOnly() }
+        content { includeGroup("com.eignex") }
+    }
+}
 
 eignexPublish { publish.set(false) }
 eignexBuild {

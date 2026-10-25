@@ -112,7 +112,7 @@ class TriangularSchedulingTest {
         lower: Boolean,
         shapes: List<Pair<Int, Int>> = triangularShapes(),
     ) =
-        forEachCase(booleanArrayOf(lower), shapes) { order, sides, lower, transpose, unitDiag ->
+        forEachCase(booleanArrayOf(lower), shapes) { order, sides, _, transpose, unitDiag ->
             val (triangle, _) = poisonedTriangle(rng, order, lower, unitDiag)
             // Keep the larger unit-diagonal fixtures well conditioned so error in constructing the right-hand
             // sides cannot dominate the scheduling comparison.

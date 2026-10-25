@@ -223,7 +223,7 @@ class BlasTest {
 
     private fun context(vendor: Blas, operation: String, x: StridedVector, y: StridedVector? = null): String =
         "${vendor.vendor} $operation x offset=${x.offset} stride=${x.stride}" +
-            (y?.let { " y offset=${it.offset} stride=${it.stride}" } ?: "")
+            y?.let { " y offset=${it.offset} stride=${it.stride}" }.orEmpty()
 
     private fun assertAgreesWithReference(expected: Double, actual: Double, context: String) =
         assertClose(expected, actual, context)

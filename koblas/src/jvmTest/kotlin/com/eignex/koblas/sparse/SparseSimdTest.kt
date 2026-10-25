@@ -1,13 +1,14 @@
 package com.eignex.koblas.sparse
 
 import com.eignex.koblas.assertClose
-import com.eignex.koblas.dense.simdAvailable
-import org.junit.Assume
+import com.eignex.koblas.internal.jvm25.SparseSimd
+import com.eignex.koblas.internal.jvm25.simdAvailable
 import kotlin.math.abs
 import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertTrue
+import org.junit.Assume
 
 class SparseSimdTest {
     @Test

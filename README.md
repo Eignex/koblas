@@ -29,13 +29,22 @@ Add the Maven Central dependency to your JVM or `commonMain` source set:
 implementation("com.eignex:koblas:<version>")
 ```
 
-Supported targets: JVM on JDK 25 or later, Linux x64/arm64, and macOS arm64.
+Supported targets: JVM on JDK 17 or later, Android API 24 or later, Linux x64/arm64, and macOS arm64.
 
-- JVM: pass `--add-modules=jdk.incubator.vector` to enable the SIMD engine. Without it, calls use portable
-  Kotlin. Ordinary JVM calls do not load a host library.
+Desktop and Android consume the same JVM Maven artifact. Its multi-release JAR contains portable Java 17
+bytecode at the root and the desktop implementations under `META-INF/versions/25`. Android uses the
+portable classes; no Android AAR, native binaries, NDK, or native-access flags are needed.
+
+- Desktop JDK 25 or later: pass `--add-modules=jdk.incubator.vector` to enable the SIMD engine. Without it,
+  calls use portable Kotlin. Ordinary JVM calls do not load a host library.
+- Desktop JDK 17–24 and Android: all operations use portable Kotlin. Host bindings return null.
 - Kotlin/Native: eligible calls use an installed host library when available, with portable fallback.
-- Explicit JVM host bindings also need `--enable-native-access=ALL-UNNAMED`. Supported vendors include
-  OpenBLAS, oneMKL, AOCL, Arm Performance Libraries and Accelerate.
+- Explicit desktop host bindings on JDK 25 or later also need `--enable-native-access=ALL-UNNAMED`. Supported
+  vendors include oneMKL, AOCL, Arm Performance Libraries and Accelerate.
+
+For Android, add the same dependency to your app's `dependencies` block and use a current Android Gradle
+Plugin with Java 17 bytecode support. Java 17 bytecode does not require Android 14: D8 desugars supported
+language features for the app's minSdk. The library's portable path uses APIs available from API 24.
 
 Engine selection is automatic. Use `koblas.routeOf(...)` to inspect how a dense or sparse call will run,
 including any fallback. The [benchmark guide](koblas-bench/README.md) covers explicit engine selection

@@ -3,8 +3,8 @@ package com.eignex.koblas.dense
 import com.eignex.koblas.BuiltinEngines
 import com.eignex.koblas.KoblasEngine
 import com.eignex.koblas.assertClose
+import com.eignex.koblas.internal.jvm25.hardwareFusedMultiplyAdd
 import com.eignex.koblas.internal.numeric.assertHardwareFmaAgreesWithVm
-import com.eignex.koblas.internal.numeric.hardwareFusedMultiplyAdd
 import com.eignex.koblas.poisonedTriangle
 import jdk.incubator.vector.DoubleVector
 import kotlin.random.Random

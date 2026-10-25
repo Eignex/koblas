@@ -1,7 +1,6 @@
 package com.eignex.koblas.vendor
 
-import java.nio.file.Files
-import java.nio.file.Path
+import java.io.File
 
 /** Resolved once; none of these facts change while the process runs. */
 private val host: HostPlatform by lazy {
@@ -12,6 +11,7 @@ private val host: HostPlatform by lazy {
 public actual fun hostPlatform(): HostPlatform = host
 
 private fun operatingSystem(): OperatingSystem {
+    if (System.getProperty("java.vm.name") == "Dalvik") return OperatingSystem.Other
     val name = System.getProperty("os.name").orEmpty()
     return when {
         name.startsWith("Linux", ignoreCase = true) -> OperatingSystem.Linux
@@ -35,7 +35,7 @@ private fun architecture(): Architecture = when (System.getProperty("os.arch")) 
 private fun cpuVendor(): CpuVendor {
     if (operatingSystem() != OperatingSystem.Linux) return CpuVendor.Unknown
     val line = try {
-        Files.newBufferedReader(Path.of("/proc/cpuinfo")).use { reader ->
+        File("/proc/cpuinfo").bufferedReader().use { reader ->
             reader.lineSequence().firstOrNull { it.startsWith("vendor_id") }
         }
     } catch (_: java.io.IOException) {

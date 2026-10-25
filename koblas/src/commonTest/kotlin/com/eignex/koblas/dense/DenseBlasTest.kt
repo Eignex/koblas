@@ -154,7 +154,7 @@ class DenseBlasTest {
         for (engine in engines()) {
             for (alias in 1..3) {
                 val workspace = Workspace()
-                repeat(2) {
+                repeat(2) { _ ->
                     val a = DenseMatrix.wrap(9, 8, DoubleArray(72) { (it % 13 - 6) / 8.0 })
                     val x = if (alias != 2) a.values else DoubleArray(10) { (it - 4) / 16.0 }
                     val y = if (alias != 1) a.values else DoubleArray(11) { (5 - it) / 8.0 }

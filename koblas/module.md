@@ -2,10 +2,11 @@
 
 Portable double-precision dense and sparse BLAS Levels 1–3 for Kotlin Multiplatform.
 
-The immutable [koblas][com.eignex.koblas.koblas] engine uses owned Vector API kernels on a JVM with the
-incubator module, and portable Kotlin without it. Kotlin/Native composes optional installed host calls with
-portable fallback. Explicit vendor bindings preserve their own arithmetic and overlap contracts;
-[openBlas][com.eignex.koblas.vendor.openBlas] returns null on a host with no supported library.
+The immutable [koblas][com.eignex.koblas.koblas] engine uses owned Vector API kernels on desktop JDK 25 or
+later with the incubator module, and portable Kotlin on Android and other supported JVMs. Kotlin/Native
+composes optional installed host calls with portable fallback. Explicit vendor bindings preserve their own arithmetic and overlap contracts;
+[openBlas][com.eignex.koblas.vendor.openBlas] returns null on Android, JDKs below 25, or a host with no
+supported library. The JVM publication is one multi-release JAR with no bundled native code.
 
 Container conveniences in `com.eignex.koblas` call the BLAS contracts through the default engine.
 The `dense` and `sparse` packages contain those contracts, portable schedules and backend kernel interfaces.

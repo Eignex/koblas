@@ -12,6 +12,8 @@ import com.eignex.koblas.copy
 import com.eignex.koblas.dot
 import com.eignex.koblas.gemmInto
 import com.eignex.koblas.gemvInto
+import com.eignex.koblas.internal.jvm25.SimdPanelKernels
+import com.eignex.koblas.internal.jvm25.SimdProductKernels
 import com.eignex.koblas.koblas
 import com.eignex.koblas.swap
 import com.eignex.koblas.testutil.allocation.AllocationProbe
