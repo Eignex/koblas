@@ -1,20 +1,11 @@
 package com.eignex.koblas
 
-import com.eignex.koblas.dense.ScalarVectorKernels
-import com.eignex.koblas.sparse.ScalarIndexedSparseKernels
-
 /** JVM built-in engines. */
 @KoblasEngineApi
 public actual object BuiltinEngines {
     /** Pure Kotlin scalar at every level, without resolving a host library. */
     @get:JvmStatic
-    public actual val scalar: KoblasEngine by lazy {
-        KoblasEngine(
-            ScalarVectorKernels,
-            ScalarIndexedSparseKernels,
-            null,
-        )
-    }
+    public actual val scalar: KoblasEngine by lazy { KoblasEngine.portable() }
 
     /** Vector API kernels on desktop JDK 25 or later, or null on portable runtimes. */
     @get:JvmStatic

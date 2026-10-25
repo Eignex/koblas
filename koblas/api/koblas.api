@@ -250,6 +250,7 @@ public final class com/eignex/koblas/Koblas {
 }
 
 public final class com/eignex/koblas/KoblasEngine : com/eignex/koblas/dense/DenseBlas, com/eignex/koblas/sparse/SparseBlas {
+	public static final field Companion Lcom/eignex/koblas/KoblasEngine$Companion;
 	public fun addScaled (DLcom/eignex/koblas/SparseMatrix;ZLcom/eignex/koblas/SparseMatrix;)Lcom/eignex/koblas/SparseMatrix;
 	public fun gemm (DLcom/eignex/koblas/DenseMatrix;ZLcom/eignex/koblas/DenseMatrix;ZDLcom/eignex/koblas/DenseMatrix;Lcom/eignex/koblas/Workspace;)V
 	public final fun gemm (DLcom/eignex/koblas/DenseMatrix;ZLcom/eignex/koblas/dense/PackedMatrix;DLcom/eignex/koblas/DenseMatrix;Lcom/eignex/koblas/Workspace;)V
@@ -309,6 +310,10 @@ public final class com/eignex/koblas/KoblasEngine : com/eignex/koblas/dense/Dens
 	public fun trsm (Lcom/eignex/koblas/SparseMatrix;Lcom/eignex/koblas/DenseMatrix;ZZZZDLcom/eignex/koblas/Workspace;)V
 	public fun trsv (Lcom/eignex/koblas/DenseMatrix;[DZZZLcom/eignex/koblas/Workspace;)V
 	public fun trsv (Lcom/eignex/koblas/SparseMatrix;[DZZZLcom/eignex/koblas/Workspace;)V
+}
+
+public final class com/eignex/koblas/KoblasEngine$Companion {
+	public final fun portable ()Lcom/eignex/koblas/KoblasEngine;
 }
 
 public abstract interface annotation class com/eignex/koblas/KoblasEngineApi : java/lang/annotation/Annotation {
