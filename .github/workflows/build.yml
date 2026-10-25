@@ -92,14 +92,12 @@ jobs:
           fi
           ldconfig -p | grep libblis.so.4
 
-      - name: Run linter
-        run: ./gradlew lintDocs
-
       - name: Validate CI scripts
         run: python3 .github/scripts/test-ci-scripts.py
 
-      - name: Run tests with coverage
-        run: ./gradlew :koblas:check :koblas-bench:check :koblas:koverXmlReport
+      # One task graph shares compilation and analysis between checks and documentation lint.
+      - name: Run checks and documentation lint with coverage
+        run: ./gradlew :koblas:check :koblas-bench:check lintDocs :koblas:koverXmlReport
 
       - name: Upload test reports
         if: always()
@@ -276,8 +274,8 @@ jobs:
             koblas/build/test-results/
           if-no-files-found: ignore
 
-  test-portable-jvm:
-    name: Run JVM tests without the Vector API
+  test-onemkl:
+    name: Validate portable JVM and oneMKL bindings
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
@@ -292,9 +290,11 @@ jobs:
         with:
           cache-read-only: false
           cache-encryption-key: ${{ secrets.GRADLE_ENCRYPTION_KEY }}
+      # Portable conformance needs a host without a vendor library. Install oneMKL only afterwards;
+      # Gradle starts fresh test JVMs for its interface checks and the SIMD-enabled test run.
       - name: Run portable JVM conformance
         run: ./gradlew :koblas:jvmTest :koblas-bench:jvmTest -Pkoblas.noSimd=true
-      - name: Upload test reports
+      - name: Upload portable test reports
         if: always()
         uses: actions/upload-artifact@v7
         with:
@@ -305,23 +305,6 @@ jobs:
             koblas-bench/build/reports/tests/
             koblas-bench/build/test-results/
           if-no-files-found: ignore
-
-  test-onemkl:
-    name: Validate oneMKL interface selection and JVM bindings
-    runs-on: ubuntu-latest
-    timeout-minutes: 45
-    steps:
-      - uses: actions/checkout@v6
-        with:
-          ref: ${{ inputs.ref || github.sha }}
-      - uses: actions/setup-java@v5
-        with:
-          distribution: temurin
-          java-version: 25
-      - uses: gradle/actions/setup-gradle@v6
-        with:
-          cache-read-only: false
-          cache-encryption-key: ${{ secrets.GRADLE_ENCRYPTION_KEY }}
       - name: Cache oneMKL runtime package
         uses: actions/cache@v5
         with:
@@ -330,10 +313,11 @@ jobs:
       - name: Install oneMKL
         timeout-minutes: 30
         run: .github/scripts/install-onemkl.sh "$HOME/onemkl-packages"
+      # Installed libraries are outside Gradle's test inputs, so cached results cannot validate this host.
       - name: Require both oneMKL interface checks and run JVM tests
         run: >-
           ./gradlew :koblas:oneMklInheritedInterfaceCheck :koblas:oneMklInitializedInterfaceCheck
-          :koblas:jvmTest -Pkoblas.requireOneMkl=true
+          :koblas:jvmTest --rerun -Pkoblas.requireOneMkl=true
       - name: Upload test reports
         if: always()
         uses: actions/upload-artifact@v7
