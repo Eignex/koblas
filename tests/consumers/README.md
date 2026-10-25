@@ -18,11 +18,16 @@ With an Android SDK configured, build both ordinary D8 and shrinking R8 consumer
 ./gradlew -p tests/consumers :android:assembleDebug :android:assembleRelease
 ./gradlew -p tests/consumers :android:connectedDebugAndroidTest
 ./gradlew -p tests/consumers :android:connectedReleaseAndroidTest -Pconsumer.buildType=release
-python3 tests/verify-android-tests.py \
+python3 tests/verify-test-results.py \
   tests/consumers/android/build/outputs/androidTest-results/connected/debug \
   tests/consumers/android/build/outputs/androidTest-results/connected/release
 ```
 
 Device tests use Java method names so their test APK remains compatible with API 24 DEX. Run them on an
 API 24 emulator as well as a current Android runtime. The shared check exercises repeated `J * x`, `J^T * r`,
-and `J^T * J` products against the scalar oracle, reused workspaces, and an aliased destination.
+and `J^T * J` products against a straightforward scalar reference, reused workspaces, and an aliased destination.
+It exercises both the platform default and the production `KoblasEngine.portable()` factory without an
+engine-selection opt-in, and checks repeated portable results bit for bit.
+
+The [iOS consumer](../ios-consumer/README.md) runs this same check on an iOS simulator and links both
+device and simulator frameworks from the published Kotlin/Native dependencies.

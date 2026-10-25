@@ -9,13 +9,7 @@ import com.eignex.koblas.vendor.NativeVendorBlas
 @KoblasEngineApi
 public actual object BuiltinEngines {
     /** Pure Kotlin scalar at every level, without resolving a host library. */
-    public actual val scalar: KoblasEngine by lazy {
-        KoblasEngine(
-            ScalarVectorKernels,
-            ScalarIndexedSparseKernels,
-            null,
-        )
-    }
+    public actual val scalar: KoblasEngine by lazy { KoblasEngine.portable() }
 
     /** The Vector API is a JVM module, so there is no distinct Native SIMD engine. */
     public actual val simd: KoblasEngine? = null

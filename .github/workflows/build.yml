@@ -264,6 +264,41 @@ jobs:
       - name: Run JVM and native tests
         run: ./gradlew :koblas:jvmTest :koblas:macosArm64Test
 
+      - name: Select an installed iOS simulator
+        run: |
+          set -euo pipefail
+          test "$(uname -m)" = arm64
+          read -r device state < <(xcrun simctl list devices available -j | python3 -c '
+          import json, sys
+          devices = [device for runtime, group in json.load(sys.stdin)["devices"].items()
+                     if ".iOS-" in runtime for device in group if device["name"].startswith("iPhone")]
+          assert devices, "No installed iPhone simulator"
+          device = next((device for device in devices if device["state"] == "Booted"), devices[0])
+          print(device["udid"], device["state"])
+          ')
+          echo "IOS_SIMULATOR_DEVICE=$device" >> "$GITHUB_ENV"
+          if [[ "$state" != Booted ]]; then xcrun simctl boot "$device"; fi
+          xcrun simctl bootstatus "$device" -b
+      - name: Run iOS portable conformance
+        run: >-
+          ./gradlew :koblas:iosSimulatorArm64Test --max-workers=2
+          -PiosSimulatorDevice="$IOS_SIMULATOR_DEVICE"
+      - name: Stage the iOS Maven publications
+        run: >-
+          ./gradlew :koblas:publishKotlinMultiplatformPublicationToLocalStagingRepository
+          :koblas:publishIosArm64PublicationToLocalStagingRepository
+          :koblas:publishIosSimulatorArm64PublicationToLocalStagingRepository
+          -PciVersion=0.0.0-consumer --max-workers=2
+      - name: Consume the published iOS library and link device and simulator frameworks
+        run: >-
+          ./gradlew -p tests/ios-consumer --refresh-dependencies iosSimulatorArm64Test
+          linkDebugFrameworkIosArm64 linkDebugFrameworkIosSimulatorArm64 --max-workers=2
+          -PiosSimulatorDevice="$IOS_SIMULATOR_DEVICE"
+      - name: Require executed simulator tests and linked frameworks
+        run: |
+          python3 tests/verify-test-results.py koblas/build/test-results/iosSimulatorArm64Test tests/ios-consumer/build/test-results/iosSimulatorArm64Test
+          test -s tests/ios-consumer/build/bin/iosArm64/debugFramework/KoblasConsumer.framework/KoblasConsumer
+          test -s tests/ios-consumer/build/bin/iosSimulatorArm64/debugFramework/KoblasConsumer.framework/KoblasConsumer
       - name: Upload test reports
         if: always()
         uses: actions/upload-artifact@v7
@@ -272,6 +307,8 @@ jobs:
           path: |
             koblas/build/reports/tests/
             koblas/build/test-results/
+            tests/ios-consumer/build/reports/tests/
+            tests/ios-consumer/build/test-results/
           if-no-files-found: ignore
 
   test-onemkl:
@@ -453,7 +490,7 @@ jobs:
           script: |
             ./gradlew -p tests/consumers :android:connectedDebugAndroidTest
             ./gradlew -p tests/consumers :android:connectedReleaseAndroidTest -Pconsumer.buildType=release
-            python3 tests/verify-android-tests.py tests/consumers/android/build/outputs/androidTest-results/connected/debug tests/consumers/android/build/outputs/androidTest-results/connected/release
+            python3 tests/verify-test-results.py tests/consumers/android/build/outputs/androidTest-results/connected/debug tests/consumers/android/build/outputs/androidTest-results/connected/release
       - name: Upload Android consumer test reports
         if: always()
         uses: actions/upload-artifact@v7

@@ -58,6 +58,8 @@ kotlin {
     }
     linuxX64(); linuxArm64()
     macosArm64()
+    iosArm64()
+    iosSimulatorArm64()
 
     sourceSets {
         commonMain.dependencies {
@@ -321,4 +323,17 @@ tasks.withType<dev.detekt.gradle.Detekt>().matching {
     it.name == "detektJvmPortableTestSourceSet"
 }.configureEach {
     setSource(fileTree("src/jvmPortableTest/kotlin") { include("**/*.kt") })
+}
+
+// Type-resolved portable analysis also sees common tests; let their formatter finish before reading them.
+tasks.withType<dev.detekt.gradle.Detekt>().matching {
+    it.name == "detektPortableTestJvm"
+}.configureEach {
+    autoCorrect.set(false)
+    mustRunAfter("detektCommonTestSourceSet")
+}
+
+// CI selects an installed simulator so the test does not depend on a hard-coded iPhone model.
+tasks.withType<org.jetbrains.kotlin.gradle.targets.native.tasks.KotlinNativeSimulatorTest>().configureEach {
+    providers.gradleProperty("iosSimulatorDevice").orNull?.let { device.set(it) }
 }

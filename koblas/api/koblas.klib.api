@@ -1,5 +1,5 @@
 // Klib ABI Dump
-// Targets: [linuxArm64, linuxX64, macosArm64]
+// Targets: [iosArm64, iosSimulatorArm64, linuxArm64, linuxX64, macosArm64]
 // Rendering settings:
 // - Signature version: 2
 // - Show manifest properties: true
@@ -822,6 +822,10 @@ final class com.eignex.koblas/KoblasEngine : com.eignex.koblas.dense/DenseBlas, 
     final fun trsm(com.eignex.koblas/SparseMatrix, com.eignex.koblas/DenseMatrix, kotlin/Boolean, kotlin/Boolean, kotlin/Boolean, kotlin/Boolean, kotlin/Double, com.eignex.koblas/Workspace?) // com.eignex.koblas/KoblasEngine.trsm|trsm(com.eignex.koblas.SparseMatrix;com.eignex.koblas.DenseMatrix;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean;kotlin.Double;com.eignex.koblas.Workspace?){}[0]
     final fun trsv(com.eignex.koblas/DenseMatrix, kotlin/DoubleArray, kotlin/Boolean, kotlin/Boolean, kotlin/Boolean, com.eignex.koblas/Workspace?) // com.eignex.koblas/KoblasEngine.trsv|trsv(com.eignex.koblas.DenseMatrix;kotlin.DoubleArray;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean;com.eignex.koblas.Workspace?){}[0]
     final fun trsv(com.eignex.koblas/SparseMatrix, kotlin/DoubleArray, kotlin/Boolean, kotlin/Boolean, kotlin/Boolean, com.eignex.koblas/Workspace?) // com.eignex.koblas/KoblasEngine.trsv|trsv(com.eignex.koblas.SparseMatrix;kotlin.DoubleArray;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean;com.eignex.koblas.Workspace?){}[0]
+
+    final object Companion { // com.eignex.koblas/KoblasEngine.Companion|null[0]
+        final fun portable(): com.eignex.koblas/KoblasEngine // com.eignex.koblas/KoblasEngine.Companion.portable|portable(){}[0]
+    }
 }
 
 final class com.eignex.koblas/NotPositiveDefinite : com.eignex.koblas/KoblasException { // com.eignex.koblas/NotPositiveDefinite|null[0]

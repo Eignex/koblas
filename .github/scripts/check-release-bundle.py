@@ -18,6 +18,8 @@ ARTIFACTS = {
     "koblas-linuxx64": "klib",
     "koblas-linuxarm64": "klib",
     "koblas-macosarm64": "klib",
+    "koblas-iosarm64": "klib",
+    "koblas-iossimulatorarm64": "klib",
 }
 CHECKSUMS = ("md5", "sha1", "sha256", "sha512")
 
