@@ -1,7 +1,7 @@
 package com.eignex.koblas.dense
 
 import com.eignex.koblas.BuiltinEngines
-import com.eignex.koblas.internal.numeric.hardwareFusedMultiplyAdd
+import com.eignex.koblas.internal.jvm25.hardwareFusedMultiplyAdd
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotEquals

@@ -2,6 +2,10 @@ rootProject.name = "koblas"
 
 pluginManagement {
     repositories {
+        maven("https://central.sonatype.com/repository/maven-snapshots/") {
+            mavenContent { snapshotsOnly() }
+            content { includeGroupByRegex("com\\.eignex.*") }
+        }
         mavenCentral()
         gradlePluginPortal()
     }

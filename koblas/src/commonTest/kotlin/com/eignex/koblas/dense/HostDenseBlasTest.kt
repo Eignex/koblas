@@ -286,8 +286,8 @@ class HostDenseBlasTest {
         assertEquals(RouteKind.Direct, route.kind)
         assertEquals(recorder.vendor, route.host?.vendor)
         assertEquals(BlasOperation.Gemm.entryPoint, route.host?.entryPoint)
-        assertTrue(recorder.libraryPath in (route.reason ?: ""), "the route does not name the resolved binary")
-        assertTrue(recorder.version in (route.reason ?: ""), "the route does not name the library's version")
+        assertTrue(recorder.libraryPath in route.reason.orEmpty(), "the route does not name the resolved binary")
+        assertTrue(recorder.version in route.reason.orEmpty(), "the route does not name the library's version")
     }
 
     private companion object {

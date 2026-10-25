@@ -1,5 +1,7 @@
 package com.eignex.koblas.internal.numeric
 
+import com.eignex.koblas.internal.jvm25.hardwareFmaAvailable
+import com.eignex.koblas.internal.jvm25.hardwareFusedMultiplyAdd
 import com.sun.management.HotSpotDiagnosticMXBean
 import java.lang.management.ManagementFactory
 import kotlin.test.Test

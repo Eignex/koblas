@@ -395,3 +395,71 @@ jobs:
           name: test-reports-linux-arm64
           path: build/test-results/linuxArm64/
           if-no-files-found: ignore
+
+  test-shared-jvm-artifact:
+    name: Consume the shared JVM artifact on Android API ${{ matrix.api }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        api: [24, 34]
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.ref || github.sha }}
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 25
+      - uses: gradle/actions/setup-gradle@v6
+        with:
+          cache-read-only: false
+          cache-encryption-key: ${{ secrets.GRADLE_ENCRYPTION_KEY }}
+      - name: Stage the shared Maven publication
+        run: >-
+          ./gradlew :koblas:publishJvmPublicationToLocalStagingRepository
+          :koblas:publishKotlinMultiplatformPublicationToLocalStagingRepository
+          -PciVersion=0.0.0-consumer
+      - name: Verify the bytecode boundary and published JVM requirement
+        run: |
+          python3 tests/verify-jvm-artifact.py \
+            koblas/build/libs/koblas-jvm-0.0.0-consumer.jar koblas/build/publications/jvm/module.json
+          jar --validate --file koblas/build/libs/koblas-jvm-0.0.0-consumer.jar
+      - name: Build JVM and Android consumers of the same publication
+        run: >-
+          ./gradlew -p tests/consumers --refresh-dependencies :jvm:jvm17Consumer :jvm:jvm25Consumer
+          :jvm:jvm17ModuleConsumer :jvm:jvm25ModuleConsumer
+          :android:assembleDebug :android:assembleRelease :android:assembleDebugAndroidTest
+      - name: Verify both Android APKs contain only portable code
+        run: |
+          python3 tests/verify-jvm-artifact.py \
+            koblas/build/libs/koblas-jvm-0.0.0-consumer.jar koblas/build/publications/jvm/module.json \
+            tests/consumers/android/build/outputs/apk/debug/android-debug.apk \
+            tests/consumers/android/build/outputs/apk/release/android-release.apk
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' \
+            | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Run ordinary and R8 consumers on Android
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: ${{ matrix.api }}
+          target: default
+          arch: x86_64
+          disable-animations: true
+          script: |
+            ./gradlew -p tests/consumers :android:connectedDebugAndroidTest
+            ./gradlew -p tests/consumers :android:connectedReleaseAndroidTest -Pconsumer.buildType=release
+            python3 tests/verify-android-tests.py tests/consumers/android/build/outputs/androidTest-results/connected/debug tests/consumers/android/build/outputs/androidTest-results/connected/release
+      - name: Upload Android consumer test reports
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: shared-jvm-android-${{ matrix.api }}
+          path: |
+            tests/consumers/android/build/reports/androidTests/
+            tests/consumers/android/build/outputs/androidTest-results/
+          if-no-files-found: ignore
