@@ -32,9 +32,8 @@ internal val simdAvailable: Boolean = try {
  */
 internal object SimdVectorKernels : DenseVectorKernels {
     /**
-     * Measured crossover for the vector magnitude reduction and first-match search. The search needs
-     * an additional pass, so it pays later than plain reductions. The sweep on an i9-12900H found a
-     * consistent advantage from 256 entries upward.
+     * Conservative crossover for vector filtering and its unconditional reduction fallback. Short
+     * calls stay scalar to avoid setting up vector masks and reduction state.
      */
     private const val IAMAX_CROSSOVER = 256
 

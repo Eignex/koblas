@@ -4,6 +4,7 @@ import com.eignex.koblas.dense.*
 import com.eignex.koblas.sparse.*
 import com.eignex.koblas.vendor.*
 import jdk.incubator.vector.DoubleVector
+import jdk.incubator.vector.LongVector
 import jdk.incubator.vector.VectorOperators
 import kotlin.math.abs
 
@@ -13,6 +14,8 @@ internal object SimdOps {
     /** Every bit but the sign bit of a double. */
     private const val SIGN_MASK = 0x7fffffffffffffffL
     private val LANE = SPECIES.length()
+    private val LONG_SPECIES = SPECIES.withLanes(Long::class.java)
+    private val SIGN_MASK_BITS = LongArray(LANE) { SIGN_MASK }
 
     fun lanes(): Int = LANE
 
@@ -82,53 +85,106 @@ internal object SimdOps {
     }
 
     /**
-     * Reduce magnitudes independently in each lane, then locate the first match in input order.
-     * Separating the index search removes the scalar value/index dependency from the reduction. Four
-     * independent vectors break the remaining maximum dependency chain. Strict comparisons leave NaNs
-     * out without changing ties or the all-zero result.
+     * Skip blocks whose magnitudes cannot improve the current winner. Only a block with a greater
+     * magnitude needs an ordered scalar search. Repeated improvements switch to the unconditional
+     * reduction, so an increasing input does not make every block run both scans.
      */
-    fun iamax(v: DoubleArray, vOff: Int, len: Int): Int {
+    fun iamax(v: DoubleArray, vOff: Int, len: Int): Int =
+        if (len >= UNROLL_MIN) iamaxFiltered(v, vOff, len) else iamaxReduced(v, vOff, len)
+
+    private fun iamaxFiltered(v: DoubleArray, vOff: Int, len: Int): Int {
+        val mask = LongVector.fromArray(LONG_SPECIES, SIGN_MASK_BITS, 0)
+        var threshold = DoubleVector.zero(SPECIES)
+        var bestAbs = 0.0
+        var winner = 0
+        var improvingBlocks = 0
+        var index = vOff
+        val end = vOff + len
+        val blockEnd = end - len % (4 * LANE)
+        while (index < blockEnd) {
+            val a = signStripped(DoubleVector.fromArray(SPECIES, v, index), mask)
+            val b = signStripped(DoubleVector.fromArray(SPECIES, v, index + LANE), mask)
+            val c = signStripped(DoubleVector.fromArray(SPECIES, v, index + 2 * LANE), mask)
+            val d = signStripped(DoubleVector.fromArray(SPECIES, v, index + 3 * LANE), mask)
+            val candidates = a.compare(VectorOperators.GT, threshold).or(b.compare(VectorOperators.GT, threshold))
+                .or(c.compare(VectorOperators.GT, threshold).or(d.compare(VectorOperators.GT, threshold)))
+            if (candidates.anyTrue()) {
+                val next = index + 4 * LANE
+                while (index < next) {
+                    val magnitude = abs(v[index])
+                    if (magnitude > bestAbs) {
+                        bestAbs = magnitude
+                        winner = index - vOff
+                    }
+                    index++
+                }
+                improvingBlocks++
+                if (improvingBlocks == 4 && index < end) {
+                    val remaining = index + iamaxReduced(v, index, end - index)
+                    return if (abs(v[remaining]) > bestAbs) remaining - vOff else winner
+                }
+                threshold = DoubleVector.broadcast(SPECIES, bestAbs)
+            } else {
+                improvingBlocks = 0
+                index += 4 * LANE
+            }
+        }
+        while (index < end) {
+            val magnitude = abs(v[index])
+            if (magnitude > bestAbs) {
+                bestAbs = magnitude
+                winner = index - vOff
+            }
+            index++
+        }
+        return winner
+    }
+
+    /** Unconditional magnitude reduction and ordered index search for short or frequently improving input. */
+    private fun iamaxReduced(v: DoubleArray, vOff: Int, len: Int): Int {
         if (len == 0) return -1
-        val bound = SPECIES.loopBound(len)
+        val mask = LongVector.fromArray(LONG_SPECIES, SIGN_MASK_BITS, 0)
+        val bound = vOff + SPECIES.loopBound(len)
+        val end = vOff + len
         var maximum = DoubleVector.zero(SPECIES)
         var second = DoubleVector.zero(SPECIES)
         var third = DoubleVector.zero(SPECIES)
         var fourth = DoubleVector.zero(SPECIES)
-        var i = 0
-        val quadBound = len - len % (4 * LANE)
-        while (i < quadBound) {
-            val a = DoubleVector.fromArray(SPECIES, v, vOff + i).abs()
-            val b = DoubleVector.fromArray(SPECIES, v, vOff + i + LANE).abs()
-            val c = DoubleVector.fromArray(SPECIES, v, vOff + i + 2 * LANE).abs()
-            val d = DoubleVector.fromArray(SPECIES, v, vOff + i + 3 * LANE).abs()
+        var index = vOff
+        val quadEnd = vOff + len - len % (4 * LANE)
+        while (index < quadEnd) {
+            val a = signStripped(DoubleVector.fromArray(SPECIES, v, index), mask)
+            val b = signStripped(DoubleVector.fromArray(SPECIES, v, index + LANE), mask)
+            val c = signStripped(DoubleVector.fromArray(SPECIES, v, index + 2 * LANE), mask)
+            val d = signStripped(DoubleVector.fromArray(SPECIES, v, index + 3 * LANE), mask)
             maximum = maximum.blend(a, a.compare(VectorOperators.GT, maximum))
             second = second.blend(b, b.compare(VectorOperators.GT, second))
             third = third.blend(c, c.compare(VectorOperators.GT, third))
             fourth = fourth.blend(d, d.compare(VectorOperators.GT, fourth))
-            i += 4 * LANE
+            index += 4 * LANE
         }
         maximum = maximum.max(second).max(third.max(fourth))
-        while (i < bound) {
-            val values = DoubleVector.fromArray(SPECIES, v, vOff + i).abs()
+        while (index < bound) {
+            val values = signStripped(DoubleVector.fromArray(SPECIES, v, index), mask)
             maximum = maximum.blend(values, values.compare(VectorOperators.GT, maximum))
-            i += LANE
+            index += LANE
         }
         var bestAbs = maximum.reduceLanes(VectorOperators.MAX)
-        while (i < len) {
-            val magnitude = abs(v[vOff + i])
+        while (index < end) {
+            val magnitude = abs(v[index])
             if (magnitude > bestAbs) bestAbs = magnitude
-            i++
+            index++
         }
         if (bestAbs == 0.0) return 0
-        i = 0
-        while (i < bound) {
-            val matches = DoubleVector.fromArray(SPECIES, v, vOff + i).abs().eq(bestAbs)
-            if (matches.anyTrue()) return i + matches.firstTrue()
-            i += LANE
+        index = vOff
+        while (index < bound) {
+            val matches = signStripped(DoubleVector.fromArray(SPECIES, v, index), mask).eq(bestAbs)
+            if (matches.anyTrue()) return index - vOff + matches.firstTrue()
+            index += LANE
         }
-        while (i < len) {
-            if (abs(v[vOff + i]) == bestAbs) return i
-            i++
+        while (index < end) {
+            if (abs(v[index]) == bestAbs) return index - vOff
+            index++
         }
         return 0
     }
@@ -187,6 +243,11 @@ internal object SimdOps {
     @Suppress("NOTHING_TO_INLINE")
     private inline fun signStripped(v: DoubleVector): DoubleVector =
         v.reinterpretAsLongs().lanewise(VectorOperators.AND, SIGN_MASK).reinterpretAsDoubles()
+
+    /** Inline for the same carrier-allocation reason as the scalar-mask overload. */
+    @Suppress("NOTHING_TO_INLINE")
+    private inline fun signStripped(v: DoubleVector, mask: LongVector): DoubleVector =
+        v.reinterpretAsLongs().and(mask).reinterpretAsDoubles()
 
     /**
      * Explicit lanes permit the reordered floating-point reduction that HotSpot will not generate
