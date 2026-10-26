@@ -72,23 +72,25 @@ internal object SimdTriangularKernels : DenseTriangularKernels {
         orderStride: Int,
         rhsStride: Int,
         sides: Int,
+        tOffset: Int,
     ) {
         if (size <= 0 || sides <= 0) return
         if (!simdAvailable || rhsStride != 1 || sides < LANE) {
             PortableTriangularKernels.diagonalSolve(
-                t, n, start, size, transposed, lower, unitDiag, x, xOffset, orderStride, rhsStride, sides,
+                t, n, start, size, transposed, lower, unitDiag, x, xOffset, orderStride, rhsStride, sides, tOffset,
             )
             return
         }
         var lane = 0
         val bound = sides - sides % LANE
         while (lane < bound) {
-            solveBlock(t, n, start, size, transposed, lower, unitDiag, x, xOffset + lane, orderStride)
+            solveBlock(t, n, start, size, transposed, lower, unitDiag, x, xOffset + lane, orderStride, tOffset)
             lane += LANE
         }
         if (lane < sides) {
             PortableTriangularKernels.diagonalSolve(
-                t, n, start, size, transposed, lower, unitDiag, x, xOffset + lane, orderStride, 1, sides - lane,
+                t, n, start, size, transposed, lower, unitDiag, x, xOffset + lane, orderStride,
+                1, sides - lane, tOffset,
             )
         }
     }
@@ -106,23 +108,25 @@ internal object SimdTriangularKernels : DenseTriangularKernels {
         orderStride: Int,
         rhsStride: Int,
         sides: Int,
+        tOffset: Int,
     ) {
         if (size <= 0 || sides <= 0) return
         if (!simdAvailable || rhsStride != 1 || sides < LANE) {
             PortableTriangularKernels.diagonalMultiply(
-                t, n, start, size, transposed, lower, unitDiag, x, xOffset, orderStride, rhsStride, sides,
+                t, n, start, size, transposed, lower, unitDiag, x, xOffset, orderStride, rhsStride, sides, tOffset,
             )
             return
         }
         var lane = 0
         val bound = sides - sides % LANE
         while (lane < bound) {
-            multiplyBlock(t, n, start, size, transposed, lower, unitDiag, x, xOffset + lane, orderStride)
+            multiplyBlock(t, n, start, size, transposed, lower, unitDiag, x, xOffset + lane, orderStride, tOffset)
             lane += LANE
         }
         if (lane < sides) {
             PortableTriangularKernels.diagonalMultiply(
-                t, n, start, size, transposed, lower, unitDiag, x, xOffset + lane, orderStride, 1, sides - lane,
+                t, n, start, size, transposed, lower, unitDiag, x, xOffset + lane, orderStride,
+                1, sides - lane, tOffset,
             )
         }
     }
@@ -142,6 +146,7 @@ internal object SimdTriangularKernels : DenseTriangularKernels {
         x: DoubleArray,
         xOffset: Int,
         orderStride: Int,
+        tOffset: Int,
     ) {
         for (step in 0 until size) {
             val p = if (lower) step else size - 1 - step
@@ -150,14 +155,14 @@ internal object SimdTriangularKernels : DenseTriangularKernels {
             val first = if (lower) 0 else p + 1
             val last = if (lower) p else size
             for (q in first until last) {
-                val coefficient = triangleEntry(t, n, start, p, q, transposed)
+                val coefficient = triangleEntry(t, n, start, p, q, transposed, tOffset)
                 accumulated = multiplySubtract(
                     DoubleVector.fromArray(SPECIES, x, xOffset + q * orderStride),
                     coefficient,
                     accumulated,
                 )
             }
-            if (!unitDiag) accumulated = accumulated.div(triangleEntry(t, n, start, p, p, transposed))
+            if (!unitDiag) accumulated = accumulated.div(triangleEntry(t, n, start, p, p, transposed, tOffset))
             accumulated.intoArray(x, at)
         }
     }
@@ -174,17 +179,18 @@ internal object SimdTriangularKernels : DenseTriangularKernels {
         x: DoubleArray,
         xOffset: Int,
         orderStride: Int,
+        tOffset: Int,
     ) {
         for (step in 0 until size) {
             val p = if (lower) size - 1 - step else step
             val at = xOffset + p * orderStride
             val own = DoubleVector.fromArray(SPECIES, x, at)
             var accumulated =
-                if (unitDiag) own else own.mul(triangleEntry(t, n, start, p, p, transposed))
+                if (unitDiag) own else own.mul(triangleEntry(t, n, start, p, p, transposed, tOffset))
             val first = if (lower) 0 else p + 1
             val last = if (lower) p else size
             for (q in first until last) {
-                val coefficient = triangleEntry(t, n, start, p, q, transposed)
+                val coefficient = triangleEntry(t, n, start, p, q, transposed, tOffset)
                 accumulated = multiplyAdd(
                     DoubleVector.fromArray(SPECIES, x, xOffset + q * orderStride),
                     coefficient,

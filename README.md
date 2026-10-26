@@ -137,6 +137,32 @@ allocate no views or scratch; aliased vectors are snapshotted over their selecte
 owned panel kernels on every platform. Inspect it with `DenseMatrixOperation.GerWindow` and a `DenseCall`
 whose rows and columns describe the rectangle.
 
+## Borrowed dense submatrices
+
+`DenseMatrix.view(rowOffset, columnOffset, rows, cols)` borrows a rectangle without copying.
+Nested views keep the original buffer and column spacing. Writes through a view change its parent;
+`DenseMatrixView.wrap` also accepts an external buffer, offset and leading dimension with unit row stride.
+Contiguous `DenseMatrix` factories retain their exact-buffer requirement.
+
+```kotlin
+val panel = matrix.view(first, start, height, width)
+val trailing = matrix.view(first, first, height, height)
+koblas.syrk(-1.0, panel, false, 1.0, trailing, workspace = workspace)
+```
+
+`gemm`, `syrk`, `trsm`, `gemv` and `trsv` accept views and contiguous matrices together through
+`DenseMatrixRegion`. Portable engines address regions directly and snapshot overlapping inputs;
+disjoint regions of the same parent need no snapshot. Product packing and triangular right-hand-side
+gathering can still use workspace scratch. Eligible host calls pack borrowed regions into contiguous
+workspace loans and copy back only destination entries, preserving the unselected triangle of `syrk`.
+Other matrix APIs may materialise a view.
+
+When querying routes, set `DenseCall.borrowed` for a call with views, `leadingDimension` for a padded
+`trsm` destination and `rightLeadingDimension` for a transposed borrowed right operand in `gemm`.
+The [benchmark guide](koblas-bench/README.md#borrowed-cholesky-trailing-updates) demonstrates a complete
+consumer-shaped factorization comparison; factorization and stabilization policy belong to the consumer.
+
+
 ## Java
 
 Factories are static methods, and Kotlin operators/extensions are exposed through `Koblas`. Common calls

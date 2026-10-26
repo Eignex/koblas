@@ -288,7 +288,14 @@ abstract interface com.eignex.koblas.dense/DenseBlas { // com.eignex.koblas.dens
     abstract fun trsm(com.eignex.koblas/DenseMatrix, com.eignex.koblas/DenseMatrix, kotlin/Boolean, kotlin/Boolean = ..., kotlin/Boolean = ..., kotlin/Boolean = ..., kotlin/Double = ..., com.eignex.koblas/Workspace? = ...) // com.eignex.koblas.dense/DenseBlas.trsm|trsm(com.eignex.koblas.DenseMatrix;com.eignex.koblas.DenseMatrix;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean;kotlin.Double;com.eignex.koblas.Workspace?){}[0]
     abstract fun trsv(com.eignex.koblas/DenseMatrix, kotlin/DoubleArray, kotlin/Boolean, kotlin/Boolean = ..., kotlin/Boolean = ..., com.eignex.koblas/Workspace? = ...) // com.eignex.koblas.dense/DenseBlas.trsv|trsv(com.eignex.koblas.DenseMatrix;kotlin.DoubleArray;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean;com.eignex.koblas.Workspace?){}[0]
     open fun gemm(com.eignex.koblas/DenseMatrix, com.eignex.koblas/DenseMatrix): com.eignex.koblas/DenseMatrix // com.eignex.koblas.dense/DenseBlas.gemm|gemm(com.eignex.koblas.DenseMatrix;com.eignex.koblas.DenseMatrix){}[0]
+    open fun gemm(com.eignex.koblas/DenseMatrixRegion, com.eignex.koblas/DenseMatrixRegion): com.eignex.koblas/DenseMatrix // com.eignex.koblas.dense/DenseBlas.gemm|gemm(com.eignex.koblas.DenseMatrixRegion;com.eignex.koblas.DenseMatrixRegion){}[0]
+    open fun gemm(kotlin/Double, com.eignex.koblas/DenseMatrixRegion, kotlin/Boolean, com.eignex.koblas/DenseMatrixRegion, kotlin/Boolean, kotlin/Double, com.eignex.koblas/DenseMatrixRegion, com.eignex.koblas/Workspace? = ...) // com.eignex.koblas.dense/DenseBlas.gemm|gemm(kotlin.Double;com.eignex.koblas.DenseMatrixRegion;kotlin.Boolean;com.eignex.koblas.DenseMatrixRegion;kotlin.Boolean;kotlin.Double;com.eignex.koblas.DenseMatrixRegion;com.eignex.koblas.Workspace?){}[0]
     open fun gemv(com.eignex.koblas/DenseMatrix, kotlin/DoubleArray, kotlin/Boolean = ...): kotlin/DoubleArray // com.eignex.koblas.dense/DenseBlas.gemv|gemv(com.eignex.koblas.DenseMatrix;kotlin.DoubleArray;kotlin.Boolean){}[0]
+    open fun gemv(com.eignex.koblas/DenseMatrixRegion, kotlin/DoubleArray, kotlin/Boolean = ...): kotlin/DoubleArray // com.eignex.koblas.dense/DenseBlas.gemv|gemv(com.eignex.koblas.DenseMatrixRegion;kotlin.DoubleArray;kotlin.Boolean){}[0]
+    open fun gemv(kotlin/Double, com.eignex.koblas/DenseMatrixRegion, kotlin/DoubleArray, kotlin/Double, kotlin/DoubleArray, kotlin/Boolean = ..., com.eignex.koblas/Workspace? = ...) // com.eignex.koblas.dense/DenseBlas.gemv|gemv(kotlin.Double;com.eignex.koblas.DenseMatrixRegion;kotlin.DoubleArray;kotlin.Double;kotlin.DoubleArray;kotlin.Boolean;com.eignex.koblas.Workspace?){}[0]
+    open fun syrk(kotlin/Double, com.eignex.koblas/DenseMatrixRegion, kotlin/Boolean, kotlin/Double, com.eignex.koblas/DenseMatrixRegion, kotlin/Boolean = ..., com.eignex.koblas/Workspace? = ...) // com.eignex.koblas.dense/DenseBlas.syrk|syrk(kotlin.Double;com.eignex.koblas.DenseMatrixRegion;kotlin.Boolean;kotlin.Double;com.eignex.koblas.DenseMatrixRegion;kotlin.Boolean;com.eignex.koblas.Workspace?){}[0]
+    open fun trsm(com.eignex.koblas/DenseMatrixRegion, com.eignex.koblas/DenseMatrixRegion, kotlin/Boolean, kotlin/Boolean = ..., kotlin/Boolean = ..., kotlin/Boolean = ..., kotlin/Double = ..., com.eignex.koblas/Workspace? = ...) // com.eignex.koblas.dense/DenseBlas.trsm|trsm(com.eignex.koblas.DenseMatrixRegion;com.eignex.koblas.DenseMatrixRegion;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean;kotlin.Double;com.eignex.koblas.Workspace?){}[0]
+    open fun trsv(com.eignex.koblas/DenseMatrixRegion, kotlin/DoubleArray, kotlin/Boolean, kotlin/Boolean = ..., kotlin/Boolean = ..., com.eignex.koblas/Workspace? = ...) // com.eignex.koblas.dense/DenseBlas.trsv|trsv(com.eignex.koblas.DenseMatrixRegion;kotlin.DoubleArray;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean;com.eignex.koblas.Workspace?){}[0]
 }
 
 abstract interface com.eignex.koblas.dense/DensePanelKernels { // com.eignex.koblas.dense/DensePanelKernels|null[0]
@@ -324,8 +331,8 @@ abstract interface com.eignex.koblas.dense/DenseTriangularKernels { // com.eigne
     abstract val name // com.eignex.koblas.dense/DenseTriangularKernels.name|{}name[0]
         abstract fun <get-name>(): kotlin/String // com.eignex.koblas.dense/DenseTriangularKernels.name.<get-name>|<get-name>(){}[0]
 
-    abstract fun diagonalMultiply(kotlin/DoubleArray, kotlin/Int, kotlin/Int, kotlin/Int, kotlin/Boolean, kotlin/Boolean, kotlin/Boolean, kotlin/DoubleArray, kotlin/Int, kotlin/Int, kotlin/Int, kotlin/Int) // com.eignex.koblas.dense/DenseTriangularKernels.diagonalMultiply|diagonalMultiply(kotlin.DoubleArray;kotlin.Int;kotlin.Int;kotlin.Int;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean;kotlin.DoubleArray;kotlin.Int;kotlin.Int;kotlin.Int;kotlin.Int){}[0]
-    abstract fun diagonalSolve(kotlin/DoubleArray, kotlin/Int, kotlin/Int, kotlin/Int, kotlin/Boolean, kotlin/Boolean, kotlin/Boolean, kotlin/DoubleArray, kotlin/Int, kotlin/Int, kotlin/Int, kotlin/Int) // com.eignex.koblas.dense/DenseTriangularKernels.diagonalSolve|diagonalSolve(kotlin.DoubleArray;kotlin.Int;kotlin.Int;kotlin.Int;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean;kotlin.DoubleArray;kotlin.Int;kotlin.Int;kotlin.Int;kotlin.Int){}[0]
+    abstract fun diagonalMultiply(kotlin/DoubleArray, kotlin/Int, kotlin/Int, kotlin/Int, kotlin/Boolean, kotlin/Boolean, kotlin/Boolean, kotlin/DoubleArray, kotlin/Int, kotlin/Int, kotlin/Int, kotlin/Int, kotlin/Int = ...) // com.eignex.koblas.dense/DenseTriangularKernels.diagonalMultiply|diagonalMultiply(kotlin.DoubleArray;kotlin.Int;kotlin.Int;kotlin.Int;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean;kotlin.DoubleArray;kotlin.Int;kotlin.Int;kotlin.Int;kotlin.Int;kotlin.Int){}[0]
+    abstract fun diagonalSolve(kotlin/DoubleArray, kotlin/Int, kotlin/Int, kotlin/Int, kotlin/Boolean, kotlin/Boolean, kotlin/Boolean, kotlin/DoubleArray, kotlin/Int, kotlin/Int, kotlin/Int, kotlin/Int, kotlin/Int = ...) // com.eignex.koblas.dense/DenseTriangularKernels.diagonalSolve|diagonalSolve(kotlin.DoubleArray;kotlin.Int;kotlin.Int;kotlin.Int;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean;kotlin.DoubleArray;kotlin.Int;kotlin.Int;kotlin.Int;kotlin.Int;kotlin.Int){}[0]
     abstract fun gathersRightHandSides(kotlin/Int, kotlin/Int, kotlin/Int): kotlin/Boolean // com.eignex.koblas.dense/DenseTriangularKernels.gathersRightHandSides|gathersRightHandSides(kotlin.Int;kotlin.Int;kotlin.Int){}[0]
     abstract fun implementationsFor(kotlin/Int, kotlin/Int, kotlin/Boolean): kotlin.collections/List<kotlin/String> // com.eignex.koblas.dense/DenseTriangularKernels.implementationsFor|implementationsFor(kotlin.Int;kotlin.Int;kotlin.Boolean){}[0]
     abstract fun rightHandSideGroup(kotlin/Int, kotlin/Int): kotlin/Int // com.eignex.koblas.dense/DenseTriangularKernels.rightHandSideGroup|rightHandSideGroup(kotlin.Int;kotlin.Int){}[0]
@@ -464,6 +471,18 @@ abstract interface com.eignex.koblas/Vector { // com.eignex.koblas/Vector|null[0
     abstract fun toDoubleArray(): kotlin/DoubleArray // com.eignex.koblas/Vector.toDoubleArray|toDoubleArray(){}[0]
 }
 
+sealed interface com.eignex.koblas/DenseMatrixRegion : com.eignex.koblas/Matrix { // com.eignex.koblas/DenseMatrixRegion|null[0]
+    abstract val leadingDimension // com.eignex.koblas/DenseMatrixRegion.leadingDimension|{}leadingDimension[0]
+        abstract fun <get-leadingDimension>(): kotlin/Int // com.eignex.koblas/DenseMatrixRegion.leadingDimension.<get-leadingDimension>|<get-leadingDimension>(){}[0]
+    abstract val offset // com.eignex.koblas/DenseMatrixRegion.offset|{}offset[0]
+        abstract fun <get-offset>(): kotlin/Int // com.eignex.koblas/DenseMatrixRegion.offset.<get-offset>|<get-offset>(){}[0]
+    abstract val values // com.eignex.koblas/DenseMatrixRegion.values|{}values[0]
+        abstract fun <get-values>(): kotlin/DoubleArray // com.eignex.koblas/DenseMatrixRegion.values.<get-values>|<get-values>(){}[0]
+
+    abstract fun set(kotlin/Int, kotlin/Int, kotlin/Double) // com.eignex.koblas/DenseMatrixRegion.set|set(kotlin.Int;kotlin.Int;kotlin.Double){}[0]
+    open fun view(kotlin/Int = ..., kotlin/Int = ..., kotlin/Int = ..., kotlin/Int = ...): com.eignex.koblas/DenseMatrixView // com.eignex.koblas/DenseMatrixRegion.view|view(kotlin.Int;kotlin.Int;kotlin.Int;kotlin.Int){}[0]
+}
+
 sealed interface com.eignex.koblas/DenseVector : com.eignex.koblas/Vector { // com.eignex.koblas/DenseVector|null[0]
     abstract val offset // com.eignex.koblas/DenseVector.offset|{}offset[0]
         abstract fun <get-offset>(): kotlin/Int // com.eignex.koblas/DenseVector.offset.<get-offset>|<get-offset>(){}[0]
@@ -515,7 +534,7 @@ final class <#A: kotlin/Enum<#A>> com.eignex.koblas/VectorRoute { // com.eignex.
 }
 
 final class com.eignex.koblas.dense/DenseCall { // com.eignex.koblas.dense/DenseCall|null[0]
-    constructor <init>(kotlin/Int, kotlin/Int, kotlin/Double = ..., kotlin/Double = ..., kotlin/Boolean = ..., kotlin/Int? = ..., kotlin/Boolean = ..., kotlin/Boolean = ..., kotlin/Boolean = ..., kotlin/Boolean = ..., kotlin/Boolean = ...) // com.eignex.koblas.dense/DenseCall.<init>|<init>(kotlin.Int;kotlin.Int;kotlin.Double;kotlin.Double;kotlin.Boolean;kotlin.Int?;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean){}[0]
+    constructor <init>(kotlin/Int, kotlin/Int, kotlin/Double = ..., kotlin/Double = ..., kotlin/Boolean = ..., kotlin/Int? = ..., kotlin/Boolean = ..., kotlin/Boolean = ..., kotlin/Boolean = ..., kotlin/Boolean = ..., kotlin/Boolean = ..., kotlin/Boolean = ..., kotlin/Int? = ..., kotlin/Int? = ...) // com.eignex.koblas.dense/DenseCall.<init>|<init>(kotlin.Int;kotlin.Int;kotlin.Double;kotlin.Double;kotlin.Boolean;kotlin.Int?;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean;kotlin.Int?;kotlin.Int?){}[0]
 
     final val aliased // com.eignex.koblas.dense/DenseCall.aliased|{}aliased[0]
         final fun <get-aliased>(): kotlin/Boolean // com.eignex.koblas.dense/DenseCall.aliased.<get-aliased>|<get-aliased>(){}[0]
@@ -523,16 +542,22 @@ final class com.eignex.koblas.dense/DenseCall { // com.eignex.koblas.dense/Dense
         final fun <get-alpha>(): kotlin/Double // com.eignex.koblas.dense/DenseCall.alpha.<get-alpha>|<get-alpha>(){}[0]
     final val beta // com.eignex.koblas.dense/DenseCall.beta|{}beta[0]
         final fun <get-beta>(): kotlin/Double // com.eignex.koblas.dense/DenseCall.beta.<get-beta>|<get-beta>(){}[0]
+    final val borrowed // com.eignex.koblas.dense/DenseCall.borrowed|{}borrowed[0]
+        final fun <get-borrowed>(): kotlin/Boolean // com.eignex.koblas.dense/DenseCall.borrowed.<get-borrowed>|<get-borrowed>(){}[0]
     final val columns // com.eignex.koblas.dense/DenseCall.columns|{}columns[0]
         final fun <get-columns>(): kotlin/Int // com.eignex.koblas.dense/DenseCall.columns.<get-columns>|<get-columns>(){}[0]
     final val contiguous // com.eignex.koblas.dense/DenseCall.contiguous|{}contiguous[0]
         final fun <get-contiguous>(): kotlin/Boolean // com.eignex.koblas.dense/DenseCall.contiguous.<get-contiguous>|<get-contiguous>(){}[0]
     final val depth // com.eignex.koblas.dense/DenseCall.depth|{}depth[0]
         final fun <get-depth>(): kotlin/Int? // com.eignex.koblas.dense/DenseCall.depth.<get-depth>|<get-depth>(){}[0]
+    final val leadingDimension // com.eignex.koblas.dense/DenseCall.leadingDimension|{}leadingDimension[0]
+        final fun <get-leadingDimension>(): kotlin/Int? // com.eignex.koblas.dense/DenseCall.leadingDimension.<get-leadingDimension>|<get-leadingDimension>(){}[0]
     final val lower // com.eignex.koblas.dense/DenseCall.lower|{}lower[0]
         final fun <get-lower>(): kotlin/Boolean // com.eignex.koblas.dense/DenseCall.lower.<get-lower>|<get-lower>(){}[0]
     final val right // com.eignex.koblas.dense/DenseCall.right|{}right[0]
         final fun <get-right>(): kotlin/Boolean // com.eignex.koblas.dense/DenseCall.right.<get-right>|<get-right>(){}[0]
+    final val rightLeadingDimension // com.eignex.koblas.dense/DenseCall.rightLeadingDimension|{}rightLeadingDimension[0]
+        final fun <get-rightLeadingDimension>(): kotlin/Int? // com.eignex.koblas.dense/DenseCall.rightLeadingDimension.<get-rightLeadingDimension>|<get-rightLeadingDimension>(){}[0]
     final val rows // com.eignex.koblas.dense/DenseCall.rows|{}rows[0]
         final fun <get-rows>(): kotlin/Int // com.eignex.koblas.dense/DenseCall.rows.<get-rows>|<get-rows>(){}[0]
     final val transposeA // com.eignex.koblas.dense/DenseCall.transposeA|{}transposeA[0]
@@ -719,9 +744,13 @@ final class com.eignex.koblas/ContiguousVector : com.eignex.koblas/DenseVector, 
     }
 }
 
-final class com.eignex.koblas/DenseMatrix : com.eignex.koblas/MatrixStorage { // com.eignex.koblas/DenseMatrix|null[0]
+final class com.eignex.koblas/DenseMatrix : com.eignex.koblas/DenseMatrixRegion, com.eignex.koblas/MatrixStorage { // com.eignex.koblas/DenseMatrix|null[0]
     final val cols // com.eignex.koblas/DenseMatrix.cols|{}cols[0]
         final fun <get-cols>(): kotlin/Int // com.eignex.koblas/DenseMatrix.cols.<get-cols>|<get-cols>(){}[0]
+    final val leadingDimension // com.eignex.koblas/DenseMatrix.leadingDimension|{}leadingDimension[0]
+        final fun <get-leadingDimension>(): kotlin/Int // com.eignex.koblas/DenseMatrix.leadingDimension.<get-leadingDimension>|<get-leadingDimension>(){}[0]
+    final val offset // com.eignex.koblas/DenseMatrix.offset|{}offset[0]
+        final fun <get-offset>(): kotlin/Int // com.eignex.koblas/DenseMatrix.offset.<get-offset>|<get-offset>(){}[0]
     final val rows // com.eignex.koblas/DenseMatrix.rows|{}rows[0]
         final fun <get-rows>(): kotlin/Int // com.eignex.koblas/DenseMatrix.rows.<get-rows>|<get-rows>(){}[0]
     final val values // com.eignex.koblas/DenseMatrix.values|{}values[0]
@@ -754,6 +783,27 @@ final class com.eignex.koblas/DenseMatrix : com.eignex.koblas/MatrixStorage { //
     }
 }
 
+final class com.eignex.koblas/DenseMatrixView : com.eignex.koblas/DenseMatrixRegion { // com.eignex.koblas/DenseMatrixView|null[0]
+    final val cols // com.eignex.koblas/DenseMatrixView.cols|{}cols[0]
+        final fun <get-cols>(): kotlin/Int // com.eignex.koblas/DenseMatrixView.cols.<get-cols>|<get-cols>(){}[0]
+    final val leadingDimension // com.eignex.koblas/DenseMatrixView.leadingDimension|{}leadingDimension[0]
+        final fun <get-leadingDimension>(): kotlin/Int // com.eignex.koblas/DenseMatrixView.leadingDimension.<get-leadingDimension>|<get-leadingDimension>(){}[0]
+    final val offset // com.eignex.koblas/DenseMatrixView.offset|{}offset[0]
+        final fun <get-offset>(): kotlin/Int // com.eignex.koblas/DenseMatrixView.offset.<get-offset>|<get-offset>(){}[0]
+    final val rows // com.eignex.koblas/DenseMatrixView.rows|{}rows[0]
+        final fun <get-rows>(): kotlin/Int // com.eignex.koblas/DenseMatrixView.rows.<get-rows>|<get-rows>(){}[0]
+    final val values // com.eignex.koblas/DenseMatrixView.values|{}values[0]
+        final fun <get-values>(): kotlin/DoubleArray // com.eignex.koblas/DenseMatrixView.values.<get-values>|<get-values>(){}[0]
+
+    final fun get(kotlin/Int, kotlin/Int): kotlin/Double // com.eignex.koblas/DenseMatrixView.get|get(kotlin.Int;kotlin.Int){}[0]
+    final fun set(kotlin/Int, kotlin/Int, kotlin/Double) // com.eignex.koblas/DenseMatrixView.set|set(kotlin.Int;kotlin.Int;kotlin.Double){}[0]
+    final fun toArray(): kotlin/Array<kotlin/DoubleArray> // com.eignex.koblas/DenseMatrixView.toArray|toArray(){}[0]
+
+    final object Companion { // com.eignex.koblas/DenseMatrixView.Companion|null[0]
+        final fun wrap(kotlin/Int, kotlin/Int, kotlin/DoubleArray, kotlin/Int = ..., kotlin/Int = ...): com.eignex.koblas/DenseMatrixView // com.eignex.koblas/DenseMatrixView.Companion.wrap|wrap(kotlin.Int;kotlin.Int;kotlin.DoubleArray;kotlin.Int;kotlin.Int){}[0]
+    }
+}
+
 final class com.eignex.koblas/DimensionMismatch : kotlin/IllegalArgumentException { // com.eignex.koblas/DimensionMismatch|null[0]
     constructor <init>(kotlin/String) // com.eignex.koblas/DimensionMismatch.<init>|<init>(kotlin.String){}[0]
 }
@@ -778,19 +828,23 @@ final class com.eignex.koblas/KoblasEngine : com.eignex.koblas.dense/DenseBlas, 
 
     final fun addScaled(kotlin/Double, com.eignex.koblas/SparseMatrix, kotlin/Boolean, com.eignex.koblas/SparseMatrix): com.eignex.koblas/SparseMatrix // com.eignex.koblas/KoblasEngine.addScaled|addScaled(kotlin.Double;com.eignex.koblas.SparseMatrix;kotlin.Boolean;com.eignex.koblas.SparseMatrix){}[0]
     final fun gemm(com.eignex.koblas/DenseMatrix, com.eignex.koblas/DenseMatrix): com.eignex.koblas/DenseMatrix // com.eignex.koblas/KoblasEngine.gemm|gemm(com.eignex.koblas.DenseMatrix;com.eignex.koblas.DenseMatrix){}[0]
+    final fun gemm(com.eignex.koblas/DenseMatrixRegion, com.eignex.koblas/DenseMatrixRegion): com.eignex.koblas/DenseMatrix // com.eignex.koblas/KoblasEngine.gemm|gemm(com.eignex.koblas.DenseMatrixRegion;com.eignex.koblas.DenseMatrixRegion){}[0]
     final fun gemm(com.eignex.koblas/SparseMatrix, com.eignex.koblas/DenseMatrix): com.eignex.koblas/DenseMatrix // com.eignex.koblas/KoblasEngine.gemm|gemm(com.eignex.koblas.SparseMatrix;com.eignex.koblas.DenseMatrix){}[0]
     final fun gemm(com.eignex.koblas/SparseMatrix, com.eignex.koblas/SparseMatrix): com.eignex.koblas/SparseMatrix // com.eignex.koblas/KoblasEngine.gemm|gemm(com.eignex.koblas.SparseMatrix;com.eignex.koblas.SparseMatrix){}[0]
     final fun gemm(kotlin/Double, com.eignex.koblas.dense/PackedMatrix, com.eignex.koblas.dense/PackedMatrix, kotlin/Double, com.eignex.koblas/DenseMatrix) // com.eignex.koblas/KoblasEngine.gemm|gemm(kotlin.Double;com.eignex.koblas.dense.PackedMatrix;com.eignex.koblas.dense.PackedMatrix;kotlin.Double;com.eignex.koblas.DenseMatrix){}[0]
     final fun gemm(kotlin/Double, com.eignex.koblas.dense/PackedMatrix, com.eignex.koblas/DenseMatrix, kotlin/Boolean, kotlin/Double, com.eignex.koblas/DenseMatrix, com.eignex.koblas/Workspace? = ...) // com.eignex.koblas/KoblasEngine.gemm|gemm(kotlin.Double;com.eignex.koblas.dense.PackedMatrix;com.eignex.koblas.DenseMatrix;kotlin.Boolean;kotlin.Double;com.eignex.koblas.DenseMatrix;com.eignex.koblas.Workspace?){}[0]
     final fun gemm(kotlin/Double, com.eignex.koblas/DenseMatrix, kotlin/Boolean, com.eignex.koblas.dense/PackedMatrix, kotlin/Double, com.eignex.koblas/DenseMatrix, com.eignex.koblas/Workspace? = ...) // com.eignex.koblas/KoblasEngine.gemm|gemm(kotlin.Double;com.eignex.koblas.DenseMatrix;kotlin.Boolean;com.eignex.koblas.dense.PackedMatrix;kotlin.Double;com.eignex.koblas.DenseMatrix;com.eignex.koblas.Workspace?){}[0]
     final fun gemm(kotlin/Double, com.eignex.koblas/DenseMatrix, kotlin/Boolean, com.eignex.koblas/DenseMatrix, kotlin/Boolean, kotlin/Double, com.eignex.koblas/DenseMatrix, com.eignex.koblas/Workspace?) // com.eignex.koblas/KoblasEngine.gemm|gemm(kotlin.Double;com.eignex.koblas.DenseMatrix;kotlin.Boolean;com.eignex.koblas.DenseMatrix;kotlin.Boolean;kotlin.Double;com.eignex.koblas.DenseMatrix;com.eignex.koblas.Workspace?){}[0]
+    final fun gemm(kotlin/Double, com.eignex.koblas/DenseMatrixRegion, kotlin/Boolean, com.eignex.koblas/DenseMatrixRegion, kotlin/Boolean, kotlin/Double, com.eignex.koblas/DenseMatrixRegion, com.eignex.koblas/Workspace?) // com.eignex.koblas/KoblasEngine.gemm|gemm(kotlin.Double;com.eignex.koblas.DenseMatrixRegion;kotlin.Boolean;com.eignex.koblas.DenseMatrixRegion;kotlin.Boolean;kotlin.Double;com.eignex.koblas.DenseMatrixRegion;com.eignex.koblas.Workspace?){}[0]
     final fun gemm(kotlin/Double, com.eignex.koblas/SparseMatrix, kotlin/Boolean, com.eignex.koblas/DenseMatrix, kotlin/Boolean, kotlin/Double, com.eignex.koblas/DenseMatrix, kotlin/Boolean, com.eignex.koblas/Workspace?) // com.eignex.koblas/KoblasEngine.gemm|gemm(kotlin.Double;com.eignex.koblas.SparseMatrix;kotlin.Boolean;com.eignex.koblas.DenseMatrix;kotlin.Boolean;kotlin.Double;com.eignex.koblas.DenseMatrix;kotlin.Boolean;com.eignex.koblas.Workspace?){}[0]
     final fun gemm(kotlin/Double, com.eignex.koblas/SparseMatrix, kotlin/Boolean, com.eignex.koblas/SparseMatrix, kotlin/Boolean): com.eignex.koblas/SparseMatrix // com.eignex.koblas/KoblasEngine.gemm|gemm(kotlin.Double;com.eignex.koblas.SparseMatrix;kotlin.Boolean;com.eignex.koblas.SparseMatrix;kotlin.Boolean){}[0]
     final fun gemm(kotlin/Double, com.eignex.koblas/SparseMatrix, kotlin/Boolean, com.eignex.koblas/SparseMatrix, kotlin/Boolean, kotlin/Double, com.eignex.koblas/DenseMatrix, com.eignex.koblas/Workspace?) // com.eignex.koblas/KoblasEngine.gemm|gemm(kotlin.Double;com.eignex.koblas.SparseMatrix;kotlin.Boolean;com.eignex.koblas.SparseMatrix;kotlin.Boolean;kotlin.Double;com.eignex.koblas.DenseMatrix;com.eignex.koblas.Workspace?){}[0]
     final fun gemmt(kotlin/Double, com.eignex.koblas/DenseMatrix, kotlin/Boolean, com.eignex.koblas/DenseMatrix, kotlin/Boolean, kotlin/Double, com.eignex.koblas/DenseMatrix, kotlin/Boolean, com.eignex.koblas/Workspace?) // com.eignex.koblas/KoblasEngine.gemmt|gemmt(kotlin.Double;com.eignex.koblas.DenseMatrix;kotlin.Boolean;com.eignex.koblas.DenseMatrix;kotlin.Boolean;kotlin.Double;com.eignex.koblas.DenseMatrix;kotlin.Boolean;com.eignex.koblas.Workspace?){}[0]
     final fun gemv(com.eignex.koblas/DenseMatrix, kotlin/DoubleArray, kotlin/Boolean): kotlin/DoubleArray // com.eignex.koblas/KoblasEngine.gemv|gemv(com.eignex.koblas.DenseMatrix;kotlin.DoubleArray;kotlin.Boolean){}[0]
+    final fun gemv(com.eignex.koblas/DenseMatrixRegion, kotlin/DoubleArray, kotlin/Boolean): kotlin/DoubleArray // com.eignex.koblas/KoblasEngine.gemv|gemv(com.eignex.koblas.DenseMatrixRegion;kotlin.DoubleArray;kotlin.Boolean){}[0]
     final fun gemv(com.eignex.koblas/SparseMatrix, kotlin/DoubleArray, kotlin/Boolean): kotlin/DoubleArray // com.eignex.koblas/KoblasEngine.gemv|gemv(com.eignex.koblas.SparseMatrix;kotlin.DoubleArray;kotlin.Boolean){}[0]
     final fun gemv(kotlin/Double, com.eignex.koblas/DenseMatrix, kotlin/DoubleArray, kotlin/Double, kotlin/DoubleArray, kotlin/Boolean, com.eignex.koblas/Workspace?) // com.eignex.koblas/KoblasEngine.gemv|gemv(kotlin.Double;com.eignex.koblas.DenseMatrix;kotlin.DoubleArray;kotlin.Double;kotlin.DoubleArray;kotlin.Boolean;com.eignex.koblas.Workspace?){}[0]
+    final fun gemv(kotlin/Double, com.eignex.koblas/DenseMatrixRegion, kotlin/DoubleArray, kotlin/Double, kotlin/DoubleArray, kotlin/Boolean, com.eignex.koblas/Workspace?) // com.eignex.koblas/KoblasEngine.gemv|gemv(kotlin.Double;com.eignex.koblas.DenseMatrixRegion;kotlin.DoubleArray;kotlin.Double;kotlin.DoubleArray;kotlin.Boolean;com.eignex.koblas.Workspace?){}[0]
     final fun gemv(kotlin/Double, com.eignex.koblas/SparseMatrix, kotlin/DoubleArray, kotlin/Double, kotlin/DoubleArray, kotlin/Boolean, com.eignex.koblas/Workspace?) // com.eignex.koblas/KoblasEngine.gemv|gemv(kotlin.Double;com.eignex.koblas.SparseMatrix;kotlin.DoubleArray;kotlin.Double;kotlin.DoubleArray;kotlin.Boolean;com.eignex.koblas.Workspace?){}[0]
     final fun ger(kotlin/Double, kotlin/DoubleArray, kotlin/DoubleArray, com.eignex.koblas/DenseMatrix, com.eignex.koblas/Workspace?) // com.eignex.koblas/KoblasEngine.ger|ger(kotlin.Double;kotlin.DoubleArray;kotlin.DoubleArray;com.eignex.koblas.DenseMatrix;com.eignex.koblas.Workspace?){}[0]
     final fun ger(kotlin/Double, kotlin/DoubleArray, kotlin/DoubleArray, com.eignex.koblas/DenseMatrix, kotlin/Int, kotlin/Int, kotlin/Int, kotlin/Int, kotlin/Int, kotlin/Int, com.eignex.koblas/Workspace?) // com.eignex.koblas/KoblasEngine.ger|ger(kotlin.Double;kotlin.DoubleArray;kotlin.DoubleArray;com.eignex.koblas.DenseMatrix;kotlin.Int;kotlin.Int;kotlin.Int;kotlin.Int;kotlin.Int;kotlin.Int;com.eignex.koblas.Workspace?){}[0]
@@ -810,6 +864,7 @@ final class com.eignex.koblas/KoblasEngine : com.eignex.koblas.dense/DenseBlas, 
     final fun syr2k(kotlin/Double, com.eignex.koblas/DenseMatrix, com.eignex.koblas/DenseMatrix, kotlin/Boolean, kotlin/Double, com.eignex.koblas/DenseMatrix, kotlin/Boolean, com.eignex.koblas/Workspace?) // com.eignex.koblas/KoblasEngine.syr2k|syr2k(kotlin.Double;com.eignex.koblas.DenseMatrix;com.eignex.koblas.DenseMatrix;kotlin.Boolean;kotlin.Double;com.eignex.koblas.DenseMatrix;kotlin.Boolean;com.eignex.koblas.Workspace?){}[0]
     final fun syrk(com.eignex.koblas/SparseMatrix, kotlin/Boolean, kotlin/Boolean): com.eignex.koblas/SparseMatrix // com.eignex.koblas/KoblasEngine.syrk|syrk(com.eignex.koblas.SparseMatrix;kotlin.Boolean;kotlin.Boolean){}[0]
     final fun syrk(kotlin/Double, com.eignex.koblas/DenseMatrix, kotlin/Boolean, kotlin/Double, com.eignex.koblas/DenseMatrix, kotlin/Boolean, com.eignex.koblas/Workspace?) // com.eignex.koblas/KoblasEngine.syrk|syrk(kotlin.Double;com.eignex.koblas.DenseMatrix;kotlin.Boolean;kotlin.Double;com.eignex.koblas.DenseMatrix;kotlin.Boolean;com.eignex.koblas.Workspace?){}[0]
+    final fun syrk(kotlin/Double, com.eignex.koblas/DenseMatrixRegion, kotlin/Boolean, kotlin/Double, com.eignex.koblas/DenseMatrixRegion, kotlin/Boolean, com.eignex.koblas/Workspace?) // com.eignex.koblas/KoblasEngine.syrk|syrk(kotlin.Double;com.eignex.koblas.DenseMatrixRegion;kotlin.Boolean;kotlin.Double;com.eignex.koblas.DenseMatrixRegion;kotlin.Boolean;com.eignex.koblas.Workspace?){}[0]
     final fun syrk(kotlin/Double, com.eignex.koblas/SparseMatrix, kotlin/Boolean, kotlin/Double, com.eignex.koblas/DenseMatrix, kotlin/Boolean, com.eignex.koblas/Workspace?) // com.eignex.koblas/KoblasEngine.syrk|syrk(kotlin.Double;com.eignex.koblas.SparseMatrix;kotlin.Boolean;kotlin.Double;com.eignex.koblas.DenseMatrix;kotlin.Boolean;com.eignex.koblas.Workspace?){}[0]
     final fun toString(): kotlin/String // com.eignex.koblas/KoblasEngine.toString|toString(){}[0]
     final fun transpose(com.eignex.koblas/DenseMatrix): com.eignex.koblas/DenseMatrix // com.eignex.koblas/KoblasEngine.transpose|transpose(com.eignex.koblas.DenseMatrix){}[0]
@@ -819,8 +874,10 @@ final class com.eignex.koblas/KoblasEngine : com.eignex.koblas.dense/DenseBlas, 
     final fun trmv(com.eignex.koblas/DenseMatrix, kotlin/DoubleArray, kotlin/Boolean, kotlin/Boolean, kotlin/Boolean, com.eignex.koblas/Workspace?) // com.eignex.koblas/KoblasEngine.trmv|trmv(com.eignex.koblas.DenseMatrix;kotlin.DoubleArray;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean;com.eignex.koblas.Workspace?){}[0]
     final fun trmv(com.eignex.koblas/SparseMatrix, kotlin/DoubleArray, kotlin/Boolean, kotlin/Boolean, kotlin/Boolean, com.eignex.koblas/Workspace?) // com.eignex.koblas/KoblasEngine.trmv|trmv(com.eignex.koblas.SparseMatrix;kotlin.DoubleArray;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean;com.eignex.koblas.Workspace?){}[0]
     final fun trsm(com.eignex.koblas/DenseMatrix, com.eignex.koblas/DenseMatrix, kotlin/Boolean, kotlin/Boolean, kotlin/Boolean, kotlin/Boolean, kotlin/Double, com.eignex.koblas/Workspace?) // com.eignex.koblas/KoblasEngine.trsm|trsm(com.eignex.koblas.DenseMatrix;com.eignex.koblas.DenseMatrix;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean;kotlin.Double;com.eignex.koblas.Workspace?){}[0]
+    final fun trsm(com.eignex.koblas/DenseMatrixRegion, com.eignex.koblas/DenseMatrixRegion, kotlin/Boolean, kotlin/Boolean, kotlin/Boolean, kotlin/Boolean, kotlin/Double, com.eignex.koblas/Workspace?) // com.eignex.koblas/KoblasEngine.trsm|trsm(com.eignex.koblas.DenseMatrixRegion;com.eignex.koblas.DenseMatrixRegion;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean;kotlin.Double;com.eignex.koblas.Workspace?){}[0]
     final fun trsm(com.eignex.koblas/SparseMatrix, com.eignex.koblas/DenseMatrix, kotlin/Boolean, kotlin/Boolean, kotlin/Boolean, kotlin/Boolean, kotlin/Double, com.eignex.koblas/Workspace?) // com.eignex.koblas/KoblasEngine.trsm|trsm(com.eignex.koblas.SparseMatrix;com.eignex.koblas.DenseMatrix;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean;kotlin.Double;com.eignex.koblas.Workspace?){}[0]
     final fun trsv(com.eignex.koblas/DenseMatrix, kotlin/DoubleArray, kotlin/Boolean, kotlin/Boolean, kotlin/Boolean, com.eignex.koblas/Workspace?) // com.eignex.koblas/KoblasEngine.trsv|trsv(com.eignex.koblas.DenseMatrix;kotlin.DoubleArray;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean;com.eignex.koblas.Workspace?){}[0]
+    final fun trsv(com.eignex.koblas/DenseMatrixRegion, kotlin/DoubleArray, kotlin/Boolean, kotlin/Boolean, kotlin/Boolean, com.eignex.koblas/Workspace?) // com.eignex.koblas/KoblasEngine.trsv|trsv(com.eignex.koblas.DenseMatrixRegion;kotlin.DoubleArray;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean;com.eignex.koblas.Workspace?){}[0]
     final fun trsv(com.eignex.koblas/SparseMatrix, kotlin/DoubleArray, kotlin/Boolean, kotlin/Boolean, kotlin/Boolean, com.eignex.koblas/Workspace?) // com.eignex.koblas/KoblasEngine.trsv|trsv(com.eignex.koblas.SparseMatrix;kotlin.DoubleArray;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean;com.eignex.koblas.Workspace?){}[0]
 
     final object Companion { // com.eignex.koblas/KoblasEngine.Companion|null[0]

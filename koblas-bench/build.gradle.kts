@@ -173,3 +173,14 @@ registerNativeBenchmark("linuxX64SelectedBenchmark") {
 tasks.withType<Test>().configureEach {
     jvmArgs("--add-modules=jdk.incubator.vector", "--enable-native-access=ALL-UNNAMED")
 }
+
+// Consumer-shaped setup-inclusive comparison, including thread allocation measurements.
+tasks.register<JavaExec>("jvmCholeskyViewBenchmark") {
+    group = "benchmark"
+    description = "Compares copied and borrowed trailing updates in a finite SPD blocked Cholesky workload."
+    dependsOn(jvmCompilation.compileTaskProvider)
+    classpath(jvmCompilation.output.allOutputs, configurations.getByName("jvmRuntimeClasspath"))
+    mainClass.set("com.eignex.koblas.bench.CholeskyViewBenchmark")
+    javaLauncher.set(benchmarkJavaLauncher)
+    jvmArgs("--add-modules=jdk.incubator.vector", "--enable-native-access=ALL-UNNAMED", "-Xms512m", "-Xmx512m")
+}

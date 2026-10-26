@@ -114,9 +114,20 @@ internal fun triangularMatrix(
     alpha: Double,
     solve: Boolean,
     workspace: Workspace?,
+    tOffset: Int = 0,
+    ldt: Int = order,
+    bOffset: Int = 0,
 ) {
     if (order == 0 || sides == 0) return
-    if (alpha != 1.0) vectors.scale(b, 0, alpha, order * sides)
+    if (alpha != 1.0) {
+        val rows = if (right) sides else order
+        val cols = if (right) order else sides
+        if (ldb == rows) {
+            vectors.scale(b, bOffset, alpha, rows * cols)
+        } else {
+            for (j in 0 until cols) vectors.scale(b, bOffset + j * ldb, alpha, rows)
+        }
+    }
     val flip = transpose != right
     val mLower = lower != flip
     val orderStride = if (right) ldb else 1
@@ -134,13 +145,13 @@ internal fun triangularMatrix(
                 sourceCount,
             ->
             diagonalStep(
-                triangles, t, order, start, size, flip, mLower, unitDiag, solve,
-                b, orderStride, rhsStride, sides, group, gathers, gathered,
+                triangles, t, ldt, tOffset, start, size, flip, mLower, unitDiag, solve,
+                b, bOffset, orderStride, rhsStride, sides, group, gathers, gathered,
             )
             if (targetCount > 0 && sourceCount > 0) {
                 triangularUpdate(
-                    products, panels, if (solve) -1.0 else 1.0, t, order, flip,
-                    b, ldb, sides, right, targetStart, targetCount, sourceStart, sourceCount, workspace,
+                    products, panels, if (solve) -1.0 else 1.0, t, ldt, tOffset, flip,
+                    b, bOffset, ldb, sides, right, targetStart, targetCount, sourceStart, sourceCount, workspace,
                 )
             }
         }
@@ -172,6 +183,7 @@ private fun diagonalStep(
     triangles: DenseTriangularKernels,
     t: DoubleArray,
     order: Int,
+    tOffset: Int,
     start: Int,
     size: Int,
     transposed: Boolean,
@@ -179,6 +191,7 @@ private fun diagonalStep(
     unitDiag: Boolean,
     solve: Boolean,
     b: DoubleArray,
+    bOffset: Int,
     orderStride: Int,
     rhsStride: Int,
     sides: Int,
@@ -187,10 +200,10 @@ private fun diagonalStep(
     gathered: DoubleArray,
 ) {
     forEachPanel(sides, group) { first, lanes ->
-        val origin = start * orderStride + first * rhsStride
+        val origin = bOffset + start * orderStride + first * rhsStride
         if (!gathers) {
             substitute(
-                triangles, solve, t, order, start, size, transposed, lower, unitDiag,
+                triangles, solve, t, order, tOffset, start, size, transposed, lower, unitDiag,
                 b, origin, orderStride, rhsStride, lanes,
             )
         } else {
@@ -200,7 +213,7 @@ private fun diagonalStep(
                 for (lane in 0 until lanes) gathered[into + lane] = b[from + lane * rhsStride]
             }
             substitute(
-                triangles, solve, t, order, start, size, transposed, lower, unitDiag,
+                triangles, solve, t, order, tOffset, start, size, transposed, lower, unitDiag,
                 gathered, 0, lanes, 1, lanes,
             )
             for (p in 0 until size) {
@@ -218,6 +231,7 @@ private fun substitute(
     solve: Boolean,
     t: DoubleArray,
     order: Int,
+    tOffset: Int,
     start: Int,
     size: Int,
     transposed: Boolean,
@@ -231,11 +245,11 @@ private fun substitute(
 ) {
     if (solve) {
         triangles.diagonalSolve(
-            t, order, start, size, transposed, lower, unitDiag, x, xOffset, orderStride, rhsStride, sides,
+            t, order, start, size, transposed, lower, unitDiag, x, xOffset, orderStride, rhsStride, sides, tOffset,
         )
     } else {
         triangles.diagonalMultiply(
-            t, order, start, size, transposed, lower, unitDiag, x, xOffset, orderStride, rhsStride, sides,
+            t, order, start, size, transposed, lower, unitDiag, x, xOffset, orderStride, rhsStride, sides, tOffset,
         )
     }
 }
@@ -255,8 +269,10 @@ private fun triangularUpdate(
     coefficient: Double,
     t: DoubleArray,
     order: Int,
+    tOffset: Int,
     transposed: Boolean,
     b: DoubleArray,
+    bOffset: Int,
     ldb: Int,
     sides: Int,
     right: Boolean,
@@ -266,21 +282,21 @@ private fun triangularUpdate(
     sourceCount: Int,
     workspace: Workspace?,
 ) {
-    val triangle = triangleWindow(order, transposed, targetStart, sourceStart)
+    val triangle = tOffset + triangleWindow(order, transposed, targetStart, sourceStart)
     if (right) {
         productWindow(
             products, panels, coefficient,
-            b, sourceStart * ldb, ldb, false,
+            b, bOffset + sourceStart * ldb, ldb, false,
             t, triangle, order, !transposed,
-            1.0, b, targetStart * ldb, ldb,
+            1.0, b, bOffset + targetStart * ldb, ldb,
             sides, targetCount, sourceCount, OutputTriangle.Full, workspace,
         )
     } else {
         productWindow(
             products, panels, coefficient,
             t, triangle, order, transposed,
-            b, sourceStart, ldb, false,
-            1.0, b, targetStart, ldb,
+            b, bOffset + sourceStart, ldb, false,
+            1.0, b, bOffset + targetStart, ldb,
             targetCount, sides, sourceCount, OutputTriangle.Full, workspace,
         )
     }

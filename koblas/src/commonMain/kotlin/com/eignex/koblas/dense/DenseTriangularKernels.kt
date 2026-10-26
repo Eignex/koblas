@@ -19,6 +19,7 @@ package com.eignex.koblas.dense
  * block for a left-side call and a row of it for a right-side one, and a routine that only took the first
  * would have the caller transpose its data to say the second.
  *
+ * [diagonalSolve] and [diagonalMultiply] accept a buffer origin `tOffset`; `n` is its leading dimension.
  * The coefficients are `M(p, q) = T(start + q, start + p)` where the call transposed and
  * `T(start + p, start + q)` where it did not, read out of the caller's triangle where it lies. The `lower`
  * flag is `M`'s own triangle after that transposition and is what the substitution direction follows; it is
@@ -97,6 +98,7 @@ public interface DenseTriangularKernels {
         orderStride: Int,
         rhsStride: Int,
         sides: Int,
+        tOffset: Int = 0,
     )
 
     /**
@@ -119,9 +121,21 @@ public interface DenseTriangularKernels {
         orderStride: Int,
         rhsStride: Int,
         sides: Int,
+        tOffset: Int = 0,
     )
 }
 
 /** `M(p, q)` for a diagonal block starting at [start], which is the entry a substitution reads. */
-internal fun triangleEntry(t: DoubleArray, n: Int, start: Int, p: Int, q: Int, transposed: Boolean): Double =
-    if (transposed) t[start + q + (start + p) * n] else t[start + p + (start + q) * n]
+internal fun triangleEntry(
+    t: DoubleArray,
+    n: Int,
+    start: Int,
+    p: Int,
+    q: Int,
+    transposed: Boolean,
+    offset: Int = 0,
+): Double = if (transposed) {
+    t[offset + start + q + (start + p) * n]
+} else {
+    t[offset + start + p + (start + q) * n]
+}

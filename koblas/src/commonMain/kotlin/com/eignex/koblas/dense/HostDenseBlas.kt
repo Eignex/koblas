@@ -109,6 +109,7 @@ internal class HostDenseBlas(
         // Work, whole-entry-point eligibility and exports are settled above; only platform transfer remains.
         val hostRoute = host.routeOf(entry)
         val components = ArrayList<String>(2)
+        if (call.borrowed) components.add("host-stage/region")
         if (call.aliased) components.add(HOST_STAGING)
         components.add("${host.vendor.vendorName.lowercase()}/${entry.entryPoint}")
         return DenseMatrixRoute(
@@ -123,6 +124,97 @@ internal class HostDenseBlas(
                 if (call.aliased) "; an input sharing the destination is copied into scratch first" else "",
             host = hostRoute,
         )
+    }
+
+    override fun gemv(
+        alpha: Double,
+        a: DenseMatrixRegion,
+        x: DoubleArray,
+        beta: Double,
+        y: DoubleArray,
+        transpose: Boolean,
+        workspace: Workspace?,
+    ) {
+        val op = if (transpose) DenseMatrixOperation.GemvTransposed else DenseMatrixOperation.Gemv
+        val work = work(op, a.rows, a.cols, alpha = alpha)
+        if (host(op, work)) {
+            regionGemv(this, alpha, a, x, beta, y, transpose, workspace)
+        } else {
+            portable.gemv(alpha, a, x, beta, y, transpose, workspace)
+        }
+    }
+
+    override fun gemm(
+        alpha: Double,
+        a: DenseMatrixRegion,
+        transposeA: Boolean,
+        b: DenseMatrixRegion,
+        transposeB: Boolean,
+        beta: Double,
+        c: DenseMatrixRegion,
+        workspace: Workspace?,
+    ) {
+        val op = DenseMatrixOperation.Gemm
+        val work = work(op, c.rows, c.cols, if (transposeA) a.rows else a.cols, alpha)
+        if (host(op, work)) {
+            regionGemm(this, alpha, a, transposeA, b, transposeB, beta, c, workspace)
+        } else {
+            portable.gemm(alpha, a, transposeA, b, transposeB, beta, c, workspace)
+        }
+    }
+
+    override fun syrk(
+        alpha: Double,
+        a: DenseMatrixRegion,
+        transpose: Boolean,
+        beta: Double,
+        c: DenseMatrixRegion,
+        lower: Boolean,
+        workspace: Workspace?,
+    ) {
+        val op = DenseMatrixOperation.Syrk
+        val work = work(op, c.rows, c.cols, if (transpose) a.rows else a.cols, alpha)
+        if (host(op, work)) {
+            regionSyrk(this, alpha, a, transpose, beta, c, lower, workspace)
+        } else {
+            portable.syrk(alpha, a, transpose, beta, c, lower, workspace)
+        }
+    }
+
+    override fun trsv(
+        a: DenseMatrixRegion,
+        x: DoubleArray,
+        lower: Boolean,
+        transpose: Boolean,
+        unitDiag: Boolean,
+        workspace: Workspace?,
+    ) {
+        val op = if (transpose) DenseMatrixOperation.TrsvTransposed else DenseMatrixOperation.Trsv
+        val work = work(op, a.rows, a.cols)
+        if (host(op, work)) {
+            regionTrsv(this, a, x, lower, transpose, unitDiag, workspace)
+        } else {
+            portable.trsv(a, x, lower, transpose, unitDiag, workspace)
+        }
+    }
+
+    override fun trsm(
+        a: DenseMatrixRegion,
+        b: DenseMatrixRegion,
+        lower: Boolean,
+        transpose: Boolean,
+        unitDiag: Boolean,
+        right: Boolean,
+        alpha: Double,
+        workspace: Workspace?,
+    ) {
+        val op = DenseMatrixOperation.Trsm
+        val work = work(op, b.rows, b.cols, a.rows, alpha, right)
+        if (host(op, work)) {
+            regionTrsm(this, a, b, lower, transpose, unitDiag, right, alpha, workspace)
+        } else {
+            portable.trsm(a, b, lower, transpose, unitDiag, right, alpha, workspace)
+        }
     }
 
     override fun gemv(
