@@ -4,7 +4,7 @@ import org.jetbrains.kotlin.gradle.tasks.KotlinJvmCompile
 import org.jetbrains.kotlin.gradle.targets.jvm.KotlinJvmTarget
 
 plugins {
-    id("com.eignex.kmp") version "1.3.5-SNAPSHOT"
+    id("com.eignex.kmp") version "1.3.5"
     kotlin("plugin.serialization") version "2.4.21"
 }
 
