@@ -36,6 +36,7 @@ internal object PortableTriangularKernels : DenseTriangularKernels {
         orderStride: Int,
         rhsStride: Int,
         sides: Int,
+        tOffset: Int,
     ) {
         if (size <= 0 || sides <= 0) return
         for (r in 0 until sides) {
@@ -46,9 +47,9 @@ internal object PortableTriangularKernels : DenseTriangularKernels {
                 var value = x[column + p * orderStride]
                 val inner = if (lower) 0 until p else p + 1 until size
                 for (q in inner) {
-                    value -= triangleEntry(t, n, start, p, q, transposed) * x[column + q * orderStride]
+                    value -= triangleEntry(t, n, start, p, q, transposed, tOffset) * x[column + q * orderStride]
                 }
-                if (!unitDiag) value /= triangleEntry(t, n, start, p, p, transposed)
+                if (!unitDiag) value /= triangleEntry(t, n, start, p, p, transposed, tOffset)
                 x[column + p * orderStride] = value
             }
         }
@@ -67,6 +68,7 @@ internal object PortableTriangularKernels : DenseTriangularKernels {
         orderStride: Int,
         rhsStride: Int,
         sides: Int,
+        tOffset: Int,
     ) {
         if (size <= 0 || sides <= 0) return
         for (r in 0 until sides) {
@@ -75,10 +77,10 @@ internal object PortableTriangularKernels : DenseTriangularKernels {
                 // Multiply in reverse dependency order to preserve input values until their last use.
                 val p = if (lower) size - 1 - step else step
                 val own = x[column + p * orderStride]
-                var value = if (unitDiag) own else triangleEntry(t, n, start, p, p, transposed) * own
+                var value = if (unitDiag) own else triangleEntry(t, n, start, p, p, transposed, tOffset) * own
                 val inner = if (lower) 0 until p else p + 1 until size
                 for (q in inner) {
-                    value += triangleEntry(t, n, start, p, q, transposed) * x[column + q * orderStride]
+                    value += triangleEntry(t, n, start, p, q, transposed, tOffset) * x[column + q * orderStride]
                 }
                 x[column + p * orderStride] = value
             }

@@ -461,3 +461,47 @@ Tasks are `jvmScalarBenchmark`, `jvmSimdBenchmark`, `jvmDefaultBenchmark`, `nati
 `nativeDefaultBenchmark`, `nativeVendorBenchmark` and `jvmVendorBenchmark`; the vendor tasks take
 `-Pbench.vendor=NAME`. Native and vendor executables accept `--suite=sweep --operation=dot` directly.
 Omitting the suite selects `default`.
+
+## Borrowed Cholesky trailing updates
+
+`./gradlew :koblas-bench:jvmCholeskyViewBenchmark` compares Kumulant's finite strict-SPD blocked
+Cholesky workload at orders 65, 128, 256 and 512, using copied blocks or borrowed views for each
+trailing `syrk`. This fixture follows
+[Kumulant's factorization](https://github.com/Eignex/kumulant/blob/5014410198c53bc7bac3611cffa84353b595291e/kumulant/src/commonMain/kotlin/com/eignex/kumulant/math/Cholesky.kt)
+without its regularization or exceptional-input policy. Those remain consumer concerns.
+The borrowed trailing update is:
+
+```kotlin
+val panel = out.view(first, start, height, width)
+val trailing = out.view(first, first, height, height)
+engine.syrk(-1.0, panel, false, 1.0, trailing, workspace = workspace)
+```
+
+Each timed factorization copies the input into a reused destination, clears its upper triangle,
+factors the panels, checks each completed panel for finite entries and performs all trailing updates. Inputs are deterministic symmetric diagonally
+dominant matrices. Both paths use a warmed workspace; copying constructs fresh panel and trailing
+matrices as the consumer currently does, while borrowing constructs view descriptors. Each arm
+alternates paths for 100 warmups and nine measurement batches of ten factorizations. CSV rows report
+median ns and thread-allocated bytes per complete factorization. Setup verifies agreement between
+paths and reconstructs the input from each factor; checks are outside timing.
+
+This is a JVM diagnostic suite, separate from the JMH captures. Thread allocation accounting requires
+HotSpot. A local run on an i9-12900H with JDK 25 on 2026-10-26 measured:
+
+| Arm | Order | Copy ns | View ns | Copy bytes | View bytes |
+|---|---:|---:|---:|---:|---:|
+| Scalar | 65 | 151,728 | 109,448 | 43,360 | 256 |
+| Scalar | 128 | 316,626 | 230,838 | 164,080 | 192 |
+| Scalar | 256 | 1,815,697 | 1,715,909 | 655,600 | 192 |
+| Scalar | 512 | 7,427,051 | 6,811,201 | 5,505,584 | 448 |
+| SIMD | 65 | 32,656 | 27,910 | 43,360 | 256 |
+| SIMD | 128 | 174,836 | 117,648 | 164,080 | 192 |
+| SIMD | 256 | 915,154 | 807,757 | 655,600 | 192 |
+| SIMD | 512 | 4,438,461 | 3,715,289 | 5,505,584 | 448 |
+
+This exploratory run was on a working desktop without CPU pinning or control of other desktop/build activity, and is
+not a dedicated-host report or evidence for changing a backend crossover. It demonstrates allocation
+removal and exercises the consumer-shaped end-to-end workload; timings need repeated isolated captures
+before drawing a performance conclusion. It does not measure Kumulant's full application or Native host
+packing. Scratch for blocked product panels can still be borrowed internally; views do not promise
+allocation-free execution for every backend and layout.

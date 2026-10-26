@@ -40,8 +40,9 @@ public sealed interface MatrixStorage : Matrix
 public class DenseMatrix internal constructor(
     override val rows: Int,
     override val cols: Int,
-    public val values: DoubleArray,
-) : MatrixStorage {
+    override val values: DoubleArray,
+) : MatrixStorage,
+    DenseMatrixRegion {
     internal constructor(rows: Int, cols: Int = rows) : this(rows, cols, DoubleArray(entryCount(rows, cols)))
 
     init {
@@ -50,6 +51,10 @@ public class DenseMatrix internal constructor(
             "values length ${values.size} does not match shape ${rows}x$cols (= ${rows.toLong() * cols})"
         }
     }
+
+    override val offset: Int get() = 0
+
+    override val leadingDimension: Int get() = rows
 
     override fun get(i: Int, j: Int): Double {
         requireInBounds(i, j, rows, cols)
@@ -61,7 +66,7 @@ public class DenseMatrix internal constructor(
     }
 
     /** Writes (v) at row (i), column (j). */
-    public operator fun set(i: Int, j: Int, v: Double) {
+    override operator fun set(i: Int, j: Int, v: Double) {
         requireInBounds(i, j, rows, cols)
         values[i + j * rows] = v
     }

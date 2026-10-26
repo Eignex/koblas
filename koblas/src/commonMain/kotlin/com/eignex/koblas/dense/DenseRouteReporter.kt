@@ -204,7 +204,15 @@ internal class DenseRouteReporter(
         val k = requireNotNull(call.depth) { "a product route needs the call's shared dimension" }
         val parts = Parts()
         val retained = operation != DenseMatrixOperation.Gemm
-        val shape = WindowShape(call.rows, call.columns, k, call.transposeA, call.transposeB, OutputTriangle.Full)
+        val shape = WindowShape(
+            call.rows,
+            call.columns,
+            k,
+            call.transposeA,
+            call.transposeB,
+            OutputTriangle.Full,
+            rightStride = if (call.transposeB) call.rightLeadingDimension ?: call.columns else 1,
+        )
         val packed = if (retained) {
             // A packed operand is already in the tiles, so the window is blocked whatever its extents are.
             addBlockedWindow(
@@ -312,12 +320,19 @@ internal class DenseRouteReporter(
         val sides = if (call.right) call.rows else call.columns
         val parts = Parts()
         if (call.alpha != 1.0) {
-            vectors.implementationFor(DenseOperation.Scale, order * sides)?.let { parts.add("$it/scale") }
+            val length = if (call.leadingDimension == null ||
+                call.leadingDimension == call.rows
+            ) {
+                order * sides
+            } else {
+                call.rows
+            }
+            vectors.implementationFor(DenseOperation.Scale, length)?.let { parts.add("$it/scale") }
         }
         val flip = call.transposeA != call.right
         val mLower = call.lower != flip
         val block = if (TRIANGULAR_DIAGONAL_BLOCK < order) TRIANGULAR_DIAGONAL_BLOCK else order
-        val rhsStride = if (call.right) 1 else order
+        val rhsStride = if (call.right) 1 else call.leadingDimension ?: order
         val gathers = triangles.gathersRightHandSides(rhsStride, block, sides)
         val group = triangularGroup(triangles, block, sides)
         if (gathers) parts.add("$TRIANGULAR_GATHER/rhs-block")

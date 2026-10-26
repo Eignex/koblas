@@ -290,6 +290,27 @@ class HostDenseBlasTest {
         assertTrue(recorder.version in route.reason.orEmpty(), "the route does not name the library's version")
     }
 
+    @Test
+    fun `borrowed host products pack logical entries and report staging`() {
+        val (recorder, blas) = forced()
+        val parent = matrix(7)
+        val a = parent.view(1, 1, 3, 2)
+        val b = parent.view(0, 3, 2, 3)
+        val c = parent.view(2, 2, 3, 3)
+        val expectedA = a.toArray()
+        val expectedB = b.toArray()
+
+        blas.gemm(1.0, a, false, b, false, 0.0, c, Workspace())
+        val route = blas.routeOf(DenseMatrixOperation.Gemm, DenseCall(3, 3, depth = 2, borrowed = true))
+
+        val call = recorder.single()
+        assertEquals(BlasOperation.Gemm, call.operation)
+        for (i in expectedA.indices) assertContentEquals(expectedA[i], call.matrices[0].toArray()[i])
+        for (i in expectedB.indices) assertContentEquals(expectedB[i], call.matrices[1].toArray()[i])
+        assertNotSame(parent.values, call.matrices[0].values)
+        assertTrue("host-stage/region" in route.components)
+    }
+
     private companion object {
         /** Small enough that only a forced policy sends it over, which is what the routing cases want. */
         const val ORDER = 3
