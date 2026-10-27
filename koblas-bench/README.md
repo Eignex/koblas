@@ -1,7 +1,7 @@
 # koblas-bench
 
 CPU benchmarks for Koblas and the vendor libraries it selects: OpenBLAS, oneMKL, AOCL, ArmPL and Accelerate.
-Requires JDK 25. `capture-report.sh` is the only reporting script.
+Requires JDK 25. `capture-report.sh` supplies each measured capture; `compare-revisions.py` interleaves revisions.
 
 The JVM harness and annotation processor are built together from pinned
 [OpenJDK JMH sources](https://github.com/openjdk/jmh/tree/a194eead0136bb66e5e59e4fdb2e18543e730929).
@@ -26,8 +26,50 @@ koblas-bench/capture-report.sh --smoke
 koblas-bench/capture-report.sh --vendors-only --libraries openblas,accelerate
 ```
 
+For a retained three-round reduction capture on a Linux lab node:
+
+```bash
+koblas-bench/capture-report.sh --libraries openblas,onemkl --targets jvm-simd,openblas,onemkl \
+  --cases koblas-bench/cases-reductions.txt --rounds 3 --cpu auto \
+  --samples 5 --warmups 5 --target-ms 200 --forks 2 --output /path/to/new-report
+```
+
+Each round rotates the target order and retains its own CSVs, metadata and log under the new output
+folder. Source hashes must stay unchanged, and binaries must match after every completed round.
+For each case and target, take the median of the round `median_ns` values before calculating throughput;
+the round files retain the spread. `--cpu auto` pins the capture and its child processes to the first
+CPU allowed by the job's affinity mask. It does not isolate that CPU from other work.
+
+Lab servers that accept JVM profiles can run `com.eignex.koblas.bench.LabCaptureLauncher` after building
+`:koblas-bench:jvmMainClasses`, with `koblas-bench/build/classes/java/jvmMain` as the profile classpath.
+Pass the same capture options above, omitting `--output`: the launcher retains the report under the lab's `OUT`.
+
 On a hybrid CPU, pin the run: `taskset -c 2,4,6,8 koblas-bench/capture-report.sh …`. Otherwise it wanders
 between core types and the timings move with the scheduler.
+
+Lab workers may run a source archive without `.git`. Such a capture records `source_kind=archive`,
+with `source_commit` and `dirty` unavailable; use the lab job's pinned revision for attribution.
+Multi-round archive captures fingerprint every source file except generated directories (`build`,
+`.gradle`, `.kotlin`, `.idea`, `.git` and `node_modules`) before and after each round, alongside the
+same binary hashes as a Git capture. This allows the lab archive to run without inventing Git metadata.
+
+For a same-worker before/after comparison, use `LabComparisonLauncher` with
+`--baseline-ref <full SHA>` and the ordinary `--rounds`, `--samples`, `--warmups`, `--target-ms`,
+`--forks` and `--cpu` settings. It runs `compare-revisions.py`, fetches and verifies the baseline
+from this public repository, builds both revisions before measuring, and rotates baseline JVM,
+current JVM and native oneMKL in each round. It retains every capture, source and binary hashes,
+and `summary.csv` with medians of round medians and their range. At least three rounds are required.
+Both source trees use the current capture driver, whose hash the comparison records, without modifying
+the baseline kernels; this also permits a baseline predating the interleaved-driver options.
+The cases default to `cases-reductions.txt`; both JVM arms read that same file.
+`--install-onemkl` extracts the reference container's checksum-pinned Intel package into temporary
+job storage and adds it to the child processes' library path; it needs `dpkg-deb` and changes no system
+installation. The library package and fetched baseline are removed after the job; their identities
+and the measured reports remain. `OUT` supplies the lab report directory. CPU pinning does not
+reserve a physical core, so use the worker's hardware and placement metadata when interpreting results.
+On a worker with a hard memory cap, pass `--build-heap 2g` to bound the Gradle heaps, use at most two
+build workers and compile Kotlin in the Gradle process. These build settings also apply to the Gradle
+launchers used during capture; they do not change the measured JVM fork's heap or SIMD options.
 
 ## Shrinking rank updates
 
