@@ -22,6 +22,20 @@ internal object SimdReductionAlignmentCheck {
             check(knownAlignment) { "the selected layout did not report known alignment" }
             check(prefix in 1 until SimdOps.lanes()) { "the selected layout did not exercise alignment" }
         }
+        if (mode == "zgc" && SimdOps.lanes() <= 64) {
+            check(!HotSpotArrayAlignment.hasKnownAlignment(DoubleArray(32_760))) {
+                "a ZGC small array reported known alignment"
+            }
+            val medium = DoubleArray(32_768)
+            check(HotSpotArrayAlignment.hasKnownAlignment(medium)) {
+                "a ZGC medium or large array did not report known alignment"
+            }
+            for (length in 0 until SimdOps.lanes()) {
+                check(HotSpotArrayAlignment.prefix(medium, 0, length) in 0..length) {
+                    "the alignment prefix exceeded the window"
+                }
+            }
+        }
 
         SimdOpsTest().`reductions agree with the scalar oracle for windows in large backing arrays`()
         SimdOpsTest().assertExceptionalReductionsAgreeWithReference(65_536)

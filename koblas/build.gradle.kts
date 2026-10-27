@@ -282,7 +282,7 @@ val simdSerialAlignmentCheck = registerReductionAlignmentCheck(
 )
 
 val simdZgcAlignmentCheck = registerReductionAlignmentCheck(
-    "simdZgcAlignmentCheck", "fallback", "-XX:+UseZGC",
+    "simdZgcAlignmentCheck", "zgc", "-XX:+UseZGC",
 )
 
 val simdObjectAlignmentCheck = registerReductionAlignmentCheck(

@@ -6,7 +6,8 @@ import java.lang.management.ManagementFactory
 
 /**
  * A checked-array loop can peel to a vector boundary when HotSpot guarantees its object's alignment,
- * or when G1 puts a humongous array at a region start. Both use the array header layout checked here.
+ * when G1 puts a humongous array at a region start, or for ZGC medium and large objects.
+ * These use the array header layout checked here.
  * Unknown layouts keep their ordinary loop; the hint never licenses unchecked access.
  */
 internal object HotSpotArrayAlignment {
@@ -14,13 +15,10 @@ internal object HotSpotArrayAlignment {
     private val HEADER_BYTES = headerBytes()
     private val OBJECT_ALIGNMENT_BYTES = objectAlignmentBytes()
     private val REGION_BYTES = regionBytes()
+    private val ZGC_ALIGNED_ARRAYS = zgcAlignedArrays()
 
     fun prefix(values: DoubleArray, offset: Int, length: Int): Int {
-        if (OBJECT_ALIGNMENT_BYTES == 0 &&
-            (REGION_BYTES == 0L || HEADER_BYTES + values.size * 8L <= REGION_BYTES / 2)
-        ) {
-            return 0
-        }
+        if (!hasKnownAlignment(values)) return 0
         val bytes = (-(HEADER_BYTES + offset * 8L) and (ALIGNMENT_BYTES - 1).toLong()).toInt()
         return minOf(length, bytes / 8)
     }
@@ -54,7 +52,12 @@ internal object HotSpotArrayAlignment {
         if (bytes >= ALIGNMENT_BYTES && bytes % ALIGNMENT_BYTES == 0L) bytes else 0L
     }.getOrDefault(0L)
 
+    private fun zgcAlignedArrays(): Boolean = HEADER_BYTES != 0 && ALIGNMENT_BYTES <= 512 &&
+        ManagementFactory.getGarbageCollectorMXBeans().any { it.name.startsWith("ZGC ") }
+
     /** Whether this runtime and array geometry determine alignment at a vector boundary. */
     fun hasKnownAlignment(values: DoubleArray): Boolean = OBJECT_ALIGNMENT_BYTES != 0 ||
-        (REGION_BYTES != 0L && HEADER_BYTES + values.size * 8L > REGION_BYTES / 2)
+        (REGION_BYTES != 0L && HEADER_BYTES + values.size * 8L > REGION_BYTES / 2) ||
+        // On the checked JDKs, ZGC objects above 256 KiB have at least 512-byte object alignment.
+        (ZGC_ALIGNED_ARRAYS && HEADER_BYTES + values.size * 8L > 256 * 1024)
 }
