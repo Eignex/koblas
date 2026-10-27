@@ -34,8 +34,11 @@ internal object SimdRuntimePathCheck {
             }
         }
         val engine = requireNotNull(BuiltinEngines.simd) { "no Vector API arm" }
+        assertReductionsAgreeWithReference(engine.vectorKernels)
+        SimdOpsTest().`dot agrees with the scalar oracle across independent offsets and vector boundaries`()
         assertIamaxAgreesWithReference(engine.vectorKernels)
         SimdOpsTest().`iamax agrees with the scalar oracle when blocks keep improving`()
+        SimdOpsTest().`iamax distinguishes magnitudes sharing a high word`()
         val panels = engine.panelKernels
         check(panels.name == "simd-panel($lanes lanes)") { "the backend named ${panels.name} at $lanes lanes" }
 

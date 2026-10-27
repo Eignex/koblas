@@ -41,13 +41,17 @@ internal object SimdPanelKernels : DensePanelKernels {
         simdAvailable && contiguous && rows >= VECTOR_MINIMUM
 
     /**
-     * Multi-dot and column-update groups reuse one loaded vector across four columns. Coupled and
+     * Multi-dot groups reuse one loaded vector across four columns; column updates share destination
+     * traffic across eight, or twelve on long strips with wide vector registers. Coupled and
      * rank-update bodies are two columns wide; wider groups would repeat those bodies and grow a
      * triangular caller's scalar corner quadratically. Group sizes reflect measurements on one host.
      */
     override fun executionGroup(work: PanelWork, rows: Int, columns: Int, contiguous: Boolean): Int {
         if (!simdAvailable) return PortablePanelKernels.executionGroup(work, rows, columns, contiguous)
         val preferred = when {
+            work == PanelWork.ColumnUpdate && contiguous ->
+                if (prefersLargeColumnUpdate(rows)) LARGE_COLUMN_UPDATE_GROUP else COLUMN_UPDATE_GROUP
+
             work == PanelWork.SparseRightHandSideReduction && !contiguous -> SPARSE_REDUCTION_GROUP
 
             work == PanelWork.SparseRightHandSides || work == PanelWork.SparseRightHandSideReduction ->
@@ -59,6 +63,9 @@ internal object SimdPanelKernels : DensePanelKernels {
         }
         return if (columns <= 0) 1 else minOf(preferred, columns)
     }
+
+    private fun prefersLargeColumnUpdate(rows: Int): Boolean =
+        SPECIES.vectorBitSize() >= 512 && rows >= LARGE_COLUMN_UPDATE_MINIMUM_ROWS
 
     /**
      * Pack from two lane blocks of adjacent rows. At one block, copying the panel costs a data pass for
@@ -232,6 +239,40 @@ internal object SimdPanelKernels : DensePanelKernels {
             return
         }
         var c = 0
+        if (prefersLargeColumnUpdate(rows)) {
+            while (c + LARGE_COLUMN_UPDATE_GROUP <= columns) {
+                updateTwelve(
+                    a, aOffset + c * lda, lda, rows, y, yOffset,
+                    alpha * x[xOffset + (c + 0) * xStride],
+                    alpha * x[xOffset + (c + 1) * xStride],
+                    alpha * x[xOffset + (c + 2) * xStride],
+                    alpha * x[xOffset + (c + 3) * xStride],
+                    alpha * x[xOffset + (c + 4) * xStride],
+                    alpha * x[xOffset + (c + 5) * xStride],
+                    alpha * x[xOffset + (c + 6) * xStride],
+                    alpha * x[xOffset + (c + 7) * xStride],
+                    alpha * x[xOffset + (c + 8) * xStride],
+                    alpha * x[xOffset + (c + 9) * xStride],
+                    alpha * x[xOffset + (c + 10) * xStride],
+                    alpha * x[xOffset + (c + 11) * xStride],
+                )
+                c += LARGE_COLUMN_UPDATE_GROUP
+            }
+        }
+        while (c + COLUMN_UPDATE_GROUP <= columns) {
+            updateEight(
+                a, aOffset + c * lda, lda, rows, y, yOffset,
+                alpha * x[xOffset + (c + 0) * xStride],
+                alpha * x[xOffset + (c + 1) * xStride],
+                alpha * x[xOffset + (c + 2) * xStride],
+                alpha * x[xOffset + (c + 3) * xStride],
+                alpha * x[xOffset + (c + 4) * xStride],
+                alpha * x[xOffset + (c + 5) * xStride],
+                alpha * x[xOffset + (c + 6) * xStride],
+                alpha * x[xOffset + (c + 7) * xStride],
+            )
+            c += COLUMN_UPDATE_GROUP
+        }
         while (c + WIDE_GROUP <= columns) {
             updateFour(
                 a, aOffset + c * lda, lda, rows, y, yOffset,
@@ -258,6 +299,129 @@ internal object SimdPanelKernels : DensePanelKernels {
         while (c < columns) {
             updateOne(a, aOffset + c * lda, rows, y, yOffset, alpha * x[xOffset + c * xStride])
             c++
+        }
+    }
+
+    /** A separate compilation keeps the long strip's vector graph out of the small-panel inlining budget. */
+    private fun updateTwelve(
+        a: DoubleArray,
+        aOffset: Int,
+        lda: Int,
+        rows: Int,
+        y: DoubleArray,
+        yOffset: Int,
+        t0: Double,
+        t1: Double,
+        t2: Double,
+        t3: Double,
+        t4: Double,
+        t5: Double,
+        t6: Double,
+        t7: Double,
+        t8: Double,
+        t9: Double,
+        t10: Double,
+        t11: Double,
+    ) {
+        val c0 = DoubleVector.broadcast(SPECIES, t0)
+        val c1 = DoubleVector.broadcast(SPECIES, t1)
+        val c2 = DoubleVector.broadcast(SPECIES, t2)
+        val c3 = DoubleVector.broadcast(SPECIES, t3)
+        val c4 = DoubleVector.broadcast(SPECIES, t4)
+        val c5 = DoubleVector.broadcast(SPECIES, t5)
+        val c6 = DoubleVector.broadcast(SPECIES, t6)
+        val c7 = DoubleVector.broadcast(SPECIES, t7)
+        val c8 = DoubleVector.broadcast(SPECIES, t8)
+        val c9 = DoubleVector.broadcast(SPECIES, t9)
+        val c10 = DoubleVector.broadcast(SPECIES, t10)
+        val c11 = DoubleVector.broadcast(SPECIES, t11)
+        var i = 0
+        val bound = SPECIES.loopBound(rows)
+        while (i < bound) {
+            var acc = DoubleVector.fromArray(SPECIES, y, yOffset + i)
+            acc = multiplyAdd(c0, DoubleVector.fromArray(SPECIES, a, aOffset + i + 0 * lda), acc)
+            acc = multiplyAdd(c1, DoubleVector.fromArray(SPECIES, a, aOffset + i + 1 * lda), acc)
+            acc = multiplyAdd(c2, DoubleVector.fromArray(SPECIES, a, aOffset + i + 2 * lda), acc)
+            acc = multiplyAdd(c3, DoubleVector.fromArray(SPECIES, a, aOffset + i + 3 * lda), acc)
+            acc = multiplyAdd(c4, DoubleVector.fromArray(SPECIES, a, aOffset + i + 4 * lda), acc)
+            acc = multiplyAdd(c5, DoubleVector.fromArray(SPECIES, a, aOffset + i + 5 * lda), acc)
+            acc = multiplyAdd(c6, DoubleVector.fromArray(SPECIES, a, aOffset + i + 6 * lda), acc)
+            acc = multiplyAdd(c7, DoubleVector.fromArray(SPECIES, a, aOffset + i + 7 * lda), acc)
+            acc = multiplyAdd(c8, DoubleVector.fromArray(SPECIES, a, aOffset + i + 8 * lda), acc)
+            acc = multiplyAdd(c9, DoubleVector.fromArray(SPECIES, a, aOffset + i + 9 * lda), acc)
+            acc = multiplyAdd(c10, DoubleVector.fromArray(SPECIES, a, aOffset + i + 10 * lda), acc)
+            acc = multiplyAdd(c11, DoubleVector.fromArray(SPECIES, a, aOffset + i + 11 * lda), acc)
+            acc.intoArray(y, yOffset + i)
+            i += LANE
+        }
+        while (i < rows) {
+            y[yOffset + i] += t0 * a[aOffset + i + 0 * lda] +
+                t1 * a[aOffset + i + 1 * lda] +
+                t2 * a[aOffset + i + 2 * lda] +
+                t3 * a[aOffset + i + 3 * lda] +
+                t4 * a[aOffset + i + 4 * lda] +
+                t5 * a[aOffset + i + 5 * lda] +
+                t6 * a[aOffset + i + 6 * lda] +
+                t7 * a[aOffset + i + 7 * lda] +
+                t8 * a[aOffset + i + 8 * lda] +
+                t9 * a[aOffset + i + 9 * lda] +
+                t10 * a[aOffset + i + 10 * lda] +
+                t11 * a[aOffset + i + 11 * lda]
+            i++
+        }
+    }
+
+    /** Small panel calls otherwise pay another JVM frame for every eight columns. */
+    @Suppress("NOTHING_TO_INLINE")
+    private inline fun updateEight(
+        a: DoubleArray,
+        aOffset: Int,
+        lda: Int,
+        rows: Int,
+        y: DoubleArray,
+        yOffset: Int,
+        t0: Double,
+        t1: Double,
+        t2: Double,
+        t3: Double,
+        t4: Double,
+        t5: Double,
+        t6: Double,
+        t7: Double,
+    ) {
+        val c0 = DoubleVector.broadcast(SPECIES, t0)
+        val c1 = DoubleVector.broadcast(SPECIES, t1)
+        val c2 = DoubleVector.broadcast(SPECIES, t2)
+        val c3 = DoubleVector.broadcast(SPECIES, t3)
+        val c4 = DoubleVector.broadcast(SPECIES, t4)
+        val c5 = DoubleVector.broadcast(SPECIES, t5)
+        val c6 = DoubleVector.broadcast(SPECIES, t6)
+        val c7 = DoubleVector.broadcast(SPECIES, t7)
+        var i = 0
+        val bound = SPECIES.loopBound(rows)
+        while (i < bound) {
+            var acc = DoubleVector.fromArray(SPECIES, y, yOffset + i)
+            acc = multiplyAdd(c0, DoubleVector.fromArray(SPECIES, a, aOffset + i + 0 * lda), acc)
+            acc = multiplyAdd(c1, DoubleVector.fromArray(SPECIES, a, aOffset + i + 1 * lda), acc)
+            acc = multiplyAdd(c2, DoubleVector.fromArray(SPECIES, a, aOffset + i + 2 * lda), acc)
+            acc = multiplyAdd(c3, DoubleVector.fromArray(SPECIES, a, aOffset + i + 3 * lda), acc)
+            acc = multiplyAdd(c4, DoubleVector.fromArray(SPECIES, a, aOffset + i + 4 * lda), acc)
+            acc = multiplyAdd(c5, DoubleVector.fromArray(SPECIES, a, aOffset + i + 5 * lda), acc)
+            acc = multiplyAdd(c6, DoubleVector.fromArray(SPECIES, a, aOffset + i + 6 * lda), acc)
+            acc = multiplyAdd(c7, DoubleVector.fromArray(SPECIES, a, aOffset + i + 7 * lda), acc)
+            acc.intoArray(y, yOffset + i)
+            i += LANE
+        }
+        while (i < rows) {
+            y[yOffset + i] += t0 * a[aOffset + i + 0 * lda] +
+                t1 * a[aOffset + i + 1 * lda] +
+                t2 * a[aOffset + i + 2 * lda] +
+                t3 * a[aOffset + i + 3 * lda] +
+                t4 * a[aOffset + i + 4 * lda] +
+                t5 * a[aOffset + i + 5 * lda] +
+                t6 * a[aOffset + i + 6 * lda] +
+                t7 * a[aOffset + i + 7 * lda]
+            i++
         }
     }
 
@@ -837,6 +1001,10 @@ internal object SimdPanelKernels : DensePanelKernels {
     private const val COPY_WORTH_BLOCKS = 2
 
     /** Columns grouped where one loaded vector serves all of them. */
+    private const val COLUMN_UPDATE_GROUP = 8
+    private const val LARGE_COLUMN_UPDATE_GROUP = 12
+    private const val LARGE_COLUMN_UPDATE_MINIMUM_ROWS = 4_096
+
     private const val WIDE_GROUP = 4
 
     /** Columns grouped where the body itself is that wide. */

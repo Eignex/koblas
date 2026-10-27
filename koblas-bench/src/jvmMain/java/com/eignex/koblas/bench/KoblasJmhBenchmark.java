@@ -1,6 +1,8 @@
 package com.eignex.koblas.bench;
 
 import java.util.concurrent.TimeUnit;
+import java.lang.management.ManagementFactory;
+import com.sun.management.HotSpotDiagnosticMXBean;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
 import org.openjdk.jmh.annotations.Level;
@@ -28,6 +30,20 @@ public class KoblasJmhBenchmark {
     @Setup(Level.Trial)
     public void setup() {
         work = JvmBenchmarkBridge.create(benchmarkMode, caseId, System.getProperty("koblas.bench.cases"));
+        String collectors=String.join("|",ManagementFactory.getGarbageCollectorMXBeans().stream().map(c->c.getName()).toList());
+        System.out.println("fork_runtime case="+caseId+" mode="+benchmarkMode+" java="+Runtime.version()
+            +" collectors="+collectors+" max_heap_bytes="+Runtime.getRuntime().maxMemory()
+            +" region_bytes="+runtimeOption("G1HeapRegionSize")
+            +" object_alignment="+runtimeOption("ObjectAlignmentInBytes")
+            +" compact_headers="+runtimeOption("UseCompactObjectHeaders"));
+    }
+
+    private static String runtimeOption(String name) {
+        try {
+            return ManagementFactory.getPlatformMXBean(HotSpotDiagnosticMXBean.class).getVMOption(name).getValue();
+        } catch (RuntimeException unavailable) {
+            return "unavailable";
+        }
     }
 
     @Benchmark

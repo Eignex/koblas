@@ -74,6 +74,19 @@ internal object SimdDenseAllocationCheck {
         require(panels.implementationFor(PanelWork.MultiDot, ORDER, COLUMNS) == panels.name) {
             "dense allocation check uses $ORDER rows, which does not reach the vector body"
         }
+        assertLargeColumnUpdatesAgreeWithReference(panels)
+
+        val longRows = 4_097
+        val longColumns = 25
+        val longMatrix = DoubleArray(longRows * longColumns) { (it % 17 - 8) / 16.0 }
+        val longCoefficients = DoubleArray(longColumns) { (it % 11 - 5) / 8.0 }
+        val longDestination = DoubleArray(longRows)
+        assertAllocationFree("long column-update panel", warmup = 2_000, iterations = 200) {
+            panels.columnUpdate(
+                0.875, longMatrix, 0, longRows, longCoefficients, 0, 1, longRows, longColumns, longDestination, 0, 1,
+            )
+            longDestination[0]
+        }
 
         val a = DoubleArray(ORDER * ORDER) { 1.0 + (it % 13) * 0.125 }
         val x = DoubleArray(ORDER) { 1.0 + (it % 7) * 0.25 }
@@ -96,6 +109,19 @@ internal object SimdDenseAllocationCheck {
         assertAllocationFree("rank-update panel") {
             panels.rankUpdate(0.875, a, 0, ORDER, x, 0, 1, ORDER, COLUMNS, coefficients, 0, 1)
             a[0]
+        }
+        assertAllocationFree("unrolled absolute sum with a tail") {
+            engine.vectorKernels.asum(x, 3, ORDER - 3)
+        }
+        assertAllocationFree("unrolled dot with offsets and a tail") {
+            engine.vectorKernels.dot(x, 3, y, 5, ORDER - 5)
+        }
+        assertAllocationFree("filtered iamax with an offset and a tail") {
+            engine.vectorKernels.iamax(x, 3, ORDER - 3).toDouble()
+        }
+        val peaked = DoubleArray(ORDER) { if (it == 3) 2.0 else -1.0 }
+        assertAllocationFree("iamax filtering non improving blocks") {
+            engine.vectorKernels.iamax(peaked, 3, ORDER - 3).toDouble()
         }
         checkWholeOperations(engine)
         checkDefaultDispatch()
