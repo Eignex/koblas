@@ -16,12 +16,18 @@ forks=2
 pass=1
 vendors_only=false
 smoke=false
+targets=all
+prepared=false
+retain_incomplete=false
 
 usage() {
-  echo "usage: capture-report.sh [--libraries openblas,accelerate,onemkl,aocl,armpl|all] [--vendors-only] [--smoke] [--output DIR] [--native-executable PATH] [--operation NAME|all] [--suite default|sweep] [--samples N] [--warmups N] [--target-ms N] [--forks N] [--pass N]" >&2
+  echo "usage: capture-report.sh [--targets TARGET,...] [--prepared] [--retain-incomplete] [--libraries openblas,accelerate,onemkl,aocl,armpl|all] [--vendors-only] [--smoke] [--output DIR] [--native-executable PATH] [--operation NAME|all] [--suite default|sweep] [--samples N] [--warmups N] [--target-ms N] [--forks N] [--pass N]" >&2
 }
 while (($#)); do
   case "$1" in
+    --targets) targets=${2:?}; shift 2 ;;
+    --prepared) prepared=true; shift ;;
+    --retain-incomplete) retain_incomplete=true; shift ;;
     --libraries) libraries=${2:?}; shift 2 ;;
     --suite) suite=${2:?}; shift 2 ;;
     --operation) operation=${2:?}; shift 2 ;;
@@ -38,6 +44,14 @@ while (($#)); do
     *) usage; exit 2 ;;
   esac
 done
+IFS=, read -r -a selected_targets <<<"$targets"
+for target in "${selected_targets[@]}"; do
+  case "$target" in
+    all|jvm-scalar|jvm-simd|jvm-default|native|native-default|openblas|openblas-jvm|accelerate|accelerate-jvm|onemkl|onemkl-jvm|aocl|aocl-jvm|armpl|armpl-jvm) ;;
+    *) echo "unknown target: $target" >&2; exit 2 ;;
+  esac
+done
+wanted() { [[ $targets == all || ,$targets, == *,"$1",* ]]; }
 [[ $suite == default || $suite == sweep ]] || { echo "suite must be default or sweep" >&2; exit 2; }
 [[ $suite != sweep || $operation != all ]] || { echo "suite sweep requires a specific operation" >&2; exit 2; }
 if $smoke; then samples=1; warmups=0; target_ms=1; forks=1; fi
@@ -72,6 +86,10 @@ done
 temporary=$(mktemp -d "${TMPDIR:-/tmp}/koblas-bench-report.XXXXXX")
 publication=
 cleanup() {
+  if $retain_incomplete && [[ -n ${results:-} && -d $results && -n $output && ! -e $output ]]; then
+    mkdir -p "$(dirname "$output")"
+    mv "$results" "$output"
+  fi
   if [[ -n $publication ]]; then
     if [[ ! -e $output && -d $publication/previous ]]; then
       mv "$publication/previous" "$output" || return
@@ -121,6 +139,9 @@ fi
 [[ ! -L $output && ( ! -e $output || -f $output/metadata.txt ) ]] || {
   echo "output must be a report directory: $output" >&2; exit 2;
 }
+if $retain_incomplete; then
+  [[ ! -e $output ]] || { echo "--retain-incomplete requires an absent output directory" >&2; exit 2; }
+fi
 results="$temporary/results"
 mkdir "$results"
 metadata="$results/metadata.txt"
@@ -155,10 +176,10 @@ run_target() {
   shift
   printf '\n[%s]\n' "$target" >>"$metadata"
   echo "started_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >>"$metadata"
-  "$@" 2>&1 | tee "$temporary/$target.log"
+  "$@" 2>&1 | tee "$results/$target.log"
   awk '/^resolved implementation=/ {
     sub(/^resolved /, ""); sub(/ runtime=/, "\nruntime="); sub(/ harness=/, "\nharness="); print
-  }' "$temporary/$target.log" >>"$metadata"
+  }' "$results/$target.log" >>"$metadata"
   if [[ $target == jvm-* || $target == *-jvm ]]; then
     echo "warmup_target_ns=$((target_ms * 1000000))"
   else
@@ -176,6 +197,10 @@ common=("-Pbench.operation=$operation" "-Pbench.suite=$suite" "-Pbench.cases=$ca
 run_native() {
   local target=$1 mode=$2 task=$3
   shift 3
+  wanted "$target" || return 0
+  if $prepared && [[ -z $native_executable ]]; then
+    echo "Prepared Native capture requires --native-executable" >&2; return 2
+  fi
   if [[ -n $native_executable ]]; then
     run_target "$target" "$native_executable" "--mode=$mode" "--operation=$operation" "--suite=$suite" \
       "--cases=$cases" "--warmups=$warmups" "--samples=$samples" "--target-ms=$target_ms" \
@@ -185,36 +210,39 @@ run_native() {
       "-Pbench.output=$results/$target.csv"
   fi
 }
+run_jvm() {
+  local target=$1 mode=$2 task=$3
+  shift 3
+  wanted "$target" || return 0
+  if $prepared; then
+    local jvm_args=(--enable-native-access=ALL-UNNAMED "-Xmx${KOBLAS_BENCH_HEAP_MIB:-512}m" -XX:ActiveProcessorCount=1)
+    [[ $mode != jvm-simd && $mode != jvm-default ]] || jvm_args+=(--add-modules=jdk.incubator.vector)
+    run_target "$target" "${KOBLAS_BENCH_JAVA:?}" "${jvm_args[@]}" -cp "${KOBLAS_BENCH_CLASSPATH:?}" \
+      com.eignex.koblas.bench.JvmRunnerKt "--mode=$mode" "--operation=$operation" "--suite=$suite" \
+      "--cases=$cases" "--warmups=$warmups" "--samples=$samples" "--target-ms=$target_ms" \
+      "--forks=$forks" "--output=$results/$target.csv"
+  else
+    run_target "$target" ./gradlew --no-daemon ":koblas-bench:$task" "${common[@]}" "$@" \
+      "-Pbench.forks=$forks" "-Pbench.output=$results/$target.csv"
+  fi
+}
 if ! $vendors_only; then
-  for target in jvm-scalar jvm-simd jvm-default; do
-    case "$target" in
-      jvm-scalar) task=jvmScalarBenchmark ;;
-      jvm-simd) task=jvmSimdBenchmark ;;
-      jvm-default) task=jvmDefaultBenchmark ;;
-    esac
-    run_target "$target" ./gradlew --no-daemon ":koblas-bench:$task" "${common[@]}" "-Pbench.forks=$forks" "-Pbench.output=$results/$target.csv"
-  done
+  run_jvm jvm-scalar jvm-scalar jvmScalarBenchmark
+  run_jvm jvm-simd jvm-simd jvmSimdBenchmark
+  run_jvm jvm-default jvm-default jvmDefaultBenchmark
   if $native_capable; then
     run_native native native nativeBenchmark
     run_native native-default native-default nativeDefaultBenchmark
   fi
 fi
-# Vendor arms run through the production Koblas bindings on both runtimes. There is one implementation of each
-# vendor call and one description of it, so what a row claims about the library that ran is the binding's own
-# answer rather than a second program's. Nothing here sets a thread count: the binding holds each library to one
-# compute thread at load, before any arithmetic, and refuses one it cannot hold, so an environment variable
-# would be a weaker second answer to a question that is already settled.
-#
-# The plain vendor target keeps its name and reaches the library the way the C program did, from native code
-# with no runtime between the caller's storage and the call. The JVM target is the same operation through the
-# JVM binding, which copies operands into native memory and reports that transfer as part of its route.
 for vendor in "${vendors[@]}"; do
-  [[ $vendor != accelerate || $platform == Darwin ]] || { echo "Accelerate requires macOS" >&2; exit 2; }
-  if $native_capable; then
-    run_native "$vendor" "native-vendor-$vendor" nativeVendorBenchmark "-Pbench.vendor=$vendor"
+  if wanted "$vendor" || wanted "$vendor-jvm"; then
+    [[ $vendor != accelerate || $platform == Darwin ]] || { echo "Accelerate requires macOS" >&2; exit 2; }
+    if $native_capable; then
+      run_native "$vendor" "native-vendor-$vendor" nativeVendorBenchmark "-Pbench.vendor=$vendor"
+    fi
+    run_jvm "$vendor-jvm" "jvm-vendor-$vendor" jvmVendorBenchmark "-Pbench.vendor=$vendor"
   fi
-  run_target "$vendor-jvm" ./gradlew --no-daemon ":koblas-bench:jvmVendorBenchmark" "${common[@]}" \
-    "-Pbench.vendor=$vendor" "-Pbench.forks=$forks" "-Pbench.output=$results/$vendor-jvm.csv"
 done
 sed -e '1s/status=incomplete/status=complete/' \
   -e "s/^completed_at=pending$/completed_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)/" \

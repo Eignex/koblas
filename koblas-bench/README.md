@@ -461,3 +461,39 @@ Tasks are `jvmScalarBenchmark`, `jvmSimdBenchmark`, `jvmDefaultBenchmark`, `nati
 `nativeDefaultBenchmark`, `nativeVendorBenchmark` and `jvmVendorBenchmark`; the vendor tasks take
 `-Pbench.vendor=NAME`. Native and vendor executables accept `--suite=sweep --operation=dot` directly.
 Omitting the suite selects `default`.
+
+## Bench SDK adapter
+
+`lab/bench.json` owns the prepared JVM adapter's build tasks, entry point and
+classpath. `lab/native-linux-x64.json` also links the Linux x86_64 executable.
+The JVM adapter imports `com.eignex:lab-bench:0.1.0` only from `jvmMain`; Native
+continues to use this repository's executable and report formats.
+
+Before the SDK release exists, stage its assets in the lab checkout:
+
+```sh
+./gradlew :lab-bench:stageAdapterRepository -PbenchVersion=0.1.0
+```
+
+Then prepare this checkout with
+`./gradlew :koblas-bench:prepareLabBenchmark -PlabBenchRepository=file:///absolute/eignex-lab/lab-bench/build/adapter-repository`.
+The default repository is the public GitHub Release asset URL and requires no credentials.
+`-PlabBenchVersion=VERSION` selects a different SDK release.
+
+A lab submission uses `repository: "Eignex/koblas"` and
+`bench: {"manifest":"koblas-bench/lab/bench.json","request":{"parameters":{"targets":"jvm-scalar,jvm-simd","operation":"dot","smoke":"true"}}}`.
+Request keys are `targets`, `libraries`, `operation`, `suite`, `samples`, `warmups`,
+`target-ms`, `forks`, `pass`, `smoke`, `memory-mib`, `timeout-seconds` and
+`native-executable` (a prepared path under `koblas-bench/build/`). Each plan freezes
+one capture, with one CPU and the selected memory/time limits. JVM targets run in
+separate processes with the Vector API opened only for SIMD/default targets.
+
+`capture-report.sh --targets TARGET,...` selects exact capture arms.
+`--prepared` uses `KOBLAS_BENCH_JAVA` and `KOBLAS_BENCH_CLASSPATH` without Gradle;
+Native arms require `--native-executable`. The adapter uses `--retain-incomplete`,
+which requires an absent report destination and retains incomplete metadata,
+partial CSVs and target logs on failure. The lab keeps that child report tree and
+a separate `capture.log`. Ordinary captures retain their atomic replacement behavior.
+Smoke results verify integration and are not performance evidence. Linux arm64
+and macOS Native binaries require their corresponding preparation tasks and
+hardware validation before using those targets.

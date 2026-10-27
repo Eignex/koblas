@@ -1,4 +1,5 @@
 import org.gradle.api.tasks.JavaExec
+
 import org.gradle.jvm.toolchain.JavaLanguageVersion
 import org.jetbrains.kotlin.gradle.targets.jvm.KotlinJvmTarget
 
@@ -10,6 +11,22 @@ eignexBuild {
     // The benchmark harness does not yet follow the library's lint conventions.
     lintEnabled.set(false)
 }
+
+repositories {
+    exclusiveContent {
+        forRepository {
+            ivy {
+                name = "labBenchReleases"
+                url = uri(providers.gradleProperty("labBenchRepository")
+                    .getOrElse("https://github.com/Eignex/eignex-lab/releases/download"))
+                patternLayout { artifact("lab-bench-v[revision]/[artifact]-[revision](-[classifier]).[ext]") }
+                metadataSources { gradleMetadata() }
+            }
+        }
+        filter { includeModule("com.eignex", "lab-bench") }
+    }
+}
+val labBenchVersion = providers.gradleProperty("labBenchVersion").getOrElse("0.1.0")
 
 kotlin {
     applyDefaultHierarchyTemplate()
@@ -26,7 +43,10 @@ kotlin {
     macosArm64 { binaries.executable { entryPoint = "com.eignex.koblas.bench.main"; baseName = "koblas-bench" } }
     sourceSets {
         commonMain.dependencies { implementation(project(":koblas")) }
-        jvmMain.dependencies { implementation(project(":koblas-bench:jmh")) }
+        jvmMain.dependencies {
+            implementation(project(":koblas-bench:jmh"))
+            implementation("com.eignex:lab-bench:$labBenchVersion")
+        }
     }
 }
 
@@ -165,4 +185,11 @@ registerNativeBenchmark("linuxX64SelectedBenchmark") {
 
 tasks.withType<Test>().configureEach {
     jvmArgs("--add-modules=jdk.incubator.vector", "--enable-native-access=ALL-UNNAMED")
+}
+
+tasks.register<Sync>("prepareLabBenchmark") {
+    group = "benchmark"
+    from(jvmCompilation.output.allOutputs) { into("classes") }
+    from(configurations.named("jvmRuntimeClasspath")) { into("lib") }
+    into(layout.buildDirectory.dir("lab"))
 }
