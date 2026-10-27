@@ -50,6 +50,8 @@ def main():
     parser.add_argument("--target-ms", type=int, default=200)
     parser.add_argument("--forks", type=int, default=2)
     parser.add_argument("--cpu", default="auto")
+    parser.add_argument("--jvm-gc", choices=["g1", "serial", "zgc"])
+    parser.add_argument("--jvm-heap", help="Use the same fixed JVM benchmark heap on both revisions, for example 1g")
     parser.add_argument("--install-onemkl", action="store_true")
     parser.add_argument("--build-heap", help="Bound each Gradle build heap, for example 2g, and compile Kotlin in process")
     args = parser.parse_args()
@@ -59,6 +61,8 @@ def main():
         parser.error("require at least three rounds and positive measurement settings")
     if args.build_heap is not None and not re.fullmatch(r"[1-9][0-9]*[mg]", args.build_heap):
         parser.error("build-heap must be a positive size ending in m or g")
+    if args.jvm_heap is not None and not re.fullmatch(r"[1-9][0-9]*[mg]", args.jvm_heap):
+        parser.error("jvm-heap must be a positive size ending in m or g")
     cpu = min(os.sched_getaffinity(0)) if args.cpu == "auto" else int(args.cpu)
     if cpu not in os.sched_getaffinity(0):
         parser.error("cpu is outside the allowed affinity")
@@ -69,6 +73,8 @@ def main():
     plan = dict(status="incomplete", baseline_ref=args.baseline_ref, cpu=cpu, rounds=args.rounds,
                 samples=args.samples, warmups=args.warmups, target_ms=args.target_ms, forks=args.forks,
                 aggregation="median of per-round medians", orders=[])
+    plan["jvm_gc"] = args.jvm_gc or "default"
+    plan["jvm_heap"] = args.jvm_heap or "default"
     plan_path = output / "comparison.json"
     plan_path.write_text(json.dumps(plan, indent=2) + "\n")
     environment = os.environ.copy()
@@ -139,6 +145,10 @@ def main():
                            "--samples", str(args.samples), "--warmups", str(args.warmups),
                            "--target-ms", str(args.target_ms), "--forks", str(args.forks),
                            "--output", str(report)]
+                if args.jvm_gc is not None:
+                    command += ["--jvm-gc", args.jvm_gc]
+                if args.jvm_heap is not None:
+                    command += ["--jvm-heap", args.jvm_heap]
                 capture_environment = dict(environment, KOBLAS_CAPTURE_ROOT=str(tree))
                 run(command, tree, capture_environment, output / f"round-{round_index + 1}-{arm}.log")
                 for name, checked_tree in trees.items():

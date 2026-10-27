@@ -17,6 +17,8 @@ forks=2
 pass=1
 rounds=1
 cpu=
+jvm_gc=
+jvm_heap=
 original_args=("$@")
 vendors_only=false
 smoke=false
@@ -24,7 +26,7 @@ selected_targets=
 custom_cases=false
 
 usage() {
-  echo "usage: capture-report.sh [--libraries openblas,accelerate,onemkl,aocl,armpl|all] [--targets NAME,...] [--vendors-only] [--smoke] [--output DIR] [--native-executable PATH] [--cases FILE] [--operation NAME|all] [--suite default|sweep] [--samples N] [--warmups N] [--target-ms N] [--forks N] [--pass N] [--rounds N] [--cpu N|auto]" >&2
+  echo "usage: capture-report.sh [--libraries openblas,accelerate,onemkl,aocl,armpl|all] [--targets NAME,...] [--vendors-only] [--smoke] [--output DIR] [--native-executable PATH] [--cases FILE] [--operation NAME|all] [--suite default|sweep] [--samples N] [--warmups N] [--target-ms N] [--forks N] [--pass N] [--rounds N] [--cpu N|auto] [--jvm-gc g1|serial|zgc] [--jvm-heap SIZE]" >&2
 }
 while (($#)); do
   case "$1" in
@@ -42,6 +44,8 @@ while (($#)); do
     --pass) pass=${2:?}; shift 2 ;;
     --rounds) rounds=${2:?}; shift 2 ;;
     --cpu) cpu=${2:?}; shift 2 ;;
+    --jvm-gc) jvm_gc=${2:?}; shift 2 ;;
+    --jvm-heap) jvm_heap=${2:?}; shift 2 ;;
     --vendors-only) vendors_only=true; shift ;;
     --smoke) smoke=true; shift ;;
     --help|-h) usage; exit 0 ;;
@@ -49,6 +53,8 @@ while (($#)); do
   esac
 done
 [[ $rounds =~ ^[1-9][0-9]*$ ]] || { echo "rounds must be a positive integer" >&2; exit 2; }
+[[ -z $jvm_gc || $jvm_gc == g1 || $jvm_gc == serial || $jvm_gc == zgc ]] || { echo "jvm-gc must be g1, serial or zgc" >&2; exit 2; }
+[[ -z $jvm_heap || $jvm_heap =~ ^[1-9][0-9]*[mg]$ ]] || { echo "jvm-heap must be a positive size ending in m or g" >&2; exit 2; }
 if [[ -n $cpu && ${KOBLAS_BENCH_PINNED:-false} != true ]]; then
   [[ $(uname -s) == Linux ]] || { echo "--cpu requires Linux taskset" >&2; exit 2; }
   if [[ $cpu == auto ]]; then cpu=$(python3 -c 'import os; print(min(os.sched_getaffinity(0)))'); fi
@@ -124,6 +130,22 @@ cleanup() {
 trap cleanup EXIT
 trap 'exit 130' INT
 trap 'exit 143' TERM
+jvm_init_args=()
+if [[ -n $jvm_gc || -n $jvm_heap ]]; then
+  # An init script configures old revision tasks too, without changing their source or build files.
+  {
+    echo 'allprojects { tasks.withType(JavaExec).configureEach {'
+    echo "if (name in ['jvmSimdBenchmark', 'jvmScalarBenchmark', 'jvmDefaultBenchmark', 'jvmVendorBenchmark']) {"
+    case "$jvm_gc" in
+      g1) echo "jvmArgs('-XX:+UseG1GC')" ;;
+      serial) echo "jvmArgs('-XX:+UseSerialGC')" ;;
+      zgc) echo "jvmArgs('-XX:+UseZGC')" ;;
+    esac
+    if [[ -n $jvm_heap ]]; then printf "minHeapSize = '%s'\nmaxHeapSize = '%s'\n" "$jvm_heap" "$jvm_heap"; fi
+    echo '} } }'
+  } >"$temporary/runtime.init.gradle"
+  jvm_init_args=(--init-script "$temporary/runtime.init.gradle")
+fi
 {
   echo "architecture=$(uname -m)"
   if [[ $platform == Linux ]]; then
@@ -177,6 +199,7 @@ if ((rounds > 1)); then
   metadata="$output/metadata.txt"
   printf 'status=incomplete\n\n[capture]\nsource_commit=%s\nsource_kind=%s\nrounds=%s\naggregation=retain round medians for downstream aggregation\ncompleted_at=pending\n' \
     "$commit" "$source_kind" "$rounds" >"$metadata"
+  printf 'jvm_gc=%s\njvm_heap=%s\n' "${jvm_gc:-default}" "${jvm_heap:-default}" >>"$metadata"
   fingerprint() {
     python3 - "$root" "$1" "$source_kind" <<'PY'
 import hashlib
@@ -212,6 +235,8 @@ PY
       --samples "$samples" --warmups "$warmups" --target-ms "$target_ms" --forks "$forks"
       --pass "$round" --output "$output/pass-$round")
     if [[ -n $native_executable ]]; then args+=(--native-executable "$native_executable"); fi
+    if [[ -n $jvm_gc ]]; then args+=(--jvm-gc "$jvm_gc"); fi
+    if [[ -n $jvm_heap ]]; then args+=(--jvm-heap "$jvm_heap"); fi
     if $vendors_only; then args+=(--vendors-only); fi
     if $smoke; then args+=(--smoke); fi
     "$0" "${args[@]}" 2>&1 | tee "$output/pass-$round.log"
@@ -243,6 +268,7 @@ cp "$cases" "$results/cases.txt"
   echo "source_commit=$commit"
   echo "source_kind=$source_kind"
   echo "dirty=$dirty"
+  printf 'jvm_gc=%s\njvm_heap=%s\n' "${jvm_gc:-default}" "${jvm_heap:-default}"
   echo "platform=$(uname -a)"
   printf '%s\n' "operation=$operation" "suite=$suite" "selected_cases=$(wc -l <"$cases" | tr -d ' ')" "warmups=$warmups" "requested_samples=$samples" \
     "target_ns=$((target_ms * 1000000))" "pass=$pass" "libraries=$libraries" "vendors_only=$vendors_only"
@@ -313,7 +339,7 @@ for target in "${targets[@]}"; do
         jvm-simd) task=jvmSimdBenchmark ;;
         jvm-default) task=jvmDefaultBenchmark ;;
       esac
-      run_target "$target" ./gradlew --no-daemon ":koblas-bench:$task" "${common[@]}" "-Pbench.forks=$forks" "-Pbench.output=$results/$target.csv"
+      run_target "$target" ./gradlew --no-daemon "${jvm_init_args[@]}" ":koblas-bench:$task" "${common[@]}" "-Pbench.forks=$forks" "-Pbench.output=$results/$target.csv"
       ;;
     native) run_native native native nativeBenchmark ;;
     native-default) run_native native-default native-default nativeDefaultBenchmark ;;
@@ -321,7 +347,7 @@ for target in "${targets[@]}"; do
       vendor=${target%-jvm}
       [[ $vendor != accelerate || $platform == Darwin ]] || { echo "Accelerate requires macOS" >&2; exit 2; }
       if [[ $target == *-jvm ]]; then
-        run_target "$target" ./gradlew --no-daemon ":koblas-bench:jvmVendorBenchmark" "${common[@]}" \
+        run_target "$target" ./gradlew --no-daemon "${jvm_init_args[@]}" ":koblas-bench:jvmVendorBenchmark" "${common[@]}" \
           "-Pbench.vendor=$vendor" "-Pbench.forks=$forks" "-Pbench.output=$results/$target.csv"
       else
         run_native "$target" "native-vendor-$vendor" nativeVendorBenchmark "-Pbench.vendor=$vendor"

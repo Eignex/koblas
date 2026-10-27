@@ -62,6 +62,11 @@ and `summary.csv` with medians of round medians and their range. At least three 
 Both source trees use the current capture driver, whose hash the comparison records, without modifying
 the baseline kernels; this also permits a baseline predating the interleaved-driver options.
 The cases default to `cases-reductions.txt`; both JVM arms read that same file.
+For a collector comparison, pass `--jvm-gc zgc --jvm-heap 1g` to either driver. The heap option fixes both
+the initial and maximum benchmark heap, and both options apply to the measured JVM forks, including
+older baseline build files. Build heaps remain separate. Ordinary captures leave these settings at
+their runtime defaults. Check the JMH VM options and per-fork runtime records before attributing a
+collector or alignment result.
 `--install-onemkl` extracts the reference container's checksum-pinned Intel package into temporary
 job storage and adds it to the child processes' library path; it needs `dpkg-deb` and changes no system
 installation. The library package and fetched baseline are removed after the job; their identities
