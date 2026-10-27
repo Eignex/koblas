@@ -68,6 +68,22 @@ older baseline build files. Build heaps remain separate. Ordinary captures leave
 their runtime defaults. Check the JMH VM options and per-fork runtime records before attributing a
 collector or alignment result.
 
+### Comparing JDK runtimes
+
+The benchmark launcher defaults to JDK 25. `-Pbench.javaVersion=27` selects JDK 27 for
+measurement while compilation keeps its configured toolchain. `-Pbench.expectedJavaHome=/path/to/jdk`
+pins the launcher to that installation. `prepareBenchmarkRuntime` checks the selected version before timing.
+
+For a same-code runtime comparison, pass `--baseline-java-version 25 --candidate-java-version 27`
+and `--require-same-source` to `LabComparisonLauncher`, with the baseline pinned to the job's own revision.
+The driver verifies identical source trees and library contents, resolves both launchers before timing,
+and checks every measured fork's runtime. `--install-jdk27` downloads the checksum-pinned Oracle JDK
+used by the layout validation and requires its exact executable for the JDK 27 arm. Add
+`--runtime-conformance` to run the reduction alignment checks on that installed JDK before capture.
+
+The existing `--jvm-gc` and `--jvm-heap` controls apply to both JVM arms. Without them, runtime defaults,
+including collector selection, remain part of the comparison; the results do not isolate JIT code generation.
+
 ### Fixed native alignment control
 
 `prepareAlignmentDiagnostic` stages the current JVM kernel JAR and its runtime dependencies for
