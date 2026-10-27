@@ -37,6 +37,7 @@ class SimdOpsTest {
 
     @Test
     fun `reductions agree with the scalar oracle for exceptional magnitudes in large backing arrays`() {
+        if (BuiltinEngines.simd == null) return
         assertExceptionalReductionsAgreeWithReference(32 * SimdOps.lanes() + 1)
     }
 
