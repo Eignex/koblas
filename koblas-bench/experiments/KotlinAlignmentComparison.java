@@ -22,7 +22,11 @@ public class KotlinAlignmentComparison {
     }
 
     static long pageOffset(MemorySegment array) throws Throwable {
-        return (long) alignment.invokeExact(array);
+        // memchr returns its input pointer when the first byte matches; never dereference the returned address.
+        int first = Byte.toUnsignedInt(array.get(JAVA_BYTE, 0));
+        MemorySegment address = (MemorySegment) alignment.invokeExact(array, first, 1L);
+        if (address.address() == 0) throw new AssertionError("address snapshot failed");
+        return address.address() & 4095;
     }
 
     static final class Fixture {
@@ -173,9 +177,9 @@ public class KotlinAlignmentComparison {
         System.err.println("collectors="+collectors.stream().map(c -> c.getName()).toList());
         System.err.println("preferred_lanes="+jdk.incubator.vector.DoubleVector.SPECIES_PREFERRED.length());
         try (Arena arena = Arena.ofConfined()) {
-            var probe = SymbolLookup.libraryLookup(directory.resolve("alignment.so"), arena);
-            alignment = LINKER.downcallHandle(probe.find("array_page_offset").orElseThrow(),
-                    FunctionDescriptor.of(JAVA_LONG, ADDRESS), Linker.Option.critical(true));
+            alignment = LINKER.downcallHandle(LINKER.defaultLookup().find("memchr").orElseThrow(),
+                    FunctionDescriptor.of(ADDRESS, ADDRESS, JAVA_INT, JAVA_LONG), Linker.Option.critical(true));
+            System.err.println("diagnostic_output=" + directory + " address_probe=libc/memchr");
             if (pageOffset(arena.allocate(8, 4096)) != 0) throw new AssertionError("alignment probe failed");
             var mkl = SymbolLookup.libraryLookup(Path.of(System.getenv("MKLROOT"), "lib/libmkl_rt.so.3"), arena);
             var version = arena.allocate(256);

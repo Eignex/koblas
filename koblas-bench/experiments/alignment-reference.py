@@ -56,15 +56,13 @@ def main():
     classpath = os.pathsep.join(map(str, entries))
     manifest = output / 'classpath.txt'
     manifest.write_text(classpath)
-    for name in ['KotlinAlignmentComparison.java', 'alignment.c']:
+    for name in ['KotlinAlignmentComparison.java']:
         shutil.copy2(ROOT / 'koblas-bench/experiments' / name, output / name)
     shutil.copy2(Path(__file__), output / Path(__file__).name)
     classes = output / 'classes'
     classes.mkdir()
     run([str(java.with_name('javac')), '--add-modules=jdk.incubator.vector', '-d', str(classes),
          str(output / 'KotlinAlignmentComparison.java')], output / 'compile-java.log', environment)
-    run(['cc', '-shared', '-fPIC', '-O2', str(output / 'alignment.c'), '-o', str(output / 'alignment.so')],
-        output / 'compile-probe.log', environment)
     if args.mkl_root:
         mkl = args.mkl_root.resolve()
     else:
@@ -79,8 +77,8 @@ def main():
     environment.update(MKLROOT=str(mkl), LD_LIBRARY_PATH=str(mkl / 'lib') + ':' + environment.get('LD_LIBRARY_PATH', ''),
                        MKL_THREADING_LAYER='SEQUENTIAL')
     cpu = min(os.sched_getaffinity(0))
-    paths = [java, manifest, output / 'KotlinAlignmentComparison.java', output / 'alignment.c',
-             output / 'alignment.so', output / Path(__file__).name, mkl / 'lib/libmkl_rt.so.3']
+    paths = [java, manifest, output / 'KotlinAlignmentComparison.java',
+             output / Path(__file__).name, mkl / 'lib/libmkl_rt.so.3']
     paths += [f for directory in [runtime, classes] for f in directory.rglob('*') if f.is_file()]
 
     def hashes():
@@ -110,6 +108,7 @@ def main():
             print('START', name, flush=True)
             run(command, output / (name + '.log'), environment)
             text = (output / (name + '.log')).read_text()
+            assert 'address_probe=libc/memchr' in text
             assert 'oneMKL configured max threads=1' in text and 'alignment_policy arm=candidate' in text
             assert 'version=25.' in text and 'oneMKL version=' in text and 'Version 2026.1' in text
             assert re.search(r'preferred_lanes=(2|4|8|16|32|64)\b', text)

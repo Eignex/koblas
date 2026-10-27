@@ -74,7 +74,8 @@ collector or alignment result.
 `LabAlignmentReferenceLauncher`. This diagnostic measures IAMAX, DOT and ASUM at 65,536 elements over
 all eight offsets, with two forks and three interleaved rounds. Its oneMKL buffers either have fixed
 64-byte alignment or match the unpeeled heap window. It retains both controls and every offset;
-there is no best-offset selection. The native address probe runs outside arithmetic, and the JVM
+there is no best-offset selection. The native address snapshot uses libc outside arithmetic, needs
+no C compiler, and the JVM
 series uses the owned Vector API kernels. Native control calls use FFM over preallocated native
 buffers. Keep these raw controls separate from the public Kotlin/Native reference captures.
 
