@@ -21,16 +21,14 @@ class TriangularSchedulingTest {
     private val rng = Random(20261103)
 
     @Test
-    fun `trsm solves every transpose and diagonal mode from the left with an upper triangle`() =
-        withDenseBlas { blas ->
-            assertSolves(blas, right = false, lower = false)
-        }
+    fun `trsm solves every transpose and diagonal mode from the left with an upper triangle`() = withDenseBlas { blas ->
+        assertSolves(blas, right = false, lower = false)
+    }
 
     @Test
-    fun `trsm solves every transpose and diagonal mode from the left with a lower triangle`() =
-        withDenseBlas { blas ->
-            assertSolves(blas, right = false, lower = true)
-        }
+    fun `trsm solves every transpose and diagonal mode from the left with a lower triangle`() = withDenseBlas { blas ->
+        assertSolves(blas, right = false, lower = true)
+    }
 
     @Test
     fun `trsm solves every transpose and diagonal mode from the right with an upper triangle`() =
@@ -39,10 +37,9 @@ class TriangularSchedulingTest {
         }
 
     @Test
-    fun `trsm solves every transpose and diagonal mode from the right with a lower triangle`() =
-        withDenseBlas { blas ->
-            assertSolves(blas, right = true, lower = true)
-        }
+    fun `trsm solves every transpose and diagonal mode from the right with a lower triangle`() = withDenseBlas { blas ->
+        assertSolves(blas, right = true, lower = true)
+    }
 
     @Test
     fun `trmm multiplies every uplo transpose and diagonal mode from the left`() = withDenseBlas { blas ->
@@ -55,16 +52,14 @@ class TriangularSchedulingTest {
     }
 
     @Test
-    fun `trsm agrees with the oracle over three blocks from the left with an upper triangle`() =
-        withDenseBlas { blas ->
-            assertSolves(blas, right = false, lower = false, shapes = threeBlockShapes())
-        }
+    fun `trsm agrees with the oracle over three blocks from the left with an upper triangle`() = withDenseBlas { blas ->
+        assertSolves(blas, right = false, lower = false, shapes = threeBlockShapes())
+    }
 
     @Test
-    fun `trsm agrees with the oracle over three blocks from the left with a lower triangle`() =
-        withDenseBlas { blas ->
-            assertSolves(blas, right = false, lower = true, shapes = threeBlockShapes())
-        }
+    fun `trsm agrees with the oracle over three blocks from the left with a lower triangle`() = withDenseBlas { blas ->
+        assertSolves(blas, right = false, lower = true, shapes = threeBlockShapes())
+    }
 
     @Test
     fun `trsm agrees with the oracle over three blocks from the right with an upper triangle`() =
@@ -73,22 +68,19 @@ class TriangularSchedulingTest {
         }
 
     @Test
-    fun `trsm agrees with the oracle over three blocks from the right with a lower triangle`() =
-        withDenseBlas { blas ->
-            assertSolves(blas, right = true, lower = true, shapes = threeBlockShapes())
-        }
+    fun `trsm agrees with the oracle over three blocks from the right with a lower triangle`() = withDenseBlas { blas ->
+        assertSolves(blas, right = true, lower = true, shapes = threeBlockShapes())
+    }
 
     @Test
-    fun `trmm agrees with the oracle over three blocks from the left with an upper triangle`() =
-        withDenseBlas { blas ->
-            assertMultiplies(blas, right = false, lowerModes = booleanArrayOf(false), shapes = threeBlockShapes())
-        }
+    fun `trmm agrees with the oracle over three blocks from the left with an upper triangle`() = withDenseBlas { blas ->
+        assertMultiplies(blas, right = false, lowerModes = booleanArrayOf(false), shapes = threeBlockShapes())
+    }
 
     @Test
-    fun `trmm agrees with the oracle over three blocks from the left with a lower triangle`() =
-        withDenseBlas { blas ->
-            assertMultiplies(blas, right = false, lowerModes = booleanArrayOf(true), shapes = threeBlockShapes())
-        }
+    fun `trmm agrees with the oracle over three blocks from the left with a lower triangle`() = withDenseBlas { blas ->
+        assertMultiplies(blas, right = false, lowerModes = booleanArrayOf(true), shapes = threeBlockShapes())
+    }
 
     @Test
     fun `trmm agrees with the oracle over three blocks from the right with an upper triangle`() =
@@ -97,70 +89,66 @@ class TriangularSchedulingTest {
         }
 
     @Test
-    fun `trmm agrees with the oracle over three blocks from the right with a lower triangle`() =
-        withDenseBlas { blas ->
-            assertMultiplies(blas, right = true, lowerModes = booleanArrayOf(true), shapes = threeBlockShapes())
-        }
+    fun `trmm agrees with the oracle over three blocks from the right with a lower triangle`() = withDenseBlas { blas ->
+        assertMultiplies(blas, right = true, lowerModes = booleanArrayOf(true), shapes = threeBlockShapes())
+    }
 
     /** Two full diagonal blocks and a tail, with a partial backend-derived right-hand-side group. */
-    private fun threeBlockShapes(): List<Pair<Int, Int>> =
-        listOf(2 * TRIANGULAR_DIAGONAL_BLOCK + 5 to VECTOR_SIDES + 3)
+    private fun threeBlockShapes(): List<Pair<Int, Int>> = listOf(2 * TRIANGULAR_DIAGONAL_BLOCK + 5 to VECTOR_SIDES + 3)
 
     private fun assertSolves(
         blas: DenseBlas,
         right: Boolean,
         lower: Boolean,
         shapes: List<Pair<Int, Int>> = triangularShapes(),
-    ) =
-        forEachCase(booleanArrayOf(lower), shapes) { order, sides, _, transpose, unitDiag ->
-            val (triangle, _) = poisonedTriangle(rng, order, lower, unitDiag)
-            // Keep the larger unit-diagonal fixtures well conditioned so error in constructing the right-hand
-            // sides cannot dominate the scheduling comparison.
-            if (order > 2 * TRIANGULAR_DIAGONAL_BLOCK) {
-                for (column in 0 until order) {
-                    for (row in 0 until order) {
-                        if (row != column) triangle[row, column] /= order
-                    }
+    ) = forEachCase(booleanArrayOf(lower), shapes) { order, sides, _, transpose, unitDiag ->
+        val (triangle, _) = poisonedTriangle(rng, order, lower, unitDiag)
+        // Keep the larger unit-diagonal fixtures well conditioned so error in constructing the right-hand
+        // sides cannot dominate the scheduling comparison.
+        if (order > 2 * TRIANGULAR_DIAGONAL_BLOCK) {
+            for (column in 0 until order) {
+                for (row in 0 until order) {
+                    if (row != column) triangle[row, column] /= order
                 }
             }
-            val solution = randomMatrix(if (right) sides else order, if (right) order else sides, rng)
-            // The right-hand sides come from the reference multiply, so the check does not depend on the
-            // solve it is checking.
-            val b = solution.copyOf()
-            ReferenceBlas.trmm(triangle, b, lower, transpose, unitDiag, right, 1.0 / ALPHA)
-
-            blas.trsm(triangle, b, lower, transpose, unitDiag, right, ALPHA)
-
-            assertClose(
-                solution.values,
-                b.values,
-                "trsm ${describe(order, sides, lower, transpose, unitDiag, right)}",
-                SOLVE_TOLERANCE,
-            )
         }
+        val solution = randomMatrix(if (right) sides else order, if (right) order else sides, rng)
+        // The right-hand sides come from the reference multiply, so the check does not depend on the
+        // solve it is checking.
+        val b = solution.copyOf()
+        ReferenceBlas.trmm(triangle, b, lower, transpose, unitDiag, right, 1.0 / ALPHA)
+
+        blas.trsm(triangle, b, lower, transpose, unitDiag, right, ALPHA)
+
+        assertClose(
+            solution.values,
+            b.values,
+            "trsm ${describe(order, sides, lower, transpose, unitDiag, right)}",
+            SOLVE_TOLERANCE,
+        )
+    }
 
     private fun assertMultiplies(
         blas: DenseBlas,
         right: Boolean,
         lowerModes: BooleanArray = booleanArrayOf(false, true),
         shapes: List<Pair<Int, Int>> = triangularShapes(),
-    ) =
-        forEachCase(lowerModes, shapes) { order, sides, lower, transpose, unitDiag ->
-            val (triangle, _) = poisonedTriangle(rng, order, lower, unitDiag)
-            val start = randomMatrix(if (right) sides else order, if (right) order else sides, rng)
-            val expected = start.copyOf()
-            ReferenceBlas.trmm(triangle, expected, lower, transpose, unitDiag, right, ALPHA)
-            val actual = start.copyOf()
+    ) = forEachCase(lowerModes, shapes) { order, sides, lower, transpose, unitDiag ->
+        val (triangle, _) = poisonedTriangle(rng, order, lower, unitDiag)
+        val start = randomMatrix(if (right) sides else order, if (right) order else sides, rng)
+        val expected = start.copyOf()
+        ReferenceBlas.trmm(triangle, expected, lower, transpose, unitDiag, right, ALPHA)
+        val actual = start.copyOf()
 
-            blas.trmm(triangle, actual, lower, transpose, unitDiag, right, ALPHA)
+        blas.trmm(triangle, actual, lower, transpose, unitDiag, right, ALPHA)
 
-            assertClose(
-                expected.values,
-                actual.values,
-                "trmm ${describe(order, sides, lower, transpose, unitDiag, right)}",
-                TOLERANCE,
-            )
-        }
+        assertClose(
+            expected.values,
+            actual.values,
+            "trmm ${describe(order, sides, lower, transpose, unitDiag, right)}",
+            TOLERANCE,
+        )
+    }
 
     // A subnormal diagonal's reciprocal overflows, so multiplying by one answers with an infinity where the
     // division is finite; the right-hand sides are several lane blocks wide so the vector body is asked.
@@ -386,14 +374,13 @@ class TriangularSchedulingTest {
         assertTriangularRoutes(right = true, solve = true)
     }
 
-    private fun assertTriangularRoutes(right: Boolean, solve: Boolean) =
-        withBackends { panels, products, triangles ->
-            for (lower in booleanArrayOf(false, true)) {
-                for (transpose in booleanArrayOf(false, true)) {
-                    assertTriangularRoute(panels, products, triangles, lower, transpose, right, solve)
-                }
+    private fun assertTriangularRoutes(right: Boolean, solve: Boolean) = withBackends { panels, products, triangles ->
+        for (lower in booleanArrayOf(false, true)) {
+            for (transpose in booleanArrayOf(false, true)) {
+                assertTriangularRoute(panels, products, triangles, lower, transpose, right, solve)
             }
         }
+    }
 
     @Suppress("LongParameterList") // the backends under test plus the three flags the route depends on
     private fun assertTriangularRoute(

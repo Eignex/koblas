@@ -26,14 +26,26 @@ class PortableSparseBlasTest {
     @Test
     fun `dense syrk reuses dirty scratch across different patterns and triangle flags`() {
         val patterns = listOf(
-            SparseMatrix.ofColumns(5, 4, listOf(
-                listOf(0 to 2.0, 2 to -1.0), listOf(1 to 3.0, 4 to 0.0),
-                emptyList(), listOf(0 to -2.0, 3 to 4.0),
-            )),
-            SparseMatrix.ofColumns(5, 4, listOf(
-                listOf(1 to -1.0, 3 to 2.0), emptyList(),
-                listOf(0 to 0.0, 2 to 3.0, 4 to -2.0), listOf(2 to 1.0),
-            )),
+            SparseMatrix.ofColumns(
+                5,
+                4,
+                listOf(
+                    listOf(0 to 2.0, 2 to -1.0),
+                    listOf(1 to 3.0, 4 to 0.0),
+                    emptyList(),
+                    listOf(0 to -2.0, 3 to 4.0),
+                ),
+            ),
+            SparseMatrix.ofColumns(
+                5,
+                4,
+                listOf(
+                    listOf(1 to -1.0, 3 to 2.0),
+                    emptyList(),
+                    listOf(0 to 0.0, 2 to 3.0, 4 to -2.0),
+                    listOf(2 to 1.0),
+                ),
+            ),
         )
         for (engine in engines) {
             val workspace = Workspace()
@@ -43,7 +55,14 @@ class PortableSparseBlasTest {
                 for (a in patterns) {
                     val order = if (transpose) a.cols else a.rows
                     withSymmetricRankScratch(workspace, order, a.rows, a.nnz) {
-                            sums, marks, touched, pointers, columns, positions, cursor ->
+                            sums,
+                            marks,
+                            touched,
+                            pointers,
+                            columns,
+                            positions,
+                            cursor,
+                        ->
                         sums.fill(Double.NaN)
                         for (buffer in listOf(marks, touched, pointers, columns, positions, cursor)) buffer.fill(1)
                     }
@@ -55,8 +74,10 @@ class PortableSparseBlasTest {
                         for ((pattern, a) in patterns.withIndex()) {
                             val order = if (transpose) a.cols else a.rows
                             val initial = DenseMatrix.wrap(order, order, DoubleArray(order * order) { -1000.0 - it })
-                            for (j in 0 until order) for (i in 0 until order) {
-                                if (if (lower) i >= j else i <= j) initial[i, j] = (i - j) * 0.25
+                            for (j in 0 until order) {
+                                for (i in 0 until order) {
+                                    if (if (lower) i >= j else i <= j) initial[i, j] = (i - j) * 0.25
+                                }
                             }
                             val expected = initial.copyOf()
                             val actual = initial.copyOf()
@@ -66,8 +87,10 @@ class PortableSparseBlasTest {
 
                             val context = "${engine.name} pass=$pass pattern=$pattern transpose=$transpose lower=$lower"
                             assertSyrkAgreesWithReference(expected, actual, context)
-                            for (j in 0 until order) for (i in 0 until order) {
-                                if (if (lower) i < j else i > j) assertEquals(initial[i, j], actual[i, j], context)
+                            for (j in 0 until order) {
+                                for (i in 0 until order) {
+                                    if (if (lower) i < j else i > j) assertEquals(initial[i, j], actual[i, j], context)
+                                }
                             }
                         }
                     }

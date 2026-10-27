@@ -108,8 +108,10 @@ class PortableDenseBlasTest {
                         for (operation in listOf("gemmt", "syrk", "syr2k")) {
                             val start = randomMatrix(4, 4, rng)
                             if (beta == 0.0) {
-                                for (j in 0 until 4) for (i in 0 until 4) {
-                                    if (if (lower) i >= j else i <= j) start[i, j] = Double.NaN
+                                for (j in 0 until 4) {
+                                    for (i in 0 until 4) {
+                                        if (if (lower) i >= j else i <= j) start[i, j] = Double.NaN
+                                    }
                                 }
                             }
                             val expected = start.copyOf()
@@ -120,10 +122,12 @@ class PortableDenseBlasTest {
                                     ReferenceBlas.gemmt(alpha, a, transpose, b, !transpose, beta, expected, lower)
                                     blas.gemmt(alpha, a, transpose, b, !transpose, beta, actual, lower)
                                 }
+
                                 "syrk" -> {
                                     ReferenceBlas.syrk(alpha, a, transpose, beta, expected, lower)
                                     blas.syrk(alpha, a, transpose, beta, actual, lower)
                                 }
+
                                 "syr2k" -> {
                                     ReferenceBlas.syr2k(alpha, a, b, transpose, beta, expected, lower)
                                     blas.syr2k(alpha, a, b, transpose, beta, actual, lower)
@@ -132,9 +136,11 @@ class PortableDenseBlasTest {
 
                             val context = "$operation alpha=$alpha depth=$depth t=$transpose beta=$beta lower=$lower"
                             assertClose(expected, actual, context)
-                            for (j in 0 until 4) for (i in 0 until 4) {
-                                if (beta == 1.0 || (if (lower) i < j else i > j)) {
-                                    assertEquals(start[i, j], actual[i, j], "$context at ($i, $j)")
+                            for (j in 0 until 4) {
+                                for (i in 0 until 4) {
+                                    if (beta == 1.0 || (if (lower) i < j else i > j)) {
+                                        assertEquals(start[i, j], actual[i, j], "$context at ($i, $j)")
+                                    }
                                 }
                             }
                         }
@@ -343,5 +349,4 @@ class PortableDenseBlasTest {
             assertTrue(across[0].isNaN(), "group $group skipped a zero coefficient going across a row")
         }
     }
-
 }

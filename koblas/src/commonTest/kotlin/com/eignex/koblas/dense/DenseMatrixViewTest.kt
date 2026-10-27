@@ -219,6 +219,29 @@ class DenseMatrixViewTest {
     }
 
     @Test
+    fun `disjoint rectangles of one parent agree with the reference`() = withRegions { blas ->
+        val parent = region(12, 12)
+        val panel = parent.view(4, 0, 8, 4)
+        val beside = parent.view(0, 4, 4, 8)
+        val triangle = parent.view(0, 0, 4, 4)
+        val trailing = parent.view(4, 4, 8, 8)
+        val expectedTrailing = copy(trailing)
+        val expectedBeside = copy(beside)
+        ReferenceBlas.syrk(-1.0, copy(panel), false, 1.0, expectedTrailing)
+        ReferenceBlas.gemm(0.5, copy(panel), false, copy(beside), false, 1.0, expectedTrailing)
+        ReferenceBlas.trsm(copy(triangle), expectedBeside, lower = true)
+        val before = parent.values.copyOf()
+
+        blas.syrk(-1.0, panel, false, 1.0, trailing, workspace = Workspace())
+        blas.gemm(0.5, panel, false, beside, false, 1.0, trailing, Workspace())
+        assertRegionAgreesWithReference(expectedTrailing, trailing, before)
+        val afterProducts = parent.values.copyOf()
+        blas.trsm(triangle, beside, lower = true, workspace = Workspace())
+
+        assertRegionAgreesWithReference(expectedBeside, beside, afterProducts)
+    }
+
+    @Test
     fun `zero multipliers overwrite only the destination rectangle`() = withRegions { blas ->
         val a = region(4, 4).also { it.values.fill(Double.NaN) }
         val b = region(4, 4).also { it.values.fill(Double.NaN) }

@@ -168,12 +168,14 @@ private fun DenseVector.hasIdenticalMapping(other: DenseVector): Boolean =
 /** Snapshots partial aliases and opaque storage, which may read [destination] without exposing its buffer. */
 private fun Vector.stableFor(destination: DenseVector): Vector = when (this) {
     is SparseVector -> if (values === destination.values) SparseVector.wrap(size, indices, values.copyOf()) else this
+
     // Equal mappings have no cross-index dependency: each entry is read before its own write.
     is DenseVector -> if (!hasIdenticalMapping(destination) && overlaps(destination)) {
         DenseVector.wrap(toDoubleArray())
     } else {
         this
     }
+
     else -> DenseVector.wrap(toDoubleArray())
 }
 

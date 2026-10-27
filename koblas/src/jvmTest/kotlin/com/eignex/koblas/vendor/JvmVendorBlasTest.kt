@@ -261,7 +261,14 @@ class JvmVendorBlasTest {
                 val x = StridedVector(xStorage, xOffset, size, xStride)
                 val y = StridedVector(yStorage, yOffset, size, yStride)
                 ScalarVectorKernels.axpy(
-                    expected, yOffset, 0.5, xStorage, xOffset, size, yStride = yStride, xStride = xStride,
+                    expected,
+                    yOffset,
+                    0.5,
+                    xStorage,
+                    xOffset,
+                    size,
+                    yStride = yStride,
+                    xStride = xStride,
                 )
 
                 blas.axpy(0.5, x, y)

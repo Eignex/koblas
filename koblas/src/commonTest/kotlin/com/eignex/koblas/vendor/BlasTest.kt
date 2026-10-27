@@ -111,7 +111,10 @@ class BlasTest {
             val entries = doubleArrayOf(1.0, 5.0, 2.0, -5.0, 3.0, 0.5)
             for (i in entries.indices) forward.values[forward.offset + i * stride] = entries[i]
             val backward = StridedVector(
-                forward.values, forward.offset + (forward.size - 1) * stride, forward.size, -stride,
+                forward.values,
+                forward.offset + (forward.size - 1) * stride,
+                forward.size,
+                -stride,
             )
             val expected = scalar.iamax(forward.values, forward.offset, forward.size, stride)
 
@@ -252,6 +255,7 @@ class BlasTest {
     private companion object {
         // Some vendors special-case singletons and hide a negative increment; prefer the affected binding.
         val vendor = openBlas(Vendor.OpenBlas) ?: openBlas()
+
         // Direct Blas calls bypass the native engine crossover even for these six-entry windows.
         val MULTI_ENTRY_STRIDES = intArrayOf(1, 2, -1, -2)
         val STRIDES = intArrayOf(Int.MIN_VALUE, -3, -1, 1, 3, Int.MAX_VALUE)

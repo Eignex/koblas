@@ -71,7 +71,8 @@ internal class NativeVendorBlas private constructor(
     override val vendor: Vendor,
     private val candidate: String,
     private val handle: COpaquePointer,
-) : Blas, RegionBlas {
+) : Blas,
+    RegionBlas {
     /**
      * File reported by the dynamic loader for the key symbol. A bare soname can resolve to an
      * already-loaded absolute path, so the candidate name alone does not identify the executing file.
