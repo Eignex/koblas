@@ -325,9 +325,9 @@ internal class RegionCall(
  * [RecordingBlas] that also takes borrowed regions in place, recording them without computing, so tests can
  * tell caller storage passed through from packed or staged copies.
  */
-internal class RecordingRegionBlas(
-    private val recorder: RecordingBlas = RecordingBlas(),
-) : Blas by recorder, RegionBlas {
+internal class RecordingRegionBlas(private val recorder: RecordingBlas = RecordingBlas()) :
+    Blas by recorder,
+    RegionBlas {
     private val recorded = mutableListOf<RegionCall>()
 
     /** Every region call received so far, in order. */

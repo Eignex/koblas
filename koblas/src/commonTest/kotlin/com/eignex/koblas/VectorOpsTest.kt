@@ -10,14 +10,27 @@ class VectorOpsTest {
     @Test
     fun `identical mapping axpy agrees with the scalar snapshot reference`() {
         val inputs = doubleArrayOf(
-            1.5e200, -1.5e200, 0.75, -0.0, 0.0, Double.POSITIVE_INFINITY, Double.NEGATIVE_INFINITY, Double.NaN,
+            1.5e200,
+            -1.5e200,
+            0.75,
+            -0.0,
+            0.0,
+            Double.POSITIVE_INFINITY,
+            Double.NEGATIVE_INFINITY,
+            Double.NaN,
         )
         for (alpha in doubleArrayOf(0.0, -0.0, 0.75, -1.0)) {
             for ((source, destination) in identicalDenseMappings()) {
                 for (i in 0 until source.size) source[i] = inputs[i % inputs.size]
                 val expected = source.values.copyOf()
                 BuiltinEngines.scalar.vectorKernels.axpy(
-                    expected, destination.offset, alpha, source.toDoubleArray(), 0, source.size, destination.stride,
+                    expected,
+                    destination.offset,
+                    alpha,
+                    source.toDoubleArray(),
+                    0,
+                    source.size,
+                    destination.stride,
                 )
 
                 destination.axpy(alpha, source)

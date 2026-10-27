@@ -47,7 +47,9 @@ class SparseMatrixTest {
                 val values = DoubleArray(indices.size) { it + 0.25 }
                 val reference = coordinateReference(8, 3, indices, columns, values)
                 val expected = SparseMatrix.wrap(
-                    rows, 3, reference.copyColumnPointers(),
+                    rows,
+                    3,
+                    reference.copyColumnPointers(),
                     reference.copyRowIndices().map { if (it == 7) rows - 1 else it }.toIntArray(),
                     reference.values.copyOf(),
                 )
@@ -77,7 +79,9 @@ class SparseMatrixTest {
         for (rows in intArrayOf(3, values.size, values.size + 1, 10_000_000, Int.MAX_VALUE)) {
             val expandedRows = intArrayOf(0, rows / 2, rows - 1)
             val expected = SparseMatrix.wrap(
-                rows, 6, reference.copyColumnPointers(),
+                rows,
+                6,
+                reference.copyColumnPointers(),
                 reference.copyRowIndices().map { expandedRows[it] }.toIntArray(),
                 reference.values.copyOf(),
             )
@@ -100,7 +104,11 @@ class SparseMatrixTest {
             val column = mutableListOf(rows - 1 to 2.0, 0 to 1.0, rows - 1 to -2.0)
             val columns = mutableListOf<List<Pair<Int, Double>>>(column, emptyList())
             val expected = SparseMatrix.wrap(
-                rows, 2, intArrayOf(0, 2, 2), intArrayOf(0, rows - 1), doubleArrayOf(1.0, 0.0),
+                rows,
+                2,
+                intArrayOf(0, 2, 2),
+                intArrayOf(0, rows - 1),
+                doubleArrayOf(1.0, 0.0),
             )
             val first = SparseMatrix.ofColumns(rows, 2, columns)
             val second = SparseMatrix.ofColumns(rows, 2, columns)
@@ -137,9 +145,9 @@ class SparseMatrixTest {
         for (j in 0 until columns) {
             for (i in 0 until rows) {
                 if (stored[i + j * rows]) {
-                resultRows[count] = i
-                resultValues[count++] = dense[i + j * rows]
-            }
+                    resultRows[count] = i
+                    resultValues[count++] = dense[i + j * rows]
+                }
             }
             pointers[j + 1] = count
         }
