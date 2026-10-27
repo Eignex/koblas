@@ -11,6 +11,7 @@ import com.eignex.koblas.*
 import com.eignex.koblas.vendor.Blas
 import com.eignex.koblas.vendor.BlasOperation
 import com.eignex.koblas.vendor.CallRoute
+import com.eignex.koblas.vendor.RegionBlas
 import com.eignex.koblas.vendor.RouteKind
 
 /**
@@ -35,6 +36,9 @@ internal const val HOST_SCHEDULING: String = "host-dense"
 
 /** The copy a permitted alias is staged into before a whole-call binding, which cannot take one. */
 internal const val HOST_STAGING: String = "host-stage/alias"
+
+/** The packing a borrowed region takes before a binding that has no in-place region entry points. */
+internal const val HOST_REGION_STAGING: String = "host-stage/region"
 
 /**
  * Dense Level 2 and 3 served by an installed host library where one is eligible, and portably where it is not.
@@ -65,6 +69,8 @@ internal const val HOST_STAGING: String = "host-stage/alias"
  * rest of the contract belongs to this layer: shapes are validated before anything is written, a zero
  * multiplier reads no operand, an unselected triangle is neither read nor written, and an input that shares
  * the destination's buffer is staged into scratch first, since a whole-call binding cannot take that overlap.
+ * A borrowed region reaches a binding with [RegionBlas] entry points in place, and only an input whose
+ * rectangle overlaps the destination's is staged; a binding without them receives packed copies.
  *
  * Immutable and safe to share. A call takes scratch from the workspace it was given and nothing else, so
  * independent calls with distinct workspaces and distinct destinations do not interact; the binding underneath
@@ -75,6 +81,9 @@ internal class HostDenseBlas(
     private val host: Blas,
     private val minimumWork: Long = HostDensePolicy.MINIMUM_WORK,
 ) : RoutedDenseBlas {
+
+    /** The binding's in-place region entry points, or null where a borrowed operand has to be packed for it. */
+    private val regions: RegionBlas? = host as? RegionBlas
 
     /**
      * Whether this call goes to the library, asked before it writes anything.
@@ -109,7 +118,7 @@ internal class HostDenseBlas(
         // Work, whole-entry-point eligibility and exports are settled above; only platform transfer remains.
         val hostRoute = host.routeOf(entry)
         val components = ArrayList<String>(2)
-        if (call.borrowed) components.add("host-stage/region")
+        if (call.borrowed && regions == null) components.add(HOST_REGION_STAGING)
         if (call.aliased) components.add(HOST_STAGING)
         components.add("${host.vendor.vendorName.lowercase()}/${entry.entryPoint}")
         return DenseMatrixRoute(
@@ -126,6 +135,9 @@ internal class HostDenseBlas(
         )
     }
 
+    // A binding with region entry points takes borrowed storage as it lies, so only an input overlapping the
+    // destination is snapshotted, as the portable path does; a binding without them gets packed operands.
+
     override fun gemv(
         alpha: Double,
         a: DenseMatrixRegion,
@@ -137,10 +149,20 @@ internal class HostDenseBlas(
     ) {
         val op = if (transpose) DenseMatrixOperation.GemvTransposed else DenseMatrixOperation.Gemv
         val work = work(op, a.rows, a.cols, alpha = alpha)
-        if (host(op, work)) {
-            regionGemv(this, alpha, a, x, beta, y, transpose, workspace)
-        } else {
-            portable.gemv(alpha, a, x, beta, y, transpose, workspace)
+        val direct = regions
+        when {
+            !host(op, work) -> portable.gemv(alpha, a, x, beta, y, transpose, workspace)
+
+            direct == null -> regionGemv(this, alpha, a, x, beta, y, transpose, workspace)
+
+            else -> {
+                requireGemvOperands(a, transpose, x.size, y.size)
+                stagedRegion(workspace, a, y) { sa ->
+                    staged(workspace, x, x === y) { sx ->
+                        direct.gemv(alpha, sa, transpose, sx.asVector(), beta, y.asVector())
+                    }
+                }
+            }
         }
     }
 
@@ -156,10 +178,20 @@ internal class HostDenseBlas(
     ) {
         val op = DenseMatrixOperation.Gemm
         val work = work(op, c.rows, c.cols, if (transposeA) a.rows else a.cols, alpha)
-        if (host(op, work)) {
-            regionGemm(this, alpha, a, transposeA, b, transposeB, beta, c, workspace)
-        } else {
-            portable.gemm(alpha, a, transposeA, b, transposeB, beta, c, workspace)
+        val direct = regions
+        when {
+            !host(op, work) -> portable.gemm(alpha, a, transposeA, b, transposeB, beta, c, workspace)
+
+            direct == null -> regionGemm(this, alpha, a, transposeA, b, transposeB, beta, c, workspace)
+
+            else -> {
+                requireGemmOperands(a, transposeA, b, transposeB, c)
+                stagedRegion(workspace, a, c) { sa ->
+                    stagedRegion(workspace, b, c, stable = sa, original = a) { sb ->
+                        direct.gemm(alpha, sa, transposeA, sb, transposeB, beta, c)
+                    }
+                }
+            }
         }
     }
 
@@ -174,10 +206,18 @@ internal class HostDenseBlas(
     ) {
         val op = DenseMatrixOperation.Syrk
         val work = work(op, c.rows, c.cols, if (transpose) a.rows else a.cols, alpha)
-        if (host(op, work)) {
-            regionSyrk(this, alpha, a, transpose, beta, c, lower, workspace)
-        } else {
-            portable.syrk(alpha, a, transpose, beta, c, lower, workspace)
+        val direct = regions
+        when {
+            !host(op, work) -> portable.syrk(alpha, a, transpose, beta, c, lower, workspace)
+
+            direct == null -> regionSyrk(this, alpha, a, transpose, beta, c, lower, workspace)
+
+            else -> {
+                requireSyrkOperands(a, transpose, c)
+                stagedRegion(workspace, a, c) { sa ->
+                    direct.syrk(alpha, sa, transpose, beta, c, symmetricStructure(lower))
+                }
+            }
         }
     }
 
@@ -191,10 +231,18 @@ internal class HostDenseBlas(
     ) {
         val op = if (transpose) DenseMatrixOperation.TrsvTransposed else DenseMatrixOperation.Trsv
         val work = work(op, a.rows, a.cols)
-        if (host(op, work)) {
-            regionTrsv(this, a, x, lower, transpose, unitDiag, workspace)
-        } else {
-            portable.trsv(a, x, lower, transpose, unitDiag, workspace)
+        val direct = regions
+        when {
+            !host(op, work) -> portable.trsv(a, x, lower, transpose, unitDiag, workspace)
+
+            direct == null -> regionTrsv(this, a, x, lower, transpose, unitDiag, workspace)
+
+            else -> {
+                requireTriangularVectorOperands(a, x.size, "trsv")
+                stagedRegion(workspace, a, x) { sa ->
+                    direct.trsv(sa, triangle(lower, unitDiag), transpose, x.asVector())
+                }
+            }
         }
     }
 
@@ -210,10 +258,18 @@ internal class HostDenseBlas(
     ) {
         val op = DenseMatrixOperation.Trsm
         val work = work(op, b.rows, b.cols, a.rows, alpha, right)
-        if (host(op, work)) {
-            regionTrsm(this, a, b, lower, transpose, unitDiag, right, alpha, workspace)
-        } else {
-            portable.trsm(a, b, lower, transpose, unitDiag, right, alpha, workspace)
+        val direct = regions
+        when {
+            !host(op, work) -> portable.trsm(a, b, lower, transpose, unitDiag, right, alpha, workspace)
+
+            direct == null -> regionTrsm(this, a, b, lower, transpose, unitDiag, right, alpha, workspace)
+
+            else -> {
+                requireTriangularMatrixOperands(a, b, right, "trsm")
+                stagedRegion(workspace, a, b) { sa ->
+                    direct.trsm(alpha, sa, triangle(lower, unitDiag), transpose, b, rightSide = right)
+                }
+            }
         }
     }
 
@@ -598,8 +654,8 @@ internal object HostDensePolicy {
     /**
      * The CBLAS entry point [operation] is one whole call to, or null where it is not one at all.
      *
-     * Windowed GER stays portable because the binding exposes neither offsets nor a parent leading
-     * dimension. Packed products also have no entry point. Their operands are grouped for this
+     * Windowed GER stays portable because no binding takes its windows, which offset both vectors as well as
+     * the matrix. Packed products also have no entry point. Their operands are grouped for this
      * library's own register tile, which is a layout of ours and not one a library has an argument for, so a
      * call over a retained panel stays on the portable schedule however large it is. An engine holding a
      * vendor binding is not evidence that such a call reached it, which is what keeps the route honest.

@@ -1,6 +1,7 @@
 package com.eignex.koblas.dense
 
 import com.eignex.koblas.*
+import com.eignex.koblas.vendor.openBlas
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
@@ -46,6 +47,8 @@ class DenseMatrixViewTest {
     private fun withRegions(body: (DenseBlas) -> Unit) {
         withDenseBlas(body)
         body(PackedRegionBlas(testDenseBlas))
+        // Admitting every size sends each fixture to the installed library, in place where its binding takes regions.
+        installedHost?.let(body)
     }
 
     @Test
@@ -115,6 +118,35 @@ class DenseMatrixViewTest {
                     }
                 }
             }
+        }
+    }
+
+    @Test
+    fun `unselected triangles and implicit unit diagonals are never read`() = withRegions { blas ->
+        for (lower in booleanArrayOf(false, true)) {
+            val a = region(6, 6)
+            for (j in 0 until 6) for (i in 0 until 6) if (i == j || (i > j) != lower) a[i, j] = Double.NaN
+            val b = region(6, 3, 2)
+            val x = DoubleArray(6) { it / 8.0 }
+            val panel = region(6, 3, 3)
+            val c = region(6, 6, 4)
+            for (j in 0 until 6) for (i in 0 until 6) if (i != j && (i > j) != lower) c[i, j] = Double.NaN
+            val expectedB = copy(b)
+            val expectedX = x.copyOf()
+            val expectedC = copy(c)
+            val beforeB = b.values.copyOf()
+            val beforeC = c.values.copyOf()
+            ReferenceBlas.trsm(copy(a), expectedB, lower, unitDiag = true)
+            ReferenceBlas.trsv(copy(a), expectedX, lower, unitDiag = true)
+            ReferenceBlas.syrk(-1.0, copy(panel), false, 1.0, expectedC, lower)
+
+            blas.trsm(a, b, lower, unitDiag = true, workspace = Workspace())
+            blas.trsv(a, x, lower, unitDiag = true, workspace = Workspace())
+            blas.syrk(-1.0, panel, false, 1.0, c, lower, Workspace())
+
+            assertRegionAgreesWithReference(expectedB, b, beforeB)
+            assertClose(expectedX, x, "unit diagonal trsv")
+            assertRegionAgreesWithReference(expectedC, c, beforeC)
         }
     }
 
@@ -349,6 +381,12 @@ class DenseMatrixViewTest {
         blas.gemv(1.0, a, doubleArrayOf(), 0.5, actual)
 
         assertClose(expected, actual, "empty inner dimension gemv")
+    }
+
+    private companion object {
+        val installedHost: DenseBlas? = openBlas()?.let {
+            HostDenseBlas(PortableDenseBlas(ScalarVectorKernels, PortablePanelKernels), it, minimumWork = 0)
+        }
     }
 }
 

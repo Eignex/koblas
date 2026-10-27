@@ -2,7 +2,7 @@
 
 package com.eignex.koblas.vendor
 
-import com.eignex.koblas.DenseMatrix
+import com.eignex.koblas.DenseMatrixRegion
 import com.eignex.koblas.DenseVector
 import kotlinx.cinterop.CPointer
 import kotlinx.cinterop.DoubleVar
@@ -55,17 +55,22 @@ internal class PinnedVector(
 internal fun Pins.stage(vector: DenseVector): PinnedVector =
     PinnedVector(pointer(vector.values, baseIndex(vector)), vector.stride)
 
-/** A matrix operand reaching BLAS in place, as the whole contiguous column-major block. */
+/** A matrix operand reaching BLAS in place, at its first entry and with its own column spacing. */
 internal class PinnedMatrix(
     /** Pointer BLAS reads and writes through. */
     val pointer: CPointer<DoubleVar>,
-    /** The leading dimension, which for contiguous column-major storage is the row count. */
+    /** The leading dimension: the row count for contiguous storage, the parent's spacing for a region. */
     val leadingDimension: Int,
 )
 
-/** Pins [matrix] for the call. */
-internal fun Pins.stage(matrix: DenseMatrix): PinnedMatrix =
-    PinnedMatrix(pointer(matrix.values, 0), maxOf(1, matrix.rows))
+/**
+ * Pins [matrix] for the call. An empty region may sit at the end of its buffer, where no entry has an address,
+ * so it passes the buffer's start instead; BLAS reads nothing through an operand with no entries.
+ */
+internal fun Pins.stage(matrix: DenseMatrixRegion): PinnedMatrix {
+    val empty = matrix.rows == 0 || matrix.cols == 0
+    return PinnedMatrix(pointer(matrix.values, if (empty) 0 else matrix.offset), maxOf(1, matrix.leadingDimension))
+}
 
 /**
  * Lowest storage index passed to BLAS. Negative increments retain their sign but start at the

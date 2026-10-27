@@ -53,7 +53,9 @@ public interface DenseBlas {
     /**
      * Region overload of [gemv]. Portable engines address borrowed storage directly. Other implementations
      * pack regions into contiguous workspace loans before calling their contiguous overloads. Host-composed
-     * engines do so only when the call is eligible for the host, otherwise using the portable region path.
+     * engines use the portable region path for a call the host is not eligible for. An eligible call reaches
+     * the library in place where its binding takes a region's offset and leading dimension, as on Kotlin/Native,
+     * and is packed otherwise.
      * Overlapping inputs retain their pre-call entries. Entries outside a destination region are untouched;
      * the transpose, triangle and zero-multiplier rules of the contiguous overload also apply to regions.
      * Packing, alias snapshots and ordinary backend panel scratch mean a view is not an allocation guarantee.

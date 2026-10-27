@@ -118,10 +118,12 @@ public enum class DenseMatrixOperation(internal val entryPoint: String) {
  *   composition that hands the whole call to a host library cannot, since a whole-call binding takes the
  *   caller's storage as it lies and has no argument for saying that two of its operands are one buffer. The
  *   copy is a component of that call, and a route that omitted it would be describing a different call.
- *   With [borrowed] host calls, set this only for overlap remaining between contiguous operands after
- *   borrowed operands have been packed; packing itself already snapshots the borrowed inputs.
- * @property borrowed whether any matrix operand is a [com.eignex.koblas.DenseMatrixView]. Host calls pack
- *   these regions into contiguous scratch.
+ *   With [borrowed] host calls, set this when an input's rectangle overlaps the destination's. A binding
+ *   that takes regions in place stages that input; one that packs regions snapshots borrowed inputs anyway,
+ *   so there it is only overlap remaining between contiguous operands.
+ * @property borrowed whether any matrix operand is a [com.eignex.koblas.DenseMatrixView]. A host binding
+ *   that takes a region's offset and leading dimension receives it in place, as on Kotlin/Native; other host
+ *   bindings receive regions packed into contiguous scratch, which the route names as a component.
  * @property leadingDimension the destination column spacing for matrix solves, or null for contiguous storage.
  * @property rightLeadingDimension the stored column spacing of a borrowed right operand in [DenseMatrixOperation.Gemm].
  *   Null uses its contiguous stored row count. Ignored when the right operand is not transposed.
