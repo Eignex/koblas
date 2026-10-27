@@ -11,9 +11,13 @@ import statistics
 import subprocess
 import tempfile
 import urllib.request
+import zipfile
+import shlex
 
 ROOT = Path(__file__).resolve().parent.parent
 MKL_PACKAGE = "intel-oneapi-mkl-core-2026.1-2026.1.0-236_amd64.deb"
+JDK27_URL = "https://download.oracle.com/java/27/latest/jdk-27_linux-x64_bin.tar.gz"
+JDK27_SHA256 = "d41bdc29a13920e90ee0f8e97a5bb9cb854ac06e0aa648a7fda1620db6c4e1ee"
 MKL_SHA256 = "3b230c02fc0ac44f8f71062c20cd883b37c6c1e00940dc0a7f13b02d9c47bd93"
 
 
@@ -54,7 +58,17 @@ def main():
     parser.add_argument("--jvm-heap", help="Use the same fixed JVM benchmark heap on both revisions, for example 1g")
     parser.add_argument("--install-onemkl", action="store_true")
     parser.add_argument("--build-heap", help="Bound each Gradle build heap, for example 2g, and compile Kotlin in process")
+    parser.add_argument("--baseline-java-version", type=int, choices=[25, 27])
+    parser.add_argument("--candidate-java-version", type=int, choices=[25, 27])
+    parser.add_argument("--install-jdk27", action="store_true")
+    parser.add_argument("--require-same-source", action="store_true")
+    parser.add_argument("--runtime-conformance", action="store_true")
     args = parser.parse_args()
+    versions = {"baseline": args.baseline_java_version, "candidate": args.candidate_java_version}
+    if (args.baseline_java_version is None) != (args.candidate_java_version is None):
+        parser.error("Specify both runtime versions together")
+    if args.install_jdk27 and 27 not in versions.values():
+        parser.error("Installing JDK27 requires a selected JDK27 arm")
     if not re.fullmatch(r"[0-9a-f]{40}", args.baseline_ref):
         parser.error("baseline-ref must be a full commit SHA")
     if args.rounds < 3 or args.samples < 1 or args.warmups < 1 or args.target_ms < 1 or args.forks < 1:
@@ -63,6 +77,8 @@ def main():
         parser.error("build-heap must be a positive size ending in m or g")
     if args.jvm_heap is not None and not re.fullmatch(r"[1-9][0-9]*[mg]", args.jvm_heap):
         parser.error("jvm-heap must be a positive size ending in m or g")
+    if args.runtime_conformance and not args.install_jdk27:
+        parser.error("Runtime conformance requires the installed pinned JDK27")
     cpu = min(os.sched_getaffinity(0)) if args.cpu == "auto" else int(args.cpu)
     if cpu not in os.sched_getaffinity(0):
         parser.error("cpu is outside the allowed affinity")
@@ -90,6 +106,34 @@ def main():
     scratch_parent.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix="revision-comparison-", dir=scratch_parent) as temporary:
         scratch = Path(temporary)
+        runtime_home = None
+        if args.install_jdk27:
+            archive = scratch / "jdk27.tar.gz"
+            urllib.request.urlretrieve(JDK27_URL, archive)
+            if hashlib.sha256(archive.read_bytes()).hexdigest() != JDK27_SHA256:
+                raise RuntimeError("JDK27 archive checksum differs from the validated runtime")
+            runtime_directory = scratch / "jdk27"
+            runtime_directory.mkdir()
+            run(["tar", "--extract", "--gzip", "--no-same-owner", "--file", str(archive), "--directory", str(runtime_directory)],
+                ROOT, environment, output / "jdk27-extract.log")
+            homes = [p.parent.parent for p in runtime_directory.glob("*/bin/java")]
+            if len(homes) != 1:
+                raise RuntimeError("JDK27 archive has an unexpected layout")
+            runtime_home = homes[0]
+            plan["jdk27_archive"] = dict(url=JDK27_URL, sha256=JDK27_SHA256,
+                                         java_sha256=hashlib.sha256((runtime_home / "bin/java").read_bytes()).hexdigest(),
+                                         release=(runtime_home / "release").read_text())
+
+        def runtime_environment(arm):
+            result = dict(environment)
+            if versions.get(arm) is not None:
+                properties = {"bench.javaVersion": str(versions[arm])}
+                if versions[arm] == 27 and runtime_home is not None:
+                    properties["bench.expectedJavaHome"] = str(runtime_home)
+                # Shell launchers discard environment entries containing dots; system properties survive them.
+                result["GRADLE_OPTS"] = result.get("GRADLE_OPTS", "") + " " + " ".join(
+                    shlex.quote("-Dorg.gradle.project." + name + "=" + value) for name, value in properties.items())
+            return result
         if args.install_onemkl:
             package = scratch / MKL_PACKAGE
             urllib.request.urlretrieve("https://apt.repos.intel.com/oneapi/pool/main/" + MKL_PACKAGE, package)
@@ -126,6 +170,28 @@ def main():
                 tasks.append(":koblas-bench:linkReleaseExecutableLinuxX64")
             run(["./gradlew", "--no-daemon", *tasks], tree, environment, output / f"{name}-build.log")
         trees = {"baseline": baseline, "candidate": ROOT}
+        if args.baseline_java_version is not None:
+            plan["runtime_versions"] = versions
+            for arm, tree in trees.items():
+                run(["./gradlew", "--no-daemon", ":koblas-bench:prepareBenchmarkRuntime"], tree,
+                    runtime_environment(arm), output / (arm + "-runtime.log"))
+        if args.runtime_conformance:
+            checks = [":koblas:simdG1AlignmentCheck", ":koblas:simdSerialAlignmentCheck", ":koblas:simdObjectAlignmentCheck"]
+            run(["./gradlew", "--no-daemon", *checks, "-Pkoblas.runtimeCheckJavaHome=" + str(runtime_home)],
+                ROOT, environment, output / "jdk27-reduction-conformance.log")
+            checked_runtime = (output / "jdk27-reduction-conformance.log").read_text()
+            if len(re.findall(r"reduction alignment conformance passed java=27\.", checked_runtime)) != len(checks):
+                raise RuntimeError("Reduction conformance did not execute on JDK27")
+            plan["runtime_conformance"] = dict(java=27, tasks=checks, status="passed")
+        if args.require_same_source:
+            if fingerprint(baseline, output=output) != fingerprint(ROOT, output=output):
+                raise RuntimeError("Runtime comparison requires identical source trees")
+            jars = [next((tree / "koblas/build/libs").glob("koblas-jvm-SNAPSHOT.jar")) for tree in trees.values()]
+            with zipfile.ZipFile(jars[0]) as first, zipfile.ZipFile(jars[1]) as second:
+                names = {n for n in first.namelist() if not n.endswith("/")}
+                if names != {n for n in second.namelist() if not n.endswith("/")} or any(first.read(n) != second.read(n) for n in names):
+                    raise RuntimeError("Runtime comparison library contents differ")
+            plan["identical_sources_and_library_contents"] = True
         hashes = {name: {"sources": fingerprint(tree, output=output), "binaries": fingerprint(tree, binaries=True)}
                   for name, tree in trees.items()}
         (output / "input-hashes.json").write_text(json.dumps(hashes, indent=2) + "\n")
@@ -149,7 +215,7 @@ def main():
                     command += ["--jvm-gc", args.jvm_gc]
                 if args.jvm_heap is not None:
                     command += ["--jvm-heap", args.jvm_heap]
-                capture_environment = dict(environment, KOBLAS_CAPTURE_ROOT=str(tree))
+                capture_environment = dict(runtime_environment(arm), KOBLAS_CAPTURE_ROOT=str(tree))
                 run(command, tree, capture_environment, output / f"round-{round_index + 1}-{arm}.log")
                 for name, checked_tree in trees.items():
                     if fingerprint(checked_tree, output=output) != hashes[name]["sources"] or \
@@ -160,6 +226,16 @@ def main():
                 if len(rows) != len([line for line in (output / "cases.txt").read_text().splitlines()
                                      if line.strip() and not line.lstrip().startswith("#")]):
                     raise RuntimeError("capture did not return every requested case")
+                if versions.get(arm) is not None:
+                    fork_lines = [line[line.index("fork_runtime "):] for line in (output / f"round-{round_index + 1}-{arm}.log").read_text().splitlines()
+                                  if "fork_runtime " in line]
+                    if versions[arm] == 27 and runtime_home is not None:
+                        invokers = re.findall(r"# VM invoker: (.+)", (output / f"round-{round_index + 1}-{arm}.log").read_text())
+                        if len(invokers) != len(rows) or any(Path(path).resolve() != (runtime_home / "bin/java").resolve() for path in invokers):
+                            raise RuntimeError("Measured forks did not use the pinned JDK27 executable")
+                    expected_forks = len(rows) * args.forks
+                    if len(fork_lines) != expected_forks or any(f" java={versions[arm]}." not in line for line in fork_lines):
+                        raise RuntimeError("Measured forks do not match the requested runtime")
                 for row in rows:
                     if row["status"] != "ok" or not float(row["median_ns"]) > 0:
                         raise RuntimeError(f"capture did not measure {arm}: {row}")
