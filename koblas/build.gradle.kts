@@ -281,6 +281,10 @@ val simdSerialAlignmentCheck = registerReductionAlignmentCheck(
     "simdSerialAlignmentCheck", "fallback", "-XX:+UseSerialGC",
 )
 
+val simdZgcAlignmentCheck = registerReductionAlignmentCheck(
+    "simdZgcAlignmentCheck", "fallback", "-XX:+UseZGC",
+)
+
 val simdObjectAlignmentCheck = registerReductionAlignmentCheck(
     "simdObjectAlignmentCheck", "object64", "-XX:+UseSerialGC", "-XX:ObjectAlignmentInBytes=64",
 )
@@ -299,6 +303,7 @@ tasks.named("check") {
         simdNoFmaCheck,
         simdG1AlignmentCheck,
         simdSerialAlignmentCheck,
+        simdZgcAlignmentCheck,
         simdObjectAlignmentCheck,
     )
 }
