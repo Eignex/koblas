@@ -67,6 +67,21 @@ the initial and maximum benchmark heap, and both options apply to the measured J
 older baseline build files. Build heaps remain separate. Ordinary captures leave these settings at
 their runtime defaults. Check the JMH VM options and per-fork runtime records before attributing a
 collector or alignment result.
+
+### Fixed native alignment control
+
+`prepareAlignmentDiagnostic` stages the current JVM kernel JAR and its runtime dependencies for
+`LabAlignmentReferenceLauncher`. This diagnostic measures IAMAX, DOT and ASUM at 65,536 elements over
+all eight offsets, with two forks and three interleaved rounds. Its oneMKL buffers either have fixed
+64-byte alignment or match the unpeeled heap window. It retains both controls and every offset;
+there is no best-offset selection. The native address probe runs outside arithmetic, and the JVM
+series uses the owned Vector API kernels. Native control calls use FFM over preallocated native
+buffers. Keep these raw controls separate from the public Kotlin/Native reference captures.
+
+For a local smoke after staging, run `experiments/alignment-reference.py` with `--java` pointing to
+JDK 25's `bin/java`, `--output` pointing to a new directory, `--mkl-root` pointing to oneMKL 2026.1,
+and `--smoke`. The lab launcher supplies the JDK and output path; without `--mkl-root`, the driver
+downloads and checks the same pinned oneMKL package as the public comparison driver.
 `--install-onemkl` extracts the reference container's checksum-pinned Intel package into temporary
 job storage and adds it to the child processes' library path; it needs `dpkg-deb` and changes no system
 installation. The library package and fetched baseline are removed after the job; their identities
