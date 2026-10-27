@@ -517,6 +517,33 @@ internal fun assertPanelsStayInsideTheirWindows(kernels: DensePanelKernels) {
     }
 }
 
+/** Long strips exercise wider column groups, a partial group and a scalar row tail. */
+internal fun assertLargeColumnUpdatesAgreeWithReference(kernels: DensePanelKernels) {
+    for (rows in intArrayOf(4_096, 4_097)) {
+        for (columns in intArrayOf(12, 13, 25)) {
+            for (stride in 1..2) {
+                val lda = rows + PAD
+                val a = DoubleArray(PAD + lda * columns + PAD) { Double.NaN }
+                for (c in 0 until columns) {
+                    for (i in 0 until rows) a[PAD + c * lda + i] = ((i + c) % 17 - 8) / 16.0
+                }
+                val coefficients = DoubleArray(PAD + columns * stride + PAD) { Double.NaN }
+                for (c in 0 until columns) coefficients[PAD + c * stride] = (c % 11 - 5) / 8.0
+                val destination = DoubleArray(PAD + rows + PAD) { -12345.0 }
+                for (i in 0 until rows) destination[PAD + i] = (i % 13 - 6) / 16.0
+                val expected = referenceColumnUpdate(
+                    0.875, a, PAD, lda, coefficients, PAD, stride, rows, columns, destination, PAD, 1,
+                )
+
+                val actual = destination.copyOf()
+                kernels.columnUpdate(0.875, a, PAD, lda, coefficients, PAD, stride, rows, columns, actual, PAD, 1)
+
+                assertClose(expected, actual, "long column update rows=$rows columns=$columns stride=$stride")
+            }
+        }
+    }
+}
+
 /**
  * The excluded diagonal is scattered but not reduced. A NaN there exposes forbidden reduction;
  * a separate pivot column remains readable by the scatter, including at that position.

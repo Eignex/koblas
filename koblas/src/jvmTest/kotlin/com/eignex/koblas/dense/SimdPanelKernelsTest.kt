@@ -18,6 +18,13 @@ class SimdPanelKernelsTest {
     private val kernels: DensePanelKernels? = BuiltinEngines.simd?.panelKernels
 
     @Test
+    fun `long column updates agree with the scalar oracle`() {
+        val kernels = kernels ?: return skipped()
+
+        assertLargeColumnUpdatesAgreeWithReference(kernels)
+    }
+
+    @Test
     fun `a panel with lanes to fill reaches the vector body and a shorter one does not`() {
         val kernels = kernels ?: return skipped()
         val lanes = lanes(kernels)

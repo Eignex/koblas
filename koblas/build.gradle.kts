@@ -259,6 +259,32 @@ val simdNoFmaCheck = registerRuntimePathCheck(
 )
 simdNoFmaCheck { args("", "false") }
 
+fun registerReductionAlignmentCheck(name: String, mode: String, vararg extraArgs: String) =
+    tasks.register<JavaExec>(name) {
+        group = "verification"
+        description = "Checks reduction windows against the scalar oracle with a fixed heap layout."
+        dependsOn("jvmTestClasses")
+        classpath(jvmTestCompilation.output.allOutputs, configurations.getByName("jvmTestRuntimeClasspath"))
+        mainClass.set("com.eignex.koblas.dense.SimdReductionAlignmentCheck")
+        val runtimeHome = providers.gradleProperty("koblas.runtimeCheckJavaHome").orNull
+        if (runtimeHome == null) javaLauncher.set(allocationCheckJavaLauncher)
+        else setExecutable("$runtimeHome/bin/java")
+        maxHeapSize = "128m"
+        jvmArgs("--add-modules=jdk.incubator.vector", "-XX:-TieredCompilation", "-XX:CompileThreshold=1000", *extraArgs)
+        args(mode)
+    }
+
+val simdG1AlignmentCheck = registerReductionAlignmentCheck(
+    "simdG1AlignmentCheck", "g1", "-XX:+UseG1GC", "-XX:G1HeapRegionSize=1m",
+)
+val simdSerialAlignmentCheck = registerReductionAlignmentCheck(
+    "simdSerialAlignmentCheck", "fallback", "-XX:+UseSerialGC",
+)
+
+val simdObjectAlignmentCheck = registerReductionAlignmentCheck(
+    "simdObjectAlignmentCheck", "object64", "-XX:+UseSerialGC", "-XX:ObjectAlignmentInBytes=64",
+)
+
 tasks.named("check") {
     dependsOn(
         oneMklInheritedInterfaceCheck,
@@ -271,6 +297,9 @@ tasks.named("check") {
         simdDenseAllocationCheckNarrowNoFma,
         simdNarrowSpeciesCheck,
         simdNoFmaCheck,
+        simdG1AlignmentCheck,
+        simdSerialAlignmentCheck,
+        simdObjectAlignmentCheck,
     )
 }
 
