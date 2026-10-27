@@ -15,7 +15,9 @@ internal object SimdReductionAlignmentCheck {
         val prefix = HotSpotArrayAlignment.prefix(values, 0, 65_536)
         val knownAlignment = HotSpotArrayAlignment.hasKnownAlignment(values)
         val mode = args.single()
-        if (mode == "fallback" || (mode == "object64" && SimdOps.lanes() > 8)) {
+        if (mode == "fallback" || (mode == "object64" && SimdOps.lanes() > 8) ||
+            (mode == "zgc" && SimdOps.lanes() > 64)
+        ) {
             check(!knownAlignment) { "an unsupported layout reported known alignment" }
             check(prefix == 0) { "an unsupported layout supplied an alignment prefix" }
         } else if (SimdOps.lanes() > 2) {
