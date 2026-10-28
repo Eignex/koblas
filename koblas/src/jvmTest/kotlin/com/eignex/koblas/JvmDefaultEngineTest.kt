@@ -52,6 +52,19 @@ class JvmDefaultEngineTest {
         assertEquals(if (koblas.vendor == null) "portable-dense" else "host-dense", route.scheduling)
     }
 
+    @Test
+    fun `an eligible default product preserves an aliased input buffer`() {
+        val order = 128
+        val a = DenseMatrix.wrap(order, order, DoubleArray(order * order) { (it % 19 - 9) / 17.0 })
+        val b = DenseMatrix.wrap(order, order, DoubleArray(order * order) { (it % 13 - 6) / 11.0 })
+        val expected = DenseMatrix.wrap(order, order, a.values.copyOf())
+        ReferenceBlas.gemm(0.875, a, false, b, true, -0.25, expected)
+
+        koblas.gemm(0.875, a, false, b, true, -0.25, a, Workspace())
+
+        assertAgreesWithReference(expected.values, a.values, "aliased default host product")
+    }
+
     // A route says which schedule was chosen; this says the chosen one computes.
     @OptIn(KoblasEngineApi::class)
     @Test
