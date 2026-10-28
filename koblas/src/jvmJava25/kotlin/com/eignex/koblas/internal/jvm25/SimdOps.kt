@@ -26,6 +26,33 @@ internal object SimdOps {
     @Suppress("LongParameterList") // two independently addressed vector windows and their multiplier
     fun axpy(y: DoubleArray, yOff: Int, alpha: Double, x: DoubleArray, xOff: Int, len: Int) {
         if (alpha == 0.0) return
+        if (len >= WIDE_AXPY_MIN) {
+            axpyUnrolled(y, yOff, alpha, x, xOff, len)
+        } else {
+            axpyShort(y, yOff, alpha, x, xOff, len)
+        }
+    }
+
+    /** A compact body lets HotSpot optimize cache-resident calls without the streaming loop's setup. */
+    @Suppress("LongParameterList") // two independently addressed vector windows and their multiplier
+    private fun axpyShort(y: DoubleArray, yOff: Int, alpha: Double, x: DoubleArray, xOff: Int, len: Int) {
+        val multiplier = DoubleVector.broadcast(SPECIES, alpha)
+        val bound = SPECIES.loopBound(len)
+        var i = 0
+        while (i < bound) {
+            DoubleVector.fromArray(SPECIES, x, xOff + i).mul(multiplier)
+                .add(DoubleVector.fromArray(SPECIES, y, yOff + i)).intoArray(y, yOff + i)
+            i += LANE
+        }
+        while (i < len) {
+            y[yOff + i] += alpha * x[xOff + i]
+            i++
+        }
+    }
+
+    /** Long streaming calls amortize four independent vector updates per iteration. */
+    @Suppress("LongParameterList") // two independently addressed vector windows and their multiplier
+    private fun axpyUnrolled(y: DoubleArray, yOff: Int, alpha: Double, x: DoubleArray, xOff: Int, len: Int) {
         val multiplier = DoubleVector.broadcast(SPECIES, alpha)
         val bound = SPECIES.loopBound(len)
         val unrolled = len - len % (4 * LANE)
@@ -59,6 +86,7 @@ internal object SimdOps {
     private const val ALIGNMENT_MIN = 4_096
     private const val IAMAX_ALIGNMENT_MIN = 65_536
     private const val WIDE_ASUM_MIN = 65_536
+    private const val WIDE_AXPY_MIN = 65_536
 
     /**
      * Four independent accumulators hide addition latency on long runs. [multiplyAdd] uses FMA only

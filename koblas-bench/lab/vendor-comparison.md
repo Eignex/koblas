@@ -9,9 +9,10 @@ native staging and writeback. No native-backed containers or critical vendor dow
 |---|---|---|---|
 | [9002](https://lab.eignex.com/jobs/9002) | `e1dc62f0` | 73-case scalar/SIMD/JVM oneMKL/native oneMKL diagnostic | Complete, three rotated rounds |
 | [9012](https://lab.eignex.com/jobs/9012) | `ee7b7f10` | Longer warmup and default-policy comparison | Failed reference check on the old 768-row triangular fixture; partial timings retained |
-| [9039](https://lab.eignex.com/jobs/9039) | `a1d6ada5` | Conditioned fixtures, unrolled AXPY and actual default routing | Pending |
+| [9039](https://lab.eignex.com/jobs/9039) | `a1d6ada5` | Conditioned fixtures, unrolled AXPY and actual default routing | Complete; use rounds 1 and 2 for timing |
 | [9062](https://lab.eignex.com/jobs/9062) | `fe0deefe` | Wider-tile follow-up | Cancelled because concurrent captures pin the same CPU |
 | [9063](https://lab.eignex.com/jobs/9063) | `a16e61fd` | Norm follow-up | Cancelled; follow-ups will run sequentially |
+| [9066](https://lab.eignex.com/jobs/9066) | `a23a3736` | Sequential combined tile, allocation and norm follow-up | Running |
 | [9064](https://lab.eignex.com/jobs/9064) | `a16e61fd` | 82-case comparison against Accelerate on Apple hardware | Pending Mac capacity |
 
 Job 9002 used an Intel Xeon Platinum 8375C, eight double lanes, JDK 25.0.4.1, Kotlin 2.4.10, Serial GC and
@@ -54,8 +55,41 @@ seven Level 3 routines above qualify, and every output extent and depth must rea
 few-right-hand-side solves, Level 1/2 calls, windowed GER and retained packed products keep owned kernels.
 Zero-multiplier rules and alias staging remain with the shared host composition.
 
-The 128 boundary is a conservative candidate under validation by job 9039. Accelerate default dispatch
+The 128 boundary is supported by the two accepted timing rounds of job 9039. Accelerate default dispatch
 awaits Apple measurements. The code does not infer Apple performance from Intel measurements.
+
+## Retained oneMKL dispatch comparison
+
+Job 9039 passed its numerical checks and completed all three rounds. Rounds 1 and 2 finished at
+16:40:07 UTC before follow-up measurements began. Round 3 overlapped follow-up jobs pinned to the
+same CPU and is excluded from performance conclusions. The table uses medians of the two accepted
+round medians, with the same ordinary-array call and transfer costs in every JVM arm.
+
+| Routine | Default speedup over exact SIMD at order 128 | At 256 | At 768 |
+|---|---:|---:|---:|
+| GEMM | 2.17x | 2.15x | 1.92x |
+| GEMMT | 1.81x | 1.95x | 1.45x |
+| SYMM | 2.18x | 2.60x | 1.77x |
+| SYRK | 2.19x | 1.78x | 1.91x |
+| SYR2K | 3.17x | 2.09x | 1.59x |
+| TRMM | 4.34x | 3.08x | 2.89x |
+| TRSM | 4.66x | 3.10x | 2.36x |
+
+AXPY at 65,536 elements measured about 38 microseconds for exact SIMD and 37 microseconds for native
+oneMKL, while the JVM oneMKL arm took 143 microseconds. At 4,096 elements the four-block SIMD body
+lost to the scalar loop (2.20 versus 1.88 microseconds); the subsequent implementation restores the
+compact SIMD body below 65,536 and retains unrolling for streaming calls. The separate follow-up
+validates that split. Default AXPY showed substantial fork variation, so these figures do not establish
+a precise performance guarantee for its surrounding compilation.
+
+ASUM and IAMAX at 4,096 measured 0.29 and 0.36 microseconds in exact SIMD. Their JVM oneMKL arms took
+1.80 and 1.72 microseconds. IAMAX at 65,536 still trails native compute (8.7 versus 4.0 microseconds),
+but the JVM binding takes about 29.6 microseconds. Dropping the owned body for that binding would regress
+the ordinary-array call.
+
+The deep thin GEMM controls also favored the JVM vendor arm: about 1.6x for `1x1x65536` and `16x16x4096`.
+The current default keeps them owned because their crossover across neighboring shapes has not been
+established. This is a remaining dispatch opportunity, not evidence that all thin products favor JVM code.
 
 ## JVM coverage
 

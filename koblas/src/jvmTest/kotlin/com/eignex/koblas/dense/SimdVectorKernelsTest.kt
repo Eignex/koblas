@@ -51,15 +51,16 @@ class SimdVectorKernelsTest {
     @Test
     fun `axpy preserves scalar product overflow across vector blocks and the tail`() {
         if (!SimdVectorKernels.isAvailable) return skipped()
-        val length = 4 * SimdOps.lanes() + 1
-        val source = DoubleArray(length + 6) { Double.MAX_VALUE }
-        val expected = DoubleArray(length + 6) { -Double.MAX_VALUE }
-        val actual = expected.copyOf()
-        ScalarVectorKernels.axpy(expected, 3, 2.0, source, 1, length)
+        for (length in listOf(4 * SimdOps.lanes() + 1, 65_536 + SimdOps.lanes() + 1)) {
+            val source = DoubleArray(length + 6) { Double.MAX_VALUE }
+            val expected = DoubleArray(length + 6) { -Double.MAX_VALUE }
+            val actual = expected.copyOf()
+            ScalarVectorKernels.axpy(expected, 3, 2.0, source, 1, length)
 
-        kernels.axpy(actual, 3, 2.0, source, 1, length)
+            kernels.axpy(actual, 3, 2.0, source, 1, length)
 
-        assertAxpyAgreesWithReference(expected, actual)
+            assertAxpyAgreesWithReference(expected, actual)
+        }
     }
 
     private fun assertAxpyAgreesWithReference(expected: DoubleArray, actual: DoubleArray) =
