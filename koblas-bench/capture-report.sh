@@ -2,6 +2,7 @@
 set -euo pipefail
 
 harness=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/$(basename "${BASH_SOURCE[0]}")
+source "$(dirname "$harness")/script-helpers.sh"
 root=$(cd "${KOBLAS_CAPTURE_ROOT:-$(dirname "$harness")/..}" && pwd)
 bench="$root/koblas-bench"
 libraries=all
@@ -57,7 +58,7 @@ done
 [[ -z $jvm_heap || $jvm_heap =~ ^[1-9][0-9]*[mg]$ ]] || { echo "jvm-heap must be a positive size ending in m or g" >&2; exit 2; }
 if [[ -n $cpu && ${KOBLAS_BENCH_PINNED:-false} != true ]]; then
   [[ $(uname -s) == Linux ]] || { echo "--cpu requires Linux taskset" >&2; exit 2; }
-  if [[ $cpu == auto ]]; then cpu=$(python3 -c 'import os; print(min(os.sched_getaffinity(0)))'); fi
+  if [[ $cpu == auto ]]; then cpu=$(first_allowed_cpu); fi
   [[ $cpu =~ ^[0-9]+$ ]] || { echo "cpu must be a logical CPU number or auto" >&2; exit 2; }
   exec taskset -c "$cpu" env KOBLAS_BENCH_PINNED=true "$0" "${original_args[@]}"
 fi
@@ -200,32 +201,9 @@ if ((rounds > 1)); then
   printf 'status=incomplete\n\n[capture]\nsource_commit=%s\nsource_kind=%s\nrounds=%s\naggregation=retain round medians for downstream aggregation\ncompleted_at=pending\n' \
     "$commit" "$source_kind" "$rounds" >"$metadata"
   printf 'jvm_gc=%s\njvm_heap=%s\n' "${jvm_gc:-default}" "${jvm_heap:-default}" >>"$metadata"
-  fingerprint() {
-    python3 - "$root" "$1" "$source_kind" <<'PY'
-import hashlib
-import os
-from pathlib import Path
-import subprocess
-import sys
-root = Path(sys.argv[1])
-if sys.argv[2] == 'sources' and sys.argv[3] == 'git':
-    paths = [root / p for p in subprocess.check_output(['git', '-C', str(root), 'ls-files', '-z']).decode().split('\0') if p]
-elif sys.argv[2] == 'sources':
-    paths = []
-    excluded = {'.git', '.gradle', '.kotlin', '.idea', 'build', 'node_modules'}
-    for directory, subdirectories, files in os.walk(root):
-        subdirectories[:] = [name for name in subdirectories if name not in excluded]
-        paths.extend(Path(directory) / name for name in files)
-else:
-    directories = ['koblas/build/libs', 'koblas-bench/build/classes', 'koblas-bench/build/bin', 'koblas-bench/jmh/build/libs']
-    paths = [p for directory in directories for p in (root / directory).rglob('*') if p.is_file()]
-for path in sorted(paths):
-    print(hashlib.sha256(path.read_bytes()).hexdigest(), path.relative_to(root))
-PY
-  }
-  fingerprint sources >"$output/source-hashes.txt"
+  fingerprint "$root" sources "$source_kind" >"$output/source-hashes.txt"
   for ((round=1; round<=rounds; round++)); do
-    fingerprint sources >"$temporary/current-hashes.txt"
+    fingerprint "$root" sources "$source_kind" >"$temporary/current-hashes.txt"
     cmp "$output/source-hashes.txt" "$temporary/current-hashes.txt"
     offset=$(((round - 1) % ${#targets[@]}))
     ordered=("${targets[@]:offset}" "${targets[@]:0:offset}")
@@ -240,9 +218,9 @@ PY
     if $vendors_only; then args+=(--vendors-only); fi
     if $smoke; then args+=(--smoke); fi
     "$0" "${args[@]}" 2>&1 | tee "$output/pass-$round.log"
-    fingerprint sources >"$temporary/current-hashes.txt"
+    fingerprint "$root" sources "$source_kind" >"$temporary/current-hashes.txt"
     cmp "$output/source-hashes.txt" "$temporary/current-hashes.txt"
-    fingerprint binaries >"$output/pass-$round-binary-hashes.txt"
+    fingerprint "$root" binaries >"$output/pass-$round-binary-hashes.txt"
     if ((round > 1)); then cmp "$output/pass-1-binary-hashes.txt" "$output/pass-$round-binary-hashes.txt"; fi
   done
   sed -e '1s/status=incomplete/status=complete/' \

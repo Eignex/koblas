@@ -77,7 +77,12 @@ jobs:
           ldconfig -p | grep libblis.so.4
 
       - name: Validate CI scripts
-        run: python3 .github/scripts/test-ci-scripts.py
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends libxml2-utils
+          bash .github/scripts/test-ci-scripts.sh
+          bash tests/test-verification-scripts.sh
+          bash koblas-bench/test-scripts.sh
 
       # One task graph shares compilation and analysis between checks and documentation lint.
       - name: Run checks and documentation lint with coverage
@@ -223,14 +228,13 @@ jobs:
         run: |
           set -euo pipefail
           test "$(uname -m)" = arm64
-          read -r device state < <(xcrun simctl list devices available -j | python3 -c '
-          import json, sys
-          devices = [device for runtime, group in json.load(sys.stdin)["devices"].items()
-                     if ".iOS-" in runtime for device in group if device["name"].startswith("iPhone")]
-          assert devices, "No installed iPhone simulator"
-          device = next((device for device in devices if device["state"] == "Booted"), devices[0])
-          print(device["udid"], device["state"])
-          ')
+          devices=$(xcrun simctl list devices available -j)
+          selection=$(jq -er '
+            [.devices | to_entries[] | select(.key | contains(".iOS-")) | .value[] |
+              select(.name | startswith("iPhone"))] |
+            (map(select(.state == "Booted"))[0] // .[0] // error("No installed iPhone simulator")) |
+            [.udid, .state] | @tsv' <<<"$devices")
+          read -r device state <<<"$selection"
           echo "IOS_SIMULATOR_DEVICE=$device" >> "$GITHUB_ENV"
           if [[ "$state" != Booted ]]; then xcrun simctl boot "$device"; fi
           xcrun simctl bootstatus "$device" -b
@@ -251,7 +255,7 @@ jobs:
           -PiosSimulatorDevice="$IOS_SIMULATOR_DEVICE"
       - name: Require executed simulator tests and linked frameworks
         run: |
-          python3 tests/verify-test-results.py koblas/build/test-results/iosSimulatorArm64Test tests/ios-consumer/build/test-results/iosSimulatorArm64Test
+          bash tests/verify-test-results.sh koblas/build/test-results/iosSimulatorArm64Test tests/ios-consumer/build/test-results/iosSimulatorArm64Test
           test -s tests/ios-consumer/build/bin/iosArm64/debugFramework/KoblasConsumer.framework/KoblasConsumer
           test -s tests/ios-consumer/build/bin/iosSimulatorArm64/debugFramework/KoblasConsumer.framework/KoblasConsumer
       - name: Upload test reports
@@ -356,7 +360,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: >-
-          python3 .github/scripts/download-artifact.py
+          bash .github/scripts/download-artifact.sh
           "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID" linux-arm64-tests build
       - name: Run portable native conformance on arm64
         run: |
@@ -396,9 +400,13 @@ jobs:
           ./gradlew :koblas:publishJvmPublicationToLocalStagingRepository
           :koblas:publishKotlinMultiplatformPublicationToLocalStagingRepository
           -PciVersion=0.0.0-consumer
+      - name: Install XML report tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends libxml2-utils
       - name: Verify the bytecode boundary and published JVM requirement
         run: |
-          python3 tests/verify-jvm-artifact.py \
+          bash tests/verify-jvm-artifact.sh \
             koblas/build/libs/koblas-jvm-0.0.0-consumer.jar koblas/build/publications/jvm/module.json
           jar --validate --file koblas/build/libs/koblas-jvm-0.0.0-consumer.jar
       - name: Build JVM and Android consumers of the same publication
@@ -408,7 +416,7 @@ jobs:
           :android:assembleDebug :android:assembleRelease :android:assembleDebugAndroidTest
       - name: Verify both Android APKs contain only portable code
         run: |
-          python3 tests/verify-jvm-artifact.py \
+          bash tests/verify-jvm-artifact.sh \
             koblas/build/libs/koblas-jvm-0.0.0-consumer.jar koblas/build/publications/jvm/module.json \
             tests/consumers/android/build/outputs/apk/debug/android-debug.apk \
             tests/consumers/android/build/outputs/apk/release/android-release.apk
@@ -428,7 +436,7 @@ jobs:
           script: |
             ./gradlew -p tests/consumers :android:connectedDebugAndroidTest
             ./gradlew -p tests/consumers :android:connectedReleaseAndroidTest -Pconsumer.buildType=release
-            python3 tests/verify-test-results.py tests/consumers/android/build/outputs/androidTest-results/connected/debug tests/consumers/android/build/outputs/androidTest-results/connected/release
+            bash tests/verify-test-results.sh tests/consumers/android/build/outputs/androidTest-results/connected/debug tests/consumers/android/build/outputs/androidTest-results/connected/release
       - name: Upload Android consumer test reports
         if: always()
         uses: actions/upload-artifact@v7
