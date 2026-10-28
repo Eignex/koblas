@@ -39,28 +39,11 @@ jobs:
           ref: ${{ inputs.ref || github.sha }}
           fetch-depth: 2
 
-      - name: Set up JDK
-        uses: actions/setup-java@v6
+      - name: Set up build
+        uses: ./.github/actions/setup-build
         with:
-          distribution: temurin
-          java-version: 25
-
-      # Build jobs persist dependency and encrypted configuration caches.
-      - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v6
-        with:
-          cache-read-only: false
           cache-encryption-key: ${{ secrets.GRADLE_ENCRYPTION_KEY }}
-
-      - name: Cache Kotlin/Native toolchain
-        uses: actions/cache@v6
-        with:
-          path: ~/.konan
-          key: ${{ runner.os }}-${{ runner.arch }}-konan-${{ hashFiles('**/*.gradle.kts', '**/gradle.properties', '**/gradle-wrapper.properties', '**/*.versions.toml') }}
-          restore-keys: ${{ runner.os }}-${{ runner.arch }}-konan-
-
-      - name: Grant execute permission for Gradle
-        run: chmod +x gradlew
+          native-cache: 'true'
 
       # Exercise Linux host bindings as well as the portable conformance floor. Serial BLIS reaches the
       # AOCL arm without worker threads; OpenBLAS has its own benchmark comparator job below.
@@ -98,7 +81,7 @@ jobs:
 
       # One task graph shares compilation and analysis between checks and documentation lint.
       - name: Run checks and documentation lint with coverage
-        run: ./gradlew :koblas:check :koblas-bench:check lintDocs :koblas:koverXmlReport
+        run: ./gradlew check lintDocs :koblas:koverXmlReport
 
       - name: Upload test reports
         if: always()
@@ -106,8 +89,8 @@ jobs:
         with:
           name: test-reports
           path: |
-            koblas/build/reports/tests/
-            koblas/build/test-results/
+            **/build/reports/tests/
+            **/build/test-results/
           if-no-files-found: ignore
 
       - name: Upload results to Codecov (main only)
@@ -116,6 +99,7 @@ jobs:
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: koblas/build/reports/kover/report.xml
+          disable_search: true
           flags: reference
           fail_ci_if_error: false
 
@@ -134,27 +118,11 @@ jobs:
           ref: ${{ inputs.ref || github.sha }}
           fetch-depth: 2
 
-      - name: Set up JDK
-        uses: actions/setup-java@v6
+      - name: Set up build
+        uses: ./.github/actions/setup-build
         with:
-          distribution: temurin
-          java-version: 25
-
-      - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v6
-        with:
-          cache-read-only: false
           cache-encryption-key: ${{ secrets.GRADLE_ENCRYPTION_KEY }}
-
-      - name: Cache Kotlin/Native toolchain
-        uses: actions/cache@v6
-        with:
-          path: ~/.konan
-          key: ${{ runner.os }}-${{ runner.arch }}-konan-${{ hashFiles('**/*.gradle.kts', '**/gradle.properties', '**/gradle-wrapper.properties', '**/*.versions.toml') }}
-          restore-keys: ${{ runner.os }}-${{ runner.arch }}-konan-
-
-      - name: Grant execute permission for Gradle
-        run: chmod +x gradlew
+          native-cache: 'true'
 
       # The binding dlopens by soname, so the runtime libraries are what matter.
       #
@@ -223,8 +191,8 @@ jobs:
         with:
           name: test-reports-openblas-comparator
           path: |
-            koblas-bench/build/reports/tests/
-            koblas-bench/build/test-results/
+            **/build/reports/tests/
+            **/build/test-results/
           if-no-files-found: ignore
 
   # The Linux job cross-compiles the macOS klibs but cannot link or run them; this job exercises
@@ -242,27 +210,11 @@ jobs:
           ref: ${{ inputs.ref || github.sha }}
           fetch-depth: 2
 
-      - name: Set up JDK
-        uses: actions/setup-java@v6
+      - name: Set up build
+        uses: ./.github/actions/setup-build
         with:
-          distribution: temurin
-          java-version: 25
-
-      - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v6
-        with:
-          cache-read-only: false
           cache-encryption-key: ${{ secrets.GRADLE_ENCRYPTION_KEY }}
-
-      - name: Cache Kotlin/Native toolchain
-        uses: actions/cache@v6
-        with:
-          path: ~/.konan
-          key: ${{ runner.os }}-${{ runner.arch }}-konan-${{ hashFiles('**/*.gradle.kts', '**/gradle.properties', '**/gradle-wrapper.properties', '**/*.versions.toml') }}
-          restore-keys: ${{ runner.os }}-${{ runner.arch }}-konan-
-
-      - name: Grant execute permission for Gradle
-        run: chmod +x gradlew
+          native-cache: 'true'
 
       - name: Run JVM and native tests
         run: ./gradlew :koblas:jvmTest :koblas:macosArm64Test
@@ -308,10 +260,8 @@ jobs:
         with:
           name: test-reports-macos
           path: |
-            koblas/build/reports/tests/
-            koblas/build/test-results/
-            tests/ios-consumer/build/reports/tests/
-            tests/ios-consumer/build/test-results/
+            **/build/reports/tests/
+            **/build/test-results/
           if-no-files-found: ignore
 
   test-onemkl:
@@ -323,13 +273,9 @@ jobs:
         with:
           persist-credentials: false
           ref: ${{ inputs.ref || github.sha }}
-      - uses: actions/setup-java@v6
+      - name: Set up build
+        uses: ./.github/actions/setup-build
         with:
-          distribution: temurin
-          java-version: 25
-      - uses: gradle/actions/setup-gradle@v6
-        with:
-          cache-read-only: false
           cache-encryption-key: ${{ secrets.GRADLE_ENCRYPTION_KEY }}
       # Portable conformance needs a host without a vendor library. Install oneMKL only afterwards;
       # Gradle starts fresh test JVMs for its interface checks and the SIMD-enabled test run.
@@ -341,10 +287,8 @@ jobs:
         with:
           name: test-reports-portable-jvm
           path: |
-            koblas/build/reports/tests/
-            koblas/build/test-results/
-            koblas-bench/build/reports/tests/
-            koblas-bench/build/test-results/
+            **/build/reports/tests/
+            **/build/test-results/
           if-no-files-found: ignore
       - name: Cache oneMKL runtime package
         uses: actions/cache@v6
@@ -365,8 +309,8 @@ jobs:
         with:
           name: test-reports-onemkl
           path: |
-            koblas/build/reports/tests/
-            koblas/build/test-results/
+            **/build/reports/tests/
+            **/build/test-results/
           if-no-files-found: ignore
 
   # Kotlin/Native builds final Linux binaries on x64 hosts. Execute the cross-built tests on real arm64.
@@ -379,20 +323,11 @@ jobs:
         with:
           persist-credentials: false
           ref: ${{ inputs.ref || github.sha }}
-      - uses: actions/setup-java@v6
+      - name: Set up build
+        uses: ./.github/actions/setup-build
         with:
-          distribution: temurin
-          java-version: 25
-      - uses: gradle/actions/setup-gradle@v6
-        with:
-          cache-read-only: false
           cache-encryption-key: ${{ secrets.GRADLE_ENCRYPTION_KEY }}
-      - name: Cache Kotlin/Native toolchain
-        uses: actions/cache@v6
-        with:
-          path: ~/.konan
-          key: ${{ runner.os }}-${{ runner.arch }}-konan-${{ hashFiles('**/*.gradle.kts', '**/gradle.properties', '**/gradle-wrapper.properties', '**/*.versions.toml') }}
-          restore-keys: ${{ runner.os }}-${{ runner.arch }}-konan-
+          native-cache: 'true'
       - name: Cross-compile native conformance tests
         run: ./gradlew :koblas:linkDebugTestLinuxArm64 :koblas-bench:linkDebugTestLinuxArm64
       - name: Package test executables
@@ -452,13 +387,9 @@ jobs:
         with:
           persist-credentials: false
           ref: ${{ inputs.ref || github.sha }}
-      - uses: actions/setup-java@v6
+      - name: Set up build
+        uses: ./.github/actions/setup-build
         with:
-          distribution: temurin
-          java-version: 25
-      - uses: gradle/actions/setup-gradle@v6
-        with:
-          cache-read-only: false
           cache-encryption-key: ${{ secrets.GRADLE_ENCRYPTION_KEY }}
       - name: Stage the shared Maven publication
         run: >-

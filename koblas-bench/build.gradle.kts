@@ -5,24 +5,17 @@ import org.gradle.jvm.toolchain.JavaLanguageVersion
 import org.gradle.jvm.toolchain.JvmVendorSpec
 import org.jetbrains.kotlin.gradle.targets.jvm.KotlinJvmTarget
 
-plugins { id("com.eignex.kmp") version "1.3.5" }
-
-repositories {
-    maven("https://central.sonatype.com/repository/maven-snapshots/") {
-        mavenContent { snapshotsOnly() }
-        content { includeGroup("com.eignex") }
-    }
-}
+plugins { id("com.eignex.kmp") }
 
 eignexPublish { publish.set(false) }
 eignexBuild {
+    jvmToolchain.set(25)
     abiValidationEnabled.set(false)
     // The benchmark harness does not yet follow the library's lint conventions.
     lintEnabled.set(false)
 }
 
 kotlin {
-    applyDefaultHierarchyTemplate()
     compilerOptions {
         allWarningsAsErrors.set(true)
         freeCompilerArgs.add("-Xexpect-actual-classes")

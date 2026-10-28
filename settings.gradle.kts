@@ -1,13 +1,21 @@
 rootProject.name = "koblas"
 
 pluginManagement {
+    val kbuildVersion = "1.3.6"
     repositories {
-        maven("https://central.sonatype.com/repository/maven-snapshots/") {
-            mavenContent { snapshotsOnly() }
-            content { includeGroupByRegex("com\\.eignex.*") }
+        ivy {
+            url = uri("https://github.com/Eignex/kbuild/releases/download")
+            patternLayout { artifact("v[revision]/[artifact]-[revision](-[classifier]).[ext]") }
+            metadataSources { gradleMetadata() }
+            content { includeModule("com.eignex", "kbuild") }
         }
         mavenCentral()
         gradlePluginPortal()
+    }
+    resolutionStrategy.eachPlugin {
+        if (requested.id.id in setOf("com.eignex.kmp", "org.jetbrains.kotlin.plugin.serialization")) {
+            useModule("com.eignex:kbuild:$kbuildVersion")
+        }
     }
 }
 
