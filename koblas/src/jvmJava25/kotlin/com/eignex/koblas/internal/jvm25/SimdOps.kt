@@ -33,21 +33,21 @@ internal object SimdOps {
         }
     }
 
-    /** A compact body lets HotSpot optimize cache-resident calls without the streaming loop's setup. */
+    /** The caller supplies a complete vector; the final block also covers any remaining short tail. */
     @Suppress("LongParameterList") // two independently addressed vector windows and their multiplier
     private fun axpyShort(y: DoubleArray, yOff: Int, alpha: Double, x: DoubleArray, xOff: Int, len: Int) {
         val multiplier = DoubleVector.broadcast(SPECIES, alpha)
-        val bound = SPECIES.loopBound(len)
+        val last = len - LANE
+        // The last block can overlap the loop. Compute it before any stores so that overlap is updated once.
+        val finalValues = DoubleVector.fromArray(SPECIES, x, xOff + last).mul(multiplier)
+            .add(DoubleVector.fromArray(SPECIES, y, yOff + last))
         var i = 0
-        while (i < bound) {
+        while (i < last) {
             DoubleVector.fromArray(SPECIES, x, xOff + i).mul(multiplier)
                 .add(DoubleVector.fromArray(SPECIES, y, yOff + i)).intoArray(y, yOff + i)
             i += LANE
         }
-        while (i < len) {
-            y[yOff + i] += alpha * x[xOff + i]
-            i++
-        }
+        finalValues.intoArray(y, yOff + last)
     }
 
     /** Long streaming calls amortize four independent vector updates per iteration. */
