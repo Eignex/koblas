@@ -5,11 +5,25 @@ root=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)
 output=
 operation=all
 requested_vendor=
+cases="$root/koblas-bench/lab/cases-vendor-comparison.txt"
+samples=5
+warmups=5
+target_ms=200
+forks=2
+rounds=3
+targets=
 while (($#)); do
   case "$1" in
     --output) output=${2:?}; shift 2 ;;
     --operation) operation=${2:?}; shift 2 ;;
     --vendor) requested_vendor=${2:?}; shift 2 ;;
+    --cases) cases=${2:?}; shift 2 ;;
+    --samples) samples=${2:?}; shift 2 ;;
+    --warmups) warmups=${2:?}; shift 2 ;;
+    --target-ms) target_ms=${2:?}; shift 2 ;;
+    --forks) forks=${2:?}; shift 2 ;;
+    --rounds) rounds=${2:?}; shift 2 ;;
+    --targets) targets=${2:?}; shift 2 ;;
     *) echo "usage: vendor-capture.sh --output DIR [--operation NAME] [--vendor NAME]" >&2; exit 2 ;;
   esac
 done
@@ -51,6 +65,7 @@ PY
   printf '%s\n' "$package 3b230c02fc0ac44f8f71062c20cd883b37c6c1e00940dc0a7f13b02d9c47bd93" > "$output/vendor-package.txt"
 fi
 [[ -z $requested_vendor || $requested_vendor == "$vendor" ]] || { echo "vendor requires a different capture host" >&2; exit 2; }
+if [[ -z $targets ]]; then targets="jvm-scalar,jvm-simd,$vendor-jvm,$vendor"; fi
 
 ./gradlew --no-daemon -Pkotlin.compiler.execution.strategy=in-process :koblas-bench:prepareLabBenchmark ":koblas-bench:linkReleaseExecutable$target" > "$output/build.log" 2>&1
 export KOBLAS_BENCH_JAVA="${JAVA_HOME:+$JAVA_HOME/bin/}java"
@@ -59,8 +74,8 @@ export KOBLAS_BENCH_HEAP_MIB=512
 if [[ $target == MacosArm64 ]]; then native_target=macosArm64; else native_target=linuxX64; fi
 exec bash koblas-bench/capture-report.sh --prepared --retain-incomplete \
   --native-executable "$root/koblas-bench/build/bin/$native_target/releaseExecutable/koblas-bench.kexe" \
-  --libraries "$vendor" --targets "jvm-scalar,jvm-simd,$vendor-jvm,$vendor" \
-  --cases "$root/koblas-bench/lab/cases-vendor-comparison.txt" \
+  --libraries "$vendor" --targets "$targets" \
+  --cases "$cases" \
   --operation "$operation" \
-  --rounds 3 --samples 3 --warmups 3 --target-ms 100 --forks 1 \
+  --rounds "$rounds" --samples "$samples" --warmups "$warmups" --target-ms "$target_ms" --forks "$forks" \
   --jvm-gc serial --jvm-heap 512m "${pin[@]}" --output "$output/report"
