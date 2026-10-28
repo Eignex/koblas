@@ -67,6 +67,29 @@ class SimdVectorKernelsTest {
         assertContentEquals(expected, actual)
 
     @Test
+    fun `axpy short tails agree with the scalar oracle on shared buffers`() {
+        if (!SimdVectorKernels.isAvailable) return skipped()
+        val lane = SimdOps.lanes()
+        val values = doubleArrayOf(
+            -0.0, 0.0, Double.MIN_VALUE, Double.MAX_VALUE, -2.5, 3.0,
+            Double.NEGATIVE_INFINITY, Double.POSITIVE_INFINITY, Double.NaN,
+        )
+        for (length in (0..2 * lane + 1).toList() + listOf(27, 31, 56, 64, 65, 70)) {
+            for (alpha in listOf(0.0, 1.0, -0.75, 2.0)) {
+                for (sourceOffset in listOf(3, length + 6)) {
+                    val expected = DoubleArray(2 * length + 9) { values[it % values.size] }
+                    val actual = expected.copyOf()
+                    ScalarVectorKernels.axpy(expected, 3, alpha, expected, sourceOffset, length)
+
+                    kernels.axpy(actual, 3, alpha, actual, sourceOffset, length)
+
+                    assertAxpyAgreesWithReference(expected, actual)
+                }
+            }
+        }
+    }
+
+    @Test
     fun `unit axpy agrees with the scalar oracle across windows and shared buffers`() {
         if (!SimdVectorKernels.isAvailable) return skipped()
         val values = doubleArrayOf(
