@@ -28,7 +28,7 @@ internal object SimdOps {
         if (alpha == 0.0) return
         if (len >= WIDE_AXPY_MIN) {
             axpyUnrolled(y, yOff, alpha, x, xOff, len)
-        } else if (len % LANE >= LANE / 2) {
+        } else if (len >= 2 * LANE && len % LANE >= LANE / 2) {
             axpyTail(y, yOff, alpha, x, xOff, len)
         } else {
             axpyShort(y, yOff, alpha, x, xOff, len)
@@ -52,7 +52,7 @@ internal object SimdOps {
         }
     }
 
-    /** The caller supplies a complete vector; the final block also covers any remaining short tail. */
+    /** Multiple full vectors amortize a final block that also covers a substantial tail. */
     @Suppress("LongParameterList") // two independently addressed vector windows and their multiplier
     private fun axpyTail(y: DoubleArray, yOff: Int, alpha: Double, x: DoubleArray, xOff: Int, len: Int) {
         val multiplier = DoubleVector.broadcast(SPECIES, alpha)
