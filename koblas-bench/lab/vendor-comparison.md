@@ -14,7 +14,7 @@ native staging and writeback. No native-backed containers or critical vendor dow
 | [9063](https://lab.eignex.com/jobs/9063) | `a16e61fd` | Norm follow-up | Cancelled; follow-ups will run sequentially |
 | [9066](https://lab.eignex.com/jobs/9066) | `a23a3736` | Sequential combined tile, allocation and norm follow-up | Complete; wider tile rejected |
 | [9068](https://lab.eignex.com/jobs/9068) | `57fc0f72` | Compact and streaming AXPY through exact and default engines, with allocation profiling | Complete, three rounds |
-| [9064](https://lab.eignex.com/jobs/9064) | `a16e61fd` | 82-case comparison against Accelerate on Apple hardware | Pending Mac capacity |
+| [9070](https://lab.eignex.com/jobs/9070) | `59bcc0e8` | 82-case comparison of the final implementation against Accelerate on Apple hardware | Pending Mac capacity |
 
 Job 9002 used an Intel Xeon Platinum 8375C, eight double lanes, JDK 25.0.4.1, Kotlin 2.4.10, Serial GC and
 a fixed 512 MiB JVM heap. It used one JMH fork per round, three 100 ms warmups and three 100 ms samples.
@@ -43,7 +43,8 @@ Dense triangular fixtures now keep each off-diagonal row norm below one half. Th
 with explicit or implicit unit diagonals without relaxing scalar-reference tolerances. Cross-revision
 triangular timings with the old fixture are not paired comparisons.
 
-Jobs 9006 and 9040 never started measurement and were replaced by the corrected 82-case Apple workload.
+Jobs 9006, 9040 and 9064 never started measurement and were replaced by the corrected 82-case Apple
+workload at the final runtime revision.
 The final workload admits value-dependent dense NRM2 as a composition, and raw sparse slices use the
 explicit engine rather than requiring identity with the default. Vendor arms honestly report no symbol
 for SUM or indexed sparse norms.
