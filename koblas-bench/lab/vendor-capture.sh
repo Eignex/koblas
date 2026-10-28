@@ -41,7 +41,7 @@ if [[ $(uname -s) == Darwin ]]; then
 else
   vendor=onemkl
   target=LinuxX64
-  pin=(--cpu auto)
+  pin=(--cpu spread)
   # Extract the same checksum-pinned reference used in earlier lab comparisons, without installing globally.
   package=intel-oneapi-mkl-core-2026.1-2026.1.0-236_amd64.deb
   directory="$root/koblas-bench/build/vendor-reference"

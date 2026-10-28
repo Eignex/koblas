@@ -38,7 +38,10 @@ Each round rotates the target order and retains its own CSVs, metadata and log u
 folder. Source hashes must stay unchanged, and binaries must match after every completed round.
 For each case and target, take the median of the round `median_ns` values before calculating throughput;
 the round files retain the spread. `--cpu auto` pins the capture and its child processes to the first
-CPU allowed by the job's affinity mask. It does not isolate that CPU from other work.
+CPU allowed by the job's affinity mask. `--cpu spread` samples allowed cores for 200 ms and
+chooses a lightly loaded core, considering its SMT siblings and randomizing ties. Lab vendor captures
+use this policy with the ordinary two-CPU job budget. The selected affinity and policy are recorded;
+the capture stays pinned to that core across rounds. These policies permit sharing with other work.
 
 Lab jobs use the [Bench SDK adapter](#bench-sdk-adapter) to prepare and run these captures.
 
@@ -565,14 +568,6 @@ a separate `capture.log`. Ordinary captures retain their atomic replacement beha
 Smoke results verify integration and are not performance evidence. Linux arm64
 and macOS Native binaries require their corresponding preparation tasks and
 hardware validation before using those targets.
-
-### Worker reservations for vendor comparisons
-
-The vendor comparison adapter accepts `reservation-cpus` as a placement requirement. On a 16-vCPU lab
-worker, `reservation-cpus=16` claims its complete CPU budget so other builds and captures cannot share
-the worker during measurement. The measured JVM and BLAS arithmetic still use one compute thread.
-Keep the case's resource declaration and the lab capacity snapshot with the report when checking
-isolation. Omitting the parameter preserves the ordinary two-CPU reservation.
 
 ### Allocation measurements
 

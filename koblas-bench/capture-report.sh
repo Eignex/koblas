@@ -29,7 +29,7 @@ prepared=false
 retain_incomplete=false
 
 usage() {
-  echo "usage: capture-report.sh [--libraries openblas,accelerate,onemkl,aocl,armpl|all] [--targets NAME,...] [--prepared] [--retain-incomplete] [--vendors-only] [--smoke] [--output DIR] [--native-executable PATH] [--cases FILE] [--operation NAME|all] [--suite default|sweep] [--samples N] [--warmups N] [--target-ms N] [--forks N] [--pass N] [--rounds N] [--cpu N|auto] [--jvm-gc g1|serial|zgc] [--jvm-heap SIZE]" >&2
+  echo "usage: capture-report.sh [--libraries openblas,accelerate,onemkl,aocl,armpl|all] [--targets NAME,...] [--prepared] [--retain-incomplete] [--vendors-only] [--smoke] [--output DIR] [--native-executable PATH] [--cases FILE] [--operation NAME|all] [--suite default|sweep] [--samples N] [--warmups N] [--target-ms N] [--forks N] [--pass N] [--rounds N] [--cpu N|auto|spread] [--jvm-gc g1|serial|zgc] [--jvm-heap SIZE]" >&2
 }
 while (($#)); do
   case "$1" in
@@ -62,9 +62,11 @@ done
 [[ -z $jvm_heap || $jvm_heap =~ ^[1-9][0-9]*[mg]$ ]] || { echo "jvm-heap must be a positive size ending in m or g" >&2; exit 2; }
 if [[ -n $cpu && ${KOBLAS_BENCH_PINNED:-false} != true ]]; then
   [[ $(uname -s) == Linux ]] || { echo "--cpu requires Linux taskset" >&2; exit 2; }
+  cpu_policy=$cpu
+  if [[ $cpu == spread ]]; then cpu=$(python3 "$bench/select-cpu.py"); fi
   if [[ $cpu == auto ]]; then cpu=$(first_allowed_cpu); fi
-  [[ $cpu =~ ^[0-9]+$ ]] || { echo "cpu must be a logical CPU number or auto" >&2; exit 2; }
-  exec taskset -c "$cpu" env KOBLAS_BENCH_PINNED=true "$0" "${original_args[@]}"
+  [[ $cpu =~ ^[0-9]+$ ]] || { echo "cpu must be a logical CPU number, auto or spread" >&2; exit 2; }
+  exec taskset -c "$cpu" env KOBLAS_BENCH_PINNED=true KOBLAS_BENCH_CPU_POLICY="$cpu_policy" "$0" "${original_args[@]}"
 fi
 [[ $suite == default || $suite == sweep ]] || { echo "suite must be default or sweep" >&2; exit 2; }
 [[ $suite != sweep || $operation != all ]] || { echo "suite sweep requires a specific operation" >&2; exit 2; }
@@ -268,6 +270,7 @@ cp "$cases" "$results/cases.txt"
   # way an ARM64 host has any. A report that does not say this cannot be told apart from one that linked here.
   echo "native_executable=${native_executable:-not supplied}"
   echo "requested_jvm_forks=$forks"
+  echo "cpu_policy=${KOBLAS_BENCH_CPU_POLICY:-unbound}"
   if [[ $platform == Linux ]]; then awk '/^Cpus_allowed_list:/ { print "cpu_affinity=" $2 }' /proc/self/status; fi
   echo "targets=$(IFS=,; echo "${targets[*]}")"
   env | LC_ALL=C sort | awk '/^KOBLAS_(DENSE|SPARSE)_/ { print }'
