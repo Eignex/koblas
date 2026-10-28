@@ -28,7 +28,19 @@ internal object SimdOps {
         if (alpha == 0.0) return
         val multiplier = DoubleVector.broadcast(SPECIES, alpha)
         val bound = SPECIES.loopBound(len)
+        val unrolled = len - len % (4 * LANE)
         var i = 0
+        while (i < unrolled) {
+            DoubleVector.fromArray(SPECIES, x, xOff + i).mul(multiplier)
+                .add(DoubleVector.fromArray(SPECIES, y, yOff + i)).intoArray(y, yOff + i)
+            DoubleVector.fromArray(SPECIES, x, xOff + i + LANE).mul(multiplier)
+                .add(DoubleVector.fromArray(SPECIES, y, yOff + i + LANE)).intoArray(y, yOff + i + LANE)
+            DoubleVector.fromArray(SPECIES, x, xOff + i + 2 * LANE).mul(multiplier)
+                .add(DoubleVector.fromArray(SPECIES, y, yOff + i + 2 * LANE)).intoArray(y, yOff + i + 2 * LANE)
+            DoubleVector.fromArray(SPECIES, x, xOff + i + 3 * LANE).mul(multiplier)
+                .add(DoubleVector.fromArray(SPECIES, y, yOff + i + 3 * LANE)).intoArray(y, yOff + i + 3 * LANE)
+            i += 4 * LANE
+        }
         while (i < bound) {
             val increment = DoubleVector.fromArray(SPECIES, x, xOff + i).mul(multiplier)
             increment.add(DoubleVector.fromArray(SPECIES, y, yOff + i)).intoArray(y, yOff + i)

@@ -1,7 +1,9 @@
 package com.eignex.koblas.dense
 
 import com.eignex.koblas.internal.jvm25.SimdVectorKernels
+import com.eignex.koblas.internal.jvm25.SimdOps
 import kotlin.test.Test
+import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
@@ -45,6 +47,23 @@ class SimdVectorKernelsTest {
         assertEquals(kernels.name, reached(DenseOperation.Axpy, WIDE))
         assertLevel1KernelsAgreeWithReference(kernels)
     }
+
+    @Test
+    fun `axpy preserves scalar product overflow across vector blocks and the tail`() {
+        if (!SimdVectorKernels.isAvailable) return skipped()
+        val length = 4 * SimdOps.lanes() + 1
+        val source = DoubleArray(length + 6) { Double.MAX_VALUE }
+        val expected = DoubleArray(length + 6) { -Double.MAX_VALUE }
+        val actual = expected.copyOf()
+        ScalarVectorKernels.axpy(expected, 3, 2.0, source, 1, length)
+
+        kernels.axpy(actual, 3, 2.0, source, 1, length)
+
+        assertAxpyAgreesWithReference(expected, actual)
+    }
+
+    private fun assertAxpyAgreesWithReference(expected: DoubleArray, actual: DoubleArray) =
+        assertContentEquals(expected, actual)
 
     @Test
     fun `the index search waits for its own measured width`() {
