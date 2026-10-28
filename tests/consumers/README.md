@@ -32,9 +32,10 @@ engine-selection opt-in, and checks repeated portable results bit for bit.
 
 CI stages a unique version per workflow attempt and passes it with `-Pconsumer.version=VERSION`, so it
 does not need to refresh all dependencies. One producer runs the JVM consumers, verifies the publication
-and both Android APKs, and builds debug and release instrumentation APKs. Both API-level jobs download
-the same verified APK artifact and run it with `.github/scripts/run-android-consumers.sh`; neither rebuilds
-the library or the applications. Clean emulator snapshots are cached by API level and runner image.
+and both Android APKs, and builds debug and release instrumentation APKs. One Android job downloads the
+verified APK artifact and runs it on API 24 and 34 with `.github/scripts/run-android-consumers.sh` without
+rebuilding the library or applications. Both runtimes execute even when one fails, and both must pass.
+Each API level has its own emulator name, cached snapshot, and reports, scoped to the runner image.
 
 The [iOS consumer](../ios-consumer/README.md) runs this same check on an iOS simulator and links both
 device and simulator frameworks from the published Kotlin/Native dependencies.

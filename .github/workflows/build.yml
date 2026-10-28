@@ -31,7 +31,7 @@ concurrency:
 
 jobs:
   test:
-    name: Run tests and collect coverage
+    name: Run Linux checks and vendor conformance
     runs-on: ubuntu-latest
     timeout-minutes: 45
 
@@ -49,8 +49,47 @@ jobs:
           cache-encryption-key: ${{ secrets.GRADLE_ENCRYPTION_KEY }}
           native-cache: 'true'
 
-      # Exercise Linux host bindings as well as the portable conformance floor. Serial BLIS reaches the
-      # AOCL arm without worker threads; OpenBLAS has its own benchmark comparator job below.
+      # Portable conformance needs a host without a vendor library. Install oneMKL only afterwards;
+      # Gradle starts fresh test JVMs for its interface checks and the SIMD-enabled test run.
+      - name: Run portable JVM conformance
+        run: >-
+          ./gradlew :koblas:jvmTest --rerun :koblas-bench:jvmTest --rerun -Pkoblas.noSimd=true
+      - name: Upload portable test reports
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-reports-portable-jvm
+          path: |
+            **/build/reports/tests/
+            **/build/test-results/
+          if-no-files-found: ignore
+      - name: Cache oneMKL runtime package
+        uses: actions/cache@v6
+        with:
+          path: ~/onemkl-packages
+          key: onemkl-${{ runner.os }}-${{ hashFiles('.github/scripts/install-onemkl.sh') }}
+      - name: Install oneMKL
+        timeout-minutes: 30
+        run: .github/scripts/install-onemkl.sh "$HOME/onemkl-packages"
+      # Installed libraries are outside Gradle's test inputs, so cached results cannot validate this host.
+      - name: Require both oneMKL interface checks and run JVM tests
+        run: >-
+          ./gradlew :koblas:oneMklInheritedInterfaceCheck :koblas:oneMklInitializedInterfaceCheck
+          :koblas:jvmTest --rerun -Pkoblas.requireOneMkl=true
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-reports-onemkl
+          path: |
+            **/build/reports/tests/
+            **/build/test-results/
+          if-no-files-found: ignore
+
+      # The loader probes this symlink directly. Hide it so the BLIS run selects BLIS on every CPU.
+      - name: Hide oneMKL before BLIS conformance
+        run: sudo unlink /opt/intel/oneapi/mkl/latest
+
       - name: Cache the vendor library packages
         id: vendor-packages
         uses: actions/cache@v6
@@ -91,7 +130,9 @@ jobs:
 
       # One task graph shares compilation and analysis between checks and documentation lint.
       - name: Run checks and documentation lint with coverage
-        run: ./gradlew check lintDocs :koblas:koverXmlReport
+        run: >-
+          ./gradlew check lintDocs :koblas:koverXmlReport
+          :koblas:jvmTest --rerun :koblas:jvmTestJarOnJava25 --rerun :koblas-bench:jvmTest --rerun
 
       - name: Upload test reports
         if: always()
@@ -112,27 +153,6 @@ jobs:
           disable_search: true
           flags: reference
           fail_ci_if_error: false
-
-  # OpenBLAS is a development comparator owned by koblas-bench. Keep its installed-library validation in a
-  # separate job so no published module acquires an external dependency or resource.
-  test-openblas-comparator:
-    name: Validate the OpenBLAS benchmark comparator
-    runs-on: ubuntu-latest
-    timeout-minutes: 45
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v7
-        with:
-          persist-credentials: false
-          ref: ${{ inputs.ref || github.sha }}
-          fetch-depth: 2
-
-      - name: Set up build
-        uses: ./.github/actions/setup-build
-        with:
-          cache-encryption-key: ${{ secrets.GRADLE_ENCRYPTION_KEY }}
-          native-cache: 'true'
 
       # The binding dlopens by soname, so the runtime libraries are what matter.
       #
@@ -231,17 +251,18 @@ jobs:
           ref: ${{ inputs.ref || github.sha }}
           fetch-depth: 2
 
-      - name: Start the iOS simulator in the background
-        run: |
-          mkdir -p "$RUNNER_TEMP/ios-simulator"
-          nohup bash .github/scripts/boot-ios-simulator.sh "$RUNNER_TEMP/ios-simulator" \
-            > "$RUNNER_TEMP/ios-simulator/boot.log" 2>&1 < /dev/null &
-
       - name: Set up build
         uses: ./.github/actions/setup-build
         with:
           cache-encryption-key: ${{ secrets.GRADLE_ENCRYPTION_KEY }}
           native-cache: 'true'
+
+      # Cache extraction and first-boot migration both write heavily to the runner's disk.
+      - name: Start the iOS simulator in the background
+        run: |
+          mkdir -p "$RUNNER_TEMP/ios-simulator"
+          nohup bash .github/scripts/boot-ios-simulator.sh "$RUNNER_TEMP/ios-simulator" \
+            > "$RUNNER_TEMP/ios-simulator/boot.log" 2>&1 < /dev/null &
 
       # One linker at a time shares the runner with the booting simulator without oversubscribing it.
       - name: Run JVM and macOS tests and prepare the iOS publication and tests
@@ -294,59 +315,10 @@ jobs:
             **/build/test-results/
           if-no-files-found: ignore
 
-  test-onemkl:
-    name: Validate portable JVM and oneMKL bindings
-    runs-on: ubuntu-latest
-    timeout-minutes: 45
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          persist-credentials: false
-          ref: ${{ inputs.ref || github.sha }}
-      - name: Set up build
-        uses: ./.github/actions/setup-build
-        with:
-          cache-encryption-key: ${{ secrets.GRADLE_ENCRYPTION_KEY }}
-      # Portable conformance needs a host without a vendor library. Install oneMKL only afterwards;
-      # Gradle starts fresh test JVMs for its interface checks and the SIMD-enabled test run.
-      - name: Run portable JVM conformance
-        run: ./gradlew :koblas:jvmTest :koblas-bench:jvmTest -Pkoblas.noSimd=true
-      - name: Upload portable test reports
-        if: always()
-        uses: actions/upload-artifact@v7
-        with:
-          name: test-reports-portable-jvm
-          path: |
-            **/build/reports/tests/
-            **/build/test-results/
-          if-no-files-found: ignore
-      - name: Cache oneMKL runtime package
-        uses: actions/cache@v6
-        with:
-          path: ~/onemkl-packages
-          key: onemkl-${{ runner.os }}-${{ hashFiles('.github/scripts/install-onemkl.sh') }}
-      - name: Install oneMKL
-        timeout-minutes: 30
-        run: .github/scripts/install-onemkl.sh "$HOME/onemkl-packages"
-      # Installed libraries are outside Gradle's test inputs, so cached results cannot validate this host.
-      - name: Require both oneMKL interface checks and run JVM tests
-        run: >-
-          ./gradlew :koblas:oneMklInheritedInterfaceCheck :koblas:oneMklInitializedInterfaceCheck
-          :koblas:jvmTest --rerun -Pkoblas.requireOneMkl=true
-      - name: Upload test reports
-        if: always()
-        uses: actions/upload-artifact@v7
-        with:
-          name: test-reports-onemkl
-          path: |
-            **/build/reports/tests/
-            **/build/test-results/
-          if-no-files-found: ignore
-
   # Kotlin/Native builds final Linux binaries on x64 hosts. Execute the cross-built tests on real arm64.
   test-linux-arm64:
     name: Run Linux arm64 native tests
-    needs: test-openblas-comparator
+    needs: test
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 15
     steps:
@@ -431,14 +403,10 @@ jobs:
           if-no-files-found: error
 
   test-shared-jvm-artifact:
-    name: Consume the shared JVM artifact on Android API ${{ matrix.api }}
+    name: Run Android consumers on API 24 and 34
     needs: build-shared-jvm-artifact
     runs-on: ubuntu-24.04
     timeout-minutes: 30
-    strategy:
-      fail-fast: false
-      matrix:
-        api: [24, 34]
     steps:
       - uses: actions/checkout@v7
         with:
@@ -459,50 +427,32 @@ jobs:
       - name: Identify the runner image
         id: image
         run: echo "version=$ImageVersion" >> "$GITHUB_OUTPUT"
-      - name: Restore a clean Android emulator snapshot
-        id: avd
-        uses: actions/cache/restore@v6
+      - name: Run Android API 24 consumers
+        id: api24
+        continue-on-error: true
+        uses: ./.github/actions/test-android-consumer
         with:
-          path: |
-            ~/.android/avd/
-            ~/.android/adb*
-          key: android-avd-v1-${{ runner.os }}-${{ steps.image.outputs.version }}-${{ matrix.api }}-x86_64
-      - name: Create a clean Android emulator snapshot
-        if: steps.avd.outputs.cache-hit != 'true'
-        uses: reactivecircus/android-emulator-runner@v2
+          api-level: '24'
+          image-version: ${{ steps.image.outputs.version }}
+      - name: Run Android API 34 consumers
+        id: api34
+        continue-on-error: true
+        uses: ./.github/actions/test-android-consumer
         with:
-          api-level: ${{ matrix.api }}
-          target: default
-          arch: x86_64
-          force-avd-creation: false
-          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
-          disable-animations: false
-          script: echo "Created a clean emulator snapshot"
-      - name: Save the clean Android emulator snapshot
-        if: >-
-          steps.avd.outputs.cache-hit != 'true' &&
-          github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
-        uses: actions/cache/save@v6
-        with:
-          path: |
-            ~/.android/avd/
-            ~/.android/adb*
-          key: ${{ steps.avd.outputs.cache-primary-key }}
-      - name: Run ordinary and R8 consumers on Android
-        uses: reactivecircus/android-emulator-runner@v2
-        with:
-          api-level: ${{ matrix.api }}
-          target: default
-          arch: x86_64
-          force-avd-creation: false
-          emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
-          disable-animations: true
-          script: |
-            bash .github/scripts/run-android-consumers.sh build/android-consumer-apks build/test-results/android
+          api-level: '34'
+          image-version: ${{ steps.image.outputs.version }}
+      - name: Require both Android runtimes
+        if: ${{ !cancelled() }}
+        env:
+          API_24_RESULT: ${{ steps.api24.outcome }}
+          API_34_RESULT: ${{ steps.api34.outcome }}
+        run: |
+          test "$API_24_RESULT" = success
+          test "$API_34_RESULT" = success
       - name: Upload Android consumer test reports
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: shared-jvm-android-${{ matrix.api }}
+          name: shared-jvm-android
           path: build/test-results/android/
           if-no-files-found: ignore

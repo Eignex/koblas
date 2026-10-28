@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Boot independently of Gradle so toolchain setup and linking can use the startup wait.
+# Boot independently of Gradle so compilation and linking can use the startup wait.
 set -euo pipefail
 
 directory=${1:?simulator state directory is required}

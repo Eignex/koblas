@@ -20,7 +20,7 @@ Pass `-PiosSimulatorDevice=<simulator-uuid>` to select an installed simulator. C
 iPhone before running both the library conformance suite and this consumer. The consumer checks portable
 execution without a vendor, repeated transpose products with reused buffers, bitwise repeatability and aliases.
 
-CI starts simulator boot during toolchain setup, stages a unique publication version per workflow attempt,
+CI starts simulator boot after toolchain restoration, stages a unique publication version per workflow attempt,
 and passes that version with `-Pconsumer.version=VERSION` instead of refreshing dependencies. It links one
 binary at a time with compiler threads sized to the host, then runs simulator tests after all linking has
 finished. The job summary records suite totals and the slowest test cases separately from startup and linking.
