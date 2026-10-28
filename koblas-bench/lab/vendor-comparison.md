@@ -16,6 +16,7 @@ the user's request; these results establish no Apple performance crossover.
 | IAMAX | Keep owned SIMD; further tuning is lower priority than simplex work |
 | SCAL, SWAP, ROT and COPY | Keep ordinary loops and array-copy intrinsics; no dedicated Vector API replacement |
 | Eight-column product prototype | Removed because it introduced per-call allocation |
+| Simplex unit AXPY prototype | Rejected: exact SIMD gains did not carry consistently to the default, and controls regressed |
 | Deep thin GEMM | Prefer oneMKL for whole matrices with both output extents at least 16 and depth 1024 through 4096; borrowed views keep the larger cutoff |
 
 The availability floor remains portable dense and sparse BLAS. Selecting a profitable native call does
@@ -34,6 +35,8 @@ not remove the owned implementation needed on other hosts or by an explicitly se
 | [9114](https://lab.eignex.com/jobs/9114) | `b34eaa8a` | Supplementary timing of the broader candidate cutoff | Cancelled before measurement after narrowing the cutoff |
 | [9111](https://lab.eignex.com/jobs/9111) | `d2a9a219` | Thin GEMM neighboring shapes, transposes and retained workspaces | Complete, three rounds |
 | [9068](https://lab.eignex.com/jobs/9068) | `57fc0f72` | Compact and streaming AXPY through exact and default engines, with allocation profiling | Complete, three rounds |
+| [9124](https://lab.eignex.com/jobs/9124) | `546f33ed` | Raw simplex unit AXPY baseline at corpus row counts, with GC profiling | Complete, three rotated rounds from the successful replacement execution |
+| [9127](https://lab.eignex.com/jobs/9127) | `25db53b0` | Compact unit-multiplier vector-add prototype and nonunit controls | Complete, three rounds; prototype rejected |
 | [9070](https://lab.eignex.com/jobs/9070) | `59bcc0e8` | 82-case comparison of the final implementation against Accelerate on Apple hardware | Cancelled at user request before measurement |
 
 Job 9002 used an Intel Xeon Platinum 8375C, eight double lanes, JDK 25.0.4.1, Kotlin 2.4.10, Serial GC and
@@ -173,6 +176,76 @@ allocation probes measured zero bytes for compact and streaming bodies, includin
 at the preferred/narrow widths and with FMA disabled. The default's 65,536-element round medians were
 45.8, 44.6 and 44.3 us; the earlier 93 us fork was not reproduced.
 
+## Simplex unit AXPY follow-up
+
+Klause's cached basic-value restoration calls the raw contiguous AXPY kernel with `alpha = 1` and
+length equal to the LP's row count. The retained basis corpus contains row counts 2, 6, 8, 27, 56 and
+70; 64 is a neighboring aligned control. These are source-derived workload dimensions, not a production
+call-frequency distribution. The call occurs after a changed-bound FTRAN during cache restoration,
+so its per-call timing alone establishes no complete simplex speedup.
+
+The `axpy-unit` suite times repeated accumulation into reused disjoint arrays, without the destination
+reset included in the generic `axpy` suite. Each arm checks two complete updates against the explicit
+scalar engine before timing. The JVM oneMKL arm includes native transfers on every invocation.
+
+Baseline [9124](https://lab.eignex.com/jobs/9124), source `546f33ed`, completed three rotated rounds on
+the Xeon Platinum 8375C with JDK 25.0.4.1, eight double lanes, Serial GC and a 512 MiB heap. Each round
+used eight 200 ms warmups and five 200 ms samples in one JMH fork. Values below are medians of round
+medians, in nanoseconds per call.
+
+| Elements | Scalar JVM | Baseline exact SIMD | Baseline default | JVM oneMKL |
+|---|---:|---:|---:|---:|
+| 2 | 5.62 | 5.57 | 5.57 | 124.93 |
+| 6 | 8.82 | 9.13 | 8.96 | 134.73 |
+| 8 | 10.27 | 5.74 | 15.59 | 142.71 |
+| 27 | 11.23 | 11.36 | 11.55 | 155.93 |
+| 56 | 15.02 | 15.09 | 14.83 | 166.60 |
+| 64 | 15.59 | 16.94 | 16.43 | 169.55 |
+| 70 | 17.60 | 17.54 | 19.08 | 175.83 |
+
+Owned unit updates showed roughly 0.0001 to 0.001 profiler bytes per call, while the JVM vendor arm
+allocated about 256 to 344 Java heap bytes per call, in addition to its native buffers. The owned path
+therefore remains preferable to native dispatch at these sizes. The scalar-versus-SIMD gap depends on
+the length and compilation context: the default and exact arms retain the same vector kernel object,
+but their measured timings differ. A local four-lane JIT diagnostic confirmed that the old short loop
+and the candidate addition helper both fully inline; it does not establish an AVX-512 instruction-level
+explanation for the gap.
+
+Candidate [9127](https://lab.eignex.com/jobs/9127), source `25db53b0`, completed the same three-round
+capture on the same Xeon 8375C model, runtime and settings. It replaced the short unit-multiplier
+multiply/add loop with vector addition. It passed `check lintDocs`, scalar-oracle tests over offsets,
+identical/disjoint shared buffers and vector boundaries, and zero-allocation probes at preferred and
+narrow widths with FMA disabled. It is nevertheless rejected on performance evidence.
+
+| Elements | Exact SIMD baseline | Exact SIMD candidate | Default baseline | Default candidate |
+|---|---:|---:|---:|---:|
+| 2 | 5.57 ns | 5.60 ns | 5.57 ns | 5.53 ns |
+| 6 | 9.13 ns | 9.03 ns | 8.96 ns | 8.86 ns |
+| 8 | 5.74 ns | 5.64 ns | 15.59 ns | 5.63 ns |
+| 27 | 11.36 ns | 11.37 ns | 11.55 ns | 15.60 ns |
+| 56 | 15.09 ns | 10.49 ns | 14.83 ns | 14.68 ns |
+| 64 | 16.94 ns | 11.50 ns | 16.43 ns | 16.94 ns |
+| 70 | 17.54 ns | 19.10 ns | 19.08 ns | 19.09 ns |
+
+The exact-arm gains of 1.44x and 1.47x at 56 and 64 do not carry to the default. At 27, all three
+default candidate rounds took 15.53 to 15.62 ns versus 11.53 to 11.61 ns for the baseline, about a 35%
+increase. The nonunit 65,536-element default control rose from 44.39 to 51.26 us; exact SIMD there
+stayed near 44 us. Nonunit 4,096-element exact SIMD rose from 2.19 to 2.38 us, while default varied
+between 2.02 and 2.58 us. Unit-update allocation remained at profiler noise levels.
+
+Unchanged scalar controls also shifted between captures: 27 elements rose from 11.23 to 13.65 ns,
+while six elements fell from 8.82 to 6.38 ns. This prevents attributing every cross-capture timing
+change directly to the added branch, even where each fork repeats tightly. The available evidence
+shows sensitivity to compilation and layout, rather than a broad default improvement that justifies
+shipping the specialization. The runtime prototype is removed; the raw workload, numerical checks and
+unit-update allocation probe remain. The restored implementation retains all existing SIMD paths.
+Further AXPY tuning should follow a cache-restoration profile or a controlled generated-code study:
+these small calls already take tens of nanoseconds, and kernel-only gains do not establish a solver gain.
+
+The first attempt, [9122](https://lab.eignex.com/jobs/9122), failed when a vendor JVM fork lost its working
+directory. Its partial round used a different CPU model and is excluded. Job 9124 also lost its first
+execution; only its complete, successfully uploaded replacement execution is used above.
+
 ## Wider-tile and norm follow-up
 
 Job 9066 completed three sequential rotated rounds with allocation profiling. The eight-column FMA
@@ -232,6 +305,14 @@ and the [JDK 25 critical-call contract](https://docs.oracle.com/en/java/javase/2
 Short or strided calls can still select scalar bodies. A function having a SIMD path does not make every
 call of it vectorized. Sparse workspace bookkeeping and pivot-selection primitives have no BLAS vendor
 entry point and remain portable.
+
+Production dense basis selection currently stops at order six. Its GER rectangles shrink from 5x5 to
+1x1, so every one uses the scalar panel on the eight-lane comparison host. The owned SIMD arm remains
+available for larger rectangles. In diagnostic job 9002, the order-six windowed batch took about 137 ns;
+the JVM oneMKL full-buffer batch with zero prefixes took about 1,518 ns. The binding has no equivalent
+windowed entry point, so this is a comparison of equivalent updates through different APIs, not a paired
+window-kernel measurement. Those short-warmup diagnostic timings support leaving this tiny GER workload
+owned and deferring further tuning; orders 34 and 198 are controls outside production dense selection.
 
 ## Reproduce
 

@@ -26,27 +26,10 @@ internal object SimdOps {
     @Suppress("LongParameterList") // two independently addressed vector windows and their multiplier
     fun axpy(y: DoubleArray, yOff: Int, alpha: Double, x: DoubleArray, xOff: Int, len: Int) {
         if (alpha == 0.0) return
-        if (alpha == 1.0 && len < WIDE_AXPY_MIN) {
-            axpyAdd(y, yOff, x, xOff, len)
-        } else if (len >= WIDE_AXPY_MIN) {
+        if (len >= WIDE_AXPY_MIN) {
             axpyUnrolled(y, yOff, alpha, x, xOff, len)
         } else {
             axpyShort(y, yOff, alpha, x, xOff, len)
-        }
-    }
-
-    /** Unit updates need only addition; a separate compact body avoids a broadcast and vector multiply. */
-    private fun axpyAdd(y: DoubleArray, yOff: Int, x: DoubleArray, xOff: Int, len: Int) {
-        val bound = SPECIES.loopBound(len)
-        var i = 0
-        while (i < bound) {
-            DoubleVector.fromArray(SPECIES, x, xOff + i)
-                .add(DoubleVector.fromArray(SPECIES, y, yOff + i)).intoArray(y, yOff + i)
-            i += LANE
-        }
-        while (i < len) {
-            y[yOff + i] += x[xOff + i]
-            i++
         }
     }
 
