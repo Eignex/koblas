@@ -40,9 +40,7 @@ For each case and target, take the median of the round `median_ns` values before
 the round files retain the spread. `--cpu auto` pins the capture and its child processes to the first
 CPU allowed by the job's affinity mask. It does not isolate that CPU from other work.
 
-Lab servers that accept JVM profiles can run `com.eignex.koblas.bench.LabCaptureLauncher` after building
-`:koblas-bench:jvmMainClasses`, with `koblas-bench/build/classes/java/jvmMain` as the profile classpath.
-Pass the same capture options above, omitting `--output`: the launcher retains the report under the lab's `OUT`.
+Lab jobs use the [Bench SDK adapter](#bench-sdk-adapter) to prepare and run these captures.
 
 On a hybrid CPU, pin the run: `taskset -c 2,4,6,8 koblas-bench/capture-report.sh …`. Otherwise it wanders
 between core types and the timings move with the scheduler.
@@ -57,7 +55,7 @@ same binary hashes as a Git capture. This allows the lab archive to run without 
 
 The benchmark launcher defaults to JDK 25. `-Pbench.javaVersion=27` selects JDK 27 for
 measurement while compilation keeps its configured toolchain. `-Pbench.expectedJavaHome=/path/to/jdk`
-pins the launcher to that installation. `prepareBenchmarkRuntime` checks the selected version before timing.
+pins the launcher to that installation. Captures record the measured runtime in their target logs.
 
 For collector comparisons, `capture-report.sh` accepts `--jvm-gc g1|serial|zgc` and
 `--jvm-heap 1g`. Without these options, runtime defaults remain part of the measurement;
@@ -119,42 +117,9 @@ taskset -c 2 koblas-bench/capture-report.sh --operation spdot-column \
 These are repeated-call API measurements. They exclude matrix construction and solver work, so a consumer
 needs a separate setup-inclusive solver A/B before claiming an end-to-end improvement.
 
-## Capturing in the reference container
+## Capture hosts
 
-```bash
-koblas-bench/reference-container.sh all --samples 5 --warmups 5 --target-ms 200 --forks 2
-```
-
-Builds an image with a pinned JDK, OpenBLAS and oneMKL, mounts the repository, and captures inside it,
-so a report from one machine is comparable with one from another. Takes `openblas`, `onemkl`, `aocl` or
-`all` before the capture options; `all` needs an x86-64 host, since oneMKL ships no ARM64 build. Requires
-Docker, and the report lands in the repository as usual because the working tree is mounted rather than
-copied.
-
-On an AMD host use the `aocl` target, which adds the library `Vendor.select` puts ahead of oneMKL there:
-
-```bash
-koblas-bench/reference-container.sh aocl --samples 5 --warmups 5 --target-ms 200 --forks 2
-```
-
-That stage downloads AMD Optimizing CPU Libraries, which means accepting AMD's licence for it, and is why it
-is a separate target rather than part of `all`. The licence covers using it on a machine you are running it
-on; it does not cover redistributing it, so an image built from that stage must not be published. The same is
-true of `armpl` below, and it is why `all` names only the libraries an image may carry.
-
-### On ARM64
-
-On ARM64 use the `armpl` target rather than `all`, since oneMKL has no ARM64 build:
-
-```bash
-koblas-bench/reference-container.sh armpl --samples 5 --warmups 5 --target-ms 200 --forks 2
-```
-
-That stage downloads Arm Performance Libraries, which means accepting Arm's licence for it, and is why it is a
-separate target rather than part of `all`. The licence covers installing it on a machine you are using; it
-does not cover redistributing it, so an image built from that stage must not be published. ArmPL is worth the
-step because it is the tuned library Koblas prefers on ARM64; OpenBLAS is what selection falls back to when
-none is installed, so a capture without ArmPL measures only the last resort.
+### Native on ARM64
 
 The Kotlin/Native compiler ships no linux-aarch64 host, so an ARM64 machine cannot link the executable it
 would time. It can still run one. Build it on an x86-64 host, where the compiler cross-compiles to the
@@ -226,7 +191,7 @@ uses portable Kotlin when an installed host call is unavailable or ineligible.
 
 | Option | Effect |
 |---|---|
-| `--libraries openblas,accelerate,onemkl,aocl,armpl\|all` | Which vendors to run. `all` selects OpenBLAS plus oneMKL on x86-64 Linux, ArmPL on ARM64 Linux, or Accelerate on macOS. The container image target `all` is separate and excludes AOCL/ArmPL. |
+| `--libraries openblas,accelerate,onemkl,aocl,armpl\|all` | Which vendors to run. `all` selects OpenBLAS plus oneMKL on x86-64 Linux, ArmPL on ARM64 Linux, or Accelerate on macOS. |
 | `--suite default\|sweep` | Case suite. `sweep` requires `--operation`. |
 | `--operation NAME\|all` | Intersects the suite with one kernel. |
 | `--samples N`, `--warmups N` | Measured and discarded repetitions per case. |

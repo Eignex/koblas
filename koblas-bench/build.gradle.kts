@@ -82,29 +82,6 @@ fun JavaExec.useBenchmarkRuntime() {
     else javaLauncher.set(benchmarkJavaLauncher)
 }
 
-tasks.register("prepareBenchmarkRuntime") {
-    group = "benchmark"
-    description = "Resolves the benchmark JVM before any timed capture begins."
-    val launcher = benchmarkJavaLauncher
-    val expected = expectedBenchmarkJavaHome
-    val version = benchmarkJavaVersion
-    doLast {
-        if (expected.isPresent) {
-            val executable = JdkPath.of(expected.get(), "bin", "java").toRealPath()
-            val process = ProcessBuilder(executable.toString(), "-version").redirectErrorStream(true).start()
-            val description = process.inputStream.bufferedReader().readText()
-            check(process.waitFor() == 0 && description.contains("\"${version.get()}."))
-            println("benchmark_runtime_executable=$executable")
-            println("benchmark_runtime_version=${description.lineSequence().first()}")
-        } else {
-            val resolved = launcher.get()
-            println("benchmark_runtime_executable=${resolved.executablePath}")
-            println("benchmark_runtime_version=${resolved.metadata.javaRuntimeVersion}")
-            println("benchmark_runtime_vendor=${resolved.metadata.vendor}")
-        }
-    }
-}
-
 fun registerJvmBenchmark(name: String, mode: String, vectorModule: Boolean) = tasks.register<JavaExec>(name) {
     group = "benchmark"
     description = "Runs the shared cases through exact $mode koblas kernels."
