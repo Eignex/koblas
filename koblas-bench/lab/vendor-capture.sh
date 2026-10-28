@@ -3,10 +3,14 @@ set -euo pipefail
 
 root=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)
 output=
+operation=all
+requested_vendor=
 while (($#)); do
   case "$1" in
     --output) output=${2:?}; shift 2 ;;
-    *) echo "usage: vendor-capture.sh --output DIR" >&2; exit 2 ;;
+    --operation) operation=${2:?}; shift 2 ;;
+    --vendor) requested_vendor=${2:?}; shift 2 ;;
+    *) echo "usage: vendor-capture.sh --output DIR [--operation NAME] [--vendor NAME]" >&2; exit 2 ;;
   esac
 done
 [[ -n $output ]] || { echo "--output is required" >&2; exit 2; }
@@ -46,6 +50,7 @@ PY
   export MKL_THREADING_LAYER=SEQUENTIAL
   printf '%s\n' "$package 3b230c02fc0ac44f8f71062c20cd883b37c6c1e00940dc0a7f13b02d9c47bd93" > "$output/vendor-package.txt"
 fi
+[[ -z $requested_vendor || $requested_vendor == "$vendor" ]] || { echo "vendor requires a different capture host" >&2; exit 2; }
 
 ./gradlew --no-daemon -Pkotlin.compiler.execution.strategy=in-process :koblas-bench:prepareLabBenchmark ":koblas-bench:linkReleaseExecutable$target" > "$output/build.log" 2>&1
 export KOBLAS_BENCH_JAVA="${JAVA_HOME:+$JAVA_HOME/bin/}java"
@@ -56,5 +61,6 @@ exec bash koblas-bench/capture-report.sh --prepared --retain-incomplete \
   --native-executable "$root/koblas-bench/build/bin/$native_target/releaseExecutable/koblas-bench.kexe" \
   --libraries "$vendor" --targets "jvm-scalar,jvm-simd,$vendor-jvm,$vendor" \
   --cases "$root/koblas-bench/lab/cases-vendor-comparison.txt" \
+  --operation "$operation" \
   --rounds 3 --samples 3 --warmups 3 --target-ms 100 --forks 1 \
   --jvm-gc serial --jvm-heap 512m "${pin[@]}" --output "$output/report"
