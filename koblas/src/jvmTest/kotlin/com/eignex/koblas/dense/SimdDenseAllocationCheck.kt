@@ -116,6 +116,10 @@ internal object SimdDenseAllocationCheck {
         assertAllocationFree("unrolled dot with offsets and a tail") {
             engine.vectorKernels.dot(x, 3, y, 5, ORDER - 5)
         }
+        assertAllocationFree("contiguous axpy with offsets and a tail") {
+            engine.vectorKernels.axpy(y, 3, 1e-12, x, 1, ORDER - 3)
+            y[3]
+        }
         assertAllocationFree("filtered iamax with an offset and a tail") {
             engine.vectorKernels.iamax(x, 3, ORDER - 3).toDouble()
         }

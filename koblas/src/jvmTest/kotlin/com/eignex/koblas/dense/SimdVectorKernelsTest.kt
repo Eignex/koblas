@@ -6,8 +6,8 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /**
- * Checks per-operation routing on the Vector API arm. Reductions use explicit vector kernels;
- * elementwise operations use Kotlin loops that HotSpot vectorises. Routes distinguish these bodies
+ * Checks per-operation routing on the Vector API arm. Reductions and AXPY use explicit vector kernels;
+ * other elementwise operations use Kotlin loops that HotSpot vectorises. Routes distinguish these bodies
  * even when their numerical results agree.
  */
 class SimdVectorKernelsTest {
@@ -26,17 +26,24 @@ class SimdVectorKernelsTest {
     }
 
     @Test
-    fun `elementwise operations stay with the portable loops at every width`() {
+    fun `elementwise operations without vector bodies stay with the portable loops`() {
         if (!SimdVectorKernels.isAvailable) return skipped()
 
         for (operation in listOf(
-            DenseOperation.Axpy,
             DenseOperation.Scale,
             DenseOperation.Swap,
             DenseOperation.Rot,
         )) {
             assertEquals(ScalarVectorKernels.name, reached(operation, WIDE), "$operation named a vector kernel")
         }
+    }
+
+    @Test
+    fun `contiguous axpy has an explicit vector path`() {
+        if (!SimdVectorKernels.isAvailable) return skipped()
+
+        assertEquals(kernels.name, reached(DenseOperation.Axpy, WIDE))
+        assertLevel1KernelsAgreeWithReference(kernels)
     }
 
     @Test

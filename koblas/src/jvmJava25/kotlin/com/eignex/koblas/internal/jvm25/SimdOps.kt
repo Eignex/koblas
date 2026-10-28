@@ -22,6 +22,24 @@ internal object SimdOps {
 
     fun lanes(): Int = LANE
 
+    /** A contiguous AXPY keeps the multiply separate so an overflowing product is not rescued by FMA. */
+    @Suppress("LongParameterList") // two independently addressed vector windows and their multiplier
+    fun axpy(y: DoubleArray, yOff: Int, alpha: Double, x: DoubleArray, xOff: Int, len: Int) {
+        if (alpha == 0.0) return
+        val multiplier = DoubleVector.broadcast(SPECIES, alpha)
+        val bound = SPECIES.loopBound(len)
+        var i = 0
+        while (i < bound) {
+            val increment = DoubleVector.fromArray(SPECIES, x, xOff + i).mul(multiplier)
+            increment.add(DoubleVector.fromArray(SPECIES, y, yOff + i)).intoArray(y, yOff + i)
+            i += LANE
+        }
+        while (i < len) {
+            y[yOff + i] += alpha * x[xOff + i]
+            i++
+        }
+    }
+
     /** Run length for four accumulators, scaled by the machine's lane count. */
     private val UNROLL_MIN = 32 * LANE
 
