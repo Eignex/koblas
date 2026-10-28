@@ -28,14 +28,33 @@ internal object SimdOps {
         if (alpha == 0.0) return
         if (len >= WIDE_AXPY_MIN) {
             axpyUnrolled(y, yOff, alpha, x, xOff, len)
+        } else if (len % LANE >= LANE / 2) {
+            axpyTail(y, yOff, alpha, x, xOff, len)
         } else {
             axpyShort(y, yOff, alpha, x, xOff, len)
         }
     }
 
-    /** The caller supplies a complete vector; the final block also covers any remaining short tail. */
+    /** A scalar remainder is cheaper than another vector block for a tail shorter than half a vector. */
     @Suppress("LongParameterList") // two independently addressed vector windows and their multiplier
     private fun axpyShort(y: DoubleArray, yOff: Int, alpha: Double, x: DoubleArray, xOff: Int, len: Int) {
+        val multiplier = DoubleVector.broadcast(SPECIES, alpha)
+        val bound = SPECIES.loopBound(len)
+        var i = 0
+        while (i < bound) {
+            DoubleVector.fromArray(SPECIES, x, xOff + i).mul(multiplier)
+                .add(DoubleVector.fromArray(SPECIES, y, yOff + i)).intoArray(y, yOff + i)
+            i += LANE
+        }
+        while (i < len) {
+            y[yOff + i] += alpha * x[xOff + i]
+            i++
+        }
+    }
+
+    /** The caller supplies a complete vector; the final block also covers any remaining short tail. */
+    @Suppress("LongParameterList") // two independently addressed vector windows and their multiplier
+    private fun axpyTail(y: DoubleArray, yOff: Int, alpha: Double, x: DoubleArray, xOff: Int, len: Int) {
         val multiplier = DoubleVector.broadcast(SPECIES, alpha)
         val last = len - LANE
         // The last block can overlap the loop. Compute it before any stores so that overlap is updated once.

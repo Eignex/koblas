@@ -113,6 +113,11 @@ Vendor arms perform the same accumulation; the JVM vendor arm includes operand t
 The existing `axpy` operation retains its nonunit multiplier and timed destination reset, so its absolute
 times must not be compared as if it were the same workload.
 
+`lab/cases-axpy-tail.txt` adds lengths 9, 31 and 65 to exercise short vector tails, plus nonunit
+64, 4,096, 65,536 and 65,537 controls. The timed raw call captures the primitive length and array
+references directly; it does not retrieve dimensions from the case object. Compare revisions with the
+same capture body when measuring changes of a few nanoseconds.
+
 ## Selected CSC column dots
 
 `spdot-column` and `spdot-column-raw` price the same column at a nonzero offset through
