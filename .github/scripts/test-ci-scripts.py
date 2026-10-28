@@ -89,6 +89,7 @@ class ResolveReleaseVersionTest(unittest.TestCase):
         self.assertEqual(result.returncode, 0)
         self.assertEqual(outputs["version"], "0.1.1-SNAPSHOT")
         self.assertEqual(outputs["is_snapshot"], "true")
+        self.assertEqual(outputs["is_prerelease"], "true")
         self.assertEqual(outputs["dry_run"], "false")
         self.assertEqual(outputs["revision"], self.git("rev-parse", "HEAD").stdout.decode().strip())
 
@@ -96,12 +97,19 @@ class ResolveReleaseVersionTest(unittest.TestCase):
         _, outputs = self.resolve("tag", "v0.2.0-rc.1")
         self.assertEqual(outputs["version"], "0.2.0-rc.1")
         self.assertEqual(outputs["is_snapshot"], "false")
+        self.assertEqual(outputs["is_prerelease"], "true")
+
+    def test_stable_tag_is_not_a_prerelease(self):
+        _, outputs = self.resolve("tag", "v0.2.0")
+        self.assertEqual(outputs["version"], "0.2.0")
+        self.assertEqual(outputs["is_prerelease"], "false")
 
     def test_dry_run_on_tag_remains_a_dry_run(self):
         _, outputs = self.resolve("tag", "v0.2.0", "true")
         self.assertEqual(outputs["version"], "0.1.1")
         self.assertEqual(outputs["is_snapshot"], "false")
         self.assertEqual(outputs["dry_run"], "true")
+        self.assertEqual(outputs["is_prerelease"], "false")
 
     def test_repository_without_stable_tags_starts_at_first_patch(self):
         self.git("tag", "-d", "v0.1.0")
@@ -169,7 +177,7 @@ class CheckReleaseBundleTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "unexpected publication"):
             self.verify({**self.entries, "com/eignex/koblas-bench/0.1.1/koblas-bench-0.1.1.pom": b"benchmark"})
 
-    def test_missing_host_built_macos_binary_is_rejected(self):
+    def test_missing_native_binary_is_rejected(self):
         entries = {name: data for name, data in self.entries.items() if not name.endswith(".klib")}
         with self.assertRaisesRegex(ValueError, "missing artifact"):
             self.verify(entries)
