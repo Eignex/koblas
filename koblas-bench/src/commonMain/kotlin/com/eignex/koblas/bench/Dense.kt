@@ -147,13 +147,16 @@ internal fun denseWork(case: BenchCase, engine: KoblasEngine): CaseWork? {
             }
         }
         "axpy-unit" -> {
-            val fixture = UnitAxpy(d[0])
+            val length = d[0]
+            val fixture = UnitAxpy(length)
+            val x = fixture.x
+            val y = fixture.y
             val run = {
-                vectors.axpy(fixture.y, 0, 1.0, fixture.x, 0, d[0])
-                fixture.y[0]
+                vectors.axpy(y, 0, 1.0, x, 0, length)
+                y[0]
             }
             fixture.verify(case.id, run)
-            level1(engine, DenseOperation.Axpy, d[0], "arithmetic", result = fixture.y, run = run)
+            level1(engine, DenseOperation.Axpy, length, "arithmetic", result = y, run = run)
         }
         "scal" -> {
             val initial = Fixtures.vector(d[0], 1); val x = initial.copyOf()
