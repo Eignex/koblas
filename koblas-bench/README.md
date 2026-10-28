@@ -607,11 +607,63 @@ to the consumer build. Refresh dependencies when restaging the same version.
 
 A lab submission uses `repository: "Eignex/koblas"` and
 `bench: {"manifest":"koblas-bench/lab/bench.json","request":{"parameters":{"targets":"jvm-scalar,jvm-simd","operation":"dot","smoke":"true"}}}`.
-Request keys are `targets`, `libraries`, `operation`, `suite`, `samples`, `warmups`,
-`target-ms`, `forks`, `pass`, `smoke`, `memory-mib`, `timeout-seconds` and
-`native-executable` (a prepared path under `koblas-bench/build/`). Each plan freezes
-one capture, with one CPU and the selected memory/time limits. JVM targets run in
-separate processes with the Vector API opened only for SIMD/default targets.
+Request keys are `targets`, `libraries`, `operation`, `suite`, `cases`, `samples`,
+`warmups`, `target-ms`, `forks`, `pass`, `rounds`, `cpu`, `jvm-gc`, `jvm-heap`,
+`vendors-only`, `smoke`, `memory-mib`, `timeout-seconds` and `native-executable`.
+Each plan freezes one capture with one CPU and the selected memory/time limits.
+`rounds` defaults to one; repeated captures rotate target order and assign their own
+pass numbers, so `pass` cannot be combined with `rounds` greater than one. `smoke`
+and `vendors-only` accept the strings `true` and `false`. Vendor-only requests need
+explicit vendor targets; omitted libraries are inferred from those targets. Explicit
+libraries must include every selected vendor (`all` uses the harness's platform
+selection, which excludes AOCL).
+
+`cases` is a portable path relative to the repository root, for example
+`koblas-bench/cases-reductions.txt`. The plan declares it as a source `BenchInput`
+so the lab inventories and freezes its contents before dispatch. The adapter resolves
+it against the relocated worktree and passes it as one literal argument. A Native
+executable is also a declared input, under `koblas-bench/build/`, with a recognized
+`linuxX64`, `linuxArm64` or `macosArm64` path component. The selected targets and
+executable determine required platform/architecture tags; incompatible combinations
+are rejected during planning. The adapter owns `--prepared`, `--retain-incomplete`
+and the output destination; these are not request parameters.
+
+JVM targets run in separate processes with the Vector API opened only for
+SIMD/default targets. `jvm-gc` accepts `g1`, `serial` or `zgc`; `jvm-heap` fixes both
+initial and maximum heaps and accepts a positive size ending in `m` or `g`. Both
+controls require a JVM target. The per-JVM heap budget is
+`(memory-mib - 768) / 2` MiB to allow the launcher and its measured JMH fork to
+coexist, with 768 MiB reserved for the adapter and other process overhead. An explicit
+heap must fit this budget. Memory defaults to 2048 MiB with a minimum of 1024 MiB;
+timeout defaults to 3600 seconds and must be positive. `cpu` accepts `auto` or a
+logical CPU number and adds a Linux requirement. `auto` chooses from the worker's
+allowed affinity mask; a numeric CPU must be allowed on that worker. Pinning does
+not reserve the CPU.
+
+For example, the request parameters below capture two JVM arms over two rounds
+with a frozen custom case file and fixed collector/heap settings:
+
+```json
+{
+  "targets": "jvm-scalar,jvm-simd",
+  "cases": "koblas-bench/cases-reductions.txt",
+  "operation": "dot",
+  "rounds": "2",
+  "cpu": "auto",
+  "jvm-gc": "serial",
+  "jvm-heap": "256m",
+  "smoke": "true"
+}
+```
+
+The result's `captured-rows` counts nonblank data rows in the selected targets' CSVs,
+from the report root for one round or `pass-1`, `pass-2`, ... for repeated captures.
+`captured-csv-files` counts those files and `completed-rounds` counts round reports
+marked complete. Summary files and nested sidecars are retained but do not add rows
+to these metrics. Repeated rows remain separate observations; the adapter does not
+aggregate timing values. Success requires a zero exit status, complete outer and
+round metadata, and at least one captured row. Failed captures report the rows and
+completed rounds available so far, including partial output from the failed round.
 
 `capture-report.sh --targets TARGET,...` selects exact capture arms.
 `--prepared` uses `KOBLAS_BENCH_JAVA` and `KOBLAS_BENCH_CLASSPATH` without Gradle;
