@@ -19,7 +19,7 @@ internal object VendorComparisonSuite : BenchSuite {
 
     override fun plan(request: BenchRequest): List<LabCase> {
         val p = request.parameters
-        require(p.keys.all { it in setOf("vendor", "operation", "cases", "samples", "warmups", "target-ms", "forks", "rounds", "targets", "profile-gc") }) { "Unknown vendor comparison parameter" }
+        require(p.keys.all { it in setOf("vendor", "operation", "cases", "samples", "warmups", "target-ms", "forks", "rounds", "targets", "profile-gc", "reservation-cpus") }) { "Unknown vendor comparison parameter" }
         val vendor = p.getValue("vendor")
         require(vendor in setOf("onemkl", "accelerate")) { "vendor must be onemkl or accelerate" }
         p["targets"]?.let { targets ->
@@ -30,14 +30,14 @@ internal object VendorComparisonSuite : BenchSuite {
         }
         p["profile-gc"]?.let { require(it in setOf("true", "false")) { "profile-gc must be true or false" } }
         p["operation"]?.let { require(it.matches(Regex("[a-z][a-z0-9-]*"))) { "Invalid operation" } }
-        for (key in listOf("samples", "warmups", "target-ms", "forks", "rounds")) {
+        for (key in listOf("samples", "warmups", "target-ms", "forks", "rounds", "reservation-cpus")) {
             p[key]?.let { require(it.matches(Regex("[1-9][0-9]*")) && it.toIntOrNull() != null) { "$key must be positive" } }
         }
         val cases = p["cases"] ?: CASES
         require(cases.matches(Regex("koblas-bench/lab/[a-z0-9-]+\\.txt"))) { "Invalid comparison case path" }
         val tags = if (vendor == "accelerate") setOf("platform:mac", "arch:arm64") else setOf("platform:linux", "arch:x86_64")
         return listOf(LabCase("comparison/$vendor/${p["operation"] ?: "all"}", p,
-            BenchResources(2, 4608, 7200, tags), inputs = listOf(BenchInput(cases, role = "cases"))))
+            BenchResources(p["reservation-cpus"]?.toInt() ?: 2, 4608, 7200, tags), inputs = listOf(BenchInput(cases, role = "cases"))))
     }
 
     override fun run(case: LabCase, context: BenchContext): BenchResult {
@@ -46,7 +46,7 @@ internal object VendorComparisonSuite : BenchSuite {
         val output = context.reportPath()
         val argv = mutableListOf("bash", root.resolve("koblas-bench/lab/vendor-capture.sh").toString(),
             "--output", output.toString())
-        case.parameters.forEach { (key, value) ->
+        case.parameters.filterKeys { it != "reservation-cpus" }.forEach { (key, value) ->
             argv += "--$key"
             argv += if (key == "cases") root.resolve(value).toString() else value
         }

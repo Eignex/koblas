@@ -566,6 +566,14 @@ Smoke results verify integration and are not performance evidence. Linux arm64
 and macOS Native binaries require their corresponding preparation tasks and
 hardware validation before using those targets.
 
+### Worker reservations for vendor comparisons
+
+The vendor comparison adapter accepts `reservation-cpus` as a placement requirement. On a 16-vCPU lab
+worker, `reservation-cpus=16` claims its complete CPU budget so other builds and captures cannot share
+the worker during measurement. The measured JVM and BLAS arithmetic still use one compute thread.
+Keep the case's resource declaration and the lab capacity snapshot with the report when checking
+isolation. Omitting the parameter preserves the ordinary two-CPU reservation.
+
 ### Allocation measurements
 
 Set `KOBLAS_BENCH_PROFILE_GC=true` (or `profile-gc=true` in the vendor comparison adapter) to retain
