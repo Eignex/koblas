@@ -161,8 +161,7 @@ Other matrix APIs may materialise a view.
 
 When querying routes, set `DenseCall.borrowed` for a call with views, `leadingDimension` for a padded
 `trsm` destination and `rightLeadingDimension` for a transposed borrowed right operand in `gemm`.
-The [benchmark guide](koblas-bench/README.md#borrowed-cholesky-trailing-updates) demonstrates a complete
-consumer-shaped factorization comparison; factorization and stabilization policy belong to the consumer.
+Factorization algorithms, stabilization policy and their end-to-end benchmarks belong to the consumer.
 
 
 ## Java
