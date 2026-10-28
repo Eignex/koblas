@@ -17,7 +17,7 @@
 
 Koblas provides dense and sparse double-precision BLAS Levels 1–3 for Kotlin Multiplatform.
 Portable Kotlin implementations work without an installed numerical library. JVM performance uses owned
-Vector API kernels; Kotlin/Native can accelerate eligible calls through installed host libraries.
+Vector API kernels. Eligible matrix calls can use installed host libraries on JVM and Kotlin/Native.
 Koblas is Apache-2.0 licensed. Its container serializers use kotlinx-serialization-core, exposed as an API
 dependency. It bundles no vendor libraries or custom native numerical kernels.
 
@@ -37,7 +37,8 @@ bytecode at the root and the desktop implementations under `META-INF/versions/25
 portable classes; no Android AAR, native binaries, NDK, or native-access flags are needed.
 
 - Desktop JDK 25 or later: pass `--add-modules=jdk.incubator.vector` to enable the SIMD engine. Without it,
-  calls use portable Kotlin. Ordinary JVM calls do not load a host library.
+  owned kernels use portable Kotlin. With native access enabled, Intel Linux hosts can also use installed
+  oneMKL for Level 3 calls whose rows, columns and depth are all at least 128. Other calls retain JVM kernels.
 - Desktop JDK 17–24 and Android: all operations use portable Kotlin. Host bindings return null.
 - Linux and macOS Kotlin/Native: eligible calls use an installed host library when available, with portable fallback.
 - iOS devices and simulators: all operations use portable Kotlin; no vendor library is required.

@@ -1,5 +1,6 @@
 package com.eignex.koblas
 
+import com.eignex.koblas.internal.jvm25.JvmHostDensePolicy
 import com.eignex.koblas.internal.jvm25.JvmVendorBlas
 import com.eignex.koblas.internal.jvm25.JvmVendorLibrary
 import com.eignex.koblas.internal.jvm25.SimdIndexedSparseKernels
@@ -28,6 +29,33 @@ internal object JvmBackend {
             )
         } else {
             null
+        }
+    }
+
+    val default: KoblasEngine by lazy {
+        val exact = simd ?: BuiltinEngines.scalar
+        // Resolving a library is opt-in native access; pure JVM callers keep the portable composition.
+        if (!JvmBackend::class.java.module.isNativeAccessEnabled ||
+            Vendor.select(hostPlatform()).firstOrNull() != Vendor.OneMkl
+        ) {
+            exact
+        } else {
+            val host = openBlas(Vendor.OneMkl)
+            if (host == null) {
+                exact
+            } else {
+                KoblasEngine(
+                    exact.vectorKernels,
+                    exact.indexedSparseKernels,
+                    host,
+                    exact.panelKernels,
+                    exact.productKernels,
+                    exact.triangularKernels,
+                    sparseKernelName = exact.sparseKernels.name,
+                    hostDense = host,
+                    hostDenseEligible = JvmHostDensePolicy,
+                )
+            }
         }
     }
 

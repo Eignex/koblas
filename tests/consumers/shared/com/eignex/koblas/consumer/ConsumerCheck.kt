@@ -12,8 +12,10 @@ object ConsumerCheck {
     /** Exercises transpose products, workspace reuse, and writes through aliased caller storage. */
     fun run(expectSimd: Boolean = false) {
         check(koblas.vectorKernels.name.startsWith("simd(") == expectSimd)
-        check(koblas.vendor == null)
-        if (!expectSimd) check(openBlas() == null)
+        if (!expectSimd) {
+            check(koblas.vendor == null)
+            check(openBlas() == null)
+        }
         val portable = KoblasEngine.portable()
         check(portable.vendor == null)
         check(portable.vectorKernels.name == "scalar")

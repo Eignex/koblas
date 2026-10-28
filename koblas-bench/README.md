@@ -228,14 +228,11 @@ source revision and the resolved library files are in `metadata.txt` only.
 
 Koblas contributes independent `jvm-scalar`, `jvm-simd`, `jvm-default`, `native` and `native-default` arms.
 `jvm-scalar` is portable Kotlin at every level, and `jvm-simd` is every Vector API kernel this library owns.
-`jvm-default` is what an ordinary call gets, which is a policy rather than an exact arm. On a JVM with the
-incubator module that policy now selects `jvm-simd`'s engine, so the two arms name one object and a
-difference between their rows is this harness's run-to-run band rather than two implementations; without the
-module it selects the portable engine and `jvm-simd` refuses to run at all. The arm is still named
-separately, because which engine a policy lands on is a conclusion a capture may report and not one a row
-may assume, and because its rows are where the generic entry points are timed: those use the selected engine
-and have none to be told. The comparison that says what the Vector API kernels are worth is `jvm-simd`
-against `jvm-scalar`.
+`jvm-default` is what an ordinary call gets, which is a policy rather than an exact arm. Its owned kernels
+are the SIMD arm with the incubator module, and scalar otherwise. With native access enabled on Intel Linux,
+an installed oneMKL can serve eligible Level 3 calls with every extent at least 128. The default and exact
+SIMD arms therefore need separate measurements; each row names its route. The comparison that says what
+Vector API kernels are worth is `jvm-simd` against `jvm-scalar`.
 
 `native` and `native-default` are the same split on Kotlin/Native and are two different engines rather than
 one named twice. `native` is the exact portable arm: common Kotlin at every level, resolving no library at
@@ -443,9 +440,8 @@ The `gemm-generic`, `spmm-generic`, `spmm-generic-right` and `spgemm-generic` ca
 dense one. That entry point uses the engine this platform selected rather than one a benchmark names, because a caller holding a
 `Matrix` has no engine to pass. They are therefore `default-policy` rows on the arm whose engine is the
 selected one, and are declined on every other arm rather than publishing that arm's label over another
-engine's work. On a JVM with the incubator module `jvm-simd` is the selected engine, so it admits them
-beside `jvm-default` and both rows are that runtime's default policy; without the module `jvm-scalar` is,
-and it admits them instead. On Kotlin/Native that arm is `native-default`; the exact portable `native` arm
+engine's work. On a JVM the exact arm admits them only when it is also the selected engine; a default that composes
+a host is a separate engine, so those generic calls are admitted only by `jvm-default`. On Kotlin/Native that arm is `native-default`; the exact portable `native` arm
 is not the selected engine and declines them. On a Kotlin/Native host with no library installed the two arms
 resolve to the same engine, so both admit these rows and both are that host's default policy.
 

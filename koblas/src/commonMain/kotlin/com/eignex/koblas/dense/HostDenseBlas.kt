@@ -40,6 +40,11 @@ internal const val HOST_STAGING: String = "host-stage/alias"
 /** The packing a borrowed region takes before a binding that has no in-place region entry points. */
 internal const val HOST_REGION_STAGING: String = "host-stage/region"
 
+/** Platform eligibility with primitive extents, avoiding boxed dimensions on the ordinary call path. */
+internal fun interface DenseHostEligibility {
+    fun eligible(operation: DenseMatrixOperation, rows: Int, columns: Int, depth: Int): Boolean
+}
+
 /**
  * Dense Level 2 and 3 served by an installed host library where one is eligible, and portably where it is not.
  *
@@ -80,6 +85,7 @@ internal class HostDenseBlas(
     private val portable: PortableDenseBlas,
     private val host: Blas,
     private val minimumWork: Long = HostDensePolicy.MINIMUM_WORK,
+    private val eligible: DenseHostEligibility? = null,
 ) : RoutedDenseBlas {
 
     /** The binding's in-place region entry points, or null where a borrowed operand has to be packed for it. */
@@ -109,9 +115,16 @@ internal class HostDenseBlas(
         depth: Int = 1,
         alpha: Double = 1.0,
         right: Boolean = false,
-    ): Long = HostDensePolicy.multiplyAdds(operation, rows, columns, depth, alpha, right)
+    ): Long = if (eligible?.eligible(operation, rows, columns, depth) == false) {
+        HostDensePolicy.NO_HOST_CALL
+    } else {
+        HostDensePolicy.multiplyAdds(operation, rows, columns, depth, alpha, right)
+    }
 
     override fun routeOf(operation: DenseMatrixOperation, call: DenseCall): DenseMatrixRoute {
+        if (eligible?.eligible(operation, call.rows, call.columns, call.depth ?: 1) == false) {
+            return portable.routeOf(operation, call)
+        }
         val work = HostDensePolicy.multiplyAdds(operation, call)
         if (!host(operation, work)) return portable.routeOf(operation, call)
         val entry = requireNotNull(HostDensePolicy.entryPointFor(operation))
