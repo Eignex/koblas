@@ -120,6 +120,10 @@ internal object SimdDenseAllocationCheck {
             engine.vectorKernels.axpy(y, 3, 1e-12, x, 1, ORDER - 3)
             y[3]
         }
+        assertAllocationFree("unit axpy at simplex width with offsets and a tail") {
+            engine.vectorKernels.axpy(y, 3, 1.0, x, 1, 70)
+            y[3]
+        }
         val streamingSource = DoubleArray(65_552) { 0.125 }
         val streamingDestination = DoubleArray(streamingSource.size)
         assertAllocationFree("streaming axpy with offsets and a tail", warmup = 20_000, iterations = 2_000) {

@@ -67,6 +67,29 @@ class SimdVectorKernelsTest {
         assertContentEquals(expected, actual)
 
     @Test
+    fun `unit axpy agrees with the scalar oracle across windows and shared buffers`() {
+        if (!SimdVectorKernels.isAvailable) return skipped()
+        val values = doubleArrayOf(
+            -0.0, 0.0, Double.MIN_VALUE, Double.MAX_VALUE, -2.5, 3.0,
+            Double.NEGATIVE_INFINITY, Double.POSITIVE_INFINITY, Double.NaN,
+        )
+        for (length in listOf(2, 6, 8, 27, 56, 64, 70, 65_535, 65_536)) {
+            for (shared in listOf(false, true)) {
+                val expected = DoubleArray(2 * length + 9) { values[it % values.size] }
+                val actual = expected.copyOf()
+                val source = DoubleArray(expected.size) { values[(it + 3) % values.size] }
+                for (sourceOffset in listOf(3, length + 6)) {
+                    ScalarVectorKernels.axpy(expected, 3, 1.0, if (shared) expected else source, sourceOffset, length)
+
+                    kernels.axpy(actual, 3, 1.0, if (shared) actual else source, sourceOffset, length)
+
+                    assertAxpyAgreesWithReference(expected, actual)
+                }
+            }
+        }
+    }
+
+    @Test
     fun `the index search waits for its own measured width`() {
         if (!SimdVectorKernels.isAvailable) return skipped()
 
