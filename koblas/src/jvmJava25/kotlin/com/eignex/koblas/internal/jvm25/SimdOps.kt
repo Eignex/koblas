@@ -28,7 +28,7 @@ internal object SimdOps {
         if (alpha == 0.0) return
         if (len >= WIDE_AXPY_MIN) {
             axpyUnrolled(y, yOff, alpha, x, xOff, len)
-        } else if (len >= 2 * LANE && len % LANE >= LANE / 2) {
+        } else if (LANE >= 8 && len >= 2 * LANE && len % LANE >= LANE / 2) {
             axpyTail(y, yOff, alpha, x, xOff, len)
         } else {
             axpyShort(y, yOff, alpha, x, xOff, len)

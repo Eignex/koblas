@@ -3,8 +3,9 @@
 Public storage remains ordinary `DoubleArray`. These comparisons include the JVM binding's transient
 native staging and writeback. No native-backed containers or critical vendor downcalls are introduced.
 
-The analysis is limited to oneMKL on the measured Intel host. The Accelerate comparison was skipped at
-the user's request; these results establish no Apple performance crossover.
+The native comparison is limited to oneMKL on the measured Intel hosts. Owned AXPY tuning also covers
+an AMD AVX2 host. The Accelerate comparison was skipped at the user's request; these results establish
+no Apple performance crossover.
 
 ## Implementation decisions
 
@@ -16,7 +17,8 @@ the user's request; these results establish no Apple performance crossover.
 | IAMAX | Keep owned SIMD; further tuning is lower priority than simplex work |
 | SCAL, SWAP, ROT and COPY | Keep ordinary loops and array-copy intrinsics; no dedicated Vector API replacement |
 | Eight-column product prototype | Removed because it introduced per-call allocation |
-| Simplex unit AXPY prototype | Rejected: exact SIMD gains did not carry consistently to the default, and controls regressed |
+| Unit-multiplier AXPY specialization | Rejected: exact SIMD gains did not carry consistently to the default, and controls regressed |
+| Wide-vector AXPY tails | Stage the final block only with at least eight lanes, two full vectors and a remainder of at least half a vector; retain the original compact and streaming paths elsewhere |
 | Deep thin GEMM | Prefer oneMKL for whole matrices with both output extents at least 16 and depth 1024 through 4096; borrowed views keep the larger cutoff |
 
 The availability floor remains portable dense and sparse BLAS. Selecting a profitable native call does
@@ -37,6 +39,14 @@ not remove the owned implementation needed on other hosts or by an explicitly se
 | [9068](https://lab.eignex.com/jobs/9068) | `57fc0f72` | Compact and streaming AXPY through exact and default engines, with allocation profiling | Complete, three rounds |
 | [9124](https://lab.eignex.com/jobs/9124) | `546f33ed` | Raw simplex unit AXPY baseline at corpus row counts, with GC profiling | Complete, three rotated rounds from the successful replacement execution |
 | [9127](https://lab.eignex.com/jobs/9127) | `25db53b0` | Compact unit-multiplier vector-add prototype and nonunit controls | Complete, three rounds; prototype rejected |
+| [9152](https://lab.eignex.com/jobs/9152) | `52693f31` | Direct primitive AXPY baseline, AVX-512 | Complete, three rounds on Xeon 8488C |
+| [9153](https://lab.eignex.com/jobs/9153) | `e6af8bf6` | Staged final-vector AXPY prototype, AVX-512 | Complete, three rounds; narrowed after small-tail regressions |
+| [9154](https://lab.eignex.com/jobs/9154) | `52693f31` | Direct primitive AXPY baseline, AVX2 | Complete, three rounds on EPYC 7R32 |
+| [9155](https://lab.eignex.com/jobs/9155) | `e6af8bf6` | Staged final-vector AXPY prototype, AVX2 | Complete, three rounds; narrowed after six-element regression |
+| [9160](https://lab.eignex.com/jobs/9160) | `530fb2c8` | Half-vector remainder threshold, AVX-512 | Complete, three rounds on Xeon 8488C |
+| [9161](https://lab.eignex.com/jobs/9161) | `530fb2c8` | Half-vector remainder threshold, AVX2 | Complete, three rounds; six-element call still regressed |
+| [9163](https://lab.eignex.com/jobs/9163) | `05dfa964` | Half-vector tail threshold plus two-vector minimum, AVX-512 | Complete, three rounds; retain the wide-vector body |
+| [9164](https://lab.eignex.com/jobs/9164) | `05dfa964` | Half-vector tail threshold plus two-vector minimum, AVX2 | Complete, three rounds; retain the original four-lane body instead |
 | [9070](https://lab.eignex.com/jobs/9070) | `59bcc0e8` | 82-case comparison of the final implementation against Accelerate on Apple hardware | Cancelled at user request before measurement |
 
 Job 9002 used an Intel Xeon Platinum 8375C, eight double lanes, JDK 25.0.4.1, Kotlin 2.4.10, Serial GC and
@@ -245,6 +255,94 @@ these small calls already take tens of nanoseconds, and kernel-only gains do not
 The first attempt, [9122](https://lab.eignex.com/jobs/9122), failed when a vendor JVM fork lost its working
 directory. Its partial round used a different CPU model and is excluded. Job 9124 also lost its first
 execution; only its complete, successfully uploaded replacement execution is used above.
+
+## Simplex AXPY tail tuning
+
+The subsequent raw benchmark captures the primitive length and array references outside the timed
+lambda, avoiding a dimension lookup through the case object. Compare these revisions to each other;
+their absolute timings are not directly comparable to the earlier capture body or another CPU model.
+The 14 cases include all retained simplex lengths, neighboring tails 9, 31 and 65, and four nonunit
+controls. Each capture uses the same eight warmups, five samples, 200 ms iterations, three rotated
+rounds, Serial GC, 512 MiB heap and allocation profiler as the preceding follow-up.
+
+These jobs use the ordinary two-CPU budget. The Linux harness samples allowed physical cores, includes
+SMT sibling activity, randomizes similarly idle choices and pins each complete capture to its selected
+logical CPU. The Xeon 8488C baseline/candidate selected CPUs 14/7; the EPYC 7R32 pair selected 12/2.
+Each matched pair has the same CPU model, JDK 25.0.4.1 and resolved width: eight lanes on Intel and four
+on AMD. All 504 case/arm/round rows passed numerical preflight. Concurrent shared work is permitted;
+these are pinned shared-worker measurements, not claims of isolated hardware.
+
+The first candidate stages the final vector result before any stores, then uses it to cover the tail.
+Computing it first prevents overlapping destination blocks from applying an update twice. The default
+engine's medians of round medians, in nanoseconds per raw unit update, show why the broad version is
+narrowed:
+
+| Elements | AVX-512 baseline | AVX-512 broad tail | AVX2 baseline | AVX2 broad tail |
+|---|---:|---:|---:|---:|
+| 6 | 3.52 | 3.55 | 6.76 | 8.90 |
+| 9 | 3.89 | 6.79 | 6.68 | 5.81 |
+| 27 | 6.27 | 6.30 | 10.39 | 9.91 |
+| 31 | 10.97 | 6.79 | 10.60 | 9.87 |
+| 64 | 11.25 | 11.97 | 13.81 | 17.37 |
+| 70 | 15.55 | 12.01 | 15.41 | 14.80 |
+
+The Intel gain at 70 repeats in all three default rounds: 15.54–15.66 ns becomes 11.62–12.08 ns.
+At 31, 10.97–11.06 ns becomes 6.37–6.88 ns. Conversely, the tiny-tail regression at 9 also repeats:
+3.89–3.97 ns becomes 6.77–6.91 ns. AMD's six-element regression repeats at 6.73–6.78 ns versus
+8.89–8.93 ns. Most unchanged small scalar medians remain within about 1%, although some individual
+forks and larger streaming cases vary more. Thus the broad tail implementation is not accepted for
+all short calls. The next candidate preserves the original loop for aligned lengths, tiny tails and
+calls shorter than two full vectors, and stages only a remainder of at least half a vector.
+
+The intermediate half-vector threshold (`530fb2c8`) repeats the Intel gain at 70: 15.55 ns becomes
+12.50 ns by the same aggregation, and 31 falls from 10.97 to 6.93 ns. However, AMD's six-element call
+still rises from 6.76 to 8.31 ns, motivating the two-full-vector minimum. Some unchanged scalar cases
+and default/exact differences move between captures; the final decision uses the actual final source,
+including its small-call and nonunit controls.
+
+The two-vector minimum (`05dfa964`) completed another three rounds on both matched CPU models,
+selecting CPUs 1 and 6. All 252 numerical preflight rows passed. The Intel default results are:
+
+| Case | Baseline | Guarded tail |
+|---|---:|---:|
+| Unit, 2 | 2.75 ns | 2.76 ns |
+| Unit, 6 | 3.52 ns | 3.59 ns |
+| Unit, 8 | 2.83 ns | 3.01 ns |
+| Unit, 9 | 3.89 ns | 3.92 ns |
+| Unit, 27 | 6.27 ns | 6.39 ns |
+| Unit, 31 | 10.97 ns | 6.42 ns |
+| Unit, 56 | 10.19 ns | 10.71 ns |
+| Unit, 64 | 11.25 ns | 11.56 ns |
+| Unit, 65 | 11.12 ns | 11.99 ns |
+| Unit, 70 | 15.55 ns | 12.03 ns |
+| Nonunit, 4,096 | 1.410 us | 1.414 us |
+| Nonunit, 65,536 | 25.18 us | 27.26 us |
+| Nonunit, 65,537 | 24.93 us | 25.67 us |
+
+At 70, all default candidate round medians lie between 11.84 and 12.22 ns, below the baseline's
+15.54–15.66 ns: about 23% less time, or 1.29x throughput. The neighboring 31-element case improves
+by about 41%. Exact SIMD at 70 also improves from 9.65 to 7.93 ns. Smaller calls do not uniformly
+improve: the default's aligned eight-element call costs another 0.18 ns, 56 costs another 0.52 ns,
+and the 65-element control costs another 0.88 ns. This is a tail optimization with measured tradeoffs,
+not a blanket AXPY or solver speedup. The 4,096-element control is essentially unchanged. Streaming
+rounds remain variable: the candidate's default 65,536-element medians span 23.73–30.37 us versus
+24.08–41.43 us for the baseline, so these captures establish no streaming improvement. Their body
+remains the original unrolled implementation.
+
+On AMD, the minimum recovers six elements to 6.46 ns and improves 27 from 10.39 to 9.63 ns, but
+4,096-element default calls increase from 2.033 to 2.375 us in all three rounds. The 70-element exact
+and default arms also disagree about the benefit. These tradeoffs do not justify the additional tail
+path on four-lane hardware. The final policy therefore enables staging only for species with at least
+eight lanes; narrower species retain the original compact loop. The width is a constant of the selected
+Vector API species. The table above measures the guarded arithmetic at `05dfa964`, before that final
+width restriction; it does not claim a fresh timing capture of the additional constant guard.
+
+Retain the wide-vector tail improvement and stop this tuning pass here. The large native-transfer gap
+at simplex sizes still favors owned arrays and kernels; it does not justify dispatching these calls to
+oneMKL. Preferred/narrow and FMA-disabled local probes remain at zero bytes per AXPY call. Scalar-oracle
+tests cover every short remainder, offset windows, exact/disjoint shared buffers and non-finite inputs.
+The complete `check lintDocs` gate passes. Further changes should be justified by a solver profile or
+generated-code evidence, rather than extrapolating these nanosecond differences to complete simplex.
 
 ## Wider-tile and norm follow-up
 
