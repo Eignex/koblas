@@ -1,4 +1,3 @@
-import java.io.File
 import java.nio.file.Path as JdkPath
 import org.gradle.api.tasks.JavaExec
 
@@ -6,17 +5,11 @@ import org.gradle.jvm.toolchain.JavaLanguageVersion
 import org.gradle.jvm.toolchain.JvmVendorSpec
 import org.jetbrains.kotlin.gradle.targets.jvm.KotlinJvmTarget
 
-plugins { id("com.eignex.kmp") version "1.3.5" }
-
-repositories {
-    maven("https://central.sonatype.com/repository/maven-snapshots/") {
-        mavenContent { snapshotsOnly() }
-        content { includeGroup("com.eignex") }
-    }
-}
+plugins { id("com.eignex.kmp") }
 
 eignexPublish { publish.set(false) }
 eignexBuild {
+    jvmToolchain.set(25)
     abiValidationEnabled.set(false)
     // The benchmark harness does not yet follow the library's lint conventions.
     lintEnabled.set(false)
@@ -39,7 +32,6 @@ repositories {
 val labBenchVersion = providers.gradleProperty("labBenchVersion").getOrElse("0.1.0")
 
 kotlin {
-    applyDefaultHierarchyTemplate()
     compilerOptions {
         allWarningsAsErrors.set(true)
         freeCompilerArgs.add("-Xexpect-actual-classes")
@@ -110,30 +102,6 @@ tasks.register("prepareBenchmarkRuntime") {
             println("benchmark_runtime_version=${resolved.metadata.javaRuntimeVersion}")
             println("benchmark_runtime_vendor=${resolved.metadata.vendor}")
         }
-    }
-}
-
-tasks.register("prepareAlignmentDiagnostic") {
-    group = "benchmark"
-    description = "Stages the exact JVM runtime for the native alignment reference diagnostic."
-    dependsOn("jvmMainClasses", ":koblas:jvmJar")
-    val diagnosticClasspath = files(jvmCompilation.output.allOutputs, configurations.getByName("jvmRuntimeClasspath"))
-    val manifest = layout.buildDirectory.file("alignment-diagnostic-classpath.txt")
-    val runtime = layout.buildDirectory.dir("alignment-diagnostic-runtime")
-    val repository = rootProject.projectDir
-    inputs.files(diagnosticClasspath)
-    outputs.file(manifest)
-    outputs.dir(runtime)
-    doLast {
-        val directory = runtime.get().asFile
-        directory.deleteRecursively()
-        directory.mkdirs()
-        val entries = diagnosticClasspath.files.filter { it.exists() }.mapIndexed { index, source ->
-            val destination = directory.resolve("$index-${source.name}")
-            source.copyRecursively(destination, overwrite = true)
-            destination.relativeTo(repository).path
-        }
-        manifest.get().asFile.writeText(entries.joinToString(File.pathSeparator))
     }
 }
 

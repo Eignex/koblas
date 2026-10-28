@@ -39,28 +39,11 @@ jobs:
           ref: ${{ inputs.ref || github.sha }}
           fetch-depth: 2
 
-      - name: Set up JDK
-        uses: actions/setup-java@v6
+      - name: Set up build
+        uses: ./.github/actions/setup-build
         with:
-          distribution: temurin
-          java-version: 25
-
-      # Build jobs persist dependency and encrypted configuration caches.
-      - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v6
-        with:
-          cache-read-only: false
           cache-encryption-key: ${{ secrets.GRADLE_ENCRYPTION_KEY }}
-
-      - name: Cache Kotlin/Native toolchain
-        uses: actions/cache@v6
-        with:
-          path: ~/.konan
-          key: ${{ runner.os }}-${{ runner.arch }}-konan-${{ hashFiles('**/*.gradle.kts', '**/gradle.properties', '**/gradle-wrapper.properties', '**/*.versions.toml') }}
-          restore-keys: ${{ runner.os }}-${{ runner.arch }}-konan-
-
-      - name: Grant execute permission for Gradle
-        run: chmod +x gradlew
+          native-cache: 'true'
 
       # Exercise Linux host bindings as well as the portable conformance floor. Serial BLIS reaches the
       # AOCL arm without worker threads; OpenBLAS has its own benchmark comparator job below.
@@ -94,11 +77,16 @@ jobs:
           ldconfig -p | grep libblis.so.4
 
       - name: Validate CI scripts
-        run: python3 .github/scripts/test-ci-scripts.py
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends libxml2-utils
+          bash .github/scripts/test-ci-scripts.sh
+          bash tests/test-verification-scripts.sh
+          bash koblas-bench/test-scripts.sh
 
       # One task graph shares compilation and analysis between checks and documentation lint.
       - name: Run checks and documentation lint with coverage
-        run: ./gradlew :koblas:check :koblas-bench:check lintDocs :koblas:koverXmlReport
+        run: ./gradlew check lintDocs :koblas:koverXmlReport
 
       - name: Upload test reports
         if: always()
@@ -106,8 +94,8 @@ jobs:
         with:
           name: test-reports
           path: |
-            koblas/build/reports/tests/
-            koblas/build/test-results/
+            **/build/reports/tests/
+            **/build/test-results/
           if-no-files-found: ignore
 
       - name: Upload results to Codecov (main only)
@@ -116,6 +104,7 @@ jobs:
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: koblas/build/reports/kover/report.xml
+          disable_search: true
           flags: reference
           fail_ci_if_error: false
 
@@ -134,27 +123,11 @@ jobs:
           ref: ${{ inputs.ref || github.sha }}
           fetch-depth: 2
 
-      - name: Set up JDK
-        uses: actions/setup-java@v6
+      - name: Set up build
+        uses: ./.github/actions/setup-build
         with:
-          distribution: temurin
-          java-version: 25
-
-      - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v6
-        with:
-          cache-read-only: false
           cache-encryption-key: ${{ secrets.GRADLE_ENCRYPTION_KEY }}
-
-      - name: Cache Kotlin/Native toolchain
-        uses: actions/cache@v6
-        with:
-          path: ~/.konan
-          key: ${{ runner.os }}-${{ runner.arch }}-konan-${{ hashFiles('**/*.gradle.kts', '**/gradle.properties', '**/gradle-wrapper.properties', '**/*.versions.toml') }}
-          restore-keys: ${{ runner.os }}-${{ runner.arch }}-konan-
-
-      - name: Grant execute permission for Gradle
-        run: chmod +x gradlew
+          native-cache: 'true'
 
       # The binding dlopens by soname, so the runtime libraries are what matter.
       #
@@ -223,8 +196,8 @@ jobs:
         with:
           name: test-reports-openblas-comparator
           path: |
-            koblas-bench/build/reports/tests/
-            koblas-bench/build/test-results/
+            **/build/reports/tests/
+            **/build/test-results/
           if-no-files-found: ignore
 
   # The Linux job cross-compiles the macOS klibs but cannot link or run them; this job exercises
@@ -242,27 +215,11 @@ jobs:
           ref: ${{ inputs.ref || github.sha }}
           fetch-depth: 2
 
-      - name: Set up JDK
-        uses: actions/setup-java@v6
+      - name: Set up build
+        uses: ./.github/actions/setup-build
         with:
-          distribution: temurin
-          java-version: 25
-
-      - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v6
-        with:
-          cache-read-only: false
           cache-encryption-key: ${{ secrets.GRADLE_ENCRYPTION_KEY }}
-
-      - name: Cache Kotlin/Native toolchain
-        uses: actions/cache@v6
-        with:
-          path: ~/.konan
-          key: ${{ runner.os }}-${{ runner.arch }}-konan-${{ hashFiles('**/*.gradle.kts', '**/gradle.properties', '**/gradle-wrapper.properties', '**/*.versions.toml') }}
-          restore-keys: ${{ runner.os }}-${{ runner.arch }}-konan-
-
-      - name: Grant execute permission for Gradle
-        run: chmod +x gradlew
+          native-cache: 'true'
 
       - name: Run JVM and native tests
         run: ./gradlew :koblas:jvmTest :koblas:macosArm64Test
@@ -271,14 +228,13 @@ jobs:
         run: |
           set -euo pipefail
           test "$(uname -m)" = arm64
-          read -r device state < <(xcrun simctl list devices available -j | python3 -c '
-          import json, sys
-          devices = [device for runtime, group in json.load(sys.stdin)["devices"].items()
-                     if ".iOS-" in runtime for device in group if device["name"].startswith("iPhone")]
-          assert devices, "No installed iPhone simulator"
-          device = next((device for device in devices if device["state"] == "Booted"), devices[0])
-          print(device["udid"], device["state"])
-          ')
+          devices=$(xcrun simctl list devices available -j)
+          selection=$(jq -er '
+            [.devices | to_entries[] | select(.key | contains(".iOS-")) | .value[] |
+              select(.name | startswith("iPhone"))] |
+            (map(select(.state == "Booted"))[0] // .[0] // error("No installed iPhone simulator")) |
+            [.udid, .state] | @tsv' <<<"$devices")
+          read -r device state <<<"$selection"
           echo "IOS_SIMULATOR_DEVICE=$device" >> "$GITHUB_ENV"
           if [[ "$state" != Booted ]]; then xcrun simctl boot "$device"; fi
           xcrun simctl bootstatus "$device" -b
@@ -299,7 +255,7 @@ jobs:
           -PiosSimulatorDevice="$IOS_SIMULATOR_DEVICE"
       - name: Require executed simulator tests and linked frameworks
         run: |
-          python3 tests/verify-test-results.py koblas/build/test-results/iosSimulatorArm64Test tests/ios-consumer/build/test-results/iosSimulatorArm64Test
+          bash tests/verify-test-results.sh koblas/build/test-results/iosSimulatorArm64Test tests/ios-consumer/build/test-results/iosSimulatorArm64Test
           test -s tests/ios-consumer/build/bin/iosArm64/debugFramework/KoblasConsumer.framework/KoblasConsumer
           test -s tests/ios-consumer/build/bin/iosSimulatorArm64/debugFramework/KoblasConsumer.framework/KoblasConsumer
       - name: Upload test reports
@@ -308,10 +264,8 @@ jobs:
         with:
           name: test-reports-macos
           path: |
-            koblas/build/reports/tests/
-            koblas/build/test-results/
-            tests/ios-consumer/build/reports/tests/
-            tests/ios-consumer/build/test-results/
+            **/build/reports/tests/
+            **/build/test-results/
           if-no-files-found: ignore
 
   test-onemkl:
@@ -323,13 +277,9 @@ jobs:
         with:
           persist-credentials: false
           ref: ${{ inputs.ref || github.sha }}
-      - uses: actions/setup-java@v6
+      - name: Set up build
+        uses: ./.github/actions/setup-build
         with:
-          distribution: temurin
-          java-version: 25
-      - uses: gradle/actions/setup-gradle@v6
-        with:
-          cache-read-only: false
           cache-encryption-key: ${{ secrets.GRADLE_ENCRYPTION_KEY }}
       # Portable conformance needs a host without a vendor library. Install oneMKL only afterwards;
       # Gradle starts fresh test JVMs for its interface checks and the SIMD-enabled test run.
@@ -341,10 +291,8 @@ jobs:
         with:
           name: test-reports-portable-jvm
           path: |
-            koblas/build/reports/tests/
-            koblas/build/test-results/
-            koblas-bench/build/reports/tests/
-            koblas-bench/build/test-results/
+            **/build/reports/tests/
+            **/build/test-results/
           if-no-files-found: ignore
       - name: Cache oneMKL runtime package
         uses: actions/cache@v6
@@ -365,8 +313,8 @@ jobs:
         with:
           name: test-reports-onemkl
           path: |
-            koblas/build/reports/tests/
-            koblas/build/test-results/
+            **/build/reports/tests/
+            **/build/test-results/
           if-no-files-found: ignore
 
   # Kotlin/Native builds final Linux binaries on x64 hosts. Execute the cross-built tests on real arm64.
@@ -379,20 +327,11 @@ jobs:
         with:
           persist-credentials: false
           ref: ${{ inputs.ref || github.sha }}
-      - uses: actions/setup-java@v6
+      - name: Set up build
+        uses: ./.github/actions/setup-build
         with:
-          distribution: temurin
-          java-version: 25
-      - uses: gradle/actions/setup-gradle@v6
-        with:
-          cache-read-only: false
           cache-encryption-key: ${{ secrets.GRADLE_ENCRYPTION_KEY }}
-      - name: Cache Kotlin/Native toolchain
-        uses: actions/cache@v6
-        with:
-          path: ~/.konan
-          key: ${{ runner.os }}-${{ runner.arch }}-konan-${{ hashFiles('**/*.gradle.kts', '**/gradle.properties', '**/gradle-wrapper.properties', '**/*.versions.toml') }}
-          restore-keys: ${{ runner.os }}-${{ runner.arch }}-konan-
+          native-cache: 'true'
       - name: Cross-compile native conformance tests
         run: ./gradlew :koblas:linkDebugTestLinuxArm64 :koblas-bench:linkDebugTestLinuxArm64
       - name: Package test executables
@@ -421,7 +360,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: >-
-          python3 .github/scripts/download-artifact.py
+          bash .github/scripts/download-artifact.sh
           "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID" linux-arm64-tests build
       - name: Run portable native conformance on arm64
         run: |
@@ -452,22 +391,22 @@ jobs:
         with:
           persist-credentials: false
           ref: ${{ inputs.ref || github.sha }}
-      - uses: actions/setup-java@v6
+      - name: Set up build
+        uses: ./.github/actions/setup-build
         with:
-          distribution: temurin
-          java-version: 25
-      - uses: gradle/actions/setup-gradle@v6
-        with:
-          cache-read-only: false
           cache-encryption-key: ${{ secrets.GRADLE_ENCRYPTION_KEY }}
       - name: Stage the shared Maven publication
         run: >-
           ./gradlew :koblas:publishJvmPublicationToLocalStagingRepository
           :koblas:publishKotlinMultiplatformPublicationToLocalStagingRepository
           -PciVersion=0.0.0-consumer
+      - name: Install XML report tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends libxml2-utils
       - name: Verify the bytecode boundary and published JVM requirement
         run: |
-          python3 tests/verify-jvm-artifact.py \
+          bash tests/verify-jvm-artifact.sh \
             koblas/build/libs/koblas-jvm-0.0.0-consumer.jar koblas/build/publications/jvm/module.json
           jar --validate --file koblas/build/libs/koblas-jvm-0.0.0-consumer.jar
       - name: Build JVM and Android consumers of the same publication
@@ -477,7 +416,7 @@ jobs:
           :android:assembleDebug :android:assembleRelease :android:assembleDebugAndroidTest
       - name: Verify both Android APKs contain only portable code
         run: |
-          python3 tests/verify-jvm-artifact.py \
+          bash tests/verify-jvm-artifact.sh \
             koblas/build/libs/koblas-jvm-0.0.0-consumer.jar koblas/build/publications/jvm/module.json \
             tests/consumers/android/build/outputs/apk/debug/android-debug.apk \
             tests/consumers/android/build/outputs/apk/release/android-release.apk
@@ -497,7 +436,7 @@ jobs:
           script: |
             ./gradlew -p tests/consumers :android:connectedDebugAndroidTest
             ./gradlew -p tests/consumers :android:connectedReleaseAndroidTest -Pconsumer.buildType=release
-            python3 tests/verify-test-results.py tests/consumers/android/build/outputs/androidTest-results/connected/debug tests/consumers/android/build/outputs/androidTest-results/connected/release
+            bash tests/verify-test-results.sh tests/consumers/android/build/outputs/androidTest-results/connected/debug tests/consumers/android/build/outputs/androidTest-results/connected/release
       - name: Upload Android consumer test reports
         if: always()
         uses: actions/upload-artifact@v7

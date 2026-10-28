@@ -1,0 +1,39 @@
+name: Set up build
+description: Configure Java, Gradle, and optional Kotlin Native caching
+inputs:
+  cache-encryption-key:
+    description: Gradle configuration cache encryption key
+    required: false
+  cache-read-only:
+    description: Restore caches without saving them
+    default: 'false'
+  native-cache:
+    description: Cache the Kotlin Native toolchain
+    default: 'false'
+runs:
+  using: composite
+  steps:
+    - name: Set up JDK
+      uses: actions/setup-java@v6
+      with:
+        distribution: temurin
+        java-version: 25
+    - name: Set up Gradle
+      uses: gradle/actions/setup-gradle@v6
+      with:
+        cache-read-only: ${{ inputs.cache-read-only }}
+        cache-encryption-key: ${{ inputs.cache-encryption-key }}
+    - name: Cache Kotlin Native toolchain
+      if: inputs.native-cache == 'true' && inputs.cache-read-only != 'true'
+      uses: actions/cache@v6
+      with:
+        path: ~/.konan
+        key: ${{ runner.os }}-${{ runner.arch }}-konan-${{ hashFiles('**/*.gradle.kts', '**/gradle.properties', '**/gradle-wrapper.properties', '**/*.versions.toml') }}
+        restore-keys: ${{ runner.os }}-${{ runner.arch }}-konan-
+    - name: Restore Kotlin Native toolchain
+      if: inputs.native-cache == 'true' && inputs.cache-read-only == 'true'
+      uses: actions/cache/restore@v6
+      with:
+        path: ~/.konan
+        key: ${{ runner.os }}-${{ runner.arch }}-konan-${{ hashFiles('**/*.gradle.kts', '**/gradle.properties', '**/gradle-wrapper.properties', '**/*.versions.toml') }}
+        restore-keys: ${{ runner.os }}-${{ runner.arch }}-konan-

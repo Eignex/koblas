@@ -4,8 +4,8 @@ import org.jetbrains.kotlin.gradle.tasks.KotlinJvmCompile
 import org.jetbrains.kotlin.gradle.targets.jvm.KotlinJvmTarget
 
 plugins {
-    id("com.eignex.kmp") version "1.3.5"
-    kotlin("plugin.serialization") version "2.4.21"
+    id("com.eignex.kmp")
+    kotlin("plugin.serialization")
 }
 
 eignexBuild {
@@ -17,13 +17,6 @@ eignexBuild {
     packagedTestJdks.set(listOf(17, 25))
 }
 
-repositories {
-    maven("https://central.sonatype.com/repository/maven-snapshots/") {
-        mavenContent { snapshotsOnly() }
-        content { includeGroup("com.eignex") }
-    }
-}
-
 eignexPublish {
     description.set("Portable dense and sparse BLAS for Kotlin Multiplatform with JVM SIMD and optional host bindings.")
     githubRepo.set("Eignex/koblas")
@@ -31,7 +24,6 @@ eignexPublish {
 
 kotlin {
     explicitApi()
-    applyDefaultHierarchyTemplate()
     compilerOptions {
         allWarningsAsErrors.set(true)
         freeCompilerArgs.add("-Xexpect-actual-classes")
@@ -51,7 +43,7 @@ kotlin {
                 kotlin.srcDir("src/commonTest/kotlin")
                 dependencies {
                     implementation(kotlin("test-junit"))
-                    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.12.0")
+                    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json")
                 }
             }
         }
@@ -63,7 +55,7 @@ kotlin {
 
     sourceSets {
         commonMain.dependencies {
-            api("org.jetbrains.kotlinx:kotlinx-serialization-core:1.12.0")
+            api("org.jetbrains.kotlinx:kotlinx-serialization-core")
         }
         // Conformance tests compare a vectorised kernel against the portable one that defines its semantics,
         // which means naming an engine. Opting in for the test source sets and not for main is what keeps
@@ -72,15 +64,13 @@ kotlin {
             if (name.endsWith("Test")) languageSettings.optIn("com.eignex.koblas.KoblasEngineApi")
         }
         commonTest.dependencies {
-            implementation("org.jetbrains.kotlinx:kotlinx-serialization-core:1.12.0")
-            implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.12.0")
+            implementation("org.jetbrains.kotlinx:kotlinx-serialization-json")
         }
     }
 }
 
 // Module and package overviews share one Dokka include.
 dokka {
-    moduleName.set("koblas")
     dokkaSourceSets.configureEach {
         sourceLink {
             localDirectory.set(projectDir.resolve("src"))
@@ -114,23 +104,37 @@ tasks.withType<Test>().configureEach {
 // classes before their JVM starts, which prevents that replacement and turns an otherwise allocation-free sparse
 // kernel into a coverage artifact. Run this check in its own, uninstrumented JVM with an explicit SIMD engine.
 val jvmTestCompilation = (kotlin.targets.getByName("jvm") as KotlinJvmTarget).compilations.getByName("test")
-val allocationCheckJavaLauncher = javaToolchains.launcherFor { languageVersion.set(JavaLanguageVersion.of(25)) }
+val jvmCheckJavaLauncher = javaToolchains.launcherFor { languageVersion.set(JavaLanguageVersion.of(25)) }
+
+fun registerJvmCheck(
+    name: String,
+    description: String,
+    mainClassName: String,
+    vararg jvmArguments: String,
+    runtimeHome: String? = null,
+    configure: JavaExec.() -> Unit = {},
+) = tasks.register<JavaExec>(name) {
+    group = "verification"
+    this.description = description
+    dependsOn("jvmTestClasses")
+    classpath(jvmTestCompilation.output.allOutputs, configurations.getByName("jvmTestRuntimeClasspath"))
+    mainClass.set(mainClassName)
+    if (runtimeHome == null) javaLauncher.set(jvmCheckJavaLauncher)
+    else setExecutable("$runtimeHome/bin/java")
+    jvmArgs(*jvmArguments)
+    configure()
+}
 
 /** oneMKL interface selection is process state, so each configuration needs a fresh JVM. */
-fun registerOneMklInterfaceCheck(name: String, description: String, mode: String) =
-    tasks.register<JavaExec>(name) {
-        group = "verification"
-        this.description = description
-        dependsOn("jvmTestClasses")
-        classpath(jvmTestCompilation.output.allOutputs, configurations.getByName("jvmTestRuntimeClasspath"))
-        mainClass.set("com.eignex.koblas.vendor.OneMklInterfaceCheck")
-        javaLauncher.set(allocationCheckJavaLauncher)
-        environment("MKL_INTERFACE_LAYER", "ILP64")
-        maxHeapSize = "128m"
-        jvmArgs("--enable-native-access=ALL-UNNAMED", "-XX:ActiveProcessorCount=1")
-        systemProperty("koblas.requireOneMkl", providers.gradleProperty("koblas.requireOneMkl").orElse("false").get())
-        args(mode)
-    }
+fun registerOneMklInterfaceCheck(name: String, description: String, mode: String) = registerJvmCheck(
+    name, description, "com.eignex.koblas.vendor.OneMklInterfaceCheck",
+    "--enable-native-access=ALL-UNNAMED", "-XX:ActiveProcessorCount=1",
+) {
+    environment("MKL_INTERFACE_LAYER", "ILP64")
+    maxHeapSize = "128m"
+    systemProperty("koblas.requireOneMkl", providers.gradleProperty("koblas.requireOneMkl").orElse("false").get())
+    args(mode)
+}
 
 val oneMklInheritedInterfaceCheck = registerOneMklInterfaceCheck(
     "oneMklInheritedInterfaceCheck",
@@ -150,22 +154,11 @@ val oneMklInitializedInterfaceCheck = registerOneMklInterfaceCheck(
  * instruction. Both are fixed when the virtual machine starts, which is why each configuration is its own
  * process and each one worth checking is registered here.
  */
-fun registerSparseAllocationCheck(name: String, description: String, vararg extraArgs: String) =
-    tasks.register<JavaExec>(name) {
-        group = "verification"
-        this.description = description
-        dependsOn("jvmTestClasses")
-        classpath(jvmTestCompilation.output.allOutputs, configurations.getByName("jvmTestRuntimeClasspath"))
-        mainClass.set("com.eignex.koblas.sparse.SimdSparseAllocationCheck")
-        javaLauncher.set(allocationCheckJavaLauncher)
-        jvmArgs(
-            "--add-modules=jdk.incubator.vector",
-            "--enable-native-access=ALL-UNNAMED",
-            "-XX:-TieredCompilation",
-            "-XX:CompileThreshold=1000",
-            *extraArgs,
-        )
-    }
+fun registerSparseAllocationCheck(name: String, description: String, vararg extraArgs: String) = registerJvmCheck(
+    name, description, "com.eignex.koblas.sparse.SimdSparseAllocationCheck",
+    "--add-modules=jdk.incubator.vector", "--enable-native-access=ALL-UNNAMED",
+    "-XX:-TieredCompilation", "-XX:CompileThreshold=1000", *extraArgs,
+)
 
 val simdSparseAllocationCheck = registerSparseAllocationCheck(
     "simdSparseAllocationCheck",
@@ -189,22 +182,11 @@ val simdSparseAllocationCheckNarrowNoFma = registerSparseAllocationCheck(
  * instruction, and both are fixed when the virtual machine starts. So each configuration needs its own
  * process, and each one worth checking is registered here rather than left to be remembered.
  */
-fun registerDenseAllocationCheck(name: String, description: String, vararg extraArgs: String) =
-    tasks.register<JavaExec>(name) {
-        group = "verification"
-        this.description = description
-        dependsOn("jvmTestClasses")
-        classpath(jvmTestCompilation.output.allOutputs, configurations.getByName("jvmTestRuntimeClasspath"))
-        mainClass.set("com.eignex.koblas.dense.SimdDenseAllocationCheck")
-        javaLauncher.set(allocationCheckJavaLauncher)
-        jvmArgs(
-            "--add-modules=jdk.incubator.vector",
-            "--enable-native-access=ALL-UNNAMED",
-            "-XX:-TieredCompilation",
-            "-XX:CompileThreshold=1000",
-            *extraArgs,
-        )
-    }
+fun registerDenseAllocationCheck(name: String, description: String, vararg extraArgs: String) = registerJvmCheck(
+    name, description, "com.eignex.koblas.dense.SimdDenseAllocationCheck",
+    "--add-modules=jdk.incubator.vector", "--enable-native-access=ALL-UNNAMED",
+    "-XX:-TieredCompilation", "-XX:CompileThreshold=1000", *extraArgs,
+)
 
 val simdDenseAllocationCheck = registerDenseAllocationCheck(
     "simdDenseAllocationCheck",
@@ -233,16 +215,10 @@ val simdDenseAllocationCheckNarrowNoFma = registerDenseAllocationCheck(
  * unfused paths are generated and taken only in a process started this way. Forcing a flag exercises the
  * path; it says nothing about a machine that genuinely lacks the instruction.
  */
-fun registerRuntimePathCheck(name: String, description: String, vararg extraArgs: String) =
-    tasks.register<JavaExec>(name) {
-        group = "verification"
-        this.description = description
-        dependsOn("jvmTestClasses")
-        classpath(jvmTestCompilation.output.allOutputs, configurations.getByName("jvmTestRuntimeClasspath"))
-        mainClass.set("com.eignex.koblas.dense.SimdRuntimePathCheck")
-        javaLauncher.set(allocationCheckJavaLauncher)
-        jvmArgs("--add-modules=jdk.incubator.vector", "--enable-native-access=ALL-UNNAMED", *extraArgs)
-    }
+fun registerRuntimePathCheck(name: String, description: String, vararg extraArgs: String) = registerJvmCheck(
+    name, description, "com.eignex.koblas.dense.SimdRuntimePathCheck",
+    "--add-modules=jdk.incubator.vector", "--enable-native-access=ALL-UNNAMED", *extraArgs,
+)
 
 // Two lanes rather than this host's four, which is the width of the narrowest species in the reference
 // fleet, and the unfused multiply-add that a pre-FMA host would take.
@@ -259,20 +235,15 @@ val simdNoFmaCheck = registerRuntimePathCheck(
 )
 simdNoFmaCheck { args("", "false") }
 
-fun registerReductionAlignmentCheck(name: String, mode: String, vararg extraArgs: String) =
-    tasks.register<JavaExec>(name) {
-        group = "verification"
-        description = "Checks reduction windows against the scalar oracle with a fixed heap layout."
-        dependsOn("jvmTestClasses")
-        classpath(jvmTestCompilation.output.allOutputs, configurations.getByName("jvmTestRuntimeClasspath"))
-        mainClass.set("com.eignex.koblas.dense.SimdReductionAlignmentCheck")
-        val runtimeHome = providers.gradleProperty("koblas.runtimeCheckJavaHome").orNull
-        if (runtimeHome == null) javaLauncher.set(allocationCheckJavaLauncher)
-        else setExecutable("$runtimeHome/bin/java")
-        maxHeapSize = "128m"
-        jvmArgs("--add-modules=jdk.incubator.vector", "-XX:-TieredCompilation", "-XX:CompileThreshold=1000", *extraArgs)
-        args(mode)
-    }
+fun registerReductionAlignmentCheck(name: String, mode: String, vararg extraArgs: String) = registerJvmCheck(
+    name, "Checks reduction windows against the scalar oracle with a fixed heap layout.",
+    "com.eignex.koblas.dense.SimdReductionAlignmentCheck",
+    "--add-modules=jdk.incubator.vector", "-XX:-TieredCompilation", "-XX:CompileThreshold=1000", *extraArgs,
+    runtimeHome = providers.gradleProperty("koblas.runtimeCheckJavaHome").orNull,
+) {
+    maxHeapSize = "128m"
+    args(mode)
+}
 
 val simdG1AlignmentCheck = registerReductionAlignmentCheck(
     "simdG1AlignmentCheck", "g1", "-XX:+UseG1GC", "-XX:G1HeapRegionSize=1m",

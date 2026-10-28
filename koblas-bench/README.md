@@ -1,7 +1,7 @@
 # koblas-bench
 
 CPU benchmarks for Koblas and the vendor libraries it selects: OpenBLAS, oneMKL, AOCL, ArmPL and Accelerate.
-Requires JDK 25. `capture-report.sh` supplies each measured capture; `compare-revisions.py` interleaves revisions.
+Requires JDK 25. `capture-report.sh` supplies each measured capture.
 
 The JVM harness and annotation processor are built together from pinned
 [OpenJDK JMH sources](https://github.com/openjdk/jmh/tree/a194eead0136bb66e5e59e4fdb2e18543e730929).
@@ -53,60 +53,15 @@ Multi-round archive captures fingerprint every source file except generated dire
 `.gradle`, `.kotlin`, `.idea`, `.git` and `node_modules`) before and after each round, alongside the
 same binary hashes as a Git capture. This allows the lab archive to run without inventing Git metadata.
 
-For a same-worker before/after comparison, use `LabComparisonLauncher` with
-`--baseline-ref <full SHA>` and the ordinary `--rounds`, `--samples`, `--warmups`, `--target-ms`,
-`--forks` and `--cpu` settings. It runs `compare-revisions.py`, fetches and verifies the baseline
-from this public repository, builds both revisions before measuring, and rotates baseline JVM,
-current JVM and native oneMKL in each round. It retains every capture, source and binary hashes,
-and `summary.csv` with medians of round medians and their range. At least three rounds are required.
-Both source trees use the current capture driver, whose hash the comparison records, without modifying
-the baseline kernels; this also permits a baseline predating the interleaved-driver options.
-The cases default to `cases-reductions.txt`; both JVM arms read that same file.
-For a collector comparison, pass `--jvm-gc zgc --jvm-heap 1g` to either driver. The heap option fixes both
-the initial and maximum benchmark heap, and both options apply to the measured JVM forks, including
-older baseline build files. Build heaps remain separate. Ordinary captures leave these settings at
-their runtime defaults. Check the JMH VM options and per-fork runtime records before attributing a
-collector or alignment result.
-
 ### Comparing JDK runtimes
 
 The benchmark launcher defaults to JDK 25. `-Pbench.javaVersion=27` selects JDK 27 for
 measurement while compilation keeps its configured toolchain. `-Pbench.expectedJavaHome=/path/to/jdk`
 pins the launcher to that installation. `prepareBenchmarkRuntime` checks the selected version before timing.
 
-For a same-code runtime comparison, pass `--baseline-java-version 25 --candidate-java-version 27`
-and `--require-same-source` to `LabComparisonLauncher`, with the baseline pinned to the job's own revision.
-The driver verifies identical source trees and library contents, resolves both launchers before timing,
-and checks every measured fork's runtime. `--install-jdk27` downloads the checksum-pinned Oracle JDK
-used by the layout validation and requires its exact executable for the JDK 27 arm. Add
-`--runtime-conformance` to run the reduction alignment checks on that installed JDK before capture.
-
-The existing `--jvm-gc` and `--jvm-heap` controls apply to both JVM arms. Without them, runtime defaults,
-including collector selection, remain part of the comparison; the results do not isolate JIT code generation.
-
-### Fixed native alignment control
-
-`prepareAlignmentDiagnostic` stages the current JVM kernel JAR and its runtime dependencies for
-`LabAlignmentReferenceLauncher`. This diagnostic measures IAMAX, DOT and ASUM at 65,536 elements over
-all eight offsets, with two forks and three interleaved rounds. Its oneMKL buffers either have fixed
-64-byte alignment or match the unpeeled heap window. It retains both controls and every offset;
-there is no best-offset selection. The native address snapshot uses libc outside arithmetic, needs
-no C compiler, and the JVM
-series uses the owned Vector API kernels. Native control calls use FFM over preallocated native
-buffers. Keep these raw controls separate from the public Kotlin/Native reference captures.
-
-For a local smoke after staging, run `experiments/alignment-reference.py` with `--java` pointing to
-JDK 25's `bin/java`, `--output` pointing to a new directory, `--mkl-root` pointing to oneMKL 2026.1,
-and `--smoke`. The lab launcher supplies the JDK and output path; without `--mkl-root`, the driver
-downloads and checks the same pinned oneMKL package as the public comparison driver.
-`--install-onemkl` extracts the reference container's checksum-pinned Intel package into temporary
-job storage and adds it to the child processes' library path; it needs `dpkg-deb` and changes no system
-installation. The library package and fetched baseline are removed after the job; their identities
-and the measured reports remain. `OUT` supplies the lab report directory. CPU pinning does not
-reserve a physical core, so use the worker's hardware and placement metadata when interpreting results.
-On a worker with a hard memory cap, pass `--build-heap 2g` to bound the Gradle heaps, use at most two
-build workers and compile Kotlin in the Gradle process. These build settings also apply to the Gradle
-launchers used during capture; they do not change the measured JVM fork's heap or SIMD options.
+For collector comparisons, `capture-report.sh` accepts `--jvm-gc g1|serial|zgc` and
+`--jvm-heap 1g`. Without these options, runtime defaults remain part of the measurement;
+the results do not isolate JIT code generation.
 
 ## Shrinking rank updates
 

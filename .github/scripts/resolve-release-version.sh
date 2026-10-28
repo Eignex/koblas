@@ -31,9 +31,12 @@ fi
 
 is_snapshot=false
 [[ "$version" != *-SNAPSHOT ]] || is_snapshot=true
+is_prerelease=false
+[[ "$version" != *-* ]] || is_prerelease=true
 {
   echo "version=$version"
   echo "is_snapshot=$is_snapshot"
+  echo "is_prerelease=$is_prerelease"
   echo "dry_run=$dry_run"
   echo "revision=$(git rev-parse HEAD)"
 } >> "${GITHUB_OUTPUT:?GITHUB_OUTPUT is required}"
