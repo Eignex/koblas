@@ -248,5 +248,4 @@ class AllocationStorageTest {
 
         assertTrue(bytes <= budget, "zero alpha transposed sparse addition allocated $bytes B per call")
     }
-
 }

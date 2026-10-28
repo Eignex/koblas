@@ -1,6 +1,7 @@
 package com.eignex.koblas
 
 import com.eignex.koblas.*
+import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.json.*
 import kotlin.test.*
 
@@ -57,13 +58,15 @@ class SerializationTest {
         }
     }
 
+    @OptIn(ExperimentalSerializationApi::class)
     @Test
     fun `SparseVector deserialization rejects a negative size`() {
-        assertFailsWith<DimensionMismatch> {
+        val failure = assertFailsWith<JsonException> {
             json.decodeFromString<VectorStorage>(
                 """{"type":"SparseVector","size":-5,"indices":[],"values":[]}""",
             )
         }
+        assertIs<DimensionMismatch>(failure.cause)
     }
 
     @Test

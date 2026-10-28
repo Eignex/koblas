@@ -36,25 +36,35 @@ internal class PortableDenseBlas(
         y: DoubleArray,
         transpose: Boolean,
         workspace: Workspace?,
+    ) = gemv(alpha, a as DenseMatrixRegion, x, beta, y, transpose, workspace)
+
+    override fun gemv(
+        alpha: Double,
+        a: DenseMatrixRegion,
+        x: DoubleArray,
+        beta: Double,
+        y: DoubleArray,
+        transpose: Boolean,
+        workspace: Workspace?,
     ) {
         requireGemvOperands(a, transpose, x.size, y.size)
+        if (y.isEmpty()) return
         val depth = if (transpose) a.rows else a.cols
         if (alpha == 0.0 || depth == 0) {
             applyBeta(vectors, y, 0, y.size, beta)
             return
         }
         // Snapshot aliased operands before scaling the destination, and retain them for the call.
-        staged(workspace, a.values, a.values === y) { stableA ->
+        stagedRegion(workspace, a, y) { stableA ->
             staged(workspace, x, x === y) { stableX ->
-                gemvCore(alpha, a, stableA, stableX, beta, y, transpose)
+                gemvCore(alpha, stableA, stableX, beta, y, transpose)
             }
         }
     }
 
     private fun gemvCore(
         alpha: Double,
-        a: DenseMatrix,
-        stableA: DoubleArray,
+        a: DenseMatrixRegion,
         stableX: DoubleArray,
         beta: Double,
         y: DoubleArray,
@@ -63,12 +73,12 @@ internal class PortableDenseBlas(
         val rows = a.rows
         if (transpose) {
             forEachPanel(a.cols, panels.executionGroup(PanelWork.MultiDot, rows, a.cols)) { start, width ->
-                panels.multiDot(alpha, stableA, start * rows, rows, stableX, 0, 1, rows, width, beta, y, start, 1)
+                panels.multiDot(alpha, a.values, a.offset + start * a.leadingDimension, a.leadingDimension, stableX, 0, 1, rows, width, beta, y, start, 1)
             }
         } else {
             applyBeta(vectors, y, 0, y.size, beta)
             forEachPanel(a.cols, panels.executionGroup(PanelWork.ColumnUpdate, rows, a.cols)) { start, width ->
-                panels.columnUpdate(alpha, stableA, start * rows, rows, stableX, start, 1, rows, width, y, 0, 1)
+                panels.columnUpdate(alpha, a.values, a.offset + start * a.leadingDimension, a.leadingDimension, stableX, start, 1, rows, width, y, 0, 1)
             }
         }
     }
@@ -88,17 +98,30 @@ internal class PortableDenseBlas(
         beta: Double,
         c: DenseMatrix,
         workspace: Workspace?,
+    ) = gemm(alpha, a as DenseMatrixRegion, transposeA, b, transposeB, beta, c, workspace)
+
+    override fun gemm(
+        alpha: Double,
+        a: DenseMatrixRegion,
+        transposeA: Boolean,
+        b: DenseMatrixRegion,
+        transposeB: Boolean,
+        beta: Double,
+        c: DenseMatrixRegion,
+        workspace: Workspace?,
     ) {
         requireGemmOperands(a, transposeA, b, transposeB, c)
         // Return before borrowing operand-sized scratch for an empty destination.
-        if (c.values.isEmpty()) return
+        if (c.rows == 0 || c.cols == 0) return
         val depth = if (transposeA) a.rows else a.cols
         if (alpha == 0.0 || depth == 0) {
-            scale(c.values, beta)
+            scaleRegion(c, beta)
             return
         }
-        stagedOperands(workspace, a.values, b.values, c.values) { av, bv ->
-            gemmCore(alpha, a, transposeA, av, b, transposeB, bv, beta, c, depth, workspace)
+        stagedRegion(workspace, a, c) { sa ->
+            stagedRegion(workspace, b, c, stable = sa, original = a) { sb ->
+                gemmCore(alpha, sa, transposeA, sb, transposeB, beta, c, depth, workspace)
+            }
         }
     }
 
@@ -110,20 +133,18 @@ internal class PortableDenseBlas(
      */
     private fun gemmCore(
         alpha: Double,
-        a: DenseMatrix,
+        a: DenseMatrixRegion,
         transposeA: Boolean,
-        av: DoubleArray,
-        b: DenseMatrix,
+        b: DenseMatrixRegion,
         transposeB: Boolean,
-        bv: DoubleArray,
         beta: Double,
-        c: DenseMatrix,
+        c: DenseMatrixRegion,
         depth: Int,
         workspace: Workspace?,
     ) {
         productWindow(
-            products, panels, alpha, av, 0, a.rows, transposeA, bv, 0, b.rows, transposeB,
-            beta, c.values, 0, c.rows, c.rows, c.cols, depth, OutputTriangle.Full, workspace,
+            products, panels, alpha, a.values, a.offset, a.leadingDimension, transposeA, b.values, b.offset, b.leadingDimension, transposeB,
+            beta, c.values, c.offset, c.leadingDimension, c.rows, c.cols, depth, OutputTriangle.Full, workspace,
         )
     }
 
@@ -357,9 +378,32 @@ internal class PortableDenseBlas(
         c: DenseMatrix,
         lower: Boolean,
         workspace: Workspace?,
+    ) = syrk(alpha, a as DenseMatrixRegion, transpose, beta, c, lower, workspace)
+
+    override fun syrk(
+        alpha: Double,
+        a: DenseMatrixRegion,
+        transpose: Boolean,
+        beta: Double,
+        c: DenseMatrixRegion,
+        lower: Boolean,
+        workspace: Workspace?,
     ) {
         requireSyrkOperands(a, transpose, c)
-        productTriangle(alpha, a, a, transpose, beta, c, lower, doubled = false, workspace = workspace)
+        if (c.rows == 0) return
+        val depth = if (transpose) a.rows else a.cols
+        if (alpha == 0.0 || depth == 0) {
+            scaleRegion(c, beta, lower)
+            return
+        }
+        stagedRegion(workspace, a, c) { sa ->
+            productWindow(
+                products, panels, alpha, sa.values, sa.offset, sa.leadingDimension, transpose,
+                sa.values, sa.offset, sa.leadingDimension, !transpose,
+                beta, c.values, c.offset, c.leadingDimension, c.rows, c.cols, depth,
+                selectedTriangle(lower), workspace,
+            )
+        }
     }
 
     override fun syr2k(
@@ -570,17 +614,35 @@ internal class PortableDenseBlas(
         transpose: Boolean,
         unitDiag: Boolean,
         workspace: Workspace?,
+    ) = trsv(a as DenseMatrixRegion, x, lower, transpose, unitDiag, workspace)
+
+    override fun trsv(
+        a: DenseMatrixRegion,
+        x: DoubleArray,
+        lower: Boolean,
+        transpose: Boolean,
+        unitDiag: Boolean,
+        workspace: Workspace?,
     ) {
         requireTriangularVectorOperands(a, x.size, "trsv")
         val n = a.rows
-        staged(workspace, a.values, a.values === x) { av ->
+        if (n == 0) return
+        stagedRegion(workspace, a, x) { sa ->
             forEachTriangularColumn(n, lower, ascending = lower != transpose) { j, window, rows ->
                 if (transpose) {
-                    if (rows > 0) panels.multiDot(-1.0, av, window + j * n, n, x, window, 1, rows, 1, 1.0, x, j, 1)
-                    if (!unitDiag) x[j] = x[j] / av[j + j * n]
+                    if (rows >
+                        0
+                    ) {
+                        panels.multiDot(-1.0, sa.values, sa.offset + window + j * sa.leadingDimension, sa.leadingDimension, x, window, 1, rows, 1, 1.0, x, j, 1)
+                    }
+                    if (!unitDiag) x[j] = x[j] / sa.values[sa.offset + j + j * sa.leadingDimension]
                 } else {
-                    if (!unitDiag) x[j] = x[j] / av[j + j * n]
-                    if (rows > 0) panels.columnUpdate(-1.0, av, window + j * n, n, x, j, 1, rows, 1, x, window, 1)
+                    if (!unitDiag) x[j] = x[j] / sa.values[sa.offset + j + j * sa.leadingDimension]
+                    if (rows >
+                        0
+                    ) {
+                        panels.columnUpdate(-1.0, sa.values, sa.offset + window + j * sa.leadingDimension, sa.leadingDimension, x, j, 1, rows, 1, x, window, 1)
+                    }
                 }
             }
         }
@@ -628,7 +690,32 @@ internal class PortableDenseBlas(
         right: Boolean,
         alpha: Double,
         workspace: Workspace?,
-    ) = triangularMatrix(a, b, lower, transpose, unitDiag, right, alpha, solve = true, workspace = workspace)
+    ) = trsm(a as DenseMatrixRegion, b, lower, transpose, unitDiag, right, alpha, workspace)
+
+    override fun trsm(
+        a: DenseMatrixRegion,
+        b: DenseMatrixRegion,
+        lower: Boolean,
+        transpose: Boolean,
+        unitDiag: Boolean,
+        right: Boolean,
+        alpha: Double,
+        workspace: Workspace?,
+    ) {
+        requireTriangularMatrixOperands(a, b, right, "trsm")
+        if (b.rows == 0 || b.cols == 0) return
+        if (alpha == 0.0) {
+            scaleRegion(b, 0.0)
+            return
+        }
+        stagedRegion(workspace, a, b) { sa ->
+            triangularMatrix(
+                triangles, products, panels, vectors, sa.values, a.rows, b.values, b.leadingDimension,
+                if (right) b.rows else b.cols, lower, transpose, unitDiag, right, alpha, true, workspace,
+                sa.offset, sa.leadingDimension, b.offset,
+            )
+        }
+    }
 
     override fun trmm(
         a: DenseMatrix,
@@ -688,8 +775,11 @@ internal class PortableDenseBlas(
         for (j in 0 until n) {
             val first = j * n + if (lower) j else 0
             val last = j * n + if (lower) n else j + 1
-            if (beta == 0.0) c.values.fill(0.0, first, last)
-            else for (index in first until last) c.values[index] *= beta
+            if (beta == 0.0) {
+                c.values.fill(0.0, first, last)
+            } else {
+                for (index in first until last) c.values[index] *= beta
+            }
         }
     }
 

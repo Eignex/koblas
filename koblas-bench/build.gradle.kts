@@ -1,9 +1,19 @@
+import java.io.File
+import java.nio.file.Path as JdkPath
 import org.gradle.api.tasks.JavaExec
 
 import org.gradle.jvm.toolchain.JavaLanguageVersion
+import org.gradle.jvm.toolchain.JvmVendorSpec
 import org.jetbrains.kotlin.gradle.targets.jvm.KotlinJvmTarget
 
-plugins { id("com.eignex.kmp") version "1.3.3" }
+plugins { id("com.eignex.kmp") version "1.3.5" }
+
+repositories {
+    maven("https://central.sonatype.com/repository/maven-snapshots/") {
+        mavenContent { snapshotsOnly() }
+        content { includeGroup("com.eignex") }
+    }
+}
 
 eignexPublish { publish.set(false) }
 eignexBuild {
@@ -66,7 +76,66 @@ private fun benchmarkArguments(mode: String, jmh: Boolean): List<String> = listO
 ) + if (jmh) listOf("--forks=${providers.gradleProperty("bench.forks").orElse("2").get()}") else emptyList()
 
 val jvmCompilation = (kotlin.targets.getByName("jvm") as KotlinJvmTarget).compilations.getByName("main")
-val benchmarkJavaLauncher = javaToolchains.launcherFor { languageVersion.set(JavaLanguageVersion.of(25)) }
+val benchmarkJavaVersion = providers.gradleProperty("bench.javaVersion").orElse("25")
+val benchmarkJvmVendor = providers.gradleProperty("bench.javaVendor")
+val expectedBenchmarkJavaHome = providers.gradleProperty("bench.expectedJavaHome")
+val benchmarkJavaLauncher = javaToolchains.launcherFor {
+    languageVersion.set(benchmarkJavaVersion.map { JavaLanguageVersion.of(it.toInt()) })
+    if (benchmarkJvmVendor.isPresent) vendor.set(JvmVendorSpec.matching(benchmarkJvmVendor.get()))
+}
+
+fun JavaExec.useBenchmarkRuntime() {
+    val explicit = expectedBenchmarkJavaHome.orNull
+    if (explicit != null) setExecutable(JdkPath.of(explicit, "bin", "java").toString())
+    else javaLauncher.set(benchmarkJavaLauncher)
+}
+
+tasks.register("prepareBenchmarkRuntime") {
+    group = "benchmark"
+    description = "Resolves the benchmark JVM before any timed capture begins."
+    val launcher = benchmarkJavaLauncher
+    val expected = expectedBenchmarkJavaHome
+    val version = benchmarkJavaVersion
+    doLast {
+        if (expected.isPresent) {
+            val executable = JdkPath.of(expected.get(), "bin", "java").toRealPath()
+            val process = ProcessBuilder(executable.toString(), "-version").redirectErrorStream(true).start()
+            val description = process.inputStream.bufferedReader().readText()
+            check(process.waitFor() == 0 && description.contains("\"${version.get()}."))
+            println("benchmark_runtime_executable=$executable")
+            println("benchmark_runtime_version=${description.lineSequence().first()}")
+        } else {
+            val resolved = launcher.get()
+            println("benchmark_runtime_executable=${resolved.executablePath}")
+            println("benchmark_runtime_version=${resolved.metadata.javaRuntimeVersion}")
+            println("benchmark_runtime_vendor=${resolved.metadata.vendor}")
+        }
+    }
+}
+
+tasks.register("prepareAlignmentDiagnostic") {
+    group = "benchmark"
+    description = "Stages the exact JVM runtime for the native alignment reference diagnostic."
+    dependsOn("jvmMainClasses", ":koblas:jvmJar")
+    val diagnosticClasspath = files(jvmCompilation.output.allOutputs, configurations.getByName("jvmRuntimeClasspath"))
+    val manifest = layout.buildDirectory.file("alignment-diagnostic-classpath.txt")
+    val runtime = layout.buildDirectory.dir("alignment-diagnostic-runtime")
+    val repository = rootProject.projectDir
+    inputs.files(diagnosticClasspath)
+    outputs.file(manifest)
+    outputs.dir(runtime)
+    doLast {
+        val directory = runtime.get().asFile
+        directory.deleteRecursively()
+        directory.mkdirs()
+        val entries = diagnosticClasspath.files.filter { it.exists() }.mapIndexed { index, source ->
+            val destination = directory.resolve("$index-${source.name}")
+            source.copyRecursively(destination, overwrite = true)
+            destination.relativeTo(repository).path
+        }
+        manifest.get().asFile.writeText(entries.joinToString(File.pathSeparator))
+    }
+}
 
 fun registerJvmBenchmark(name: String, mode: String, vectorModule: Boolean) = tasks.register<JavaExec>(name) {
     group = "benchmark"
@@ -74,7 +143,7 @@ fun registerJvmBenchmark(name: String, mode: String, vectorModule: Boolean) = ta
     dependsOn(jvmCompilation.compileTaskProvider)
     classpath(jvmCompilation.output.allOutputs, configurations.getByName("jvmRuntimeClasspath"))
     mainClass.set("com.eignex.koblas.bench.JvmRunnerKt")
-    javaLauncher.set(benchmarkJavaLauncher)
+    useBenchmarkRuntime()
     workingDir(rootProject.projectDir)
     args(benchmarkArguments(mode, jmh = true))
     jvmArgs("--enable-native-access=ALL-UNNAMED")
@@ -158,7 +227,7 @@ tasks.register<JavaExec>("jvmSelectedBenchmark") {
     dependsOn(jvmCompilation.compileTaskProvider)
     classpath(jvmCompilation.output.allOutputs, configurations.getByName("jvmRuntimeClasspath"))
     mainClass.set("com.eignex.koblas.bench.JvmRunnerKt")
-    javaLauncher.set(benchmarkJavaLauncher)
+    useBenchmarkRuntime()
     workingDir(rootProject.projectDir)
     args(
         smokeArguments + listOf(
@@ -185,6 +254,17 @@ registerNativeBenchmark("linuxX64SelectedBenchmark") {
 
 tasks.withType<Test>().configureEach {
     jvmArgs("--add-modules=jdk.incubator.vector", "--enable-native-access=ALL-UNNAMED")
+}
+
+// Consumer-shaped setup-inclusive comparison, including thread allocation measurements.
+tasks.register<JavaExec>("jvmCholeskyViewBenchmark") {
+    group = "benchmark"
+    description = "Compares copied and borrowed trailing updates in a finite SPD blocked Cholesky workload."
+    dependsOn(jvmCompilation.compileTaskProvider)
+    classpath(jvmCompilation.output.allOutputs, configurations.getByName("jvmRuntimeClasspath"))
+    mainClass.set("com.eignex.koblas.bench.CholeskyViewBenchmark")
+    useBenchmarkRuntime()
+    jvmArgs("--add-modules=jdk.incubator.vector", "--enable-native-access=ALL-UNNAMED", "-Xms512m", "-Xmx512m")
 }
 
 tasks.register<Sync>("prepareLabBenchmark") {

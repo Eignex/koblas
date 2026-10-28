@@ -1,7 +1,7 @@
 package com.eignex.koblas.dense
 
 import com.eignex.koblas.BuiltinEngines
-import com.eignex.koblas.internal.numeric.hardwareFusedMultiplyAdd
+import com.eignex.koblas.internal.jvm25.hardwareFusedMultiplyAdd
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotEquals
@@ -16,6 +16,13 @@ import kotlin.test.assertTrue
  */
 class SimdPanelKernelsTest {
     private val kernels: DensePanelKernels? = BuiltinEngines.simd?.panelKernels
+
+    @Test
+    fun `long column updates agree with the scalar oracle`() {
+        val kernels = kernels ?: return skipped()
+
+        assertLargeColumnUpdatesAgreeWithReference(kernels)
+    }
 
     @Test
     fun `a panel with lanes to fill reaches the vector body and a shorter one does not`() {

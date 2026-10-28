@@ -118,6 +118,15 @@ public enum class DenseMatrixOperation(internal val entryPoint: String) {
  *   composition that hands the whole call to a host library cannot, since a whole-call binding takes the
  *   caller's storage as it lies and has no argument for saying that two of its operands are one buffer. The
  *   copy is a component of that call, and a route that omitted it would be describing a different call.
+ *   With [borrowed] host calls, set this when an input's rectangle overlaps the destination's. A binding
+ *   that takes regions in place stages that input; one that packs regions snapshots borrowed inputs anyway,
+ *   so there it is only overlap remaining between contiguous operands.
+ * @property borrowed whether any matrix operand is a [com.eignex.koblas.DenseMatrixView]. A host binding
+ *   that takes a region's offset and leading dimension receives it in place, as on Kotlin/Native; other host
+ *   bindings receive regions packed into contiguous scratch, which the route names as a component.
+ * @property leadingDimension the destination column spacing for matrix solves, or null for contiguous storage.
+ * @property rightLeadingDimension the stored column spacing of a borrowed right operand in [DenseMatrixOperation.Gemm].
+ *   Null uses its contiguous stored row count. Ignored when the right operand is not transposed.
  */
 @Suppress("LongParameterList") // a call is the facts that decide what runs, each of which changes the answer
 public class DenseCall(
@@ -132,10 +141,15 @@ public class DenseCall(
     public val transposeB: Boolean = false,
     public val right: Boolean = false,
     public val aliased: Boolean = false,
+    public val borrowed: Boolean = false,
+    public val leadingDimension: Int? = null,
+    public val rightLeadingDimension: Int? = null,
 ) {
     init {
         require(rows >= 0) { "negative row count" }
         require(columns >= 0) { "negative column count" }
+        require(rightLeadingDimension == null || rightLeadingDimension >= 0) { "negative right leading dimension" }
+        require(leadingDimension == null || leadingDimension >= rows) { "leading dimension below row count" }
         require(depth == null || depth >= 0) { "negative product depth" }
     }
 }

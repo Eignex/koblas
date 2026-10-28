@@ -2,6 +2,8 @@ package com.eignex.koblas.vendor
 
 import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.DenseVector
+import com.eignex.koblas.internal.jvm25.JvmVendorBlas
+import com.eignex.koblas.internal.jvm25.JvmVendorLibrary
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull

@@ -10,7 +10,12 @@ import kotlin.test.assertEquals
 
 /** Alias layouts distinguish shared wrappers, shared storage and independent operand values. */
 private enum class ProductAlias {
-    SameMatrix, SharedArray, Left, Right, Neither, SharedInputs,
+    SameMatrix,
+    SharedArray,
+    Left,
+    Right,
+    Neither,
+    SharedInputs,
 }
 
 /** Checks pre-call values against the oracle, counting staging loans beyond the schedule's own scratch. */

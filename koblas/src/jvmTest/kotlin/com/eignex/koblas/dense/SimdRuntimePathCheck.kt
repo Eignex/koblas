@@ -3,8 +3,8 @@ package com.eignex.koblas.dense
 import com.eignex.koblas.BuiltinEngines
 import com.eignex.koblas.KoblasEngine
 import com.eignex.koblas.assertClose
+import com.eignex.koblas.internal.jvm25.hardwareFusedMultiplyAdd
 import com.eignex.koblas.internal.numeric.assertHardwareFmaAgreesWithVm
-import com.eignex.koblas.internal.numeric.hardwareFusedMultiplyAdd
 import com.eignex.koblas.poisonedTriangle
 import jdk.incubator.vector.DoubleVector
 import kotlin.random.Random
@@ -34,6 +34,11 @@ internal object SimdRuntimePathCheck {
             }
         }
         val engine = requireNotNull(BuiltinEngines.simd) { "no Vector API arm" }
+        assertReductionsAgreeWithReference(engine.vectorKernels)
+        SimdOpsTest().`dot agrees with the scalar oracle across independent offsets and vector boundaries`()
+        assertIamaxAgreesWithReference(engine.vectorKernels)
+        SimdOpsTest().`iamax agrees with the scalar oracle when blocks keep improving`()
+        SimdOpsTest().`iamax distinguishes magnitudes sharing a high word`()
         val panels = engine.panelKernels
         check(panels.name == "simd-panel($lanes lanes)") { "the backend named ${panels.name} at $lanes lanes" }
 

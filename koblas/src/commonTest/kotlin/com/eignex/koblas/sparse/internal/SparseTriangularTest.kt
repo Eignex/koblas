@@ -5,10 +5,10 @@ import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.dense.PanelWork
 import com.eignex.koblas.dense.ReferenceBlas
+import com.eignex.koblas.randomMatrix
 import com.eignex.koblas.sparse.SPARSE_STAGING
 import com.eignex.koblas.sparse.SparseCall
 import com.eignex.koblas.sparse.SparseMatrixOperation
-import com.eignex.koblas.randomMatrix
 import kotlin.random.Random
 import kotlin.test.*
 
@@ -99,19 +99,26 @@ class SparseTriangularTest {
                 for (transpose in booleanArrayOf(false, true)) {
                     val work = if (transpose) PanelWork.SparseRightHandSideReduction else PanelWork.SparseRightHandSides
                     val group = engine.panelKernels.executionGroup(
-                        work, order, 1024, contiguous = engine == BuiltinEngines.simd,
+                        work,
+                        order,
+                        1024,
+                        contiguous = engine == BuiltinEngines.simd,
                     )
                     val sides = group + 1
                     for (unitDiag in booleanArrayOf(false, true)) {
                         // Small off-diagonal entries keep the implicit unit triangle well conditioned too.
                         val dense = wellConditioned(order, rng)
-                        val sparse = SparseMatrix.ofColumns(order, order, List(order) { j ->
-                            val rows = if (lower) j until order else 0..j
-                            rows.map { i ->
-                                if (i != j) dense[i, j] /= order
-                                i to if (unitDiag && i == j) Double.NaN else dense[i, j]
-                            }
-                        })
+                        val sparse = SparseMatrix.ofColumns(
+                            order,
+                            order,
+                            List(order) { j ->
+                                val rows = if (lower) j until order else 0..j
+                                rows.map { i ->
+                                    if (i != j) dense[i, j] /= order
+                                    i to if (unitDiag && i == j) Double.NaN else dense[i, j]
+                                }
+                            },
+                        )
                         for (right in booleanArrayOf(false, true)) {
                             val input = if (right) randomMatrix(sides, order, rng) else randomMatrix(order, sides, rng)
                             val expected = input.copyOf()
@@ -135,8 +142,13 @@ class SparseTriangularTest {
                                 val route = engine.routeOf(
                                     operation,
                                     SparseCall(
-                                        sparse, -0.75, destinationElements = order * sides, depth = order,
-                                        rightHandSides = sides, transposeSparse = transpose, lower = lower,
+                                        sparse,
+                                        -0.75,
+                                        destinationElements = order * sides,
+                                        depth = order,
+                                        rightHandSides = sides,
+                                        transposeSparse = transpose,
+                                        lower = lower,
                                     ),
                                 )
                                 assertEquals(group, route.executionGroup, context)

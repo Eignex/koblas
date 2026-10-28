@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-root=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
+harness=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/$(basename "${BASH_SOURCE[0]}")
+root=$(cd "${KOBLAS_CAPTURE_ROOT:-$(dirname "$harness")/..}" && pwd)
 bench="$root/koblas-bench"
 libraries=all
 operation=all
@@ -14,23 +15,30 @@ warmups=3
 target_ms=1000
 forks=2
 pass=1
+rounds=1
+cpu=
+jvm_gc=
+jvm_heap=
+original_args=("$@")
 vendors_only=false
 smoke=false
-targets=all
+selected_targets=
+custom_cases=false
 prepared=false
 retain_incomplete=false
 
 usage() {
-  echo "usage: capture-report.sh [--targets TARGET,...] [--prepared] [--retain-incomplete] [--libraries openblas,accelerate,onemkl,aocl,armpl|all] [--vendors-only] [--smoke] [--output DIR] [--native-executable PATH] [--operation NAME|all] [--suite default|sweep] [--samples N] [--warmups N] [--target-ms N] [--forks N] [--pass N]" >&2
+  echo "usage: capture-report.sh [--libraries openblas,accelerate,onemkl,aocl,armpl|all] [--targets NAME,...] [--prepared] [--retain-incomplete] [--vendors-only] [--smoke] [--output DIR] [--native-executable PATH] [--cases FILE] [--operation NAME|all] [--suite default|sweep] [--samples N] [--warmups N] [--target-ms N] [--forks N] [--pass N] [--rounds N] [--cpu N|auto] [--jvm-gc g1|serial|zgc] [--jvm-heap SIZE]" >&2
 }
 while (($#)); do
   case "$1" in
-    --targets) targets=${2:?}; shift 2 ;;
     --prepared) prepared=true; shift ;;
     --retain-incomplete) retain_incomplete=true; shift ;;
     --libraries) libraries=${2:?}; shift 2 ;;
+    --targets) selected_targets=${2:?}; shift 2 ;;
     --suite) suite=${2:?}; shift 2 ;;
     --operation) operation=${2:?}; shift 2 ;;
+    --cases) cases=${2:?}; custom_cases=true; shift 2 ;;
     --output) output=${2:?}; shift 2 ;;
     --native-executable) native_executable=${2:?}; shift 2 ;;
     --samples) samples=${2:?}; shift 2 ;;
@@ -38,20 +46,25 @@ while (($#)); do
     --target-ms) target_ms=${2:?}; shift 2 ;;
     --forks) forks=${2:?}; shift 2 ;;
     --pass) pass=${2:?}; shift 2 ;;
+    --rounds) rounds=${2:?}; shift 2 ;;
+    --cpu) cpu=${2:?}; shift 2 ;;
+    --jvm-gc) jvm_gc=${2:?}; shift 2 ;;
+    --jvm-heap) jvm_heap=${2:?}; shift 2 ;;
     --vendors-only) vendors_only=true; shift ;;
     --smoke) smoke=true; shift ;;
     --help|-h) usage; exit 0 ;;
     *) usage; exit 2 ;;
   esac
 done
-IFS=, read -r -a selected_targets <<<"$targets"
-for target in "${selected_targets[@]}"; do
-  case "$target" in
-    all|jvm-scalar|jvm-simd|jvm-default|native|native-default|openblas|openblas-jvm|accelerate|accelerate-jvm|onemkl|onemkl-jvm|aocl|aocl-jvm|armpl|armpl-jvm) ;;
-    *) echo "unknown target: $target" >&2; exit 2 ;;
-  esac
-done
-wanted() { [[ $targets == all || ,$targets, == *,"$1",* ]]; }
+[[ $rounds =~ ^[1-9][0-9]*$ ]] || { echo "rounds must be a positive integer" >&2; exit 2; }
+[[ -z $jvm_gc || $jvm_gc == g1 || $jvm_gc == serial || $jvm_gc == zgc ]] || { echo "jvm-gc must be g1, serial or zgc" >&2; exit 2; }
+[[ -z $jvm_heap || $jvm_heap =~ ^[1-9][0-9]*[mg]$ ]] || { echo "jvm-heap must be a positive size ending in m or g" >&2; exit 2; }
+if [[ -n $cpu && ${KOBLAS_BENCH_PINNED:-false} != true ]]; then
+  [[ $(uname -s) == Linux ]] || { echo "--cpu requires Linux taskset" >&2; exit 2; }
+  if [[ $cpu == auto ]]; then cpu=$(python3 -c 'import os; print(min(os.sched_getaffinity(0)))'); fi
+  [[ $cpu =~ ^[0-9]+$ ]] || { echo "cpu must be a logical CPU number or auto" >&2; exit 2; }
+  exec taskset -c "$cpu" env KOBLAS_BENCH_PINNED=true "$0" "${original_args[@]}"
+fi
 [[ $suite == default || $suite == sweep ]] || { echo "suite must be default or sweep" >&2; exit 2; }
 [[ $suite != sweep || $operation != all ]] || { echo "suite sweep requires a specific operation" >&2; exit 2; }
 if $smoke; then samples=1; warmups=0; target_ms=1; forks=1; fi
@@ -83,6 +96,30 @@ for vendor in "${vendors[@]}"; do
     { echo "unknown library: $vendor" >&2; exit 2; }
 done
 
+available_targets=()
+if ! $vendors_only; then
+  available_targets+=(jvm-scalar jvm-simd jvm-default)
+  if $native_capable; then available_targets+=(native native-default); fi
+fi
+for vendor in "${vendors[@]}"; do
+  if $native_capable; then available_targets+=("$vendor"); fi
+  available_targets+=("$vendor-jvm")
+done
+targets=("${available_targets[@]}")
+if [[ -n $selected_targets ]]; then
+  IFS=, read -r -a targets <<<"$selected_targets"
+  seen_targets=,
+  for target in "${targets[@]}"; do
+    found=false
+    for available in "${available_targets[@]}"; do
+      if [[ $target == "$available" ]]; then found=true; break; fi
+    done
+    $found || { echo "target is not available with these libraries and platform: $target" >&2; exit 2; }
+    [[ $seen_targets != *",$target,"* ]] || { echo "duplicate target: $target" >&2; exit 2; }
+    seen_targets+="$target,"
+  done
+fi
+
 temporary=$(mktemp -d "${TMPDIR:-/tmp}/koblas-bench-report.XXXXXX")
 publication=
 cleanup() {
@@ -101,6 +138,22 @@ cleanup() {
 trap cleanup EXIT
 trap 'exit 130' INT
 trap 'exit 143' TERM
+jvm_init_args=()
+if [[ -n $jvm_gc || -n $jvm_heap ]]; then
+  # An init script configures old revision tasks too, without changing their source or build files.
+  {
+    echo 'allprojects { tasks.withType(JavaExec).configureEach {'
+    echo "if (name in ['jvmSimdBenchmark', 'jvmScalarBenchmark', 'jvmDefaultBenchmark', 'jvmVendorBenchmark']) {"
+    case "$jvm_gc" in
+      g1) echo "jvmArgs('-XX:+UseG1GC')" ;;
+      serial) echo "jvmArgs('-XX:+UseSerialGC')" ;;
+      zgc) echo "jvmArgs('-XX:+UseZGC')" ;;
+    esac
+    if [[ -n $jvm_heap ]]; then printf "minHeapSize = '%s'\nmaxHeapSize = '%s'\n" "$jvm_heap" "$jvm_heap"; fi
+    echo '} } }'
+  } >"$temporary/runtime.init.gradle"
+  jvm_init_args=(--init-script "$temporary/runtime.init.gradle")
+fi
 {
   echo "architecture=$(uname -m)"
   if [[ $platform == Linux ]]; then
@@ -128,11 +181,19 @@ if command -v sha256sum >/dev/null 2>&1; then
 else
   hardware_hash=$(shasum -a 256 "$temporary/hardware-key.txt" | awk '{ print $1 }')
 fi
-commit=$(git -C "$root" rev-parse HEAD)
-dirty=false
-[[ -z $(git -C "$root" status --porcelain) ]] || dirty=true
+source_kind=git
+if [[ $(git -C "$root" rev-parse --show-toplevel 2>/dev/null || true) == "$root" ]]; then
+  commit=$(git -C "$root" rev-parse HEAD)
+  dirty=false
+  [[ -z $(git -C "$root" status --porcelain) ]] || dirty=true
+else
+  # Lab workers receive source archives without Git metadata; the job records their revision.
+  source_kind=archive
+  commit=unavailable
+  dirty=unavailable
+fi
 if [[ -z $output ]]; then
-  if $vendors_only || $smoke || [[ $operation != all ]]; then output="$bench/build/benchmarks/$hardware_hash";
+  if $vendors_only || $smoke || $custom_cases || [[ $operation != all || -n $selected_targets ]]; then output="$bench/build/benchmarks/$hardware_hash";
   else output="$bench/reports/$hardware_hash"; fi
 fi
 [[ $output == /* ]] || output="$PWD/$output"
@@ -142,19 +203,85 @@ fi
 if $retain_incomplete; then
   [[ ! -e $output ]] || { echo "--retain-incomplete requires an absent output directory" >&2; exit 2; }
 fi
+if ((rounds > 1)); then
+  [[ ! -e $output ]] || { echo "multiple rounds require a new output directory: $output" >&2; exit 2; }
+  mkdir -p "$(dirname "$output")"
+  mkdir "$output"
+  metadata="$output/metadata.txt"
+  printf 'status=incomplete\n\n[capture]\nsource_commit=%s\nsource_kind=%s\nrounds=%s\naggregation=retain round medians for downstream aggregation\ncompleted_at=pending\n' \
+    "$commit" "$source_kind" "$rounds" >"$metadata"
+  printf 'jvm_gc=%s\njvm_heap=%s\n' "${jvm_gc:-default}" "${jvm_heap:-default}" >>"$metadata"
+  fingerprint() {
+    python3 - "$root" "$1" "$source_kind" <<'PY'
+import hashlib
+import os
+from pathlib import Path
+import subprocess
+import sys
+root = Path(sys.argv[1])
+if sys.argv[2] == 'sources' and sys.argv[3] == 'git':
+    paths = [root / p for p in subprocess.check_output(['git', '-C', str(root), 'ls-files', '-z']).decode().split('\0') if p]
+elif sys.argv[2] == 'sources':
+    paths = []
+    excluded = {'.git', '.gradle', '.kotlin', '.idea', 'build', 'node_modules'}
+    for directory, subdirectories, files in os.walk(root):
+        subdirectories[:] = [name for name in subdirectories if name not in excluded]
+        paths.extend(Path(directory) / name for name in files)
+else:
+    directories = ['koblas/build/libs', 'koblas-bench/build/classes', 'koblas-bench/build/bin', 'koblas-bench/jmh/build/libs']
+    paths = [p for directory in directories for p in (root / directory).rglob('*') if p.is_file()]
+for path in sorted(paths):
+    print(hashlib.sha256(path.read_bytes()).hexdigest(), path.relative_to(root))
+PY
+  }
+  fingerprint sources >"$output/source-hashes.txt"
+  for ((round=1; round<=rounds; round++)); do
+    fingerprint sources >"$temporary/current-hashes.txt"
+    cmp "$output/source-hashes.txt" "$temporary/current-hashes.txt"
+    offset=$(((round - 1) % ${#targets[@]}))
+    ordered=("${targets[@]:offset}" "${targets[@]:0:offset}")
+    order=$(IFS=,; echo "${ordered[*]}")
+    printf 'round_%s_targets=%s\n' "$round" "$order" >>"$metadata"
+    args=(--libraries "$libraries" --targets "$order" --cases "$cases" --suite "$suite" --operation "$operation"
+      --samples "$samples" --warmups "$warmups" --target-ms "$target_ms" --forks "$forks"
+      --pass "$round" --output "$output/pass-$round")
+    if [[ -n $native_executable ]]; then args+=(--native-executable "$native_executable"); fi
+    if [[ -n $jvm_gc ]]; then args+=(--jvm-gc "$jvm_gc"); fi
+    if [[ -n $jvm_heap ]]; then args+=(--jvm-heap "$jvm_heap"); fi
+    if $prepared; then args+=(--prepared); fi
+    if $retain_incomplete; then args+=(--retain-incomplete); fi
+    if $vendors_only; then args+=(--vendors-only); fi
+    if $smoke; then args+=(--smoke); fi
+    "$0" "${args[@]}" 2>&1 | tee "$output/pass-$round.log"
+    fingerprint sources >"$temporary/current-hashes.txt"
+    cmp "$output/source-hashes.txt" "$temporary/current-hashes.txt"
+    fingerprint binaries >"$output/pass-$round-binary-hashes.txt"
+    if ((round > 1)); then cmp "$output/pass-1-binary-hashes.txt" "$output/pass-$round-binary-hashes.txt"; fi
+  done
+  sed -e '1s/status=incomplete/status=complete/' \
+    -e "s/^completed_at=pending$/completed_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)/" \
+    "$metadata" >"$temporary/completed-metadata.txt"
+  mv "$temporary/completed-metadata.txt" "$metadata"
+  echo "$output"
+  exit 0
+fi
+
 results="$temporary/results"
 mkdir "$results"
 metadata="$results/metadata.txt"
 awk -v operation="$operation" -v suite="$suite" -v smoke="$smoke" \
   -f "$bench/select-cases.awk" "$cases" >"$temporary/cases.txt"
 cases="$temporary/cases.txt"
+cp "$cases" "$results/cases.txt"
 {
   echo "status=incomplete"
   printf '\n[capture]\n'
   echo "started_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
   echo "completed_at=pending"
   echo "source_commit=$commit"
+  echo "source_kind=$source_kind"
   echo "dirty=$dirty"
+  printf 'jvm_gc=%s\njvm_heap=%s\n' "${jvm_gc:-default}" "${jvm_heap:-default}"
   echo "platform=$(uname -a)"
   printf '%s\n' "operation=$operation" "suite=$suite" "selected_cases=$(wc -l <"$cases" | tr -d ' ')" "warmups=$warmups" "requested_samples=$samples" \
     "target_ns=$((target_ms * 1000000))" "pass=$pass" "libraries=$libraries" "vendors_only=$vendors_only"
@@ -163,6 +290,8 @@ cases="$temporary/cases.txt"
   # way an ARM64 host has any. A report that does not say this cannot be told apart from one that linked here.
   echo "native_executable=${native_executable:-built on this host}"
   echo "requested_jvm_forks=$forks"
+  if [[ $platform == Linux ]]; then awk '/^Cpus_allowed_list:/ { print "cpu_affinity=" $2 }' /proc/self/status; fi
+  echo "targets=$(IFS=,; echo "${targets[*]}")"
   env | LC_ALL=C sort | awk '/^KOBLAS_(DENSE|SPARSE)_/ { print }'
   # Koblas arms are single-threaded by construction. Each vendor arm records what its binding read back from
   # the library it opened, in that target's own section, rather than being covered by a claim made here.
@@ -197,7 +326,6 @@ common=("-Pbench.operation=$operation" "-Pbench.suite=$suite" "-Pbench.cases=$ca
 run_native() {
   local target=$1 mode=$2 task=$3
   shift 3
-  wanted "$target" || return 0
   if $prepared && [[ -z $native_executable ]]; then
     echo "Prepared Native capture requires --native-executable" >&2; return 2
   fi
@@ -213,36 +341,59 @@ run_native() {
 run_jvm() {
   local target=$1 mode=$2 task=$3
   shift 3
-  wanted "$target" || return 0
   if $prepared; then
-    local jvm_args=(--enable-native-access=ALL-UNNAMED "-Xmx${KOBLAS_BENCH_HEAP_MIB:-512}m" -XX:ActiveProcessorCount=1)
+    local jvm_args=(--enable-native-access=ALL-UNNAMED -XX:ActiveProcessorCount=1)
+    if [[ -n $jvm_heap ]]; then
+      jvm_args+=("-Xms$jvm_heap" "-Xmx$jvm_heap")
+    else
+      jvm_args+=("-Xmx${KOBLAS_BENCH_HEAP_MIB:-512}m")
+    fi
+    case "$jvm_gc" in
+      g1) jvm_args+=(-XX:+UseG1GC) ;;
+      serial) jvm_args+=(-XX:+UseSerialGC) ;;
+      zgc) jvm_args+=(-XX:+UseZGC) ;;
+    esac
     [[ $mode != jvm-simd && $mode != jvm-default ]] || jvm_args+=(--add-modules=jdk.incubator.vector)
     run_target "$target" "${KOBLAS_BENCH_JAVA:?}" "${jvm_args[@]}" -cp "${KOBLAS_BENCH_CLASSPATH:?}" \
       com.eignex.koblas.bench.JvmRunnerKt "--mode=$mode" "--operation=$operation" "--suite=$suite" \
       "--cases=$cases" "--warmups=$warmups" "--samples=$samples" "--target-ms=$target_ms" \
       "--forks=$forks" "--output=$results/$target.csv"
   else
-    run_target "$target" ./gradlew --no-daemon ":koblas-bench:$task" "${common[@]}" "$@" \
+    run_target "$target" ./gradlew --no-daemon "${jvm_init_args[@]}" ":koblas-bench:$task" "${common[@]}" "$@" \
       "-Pbench.forks=$forks" "-Pbench.output=$results/$target.csv"
   fi
 }
-if ! $vendors_only; then
-  run_jvm jvm-scalar jvm-scalar jvmScalarBenchmark
-  run_jvm jvm-simd jvm-simd jvmSimdBenchmark
-  run_jvm jvm-default jvm-default jvmDefaultBenchmark
-  if $native_capable; then
-    run_native native native nativeBenchmark
-    run_native native-default native-default nativeDefaultBenchmark
-  fi
-fi
-for vendor in "${vendors[@]}"; do
-  if wanted "$vendor" || wanted "$vendor-jvm"; then
-    [[ $vendor != accelerate || $platform == Darwin ]] || { echo "Accelerate requires macOS" >&2; exit 2; }
-    if $native_capable; then
-      run_native "$vendor" "native-vendor-$vendor" nativeVendorBenchmark "-Pbench.vendor=$vendor"
-    fi
-    run_jvm "$vendor-jvm" "jvm-vendor-$vendor" jvmVendorBenchmark "-Pbench.vendor=$vendor"
-  fi
+# Vendor arms run through the production Koblas bindings on both runtimes. There is one implementation of each
+# vendor call and one description of it, so what a row claims about the library that ran is the binding's own
+# answer rather than a second program's. Nothing here sets a thread count: the binding holds each library to one
+# compute thread at load, before any arithmetic, and refuses one it cannot hold, so an environment variable
+# would be a weaker second answer to a question that is already settled.
+#
+# The plain vendor target keeps its name and reaches the library the way the C program did, from native code
+# with no runtime between the caller's storage and the call. The JVM target is the same operation through the
+# JVM binding, which copies operands into native memory and reports that transfer as part of its route.
+for target in "${targets[@]}"; do
+  case "$target" in
+    jvm-scalar|jvm-simd|jvm-default)
+      case "$target" in
+        jvm-scalar) task=jvmScalarBenchmark ;;
+        jvm-simd) task=jvmSimdBenchmark ;;
+        jvm-default) task=jvmDefaultBenchmark ;;
+      esac
+      run_jvm "$target" "$target" "$task"
+      ;;
+    native) run_native native native nativeBenchmark ;;
+    native-default) run_native native-default native-default nativeDefaultBenchmark ;;
+    *)
+      vendor=${target%-jvm}
+      [[ $vendor != accelerate || $platform == Darwin ]] || { echo "Accelerate requires macOS" >&2; exit 2; }
+      if [[ $target == *-jvm ]]; then
+        run_jvm "$target" "jvm-vendor-$vendor" jvmVendorBenchmark "-Pbench.vendor=$vendor"
+      else
+        run_native "$target" "native-vendor-$vendor" nativeVendorBenchmark "-Pbench.vendor=$vendor"
+      fi
+      ;;
+  esac
 done
 sed -e '1s/status=incomplete/status=complete/' \
   -e "s/^completed_at=pending$/completed_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)/" \

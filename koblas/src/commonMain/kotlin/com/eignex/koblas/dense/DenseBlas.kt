@@ -33,6 +33,99 @@ import com.eignex.koblas.*
  * operands into native memory; Kotlin/Native pins caller storage for that binding.
  */
 public interface DenseBlas {
+    /** [gemv] over a region with unit alpha and zero beta, into a fresh vector. */
+    public fun gemv(a: DenseMatrixRegion, x: DoubleArray, transpose: Boolean = false): DoubleArray {
+        val size = if (transpose) a.cols else a.rows
+        requireGemvOperands(a, transpose, x.size, size)
+        val y = DoubleArray(size)
+        gemv(1.0, a, x, 0.0, y, transpose)
+        return y
+    }
+
+    /** [gemm] over regions with unit alpha and zero beta, into a fresh contiguous matrix. */
+    public fun gemm(a: DenseMatrixRegion, b: DenseMatrixRegion): DenseMatrix {
+        requireProductOperands(a, false, b, false, "gemm")
+        val c = DenseMatrix.zero(a.rows, b.cols)
+        gemm(1.0, a, false, b, false, 0.0, c)
+        return c
+    }
+
+    /**
+     * Region overload of [gemv]. Portable engines address borrowed storage directly. Other implementations
+     * pack regions into contiguous workspace loans before calling their contiguous overloads. Host-composed
+     * engines use the portable region path for a call the host is not eligible for. An eligible call reaches
+     * the library in place where its binding takes a region's offset and leading dimension, as on Kotlin/Native,
+     * and is packed otherwise.
+     * Overlapping inputs retain their pre-call entries. Entries outside a destination region are untouched;
+     * the transpose, triangle and zero-multiplier rules of the contiguous overload also apply to regions.
+     * Packing, alias snapshots and ordinary backend panel scratch mean a view is not an allocation guarantee.
+     * For route queries set [DenseCall.borrowed], and supply the documented leading dimensions where padded.
+     */
+    @Suppress("LongParameterList") // BLAS operands, flags and workspace
+    public fun gemv(
+        alpha: Double,
+        a: DenseMatrixRegion,
+        x: DoubleArray,
+        beta: Double,
+        y: DoubleArray,
+        transpose: Boolean = false,
+        workspace: Workspace? = null,
+    ): Unit =
+        regionGemv(this, alpha, a, x, beta, y, transpose, workspace)
+
+    /** Region overload of [gemm]; storage addressing and backend packing follow the region [gemv] overload. */
+    @Suppress("LongParameterList") // BLAS operands, flags and workspace
+    public fun gemm(
+        alpha: Double,
+        a: DenseMatrixRegion,
+        transposeA: Boolean,
+        b: DenseMatrixRegion,
+        transposeB: Boolean,
+        beta: Double,
+        c: DenseMatrixRegion,
+        workspace: Workspace? = null,
+    ): Unit =
+        regionGemm(this, alpha, a, transposeA, b, transposeB, beta, c, workspace)
+
+    /** Region overload of [syrk]; storage addressing and backend packing follow the region [gemv] overload. */
+    @Suppress("LongParameterList") // BLAS operands, flags and workspace
+    public fun syrk(
+        alpha: Double,
+        a: DenseMatrixRegion,
+        transpose: Boolean,
+        beta: Double,
+        c: DenseMatrixRegion,
+        lower: Boolean = true,
+        workspace: Workspace? = null,
+    ): Unit =
+        regionSyrk(this, alpha, a, transpose, beta, c, lower, workspace)
+
+    /** Region overload of [trsv]; storage addressing and backend packing follow the region [gemv] overload. */
+    @Suppress("LongParameterList") // BLAS operands, flags and workspace
+    public fun trsv(
+        a: DenseMatrixRegion,
+        x: DoubleArray,
+        lower: Boolean,
+        transpose: Boolean = false,
+        unitDiag: Boolean = false,
+        workspace: Workspace? = null,
+    ): Unit =
+        regionTrsv(this, a, x, lower, transpose, unitDiag, workspace)
+
+    /** Region overload of [trsm]; storage addressing and backend packing follow the region [gemv] overload. */
+    @Suppress("LongParameterList") // BLAS operands, flags and workspace
+    public fun trsm(
+        a: DenseMatrixRegion,
+        b: DenseMatrixRegion,
+        lower: Boolean,
+        transpose: Boolean = false,
+        unitDiag: Boolean = false,
+        right: Boolean = false,
+        alpha: Double = 1.0,
+        workspace: Workspace? = null,
+    ): Unit =
+        regionTrsm(this, a, b, lower, transpose, unitDiag, right, alpha, workspace)
+
     /**
      * `y = alpha · op(A) · x + beta · y` (BLAS `dgemv`), with `op(A)` being `Aᵀ` when [transpose].
      *

@@ -6,6 +6,7 @@ import com.eignex.koblas.assertClose
 import com.eignex.koblas.koblas
 import com.eignex.koblas.randomVector
 import kotlin.math.abs
+import kotlin.math.sqrt
 import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
@@ -202,7 +203,7 @@ class PlatformSparseKernelsTest {
         val dense = doubleArrayOf(2.0, 7.0, -1.0)
         for (engine in engines) {
             assertEquals(0.0, engine.sparseKernels.dot(indices, 0, values, 0, 3, dense), engine.name)
-            assertEquals(kotlin.math.sqrt(6.0), engine.sparseKernels.nrm2(indices, 0, 3, dense), engine.name)
+            assertEquals(sqrt(6.0), engine.sparseKernels.nrm2(indices, 0, 3, dense), engine.name)
         }
     }
 

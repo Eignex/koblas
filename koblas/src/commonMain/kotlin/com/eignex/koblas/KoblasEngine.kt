@@ -19,9 +19,11 @@ import com.eignex.koblas.dense.PortablePanelKernels
 import com.eignex.koblas.dense.PortableProductKernels
 import com.eignex.koblas.dense.PortableTriangularKernels
 import com.eignex.koblas.dense.RoutedDenseBlas
+import com.eignex.koblas.dense.ScalarVectorKernels
 import com.eignex.koblas.sparse.IndexedSparseKernels
 import com.eignex.koblas.sparse.PortableSparseBlas
 import com.eignex.koblas.sparse.SPARSE_SCHEDULING
+import com.eignex.koblas.sparse.ScalarIndexedSparseKernels
 import com.eignex.koblas.sparse.SparseBlas
 import com.eignex.koblas.sparse.SparseKernelAdapter
 import com.eignex.koblas.sparse.SparseKernels
@@ -46,7 +48,8 @@ internal expect fun platformEngine(): KoblasEngine
 /**
  * Immutable dense and sparse BLAS with portable fallbacks.
  *
- * [koblas] is the platform default. [BuiltinEngines] provides exact portable and JVM SIMD compositions
+ * [koblas] is the platform default. [portable] creates an explicitly portable engine for application code.
+ * [BuiltinEngines] provides exact portable and JVM SIMD compositions
  * for tests and benchmarks, neither of which loads a host library. On Native, the default may compose
  * [vendor] into eligible calls. The [routeOf] overloads describe which implementations a call reaches.
  */
@@ -81,6 +84,22 @@ public class KoblasEngine internal constructor(
     ),
 ) : DenseBlas by dense,
     SparseBlas by sparseBlas {
+    /** Explicit application engine selection without changing the platform default. */
+    public companion object {
+        /**
+         * Creates an immutable engine using portable Kotlin for every dense and sparse operation.
+         *
+         * Does not resolve a host library or require JVM modules or native-access flags. Keep the returned
+         * instance for repeated calls; each concurrent invocation needs its own destinations and workspace.
+         * Creating it does not change [koblas] or the engines used by container convenience operations.
+         *
+         * Finite computations are repeatable for identical inputs, storage shapes, operation order and
+         * flags on the same library, target and runtime configuration. Different backends, platforms or
+         * versions can round differently; non-finite values retain the individual BLAS routine's contract.
+         */
+        public fun portable(): KoblasEngine = KoblasEngine(ScalarVectorKernels, ScalarIndexedSparseKernels, null)
+    }
+
     /** Sparse-vector kernels composed from this engine's dense and indexed Level 1 selections. */
     public val sparseKernels: SparseKernels = SparseKernelAdapter(sparseKernelName, vectorKernels, indexedSparseKernels)
 
@@ -189,6 +208,7 @@ public class KoblasEngine internal constructor(
  *
  * The JVM default currently selects [simd] when available and [scalar] otherwise. Native has no SIMD
  * engine and composes an installed host library with portable fallbacks, or uses [scalar] without one.
+ * Android and desktop JDKs below 25 use [scalar] without resolving a host library.
  */
 @KoblasEngineApi
 public expect object BuiltinEngines {

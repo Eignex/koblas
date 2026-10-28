@@ -8,6 +8,8 @@ import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.Workspace
 import com.eignex.koblas.dense.PanelWork
 import com.eignex.koblas.gemmInto
+import com.eignex.koblas.internal.jvm25.SimdIndexedSparseKernels
+import com.eignex.koblas.internal.jvm25.SparseSimd
 import com.eignex.koblas.koblas
 import com.eignex.koblas.testutil.allocation.AllocationProbe
 import com.eignex.koblas.testutil.allocation.bytesPerCall

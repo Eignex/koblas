@@ -1,7 +1,7 @@
 # koblas-bench
 
 CPU benchmarks for Koblas and the vendor libraries it selects: OpenBLAS, oneMKL, AOCL, ArmPL and Accelerate.
-Requires JDK 25. `capture-report.sh` is the only reporting script.
+Requires JDK 25. `capture-report.sh` supplies each measured capture; `compare-revisions.py` interleaves revisions.
 
 The JVM harness and annotation processor are built together from pinned
 [OpenJDK JMH sources](https://github.com/openjdk/jmh/tree/a194eead0136bb66e5e59e4fdb2e18543e730929).
@@ -26,8 +26,87 @@ koblas-bench/capture-report.sh --smoke
 koblas-bench/capture-report.sh --vendors-only --libraries openblas,accelerate
 ```
 
+For a retained three-round reduction capture on a Linux lab node:
+
+```bash
+koblas-bench/capture-report.sh --libraries openblas,onemkl --targets jvm-simd,openblas,onemkl \
+  --cases koblas-bench/cases-reductions.txt --rounds 3 --cpu auto \
+  --samples 5 --warmups 5 --target-ms 200 --forks 2 --output /path/to/new-report
+```
+
+Each round rotates the target order and retains its own CSVs, metadata and log under the new output
+folder. Source hashes must stay unchanged, and binaries must match after every completed round.
+For each case and target, take the median of the round `median_ns` values before calculating throughput;
+the round files retain the spread. `--cpu auto` pins the capture and its child processes to the first
+CPU allowed by the job's affinity mask. It does not isolate that CPU from other work.
+
+Lab servers that accept JVM profiles can run `com.eignex.koblas.bench.LabCaptureLauncher` after building
+`:koblas-bench:jvmMainClasses`, with `koblas-bench/build/classes/java/jvmMain` as the profile classpath.
+Pass the same capture options above, omitting `--output`: the launcher retains the report under the lab's `OUT`.
+
 On a hybrid CPU, pin the run: `taskset -c 2,4,6,8 koblas-bench/capture-report.sh …`. Otherwise it wanders
 between core types and the timings move with the scheduler.
+
+Lab workers may run a source archive without `.git`. Such a capture records `source_kind=archive`,
+with `source_commit` and `dirty` unavailable; use the lab job's pinned revision for attribution.
+Multi-round archive captures fingerprint every source file except generated directories (`build`,
+`.gradle`, `.kotlin`, `.idea`, `.git` and `node_modules`) before and after each round, alongside the
+same binary hashes as a Git capture. This allows the lab archive to run without inventing Git metadata.
+
+For a same-worker before/after comparison, use `LabComparisonLauncher` with
+`--baseline-ref <full SHA>` and the ordinary `--rounds`, `--samples`, `--warmups`, `--target-ms`,
+`--forks` and `--cpu` settings. It runs `compare-revisions.py`, fetches and verifies the baseline
+from this public repository, builds both revisions before measuring, and rotates baseline JVM,
+current JVM and native oneMKL in each round. It retains every capture, source and binary hashes,
+and `summary.csv` with medians of round medians and their range. At least three rounds are required.
+Both source trees use the current capture driver, whose hash the comparison records, without modifying
+the baseline kernels; this also permits a baseline predating the interleaved-driver options.
+The cases default to `cases-reductions.txt`; both JVM arms read that same file.
+For a collector comparison, pass `--jvm-gc zgc --jvm-heap 1g` to either driver. The heap option fixes both
+the initial and maximum benchmark heap, and both options apply to the measured JVM forks, including
+older baseline build files. Build heaps remain separate. Ordinary captures leave these settings at
+their runtime defaults. Check the JMH VM options and per-fork runtime records before attributing a
+collector or alignment result.
+
+### Comparing JDK runtimes
+
+The benchmark launcher defaults to JDK 25. `-Pbench.javaVersion=27` selects JDK 27 for
+measurement while compilation keeps its configured toolchain. `-Pbench.expectedJavaHome=/path/to/jdk`
+pins the launcher to that installation. `prepareBenchmarkRuntime` checks the selected version before timing.
+
+For a same-code runtime comparison, pass `--baseline-java-version 25 --candidate-java-version 27`
+and `--require-same-source` to `LabComparisonLauncher`, with the baseline pinned to the job's own revision.
+The driver verifies identical source trees and library contents, resolves both launchers before timing,
+and checks every measured fork's runtime. `--install-jdk27` downloads the checksum-pinned Oracle JDK
+used by the layout validation and requires its exact executable for the JDK 27 arm. Add
+`--runtime-conformance` to run the reduction alignment checks on that installed JDK before capture.
+
+The existing `--jvm-gc` and `--jvm-heap` controls apply to both JVM arms. Without them, runtime defaults,
+including collector selection, remain part of the comparison; the results do not isolate JIT code generation.
+
+### Fixed native alignment control
+
+`prepareAlignmentDiagnostic` stages the current JVM kernel JAR and its runtime dependencies for
+`LabAlignmentReferenceLauncher`. This diagnostic measures IAMAX, DOT and ASUM at 65,536 elements over
+all eight offsets, with two forks and three interleaved rounds. Its oneMKL buffers either have fixed
+64-byte alignment or match the unpeeled heap window. It retains both controls and every offset;
+there is no best-offset selection. The native address snapshot uses libc outside arithmetic, needs
+no C compiler, and the JVM
+series uses the owned Vector API kernels. Native control calls use FFM over preallocated native
+buffers. Keep these raw controls separate from the public Kotlin/Native reference captures.
+
+For a local smoke after staging, run `experiments/alignment-reference.py` with `--java` pointing to
+JDK 25's `bin/java`, `--output` pointing to a new directory, `--mkl-root` pointing to oneMKL 2026.1,
+and `--smoke`. The lab launcher supplies the JDK and output path; without `--mkl-root`, the driver
+downloads and checks the same pinned oneMKL package as the public comparison driver.
+`--install-onemkl` extracts the reference container's checksum-pinned Intel package into temporary
+job storage and adds it to the child processes' library path; it needs `dpkg-deb` and changes no system
+installation. The library package and fetched baseline are removed after the job; their identities
+and the measured reports remain. `OUT` supplies the lab report directory. CPU pinning does not
+reserve a physical core, so use the worker's hardware and placement metadata when interpreting results.
+On a worker with a hard memory cap, pass `--build-heap 2g` to bound the Gradle heaps, use at most two
+build workers and compile Kotlin in the Gradle process. These build settings also apply to the Gradle
+launchers used during capture; they do not change the measured JVM fork's heap or SIMD options.
 
 ## Shrinking rank updates
 
@@ -462,6 +541,50 @@ Tasks are `jvmScalarBenchmark`, `jvmSimdBenchmark`, `jvmDefaultBenchmark`, `nati
 `-Pbench.vendor=NAME`. Native and vendor executables accept `--suite=sweep --operation=dot` directly.
 Omitting the suite selects `default`.
 
+## Borrowed Cholesky trailing updates
+
+`./gradlew :koblas-bench:jvmCholeskyViewBenchmark` compares Kumulant's finite strict-SPD blocked
+Cholesky workload at orders 65, 128, 256 and 512, using copied blocks or borrowed views for each
+trailing `syrk`. This fixture follows
+[Kumulant's factorization](https://github.com/Eignex/kumulant/blob/5014410198c53bc7bac3611cffa84353b595291e/kumulant/src/commonMain/kotlin/com/eignex/kumulant/math/Cholesky.kt)
+without its regularization or exceptional-input policy. Those remain consumer concerns.
+The borrowed trailing update is:
+
+```kotlin
+val panel = out.view(first, start, height, width)
+val trailing = out.view(first, first, height, height)
+engine.syrk(-1.0, panel, false, 1.0, trailing, workspace = workspace)
+```
+
+Each timed factorization copies the input into a reused destination, clears its upper triangle,
+factors the panels, checks each completed panel for finite entries and performs all trailing updates. Inputs are deterministic symmetric diagonally
+dominant matrices. Both paths use a warmed workspace; copying constructs fresh panel and trailing
+matrices as the consumer currently does, while borrowing constructs view descriptors. Each arm
+alternates paths for 100 warmups and nine measurement batches of ten factorizations. CSV rows report
+median ns and thread-allocated bytes per complete factorization. Setup verifies agreement between
+paths and reconstructs the input from each factor; checks are outside timing.
+
+This is a JVM diagnostic suite, separate from the JMH captures. Thread allocation accounting requires
+HotSpot. A local run on an i9-12900H with JDK 25 on 2026-10-26 measured:
+
+| Arm | Order | Copy ns | View ns | Copy bytes | View bytes |
+|---|---:|---:|---:|---:|---:|
+| Scalar | 65 | 151,728 | 109,448 | 43,360 | 256 |
+| Scalar | 128 | 316,626 | 230,838 | 164,080 | 192 |
+| Scalar | 256 | 1,815,697 | 1,715,909 | 655,600 | 192 |
+| Scalar | 512 | 7,427,051 | 6,811,201 | 5,505,584 | 448 |
+| SIMD | 65 | 32,656 | 27,910 | 43,360 | 256 |
+| SIMD | 128 | 174,836 | 117,648 | 164,080 | 192 |
+| SIMD | 256 | 915,154 | 807,757 | 655,600 | 192 |
+| SIMD | 512 | 4,438,461 | 3,715,289 | 5,505,584 | 448 |
+
+This exploratory run was on a working desktop without CPU pinning or control of other desktop/build activity, and is
+not a dedicated-host report or evidence for changing a backend crossover. It demonstrates allocation
+removal and exercises the consumer-shaped end-to-end workload; timings need repeated isolated captures
+before drawing a performance conclusion. It does not measure Kumulant's full application or Native host
+packing. Scratch for blocked product panels can still be borrowed internally; views do not promise
+allocation-free execution for every backend and layout.
+
 ## Bench SDK adapter
 
 `lab/bench.json` owns the prepared JVM adapter's build tasks, entry point and
@@ -469,16 +592,18 @@ classpath. `lab/native-linux-x64.json` also links the Linux x86_64 executable.
 The JVM adapter imports `com.eignex:lab-bench:0.1.0` only from `jvmMain`; Native
 continues to use this repository's executable and report formats.
 
-Before the SDK release exists, stage its assets in the lab checkout:
+The default dependency resolves [Lab Bench 0.1.0](https://github.com/Eignex/eignex-lab/releases/tag/lab-bench-v0.1.0)
+from public GitHub Release assets without a GitHub login or token. Prepare the adapter with:
 
 ```sh
-./gradlew :lab-bench:stageAdapterRepository -PbenchVersion=0.1.0
+./gradlew :koblas-bench:prepareLabBenchmark
 ```
 
-Then prepare this checkout with
-`./gradlew :koblas-bench:prepareLabBenchmark -PlabBenchRepository=file:///absolute/eignex-lab/lab-bench/build/adapter-repository`.
-The default repository is the public GitHub Release asset URL and requires no credentials.
-`-PlabBenchVersion=VERSION` selects a different SDK release.
+`-PlabBenchVersion=VERSION` selects a different SDK release. To develop against a
+local SDK checkout, run `./gradlew :lab-bench:stageAdapterRepository -PbenchVersion=0.1.0`
+in that checkout, then add
+`-PlabBenchRepository=file:///absolute/eignex-lab/lab-bench/build/adapter-repository`
+to the consumer build. Refresh dependencies when restaging the same version.
 
 A lab submission uses `repository: "Eignex/koblas"` and
 `bench: {"manifest":"koblas-bench/lab/bench.json","request":{"parameters":{"targets":"jvm-scalar,jvm-simd","operation":"dot","smoke":"true"}}}`.

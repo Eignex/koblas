@@ -1,7 +1,8 @@
 package com.eignex.koblas.sparse
 
 import com.eignex.koblas.assertClose
-import com.eignex.koblas.dense.simdAvailable
+import com.eignex.koblas.internal.jvm25.SparseSimd
+import com.eignex.koblas.internal.jvm25.simdAvailable
 import org.junit.Assume
 import kotlin.math.abs
 import kotlin.random.Random
@@ -49,9 +50,12 @@ class SparseSimdTest {
         Assume.assumeTrue("the Vector API module is unavailable", simdAvailable)
         val count = 256
         val x = Pattern(
-            IntArray(count) { it }, 0,
-            DoubleArray(count) { 1e308 }, 0,
-            count, DoubleArray(count) { -1e308 },
+            IntArray(count) { it },
+            0,
+            DoubleArray(count) { 1e308 },
+            0,
+            count,
+            DoubleArray(count) { -1e308 },
         )
 
         assertAxpyAgreesWithReference(x, 2.0)
@@ -83,7 +87,12 @@ class SparseSimdTest {
         val expectedValues = x.values.copyOf()
         val expectedDense = x.dense.copyOf()
         ScalarIndexedSparseKernels.gatherZero(
-            x.indices, x.indexOffset, expectedValues, x.valueOffset, x.count, expectedDense,
+            x.indices,
+            x.indexOffset,
+            expectedValues,
+            x.valueOffset,
+            x.count,
+            expectedDense,
         )
         val actualValues = x.values.copyOf()
         val actualDense = x.dense.copyOf()
@@ -106,7 +115,12 @@ class SparseSimdTest {
 
     private fun assertDotDenseAgreesWithReference(x: Pattern) {
         val expected = ScalarIndexedSparseKernels.dotDense(
-            x.indices, x.indexOffset, x.values, x.valueOffset, x.count, x.dense,
+            x.indices,
+            x.indexOffset,
+            x.values,
+            x.valueOffset,
+            x.count,
+            x.dense,
         )
 
         val actual = SparseSimd.dotDense(x.indices, x.indexOffset, x.values, x.valueOffset, x.count, x.dense)
@@ -133,8 +147,10 @@ class SparseSimdTest {
     private fun forEachPattern(block: (Pattern) -> Unit) {
         Assume.assumeTrue("the Vector API module is unavailable", simdAvailable)
         val lanes = SparseSimd.lanes
-        val counts = (listOf(lanes - 1, lanes, lanes + 1, 2 * lanes + 1) +
-            listOf(1, 2, 3, 4, 5, 7, 8, 9, 31, 32, 33, 255, 256, 257)).distinct()
+        val counts = (
+            listOf(lanes - 1, lanes, lanes + 1, 2 * lanes + 1) +
+            listOf(1, 2, 3, 4, 5, 7, 8, 9, 31, 32, 33, 255, 256, 257)
+        ).distinct()
         for (count in counts) {
             for ((indexOffset, valueOffset) in listOf(0 to 0, 1 to 3, 3 to 1)) {
                 val random = Random(count)
@@ -146,7 +162,11 @@ class SparseSimdTest {
                 }
                 block(
                     Pattern(
-                        indices, indexOffset, values, valueOffset, count,
+                        indices,
+                        indexOffset,
+                        values,
+                        valueOffset,
+                        count,
                         DoubleArray(2 * count + 1) { random.nextDouble(-1.0, 1.0) },
                     ),
                 )

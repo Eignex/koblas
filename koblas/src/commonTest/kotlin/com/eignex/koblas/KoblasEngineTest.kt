@@ -8,9 +8,30 @@ import com.eignex.koblas.sparse.ScalarIndexedSparseKernels
 import com.eignex.koblas.sparse.SparseOperation
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNull
 import kotlin.test.assertSame
 
 class KoblasEngineTest {
+    @Test
+    fun `portable factory selects owned scalar kernels without a vendor`() {
+        val engine = KoblasEngine.portable()
+
+        assertNull(engine.vendor)
+        assertSame(ScalarVectorKernels, engine.vectorKernels)
+        assertSame(ScalarIndexedSparseKernels, engine.indexedSparseKernels)
+        assertEquals("scalar-panel", engine.panelKernels.name)
+        assertEquals(BuiltinEngines.scalar.productKernels.name, engine.productKernels.name)
+        assertEquals(BuiltinEngines.scalar.triangularKernels.name, engine.triangularKernels.name)
+    }
+
+    @Test
+    fun `portable selection leaves the platform default intact`() {
+        val default = koblas
+
+        KoblasEngine.portable()
+        assertSame(default, koblas)
+    }
+
     @Test
     fun `sparse convenience operations execute the engine selected kernels`() {
         val x = SparseVector.of(4, intArrayOf(1, 3), doubleArrayOf(2.0, 4.0))

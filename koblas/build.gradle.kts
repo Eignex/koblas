@@ -4,8 +4,24 @@ import org.jetbrains.kotlin.gradle.tasks.KotlinJvmCompile
 import org.jetbrains.kotlin.gradle.targets.jvm.KotlinJvmTarget
 
 plugins {
-    id("com.eignex.kmp") version "1.3.3"
-    kotlin("plugin.serialization") version "2.4.10"
+    id("com.eignex.kmp") version "1.3.5"
+    kotlin("plugin.serialization") version "2.4.21"
+}
+
+eignexBuild {
+    jvmToolchain.set(25)
+    jvmTarget.set(17)
+    multiReleaseJvmVersion.set(25)
+    jvmModuleDescriptor.set(layout.projectDirectory.file("src/jvmModule/module-info.java"))
+    jvmModuleVersioned.set(true)
+    packagedTestJdks.set(listOf(17, 25))
+}
+
+repositories {
+    maven("https://central.sonatype.com/repository/maven-snapshots/") {
+        mavenContent { snapshotsOnly() }
+        content { includeGroup("com.eignex") }
+    }
 }
 
 eignexPublish {
@@ -21,20 +37,33 @@ kotlin {
         freeCompilerArgs.add("-Xexpect-actual-classes")
         optIn.add("com.eignex.koblas.UnsafeKoblasApi")
     }
-    // The vendor binding uses java.lang.foreign, finalized in 22. 25 is the current LTS-track release; this
-    // is the floor for JVM consumers.
-    jvmToolchain(25)
     jvm {
-        compilerOptions {
-            jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_25)
+        val main = compilations.getByName("main")
+        compilations.named("test") {
+            compileTaskProvider.configure {
+                compilerOptions.jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_25)
+            }
+            compileJavaTaskProvider?.configure { options.release.set(25) }
+        }
+        compilations.create("portableTest") {
+            associateWith(main)
+            defaultSourceSet {
+                kotlin.srcDir("src/commonTest/kotlin")
+                dependencies {
+                    implementation(kotlin("test-junit"))
+                    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.12.0")
+                }
+            }
         }
     }
     linuxX64(); linuxArm64()
     macosArm64()
+    iosArm64()
+    iosSimulatorArm64()
 
     sourceSets {
         commonMain.dependencies {
-            api("org.jetbrains.kotlinx:kotlinx-serialization-core:1.11.0")
+            api("org.jetbrains.kotlinx:kotlinx-serialization-core:1.12.0")
         }
         // Conformance tests compare a vectorised kernel against the portable one that defines its semantics,
         // which means naming an engine. Opting in for the test source sets and not for main is what keeps
@@ -43,8 +72,8 @@ kotlin {
             if (name.endsWith("Test")) languageSettings.optIn("com.eignex.koblas.KoblasEngineApi")
         }
         commonTest.dependencies {
-            implementation("org.jetbrains.kotlinx:kotlinx-serialization-core:1.11.0")
-            implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.11.0")
+            implementation("org.jetbrains.kotlinx:kotlinx-serialization-core:1.12.0")
+            implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.12.0")
         }
     }
 }
@@ -66,16 +95,18 @@ dokka {
     }
 }
 
-// The JVM SIMD kernels use the incubator Vector API. Make the module visible to the Kotlin compiler and at
-// test runtime; downstream JVM consumers need the same flag.
+// Only the desktop implementation and its tests may reference the incubator Vector API.
 tasks.withType<KotlinJvmCompile>().configureEach {
-    compilerOptions.freeCompilerArgs.add("-Xadd-modules=jdk.incubator.vector")
+    if (name != "compileKotlinJvm" && name != "compilePortableTestKotlinJvm") {
+        compilerOptions.freeCompilerArgs.add("-Xadd-modules=jdk.incubator.vector")
+    }
 }
-// FFM downcalls are restricted methods: a warning on 25, an error later. The vendor binding uses them.
 tasks.withType<Test>().configureEach {
-    jvmArgs("--enable-native-access=ALL-UNNAMED")
-    if (project.findProperty("koblas.noSimd") != "true") {
-        jvmArgs("--add-modules=jdk.incubator.vector")
+    if (name != "jvmTestJarOnJava17") {
+        jvmArgs("--enable-native-access=ALL-UNNAMED")
+        if (project.findProperty("koblas.noSimd") != "true") {
+            jvmArgs("--add-modules=jdk.incubator.vector")
+        }
     }
 }
 
@@ -228,6 +259,36 @@ val simdNoFmaCheck = registerRuntimePathCheck(
 )
 simdNoFmaCheck { args("", "false") }
 
+fun registerReductionAlignmentCheck(name: String, mode: String, vararg extraArgs: String) =
+    tasks.register<JavaExec>(name) {
+        group = "verification"
+        description = "Checks reduction windows against the scalar oracle with a fixed heap layout."
+        dependsOn("jvmTestClasses")
+        classpath(jvmTestCompilation.output.allOutputs, configurations.getByName("jvmTestRuntimeClasspath"))
+        mainClass.set("com.eignex.koblas.dense.SimdReductionAlignmentCheck")
+        val runtimeHome = providers.gradleProperty("koblas.runtimeCheckJavaHome").orNull
+        if (runtimeHome == null) javaLauncher.set(allocationCheckJavaLauncher)
+        else setExecutable("$runtimeHome/bin/java")
+        maxHeapSize = "128m"
+        jvmArgs("--add-modules=jdk.incubator.vector", "-XX:-TieredCompilation", "-XX:CompileThreshold=1000", *extraArgs)
+        args(mode)
+    }
+
+val simdG1AlignmentCheck = registerReductionAlignmentCheck(
+    "simdG1AlignmentCheck", "g1", "-XX:+UseG1GC", "-XX:G1HeapRegionSize=1m",
+)
+val simdSerialAlignmentCheck = registerReductionAlignmentCheck(
+    "simdSerialAlignmentCheck", "fallback", "-XX:+UseSerialGC",
+)
+
+val simdZgcAlignmentCheck = registerReductionAlignmentCheck(
+    "simdZgcAlignmentCheck", "zgc", "-XX:+UseZGC",
+)
+
+val simdObjectAlignmentCheck = registerReductionAlignmentCheck(
+    "simdObjectAlignmentCheck", "object64", "-XX:+UseSerialGC", "-XX:ObjectAlignmentInBytes=64",
+)
+
 tasks.named("check") {
     dependsOn(
         oneMklInheritedInterfaceCheck,
@@ -240,6 +301,10 @@ tasks.named("check") {
         simdDenseAllocationCheckNarrowNoFma,
         simdNarrowSpeciesCheck,
         simdNoFmaCheck,
+        simdG1AlignmentCheck,
+        simdSerialAlignmentCheck,
+        simdZgcAlignmentCheck,
+        simdObjectAlignmentCheck,
     )
 }
 
@@ -263,4 +328,46 @@ tasks.named<Jar>("jvmJar") {
     manifest {
         attributes("Automatic-Module-Name" to "com.eignex.koblas")
     }
+}
+
+// The desktop suite names implementation kernels; baseline conformance uses only common tests.
+val jvmTarget = kotlin.targets.getByName("jvm") as KotlinJvmTarget
+val portableTestCompilation = jvmTarget.compilations.getByName("portableTest")
+val jvmJar = tasks.named<Jar>("jvmJar")
+val packagedDesktopClasspath = files(
+    jvmTestCompilation.output.allOutputs,
+    jvmJar,
+    configurations.getByName("jvmTestRuntimeClasspath"),
+) - jvmTarget.compilations.getByName("main").output.allOutputs
+
+tasks.named<Test>("jvmTest") { classpath = packagedDesktopClasspath }
+tasks.withType<JavaExec>().configureEach { classpath = packagedDesktopClasspath }
+afterEvaluate {
+    jvmTestCompilation.associateWith(jvmTarget.compilations.getByName("java25"))
+    tasks.named<Test>("jvmTestJarOnJava25") { classpath = packagedDesktopClasspath }
+    tasks.named<Test>("jvmTestJarOnJava17") {
+        testClassesDirs = portableTestCompilation.output.classesDirs
+        classpath = files(jvmJar, portableTestCompilation.output.allOutputs, portableTestCompilation.runtimeDependencyFiles) -
+            jvmTarget.compilations.getByName("main").output.allOutputs
+    }
+}
+
+// Common tests have their own lint task; avoid concurrent auto-correction of the same files.
+tasks.withType<dev.detekt.gradle.Detekt>().matching {
+    it.name == "detektJvmPortableTestSourceSet"
+}.configureEach {
+    setSource(fileTree("src/jvmPortableTest/kotlin") { include("**/*.kt") })
+}
+
+// Type-resolved portable analysis also sees common tests; let their formatter finish before reading them.
+tasks.withType<dev.detekt.gradle.Detekt>().matching {
+    it.name == "detektPortableTestJvm"
+}.configureEach {
+    autoCorrect.set(false)
+    mustRunAfter("detektCommonTestSourceSet")
+}
+
+// CI selects an installed simulator so the test does not depend on a hard-coded iPhone model.
+tasks.withType<org.jetbrains.kotlin.gradle.targets.native.tasks.KotlinNativeSimulatorTest>().configureEach {
+    providers.gradleProperty("iosSimulatorDevice").orNull?.let { device.set(it) }
 }

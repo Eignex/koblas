@@ -29,17 +29,23 @@ concurrency:
 
 jobs:
   prepare:
-    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    if: >-
+      github.event_name != 'workflow_run' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.head_repository.full_name == github.repository)
     name: Resolve publication version and revision
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     outputs:
       version: ${{ steps.version.outputs.version }}
       is_snapshot: ${{ steps.version.outputs.is_snapshot }}
       dry_run: ${{ steps.version.outputs.dry_run }}
       revision: ${{ steps.version.outputs.revision }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
+          persist-credentials: false
           ref: ${{ github.event.workflow_run.head_sha || github.sha }}
           fetch-depth: 0
       - name: Resolve publication version
@@ -66,17 +72,19 @@ jobs:
       (needs.validate.result == 'success' ||
       (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success'))
     needs: [prepare, validate]
-    name: Stage the macOS Native publication
+    name: Stage the Apple Native publications
     runs-on: macos-latest
     timeout-minutes: 45
     env:
       RELEASE_VERSION: ${{ needs.prepare.outputs.version }}
       IS_SNAPSHOT: ${{ needs.prepare.outputs.is_snapshot }}
+      DRY_RUN: ${{ needs.prepare.outputs.dry_run }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
+          persist-credentials: false
           ref: ${{ needs.prepare.outputs.revision }}
-      - uses: actions/setup-java@v5
+      - uses: actions/setup-java@v6
         with:
           distribution: temurin
           java-version: 25
@@ -84,15 +92,17 @@ jobs:
         with:
           cache-read-only: true
           cache-encryption-key: ${{ secrets.GRADLE_ENCRYPTION_KEY }}
-      - name: Stage the macOS Native publication
+      - name: Stage the Apple Native publications
         if: env.IS_SNAPSHOT == 'false'
         env:
           ORG_GRADLE_PROJECT_signingKey: ${{ secrets.SIGNING_KEY }}
           ORG_GRADLE_PROJECT_signingPassword: ${{ secrets.SIGNING_PASSWORD }}
         run: >-
           ./gradlew :koblas:publishMacosArm64PublicationToMavenCentralStagingRepository
+          :koblas:publishIosArm64PublicationToMavenCentralStagingRepository
+          :koblas:publishIosSimulatorArm64PublicationToMavenCentralStagingRepository
           -PciVersion="$RELEASE_VERSION"
-      - name: Upload the macOS Native publication
+      - name: Upload the Apple Native publications
         if: env.IS_SNAPSHOT == 'false'
         uses: actions/upload-artifact@v7
         with:
@@ -100,13 +110,15 @@ jobs:
           path: koblas/build/maven-central-publishing/staging-repository
           include-hidden-files: true
           if-no-files-found: error
-      - name: Publish the macOS Native snapshot
-        if: env.IS_SNAPSHOT == 'true'
+      - name: Publish the Apple Native snapshots
+        if: env.IS_SNAPSHOT == 'true' && env.DRY_RUN != 'true'
         env:
           ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.CENTRAL_PORTAL_USER }}
           ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.CENTRAL_PORTAL_PASSWORD }}
         run: >-
           ./gradlew :koblas:publishMacosArm64PublicationToSonatypeSnapshotsRepository
+          :koblas:publishIosArm64PublicationToSonatypeSnapshotsRepository
+          :koblas:publishIosSimulatorArm64PublicationToSonatypeSnapshotsRepository
           -PciVersion="$RELEASE_VERSION"
 
   publish:
@@ -123,10 +135,11 @@ jobs:
       IS_SNAPSHOT: ${{ needs.prepare.outputs.is_snapshot }}
       DRY_RUN: ${{ needs.prepare.outputs.dry_run }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
+          persist-credentials: false
           ref: ${{ needs.prepare.outputs.revision }}
-      - uses: actions/setup-java@v5
+      - uses: actions/setup-java@v6
         with:
           distribution: temurin
           java-version: 25
@@ -134,13 +147,13 @@ jobs:
         with:
           cache-read-only: true
           cache-encryption-key: ${{ secrets.GRADLE_ENCRYPTION_KEY }}
-      - name: Cache Kotlin/Native toolchain
-        uses: actions/cache@v5
+      - name: Restore Kotlin/Native toolchain
+        uses: actions/cache/restore@v6
         with:
           path: ~/.konan
-          key: ${{ runner.os }}-konan-${{ hashFiles('**/*.gradle.kts') }}
-          restore-keys: ${{ runner.os }}-konan-
-      - name: Download the macOS Native publication
+          key: ${{ runner.os }}-${{ runner.arch }}-konan-${{ hashFiles('**/*.gradle.kts', '**/gradle.properties', '**/gradle-wrapper.properties', '**/*.versions.toml') }}
+          restore-keys: ${{ runner.os }}-${{ runner.arch }}-konan-
+      - name: Download the Apple Native publications
         if: env.IS_SNAPSHOT == 'false'
         env:
           GH_TOKEN: ${{ github.token }}
@@ -170,7 +183,9 @@ jobs:
           ./gradlew :koblas:publishAllPublicationsToMavenCentralStagingRepository
           -PciVersion="$RELEASE_VERSION"
           -x :koblas:publishMacosArm64PublicationToMavenCentralStagingRepository
-      - name: Substitute the host-built macOS Native publication
+          -x :koblas:publishIosArm64PublicationToMavenCentralStagingRepository
+          -x :koblas:publishIosSimulatorArm64PublicationToMavenCentralStagingRepository
+      - name: Substitute the host-built Apple Native publications
         if: env.IS_SNAPSHOT == 'false'
         run: cp -R build/macos-staging/. koblas/build/maven-central-publishing/staging-repository/
       - name: Create Maven Central bundle
@@ -204,6 +219,8 @@ jobs:
         run: >-
           ./gradlew :koblas:publishAllPublicationsToSonatypeSnapshotsRepository -PciVersion="$RELEASE_VERSION"
           -x :koblas:publishMacosArm64PublicationToSonatypeSnapshotsRepository
+          -x :koblas:publishIosArm64PublicationToSonatypeSnapshotsRepository
+          -x :koblas:publishIosSimulatorArm64PublicationToSonatypeSnapshotsRepository
       - name: Detect pre-release
         if: github.ref_type == 'tag' && env.IS_SNAPSHOT == 'false' && env.DRY_RUN != 'true'
         run: |
@@ -214,7 +231,7 @@ jobs:
           fi
       - name: Create GitHub Release
         if: github.ref_type == 'tag' && env.IS_SNAPSHOT == 'false' && env.DRY_RUN != 'true'
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           prerelease: ${{ env.IS_PRERELEASE }}
           generate_release_notes: true

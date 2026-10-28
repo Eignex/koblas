@@ -306,36 +306,49 @@ class StructuredProductTest {
     }
 
     @Test
-    fun `symm agrees with the oracle over three blocks from the left with an upper triangle`() =
-        withDenseBlas { blas ->
-            assertSymmetricProductAgreesWithReference(
-                blas, 2 * SYMMETRIC_BLOCK + 3, VECTOR_SIDES + 3, lower = false, right = false,
-            )
-        }
+    fun `symm agrees with the oracle over three blocks from the left with an upper triangle`() = withDenseBlas { blas ->
+        assertSymmetricProductAgreesWithReference(
+            blas,
+            2 * SYMMETRIC_BLOCK + 3,
+            VECTOR_SIDES + 3,
+            lower = false,
+            right = false,
+        )
+    }
 
     @Test
-    fun `symm agrees with the oracle over three blocks from the left with a lower triangle`() =
-        withDenseBlas { blas ->
-            assertSymmetricProductAgreesWithReference(
-                blas, 2 * SYMMETRIC_BLOCK + 3, VECTOR_SIDES + 3, lower = true, right = false,
-            )
-        }
+    fun `symm agrees with the oracle over three blocks from the left with a lower triangle`() = withDenseBlas { blas ->
+        assertSymmetricProductAgreesWithReference(
+            blas,
+            2 * SYMMETRIC_BLOCK + 3,
+            VECTOR_SIDES + 3,
+            lower = true,
+            right = false,
+        )
+    }
 
     @Test
     fun `symm agrees with the oracle over three blocks from the right with an upper triangle`() =
         withDenseBlas { blas ->
             assertSymmetricProductAgreesWithReference(
-                blas, 2 * SYMMETRIC_BLOCK + 3, VECTOR_SIDES + 3, lower = false, right = true,
+                blas,
+                2 * SYMMETRIC_BLOCK + 3,
+                VECTOR_SIDES + 3,
+                lower = false,
+                right = true,
             )
         }
 
     @Test
-    fun `symm agrees with the oracle over three blocks from the right with a lower triangle`() =
-        withDenseBlas { blas ->
-            assertSymmetricProductAgreesWithReference(
-                blas, 2 * SYMMETRIC_BLOCK + 3, VECTOR_SIDES + 3, lower = true, right = true,
-            )
-        }
+    fun `symm agrees with the oracle over three blocks from the right with a lower triangle`() = withDenseBlas { blas ->
+        assertSymmetricProductAgreesWithReference(
+            blas,
+            2 * SYMMETRIC_BLOCK + 3,
+            VECTOR_SIDES + 3,
+            lower = true,
+            right = true,
+        )
+    }
 
     private fun assertSymmetricProductAgreesWithReference(
         blas: DenseBlas,

@@ -2,10 +2,11 @@
 
 Portable double-precision dense and sparse BLAS Levels 1–3 for Kotlin Multiplatform.
 
-The immutable [koblas][com.eignex.koblas.koblas] engine uses owned Vector API kernels on a JVM with the
-incubator module, and portable Kotlin without it. Kotlin/Native composes optional installed host calls with
-portable fallback. Explicit vendor bindings preserve their own arithmetic and overlap contracts;
-[openBlas][com.eignex.koblas.vendor.openBlas] returns null on a host with no supported library.
+The immutable [koblas][com.eignex.koblas.koblas] engine uses owned Vector API kernels on desktop JDK 25 or
+later with the incubator module, and portable Kotlin on Android, iOS devices and simulators, and other supported JVMs.
+Linux and macOS Kotlin/Native compose optional installed host calls with portable fallback. Explicit vendor bindings preserve their own arithmetic and overlap contracts;
+[openBlas][com.eignex.koblas.vendor.openBlas] returns null on Android, JDKs below 25, or a host with no
+supported library. The JVM publication is one multi-release JAR with no bundled native code.
 
 Container conveniences in `com.eignex.koblas` call the BLAS contracts through the default engine.
 The `dense` and `sparse` packages contain those contracts, portable schedules and backend kernel interfaces.
@@ -15,6 +16,14 @@ Schedules and kernels receive their dependencies from the engine; they do not re
 [Workspace][com.eignex.koblas.Workspace] reuses temporary storage with bounded retention. It belongs to one
 invocation at a time; concurrent calls need separate outputs and scratch. Allocating operations still own
 their fresh results. Factorization and solver workflows are outside this artifact.
+
+[KoblasEngine.portable][com.eignex.koblas.KoblasEngine.portable] creates an immutable application engine
+using portable Kotlin for every operation, without an opt-in, host library or JVM flags. Call that instance
+directly; container conveniences continue to use the platform default. Finite results repeat for identical
+inputs, storage shapes, flags and operation order on the same library, target, engine and runtime configuration.
+Separate destinations and workspaces are required for concurrent calls. Different backends, platforms,
+SIMD widths and fused operations can round differently; cross-platform bitwise equality is not promised.
+Non-finite behavior follows each BLAS routine's contract.
 
 [BuiltinEngines][com.eignex.koblas.BuiltinEngines], behind the
 [KoblasEngineApi][com.eignex.koblas.KoblasEngineApi] opt-in, names exact engines for tests and benchmarks.

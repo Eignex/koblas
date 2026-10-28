@@ -286,8 +286,85 @@ class HostDenseBlasTest {
         assertEquals(RouteKind.Direct, route.kind)
         assertEquals(recorder.vendor, route.host?.vendor)
         assertEquals(BlasOperation.Gemm.entryPoint, route.host?.entryPoint)
-        assertTrue(recorder.libraryPath in (route.reason ?: ""), "the route does not name the resolved binary")
-        assertTrue(recorder.version in (route.reason ?: ""), "the route does not name the library's version")
+        assertTrue(recorder.libraryPath in route.reason.orEmpty(), "the route does not name the resolved binary")
+        assertTrue(recorder.version in route.reason.orEmpty(), "the route does not name the library's version")
+    }
+
+    @Test
+    fun `borrowed host products pack logical entries and report staging`() {
+        val (recorder, blas) = forced()
+        val parent = matrix(7)
+        val a = parent.view(1, 1, 3, 2)
+        val b = parent.view(0, 3, 2, 3)
+        val c = parent.view(2, 2, 3, 3)
+        val expectedA = a.toArray()
+        val expectedB = b.toArray()
+
+        blas.gemm(1.0, a, false, b, false, 0.0, c, Workspace())
+        val route = blas.routeOf(DenseMatrixOperation.Gemm, DenseCall(3, 3, depth = 2, borrowed = true))
+
+        val call = recorder.single()
+        assertEquals(BlasOperation.Gemm, call.operation)
+        for (i in expectedA.indices) assertContentEquals(expectedA[i], call.matrices[0].toArray()[i])
+        for (i in expectedB.indices) assertContentEquals(expectedB[i], call.matrices[1].toArray()[i])
+        assertNotSame(parent.values, call.matrices[0].values)
+        assertTrue(HOST_REGION_STAGING in route.components)
+    }
+
+    @Test
+    fun `borrowed host calls reach a region binding in place`() {
+        val recorder = RecordingRegionBlas()
+        val blas = HostDenseBlas(PortableDenseBlas(ScalarVectorKernels, PortablePanelKernels), recorder, 0)
+        val parent = matrix(9)
+        val panel = parent.view(4, 0, 5, 3)
+        val trailing = parent.view(4, 4, 5, 5)
+        val triangle = parent.view(0, 0, 3, 3)
+        val beside = parent.view(0, 4, 3, 5)
+        val workspace = Workspace()
+
+        blas.gemv(1.0, panel, DoubleArray(3), 0.0, DoubleArray(5), workspace = workspace)
+        blas.gemm(1.0, panel, false, beside, false, 1.0, trailing, workspace)
+        blas.syrk(-1.0, panel, false, 1.0, trailing, workspace = workspace)
+        blas.trsv(triangle, DoubleArray(3), lower = true, workspace = workspace)
+        blas.trsm(triangle, beside, lower = true, workspace = workspace)
+        val route = blas.routeOf(DenseMatrixOperation.Syrk, DenseCall(5, 5, depth = 3, borrowed = true))
+
+        val expected = listOf(
+            listOf(panel),
+            listOf(panel, beside, trailing),
+            listOf(panel, trailing),
+            listOf(triangle),
+            listOf(triangle, beside),
+        )
+        assertEquals(expected.size, recorder.calls.size)
+        for ((call, operands) in recorder.calls.zip(expected)) {
+            for ((actual, view) in call.matrices.zip(operands)) assertSame(view, actual, "${call.operation}")
+        }
+        assertEquals(emptyList(), recorder.contiguousCalls)
+        assertEquals(0, workspace.idleLengths(), "a disjoint borrowed call borrowed scratch")
+        assertEquals(listOf("openblas/${BlasOperation.Syrk.entryPoint}"), route.components)
+    }
+
+    @Test
+    fun `a borrowed input overlapping the destination is staged before a region binding`() {
+        val recorder = RecordingRegionBlas()
+        val blas = HostDenseBlas(PortableDenseBlas(ScalarVectorKernels, PortablePanelKernels), recorder, 0)
+        val parent = matrix(7)
+        val a = parent.view(0, 0, 4, 3)
+        val c = parent.view(1, 1, 4, 4)
+        val entries = a.toArray()
+
+        blas.syrk(-1.0, a, false, 1.0, c, workspace = Workspace())
+        val route = blas.routeOf(
+            DenseMatrixOperation.Syrk,
+            DenseCall(4, 4, depth = 3, borrowed = true, aliased = true),
+        )
+
+        val call = recorder.calls.single()
+        assertNotSame(parent.values, call.matrices[0].values)
+        for (i in entries.indices) assertContentEquals(entries[i], call.matrices[0].toArray()[i])
+        assertSame(c, call.matrices[1])
+        assertEquals(listOf(HOST_STAGING, "openblas/${BlasOperation.Syrk.entryPoint}"), route.components)
     }
 
     private companion object {

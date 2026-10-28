@@ -187,13 +187,24 @@ class PreparedSparseMatrixTest {
                 val values = doubleArrayOf(2.0, -1.0, 0.0, -2.0, 3.0)
                 val source = SparseMatrix.wrap(4, 3, pointers, rows, values)
                 val other = if (preparedOnLeft) {
-                    SparseMatrix.ofColumns(4, 2, listOf(
-                        listOf(0 to 1.0, 1 to 2.0, 3 to 2.0), listOf(1 to 0.0, 2 to -1.0),
-                    ))
+                    SparseMatrix.ofColumns(
+                        4,
+                        2,
+                        listOf(
+                            listOf(0 to 1.0, 1 to 2.0, 3 to 2.0),
+                            listOf(1 to 0.0, 2 to -1.0),
+                        ),
+                    )
                 } else {
-                    SparseMatrix.ofColumns(2, 3, listOf(
-                        listOf(0 to 1.0, 1 to -1.0), listOf(1 to 0.0), listOf(0 to 1.0),
-                    ))
+                    SparseMatrix.ofColumns(
+                        2,
+                        3,
+                        listOf(
+                            listOf(0 to 1.0, 1 to -1.0),
+                            listOf(1 to 0.0),
+                            listOf(0 to 1.0),
+                        ),
+                    )
                 }
                 val expected = if (preparedOnLeft) {
                     ReferenceSparseBlas.gemm(0.875, source, true, other, false)
@@ -214,7 +225,9 @@ class PreparedSparseMatrixTest {
                     }
                     assertTrue(actual is SparseMatrix)
                     assertSparseProductAgreesWithReference(
-                        expected, actual, "${engine.name} left=$preparedOnLeft use=$use",
+                        expected,
+                        actual,
+                        "${engine.name} left=$preparedOnLeft use=$use",
                     )
                     assertTrue(prepared.orientationDerived)
                 }

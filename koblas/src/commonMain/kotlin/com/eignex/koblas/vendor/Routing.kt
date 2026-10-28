@@ -1,6 +1,7 @@
 package com.eignex.koblas.vendor
 
 import com.eignex.koblas.DenseMatrix
+import com.eignex.koblas.DenseMatrixRegion
 import com.eignex.koblas.DenseVector
 
 /**
@@ -57,7 +58,7 @@ internal fun routeFor(
 internal fun noWork(x: DenseVector): Boolean = x.size == 0
 
 /** The same rule over a matrix operand. */
-internal fun noWork(a: DenseMatrix): Boolean = a.rows == 0 || a.cols == 0
+internal fun noWork(a: DenseMatrixRegion): Boolean = a.rows == 0 || a.cols == 0
 
 /**
  * Why this call has nothing to do, or null when it has.

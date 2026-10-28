@@ -45,12 +45,13 @@ internal class RecordingTriangles(private val delegate: DenseTriangularKernels) 
         orderStride: Int,
         rhsStride: Int,
         sides: Int,
+        tOffset: Int,
     ) {
         blocks.add(
             DiagonalCall(start, size, transposed, lower, unitDiag, orderStride, rhsStride, sides, solve = true),
         )
         delegate.diagonalSolve(
-            t, n, start, size, transposed, lower, unitDiag, x, xOffset, orderStride, rhsStride, sides,
+            t, n, start, size, transposed, lower, unitDiag, x, xOffset, orderStride, rhsStride, sides, tOffset,
         )
     }
 
@@ -67,12 +68,13 @@ internal class RecordingTriangles(private val delegate: DenseTriangularKernels) 
         orderStride: Int,
         rhsStride: Int,
         sides: Int,
+        tOffset: Int,
     ) {
         blocks.add(
             DiagonalCall(start, size, transposed, lower, unitDiag, orderStride, rhsStride, sides, solve = false),
         )
         delegate.diagonalMultiply(
-            t, n, start, size, transposed, lower, unitDiag, x, xOffset, orderStride, rhsStride, sides,
+            t, n, start, size, transposed, lower, unitDiag, x, xOffset, orderStride, rhsStride, sides, tOffset,
         )
     }
 }

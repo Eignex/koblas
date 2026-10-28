@@ -33,18 +33,19 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
+          persist-credentials: false
           ref: ${{ inputs.ref || github.sha }}
           fetch-depth: 2
 
       - name: Set up JDK
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@v6
         with:
           distribution: temurin
           java-version: 25
 
-      # Persists the Gradle home incl. the build and configuration caches across runs.
+      # Build jobs persist dependency and encrypted configuration caches.
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v6
         with:
@@ -52,11 +53,11 @@ jobs:
           cache-encryption-key: ${{ secrets.GRADLE_ENCRYPTION_KEY }}
 
       - name: Cache Kotlin/Native toolchain
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: ~/.konan
-          key: ${{ runner.os }}-konan-${{ hashFiles('**/*.gradle.kts') }}
-          restore-keys: ${{ runner.os }}-konan-
+          key: ${{ runner.os }}-${{ runner.arch }}-konan-${{ hashFiles('**/*.gradle.kts', '**/gradle.properties', '**/gradle-wrapper.properties', '**/*.versions.toml') }}
+          restore-keys: ${{ runner.os }}-${{ runner.arch }}-konan-
 
       - name: Grant execute permission for Gradle
         run: chmod +x gradlew
@@ -65,7 +66,7 @@ jobs:
       # AOCL arm without worker threads; OpenBLAS has its own benchmark comparator job below.
       - name: Cache the vendor library packages
         id: vendor-packages
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: ~/vendor-packages
           key: vendor-blis-${{ runner.os }}-${{ env.ImageOS }}-v1
@@ -110,7 +111,7 @@ jobs:
           if-no-files-found: ignore
 
       - name: Upload results to Codecov (main only)
-        if: github.ref == 'refs/heads/main'
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: codecov/codecov-action@v7
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
@@ -127,13 +128,14 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
+          persist-credentials: false
           ref: ${{ inputs.ref || github.sha }}
           fetch-depth: 2
 
       - name: Set up JDK
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@v6
         with:
           distribution: temurin
           java-version: 25
@@ -145,11 +147,11 @@ jobs:
           cache-encryption-key: ${{ secrets.GRADLE_ENCRYPTION_KEY }}
 
       - name: Cache Kotlin/Native toolchain
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: ~/.konan
-          key: ${{ runner.os }}-konan-${{ hashFiles('**/*.gradle.kts') }}
-          restore-keys: ${{ runner.os }}-konan-
+          key: ${{ runner.os }}-${{ runner.arch }}-konan-${{ hashFiles('**/*.gradle.kts', '**/gradle.properties', '**/gradle-wrapper.properties', '**/*.versions.toml') }}
+          restore-keys: ${{ runner.os }}-${{ runner.arch }}-konan-
 
       - name: Grant execute permission for Gradle
         run: chmod +x gradlew
@@ -161,7 +163,7 @@ jobs:
       # would be worse than a slow download.
       - name: Cache the benchmark library packages
         id: host-packages
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: ~/host-packages
           key: benchmark-openblas-${{ runner.os }}-${{ env.ImageOS }}-v1
@@ -234,13 +236,14 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
+          persist-credentials: false
           ref: ${{ inputs.ref || github.sha }}
           fetch-depth: 2
 
       - name: Set up JDK
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@v6
         with:
           distribution: temurin
           java-version: 25
@@ -252,11 +255,11 @@ jobs:
           cache-encryption-key: ${{ secrets.GRADLE_ENCRYPTION_KEY }}
 
       - name: Cache Kotlin/Native toolchain
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: ~/.konan
-          key: ${{ runner.os }}-konan-${{ hashFiles('**/*.gradle.kts') }}
-          restore-keys: ${{ runner.os }}-konan-
+          key: ${{ runner.os }}-${{ runner.arch }}-konan-${{ hashFiles('**/*.gradle.kts', '**/gradle.properties', '**/gradle-wrapper.properties', '**/*.versions.toml') }}
+          restore-keys: ${{ runner.os }}-${{ runner.arch }}-konan-
 
       - name: Grant execute permission for Gradle
         run: chmod +x gradlew
@@ -264,6 +267,41 @@ jobs:
       - name: Run JVM and native tests
         run: ./gradlew :koblas:jvmTest :koblas:macosArm64Test
 
+      - name: Select an installed iOS simulator
+        run: |
+          set -euo pipefail
+          test "$(uname -m)" = arm64
+          read -r device state < <(xcrun simctl list devices available -j | python3 -c '
+          import json, sys
+          devices = [device for runtime, group in json.load(sys.stdin)["devices"].items()
+                     if ".iOS-" in runtime for device in group if device["name"].startswith("iPhone")]
+          assert devices, "No installed iPhone simulator"
+          device = next((device for device in devices if device["state"] == "Booted"), devices[0])
+          print(device["udid"], device["state"])
+          ')
+          echo "IOS_SIMULATOR_DEVICE=$device" >> "$GITHUB_ENV"
+          if [[ "$state" != Booted ]]; then xcrun simctl boot "$device"; fi
+          xcrun simctl bootstatus "$device" -b
+      - name: Run iOS portable conformance
+        run: >-
+          ./gradlew :koblas:iosSimulatorArm64Test --max-workers=2
+          -PiosSimulatorDevice="$IOS_SIMULATOR_DEVICE"
+      - name: Stage the iOS Maven publications
+        run: >-
+          ./gradlew :koblas:publishKotlinMultiplatformPublicationToLocalStagingRepository
+          :koblas:publishIosArm64PublicationToLocalStagingRepository
+          :koblas:publishIosSimulatorArm64PublicationToLocalStagingRepository
+          -PciVersion=0.0.0-consumer --max-workers=2
+      - name: Consume the published iOS library and link device and simulator frameworks
+        run: >-
+          ./gradlew -p tests/ios-consumer --refresh-dependencies iosSimulatorArm64Test
+          linkDebugFrameworkIosArm64 linkDebugFrameworkIosSimulatorArm64 --max-workers=2
+          -PiosSimulatorDevice="$IOS_SIMULATOR_DEVICE"
+      - name: Require executed simulator tests and linked frameworks
+        run: |
+          python3 tests/verify-test-results.py koblas/build/test-results/iosSimulatorArm64Test tests/ios-consumer/build/test-results/iosSimulatorArm64Test
+          test -s tests/ios-consumer/build/bin/iosArm64/debugFramework/KoblasConsumer.framework/KoblasConsumer
+          test -s tests/ios-consumer/build/bin/iosSimulatorArm64/debugFramework/KoblasConsumer.framework/KoblasConsumer
       - name: Upload test reports
         if: always()
         uses: actions/upload-artifact@v7
@@ -272,6 +310,8 @@ jobs:
           path: |
             koblas/build/reports/tests/
             koblas/build/test-results/
+            tests/ios-consumer/build/reports/tests/
+            tests/ios-consumer/build/test-results/
           if-no-files-found: ignore
 
   test-onemkl:
@@ -279,10 +319,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
+          persist-credentials: false
           ref: ${{ inputs.ref || github.sha }}
-      - uses: actions/setup-java@v5
+      - uses: actions/setup-java@v6
         with:
           distribution: temurin
           java-version: 25
@@ -306,7 +347,7 @@ jobs:
             koblas-bench/build/test-results/
           if-no-files-found: ignore
       - name: Cache oneMKL runtime package
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: ~/onemkl-packages
           key: onemkl-${{ runner.os }}-${{ hashFiles('.github/scripts/install-onemkl.sh') }}
@@ -334,10 +375,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
+          persist-credentials: false
           ref: ${{ inputs.ref || github.sha }}
-      - uses: actions/setup-java@v5
+      - uses: actions/setup-java@v6
         with:
           distribution: temurin
           java-version: 25
@@ -346,11 +388,11 @@ jobs:
           cache-read-only: false
           cache-encryption-key: ${{ secrets.GRADLE_ENCRYPTION_KEY }}
       - name: Cache Kotlin/Native toolchain
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: ~/.konan
-          key: ${{ runner.os }}-konan-${{ hashFiles('**/*.gradle.kts') }}
-          restore-keys: ${{ runner.os }}-konan-
+          key: ${{ runner.os }}-${{ runner.arch }}-konan-${{ hashFiles('**/*.gradle.kts', '**/gradle.properties', '**/gradle-wrapper.properties', '**/*.versions.toml') }}
+          restore-keys: ${{ runner.os }}-${{ runner.arch }}-konan-
       - name: Cross-compile native conformance tests
         run: ./gradlew :koblas:linkDebugTestLinuxArm64 :koblas-bench:linkDebugTestLinuxArm64
       - name: Package test executables
@@ -371,8 +413,9 @@ jobs:
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
+          persist-credentials: false
           ref: ${{ inputs.ref || github.sha }}
       - name: Download and verify Linux arm64 tests
         env:
@@ -394,4 +437,73 @@ jobs:
         with:
           name: test-reports-linux-arm64
           path: build/test-results/linuxArm64/
+          if-no-files-found: ignore
+
+  test-shared-jvm-artifact:
+    name: Consume the shared JVM artifact on Android API ${{ matrix.api }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        api: [24, 34]
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+          ref: ${{ inputs.ref || github.sha }}
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: 25
+      - uses: gradle/actions/setup-gradle@v6
+        with:
+          cache-read-only: false
+          cache-encryption-key: ${{ secrets.GRADLE_ENCRYPTION_KEY }}
+      - name: Stage the shared Maven publication
+        run: >-
+          ./gradlew :koblas:publishJvmPublicationToLocalStagingRepository
+          :koblas:publishKotlinMultiplatformPublicationToLocalStagingRepository
+          -PciVersion=0.0.0-consumer
+      - name: Verify the bytecode boundary and published JVM requirement
+        run: |
+          python3 tests/verify-jvm-artifact.py \
+            koblas/build/libs/koblas-jvm-0.0.0-consumer.jar koblas/build/publications/jvm/module.json
+          jar --validate --file koblas/build/libs/koblas-jvm-0.0.0-consumer.jar
+      - name: Build JVM and Android consumers of the same publication
+        run: >-
+          ./gradlew -p tests/consumers --refresh-dependencies :jvm:jvm17Consumer :jvm:jvm25Consumer
+          :jvm:jvm17ModuleConsumer :jvm:jvm25ModuleConsumer
+          :android:assembleDebug :android:assembleRelease :android:assembleDebugAndroidTest
+      - name: Verify both Android APKs contain only portable code
+        run: |
+          python3 tests/verify-jvm-artifact.py \
+            koblas/build/libs/koblas-jvm-0.0.0-consumer.jar koblas/build/publications/jvm/module.json \
+            tests/consumers/android/build/outputs/apk/debug/android-debug.apk \
+            tests/consumers/android/build/outputs/apk/release/android-release.apk
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' \
+            | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Run ordinary and R8 consumers on Android
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: ${{ matrix.api }}
+          target: default
+          arch: x86_64
+          disable-animations: true
+          script: |
+            ./gradlew -p tests/consumers :android:connectedDebugAndroidTest
+            ./gradlew -p tests/consumers :android:connectedReleaseAndroidTest -Pconsumer.buildType=release
+            python3 tests/verify-test-results.py tests/consumers/android/build/outputs/androidTest-results/connected/debug tests/consumers/android/build/outputs/androidTest-results/connected/release
+      - name: Upload Android consumer test reports
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: shared-jvm-android-${{ matrix.api }}
+          path: |
+            tests/consumers/android/build/reports/androidTests/
+            tests/consumers/android/build/outputs/androidTest-results/
           if-no-files-found: ignore

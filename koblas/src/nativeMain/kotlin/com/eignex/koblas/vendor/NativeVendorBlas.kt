@@ -64,13 +64,15 @@ private typealias DlAddrFn = CFunction<(COpaquePointer?, CPointer<ByteVar>?) -> 
  * Vendor BLAS reached through `dlopen` and typed function pointers.
  *
  * Resolve symbols once from the library's own handle so another loaded BLAS cannot supply them.
- * Pinned operands reach caller storage directly, requiring no transfer adapter in the route.
+ * Pinned operands reach caller storage directly, requiring no transfer adapter in the route, and a borrowed
+ * region is pinned at its first entry with its parent's column spacing, so it needs no packing either.
  */
 internal class NativeVendorBlas private constructor(
     override val vendor: Vendor,
     private val candidate: String,
     private val handle: COpaquePointer,
-) : Blas {
+) : Blas,
+    RegionBlas {
     /**
      * File reported by the dynamic loader for the key symbol. A bare soname can resolve to an
      * already-loaded absolute path, so the candidate name alone does not identify the executing file.
@@ -420,6 +422,15 @@ internal class NativeVendorBlas private constructor(
         x: DenseVector,
         beta: Double,
         y: DenseVector,
+    ) = gemv(alpha, a as DenseMatrixRegion, transposeA, x, beta, y)
+
+    override fun gemv(
+        alpha: Double,
+        a: DenseMatrixRegion,
+        transposeA: Boolean,
+        x: DenseVector,
+        beta: Double,
+        y: DenseVector,
     ) {
         requireGemvOperands(a, transposeA, x.size, y.size)
         if (noWork(a)) return
@@ -513,12 +524,15 @@ internal class NativeVendorBlas private constructor(
     override fun trsv(a: DenseMatrix, structure: MatrixStructure, transposeA: Boolean, x: DenseVector) =
         triangularVector(a, structure, transposeA, x, BlasOperation.Trsv, "trsv")
 
+    override fun trsv(a: DenseMatrixRegion, structure: MatrixStructure, transposeA: Boolean, x: DenseVector) =
+        triangularVector(a, structure, transposeA, x, BlasOperation.Trsv, "trsv")
+
     override fun trmv(a: DenseMatrix, structure: MatrixStructure, transposeA: Boolean, x: DenseVector) =
         triangularVector(a, structure, transposeA, x, BlasOperation.Trmv, "trmv")
 
     @Suppress("LongParameterList") // the shared triangular vector signature plus its entry point
     private fun triangularVector(
-        a: DenseMatrix,
+        a: DenseMatrixRegion,
         structure: MatrixStructure,
         transposeA: Boolean,
         x: DenseVector,
@@ -539,7 +553,7 @@ internal class NativeVendorBlas private constructor(
         }
     }
 
-    // Level 3. Every operand is contiguous column-major, so the layout is fixed and a transpose is a flag.
+    // Level 3. Every operand is column-major with unit row stride, so the layout is fixed and a transpose is a flag.
 
     @Suppress("LongParameterList") // the BLAS dgemm signature
     override fun gemm(
@@ -550,6 +564,17 @@ internal class NativeVendorBlas private constructor(
         transposeB: Boolean,
         beta: Double,
         c: DenseMatrix,
+    ) = gemm(alpha, a as DenseMatrixRegion, transposeA, b, transposeB, beta, c)
+
+    @Suppress("LongParameterList") // the BLAS dgemm signature
+    override fun gemm(
+        alpha: Double,
+        a: DenseMatrixRegion,
+        transposeA: Boolean,
+        b: DenseMatrixRegion,
+        transposeB: Boolean,
+        beta: Double,
+        c: DenseMatrixRegion,
     ) {
         val depth = if (transposeA) a.rows else a.cols
         requireGemmOperands(a, transposeA, b, transposeB, c)
@@ -601,6 +626,16 @@ internal class NativeVendorBlas private constructor(
         transposeA: Boolean,
         beta: Double,
         c: DenseMatrix,
+        structure: MatrixStructure,
+    ) = syrk(alpha, a as DenseMatrixRegion, transposeA, beta, c, structure)
+
+    @Suppress("LongParameterList") // the BLAS dsyrk signature
+    override fun syrk(
+        alpha: Double,
+        a: DenseMatrixRegion,
+        transposeA: Boolean,
+        beta: Double,
+        c: DenseMatrixRegion,
         structure: MatrixStructure,
     ) {
         requireStructured(structure, "syrk")
@@ -666,13 +701,23 @@ internal class NativeVendorBlas private constructor(
         rightSide: Boolean,
     ) = triangularMatrix(alpha, a, structure, transposeA, b, rightSide, BlasOperation.Trsm, "trsm")
 
+    @Suppress("LongParameterList") // the BLAS dtrsm signature
+    override fun trsm(
+        alpha: Double,
+        a: DenseMatrixRegion,
+        structure: MatrixStructure,
+        transposeA: Boolean,
+        b: DenseMatrixRegion,
+        rightSide: Boolean,
+    ) = triangularMatrix(alpha, a, structure, transposeA, b, rightSide, BlasOperation.Trsm, "trsm")
+
     @Suppress("LongParameterList") // the shared triangular matrix signature plus its entry point
     private fun triangularMatrix(
         alpha: Double,
-        a: DenseMatrix,
+        a: DenseMatrixRegion,
         structure: MatrixStructure,
         transposeA: Boolean,
-        b: DenseMatrix,
+        b: DenseMatrixRegion,
         rightSide: Boolean,
         operation: BlasOperation,
         what: String,

@@ -1,6 +1,7 @@
 package com.eignex.koblas.vendor
 
 import com.eignex.koblas.StridedVector
+import com.eignex.koblas.internal.jvm25.stage
 import java.lang.foreign.Arena
 import java.lang.foreign.ValueLayout.JAVA_DOUBLE
 import kotlin.math.abs
