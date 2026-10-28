@@ -120,6 +120,14 @@ internal fun vendorArm(case: BenchCase, blas: Blas): ArmChoice {
                 initial.copyInto(target); blas.axpy(alpha, x, y); target[0]
             }
         }
+        "axpy-unit" -> {
+            val fixture = UnitAxpy(d[0])
+            val x = DenseVector.wrap(fixture.x)
+            val y = DenseVector.wrap(fixture.y)
+            val run = { blas.axpy(1.0, x, y); fixture.y[0] }
+            fixture.verify(case.id, run)
+            arm(BlasOperation.Axpy, emptyList(), listOf(x, y), "arithmetic", run)
+        }
 
         "scal" -> {
             val initial = Fixtures.vector(d[0], 1)

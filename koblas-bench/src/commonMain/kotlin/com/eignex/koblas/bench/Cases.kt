@@ -15,7 +15,7 @@ internal data class BenchCase(
 
 internal object Cases {
     private val dimensionCounts = mapOf(
-        "dot" to 1, "axpy" to 1, "scal" to 1, "nrm2" to 1, "asum" to 1, "sum" to 1,
+        "dot" to 1, "axpy" to 1, "axpy-unit" to 1, "scal" to 1, "nrm2" to 1, "asum" to 1, "sum" to 1,
         "iamax" to 1, "swap" to 1, "rot" to 1,
         "copy-overlap" to 1, "axpy-views" to 1, "swap-views" to 1, "spdot-view" to 1,
         "panel-multidot" to 2, "panel-columnupdate" to 2, "panel-coupled" to 2, "panel-rankupdate" to 2,

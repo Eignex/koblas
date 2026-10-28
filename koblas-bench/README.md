@@ -96,6 +96,20 @@ GC allocation data separately with JMH profiling when investigating JVM dispatch
 no allocation column. The JVM verification gate checks the warmed five-window batch for allocations.
 These GER-only timings cannot establish a complete LU speedup.
 
+## Simplex unit AXPY
+
+`axpy-unit` measures the contiguous raw `vectorKernels.axpy` call with `alpha = 1`, matching
+Klause's cached basic-value restoration. `lab/cases-simplex-axpy.txt` includes the retained basis-corpus
+row counts 2, 6, 8, 27, 56 and 70, a 64-element control, and existing nonunit AXPY controls.
+These dimensions are workload examples, not a production call-frequency distribution.
+
+Disjoint arrays are reused and the destination is not reset during timing. Repeated accumulation stays
+finite over the capture; it excludes the solver's FTRAN and cache-restoration work. Setup checks two
+successive complete destinations against the explicit scalar engine and restores the initial destination.
+Vendor arms perform the same accumulation; the JVM vendor arm includes operand transfers on every call.
+The existing `axpy` operation retains its nonunit multiplier and timed destination reset, so its absolute
+times must not be compared as if it were the same workload.
+
 ## Selected CSC column dots
 
 `spdot-column` and `spdot-column-raw` price the same column at a nonzero offset through
