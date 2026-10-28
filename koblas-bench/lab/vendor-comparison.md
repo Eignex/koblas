@@ -1,7 +1,10 @@
-# JVM kernels and installed BLAS
+# JVM kernels and oneMKL
 
 Public storage remains ordinary `DoubleArray`. These comparisons include the JVM binding's transient
 native staging and writeback. No native-backed containers or critical vendor downcalls are introduced.
+
+The analysis is limited to oneMKL on the measured Intel host. The Accelerate comparison was skipped at
+the user's request; these results establish no Apple performance crossover.
 
 ## Evidence
 
@@ -14,7 +17,7 @@ native staging and writeback. No native-backed containers or critical vendor dow
 | [9063](https://lab.eignex.com/jobs/9063) | `a16e61fd` | Norm follow-up | Cancelled; follow-ups will run sequentially |
 | [9066](https://lab.eignex.com/jobs/9066) | `a23a3736` | Sequential combined tile, allocation and norm follow-up | Complete; wider tile rejected |
 | [9068](https://lab.eignex.com/jobs/9068) | `57fc0f72` | Compact and streaming AXPY through exact and default engines, with allocation profiling | Complete, three rounds |
-| [9070](https://lab.eignex.com/jobs/9070) | `59bcc0e8` | 82-case comparison of the final implementation against Accelerate on Apple hardware | Pending Mac capacity |
+| [9070](https://lab.eignex.com/jobs/9070) | `59bcc0e8` | 82-case comparison of the final implementation against Accelerate on Apple hardware | Cancelled at user request before measurement |
 
 Job 9002 used an Intel Xeon Platinum 8375C, eight double lanes, JDK 25.0.4.1, Kotlin 2.4.10, Serial GC and
 a fixed 512 MiB JVM heap. It used one JMH fork per round, three 100 ms warmups and three 100 ms samples.
@@ -45,11 +48,12 @@ triangular timings with the old fixture are not paired comparisons.
 
 Jobs 9006, 9040 and 9064 never started measurement and were replaced by the corrected 82-case Apple
 workload at the final runtime revision.
+The final Apple run, 9070, was then cancelled at the user's request before measurement.
 The final workload admits value-dependent dense NRM2 as a composition, and raw sparse slices use the
 explicit engine rather than requiring identity with the default. Vendor arms honestly report no symbol
 for SUM or indexed sparse norms.
 
-## Dispatch candidate
+## oneMKL dispatch
 
 The exact scalar and SIMD engines stay independent of installed libraries. The JVM default retains their
 owned kernels and can compose oneMKL on Intel Linux when native access is explicitly enabled. Only the
@@ -57,8 +61,8 @@ seven Level 3 routines above qualify, and every output extent and depth must rea
 few-right-hand-side solves, Level 1/2 calls, windowed GER and retained packed products keep owned kernels.
 Zero-multiplier rules and alias staging remain with the shared host composition.
 
-The 128 boundary is supported by the two accepted timing rounds of job 9039. Accelerate default dispatch
-awaits Apple measurements. The code does not infer Apple performance from Intel measurements.
+The 128 boundary is supported by the two accepted timing rounds of job 9039. Accelerate is outside this
+analysis. Apple defaults remain unchanged; Intel measurements do not determine their routing.
 
 ## Retained oneMKL dispatch comparison
 
