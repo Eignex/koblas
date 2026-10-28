@@ -40,9 +40,7 @@ For each case and target, take the median of the round `median_ns` values before
 the round files retain the spread. `--cpu auto` pins the capture and its child processes to the first
 CPU allowed by the job's affinity mask. It does not isolate that CPU from other work.
 
-Lab servers that accept JVM profiles can run `com.eignex.koblas.bench.LabCaptureLauncher` after building
-`:koblas-bench:jvmMainClasses`, with `koblas-bench/build/classes/java/jvmMain` as the profile classpath.
-Pass the same capture options above, omitting `--output`: the launcher retains the report under the lab's `OUT`.
+Lab jobs use the [Bench SDK adapter](#bench-sdk-adapter) to prepare and run these captures.
 
 On a hybrid CPU, pin the run: `taskset -c 2,4,6,8 koblas-bench/capture-report.sh …`. Otherwise it wanders
 between core types and the timings move with the scheduler.
@@ -57,7 +55,7 @@ same binary hashes as a Git capture. This allows the lab archive to run without 
 
 The benchmark launcher defaults to JDK 25. `-Pbench.javaVersion=27` selects JDK 27 for
 measurement while compilation keeps its configured toolchain. `-Pbench.expectedJavaHome=/path/to/jdk`
-pins the launcher to that installation. `prepareBenchmarkRuntime` checks the selected version before timing.
+pins the launcher to that installation. Captures record the measured runtime in their target logs.
 
 For collector comparisons, `capture-report.sh` accepts `--jvm-gc g1|serial|zgc` and
 `--jvm-heap 1g`. Without these options, runtime defaults remain part of the measurement;
@@ -119,42 +117,9 @@ taskset -c 2 koblas-bench/capture-report.sh --operation spdot-column \
 These are repeated-call API measurements. They exclude matrix construction and solver work, so a consumer
 needs a separate setup-inclusive solver A/B before claiming an end-to-end improvement.
 
-## Capturing in the reference container
+## Capture hosts
 
-```bash
-koblas-bench/reference-container.sh all --samples 5 --warmups 5 --target-ms 200 --forks 2
-```
-
-Builds an image with a pinned JDK, OpenBLAS and oneMKL, mounts the repository, and captures inside it,
-so a report from one machine is comparable with one from another. Takes `openblas`, `onemkl`, `aocl` or
-`all` before the capture options; `all` needs an x86-64 host, since oneMKL ships no ARM64 build. Requires
-Docker, and the report lands in the repository as usual because the working tree is mounted rather than
-copied.
-
-On an AMD host use the `aocl` target, which adds the library `Vendor.select` puts ahead of oneMKL there:
-
-```bash
-koblas-bench/reference-container.sh aocl --samples 5 --warmups 5 --target-ms 200 --forks 2
-```
-
-That stage downloads AMD Optimizing CPU Libraries, which means accepting AMD's licence for it, and is why it
-is a separate target rather than part of `all`. The licence covers using it on a machine you are running it
-on; it does not cover redistributing it, so an image built from that stage must not be published. The same is
-true of `armpl` below, and it is why `all` names only the libraries an image may carry.
-
-### On ARM64
-
-On ARM64 use the `armpl` target rather than `all`, since oneMKL has no ARM64 build:
-
-```bash
-koblas-bench/reference-container.sh armpl --samples 5 --warmups 5 --target-ms 200 --forks 2
-```
-
-That stage downloads Arm Performance Libraries, which means accepting Arm's licence for it, and is why it is a
-separate target rather than part of `all`. The licence covers installing it on a machine you are using; it
-does not cover redistributing it, so an image built from that stage must not be published. ArmPL is worth the
-step because it is the tuned library Koblas prefers on ARM64; OpenBLAS is what selection falls back to when
-none is installed, so a capture without ArmPL measures only the last resort.
+### Native on ARM64
 
 The Kotlin/Native compiler ships no linux-aarch64 host, so an ARM64 machine cannot link the executable it
 would time. It can still run one. Build it on an x86-64 host, where the compiler cross-compiles to the
@@ -226,7 +191,7 @@ uses portable Kotlin when an installed host call is unavailable or ineligible.
 
 | Option | Effect |
 |---|---|
-| `--libraries openblas,accelerate,onemkl,aocl,armpl\|all` | Which vendors to run. `all` selects OpenBLAS plus oneMKL on x86-64 Linux, ArmPL on ARM64 Linux, or Accelerate on macOS. The container image target `all` is separate and excludes AOCL/ArmPL. |
+| `--libraries openblas,accelerate,onemkl,aocl,armpl\|all` | Which vendors to run. `all` selects OpenBLAS plus oneMKL on x86-64 Linux, ArmPL on ARM64 Linux, or Accelerate on macOS. |
 | `--suite default\|sweep` | Case suite. `sweep` requires `--operation`. |
 | `--operation NAME\|all` | Intersects the suite with one kernel. |
 | `--samples N`, `--warmups N` | Measured and discarded repetitions per case. |
@@ -496,46 +461,92 @@ Tasks are `jvmScalarBenchmark`, `jvmSimdBenchmark`, `jvmDefaultBenchmark`, `nati
 `-Pbench.vendor=NAME`. Native and vendor executables accept `--suite=sweep --operation=dot` directly.
 Omitting the suite selects `default`.
 
-## Borrowed Cholesky trailing updates
+## Bench SDK adapter
 
-`./gradlew :koblas-bench:jvmCholeskyViewBenchmark` compares Kumulant's finite strict-SPD blocked
-Cholesky workload at orders 65, 128, 256 and 512, using copied blocks or borrowed views for each
-trailing `syrk`. This fixture follows
-[Kumulant's factorization](https://github.com/Eignex/kumulant/blob/5014410198c53bc7bac3611cffa84353b595291e/kumulant/src/commonMain/kotlin/com/eignex/kumulant/math/Cholesky.kt)
-without its regularization or exceptional-input policy. Those remain consumer concerns.
-The borrowed trailing update is:
+`lab/bench.json` owns the prepared JVM adapter's build tasks, entry point and
+classpath. `lab/native-linux-x64.json` also links the Linux x86_64 executable.
+The JVM adapter imports `com.eignex:lab-bench:0.1.0` only from `jvmMain`; Native
+continues to use this repository's executable and report formats.
 
-```kotlin
-val panel = out.view(first, start, height, width)
-val trailing = out.view(first, first, height, height)
-engine.syrk(-1.0, panel, false, 1.0, trailing, workspace = workspace)
+The default dependency resolves [Lab Bench 0.1.0](https://github.com/Eignex/eignex-lab/releases/tag/lab-bench-v0.1.0)
+from public GitHub Release assets without a GitHub login or token. Prepare the adapter with:
+
+```sh
+./gradlew :koblas-bench:prepareLabBenchmark
 ```
 
-Each timed factorization copies the input into a reused destination, clears its upper triangle,
-factors the panels, checks each completed panel for finite entries and performs all trailing updates. Inputs are deterministic symmetric diagonally
-dominant matrices. Both paths use a warmed workspace; copying constructs fresh panel and trailing
-matrices as the consumer currently does, while borrowing constructs view descriptors. Each arm
-alternates paths for 100 warmups and nine measurement batches of ten factorizations. CSV rows report
-median ns and thread-allocated bytes per complete factorization. Setup verifies agreement between
-paths and reconstructs the input from each factor; checks are outside timing.
+`-PlabBenchVersion=VERSION` selects a different SDK release. To develop against a
+local SDK checkout, run `./gradlew :lab-bench:stageAdapterRepository -PbenchVersion=0.1.0`
+in that checkout, then add
+`-PlabBenchRepository=file:///absolute/eignex-lab/lab-bench/build/adapter-repository`
+to the consumer build. Refresh dependencies when restaging the same version.
 
-This is a JVM diagnostic suite, separate from the JMH captures. Thread allocation accounting requires
-HotSpot. A local run on an i9-12900H with JDK 25 on 2026-10-26 measured:
+A lab submission uses `repository: "Eignex/koblas"` and
+`bench: {"manifest":"koblas-bench/lab/bench.json","request":{"parameters":{"targets":"jvm-scalar,jvm-simd","operation":"dot","smoke":"true"}}}`.
+Request keys are `targets`, `libraries`, `operation`, `suite`, `cases`, `samples`,
+`warmups`, `target-ms`, `forks`, `pass`, `rounds`, `cpu`, `jvm-gc`, `jvm-heap`,
+`vendors-only`, `smoke`, `memory-mib`, `timeout-seconds` and `native-executable`.
+Each plan freezes one capture with one CPU and the selected memory/time limits.
+`rounds` defaults to one; repeated captures rotate target order and assign their own
+pass numbers, so `pass` cannot be combined with `rounds` greater than one. `smoke`
+and `vendors-only` accept the strings `true` and `false`. Vendor-only requests need
+explicit vendor targets; omitted libraries are inferred from those targets. Explicit
+libraries must include every selected vendor (`all` uses the harness's platform
+selection, which excludes AOCL).
 
-| Arm | Order | Copy ns | View ns | Copy bytes | View bytes |
-|---|---:|---:|---:|---:|---:|
-| Scalar | 65 | 151,728 | 109,448 | 43,360 | 256 |
-| Scalar | 128 | 316,626 | 230,838 | 164,080 | 192 |
-| Scalar | 256 | 1,815,697 | 1,715,909 | 655,600 | 192 |
-| Scalar | 512 | 7,427,051 | 6,811,201 | 5,505,584 | 448 |
-| SIMD | 65 | 32,656 | 27,910 | 43,360 | 256 |
-| SIMD | 128 | 174,836 | 117,648 | 164,080 | 192 |
-| SIMD | 256 | 915,154 | 807,757 | 655,600 | 192 |
-| SIMD | 512 | 4,438,461 | 3,715,289 | 5,505,584 | 448 |
+`cases` is a portable path relative to the repository root, for example
+`koblas-bench/cases-reductions.txt`. The plan declares it as a source `BenchInput`
+so the lab inventories and freezes its contents before dispatch. The adapter resolves
+it against the relocated worktree and passes it as one literal argument. A Native
+executable is also a declared input, under `koblas-bench/build/`, with a recognized
+`linuxX64`, `linuxArm64` or `macosArm64` path component. The selected targets and
+executable determine required platform/architecture tags; incompatible combinations
+are rejected during planning. The adapter owns `--prepared`, `--retain-incomplete`
+and the output destination; these are not request parameters.
 
-This exploratory run was on a working desktop without CPU pinning or control of other desktop/build activity, and is
-not a dedicated-host report or evidence for changing a backend crossover. It demonstrates allocation
-removal and exercises the consumer-shaped end-to-end workload; timings need repeated isolated captures
-before drawing a performance conclusion. It does not measure Kumulant's full application or Native host
-packing. Scratch for blocked product panels can still be borrowed internally; views do not promise
-allocation-free execution for every backend and layout.
+JVM targets run in separate processes with the Vector API opened only for
+SIMD/default targets. `jvm-gc` accepts `g1`, `serial` or `zgc`; `jvm-heap` fixes both
+initial and maximum heaps and accepts a positive size ending in `m` or `g`. Both
+controls require a JVM target. The per-JVM heap budget is
+`(memory-mib - 768) / 2` MiB to allow the launcher and its measured JMH fork to
+coexist, with 768 MiB reserved for the adapter and other process overhead. An explicit
+heap must fit this budget. Memory defaults to 2048 MiB with a minimum of 1024 MiB;
+timeout defaults to 3600 seconds and must be positive. `cpu` accepts `auto` or a
+logical CPU number and adds a Linux requirement. `auto` chooses from the worker's
+allowed affinity mask; a numeric CPU must be allowed on that worker. Pinning does
+not reserve the CPU.
+
+For example, the request parameters below capture two JVM arms over two rounds
+with a frozen custom case file and fixed collector/heap settings:
+
+```json
+{
+  "targets": "jvm-scalar,jvm-simd",
+  "cases": "koblas-bench/cases-reductions.txt",
+  "operation": "dot",
+  "rounds": "2",
+  "cpu": "auto",
+  "jvm-gc": "serial",
+  "jvm-heap": "256m",
+  "smoke": "true"
+}
+```
+
+The result's `captured-rows` counts nonblank data rows in the selected targets' CSVs,
+from the report root for one round or `pass-1`, `pass-2`, ... for repeated captures.
+`captured-csv-files` counts those files and `completed-rounds` counts round reports
+marked complete. Summary files and nested sidecars are retained but do not add rows
+to these metrics. Repeated rows remain separate observations; the adapter does not
+aggregate timing values. Success requires a zero exit status, complete outer and
+round metadata, and at least one captured row. Failed captures report the rows and
+completed rounds available so far, including partial output from the failed round.
+
+`capture-report.sh --targets TARGET,...` selects exact capture arms.
+`--prepared` uses `KOBLAS_BENCH_JAVA` and `KOBLAS_BENCH_CLASSPATH` without Gradle;
+Native arms require `--native-executable`. The adapter uses `--retain-incomplete`,
+which requires an absent report destination and retains incomplete metadata,
+partial CSVs and target logs on failure. The lab keeps that child report tree and
+a separate `capture.log`. Ordinary captures retain their atomic replacement behavior.
+Smoke results verify integration and are not performance evidence. Linux arm64
+and macOS Native binaries require their corresponding preparation tasks and
+hardware validation before using those targets.

@@ -1,5 +1,6 @@
 import java.nio.file.Path as JdkPath
 import org.gradle.api.tasks.JavaExec
+
 import org.gradle.jvm.toolchain.JavaLanguageVersion
 import org.gradle.jvm.toolchain.JvmVendorSpec
 import org.jetbrains.kotlin.gradle.targets.jvm.KotlinJvmTarget
@@ -13,6 +14,22 @@ eignexBuild {
     // The benchmark harness does not yet follow the library's lint conventions.
     lintEnabled.set(false)
 }
+
+repositories {
+    exclusiveContent {
+        forRepository {
+            ivy {
+                name = "labBenchReleases"
+                url = uri(providers.gradleProperty("labBenchRepository")
+                    .getOrElse("https://github.com/Eignex/eignex-lab/releases/download"))
+                patternLayout { artifact("lab-bench-v[revision]/[artifact]-[revision](-[classifier]).[ext]") }
+                metadataSources { gradleMetadata() }
+            }
+        }
+        filter { includeModule("com.eignex", "lab-bench") }
+    }
+}
+val labBenchVersion = providers.gradleProperty("labBenchVersion").getOrElse("0.1.0")
 
 kotlin {
     compilerOptions {
@@ -28,7 +45,10 @@ kotlin {
     macosArm64 { binaries.executable { entryPoint = "com.eignex.koblas.bench.main"; baseName = "koblas-bench" } }
     sourceSets {
         commonMain.dependencies { implementation(project(":koblas")) }
-        jvmMain.dependencies { implementation(project(":koblas-bench:jmh")) }
+        jvmMain.dependencies {
+            implementation(project(":koblas-bench:jmh"))
+            implementation("com.eignex:lab-bench:$labBenchVersion")
+        }
     }
 }
 
@@ -60,29 +80,6 @@ fun JavaExec.useBenchmarkRuntime() {
     val explicit = expectedBenchmarkJavaHome.orNull
     if (explicit != null) setExecutable(JdkPath.of(explicit, "bin", "java").toString())
     else javaLauncher.set(benchmarkJavaLauncher)
-}
-
-tasks.register("prepareBenchmarkRuntime") {
-    group = "benchmark"
-    description = "Resolves the benchmark JVM before any timed capture begins."
-    val launcher = benchmarkJavaLauncher
-    val expected = expectedBenchmarkJavaHome
-    val version = benchmarkJavaVersion
-    doLast {
-        if (expected.isPresent) {
-            val executable = JdkPath.of(expected.get(), "bin", "java").toRealPath()
-            val process = ProcessBuilder(executable.toString(), "-version").redirectErrorStream(true).start()
-            val description = process.inputStream.bufferedReader().readText()
-            check(process.waitFor() == 0 && description.contains("\"${version.get()}."))
-            println("benchmark_runtime_executable=$executable")
-            println("benchmark_runtime_version=${description.lineSequence().first()}")
-        } else {
-            val resolved = launcher.get()
-            println("benchmark_runtime_executable=${resolved.executablePath}")
-            println("benchmark_runtime_version=${resolved.metadata.javaRuntimeVersion}")
-            println("benchmark_runtime_vendor=${resolved.metadata.vendor}")
-        }
-    }
 }
 
 fun registerJvmBenchmark(name: String, mode: String, vectorModule: Boolean) = tasks.register<JavaExec>(name) {
@@ -204,13 +201,9 @@ tasks.withType<Test>().configureEach {
     jvmArgs("--add-modules=jdk.incubator.vector", "--enable-native-access=ALL-UNNAMED")
 }
 
-// Consumer-shaped setup-inclusive comparison, including thread allocation measurements.
-tasks.register<JavaExec>("jvmCholeskyViewBenchmark") {
+tasks.register<Sync>("prepareLabBenchmark") {
     group = "benchmark"
-    description = "Compares copied and borrowed trailing updates in a finite SPD blocked Cholesky workload."
-    dependsOn(jvmCompilation.compileTaskProvider)
-    classpath(jvmCompilation.output.allOutputs, configurations.getByName("jvmRuntimeClasspath"))
-    mainClass.set("com.eignex.koblas.bench.CholeskyViewBenchmark")
-    useBenchmarkRuntime()
-    jvmArgs("--add-modules=jdk.incubator.vector", "--enable-native-access=ALL-UNNAMED", "-Xms512m", "-Xmx512m")
+    from(jvmCompilation.output.allOutputs) { into("classes") }
+    from(configurations.named("jvmRuntimeClasspath")) { into("lib") }
+    into(layout.buildDirectory.dir("lab"))
 }

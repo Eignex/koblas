@@ -25,12 +25,16 @@ vendors_only=false
 smoke=false
 selected_targets=
 custom_cases=false
+prepared=false
+retain_incomplete=false
 
 usage() {
-  echo "usage: capture-report.sh [--libraries openblas,accelerate,onemkl,aocl,armpl|all] [--targets NAME,...] [--vendors-only] [--smoke] [--output DIR] [--native-executable PATH] [--cases FILE] [--operation NAME|all] [--suite default|sweep] [--samples N] [--warmups N] [--target-ms N] [--forks N] [--pass N] [--rounds N] [--cpu N|auto] [--jvm-gc g1|serial|zgc] [--jvm-heap SIZE]" >&2
+  echo "usage: capture-report.sh [--libraries openblas,accelerate,onemkl,aocl,armpl|all] [--targets NAME,...] [--prepared] [--retain-incomplete] [--vendors-only] [--smoke] [--output DIR] [--native-executable PATH] [--cases FILE] [--operation NAME|all] [--suite default|sweep] [--samples N] [--warmups N] [--target-ms N] [--forks N] [--pass N] [--rounds N] [--cpu N|auto] [--jvm-gc g1|serial|zgc] [--jvm-heap SIZE]" >&2
 }
 while (($#)); do
   case "$1" in
+    --prepared) prepared=true; shift ;;
+    --retain-incomplete) retain_incomplete=true; shift ;;
     --libraries) libraries=${2:?}; shift 2 ;;
     --targets) selected_targets=${2:?}; shift 2 ;;
     --suite) suite=${2:?}; shift 2 ;;
@@ -120,6 +124,10 @@ fi
 temporary=$(mktemp -d "${TMPDIR:-/tmp}/koblas-bench-report.XXXXXX")
 publication=
 cleanup() {
+  if $retain_incomplete && [[ -n ${results:-} && -d $results && -n $output && ! -e $output ]]; then
+    mkdir -p "$(dirname "$output")"
+    mv "$results" "$output"
+  fi
   if [[ -n $publication ]]; then
     if [[ ! -e $output && -d $publication/previous ]]; then
       mv "$publication/previous" "$output" || return
@@ -193,6 +201,9 @@ fi
 [[ ! -L $output && ( ! -e $output || -f $output/metadata.txt ) ]] || {
   echo "output must be a report directory: $output" >&2; exit 2;
 }
+if $retain_incomplete; then
+  [[ ! -e $output ]] || { echo "--retain-incomplete requires an absent output directory" >&2; exit 2; }
+fi
 if ((rounds > 1)); then
   [[ ! -e $output ]] || { echo "multiple rounds require a new output directory: $output" >&2; exit 2; }
   mkdir -p "$(dirname "$output")"
@@ -215,6 +226,8 @@ if ((rounds > 1)); then
     if [[ -n $native_executable ]]; then args+=(--native-executable "$native_executable"); fi
     if [[ -n $jvm_gc ]]; then args+=(--jvm-gc "$jvm_gc"); fi
     if [[ -n $jvm_heap ]]; then args+=(--jvm-heap "$jvm_heap"); fi
+    if $prepared; then args+=(--prepared); fi
+    if $retain_incomplete; then args+=(--retain-incomplete); fi
     if $vendors_only; then args+=(--vendors-only); fi
     if $smoke; then args+=(--smoke); fi
     "$0" "${args[@]}" 2>&1 | tee "$output/pass-$round.log"
@@ -270,10 +283,10 @@ run_target() {
   shift
   printf '\n[%s]\n' "$target" >>"$metadata"
   echo "started_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >>"$metadata"
-  "$@" 2>&1 | tee "$temporary/$target.log"
+  "$@" 2>&1 | tee "$results/$target.log"
   awk '/^resolved implementation=/ {
     sub(/^resolved /, ""); sub(/ runtime=/, "\nruntime="); sub(/ harness=/, "\nharness="); print
-  }' "$temporary/$target.log" >>"$metadata"
+  }' "$results/$target.log" >>"$metadata"
   if [[ $target == jvm-* || $target == *-jvm ]]; then
     echo "warmup_target_ns=$((target_ms * 1000000))"
   else
@@ -291,6 +304,9 @@ common=("-Pbench.operation=$operation" "-Pbench.suite=$suite" "-Pbench.cases=$ca
 run_native() {
   local target=$1 mode=$2 task=$3
   shift 3
+  if $prepared && [[ -z $native_executable ]]; then
+    echo "Prepared Native capture requires --native-executable" >&2; return 2
+  fi
   if [[ -n $native_executable ]]; then
     run_target "$target" "$native_executable" "--mode=$mode" "--operation=$operation" "--suite=$suite" \
       "--cases=$cases" "--warmups=$warmups" "--samples=$samples" "--target-ms=$target_ms" \
@@ -298,6 +314,31 @@ run_native() {
   else
     run_target "$target" ./gradlew --no-daemon ":koblas-bench:$task" "${common[@]}" "$@" \
       "-Pbench.output=$results/$target.csv"
+  fi
+}
+run_jvm() {
+  local target=$1 mode=$2 task=$3
+  shift 3
+  if $prepared; then
+    local jvm_args=(--enable-native-access=ALL-UNNAMED -XX:ActiveProcessorCount=1)
+    if [[ -n $jvm_heap ]]; then
+      jvm_args+=("-Xms$jvm_heap" "-Xmx$jvm_heap")
+    else
+      jvm_args+=("-Xmx${KOBLAS_BENCH_HEAP_MIB:-512}m")
+    fi
+    case "$jvm_gc" in
+      g1) jvm_args+=(-XX:+UseG1GC) ;;
+      serial) jvm_args+=(-XX:+UseSerialGC) ;;
+      zgc) jvm_args+=(-XX:+UseZGC) ;;
+    esac
+    [[ $mode != jvm-simd && $mode != jvm-default ]] || jvm_args+=(--add-modules=jdk.incubator.vector)
+    run_target "$target" "${KOBLAS_BENCH_JAVA:?}" "${jvm_args[@]}" -cp "${KOBLAS_BENCH_CLASSPATH:?}" \
+      com.eignex.koblas.bench.JvmRunnerKt "--mode=$mode" "--operation=$operation" "--suite=$suite" \
+      "--cases=$cases" "--warmups=$warmups" "--samples=$samples" "--target-ms=$target_ms" \
+      "--forks=$forks" "--output=$results/$target.csv"
+  else
+    run_target "$target" ./gradlew --no-daemon "${jvm_init_args[@]}" ":koblas-bench:$task" "${common[@]}" "$@" \
+      "-Pbench.forks=$forks" "-Pbench.output=$results/$target.csv"
   fi
 }
 # Vendor arms run through the production Koblas bindings on both runtimes. There is one implementation of each
@@ -317,7 +358,7 @@ for target in "${targets[@]}"; do
         jvm-simd) task=jvmSimdBenchmark ;;
         jvm-default) task=jvmDefaultBenchmark ;;
       esac
-      run_target "$target" ./gradlew --no-daemon "${jvm_init_args[@]}" ":koblas-bench:$task" "${common[@]}" "-Pbench.forks=$forks" "-Pbench.output=$results/$target.csv"
+      run_jvm "$target" "$target" "$task"
       ;;
     native) run_native native native nativeBenchmark ;;
     native-default) run_native native-default native-default nativeDefaultBenchmark ;;
@@ -325,8 +366,7 @@ for target in "${targets[@]}"; do
       vendor=${target%-jvm}
       [[ $vendor != accelerate || $platform == Darwin ]] || { echo "Accelerate requires macOS" >&2; exit 2; }
       if [[ $target == *-jvm ]]; then
-        run_target "$target" ./gradlew --no-daemon "${jvm_init_args[@]}" ":koblas-bench:jvmVendorBenchmark" "${common[@]}" \
-          "-Pbench.vendor=$vendor" "-Pbench.forks=$forks" "-Pbench.output=$results/$target.csv"
+        run_jvm "$target" "jvm-vendor-$vendor" jvmVendorBenchmark "-Pbench.vendor=$vendor"
       else
         run_native "$target" "native-vendor-$vendor" nativeVendorBenchmark "-Pbench.vendor=$vendor"
       fi
