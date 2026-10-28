@@ -25,7 +25,7 @@ internal object VendorComparisonSuite : BenchSuite {
         p["targets"]?.let { targets ->
             val selected = targets.split(',')
             require(selected.distinct().size == selected.size && selected.all {
-                it in setOf("jvm-scalar", "jvm-simd", "jvm-simd-wide", "jvm-default", vendor, "$vendor-jvm")
+                it in setOf("jvm-scalar", "jvm-simd", "jvm-default", vendor, "$vendor-jvm")
             }) { "Invalid comparison targets" }
         }
         p["profile-gc"]?.let { require(it in setOf("true", "false")) { "profile-gc must be true or false" } }

@@ -550,11 +550,10 @@ Smoke results verify integration and are not performance evidence. Linux arm64
 and macOS Native binaries require their corresponding preparation tasks and
 hardware validation before using those targets.
 
-### Experimental product geometry
+### Allocation measurements
 
-Prepared captures may explicitly select `jvm-simd-wide` to measure an eight-column FMA product tile
-against the normal four-column tile. This opt-in benchmark uses `-Dkoblas.jvm.product.wide=true`; it
-does not change the default geometry. `cases-wide-product.txt` includes whole calls, raw tiles and
-scalar edges. Set `KOBLAS_BENCH_PROFILE_GC=true` (or `profile-gc=true` in the vendor comparison adapter)
-to retain JMH allocation measurements in the logs alongside timing. Allocation rates must be checked
-before promoting a larger Vector API body.
+Set `KOBLAS_BENCH_PROFILE_GC=true` (or `profile-gc=true` in the vendor comparison adapter) to retain
+JMH allocation measurements alongside timing in the target logs. Raw product-block cases separate
+kernel allocation from the temporary panel arrays used by whole products without a workspace.
+The eight-column prototype measured at revision `a23a3736` was removed after those measurements
+exposed extra allocation; its pinned source retains the experimental comparison target.

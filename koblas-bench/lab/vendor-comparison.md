@@ -12,7 +12,8 @@ native staging and writeback. No native-backed containers or critical vendor dow
 | [9039](https://lab.eignex.com/jobs/9039) | `a1d6ada5` | Conditioned fixtures, unrolled AXPY and actual default routing | Complete; use rounds 1 and 2 for timing |
 | [9062](https://lab.eignex.com/jobs/9062) | `fe0deefe` | Wider-tile follow-up | Cancelled because concurrent captures pin the same CPU |
 | [9063](https://lab.eignex.com/jobs/9063) | `a16e61fd` | Norm follow-up | Cancelled; follow-ups will run sequentially |
-| [9066](https://lab.eignex.com/jobs/9066) | `a23a3736` | Sequential combined tile, allocation and norm follow-up | Running |
+| [9066](https://lab.eignex.com/jobs/9066) | `a23a3736` | Sequential combined tile, allocation and norm follow-up | Complete; wider tile rejected |
+| [9068](https://lab.eignex.com/jobs/9068) | `57fc0f72` | Compact and streaming AXPY through exact and default engines, with allocation profiling | Running |
 | [9064](https://lab.eignex.com/jobs/9064) | `a16e61fd` | 82-case comparison against Accelerate on Apple hardware | Pending Mac capacity |
 
 Job 9002 used an Intel Xeon Platinum 8375C, eight double lanes, JDK 25.0.4.1, Kotlin 2.4.10, Serial GC and
@@ -90,6 +91,22 @@ the ordinary-array call.
 The deep thin GEMM controls also favored the JVM vendor arm: about 1.6x for `1x1x65536` and `16x16x4096`.
 The current default keeps them owned because their crossover across neighboring shapes has not been
 established. This is a remaining dispatch opportunity, not evidence that all thin products favor JVM code.
+
+## Wider-tile and norm follow-up
+
+Job 9066 completed three sequential rotated rounds with allocation profiling. The eight-column FMA
+prototype improved GEMM at 128, 256 and 768 by roughly 17%, 26% and 18%, but lost about 4% at order 64.
+A raw `64x64x128` packed-block call allocated about 36,878 bytes in the prototype versus about 14 bytes
+of profiler noise in the four-column body. GEMM 128 allocated about 410 kB versus 262 kB; at 256,
+1.57 MB versus 0.39 MB. The prototype is removed rather than promoted. Its original revision retains
+all code needed to reproduce the experiment; the current profiler remains available independently.
+
+The norm controls also favor owned arithmetic after transfer costs. At length 4,096, exact SIMD NRM2
+took 0.56 microseconds versus 1.25 for native oneMKL and 2.55 for its JVM binding. SUM took 0.28 versus
+4.66 microseconds scalar. At 65,536, indexed norm took about 5.0 versus 6.8 microseconds scalar.
+SUM and indexed norms have no corresponding vendor symbol in these bindings and are reported as
+unsupported on those arms. These figures use medians of the three round medians; norm attribution
+retains the scalar rescaling possibility rather than calling it an exact SIMD-only measurement.
 
 ## JVM coverage
 
