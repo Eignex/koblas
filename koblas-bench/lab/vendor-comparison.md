@@ -13,7 +13,7 @@ native staging and writeback. No native-backed containers or critical vendor dow
 | [9062](https://lab.eignex.com/jobs/9062) | `fe0deefe` | Wider-tile follow-up | Cancelled because concurrent captures pin the same CPU |
 | [9063](https://lab.eignex.com/jobs/9063) | `a16e61fd` | Norm follow-up | Cancelled; follow-ups will run sequentially |
 | [9066](https://lab.eignex.com/jobs/9066) | `a23a3736` | Sequential combined tile, allocation and norm follow-up | Complete; wider tile rejected |
-| [9068](https://lab.eignex.com/jobs/9068) | `57fc0f72` | Compact and streaming AXPY through exact and default engines, with allocation profiling | Running |
+| [9068](https://lab.eignex.com/jobs/9068) | `57fc0f72` | Compact and streaming AXPY through exact and default engines, with allocation profiling | Complete, three rounds |
 | [9064](https://lab.eignex.com/jobs/9064) | `a16e61fd` | 82-case comparison against Accelerate on Apple hardware | Pending Mac capacity |
 
 Job 9002 used an Intel Xeon Platinum 8375C, eight double lanes, JDK 25.0.4.1, Kotlin 2.4.10, Serial GC and
@@ -91,6 +91,29 @@ the ordinary-array call.
 The deep thin GEMM controls also favored the JVM vendor arm: about 1.6x for `1x1x65536` and `16x16x4096`.
 The current default keeps them owned because their crossover across neighboring shapes has not been
 established. This is a remaining dispatch opportunity, not evidence that all thin products favor JVM code.
+
+## Final AXPY validation
+
+Job 9068 validates the compact/streaming split in three rotated rounds with GC profiling. These paired
+figures supersede the earlier AXPY diagnostics for the final implementation:
+
+| Elements | Scalar JVM | Exact SIMD JVM | Default JVM | JVM oneMKL | Native oneMKL |
+|---|---:|---:|---:|---:|---:|
+| 64 | 0.023 us | 0.030 us | 0.025 us | 0.191 us | 0.081 us |
+| 4,096 | 1.745 us | 2.128 us | 1.745 us | 5.704 us | 1.722 us |
+| 65,536 | 40.975 us | 44.016 us | 44.618 us | 146.969 us | 35.312 us |
+| 65,537 | 40.225 us | 43.946 us | 44.023 us | 147.744 us | 36.613 us |
+
+The default cache-resident case is close to native, while the streaming case retains a roughly 25%
+compute gap and exact SIMD can lose modestly to HotSpot's scalar-loop compilation. All retain the
+required explicit JVM SIMD path. The native JVM binding still loses decisively after transfers.
+The earlier 38 us exact-SIMD result is not a repeatable promise for the surrounding compilation.
+
+GC profiling measured about 1.3 bytes per streaming call for SIMD/default versus about 1.2 for scalar,
+consistent with harness sampling overhead rather than per-vector allocation. The separate uninstrumented
+allocation probes measured zero bytes for compact and streaming bodies, including offsets and tails,
+at the preferred/narrow widths and with FMA disabled. The default's 65,536-element round medians were
+45.8, 44.6 and 44.3 us; the earlier 93 us fork was not reproduced.
 
 ## Wider-tile and norm follow-up
 
