@@ -230,7 +230,9 @@ Koblas contributes independent `jvm-scalar`, `jvm-simd`, `jvm-default`, `native`
 `jvm-scalar` is portable Kotlin at every level, and `jvm-simd` is every Vector API kernel this library owns.
 `jvm-default` is what an ordinary call gets, which is a policy rather than an exact arm. Its owned kernels
 are the SIMD arm with the incubator module, and scalar otherwise. With native access enabled on Intel Linux,
-an installed oneMKL can serve eligible Level 3 calls with every extent at least 128. The default and exact
+an installed oneMKL can serve eligible Level 3 calls with every extent at least 128. Whole-matrix GEMM
+also qualifies with both output extents at least 16 and depth from 1024 through 16384; borrowed views
+retain the larger cutoff. The default and exact
 SIMD arms therefore need separate measurements; each row names its route. The comparison that says what
 Vector API kernels are worth is `jvm-simd` against `jvm-scalar`.
 

@@ -30,6 +30,27 @@ class JvmHostDensePolicyTest {
         }
     }
 
+    @Test
+    fun `deep gemm stays within the measured whole matrix extents`() {
+        for (depth in listOf(1024, 4096, 16_384)) {
+            assertTrue(JvmHostDensePolicy.eligible(DenseMatrixOperation.Gemm, 16, 16, depth))
+        }
+        for ((rows, columns, depth) in listOf(
+            Triple(15, 64, 4096),
+            Triple(64, 15, 4096),
+            Triple(16, 16, 1023),
+            Triple(16, 16, 16_385),
+        )) {
+            assertFalse(JvmHostDensePolicy.eligible(DenseMatrixOperation.Gemm, rows, columns, depth))
+        }
+    }
+
+    @Test
+    fun `borrowed deep products keep the larger cutoff for extra packing`() {
+        assertFalse(JvmHostDensePolicy.eligibleBorrowed(DenseMatrixOperation.Gemm, 16, 16, 4096))
+        assertTrue(JvmHostDensePolicy.eligibleBorrowed(DenseMatrixOperation.Gemm, 128, 128, 4096))
+    }
+
     private val operations = listOf(
         DenseMatrixOperation.Gemm,
         DenseMatrixOperation.Gemmt,

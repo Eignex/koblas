@@ -64,6 +64,16 @@ class JvmDefaultEngineTest {
     }
 
     @Test
+    fun `deep whole products can use the host while borrowed products stay owned`() {
+        val whole = koblas.routeOf(DenseMatrixOperation.Gemm, DenseCall(16, 16, depth = 4096))
+        val borrowed = koblas.routeOf(DenseMatrixOperation.Gemm, DenseCall(16, 16, depth = 4096, borrowed = true))
+
+        assertEquals(koblas.vendor?.vendor, whole.host?.vendor)
+        assertEquals(null, borrowed.host)
+        assertEquals("portable-dense", borrowed.scheduling)
+    }
+
+    @Test
     fun `an eligible default product preserves an aliased input buffer`() {
         val order = 128
         val a = DenseMatrix.wrap(order, order, DoubleArray(order * order) { (it % 19 - 9) / 17.0 })

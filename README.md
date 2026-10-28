@@ -38,7 +38,9 @@ portable classes; no Android AAR, native binaries, NDK, or native-access flags a
 
 - Desktop JDK 25 or later: pass `--add-modules=jdk.incubator.vector` to enable the SIMD engine. Without it,
   owned kernels use portable Kotlin. With native access enabled, Intel Linux hosts can also use installed
-  oneMKL for Level 3 calls whose rows, columns and depth are all at least 128. Other calls retain JVM kernels.
+  oneMKL for Level 3 calls whose rows, columns and depth are all at least 128. Whole-matrix GEMM also
+  qualifies with at least 16 output rows and columns and depth from 1024 through 16384. Borrowed views
+  retain the larger cutoff. Other calls retain JVM kernels.
 - Desktop JDK 17–24 and Android: all operations use portable Kotlin. Host bindings return null.
 - Linux and macOS Kotlin/Native: eligible calls use an installed host library when available, with portable fallback.
 - iOS devices and simulators: all operations use portable Kotlin; no vendor library is required.

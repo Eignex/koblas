@@ -6,6 +6,21 @@ native staging and writeback. No native-backed containers or critical vendor dow
 The analysis is limited to oneMKL on the measured Intel host. The Accelerate comparison was skipped at
 the user's request; these results establish no Apple performance crossover.
 
+## Implementation decisions
+
+| Area | Selected policy |
+|---|---|
+| Large GEMM, GEMMT, SYMM, SYRK, SYR2K, TRMM and TRSM | Prefer eligible oneMKL whole calls; keep owned fallback and exact engines |
+| DOT, SUM, ASUM and NRM2 | Keep explicit JVM SIMD and its numerical fallbacks |
+| Simplex GER, indexed dot/norm, sparse AXPY/scatter and dense AXPY | Keep JVM SIMD paths; native composition preserves their owned kernel arms |
+| IAMAX | Keep owned SIMD; further tuning is lower priority than simplex work |
+| SCAL, SWAP, ROT and COPY | Keep ordinary loops and array-copy intrinsics; no dedicated Vector API replacement |
+| Eight-column product prototype | Removed because it introduced per-call allocation |
+| Deep thin GEMM | Prefer oneMKL for whole matrices with both output extents at least 16 and depth 1024 through 16384; borrowed views keep the larger cutoff |
+
+The availability floor remains portable dense and sparse BLAS. Selecting a profitable native call does
+not remove the owned implementation needed on other hosts or by an explicitly selected engine.
+
 ## Evidence
 
 | Lab job | Source | Purpose | Status |
@@ -16,6 +31,7 @@ the user's request; these results establish no Apple performance crossover.
 | [9062](https://lab.eignex.com/jobs/9062) | `fe0deefe` | Wider-tile follow-up | Cancelled because concurrent captures pin the same CPU |
 | [9063](https://lab.eignex.com/jobs/9063) | `a16e61fd` | Norm follow-up | Cancelled; follow-ups will run sequentially |
 | [9066](https://lab.eignex.com/jobs/9066) | `a23a3736` | Sequential combined tile, allocation and norm follow-up | Complete; wider tile rejected |
+| [9111](https://lab.eignex.com/jobs/9111) | `d2a9a219` | Thin GEMM neighboring shapes, transposes and retained workspaces | Complete, three rounds |
 | [9068](https://lab.eignex.com/jobs/9068) | `57fc0f72` | Compact and streaming AXPY through exact and default engines, with allocation profiling | Complete, three rounds |
 | [9070](https://lab.eignex.com/jobs/9070) | `59bcc0e8` | 82-case comparison of the final implementation against Accelerate on Apple hardware | Cancelled at user request before measurement |
 
@@ -57,8 +73,11 @@ for SUM or indexed sparse norms.
 
 The exact scalar and SIMD engines stay independent of installed libraries. The JVM default retains their
 owned kernels and can compose oneMKL on Intel Linux when native access is explicitly enabled. Only the
-seven Level 3 routines above qualify, and every output extent and depth must reach 128. Thin products,
-few-right-hand-side solves, Level 1/2 calls, windowed GER and retained packed products keep owned kernels.
+seven Level 3 routines above qualify when every output extent and depth reaches 128. Whole-matrix GEMM
+also qualifies with both output extents at least 16 and depth from 1024 through 16384. Borrowed views
+keep the larger cutoff because their additional packing was not included in the thin-product timings.
+Other thin products, few-right-hand-side solves, Level 1/2 calls, windowed GER and retained packed products
+keep owned kernels.
 Zero-multiplier rules and alias staging remain with the shared host composition.
 
 The 128 boundary is supported by the two accepted timing rounds of job 9039. Accelerate is outside this
@@ -93,9 +112,33 @@ ASUM and IAMAX at 4,096 measured 0.29 and 0.36 microseconds in exact SIMD. Their
 but the JVM binding takes about 29.6 microseconds. Dropping the owned body for that binding would regress
 the ordinary-array call.
 
-The deep thin GEMM controls also favored the JVM vendor arm: about 1.6x for `1x1x65536` and `16x16x4096`.
-The current default keeps them owned because their crossover across neighboring shapes has not been
-established. This is a remaining dispatch opportunity, not evidence that all thin products favor JVM code.
+The initial deep thin GEMM controls favored the JVM vendor arm. Job 9111 then checked neighboring
+shapes and retained workspaces before expanding the whole-matrix GEMM policy. Single-output products
+remain owned; their transposed-left path can already use a SIMD reduction, and no shape-only native
+crossover has been established across those orientations.
+
+## Thin GEMM crossover
+
+Job 9111 compared exact SIMD with JVM oneMKL, including transfers, on the same Xeon Platinum 8375C.
+It used three rotated rounds, eight 200 ms warmups, five 200 ms samples and allocation profiling.
+The retained workspace is supplied only to the owned call because the vendor binding has no such
+parameter. Both arms use the same arrays, flags, arithmetic and destination reset.
+
+| Shape and flags, with retained workspace | Owned SIMD | JVM oneMKL | Speedup |
+|---|---:|---:|---:|
+| 16x16x1024 | 49.90 us | 23.45 us | 2.13x |
+| 16x16x4096 | 208.38 us | 118.85 us | 1.75x |
+| 16x16x4096, both operands transposed | 225.06 us | 159.67 us | 1.41x |
+| 16x64x4096 | 626.16 us | 450.46 us | 1.39x |
+| 64x16x4096 | 690.03 us | 464.81 us | 1.48x |
+| 32x32x4096 | 523.62 us | 405.37 us | 1.29x |
+| 16x16x16384 | 854.54 us | 750.04 us | 1.14x |
+
+Workspace reuse did not erase the native advantage. The 16x16x16384 case won in every round, but its
+smaller margin motivates an upper bound on the new deep-product rule. Outputs narrower than 16,
+depths outside 1024 through 16384, and borrowed views keep their previous routes unless they satisfy
+the existing large Level 3 rule. Tests cover both cutoffs, each adapted operand, route attribution and
+the destination's complete backing buffer.
 
 ## Final AXPY validation
 

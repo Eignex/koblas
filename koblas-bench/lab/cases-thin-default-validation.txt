@@ -1,0 +1,6 @@
+# Final native default route and the nearest excluded side/depth controls.
+gemm+16x16x1024+uniform+workspace=retained
+gemm+16x16x4096+uniform+workspace=retained
+gemm+16x16x16384+uniform+workspace=retained
+gemm+15x16x4096+uniform+workspace=retained
+gemm+16x16x1023+uniform+workspace=retained
