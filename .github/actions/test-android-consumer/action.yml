@@ -1,0 +1,58 @@
+name: Test prebuilt Android consumers
+description: Run ordinary and R8 consumers on one cached Android runtime
+inputs:
+  api-level:
+    description: Android runtime API level
+    required: true
+  image-version:
+    description: Runner image version used to scope compatible emulator snapshots
+    required: true
+runs:
+  using: composite
+  steps:
+    - name: Restore a clean Android emulator snapshot
+      id: avd
+      uses: actions/cache/restore@v6
+      with:
+        path: |
+          ~/.android/avd/koblas-api-${{ inputs.api-level }}.*
+          ~/.android/adb*
+        key: android-avd-v2-${{ runner.os }}-${{ inputs.image-version }}-${{ inputs.api-level }}-x86_64
+    - name: Create a clean Android emulator snapshot
+      if: steps.avd.outputs.cache-hit != 'true'
+      uses: reactivecircus/android-emulator-runner@v2
+      with:
+        api-level: ${{ inputs.api-level }}
+        target: default
+        arch: x86_64
+        avd-name: koblas-api-${{ inputs.api-level }}
+        force-avd-creation: false
+        pre-emulator-launch-script: adb kill-server
+        emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+        disable-animations: false
+        script: echo "Created a clean emulator snapshot"
+    - name: Save the clean Android emulator snapshot
+      if: >-
+        steps.avd.outputs.cache-hit != 'true' &&
+        github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+      uses: actions/cache/save@v6
+      with:
+        path: |
+          ~/.android/avd/koblas-api-${{ inputs.api-level }}.*
+          ~/.android/adb*
+        key: ${{ steps.avd.outputs.cache-primary-key }}
+    # Cached snapshots carry adb credentials; reload them when switching API levels in one job.
+    - name: Run ordinary and R8 consumers on Android
+      uses: reactivecircus/android-emulator-runner@v2
+      env:
+        REPORT_DIRECTORY: build/test-results/android/${{ inputs.api-level }}
+      with:
+        api-level: ${{ inputs.api-level }}
+        target: default
+        arch: x86_64
+        avd-name: koblas-api-${{ inputs.api-level }}
+        force-avd-creation: false
+        pre-emulator-launch-script: adb kill-server
+        emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+        disable-animations: true
+        script: bash .github/scripts/run-android-consumers.sh build/android-consumer-apks "$REPORT_DIRECTORY"
