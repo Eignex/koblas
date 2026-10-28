@@ -486,6 +486,9 @@ resolve to the same engine, so both admit these rows and both are that host's de
 
 ## Direct Gradle runs
 
+CI's `linuxX64SelectedBenchmark` uses a debug executable to check OpenBLAS resolution and invocation without
+release optimization. The timed Native benchmark tasks below continue to use release executables.
+
 ```bash
 ./gradlew :koblas-bench:jvmSimdBenchmark -Pbench.suite=sweep -Pbench.operation=dot \
   -Pbench.samples=5 -Pbench.warmups=5 -Pbench.targetMs=200 -Pbench.forks=2

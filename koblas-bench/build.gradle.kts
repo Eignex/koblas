@@ -122,7 +122,7 @@ private val NO_NATIVE_HOST = "native benchmarks are supported on Linux x86-64 an
  * only. Refusing while the task is being configured took the whole project down with it, which left those
  * arms unreachable too; refusing when the task runs leaves the rest of the module usable.
  */
-fun registerNativeBenchmark(name: String, configure: Exec.() -> Unit) {
+fun registerNativeBenchmark(name: String, buildType: String = "Release", configure: Exec.() -> Unit) {
     val target = hostTarget
     if (target == null) {
         tasks.register(name) {
@@ -134,10 +134,11 @@ fun registerNativeBenchmark(name: String, configure: Exec.() -> Unit) {
     }
     tasks.register<Exec>(name) {
         group = "benchmark"
-        dependsOn("linkReleaseExecutable$target")
+        dependsOn("link${buildType}Executable$target")
         val targetDir = target.replaceFirstChar(Char::lowercase)
+        val binaryDir = "${buildType.replaceFirstChar(Char::lowercase)}Executable"
         commandLine(
-            layout.buildDirectory.file("bin/$targetDir/releaseExecutable/koblas-bench.kexe").get().asFile.absolutePath,
+            layout.buildDirectory.file("bin/$targetDir/$binaryDir/koblas-bench.kexe").get().asFile.absolutePath,
         )
         workingDir(rootProject.projectDir)
         configure()
@@ -188,7 +189,7 @@ tasks.register<JavaExec>("jvmSelectedBenchmark") {
     doLast { logger.lifecycle("resolved: arm=openblas dense=openblas/cblas threading=1 thread") }
 }
 
-registerNativeBenchmark("linuxX64SelectedBenchmark") {
+registerNativeBenchmark("linuxX64SelectedBenchmark", buildType = "Debug") {
     group = "verification"
     description = "Resolves OpenBLAS through the Native vendor binding and runs one smoke case."
     args(

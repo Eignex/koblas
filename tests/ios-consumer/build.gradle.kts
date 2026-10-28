@@ -1,5 +1,7 @@
 plugins { kotlin("multiplatform") version "2.4.21" }
 
+val consumerVersion = providers.gradleProperty("consumer.version").orElse("0.0.0-consumer")
+
 repositories {
     maven { url = uri("../../koblas/build/staging-repo") }
     mavenCentral()
@@ -15,7 +17,7 @@ kotlin {
     sourceSets {
         commonMain {
             kotlin.srcDir("../consumers/shared")
-            dependencies { implementation("com.eignex:koblas:0.0.0-consumer") }
+            dependencies { implementation("com.eignex:koblas:${consumerVersion.get()}") }
         }
         commonTest.dependencies { implementation(kotlin("test")) }
     }

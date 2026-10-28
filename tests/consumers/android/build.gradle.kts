@@ -1,5 +1,7 @@
 plugins { id("com.android.application") }
 
+val consumerVersion = providers.gradleProperty("consumer.version").orElse("0.0.0-consumer")
+
 android {
     namespace = "com.eignex.koblas.consumer"
     compileSdk = 36
@@ -26,7 +28,7 @@ android {
 }
 
 dependencies {
-    implementation("com.eignex:koblas:0.0.0-consumer")
+    implementation("com.eignex:koblas:${consumerVersion.get()}")
     androidTestImplementation("androidx.test:runner:1.7.0")
     androidTestImplementation("androidx.test.ext:junit:1.3.0")
     // R8 also shrinks the test APK, whose runner references these compile-only annotations.
