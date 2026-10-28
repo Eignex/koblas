@@ -33,13 +33,7 @@ internal class CaseWork(
     val kernel: String? = null,
 )
 
-/**
- * Level 1 work, named by the kernel selection that will serve it.
- *
- * Null where the kernel's own values settle which implementation finishes the call, as the euclidean norm's
- * rescaling retry does. No width establishes that, so the case is not an exact measurement of either kernel
- * and is declined rather than attributed to the one that happened to start it.
- */
+/** Level 1 work, including value-dependent norm composition and its scalar rescaling retry. */
 @Suppress("LongParameterList") // the operation, its width, and the timed region
 private fun level1(
     engine: KoblasEngine,
@@ -50,8 +44,13 @@ private fun level1(
     run: () -> Double,
 ): CaseWork? {
     val route = engine.routeOf(operation, length)
-    if (route.kind == RouteKind.Composed || route.kind == RouteKind.NoWork) return null
-    return CaseWork(route.kind.name.lowercase(), timing, run, result = result, kernel = vectorKernel(route))
+    if (route.kind == RouteKind.NoWork) return null
+    val kernel = if (route.kind == RouteKind.Composed) {
+        "${route.implementation}+scalar-rescale/${route.entryPoint}"
+    } else {
+        vectorKernel(route)
+    }
+    return CaseWork(route.kind.name.lowercase(), timing, run, result = result, kernel = kernel)
 }
 
 /** The attribution a Level 1 row carries, which is the same question for a dense run and a stored support. */
@@ -359,7 +358,7 @@ private fun panelWork(case: BenchCase, engine: KoblasEngine): CaseWork {
 /**
  * The dense work for [case], or a reason this arm may not measure it.
  *
- * Raw cases are exact measurements on whichever engine the arm resolved. Generic matrix and vector entry
+ * Raw cases name the direct, delegated or composed route of the resolved engine. Generic matrix and vector entry
  * points select their engine themselves, so those cases are published as default-policy rows.
  */
 internal fun denseArm(case: BenchCase, engine: KoblasEngine): ArmChoice? = when (case.operation) {

@@ -57,6 +57,7 @@ awaits Apple measurements. The code does not infer Apple performance from Intel 
 | DOT, SUM, ASUM, AXPY | Contiguous runs of at least one lane block | Short and strided runs |
 | NRM2 | Contiguous square-sum fast path | Stable rescaling when magnitudes require it; short and strided runs |
 | IAMAX | Contiguous runs of at least 256 elements and one lane block | Short and strided runs |
+| COPY | Contiguous public copies use the JVM array-copy intrinsic | Strided or sparse copies use ordinary loops |
 | SCAL, SWAP, ROT | No explicit Vector API body; ordinary element loops permit HotSpot vectorization | Same loops on every JVM |
 | GEMV, SYMV, GER, SYR, SYR2, TRMV, TRSV | Shared dot, update and coupled panels, including transpose variants | Panel edges, narrow and strided windows; sequential substitution dependencies |
 | GEMM, GEMMT, SYMM, SYRK, SYR2K | Packed product tiles or unpacked panels | Tile edges and small windows |
@@ -75,7 +76,9 @@ operands in native memory and copy destinations back; the timed JVM vendor arm i
 The JDK's heap-segment escape hatch, `Linker.Option.critical(true)`, requires a target that is extremely
 short in every case. Arbitrary vendor BLAS calls do not meet that blanket contract. Consequently this
 work does not remove transfer costs by pinning arbitrary arrays across vendor execution or change the
-public storage model. See the [JDK 25 critical-call contract](https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/foreign/Linker.Option.html#critical(boolean)).
+public storage model. Ordinary JNI `GetDoubleArrayElements` may return either a pinned array or a copy;
+it provides no portable zero-copy guarantee. See the [JNI array access contract](https://docs.oracle.com/en/java/javase/25/docs/specs/jni/functions.html#getprimitivetypearrayelements-routines)
+and the [JDK 25 critical-call contract](https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/foreign/Linker.Option.html#critical(boolean)).
 
 ## Klause simplex coverage
 

@@ -4,6 +4,8 @@ import com.eignex.koblas.BuiltinEngines
 import com.eignex.koblas.KoblasEngine
 import com.eignex.koblas.KoblasEngineApi
 import com.eignex.koblas.koblas
+import com.eignex.koblas.dense.DenseOperation
+import com.eignex.koblas.vendor.RouteKind
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
@@ -12,6 +14,22 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class DenseTest {
+    @Test
+    fun `norm cases retain value dependent rescaling attribution`() {
+        val case = Cases.parse("nrm2+512+uniform").single()
+        val expected = assertNotNull(denseWork(case, BuiltinEngines.scalar)).run()
+        for (engine in listOfNotNull(BuiltinEngines.scalar, BuiltinEngines.simd)) {
+            val work = assertNotNull(denseWork(case, engine))
+            val route = engine.routeOf(DenseOperation.Nrm2, 512)
+
+            assertEquals(route.kind.name.lowercase(), work.comparisonKind)
+            assertEquals(expected, work.run(), 1e-12)
+            if (route.kind == RouteKind.Composed) {
+                assertTrue(assertNotNull(work.kernel).contains("+scalar-rescale/"))
+            }
+        }
+    }
+
     @Test
     fun `arithmetic scaling preserves fixture magnitudes across repeated calls`() {
         val case = Cases.parse("scal+17+uniform+timing=arithmetic").single()

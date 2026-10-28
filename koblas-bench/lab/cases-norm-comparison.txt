@@ -1,0 +1,10 @@
+# Dense norms and Klause indexed norm controls; SUM has no vendor BLAS symbol.
+nrm2+64+uniform
+sum+64+uniform
+spnrm2-slice+64+sparse-uniform+density=0.125
+nrm2+4096+uniform
+sum+4096+uniform
+spnrm2-slice+4096+sparse-uniform+density=0.125
+nrm2+65536+uniform
+sum+65536+uniform
+spnrm2-slice+65536+sparse-uniform+density=0.125
