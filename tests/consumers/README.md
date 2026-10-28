@@ -30,5 +30,11 @@ and `J^T * J` products against a straightforward scalar reference, reused worksp
 It exercises both the platform default and the production `KoblasEngine.portable()` factory without an
 engine-selection opt-in, and checks repeated portable results bit for bit.
 
+CI stages a unique version per workflow attempt and passes it with `-Pconsumer.version=VERSION`, so it
+does not need to refresh all dependencies. One producer runs the JVM consumers, verifies the publication
+and both Android APKs, and builds debug and release instrumentation APKs. Both API-level jobs download
+the same verified APK artifact and run it with `.github/scripts/run-android-consumers.sh`; neither rebuilds
+the library or the applications. Clean emulator snapshots are cached by API level and runner image.
+
 The [iOS consumer](../ios-consumer/README.md) runs this same check on an iOS simulator and links both
 device and simulator frameworks from the published Kotlin/Native dependencies.

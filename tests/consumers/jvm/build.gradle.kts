@@ -2,13 +2,15 @@ import org.jetbrains.kotlin.gradle.targets.jvm.KotlinJvmTarget
 
 plugins { kotlin("multiplatform") }
 
+val consumerVersion = providers.gradleProperty("consumer.version").orElse("0.0.0-consumer")
+
 kotlin {
     jvmToolchain(17)
     jvm()
     sourceSets {
         commonMain {
             kotlin.srcDir("../shared")
-            dependencies { implementation("com.eignex:koblas:0.0.0-consumer") }
+            dependencies { implementation("com.eignex:koblas:${consumerVersion.get()}") }
         }
     }
 }

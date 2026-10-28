@@ -6,7 +6,7 @@ inputs:
     required: false
   cache-read-only:
     description: Restore caches without saving them
-    default: 'false'
+    default: ${{ github.ref != format('refs/heads/{0}', github.event.repository.default_branch) }}
   native-cache:
     description: Cache the Kotlin Native toolchain
     default: 'false'
@@ -28,12 +28,12 @@ runs:
       uses: actions/cache@v6
       with:
         path: ~/.konan
-        key: ${{ runner.os }}-${{ runner.arch }}-konan-${{ hashFiles('**/*.gradle.kts', '**/gradle.properties', '**/gradle-wrapper.properties', '**/*.versions.toml') }}
+        key: ${{ runner.os }}-${{ runner.arch }}-konan-${{ hashFiles('settings.gradle.kts', 'tests/ios-consumer/build.gradle.kts') }}
         restore-keys: ${{ runner.os }}-${{ runner.arch }}-konan-
     - name: Restore Kotlin Native toolchain
       if: inputs.native-cache == 'true' && inputs.cache-read-only == 'true'
       uses: actions/cache/restore@v6
       with:
         path: ~/.konan
-        key: ${{ runner.os }}-${{ runner.arch }}-konan-${{ hashFiles('**/*.gradle.kts', '**/gradle.properties', '**/gradle-wrapper.properties', '**/*.versions.toml') }}
+        key: ${{ runner.os }}-${{ runner.arch }}-konan-${{ hashFiles('settings.gradle.kts', 'tests/ios-consumer/build.gradle.kts') }}
         restore-keys: ${{ runner.os }}-${{ runner.arch }}-konan-
