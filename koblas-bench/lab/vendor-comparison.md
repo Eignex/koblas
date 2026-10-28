@@ -16,7 +16,7 @@ the user's request; these results establish no Apple performance crossover.
 | IAMAX | Keep owned SIMD; further tuning is lower priority than simplex work |
 | SCAL, SWAP, ROT and COPY | Keep ordinary loops and array-copy intrinsics; no dedicated Vector API replacement |
 | Eight-column product prototype | Removed because it introduced per-call allocation |
-| Deep thin GEMM | Prefer oneMKL for whole matrices with both output extents at least 16 and depth 1024 through 16384; borrowed views keep the larger cutoff |
+| Deep thin GEMM | Prefer oneMKL for whole matrices with both output extents at least 16 and depth 1024 through 4096; borrowed views keep the larger cutoff |
 
 The availability floor remains portable dense and sparse BLAS. Selecting a profitable native call does
 not remove the owned implementation needed on other hosts or by an explicitly selected engine.
@@ -31,6 +31,7 @@ not remove the owned implementation needed on other hosts or by an explicitly se
 | [9062](https://lab.eignex.com/jobs/9062) | `fe0deefe` | Wider-tile follow-up | Cancelled because concurrent captures pin the same CPU |
 | [9063](https://lab.eignex.com/jobs/9063) | `a16e61fd` | Norm follow-up | Cancelled; follow-ups will run sequentially |
 | [9066](https://lab.eignex.com/jobs/9066) | `a23a3736` | Sequential combined tile, allocation and norm follow-up | Complete; wider tile rejected |
+| [9114](https://lab.eignex.com/jobs/9114) | `b34eaa8a` | Supplementary timing of the broader candidate cutoff | Cancelled before measurement after narrowing the cutoff |
 | [9111](https://lab.eignex.com/jobs/9111) | `d2a9a219` | Thin GEMM neighboring shapes, transposes and retained workspaces | Complete, three rounds |
 | [9068](https://lab.eignex.com/jobs/9068) | `57fc0f72` | Compact and streaming AXPY through exact and default engines, with allocation profiling | Complete, three rounds |
 | [9070](https://lab.eignex.com/jobs/9070) | `59bcc0e8` | 82-case comparison of the final implementation against Accelerate on Apple hardware | Cancelled at user request before measurement |
@@ -74,7 +75,7 @@ for SUM or indexed sparse norms.
 The exact scalar and SIMD engines stay independent of installed libraries. The JVM default retains their
 owned kernels and can compose oneMKL on Intel Linux when native access is explicitly enabled. Only the
 seven Level 3 routines above qualify when every output extent and depth reaches 128. Whole-matrix GEMM
-also qualifies with both output extents at least 16 and depth from 1024 through 16384. Borrowed views
+also qualifies with both output extents at least 16 and depth from 1024 through 4096. Borrowed views
 keep the larger cutoff because their additional packing was not included in the thin-product timings.
 Other thin products, few-right-hand-side solves, Level 1/2 calls, windowed GER and retained packed products
 keep owned kernels.
@@ -135,10 +136,19 @@ parameter. Both arms use the same arrays, flags, arithmetic and destination rese
 | 16x16x16384 | 854.54 us | 750.04 us | 1.14x |
 
 Workspace reuse did not erase the native advantage. The 16x16x16384 case won in every round, but its
-smaller margin motivates an upper bound on the new deep-product rule. Outputs narrower than 16,
-depths outside 1024 through 16384, and borrowed views keep their previous routes unless they satisfy
+smaller margin does not justify extending the new rule beyond depth 4096, where transpose controls
+also establish a native advantage. Outputs narrower than 16, depths outside 1024 through 4096, and borrowed views keep their previous routes unless they satisfy
 the existing large Level 3 rule. Tests cover both cutoffs, each adapted operand, route attribution and
 the destination's complete backing buffer.
+
+A local numerical smoke capture against the checksum-pinned oneMKL 2026.1 package verified the final
+default at depths 1024 and 4096, a both-transposed case at 4096, and excluded side/depth controls.
+All six cases passed preflight;
+the first three reported `onemkl/cblas_dgemm` and all three controls reported owned products. Its short
+warmup is not performance evidence. All eight default-engine tests also passed with the real library
+loaded, including alias handling and preservation of the owned dense/indexed kernel arms. The optional
+supplementary lab timing run 9114 was cancelled before measurement because it targeted the broader
+cutoff; it is not used for these conclusions.
 
 ## Final AXPY validation
 

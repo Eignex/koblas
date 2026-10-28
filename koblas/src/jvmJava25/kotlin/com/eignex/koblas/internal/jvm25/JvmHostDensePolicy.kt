@@ -13,7 +13,7 @@ internal object JvmHostDensePolicy : DenseHostEligibility {
     private const val DEEP_PRODUCT_MINIMUM_DEPTH = 1024
 
     // Very deep low-reuse inputs need their own transfer-cost evidence.
-    private const val DEEP_PRODUCT_MAXIMUM_DEPTH = 16_384
+    private const val DEEP_PRODUCT_MAXIMUM_DEPTH = 4096
 
     override fun eligible(operation: DenseMatrixOperation, rows: Int, columns: Int, depth: Int): Boolean =
         largeCall(operation, rows, columns, depth) ||

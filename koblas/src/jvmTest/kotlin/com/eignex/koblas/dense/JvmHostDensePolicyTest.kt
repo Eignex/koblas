@@ -32,14 +32,14 @@ class JvmHostDensePolicyTest {
 
     @Test
     fun `deep gemm stays within the measured whole matrix extents`() {
-        for (depth in listOf(1024, 4096, 16_384)) {
+        for (depth in listOf(1024, 4096)) {
             assertTrue(JvmHostDensePolicy.eligible(DenseMatrixOperation.Gemm, 16, 16, depth))
         }
         for ((rows, columns, depth) in listOf(
             Triple(15, 64, 4096),
             Triple(64, 15, 4096),
             Triple(16, 16, 1023),
-            Triple(16, 16, 16_385),
+            Triple(16, 16, 4097),
         )) {
             assertFalse(JvmHostDensePolicy.eligible(DenseMatrixOperation.Gemm, rows, columns, depth))
         }
