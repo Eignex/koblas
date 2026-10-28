@@ -19,15 +19,16 @@ internal object VendorComparisonSuite : BenchSuite {
 
     override fun plan(request: BenchRequest): List<LabCase> {
         val p = request.parameters
-        require(p.keys.all { it in setOf("vendor", "operation", "cases", "samples", "warmups", "target-ms", "forks", "rounds", "targets") }) { "Unknown vendor comparison parameter" }
+        require(p.keys.all { it in setOf("vendor", "operation", "cases", "samples", "warmups", "target-ms", "forks", "rounds", "targets", "profile-gc") }) { "Unknown vendor comparison parameter" }
         val vendor = p.getValue("vendor")
         require(vendor in setOf("onemkl", "accelerate")) { "vendor must be onemkl or accelerate" }
         p["targets"]?.let { targets ->
             val selected = targets.split(',')
             require(selected.distinct().size == selected.size && selected.all {
-                it in setOf("jvm-scalar", "jvm-simd", "jvm-default", vendor, "$vendor-jvm")
+                it in setOf("jvm-scalar", "jvm-simd", "jvm-simd-wide", "jvm-default", vendor, "$vendor-jvm")
             }) { "Invalid comparison targets" }
         }
+        p["profile-gc"]?.let { require(it in setOf("true", "false")) { "profile-gc must be true or false" } }
         p["operation"]?.let { require(it.matches(Regex("[a-z][a-z0-9-]*"))) { "Invalid operation" } }
         for (key in listOf("samples", "warmups", "target-ms", "forks", "rounds")) {
             p[key]?.let { require(it.matches(Regex("[1-9][0-9]*")) && it.toIntOrNull() != null) { "$key must be positive" } }

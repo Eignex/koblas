@@ -133,6 +133,7 @@ internal class HostDenseBlas(
         val components = ArrayList<String>(2)
         if (call.borrowed && regions == null) components.add(HOST_REGION_STAGING)
         if (call.aliased) components.add(HOST_STAGING)
+        hostRoute.adapter?.let { components.add("host-adapter/$it") }
         components.add("${host.vendor.vendorName.lowercase()}/${entry.entryPoint}")
         return DenseMatrixRoute(
             operation = operation,

@@ -24,6 +24,7 @@ while (($#)); do
     --forks) forks=${2:?}; shift 2 ;;
     --rounds) rounds=${2:?}; shift 2 ;;
     --targets) targets=${2:?}; shift 2 ;;
+    --profile-gc) export KOBLAS_BENCH_PROFILE_GC=${2:?}; shift 2 ;;
     *) echo "usage: vendor-capture.sh --output DIR [--operation NAME] [--vendor NAME]" >&2; exit 2 ;;
   esac
 done

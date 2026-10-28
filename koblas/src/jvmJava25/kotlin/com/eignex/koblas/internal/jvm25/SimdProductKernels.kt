@@ -28,6 +28,15 @@ internal object SimdProductKernels : DenseProductKernels {
     /** Two lane blocks where the module is present, and the portable tile's own rows where it is not. */
     private val ROWS = if (simdAvailable) ROW_BLOCKS * LANE else PORTABLE_PRODUCT_TILE
 
+    /** Destination columns one tile holds, which is a register budget and not a lane count. */
+    private val TILE_COLUMNS = if (hardwareFusedMultiplyAdd &&
+        System.getProperty("koblas.jvm.product.wide") == "true"
+    ) {
+        8
+    } else {
+        4
+    }
+
     /** Built once, for the reason [SimdPanelKernels] builds its own once. */
     private val NAME: String = "simd-tile(${ROWS}x$TILE_COLUMNS)"
 
@@ -132,7 +141,11 @@ internal object SimdProductKernels : DenseProductKernels {
             }
             return
         }
-        fusedTile(depth, a, aOffset, b, bOffset, alpha, c, cOffset, ldc, presentColumns)
+        if (TILE_COLUMNS == 8) {
+            fusedWideTile(depth, a, aOffset, b, bOffset, alpha, c, cOffset, ldc, presentColumns)
+        } else {
+            fusedTile(depth, a, aOffset, b, bOffset, alpha, c, cOffset, ldc, presentColumns)
+        }
     }
 
     /**
@@ -224,6 +237,79 @@ internal object SimdProductKernels : DenseProductKernels {
         if (presentColumns > 3) storeColumn(c, cOffset + 3 * ldc, alpha, c03, c13)
     }
 
+    /** Experimental register geometry, enabled only in an explicitly configured benchmark JVM. */
+    private fun fusedWideTile(
+        depth: Int,
+        a: DoubleArray,
+        aOffset: Int,
+        b: DoubleArray,
+        bOffset: Int,
+        alpha: Double,
+        c: DoubleArray,
+        cOffset: Int,
+        ldc: Int,
+        presentColumns: Int,
+    ) {
+        var c00 = DoubleVector.zero(SPECIES)
+        var c10 = DoubleVector.zero(SPECIES)
+        var c01 = DoubleVector.zero(SPECIES)
+        var c11 = DoubleVector.zero(SPECIES)
+        var c02 = DoubleVector.zero(SPECIES)
+        var c12 = DoubleVector.zero(SPECIES)
+        var c03 = DoubleVector.zero(SPECIES)
+        var c13 = DoubleVector.zero(SPECIES)
+        var c04 = DoubleVector.zero(SPECIES)
+        var c14 = DoubleVector.zero(SPECIES)
+        var c05 = DoubleVector.zero(SPECIES)
+        var c15 = DoubleVector.zero(SPECIES)
+        var c06 = DoubleVector.zero(SPECIES)
+        var c16 = DoubleVector.zero(SPECIES)
+        var c07 = DoubleVector.zero(SPECIES)
+        var c17 = DoubleVector.zero(SPECIES)
+        var ap = aOffset
+        var bp = bOffset
+        var step = 0
+        while (step < depth) {
+            val a0 = DoubleVector.fromArray(SPECIES, a, ap)
+            val a1 = DoubleVector.fromArray(SPECIES, a, ap + LANE)
+            var coefficient = DoubleVector.broadcast(SPECIES, b[bp])
+            c00 = multiplyAdd(a0, coefficient, c00)
+            c10 = multiplyAdd(a1, coefficient, c10)
+            coefficient = DoubleVector.broadcast(SPECIES, b[bp + 1])
+            c01 = multiplyAdd(a0, coefficient, c01)
+            c11 = multiplyAdd(a1, coefficient, c11)
+            coefficient = DoubleVector.broadcast(SPECIES, b[bp + 2])
+            c02 = multiplyAdd(a0, coefficient, c02)
+            c12 = multiplyAdd(a1, coefficient, c12)
+            coefficient = DoubleVector.broadcast(SPECIES, b[bp + 3])
+            c03 = multiplyAdd(a0, coefficient, c03)
+            c13 = multiplyAdd(a1, coefficient, c13)
+            coefficient = DoubleVector.broadcast(SPECIES, b[bp + 4])
+            c04 = multiplyAdd(a0, coefficient, c04)
+            c14 = multiplyAdd(a1, coefficient, c14)
+            coefficient = DoubleVector.broadcast(SPECIES, b[bp + 5])
+            c05 = multiplyAdd(a0, coefficient, c05)
+            c15 = multiplyAdd(a1, coefficient, c15)
+            coefficient = DoubleVector.broadcast(SPECIES, b[bp + 6])
+            c06 = multiplyAdd(a0, coefficient, c06)
+            c16 = multiplyAdd(a1, coefficient, c16)
+            coefficient = DoubleVector.broadcast(SPECIES, b[bp + 7])
+            c07 = multiplyAdd(a0, coefficient, c07)
+            c17 = multiplyAdd(a1, coefficient, c17)
+            ap += ROWS
+            bp += TILE_COLUMNS
+            step++
+        }
+        storeColumn(c, cOffset, alpha, c00, c10)
+        if (presentColumns > 1) storeColumn(c, cOffset + ldc, alpha, c01, c11)
+        if (presentColumns > 2) storeColumn(c, cOffset + 2 * ldc, alpha, c02, c12)
+        if (presentColumns > 3) storeColumn(c, cOffset + 3 * ldc, alpha, c03, c13)
+        if (presentColumns > 4) storeColumn(c, cOffset + 4 * ldc, alpha, c04, c14)
+        if (presentColumns > 5) storeColumn(c, cOffset + 5 * ldc, alpha, c05, c15)
+        if (presentColumns > 6) storeColumn(c, cOffset + 6 * ldc, alpha, c06, c16)
+        if (presentColumns > 7) storeColumn(c, cOffset + 7 * ldc, alpha, c07, c17)
+    }
+
     /**
      * Scalar row edge, bounded by [tileRows] minus one rows.
      *
@@ -292,9 +378,6 @@ internal object SimdProductKernels : DenseProductKernels {
 
     /** Lane blocks of destination rows one tile holds. */
     private const val ROW_BLOCKS = 2
-
-    /** Destination columns one tile holds, which is a register budget and not a lane count. */
-    private const val TILE_COLUMNS = 4
 
     /** Destination columns one pass covers where a step takes two instructions instead of one. */
     private const val COLUMN_PAIR = 2

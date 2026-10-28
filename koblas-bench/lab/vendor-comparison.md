@@ -50,6 +50,33 @@ Zero-multiplier rules and alias staging remain with the shared host composition.
 The 128 boundary is a conservative candidate under validation by job 9039. Accelerate default dispatch
 awaits Apple measurements. The code does not infer Apple performance from Intel measurements.
 
+## JVM coverage
+
+| Family | Explicit Vector API arithmetic | Owned scalar cases |
+|---|---|---|
+| DOT, SUM, ASUM, AXPY | Contiguous runs of at least one lane block | Short and strided runs |
+| NRM2 | Contiguous square-sum fast path | Stable rescaling when magnitudes require it; short and strided runs |
+| IAMAX | Contiguous runs of at least 256 elements and one lane block | Short and strided runs |
+| SCAL, SWAP, ROT | No explicit Vector API body; ordinary element loops permit HotSpot vectorization | Same loops on every JVM |
+| GEMV, SYMV, GER, SYR, SYR2, TRMV, TRSV | Shared dot, update and coupled panels, including transpose variants | Panel edges, narrow and strided windows; sequential substitution dependencies |
+| GEMM, GEMMT, SYMM, SYRK, SYR2K | Packed product tiles or unpacked panels | Tile edges and small windows |
+| TRMM, TRSM | Product windows and diagonal operations across right-hand sides | Narrow right-hand-side groups and edges |
+| Indexed sparse dot, norm, gather, scatter, AXPY | Indexed bodies where the configured hardware and width gates qualify | Sparse-sparse dot and unsupported indexed hardware; scheduling stays portable |
+
+The library does not implement every BLAS storage family: banded and packed-triangle BLAS are not part
+of this inventory. A scalar leaf in a shared schedule is not a missing whole-call implementation.
+
+## Ordinary arrays and native transfers
+
+The owned JVM paths read and write the caller's arrays directly. Product panel packing and snapshots
+needed for overlapping operands are separate algorithm costs. Host bindings currently stage array
+operands in native memory and copy destinations back; the timed JVM vendor arm includes both costs.
+
+The JDK's heap-segment escape hatch, `Linker.Option.critical(true)`, requires a target that is extremely
+short in every case. Arbitrary vendor BLAS calls do not meet that blanket contract. Consequently this
+work does not remove transfer costs by pinning arbitrary arrays across vendor execution or change the
+public storage model. See the [JDK 25 critical-call contract](https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/foreign/Linker.Option.html#critical(boolean)).
+
 ## Klause simplex coverage
 
 | Consumer operation | JVM SIMD path retained |

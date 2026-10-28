@@ -53,6 +53,16 @@ class JvmDefaultEngineTest {
     }
 
     @Test
+    fun `a default host route names its native operand transfers`() {
+        if (koblas.vendor == null) return println("SKIPPED: no eligible JVM host composition")
+
+        val route = koblas.routeOf(DenseMatrixOperation.Gemm, DenseCall(256, 256, depth = 256))
+
+        val adapter = requireNotNull(route.host?.adapter)
+        assertTrue(route.components.any { it.contains(adapter) }, "default route omitted its operand transfers")
+    }
+
+    @Test
     fun `an eligible default product preserves an aliased input buffer`() {
         val order = 128
         val a = DenseMatrix.wrap(order, order, DoubleArray(order * order) { (it % 19 - 9) / 17.0 })

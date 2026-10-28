@@ -115,6 +115,7 @@ if [[ -n $selected_targets ]]; then
     for available in "${available_targets[@]}"; do
       if [[ $target == "$available" ]]; then found=true; break; fi
     done
+    if [[ $target == jvm-simd-wide && $prepared ]]; then found=true; fi
     $found || { echo "target is not available with these libraries and platform: $target" >&2; exit 2; }
     [[ $seen_targets != *",$target,"* ]] || { echo "duplicate target: $target" >&2; exit 2; }
     seen_targets+="$target,"
@@ -321,6 +322,7 @@ run_jvm() {
   shift 3
   if $prepared; then
     local jvm_args=(--enable-native-access=ALL-UNNAMED -XX:ActiveProcessorCount=1)
+    [[ $target != jvm-simd-wide ]] || jvm_args+=(-Dkoblas.jvm.product.wide=true)
     if [[ -n $jvm_heap ]]; then
       jvm_args+=("-Xms$jvm_heap" "-Xmx$jvm_heap")
     else
@@ -352,6 +354,7 @@ run_jvm() {
 # JVM binding, which copies operands into native memory and reports that transfer as part of its route.
 for target in "${targets[@]}"; do
   case "$target" in
+    jvm-simd-wide) run_jvm "$target" jvm-simd jvmSimdBenchmark ;;
     jvm-scalar|jvm-simd|jvm-default)
       case "$target" in
         jvm-scalar) task=jvmScalarBenchmark ;;
