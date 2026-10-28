@@ -10,7 +10,9 @@ native staging and writeback. No native-backed containers or critical vendor dow
 | [9002](https://lab.eignex.com/jobs/9002) | `e1dc62f0` | 73-case scalar/SIMD/JVM oneMKL/native oneMKL diagnostic | Complete, three rotated rounds |
 | [9012](https://lab.eignex.com/jobs/9012) | `ee7b7f10` | Longer warmup and default-policy comparison | Failed reference check on the old 768-row triangular fixture; partial timings retained |
 | [9039](https://lab.eignex.com/jobs/9039) | `a1d6ada5` | Conditioned fixtures, unrolled AXPY and actual default routing | Pending |
-| [9040](https://lab.eignex.com/jobs/9040) | `a1d6ada5` | Full comparison against Accelerate on Apple hardware | Pending Mac capacity |
+| [9062](https://lab.eignex.com/jobs/9062) | `fe0deefe` | Wider-tile follow-up | Cancelled because concurrent captures pin the same CPU |
+| [9063](https://lab.eignex.com/jobs/9063) | `a16e61fd` | Norm follow-up | Cancelled; follow-ups will run sequentially |
+| [9064](https://lab.eignex.com/jobs/9064) | `a16e61fd` | 82-case comparison against Accelerate on Apple hardware | Pending Mac capacity |
 
 Job 9002 used an Intel Xeon Platinum 8375C, eight double lanes, JDK 25.0.4.1, Kotlin 2.4.10, Serial GC and
 a fixed 512 MiB JVM heap. It used one JMH fork per round, three 100 ms warmups and three 100 ms samples.
@@ -38,6 +40,11 @@ lost after operand transfer. A vendor's arithmetic time alone therefore cannot s
 Dense triangular fixtures now keep each off-diagonal row norm below one half. This bounds conditioning
 with explicit or implicit unit diagonals without relaxing scalar-reference tolerances. Cross-revision
 triangular timings with the old fixture are not paired comparisons.
+
+Jobs 9006 and 9040 never started measurement and were replaced by the corrected 82-case Apple workload.
+The final workload admits value-dependent dense NRM2 as a composition, and raw sparse slices use the
+explicit engine rather than requiring identity with the default. Vendor arms honestly report no symbol
+for SUM or indexed sparse norms.
 
 ## Dispatch candidate
 
