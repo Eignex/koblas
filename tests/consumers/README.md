@@ -12,13 +12,14 @@ From the repository root, stage the fixed test version and run the desktop consu
   :jvm:jvm17ModuleConsumer :jvm:jvm25ModuleConsumer
 ```
 
-With an Android SDK configured, build both ordinary D8 and shrinking R8 consumers at minSdk 24:
+With an Android SDK configured, build both ordinary D8 and shrinking R8 consumers at minSdk 24.
+The test-report verifier requires `xmllint` (`libxml2-utils` on Ubuntu):
 
 ```sh
 ./gradlew -p tests/consumers :android:assembleDebug :android:assembleRelease
 ./gradlew -p tests/consumers :android:connectedDebugAndroidTest
 ./gradlew -p tests/consumers :android:connectedReleaseAndroidTest -Pconsumer.buildType=release
-python3 tests/verify-test-results.py \
+bash tests/verify-test-results.sh \
   tests/consumers/android/build/outputs/androidTest-results/connected/debug \
   tests/consumers/android/build/outputs/androidTest-results/connected/release
 ```

@@ -117,9 +117,11 @@ jobs:
         if: env.IS_SNAPSHOT == 'false'
         env:
           SIGNING_KEY: ${{ secrets.SIGNING_KEY }}
-        run: >-
-          python3 .github/scripts/check-release-bundle.py
-          koblas/build/maven-central-publishing/bundle.zip "$RELEASE_VERSION"
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends libxml2-utils
+          bash .github/scripts/check-release-bundle.sh \
+            koblas/build/maven-central-publishing/bundle.zip "$RELEASE_VERSION"
       - name: Upload inspected release bundle
         if: env.IS_SNAPSHOT == 'false'
         uses: actions/upload-artifact@v7

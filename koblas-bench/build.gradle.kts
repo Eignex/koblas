@@ -1,4 +1,3 @@
-import java.io.File
 import java.nio.file.Path as JdkPath
 import org.gradle.api.tasks.JavaExec
 import org.gradle.jvm.toolchain.JavaLanguageVersion
@@ -83,30 +82,6 @@ tasks.register("prepareBenchmarkRuntime") {
             println("benchmark_runtime_version=${resolved.metadata.javaRuntimeVersion}")
             println("benchmark_runtime_vendor=${resolved.metadata.vendor}")
         }
-    }
-}
-
-tasks.register("prepareAlignmentDiagnostic") {
-    group = "benchmark"
-    description = "Stages the exact JVM runtime for the native alignment reference diagnostic."
-    dependsOn("jvmMainClasses", ":koblas:jvmJar")
-    val diagnosticClasspath = files(jvmCompilation.output.allOutputs, configurations.getByName("jvmRuntimeClasspath"))
-    val manifest = layout.buildDirectory.file("alignment-diagnostic-classpath.txt")
-    val runtime = layout.buildDirectory.dir("alignment-diagnostic-runtime")
-    val repository = rootProject.projectDir
-    inputs.files(diagnosticClasspath)
-    outputs.file(manifest)
-    outputs.dir(runtime)
-    doLast {
-        val directory = runtime.get().asFile
-        directory.deleteRecursively()
-        directory.mkdirs()
-        val entries = diagnosticClasspath.files.filter { it.exists() }.mapIndexed { index, source ->
-            val destination = directory.resolve("$index-${source.name}")
-            source.copyRecursively(destination, overwrite = true)
-            destination.relativeTo(repository).path
-        }
-        manifest.get().asFile.writeText(entries.joinToString(File.pathSeparator))
     }
 }
 
