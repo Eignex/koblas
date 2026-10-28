@@ -68,13 +68,19 @@ fi
 [[ -z $requested_vendor || $requested_vendor == "$vendor" ]] || { echo "vendor requires a different capture host" >&2; exit 2; }
 if [[ -z $targets ]]; then targets="jvm-scalar,jvm-simd,$vendor-jvm,$vendor"; fi
 
-./gradlew --no-daemon -Pkotlin.compiler.execution.strategy=in-process :koblas-bench:prepareLabBenchmark ":koblas-bench:linkReleaseExecutable$target" > "$output/build.log" 2>&1
+build_tasks=(:koblas-bench:prepareLabBenchmark)
+native_args=()
+if [[ ,$targets, == *,$vendor,* || ,$targets, == *,native,* || ,$targets, == *,native-default,* ]]; then
+  build_tasks+=(":koblas-bench:linkReleaseExecutable$target")
+  if [[ $target == MacosArm64 ]]; then native_target=macosArm64; else native_target=linuxX64; fi
+  native_args=(--native-executable "$root/koblas-bench/build/bin/$native_target/releaseExecutable/koblas-bench.kexe")
+fi
+./gradlew --no-daemon -Pkotlin.compiler.execution.strategy=in-process "${build_tasks[@]}" > "$output/build.log" 2>&1
 export KOBLAS_BENCH_JAVA="${JAVA_HOME:+$JAVA_HOME/bin/}java"
 export KOBLAS_BENCH_CLASSPATH="$root/koblas-bench/build/lab/classes:$root/koblas-bench/build/lab/lib/*"
 export KOBLAS_BENCH_HEAP_MIB=512
-if [[ $target == MacosArm64 ]]; then native_target=macosArm64; else native_target=linuxX64; fi
 exec bash koblas-bench/capture-report.sh --prepared --retain-incomplete \
-  --native-executable "$root/koblas-bench/build/bin/$native_target/releaseExecutable/koblas-bench.kexe" \
+  "${native_args[@]}" \
   --libraries "$vendor" --targets "$targets" \
   --cases "$cases" \
   --operation "$operation" \

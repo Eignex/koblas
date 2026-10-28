@@ -23,6 +23,7 @@ class JvmDefaultEngineTest {
         val exact = BuiltinEngines.simd ?: BuiltinEngines.scalar
 
         assertSame(exact.vectorKernels, koblas.vectorKernels)
+        assertSame(exact.indexedSparseKernels, koblas.indexedSparseKernels)
         assertSame(exact.panelKernels, koblas.panelKernels)
         assertTrue(koblas.vendor == null || koblas.vendor?.vendor == Vendor.OneMkl)
     }

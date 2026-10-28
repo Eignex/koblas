@@ -557,3 +557,12 @@ JMH allocation measurements alongside timing in the target logs. Raw product-blo
 kernel allocation from the temporary panel arrays used by whole products without a workspace.
 The eight-column prototype measured at revision `a23a3736` was removed after those measurements
 exposed extra allocation; its pinned source retains the experimental comparison target.
+
+### Thin GEMM and workspace reuse
+
+`gemm` accepts `workspace=retained` to reuse one ordinary-array `Workspace` across setup and measured
+calls. Omitting the option keeps the existing call without a workspace. Vendor arms execute the same
+arithmetic through their binding, which has no workspace parameter and still includes native transfers.
+Compare both owned cases before selecting a native crossover: removing repeated panel allocation can
+change which implementation wins. `lab/cases-thin-gemm-comparison.txt` includes depth, shape and
+transpose controls for that decision. JVM-only vendor captures skip linking an unused native executable.

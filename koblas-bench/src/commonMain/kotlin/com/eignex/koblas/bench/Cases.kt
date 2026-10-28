@@ -39,7 +39,7 @@ internal object Cases {
     )
     private val fixtures = setOf("uniform", "triangular", "sparse-uniform", "sparse-triangular")
     private val optionOrder =
-        listOf("density", "support", "mode", "reuse", "side", "uplo", "transA", "transB", "diag", "timing")
+        listOf("density", "support", "mode", "reuse", "side", "uplo", "transA", "transB", "diag", "timing", "workspace")
 
     fun parse(text: String): List<BenchCase> {
         val cases = text.lineSequence().mapIndexedNotNull { index, raw ->
@@ -113,6 +113,7 @@ internal object Cases {
             "uplo" -> if (value !in setOf("L", "U")) invalid("invalid uplo '$value'")
             "transA", "transB" -> if (value !in setOf("N", "T")) invalid("invalid transpose '$value'")
             "diag" -> if (value !in setOf("N", "U")) invalid("invalid diag '$value'")
+            "workspace" -> if (value != "retained") invalid("workspace must be retained")
         }
     }
 
@@ -164,7 +165,10 @@ internal object Cases {
         }
         // The sparse operand's own orientation, which is what a prepared transposed product derives once.
         if (operation in TRANSPOSABLE_SPARSE_OPERATIONS) add("transA")
-        if (operation == "gemm") add("transB")
+        if (operation == "gemm") {
+            add("transB")
+            add("workspace")
+        }
         // Dense storage changes the axis available to a right-hand side panel. The benchmark currently
         // exposes this flag for left-sparse products; the production right-sparse API also supports it.
         if (operation in setOf("spmm", "spmm-generic")) add("transB")

@@ -579,6 +579,7 @@ private fun gemmWork(case: BenchCase, engine: KoblasEngine): CaseWork? {
     val a = Fixtures.matrix(if (ta) k else m, if (ta) m else k, 1)
     val b = Fixtures.matrix(if (tb) n else k, if (tb) k else n, 2)
     val original = Fixtures.matrix(m, n, 3); val c = Fixtures.matrix(m, n, 3)
+    val workspace = if (case.options["workspace"] == "retained") Workspace() else null
     return level23(
         engine,
         DenseMatrixOperation.Gemm,
@@ -588,10 +589,10 @@ private fun gemmWork(case: BenchCase, engine: KoblasEngine): CaseWork? {
         "reset-and-arithmetic",
         verify = {
             val expected = DenseReference.gemm(alpha, a, ta, b, tb, beta, original)
-            original.values.copyInto(c.values); engine.gemm(alpha, a, ta, b, tb, beta, c)
+            original.values.copyInto(c.values); engine.gemm(alpha, a, ta, b, tb, beta, c, workspace)
             DenseReference.check(expected, c.values, "${case.id} gemm")
         },
-    ) { original.values.copyInto(c.values); engine.gemm(alpha, a, ta, b, tb, beta, c); c.values[0] }
+    ) { original.values.copyInto(c.values); engine.gemm(alpha, a, ta, b, tb, beta, c, workspace); c.values[0] }
 }
 
 private fun triangularMatrixWork(case: BenchCase, engine: KoblasEngine): CaseWork? {

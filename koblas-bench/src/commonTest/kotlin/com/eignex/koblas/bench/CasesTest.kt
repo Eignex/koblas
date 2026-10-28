@@ -7,6 +7,22 @@ import kotlin.test.assertTrue
 
 class CasesTest {
     @Test
+    fun `retained workspace is an explicit gemm workload option`() {
+        val id = "gemm+16x16x4096+uniform+transA=T+workspace=retained"
+
+        val case = Cases.parse(id).single()
+
+        assertEquals(id, case.id)
+        assertEquals("retained", case.options["workspace"])
+        for (invalid in listOf(
+            "gemm+16x16x4096+uniform+workspace=temporary",
+            "dot+4096+uniform+workspace=retained",
+        )) {
+            assertFailsWith<IllegalArgumentException> { Cases.parse(invalid) }
+        }
+    }
+
+    @Test
     fun `shrinking rank update batches require a nonempty sequence`() {
         for (operation in listOf("ger-shrinking", "ger-window-shrinking", "panel-rankupdate-shrinking")) {
             assertFailsWith<IllegalArgumentException> { Cases.parse("$operation+1+uniform") }

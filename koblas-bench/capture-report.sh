@@ -266,7 +266,7 @@ cp "$cases" "$results/cases.txt"
   echo "native_capable=$native_capable"
   # Which binary the native rows came from, since a supplied one was built on another machine and is the only
   # way an ARM64 host has any. A report that does not say this cannot be told apart from one that linked here.
-  echo "native_executable=${native_executable:-built on this host}"
+  echo "native_executable=${native_executable:-not supplied}"
   echo "requested_jvm_forks=$forks"
   if [[ $platform == Linux ]]; then awk '/^Cpus_allowed_list:/ { print "cpu_affinity=" $2 }' /proc/self/status; fi
   echo "targets=$(IFS=,; echo "${targets[*]}")"
