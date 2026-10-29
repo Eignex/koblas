@@ -52,7 +52,6 @@ reuses temporary buffers. See the [usage guide](USAGE.md) for examples.
 - [Engines and native libraries](BACKENDS.md): loading diagram, function coverage, thresholds and measured gains.
 - [Usage](USAGE.md): platform setup, Kotlin and Java examples, reusable storage and submatrix views.
 - [API overview](koblas/module.md): dense, sparse and raw array operations.
-- [Migration](MIGRATION.md): replacements for removed APIs.
 - [Benchmarks](koblas-bench/README.md): reproducible comparisons and measurement reports.
 
 ## Development
