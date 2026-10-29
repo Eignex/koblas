@@ -1,7 +1,7 @@
 package com.eignex.koblas
 
 /**
- * Allows selecting exact built-in engines for benchmarks and conformance tests.
+ * Allows exact built-in engine selection and shape diagnostics for benchmarks and conformance tests.
  *
  * Application convenience operations use [koblas], the platform default. Selecting a [BuiltinEngines]
  * instance does not change that default; calls through the instance use its own kernels and fallbacks.
@@ -12,5 +12,5 @@ package com.eignex.koblas
     level = RequiresOptIn.Level.ERROR,
 )
 @Retention(AnnotationRetention.BINARY)
-@Target(AnnotationTarget.CLASS, AnnotationTarget.PROPERTY)
+@Target(AnnotationTarget.CLASS, AnnotationTarget.PROPERTY, AnnotationTarget.FUNCTION)
 public annotation class KoblasEngineApi

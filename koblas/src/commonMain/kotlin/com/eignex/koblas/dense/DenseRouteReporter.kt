@@ -1,28 +1,16 @@
+@file:OptIn(com.eignex.koblas.KoblasEngineApi::class)
 @file:Suppress("TooManyFunctions") // one description per executed shape, beside the traversal it describes
 
 package com.eignex.koblas.dense
 
 import com.eignex.koblas.vendor.RouteKind
 
-/**
- * What a built-in dense Level 2 or 3 call executes, derived from the decisions the call itself makes.
- *
- * Every answer here comes from walking the same traversal the execution walks, with the same grouping and
- * the same block extents, and asking the selected backends what each window of it reaches. That is the
- * difference between a route and a guess: a triangular traversal over four columns cuts windows of three,
- * two, one and nothing, so on a machine whose lane block is four it never reaches a vector body at all, and
- * a description derived from the operation and the order alone would say it did.
- *
- * Nothing here computes. Building a route inspects shapes and allocates a list, which is why it belongs
- * before a timed region and never inside one.
- */
 internal class DenseRouteReporter(
     private val vectors: DenseVectorKernels,
     private val panels: DensePanelKernels,
     private val products: DenseProductKernels,
     private val triangles: DenseTriangularKernels,
 ) {
-    /** What a call of [operation] with the facts in [call] executes. */
     fun routeOf(operation: DenseMatrixOperation, call: DenseCall): DenseMatrixRoute {
         if (call.alpha == 0.0 || call.rows == 0 || call.columns == 0 || call.depth == 0) {
             return route(
@@ -30,7 +18,6 @@ internal class DenseRouteReporter(
                 RouteKind.NoWork,
                 destinationScaling(operation, call, working = false),
                 0,
-                "the call's own contract stops before the arithmetic, so only the destination scaling runs",
             )
         }
         if (operation in PRODUCT_OPERATIONS) return productRoute(operation, call)
@@ -44,19 +31,10 @@ internal class DenseRouteReporter(
                 RouteKind.Direct,
                 scaling,
                 0,
-                "the arithmetic is this traversal's own; no panel or Level 1 kernel is called",
             )
         return panelRoute(operation, call, scaling, work)
     }
 
-    /**
-     * The components a call reaches, collected in the order it reaches them.
-     *
-     * A list and two flags rather than a returned description per window, because a structured call is
-     * several windows and what a caller wants from them is one route. [composed] records that some unit of
-     * work reached a body another did not, which is what makes a route name what may run rather than what
-     * does.
-     */
     private class Parts {
         val components = ArrayList<String>(6)
         var group: Int = 0
@@ -67,13 +45,6 @@ internal class DenseRouteReporter(
             if (component !in components) components.add(component)
         }
 
-        /**
-         * The grouping a window was scheduled with, kept only while every window agrees on one.
-         *
-         * A structured call is several windows of different shapes, and the backend may recommend a
-         * different width for each. One of them would not describe the call, so where they disagree the
-         * route reports no grouping at all rather than the one that happened to be asked for last.
-         */
         fun useGroup(recommended: Int) {
             if (varies) return
             if (group == 0) {
@@ -85,18 +56,9 @@ internal class DenseRouteReporter(
         }
     }
 
-    /** The route these parts describe, composed where one unit of work reached a body another did not. */
-    private fun Parts.route(operation: DenseMatrixOperation, reason: String): DenseMatrixRoute =
-        route(operation, if (composed) RouteKind.Composed else RouteKind.Direct, components, group, reason)
+    private fun Parts.route(operation: DenseMatrixOperation): DenseMatrixRoute =
+        route(operation, if (composed) RouteKind.Composed else RouteKind.Direct, components, group)
 
-    /**
-     * What one product window of these extents executes, appended to [parts].
-     *
-     * The same question [productWindow] answers when it runs: a window with enough arithmetic to hide a copy
-     * of both operands is packed into the backend's tiles, and one without runs as panel work over the
-     * operands where they lie. The answer comes back, so a caller that has to describe
-     * the choice asks it once rather than again.
-     */
     private fun addProductWindow(parts: Parts, call: WindowShape): Boolean {
         if (call.rows <= 0 || call.columns <= 0) return false
         val packs = packsWindow(products, call.rows, call.columns, call.depth, call.selected)
@@ -104,7 +66,6 @@ internal class DenseRouteReporter(
         return packs
     }
 
-    /** The packing and tile bodies a blocked window reaches, taken from walking its own block schedule. */
     private fun addBlockedWindow(parts: Parts, call: WindowShape) {
         // Report panels and tiles in schedule order: right panel, left panel, then tile.
         parts.add("$PRODUCT_PACKING/right-panel")
@@ -131,7 +92,6 @@ internal class DenseRouteReporter(
         if (parts.components.size - before > 1) parts.composed = true
     }
 
-    /** The tiles a block straddling the diagonal cuts, and the merge its straddling tiles reach. */
     private fun addSelectedBlock(
         parts: Parts,
         call: WindowShape,
@@ -145,15 +105,6 @@ internal class DenseRouteReporter(
         if (!whole) parts.add("$TRIANGLE_SELECTION/triangle-tile")
     }
 
-    /**
-     * The panels a window too small or too thin to pack reaches, over the columns its traversal cuts.
-     *
-     * Which panel that is depends on the left transpose. Whether its shared vector is adjacent is a question
-     * only the reducing form has: a column update shares its destination strip, which is always adjacent,
-     * while a reduction shares the coefficient column, which a transposed right operand leaves strided by as
-     * many entries as the destination has columns. One destination column makes even that adjacent, which is
-     * why the stride is worked out rather than read off the flag.
-     */
     private fun addDirectWindow(parts: Parts, call: WindowShape) {
         val work = directPanelWork(call.transposeA)
         val chunk = directColumnBlock(call.rows)
@@ -188,12 +139,6 @@ internal class DenseRouteReporter(
         parts.useGroup(group)
     }
 
-    /**
-     * What a matrix product executes, which is a question about its extents and how its operands arrived.
-     *
-     * A call whose operands were packed beforehand always runs in the tiles, and names only the packing it
-     * still has to do, which is none where both panels were retained.
-     */
     private fun productRoute(operation: DenseMatrixOperation, call: DenseCall): DenseMatrixRoute {
         val k = requireNotNull(call.depth) { "a product route needs the call's shared dimension" }
         val parts = Parts()
@@ -206,25 +151,12 @@ internal class DenseRouteReporter(
             OutputTriangle.Full,
             rightStride = if (call.transposeB) call.rightLeadingDimension ?: call.columns else 1,
         )
-        val packed = addProductWindow(parts, shape)
+        addProductWindow(parts, shape)
         return parts.route(
             operation,
-            if (packed) {
-                "the product is cut into cache blocks, with beta carried by the first depth block"
-            } else {
-                "too little arithmetic here to pay for packing, so the product runs as panel work down each " +
-                    "destination column"
-            },
         )
     }
 
-    /**
-     * What a product into one triangle of a square destination executes.
-     *
-     * `gemmt` and `syrk` are one window and `syr2k` is two of the same shape, which is what makes the
-     * fused form a comparison rather than an implementation: the two products it composes are ordinary
-     * windows, and a fused traversal would have to beat both of them together.
-     */
     private fun triangleProductRoute(operation: DenseMatrixOperation, call: DenseCall): DenseMatrixRoute {
         val k = requireNotNull(call.depth) { "a triangle-selected product route needs the shared dimension" }
         val parts = Parts()
@@ -236,25 +168,9 @@ internal class DenseRouteReporter(
         if (pairs) parts.composed = true
         return parts.route(
             operation,
-            (
-                if (pairs) {
-                    "the rank update is the two products it is defined as, composed rather than fused, each "
-                } else {
-                    "the product is one window, "
-                }
-                ) +
-                "scheduled over the selected triangle only: a block wholly in the other triangle is never " +
-                "cut, and one straddling the diagonal reaches the destination a selected entry at a time",
         )
     }
 
-    /**
-     * What a symmetric product against a dense block executes.
-     *
-     * The symmetric operand's diagonal blocks are written out and multiplied as dense squares, and the
-     * strips of its stored triangle beside them are multiplied twice, once as stored and once transposed,
-     * which is the mirrored half. The windows are walked here exactly as the execution walks them.
-     */
     private fun symmetricRoute(operation: DenseMatrixOperation, call: DenseCall): DenseMatrixRoute {
         val order = requireNotNull(call.depth) { "a symmetric product route needs the operand's order" }
         val parts = Parts()
@@ -282,19 +198,9 @@ internal class DenseRouteReporter(
         if (order > block) parts.composed = true
         return parts.route(
             operation,
-            "the symmetric operand is cut into diagonal blocks and the stored strips beside them; a strip " +
-                "is multiplied as stored and again transposed, which is the half that is not stored, and " +
-                "only a diagonal block is copied",
         )
     }
 
-    /**
-     * What a triangular matrix multiply or solve executes.
-     *
-     * The diagonal blocks reach the selected substitution backend and the products between them are
-     * ordinary windows of shared product scheduling. Both are walked here over the same blocks the call
-     * cuts, so a call whose order fits one block names no product at all and says so.
-     */
     private fun triangularMatrixRoute(operation: DenseMatrixOperation, call: DenseCall): DenseMatrixRoute {
         val order = requireNotNull(call.depth) { "a triangular matrix route needs the triangle's order" }
         val solve = operation == DenseMatrixOperation.Trsm
@@ -340,18 +246,9 @@ internal class DenseRouteReporter(
         if (parts.components.size - before > 1) parts.composed = true
         return parts.route(
             operation,
-            "the dependency chain is cut into diagonal blocks of $block, each substituted over $group " +
-                "right-hand sides at a time" +
-                (if (gathers) " in a gathered copy of them" else " where they lie") +
-                if (order > block) {
-                    ", and the product between one block and the steps it still reaches is an ordinary window"
-                } else {
-                    ", and the order fits one block, so no product runs between them"
-                },
         )
     }
 
-    /** The panel a call of [operation] schedules, or null where it schedules none. */
     private fun panelWorkOf(operation: DenseMatrixOperation): PanelWork? = when (operation) {
         DenseMatrixOperation.Gemv, DenseMatrixOperation.Trmv, DenseMatrixOperation.Trsv -> PanelWork.ColumnUpdate
 
@@ -371,25 +268,8 @@ internal class DenseRouteReporter(
         kind: RouteKind,
         components: List<String>,
         group: Int,
-        reason: String?,
-    ): DenseMatrixRoute =
-        DenseMatrixRoute(operation, kind, DENSE_SCHEDULING, operation.entryPoint, components, group, reason)
+    ): DenseMatrixRoute = DenseMatrixRoute(operation, kind, DENSE_SCHEDULING, operation.entryPoint, components, group)
 
-    /**
-     * The destination scaling component, which is a dense Level 1 `scale` when the multiplier is neither
-     * zero nor one.
-     *
-     * Which calls reach a kernel for it depends on whether the call does any work. An ordinary transposed
-     * matrix-vector product folds beta into the panel that writes each output, so it names no scaling; the
-     * same call with nothing to compute has no panel to fold it into and scales the destination through the
-     * kernel like the rest.
-     *
-     * Most of Level 3 folds the multiplier into the product block or the panel that writes each output, and
-     * scales what is left of its selected region with a loop of its own, which is no kernel and is named as
-     * nothing. A symmetric product cannot: none of the windows its operand is cut into owns an entry of the
-     * destination, so the multiplier is a pass of its own over the whole buffer, made by the Level 1 kernel
-     * the route then names.
-     */
     private fun destinationScaling(operation: DenseMatrixOperation, call: DenseCall, working: Boolean): List<String> {
         val scales = when (operation) {
             DenseMatrixOperation.Gemv, DenseMatrixOperation.Symv, DenseMatrixOperation.Symm -> true
@@ -405,13 +285,6 @@ internal class DenseRouteReporter(
         return scaleComponent(vectors, elements)
     }
 
-    /**
-     * A call whose arithmetic is panels of [work], reported over the windows its traversal will actually cut.
-     *
-     * A rectangular operand's windows are all as long as it is tall, so one implementation serves the whole
-     * call. A triangular or symmetric traversal's shrink towards the diagonal, so which of a backend's bodies
-     * they reach can differ between them and can be none of them, and the route says which of the three it is.
-     */
     private fun panelRoute(
         operation: DenseMatrixOperation,
         call: DenseCall,
@@ -434,7 +307,6 @@ internal class DenseRouteReporter(
                 RouteKind.Direct,
                 scaling,
                 0,
-                "every window this traversal cuts is empty, so no panel runs and the arithmetic is its own",
             )
 
             1 -> route(
@@ -442,7 +314,6 @@ internal class DenseRouteReporter(
                 RouteKind.Direct,
                 scaling + "${leaves.single()}/$entry",
                 group,
-                "every window of this traversal reaches the same panel implementation at its own length",
             )
 
             else -> route(
@@ -450,20 +321,10 @@ internal class DenseRouteReporter(
                 RouteKind.Composed,
                 scaling + leaves.map { "$it/$entry" },
                 group,
-                "this traversal's windows shrink towards the diagonal, so they reach " +
-                    leaves.joinToString(" and ") + ", and its corner is the traversal's own arithmetic",
             )
         }
     }
 
-    /**
-     * The windows a call of [operation] hands to its panel, as the length of each and how many columns it
-     * carries.
-     *
-     * Each traversal is walked through the same helper the call itself walks, so the lengths are the ones
-     * the schedule really cuts: what a triangle's storage leaves at each group, in the order the dependence
-     * reaches it.
-     */
     private inline fun forEachWindow(
         operation: DenseMatrixOperation,
         call: DenseCall,
@@ -508,11 +369,6 @@ internal class DenseRouteReporter(
     }
 }
 
-/**
- * One product window as the route sees it: extents, both transposes and which triangle it may write.
- *
- * The same six numbers [productWindow] takes its decisions from, without the operands it takes them for.
- */
 private class WindowShape(
     val rows: Int,
     val columns: Int,
@@ -520,13 +376,5 @@ private class WindowShape(
     val transposeA: Boolean = false,
     val transposeB: Boolean = false,
     val selected: OutputTriangle = OutputTriangle.Full,
-    /**
-     * How far apart the coefficients of one destination column are, which decides whether a reduction can
-     * vectorise over them and so whether the direct route gathers.
-     *
-     * Adjacent for an untransposed right operand. For a transposed one it is that operand's stored leading
-     * dimension, which is the window's own columns where the window is the whole matrix and something else
-     * where it is a strip of one, so a caller handing over a strip states it.
-     */
     val rightStride: Int = if (transposeB) columns else 1,
 )

@@ -1,3 +1,4 @@
+@file:OptIn(com.eignex.koblas.KoblasEngineApi::class)
 @file:kotlin.jvm.JvmName("Koblas")
 @file:kotlin.jvm.JvmMultifileClass
 
@@ -130,6 +131,7 @@ public class KoblasEngine internal constructor(
      * Names the panels and kernels reached by the shared schedule, including short-window fallbacks.
      * A whole-call host route identifies the library and entry point.
      */
+    @com.eignex.koblas.KoblasEngineApi
     public fun routeOf(operation: DenseMatrixOperation, call: DenseCall): DenseMatrixRoute =
         dense.routeOf(operation, call)
 
@@ -139,6 +141,7 @@ public class KoblasEngine internal constructor(
      * [contiguous] says whether the operands have unit stride. A composed route means values
      * decide which implementation finishes the call; inspecting a route does not execute it.
      */
+    @com.eignex.koblas.KoblasEngineApi
     public fun routeOf(
         operation: DenseOperation,
         length: Int,
@@ -152,6 +155,7 @@ public class KoblasEngine internal constructor(
     )
 
     /** The route for a sparse vector call over [count] stored entries. */
+    @com.eignex.koblas.KoblasEngineApi
     public fun routeOf(operation: SparseOperation, count: Int): VectorRoute<SparseOperation> =
         sparseKernels.routeOf(operation, count)
 

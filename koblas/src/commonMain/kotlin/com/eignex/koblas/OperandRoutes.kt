@@ -1,3 +1,4 @@
+@file:OptIn(com.eignex.koblas.KoblasEngineApi::class)
 @file:Suppress("LongParameterList") // the matrix product signature
 @file:kotlin.jvm.JvmName("Koblas")
 @file:kotlin.jvm.JvmMultifileClass
@@ -19,6 +20,7 @@ import com.eignex.koblas.vendor.RouteKind
  * Prepared operands retain their bound engine; other products are described using this engine.
  * The generic zero-alpha shortcut uses the default engine's scaling kernels.
  */
+@com.eignex.koblas.KoblasEngineApi
 public fun KoblasEngine.routeOf(
     alpha: Double,
     a: Matrix,
@@ -39,6 +41,7 @@ public fun KoblasEngine.routeOf(
  * Describes [Matrix.gemm] without allocating its result. Two sparse operands, prepared or ordinary,
  * produce CSC storage; other pairings produce dense storage. No cached orientation is constructed.
  */
+@com.eignex.koblas.KoblasEngineApi
 public fun KoblasEngine.routeOf(
     alpha: Double,
     a: Matrix,
@@ -81,7 +84,6 @@ private fun KoblasEngine.productRoute(
             "gemm",
             scaling,
             0,
-            "the generic product only scales its destination",
         )
     }
     val left = storedCsc(a)
@@ -107,18 +109,16 @@ private fun KoblasEngine.productRoute(
                 ),
             )
             val empty = left.nnz == 0 || right.nnz == 0
-            val orientation = if (reachesAPosition(alpha, left, right) &&
-                ((a is PreparedSparseMatrix && transposeA) || (b is PreparedSparseMatrix && transposeB))
-            ) {
-                "a prepared transpose is derived on first use and traversed untransposed"
-            } else {
-                "no prepared orientation is derived"
-            }
             // Sparse-sparse arithmetic has no per-column SIMD leaf, so routing needs no derived pattern.
             SparseMatrixRoute(
-                route.operation, if (empty) RouteKind.NoWork else route.kind, route.scheduling,
-                route.entryPoint, route.components, "$orientation; ${route.reason.orEmpty()}",
-                route.executionGroup, route.executionTail, route.resolved,
+                route.operation,
+                if (empty) RouteKind.NoWork else route.kind,
+                route.scheduling,
+                route.entryPoint,
+                route.components,
+                route.executionGroup,
+                route.executionTail,
+                route.resolved,
             )
         }
 

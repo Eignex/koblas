@@ -1,3 +1,4 @@
+@file:OptIn(com.eignex.koblas.KoblasEngineApi::class)
 @file:Suppress("VariableNaming", "FunctionParameterNaming", "TooManyFunctions") // math and the sparse surface
 
 package com.eignex.koblas.sparse
@@ -35,6 +36,7 @@ public interface SparseBlas {
      * therefore carries the call rather than a representative size, so a matrix whose columns reach two
      * different kernels is reported as the composition it is instead of being averaged into one leaf.
      */
+    @com.eignex.koblas.KoblasEngineApi
     public fun routeOf(operation: SparseMatrixOperation, call: SparseCall): SparseMatrixRoute
 
     /**

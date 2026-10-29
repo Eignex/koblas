@@ -10,10 +10,8 @@ import com.eignex.koblas.poisonedSymmetric
 import com.eignex.koblas.randomMatrix
 import kotlin.random.Random
 import kotlin.test.Test
-import kotlin.test.assertContains
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
-import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 // Shapes are derived from the resolved backend rather than written down: a fixed extent takes the packed
@@ -475,7 +473,6 @@ class StructuredProductTest {
             )
 
             assertEquals(DenseMatrixOperation.Syr2k, route.operation)
-            assertContains(assertNotNull(route.reason), "composed rather than fused")
             assertTrue(!route.exactlyMeasurable, route.toString())
         }
     }

@@ -247,7 +247,6 @@ class SparsePanelRouteTest {
 
         assertTrue(recorder.runs.isEmpty(), "a single right-hand side reached a panel: ${recorder.runs}")
         assertEquals(emptyList(), panelBodies(route), route.toString())
-        assertTrue(route.reason.orEmpty().contains("written out"), route.toString())
         assertEquals(1, route.executionGroup)
     }
 
@@ -281,7 +280,6 @@ class SparsePanelRouteTest {
                 val context = "solve=$solve transpose=$transpose"
                 assertTrue(recorder.runs.isEmpty(), "$context reached a panel: ${recorder.runs}")
                 assertEquals(emptyList(), panelBodies(route), "$context: $route")
-                assertTrue(route.reason.orEmpty().contains("written out"), "$context: $route")
                 assertEquals(1, route.executionGroup, context)
             }
         }
@@ -324,7 +322,6 @@ class SparsePanelRouteTest {
             assertTrue(recorder.runs.none { it.rows == 1 }, "$context: a tail of one reached a panel")
             assertEquals(recorder.bodies(), panelBodies(route), context)
             assertEquals(RouteKind.Composed, route.kind, context)
-            assertTrue(route.reason.orEmpty().contains("written out"), route.toString())
         }
     }
 
@@ -364,8 +361,6 @@ class SparsePanelRouteTest {
                 assertTrue(recorder.runs.none { it.rows == 1 }, "$context: a tail of one reached a panel")
                 assertEquals(recorder.bodies(), panelBodies(route), context)
                 assertEquals(RouteKind.Composed, route.kind, context)
-                assertTrue(route.reason.orEmpty().contains("written out"), "$context: $route")
-                assertEquals(!transpose, route.reason.orEmpty().contains("live"), "$context: $route")
             }
         }
     }

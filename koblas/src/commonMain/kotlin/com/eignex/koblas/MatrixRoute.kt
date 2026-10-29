@@ -23,9 +23,6 @@ public interface MatrixRoute {
     /** Every implementation and leaf the call reaches, in call order. */
     public val components: List<String>
 
-    /** What the components cover, what the traversal keeps for itself, or why the call is composed. */
-    public val reason: String?
-
     /**
      * Logical columns or right-hand sides the backend recommended handing over at a time, and zero where the
      * call groups none. A grouping, not a lane count.
@@ -34,7 +31,8 @@ public interface MatrixRoute {
 
     /** The full attribution: the scheduling, plus every component it calls. */
     public val implementation: String
+        get() = if (components.isEmpty()) scheduling else components.joinToString("+", prefix = "$scheduling+")
 
     /** Whether this call is admissible as an exact measurement of the implementations named. */
-    public val exactlyMeasurable: Boolean
+    public val exactlyMeasurable: Boolean get() = kind == RouteKind.Direct
 }

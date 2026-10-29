@@ -7,7 +7,6 @@ import com.eignex.koblas.vendor.RouteKind
 import kotlin.test.Test
 import kotlin.test.assertContains
 import kotlin.test.assertEquals
-import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 // A route answers which of a backend's bodies this call's windows reach, not which backend was selected.
@@ -151,7 +150,6 @@ class DenseMatrixRouteTest {
 
         assertTrue(!composed.exactlyMeasurable, composed.toString())
         assertTrue(composed.components.size > 1, composed.toString())
-        assertContains(assertNotNull(composed.reason), "shrink")
     }
 
     @Test
@@ -223,7 +221,6 @@ class DenseMatrixRouteTest {
                 single.components.any { it.endsWith("/diagonal-solve") },
                 "${engine.name} named ${single.components} and no substitution",
             )
-            assertContains(assertNotNull(single.reason), "no product runs between them")
             assertTrue(
                 several.components.any { it.endsWith("/product-block") || it.endsWith("/column-update") },
                 "${engine.name} named ${several.components} for an order of several blocks",
@@ -301,7 +298,6 @@ class DenseMatrixRouteTest {
 
                 assertEquals(emptyList(), route.components, "$operation of order one on ${engine.name}")
                 assertEquals(RouteKind.Direct, route.kind)
-                assertContains(assertNotNull(route.reason), "empty")
             }
         }
     }
@@ -346,7 +342,6 @@ class DenseMatrixRouteTest {
 
             assertTrue(plain.components.any { it.endsWith("/column-update") }, "${engine.name} $plain")
             assertTrue(transposed.components.any { it.endsWith("/multi-dot") }, "${engine.name} $transposed")
-            assertContains(assertNotNull(plain.reason), "packing")
         }
     }
 

@@ -114,7 +114,6 @@ class OperandRoutesTest {
         val route = koblas.routeOf(1.0, prepared, true, sparse(4, 2), false) as SparseMatrixRoute
 
         assertTrue(route.resolved, route.toString())
-        assertTrue(route.reason.orEmpty().contains("derived on first use"), route.toString())
         assertFalse(prepared.orientationDerived, "describing the call derived the orientation it describes")
     }
 
@@ -126,7 +125,6 @@ class OperandRoutesTest {
         val route = koblas.routeOf(1.0, prepared, true, empty, false) as SparseMatrixRoute
 
         assertTrue(route.resolved, route.toString())
-        assertTrue(route.reason.orEmpty().contains("no prepared orientation is derived"), route.toString())
         assertFalse(prepared.orientationDerived, "a call reaching no position derived an orientation")
     }
 
@@ -176,7 +174,6 @@ class OperandRoutesTest {
         val route = koblas.routeOf(1.0, sparse(2, 3), false, prepared, true) as SparseMatrixRoute
 
         assertTrue(route.resolved)
-        assertTrue(route.reason.orEmpty().contains("derived on first use"))
         assertFalse(prepared.orientationDerived)
     }
 

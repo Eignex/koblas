@@ -1,3 +1,4 @@
+@file:OptIn(com.eignex.koblas.KoblasEngineApi::class)
 @file:Suppress(
     "VariableNaming",
     "FunctionParameterNaming",
@@ -162,9 +163,6 @@ internal class HostDenseBlas(
             entryPoint = operation.entryPoint,
             components = components,
             executionGroup = 0,
-            reason = "the whole call is one ${host.vendor.vendorName} entry point at ${host.libraryPath}, " +
-                "version ${host.version}, ${host.threadEvidence.label}" +
-                if (call.aliased) "; an input sharing the destination is copied into scratch first" else "",
             host = hostRoute,
         )
     }

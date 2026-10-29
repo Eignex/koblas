@@ -1,3 +1,5 @@
+@file:OptIn(com.eignex.koblas.KoblasEngineApi::class)
+
 package com.eignex.koblas
 
 import com.eignex.koblas.sparse.SparseBlas
@@ -110,6 +112,7 @@ public class PreparedSparseMatrix internal constructor(a: SparseMatrix, internal
      * operand absent from these facts, so their schedule is reported as unsettled.
      * [call] supplies scalars and extents; [SparseCall.matrix] is ignored in favor of this snapshot.
      */
+    @com.eignex.koblas.KoblasEngineApi
     public fun routeOf(operation: SparseMatrixOperation, call: SparseCall): SparseMatrixRoute {
         if (orientsOnAnotherOperand(operation) && call.transposeSparse) {
             // The missing second operand decides whether any position is reached and a transpose is needed.
@@ -147,7 +150,6 @@ public class PreparedSparseMatrix internal constructor(a: SparseMatrix, internal
             route.scheduling,
             route.entryPoint,
             route.components.filter { it.endsWith("/scale") },
-            UNDECIDED_ORIENTATION + route.reason?.let { ". Whatever runs, $it" }.orEmpty(),
             route.executionGroup,
             route.executionTail,
             resolved = false,
@@ -175,8 +177,3 @@ public class PreparedSparseMatrix internal constructor(a: SparseMatrix, internal
         else -> false
     }
 }
-
-/** What an unsettled route says in place of the traversal a second sparse operand would have decided. */
-private const val UNDECIDED_ORIENTATION: String =
-    "a transposed product against a second sparse operand runs either the derived orientation or the " +
-        "snapshot itself, and which one depends on that operand, which these call facts do not carry"
