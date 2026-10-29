@@ -22,7 +22,7 @@ internal object SimdOps {
 
     fun lanes(): Int = LANE
 
-    /** A contiguous AXPY keeps the multiply separate so an overflowing product is not rescued by FMA. */
+    /** Contiguous AXPY with compact and streaming bodies. */
     @Suppress("LongParameterList") // two independently addressed vector windows and their multiplier
     fun axpy(y: DoubleArray, yOff: Int, alpha: Double, x: DoubleArray, xOff: Int, len: Int) {
         if (alpha == 0.0) return

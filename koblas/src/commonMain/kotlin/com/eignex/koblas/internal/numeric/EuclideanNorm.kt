@@ -7,7 +7,7 @@ import kotlin.math.sqrt
 internal const val MIN_NORMAL = 2.2250738585072014e-308
 
 /**
- * Euclidean norm of the run v(off until off + len), accurate over the whole double range (BLAS `dnrm2`).
+ * Euclidean norm of the run v(off until off + len), using finite-range scaling (BLAS `dnrm2`).
  * When a plain sum of squares overflows or underflows, a second pass factors out the largest magnitude.
  */
 internal fun euclideanNorm(v: DoubleArray, off: Int, stride: Int, len: Int): Double {

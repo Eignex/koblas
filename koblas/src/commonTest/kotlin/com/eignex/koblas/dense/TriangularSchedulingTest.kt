@@ -182,24 +182,6 @@ class TriangularSchedulingTest {
         }
     }
 
-    // The BLAS solves carry no status, so a zero pivot is whatever the division gives: an infinity for a
-    // nonzero numerator and a NaN for a zero one.
-    @Test
-    fun `a zero pivot yields the infinity or the NaN the division yields`() = withDenseBlas { blas ->
-        val sides = VECTOR_SIDES + 1
-        val triangle = DenseMatrix.wrap(1, 1, doubleArrayOf(0.0))
-        val b = DenseMatrix.wrap(1, sides, DoubleArray(sides) { if (it == 0) 0.0 else 1.0 })
-        // One right-hand side is zero and the rest are not, so both sides of the singular case run in the
-        // same call and neither can be mistaken for the other.
-
-        blas.trsm(triangle, b, lower = true)
-
-        assertTrue(b.values[0].isNaN(), "a zero over a zero pivot was not a NaN")
-        for (side in 1 until sides) {
-            assertEquals(Double.POSITIVE_INFINITY, b.values[side], "side $side over a zero pivot")
-        }
-    }
-
     /** A zero multiplier writes zeros over the whole block and reads no coefficient at all. */
     @Test
     fun `a zero alpha fills the block without reading the triangle`() = withDenseBlas { blas ->
@@ -291,7 +273,7 @@ class TriangularSchedulingTest {
             }
         }
 
-        assertTrue(afterOne > 0, "a call over ${order / TRIANGULAR_DIAGONAL_BLOCK} blocks borrowed nothing")
+        assertEquals(0, afterOne, "a single right-hand side needs no accumulating column")
         assertTrue(
             afterOne <= MAX_IDLE_LENGTHS,
             "order $order solve=$solve left $afterOne lengths behind, past what a workspace retains",

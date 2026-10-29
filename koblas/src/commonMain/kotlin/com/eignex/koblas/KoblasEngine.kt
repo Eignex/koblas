@@ -87,9 +87,8 @@ public class KoblasEngine internal constructor(
          * instance for repeated calls; each concurrent invocation needs its own destinations and workspace.
          * Creating it does not change [koblas] or the engines used by container convenience operations.
          *
-         * Finite computations are repeatable for identical inputs, storage shapes, operation order and
-         * flags on the same library, target and runtime configuration. Different backends, platforms or
-         * versions can round differently; non-finite values retain the individual BLAS routine's contract.
+         * Arithmetic follows routine-specific BLAS semantics. Implementations may fuse operations and
+         * reassociate reductions; rounding and unspecified exceptional results can vary between backends.
          */
         public fun portable(): KoblasEngine = KoblasEngine(ScalarVectorKernels, ScalarIndexedSparseKernels, null)
     }

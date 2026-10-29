@@ -96,7 +96,7 @@ class DenseVectorKernelsTest {
     @Test
     fun `the simd iamax agrees exactly with the kernels it falls back to`() {
         val simd = BuiltinEngines.simd ?: return
-        assertIamaxAgreesWithReference(simd.vectorKernels)
+        assertIamaxHonoursItsContract(simd.vectorKernels)
     }
 
     @Test

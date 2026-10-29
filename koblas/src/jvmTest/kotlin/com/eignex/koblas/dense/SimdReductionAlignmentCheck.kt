@@ -40,8 +40,8 @@ internal object SimdReductionAlignmentCheck {
         }
 
         SimdOpsTest().`reductions agree with the scalar oracle for windows in large backing arrays`()
-        SimdOpsTest().assertExceptionalReductionsAgreeWithReference(65_536)
-        SimdOpsTest().assertExceptionalReductionsAgreeWithReference(65_537)
+        SimdOpsTest().assertFiniteReductionsAgreeWithReference(65_536)
+        SimdOpsTest().assertFiniteReductionsAgreeWithReference(65_537)
         val kernels = requireNotNull(BuiltinEngines.simd).vectorKernels
         for (i in values.indices) values[i] = (i % 17 - 8) / 16.0
         val other = DoubleArray(values.size) { (it % 11 - 5) / 8.0 }

@@ -81,8 +81,7 @@ internal class PortableSparseBlas(
                 val start = stableA.colPointers[j]
                 val end = stableA.colPointers[j + 1]
                 if (start == end) continue
-                // CSC gemv promises one input-order accumulation chain; a raw dot permits backend reassociation.
-                val sum = ScalarIndexedSparseKernels.dotDense(
+                val sum = indexedKernels.dotDense(
                     stableA.rowIndices,
                     start,
                     stableA.values,

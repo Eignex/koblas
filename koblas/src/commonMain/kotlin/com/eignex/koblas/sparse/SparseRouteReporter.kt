@@ -112,11 +112,7 @@ internal class SparseRouteReporter(
         return when (operation) {
             SparseMatrixOperation.Gemv -> scatteredRoute(operation, call, scaling)
 
-            SparseMatrixOperation.GemvTransposed -> route(
-                operation,
-                RouteKind.Direct,
-                scaling + "${ScalarIndexedSparseKernels.name}/${SparseOperation.DotDense.entryPoint}",
-            )
+            SparseMatrixOperation.GemvTransposed -> scatteredRoute(operation, call, scaling, SparseOperation.DotDense)
 
             SparseMatrixOperation.GemmDenseRight -> wholeColumnRoute(
                 operation,
@@ -204,7 +200,7 @@ internal class SparseRouteReporter(
         if (call.destinationElements == 0 || call.depth == 0) return true
         val emptyOperand = a.rows == 0 || a.cols == 0
         return when (operation) {
-            // A transposed matvec skips empty columns before reaching the ordered dot kernel.
+            // A transposed matvec skips empty columns before reaching an indexed dot kernel.
             SparseMatrixOperation.GemvTransposed -> call.alpha == 0.0 || emptyOperand || a.nnz == 0
 
             // A fresh structural result discovers its pattern even at zero alpha, without reading coefficients.
@@ -238,9 +234,10 @@ internal class SparseRouteReporter(
         operation: SparseMatrixOperation,
         call: SparseCall,
         scaling: List<String>,
+        leafOperation: SparseOperation = SparseOperation.Axpy,
     ): SparseMatrixRoute {
-        val leaves = indexedLeaves(call.matrix, SparseOperation.Axpy)
-        val entry = SparseOperation.Axpy.entryPoint
+        val leaves = indexedLeaves(call.matrix, leafOperation)
+        val entry = leafOperation.entryPoint
         if (leaves.size == 1) {
             return route(
                 operation,
@@ -342,6 +339,7 @@ internal class SparseRouteReporter(
         val leaves = ArrayList<String>(2)
         for (j in 0 until a.cols) {
             val length = a.colPointers[j + 1] - a.colPointers[j]
+            if (length == 0 && operation == SparseOperation.DotDense) continue
             val leaf = requireNotNull(indexedKernels.implementationFor(operation, length)) {
                 "matrix indexed updates must have a shape-determined implementation"
             }

@@ -121,7 +121,7 @@ class SparseMatrixRouteTest {
     }
 
     @Test
-    fun `a transposed gemv names the ordered scalar dot its contract fixes`() {
+    fun `a transposed gemv names its selected indexed dot`() {
         val engine = BuiltinEngines.simd ?: BuiltinEngines.scalar
 
         val route = engine.routeOf(
@@ -129,7 +129,8 @@ class SparseMatrixRouteTest {
             SparseCall(uniform(4, 4096)),
         )
 
-        assertEquals(listOf("scalar/dotDense"), route.components, "a transposed CSC reduction is ordered")
+        val leaf = engine.indexedSparseKernels.implementationFor(SparseOperation.DotDense, 4096)
+        assertEquals(listOf("$leaf/dotDense"), route.components)
     }
 
     @Test

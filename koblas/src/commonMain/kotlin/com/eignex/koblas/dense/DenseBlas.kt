@@ -167,7 +167,7 @@ public interface DenseBlas {
      *
      * Built-in implementations snapshot an input that shares [c]; explicit vendor seams reject that overlap.
      * [workspace] lends that snapshot, the packed panels a blocked product copies its operands into, and the
-     * accumulating column an unpacked one uses. A zero [alpha] or an empty shared dimension scales [c] and
+     * coefficient column a strided reduction gathers. A zero [alpha] or an empty shared dimension scales [c] and
      * reads no operand; a zero [beta] overwrites [c] without reading it, whatever stands there.
      *
      * Scaling placement and accumulation order depend on the selected implementation. This includes
@@ -331,8 +331,8 @@ public interface DenseBlas {
      * Solve `op(T) · x = b` in place (BLAS `dtrsv`) for the [lower] or upper triangle of the square [a],
      * `op` transposing when [transpose] and [unitDiag] taking the diagonal as 1. [x] carries b in and x out.
      *
-     * The diagonal is divided by, not tested: `dtrsv` carries no `info` and reports nothing, so a singular
-     * triangle yields infinities or NaNs and the caller who needs the distinction tests the diagonal first.
+     * As in BLAS `dtrsv`, no singularity or conditioning check is performed. Singular inputs have no
+     * guaranteed numerical result.
      *
      * The substitution overwrites [x] as it goes, so a triangle sharing that buffer is snapshotted first and
      * [workspace] lends the snapshot.

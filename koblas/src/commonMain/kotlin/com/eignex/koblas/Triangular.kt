@@ -10,11 +10,11 @@ import kotlin.jvm.JvmOverloads
 
 /**
  * Solve `op(T) · x = b` in place (BLAS `dtrsv`) for dense or sparse storage; see [DenseBlas.trsv] and
- * [SparseBlas.trsv]. Reads only the triangle [lower] selects, and does not check the diagonal, so a singular
- * triangle yields infinities or NaNs.
+ * [SparseBlas.trsv]. Reads only the triangle [lower] selects. No singularity check is performed, and singular
+ * inputs have no guaranteed numerical result.
  *
  * The two storages differ in one place the contract names: a missing sparse diagonal entry is the sparse
- * representation of zero and is divided by as such, so it behaves as an explicitly stored zero would.
+ * representation of zero.
  */
 @Suppress("LongParameterList") // the BLAS dtrsv signature plus the workspace
 @JvmOverloads
@@ -30,8 +30,8 @@ public fun MatrixStorage.trsv(
 }
 
 /** `B = alpha · op(T)⁻¹ · B`, or `B = alpha · B · op(T)⁻¹` when [right] (BLAS `dtrsm`); see
- *  [DenseBlas.trsm] and [SparseBlas.trsm]. Reads only the triangle [lower] selects, and a singular triangle
- *  yields infinities or NaNs. */
+ *  [DenseBlas.trsm] and [SparseBlas.trsm]. Reads only the triangle [lower] selects; singular
+ *  inputs have no guaranteed numerical result. */
 @Suppress("LongParameterList") // the BLAS dtrsm signature plus the workspace
 @JvmOverloads
 public fun MatrixStorage.trsm(

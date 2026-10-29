@@ -17,7 +17,6 @@ import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
-import kotlin.test.assertTrue
 
 /**
  * A backend that recommends a grouping of its own, so the shared traversal runs at widths no production
@@ -264,46 +263,6 @@ class PortableDenseBlasTest {
                 blas.syr(0.875, view, actual, lower)
                 assertClose(expected, actual, "strided syr stride=$stride lower=$lower")
             }
-        }
-    }
-
-    // The untransposed traversal scales each column's coefficient and the transposed one scales the finished
-    // reduction, both as reference BLAS does; an infinite multiplier against a zero entry separates them.
-    @Test
-    fun `alpha is scaled into the coefficient going down a column and into the sum going across one`() {
-        val blas = blasFor(4)
-        val a = DenseMatrix.wrap(2, 2, doubleArrayOf(0.0, 1.0, 1.0, 1.0))
-        val x = doubleArrayOf(1.0, 1.0)
-
-        val down = DoubleArray(2)
-        blas.gemv(Double.POSITIVE_INFINITY, a, x, 0.0, down)
-        val across = DoubleArray(2)
-        blas.gemv(Double.POSITIVE_INFINITY, a, x, 0.0, across, transpose = true)
-
-        // Down a column the coefficient is infinite before it meets the zero at (0, 0), which is a NaN.
-        assertTrue(down[0].isNaN(), "an infinite coefficient against a zero entry was not NaN, got ${down[0]}")
-        assertEquals(Double.POSITIVE_INFINITY, down[1])
-        // Across a row the sum is finite and the multiplier reaches it afterwards, so it stays an infinity.
-        assertEquals(Double.POSITIVE_INFINITY, across[0])
-        assertEquals(Double.POSITIVE_INFINITY, across[1])
-    }
-
-    // A zero coefficient is still multiplied: this is a matrix product and not an `axpy`.
-    @Test
-    fun `a zero entry of x still multiplies an infinity in the matrix`() {
-        // The infinity sits where the zero coefficient meets it in both directions.
-        val a = DenseMatrix.wrap(2, 2, doubleArrayOf(1.0, Double.POSITIVE_INFINITY, Double.POSITIVE_INFINITY, 1.0))
-        val x = doubleArrayOf(1.0, 0.0)
-
-        for (group in groups) {
-            val blas = blasFor(group)
-            val down = DoubleArray(2)
-            blas.gemv(1.0, a, x, 0.0, down)
-            val across = DoubleArray(2)
-            blas.gemv(1.0, a, x, 0.0, across, transpose = true)
-
-            assertTrue(down[0].isNaN(), "group $group skipped a zero coefficient going down a column")
-            assertTrue(across[0].isNaN(), "group $group skipped a zero coefficient going across a row")
         }
     }
 }
