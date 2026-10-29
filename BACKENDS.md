@@ -53,9 +53,25 @@ JVM array transfers. Kernel lane counts, packing sizes and unrolling choices are
 
 ## How much does native help?
 
-Retained Intel comparisons measured oneMKL at roughly 1.5–4.7x the owned JVM throughput for the tested
-large Level 3 cases, and 1.29–2.13x for selected deep GEMM cases with retained workspace. Those JVM
-measurements include transfers into native memory and destination writeback.
+The retained Intel comparison measured the default engine using oneMKL against the exact owned SIMD
+engine at matrix orders 128, 256 and 768. These are the minimum and maximum speedups across those three
+tested orders, including JVM transfers into native memory and destination writeback:
+
+| Routine | Observed oneMKL speedup over owned JVM SIMD |
+|---|---:|
+| GEMM | 1.92–2.17x |
+| GEMMT | 1.45–1.95x |
+| SYMM | 1.77–2.60x |
+| SYRK | 1.78–2.19x |
+| SYR2K | 1.59–3.17x |
+| TRMM | 2.89–4.34x |
+| TRSM | 2.36–4.66x |
+
+The [accepted comparison](koblas-bench/lab/vendor-comparison.md#retained-onemkl-dispatch-comparison)
+records the exact cases and accepted rounds. A separate
+[deep-GEMM comparison](koblas-bench/lab/vendor-comparison.md#thin-gemm-crossover)
+measured 1.29–2.13x for selected whole matrices with retained workspace. These measurements support the
+current selection rules; they are not guaranteed gains for other shapes, hosts or vendors.
 
 Owned JVM kernels read ordinary arrays directly. The measured JVM vendor transfers made several vector
 calls slower, which is why installing a library does not redirect those calls. General Level 2, sparse and

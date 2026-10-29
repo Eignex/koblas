@@ -22,6 +22,15 @@ Koblas implements BLAS; factorizations and general solver workflows belong to co
 Koblas is Apache-2.0 licensed. Its container serializers use kotlinx-serialization-core, exposed as an API
 dependency. It bundles no vendor libraries or custom native numerical kernels.
 
+## Do I need a native library?
+
+Every supported operation works without one. On desktop JVM, start with JDK 25+ and
+`--add-modules=jdk.incubator.vector` for vectors, sparse BLAS and small matrices. Optional oneMKL can
+improve eligible large or deep dense matrix calls on Intel Linux; other JVM calls keep owned kernels.
+
+The [backend guide](BACKENDS.md) lists supported function families, measured native gains, selection
+thresholds and platform setup. The same ordinary arrays work with either implementation.
+
 ## Setup
 
 Add the Maven Central dependency to your JVM or `commonMain` source set:
@@ -39,14 +48,14 @@ portable classes; no Android AAR, native binaries, NDK, or native-access flags a
 
 - Desktop JDK 25 or later: pass `--add-modules=jdk.incubator.vector` to enable the SIMD engine. Without it,
   owned kernels use portable Kotlin. With native access enabled, Intel Linux hosts can also use installed
-  oneMKL for Level 3 calls whose rows, columns and depth are all at least 128. Whole-matrix GEMM also
-  qualifies with at least 16 output rows and columns and depth from 1024 through 4096. Borrowed views
-  retain the larger cutoff. Other calls retain JVM kernels.
+  oneMKL for calls that meet the [native selection thresholds](BACKENDS.md#current-selection-thresholds).
+  Other calls retain JVM kernels.
 - Desktop JDK 17–24 and Android: all operations use portable Kotlin. Host bindings return null.
 - Linux and macOS Kotlin/Native: eligible calls use an installed host library when available, with portable fallback.
 - iOS devices and simulators: all operations use portable Kotlin; no vendor library is required.
-- Explicit desktop host bindings on JDK 25 or later also need `--enable-native-access=ALL-UNNAMED`. Supported
-  vendors include oneMKL, AOCL, Arm Performance Libraries and Accelerate.
+- Desktop host calls on JDK 25 or later need `--enable-native-access=ALL-UNNAMED` on the classpath, or
+  `--enable-native-access=com.eignex.koblas` on the module path. Explicit bindings support oneMKL, AOCL,
+  Arm Performance Libraries, OpenBLAS and Accelerate on their supported hosts.
 
 For Android, add the same dependency to your app's `dependencies` block and use a current Android Gradle
 Plugin with Java 17 bytecode support. Java 17 bytecode does not require Android 14: D8 desugars supported
