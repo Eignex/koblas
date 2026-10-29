@@ -601,8 +601,8 @@ internal class HostDenseBlas(
         val solve = operation == DenseMatrixOperation.Trsm
         val what = if (solve) "trsm" else "trmm"
         requireTriangularMatrixOperands(a, b, right, what)
-        // This API reads no coefficients when alpha is zero; HostDenseCall uses the portable path
-        // when the host library cannot guarantee that contract.
+        // This API reads no coefficients when alpha is zero; eligibility keeps that case on the
+        // portable path so every host binding follows the same unused-operand contract.
         if (!host(operation, eligibleCall(operation, b.rows, b.cols, a.rows, alpha))) {
             if (solve) {
                 portable.trsm(a, b, lower, transpose, unitDiag, right, alpha, workspace)

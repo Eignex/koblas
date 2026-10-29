@@ -58,7 +58,6 @@ public class KoblasEngine internal constructor(
     public val vectorKernels: DenseVectorKernels,
     internal val indexedSparseKernels: IndexedSparseKernels,
     /** Optional production native adapter, exposed only for expert benchmark attribution. */
-    @KoblasEngineApi
     public val vendor: Blas?,
     /** Panel arithmetic and the local execution grouping that dense and sparse algorithms schedule with. */
     internal val panelKernels: DensePanelKernels = PortablePanelKernels,
