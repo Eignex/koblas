@@ -27,7 +27,7 @@ arguments have no zero-copy foreign-call guarantee. Owned kernels read the array
 
 | Functions | Default JVM implementation | Optional automatic JVM native acceleration |
 |---|---|---|
-| DOT, SUM, NRM2, ASUM, IAMAX, AXPY | Owned SIMD, with scalar fallbacks for short/strided calls and stable norm rescaling. | No. |
+| DOT, SUM, NRM2, ASUM, IAMAX, AXPY | Owned SIMD, with scalar fallbacks for short/strided calls and finite-range norm rescaling. | No. |
 | SCAL, COPY, SWAP, ROT | Owned loops and array-copy intrinsics; HotSpot can optimize the loops. | No. |
 | GEMV, SYMV, GER, SYR, SYR2, TRMV, TRSV | Owned matrix scheduling with SIMD panels where applicable. | No. |
 | GEMM, GEMMT, SYMM, SYRK, SYR2K, TRMM, TRSM | Owned SIMD with portable edges and fallbacks. | oneMKL on eligible Linux x64 hosts, under the rules below. |

@@ -58,13 +58,17 @@ Use the accepted oneMKL evidence in [vendor-comparison.md](vendor-comparison.md)
 9111, and the compact/streaming AXPY evidence from jobs 9068 and 9163–9164. Whole JVM Level 3 calls retain
 the minimum-128 rule; whole GEMM additionally retains sides at least 16 and depth 1024–4096. Borrowed regions
 do not inherit the deep-GEMM exception. Native pinning has a separate policy from JVM operand transfers.
+The tiny GER comparison remains the diagnostic job 9002 evidence described there, not a claim of a paired
+window-kernel or complete simplex speedup. GER and dense/indexed AXPY bodies are unchanged; their existing
+measurements and current conformance/allocation checks are reused. Indexed norm keeps the measured SIMD
+square-sum fast path, while an unsafe sum now enters scaling directly without recomputing that sum.
 Accelerate comparisons remain deferred. Targeted follow-up checks and results are recorded below.
 
 ## Implementation and release checks
 
 The implementation stack starts with #659 (array API and retained packing), then #660 (diagnostics),
 #661 (native composition), and #662 (ordinary numerical semantics). Each branch targets its predecessor.
-The final documentation/evidence PR targets #662. PR #657 remains separate and unmodified; its earlier
+The final documentation/evidence PR #663 targets #662. PR #657 remains separate and unmodified; its earlier
 backend guide overlaps the final guide and should be reviewed in that context.
 
 The panel/product/triangular seams remain internal. Matrix route prose and duplicate derived formatting are
@@ -73,8 +77,8 @@ engine retains one production vendor adapter; its expert metadata accessor keeps
 JVM benchmark. Explicit vendor comparisons open bindings directly. Native's Level 1 and matrix cutoffs live
 in `NativeBlasPolicy`; JVM eligibility stays in `JvmHostDensePolicy` with the accepted boundaries unchanged.
 
-Unpacked products update their destination directly after beta scaling. The temporary accumulating column
-and writeback loop are deleted, so no extra storage is kept solely to fix alpha placement. Sparse transpose
+Unpacked products retain a bounded accumulating column and writeback loop for measured throughput,
+without promising where alpha enters the arithmetic or requiring identical backend rounding. Sparse transpose
 GEMV uses the selected indexed dot rather than an ordered scalar-only path. Measured AXPY arithmetic is
 unchanged. Norm scaling remains because a finite norm can exist when its naive square sum overflows or
 underflows; the [reference BLAS norm](https://netlib.org/lapack/explore-html/d1/d2a/group__nrm2_gab5393665c8f0e7d5de9bd1dd2ff0d9d0.html)
@@ -86,29 +90,41 @@ conformance, exact portable engines, JVM 17/25 packaged tests, ABI/KDoc checks, 
 fallback checks, and uninstrumented preferred/narrow SIMD probes with and without FMA. Warmed AXPY, GER,
 panel, product and triangular probes report zero leaf allocation. Final validation results follow below.
 
-Targeted performance follow-up uses the existing thin-GEMM suite, three rotated rounds, eight 200 ms
-warmups, five 200 ms samples, one fork and GC profiling. Jobs [9259](https://lab.eignex.com/jobs/9259)
-(control, `56e487ff`) and [9264](https://lab.eignex.com/jobs/9264) (result, `565a9883`) use normal shared
-resources and spread CPU pinning. The result revision precedes a metadata-accessor naming correction
-and contains the final GEMM arithmetic; the later norm change removes a redundant unsafe-square-sum retry. These captures do not replace the accepted oneMKL selection evidence.
-Both captures completed on the same Xeon Platinum 8375C host and JDK 25.0.4.1, pinned to different
-spread-selected cores. Initial allocation profiles show the unpacked 1x1 call falling from about 24 B/call
-to measurement noise, and 8x8 from about 83 B/call to noise; retained workspace calls remain at noise.
-The instrumented results include profiler overhead; separate uninstrumented probes establish zero leaf
-allocation. SIMD elapsed times also shifted in unchanged packed/transpose controls, so they do not yet
-isolate a regression. Confirmation jobs [9273](https://lab.eignex.com/jobs/9273) and
-[9274](https://lab.eignex.com/jobs/9274) repeat the same suite with two forks and the exact numerical head.
-Their results are pending; compilation or a smoke capture is not timing evidence.
+Targeted performance follow-up uses the existing 21-case thin-GEMM suite, three rounds, eight 200 ms
+warmups, five 200 ms samples and GC profiling. Jobs [9259](https://lab.eignex.com/jobs/9259)
+(control, `56e487ff`) and [9264](https://lab.eignex.com/jobs/9264) (proposed direct update, `565a9883`)
+use one fork and rotate `jvm-simd`, `jvm-default` and explicit `onemkl-jvm`. All captures use normal shared
+resources and spread CPU pinning on the same Xeon Platinum 8375C host with JDK 25.0.4.1. The cores differ;
+round spread and unchanged packed/transpose controls are necessary when interpreting timings.
 
-Klause integration at `0648b909a6` passed the basis and revised-simplex JVM tests through temporary composite
-substitution of all Koblas publication coordinates. The benchmark metadata helper requires one explicit
+The proposed direct destination update removed about 24 B/call for 1x1 and 80 B/call for 8x8 without a
+workspace, but the retained-workspace 8x8 SIMD case regressed from 92.1 to 105.8 us (15%). Confirmation
+jobs [9273](https://lab.eignex.com/jobs/9273) (`56e487ff`) and
+[9274](https://lab.eignex.com/jobs/9274) (`67da9bea`) use two forks and SIMD alone. They reproduce the
+workspace regression: 95.7 to 105.6 us (10%), while most unchanged packed controls converge within 4%.
+These are medians of the three round medians. Some other cases have substantial shared-host spread;
+these results establish the scratch decision, not a new native crossover.
+
+The direct-update change is rejected. The final source retains the generic accumulation-column path,
+with bounded workspace storage and no extra numerical-order promise. Final confirmation
+[9280](https://lab.eignex.com/jobs/9280) at `052d3602` uses the same two-fork suite; its retained artifacts
+and the testing section of [PR #663](https://github.com/Eignex/koblas/pull/663) record final completion and ratios.
+Uninstrumented probes continue to establish zero leaf allocation; GC-profiled whole calls can include
+workspace allocation and profiler overhead. These captures do not replace accepted oneMKL eligibility
+evidence. No one-off threshold or new dispatch rule is introduced.
+
+Klause integration at `0648b909a6` plus the companion changes passed 171 basis and revised-simplex JVM
+tests against the exact final Koblas sources through temporary composite substitution of all Koblas publication
+coordinates. Published JVM 17/25 classpath and module consumers also passed after final local staging. The benchmark metadata helper requires one explicit
 expert opt-in, delivered as [Klause #3866](https://github.com/Eignex/klause/pull/3866). Klause's full local gate
 is skipped by project preference; GitHub CI supplies that gate. Primary checkouts remain unchanged.
-Unused `KoblasException`, `SingularMatrix` and `NotPositiveDefinite` declarations have no BLAS implementation
-or known consumer and are removed; Kumulant owns its distinct factorization exception type.
+The unused factorization exceptions `KoblasException`, `SingularMatrix` and `NotPositiveDefinite` have no
+BLAS implementation and are removed. The exact final-source integration found two stale Klause benchmark
+catches for `KoblasException`; #3866 removes them while retaining the solver's own `BasisArithmeticException`
+handling. Kumulant owns its distinct factorization exception type.
 
 The final JVM ABI dump has 1,062 lines versus the baseline's 1,178. The implementation stack deletes
-retained packing and unsupported benchmark paths, removes numerical-order-only scratch, and reduces
+retained packing and unsupported benchmark paths, drops numerical-order promises, and reduces
 reporting rather than adding a replacement framework. Exact declaration counts differ between JVM and
 Native dumps; dump lines are a reproducible surface-size indicator, not an API compatibility claim.
 
