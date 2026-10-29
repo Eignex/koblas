@@ -44,13 +44,13 @@ val x = DenseVector.of(doubleArrayOf(3.0, 5.0))
 val y = a * x
 ```
 
-Operators allocate results. BLAS-style and `*Into` calls write into existing destinations; `Workspace`
-reuses temporary buffers. See the [usage guide](USAGE.md) for examples.
+Here `a * x` is a matrix-vector product. Operators return new results; calls ending in `Into` write
+into existing arrays. See the [usage guide](USAGE.md) for more examples and reusing temporary storage.
 
 ## Guides
 
 - [Engines and native libraries](BACKENDS.md): loading diagram, function coverage, thresholds and measured gains.
-- [Usage](USAGE.md): platform setup, Kotlin and Java examples, reusable storage and submatrix views.
+- [Usage](USAGE.md): vector and matrix operations, reusable arrays, views, and Java and mobile setup.
 - [API overview](koblas/module.md): dense, sparse and raw array operations.
 - [Benchmarks](koblas-bench/README.md): reproducible comparisons and measurement reports.
 
