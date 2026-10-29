@@ -290,7 +290,7 @@ storing it, and a route carries no operand identity to tell the two cases apart.
 measured on the arms where one answer holds, which are the portable `jvm-scalar` and `native` arms and the
 explicit `<vendor>` arms.
 
-Exact-engine selection, matrix/vector route queries and engine vendor metadata require `KoblasEngineApi`.
+Exact-engine selection, engine matrix/vector route queries and engine vendor metadata require `KoblasEngineApi`.
 Matrix diagnostics carry scheduling, reached or reachable leaves, staging, grouping and resolution facts;
 English explanation assembly is excluded from the library.
 

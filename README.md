@@ -68,7 +68,7 @@ Linking iOS frameworks and running simulator tests require macOS with Xcode. The
 publications selected from the same dependency coordinates. No numerical library is bundled or needs installing.
 
 Engine selection is automatic. The [backend guide](BACKENDS.md) explains optional native setup, supported
-workloads and measured benefits. Exact engine selection and route diagnostics require `KoblasEngineApi`;
+workloads and measured benefits. Exact engine selection and engine route queries require `KoblasEngineApi`;
 the [benchmark guide](koblas-bench/README.md) explains comparison and attribution.
 
 Application code can select portable Kotlin for an individual engine without an opt-in:
