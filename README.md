@@ -28,8 +28,8 @@ Every supported operation works without one. On desktop JVM, start with JDK 25+ 
 `--add-modules=jdk.incubator.vector` for vectors, sparse BLAS and small matrices. Optional oneMKL can
 improve eligible large or deep dense matrix calls on Intel Linux; other JVM calls keep owned kernels.
 
-The [backend guide](BACKENDS.md) lists supported function families, measured native gains, selection
-thresholds and platform setup. The same ordinary arrays work with either implementation.
+The [engine guide](BACKENDS.md#how-the-default-engine-loads) shows what loads on first use and how each
+call is selected. It also lists supported functions, measured native gains, thresholds and setup flags.
 
 ## Setup
 
@@ -76,7 +76,7 @@ kotlin {
 Linking iOS frameworks and running simulator tests require macOS with Xcode. These targets use Kotlin/Native
 publications selected from the same dependency coordinates. No numerical library is bundled or needs installing.
 
-Engine selection is automatic. The [backend guide](BACKENDS.md) explains optional native setup, supported
+Engine selection is automatic. The [engine guide](BACKENDS.md) explains optional native setup, supported
 workloads and measured benefits. Exact engines and route queries are directly available; the
 [benchmark guide](koblas-bench/README.md) explains comparison and attribution. See the
 [migration guide](MIGRATION.md) when upgrading from the earlier backend and packed-matrix APIs.
