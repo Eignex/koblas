@@ -1,9 +1,8 @@
 package com.eignex.koblas.vendor
 
-import com.eignex.koblas.RouteKind
-
 import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.DenseVector
+import com.eignex.koblas.RouteKind
 import com.eignex.koblas.StridedVector
 import com.eignex.koblas.internal.configuration.environmentVariableOrNull
 import kotlin.math.abs

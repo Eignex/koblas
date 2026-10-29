@@ -1,6 +1,6 @@
 package com.eignex.koblas
 
-import com.eignex.koblas.dense.ScalarVectorKernels
+import com.eignex.koblas.internal.dense.ScalarVectorKernels
 import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertContentEquals

@@ -6,6 +6,7 @@ package com.eignex.koblas
 
 import com.eignex.koblas.dense.DenseVectorKernels
 import com.eignex.koblas.internal.numeric.euclideanNorm
+import com.eignex.koblas.internal.operands.sameVectorMapping
 import kotlin.math.abs
 
 /**
@@ -135,7 +136,7 @@ public fun Vector.iamax(): Int {
  */
 public fun copy(src: Vector, dst: DenseVector) {
     requireSameSize(src.size, dst.size, "copy")
-    if (src is DenseVector && src.hasIdenticalMapping(dst)) return
+    if (src is DenseVector && sameVectorMapping(src, dst)) return
     // copyInto preserves an overlapping source, so an adjacent block needs no separate snapshot.
     if (src is DenseVector && src.stride == 1 && dst.stride == 1) {
         src.values.copyInto(dst.values, dst.offset, src.offset, src.offset + dst.size)
@@ -161,16 +162,12 @@ public fun copy(src: Vector, dst: DenseVector) {
     source.forEachStored { i, v -> dst[i] = v }
 }
 
-/** Whether every logical index addresses the same physical entry in both vectors. */
-private fun DenseVector.hasIdenticalMapping(other: DenseVector): Boolean =
-    values === other.values && offset == other.offset && size == other.size && stride == other.stride
-
 /** Snapshots partial aliases and opaque storage, which may read [destination] without exposing its buffer. */
 private fun Vector.stableFor(destination: DenseVector): Vector = when (this) {
     is SparseVector -> if (values === destination.values) SparseVector.wrap(size, indices, values.copyOf()) else this
 
     // Equal mappings have no cross-index dependency: each entry is read before its own write.
-    is DenseVector -> if (!hasIdenticalMapping(destination) && overlaps(destination)) {
+    is DenseVector -> if (!sameVectorMapping(this, destination) && overlaps(destination)) {
         DenseVector.wrap(toDoubleArray())
     } else {
         this
@@ -210,7 +207,7 @@ public fun gatherZero(x: SparseVector, from: ContiguousVector) {
  */
 public fun swap(a: DenseVector, b: DenseVector) {
     requireSameSize(a.size, b.size, "swap")
-    if (a.hasIdenticalMapping(b)) return
+    if (sameVectorMapping(a, b)) return
     // Rows or columns can share a matrix buffer without overlapping and still reach the kernel.
     if (a.overlaps(b)) {
         val snapshotA = a.toDoubleArray()

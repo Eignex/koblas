@@ -1,10 +1,10 @@
 package com.eignex.koblas.sparse
 
 import com.eignex.koblas.BuiltinEngines
+import com.eignex.koblas.RouteKind
 import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.dense.DenseOperation
-import com.eignex.koblas.dense.PanelWork
-import com.eignex.koblas.RouteKind
+import com.eignex.koblas.internal.dense.PanelWork
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull

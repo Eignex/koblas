@@ -2,6 +2,8 @@
 
 package com.eignex.koblas.dense
 
+import com.eignex.koblas.internal.dense.DenseTriangularKernels
+
 // Recording diagonal substitutions checks routes against executed blocks while retaining their arithmetic.
 
 /** One diagonal block a triangular routine substituted, as the window and strides it was handed. */

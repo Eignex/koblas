@@ -3,6 +3,8 @@
 
 package com.eignex.koblas
 
+import com.eignex.koblas.internal.sparse.axpy
+
 /** `A * B` (BLAS `dgemm`), allocating. gemm accumulates into an existing C instead. */
 @kotlin.jvm.JvmName("multiply")
 public operator fun DenseMatrix.times(other: DenseMatrix): DenseMatrix = koblas.gemm(this, other)

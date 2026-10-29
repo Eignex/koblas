@@ -4,6 +4,12 @@ import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.DenseVector
 import com.eignex.koblas.Workspace
 import com.eignex.koblas.assertClose
+import com.eignex.koblas.internal.dense.PortableDenseBlas
+import com.eignex.koblas.internal.dense.PortablePanelKernels
+import com.eignex.koblas.internal.dense.ScalarVectorKernels
+import com.eignex.koblas.internal.host.HOST_SCHEDULING
+import com.eignex.koblas.internal.host.HostDenseBlas
+import com.eignex.koblas.internal.host.HostDenseCall
 import com.eignex.koblas.poisonedSymmetric
 import com.eignex.koblas.poisonedTriangle
 import com.eignex.koblas.randomMatrix

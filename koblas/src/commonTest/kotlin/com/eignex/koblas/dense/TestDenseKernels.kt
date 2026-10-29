@@ -1,6 +1,10 @@
 package com.eignex.koblas.dense
 
 import com.eignex.koblas.BuiltinEngines
+import com.eignex.koblas.internal.dense.DensePanelKernels
+import com.eignex.koblas.internal.dense.DenseProductKernels
+import com.eignex.koblas.internal.dense.PortablePanelKernels
+import com.eignex.koblas.internal.dense.PortableProductKernels
 import com.eignex.koblas.koblas
 
 /** Runs each available panel implementation once, including the mandatory portable implementation. */

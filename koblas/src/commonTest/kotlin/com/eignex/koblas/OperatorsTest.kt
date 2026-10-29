@@ -1,7 +1,8 @@
 package com.eignex.koblas
 
 import com.eignex.koblas.*
-import com.eignex.koblas.dense.ScalarVectorKernels
+import com.eignex.koblas.internal.dense.ScalarVectorKernels
+import com.eignex.koblas.internal.sparse.axpy
 import kotlin.test.*
 
 class OperatorsTest {

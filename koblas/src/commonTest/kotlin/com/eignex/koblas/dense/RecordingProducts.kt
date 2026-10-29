@@ -3,8 +3,15 @@
 package com.eignex.koblas.dense
 
 import com.eignex.koblas.DenseMatrix
-import com.eignex.koblas.randomMatrix
 import com.eignex.koblas.RouteKind
+import com.eignex.koblas.internal.dense.DensePanelKernels
+import com.eignex.koblas.internal.dense.DenseProductKernels
+import com.eignex.koblas.internal.dense.OutputTriangle
+import com.eignex.koblas.internal.dense.PortableDenseBlas
+import com.eignex.koblas.internal.dense.ScalarVectorKernels
+import com.eignex.koblas.internal.dense.TRIANGLE_SELECTION
+import com.eignex.koblas.internal.dense.insideTriangle
+import com.eignex.koblas.randomMatrix
 import kotlin.random.Random
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue

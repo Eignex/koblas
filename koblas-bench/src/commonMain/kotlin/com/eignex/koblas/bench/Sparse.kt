@@ -658,7 +658,7 @@ private fun preparedArm(
     call: SparseCall,
     mode: String,
     source: SparseMatrix,
-    routeOfPrepared: (PreparedSparseMatrix) -> SparseMatrixRoute = { it.routeOf(operation, call) },
+    routeOfPrepared: (PreparedSparseMatrix) -> SparseMatrixRoute = { engine.routeOf(operation, it, call) },
     verifyOneShot: () -> Unit,
     verifyPrepared: (PreparedSparseMatrix) -> Unit,
     oneShot: () -> Double,

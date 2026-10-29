@@ -1,13 +1,13 @@
 package com.eignex.koblas
 
-import com.eignex.koblas.internal.jvm25.JvmHostDensePolicy
-import com.eignex.koblas.internal.jvm25.JvmVendorBlas
-import com.eignex.koblas.internal.jvm25.JvmVendorLibrary
-import com.eignex.koblas.internal.jvm25.SimdIndexedSparseKernels
-import com.eignex.koblas.internal.jvm25.SimdPanelKernels
-import com.eignex.koblas.internal.jvm25.SimdProductKernels
-import com.eignex.koblas.internal.jvm25.SimdTriangularKernels
-import com.eignex.koblas.internal.jvm25.SimdVectorKernels
+import com.eignex.koblas.internal.jvm25.host.JvmHostDensePolicy
+import com.eignex.koblas.internal.jvm25.host.JvmVendorBlas
+import com.eignex.koblas.internal.jvm25.host.JvmVendorLibrary
+import com.eignex.koblas.internal.jvm25.simd.SimdIndexedSparseKernels
+import com.eignex.koblas.internal.jvm25.simd.SimdPanelKernels
+import com.eignex.koblas.internal.jvm25.simd.SimdProductKernels
+import com.eignex.koblas.internal.jvm25.simd.SimdTriangularKernels
+import com.eignex.koblas.internal.jvm25.simd.SimdVectorKernels
 import com.eignex.koblas.vendor.Blas
 import com.eignex.koblas.vendor.Vendor
 import com.eignex.koblas.vendor.hostPlatform

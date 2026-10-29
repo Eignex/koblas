@@ -4,10 +4,11 @@ package com.eignex.koblas.dense
 
 import com.eignex.koblas.DenseMatrixRegion
 import com.eignex.koblas.DenseVector
+import com.eignex.koblas.RouteKind
+import com.eignex.koblas.internal.host.HostDenseBlas
 import com.eignex.koblas.vendor.Blas
 import com.eignex.koblas.vendor.BlasOperation
 import com.eignex.koblas.vendor.CallRoute
-import com.eignex.koblas.RouteKind
 import com.eignex.koblas.vendor.ThreadEvidence
 import com.eignex.koblas.vendor.Vendor
 
@@ -308,4 +309,3 @@ internal class RecordingBlas(
         ),
     )
 }
-

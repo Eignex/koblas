@@ -9,6 +9,11 @@ import com.eignex.koblas.DimensionMismatch
 import com.eignex.koblas.StridedVector
 import com.eignex.koblas.assertClose
 import com.eignex.koblas.copyOf
+import com.eignex.koblas.internal.dense.DensePanelKernels
+import com.eignex.koblas.internal.dense.PanelWork
+import com.eignex.koblas.internal.dense.PortableDenseBlas
+import com.eignex.koblas.internal.dense.PortablePanelKernels
+import com.eignex.koblas.internal.dense.ScalarVectorKernels
 import com.eignex.koblas.koblas
 import com.eignex.koblas.randomMatrix
 import com.eignex.koblas.randomVector

@@ -1,7 +1,11 @@
 package com.eignex.koblas.dense
 
 import com.eignex.koblas.BuiltinEngines
-import com.eignex.koblas.internal.jvm25.hardwareFusedMultiplyAdd
+import com.eignex.koblas.internal.dense.DensePanelKernels
+import com.eignex.koblas.internal.dense.PanelWork
+import com.eignex.koblas.internal.dense.PortablePanelKernels
+import com.eignex.koblas.internal.jvm25.simd.hardwareFusedMultiplyAdd
+import kotlin.math.abs
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotEquals
@@ -107,7 +111,7 @@ class SimdPanelKernelsTest {
 
         val bound = rows * 2.220446049250313e-16 * portable[0]
         assertTrue(
-            kotlin.math.abs(vector[0] - portable[0]) <= bound,
+            abs(vector[0] - portable[0]) <= bound,
             "fma=$hardwareFusedMultiplyAdd vector ${vector[0]} portable ${portable[0]}",
         )
     }

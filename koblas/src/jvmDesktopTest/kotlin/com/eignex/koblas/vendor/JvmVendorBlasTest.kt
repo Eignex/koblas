@@ -6,7 +6,8 @@ import com.eignex.koblas.StridedVector
 import com.eignex.koblas.copyOf
 import com.eignex.koblas.dense.MatrixStructure
 import com.eignex.koblas.dense.ReferenceBlas
-import com.eignex.koblas.dense.ScalarVectorKernels
+import com.eignex.koblas.internal.dense.ScalarVectorKernels
+import com.eignex.koblas.internal.sparse.axpy
 import kotlin.math.abs
 import kotlin.test.Test
 import kotlin.test.assertContentEquals

@@ -1,5 +1,14 @@
 package com.eignex.koblas.sparse
 
+import com.eignex.koblas.internal.sparse.DispatchingIndexedSparseKernels
+import com.eignex.koblas.internal.sparse.IndexedSparseKernels
+import com.eignex.koblas.internal.sparse.ScalarIndexedSparseKernels
+import com.eignex.koblas.internal.sparse.axpy
+import com.eignex.koblas.internal.sparse.dotDense
+import com.eignex.koblas.internal.sparse.dotSparse
+import com.eignex.koblas.internal.sparse.gather
+import com.eignex.koblas.internal.sparse.gatherZero
+import com.eignex.koblas.internal.sparse.scatter
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull

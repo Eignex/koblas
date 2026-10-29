@@ -3,7 +3,11 @@ package com.eignex.koblas.dense
 import com.eignex.koblas.BuiltinEngines
 import com.eignex.koblas.KoblasEngine
 import com.eignex.koblas.assertClose
-import com.eignex.koblas.internal.jvm25.hardwareFusedMultiplyAdd
+import com.eignex.koblas.internal.dense.DenseTriangularKernels
+import com.eignex.koblas.internal.dense.PanelWork
+import com.eignex.koblas.internal.dense.PortablePanelKernels
+import com.eignex.koblas.internal.dense.PortableTriangularKernels
+import com.eignex.koblas.internal.jvm25.simd.hardwareFusedMultiplyAdd
 import com.eignex.koblas.internal.numeric.assertHardwareFmaAgreesWithVm
 import com.eignex.koblas.poisonedTriangle
 import jdk.incubator.vector.DoubleVector

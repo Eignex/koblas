@@ -113,6 +113,18 @@ class DenseTest {
         }
     }
 
+    @Test
+    fun `borrowed product cases verify padding on every requested engine`() {
+        for (transpose in listOf("", "+transA=T", "+transB=T")) {
+            val case = Cases.parse("gemm+17x9x31+uniform$transpose+workspace=retained+layout=borrowed").single()
+            for (engine in listOfNotNull(koblas, BuiltinEngines.scalar, BuiltinEngines.simd).distinct()) {
+                val work = assertNotNull(denseWork(case, engine))
+                assertTrue(work.run().isFinite())
+                assertNotNull(work.kernel)
+            }
+        }
+    }
+
     private companion object {
         /**
          * One case of each structured and triangular entry point, in both orientations. Deliberately smaller

@@ -3,6 +3,7 @@
 
 package com.eignex.koblas.vendor
 
+import com.eignex.koblas.internal.host.NativeLibrary
 import platform.windows.GetThreadErrorMode
 import kotlin.test.Test
 import kotlin.test.assertEquals

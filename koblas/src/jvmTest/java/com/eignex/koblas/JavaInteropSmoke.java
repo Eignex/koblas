@@ -42,6 +42,20 @@ final class JavaInteropSmoke {
         assertArrayEquals(new double[] {8.0, 15.0}, preparedResult);
         assertArrayEquals(new double[] {8.0, 15.0}, Koblas.gemv(sparse, new double[] {4.0, 5.0}));
 
+        KoblasEngine engine = BuiltinEngines.getScalar();
+        DenseMatrixRegion outputRegion = DenseMatrix.zero(5, 5).view(1, 1, 2, 2);
+        engine.gemm(1.0, (Matrix) prepared, false, (Matrix) identity, false, 0.0, outputRegion, new Workspace());
+        assertEquals(2.0, outputRegion.get(0, 0));
+        assertEquals(3.0, outputRegion.get(1, 1));
+        Koblas.trmm(prepared, outputRegion, true, false, true, false, 1.0, new Workspace());
+        assertEquals(2.0, outputRegion.get(0, 0));
+
+        DenseVector reverseInput = new StridedVector(new double[] {5.0, 0.0, 3.0}, 2, 2, -2);
+        double[] outputBuffer = new double[] {-7.0, -7.0, -7.0, -7.0, -7.0};
+        DenseVector reverseOutput = new StridedVector(outputBuffer, 3, 2, -2);
+        engine.gemv(1.0, matrix, reverseInput, 0.0, reverseOutput, false, null);
+        assertArrayEquals(new double[] {-7.0, 18.0, -7.0, 11.0, -7.0}, outputBuffer);
+
         DenseVector rotatedX = DenseVector.of(new double[] {3.0});
         DenseVector rotatedY = DenseVector.of(new double[] {4.0});
         // The rotation that takes (3, 4) to (5, 0); only the first is exact in binary, and this asserts bits.

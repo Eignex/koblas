@@ -1,11 +1,13 @@
 package com.eignex.koblas
 
+import com.eignex.koblas.vendor.CallRoute
+
 /** How a call reached its result. */
 public enum class RouteKind {
-    /** The vendor entry point ran over these operands. What it cost to reach it is named by [com.eignex.koblas.vendor.CallRoute.adapter]. */
+    /** The vendor entry point ran over these operands. What it cost to reach it is named by [CallRoute.adapter]. */
     Direct,
 
-    /** The whole call was handed to another implementation, which [com.eignex.koblas.vendor.CallRoute.adapter] names. */
+    /** The whole call was handed to another implementation, which [CallRoute.adapter] names. */
     Delegated,
 
     /** The result was assembled from more than one call, or from a vendor call plus arithmetic here. */
@@ -17,4 +19,3 @@ public enum class RouteKind {
     /** Nothing ran and nothing can; [com.eignex.koblas.vendor.CallRoute.reason] says why. */
     Unsupported,
 }
-

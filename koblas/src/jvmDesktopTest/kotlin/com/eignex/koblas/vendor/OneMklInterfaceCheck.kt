@@ -4,10 +4,10 @@ import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.DenseVector
 import com.eignex.koblas.copyOf
 import com.eignex.koblas.dense.ReferenceBlas
-import com.eignex.koblas.dense.ScalarVectorKernels
-import com.eignex.koblas.internal.jvm25.JvmVendorBlas
-import com.eignex.koblas.internal.jvm25.JvmVendorLibrary
-import com.eignex.koblas.internal.jvm25.windowsLibraryLookup
+import com.eignex.koblas.internal.dense.ScalarVectorKernels
+import com.eignex.koblas.internal.jvm25.host.JvmVendorBlas
+import com.eignex.koblas.internal.jvm25.host.JvmVendorLibrary
+import com.eignex.koblas.internal.jvm25.host.windowsLibraryLookup
 import java.lang.foreign.Arena
 import java.lang.foreign.FunctionDescriptor
 import java.lang.foreign.Linker

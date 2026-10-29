@@ -3,6 +3,8 @@
 package com.eignex.koblas.dense
 
 import com.eignex.koblas.assertClose
+import com.eignex.koblas.internal.dense.DensePanelKernels
+import com.eignex.koblas.internal.dense.PanelWork
 import kotlin.random.Random
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue

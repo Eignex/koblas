@@ -1,8 +1,14 @@
 package com.eignex.koblas.sparse
 
 import com.eignex.koblas.assertClose
-import com.eignex.koblas.internal.jvm25.SparseSimd
-import com.eignex.koblas.internal.jvm25.simdAvailable
+import com.eignex.koblas.internal.jvm25.simd.SparseSimd
+import com.eignex.koblas.internal.jvm25.simd.simdAvailable
+import com.eignex.koblas.internal.sparse.ScalarIndexedSparseKernels
+import com.eignex.koblas.internal.sparse.axpy
+import com.eignex.koblas.internal.sparse.dotDense
+import com.eignex.koblas.internal.sparse.gather
+import com.eignex.koblas.internal.sparse.gatherZero
+import com.eignex.koblas.internal.sparse.scatter
 import org.junit.Assume
 import kotlin.math.abs
 import kotlin.random.Random

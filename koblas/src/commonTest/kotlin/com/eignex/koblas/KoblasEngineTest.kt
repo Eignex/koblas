@@ -2,9 +2,9 @@ package com.eignex.koblas
 
 import com.eignex.koblas.dense.DenseOperation
 import com.eignex.koblas.dense.DenseVectorKernels
-import com.eignex.koblas.dense.ScalarVectorKernels
-import com.eignex.koblas.sparse.IndexedSparseKernels
-import com.eignex.koblas.sparse.ScalarIndexedSparseKernels
+import com.eignex.koblas.internal.dense.ScalarVectorKernels
+import com.eignex.koblas.internal.sparse.IndexedSparseKernels
+import com.eignex.koblas.internal.sparse.ScalarIndexedSparseKernels
 import com.eignex.koblas.sparse.SparseOperation
 import kotlin.test.Test
 import kotlin.test.assertEquals

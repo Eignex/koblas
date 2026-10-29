@@ -1,0 +1,21 @@
+# Targeted operand and scheduling comparisons; timings retain their exact arm and workspace policy.
+gemv+32x21+uniform
+gemv+129x31+uniform+transA=T
+symv+129+uniform+uplo=U
+syr+129+uniform+uplo=L
+syr2+129+uniform+uplo=U
+trsv+129+triangular+uplo=L+transA=N+diag=N
+gemm+32x21x48+uniform
+gemm+129x31x257+uniform+transA=T
+gemm+65x127x33+uniform+transB=T
+symm+129x31+uniform+side=L+uplo=L
+syr2k+129x31+uniform+uplo=U+transA=T
+trsm+64x16+triangular+side=L+uplo=L+transA=N+diag=N
+spmm+257x8x129+sparse-uniform+density=0.01+mode=oneshot
+spmm+257x8x129+sparse-uniform+density=0.01+mode=prepared
+spmm+257x8x129+sparse-uniform+density=0.01+mode=prepared+transA=T
+spgemm+129x97x65+sparse-uniform+density=0.01+mode=oneshot
+spgemm+129x97x65+sparse-uniform+density=0.01+mode=prepared
+gemm+16x16x4096+uniform+workspace=retained
+gemm+17x9x31+uniform+workspace=retained+layout=borrowed
+gemm+17x9x31+uniform+transB=T+workspace=retained+layout=borrowed

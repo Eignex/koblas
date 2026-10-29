@@ -1,5 +1,6 @@
 package com.eignex.koblas
 
+import com.eignex.koblas.internal.sparse.axpy
 import com.eignex.koblas.testutil.allocation.bytesPerIteration
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized

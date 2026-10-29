@@ -211,7 +211,8 @@ registerNativeBenchmark("linuxX64SelectedBenchmark", buildType = "Debug") {
 }
 
 tasks.withType<Test>().configureEach {
-    jvmArgs("--add-modules=jdk.incubator.vector", "--enable-native-access=ALL-UNNAMED")
+    jvmArgs("--enable-native-access=ALL-UNNAMED")
+    if (providers.gradleProperty("koblas.noSimd").orNull != "true") jvmArgs("--add-modules=jdk.incubator.vector")
 }
 
 tasks.register<Sync>("prepareLabBenchmark") {

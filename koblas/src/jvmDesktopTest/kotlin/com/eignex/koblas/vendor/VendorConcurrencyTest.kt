@@ -3,7 +3,8 @@ package com.eignex.koblas.vendor
 import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.DenseVector
 import com.eignex.koblas.dense.ReferenceBlas
-import com.eignex.koblas.dense.ScalarVectorKernels
+import com.eignex.koblas.internal.dense.ScalarVectorKernels
+import com.eignex.koblas.internal.sparse.axpy
 import java.util.concurrent.Callable
 import java.util.concurrent.CyclicBarrier
 import java.util.concurrent.Executors

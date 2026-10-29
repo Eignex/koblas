@@ -3,6 +3,7 @@
 package com.eignex.koblas
 
 import com.eignex.koblas.dense.MatrixStructure
+import com.eignex.koblas.internal.sparse.axpy
 import kotlin.random.Random
 import kotlin.test.*
 

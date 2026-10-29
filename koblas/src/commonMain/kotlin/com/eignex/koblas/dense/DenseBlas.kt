@@ -196,7 +196,19 @@ public interface DenseBlas {
 
     /** Array convenience for the addressed [ger] operation. */
     @Suppress("LongParameterList") // BLAS operands and workspace
-    public fun ger(alpha: Double, x: DoubleArray, y: DoubleArray, a: DenseMatrixRegion, workspace: Workspace? = null): Unit = ger(alpha, DenseVector.wrap(x), DenseVector.wrap(y), a, workspace)
+    public fun ger(
+        alpha: Double,
+        x: DoubleArray,
+        y: DoubleArray,
+        a: DenseMatrixRegion,
+        workspace: Workspace? = null,
+    ): Unit = ger(
+        alpha,
+        DenseVector.wrap(x),
+        DenseVector.wrap(y),
+        a,
+        workspace,
+    )
 
     /**
      * `A(rowOffset + i, columnOffset + j) += alpha · x(xOffset + i) · y(yOffset + j)` for
@@ -229,7 +241,13 @@ public interface DenseBlas {
     /** `A += alpha · x · xᵀ` (BLAS `dsyr`), writing only the [lower] or upper triangle. [x] must be dense or
      *  strided storage, which is what a vendor can address. Overlap staging follows [ger]. */
     @Suppress("LongParameterList") // the BLAS dsyr signature plus the workspace
-    public fun syr(alpha: Double, x: DenseVector, a: DenseMatrixRegion, lower: Boolean = true, workspace: Workspace? = null)
+    public fun syr(
+        alpha: Double,
+        x: DenseVector,
+        a: DenseMatrixRegion,
+        lower: Boolean = true,
+        workspace: Workspace? = null,
+    )
 
     /** `A += alpha · (x · yᵀ + y · xᵀ)` (BLAS `dsyr2`), writing only the [lower] or upper triangle. Operand
      *  storage and overlap staging follow [syr]. */

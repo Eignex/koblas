@@ -1,7 +1,7 @@
 package com.eignex.koblas.vendor
 
 import com.eignex.koblas.StridedVector
-import com.eignex.koblas.internal.jvm25.stage
+import com.eignex.koblas.internal.jvm25.host.stage
 import java.lang.foreign.Arena
 import java.lang.foreign.ValueLayout.JAVA_DOUBLE
 import kotlin.math.abs
@@ -10,6 +10,19 @@ import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
 
 class JvmOperandsTest {
+    @Test
+    fun `overwrite staging omits old vector entries`() {
+        for (stride in listOf(1, -1, 3, -3)) {
+            val vector = StridedVector(DoubleArray(12) { Double.NaN }, if (stride > 0) 1 else 7, 3, stride)
+
+            Arena.ofConfined().use { arena ->
+                val native = arena.stage(vector, read = false)
+
+                assertContentEquals(DoubleArray(3), native.segment.toArray(JAVA_DOUBLE), "stride $stride")
+            }
+        }
+    }
+
     @Test
     fun `native allocation counts entries instead of the physical span`() {
         val storage = DoubleArray(2_000_005)
