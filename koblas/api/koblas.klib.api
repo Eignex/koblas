@@ -1,5 +1,5 @@
 // Klib ABI Dump
-// Targets: [iosArm64, iosSimulatorArm64, linuxArm64, linuxX64, macosArm64]
+// Targets: [iosArm64, iosSimulatorArm64, linuxArm64, linuxX64, macosArm64, mingwX64]
 // Rendering settings:
 // - Signature version: 2
 // - Show manifest properties: true
@@ -182,6 +182,7 @@ final enum class com.eignex.koblas.vendor/OperatingSystem : kotlin/Enum<com.eign
     enum entry Linux // com.eignex.koblas.vendor/OperatingSystem.Linux|null[0]
     enum entry MacOs // com.eignex.koblas.vendor/OperatingSystem.MacOs|null[0]
     enum entry Other // com.eignex.koblas.vendor/OperatingSystem.Other|null[0]
+    enum entry Windows // com.eignex.koblas.vendor/OperatingSystem.Windows|null[0]
 
     final val entries // com.eignex.koblas.vendor/OperatingSystem.entries|#static{}entries[0]
         final fun <get-entries>(): kotlin.enums/EnumEntries<com.eignex.koblas.vendor/OperatingSystem> // com.eignex.koblas.vendor/OperatingSystem.entries.<get-entries>|<get-entries>#static(){}[0]

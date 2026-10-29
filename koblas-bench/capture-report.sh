@@ -72,11 +72,33 @@ fi
 [[ $suite != sweep || $operation != all ]] || { echo "suite sweep requires a specific operation" >&2; exit 2; }
 if $smoke; then samples=1; warmups=0; target_ms=1; forks=1; fi
 platform=$(uname -s)
+architecture=$(uname -m)
+case "$platform" in MINGW*|MSYS*|CYGWIN*) platform=Windows ;; esac
+if [[ $platform == Windows ]]; then
+  if [[ -n ${TMPDIR:-} ]]; then export TMPDIR=$(cygpath -u "$TMPDIR"); fi
+  cases=$(cygpath -u "$cases")
+  if [[ -n $output ]]; then output=$(cygpath -u "$output"); fi
+  if [[ -n $native_executable ]]; then native_executable=$(cygpath -u "$native_executable"); fi
+  if [[ -n ${KOBLAS_BENCH_JAVA:-} ]]; then export KOBLAS_BENCH_JAVA=$(cygpath -u "$KOBLAS_BENCH_JAVA"); fi
+  # DLL architecture must match the measured Java process, including emulated x64 Java on Arm64 Windows.
+  probe_java=${KOBLAS_BENCH_JAVA:-${JAVA_HOME:+$JAVA_HOME/bin/java.exe}}
+  probe_java=${probe_java:-java}
+  probe_java=$(cygpath -u "$probe_java")
+  java_properties=$("$probe_java" -XshowSettings:properties -version 2>&1) || {
+    echo "cannot determine Java architecture from $probe_java" >&2; exit 2;
+  }
+  architecture=$(printf '%s\n' "$java_properties" | awk '$1 == "os.arch" && $2 == "=" {sub(/\r$/, "", $3); print $3; exit}')
+  case "$architecture" in
+    aarch64|arm64) architecture=arm64 ;;
+    amd64|x86_64) architecture=x86_64 ;;
+    *) echo "unsupported Windows Java architecture: $architecture" >&2; exit 2 ;;
+  esac
+fi
 # Whichever production vendor this platform selects, beside OpenBLAS as the reference arm. oneMKL has no
 # ARM64 build and ArmPL no x86-64 one, so the architecture decides here as much as the operating system does.
 if [[ $libraries == all ]]; then
   if [[ $platform == Darwin ]]; then libraries=openblas,accelerate
-  elif [[ $(uname -m) == aarch64 || $(uname -m) == arm64 ]]; then libraries=openblas,armpl
+  elif [[ $architecture == aarch64 || $architecture == arm64 ]]; then libraries=openblas,armpl
   else libraries=openblas,onemkl; fi
 fi
 # The Kotlin/Native compiler ships no linux-aarch64 host, so an ARM64 Linux machine cannot build the native
@@ -87,8 +109,13 @@ fi
 # so --native-executable takes a binary built there and carried over, and the native arms become reachable on
 # a machine that could never have produced one.
 native_capable=true
-if [[ $platform == Linux && ( $(uname -m) == aarch64 || $(uname -m) == arm64 ) ]]; then native_capable=false; fi
+if [[ ( $platform == Linux || $platform == Windows ) && ( $architecture == aarch64 || $architecture == arm64 ) ]]; then
+  native_capable=false
+fi
 if [[ -n $native_executable ]]; then
+  if [[ $platform == Windows && $architecture == arm64 ]]; then
+    echo "Windows Native captures require an x64 JVM so vendor selection matches the x64 executable" >&2; exit 2
+  fi
   [[ -x $native_executable ]] || { echo "not an executable: $native_executable" >&2; exit 2; }
   native_executable=$(cd "$(dirname "$native_executable")" && pwd)/$(basename "$native_executable")
   native_capable=true
@@ -155,10 +182,10 @@ if [[ -n $jvm_gc || -n $jvm_heap ]]; then
     if [[ -n $jvm_heap ]]; then printf "minHeapSize = '%s'\nmaxHeapSize = '%s'\n" "$jvm_heap" "$jvm_heap"; fi
     echo '} } }'
   } >"$temporary/runtime.init.gradle"
-  jvm_init_args=(--init-script "$temporary/runtime.init.gradle")
+  jvm_init_args=(--init-script "$(native_path "$temporary/runtime.init.gradle")")
 fi
 {
-  echo "architecture=$(uname -m)"
+  echo "architecture=$architecture"
   if [[ $platform == Linux ]]; then
     LC_ALL=C lscpu | awk -F: '
       /^[[:space:]]*(Vendor ID|Model name|CPU family|Model|Stepping|Thread\(s\) per core|Core\(s\) per socket|Socket\(s\)|.*[Cc]ache|NUMA node\(s\)):/ {
@@ -173,6 +200,18 @@ fi
     sysctl -n hw.physicalcpu | sed 's/^/physical_cpus=/'
     sysctl -n hw.physicalcpu_max | sed 's/^/physical_cpus_max=/'
     sysctl -n hw.memsize | sed 's/^/memory_bytes=/'
+  elif [[ $platform == Windows ]]; then
+    powershell.exe -NoProfile -NonInteractive -Command '
+      Get-CimInstance Win32_Processor | ForEach-Object {
+        "cpu_model=" + $_.Name.Trim()
+        "vendor=" + $_.Manufacturer
+        "physical_cpus=" + $_.NumberOfCores
+        "logical_cpus=" + $_.NumberOfLogicalProcessors
+        "l2_cache_kib=" + $_.L2CacheSize
+        "l3_cache_kib=" + $_.L3CacheSize
+      }
+      "memory_bytes=" + (Get-CimInstance Win32_ComputerSystem).TotalPhysicalMemory
+    ' | tr -d '\r'
   else
     echo "platform=$platform"
   fi
@@ -185,7 +224,9 @@ else
   hardware_hash=$(shasum -a 256 "$temporary/hardware-key.txt" | awk '{ print $1 }')
 fi
 source_kind=git
-if [[ $(git -C "$root" rev-parse --show-toplevel 2>/dev/null || true) == "$root" ]]; then
+git_root=$(git -C "$root" rev-parse --show-toplevel 2>/dev/null || true)
+if [[ $platform == Windows && -n $git_root ]]; then git_root=$(cygpath -u "$git_root"); fi
+if [[ $git_root == "$root" ]]; then
   commit=$(git -C "$root" rev-parse HEAD)
   dirty=false
   [[ -z $(git -C "$root" status --porcelain) ]] || dirty=true
@@ -299,7 +340,7 @@ run_target() {
 }
 
 cd "$root"
-common=("-Pbench.operation=$operation" "-Pbench.suite=$suite" "-Pbench.cases=$cases" "-Pbench.warmups=$warmups" "-Pbench.samples=$samples" "-Pbench.targetMs=$target_ms")
+common=("-Pbench.operation=$operation" "-Pbench.suite=$suite" "-Pbench.cases=$(native_path "$cases")" "-Pbench.warmups=$warmups" "-Pbench.samples=$samples" "-Pbench.targetMs=$target_ms")
 
 # One native arm, reached either way. A supplied executable is run as it stands, since the machine holding it
 # is by definition one that could not have linked it; otherwise Gradle links the host's own and runs that.
@@ -311,12 +352,12 @@ run_native() {
     echo "Prepared Native capture requires --native-executable" >&2; return 2
   fi
   if [[ -n $native_executable ]]; then
-    run_target "$target" "$native_executable" "--mode=$mode" "--operation=$operation" "--suite=$suite" \
-      "--cases=$cases" "--warmups=$warmups" "--samples=$samples" "--target-ms=$target_ms" \
-      "--output=$results/$target.csv"
+    run_target "$target" env MSYS2_ARG_CONV_EXCL='*' "$native_executable" "--mode=$mode" "--operation=$operation" "--suite=$suite" \
+      "--cases=$(native_path "$cases")" "--warmups=$warmups" "--samples=$samples" "--target-ms=$target_ms" \
+      "--output=$(native_path "$results/$target.csv")"
   else
     run_target "$target" ./gradlew --no-daemon ":koblas-bench:$task" "${common[@]}" "$@" \
-      "-Pbench.output=$results/$target.csv"
+      "-Pbench.output=$(native_path "$results/$target.csv")"
   fi
 }
 run_jvm() {
@@ -335,13 +376,13 @@ run_jvm() {
       zgc) jvm_args+=(-XX:+UseZGC) ;;
     esac
     [[ $mode != jvm-simd && $mode != jvm-default ]] || jvm_args+=(--add-modules=jdk.incubator.vector)
-    run_target "$target" "${KOBLAS_BENCH_JAVA:?}" "${jvm_args[@]}" -cp "${KOBLAS_BENCH_CLASSPATH:?}" \
+    run_target "$target" env MSYS2_ARG_CONV_EXCL='*' "${KOBLAS_BENCH_JAVA:?}" "${jvm_args[@]}" -cp "${KOBLAS_BENCH_CLASSPATH:?}" \
       com.eignex.koblas.bench.JvmRunnerKt "--mode=$mode" "--operation=$operation" "--suite=$suite" \
-      "--cases=$cases" "--warmups=$warmups" "--samples=$samples" "--target-ms=$target_ms" \
-      "--forks=$forks" "--output=$results/$target.csv"
+      "--cases=$(native_path "$cases")" "--warmups=$warmups" "--samples=$samples" "--target-ms=$target_ms" \
+      "--forks=$forks" "--output=$(native_path "$results/$target.csv")"
   else
     run_target "$target" ./gradlew --no-daemon "${jvm_init_args[@]}" ":koblas-bench:$task" "${common[@]}" "$@" \
-      "-Pbench.forks=$forks" "-Pbench.output=$results/$target.csv"
+      "-Pbench.forks=$forks" "-Pbench.output=$(native_path "$results/$target.csv")"
   fi
 }
 # Vendor arms run through the production Koblas bindings on both runtimes. There is one implementation of each

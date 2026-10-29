@@ -1011,6 +1011,7 @@ public final class com/eignex/koblas/vendor/OperatingSystem : java/lang/Enum {
 	public static final field Linux Lcom/eignex/koblas/vendor/OperatingSystem;
 	public static final field MacOs Lcom/eignex/koblas/vendor/OperatingSystem;
 	public static final field Other Lcom/eignex/koblas/vendor/OperatingSystem;
+	public static final field Windows Lcom/eignex/koblas/vendor/OperatingSystem;
 	public static fun getEntries ()Lkotlin/enums/EnumEntries;
 	public static fun valueOf (Ljava/lang/String;)Lcom/eignex/koblas/vendor/OperatingSystem;
 	public static fun values ()[Lcom/eignex/koblas/vendor/OperatingSystem;

@@ -22,6 +22,28 @@ class LabAdapterTest {
         assertFailsWith<IllegalArgumentException> { KoblasLabSuite.plan(BenchRequest(mapOf("targets" to "typo"))) }
     }
 
+    @Test fun `windows native captures declare the windows executable and hardware`() {
+        val case = KoblasLabSuite.plan(BenchRequest(mapOf("targets" to "native,aocl", "platform" to "windows"))).single()
+
+        assertEquals(setOf("platform:windows", "arch:x86_64"), case.resources.requiredTags)
+        assertEquals("koblas-bench/build/bin/mingwX64/releaseExecutable/koblas-bench.exe", case.inputs.single().path)
+    }
+
+    @Test fun `windows vendor captures use the library architecture without linux constraints`() {
+        for ((vendor, architecture) in mapOf("aocl" to "x86_64", "onemkl" to "x86_64", "armpl" to "arm64")) {
+            val case = KoblasLabSuite.plan(BenchRequest(mapOf("targets" to "$vendor-jvm", "platform" to "windows"))).single()
+
+            assertEquals(setOf("platform:windows", "arch:$architecture"), case.resources.requiredTags)
+        }
+    }
+
+    @Test fun `windows native binary infers the platform without an override`() {
+        val case = KoblasLabSuite.plan(BenchRequest(mapOf("targets" to "native,onemkl",
+            "native-executable" to "koblas-bench/build/bin/mingwX64/releaseExecutable/koblas-bench.exe"))).single()
+
+        assertEquals(setOf("platform:windows", "arch:x86_64"), case.resources.requiredTags)
+    }
+
     @Test fun `capture controls are frozen with compatible resources`() {
         val parameters = mapOf("targets" to "jvm-simd,jvm-scalar", "rounds" to "3", "jvm-gc" to "zgc",
             "jvm-heap" to "1g", "memory-mib" to "4096", "timeout-seconds" to "120", "cpu" to "auto",
@@ -55,6 +77,10 @@ class LabAdapterTest {
             mapOf("targets" to "native", "native-executable" to "/tmp/linuxX64/bench"),
             mapOf("targets" to "native", "native-executable" to "koblas-bench/build/bin/macosArm64/bench", "cpu" to "auto"),
             mapOf("targets" to "armpl,onemkl"), mapOf("targets" to "accelerate-jvm", "cpu" to "auto"),
+            mapOf("platform" to "unknown"), mapOf("platform" to "windows", "cpu" to "auto"),
+            mapOf("platform" to "windows", "targets" to "accelerate-jvm"),
+            mapOf("platform" to "windows", "targets" to "native,armpl-jvm"),
+            mapOf("platform" to "linux", "targets" to "native", "native-executable" to "koblas-bench/build/bin/mingwX64/bench.exe"),
             mapOf("output" to "elsewhere"), mapOf("prepared" to "true"), mapOf("retain-incomplete" to "false"),
         ) + listOf("/tmp/cases", "../cases", "koblas-bench/../cases", "a\\b", "a:b", "a//b", "./cases")
             .map { mapOf("cases" to it) }
@@ -214,7 +240,7 @@ class LabAdapterTest {
             check(java.toFile().setExecutable(true))
             val output = root.resolve("report")
             val script = File("capture-report.sh").absoluteFile
-            val process = ProcessBuilder("bash", script.path, "--targets", "jvm-scalar", "--libraries", "openblas", "--prepared", "--retain-incomplete", "--smoke", "--output", output.toString())
+            val process = ProcessBuilder(captureShell(), script.path, "--targets", "jvm-scalar", "--libraries", "openblas", "--prepared", "--retain-incomplete", "--smoke", "--output", output.toString())
                 .redirectErrorStream(true).apply { environment()["KOBLAS_BENCH_JAVA"] = java.toString(); environment()["KOBLAS_BENCH_CLASSPATH"] = "unused" }.start()
             val log = process.inputStream.bufferedReader().readText()
             assertEquals(7, process.waitFor(), log)
@@ -245,7 +271,7 @@ class LabAdapterTest {
             """.trimIndent() + "\n")
             check(java.toFile().setExecutable(true))
             val output = root.resolve("report")
-            val process = ProcessBuilder("bash", File("capture-report.sh").absolutePath,
+            val process = ProcessBuilder(captureShell(), File("capture-report.sh").absolutePath,
                 "--targets", "jvm-simd,jvm-scalar", "--libraries", "openblas", "--prepared",
                 "--retain-incomplete", "--smoke", "--rounds", "2", "--jvm-gc", "serial",
                 "--jvm-heap", "256m", "--output", output.toString()).redirectErrorStream(true).apply {

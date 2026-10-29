@@ -1,5 +1,10 @@
 #!/usr/bin/env bash
 
+# Native processes on Windows need drive paths rather than Git Bash's /c/... mount paths.
+native_path() {
+  if [[ ${platform:-} == Windows ]]; then cygpath -m "$1"; else printf '%s\n' "$1"; fi
+}
+
 sha256() {
   if command -v sha256sum >/dev/null 2>&1; then sha256sum "$1"; else shasum -a 256 "$1"; fi | awk '{print $1}'
 }

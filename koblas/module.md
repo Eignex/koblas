@@ -4,8 +4,11 @@ Portable double-precision dense and sparse BLAS Levels 1–3 for Kotlin Multipla
 
 The immutable [koblas][com.eignex.koblas.koblas] engine uses owned Vector API kernels on desktop JDK 25 or
 later with the incubator module, and portable Kotlin on Android, iOS devices and simulators, and other supported JVMs.
-With native access enabled, the JVM can also compose oneMKL for eligible Level 3 calls on Intel Linux.
-Linux and macOS Kotlin/Native compose optional installed host calls with portable fallback. Explicit vendor bindings preserve their own arithmetic and overlap contracts;
+With native access enabled, the JVM can also compose oneMKL for eligible Level 3 calls on Intel x64 Linux and Windows.
+Linux, Windows and macOS Kotlin/Native compose optional installed host calls with portable fallback. Windows
+reuses the Linux routing thresholds and vendor preference order, with separately installed oneMKL, AOCL,
+ArmPL or OpenBLAS DLLs. Windows Arm64 is available through the JVM; Kotlin/Native supports Windows x64.
+Explicit vendor bindings preserve their own arithmetic and overlap contracts;
 [openBlas][com.eignex.koblas.vendor.openBlas] returns null on Android, JDKs below 25, or a host with no
 supported library. The JVM publication is one multi-release JAR with no bundled native code.
 

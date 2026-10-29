@@ -42,6 +42,7 @@ internal class JvmVendorLibrary private constructor(
 
     private fun symbolOwner(symbol: String): String? {
         val address = lookup.find(symbol).orElse(null) ?: return null
+        if (hostPlatform().operatingSystem == OperatingSystem.Windows) return windowsSymbolOwner(address)
         val dladdr = linker.defaultLookup().find("dladdr").orElse(null) ?: return null
         val handle = linker.downcallHandle(dladdr, FunctionDescriptor.of(JAVA_INT, ADDRESS, ADDRESS))
         Arena.ofConfined().use { arena ->
@@ -51,6 +52,29 @@ internal class JvmVendorLibrary private constructor(
             val name = info.get(ADDRESS, 0L)
             if (name.equals(MemorySegment.NULL)) return null
             return name.reinterpret(PATH_BYTES).getString(0).ifEmpty { null }
+        }
+    }
+
+    /** Resolve the actual DLL, including a forwarded export, through the Windows loader. */
+    private fun windowsSymbolOwner(address: MemorySegment): String? {
+        val kernel = SymbolLookup.libraryLookup("kernel32.dll", Arena.global())
+        val moduleForAddress = linker.downcallHandle(
+            kernel.find("GetModuleHandleExW").orElseThrow(),
+            FunctionDescriptor.of(JAVA_INT, JAVA_INT, ADDRESS, ADDRESS),
+        )
+        val moduleFile = linker.downcallHandle(
+            kernel.find("GetModuleFileNameW").orElseThrow(),
+            FunctionDescriptor.of(JAVA_INT, ADDRESS, ADDRESS, JAVA_INT),
+        )
+        Arena.ofConfined().use { arena ->
+            val owner = arena.allocate(ADDRESS)
+            // FROM_ADDRESS | UNCHANGED_REFCOUNT keeps this query from retaining another module handle.
+            if ((moduleForAddress.invokeExact(WINDOWS_MODULE_FLAGS, address, owner) as Int) == 0) return null
+            val module = owner.get(ADDRESS, 0L)
+            val path = arena.allocate(WINDOWS_PATH_CHARACTERS * 2L, 2L)
+            val length = moduleFile.invokeExact(module, path, WINDOWS_PATH_CHARACTERS) as Int
+            if (length <= 0 || length >= WINDOWS_PATH_CHARACTERS) return null
+            return path.getString(0L, Charsets.UTF_16LE)
         }
     }
 
@@ -128,8 +152,8 @@ internal class JvmVendorLibrary private constructor(
         val handle = handleOrNull(getter, FunctionDescriptor.of(JAVA_INT))
         if (handle == null) {
             // A build of a known vendor without that vendor's control is not one this code knows; see
-            // ThreadControl.absenceMeansSerial for the one reading of an absent control that is positive.
-            if (!control.absenceMeansSerial) return false
+            // ThreadControl.permitsAbsentControl for the serial-build exception.
+            if (!control.permitsAbsentControl(path)) return false
             threadEvidence = ThreadEvidence.Confirmed
             return true
         }
@@ -239,6 +263,8 @@ internal class JvmVendorLibrary private constructor(
         /** `Dl_info` is four pointers, of which only the first, `dli_fname`, is read. */
         private const val DL_INFO_BYTES = 32L
         private const val PATH_BYTES = 4096L
+        private const val WINDOWS_PATH_CHARACTERS = 32768
+        private const val WINDOWS_MODULE_FLAGS = 6
 
         /**
          * Open the first [vendor] candidate with every required CBLAS symbol, or null. Reject partial
@@ -250,7 +276,11 @@ internal class JvmVendorLibrary private constructor(
             } catch (_: UnsupportedOperationException) {
                 return null
             }
-            for (candidate in vendor.resolvedCandidates(System.getProperty("user.home"))) {
+            for (candidate in vendor.loadCandidates(
+                System.getProperty("user.home"),
+                hostPlatform().operatingSystem,
+                System.getenv("PATH"),
+            )) {
                 attempt(vendor, candidate, linker)?.let { return it }
             }
             return null
@@ -258,7 +288,11 @@ internal class JvmVendorLibrary private constructor(
 
         private fun attempt(vendor: Vendor, candidate: String, linker: Linker): JvmVendorLibrary? {
             val lookup = try {
-                SymbolLookup.libraryLookup(candidate, Arena.global())
+                if (hostPlatform().operatingSystem == OperatingSystem.Windows) {
+                    windowsLibraryLookup(candidate, linker) ?: return null
+                } else {
+                    SymbolLookup.libraryLookup(candidate, Arena.global())
+                }
             } catch (_: IllegalArgumentException) {
                 return null // not on this machine
             } catch (_: UnsatisfiedLinkError) {

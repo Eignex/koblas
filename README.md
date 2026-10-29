@@ -30,7 +30,7 @@ Add the Maven Central dependency to your JVM or `commonMain` source set:
 implementation("com.eignex:koblas:<version>")
 ```
 
-Supported targets: JVM on JDK 17 or later, Android API 24 or later, Linux x64/arm64, macOS arm64,
+Supported targets: JVM on JDK 17 or later, Android API 24 or later, Linux x64/arm64, Windows x64, macOS arm64,
 and iOS arm64 devices and simulators.
 
 Desktop and Android consume the same JVM Maven artifact. Its multi-release JAR contains portable Java 17
@@ -38,15 +38,35 @@ bytecode at the root and the desktop implementations under `META-INF/versions/25
 portable classes; no Android AAR, native binaries, NDK, or native-access flags are needed.
 
 - Desktop JDK 25 or later: pass `--add-modules=jdk.incubator.vector` to enable the SIMD engine. Without it,
-  owned kernels use portable Kotlin. With native access enabled, Intel Linux hosts can also use installed
+  owned kernels use portable Kotlin. With native access enabled, Intel x64 Linux and Windows hosts can also use installed
   oneMKL for Level 3 calls whose rows, columns and depth are all at least 128. Whole-matrix GEMM also
   qualifies with at least 16 output rows and columns and depth from 1024 through 4096. Borrowed views
   retain the larger cutoff. Other calls retain JVM kernels.
 - Desktop JDK 17–24 and Android: all operations use portable Kotlin. Host bindings return null.
-- Linux and macOS Kotlin/Native: eligible calls use an installed host library when available, with portable fallback.
+- Linux, Windows and macOS Kotlin/Native: eligible calls use an installed host library when available, with portable fallback.
 - iOS devices and simulators: all operations use portable Kotlin; no vendor library is required.
 - Explicit desktop host bindings on JDK 25 or later also need `--enable-native-access=ALL-UNNAMED`. Supported
-  vendors include oneMKL, AOCL, Arm Performance Libraries and Accelerate.
+  vendors include oneMKL, AOCL, Arm Performance Libraries, OpenBLAS and Accelerate.
+
+Windows has no system BLAS. Install an LP64 (32-bit BLAS integers) build of oneMKL, AOCL, ArmPL or OpenBLAS, matching
+the process architecture, and put its DLL directory on `PATH` before launching the application. Only
+absolute `PATH` entries are searched. Keep runtime dependencies beside the vendor DLL or in Windows
+system directories; dependency probing excludes the working directory. Linux and Windows share the preference order: AMD x64 tries AOCL then oneMKL, other
+x64 hosts try oneMKL then AOCL, and Arm64 tries ArmPL. OpenBLAS is the final fallback in every case.
+Windows CPU identification reads `PROCESSOR_IDENTIFIER` on both runtimes. The bindings retain the ABI
+probes and single compute thread requirement, and Windows reuses Linux's automatic routing thresholds.
+No DLLs are bundled or downloaded. Windows runtime behavior and thresholds have not been verified on a
+Windows host; local validation cross-compiles and links its executables.
+
+Windows candidates include `mkl_rt.3.dll`, `mkl_rt.2.dll`, `mkl_rt.dll`, AOCL's `libblis.dll` and
+`libblis-mt.dll` (plus legacy `AOCL-LibBlis-Win-dll.dll` / `AOCL-LibBlis-Win-MT-dll.dll` and unified
+`aocl.dll`), `armpl_lp64.dll` / `armpl_lp64_mp.dll`, and `libopenblas.dll` / `openblas.dll`.
+ArmPL prefers its serial DLL. A parallel DLL is accepted only when its thread controls can be resolved
+and checked; missing controls never count as evidence that a parallel build is serial.
+See the [AOCL installation guide](https://docs.amd.com/r/en-US/57404-AOCL-user-guide/4.1.8.-Using-Pre-Built-Binaries)
+and [ArmPL Windows guide](https://developer.arm.com/community/arm-community-blogs/b/tools-software-ides-blog/posts/windows-release-of-arm-performance-libraries)
+for their runtime dependencies. Arm64 Windows uses the JVM publication: Kotlin/Native currently offers
+only [the Windows x64 target](https://kotlinlang.org/docs/native-target-support.html).
 
 For Android, add the same dependency to your app's `dependencies` block and use a current Android Gradle
 Plugin with Java 17 bytecode support. Java 17 bytecode does not require Android 14: D8 desugars supported
@@ -229,3 +249,12 @@ exact-engine comparisons and reproducible captures.
 
 Run `./gradlew check lintDocs`. Add `-Pkoblas.noSimd=true` to check the JVM fallback without the Vector API
 module; this does not hide installed vendor libraries.
+
+On Windows, `gradlew.bat check lintDocs` runs the same shared tests plus the Windows loader tests.
+The full repository gate includes benchmark script tests and needs Git Bash on `PATH` (or an absolute `KOBLAS_BASH` setting).
+To require installed DLLs instead of allowing vendor tests to skip, set `KOBLAS_REQUIRE_VENDORS` to a
+comma-separated list of `onemkl`, `aocl`, `armpl`, or `openblas`, then run
+`gradlew.bat :koblas:jvmTest :koblas:mingwX64Test --rerun-tasks` on x64 with JDK 25.
+On Arm64, run `:koblas:jvmTest` with an Arm64 JDK instead. The dense host conformance suite checks every
+installed vendor against the scalar reference. Do not set the requirement for Java 17 portable tests,
+whose bindings intentionally return null.

@@ -9,6 +9,7 @@ import kotlinx.cinterop.toKString
 import platform.posix.fclose
 import platform.posix.fgets
 import platform.posix.fopen
+import platform.posix.getenv
 
 /** Resolved once; none of these facts change while the process runs. */
 private val host: HostPlatform by lazy {
@@ -22,6 +23,7 @@ public actual fun hostPlatform(): HostPlatform = host
 private fun operatingSystem(): OperatingSystem = when (Platform.osFamily) {
     OsFamily.LINUX -> OperatingSystem.Linux
     OsFamily.MACOSX -> OperatingSystem.MacOs
+    OsFamily.WINDOWS -> OperatingSystem.Windows
     else -> OperatingSystem.Other
 }
 
@@ -32,13 +34,16 @@ private fun architecture(): Architecture = when (Platform.cpuArchitecture) {
 }
 
 /**
- * The CPU manufacturer, read from `/proc/cpuinfo` on Linux and left unknown elsewhere.
+ * The CPU manufacturer, read from `/proc/cpuinfo` on Linux and `PROCESSOR_IDENTIFIER` on Windows.
  *
  * Nothing else needs it: macOS takes Accelerate and Arm takes ArmPL without consulting the manufacturer, so it
  * only ever chooses between AOCL and oneMKL on 64-bit x86.
  */
 @OptIn(ExperimentalForeignApi::class)
 private fun cpuVendor(): CpuVendor {
+    if (operatingSystem() == OperatingSystem.Windows) {
+        return cpuVendorFromIdentifier(getenv("PROCESSOR_IDENTIFIER")?.toKString())
+    }
     if (operatingSystem() != OperatingSystem.Linux) return CpuVendor.Unknown
     val file = fopen("/proc/cpuinfo", "r") ?: return CpuVendor.Unknown
     try {
@@ -47,12 +52,7 @@ private fun cpuVendor(): CpuVendor {
             while (fgets(line, LINE_BUFFER, file) != null) {
                 val text = line.toKString()
                 if (!text.startsWith("vendor_id")) continue
-                val value = text.substringAfter(':', "").trim()
-                return when {
-                    value.equals("GenuineIntel", ignoreCase = true) -> CpuVendor.Intel
-                    value.equals("AuthenticAMD", ignoreCase = true) -> CpuVendor.Amd
-                    else -> CpuVendor.Unknown
-                }
+                return cpuVendorFromIdentifier(text.substringAfter(':', "").trim())
             }
         }
     } finally {

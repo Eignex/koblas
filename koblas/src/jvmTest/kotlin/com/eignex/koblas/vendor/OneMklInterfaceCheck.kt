@@ -7,6 +7,7 @@ import com.eignex.koblas.dense.ReferenceBlas
 import com.eignex.koblas.dense.ScalarVectorKernels
 import com.eignex.koblas.internal.jvm25.JvmVendorBlas
 import com.eignex.koblas.internal.jvm25.JvmVendorLibrary
+import com.eignex.koblas.internal.jvm25.windowsLibraryLookup
 import java.lang.foreign.Arena
 import java.lang.foreign.FunctionDescriptor
 import java.lang.foreign.Linker
@@ -107,9 +108,18 @@ internal object OneMklInterfaceCheck {
 
     private fun installedRuntimes(): List<SymbolLookup> {
         val runtimes = mutableListOf<SymbolLookup>()
-        for (candidate in Vendor.OneMkl.resolvedCandidates(System.getProperty("user.home"))) {
+        val candidates = Vendor.OneMkl.loadCandidates(
+            System.getProperty("user.home"),
+            hostPlatform().operatingSystem,
+            System.getenv("PATH"),
+        )
+        for (candidate in candidates) {
             val lookup = try {
-                SymbolLookup.libraryLookup(candidate, Arena.global())
+                if (hostPlatform().operatingSystem == OperatingSystem.Windows) {
+                    windowsLibraryLookup(candidate, Linker.nativeLinker()) ?: continue
+                } else {
+                    SymbolLookup.libraryLookup(candidate, Arena.global())
+                }
             } catch (_: IllegalArgumentException) {
                 continue
             } catch (_: UnsatisfiedLinkError) {
