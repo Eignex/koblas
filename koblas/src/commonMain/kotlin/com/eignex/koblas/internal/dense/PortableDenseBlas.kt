@@ -677,12 +677,12 @@ internal class PortableDenseBlas(
                 }
                 if (!unitDiag) {
                     x[xOffset + j * xStride] =
-                    x[xOffset + j * xStride] / a.values[a.offset + j + j * a.leadingDimension]
+                        x[xOffset + j * xStride] / a.values[a.offset + j + j * a.leadingDimension]
                 }
             } else {
                 if (!unitDiag) {
                     x[xOffset + j * xStride] =
-                    x[xOffset + j * xStride] / a.values[a.offset + j + j * a.leadingDimension]
+                        x[xOffset + j * xStride] / a.values[a.offset + j + j * a.leadingDimension]
                 }
                 if (rows >
                     0
@@ -754,7 +754,7 @@ internal class PortableDenseBlas(
             if (transpose) {
                 if (!unitDiag) {
                     x[xOffset + j * xStride] =
-                    a.values[a.offset + j + j * a.leadingDimension] * x[xOffset + j * xStride]
+                        a.values[a.offset + j + j * a.leadingDimension] * x[xOffset + j * xStride]
                 }
                 if (rows >
                     0
@@ -778,7 +778,7 @@ internal class PortableDenseBlas(
                 }
                 if (!unitDiag) {
                     x[xOffset + j * xStride] =
-                    a.values[a.offset + j + j * a.leadingDimension] * x[xOffset + j * xStride]
+                        a.values[a.offset + j + j * a.leadingDimension] * x[xOffset + j * xStride]
                 }
             }
         }

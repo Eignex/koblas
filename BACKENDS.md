@@ -85,3 +85,12 @@ Storage guarantees are separate: Into calls support backing-buffer aliases, CSC 
 while absent positions are never evaluated, fresh sparse results own their arrays, and prepared snapshots own
 immutable copies. Concurrent readers supply separate destinations and workspaces. Raw vector and indexed
 sparse offset/count APIs remain available without allocating container wrappers.
+
+Generic `Matrix` products can name any explicit engine. Preparation never binds subsequent arithmetic to an
+engine; prepared convenience calls and Matrix extensions use the immutable default. Dense matrix operations,
+including structured routines and mixed CSC products, use canonical regions with offsets and leading dimensions.
+JVM native transfers and Native pinning remain separate implementations at the binding boundary.
+
+Internal ownership is grouped under `internal.dense`, `internal.sparse`, `internal.operands`, `internal.host`
+and `internal.diagnostics`. Java 25 implementations separate `internal.jvm25.simd` from `internal.jvm25.host`.
+Public raw kernels, dense/CSC operation contracts and expert vendor bindings keep their API packages.

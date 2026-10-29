@@ -127,7 +127,7 @@ val y = a * x
 
 Operators allocate results. BLAS-style and `*Into` calls write into caller-owned destinations, and every
 routine that can take scratch accepts a `Workspace` to lend it, whether that scratch is the snapshot of an
-operand overlapping the destination, the gather a strided vector needs, or the panels a blocked product
+operand overlapping the destination, a gathered coefficient column, or the panels a blocked product
 packs:
 
 ```kotlin
@@ -174,14 +174,13 @@ val trailing = matrix.view(first, first, height, height)
 koblas.syrk(-1.0, panel, false, 1.0, trailing, workspace = workspace)
 ```
 
-`gemm`, `syrk`, `trsm`, `gemv` and `trsv` accept views and contiguous matrices together through
-`DenseMatrixRegion`. Portable engines address regions directly and snapshot overlapping inputs;
-disjoint regions of the same parent need no snapshot. Product packing and triangular right-hand-side
-gathering can still use workspace scratch. On Kotlin/Native, eligible host calls pass each region's offset
-and leading dimension to the library in place, snapshotting only an input that overlaps the destination.
-A host binding without that addressing packs borrowed regions into contiguous workspace loans and copies
-back only destination entries, preserving the unselected triangle of `syrk`.
-Other matrix APIs may materialise a view.
+Every dense BLAS routine accepts views and contiguous matrices through `DenseMatrixRegion`.
+Dense vector operands carry offset, size and signed stride directly, without an adaptation gather.
+Portable engines snapshot overlapping logical regions; disjoint regions in one buffer need no snapshot.
+Product packing and triangular right-hand-side gathering can still borrow workspace scratch.
+Eligible Native host calls pin regions at their offsets and leading dimensions. JVM bindings transfer
+only logical regions into native memory and write back selected destination entries, preserving padding,
+unselected triangles and implicit unit-diagonal access rules.
 
 For route inspection, set `DenseCall.borrowed` for a call with views, `leadingDimension` for a padded
 `trsm` destination and `rightLeadingDimension` for a transposed borrowed right operand in `gemm`.
@@ -220,8 +219,8 @@ storage access is needed.
 - Arrays can be wrapped without copying. `StridedVector` and matrix row/column views borrow existing storage.
 - Built-in `*Into` paths support aliases through snapshotting. Explicit vendor bindings retain their own
   overlap contract. Symmetric operations read only the selected triangle; triangular solves write in place.
-- Prepared sparse matrices are `Matrix` operands: they own their snapshots, run on the engine that prepared
-  them, and can be shared by readers with separate mutable scratch.
+- Prepared sparse matrices are `Matrix` operands: they own engine-neutral snapshots and can be shared by
+  readers with separate mutable scratch. Calls on an engine use that engine; container conveniences use `koblas`.
 - Each call uses one compute thread. Defaults are immutable; containers, views and workspaces are mutable.
 
 Shape mismatches throw `DimensionMismatch`; invalid indices throw `IndexOutOfBoundsException`; other invalid
@@ -235,7 +234,7 @@ consumer algorithms over ordinary arrays; panel geometry and packing layouts are
 
 | Area | API |
 |---|---|
-| Containers and views | [Matrices](koblas/src/commonMain/kotlin/com/eignex/koblas/Matrix.kt), [sparse matrices](koblas/src/commonMain/kotlin/com/eignex/koblas/SparseMatrix.kt), [vectors](koblas/src/commonMain/kotlin/com/eignex/koblas/Vector.kt) |
+| Containers and views | [Dense matrices](koblas/src/commonMain/kotlin/com/eignex/koblas/DenseMatrix.kt), [sparse matrices](koblas/src/commonMain/kotlin/com/eignex/koblas/SparseMatrix.kt), [dense vectors](koblas/src/commonMain/kotlin/com/eignex/koblas/DenseVector.kt), [sparse vectors](koblas/src/commonMain/kotlin/com/eignex/koblas/SparseVector.kt) |
 | Vector arithmetic | [VectorOps](koblas/src/commonMain/kotlin/com/eignex/koblas/VectorOps.kt) |
 | Matrix operations | [MatrixOps](koblas/src/commonMain/kotlin/com/eignex/koblas/MatrixOps.kt), [generic products](koblas/src/commonMain/kotlin/com/eignex/koblas/MatrixProducts.kt) |
 | BLAS | [DenseBlas](koblas/src/commonMain/kotlin/com/eignex/koblas/dense/DenseBlas.kt), [SparseBlas](koblas/src/commonMain/kotlin/com/eignex/koblas/sparse/SparseBlas.kt) |
@@ -258,3 +257,9 @@ comma-separated list of `onemkl`, `aocl`, `armpl`, or `openblas`, then run
 On Arm64, run `:koblas:jvmTest` with an Arm64 JDK instead. The dense host conformance suite checks every
 installed vendor against the scalar reference. Do not set the requirement for Java 17 portable tests,
 whose bindings intentionally return null.
+
+The JVM baseline test compilation targets Java 17 and is reused by both packaged runtime suites.
+`jvmDesktopTest` contains only desktop tests. `jvmTest` runs baseline and desktop outputs on Java 25;
+`jvmTestJarOnJava25` remains a dependency entrypoint to it. `jvmTestJarOnJava17` runs the same baseline
+outputs separately against the MR JAR on Java 17. Isolated allocation/runtime checks run without coverage
+instrumentation. The [implementation inventory](docs/implementation-666.md) records the source graph and validation.
