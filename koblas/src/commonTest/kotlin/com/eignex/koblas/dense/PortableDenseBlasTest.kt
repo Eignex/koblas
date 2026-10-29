@@ -58,7 +58,7 @@ class PortableDenseBlasTest {
     private fun orders() = intArrayOf(0, 1, 2, 3, 5, 8, 9, 17)
 
     @Test
-    fun `no work products agree with the reference for dense and retained operands`() = withProducts { products ->
+    fun `no work products agree with the reference for dense operands`() = withProducts { products ->
         val blas = PortableDenseBlas(ScalarVectorKernels, PortablePanelKernels, products)
         val rng = Random(20261014)
         for ((alpha, depth) in listOf(0.0 to 3, 0.875 to 0)) {
@@ -66,8 +66,6 @@ class PortableDenseBlasTest {
                 for (transposeB in booleanArrayOf(false, true)) {
                     val a = randomMatrix(if (transposeA) depth else 4, if (transposeA) 4 else depth, rng)
                     val b = randomMatrix(if (transposeB) 5 else depth, if (transposeB) depth else 5, rng)
-                    val left = blas.packLeft(a, transposeA)
-                    val right = blas.packRight(b, transposeB)
                     for (beta in doubleArrayOf(0.0, 1.0, -0.25)) {
                         val start = randomMatrix(4, 5, rng)
                         if (beta == 0.0) start.values.fill(Double.NaN)
@@ -75,9 +73,6 @@ class PortableDenseBlasTest {
                         ReferenceBlas.gemm(alpha, a, transposeA, b, transposeB, beta, expected)
                         val calls = listOf<(DenseMatrix) -> Unit>(
                             { blas.gemm(alpha, a, transposeA, b, transposeB, beta, it) },
-                            { blas.gemm(alpha, left, right, beta, it) },
-                            { blas.gemm(alpha, left, b, transposeB, beta, it, null) },
-                            { blas.gemm(alpha, a, transposeA, right, beta, it, null) },
                         )
 
                         for ((variant, call) in calls.withIndex()) {
@@ -167,44 +162,6 @@ class PortableDenseBlasTest {
                 { blas.syrk(alpha, a, false, 1.0, wrongOutput) },
                 { blas.syr2k(alpha, a, DenseMatrix(4, depth + 1), false, 1.0, c) },
                 { blas.syr2k(alpha, a, a, false, 1.0, wrongOutput) },
-            )
-
-            for (call in calls) assertFailsWith<DimensionMismatch> { call() }
-
-            assertContentEquals(DoubleArray(16) { 7.0 }, c.values)
-            assertContentEquals(DoubleArray(12) { 7.0 }, wrongOutput.values)
-        }
-    }
-
-    @Test
-    fun `no work retained products validate layouts and shapes before returning`() = withProducts { products ->
-        val blas = PortableDenseBlas(ScalarVectorKernels, PortablePanelKernels, products)
-        for ((alpha, depth) in listOf(0.0 to 3, 0.875 to 0)) {
-            val a = DenseMatrix(4, depth)
-            val b = DenseMatrix(depth, 4)
-            val left = blas.packLeft(a, false)
-            val right = blas.packRight(b, false)
-            val wrongRoleLeft = blas.packRight(a, false)
-            val wrongRoleRight = blas.packLeft(b, false)
-            val wrongGroupLeft = packedLeft(a, false, products.tileRows + 1)
-            val wrongGroupRight = packedRight(b, false, products.tileColumns + 1)
-            val c = DenseMatrix(4, 4, DoubleArray(16) { 7.0 })
-            val wrongOutput = DenseMatrix(4, 3, DoubleArray(12) { 7.0 })
-            val calls = listOf<() -> Unit>(
-                { blas.gemm(alpha, wrongRoleLeft, right, 1.0, c) },
-                { blas.gemm(alpha, left, wrongRoleRight, 1.0, c) },
-                { blas.gemm(alpha, wrongGroupLeft, right, 1.0, c) },
-                { blas.gemm(alpha, left, wrongGroupRight, 1.0, c) },
-                { blas.gemm(alpha, wrongRoleLeft, b, false, 1.0, c, null) },
-                { blas.gemm(alpha, a, false, wrongRoleRight, 1.0, c, null) },
-                { blas.gemm(alpha, wrongGroupLeft, b, false, 1.0, c, null) },
-                { blas.gemm(alpha, a, false, wrongGroupRight, 1.0, c, null) },
-                { blas.gemm(alpha, left, blas.packRight(DenseMatrix(depth + 1, 4), false), 1.0, c) },
-                { blas.gemm(alpha, left, DenseMatrix(depth + 1, 4), false, 1.0, c, null) },
-                { blas.gemm(alpha, DenseMatrix(4, depth + 1), false, right, 1.0, c, null) },
-                { blas.gemm(alpha, left, right, 1.0, wrongOutput) },
-                { blas.gemm(alpha, left, b, false, 1.0, wrongOutput, null) },
-                { blas.gemm(alpha, a, false, right, 1.0, wrongOutput, null) },
             )
 
             for (call in calls) assertFailsWith<DimensionMismatch> { call() }

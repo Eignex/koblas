@@ -90,7 +90,7 @@ class VendorArmTest {
     @Test
     fun `vendor arms decline windowed batches without a rectangle binding`() {
         val blas = vendor() ?: return
-        for (operation in listOf("ger-window-shrinking", "panel-rankupdate-shrinking")) {
+        for (operation in listOf("ger-window-shrinking")) {
             val choice = vendorArm(Cases.parse("$operation+6+uniform").single(), blas)
 
             assertNull(choice.work)
@@ -144,11 +144,14 @@ class VendorArmTest {
 
     /** What a 64 by 64 by 64 product row must carry on [engine]: shared traversal, both packers, its tile. */
     private fun expectedProductKernel(engine: KoblasEngine): String {
-        val tile = engine.productKernels
-        val bodies = tile.implementationsFor(tile.tileRows, tile.tileColumns, 64)
-        assertEquals(1, bodies.size, "a whole tile reached more than one body on ${engine.name}")
-        return "portable-dense+portable-pack/right-panel+portable-pack/left-panel+" +
-            "${bodies.single()}/product-block/gemm"
+        val route = engine.routeOf(
+            com.eignex.koblas.dense.DenseMatrixOperation.Gemm,
+            com.eignex.koblas.dense.DenseCall(64, 64, depth = 64),
+        )
+        assertEquals("portable-dense", route.scheduling)
+        assertEquals(listOf("portable-pack/right-panel", "portable-pack/left-panel"), route.components.take(2))
+        assertEquals(3, route.components.size, "a whole tile must reach exactly one arithmetic body")
+        return "portable-dense+portable-pack/right-panel+portable-pack/left-panel+${route.components.last()}/gemm"
     }
 
     @Test

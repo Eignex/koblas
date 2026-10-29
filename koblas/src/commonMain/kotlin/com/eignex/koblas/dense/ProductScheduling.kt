@@ -90,7 +90,7 @@ internal fun productWindow(
     if (m <= 0 || n <= 0) return
     if (packsWindow(kernels, m, n, k, selected)) {
         blockedProduct(
-            kernels, alpha, a, aOffset, lda, transposeA, null, b, bOffset, ldb, transposeB, null,
+            kernels, alpha, a, aOffset, lda, transposeA, b, bOffset, ldb, transposeB,
             beta, c, cOffset, ldc, m, n, k, selected, workspace,
         )
     } else {
@@ -113,17 +113,7 @@ internal fun productWindow(
 internal fun packsWindow(kernels: DenseProductKernels, m: Int, n: Int, k: Int, selected: OutputTriangle): Boolean =
     kernels.packsProduct(m, n, k)
 
-/**
- * The blocked packed product, taking either operand already packed.
- *
- * A retained panel is used where it lies: its groups are as deep as the shared dimension it was packed over,
- * and [PackedLayout.groupStride] is what lets a block read a slice of one without repacking. A panel packed
- * for this call is as deep as its own block instead, and the same kernel reads both.
- *
- * Only the operands that are not already packed take scratch, so a product between two retained panels
- * borrows nothing at all. A selected triangle borrows one tile besides, which is where a block straddling
- * the diagonal accumulates before its selected entries are merged.
- */
+/** Transient cache-block packing, with a tile-sized merge buffer for a selected triangle. */
 internal fun blockedProduct(
     kernels: DenseProductKernels,
     alpha: Double,
@@ -131,12 +121,10 @@ internal fun blockedProduct(
     aOffset: Int,
     lda: Int,
     transposeA: Boolean,
-    retainedA: PackedMatrix?,
     b: DoubleArray,
     bOffset: Int,
     ldb: Int,
     transposeB: Boolean,
-    retainedB: PackedMatrix?,
     beta: Double,
     c: DoubleArray,
     cOffset: Int,
@@ -150,15 +138,15 @@ internal fun blockedProduct(
     val blockRows = productBlockRows(kernels, m)
     val blockColumns = productBlockColumns(kernels, n)
     val blockDepth = productBlockDepth(k)
-    val leftSize = if (retainedA == null) scratchCapacity(blockRows * blockDepth) else 0
-    val rightSize = if (retainedB == null) scratchCapacity(blockColumns * blockDepth) else 0
+    val leftSize = scratchCapacity(blockRows * blockDepth)
+    val rightSize = scratchCapacity(blockColumns * blockDepth)
     val edgeSize = if (selected == OutputTriangle.Full) 0 else kernels.tileRows * kernels.tileColumns
     workspace.borrowOptional(leftSize) { left ->
         workspace.borrowOptional(rightSize) { right ->
             workspace.borrowOptional(edgeSize) { edge ->
                 blockedProductCore(
-                    kernels, alpha, a, aOffset, lda, transposeA, retainedA, left,
-                    b, bOffset, ldb, transposeB, retainedB, right,
+                    kernels, alpha, a, aOffset, lda, transposeA, left,
+                    b, bOffset, ldb, transposeB, right,
                     beta, c, cOffset, ldc, m, n, k, blockRows, blockColumns, blockDepth, selected, edge,
                 )
             }
@@ -281,7 +269,7 @@ internal inline fun forEachSelectedTile(
     }
 }
 
-/** The block traversal itself, over panels that are either retained or packed into [left] and [right]. */
+/** The block traversal itself, over panels packed into [left] and [right]. */
 @Suppress("CyclomaticComplexMethod") // the traversal, its lazy packing and the three positions of a block
 private fun blockedProductCore(
     kernels: DenseProductKernels,
@@ -290,13 +278,11 @@ private fun blockedProductCore(
     aOffset: Int,
     lda: Int,
     transposeA: Boolean,
-    retainedA: PackedMatrix?,
     left: DoubleArray,
     b: DoubleArray,
     bOffset: Int,
     ldb: Int,
     transposeB: Boolean,
-    retainedB: PackedMatrix?,
     right: DoubleArray,
     beta: Double,
     c: DoubleArray,
@@ -313,8 +299,6 @@ private fun blockedProductCore(
 ) {
     val tileRows = kernels.tileRows
     val tileColumns = kernels.tileColumns
-    val leftPanel = retainedA?.values ?: left
-    val rightPanel = retainedB?.values ?: right
     var packedColumn = -1
     var packedStep = -1
     var rightStride = 0
@@ -331,39 +315,27 @@ private fun blockedProductCore(
         if (!outsideTriangle(row, rowCount, column, columnCount, selected)) {
             // Reuse the right panel across row blocks for the same column and depth block.
             if (column != packedColumn || step != packedStep) {
-                if (retainedB == null) {
-                    packRightPanel(
-                        b, bOffset, ldb, transposeB, step, column, depth, columnCount, right, 0, tileColumns,
-                    )
-                    rightStride = depth * tileColumns
-                    rightBase = 0
-                } else {
-                    rightStride = retainedB.layout.groupStride
-                    rightBase = column / tileColumns * rightStride + step * tileColumns
-                }
+                packRightPanel(
+                    b, bOffset, ldb, transposeB, step, column, depth, columnCount, right, 0, tileColumns,
+                )
+                rightStride = depth * tileColumns
+                rightBase = 0
                 packedColumn = column
                 packedStep = step
             }
-            val leftStride: Int
-            val leftBase: Int
-            if (retainedA == null) {
-                packLeftPanel(a, aOffset, lda, transposeA, row, step, rowCount, depth, left, 0, tileRows)
-                leftStride = depth * tileRows
-                leftBase = 0
-            } else {
-                leftStride = retainedA.layout.groupStride
-                leftBase = row / tileRows * leftStride + step * tileRows
-            }
+            packLeftPanel(a, aOffset, lda, transposeA, row, step, rowCount, depth, left, 0, tileRows)
+            val leftStride = depth * tileRows
+            val leftBase = 0
             // Apply beta only in the first depth block; later blocks accumulate.
             val blockBeta = if (step == 0) beta else 1.0
             if (insideTriangle(row, rowCount, column, columnCount, selected)) {
                 kernels.productBlock(
-                    alpha, leftPanel, leftBase, leftStride, rightPanel, rightBase, rightStride,
+                    alpha, left, leftBase, leftStride, right, rightBase, rightStride,
                     rowCount, columnCount, depth, blockBeta, c, cOffset + row + column * ldc, ldc,
                 )
             } else {
                 selectedBlock(
-                    kernels, alpha, leftPanel, leftBase, leftStride, rightPanel, rightBase, rightStride,
+                    kernels, alpha, left, leftBase, leftStride, right, rightBase, rightStride,
                     row, rowCount, column, columnCount, depth, blockBeta, c, cOffset, ldc, selected, edge,
                 )
             }
@@ -718,7 +690,7 @@ private const val LARGEST_ROUNDED_SCRATCH: Int = 1 shl 30
  * Whole tiles of [preferred], never more than the extent needs and never less than one tile.
  *
  * A block extent is a multiple of the tile so that every block but the last starts on a group boundary,
- * which is what lets a retained panel be read in slices. A configured block smaller than one tile would
+ * so every panel starts on a group boundary. A configured block smaller than one tile would
  * leave a block with no extent and a traversal that never advances, so one tile is the floor.
  */
 internal fun blockExtent(preferred: Int, tile: Int, extent: Int): Int {

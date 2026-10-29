@@ -6,7 +6,6 @@ import com.eignex.koblas.KoblasEngine
 import com.eignex.koblas.KoblasEngineApi
 import com.eignex.koblas.dense.DenseCall
 import com.eignex.koblas.dense.DenseMatrixOperation
-import com.eignex.koblas.dense.PanelWork
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
@@ -33,7 +32,7 @@ class ShrinkingRankUpdateTest {
     @Test
     fun `timed batches agree with the reference across repeated calls`() {
         val engines = listOfNotNull<KoblasEngine>(BuiltinEngines.scalar, BuiltinEngines.simd)
-        for (n in listOf(5, 6, 7)) for (operation in listOf("ger-shrinking", "ger-window-shrinking", "panel-rankupdate-shrinking")) {
+        for (n in listOf(5, 6, 7)) for (operation in listOf("ger-shrinking", "ger-window-shrinking")) {
             val fixture = ShrinkingRankUpdate(n)
             for (engine in engines) {
                 val work = assertNotNull(denseWork(Cases.parse("$operation+$n+uniform").single(), engine))
@@ -56,15 +55,20 @@ class ShrinkingRankUpdateTest {
     @Test
     fun `full calls and shrinking panels name the bodies they reach`() {
         for (engine in listOfNotNull<KoblasEngine>(BuiltinEngines.scalar, BuiltinEngines.simd)) {
-            val full = assertNotNull(denseWork(Cases.parse("ger-shrinking+6+uniform").single(), engine))
-            val window = assertNotNull(denseWork(Cases.parse("panel-rankupdate-shrinking+6+uniform").single(), engine))
-            val publicWindow = assertNotNull(denseWork(Cases.parse("ger-window-shrinking+6+uniform").single(), engine))
+            for (n in intArrayOf(6, 34)) {
+                val full = assertNotNull(denseWork(Cases.parse("ger-shrinking+$n+uniform").single(), engine))
+                val publicWindow = assertNotNull(denseWork(Cases.parse("ger-window-shrinking+$n+uniform").single(), engine))
+                val kernel = assertNotNull(publicWindow.kernel)
+                val groups = kernel.substringAfter("/ger-window@").split('+').map(String::toInt)
 
-            assertEquals(matrixKernel(engine.routeOf(DenseMatrixOperation.Ger, DenseCall(6, 6, alpha = -1.0))), full.kernel)
-            for (extent in 5 downTo 1) {
-                val body = engine.panelKernels.implementationFor(PanelWork.RankUpdate, extent, extent)
-                assertTrue(body in assertNotNull(window.kernel), "window omitted $body at extent $extent")
-                assertTrue(body in assertNotNull(publicWindow.kernel), "public window omitted $body at extent $extent")
+                assertEquals(matrixKernel(engine.routeOf(DenseMatrixOperation.Ger, DenseCall(n, n, alpha = -1.0))), full.kernel)
+                for (extent in n - 1 downTo 1) {
+                    val route = engine.routeOf(DenseMatrixOperation.GerWindow, DenseCall(extent, extent, alpha = -1.0))
+                    for (body in route.components) {
+                        assertTrue(body in kernel, "${engine.name} n=$n omitted $body at extent $extent: $kernel")
+                    }
+                    assertTrue(route.executionGroup in groups, "${engine.name} n=$n omitted group ${route.executionGroup}")
+                }
             }
         }
     }

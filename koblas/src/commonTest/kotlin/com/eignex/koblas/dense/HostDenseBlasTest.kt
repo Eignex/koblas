@@ -191,21 +191,6 @@ class HostDenseBlasTest {
         )
     }
 
-    // A retained panel is grouped for this library's own register tile, which no library has an argument
-    // for; the fixture is well past the policy's number, so size is not what settles it.
-    @Test
-    fun `a product over retained panels never names a library however large it is`() {
-        val (_, blas) = forced()
-        val call = DenseCall(CROSSING_ORDER, CROSSING_ORDER, depth = CROSSING_ORDER)
-
-        for (operation in PACKED) {
-            val route = blas.routeOf(operation, call)
-
-            assertEquals(DENSE_SCHEDULING, route.scheduling, "$operation named a host route")
-            assertEquals(null, route.host, "$operation carried a vendor call")
-        }
-    }
-
     @Test
     fun `an operation the library does not export stays on the portable schedule`() {
         val without = RecordingBlas(directlyImplemented = BlasOperation.entries.toSet() - BlasOperation.Gemmt)
@@ -442,12 +427,6 @@ class HostDenseBlasTest {
         const val CROSSING_ORDER = 64
 
         const val SCALE = 0.75
-
-        val PACKED = listOf(
-            DenseMatrixOperation.GemmPacked,
-            DenseMatrixOperation.GemmPackedLeft,
-            DenseMatrixOperation.GemmPackedRight,
-        )
 
         val NEEDS_DEPTH = listOf(
             DenseMatrixOperation.Gemm,

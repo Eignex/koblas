@@ -16,27 +16,6 @@ iamax+4096+uniform+suite=default,sweep
 iamax+65536+uniform
 swap+4096+uniform+suite=default,sweep
 rot+4096+uniform+suite=default,sweep
-panel-multidot+512x1+uniform
-panel-multidot+512x2+uniform
-panel-multidot+512x3+uniform
-panel-multidot+512x4+uniform
-panel-multidot+512x5+uniform
-panel-multidot+512x8+uniform
-panel-multidot+3x4+uniform
-panel-columnupdate+512x1+uniform
-panel-columnupdate+512x2+uniform
-panel-columnupdate+512x3+uniform
-panel-columnupdate+512x4+uniform
-panel-columnupdate+512x5+uniform
-panel-columnupdate+3x4+uniform
-panel-coupled+512x1+uniform
-panel-coupled+512x2+uniform
-panel-coupled+512x3+uniform
-panel-coupled+3x3+uniform
-panel-rankupdate+512x1+uniform
-panel-rankupdate+512x2+uniform
-panel-rankupdate+512x3+uniform
-panel-rankupdate+3x3+uniform
 gemv+32x21+uniform
 gemv+129x31+uniform+transA=T
 symv+129+uniform+uplo=U
@@ -52,12 +31,6 @@ ger-window-shrinking+6+uniform
 ger-window-shrinking+7+uniform
 ger-window-shrinking+34+uniform
 ger-window-shrinking+198+uniform
-# Raw trailing windows expose the arithmetic a windowed GER API could reach, including scalar tails.
-panel-rankupdate-shrinking+5+uniform
-panel-rankupdate-shrinking+6+uniform
-panel-rankupdate-shrinking+7+uniform
-panel-rankupdate-shrinking+34+uniform
-panel-rankupdate-shrinking+198+uniform
 syr+129+uniform+uplo=L
 syr2+129+uniform+uplo=U
 trsv+129+triangular+uplo=L+transA=N+diag=N
@@ -207,14 +180,6 @@ gemm+8x1024x1024+uniform
 gemm+64x64x128+uniform
 gemm+64x64x129+uniform
 gemm-generic+256x256x256+uniform
-gemm-pack+256x256x256+uniform
-gemm-packed+256x256x256+uniform
-gemm-packed-left+256x256x256+uniform
-gemm-packed-right+256x256x256+uniform
-product-block+8x4x16+uniform
-product-block+8x4x256+uniform
-product-block+64x64x128+uniform
-product-block+65x63x128+uniform
 # A thin right operand, where the reduction's coefficient column is strided and gathering it once is the
 # only copy worth making. Paired with the same work stored the other way round, which needs no gather.
 gemm+256x2x512+uniform+transA=T+transB=T

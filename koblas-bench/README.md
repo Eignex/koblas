@@ -66,13 +66,12 @@ the results do not isolate JIT code generation.
 
 ## Shrinking rank updates
 
-Three default operations compare the trailing updates of a small dense LU workload:
+Two default operations compare the trailing updates of a small dense LU workload:
 
 | Operation | Timed work |
 |---|---|
 | `ger-shrinking` | `n - 1` full-buffer `ger(-1.0, x, y, A)` calls with zero prefixes |
 | `ger-window-shrinking` | The same updates through the validated windowed GER API |
-| `panel-rankupdate-shrinking` | The same rectangles passed directly to raw panel kernels |
 
 Orders 5, 6 and 7 bracket the consumer's dense-selection boundary; 34 and 198 are larger controls, outside
 its production dense path. Order 6 is primary: a synthetic matrix with 31 nonzeros out of 36, then five
@@ -84,11 +83,10 @@ includes warmed call dispatch and arithmetic, and excludes vector preparation, m
 of fixtures, pivot search, swaps, division and sparse conversion. A sample repeatedly accumulates the
 batch into the same matrix. Setup checks the whole matrix against the scalar oracle and restores it before
 timing. A row reports nanoseconds **per batch**, not per individual GER or complete factorization.
-The raw panel row omits public validation and alias handling; it isolates panel work from those public API costs.
 Routes name every body reached by the shrinking windows, including scalar tails.
 
 ```bash
-# Repeat for ger-shrinking and panel-rankupdate-shrinking to compare the three paths.
+# Repeat for ger-shrinking to compare full-buffer and windowed public calls.
 taskset -c 2 koblas-bench/capture-report.sh --operation ger-window-shrinking \
   --samples 5 --warmups 5 --target-ms 200 --forks 2
 ```
@@ -304,8 +302,7 @@ A matrix product names what it copies and what it computes with. One large enoug
 the schedule reaches them, and a product whose rows leave a tile short names the body that remainder reaches
 as well and is published as the composition it is. One too small or too thin to pay for a copy names the
 panel it runs on instead, with the grouping the backend recommended, and names a gathered coefficient column
-where it makes one. A retained panel is not packed again, so `gemm-packed` names no packing at all and the
-mixed entry points name only the side they still copy.
+where it makes one.
 
 The structured Level 3 routines are the same schedule with their own regions. `gemmt`, `syrk` and `syr2k`
 name the packing and tile bodies of the product they are, plus `portable-select/triangle-tile` where a block
@@ -437,25 +434,6 @@ well. A prepared case is checked through a snapshot that has not been used yet, 
 derives or does not derive on first use is covered rather than assumed. A case that computes the wrong thing
 fails the capture instead of publishing a number.
 
-The `panel-multidot`, `panel-columnupdate`, `panel-coupled` and `panel-rankupdate` cases time one raw panel
-over the extents the case names, as rows by logical columns. The extents are the case's and never the
-backend's, so a tail of three columns is the same requested work on an arm that groups by two and one that
-groups by four; what the row records is which body those extents reached and which grouping the backend
-asked for. Each is checked against the written-out definition of its panel before it is timed.
-
-The `product-block` cases time one raw product block over the extents the case names, as rows by columns by
-depth, on panels the case packs itself through the layout's own published index formula. The extents are the
-case's and never the backend's, so the same requested work is timed on an arm whose tile is four rows deep
-and one whose tile is eight; what the row records is which bodies those extents reached and the tile shape
-the backend cut them with.
-
-`gemm-pack` times packing both operands and nothing else, and reports preparation rather than an arithmetic
-kernel, because no product happened. `gemm-packed`, `gemm-packed-left` and `gemm-packed-right` time a product
-over operands packed before the timed region, retaining both of them or one. They are four different amounts
-of work rather than one row with a flag: the copy a call still makes is the difference between them, and the
-packing-only row is what the retained ones have to be read against. Every one of them is checked against the
-scalar reference before it is timed.
-
 `spmm-right` is the sparse operand on the right of a dense one through the engine the row is published
 under, which is what makes it an exact arm rather than the default-policy `spmm-generic-right` beside it.
 
@@ -577,8 +555,8 @@ hardware validation before using those targets.
 ### Allocation measurements
 
 Set `KOBLAS_BENCH_PROFILE_GC=true` (or `profile-gc=true` in the vendor comparison adapter) to retain
-JMH allocation measurements alongside timing in the target logs. Raw product-block cases separate
-kernel allocation from the temporary panel arrays used by whole products without a workspace.
+JMH allocation measurements alongside timing in the target logs. Whole products can reuse a workspace
+to separate retained scratch from per-call panel allocation.
 The eight-column prototype measured at revision `a23a3736` was removed after those measurements
 exposed extra allocation; its pinned source retains the experimental comparison target.
 

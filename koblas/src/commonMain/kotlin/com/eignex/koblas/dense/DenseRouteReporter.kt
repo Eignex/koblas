@@ -94,27 +94,21 @@ internal class DenseRouteReporter(
      *
      * The same question [productWindow] answers when it runs: a window with enough arithmetic to hide a copy
      * of both operands is packed into the backend's tiles, and one without runs as panel work over the
-     * operands where they lie. [packLeft] and [packRight] are false where an operand arrived packed, since
-     * the copy it would name has already happened. The answer comes back, so a caller that has to describe
+     * operands where they lie. The answer comes back, so a caller that has to describe
      * the choice asks it once rather than again.
      */
-    private fun addProductWindow(
-        parts: Parts,
-        call: WindowShape,
-        packLeft: Boolean = true,
-        packRight: Boolean = true,
-    ): Boolean {
+    private fun addProductWindow(parts: Parts, call: WindowShape): Boolean {
         if (call.rows <= 0 || call.columns <= 0) return false
         val packs = packsWindow(products, call.rows, call.columns, call.depth, call.selected)
-        if (packs) addBlockedWindow(parts, call, packLeft, packRight) else addDirectWindow(parts, call)
+        if (packs) addBlockedWindow(parts, call) else addDirectWindow(parts, call)
         return packs
     }
 
     /** The packing and tile bodies a blocked window reaches, taken from walking its own block schedule. */
-    private fun addBlockedWindow(parts: Parts, call: WindowShape, packLeft: Boolean, packRight: Boolean) {
+    private fun addBlockedWindow(parts: Parts, call: WindowShape) {
         // Report panels and tiles in schedule order: right panel, left panel, then tile.
-        if (packRight) parts.add("$PRODUCT_PACKING/right-panel")
-        if (packLeft) parts.add("$PRODUCT_PACKING/left-panel")
+        parts.add("$PRODUCT_PACKING/right-panel")
+        parts.add("$PRODUCT_PACKING/left-panel")
         val before = parts.components.size
         forEachProductBlock(
             call.rows,
@@ -203,7 +197,6 @@ internal class DenseRouteReporter(
     private fun productRoute(operation: DenseMatrixOperation, call: DenseCall): DenseMatrixRoute {
         val k = requireNotNull(call.depth) { "a product route needs the call's shared dimension" }
         val parts = Parts()
-        val retained = operation != DenseMatrixOperation.Gemm
         val shape = WindowShape(
             call.rows,
             call.columns,
@@ -213,23 +206,11 @@ internal class DenseRouteReporter(
             OutputTriangle.Full,
             rightStride = if (call.transposeB) call.rightLeadingDimension ?: call.columns else 1,
         )
-        val packed = if (retained) {
-            // A packed operand is already in the tiles, so the window is blocked whatever its extents are.
-            addBlockedWindow(
-                parts,
-                shape,
-                packLeft = operation == DenseMatrixOperation.GemmPackedRight,
-                packRight = operation == DenseMatrixOperation.GemmPackedLeft,
-            )
-            true
-        } else {
-            addProductWindow(parts, shape)
-        }
+        val packed = addProductWindow(parts, shape)
         return parts.route(
             operation,
             if (packed) {
-                "the product is cut into cache blocks, with beta carried by the first depth block" +
-                    if (retained) "; a retained panel is read where it lies rather than packed again" else ""
+                "the product is cut into cache blocks, with beta carried by the first depth block"
             } else {
                 "too little arithmetic here to pay for packing, so the product runs as panel work down each " +
                     "destination column"

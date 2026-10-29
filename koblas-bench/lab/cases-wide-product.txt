@@ -1,6 +1,4 @@
 # Register reuse and scalar edges, with the same array storage for both geometries.
-product-block+64x64x128+uniform
-product-block+65x63x128+uniform
 gemm+64x64x64+uniform
 gemm+128x128x128+uniform
 gemm+256x256x256+uniform

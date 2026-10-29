@@ -24,7 +24,7 @@ class CasesTest {
 
     @Test
     fun `shrinking rank update batches require a nonempty sequence`() {
-        for (operation in listOf("ger-shrinking", "ger-window-shrinking", "panel-rankupdate-shrinking")) {
+        for (operation in listOf("ger-shrinking", "ger-window-shrinking")) {
             assertFailsWith<IllegalArgumentException> { Cases.parse("$operation+1+uniform") }
             assertEquals(listOf(6), Cases.parse("$operation+6+uniform").single().dimensions)
         }

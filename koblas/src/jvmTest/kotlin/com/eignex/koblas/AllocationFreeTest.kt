@@ -28,315 +28,340 @@ class AllocationFreeTest(private val name: String, private val iterations: Int, 
         @Parameterized.Parameters(name = "{0}")
         fun probes(): Collection<Array<Any>> = listOf(
             arrayOf<Any>(
-                "disjoint shared buffer vector copy allocates nothing", 1_000,
+                "disjoint shared buffer vector copy allocates nothing",
+                1_000,
                 with(SharedBufferFixture()) {
-                {
-                    copy(source, destination)
-                    backing
-                }
-            }
+                    {
+                        copy(source, destination)
+                        backing
+                    }
+                },
             ),
             arrayOf<Any>(
-                "disjoint shared buffer vector axpy allocates nothing", 1_000,
+                "disjoint shared buffer vector axpy allocates nothing",
+                1_000,
                 with(SharedBufferFixture()) {
-                {
-                    destination.axpy(1e-12, source)
-                    backing
-                }
-            }
+                    {
+                        destination.axpy(1e-12, source)
+                        backing
+                    }
+                },
             ),
             arrayOf<Any>(
-                "disjoint shared buffer vector swap allocates nothing", 1_000,
+                "disjoint shared buffer vector swap allocates nothing",
+                1_000,
                 with(SharedBufferFixture()) {
-                {
-                    swap(source, destination)
-                    backing
-                }
-            }
+                    {
+                        swap(source, destination)
+                        backing
+                    }
+                },
             ),
             arrayOf<Any>(
-                "dense dot allocates nothing", 1_000,
+                "dense dot allocates nothing",
+                1_000,
                 with(DenseVectorFixture()) {
-                {
-                    kernels.dot(a, 0, b, 0, n)
-                }
-            }
+                    {
+                        kernels.dot(a, 0, b, 0, n)
+                    }
+                },
             ),
             arrayOf<Any>(
-                "dense axpy allocates nothing", 1_000,
+                "dense axpy allocates nothing",
+                1_000,
                 with(DenseVectorFixture()) {
-                {
-                    kernels.axpy(b, 0, 0.5, a, 0, n)
-                }
-            }
+                    {
+                        kernels.axpy(b, 0, 0.5, a, 0, n)
+                    }
+                },
             ),
             arrayOf<Any>(
-                "dense norm allocates nothing", 1_000,
+                "dense norm allocates nothing",
+                1_000,
                 with(DenseVectorFixture()) {
-                {
-                    kernels.nrm2(a, 0, n)
-                }
-            }
+                    {
+                        kernels.nrm2(a, 0, n)
+                    }
+                },
             ),
             arrayOf<Any>(
-                "strided dense dot allocates nothing", 1_000,
+                "strided dense dot allocates nothing",
+                1_000,
                 with(DenseVectorFixture()) {
-                {
-                    kernels.dot(a, 0, b, 0, n / 2, 2, 2)
-                }
-            }
+                    {
+                        kernels.dot(a, 0, b, 0, n / 2, 2, 2)
+                    }
+                },
             ),
             arrayOf<Any>(
-                "dense gemv allocates nothing", 400,
+                "dense gemv allocates nothing",
+                400,
                 with(DenseLevelTwoFixture()) {
-                {
-                    portable.gemv(1e-12, a, x, 1.0, y)
-                    y
-                }
-            }
+                    {
+                        portable.gemv(1e-12, a, x, 1.0, y)
+                        y
+                    }
+                },
             ),
             arrayOf<Any>(
-                "transposed dense gemv allocates nothing", 400,
+                "transposed dense gemv allocates nothing",
+                400,
                 with(DenseLevelTwoFixture()) {
-                {
-                    portable.gemv(1e-12, a, x, 1.0, y, transpose = true)
-                    y
-                }
-            }
+                    {
+                        portable.gemv(1e-12, a, x, 1.0, y, transpose = true)
+                        y
+                    }
+                },
             ),
             arrayOf<Any>(
-                "dense symv allocates nothing", 400,
+                "dense symv allocates nothing",
+                400,
                 with(DenseLevelTwoFixture()) {
-                {
-                    portable.symv(1e-12, a, x, 1.0, y)
-                    y
-                }
-            }
+                    {
+                        portable.symv(1e-12, a, x, 1.0, y)
+                        y
+                    }
+                },
             ),
             arrayOf<Any>(
-                "dense ger allocates nothing", 400,
+                "dense ger allocates nothing",
+                400,
                 with(DenseLevelTwoFixture()) {
-                {
-                    portable.ger(1e-12, x, y, a)
-                    a
-                }
-            }
+                    {
+                        portable.ger(1e-12, x, y, a)
+                        a
+                    }
+                },
             ),
             arrayOf<Any>(
-                "dense syr allocates nothing", 400,
+                "dense syr allocates nothing",
+                400,
                 with(DenseLevelTwoFixture()) {
-                {
-                    portable.syr(1e-12, view, a)
-                    a
-                }
-            }
+                    {
+                        portable.syr(1e-12, view, a)
+                        a
+                    }
+                },
             ),
             arrayOf<Any>(
-                "dense trmv allocates nothing", 400,
+                "dense trmv allocates nothing",
+                400,
                 with(DenseLevelTwoFixture()) {
-                {
-                    portable.trmv(triangle, y, lower = true)
-                    y
-                }
-            }
+                    {
+                        portable.trmv(triangle, y, lower = true)
+                        y
+                    }
+                },
             ),
             arrayOf<Any>(
-                "dense trsv allocates nothing", 400,
+                "dense trsv allocates nothing",
+                400,
                 with(DenseLevelTwoFixture()) {
-                {
-                    portable.trsv(triangle, y, lower = true)
-                    y
-                }
-            }
+                    {
+                        portable.trsv(triangle, y, lower = true)
+                        y
+                    }
+                },
             ),
             arrayOf<Any>(
-                "contiguous gemv allocates nothing", 1_000,
+                "contiguous gemv allocates nothing",
+                1_000,
                 with(ContiguousFixture()) {
-                {
-                    a.gemvInto(1e-12, contiguous, 1.0, destination)
-                    destination
-                }
-            }
+                    {
+                        a.gemvInto(1e-12, contiguous, 1.0, destination)
+                        destination
+                    }
+                },
             ),
             arrayOf<Any>(
-                "contiguous symv allocates nothing", 1_000,
+                "contiguous symv allocates nothing",
+                1_000,
                 with(ContiguousFixture()) {
-                {
-                    a.symvInto(1e-12, contiguous, 1.0, destination)
-                    destination
-                }
-            }
+                    {
+                        a.symvInto(1e-12, contiguous, 1.0, destination)
+                        destination
+                    }
+                },
             ),
             arrayOf<Any>(
-                "aliased dense gemv reuses a workspace", 400,
+                "aliased dense gemv reuses a workspace",
+                400,
                 with(AliasedLevelTwoFixture()) {
-                {
-                    portable.gemv(1e-12, a, y, 1.0, y, workspace = workspace)
-                    y
-                }
-            }
+                    {
+                        portable.gemv(1e-12, a, y, 1.0, y, workspace = workspace)
+                        y
+                    }
+                },
             ),
             arrayOf<Any>(
-                "aliased dense symv reuses a workspace", 400,
+                "aliased dense symv reuses a workspace",
+                400,
                 with(AliasedLevelTwoFixture()) {
-                {
-                    portable.symv(1e-12, a, y, 1.0, y, workspace = workspace)
-                    y
-                }
-            }
+                    {
+                        portable.symv(1e-12, a, y, 1.0, y, workspace = workspace)
+                        y
+                    }
+                },
             ),
             arrayOf<Any>(
-                "aliased sparse gemv reuses a workspace", 400,
+                "aliased sparse gemv reuses a workspace",
+                400,
                 with(AliasedLevelTwoFixture()) {
-                {
-                    koblas.gemv(1e-12, sparse, coefficients, 1.0, coefficients, workspace = workspace)
-                    coefficients
-                }
-            }
+                    {
+                        koblas.gemv(1e-12, sparse, coefficients, 1.0, coefficients, workspace = workspace)
+                        coefficients
+                    }
+                },
             ),
             arrayOf<Any>(
-                "dense trsm reuses a workspace", 100,
+                "dense trsm reuses a workspace",
+                100,
                 with(DenseLevelThreeFixture()) {
-                {
-                    portable.trsm(triangle, b, lower = true, workspace = workspace)
-                    b
-                }
-            }
+                    {
+                        portable.trsm(triangle, b, lower = true, workspace = workspace)
+                        b
+                    }
+                },
             ),
             arrayOf<Any>(
-                "dense trmm reuses a workspace", 100,
+                "dense trmm reuses a workspace",
+                100,
                 with(DenseLevelThreeFixture()) {
-                {
-                    portable.trmm(triangle, b, lower = true, workspace = workspace)
-                    b
-                }
-            }
+                    {
+                        portable.trmm(triangle, b, lower = true, workspace = workspace)
+                        b
+                    }
+                },
             ),
             arrayOf<Any>(
-                "shallow matrix products reuse a workspace", 50,
+                "shallow matrix products reuse a workspace",
+                50,
                 with(DenseProductFixture()) {
-                {
-                    portable.gemm(1e-12, wide, false, wide, false, 1.0, packedTarget, workspace)
-                    packedTarget
-                }
-            }
+                    {
+                        portable.gemm(1e-12, wide, false, wide, false, 1.0, packedTarget, workspace)
+                        packedTarget
+                    }
+                },
             ),
             arrayOf<Any>(
-                "deep matrix products reuse a workspace", 50,
+                "deep matrix products reuse a workspace",
+                50,
                 with(DenseProductFixture()) {
-                {
-                    portable.gemm(1e-12, deepLeft, false, deepRight, false, 1.0, deepTarget, workspace)
-                    deepTarget
-                }
-            }
+                    {
+                        portable.gemm(1e-12, deepLeft, false, deepRight, false, 1.0, deepTarget, workspace)
+                        deepTarget
+                    }
+                },
             ),
             arrayOf<Any>(
-                "retained matrix products allocate nothing", 50,
+                "unpacked matrix products reuse a workspace",
+                200,
                 with(DenseProductFixture()) {
-                {
-                    portable.gemm(1e-12, left, right, 1.0, packedTarget)
-                    packedTarget
-                }
-            }
+                    {
+                        portable.gemm(1e-12, small, false, small, false, 1.0, smallTarget, workspace)
+                        smallTarget
+                    }
+                },
             ),
             arrayOf<Any>(
-                "unpacked matrix products reuse a workspace", 200,
-                with(DenseProductFixture()) {
-                {
-                    portable.gemm(1e-12, small, false, small, false, 1.0, smallTarget, workspace)
-                    smallTarget
-                }
-            }
-            ),
-            arrayOf<Any>(
-                "sparse gemv allocates nothing", 1_000,
+                "sparse gemv allocates nothing",
+                1_000,
                 with(SparseLevelTwoFixture()) {
-                {
-                    engine.gemv(1e-12, sparse, x, 1.0, y, transpose = true)
-                    y
-                }
-            }
+                    {
+                        engine.gemv(1e-12, sparse, x, 1.0, y, transpose = true)
+                        y
+                    }
+                },
             ),
             arrayOf<Any>(
-                "sparse symv allocates nothing", 1_000,
+                "sparse symv allocates nothing",
+                1_000,
                 with(SparseLevelTwoFixture()) {
-                {
-                    engine.symv(1e-12, sparse, x, 1.0, y, lower = true)
-                    y
-                }
-            }
+                    {
+                        engine.symv(1e-12, sparse, x, 1.0, y, lower = true)
+                        y
+                    }
+                },
             ),
             arrayOf<Any>(
-                "sparse trsv allocates nothing", 1_000,
+                "sparse trsv allocates nothing",
+                1_000,
                 with(SparseLevelTwoFixture()) {
-                {
-                    engine.trsv(sparse, y, lower = true)
-                    y
-                }
-            }
+                    {
+                        engine.trsv(sparse, y, lower = true)
+                        y
+                    }
+                },
             ),
             arrayOf<Any>(
-                "left sparse gemm reuses a workspace", 300,
+                "left sparse gemm reuses a workspace",
+                300,
                 with(SparseLevelThreeFixture()) {
-                {
-                    engine.gemm(1e-12, sparse, false, b, false, 1.0, panel, workspace = workspace)
-                    panel
-                }
-            }
+                    {
+                        engine.gemm(1e-12, sparse, false, b, false, 1.0, panel, workspace = workspace)
+                        panel
+                    }
+                },
             ),
             arrayOf<Any>(
-                "right sparse gemm reuses a workspace", 300,
+                "right sparse gemm reuses a workspace",
+                300,
                 with(SparseLevelThreeFixture()) {
-                {
-                    engine.gemm(1e-12, sparse, false, b, true, 1.0, transposed, right = true, workspace = workspace)
-                    transposed
-                }
-            }
+                    {
+                        engine.gemm(1e-12, sparse, false, b, true, 1.0, transposed, right = true, workspace = workspace)
+                        transposed
+                    }
+                },
             ),
             arrayOf<Any>(
-                "sparse syrk reuses a workspace", 300,
+                "sparse syrk reuses a workspace",
+                300,
                 with(SparseLevelThreeFixture()) {
-                {
-                    engine.syrk(1e-12, sparse, false, 1.0, square, workspace = workspace)
-                    square
-                }
-            }
+                    {
+                        engine.syrk(1e-12, sparse, false, 1.0, square, workspace = workspace)
+                        square
+                    }
+                },
             ),
             arrayOf<Any>(
-                "sparse symm reuses a workspace", 300,
+                "sparse symm reuses a workspace",
+                300,
                 with(SparseLevelThreeFixture()) {
-                {
-                    engine.symm(1e-12, sparse, b, 1.0, panel, workspace = workspace)
-                    panel
-                }
-            }
+                    {
+                        engine.symm(1e-12, sparse, b, 1.0, panel, workspace = workspace)
+                        panel
+                    }
+                },
             ),
             arrayOf<Any>(
-                "sparse matrix product reuses a workspace", 300,
+                "sparse matrix product reuses a workspace",
+                300,
                 with(SparseLevelThreeFixture()) {
-                {
-                    engine.gemm(1e-12, sparse, false, identity, false, 1.0, square, workspace)
-                    square
-                }
-            }
+                    {
+                        engine.gemm(1e-12, sparse, false, identity, false, 1.0, square, workspace)
+                        square
+                    }
+                },
             ),
             arrayOf<Any>(
-                "sparse trsm reuses a workspace", 300,
+                "sparse trsm reuses a workspace",
+                300,
                 with(SparseLevelThreeFixture()) {
-                {
-                    engine.trsm(sparse, solveBlock, lower = true, workspace = workspace)
-                    solveBlock
-                }
-            }
+                    {
+                        engine.trsm(sparse, solveBlock, lower = true, workspace = workspace)
+                        solveBlock
+                    }
+                },
             ),
             arrayOf<Any>(
-                "sparse trmm reuses a workspace", 300,
+                "sparse trmm reuses a workspace",
+                300,
                 with(SparseLevelThreeFixture()) {
-                {
-                    engine.trmm(sparse, multiplyBlock, lower = true, workspace = workspace)
-                    multiplyBlock
-                }
-            }
+                    {
+                        engine.trmm(sparse, multiplyBlock, lower = true, workspace = workspace)
+                        multiplyBlock
+                    }
+                },
             ),
         ) + identicalMappingProbes()
 
@@ -348,39 +373,39 @@ class AllocationFreeTest(private val name: String, private val iterations: Int, 
                     val name = "identical $shape vector $wrappers"
                     add(
                         arrayOf<Any>(
-                        "$name copy allocates nothing",
-                        1_000,
-                        with(IdenticalMappingFixture(stride, sameWrapper)) {
-                            {
-                                copy(source, destination)
-                                backing
-                            }
-                        },
-                    )
-                    )
-                    add(
-                        arrayOf<Any>(
-                        "$name axpy allocates nothing",
-                        1_000,
-                        with(IdenticalMappingFixture(stride, sameWrapper)) {
-                            {
-                                destination.axpy(1e-12, source)
-                                backing
-                            }
-                        },
-                    )
+                            "$name copy allocates nothing",
+                            1_000,
+                            with(IdenticalMappingFixture(stride, sameWrapper)) {
+                                {
+                                    copy(source, destination)
+                                    backing
+                                }
+                            },
+                        ),
                     )
                     add(
                         arrayOf<Any>(
-                        "$name swap allocates nothing",
-                        1_000,
-                        with(IdenticalMappingFixture(stride, sameWrapper)) {
-                            {
-                                swap(source, destination)
-                                backing
-                            }
-                        },
+                            "$name axpy allocates nothing",
+                            1_000,
+                            with(IdenticalMappingFixture(stride, sameWrapper)) {
+                                {
+                                    destination.axpy(1e-12, source)
+                                    backing
+                                }
+                            },
+                        ),
                     )
+                    add(
+                        arrayOf<Any>(
+                            "$name swap allocates nothing",
+                            1_000,
+                            with(IdenticalMappingFixture(stride, sameWrapper)) {
+                                {
+                                    swap(source, destination)
+                                    backing
+                                }
+                            },
+                        ),
                     )
                 }
             }
@@ -466,8 +491,6 @@ class AllocationFreeTest(private val name: String, private val iterations: Int, 
         val deepTarget = DenseMatrix.wrap(12, 12, DoubleArray(144))
         val small = DenseMatrix.wrap(5, 5, DoubleArray(25) { 1.0 + it })
         val smallTarget = DenseMatrix.wrap(5, 5, DoubleArray(25))
-        val left = portable.packLeft(wide, transpose = false)
-        val right = portable.packRight(wide, transpose = false)
         val packedTarget = DenseMatrix.wrap(48, 48, DoubleArray(48 * 48))
         init {
             portable.gemm(1e-12, wide, false, wide, false, 1.0, packedTarget, workspace)

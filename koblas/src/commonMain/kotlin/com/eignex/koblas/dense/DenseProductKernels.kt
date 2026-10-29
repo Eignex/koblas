@@ -11,10 +11,8 @@ package com.eignex.koblas.dense
  * [tileRows] by [tileColumns] and is not a lane count, a panel execution group or a cache block. Those four
  * numbers are independent, and no algorithm above this contract writes one of them into its loops.
  *
- * The packed layout is the one [PackedLayout] describes, and the two are one contract: an operand is packed
- * into groups this backend's tile can consume along that operand's own axis. [PackedLayout.group] carries
- * that width and is the whole of what a consumer checks, so a left panel grouped by eight is readable by an
- * eight by four tile and by an eight by two one alike.
+ * Transient panels group rows of the left operand and columns of the right by the corresponding tile
+ * dimension, with contiguous depth steps inside each group.
  *
  * Padding inside a packed group is positive zero, and what that promises is where the results go rather than
  * what they are: a padded zero against an infinite entry of the other operand evaluates to a NaN, and it
@@ -33,20 +31,19 @@ package com.eignex.koblas.dense
  * Results agree with the direct definition to within rounding rather than bit for bit: a tile accumulates in
  * whatever order and grouping its registers suit, and may fuse a multiply and an add.
  */
-public interface DenseProductKernels {
+internal interface DenseProductKernels {
     /** Short implementation identifier for diagnostics. */
-    public val name: String
+    val name: String
 
     /**
      * Destination rows one register tile accumulates, which is the group a left panel is packed in.
      *
-     * Positive and fixed for the life of an implementation, because a packed panel outlives the call that
-     * produced it and has to stay readable by the same tile.
+     * Positive and fixed for the life of an implementation.
      */
-    public val tileRows: Int
+    val tileRows: Int
 
     /** Destination columns one register tile accumulates, which is the group a right panel is packed in. */
-    public val tileColumns: Int
+    val tileColumns: Int
 
     /**
      * Every arithmetic body a block of these extents reaches, in the order it reaches them.
@@ -64,7 +61,7 @@ public interface DenseProductKernels {
      *
      * Building a list belongs where a route is built, before a timed region and never inside one.
      */
-    public fun implementationsFor(rows: Int, columns: Int, depth: Int): List<String>
+    fun implementationsFor(rows: Int, columns: Int, depth: Int): List<String>
 
     /**
      * Whether a product of these logical extents is worth packing into this backend's tiles at all.
@@ -79,7 +76,7 @@ public interface DenseProductKernels {
      *
      * The crossover is local: a tile that finishes more arithmetic per loaded value pays off a copy sooner.
      */
-    public fun packsProduct(rows: Int, columns: Int, depth: Int): Boolean
+    fun packsProduct(rows: Int, columns: Int, depth: Int): Boolean
 
     /**
      * `C = alpha · A · B + beta · C` over one `rows` by `columns` window, accumulating `depth` steps.
@@ -90,16 +87,13 @@ public interface DenseProductKernels {
      * i % tileRows`, and entry `(p, j)` of the right at `bOffset + (j / tileColumns) · bGroupStride +
      * p · tileColumns + j % tileColumns`.
      *
-     * The group strides are the caller's because a panel may be a block packed for this call, where a group
-     * is `depth · tileRows` long, or a retained panel covering a longer shared dimension, where the same
-     * group is as long as that whole dimension and this block reads a slice of it. Passing the stride is
-     * what makes one contract serve both without the panel having to be repacked.
+     * The group strides are `depth · tileRows` and `depth · tileColumns` for transient panels.
      *
      * The destination window starts at [cOffset] with columns [ldc] apart. With no rows or no columns
      * nothing happens and nothing is read. With no depth the product is empty, so the window becomes
      * `beta · C` and neither packed panel is read.
      */
-    public fun productBlock(
+    fun productBlock(
         alpha: Double,
         packedA: DoubleArray,
         aOffset: Int,

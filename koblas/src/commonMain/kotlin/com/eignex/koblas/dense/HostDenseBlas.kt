@@ -703,45 +703,24 @@ internal object HostDensePolicy {
      * The CBLAS entry point [operation] is one whole call to, or null where it is not one at all.
      *
      * Windowed GER stays portable because no binding takes its windows, which offset both vectors as well as
-     * the matrix. Packed products also have no entry point. Their operands are grouped for this
-     * library's own register tile, which is a layout of ours and not one a library has an argument for, so a
-     * call over a retained panel stays on the portable schedule however large it is. An engine holding a
-     * vendor binding is not evidence that such a call reached it, which is what keeps the route honest.
+     * the matrix.
      */
     fun entryPointFor(operation: DenseMatrixOperation): BlasOperation? = when (operation) {
         DenseMatrixOperation.Gemv, DenseMatrixOperation.GemvTransposed -> BlasOperation.Gemv
-
         DenseMatrixOperation.Symv -> BlasOperation.Symv
-
         DenseMatrixOperation.Ger -> BlasOperation.Ger
-
         DenseMatrixOperation.Syr -> BlasOperation.Syr
-
         DenseMatrixOperation.Syr2 -> BlasOperation.Syr2
-
         DenseMatrixOperation.Trmv, DenseMatrixOperation.TrmvTransposed -> BlasOperation.Trmv
-
         DenseMatrixOperation.Trsv, DenseMatrixOperation.TrsvTransposed -> BlasOperation.Trsv
-
         DenseMatrixOperation.Gemm -> BlasOperation.Gemm
-
         DenseMatrixOperation.Gemmt -> BlasOperation.Gemmt
-
         DenseMatrixOperation.Symm -> BlasOperation.Symm
-
         DenseMatrixOperation.Syrk -> BlasOperation.Syrk
-
         DenseMatrixOperation.Syr2k -> BlasOperation.Syr2k
-
         DenseMatrixOperation.Trmm -> BlasOperation.Trmm
-
         DenseMatrixOperation.Trsm -> BlasOperation.Trsm
-
-        DenseMatrixOperation.GerWindow,
-        DenseMatrixOperation.GemmPacked,
-        DenseMatrixOperation.GemmPackedLeft,
-        DenseMatrixOperation.GemmPackedRight,
-        -> null
+        DenseMatrixOperation.GerWindow -> null
     }
 
     /**
@@ -753,8 +732,8 @@ internal object HostDensePolicy {
      * of a product nobody described.
      */
     fun needsDepth(operation: DenseMatrixOperation): Boolean = when (operation) {
-        DenseMatrixOperation.Gemm, DenseMatrixOperation.GemmPacked, DenseMatrixOperation.GemmPackedLeft,
-        DenseMatrixOperation.GemmPackedRight, DenseMatrixOperation.Gemmt, DenseMatrixOperation.Symm,
+        DenseMatrixOperation.Gemm,
+        DenseMatrixOperation.Gemmt, DenseMatrixOperation.Symm,
         DenseMatrixOperation.Syrk, DenseMatrixOperation.Syr2k, DenseMatrixOperation.Trmm,
         DenseMatrixOperation.Trsm,
         -> true

@@ -9,7 +9,7 @@ package com.eignex.koblas.dense
  * answer to [DensePanelKernels.executionGroup], and a caller that hard-coded four columns would be writing
  * one machine's geometry into an algorithm every machine runs.
  */
-public enum class PanelWork {
+internal enum class PanelWork {
     /** Several logical columns reduced against one vector, producing one value per column. */
     MultiDot,
 
@@ -85,9 +85,9 @@ public enum class PanelWork {
  * These leaves check nothing; a public matrix call stages an operand that would break the rule before it
  * reaches one, which is where that guarantee is kept.
  */
-public interface DensePanelKernels {
+internal interface DensePanelKernels {
     /** Short implementation identifier for diagnostics. */
-    public val name: String
+    val name: String
 
     /**
      * How many columns of [work] this backend recommends processing together, for a panel of [rows] by
@@ -103,7 +103,7 @@ public interface DensePanelKernels {
      * it is not going to reach. A scheduling of its own may then take less than what was recommended, for a
      * cache or a workspace it is keeping within; passing less is always correct.
      */
-    public fun executionGroup(work: PanelWork, rows: Int, columns: Int, contiguous: Boolean = true): Int
+    fun executionGroup(work: PanelWork, rows: Int, columns: Int, contiguous: Boolean = true): Int
 
     /**
      * Whether a panel of these extents is worth copying into adjacent rows before it is handed over.
@@ -120,7 +120,7 @@ public interface DensePanelKernels {
      * layouts, so that a route reports the body the copy was made for; where it is false the body may still
      * differ, and the caller has simply been told not to pay for the difference.
      */
-    public fun prefersContiguous(work: PanelWork, rows: Int, columns: Int): Boolean
+    fun prefersContiguous(work: PanelWork, rows: Int, columns: Int): Boolean
 
     /**
      * The arithmetic implementation a panel of this [work] and these extents reaches.
@@ -132,7 +132,7 @@ public interface DensePanelKernels {
      * [contiguous] is part of the question rather than a detail of it: a vector body loads a lane block from
      * consecutive entries, so a panel whose shared vector is strided is scalar work at any width.
      */
-    public fun implementationFor(work: PanelWork, rows: Int, columns: Int, contiguous: Boolean = true): String
+    fun implementationFor(work: PanelWork, rows: Int, columns: Int, contiguous: Boolean = true): String
 
     /**
      * `y(c) = alpha · Σ a(i, c) · x(i) + beta · y(c)` for each of [columns] columns.
@@ -142,7 +142,7 @@ public interface DensePanelKernels {
      * empty and so zero, and each output is still written from that and whatever [beta] contributes; with no
      * columns nothing happens at all.
      */
-    public fun multiDot(
+    fun multiDot(
         alpha: Double,
         a: DoubleArray,
         aOffset: Int,
@@ -164,7 +164,7 @@ public interface DensePanelKernels {
      * [alpha] scales each column's coefficient rather than the finished sum, so a caller splitting a long
      * panel into groups gets the same arithmetic whatever grouping it chose.
      */
-    public fun columnUpdate(
+    fun columnUpdate(
         alpha: Double,
         a: DoubleArray,
         aOffset: Int,
@@ -191,7 +191,7 @@ public interface DensePanelKernels {
      * window must not overlap [y]'s, which for a symmetric traversal it never does: the reduction lands on
      * the diagonal side of the rows the update wrote.
      */
-    public fun coupledUpdateDot(
+    fun coupledUpdateDot(
         alpha: Double,
         a: DoubleArray,
         aOffset: Int,
@@ -214,7 +214,7 @@ public interface DensePanelKernels {
      * The destination is the panel here and [x] is the source window, which is the opposite direction from
      * [columnUpdate] and the reason it is its own entry rather than that one with the arguments swapped.
      */
-    public fun rankUpdate(
+    fun rankUpdate(
         alpha: Double,
         a: DoubleArray,
         aOffset: Int,
@@ -248,7 +248,7 @@ public interface DensePanelKernels {
      * formed, as everywhere in this contract: a stored zero of a sparse operand is a position its pattern
      * reaches, so a zero against an infinity is a NaN the caller asked for.
      */
-    public fun indexedColumnUpdate(
+    fun indexedColumnUpdate(
         alpha: Double,
         a: DoubleArray,
         aOffset: Int,
@@ -280,7 +280,7 @@ public interface DensePanelKernels {
      * Nothing here is validated, as nowhere in this contract is. A public matrix call passes windows of its
      * own storage, where the strides come from a layout that already holds.
      */
-    public fun indexedRankUpdate(
+    fun indexedRankUpdate(
         alpha: Double,
         a: DoubleArray,
         aOffset: Int,
@@ -330,7 +330,7 @@ public interface DensePanelKernels {
      * than written, so its terms reach the destination in the order the run is walked.
      */
     @Suppress("LongParameterList") // the panel, its two windows, the run, and both results
-    public fun indexedCoupledUpdate(
+    fun indexedCoupledUpdate(
         alpha: Double,
         a: DoubleArray,
         b: DoubleArray,
