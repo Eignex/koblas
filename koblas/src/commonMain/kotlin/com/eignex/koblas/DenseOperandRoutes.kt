@@ -155,8 +155,8 @@ public fun KoblasEngine.routeOf(
             transposeA = transposeA, transposeB = transposeB, right = right,
             aliased = regionsOverlap(a, c) || regionsOverlap(b, c),
             borrowed = a is DenseMatrixView || b is DenseMatrixView || c is DenseMatrixView,
-            leadingDimension = c.leadingDimension, rightLeadingDimension = b.leadingDimension,
-            leftLeadingDimension = a.leadingDimension,
+            leadingDimension = c.leadingDimension, rightLeadingDimension = stagedLeadingDimension(b, c),
+            leftLeadingDimension = stagedLeadingDimension(a, c),
         ),
     )
 }
@@ -177,7 +177,7 @@ public fun KoblasEngine.routeOf(
             c.rows, c.cols, alpha, beta,
             depth = if (transpose) a.rows else a.cols, lower = lower, transposeA = transpose,
             aliased = regionsOverlap(a, c), borrowed = a is DenseMatrixView || c is DenseMatrixView,
-            leadingDimension = c.leadingDimension, leftLeadingDimension = a.leadingDimension,
+            leadingDimension = c.leadingDimension, leftLeadingDimension = stagedLeadingDimension(a, c),
         ),
     )
 }
@@ -200,7 +200,10 @@ public fun KoblasEngine.routeOf(
             b.rows, b.cols, alpha, depth = a.rows,
             lower = lower, transposeA = transpose, right = right, aliased = regionsOverlap(a, b),
             borrowed = a is DenseMatrixView || b is DenseMatrixView, leadingDimension = b.leadingDimension,
-            leftLeadingDimension = a.leadingDimension,
+            leftLeadingDimension = stagedLeadingDimension(a, b),
         ),
     )
 }
+
+private fun stagedLeadingDimension(a: DenseMatrixRegion, destination: DenseMatrixRegion): Int =
+    if (regionsOverlap(a, destination)) a.rows else a.leadingDimension

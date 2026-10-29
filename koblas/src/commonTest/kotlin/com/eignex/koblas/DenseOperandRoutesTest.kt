@@ -8,6 +8,25 @@ import kotlin.test.assertFailsWith
 
 class DenseOperandRoutesTest {
     @Test
+    fun `selected product routes retain padded or staged coefficient strides`() {
+        for (exact in listOfNotNull(BuiltinEngines.scalar, BuiltinEngines.simd)) {
+            for (aliased in listOf(false, true)) {
+                val panels = RecordingPanels(exact.panelKernels)
+                val engine = KoblasEngine(exact.vectorKernels, exact.indexedSparseKernels, null, panelKernels = panels)
+                val a = DenseMatrix.wrap(68, 3, DoubleArray(68 * 3) { 0.25 }).view(1, 1, 65, 1)
+                val parent = DenseMatrix.wrap(4, 67, DoubleArray(4 * 67) { 0.5 })
+                val b = parent.view(1, 1, 1, 65)
+                val c = if (aliased) parent.view(1, 1, 1, 1) else DenseMatrix.zero(1)
+                val route = engine.routeOf(DenseMatrixOperation.Gemmt, 0.875, a, b, true, true, 0.0, c)
+
+                engine.gemmt(0.875, a, true, b, true, 0.0, c)
+
+                assertEquals(panels.bodies.distinct(), route.components.map { it.substringBeforeLast('/') })
+            }
+        }
+    }
+
+    @Test
     fun `operand vector routes name the bodies the recorded windows reach`() {
         for (exact in listOfNotNull(BuiltinEngines.scalar, BuiltinEngines.simd)) {
             for (stride in intArrayOf(1, 2, -2)) {
