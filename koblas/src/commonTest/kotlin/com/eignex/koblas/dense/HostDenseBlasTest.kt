@@ -17,9 +17,9 @@ import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
 /**
- * Checks host selection and argument translation with a recording binding. Routes expose
- * inactive thresholds, incompatible packed layouts and unstaged aliases. `eligible = { _, _, _, _ -> true }`
- * keeps fixtures small; a separate case checks the size policy.
+ * Checks supplied eligibility, symbol fallback, aliases and argument translation with a recording binding.
+ * Allowing small fixtures isolates composition from platform cutoffs; NativeBlasPolicyTest and
+ * JvmHostDensePolicyTest cover those cutoffs.
  */
 class HostDenseBlasTest {
     private fun assertAgreesWithReference(expected: DoubleArray, actual: DoubleArray, context: String) =

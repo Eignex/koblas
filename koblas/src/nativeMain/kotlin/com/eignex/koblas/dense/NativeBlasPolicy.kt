@@ -2,10 +2,10 @@ package com.eignex.koblas.dense
 
 /** Native array pinning amortizes foreign calls without the JVM binding's operand transfers. */
 internal object NativeBlasPolicy : DenseHostEligibility {
-    // Conservative floor from the bounded Native GEMM/GEMV/TRSM ladder; see the benchmark guide.
+    // Retained local Native floor; provenance and host limits are in koblas-bench/lab/simplification.md.
     private const val MINIMUM_WORK = 1024L
 
-    /** Measured Native Level 1 thresholds from the pinned oneMKL sweep on i9-12900H. */
+    /** Retained i9-12900H oneMKL 2026.1 cutoffs with Kotlin/Native 2.4.10; unmeasured hosts need evidence. */
     fun crossover(operation: DenseOperation): Int = when (operation) {
         DenseOperation.Nrm2, DenseOperation.Iamax -> 128
         else -> 64

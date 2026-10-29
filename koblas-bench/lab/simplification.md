@@ -59,3 +59,19 @@ Use the accepted oneMKL evidence in [vendor-comparison.md](vendor-comparison.md)
 the minimum-128 rule; whole GEMM additionally retains sides at least 16 and depth 1024–4096. Borrowed regions
 do not inherit the deep-GEMM exception. Native pinning has a separate policy from JVM operand transfers.
 Accelerate comparisons remain deferred. Targeted follow-up checks and results belong below as they complete.
+
+## Historical Native policy provenance
+
+The retained matrix work floor of 1,024 comes from the baseline source's account of a bounded local
+`koblas-bench` GEMM/GEMV/TRSM ladder: exact portable Native against explicit oneMKL and OpenBLAS on one
+shared desktop. That note records neither the CPU model nor a retained capture here. The explicit bindings
+excluded composition validation, eligibility and operand wrapping. The floor is a conservative retained
+policy, not an established crossover on other hosts.
+
+For Level 1, the baseline `VendorVectorKernels.crossover` note attributes its cutoffs to the existing
+`koblas-bench` sweep suite on pinned i9-12900H P-cores, single-threaded oneMKL 2026.1 and Kotlin/Native
+2.4.10 linuxX64. It records ordinary break-evens of 40–67 elements, NRM2 at 82 and IAMAX at 100; the
+retained implementation cutoffs are 64 and 128. These are historical source notes, not new timing evidence
+from this simplification. The original capture is not reproduced here; CPU, library or binding changes
+require their own evidence. In particular, these observations establish no Accelerate or ARM crossover.
+JVM transfer policies use the separate retained lab evidence above.

@@ -20,7 +20,8 @@ import kotlin.test.assertTrue
  * Checks composed host calls against the independent reference, reporting unavailable libraries.
  * Real bindings expose operand, stride and flag translation below the recording seam. A loose
  * tolerance admits the library's accumulation order while catching incorrect translation.
- * `eligible = { _, _, _, _ -> true }` keeps fixtures small; [HostDenseBlasTest] covers the size policy.
+ * Allowing small fixtures isolates translation from platform cutoffs. [HostDenseBlasTest] covers supplied
+ * eligibility; NativeBlasPolicyTest and JvmHostDensePolicyTest cover the cutoffs.
  */
 class HostDenseAgreementTest {
     @Test
