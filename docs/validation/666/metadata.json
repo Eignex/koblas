@@ -1,0 +1,37 @@
+{
+  "baseline_revision": "210a8b2e6ae3db9a8a8d429fcad0e1d0e8b5a119",
+  "after_revision": "54f10ea5dabee18ec1d707002ef8bd2451b4f14a",
+  "cpu": "Intel Core i9-12900H",
+  "os": "Linux-7.0.0-38-generic-x86_64-with-glibc2.43",
+  "runtime": "Eclipse Adoptium 25.0.1+8-LTS",
+  "kotlin": "2.4.21",
+  "harness": "JMH-1.38-SNAPSHOT+a194eead0136",
+  "cases": "koblas-bench/cases-addressed.txt",
+  "cases_sha256": "8acdea3bcd53ee7614e631bc5b2b00aab8bbb1e4134fc07b78460e2314cd8b5f",
+  "primary": {
+    "warmup_iterations": 3,
+    "samples": 5,
+    "iteration_ms": 200,
+    "forks": 1,
+    "threads": 1
+  },
+  "focused_repeat": {
+    "warmup_iterations": 5,
+    "samples": 5,
+    "iteration_ms": 300,
+    "forks": 2,
+    "threads": 1
+  },
+  "gc_profiler": true,
+  "arms": [
+    "jvm-scalar",
+    "jvm-simd"
+  ],
+  "baseline_harness_changes": [
+    "Cases.kt accepts layout=borrowed",
+    "Dense.kt dispatches the borrowed fixture",
+    "BorrowedProducts.kt uses the same arrays/reset/oracle; expert DenseCall replaces the new operand route overload"
+  ],
+  "baseline_library_changes": [],
+  "execution": "Sequential captures; emulators and Gradle validation tasks stopped; no CPU affinity or frequency lock"
+}
