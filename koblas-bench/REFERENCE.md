@@ -225,8 +225,8 @@ uses portable Kotlin when an installed host call is unavailable or ineligible.
 
 ## Where results go
 
-Full captures write to `reports/<hardware-sha256>/`; single-operation, smoke and vendor-only runs write to
-`build/benchmarks/<hardware-sha256>/`. The hash covers sorted hardware facts, so identical machines share a
+Captures write to `build/benchmarks/<hardware-sha256>/` unless `--output` selects another location.
+The hash covers sorted hardware facts, so identical machines share a
 directory, and each successful run replaces what was there. A failing target stops the capture and leaves the
 previous report in place.
 
