@@ -279,17 +279,6 @@ internal object SimdProductKernels : DenseProductKernels {
         DoubleVector.fromArray(SPECIES, c, at).add(accumulated.mul(alpha)).intoArray(c, at)
     }
 
-    /**
-     * One multiply-add, fused where [hardwareFusedMultiplyAdd] found the instruction and two operations
-     * where it did not.
-     *
-     * Inline because a helper returning a [DoubleVector] that the JIT declines to inline makes the vector a
-     * heap object, which turns a register-resident tile into an allocation per depth step.
-     */
-    @Suppress("NOTHING_TO_INLINE")
-    private inline fun multiplyAdd(x: DoubleVector, y: DoubleVector, accumulator: DoubleVector): DoubleVector =
-        if (hardwareFusedMultiplyAdd) x.fma(y, accumulator) else x.mul(y).add(accumulator)
-
     /** Lane blocks of destination rows one tile holds. */
     private const val ROW_BLOCKS = 2
 

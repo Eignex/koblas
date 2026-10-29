@@ -979,19 +979,6 @@ internal object SimdPanelKernels : DensePanelKernels {
         y[at] = if (beta == 0.0) alpha * sum else alpha * sum + beta * y[at]
     }
 
-    /**
-     * One multiply-add, fused where [hardwareFusedMultiplyAdd] found the instruction and two operations
-     * where it did not.
-     *
-     * Inline because a helper returning a [DoubleVector] that the JIT declines to inline makes the vector a
-     * heap object, and the loop then allocates once per iteration. Kotlin's warning does not account for
-     * avoiding that allocation. Inlining also folds the test to a constant, so one of the two forms reaches
-     * the loop and neither a branch nor the other form survives in it.
-     */
-    @Suppress("NOTHING_TO_INLINE")
-    private inline fun multiplyAdd(x: DoubleVector, y: DoubleVector, accumulator: DoubleVector): DoubleVector =
-        if (hardwareFusedMultiplyAdd) x.fma(y, accumulator) else x.mul(y).add(accumulator)
-
     /** Lane blocks a panel needs before its vector body can run, which is one whole vector. */
     private const val MINIMUM_BLOCKS = 1
 

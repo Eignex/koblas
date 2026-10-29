@@ -4,6 +4,7 @@ import com.eignex.koblas.sparse.SparseBlas
 import com.eignex.koblas.sparse.SparseCall
 import com.eignex.koblas.sparse.SparseMatrixOperation
 import com.eignex.koblas.sparse.SparseMatrixRoute
+import com.eignex.koblas.sparse.internal.sparseCopy
 import com.eignex.koblas.vendor.RouteKind
 import kotlin.jvm.JvmOverloads
 
@@ -24,13 +25,7 @@ import kotlin.jvm.JvmOverloads
  * measurements must reset the snapshot to separate them.
  */
 public class PreparedSparseMatrix internal constructor(a: SparseMatrix, internal val blas: SparseBlas) : Matrix {
-    internal val snapshot: SparseMatrix = SparseMatrix.wrapTrusted(
-        a.rows,
-        a.cols,
-        a.copyColumnPointers(),
-        a.copyRowIndices(),
-        a.values.copyOf(),
-    )
+    internal val snapshot: SparseMatrix = a.sparseCopy()
 
     private val lazyTranspose: Lazy<SparseMatrix> = lazy { blas.transpose(snapshot) }
 

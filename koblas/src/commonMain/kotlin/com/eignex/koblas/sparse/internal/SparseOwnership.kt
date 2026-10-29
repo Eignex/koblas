@@ -1,5 +1,6 @@
 package com.eignex.koblas.sparse.internal
 
+import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.Workspace
 import com.eignex.koblas.borrow
 import com.eignex.koblas.borrowI32
@@ -47,3 +48,13 @@ internal inline fun <T> withSymmetricRankScratch(
         }
     }
 }
+
+/** An independent copy of a validated CSC matrix, retaining its stored zeros and coefficient values. */
+@Suppress("NOTHING_TO_INLINE") // Keep snapshot construction in the caller without an extra preparation call.
+internal inline fun SparseMatrix.sparseCopy(): SparseMatrix = SparseMatrix.wrapTrusted(
+    rows,
+    cols,
+    copyColumnPointers(),
+    copyRowIndices(),
+    values.copyOf(),
+)

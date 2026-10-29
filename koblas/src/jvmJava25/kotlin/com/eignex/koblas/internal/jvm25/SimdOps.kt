@@ -433,17 +433,6 @@ internal object SimdOps {
     }
 
     /**
-     * One multiply-add, fused where [hardwareFusedMultiplyAdd] found the instruction and two operations
-     * where it did not.
-     *
-     * Inline for the reason [signStripped] gives, and because the test is then a constant the JIT folds, so
-     * one of the two forms reaches the loop and neither a branch nor the other form survives in it.
-     */
-    @Suppress("NOTHING_TO_INLINE")
-    private inline fun multiplyAdd(x: DoubleVector, y: DoubleVector, accumulator: DoubleVector): DoubleVector =
-        if (hardwareFusedMultiplyAdd) x.fma(y, accumulator) else x.mul(y).add(accumulator)
-
-    /**
      * A lane-wise absolute value, as a mask over the sign bit rather than a branch.
      *
      * Inline because a helper returning a [DoubleVector] the JIT declines to inline makes the vector a heap
