@@ -84,8 +84,7 @@ backend guide overlaps the final guide and should be reviewed in that context.
 
 The panel/product/triangular seams remain internal. Matrix route prose and duplicate derived formatting are
 removed, sparse diagnostics live outside execution, and ordinary calls do not construct reporters. The
-engine retains one production vendor adapter; its expert metadata accessor keeps the name used by Klause's
-JVM benchmark. Explicit vendor comparisons open bindings directly. Native's Level 1 and matrix cutoffs live
+engine retains one production vendor adapter, available through `vendor` for metadata inspection. Explicit vendor comparisons open bindings directly. Native's Level 1 and matrix cutoffs live
 in `NativeBlasPolicy`; JVM eligibility stays in `JvmHostDensePolicy` with the accepted boundaries unchanged.
 
 Unpacked products retain a bounded accumulating column and writeback loop for measured throughput,
@@ -141,17 +140,18 @@ Uninstrumented probes continue to establish zero leaf allocation; GC-profiled wh
 workspace allocation and profiler overhead. These captures do not replace accepted oneMKL eligibility
 evidence. No one-off threshold or new dispatch rule is introduced.
 
-Klause integration at `0648b909a6` plus the companion changes passed 171 basis and revised-simplex JVM
-tests against the exact final Koblas sources through temporary composite substitution of all Koblas publication
-coordinates. Published JVM 17/25 classpath and module consumers also passed after final local staging. The benchmark metadata helper requires one explicit
-expert opt-in, delivered as [Klause #3866](https://github.com/Eignex/klause/pull/3866). Klause's full local gate
-is skipped by project preference; GitHub CI supplies that gate. Primary checkouts remain unchanged.
-The unused factorization exceptions `KoblasException`, `SingularMatrix` and `NotPositiveDefinite` have no
-BLAS implementation and are removed. The exact final-source integration found two stale Klause benchmark
-catches for `KoblasException`; #3866 removes them while retaining the solver's own `BasisArithmeticException`
-handling. Kumulant owns its distinct factorization exception type.
+Before annotation removal, cumulative revision `f1bb78a7` passed 171 basis and revised-simplex JVM
+integration tests against Klause `0648b909a6` with temporary benchmark adaptations and composite dependency
+substitution. These are historical integration results, not validation of the current head. Downstream
+repository adaptations are outside this change. Published JVM 17/25 classpath and module consumers are
+maintained in this repository and exercise the reduced API.
 
-The final JVM ABI dump has 1,062 lines versus the baseline's 1,178. The implementation stack deletes
+The unused factorization exceptions `KoblasException`, `SingularMatrix` and `NotPositiveDefinite` have no
+BLAS implementation and are removed. The [migration guide](../../MIGRATION.md) documents replacements for
+removed APIs. Exact engines, `vendor` metadata and route queries need no annotation opt-in; the
+`KoblasEngineApi` marker itself is removed.
+
+The final JVM ABI dump has 1,059 lines versus the baseline's 1,178. The implementation stack deletes
 retained packing and unsupported benchmark paths, drops numerical-order promises, and reduces
 reporting rather than adding a replacement framework. Exact declaration counts differ between JVM and
 Native dumps; dump lines are a reproducible surface-size indicator, not an API compatibility claim.

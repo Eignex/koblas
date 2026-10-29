@@ -261,13 +261,14 @@ one named twice. `native` is the exact portable arm: common Kotlin at every leve
 all, which is what a comparison against this library's own arithmetic needs. `native-default` is the engine
 an ordinary call there gets, which is a policy: its Level 1 is the installed library above the measured
 per-operation widths, and a whole dense Level 2 or 3 call goes to that library once the call has enough
-arithmetic to pay for reaching it. Arithmetic follows ordinary BLAS semantics, including scaled products;
-Native thresholds are kept together in `NativeBlasPolicy`, separately from JVM transfer-cost policy. Rows on
-that arm therefore mix routes, and each says which it took. Its `metadata.txt` section carries the resolved
+arithmetic to pay for reaching it. Rows on that arm therefore mix routes, and each says which it took. Its `metadata.txt` section carries the resolved
 library file, the library's own version string and the threading evidence the binding read back, so a report
 records which binary produced the rows that reached one. A `native-default` row is a default-policy
 measurement of that composition and not an exact measurement of either side of it; the `native` arm and the
 explicit `<vendor>` arms are where each side is measured on its own.
+
+Arithmetic follows ordinary BLAS semantics, including scaled products. Native thresholds are kept together
+in `NativeBlasPolicy`, separately from JVM transfer-cost policy.
 
 No whole sparse entry point is bound on either runtime, so every sparse Level 2 and 3 row on
 `native-default` names this library's own CSC scheduling exactly as on `native`. What can differ between the
@@ -290,7 +291,7 @@ storing it, and a route carries no operand identity to tell the two cases apart.
 measured on the arms where one answer holds, which are the portable `jvm-scalar` and `native` arms and the
 explicit `<vendor>` arms.
 
-Exact-engine selection, engine matrix/vector route queries and engine vendor metadata require `KoblasEngineApi`.
+Exact-engine selection, engine matrix/vector route queries and engine vendor metadata are directly callable.
 Matrix diagnostics carry scheduling, reached or reachable leaves, staging, grouping and resolution facts;
 English explanation assembly is excluded from the library.
 

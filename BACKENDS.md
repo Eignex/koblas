@@ -64,7 +64,7 @@ benchmarked across every shape and host.
 
 The [measurement report](koblas-bench/lab/vendor-comparison.md) contains exact cases, hardware, ratios,
 threshold sources and limitations. It is evidence for the implementation, rather than application setup.
-Engine route queries and exact engines require `@OptIn(KoblasEngineApi::class)`. They report scheduling, actual
+Engine route queries and exact engines are directly callable. They report scheduling, actual
 leaves, whole-call native execution and relevant copies; a selected SIMD engine does not mean every sparse
 operation vectorizes. Normal application code uses the default engine without inspecting these internals.
 

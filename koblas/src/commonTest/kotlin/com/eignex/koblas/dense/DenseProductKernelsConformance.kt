@@ -150,7 +150,7 @@ internal fun assertZeroBetaOverwritesPoison(kernels: DenseProductKernels) {
 }
 
 /**
- * Depth slices of retained panels must agree with one whole block, using the group stride
+ * Depth slices of packed scratch panels must agree with one whole block, using the group stride
  * from full-depth packing and applying beta only to the first slice.
  */
 internal fun assertDepthSlicesAccumulate(kernels: DenseProductKernels) {

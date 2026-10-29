@@ -68,8 +68,9 @@ Linking iOS frameworks and running simulator tests require macOS with Xcode. The
 publications selected from the same dependency coordinates. No numerical library is bundled or needs installing.
 
 Engine selection is automatic. The [backend guide](BACKENDS.md) explains optional native setup, supported
-workloads and measured benefits. Exact engine selection and engine route queries require `KoblasEngineApi`;
-the [benchmark guide](koblas-bench/README.md) explains comparison and attribution.
+workloads and measured benefits. Exact engines and route queries are directly available; the
+[benchmark guide](koblas-bench/README.md) explains comparison and attribution. See the
+[migration guide](MIGRATION.md) when upgrading from the earlier backend and packed-matrix APIs.
 
 Application code can select portable Kotlin for an individual engine without an opt-in:
 
@@ -162,7 +163,7 @@ A host binding without that addressing packs borrowed regions into contiguous wo
 back only destination entries, preserving the unselected triangle of `syrk`.
 Other matrix APIs may materialise a view.
 
-With the expert opt-in, set `DenseCall.borrowed` for a call with views, `leadingDimension` for a padded
+For route inspection, set `DenseCall.borrowed` for a call with views, `leadingDimension` for a padded
 `trsm` destination and `rightLeadingDimension` for a transposed borrowed right operand in `gemm`.
 Factorization algorithms, stabilization policy and their end-to-end benchmarks belong to the consumer.
 
