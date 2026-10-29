@@ -91,7 +91,7 @@ class DenseVectorKernelsTest {
     fun `the compiled in iamax honours its contract`() = assertIamaxHonoursItsContract(koblas.vectorKernels)
 
     @Test
-    fun `the simd iamax agrees exactly with the kernels it falls back to`() {
+    fun `simd iamax honours its contract across windows`() {
         val simd = BuiltinEngines.simd ?: return
         assertIamaxHonoursItsContract(simd.vectorKernels)
     }
