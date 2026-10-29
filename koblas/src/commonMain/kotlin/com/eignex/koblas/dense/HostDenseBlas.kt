@@ -93,12 +93,16 @@ internal class HostDenseBlas(
     }
 
     override fun routeOf(operation: DenseMatrixOperation, call: DenseCall): DenseMatrixRoute {
-        if (HostDenseCall.needsDepth(operation) && call.depth == null) return portable.routeOf(operation, call)
+        val depth = if (HostDenseCall.needsDepth(operation)) {
+            call.depth ?: return portable.routeOf(operation, call)
+        } else {
+            1
+        }
         val permitted = eligibleCall(
             operation,
             call.rows,
             call.columns,
-            call.depth ?: 1,
+            depth,
             call.alpha,
             call.borrowed,
         )

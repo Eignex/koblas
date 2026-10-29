@@ -44,6 +44,28 @@ class HostDenseBlasTest {
     }
 
     @Test
+    fun `level two routes ignore depth just as execution does`() {
+        for (order in intArrayOf(16, 32)) {
+            val recorder = RecordingBlas()
+            val portable = PortableDenseBlas(ScalarVectorKernels, PortablePanelKernels)
+            val blas = HostDenseBlas(
+                portable,
+                recorder,
+                eligible = { _, rows, columns, depth -> rows.toLong() * columns * depth >= 1024 },
+            )
+            val a = matrix(order)
+
+            blas.gemv(1.0, a, DoubleArray(order) { 1.0 }, 0.0, DoubleArray(order))
+            val executedHost = recorder.calls.any { it.operation == BlasOperation.Gemv }
+            for (depth in listOf(null, 0, 1, 64)) {
+                val route = blas.routeOf(DenseMatrixOperation.Gemv, DenseCall(order, order, depth = depth))
+
+                assertEquals(executedHost, route.host != null, "order=$order depth=$depth")
+            }
+        }
+    }
+
+    @Test
     fun `borrowed eligibility rejects any adapted operand before staging`() {
         val policy = object : DenseHostEligibility {
             override fun eligible(operation: DenseMatrixOperation, rows: Int, columns: Int, depth: Int): Boolean = true
