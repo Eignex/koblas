@@ -317,8 +317,8 @@ substitution its diagonal blocks reach, as `<backend>/diagonal-solve` or `/diago
 first, and followed by the windows the products between diagonal blocks became. So a solve over one
 right-hand side may name a portable substitution beside a Vector API panel, which is what it runs, and a
 route that named one engine for both would be hiding half the call. An order inside a single diagonal block
-names no product at all. The right-hand-side grouping is a separate number from the panel grouping the row
-carries and is separate from the panel group shown in `@<group>`.
+names no product at all. Matrix routes do not report the right-hand-side group size;
+`portable-gather/rhs-block` identifies its gathering. The panel group shown in `@<group>` is independent.
 
 A triangular or symmetric call whose windows shrink past a
 backend's shortest vector window reaches more than one body and is published as the composition it is; a

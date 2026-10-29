@@ -8,7 +8,7 @@ default engine; backend selection is automatic.
 | Platform and workload | Setup |
 |---|---|
 | Desktop JVM, vectors, sparse BLAS or small matrices | JDK 25+ with `--add-modules=jdk.incubator.vector` enables owned SIMD. No native library is needed. |
-| Desktop JVM, large dense matrix operations on Intel Linux | Optional oneMKL can help. Add `--enable-native-access=ALL-UNNAMED` and make its runtime discoverable. |
+| Desktop JVM, large dense matrix operations on Intel Linux | On JDK 25+, optional oneMKL can help. Make its runtime discoverable. For classpath applications add `--enable-native-access=ALL-UNNAMED`; for module-path applications use `--enable-native-access=com.eignex.koblas`. |
 | Other desktop JVM hosts | The default uses owned kernels. Installing AOCL, ArmPL, OpenBLAS or Accelerate does not currently enable automatic JVM native dispatch. |
 | Kotlin/Native on Linux | Optional oneMKL on Intel, AOCL on AMD or ArmPL on ARM64, with OpenBLAS as fallback. |
 | Kotlin/Native on macOS | Accelerate is supplied by the OS. |
