@@ -2,14 +2,12 @@ package com.eignex.koblas.bench
 
 import com.eignex.koblas.BuiltinEngines
 import com.eignex.koblas.KoblasEngine
-import com.eignex.koblas.koblas
 import com.eignex.koblas.sparse.SparseOperation
 import com.eignex.koblas.vendor.RouteKind
 import kotlin.math.sqrt
 
 /** Raw CSC windows through the selected engine, including validation and any indexed fallback. */
 internal fun sparseSlicesArm(case: BenchCase, engine: KoblasEngine): ArmChoice {
-    if (engine !== koblas) return ArmChoice(null, "raw slice cases use the platform-selected engine")
     val size = case.dimension(0)
     val sparse = Fixtures.sparseVector(size, case.option("density", "0.01").toDouble(), 1)
     val count = sparse.nnz
@@ -67,7 +65,7 @@ internal fun sparseSlicesArm(case: BenchCase, engine: KoblasEngine): ArmChoice {
     } else {
         vectorKernel(route)
     }
-    return ArmChoice(CaseWork("default-policy", if (mutation) "reset-and-arithmetic" else "arithmetic", run,
+    return ArmChoice(CaseWork(route.kind.name.lowercase(), if (mutation) "reset-and-arithmetic" else "arithmetic", run,
         result = if (mutation) destination else null, kernel = "portable-index-validation+$kernel"), null)
 }
 

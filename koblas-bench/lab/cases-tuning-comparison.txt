@@ -1,0 +1,20 @@
+# Register reuse and scalar edges, with the same array storage for both geometries.
+product-block+64x64x128+uniform
+product-block+65x63x128+uniform
+gemm+64x64x64+uniform
+gemm+128x128x128+uniform
+gemm+256x256x256+uniform
+gemm+768x768x768+uniform
+gemm+128x512x256+uniform
+gemm+256x128x512+uniform+transA=T+transB=T
+
+# Dense norms and Klause indexed norm controls; SUM has no vendor BLAS symbol.
+nrm2+64+uniform
+sum+64+uniform
+spnrm2-slice+64+sparse-uniform+density=0.125
+nrm2+4096+uniform
+sum+4096+uniform
+spnrm2-slice+4096+sparse-uniform+density=0.125
+nrm2+65536+uniform
+sum+65536+uniform
+spnrm2-slice+65536+sparse-uniform+density=0.125

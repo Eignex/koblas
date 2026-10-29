@@ -86,7 +86,7 @@ class PlatformEngineTest {
             assertEquals(BuiltinEngines.scalar.triangularKernels.name, koblas.triangularKernels.name)
             return
         }
-        assertSame(vector, koblas, "the platform default is a second composition rather than the measured arm")
+        assertSame(vector.vectorKernels, koblas.vectorKernels, "host composition replaced the JVM Level 1 arm")
         assertNotEquals(
             BuiltinEngines.scalar.panelKernels.name,
             koblas.panelKernels.name,

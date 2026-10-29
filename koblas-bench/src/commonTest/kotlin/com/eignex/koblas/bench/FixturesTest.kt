@@ -5,6 +5,21 @@ import kotlin.test.assertTrue
 
 class FixturesTest {
     @Test
+    fun `dense triangular fixtures bound the off diagonal row norm at every order`() {
+        for (order in listOf(1, 31, 257)) {
+            for (lower in listOf(true, false)) {
+                val matrix = Fixtures.triangular(order, 1, lower)
+
+                val maximum = (0 until order).maxOf { row ->
+                    (0 until order).filter { it != row }.sumOf { column -> kotlin.math.abs(matrix[row, column]) }
+                }
+
+                assertTrue(maximum < 0.5, "order=$order lower=$lower offDiagonalNorm=$maximum")
+            }
+        }
+    }
+
+    @Test
     fun `a lower triangular column retains its diagonal when selected rows are filtered out`() {
         val matrix = Fixtures.sparse(3, 3, 2.0 / 3.0, 1, triangular = true, lower = true)
 

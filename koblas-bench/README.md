@@ -38,7 +38,10 @@ Each round rotates the target order and retains its own CSVs, metadata and log u
 folder. Source hashes must stay unchanged, and binaries must match after every completed round.
 For each case and target, take the median of the round `median_ns` values before calculating throughput;
 the round files retain the spread. `--cpu auto` pins the capture and its child processes to the first
-CPU allowed by the job's affinity mask. It does not isolate that CPU from other work.
+CPU allowed by the job's affinity mask. `--cpu spread` samples allowed cores for 200 ms and
+chooses a lightly loaded core, considering its SMT siblings and randomizing ties. Lab vendor captures
+use this policy with the ordinary two-CPU job budget. The selected affinity and policy are recorded;
+the capture stays pinned to that core across rounds. These policies permit sharing with other work.
 
 Lab jobs use the [Bench SDK adapter](#bench-sdk-adapter) to prepare and run these captures.
 
@@ -95,6 +98,25 @@ or parent leading dimension. A host-composed engine keeps windowed GER on its po
 GC allocation data separately with JMH profiling when investigating JVM dispatch; the ordinary CSV has
 no allocation column. The JVM verification gate checks the warmed five-window batch for allocations.
 These GER-only timings cannot establish a complete LU speedup.
+
+## Simplex unit AXPY
+
+`axpy-unit` measures the contiguous raw `vectorKernels.axpy` call with `alpha = 1`, matching
+Klause's cached basic-value restoration. `lab/cases-simplex-axpy.txt` includes the retained basis-corpus
+row counts 2, 6, 8, 27, 56 and 70, a 64-element control, and existing nonunit AXPY controls.
+These dimensions are workload examples, not a production call-frequency distribution.
+
+Disjoint arrays are reused and the destination is not reset during timing. Repeated accumulation stays
+finite over the capture; it excludes the solver's FTRAN and cache-restoration work. Setup checks two
+successive complete destinations against the explicit scalar engine and restores the initial destination.
+Vendor arms perform the same accumulation; the JVM vendor arm includes operand transfers on every call.
+The existing `axpy` operation retains its nonunit multiplier and timed destination reset, so its absolute
+times must not be compared as if it were the same workload.
+
+`lab/cases-axpy-tail.txt` adds lengths 9, 31 and 65 to exercise short vector tails, plus nonunit
+64, 4,096, 65,536 and 65,537 controls. The timed raw call captures the primitive length and array
+references directly; it does not retrieve dimensions from the case object. Compare revisions with the
+same capture body when measuring changes of a few nanoseconds.
 
 ## Selected CSC column dots
 
@@ -228,14 +250,13 @@ source revision and the resolved library files are in `metadata.txt` only.
 
 Koblas contributes independent `jvm-scalar`, `jvm-simd`, `jvm-default`, `native` and `native-default` arms.
 `jvm-scalar` is portable Kotlin at every level, and `jvm-simd` is every Vector API kernel this library owns.
-`jvm-default` is what an ordinary call gets, which is a policy rather than an exact arm. On a JVM with the
-incubator module that policy now selects `jvm-simd`'s engine, so the two arms name one object and a
-difference between their rows is this harness's run-to-run band rather than two implementations; without the
-module it selects the portable engine and `jvm-simd` refuses to run at all. The arm is still named
-separately, because which engine a policy lands on is a conclusion a capture may report and not one a row
-may assume, and because its rows are where the generic entry points are timed: those use the selected engine
-and have none to be told. The comparison that says what the Vector API kernels are worth is `jvm-simd`
-against `jvm-scalar`.
+`jvm-default` is what an ordinary call gets, which is a policy rather than an exact arm. Its owned kernels
+are the SIMD arm with the incubator module, and scalar otherwise. With native access enabled on Intel Linux,
+an installed oneMKL can serve eligible Level 3 calls with every extent at least 128. Whole-matrix GEMM
+also qualifies with both output extents at least 16 and depth from 1024 through 4096; borrowed views
+retain the larger cutoff. The default and exact
+SIMD arms therefore need separate measurements; each row names its route. The comparison that says what
+Vector API kernels are worth is `jvm-simd` against `jvm-scalar`.
 
 `native` and `native-default` are the same split on Kotlin/Native and are two different engines rather than
 one named twice. `native` is the exact portable arm: common Kotlin at every level, resolving no library at
@@ -443,9 +464,8 @@ The `gemm-generic`, `spmm-generic`, `spmm-generic-right` and `spgemm-generic` ca
 dense one. That entry point uses the engine this platform selected rather than one a benchmark names, because a caller holding a
 `Matrix` has no engine to pass. They are therefore `default-policy` rows on the arm whose engine is the
 selected one, and are declined on every other arm rather than publishing that arm's label over another
-engine's work. On a JVM with the incubator module `jvm-simd` is the selected engine, so it admits them
-beside `jvm-default` and both rows are that runtime's default policy; without the module `jvm-scalar` is,
-and it admits them instead. On Kotlin/Native that arm is `native-default`; the exact portable `native` arm
+engine's work. On a JVM the exact arm admits them only when it is also the selected engine; a default that composes
+a host is a separate engine, so those generic calls are admitted only by `jvm-default`. On Kotlin/Native that arm is `native-default`; the exact portable `native` arm
 is not the selected engine and declines them. On a Kotlin/Native host with no library installed the two arms
 resolve to the same engine, so both admit these rows and both are that host's default policy.
 
@@ -553,3 +573,20 @@ a separate `capture.log`. Ordinary captures retain their atomic replacement beha
 Smoke results verify integration and are not performance evidence. Linux arm64
 and macOS Native binaries require their corresponding preparation tasks and
 hardware validation before using those targets.
+
+### Allocation measurements
+
+Set `KOBLAS_BENCH_PROFILE_GC=true` (or `profile-gc=true` in the vendor comparison adapter) to retain
+JMH allocation measurements alongside timing in the target logs. Raw product-block cases separate
+kernel allocation from the temporary panel arrays used by whole products without a workspace.
+The eight-column prototype measured at revision `a23a3736` was removed after those measurements
+exposed extra allocation; its pinned source retains the experimental comparison target.
+
+### Thin GEMM and workspace reuse
+
+`gemm` accepts `workspace=retained` to reuse one ordinary-array `Workspace` across setup and measured
+calls. Omitting the option keeps the existing call without a workspace. Vendor arms execute the same
+arithmetic through their binding, which has no workspace parameter and still includes native transfers.
+Compare both owned cases before selecting a native crossover: removing repeated panel allocation can
+change which implementation wins. `lab/cases-thin-gemm-comparison.txt` includes depth, shape and
+transpose controls for that decision. JVM-only vendor captures skip linking an unused native executable.

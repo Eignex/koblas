@@ -8,6 +8,8 @@ import com.eignex.koblas.vendor.Vendor
 internal object JvmBackend {
     val simd: KoblasEngine? get() = null
 
+    val default: KoblasEngine get() = BuiltinEngines.scalar
+
     @Suppress("UNUSED_PARAMETER", "FunctionOnlyReturningConstant") // Matches the desktop selection entry point.
     fun openBlas(only: Vendor?): Blas? = null
 }

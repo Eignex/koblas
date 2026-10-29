@@ -12,6 +12,6 @@ public actual object BuiltinEngines {
     public actual val simd: KoblasEngine? get() = JvmBackend.simd
 }
 
-/** The Vector API composition where the module resolved, and the portable engine where it did not. */
+/** Owned JVM kernels, with eligible host calls when native access and a measured vendor are available. */
 @OptIn(KoblasEngineApi::class)
-internal actual fun platformEngine(): KoblasEngine = BuiltinEngines.simd ?: BuiltinEngines.scalar
+internal actual fun platformEngine(): KoblasEngine = JvmBackend.default

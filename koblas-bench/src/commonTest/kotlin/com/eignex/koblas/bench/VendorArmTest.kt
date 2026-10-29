@@ -24,6 +24,7 @@ class VendorArmTest {
     private val dense = listOf(
         "dot+512+uniform",
         "axpy+512+uniform",
+        "axpy-unit+27+uniform",
         "scal+512+uniform",
         "nrm2+512+uniform",
         "asum+512+uniform",

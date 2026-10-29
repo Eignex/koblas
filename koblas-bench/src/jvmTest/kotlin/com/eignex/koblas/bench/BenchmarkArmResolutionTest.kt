@@ -43,9 +43,9 @@ class BenchmarkArmResolutionTest {
         assertTrue(engine === koblas, "jvm-default resolved an engine other than the platform default")
         assertTrue(identity.startsWith("jvm-default/"), identity)
         assertEquals(
-            BuiltinEngines.simd ?: BuiltinEngines.scalar,
-            engine,
-            "the platform default is neither the Vector API engine nor the portable one",
+            (BuiltinEngines.simd ?: BuiltinEngines.scalar).vectorKernels,
+            engine.vectorKernels,
+            "host composition replaced the platform Level 1 arm",
         )
     }
 

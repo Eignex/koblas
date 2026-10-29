@@ -1,8 +1,10 @@
 package com.eignex.koblas.dense
 
 import com.eignex.koblas.DenseMatrix
+import com.eignex.koblas.DenseMatrixRegion
 import com.eignex.koblas.DenseVector
 import com.eignex.koblas.Workspace
+import com.eignex.koblas.assertClose
 import com.eignex.koblas.vendor.Blas
 import com.eignex.koblas.vendor.BlasOperation
 import com.eignex.koblas.vendor.RouteKind
@@ -20,6 +22,71 @@ import kotlin.test.assertTrue
  * keeps fixtures small; a separate case checks the size policy.
  */
 class HostDenseBlasTest {
+    private fun assertAgreesWithReference(expected: DoubleArray, actual: DoubleArray, context: String) =
+        assertClose(expected, actual, context = context)
+
+    @Test
+    fun `platform eligibility rejects a host call in both execution and route`() {
+        val recorder = RecordingBlas()
+        val portable = PortableDenseBlas(ScalarVectorKernels, PortablePanelKernels)
+        val blas = HostDenseBlas(portable, recorder, minimumWork = 0, eligible = { _, _, _, _ -> false })
+        val a = matrix(ORDER)
+        val actual = matrix(ORDER)
+        val expected = matrix(ORDER)
+        ReferenceBlas.gemm(0.875, a, false, a, false, -0.25, expected)
+
+        blas.gemm(0.875, a, false, a, false, -0.25, actual)
+        val route = blas.routeOf(DenseMatrixOperation.Gemm, DenseCall(ORDER, ORDER, depth = ORDER))
+
+        assertTrue(recorder.calls.isEmpty())
+        assertEquals(null, route.host)
+        assertAgreesWithReference(expected.values, actual.values, "host eligibility fallback")
+    }
+
+    @Test
+    fun `borrowed eligibility rejects any adapted operand before staging`() {
+        val policy = object : DenseHostEligibility {
+            override fun eligible(operation: DenseMatrixOperation, rows: Int, columns: Int, depth: Int): Boolean = true
+
+            override fun eligibleBorrowed(
+                operation: DenseMatrixOperation,
+                rows: Int,
+                columns: Int,
+                depth: Int,
+            ): Boolean = false
+        }
+        for (borrowedOperand in listOf("left", "right", "destination")) {
+            val recorder = RecordingBlas()
+            val portable = PortableDenseBlas(ScalarVectorKernels, PortablePanelKernels)
+            val blas = HostDenseBlas(portable, recorder, minimumWork = 0, eligible = policy)
+            val parent = matrix(ORDER + 2)
+            val view = parent.view(1, 1, ORDER, ORDER)
+            val a: DenseMatrixRegion = if (borrowedOperand == "left") view else matrix(ORDER)
+            val b: DenseMatrixRegion = if (borrowedOperand == "right") view else matrix(ORDER)
+            val c: DenseMatrixRegion = if (borrowedOperand == "destination") view else matrix(ORDER)
+            val before = c.values.copyOf()
+            fun copy(region: DenseMatrixRegion) = DenseMatrix.wrap(
+                ORDER,
+                ORDER,
+                DoubleArray(ORDER * ORDER) { region[it % ORDER, it / ORDER] },
+            )
+            val expected = copy(c)
+            ReferenceBlas.gemm(0.875, copy(a), false, copy(b), false, -0.25, expected)
+
+            blas.gemm(0.875, a, false, b, false, -0.25, c, Workspace())
+            val route = blas.routeOf(DenseMatrixOperation.Gemm, DenseCall(ORDER, ORDER, depth = ORDER, borrowed = true))
+
+            for (j in 0 until ORDER) {
+                for (i in 0 until ORDER) {
+                    before[c.offset + i + j * c.leadingDimension] = expected[i, j]
+                }
+            }
+            assertTrue(recorder.calls.isEmpty(), borrowedOperand)
+            assertEquals(null, route.host)
+            assertAgreesWithReference(before, c.values, "$borrowedOperand region eligibility fallback")
+        }
+    }
+
     private fun forced(
         recorder: RecordingBlas = RecordingBlas(),
         minimumWork: Long = 0,

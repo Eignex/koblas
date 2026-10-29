@@ -15,17 +15,20 @@ internal val simdAvailable: Boolean = try {
 }
 
 /**
- * The JVM Vector API kernels, which are the reductions and nothing else.
+ * JVM Vector API reductions and contiguous AXPY.
  *
  * A reduction is what the compiler cannot do for us. Vectorising a sum of doubles means adding them in a
  * different order, which changes the answer, so HotSpot leaves the loop alone unless it is written in lanes.
  * Writing it in lanes is worth 3 to 10 times the scalar loop for `dot`, `asum` and `sum` above 128.
  *
  * Elementwise work is the opposite: each element's result depends on nothing else, so the JIT vectorises the
- * ordinary Kotlin loop by itself, and there is nothing here for `axpy`, `scal`, `swap` or `rot`. Written in
+ * ordinary Kotlin loop by itself. `scal`, `swap` and `rot` retain those loops. Written in
  * lanes they measure 0.93 to 1.10 against the portable loops, and `scal` measures 0.44 to 0.55 above 512.
  * Measured on 12th Gen Intel Core i9-12900H with the sweep suite, comparing the `jvm-scalar` and `jvm-simd`
  * targets.
+ *
+ * AXPY also has an explicit vector body so callers of the raw array kernel can select lanes without
+ * depending on HotSpot's automatic vectorisation of their surrounding compilation.
  *
  * `nrm2` is here because its fast path is a sum of squares, which is a reduction; it falls back to the
  * rescaling loop when a value leaves the normal range.
@@ -64,11 +67,11 @@ internal object SimdVectorKernels : DenseVectorKernels {
         DenseOperation.Iamax ->
             if (vectorizes(length) && length >= IAMAX_CROSSOVER) name else ScalarVectorKernels.name
 
-        DenseOperation.Dot, DenseOperation.Sum, DenseOperation.Asum,
+        DenseOperation.Dot, DenseOperation.Sum, DenseOperation.Asum, DenseOperation.Axpy,
         -> if (vectorizes(length)) name else ScalarVectorKernels.name
 
-        // The elementwise four have no vector kernel here; see the class documentation.
-        DenseOperation.Axpy, DenseOperation.Scale, DenseOperation.Swap, DenseOperation.Rot,
+        // These elementwise operations have no vector kernel here; see the class documentation.
+        DenseOperation.Scale, DenseOperation.Swap, DenseOperation.Rot,
         -> ScalarVectorKernels.name
     }
 
@@ -99,7 +102,13 @@ internal object SimdVectorKernels : DenseVectorKernels {
         len: Int,
         yStride: Int,
         xStride: Int,
-    ) = scalarAxpy(y, yOff, yStride, alpha, x, xOff, xStride, len)
+    ) {
+        if (vectorizes(len, yStride == 1 && xStride == 1)) {
+            SimdOps.axpy(y, yOff, alpha, x, xOff, len)
+        } else {
+            scalarAxpy(y, yOff, yStride, alpha, x, xOff, xStride, len)
+        }
+    }
 
     override fun scale(v: DoubleArray, vOff: Int, alpha: Double, len: Int, vStride: Int) =
         scalarScale(v, vOff, vStride, alpha, len)

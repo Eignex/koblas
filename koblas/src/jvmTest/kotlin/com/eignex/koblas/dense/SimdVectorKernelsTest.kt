@@ -1,13 +1,15 @@
 package com.eignex.koblas.dense
 
+import com.eignex.koblas.internal.jvm25.SimdOps
 import com.eignex.koblas.internal.jvm25.SimdVectorKernels
 import kotlin.test.Test
+import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /**
- * Checks per-operation routing on the Vector API arm. Reductions use explicit vector kernels;
- * elementwise operations use Kotlin loops that HotSpot vectorises. Routes distinguish these bodies
+ * Checks per-operation routing on the Vector API arm. Reductions and AXPY use explicit vector kernels;
+ * other elementwise operations use Kotlin loops that HotSpot vectorises. Routes distinguish these bodies
  * even when their numerical results agree.
  */
 class SimdVectorKernelsTest {
@@ -26,16 +28,87 @@ class SimdVectorKernelsTest {
     }
 
     @Test
-    fun `elementwise operations stay with the portable loops at every width`() {
+    fun `elementwise operations without vector bodies stay with the portable loops`() {
         if (!SimdVectorKernels.isAvailable) return skipped()
 
         for (operation in listOf(
-            DenseOperation.Axpy,
             DenseOperation.Scale,
             DenseOperation.Swap,
             DenseOperation.Rot,
         )) {
             assertEquals(ScalarVectorKernels.name, reached(operation, WIDE), "$operation named a vector kernel")
+        }
+    }
+
+    @Test
+    fun `contiguous axpy has an explicit vector path`() {
+        if (!SimdVectorKernels.isAvailable) return skipped()
+
+        assertEquals(kernels.name, reached(DenseOperation.Axpy, WIDE))
+        assertLevel1KernelsAgreeWithReference(kernels)
+    }
+
+    @Test
+    fun `axpy preserves scalar product overflow across vector blocks and the tail`() {
+        if (!SimdVectorKernels.isAvailable) return skipped()
+        for (length in listOf(4 * SimdOps.lanes() + 1, 65_536 + SimdOps.lanes() + 1)) {
+            val source = DoubleArray(length + 6) { Double.MAX_VALUE }
+            val expected = DoubleArray(length + 6) { -Double.MAX_VALUE }
+            val actual = expected.copyOf()
+            ScalarVectorKernels.axpy(expected, 3, 2.0, source, 1, length)
+
+            kernels.axpy(actual, 3, 2.0, source, 1, length)
+
+            assertAxpyAgreesWithReference(expected, actual)
+        }
+    }
+
+    private fun assertAxpyAgreesWithReference(expected: DoubleArray, actual: DoubleArray) =
+        assertContentEquals(expected, actual)
+
+    @Test
+    fun `axpy short tails agree with the scalar oracle on shared buffers`() {
+        if (!SimdVectorKernels.isAvailable) return skipped()
+        val lane = SimdOps.lanes()
+        val values = doubleArrayOf(
+            -0.0, 0.0, Double.MIN_VALUE, Double.MAX_VALUE, -2.5, 3.0,
+            Double.NEGATIVE_INFINITY, Double.POSITIVE_INFINITY, Double.NaN,
+        )
+        for (length in (0..2 * lane + 1).toList() + listOf(27, 31, 56, 64, 65, 70)) {
+            for (alpha in listOf(0.0, 1.0, -0.75, 2.0)) {
+                for (sourceOffset in listOf(3, length + 6)) {
+                    val expected = DoubleArray(2 * length + 9) { values[it % values.size] }
+                    val actual = expected.copyOf()
+                    ScalarVectorKernels.axpy(expected, 3, alpha, expected, sourceOffset, length)
+
+                    kernels.axpy(actual, 3, alpha, actual, sourceOffset, length)
+
+                    assertAxpyAgreesWithReference(expected, actual)
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `unit axpy agrees with the scalar oracle across windows and shared buffers`() {
+        if (!SimdVectorKernels.isAvailable) return skipped()
+        val values = doubleArrayOf(
+            -0.0, 0.0, Double.MIN_VALUE, Double.MAX_VALUE, -2.5, 3.0,
+            Double.NEGATIVE_INFINITY, Double.POSITIVE_INFINITY, Double.NaN,
+        )
+        for (length in listOf(2, 6, 8, 27, 56, 64, 70, 65_535, 65_536)) {
+            for (shared in listOf(false, true)) {
+                val expected = DoubleArray(2 * length + 9) { values[it % values.size] }
+                val actual = expected.copyOf()
+                val source = DoubleArray(expected.size) { values[(it + 3) % values.size] }
+                for (sourceOffset in listOf(3, length + 6)) {
+                    ScalarVectorKernels.axpy(expected, 3, 1.0, if (shared) expected else source, sourceOffset, length)
+
+                    kernels.axpy(actual, 3, 1.0, if (shared) actual else source, sourceOffset, length)
+
+                    assertAxpyAgreesWithReference(expected, actual)
+                }
+            }
         }
     }
 

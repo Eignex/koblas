@@ -15,7 +15,7 @@ internal data class BenchCase(
 
 internal object Cases {
     private val dimensionCounts = mapOf(
-        "dot" to 1, "axpy" to 1, "scal" to 1, "nrm2" to 1, "asum" to 1, "sum" to 1,
+        "dot" to 1, "axpy" to 1, "axpy-unit" to 1, "scal" to 1, "nrm2" to 1, "asum" to 1, "sum" to 1,
         "iamax" to 1, "swap" to 1, "rot" to 1,
         "copy-overlap" to 1, "axpy-views" to 1, "swap-views" to 1, "spdot-view" to 1,
         "panel-multidot" to 2, "panel-columnupdate" to 2, "panel-coupled" to 2, "panel-rankupdate" to 2,
@@ -39,7 +39,7 @@ internal object Cases {
     )
     private val fixtures = setOf("uniform", "triangular", "sparse-uniform", "sparse-triangular")
     private val optionOrder =
-        listOf("density", "support", "mode", "reuse", "side", "uplo", "transA", "transB", "diag", "timing")
+        listOf("density", "support", "mode", "reuse", "side", "uplo", "transA", "transB", "diag", "timing", "workspace")
 
     fun parse(text: String): List<BenchCase> {
         val cases = text.lineSequence().mapIndexedNotNull { index, raw ->
@@ -113,6 +113,7 @@ internal object Cases {
             "uplo" -> if (value !in setOf("L", "U")) invalid("invalid uplo '$value'")
             "transA", "transB" -> if (value !in setOf("N", "T")) invalid("invalid transpose '$value'")
             "diag" -> if (value !in setOf("N", "U")) invalid("invalid diag '$value'")
+            "workspace" -> if (value != "retained") invalid("workspace must be retained")
         }
     }
 
@@ -164,7 +165,10 @@ internal object Cases {
         }
         // The sparse operand's own orientation, which is what a prepared transposed product derives once.
         if (operation in TRANSPOSABLE_SPARSE_OPERATIONS) add("transA")
-        if (operation == "gemm") add("transB")
+        if (operation == "gemm") {
+            add("transB")
+            add("workspace")
+        }
         // Dense storage changes the axis available to a right-hand side panel. The benchmark currently
         // exposes this flag for left-sparse products; the production right-sparse API also supports it.
         if (operation in setOf("spmm", "spmm-generic")) add("transB")

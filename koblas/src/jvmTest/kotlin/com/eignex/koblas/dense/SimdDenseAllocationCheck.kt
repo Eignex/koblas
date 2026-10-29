@@ -116,6 +116,20 @@ internal object SimdDenseAllocationCheck {
         assertAllocationFree("unrolled dot with offsets and a tail") {
             engine.vectorKernels.dot(x, 3, y, 5, ORDER - 5)
         }
+        assertAllocationFree("contiguous axpy with offsets and a tail") {
+            engine.vectorKernels.axpy(y, 3, 1e-12, x, 1, ORDER - 3)
+            y[3]
+        }
+        assertAllocationFree("unit axpy at simplex width with offsets and a tail") {
+            engine.vectorKernels.axpy(y, 3, 1.0, x, 1, 70)
+            y[3]
+        }
+        val streamingSource = DoubleArray(65_552) { 0.125 }
+        val streamingDestination = DoubleArray(streamingSource.size)
+        assertAllocationFree("streaming axpy with offsets and a tail", warmup = 20_000, iterations = 2_000) {
+            engine.vectorKernels.axpy(streamingDestination, 3, 1e-12, streamingSource, 1, 65_537)
+            streamingDestination[3]
+        }
         assertAllocationFree("filtered iamax with an offset and a tail") {
             engine.vectorKernels.iamax(x, 3, ORDER - 3).toDouble()
         }

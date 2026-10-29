@@ -38,6 +38,23 @@ if [[ $(uname -s) == Linux ]]; then
   cpu=$(first_allowed_cpu)
   [[ $cpu =~ ^[0-9]+$ ]]
   taskset -c "$cpu" true
+  spread=$(python3 "$bench/select-cpu.py")
+  taskset -c "$spread" true
+  python3 - "$bench/select-cpu.py" <<'PY'
+import random
+import runpy
+import sys
+
+choose = runpy.run_path(sys.argv[1])['choose_cpu']
+before = {cpu: (100, 100) for cpu in range(4)}
+after = {0: (120, 120), 1: (120, 120), 2: (120, 100), 3: (120, 120)}
+topology = lambda cpu: {cpu, cpu + 2}
+# CPU 0 is idle but its sibling is busy and outside the allowed mask.
+assert choose({0, 1}, before, after, topology, random.Random(0)) == 1
+# Equal idle cores can both be selected, including with a restricted mask.
+selected = {choose({1, 3}, before, after, lambda cpu: {cpu}, random.Random(seed)) for seed in range(20)}
+assert selected == {1, 3}
+PY
 fi
 bash "$bench/capture-report.sh" --help >/dev/null 2>&1
 echo 'Benchmark script checks passed'

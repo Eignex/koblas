@@ -1,0 +1,22 @@
+# Whole-call thin GEMM with and without retained ordinary-array workspaces.
+gemm+1x1x1024+uniform
+gemm+1x1x4096+uniform
+gemm+1x1x16384+uniform
+gemm+1x1x65536+uniform
+gemm+16x16x1024+uniform
+gemm+16x16x1024+uniform+workspace=retained
+gemm+16x16x4096+uniform
+gemm+16x16x4096+uniform+workspace=retained
+gemm+16x16x16384+uniform
+gemm+16x16x16384+uniform+workspace=retained
+gemm+8x8x4096+uniform
+gemm+8x8x4096+uniform+workspace=retained
+gemm+32x32x4096+uniform
+gemm+32x32x4096+uniform+workspace=retained
+gemm+16x64x4096+uniform
+gemm+16x64x4096+uniform+workspace=retained
+gemm+64x16x4096+uniform
+gemm+64x16x4096+uniform+workspace=retained
+gemm+16x16x4096+uniform+transA=T+workspace=retained
+gemm+16x16x4096+uniform+transB=T+workspace=retained
+gemm+16x16x4096+uniform+transA=T+transB=T+workspace=retained

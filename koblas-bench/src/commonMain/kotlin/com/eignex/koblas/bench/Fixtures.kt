@@ -36,7 +36,13 @@ internal object Fixtures {
     fun triangular(order: Int, operand: Int, lower: Boolean): DenseMatrix {
         val matrix = matrix(order, order, operand)
         for (j in 0 until order) for (i in 0 until order) {
-            if ((lower && i < j) || (!lower && i > j)) matrix[i, j] = 0.0
+            if ((lower && i < j) || (!lower && i > j)) {
+                matrix[i, j] = 0.0
+            } else if (i != j) {
+                // Bound the off-diagonal row norm even with an implicit unit diagonal. Otherwise large
+                // solves amplify legal accumulation differences beyond the reference comparison's bound.
+                matrix[i, j] /= 2.0 * maxOf(1, order)
+            }
         }
         for (i in 0 until order) matrix[i, i] = 2.0 + kotlin.math.abs(matrix[i, i])
         return matrix

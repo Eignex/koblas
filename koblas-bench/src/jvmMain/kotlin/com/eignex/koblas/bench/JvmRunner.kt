@@ -99,6 +99,7 @@ private fun jmhOptions(settings: Settings, caseIds: Collection<String>) = Option
     .threads(1)
     .shouldFailOnError(true)
     .jvmArgsAppend("-Dkoblas.bench.cases=${File(settings.casesPath).absolutePath}")
+    .apply { if (System.getenv("KOBLAS_BENCH_PROFILE_GC") == "true") addProfiler("gc") }
     .build()
 
 private fun appendJmhRows(

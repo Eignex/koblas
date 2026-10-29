@@ -33,13 +33,7 @@ internal class CaseWork(
     val kernel: String? = null,
 )
 
-/**
- * Level 1 work, named by the kernel selection that will serve it.
- *
- * Null where the kernel's own values settle which implementation finishes the call, as the euclidean norm's
- * rescaling retry does. No width establishes that, so the case is not an exact measurement of either kernel
- * and is declined rather than attributed to the one that happened to start it.
- */
+/** Level 1 work, including value-dependent norm composition and its scalar rescaling retry. */
 @Suppress("LongParameterList") // the operation, its width, and the timed region
 private fun level1(
     engine: KoblasEngine,
@@ -50,8 +44,13 @@ private fun level1(
     run: () -> Double,
 ): CaseWork? {
     val route = engine.routeOf(operation, length)
-    if (route.kind == RouteKind.Composed || route.kind == RouteKind.NoWork) return null
-    return CaseWork(route.kind.name.lowercase(), timing, run, result = result, kernel = vectorKernel(route))
+    if (route.kind == RouteKind.NoWork) return null
+    val kernel = if (route.kind == RouteKind.Composed) {
+        "${route.implementation}+scalar-rescale/${route.entryPoint}"
+    } else {
+        vectorKernel(route)
+    }
+    return CaseWork(route.kind.name.lowercase(), timing, run, result = result, kernel = kernel)
 }
 
 /** The attribution a Level 1 row carries, which is the same question for a dense run and a stored support. */
@@ -146,6 +145,18 @@ internal fun denseWork(case: BenchCase, engine: KoblasEngine): CaseWork? {
             level1(engine, DenseOperation.Axpy, d[0], "reset-and-arithmetic") {
                 initial.copyInto(y); vectors.axpy(y, 0, alpha, x, 0, d[0]); y[0]
             }
+        }
+        "axpy-unit" -> {
+            val length = d[0]
+            val fixture = UnitAxpy(length)
+            val x = fixture.x
+            val y = fixture.y
+            val run = {
+                vectors.axpy(y, 0, 1.0, x, 0, length)
+                y[0]
+            }
+            fixture.verify(case.id, run)
+            level1(engine, DenseOperation.Axpy, length, "arithmetic", result = y, run = run)
         }
         "scal" -> {
             val initial = Fixtures.vector(d[0], 1); val x = initial.copyOf()
@@ -359,7 +370,7 @@ private fun panelWork(case: BenchCase, engine: KoblasEngine): CaseWork {
 /**
  * The dense work for [case], or a reason this arm may not measure it.
  *
- * Raw cases are exact measurements on whichever engine the arm resolved. Generic matrix and vector entry
+ * Raw cases name the direct, delegated or composed route of the resolved engine. Generic matrix and vector entry
  * points select their engine themselves, so those cases are published as default-policy rows.
  */
 internal fun denseArm(case: BenchCase, engine: KoblasEngine): ArmChoice? = when (case.operation) {
@@ -580,6 +591,7 @@ private fun gemmWork(case: BenchCase, engine: KoblasEngine): CaseWork? {
     val a = Fixtures.matrix(if (ta) k else m, if (ta) m else k, 1)
     val b = Fixtures.matrix(if (tb) n else k, if (tb) k else n, 2)
     val original = Fixtures.matrix(m, n, 3); val c = Fixtures.matrix(m, n, 3)
+    val workspace = if (case.options["workspace"] == "retained") Workspace() else null
     return level23(
         engine,
         DenseMatrixOperation.Gemm,
@@ -589,10 +601,10 @@ private fun gemmWork(case: BenchCase, engine: KoblasEngine): CaseWork? {
         "reset-and-arithmetic",
         verify = {
             val expected = DenseReference.gemm(alpha, a, ta, b, tb, beta, original)
-            original.values.copyInto(c.values); engine.gemm(alpha, a, ta, b, tb, beta, c)
+            original.values.copyInto(c.values); engine.gemm(alpha, a, ta, b, tb, beta, c, workspace)
             DenseReference.check(expected, c.values, "${case.id} gemm")
         },
-    ) { original.values.copyInto(c.values); engine.gemm(alpha, a, ta, b, tb, beta, c); c.values[0] }
+    ) { original.values.copyInto(c.values); engine.gemm(alpha, a, ta, b, tb, beta, c, workspace); c.values[0] }
 }
 
 private fun triangularMatrixWork(case: BenchCase, engine: KoblasEngine): CaseWork? {

@@ -1,0 +1,12 @@
+# Retained Klause basis-corpus row counts, plus a neighboring lane-aligned control.
+# Unit AXPY times the raw alpha=1 update without resetting the destination.
+axpy-unit+2+uniform
+axpy-unit+6+uniform
+axpy-unit+8+uniform
+axpy-unit+27+uniform
+axpy-unit+56+uniform
+axpy-unit+64+uniform
+axpy-unit+70+uniform
+# Existing nonunit cache-resident and streaming workloads guard the generic path.
+axpy+4096+uniform
+axpy+65536+uniform

@@ -40,6 +40,15 @@ internal const val HOST_STAGING: String = "host-stage/alias"
 /** The packing a borrowed region takes before a binding that has no in-place region entry points. */
 internal const val HOST_REGION_STAGING: String = "host-stage/region"
 
+/** Platform eligibility with primitive extents, avoiding boxed dimensions on the ordinary call path. */
+internal fun interface DenseHostEligibility {
+    fun eligible(operation: DenseMatrixOperation, rows: Int, columns: Int, depth: Int): Boolean
+
+    /** Borrowed operands can need additional packing before a binding receives them. */
+    fun eligibleBorrowed(operation: DenseMatrixOperation, rows: Int, columns: Int, depth: Int): Boolean =
+        eligible(operation, rows, columns, depth)
+}
+
 /**
  * Dense Level 2 and 3 served by an installed host library where one is eligible, and portably where it is not.
  *
@@ -80,6 +89,7 @@ internal class HostDenseBlas(
     private val portable: PortableDenseBlas,
     private val host: Blas,
     private val minimumWork: Long = HostDensePolicy.MINIMUM_WORK,
+    private val eligible: DenseHostEligibility? = null,
 ) : RoutedDenseBlas {
 
     /** The binding's in-place region entry points, or null where a borrowed operand has to be packed for it. */
@@ -109,9 +119,32 @@ internal class HostDenseBlas(
         depth: Int = 1,
         alpha: Double = 1.0,
         right: Boolean = false,
-    ): Long = HostDensePolicy.multiplyAdds(operation, rows, columns, depth, alpha, right)
+        borrowed: Boolean = false,
+    ): Long = if (!permitted(operation, rows, columns, depth, borrowed)) {
+        HostDensePolicy.NO_HOST_CALL
+    } else {
+        HostDensePolicy.multiplyAdds(operation, rows, columns, depth, alpha, right)
+    }
+
+    private fun permitted(
+        operation: DenseMatrixOperation,
+        rows: Int,
+        columns: Int,
+        depth: Int,
+        borrowed: Boolean,
+    ): Boolean {
+        val policy = eligible ?: return true
+        return if (borrowed) {
+            policy.eligibleBorrowed(operation, rows, columns, depth)
+        } else {
+            policy.eligible(operation, rows, columns, depth)
+        }
+    }
 
     override fun routeOf(operation: DenseMatrixOperation, call: DenseCall): DenseMatrixRoute {
+        if (!permitted(operation, call.rows, call.columns, call.depth ?: 1, call.borrowed)) {
+            return portable.routeOf(operation, call)
+        }
         val work = HostDensePolicy.multiplyAdds(operation, call)
         if (!host(operation, work)) return portable.routeOf(operation, call)
         val entry = requireNotNull(HostDensePolicy.entryPointFor(operation))
@@ -120,6 +153,7 @@ internal class HostDenseBlas(
         val components = ArrayList<String>(2)
         if (call.borrowed && regions == null) components.add(HOST_REGION_STAGING)
         if (call.aliased) components.add(HOST_STAGING)
+        hostRoute.adapter?.let { components.add("host-adapter/$it") }
         components.add("${host.vendor.vendorName.lowercase()}/${entry.entryPoint}")
         return DenseMatrixRoute(
             operation = operation,
@@ -148,7 +182,7 @@ internal class HostDenseBlas(
         workspace: Workspace?,
     ) {
         val op = if (transpose) DenseMatrixOperation.GemvTransposed else DenseMatrixOperation.Gemv
-        val work = work(op, a.rows, a.cols, alpha = alpha)
+        val work = work(op, a.rows, a.cols, alpha = alpha, borrowed = a !is DenseMatrix)
         val direct = regions
         when {
             !host(op, work) -> portable.gemv(alpha, a, x, beta, y, transpose, workspace)
@@ -177,7 +211,14 @@ internal class HostDenseBlas(
         workspace: Workspace?,
     ) {
         val op = DenseMatrixOperation.Gemm
-        val work = work(op, c.rows, c.cols, if (transposeA) a.rows else a.cols, alpha)
+        val work = work(
+            op,
+            c.rows,
+            c.cols,
+            if (transposeA) a.rows else a.cols,
+            alpha,
+            borrowed = a !is DenseMatrix || b !is DenseMatrix || c !is DenseMatrix,
+        )
         val direct = regions
         when {
             !host(op, work) -> portable.gemm(alpha, a, transposeA, b, transposeB, beta, c, workspace)
@@ -205,7 +246,14 @@ internal class HostDenseBlas(
         workspace: Workspace?,
     ) {
         val op = DenseMatrixOperation.Syrk
-        val work = work(op, c.rows, c.cols, if (transpose) a.rows else a.cols, alpha)
+        val work = work(
+            op,
+            c.rows,
+            c.cols,
+            if (transpose) a.rows else a.cols,
+            alpha,
+            borrowed = a !is DenseMatrix || c !is DenseMatrix,
+        )
         val direct = regions
         when {
             !host(op, work) -> portable.syrk(alpha, a, transpose, beta, c, lower, workspace)
@@ -230,7 +278,7 @@ internal class HostDenseBlas(
         workspace: Workspace?,
     ) {
         val op = if (transpose) DenseMatrixOperation.TrsvTransposed else DenseMatrixOperation.Trsv
-        val work = work(op, a.rows, a.cols)
+        val work = work(op, a.rows, a.cols, borrowed = a !is DenseMatrix)
         val direct = regions
         when {
             !host(op, work) -> portable.trsv(a, x, lower, transpose, unitDiag, workspace)
@@ -257,7 +305,7 @@ internal class HostDenseBlas(
         workspace: Workspace?,
     ) {
         val op = DenseMatrixOperation.Trsm
-        val work = work(op, b.rows, b.cols, a.rows, alpha, right)
+        val work = work(op, b.rows, b.cols, a.rows, alpha, right, borrowed = a !is DenseMatrix || b !is DenseMatrix)
         val direct = regions
         when {
             !host(op, work) -> portable.trsm(a, b, lower, transpose, unitDiag, right, alpha, workspace)

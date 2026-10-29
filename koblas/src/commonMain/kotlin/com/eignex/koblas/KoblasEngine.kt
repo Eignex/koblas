@@ -5,6 +5,7 @@ package com.eignex.koblas
 
 import com.eignex.koblas.dense.DenseBlas
 import com.eignex.koblas.dense.DenseCall
+import com.eignex.koblas.dense.DenseHostEligibility
 import com.eignex.koblas.dense.DenseMatrixOperation
 import com.eignex.koblas.dense.DenseMatrixRoute
 import com.eignex.koblas.dense.DenseOperation
@@ -42,7 +43,7 @@ import com.eignex.koblas.vendor.openBlas
 @get:kotlin.jvm.JvmName("getDefault")
 public val koblas: KoblasEngine by lazy { platformEngine() }
 
-/** JVM SIMD when available; Native host composition when available; portable Kotlin otherwise. */
+/** Platform kernels with eligible whole-call host composition and portable fallbacks. */
 internal expect fun platformEngine(): KoblasEngine
 
 /**
@@ -50,7 +51,7 @@ internal expect fun platformEngine(): KoblasEngine
  *
  * [koblas] is the platform default. [portable] creates an explicitly portable engine for application code.
  * [BuiltinEngines] provides exact portable and JVM SIMD compositions
- * for tests and benchmarks, neither of which loads a host library. On Native, the default may compose
+ * for tests and benchmarks, neither of which loads a host library. The platform default may compose
  * [vendor] into eligible calls. The [routeOf] overloads describe which implementations a call reaches.
  */
 public class KoblasEngine internal constructor(
@@ -76,7 +77,10 @@ public class KoblasEngine internal constructor(
      * caller can reach it explicitly passes it as [vendor] alone, and its dense calls stay portable.
      */
     hostDense: Blas? = null,
-    private val dense: RoutedDenseBlas = hostDense?.let { HostDenseBlas(denseBlas, it) } ?: denseBlas,
+    hostDenseEligible: DenseHostEligibility? = null,
+    private val dense: RoutedDenseBlas = hostDense?.let {
+        HostDenseBlas(denseBlas, it, eligible = hostDenseEligible)
+    } ?: denseBlas,
     private val sparseBlas: SparseBlas = PortableSparseBlas(
         vectorKernels,
         indexedSparseKernels,
@@ -206,7 +210,8 @@ public class KoblasEngine internal constructor(
 /**
  * Exact portable and JVM SIMD engines for tests and benchmarks, without changing the default [koblas].
  *
- * The JVM default currently selects [simd] when available and [scalar] otherwise. Native has no SIMD
+ * The JVM default retains [simd] when available and [scalar] otherwise as its owned kernels, and may
+ * compose eligible oneMKL matrix calls when native access is enabled. Native has no SIMD
  * engine and composes an installed host library with portable fallbacks, or uses [scalar] without one.
  * Android and desktop JDKs below 25 use [scalar] without resolving a host library.
  */
@@ -218,9 +223,9 @@ public expect object BuiltinEngines {
     /**
      * Every JVM Vector API kernel this library owns, or null when the module is unavailable.
      *
-     * On the JVM, [koblas] selects this same engine when it is available. A window too short or too
-     * strided for a vector body runs a portable fallback; [KoblasEngine.routeOf] identifies the
-     * bodies reached by a particular call rather than treating the whole engine as vectorized.
+     * On the JVM, [koblas] retains these kernels when available, including in its host composition.
+     * A window too short or too strided for a vector body runs a portable fallback. [KoblasEngine.routeOf]
+     * identifies the bodies reached by a particular call rather than treating the whole engine as vectorized.
      */
     public val simd: KoblasEngine?
 }

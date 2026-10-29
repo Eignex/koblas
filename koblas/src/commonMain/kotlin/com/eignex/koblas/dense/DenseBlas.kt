@@ -15,7 +15,8 @@ import com.eignex.koblas.*
  * from the one it is handed, so passing one costs a routine that does not use it nothing.
  *
  * A platform default may hand a whole Level 2 or 3 call to an installed library where one is available and
- * the call is large enough to pay for reaching it; Kotlin/Native's does, and the JVM's does not. Everything
+ * the call is large enough to pay for reaching it. Kotlin/Native composes available hosts; the JVM may
+ * compose oneMKL for eligible Level 3 calls with native access enabled. Everything
  * stated here holds either way. What is deliberately not stated is the accumulation order and where a
  * multiplier lands, which every built-in schedule already chooses for itself and a library chooses too.
  * [com.eignex.koblas.KoblasEngine.routeOf] says which of the two a given call took, and reports the library
