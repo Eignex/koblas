@@ -214,7 +214,11 @@ internal object SimdDenseAllocationCheck {
             engine.productKernels,
             engine.triangularKernels,
         )
-        val composed = HostDenseBlas(portable, RecordingBlas(directlyImplemented = emptySet()))
+        val composed = HostDenseBlas(
+            portable,
+            RecordingBlas(directlyImplemented = emptySet()),
+            eligible = { _, _, _, _ -> true },
+        )
         val matrix = DenseMatrix.wrap(ORDER, ORDER, DoubleArray(ORDER * ORDER) { 1.0 + (it % 13) * 0.125 })
         val x = DoubleArray(ORDER) { 1.0 + (it % 7) * 0.25 }
         val y = DoubleArray(ORDER) { 0.5 }
