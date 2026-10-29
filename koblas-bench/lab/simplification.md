@@ -48,6 +48,17 @@ tests, fixed multiplier-placement tests, and the SIMD AXPY prohibition on FMA. N
 a plain square sum can overflow or underflow for ordinary finite inputs with a representable norm. Checked
 solver workspace primitives report arithmetic diagnostics deliberately and are not ordinary BLAS calls.
 
+The corrective audit also removes dense zero-product NaN promises, fixed panel/block scaling placement,
+exact or exceptional-value scaling comparisons, indexed norm exceptional-result promises, and a subnormal
+TRSM division-only requirement. [Netlib DGER](https://netlib.org/blas/dger.f) skips zero coefficients, while
+[Netlib DTRSM](https://netlib.org/blas/dtrsm.f) uses reciprocal multiplication on right-side paths. A test-only
+zero-skipping dense implementation now passes the conformance helpers. Indexed panel leaves and sparse
+`evaluatedAxpy` still evaluate stored positions, including stored zeros, because that is the separate sparse
+structural contract; absent positions remain unevaluated. Zero-right-hand-side sparse triangular tests keep
+the no-update rule without prescribing live-lane exceptional results or signed zeros. Required alpha/beta
+zero, selected-triangle and unit-diagonal checks remain, as does finite-range norm scaling.
+
+
 ## Baseline and performance evidence
 
 The baseline JVM ABI dump contains 1,178 lines. Seven route/model/reporter files contain 1,398 lines,
@@ -106,9 +117,26 @@ These are medians of the three round medians. Some other cases have substantial 
 these results establish the scratch decision, not a new native crossover.
 
 The direct-update change is rejected. The final source retains the generic accumulation-column path,
-with bounded workspace storage and no extra numerical-order promise. Final confirmation
-[9280](https://lab.eignex.com/jobs/9280) at `052d3602` uses the same two-fork suite; its retained artifacts
-and the testing section of [PR #663](https://github.com/Eignex/koblas/pull/663) record final completion and ratios.
+with bounded workspace storage and no extra numerical-order promise. Capture
+[9280](https://lab.eignex.com/jobs/9280) at `052d3602` had broad shared-host variation, including unchanged
+packed controls 14–63% slower, so it does not isolate a source regression or improvement. Same-protocol
+confirmation [9284](https://lab.eignex.com/jobs/9284) at the same revision completed all three two-fork rounds:
+
+| Exact SIMD GEMM case | Control 9273 us | Direct proposal 9274 us | Retained buffer 9284 us |
+|---|---:|---:|---:|
+| 1x1x1024 | 2.591 | 2.924 | 2.463 |
+| 8x8x4096 with workspace | 95.691 | 105.605 | 93.699 |
+| 16x16x4096 with workspace, unchanged packed control | 160.389 | 162.359 | 181.366 |
+| 32x32x4096 with workspace, unchanged packed control | 424.636 | 410.608 | 412.460 |
+| 16x64x4096 with workspace, unchanged packed control | 498.130 | 494.072 | 509.989 |
+| 64x16x4096 with workspace, unchanged packed control | 540.872 | 537.649 | 541.920 |
+
+Values are medians of the three round medians. The affected 8x8 workspace rounds were 93.7, 92.4 and
+95.7 us: retaining the buffer recovers control throughput. Some unchanged packed controls still vary;
+the 16x16x4096 workspace rounds were 187.1, 181.4 and 162.2 us. No new crossover or speedup claim is
+inferred from that spread. Buffered allocation matches the control: about 24 B/call for 1x1, 83 B/call for
+unretained 8x8, and profiler noise (2.7 B/call) with a retained workspace. The later numerical-contract
+correction changes documentation and tests, leaving these measured arithmetic bodies unchanged.
 Uninstrumented probes continue to establish zero leaf allocation; GC-profiled whole calls can include
 workspace allocation and profiler overhead. These captures do not replace accepted oneMKL eligibility
 evidence. No one-off threshold or new dispatch rule is introduced.
