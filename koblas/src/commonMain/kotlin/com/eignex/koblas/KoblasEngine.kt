@@ -172,3 +172,6 @@ public expect object BuiltinEngines {
 
 /** Optional platform-default Native host binding, resolved once only when that platform policy asks for it. */
 internal val selectedVendor: Blas? by lazy { openBlas() }
+
+/** Shared scalar composition; availability and default selection remain platform decisions. */
+internal val scalarEngine: KoblasEngine by lazy { KoblasEngine.portable() }

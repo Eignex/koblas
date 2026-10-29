@@ -1,3 +1,5 @@
+@file:OptIn(org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi::class)
+
 import java.nio.file.Path as JdkPath
 import org.gradle.api.tasks.JavaExec
 
@@ -41,6 +43,16 @@ kotlin {
     linuxArm64 { binaries.executable { entryPoint = "com.eignex.koblas.bench.main"; baseName = "koblas-bench" } }
     mingwX64 { binaries.executable { entryPoint = "com.eignex.koblas.bench.main"; baseName = "koblas-bench" } }
     macosArm64 { binaries.executable { entryPoint = "com.eignex.koblas.bench.main"; baseName = "koblas-bench" } }
+    applyDefaultHierarchyTemplate {
+        common {
+            group("native") {
+                group("posix") {
+                    withLinux()
+                    withApple()
+                }
+            }
+        }
+    }
     sourceSets {
         commonMain.dependencies { implementation(project(":koblas")) }
         jvmMain.dependencies {

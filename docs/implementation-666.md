@@ -75,3 +75,11 @@ SOURCE nativeTest dependsOn=[commonTest] dirs=[src/nativeTest/kotlin]
 COMPILATION main sources=[commonMain, jvmMain] associates=[]
 COMPILATION test sources=[commonTest, jvmTest] associates=[main]
 ```
+
+## Source and test sharing
+
+The standard `test` compilation targets Java 17 and includes common conformance, Java interop, packaged-runtime assertions and prepared concurrency tests. `desktopTest` associates with `main`, `test` and `java25` without inheriting their sources. Only `java25` and `desktopTest` receive the Vector API compiler module. Both runtime classpaths use the MR JAR and exclude loose production outputs.
+
+Initial validation: Java 17 packaged baseline ran 691 tests; Java 25 packaged baseline plus desktop ran 858 tests, with no failures. The runtime-aware resource assertion verified root loading on Java 17 and `META-INF/versions/25` loading on Java 25. The old Java 25 packaged task is a dependency entrypoint to `jvmTest`; isolated probes keep separate uninstrumented processes.
+
+Benchmark Linux and Apple directory handling now shares `posixMain`; Windows retains its wide-character implementation. Scalar initialization and benchmark engine identity formatting are shared behind platform selection seams.
