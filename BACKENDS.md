@@ -6,25 +6,30 @@ an installed native library. Your data stays in ordinary `DoubleArray` storage.
 ## How the default engine loads
 
 The first use of `koblas` creates the default engine. That engine stays fixed for the lifetime of the
-process. On the JVM, loading works like this:
+process. Library loading happens once; individual calls still choose between its implementations.
+
+### JVM
 
 ```mermaid
 flowchart TD
     subgraph loading["Once: create the default engine"]
-    A["First use of koblas"] --> B["Select Kotlin implementation:<br/>SIMD if enabled, otherwise portable"]
-    B --> C{"Eligible JVM host<br/>and native access enabled?"}
-    C -- No --> D["Kotlin only"]
+    A["First use of koblas"] --> B{"JDK 25+ and<br/>Vector API enabled?"}
+    B -- Yes --> S["Select JVM SIMD"]
+    B -- No --> P["Select portable Kotlin"]
+    S --> C{"Eligible JVM host<br/>and native access enabled?"}
+    P --> C
+    C -- No --> D["Keep selected JVM implementation"]
     C -- Yes --> E["Try loading oneMKL"]
     E --> F{"Compatible library found?"}
     F -- No --> D
-    F -- Yes --> G["Kotlin + oneMKL"]
+    F -- Yes --> G["Selected JVM implementation<br/>+ oneMKL"]
     D --> H["Save this engine for subsequent calls"]
     G --> H
     end
     subgraph execution["For each call: choose an implementation"]
     I["Each BLAS call"] --> J{"Native library loaded<br/>and call eligible?"}
     J -- Yes --> K["Use oneMKL"]
-    J -- No --> L["Use Kotlin"]
+    J -- No --> L["Use selected JVM implementation:<br/>SIMD or portable Kotlin"]
     end
     H --> I
 ```
@@ -36,6 +41,43 @@ Intel CPU or an unidentified CPU vendor, and only when native access is enabled.
 A missing or incompatible library leaves Kotlin in place. Loading oneMKL adds an option for eligible
 matrix calls. Small calls, unsupported native entry points, vector operations and sparse operations
 still use Kotlin. Call sizes affect this choice on each call; they do not trigger library loading again.
+
+### Kotlin/Native
+
+```mermaid
+flowchart TD
+    N["First use of koblas"] --> T{"Target?"}
+    T -- macOS --> A["Try system Accelerate"]
+    T -- Linux --> V["Try platform library order below,<br/>ending with OpenBLAS"]
+    T -- iOS --> P["Portable Kotlin"]
+    A --> F{"Compatible library found?"}
+    V --> F
+    F -- Yes --> E["Selected native library<br/>+ portable Kotlin fallback"]
+    F -- No --> P
+```
+
+On Linux the search stops at the first compatible library:
+
+| CPU | Library order |
+|---|---|
+| Intel x64, or unidentified x64 | oneMKL → AOCL → OpenBLAS |
+| AMD x64 | AOCL → oneMKL → OpenBLAS |
+| ARM64 | ArmPL → OpenBLAS |
+
+Each Native call uses the selected library when its operation and size qualify, otherwise portable
+Kotlin. Native calls pin arrays rather than making JVM-style copies, so their thresholds differ.
+Kotlin/Native has no separate built-in SIMD engine. Android and JDK 17–24 also use portable Kotlin,
+with no native library lookup.
+
+### Available bindings versus automatic selection
+
+oneMKL, AOCL, ArmPL, OpenBLAS and Accelerate bindings are available for direct calls on their supported
+JVM 25+ and Kotlin/Native hosts. The JVM default currently adds only oneMKL; for example, a macOS JVM
+uses SIMD or portable Kotlin even though Accelerate is available for direct calls. Kotlin/Native on
+macOS uses Accelerate automatically.
+
+These direct calls use the [manual library loader](#manual-native-calls); they do not change the default
+engine.
 
 ## What to enable on the JVM
 
@@ -102,22 +144,6 @@ Level 2 and sparse performance gaps have not been established systematically. Th
 contains the exact cases, hardware and limitations, including the
 [deep-GEMM comparison](koblas-bench/lab/vendor-comparison.md#thin-gemm-crossover).
 
-## Other platforms
-
-| Platform | What the default loads |
-|---|---|
-| JDK 17–24, Android and iOS | Portable Kotlin; no native library lookup |
-| JDK 25+ on other JVM hosts | SIMD when enabled, otherwise portable Kotlin; no automatic native library lookup |
-| Kotlin/Native on Intel Linux x64 | First compatible library: oneMKL, AOCL, then OpenBLAS |
-| Kotlin/Native on AMD Linux x64 | First compatible library: AOCL, oneMKL, then OpenBLAS |
-| Kotlin/Native on Linux ARM64 | First compatible library: ArmPL, then OpenBLAS |
-| Kotlin/Native on macOS | System Accelerate |
-
-Kotlin/Native also selects once and falls back to portable Kotlin if no compatible library loads. Its
-native calls pin arrays rather than making JVM-style copies, so it has separate size thresholds.
-Unidentified Linux x64 CPUs use the Intel preference order. LAPACK factorizations and banded or
-packed-triangle BLAS interfaces are outside the API.
-
 ## Selecting or inspecting an engine explicitly
 
 | API | Effect |
@@ -125,8 +151,18 @@ packed-triangle BLAS interfaces are outside the API.
 | `koblas` | Uses the fixed platform default, including eligible native calls |
 | `KoblasEngine.portable()` | Creates an independent portable engine; loads no native library |
 | `BuiltinEngines.simd` | Returns the exact JVM SIMD engine, or `null` when unavailable; loads no native library |
-| `openBlas(Vendor.OneMkl)` | Opens a binding for direct calls, or returns `null`; does not install it into the default engine |
 
 Call an explicitly selected engine directly; container conveniences continue using `koblas`.
 `koblas.name` reports the selected kernels and `koblas.vendor` the attached native binding, if any.
 Use `routeOf` to inspect a particular call: an attached library does not mean that call uses it.
+LAPACK factorizations and banded or packed-triangle BLAS interfaces are outside the API.
+
+## Manual native calls
+
+`openBlas` means "open a BLAS binding". Its vendor argument chooses the library: `Vendor.OneMkl`
+selects Intel oneMKL, `Vendor.OpenBlas` selects OpenBLAS, and `Vendor.Accelerate` selects Apple's
+Accelerate. AOCL and ArmPL are also supported on their hosts.
+
+`openBlas()` searches the platform's vendor order. `openBlas(vendor)` requests just that library.
+Both return a binding for direct calls, or `null`; neither changes the default engine. JVM bindings
+require native access. Normal application calls can keep using `koblas`.
