@@ -58,7 +58,7 @@ class BenchmarkArmResolutionTest {
     fun `the generic product is built by the measured fork on the default arm`() = withGenericCase { case, path ->
         val work = JvmBenchmarkBridge.create("jvm-default", case.id, path)
         try {
-            assertEquals("default-policy", work.comparisonKind)
+            assertTrue(work.comparisonKind in listOf("direct", "composed"))
             assertTrue(!work.kernel.isNullOrEmpty(), "the default arm's generic row named no route")
         } finally {
             work.close()
@@ -66,14 +66,15 @@ class BenchmarkArmResolutionTest {
     }
 
     @Test
-    fun `the generic product is declined by the measured fork on an exact arm`() = withGenericCase { case, path ->
-        if (BuiltinEngines.simd === koblas) return@withGenericCase
-
-        val declined = assertFailsWith<IllegalStateException> {
-            JvmBenchmarkBridge.create("jvm-simd", case.id, path)
+    fun `the generic product is built by the measured fork on an exact arm`() = withGenericCase { case, path ->
+        val mode = if (BuiltinEngines.simd != null) "jvm-simd" else "jvm-scalar"
+        val work = JvmBenchmarkBridge.create(mode, case.id, path)
+        try {
+            assertTrue(work.comparisonKind in listOf("direct", "composed"))
+            assertTrue(!work.kernel.isNullOrEmpty())
+        } finally {
+            work.close()
         }
-
-        assertTrue("declined" in declined.message.orEmpty(), declined.message.orEmpty())
     }
 
     private fun withGenericCase(body: (BenchCase, String) -> Unit) {

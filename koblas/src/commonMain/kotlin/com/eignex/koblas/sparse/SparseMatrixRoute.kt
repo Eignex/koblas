@@ -2,7 +2,7 @@ package com.eignex.koblas.sparse
 
 import com.eignex.koblas.MatrixRoute
 import com.eignex.koblas.SparseMatrix
-import com.eignex.koblas.vendor.RouteKind
+import com.eignex.koblas.RouteKind
 
 /**
  * A built-in sparse Level 2 or 3 entry point, named so a caller can ask what a call of it actually executes.

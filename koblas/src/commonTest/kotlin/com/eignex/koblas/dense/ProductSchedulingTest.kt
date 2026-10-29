@@ -6,7 +6,7 @@ import com.eignex.koblas.KoblasEngine
 import com.eignex.koblas.Workspace
 import com.eignex.koblas.assertClose
 import com.eignex.koblas.randomMatrix
-import com.eignex.koblas.vendor.RouteKind
+import com.eignex.koblas.RouteKind
 import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertEquals

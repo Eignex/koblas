@@ -205,6 +205,10 @@ internal interface DensePanelKernels {
         coefficientOffset: Int,
         sums: DoubleArray,
         sumOffset: Int,
+        xStride: Int = 1,
+        yStride: Int = 1,
+        coefficientStride: Int = 1,
+        sumStride: Int = 1,
     )
 
     /**
@@ -346,5 +350,8 @@ internal interface DensePanelKernels {
         sums: DoubleArray,
         sumOffset: Int,
         excluded: Int,
+        destinationOffset: Int = offset,
+        destinationRowStride: Int = rowStride,
+        destinationIndexStride: Int = indexStride,
     )
 }

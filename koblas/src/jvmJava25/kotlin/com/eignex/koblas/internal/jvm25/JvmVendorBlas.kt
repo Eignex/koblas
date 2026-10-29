@@ -42,7 +42,7 @@ internal class JvmVendorBlas(
 
     override fun routeOf(
         operation: BlasOperation,
-        matrices: List<DenseMatrix>,
+        matrices: List<DenseMatrixRegion>,
         vectors: List<DenseVector>,
     ): CallRoute = routeFor(
         operation = operation,
@@ -149,7 +149,7 @@ internal class JvmVendorBlas(
 
     override fun gemv(
         alpha: Double,
-        a: DenseMatrix,
+        a: DenseMatrixRegion,
         transposeA: Boolean,
         x: DenseVector,
         beta: Double,
@@ -171,7 +171,7 @@ internal class JvmVendorBlas(
 
     override fun symv(
         alpha: Double,
-        a: DenseMatrix,
+        a: DenseMatrixRegion,
         structure: MatrixStructure,
         x: DenseVector,
         beta: Double,
@@ -181,7 +181,7 @@ internal class JvmVendorBlas(
         requireSymvOperands(a, x.size, y.size)
         if (noWork(a)) return
         Arena.ofConfined().use { arena ->
-            val na = arena.stage(a)
+            val na = arena.stage(a, structure)
             val nx = arena.stage(x)
             val ny = arena.stage(y)
             symvHandle.invokeExact(
@@ -192,7 +192,7 @@ internal class JvmVendorBlas(
         }
     }
 
-    override fun ger(alpha: Double, x: DenseVector, y: DenseVector, a: DenseMatrix) {
+    override fun ger(alpha: Double, x: DenseVector, y: DenseVector, a: DenseMatrixRegion) {
         requireGerOperands(x.size, y.size, a)
         if (noWork(a)) return
         Arena.ofConfined().use { arena ->
@@ -207,12 +207,12 @@ internal class JvmVendorBlas(
         }
     }
 
-    override fun syr(alpha: Double, x: DenseVector, a: DenseMatrix, structure: MatrixStructure) {
+    override fun syr(alpha: Double, x: DenseVector, a: DenseMatrixRegion, structure: MatrixStructure) {
         requireStructured(structure, "syr")
         requireSyrOperands(a, x.size, "syr")
         if (noWork(a)) return
         Arena.ofConfined().use { arena ->
-            val na = arena.stage(a)
+            val na = arena.stage(a, structure)
             val nx = arena.stage(x)
             syrHandle.invokeExact(
                 Cblas.COL_MAJOR,
@@ -228,12 +228,12 @@ internal class JvmVendorBlas(
         }
     }
 
-    override fun syr2(alpha: Double, x: DenseVector, y: DenseVector, a: DenseMatrix, structure: MatrixStructure) {
+    override fun syr2(alpha: Double, x: DenseVector, y: DenseVector, a: DenseMatrixRegion, structure: MatrixStructure) {
         requireStructured(structure, "syr2")
         requireSyr2Operands(a, x.size, y.size, "syr2")
         if (noWork(a)) return
         Arena.ofConfined().use { arena ->
-            val na = arena.stage(a)
+            val na = arena.stage(a, structure)
             val nx = arena.stage(x)
             val ny = arena.stage(y)
             syr2Handle.invokeExact(
@@ -244,15 +244,15 @@ internal class JvmVendorBlas(
         }
     }
 
-    override fun trsv(a: DenseMatrix, structure: MatrixStructure, transposeA: Boolean, x: DenseVector) =
+    override fun trsv(a: DenseMatrixRegion, structure: MatrixStructure, transposeA: Boolean, x: DenseVector) =
         triangularVector(a, structure, transposeA, x, trsvHandle, "trsv")
 
-    override fun trmv(a: DenseMatrix, structure: MatrixStructure, transposeA: Boolean, x: DenseVector) =
+    override fun trmv(a: DenseMatrixRegion, structure: MatrixStructure, transposeA: Boolean, x: DenseVector) =
         triangularVector(a, structure, transposeA, x, trmvHandle, "trmv")
 
     @Suppress("LongParameterList") // the shared triangular vector signature plus its handle
     private fun triangularVector(
-        a: DenseMatrix,
+        a: DenseMatrixRegion,
         structure: MatrixStructure,
         transposeA: Boolean,
         x: DenseVector,
@@ -263,7 +263,7 @@ internal class JvmVendorBlas(
         requireTriangularVectorOperands(a, x.size, what)
         if (noWork(a)) return
         Arena.ofConfined().use { arena ->
-            val na = arena.stage(a)
+            val na = arena.stage(a, structure)
             val nx = arena.stage(x)
             handle.invokeExact(
                 Cblas.COL_MAJOR, uploFor(structure), transposeFor(transposeA), diagFor(structure),
@@ -278,12 +278,12 @@ internal class JvmVendorBlas(
     @Suppress("LongParameterList") // the BLAS dgemm signature
     override fun gemm(
         alpha: Double,
-        a: DenseMatrix,
+        a: DenseMatrixRegion,
         transposeA: Boolean,
-        b: DenseMatrix,
+        b: DenseMatrixRegion,
         transposeB: Boolean,
         beta: Double,
-        c: DenseMatrix,
+        c: DenseMatrixRegion,
     ) {
         val depth = if (transposeA) a.rows else a.cols
         requireGemmOperands(a, transposeA, b, transposeB, c)
@@ -291,7 +291,7 @@ internal class JvmVendorBlas(
         Arena.ofConfined().use { arena ->
             val na = arena.stage(a)
             val nb = arena.stage(b)
-            val nc = arena.stage(c)
+            val nc = arena.stage(c, read = beta != 0.0)
             gemmHandle.invokeExact(
                 Cblas.COL_MAJOR, transposeFor(transposeA), transposeFor(transposeB),
                 c.rows, c.cols, depth, alpha,
@@ -305,20 +305,20 @@ internal class JvmVendorBlas(
     @Suppress("LongParameterList") // the BLAS dsymm signature
     override fun symm(
         alpha: Double,
-        a: DenseMatrix,
+        a: DenseMatrixRegion,
         structure: MatrixStructure,
-        b: DenseMatrix,
+        b: DenseMatrixRegion,
         beta: Double,
-        c: DenseMatrix,
+        c: DenseMatrixRegion,
         rightSide: Boolean,
     ) {
         requireStructured(structure, "symm")
         requireSymmOperands(a, b, c, rightSide)
         if (noWork(c)) return
         Arena.ofConfined().use { arena ->
-            val na = arena.stage(a)
+            val na = arena.stage(a, structure)
             val nb = arena.stage(b)
-            val nc = arena.stage(c)
+            val nc = arena.stage(c, read = beta != 0.0)
             symmHandle.invokeExact(
                 Cblas.COL_MAJOR, sideFor(rightSide), uploFor(structure), c.rows, c.cols, alpha,
                 na.segment, na.leadingDimension, nb.segment, nb.leadingDimension, beta,
@@ -331,10 +331,10 @@ internal class JvmVendorBlas(
     @Suppress("LongParameterList") // the BLAS dsyrk signature
     override fun syrk(
         alpha: Double,
-        a: DenseMatrix,
+        a: DenseMatrixRegion,
         transposeA: Boolean,
         beta: Double,
-        c: DenseMatrix,
+        c: DenseMatrixRegion,
         structure: MatrixStructure,
     ) {
         requireStructured(structure, "syrk")
@@ -343,7 +343,7 @@ internal class JvmVendorBlas(
         if (noWork(c)) return
         Arena.ofConfined().use { arena ->
             val na = arena.stage(a)
-            val nc = arena.stage(c)
+            val nc = arena.stage(c, structure, read = beta != 0.0)
             syrkHandle.invokeExact(
                 Cblas.COL_MAJOR, uploFor(structure), transposeFor(transposeA),
                 c.rows, depth, alpha, na.segment, na.leadingDimension, beta,
@@ -356,11 +356,11 @@ internal class JvmVendorBlas(
     @Suppress("LongParameterList") // the BLAS dsyr2k signature
     override fun syr2k(
         alpha: Double,
-        a: DenseMatrix,
-        b: DenseMatrix,
+        a: DenseMatrixRegion,
+        b: DenseMatrixRegion,
         transposeA: Boolean,
         beta: Double,
-        c: DenseMatrix,
+        c: DenseMatrixRegion,
         structure: MatrixStructure,
     ) {
         requireStructured(structure, "syr2k")
@@ -370,7 +370,7 @@ internal class JvmVendorBlas(
         Arena.ofConfined().use { arena ->
             val na = arena.stage(a)
             val nb = arena.stage(b)
-            val nc = arena.stage(c)
+            val nc = arena.stage(c, structure, read = beta != 0.0)
             syr2kHandle.invokeExact(
                 Cblas.COL_MAJOR, uploFor(structure), transposeFor(transposeA),
                 c.rows, depth, alpha, na.segment, na.leadingDimension,
@@ -383,30 +383,30 @@ internal class JvmVendorBlas(
     @Suppress("LongParameterList") // the BLAS dtrmm signature
     override fun trmm(
         alpha: Double,
-        a: DenseMatrix,
+        a: DenseMatrixRegion,
         structure: MatrixStructure,
         transposeA: Boolean,
-        b: DenseMatrix,
+        b: DenseMatrixRegion,
         rightSide: Boolean,
     ) = triangularMatrix(alpha, a, structure, transposeA, b, rightSide, trmmHandle, "trmm")
 
     @Suppress("LongParameterList") // the BLAS dtrsm signature
     override fun trsm(
         alpha: Double,
-        a: DenseMatrix,
+        a: DenseMatrixRegion,
         structure: MatrixStructure,
         transposeA: Boolean,
-        b: DenseMatrix,
+        b: DenseMatrixRegion,
         rightSide: Boolean,
     ) = triangularMatrix(alpha, a, structure, transposeA, b, rightSide, trsmHandle, "trsm")
 
     @Suppress("LongParameterList") // the shared triangular matrix signature plus its handle
     private fun triangularMatrix(
         alpha: Double,
-        a: DenseMatrix,
+        a: DenseMatrixRegion,
         structure: MatrixStructure,
         transposeA: Boolean,
-        b: DenseMatrix,
+        b: DenseMatrixRegion,
         rightSide: Boolean,
         handle: MethodHandle,
         what: String,
@@ -415,7 +415,7 @@ internal class JvmVendorBlas(
         requireTriangularMatrixOperands(a, b, rightSide, what)
         if (noWork(b)) return
         Arena.ofConfined().use { arena ->
-            val na = arena.stage(a)
+            val na = arena.stage(a, structure)
             val nb = arena.stage(b)
             handle.invokeExact(
                 Cblas.COL_MAJOR, sideFor(rightSide), uploFor(structure),
@@ -430,12 +430,12 @@ internal class JvmVendorBlas(
     @Suppress("LongParameterList") // the BLAS gemmt signature
     override fun gemmt(
         alpha: Double,
-        a: DenseMatrix,
+        a: DenseMatrixRegion,
         transposeA: Boolean,
-        b: DenseMatrix,
+        b: DenseMatrixRegion,
         transposeB: Boolean,
         beta: Double,
-        c: DenseMatrix,
+        c: DenseMatrixRegion,
         structure: MatrixStructure,
     ) {
         requireStructured(structure, "gemmt")
@@ -448,7 +448,7 @@ internal class JvmVendorBlas(
         Arena.ofConfined().use { arena ->
             val na = arena.stage(a)
             val nb = arena.stage(b)
-            val nc = arena.stage(c)
+            val nc = arena.stage(c, structure, read = beta != 0.0)
             gemmtHandle().invokeExact(
                 Cblas.COL_MAJOR, uploFor(structure), transposeFor(transposeA),
                 transposeFor(transposeB), c.rows, depth, alpha,

@@ -9,7 +9,7 @@ import com.eignex.koblas.dense.DenseMatrixOperation
 import com.eignex.koblas.dense.DenseOperation
 import com.eignex.koblas.dense.ReferenceBlas
 import com.eignex.koblas.sparse.SPARSE_SCHEDULING
-import com.eignex.koblas.vendor.RouteKind
+import com.eignex.koblas.RouteKind
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse

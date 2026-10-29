@@ -83,3 +83,19 @@ The standard `test` compilation targets Java 17 and includes common conformance,
 Initial validation: Java 17 packaged baseline ran 691 tests; Java 25 packaged baseline plus desktop ran 858 tests, with no failures. The runtime-aware resource assertion verified root loading on Java 17 and `META-INF/versions/25` loading on Java 25. The old Java 25 packaged task is a dependency entrypoint to `jvmTest`; isolated probes keep separate uninstrumented processes.
 
 Benchmark Linux and Apple directory handling now shares `posixMain`; Windows retains its wide-character implementation. Scalar initialization and benchmark engine identity formatting are shared behind platform selection seams.
+
+## Canonical operands, dispatch and scheduling
+
+All dense matrix operations and host bindings now accept `DenseMatrixRegion`. Dense matrix-vector and rank-update calls accept addressed `DenseVector` operands; array overloads forward. Portable panels honor signed vector strides. JVM transfers copy logical regions, selected triangles and stored diagonals at the binding boundary; Native bindings keep pinning and leading dimensions. The obsolete region capability interface, packing adapters and their duplicate test recorders were removed.
+
+Generic products dispatch through the receiver engine, sharing storage classification with operand-based route inspection. Prepared sparse snapshots retain data and a lazy structural transpose, without an engine. Typed and Matrix conveniences use the default engine; benchmark generic/prepared calls name their exact engine explicitly. Triangular conveniences accept the readable Matrix contract, including views and prepared sparse matrices. A custom triangle is normalized without reading its unselected half or implicit diagonal.
+
+Execution and diagnostics share direct product panel enumeration, symmetric product windows, triangular between-block windows, CSC column support, and existing packed block/tile/RHS planning. Benchmark exact-arm admission lives in koblas-bench. RouteKind is shared public vocabulary in the root API package.
+
+Finite-data validation includes the independent textbook/scalar oracles, logical alias snapshots, view padding, signed vector strides, selected triangles, sparse mixed/prepared pairings and benchmark exact-arm attribution.
+
+- koblas:jvmTest: 858 tests, 0 failures.
+
+- koblas:jvmTestJarOnJava17: 696 tests, 0 failures.
+
+- koblas-bench:jvmTest: 102 tests, 0 failures.

@@ -3,6 +3,7 @@
 package com.eignex.koblas.sparse
 
 import com.eignex.koblas.DenseMatrix
+import com.eignex.koblas.DenseMatrixRegion
 import com.eignex.koblas.PreparedSparseMatrix
 import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.Workspace
@@ -91,9 +92,9 @@ public interface SparseBlas {
     public fun symm(
         alpha: Double,
         a: SparseMatrix,
-        b: DenseMatrix,
+        b: DenseMatrixRegion,
         beta: Double,
-        c: DenseMatrix,
+        c: DenseMatrixRegion,
         lower: Boolean = true,
         right: Boolean = false,
         workspace: Workspace? = null,
@@ -157,10 +158,10 @@ public interface SparseBlas {
         alpha: Double,
         a: SparseMatrix,
         transposeA: Boolean,
-        b: DenseMatrix,
+        b: DenseMatrixRegion,
         transposeB: Boolean,
         beta: Double,
-        c: DenseMatrix,
+        c: DenseMatrixRegion,
         right: Boolean = false,
         workspace: Workspace? = null,
     )
@@ -207,7 +208,7 @@ public interface SparseBlas {
         b: SparseMatrix,
         transposeB: Boolean,
         beta: Double,
-        c: DenseMatrix,
+        c: DenseMatrixRegion,
         workspace: Workspace? = null,
     )
 
@@ -221,7 +222,7 @@ public interface SparseBlas {
         a: SparseMatrix,
         transpose: Boolean,
         beta: Double,
-        c: DenseMatrix,
+        c: DenseMatrixRegion,
         lower: Boolean = true,
         workspace: Workspace? = null,
     )
@@ -249,7 +250,7 @@ public interface SparseBlas {
     @Suppress("LongParameterList") // the BLAS dtrsm signature
     public fun trsm(
         a: SparseMatrix,
-        b: DenseMatrix,
+        b: DenseMatrixRegion,
         lower: Boolean,
         transpose: Boolean = false,
         unitDiag: Boolean = false,
@@ -266,7 +267,7 @@ public interface SparseBlas {
     @Suppress("LongParameterList") // the BLAS dtrmm signature
     public fun trmm(
         a: SparseMatrix,
-        b: DenseMatrix,
+        b: DenseMatrixRegion,
         lower: Boolean,
         transpose: Boolean = false,
         unitDiag: Boolean = false,
@@ -294,7 +295,7 @@ public interface SparseBlas {
     }
 
     /** [gemm] with `alpha = 1, beta = 0`, into a fresh matrix. `A.cols` must equal `B.rows`. */
-    public fun gemm(a: SparseMatrix, b: DenseMatrix): DenseMatrix {
+    public fun gemm(a: SparseMatrix, b: DenseMatrixRegion): DenseMatrix {
         requireProductOperands(a, false, b, false, "gemm")
         val c = DenseMatrix.zero(a.rows, b.cols)
         gemm(1.0, a, transposeA = false, b, transposeB = false, beta = 0.0, c = c)

@@ -13,7 +13,7 @@ import com.eignex.koblas.gemmInto
 import com.eignex.koblas.koblas
 import com.eignex.koblas.routeOf
 import com.eignex.koblas.sparse.SparseMatrixRoute
-import com.eignex.koblas.vendor.RouteKind
+import com.eignex.koblas.RouteKind
 
 internal class CaseWork(
     val comparisonKind: String,
@@ -272,13 +272,6 @@ internal fun denseArm(case: BenchCase, engine: KoblasEngine): ArmChoice? = when 
 }
 
 private fun genericProductArm(case: BenchCase, engine: KoblasEngine): ArmChoice {
-    if (engine !== koblas) {
-        return ArmChoice(
-            null,
-            "the common Matrix product uses the platform-selected engine, so ${case.operation} is timed once " +
-                "as a default-policy case on the arm whose engine that is",
-        )
-    }
     val (m, n, k) = case.dimensions
     val alpha = 0.875
     val beta = -0.25
@@ -286,18 +279,18 @@ private fun genericProductArm(case: BenchCase, engine: KoblasEngine): ArmChoice 
     val b = Fixtures.matrix(k, n, 2)
     val c0 = Fixtures.matrix(m, n, 3)
     val c = Fixtures.matrix(m, n, 3)
-    val route = koblas.routeOf(alpha, a, false, b, false, beta, c)
+    val route = engine.routeOf(alpha, a, false, b, false, beta, c)
     if (route.kind == RouteKind.NoWork) {
         return ArmChoice(null, "this case's own contract stops before the arithmetic, so there is nothing to time")
     }
     val expected = DenseReference.gemm(alpha, a, false, b, false, beta, c0)
     c0.values.copyInto(c.values)
-    (a as Matrix).gemmInto(alpha, false, b as Matrix, false, beta, c)
+    engine.gemm(alpha, a as Matrix, false, b as Matrix, false, beta, c)
     DenseReference.check(expected, c.values, "${case.id} generic product")
     return ArmChoice(
-        CaseWork("default-policy", "reset-and-arithmetic", {
+        CaseWork(route.kind.name.lowercase(), "reset-and-arithmetic", {
             c0.values.copyInto(c.values)
-            (a as Matrix).gemmInto(alpha, false, b as Matrix, false, beta, c)
+            engine.gemm(alpha, a as Matrix, false, b as Matrix, false, beta, c)
             c.values[0]
         }, kernel = matrixKernel(route)),
         null,

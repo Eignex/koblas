@@ -3,7 +3,7 @@ package com.eignex.koblas.dense
 import com.eignex.koblas.DenseVector
 import com.eignex.koblas.randomMatrix
 import com.eignex.koblas.randomVector
-import com.eignex.koblas.vendor.RouteKind
+import com.eignex.koblas.RouteKind
 import kotlin.random.Random
 import kotlin.test.assertEquals
 
@@ -101,11 +101,15 @@ internal class RecordingPanels(
         coefficientOffset: Int,
         sums: DoubleArray,
         sumOffset: Int,
+        xStride: Int,
+        yStride: Int,
+        coefficientStride: Int,
+        sumStride: Int,
     ) {
         record(PanelWork.CoupledDotUpdate, rows, columns)
         delegate.coupledUpdateDot(
             alpha, a, aOffset, lda, x, xOffset, rows, columns, y, yOffset,
-            coefficients, coefficientOffset, sums, sumOffset,
+            coefficients, coefficientOffset, sums, sumOffset, xStride, yStride, coefficientStride, sumStride,
         )
     }
 
@@ -186,11 +190,14 @@ internal class RecordingPanels(
         sums: DoubleArray,
         sumOffset: Int,
         excluded: Int,
+        destinationOffset: Int,
+        destinationRowStride: Int,
+        destinationIndexStride: Int,
     ) {
         if (columns > 0) record(PanelWork.SparseRightHandSides, rows, columns, rowStride == 1)
         delegate.indexedCoupledUpdate(
             alpha, a, b, offset, rowStride, indexStride, indices, values, fromIndex, columns, rows,
-            pivot, sums, sumOffset, excluded,
+            pivot, sums, sumOffset, excluded, destinationOffset, destinationRowStride, destinationIndexStride,
         )
     }
 }

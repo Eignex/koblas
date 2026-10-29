@@ -1,6 +1,6 @@
 package com.eignex.koblas
 
-import com.eignex.koblas.vendor.RouteKind
+import com.eignex.koblas.RouteKind
 
 /**
  * The route for a dense or sparse vector operation, inspected before running it.

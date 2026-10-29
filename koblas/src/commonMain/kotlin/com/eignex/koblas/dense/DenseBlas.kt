@@ -34,99 +34,6 @@ import com.eignex.koblas.*
  * operands into native memory; Kotlin/Native pins caller storage for that binding.
  */
 public interface DenseBlas {
-    /** [gemv] over a region with unit alpha and zero beta, into a fresh vector. */
-    public fun gemv(a: DenseMatrixRegion, x: DoubleArray, transpose: Boolean = false): DoubleArray {
-        val size = if (transpose) a.cols else a.rows
-        requireGemvOperands(a, transpose, x.size, size)
-        val y = DoubleArray(size)
-        gemv(1.0, a, x, 0.0, y, transpose)
-        return y
-    }
-
-    /** [gemm] over regions with unit alpha and zero beta, into a fresh contiguous matrix. */
-    public fun gemm(a: DenseMatrixRegion, b: DenseMatrixRegion): DenseMatrix {
-        requireProductOperands(a, false, b, false, "gemm")
-        val c = DenseMatrix.zero(a.rows, b.cols)
-        gemm(1.0, a, false, b, false, 0.0, c)
-        return c
-    }
-
-    /**
-     * Region overload of [gemv]. Portable engines address borrowed storage directly. Other implementations
-     * pack regions into contiguous workspace loans before calling their contiguous overloads. Host-composed
-     * engines use the portable region path for a call the host is not eligible for. An eligible call reaches
-     * the library in place where its binding takes a region's offset and leading dimension, as on Kotlin/Native,
-     * and is packed otherwise.
-     * Overlapping inputs retain their pre-call entries. Entries outside a destination region are untouched;
-     * the transpose, triangle and zero-multiplier rules of the contiguous overload also apply to regions.
-     * Packing, alias snapshots and ordinary backend panel scratch mean a view is not an allocation guarantee.
-     * For route queries set [DenseCall.borrowed], and supply the documented leading dimensions where padded.
-     */
-    @Suppress("LongParameterList") // BLAS operands, flags and workspace
-    public fun gemv(
-        alpha: Double,
-        a: DenseMatrixRegion,
-        x: DoubleArray,
-        beta: Double,
-        y: DoubleArray,
-        transpose: Boolean = false,
-        workspace: Workspace? = null,
-    ): Unit =
-        regionGemv(this, alpha, a, x, beta, y, transpose, workspace)
-
-    /** Region overload of [gemm]; storage addressing and backend packing follow the region [gemv] overload. */
-    @Suppress("LongParameterList") // BLAS operands, flags and workspace
-    public fun gemm(
-        alpha: Double,
-        a: DenseMatrixRegion,
-        transposeA: Boolean,
-        b: DenseMatrixRegion,
-        transposeB: Boolean,
-        beta: Double,
-        c: DenseMatrixRegion,
-        workspace: Workspace? = null,
-    ): Unit =
-        regionGemm(this, alpha, a, transposeA, b, transposeB, beta, c, workspace)
-
-    /** Region overload of [syrk]; storage addressing and backend packing follow the region [gemv] overload. */
-    @Suppress("LongParameterList") // BLAS operands, flags and workspace
-    public fun syrk(
-        alpha: Double,
-        a: DenseMatrixRegion,
-        transpose: Boolean,
-        beta: Double,
-        c: DenseMatrixRegion,
-        lower: Boolean = true,
-        workspace: Workspace? = null,
-    ): Unit =
-        regionSyrk(this, alpha, a, transpose, beta, c, lower, workspace)
-
-    /** Region overload of [trsv]; storage addressing and backend packing follow the region [gemv] overload. */
-    @Suppress("LongParameterList") // BLAS operands, flags and workspace
-    public fun trsv(
-        a: DenseMatrixRegion,
-        x: DoubleArray,
-        lower: Boolean,
-        transpose: Boolean = false,
-        unitDiag: Boolean = false,
-        workspace: Workspace? = null,
-    ): Unit =
-        regionTrsv(this, a, x, lower, transpose, unitDiag, workspace)
-
-    /** Region overload of [trsm]; storage addressing and backend packing follow the region [gemv] overload. */
-    @Suppress("LongParameterList") // BLAS operands, flags and workspace
-    public fun trsm(
-        a: DenseMatrixRegion,
-        b: DenseMatrixRegion,
-        lower: Boolean,
-        transpose: Boolean = false,
-        unitDiag: Boolean = false,
-        right: Boolean = false,
-        alpha: Double = 1.0,
-        workspace: Workspace? = null,
-    ): Unit =
-        regionTrsm(this, a, b, lower, transpose, unitDiag, right, alpha, workspace)
-
     /**
      * `y = alpha · op(A) · x + beta · y` (BLAS `dgemv`), with `op(A)` being `Aᵀ` when [transpose].
      *
@@ -136,16 +43,28 @@ public interface DenseBlas {
     @Suppress("LongParameterList") // the BLAS dgemv signature plus the workspace
     public fun gemv(
         alpha: Double,
-        a: DenseMatrix,
+        a: DenseMatrixRegion,
+        x: DenseVector,
+        beta: Double,
+        y: DenseVector,
+        transpose: Boolean = false,
+        workspace: Workspace? = null,
+    )
+
+    /** Array convenience for the addressed [gemv] operation. */
+    @Suppress("LongParameterList") // BLAS operands and workspace
+    public fun gemv(
+        alpha: Double,
+        a: DenseMatrixRegion,
         x: DoubleArray,
         beta: Double,
         y: DoubleArray,
         transpose: Boolean = false,
         workspace: Workspace? = null,
-    )
+    ): Unit = gemv(alpha, a, DenseVector.wrap(x), beta, DenseVector.wrap(y), transpose, workspace)
 
     /** [gemv] with `alpha = 1, beta = 0`, into a fresh result. */
-    public fun gemv(a: DenseMatrix, x: DoubleArray, transpose: Boolean = false): DoubleArray {
+    public fun gemv(a: DenseMatrixRegion, x: DoubleArray, transpose: Boolean = false): DoubleArray {
         val size = if (transpose) a.cols else a.rows
         requireGemvOperands(a, transpose, x.size, size)
         val y = DoubleArray(size)
@@ -160,7 +79,7 @@ public interface DenseBlas {
      * A storage transform rather than arithmetic, so it stays a Kotlin loop: the standard has no entry point
      * for it, and the BLAS-like `omatcopy` extension is not one every supported library exports.
      */
-    public fun transpose(a: DenseMatrix): DenseMatrix
+    public fun transpose(a: DenseMatrixRegion): DenseMatrix
 
     /**
      * `C = alpha · op(A) · op(B) + beta · C` (BLAS `dgemm`), with shapes `op(A): m×k`, `op(B): k×n`, `C: m×n`.
@@ -177,12 +96,12 @@ public interface DenseBlas {
     @Suppress("LongParameterList") // the BLAS dgemm signature
     public fun gemm(
         alpha: Double,
-        a: DenseMatrix,
+        a: DenseMatrixRegion,
         transposeA: Boolean,
-        b: DenseMatrix,
+        b: DenseMatrixRegion,
         transposeB: Boolean,
         beta: Double,
-        c: DenseMatrix,
+        c: DenseMatrixRegion,
         workspace: Workspace? = null,
     )
 
@@ -197,18 +116,18 @@ public interface DenseBlas {
     @Suppress("LongParameterList") // the BLAS gemmt signature
     public fun gemmt(
         alpha: Double,
-        a: DenseMatrix,
+        a: DenseMatrixRegion,
         transposeA: Boolean,
-        b: DenseMatrix,
+        b: DenseMatrixRegion,
         transposeB: Boolean,
         beta: Double,
-        c: DenseMatrix,
+        c: DenseMatrixRegion,
         lower: Boolean = true,
         workspace: Workspace? = null,
     )
 
     /** [gemm] with `alpha = 1, beta = 0`, into a fresh matrix. `A.cols` must equal `B.rows`. */
-    public fun gemm(a: DenseMatrix, b: DenseMatrix): DenseMatrix {
+    public fun gemm(a: DenseMatrixRegion, b: DenseMatrixRegion): DenseMatrix {
         requireProductOperands(a, false, b, false, "gemm")
         val c = DenseMatrix(a.rows, b.cols)
         gemm(1.0, a, transposeA = false, b, transposeB = false, beta = 0.0, c = c)
@@ -224,10 +143,10 @@ public interface DenseBlas {
     @Suppress("LongParameterList") // the BLAS dsyrk signature
     public fun syrk(
         alpha: Double,
-        a: DenseMatrix,
+        a: DenseMatrixRegion,
         transpose: Boolean,
         beta: Double,
-        c: DenseMatrix,
+        c: DenseMatrixRegion,
         lower: Boolean = true,
         workspace: Workspace? = null,
     )
@@ -237,23 +156,35 @@ public interface DenseBlas {
     @Suppress("LongParameterList") // the BLAS dsymv signature plus the workspace
     public fun symv(
         alpha: Double,
-        a: DenseMatrix,
+        a: DenseMatrixRegion,
+        x: DenseVector,
+        beta: Double,
+        y: DenseVector,
+        lower: Boolean = true,
+        workspace: Workspace? = null,
+    )
+
+    /** Array convenience for the addressed [symv] operation. */
+    @Suppress("LongParameterList") // BLAS operands and workspace
+    public fun symv(
+        alpha: Double,
+        a: DenseMatrixRegion,
         x: DoubleArray,
         beta: Double,
         y: DoubleArray,
         lower: Boolean = true,
         workspace: Workspace? = null,
-    )
+    ): Unit = symv(alpha, a, DenseVector.wrap(x), beta, DenseVector.wrap(y), lower, workspace)
 
     /** `C = alpha · A · B + beta · C`, or `C = alpha · B · A + beta · C` when [right] (BLAS `dsymm`). Only the
      *  [lower] triangle of [a] is read; built-in implementations snapshot input overlap with [c]. */
     @Suppress("LongParameterList") // the BLAS dsymm signature
     public fun symm(
         alpha: Double,
-        a: DenseMatrix,
-        b: DenseMatrix,
+        a: DenseMatrixRegion,
+        b: DenseMatrixRegion,
         beta: Double,
-        c: DenseMatrix,
+        c: DenseMatrixRegion,
         lower: Boolean = true,
         right: Boolean = false,
         workspace: Workspace? = null,
@@ -261,7 +192,11 @@ public interface DenseBlas {
 
     /** `A = A + alpha · x · yᵀ` (BLAS `dger`). A vector sharing [a]'s buffer is snapshotted, and
      *  [workspace] lends that snapshot. */
-    public fun ger(alpha: Double, x: DoubleArray, y: DoubleArray, a: DenseMatrix, workspace: Workspace? = null)
+    public fun ger(alpha: Double, x: DenseVector, y: DenseVector, a: DenseMatrixRegion, workspace: Workspace? = null)
+
+    /** Array convenience for the addressed [ger] operation. */
+    @Suppress("LongParameterList") // BLAS operands and workspace
+    public fun ger(alpha: Double, x: DoubleArray, y: DoubleArray, a: DenseMatrixRegion, workspace: Workspace? = null): Unit = ger(alpha, DenseVector.wrap(x), DenseVector.wrap(y), a, workspace)
 
     /**
      * `A(rowOffset + i, columnOffset + j) += alpha · x(xOffset + i) · y(yOffset + j)` for
@@ -281,7 +216,7 @@ public interface DenseBlas {
         alpha: Double,
         x: DoubleArray,
         y: DoubleArray,
-        a: DenseMatrix,
+        a: DenseMatrixRegion,
         rowOffset: Int,
         columnOffset: Int,
         rows: Int,
@@ -294,7 +229,7 @@ public interface DenseBlas {
     /** `A += alpha · x · xᵀ` (BLAS `dsyr`), writing only the [lower] or upper triangle. [x] must be dense or
      *  strided storage, which is what a vendor can address. Overlap staging follows [ger]. */
     @Suppress("LongParameterList") // the BLAS dsyr signature plus the workspace
-    public fun syr(alpha: Double, x: DenseVector, a: DenseMatrix, lower: Boolean = true, workspace: Workspace? = null)
+    public fun syr(alpha: Double, x: DenseVector, a: DenseMatrixRegion, lower: Boolean = true, workspace: Workspace? = null)
 
     /** `A += alpha · (x · yᵀ + y · xᵀ)` (BLAS `dsyr2`), writing only the [lower] or upper triangle. Operand
      *  storage and overlap staging follow [syr]. */
@@ -303,7 +238,7 @@ public interface DenseBlas {
         alpha: Double,
         x: DenseVector,
         y: DenseVector,
-        a: DenseMatrix,
+        a: DenseMatrixRegion,
         lower: Boolean = true,
         workspace: Workspace? = null,
     )
@@ -318,11 +253,11 @@ public interface DenseBlas {
     @Suppress("LongParameterList") // the BLAS dsyr2k signature
     public fun syr2k(
         alpha: Double,
-        a: DenseMatrix,
-        b: DenseMatrix,
+        a: DenseMatrixRegion,
+        b: DenseMatrixRegion,
         transpose: Boolean,
         beta: Double,
-        c: DenseMatrix,
+        c: DenseMatrixRegion,
         lower: Boolean = true,
         workspace: Workspace? = null,
     )
@@ -339,20 +274,31 @@ public interface DenseBlas {
      */
     @Suppress("LongParameterList") // the BLAS dtrsv signature plus the workspace
     public fun trsv(
-        a: DenseMatrix,
-        x: DoubleArray,
+        a: DenseMatrixRegion,
+        x: DenseVector,
         lower: Boolean,
         transpose: Boolean = false,
         unitDiag: Boolean = false,
         workspace: Workspace? = null,
     )
 
+    /** Array convenience for the addressed [trsv] operation. */
+    @Suppress("LongParameterList") // BLAS operands and workspace
+    public fun trsv(
+        a: DenseMatrixRegion,
+        x: DoubleArray,
+        lower: Boolean,
+        transpose: Boolean = false,
+        unitDiag: Boolean = false,
+        workspace: Workspace? = null,
+    ): Unit = trsv(a, DenseVector.wrap(x), lower, transpose, unitDiag, workspace)
+
     /** `B = alpha · op(T)⁻¹ · B` in place, or `B = alpha · B · op(T)⁻¹` when [right] (BLAS `dtrsm`). Flags
      *  follow [trsv]; the right-hand sides are the columns of [b] from the left and its rows from the right. */
     @Suppress("LongParameterList") // the BLAS dtrsm signature
     public fun trsm(
-        a: DenseMatrix,
-        b: DenseMatrix,
+        a: DenseMatrixRegion,
+        b: DenseMatrixRegion,
         lower: Boolean,
         transpose: Boolean = false,
         unitDiag: Boolean = false,
@@ -365,20 +311,31 @@ public interface DenseBlas {
      *  [workspace] it shares. */
     @Suppress("LongParameterList") // the BLAS dtrmv signature plus the workspace
     public fun trmv(
-        a: DenseMatrix,
-        x: DoubleArray,
+        a: DenseMatrixRegion,
+        x: DenseVector,
         lower: Boolean,
         transpose: Boolean = false,
         unitDiag: Boolean = false,
         workspace: Workspace? = null,
     )
 
+    /** Array convenience for the addressed [trmv] operation. */
+    @Suppress("LongParameterList") // BLAS operands and workspace
+    public fun trmv(
+        a: DenseMatrixRegion,
+        x: DoubleArray,
+        lower: Boolean,
+        transpose: Boolean = false,
+        unitDiag: Boolean = false,
+        workspace: Workspace? = null,
+    ): Unit = trmv(a, DenseVector.wrap(x), lower, transpose, unitDiag, workspace)
+
     /** `B = alpha · op(T) · B`, or `B = alpha · B · op(T)` when [right] (BLAS `dtrmm`), the counterpart of
      *  [trsm]. */
     @Suppress("LongParameterList") // the BLAS dtrmm signature
     public fun trmm(
-        a: DenseMatrix,
-        b: DenseMatrix,
+        a: DenseMatrixRegion,
+        b: DenseMatrixRegion,
         lower: Boolean,
         transpose: Boolean = false,
         unitDiag: Boolean = false,

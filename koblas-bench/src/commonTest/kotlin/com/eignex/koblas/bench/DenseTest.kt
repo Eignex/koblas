@@ -4,7 +4,7 @@ import com.eignex.koblas.BuiltinEngines
 import com.eignex.koblas.KoblasEngine
 import com.eignex.koblas.koblas
 import com.eignex.koblas.dense.DenseOperation
-import com.eignex.koblas.vendor.RouteKind
+import com.eignex.koblas.RouteKind
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
@@ -101,22 +101,15 @@ class DenseTest {
         assertTrue("diagonal-solve" in left && "diagonal-solve" in right, "$left and $right")
     }
 
-    // A caller holding a `Matrix` has no engine to pass, so timing the generic product under another arm's
-    // label would publish that label over the selected engine's work.
     @Test
-    fun `the generic product is timed once on the arm whose engine is the selected one`() {
-        val case = Cases.parse("gemm-generic+64x64x64+uniform").single()
+    fun `the generic product runs on every explicitly requested engine`() {
+        val case = Cases.parse("gemm-generic+15x7x31+uniform").single()
+        for (engine in listOfNotNull(koblas, BuiltinEngines.scalar, BuiltinEngines.simd).distinct()) {
+            val work = assertNotNull(denseArm(case, engine)?.work)
 
-        val selected = denseArm(case, koblas)
-        val work = assertNotNull(selected?.work)
-        assertEquals("default-policy", work.comparisonKind)
-        assertNotNull(work.kernel)
-
-        val other = listOfNotNull(BuiltinEngines.scalar, BuiltinEngines.simd).firstOrNull { it !== koblas }
-        if (other != null) {
-            val declined = denseArm(case, other)
-            assertNull(declined?.work, "the generic product was timed under ${other.name}")
-            assertNotNull(declined?.reason, "a declined generic row carries no reason")
+            assertTrue(work.comparisonKind in listOf("direct", "composed"))
+            assertNotNull(work.kernel)
+            assertTrue(work.run().isFinite())
         }
     }
 

@@ -184,37 +184,41 @@ internal object PortablePanelKernels : DensePanelKernels {
         coefficientOffset: Int,
         sums: DoubleArray,
         sumOffset: Int,
+        xStride: Int,
+        yStride: Int,
+        coefficientStride: Int,
+        sumStride: Int,
     ) {
         if (rows <= 0 || columns <= 0) return
         var c = 0
         while (c + NARROW_GROUP <= columns) {
-            val t0 = alpha * coefficients[coefficientOffset + c]
-            val t1 = alpha * coefficients[coefficientOffset + c + 1]
+            val t0 = alpha * coefficients[coefficientOffset + c * coefficientStride]
+            val t1 = alpha * coefficients[coefficientOffset + (c + 1) * coefficientStride]
             val at = aOffset + c * lda
             var s0 = 0.0
             var s1 = 0.0
             for (i in 0 until rows) {
                 val v0 = a[at + i]
                 val v1 = a[at + i + lda]
-                y[yOffset + i] += t0 * v0 + t1 * v1
-                val xi = x[xOffset + i]
+                y[yOffset + i * yStride] += t0 * v0 + t1 * v1
+                val xi = x[xOffset + i * xStride]
                 s0 += v0 * xi
                 s1 += v1 * xi
             }
-            sums[sumOffset + c] += alpha * s0
-            sums[sumOffset + c + 1] += alpha * s1
+            sums[sumOffset + c * sumStride] += alpha * s0
+            sums[sumOffset + (c + 1) * sumStride] += alpha * s1
             c += NARROW_GROUP
         }
         while (c < columns) {
-            val t = alpha * coefficients[coefficientOffset + c]
+            val t = alpha * coefficients[coefficientOffset + c * coefficientStride]
             val at = aOffset + c * lda
             var sum = 0.0
             for (i in 0 until rows) {
                 val v = a[at + i]
-                y[yOffset + i] += t * v
-                sum += v * x[xOffset + i]
+                y[yOffset + i * yStride] += t * v
+                sum += v * x[xOffset + i * xStride]
             }
-            sums[sumOffset + c] += alpha * sum
+            sums[sumOffset + c * sumStride] += alpha * sum
             c++
         }
     }
@@ -358,6 +362,9 @@ internal object PortablePanelKernels : DensePanelKernels {
         sums: DoubleArray,
         sumOffset: Int,
         excluded: Int,
+        destinationOffset: Int,
+        destinationRowStride: Int,
+        destinationIndexStride: Int,
     ) {
         if (rows <= 0 || columns <= 0) return
         for (c in 0 until columns) {
@@ -366,13 +373,13 @@ internal object PortablePanelKernels : DensePanelKernels {
             var position = 0
             if (c == excluded) {
                 for (i in 0 until rows) {
-                    a[at + position] += t * b[pivot + position]
+                    a[destinationOffset + indices[fromIndex + c] * destinationIndexStride + i * destinationRowStride] += t * b[pivot + position]
                     position += rowStride
                 }
             } else {
                 for (i in 0 until rows) {
-                    a[at + position] += t * b[pivot + position]
-                    sums[sumOffset + position] += t * b[at + position]
+                    a[destinationOffset + indices[fromIndex + c] * destinationIndexStride + i * destinationRowStride] += t * b[pivot + position]
+                    sums[sumOffset + i * destinationRowStride] += t * b[at + position]
                     position += rowStride
                 }
             }

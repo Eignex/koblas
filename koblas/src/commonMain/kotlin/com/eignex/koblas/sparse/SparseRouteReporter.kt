@@ -7,14 +7,15 @@ import com.eignex.koblas.dense.DenseOperation
 import com.eignex.koblas.dense.DenseVectorKernels
 import com.eignex.koblas.dense.scaleComponent
 import com.eignex.koblas.sparse.internal.forEachPanelWidth
-import com.eignex.koblas.sparse.internal.forEachTriangleColumn
+import com.eignex.koblas.sparse.internal.forEachSparseColumn
+import com.eignex.koblas.sparse.internal.SparseColumnShape
 import com.eignex.koblas.sparse.internal.productRhsPlan
 import com.eignex.koblas.sparse.internal.rhsStaged
 import com.eignex.koblas.sparse.internal.rhsWidth
 import com.eignex.koblas.sparse.internal.symmetricRhsPlan
 import com.eignex.koblas.sparse.internal.triangularForward
 import com.eignex.koblas.sparse.internal.triangularRhsPlan
-import com.eignex.koblas.vendor.RouteKind
+import com.eignex.koblas.RouteKind
 
 internal const val SPARSE_SCHEDULING: String = "portable-csc"
 
@@ -27,20 +28,20 @@ private const val SCATTER_PANEL: String = "sparse-rhs-scatter"
 private const val SYMMETRIC_PANEL: String = "sparse-rhs-mirror"
 
 private enum class PanelRuns(
-    val shape: RunShape,
+    val shape: SparseColumnShape,
     val stagedComponents: List<String>,
     private val reduces: Boolean = false,
     private val solve: Boolean? = null,
 ) {
-    WholeColumnSource(RunShape.WholeColumn, listOf("rhs-source"), reduces = true),
+    WholeColumnSource(SparseColumnShape.Whole, listOf("rhs-source"), reduces = true),
 
-    WholeColumnDestination(RunShape.WholeColumn, listOf("rhs-destination")),
+    WholeColumnDestination(SparseColumnShape.Whole, listOf("rhs-destination")),
 
-    Symmetric(RunShape.SelectedRun, listOf("rhs-source", "rhs-destination")),
+    Symmetric(SparseColumnShape.Selected, listOf("rhs-source", "rhs-destination")),
 
-    TriangularSolve(RunShape.StrictRun, listOf("rhs-destination"), solve = true),
+    TriangularSolve(SparseColumnShape.Strict, listOf("rhs-destination"), solve = true),
 
-    TriangularMultiply(RunShape.StrictRun, listOf("rhs-destination"), solve = false),
+    TriangularMultiply(SparseColumnShape.Strict, listOf("rhs-destination"), solve = false),
     ;
 
     fun leaf(transpose: Boolean): String = when {
@@ -58,7 +59,7 @@ private enum class PanelRuns(
         val a = call.matrix
         val sides = call.rightHandSides
         return when (shape) {
-            RunShape.WholeColumn -> productRhsPlan(
+            SparseColumnShape.Whole -> productRhsPlan(
                 kernels,
                 if (call.transposeSparse) a.cols else a.rows,
                 sides,
@@ -68,24 +69,16 @@ private enum class PanelRuns(
                 call.transposeDense,
             )
 
-            RunShape.SelectedRun -> symmetricRhsPlan(kernels, a.rows, sides, a.nnz)
+            SparseColumnShape.Selected -> symmetricRhsPlan(kernels, a.rows, sides, a.nnz)
 
-            RunShape.StrictRun -> triangularRhsPlan(kernels, a.rows, sides, a.nnz, call.transposeSparse)
+            SparseColumnShape.Strict -> triangularRhsPlan(kernels, a.rows, sides, a.nnz, call.transposeSparse)
         }
     }
 
     fun nativelyContiguous(call: SparseCall): Boolean =
-        shape == RunShape.WholeColumn && call.transposeSparse && call.transposeDense
+        shape == SparseColumnShape.Whole && call.transposeSparse && call.transposeDense
 
     fun reduction(transpose: Boolean): Boolean = if (solve == null) reduces else transpose
-}
-
-private enum class RunShape {
-    WholeColumn,
-
-    SelectedRun,
-
-    StrictRun,
 }
 
 internal class SparseRouteReporter(
@@ -304,7 +297,9 @@ internal class SparseRouteReporter(
         forEachPanelWidth(call.rightHandSides, width) { group ->
             // A group of one is written out by the traversal, so it reaches no panel body to name.
             if (group == 1) return@forEachPanelWidth
-            forEachSelectedRun(a, runs, call.lower, runs.forward(call.lower, call.transposeSparse)) { entries ->
+            forEachSparseColumn(a, runs.shape, call.lower, runs.forward(call.lower, call.transposeSparse)) { _, from, to ->
+                val entries = to - from
+                if (entries <= 0) return@forEachSparseColumn
                 val leaf = panelKernels.panelLeaf(group, entries, contiguous, reduction)
                 if (leaf !in leaves) leaves.add(leaf)
             }
@@ -312,34 +307,11 @@ internal class SparseRouteReporter(
         return leaves
     }
 
-    private inline fun forEachSelectedRun(
-        a: SparseMatrix,
-        runs: PanelRuns,
-        lower: Boolean,
-        forward: Boolean,
-        action: (Int) -> Unit,
-    ) {
-        forEachTriangleColumn(a.cols, forward) { j ->
-            val from = a.colPointers[j]
-            val to = a.colPointers[j + 1]
-            val length = when (runs.shape) {
-                RunShape.WholeColumn -> to - from
-
-                RunShape.SelectedRun -> selectedRunEnd(a.rowIndices, from, to, j, lower) -
-                    selectedRunStart(a.rowIndices, from, to, j, lower)
-
-                RunShape.StrictRun -> strictRunEnd(a.rowIndices, from, to, j, lower) -
-                    strictRunStart(a.rowIndices, from, to, j, lower)
-            }
-            if (length > 0) action(length)
-        }
-    }
-
     private fun indexedLeaves(a: SparseMatrix, operation: SparseOperation): List<String> {
         val leaves = ArrayList<String>(2)
-        for (j in 0 until a.cols) {
-            val length = a.colPointers[j + 1] - a.colPointers[j]
-            if (length == 0 && operation == SparseOperation.DotDense) continue
+        forEachSparseColumn(a) { _, from, to ->
+            val length = to - from
+            if (length == 0 && operation == SparseOperation.DotDense) return@forEachSparseColumn
             val leaf = requireNotNull(indexedKernels.implementationFor(operation, length)) {
                 "matrix indexed updates must have a shape-determined implementation"
             }

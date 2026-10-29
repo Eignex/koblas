@@ -1,6 +1,6 @@
 package com.eignex.koblas.internal.jvm25
 
-import com.eignex.koblas.DenseMatrix
+import com.eignex.koblas.DenseMatrixRegion
 import com.eignex.koblas.DenseVector
 import com.eignex.koblas.dense.*
 import com.eignex.koblas.sparse.*
@@ -73,31 +73,50 @@ internal fun Arena.stage(vector: DenseVector): NativeVector {
     return NativeVector(segment, increment, vector, base)
 }
 
-/** A matrix operand in native memory, always the whole contiguous column-major block. */
+/** A logical matrix region copied to one call's native arena. */
 internal class NativeMatrix(
-    /** The native copy handed to BLAS. */
     val segment: MemorySegment,
-    /** The leading dimension, which for contiguous column-major storage is the row count. */
     val leadingDimension: Int,
-    private val matrix: DenseMatrix,
+    private val matrix: DenseMatrixRegion,
+    private val structure: MatrixStructure,
 ) {
-    /** Copies the operand back over the storage it came from. */
+    /** Writes only selected logical entries, preserving padding and the other triangle. */
     fun writeBack() {
-        if (matrix.values.isEmpty()) return
-        MemorySegment.copy(segment, JAVA_DOUBLE, 0L, matrix.values, 0, matrix.values.size)
+        for (column in 0 until matrix.cols) for (row in 0 until matrix.rows) {
+            if (storedEntry(structure, row, column)) {
+                matrix.values[matrix.offset + row + column * matrix.leadingDimension] =
+                    segment.getAtIndex(JAVA_DOUBLE, (row + column * matrix.rows).toLong())
+            }
+        }
     }
 }
 
-/**
- * Copy the contiguous column-major buffer with the row count as leading dimension. Implicit
- * unit diagonals remain in the copy, but the vendor's diagonal flag prevents reading them;
- * input-only operands are not written back.
- */
-internal fun Arena.stage(matrix: DenseMatrix): NativeMatrix {
-    val span = matrix.values.size
-    val segment = allocate(JAVA_DOUBLE, maxOf(1, span).toLong())
-    if (span > 0) MemorySegment.copy(matrix.values, 0, segment, JAVA_DOUBLE, 0L, span)
-    return NativeMatrix(segment, maxOf(1, matrix.rows), matrix)
+/** Packs the logical region; structure controls both transfer and writeback. */
+internal fun Arena.stage(
+    matrix: DenseMatrixRegion,
+    structure: MatrixStructure = MatrixStructure.General,
+    read: Boolean = true,
+): NativeMatrix {
+    val span = matrix.rows.toLong() * matrix.cols
+    val segment = allocate(JAVA_DOUBLE, maxOf(1L, span))
+    if (read) {
+        for (column in 0 until matrix.cols) for (row in 0 until matrix.rows) {
+            if (storedEntry(structure, row, column)) {
+                segment.setAtIndex(JAVA_DOUBLE, (row + column * matrix.rows).toLong(),
+                    matrix.values[matrix.offset + row + column * matrix.leadingDimension])
+            }
+        }
+    }
+    return NativeMatrix(segment, maxOf(1, matrix.rows), matrix, structure)
+}
+
+/** Which entries the binding may transfer, including implicit unit-diagonal exclusion. */
+private fun storedEntry(structure: MatrixStructure, row: Int, column: Int): Boolean = when (structure) {
+    MatrixStructure.General -> true
+    MatrixStructure.SymmetricLower, MatrixStructure.TriangularLower -> row >= column
+    MatrixStructure.SymmetricUpper, MatrixStructure.TriangularUpper -> row <= column
+    MatrixStructure.UnitLower -> row > column
+    MatrixStructure.UnitUpper -> row < column
 }
 
 /**

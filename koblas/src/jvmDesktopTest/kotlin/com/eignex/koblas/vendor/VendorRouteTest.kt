@@ -1,5 +1,8 @@
 package com.eignex.koblas.vendor
 
+import com.eignex.koblas.RouteKind
+
+import com.eignex.koblas.DenseMatrixRegion
 import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.DenseVector
 import com.eignex.koblas.internal.jvm25.JvmVendorBlas
@@ -9,22 +12,6 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
-
-/**
- * A layer that reports a route other than the one it takes. Every field a benchmark would read to justify a
- * timing is under the fixture's control, so a check that trusts any single one of them passes here.
- */
-private class MisroutedBlas(
-    private val delegate: Blas,
-    private val claimed: CallRoute,
-    override val directlyImplemented: Set<BlasOperation> = delegate.directlyImplemented,
-) : Blas by delegate {
-    override fun routeOf(
-        operation: BlasOperation,
-        matrices: List<DenseMatrix>,
-        vectors: List<DenseVector>,
-    ): CallRoute = claimed
-}
 
 class VendorRouteTest {
     private fun matrix(rows: Int, columns: Int, seed: Int = 0) =
@@ -61,77 +48,6 @@ class VendorRouteTest {
         assertNull(route.entryPoint, "a composed call resolved no entry point of its own")
         assertEquals("cblas_dgemm plus triangle copy", route.adapter)
         assertTrue(!route.exactlyMeasurable, "a composed call is not an exact measurement of gemmt")
-    }
-
-    @Test
-    fun `the composed path is rejected as an exact arm and the direct one is admitted`() {
-        val library = JvmVendorLibrary.open(Vendor.OpenBlas)
-        if (library == null) {
-            println("SKIPPED: no CBLAS library installed; exact-arm enforcement was not verified on this host")
-            return
-        }
-        val direct = JvmVendorBlas(library)
-        val composed = JvmVendorBlas(library, suppressed = setOf(BlasOperation.Gemmt))
-        val operands = listOf(matrix(4, 4), matrix(4, 4, 1), matrix(4, 4, 2))
-
-        assertNull(exactArmRejection(direct, BlasOperation.Gemm, operands))
-        val rejection = exactArmRejection(composed, BlasOperation.Gemmt, operands)
-        assertNotNull(rejection)
-        assertTrue("does not implement" in rejection, "unexpected reason: $rejection")
-    }
-
-    @Test
-    fun `a fixture claiming a direct route for an operation it does not implement is caught`() = withVendor { blas ->
-        val fixture = MisroutedBlas(
-            blas,
-            CallRoute(BlasOperation.Gemmt, RouteKind.Direct, blas.vendor, "cblas_dgemmt", null, null),
-            directlyImplemented = blas.directlyImplemented - BlasOperation.Gemmt,
-        )
-
-        val rejection = exactArmRejection(fixture, BlasOperation.Gemmt)
-
-        assertNotNull(rejection, "a direct-looking route for an unimplemented operation was admitted")
-        assertTrue("does not implement" in rejection, "unexpected reason: $rejection")
-    }
-
-    @Test
-    fun `a fixture claiming the wrong vendor is caught`() = withVendor { blas ->
-        val other = Vendor.entries.first { it != blas.vendor }
-        val fixture = MisroutedBlas(
-            blas,
-            CallRoute(BlasOperation.Gemm, RouteKind.Direct, other, "cblas_dgemm", null, null),
-        )
-
-        val rejection = exactArmRejection(fixture, BlasOperation.Gemm)
-
-        assertNotNull(rejection, "a route naming another vendor was admitted")
-        assertTrue("not ${blas.vendor.vendorName}" in rejection, "unexpected reason: $rejection")
-    }
-
-    @Test
-    fun `a fixture claiming the wrong entry point is caught`() = withVendor { blas ->
-        val fixture = MisroutedBlas(
-            blas,
-            CallRoute(BlasOperation.Gemm, RouteKind.Direct, blas.vendor, "cblas_dsymm", null, null),
-        )
-
-        val rejection = exactArmRejection(fixture, BlasOperation.Gemm)
-
-        assertNotNull(rejection, "a route resolving a different symbol was admitted")
-        assertTrue("cblas_dsymm" in rejection, "unexpected reason: $rejection")
-    }
-
-    @Test
-    fun `a delegated route is never an exact measurement`() = withVendor { blas ->
-        val fixture = MisroutedBlas(
-            blas,
-            CallRoute(BlasOperation.Gemm, RouteKind.Delegated, blas.vendor, "cblas_dgemm", "scalar", null),
-        )
-
-        val rejection = exactArmRejection(fixture, BlasOperation.Gemm)
-
-        assertNotNull(rejection, "a delegated route was admitted as an exact arm")
-        assertTrue("delegated" in rejection, "unexpected reason: $rejection")
     }
 
     @Test

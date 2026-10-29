@@ -11,8 +11,7 @@ import com.eignex.koblas.*
 import com.eignex.koblas.vendor.Blas
 import com.eignex.koblas.vendor.BlasOperation
 import com.eignex.koblas.vendor.CallRoute
-import com.eignex.koblas.vendor.RegionBlas
-import com.eignex.koblas.vendor.RouteKind
+import com.eignex.koblas.RouteKind
 
 /**
  * A dense implementation that can say what one of its own calls executes.
@@ -59,9 +58,6 @@ internal class HostDenseBlas(
     private val host: Blas,
     private val eligible: DenseHostEligibility,
 ) : RoutedDenseBlas {
-
-    /** The binding's in-place region entry points, or null where a borrowed operand has to be packed for it. */
-    private val regions: RegionBlas? = host as? RegionBlas
 
     /** Symbol availability is independent of the platform's performance policy. */
     private fun host(operation: DenseMatrixOperation, eligibleCall: Boolean): Boolean =
@@ -111,7 +107,6 @@ internal class HostDenseBlas(
         // Work, whole-entry-point eligibility and exports are settled above; only platform transfer remains.
         val hostRoute = host.routeOf(entry)
         val components = ArrayList<String>(2)
-        if (call.borrowed && regions == null) components.add(HOST_REGION_STAGING)
         if (call.aliased) components.add(HOST_STAGING)
         hostRoute.adapter?.let { components.add("host-adapter/$it") }
         components.add("${host.vendor.vendorName.lowercase()}/${entry.entryPoint}")
@@ -126,207 +121,48 @@ internal class HostDenseBlas(
         )
     }
 
-    // A binding with region entry points takes borrowed storage as it lies, so only an input overlapping the
-    // destination is snapshotted, as the portable path does; a binding without them gets packed operands.
-
     override fun gemv(
         alpha: Double,
         a: DenseMatrixRegion,
-        x: DoubleArray,
+        x: DenseVector,
         beta: Double,
-        y: DoubleArray,
-        transpose: Boolean,
-        workspace: Workspace?,
-    ) {
-        val op = if (transpose) DenseMatrixOperation.GemvTransposed else DenseMatrixOperation.Gemv
-        val eligibleCall = eligibleCall(op, a.rows, a.cols, alpha = alpha, borrowed = a !is DenseMatrix)
-        val direct = regions
-        when {
-            !host(op, eligibleCall) -> portable.gemv(alpha, a, x, beta, y, transpose, workspace)
-
-            direct == null -> regionGemv(this, alpha, a, x, beta, y, transpose, workspace)
-
-            else -> {
-                requireGemvOperands(a, transpose, x.size, y.size)
-                stagedRegion(workspace, a, y) { sa ->
-                    staged(workspace, x, x === y) { sx ->
-                        direct.gemv(alpha, sa, transpose, sx.asVector(), beta, y.asVector())
-                    }
-                }
-            }
-        }
-    }
-
-    override fun gemm(
-        alpha: Double,
-        a: DenseMatrixRegion,
-        transposeA: Boolean,
-        b: DenseMatrixRegion,
-        transposeB: Boolean,
-        beta: Double,
-        c: DenseMatrixRegion,
-        workspace: Workspace?,
-    ) {
-        val op = DenseMatrixOperation.Gemm
-        val eligibleCall = eligibleCall(
-            op,
-            c.rows,
-            c.cols,
-            if (transposeA) a.rows else a.cols,
-            alpha,
-            borrowed = a !is DenseMatrix || b !is DenseMatrix || c !is DenseMatrix,
-        )
-        val direct = regions
-        when {
-            !host(op, eligibleCall) -> portable.gemm(alpha, a, transposeA, b, transposeB, beta, c, workspace)
-
-            direct == null -> regionGemm(this, alpha, a, transposeA, b, transposeB, beta, c, workspace)
-
-            else -> {
-                requireGemmOperands(a, transposeA, b, transposeB, c)
-                stagedRegion(workspace, a, c) { sa ->
-                    stagedRegion(workspace, b, c, stable = sa, original = a) { sb ->
-                        direct.gemm(alpha, sa, transposeA, sb, transposeB, beta, c)
-                    }
-                }
-            }
-        }
-    }
-
-    override fun syrk(
-        alpha: Double,
-        a: DenseMatrixRegion,
-        transpose: Boolean,
-        beta: Double,
-        c: DenseMatrixRegion,
-        lower: Boolean,
-        workspace: Workspace?,
-    ) {
-        val op = DenseMatrixOperation.Syrk
-        val eligibleCall = eligibleCall(
-            op,
-            c.rows,
-            c.cols,
-            if (transpose) a.rows else a.cols,
-            alpha,
-            borrowed = a !is DenseMatrix || c !is DenseMatrix,
-        )
-        val direct = regions
-        when {
-            !host(op, eligibleCall) -> portable.syrk(alpha, a, transpose, beta, c, lower, workspace)
-
-            direct == null -> regionSyrk(this, alpha, a, transpose, beta, c, lower, workspace)
-
-            else -> {
-                requireSyrkOperands(a, transpose, c)
-                stagedRegion(workspace, a, c) { sa ->
-                    direct.syrk(alpha, sa, transpose, beta, c, symmetricStructure(lower))
-                }
-            }
-        }
-    }
-
-    override fun trsv(
-        a: DenseMatrixRegion,
-        x: DoubleArray,
-        lower: Boolean,
-        transpose: Boolean,
-        unitDiag: Boolean,
-        workspace: Workspace?,
-    ) {
-        val op = if (transpose) DenseMatrixOperation.TrsvTransposed else DenseMatrixOperation.Trsv
-        val eligibleCall = eligibleCall(op, a.rows, a.cols, borrowed = a !is DenseMatrix)
-        val direct = regions
-        when {
-            !host(op, eligibleCall) -> portable.trsv(a, x, lower, transpose, unitDiag, workspace)
-
-            direct == null -> regionTrsv(this, a, x, lower, transpose, unitDiag, workspace)
-
-            else -> {
-                requireTriangularVectorOperands(a, x.size, "trsv")
-                stagedRegion(workspace, a, x) { sa ->
-                    direct.trsv(sa, triangle(lower, unitDiag), transpose, x.asVector())
-                }
-            }
-        }
-    }
-
-    override fun trsm(
-        a: DenseMatrixRegion,
-        b: DenseMatrixRegion,
-        lower: Boolean,
-        transpose: Boolean,
-        unitDiag: Boolean,
-        right: Boolean,
-        alpha: Double,
-        workspace: Workspace?,
-    ) {
-        val op = DenseMatrixOperation.Trsm
-        val eligibleCall = eligibleCall(
-            op,
-            b.rows,
-            b.cols,
-            a.rows,
-            alpha,
-            borrowed = a !is DenseMatrix || b !is DenseMatrix,
-        )
-        val direct = regions
-        when {
-            !host(op, eligibleCall) -> portable.trsm(a, b, lower, transpose, unitDiag, right, alpha, workspace)
-
-            direct == null -> regionTrsm(this, a, b, lower, transpose, unitDiag, right, alpha, workspace)
-
-            else -> {
-                requireTriangularMatrixOperands(a, b, right, "trsm")
-                stagedRegion(workspace, a, b) { sa ->
-                    direct.trsm(alpha, sa, triangle(lower, unitDiag), transpose, b, rightSide = right)
-                }
-            }
-        }
-    }
-
-    override fun gemv(
-        alpha: Double,
-        a: DenseMatrix,
-        x: DoubleArray,
-        beta: Double,
-        y: DoubleArray,
+        y: DenseVector,
         transpose: Boolean,
         workspace: Workspace?,
     ) {
         requireGemvOperands(a, transpose, x.size, y.size)
         val operation = if (transpose) DenseMatrixOperation.GemvTransposed else DenseMatrixOperation.Gemv
-        if (!host(operation, eligibleCall(operation, a.rows, a.cols, alpha = alpha))) {
+        if (!host(operation, eligibleCall(operation, a.rows, a.cols, alpha = alpha, borrowed = a !is DenseMatrix))) {
             portable.gemv(alpha, a, x, beta, y, transpose, workspace)
             return
         }
-        staged(workspace, a, a.values === y) { sa ->
-            staged(workspace, x, x === y) { sx ->
-                host.gemv(alpha, sa, transpose, sx.asVector(), beta, y.asVector())
+        stagedRegion(workspace, a, y) { sa ->
+            staged(workspace, x, x.overlaps(y)) { sx ->
+                host.gemv(alpha, sa, transpose, sx, beta, y)
             }
         }
     }
 
-    override fun transpose(a: DenseMatrix): DenseMatrix = portable.transpose(a)
+    override fun transpose(a: DenseMatrixRegion): DenseMatrix = portable.transpose(a)
 
     @Suppress("LongParameterList") // the BLAS dsymv signature plus the workspace
     override fun symv(
         alpha: Double,
-        a: DenseMatrix,
-        x: DoubleArray,
+        a: DenseMatrixRegion,
+        x: DenseVector,
         beta: Double,
-        y: DoubleArray,
+        y: DenseVector,
         lower: Boolean,
         workspace: Workspace?,
     ) {
         requireSymvOperands(a, x.size, y.size)
-        if (!host(DenseMatrixOperation.Symv, eligibleCall(DenseMatrixOperation.Symv, a.rows, a.cols, alpha = alpha))) {
+        if (!host(DenseMatrixOperation.Symv, eligibleCall(DenseMatrixOperation.Symv, a.rows, a.cols, alpha = alpha, borrowed = a !is DenseMatrix))) {
             portable.symv(alpha, a, x, beta, y, lower, workspace)
             return
         }
-        staged(workspace, a, a.values === y) { sa ->
-            staged(workspace, x, x === y) { sx ->
-                host.symv(alpha, sa, symmetricStructure(lower), sx.asVector(), beta, y.asVector())
+        stagedRegion(workspace, a, y, lower = lower) { sa ->
+            staged(workspace, x, x.overlaps(y)) { sx ->
+                host.symv(alpha, sa, symmetricStructure(lower), sx, beta, y)
             }
         }
     }
@@ -338,15 +174,15 @@ internal class HostDenseBlas(
      * anything this layer chooses. A strided vector needs no staging of its own: an increment is what BLAS
      * addresses a vector with, so the binding passes the caller's spacing through unchanged.
      */
-    override fun ger(alpha: Double, x: DoubleArray, y: DoubleArray, a: DenseMatrix, workspace: Workspace?) {
+    override fun ger(alpha: Double, x: DenseVector, y: DenseVector, a: DenseMatrixRegion, workspace: Workspace?) {
         requireGerOperands(x.size, y.size, a)
-        if (!host(DenseMatrixOperation.Ger, eligibleCall(DenseMatrixOperation.Ger, a.rows, a.cols, alpha = alpha))) {
+        if (!host(DenseMatrixOperation.Ger, eligibleCall(DenseMatrixOperation.Ger, a.rows, a.cols, alpha = alpha, borrowed = a !is DenseMatrix))) {
             portable.ger(alpha, x, y, a, workspace)
             return
         }
-        staged(workspace, x, x === a.values) { sx ->
-            staged(workspace, y, y === a.values) { sy ->
-                host.ger(alpha, sx.asVector(), sy.asVector(), a)
+        staged(workspace, x, regionVectorOverlap(a, x)) { sx ->
+            staged(workspace, y, regionVectorOverlap(a, y)) { sy ->
+                host.ger(alpha, sx, sy, a)
             }
         }
     }
@@ -357,7 +193,7 @@ internal class HostDenseBlas(
         alpha: Double,
         x: DoubleArray,
         y: DoubleArray,
-        a: DenseMatrix,
+        a: DenseMatrixRegion,
         rowOffset: Int,
         columnOffset: Int,
         rows: Int,
@@ -368,13 +204,13 @@ internal class HostDenseBlas(
     ): Unit = portable.ger(alpha, x, y, a, rowOffset, columnOffset, rows, columns, xOffset, yOffset, workspace)
 
     @Suppress("LongParameterList") // the BLAS dsyr signature plus the workspace
-    override fun syr(alpha: Double, x: DenseVector, a: DenseMatrix, lower: Boolean, workspace: Workspace?) {
+    override fun syr(alpha: Double, x: DenseVector, a: DenseMatrixRegion, lower: Boolean, workspace: Workspace?) {
         requireSyrOperands(a, x.size, "syr")
-        if (!host(DenseMatrixOperation.Syr, eligibleCall(DenseMatrixOperation.Syr, a.rows, a.cols, alpha = alpha))) {
+        if (!host(DenseMatrixOperation.Syr, eligibleCall(DenseMatrixOperation.Syr, a.rows, a.cols, alpha = alpha, borrowed = a !is DenseMatrix))) {
             portable.syr(alpha, x, a, lower, workspace)
             return
         }
-        staged(workspace, x, x.values === a.values) { sx ->
+        staged(workspace, x, regionVectorOverlap(a, x)) { sx ->
             host.syr(alpha, sx, a, symmetricStructure(lower))
         }
     }
@@ -384,17 +220,17 @@ internal class HostDenseBlas(
         alpha: Double,
         x: DenseVector,
         y: DenseVector,
-        a: DenseMatrix,
+        a: DenseMatrixRegion,
         lower: Boolean,
         workspace: Workspace?,
     ) {
         requireSyr2Operands(a, x.size, y.size, "syr2")
-        if (!host(DenseMatrixOperation.Syr2, eligibleCall(DenseMatrixOperation.Syr2, a.rows, a.cols, alpha = alpha))) {
+        if (!host(DenseMatrixOperation.Syr2, eligibleCall(DenseMatrixOperation.Syr2, a.rows, a.cols, alpha = alpha, borrowed = a !is DenseMatrix))) {
             portable.syr2(alpha, x, y, a, lower, workspace)
             return
         }
-        staged(workspace, x, x.values === a.values) { sx ->
-            staged(workspace, y, y.values === a.values) { sy ->
+        staged(workspace, x, regionVectorOverlap(a, x)) { sx ->
+            staged(workspace, y, regionVectorOverlap(a, y)) { sy ->
                 host.syr2(alpha, sx, sy, a, symmetricStructure(lower))
             }
         }
@@ -402,8 +238,8 @@ internal class HostDenseBlas(
 
     @Suppress("LongParameterList") // the BLAS dtrsv signature plus the workspace
     override fun trsv(
-        a: DenseMatrix,
-        x: DoubleArray,
+        a: DenseMatrixRegion,
+        x: DenseVector,
         lower: Boolean,
         transpose: Boolean,
         unitDiag: Boolean,
@@ -415,8 +251,8 @@ internal class HostDenseBlas(
 
     @Suppress("LongParameterList") // the BLAS dtrmv signature plus the workspace
     override fun trmv(
-        a: DenseMatrix,
-        x: DoubleArray,
+        a: DenseMatrixRegion,
+        x: DenseVector,
         lower: Boolean,
         transpose: Boolean,
         unitDiag: Boolean,
@@ -428,8 +264,8 @@ internal class HostDenseBlas(
 
     @Suppress("LongParameterList") // the BLAS triangular signature, the operation it names and the workspace
     private fun triangularVector(
-        a: DenseMatrix,
-        x: DoubleArray,
+        a: DenseMatrixRegion,
+        x: DenseVector,
         lower: Boolean,
         transpose: Boolean,
         unitDiag: Boolean,
@@ -439,7 +275,7 @@ internal class HostDenseBlas(
     ) {
         requireTriangularVectorOperands(a, x.size, what)
         val solve = operation == DenseMatrixOperation.Trsv || operation == DenseMatrixOperation.TrsvTransposed
-        if (!host(operation, eligibleCall(operation, a.rows, a.cols))) {
+        if (!host(operation, eligibleCall(operation, a.rows, a.cols, borrowed = a !is DenseMatrix))) {
             if (solve) {
                 portable.trsv(a, x, lower, transpose, unitDiag, workspace)
             } else {
@@ -448,12 +284,12 @@ internal class HostDenseBlas(
             return
         }
         // The triangle is the only operand that can share the destination, since x is the destination.
-        staged(workspace, a, a.values === x) { sa ->
+        stagedRegion(workspace, a, x, lower = lower, unitDiag = unitDiag) { sa ->
             val structure = triangle(lower, unitDiag)
             if (solve) {
-                host.trsv(sa, structure, transpose, x.asVector())
+                host.trsv(sa, structure, transpose, x)
             } else {
-                host.trmv(sa, structure, transpose, x.asVector())
+                host.trmv(sa, structure, transpose, x)
             }
         }
     }
@@ -462,116 +298,124 @@ internal class HostDenseBlas(
 
     override fun gemm(
         alpha: Double,
-        a: DenseMatrix,
+        a: DenseMatrixRegion,
         transposeA: Boolean,
-        b: DenseMatrix,
+        b: DenseMatrixRegion,
         transposeB: Boolean,
         beta: Double,
-        c: DenseMatrix,
+        c: DenseMatrixRegion,
         workspace: Workspace?,
     ) {
         requireGemmOperands(a, transposeA, b, transposeB, c)
         val depth = if (transposeA) a.rows else a.cols
         val gemm = DenseMatrixOperation.Gemm
-        if (!host(gemm, eligibleCall(gemm, c.rows, c.cols, depth, alpha))) {
+        if (!host(gemm, eligibleCall(gemm, c.rows, c.cols, depth, alpha, a !is DenseMatrix || b !is DenseMatrix || c !is DenseMatrix))) {
             portable.gemm(alpha, a, transposeA, b, transposeB, beta, c, workspace)
             return
         }
-        stagedOperands(workspace, a, b, c) { sa, sb ->
+        stagedRegion(workspace, a, c) { sa ->
+            stagedRegion(workspace, b, c, stable = sa, original = a) { sb ->
             host.gemm(alpha, sa, transposeA, sb, transposeB, beta, c)
+            }
         }
     }
 
     override fun gemmt(
         alpha: Double,
-        a: DenseMatrix,
+        a: DenseMatrixRegion,
         transposeA: Boolean,
-        b: DenseMatrix,
+        b: DenseMatrixRegion,
         transposeB: Boolean,
         beta: Double,
-        c: DenseMatrix,
+        c: DenseMatrixRegion,
         lower: Boolean,
         workspace: Workspace?,
     ) {
         requireGemmtOperands(a, transposeA, b, transposeB, c)
         val depth = if (transposeA) a.rows else a.cols
         val gemmt = DenseMatrixOperation.Gemmt
-        if (!host(gemmt, eligibleCall(gemmt, c.rows, c.cols, depth, alpha))) {
+        if (!host(gemmt, eligibleCall(gemmt, c.rows, c.cols, depth, alpha, a !is DenseMatrix || b !is DenseMatrix || c !is DenseMatrix))) {
             portable.gemmt(alpha, a, transposeA, b, transposeB, beta, c, lower, workspace)
             return
         }
-        stagedOperands(workspace, a, b, c) { sa, sb ->
+        stagedRegion(workspace, a, c) { sa ->
+            stagedRegion(workspace, b, c, stable = sa, original = a) { sb ->
             host.gemmt(alpha, sa, transposeA, sb, transposeB, beta, c, symmetricStructure(lower))
+            }
         }
     }
 
     override fun syrk(
         alpha: Double,
-        a: DenseMatrix,
+        a: DenseMatrixRegion,
         transpose: Boolean,
         beta: Double,
-        c: DenseMatrix,
+        c: DenseMatrixRegion,
         lower: Boolean,
         workspace: Workspace?,
     ) {
         requireSyrkOperands(a, transpose, c)
         val depth = if (transpose) a.rows else a.cols
         val syrk = DenseMatrixOperation.Syrk
-        if (!host(syrk, eligibleCall(syrk, c.rows, c.cols, depth, alpha))) {
+        if (!host(syrk, eligibleCall(syrk, c.rows, c.cols, depth, alpha, a !is DenseMatrix || c !is DenseMatrix))) {
             portable.syrk(alpha, a, transpose, beta, c, lower, workspace)
             return
         }
-        staged(workspace, a, a.values === c.values) { sa ->
+        stagedRegion(workspace, a, c) { sa ->
             host.syrk(alpha, sa, transpose, beta, c, symmetricStructure(lower))
         }
     }
 
     override fun syr2k(
         alpha: Double,
-        a: DenseMatrix,
-        b: DenseMatrix,
+        a: DenseMatrixRegion,
+        b: DenseMatrixRegion,
         transpose: Boolean,
         beta: Double,
-        c: DenseMatrix,
+        c: DenseMatrixRegion,
         lower: Boolean,
         workspace: Workspace?,
     ) {
         requireSyr2kOperands(a, b, transpose, c)
         val depth = if (transpose) a.rows else a.cols
         val syr2k = DenseMatrixOperation.Syr2k
-        if (!host(syr2k, eligibleCall(syr2k, c.rows, c.cols, depth, alpha))) {
+        if (!host(syr2k, eligibleCall(syr2k, c.rows, c.cols, depth, alpha, a !is DenseMatrix || b !is DenseMatrix || c !is DenseMatrix))) {
             portable.syr2k(alpha, a, b, transpose, beta, c, lower, workspace)
             return
         }
-        stagedOperands(workspace, a, b, c) { sa, sb ->
+        stagedRegion(workspace, a, c) { sa ->
+            stagedRegion(workspace, b, c, stable = sa, original = a) { sb ->
             host.syr2k(alpha, sa, sb, transpose, beta, c, symmetricStructure(lower))
+            }
         }
     }
 
     override fun symm(
         alpha: Double,
-        a: DenseMatrix,
-        b: DenseMatrix,
+        a: DenseMatrixRegion,
+        b: DenseMatrixRegion,
         beta: Double,
-        c: DenseMatrix,
+        c: DenseMatrixRegion,
         lower: Boolean,
         right: Boolean,
         workspace: Workspace?,
     ) {
         requireSymmOperands(a, b, c, right)
         val symm = DenseMatrixOperation.Symm
-        if (!host(symm, eligibleCall(symm, c.rows, c.cols, a.rows, alpha))) {
+        if (!host(symm, eligibleCall(symm, c.rows, c.cols, a.rows, alpha, a !is DenseMatrix || b !is DenseMatrix || c !is DenseMatrix))) {
             portable.symm(alpha, a, b, beta, c, lower, right, workspace)
             return
         }
-        stagedOperands(workspace, a, b, c) { sa, sb ->
+        stagedRegion(workspace, a, c, lower = if (sameRegion(a, b)) null else lower) { sa ->
+            stagedRegion(workspace, b, c, stable = sa, original = a) { sb ->
             host.symm(alpha, sa, symmetricStructure(lower), sb, beta, c, rightSide = right)
+            }
         }
     }
 
     override fun trsm(
-        a: DenseMatrix,
-        b: DenseMatrix,
+        a: DenseMatrixRegion,
+        b: DenseMatrixRegion,
         lower: Boolean,
         transpose: Boolean,
         unitDiag: Boolean,
@@ -581,8 +425,8 @@ internal class HostDenseBlas(
     ) = triangularMatrix(a, b, lower, transpose, unitDiag, right, alpha, DenseMatrixOperation.Trsm, workspace)
 
     override fun trmm(
-        a: DenseMatrix,
-        b: DenseMatrix,
+        a: DenseMatrixRegion,
+        b: DenseMatrixRegion,
         lower: Boolean,
         transpose: Boolean,
         unitDiag: Boolean,
@@ -592,8 +436,8 @@ internal class HostDenseBlas(
     ) = triangularMatrix(a, b, lower, transpose, unitDiag, right, alpha, DenseMatrixOperation.Trmm, workspace)
 
     private fun triangularMatrix(
-        a: DenseMatrix,
-        b: DenseMatrix,
+        a: DenseMatrixRegion,
+        b: DenseMatrixRegion,
         lower: Boolean,
         transpose: Boolean,
         unitDiag: Boolean,
@@ -607,7 +451,7 @@ internal class HostDenseBlas(
         requireTriangularMatrixOperands(a, b, right, what)
         // This API reads no coefficients when alpha is zero; eligibility keeps that case on the
         // portable path so every host binding follows the same unused-operand contract.
-        if (!host(operation, eligibleCall(operation, b.rows, b.cols, a.rows, alpha))) {
+        if (!host(operation, eligibleCall(operation, b.rows, b.cols, a.rows, alpha, a !is DenseMatrix || b !is DenseMatrix))) {
             if (solve) {
                 portable.trsm(a, b, lower, transpose, unitDiag, right, alpha, workspace)
             } else {
@@ -615,7 +459,7 @@ internal class HostDenseBlas(
             }
             return
         }
-        staged(workspace, a, a.values === b.values) { sa ->
+        stagedRegion(workspace, a, b, lower = lower, unitDiag = unitDiag) { sa ->
             val structure = triangle(lower, unitDiag)
             if (solve) {
                 host.trsm(alpha, sa, structure, transpose, b, rightSide = right)

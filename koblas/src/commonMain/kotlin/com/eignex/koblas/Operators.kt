@@ -13,12 +13,8 @@ public operator fun SparseMatrix.times(other: DenseMatrix): DenseMatrix = koblas
 
 /** `A * B` for a dense left operand and sparse right operand, allocating dense storage. */
 @kotlin.jvm.JvmName("multiply")
-public operator fun DenseMatrix.times(other: SparseMatrix): DenseMatrix {
-    requireProductOperands(this, false, other, false, "gemm")
-    val out = DenseMatrix.zero(rows, other.cols)
-    koblas.gemm(1.0, other, false, this, false, 0.0, out, right = true)
-    return out
-}
+public operator fun DenseMatrix.times(other: SparseMatrix): DenseMatrix =
+    koblas.gemm(this as Matrix, other) as DenseMatrix
 
 /** `A * B` for two sparse matrices, allocating the discovered CSC structure. */
 @kotlin.jvm.JvmName("multiply")

@@ -114,8 +114,8 @@ internal fun DenseVector.gatherInto(destination: DoubleArray) {
  * Adapts a non-sparse operand into dense storage borrowed for [block]. Dense operands pass through unchanged.
  * Both extents are retained even when empty; sparse operands must be dispatched before reaching this helper.
  */
-internal inline fun <T> denseOperand(workspace: Workspace?, matrix: Matrix, block: (DenseMatrix) -> T): T {
-    if (matrix is DenseMatrix) return block(matrix)
+internal inline fun <T> denseOperand(workspace: Workspace?, matrix: Matrix, block: (DenseMatrixRegion) -> T): T {
+    if (matrix is DenseMatrixRegion) return block(matrix)
     val rows = matrix.rows
     val cols = matrix.cols
     requireNonNegativeShape(rows, cols)

@@ -1,5 +1,7 @@
 package com.eignex.koblas.vendor
 
+import com.eignex.koblas.RouteKind
+
 import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.DenseVector
 import kotlin.test.Test

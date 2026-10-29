@@ -2,21 +2,19 @@
 
 package com.eignex.koblas.dense
 
-import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.DenseMatrixRegion
 import com.eignex.koblas.DenseVector
 import com.eignex.koblas.vendor.Blas
 import com.eignex.koblas.vendor.BlasOperation
 import com.eignex.koblas.vendor.CallRoute
-import com.eignex.koblas.vendor.RegionBlas
-import com.eignex.koblas.vendor.RouteKind
+import com.eignex.koblas.RouteKind
 import com.eignex.koblas.vendor.ThreadEvidence
 import com.eignex.koblas.vendor.Vendor
 
 /** Records operand identities so tests can distinguish caller storage from staged copies. */
 internal class BlasCall(
     val operation: BlasOperation,
-    val matrices: List<DenseMatrix> = emptyList(),
+    val matrices: List<DenseMatrixRegion> = emptyList(),
     val vectors: List<DenseVector> = emptyList(),
     val scalars: List<Double> = emptyList(),
     val structure: MatrixStructure? = null,
@@ -64,7 +62,7 @@ internal class RecordingBlas(
 
     override fun routeOf(
         operation: BlasOperation,
-        matrices: List<DenseMatrix>,
+        matrices: List<DenseMatrixRegion>,
         vectors: List<DenseVector>,
     ): CallRoute = CallRoute(operation, RouteKind.Direct, vendor, operation.entryPoint, null, null)
 
@@ -107,7 +105,7 @@ internal class RecordingBlas(
 
     override fun gemv(
         alpha: Double,
-        a: DenseMatrix,
+        a: DenseMatrixRegion,
         transposeA: Boolean,
         x: DenseVector,
         beta: Double,
@@ -124,7 +122,7 @@ internal class RecordingBlas(
 
     override fun symv(
         alpha: Double,
-        a: DenseMatrix,
+        a: DenseMatrixRegion,
         structure: MatrixStructure,
         x: DenseVector,
         beta: Double,
@@ -139,10 +137,10 @@ internal class RecordingBlas(
         ),
     )
 
-    override fun ger(alpha: Double, x: DenseVector, y: DenseVector, a: DenseMatrix) =
+    override fun ger(alpha: Double, x: DenseVector, y: DenseVector, a: DenseMatrixRegion) =
         record(BlasCall(BlasOperation.Ger, matrices = listOf(a), vectors = listOf(x, y), scalars = listOf(alpha)))
 
-    override fun syr(alpha: Double, x: DenseVector, a: DenseMatrix, structure: MatrixStructure) = record(
+    override fun syr(alpha: Double, x: DenseVector, a: DenseMatrixRegion, structure: MatrixStructure) = record(
         BlasCall(
             BlasOperation.Syr,
             matrices = listOf(a),
@@ -152,7 +150,7 @@ internal class RecordingBlas(
         ),
     )
 
-    override fun syr2(alpha: Double, x: DenseVector, y: DenseVector, a: DenseMatrix, structure: MatrixStructure) =
+    override fun syr2(alpha: Double, x: DenseVector, y: DenseVector, a: DenseMatrixRegion, structure: MatrixStructure) =
         record(
             BlasCall(
                 BlasOperation.Syr2,
@@ -163,7 +161,7 @@ internal class RecordingBlas(
             ),
         )
 
-    override fun trsv(a: DenseMatrix, structure: MatrixStructure, transposeA: Boolean, x: DenseVector) = record(
+    override fun trsv(a: DenseMatrixRegion, structure: MatrixStructure, transposeA: Boolean, x: DenseVector) = record(
         BlasCall(
             BlasOperation.Trsv,
             matrices = listOf(a),
@@ -173,7 +171,7 @@ internal class RecordingBlas(
         ),
     )
 
-    override fun trmv(a: DenseMatrix, structure: MatrixStructure, transposeA: Boolean, x: DenseVector) = record(
+    override fun trmv(a: DenseMatrixRegion, structure: MatrixStructure, transposeA: Boolean, x: DenseVector) = record(
         BlasCall(
             BlasOperation.Trmv,
             matrices = listOf(a),
@@ -185,12 +183,12 @@ internal class RecordingBlas(
 
     override fun gemm(
         alpha: Double,
-        a: DenseMatrix,
+        a: DenseMatrixRegion,
         transposeA: Boolean,
-        b: DenseMatrix,
+        b: DenseMatrixRegion,
         transposeB: Boolean,
         beta: Double,
-        c: DenseMatrix,
+        c: DenseMatrixRegion,
     ) = record(
         BlasCall(
             BlasOperation.Gemm,
@@ -203,11 +201,11 @@ internal class RecordingBlas(
 
     override fun symm(
         alpha: Double,
-        a: DenseMatrix,
+        a: DenseMatrixRegion,
         structure: MatrixStructure,
-        b: DenseMatrix,
+        b: DenseMatrixRegion,
         beta: Double,
-        c: DenseMatrix,
+        c: DenseMatrixRegion,
         rightSide: Boolean,
     ) = record(
         BlasCall(
@@ -221,10 +219,10 @@ internal class RecordingBlas(
 
     override fun syrk(
         alpha: Double,
-        a: DenseMatrix,
+        a: DenseMatrixRegion,
         transposeA: Boolean,
         beta: Double,
-        c: DenseMatrix,
+        c: DenseMatrixRegion,
         structure: MatrixStructure,
     ) = record(
         BlasCall(
@@ -238,11 +236,11 @@ internal class RecordingBlas(
 
     override fun syr2k(
         alpha: Double,
-        a: DenseMatrix,
-        b: DenseMatrix,
+        a: DenseMatrixRegion,
+        b: DenseMatrixRegion,
         transposeA: Boolean,
         beta: Double,
-        c: DenseMatrix,
+        c: DenseMatrixRegion,
         structure: MatrixStructure,
     ) = record(
         BlasCall(
@@ -256,10 +254,10 @@ internal class RecordingBlas(
 
     override fun trmm(
         alpha: Double,
-        a: DenseMatrix,
+        a: DenseMatrixRegion,
         structure: MatrixStructure,
         transposeA: Boolean,
-        b: DenseMatrix,
+        b: DenseMatrixRegion,
         rightSide: Boolean,
     ) = record(
         BlasCall(
@@ -274,10 +272,10 @@ internal class RecordingBlas(
 
     override fun trsm(
         alpha: Double,
-        a: DenseMatrix,
+        a: DenseMatrixRegion,
         structure: MatrixStructure,
         transposeA: Boolean,
-        b: DenseMatrix,
+        b: DenseMatrixRegion,
         rightSide: Boolean,
     ) = record(
         BlasCall(
@@ -292,12 +290,12 @@ internal class RecordingBlas(
 
     override fun gemmt(
         alpha: Double,
-        a: DenseMatrix,
+        a: DenseMatrixRegion,
         transposeA: Boolean,
-        b: DenseMatrix,
+        b: DenseMatrixRegion,
         transposeB: Boolean,
         beta: Double,
-        c: DenseMatrix,
+        c: DenseMatrixRegion,
         structure: MatrixStructure,
     ) = record(
         BlasCall(
@@ -311,77 +309,3 @@ internal class RecordingBlas(
     )
 }
 
-/** A region entry point received by [RecordingRegionBlas], holding the operands exactly as they arrived. */
-internal class RegionCall(
-    val operation: BlasOperation,
-    val matrices: List<DenseMatrixRegion>,
-    val structure: MatrixStructure? = null,
-    val transposeA: Boolean? = null,
-    val transposeB: Boolean? = null,
-    val rightSide: Boolean? = null,
-)
-
-/**
- * [RecordingBlas] that also takes borrowed regions in place, recording them without computing, so tests can
- * tell caller storage passed through from packed or staged copies.
- */
-internal class RecordingRegionBlas(private val recorder: RecordingBlas = RecordingBlas()) :
-    Blas by recorder,
-    RegionBlas {
-    private val recorded = mutableListOf<RegionCall>()
-
-    /** Every region call received so far, in order. */
-    val calls: List<RegionCall> get() = recorded
-
-    /** Contiguous calls, which a borrowed operand reaches only after packing. */
-    val contiguousCalls: List<BlasCall> get() = recorder.calls
-
-    override fun gemv(
-        alpha: Double,
-        a: DenseMatrixRegion,
-        transposeA: Boolean,
-        x: DenseVector,
-        beta: Double,
-        y: DenseVector,
-    ) {
-        recorded += RegionCall(BlasOperation.Gemv, listOf(a), transposeA = transposeA)
-    }
-
-    override fun gemm(
-        alpha: Double,
-        a: DenseMatrixRegion,
-        transposeA: Boolean,
-        b: DenseMatrixRegion,
-        transposeB: Boolean,
-        beta: Double,
-        c: DenseMatrixRegion,
-    ) {
-        recorded += RegionCall(BlasOperation.Gemm, listOf(a, b, c), transposeA = transposeA, transposeB = transposeB)
-    }
-
-    override fun syrk(
-        alpha: Double,
-        a: DenseMatrixRegion,
-        transposeA: Boolean,
-        beta: Double,
-        c: DenseMatrixRegion,
-        structure: MatrixStructure,
-    ) {
-        recorded += RegionCall(BlasOperation.Syrk, listOf(a, c), structure, transposeA)
-    }
-
-    override fun trsv(a: DenseMatrixRegion, structure: MatrixStructure, transposeA: Boolean, x: DenseVector) {
-        recorded += RegionCall(BlasOperation.Trsv, listOf(a), structure, transposeA)
-    }
-
-    override fun trsm(
-        alpha: Double,
-        a: DenseMatrixRegion,
-        structure: MatrixStructure,
-        transposeA: Boolean,
-        b: DenseMatrixRegion,
-        rightSide: Boolean,
-    ) {
-        recorded += RegionCall(BlasOperation.Trsm, listOf(a, b), structure, transposeA, rightSide = rightSide)
-    }
-}

@@ -17,7 +17,7 @@ import com.eignex.koblas.sparse.SparseMatrixRoute
 import com.eignex.koblas.sparse.SparseOperation
 import com.eignex.koblas.sparse.SparsePrimitives
 import com.eignex.koblas.times
-import com.eignex.koblas.vendor.RouteKind
+import com.eignex.koblas.RouteKind
 
 /**
  * The sparse work for one case on [engine], or the reason this engine cannot measure it, or null when the case
@@ -228,11 +228,11 @@ internal fun sparseMatrixArm(case: BenchCase, engine: KoblasEngine): ArmChoice? 
                 },
                 verifyPrepared = { snapshot ->
                     y0.copyInto(y)
-                    snapshot.gemvInto(alpha, x, beta, y, transpose)
+                    engine.gemv(alpha, snapshot, x, beta, y, transpose)
                     SparseReference.check(expected, y, "${case.id} prepared gemv")
                 },
                 oneShot = { y0.copyInto(y); engine.gemv(alpha, a, x, beta, y, transpose); y[0] },
-                prepared = { snapshot -> y0.copyInto(y); snapshot.gemvInto(alpha, x, beta, y, transpose); y[0] },
+                prepared = { snapshot -> y0.copyInto(y); engine.gemv(alpha, snapshot, x, beta, y, transpose); y[0] },
             )
         }
 
@@ -256,15 +256,15 @@ internal fun sparseMatrixArm(case: BenchCase, engine: KoblasEngine): ArmChoice? 
             )
             if (case.operation == "spmm-generic") {
                 genericArm(
-                    case, engine, koblas.routeOf(alpha, a, transpose, b, transposeDense, beta, c),
+                    case, engine, engine.routeOf(alpha, a, transpose, b, transposeDense, beta, c),
                     verify = {
                         c0.values.copyInto(c.values)
-                        (a as Matrix).gemmInto(alpha, transpose, b as Matrix, transposeDense, beta, c, workspace)
+                        engine.gemm(alpha, a as Matrix, transpose, b as Matrix, transposeDense, beta, c, workspace)
                         SparseReference.check(expected, SparseReference.dense(c), "${case.id} generic product")
                     },
                 ) {
                     c0.values.copyInto(c.values)
-                    (a as Matrix).gemmInto(alpha, transpose, b as Matrix, transposeDense, beta, c, workspace)
+                    engine.gemm(alpha, a as Matrix, transpose, b as Matrix, transposeDense, beta, c, workspace)
                     c.values[0]
                 }
             } else {
@@ -277,7 +277,7 @@ internal fun sparseMatrixArm(case: BenchCase, engine: KoblasEngine): ArmChoice? 
                     },
                     verifyPrepared = { snapshot ->
                         c0.values.copyInto(c.values)
-                        snapshot.gemmInto(alpha, transpose, b, transposeDense, beta, c, workspace)
+                        engine.gemm(alpha, snapshot, transpose, b, transposeDense, beta, c, workspace)
                         SparseReference.check(expected, SparseReference.dense(c), "${case.id} prepared product")
                     },
                     oneShot = {
@@ -287,7 +287,7 @@ internal fun sparseMatrixArm(case: BenchCase, engine: KoblasEngine): ArmChoice? 
                     },
                     prepared = { snapshot ->
                         c0.values.copyInto(c.values)
-                        snapshot.gemmInto(alpha, transpose, b, transposeDense, beta, c, workspace)
+                        engine.gemm(alpha, snapshot, transpose, b, transposeDense, beta, c, workspace)
                         c.values[0]
                     },
                 )
@@ -344,15 +344,15 @@ internal fun sparseMatrixArm(case: BenchCase, engine: KoblasEngine): ArmChoice? 
                 beta, SparseReference.dense(mirror0),
             )
             genericArm(
-                case, engine, koblas.routeOf(alpha, leftDense, false, a, transpose, beta, mirror),
+                case, engine, engine.routeOf(alpha, leftDense, false, a, transpose, beta, mirror),
                 verify = {
                     mirror0.values.copyInto(mirror.values)
-                    (leftDense as Matrix).gemmInto(alpha, false, a as Matrix, transpose, beta, mirror, workspace)
+                    engine.gemm(alpha, leftDense as Matrix, false, a as Matrix, transpose, beta, mirror, workspace)
                     SparseReference.check(expected, SparseReference.dense(mirror), "${case.id} generic product")
                 },
             ) {
                 mirror0.values.copyInto(mirror.values)
-                (leftDense as Matrix).gemmInto(alpha, false, a as Matrix, transpose, beta, mirror, workspace)
+                engine.gemm(alpha, leftDense as Matrix, false, a as Matrix, transpose, beta, mirror, workspace)
                 mirror.values[0]
             }
         }
@@ -368,15 +368,15 @@ internal fun sparseMatrixArm(case: BenchCase, engine: KoblasEngine): ArmChoice? 
             val call = SparseCall(a, depth = k, transposeSparse = transpose)
             if (case.operation == "spgemm-generic") {
                 genericArm(
-                    case, engine, koblas.routeOf(1.0, a, false, b, false),
+                    case, engine, engine.routeOf(1.0, a, false, b, false),
                     verify = {
-                        val product = (a as Matrix) * (b as Matrix)
+                        val product = engine.gemm(1.0, a as Matrix, transpose, b as Matrix, false)
                         SparseReference.checkSparse(
                             expected, support, product as SparseMatrix, "${case.id} generic product",
                         )
                     },
                 ) {
-                    Retained.retain((a as Matrix) * (b as Matrix))
+                    Retained.retain(engine.gemm(1.0, a as Matrix, transpose, b as Matrix, false))
                 }
             } else {
                 preparedArm(
@@ -391,12 +391,12 @@ internal fun sparseMatrixArm(case: BenchCase, engine: KoblasEngine): ArmChoice? 
                     },
                     verifyPrepared = { snapshot ->
                         SparseReference.checkSparse(
-                            expected, support, snapshot.gemm(1.0, transpose, b, false) as SparseMatrix,
+                            expected, support, engine.gemm(1.0, snapshot, transpose, b, false) as SparseMatrix,
                             "${case.id} prepared product",
                         )
                     },
                     oneShot = { Retained.retain(engine.gemm(1.0, a, transpose, b, false)) },
-                    prepared = { snapshot -> Retained.retain(snapshot.gemm(1.0, transpose, b, false)) },
+                    prepared = { snapshot -> Retained.retain(engine.gemm(1.0, snapshot, transpose, b, false)) },
                 )
             }
         }
@@ -633,17 +633,10 @@ private fun genericArm(
     verify: () -> Unit,
     run: () -> Double,
 ): ArmChoice {
-    if (engine !== koblas) {
-        return ArmChoice(
-            null,
-            "the common Matrix product uses the platform-selected engine, so ${case.operation} is timed once " +
-                "as a default-policy case on the arm whose engine that is",
-        )
-    }
     if (route.kind == RouteKind.NoWork) return declined()
     verify()
     return ArmChoice(
-        CaseWork("default-policy", "oneshot-generic", run, kernel = matrixKernel(route)),
+        CaseWork(route.kind.name.lowercase(), "oneshot-generic", run, kernel = matrixKernel(route)),
         null,
     )
 }
