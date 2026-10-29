@@ -12,12 +12,11 @@ import com.eignex.koblas.dense.scaleComponent
 import com.eignex.koblas.sparse.SparseCall
 import com.eignex.koblas.sparse.SparseMatrixOperation
 import com.eignex.koblas.sparse.SparseMatrixRoute
-import com.eignex.koblas.vendor.RouteKind
+import com.eignex.koblas.RouteKind
 
 /**
  * Describes a [Matrix.gemmInto] product from its operands, without reading values or preparing storage.
- * Prepared operands retain their bound engine; other products are described using this engine.
- * The generic zero-alpha shortcut uses the default engine's scaling kernels.
+ * Execution and inspection both use this receiver engine, including prepared operands.
  */
 public fun KoblasEngine.routeOf(
     alpha: Double,
@@ -26,11 +25,11 @@ public fun KoblasEngine.routeOf(
     b: Matrix,
     transposeB: Boolean,
     beta: Double,
-    c: DenseMatrix,
+    c: DenseMatrixRegion,
 ): MatrixRoute {
     requireGemmOperands(a, transposeA, b, transposeB, c)
     return productRoute(
-        alpha, a, transposeA, b, transposeB, beta, c.rows, c.cols, c.values.size,
+        alpha, a, transposeA, b, transposeB, beta, c.rows, c.cols, DenseMatrix.entryCount(c.rows, c.cols),
         aliased = sharesBuffer(a, c) || sharesBuffer(b, c),
     )
 }
@@ -70,7 +69,7 @@ private fun KoblasEngine.productRoute(
 ): MatrixRoute {
     if (alpha == 0.0 && elements != null) {
         val scaling = if (elements > 0 && beta != 0.0 && beta != 1.0) {
-            scaleComponent(koblas.vectorKernels, elements)
+            scaleComponent(vectorKernels, elements)
         } else {
             emptyList()
         }
@@ -83,18 +82,15 @@ private fun KoblasEngine.productRoute(
             0,
         )
     }
-    val left = storedCsc(a)
-    val right = storedCsc(b)
     val depth = if (transposeA) a.rows else a.cols
-    val engine = if (a is PreparedSparseMatrix || b is PreparedSparseMatrix) sparseEngine(a, b) else this
-    return when {
-        left != null && right != null -> {
+    return dispatchProduct(a, b,
+        sparsePair = { left, right ->
             val operation = if (elements == null) {
                 SparseMatrixOperation.GemmSparse
             } else {
                 SparseMatrixOperation.GemmSparseDense
             }
-            val route = engine.routeOf(
+            val route = routeOf(
                 operation,
                 SparseCall(
                     left,
@@ -117,9 +113,9 @@ private fun KoblasEngine.productRoute(
                 route.executionTail,
                 route.resolved,
             )
-        }
+        },
 
-        left != null -> engine.routeOf(
+        sparseLeft = { left -> routeOf(
             SparseMatrixOperation.GemmDense,
             SparseCall(
                 left,
@@ -131,17 +127,17 @@ private fun KoblasEngine.productRoute(
                 transposeSparse = transposeA,
                 transposeDense = transposeB,
             ),
-        )
+        ) },
 
-        right != null -> engine.routeOf(
+        sparseRight = { right -> routeOf(
             SparseMatrixOperation.GemmDenseRight,
             SparseCall(
                 right, alpha, beta, destinationElements = elements, depth = depth, updateRun = rows,
                 rightHandSides = rows, transposeSparse = transposeB, transposeDense = transposeA,
             ),
-        )
+        ) },
 
-        else -> routeOf(
+        densePair = { routeOf(
             DenseMatrixOperation.Gemm,
             DenseCall(
                 rows,
@@ -152,10 +148,14 @@ private fun KoblasEngine.productRoute(
                 transposeA = transposeA,
                 transposeB = transposeB,
                 aliased = aliased,
+                borrowed = a is DenseMatrixView || b is DenseMatrixView,
+                rightLeadingDimension = (b as? DenseMatrixRegion)?.leadingDimension,
             ),
-        )
-    }
+        ) },
+    )
 }
 
-private fun sharesBuffer(matrix: Matrix, destination: DenseMatrix): Boolean =
-    matrix is DenseMatrix && matrix.values === destination.values
+private fun sharesBuffer(matrix: Matrix, destination: DenseMatrixRegion): Boolean = when (matrix) {
+    is DenseMatrixRegion -> com.eignex.koblas.dense.regionsOverlap(matrix, destination)
+    else -> storedCsc(matrix)?.values === destination.values
+}

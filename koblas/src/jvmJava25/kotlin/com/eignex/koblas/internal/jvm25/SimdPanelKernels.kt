@@ -519,12 +519,16 @@ internal object SimdPanelKernels : DensePanelKernels {
         coefficientOffset: Int,
         sums: DoubleArray,
         sumOffset: Int,
+        xStride: Int,
+        yStride: Int,
+        coefficientStride: Int,
+        sumStride: Int,
     ) {
         if (rows <= 0 || columns <= 0) return
-        if (!vectorizes(rows, contiguous = true)) {
+        if (!vectorizes(rows, contiguous = xStride == 1 && yStride == 1 && coefficientStride == 1 && sumStride == 1)) {
             PortablePanelKernels.coupledUpdateDot(
                 alpha, a, aOffset, lda, x, xOffset, rows, columns, y, yOffset,
-                coefficients, coefficientOffset, sums, sumOffset,
+                coefficients, coefficientOffset, sums, sumOffset, xStride, yStride, coefficientStride, sumStride,
             )
             return
         }
@@ -899,23 +903,27 @@ internal object SimdPanelKernels : DensePanelKernels {
         sums: DoubleArray,
         sumOffset: Int,
         excluded: Int,
+        destinationOffset: Int,
+        destinationRowStride: Int,
+        destinationIndexStride: Int,
     ) {
         if (rows <= 0 || columns <= 0) return
-        if (!vectorizes(rows, rowStride == 1)) {
+        if (!vectorizes(rows, rowStride == 1 && destinationRowStride == 1)) {
             PortablePanelKernels.indexedCoupledUpdate(
                 alpha, a, b, offset, rowStride, indexStride, indices, values, fromIndex, columns, rows,
-                pivot, sums, sumOffset, excluded,
+                pivot, sums, sumOffset, excluded, destinationOffset, destinationRowStride, destinationIndexStride,
             )
             return
         }
         for (c in 0 until columns) {
             val t = alpha * values[fromIndex + c]
-            val at = offset + indices[fromIndex + c] * indexStride
+            val at = destinationOffset + indices[fromIndex + c] * destinationIndexStride
+            val sourceAt = offset + indices[fromIndex + c] * indexStride
             // Separate bodies avoid a branch between stores that prevents vector allocation elimination.
             if (c == excluded) {
                 scatterOnly(t, a, at, b, pivot, rows)
             } else {
-                scatterAndReduce(t, a, at, b, pivot, sums, sumOffset, rows)
+                scatterAndReduce(t, a, at, b, pivot, sums, sumOffset, rows, sourceAt)
             }
         }
     }
@@ -950,6 +958,7 @@ internal object SimdPanelKernels : DensePanelKernels {
         sums: DoubleArray,
         sumOffset: Int,
         rows: Int,
+        sourceAt: Int,
     ) {
         val coefficient = DoubleVector.broadcast(SPECIES, t)
         var i = 0
@@ -961,7 +970,7 @@ internal object SimdPanelKernels : DensePanelKernels {
                 DoubleVector.fromArray(SPECIES, a, at + i),
             ).intoArray(a, at + i)
             multiplyAdd(
-                DoubleVector.fromArray(SPECIES, b, at + i),
+                DoubleVector.fromArray(SPECIES, b, sourceAt + i),
                 coefficient,
                 DoubleVector.fromArray(SPECIES, sums, sumOffset + i),
             ).intoArray(sums, sumOffset + i)
@@ -969,7 +978,7 @@ internal object SimdPanelKernels : DensePanelKernels {
         }
         while (i < rows) {
             a[at + i] += t * b[pivot + i]
-            sums[sumOffset + i] += t * b[at + i]
+            sums[sumOffset + i] += t * b[sourceAt + i]
             i++
         }
     }

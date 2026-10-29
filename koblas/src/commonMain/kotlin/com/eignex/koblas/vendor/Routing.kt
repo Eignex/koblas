@@ -1,6 +1,7 @@
 package com.eignex.koblas.vendor
 
-import com.eignex.koblas.DenseMatrix
+import com.eignex.koblas.RouteKind
+
 import com.eignex.koblas.DenseMatrixRegion
 import com.eignex.koblas.DenseVector
 
@@ -20,7 +21,7 @@ internal fun routeFor(
     operation: BlasOperation,
     vendor: Vendor,
     exported: Boolean,
-    matrices: List<DenseMatrix>,
+    matrices: List<DenseMatrixRegion>,
     vectors: List<DenseVector>,
     transfer: String?,
 ): CallRoute {
@@ -68,7 +69,7 @@ internal fun noWork(a: DenseMatrixRegion): Boolean = a.rows == 0 || a.cols == 0
  * entry points is skipped on a zero multiplier and inventing that would describe a call that does run as one
  * that does not.
  */
-internal fun noWorkReason(matrices: List<DenseMatrix>, vectors: List<DenseVector>): String? {
+internal fun noWorkReason(matrices: List<DenseMatrixRegion>, vectors: List<DenseVector>): String? {
     for (i in vectors.indices) if (noWork(vectors[i])) return NO_ENTRIES
     for (i in matrices.indices) if (noWork(matrices[i])) return NO_ENTRIES
     return null

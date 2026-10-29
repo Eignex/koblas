@@ -4,7 +4,7 @@ import com.eignex.koblas.dense.DenseCall
 import com.eignex.koblas.dense.DenseMatrixOperation
 import com.eignex.koblas.dense.DenseOperation
 import com.eignex.koblas.sparse.SparseOperation
-import com.eignex.koblas.vendor.RouteKind
+import com.eignex.koblas.RouteKind
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotEquals

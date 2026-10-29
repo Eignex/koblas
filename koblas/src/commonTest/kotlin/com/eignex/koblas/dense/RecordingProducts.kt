@@ -4,7 +4,7 @@ package com.eignex.koblas.dense
 
 import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.randomMatrix
-import com.eignex.koblas.vendor.RouteKind
+import com.eignex.koblas.RouteKind
 import kotlin.random.Random
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue

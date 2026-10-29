@@ -3,7 +3,7 @@ package com.eignex.koblas.dense
 import com.eignex.koblas.BuiltinEngines
 import com.eignex.koblas.KoblasEngine
 import com.eignex.koblas.koblas
-import com.eignex.koblas.vendor.RouteKind
+import com.eignex.koblas.RouteKind
 import kotlin.test.Test
 import kotlin.test.assertContains
 import kotlin.test.assertEquals

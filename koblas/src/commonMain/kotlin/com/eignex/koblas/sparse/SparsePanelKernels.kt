@@ -127,6 +127,8 @@ internal class SparsePanelKernels(
         indexStride: Int,
         width: Int,
         lower: Boolean,
+        cOffset: Int = offset,
+        cRhsStride: Int = rhsStride,
     ) {
         val start = selectedRunStart(rowIndices, fromIndex, toIndex, column, lower)
         val end = selectedRunEnd(rowIndices, fromIndex, toIndex, column, lower)
@@ -141,7 +143,7 @@ internal class SparsePanelKernels(
         // Both halves read the same source layout; the mirrored half accumulates directly into the pivot row.
         densePanels.indexedCoupledUpdate(
             alpha, c, b, offset, rhsStride, indexStride, rowIndices, values, start, end - start, width,
-            pivot, c, pivot, diagonal,
+            pivot, c, cOffset + column * indexStride, diagonal, cOffset, cRhsStride, indexStride,
         )
     }
 
@@ -161,13 +163,17 @@ internal class SparsePanelKernels(
         c: DoubleArray,
         rows: Int,
         lower: Boolean,
+        bOffset: Int = 0,
+        ldb: Int = rows,
+        cOffset: Int = 0,
+        ldc: Int = rows,
     ) {
         for (position in fromIndex until toIndex) {
             val row = rowIndices[position]
             if (if (lower) row >= column else row <= column) {
                 val coefficient = alpha * values[position]
-                evaluatedAxpy(c, row * rows, coefficient, b, column * rows, rows)
-                if (row != column) evaluatedAxpy(c, column * rows, coefficient, b, row * rows, rows)
+                evaluatedAxpy(c, cOffset + row * ldc, coefficient, b, bOffset + column * ldb, rows)
+                if (row != column) evaluatedAxpy(c, cOffset + column * ldc, coefficient, b, bOffset + row * ldb, rows)
             }
         }
     }
@@ -298,6 +304,7 @@ internal class SparsePanelKernels(
         offset: Int,
         indexStride: Int,
         lower: Boolean,
+        cOffset: Int = offset,
     ) {
         val start = selectedRunStart(rowIndices, fromIndex, toIndex, column, lower)
         val end = selectedRunEnd(rowIndices, fromIndex, toIndex, column, lower)
@@ -309,8 +316,8 @@ internal class SparsePanelKernels(
             val row = rowIndices[position]
             val t = alpha * values[position]
             val at = offset + row * indexStride
-            c[at] += t * coefficient
-            if (row != column) c[pivot] += t * b[at]
+            c[cOffset + row * indexStride] += t * coefficient
+            if (row != column) c[cOffset + column * indexStride] += t * b[at]
         }
     }
 
@@ -331,12 +338,15 @@ internal class SparsePanelKernels(
         leadingDimension: Int,
         c: DoubleArray,
         rows: Int,
+        bOrigin: Int = 0,
+        cOrigin: Int = 0,
+        ldc: Int = rows,
     ) {
         for (position in fromIndex until toIndex) {
             val row = rowIndices[position]
-            val cOffset = (if (transposeSparse) row else column) * rows
+            val cOffset = cOrigin + (if (transposeSparse) row else column) * ldc
             val bColumn = if (transposeSparse) column else row
-            evaluatedAxpy(c, cOffset, alpha * values[position], b, bColumn * leadingDimension, rows)
+            evaluatedAxpy(c, cOffset, alpha * values[position], b, bOrigin + bColumn * leadingDimension, rows)
         }
     }
 
@@ -602,15 +612,17 @@ internal class SparsePanelKernels(
         toIndex: Int,
         dense: DoubleArray,
         rows: Int,
+        origin: Int = 0,
+        leadingDimension: Int = rows,
     ) {
-        val columnOffset = column * rows
+        val columnOffset = origin + column * leadingDimension
         if (gather && !unitDiagonal) applyDiagonal(dense, columnOffset, rows, diagonal, solve)
         for (position in fromIndex until toIndex) {
             val row = rowIndices[position]
             val value = values[position]
             if (value != 0.0 && (if (lower) row > column else row < column)) {
                 val alpha = if (solve) -value else value
-                val rowOffset = row * rows
+                val rowOffset = origin + row * leadingDimension
                 if (solve == gather) {
                     denseVectors.axpy(dense, rowOffset, alpha, dense, columnOffset, rows)
                 } else {

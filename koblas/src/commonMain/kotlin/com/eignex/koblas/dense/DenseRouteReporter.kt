@@ -2,7 +2,7 @@
 
 package com.eignex.koblas.dense
 
-import com.eignex.koblas.vendor.RouteKind
+import com.eignex.koblas.RouteKind
 
 internal class DenseRouteReporter(
     private val vectors: DenseVectorKernels,
@@ -11,6 +11,7 @@ internal class DenseRouteReporter(
     private val triangles: DenseTriangularKernels,
 ) {
     fun routeOf(operation: DenseMatrixOperation, call: DenseCall): DenseMatrixRoute {
+        if (HostDenseCall.needsDepth(operation)) requireNotNull(call.depth) { "a Level 3 route needs depth" }
         if (call.alpha == 0.0 || call.rows == 0 || call.columns == 0 || call.depth == 0) {
             return route(
                 operation,
@@ -106,7 +107,6 @@ internal class DenseRouteReporter(
 
     private fun addDirectWindow(parts: Parts, call: WindowShape) {
         val work = directPanelWork(call.transposeA)
-        val chunk = directColumnBlock(call.rows)
         val strided = call.transposeA && call.rightStride != 1
         val gathers = gathersCoefficients(panels, call.rows, call.depth, strided)
         val contiguous = !strided || gathers
@@ -114,25 +114,9 @@ internal class DenseRouteReporter(
         if (gathers) parts.add("$PRODUCT_PACKING/right-column")
         val entry = panelEntryPoint(work)
         val before = parts.components.size
-        for (column in 0 until call.columns) {
-            // Selected triangles shorten destination columns, so report their actual panel lengths.
-            val rows = selectedRows(column, call.rows, call.selected)
-            if (call.transposeA) {
-                forEachPanel(rows, group) { _, width ->
-                    parts.add("${panels.implementationFor(work, call.depth, width, contiguous)}/$entry")
-                }
-            } else {
-                // A shorter final chunk can reach a different panel body.
-                var offset = 0
-                while (offset < rows) {
-                    val height = if (chunk < rows - offset) chunk else rows - offset
-                    forEachPanel(call.depth, group) { _, width ->
-                        parts.add("${panels.implementationFor(work, height, width, contiguous)}/$entry")
-                    }
-                    offset += height
-                }
-            }
-            if (call.selected == OutputTriangle.Full) break
+        forEachDirectProductPanel(call.rows, call.columns, call.depth, call.selected, call.transposeA, group) {
+                _, _, _, rows, width ->
+            parts.add("${panels.implementationFor(work, rows, width, contiguous)}/$entry")
         }
         if (parts.components.size - before > 1) parts.composed = true
         parts.useGroup(group)
@@ -184,22 +168,14 @@ internal class DenseRouteReporter(
         val block = if (SYMMETRIC_BLOCK < order) SYMMETRIC_BLOCK else order
         for (component in destinationScaling(operation, call, working = true)) parts.add(component)
         parts.add("$SYMMETRIC_EXPANSION/diagonal-block")
-        forEachSymmetricBlock(order, block, call.lower) { _, size, _, stripCount ->
-            if (call.right) {
-                addProductWindow(parts, WindowShape(call.rows, size, size))
-                if (stripCount > 0) {
-                    addProductWindow(parts, WindowShape(call.rows, size, stripCount))
-                    addProductWindow(
-                        parts,
-                        WindowShape(call.rows, stripCount, size, transposeB = true, rightStride = order),
-                    )
-                }
-            } else {
-                addProductWindow(parts, WindowShape(size, call.columns, size))
-                if (stripCount > 0) {
-                    addProductWindow(parts, WindowShape(stripCount, call.columns, size))
-                    addProductWindow(parts, WindowShape(size, call.columns, stripCount, transposeA = true))
-                }
+        forEachSymmetricBlock(order, block, call.lower) { start, size, stripStart, stripCount ->
+            forEachSymmetricWindow(call.rows, call.columns, call.right,
+                call.leftLeadingDimension ?: order,
+                call.rightLeadingDimension ?: call.rows,
+                call.leadingDimension ?: call.rows,
+                start, size, stripStart, stripCount) { expanded, _, _, _, m, n, k, ta, tb ->
+                val rightStride = if (!tb) 1 else if (expanded) size else call.leftLeadingDimension ?: order
+                addProductWindow(parts, WindowShape(m, n, k, ta, tb, rightStride = rightStride))
             }
         }
         if (order > block) parts.composed = true
@@ -232,21 +208,15 @@ internal class DenseRouteReporter(
         if (gathers) parts.add("$TRIANGULAR_GATHER/rhs-block")
         val entry = if (solve) "diagonal-solve" else "diagonal-multiply"
         val before = parts.components.size
-        forEachTriangularBlock(order, block, mLower, solve) { _, size, _, targetCount, _, sourceCount ->
+        forEachTriangularBlock(order, block, mLower, solve) { _, size, targetStart, targetCount, sourceStart, sourceCount ->
             forEachPanel(sides, group) { _, lanes ->
-                for (body in triangles.implementationsFor(size, lanes, gathers || rhsStride == 1)) {
-                    parts.add("$body/$entry")
-                }
+                for (body in triangles.implementationsFor(size, lanes, gathers || rhsStride == 1)) parts.add("$body/$entry")
             }
-            if (targetCount > 0 && sourceCount > 0) {
-                if (call.right) {
-                    addProductWindow(
-                        parts,
-                        WindowShape(sides, targetCount, sourceCount, transposeB = !flip, rightStride = order),
-                    )
-                } else {
-                    addProductWindow(parts, WindowShape(targetCount, sides, sourceCount, transposeA = flip))
-                }
+            forTriangularProductWindow(call.leftLeadingDimension ?: order, call.leadingDimension ?: call.rows,
+                sides, call.right, flip, targetStart, targetCount, sourceStart, sourceCount) {
+                    _, _, _, m, n, k, ta, tb ->
+                addProductWindow(parts, WindowShape(m, n, k, ta, tb,
+                    rightStride = if (tb) call.leftLeadingDimension ?: order else 1))
             }
         }
         // A shorter final diagonal block can reach a different substitution body.

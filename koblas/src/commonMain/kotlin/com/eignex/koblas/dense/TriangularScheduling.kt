@@ -281,23 +281,12 @@ private fun triangularUpdate(
     sourceCount: Int,
     workspace: Workspace?,
 ) {
-    val triangle = tOffset + triangleWindow(order, transposed, targetStart, sourceStart)
-    if (right) {
-        productWindow(
-            products, panels, coefficient,
-            b, bOffset + sourceStart * ldb, ldb, false,
-            t, triangle, order, !transposed,
-            1.0, b, bOffset + targetStart * ldb, ldb,
-            sides, targetCount, sourceCount, OutputTriangle.Full, workspace,
-        )
-    } else {
-        productWindow(
-            products, panels, coefficient,
-            t, triangle, order, transposed,
-            b, bOffset + sourceStart, ldb, false,
-            1.0, b, bOffset + targetStart, ldb,
-            targetCount, sides, sourceCount, OutputTriangle.Full, workspace,
-        )
+    forTriangularProductWindow(order, ldb, sides, right, transposed, targetStart, targetCount, sourceStart, sourceCount) {
+            leftOffset, rightOffset, targetOffset, m, n, k, transposeA, transposeB ->
+        productWindow(products, panels, coefficient,
+            if (right) b else t, (if (right) bOffset else tOffset) + leftOffset, if (right) ldb else order, transposeA,
+            if (right) t else b, (if (right) tOffset else bOffset) + rightOffset, if (right) order else ldb, transposeB,
+            1.0, b, bOffset + targetOffset, ldb, m, n, k, OutputTriangle.Full, workspace)
     }
 }
 
@@ -310,3 +299,16 @@ private fun triangularUpdate(
  */
 internal fun triangleWindow(order: Int, transposed: Boolean, rowStart: Int, columnStart: Int): Int =
     if (transposed) columnStart + rowStart * order else rowStart + columnStart * order
+
+/** A between-block triangular product, with exactly the orientation and dimensions execution uses. */
+internal inline fun forTriangularProductWindow(
+    ldt: Int, ldb: Int, sides: Int, right: Boolean, transposed: Boolean,
+    targetStart: Int, targetCount: Int, sourceStart: Int, sourceCount: Int,
+    action: (leftOffset: Int, rightOffset: Int, targetOffset: Int,
+        m: Int, n: Int, k: Int, transposeA: Boolean, transposeB: Boolean) -> Unit,
+) {
+    if (targetCount <= 0 || sourceCount <= 0) return
+    val triangle = triangleWindow(ldt, transposed, targetStart, sourceStart)
+    if (right) action(sourceStart * ldb, triangle, targetStart * ldb, sides, targetCount, sourceCount, false, !transposed)
+    else action(triangle, sourceStart, targetStart, targetCount, sides, sourceCount, transposed, false)
+}

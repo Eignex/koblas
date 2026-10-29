@@ -67,3 +67,32 @@ internal fun replaceColumns(a: SparseMatrix, replacements: Map<Int, SparseVector
  * stay live for its owner to write, so what is kept has to be a copy of what it held at the time.
  */
 internal fun SparseVector.snapshot(): SparseVector = SparseVector(size, copyIndices(), values.copyOf())
+
+/** The stored support a column contributes to a matrix schedule. */
+internal enum class SparseColumnShape { Whole, Selected, Strict }
+
+/** Pure column/support enumeration shared by execution and diagnostics, without coefficient reads. */
+@OptIn(com.eignex.koblas.UnsafeKoblasApi::class)
+internal inline fun forEachSparseColumn(
+    a: com.eignex.koblas.SparseMatrix,
+    shape: SparseColumnShape = SparseColumnShape.Whole,
+    lower: Boolean = true,
+    forward: Boolean = true,
+    action: (column: Int, from: Int, to: Int) -> Unit,
+) {
+    forEachTriangleColumn(a.cols, forward) { column ->
+        val from = a.colPointers[column]
+        val to = a.colPointers[column + 1]
+        val first = when (shape) {
+            SparseColumnShape.Whole -> from
+            SparseColumnShape.Selected -> com.eignex.koblas.sparse.selectedRunStart(a.rowIndices, from, to, column, lower)
+            SparseColumnShape.Strict -> com.eignex.koblas.sparse.strictRunStart(a.rowIndices, from, to, column, lower)
+        }
+        val end = when (shape) {
+            SparseColumnShape.Whole -> to
+            SparseColumnShape.Selected -> com.eignex.koblas.sparse.selectedRunEnd(a.rowIndices, from, to, column, lower)
+            SparseColumnShape.Strict -> com.eignex.koblas.sparse.strictRunEnd(a.rowIndices, from, to, column, lower)
+        }
+        action(column, first, end)
+    }
+}

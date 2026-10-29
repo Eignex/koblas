@@ -3,6 +3,8 @@
 package com.eignex.koblas.sparse
 
 import com.eignex.koblas.*
+import com.eignex.koblas.dense.scaleRegion
+import com.eignex.koblas.dense.stagedRegion
 import com.eignex.koblas.dense.DenseVectorKernels
 import com.eignex.koblas.dense.applyBeta
 import com.eignex.koblas.sparse.internal.SparseAccumulationKernels
@@ -37,7 +39,7 @@ internal class PortableSparseBlas(
     private val indexedKernels: IndexedSparseKernels,
     private val panelKernels: SparsePanelKernels,
 ) : SparseBlas {
-    override fun prepare(a: SparseMatrix): PreparedSparseMatrix = PreparedSparseMatrix(a, this)
+    override fun prepare(a: SparseMatrix): PreparedSparseMatrix = PreparedSparseMatrix(a)
 
     override fun routeOf(operation: SparseMatrixOperation, call: SparseCall): SparseMatrixRoute =
         SparseRouteReporter(vectorKernels, indexedKernels, panelKernels).routeOf(operation, call)
@@ -149,23 +151,23 @@ internal class PortableSparseBlas(
     override fun symm(
         alpha: Double,
         a: SparseMatrix,
-        b: DenseMatrix,
+        b: DenseMatrixRegion,
         beta: Double,
-        c: DenseMatrix,
+        c: DenseMatrixRegion,
         lower: Boolean,
         right: Boolean,
         workspace: Workspace?,
     ) {
         requireSymmOperands(a, b, c, right)
         // Return before staging or loans: an empty axis may be paired with an enormous one.
-        if (c.values.isEmpty()) return
+        if (c.rows == 0 || c.cols == 0) return
         if (alpha == 0.0) {
-            applyBeta(vectorKernels, c.values, 0, c.values.size, beta)
+            scaleRegion(c, beta, vectors = vectorKernels)
             return
         }
         staged(workspace, a, a.values === c.values) { stableA ->
-            staged(workspace, b, b.values === c.values) { stableB ->
-                applyBeta(vectorKernels, c.values, 0, c.values.size, beta)
+            stagedRegion(workspace, b, c) { stableB ->
+                scaleRegion(c, beta, vectors = vectorKernels)
                 if (right) {
                     for (column in 0 until stableA.cols) {
                         panelKernels.symmetricRightColumn(
@@ -178,7 +180,7 @@ internal class PortableSparseBlas(
                             stableB.values,
                             c.values,
                             stableB.rows,
-                            lower,
+                            lower, stableB.offset, stableB.leadingDimension, c.offset, c.leadingDimension,
                         )
                     }
                 } else {
@@ -224,10 +226,10 @@ internal class PortableSparseBlas(
         alpha: Double,
         a: SparseMatrix,
         transposeA: Boolean,
-        b: DenseMatrix,
+        b: DenseMatrixRegion,
         transposeB: Boolean,
         beta: Double,
-        c: DenseMatrix,
+        c: DenseMatrixRegion,
         right: Boolean,
         workspace: Workspace?,
     ) {
@@ -244,14 +246,14 @@ internal class PortableSparseBlas(
         } else {
             if (transposeA) a.rows else a.cols
         }
-        if (c.values.isEmpty()) return
+        if (c.rows == 0 || c.cols == 0) return
         if (alpha == 0.0) {
-            applyBeta(vectorKernels, c.values, 0, c.values.size, beta)
+            scaleRegion(c, beta, vectors = vectorKernels)
             return
         }
         staged(workspace, a, a.values === c.values) { stableA ->
-            staged(workspace, b, b.values === c.values) { stableB ->
-                applyBeta(vectorKernels, c.values, 0, c.values.size, beta)
+            stagedRegion(workspace, b, c) { stableB ->
+                scaleRegion(c, beta, vectors = vectorKernels)
                 if (right) {
                     multiplyFromTheRight(
                         panelKernels, alpha, stableA, transposeA, stableB, transposeB, c, m, workspace,
@@ -291,24 +293,24 @@ internal class PortableSparseBlas(
         b: SparseMatrix,
         transposeB: Boolean,
         beta: Double,
-        c: DenseMatrix,
+        c: DenseMatrixRegion,
         workspace: Workspace?,
     ) {
         requireGemmOperands(a, transposeA, b, transposeB, c)
         if (alpha == 0.0) {
-            applyBeta(vectorKernels, c.values, 0, c.values.size, beta)
+            scaleRegion(c, beta, vectors = vectorKernels)
             return
         }
         if (a.nnz == 0 || b.nnz == 0) {
             // Only destination scaling remains; avoid row-indexed orientation scratch.
-            applyBeta(vectorKernels, c.values, 0, c.values.size, beta)
+            scaleRegion(c, beta, vectors = vectorKernels)
             return
         }
         staged(workspace, a, a.values === c.values) { stableA ->
             staged(workspace, b, b.values === c.values) { stableB ->
                 val left = oriented(stableA, transposeA, true)
                 val right = oriented(stableB, transposeB, true)
-                applyBeta(vectorKernels, c.values, 0, c.values.size, beta)
+                scaleRegion(c, beta, vectors = vectorKernels)
                 multiplySparseInto(alpha, left, right, c)
             }
         }
@@ -320,23 +322,23 @@ internal class PortableSparseBlas(
         a: SparseMatrix,
         transpose: Boolean,
         beta: Double,
-        c: DenseMatrix,
+        c: DenseMatrixRegion,
         lower: Boolean,
         workspace: Workspace?,
     ) {
         val n = if (transpose) a.cols else a.rows
         requireSyrkOperands(a, transpose, c)
         if (alpha == 0.0) {
-            scaleTriangle(c, n, beta, lower)
+            scaleRegion(c, beta, lower)
             return
         }
         if (a.nnz == 0 || n == 0) {
             // An empty pattern needs only triangle scaling, avoiding potentially oversized row-indexed adjacency.
-            scaleTriangle(c, n, beta, lower)
+            scaleRegion(c, beta, lower)
             return
         }
         staged(workspace, a, a.values === c.values) { stableA ->
-            scaleTriangle(c, n, beta, lower)
+            scaleRegion(c, beta, lower)
             withSymmetricRankScratch(workspace, n, stableA.rows, stableA.nnz) {
                     sums,
                     touchedAt,
@@ -410,7 +412,7 @@ internal class PortableSparseBlas(
     @Suppress("LongParameterList") // the BLAS dtrsm signature plus the workspace
     override fun trsm(
         a: SparseMatrix,
-        b: DenseMatrix,
+        b: DenseMatrixRegion,
         lower: Boolean,
         transpose: Boolean,
         unitDiag: Boolean,
@@ -421,7 +423,7 @@ internal class PortableSparseBlas(
         requireTriangularMatrixOperands(a, b, right, "trsm")
         val n = a.rows
         if (alpha == 0.0) {
-            b.values.fill(0.0)
+            scaleRegion(b, 0.0)
             return
         }
         if (n == 0) return
@@ -429,7 +431,7 @@ internal class PortableSparseBlas(
         if (rightHandSides == 0) return
         // Snapshot an aliased triangle before alpha scales the right-hand sides and changes its coefficients.
         staged(workspace, a, a.values === b.values) { triangle ->
-            if (alpha != 1.0) vectorKernels.scale(b.values, 0, alpha, b.values.size)
+            scaleRegion(b, alpha, vectors = vectorKernels)
             if (right) {
                 withExplicitDiagonal(triangle, n, unitDiag, workspace) { diagonal ->
                     trsmRightCore(panelKernels, triangle, b, lower, !transpose, diagonal)
@@ -447,7 +449,7 @@ internal class PortableSparseBlas(
     @Suppress("LongParameterList") // the BLAS dtrmm signature plus the workspace
     override fun trmm(
         a: SparseMatrix,
-        b: DenseMatrix,
+        b: DenseMatrixRegion,
         lower: Boolean,
         transpose: Boolean,
         unitDiag: Boolean,
@@ -458,14 +460,14 @@ internal class PortableSparseBlas(
         requireTriangularMatrixOperands(a, b, right, "trmm")
         val n = a.rows
         if (alpha == 0.0) {
-            b.values.fill(0.0)
+            scaleRegion(b, 0.0)
             return
         }
         if (n == 0) return
         val rightHandSides = if (right) b.rows else b.cols
         if (rightHandSides == 0) return
         staged(workspace, a, a.values === b.values) { triangle ->
-            if (alpha != 1.0) vectorKernels.scale(b.values, 0, alpha, b.values.size)
+            scaleRegion(b, alpha, vectors = vectorKernels)
             // Unlike trsm, trmm reads the diagonal once per right-hand side.
             withExplicitDiagonal(triangle, n, unitDiag, workspace) { diagonal ->
                 if (right) {
@@ -492,17 +494,7 @@ internal class PortableSparseBlas(
     )
 
     /** `beta · C` over exactly the selected triangle, honoring the zero-beta overwrite convention. */
-    private fun scaleTriangle(c: DenseMatrix, n: Int, beta: Double, lower: Boolean) {
-        if (beta == 1.0) return
-        for (j in 0 until n) {
-            val first = if (lower) j else 0
-            val last = if (lower) n else j + 1
-            for (i in first until last) {
-                val at = i + j * n
-                c.values[at] = if (beta == 0.0) 0.0 else beta * c.values[at]
-            }
-        }
-    }
+
 
     /**
      * [a] in the requested orientation, materializing a transpose only where one is asked for.

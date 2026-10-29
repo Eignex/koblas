@@ -78,6 +78,103 @@ public class KoblasEngine internal constructor(
     ),
 ) : DenseBlas by dense,
     SparseBlas by sparseBlas {
+    /**
+     * Allocates a product using this engine. Two sparse or prepared operands produce owned CSC storage;
+     * other pairings produce dense storage. Custom [Matrix] operands are read once into dense scratch.
+     * Prepared snapshots contribute data and cached orientation, never execution policy.
+     */
+    public fun gemm(a: Matrix, b: Matrix): Matrix = product(1.0, a, false, b, false)
+
+    /** Scaled product with independent transpose flags and the storage rule of [gemm]. */
+    public fun gemm(alpha: Double, a: Matrix, transposeA: Boolean, b: Matrix, transposeB: Boolean): Matrix =
+        product(alpha, a, transposeA, b, transposeB)
+
+    /**
+     * Writes a generic product through this engine into addressed dense storage. Validation precedes all
+     * writes; zero alpha and empty depth read no inputs, and zero beta reads no destination values.
+     * [workspace] lends logical alias snapshots, sparse scratch and custom operand normalization.
+     */
+    @Suppress("LongParameterList") // BLAS operands, flags and workspace
+    public fun gemm(
+        alpha: Double, a: Matrix, transposeA: Boolean, b: Matrix, transposeB: Boolean,
+        beta: Double, c: DenseMatrixRegion, workspace: Workspace? = null,
+    ): Unit = productInto(alpha, a, transposeA, b, transposeB, beta, c, workspace)
+
+    override fun gemm(a: DenseMatrixRegion, b: DenseMatrixRegion): DenseMatrix =
+        product(1.0, a, false, b, false) as DenseMatrix
+
+    override fun gemm(a: SparseMatrix, b: DenseMatrixRegion): DenseMatrix =
+        product(1.0, a, false, b, false) as DenseMatrix
+
+    override fun gemm(a: SparseMatrix, b: SparseMatrix): SparseMatrix =
+        product(1.0, a, false, b, false) as SparseMatrix
+
+    /** TRSV over readable dense, sparse, prepared or custom operands, using this engine. */
+    @Suppress("LongParameterList") // triangle flags and workspace
+    public fun trsv(a: Matrix, x: DoubleArray, lower: Boolean, transpose: Boolean = false, unitDiag: Boolean = false,
+        workspace: Workspace? = null,
+    ) {
+        requireTriangularVectorOperands(a, x.size, "trsv")
+        val sparse = storedCsc(a)
+        if (sparse != null) trsv(sparse, x, lower, transpose, unitDiag, workspace)
+        else triangleOperand(workspace, a, lower, unitDiag) { dense -> trsv(dense, x, lower, transpose, unitDiag, workspace) }
+    }
+
+    /** TRMV over readable dense, sparse, prepared or custom operands, using this engine. */
+    @Suppress("LongParameterList") // triangle flags and workspace
+    public fun trmv(a: Matrix, x: DoubleArray, lower: Boolean, transpose: Boolean = false, unitDiag: Boolean = false,
+        workspace: Workspace? = null,
+    ) {
+        requireTriangularVectorOperands(a, x.size, "trmv")
+        val sparse = storedCsc(a)
+        if (sparse != null) trmv(sparse, x, lower, transpose, unitDiag, workspace)
+        else triangleOperand(workspace, a, lower, unitDiag) { dense -> trmv(dense, x, lower, transpose, unitDiag, workspace) }
+    }
+
+    /** TRSM over readable dense, sparse, prepared or custom operands, using this engine. */
+    @Suppress("LongParameterList") // triangle flags and workspace
+    public fun trsm(a: Matrix, b: DenseMatrixRegion, lower: Boolean, transpose: Boolean = false, unitDiag: Boolean = false,
+        right: Boolean = false, alpha: Double = 1.0,
+        workspace: Workspace? = null,
+    ) {
+        requireTriangularMatrixOperands(a, b, right, "trsm")
+        if (alpha == 0.0 || b.rows == 0 || b.cols == 0) {
+            com.eignex.koblas.dense.scaleRegion(b, if (alpha == 0.0) 0.0 else 1.0)
+            return
+        }
+        val sparse = storedCsc(a)
+        if (sparse != null) trsm(sparse, b, lower, transpose, unitDiag, right, alpha, workspace)
+        else triangleOperand(workspace, a, lower, unitDiag) { dense -> trsm(dense, b, lower, transpose, unitDiag, right, alpha, workspace) }
+    }
+
+    /** TRMM over readable dense, sparse, prepared or custom operands, using this engine. */
+    @Suppress("LongParameterList") // triangle flags and workspace
+    public fun trmm(a: Matrix, b: DenseMatrixRegion, lower: Boolean, transpose: Boolean = false, unitDiag: Boolean = false,
+        right: Boolean = false, alpha: Double = 1.0,
+        workspace: Workspace? = null,
+    ) {
+        requireTriangularMatrixOperands(a, b, right, "trmm")
+        if (alpha == 0.0 || b.rows == 0 || b.cols == 0) {
+            com.eignex.koblas.dense.scaleRegion(b, if (alpha == 0.0) 0.0 else 1.0)
+            return
+        }
+        val sparse = storedCsc(a)
+        if (sparse != null) trmm(sparse, b, lower, transpose, unitDiag, right, alpha, workspace)
+        else triangleOperand(workspace, a, lower, unitDiag) { dense -> trmm(dense, b, lower, transpose, unitDiag, right, alpha, workspace) }
+    }
+
+    /** GEMV over an engine-neutral prepared snapshot. */
+    @Suppress("LongParameterList") // BLAS operands and workspace
+    public fun gemv(alpha: Double, a: PreparedSparseMatrix, x: DoubleArray, beta: Double, y: DoubleArray,
+        transpose: Boolean = false, workspace: Workspace? = null,
+    ): Unit = gemv(alpha, a.snapshot, x, beta, y, transpose, workspace)
+
+    /** SYMV over an engine-neutral prepared snapshot. */
+    @Suppress("LongParameterList") // BLAS operands and workspace
+    public fun symv(alpha: Double, a: PreparedSparseMatrix, x: DoubleArray, beta: Double, y: DoubleArray,
+        lower: Boolean = true, workspace: Workspace? = null,
+    ): Unit = symv(alpha, a.snapshot, x, beta, y, lower, workspace)
+
     /** Explicit application engine selection without changing the platform default. */
     public companion object {
         /**

@@ -301,11 +301,10 @@ class MatrixOpsTest {
     }
 
     /**
-     * Stepped operands need a gather to reach an array-based seam. The convenience layer must
-     * borrow that buffer from the workspace when supplied.
+     * Stepped operands reach addressed panels without borrowing a gather buffer.
      */
     @Test
-    fun `a strided matvec operand is gathered from the workspace it was given`() {
+    fun `a strided matvec operand needs no gather buffer`() {
         val n = 6
         val backing = DoubleArray(2 * n) { 1.0 + it }
         val x = StridedVector(backing, 0, n, 2)
@@ -317,6 +316,6 @@ class MatrixOpsTest {
         A.gemvInto(x, destination, workspace = workspace)
 
         assertContentEquals(expected, destination)
-        assertEquals(1, workspace.available(n), "the gather did not come from the workspace")
+        assertEquals(0, workspace.available(n), "the addressed call borrowed a gather")
     }
 }

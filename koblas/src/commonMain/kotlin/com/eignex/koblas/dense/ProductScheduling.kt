@@ -492,24 +492,13 @@ internal fun directProduct(
     val chunk = directColumnBlock(m)
     val group = directPanelGroup(panels, m, k, transposeA = false)
     workspace.borrowOptional(scratchCapacity(chunk)) { accumulated ->
-        for (j in 0 until n) {
-            val start = selectedRow(j, m, selected)
-            val rows = selectedRows(j, m, selected)
-            var offset = 0
-            while (offset < rows) {
-                val height = if (chunk < rows - offset) chunk else rows - offset
-                accumulated.fill(0.0, 0, height)
-                val coefficients = bOffset + if (transposeB) j else j * ldb
-                forEachPanel(k, group) { step, width ->
-                    panels.columnUpdate(
-                        1.0, a, aOffset + start + offset + step * lda, lda,
-                        b, coefficients + step * coefficientStride, coefficientStride,
-                        height, width, accumulated, 0, 1,
-                    )
-                }
-                writeScaledColumn(alpha, accumulated, beta, c, cOffset + start + offset + j * ldc, height)
-                offset += height
-            }
+        forEachDirectProductPanel(m, n, k, selected, false, group) { column, first, step, height, width ->
+            if (step == 0) accumulated.fill(0.0, 0, height)
+            val coefficients = bOffset + if (transposeB) column else column * ldb
+            panels.columnUpdate(1.0, a, aOffset + first + step * lda, lda,
+                b, coefficients + step * coefficientStride, coefficientStride,
+                height, width, accumulated, 0, 1)
+            if (step + width == k) writeScaledColumn(alpha, accumulated, beta, c, cOffset + first + column * ldc, height)
         }
     }
 }
@@ -558,33 +547,16 @@ private fun reducedProduct(
     workspace: Workspace?,
 ) {
     val group = directPanelGroup(panels, m, k, transposeA = true)
-    if (!gathersCoefficients(panels, m, k, coefficientStride != 1)) {
-        for (j in 0 until n) {
-            val first = selectedRow(j, m, selected)
-            val rows = selectedRows(j, m, selected)
-            val coefficients = bOffset + if (transposeB) j else j * ldb
-            forEachPanel(rows, group) { start, width ->
-                panels.multiDot(
-                    alpha, a, aOffset + (first + start) * lda, lda, b, coefficients, coefficientStride,
-                    k, width, beta, c, cOffset + first + start + j * ldc, 1,
-                )
+    val gathers = gathersCoefficients(panels, m, k, coefficientStride != 1)
+    workspace.borrowOptional(if (gathers) scratchCapacity(k) else 0) { gathered ->
+        forEachDirectProductPanel(m, n, k, selected, true, group) { column, first, _, height, width ->
+            val coefficients = bOffset + if (transposeB) column else column * ldb
+            if (gathers && first == selectedRow(column, m, selected)) {
+                for (p in 0 until k) gathered[p] = b[coefficients + p * coefficientStride]
             }
-        }
-        return
-    }
-    workspace.borrowOptional(scratchCapacity(k)) { gathered ->
-        for (j in 0 until n) {
-            val first = selectedRow(j, m, selected)
-            val rows = selectedRows(j, m, selected)
-            if (rows <= 0) continue
-            val coefficients = bOffset + if (transposeB) j else j * ldb
-            for (p in 0 until k) gathered[p] = b[coefficients + p * coefficientStride]
-            forEachPanel(rows, group) { start, width ->
-                panels.multiDot(
-                    alpha, a, aOffset + (first + start) * lda, lda, gathered, 0, 1, k, width,
-                    beta, c, cOffset + first + start + j * ldc, 1,
-                )
-            }
+            panels.multiDot(alpha, a, aOffset + first * lda, lda,
+                if (gathers) gathered else b, if (gathers) 0 else coefficients, if (gathers) 1 else coefficientStride,
+                height, width, beta, c, cOffset + first + column * ldc, 1)
         }
     }
 }
@@ -668,4 +640,26 @@ internal fun blockExtent(preferred: Int, tile: Int, extent: Int): Int {
     val block = preferred / tile * tile
     val atLeastOne = if (block < tile) tile else block
     return if (atLeastOne < whole) atLeastOne else whole
+}
+
+/** Direct arithmetic windows, shared with route inspection, including selected support and tails. */
+internal inline fun forEachDirectProductPanel(
+    m: Int, n: Int, k: Int, selected: OutputTriangle, transposeA: Boolean, group: Int,
+    action: (column: Int, first: Int, step: Int, rows: Int, width: Int) -> Unit,
+) {
+    val chunk = directColumnBlock(m)
+    for (column in 0 until n) {
+        val first = selectedRow(column, m, selected)
+        val rows = selectedRows(column, m, selected)
+        if (transposeA) {
+            forEachPanel(rows, group) { start, width -> action(column, first + start, 0, k, width) }
+        } else {
+            var offset = 0
+            while (offset < rows) {
+                val height = minOf(chunk, rows - offset)
+                forEachPanel(k, group) { step, width -> action(column, first + offset, step, height, width) }
+                offset += height
+            }
+        }
+    }
 }

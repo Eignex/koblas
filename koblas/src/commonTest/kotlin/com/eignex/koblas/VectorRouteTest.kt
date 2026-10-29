@@ -6,7 +6,7 @@ import com.eignex.koblas.sparse.IndexedSparseKernels
 import com.eignex.koblas.sparse.ScalarIndexedSparseKernels
 import com.eignex.koblas.sparse.SparseKernelAdapter
 import com.eignex.koblas.sparse.SparseOperation
-import com.eignex.koblas.vendor.RouteKind
+import com.eignex.koblas.RouteKind
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith

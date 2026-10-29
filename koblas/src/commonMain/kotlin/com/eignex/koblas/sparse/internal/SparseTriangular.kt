@@ -3,6 +3,7 @@
 package com.eignex.koblas.sparse.internal
 
 import com.eignex.koblas.DenseMatrix
+import com.eignex.koblas.DenseMatrixRegion
 import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.UnsafeKoblasApi
 import com.eignex.koblas.Workspace
@@ -87,7 +88,7 @@ internal fun triangularLeftCore(
     kernels: SparsePanelKernels,
     solve: Boolean,
     a: SparseMatrix,
-    b: DenseMatrix,
+    b: DenseMatrixRegion,
     lower: Boolean,
     transpose: Boolean,
     unitDiag: Boolean,
@@ -108,39 +109,39 @@ internal fun triangularLeftCore(
         workspace.borrowOptional(if (staged) width * n else 0) { panel ->
             forEachPanel(sides, width) { columnStart, actual ->
                 val dense = if (staged) panel else bd
-                val offset = if (staged) 0 else columnStart * n
-                val rhsStride = if (staged) 1 else n
+                val offset = if (staged) 0 else b.offset + columnStart * b.leadingDimension
+                val rhsStride = if (staged) 1 else b.leadingDimension
                 val indexStride = if (staged) width else 1
-                if (staged) stageRhsPanel(bd, columnStart * n, n, 1, n, actual, panel, width)
-                forEachTriangleColumn(n, forward) { j ->
+                if (staged) stageRhsPanel(bd, b.offset + columnStart * b.leadingDimension, b.leadingDimension, 1, n, actual, panel, width)
+                forEachSparseColumn(a, SparseColumnShape.Strict, lower, forward) { j, from, to ->
                     val dj = diagonal?.get(j) ?: 1.0
                     if (actual == 1) {
                         if (!transpose) {
                             kernels.triangularScatterSingle(
                                 solve, j, lower, unitDiag, dj, a.rowIndices, a.values,
-                                a.colPointers[j], a.colPointers[j + 1], dense, offset, indexStride,
+                                from, to, dense, offset, indexStride,
                             )
                         } else {
                             kernels.triangularGatherSingle(
                                 solve, j, lower, unitDiag, dj, a.rowIndices, a.values,
-                                a.colPointers[j], a.colPointers[j + 1], dense, offset, indexStride,
+                                from, to, dense, offset, indexStride,
                             )
                         }
                     } else if (!transpose) {
                         kernels.triangularPanelScatter(
                             solve, j, lower, unitDiag, dj, a.rowIndices, a.values,
-                            a.colPointers[j], a.colPointers[j + 1],
+                            from, to,
                             dense, offset, rhsStride, indexStride, actual, work,
                         )
                     } else {
                         kernels.triangularPanelGather(
                             solve, j, lower, unitDiag, dj, a.rowIndices, a.values,
-                            a.colPointers[j], a.colPointers[j + 1],
+                            from, to,
                             dense, offset, rhsStride, indexStride, actual, work,
                         )
                     }
                 }
-                if (staged) unstageRhsPanel(panel, width, bd, columnStart * n, n, 1, n, actual)
+                if (staged) unstageRhsPanel(panel, width, bd, b.offset + columnStart * b.leadingDimension, b.leadingDimension, 1, n, actual)
             }
         }
     }
@@ -157,7 +158,7 @@ internal fun triangularLeftCore(
 internal fun trmmRightCore(
     kernels: SparsePanelKernels,
     a: SparseMatrix,
-    b: DenseMatrix,
+    b: DenseMatrixRegion,
     lower: Boolean,
     transpose: Boolean,
     unitDiag: Boolean,
@@ -170,7 +171,7 @@ internal fun trmmRightCore(
     forEachTriangleColumn(n, lower == gather) { l ->
         kernels.triangularRightColumn(
             false, gather, l, lower, unitDiag, diagonal?.get(l) ?: 1.0,
-            a.rowIndices, a.values, a.colPointers[l], a.colPointers[l + 1], b.values, rows,
+            a.rowIndices, a.values, a.colPointers[l], a.colPointers[l + 1], b.values, rows, b.offset, b.leadingDimension,
         )
     }
 }
@@ -213,7 +214,7 @@ internal fun trmvCore(
 internal fun trsmRightCore(
     kernels: SparsePanelKernels,
     a: SparseMatrix,
-    b: DenseMatrix,
+    b: DenseMatrixRegion,
     lower: Boolean,
     transpose: Boolean,
     diagonal: DoubleArray?,
@@ -224,7 +225,7 @@ internal fun trsmRightCore(
     forEachTriangleColumn(a.rows, lower != transpose) { j ->
         kernels.triangularRightColumn(
             true, gather, j, lower, diagonal == null, diagonal?.get(j) ?: 1.0,
-            a.rowIndices, a.values, a.colPointers[j], a.colPointers[j + 1], b.values, rows,
+            a.rowIndices, a.values, a.colPointers[j], a.colPointers[j + 1], b.values, rows, b.offset, b.leadingDimension,
         )
     }
 }

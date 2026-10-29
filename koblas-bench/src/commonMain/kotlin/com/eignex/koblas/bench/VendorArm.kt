@@ -7,7 +7,6 @@ import com.eignex.koblas.vendor.CallRoute
 import com.eignex.koblas.vendor.Vendor
 import com.eignex.koblas.vendor.Blas
 import com.eignex.koblas.vendor.BlasOperation
-import com.eignex.koblas.vendor.exactArmRejection
 import com.eignex.koblas.vendor.openBlas
 
 /**

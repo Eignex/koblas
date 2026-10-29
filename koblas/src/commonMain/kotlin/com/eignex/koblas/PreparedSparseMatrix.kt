@@ -5,7 +5,6 @@ import com.eignex.koblas.sparse.SparseCall
 import com.eignex.koblas.sparse.SparseMatrixOperation
 import com.eignex.koblas.sparse.SparseMatrixRoute
 import com.eignex.koblas.sparse.internal.sparseCopy
-import com.eignex.koblas.vendor.RouteKind
 import kotlin.jvm.JvmOverloads
 
 /**
@@ -13,7 +12,7 @@ import kotlin.jvm.JvmOverloads
  * It owns copies of structure and coefficients, so source mutations do not affect it.
  *
  * As a [Matrix], it supports [Matrix.gemm] and [Matrix.gemmInto] on either side of dense, sparse or prepared
- * operands, using the engine that prepared it. Matrix-vector and selected-triangle symmetric operations
+ * operands, using the default [koblas] engine; explicit calls use their receiver engine. Matrix-vector and selected-triangle symmetric operations
  * are also available here.
  *
  * Concurrent readers may share the snapshot with distinct destinations and workspaces. Transposed
@@ -24,10 +23,10 @@ import kotlin.jvm.JvmOverloads
  * Preparation, the first transposed sparse-sparse use and steady-state use have distinct costs;
  * measurements must reset the snapshot to separate them.
  */
-public class PreparedSparseMatrix internal constructor(a: SparseMatrix, internal val blas: SparseBlas) : Matrix {
+public class PreparedSparseMatrix internal constructor(a: SparseMatrix) : Matrix {
     internal val snapshot: SparseMatrix = a.sparseCopy()
 
-    private val lazyTranspose: Lazy<SparseMatrix> = lazy { blas.transpose(snapshot) }
+    private val lazyTranspose: Lazy<SparseMatrix> = lazy { com.eignex.koblas.sparse.internal.transposeCsc(snapshot) }
 
     /**
      * Lazily cached transpose, requested only by transposed sparse-sparse products that reach a position.
@@ -66,7 +65,7 @@ public class PreparedSparseMatrix internal constructor(a: SparseMatrix, internal
         transpose: Boolean = false,
         workspace: Workspace? = null,
     ) {
-        blas.gemv(alpha, snapshot, x, beta, destination, transpose, workspace)
+        koblas.gemv(alpha, snapshot, x, beta, destination, transpose, workspace)
     }
 
     /** Prepared selected-triangle symmetric matrix-vector product; semantics match [SparseBlas.symv]. */
@@ -80,7 +79,7 @@ public class PreparedSparseMatrix internal constructor(a: SparseMatrix, internal
         lower: Boolean = true,
         workspace: Workspace? = null,
     ) {
-        blas.symv(alpha, snapshot, x, beta, destination, lower, workspace)
+        koblas.symv(alpha, snapshot, x, beta, destination, lower, workspace)
     }
 
     /** Prepared selected-triangle symmetric matrix-matrix product; semantics match [SparseBlas.symm]. */
@@ -88,14 +87,14 @@ public class PreparedSparseMatrix internal constructor(a: SparseMatrix, internal
     @JvmOverloads
     public fun symmInto(
         alpha: Double,
-        b: DenseMatrix,
+        b: DenseMatrixRegion,
         beta: Double,
-        destination: DenseMatrix,
+        destination: DenseMatrixRegion,
         lower: Boolean = true,
         right: Boolean = false,
         workspace: Workspace? = null,
     ) {
-        blas.symm(alpha, snapshot, b, beta, destination, lower, right, workspace)
+        koblas.symm(alpha, snapshot, b, beta, destination, lower, right, workspace)
     }
 
     /**
@@ -115,7 +114,7 @@ public class PreparedSparseMatrix internal constructor(a: SparseMatrix, internal
 
     /** [call]'s scalars and extents asked of the snapshot, which is the operand a prepared call has. */
     private fun routeAgainstSnapshot(operation: SparseMatrixOperation, call: SparseCall): SparseMatrixRoute =
-        blas.routeOf(
+        koblas.routeOf(
             operation,
             SparseCall(
                 snapshot,

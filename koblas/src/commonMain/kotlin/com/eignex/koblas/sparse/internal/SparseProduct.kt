@@ -1,6 +1,7 @@
 package com.eignex.koblas.sparse.internal
 
 import com.eignex.koblas.DenseMatrix
+import com.eignex.koblas.DenseMatrixRegion
 import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.UnsafeKoblasApi
 import com.eignex.koblas.requireShape
@@ -97,7 +98,7 @@ internal fun multiplySparseInto(
     alpha: Double,
     a: SparseMatrix,
     b: SparseMatrix,
-    c: DenseMatrix,
+    c: DenseMatrixRegion,
     lower: Boolean? = null,
 ) {
     if (alpha == 0.0) return
@@ -107,7 +108,7 @@ internal fun multiplySparseInto(
             b.colPointers[j], b.colPointers[j + 1],
             if (lower == true) j else 0,
             if (lower == false) j + 1 else a.rows,
-            c.values, j * c.rows,
+            c.values, c.offset + j * c.leadingDimension,
         )
     }
 }
@@ -164,7 +165,7 @@ internal fun symmetricRankInto(
     alpha: Double,
     a: SparseMatrix,
     transpose: Boolean,
-    c: DenseMatrix,
+    c: DenseMatrixRegion,
     lower: Boolean,
     sums: DoubleArray,
     touchedAt: IntArray,
@@ -182,7 +183,7 @@ internal fun symmetricRankInto(
             a, transpose, j, lower, sums, touchedAt, touched,
             rowPointers, adjacentColumns, adjacentPositions,
         )
-        SparseAccumulationKernels.addScaledSupportToDense(alpha, touched, used, sums, c.values, j * order)
+        SparseAccumulationKernels.addScaledSupportToDense(alpha, touched, used, sums, c.values, c.offset + j * c.leadingDimension)
     }
 }
 

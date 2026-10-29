@@ -121,7 +121,7 @@ class OperandRoutesTest {
     }
 
     @Test
-    fun `prepared operands report their bound engine on either side`() {
+    fun `prepared operands report the receiver engine on either side`() {
         val source = sparse(8, 8)
         val prepared = BuiltinEngines.scalar.prepare(source)
         val block = dense(8, 8)
@@ -134,9 +134,9 @@ class OperandRoutesTest {
                 koblas.routeOf(ALPHA, block, false, prepared, false, BETA, destination)
             }
             val expected = if (left) {
-                BuiltinEngines.scalar.routeOf(ALPHA, source, false, block, false, BETA, destination)
+                koblas.routeOf(ALPHA, source, false, block, false, BETA, destination)
             } else {
-                BuiltinEngines.scalar.routeOf(ALPHA, block, false, source, false, BETA, destination)
+                koblas.routeOf(ALPHA, block, false, source, false, BETA, destination)
             }
 
             assertEquals(expected.components, route.components)

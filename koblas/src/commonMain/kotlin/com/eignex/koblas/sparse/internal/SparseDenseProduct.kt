@@ -3,6 +3,7 @@
 package com.eignex.koblas.sparse.internal
 
 import com.eignex.koblas.DenseMatrix
+import com.eignex.koblas.DenseMatrixRegion
 import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.UnsafeKoblasApi
 import com.eignex.koblas.Workspace
@@ -177,9 +178,9 @@ internal fun multiplyFromTheLeft(
     alpha: Double,
     a: SparseMatrix,
     transposeA: Boolean,
-    b: DenseMatrix,
+    b: DenseMatrixRegion,
     transposeB: Boolean,
-    c: DenseMatrix,
+    c: DenseMatrixRegion,
     m: Int,
     n: Int,
     k: Int,
@@ -187,7 +188,7 @@ internal fun multiplyFromTheLeft(
 ) {
     // Return before staging or traversing: an empty axis may be paired with an enormous one.
     if (m == 0 || n == 0 || k == 0) return
-    val ldb = b.rows
+    val ldb = b.leadingDimension
     val bRhsStride = if (transposeB) 1 else ldb
     val bIndexStride = if (transposeB) ldb else 1
     val plan = productRhsPlan(kernels, m, n, k, a.nnz, transposeA, transposeB)
@@ -220,8 +221,8 @@ private fun gatherPanel(
     kernels: SparsePanelKernels,
     alpha: Double,
     a: SparseMatrix,
-    b: DenseMatrix,
-    c: DenseMatrix,
+    b: DenseMatrixRegion,
+    c: DenseMatrixRegion,
     m: Int,
     k: Int,
     columnStart: Int,
@@ -238,31 +239,31 @@ private fun gatherPanel(
     val rhsStride: Int
     val indexStride: Int
     if (staged) {
-        stageRhsPanel(b.values, columnStart * bRhsStride, bRhsStride, bIndexStride, k, actual, panel, width)
+        stageRhsPanel(b.values, b.offset + columnStart * bRhsStride, bRhsStride, bIndexStride, k, actual, panel, width)
         source = panel
         offset = 0
         rhsStride = 1
         indexStride = width
     } else {
         source = b.values
-        offset = columnStart * bRhsStride
+        offset = b.offset + columnStart * bRhsStride
         rhsStride = bRhsStride
         indexStride = bIndexStride
     }
     if (actual == 1) {
-        for (outputRow in 0 until m) {
+        forEachSparseColumn(a) { outputRow, from, to ->
             kernels.gatherProductColumn(
-                alpha, a.rowIndices, a.values, a.colPointers[outputRow], a.colPointers[outputRow + 1],
-                source, offset, indexStride, c.values, outputRow + columnStart * m,
+                alpha, a.rowIndices, a.values, from, to,
+                source, offset, indexStride, c.values, c.offset + outputRow + columnStart * c.leadingDimension,
             )
         }
         return
     }
-    for (outputRow in 0 until m) {
+    forEachSparseColumn(a) { outputRow, from, to ->
         kernels.gatherProductPanel(
-            alpha, a.rowIndices, a.values, a.colPointers[outputRow], a.colPointers[outputRow + 1],
+            alpha, a.rowIndices, a.values, from, to,
             source, offset, rhsStride, indexStride, actual,
-            c.values, outputRow + columnStart * m, m, work,
+            c.values, c.offset + outputRow + columnStart * c.leadingDimension, c.leadingDimension, work,
         )
     }
 }
@@ -274,8 +275,8 @@ private fun scatterPanel(
     kernels: SparsePanelKernels,
     alpha: Double,
     a: SparseMatrix,
-    b: DenseMatrix,
-    c: DenseMatrix,
+    b: DenseMatrixRegion,
+    c: DenseMatrixRegion,
     m: Int,
     k: Int,
     columnStart: Int,
@@ -288,28 +289,28 @@ private fun scatterPanel(
     work: DoubleArray,
 ) {
     val destination = if (staged) panel else c.values
-    val offset = if (staged) 0 else columnStart * m
-    val rhsStride = if (staged) 1 else m
+    val offset = if (staged) 0 else c.offset + columnStart * c.leadingDimension
+    val rhsStride = if (staged) 1 else c.leadingDimension
     val indexStride = if (staged) width else 1
-    if (staged) stageRhsPanel(c.values, columnStart * m, m, 1, m, actual, panel, width)
+    if (staged) stageRhsPanel(c.values, c.offset + columnStart * c.leadingDimension, c.leadingDimension, 1, m, actual, panel, width)
     if (actual == 1) {
-        for (inner in 0 until k) {
+        forEachSparseColumn(a) { inner, from, to ->
             kernels.scatterProductColumn(
-                alpha, a.rowIndices, a.values, a.colPointers[inner], a.colPointers[inner + 1],
-                b.values, columnStart * bRhsStride + inner * bIndexStride,
+                alpha, a.rowIndices, a.values, from, to,
+                b.values, b.offset + columnStart * bRhsStride + inner * bIndexStride,
                 destination, offset, indexStride,
             )
         }
     } else {
-        for (inner in 0 until k) {
+        forEachSparseColumn(a) { inner, from, to ->
             kernels.scatterProductPanel(
-                alpha, a.rowIndices, a.values, a.colPointers[inner], a.colPointers[inner + 1],
-                b.values, columnStart * bRhsStride + inner * bIndexStride, bRhsStride, actual,
+                alpha, a.rowIndices, a.values, from, to,
+                b.values, b.offset + columnStart * bRhsStride + inner * bIndexStride, bRhsStride, actual,
                 destination, offset, rhsStride, indexStride, work,
             )
         }
     }
-    if (staged) unstageRhsPanel(panel, width, c.values, columnStart * m, m, 1, m, actual)
+    if (staged) unstageRhsPanel(panel, width, c.values, c.offset + columnStart * c.leadingDimension, c.leadingDimension, 1, m, actual)
 }
 
 /**
@@ -326,14 +327,14 @@ internal fun multiplySymmetricFromTheLeft(
     kernels: SparsePanelKernels,
     alpha: Double,
     a: SparseMatrix,
-    b: DenseMatrix,
-    c: DenseMatrix,
+    b: DenseMatrixRegion,
+    c: DenseMatrixRegion,
     lower: Boolean,
     workspace: Workspace?,
 ) {
     val n = a.rows
     val sides = b.cols
-    val ld = b.rows
+    val ld = b.leadingDimension
     if (n == 0 || sides == 0) return
     val plan = symmetricRhsPlan(kernels, n, sides, a.nnz)
     val width = rhsWidth(plan)
@@ -342,31 +343,33 @@ internal fun multiplySymmetricFromTheLeft(
     workspace.borrowOptional(panelSize) { source ->
         workspace.borrowOptional(panelSize) { destination ->
             forEachPanel(sides, width) { columnStart, actual ->
-                val from = if (staged) source else b.values
+                val sourceValues = if (staged) source else b.values
                 val into = if (staged) destination else c.values
-                val offset = if (staged) 0 else columnStart * ld
+                val offset = if (staged) 0 else b.offset + columnStart * ld
+                val destinationOffset = if (staged) 0 else c.offset + columnStart * c.leadingDimension
+                val destinationStride = if (staged) 1 else c.leadingDimension
                 val rhsStride = if (staged) 1 else ld
                 val indexStride = if (staged) width else 1
                 if (staged) {
-                    stageRhsPanel(b.values, columnStart * ld, ld, 1, n, actual, source, width)
-                    stageRhsPanel(c.values, columnStart * ld, ld, 1, n, actual, destination, width)
+                    stageRhsPanel(b.values, b.offset + columnStart * ld, ld, 1, n, actual, source, width)
+                    stageRhsPanel(c.values, c.offset + columnStart * c.leadingDimension, c.leadingDimension, 1, n, actual, destination, width)
                 }
-                for (column in 0 until n) {
+                forEachSparseColumn(a, SparseColumnShape.Selected, lower) { column, from, to ->
                     if (actual == 1) {
                         kernels.symmetricLeftColumnSingle(
                             alpha, column, a.rowIndices, a.values,
-                            a.colPointers[column], a.colPointers[column + 1],
-                            from, into, offset, indexStride, lower,
+                            from, to,
+                            sourceValues, into, offset, indexStride, lower, destinationOffset,
                         )
                     } else {
                         kernels.symmetricLeftColumn(
                             alpha, column, a.rowIndices, a.values,
-                            a.colPointers[column], a.colPointers[column + 1],
-                            from, into, offset, rhsStride, indexStride, actual, lower,
+                            from, to,
+                            sourceValues, into, offset, rhsStride, indexStride, actual, lower, destinationOffset, destinationStride,
                         )
                     }
                 }
-                if (staged) unstageRhsPanel(destination, width, c.values, columnStart * ld, ld, 1, n, actual)
+                if (staged) unstageRhsPanel(destination, width, c.values, c.offset + columnStart * c.leadingDimension, c.leadingDimension, 1, n, actual)
             }
         }
     }
@@ -384,21 +387,21 @@ internal fun multiplyFromTheRight(
     alpha: Double,
     a: SparseMatrix,
     transposeA: Boolean,
-    b: DenseMatrix,
+    b: DenseMatrixRegion,
     transposeB: Boolean,
-    c: DenseMatrix,
+    c: DenseMatrixRegion,
     m: Int,
     workspace: Workspace?,
 ) {
     if (transposeB) {
-        workspace.borrow(b.values.size) { packed ->
+        workspace.borrow(DenseMatrix.entryCount(b.rows, b.cols)) { packed ->
             for (j in 0 until b.cols) {
-                for (i in 0 until b.rows) packed[j + i * b.cols] = b.values[i + j * b.rows]
+                for (i in 0 until b.rows) packed[j + i * b.cols] = b.values[b.offset + i + j * b.leadingDimension]
             }
-            multiplyFromTheRightColumns(kernels, alpha, a, transposeA, c.values, packed, m, m)
+            multiplyFromTheRightColumns(kernels, alpha, a, transposeA, c.values, packed, m, m, 0, c.offset, c.leadingDimension)
         }
     } else {
-        multiplyFromTheRightColumns(kernels, alpha, a, transposeA, c.values, b.values, m, b.rows)
+        multiplyFromTheRightColumns(kernels, alpha, a, transposeA, c.values, b.values, m, b.leadingDimension, b.offset, c.offset, c.leadingDimension)
     }
 }
 
@@ -413,11 +416,14 @@ internal fun multiplyFromTheRightColumns(
     b: DoubleArray,
     rows: Int,
     leadingDimension: Int,
+    bOffset: Int = 0,
+    cOffset: Int = 0,
+    ldc: Int = rows,
 ) {
-    for (column in 0 until a.cols) {
+    forEachSparseColumn(a) { column, from, to ->
         kernels.rightProductColumn(
-            alpha, column, a.rowIndices, a.values, a.colPointers[column], a.colPointers[column + 1], transposeA,
-            b, leadingDimension, c, rows,
+            alpha, column, a.rowIndices, a.values, from, to, transposeA,
+            b, leadingDimension, c, rows, bOffset, cOffset, ldc,
         )
     }
 }

@@ -46,7 +46,6 @@ class DenseMatrixViewTest {
 
     private fun withRegions(body: (DenseBlas) -> Unit) {
         withDenseBlas(body)
-        body(PackedRegionBlas(testDenseBlas))
         // Admitting every size sends each fixture to the installed library, in place where its binding takes regions.
         installedHost?.let(body)
     }
@@ -406,6 +405,96 @@ class DenseMatrixViewTest {
         assertClose(expected, actual, "empty inner dimension gemv")
     }
 
+    @Test
+    fun `structured products address every padded operand and preserve the parent`() = withRegions { blas ->
+        for (lower in booleanArrayOf(false, true)) for (transpose in booleanArrayOf(false, true)) {
+            val a = region(5, 5)
+            val b = region(5, 5, 2)
+            for (operation in listOf("gemmt", "syr2k", "symm", "trmm")) {
+                for (right in booleanArrayOf(false, true)) {
+                    val c = region(5, 5, 3)
+                    val before = c.values.copyOf()
+                    val expected = copy(c)
+                    when (operation) {
+                        "gemmt" -> {
+                            ReferenceBlas.gemmt(0.875, a, transpose, b, !transpose, -0.25, expected, lower)
+                            blas.gemmt(0.875, a, transpose, b, !transpose, -0.25, c, lower)
+                        }
+                        "syr2k" -> {
+                            ReferenceBlas.syr2k(0.875, a, b, transpose, -0.25, expected, lower)
+                            blas.syr2k(0.875, a, b, transpose, -0.25, c, lower)
+                        }
+                        "symm" -> {
+                            ReferenceBlas.symm(0.875, a, b, -0.25, expected, lower, right)
+                            blas.symm(0.875, a, b, -0.25, c, lower, right)
+                        }
+                        else -> {
+                            ReferenceBlas.trmm(a, expected, lower, transpose, true, right, 0.875)
+                            blas.trmm(a, c, lower, transpose, true, right, 0.875)
+                        }
+                    }
+                    assertRegionAgreesWithReference(expected, c, before)
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `matrix vector routines address positive and negative strides`() = withRegions { blas ->
+        val a = region(5, 5)
+        for (stride in intArrayOf(2, -2)) for (transpose in booleanArrayOf(false, true)) {
+            val backing = DoubleArray(17) { (it - 8) / 7.0 }
+            val x = StridedVector(backing, if (stride > 0) 2 else 10, 5, stride)
+            val output = DoubleArray(19) { -77.0 }
+            val y = StridedVector(output, if (stride > 0) 3 else 11, 5, stride)
+            for (operation in listOf("gemv", "symv", "trsv", "trmv")) {
+                val before = output.copyOf()
+                val expected = if (operation.startsWith("tr")) x.toDoubleArray() else y.toDoubleArray()
+                when (operation) {
+                    "gemv" -> {
+                        ReferenceBlas.gemv(0.875, a, x.toDoubleArray(), -0.25, expected, transpose)
+                        blas.gemv(0.875, a, x, -0.25, y, transpose)
+                    }
+                    "symv" -> {
+                        ReferenceBlas.symv(0.875, a, x.toDoubleArray(), -0.25, expected, transpose)
+                        blas.symv(0.875, a, x, -0.25, y, transpose)
+                    }
+                    "trsv" -> {
+                        for (i in 0 until 5) y[i] = x[i]
+                        ReferenceBlas.trsv(a, expected, true, transpose, true)
+                        blas.trsv(a, y, true, transpose, true)
+                    }
+                    else -> {
+                        for (i in 0 until 5) y[i] = x[i]
+                        ReferenceBlas.trmv(a, expected, true, transpose, true)
+                        blas.trmv(a, y, true, transpose, true)
+                    }
+                }
+                for (i in 0 until 5) before[y.offset + i * y.stride] = expected[i]
+                assertClose(before, output, "$operation stride $stride")
+            }
+        }
+    }
+
+    @Test
+    fun `addressed rank updates preserve padding and unselected entries`() = withRegions { blas ->
+        for (stride in intArrayOf(2, -2)) for (lower in booleanArrayOf(false, true)) {
+            val x = StridedVector(DoubleArray(15) { it / 7.0 }, if (stride > 0) 2 else 10, 5, stride)
+            val y = StridedVector(DoubleArray(17) { (it - 3) / 9.0 }, if (stride > 0) 3 else 11, 5, stride)
+            for (operation in listOf("ger", "syr", "syr2")) {
+                val a = region(5, 5)
+                val before = a.values.copyOf()
+                val expected = copy(a)
+                when (operation) {
+                    "ger" -> { ReferenceBlas.ger(0.875, x.toDoubleArray(), y.toDoubleArray(), expected); blas.ger(0.875, x, y, a) }
+                    "syr" -> { ReferenceBlas.syr(0.875, x, expected, lower); blas.syr(0.875, x, a, lower) }
+                    else -> { ReferenceBlas.syr2(0.875, x, y, expected, lower); blas.syr2(0.875, x, y, a, lower) }
+                }
+                assertRegionAgreesWithReference(expected, a, before)
+            }
+        }
+    }
+
     private companion object {
         val installedHost: DenseBlas? = openBlas()?.let {
             HostDenseBlas(
@@ -417,57 +506,3 @@ class DenseMatrixViewTest {
     }
 }
 
-/** Default interface adapters exercised with portable contiguous arithmetic. */
-@Suppress("LongParameterList") // BLAS operands and flags
-private class PackedRegionBlas(private val delegate: DenseBlas) : DenseBlas by delegate {
-    override fun gemv(
-        alpha: Double,
-        a: DenseMatrixRegion,
-        x: DoubleArray,
-        beta: Double,
-        y: DoubleArray,
-        transpose: Boolean,
-        workspace: Workspace?,
-    ) = regionGemv(this, alpha, a, x, beta, y, transpose, workspace)
-
-    override fun gemm(
-        alpha: Double,
-        a: DenseMatrixRegion,
-        transposeA: Boolean,
-        b: DenseMatrixRegion,
-        transposeB: Boolean,
-        beta: Double,
-        c: DenseMatrixRegion,
-        workspace: Workspace?,
-    ) = regionGemm(this, alpha, a, transposeA, b, transposeB, beta, c, workspace)
-
-    override fun syrk(
-        alpha: Double,
-        a: DenseMatrixRegion,
-        transpose: Boolean,
-        beta: Double,
-        c: DenseMatrixRegion,
-        lower: Boolean,
-        workspace: Workspace?,
-    ) = regionSyrk(this, alpha, a, transpose, beta, c, lower, workspace)
-
-    override fun trsv(
-        a: DenseMatrixRegion,
-        x: DoubleArray,
-        lower: Boolean,
-        transpose: Boolean,
-        unitDiag: Boolean,
-        workspace: Workspace?,
-    ) = regionTrsv(this, a, x, lower, transpose, unitDiag, workspace)
-
-    override fun trsm(
-        a: DenseMatrixRegion,
-        b: DenseMatrixRegion,
-        lower: Boolean,
-        transpose: Boolean,
-        unitDiag: Boolean,
-        right: Boolean,
-        alpha: Double,
-        workspace: Workspace?,
-    ) = regionTrsm(this, a, b, lower, transpose, unitDiag, right, alpha, workspace)
-}

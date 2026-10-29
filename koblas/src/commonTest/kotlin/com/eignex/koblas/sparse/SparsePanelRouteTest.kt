@@ -4,7 +4,7 @@ import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.Workspace
 import com.eignex.koblas.dense.PanelWork
-import com.eignex.koblas.vendor.RouteKind
+import com.eignex.koblas.RouteKind
 import kotlin.math.abs
 import kotlin.random.Random
 import kotlin.test.Test
@@ -578,13 +578,16 @@ internal class RecordingRhsPanels(group: Int = 3, minimumRows: Int = 1, private 
         sums: DoubleArray,
         sumOffset: Int,
         excluded: Int,
+        destinationOffset: Int,
+        destinationRowStride: Int,
+        destinationIndexStride: Int,
     ) {
         if (rows > 0 && columns > 0) {
             runs.add(RecordedRun(rows, columns, rowStride == 1, PanelWork.SparseRightHandSides))
         }
         super.indexedCoupledUpdate(
             alpha, a, b, offset, rowStride, indexStride, indices, values, fromIndex, columns, rows,
-            pivot, sums, sumOffset, excluded,
+            pivot, sums, sumOffset, excluded, destinationOffset, destinationRowStride, destinationIndexStride,
         )
     }
 }

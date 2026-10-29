@@ -78,99 +78,58 @@ internal fun symmetricProduct(
     columns: Int,
     right: Boolean,
     workspace: Workspace?,
+    aOffset: Int = 0,
+    lda: Int = order,
+    bOffset: Int = 0,
+    cOffset: Int = 0,
 ) {
     if (order == 0 || rows == 0 || columns == 0) return
     val block = if (SYMMETRIC_BLOCK < order) SYMMETRIC_BLOCK else order
     workspace.borrowOptional(block * block) { square ->
         forEachSymmetricBlock(order, block, lower) { start, size, stripStart, stripCount ->
-            expandSymmetric(a, order, lower, start, size, square)
-            if (right) {
-                rightSymmetricBlock(
-                    products, panels, alpha, a, order, b, ldb, c, ldc, rows,
-                    start, size, stripStart, stripCount, square, workspace,
-                )
-            } else {
-                leftSymmetricBlock(
-                    products, panels, alpha, a, order, b, ldb, c, ldc, columns,
-                    start, size, stripStart, stripCount, square, workspace,
-                )
+            expandSymmetric(a, lda, lower, start, size, square, aOffset)
+            forEachSymmetricWindow(rows, columns, right, lda, ldb, ldc, start, size, stripStart, stripCount) {
+                    expanded, leftOffset, rightOffset, targetOffset, m, n, k, transposeA, transposeB ->
+                val left = if (right) b else if (expanded) square else a
+                val rightValues = if (!right) b else if (expanded) square else a
+                val leftOrigin = if (right) bOffset else if (expanded) 0 else aOffset
+                val rightOrigin = if (!right) bOffset else if (expanded) 0 else aOffset
+                val leftStride = if (right) ldb else if (expanded) size else lda
+                val rightStride = if (!right) ldb else if (expanded) size else lda
+                productWindow(products, panels, alpha,
+                    left, leftOrigin + leftOffset, leftStride, transposeA,
+                    rightValues, rightOrigin + rightOffset, rightStride, transposeB,
+                    1.0, c, cOffset + targetOffset, ldc, m, n, k, OutputTriangle.Full, workspace)
             }
         }
     }
 }
 
-/** One diagonal block and its strip, with the symmetric operand on the left of the product. */
-private fun leftSymmetricBlock(
-    products: DenseProductKernels,
-    panels: DensePanelKernels,
-    alpha: Double,
-    a: DoubleArray,
-    order: Int,
-    b: DoubleArray,
-    ldb: Int,
-    c: DoubleArray,
-    ldc: Int,
-    columns: Int,
-    start: Int,
-    size: Int,
-    stripStart: Int,
-    stripCount: Int,
-    square: DoubleArray,
-    workspace: Workspace?,
+/**
+ * Ordinary product windows contributed by one symmetric diagonal block and its stored strip.
+ * Offsets are relative to original storage, except the expanded square which starts at zero.
+ * Execution and inspection enumerate this same sequence of windows without reading coefficients.
+ */
+internal inline fun forEachSymmetricWindow(
+    rows: Int, columns: Int, right: Boolean, lda: Int, ldb: Int, ldc: Int,
+    start: Int, size: Int, stripStart: Int, stripCount: Int,
+    action: (square: Boolean, aOffset: Int, bOffset: Int, cOffset: Int,
+        m: Int, n: Int, k: Int, transposeA: Boolean, transposeB: Boolean) -> Unit,
 ) {
-    productWindow(
-        products, panels, alpha, square, 0, size, false, b, start, ldb, false,
-        1.0, c, start, ldc, size, columns, size, OutputTriangle.Full, workspace,
-    )
-    if (stripCount == 0) return
-    val strip = stripStart + start * order
-    // The strip as it is stored: the rows beside this block accumulate the block's right-hand sides.
-    productWindow(
-        products, panels, alpha, a, strip, order, false, b, start, ldb, false,
-        1.0, c, stripStart, ldc, stripCount, columns, size, OutputTriangle.Full, workspace,
-    )
-    // The same strip transposed, which is the mirrored half: the block's rows accumulate the strip's.
-    productWindow(
-        products, panels, alpha, a, strip, order, true, b, stripStart, ldb, false,
-        1.0, c, start, ldc, size, columns, stripCount, OutputTriangle.Full, workspace,
-    )
-}
-
-/** One diagonal block and its strip, with the symmetric operand on the right of the product. */
-private fun rightSymmetricBlock(
-    products: DenseProductKernels,
-    panels: DensePanelKernels,
-    alpha: Double,
-    a: DoubleArray,
-    order: Int,
-    b: DoubleArray,
-    ldb: Int,
-    c: DoubleArray,
-    ldc: Int,
-    rows: Int,
-    start: Int,
-    size: Int,
-    stripStart: Int,
-    stripCount: Int,
-    square: DoubleArray,
-    workspace: Workspace?,
-) {
-    productWindow(
-        products, panels, alpha, b, start * ldb, ldb, false, square, 0, size, false,
-        1.0, c, start * ldc, ldc, rows, size, size, OutputTriangle.Full, workspace,
-    )
-    if (stripCount == 0) return
-    val strip = stripStart + start * order
-    // The mirrored half first: this block's columns of the destination take the strip's columns of B.
-    productWindow(
-        products, panels, alpha, b, stripStart * ldb, ldb, false, a, strip, order, false,
-        1.0, c, start * ldc, ldc, rows, size, stripCount, OutputTriangle.Full, workspace,
-    )
-    // Then the strip as it is stored, whose rows are the destination columns beside this block.
-    productWindow(
-        products, panels, alpha, b, start * ldb, ldb, false, a, strip, order, true,
-        1.0, c, stripStart * ldc, ldc, rows, stripCount, size, OutputTriangle.Full, workspace,
-    )
+    val strip = stripStart + start * lda
+    if (right) {
+        action(true, start * ldb, 0, start * ldc, rows, size, size, false, false)
+        if (stripCount > 0) {
+            action(false, stripStart * ldb, strip, start * ldc, rows, size, stripCount, false, false)
+            action(false, start * ldb, strip, stripStart * ldc, rows, stripCount, size, false, true)
+        }
+    } else {
+        action(true, 0, start, start, size, columns, size, false, false)
+        if (stripCount > 0) {
+            action(false, strip, start, stripStart, stripCount, columns, size, false, false)
+            action(false, strip, stripStart, start, size, columns, stripCount, true, false)
+        }
+    }
 }
 
 /**
@@ -180,13 +139,13 @@ private fun rightSymmetricBlock(
  * is the whole of what a symmetric operand means, and the copy is what lets an ordinary product block read
  * the block without being told about the structure.
  */
-private fun expandSymmetric(a: DoubleArray, order: Int, lower: Boolean, start: Int, size: Int, square: DoubleArray) {
+private fun expandSymmetric(a: DoubleArray, order: Int, lower: Boolean, start: Int, size: Int, square: DoubleArray, offset: Int) {
     for (column in 0 until size) {
         for (row in 0 until size) {
             val stored = if (lower == (row >= column)) {
-                a[start + row + (start + column) * order]
+                a[offset + start + row + (start + column) * order]
             } else {
-                a[start + column + (start + row) * order]
+                a[offset + start + column + (start + row) * order]
             }
             square[row + column * size] = stored
         }
