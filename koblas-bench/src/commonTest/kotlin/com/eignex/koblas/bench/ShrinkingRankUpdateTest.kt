@@ -3,7 +3,6 @@ package com.eignex.koblas.bench
 import com.eignex.koblas.BuiltinEngines
 import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.KoblasEngine
-import com.eignex.koblas.KoblasEngineApi
 import com.eignex.koblas.dense.DenseCall
 import com.eignex.koblas.dense.DenseMatrixOperation
 import kotlin.test.Test
@@ -28,7 +27,6 @@ class ShrinkingRankUpdateTest {
         }
     }
 
-    @OptIn(KoblasEngineApi::class)
     @Test
     fun `timed batches agree with the reference across repeated calls`() {
         val engines = listOfNotNull<KoblasEngine>(BuiltinEngines.scalar, BuiltinEngines.simd)
@@ -51,7 +49,6 @@ class ShrinkingRankUpdateTest {
         }
     }
 
-    @OptIn(KoblasEngineApi::class)
     @Test
     fun `full calls and shrinking panels name the bodies they reach`() {
         for (engine in listOfNotNull<KoblasEngine>(BuiltinEngines.scalar, BuiltinEngines.simd)) {

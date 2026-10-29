@@ -6,7 +6,6 @@ import com.eignex.koblas.dense.DenseOperation
 import com.eignex.koblas.dense.PanelWork
 import com.eignex.koblas.vendor.RouteKind
 import kotlin.test.Test
-import kotlin.test.assertContains
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
@@ -119,7 +118,6 @@ class SparseMatrixRouteTest {
         assertEquals(RouteKind.Composed, route.kind)
         assertEquals(listOf("$short/axpy", "$long/axpy"), route.components)
         assertTrue(!route.exactlyMeasurable, "a mixture is not an exact measurement of either component")
-        assertContains(assertNotNull(route.reason), "straddle")
     }
 
     @Test
@@ -132,7 +130,6 @@ class SparseMatrixRouteTest {
         )
 
         assertEquals(listOf("scalar/dotDense"), route.components, "a transposed CSC reduction is ordered")
-        assertContains(assertNotNull(route.reason), "ordered scalar dot")
     }
 
     @Test
@@ -276,7 +273,6 @@ class SparseMatrixRouteTest {
             assertEquals(RouteKind.Composed, route.kind, route.toString())
             assertEquals(false, route.resolved, route.toString())
             assertTrue(route.components.none { it.endsWith("/sparse-rhs-scatter") }, route.toString())
-            assertTrue(route.reason.orEmpty().contains("no right-hand side count"), route.toString())
         }
     }
 
@@ -347,7 +343,6 @@ class SparseMatrixRouteTest {
 
         assertEquals(RouteKind.Composed, route.kind)
         assertTrue(!route.exactlyMeasurable)
-        assertContains(assertNotNull(route.reason), "stored zero coefficient")
     }
 
     @Test
@@ -360,6 +355,5 @@ class SparseMatrixRouteTest {
         assertEquals("portable-csc", route.implementation)
         assertEquals("spprepare", route.entryPoint)
         assertEquals(emptyList(), route.components)
-        assertContains(assertNotNull(route.reason), "no arithmetic kernel runs")
     }
 }

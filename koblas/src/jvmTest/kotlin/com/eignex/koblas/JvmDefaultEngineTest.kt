@@ -17,7 +17,6 @@ import kotlin.test.assertTrue
  * Checks the default's separation of JVM Level 1 kernels from eligible whole-call host products.
  */
 class JvmDefaultEngineTest {
-    @OptIn(KoblasEngineApi::class)
     @Test
     fun `the default preserves the owned level one arm with an installed host`() {
         val exact = BuiltinEngines.simd ?: BuiltinEngines.scalar
@@ -28,7 +27,6 @@ class JvmDefaultEngineTest {
         assertTrue(koblas.vendor == null || koblas.vendor?.vendor == Vendor.OneMkl)
     }
 
-    @OptIn(KoblasEngineApi::class)
     @Test
     fun `exact jvm engines keep large dense matrix calls on owned kernels`() {
         val product = DenseCall(256, 256, depth = 256)
@@ -87,7 +85,6 @@ class JvmDefaultEngineTest {
     }
 
     // A route says which schedule was chosen; this says the chosen one computes.
-    @OptIn(KoblasEngineApi::class)
     @Test
     fun `every jvm arm computes a dense product without any library`() {
         val a = DenseMatrix.wrap(ORDER, ORDER, DoubleArray(ORDER * ORDER) { 1.0 + it % 7 })

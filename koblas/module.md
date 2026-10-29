@@ -26,15 +26,15 @@ Separate destinations and workspaces are required for concurrent calls. Differen
 SIMD widths and fused operations can round differently; cross-platform bitwise equality is not promised.
 Non-finite behavior follows each BLAS routine's contract.
 
-[BuiltinEngines][com.eignex.koblas.BuiltinEngines], behind the
-[KoblasEngineApi][com.eignex.koblas.KoblasEngineApi] opt-in, names exact engines for tests and benchmarks.
+[BuiltinEngines][com.eignex.koblas.BuiltinEngines] names exact engines for tests and benchmarks.
+Exact engines and route diagnostics are available directly, without annotation opt-ins.
 [KoblasEngine.routeOf][com.eignex.koblas.KoblasEngine.routeOf] inspects dense and sparse vector and matrix
 calls through the same overloaded getter. Routes name the implementation and any fallback; a composed
 route identifies multiple components or a choice that depends on values not supplied to the getter. A matrix
 product is describable with the operands themselves rather than with facts rebuilt beside them: the getter
 takes both matrices, their transposes, the scalars and the destination, and answers as [MatrixRoute][com.eignex.koblas.MatrixRoute] whichever
-storage pairing serves the call. A [com.eignex.koblas.PreparedSparseMatrix] answers the same way, and a second
-sparse operand settles the orientation such a call runs without deriving one.
+storage pairing serves the call. A [com.eignex.koblas.PreparedSparseMatrix] is inspected without constructing
+its cached orientations.
 [Blas.routeOf][com.eignex.koblas.vendor.Blas.routeOf] describes an explicit host call. The host binding
 exposes its resolved binary, version and thread evidence.
 

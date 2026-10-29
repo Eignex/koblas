@@ -15,7 +15,6 @@ import kotlin.test.assertSame
  * and a vendor on Kotlin/Native, where operands can be pinned.
  */
 class PlatformEngineTest {
-    @OptIn(KoblasEngineApi::class)
     @Test
     fun `dense and sparse vectors expose the same route contract`() {
         val engine = BuiltinEngines.scalar
@@ -49,7 +48,6 @@ class PlatformEngineTest {
         }
     }
 
-    @OptIn(KoblasEngineApi::class)
     @Test
     fun `exact built in engines do not resolve or execute a host library`() {
         val call = DenseCall(WIDE, WIDE)
@@ -74,7 +72,6 @@ class PlatformEngineTest {
 
     // Without the Vector API the owned matrix backends are portable; Kotlin/Native can still compose whole
     // host calls over them, which is checked separately.
-    @OptIn(KoblasEngineApi::class)
     @Test
     fun `the platform selects vector matrix backends where available`() {
         val vector = BuiltinEngines.simd
@@ -98,7 +95,6 @@ class PlatformEngineTest {
 
     // A selection is not an execution: the Vector API backend hands a panel shorter than one lane block to
     // the portable body, so this asks the route rather than the engine's name.
-    @OptIn(KoblasEngineApi::class)
     @Test
     fun `a wide panel reaches the vector body and a short one does not`() {
         val simd = BuiltinEngines.simd ?: return println(

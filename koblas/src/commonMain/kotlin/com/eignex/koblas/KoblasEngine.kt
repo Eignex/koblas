@@ -166,7 +166,6 @@ public class KoblasEngine internal constructor(
  * engine and composes an installed host library with portable fallbacks, or uses [scalar] without one.
  * Android and desktop JDKs below 25 use [scalar] without resolving a host library.
  */
-@KoblasEngineApi
 public expect object BuiltinEngines {
     /** Portable Kotlin across all three levels. */
     public val scalar: KoblasEngine

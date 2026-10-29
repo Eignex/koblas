@@ -2,7 +2,6 @@ package com.eignex.koblas.dense
 
 import com.eignex.koblas.BuiltinEngines
 import com.eignex.koblas.DenseMatrix
-import com.eignex.koblas.KoblasEngineApi
 import com.eignex.koblas.Workspace
 import com.eignex.koblas.assertClose
 import com.eignex.koblas.copyOf
@@ -10,10 +9,8 @@ import com.eignex.koblas.poisonedSymmetric
 import com.eignex.koblas.randomMatrix
 import kotlin.random.Random
 import kotlin.test.Test
-import kotlin.test.assertContains
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
-import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 // Shapes are derived from the resolved backend rather than written down: a fixed extent takes the packed
@@ -466,7 +463,6 @@ class StructuredProductTest {
     }
 
     @Test
-    @OptIn(KoblasEngineApi::class)
     fun `a rank two k route reports the composition it is`() {
         for (engine in listOfNotNull(BuiltinEngines.scalar, BuiltinEngines.simd)) {
             val route = engine.routeOf(
@@ -475,12 +471,10 @@ class StructuredProductTest {
             )
 
             assertEquals(DenseMatrixOperation.Syr2k, route.operation)
-            assertContains(assertNotNull(route.reason), "composed rather than fused")
             assertTrue(!route.exactlyMeasurable, route.toString())
         }
     }
 
-    @OptIn(KoblasEngineApi::class)
     private fun koblasPanels(): DensePanelKernels = BuiltinEngines.simd?.panelKernels ?: PortablePanelKernels
 
     /** The panel backend that belongs beside [products], so a composition under test is a real one. */

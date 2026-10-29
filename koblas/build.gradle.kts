@@ -57,12 +57,6 @@ kotlin {
         commonMain.dependencies {
             api("org.jetbrains.kotlinx:kotlinx-serialization-core")
         }
-        // Conformance tests compare a vectorised kernel against the portable one that defines its semantics,
-        // which means naming an engine. Opting in for the test source sets and not for main is what keeps
-        // that a test affordance rather than something production code can reach for by accident.
-        all {
-            if (name.endsWith("Test")) languageSettings.optIn("com.eignex.koblas.KoblasEngineApi")
-        }
         commonTest.dependencies {
             implementation("org.jetbrains.kotlinx:kotlinx-serialization-json")
         }

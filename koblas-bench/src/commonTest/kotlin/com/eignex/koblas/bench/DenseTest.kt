@@ -2,7 +2,6 @@ package com.eignex.koblas.bench
 
 import com.eignex.koblas.BuiltinEngines
 import com.eignex.koblas.KoblasEngine
-import com.eignex.koblas.KoblasEngineApi
 import com.eignex.koblas.koblas
 import com.eignex.koblas.dense.DenseOperation
 import com.eignex.koblas.vendor.RouteKind
@@ -45,7 +44,6 @@ class DenseTest {
     }
 
     // Preflight must reject incorrect work before publishing a timing.
-    @OptIn(KoblasEngineApi::class)
     @Test
     fun `every product case names the route of the call it makes`() {
         val engines = listOfNotNull<KoblasEngine>(BuiltinEngines.scalar, BuiltinEngines.simd)
@@ -66,7 +64,6 @@ class DenseTest {
     }
 
     // Each pair changes one call fact that must appear in route attribution.
-    @OptIn(KoblasEngineApi::class)
     @Test
     fun `structured and triangular cases carry the facts their routes are built from`() {
         val engines = listOfNotNull<KoblasEngine>(BuiltinEngines.scalar, BuiltinEngines.simd)
@@ -90,7 +87,6 @@ class DenseTest {
 
     // The two solves are the same shape on the same engine and differ only in their side: a left one leaves
     // its right-hand sides strided and the backend gathers them, where a right one finds them adjacent.
-    @OptIn(KoblasEngineApi::class)
     @Test
     fun `a triangular row names the gather its side decides`() {
         val engine = BuiltinEngines.simd ?: return
@@ -107,7 +103,6 @@ class DenseTest {
 
     // A caller holding a `Matrix` has no engine to pass, so timing the generic product under another arm's
     // label would publish that label over the selected engine's work.
-    @OptIn(KoblasEngineApi::class)
     @Test
     fun `the generic product is timed once on the arm whose engine is the selected one`() {
         val case = Cases.parse("gemm-generic+64x64x64+uniform").single()

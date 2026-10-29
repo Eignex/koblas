@@ -35,9 +35,6 @@ kotlin {
     compilerOptions {
         allWarningsAsErrors.set(true)
         freeCompilerArgs.add("-Xexpect-actual-classes")
-        // Timing one Level 1 implementation against another is what this module is for, so naming an engine
-        // is its ordinary business rather than something to opt into per file.
-        optIn.add("com.eignex.koblas.KoblasEngineApi")
     }
     jvm()
     linuxX64 { binaries.executable { entryPoint = "com.eignex.koblas.bench.main"; baseName = "koblas-bench" } }

@@ -13,7 +13,6 @@ import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 
 class VectorRouteTest {
-    @OptIn(KoblasEngineApi::class)
     @Test
     fun `an empty run is no work rather than an exact measurement`() {
         val engine = BuiltinEngines.scalar
@@ -42,7 +41,6 @@ class VectorRouteTest {
         assertFalse(route.exactlyMeasurable)
     }
 
-    @OptIn(KoblasEngineApi::class)
     @Test
     fun `a negative run is rejected in both vector families`() {
         val engine = BuiltinEngines.scalar

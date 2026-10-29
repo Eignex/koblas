@@ -147,7 +147,6 @@ public class PreparedSparseMatrix internal constructor(a: SparseMatrix, internal
             route.scheduling,
             route.entryPoint,
             route.components.filter { it.endsWith("/scale") },
-            UNDECIDED_ORIENTATION + route.reason?.let { ". Whatever runs, $it" }.orEmpty(),
             route.executionGroup,
             route.executionTail,
             resolved = false,
@@ -175,8 +174,3 @@ public class PreparedSparseMatrix internal constructor(a: SparseMatrix, internal
         else -> false
     }
 }
-
-/** What an unsettled route says in place of the traversal a second sparse operand would have decided. */
-private const val UNDECIDED_ORIENTATION: String =
-    "a transposed product against a second sparse operand runs either the derived orientation or the " +
-        "snapshot itself, and which one depends on that operand, which these call facts do not carry"

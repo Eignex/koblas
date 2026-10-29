@@ -2,7 +2,6 @@ package com.eignex.koblas.sparse
 
 import com.eignex.koblas.MatrixRoute
 import com.eignex.koblas.SparseMatrix
-import com.eignex.koblas.VectorRoute
 import com.eignex.koblas.vendor.RouteKind
 
 /**
@@ -77,39 +76,23 @@ public enum class SparseMatrixOperation(internal val entryPoint: String) {
 }
 
 /**
- * The facts about one concrete sparse matrix call that decide what executes.
+ * Facts used by expert shape diagnostics, inspected without executing arithmetic.
  *
- * A route needs the call, not the operation: which Level 1 implementation a column reaches depends on how long
- * that column is, whether any kernel runs at all depends on the scalars and the extents, and how a dense
- * operand is walked depends on its shape. Passing a single representative column length instead would name a
- * leaf the call reaches only sometimes, which is the thing route reporting exists to prevent.
+ * The actual CSC column lengths determine indexed leaves. A null destination length means no dense
+ * destination is written; product depth is null when not applicable. Callers supply the whole-column update
+ * length and right-hand-side count for operations that use them. Panel attribution is unresolved without a
+ * positive right-hand-side count. Transpose and triangle flags match the operation.
  *
- * The two extents are nullable rather than zero-defaulted because an operation that writes no dense
- * destination and one whose dense destination is empty are different calls, and only one of them does nothing.
- *
- * @property matrix the sparse operand, whose actual column lengths are inspected.
- * @property alpha the multiplier the call will use.
- * @property beta the destination multiplier, or 1.0 for an operation that has none.
- * @property destinationElements elements of the dense destination the call writes, or null when it writes
- *   none. Zero is a destination with no elements, which is a call with nothing to do.
- * @property depth the inner extent of a product, or null when the operation has none. Zero is a product over
- *   nothing, which is also a call with nothing to do.
- * @property updateRun contiguous dense elements one update covers, for an operation whose unit of work is a
- *   whole dense column, or 0 when it has no such unit.
- * @property rightHandSides dense right-hand sides an operation with a dense block carries, or 0 when it has
- *   none. How many are visited together, and whether they are staged adjacent first, follow from this and
- *   from what the operand holds.
- * @property transposeSparse whether the sparse operand is transposed, which decides whether a product
- *   reduces a column into one output row or spreads one index across the rows it stores.
- * @property transposeDense whether the dense operand is transposed, which decides whether its right-hand
- *   sides are already adjacent.
- * @property lower which triangle a symmetric or triangular operation selects, which decides how much of
- *   each column it hands to a panel and whether it hands over anything at all. An operation with no
- *   selected triangle ignores it.
- *
- * A unit diagonal is deliberately not among these. It removes a division from a pivot and changes no body
- * any panel reaches, because the run a panel is handed is the strictly triangular part of a column either
- * way.
+ * @property matrix CSC operand whose column lengths are inspected.
+ * @property alpha Operand multiplier.
+ * @property beta Destination multiplier.
+ * @property destinationElements Dense destination length, or null when the call writes no dense destination.
+ * @property depth Shared product dimension, or null when not applicable.
+ * @property updateRun Length of a whole dense column update.
+ * @property rightHandSides Number of dense right-hand sides.
+ * @property transposeSparse Whether the sparse operand is transposed.
+ * @property transposeDense Whether the dense operand is transposed.
+ * @property lower Selected stored triangle.
  */
 public class SparseCall(
     public val matrix: SparseMatrix,
@@ -131,28 +114,7 @@ public class SparseCall(
     }
 }
 
-/**
- * What a built-in sparse Level 2 or 3 call executes, derived from the same decisions the call makes.
- *
- * The sparse counterpart of [VectorRoute] one level up: a whole sparse call is CSC scheduling written in this
- * library, which may hand individual units of work to Level 1 kernels the engine selected. Neither half may
- * stand for the other. An engine whose Level 1 kernels are Vector API ones does not thereby execute a
- * vectorised sparse product, and reporting the engine's name would claim exactly that.
- *
- * [components] lists the Level 1 implementations and leaves the call reaches, in the order it reaches them,
- * including the destination scaling that a nonzero and non-unit multiplier performs. An empty list means the
- * arithmetic is the traversal's own and no kernel is called, which is not the same as a scalar kernel.
- *
- * What the list promises depends on [kind]. A [RouteKind.Direct] route names what runs: every unit of work
- * reaches every component. A [RouteKind.Composed] route names what may run: either the units differ, because
- * a matrix's columns straddle a kernel's crossover, or the traversal decides per unit whether the named kernel
- * is called at all, because a stored zero coefficient or an unselected triangle position skips its update.
- * Such a route therefore does not assert that a vector kernel executed, only that it is the one this call can
- * reach, and [reason] says which of the two it is. [RouteKind.NoWork] is a call whose own contract stops
- * before the arithmetic, where nothing but the destination scaling runs.
- *
- * Building a route inspects the operand, so it belongs before a timed region and never inside one.
- */
+/** Shape diagnostics. Components name reached bodies; composed routes may also execute scalar traversal. */
 public class SparseMatrixRoute internal constructor(
     /** The operation requested. */
     public val operation: SparseMatrixOperation,
@@ -164,8 +126,6 @@ public class SparseMatrixRoute internal constructor(
     override val entryPoint: String,
     /** Every Level 1 implementation and leaf the call reaches, in call order. */
     override val components: List<String>,
-    /** What the components cover, what the traversal keeps for itself, or why the call is composed. */
-    override val reason: String?,
     /**
      * Right-hand sides this call visits per walk of a sparse column, or zero where it groups none.
      *
@@ -187,25 +147,13 @@ public class SparseMatrixRoute internal constructor(
      *
      * False where a decision depends on something a [SparseCall] does not carry, such as the second operand
      * a prepared transposed sparse product orients on, or a right-hand side count a caller left out. Such a
-     * route still names whatever is known, the destination scaling included, and [reason] says what is not.
+     * route still names whatever is known, the destination scaling included.
      * A report has to publish this rather than infer it from an empty component list, since a call can be
      * undecided and still scale a destination.
      */
     public val resolved: Boolean = true,
 ) : MatrixRoute {
-    /** The full attribution: the scheduling, plus every component it calls. */
-    override val implementation: String
-        get() = if (components.isEmpty()) scheduling else components.joinToString("+", prefix = "$scheduling+")
-
-    /**
-     * Whether this call is admissible as an exact measurement of the implementations named.
-     *
-     * A call whose units of work do not all reach the same implementation is reported [RouteKind.Composed] so
-     * a benchmark publishes it as a composition rather than under either name on its own.
-     */
-    override val exactlyMeasurable: Boolean get() = kind == RouteKind.Direct
-
-    /** The grouping as a report writes it: the width, and the last group where one is short. */
+    /** Logical grouping, with a shorter last group when present. */
     public val groupSuffix: String
         get() = when {
             executionGroup <= 0 -> ""
@@ -223,6 +171,5 @@ public class SparseMatrixRoute internal constructor(
         append(entryPoint)
         append(groupSuffix)
         if (!resolved) append(" unresolved")
-        reason?.let { append(" (").append(it).append(')') }
     }
 }

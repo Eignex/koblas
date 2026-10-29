@@ -39,12 +39,6 @@ class NativeDefaultEngineTest {
         assertEquals(RouteKind.Direct, route.kind)
         assertEquals(vendor.vendor, route.host?.vendor, "the route names a library other than the engine's")
         assertEquals("cblas_dgemm", route.host?.entryPoint)
-        assertTrue(vendor.libraryPath in (route.reason ?: ""), "the route does not name the resolved binary")
-        assertTrue(vendor.version in (route.reason ?: ""), "the route does not name the library's version")
-        assertTrue(
-            vendor.threadEvidence.label in (route.reason ?: ""),
-            "the route does not carry the library's threading evidence",
-        )
     }
 
     /** Below the policy's size the same operation keeps this library's schedule, library installed or not. */
@@ -104,7 +98,6 @@ class NativeDefaultEngineTest {
     }
 
     /** The exact portable engine resolves no host binding and provides the availability floor. */
-    @OptIn(KoblasEngineApi::class)
     @Test
     fun `the exact portable engine computes a dense product without a library`() {
         val engine = BuiltinEngines.scalar

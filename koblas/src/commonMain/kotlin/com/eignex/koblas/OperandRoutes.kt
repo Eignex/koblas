@@ -81,7 +81,6 @@ private fun KoblasEngine.productRoute(
             "gemm",
             scaling,
             0,
-            "the generic product only scales its destination",
         )
     }
     val left = storedCsc(a)
@@ -107,18 +106,16 @@ private fun KoblasEngine.productRoute(
                 ),
             )
             val empty = left.nnz == 0 || right.nnz == 0
-            val orientation = if (reachesAPosition(alpha, left, right) &&
-                ((a is PreparedSparseMatrix && transposeA) || (b is PreparedSparseMatrix && transposeB))
-            ) {
-                "a prepared transpose is derived on first use and traversed untransposed"
-            } else {
-                "no prepared orientation is derived"
-            }
             // Sparse-sparse arithmetic has no per-column SIMD leaf, so routing needs no derived pattern.
             SparseMatrixRoute(
-                route.operation, if (empty) RouteKind.NoWork else route.kind, route.scheduling,
-                route.entryPoint, route.components, "$orientation; ${route.reason.orEmpty()}",
-                route.executionGroup, route.executionTail, route.resolved,
+                route.operation,
+                if (empty) RouteKind.NoWork else route.kind,
+                route.scheduling,
+                route.entryPoint,
+                route.components,
+                route.executionGroup,
+                route.executionTail,
+                route.resolved,
             )
         }
 

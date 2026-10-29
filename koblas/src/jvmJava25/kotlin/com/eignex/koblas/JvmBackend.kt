@@ -13,7 +13,6 @@ import com.eignex.koblas.vendor.Vendor
 import com.eignex.koblas.vendor.hostPlatform
 
 /** Desktop implementation selected by the multi-release JAR on JDK 25 or later. */
-@OptIn(KoblasEngineApi::class)
 internal object JvmBackend {
     // Species initialization must wait until the optional Vector API module has resolved.
     val simd: KoblasEngine? by lazy {

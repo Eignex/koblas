@@ -82,7 +82,6 @@ class PreparedSparseMatrixTest {
         )
 
         assertEquals(false, route.resolved, route.toString())
-        assertTrue(route.reason.orEmpty().contains("do not carry"), route.toString())
         assertFalse(prepared.orientationDerived, "an undecided route derived an orientation anyway")
     }
 

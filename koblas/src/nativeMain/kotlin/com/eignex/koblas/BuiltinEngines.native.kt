@@ -6,7 +6,6 @@ import com.eignex.koblas.sparse.ScalarIndexedSparseKernels
 import com.eignex.koblas.vendor.NativeVendorBlas
 
 /** Built-in engines on Kotlin/Native. */
-@KoblasEngineApi
 public actual object BuiltinEngines {
     /** Pure Kotlin scalar at every level, without resolving a host library. */
     public actual val scalar: KoblasEngine by lazy { KoblasEngine.portable() }
@@ -31,7 +30,6 @@ public actual object BuiltinEngines {
  * operand wrappers on short calls. A different binding keeps portable Level 1 kernels while
  * remaining available to the dense composition.
  */
-@OptIn(KoblasEngineApi::class)
 internal actual fun platformEngine(): KoblasEngine {
     val vendor = selectedVendor ?: return BuiltinEngines.scalar
     val level1 = (vendor as? NativeVendorBlas)?.let { VendorVectorKernels(it) } ?: ScalarVectorKernels

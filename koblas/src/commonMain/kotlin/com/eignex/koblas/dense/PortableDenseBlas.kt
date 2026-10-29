@@ -26,7 +26,6 @@ internal class PortableDenseBlas(
     private val products: DenseProductKernels = PortableProductKernels,
     private val triangles: DenseTriangularKernels = PortableTriangularKernels,
 ) : RoutedDenseBlas {
-    private val routes = DenseRouteReporter(vectors, panels, products, triangles)
 
     override fun gemv(
         alpha: Double,
@@ -701,7 +700,7 @@ internal class PortableDenseBlas(
      * rather than of what an engine of this shape might run.
      */
     override fun routeOf(operation: DenseMatrixOperation, call: DenseCall): DenseMatrixRoute =
-        routes.routeOf(operation, call)
+        DenseRouteReporter(vectors, panels, products, triangles).routeOf(operation, call)
 }
 
 /** The part of a square destination a selected-triangle routine writes. */
