@@ -31,7 +31,7 @@ class NativeHostConcurrencyTest {
     /** Whether the call this test makes is the one the default hands to a library, asserted not assumed. */
     private fun assertRouteMatchesInstalledLibrary(call: DenseCall, what: String) {
         val route = koblas.routeOf(DenseMatrixOperation.Gemm, call)
-        val vendor = koblas.native
+        val vendor = koblas.vendor
         if (vendor == null) {
             println("SKIPPED: no CBLAS library installed; $what exercised the portable schedule instead")
             assertEquals(null, route.host, "$what named a vendor call with no library installed")
@@ -123,7 +123,7 @@ class NativeHostConcurrencyTest {
     /** The library the cases above reached reports one compute thread, or exports no way to be asked. */
     @Test
     fun `the composed default runs on a library held to one compute thread`() {
-        val vendor = koblas.native ?: return println(
+        val vendor = koblas.vendor ?: return println(
             "SKIPPED: no CBLAS library installed; the one-thread configuration was not verified on this host",
         )
 

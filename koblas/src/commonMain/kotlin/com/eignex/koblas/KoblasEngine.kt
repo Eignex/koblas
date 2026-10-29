@@ -51,7 +51,7 @@ internal expect fun platformEngine(): KoblasEngine
  * [koblas] is the platform default. [portable] creates an explicitly portable engine for application code.
  * [BuiltinEngines] provides exact portable and JVM SIMD compositions
  * for tests and benchmarks, neither of which loads a host library. The platform default may compose
- * [native] into eligible calls. The [routeOf] overloads describe which implementations a call reaches.
+ * [vendor] into eligible calls. The [routeOf] overloads describe which implementations a call reaches.
  */
 public class KoblasEngine internal constructor(
     /** Contiguous and strided dense Level 1 kernels. */
@@ -59,7 +59,7 @@ public class KoblasEngine internal constructor(
     internal val indexedSparseKernels: IndexedSparseKernels,
     /** Optional production native adapter, exposed only for expert benchmark attribution. */
     @KoblasEngineApi
-    public val native: Blas?,
+    public val vendor: Blas?,
     /** Panel arithmetic and the local execution grouping that dense and sparse algorithms schedule with. */
     internal val panelKernels: DensePanelKernels = PortablePanelKernels,
     /** Register-tile product arithmetic and the tile geometry dense products pack for. */
@@ -70,7 +70,7 @@ public class KoblasEngine internal constructor(
     nativeEligible: DenseHostEligibility? = null,
     private val dense: RoutedDenseBlas =
         PortableDenseBlas(vectorKernels, panelKernels, productKernels, triangularKernels).let { portable ->
-            native?.let { HostDenseBlas(portable, it, requireNotNull(nativeEligible)) } ?: portable
+            vendor?.let { HostDenseBlas(portable, it, requireNotNull(nativeEligible)) } ?: portable
         },
     private val sparseBlas: SparseBlas = PortableSparseBlas(
         vectorKernels,
