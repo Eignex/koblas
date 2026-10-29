@@ -108,24 +108,16 @@ class OperandRoutesTest {
     }
 
     @Test
-    fun `a prepared transposed sparse product names the orientation its second operand settles`() {
-        val prepared = koblas.prepare(sparse(4, 3))
-
-        val route = koblas.routeOf(1.0, prepared, true, sparse(4, 2), false) as SparseMatrixRoute
-
-        assertTrue(route.resolved, route.toString())
-        assertFalse(prepared.orientationDerived, "describing the call derived the orientation it describes")
-    }
-
-    @Test
-    fun `a prepared transposed product against an empty operand keeps the stored orientation`() {
-        val prepared = koblas.prepare(sparse(4, 3))
+    fun `describing a prepared sparse product does not derive an orientation`() {
         val empty = SparseMatrix.ofColumns(4, 2, List(2) { emptyList<Pair<Int, Double>>() })
+        for (right in listOf(sparse(4, 2), empty)) {
+            val prepared = koblas.prepare(sparse(4, 3))
 
-        val route = koblas.routeOf(1.0, prepared, true, empty, false) as SparseMatrixRoute
+            val route = koblas.routeOf(1.0, prepared, true, right, false) as SparseMatrixRoute
 
-        assertTrue(route.resolved, route.toString())
-        assertFalse(prepared.orientationDerived, "a call reaching no position derived an orientation")
+            assertTrue(route.resolved, route.toString())
+            assertFalse(prepared.orientationDerived, "describing the call derived a cached orientation")
+        }
     }
 
     @Test

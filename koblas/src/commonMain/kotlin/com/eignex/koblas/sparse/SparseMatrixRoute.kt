@@ -78,14 +78,15 @@ public enum class SparseMatrixOperation(internal val entryPoint: String) {
 /**
  * Facts used by expert shape diagnostics, inspected without executing arithmetic.
  *
- * The actual CSC column lengths determine indexed leaves. Destination elements, product depth, whole-column
- * update length and right-hand-side count describe the requested work; null means an extent was not supplied.
- * Transpose and triangle flags match the operation. Missing facts produce an unresolved diagnostic.
+ * The actual CSC column lengths determine indexed leaves. A null destination length means no dense
+ * destination is written; product depth is null when not applicable. Callers supply the whole-column update
+ * length and right-hand-side count for operations that use them. Panel attribution is unresolved without a
+ * positive right-hand-side count. Transpose and triangle flags match the operation.
  *
  * @property matrix CSC operand whose column lengths are inspected.
  * @property alpha Operand multiplier.
  * @property beta Destination multiplier.
- * @property destinationElements Dense destination length, or null when not supplied.
+ * @property destinationElements Dense destination length, or null when the call writes no dense destination.
  * @property depth Shared product dimension, or null when not applicable.
  * @property updateRun Length of a whole dense column update.
  * @property rightHandSides Number of dense right-hand sides.
