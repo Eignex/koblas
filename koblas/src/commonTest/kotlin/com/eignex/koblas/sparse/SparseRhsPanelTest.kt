@@ -9,6 +9,7 @@ import com.eignex.koblas.copyOf
 import com.eignex.koblas.dense.DensePanelKernels
 import com.eignex.koblas.dense.PanelWork
 import com.eignex.koblas.dense.PortablePanelKernels
+import com.eignex.koblas.dense.ReferenceBlas
 import com.eignex.koblas.dense.ScalarVectorKernels
 import com.eignex.koblas.koblas
 import kotlin.random.Random
@@ -465,6 +466,42 @@ class SparseRhsPanelTest {
         for (row in 0 until order) {
             assertEquals(0.0, b[row, 1], "a zero right-hand side was written at row $row")
         }
+    }
+
+    @Test
+    fun `triangular panels compute live right hand sides across layouts`() {
+        for (order in intArrayOf(2, 16)) {
+            val columns = List(order) { j -> (j until order).map { i -> i to if (i == j) 2.0 else 0.25 } }
+            val triangle = SparseMatrix.ofColumns(order, order, columns)
+            val dense = DenseMatrix.wrap(order, order, DoubleArray(order * order))
+            for (j in columns.indices) for ((i, value) in columns[j]) dense.values[i + j * order] = value
+            for (sides in intArrayOf(1, 4)) {
+                for (mixed in booleanArrayOf(false, true)) {
+                    val source = DoubleArray(order * sides) { if (mixed && it / order == 1) 0.0 else 1.0 }
+                    for (solve in booleanArrayOf(false, true)) {
+                        val expected = DenseMatrix.wrap(order, sides, source.copyOf())
+                        if (solve) ReferenceBlas.trsm(dense, expected, lower = true)
+                        else ReferenceBlas.trmm(dense, expected, lower = true)
+
+                        for ((name, engine) in engines()) {
+                            val actual = DenseMatrix.wrap(order, sides, source.copyOf())
+                            if (solve) engine.trsm(triangle, actual, lower = true, workspace = Workspace())
+                            else engine.trmm(triangle, actual, lower = true, workspace = Workspace())
+
+                            assertTriangularAgreesWithReference(
+                                expected.values,
+                                actual.values,
+                                "$name order=$order sides=$sides mixed=$mixed solve=$solve",
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private fun assertTriangularAgreesWithReference(expected: DoubleArray, actual: DoubleArray, context: String) {
+        assertClose(expected, actual, context)
     }
 
     /** Every sparse engine this runtime has, so a rule is checked where it is implemented and where selected. */

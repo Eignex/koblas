@@ -294,13 +294,22 @@ class VectorOpsTest {
     }
 
     @Test
-    fun `the public dense iamax honours its contract across kernel boundaries`() {
-        val publicKernels = object : DenseVectorKernels by ScalarVectorKernels {
-            override fun iamax(v: DoubleArray, vOff: Int, len: Int, vStride: Int): Int =
-                DenseVector.wrap(v.copyOfRange(vOff, vOff + len)).iamax()
-        }
+    fun `public iamax returns logical indices across strides and kernel boundaries`() {
+        for (stride in intArrayOf(1, 2, -2)) {
+            val publicKernels = object : DenseVectorKernels by ScalarVectorKernels {
+                override fun iamax(v: DoubleArray, vOff: Int, len: Int, vStride: Int): Int {
+                    val values = DoubleArray(len) { v[vOff + it * vStride] }
+                    if (stride == 1) return DenseVector.wrap(values).iamax()
+                    val step = if (stride > 0) stride else -stride
+                    val offset = 1 + if (stride < 0) (len - 1).coerceAtLeast(0) * step else 0
+                    val backing = DoubleArray(2 + len * step) { Double.POSITIVE_INFINITY }
+                    for (i in 0 until len) backing[offset + i * stride] = values[i]
+                    return StridedVector(backing, offset, len, stride).iamax()
+                }
+            }
 
-        assertIamaxHonoursItsContract(publicKernels)
+            assertIamaxHonoursItsContract(publicKernels)
+        }
     }
 
     @Test
