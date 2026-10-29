@@ -24,7 +24,7 @@ class JvmHostDensePolicyTest {
     }
 
     @Test
-    fun `level two windows and retained panels keep owned arithmetic`() {
+    fun `level two and windowed calls keep owned arithmetic`() {
         for (operation in DenseMatrixOperation.entries.filterNot { it in operations }) {
             assertFalse(JvmHostDensePolicy.eligible(operation, 512, 512, 512), "$operation")
         }

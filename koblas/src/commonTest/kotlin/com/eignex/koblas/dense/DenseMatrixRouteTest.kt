@@ -419,8 +419,6 @@ class DenseMatrixRouteTest {
         }
     }
 
-    /** A retained panel is not packed again, and the route names only the packing a call still performs. */
-
     // The shapes are derived from the tile geometry this machine resolved, because what a route has to get
     // right moves with it; one of them is too small to be packed at all.
     @Test

@@ -31,7 +31,6 @@ ger-window-shrinking+6+uniform
 ger-window-shrinking+7+uniform
 ger-window-shrinking+34+uniform
 ger-window-shrinking+198+uniform
-# Raw trailing windows expose the arithmetic a windowed GER API could reach, including scalar tails.
 syr+129+uniform+uplo=L
 syr2+129+uniform+uplo=U
 trsv+129+triangular+uplo=L+transA=N+diag=N
