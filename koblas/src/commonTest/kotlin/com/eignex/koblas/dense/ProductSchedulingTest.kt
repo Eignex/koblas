@@ -303,14 +303,6 @@ class ProductSchedulingTest {
             val empty = DenseMatrix(0, 0, DoubleArray(0))
 
             engine.gemm(0.875, none, false, other, false, -0.25, empty)
-
-            val left = engine.packLeft(none, transpose = false)
-            val right = engine.packRight(other, transpose = false)
-            assertEquals(0, left.layout.storageSize, "${engine.name} left panel of an empty matrix")
-            assertEquals(0, right.layout.storageSize, "${engine.name} right panel of an empty matrix")
-
-            val destination = DenseMatrix(0, 0, DoubleArray(0))
-            engine.gemm(0.875, left, right, -0.25, destination)
         }
     }
 
@@ -324,13 +316,8 @@ class ProductSchedulingTest {
             val a = randomMatrix(128, 1, rng)
             val b = DenseMatrix(1, 0, DoubleArray(0))
             val c = DenseMatrix(128, 0, DoubleArray(0))
-            val left = engine.packLeft(a, transpose = false)
-            val right = engine.packRight(b, transpose = false)
 
             engine.gemm(1.0, a, false, b, false, 1.0, c, workspace)
-            engine.gemm(1.0, left, right, 1.0, c)
-            engine.gemm(1.0, left, b, false, 1.0, c, workspace)
-            engine.gemm(1.0, a, false, right, 1.0, c, workspace)
 
             assertEquals(
                 0,
@@ -409,159 +396,6 @@ class ProductSchedulingTest {
             workspace.available(left) + if (right == left) 0 else workspace.available(right),
             "a repeated product kept asking for new panels",
         )
-    }
-
-    // A retained panel is packed from `op(A)`, so the transpose is spent at packing time; the mixed forms
-    // pack the other operand for the call, which is where the flag survives.
-    @Test
-    fun `a product over retained panels agrees with the reference`() {
-        val rng = Random(20261021)
-        for (engine in engines) {
-            val rows = packedExtent(engine.productKernels.tileRows)
-            val columns = packedExtent(engine.productKernels.tileColumns)
-            for ((m, n, k) in listOf(
-                Triple(37, 29, 41),
-                Triple(rows, columns, PRODUCT_BLOCK_DEPTH + 9),
-                Triple(4, 4, 4),
-            )) {
-                for (transposeA in booleanArrayOf(false, true)) {
-                    for (transposeB in booleanArrayOf(false, true)) {
-                        checkRetainedProduct(engine, m, n, k, transposeA, transposeB, rng)
-                    }
-                }
-            }
-        }
-    }
-
-    @Test
-    fun `a retained product crosses a row block with untransposed operands`() {
-        assertRetainedProductCrossesBlock(rowBlock = true, transposeA = false, transposeB = false)
-    }
-
-    @Test
-    fun `a retained product crosses a row block with a transposed left operand`() {
-        assertRetainedProductCrossesBlock(rowBlock = true, transposeA = true, transposeB = false)
-    }
-
-    @Test
-    fun `a retained product crosses a row block with a transposed right operand`() {
-        assertRetainedProductCrossesBlock(rowBlock = true, transposeA = false, transposeB = true)
-    }
-
-    @Test
-    fun `a retained product crosses a row block with transposed operands`() {
-        assertRetainedProductCrossesBlock(rowBlock = true, transposeA = true, transposeB = true)
-    }
-
-    @Test
-    fun `a retained product crosses a column block with untransposed operands`() {
-        assertRetainedProductCrossesBlock(rowBlock = false, transposeA = false, transposeB = false)
-    }
-
-    @Test
-    fun `a retained product crosses a column block with a transposed left operand`() {
-        assertRetainedProductCrossesBlock(rowBlock = false, transposeA = true, transposeB = false)
-    }
-
-    @Test
-    fun `a retained product crosses a column block with a transposed right operand`() {
-        assertRetainedProductCrossesBlock(rowBlock = false, transposeA = false, transposeB = true)
-    }
-
-    @Test
-    fun `a retained product crosses a column block with transposed operands`() {
-        assertRetainedProductCrossesBlock(rowBlock = false, transposeA = true, transposeB = true)
-    }
-
-    private fun assertRetainedProductCrossesBlock(rowBlock: Boolean, transposeA: Boolean, transposeB: Boolean) {
-        val rng = Random(20261026)
-        for (engine in engines) {
-            val tile = engine.productKernels
-            val m = tile.tileRows + 1 + if (rowBlock) PRODUCT_BLOCK_ROWS else 0
-            val n = tile.tileColumns + 1 + if (rowBlock) 0 else PRODUCT_BLOCK_COLUMNS
-            checkRetainedProduct(engine, m, n, PRODUCT_BLOCK_DEPTH + 3, transposeA, transposeB, rng)
-        }
-    }
-
-    /** A retained product with nothing to compute scales its destination and reads no panel. */
-    @Test
-    fun `a retained product with no work scales its destination`() {
-        val rng = Random(20261022)
-        for (engine in engines) {
-            val left = engine.packLeft(randomMatrix(6, 0, rng), transpose = false)
-            val right = engine.packRight(randomMatrix(0, 5, rng), transpose = false)
-            val c = DenseMatrix(6, 5, DoubleArray(30) { 4.0 })
-
-            engine.gemm(2.0, left, right, 0.5, c)
-            assertTrue(c.values.all { it == 2.0 }, "${engine.name} did not scale an empty product")
-
-            engine.gemm(0.0, left, right, 0.0, c)
-            assertTrue(c.values.all { it == 0.0 }, "${engine.name} did not overwrite for a zero multiplier")
-        }
-    }
-
-    // The packing reads the operand block by block while the destination is written, so without staging a
-    // later block would pack values the product itself had just produced.
-    @Test
-    fun `a mixed retained product stages a dense operand that shares its destination`() {
-        val rng = Random(20261023)
-        for (engine in engines) {
-            val order = lowestCommonTileMultiple(
-                engine.productKernels.tileRows,
-                engine.productKernels.tileColumns,
-                atLeast = 40,
-            )
-            val start = randomMatrix(order, order, rng)
-            val retained = engine.packLeft(randomMatrix(order, order, rng), transpose = false)
-            val left = DenseMatrix(order, order, DoubleArray(order * order) { retained[it % order, it / order] })
-            val expected = DenseMatrix(order, order, start.values.copyOf())
-            ReferenceBlas.gemm(
-                0.875,
-                left,
-                false,
-                DenseMatrix(order, order, start.values.copyOf()),
-                false,
-                -0.25,
-                expected,
-            )
-            val aliased = DenseMatrix(order, order, start.values.copyOf())
-
-            engine.gemm(0.875, retained, aliased, false, -0.25, aliased, Workspace())
-
-            assertClose(expected.values, aliased.values, "${engine.name} mixed aliased", tolerance = 1e-10)
-        }
-    }
-
-    @Suppress("LongParameterList") // the product, both transpose flags and the source
-    private fun checkRetainedProduct(
-        engine: KoblasEngine,
-        m: Int,
-        n: Int,
-        k: Int,
-        transposeA: Boolean,
-        transposeB: Boolean,
-        rng: Random,
-    ) {
-        val a = randomMatrix(if (transposeA) k else m, if (transposeA) m else k, rng)
-        val b = randomMatrix(if (transposeB) n else k, if (transposeB) k else n, rng)
-        val start = randomMatrix(m, n, rng)
-        val expected = DenseMatrix(m, n, start.values.copyOf())
-        ReferenceBlas.gemm(0.875, a, transposeA, b, transposeB, -0.25, expected)
-        val left = engine.packLeft(a, transposeA)
-        val right = engine.packRight(b, transposeB)
-        val context = "${engine.name} retained ${m}x${n}x$k tA=$transposeA tB=$transposeB"
-
-        val both = DenseMatrix(m, n, start.values.copyOf())
-        engine.gemm(0.875, left, right, -0.25, both)
-        assertClose(expected.values, both.values, "$context both retained", tolerance = 1e-10)
-
-        val leftOnly = DenseMatrix(m, n, start.values.copyOf())
-        engine.gemm(0.875, left, b, transposeB, -0.25, leftOnly, Workspace())
-        assertClose(expected.values, leftOnly.values, "$context left retained", tolerance = 1e-10)
-
-        val rightOnly = DenseMatrix(m, n, start.values.copyOf())
-        engine.gemm(0.875, a, transposeA, right, -0.25, rightOnly, Workspace())
-        assertClose(expected.values, rightOnly.values, "$context right retained", tolerance = 1e-10)
     }
 
     private fun koblasEngineUnderTest(): KoblasEngine = BuiltinEngines.scalar

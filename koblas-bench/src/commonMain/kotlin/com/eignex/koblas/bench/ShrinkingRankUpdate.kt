@@ -4,7 +4,6 @@ import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.KoblasEngine
 import com.eignex.koblas.dense.DenseCall
 import com.eignex.koblas.dense.DenseMatrixOperation
-import com.eignex.koblas.dense.PanelWork
 import com.eignex.koblas.vendor.RouteKind
 
 /** Reused, disjoint inputs for a sequence of rank updates with successively shorter trailing supports. */
@@ -38,26 +37,12 @@ internal class ShrinkingRankUpdate(val order: Int) {
     }
 }
 
-/** Full-buffer GER batches, safe windows and their raw trailing panels. */
+/** Full-buffer GER batches and safe windows. */
 internal fun shrinkingRankUpdateWork(case: BenchCase, engine: KoblasEngine): CaseWork {
     val fixture = ShrinkingRankUpdate(case.dimension(0))
     val n = fixture.order
-    val windows = case.operation == "panel-rankupdate-shrinking"
     val publicWindows = case.operation == "ger-window-shrinking"
-    val panels = engine.panelKernels
-    val run: () -> Double = if (windows) {
-        {
-            for (step in fixture.x.indices) {
-                val start = step + 1
-                val extent = n - start
-                panels.rankUpdate(
-                    -1.0, fixture.matrix.values, start + start * n, n,
-                    fixture.x[step], start, 1, extent, extent, fixture.y[step], start, 1,
-                )
-            }
-            fixture.matrix.values.last()
-        }
-    } else if (publicWindows) {
+    val run: () -> Double = if (publicWindows) {
         {
             for (step in fixture.x.indices) {
                 val start = step + 1
@@ -88,19 +73,9 @@ internal fun shrinkingRankUpdateWork(case: BenchCase, engine: KoblasEngine): Cas
             kernel = "${routes.first().scheduling}+${bodies.joinToString("+")}/ger-window@${groups.joinToString("+")}",
         )
     }
-    if (!windows) {
-        val route = engine.routeOf(DenseMatrixOperation.Ger, DenseCall(n, n, alpha = -1.0))
-        return CaseWork(
-            route.kind.name.lowercase(), "arithmetic", run,
-            result = fixture.matrix.values, kernel = matrixKernel(route),
-        )
-    }
-    // The windows shrink across the vector crossover, so naming the selected engine would hide the tail.
-    val bodies = (n - 1 downTo 1).map { panels.implementationFor(PanelWork.RankUpdate, it, it) }.distinct()
-    val groups = (n - 1 downTo 1).map { panels.executionGroup(PanelWork.RankUpdate, it, it) }.distinct()
-    val kind = if (bodies.size == 1) RouteKind.Direct else RouteKind.Composed
+    val route = engine.routeOf(DenseMatrixOperation.Ger, DenseCall(n, n, alpha = -1.0))
     return CaseWork(
-        kind.name.lowercase(), "arithmetic", run, result = fixture.matrix.values,
-        kernel = "${bodies.joinToString("+")}/rank-update-shrinking@${groups.joinToString("+")}",
+        route.kind.name.lowercase(), "arithmetic", run,
+        result = fixture.matrix.values, kernel = matrixKernel(route),
     )
 }

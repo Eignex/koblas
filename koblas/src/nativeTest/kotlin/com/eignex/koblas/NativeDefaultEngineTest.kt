@@ -59,23 +59,6 @@ class NativeDefaultEngineTest {
     }
 
     /**
-     * A retained panel is grouped for this library's own register tile, which a library cannot read; the
-     * shape is over the size at which the ordinary product goes across, so the layout is what settles it.
-     */
-    @Test
-    fun `a product over retained panels keeps the portable schedule at every size`() {
-        if (koblas.vendor == null) return skipped("the retained-layout fallback")
-        val call = DenseCall(ORDER, ORDER, depth = ORDER)
-
-        for (operation in PACKED) {
-            val route = koblas.routeOf(operation, call)
-
-            assertNotEquals(HOST_SCHEDULING, route.scheduling, "$operation was labelled a host call")
-            assertEquals(null, route.host, "$operation carried a vendor call")
-        }
-    }
-
-    /**
      * This platform's Level 1 arm is the library, so `host == null` on a route means no single vendor entry
      * point served the whole call and not that no library ran: below, a vendor leaf is named in the
      * components of a portable schedule.
@@ -153,11 +136,5 @@ class NativeDefaultEngineTest {
 
         /** The name a composed host route carries, restated here rather than imported from production. */
         const val HOST_SCHEDULING = "host-dense"
-
-        val PACKED = listOf(
-            DenseMatrixOperation.GemmPacked,
-            DenseMatrixOperation.GemmPackedLeft,
-            DenseMatrixOperation.GemmPackedRight,
-        )
     }
 }

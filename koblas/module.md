@@ -54,17 +54,8 @@ operations and takes part in those products as the sparse matrix it copied.
 [DenseVectorKernels] supplies Level 1 arithmetic over array windows and strides. [DenseBlas] supplies the
 Level 2 and 3 contracts, with shared portable traversal, validation, no-read behavior and alias staging.
 
-The arithmetic inside each window is selected through three backend contracts:
-
-- [DensePanelKernels] executes [PanelWork] and recommends a logical [DensePanelKernels.executionGroup].
-- [DenseProductKernels] executes product blocks using a backend-selected register tile and [PackedLayout].
-- [DenseTriangularKernels] executes diagonal substitutions and recommends a
-  [DenseTriangularKernels.rightHandSideGroup].
-
-Panel groups, SIMD lanes, register tiles, diagonal blocks and cache blocks are independent dimensions.
-Structured products reuse the shared schedule over the selected region; their routes report the bodies each
-window reaches. Packing and coefficient gathering borrow scoped scratch from [com.eignex.koblas.Workspace].
-[PackedMatrix] retains a packed operand for repeated products.
+Shared internal kernels supply panel arithmetic, packed product tiles and diagonal substitutions.
+Transient packing and coefficient gathering borrow scoped scratch from [com.eignex.koblas.Workspace].
 
 Operands use public containers; transposition and [MatrixStructure] travel as flags. `gemmt` is the
 triangle-selected general product Netlib calls `GEMMTR`: full column-major operands and a full-storage

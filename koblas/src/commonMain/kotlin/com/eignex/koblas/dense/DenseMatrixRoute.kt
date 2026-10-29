@@ -49,15 +49,6 @@ public enum class DenseMatrixOperation(internal val entryPoint: String) {
     /** `C = alpha·op(A)·op(B) + beta·C`. */
     Gemm("gemm"),
 
-    /** The same product between two operands that were packed for the tile before the call. */
-    GemmPacked("gemm-packed"),
-
-    /** The same product with the left operand retained and the right packed for this call. */
-    GemmPackedLeft("gemm-packed-left"),
-
-    /** The same product with the right operand retained and the left packed for this call. */
-    GemmPackedRight("gemm-packed-right"),
-
     /** The same product written into one triangle of a square destination. */
     Gemmt("gemmt"),
 

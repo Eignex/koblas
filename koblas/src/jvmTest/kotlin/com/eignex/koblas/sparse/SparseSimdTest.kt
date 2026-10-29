@@ -149,8 +149,8 @@ class SparseSimdTest {
         val lanes = SparseSimd.lanes
         val counts = (
             listOf(lanes - 1, lanes, lanes + 1, 2 * lanes + 1) +
-            listOf(1, 2, 3, 4, 5, 7, 8, 9, 31, 32, 33, 255, 256, 257)
-        ).distinct()
+                listOf(1, 2, 3, 4, 5, 7, 8, 9, 31, 32, 33, 255, 256, 257)
+            ).distinct()
         for (count in counts) {
             for ((indexOffset, valueOffset) in listOf(0 to 0, 1 to 3, 3 to 1)) {
                 val random = Random(count)

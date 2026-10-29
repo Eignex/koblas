@@ -52,12 +52,6 @@ class DenseTest {
         for (line in listOf(
             "gemm+64x64x128+uniform",
             "gemm+256x2x512+uniform+transA=T+transB=T",
-            "gemm-pack+64x64x64+uniform",
-            "gemm-packed+64x64x64+uniform",
-            "gemm-packed-left+64x64x64+uniform",
-            "gemm-packed-right+64x64x64+uniform",
-            "product-block+64x64x128+uniform",
-            "product-block+65x63x128+uniform",
         )) {
             val case = Cases.parse(line).single()
             for (engine in engines) {
@@ -109,29 +103,6 @@ class DenseTest {
         assertTrue("portable-gather/rhs-block" in left, left)
         assertTrue("portable-gather/rhs-block" !in right, right)
         assertTrue("diagonal-solve" in left && "diagonal-solve" in right, "$left and $right")
-    }
-
-    // Retained entry points must expose their remaining packing cost in the row.
-    @OptIn(KoblasEngineApi::class)
-    @Test
-    fun `the packed rows say which copies they still make`() {
-        val engine = BuiltinEngines.scalar
-        fun kernelOf(line: String): String =
-            assertNotNull(assertNotNull(denseWork(Cases.parse(line).single(), engine)).kernel)
-
-        assertEquals("portable-pack/pack-operands", kernelOf("gemm-pack+64x64x64+uniform"))
-        assertTrue(
-            "portable-pack" !in kernelOf("gemm-packed+64x64x64+uniform"),
-            kernelOf("gemm-packed+64x64x64+uniform"),
-        )
-        assertTrue(
-            kernelOf("gemm-packed-left+64x64x64+uniform").contains("portable-pack/right-panel"),
-            kernelOf("gemm-packed-left+64x64x64+uniform"),
-        )
-        assertTrue(
-            kernelOf("gemm-packed-right+64x64x64+uniform").contains("portable-pack/left-panel"),
-            kernelOf("gemm-packed-right+64x64x64+uniform"),
-        )
     }
 
     // A caller holding a `Matrix` has no engine to pass, so timing the generic product under another arm's

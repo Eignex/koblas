@@ -420,23 +420,6 @@ class DenseMatrixRouteTest {
     }
 
     /** A retained panel is not packed again, and the route names only the packing a call still performs. */
-    @Test
-    fun `a product over retained panels names only the packing it still does`() {
-        val call = DenseCall(64, 64, 0.875, -0.25, depth = 64)
-        for (engine in engines) {
-            val tile = wholeTileBody(engine)
-            val both = engine.routeOf(DenseMatrixOperation.GemmPacked, call)
-            val left = engine.routeOf(DenseMatrixOperation.GemmPackedLeft, call)
-            val right = engine.routeOf(DenseMatrixOperation.GemmPackedRight, call)
-
-            assertEquals(tile, both.components, engine.name)
-            assertEquals(listOf("portable-pack/right-panel") + tile, left.components, engine.name)
-            assertEquals(listOf("portable-pack/left-panel") + tile, right.components, engine.name)
-            assertEquals("gemm-packed", both.entryPoint)
-            assertEquals("gemm-packed-left", left.entryPoint)
-            assertEquals("gemm-packed-right", right.entryPoint)
-        }
-    }
 
     // The shapes are derived from the tile geometry this machine resolved, because what a route has to get
     // right moves with it; one of them is too small to be packed at all.

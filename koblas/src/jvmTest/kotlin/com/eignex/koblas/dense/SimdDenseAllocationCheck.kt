@@ -488,8 +488,6 @@ internal object SimdDenseAllocationCheck {
             DoubleArray(PRODUCT_DEPTH * narrow) { 0.5 },
         )
         val deepTarget = DenseMatrix.wrap(narrow, narrow, DoubleArray(narrow * narrow))
-        val left = engine.packLeft(wide, transpose = false)
-        val right = engine.packRight(wide, transpose = false)
 
         assertAllocationFree("gemm over one depth block", PRODUCT_WARMUP, PRODUCT_ITERATIONS) {
             engine.gemm(1e-12, wide, false, wide, false, -0.25, wideTarget, workspace)
@@ -498,10 +496,6 @@ internal object SimdDenseAllocationCheck {
         assertAllocationFree("gemm over several depth blocks", PRODUCT_WARMUP, PRODUCT_ITERATIONS) {
             engine.gemm(1e-12, deepLeft, false, deepRight, false, -0.25, deepTarget, workspace)
             deepTarget.values[0]
-        }
-        assertAllocationFree("gemm over retained panels", PRODUCT_WARMUP, PRODUCT_ITERATIONS) {
-            engine.gemm(1e-12, left, right, -0.25, wideTarget)
-            wideTarget.values[0]
         }
         checkUnpackedProducts(engine, workspace)
     }

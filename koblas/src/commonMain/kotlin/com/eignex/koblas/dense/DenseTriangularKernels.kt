@@ -40,9 +40,9 @@ package com.eignex.koblas.dense
  * Implementations validate nothing and allocate nothing. A block with no steps or no right-hand sides does
  * nothing and reads nothing.
  */
-public interface DenseTriangularKernels {
+internal interface DenseTriangularKernels {
     /** Short implementation identifier for diagnostics. */
-    public val name: String
+    val name: String
 
     /**
      * How many right-hand sides this backend recommends substituting at once, for a block of [order] steps
@@ -53,7 +53,7 @@ public interface DenseTriangularKernels {
      * scheduling chose: a diagonal block is as wide as the dependency chain is long, and this is how much of
      * the work beside it is done together.
      */
-    public fun rightHandSideGroup(order: Int, sides: Int): Int
+    fun rightHandSideGroup(order: Int, sides: Int): Int
 
     /**
      * Whether a group of right-hand sides this far apart is worth copying into adjacent storage first.
@@ -63,7 +63,7 @@ public interface DenseTriangularKernels {
      * nothing from that and answers false, and so does one whose right-hand sides are already adjacent.
      * Where this answers true the caller gathers, and the route says that a copy happened.
      */
-    public fun gathersRightHandSides(rhsStride: Int, order: Int, sides: Int): Boolean
+    fun gathersRightHandSides(rhsStride: Int, order: Int, sides: Int): Boolean
 
     /**
      * Every arithmetic body a diagonal block of these extents reaches, in the order it reaches them.
@@ -75,7 +75,7 @@ public interface DenseTriangularKernels {
      * independent right-hand sides from consecutive entries, so a block whose right-hand sides are strided is
      * scalar work at any width unless the caller gathered it first.
      */
-    public fun implementationsFor(order: Int, sides: Int, contiguous: Boolean): List<String>
+    fun implementationsFor(order: Int, sides: Int, contiguous: Boolean): List<String>
 
     /**
      * Solves `M · X = X` in place over one diagonal block, for every right-hand side at once.
@@ -85,7 +85,7 @@ public interface DenseTriangularKernels {
      * or a NaN and a subnormal one yields whatever it yields, which is what the BLAS solves promise, since
      * they carry no status and report nothing.
      */
-    public fun diagonalSolve(
+    fun diagonalSolve(
         t: DoubleArray,
         n: Int,
         start: Int,
@@ -108,7 +108,7 @@ public interface DenseTriangularKernels {
      * the solve's: a lower block is substituted from its last step upward, because a step is the sum of the
      * steps at or before it and those must still hold what they arrived with.
      */
-    public fun diagonalMultiply(
+    fun diagonalMultiply(
         t: DoubleArray,
         n: Int,
         start: Int,

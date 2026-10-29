@@ -148,90 +148,6 @@ internal class PortableDenseBlas(
         )
     }
 
-    /**
-     * `C = alpha · A · B + beta · C` where both operands are already packed for this backend's tile.
-     *
-     * The layouts are checked against the tile that will read them and against each other before anything is
-     * written, because a panel grouped for another shape or standing in the other operand's position reads
-     * neighbouring values as its own and leaves no trace in the result.
-     *
-     * No staging and no scratch: a packed operand owns storage of its own, so it cannot be the destination.
-     */
-    fun gemm(alpha: Double, a: PackedMatrix, b: PackedMatrix, beta: Double, c: DenseMatrix) {
-        a.layout.requireUsableBy(PackedRole.Left, products.tileRows)
-        b.layout.requireUsableBy(PackedRole.Right, products.tileColumns)
-        requirePackedProductShape(a.rows, a.columns, b.rows, b.columns, c)
-        if (c.values.isEmpty()) return
-        if (alpha == 0.0 || a.columns == 0) {
-            scale(c.values, beta)
-            return
-        }
-        blockedProduct(
-            products, alpha, NO_OPERAND, 0, 0, false, a, NO_OPERAND, 0, 0, false, b,
-            beta, c.values, 0, c.rows, c.rows, c.cols, a.columns, OutputTriangle.Full, null,
-        )
-    }
-
-    /** [gemm] with only the left operand retained; the right is packed for this call from [b]. */
-    fun gemm(
-        alpha: Double,
-        a: PackedMatrix,
-        b: DenseMatrix,
-        transposeB: Boolean,
-        beta: Double,
-        c: DenseMatrix,
-        workspace: Workspace?,
-    ) {
-        a.layout.requireUsableBy(PackedRole.Left, products.tileRows)
-        val rows = if (transposeB) b.cols else b.rows
-        val columns = if (transposeB) b.rows else b.cols
-        requirePackedProductShape(a.rows, a.columns, rows, columns, c)
-        if (c.values.isEmpty()) return
-        if (alpha == 0.0 || a.columns == 0) {
-            scale(c.values, beta)
-            return
-        }
-        staged(workspace, b.values, b.values === c.values) { bv ->
-            blockedProduct(
-                products, alpha, NO_OPERAND, 0, 0, false, a, bv, 0, b.rows, transposeB, null,
-                beta, c.values, 0, c.rows, c.rows, c.cols, a.columns, OutputTriangle.Full, workspace,
-            )
-        }
-    }
-
-    /** [gemm] with only the right operand retained; the left is packed for this call from [a]. */
-    fun gemm(
-        alpha: Double,
-        a: DenseMatrix,
-        transposeA: Boolean,
-        b: PackedMatrix,
-        beta: Double,
-        c: DenseMatrix,
-        workspace: Workspace?,
-    ) {
-        b.layout.requireUsableBy(PackedRole.Right, products.tileColumns)
-        val rows = if (transposeA) a.cols else a.rows
-        val columns = if (transposeA) a.rows else a.cols
-        requirePackedProductShape(rows, columns, b.rows, b.columns, c)
-        if (c.values.isEmpty()) return
-        if (alpha == 0.0 || columns == 0) {
-            scale(c.values, beta)
-            return
-        }
-        staged(workspace, a.values, a.values === c.values) { av ->
-            blockedProduct(
-                products, alpha, av, 0, a.rows, transposeA, null, NO_OPERAND, 0, 0, false, b,
-                beta, c.values, 0, c.rows, c.rows, c.cols, columns, OutputTriangle.Full, workspace,
-            )
-        }
-    }
-
-    /** `op(A)` packed for the left of a product against this backend's tile. */
-    fun packLeft(a: DenseMatrix, transpose: Boolean): PackedMatrix = packedLeft(a, transpose, products.tileRows)
-
-    /** `op(B)` packed for the right of a product against this backend's tile. */
-    fun packRight(b: DenseMatrix, transpose: Boolean): PackedMatrix = packedRight(b, transpose, products.tileColumns)
-
     override fun gemmt(
         alpha: Double,
         a: DenseMatrix,
@@ -821,9 +737,6 @@ internal const val TRIANGULAR_GATHER: String = "portable-gather"
 /** The entry points whose route is a product block schedule rather than a Level 2 panel one. */
 internal val PRODUCT_OPERATIONS: Set<DenseMatrixOperation> = setOf(
     DenseMatrixOperation.Gemm,
-    DenseMatrixOperation.GemmPacked,
-    DenseMatrixOperation.GemmPackedLeft,
-    DenseMatrixOperation.GemmPackedRight,
 )
 
 /** The entry points whose route is a product into one triangle of a square destination. */
@@ -838,14 +751,3 @@ internal val TRIANGULAR_MATRIX_OPERATIONS: Set<DenseMatrixOperation> = setOf(
     DenseMatrixOperation.Trmm,
     DenseMatrixOperation.Trsm,
 )
-
-/** Stands in for an operand that arrived packed, so no unpacked storage is read for that side. */
-internal val NO_OPERAND: DoubleArray = DoubleArray(0)
-
-/** The shapes a product between packed and dense operands needs, checked before the destination is touched. */
-internal fun requirePackedProductShape(rows: Int, depth: Int, rightRows: Int, columns: Int, c: DenseMatrix) {
-    requireShape(depth == rightRows) { "gemm: inner dimensions differ, $depth vs $rightRows" }
-    requireShape(c.rows == rows && c.cols == columns) {
-        "gemm: destination must be ${rows}x$columns, got ${c.rows}x${c.cols}"
-    }
-}
