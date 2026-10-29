@@ -94,11 +94,17 @@ unchanged. Norm scaling remains because a finite norm can exist when its naive s
 underflows; the [reference BLAS norm](https://netlib.org/lapack/explore-html/d1/d2a/group__nrm2_gab5393665c8f0e7d5de9bd1dd2ff0d9d0.html)
 also uses range protection. Checked solver diagnostic primitives retain their separate contract.
 
-`./gradlew check lintDocs` passed after the API/diagnostic reduction, native consolidation and numerical
-changes. The final stack also passed this gate, including Linux Native/JVM
-conformance, exact portable engines, JVM 17/25 packaged tests, ABI/KDoc checks, real oneMKL interface and
-fallback checks, and uninstrumented preferred/narrow SIMD probes with and without FMA. Warmed AXPY, GER,
-panel, product and triangular probes report zero leaf allocation. Final validation results follow below.
+Cumulative revision `4dd9d05d73dd643fc086ad81adf8c14deb309151` passed `./gradlew check lintDocs`
+in 2 minutes 10 seconds. The gate included 848 library and 86 benchmark JVM tests, with no failures,
+errors or skips; Linux Native conformance; JVM 17/25 packaged tests; ABI/KDoc; real oneMKL interface and
+fallback checks; and uninstrumented preferred/narrow SIMD probes with and without FMA. Warmed AXPY, GER,
+panel, product and triangular probes reported zero leaf allocation. The Level 2 route-depth regression
+also passed a targeted `HostDenseBlasTest` run.
+
+After staging that revision's publications locally, the four in-repository consumers
+`jvm17Consumer`, `jvm25Consumer`, `jvm17ModuleConsumer` and `jvm25ModuleConsumer` passed using
+`./gradlew -p tests/consumers --refresh-dependencies` with their `:jvm:` task paths. These local results
+cover the named cumulative revision. Per-PR GitHub CI provides platform validation of each pushed head.
 
 Targeted performance follow-up uses the existing 21-case thin-GEMM suite, three rounds, eight 200 ms
 warmups, five 200 ms samples and GC profiling. Jobs [9259](https://lab.eignex.com/jobs/9259)

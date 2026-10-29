@@ -84,7 +84,7 @@ internal object SimdRuntimePathCheck {
         assertProductBlockAgreesWithReference(products)
         assertEmptyProductBlockReadsNothing(products)
         assertZeroBetaOverwritesPoison(products)
-        assertDepthSlicesAccumulate(products)
+        assertDepthBlocksAccumulate(products)
         for ((m, n, k) in listOf(
             Triple(products.tileRows * 4, products.tileColumns * 4, 64),
             Triple(products.tileRows * 4 + 1, products.tileColumns * 4 + 1, 64),
