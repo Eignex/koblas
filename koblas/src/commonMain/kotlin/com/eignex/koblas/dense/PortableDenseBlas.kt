@@ -680,11 +680,6 @@ internal class PortableDenseBlas(
         }
     }
 
-    private fun scale(values: DoubleArray, beta: Double) {
-        if (beta == 1.0) return
-        if (beta == 0.0) values.fill(0.0) else for (i in values.indices) values[i] *= beta
-    }
-
     private fun scaleTriangle(c: DenseMatrix, beta: Double, lower: Boolean) {
         if (beta == 1.0) return
         val n = c.rows

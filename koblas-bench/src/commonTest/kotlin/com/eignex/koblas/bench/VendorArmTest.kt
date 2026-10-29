@@ -144,10 +144,14 @@ class VendorArmTest {
 
     /** What a 64 by 64 by 64 product row must carry on [engine]: shared traversal, both packers, its tile. */
     private fun expectedProductKernel(engine: KoblasEngine): String {
-        return matrixKernel(engine.routeOf(
+        val route = engine.routeOf(
             com.eignex.koblas.dense.DenseMatrixOperation.Gemm,
             com.eignex.koblas.dense.DenseCall(64, 64, depth = 64),
-        ))
+        )
+        assertEquals("portable-dense", route.scheduling)
+        assertEquals(listOf("portable-pack/right-panel", "portable-pack/left-panel"), route.components.take(2))
+        assertEquals(3, route.components.size, "a whole tile must reach exactly one arithmetic body")
+        return "portable-dense+portable-pack/right-panel+portable-pack/left-panel+${route.components.last()}/gemm"
     }
 
     @Test
