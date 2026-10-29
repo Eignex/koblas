@@ -47,17 +47,6 @@ internal object SparseSimd : IndexedSparseKernels {
         DoubleVector.fromArray(SPECIES, values, 0, indices, offset)
     }
 
-    /**
-     * One multiply-add, fused where [hardwareFusedMultiplyAdd] found the instruction and two operations
-     * where it did not.
-     *
-     * Inline for the reason [indexedLoad] gives, and because the test is then a constant the JIT folds, so
-     * one of the two forms reaches the loop and neither a branch nor the other form survives in it.
-     */
-    @Suppress("NOTHING_TO_INLINE")
-    private inline fun multiplyAdd(x: DoubleVector, y: DoubleVector, accumulator: DoubleVector): DoubleVector =
-        if (hardwareFusedMultiplyAdd) x.fma(y, accumulator) else x.mul(y).add(accumulator)
-
     @Suppress("LongParameterList")
     override fun dotDense(
         indices: IntArray,

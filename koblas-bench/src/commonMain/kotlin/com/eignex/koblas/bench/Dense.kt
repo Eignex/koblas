@@ -41,16 +41,18 @@ private fun level1(
 ): CaseWork? {
     val route = engine.routeOf(operation, length)
     if (route.kind == RouteKind.NoWork) return null
-    val kernel = if (route.kind == RouteKind.Composed) {
-        "${route.implementation}+scalar-rescale/${route.entryPoint}"
-    } else {
-        vectorKernel(route)
-    }
-    return CaseWork(route.kind.name.lowercase(), timing, run, result = result, kernel = kernel)
+    return CaseWork(route.kind.name.lowercase(), timing, run, result = result, kernel = reductionKernel(route))
 }
 
 /** The attribution a Level 1 row carries, which is the same question for a dense run and a stored support. */
 internal fun vectorKernel(route: VectorRoute<*>): String = "${route.implementation}/${route.entryPoint}"
+
+/** A reduction's route includes the scalar retry when its norm depends on the input magnitudes. */
+internal fun reductionKernel(route: VectorRoute<*>): String = if (route.kind == RouteKind.Composed) {
+    "${route.implementation}+scalar-rescale/${route.entryPoint}"
+} else {
+    vectorKernel(route)
+}
 
 /**
  * Built-in Level 2 or 3 work, named by the route the call itself resolves.

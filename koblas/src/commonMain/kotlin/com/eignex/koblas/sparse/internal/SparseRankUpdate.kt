@@ -39,15 +39,6 @@ internal fun sparseSyr2(a: SparseMatrix, alpha: Double, x: Vector, y: Vector, lo
     return a.syr2Supported(alpha, xs, x.nonzeroSupport(xs), ys, y.nonzeroSupport(ys), lower)
 }
 
-@OptIn(UnsafeKoblasApi::class)
-private fun SparseMatrix.sparseCopy(): SparseMatrix = SparseMatrix.wrapTrusted(
-    rows,
-    cols,
-    copyColumnPointers(),
-    copyRowIndices(),
-    values.copyOf(),
-)
-
 private fun SparseMatrix.syrSupported(alpha: Double, x: DoubleArray, support: IntArray, lower: Boolean): SparseMatrix {
     val out = SparseRankMatrixBuilder(rows, cols, nnz)
     for (j in 0 until cols) {

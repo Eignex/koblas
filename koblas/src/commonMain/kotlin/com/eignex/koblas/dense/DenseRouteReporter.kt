@@ -19,8 +19,8 @@ internal class DenseRouteReporter(
                 0,
             )
         }
-        if (operation in PRODUCT_OPERATIONS) return productRoute(operation, call)
-        if (operation in TRIANGLE_PRODUCT_OPERATIONS) return triangleProductRoute(operation, call)
+        if (operation in PRODUCT_OPERATIONS) return productRoute(operation, call, OutputTriangle.Full)
+        if (operation in TRIANGLE_PRODUCT_OPERATIONS) return productRoute(operation, call, selectedTriangle(call.lower))
         if (operation == DenseMatrixOperation.Symm) return symmetricRoute(operation, call)
         if (operation in TRIANGULAR_MATRIX_OPERATIONS) return triangularMatrixRoute(operation, call)
         val scaling = destinationScaling(operation, call, working = true)
@@ -138,33 +138,41 @@ internal class DenseRouteReporter(
         parts.useGroup(group)
     }
 
-    private fun productRoute(operation: DenseMatrixOperation, call: DenseCall): DenseMatrixRoute {
-        val k = requireNotNull(call.depth) { "a product route needs the call's shared dimension" }
+    private fun productRoute(
+        operation: DenseMatrixOperation,
+        call: DenseCall,
+        selected: OutputTriangle,
+    ): DenseMatrixRoute {
+        val full = selected == OutputTriangle.Full
+        val k = requireNotNull(call.depth) {
+            if (full) {
+                "a product route needs the call's shared dimension"
+            } else {
+                "a triangle-selected product route needs the shared dimension"
+            }
+        }
         val parts = Parts()
+        val transposeB = when (operation) {
+            DenseMatrixOperation.Syrk, DenseMatrixOperation.Syr2k -> !call.transposeA
+            else -> call.transposeB
+        }
         val shape = WindowShape(
             call.rows,
             call.columns,
             k,
             call.transposeA,
-            call.transposeB,
-            OutputTriangle.Full,
-            rightStride = if (call.transposeB) call.rightLeadingDimension ?: call.columns else 1,
+            transposeB,
+            selected,
+            rightStride = if (!transposeB) {
+                1
+            } else if (full) {
+                call.rightLeadingDimension ?: call.columns
+            } else {
+                call.columns
+            },
         )
         addProductWindow(parts, shape)
-        return parts.route(
-            operation,
-        )
-    }
-
-    private fun triangleProductRoute(operation: DenseMatrixOperation, call: DenseCall): DenseMatrixRoute {
-        val k = requireNotNull(call.depth) { "a triangle-selected product route needs the shared dimension" }
-        val parts = Parts()
-        val selected = if (call.lower) OutputTriangle.Lower else OutputTriangle.Upper
-        val transposeB = if (operation == DenseMatrixOperation.Gemmt) call.transposeB else !call.transposeA
-        val shape = WindowShape(call.rows, call.columns, k, call.transposeA, transposeB, selected)
-        addProductWindow(parts, shape)
-        val pairs = operation == DenseMatrixOperation.Syr2k
-        if (pairs) parts.composed = true
+        if (operation == DenseMatrixOperation.Syr2k) parts.composed = true
         return parts.route(
             operation,
         )

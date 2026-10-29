@@ -3,7 +3,6 @@ package com.eignex.koblas.bench
 import com.eignex.koblas.BuiltinEngines
 import com.eignex.koblas.KoblasEngine
 import com.eignex.koblas.sparse.SparseOperation
-import com.eignex.koblas.vendor.RouteKind
 import kotlin.math.sqrt
 
 /** Raw CSC windows through the selected engine, including validation and any indexed fallback. */
@@ -60,11 +59,7 @@ internal fun sparseSlicesArm(case: BenchCase, engine: KoblasEngine): ArmChoice {
         DenseReference.check(doubleArrayOf(expected), doubleArrayOf(run()), case.id)
     }
     val route = engine.routeOf(operation, count)
-    val kernel = if (route.kind == RouteKind.Composed) {
-        "${route.implementation}+scalar-rescale/${route.entryPoint}"
-    } else {
-        vectorKernel(route)
-    }
+    val kernel = reductionKernel(route)
     return ArmChoice(CaseWork(route.kind.name.lowercase(), if (mutation) "reset-and-arithmetic" else "arithmetic", run,
         result = if (mutation) destination else null, kernel = "portable-index-validation+$kernel"), null)
 }
