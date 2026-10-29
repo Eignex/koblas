@@ -277,8 +277,8 @@ internal fun Blas.composeGemmt(
 /**
  * Opens the preferred available vendor for this host, or null when none is installed.
  *
- * Resolution happens once. Containers, Level 1 and the generic primitives do not go through this and keep
- * working on a host where it returns null; only the accelerator-dependent calls fail, and they fail clearly.
+ * Default engine resolution happens once. A null binding leaves every supported dense and sparse BLAS
+ * operation available through portable Kotlin. Explicit callers handle a null result themselves.
  *
  * [only] restricts the search to one vendor, which is how a test or an exact benchmark arm reaches a specific
  * library without changing anything process-global. Without it the order is [Vendor.select]'s, so a host with

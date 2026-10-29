@@ -10,7 +10,8 @@ Linux and macOS Kotlin/Native compose optional installed host calls with portabl
 supported library. The JVM publication is one multi-release JAR with no bundled native code.
 
 Container conveniences in `com.eignex.koblas` call the BLAS contracts through the default engine.
-The `dense` and `sparse` packages contain those contracts, portable schedules and backend kernel interfaces.
+The `dense` and `sparse` packages expose operations and useful raw array arithmetic; scheduling and
+panel/product/triangular implementation interfaces are internal.
 The `vendor` package contains explicit host bindings, which platform engines may compose into eligible dense calls.
 Schedules and kernels receive their dependencies from the engine; they do not read the global default.
 
@@ -20,11 +21,10 @@ their fresh results. Factorization and solver workflows are outside this artifac
 
 [KoblasEngine.portable][com.eignex.koblas.KoblasEngine.portable] creates an immutable application engine
 using portable Kotlin for every operation, without an opt-in, host library or JVM flags. Call that instance
-directly; container conveniences continue to use the platform default. Finite results repeat for identical
-inputs, storage shapes, flags and operation order on the same library, target, engine and runtime configuration.
-Separate destinations and workspaces are required for concurrent calls. Different backends, platforms,
-SIMD widths and fused operations can round differently; cross-platform bitwise equality is not promised.
-Non-finite behavior follows each BLAS routine's contract.
+directly; container conveniences continue to use the platform default. Each routine permits normal BLAS
+rounding, FMA and reduction-order latitude. Norms retain finite-range scaling; unspecified exceptional
+results and tied-index choices belong to the selected implementation. Concurrent calls need separate
+mutable destinations and workspaces.
 
 [BuiltinEngines][com.eignex.koblas.BuiltinEngines] names exact engines for tests and benchmarks.
 Exact engines and route diagnostics are available directly, without annotation opt-ins.

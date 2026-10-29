@@ -48,6 +48,17 @@ tests, fixed multiplier-placement tests, and the SIMD AXPY prohibition on FMA. N
 a plain square sum can overflow or underflow for ordinary finite inputs with a representable norm. Checked
 solver workspace primitives report arithmetic diagnostics deliberately and are not ordinary BLAS calls.
 
+The corrective audit also removes dense zero-product NaN promises, fixed panel/block scaling placement,
+exact or exceptional-value scaling comparisons, indexed norm exceptional-result promises, and a subnormal
+TRSM division-only requirement. [Netlib DGER](https://netlib.org/blas/dger.f) skips zero coefficients, while
+[Netlib DTRSM](https://netlib.org/blas/dtrsm.f) uses reciprocal multiplication on right-side paths. A test-only
+zero-skipping dense implementation now passes the conformance helpers. Indexed panel leaves and sparse
+`evaluatedAxpy` still evaluate stored positions, including stored zeros, because that is the separate sparse
+structural contract; absent positions remain unevaluated. Zero-right-hand-side sparse triangular tests keep
+the no-update rule without prescribing live-lane exceptional results or signed zeros. Required alpha/beta
+zero, selected-triangle and unit-diagonal checks remain, as does finite-range norm scaling.
+
+
 ## Baseline and performance evidence
 
 The baseline JVM ABI dump contains 1,178 lines. Seven route/model/reporter files contain 1,398 lines,
@@ -58,7 +69,98 @@ Use the accepted oneMKL evidence in [vendor-comparison.md](vendor-comparison.md)
 9111, and the compact/streaming AXPY evidence from jobs 9068 and 9163–9164. Whole JVM Level 3 calls retain
 the minimum-128 rule; whole GEMM additionally retains sides at least 16 and depth 1024–4096. Borrowed regions
 do not inherit the deep-GEMM exception. Native pinning has a separate policy from JVM operand transfers.
-Accelerate comparisons remain deferred. Targeted follow-up checks and results belong below as they complete.
+The tiny GER comparison remains the diagnostic job 9002 evidence described there, not a claim of a paired
+window-kernel or complete simplex speedup. GER and dense/indexed AXPY bodies are unchanged; their existing
+measurements and current conformance/allocation checks are reused. Indexed norm keeps the measured SIMD
+square-sum fast path, while an unsafe sum now enters scaling directly without recomputing that sum.
+Accelerate comparisons remain deferred. Targeted follow-up checks and results are recorded below.
+
+## Implementation and release checks
+
+The implementation stack starts with #659 (array API and retained packing), then #660 (diagnostics),
+#661 (native composition), and #662 (ordinary numerical semantics). Each branch targets its predecessor.
+The final documentation/evidence PR #663 targets #662. PR #657 remains separate and unmodified; its earlier
+backend guide overlaps the final guide and should be reviewed in that context.
+
+The panel/product/triangular seams remain internal. Matrix route prose and duplicate derived formatting are
+removed, sparse diagnostics live outside execution, and ordinary calls do not construct reporters. The
+engine retains one production vendor adapter, available through `vendor` for metadata inspection. Explicit vendor comparisons open bindings directly. Native's Level 1 and matrix cutoffs live
+in `NativeBlasPolicy`; JVM eligibility stays in `JvmHostDensePolicy` with the accepted boundaries unchanged.
+
+Unpacked products retain a bounded accumulating column and writeback loop for measured throughput,
+without promising where alpha enters the arithmetic or requiring identical backend rounding. Sparse transpose
+GEMV uses the selected indexed dot rather than an ordered scalar-only path. Measured AXPY arithmetic is
+unchanged. Norm scaling remains because a finite norm can exist when its naive square sum overflows or
+underflows; the [reference BLAS norm](https://netlib.org/lapack/explore-html/d1/d2a/group__nrm2_gab5393665c8f0e7d5de9bd1dd2ff0d9d0.html)
+also uses range protection. Checked solver diagnostic primitives retain their separate contract.
+
+Cumulative revision `4dd9d05d73dd643fc086ad81adf8c14deb309151` passed `./gradlew check lintDocs`
+in 2 minutes 10 seconds. The gate included 848 library and 86 benchmark JVM tests, with no failures,
+errors or skips; Linux Native conformance; JVM 17/25 packaged tests; ABI/KDoc; real oneMKL interface and
+fallback checks; and uninstrumented preferred/narrow SIMD probes with and without FMA. Warmed AXPY, GER,
+panel, product and triangular probes reported zero leaf allocation. The Level 2 route-depth regression
+also passed a targeted `HostDenseBlasTest` run.
+
+After staging that revision's publications locally, the four in-repository consumers
+`jvm17Consumer`, `jvm25Consumer`, `jvm17ModuleConsumer` and `jvm25ModuleConsumer` passed using
+`./gradlew -p tests/consumers --refresh-dependencies` with their `:jvm:` task paths. These local results
+cover the named cumulative revision. Per-PR GitHub CI provides platform validation of each pushed head.
+
+Targeted performance follow-up uses the existing 21-case thin-GEMM suite, three rounds, eight 200 ms
+warmups, five 200 ms samples and GC profiling. Jobs [9259](https://lab.eignex.com/jobs/9259)
+(control, `56e487ff`) and [9264](https://lab.eignex.com/jobs/9264) (proposed direct update, `565a9883`)
+use one fork and rotate `jvm-simd`, `jvm-default` and explicit `onemkl-jvm`. All captures use normal shared
+resources and spread CPU pinning on the same Xeon Platinum 8375C host with JDK 25.0.4.1. The cores differ;
+round spread and unchanged packed/transpose controls are necessary when interpreting timings.
+
+The proposed direct destination update removed about 24 B/call for 1x1 and 80 B/call for 8x8 without a
+workspace, but the retained-workspace 8x8 SIMD case regressed from 92.1 to 105.8 us (15%). Confirmation
+jobs [9273](https://lab.eignex.com/jobs/9273) (`56e487ff`) and
+[9274](https://lab.eignex.com/jobs/9274) (`67da9bea`) use two forks and SIMD alone. They reproduce the
+workspace regression: 95.7 to 105.6 us (10%), while most unchanged packed controls converge within 4%.
+These are medians of the three round medians. Some other cases have substantial shared-host spread;
+these results establish the scratch decision, not a new native crossover.
+
+The direct-update change is rejected. The final source retains the generic accumulation-column path,
+with bounded workspace storage and no extra numerical-order promise. Capture
+[9280](https://lab.eignex.com/jobs/9280) at `052d3602` had broad shared-host variation, including unchanged
+packed controls 14–63% slower, so it does not isolate a source regression or improvement. Same-protocol
+confirmation [9284](https://lab.eignex.com/jobs/9284) at the same revision completed all three two-fork rounds:
+
+| Exact SIMD GEMM case | Control 9273 us | Direct proposal 9274 us | Retained buffer 9284 us |
+|---|---:|---:|---:|
+| 1x1x1024 | 2.591 | 2.924 | 2.463 |
+| 8x8x4096 with workspace | 95.691 | 105.605 | 93.699 |
+| 16x16x4096 with workspace, unchanged packed control | 160.389 | 162.359 | 181.366 |
+| 32x32x4096 with workspace, unchanged packed control | 424.636 | 410.608 | 412.460 |
+| 16x64x4096 with workspace, unchanged packed control | 498.130 | 494.072 | 509.989 |
+| 64x16x4096 with workspace, unchanged packed control | 540.872 | 537.649 | 541.920 |
+
+Values are medians of the three round medians. The affected 8x8 workspace rounds were 93.7, 92.4 and
+95.7 us: retaining the buffer recovers control throughput. Some unchanged packed controls still vary;
+the 16x16x4096 workspace rounds were 187.1, 181.4 and 162.2 us. No new crossover or speedup claim is
+inferred from that spread. Buffered allocation matches the control: about 24 B/call for 1x1, 83 B/call for
+unretained 8x8, and profiler noise (2.7 B/call) with a retained workspace. The later numerical-contract
+correction changes documentation and tests, leaving these measured arithmetic bodies unchanged.
+Uninstrumented probes continue to establish zero leaf allocation; GC-profiled whole calls can include
+workspace allocation and profiler overhead. These captures do not replace accepted oneMKL eligibility
+evidence. No one-off threshold or new dispatch rule is introduced.
+
+Before annotation removal, cumulative revision `f1bb78a7` passed 171 basis and revised-simplex JVM
+integration tests against Klause `0648b909a6` with temporary benchmark adaptations and composite dependency
+substitution. These are historical integration results, not validation of the current head. Downstream
+repository adaptations are outside this change. Published JVM 17/25 classpath and module consumers are
+maintained in this repository and exercise the reduced API.
+
+The unused factorization exceptions `KoblasException`, `SingularMatrix` and `NotPositiveDefinite` have no
+BLAS implementation and are removed. The [migration guide](../../MIGRATION.md) documents replacements for
+removed APIs. Exact engines, `vendor` metadata and route queries need no annotation opt-in; the
+`KoblasEngineApi` marker itself is removed.
+
+The final JVM ABI dump has 1,059 lines versus the baseline's 1,178. The implementation stack deletes
+retained packing and unsupported benchmark paths, drops numerical-order promises, and reduces
+reporting rather than adding a replacement framework. Exact declaration counts differ between JVM and
+Native dumps; dump lines are a reproducible surface-size indicator, not an API compatibility claim.
 
 ## Historical Native policy provenance
 

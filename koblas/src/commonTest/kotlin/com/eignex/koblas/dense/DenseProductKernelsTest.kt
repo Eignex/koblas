@@ -27,8 +27,8 @@ class DenseProductKernelsTest {
     }
 
     @Test
-    fun `each product block accumulates retained depth slices`() = withProductKernels {
-        assertDepthSlicesAccumulate(it)
+    fun `each product block accumulates transient depth blocks`() = withProductKernels {
+        assertDepthBlocksAccumulate(it)
     }
 
     /** A tile geometry is a positive rectangle, whatever a backend chose it to be. */

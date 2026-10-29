@@ -480,13 +480,19 @@ class SparseRhsPanelTest {
                     val source = DoubleArray(order * sides) { if (mixed && it / order == 1) 0.0 else 1.0 }
                     for (solve in booleanArrayOf(false, true)) {
                         val expected = DenseMatrix.wrap(order, sides, source.copyOf())
-                        if (solve) ReferenceBlas.trsm(dense, expected, lower = true)
-                        else ReferenceBlas.trmm(dense, expected, lower = true)
+                        if (solve) {
+                            ReferenceBlas.trsm(dense, expected, lower = true)
+                        } else {
+                            ReferenceBlas.trmm(dense, expected, lower = true)
+                        }
 
                         for ((name, engine) in engines()) {
                             val actual = DenseMatrix.wrap(order, sides, source.copyOf())
-                            if (solve) engine.trsm(triangle, actual, lower = true, workspace = Workspace())
-                            else engine.trmm(triangle, actual, lower = true, workspace = Workspace())
+                            if (solve) {
+                                engine.trsm(triangle, actual, lower = true, workspace = Workspace())
+                            } else {
+                                engine.trmm(triangle, actual, lower = true, workspace = Workspace())
+                            }
 
                             assertTriangularAgreesWithReference(
                                 expected.values,

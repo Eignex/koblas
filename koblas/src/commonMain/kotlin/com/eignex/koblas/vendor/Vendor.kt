@@ -86,21 +86,9 @@ public enum class Vendor(
     ),
 
     /**
-     * The last resort on Linux, and the comparison arm every benchmark runs against.
-     *
-     * Every other vendor is tuned for one vendor's parts and installed deliberately. OpenBLAS is what a
-     * distribution ships, so it is the library a host is most likely to already have and the only one that
-     * makes the difference between Level 2 and 3 working and raising. It is chosen last because a
-     * distribution build is compiled for whatever runs everywhere rather than for the part in front of it, so
-     * where a tuned library is present that one is better; where none is, this is far better than nothing.
-     *
-     * Nothing is taken on trust: a build advertising 64-bit integers, which distributions do ship, is refused
-     * by the ABI probe, and one that will not hold to a single compute thread never becomes a binding.
-     *
-     * Holding it reaches further than it does for the others. A tuned library is installed for this process,
-     * whereas the distribution's OpenBLAS is the one everything on the host shares, and the thread count is
-     * set in the loaded library rather than in Koblas, so anything else in this process that reached the same
-     * file runs on one compute thread as well.
+     * Distribution BLAS fallback on Linux. Default engines retain portable BLAS without any library.
+     * A binding must pass the integer-ABI probe and single-thread controls before selection; those controls
+     * also affect other callers of the same loaded library in this process.
      */
     OpenBlas(
         "OpenBLAS",
@@ -124,20 +112,9 @@ public enum class Vendor(
     /** The preference order for a host, and the reasoning behind it. */
     public companion object {
         /**
-         * The vendors to try on [host], most preferred first. An empty list means this host has no supported
-         * accelerator, which is a clear failure for matrix operations and no failure at all for containers,
-         * Level 1, and the generic primitives.
-         *
-         * Operating system and architecture decide before CPU vendor does. An Arm part from an unfamiliar
-         * manufacturer still takes the ArmPL route rather than falling off the end of a CPU-vendor check.
-         *
-         * Each Linux list ends in [OpenBlas], which is what makes the difference between a host with a
-         * distribution BLAS computing and raising. The tuned library wins wherever it is installed; the
-         * fallback only decides what happens when none is. macOS needs no fallback, because Accelerate is part
-         * of the system and cannot be missing.
-         *
-         * Which one answered is never a guess: the route and the resolved file name the library that ran, so a
-         * host that fell back says so rather than reporting the vendor it would have preferred.
+         * The supported vendors to try on [host], in preference order. An empty list leaves default engines
+         * on portable Kotlin. Linux falls back to [OpenBlas]; macOS uses system [Accelerate]. Performance
+         * eligibility belongs to the platform engine policy, separately from library availability.
          */
         public fun select(host: HostPlatform): List<Vendor> = when {
             host.operatingSystem == OperatingSystem.MacOs -> listOf(Accelerate)

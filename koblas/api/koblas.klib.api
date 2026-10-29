@@ -751,15 +751,6 @@ final class com.eignex.koblas/KoblasEngine : com.eignex.koblas.dense/DenseBlas, 
     }
 }
 
-final class com.eignex.koblas/NotPositiveDefinite : com.eignex.koblas/KoblasException { // com.eignex.koblas/NotPositiveDefinite|null[0]
-    constructor <init>(kotlin/Int, kotlin/Double, kotlin/String) // com.eignex.koblas/NotPositiveDefinite.<init>|<init>(kotlin.Int;kotlin.Double;kotlin.String){}[0]
-
-    final val pivot // com.eignex.koblas/NotPositiveDefinite.pivot|{}pivot[0]
-        final fun <get-pivot>(): kotlin/Double // com.eignex.koblas/NotPositiveDefinite.pivot.<get-pivot>|<get-pivot>(){}[0]
-    final val position // com.eignex.koblas/NotPositiveDefinite.position|{}position[0]
-        final fun <get-position>(): kotlin/Int // com.eignex.koblas/NotPositiveDefinite.position.<get-position>|<get-position>(){}[0]
-}
-
 final class com.eignex.koblas/PreparedSparseMatrix : com.eignex.koblas/Matrix { // com.eignex.koblas/PreparedSparseMatrix|null[0]
     final val cols // com.eignex.koblas/PreparedSparseMatrix.cols|{}cols[0]
         final fun <get-cols>(): kotlin/Int // com.eignex.koblas/PreparedSparseMatrix.cols.<get-cols>|<get-cols>(){}[0]
@@ -777,13 +768,6 @@ final class com.eignex.koblas/PreparedSparseMatrix : com.eignex.koblas/Matrix { 
     final fun symvInto(kotlin/Double, kotlin/DoubleArray, kotlin/Double, kotlin/DoubleArray, kotlin/Boolean = ..., com.eignex.koblas/Workspace? = ...) // com.eignex.koblas/PreparedSparseMatrix.symvInto|symvInto(kotlin.Double;kotlin.DoubleArray;kotlin.Double;kotlin.DoubleArray;kotlin.Boolean;com.eignex.koblas.Workspace?){}[0]
     final fun toArray(): kotlin/Array<kotlin/DoubleArray> // com.eignex.koblas/PreparedSparseMatrix.toArray|toArray(){}[0]
     final fun toString(): kotlin/String // com.eignex.koblas/PreparedSparseMatrix.toString|toString(){}[0]
-}
-
-final class com.eignex.koblas/SingularMatrix : com.eignex.koblas/KoblasException { // com.eignex.koblas/SingularMatrix|null[0]
-    constructor <init>(kotlin/Int, kotlin/String) // com.eignex.koblas/SingularMatrix.<init>|<init>(kotlin.Int;kotlin.String){}[0]
-
-    final val position // com.eignex.koblas/SingularMatrix.position|{}position[0]
-        final fun <get-position>(): kotlin/Int // com.eignex.koblas/SingularMatrix.position.<get-position>|<get-position>(){}[0]
 }
 
 final class com.eignex.koblas/SparseMatrix : com.eignex.koblas/MatrixStorage { // com.eignex.koblas/SparseMatrix|null[0]
@@ -885,8 +869,6 @@ final class com.eignex.koblas/Workspace { // com.eignex.koblas/Workspace|null[0]
     final fun take(kotlin/Int): kotlin/DoubleArray // com.eignex.koblas/Workspace.take|take(kotlin.Int){}[0]
     final fun takeI32(kotlin/Int): kotlin/IntArray // com.eignex.koblas/Workspace.takeI32|takeI32(kotlin.Int){}[0]
 }
-
-sealed class com.eignex.koblas/KoblasException : kotlin/ArithmeticException // com.eignex.koblas/KoblasException|null[0]
 
 final object com.eignex.koblas.sparse/SparsePrimitives { // com.eignex.koblas.sparse/SparsePrimitives|null[0]
     final fun activeMaximum(kotlin/IntArray, kotlin/Int, kotlin/DoubleArray, kotlin/Int, kotlin/Int, kotlin/BooleanArray): kotlin/Double // com.eignex.koblas.sparse/SparsePrimitives.activeMaximum|activeMaximum(kotlin.IntArray;kotlin.Int;kotlin.DoubleArray;kotlin.Int;kotlin.Int;kotlin.BooleanArray){}[0]

@@ -18,7 +18,8 @@ bash tests/verify-test-results.sh tests/ios-consumer/build/test-results/iosSimul
 
 Pass `-PiosSimulatorDevice=<simulator-uuid>` to select an installed simulator. CI selects and boots an available
 iPhone before running both the library conformance suite and this consumer. The consumer checks portable
-execution without a vendor, repeated transpose products with reused buffers, bitwise repeatability and aliases.
+execution without a vendor, repeated transpose products with reused buffers, finite results against the scalar
+reference within rounding tolerance, and aliases.
 
 CI starts simulator boot after toolchain restoration, stages a unique publication version per workflow attempt,
 and passes that version with `-Pconsumer.version=VERSION` instead of refreshing dependencies. It links one

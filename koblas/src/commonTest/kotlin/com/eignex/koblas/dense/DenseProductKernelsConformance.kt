@@ -150,10 +150,9 @@ internal fun assertZeroBetaOverwritesPoison(kernels: DenseProductKernels) {
 }
 
 /**
- * Depth slices of retained panels must agree with one whole block, using the group stride
- * from full-depth packing and applying beta only to the first slice.
+ * Freshly packed depth blocks must agree with one whole product, applying beta only to the first block.
  */
-internal fun assertDepthSlicesAccumulate(kernels: DenseProductKernels) {
+internal fun assertDepthBlocksAccumulate(kernels: DenseProductKernels) {
     val rng = Random(20261004)
     val rows = kernels.tileRows + 3
     val columns = kernels.tileColumns + 3
@@ -166,7 +165,7 @@ internal fun assertDepthSlicesAccumulate(kernels: DenseProductKernels) {
     val bStride = depth * kernels.tileColumns
     val original = DoubleArray(rows * columns) { rng.nextDouble(-1.0, 1.0) }
     val whole = original.copyOf()
-    val sliced = original.copyOf()
+    val blocked = original.copyOf()
 
     kernels.productBlock(
         0.875, packedA, 0, aStride, packedB, 0, bStride, rows, columns, depth, -0.25, whole, 0, rows,
@@ -174,17 +173,19 @@ internal fun assertDepthSlicesAccumulate(kernels: DenseProductKernels) {
     var step = 0
     val cuts = intArrayOf(4, 1, 6)
     for (cut in cuts) {
+        val blockA = packedLeftFixture(rows, cut, kernels.tileRows) { i, p -> left[i + (step + p) * rows] }
+        val blockB = packedRightFixture(cut, columns, kernels.tileColumns) { p, j -> right[step + p + j * depth] }
         kernels.productBlock(
-            0.875, packedA, step * kernels.tileRows, aStride, packedB, step * kernels.tileColumns, bStride,
-            rows, columns, cut, if (step == 0) -0.25 else 1.0, sliced, 0, rows,
+            0.875, blockA, 0, cut * kernels.tileRows, blockB, 0, cut * kernels.tileColumns,
+            rows, columns, cut, if (step == 0) -0.25 else 1.0, blocked, 0, rows,
         )
         step += cut
     }
     assertEquals(depth, step, "the cuts must cover the depth")
     for (at in whole.indices) {
         assertTrue(
-            abs(whole[at] - sliced[at]) <= 1e-12 * maxOf(1.0, abs(whole[at])),
-            "${kernels.name} depth slices differ at $at: ${whole[at]} vs ${sliced[at]}",
+            abs(whole[at] - blocked[at]) <= 1e-12 * maxOf(1.0, abs(whole[at])),
+            "${kernels.name} depth blocks differ at $at: ${whole[at]} vs ${blocked[at]}",
         )
     }
 }
