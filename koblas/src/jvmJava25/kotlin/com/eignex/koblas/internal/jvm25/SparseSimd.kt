@@ -191,7 +191,7 @@ internal object SparseSimd : IndexedSparseKernels {
             k++
         }
         if (squares.isFinite() && squares >= MIN_NORMAL) return sqrt(squares)
-        return ScalarIndexedSparseKernels.nrm2(indices, indexOffset, count, values)
+        return ScalarIndexedSparseKernels.rescaledNorm(indices, indexOffset, count, values, squares)
     }
 
     @Suppress("LongParameterList")

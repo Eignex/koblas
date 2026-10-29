@@ -114,7 +114,11 @@ internal object ScalarIndexedSparseKernels : IndexedSparseKernels {
             }
         }
         if (squares.isFinite() && squares >= MIN_NORMAL) return sqrt(squares)
+        return rescaledNorm(indices, indexOffset, count, values, squares)
+    }
 
+    /** Range protection shared with a SIMD caller without repeating its square sum. */
+    fun rescaledNorm(indices: IntArray, indexOffset: Int, count: Int, values: DoubleArray, squares: Double): Double {
         var maximum = 0.0
         for (k in 0 until count) {
             val magnitude = abs(values[indices[indexOffset + k]])
