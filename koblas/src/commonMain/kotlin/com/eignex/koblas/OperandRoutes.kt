@@ -1,4 +1,3 @@
-@file:OptIn(com.eignex.koblas.KoblasEngineApi::class)
 @file:Suppress("LongParameterList") // the matrix product signature
 @file:kotlin.jvm.JvmName("Koblas")
 @file:kotlin.jvm.JvmMultifileClass
@@ -20,7 +19,6 @@ import com.eignex.koblas.vendor.RouteKind
  * Prepared operands retain their bound engine; other products are described using this engine.
  * The generic zero-alpha shortcut uses the default engine's scaling kernels.
  */
-@com.eignex.koblas.KoblasEngineApi
 public fun KoblasEngine.routeOf(
     alpha: Double,
     a: Matrix,
@@ -41,7 +39,6 @@ public fun KoblasEngine.routeOf(
  * Describes [Matrix.gemm] without allocating its result. Two sparse operands, prepared or ordinary,
  * produce CSC storage; other pairings produce dense storage. No cached orientation is constructed.
  */
-@com.eignex.koblas.KoblasEngineApi
 public fun KoblasEngine.routeOf(
     alpha: Double,
     a: Matrix,

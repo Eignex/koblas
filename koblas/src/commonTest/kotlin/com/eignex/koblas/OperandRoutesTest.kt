@@ -121,7 +121,6 @@ class OperandRoutesTest {
     }
 
     @Test
-    @OptIn(KoblasEngineApi::class)
     fun `prepared operands report their bound engine on either side`() {
         val source = sparse(8, 8)
         val prepared = BuiltinEngines.scalar.prepare(source)

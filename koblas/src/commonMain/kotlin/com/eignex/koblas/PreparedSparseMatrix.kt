@@ -1,5 +1,3 @@
-@file:OptIn(com.eignex.koblas.KoblasEngineApi::class)
-
 package com.eignex.koblas
 
 import com.eignex.koblas.sparse.SparseBlas
@@ -112,7 +110,6 @@ public class PreparedSparseMatrix internal constructor(a: SparseMatrix, internal
      * operand absent from these facts, so their schedule is reported as unsettled.
      * [call] supplies scalars and extents; [SparseCall.matrix] is ignored in favor of this snapshot.
      */
-    @com.eignex.koblas.KoblasEngineApi
     public fun routeOf(operation: SparseMatrixOperation, call: SparseCall): SparseMatrixRoute {
         if (orientsOnAnotherOperand(operation) && call.transposeSparse) {
             // The missing second operand decides whether any position is reached and a transpose is needed.

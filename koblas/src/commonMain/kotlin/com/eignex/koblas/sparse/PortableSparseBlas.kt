@@ -1,4 +1,3 @@
-@file:OptIn(com.eignex.koblas.KoblasEngineApi::class)
 @file:Suppress("VariableNaming", "FunctionParameterNaming") // math convention: single-letter A, B, C, x, y
 
 package com.eignex.koblas.sparse

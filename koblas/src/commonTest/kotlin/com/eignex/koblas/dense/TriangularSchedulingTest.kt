@@ -2,7 +2,6 @@ package com.eignex.koblas.dense
 
 import com.eignex.koblas.BuiltinEngines
 import com.eignex.koblas.DenseMatrix
-import com.eignex.koblas.KoblasEngineApi
 import com.eignex.koblas.MAX_IDLE_LENGTHS
 import com.eignex.koblas.Workspace
 import com.eignex.koblas.assertClose
@@ -524,7 +523,6 @@ class TriangularSchedulingTest {
  * Right-hand sides enough to fill whatever the substitution backend groups them in, read from the backend
  * because a count that fills one machine's lane block leaves another's empty.
  */
-@OptIn(KoblasEngineApi::class)
 internal val VECTOR_SIDES: Int = BuiltinEngines.simd
     ?.triangularKernels
     ?.rightHandSideGroup(TRIANGULAR_DIAGONAL_BLOCK, UNGROUPED_SIDES)
@@ -534,7 +532,6 @@ internal val VECTOR_SIDES: Int = BuiltinEngines.simd
 private const val UNGROUPED_SIDES = 1024
 
 /** Runs [body] against every composition of panel, product and substitution backends this platform has. */
-@OptIn(KoblasEngineApi::class)
 internal fun withBackends(body: (DensePanelKernels, DenseProductKernels, DenseTriangularKernels) -> Unit) {
     body(PortablePanelKernels, PortableProductKernels, PortableTriangularKernels)
     BuiltinEngines.simd?.let { body(it.panelKernels, it.productKernels, it.triangularKernels) }

@@ -2,7 +2,6 @@ package com.eignex.koblas.dense
 
 import com.eignex.koblas.BuiltinEngines
 import com.eignex.koblas.DenseMatrix
-import com.eignex.koblas.KoblasEngineApi
 import com.eignex.koblas.Workspace
 import com.eignex.koblas.assertClose
 import com.eignex.koblas.copyOf
@@ -464,7 +463,6 @@ class StructuredProductTest {
     }
 
     @Test
-    @OptIn(KoblasEngineApi::class)
     fun `a rank two k route reports the composition it is`() {
         for (engine in listOfNotNull(BuiltinEngines.scalar, BuiltinEngines.simd)) {
             val route = engine.routeOf(
@@ -477,7 +475,6 @@ class StructuredProductTest {
         }
     }
 
-    @OptIn(KoblasEngineApi::class)
     private fun koblasPanels(): DensePanelKernels = BuiltinEngines.simd?.panelKernels ?: PortablePanelKernels
 
     /** The panel backend that belongs beside [products], so a composition under test is a real one. */

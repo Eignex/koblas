@@ -1,4 +1,3 @@
-@file:OptIn(com.eignex.koblas.KoblasEngineApi::class)
 @file:Suppress("TooManyFunctions") // one description per executed shape, beside the traversal it describes
 
 package com.eignex.koblas.dense

@@ -1,5 +1,3 @@
-@file:OptIn(com.eignex.koblas.KoblasEngineApi::class)
-
 package com.eignex.koblas.sparse
 
 import com.eignex.koblas.SparseMatrix
@@ -32,7 +30,6 @@ public interface SparseKernels {
      *
      * Building a route allocates, so it belongs before a timed region and never inside one.
      */
-    @com.eignex.koblas.KoblasEngineApi
     public fun routeOf(operation: SparseOperation, count: Int): VectorRoute<SparseOperation>
 
     /** `xᵀ·y` for a sparse [x] against a dense [y] (Sparse BLAS `usdot`); walks only the stored entries. */

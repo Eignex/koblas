@@ -1,4 +1,3 @@
-@file:OptIn(com.eignex.koblas.KoblasEngineApi::class)
 @file:Suppress(
     "VariableNaming",
     "FunctionParameterNaming",

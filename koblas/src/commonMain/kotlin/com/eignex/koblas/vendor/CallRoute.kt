@@ -1,5 +1,3 @@
-@file:OptIn(com.eignex.koblas.KoblasEngineApi::class)
-
 package com.eignex.koblas.vendor
 
 import com.eignex.koblas.DenseMatrix

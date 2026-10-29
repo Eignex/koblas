@@ -1,4 +1,3 @@
-@file:OptIn(com.eignex.koblas.KoblasEngineApi::class)
 @file:Suppress("TooManyFunctions") // the CBLAS double-precision surface
 
 package com.eignex.koblas.vendor

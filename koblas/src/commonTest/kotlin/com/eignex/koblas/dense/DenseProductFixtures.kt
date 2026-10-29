@@ -1,17 +1,14 @@
 package com.eignex.koblas.dense
 
 import com.eignex.koblas.BuiltinEngines
-import com.eignex.koblas.KoblasEngineApi
 
 /** Runs [body] against every product backend this platform has, which is what decides the block geometry. */
-@OptIn(KoblasEngineApi::class)
 internal fun withProducts(body: (DenseProductKernels) -> Unit) {
     body(PortableProductKernels)
     BuiltinEngines.simd?.let { body(it.productKernels) }
 }
 
 /** The product backend of the engine whose scheduling the conformance checks above run under. */
-@OptIn(KoblasEngineApi::class)
 internal fun defaultProducts(): DenseProductKernels = BuiltinEngines.simd?.productKernels ?: PortableProductKernels
 
 /**

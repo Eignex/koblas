@@ -26,8 +26,8 @@ Separate destinations and workspaces are required for concurrent calls. Differen
 SIMD widths and fused operations can round differently; cross-platform bitwise equality is not promised.
 Non-finite behavior follows each BLAS routine's contract.
 
-[BuiltinEngines][com.eignex.koblas.BuiltinEngines], behind the
-[KoblasEngineApi][com.eignex.koblas.KoblasEngineApi] opt-in, names exact engines for tests and benchmarks.
+[BuiltinEngines][com.eignex.koblas.BuiltinEngines] names exact engines for tests and benchmarks.
+Exact engines and route diagnostics are available directly, without annotation opt-ins.
 [KoblasEngine.routeOf][com.eignex.koblas.KoblasEngine.routeOf] inspects dense and sparse vector and matrix
 calls through the same overloaded getter. Routes name the implementation and any fallback; a composed
 route identifies multiple components or a choice that depends on values not supplied to the getter. A matrix

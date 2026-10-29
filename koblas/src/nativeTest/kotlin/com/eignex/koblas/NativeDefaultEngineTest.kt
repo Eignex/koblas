@@ -98,7 +98,6 @@ class NativeDefaultEngineTest {
     }
 
     /** The exact portable engine resolves no host binding and provides the availability floor. */
-    @OptIn(KoblasEngineApi::class)
     @Test
     fun `the exact portable engine computes a dense product without a library`() {
         val engine = BuiltinEngines.scalar
