@@ -4,7 +4,7 @@ package com.eignex.koblas
 public actual object BuiltinEngines {
     /** Pure Kotlin scalar at every level, without resolving a host library. */
     @get:JvmStatic
-    public actual val scalar: KoblasEngine by lazy { KoblasEngine.portable() }
+    public actual val scalar: KoblasEngine get() = scalarEngine
 
     /** Vector API kernels on desktop JDK 25 or later, or null on portable runtimes. */
     @get:JvmStatic

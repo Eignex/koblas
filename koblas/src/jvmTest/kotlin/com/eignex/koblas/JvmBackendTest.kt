@@ -1,13 +1,26 @@
 package com.eignex.koblas
 
+import com.eignex.koblas.vendor.openBlas
 import kotlin.test.Test
+import kotlin.test.assertNull
+import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
 class JvmBackendTest {
     @Test
-    fun `desktop implementation is loaded from the versioned jar section`() {
+    fun `runtime loads the implementation from its packaged section`() {
         val resource = JvmBackend::class.java.getResource("JvmBackend.class").toString()
+        val section = if (Runtime.version().feature() >= 25) "META-INF/versions/25/" else ""
 
-        assertTrue(resource.contains(".jar!/META-INF/versions/25/com/eignex/koblas/JvmBackend.class"), resource)
+        assertTrue(resource.contains(".jar!/${section}com/eignex/koblas/JvmBackend.class"), resource)
+    }
+
+    @Test
+    fun `baseline runtime selects scalar without opening a host library`() {
+        if (Runtime.version().feature() >= 25) return
+
+        assertSame(BuiltinEngines.scalar, koblas)
+        assertNull(BuiltinEngines.simd)
+        assertNull(openBlas())
     }
 }

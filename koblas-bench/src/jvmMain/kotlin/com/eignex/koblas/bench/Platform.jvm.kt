@@ -25,10 +25,7 @@ internal actual fun resolveEngine(mode: String): Pair<KoblasEngine, String> {
         "jvm-default" -> koblas
         else -> error("unknown JVM mode $mode")
     }
-    val host = engine.vendor?.let {
-        "/${it.vendor.vendorName}/${it.libraryPath}/${it.version}/threads=${it.threadEvidence.label}"
-    } ?: ""
-    return engine to "$mode/${engine.name}$host"
+    return engine to engineIdentity(mode, engine)
 }
 
 internal actual fun runtimeIdentity(): String = "kotlin-${KotlinVersion.CURRENT}/jvm/${System.getProperty("java.vendor")}/${System.getProperty("java.version")}".replace(',', '_')
