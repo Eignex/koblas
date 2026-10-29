@@ -80,21 +80,19 @@ class DenseWorkspaceTest {
         assertEquals(1, workspace.idleLengths(), "the solve borrowed scratch besides its staged triangle")
     }
 
-    // The order is past one diagonal block, since below that the call borrows nothing and a reuse check over
-    // no loans would pass without checking anything.
     @Test
     fun `a repeated call over one shape reuses the same scratch`() {
         val rng = Random(20260930)
-        val order = TRIANGULAR_DIAGONAL_BLOCK + 8
+        val order = 9
         val workspace = Workspace()
-        val triangle = triangle(randomMatrix(order, order, rng), order)
+        val a = randomMatrix(order, order, rng)
         val b = randomMatrix(order, 4, rng)
 
-        blas.trmm(triangle, b, lower = true, workspace = workspace)
+        blas.gemm(0.5, a, false, b, false, 0.5, b, workspace)
         val afterOne = workspace.idleLengths()
-        repeat(3) { blas.trmm(triangle, b, lower = true, workspace = workspace) }
+        repeat(3) { blas.gemm(0.5, a, false, b, false, 0.5, b, workspace) }
 
-        assertTrue(afterOne > 0, "a triangular multiply over several blocks borrowed nothing")
+        assertTrue(afterOne > 0, "an aliased product needs an operand snapshot")
         assertEquals(afterOne, workspace.idleLengths(), "a repeated call kept asking for new buffers")
     }
 

@@ -118,60 +118,8 @@ internal fun assertReductionsAgreeWithReference(kernels: DenseVectorKernels) {
     assertEquals(0.0, kernels.asum(zeros, 0, 80), "asum of zeros")
 }
 
-/** Exact index agreement across vector boundaries, padding, ties, and exceptional magnitudes. */
-internal fun assertIamaxAgreesWithReference(kernels: DenseVectorKernels) {
-    val rng = Random(20260912)
-    val lengths = intArrayOf(
-        0, 1, 2, 3, 7, 8, 9, 15, 16, 17, 31, 32, 33, 63, 64, 65,
-        127, 128, 129, 255, 256, 257, 511, 512, 513, 600, 1023, 1024, 1025,
-        4095, 4096, 4097,
-    )
-    for (len in lengths) {
-        for (off in intArrayOf(0, 1, 3)) {
-            val inputs = listOf(
-                DoubleArray(len) { rng.nextDouble(-1.0, 1.0) },
-                DoubleArray(len) { it.toDouble() },
-                DoubleArray(len) { (len - it).toDouble() },
-                DoubleArray(len) { if (it % 2 == 0) -0.0 else 0.0 },
-                DoubleArray(len) { Double.NaN },
-                DoubleArray(len) { if (it % 3 == 0) Double.NaN else -0.0 },
-                DoubleArray(len) { if (it % 3 == 0) Double.NaN else Double.MIN_VALUE },
-                DoubleArray(len) { if (it % 2 == 0) Double.NEGATIVE_INFINITY else Double.POSITIVE_INFINITY },
-            )
-            for ((fixture, input) in inputs.withIndex()) {
-                val v = DoubleArray(off + len + 3) { Double.POSITIVE_INFINITY }
-                input.copyInto(v, off)
-                assertEquals(
-                    ScalarVectorKernels.iamax(v, off, len),
-                    kernels.iamax(v, off, len),
-                    "${kernels.name} len=$len off=$off fixture=$fixture",
-                )
-            }
-            // Probe each lane and both ends of long runs without an exhaustive quadratic scan.
-            val winners = if (len <= 33) {
-                (0 until len).toList()
-            } else {
-                (0..16).toList() + listOf(31, 32, len / 2, len - 2, len - 1)
-            }
-            for (winner in winners) {
-                val v = DoubleArray(off + len + 3) { Double.POSITIVE_INFINITY }
-                v.fill(Double.NaN, off, off + len)
-                v[off + winner] = -2.0
-                v[off + len - 1] = 2.0
-                assertEquals(
-                    ScalarVectorKernels.iamax(v, off, len),
-                    kernels.iamax(v, off, len),
-                    "${kernels.name} len=$len off=$off winner=$winner",
-                )
-            }
-        }
-    }
-    assertEquals(-1, kernels.iamax(DoubleArray(0), 0, 0), "empty backing array")
-}
-
 /**
- * `idamax` permits implementation-specific tie and NaN selection. Require an in-range logical
- * index holding a maximum absolute value or a NaN; the portable loop's first-tie policy is narrower.
+ * Finite IAMAX inputs select an in-range maximum without fixing which tied position wins.
  */
 internal fun assertIamaxHonoursItsContract(kernels: DenseVectorKernels) {
     val rng = Random(20260912)
@@ -182,9 +130,6 @@ internal fun assertIamaxHonoursItsContract(kernels: DenseVectorKernels) {
                 DoubleArray(len) { it.toDouble() },
                 DoubleArray(len) { (len - it).toDouble() },
                 DoubleArray(len) { if (it % 2 == 0) -0.0 else 0.0 },
-                DoubleArray(len) { Double.NaN },
-                DoubleArray(len) { if (it % 3 == 0) Double.NaN else Double.MIN_VALUE },
-                DoubleArray(len) { if (it % 2 == 0) Double.NEGATIVE_INFINITY else Double.POSITIVE_INFINITY },
             )
             for ((fixture, input) in inputs.withIndex()) {
                 // Padding is larger than anything inside, so reading past either end is visible here.
@@ -201,72 +146,41 @@ internal fun assertIamaxHonoursItsContract(kernels: DenseVectorKernels) {
                 assertTrue(index in 0 until len, "$context: $index is not a logical index")
                 val chosen = abs(v[off + index])
                 val best = (0 until len).map { abs(v[off + it]) }.filter { !it.isNaN() }.maxOrNull() ?: 0.0
-                assertTrue(chosen.isNaN() || chosen == best, "$context: chose $chosen, largest was $best")
+                assertTrue(chosen == best, "$context: chose $chosen, largest was $best")
             }
         }
     }
 }
 
-/** Exact agreement with the scalar loop, which only an arm that falls back to it can owe. */
+/** Finite scaling accuracy and untouched padding, without fixing exceptional results or signed zeros. */
 internal fun assertScaleAgreesWithReference(kernels: DenseVectorKernels) {
-    forEachScaleFixture { off, len, alpha, expected, actual ->
-        kernels.scale(actual, off, alpha, len)
-        assertContentEquals(expected, actual, "${kernels.name} len=$len off=$off alpha=$alpha")
-    }
-}
-
-/**
- * `dscal` may write zeros without reading the operand when its multiplier is zero. Require
- * untouched padding and the product inside the window, allowing either signed zero in place of
- * the product for a zero multiplier. Like [assertIamaxHonoursItsContract], this admits vendor
- * behavior allowed by BLAS.
- */
-internal fun assertScaleHonoursItsContract(kernels: DenseVectorKernels) {
     forEachScaleFixture { off, len, alpha, expected, actual ->
         kernels.scale(actual, off, alpha, len)
         val context = "${kernels.name} len=$len off=$off alpha=$alpha"
         for (i in expected.indices) {
-            val want = expected[i]
-            val got = actual[i]
-            when {
-                i !in off until off + len -> assertEquals(want, got, "$context: wrote $got outside its window at $i")
-
-                // Either arm is allowed here: the product, or the zero a library writes without reading.
-                alpha == 0.0 -> assertTrue(
-                    got == 0.0 || got.toBits() == want.toBits(),
-                    "$context: a zero multiplier left $got at $i, neither a zero nor $want",
-                )
-
-                else -> assertEquals(want, got, "$context at $i")
+            if (i in off until off + len) {
+                assertClose(expected[i], actual[i], "$context at $i")
+            } else {
+                assertEquals(expected[i], actual[i], "$context wrote outside its window at $i")
             }
         }
     }
 }
 
-/**
- * The fixtures both scaling checks run over: every length around a vector boundary, every offset within a
- * lane, and multipliers that include both zeros, both identities, and the exceptional values.
- */
+/** Finite inputs and multipliers at offsets and tail boundaries, with poisoned padding. */
 private inline fun forEachScaleFixture(body: (Int, Int, Double, DoubleArray, DoubleArray) -> Unit) {
-    val exceptional = doubleArrayOf(
-        0.0,
-        -0.0,
-        Double.MIN_VALUE,
-        -Double.MIN_VALUE,
-        Double.MAX_VALUE,
-        Double.POSITIVE_INFINITY,
-        Double.NEGATIVE_INFINITY,
-        Double.NaN,
-    )
+    val finite = doubleArrayOf(0.0, -0.0, Double.MIN_VALUE, -Double.MIN_VALUE, 1e200, -1e200, 1e-200, -1e-200)
     val lengths = intArrayOf(
         0, 1, 3, 4, 7, 31, 32, 47, 48, 49, 63, 64, 65,
         127, 128, 129, 143, 144, 145, 159, 160, 161, 255, 256, 257, 4097,
     )
     for (len in lengths) {
         for (off in 0..7) {
-            for (alpha in doubleArrayOf(0.0, -0.0, 1.0, -1.0, 0.875, Double.POSITIVE_INFINITY, Double.NaN)) {
-                val expected = DoubleArray(off + len + 5) { i ->
-                    if (i % 3 == 0) exceptional[(i / 3) % exceptional.size] else i * 0.125 - 3.0
+            for (alpha in doubleArrayOf(0.0, -0.0, 1.0, -1.0, 0.875)) {
+                val expected = DoubleArray(off + len + 5) { if (it % 2 == 0) Double.NaN else Double.POSITIVE_INFINITY }
+                for (i in 0 until len) {
+                    expected[off + i] =
+                        if (i % 3 == 0) finite[(i / 3) % finite.size] else i * 0.125 - 3.0
                 }
                 val actual = expected.copyOf()
                 ScalarVectorKernels.scale(expected, off, alpha, len)

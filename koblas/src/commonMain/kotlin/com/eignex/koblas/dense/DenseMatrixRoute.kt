@@ -123,7 +123,7 @@ public class DenseMatrixRoute internal constructor(
     public val operation: DenseMatrixOperation,
     /** How the call was served. */
     override val kind: RouteKind,
-    /** The component that owns traversal, windows and arithmetic order. */
+    /** The component that owns traversal and windows. */
     override val scheduling: String,
     /** The resolved entry point within [scheduling]. */
     override val entryPoint: String,

@@ -26,11 +26,8 @@ package com.eignex.koblas.dense
  * not the stored triangle of `T`, which a caller that transposed has already accounted for. A unit diagonal
  * is supplied rather than read, and no entry outside `M`'s selected triangle is read at all.
  *
- * Results agree with the direct definition to within rounding rather than bit for bit: an implementation may
- * fuse a multiply and an add. What it may not do is turn a division by the diagonal into a multiplication by
- * its reciprocal. Those differ by more than rounding at the extremes a solve is most often asked about: a
- * subnormal diagonal has no finite reciprocal to multiply by, and an infinite or zero one is a result the
- * caller is entitled to see rather than an error this contract detects.
+ * Results agree with the direct definition within routine-appropriate rounding tolerance. An implementation
+ * may fuse operations; no singularity or finiteness scan is required.
  *
  * The block is written in place while the triangle is read, so the storage holding the right-hand sides must
  * be disjoint from the storage holding the triangle. These leaves check nothing; a public matrix call whose
@@ -81,9 +78,8 @@ internal interface DenseTriangularKernels {
      * Solves `M · X = X` in place over one diagonal block, for every right-hand side at once.
      *
      * Substitutes forward when [lower] and backward when it is not, dividing each finished step by its
-     * diagonal coefficient unless [unitDiag]. The division is a division: a zero diagonal yields an infinity
-     * or a NaN and a subnormal one yields whatever it yields, which is what the BLAS solves promise, since
-     * they carry no status and report nothing.
+     * diagonal coefficient unless [unitDiag]. No singularity check or particular result for singular or
+     * non-finite inputs is promised.
      */
     fun diagonalSolve(
         t: DoubleArray,

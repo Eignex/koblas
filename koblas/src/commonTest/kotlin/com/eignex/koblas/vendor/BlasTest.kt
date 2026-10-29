@@ -99,7 +99,7 @@ class BlasTest {
 
             val actual = vendor.iamax(x)
 
-            assertIamaxAgreesWithReference(expected, actual, x, context(vendor, "iamax", x))
+            assertIamaxHonoursItsContract(expected, actual, x, context(vendor, "iamax", x))
         }
     }
 
@@ -234,7 +234,7 @@ class BlasTest {
     private fun assertAgreesWithReference(expected: DoubleArray, actual: DoubleArray, context: String) =
         assertClose(expected, actual, context)
 
-    private fun assertIamaxAgreesWithReference(expected: Int, actual: Int, x: StridedVector, context: String) {
+    private fun assertIamaxHonoursItsContract(expected: Int, actual: Int, x: StridedVector, context: String) {
         assertTrue(actual in 0 until x.size, "$context returned index $actual")
         assertEquals(abs(x[expected]), abs(x[actual]), context)
     }

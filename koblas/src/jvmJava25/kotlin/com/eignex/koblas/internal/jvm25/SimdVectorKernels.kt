@@ -117,6 +117,7 @@ internal object SimdVectorKernels : DenseVectorKernels {
         if (vectorizes(len, vStride == 1)) {
             val squares = SimdOps.dot(v, vOff, v, vOff, len)
             if (squares.isFinite() && squares >= MIN_NORMAL) return sqrt(squares)
+            return rescaledEuclideanNorm(v, vOff, vStride, len, squares)
         }
         return euclideanNorm(v, vOff, vStride, len)
     }

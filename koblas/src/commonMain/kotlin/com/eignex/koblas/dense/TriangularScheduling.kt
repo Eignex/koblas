@@ -93,9 +93,8 @@ internal inline fun forEachTriangularBlock(
  * `B = alpha · op(T)⁻¹ · B` or `B = alpha · op(T) · B`, from either side, over a triangle already staged
  * against an overlap with [b].
  *
- * [alpha] is spent on the right-hand sides before the substitution rather than on the result after it, which
- * is what the reference definition does and is the same arithmetic: scaling a system's right-hand side
- * scales its solution, and scaling a product's operand scales the product.
+ * This schedule scales the right-hand sides by [alpha] before substitution. Other scaling placements may
+ * round differently within the routine's numerical contract.
  */
 internal fun triangularMatrix(
     triangles: DenseTriangularKernels,

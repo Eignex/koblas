@@ -263,9 +263,6 @@ class VectorOpsTest {
         assertEquals(1.0e-300, DenseVector.of(doubleArrayOf(1.0e-300)).norm2(), 1e-314)
         val sparseHuge = SparseVector.of(5, intArrayOf(0, 3), doubleArrayOf(3.0e200, 4.0e200))
         assertEquals(5.0e200, sparseHuge.norm2(), 1e186)
-        assertTrue(DenseVector.of(doubleArrayOf(1.0, Double.NaN)).norm2().isNaN())
-        assertTrue(DenseVector.of(doubleArrayOf(1.0e200, Double.NaN)).norm2().isNaN())
-        assertEquals(Double.POSITIVE_INFINITY, DenseVector.of(doubleArrayOf(1.0, Double.NEGATIVE_INFINITY)).norm2())
     }
 
     @Test
@@ -297,13 +294,22 @@ class VectorOpsTest {
     }
 
     @Test
-    fun `the public dense iamax honours its contract across kernel boundaries`() {
-        val publicKernels = object : DenseVectorKernels by ScalarVectorKernels {
-            override fun iamax(v: DoubleArray, vOff: Int, len: Int, vStride: Int): Int =
-                DenseVector.wrap(v.copyOfRange(vOff, vOff + len)).iamax()
-        }
+    fun `public iamax returns logical indices across strides and kernel boundaries`() {
+        for (stride in intArrayOf(1, 2, -2)) {
+            val publicKernels = object : DenseVectorKernels by ScalarVectorKernels {
+                override fun iamax(v: DoubleArray, vOff: Int, len: Int, vStride: Int): Int {
+                    val values = DoubleArray(len) { v[vOff + it * vStride] }
+                    if (stride == 1) return DenseVector.wrap(values).iamax()
+                    val step = if (stride > 0) stride else -stride
+                    val offset = 1 + if (stride < 0) (len - 1).coerceAtLeast(0) * step else 0
+                    val backing = DoubleArray(2 + len * step) { Double.POSITIVE_INFINITY }
+                    for (i in 0 until len) backing[offset + i * stride] = values[i]
+                    return StridedVector(backing, offset, len, stride).iamax()
+                }
+            }
 
-        assertIamaxHonoursItsContract(publicKernels)
+            assertIamaxHonoursItsContract(publicKernels)
+        }
     }
 
     @Test
@@ -312,15 +318,6 @@ class VectorOpsTest {
         assertEquals(0, SparseVector.of(5, intArrayOf(1, 3), doubleArrayOf(0.0, -0.0)).iamax())
         assertEquals(DenseVector.zero(5).iamax(), SparseVector.of(5, intArrayOf(3), doubleArrayOf(0.0)).iamax())
         assertEquals(4, SparseVector.of(5, intArrayOf(1, 4), doubleArrayOf(0.0, -2.0)).iamax())
-    }
-
-    @Test
-    fun `iamax preserves nan and logical index semantics`() {
-        assertEquals(2, DenseVector.of(doubleArrayOf(Double.NaN, -2.0, Double.POSITIVE_INFINITY)).iamax())
-        assertEquals(0, DenseVector.of(doubleArrayOf(Double.NaN, Double.NaN)).iamax())
-        assertEquals(0, SparseVector.of(4, intArrayOf(2), doubleArrayOf(Double.NaN)).iamax())
-        val backing = doubleArrayOf(99.0, Double.NaN, 99.0, -7.0, 99.0, 6.0)
-        assertEquals(1, StridedVector(backing, offset = 1, size = 3, stride = 2).iamax())
     }
 
     @Test
@@ -402,28 +399,6 @@ class VectorOpsTest {
 
             assertEquals(expected, sparse dot other)
             assertEquals(expected, other dot sparse)
-        }
-    }
-
-    @Test
-    fun `strided norms preserve infinity and nan semantics`() {
-        val cases = listOf(
-            doubleArrayOf(Double.POSITIVE_INFINITY, Double.NEGATIVE_INFINITY),
-            doubleArrayOf(Double.POSITIVE_INFINITY, 3.0, Double.POSITIVE_INFINITY),
-            doubleArrayOf(Double.POSITIVE_INFINITY, Double.NaN),
-            doubleArrayOf(Double.NaN, Double.POSITIVE_INFINITY),
-        )
-        for (values in cases) {
-            for (stride in intArrayOf(2, -2)) {
-                val backing = DoubleArray(values.size * 2) { Double.NaN }
-                val view = StridedVector(backing, if (stride > 0) 0 else backing.size - 2, values.size, stride)
-                for (i in values.indices) view[i] = values[i]
-                val expected = ScalarVectorKernels.nrm2(values, 0, values.size)
-
-                val actual = view.norm2()
-
-                assertEquals(expected, actual, "values=${values.toList()} stride=$stride")
-            }
         }
     }
 

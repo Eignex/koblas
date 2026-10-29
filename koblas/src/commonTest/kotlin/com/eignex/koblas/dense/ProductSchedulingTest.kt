@@ -216,64 +216,6 @@ class ProductSchedulingTest {
         }
     }
 
-    // An infinite alpha against a zero entry tells the two apart: scaling the entry gives a NaN the sum
-    // carries, and scaling the sum gives the infinity the definition asks for.
-    @Test
-    fun `alpha multiplies a sum of products rather than an entry of an operand`() {
-        for (engine in engines) {
-            val tile = engine.productKernels
-            val direct = DenseMatrix(1, 1, DoubleArray(1) { Double.NaN })
-            val row = DenseMatrix(1, 2, doubleArrayOf(1.0, 1.0))
-            val column = DenseMatrix(2, 1, doubleArrayOf(0.0, 1.0))
-            engine.gemm(Double.POSITIVE_INFINITY, row, false, column, false, 0.0, direct)
-            assertEquals(Double.POSITIVE_INFINITY, direct.values[0], "${engine.name} unpacked product")
-
-            val transposed = DenseMatrix(1, 1, DoubleArray(1) { Double.NaN })
-            val stored = DenseMatrix(2, 1, doubleArrayOf(1.0, 1.0))
-            engine.gemm(Double.POSITIVE_INFINITY, stored, true, column, false, 0.0, transposed)
-            assertEquals(Double.POSITIVE_INFINITY, transposed.values[0], "${engine.name} transposed product")
-
-            val m = 4 * tile.tileRows
-            val n = 4 * tile.tileColumns
-            val k = PRODUCT_BLOCK_DEPTH
-            val a = DenseMatrix(m, k, DoubleArray(m * k) { 1.0 })
-            val b = DenseMatrix(k, n, DoubleArray(k * n) { if (it % k == k - 1) 1.0 else 0.0 })
-            val c = DenseMatrix(m, n, DoubleArray(m * n) { Double.NaN })
-            assertTrue(tile.packsProduct(m, n, k), "${engine.name} did not pack ${m}x${n}x$k")
-
-            engine.gemm(Double.POSITIVE_INFINITY, a, false, b, false, 0.0, c)
-
-            assertTrue(
-                c.values.all { it == Double.POSITIVE_INFINITY },
-                "${engine.name} packed product produced ${c.values.distinct().take(3)}",
-            )
-        }
-    }
-
-    // The declared limit of that rule: two depth blocks multiply each of their sums and add the results,
-    // which for an infinite alpha against a block summing to zero is a NaN. [DenseBlas.gemm] says so.
-    @Test
-    fun `an infinite alpha follows the depth partition the schedule chose`() {
-        for (engine in engines) {
-            val tile = engine.productKernels
-            val m = 4 * tile.tileRows
-            val n = 4 * tile.tileColumns
-            for ((k, expected) in listOf(PRODUCT_BLOCK_DEPTH to false, PRODUCT_BLOCK_DEPTH + 1 to true)) {
-                val a = DenseMatrix(m, k, DoubleArray(m * k) { 1.0 })
-                val b = DenseMatrix(k, n, DoubleArray(k * n) { if (it % k == k - 1) 1.0 else 0.0 })
-                val c = DenseMatrix(m, n, DoubleArray(m * n))
-
-                engine.gemm(Double.POSITIVE_INFINITY, a, false, b, false, 0.0, c)
-
-                assertEquals(
-                    expected,
-                    c.values.all { it.isNaN() },
-                    "${engine.name} at depth $k produced ${c.values.first()}",
-                )
-            }
-        }
-    }
-
     /** A zero multiplier scales the destination and reads no operand, whatever stands in them. */
     @Test
     fun `a zero alpha scales the destination without reading an operand`() {

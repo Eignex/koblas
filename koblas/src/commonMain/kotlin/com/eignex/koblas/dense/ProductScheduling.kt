@@ -9,9 +9,9 @@ import com.eignex.koblas.borrow
  * Shared scheduling for `C = alpha * op(A) * op(B) + beta * C`.
  *
  * Large products use cache blocks packed for [DenseProductKernels.productBlock]; small or thin products
- * use Level 2 panels over the original storage, with scratch for accumulating columns or strided coefficients.
+ * use Level 2 panels over the original storage, gathering strided coefficients when profitable.
  * The schedule owns traversal and applies beta once per output window: in the first depth block for packed
- * products, or in the final column write for panels. Backends own the arithmetic within those windows.
+ * products, or when an unpacked column is written. Backends own the arithmetic within those windows.
  *
  * Array windows carry offsets and leading dimensions so structured routines can pass strips and blocks
  * without copying. An origin at logical (row, column) is `row + column * lda` in stored orientation and
@@ -448,15 +448,9 @@ private fun mergeSelected(
 /**
  * The product as Level 2 panel work, one destination column at a time, without packing both operands.
  *
- * Untransposed on the left, a destination column is the columns of `op(A)` accumulated with the coefficients
- * standing in that column of `op(B)`, which is [DensePanelKernels.columnUpdate]. The accumulation happens in
- * a borrowed column and the multipliers are spent once on the way out, so that `alpha` multiplies a sum of
- * products rather than each coefficient: the packed route multiplies a block sum, and a public call must not
- * change what `alpha` is applied to because its extents put it on one route or the other.
- *
- * Transposed on the left, a destination entry is one stored column of `A` reduced against that column of
- * `op(B)`, which is [DensePanelKernels.multiDot] with both multipliers folded into the write it already
- * makes. That is already `alpha` times a finished sum, so it needs no column of its own.
+ * Untransposed on the left, panels accumulate in a bounded workspace column before destination writeback.
+ * The thin-GEMM comparison found this faster than direct destination updates; alpha placement stays internal.
+ * Transposed panels apply both multipliers on write. Neither form promises identical backend rounding.
  *
  * The coefficient vector is a column of `op(B)`, adjacent when `B` is untransposed and [ldb] apart when it
  * is not. A strided one is scalar work for a reduction whatever the width, so where the reduction is long
@@ -520,20 +514,7 @@ internal fun directProduct(
     }
 }
 
-/**
- * Destination rows the unpacked route accumulates at a time, which is what bounds the scratch it borrows.
- *
- * A destination column is accumulated in a borrowed buffer before both multipliers are spent on it, and
- * borrowing one as long as the column would make the buffer's length a function of the call's order. The
- * schedules above cut windows whose extents shrink, so a workspace lending by exact length would hand back
- * a buffer nothing asks for again. Cutting the column instead puts a ceiling on the length independent of
- * the order: every chunk but the last is exactly this many rows, and the arithmetic is unchanged because
- * the rows of a destination column are independent of each other and the multipliers are still spent once
- * on each.
- *
- * The same number as a cache block's rows, because it is the same question: how much of a destination to
- * keep live while the shared dimension is walked.
- */
+/** Bounds the accumulating column independently of the call order and backend panel grouping. */
 internal fun directColumnBlock(m: Int): Int = if (m < PRODUCT_BLOCK_ROWS) m else PRODUCT_BLOCK_ROWS
 
 /**
@@ -663,20 +644,9 @@ private fun writeScaledColumn(
 }
 
 /**
- * The buffer length a scratch request of [size] is made at, which is the next power of two above it.
- *
- * A workspace lends by exact length and retains a bounded number of lengths, so scratch asked for at a
- * window's exact extent is reused only where the windows repeat. A structured schedule's do not: a
- * triangular solve of order one thousand over a single right-hand side accumulates a destination column for
- * each of its sixteen diagonal blocks, and those columns shrink with the order, so each of them would be a
- * fresh allocation on every warmed call.
- *
- * Rounding up collapses a run of nearby extents onto one buffer. It is not itself the bound: the extents
- * are bounded already, by [directColumnBlock] for an accumulating column and by the cache block for a
- * packed panel, and rounding absorbs the variation below those ceilings. What it costs is a buffer up to
- * twice the window it serves, which beside the operands a Level 3 call already holds is small, and a caller
- * reads only the entries it asked for. Above the largest power of two an array length holds, the request
- * passes through.
+ * Round scratch lengths so neighboring windows reuse workspace loans. Schedule blocks bound the
+ * accumulating column and packed panels; rounding retains at most twice the requested storage.
+ * Oversized lengths pass through.
  */
 internal fun scratchCapacity(size: Int): Int {
     if (size <= 1 || size > LARGEST_ROUNDED_SCRATCH) return size

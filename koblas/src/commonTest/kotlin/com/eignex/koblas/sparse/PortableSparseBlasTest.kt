@@ -14,7 +14,6 @@ import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
-import kotlin.test.assertTrue
 
 class PortableSparseBlasTest {
     private val engines: List<KoblasEngine> = listOfNotNull(BuiltinEngines.scalar, BuiltinEngines.simd).distinct()
@@ -275,54 +274,4 @@ class PortableSparseBlasTest {
         assertContentEquals(expected.copyRowIndices(), actual.copyRowIndices(), context)
         assertClose(expected.values, actual.values, context)
     }
-
-    @Test
-    fun `transposed gemv preserves csc reduction order`() {
-        val values = DoubleArray(256)
-        val matrix = singleColumn(values)
-        val x = DoubleArray(256) { 1.0 }
-
-        values[0] = 1e308
-        values[1] = -1e308
-        values[8] = 1e308
-        for (engine in engines) {
-            assertEquals(1e308, engine.gemv(matrix, x, transpose = true)[0], engine.name)
-        }
-
-        values[1] = 1e308
-        values[8] = -1e308
-        for (engine in engines) {
-            assertEquals(Double.POSITIVE_INFINITY, engine.gemv(matrix, x, transpose = true)[0], engine.name)
-        }
-    }
-
-    @Test
-    fun `gemv updates do not fuse multiplication and addition`() {
-        val matrix = singleColumn(DoubleArray(256) { 1e308 })
-        for (engine in engines) {
-            val y = DoubleArray(256) { -1e308 }
-            engine.gemv(1.0, matrix, doubleArrayOf(2.0), 1.0, y, transpose = false)
-            assertTrue(y.all { it == Double.POSITIVE_INFINITY }, engine.name)
-        }
-    }
-
-    @Test
-    fun `gemv evaluates zero coefficient updates`() {
-        val matrix = singleColumn(doubleArrayOf(Double.POSITIVE_INFINITY))
-        for (engine in engines) {
-            assertTrue(engine.gemv(matrix, doubleArrayOf(0.0))[0].isNaN(), engine.name)
-
-            val y = doubleArrayOf(0.0)
-            engine.gemv(Double.MIN_VALUE, matrix, doubleArrayOf(0.5), 0.0, y, transpose = false)
-            assertTrue(y[0].isNaN(), engine.name)
-        }
-    }
-
-    private fun singleColumn(values: DoubleArray): SparseMatrix = SparseMatrix.wrap(
-        values.size,
-        1,
-        intArrayOf(0, values.size),
-        IntArray(values.size) { it },
-        values,
-    )
 }

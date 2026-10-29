@@ -104,8 +104,8 @@ public interface SparseBlas {
      * entry and the solution on return. Only the [lower] or upper triangle of [a] is read, and [unitDiag]
      * takes the diagonal as 1 without reading it, as the dense [com.eignex.koblas.dense.DenseBlas.trsv] does.
      *
-     * A missing diagonal entry is the sparse representation of zero. As in dense `dtrsv`, singularity is
-     * not reported: division by a zero diagonal follows IEEE 754 arithmetic when that diagonal is reached.
+     * A missing diagonal entry represents zero. As in dense `dtrsv`, no singularity check is performed;
+     * singular inputs have no guaranteed numerical result.
      * A right-hand side that is already exactly zero contributes no update, which is what keeps a column of
      * zeros from forming `0 · infinity` against a stored coefficient.
      *

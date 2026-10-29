@@ -14,7 +14,7 @@ public interface MatrixRoute {
     /** How the call was served. */
     public val kind: RouteKind
 
-    /** The component that owns traversal, windows and arithmetic order. */
+    /** The component that owns traversal and windows. */
     public val scheduling: String
 
     /** The resolved entry point within [scheduling]. */

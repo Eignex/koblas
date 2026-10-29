@@ -99,7 +99,6 @@ internal object SparseSimd : IndexedSparseKernels {
         while (k < bound) {
             val old = indexedLoad(destination, indices, indexOffset + k)
             val increment = DoubleVector.fromArray(SPECIES, values, valueOffset + k)
-            // Keep separate rounding: a product overflowing to infinity must not be rescued by FMA.
             increment.mul(multiplier).add(old).intoArray(destination, 0, indices, indexOffset + k)
             k += LANE
         }
@@ -192,7 +191,7 @@ internal object SparseSimd : IndexedSparseKernels {
             k++
         }
         if (squares.isFinite() && squares >= MIN_NORMAL) return sqrt(squares)
-        return ScalarIndexedSparseKernels.nrm2(indices, indexOffset, count, values)
+        return ScalarIndexedSparseKernels.rescaledNorm(indices, indexOffset, count, values, squares)
     }
 
     @Suppress("LongParameterList")

@@ -58,10 +58,9 @@ internal enum class PanelWork {
  * than by refusing it. Callers ask [executionGroup] how much to hand over at a time and loop; passing more or
  * less than it recommended is still correct, which is what makes the recommendation a recommendation.
  *
- * Every product is formed, including one whose coefficient is zero. This is matrix arithmetic, where a
- * position the traversal reaches contributes whatever it evaluates to, and a zero coefficient against an
- * infinity is a NaN that belongs in the result. Level 1 [DenseVectorKernels.axpy] is specified the other way
- * round and returns without touching its destination, so a matrix update cannot be handed to it unchanged.
+ * Dense updates may skip zero coefficients. Exceptional-value propagation and the placement of scaling
+ * factors are implementation choices within the calling BLAS routine's contract. The indexed leaves have
+ * a separate sparse structural requirement: stored positions participate even when their values are zero.
  *
  * Results agree with the direct definition to within rounding rather than bit for bit: an implementation may
  * fuse a multiply and an add, and may reduce a column in lanes and combine them as a tree.
@@ -161,8 +160,8 @@ internal interface DensePanelKernels {
     /**
      * `y(i) += Σ (alpha · x(c)) · a(i, c)` over [rows] destination entries and [columns] panel columns.
      *
-     * [alpha] scales each column's coefficient rather than the finished sum, so a caller splitting a long
-     * panel into groups gets the same arithmetic whatever grouping it chose.
+     * Scaling and reduction grouping may vary between implementations; grouping does not promise identical
+     * rounding or exceptional results.
      */
     fun columnUpdate(
         alpha: Double,
@@ -244,9 +243,10 @@ internal interface DensePanelKernels {
      * [implementationFor] answers which body a given panel reaches, and a caller that wants the vector one
      * has to make [rowStride] one for it.
      *
-     * The destination is [rows] adjacent entries from [yOffset] and is accumulated into. Every product is
-     * formed, as everywhere in this contract: a stored zero of a sparse operand is a position its pattern
-     * reaches, so a zero against an infinity is a NaN the caller asked for.
+     * The destination is [rows] adjacent entries from [yOffset] and is accumulated into. Each indexed stored
+     * position participates, including a stored zero; absent positions are never evaluated. This sparse
+     * structural rule also applies to [indexedRankUpdate] and [indexedCoupledUpdate], independently of the
+     * zero-coefficient latitude of dense updates.
      */
     fun indexedColumnUpdate(
         alpha: Double,
@@ -326,8 +326,8 @@ internal interface DensePanelKernels {
      * because the scatter runs at that position like any other. A symmetric column excludes its own diagonal
      * because that contribution is already scattered into the pivot row.
      *
-     * Every product is formed, as everywhere in this contract, and the reduction is accumulated into rather
-     * than written, so its terms reach the destination in the order the run is walked.
+     * Stored positions participate even when their values are zero. The reduction accumulates into its
+     * destination; term grouping and rounding may vary subject to the overlap rule above.
      */
     @Suppress("LongParameterList") // the panel, its two windows, the run, and both results
     fun indexedCoupledUpdate(

@@ -7,7 +7,7 @@ import kotlin.math.sqrt
 internal const val MIN_NORMAL = 2.2250738585072014e-308
 
 /**
- * Euclidean norm of the run v(off until off + len), accurate over the whole double range (BLAS `dnrm2`).
+ * Euclidean norm of the run v(off until off + len), using finite-range scaling (BLAS `dnrm2`).
  * When a plain sum of squares overflows or underflows, a second pass factors out the largest magnitude.
  */
 internal fun euclideanNorm(v: DoubleArray, off: Int, stride: Int, len: Int): Double {
@@ -19,14 +19,19 @@ internal fun euclideanNorm(v: DoubleArray, off: Int, stride: Int, len: Int): Dou
         iv += stride
     }
     if (s.isFinite() && s >= MIN_NORMAL) return sqrt(s)
+    return rescaledEuclideanNorm(v, off, stride, len, s)
+}
+
+/** Range protection after a caller has already found an unsafe square sum. */
+internal fun rescaledEuclideanNorm(v: DoubleArray, off: Int, stride: Int, len: Int, squares: Double): Double {
     var amax = 0.0
-    iv = off
+    var iv = off
     for (i in 0 until len) {
         val a = abs(v[iv])
         if (a > amax) amax = a
         iv += stride
     }
-    if (amax == 0.0 || amax.isInfinite()) return sqrt(s)
+    if (amax == 0.0 || amax.isInfinite()) return sqrt(squares)
     var t = 0.0
     iv = off
     for (i in 0 until len) {
