@@ -58,7 +58,59 @@ Use the accepted oneMKL evidence in [vendor-comparison.md](vendor-comparison.md)
 9111, and the compact/streaming AXPY evidence from jobs 9068 and 9163–9164. Whole JVM Level 3 calls retain
 the minimum-128 rule; whole GEMM additionally retains sides at least 16 and depth 1024–4096. Borrowed regions
 do not inherit the deep-GEMM exception. Native pinning has a separate policy from JVM operand transfers.
-Accelerate comparisons remain deferred. Targeted follow-up checks and results belong below as they complete.
+Accelerate comparisons remain deferred. Targeted follow-up checks and results are recorded below.
+
+## Implementation and release checks
+
+The implementation stack starts with #659 (array API and retained packing), then #660 (diagnostics),
+#661 (native composition), and #662 (ordinary numerical semantics). Each branch targets its predecessor.
+The final documentation/evidence PR targets #662. PR #657 remains separate and unmodified; its earlier
+backend guide overlaps the final guide and should be reviewed in that context.
+
+The panel/product/triangular seams remain internal. Matrix route prose and duplicate derived formatting are
+removed, sparse diagnostics live outside execution, and ordinary calls do not construct reporters. The
+engine retains one production vendor adapter; its expert metadata accessor keeps the name used by Klause's
+JVM benchmark. Explicit vendor comparisons open bindings directly. Native's Level 1 and matrix cutoffs live
+in `NativeBlasPolicy`; JVM eligibility stays in `JvmHostDensePolicy` with the accepted boundaries unchanged.
+
+Unpacked products update their destination directly after beta scaling. The temporary accumulating column
+and writeback loop are deleted, so no extra storage is kept solely to fix alpha placement. Sparse transpose
+GEMV uses the selected indexed dot rather than an ordered scalar-only path. Measured AXPY arithmetic is
+unchanged. Norm scaling remains because a finite norm can exist when its naive square sum overflows or
+underflows; the [reference BLAS norm](https://netlib.org/lapack/explore-html/d1/d2a/group__nrm2_gab5393665c8f0e7d5de9bd1dd2ff0d9d0.html)
+also uses range protection. Checked solver diagnostic primitives retain their separate contract.
+
+`./gradlew check lintDocs` passed after the API/diagnostic reduction, native consolidation and numerical
+changes. The final stack also passed this gate, including Linux Native/JVM
+conformance, exact portable engines, JVM 17/25 packaged tests, ABI/KDoc checks, real oneMKL interface and
+fallback checks, and uninstrumented preferred/narrow SIMD probes with and without FMA. Warmed AXPY, GER,
+panel, product and triangular probes report zero leaf allocation. Final validation results follow below.
+
+Targeted performance follow-up uses the existing thin-GEMM suite, three rotated rounds, eight 200 ms
+warmups, five 200 ms samples, one fork and GC profiling. Jobs [9259](https://lab.eignex.com/jobs/9259)
+(control, `56e487ff`) and [9264](https://lab.eignex.com/jobs/9264) (result, `565a9883`) use normal shared
+resources and spread CPU pinning. The result revision precedes a metadata-accessor naming correction
+and contains the final GEMM arithmetic; the later norm change removes a redundant unsafe-square-sum retry. These captures do not replace the accepted oneMKL selection evidence.
+Both captures completed on the same Xeon Platinum 8375C host and JDK 25.0.4.1, pinned to different
+spread-selected cores. Initial allocation profiles show the unpacked 1x1 call falling from about 24 B/call
+to measurement noise, and 8x8 from about 83 B/call to noise; retained workspace calls remain at noise.
+The instrumented results include profiler overhead; separate uninstrumented probes establish zero leaf
+allocation. SIMD elapsed times also shifted in unchanged packed/transpose controls, so they do not yet
+isolate a regression. Confirmation jobs [9273](https://lab.eignex.com/jobs/9273) and
+[9274](https://lab.eignex.com/jobs/9274) repeat the same suite with two forks and the exact numerical head.
+Their results are pending; compilation or a smoke capture is not timing evidence.
+
+Klause integration at `0648b909a6` passed the basis and revised-simplex JVM tests through temporary composite
+substitution of all Koblas publication coordinates. The benchmark metadata helper requires one explicit
+expert opt-in, delivered as [Klause #3866](https://github.com/Eignex/klause/pull/3866). Klause's full local gate
+is skipped by project preference; GitHub CI supplies that gate. Primary checkouts remain unchanged.
+Unused `KoblasException`, `SingularMatrix` and `NotPositiveDefinite` declarations have no BLAS implementation
+or known consumer and are removed; Kumulant owns its distinct factorization exception type.
+
+The final JVM ABI dump has 1,062 lines versus the baseline's 1,178. The implementation stack deletes
+retained packing and unsupported benchmark paths, removes numerical-order-only scratch, and reduces
+reporting rather than adding a replacement framework. Exact declaration counts differ between JVM and
+Native dumps; dump lines are a reproducible surface-size indicator, not an API compatibility claim.
 
 ## Historical Native policy provenance
 

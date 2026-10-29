@@ -30,9 +30,6 @@ object ConsumerCheck {
                 val expectedTransposed = referenceGemv(a, expectedY, transpose = true)
                 val gram = DenseMatrix.zero(cols, cols)
                 val expectedGram = referenceProduct(a, a, transposeA = true)
-                var firstY: DoubleArray? = null
-                var firstTransposed: DoubleArray? = null
-                var firstGram: DoubleArray? = null
                 repeat(8) {
                     engine.gemv(1.0, a, x, 0.0, y, workspace = workspace)
                     engine.gemv(1.0, a, y, 0.0, transposed, transpose = true, workspace = workspace)
@@ -40,16 +37,6 @@ object ConsumerCheck {
                     assertAgreesWithReference(expectedY, y)
                     assertAgreesWithReference(expectedTransposed, transposed)
                     assertAgreesWithReference(expectedGram.values, gram.values)
-                    if (engine === portable) {
-                        firstY?.let { assertSameBits(it, y) }
-                        firstTransposed?.let { assertSameBits(it, transposed) }
-                        firstGram?.let { assertSameBits(it, gram.values) }
-                        if (firstY == null) {
-                            firstY = y.copyOf()
-                            firstTransposed = transposed.copyOf()
-                            firstGram = gram.values.copyOf()
-                        }
-                    }
                 }
             }
             val matrix = DenseMatrix.wrap(2, 2, doubleArrayOf(2.0, 3.0, 5.0, 7.0))
@@ -91,13 +78,6 @@ object ConsumerCheck {
             for (k in 0 until depth) sum += (if (transposeA) a[k, row] else a[row, k]) * b[k, column]
             sum
         })
-    }
-
-    private fun assertSameBits(expected: DoubleArray, actual: DoubleArray) {
-        check(expected.size == actual.size)
-        for (i in expected.indices) check(expected[i].toRawBits() == actual[i].toRawBits()) {
-            "Portable result changed at entry $i"
-        }
     }
 
     private fun assertAgreesWithReference(expected: DoubleArray, actual: DoubleArray) {

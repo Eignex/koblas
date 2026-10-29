@@ -12,7 +12,7 @@ no Apple performance crossover.
 | Area | Selected policy |
 |---|---|
 | Large GEMM, GEMMT, SYMM, SYRK, SYR2K, TRMM and TRSM | Prefer eligible oneMKL whole calls; keep owned fallback and exact engines |
-| DOT, SUM, ASUM and NRM2 | Keep explicit JVM SIMD and its numerical fallbacks |
+| DOT, SUM, ASUM and NRM2 | Keep explicit JVM SIMD and finite-range norm scaling |
 | Simplex GER, indexed dot/norm, sparse AXPY/scatter and dense AXPY | Keep JVM SIMD paths; native composition preserves their owned kernel arms |
 | IAMAX | Keep owned SIMD; further tuning is lower priority than simplex work |
 | SCAL, SWAP, ROT and COPY | Keep ordinary loops and array-copy intrinsics; no dedicated Vector API replacement |
@@ -90,8 +90,8 @@ owned kernels and can compose oneMKL on Intel Linux when native access is explic
 seven Level 3 routines above qualify when every output extent and depth reaches 128. Whole-matrix GEMM
 also qualifies with both output extents at least 16 and depth from 1024 through 4096. Borrowed views
 keep the larger cutoff because their additional packing was not included in the thin-product timings.
-Other thin products, few-right-hand-side solves, Level 1/2 calls, windowed GER and retained packed products
-keep owned kernels.
+Other thin products, few-right-hand-side solves, Level 1/2 calls and windowed GER keep owned kernels.
+Packing within ordinary products is transient; retained physical layouts are outside the API.
 Zero-multiplier rules and alias staging remain with the shared host composition.
 
 The 128 boundary is supported by the two accepted timing rounds of job 9039. Accelerate is outside this
@@ -339,8 +339,8 @@ width restriction; it does not claim a fresh timing capture of the additional co
 
 Retain the wide-vector tail improvement and stop this tuning pass here. The large native-transfer gap
 at simplex sizes still favors owned arrays and kernels; it does not justify dispatching these calls to
-oneMKL. Preferred/narrow and FMA-disabled local probes remain at zero bytes per AXPY call. Scalar-oracle
-tests cover every short remainder, offset windows, exact/disjoint shared buffers and non-finite inputs.
+oneMKL. Preferred/narrow and FMA-disabled local probes remain at zero bytes per AXPY call. Finite-data scalar-reference
+tests cover short remainders, offset windows, and identical/disjoint shared buffers.
 The complete `check lintDocs` gate passes. Further changes should be justified by a solver profile or
 generated-code evidence, rather than extrapolating these nanosecond differences to complete simplex.
 

@@ -18,6 +18,7 @@
 Koblas provides dense and sparse double-precision BLAS Levels 1–3 for Kotlin Multiplatform.
 Portable Kotlin implementations work without an installed numerical library. JVM performance uses owned
 Vector API kernels. Eligible matrix calls can use installed host libraries on JVM and Kotlin/Native.
+Koblas implements BLAS; factorizations and general solver workflows belong to consumers.
 Koblas is Apache-2.0 licensed. Its container serializers use kotlinx-serialization-core, exposed as an API
 dependency. It bundles no vendor libraries or custom native numerical kernels.
 
@@ -66,9 +67,9 @@ kotlin {
 Linking iOS frameworks and running simulator tests require macOS with Xcode. These targets use Kotlin/Native
 publications selected from the same dependency coordinates. No numerical library is bundled or needs installing.
 
-Engine selection is automatic. Use `koblas.routeOf(...)` to inspect how a dense or sparse call will run,
-including any fallback. The [benchmark guide](koblas-bench/README.md) covers explicit engine selection
-and identifying the host library used.
+Engine selection is automatic. The [backend guide](BACKENDS.md) explains optional native setup, supported
+workloads and measured benefits. Exact engine selection and route diagnostics require `KoblasEngineApi`;
+the [benchmark guide](koblas-bench/README.md) explains comparison and attribution.
 
 Application code can select portable Kotlin for an individual engine without an opt-in:
 
@@ -82,11 +83,10 @@ Keep the engine for repeated calls. It never loads a host library and needs no J
 flags. Container operators and convenience functions continue to use the platform default; call the selected
 engine directly to use its kernels.
 
-Finite computations are repeatable for identical inputs, storage shapes, flags and operation order on the
-same library, target, engine and runtime configuration. Concurrent calls need separate destinations and
-workspaces. Different platforms, backend versions, SIMD widths, fused operations and host libraries can round
-differently; cross-platform or cross-backend bitwise equality is not promised. Non-finite values and choices
-left open by BLAS retain the individual routine's contract.
+Arithmetic follows routine-specific BLAS semantics. FMA, reduction order, blocking and backend rounding may
+vary. Norms protect finite inputs from avoidable square-sum overflow/underflow; exceptional results and
+choices BLAS leaves open follow the selected implementation. Storage ownership and alias safety are separate
+guarantees. Concurrent calls need separate destinations and workspaces.
 
 ## Kotlin
 
@@ -137,7 +137,7 @@ koblas.ger(
 
 The window retains the matrix's leading dimension and leaves other entries untouched. Nonaliasing calls
 allocate no views or scratch; aliased vectors are snapshotted over their selected ranges. Windowed GER uses
-owned panel kernels on every platform. Inspect it with `DenseMatrixOperation.GerWindow` and a `DenseCall`
+owned kernels on every platform. Expert diagnostics use `DenseMatrixOperation.GerWindow` and a `DenseCall`
 whose rows and columns describe the rectangle.
 
 ## Borrowed dense submatrices
@@ -162,7 +162,7 @@ A host binding without that addressing packs borrowed regions into contiguous wo
 back only destination entries, preserving the unselected triangle of `syrk`.
 Other matrix APIs may materialise a view.
 
-When querying routes, set `DenseCall.borrowed` for a call with views, `leadingDimension` for a padded
+With the expert opt-in, set `DenseCall.borrowed` for a call with views, `leadingDimension` for a padded
 `trsm` destination and `rightLeadingDimension` for a transposed borrowed right operand in `gemm`.
 Factorization algorithms, stabilization policy and their end-to-end benchmarks belong to the consumer.
 
@@ -204,13 +204,13 @@ storage access is needed.
 - Each call uses one compute thread. Defaults are immutable; containers, views and workspaces are mutable.
 
 Shape mismatches throw `DimensionMismatch`; invalid indices throw `IndexOutOfBoundsException`; other invalid
-arguments throw `IllegalArgumentException`. Numerical failures use `KoblasException` subtypes. Behavior left
-open by BLAS, such as tie/NaN choices in `idamax`, follows the selected implementation.
+arguments throw `IllegalArgumentException`. BLAS routines perform no singularity or conditioning scan.
+Behavior left open by BLAS, such as tie/NaN choices in `idamax`, follows the selected implementation.
 
 ## API guide
 
-Most application code needs only `com.eignex.koblas.*`. Lower-level interfaces support custom algorithms over
-caller-owned storage. Factorization and solver workflows belong to consumers.
+Most application code needs only `com.eignex.koblas.*`. Raw vector and indexed sparse windows support
+consumer algorithms over ordinary arrays; panel geometry and packing layouts are internal.
 
 | Area | API |
 |---|---|
@@ -219,7 +219,7 @@ caller-owned storage. Factorization and solver workflows belong to consumers.
 | Matrix operations | [MatrixOps](koblas/src/commonMain/kotlin/com/eignex/koblas/MatrixOps.kt), [generic products](koblas/src/commonMain/kotlin/com/eignex/koblas/MatrixProducts.kt) |
 | BLAS | [DenseBlas](koblas/src/commonMain/kotlin/com/eignex/koblas/dense/DenseBlas.kt), [SparseBlas](koblas/src/commonMain/kotlin/com/eignex/koblas/sparse/SparseBlas.kt) |
 | Reuse | [Workspace](koblas/src/commonMain/kotlin/com/eignex/koblas/Workspace.kt), [prepared sparse snapshots](koblas/src/commonMain/kotlin/com/eignex/koblas/PreparedSparseMatrix.kt) |
-| Custom kernels and bindings | [SparsePrimitives](koblas/src/commonMain/kotlin/com/eignex/koblas/sparse/SparsePrimitives.kt), [vendor Blas](koblas/src/commonMain/kotlin/com/eignex/koblas/vendor/Blas.kt) |
+| Raw solver arithmetic and explicit bindings | [SparsePrimitives](koblas/src/commonMain/kotlin/com/eignex/koblas/sparse/SparsePrimitives.kt), [vendor Blas](koblas/src/commonMain/kotlin/com/eignex/koblas/vendor/Blas.kt) |
 
 See the [API overview](koblas/module.md) and [benchmark guide](koblas-bench/README.md) for kernel contracts,
 exact-engine comparisons and reproducible captures.

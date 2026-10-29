@@ -346,10 +346,6 @@ public final class com/eignex/koblas/KoblasEngine$Companion {
 	public final fun portable ()Lcom/eignex/koblas/KoblasEngine;
 }
 
-public abstract class com/eignex/koblas/KoblasException : java/lang/ArithmeticException {
-	public synthetic fun <init> (Ljava/lang/String;Lkotlin/jvm/internal/DefaultConstructorMarker;)V
-}
-
 public abstract interface class com/eignex/koblas/Matrix {
 	public abstract fun get (II)D
 	public abstract fun getCols ()I
@@ -380,12 +376,6 @@ public final class com/eignex/koblas/MatrixStorage$Companion {
 	public final fun serializer ()Lkotlinx/serialization/KSerializer;
 }
 
-public final class com/eignex/koblas/NotPositiveDefinite : com/eignex/koblas/KoblasException {
-	public fun <init> (IDLjava/lang/String;)V
-	public final fun getPivot ()D
-	public final fun getPosition ()I
-}
-
 public final class com/eignex/koblas/PreparedSparseMatrix : com/eignex/koblas/Matrix {
 	public final fun gemvInto (D[DD[D)V
 	public final fun gemvInto (D[DD[DZ)V
@@ -408,11 +398,6 @@ public final class com/eignex/koblas/PreparedSparseMatrix : com/eignex/koblas/Ma
 	public static synthetic fun symvInto$default (Lcom/eignex/koblas/PreparedSparseMatrix;D[DD[DZLcom/eignex/koblas/Workspace;ILjava/lang/Object;)V
 	public fun toArray ()[[D
 	public fun toString ()Ljava/lang/String;
-}
-
-public final class com/eignex/koblas/SingularMatrix : com/eignex/koblas/KoblasException {
-	public fun <init> (ILjava/lang/String;)V
-	public final fun getPosition ()I
 }
 
 public final class com/eignex/koblas/SparseMatrix : com/eignex/koblas/MatrixStorage {

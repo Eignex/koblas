@@ -261,10 +261,8 @@ one named twice. `native` is the exact portable arm: common Kotlin at every leve
 all, which is what a comparison against this library's own arithmetic needs. `native-default` is the engine
 an ordinary call there gets, which is a policy: its Level 1 is the installed library above the measured
 per-operation widths, and a whole dense Level 2 or 3 call goes to that library once the call has enough
-arithmetic to pay for reaching it and the routine's documented result is one a library also gives. The
-second condition is why a `gemm`, `gemmt` or `syrk` row carrying a multiplier other than one reads as
-portable: those three document their result as a multiplier applied to an accumulated sum, and a library may
-legally scale an operand instead, so a scaled one of them stays on this library's schedule. Rows on
+arithmetic to pay for reaching it. Arithmetic follows ordinary BLAS semantics, including scaled products;
+Native thresholds are kept together in `NativeBlasPolicy`, separately from JVM transfer-cost policy. Rows on
 that arm therefore mix routes, and each says which it took. Its `metadata.txt` section carries the resolved
 library file, the library's own version string and the threading evidence the binding read back, so a report
 records which binary produced the rows that reached one. A `native-default` row is a default-policy
@@ -292,6 +290,10 @@ storing it, and a route carries no operand identity to tell the two cases apart.
 measured on the arms where one answer holds, which are the portable `jvm-scalar` and `native` arms and the
 explicit `<vendor>` arms.
 
+Exact-engine selection, matrix/vector route queries and engine vendor metadata require `KoblasEngineApi`.
+Matrix diagnostics carry scheduling, reached or reachable leaves, staging, grouping and resolution facts;
+English explanation assembly is excluded from the library.
+
 Built-in dense Level 2/3 rows name `portable-dense/<operation>` and do not resolve a vendor. Where a window of
 work is handed to a panel or a Level 1 kernel they name that component too, as
 `portable-dense+<component>/<operation>@<group>`, where the group is how many logical columns the backend
@@ -315,7 +317,7 @@ first, and followed by the windows the products between diagonal blocks became. 
 right-hand side may name a portable substitution beside a Vector API panel, which is what it runs, and a
 route that named one engine for both would be hiding half the call. An order inside a single diagonal block
 names no product at all. The right-hand-side grouping is a separate number from the panel grouping the row
-carries and is named in the route's reason rather than in `@<group>`.
+carries and is separate from the panel group shown in `@<group>`.
 
 A triangular or symmetric call whose windows shrink past a
 backend's shortest vector window reaches more than one body and is published as the composition it is; a
@@ -326,7 +328,7 @@ portable code on every engine, so an arm whose Level 1 kernels are Vector API on
 vectorised sparse product. The destination scaling a non-unit `beta` performs is a component like any other
 and is named. A `direct` row's components all ran; a `composed` row's are the ones the call can reach, because
 its columns straddle a kernel's crossover or because the traversal decides per unit whether the kernel is
-called at all, and the route says which. A sparse Level 2 or 3 row whose unit of work is a group of
+called at all, and the components identify the reachable bodies. A sparse Level 2 or 3 row whose unit of work is a group of
 right-hand sides carries that grouping as
 `@<group>`, or `@<group>+<tail>` where the last group is shorter, which is the local geometry the backend
 recommended and not a lane count. It names the panel body that group reached, as
