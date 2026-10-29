@@ -44,6 +44,7 @@ internal enum class ThreadControl(
      * build links no OpenMP runtime at all, so the absence of `omp_set_num_threads` is positive evidence that
      * there are no worker threads rather than a missing control. For every other vendor the control is part of
      * the library and its absence is a library this code does not recognize.
+     * [permitsAbsentControl] also excludes candidates declared to be parallel builds.
      */
     val absenceMeansSerial: Boolean = false,
 ) {
@@ -61,6 +62,13 @@ internal enum class ThreadControl(
 
     /** Accelerate, which has no entry point either way and is held through the environment. */
     Environment(null, null),
+    ;
+
+    /** A parallel ArmPL build may hide its dependency's controls on Windows; absence cannot prove it serial. */
+    fun permitsAbsentControl(candidate: String): Boolean {
+        val fileName = candidate.replace('\\', '/').substringAfterLast('/').lowercase()
+        return absenceMeansSerial && "_mp" !in fileName
+    }
 }
 
 /**

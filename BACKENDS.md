@@ -8,9 +8,10 @@ default engine; backend selection is automatic.
 | Platform and workload | Setup |
 |---|---|
 | Desktop JVM, vectors, sparse BLAS or small matrices | JDK 25+ with `--add-modules=jdk.incubator.vector` enables owned SIMD. No native library is needed. |
-| Desktop JVM, large dense matrix operations on Intel Linux | On JDK 25+, optional oneMKL can help. Make its runtime discoverable. For classpath applications add `--enable-native-access=ALL-UNNAMED`; for module-path applications use `--enable-native-access=com.eignex.koblas`. |
+| Desktop JVM, large dense matrix operations on Intel Linux or Windows x64 | On JDK 25+, optional oneMKL can help. Make its runtime discoverable. For classpath applications add `--enable-native-access=ALL-UNNAMED`; for module-path applications use `--enable-native-access=com.eignex.koblas`. |
 | Other desktop JVM hosts | The default uses owned kernels. Installing AOCL, ArmPL, OpenBLAS or Accelerate does not currently enable automatic JVM native dispatch. |
 | Kotlin/Native on Linux | Optional oneMKL on Intel, AOCL on AMD or ArmPL on ARM64, with OpenBLAS as fallback. |
+| Kotlin/Native on Windows x64 | Optional oneMKL on Intel or AOCL on AMD, with OpenBLAS as fallback. |
 | Kotlin/Native on macOS | Accelerate is supplied by the OS. |
 | JDK 17–24, Android and iOS | Portable Kotlin; no native library is needed. |
 
@@ -18,7 +19,12 @@ Every supported operation has a portable fallback. The Vector API and native-acc
 a JVM host call does not require the Vector API module. Native library lookup and engine selection resolve
 once, so configure the process before first use. Install a supported LP64 CBLAS runtime through its
 vendor or distribution, and expose its shared library on the loader search path. Standard oneAPI
-`~/intel/oneapi/mkl/latest` and `/opt/intel/oneapi/mkl/latest` prefixes are also searched.
+`~/intel/oneapi/mkl/latest` and `/opt/intel/oneapi/mkl/latest` prefixes are also searched on Linux.
+
+On Windows, install DLLs matching the process architecture and expose their directory through an absolute
+`PATH` entry. Keep runtime dependencies beside the DLL or in Windows system directories. Windows shares
+Linux's vendor preference order and routing thresholds; runtime behavior and thresholds have not been
+verified on a Windows host. Arm64 Windows supports explicit JVM bindings; Kotlin/Native targets Windows x64.
 
 JVM bindings stage ordinary arrays into native memory and copy destinations back; arbitrary `DoubleArray`
 arguments have no zero-copy foreign-call guarantee. Owned kernels read the arrays directly.
@@ -30,7 +36,7 @@ arguments have no zero-copy foreign-call guarantee. Owned kernels read the array
 | DOT, SUM, NRM2, ASUM, IAMAX, AXPY | Owned SIMD, with scalar fallbacks for short/strided calls and finite-range norm rescaling. | No. |
 | SCAL, COPY, SWAP, ROT | Owned loops and array-copy intrinsics; HotSpot can optimize the loops. | No. |
 | GEMV, SYMV, GER, SYR, SYR2, TRMV, TRSV | Owned matrix scheduling with SIMD panels where applicable. | No. |
-| GEMM, GEMMT, SYMM, SYRK, SYR2K, TRMM, TRSM | Owned SIMD with portable edges and fallbacks. | oneMKL on eligible Linux x64 hosts, under the rules below. |
+| GEMM, GEMMT, SYMM, SYRK, SYR2K, TRMM, TRSM | Owned SIMD with portable edges and fallbacks. | oneMKL on eligible Linux or Windows x64 hosts, under the rules below. |
 | Sparse vector and CSC matrix BLAS | Owned structure handling with SIMD numerical kernels where applicable. | No whole sparse call is handed to a vendor. |
 
 Transpose, triangle and side variants are included where the API defines them. Windowed GER stays on the owned schedule. Product packing is transient and internal. Banded/packed-triangle BLAS interfaces and
@@ -39,7 +45,7 @@ LAPACK factorizations are outside the current API; installing a library does not
 ## Current selection thresholds
 
 On the JVM, automatic native selection currently applies only when oneMKL is the first platform preference:
-Intel or unclassified Linux x64 CPUs. AMD prefers AOCL, so its JVM default stays owned. Other vendors remain
+Intel or unclassified Linux or Windows x64 CPUs. AMD prefers AOCL, so its JVM default stays owned. Other vendors remain
 available through explicit bindings on supported hosts.
 
 | Native JVM call | Eligible shape |

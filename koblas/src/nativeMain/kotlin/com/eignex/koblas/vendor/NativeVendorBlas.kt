@@ -11,7 +11,6 @@ import kotlinx.cinterop.ByteVar
 import kotlinx.cinterop.CFunction
 import kotlinx.cinterop.COpaquePointer
 import kotlinx.cinterop.CPointer
-import kotlinx.cinterop.CPointerVar
 import kotlinx.cinterop.DoubleVar
 import kotlinx.cinterop.addressOf
 import kotlinx.cinterop.allocArray
@@ -23,12 +22,7 @@ import kotlinx.cinterop.reinterpret
 import kotlinx.cinterop.set
 import kotlinx.cinterop.toKString
 import kotlinx.cinterop.usePinned
-import platform.posix.RTLD_NOW
-import platform.posix.dlclose
-import platform.posix.dlopen
-import platform.posix.dlsym
 import platform.posix.getenv
-import platform.posix.setenv
 
 private typealias Ptr = CPointer<DoubleVar>
 private typealias Bytes = CPointer<ByteVar>
@@ -58,10 +52,9 @@ private typealias StringFn = CFunction<() -> Bytes?>
 private typealias SetLayerFn = CFunction<(Int) -> Int>
 private typealias SetThreadsFn = CFunction<(Int) -> Unit>
 private typealias GetThreadsFn = CFunction<() -> Int>
-private typealias DlAddrFn = CFunction<(COpaquePointer?, CPointer<ByteVar>?) -> Int>
 
 /**
- * Vendor BLAS reached through `dlopen` and typed function pointers.
+ * Vendor BLAS reached through the platform loader and typed function pointers.
  *
  * Resolve symbols once from the library's own handle so another loaded BLAS cannot supply them.
  * Pinned operands reach caller storage directly, requiring no transfer adapter in the route, and a borrowed
@@ -70,25 +63,14 @@ private typealias DlAddrFn = CFunction<(COpaquePointer?, CPointer<ByteVar>?) -> 
 internal class NativeVendorBlas private constructor(
     override val vendor: Vendor,
     private val candidate: String,
-    private val handle: COpaquePointer,
+    private val library: NativeLibrary,
 ) : Blas,
     RegionBlas {
     /**
      * File reported by the dynamic loader for the key symbol. A bare soname can resolve to an
      * already-loaded absolute path, so the candidate name alone does not identify the executing file.
      */
-    override val libraryPath: String by lazy { symbolOwner() ?: candidate }
-
-    private fun symbolOwner(): String? = memScoped {
-        val address = dlsym(handle, vendor.keySymbol) ?: return@memScoped null
-        // Reached through the library's own dependency chain, which includes libc: dladdr is a GNU extension
-        // that Kotlin/Native does not surface, and this needs no cinterop of its own.
-        val dladdr = dlsym(handle, "dladdr")?.reinterpret<DlAddrFn>() ?: return@memScoped null
-        val info = allocArray<ByteVar>(DL_INFO_BYTES)
-        if (dladdr(address, info) == 0) return@memScoped null
-        val name = info.reinterpret<CPointerVar<ByteVar>>()[0] ?: return@memScoped null
-        name.toKString().ifEmpty { null }
-    }
+    override val libraryPath: String by lazy { library.symbolOwner(vendor.keySymbol) ?: candidate }
 
     override val version: String by lazy { readVersion() }
 
@@ -100,7 +82,7 @@ internal class NativeVendorBlas private constructor(
      */
     private fun establishIntegerInterface(): Boolean {
         if (vendor != Vendor.OneMkl) return true
-        val fn = dlsym(handle, "MKL_Set_Interface_Layer")?.reinterpret<SetLayerFn>() ?: return false
+        val fn = library.symbol("MKL_Set_Interface_Layer")?.reinterpret<SetLayerFn>() ?: return false
         return fn(MKL_LP64) == MKL_LP64
     }
 
@@ -115,13 +97,15 @@ internal class NativeVendorBlas private constructor(
     private fun enforceSingleThread() {
         // Accelerate has no thread-count entry point; see ACCELERATE_THREAD_LIMIT. Overwrite is on so a value
         // inherited from the launching shell cannot weaken the invariant.
-        if (vendor.threadControl == ThreadControl.Environment) setenv(ACCELERATE_THREAD_LIMIT, "1", 1)
+        if (vendor.threadControl == ThreadControl.Environment) {
+            setNativeEnvironmentVariable(ACCELERATE_THREAD_LIMIT, "1")
+        }
         if (vendor.threadControl == ThreadControl.Mkl) {
-            dlsym(handle, "MKL_Set_Threading_Layer")?.reinterpret<SetLayerFn>()?.invoke(MKL_SEQUENTIAL)
-            dlsym(handle, "MKL_Set_Dynamic")?.reinterpret<SetThreadsFn>()?.invoke(0)
+            library.symbol("MKL_Set_Threading_Layer")?.reinterpret<SetLayerFn>()?.invoke(MKL_SEQUENTIAL)
+            library.symbol("MKL_Set_Dynamic")?.reinterpret<SetThreadsFn>()?.invoke(0)
         }
         val setter = vendor.threadControl.setter ?: return
-        dlsym(handle, setter)?.reinterpret<SetThreadsFn>()?.invoke(1)
+        library.symbol(setter)?.reinterpret<SetThreadsFn>()?.invoke(1)
     }
 
     /** Set once at load, after [enforceSingleThread], and never again. */
@@ -140,11 +124,11 @@ internal class NativeVendorBlas private constructor(
             threadEvidence = ThreadEvidence.Unconfirmed
             return true
         }
-        val fn = dlsym(handle, getter)?.reinterpret<GetThreadsFn>()
+        val fn = library.symbol(getter)?.reinterpret<GetThreadsFn>()
         if (fn == null) {
             // A build of a known vendor without that vendor's control is not one this code knows; see
-            // ThreadControl.absenceMeansSerial for the one reading of an absent control that is positive.
-            if (!control.absenceMeansSerial) return false
+            // ThreadControl.permitsAbsentControl for the serial-build exception.
+            if (!control.permitsAbsentControl(candidate)) return false
             threadEvidence = ThreadEvidence.Confirmed
             return true
         }
@@ -173,12 +157,12 @@ internal class NativeVendorBlas private constructor(
      * It takes no arguments and returns an `int`, which is the shape [GetThreadsFn] already names.
      */
     private fun declaredIntegerWidthMatches(): Boolean {
-        val fn = dlsym(handle, BLIS_INTEGER_WIDTH)?.reinterpret<GetThreadsFn>() ?: return true
+        val fn = library.symbol(BLIS_INTEGER_WIDTH)?.reinterpret<GetThreadsFn>() ?: return true
         return fn() == LP64_INTEGER_BITS
     }
 
     private fun probeDot(): Boolean {
-        val fn = dlsym(handle, BlasOperation.Dot.entryPoint)?.reinterpret<DotFn>() ?: return false
+        val fn = library.symbol(BlasOperation.Dot.entryPoint)?.reinterpret<DotFn>() ?: return false
         return withPins { pins ->
             val x = AbiProbe.x
             val y = AbiProbe.y
@@ -187,7 +171,7 @@ internal class NativeVendorBlas private constructor(
     }
 
     private fun probeGemm(): Boolean {
-        val fn = dlsym(handle, BlasOperation.Gemm.entryPoint)?.reinterpret<GemmFn>() ?: return false
+        val fn = library.symbol(BlasOperation.Gemm.entryPoint)?.reinterpret<GemmFn>() ?: return false
         return withPins { pins ->
             val a = AbiProbe.identity
             val b = AbiProbe.operand
@@ -201,11 +185,11 @@ internal class NativeVendorBlas private constructor(
     }
 
     /**
-     * Resolve entry points once: per-call `dlsym` locking and lookup would dominate short Level 1
+     * Resolve entry points once: per-call loader locking and lookup would dominate short Level 1
      * calls. The library handle remains alive for the process.
      */
     private val entryPoints: Array<COpaquePointer?> =
-        Array(BlasOperation.entries.size) { dlsym(handle, BlasOperation.entries[it].entryPoint) }
+        Array(BlasOperation.entries.size) { library.symbol(BlasOperation.entries[it].entryPoint) }
 
     override val directlyImplemented: Set<BlasOperation> =
         BlasOperation.entries.filterTo(LinkedHashSet()) { entryPoints[it.ordinal] != null }
@@ -778,7 +762,7 @@ internal class NativeVendorBlas private constructor(
     }
 
     private fun mklVersion(): String? {
-        val address = dlsym(handle, "MKL_Get_Version_String") ?: return null
+        val address = library.symbol("MKL_Get_Version_String") ?: return null
         val fn = address.reinterpret<VersionFn>()
         return memScoped {
             val buffer = allocArray<ByteVar>(VERSION_BUFFER)
@@ -788,7 +772,7 @@ internal class NativeVendorBlas private constructor(
     }
 
     private fun stringVersion(symbol: String): String? {
-        val address = dlsym(handle, symbol) ?: return null
+        val address = library.symbol(symbol) ?: return null
         val fn = address.reinterpret<StringFn>()
         return fn()?.toKString()?.trim()?.ifEmpty { null }
     }
@@ -799,23 +783,24 @@ internal class NativeVendorBlas private constructor(
         /** `MKL_THREADING_SEQUENTIAL`. */
         private const val MKL_SEQUENTIAL = 1
 
-        /** `Dl_info` is four pointers, of which only the first, `dli_fname`, is read. */
-        private const val DL_INFO_BYTES = 32
-
         /**
          * Open the first [vendor] candidate with every required CBLAS symbol, or null. Reject partial
          * installs before arithmetic; the ABI and single-thread checks must also succeed.
          */
         fun open(vendor: Vendor): NativeVendorBlas? {
-            val installed = vendor.resolvedCandidates(getenv("HOME")?.toKString())
+            val installed = vendor.loadCandidates(
+                (getenv("HOME") ?: getenv("USERPROFILE"))?.toKString(),
+                hostPlatform().operatingSystem,
+                getenv("PATH")?.toKString(),
+            )
             for (candidate in installed) {
-                val handle = dlopen(candidate, RTLD_NOW) ?: continue
-                if (missingRequiredSymbols { dlsym(handle, it) != null }.isNotEmpty()) {
+                val library = NativeLibrary.open(candidate) ?: continue
+                if (missingRequiredSymbols { library.symbol(it) != null }.isNotEmpty()) {
                     // No calls have used this handle; unload the partial library to avoid symbol conflicts.
-                    dlclose(handle)
+                    library.close()
                     continue
                 }
-                val blas = NativeVendorBlas(vendor, candidate, handle)
+                val blas = NativeVendorBlas(vendor, candidate, library)
                 // oneMKL interface selection must precede dynamic/thread controls, version reads and probes.
                 if (!blas.establishIntegerInterface()) continue
                 blas.enforceSingleThread()

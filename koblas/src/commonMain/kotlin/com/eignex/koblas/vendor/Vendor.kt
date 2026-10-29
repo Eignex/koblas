@@ -86,7 +86,7 @@ public enum class Vendor(
     ),
 
     /**
-     * Distribution BLAS fallback on Linux. Default engines retain portable BLAS without any library.
+     * Distribution BLAS fallback on Linux and Windows. Default engines retain portable BLAS without any library.
      * A binding must pass the integer-ABI probe and single-thread controls before selection; those controls
      * also affect other callers of the same loaded library in this process.
      */
@@ -101,7 +101,10 @@ public enum class Vendor(
     internal val keySymbol: String get() = "cblas_dgemm"
 
     /** [candidates] with [USER_HOME] replaced by [home], or dropped when there is no home directory. */
-    internal fun resolvedCandidates(home: String?): List<String> = candidates.mapNotNull { candidate ->
+    internal fun resolvedCandidates(
+        home: String?,
+        operatingSystem: OperatingSystem = hostPlatform().operatingSystem,
+    ): List<String> = candidatesFor(operatingSystem).mapNotNull { candidate ->
         when {
             USER_HOME !in candidate -> candidate
             home.isNullOrEmpty() -> null
@@ -109,18 +112,52 @@ public enum class Vendor(
         }
     }
 
+    /** Windows probes only absolute PATH entries so the working directory cannot supply a vendor DLL. */
+    internal fun loadCandidates(home: String?, operatingSystem: OperatingSystem, searchPath: String?): List<String> {
+        val names = resolvedCandidates(home, operatingSystem)
+        if (operatingSystem != OperatingSystem.Windows) return names
+        val directories = searchPath.orEmpty().split(';').map { it.trim().trim('"').replace('\\', '/') }
+            .filter { it.isWindowsAbsolutePath() }.distinct()
+        return names.flatMap { name -> directories.map { "${it.trimEnd('/')}/$name" } }
+    }
+
+    /** Windows uses DLL names; explicit Unix bindings retain the declared candidate paths. */
+    private fun candidatesFor(operatingSystem: OperatingSystem): List<String> = when (operatingSystem) {
+        OperatingSystem.Windows -> when (this) {
+            OneMkl -> listOf("mkl_rt.3.dll", "mkl_rt.2.dll", "mkl_rt.dll")
+
+            Aocl -> listOf(
+                "libblis.dll",
+                "AOCL-LibBlis-Win-dll.dll",
+                "libblis-mt.dll",
+                "AOCL-LibBlis-Win-MT-dll.dll",
+                "aocl.dll",
+            )
+
+            ArmPl -> listOf("armpl_lp64.dll", "armpl_lp64_mp.dll")
+
+            OpenBlas -> listOf("libopenblas.dll", "openblas.dll")
+
+            else -> emptyList()
+        }
+
+        else -> candidates
+    }
+
     /** The preference order for a host, and the reasoning behind it. */
     public companion object {
         /**
          * The supported vendors to try on [host], in preference order. An empty list leaves default engines
-         * on portable Kotlin. Linux falls back to [OpenBlas]; macOS uses system [Accelerate]. Performance
-         * eligibility belongs to the platform engine policy, separately from library availability.
+         * on portable Kotlin. Linux and Windows fall back to [OpenBlas]; macOS uses system [Accelerate].
+         * Windows shares Linux's architecture and manufacturer order, with DLLs from absolute directories
+         * on `PATH`. Performance eligibility belongs to the platform engine policy, separately from
+         * library availability.
          */
         public fun select(host: HostPlatform): List<Vendor> = when {
             host.operatingSystem == OperatingSystem.MacOs -> listOf(Accelerate)
 
-            // These ELF sonames are candidates only on operating systems that can load them.
-            host.operatingSystem != OperatingSystem.Linux -> emptyList()
+            host.operatingSystem != OperatingSystem.Linux &&
+                host.operatingSystem != OperatingSystem.Windows -> emptyList()
 
             host.architecture == Architecture.Arm64 -> listOf(ArmPl, OpenBlas)
 
@@ -141,6 +178,9 @@ public enum class OperatingSystem {
 
     /** macOS, where Accelerate is part of the system. */
     MacOs,
+
+    /** Windows, with optional installed BLAS DLLs. */
+    Windows,
 
     /** Anything else, which has no supported vendor. */
     Other,
@@ -170,6 +210,16 @@ public enum class CpuVendor {
     Unknown,
 }
 
+/** Linux vendor_id and Windows PROCESSOR_IDENTIFIER carry the same manufacturer identifiers. */
+internal fun cpuVendorFromIdentifier(identifier: String?): CpuVendor {
+    val words = identifier.orEmpty().split(' ', '\t', ',')
+    return when {
+        words.any { it.equals("GenuineIntel", ignoreCase = true) } -> CpuVendor.Intel
+        words.any { it.equals("AuthenticAMD", ignoreCase = true) } -> CpuVendor.Amd
+        else -> CpuVendor.Unknown
+    }
+}
+
 /**
  * The host facts [Vendor.select] reads. Resolved once per process; none of these change while it runs.
  */
@@ -186,3 +236,8 @@ public class HostPlatform(
 
 /** The platform this process is running on. */
 public expect fun hostPlatform(): HostPlatform
+
+/** Drive rooted and UNC paths are independent of the current directory and the current drive. */
+internal fun String.isWindowsAbsolutePath(): Boolean =
+    (length >= 3 && this[0].isLetter() && this[1] == ':' && this[2] == '/') ||
+        (startsWith("//") && split('/').filter { it.isNotEmpty() }.size >= 2)

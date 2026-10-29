@@ -1,3 +1,5 @@
+@file:OptIn(org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi::class)
+
 import org.gradle.api.tasks.JavaExec
 import org.gradle.jvm.toolchain.JavaLanguageVersion
 import org.jetbrains.kotlin.gradle.tasks.KotlinJvmCompile
@@ -49,9 +51,21 @@ kotlin {
         }
     }
     linuxX64(); linuxArm64()
+    mingwX64()
     macosArm64()
     iosArm64()
     iosSimulatorArm64()
+
+    applyDefaultHierarchyTemplate {
+        common {
+            group("native") {
+                group("posix") {
+                    withLinux()
+                    withApple()
+                }
+            }
+        }
+    }
 
     sourceSets {
         commonMain.dependencies {

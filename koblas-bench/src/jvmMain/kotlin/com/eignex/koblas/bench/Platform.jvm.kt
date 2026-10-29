@@ -31,4 +31,4 @@ internal actual fun resolveEngine(mode: String): Pair<KoblasEngine, String> {
     return engine to "$mode/${engine.name}$host"
 }
 
-internal actual fun runtimeIdentity(): String = "kotlin-2.4.10/jvm/${System.getProperty("java.vendor")}/${System.getProperty("java.version")}".replace(',', '_')
+internal actual fun runtimeIdentity(): String = "kotlin-${KotlinVersion.CURRENT}/jvm/${System.getProperty("java.vendor")}/${System.getProperty("java.version")}".replace(',', '_')

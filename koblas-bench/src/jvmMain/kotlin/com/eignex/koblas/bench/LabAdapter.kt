@@ -8,13 +8,14 @@ import java.nio.file.Path
 fun main(args: Array<String>) = BenchCli.execute(KoblasLabSuite, args)
 
 internal object KoblasLabSuite : BenchSuite {
-    private val options = setOf("targets", "libraries", "operation", "suite", "cases", "samples", "warmups", "target-ms", "forks", "pass", "rounds", "cpu", "jvm-gc", "jvm-heap", "vendors-only", "smoke", "native-executable", "memory-mib", "timeout-seconds")
+    private val options = setOf("targets", "libraries", "operation", "suite", "cases", "samples", "warmups", "target-ms", "forks", "pass", "rounds", "cpu", "jvm-gc", "jvm-heap", "vendors-only", "smoke", "native-executable", "memory-mib", "timeout-seconds", "platform")
     private val vendors = setOf("openblas", "onemkl", "aocl", "armpl", "accelerate")
     private val jvmTargets = setOf("jvm-scalar", "jvm-simd", "jvm-default")
     private val nativePlatforms = mapOf(
         "linuxX64" to setOf("platform:linux", "arch:x86_64"),
         "linuxArm64" to setOf("platform:linux", "arch:arm64"),
         "macosArm64" to setOf("platform:mac", "arch:arm64"),
+        "mingwX64" to setOf("platform:windows", "arch:x86_64"),
     )
 
     override fun describe() = BenchDescriptor("koblas-bench", "Prepared JVM and Native captures with original CSV reports and backend attribution")
@@ -60,17 +61,29 @@ internal object KoblasLabSuite : BenchSuite {
         val inputs = mutableListOf<BenchInput>()
         p["cases"]?.let { inputs += BenchInput(it, role = "cases") }
         val tags = mutableSetOf<String>()
-        val executable = p["native-executable"] ?: "koblas-bench/build/bin/linuxX64/releaseExecutable/koblas-bench.kexe"
+        p["platform"]?.let { require(it in setOf("linux", "windows", "mac")) { "Unknown capture platform" } }
+        val defaultExecutable = if (p["platform"] == "windows") "mingwX64/releaseExecutable/koblas-bench.exe"
+            else "linuxX64/releaseExecutable/koblas-bench.kexe"
+        val executable = p["native-executable"] ?: "koblas-bench/build/bin/$defaultExecutable"
         require(native || "native-executable" !in p) { "native-executable requires a Native target" }
         if (native) {
             inputs += BenchInput(executable, role = "executable")
             require(executable.startsWith("koblas-bench/build/")) { "Native executable must be prepared under koblas-bench/build" }
             tags += requireNotNull(nativePlatforms.entries.singleOrNull { "/${it.key}/" in executable }?.value) { "Unknown Native executable platform" }
         }
+        val platform = p["platform"] ?: tags.singleOrNull { it.startsWith("platform:") }?.substringAfter(':')
+            ?: if ("accelerate" in selectedVendors) "mac" else "linux"
+        if ("platform" in p) tags += "platform:$platform"
         if ("cpu" in p) tags += "platform:linux"
         if ("accelerate" in selectedVendors) tags += "platform:mac"
-        if ("armpl" in selectedVendors) tags += setOf("platform:linux", "arch:arm64")
-        if (selectedVendors.any { it == "onemkl" || it == "aocl" }) tags += setOf("platform:linux", "arch:x86_64")
+        if ("armpl" in selectedVendors) {
+            require(platform in setOf("linux", "windows")) { "ArmPL capture requires Linux or Windows" }
+            tags += setOf("platform:$platform", "arch:arm64")
+        }
+        if (selectedVendors.any { it == "onemkl" || it == "aocl" }) {
+            require(platform in setOf("linux", "windows")) { "x86 vendor capture requires Linux or Windows" }
+            tags += setOf("platform:$platform", "arch:x86_64")
+        }
         require(tags.count { it.startsWith("platform:") } <= 1 && tags.count { it.startsWith("arch:") } <= 1) { "Incompatible capture platforms" }
         val parameters = p - setOf("memory-mib", "timeout-seconds") + mapOf("targets" to targets.joinToString(",")) +
             (if ("libraries" !in p && selectedVendors.isNotEmpty()) mapOf("libraries" to selectedVendors.joinToString(",")) else emptyMap()) +
@@ -91,10 +104,11 @@ internal object KoblasLabSuite : BenchSuite {
             "timeout-seconds" to case.resources.timeoutSeconds.toString())))
         val output = context.reportPath()
         val root = requireNotNull(context.worktree)
-        val argv = mutableListOf("bash", root.resolve("koblas-bench/capture-report.sh").toString(),
+        val argv = mutableListOf(captureShell(), root.resolve("koblas-bench/capture-report.sh").toString().replace('\\', '/'),
             "--prepared", "--retain-incomplete", "--output", output.toString())
         case.parameters.forEach { (key, value) ->
             when (key) {
+                "platform" -> Unit // Placement constraint; the capture reads the actual host identity.
                 "smoke", "vendors-only" -> if (value.toBooleanStrict()) argv += "--$key"
                 "cases", "native-executable" -> {
                     require(case.inputs.any { it.path == value && it.root == BenchInputRoot.SOURCE }) { "Undeclared capture input: $key" }
