@@ -10,6 +10,7 @@ import kotlin.math.abs
 /** Checks the published dependency through its public API on each consuming runtime. */
 object ConsumerCheck {
     /** Exercises transpose products, workspace reuse, and writes through aliased caller storage. */
+    @OptIn(com.eignex.koblas.KoblasEngineApi::class)
     fun run(expectSimd: Boolean = false) {
         check(koblas.vectorKernels.name.startsWith("simd(") == expectSimd)
         if (!expectSimd) {
