@@ -632,10 +632,9 @@ internal class SparsePanelKernels(
     /**
      * `y += alpha · x` over a contiguous run, forming the product even where [alpha] is zero.
      *
-     * A matrix product is defined over every position its traversal reaches, so a coefficient that is zero
-     * still multiplies its operand: a zero against an infinity is NaN and belongs in the result. Level 1
-     * `axpy` is specified the other way round and returns without touching the destination, so the zero case
-     * cannot be handed to it.
+     * This update represents a stored sparse position, including an explicit zero. Its participation is
+     * required by the sparse structural contract, unlike a zero coefficient in a dense update. Level 1
+     * `axpy` skips a zero multiplier, so that case needs its own loop here.
      */
     @Suppress("LongParameterList") // the two windows and the run length
     private fun evaluatedAxpy(y: DoubleArray, yOffset: Int, alpha: Double, x: DoubleArray, xOffset: Int, length: Int) {

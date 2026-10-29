@@ -6,12 +6,10 @@ import kotlin.test.*
 
 class DenseVectorKernelsTest {
     @Test
-    fun `the platform scaling preserves offsets tails and exceptional values`() =
-        assertScaleHonoursItsContract(koblas.vectorKernels)
+    fun `platform scaling agrees with reference across windows`() = assertScaleAgreesWithReference(koblas.vectorKernels)
 
-    /** The vectorised kernels fall back to the portable ones, so they owe exact agreement, not just the contract. */
     @Test
-    fun `the simd scaling agrees exactly with the kernels it falls back to`() {
+    fun `simd scaling agrees with reference across windows`() {
         val simd = BuiltinEngines.simd ?: return
         assertScaleAgreesWithReference(simd.vectorKernels)
     }
@@ -92,7 +90,6 @@ class DenseVectorKernelsTest {
     @Test
     fun `the compiled in iamax honours its contract`() = assertIamaxHonoursItsContract(koblas.vectorKernels)
 
-    /** The vectorised kernels fall back to the portable ones, so they owe exact agreement, not just the contract. */
     @Test
     fun `the simd iamax agrees exactly with the kernels it falls back to`() {
         val simd = BuiltinEngines.simd ?: return

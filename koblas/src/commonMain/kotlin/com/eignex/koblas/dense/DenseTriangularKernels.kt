@@ -78,9 +78,8 @@ internal interface DenseTriangularKernels {
      * Solves `M · X = X` in place over one diagonal block, for every right-hand side at once.
      *
      * Substitutes forward when [lower] and backward when it is not, dividing each finished step by its
-     * diagonal coefficient unless [unitDiag]. The division is a division: a zero diagonal yields an infinity
-     * or a NaN and a subnormal one yields whatever it yields, which is what the BLAS solves promise, since
-     * they carry no status and report nothing.
+     * diagonal coefficient unless [unitDiag]. No singularity check or particular result for singular or
+     * non-finite inputs is promised.
      */
     fun diagonalSolve(
         t: DoubleArray,

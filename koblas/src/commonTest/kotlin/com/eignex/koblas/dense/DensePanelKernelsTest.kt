@@ -1,6 +1,9 @@
+@file:Suppress("LongParameterList") // test panels implement the array window seam
+
 package com.eignex.koblas.dense
 
 import kotlin.test.Test
+import kotlin.test.assertTrue
 
 /**
  * The panel contract, on the portable backend and on whichever one this platform selected.
@@ -15,8 +18,20 @@ class DensePanelKernelsTest {
     }
 
     @Test
-    fun `each panel implementation preserves no read and zero evaluation rules`() = withPanelKernels {
+    fun `each panel implementation preserves no read and sparse structure rules`() = withPanelKernels {
         assertPanelContractHolds(it)
+    }
+
+    @Test
+    fun `zero skipping dense panels satisfy the numerical contract`() {
+        val kernels = ZeroSkippingPanels()
+
+        assertPanelKernelsAgreeWithReference(kernels)
+        assertPanelContractHolds(kernels)
+        assertEmptyExtentsReadNothing(kernels)
+        assertPanelsStayInsideTheirWindows(kernels)
+
+        assertTrue(kernels.skippedCoefficients > 0, "the conformance checks exercised no zero coefficient")
     }
 
     @Test
@@ -43,5 +58,65 @@ class DensePanelKernelsTest {
     @Test
     fun `the indexed panels address past a packed bound`() {
         withPanelKernels(::assertIndexedPanelsAddressPastAPackedBound)
+    }
+
+    /** A valid dense zero shortcut; indexed leaves retain their separate stored-position behavior. */
+    private class ZeroSkippingPanels : DensePanelKernels by PortablePanelKernels {
+        var skippedCoefficients: Int = 0
+            private set
+
+        override fun columnUpdate(
+            alpha: Double,
+            a: DoubleArray,
+            aOffset: Int,
+            lda: Int,
+            x: DoubleArray,
+            xOffset: Int,
+            xStride: Int,
+            rows: Int,
+            columns: Int,
+            y: DoubleArray,
+            yOffset: Int,
+            yStride: Int,
+        ) {
+            if (rows <= 0 || columns <= 0) return
+            for (column in 0 until columns) {
+                if (x[xOffset + column * xStride] == 0.0) {
+                    skippedCoefficients++
+                } else {
+                    PortablePanelKernels.columnUpdate(
+                        alpha, a, aOffset + column * lda, lda, x, xOffset + column * xStride, xStride,
+                        rows, 1, y, yOffset, yStride,
+                    )
+                }
+            }
+        }
+
+        override fun rankUpdate(
+            alpha: Double,
+            a: DoubleArray,
+            aOffset: Int,
+            lda: Int,
+            x: DoubleArray,
+            xOffset: Int,
+            xStride: Int,
+            rows: Int,
+            columns: Int,
+            coefficients: DoubleArray,
+            coefficientOffset: Int,
+            coefficientStride: Int,
+        ) {
+            if (rows <= 0 || columns <= 0) return
+            for (column in 0 until columns) {
+                if (coefficients[coefficientOffset + column * coefficientStride] == 0.0) {
+                    skippedCoefficients++
+                } else {
+                    PortablePanelKernels.rankUpdate(
+                        alpha, a, aOffset + column * lda, lda, x, xOffset, xStride, rows, 1,
+                        coefficients, coefficientOffset + column * coefficientStride, coefficientStride,
+                    )
+                }
+            }
+        }
     }
 }

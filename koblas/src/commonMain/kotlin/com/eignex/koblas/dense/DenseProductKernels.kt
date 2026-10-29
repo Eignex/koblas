@@ -14,14 +14,13 @@ package com.eignex.koblas.dense
  * Transient panels group rows of the left operand and columns of the right by the corresponding tile
  * dimension, with contiguous depth steps inside each group.
  *
- * Padding inside a packed group is positive zero, and what that promises is where the results go rather than
- * what they are: a padded zero against an infinite entry of the other operand evaluates to a NaN, and it
- * stays in a lane the destination does not have. A block writes exactly the `rows` by `columns` window it
- * was given and nothing beside it, which is what lets a caller select part of a destination.
+ * Padding inside a packed group is positive zero. It introduces no logical destination entries: a block
+ * writes exactly the `rows` by `columns` window it was given and nothing beside it. Padding must not affect
+ * entries inside that window.
  *
- * Scaling follows the BLAS convention and is applied once per block: `alpha` multiplies the product this
- * block accumulated, `beta` the destination window, and a zero `beta` overwrites without reading what is
- * there. A caller splitting the shared dimension into several depth blocks passes the real `beta` to the
+ * A block computes `C = alpha · A · B + beta · C`, allowing implementation-dependent scaling placement
+ * and reduction order. A zero `beta` overwrites without reading the destination. A caller splitting the
+ * shared dimension into several depth blocks passes the real `beta` to the
  * first and `1.0` to every later one, which is how beta reaches an output exactly once however the depth
  * was cut.
  *

@@ -146,8 +146,8 @@ public interface SparseKernels {
 
     /**
      * Euclidean norm of [values] at the [count] positions in [indices]. Repeated and unsorted indices are
-     * permitted and each occurrence contributes once. The calculation rescales when a naive square sum leaves
-     * the finite `Double` range, propagates NaN, and returns positive infinity for infinite input without NaN.
+     * permitted and each occurrence contributes once. Finite-range rescaling protects against avoidable
+     * square-sum overflow or underflow; unspecified exceptional results follow the selected implementation.
      * The touched window and all selected indices are validated before arithmetic.
      */
     public fun nrm2(indices: IntArray, indexOffset: Int, count: Int, values: DoubleArray): Double

@@ -26,8 +26,8 @@ import com.eignex.koblas.sparse.internal.withSymmetricRankScratch
 /**
  * Portable CSC matrix algorithms, bound to one engine's dense and indexed Level 1 kernels.
  *
- * Traversal, structure, alias staging, triangle selection and arithmetic order are written here and are the
- * same on every platform. The kernels are reached only where a unit of work is a contiguous run or an indexed
+ * Traversal, structure, alias staging and triangle selection are shared across platforms; numerical leaves
+ * may group arithmetic differently. The kernels are reached where work is a contiguous run or an indexed
  * slice; [routeOf] is what says which of the two a given call is.
  */
 @Suppress("TooManyFunctions") // the sparse BLAS surface

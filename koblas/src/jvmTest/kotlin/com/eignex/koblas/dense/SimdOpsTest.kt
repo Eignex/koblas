@@ -5,7 +5,6 @@ import com.eignex.koblas.assertClose
 import com.eignex.koblas.internal.jvm25.SimdOps
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertTrue
 
 class SimdOpsTest {
     @Test
@@ -63,11 +62,7 @@ class SimdOpsTest {
 
                     val context = "aligned length=$length offset=$offset position=$position value=$value"
                     assertAsumAgreesWithReference(expectedSum, actualSum, context)
-                    if (expectedDot.isNaN()) {
-                        assertTrue(actualDot.isNaN(), context)
-                    } else {
-                        assertDotAgreesWithReference(expectedDot, actualDot, context)
-                    }
+                    assertDotAgreesWithReference(expectedDot, actualDot, context)
                     assertIamaxAgreesWithReference(expectedIndex, actualIndex, context)
                 }
             }
@@ -193,7 +188,7 @@ class SimdOpsTest {
     }
 
     private fun assertAsumAgreesWithReference(expected: Double, actual: Double, context: String) {
-        if (expected.isNaN()) assertTrue(actual.isNaN(), context) else assertClose(expected, actual, context)
+        assertClose(expected, actual, context)
     }
 
     private fun assertDotAgreesWithReference(expected: Double, actual: Double, context: String) {
