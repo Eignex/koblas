@@ -166,9 +166,9 @@ public interface DenseBlas {
      * `C = alpha · op(A) · op(B) + beta · C` (BLAS `dgemm`), with shapes `op(A): m×k`, `op(B): k×n`, `C: m×n`.
      *
      * Built-in implementations snapshot an input that shares [c]; explicit vendor seams reject that overlap.
-     * [workspace] lends that snapshot, the packed panels a blocked product copies its operands into, and the
-     * coefficient column a strided reduction gathers. A zero [alpha] or an empty shared dimension scales [c] and
-     * reads no operand; a zero [beta] overwrites [c] without reading it, whatever stands there.
+     * [workspace] lends that snapshot, packed panels for a blocked product, an accumulating column for an
+     * unpacked product, and a coefficient column for a gathered strided reduction. A zero [alpha] or an empty
+     * shared dimension scales [c] and reads no operand; a zero [beta] overwrites [c] without reading it.
      *
      * Scaling placement and accumulation order depend on the selected implementation. This includes
      * whether [alpha] scales operand entries or partial sums. Rounding, overflow and non-finite results

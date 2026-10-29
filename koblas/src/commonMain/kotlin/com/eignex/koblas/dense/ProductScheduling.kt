@@ -11,7 +11,7 @@ import com.eignex.koblas.borrow
  * Large products use cache blocks packed for [DenseProductKernels.productBlock]; small or thin products
  * use Level 2 panels over the original storage, gathering strided coefficients when profitable.
  * The schedule owns traversal and applies beta once per output window: in the first depth block for packed
- * products, or before updating or writing an unpacked column. Backends own the arithmetic within those windows.
+ * products, or when an unpacked column is written. Backends own the arithmetic within those windows.
  *
  * Array windows carry offsets and leading dimensions so structured routines can pass strips and blocks
  * without copying. An origin at logical (row, column) is `row + column * lda` in stored orientation and
