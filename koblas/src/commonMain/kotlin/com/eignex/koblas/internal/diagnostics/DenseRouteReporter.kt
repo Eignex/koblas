@@ -2,7 +2,6 @@
 
 package com.eignex.koblas.internal.diagnostics
 
-import com.eignex.koblas.internal.dense.selectedTriangle
 import com.eignex.koblas.*
 import com.eignex.koblas.RouteKind
 import com.eignex.koblas.dense.*
@@ -41,6 +40,7 @@ import com.eignex.koblas.internal.dense.productBlockColumns
 import com.eignex.koblas.internal.dense.productBlockDepth
 import com.eignex.koblas.internal.dense.productBlockRows
 import com.eignex.koblas.internal.dense.scaleComponent
+import com.eignex.koblas.internal.dense.selectedTriangle
 import com.eignex.koblas.internal.dense.triangularGroup
 import com.eignex.koblas.internal.host.HostDenseCall
 import com.eignex.koblas.sparse.*

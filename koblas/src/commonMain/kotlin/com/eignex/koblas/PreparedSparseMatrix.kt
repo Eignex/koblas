@@ -1,11 +1,11 @@
 package com.eignex.koblas
 
 import com.eignex.koblas.internal.sparse.snapshot
+import com.eignex.koblas.internal.sparse.sparseCopy
 import com.eignex.koblas.sparse.SparseBlas
 import com.eignex.koblas.sparse.SparseCall
 import com.eignex.koblas.sparse.SparseMatrixOperation
 import com.eignex.koblas.sparse.SparseMatrixRoute
-import com.eignex.koblas.internal.sparse.sparseCopy
 import kotlin.jvm.JvmOverloads
 
 /**
