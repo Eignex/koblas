@@ -273,7 +273,7 @@ class TriangularSchedulingTest {
             }
         }
 
-        assertEquals(0, afterOne, "a single right-hand side needs no accumulating column")
+        assertTrue(afterOne > 0, "the product updates did not retain their scratch")
         assertTrue(
             afterOne <= MAX_IDLE_LENGTHS,
             "order $order solve=$solve left $afterOne lengths behind, past what a workspace retains",

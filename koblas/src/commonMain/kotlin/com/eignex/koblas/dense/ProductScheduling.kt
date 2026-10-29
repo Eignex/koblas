@@ -448,9 +448,9 @@ private fun mergeSelected(
 /**
  * The product as Level 2 panel work, one destination column at a time, without packing both operands.
  *
- * Untransposed on the left, panels accumulate scaled columns directly into the destination after beta
- * is applied once. Transposed on the left, panels reduce stored columns and apply both multipliers on write.
- * Neither form fixes where alpha enters the arithmetic or promises identical backend rounding.
+ * Untransposed on the left, panels accumulate in a bounded workspace column before destination writeback.
+ * The thin-GEMM comparison found this faster than direct destination updates; alpha placement stays internal.
+ * Transposed panels apply both multipliers on write. Neither form promises identical backend rounding.
  *
  * The coefficient vector is a column of `op(B)`, adjacent when `B` is untransposed and [ldb] apart when it
  * is not. A strided one is scalar work for a reduction whatever the width, so where the reduction is long
@@ -491,28 +491,30 @@ internal fun directProduct(
     }
     val chunk = directColumnBlock(m)
     val group = directPanelGroup(panels, m, k, transposeA = false)
-    for (j in 0 until n) {
-        val start = selectedRow(j, m, selected)
-        val rows = selectedRows(j, m, selected)
-        var offset = 0
-        while (offset < rows) {
-            val height = if (chunk < rows - offset) chunk else rows - offset
-            val target = cOffset + start + offset + j * ldc
-            scaleProductWindow(beta, c, target, ldc, height, 1)
-            val coefficients = bOffset + if (transposeB) j else j * ldb
-            forEachPanel(k, group) { step, width ->
-                panels.columnUpdate(
-                    alpha, a, aOffset + start + offset + step * lda, lda,
-                    b, coefficients + step * coefficientStride, coefficientStride,
-                    height, width, c, target, 1,
-                )
+    workspace.borrowOptional(scratchCapacity(chunk)) { accumulated ->
+        for (j in 0 until n) {
+            val start = selectedRow(j, m, selected)
+            val rows = selectedRows(j, m, selected)
+            var offset = 0
+            while (offset < rows) {
+                val height = if (chunk < rows - offset) chunk else rows - offset
+                accumulated.fill(0.0, 0, height)
+                val coefficients = bOffset + if (transposeB) j else j * ldb
+                forEachPanel(k, group) { step, width ->
+                    panels.columnUpdate(
+                        1.0, a, aOffset + start + offset + step * lda, lda,
+                        b, coefficients + step * coefficientStride, coefficientStride,
+                        height, width, accumulated, 0, 1,
+                    )
+                }
+                writeScaledColumn(alpha, accumulated, beta, c, cOffset + start + offset + j * ldc, height)
+                offset += height
             }
-            offset += height
         }
     }
 }
 
-/** Destination rows per unpacked update window, independent of the backend's panel grouping. */
+/** Bounds the accumulating column independently of the call order and backend panel grouping. */
 internal fun directColumnBlock(m: Int): Int = if (m < PRODUCT_BLOCK_ROWS) m else PRODUCT_BLOCK_ROWS
 
 /**
@@ -623,8 +625,28 @@ internal fun gathersCoefficients(panels: DensePanelKernels, rows: Int, depth: In
 internal const val DIRECT_GATHER_MINIMUM_ROWS: Int = 8
 
 /**
- * Round transient panel lengths so neighboring windows reuse workspace loans. Cache blocks bound the
- * panel extents; rounding retains at most twice the requested storage. Oversized lengths pass through.
+ * `c = alpha · accumulated + beta · c` over one destination column, where a zero [beta] overwrites without
+ * reading what is there, as the destination's contract requires rather than as an arithmetic shortcut.
+ */
+private fun writeScaledColumn(
+    alpha: Double,
+    accumulated: DoubleArray,
+    beta: Double,
+    c: DoubleArray,
+    at: Int,
+    rows: Int,
+) {
+    if (beta == 0.0) {
+        for (i in 0 until rows) c[at + i] = alpha * accumulated[i]
+    } else {
+        for (i in 0 until rows) c[at + i] = alpha * accumulated[i] + beta * c[at + i]
+    }
+}
+
+/**
+ * Round scratch lengths so neighboring windows reuse workspace loans. Schedule blocks bound the
+ * accumulating column and packed panels; rounding retains at most twice the requested storage.
+ * Oversized lengths pass through.
  */
 internal fun scratchCapacity(size: Int): Int {
     if (size <= 1 || size > LARGEST_ROUNDED_SCRATCH) return size
