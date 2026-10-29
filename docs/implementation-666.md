@@ -4,7 +4,7 @@ Baseline: `210a8b2e` (clean working tree). Counts include Kotlin and Java source
 
 | Module | Production files | Production lines | Test files | Test lines |
 | --- | ---: | ---: | ---: | ---: |
-| koblas | 91 | 16144 | 118 | 21918 |
+| koblas | 107 | 19995 | 118 | 21918 |
 | koblas-bench | 26 | 3663 | 18 | 1897 |
 
 The baseline compiles `commonTest` twice, in `test` and `portableTest`. Both `jvmTest` and `jvmTestJarOnJava25` execute the desktop packaged suite. Java 17 executes `portableTest`. `jvmModule` is a descriptor input rather than a source set.
@@ -182,12 +182,12 @@ Both packaged runtime classpaths contain the published MR JAR, test outputs and 
 
 ## Observed source size
 
-Counts include Kotlin/Java under Main/Test source inputs, excluding generated output and the separate module descriptor. They describe organization and API coverage, not a performance or size-reduction claim.
+Counts include Kotlin/Java under Main/Test inputs and the Java 25 MR input, excluding generated output and the separate module descriptor. The baseline Main inputs contain 91 files/16144 lines and Java 25 adds 16 files/3851 lines. They describe organization and API coverage, not a performance or size-reduction claim.
 
 | Module | Production files before → after | Production lines before → after | Test files before → after | Test lines before → after |
 | --- | ---: | ---: | ---: | ---: |
-| koblas | 91 → 102 | 16144 → 16895 | 118 → 119 | 21918 → 22217 |
-| koblas-bench | 26 → 27 | 3663 → 3712 | 18 → 19 | 1897 → 1952 |
+| koblas | 107 → 119 | 19995 → 20823 | 118 → 119 | 21918 → 22218 |
+| koblas-bench | 26 → 27 | 3663 → 3707 | 18 → 19 | 1897 → 1952 |
 
 ## Local validation
 
@@ -195,10 +195,10 @@ Counts include Kotlin/Java under Main/Test source inputs, excluding generated ou
 
 | Suite | Tests | Failures/errors/skips |
 | --- | ---: | --- |
-| Packaged Java 17 baseline | 698 | 0 / 0 / 0 |
-| Packaged Java 25 baseline + desktop | 861 | 0 / 0 / 0 |
+| Packaged Java 17 baseline | 699 | 0 / 0 / 0 |
+| Packaged Java 25 baseline + desktop | 862 | 0 / 0 / 0 |
 | JVM benchmark tooling | 103 | 0 / 0 / 0 |
-| Linux x64 Native library | 704 | 0 / 0 / 0 |
+| Linux x64 Native library | 705 | 0 / 0 / 0 |
 | Linux x64 Native benchmark tooling | 67 | 0 / 0 / 0 |
 
 A forced `:koblas:jvmTest :koblas:jvmTestJarOnJava25 :koblas:jvmTestJarOnJava17 --rerun-tasks` ran the canonical Java 25 suite once and Java 17 once. The alias executed no second suite. Runtime resource assertions verified JAR-root loading on 17 and META-INF/versions/25 loading on 25. The full check graph also ran each suite once; repeated Gradle output headings from parallel probes are not extra executions.
@@ -210,3 +210,5 @@ Refreshed Kover XML includes 22 Java 25 implementation classes, 20 with covered 
 Linux x64 ran locally. Linux arm64, macOS, Windows and iOS sources cross-compiled; Windows test binaries linked. macOS/Windows runtime tests and iOS simulator/device framework publication require capable CI hosts and are not established by cross-compilation.
 
 The staged `0.0.0-consumer-666-final` publication passed all four Java 17/25 classpath/module-path consumers. The artifact verifier found 178 Java 17 base classes and 30 Java 25 desktop classes, valid MR/JPMS metadata, and no desktop APIs/native libraries in Android APKs. The shared fixture checks explicit generic prepared products, mutation isolation, padded backing buffers and signed vector strides. Debug D8 and release R8 instrumentation passed on API 24 and API 34, with one executed consumer test on each device/build-type combination.
+
+The implementation integrates main's `d331f166` cleanup, retaining shared inline SIMD multiply-add, sparse ownership copying, benchmark fixture/reduction helpers and delegated recorders. The originally audited `210a8b2e` remains the comparison baseline. A recording test additionally verifies padded selected-product coefficient strides before and after alias staging. Existing CI has Linux x64/arm64, macOS, iOS and Android runners; it has no Windows runtime runner, so Windows runtime validation remains unavailable without changing the prohibited workflow files or supplying another capable host.

@@ -2,6 +2,7 @@
 
 package com.eignex.koblas.internal.diagnostics
 
+import com.eignex.koblas.internal.dense.selectedTriangle
 import com.eignex.koblas.*
 import com.eignex.koblas.RouteKind
 import com.eignex.koblas.dense.*
@@ -195,10 +196,10 @@ internal class DenseRouteReporter(
             selected,
             rightStride = if (!transposeB) {
                 1
-            } else if (full) {
-                call.rightLeadingDimension ?: call.columns
+            } else if (operation == DenseMatrixOperation.Syrk) {
+                call.leftLeadingDimension ?: call.columns
             } else {
-                call.columns
+                call.rightLeadingDimension ?: call.columns
             },
         )
         addProductWindow(parts, shape)
