@@ -25,7 +25,7 @@ internal actual fun resolveEngine(mode: String): Pair<KoblasEngine, String> {
         "jvm-default" -> koblas
         else -> error("unknown JVM mode $mode")
     }
-    val host = engine.vendor?.let {
+    val host = engine.native?.let {
         "/${it.vendor.vendorName}/${it.libraryPath}/${it.version}/threads=${it.threadEvidence.label}"
     } ?: ""
     return engine to "$mode/${engine.name}$host"

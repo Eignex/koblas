@@ -51,8 +51,7 @@ internal object JvmBackend {
                     exact.productKernels,
                     exact.triangularKernels,
                     sparseKernelName = exact.sparseKernels.name,
-                    hostDense = host,
-                    hostDenseEligible = JvmHostDensePolicy,
+                    nativeEligible = JvmHostDensePolicy,
                 )
             }
         }

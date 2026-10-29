@@ -3,7 +3,7 @@ package com.eignex.koblas.dense
 import com.eignex.koblas.vendor.NativeVendorBlas
 
 /**
- * Vendor Level 1 above [crossover], portable kernels below it or without a vendor entry point.
+ * Vendor Level 1 above [NativeBlasPolicy.crossover], portable kernels below it or without a vendor entry point.
  *
  * Kotlin/Native reductions lack explicit vector arithmetic. Vendor calls amortize their fixed
  * foreign-call and operand-pinning costs over longer runs. JVM bindings copy operands into native
@@ -16,7 +16,7 @@ internal class VendorVectorKernels(
 
     override val name: String get() = "${blas.vendor.vendorName.lowercase()}-level1"
 
-    private fun vendorRuns(operation: DenseOperation, len: Int): Boolean = len >= crossover(operation)
+    private fun vendorRuns(operation: DenseOperation, len: Int): Boolean = len >= NativeBlasPolicy.crossover(operation)
 
     override fun implementationFor(operation: DenseOperation, length: Int, contiguous: Boolean): String? = when {
         // Not a BLAS routine, so there is no entry point to reach at any width.
@@ -127,32 +127,5 @@ internal class VendorVectorKernels(
         } else {
             portable.rot(x, xOff, y, yOff, len, c, s)
         }
-    }
-
-    internal companion object {
-        /**
-         * Measured foreign-call crossover for [operation]. Ordinary operations broke even at widths
-         * 40 to 67; [DenseOperation.Nrm2] and [DenseOperation.Iamax] at 82 and 100.
-         *
-         * Measured with the koblas-bench sweep suite on an i9-12900H with pinned P-cores, single-threaded
-         * oneMKL 2026.1 and Kotlin/Native 2.4.10 linuxX64. Changes to the CPU, library or binding overhead
-         * require a new sweep; these thresholds are not evidence for unmeasured hosts.
-         */
-        fun crossover(operation: DenseOperation): Int = when (operation) {
-            DenseOperation.Nrm2, DenseOperation.Iamax -> LATE
-            else -> ORDINARY
-        }
-
-        /**
-         * Conservative threshold for ordinary operations: calling the vendor too early can lose time,
-         * while delaying the call only forgoes a small win near the crossover.
-         */
-        const val ORDINARY: Int = 64
-
-        /**
-         * [DenseOperation.Nrm2] pays for rescaling while the portable fast path tries a plain square sum.
-         * [DenseOperation.Iamax] has higher vendor entry overhead. Their nearby crossovers share one threshold.
-         */
-        const val LATE: Int = 128
     }
 }

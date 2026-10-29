@@ -16,7 +16,7 @@ class KoblasEngineTest {
     fun `portable factory selects owned scalar kernels without a vendor`() {
         val engine = KoblasEngine.portable()
 
-        assertNull(engine.vendor)
+        assertNull(engine.native)
         assertSame(ScalarVectorKernels, engine.vectorKernels)
         assertSame(ScalarIndexedSparseKernels, engine.indexedSparseKernels)
         assertEquals("scalar-panel", engine.panelKernels.name)

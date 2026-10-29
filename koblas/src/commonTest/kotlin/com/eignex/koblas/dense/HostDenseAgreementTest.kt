@@ -20,7 +20,7 @@ import kotlin.test.assertTrue
  * Checks composed host calls against the independent reference, reporting unavailable libraries.
  * Real bindings expose operand, stride and flag translation below the recording seam. A loose
  * tolerance admits the library's accumulation order while catching incorrect translation.
- * `minimumWork = 0` keeps fixtures small; [HostDenseBlasTest] covers the size policy.
+ * `eligible = { _, _, _, _ -> true }` keeps fixtures small; [HostDenseBlasTest] covers the size policy.
  */
 class HostDenseAgreementTest {
     @Test
@@ -29,8 +29,11 @@ class HostDenseAgreementTest {
             assertShrinkingGerAgreesWithReference { x, y, a -> blas.ger(-1.0, x, y, a) }
         }
 
-    private fun composed(host: Blas): HostDenseBlas =
-        HostDenseBlas(PortableDenseBlas(ScalarVectorKernels, PortablePanelKernels), host, minimumWork = 0)
+    private fun composed(host: Blas): HostDenseBlas = HostDenseBlas(
+        PortableDenseBlas(ScalarVectorKernels, PortablePanelKernels),
+        host,
+        eligible = { _, _, _, _ -> true },
+    )
 
     /** The composition and the binding under it, or a line saying what this host could not check. */
     private inline fun withHost(what: String, block: (HostDenseBlas, Blas) -> Unit) {
@@ -69,7 +72,7 @@ class HostDenseAgreementTest {
             )
 
             for ((operation, call) in admitted) {
-                val entry = requireNotNull(HostDensePolicy.entryPointFor(operation))
+                val entry = requireNotNull(HostDenseCall.entryPointFor(operation))
                 if (entry !in host.directlyImplemented) {
                     println(
                         "SKIPPED: ${host.vendor.vendorName} does not export ${entry.entryPoint}; " +

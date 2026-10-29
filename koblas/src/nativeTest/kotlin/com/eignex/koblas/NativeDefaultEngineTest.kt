@@ -31,7 +31,7 @@ class NativeDefaultEngineTest {
      */
     @Test
     fun `a product past the policy size names its whole vendor call`() {
-        val vendor = koblas.vendor ?: return skipped("the composed dense route")
+        val vendor = koblas.native ?: return skipped("the composed dense route")
 
         val route = koblas.routeOf(DenseMatrixOperation.Gemm, DenseCall(ORDER, ORDER, depth = ORDER))
 
@@ -44,7 +44,7 @@ class NativeDefaultEngineTest {
     /** Below the policy's size the same operation keeps this library's schedule, library installed or not. */
     @Test
     fun `a small call keeps the portable schedule beside the library`() {
-        if (koblas.vendor == null) return skipped("the fallback below the policy's size")
+        if (koblas.native == null) return skipped("the fallback below the policy's size")
 
         val route = koblas.routeOf(DenseMatrixOperation.Gemm, DenseCall(SMALL, SMALL, depth = SMALL))
 
@@ -59,7 +59,7 @@ class NativeDefaultEngineTest {
      */
     @Test
     fun `a portable route still names the vendor level one leaf it reaches`() {
-        val vendor = koblas.vendor ?: return skipped("the mixed portable route")
+        val vendor = koblas.native ?: return skipped("the mixed portable route")
         val arm = "${vendor.vendor.vendorName.lowercase()}-level1"
         if (koblas.vectorKernels.name != arm) return skipped("this platform keeps Level 1 off the library")
         val call = DenseCall(LONG_COLUMN, FEW_COLUMNS, beta = 0.5)
@@ -81,7 +81,7 @@ class NativeDefaultEngineTest {
      */
     @Test
     fun `a wide rotation is not an exact measurement of either kernel`() {
-        val vendor = koblas.vendor ?: return skipped("the rotation's alias-dependent route")
+        val vendor = koblas.native ?: return skipped("the rotation's alias-dependent route")
         val arm = "${vendor.vendor.vendorName.lowercase()}-level1"
         if (koblas.vectorKernels.name != arm) return skipped("this platform keeps Level 1 off the library")
 
@@ -109,7 +109,7 @@ class NativeDefaultEngineTest {
         engine.gemm(1.0, a, false, a, false, 0.0, c)
         val route = engine.routeOf(DenseMatrixOperation.Gemm, DenseCall(ORDER, ORDER, depth = ORDER))
 
-        assertEquals(null, engine.vendor, "the exact portable engine resolved a host library")
+        assertEquals(null, engine.native, "the exact portable engine resolved a host library")
         assertEquals("portable-dense", route.scheduling)
         assertClose(expected.values, c.values, "the portable product")
     }

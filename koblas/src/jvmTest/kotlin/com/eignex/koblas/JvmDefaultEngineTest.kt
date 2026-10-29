@@ -24,7 +24,7 @@ class JvmDefaultEngineTest {
         assertSame(exact.vectorKernels, koblas.vectorKernels)
         assertSame(exact.indexedSparseKernels, koblas.indexedSparseKernels)
         assertSame(exact.panelKernels, koblas.panelKernels)
-        assertTrue(koblas.vendor == null || koblas.vendor?.vendor == Vendor.OneMkl)
+        assertTrue(koblas.native == null || koblas.native?.vendor == Vendor.OneMkl)
     }
 
     @Test
@@ -37,7 +37,7 @@ class JvmDefaultEngineTest {
 
             assertEquals("portable-dense", route.scheduling, "${engine.name} composed a library")
             assertEquals(null, route.host, "${engine.name} named a vendor call")
-            assertEquals(null, engine.vendor, "${engine.name} retained a binding")
+            assertEquals(null, engine.native, "${engine.name} retained a binding")
         }
     }
 
@@ -47,13 +47,13 @@ class JvmDefaultEngineTest {
 
         val route = koblas.routeOf(DenseMatrixOperation.Gemm, product)
 
-        assertEquals(koblas.vendor?.vendor, route.host?.vendor)
-        assertEquals(if (koblas.vendor == null) "portable-dense" else "host-dense", route.scheduling)
+        assertEquals(koblas.native?.vendor, route.host?.vendor)
+        assertEquals(if (koblas.native == null) "portable-dense" else "host-dense", route.scheduling)
     }
 
     @Test
     fun `a default host route names its native operand transfers`() {
-        if (koblas.vendor == null) return println("SKIPPED: no eligible JVM host composition")
+        if (koblas.native == null) return println("SKIPPED: no eligible JVM host composition")
 
         val route = koblas.routeOf(DenseMatrixOperation.Gemm, DenseCall(256, 256, depth = 256))
 
@@ -66,7 +66,7 @@ class JvmDefaultEngineTest {
         val whole = koblas.routeOf(DenseMatrixOperation.Gemm, DenseCall(16, 16, depth = 4096))
         val borrowed = koblas.routeOf(DenseMatrixOperation.Gemm, DenseCall(16, 16, depth = 4096, borrowed = true))
 
-        assertEquals(koblas.vendor?.vendor, whole.host?.vendor)
+        assertEquals(koblas.native?.vendor, whole.host?.vendor)
         assertEquals(null, borrowed.host)
         assertEquals("portable-dense", borrowed.scheduling)
     }

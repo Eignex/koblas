@@ -1,5 +1,6 @@
 package com.eignex.koblas
 
+import com.eignex.koblas.dense.NativeBlasPolicy
 import com.eignex.koblas.dense.ScalarVectorKernels
 import com.eignex.koblas.dense.VendorVectorKernels
 import com.eignex.koblas.sparse.ScalarIndexedSparseKernels
@@ -37,6 +38,6 @@ internal actual fun platformEngine(): KoblasEngine {
         level1,
         ScalarIndexedSparseKernels,
         vendor,
-        hostDense = vendor,
+        nativeEligible = NativeBlasPolicy,
     )
 }

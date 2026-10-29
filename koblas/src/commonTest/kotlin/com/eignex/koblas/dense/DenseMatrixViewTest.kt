@@ -408,7 +408,11 @@ class DenseMatrixViewTest {
 
     private companion object {
         val installedHost: DenseBlas? = openBlas()?.let {
-            HostDenseBlas(PortableDenseBlas(ScalarVectorKernels, PortablePanelKernels), it, minimumWork = 0)
+            HostDenseBlas(
+                PortableDenseBlas(ScalarVectorKernels, PortablePanelKernels),
+                it,
+                eligible = { _, _, _, _ -> true },
+            )
         }
     }
 }

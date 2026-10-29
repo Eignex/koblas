@@ -50,81 +50,32 @@ internal fun interface DenseHostEligibility {
 }
 
 /**
- * Dense Level 2 and 3 served by an installed host library where one is eligible, and portably where it is not.
- *
- * The composition a platform default takes when the host has a tuned library and this library's own Kotlin
- * arithmetic is not vectorised: Kotlin/Native today. It is not the explicit host seam. [Blas] is that,
- * reached directly by a caller that wants one library and nothing else, and admitted as a measurement only
- * where [com.eignex.koblas.vendor.exactArmRejection] says the call reached its entry point. This layer
- * refuses nothing for want of a library, because it is what an ordinary call gets and an ordinary call is
- * owed an answer.
- *
- * Five things decide a call, in this order, all of them before anything is written:
- *
- *  1. The operation has a CBLAS entry point of its own. A product between operands packed for this library's
- *     own register tile does not: the layout is ours and a library cannot read it, so those calls stay on the
- *     portable schedule and their routes say so.
- *  2. This library exports that entry point. `gemmt` is the one a supported vendor may legitimately lack, and
- *     composing it from a full product plus a triangle copy is work this library would be doing anyway.
- *  3. The call states the shared dimension its operation is defined over. A Level 3 route with none is not a
- *     small call but an unstated one, and the portable path is where that is refused rather than answered.
- *  4. The call does arithmetic at all. A zero multiplier, an empty extent or an empty shared dimension is a
- *     call whose no-read rules this library states and a vendor is not held to, so the portable path keeps
- *     them rather than the policy having to reason about what a given library does with them.
- *  5. There is enough arithmetic to pay for reaching the library. See [HostDensePolicy.MINIMUM_WORK].
- *
- * What comes back is what an ordinary call is owed. The accumulation order and the placement of a multiplier
- * are the library's, which is latitude [DenseBlas.gemm] states for any implementation of these routines. The
- * rest of the contract belongs to this layer: shapes are validated before anything is written, a zero
- * multiplier reads no operand, an unselected triangle is neither read nor written, and an input that shares
- * the destination's buffer is staged into scratch first, since a whole-call binding cannot take that overlap.
- * A borrowed region reaches a binding with [RegionBlas] entry points in place, and only an input whose
- * rectangle overlaps the destination's is staged; a binding without them receives packed copies.
- *
- * Immutable and safe to share. A call takes scratch from the workspace it was given and nothing else, so
- * independent calls with distinct workspaces and distinct destinations do not interact; the binding underneath
- * is documented to hold the same.
+ * Optional whole-call native acceleration with shared validation, alias handling and portable fallbacks.
+ * The supplied platform policy owns crossovers; exports and zero-work rules remain correctness guards.
+ * Region bindings borrow offsets and leading dimensions; other bindings receive contiguous staged copies.
  */
 internal class HostDenseBlas(
     private val portable: PortableDenseBlas,
     private val host: Blas,
-    private val minimumWork: Long = HostDensePolicy.MINIMUM_WORK,
-    private val eligible: DenseHostEligibility? = null,
+    private val eligible: DenseHostEligibility,
 ) : RoutedDenseBlas {
 
     /** The binding's in-place region entry points, or null where a borrowed operand has to be packed for it. */
     private val regions: RegionBlas? = host as? RegionBlas
 
-    /**
-     * Whether this call goes to the library, asked before it writes anything.
-     *
-     * [work] is what [HostDensePolicy.multiplyAdds] made of the call's own facts, and
-     * [HostDensePolicy.NO_HOST_CALL] there is not a small call: it is an operation with no entry point, a
-     * call whose contract stops before the arithmetic, or one that never stated the shared dimension it is
-     * defined over. All of them stay portable, and the route agrees because it asks this question of the
-     * same facts.
-     */
-    private fun host(operation: DenseMatrixOperation, work: Long): Boolean {
-        if (work == HostDensePolicy.NO_HOST_CALL) return false
-        val entry = HostDensePolicy.entryPointFor(operation) ?: return false
-        if (entry !in host.directlyImplemented) return false
-        return work >= minimumWork
-    }
+    /** Symbol availability is independent of the platform's performance policy. */
+    private fun host(operation: DenseMatrixOperation, eligibleCall: Boolean): Boolean =
+        eligibleCall && HostDenseCall.entryPointFor(operation) in host.directlyImplemented
 
-    /** The multiply-adds of a concrete call, over the extents [DenseCall] names for its operation. */
-    private fun work(
+    private fun eligibleCall(
         operation: DenseMatrixOperation,
         rows: Int,
         columns: Int,
         depth: Int = 1,
         alpha: Double = 1.0,
-        right: Boolean = false,
         borrowed: Boolean = false,
-    ): Long = if (!permitted(operation, rows, columns, depth, borrowed)) {
-        HostDensePolicy.NO_HOST_CALL
-    } else {
-        HostDensePolicy.multiplyAdds(operation, rows, columns, depth, alpha, right)
-    }
+    ): Boolean = alpha != 0.0 && rows > 0 && columns > 0 && depth > 0 &&
+        permitted(operation, rows, columns, depth, borrowed)
 
     private fun permitted(
         operation: DenseMatrixOperation,
@@ -133,7 +84,7 @@ internal class HostDenseBlas(
         depth: Int,
         borrowed: Boolean,
     ): Boolean {
-        val policy = eligible ?: return true
+        val policy = eligible
         return if (borrowed) {
             policy.eligibleBorrowed(operation, rows, columns, depth)
         } else {
@@ -142,12 +93,17 @@ internal class HostDenseBlas(
     }
 
     override fun routeOf(operation: DenseMatrixOperation, call: DenseCall): DenseMatrixRoute {
-        if (!permitted(operation, call.rows, call.columns, call.depth ?: 1, call.borrowed)) {
-            return portable.routeOf(operation, call)
-        }
-        val work = HostDensePolicy.multiplyAdds(operation, call)
-        if (!host(operation, work)) return portable.routeOf(operation, call)
-        val entry = requireNotNull(HostDensePolicy.entryPointFor(operation))
+        if (HostDenseCall.needsDepth(operation) && call.depth == null) return portable.routeOf(operation, call)
+        val permitted = eligibleCall(
+            operation,
+            call.rows,
+            call.columns,
+            call.depth ?: 1,
+            call.alpha,
+            call.borrowed,
+        )
+        if (!host(operation, permitted)) return portable.routeOf(operation, call)
+        val entry = requireNotNull(HostDenseCall.entryPointFor(operation))
         // Work, whole-entry-point eligibility and exports are settled above; only platform transfer remains.
         val hostRoute = host.routeOf(entry)
         val components = ArrayList<String>(2)
@@ -179,10 +135,10 @@ internal class HostDenseBlas(
         workspace: Workspace?,
     ) {
         val op = if (transpose) DenseMatrixOperation.GemvTransposed else DenseMatrixOperation.Gemv
-        val work = work(op, a.rows, a.cols, alpha = alpha, borrowed = a !is DenseMatrix)
+        val eligibleCall = eligibleCall(op, a.rows, a.cols, alpha = alpha, borrowed = a !is DenseMatrix)
         val direct = regions
         when {
-            !host(op, work) -> portable.gemv(alpha, a, x, beta, y, transpose, workspace)
+            !host(op, eligibleCall) -> portable.gemv(alpha, a, x, beta, y, transpose, workspace)
 
             direct == null -> regionGemv(this, alpha, a, x, beta, y, transpose, workspace)
 
@@ -208,7 +164,7 @@ internal class HostDenseBlas(
         workspace: Workspace?,
     ) {
         val op = DenseMatrixOperation.Gemm
-        val work = work(
+        val eligibleCall = eligibleCall(
             op,
             c.rows,
             c.cols,
@@ -218,7 +174,7 @@ internal class HostDenseBlas(
         )
         val direct = regions
         when {
-            !host(op, work) -> portable.gemm(alpha, a, transposeA, b, transposeB, beta, c, workspace)
+            !host(op, eligibleCall) -> portable.gemm(alpha, a, transposeA, b, transposeB, beta, c, workspace)
 
             direct == null -> regionGemm(this, alpha, a, transposeA, b, transposeB, beta, c, workspace)
 
@@ -243,7 +199,7 @@ internal class HostDenseBlas(
         workspace: Workspace?,
     ) {
         val op = DenseMatrixOperation.Syrk
-        val work = work(
+        val eligibleCall = eligibleCall(
             op,
             c.rows,
             c.cols,
@@ -253,7 +209,7 @@ internal class HostDenseBlas(
         )
         val direct = regions
         when {
-            !host(op, work) -> portable.syrk(alpha, a, transpose, beta, c, lower, workspace)
+            !host(op, eligibleCall) -> portable.syrk(alpha, a, transpose, beta, c, lower, workspace)
 
             direct == null -> regionSyrk(this, alpha, a, transpose, beta, c, lower, workspace)
 
@@ -275,10 +231,10 @@ internal class HostDenseBlas(
         workspace: Workspace?,
     ) {
         val op = if (transpose) DenseMatrixOperation.TrsvTransposed else DenseMatrixOperation.Trsv
-        val work = work(op, a.rows, a.cols, borrowed = a !is DenseMatrix)
+        val eligibleCall = eligibleCall(op, a.rows, a.cols, borrowed = a !is DenseMatrix)
         val direct = regions
         when {
-            !host(op, work) -> portable.trsv(a, x, lower, transpose, unitDiag, workspace)
+            !host(op, eligibleCall) -> portable.trsv(a, x, lower, transpose, unitDiag, workspace)
 
             direct == null -> regionTrsv(this, a, x, lower, transpose, unitDiag, workspace)
 
@@ -302,10 +258,17 @@ internal class HostDenseBlas(
         workspace: Workspace?,
     ) {
         val op = DenseMatrixOperation.Trsm
-        val work = work(op, b.rows, b.cols, a.rows, alpha, right, borrowed = a !is DenseMatrix || b !is DenseMatrix)
+        val eligibleCall = eligibleCall(
+            op,
+            b.rows,
+            b.cols,
+            a.rows,
+            alpha,
+            borrowed = a !is DenseMatrix || b !is DenseMatrix,
+        )
         val direct = regions
         when {
-            !host(op, work) -> portable.trsm(a, b, lower, transpose, unitDiag, right, alpha, workspace)
+            !host(op, eligibleCall) -> portable.trsm(a, b, lower, transpose, unitDiag, right, alpha, workspace)
 
             direct == null -> regionTrsm(this, a, b, lower, transpose, unitDiag, right, alpha, workspace)
 
@@ -329,7 +292,7 @@ internal class HostDenseBlas(
     ) {
         requireGemvOperands(a, transpose, x.size, y.size)
         val operation = if (transpose) DenseMatrixOperation.GemvTransposed else DenseMatrixOperation.Gemv
-        if (!host(operation, work(operation, a.rows, a.cols, alpha = alpha))) {
+        if (!host(operation, eligibleCall(operation, a.rows, a.cols, alpha = alpha))) {
             portable.gemv(alpha, a, x, beta, y, transpose, workspace)
             return
         }
@@ -353,7 +316,7 @@ internal class HostDenseBlas(
         workspace: Workspace?,
     ) {
         requireSymvOperands(a, x.size, y.size)
-        if (!host(DenseMatrixOperation.Symv, work(DenseMatrixOperation.Symv, a.rows, a.cols, alpha = alpha))) {
+        if (!host(DenseMatrixOperation.Symv, eligibleCall(DenseMatrixOperation.Symv, a.rows, a.cols, alpha = alpha))) {
             portable.symv(alpha, a, x, beta, y, lower, workspace)
             return
         }
@@ -373,7 +336,7 @@ internal class HostDenseBlas(
      */
     override fun ger(alpha: Double, x: DoubleArray, y: DoubleArray, a: DenseMatrix, workspace: Workspace?) {
         requireGerOperands(x.size, y.size, a)
-        if (!host(DenseMatrixOperation.Ger, work(DenseMatrixOperation.Ger, a.rows, a.cols, alpha = alpha))) {
+        if (!host(DenseMatrixOperation.Ger, eligibleCall(DenseMatrixOperation.Ger, a.rows, a.cols, alpha = alpha))) {
             portable.ger(alpha, x, y, a, workspace)
             return
         }
@@ -403,7 +366,7 @@ internal class HostDenseBlas(
     @Suppress("LongParameterList") // the BLAS dsyr signature plus the workspace
     override fun syr(alpha: Double, x: DenseVector, a: DenseMatrix, lower: Boolean, workspace: Workspace?) {
         requireSyrOperands(a, x.size, "syr")
-        if (!host(DenseMatrixOperation.Syr, work(DenseMatrixOperation.Syr, a.rows, a.cols, alpha = alpha))) {
+        if (!host(DenseMatrixOperation.Syr, eligibleCall(DenseMatrixOperation.Syr, a.rows, a.cols, alpha = alpha))) {
             portable.syr(alpha, x, a, lower, workspace)
             return
         }
@@ -422,7 +385,7 @@ internal class HostDenseBlas(
         workspace: Workspace?,
     ) {
         requireSyr2Operands(a, x.size, y.size, "syr2")
-        if (!host(DenseMatrixOperation.Syr2, work(DenseMatrixOperation.Syr2, a.rows, a.cols, alpha = alpha))) {
+        if (!host(DenseMatrixOperation.Syr2, eligibleCall(DenseMatrixOperation.Syr2, a.rows, a.cols, alpha = alpha))) {
             portable.syr2(alpha, x, y, a, lower, workspace)
             return
         }
@@ -472,7 +435,7 @@ internal class HostDenseBlas(
     ) {
         requireTriangularVectorOperands(a, x.size, what)
         val solve = operation == DenseMatrixOperation.Trsv || operation == DenseMatrixOperation.TrsvTransposed
-        if (!host(operation, work(operation, a.rows, a.cols))) {
+        if (!host(operation, eligibleCall(operation, a.rows, a.cols))) {
             if (solve) {
                 portable.trsv(a, x, lower, transpose, unitDiag, workspace)
             } else {
@@ -506,7 +469,7 @@ internal class HostDenseBlas(
         requireGemmOperands(a, transposeA, b, transposeB, c)
         val depth = if (transposeA) a.rows else a.cols
         val gemm = DenseMatrixOperation.Gemm
-        if (!host(gemm, work(gemm, c.rows, c.cols, depth, alpha))) {
+        if (!host(gemm, eligibleCall(gemm, c.rows, c.cols, depth, alpha))) {
             portable.gemm(alpha, a, transposeA, b, transposeB, beta, c, workspace)
             return
         }
@@ -529,7 +492,7 @@ internal class HostDenseBlas(
         requireGemmtOperands(a, transposeA, b, transposeB, c)
         val depth = if (transposeA) a.rows else a.cols
         val gemmt = DenseMatrixOperation.Gemmt
-        if (!host(gemmt, work(gemmt, c.rows, c.cols, depth, alpha))) {
+        if (!host(gemmt, eligibleCall(gemmt, c.rows, c.cols, depth, alpha))) {
             portable.gemmt(alpha, a, transposeA, b, transposeB, beta, c, lower, workspace)
             return
         }
@@ -550,7 +513,7 @@ internal class HostDenseBlas(
         requireSyrkOperands(a, transpose, c)
         val depth = if (transpose) a.rows else a.cols
         val syrk = DenseMatrixOperation.Syrk
-        if (!host(syrk, work(syrk, c.rows, c.cols, depth, alpha))) {
+        if (!host(syrk, eligibleCall(syrk, c.rows, c.cols, depth, alpha))) {
             portable.syrk(alpha, a, transpose, beta, c, lower, workspace)
             return
         }
@@ -572,7 +535,7 @@ internal class HostDenseBlas(
         requireSyr2kOperands(a, b, transpose, c)
         val depth = if (transpose) a.rows else a.cols
         val syr2k = DenseMatrixOperation.Syr2k
-        if (!host(syr2k, work(syr2k, c.rows, c.cols, depth, alpha))) {
+        if (!host(syr2k, eligibleCall(syr2k, c.rows, c.cols, depth, alpha))) {
             portable.syr2k(alpha, a, b, transpose, beta, c, lower, workspace)
             return
         }
@@ -593,7 +556,7 @@ internal class HostDenseBlas(
     ) {
         requireSymmOperands(a, b, c, right)
         val symm = DenseMatrixOperation.Symm
-        if (!host(symm, work(symm, c.rows, c.cols, a.rows, alpha))) {
+        if (!host(symm, eligibleCall(symm, c.rows, c.cols, a.rows, alpha))) {
             portable.symm(alpha, a, b, beta, c, lower, right, workspace)
             return
         }
@@ -638,9 +601,9 @@ internal class HostDenseBlas(
         val solve = operation == DenseMatrixOperation.Trsm
         val what = if (solve) "trsm" else "trmm"
         requireTriangularMatrixOperands(a, b, right, what)
-        // This API reads no coefficients when alpha is zero; HostDensePolicy uses the portable path
+        // This API reads no coefficients when alpha is zero; HostDenseCall uses the portable path
         // when the host library cannot guarantee that contract.
-        if (!host(operation, work(operation, b.rows, b.cols, a.rows, alpha, right))) {
+        if (!host(operation, eligibleCall(operation, b.rows, b.cols, a.rows, alpha))) {
             if (solve) {
                 portable.trsm(a, b, lower, transpose, unitDiag, right, alpha, workspace)
             } else {
@@ -659,45 +622,10 @@ internal class HostDenseBlas(
     }
 }
 
-/**
- * When a whole dense call is handed to an installed library rather than run on the portable schedule.
- *
- * A conservative fixed policy rather than a tuned one. Two questions settle it. Is this operation one whole
- * CBLAS entry point that the library exports, and does the call carry the facts that settle its own shape;
- * and has the arithmetic grown to a size where a foreign call and a pin per operand are a small part of it.
- *
- * Nothing here holds a call back over arithmetic. [DenseBlas] states the accumulation order and the placement
- * of a multiplier as the selected implementation's, so there is no promise a library could contradict, and a
- * call's route names which one answered it.
- *
- * One size threshold for all of them rather than one per operation. The eight Level 1 break-evens that the
- * Kotlin/Native vector kernels split differ because a per-call cost of a few tens of nanoseconds is most of
- * the work at those widths. A Level 2 or 3 call is quadratic or cubic in its extents, so it crosses that cost
- * within a few steps of the extents either way, and a second constant would be distinguishing calls that are
- * both far on one side of the line.
- */
-internal object HostDensePolicy {
+/** Symbol mapping and required call facts; performance eligibility belongs to each platform. */
+internal object HostDenseCall {
     /**
-     * The multiply-add count from which a whole call is handed over.
-     *
-     * Deliberately on the late side of where the two sides meet, because the errors are not symmetric:
-     * handing a call over too early makes it slower than the loop it replaced, and holding one back only
-     * forgoes a win. It is a fixed conservative policy and not a tuned number.
-     *
-     * The size was chosen from a bounded local ladder of `gemm`, `gemv` and `trsm` on one machine, comparing
-     * this library's exact portable Native arm against the explicit oneMKL and OpenBLAS ones through
-     * `koblas-bench`. What those rows establish is roughly where the arithmetic grows past the cost of
-     * reaching a library, which on that host was in the hundreds of multiply-adds. Their limits are as
-     * important: they are an explicit whole-call binding rather than this composition, so they do not include
-     * the validation, eligibility and operand wrapping around it; they are one CPU, two libraries and one
-     * Kotlin target; and they were taken on a shared desktop. So this is not a speedup figure and not a
-     * crossing anyone should assume holds elsewhere. Another host calls for that ladder again rather than an
-     * adjustment to this.
-     */
-    const val MINIMUM_WORK: Long = 1024L
-
-    /**
-     * The CBLAS entry point [operation] is one whole call to, or null where it is not one at all.
+     * The CBLAS entry point for a whole operation, or null for windowed GER.
      *
      * Windowed GER stays portable because no binding takes its windows, which offset both vectors as well as
      * the matrix.
@@ -736,71 +664,6 @@ internal object HostDensePolicy {
         -> true
 
         else -> false
-    }
-
-    /**
-     * The answer [multiplyAdds] gives for a call that may hand the library nothing, which is not a count.
-     *
-     * A negative value rather than zero, because zero multiply-adds is something a stated call can have and
-     * this is the absence of one. It covers three things with one answer: an operation with no entry point
-     * of its own, a call whose own contract stops before the arithmetic, and a call that did not state the
-     * shared dimension its operation is defined over. Each belongs on the portable schedule, and the reason
-     * differs: the first has nowhere else to go, the second turns on no-read rules the standard leaves open,
-     * and the third is refused rather than answered.
-     */
-    const val NO_HOST_CALL: Long = -1L
-
-    /**
-     * The multiply-adds a call may hand to a library, or [NO_HOST_CALL] where it may hand it none.
-     *
-     * The extents are [DenseCall]'s, so the execution paths and [HostDenseBlas.routeOf] pass the same facts
-     * and cannot disagree about which of them the call has. An operation with no shared dimension passes a
-     * depth of one, which is the extent it is defined over rather than a stand-in for a missing fact; a
-     * missing one arrives only as a [DenseCall] and is refused by the overload that takes one.
-     */
-    @Suppress("LongParameterList", "CyclomaticComplexMethod") // the extents a call is measured over
-    fun multiplyAdds(
-        operation: DenseMatrixOperation,
-        rows: Int,
-        columns: Int,
-        depth: Int,
-        alpha: Double,
-        right: Boolean,
-    ): Long {
-        if (entryPointFor(operation) == null) return NO_HOST_CALL
-        if (alpha == 0.0 || rows == 0 || columns == 0 || depth == 0) return NO_HOST_CALL
-        val m = rows.toLong()
-        val n = columns.toLong()
-        val k = depth.toLong()
-        return when (operation) {
-            DenseMatrixOperation.Gemv, DenseMatrixOperation.GemvTransposed,
-            DenseMatrixOperation.Symv, DenseMatrixOperation.Ger, DenseMatrixOperation.Syr2,
-            -> m * n
-
-            DenseMatrixOperation.Syr,
-            DenseMatrixOperation.Trmv, DenseMatrixOperation.TrmvTransposed,
-            DenseMatrixOperation.Trsv, DenseMatrixOperation.TrsvTransposed,
-            -> m * n / 2
-
-            DenseMatrixOperation.Gemm, DenseMatrixOperation.Symm, DenseMatrixOperation.Syr2k -> m * n * k
-
-            DenseMatrixOperation.Gemmt, DenseMatrixOperation.Syrk -> m * n * k / 2
-
-            DenseMatrixOperation.Trmm, DenseMatrixOperation.Trsm -> k * k * (if (right) m else n) / 2
-
-            else -> NO_HOST_CALL
-        }
-    }
-
-    /**
-     * [multiplyAdds] over the extents a caller already holds as a [DenseCall].
-     *
-     * A Level 3 operation whose call never stated its shared dimension is refused here rather than measured
-     * over the other two, which would describe a product nobody described.
-     */
-    fun multiplyAdds(operation: DenseMatrixOperation, call: DenseCall): Long {
-        if (needsDepth(operation) && call.depth == null) return NO_HOST_CALL
-        return multiplyAdds(operation, call.rows, call.columns, call.depth ?: 1, call.alpha, call.right)
     }
 }
 

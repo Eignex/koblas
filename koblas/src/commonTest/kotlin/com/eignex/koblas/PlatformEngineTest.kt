@@ -55,7 +55,7 @@ class PlatformEngineTest {
         // them; this bounded product is already large enough to be packed.
         val product = DenseCall(256, 256, depth = 256)
 
-        assertEquals(null, BuiltinEngines.scalar.vendor)
+        assertEquals(null, BuiltinEngines.scalar.native)
         assertEquals(
             "portable-dense",
             BuiltinEngines.scalar.routeOf(DenseMatrixOperation.Gemm, product).scheduling,
@@ -65,7 +65,7 @@ class PlatformEngineTest {
             BuiltinEngines.scalar.routeOf(DenseMatrixOperation.GemvTransposed, call).components.single(),
         )
         BuiltinEngines.simd?.let {
-            assertEquals(null, it.vendor)
+            assertEquals(null, it.native)
             assertEquals("portable-dense", it.routeOf(DenseMatrixOperation.Gemm, product).scheduling)
         }
     }
@@ -133,7 +133,7 @@ class PlatformEngineTest {
     // are lanes: the assertion is where it cannot go rather than where it must stay.
     @Test
     fun `sum never names a vendor because none exports it`() {
-        val vendor = koblas.vendor ?: return
+        val vendor = koblas.native ?: return
         val vendorArm = "${vendor.vendor.vendorName.lowercase()}-level1"
 
         assertNotEquals(vendorArm, koblas.routeOf(DenseOperation.Sum, WIDE).implementation)
@@ -145,7 +145,7 @@ class PlatformEngineTest {
      */
     @Test
     fun `each operation crosses to the vendor at its own measured width`() {
-        val vendor = koblas.vendor ?: return skipped("no library on this host")
+        val vendor = koblas.native ?: return skipped("no library on this host")
         val arm = "${vendor.vendor.vendorName.lowercase()}-level1"
         if (koblas.vectorKernels.name != arm) return skipped("this platform keeps Level 1 off the library")
 

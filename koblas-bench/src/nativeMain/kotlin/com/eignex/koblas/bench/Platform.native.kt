@@ -57,7 +57,7 @@ internal actual fun resolveEngine(mode: String): Pair<KoblasEngine, String> {
         "Native runner requires --mode=native or --mode=native-default"
     }
     val engine = if (mode == "native-default") koblas else BuiltinEngines.scalar
-    val host = engine.vendor?.let {
+    val host = engine.native?.let {
         "/${it.vendor.vendorName}/${it.libraryPath}/${it.version}/threads=${it.threadEvidence.label}"
     } ?: ""
     return engine to "$mode/${engine.name}$host"

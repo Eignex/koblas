@@ -51,14 +51,15 @@ internal expect fun platformEngine(): KoblasEngine
  * [koblas] is the platform default. [portable] creates an explicitly portable engine for application code.
  * [BuiltinEngines] provides exact portable and JVM SIMD compositions
  * for tests and benchmarks, neither of which loads a host library. The platform default may compose
- * [vendor] into eligible calls. The [routeOf] overloads describe which implementations a call reaches.
+ * [native] into eligible calls. The [routeOf] overloads describe which implementations a call reaches.
  */
 public class KoblasEngine internal constructor(
     /** Contiguous and strided dense Level 1 kernels. */
     public val vectorKernels: DenseVectorKernels,
     internal val indexedSparseKernels: IndexedSparseKernels,
-    /** Optional installed host binding, retained for explicit host comparisons and attribution. */
-    public val vendor: Blas?,
+    /** Optional production native adapter, exposed only for expert benchmark attribution. */
+    @KoblasEngineApi
+    public val native: Blas?,
     /** Panel arithmetic and the local execution grouping that dense and sparse algorithms schedule with. */
     internal val panelKernels: DensePanelKernels = PortablePanelKernels,
     /** Register-tile product arithmetic and the tile geometry dense products pack for. */
@@ -66,20 +67,11 @@ public class KoblasEngine internal constructor(
     /** Diagonal-block substitution and the right-hand-side grouping triangular routines schedule with. */
     internal val triangularKernels: DenseTriangularKernels = PortableTriangularKernels,
     sparseKernelName: String = indexedSparseKernels.name,
-    private val denseBlas: PortableDenseBlas =
-        PortableDenseBlas(vectorKernels, panelKernels, productKernels, triangularKernels),
-    /**
-     * The installed library this engine's ordinary dense Level 2 and 3 calls may be composed from.
-     *
-     * Separate from [vendor] rather than read off it, because the two answer different questions. A platform
-     * default that composes one passes the same binding to both; an engine retaining a binding only so a
-     * caller can reach it explicitly passes it as [vendor] alone, and its dense calls stay portable.
-     */
-    hostDense: Blas? = null,
-    hostDenseEligible: DenseHostEligibility? = null,
-    private val dense: RoutedDenseBlas = hostDense?.let {
-        HostDenseBlas(denseBlas, it, eligible = hostDenseEligible)
-    } ?: denseBlas,
+    nativeEligible: DenseHostEligibility? = null,
+    private val dense: RoutedDenseBlas =
+        PortableDenseBlas(vectorKernels, panelKernels, productKernels, triangularKernels).let { portable ->
+            native?.let { HostDenseBlas(portable, it, requireNotNull(nativeEligible)) } ?: portable
+        },
     private val sparseBlas: SparseBlas = PortableSparseBlas(
         vectorKernels,
         indexedSparseKernels,

@@ -18,7 +18,7 @@ import kotlin.test.assertTrue
 
 /**
  * Checks host selection and argument translation with a recording binding. Routes expose
- * inactive thresholds, incompatible packed layouts and unstaged aliases. `minimumWork = 0`
+ * inactive thresholds, incompatible packed layouts and unstaged aliases. `eligible = { _, _, _, _ -> true }`
  * keeps fixtures small; a separate case checks the size policy.
  */
 class HostDenseBlasTest {
@@ -29,7 +29,7 @@ class HostDenseBlasTest {
     fun `platform eligibility rejects a host call in both execution and route`() {
         val recorder = RecordingBlas()
         val portable = PortableDenseBlas(ScalarVectorKernels, PortablePanelKernels)
-        val blas = HostDenseBlas(portable, recorder, minimumWork = 0, eligible = { _, _, _, _ -> false })
+        val blas = HostDenseBlas(portable, recorder, eligible = { _, _, _, _ -> false })
         val a = matrix(ORDER)
         val actual = matrix(ORDER)
         val expected = matrix(ORDER)
@@ -58,7 +58,7 @@ class HostDenseBlasTest {
         for (borrowedOperand in listOf("left", "right", "destination")) {
             val recorder = RecordingBlas()
             val portable = PortableDenseBlas(ScalarVectorKernels, PortablePanelKernels)
-            val blas = HostDenseBlas(portable, recorder, minimumWork = 0, eligible = policy)
+            val blas = HostDenseBlas(portable, recorder, eligible = policy)
             val parent = matrix(ORDER + 2)
             val view = parent.view(1, 1, ORDER, ORDER)
             val a: DenseMatrixRegion = if (borrowedOperand == "left") view else matrix(ORDER)
@@ -87,11 +87,12 @@ class HostDenseBlasTest {
         }
     }
 
-    private fun forced(
-        recorder: RecordingBlas = RecordingBlas(),
-        minimumWork: Long = 0,
-    ): Pair<RecordingBlas, HostDenseBlas> =
-        recorder to HostDenseBlas(PortableDenseBlas(ScalarVectorKernels, PortablePanelKernels), recorder, minimumWork)
+    private fun forced(recorder: RecordingBlas = RecordingBlas()): Pair<RecordingBlas, HostDenseBlas> =
+        recorder to HostDenseBlas(
+            PortableDenseBlas(ScalarVectorKernels, PortablePanelKernels),
+            recorder,
+            eligible = { _, _, _, _ -> true },
+        )
 
     private fun matrix(rows: Int, cols: Int = rows, from: Double = 1.0) =
         DenseMatrix.wrap(rows, cols, DoubleArray(rows * cols) { from + it })
@@ -160,35 +161,6 @@ class HostDenseBlasTest {
 
         assertEquals(listOf(BlasOperation.Gemm), recorder.calls.map { it.operation })
         assertEquals(HOST_SCHEDULING, route.scheduling)
-    }
-
-    @Test
-    fun `a call below the policy s size stays on the portable schedule`() {
-        val (recorder, blas) = forced(minimumWork = HostDensePolicy.MINIMUM_WORK)
-        val a = matrix(ORDER)
-        val c = matrix(ORDER)
-
-        blas.gemm(1.0, a, false, a, false, 0.0, c)
-        val route = blas.routeOf(DenseMatrixOperation.Gemm, DenseCall(ORDER, ORDER, depth = ORDER))
-
-        assertEquals(emptyList(), recorder.calls.map { it.operation }, "a small product reached the library")
-        assertEquals(DENSE_SCHEDULING, route.scheduling)
-        assertEquals(null, route.host, "a portable route named a host call")
-    }
-
-    @Test
-    fun `the policy admits a product once its arithmetic is past the fixed size`() {
-        val (recorder, blas) = forced(minimumWork = HostDensePolicy.MINIMUM_WORK)
-        val order = CROSSING_ORDER
-        val a = matrix(order, order, from = 0.0)
-
-        blas.gemm(1.0, a, false, a, false, 0.0, matrix(order, order, from = 0.0))
-
-        assertEquals(listOf(BlasOperation.Gemm), recorder.calls.map { it.operation })
-        assertTrue(
-            order.toLong() * order * order >= HostDensePolicy.MINIMUM_WORK,
-            "the fixture is not actually past the policy's size",
-        )
     }
 
     @Test
@@ -288,7 +260,7 @@ class HostDenseBlasTest {
     @Test
     fun `host product aliases agree with the reference and share one snapshot`() {
         val portable = PortableDenseBlas(ScalarVectorKernels, PortablePanelKernels)
-        val blas = HostDenseBlas(portable, ReferenceProductBlas(), minimumWork = 0)
+        val blas = HostDenseBlas(portable, ReferenceProductBlas(), eligible = { _, _, _, _ -> true })
 
         assertDenseProductAliasesAgreeWithReference(blas)
     }
@@ -296,7 +268,7 @@ class HostDenseBlasTest {
     @Test
     fun `host rectangular product aliases retain their operand shapes`() {
         val portable = PortableDenseBlas(ScalarVectorKernels, PortablePanelKernels)
-        val blas = HostDenseBlas(portable, ReferenceProductBlas(), minimumWork = 0)
+        val blas = HostDenseBlas(portable, ReferenceProductBlas(), eligible = { _, _, _, _ -> true })
 
         assertRectangularProductAliasesAgreeWithReference(blas)
     }
@@ -364,7 +336,11 @@ class HostDenseBlasTest {
     @Test
     fun `borrowed host calls reach a region binding in place`() {
         val recorder = RecordingRegionBlas()
-        val blas = HostDenseBlas(PortableDenseBlas(ScalarVectorKernels, PortablePanelKernels), recorder, 0)
+        val blas = HostDenseBlas(
+            PortableDenseBlas(ScalarVectorKernels, PortablePanelKernels),
+            recorder,
+            eligible = { _, _, _, _ -> true },
+        )
         val parent = matrix(9)
         val panel = parent.view(4, 0, 5, 3)
         val trailing = parent.view(4, 4, 5, 5)
@@ -398,7 +374,11 @@ class HostDenseBlasTest {
     @Test
     fun `a borrowed input overlapping the destination is staged before a region binding`() {
         val recorder = RecordingRegionBlas()
-        val blas = HostDenseBlas(PortableDenseBlas(ScalarVectorKernels, PortablePanelKernels), recorder, 0)
+        val blas = HostDenseBlas(
+            PortableDenseBlas(ScalarVectorKernels, PortablePanelKernels),
+            recorder,
+            eligible = { _, _, _, _ -> true },
+        )
         val parent = matrix(7)
         val a = parent.view(0, 0, 4, 3)
         val c = parent.view(1, 1, 4, 4)
@@ -421,7 +401,7 @@ class HostDenseBlasTest {
         /** Small enough that only a forced policy sends it over, which is what the routing cases want. */
         const val ORDER = 3
 
-        /** Past [HostDensePolicy.MINIMUM_WORK] as a cubic product, and still a fixture a test can hold. */
+        /** A larger shape for missing-call-fact tests. */
         const val CROSSING_ORDER = 64
 
         const val SCALE = 0.75
