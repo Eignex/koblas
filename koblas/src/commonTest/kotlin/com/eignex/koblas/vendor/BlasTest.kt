@@ -3,6 +3,7 @@ package com.eignex.koblas.vendor
 import com.eignex.koblas.BuiltinEngines
 import com.eignex.koblas.StridedVector
 import com.eignex.koblas.assertClose
+import com.eignex.koblas.internal.sparse.axpy
 import kotlin.math.abs
 import kotlin.test.Test
 import kotlin.test.assertContentEquals

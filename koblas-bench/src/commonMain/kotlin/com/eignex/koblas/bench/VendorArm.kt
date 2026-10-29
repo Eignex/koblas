@@ -65,6 +65,9 @@ internal fun openVendorForMode(mode: String): Pair<Blas, String> {
  */
 @Suppress("LongMethod", "CyclomaticComplexMethod") // one branch per benchmarked operation
 internal fun vendorArm(case: BenchCase, blas: Blas): ArmChoice {
+    if (case.options["layout"] == "borrowed") {
+        return ArmChoice(null, "borrowed matrix cases measure engine scheduling and eligible host composition")
+    }
     val d = case.dimensions
     val alpha = 0.875
     val beta = -0.25

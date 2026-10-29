@@ -36,7 +36,7 @@ internal object Cases {
     )
     private val fixtures = setOf("uniform", "triangular", "sparse-uniform", "sparse-triangular")
     private val optionOrder =
-        listOf("density", "support", "mode", "reuse", "side", "uplo", "transA", "transB", "diag", "timing", "workspace")
+        listOf("density", "support", "mode", "reuse", "side", "uplo", "transA", "transB", "diag", "timing", "workspace", "layout")
 
     fun parse(text: String): List<BenchCase> {
         val cases = text.lineSequence().mapIndexedNotNull { index, raw ->
@@ -111,6 +111,7 @@ internal object Cases {
             "transA", "transB" -> if (value !in setOf("N", "T")) invalid("invalid transpose '$value'")
             "diag" -> if (value !in setOf("N", "U")) invalid("invalid diag '$value'")
             "workspace" -> if (value != "retained") invalid("workspace must be retained")
+            "layout" -> if (value != "borrowed") invalid("layout must be borrowed")
         }
     }
 
@@ -165,6 +166,7 @@ internal object Cases {
         if (operation == "gemm") {
             add("transB")
             add("workspace")
+            add("layout")
         }
         // Dense storage changes the axis available to a right-hand side panel. The benchmark currently
         // exposes this flag for left-sparse products; the production right-sparse API also supports it.

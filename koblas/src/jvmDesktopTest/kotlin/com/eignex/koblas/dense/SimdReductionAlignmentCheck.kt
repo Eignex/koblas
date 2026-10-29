@@ -1,8 +1,8 @@
 package com.eignex.koblas.dense
 
 import com.eignex.koblas.BuiltinEngines
-import com.eignex.koblas.internal.jvm25.HotSpotArrayAlignment
-import com.eignex.koblas.internal.jvm25.SimdOps
+import com.eignex.koblas.internal.jvm25.simd.HotSpotArrayAlignment
+import com.eignex.koblas.internal.jvm25.simd.SimdOps
 import com.eignex.koblas.testutil.allocation.AllocationProbe
 import com.eignex.koblas.testutil.allocation.bytesPerCall
 
@@ -10,7 +10,7 @@ import com.eignex.koblas.testutil.allocation.bytesPerCall
 internal object SimdReductionAlignmentCheck {
     @JvmStatic
     fun main(args: Array<String>) {
-        check(BuiltinEngines.simd != null) { "alignment check requires the Vector API arm" }
+        checkNotNull(BuiltinEngines.simd) { "alignment check requires the Vector API arm" }
         val values = DoubleArray(65_560)
         val prefix = HotSpotArrayAlignment.prefix(values, 0, 65_536)
         val knownAlignment = HotSpotArrayAlignment.hasKnownAlignment(values)

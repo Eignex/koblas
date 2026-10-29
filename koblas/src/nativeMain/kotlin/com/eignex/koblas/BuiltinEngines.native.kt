@@ -1,10 +1,10 @@
 package com.eignex.koblas
 
-import com.eignex.koblas.dense.NativeBlasPolicy
-import com.eignex.koblas.dense.ScalarVectorKernels
-import com.eignex.koblas.dense.VendorVectorKernels
-import com.eignex.koblas.sparse.ScalarIndexedSparseKernels
-import com.eignex.koblas.vendor.NativeVendorBlas
+import com.eignex.koblas.internal.dense.ScalarVectorKernels
+import com.eignex.koblas.internal.host.NativeBlasPolicy
+import com.eignex.koblas.internal.host.NativeVendorBlas
+import com.eignex.koblas.internal.host.VendorVectorKernels
+import com.eignex.koblas.internal.sparse.ScalarIndexedSparseKernels
 
 /** Built-in engines on Kotlin/Native. */
 public actual object BuiltinEngines {
@@ -27,7 +27,7 @@ public actual object BuiltinEngines {
  * and foreign-call overhead. The JVM uses its owned Vector API kernels under a separate default
  * policy; this does not compare their performance against vendor matrix calls.
  *
- * Level 1 needs [com.eignex.koblas.vendor.NativeVendorBlas]'s raw-array entry points to avoid
+ * Level 1 needs [com.eignex.koblas.internal.host.NativeVendorBlas]'s raw-array entry points to avoid
  * operand wrappers on short calls. A different binding keeps portable Level 1 kernels while
  * remaining available to the dense composition.
  */

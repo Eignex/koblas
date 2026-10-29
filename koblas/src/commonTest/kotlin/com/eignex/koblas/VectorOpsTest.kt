@@ -1,8 +1,10 @@
 package com.eignex.koblas
 
 import com.eignex.koblas.dense.DenseVectorKernels
-import com.eignex.koblas.dense.ScalarVectorKernels
 import com.eignex.koblas.dense.assertIamaxHonoursItsContract
+import com.eignex.koblas.internal.dense.ScalarVectorKernels
+import com.eignex.koblas.internal.sparse.axpy
+import com.eignex.koblas.internal.sparse.snapshot
 import kotlin.math.sqrt
 import kotlin.test.*
 

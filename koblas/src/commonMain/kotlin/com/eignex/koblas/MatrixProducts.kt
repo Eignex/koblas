@@ -4,7 +4,9 @@
 
 package com.eignex.koblas
 
-import com.eignex.koblas.dense.scaleRegion
+import com.eignex.koblas.internal.operands.denseOperand
+import com.eignex.koblas.internal.operands.scaleRegion
+import com.eignex.koblas.internal.sparse.snapshot
 
 /** Allocates through [koblas], preserving CSC storage for a pair of sparse or prepared operands. */
 public fun Matrix.gemm(other: Matrix): Matrix = koblas.gemm(this, other)
@@ -24,13 +26,19 @@ public operator fun Matrix.times(other: Matrix): Matrix = koblas.gemm(this, othe
  * Call [KoblasEngine.gemm] to select an explicit engine, including for prepared operands.
  */
 public fun Matrix.gemmInto(
-    alpha: Double, transpose: Boolean, other: Matrix, transposeOther: Boolean,
-    beta: Double, destination: DenseMatrixRegion, workspace: Workspace? = null,
+    alpha: Double,
+    transpose: Boolean,
+    other: Matrix,
+    transposeOther: Boolean,
+    beta: Double,
+    destination: DenseMatrixRegion,
+    workspace: Workspace? = null,
 ): Unit = koblas.gemm(alpha, this, transpose, other, transposeOther, beta, destination, workspace)
 
 /** Storage classification shared by execution and inspection; callbacks inline on the arithmetic path. */
 internal inline fun <T> dispatchProduct(
-    a: Matrix, b: Matrix,
+    a: Matrix,
+    b: Matrix,
     sparsePair: (SparseMatrix, SparseMatrix) -> T,
     sparseLeft: (SparseMatrix) -> T,
     sparseRight: (SparseMatrix) -> T,
@@ -48,10 +56,16 @@ internal inline fun <T> dispatchProduct(
 
 /** Engine-owned allocating dispatch, with no policy retained by either operand. */
 internal fun KoblasEngine.product(
-    alpha: Double, a: Matrix, transposeA: Boolean, b: Matrix, transposeB: Boolean,
+    alpha: Double,
+    a: Matrix,
+    transposeA: Boolean,
+    b: Matrix,
+    transposeB: Boolean,
 ): Matrix {
     requireProductOperands(a, transposeA, b, transposeB, "gemm")
-    return dispatchProduct(a, b,
+    return dispatchProduct(
+        a,
+        b,
         sparsePair = { left, right ->
             val reached = reachesAPosition(alpha, left, right)
             val la = orientationFor(a, transposeA, reached)
@@ -65,7 +79,11 @@ internal fun KoblasEngine.product(
 }
 
 private fun KoblasEngine.denseProduct(
-    alpha: Double, a: Matrix, transposeA: Boolean, b: Matrix, transposeB: Boolean,
+    alpha: Double,
+    a: Matrix,
+    transposeA: Boolean,
+    b: Matrix,
+    transposeB: Boolean,
 ): DenseMatrix {
     val result = DenseMatrix.zero(if (transposeA) a.cols else a.rows, if (transposeB) b.rows else b.cols)
     productInto(alpha, a, transposeA, b, transposeB, 0.0, result, null)
@@ -74,8 +92,14 @@ private fun KoblasEngine.denseProduct(
 
 /** Canonical generic destination dispatch. Sparse structure never passes through custom materialization. */
 internal fun KoblasEngine.productInto(
-    alpha: Double, a: Matrix, transposeA: Boolean, b: Matrix, transposeB: Boolean,
-    beta: Double, c: DenseMatrixRegion, workspace: Workspace?,
+    alpha: Double,
+    a: Matrix,
+    transposeA: Boolean,
+    b: Matrix,
+    transposeB: Boolean,
+    beta: Double,
+    c: DenseMatrixRegion,
+    workspace: Workspace?,
 ) {
     requireGemmOperands(a, transposeA, b, transposeB, c)
     if (c.rows == 0 || c.cols == 0) return
@@ -83,23 +107,37 @@ internal fun KoblasEngine.productInto(
         scaleRegion(c, beta, vectors = vectorKernels)
         return
     }
-    dispatchProduct(a, b,
+    dispatchProduct(
+        a,
+        b,
         sparsePair = { left, right ->
             val reached = reachesAPosition(alpha, left, right)
             val la = orientationFor(a, transposeA, reached)
             val rb = orientationFor(b, transposeB, reached)
             gemm(alpha, la ?: left, transposeA && la == null, rb ?: right, transposeB && rb == null, beta, c, workspace)
         },
-        sparseLeft = { left -> denseOperand(workspace, b) { right ->
-            gemm(alpha, left, transposeA, right, transposeB, beta, c, right = false, workspace = workspace)
-        } },
-        sparseRight = { right -> denseOperand(workspace, a) { left ->
-            gemm(alpha, right, transposeB, left, transposeA, beta, c, right = true, workspace = workspace)
-        } },
-        densePair = { denseOperand(workspace, a) { left ->
-            if (a === b) gemm(alpha, left, transposeA, left, transposeB, beta, c, workspace)
-            else denseOperand(workspace, b) { right -> gemm(alpha, left, transposeA, right, transposeB, beta, c, workspace) }
-        } },
+        sparseLeft = { left ->
+            denseOperand(workspace, b) { right ->
+                gemm(alpha, left, transposeA, right, transposeB, beta, c, right = false, workspace = workspace)
+            }
+        },
+        sparseRight = { right ->
+            denseOperand(workspace, a) { left ->
+                gemm(alpha, right, transposeB, left, transposeA, beta, c, right = true, workspace = workspace)
+            }
+        },
+        densePair = {
+            denseOperand(workspace, a) { left ->
+                if (a === b) {
+                    gemm(alpha, left, transposeA, left, transposeB, beta, c, workspace)
+                } else {
+                    denseOperand(
+                        workspace,
+                        b,
+                    ) { right -> gemm(alpha, left, transposeA, right, transposeB, beta, c, workspace) }
+                }
+            }
+        },
     )
 }
 
@@ -130,4 +168,3 @@ private fun orientationFor(matrix: Matrix, transpose: Boolean, reached: Boolean)
 /** Whether a product between two sparse operands evaluates any position, which decides what is read. */
 internal fun reachesAPosition(alpha: Double, left: SparseMatrix, right: SparseMatrix): Boolean =
     alpha != 0.0 && left.nnz > 0 && right.nnz > 0
-

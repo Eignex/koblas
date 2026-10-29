@@ -1,15 +1,11 @@
 package com.eignex.koblas.vendor
 
-import com.eignex.koblas.RouteKind
-
-import com.eignex.koblas.DenseMatrixRegion
 import com.eignex.koblas.DenseMatrix
-import com.eignex.koblas.DenseVector
-import com.eignex.koblas.internal.jvm25.JvmVendorBlas
-import com.eignex.koblas.internal.jvm25.JvmVendorLibrary
+import com.eignex.koblas.RouteKind
+import com.eignex.koblas.internal.jvm25.host.JvmVendorBlas
+import com.eignex.koblas.internal.jvm25.host.JvmVendorLibrary
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 

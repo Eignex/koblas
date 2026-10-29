@@ -1,6 +1,10 @@
 package com.eignex.koblas.dense
 
 import com.eignex.koblas.BuiltinEngines
+import com.eignex.koblas.internal.dense.DenseProductKernels
+import com.eignex.koblas.internal.dense.OutputTriangle
+import com.eignex.koblas.internal.dense.PortableProductKernels
+import com.eignex.koblas.internal.dense.packsWindow
 
 /** Runs [body] against every product backend this platform has, which is what decides the block geometry. */
 internal fun withProducts(body: (DenseProductKernels) -> Unit) {

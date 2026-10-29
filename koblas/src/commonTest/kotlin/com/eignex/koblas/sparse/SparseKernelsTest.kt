@@ -3,6 +3,10 @@ package com.eignex.koblas.sparse
 import com.eignex.koblas.BuiltinEngines
 import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.SparseVector
+import com.eignex.koblas.internal.sparse.axpy
+import com.eignex.koblas.internal.sparse.gather
+import com.eignex.koblas.internal.sparse.gatherZero
+import com.eignex.koblas.internal.sparse.scatter
 import kotlin.math.abs
 import kotlin.test.Test
 import kotlin.test.assertContentEquals

@@ -8,7 +8,7 @@ import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.Workspace
 import com.eignex.koblas.assertClose
 import com.eignex.koblas.copyOf
-import com.eignex.koblas.sparse.internal.withSymmetricRankScratch
+import com.eignex.koblas.internal.sparse.withSymmetricRankScratch
 import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertContentEquals

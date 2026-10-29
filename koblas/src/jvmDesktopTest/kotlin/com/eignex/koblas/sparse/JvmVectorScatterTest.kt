@@ -1,7 +1,7 @@
 package com.eignex.koblas.sparse
 
-import com.eignex.koblas.internal.jvm25.JvmVectorScatterMode
-import com.eignex.koblas.internal.jvm25.jvmVectorScatterEnabled
+import com.eignex.koblas.internal.jvm25.simd.JvmVectorScatterMode
+import com.eignex.koblas.internal.jvm25.simd.jvmVectorScatterEnabled
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith

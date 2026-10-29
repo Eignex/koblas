@@ -1,12 +1,12 @@
 package com.eignex.koblas
 
-import com.eignex.koblas.dense.DenseOperation
-import com.eignex.koblas.dense.ScalarVectorKernels
-import com.eignex.koblas.sparse.IndexedSparseKernels
-import com.eignex.koblas.sparse.ScalarIndexedSparseKernels
-import com.eignex.koblas.sparse.SparseKernelAdapter
-import com.eignex.koblas.sparse.SparseOperation
 import com.eignex.koblas.RouteKind
+import com.eignex.koblas.dense.DenseOperation
+import com.eignex.koblas.internal.dense.ScalarVectorKernels
+import com.eignex.koblas.internal.sparse.IndexedSparseKernels
+import com.eignex.koblas.internal.sparse.ScalarIndexedSparseKernels
+import com.eignex.koblas.internal.sparse.SparseKernelAdapter
+import com.eignex.koblas.sparse.SparseOperation
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith

@@ -50,7 +50,9 @@ implement. Dense matrices are column-major and sparse matrices are validated CSC
 [Matrix.gemm] and [Matrix.gemmInto] dispatch on runtime storage with dense, sparse or prepared sparse
 operands on either side. Two sparse operands produce CSC storage; other built-in pairings produce dense
 storage. No sparse operand is densified to reach a kernel. [PreparedSparseMatrix] owns a snapshot for repeated
-operations and takes part in those products as the sparse matrix it copied.
+operations and takes part in those products as the sparse matrix it copied. It retains no engine.
+[KoblasEngine.gemm] selects policy explicitly; Matrix and prepared conveniences use the default engine.
+Dense operations and mixed CSC products address [DenseMatrixRegion] directly, including padded views.
 
 # Package com.eignex.koblas.dense
 
@@ -60,7 +62,8 @@ Level 2 and 3 contracts, with shared portable traversal, validation, no-read beh
 Shared internal kernels supply panel arithmetic, packed product tiles and diagonal substitutions.
 Transient packing and coefficient gathering borrow scoped scratch from [com.eignex.koblas.Workspace].
 
-Operands use public containers; transposition and [MatrixStructure] travel as flags. `gemmt` is the
+Dense matrix operands use [com.eignex.koblas.DenseMatrixRegion] and vectors use
+[com.eignex.koblas.DenseVector], preserving offsets, leading dimensions and signed strides; transposition and [MatrixStructure] travel as flags. `gemmt` is the
 triangle-selected general product Netlib calls `GEMMTR`: full column-major operands and a full-storage
 selected output triangle, not compact BLAS packed storage. Explicit host routes report whether the binding
 called `cblas_dgemmt` or composed the operation.

@@ -1,10 +1,11 @@
 package com.eignex.koblas
 
+import com.eignex.koblas.internal.sparse.snapshot
 import com.eignex.koblas.sparse.SparseBlas
 import com.eignex.koblas.sparse.SparseCall
 import com.eignex.koblas.sparse.SparseMatrixOperation
 import com.eignex.koblas.sparse.SparseMatrixRoute
-import com.eignex.koblas.sparse.internal.sparseCopy
+import com.eignex.koblas.internal.sparse.sparseCopy
 import kotlin.jvm.JvmOverloads
 
 /**
@@ -12,7 +13,8 @@ import kotlin.jvm.JvmOverloads
  * It owns copies of structure and coefficients, so source mutations do not affect it.
  *
  * As a [Matrix], it supports [Matrix.gemm] and [Matrix.gemmInto] on either side of dense, sparse or prepared
- * operands, using the default [koblas] engine; explicit calls use their receiver engine. Matrix-vector and selected-triangle symmetric operations
+ * operands, using the default [koblas] engine; explicit calls use their receiver engine. Matrix-vector and selected-
+ * triangle symmetric operations
  * are also available here.
  *
  * Concurrent readers may share the snapshot with distinct destinations and workspaces. Transposed
@@ -26,7 +28,7 @@ import kotlin.jvm.JvmOverloads
 public class PreparedSparseMatrix internal constructor(a: SparseMatrix) : Matrix {
     internal val snapshot: SparseMatrix = a.sparseCopy()
 
-    private val lazyTranspose: Lazy<SparseMatrix> = lazy { com.eignex.koblas.sparse.internal.transposeCsc(snapshot) }
+    private val lazyTranspose: Lazy<SparseMatrix> = lazy { com.eignex.koblas.internal.sparse.transposeCsc(snapshot) }
 
     /**
      * Lazily cached transpose, requested only by transposed sparse-sparse products that reach a position.
@@ -104,48 +106,8 @@ public class PreparedSparseMatrix internal constructor(a: SparseMatrix) : Matrix
      * operand absent from these facts, so their schedule is reported as unsettled.
      * [call] supplies scalars and extents; [SparseCall.matrix] is ignored in favor of this snapshot.
      */
-    public fun routeOf(operation: SparseMatrixOperation, call: SparseCall): SparseMatrixRoute {
-        if (orientsOnAnotherOperand(operation) && call.transposeSparse) {
-            // The missing second operand decides whether any position is reached and a transpose is needed.
-            return unsettled(operation, call)
-        }
-        return routeAgainstSnapshot(operation, call)
-    }
-
-    /** [call]'s scalars and extents asked of the snapshot, which is the operand a prepared call has. */
-    private fun routeAgainstSnapshot(operation: SparseMatrixOperation, call: SparseCall): SparseMatrixRoute =
-        koblas.routeOf(
-            operation,
-            SparseCall(
-                snapshot,
-                call.alpha,
-                call.beta,
-                call.destinationElements,
-                call.depth,
-                call.updateRun,
-                call.rightHandSides,
-                call.transposeSparse,
-                call.transposeDense,
-                call.lower,
-            ),
-        )
-
-    /** A route for a call whose schedule these facts do not settle, which names no traversal at all. */
-    private fun unsettled(operation: SparseMatrixOperation, call: SparseCall): SparseMatrixRoute {
-        // Preserve no-work and scaling facts; only the traversal depends on the missing operand.
-        val route = routeAgainstSnapshot(operation, call)
-        if (route.kind == RouteKind.NoWork) return route
-        return SparseMatrixRoute(
-            route.operation,
-            RouteKind.Composed,
-            route.scheduling,
-            route.entryPoint,
-            route.components.filter { it.endsWith("/scale") },
-            route.executionGroup,
-            route.executionTail,
-            resolved = false,
-        )
-    }
+    public fun routeOf(operation: SparseMatrixOperation, call: SparseCall): SparseMatrixRoute =
+        koblas.routeOf(operation, this, call)
 
     /**
      * Whether the transposed orientation has been derived, which some transposed calls pay for once.
@@ -158,13 +120,4 @@ public class PreparedSparseMatrix internal constructor(a: SparseMatrix) : Matrix
     public val orientationDerived: Boolean get() = lazyTranspose.isInitialized()
 
     override fun toString(): String = "PreparedSparseMatrix(${rows}x$cols, nnz=$nnz)"
-
-    /**
-     * Whether this operation orients on a fact these call facts do not carry, which is the second sparse
-     * operand a product against one is decided by.
-     */
-    private fun orientsOnAnotherOperand(operation: SparseMatrixOperation): Boolean = when (operation) {
-        SparseMatrixOperation.GemmSparse, SparseMatrixOperation.GemmSparseDense -> true
-        else -> false
-    }
 }

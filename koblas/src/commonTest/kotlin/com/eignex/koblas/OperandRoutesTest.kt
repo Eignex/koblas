@@ -2,7 +2,7 @@ package com.eignex.koblas
 
 import com.eignex.koblas.dense.DenseCall
 import com.eignex.koblas.dense.DenseMatrixOperation
-import com.eignex.koblas.dense.scaleComponent
+import com.eignex.koblas.internal.dense.scaleComponent
 import com.eignex.koblas.sparse.SparseCall
 import com.eignex.koblas.sparse.SparseMatrixOperation
 import com.eignex.koblas.sparse.SparseMatrixRoute

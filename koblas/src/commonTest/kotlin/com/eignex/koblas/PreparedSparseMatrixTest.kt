@@ -1,9 +1,10 @@
 package com.eignex.koblas
 
+import com.eignex.koblas.RouteKind
+import com.eignex.koblas.internal.sparse.axpy
 import com.eignex.koblas.sparse.ReferenceSparseBlas
 import com.eignex.koblas.sparse.SparseCall
 import com.eignex.koblas.sparse.SparseMatrixOperation
-import com.eignex.koblas.RouteKind
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
@@ -261,9 +262,21 @@ class PreparedSparseMatrixTest {
         var updates = 0
         val vectors = object : com.eignex.koblas.dense.DenseVectorKernels by BuiltinEngines.scalar.vectorKernels {
             override val name: String = "recording"
-            override fun implementationFor(operation: com.eignex.koblas.dense.DenseOperation, length: Int, contiguous: Boolean): String = name
-            override fun axpy(y: DoubleArray, yOff: Int, alpha: Double, x: DoubleArray, xOff: Int,
-                len: Int, yStride: Int, xStride: Int) {
+            override fun implementationFor(
+                operation: com.eignex.koblas.dense.DenseOperation,
+                length: Int,
+                contiguous: Boolean,
+            ): String = name
+            override fun axpy(
+                y: DoubleArray,
+                yOff: Int,
+                alpha: Double,
+                x: DoubleArray,
+                xOff: Int,
+                len: Int,
+                yStride: Int,
+                xStride: Int,
+            ) {
                 updates++
                 BuiltinEngines.scalar.vectorKernels.axpy(y, yOff, alpha, x, xOff, len, yStride, xStride)
             }
@@ -275,7 +288,17 @@ class PreparedSparseMatrixTest {
 
         assertTrue(updates > 0)
         assertClose(expected.values, destination.values, "explicit prepared engine")
-        assertTrue(engine.routeOf(1.0, left, false, prepared, false, 0.0, destination).components.any { "recording" in it })
+        assertTrue(
+            engine.routeOf(
+                1.0,
+                left,
+                false,
+                prepared,
+                false,
+                0.0,
+                destination,
+            ).components.any { "recording" in it },
+        )
     }
 
     @Test
@@ -380,4 +403,3 @@ class PreparedSparseMatrixTest {
         assertFalse(prepared.orientationDerived, "a repeated prepared dense product built the transpose cache")
     }
 }
-

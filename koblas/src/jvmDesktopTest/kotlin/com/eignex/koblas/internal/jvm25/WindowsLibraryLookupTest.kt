@@ -1,5 +1,6 @@
 package com.eignex.koblas.internal.jvm25
 
+import com.eignex.koblas.internal.jvm25.host.windowsLibraryLookup
 import com.eignex.koblas.vendor.OperatingSystem
 import com.eignex.koblas.vendor.hostPlatform
 import java.lang.foreign.FunctionDescriptor

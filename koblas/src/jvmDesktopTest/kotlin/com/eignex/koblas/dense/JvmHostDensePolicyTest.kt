@@ -1,6 +1,6 @@
 package com.eignex.koblas.dense
 
-import com.eignex.koblas.internal.jvm25.JvmHostDensePolicy
+import com.eignex.koblas.internal.jvm25.host.JvmHostDensePolicy
 import kotlin.test.Test
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue

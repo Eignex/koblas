@@ -1,10 +1,13 @@
 package com.eignex.koblas.sparse
 
 import com.eignex.koblas.DenseMatrix
+import com.eignex.koblas.RouteKind
 import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.Workspace
-import com.eignex.koblas.dense.PanelWork
-import com.eignex.koblas.RouteKind
+import com.eignex.koblas.internal.dense.PanelWork
+import com.eignex.koblas.internal.diagnostics.SPARSE_STAGING
+import com.eignex.koblas.internal.sparse.gather
+import com.eignex.koblas.internal.sparse.scatter
 import kotlin.math.abs
 import kotlin.random.Random
 import kotlin.test.Test

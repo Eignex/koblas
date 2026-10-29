@@ -1,7 +1,9 @@
 package com.eignex.koblas.dense
 
-import com.eignex.koblas.internal.jvm25.SimdOps
-import com.eignex.koblas.internal.jvm25.SimdVectorKernels
+import com.eignex.koblas.internal.dense.ScalarVectorKernels
+import com.eignex.koblas.internal.jvm25.simd.SimdOps
+import com.eignex.koblas.internal.jvm25.simd.SimdVectorKernels
+import com.eignex.koblas.internal.sparse.axpy
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals

@@ -462,15 +462,10 @@ fails the capture instead of publishing a number.
 `spmm-right` is the sparse operand on the right of a dense one through the engine the row is published
 under, which is what makes it an exact arm rather than the default-policy `spmm-generic-right` beside it.
 
-The `gemm-generic`, `spmm-generic`, `spmm-generic-right` and `spgemm-generic` cases go through the common
-`Matrix` product with its dispatch included, the third of them with the sparse operand on the right of a
-dense one. That entry point uses the engine this platform selected rather than one a benchmark names, because a caller holding a
-`Matrix` has no engine to pass. They are therefore `default-policy` rows on the arm whose engine is the
-selected one, and are declined on every other arm rather than publishing that arm's label over another
-engine's work. On a JVM the exact arm admits them only when it is also the selected engine; a default that composes
-a host is a separate engine, so those generic calls are admitted only by `jvm-default`. On Kotlin/Native that arm is `native-default`; the exact portable `native` arm
-is not the selected engine and declines them. On a Kotlin/Native host with no library installed the two arms
-resolve to the same engine, so both admit these rows and both are that host's default policy.
+The `gemm-generic`, `spmm-generic`, `spmm-generic-right` and `spgemm-generic` cases call the
+selected benchmark engine's generic `Matrix` dispatch explicitly. Their reported arm and arithmetic policy
+therefore agree on scalar, SIMD and platform-default arms. Prepared modes also execute and inspect routes
+through that engine; preparing a snapshot does not bind execution policy.
 
 ## Direct Gradle runs
 
@@ -598,3 +593,12 @@ arithmetic through their binding, which has no workspace parameter and still inc
 Compare both owned cases before selecting a native crossover: removing repeated panel allocation can
 change which implementation wins. `lab/cases-thin-gemm-comparison.txt` includes depth, shape and
 transpose controls for that decision. JVM-only vendor captures skip linking an unused native executable.
+
+### Addressed operand comparisons
+
+`gemm` accepts `layout=borrowed` to use nonzero origins and padded leading dimensions for both inputs and
+the destination. Reset and validation include the whole backing buffer. `workspace=retained` preserves its
+ordinary meaning. These cases measure engine scheduling and eligible host composition; explicit vendor arms
+decline them. `cases-addressed.txt` targets small/transposed/structured products, mixed and prepared sparse
+products, a deep retained-workspace product and borrowed regions. Keep the same exact arm and case options
+when comparing revisions; adding a case supplies coverage and makes no performance claim.

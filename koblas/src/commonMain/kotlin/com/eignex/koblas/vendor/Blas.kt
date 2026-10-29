@@ -6,6 +6,8 @@ import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.DenseMatrixRegion
 import com.eignex.koblas.DenseVector
 import com.eignex.koblas.dense.MatrixStructure
+import com.eignex.koblas.internal.host.Cblas
+import com.eignex.koblas.internal.host.uploFor
 
 /**
  * The BLAS entry points, in the shapes the standard gives them.
@@ -123,7 +125,14 @@ public interface Blas {
     public fun rot(x: DenseVector, y: DenseVector, c: Double, s: Double)
 
     /** `y = alpha · op(A) · x + beta · y`, transposing [a] when [transposeA]. */
-    public fun gemv(alpha: Double, a: DenseMatrixRegion, transposeA: Boolean, x: DenseVector, beta: Double, y: DenseVector)
+    public fun gemv(
+        alpha: Double,
+        a: DenseMatrixRegion,
+        transposeA: Boolean,
+        x: DenseVector,
+        beta: Double,
+        y: DenseVector,
+    )
 
     /** `y = alpha · A · x + beta · y` for symmetric [a], whose [structure] selects the stored triangle. */
     public fun symv(

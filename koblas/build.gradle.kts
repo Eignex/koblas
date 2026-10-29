@@ -102,11 +102,13 @@ val jvmTarget = kotlin.targets.getByName("jvm") as KotlinJvmTarget
 val baselineTest = jvmTarget.compilations.getByName("test")
 val desktopTest = jvmTarget.compilations.getByName("desktopTest")
 val mainOutput = jvmTarget.compilations.getByName("main").output.allOutputs
+val productionOutputs = files(mainOutput)
+jvmTarget.compilations.matching { it.name == "java25" }.all { productionOutputs.from(output.allOutputs) }
 val jvmJar = tasks.named<Jar>("jvmJar")
-val packagedBaselineClasspath = files(jvmJar, baselineTest.output.allOutputs, baselineTest.runtimeDependencyFiles) - mainOutput
+val packagedBaselineClasspath = files(jvmJar, baselineTest.output.allOutputs, baselineTest.runtimeDependencyFiles) - productionOutputs
 val packagedDesktopClasspath = files(
     packagedBaselineClasspath, desktopTest.output.allOutputs, desktopTest.runtimeDependencyFiles,
-) - mainOutput
+) - productionOutputs
 val desktopJavaLauncher = javaToolchains.launcherFor { languageVersion.set(JavaLanguageVersion.of(25)) }
 val desktopJvmArguments = listOf("--enable-native-access=ALL-UNNAMED") +
     if (providers.gradleProperty("koblas.noSimd").orNull == "true") emptyList()
@@ -207,6 +209,12 @@ tasks.named("check") { dependsOn(isolatedChecks) }
 // make the report read as though tested code were not: `Blas.syr` shows its real body at 98% next to a bridge
 // at 0%. Dropping the holders leaves the report describing code a test can actually reach.
 kover {
+    currentProject {
+        sources {
+            // Kover otherwise treats custom compilations as production report inputs.
+            excludedSourceSets.addAll("desktopTest", "jvmDesktopTest")
+        }
+    }
     reports {
         filters {
             excludes {
@@ -230,6 +238,14 @@ tasks.withType<dev.detekt.gradle.Detekt>().matching {
 }.configureEach {
     autoCorrect.set(false)
     mustRunAfter("detektCommonTestSourceSet", "detektJvmTestSourceSet", "detektJvmDesktopTestSourceSet")
+}
+
+// Formatting a physical source set must finish before type-resolved analysis reads its associated sources.
+tasks.withType<dev.detekt.gradle.Detekt>().matching {
+    it.name == "detektJava25Jvm"
+}.configureEach {
+    autoCorrect.set(false)
+    mustRunAfter("detektCommonMainSourceSet", "detektJvmMainSourceSet", "detektJvmJava25SourceSet")
 }
 
 // CI selects an installed simulator so the test does not depend on a hard-coded iPhone model.

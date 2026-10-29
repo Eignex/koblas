@@ -6,6 +6,17 @@ import com.eignex.koblas.MAX_IDLE_LENGTHS
 import com.eignex.koblas.Workspace
 import com.eignex.koblas.assertClose
 import com.eignex.koblas.copyOf
+import com.eignex.koblas.internal.dense.DensePanelKernels
+import com.eignex.koblas.internal.dense.DenseProductKernels
+import com.eignex.koblas.internal.dense.DenseTriangularKernels
+import com.eignex.koblas.internal.dense.PortableDenseBlas
+import com.eignex.koblas.internal.dense.PortablePanelKernels
+import com.eignex.koblas.internal.dense.PortableProductKernels
+import com.eignex.koblas.internal.dense.PortableTriangularKernels
+import com.eignex.koblas.internal.dense.SYMMETRIC_BLOCK
+import com.eignex.koblas.internal.dense.ScalarVectorKernels
+import com.eignex.koblas.internal.dense.TRIANGULAR_DIAGONAL_BLOCK
+import com.eignex.koblas.internal.dense.TRIANGULAR_GATHER
 import com.eignex.koblas.poisonedTriangle
 import com.eignex.koblas.randomMatrix
 import kotlin.random.Random

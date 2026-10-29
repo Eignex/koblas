@@ -1,6 +1,7 @@
 package com.eignex.koblas.sparse
 
 import com.eignex.koblas.internal.numeric.euclideanNorm
+import com.eignex.koblas.internal.sparse.ScalarIndexedSparseKernels
 import kotlin.math.abs
 import kotlin.test.Test
 import kotlin.test.assertTrue

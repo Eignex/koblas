@@ -1,8 +1,8 @@
 package com.eignex.koblas.sparse
 
-import com.eignex.koblas.internal.jvm25.SimdIndexedSparseKernels
-import com.eignex.koblas.internal.jvm25.SparseSimd
-import com.eignex.koblas.internal.jvm25.simdAvailable
+import com.eignex.koblas.internal.jvm25.simd.SimdIndexedSparseKernels
+import com.eignex.koblas.internal.jvm25.simd.SparseSimd
+import com.eignex.koblas.internal.jvm25.simd.simdAvailable
 import kotlin.test.Test
 import kotlin.test.assertNotEquals
 

@@ -3,6 +3,7 @@
 package com.eignex.koblas.dense
 
 import com.eignex.koblas.assertClose
+import com.eignex.koblas.internal.dense.DenseProductKernels
 import kotlin.math.abs
 import kotlin.random.Random
 import kotlin.test.assertEquals

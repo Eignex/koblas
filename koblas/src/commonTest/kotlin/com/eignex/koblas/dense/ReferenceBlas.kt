@@ -4,6 +4,7 @@ package com.eignex.koblas.dense
 
 import com.eignex.koblas.DenseMatrixRegion
 import com.eignex.koblas.Vector
+import com.eignex.koblas.internal.dense.triangularMatrix
 
 /**
  * A naive scalar oracle for the dense surface, defined by the textbook sums rather than by any kernel, and
@@ -22,7 +23,14 @@ internal object ReferenceBlas {
      */
     private fun scaled(beta: Double, previous: Double): Double = if (beta == 0.0) 0.0 else beta * previous
 
-    fun gemv(alpha: Double, a: DenseMatrixRegion, x: DoubleArray, beta: Double, y: DoubleArray, transpose: Boolean = false) {
+    fun gemv(
+        alpha: Double,
+        a: DenseMatrixRegion,
+        x: DoubleArray,
+        beta: Double,
+        y: DoubleArray,
+        transpose: Boolean = false,
+    ) {
         val m = if (transpose) a.cols else a.rows
         val k = if (transpose) a.rows else a.cols
         for (i in 0 until m) {
@@ -118,7 +126,14 @@ internal object ReferenceBlas {
     }
 
     @Suppress("LongParameterList") // the BLAS dsyrk signature
-    fun syrk(alpha: Double, a: DenseMatrixRegion, transpose: Boolean, beta: Double, c: DenseMatrixRegion, lower: Boolean = true) {
+    fun syrk(
+        alpha: Double,
+        a: DenseMatrixRegion,
+        transpose: Boolean,
+        beta: Double,
+        c: DenseMatrixRegion,
+        lower: Boolean = true,
+    ) {
         val n = if (transpose) a.cols else a.rows
         val depth = if (transpose) a.rows else a.cols
         for (j in 0 until n) {
@@ -188,7 +203,13 @@ internal object ReferenceBlas {
     private fun triangular(a: DenseMatrixRegion, i: Int, j: Int, unitDiag: Boolean): Double =
         if (unitDiag && i == j) 1.0 else a[i, j]
 
-    fun trsv(a: DenseMatrixRegion, x: DoubleArray, lower: Boolean, transpose: Boolean = false, unitDiag: Boolean = false) {
+    fun trsv(
+        a: DenseMatrixRegion,
+        x: DoubleArray,
+        lower: Boolean,
+        transpose: Boolean = false,
+        unitDiag: Boolean = false,
+    ) {
         val n = a.rows
         // Transposing a lower triangle gives an upper one, so the substitution order flips with it.
         val forward = lower != transpose
@@ -201,7 +222,13 @@ internal object ReferenceBlas {
         }
     }
 
-    fun trmv(a: DenseMatrixRegion, x: DoubleArray, lower: Boolean, transpose: Boolean = false, unitDiag: Boolean = false) {
+    fun trmv(
+        a: DenseMatrixRegion,
+        x: DoubleArray,
+        lower: Boolean,
+        transpose: Boolean = false,
+        unitDiag: Boolean = false,
+    ) {
         val n = a.rows
         val result = DoubleArray(n)
         for (i in 0 until n) {

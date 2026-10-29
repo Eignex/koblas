@@ -2,7 +2,6 @@ package com.eignex.koblas.vendor
 
 import com.eignex.koblas.RouteKind
 
-
 /**
  * What a concrete call does, derived from the same decision the call itself makes.
  *
@@ -47,4 +46,3 @@ public class CallRoute public constructor(
         reason?.let { append(" (").append(it).append(')') }
     }
 }
-
