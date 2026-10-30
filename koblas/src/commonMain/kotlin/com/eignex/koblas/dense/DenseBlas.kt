@@ -19,8 +19,6 @@ import com.eignex.koblas.*
  * compose oneMKL for eligible Level 3 calls with native access enabled. Everything
  * stated here holds either way. What is deliberately not stated is the accumulation order and where a
  * multiplier lands, which every built-in schedule already chooses for itself and a library chooses too.
- * [com.eignex.koblas.KoblasEngine.routeOf] says which of the two a given call took, and reports the library
- * and symbol where it was the host.
  *
  * An explicit host binding is the other thing, and is where a library's own answers are asked for
  * deliberately: [com.eignex.koblas.vendor.Blas] keeps that latitude and documents it.
@@ -110,8 +108,7 @@ public interface DenseBlas {
      * as `gemmt`). `op(A)` is `n×k`, `op(B)` is `k×n`, and [c] is `n×n`. The opposite triangle is neither read
      * nor written. Built-in implementations snapshot input overlap with [c].
      *
-     * Not every library exports it. Where one does not, the call is composed from `gemm` plus a triangle copy,
-     * and the route of the call reports which of the two ran rather than leaving the name to imply the first.
+     * Not every library exports it. Where one does not, the call is composed from `gemm` plus a triangle copy.
      */
     @Suppress("LongParameterList") // the BLAS gemmt signature
     public fun gemmt(
@@ -220,8 +217,6 @@ public interface DenseBlas {
      *
      * A vector sharing [a]'s buffer is snapshotted over only its selected range; [workspace] lends that
      * snapshot. A zero [alpha] or an empty rectangle reads no entries and takes no scratch.
-     * For [com.eignex.koblas.KoblasEngine.routeOf], use [DenseMatrixOperation.GerWindow] with the rectangle's
-     * [rows] and [columns], rather than the full matrix shape.
      */
     @Suppress("LongParameterList") // the rank update and its three independently addressed windows
     public fun ger(

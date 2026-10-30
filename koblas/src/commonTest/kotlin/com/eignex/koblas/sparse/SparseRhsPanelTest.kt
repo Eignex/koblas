@@ -11,11 +11,14 @@ import com.eignex.koblas.internal.dense.DensePanelKernels
 import com.eignex.koblas.internal.dense.PanelWork
 import com.eignex.koblas.internal.dense.PortablePanelKernels
 import com.eignex.koblas.internal.dense.ScalarVectorKernels
-import com.eignex.koblas.internal.diagnostics.SPARSE_STAGING
 import com.eignex.koblas.internal.operands.staged
 import com.eignex.koblas.internal.sparse.PortableSparseBlas
 import com.eignex.koblas.internal.sparse.ScalarIndexedSparseKernels
 import com.eignex.koblas.internal.sparse.SparsePanelKernels
+import com.eignex.koblas.internal.sparse.productRhsPlan
+import com.eignex.koblas.internal.sparse.rhsStaged
+import com.eignex.koblas.internal.sparse.symmetricRhsPlan
+import com.eignex.koblas.internal.sparse.triangularRhsPlan
 import com.eignex.koblas.koblas
 import kotlin.random.Random
 import kotlin.test.Test
@@ -27,6 +30,7 @@ import kotlin.test.assertTrue
 // and leave this untested. [AdjacentPreferringPanels] asks for adjacent right-hand sides and keeps the
 // portable arithmetic, which puts the copy, the addressing and the writeback under test everywhere.
 class SparseRhsPanelTest {
+    private val stagingPanels = SparsePanelKernels(ScalarVectorKernels, AdjacentPreferringPanels())
     private val staging = engineWith(AdjacentPreferringPanels())
     private val plain = engineWith(PortablePanelKernels)
 
@@ -95,17 +99,12 @@ class SparseRhsPanelTest {
                 val stagedResult = run(a, transposeA, b, transposeB, c0, staging)
                 val plainResult = run(a, transposeA, b, transposeB, c0, plain)
 
-                val components = panelComponents(a, transposeA, transposeB, m, n, k)
-                assertTrue(
-                    components.any { it.startsWith("adjacent-preferring") },
-                    "$context reached no adjacent panel: $components",
-                )
                 // A transposed operand against a transposed dense block already has its right-hand sides
                 // adjacent, so that one pair takes the adjacent body with no copy at all.
                 assertEquals(
                     !(transposeA && transposeB),
-                    components.any { it.startsWith(SPARSE_STAGING) },
-                    "$context staged the wrong way round: $components",
+                    rhsStaged(productRhsPlan(stagingPanels, m, n, k, a.nnz, transposeA, transposeB)),
+                    "$context staged the wrong way round",
                 )
                 assertClose(expected.values, stagedResult.values, "staged product $context")
                 assertClose(plainResult.values, stagedResult.values, "staged against unstaged $context")
@@ -126,7 +125,7 @@ class SparseRhsPanelTest {
             ReferenceSparseBlas.symm(ALPHA, a, b, BETA, expected, lower)
 
             assertTrue(
-                stages(SparseMatrixOperation.SymmLeft, a, order * SIDES, order, SIDES, false, lower),
+                rhsStaged(symmetricRhsPlan(stagingPanels, order, SIDES, a.nnz)),
                 "the symmetric fixture did not stage at lower=$lower",
             )
             val staged = DenseMatrix.wrap(order, SIDES, c0.values.copyOf())
@@ -151,13 +150,8 @@ class SparseRhsPanelTest {
                         val t = wholeTriangle(order, lower, rng)
                         val source = randomDense(order, SIDES, rng)
                         val context = "solve=$solve transpose=$transpose unit=$unit lower=$lower"
-                        val operation = if (solve) {
-                            SparseMatrixOperation.TrsmLeft
-                        } else {
-                            SparseMatrixOperation.TrmmLeft
-                        }
                         assertTrue(
-                            stages(operation, t, order * SIDES, order, SIDES, transpose, lower),
+                            rhsStaged(triangularRhsPlan(stagingPanels, order, SIDES, t.nnz, transpose)),
                             "the triangular fixture did not stage at $context",
                         )
 
@@ -251,7 +245,7 @@ class SparseRhsPanelTest {
         val sharedTriangle = SparseMatrix.wrap(order, order, pointers, rows, block.copyOf())
         val aliased = DenseMatrix.wrap(order, sides, sharedTriangle.values)
         assertTrue(
-            stages(SparseMatrixOperation.TrsmLeft, sharedTriangle, entries, order, sides, false, true),
+            rhsStaged(triangularRhsPlan(stagingPanels, order, sides, sharedTriangle.nnz, transpose = false)),
             "the aliased triangular fixture did not stage",
         )
         staging.trsm(sharedTriangle, aliased, true, false, false, false, ALPHA, Workspace())
@@ -460,11 +454,10 @@ class SparseRhsPanelTest {
         for (side in intArrayOf(0, 2, 3)) for (row in 0 until order) source[row + side * order] = 1.0
         val b = DenseMatrix.wrap(order, sides, source.copyOf())
 
-        val route = staging.routeOf(
-            SparseMatrixOperation.TrsmLeft,
-            SparseCall(triangle, 1.0, destinationElements = b.values.size, rightHandSides = sides, lower = true),
+        assertTrue(
+            rhsStaged(triangularRhsPlan(stagingPanels, order, sides, triangle.nnz, transpose = false)),
+            "the fixture did not stage",
         )
-        assertTrue(route.components.any { it.startsWith(SPARSE_STAGING) }, "the fixture did not stage: $route")
 
         staging.trsm(triangle, b, lower = true, transpose = false, unitDiag = false, right = false, alpha = 1.0)
 
@@ -537,27 +530,6 @@ class SparseRhsPanelTest {
         return c
     }
 
-    private fun panelComponents(
-        a: SparseMatrix,
-        transposeA: Boolean,
-        transposeB: Boolean,
-        m: Int,
-        n: Int,
-        k: Int,
-    ): List<String> = staging.routeOf(
-        SparseMatrixOperation.GemmDense,
-        SparseCall(
-            a,
-            ALPHA,
-            BETA,
-            destinationElements = m * n,
-            depth = k,
-            rightHandSides = n,
-            transposeSparse = transposeA,
-            transposeDense = transposeB,
-        ),
-    ).components
-
     private fun randomDense(rows: Int, cols: Int, rng: Random): DenseMatrix =
         DenseMatrix.wrap(rows, cols, DoubleArray(rows * cols) { rng.nextDouble(-1.0, 1.0) })
 
@@ -573,30 +545,6 @@ class SparseRhsPanelTest {
         }
         return SparseMatrix.ofColumns(a.rows, a.cols, columns)
     }
-
-    /** Whether a call of this shape stages its right-hand sides, asked of the engine that will run it. */
-    @Suppress("LongParameterList") // the operation and the five call facts the staging rule reads
-    private fun stages(
-        operation: SparseMatrixOperation,
-        a: SparseMatrix,
-        destinationElements: Int,
-        depth: Int,
-        sides: Int,
-        transpose: Boolean,
-        lower: Boolean,
-    ): Boolean = staging.routeOf(
-        operation,
-        SparseCall(
-            a,
-            ALPHA,
-            BETA,
-            destinationElements = destinationElements,
-            depth = depth,
-            rightHandSides = sides,
-            transposeSparse = transpose,
-            lower = lower,
-        ),
-    ).components.any { it.startsWith(SPARSE_STAGING) }
 
     /** Every position stored, which is what a symmetric product needs before its three copies pay for it. */
     private fun filled(order: Int, rng: Random): SparseMatrix = SparseMatrix.ofColumns(

@@ -7,7 +7,6 @@ import com.eignex.koblas.vendor.*
 
 /**
  * Visits [columns] in groups of at most [group], clamped to at least one.
- * Shared by dispatch and route reporting so both see the same short final group.
  */
 internal inline fun forEachPanel(columns: Int, group: Int, action: (start: Int, width: Int) -> Unit) {
     val step = if (group < 1) 1 else group
@@ -22,7 +21,6 @@ internal inline fun forEachPanel(columns: Int, group: Int, action: (start: Int, 
 /**
  * The window each group of a selected-triangle traversal shares, beside the corner its own columns take.
  *
- * Shared by dispatch and route reporting, so the lengths a route names are the ones the call hands over.
  * [fromDiagonal] says whether the last column's own diagonal entry belongs to that window: a rank update
  * writes it, while a symmetric product has already read it in the corner.
  */

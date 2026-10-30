@@ -15,7 +15,7 @@ public class JvmCaseWork internal constructor(private val delegate: CaseWork) {
     /** The comparison category published for this work. */
     internal val comparisonKind: String get() = delegate.comparisonKind
 
-    /** The route this work's call resolved, which a timed row must carry. */
+    /** The attribution a timed row must carry. */
     internal val kernel: String? get() = delegate.kernel
 }
 
@@ -57,7 +57,7 @@ public fun main(args: Array<String>) {
     val kernels = linkedMapOf<String, String>()
     val rowsByCase = linkedMapOf<String, MutableList<Measurement>>()
     for (case in selected) {
-        // Resolve routes outside timing and decline unsupported arms before starting JMH.
+        // Build and verify work outside timing and decline unsupported arms before starting JMH.
         val arm = vendor?.let { vendorArm(case, it.first) }
             ?: engine?.let { sparseArm(case, it) ?: denseArm(case, it) }
         val work = arm?.work

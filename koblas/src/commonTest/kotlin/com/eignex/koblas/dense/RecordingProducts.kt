@@ -3,20 +3,18 @@
 package com.eignex.koblas.dense
 
 import com.eignex.koblas.DenseMatrix
-import com.eignex.koblas.RouteKind
 import com.eignex.koblas.internal.dense.DensePanelKernels
 import com.eignex.koblas.internal.dense.DenseProductKernels
 import com.eignex.koblas.internal.dense.OutputTriangle
 import com.eignex.koblas.internal.dense.PortableDenseBlas
 import com.eignex.koblas.internal.dense.ScalarVectorKernels
-import com.eignex.koblas.internal.dense.TRIANGLE_SELECTION
 import com.eignex.koblas.internal.dense.insideTriangle
 import com.eignex.koblas.randomMatrix
 import kotlin.random.Random
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
-// Recording executed blocks lets route checks follow the actual schedule while retaining its arithmetic.
+// Recording executed blocks lets checks follow the actual schedule while retaining its arithmetic.
 
 /** One block a product scheduled, as the destination window it wrote and the scaling it carried. */
 internal class ProductBlockCall(
@@ -63,65 +61,15 @@ internal class RecordingProducts(private val delegate: DenseProductKernels) : De
     }
 }
 
-/** The bodies one recorded block reaches, asked of the backend about the block it was really handed. */
-private fun bodiesOf(products: DenseProductKernels, block: ProductBlockCall): List<String> =
-    products.implementationsFor(block.rows, block.columns, block.depth)
-
 /**
- * That a product's route names the tile its blocks reached, and that beta reached each of them once: a depth
- * cut into several blocks leaves exactly one carrying it and every other accumulating.
- */
-internal fun assertProductRouteNamesExecutedBlocks(
-    products: DenseProductKernels,
-    panels: DensePanelKernels,
-    m: Int,
-    n: Int,
-    k: Int,
-    transposeA: Boolean = false,
-    transposeB: Boolean = false,
-) {
-    val rng = Random(20261020)
-    val recorder = RecordingProducts(products)
-    val blas = PortableDenseBlas(ScalarVectorKernels, panels, recorder)
-    val a = randomMatrix(if (transposeA) k else m, if (transposeA) m else k, rng)
-    val b = randomMatrix(if (transposeB) n else k, if (transposeB) k else n, rng)
-    val c = DenseMatrix(m, n, DoubleArray(m * n) { rng.nextDouble(-1.0, 1.0) })
-    val beta = -0.25
-    val context = "${m}x${n}x$k tA=$transposeA tB=$transposeB on ${products.name}"
-
-    blas.gemm(0.875, a, transposeA, b, transposeB, beta, c)
-
-    val route = blas.routeOf(
-        DenseMatrixOperation.Gemm,
-        DenseCall(m, n, 0.875, beta, depth = k, transposeA = transposeA, transposeB = transposeB),
-    )
-    val tiles = route.components.filter { it.endsWith("/product-block") }.map { it.substringBefore('/') }
-    if (recorder.blocks.isEmpty()) {
-        assertTrue(tiles.isEmpty(), "$context: the route named $tiles and no block ran")
-        return
-    }
-    val reached = recorder.blocks.flatMap { bodiesOf(products, it) }.distinct()
-    assertEquals(reached, tiles, "$context: the route named $tiles")
-    assertEquals(if (reached.size > 1) RouteKind.Composed else RouteKind.Direct, route.kind, context)
-
-    val carried = recorder.blocks.groupBy { it.destination }
-    for ((window, blocks) in carried) {
-        val scaled = blocks.filter { it.beta != 1.0 }
-        assertEquals(1, scaled.size, "$context: window $window took beta ${scaled.size} times")
-        assertEquals(beta, scaled.single().beta, "$context: window $window took the wrong beta")
-        assertEquals(blocks.first(), scaled.single(), "$context: beta did not go to the first depth block")
-        assertEquals(k, blocks.sumOf { it.depth }, "$context: window $window did not cover the depth")
-    }
-}
-
-/**
- * That a triangle-selected product's route names the bodies its blocks reached and the merge they needed.
+ * That a triangle-selected product writes only its selected triangle, and that a block merged afterwards
+ * accumulated into scratch without scaling it.
  *
  * The schedule cuts three kinds of block: one wholly in the selected triangle, which reaches the destination
  * directly; one straddling the diagonal, which accumulates into scratch so the merge can keep part of it;
  * and one wholly outside, which is never scheduled. Only running the product shows which each block was.
  */
-internal fun assertTriangleProductRouteNamesExecutedBlocks(
+internal fun assertTriangleProductStaysInTriangle(
     products: DenseProductKernels,
     panels: DensePanelKernels,
     n: Int,
@@ -140,20 +88,6 @@ internal fun assertTriangleProductRouteNamesExecutedBlocks(
 
     blas.gemmt(0.875, a, transposeA, b, transposeB, -0.25, c, lower)
 
-    val route = blas.routeOf(
-        DenseMatrixOperation.Gemmt,
-        DenseCall(n, n, 0.875, -0.25, depth = k, lower = lower, transposeA = transposeA, transposeB = transposeB),
-    )
-    val tiles = route.components.filter { it.endsWith("/product-block") }.map { it.substringBefore('/') }
-    val reached = recorder.blocks.flatMap { bodiesOf(products, it) }.distinct()
-    assertEquals(reached, tiles, "$context: the route named $tiles")
-
-    val merged = recorder.blocks.any { it.into !== c.values }
-    assertEquals(
-        merged,
-        route.components.any { it == "$TRIANGLE_SELECTION/triangle-tile" },
-        "$context: the merge ran=$merged and the route said otherwise in ${route.components}",
-    )
     for (block in recorder.blocks) {
         if (block.into !== c.values) {
             assertEquals(0.0, block.beta, "$context: a tile merged afterwards scaled the scratch it wrote")

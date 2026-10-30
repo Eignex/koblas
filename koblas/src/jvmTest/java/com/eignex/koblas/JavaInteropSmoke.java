@@ -36,18 +36,17 @@ final class JavaInteropSmoke {
         Koblas.getDefault().getSparseKernels().scatter(Koblas.column(sparse, 0), scattered);
         assertArrayEquals(new double[] {2.0, 0.0}, scattered);
 
-        PreparedSparseMatrix prepared = Koblas.prepare(sparse);
-        double[] preparedResult = new double[2];
-        prepared.gemvInto(1.0, new double[] {4.0, 5.0}, 0.0, preparedResult);
-        assertArrayEquals(new double[] {8.0, 15.0}, preparedResult);
+        double[] gemvResult = new double[2];
+        Koblas.gemvInto(sparse, 1.0, new double[] {4.0, 5.0}, 0.0, gemvResult);
+        assertArrayEquals(new double[] {8.0, 15.0}, gemvResult);
         assertArrayEquals(new double[] {8.0, 15.0}, Koblas.gemv(sparse, new double[] {4.0, 5.0}));
 
         KoblasEngine engine = BuiltinEngines.getScalar();
         DenseMatrixRegion outputRegion = DenseMatrix.zero(5, 5).view(1, 1, 2, 2);
-        engine.gemm(1.0, (Matrix) prepared, false, (Matrix) identity, false, 0.0, outputRegion, new Workspace());
+        engine.gemm(1.0, (Matrix) sparse, false, (Matrix) identity, false, 0.0, outputRegion, new Workspace());
         assertEquals(2.0, outputRegion.get(0, 0));
         assertEquals(3.0, outputRegion.get(1, 1));
-        Koblas.trmm(prepared, outputRegion, true, false, true, false, 1.0, new Workspace());
+        Koblas.trmm(sparse, outputRegion, true, false, true, false, 1.0, new Workspace());
         assertEquals(2.0, outputRegion.get(0, 0));
 
         DenseVector reverseInput = new StridedVector(new double[] {5.0, 0.0, 3.0}, 2, 2, -2);

@@ -41,8 +41,7 @@ internal const val SYMMETRIC_BLOCK: Int = 64
  * The diagonal blocks of a symmetric operand and the stored strip beside each, in traversal order.
  *
  * The strip is the part of the stored triangle that the block's columns reach: the rows below it where the
- * lower triangle is stored, and the rows above it where the upper one is. One traversal, walked by the
- * execution and by the route that describes it.
+ * lower triangle is stored, and the rows above it where the upper one is.
  */
 internal inline fun forEachSymmetricBlock(
     order: Int,

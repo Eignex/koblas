@@ -16,7 +16,6 @@ import com.eignex.koblas.internal.dense.PortableTriangularKernels
 import com.eignex.koblas.internal.dense.SYMMETRIC_BLOCK
 import com.eignex.koblas.internal.dense.ScalarVectorKernels
 import com.eignex.koblas.internal.dense.TRIANGULAR_DIAGONAL_BLOCK
-import com.eignex.koblas.internal.dense.TRIANGULAR_GATHER
 import com.eignex.koblas.poisonedTriangle
 import com.eignex.koblas.randomMatrix
 import kotlin.random.Random
@@ -314,35 +313,35 @@ class TriangularSchedulingTest {
     // Under both recorders at once, so each half of the claim is checked against what the schedule handed
     // over: the diagonal blocks substituted and the product windows run between them.
     @Test
-    fun `trmm routes name executed diagonal blocks and products from the left`() {
-        assertTriangularRoutes(right = false, solve = false)
+    fun `trmm substitutes diagonal blocks covering the order from the left`() {
+        assertTriangularBlocks(right = false, solve = false)
     }
 
     @Test
-    fun `trmm routes name executed diagonal blocks and products from the right`() {
-        assertTriangularRoutes(right = true, solve = false)
+    fun `trmm substitutes diagonal blocks covering the order from the right`() {
+        assertTriangularBlocks(right = true, solve = false)
     }
 
     @Test
-    fun `trsm routes name executed diagonal blocks and products from the left`() {
-        assertTriangularRoutes(right = false, solve = true)
+    fun `trsm substitutes diagonal blocks covering the order from the left`() {
+        assertTriangularBlocks(right = false, solve = true)
     }
 
     @Test
-    fun `trsm routes name executed diagonal blocks and products from the right`() {
-        assertTriangularRoutes(right = true, solve = true)
+    fun `trsm substitutes diagonal blocks covering the order from the right`() {
+        assertTriangularBlocks(right = true, solve = true)
     }
 
-    private fun assertTriangularRoutes(right: Boolean, solve: Boolean) = withBackends { panels, products, triangles ->
+    private fun assertTriangularBlocks(right: Boolean, solve: Boolean) = withBackends { panels, products, triangles ->
         for (lower in booleanArrayOf(false, true)) {
             for (transpose in booleanArrayOf(false, true)) {
-                assertTriangularRoute(panels, products, triangles, lower, transpose, right, solve)
+                assertTriangularBlocksAt(panels, products, triangles, lower, transpose, right, solve)
             }
         }
     }
 
-    @Suppress("LongParameterList") // the backends under test plus the three flags the route depends on
-    private fun assertTriangularRoute(
+    @Suppress("LongParameterList") // the backends under test plus the three flags the schedule depends on
+    private fun assertTriangularBlocksAt(
         panels: DensePanelKernels,
         products: DenseProductKernels,
         triangles: DenseTriangularKernels,
@@ -358,7 +357,6 @@ class TriangularSchedulingTest {
         val blas = PortableDenseBlas(ScalarVectorKernels, panels, recordedProducts, recordedTriangles)
         val (triangle, _) = poisonedTriangle(rng, order, lower, unitDiag = false)
         val b = randomMatrix(if (right) sides else order, if (right) order else sides, rng)
-        val operation = if (solve) DenseMatrixOperation.Trsm else DenseMatrixOperation.Trmm
         val context = "${if (solve) "trsm" else "trmm"} " +
             describe(order, sides, lower, transpose, unitDiag = false, right = right) + " on ${triangles.name}"
 
@@ -368,31 +366,12 @@ class TriangularSchedulingTest {
             blas.trmm(triangle, b, lower, transpose, right = right, alpha = ALPHA)
         }
 
-        val route = blas.routeOf(
-            operation,
-            DenseCall(
-                b.rows,
-                b.cols,
-                ALPHA,
-                depth = order,
-                lower = lower,
-                transposeA = transpose,
-                right = right,
-            ),
-        )
-        assertDiagonalBlocks(recordedTriangles, triangles, route, order, lower, transpose, right, solve, context)
-        val tiles = route.components.filter { it.endsWith("/product-block") }.map { it.substringBefore('/') }
-        val reached = recordedProducts.blocks
-            .flatMap { products.implementationsFor(it.rows, it.columns, it.depth) }
-            .distinct()
-        assertEquals(reached, tiles, "$context: the route named $tiles for its products")
+        assertDiagonalBlocks(recordedTriangles, order, lower, transpose, right, solve, context)
     }
 
     @Suppress("LongParameterList") // the recording, the claim being checked and the flags it is checked at
     private fun assertDiagonalBlocks(
         recorded: RecordingTriangles,
-        triangles: DenseTriangularKernels,
-        route: DenseMatrixRoute,
         order: Int,
         lower: Boolean,
         transpose: Boolean,
@@ -408,19 +387,6 @@ class TriangularSchedulingTest {
             assertEquals(lower != flip, block.lower, "$context: the substitution ran the wrong way")
             assertEquals(solve, block.solve, "$context: the wrong substitution ran")
         }
-        val bodies = recorded.blocks
-            .flatMap { triangles.implementationsFor(it.size, it.sides, it.rhsStride == 1) }
-            .distinct()
-        val entry = if (solve) "diagonal-solve" else "diagonal-multiply"
-        val named = route.components.filter { it.endsWith("/$entry") }.map { it.substringBefore('/') }
-        assertEquals(bodies, named, "$context: the route named $named for its substitutions")
-        val callerStride = if (right) 1 else order
-        val gathered = recorded.blocks.any { it.rhsStride == 1 && callerStride != 1 }
-        assertEquals(
-            gathered,
-            route.components.any { it == "$TRIANGULAR_GATHER/rhs-block" },
-            "$context: a gather ran=$gathered and the route said otherwise in ${route.components}",
-        )
     }
 
     /** The steps of the order the recorded diagonal blocks covered between them, which must be all of them. */

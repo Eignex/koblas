@@ -75,7 +75,7 @@ internal fun SparseVector.snapshot(): SparseVector = SparseVector(size, copyIndi
 /** The stored support a column contributes to a matrix schedule. */
 internal enum class SparseColumnShape { Whole, Selected, Strict }
 
-/** Pure column/support enumeration shared by execution and diagnostics, without coefficient reads. */
+/** Pure column/support enumeration, without coefficient reads. */
 @OptIn(com.eignex.koblas.UnsafeKoblasApi::class)
 internal inline fun forEachSparseColumn(
     a: com.eignex.koblas.SparseMatrix,

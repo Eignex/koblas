@@ -295,15 +295,6 @@ internal object SimdSparseAllocationCheck {
             wide.gemmInto(0.875, false, a, false, -0.25, cWide, workspace)
             cWide.values[0]
         }
-        val prepared: Matrix = koblas.prepare(a as SparseMatrix)
-        assertAllocationFree("generic product with a prepared left operand", OPERATION_WARMUP, OPERATION_ITERATIONS) {
-            prepared.gemmInto(0.875, false, b, false, -0.25, c, workspace)
-            c.values[0]
-        }
-        assertAllocationFree("generic product with a prepared right operand", OPERATION_WARMUP, OPERATION_ITERATIONS) {
-            wide.gemmInto(0.875, false, prepared, false, -0.25, cWide, workspace)
-            cWide.values[0]
-        }
     }
 
     /** A square destination for the rank update, which is the one probe whose shape is the order twice. */

@@ -2,45 +2,16 @@ package com.eignex.koblas.bench
 
 import com.eignex.koblas.BuiltinEngines
 import com.eignex.koblas.koblas
-import com.eignex.koblas.sparse.SparseCall
-import com.eignex.koblas.sparse.SparseMatrixOperation
 import kotlin.test.Test
 import kotlin.test.assertContains
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
-import kotlin.test.assertNotEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class SparseTest {
-    /**
-     * A prepared transposed product against a dense block reports the traversal a one-shot call takes, since
-     * the snapshot derives no orientation for it and only the structure copy is bought.
-     */
-    @Test
-    fun `a prepared transposed row reports the one shot traversal`() {
-        val base = "spmm+33x16x21+sparse-uniform+density=0.25+transA=T"
-        val oneShot = assertNotNull(work("$base+mode=oneshot"))
-        val prepared = assertNotNull(work("$base+mode=prepared"))
-        val firstUse = assertNotNull(work("$base+mode=firstuse"))
-
-        assertContains(assertNotNull(oneShot.kernel), "spmm@1")
-        assertEquals(oneShot.kernel, prepared.kernel)
-        assertContains(assertNotNull(firstUse.kernel), "spprepare")
-    }
-
-    /** A timed body that produces an object keeps it observable, which is what makes the row about it. */
-    @Test
-    fun `a setup row retains the snapshot it built`() {
-        val setup = assertNotNull(work("spmm+9x4x7+sparse-uniform+density=0.25+mode=setup"))
-
-        setup.run()
-
-        assertEquals("PreparedSparseMatrix", Retained.describe())
-    }
-
     private fun work(id: String): CaseWork? = sparseArm(Cases.parse(id).single(), koblas)?.work
 
     @Test
@@ -58,34 +29,13 @@ class SparseTest {
     }
 
     @Test
-    fun `a sparse row names the implementation that ran rather than the engine`() {
+    fun `a sparse row names the selected engine`() {
         val case = Cases.parse("spdot+4096+sparse-uniform+density=0.25").single()
 
         val work = assertNotNull(sparseArm(case, BuiltinEngines.scalar)?.work)
 
-        assertEquals("direct", work.comparisonKind)
-        assertEquals("scalar/dotDense", work.kernel)
-    }
-
-    @Test
-    fun `an exact arm declines delegated and value dependent kernels`() {
-        val simd = BuiltinEngines.simd
-        if (simd == null) {
-            println("SKIPPED: no Vector API engine on this host; exact arm rejection was not verified")
-            return
-        }
-        for ((id, reason) in listOf(
-            "spdot+8+sparse-uniform+density=0.25" to "simd has no dotDense kernel",
-            "spnrm2+4096+sparse-uniform+density=0.25" to "on the values",
-            "spdot-sparse+65536+sparse-uniform+density=0.25" to "no dotSparse kernel",
-        )) {
-            val case = Cases.parse(id).single()
-
-            val arm = assertNotNull(sparseArm(case, simd))
-
-            assertNull(arm.work, id)
-            assertContains(assertNotNull(arm.reason), reason, message = id)
-        }
+        assertEquals(ENGINE_COMPARISON, work.comparisonKind)
+        assertEquals("${BuiltinEngines.scalar.name}/spdot", work.kernel)
     }
 
     @Test
@@ -106,16 +56,7 @@ class SparseTest {
     }
 
     @Test
-    fun `a whole vector reduction names the dense kernel rather than the selection`() {
-        val case = Cases.parse("spasum+4096+sparse-uniform+density=0.25").single()
-
-        val work = assertNotNull(sparseArm(case, BuiltinEngines.scalar)?.work)
-
-        assertEquals("scalar/asum", work.kernel)
-    }
-
-    @Test
-    fun `a sparse matrix row names the portable scheduling on every engine`() {
+    fun `a sparse matrix row names the engine it ran on`() {
         for (engine in listOfNotNull(BuiltinEngines.scalar, BuiltinEngines.simd)) {
             for (id in listOf(
                 "spsymv+65+sparse-triangular+density=0.05+mode=oneshot+uplo=L",
@@ -125,71 +66,9 @@ class SparseTest {
             )) {
                 val case = Cases.parse(id).single()
                 val work = assertNotNull(sparseArm(case, engine)?.work, "$id on ${engine.name}")
-                val kernel = assertNotNull(work.kernel, "$id on ${engine.name}")
-                assertTrue(kernel.startsWith("portable-csc"), "$id on ${engine.name} claimed $kernel")
-                assertTrue(kernel.endsWith("/${case.operation}"), kernel)
+                assertEquals("${engine.name}/${case.operation}", work.kernel, id)
             }
         }
-    }
-
-    // Scattered products use the engine's indexed leaf.
-    @Test
-    fun `a scattered sparse product names the level one leaf its columns reach`() {
-        val case = Cases.parse("spgemv+64x32+sparse-uniform+density=0.5+mode=oneshot").single()
-        val engine = BuiltinEngines.scalar
-
-        val work = assertNotNull(sparseArm(case, engine)?.work)
-
-        val expected = engine.routeOf(
-            SparseMatrixOperation.Gemv,
-            SparseCall(Fixtures.sparse(64, 32, 0.5, 1), alpha = 0.875, beta = -0.25, destinationElements = 64, depth = 32),
-        )
-        assertEquals("${expected.implementation}/spgemv", work.kernel)
-        // Non-unit beta adds a dense scaling kernel to the indexed product route.
-        assertEquals("portable-csc+scalar/scale+scalar/axpy/spgemv", work.kernel)
-    }
-
-    @Test
-    fun `prepared boundaries name the work they time`() {
-        val modes = listOf(
-            "oneshot" to "oneshot",
-            "prepared" to "prepared",
-            "setup" to "prepare",
-            "firstuse" to "prepare-and-first-use",
-            "amortized+reuse=8" to "prepare-and-8-uses",
-        )
-        for ((mode, timing) in modes) {
-            val case = Cases.parse("spgemv+64x32+sparse-uniform+density=0.25+mode=$mode").single()
-
-            val work = assertNotNull(sparseArm(case, BuiltinEngines.scalar)?.work, mode)
-
-            assertEquals(timing, work.timingMode, mode)
-            assertTrue(work.run().isFinite(), "$mode produced no usable result")
-        }
-    }
-
-    // Setup attribution must exclude arithmetic kernels.
-    @Test
-    fun `a setup row names snapshot preparation rather than an arithmetic kernel`() {
-        val case = Cases.parse("spgemv+64x32+sparse-uniform+density=0.25+mode=setup").single()
-
-        val work = assertNotNull(sparseArm(case, BuiltinEngines.scalar)?.work)
-
-        assertEquals("portable-csc/spprepare", work.kernel)
-        assertEquals("prepare", work.timingMode)
-    }
-
-    @Test
-    fun `a first use row names the preparation and the call it pays for`() {
-        val case = Cases.parse("spmm+33x4x21+sparse-uniform+density=0.05+mode=firstuse+transA=T").single()
-
-        val work = assertNotNull(sparseArm(case, BuiltinEngines.scalar)?.work)
-
-        assertEquals("composed", work.comparisonKind)
-        assertEquals("prepare-and-first-use", work.timingMode)
-        val kernel = assertNotNull(work.kernel)
-        assertTrue(kernel.startsWith("portable-csc/spprepare then "), kernel)
-        assertTrue(kernel.substringAfterLast('/').startsWith("spmm@"), kernel)
     }
 
     // The generic entry point uses the selected engine, so an arm naming a different one would publish its
@@ -207,27 +86,11 @@ class SparseTest {
             for (engine in listOfNotNull(koblas, BuiltinEngines.scalar, BuiltinEngines.simd).distinct()) {
                 val arm = assertNotNull(sparseArm(case, engine), id)
                 val work = assertNotNull(arm.work, "$id on ${engine.name}")
-                assertTrue(work.comparisonKind in listOf("direct", "composed"), id)
+                assertEquals(ENGINE_COMPARISON, work.comparisonKind, id)
                 assertEquals("oneshot-generic", work.timingMode, id)
-                assertTrue(assertNotNull(work.kernel).startsWith("portable-csc"), id)
+                assertEquals("${engine.name}/${case.operation}", work.kernel, id)
                 assertTrue(work.run().isFinite(), id)
             }
-        }
-    }
-
-    // The counterpart of the generic case: a snapshot is built by the requested engine rather than the
-    // selected one, so its route is that engine's answer.
-    @Test
-    fun `a prepared row times a snapshot built by the engine whose route it reports`() {
-        val case = Cases.parse("spgemv+64x32+sparse-uniform+density=0.25+mode=prepared").single()
-
-        for (engine in listOfNotNull(BuiltinEngines.scalar, BuiltinEngines.simd)) {
-            val work = assertNotNull(sparseArm(case, engine)?.work, engine.name)
-            val expected = engine.routeOf(
-                SparseMatrixOperation.Gemv,
-                SparseCall(Fixtures.sparse(64, 32, 0.25, 1), alpha = 0.875, beta = -0.25, destinationElements = 64, depth = 32),
-            )
-            assertEquals("${expected.implementation}/spgemv", work.kernel, engine.name)
         }
     }
 
@@ -241,13 +104,8 @@ class SparseTest {
         for (id in listOf(
             "spgemv+9x7+sparse-uniform+density=0.3+mode=oneshot",
             "spgemv+9x7+sparse-uniform+density=0.3+mode=oneshot+transA=T",
-            "spgemv+9x7+sparse-uniform+density=0.3+mode=prepared",
-            "spgemv+9x7+sparse-uniform+density=0.3+mode=firstuse",
             "spmm+9x3x7+sparse-uniform+density=0.3+mode=oneshot",
-            "spmm+9x3x7+sparse-uniform+density=0.3+mode=prepared+transA=T",
-            "spmm+9x3x7+sparse-uniform+density=0.3+mode=firstuse+transA=T",
             "spgemm+9x5x7+sparse-uniform+density=0.3+mode=oneshot",
-            "spgemm+9x5x7+sparse-uniform+density=0.3+mode=prepared+transA=T",
             "spsymv+9+sparse-triangular+density=0.3+mode=oneshot+uplo=L",
             "spsymv+9+sparse-triangular+density=0.3+mode=oneshot+uplo=U",
             "spsymm+9x3+sparse-triangular+density=0.3+mode=oneshot+side=L+uplo=L",
@@ -289,34 +147,8 @@ class SparseTest {
 
         val columnMajor = assertNotNull(work("$base+mode=oneshot"))
         val rowMajor = assertNotNull(work("$base+mode=oneshot+transB=T"))
-        val preparedRowMajor = assertNotNull(work("$base+mode=prepared+transA=T+transB=T"))
 
         assertContains(assertNotNull(columnMajor.kernel), "spmm")
         assertContains(assertNotNull(rowMajor.kernel), "spmm")
-        assertContains(assertNotNull(preparedRowMajor.kernel), "spmm")
-    }
-
-    @Test
-    fun `a transposed dense operand reports its actual traversal`() {
-        val engine = BuiltinEngines.scalar
-        val case = Cases.parse("spmm+33x16x21+sparse-uniform+density=0.25+mode=oneshot+transA=T+transB=T")
-            .single()
-        val a = Fixtures.sparse(21, 33, 0.25, 1)
-        fun route(transposeDense: Boolean) = matrixKernel(
-            engine.routeOf(
-                SparseMatrixOperation.GemmDense,
-                SparseCall(
-                    a, alpha = 0.875, beta = -0.25, destinationElements = 33 * 16, depth = 21,
-                    rightHandSides = 16, transposeSparse = true, transposeDense = transposeDense,
-                ),
-            ),
-        )
-        val expected = route(true)
-        val wrongLayout = route(false)
-
-        val actual = assertNotNull(sparseArm(case, engine)?.work).kernel
-
-        assertNotEquals(wrongLayout, expected)
-        assertEquals(expected, actual)
     }
 }

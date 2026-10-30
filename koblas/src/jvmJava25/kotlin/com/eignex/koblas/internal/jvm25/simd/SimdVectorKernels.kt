@@ -2,6 +2,7 @@ package com.eignex.koblas.internal.jvm25.simd
 
 import com.eignex.koblas.*
 import com.eignex.koblas.dense.*
+import com.eignex.koblas.internal.dense.DispatchingVectorKernels
 import com.eignex.koblas.internal.dense.ScalarVectorKernels
 import com.eignex.koblas.internal.numeric.*
 import com.eignex.koblas.internal.numeric.MIN_NORMAL
@@ -47,7 +48,7 @@ internal val simdAvailable: Boolean = try {
  * `nrm2` is here because its fast path is a sum of squares, which is a reduction; it falls back to the
  * rescaling loop when a value leaves the normal range.
  */
-internal object SimdVectorKernels : DenseVectorKernels {
+internal object SimdVectorKernels : DispatchingVectorKernels {
     /**
      * Conservative crossover for vector filtering and its unconditional reduction fallback. Short
      * calls stay scalar to avoid setting up vector masks and reduction state.

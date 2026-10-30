@@ -1,11 +1,9 @@
 package com.eignex.koblas
 
-import com.eignex.koblas.dense.DenseOperation
 import com.eignex.koblas.dense.DenseVectorKernels
 import com.eignex.koblas.internal.dense.ScalarVectorKernels
 import com.eignex.koblas.internal.sparse.IndexedSparseKernels
 import com.eignex.koblas.internal.sparse.ScalarIndexedSparseKernels
-import com.eignex.koblas.sparse.SparseOperation
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
@@ -38,7 +36,6 @@ class KoblasEngineTest {
         val calls = mutableListOf<String>()
         val dense = object : DenseVectorKernels by ScalarVectorKernels {
             override val name = "selected-dense"
-            override fun implementationFor(operation: DenseOperation, length: Int, contiguous: Boolean): String = name
             override fun nrm2(v: DoubleArray, vOff: Int, len: Int, vStride: Int): Double {
                 assertSame(x.values, v)
                 calls += name
@@ -47,7 +44,6 @@ class KoblasEngineTest {
         }
         val indexed = object : IndexedSparseKernels by ScalarIndexedSparseKernels {
             override val name = "selected-indexed"
-            override fun implementationFor(operation: SparseOperation, count: Int): String = name
             override fun dotDense(
                 indices: IntArray,
                 indexOffset: Int,
@@ -67,13 +63,6 @@ class KoblasEngineTest {
         engine.sparseKernels.nrm2(x)
         engine.sparseKernels.dot(x, DoubleArray(x.size))
 
-        assertEquals(
-            listOf(
-                engine.routeOf(SparseOperation.Nrm2, x.values.size).implementation,
-                engine.routeOf(SparseOperation.DotDense, x.values.size).implementation,
-            ),
-            calls,
-        )
         assertEquals(listOf(dense.name, indexed.name), calls)
     }
 }

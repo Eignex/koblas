@@ -1,7 +1,5 @@
 package com.eignex.koblas
 
-import com.eignex.koblas.dense.DenseCall
-import com.eignex.koblas.dense.DenseMatrixOperation
 import com.eignex.koblas.dense.ReferenceBlas
 import com.eignex.koblas.vendor.BlasOperation
 import com.eignex.koblas.vendor.Vendor
@@ -28,47 +26,10 @@ class JvmDefaultEngineTest {
     }
 
     @Test
-    fun `exact jvm engines keep large dense matrix calls on owned kernels`() {
-        val product = DenseCall(256, 256, depth = 256)
-        val engines = listOfNotNull(BuiltinEngines.scalar, BuiltinEngines.simd)
-
-        for (engine in engines) {
-            val route = engine.routeOf(DenseMatrixOperation.Gemm, product)
-
-            assertEquals("portable-dense", route.scheduling, "${engine.name} composed a library")
-            assertEquals(null, route.host, "${engine.name} named a vendor call")
+    fun `exact jvm engines retain no host binding`() {
+        for (engine in listOfNotNull(BuiltinEngines.scalar, BuiltinEngines.simd)) {
             assertEquals(null, engine.vendor, "${engine.name} retained a binding")
         }
-    }
-
-    @Test
-    fun `the default routes eligible products to its retained host`() {
-        val product = DenseCall(256, 256, depth = 256)
-
-        val route = koblas.routeOf(DenseMatrixOperation.Gemm, product)
-
-        assertEquals(koblas.vendor?.vendor, route.host?.vendor)
-        assertEquals(if (koblas.vendor == null) "portable-dense" else "host-dense", route.scheduling)
-    }
-
-    @Test
-    fun `a default host route names its native operand transfers`() {
-        if (koblas.vendor == null) return println("SKIPPED: no eligible JVM host composition")
-
-        val route = koblas.routeOf(DenseMatrixOperation.Gemm, DenseCall(256, 256, depth = 256))
-
-        val adapter = requireNotNull(route.host?.adapter)
-        assertTrue(route.components.any { it.contains(adapter) }, "default route omitted its operand transfers")
-    }
-
-    @Test
-    fun `deep whole products can use the host while borrowed products stay owned`() {
-        val whole = koblas.routeOf(DenseMatrixOperation.Gemm, DenseCall(16, 16, depth = 4096))
-        val borrowed = koblas.routeOf(DenseMatrixOperation.Gemm, DenseCall(16, 16, depth = 4096, borrowed = true))
-
-        assertEquals(koblas.vendor?.vendor, whole.host?.vendor)
-        assertEquals(null, borrowed.host)
-        assertEquals("portable-dense", borrowed.scheduling)
     }
 
     @Test
@@ -84,7 +45,6 @@ class JvmDefaultEngineTest {
         assertAgreesWithReference(expected.values, a.values, "aliased default host product")
     }
 
-    // A route says which schedule was chosen; this says the chosen one computes.
     @Test
     fun `every jvm arm computes a dense product without any library`() {
         val a = DenseMatrix.wrap(ORDER, ORDER, DoubleArray(ORDER * ORDER) { 1.0 + it % 7 })

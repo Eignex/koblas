@@ -5,10 +5,7 @@ import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.dense.ReferenceBlas
 import com.eignex.koblas.internal.dense.PanelWork
-import com.eignex.koblas.internal.diagnostics.SPARSE_STAGING
 import com.eignex.koblas.randomMatrix
-import com.eignex.koblas.sparse.SparseCall
-import com.eignex.koblas.sparse.SparseMatrixOperation
 import kotlin.random.Random
 import kotlin.test.*
 
@@ -133,38 +130,6 @@ class SparseTriangularTest {
                             val context = "${engine.name} solve=$solve lower=$lower transpose=$transpose " +
                                 "unit=$unitDiag right=$right"
                             assertClose(expected, actual, context)
-                            if (!right) {
-                                val operation = if (solve) {
-                                    SparseMatrixOperation.TrsmLeft
-                                } else {
-                                    SparseMatrixOperation.TrmmLeft
-                                }
-                                val route = engine.routeOf(
-                                    operation,
-                                    SparseCall(
-                                        sparse,
-                                        -0.75,
-                                        destinationElements = order * sides,
-                                        depth = order,
-                                        rightHandSides = sides,
-                                        transposeSparse = transpose,
-                                        lower = lower,
-                                    ),
-                                )
-                                assertEquals(group, route.executionGroup, context)
-                                assertEquals(if (group > 1) 1 else 0, route.executionTail, context)
-                                if (engine == BuiltinEngines.simd) {
-                                    val leaf = if (transpose) "sparse-rhs-gather" else "sparse-rhs-scatter"
-                                    assertTrue(
-                                        route.components.any { it == "${engine.panelKernels.name}/$leaf" },
-                                        "$context: $route",
-                                    )
-                                    assertTrue(
-                                        route.components.any { it.startsWith("$SPARSE_STAGING/") },
-                                        "$context: $route",
-                                    )
-                                }
-                            }
                         }
                     }
                 }

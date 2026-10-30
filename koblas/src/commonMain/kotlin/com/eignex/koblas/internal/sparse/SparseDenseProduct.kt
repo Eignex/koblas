@@ -67,7 +67,7 @@ internal fun planRightHandSides(
 private fun stagedPanelCap(): Int = SparseTuning.contiguousRhsPanel
 
 /**
- * The plan a sparse-by-dense product takes, asked by the execution and by the route that describes it.
+ * The plan a sparse-by-dense product takes.
  *
  * What a staged copy pays for is what the direction reads: a transposed operand reduces a column into an
  * accumulator of its own, so the copy is the dense source and one already in right-hand-side order needs
@@ -99,7 +99,7 @@ internal fun productRhsPlan(
  * The plan a symmetric sparse product takes, whose staging copies both dense blocks and writes one back.
  *
  * Three passes over a right-hand side against the two a general product's destination costs, which is why
- * the two weigh the copy differently. One answer for the execution and the route.
+ * the two weigh the copy differently.
  */
 internal fun symmetricRhsPlan(kernels: SparsePanelKernels, order: Int, sides: Int, entries: Int): Int =
     planRightHandSides(kernels, order, sides, entries, copiedPerSide = 3L * order, nativelyContiguous = false)
@@ -109,14 +109,6 @@ internal fun rhsWidth(plan: Int): Int = if (plan < 0) -plan else plan
 
 /** Whether a plan from [planRightHandSides] stages the dense block. */
 internal fun rhsStaged(plan: Int): Boolean = plan < 0
-
-/** The widths a call's right-hand-side panels actually take, which is the plan's and whatever is left over. */
-internal inline fun forEachPanelWidth(sides: Int, width: Int, action: (Int) -> Unit) {
-    if (sides <= 0 || width <= 0) return
-    action(min(width, sides))
-    val tail = sides % width
-    if (tail != 0 && sides > width) action(tail)
-}
 
 /**
  * Copies one panel of right-hand sides into right-hand-side-major order.

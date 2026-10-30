@@ -2,7 +2,9 @@ package com.eignex.koblas.internal.host
 
 import com.eignex.koblas.*
 import com.eignex.koblas.dense.*
+import com.eignex.koblas.internal.dense.DispatchingVectorKernels
 import com.eignex.koblas.internal.dense.ScalarVectorKernels
+import com.eignex.koblas.internal.dense.implementationFor
 import com.eignex.koblas.internal.host.NativeVendorBlas
 import com.eignex.koblas.internal.sparse.axpy
 import com.eignex.koblas.sparse.*
@@ -18,7 +20,7 @@ import com.eignex.koblas.vendor.*
 internal class VendorVectorKernels(
     private val blas: NativeVendorBlas,
     private val portable: DenseVectorKernels = ScalarVectorKernels,
-) : DenseVectorKernels {
+) : DispatchingVectorKernels {
 
     override val name: String get() = "${blas.vendor.vendorName.lowercase()}-level1"
 
@@ -29,8 +31,8 @@ internal class VendorVectorKernels(
         operation == DenseOperation.Sum -> portable.implementationFor(operation, length, contiguous)
 
         // A spaced rotation has no kernel here and is the portable loop. A contiguous one keeps a run rotated
-        // against itself portable at every width, and a route carries no operand identity, so this call's
-        // facts do not settle which of the two it is.
+        // against itself portable at every width, and the length alone does not say which of the two
+        // a call is.
         operation == DenseOperation.Rot ->
             if (contiguous && vendorRuns(operation, length)) {
                 null

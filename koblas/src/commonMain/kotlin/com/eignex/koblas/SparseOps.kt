@@ -5,9 +5,6 @@ package com.eignex.koblas
 
 import kotlin.jvm.JvmOverloads
 
-/** Prepares an immutable snapshot of this matrix for repeated products. */
-public fun SparseMatrix.prepare(): PreparedSparseMatrix = koblas.prepare(this)
-
 /** `A · x`, or `Aᵀ · x` when [transpose], into a fresh dense result over the stored entries alone. */
 @JvmOverloads
 public fun SparseMatrix.gemv(x: DoubleArray, transpose: Boolean = false): DoubleArray = koblas.gemv(this, x, transpose)

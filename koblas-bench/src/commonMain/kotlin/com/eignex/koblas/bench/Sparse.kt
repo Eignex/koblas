@@ -3,30 +3,19 @@ package com.eignex.koblas.bench
 import com.eignex.koblas.KoblasEngine
 import com.eignex.koblas.BuiltinEngines
 import com.eignex.koblas.Matrix
-import com.eignex.koblas.MatrixRoute
-import com.eignex.koblas.PreparedSparseMatrix
 import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.gemm
 import com.eignex.koblas.Workspace
-import com.eignex.koblas.gemmInto
 import com.eignex.koblas.koblas
-import com.eignex.koblas.routeOf
-import com.eignex.koblas.sparse.SparseCall
-import com.eignex.koblas.sparse.SparseMatrixOperation
-import com.eignex.koblas.sparse.SparseMatrixRoute
-import com.eignex.koblas.sparse.SparseOperation
 import com.eignex.koblas.sparse.SparsePrimitives
-import com.eignex.koblas.times
-import com.eignex.koblas.RouteKind
 
 /**
  * The sparse work for one case on [engine], or the reason this engine cannot measure it, or null when the case
  * is not a sparse one.
  *
- * The engine-dispatched arms are exact comparisons: the row is published under the engine that was selected, so
- * a call the engine hands to a different implementation is declined rather than timed. A Vector API selection
- * does that for a support below its crossover, for an operation it never vectorised, and on a host whose indexed
- * loads or stores it cannot use, and the route is what distinguishes those from a call it really ran.
+ * The engine-dispatched arms are exact because each runs on the engine its arm pinned through
+ * [com.eignex.koblas.BuiltinEngines]. A row records that selection, not the body a given width reached: a
+ * Vector API selection still runs scalar loops below its crossover.
  *
  * The generic primitives are the exception, because no engine selects them. They are one implementation, timed
  * once as an explicit composed case rather than repeated under each engine label.
@@ -38,21 +27,12 @@ internal fun sparseArm(case: BenchCase, engine: KoblasEngine): ArmChoice? {
     val d = case.dimensions
     val kernels = engine.sparseKernels
 
-    // Resolved and checked once, outside the timed region, so no route work reaches a measured loop.
-    fun arm(
-        operation: SparseOperation,
-        count: Int,
-        timing: String,
-        result: DoubleArray? = null,
-        run: () -> Double,
-    ): ArmChoice {
-        val route = engine.routeOf(operation, count)
-        if (!route.exactlyMeasurable) return ArmChoice(null, requireNotNull(route.reason))
-        val work = CaseWork(
-            route.kind.name.lowercase(), timing, run, result = result, kernel = vectorKernel(route),
-        )
-        return ArmChoice(work, null)
-    }
+    fun arm(count: Int, timing: String, result: DoubleArray? = null, run: () -> Double): ArmChoice =
+        if (count == 0) {
+            declined()
+        } else {
+            ArmChoice(engineWork(engine, case.operation, timing, run, result), null)
+        }
 
     return when (case.operation) {
         "spbuild-triplets", "spbuild-duplicates" -> {
@@ -95,29 +75,29 @@ internal fun sparseArm(case: BenchCase, engine: KoblasEngine): ArmChoice? {
         }
         "spdot" -> {
             val x = Fixtures.sparseVector(d[0], density, 1); val y = Fixtures.vector(d[0], 2)
-            arm(SparseOperation.DotDense, x.values.size, "arithmetic") { kernels.dot(x, y) }
+            arm(x.values.size, "arithmetic") { kernels.dot(x, y) }
         }
         "spdot-raw" -> {
             val x = Fixtures.sparseVector(d[0], density, 1); val y = Fixtures.vector(d[0], 2)
             val indices = x.copyIndices()
-            arm(SparseOperation.DotDense, x.values.size, "arithmetic") {
+            arm(x.values.size, "arithmetic") {
                 kernels.dot(indices, 0, x.values, 0, x.values.size, y)
             }
         }
         "spdot-sparse" -> {
             val x = Fixtures.sparseVector(d[0], density, 1); val y = Fixtures.sparseVector(d[0], density, 2)
-            arm(SparseOperation.DotSparse, x.values.size, "arithmetic") { kernels.dot(x, y) }
+            arm(x.values.size, "arithmetic") { kernels.dot(x, y) }
         }
         "spaxpy" -> {
             val x = Fixtures.sparseVector(d[0], density, 1); val y0 = Fixtures.vector(d[0], 2); val y = y0.copyOf()
-            arm(SparseOperation.Axpy, x.values.size, "reset-and-arithmetic") {
+            arm(x.values.size, "reset-and-arithmetic") {
                 y0.copyInto(y); kernels.axpy(y, 0.875, x); y[0]
             }
         }
         "spaxpy-raw" -> {
             val x = Fixtures.sparseVector(d[0], density, 1); val indices = x.copyIndices()
             val y0 = Fixtures.vector(d[0], 2); val y = y0.copyOf()
-            arm(SparseOperation.Axpy, x.values.size, "reset-and-arithmetic") {
+            arm(x.values.size, "reset-and-arithmetic") {
                 y0.copyInto(y)
                 kernels.axpy(y, 0.875, indices, 0, x.values, 0, x.values.size)
                 y[0]
@@ -125,22 +105,22 @@ internal fun sparseArm(case: BenchCase, engine: KoblasEngine): ArmChoice? {
         }
         "spnrm2", "spasum" -> {
             val x = Fixtures.sparseVector(d[0], density, 1)
-            val operation = if (case.operation == "spnrm2") SparseOperation.Nrm2 else SparseOperation.Asum
-            arm(operation, x.values.size, "arithmetic") {
-                if (operation == SparseOperation.Nrm2) kernels.nrm2(x) else kernels.asum(x)
+            val norm = case.operation == "spnrm2"
+            arm(x.values.size, "arithmetic") {
+                if (norm) kernels.nrm2(x) else kernels.asum(x)
             }
         }
         "spnrm2-indexed" -> {
             val x = Fixtures.sparseVector(d[0], density, 1); val indices = x.copyIndices()
             val dense = Fixtures.vector(d[0], 2)
-            arm(SparseOperation.IndexedNrm2, indices.size, "arithmetic") {
+            arm(indices.size, "arithmetic") {
                 kernels.nrm2(indices, 0, indices.size, dense)
             }
         }
         "spscatter-raw" -> {
             val x = Fixtures.sparseVector(d[0], density, 1); val indices = x.copyIndices()
             val dense0 = Fixtures.vector(d[0], 2); val dense = dense0.copyOf()
-            arm(SparseOperation.Scatter, x.values.size, "reset-and-arithmetic") {
+            arm(x.values.size, "reset-and-arithmetic") {
                 dense0.copyInto(dense)
                 kernels.scatter(indices, 0, x.values, 0, x.values.size, dense)
                 dense[0]
@@ -150,7 +130,7 @@ internal fun sparseArm(case: BenchCase, engine: KoblasEngine): ArmChoice? {
             val x = Fixtures.sparseVector(d[0], density, 1)
             val dense0 = Fixtures.vector(d[0], 2); val dense = dense0.copyOf()
             val timing = case.option("timing", "reset-and-arithmetic")
-            arm(SparseOperation.Gather, x.values.size, timing, result = x.values) {
+            arm(x.values.size, timing, result = x.values) {
                 if (timing == "reset-and-arithmetic") dense0.copyInto(dense)
                 kernels.gather(x, dense)
                 if (x.values.isEmpty()) 0.0 else x.values[0] + x.values[x.values.lastIndex]
@@ -160,8 +140,7 @@ internal fun sparseArm(case: BenchCase, engine: KoblasEngine): ArmChoice? {
             val x = Fixtures.sparseVector(d[0], density, 1); val values0 = x.values.copyOf()
             val dense0 = Fixtures.vector(d[0], 2); val dense = dense0.copyOf()
             val scatter = case.operation == "spscatter"
-            val operation = if (scatter) SparseOperation.Scatter else SparseOperation.GatherZero
-            arm(operation, x.values.size, "reset-and-arithmetic") {
+            arm(x.values.size, "reset-and-arithmetic") {
                 values0.copyInto(x.values); dense0.copyInto(dense)
                 if (scatter) kernels.scatter(x, dense) else kernels.gatherZero(x, dense)
                 x.values.firstOrNull() ?: dense[0]
@@ -175,16 +154,15 @@ internal fun sparseArm(case: BenchCase, engine: KoblasEngine): ArmChoice? {
 private const val EPOCH = 1
 
 /**
- * Sparse Level 2 and 3 work, named by the route the call itself resolves.
+ * Sparse Level 2 and 3 work, published under the engine the arm pinned.
  *
- * The scheduling is this library's portable CSC code on every engine, and the route says so; where a unit of
- * work is handed to a Level 1 kernel, the route names the one that unit reaches. An arm therefore never
- * publishes a portable sparse product under a SIMD label because the engine's Level 1 kernels are vectorised.
- * A route the call cannot make exact is published as the composition it is rather than under either name.
+ * The scheduling is this library's portable CSC code on every engine, so a row never shows that a sparse
+ * product vectorised: the engine name records the Level 1 kernels a unit of work may be handed to, not which
+ * ones a given width reached.
  *
- * Every case is verified against [SparseReference] before it is timed, and a prepared case is verified through
- * the snapshot as well as through the one-shot call. The comparison covers the whole result and, for a fresh
- * CSC result, the support its operands' patterns reach; a case that computes the wrong thing fails the run.
+ * Every case is verified against [SparseReference] before it is timed. The comparison covers the whole result
+ * and, for a fresh CSC result, the support its operands' patterns reach; a case that computes the wrong thing
+ * fails the run.
  */
 @Suppress("LongMethod", "CyclomaticComplexMethod") // one branch per benchmarked operation
 internal fun sparseMatrixArm(case: BenchCase, engine: KoblasEngine): ArmChoice? {
@@ -196,13 +174,11 @@ internal fun sparseMatrixArm(case: BenchCase, engine: KoblasEngine): ArmChoice? 
     val transposeDense = case.flag("transB")
     val unit = case.option("diag", "U") == "U"
     val right = case.option("side", "L") == "R"
-    val mode = case.option("mode", "oneshot")
     val alpha = 0.875
     val beta = -0.25
     val workspace = Workspace()
 
-    fun arm(operation: SparseMatrixOperation, call: SparseCall, verify: () -> Unit, run: () -> Double) =
-        publish(engine, operation, call, "oneshot", verify, run)
+    fun arm(verify: () -> Unit, run: () -> Double) = publish(engine, case, "oneshot", verify, run)
 
     return when (case.operation) {
         "spgemv" -> {
@@ -212,28 +188,13 @@ internal fun sparseMatrixArm(case: BenchCase, engine: KoblasEngine): ArmChoice? 
             val y0 = Fixtures.vector(if (transpose) d[1] else d[0], 3)
             val y = y0.copyOf()
             val expected = SparseReference.gemv(alpha, reference, transpose, x, beta, y0)
-            val operation = if (transpose) SparseMatrixOperation.GemvTransposed else SparseMatrixOperation.Gemv
-            val call = SparseCall(
-                a, alpha, beta,
-                destinationElements = y.size,
-                depth = SparseReference.columns(reference, transpose),
-                transposeSparse = transpose,
-            )
-            preparedArm(
-                case, engine, operation, call, mode, a,
-                verifyOneShot = {
+            arm(
+                verify = {
                     y0.copyInto(y)
                     engine.gemv(alpha, a, x, beta, y, transpose)
                     SparseReference.check(expected, y, "${case.id} gemv")
                 },
-                verifyPrepared = { snapshot ->
-                    y0.copyInto(y)
-                    engine.gemv(alpha, snapshot, x, beta, y, transpose)
-                    SparseReference.check(expected, y, "${case.id} prepared gemv")
-                },
-                oneShot = { y0.copyInto(y); engine.gemv(alpha, a, x, beta, y, transpose); y[0] },
-                prepared = { snapshot -> y0.copyInto(y); engine.gemv(alpha, snapshot, x, beta, y, transpose); y[0] },
-            )
+            ) { y0.copyInto(y); engine.gemv(alpha, a, x, beta, y, transpose); y[0] }
         }
 
         "spmm", "spmm-generic" -> {
@@ -249,14 +210,9 @@ internal fun sparseMatrixArm(case: BenchCase, engine: KoblasEngine): ArmChoice? 
                 alpha, reference, transpose, SparseReference.dense(b), transposeDense, beta,
                 SparseReference.dense(c0),
             )
-            val call = SparseCall(
-                a, alpha, beta,
-                destinationElements = c.values.size, depth = k, rightHandSides = n, transposeSparse = transpose,
-                transposeDense = transposeDense,
-            )
             if (case.operation == "spmm-generic") {
                 genericArm(
-                    case, engine, engine.routeOf(alpha, a, transpose, b, transposeDense, beta, c),
+                    case, engine,
                     verify = {
                         c0.values.copyInto(c.values)
                         engine.gemm(alpha, a as Matrix, transpose, b as Matrix, transposeDense, beta, c, workspace)
@@ -268,29 +224,17 @@ internal fun sparseMatrixArm(case: BenchCase, engine: KoblasEngine): ArmChoice? 
                     c.values[0]
                 }
             } else {
-                preparedArm(
-                    case, engine, SparseMatrixOperation.GemmDense, call, mode, a,
-                    verifyOneShot = {
+                arm(
+                    verify = {
                         c0.values.copyInto(c.values)
                         engine.gemm(alpha, a, transpose, b, transposeDense, beta, c, workspace = workspace)
                         SparseReference.check(expected, SparseReference.dense(c), "${case.id} product")
                     },
-                    verifyPrepared = { snapshot ->
-                        c0.values.copyInto(c.values)
-                        engine.gemm(alpha, snapshot, transpose, b, transposeDense, beta, c, workspace)
-                        SparseReference.check(expected, SparseReference.dense(c), "${case.id} prepared product")
-                    },
-                    oneShot = {
-                        c0.values.copyInto(c.values)
-                        engine.gemm(alpha, a, transpose, b, transposeDense, beta, c, workspace = workspace)
-                        c.values[0]
-                    },
-                    prepared = { snapshot ->
-                        c0.values.copyInto(c.values)
-                        engine.gemm(alpha, snapshot, transpose, b, transposeDense, beta, c, workspace)
-                        c.values[0]
-                    },
-                )
+                ) {
+                    c0.values.copyInto(c.values)
+                    engine.gemm(alpha, a, transpose, b, transposeDense, beta, c, workspace = workspace)
+                    c.values[0]
+                }
             }
         }
 
@@ -311,12 +255,6 @@ internal fun sparseMatrixArm(case: BenchCase, engine: KoblasEngine): ArmChoice? 
                 beta, SparseReference.dense(mirror0),
             )
             arm(
-                SparseMatrixOperation.GemmDenseRight,
-                SparseCall(
-                    a, alpha, beta,
-                    destinationElements = mirror.values.size, depth = m, updateRun = mirror.rows,
-                    rightHandSides = mirror.rows, transposeSparse = transpose,
-                ),
                 verify = {
                     mirror0.values.copyInto(mirror.values)
                     engine.gemm(alpha, a, transpose, leftDense, false, beta, mirror, right = true, workspace = workspace)
@@ -344,7 +282,7 @@ internal fun sparseMatrixArm(case: BenchCase, engine: KoblasEngine): ArmChoice? 
                 beta, SparseReference.dense(mirror0),
             )
             genericArm(
-                case, engine, engine.routeOf(alpha, leftDense, false, a, transpose, beta, mirror),
+                case, engine,
                 verify = {
                     mirror0.values.copyInto(mirror.values)
                     engine.gemm(alpha, leftDense as Matrix, false, a as Matrix, transpose, beta, mirror, workspace)
@@ -365,10 +303,9 @@ internal fun sparseMatrixArm(case: BenchCase, engine: KoblasEngine): ArmChoice? 
                 1.0, a.toArray(), transpose, b.toArray(), false, 0.0, Array(m) { DoubleArray(n) },
             )
             val support = SparseReference.productSupport(a, transpose, b, false)
-            val call = SparseCall(a, depth = k, transposeSparse = transpose)
             if (case.operation == "spgemm-generic") {
                 genericArm(
-                    case, engine, engine.routeOf(1.0, a, false, b, false),
+                    case, engine,
                     verify = {
                         val product = engine.gemm(1.0, a as Matrix, transpose, b as Matrix, false)
                         SparseReference.checkSparse(
@@ -379,25 +316,13 @@ internal fun sparseMatrixArm(case: BenchCase, engine: KoblasEngine): ArmChoice? 
                     Retained.retain(engine.gemm(1.0, a as Matrix, transpose, b as Matrix, false))
                 }
             } else {
-                preparedArm(
-                    case, engine, SparseMatrixOperation.GemmSparse, call, mode, a,
-                    // The second operand is what decides which orientation a transposed prepared product
-                    // runs, so the row names that orientation instead of publishing an undecided route.
-                    routeOfPrepared = { engine.routeOf(1.0, it, transpose, b, false) as SparseMatrixRoute },
-                    verifyOneShot = {
+                arm(
+                    verify = {
                         SparseReference.checkSparse(
                             expected, support, engine.gemm(1.0, a, transpose, b, false), "${case.id} product",
                         )
                     },
-                    verifyPrepared = { snapshot ->
-                        SparseReference.checkSparse(
-                            expected, support, engine.gemm(1.0, snapshot, transpose, b, false) as SparseMatrix,
-                            "${case.id} prepared product",
-                        )
-                    },
-                    oneShot = { Retained.retain(engine.gemm(1.0, a, transpose, b, false)) },
-                    prepared = { snapshot -> Retained.retain(engine.gemm(1.0, snapshot, transpose, b, false)) },
-                )
+                ) { Retained.retain(engine.gemm(1.0, a, transpose, b, false)) }
             }
         }
 
@@ -410,8 +335,6 @@ internal fun sparseMatrixArm(case: BenchCase, engine: KoblasEngine): ArmChoice? 
                 alpha, SparseReference.mirrored(a.toArray(), lower), false, x, beta, y0,
             )
             arm(
-                SparseMatrixOperation.Symv,
-                SparseCall(a, alpha, beta, destinationElements = y.size, depth = d[0], lower = lower),
                 verify = {
                     y0.copyInto(y)
                     engine.symv(alpha, a, x, beta, y, lower)
@@ -437,14 +360,6 @@ internal fun sparseMatrixArm(case: BenchCase, engine: KoblasEngine): ArmChoice? 
                 )
             }
             arm(
-                if (right) SparseMatrixOperation.SymmRight else SparseMatrixOperation.SymmLeft,
-                SparseCall(
-                    a, alpha, beta,
-                    destinationElements = c.values.size, depth = n,
-                    rightHandSides = if (right) b.rows else b.cols,
-                    updateRun = if (right) b.rows else 0,
-                    lower = lower,
-                ),
                 verify = {
                     c0.values.copyInto(c.values)
                     engine.symm(alpha, a, b, beta, c, lower, right, workspace)
@@ -468,10 +383,7 @@ internal fun sparseMatrixArm(case: BenchCase, engine: KoblasEngine): ArmChoice? 
             } else {
                 SparseReference.trmv(triangle, transpose, x0)
             }
-            val operation = if (solve) SparseMatrixOperation.Trsv else SparseMatrixOperation.Trmv
             arm(
-                operation,
-                SparseCall(a, destinationElements = x.size, transposeSparse = transpose, lower = lower),
                 verify = {
                     x0.copyInto(x)
                     if (solve) engine.trsv(a, x, lower, transpose, unit) else engine.trmv(a, x, lower, transpose, unit)
@@ -496,22 +408,7 @@ internal fun sparseMatrixArm(case: BenchCase, engine: KoblasEngine): ArmChoice? 
             } else {
                 SparseReference.trmm(triangle, transpose, right, alpha, SparseReference.dense(original))
             }
-            val operation = when {
-                solve && right -> SparseMatrixOperation.TrsmRight
-                solve -> SparseMatrixOperation.TrsmLeft
-                right -> SparseMatrixOperation.TrmmRight
-                else -> SparseMatrixOperation.TrmmLeft
-            }
             arm(
-                operation,
-                SparseCall(
-                    a, alpha,
-                    destinationElements = b.values.size,
-                    updateRun = if (right) b.rows else 0,
-                    rightHandSides = if (right) b.rows else b.cols,
-                    transposeSparse = transpose,
-                    lower = lower,
-                ),
                 verify = {
                     original.values.copyInto(b.values)
                     if (solve) {
@@ -539,15 +436,7 @@ internal fun sparseMatrixArm(case: BenchCase, engine: KoblasEngine): ArmChoice? 
             val c = Fixtures.matrix(n, n, 2)
             val dense = case.operation == "spsyrk-dense"
             val reference = a.toArray()
-            val operation = if (dense) SparseMatrixOperation.SyrkDense else SparseMatrixOperation.SyrkSparse
-            val call = SparseCall(
-                a, alpha, beta,
-                destinationElements = if (dense) c.values.size else null,
-                depth = k,
-                lower = lower,
-            )
             arm(
-                operation, call,
                 verify = {
                     if (dense) {
                         c0.values.copyInto(c.values)
@@ -583,7 +472,6 @@ internal fun sparseMatrixArm(case: BenchCase, engine: KoblasEngine): ArmChoice? 
             val expected = SparseReference.addScaled(alpha, a.toArray(), false, b.toArray())
             val support = SparseReference.unionSupport(a, transposeA = false, b = b)
             arm(
-                SparseMatrixOperation.AddScaled, SparseCall(a, alpha),
                 verify = {
                     SparseReference.checkSparse(
                         expected, support, engine.addScaled(alpha, a, false, b), "${case.id} sum",
@@ -596,144 +484,29 @@ internal fun sparseMatrixArm(case: BenchCase, engine: KoblasEngine): ArmChoice? 
     }
 }
 
-/**
- * A timed row for a sparse matrix call, refused when the call would do no work at all.
- *
- * A composed route is published rather than declined: the sparse scheduling that owns the call really did run
- * on this engine, and naming every component it can reach is the honest report. What a row may not do is
- * claim one implementation for units of work that reached another, which is what the route's kind records.
- */
+
+/** A timed row for a sparse matrix call on [engine], refused when one of the case's extents is empty. */
 private fun publish(
     engine: KoblasEngine,
-    operation: SparseMatrixOperation,
-    call: SparseCall,
+    case: BenchCase,
     timing: String,
     verify: () -> Unit,
     run: () -> Double,
 ): ArmChoice {
-    val route = engine.routeOf(operation, call)
-    if (route.kind == RouteKind.NoWork) return declined()
+    if (case.dimensions.any { it == 0 }) return declined()
     verify()
-    return ArmChoice(CaseWork(route.kind.name.lowercase(), timing, run, kernel = matrixKernel(route)), null)
+    return ArmChoice(engineWork(engine, case.operation, timing, run), null)
 }
-
-private fun declined(): ArmChoice =
-    ArmChoice(null, "this case's own contract stops before the arithmetic, so there is nothing to time")
 
 /**
  * A row for the common `Matrix` product, which is a default-policy measurement rather than an exact arm.
  *
- * The generic entry point uses the platform-selected engine. Only the arm holding that engine may time
- * it, so the row's label and resolved route describe the same work.
+ * The generic entry point uses the platform-selected engine, so its timing mode keeps it apart from the
+ * exact rows of the same operation.
  */
 private fun genericArm(
     case: BenchCase,
     engine: KoblasEngine,
-    route: MatrixRoute,
     verify: () -> Unit,
     run: () -> Double,
-): ArmChoice {
-    if (route.kind == RouteKind.NoWork) return declined()
-    verify()
-    return ArmChoice(
-        CaseWork(route.kind.name.lowercase(), "oneshot-generic", run, kernel = matrixKernel(route)),
-        null,
-    )
-}
-
-/**
- * Separate timing boundaries for snapshot preparation and products.
- *
- * `oneshot` uses no snapshot; `prepared` times reuse after preparation; `setup` times preparation alone;
- * `firstuse` times preparation plus one product, including any derived orientation. Each row attributes
- * only the work inside its boundary.
- *
- * Reference checks run before timing. The prepared check uses a fresh snapshot to cover cold first use.
- */
-@Suppress("LongParameterList", "LongMethod") // the operation, its route, the five modes and both call shapes
-private fun preparedArm(
-    case: BenchCase,
-    engine: KoblasEngine,
-    operation: SparseMatrixOperation,
-    call: SparseCall,
-    mode: String,
-    source: SparseMatrix,
-    routeOfPrepared: (PreparedSparseMatrix) -> SparseMatrixRoute = { engine.routeOf(operation, it, call) },
-    verifyOneShot: () -> Unit,
-    verifyPrepared: (PreparedSparseMatrix) -> Unit,
-    oneShot: () -> Double,
-    prepared: (PreparedSparseMatrix) -> Double,
-): ArmChoice {
-    if (mode == "setup") {
-        val route = engine.routeOf(SparseMatrixOperation.Prepare, SparseCall(source))
-        return ArmChoice(
-            CaseWork(
-                route.kind.name.lowercase(),
-                "prepare",
-                // The snapshot itself, not its length: what this row times is the copying, and a count the
-                // compiler can take from the source operand would let that copying disappear.
-                { Retained.retain(engine.prepare(source)) },
-                kernel = matrixKernel(route),
-            ),
-            null,
-        )
-    }
-    val oneShotRoute = engine.routeOf(operation, call)
-    if (oneShotRoute.kind == RouteKind.NoWork) return declined()
-    verifyOneShot()
-    if (mode == "oneshot") {
-        return ArmChoice(
-            CaseWork(oneShotRoute.kind.name.lowercase(), mode, oneShot, kernel = matrixKernel(oneShotRoute)),
-            null,
-        )
-    }
-    // A snapshot that has done nothing yet, so the check covers the orientation a transposed call derives on
-    // its first use rather than a warm one.
-    verifyPrepared(engine.prepare(source))
-    // What a prepared call runs is not what a one-shot call runs: a transposed product against a reused
-    // orientation takes the untransposed schedule over it. One diagnostic snapshot answers both questions,
-    // and it is a throwaway so that asking does not warm the snapshot a timed row is about to build.
-    val diagnostic = engine.prepare(source)
-    val preparedRoute = routeOfPrepared(diagnostic)
-    // One real call against the throwaway snapshot, so that what a first use builds is an observation of the
-    // snapshot rather than a reading of the route, which is what the prepare-and-first-use row is about.
-    prepared(diagnostic)
-    if (mode == "firstuse" || mode == "amortized") {
-        val prepare = engine.routeOf(SparseMatrixOperation.Prepare, SparseCall(source))
-        val orientation = if (diagnostic.orientationDerived) {
-            " then ${engine.routeOf(SparseMatrixOperation.Transpose, SparseCall(source)).entryPoint}"
-        } else {
-            ""
-        }
-        val kernel = "${prepare.implementation}/${prepare.entryPoint}$orientation then " +
-            matrixKernel(preparedRoute)
-        val reuse = if (mode == "firstuse") 1 else case.option("reuse", "1").toInt()
-        val timing = if (mode == "firstuse") "prepare-and-first-use" else "prepare-and-$reuse-uses"
-        return ArmChoice(
-            CaseWork(
-                "composed",
-                timing,
-                {
-                    // One preparation and this many uses is the unit of work this row times, so what it
-                    // reports is that whole batch rather than a call: it is read against the same number of
-                    // one-shot calls, which is the comparison a break-even is.
-                    val snapshot = engine.prepare(source)
-                    var total = 0.0
-                    repeat(reuse) { total += prepared(snapshot) }
-                    total
-                },
-                kernel = kernel,
-            ),
-            null,
-        )
-    }
-    val snapshot = engine.prepare(source)
-    prepared(snapshot)
-    return ArmChoice(
-        CaseWork(
-            preparedRoute.kind.name.lowercase(), mode, { prepared(snapshot) },
-            kernel = matrixKernel(preparedRoute),
-        ),
-        null,
-    )
-}
+): ArmChoice = publish(engine, case, "oneshot-generic", verify, run)

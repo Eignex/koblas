@@ -36,7 +36,7 @@ internal object Cases {
     )
     private val fixtures = setOf("uniform", "triangular", "sparse-uniform", "sparse-triangular")
     private val optionOrder =
-        listOf("density", "support", "mode", "reuse", "side", "uplo", "transA", "transB", "diag", "timing", "workspace", "layout")
+        listOf("density", "support", "mode", "side", "uplo", "transA", "transB", "diag", "timing", "workspace", "layout")
 
     fun parse(text: String): List<BenchCase> {
         val cases = text.lineSequence().mapIndexedNotNull { index, raw ->
@@ -104,7 +104,6 @@ internal object Cases {
         when (name) {
             "density" -> if (value.toDoubleOrNull()?.let { it > 0.0 && it <= 1.0 } != true) invalid("invalid density '$value'")
             "support" -> if (value !in SUPPORTS) invalid("invalid support '$value'")
-            "reuse" -> if (value.toIntOrNull()?.let { it in 1..MAX_REUSE } != true) invalid("invalid reuse '$value'")
             "mode" -> if (value !in MODES) invalid("invalid mode '$value'")
             "side" -> if (value !in setOf("L", "R")) invalid("invalid side '$value'")
             "uplo" -> if (value !in setOf("L", "U")) invalid("invalid uplo '$value'")
@@ -135,13 +134,6 @@ internal object Cases {
         val incompatible = options.keys.firstOrNull { it !in allowed }
         if (incompatible != null) invalid("option '$incompatible' is incompatible with $operation")
         if (operation in MODE_OPERATIONS && "mode" !in options) invalid("$operation requires mode")
-        // A reuse count is what the amortized mode divides by, and it means nothing to any other mode.
-        if ((options["mode"] == "amortized") != ("reuse" in options)) {
-            invalid("mode=amortized and reuse go together")
-        }
-        if (operation !in PREPARABLE_OPERATIONS && options["mode"] != null && options["mode"] != "oneshot") {
-            invalid("$operation supports only mode=oneshot")
-        }
         val required = requiredOptions(operation, sparse)
         val missing = required.firstOrNull { it !in options }
         if (missing != null) invalid("$operation requires option '$missing'")
@@ -161,7 +153,7 @@ internal object Cases {
         when (operation) {
             "gemv", "gemm" -> add("transA")
         }
-        // The sparse operand's own orientation, which is what a prepared transposed product derives once.
+        // The sparse operand's own orientation.
         if (operation in TRANSPOSABLE_SPARSE_OPERATIONS) add("transA")
         if (operation == "gemm") {
             add("transB")
@@ -173,7 +165,6 @@ internal object Cases {
         if (operation in setOf("spmm", "spmm-generic")) add("transB")
         if (operation in setOf("scal", "spgather")) add("timing")
         if (operation in MODE_OPERATIONS) add("mode")
-        if (operation in PREPARABLE_OPERATIONS) add("reuse")
     }
 
     private fun requiredOptions(operation: String, sparse: Boolean): Set<String> {
@@ -192,21 +183,14 @@ internal object Cases {
     }
 
     /**
-     * How a prepared operand is accounted for.
-     *
-     * `oneshot` times the whole call with no snapshot. `prepared` times steady-state reuse of one built
-     * outside the timed region. `setup` times building it and nothing else, and `firstuse` times building it
-     * and the first call against it, which is where a derived orientation is paid for. `amortized` times
-     * building one and using it `reuse` times as one batch, which is what a break-even is read from: the
-     * batch against that many one-shot calls. The five are different logical work and are never compared
-     * with each other, and an amortized row is a batch rather than a per-use cost.
+     * How a sparse matrix call is timed. `oneshot` is the whole call and the only mode; the option stays in the
+     * case identity so recorded rows keep matching their cases.
      */
-    private val MODES = setOf("oneshot", "prepared", "setup", "firstuse", "amortized")
+    private val MODES = setOf("oneshot")
     private val MODE_OPERATIONS = setOf(
         "spgemv", "spmm", "spmm-right", "spgemm", "spsymv", "spsymm", "sptrsv", "sptrmv", "sptrsm", "sptrmm",
         "spmm-generic", "spmm-generic-right", "spgemm-generic",
     )
-    private val PREPARABLE_OPERATIONS = setOf("spgemv", "spmm", "spgemm")
     // The allocating generic product has no transpose flag to carry, so spgemm-generic is not here: a case
     // may only declare an option the call it makes actually applies.
     private val TRANSPOSABLE_SPARSE_OPERATIONS = setOf(
@@ -225,7 +209,4 @@ internal object Cases {
         "spbuild-triplets", "spbuild-duplicates",
     )
     private const val MAX_DIMENSION = 1_000_000
-
-    /** Uses of one snapshot an amortized row batches, bounded so a case cannot ask for an unbounded loop. */
-    private const val MAX_REUSE = 4_096
 }

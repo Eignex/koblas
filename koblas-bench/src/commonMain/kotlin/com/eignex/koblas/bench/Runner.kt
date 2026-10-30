@@ -75,8 +75,8 @@ public fun main(args: Array<String>) {
 /**
  * Keeps timed objects observable so escape analysis cannot eliminate their construction.
  *
- * A snapshot's entry count or one sparse result value does not require retaining its arrays. Storing the
- * object and reading it at the end of the run ensures preparation and result allocation remain measured.
+ * One sparse result value does not require retaining its arrays. Storing the object and reading it at the
+ * end of the run ensures result allocation remains measured.
  */
 internal object Retained {
     private var value: Any? = null
@@ -180,9 +180,9 @@ internal fun measurement(
 ): Measurement = Measurement(
     listOf(
         case.id, status, comparisonKind, timingMode,
-        // Timed rows require the resolved route; declined rows carry the rejection reason.
+        // Timed rows require their attribution; declined rows carry the rejection reason.
         if (status != "ok") kernel ?: "unavailable" else checkNotNull(kernel) {
-            "timed ${case.id} carries no route for the call it made"
+            "timed ${case.id} carries no attribution for the call it made"
         },
     ),
     if (settings.mode.startsWith("jvm")) (sample - 1) / settings.samples + 1 else 1,

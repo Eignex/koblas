@@ -46,9 +46,6 @@ internal const val TRIANGULAR_DIAGONAL_BLOCK: Int = 64
 /**
  * The diagonal blocks and the product window after each, in the order the traversal reaches them.
  *
- * One traversal, walked by the execution below and by the route that describes it, for the reason
- * [forEachProductBlock] is one: a route that walked its own copy would name windows the call never cut.
- *
  * A solve finishes a block and then removes it from every step still to come, so its product target is the
  * rest of the order and its source is the block. A multiply forms a block from the steps it depends on,
  * which have not been touched yet, so its target is the block and its source is the rest. Either way the

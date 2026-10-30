@@ -197,25 +197,8 @@ public final class com/eignex/koblas/Koblas {
 	public static final fun negate (Lcom/eignex/koblas/DenseVector;)Lcom/eignex/koblas/DenseVector;
 	public static final fun norm2 (Lcom/eignex/koblas/Vector;)D
 	public static final fun overlaps (Lcom/eignex/koblas/DenseVector;Lcom/eignex/koblas/DenseVector;)Z
-	public static final fun prepare (Lcom/eignex/koblas/SparseMatrix;)Lcom/eignex/koblas/PreparedSparseMatrix;
 	public static final fun rot (Lcom/eignex/koblas/DenseVector;Lcom/eignex/koblas/DenseVector;DD)V
 	public static final fun rot (Lcom/eignex/koblas/StridedVector;Lcom/eignex/koblas/StridedVector;DD)V
-	public static final fun routeOf (Lcom/eignex/koblas/KoblasEngine;DLcom/eignex/koblas/DenseMatrixRegion;ZDLcom/eignex/koblas/DenseMatrixRegion;Z)Lcom/eignex/koblas/dense/DenseMatrixRoute;
-	public static final fun routeOf (Lcom/eignex/koblas/KoblasEngine;DLcom/eignex/koblas/DenseVector;Lcom/eignex/koblas/DenseMatrixRegion;Z)Lcom/eignex/koblas/dense/DenseMatrixRoute;
-	public static final fun routeOf (Lcom/eignex/koblas/KoblasEngine;DLcom/eignex/koblas/Matrix;ZLcom/eignex/koblas/Matrix;Z)Lcom/eignex/koblas/MatrixRoute;
-	public static final fun routeOf (Lcom/eignex/koblas/KoblasEngine;DLcom/eignex/koblas/Matrix;ZLcom/eignex/koblas/Matrix;ZDLcom/eignex/koblas/DenseMatrixRegion;)Lcom/eignex/koblas/MatrixRoute;
-	public static final fun routeOf (Lcom/eignex/koblas/KoblasEngine;Lcom/eignex/koblas/dense/DenseMatrixOperation;DLcom/eignex/koblas/DenseMatrixRegion;Lcom/eignex/koblas/DenseMatrixRegion;ZZDLcom/eignex/koblas/DenseMatrixRegion;ZZ)Lcom/eignex/koblas/dense/DenseMatrixRoute;
-	public static final fun routeOf (Lcom/eignex/koblas/KoblasEngine;Lcom/eignex/koblas/dense/DenseMatrixOperation;DLcom/eignex/koblas/DenseMatrixRegion;Lcom/eignex/koblas/DenseVector;DLcom/eignex/koblas/DenseVector;Z)Lcom/eignex/koblas/dense/DenseMatrixRoute;
-	public static final fun routeOf (Lcom/eignex/koblas/KoblasEngine;Lcom/eignex/koblas/dense/DenseMatrixOperation;DLcom/eignex/koblas/DenseVector;Lcom/eignex/koblas/DenseVector;Lcom/eignex/koblas/DenseMatrixRegion;Z)Lcom/eignex/koblas/dense/DenseMatrixRoute;
-	public static final fun routeOf (Lcom/eignex/koblas/KoblasEngine;Lcom/eignex/koblas/dense/DenseMatrixOperation;Lcom/eignex/koblas/DenseMatrixRegion;Lcom/eignex/koblas/DenseMatrixRegion;ZZZD)Lcom/eignex/koblas/dense/DenseMatrixRoute;
-	public static final fun routeOf (Lcom/eignex/koblas/KoblasEngine;Lcom/eignex/koblas/dense/DenseMatrixOperation;Lcom/eignex/koblas/DenseMatrixRegion;Lcom/eignex/koblas/DenseVector;Z)Lcom/eignex/koblas/dense/DenseMatrixRoute;
-	public static synthetic fun routeOf$default (Lcom/eignex/koblas/KoblasEngine;DLcom/eignex/koblas/DenseMatrixRegion;ZDLcom/eignex/koblas/DenseMatrixRegion;ZILjava/lang/Object;)Lcom/eignex/koblas/dense/DenseMatrixRoute;
-	public static synthetic fun routeOf$default (Lcom/eignex/koblas/KoblasEngine;DLcom/eignex/koblas/DenseVector;Lcom/eignex/koblas/DenseMatrixRegion;ZILjava/lang/Object;)Lcom/eignex/koblas/dense/DenseMatrixRoute;
-	public static synthetic fun routeOf$default (Lcom/eignex/koblas/KoblasEngine;Lcom/eignex/koblas/dense/DenseMatrixOperation;DLcom/eignex/koblas/DenseMatrixRegion;Lcom/eignex/koblas/DenseMatrixRegion;ZZDLcom/eignex/koblas/DenseMatrixRegion;ZZILjava/lang/Object;)Lcom/eignex/koblas/dense/DenseMatrixRoute;
-	public static synthetic fun routeOf$default (Lcom/eignex/koblas/KoblasEngine;Lcom/eignex/koblas/dense/DenseMatrixOperation;DLcom/eignex/koblas/DenseMatrixRegion;Lcom/eignex/koblas/DenseVector;DLcom/eignex/koblas/DenseVector;ZILjava/lang/Object;)Lcom/eignex/koblas/dense/DenseMatrixRoute;
-	public static synthetic fun routeOf$default (Lcom/eignex/koblas/KoblasEngine;Lcom/eignex/koblas/dense/DenseMatrixOperation;DLcom/eignex/koblas/DenseVector;Lcom/eignex/koblas/DenseVector;Lcom/eignex/koblas/DenseMatrixRegion;ZILjava/lang/Object;)Lcom/eignex/koblas/dense/DenseMatrixRoute;
-	public static synthetic fun routeOf$default (Lcom/eignex/koblas/KoblasEngine;Lcom/eignex/koblas/dense/DenseMatrixOperation;Lcom/eignex/koblas/DenseMatrixRegion;Lcom/eignex/koblas/DenseMatrixRegion;ZZZDILjava/lang/Object;)Lcom/eignex/koblas/dense/DenseMatrixRoute;
-	public static synthetic fun routeOf$default (Lcom/eignex/koblas/KoblasEngine;Lcom/eignex/koblas/dense/DenseMatrixOperation;Lcom/eignex/koblas/DenseMatrixRegion;Lcom/eignex/koblas/DenseVector;ZILjava/lang/Object;)Lcom/eignex/koblas/dense/DenseMatrixRoute;
 	public static final fun row (Lcom/eignex/koblas/DenseMatrix;I)Lcom/eignex/koblas/DenseVector;
 	public static final fun row (Lcom/eignex/koblas/SparseMatrix;I)Lcom/eignex/koblas/SparseVector;
 	public static final fun scale (Lcom/eignex/koblas/DenseVector;D)V
@@ -315,35 +298,21 @@ public final class com/eignex/koblas/KoblasEngine : com/eignex/koblas/dense/Dens
 	public fun gemmt (DLcom/eignex/koblas/DenseMatrixRegion;ZLcom/eignex/koblas/DenseMatrixRegion;ZDLcom/eignex/koblas/DenseMatrixRegion;ZLcom/eignex/koblas/Workspace;)V
 	public fun gemv (DLcom/eignex/koblas/DenseMatrixRegion;Lcom/eignex/koblas/DenseVector;DLcom/eignex/koblas/DenseVector;ZLcom/eignex/koblas/Workspace;)V
 	public fun gemv (DLcom/eignex/koblas/DenseMatrixRegion;[DD[DZLcom/eignex/koblas/Workspace;)V
-	public final fun gemv (DLcom/eignex/koblas/PreparedSparseMatrix;[DD[DZLcom/eignex/koblas/Workspace;)V
 	public fun gemv (DLcom/eignex/koblas/SparseMatrix;[DD[DZLcom/eignex/koblas/Workspace;)V
 	public fun gemv (Lcom/eignex/koblas/DenseMatrixRegion;[DZ)[D
 	public fun gemv (Lcom/eignex/koblas/SparseMatrix;[DZ)[D
-	public static synthetic fun gemv$default (Lcom/eignex/koblas/KoblasEngine;DLcom/eignex/koblas/PreparedSparseMatrix;[DD[DZLcom/eignex/koblas/Workspace;ILjava/lang/Object;)V
 	public fun ger (DLcom/eignex/koblas/DenseVector;Lcom/eignex/koblas/DenseVector;Lcom/eignex/koblas/DenseMatrixRegion;Lcom/eignex/koblas/Workspace;)V
 	public fun ger (D[D[DLcom/eignex/koblas/DenseMatrixRegion;IIIIIILcom/eignex/koblas/Workspace;)V
 	public fun ger (D[D[DLcom/eignex/koblas/DenseMatrixRegion;Lcom/eignex/koblas/Workspace;)V
 	public final fun getName ()Ljava/lang/String;
-	public final fun getSparseImplementation ()Ljava/lang/String;
 	public final fun getSparseKernels ()Lcom/eignex/koblas/sparse/SparseKernels;
 	public final fun getVectorKernels ()Lcom/eignex/koblas/dense/DenseVectorKernels;
 	public final fun getVendor ()Lcom/eignex/koblas/vendor/Blas;
-	public fun prepare (Lcom/eignex/koblas/SparseMatrix;)Lcom/eignex/koblas/PreparedSparseMatrix;
-	public final fun routeOf (Lcom/eignex/koblas/dense/DenseMatrixOperation;Lcom/eignex/koblas/dense/DenseCall;)Lcom/eignex/koblas/dense/DenseMatrixRoute;
-	public final fun routeOf (Lcom/eignex/koblas/dense/DenseOperation;IZ)Lcom/eignex/koblas/VectorRoute;
-	public final fun routeOf (Lcom/eignex/koblas/sparse/SparseMatrixOperation;Lcom/eignex/koblas/PreparedSparseMatrix;Lcom/eignex/koblas/sparse/SparseCall;)Lcom/eignex/koblas/sparse/SparseMatrixRoute;
-	public fun routeOf (Lcom/eignex/koblas/sparse/SparseMatrixOperation;Lcom/eignex/koblas/sparse/SparseCall;)Lcom/eignex/koblas/sparse/SparseMatrixRoute;
-	public final fun routeOf (Lcom/eignex/koblas/sparse/SparseOperation;I)Lcom/eignex/koblas/VectorRoute;
-	public static synthetic fun routeOf$default (Lcom/eignex/koblas/KoblasEngine;Lcom/eignex/koblas/dense/DenseOperation;IZILjava/lang/Object;)Lcom/eignex/koblas/VectorRoute;
 	public fun symm (DLcom/eignex/koblas/DenseMatrixRegion;Lcom/eignex/koblas/DenseMatrixRegion;DLcom/eignex/koblas/DenseMatrixRegion;ZZLcom/eignex/koblas/Workspace;)V
-	public final fun symm (DLcom/eignex/koblas/PreparedSparseMatrix;Lcom/eignex/koblas/DenseMatrixRegion;DLcom/eignex/koblas/DenseMatrixRegion;ZZLcom/eignex/koblas/Workspace;)V
 	public fun symm (DLcom/eignex/koblas/SparseMatrix;Lcom/eignex/koblas/DenseMatrixRegion;DLcom/eignex/koblas/DenseMatrixRegion;ZZLcom/eignex/koblas/Workspace;)V
-	public static synthetic fun symm$default (Lcom/eignex/koblas/KoblasEngine;DLcom/eignex/koblas/PreparedSparseMatrix;Lcom/eignex/koblas/DenseMatrixRegion;DLcom/eignex/koblas/DenseMatrixRegion;ZZLcom/eignex/koblas/Workspace;ILjava/lang/Object;)V
 	public fun symv (DLcom/eignex/koblas/DenseMatrixRegion;Lcom/eignex/koblas/DenseVector;DLcom/eignex/koblas/DenseVector;ZLcom/eignex/koblas/Workspace;)V
 	public fun symv (DLcom/eignex/koblas/DenseMatrixRegion;[DD[DZLcom/eignex/koblas/Workspace;)V
-	public final fun symv (DLcom/eignex/koblas/PreparedSparseMatrix;[DD[DZLcom/eignex/koblas/Workspace;)V
 	public fun symv (DLcom/eignex/koblas/SparseMatrix;[DD[DZLcom/eignex/koblas/Workspace;)V
-	public static synthetic fun symv$default (Lcom/eignex/koblas/KoblasEngine;DLcom/eignex/koblas/PreparedSparseMatrix;[DD[DZLcom/eignex/koblas/Workspace;ILjava/lang/Object;)V
 	public fun syr (DLcom/eignex/koblas/DenseVector;Lcom/eignex/koblas/DenseMatrixRegion;ZLcom/eignex/koblas/Workspace;)V
 	public fun syr2 (DLcom/eignex/koblas/DenseVector;Lcom/eignex/koblas/DenseVector;Lcom/eignex/koblas/DenseMatrixRegion;ZLcom/eignex/koblas/Workspace;)V
 	public fun syr2k (DLcom/eignex/koblas/DenseMatrixRegion;Lcom/eignex/koblas/DenseMatrixRegion;ZDLcom/eignex/koblas/DenseMatrixRegion;ZLcom/eignex/koblas/Workspace;)V
@@ -384,51 +353,12 @@ public abstract interface class com/eignex/koblas/Matrix {
 	public abstract fun toArray ()[[D
 }
 
-public abstract interface class com/eignex/koblas/MatrixRoute {
-	public abstract fun getComponents ()Ljava/util/List;
-	public abstract fun getEntryPoint ()Ljava/lang/String;
-	public fun getExactlyMeasurable ()Z
-	public abstract fun getExecutionGroup ()I
-	public fun getImplementation ()Ljava/lang/String;
-	public abstract fun getKind ()Lcom/eignex/koblas/RouteKind;
-	public abstract fun getScheduling ()Ljava/lang/String;
-}
-
-public final class com/eignex/koblas/MatrixRoute$DefaultImpls {
-	public static fun getExactlyMeasurable (Lcom/eignex/koblas/MatrixRoute;)Z
-	public static fun getImplementation (Lcom/eignex/koblas/MatrixRoute;)Ljava/lang/String;
-}
-
 public abstract interface class com/eignex/koblas/MatrixStorage : com/eignex/koblas/Matrix {
 	public static final field Companion Lcom/eignex/koblas/MatrixStorage$Companion;
 }
 
 public final class com/eignex/koblas/MatrixStorage$Companion {
 	public final fun serializer ()Lkotlinx/serialization/KSerializer;
-}
-
-public final class com/eignex/koblas/PreparedSparseMatrix : com/eignex/koblas/Matrix {
-	public final fun gemvInto (D[DD[D)V
-	public final fun gemvInto (D[DD[DZ)V
-	public final fun gemvInto (D[DD[DZLcom/eignex/koblas/Workspace;)V
-	public static synthetic fun gemvInto$default (Lcom/eignex/koblas/PreparedSparseMatrix;D[DD[DZLcom/eignex/koblas/Workspace;ILjava/lang/Object;)V
-	public fun get (II)D
-	public fun getCols ()I
-	public final fun getNnz ()I
-	public final fun getOrientationDerived ()Z
-	public fun getRows ()I
-	public final fun routeOf (Lcom/eignex/koblas/sparse/SparseMatrixOperation;Lcom/eignex/koblas/sparse/SparseCall;)Lcom/eignex/koblas/sparse/SparseMatrixRoute;
-	public final fun symmInto (DLcom/eignex/koblas/DenseMatrixRegion;DLcom/eignex/koblas/DenseMatrixRegion;)V
-	public final fun symmInto (DLcom/eignex/koblas/DenseMatrixRegion;DLcom/eignex/koblas/DenseMatrixRegion;Z)V
-	public final fun symmInto (DLcom/eignex/koblas/DenseMatrixRegion;DLcom/eignex/koblas/DenseMatrixRegion;ZZ)V
-	public final fun symmInto (DLcom/eignex/koblas/DenseMatrixRegion;DLcom/eignex/koblas/DenseMatrixRegion;ZZLcom/eignex/koblas/Workspace;)V
-	public static synthetic fun symmInto$default (Lcom/eignex/koblas/PreparedSparseMatrix;DLcom/eignex/koblas/DenseMatrixRegion;DLcom/eignex/koblas/DenseMatrixRegion;ZZLcom/eignex/koblas/Workspace;ILjava/lang/Object;)V
-	public final fun symvInto (D[DD[D)V
-	public final fun symvInto (D[DD[DZ)V
-	public final fun symvInto (D[DD[DZLcom/eignex/koblas/Workspace;)V
-	public static synthetic fun symvInto$default (Lcom/eignex/koblas/PreparedSparseMatrix;D[DD[DZLcom/eignex/koblas/Workspace;ILjava/lang/Object;)V
-	public fun toArray ()[[D
-	public fun toString ()Ljava/lang/String;
 }
 
 public final class com/eignex/koblas/RouteKind : java/lang/Enum {
@@ -537,17 +467,6 @@ public abstract interface class com/eignex/koblas/Vector {
 	public abstract fun toDoubleArray ()[D
 }
 
-public final class com/eignex/koblas/VectorRoute {
-	public final fun getAdapter ()Ljava/lang/String;
-	public final fun getEntryPoint ()Ljava/lang/String;
-	public final fun getExactlyMeasurable ()Z
-	public final fun getImplementation ()Ljava/lang/String;
-	public final fun getKind ()Lcom/eignex/koblas/RouteKind;
-	public final fun getOperation ()Ljava/lang/Enum;
-	public final fun getReason ()Ljava/lang/String;
-	public fun toString ()Ljava/lang/String;
-}
-
 public abstract interface class com/eignex/koblas/VectorStorage : com/eignex/koblas/Vector {
 	public static final field Companion Lcom/eignex/koblas/VectorStorage$Companion;
 }
@@ -647,78 +566,6 @@ public final class com/eignex/koblas/dense/DenseBlas$DefaultImpls {
 	public static synthetic fun trsv$default (Lcom/eignex/koblas/dense/DenseBlas;Lcom/eignex/koblas/DenseMatrixRegion;[DZZZLcom/eignex/koblas/Workspace;ILjava/lang/Object;)V
 }
 
-public final class com/eignex/koblas/dense/DenseCall {
-	public fun <init> (IIDDZLjava/lang/Integer;ZZZZZZLjava/lang/Integer;Ljava/lang/Integer;Ljava/lang/Integer;)V
-	public synthetic fun <init> (IIDDZLjava/lang/Integer;ZZZZZZLjava/lang/Integer;Ljava/lang/Integer;Ljava/lang/Integer;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
-	public final fun getAliased ()Z
-	public final fun getAlpha ()D
-	public final fun getBeta ()D
-	public final fun getBorrowed ()Z
-	public final fun getColumns ()I
-	public final fun getContiguous ()Z
-	public final fun getDepth ()Ljava/lang/Integer;
-	public final fun getLeadingDimension ()Ljava/lang/Integer;
-	public final fun getLeftLeadingDimension ()Ljava/lang/Integer;
-	public final fun getLower ()Z
-	public final fun getRight ()Z
-	public final fun getRightLeadingDimension ()Ljava/lang/Integer;
-	public final fun getRows ()I
-	public final fun getTransposeA ()Z
-	public final fun getTransposeB ()Z
-}
-
-public final class com/eignex/koblas/dense/DenseMatrixOperation : java/lang/Enum {
-	public static final field Gemm Lcom/eignex/koblas/dense/DenseMatrixOperation;
-	public static final field Gemmt Lcom/eignex/koblas/dense/DenseMatrixOperation;
-	public static final field Gemv Lcom/eignex/koblas/dense/DenseMatrixOperation;
-	public static final field GemvTransposed Lcom/eignex/koblas/dense/DenseMatrixOperation;
-	public static final field Ger Lcom/eignex/koblas/dense/DenseMatrixOperation;
-	public static final field GerWindow Lcom/eignex/koblas/dense/DenseMatrixOperation;
-	public static final field Symm Lcom/eignex/koblas/dense/DenseMatrixOperation;
-	public static final field Symv Lcom/eignex/koblas/dense/DenseMatrixOperation;
-	public static final field Syr Lcom/eignex/koblas/dense/DenseMatrixOperation;
-	public static final field Syr2 Lcom/eignex/koblas/dense/DenseMatrixOperation;
-	public static final field Syr2k Lcom/eignex/koblas/dense/DenseMatrixOperation;
-	public static final field Syrk Lcom/eignex/koblas/dense/DenseMatrixOperation;
-	public static final field Trmm Lcom/eignex/koblas/dense/DenseMatrixOperation;
-	public static final field Trmv Lcom/eignex/koblas/dense/DenseMatrixOperation;
-	public static final field TrmvTransposed Lcom/eignex/koblas/dense/DenseMatrixOperation;
-	public static final field Trsm Lcom/eignex/koblas/dense/DenseMatrixOperation;
-	public static final field Trsv Lcom/eignex/koblas/dense/DenseMatrixOperation;
-	public static final field TrsvTransposed Lcom/eignex/koblas/dense/DenseMatrixOperation;
-	public static fun getEntries ()Lkotlin/enums/EnumEntries;
-	public static fun valueOf (Ljava/lang/String;)Lcom/eignex/koblas/dense/DenseMatrixOperation;
-	public static fun values ()[Lcom/eignex/koblas/dense/DenseMatrixOperation;
-}
-
-public final class com/eignex/koblas/dense/DenseMatrixRoute : com/eignex/koblas/MatrixRoute {
-	public fun getComponents ()Ljava/util/List;
-	public fun getEntryPoint ()Ljava/lang/String;
-	public fun getExactlyMeasurable ()Z
-	public fun getExecutionGroup ()I
-	public final fun getHost ()Lcom/eignex/koblas/vendor/CallRoute;
-	public fun getImplementation ()Ljava/lang/String;
-	public fun getKind ()Lcom/eignex/koblas/RouteKind;
-	public final fun getOperation ()Lcom/eignex/koblas/dense/DenseMatrixOperation;
-	public fun getScheduling ()Ljava/lang/String;
-	public fun toString ()Ljava/lang/String;
-}
-
-public final class com/eignex/koblas/dense/DenseOperation : java/lang/Enum {
-	public static final field Asum Lcom/eignex/koblas/dense/DenseOperation;
-	public static final field Axpy Lcom/eignex/koblas/dense/DenseOperation;
-	public static final field Dot Lcom/eignex/koblas/dense/DenseOperation;
-	public static final field Iamax Lcom/eignex/koblas/dense/DenseOperation;
-	public static final field Nrm2 Lcom/eignex/koblas/dense/DenseOperation;
-	public static final field Rot Lcom/eignex/koblas/dense/DenseOperation;
-	public static final field Scale Lcom/eignex/koblas/dense/DenseOperation;
-	public static final field Sum Lcom/eignex/koblas/dense/DenseOperation;
-	public static final field Swap Lcom/eignex/koblas/dense/DenseOperation;
-	public static fun getEntries ()Lkotlin/enums/EnumEntries;
-	public static fun valueOf (Ljava/lang/String;)Lcom/eignex/koblas/dense/DenseOperation;
-	public static fun values ()[Lcom/eignex/koblas/dense/DenseOperation;
-}
-
 public abstract interface class com/eignex/koblas/dense/DenseVectorKernels {
 	public abstract fun asum ([DIII)D
 	public static synthetic fun asum$default (Lcom/eignex/koblas/dense/DenseVectorKernels;[DIIIILjava/lang/Object;)D
@@ -729,8 +576,6 @@ public abstract interface class com/eignex/koblas/dense/DenseVectorKernels {
 	public abstract fun getName ()Ljava/lang/String;
 	public abstract fun iamax ([DIII)I
 	public static synthetic fun iamax$default (Lcom/eignex/koblas/dense/DenseVectorKernels;[DIIIILjava/lang/Object;)I
-	public fun implementationFor (Lcom/eignex/koblas/dense/DenseOperation;IZ)Ljava/lang/String;
-	public static synthetic fun implementationFor$default (Lcom/eignex/koblas/dense/DenseVectorKernels;Lcom/eignex/koblas/dense/DenseOperation;IZILjava/lang/Object;)Ljava/lang/String;
 	public abstract fun nrm2 ([DIII)D
 	public static synthetic fun nrm2$default (Lcom/eignex/koblas/dense/DenseVectorKernels;[DIIIILjava/lang/Object;)D
 	public abstract fun rot ([DI[DIIDD)V
@@ -747,8 +592,6 @@ public final class com/eignex/koblas/dense/DenseVectorKernels$DefaultImpls {
 	public static synthetic fun axpy$default (Lcom/eignex/koblas/dense/DenseVectorKernels;[DID[DIIIIILjava/lang/Object;)V
 	public static synthetic fun dot$default (Lcom/eignex/koblas/dense/DenseVectorKernels;[DI[DIIIIILjava/lang/Object;)D
 	public static synthetic fun iamax$default (Lcom/eignex/koblas/dense/DenseVectorKernels;[DIIIILjava/lang/Object;)I
-	public static fun implementationFor (Lcom/eignex/koblas/dense/DenseVectorKernels;Lcom/eignex/koblas/dense/DenseOperation;IZ)Ljava/lang/String;
-	public static synthetic fun implementationFor$default (Lcom/eignex/koblas/dense/DenseVectorKernels;Lcom/eignex/koblas/dense/DenseOperation;IZILjava/lang/Object;)Ljava/lang/String;
 	public static synthetic fun nrm2$default (Lcom/eignex/koblas/dense/DenseVectorKernels;[DIIIILjava/lang/Object;)D
 	public static synthetic fun scale$default (Lcom/eignex/koblas/dense/DenseVectorKernels;[DIDIIILjava/lang/Object;)V
 	public static synthetic fun sum$default (Lcom/eignex/koblas/dense/DenseVectorKernels;[DIIIILjava/lang/Object;)D
@@ -781,8 +624,6 @@ public abstract interface class com/eignex/koblas/sparse/SparseBlas {
 	public fun gemv (Lcom/eignex/koblas/SparseMatrix;[DZ)[D
 	public static synthetic fun gemv$default (Lcom/eignex/koblas/sparse/SparseBlas;DLcom/eignex/koblas/SparseMatrix;[DD[DZLcom/eignex/koblas/Workspace;ILjava/lang/Object;)V
 	public static synthetic fun gemv$default (Lcom/eignex/koblas/sparse/SparseBlas;Lcom/eignex/koblas/SparseMatrix;[DZILjava/lang/Object;)[D
-	public abstract fun prepare (Lcom/eignex/koblas/SparseMatrix;)Lcom/eignex/koblas/PreparedSparseMatrix;
-	public abstract fun routeOf (Lcom/eignex/koblas/sparse/SparseMatrixOperation;Lcom/eignex/koblas/sparse/SparseCall;)Lcom/eignex/koblas/sparse/SparseMatrixRoute;
 	public abstract fun symm (DLcom/eignex/koblas/SparseMatrix;Lcom/eignex/koblas/DenseMatrixRegion;DLcom/eignex/koblas/DenseMatrixRegion;ZZLcom/eignex/koblas/Workspace;)V
 	public static synthetic fun symm$default (Lcom/eignex/koblas/sparse/SparseBlas;DLcom/eignex/koblas/SparseMatrix;Lcom/eignex/koblas/DenseMatrixRegion;DLcom/eignex/koblas/DenseMatrixRegion;ZZLcom/eignex/koblas/Workspace;ILjava/lang/Object;)V
 	public abstract fun symv (DLcom/eignex/koblas/SparseMatrix;[DD[DZLcom/eignex/koblas/Workspace;)V
@@ -820,22 +661,6 @@ public final class com/eignex/koblas/sparse/SparseBlas$DefaultImpls {
 	public static synthetic fun trsv$default (Lcom/eignex/koblas/sparse/SparseBlas;Lcom/eignex/koblas/SparseMatrix;[DZZZLcom/eignex/koblas/Workspace;ILjava/lang/Object;)V
 }
 
-public final class com/eignex/koblas/sparse/SparseCall {
-	public fun <init> (Lcom/eignex/koblas/SparseMatrix;DDLjava/lang/Integer;Ljava/lang/Integer;IIZZZLjava/lang/Integer;)V
-	public synthetic fun <init> (Lcom/eignex/koblas/SparseMatrix;DDLjava/lang/Integer;Ljava/lang/Integer;IIZZZLjava/lang/Integer;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
-	public final fun getAlpha ()D
-	public final fun getBeta ()D
-	public final fun getDepth ()Ljava/lang/Integer;
-	public final fun getDestinationElements ()Ljava/lang/Integer;
-	public final fun getDestinationRun ()Ljava/lang/Integer;
-	public final fun getLower ()Z
-	public final fun getMatrix ()Lcom/eignex/koblas/SparseMatrix;
-	public final fun getRightHandSides ()I
-	public final fun getTransposeDense ()Z
-	public final fun getTransposeSparse ()Z
-	public final fun getUpdateRun ()I
-}
-
 public abstract interface class com/eignex/koblas/sparse/SparseKernels {
 	public abstract fun asum (Lcom/eignex/koblas/SparseVector;)D
 	public abstract fun axpy ([DDLcom/eignex/koblas/SparseVector;)V
@@ -849,69 +674,12 @@ public abstract interface class com/eignex/koblas/sparse/SparseKernels {
 	public abstract fun getName ()Ljava/lang/String;
 	public abstract fun nrm2 (Lcom/eignex/koblas/SparseVector;)D
 	public abstract fun nrm2 ([III[D)D
-	public abstract fun routeOf (Lcom/eignex/koblas/sparse/SparseOperation;I)Lcom/eignex/koblas/VectorRoute;
 	public abstract fun scatter (Lcom/eignex/koblas/SparseVector;[D)V
 	public abstract fun scatter ([II[DII[D)V
 }
 
 public final class com/eignex/koblas/sparse/SparseKernels$DefaultImpls {
 	public static fun dotColumn (Lcom/eignex/koblas/sparse/SparseKernels;Lcom/eignex/koblas/SparseMatrix;I[D)D
-}
-
-public final class com/eignex/koblas/sparse/SparseMatrixOperation : java/lang/Enum {
-	public static final field AddScaled Lcom/eignex/koblas/sparse/SparseMatrixOperation;
-	public static final field GemmDense Lcom/eignex/koblas/sparse/SparseMatrixOperation;
-	public static final field GemmDenseRight Lcom/eignex/koblas/sparse/SparseMatrixOperation;
-	public static final field GemmSparse Lcom/eignex/koblas/sparse/SparseMatrixOperation;
-	public static final field GemmSparseDense Lcom/eignex/koblas/sparse/SparseMatrixOperation;
-	public static final field Gemv Lcom/eignex/koblas/sparse/SparseMatrixOperation;
-	public static final field GemvTransposed Lcom/eignex/koblas/sparse/SparseMatrixOperation;
-	public static final field Prepare Lcom/eignex/koblas/sparse/SparseMatrixOperation;
-	public static final field SymmLeft Lcom/eignex/koblas/sparse/SparseMatrixOperation;
-	public static final field SymmRight Lcom/eignex/koblas/sparse/SparseMatrixOperation;
-	public static final field Symv Lcom/eignex/koblas/sparse/SparseMatrixOperation;
-	public static final field SyrkDense Lcom/eignex/koblas/sparse/SparseMatrixOperation;
-	public static final field SyrkSparse Lcom/eignex/koblas/sparse/SparseMatrixOperation;
-	public static final field Transpose Lcom/eignex/koblas/sparse/SparseMatrixOperation;
-	public static final field TrmmLeft Lcom/eignex/koblas/sparse/SparseMatrixOperation;
-	public static final field TrmmRight Lcom/eignex/koblas/sparse/SparseMatrixOperation;
-	public static final field Trmv Lcom/eignex/koblas/sparse/SparseMatrixOperation;
-	public static final field TrsmLeft Lcom/eignex/koblas/sparse/SparseMatrixOperation;
-	public static final field TrsmRight Lcom/eignex/koblas/sparse/SparseMatrixOperation;
-	public static final field Trsv Lcom/eignex/koblas/sparse/SparseMatrixOperation;
-	public static fun getEntries ()Lkotlin/enums/EnumEntries;
-	public static fun valueOf (Ljava/lang/String;)Lcom/eignex/koblas/sparse/SparseMatrixOperation;
-	public static fun values ()[Lcom/eignex/koblas/sparse/SparseMatrixOperation;
-}
-
-public final class com/eignex/koblas/sparse/SparseMatrixRoute : com/eignex/koblas/MatrixRoute {
-	public fun getComponents ()Ljava/util/List;
-	public fun getEntryPoint ()Ljava/lang/String;
-	public fun getExactlyMeasurable ()Z
-	public fun getExecutionGroup ()I
-	public final fun getExecutionTail ()I
-	public final fun getGroupSuffix ()Ljava/lang/String;
-	public fun getImplementation ()Ljava/lang/String;
-	public fun getKind ()Lcom/eignex/koblas/RouteKind;
-	public final fun getOperation ()Lcom/eignex/koblas/sparse/SparseMatrixOperation;
-	public final fun getResolved ()Z
-	public fun getScheduling ()Ljava/lang/String;
-	public fun toString ()Ljava/lang/String;
-}
-
-public final class com/eignex/koblas/sparse/SparseOperation : java/lang/Enum {
-	public static final field Asum Lcom/eignex/koblas/sparse/SparseOperation;
-	public static final field Axpy Lcom/eignex/koblas/sparse/SparseOperation;
-	public static final field DotDense Lcom/eignex/koblas/sparse/SparseOperation;
-	public static final field DotSparse Lcom/eignex/koblas/sparse/SparseOperation;
-	public static final field Gather Lcom/eignex/koblas/sparse/SparseOperation;
-	public static final field GatherZero Lcom/eignex/koblas/sparse/SparseOperation;
-	public static final field IndexedNrm2 Lcom/eignex/koblas/sparse/SparseOperation;
-	public static final field Nrm2 Lcom/eignex/koblas/sparse/SparseOperation;
-	public static final field Scatter Lcom/eignex/koblas/sparse/SparseOperation;
-	public static fun getEntries ()Lkotlin/enums/EnumEntries;
-	public static fun valueOf (Ljava/lang/String;)Lcom/eignex/koblas/sparse/SparseOperation;
-	public static fun values ()[Lcom/eignex/koblas/sparse/SparseOperation;
 }
 
 public final class com/eignex/koblas/sparse/SparsePrimitives {

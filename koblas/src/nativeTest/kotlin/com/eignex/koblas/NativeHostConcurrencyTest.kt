@@ -7,38 +7,32 @@
 
 package com.eignex.koblas
 
-import com.eignex.koblas.dense.DenseCall
 import com.eignex.koblas.dense.DenseMatrixOperation
 import com.eignex.koblas.dense.ReferenceBlas
+import com.eignex.koblas.internal.host.NativeBlasPolicy
 import kotlin.native.concurrent.TransferMode
 import kotlin.native.concurrent.Worker
 import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
-import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /**
  * Checks single-threaded host computation with concurrent callers. Workers share read-only
  * operands and own their destinations and workspaces.
  *
- * Each worker's exact call route is checked so portable fallback cannot imply host coverage.
+ * The shapes are checked against the host policy so portable fallback cannot imply host coverage.
  * Unit product multipliers satisfy the host policy; distinct destination multipliers identify workers.
  */
 class NativeHostConcurrencyTest {
     private class Task(val a: DenseMatrix, val b: DenseMatrix, val beta: Double)
 
-    /** Whether the call this test makes is the one the default hands to a library, asserted not assumed. */
-    private fun assertRouteMatchesInstalledLibrary(call: DenseCall, what: String) {
-        val route = koblas.routeOf(DenseMatrixOperation.Gemm, call)
-        val vendor = koblas.vendor
-        if (vendor == null) {
+    /** Whether a product of these extents is one the default hands to a library, asserted not assumed. */
+    private fun assertHostEligible(rows: Int, columns: Int, depth: Int, what: String) {
+        if (koblas.vendor == null) {
             println("SKIPPED: no CBLAS library installed; $what exercised the portable schedule instead")
-            assertEquals(null, route.host, "$what named a vendor call with no library installed")
-            return
         }
-        assertEquals(vendor.vendor, route.host?.vendor, "$what did not reach the installed library")
-        assertEquals("cblas_dgemm", route.host?.entryPoint, "$what reached a different entry point")
+        assertTrue(NativeBlasPolicy.eligible(DenseMatrixOperation.Gemm, rows, columns, depth), "$what stays portable")
     }
 
     /** Eight workers, one shared pair of operands, and a destination and a workspace each. */
@@ -48,13 +42,7 @@ class NativeHostConcurrencyTest {
         val a = randomMatrix(ORDER, DEPTH, rng)
         val b = randomMatrix(DEPTH, ORDER, rng)
         val untouched = a.values.copyOf() to b.values.copyOf()
-        // One assertion per worker, so no worker is represented by another's route.
-        for (index in 0 until WORKERS) {
-            assertRouteMatchesInstalledLibrary(
-                DenseCall(ORDER, ORDER, alpha = 1.0, beta = betaFor(index), depth = DEPTH),
-                "the concurrent product of worker $index",
-            )
-        }
+        assertHostEligible(ORDER, ORDER, DEPTH, "the concurrent product")
 
         val futures = (0 until WORKERS).map { index ->
             val worker = Worker.start()
@@ -95,10 +83,7 @@ class NativeHostConcurrencyTest {
         val square = wellConditioned(ORDER, rng)
         val expected = DenseMatrix.zero(ORDER, ORDER)
         ReferenceBlas.gemm(1.0, square, false, square, false, 0.0, expected)
-        assertRouteMatchesInstalledLibrary(
-            DenseCall(ORDER, ORDER, alpha = 1.0, depth = ORDER, aliased = true),
-            "the concurrent staged product",
-        )
+        assertHostEligible(ORDER, ORDER, ORDER, "the concurrent staged product")
 
         val futures = (0 until WORKERS).map {
             val worker = Worker.start()

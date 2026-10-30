@@ -55,19 +55,10 @@ internal class SparsePanelKernels(
      *
      * The backend's own answer rather than a comparison between two of its labels. A portable backend reads
      * one entry at a time either way and says no, so it never pays for a copy; a vector one says yes where
-     * it has a whole lane block of them, and [panelLeaf] then names the body the copy was made for.
+     * it has a whole lane block of them.
      */
     fun prefersAdjacentSides(width: Int, entries: Int, reduction: Boolean = false): Boolean =
         densePanels.prefersContiguous(panelWork(reduction), width, entries)
-
-    /**
-     * The panel body a group of [width] right-hand sides reaches, adjacent or a leading dimension apart.
-     *
-     * Asked by the route so that a report names the body that ran, with [entries] the stored entries of the
-     * run that panel is actually handed rather than the whole column it was cut from.
-     */
-    fun panelLeaf(width: Int, entries: Int, contiguous: Boolean, reduction: Boolean = false): String =
-        densePanels.implementationFor(panelWork(reduction), width, entries, contiguous)
 
     /**
      * Which of the two sparse panel shapes a caller is asking about.
@@ -251,7 +242,6 @@ internal class SparsePanelKernels(
      *
      * Products visit the same entries in traversal order. Grouped panels may reassociate reductions,
      * so agreement follows the allowed numerical tolerance rather than requiring identical bits.
-     * Routes name the traversal because no panel body runs.
      */
     @Suppress("LongParameterList") // the column slice, the dense window, and the single output
     fun gatherProductColumn(
@@ -666,9 +656,8 @@ internal class SparsePanelKernels(
  * Where the selected part of a CSC column starts, with the diagonal counted as selected.
  *
  * A column's rows ascend, so what a triangle selects from it is a prefix or a suffix rather than a scattered
- * subset. That is what lets a selected half be handed to a panel leaf as one run, and it is why these four
- * are functions rather than a condition inside a loop: the execution and the route have to agree about
- * which entries a panel is actually given, and they agree by asking the same question here.
+ * subset. That is what lets a selected half be handed to a panel leaf as one run, and these four functions
+ * are what decide which entries a panel is actually given.
  */
 internal fun selectedRunStart(rowIndices: IntArray, from: Int, to: Int, column: Int, lower: Boolean): Int =
     if (lower) lowerBound(rowIndices, from, to, column) else from

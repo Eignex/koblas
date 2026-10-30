@@ -10,8 +10,6 @@ package com.eignex.koblas.internal.dense
 
 import com.eignex.koblas.*
 import com.eignex.koblas.dense.*
-import com.eignex.koblas.internal.diagnostics.DenseRouteReporter
-import com.eignex.koblas.internal.host.RoutedDenseBlas
 import com.eignex.koblas.internal.operands.regionVectorOverlap
 import com.eignex.koblas.internal.operands.sameRegion
 import com.eignex.koblas.internal.operands.scaleRegion
@@ -29,14 +27,14 @@ import com.eignex.koblas.vendor.*
  *
  * Structured Level 3 calls share product scheduling: selected triangles skip or merge blocks, symmetric
  * operands expose diagonal blocks and stored strips, and triangular routines interleave substitutions
- * with product windows. [routeOf] reports the windows and backend bodies a call actually reaches.
+ * with product windows.
  */
 internal class PortableDenseBlas(
     private val vectors: DenseVectorKernels,
     private val panels: DensePanelKernels,
     private val products: DenseProductKernels = PortableProductKernels,
     private val triangles: DenseTriangularKernels = PortableTriangularKernels,
-) : RoutedDenseBlas {
+) : DenseBlas {
 
     override fun gemv(
         alpha: Double,
@@ -161,8 +159,7 @@ internal class PortableDenseBlas(
     /**
      * The product itself, over operands already staged against an overlap with the destination.
      *
-     * Which of the two routes runs is the extents' answer rather than the engine's, and [routeOf] asks the
-     * same question of the same numbers.
+     * Which of the two paths runs is the extents' answer rather than the engine's.
      */
     private fun gemmCore(
         alpha: Double,
@@ -346,7 +343,6 @@ internal class PortableDenseBlas(
         stagedRegion(workspace, a, c, lower = if (sameRegion(a, b)) null else lower) { sa ->
             stagedRegion(workspace, b, c, stable = sa, original = a) { sb ->
                 // Scale once because multiple symmetric windows accumulate into each destination entry.
-                // Using the Level 1 kernel keeps its leaf visible in the route.
                 scaleRegion(c, beta, vectors = vectors)
                 symmetricProduct(
                     products, panels, alpha, sa.values, a.rows, lower, sb.values, sb.leadingDimension, c.values,
@@ -841,56 +837,8 @@ internal class PortableDenseBlas(
             )
         }
     }
-
-    /**
-     * What a call of [operation] with the facts in [call] executes.
-     *
-     * Asked of the same backends this engine computes with, so a route is a description of what would run
-     * rather than of what an engine of this shape might run.
-     */
-    override fun routeOf(operation: DenseMatrixOperation, call: DenseCall): DenseMatrixRoute =
-        DenseRouteReporter(vectors, panels, products, triangles).routeOf(operation, call)
 }
 
 /** The part of a square destination a selected-triangle routine writes. */
 internal fun selectedTriangle(lower: Boolean): OutputTriangle =
     if (lower) OutputTriangle.Lower else OutputTriangle.Upper
-
-/** The component name every built-in dense Level 2 and 3 call reports, whatever panels it calls. */
-internal const val DENSE_SCHEDULING: String = "portable-dense"
-
-/** The component name the copy into packed tile groups reports. The packers are portable on every engine. */
-internal const val PRODUCT_PACKING: String = "portable-pack"
-
-/**
- * The component name the selected-triangle writeback reports.
- *
- * Its own name because it is arithmetic the tile did not do: a block straddling the diagonal accumulates
- * whole tiles and then keeps part of each, and a route that named only the tile would claim the whole of it
- * reached the destination.
- */
-internal const val TRIANGLE_SELECTION: String = "portable-select"
-
-/** The component name the copy of one diagonal block of a symmetric operand into a full square reports. */
-internal const val SYMMETRIC_EXPANSION: String = "portable-mirror"
-
-/** The component name the copy of a block of right-hand sides into adjacent storage reports. */
-internal const val TRIANGULAR_GATHER: String = "portable-gather"
-
-/** The entry points whose route is a product block schedule rather than a Level 2 panel one. */
-internal val PRODUCT_OPERATIONS: Set<DenseMatrixOperation> = setOf(
-    DenseMatrixOperation.Gemm,
-)
-
-/** The entry points whose route is a product into one triangle of a square destination. */
-internal val TRIANGLE_PRODUCT_OPERATIONS: Set<DenseMatrixOperation> = setOf(
-    DenseMatrixOperation.Gemmt,
-    DenseMatrixOperation.Syrk,
-    DenseMatrixOperation.Syr2k,
-)
-
-/** The entry points whose route is a triangular block schedule rather than a product or a panel one. */
-internal val TRIANGULAR_MATRIX_OPERATIONS: Set<DenseMatrixOperation> = setOf(
-    DenseMatrixOperation.Trmm,
-    DenseMatrixOperation.Trsm,
-)

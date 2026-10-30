@@ -6,7 +6,7 @@ import com.eignex.koblas.sparse.*
 import com.eignex.koblas.vendor.*
 
 /**
- * Routes and execution resolve the same callable leaf without allocating a per-call plan.
+ * Execution and [implementationFor] resolve the same callable leaf without allocating a per-call plan.
  *
  * Arithmetic forwarding is final so a backend adds policy by selecting leaves, rather than maintaining a
  * second set of branches or inheriting arithmetic through Kotlin interface delegation.

@@ -3,7 +3,6 @@ package com.eignex.koblas.bench
 import com.eignex.koblas.BuiltinEngines
 import com.eignex.koblas.koblas
 import kotlin.test.Test
-import kotlin.test.assertContains
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 
@@ -19,9 +18,9 @@ class SparseColumnDotTest {
 
                 assertEquals(raw.run(), column.run())
                 assertEquals("arithmetic", column.timingMode)
-                assertEquals("composed", column.comparisonKind)
-                assertContains(assertNotNull(column.kernel), "portable-column-validation+")
-                assertContains(assertNotNull(raw.kernel), "portable-index-validation+")
+                assertEquals(ENGINE_COMPARISON, column.comparisonKind)
+                assertEquals("${engine.name}/spdot-column", column.kernel)
+                assertEquals("${engine.name}/spdot-column-raw", raw.kernel)
             }
         }
     }

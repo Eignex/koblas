@@ -4,7 +4,6 @@ import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.Matrix
 import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.StridedVector
-import com.eignex.koblas.routeOf
 import com.eignex.koblas.KoblasEngine
 import com.eignex.koblas.Workspace
 import com.eignex.koblas.koblas
@@ -49,18 +48,16 @@ object ConsumerCheck {
             engine.gemv(1.0, matrix, storage, 0.0, storage, workspace = workspace)
             assertAgreesWithReference(expected, storage)
             val source = SparseMatrix.ofTriplets(2, 2, intArrayOf(0, 1), intArrayOf(0, 1), doubleArrayOf(2.0, 3.0))
-            val snapshot = portable.prepare(source)
+            val sparse: Matrix = source
             val identity: Matrix = DenseMatrix.diagonal(2)
             val parent = DenseMatrix.wrap(6, 6, DoubleArray(36) { -99.0 })
             val destination = parent.view(2, 3, 2, 2)
             val expectedProduct = referenceProduct(DenseMatrix.ofRows(source.toArray()), identity as DenseMatrix)
-            source.values[0] = 77.0
-            engine.gemm(1.0, snapshot, false, identity, false, 0.0, destination, workspace)
+            engine.gemm(1.0, sparse, false, identity, false, 0.0, destination, workspace)
             for (j in 0 until 6) for (i in 0 until 6) {
                 val expectedEntry = if (i in 2..3 && j in 3..4) expectedProduct[i - 2, j - 3] else -99.0
                 assertAgreesWithReference(doubleArrayOf(expectedEntry), doubleArrayOf(parent[i, j]))
             }
-            check(engine.routeOf(1.0, snapshot, false, identity, false, 0.0, destination).scheduling == "portable-csc")
             val reversed = StridedVector(doubleArrayOf(3.0, 0.0, 2.0), 2, 2, -2)
             val output = DoubleArray(5) { -99.0 }
             val outputView = StridedVector(output, 3, 2, -2)

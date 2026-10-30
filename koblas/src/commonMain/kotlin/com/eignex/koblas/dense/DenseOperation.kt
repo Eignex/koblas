@@ -1,14 +1,7 @@
 package com.eignex.koblas.dense
 
-/**
- * The dense Level 1 operations, named so a caller can ask where one of them executes.
- *
- * Level 1 only. A built-in Level 2 or 3 call is named by [DenseMatrixOperation], which asks a different
- * question: not which kernel serves one run of a vector, but what a whole matrix call executes. An explicit
- * host binding's operations are named by [com.eignex.koblas.vendor.BlasOperation], alongside the CBLAS
- * symbols they resolve to.
- */
-public enum class DenseOperation {
+/** The dense Level 1 operations, which name a length crossover and the body a length reaches. */
+internal enum class DenseOperation {
     /** dot execution. */
     Dot,
 

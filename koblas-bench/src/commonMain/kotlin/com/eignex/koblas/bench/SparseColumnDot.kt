@@ -3,9 +3,8 @@ package com.eignex.koblas.bench
 import com.eignex.koblas.BuiltinEngines
 import com.eignex.koblas.KoblasEngine
 import com.eignex.koblas.SparseMatrix
-import com.eignex.koblas.sparse.SparseOperation
 
-/** Matched CSC column windows, including public validation and the leaf the selected engine reaches. */
+/** Matched CSC column windows, including public validation, through the selected engine. */
 internal fun sparseColumnDotArm(case: BenchCase, engine: KoblasEngine): ArmChoice {
     val rows = case.dimension(0)
     val column = Fixtures.sparseVector(rows, case.option("density", "0.01").toDouble(), 1)
@@ -23,9 +22,5 @@ internal fun sparseColumnDotArm(case: BenchCase, engine: KoblasEngine): ArmChoic
     }
     val expected = BuiltinEngines.scalar.sparseKernels.dot(indices, 3, values, 3, count, dense)
     DenseReference.check(doubleArrayOf(expected), doubleArrayOf(run()), case.id)
-    val route = engine.routeOf(SparseOperation.DotDense, count)
-    val validation = if (raw) "portable-index-validation" else "portable-column-validation"
-    return ArmChoice(CaseWork(
-        "composed", "arithmetic", run, kernel = "$validation+${vectorKernel(route)}",
-    ), null)
+    return ArmChoice(engineWork(engine, case.operation, "arithmetic", run), null)
 }

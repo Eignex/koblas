@@ -4,98 +4,29 @@
 
 package com.eignex.koblas
 
-import com.eignex.koblas.RouteKind
-import com.eignex.koblas.dense.DenseCall
-import com.eignex.koblas.dense.DenseMatrixOperation
 import com.eignex.koblas.dense.DenseOperation
 import com.eignex.koblas.dense.ReferenceBlas
-import com.eignex.koblas.internal.diagnostics.SPARSE_SCHEDULING
-import com.eignex.koblas.internal.host.HOST_SCHEDULING
+import com.eignex.koblas.internal.dense.implementationFor
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertFalse
-import kotlin.test.assertNotEquals
-import kotlin.test.assertTrue
 
-/**
- * Checks Native default host composition through routes, since the portable schedule computes
- * the same answers. Missing libraries are reported explicitly.
- */
+/** Checks the Native default engine. Missing libraries are reported explicitly. */
 class NativeDefaultEngineTest {
     private fun skipped(what: String) {
         println("SKIPPED: no CBLAS library installed; $what was not verified on this host")
     }
 
     /**
-     * An engine holding a binding is not evidence that a call reached it, so the route's identity is checked
-     * against the binding the engine actually holds.
-     */
-    @Test
-    fun `a product past the policy size names its whole vendor call`() {
-        val vendor = koblas.vendor ?: return skipped("the composed dense route")
-
-        val route = koblas.routeOf(DenseMatrixOperation.Gemm, DenseCall(ORDER, ORDER, depth = ORDER))
-
-        assertEquals(HOST_SCHEDULING, route.scheduling, "the default did not compose the installed library")
-        assertEquals(RouteKind.Direct, route.kind)
-        assertEquals(vendor.vendor, route.host?.vendor, "the route names a library other than the engine's")
-        assertEquals("cblas_dgemm", route.host?.entryPoint)
-    }
-
-    /** Below the policy's size the same operation keeps this library's schedule, library installed or not. */
-    @Test
-    fun `a small call keeps the portable schedule beside the library`() {
-        if (koblas.vendor == null) return skipped("the fallback below the policy's size")
-
-        val route = koblas.routeOf(DenseMatrixOperation.Gemm, DenseCall(SMALL, SMALL, depth = SMALL))
-
-        assertNotEquals(HOST_SCHEDULING, route.scheduling, "a small product was sent to the library")
-        assertEquals(null, route.host)
-    }
-
-    /**
-     * This platform's Level 1 arm is the library, so `host == null` on a route means no single vendor entry
-     * point served the whole call and not that no library ran: below, a vendor leaf is named in the
-     * components of a portable schedule.
-     */
-    @Test
-    fun `a portable route still names the vendor level one leaf it reaches`() {
-        val vendor = koblas.vendor ?: return skipped("the mixed portable route")
-        val arm = "${vendor.vendor.vendorName.lowercase()}-level1"
-        if (koblas.vectorKernels.name != arm) return skipped("this platform keeps Level 1 off the library")
-        val call = DenseCall(LONG_COLUMN, FEW_COLUMNS, beta = 0.5)
-
-        val route = koblas.routeOf(DenseMatrixOperation.Gemv, call)
-
-        assertNotEquals(HOST_SCHEDULING, route.scheduling, "a small matrix-vector product was handed over")
-        assertEquals(null, route.host, "a call this library scheduled carried a whole-call vendor route")
-        assertTrue(
-            route.components.any { it.startsWith(arm) },
-            "the portable route did not name the vendor Level 1 leaf it reaches: ${route.components}",
-        )
-    }
-
-    /**
      * Aliased rotations stay portable because reference `drot` reads an entry after storing it,
-     * while owned kernels read both inputs before writing. Routes omit operand identity, so width cannot
-     * settle the selected kernel.
+     * while owned kernels read both inputs before writing. Width alone cannot settle the kernel.
      */
     @Test
-    fun `a wide rotation is not an exact measurement of either kernel`() {
-        val vendor = koblas.vendor ?: return skipped("the rotation's alias-dependent route")
+    fun `a wide rotation is decided by its operands rather than its width`() {
+        val vendor = koblas.vendor ?: return skipped("the rotation's alias-dependent dispatch")
         val arm = "${vendor.vendor.vendorName.lowercase()}-level1"
         if (koblas.vectorKernels.name != arm) return skipped("this platform keeps Level 1 off the library")
 
-        val route = koblas.routeOf(DenseOperation.Rot, LONG_COLUMN)
-
-        assertEquals(RouteKind.Composed, route.kind)
-        assertFalse(route.exactlyMeasurable, "a rotation was published as an exact kernel measurement")
-    }
-
-    /** Sparse has no bound host entry point at all, so it is this library's scheduling on every engine. */
-    @Test
-    fun `sparse scheduling is unaffected by an installed library`() {
-        assertEquals(SPARSE_SCHEDULING, koblas.sparseImplementation)
+        assertEquals(null, koblas.vectorKernels.implementationFor(DenseOperation.Rot, LONG_COLUMN))
     }
 
     /** The exact portable engine resolves no host binding and provides the availability floor. */
@@ -108,27 +39,15 @@ class NativeDefaultEngineTest {
         ReferenceBlas.gemm(1.0, a, false, a, false, 0.0, expected)
 
         engine.gemm(1.0, a, false, a, false, 0.0, c)
-        val route = engine.routeOf(DenseMatrixOperation.Gemm, DenseCall(ORDER, ORDER, depth = ORDER))
 
         assertEquals(null, engine.vendor, "the exact portable engine resolved a host library")
-        assertEquals("portable-dense", route.scheduling)
         assertClose(expected.values, c.values, "the portable product")
     }
 
     private companion object {
-        /** Past the fixed policy's size as a cubic product, so the ordinary route goes to the library. */
-        const val ORDER = 64
-
-        /** Well under it as a cubic product, so the same operation stays portable. */
         const val SMALL = 4
 
-        /** Past the Level 1 crossover, so the destination scaling of a small call reaches the library. */
+        /** Past the Level 1 crossover, so a contiguous rotation could reach the library. */
         const val LONG_COLUMN = 256
-
-        /** With [LONG_COLUMN], under the whole-call policy's size, so the call itself stays here. */
-        const val FEW_COLUMNS = 2
-
-        /** The name a composed host route carries, restated here rather than imported from production. */
-        const val HOST_SCHEDULING = "host-dense"
     }
 }

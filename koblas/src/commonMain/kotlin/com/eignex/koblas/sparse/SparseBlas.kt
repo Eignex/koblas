@@ -4,7 +4,6 @@ package com.eignex.koblas.sparse
 
 import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.DenseMatrixRegion
-import com.eignex.koblas.PreparedSparseMatrix
 import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.Workspace
 import com.eignex.koblas.requireGemvOperands
@@ -24,20 +23,6 @@ import com.eignex.koblas.requireProductOperands
  * still allocates that result, which is what it was asked for rather than scratch.
  */
 public interface SparseBlas {
-    /** Copies [a] into an immutable snapshot for repeated products. */
-    public fun prepare(a: SparseMatrix): PreparedSparseMatrix
-
-    /**
-     * What a [call] of [operation] executes on this engine.
-     *
-     * The same decisions the call makes, asked before making it. An engine name cannot answer it: the sparse
-     * scheduling is this library's portable code whatever Level 1 kernels the engine selected, and which
-     * kernel a unit of work reaches depends on the operand and the scalars the call is given. The descriptor
-     * therefore carries the call rather than a representative size, so a matrix whose columns reach two
-     * different kernels is reported as the composition it is instead of being averaged into one leaf.
-     */
-    public fun routeOf(operation: SparseMatrixOperation, call: SparseCall): SparseMatrixRoute
-
     /**
      * In-place `y = alpha · op(A) · x + beta · y`, where `op(A)` is `Aᵀ` when [transpose]. Per BLAS
      * convention `beta == 0.0` overwrites [y] without reading it, so it may arrive uninitialized, and
