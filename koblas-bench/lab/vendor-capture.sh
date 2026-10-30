@@ -17,6 +17,8 @@ while (($#)); do
     --output) output=${2:?}; shift 2 ;;
     --operation) operation=${2:?}; shift 2 ;;
     --vendor) requested_vendor=${2:?}; shift 2 ;;
+    # Placement reads the architecture; the host it lands on already is that architecture.
+    --arch) shift 2 ;;
     --cases) cases=${2:?}; shift 2 ;;
     --samples) samples=${2:?}; shift 2 ;;
     --warmups) warmups=${2:?}; shift 2 ;;
@@ -38,6 +40,14 @@ if [[ $(uname -s) == Darwin ]]; then
   vendor=accelerate
   target=MacosArm64
   pin=()
+elif [[ $requested_vendor == openblas ]]; then
+  # The worker image ships OpenBLAS; the lab already holds it to one thread through OPENBLAS_NUM_THREADS.
+  vendor=openblas
+  case $(uname -m) in
+    aarch64 | arm64) target=LinuxArm64 ;;
+    *) target=LinuxX64 ;;
+  esac
+  pin=(--cpu spread)
 else
   vendor=onemkl
   target=LinuxX64
@@ -72,7 +82,11 @@ build_tasks=(:koblas-bench:prepareLabBenchmark)
 native_args=()
 if [[ ,$targets, == *,$vendor,* || ,$targets, == *,native,* || ,$targets, == *,native-default,* ]]; then
   build_tasks+=(":koblas-bench:linkReleaseExecutable$target")
-  if [[ $target == MacosArm64 ]]; then native_target=macosArm64; else native_target=linuxX64; fi
+  case $target in
+    MacosArm64) native_target=macosArm64 ;;
+    LinuxArm64) native_target=linuxArm64 ;;
+    *) native_target=linuxX64 ;;
+  esac
   native_args=(--native-executable "$root/koblas-bench/build/bin/$native_target/releaseExecutable/koblas-bench.kexe")
 fi
 ./gradlew --no-daemon -Pkotlin.compiler.execution.strategy=in-process "${build_tasks[@]}" > "$output/build.log" 2>&1

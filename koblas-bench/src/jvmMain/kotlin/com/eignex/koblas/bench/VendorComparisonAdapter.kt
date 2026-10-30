@@ -14,18 +14,26 @@ public object VendorComparisonAdapter {
 /** Native code must be linked after placement when preparation ran on another operating system. */
 internal object VendorComparisonSuite : BenchSuite {
     private const val CASES = "koblas-bench/lab/cases-vendor-comparison.txt"
+    private val PARAMETERS = setOf(
+        "vendor", "arch", "operation", "cases", "samples", "warmups", "target-ms", "forks", "rounds", "targets", "profile-gc",
+    )
 
     override fun describe() = BenchDescriptor("koblas-vendor-comparison", "Matched JVM and native vendor calls")
 
     override fun plan(request: BenchRequest): List<LabCase> {
         val p = request.parameters
-        require(p.keys.all { it in setOf("vendor", "operation", "cases", "samples", "warmups", "target-ms", "forks", "rounds", "targets", "profile-gc") }) { "Unknown vendor comparison parameter" }
+        require(p.keys.all { it in PARAMETERS }) { "Unknown vendor comparison parameter" }
         val vendor = p.getValue("vendor")
-        require(vendor in setOf("onemkl", "accelerate")) { "vendor must be onemkl or accelerate" }
+        require(vendor in setOf("onemkl", "accelerate", "openblas")) { "vendor must be onemkl, accelerate or openblas" }
+        // OpenBLAS ships on every Linux worker, so it is the one vendor that runs on either architecture.
+        val arch = p["arch"] ?: if (vendor == "accelerate") "arm64" else "x86_64"
+        require(arch in setOf("x86_64", "arm64") && (vendor == "openblas" || p["arch"] == null)) {
+            "arch is x86_64 or arm64, and only openblas takes it"
+        }
         p["targets"]?.let { targets ->
             val selected = targets.split(',')
             require(selected.distinct().size == selected.size && selected.all {
-                it in setOf("jvm-scalar", "jvm-simd", "jvm-default", vendor, "$vendor-jvm")
+                it in setOf("jvm-scalar", "jvm-simd", "jvm-default", "native", vendor, "$vendor-jvm")
             }) { "Invalid comparison targets" }
         }
         p["profile-gc"]?.let { require(it in setOf("true", "false")) { "profile-gc must be true or false" } }
@@ -35,8 +43,9 @@ internal object VendorComparisonSuite : BenchSuite {
         }
         val cases = p["cases"] ?: CASES
         require(cases.matches(Regex("koblas-bench/lab/[a-z0-9-]+\\.txt"))) { "Invalid comparison case path" }
-        val tags = if (vendor == "accelerate") setOf("platform:mac", "arch:arm64") else setOf("platform:linux", "arch:x86_64")
-        return listOf(LabCase("comparison/$vendor/${p["operation"] ?: "all"}", p,
+        val tags = if (vendor == "accelerate") setOf("platform:mac", "arch:arm64") else setOf("platform:linux", "arch:$arch")
+        val host = if (vendor == "openblas") "$vendor-$arch" else vendor
+        return listOf(LabCase("comparison/$host/${p["operation"] ?: "all"}", p,
             BenchResources(2, 4608, 7200, tags), inputs = listOf(BenchInput(cases, role = "cases"))))
     }
 
