@@ -4,11 +4,7 @@ import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.Workspace
 import com.eignex.koblas.assertClose
-import com.eignex.koblas.gemvInto
 import com.eignex.koblas.koblas
-import com.eignex.koblas.trmm
-import com.eignex.koblas.trsm
-import com.eignex.koblas.trsv
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
 
@@ -68,7 +64,7 @@ class SparseAliasTest {
         koblas.gemv(1.0, a, doubleArrayOf(1.0, 2.0), 0.0, expected)
 
         val shared = doubleArrayOf(1.0, 2.0)
-        a.gemvInto(1.0, shared, 0.0, shared)
+        koblas.gemv(1.0, a, shared, 0.0, shared)
 
         assertContentEquals(expected, shared)
     }
@@ -82,10 +78,10 @@ class SparseAliasTest {
         val values = doubleArrayOf(2.0, 3.0, 4.0)
         val independent = SparseMatrix.wrap(3, 3, pointers.copyOf(), rows.copyOf(), values.copyOf())
         val expected = values.copyOf()
-        independent.trsv(expected, lower = true)
+        koblas.trsv(independent, expected, lower = true)
 
         val shared = SparseMatrix.wrap(3, 3, pointers.copyOf(), rows.copyOf(), values.copyOf())
-        shared.trsv(shared.values, lower = true)
+        koblas.trsv(shared, shared.values, lower = true)
 
         assertContentEquals(expected, shared.values)
     }
@@ -97,10 +93,18 @@ class SparseAliasTest {
                 val values = doubleArrayOf(2.0, 3.0, 0.0, 4.0)
                 val independent = SparseMatrix.wrap(2, 2, intArrayOf(0, 2, 4), intArrayOf(0, 1, 0, 1), values.copyOf())
                 val expected = DenseMatrix.wrap(2, 2, values.copyOf())
-                independent.trsm(expected, lower = true, transpose = transpose, unitDiag = unitDiag, alpha = 2.0)
+                koblas.trsm(
+                    independent,
+                    expected,
+                    lower = true,
+                    transpose = transpose,
+                    unitDiag = unitDiag,
+                    alpha = 2.0,
+                )
 
                 val shared = SparseMatrix.wrap(2, 2, intArrayOf(0, 2, 4), intArrayOf(0, 1, 0, 1), values.copyOf())
-                shared.trsm(
+                koblas.trsm(
+                    shared,
                     DenseMatrix.wrap(2, 2, shared.values),
                     lower = true,
                     transpose = transpose,
@@ -160,15 +164,16 @@ class SparseAliasTest {
                         val independent = filledTriangle(lower, coefficients)
                         val expected = DenseMatrix.wrap(rows, columns, coefficients.copyOf())
                         if (solve) {
-                            independent.trsm(expected, lower, transpose, right = right, alpha = -0.75)
+                            koblas.trsm(independent, expected, lower, transpose, right = right, alpha = -0.75)
                         } else {
-                            independent.trmm(expected, lower, transpose, right = right, alpha = -0.75)
+                            koblas.trmm(independent, expected, lower, transpose, right = right, alpha = -0.75)
                         }
 
                         val shared = filledTriangle(lower, coefficients)
                         val block = DenseMatrix.wrap(rows, columns, shared.values)
                         if (solve) {
-                            shared.trsm(
+                            koblas.trsm(
+                                shared,
                                 block,
                                 lower,
                                 transpose,
@@ -177,7 +182,8 @@ class SparseAliasTest {
                                 workspace = Workspace(),
                             )
                         } else {
-                            shared.trmm(
+                            koblas.trmm(
+                                shared,
                                 block,
                                 lower,
                                 transpose,

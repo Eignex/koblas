@@ -7,32 +7,9 @@ package com.eignex.koblas
 import com.eignex.koblas.internal.operands.denseOperand
 import com.eignex.koblas.internal.operands.scaleRegion
 
-/** Allocates through [koblas], preserving CSC storage for a pair of sparse operands. */
-public fun Matrix.gemm(other: Matrix): Matrix = koblas.gemm(this, other)
-
-/** Allocates a scaled, independently transposed product through the default [koblas] engine. */
-public fun Matrix.gemm(alpha: Double, transpose: Boolean, other: Matrix, transposeOther: Boolean): Matrix =
-    koblas.gemm(alpha, this, transpose, other, transposeOther)
-
-/** Common allocating product with the runtime storage result rule of [KoblasEngine.gemm]. */
+/** Allocating product through [koblas]: two sparse operands give CSC storage, any other pairing dense. */
 @kotlin.jvm.JvmName("multiplyMatrices")
 public operator fun Matrix.times(other: Matrix): Matrix = koblas.gemm(this, other)
-
-/**
- * Writes a generic product through [koblas]. Shapes are validated before mutation, zero alpha reads no
- * input, and zero beta overwrites without reading the destination. Aliased built-in operands are staged
- * over their logical entries. Custom operands are normalized once after no-read quick returns.
- * Call [KoblasEngine.gemm] to select an explicit engine.
- */
-public fun Matrix.gemmInto(
-    alpha: Double,
-    transpose: Boolean,
-    other: Matrix,
-    transposeOther: Boolean,
-    beta: Double,
-    destination: DenseMatrixRegion,
-    workspace: Workspace? = null,
-): Unit = koblas.gemm(alpha, this, transpose, other, transposeOther, beta, destination, workspace)
 
 /** Storage classification; callbacks inline on the arithmetic path. */
 internal inline fun <T> dispatchProduct(

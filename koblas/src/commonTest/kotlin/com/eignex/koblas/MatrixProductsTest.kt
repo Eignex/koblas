@@ -42,7 +42,7 @@ class MatrixProductsTest {
         val right: Matrix = DenseMatrix.diagonal(2, 2.0)
         val destination = DenseMatrix.wrap(2, 2, backing)
 
-        left.gemmInto(1.0, true, right, false, 0.5, destination, Workspace())
+        koblas.gemm(1.0, left, true, right, false, 0.5, destination, Workspace())
 
         assertContentEquals(doubleArrayOf(2.5, 5.5, 7.0, 10.0), destination.values)
     }
@@ -69,21 +69,21 @@ class MatrixProductsTest {
 
         assertClose(
             koblas.gemm(denseLeft, denseRight),
-            (denseLeft as Matrix).gemm(denseRight) as DenseMatrix,
+            koblas.gemm(denseLeft as Matrix, denseRight) as DenseMatrix,
             "dense by dense",
         )
         assertClose(
             koblas.gemm(sparseLeft, denseRight),
-            (sparseLeft as Matrix).gemm(denseRight) as DenseMatrix,
+            koblas.gemm(sparseLeft as Matrix, denseRight) as DenseMatrix,
             "sparse by dense",
         )
         val mirrored = DenseMatrix.zero(4, 5)
         koblas.gemm(1.0, sparseRight, false, denseLeft, false, 0.0, mirrored, right = true)
-        assertClose(mirrored, (denseLeft as Matrix).gemm(sparseRight) as DenseMatrix, "dense by sparse")
+        assertClose(mirrored, koblas.gemm(denseLeft as Matrix, sparseRight) as DenseMatrix, "dense by sparse")
 
         assertEquals(
             ReferenceSparseBlas.gemm(1.0, sparseLeft, false, sparseRight, false),
-            (sparseLeft as Matrix).gemm(sparseRight) as SparseMatrix,
+            koblas.gemm(sparseLeft as Matrix, sparseRight) as SparseMatrix,
             "sparse by sparse",
         )
     }
@@ -100,7 +100,7 @@ class MatrixProductsTest {
                 val actual = DenseMatrix.wrap(4, 5, expected.values.copyOf())
 
                 koblas.gemm(0.75, sparse, transpose, dense, transposeOther, -0.5, expected)
-                (sparse as Matrix).gemmInto(0.75, transpose, dense, transposeOther, -0.5, actual)
+                koblas.gemm(0.75, sparse as Matrix, transpose, dense, transposeOther, -0.5, actual)
 
                 assertClose(expected, actual, "sparse-dense transpose=$transpose other=$transposeOther")
 
@@ -120,7 +120,7 @@ class MatrixProductsTest {
                     mirroredExpected,
                     right = true,
                 )
-                (leftDense as Matrix).gemmInto(0.75, transpose, rightSparse, transposeOther, -0.5, mirroredActual)
+                koblas.gemm(0.75, leftDense as Matrix, transpose, rightSparse, transposeOther, -0.5, mirroredActual)
 
                 assertClose(
                     mirroredExpected,
@@ -138,7 +138,7 @@ class MatrixProductsTest {
         val identity: Matrix = SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 1.0), listOf(1 to 1.0)))
         val destination = DenseMatrix.wrap(2, 2, backing)
 
-        (sparse as Matrix).gemmInto(1.0, false, identity, false, 0.0, destination, Workspace())
+        koblas.gemm(1.0, sparse as Matrix, false, identity, false, 0.0, destination, Workspace())
 
         assertContentEquals(doubleArrayOf(2.0, 3.0, 5.0, 7.0), destination.values, "left operand alias")
 
@@ -147,7 +147,7 @@ class MatrixProductsTest {
         val denseDestination = DenseMatrix.wrap(2, 2, denseBacking)
         val scale: Matrix = SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 2.0), listOf(1 to 2.0)))
 
-        (dense as Matrix).gemmInto(1.0, false, scale, false, 0.0, denseDestination, Workspace())
+        koblas.gemm(1.0, dense as Matrix, false, scale, false, 0.0, denseDestination, Workspace())
 
         assertContentEquals(doubleArrayOf(2.0, 0.0, 0.0, 2.0), denseDestination.values, "right operand alias")
     }
@@ -170,8 +170,8 @@ class MatrixProductsTest {
                     val cols = if (foreignOnLeft) 0 else order
                     val destination = DenseMatrix.zero(rows, cols)
 
-                    left.gemmInto(1.0, transpose, right, transposeOther, 0.0, destination, Workspace())
-                    val result = left.gemm(1.0, transpose, right, transposeOther)
+                    koblas.gemm(1.0, left, transpose, right, transposeOther, 0.0, destination, Workspace())
+                    val result = koblas.gemm(1.0, left, transpose, right, transposeOther)
 
                     assertEquals(rows, result.rows)
                     assertEquals(cols, result.cols)
@@ -189,7 +189,7 @@ class MatrixProductsTest {
         val destination = DenseMatrix.zero(2, 0)
 
         assertFailsWith<DimensionMismatch> {
-            left.gemmInto(1.0, false, right, false, 0.0, destination)
+            koblas.gemm(1.0, left, false, right, false, 0.0, destination)
         }
     }
 
@@ -197,7 +197,7 @@ class MatrixProductsTest {
     fun `a zero alpha never reads either operand`() {
         val destination = DenseMatrix.wrap(2, 2, doubleArrayOf(1.0, 2.0, 3.0, 4.0))
 
-        PoisonMatrix(2, 2).gemmInto(0.0, false, PoisonMatrix(2, 2), false, 2.0, destination)
+        koblas.gemm(0.0, PoisonMatrix(2, 2), false, PoisonMatrix(2, 2), false, 2.0, destination)
 
         assertContentEquals(doubleArrayOf(2.0, 4.0, 6.0, 8.0), destination.values)
     }
@@ -206,7 +206,7 @@ class MatrixProductsTest {
     fun `a zero alpha and a zero beta overwrite without reading anything`() {
         val destination = DenseMatrix.wrap(1, 1, doubleArrayOf(Double.NaN))
 
-        PoisonMatrix(1, 1).gemmInto(0.0, false, DenseMatrix.diagonal(1) as Matrix, false, 0.0, destination)
+        koblas.gemm(0.0, PoisonMatrix(1, 1), false, DenseMatrix.diagonal(1) as Matrix, false, 0.0, destination)
 
         assertContentEquals(doubleArrayOf(0.0), destination.values)
     }
@@ -218,9 +218,9 @@ class MatrixProductsTest {
         val sparse: Matrix = SparseMatrix.ofColumns(2, 3, List(3) { emptyList() })
 
         assertFailsWith<DimensionMismatch> {
-            sparse.gemmInto(1.0, false, DenseMatrix.diagonal(2) as Matrix, false, 0.0, destination)
+            koblas.gemm(1.0, sparse, false, DenseMatrix.diagonal(2) as Matrix, false, 0.0, destination)
         }
-        assertFailsWith<DimensionMismatch> { sparse.gemm(DenseMatrix.diagonal(2)) }
+        assertFailsWith<DimensionMismatch> { koblas.gemm(sparse, DenseMatrix.diagonal(2)) }
 
         assertContentEquals(before, destination.values)
     }
@@ -235,7 +235,7 @@ class MatrixProductsTest {
         val expected = DenseMatrix.zero(3, 4)
         koblas.gemm(1.0, sparse, false, backing, false, 0.0, expected, right = true)
         val actual = DenseMatrix.zero(3, 4)
-        foreign.gemmInto(1.0, false, sparse, false, 0.0, actual)
+        koblas.gemm(1.0, foreign, false, sparse, false, 0.0, actual)
 
         assertClose(expected, actual, "foreign matrix beside a sparse operand")
         assertEquals(DenseMatrix::class, (foreign * (backing.transpose() as Matrix))::class)
@@ -248,7 +248,7 @@ class MatrixProductsTest {
         val destination = DenseMatrix.zero(3, 2)
         val workspace = Workspace()
 
-        repeat(2) { foreign.gemmInto(1.0, false, right, false, 0.0, destination, workspace) }
+        repeat(2) { koblas.gemm(1.0, foreign, false, right, false, 0.0, destination, workspace) }
 
         assertEquals(1, workspace.available(6), "the second call adapted into fresh storage")
     }
@@ -259,7 +259,7 @@ class MatrixProductsTest {
         val foreign: Matrix = ForeignMatrix(DenseMatrix.wrap(2, 2, backing))
         val destination = DenseMatrix.wrap(2, 2, backing)
 
-        foreign.gemmInto(1.0, false, DenseMatrix.diagonal(2, 2.0) as Matrix, false, 0.0, destination, Workspace())
+        koblas.gemm(1.0, foreign, false, DenseMatrix.diagonal(2, 2.0) as Matrix, false, 0.0, destination, Workspace())
 
         assertContentEquals(doubleArrayOf(2.0, 4.0, 6.0, 8.0), destination.values)
     }
@@ -270,7 +270,7 @@ class MatrixProductsTest {
         val right: Matrix = DenseMatrix.zero(0, 2)
         val destination = DenseMatrix.wrap(3, 2, doubleArrayOf(1.0, 2.0, 3.0, 4.0, 5.0, 6.0))
 
-        foreign.gemmInto(1.0, false, right, false, 2.0, destination)
+        koblas.gemm(1.0, foreign, false, right, false, 2.0, destination)
 
         assertContentEquals(doubleArrayOf(2.0, 4.0, 6.0, 8.0, 10.0, 12.0), destination.values)
         assertEquals(3, (foreign * right).rows, "the allocating product keeps the row count too")

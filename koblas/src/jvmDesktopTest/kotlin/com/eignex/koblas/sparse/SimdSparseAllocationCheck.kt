@@ -6,7 +6,6 @@ import com.eignex.koblas.KoblasEngine
 import com.eignex.koblas.Matrix
 import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.Workspace
-import com.eignex.koblas.gemmInto
 import com.eignex.koblas.internal.dense.PanelWork
 import com.eignex.koblas.internal.jvm25.simd.SimdIndexedSparseKernels
 import com.eignex.koblas.internal.jvm25.simd.SparseSimd
@@ -288,11 +287,11 @@ internal object SimdSparseAllocationCheck {
         workspace: Workspace,
     ) {
         assertAllocationFree("generic product with a sparse left operand", OPERATION_WARMUP, OPERATION_ITERATIONS) {
-            a.gemmInto(0.875, false, b, false, -0.25, c, workspace)
+            koblas.gemm(0.875, a, false, b, false, -0.25, c, workspace)
             c.values[0]
         }
         assertAllocationFree("generic product with a sparse right operand", OPERATION_WARMUP, OPERATION_ITERATIONS) {
-            wide.gemmInto(0.875, false, a, false, -0.25, cWide, workspace)
+            koblas.gemm(0.875, wide, false, a, false, -0.25, cWide, workspace)
             cWide.values[0]
         }
     }
