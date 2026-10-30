@@ -28,9 +28,11 @@ android {
 }
 
 dependencies {
-    implementation("com.eignex:koblas:${consumerVersion.get()}")
+    implementation("com.eignex:koblas:${consumerVersion.get()}") { isChanging = true }
     androidTestImplementation("androidx.test:runner:1.7.0")
     androidTestImplementation("androidx.test.ext:junit:1.3.0")
     // R8 also shrinks the test APK, whose runner references these compile-only annotations.
     androidTestImplementation("com.google.errorprone:error_prone_annotations:2.50.0")
 }
+
+configurations.configureEach { resolutionStrategy.cacheChangingModulesFor(0, "seconds") }

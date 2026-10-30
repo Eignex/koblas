@@ -17,7 +17,7 @@ kotlin {
     sourceSets {
         commonMain {
             kotlin.srcDir("../consumers/shared")
-            dependencies { implementation("com.eignex:koblas:${consumerVersion.get()}") }
+            dependencies { implementation("com.eignex:koblas:${consumerVersion.get()}") { isChanging = true } }
         }
         commonTest.dependencies { implementation(kotlin("test")) }
     }
@@ -26,3 +26,5 @@ kotlin {
 tasks.withType<org.jetbrains.kotlin.gradle.targets.native.tasks.KotlinNativeSimulatorTest>().configureEach {
     providers.gradleProperty("iosSimulatorDevice").orNull?.let { device.set(it) }
 }
+
+configurations.configureEach { resolutionStrategy.cacheChangingModulesFor(0, "seconds") }

@@ -42,30 +42,33 @@ git -C "$temporary/repository" tag v0.1.0
 git -C "$temporary/repository" tag v9.0.0-rc.1
 resolve() {
   : >"$temporary/outputs"
-  (cd "$temporary/repository" && GITHUB_OUTPUT="$temporary/outputs" GITHUB_REF_TYPE=$1 GITHUB_REF_NAME=$2 DRY_RUN=$3 \
+  (cd "$temporary/repository" && GITHUB_OUTPUT="$temporary/outputs" GITHUB_REF_TYPE=$1 GITHUB_REF_NAME=$2 \
     bash "$scripts/resolve-release-version.sh")
 }
-resolve branch main false
+resolve branch main
 grep -Fxq version=0.1.1-SNAPSHOT "$temporary/outputs"
 grep -Fxq is_snapshot=true "$temporary/outputs"
-grep -Fxq is_prerelease=true "$temporary/outputs"
-grep -Fxq dry_run=false "$temporary/outputs"
+grep -Fxq test_release=false "$temporary/outputs"
 grep -Fxq "revision=$(git -C "$temporary/repository" rev-parse HEAD)" "$temporary/outputs"
-resolve tag v0.2.0-rc.1 false
+resolve tag v0.2.0-rc.1
 grep -Fxq version=0.2.0-rc.1 "$temporary/outputs"
 grep -Fxq is_snapshot=false "$temporary/outputs"
-grep -Fxq is_prerelease=true "$temporary/outputs"
-resolve tag v0.2.0 false
+grep -Fxq test_release=true "$temporary/outputs"
+resolve tag v0.2.0
 grep -Fxq version=0.2.0 "$temporary/outputs"
-grep -Fxq is_prerelease=false "$temporary/outputs"
-resolve tag v0.2.0 true
-grep -Fxq version=0.1.1 "$temporary/outputs"
-grep -Fxq dry_run=true "$temporary/outputs"
-grep -Fxq is_prerelease=false "$temporary/outputs"
-git -C "$temporary/repository" tag -d v0.1.0 >/dev/null
-resolve branch main false
+grep -Fxq is_snapshot=false "$temporary/outputs"
+grep -Fxq test_release=false "$temporary/outputs"
+git -C "$temporary/repository" tag v1.9.0
+git -C "$temporary/repository" tag v1.10.0
+resolve branch main
+grep -Fxq version=1.10.1-SNAPSHOT "$temporary/outputs"
+git -C "$temporary/repository" tag -d v0.1.0 v1.9.0 v1.10.0 >/dev/null
+resolve branch main
 grep -Fxq version=0.0.1-SNAPSHOT "$temporary/outputs"
-reject 'invalid publication version' resolve tag vnext false
+for tag in vnext v01.2.0 v0.2.0-rc.01 v0.2.0-SNAPSHOT; do
+  reject 'Use a vX.Y.Z or vX.Y.Z-rc.N release tag' resolve tag "$tag"
+done
+reject 'Releases require a version tag' resolve branch feature
 
 mkdir -m 700 "$temporary/gnupg"
 gpg_args=(gpg --homedir "$temporary/gnupg" --batch --pinentry-mode loopback --passphrase '')
@@ -73,7 +76,7 @@ gpg_args=(gpg --homedir "$temporary/gnupg" --batch --pinentry-mode loopback --pa
 SIGNING_KEY=$("${gpg_args[@]}" --armor --export-secret-keys)
 export SIGNING_KEY
 original="$temporary/original"
-artifacts=(koblas koblas-jvm koblas-linuxx64 koblas-linuxarm64 koblas-macosarm64 koblas-iosarm64 koblas-iossimulatorarm64)
+artifacts=(koblas koblas-jvm koblas-linuxx64 koblas-linuxarm64 koblas-mingwx64 koblas-macosarm64 koblas-iosarm64 koblas-iossimulatorarm64)
 for artifact in "${artifacts[@]}"; do
   directory="$original/com/eignex/$artifact/0.1.1"
   mkdir -p "$directory"
