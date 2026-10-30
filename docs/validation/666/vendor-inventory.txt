@@ -1,5 +1,0 @@
-Accelerate: unavailable
-OneMkl: Intel(R) oneAPI Math Kernel Library Version 2026.1-Product Build 20260612 for Intel(R) 64 architecture applications | /home/rasmus/intel/oneapi/mkl/latest/lib/libmkl_rt.so.3
-Aocl: unavailable
-ArmPl: unavailable
-OpenBlas: OpenBLAS 0.3.32 NO_LAPACKE DYNAMIC_ARCH NO_AFFINITY Haswell MAX_THREADS=128 | /usr/lib/x86_64-linux-gnu/libopenblas.so.0

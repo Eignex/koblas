@@ -1,2 +1,0 @@
-case,status,comparison_kind,timing_mode,actual_kernel,samples,forks,median_ns,min_ns,max_ns
-gemm+129x31x257+uniform+transA=T,ok,direct,reset-and-arithmetic,portable-dense+portable-pack/right-panel+portable-pack/left-panel+scalar-tile(4x4)/product-block/gemm,10,2,245923.1334971335,242157.3258064516,270771.17403065827

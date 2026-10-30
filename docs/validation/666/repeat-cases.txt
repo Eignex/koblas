@@ -1,1 +1,0 @@
-gemm+129x31x257+uniform+transA=T

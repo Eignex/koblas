@@ -60,4 +60,3 @@ Run `./gradlew check lintDocs`. Use `-Pkoblas.noSimd=true` to withhold the JVM V
 installed native libraries remain visible.
 
 On Windows, use `gradlew.bat check lintDocs` with Git Bash available for benchmark script tests.
-See the [implementation inventory](docs/implementation-666.md) for test tasks and validation details.
