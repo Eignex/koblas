@@ -1,5 +1,0 @@
-# Cache-resident and streaming AXPY, including a SIMD tail.
-axpy+64+uniform
-axpy+4096+uniform
-axpy+65536+uniform
-axpy+65537+uniform

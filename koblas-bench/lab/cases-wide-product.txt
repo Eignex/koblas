@@ -1,7 +1,0 @@
-# Register reuse and scalar edges, with the same array storage for both geometries.
-gemm+64x64x64+uniform
-gemm+128x128x128+uniform
-gemm+256x256x256+uniform
-gemm+768x768x768+uniform
-gemm+128x512x256+uniform
-gemm+256x128x512+uniform+transA=T+transB=T
