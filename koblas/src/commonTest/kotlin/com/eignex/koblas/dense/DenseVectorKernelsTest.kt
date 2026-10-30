@@ -1,6 +1,8 @@
 package com.eignex.koblas.dense
 
 import com.eignex.koblas.*
+import com.eignex.koblas.internal.dense.ScalarVectorKernels
+import com.eignex.koblas.internal.sparse.axpy
 import kotlin.math.sqrt
 import kotlin.test.*
 

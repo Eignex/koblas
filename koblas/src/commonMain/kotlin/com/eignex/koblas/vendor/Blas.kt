@@ -3,8 +3,11 @@
 package com.eignex.koblas.vendor
 
 import com.eignex.koblas.DenseMatrix
+import com.eignex.koblas.DenseMatrixRegion
 import com.eignex.koblas.DenseVector
 import com.eignex.koblas.dense.MatrixStructure
+import com.eignex.koblas.internal.host.Cblas
+import com.eignex.koblas.internal.host.uploFor
 
 /**
  * The BLAS entry points, in the shapes the standard gives them.
@@ -13,7 +16,7 @@ import com.eignex.koblas.dense.MatrixStructure
  * own arguments, and the package says where an implementation comes from; a caller wanting Koblas's own
  * convenience shapes, array operands and boolean flags, wants [com.eignex.koblas.dense.DenseBlas] instead.
  *
- * Operands are the storage types themselves: a [DenseMatrix] is contiguous column-major with a leading
+ * Operands are the storage types themselves: a [DenseMatrixRegion] is contiguous column-major with a leading
  * dimension equal to its row count, and a [DenseVector] is a pointer, a length and an increment. How a call
  * reads an operand, its transpose and its stored triangle, travels beside it as a flag rather than inside it,
  * because those describe the call rather than the storage.
@@ -75,7 +78,7 @@ public interface Blas {
      */
     public fun routeOf(
         operation: BlasOperation,
-        matrices: List<DenseMatrix> = emptyList(),
+        matrices: List<DenseMatrixRegion> = emptyList(),
         vectors: List<DenseVector> = emptyList(),
     ): CallRoute
 
@@ -122,12 +125,19 @@ public interface Blas {
     public fun rot(x: DenseVector, y: DenseVector, c: Double, s: Double)
 
     /** `y = alpha · op(A) · x + beta · y`, transposing [a] when [transposeA]. */
-    public fun gemv(alpha: Double, a: DenseMatrix, transposeA: Boolean, x: DenseVector, beta: Double, y: DenseVector)
+    public fun gemv(
+        alpha: Double,
+        a: DenseMatrixRegion,
+        transposeA: Boolean,
+        x: DenseVector,
+        beta: Double,
+        y: DenseVector,
+    )
 
     /** `y = alpha · A · x + beta · y` for symmetric [a], whose [structure] selects the stored triangle. */
     public fun symv(
         alpha: Double,
-        a: DenseMatrix,
+        a: DenseMatrixRegion,
         structure: MatrixStructure,
         x: DenseVector,
         beta: Double,
@@ -135,41 +145,41 @@ public interface Blas {
     )
 
     /** `A = alpha · x · yᵀ + A`. */
-    public fun ger(alpha: Double, x: DenseVector, y: DenseVector, a: DenseMatrix)
+    public fun ger(alpha: Double, x: DenseVector, y: DenseVector, a: DenseMatrixRegion)
 
     /** `A = alpha · x · xᵀ + A` in the triangle [structure] selects. */
-    public fun syr(alpha: Double, x: DenseVector, a: DenseMatrix, structure: MatrixStructure)
+    public fun syr(alpha: Double, x: DenseVector, a: DenseMatrixRegion, structure: MatrixStructure)
 
     /** `A = alpha · (x · yᵀ + y · xᵀ) + A` in the triangle [structure] selects. */
-    public fun syr2(alpha: Double, x: DenseVector, y: DenseVector, a: DenseMatrix, structure: MatrixStructure)
+    public fun syr2(alpha: Double, x: DenseVector, y: DenseVector, a: DenseMatrixRegion, structure: MatrixStructure)
 
     /** Solves `op(A) · x = b` in place; [structure] carries the triangle and unit diagonal. */
-    public fun trsv(a: DenseMatrix, structure: MatrixStructure, transposeA: Boolean, x: DenseVector)
+    public fun trsv(a: DenseMatrixRegion, structure: MatrixStructure, transposeA: Boolean, x: DenseVector)
 
     /** `x = op(A) · x`; [structure] carries the triangle and unit diagonal. */
-    public fun trmv(a: DenseMatrix, structure: MatrixStructure, transposeA: Boolean, x: DenseVector)
+    public fun trmv(a: DenseMatrixRegion, structure: MatrixStructure, transposeA: Boolean, x: DenseVector)
 
     /** `C = alpha · op(A) · op(B) + beta · C`, transposing each operand as its flag says. */
     @Suppress("LongParameterList") // the BLAS dgemm signature
     public fun gemm(
         alpha: Double,
-        a: DenseMatrix,
+        a: DenseMatrixRegion,
         transposeA: Boolean,
-        b: DenseMatrix,
+        b: DenseMatrixRegion,
         transposeB: Boolean,
         beta: Double,
-        c: DenseMatrix,
+        c: DenseMatrixRegion,
     )
 
     /** `C = alpha · A · B + beta · C` for symmetric [a], or `C = alpha · B · A + beta · C` when [rightSide]. */
     @Suppress("LongParameterList") // the BLAS dsymm signature
     public fun symm(
         alpha: Double,
-        a: DenseMatrix,
+        a: DenseMatrixRegion,
         structure: MatrixStructure,
-        b: DenseMatrix,
+        b: DenseMatrixRegion,
         beta: Double,
-        c: DenseMatrix,
+        c: DenseMatrixRegion,
         rightSide: Boolean = false,
     )
 
@@ -177,10 +187,10 @@ public interface Blas {
     @Suppress("LongParameterList") // the BLAS dsyrk signature
     public fun syrk(
         alpha: Double,
-        a: DenseMatrix,
+        a: DenseMatrixRegion,
         transposeA: Boolean,
         beta: Double,
-        c: DenseMatrix,
+        c: DenseMatrixRegion,
         structure: MatrixStructure,
     )
 
@@ -188,11 +198,11 @@ public interface Blas {
     @Suppress("LongParameterList") // the BLAS dsyr2k signature
     public fun syr2k(
         alpha: Double,
-        a: DenseMatrix,
-        b: DenseMatrix,
+        a: DenseMatrixRegion,
+        b: DenseMatrixRegion,
         transposeA: Boolean,
         beta: Double,
-        c: DenseMatrix,
+        c: DenseMatrixRegion,
         structure: MatrixStructure,
     )
 
@@ -200,10 +210,10 @@ public interface Blas {
     @Suppress("LongParameterList") // the BLAS dtrmm signature
     public fun trmm(
         alpha: Double,
-        a: DenseMatrix,
+        a: DenseMatrixRegion,
         structure: MatrixStructure,
         transposeA: Boolean,
-        b: DenseMatrix,
+        b: DenseMatrixRegion,
         rightSide: Boolean = false,
     )
 
@@ -211,10 +221,10 @@ public interface Blas {
     @Suppress("LongParameterList") // the BLAS dtrsm signature
     public fun trsm(
         alpha: Double,
-        a: DenseMatrix,
+        a: DenseMatrixRegion,
         structure: MatrixStructure,
         transposeA: Boolean,
-        b: DenseMatrix,
+        b: DenseMatrixRegion,
         rightSide: Boolean = false,
     )
 
@@ -228,12 +238,12 @@ public interface Blas {
     @Suppress("LongParameterList") // the BLAS gemmt signature
     public fun gemmt(
         alpha: Double,
-        a: DenseMatrix,
+        a: DenseMatrixRegion,
         transposeA: Boolean,
-        b: DenseMatrix,
+        b: DenseMatrixRegion,
         transposeB: Boolean,
         beta: Double,
-        c: DenseMatrix,
+        c: DenseMatrixRegion,
         structure: MatrixStructure,
     )
 }
@@ -251,12 +261,12 @@ public interface Blas {
 @Suppress("LongParameterList") // the BLAS gemmt signature
 internal fun Blas.composeGemmt(
     alpha: Double,
-    a: DenseMatrix,
+    a: DenseMatrixRegion,
     transposeA: Boolean,
-    b: DenseMatrix,
+    b: DenseMatrixRegion,
     transposeB: Boolean,
     beta: Double,
-    c: DenseMatrix,
+    c: DenseMatrixRegion,
     structure: MatrixStructure,
 ) {
     val order = c.rows
@@ -268,8 +278,8 @@ internal fun Blas.composeGemmt(
         val until = if (lower) order else column + 1
         for (row in from until until) {
             val index = row + column * order
-            val previous = if (beta == 0.0) 0.0 else beta * c.values[index]
-            c.values[index] = previous + product.values[index]
+            val previous = if (beta == 0.0) 0.0 else beta * c.values[c.offset + row + column * c.leadingDimension]
+            c.values[c.offset + row + column * c.leadingDimension] = previous + product.values[index]
         }
     }
 }

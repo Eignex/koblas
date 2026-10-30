@@ -1,8 +1,8 @@
 package com.eignex.koblas.dense
 
 import com.eignex.koblas.MatrixRoute
+import com.eignex.koblas.RouteKind
 import com.eignex.koblas.vendor.CallRoute
-import com.eignex.koblas.vendor.RouteKind
 
 /**
  * A built-in dense Level 2 or 3 entry point, named so a caller can ask what a call of it actually executes.
@@ -90,6 +90,7 @@ public enum class DenseMatrixOperation(internal val entryPoint: String) {
  * @property borrowed Whether matrix operands include borrowed regions.
  * @property leadingDimension Destination column spacing, or null for contiguous storage.
  * @property rightLeadingDimension Stored column spacing of a borrowed right operand.
+ * @property leftLeadingDimension Stored column spacing of a borrowed left operand.
  */
 @Suppress("LongParameterList") // a call is the facts that decide what runs, each of which changes the answer
 public class DenseCall(
@@ -107,10 +108,12 @@ public class DenseCall(
     public val borrowed: Boolean = false,
     public val leadingDimension: Int? = null,
     public val rightLeadingDimension: Int? = null,
+    public val leftLeadingDimension: Int? = null,
 ) {
     init {
         require(rows >= 0) { "negative row count" }
         require(columns >= 0) { "negative column count" }
+        require(leftLeadingDimension == null || leftLeadingDimension >= 0) { "negative left leading dimension" }
         require(rightLeadingDimension == null || rightLeadingDimension >= 0) { "negative right leading dimension" }
         require(leadingDimension == null || leadingDimension >= rows) { "leading dimension below row count" }
         require(depth == null || depth >= 0) { "negative product depth" }

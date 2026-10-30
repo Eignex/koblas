@@ -4,7 +4,11 @@ import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.SparseVector
 import com.eignex.koblas.dense.DenseOperation
 import com.eignex.koblas.dense.DenseVectorKernels
-import com.eignex.koblas.dense.ScalarVectorKernels
+import com.eignex.koblas.internal.dense.ScalarVectorKernels
+import com.eignex.koblas.internal.operands.denseOperand
+import com.eignex.koblas.internal.sparse.IndexedSparseKernels
+import com.eignex.koblas.internal.sparse.ScalarIndexedSparseKernels
+import com.eignex.koblas.internal.sparse.SparseKernelAdapter
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertSame

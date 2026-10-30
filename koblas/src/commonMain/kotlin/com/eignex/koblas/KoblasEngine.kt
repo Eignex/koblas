@@ -5,30 +5,32 @@ package com.eignex.koblas
 
 import com.eignex.koblas.dense.DenseBlas
 import com.eignex.koblas.dense.DenseCall
-import com.eignex.koblas.dense.DenseHostEligibility
 import com.eignex.koblas.dense.DenseMatrixOperation
 import com.eignex.koblas.dense.DenseMatrixRoute
 import com.eignex.koblas.dense.DenseOperation
-import com.eignex.koblas.dense.DensePanelKernels
-import com.eignex.koblas.dense.DenseProductKernels
-import com.eignex.koblas.dense.DenseTriangularKernels
 import com.eignex.koblas.dense.DenseVectorKernels
-import com.eignex.koblas.dense.HostDenseBlas
-import com.eignex.koblas.dense.PortableDenseBlas
-import com.eignex.koblas.dense.PortablePanelKernels
-import com.eignex.koblas.dense.PortableProductKernels
-import com.eignex.koblas.dense.PortableTriangularKernels
-import com.eignex.koblas.dense.RoutedDenseBlas
-import com.eignex.koblas.dense.ScalarVectorKernels
-import com.eignex.koblas.sparse.IndexedSparseKernels
-import com.eignex.koblas.sparse.PortableSparseBlas
-import com.eignex.koblas.sparse.SPARSE_SCHEDULING
-import com.eignex.koblas.sparse.ScalarIndexedSparseKernels
+import com.eignex.koblas.internal.dense.DensePanelKernels
+import com.eignex.koblas.internal.dense.DenseProductKernels
+import com.eignex.koblas.internal.dense.DenseTriangularKernels
+import com.eignex.koblas.internal.dense.PortableDenseBlas
+import com.eignex.koblas.internal.dense.PortablePanelKernels
+import com.eignex.koblas.internal.dense.PortableProductKernels
+import com.eignex.koblas.internal.dense.PortableTriangularKernels
+import com.eignex.koblas.internal.dense.ScalarVectorKernels
+import com.eignex.koblas.internal.diagnostics.SPARSE_SCHEDULING
+import com.eignex.koblas.internal.diagnostics.vectorRoute
+import com.eignex.koblas.internal.host.DenseHostEligibility
+import com.eignex.koblas.internal.host.HostDenseBlas
+import com.eignex.koblas.internal.host.RoutedDenseBlas
+import com.eignex.koblas.internal.sparse.IndexedSparseKernels
+import com.eignex.koblas.internal.sparse.PortableSparseBlas
+import com.eignex.koblas.internal.sparse.ScalarIndexedSparseKernels
+import com.eignex.koblas.internal.sparse.SparseKernelAdapter
+import com.eignex.koblas.internal.sparse.SparsePanelKernels
+import com.eignex.koblas.internal.sparse.snapshot
 import com.eignex.koblas.sparse.SparseBlas
-import com.eignex.koblas.sparse.SparseKernelAdapter
 import com.eignex.koblas.sparse.SparseKernels
 import com.eignex.koblas.sparse.SparseOperation
-import com.eignex.koblas.sparse.SparsePanelKernels
 import com.eignex.koblas.vendor.Blas
 import com.eignex.koblas.vendor.openBlas
 
@@ -53,31 +55,230 @@ internal expect fun platformEngine(): KoblasEngine
  * for tests and benchmarks, neither of which loads a host library. The platform default may compose
  * [vendor] into eligible calls. The [routeOf] overloads describe which implementations a call reaches.
  */
-public class KoblasEngine internal constructor(
+public class KoblasEngine private constructor(
     /** Contiguous and strided dense Level 1 kernels. */
     public val vectorKernels: DenseVectorKernels,
     internal val indexedSparseKernels: IndexedSparseKernels,
     /** Optional production native adapter, exposed only for expert benchmark attribution. */
     public val vendor: Blas?,
     /** Panel arithmetic and the local execution grouping that dense and sparse algorithms schedule with. */
-    internal val panelKernels: DensePanelKernels = PortablePanelKernels,
+    internal val panelKernels: DensePanelKernels,
     /** Register-tile product arithmetic and the tile geometry dense products pack for. */
-    internal val productKernels: DenseProductKernels = PortableProductKernels,
+    internal val productKernels: DenseProductKernels,
     /** Diagonal-block substitution and the right-hand-side grouping triangular routines schedule with. */
-    internal val triangularKernels: DenseTriangularKernels = PortableTriangularKernels,
-    sparseKernelName: String = indexedSparseKernels.name,
-    nativeEligible: DenseHostEligibility? = null,
-    private val dense: RoutedDenseBlas =
+    internal val triangularKernels: DenseTriangularKernels,
+    sparseKernelName: String,
+    private val dense: RoutedDenseBlas,
+    private val sparseBlas: SparseBlas,
+) : DenseBlas by dense,
+    SparseBlas by sparseBlas {
+    /** Execution policy and arithmetic components have one composition owner. */
+    internal constructor(
+        vectorKernels: DenseVectorKernels,
+        indexedSparseKernels: IndexedSparseKernels,
+        vendor: Blas?,
+        panelKernels: DensePanelKernels = PortablePanelKernels,
+        productKernels: DenseProductKernels = PortableProductKernels,
+        triangularKernels: DenseTriangularKernels = PortableTriangularKernels,
+        sparseKernelName: String = indexedSparseKernels.name,
+        nativeEligible: DenseHostEligibility? = null,
+    ) : this(
+        vectorKernels, indexedSparseKernels, vendor, panelKernels, productKernels, triangularKernels, sparseKernelName,
         PortableDenseBlas(vectorKernels, panelKernels, productKernels, triangularKernels).let { portable ->
             vendor?.let { HostDenseBlas(portable, it, requireNotNull(nativeEligible)) } ?: portable
         },
-    private val sparseBlas: SparseBlas = PortableSparseBlas(
-        vectorKernels,
-        indexedSparseKernels,
-        SparsePanelKernels(vectorKernels, panelKernels),
-    ),
-) : DenseBlas by dense,
-    SparseBlas by sparseBlas {
+        PortableSparseBlas(vectorKernels, indexedSparseKernels, SparsePanelKernels(vectorKernels, panelKernels)),
+    )
+
+    /**
+     * Allocates a product using this engine. Two sparse or prepared operands produce owned CSC storage;
+     * other pairings produce dense storage. Custom [Matrix] operands are read once into dense scratch.
+     * Prepared snapshots contribute data and cached orientation, never execution policy.
+     */
+    public fun gemm(a: Matrix, b: Matrix): Matrix = product(1.0, a, false, b, false)
+
+    /** Scaled product with independent transpose flags and the storage rule of [gemm]. */
+    public fun gemm(alpha: Double, a: Matrix, transposeA: Boolean, b: Matrix, transposeB: Boolean): Matrix =
+        product(alpha, a, transposeA, b, transposeB)
+
+    /**
+     * Writes a generic product through this engine into addressed dense storage. Validation precedes all
+     * writes; zero alpha and empty depth read no inputs, and zero beta reads no destination values.
+     * [workspace] lends logical alias snapshots, sparse scratch and custom operand normalization.
+     */
+    @Suppress("LongParameterList") // BLAS operands, flags and workspace
+    public fun gemm(
+        alpha: Double,
+        a: Matrix,
+        transposeA: Boolean,
+        b: Matrix,
+        transposeB: Boolean,
+        beta: Double,
+        c: DenseMatrixRegion,
+        workspace: Workspace? = null,
+    ): Unit = productInto(alpha, a, transposeA, b, transposeB, beta, c, workspace)
+
+    override fun gemm(a: DenseMatrixRegion, b: DenseMatrixRegion): DenseMatrix =
+        product(1.0, a, false, b, false) as DenseMatrix
+
+    override fun gemm(a: SparseMatrix, b: DenseMatrixRegion): DenseMatrix =
+        product(1.0, a, false, b, false) as DenseMatrix
+
+    override fun gemm(a: SparseMatrix, b: SparseMatrix): SparseMatrix = product(1.0, a, false, b, false) as SparseMatrix
+
+    /** TRSV over readable dense, sparse, prepared or custom operands, using this engine. */
+    @Suppress("LongParameterList") // triangle flags and workspace
+    public fun trsv(
+        a: Matrix,
+        x: DoubleArray,
+        lower: Boolean,
+        transpose: Boolean = false,
+        unitDiag: Boolean = false,
+        workspace: Workspace? = null,
+    ) {
+        requireTriangularVectorOperands(a, x.size, "trsv")
+        val sparse = storedCsc(a)
+        if (sparse != null) {
+            trsv(sparse, x, lower, transpose, unitDiag, workspace)
+        } else {
+            triangleOperand(
+                workspace,
+                a,
+                lower,
+                unitDiag,
+            ) { dense -> trsv(dense, x, lower, transpose, unitDiag, workspace) }
+        }
+    }
+
+    /** TRMV over readable dense, sparse, prepared or custom operands, using this engine. */
+    @Suppress("LongParameterList") // triangle flags and workspace
+    public fun trmv(
+        a: Matrix,
+        x: DoubleArray,
+        lower: Boolean,
+        transpose: Boolean = false,
+        unitDiag: Boolean = false,
+        workspace: Workspace? = null,
+    ) {
+        requireTriangularVectorOperands(a, x.size, "trmv")
+        val sparse = storedCsc(a)
+        if (sparse != null) {
+            trmv(sparse, x, lower, transpose, unitDiag, workspace)
+        } else {
+            triangleOperand(
+                workspace,
+                a,
+                lower,
+                unitDiag,
+            ) { dense -> trmv(dense, x, lower, transpose, unitDiag, workspace) }
+        }
+    }
+
+    /** TRSM over readable dense, sparse, prepared or custom operands, using this engine. */
+    @Suppress("LongParameterList") // triangle flags and workspace
+    public fun trsm(
+        a: Matrix,
+        b: DenseMatrixRegion,
+        lower: Boolean,
+        transpose: Boolean = false,
+        unitDiag: Boolean = false,
+        right: Boolean = false,
+        alpha: Double = 1.0,
+        workspace: Workspace? = null,
+    ) {
+        requireTriangularMatrixOperands(a, b, right, "trsm")
+        if (alpha == 0.0 || b.rows == 0 || b.cols == 0) {
+            com.eignex.koblas.internal.operands.scaleRegion(b, if (alpha == 0.0) 0.0 else 1.0)
+            return
+        }
+        val sparse = storedCsc(a)
+        if (sparse != null) {
+            trsm(sparse, b, lower, transpose, unitDiag, right, alpha, workspace)
+        } else {
+            triangleOperand(
+                workspace,
+                a,
+                lower,
+                unitDiag,
+            ) { dense -> trsm(dense, b, lower, transpose, unitDiag, right, alpha, workspace) }
+        }
+    }
+
+    /** TRMM over readable dense, sparse, prepared or custom operands, using this engine. */
+    @Suppress("LongParameterList") // triangle flags and workspace
+    public fun trmm(
+        a: Matrix,
+        b: DenseMatrixRegion,
+        lower: Boolean,
+        transpose: Boolean = false,
+        unitDiag: Boolean = false,
+        right: Boolean = false,
+        alpha: Double = 1.0,
+        workspace: Workspace? = null,
+    ) {
+        requireTriangularMatrixOperands(a, b, right, "trmm")
+        if (alpha == 0.0 || b.rows == 0 || b.cols == 0) {
+            com.eignex.koblas.internal.operands.scaleRegion(b, if (alpha == 0.0) 0.0 else 1.0)
+            return
+        }
+        val sparse = storedCsc(a)
+        if (sparse != null) {
+            trmm(sparse, b, lower, transpose, unitDiag, right, alpha, workspace)
+        } else {
+            triangleOperand(
+                workspace,
+                a,
+                lower,
+                unitDiag,
+            ) { dense -> trmm(dense, b, lower, transpose, unitDiag, right, alpha, workspace) }
+        }
+    }
+
+    /** GEMV over an engine-neutral prepared snapshot. */
+    @Suppress("LongParameterList") // BLAS operands and workspace
+    public fun gemv(
+        alpha: Double,
+        a: PreparedSparseMatrix,
+        x: DoubleArray,
+        beta: Double,
+        y: DoubleArray,
+        transpose: Boolean = false,
+        workspace: Workspace? = null,
+    ): Unit = gemv(alpha, a.snapshot, x, beta, y, transpose, workspace)
+
+    /** SYMV over an engine-neutral prepared snapshot. */
+    @Suppress("LongParameterList") // BLAS operands and workspace
+    public fun symv(
+        alpha: Double,
+        a: PreparedSparseMatrix,
+        x: DoubleArray,
+        beta: Double,
+        y: DoubleArray,
+        lower: Boolean = true,
+        workspace: Workspace? = null,
+    ): Unit = symv(alpha, a.snapshot, x, beta, y, lower, workspace)
+
+    /** Symmetric product through this engine over an engine-neutral prepared sparse snapshot. */
+    @Suppress("LongParameterList") // BLAS operands, structure and workspace
+    public fun symm(
+        alpha: Double,
+        a: PreparedSparseMatrix,
+        b: DenseMatrixRegion,
+        beta: Double,
+        c: DenseMatrixRegion,
+        lower: Boolean = true,
+        right: Boolean = false,
+        workspace: Workspace? = null,
+    ): Unit = symm(alpha, a.snapshot, b, beta, c, lower, right, workspace)
+
+    /** Describes this engine's execution against a prepared snapshot without deriving its orientation. */
+    public fun routeOf(
+        operation: com.eignex.koblas.sparse.SparseMatrixOperation,
+        a: PreparedSparseMatrix,
+        call: com.eignex.koblas.sparse.SparseCall,
+    ): com.eignex.koblas.sparse.SparseMatrixRoute =
+        com.eignex.koblas.internal.diagnostics.preparedRoute(this, a, operation, call)
+
     /** Explicit application engine selection without changing the platform default. */
     public companion object {
         /**
@@ -172,3 +373,6 @@ public expect object BuiltinEngines {
 
 /** Optional platform-default Native host binding, resolved once only when that platform policy asks for it. */
 internal val selectedVendor: Blas? by lazy { openBlas() }
+
+/** Shared scalar composition; availability and default selection remain platform decisions. */
+internal val scalarEngine: KoblasEngine by lazy { KoblasEngine.portable() }

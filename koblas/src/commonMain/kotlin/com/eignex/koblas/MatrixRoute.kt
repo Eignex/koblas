@@ -1,6 +1,6 @@
 package com.eignex.koblas
 
-import com.eignex.koblas.vendor.RouteKind
+import com.eignex.koblas.RouteKind
 
 /**
  * What one matrix call executes, on the terms a dense and a sparse route share.

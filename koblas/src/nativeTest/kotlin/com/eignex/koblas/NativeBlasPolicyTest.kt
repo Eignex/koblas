@@ -3,7 +3,7 @@
 package com.eignex.koblas
 
 import com.eignex.koblas.dense.DenseMatrixOperation
-import com.eignex.koblas.dense.NativeBlasPolicy
+import com.eignex.koblas.internal.host.NativeBlasPolicy
 import kotlin.test.Test
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue

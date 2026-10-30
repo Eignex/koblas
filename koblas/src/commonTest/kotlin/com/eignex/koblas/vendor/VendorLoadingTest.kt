@@ -2,7 +2,9 @@ package com.eignex.koblas.vendor
 
 import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.DenseVector
+import com.eignex.koblas.RouteKind
 import com.eignex.koblas.StridedVector
+import com.eignex.koblas.internal.configuration.environmentVariableOrNull
 import kotlin.math.abs
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -17,6 +19,35 @@ import kotlin.test.assertTrue
  */
 class VendorLoadingTest {
     private fun installed(): Blas? = openBlas()
+
+    @Test
+    fun `a parallel armpl build with hidden controls is never accepted as serial`() {
+        for (candidate in listOf("libarmpl_lp64.so", "armpl_lp64.dll", "C:\\parallel_mp\\armpl_lp64.dll")) {
+            assertTrue(ThreadControl.OpenMp.permitsAbsentControl(candidate))
+        }
+        for (candidate in listOf("libarmpl_lp64_mp.so", "armpl_lp64_mp.dll", "C:\\ArmPL\\ARMPL_LP64_MP.DLL")) {
+            assertTrue(!ThreadControl.OpenMp.permitsAbsentControl(candidate))
+        }
+        for (control in ThreadControl.entries.filterNot { it == ThreadControl.OpenMp }) {
+            assertTrue(!control.permitsAbsentControl("library.dll"))
+        }
+    }
+
+    @Test
+    fun `explicitly required vendor libraries must pass the loader checks`() {
+        val requested = environmentVariableOrNull("KOBLAS_REQUIRE_VENDORS") ?: return
+        for (name in requested.split(',')) {
+            val vendor = assertNotNull(
+                Vendor.entries.singleOrNull { it.name.equals(name.trim(), ignoreCase = true) },
+                "Unknown required vendor: $name",
+            )
+
+            assertNotNull(
+                openBlas(vendor),
+                "Required ${vendor.vendorName} failed to load or pass ABI and thread checks",
+            )
+        }
+    }
 
     @Test
     fun `a library missing any required entry point is rejected rather than half bound`() {

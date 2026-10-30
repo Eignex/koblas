@@ -3,11 +3,20 @@ package com.eignex.koblas.dense
 import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.DenseMatrixRegion
 import com.eignex.koblas.DenseVector
+import com.eignex.koblas.RouteKind
 import com.eignex.koblas.Workspace
 import com.eignex.koblas.assertClose
+import com.eignex.koblas.internal.dense.DENSE_SCHEDULING
+import com.eignex.koblas.internal.dense.PortableDenseBlas
+import com.eignex.koblas.internal.dense.PortablePanelKernels
+import com.eignex.koblas.internal.dense.ScalarVectorKernels
+import com.eignex.koblas.internal.host.DenseHostEligibility
+import com.eignex.koblas.internal.host.HOST_SCHEDULING
+import com.eignex.koblas.internal.host.HOST_STAGING
+import com.eignex.koblas.internal.host.HostDenseBlas
+import com.eignex.koblas.internal.operands.staged
 import com.eignex.koblas.vendor.Blas
 import com.eignex.koblas.vendor.BlasOperation
-import com.eignex.koblas.vendor.RouteKind
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
@@ -352,12 +361,12 @@ class HostDenseBlasTest {
         for (i in expectedA.indices) assertContentEquals(expectedA[i], call.matrices[0].toArray()[i])
         for (i in expectedB.indices) assertContentEquals(expectedB[i], call.matrices[1].toArray()[i])
         assertNotSame(parent.values, call.matrices[0].values)
-        assertTrue(HOST_REGION_STAGING in route.components)
+        assertEquals(HOST_SCHEDULING, route.scheduling)
     }
 
     @Test
     fun `borrowed host calls reach a region binding in place`() {
-        val recorder = RecordingRegionBlas()
+        val recorder = RecordingBlas()
         val blas = HostDenseBlas(
             PortableDenseBlas(ScalarVectorKernels, PortablePanelKernels),
             recorder,
@@ -388,14 +397,13 @@ class HostDenseBlasTest {
         for ((call, operands) in recorder.calls.zip(expected)) {
             for ((actual, view) in call.matrices.zip(operands)) assertSame(view, actual, "${call.operation}")
         }
-        assertEquals(emptyList(), recorder.contiguousCalls)
         assertEquals(0, workspace.idleLengths(), "a disjoint borrowed call borrowed scratch")
         assertEquals(listOf("openblas/${BlasOperation.Syrk.entryPoint}"), route.components)
     }
 
     @Test
     fun `a borrowed input overlapping the destination is staged before a region binding`() {
-        val recorder = RecordingRegionBlas()
+        val recorder = RecordingBlas()
         val blas = HostDenseBlas(
             PortableDenseBlas(ScalarVectorKernels, PortablePanelKernels),
             recorder,
@@ -445,42 +453,42 @@ class HostDenseBlasTest {
 private class ReferenceProductBlas : Blas by RecordingBlas() {
     override fun gemm(
         alpha: Double,
-        a: DenseMatrix,
+        a: DenseMatrixRegion,
         transposeA: Boolean,
-        b: DenseMatrix,
+        b: DenseMatrixRegion,
         transposeB: Boolean,
         beta: Double,
-        c: DenseMatrix,
+        c: DenseMatrixRegion,
     ) = ReferenceBlas.gemm(alpha, a, transposeA, b, transposeB, beta, c)
 
     override fun gemmt(
         alpha: Double,
-        a: DenseMatrix,
+        a: DenseMatrixRegion,
         transposeA: Boolean,
-        b: DenseMatrix,
+        b: DenseMatrixRegion,
         transposeB: Boolean,
         beta: Double,
-        c: DenseMatrix,
+        c: DenseMatrixRegion,
         structure: MatrixStructure,
     ) = ReferenceBlas.gemmt(alpha, a, transposeA, b, transposeB, beta, c, structure == MatrixStructure.SymmetricLower)
 
     override fun symm(
         alpha: Double,
-        a: DenseMatrix,
+        a: DenseMatrixRegion,
         structure: MatrixStructure,
-        b: DenseMatrix,
+        b: DenseMatrixRegion,
         beta: Double,
-        c: DenseMatrix,
+        c: DenseMatrixRegion,
         rightSide: Boolean,
     ) = ReferenceBlas.symm(alpha, a, b, beta, c, structure == MatrixStructure.SymmetricLower, rightSide)
 
     override fun syr2k(
         alpha: Double,
-        a: DenseMatrix,
-        b: DenseMatrix,
+        a: DenseMatrixRegion,
+        b: DenseMatrixRegion,
         transposeA: Boolean,
         beta: Double,
-        c: DenseMatrix,
+        c: DenseMatrixRegion,
         structure: MatrixStructure,
     ) = ReferenceBlas.syr2k(alpha, a, b, transposeA, beta, c, structure == MatrixStructure.SymmetricLower)
 }

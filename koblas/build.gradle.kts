@@ -1,3 +1,5 @@
+@file:OptIn(org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi::class)
+
 import org.gradle.api.tasks.JavaExec
 import org.gradle.jvm.toolchain.JavaLanguageVersion
 import org.jetbrains.kotlin.gradle.tasks.KotlinJvmCompile
@@ -31,27 +33,44 @@ kotlin {
     }
     jvm {
         val main = compilations.getByName("main")
-        compilations.named("test") {
+        val baselineTest = compilations.getByName("test")
+        val desktopTest = compilations.create("desktopTest") {
+            associateWith(main)
+            associateWith(baselineTest)
             compileTaskProvider.configure {
                 compilerOptions.jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_25)
+                compilerOptions.freeCompilerArgs.add("-Xadd-modules=jdk.incubator.vector")
             }
             compileJavaTaskProvider?.configure { options.release.set(25) }
         }
-        compilations.create("portableTest") {
-            associateWith(main)
-            defaultSourceSet {
-                kotlin.srcDir("src/commonTest/kotlin")
-                dependencies {
-                    implementation(kotlin("test-junit"))
-                    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json")
-                }
+        // Kbuild creates the MR compilation during its lifecycle hook.
+        compilations.matching { it.name == "java25" }.all {
+            compileTaskProvider.configure {
+                compilerOptions.freeCompilerArgs.add("-Xadd-modules=jdk.incubator.vector")
+            }
+            desktopTest.associateWith(this)
+            val versionedOutput = output.classesDirs
+            tasks.named<KotlinJvmCompile>(desktopTest.compileKotlinTaskName) {
+                friendPaths.setFrom(main.output.classesDirs, baselineTest.output.classesDirs, versionedOutput)
             }
         }
     }
     linuxX64(); linuxArm64()
+    mingwX64()
     macosArm64()
     iosArm64()
     iosSimulatorArm64()
+
+    applyDefaultHierarchyTemplate {
+        common {
+            group("native") {
+                group("posix") {
+                    withLinux()
+                    withApple()
+                }
+            }
+        }
+    }
 
     sourceSets {
         commonMain.dependencies {
@@ -79,205 +98,123 @@ dokka {
     }
 }
 
-// Only the desktop implementation and its tests may reference the incubator Vector API.
-tasks.withType<KotlinJvmCompile>().configureEach {
-    if (name != "compileKotlinJvm" && name != "compilePortableTestKotlinJvm") {
-        compilerOptions.freeCompilerArgs.add("-Xadd-modules=jdk.incubator.vector")
+val jvmTarget = kotlin.targets.getByName("jvm") as KotlinJvmTarget
+val baselineTest = jvmTarget.compilations.getByName("test")
+val desktopTest = jvmTarget.compilations.getByName("desktopTest")
+val mainOutput = jvmTarget.compilations.getByName("main").output.allOutputs
+val productionOutputs = files(mainOutput)
+jvmTarget.compilations.matching { it.name == "java25" }.all { productionOutputs.from(output.allOutputs) }
+val jvmJar = tasks.named<Jar>("jvmJar")
+val packagedBaselineClasspath = files(jvmJar, baselineTest.output.allOutputs, baselineTest.runtimeDependencyFiles) - productionOutputs
+val packagedDesktopClasspath = files(
+    packagedBaselineClasspath, desktopTest.output.allOutputs, desktopTest.runtimeDependencyFiles,
+) - productionOutputs
+val desktopJavaLauncher = javaToolchains.launcherFor { languageVersion.set(JavaLanguageVersion.of(25)) }
+val desktopJvmArguments = listOf("--enable-native-access=ALL-UNNAMED") +
+    if (providers.gradleProperty("koblas.noSimd").orNull == "true") emptyList()
+    else listOf("--add-modules=jdk.incubator.vector")
+
+tasks.named<Test>("jvmTest") {
+    testClassesDirs = files(baselineTest.output.classesDirs, desktopTest.output.classesDirs)
+    classpath = packagedDesktopClasspath
+    javaLauncher.set(desktopJavaLauncher)
+    jvmArgs(desktopJvmArguments)
+}
+// Retain the packaged entrypoints kbuild registers, with one canonical Java 25 execution for coverage.
+tasks.withType<Test>().matching { it.name == "jvmTestJarOnJava25" }.configureEach {
+    dependsOn(tasks.named("jvmTest"))
+    enabled = false
+}
+tasks.withType<Test>().matching { it.name == "jvmTestJarOnJava17" }.configureEach {
+    testClassesDirs = baselineTest.output.classesDirs
+    classpath = packagedBaselineClasspath
+}
+
+/** Each profile is a separate uninstrumented process with its own fixed runtime policy. */
+data class JvmCheckProfile(
+    val name: String,
+    val main: String,
+    val arguments: List<String> = emptyList(),
+    val vmArguments: List<String> = emptyList(),
+    val heap: String? = null,
+    val environment: Map<String, String> = emptyMap(),
+    val oneMkl: Boolean = false,
+    val runtimeHome: String? = null,
+)
+
+val vectorArguments = listOf("--add-modules=jdk.incubator.vector", "--enable-native-access=ALL-UNNAMED")
+val allocationArguments = vectorArguments + listOf("-XX:-TieredCompilation", "-XX:CompileThreshold=1000")
+val profiles = buildList {
+    for (family in listOf("Dense", "Sparse")) {
+        for ((suffix, flags) in listOf(
+            "" to emptyList(),
+            "NoFma" to listOf("-XX:-UseFMA"),
+            "NarrowNoFma" to listOf("-XX:MaxVectorSize=16", "-XX:-UseFMA"),
+        )) {
+            add(JvmCheckProfile(
+                "simd${family}AllocationCheck$suffix",
+                "com.eignex.koblas.${family.lowercase()}.Simd${family}AllocationCheck",
+                vmArguments = allocationArguments + flags,
+            ))
+        }
+    }
+    for ((name, args, flags) in listOf(
+        Triple("simdNarrowSpeciesCheck", listOf("2"), listOf("-XX:MaxVectorSize=16")),
+        Triple("simdNoFmaCheck", listOf("", "false"), listOf("-XX:-UseFMA")),
+    )) {
+        add(JvmCheckProfile(name, "com.eignex.koblas.dense.SimdRuntimePathCheck", args, vectorArguments + flags))
+    }
+    for ((name, mode, flags) in listOf(
+        Triple("simdG1AlignmentCheck", "g1", listOf("-XX:+UseG1GC", "-XX:G1HeapRegionSize=1m")),
+        Triple("simdSerialAlignmentCheck", "fallback", listOf("-XX:+UseSerialGC")),
+        Triple("simdZgcAlignmentCheck", "zgc", listOf("-XX:+UseZGC")),
+        Triple("simdObjectAlignmentCheck", "object64", listOf("-XX:+UseSerialGC", "-XX:ObjectAlignmentInBytes=64")),
+    )) {
+        add(JvmCheckProfile(
+            name, "com.eignex.koblas.dense.SimdReductionAlignmentCheck", listOf(mode),
+            allocationArguments + flags, heap = "128m",
+            runtimeHome = providers.gradleProperty("koblas.runtimeCheckJavaHome").orNull,
+        ))
+    }
+    for (mode in listOf("inherited", "initialized")) {
+        add(JvmCheckProfile(
+            "oneMkl${mode.replaceFirstChar(Char::uppercase)}InterfaceCheck",
+            "com.eignex.koblas.vendor.OneMklInterfaceCheck", listOf(mode),
+            listOf("--enable-native-access=ALL-UNNAMED", "-XX:ActiveProcessorCount=1"),
+            "128m", mapOf("MKL_INTERFACE_LAYER" to "ILP64"), oneMkl = true,
+        ))
     }
 }
-tasks.withType<Test>().configureEach {
-    if (name != "jvmTestJarOnJava17") {
-        jvmArgs("--enable-native-access=ALL-UNNAMED")
-        if (project.findProperty("koblas.noSimd") != "true") {
-            jvmArgs("--add-modules=jdk.incubator.vector")
+val isolatedChecks = profiles.map { profile ->
+    tasks.register<JavaExec>(profile.name) {
+        group = "verification"
+        description = "Runs the isolated ${profile.name} runtime profile."
+        classpath = packagedDesktopClasspath
+        mainClass.set(profile.main)
+        if (profile.runtimeHome == null) javaLauncher.set(desktopJavaLauncher)
+        else setExecutable("${profile.runtimeHome}/bin/java")
+        args(profile.arguments)
+        jvmArgs(profile.vmArguments)
+        profile.heap?.let { maxHeapSize = it }
+        environment(profile.environment)
+        if (profile.oneMkl) {
+            systemProperty("koblas.requireOneMkl", providers.gradleProperty("koblas.requireOneMkl").orElse("false").get())
         }
     }
 }
-
-// Vector API carrier objects are scalar-replaced by HotSpot only after C2 compilation. Kover instruments test
-// classes before their JVM starts, which prevents that replacement and turns an otherwise allocation-free sparse
-// kernel into a coverage artifact. Run this check in its own, uninstrumented JVM with an explicit SIMD engine.
-val jvmTestCompilation = (kotlin.targets.getByName("jvm") as KotlinJvmTarget).compilations.getByName("test")
-val jvmCheckJavaLauncher = javaToolchains.launcherFor { languageVersion.set(JavaLanguageVersion.of(25)) }
-
-fun registerJvmCheck(
-    name: String,
-    description: String,
-    mainClassName: String,
-    vararg jvmArguments: String,
-    runtimeHome: String? = null,
-    configure: JavaExec.() -> Unit = {},
-) = tasks.register<JavaExec>(name) {
-    group = "verification"
-    this.description = description
-    dependsOn("jvmTestClasses")
-    classpath(jvmTestCompilation.output.allOutputs, configurations.getByName("jvmTestRuntimeClasspath"))
-    mainClass.set(mainClassName)
-    if (runtimeHome == null) javaLauncher.set(jvmCheckJavaLauncher)
-    else setExecutable("$runtimeHome/bin/java")
-    jvmArgs(*jvmArguments)
-    configure()
-}
-
-/** oneMKL interface selection is process state, so each configuration needs a fresh JVM. */
-fun registerOneMklInterfaceCheck(name: String, description: String, mode: String) = registerJvmCheck(
-    name, description, "com.eignex.koblas.vendor.OneMklInterfaceCheck",
-    "--enable-native-access=ALL-UNNAMED", "-XX:ActiveProcessorCount=1",
-) {
-    environment("MKL_INTERFACE_LAYER", "ILP64")
-    maxHeapSize = "128m"
-    systemProperty("koblas.requireOneMkl", providers.gradleProperty("koblas.requireOneMkl").orElse("false").get())
-    args(mode)
-}
-
-val oneMklInheritedInterfaceCheck = registerOneMklInterfaceCheck(
-    "oneMklInheritedInterfaceCheck",
-    "Checks oneMKL LP64 loading and arithmetic with an inherited ILP64 environment, when installed.",
-    "inherited",
-)
-val oneMklInitializedInterfaceCheck = registerOneMklInterfaceCheck(
-    "oneMklInitializedInterfaceCheck",
-    "Checks safe rejection of a oneMKL runtime already initialized with ILP64, when installed.",
-    "initialized",
-)
-/**
- * The sparse allocation check in one runtime configuration.
- *
- * The indexed panels a sparse product hands its right-hand sides to are vector bodies with a hardware-gated
- * multiply-add, so whether one allocates depends on the width of the species and on whether that add is one
- * instruction. Both are fixed when the virtual machine starts, which is why each configuration is its own
- * process and each one worth checking is registered here.
- */
-fun registerSparseAllocationCheck(name: String, description: String, vararg extraArgs: String) = registerJvmCheck(
-    name, description, "com.eignex.koblas.sparse.SimdSparseAllocationCheck",
-    "--add-modules=jdk.incubator.vector", "--enable-native-access=ALL-UNNAMED",
-    "-XX:-TieredCompilation", "-XX:CompileThreshold=1000", *extraArgs,
-)
-
-val simdSparseAllocationCheck = registerSparseAllocationCheck(
-    "simdSparseAllocationCheck",
-    "Checks allocation-free JVM SIMD indexed sparse kernels, panels and whole calls, at this machine's width.",
-)
-val simdSparseAllocationCheckNoFma = registerSparseAllocationCheck(
-    "simdSparseAllocationCheckNoFma",
-    "Checks the same sparse kernels with the fused multiply-add disabled.",
-    "-XX:-UseFMA",
-)
-val simdSparseAllocationCheckNarrowNoFma = registerSparseAllocationCheck(
-    "simdSparseAllocationCheckNarrowNoFma",
-    "Checks the same sparse kernels with a two-lane species and the fused multiply-add disabled.",
-    "-XX:MaxVectorSize=16",
-    "-XX:-UseFMA",
-)
-/**
- * The dense allocation check in one runtime configuration.
- *
- * Whether a kernel allocates depends on the width of the species and on whether a multiply-add is one
- * instruction, and both are fixed when the virtual machine starts. So each configuration needs its own
- * process, and each one worth checking is registered here rather than left to be remembered.
- */
-fun registerDenseAllocationCheck(name: String, description: String, vararg extraArgs: String) = registerJvmCheck(
-    name, description, "com.eignex.koblas.dense.SimdDenseAllocationCheck",
-    "--add-modules=jdk.incubator.vector", "--enable-native-access=ALL-UNNAMED",
-    "-XX:-TieredCompilation", "-XX:CompileThreshold=1000", *extraArgs,
-)
-
-val simdDenseAllocationCheck = registerDenseAllocationCheck(
-    "simdDenseAllocationCheck",
-    "Checks allocation-free JVM SIMD dense kernels and the whole calls around them, at this machine's width.",
-)
-
-// The unfused multiply-add a pre-FMA host would take, at this host's width and at the two lanes that are
-// the reference fleet's floor. Both, because both have been measured to allocate where the fused path does
-// not, and a gate at one width would not have caught the other.
-val simdDenseAllocationCheckNoFma = registerDenseAllocationCheck(
-    "simdDenseAllocationCheckNoFma",
-    "Checks the same kernels with the fused multiply-add disabled.",
-    "-XX:-UseFMA",
-)
-val simdDenseAllocationCheckNarrowNoFma = registerDenseAllocationCheck(
-    "simdDenseAllocationCheckNarrowNoFma",
-    "Checks the same kernels with a two-lane species and the fused multiply-add disabled.",
-    "-XX:MaxVectorSize=16",
-    "-XX:-UseFMA",
-)
-
-/**
- * Runs panel, product and diagonal substitution conformance with a forced species or multiply-add flag.
- *
- * Both are fixed when the virtual machine starts, so a test task cannot reach either: the narrow-species and
- * unfused paths are generated and taken only in a process started this way. Forcing a flag exercises the
- * path; it says nothing about a machine that genuinely lacks the instruction.
- */
-fun registerRuntimePathCheck(name: String, description: String, vararg extraArgs: String) = registerJvmCheck(
-    name, description, "com.eignex.koblas.dense.SimdRuntimePathCheck",
-    "--add-modules=jdk.incubator.vector", "--enable-native-access=ALL-UNNAMED", *extraArgs,
-)
-
-// Two lanes rather than this host's four, which is the width of the narrowest species in the reference
-// fleet, and the unfused multiply-add that a pre-FMA host would take.
-val simdNarrowSpeciesCheck = registerRuntimePathCheck(
-    "simdNarrowSpeciesCheck",
-    "Checks JVM panels, products and substitutions against a species constrained to two lanes.",
-    "-XX:MaxVectorSize=16",
-)
-simdNarrowSpeciesCheck { args("2") }
-val simdNoFmaCheck = registerRuntimePathCheck(
-    "simdNoFmaCheck",
-    "Checks JVM panels, products and substitutions with the fused multiply-add disabled.",
-    "-XX:-UseFMA",
-)
-simdNoFmaCheck { args("", "false") }
-
-fun registerReductionAlignmentCheck(name: String, mode: String, vararg extraArgs: String) = registerJvmCheck(
-    name, "Checks reduction windows against the scalar oracle with a fixed heap layout.",
-    "com.eignex.koblas.dense.SimdReductionAlignmentCheck",
-    "--add-modules=jdk.incubator.vector", "-XX:-TieredCompilation", "-XX:CompileThreshold=1000", *extraArgs,
-    runtimeHome = providers.gradleProperty("koblas.runtimeCheckJavaHome").orNull,
-) {
-    maxHeapSize = "128m"
-    args(mode)
-}
-
-val simdG1AlignmentCheck = registerReductionAlignmentCheck(
-    "simdG1AlignmentCheck", "g1", "-XX:+UseG1GC", "-XX:G1HeapRegionSize=1m",
-)
-val simdSerialAlignmentCheck = registerReductionAlignmentCheck(
-    "simdSerialAlignmentCheck", "fallback", "-XX:+UseSerialGC",
-)
-
-val simdZgcAlignmentCheck = registerReductionAlignmentCheck(
-    "simdZgcAlignmentCheck", "zgc", "-XX:+UseZGC",
-)
-
-val simdObjectAlignmentCheck = registerReductionAlignmentCheck(
-    "simdObjectAlignmentCheck", "object64", "-XX:+UseSerialGC", "-XX:ObjectAlignmentInBytes=64",
-)
-
-tasks.named("check") {
-    dependsOn(
-        oneMklInheritedInterfaceCheck,
-        oneMklInitializedInterfaceCheck,
-        simdSparseAllocationCheck,
-        simdSparseAllocationCheckNoFma,
-        simdSparseAllocationCheckNarrowNoFma,
-        simdDenseAllocationCheck,
-        simdDenseAllocationCheckNoFma,
-        simdDenseAllocationCheckNarrowNoFma,
-        simdNarrowSpeciesCheck,
-        simdNoFmaCheck,
-        simdG1AlignmentCheck,
-        simdSerialAlignmentCheck,
-        simdZgcAlignmentCheck,
-        simdObjectAlignmentCheck,
-    )
-}
+tasks.named("check") { dependsOn(isolatedChecks) }
 
 // Kotlin emits a `$DefaultImpls` holder for every interface with a body, and a bridge for every method with
 // a default argument. Neither is reachable from Kotlin call sites, so both count as permanently uncovered and
 // make the report read as though tested code were not: `Blas.syr` shows its real body at 98% next to a bridge
 // at 0%. Dropping the holders leaves the report describing code a test can actually reach.
 kover {
+    currentProject {
+        sources {
+            // Kover otherwise treats custom compilations as production report inputs.
+            excludedSourceSets.addAll("desktopTest", "jvmDesktopTest")
+        }
+    }
     reports {
         filters {
             excludes {
@@ -295,41 +232,20 @@ tasks.named<Jar>("jvmJar") {
     }
 }
 
-// The desktop suite names implementation kernels; baseline conformance uses only common tests.
-val jvmTarget = kotlin.targets.getByName("jvm") as KotlinJvmTarget
-val portableTestCompilation = jvmTarget.compilations.getByName("portableTest")
-val jvmJar = tasks.named<Jar>("jvmJar")
-val packagedDesktopClasspath = files(
-    jvmTestCompilation.output.allOutputs,
-    jvmJar,
-    configurations.getByName("jvmTestRuntimeClasspath"),
-) - jvmTarget.compilations.getByName("main").output.allOutputs
-
-tasks.named<Test>("jvmTest") { classpath = packagedDesktopClasspath }
-tasks.withType<JavaExec>().configureEach { classpath = packagedDesktopClasspath }
-afterEvaluate {
-    jvmTestCompilation.associateWith(jvmTarget.compilations.getByName("java25"))
-    tasks.named<Test>("jvmTestJarOnJava25") { classpath = packagedDesktopClasspath }
-    tasks.named<Test>("jvmTestJarOnJava17") {
-        testClassesDirs = portableTestCompilation.output.classesDirs
-        classpath = files(jvmJar, portableTestCompilation.output.allOutputs, portableTestCompilation.runtimeDependencyFiles) -
-            jvmTarget.compilations.getByName("main").output.allOutputs
-    }
-}
-
-// Common tests have their own lint task; avoid concurrent auto-correction of the same files.
+// Associated baseline test sources are compiled separately; only the custom source directory is linted here.
 tasks.withType<dev.detekt.gradle.Detekt>().matching {
-    it.name == "detektJvmPortableTestSourceSet"
-}.configureEach {
-    setSource(fileTree("src/jvmPortableTest/kotlin") { include("**/*.kt") })
-}
-
-// Type-resolved portable analysis also sees common tests; let their formatter finish before reading them.
-tasks.withType<dev.detekt.gradle.Detekt>().matching {
-    it.name == "detektPortableTestJvm"
+    it.name == "detektDesktopTestJvm"
 }.configureEach {
     autoCorrect.set(false)
-    mustRunAfter("detektCommonTestSourceSet")
+    mustRunAfter("detektCommonTestSourceSet", "detektJvmTestSourceSet", "detektJvmDesktopTestSourceSet")
+}
+
+// Formatting a physical source set must finish before type-resolved analysis reads its associated sources.
+tasks.withType<dev.detekt.gradle.Detekt>().matching {
+    it.name == "detektJava25Jvm"
+}.configureEach {
+    autoCorrect.set(false)
+    mustRunAfter("detektCommonMainSourceSet", "detektJvmMainSourceSet", "detektJvmJava25SourceSet")
 }
 
 // CI selects an installed simulator so the test does not depend on a hard-coded iPhone model.

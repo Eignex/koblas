@@ -2,8 +2,14 @@ package com.eignex.koblas.dense
 
 import com.eignex.koblas.BuiltinEngines
 import com.eignex.koblas.KoblasEngine
+import com.eignex.koblas.RouteKind
+import com.eignex.koblas.internal.dense.PRODUCT_BLOCK_COLUMNS
+import com.eignex.koblas.internal.dense.PRODUCT_BLOCK_DEPTH
+import com.eignex.koblas.internal.dense.PRODUCT_BLOCK_ROWS
+import com.eignex.koblas.internal.dense.PanelWork
+import com.eignex.koblas.internal.dense.PortablePanelKernels
+import com.eignex.koblas.internal.dense.TRIANGULAR_DIAGONAL_BLOCK
 import com.eignex.koblas.koblas
-import com.eignex.koblas.vendor.RouteKind
 import kotlin.test.Test
 import kotlin.test.assertContains
 import kotlin.test.assertEquals

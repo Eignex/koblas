@@ -1,0 +1,1506 @@
+Calculating task graph as configuration cache cannot be reused because Gradle property 'bench.cases' has changed.
+
+> Configure project :koblas
+Signing skipped: SNAPSHOT is a snapshot.
+
+> Task :koblas-bench:kmpPartiallyResolvedDependenciesChecker
+> Task :koblas:kmpPartiallyResolvedDependenciesChecker
+> Task :koblas:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :koblas-bench:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :koblas:jvmJava25ProcessResources NO-SOURCE
+> Task :koblas:jvmProcessResources NO-SOURCE
+> Task :koblas:processJvmJava25Resources SKIPPED
+> Task :koblas:processJvmMainResources SKIPPED
+> Task :koblas-bench:jmh:verifyUpstreamSource UP-TO-DATE
+> Task :koblas-bench:jvmProcessResources NO-SOURCE
+> Task :koblas-bench:processJvmMainResources SKIPPED
+> Task :koblas-bench:jmh:unpackUpstreamSource UP-TO-DATE
+> Task :koblas-bench:jmh:processResources UP-TO-DATE
+> Task :koblas:compileKotlinJvm UP-TO-DATE
+> Task :koblas:compileJvmMainJava NO-SOURCE
+> Task :koblas:jvmMainClasses UP-TO-DATE
+> Task :koblas-bench:jmh:compileJava UP-TO-DATE
+> Task :koblas-bench:jmh:classes UP-TO-DATE
+> Task :koblas-bench:jmh:jar UP-TO-DATE
+> Task :koblas:compileJava25KotlinJvm UP-TO-DATE
+> Task :koblas:compileJvmJava25Java NO-SOURCE
+> Task :koblas:jvmJava25Classes UP-TO-DATE
+> Task :koblas:compileJvmModuleDescriptor UP-TO-DATE
+> Task :koblas:jvmJar UP-TO-DATE
+> Task :koblas-bench:compileKotlinJvm
+> Task :koblas-bench:compileJvmMainJava UP-TO-DATE
+> Task :koblas-bench:jvmMainClasses
+
+> Task :koblas-bench:jvmScalarBenchmark
+# JMH version: 1.38-SNAPSHOT+a194eead0136
+# VM version: JDK 25.0.1, OpenJDK 64-Bit Server VM, 25.0.1+8-LTS
+# VM invoker: /home/rasmus/.gradle/jdks/eclipse_adoptium-25-amd64-linux.2/bin/java
+# VM options: --enable-native-access=ALL-UNNAMED -Dfile.encoding=UTF-8 -Duser.country -Duser.language=en -Duser.variant -Dkoblas.bench.cases=/home/rasmus/.codex/worktrees/bec7/koblas/koblas-bench/cases-addressed.txt
+# Blackhole mode: compiler (auto-detected, use -Djmh.blackhole.autoDetect=false to disable)
+# Warmup: 3 iterations, 200000000 ns each
+# Measurement: 5 iterations, 200000000 ns each
+# Timeout: 10 min per iteration
+# Threads: 1 thread, will synchronize iterations
+# Benchmark mode: Average time, time/op
+# Benchmark: com.eignex.koblas.bench.KoblasJmhBenchmark.run
+# Parameters: (benchmarkMode = jvm-scalar, caseId = gemv+32x21+uniform)
+
+# Run progress: 0.00% complete, ETA 00:00:32
+# Fork: 1 of 1
+# Warmup Iteration   1: fork_runtime case=gemv+32x21+uniform mode=jvm-scalar java=25.0.1+8-LTS collectors=G1 Young Generation|G1 Concurrent GC|G1 Old Generation max_heap_bytes=16441671680 region_bytes=8388608 object_alignment=8 compact_headers=false
+222.337 ns/op
+# Warmup Iteration   2: 206.203 ns/op
+# Warmup Iteration   3: 204.938 ns/op
+Iteration   1: 219.580 ns/op
+                 gc.alloc.rate:      0.033 MB/sec
+                 gc.alloc.rate.norm: 0.008 B/op
+                 gc.count:           ≈ 0 counts
+
+Iteration   2: 222.590 ns/op
+                 gc.alloc.rate:      0.033 MB/sec
+                 gc.alloc.rate.norm: 0.008 B/op
+                 gc.count:           ≈ 0 counts
+
+Iteration   3: 217.479 ns/op
+                 gc.alloc.rate:      0.033 MB/sec
+                 gc.alloc.rate.norm: 0.007 B/op
+                 gc.count:           ≈ 0 counts
+
+Iteration   4: 218.104 ns/op
+                 gc.alloc.rate:      0.033 MB/sec
+                 gc.alloc.rate.norm: 0.007 B/op
+                 gc.count:           ≈ 0 counts
+
+Iteration   5: 221.203 ns/op
+                 gc.alloc.rate:      0.033 MB/sec
+                 gc.alloc.rate.norm: 0.008 B/op
+                 gc.count:           ≈ 0 counts
+
+
+
+Result "com.eignex.koblas.bench.KoblasJmhBenchmark.run":
+  219.791 ±(99.9%) 8.182 ns/op [Average]
+  (min, avg, max) = (217.479, 219.791, 222.590), stdev = 2.125
+  CI (99.9%): [211.609, 227.973] (assumes normal distribution)
+
+Secondary result "com.eignex.koblas.bench.KoblasJmhBenchmark.run:gc.alloc.rate":
+  0.033 ±(99.9%) 0.001 MB/sec [Average]
+  (min, avg, max) = (0.033, 0.033, 0.033), stdev = 0.001
+  CI (99.9%): [0.032, 0.033] (assumes normal distribution)
+
+Secondary result "com.eignex.koblas.bench.KoblasJmhBenchmark.run:gc.alloc.rate.norm":
+  0.008 ±(99.9%) 0.001 B/op [Average]
+  (min, avg, max) = (0.007, 0.008, 0.008), stdev = 0.001
+  CI (99.9%): [0.007, 0.008] (assumes normal distribution)
+
+Secondary result "com.eignex.koblas.bench.KoblasJmhBenchmark.run:gc.count":
+  ≈ 0 counts
+
+
+# JMH version: 1.38-SNAPSHOT+a194eead0136
+# VM version: JDK 25.0.1, OpenJDK 64-Bit Server VM, 25.0.1+8-LTS
+# VM invoker: /home/rasmus/.gradle/jdks/eclipse_adoptium-25-amd64-linux.2/bin/java
+# VM options: --enable-native-access=ALL-UNNAMED -Dfile.encoding=UTF-8 -Duser.country -Duser.language=en -Duser.variant -Dkoblas.bench.cases=/home/rasmus/.codex/worktrees/bec7/koblas/koblas-bench/cases-addressed.txt
+# Blackhole mode: compiler (auto-detected, use -Djmh.blackhole.autoDetect=false to disable)
+# Warmup: 3 iterations, 200000000 ns each
+# Measurement: 5 iterations, 200000000 ns each
+# Timeout: 10 min per iteration
+# Threads: 1 thread, will synchronize iterations
+# Benchmark mode: Average time, time/op
+# Benchmark: com.eignex.koblas.bench.KoblasJmhBenchmark.run
+# Parameters: (benchmarkMode = jvm-scalar, caseId = gemv+129x31+uniform+transA=T)
+
+# Run progress: 5.00% complete, ETA 00:00:34
+# Fork: 1 of 1
+# Warmup Iteration   1: fork_runtime case=gemv+129x31+uniform+transA=T mode=jvm-scalar java=25.0.1+8-LTS collectors=G1 Young Generation|G1 Concurrent GC|G1 Old Generation max_heap_bytes=16441671680 region_bytes=8388608 object_alignment=8 compact_headers=false
+1106.297 ns/op
+# Warmup Iteration   2: 1017.984 ns/op
+# Warmup Iteration   3: 1006.389 ns/op
+Iteration   1: 1030.206 ns/op
+                 gc.alloc.rate:      0.033 MB/sec
+                 gc.alloc.rate.norm: 0.035 B/op
+                 gc.count:           ≈ 0 counts
+
+Iteration   2: 1108.153 ns/op
+                 gc.alloc.rate:      0.033 MB/sec
+                 gc.alloc.rate.norm: 0.038 B/op
+                 gc.count:           ≈ 0 counts
+
+Iteration   3: 1132.926 ns/op
+                 gc.alloc.rate:      0.033 MB/sec
+                 gc.alloc.rate.norm: 0.039 B/op
+                 gc.count:           ≈ 0 counts
+
+Iteration   4: 1101.520 ns/op
+                 gc.alloc.rate:      0.033 MB/sec
+                 gc.alloc.rate.norm: 0.038 B/op
+                 gc.count:           ≈ 0 counts
+
+Iteration   5: 1018.235 ns/op
+                 gc.alloc.rate:      0.033 MB/sec
+                 gc.alloc.rate.norm: 0.035 B/op
+                 gc.count:           ≈ 0 counts
+
+
+
+Result "com.eignex.koblas.bench.KoblasJmhBenchmark.run":
+  1078.208 ±(99.9%) 195.733 ns/op [Average]
+  (min, avg, max) = (1018.235, 1078.208, 1132.926), stdev = 50.831
+  CI (99.9%): [882.475, 1273.941] (assumes normal distribution)
+
+Secondary result "com.eignex.koblas.bench.KoblasJmhBenchmark.run:gc.alloc.rate":
+  0.033 ±(99.9%) 0.001 MB/sec [Average]
+  (min, avg, max) = (0.033, 0.033, 0.033), stdev = 0.001
+  CI (99.9%): [0.033, 0.033] (assumes normal distribution)
+
+Secondary result "com.eignex.koblas.bench.KoblasJmhBenchmark.run:gc.alloc.rate.norm":
+  0.037 ±(99.9%) 0.007 B/op [Average]
+  (min, avg, max) = (0.035, 0.037, 0.039), stdev = 0.002
+  CI (99.9%): [0.030, 0.044] (assumes normal distribution)
+
+Secondary result "com.eignex.koblas.bench.KoblasJmhBenchmark.run:gc.count":
+  ≈ 0 counts
+
+
+# JMH version: 1.38-SNAPSHOT+a194eead0136
+# VM version: JDK 25.0.1, OpenJDK 64-Bit Server VM, 25.0.1+8-LTS
+# VM invoker: /home/rasmus/.gradle/jdks/eclipse_adoptium-25-amd64-linux.2/bin/java
+# VM options: --enable-native-access=ALL-UNNAMED -Dfile.encoding=UTF-8 -Duser.country -Duser.language=en -Duser.variant -Dkoblas.bench.cases=/home/rasmus/.codex/worktrees/bec7/koblas/koblas-bench/cases-addressed.txt
+# Blackhole mode: compiler (auto-detected, use -Djmh.blackhole.autoDetect=false to disable)
+# Warmup: 3 iterations, 200000000 ns each
+# Measurement: 5 iterations, 200000000 ns each
+# Timeout: 10 min per iteration
+# Threads: 1 thread, will synchronize iterations
+# Benchmark mode: Average time, time/op
+# Benchmark: com.eignex.koblas.bench.KoblasJmhBenchmark.run
+# Parameters: (benchmarkMode = jvm-scalar, caseId = symv+129+uniform+uplo=U)
+
+# Run progress: 10.00% complete, ETA 00:00:32
+# Fork: 1 of 1
+# Warmup Iteration   1: fork_runtime case=symv+129+uniform+uplo=U mode=jvm-scalar java=25.0.1+8-LTS collectors=G1 Young Generation|G1 Concurrent GC|G1 Old Generation max_heap_bytes=16441671680 region_bytes=8388608 object_alignment=8 compact_headers=false
+6074.746 ns/op
+# Warmup Iteration   2: 5272.540 ns/op
+# Warmup Iteration   3: 5354.524 ns/op
+Iteration   1: 5278.104 ns/op
+                 gc.alloc.rate:      0.177 MB/sec
+                 gc.alloc.rate.norm: 0.978 B/op
+                 gc.count:           ≈ 0 counts
+
+Iteration   2: 5230.758 ns/op
+                 gc.alloc.rate:      0.033 MB/sec
+                 gc.alloc.rate.norm: 0.180 B/op
+                 gc.count:           ≈ 0 counts
+
+Iteration   3: 5291.022 ns/op
+                 gc.alloc.rate:      0.033 MB/sec
+                 gc.alloc.rate.norm: 0.182 B/op
+                 gc.count:           ≈ 0 counts
+
+Iteration   4: 5378.804 ns/op
+                 gc.alloc.rate:      0.033 MB/sec
+                 gc.alloc.rate.norm: 0.185 B/op
+                 gc.count:           ≈ 0 counts
+
+Iteration   5: 5240.427 ns/op
+                 gc.alloc.rate:      0.033 MB/sec
+                 gc.alloc.rate.norm: 0.180 B/op
+                 gc.count:           ≈ 0 counts
+
+
+
+Result "com.eignex.koblas.bench.KoblasJmhBenchmark.run":
+  5283.823 ±(99.9%) 226.215 ns/op [Average]
+  (min, avg, max) = (5230.758, 5283.823, 5378.804), stdev = 58.747
+  CI (99.9%): [5057.608, 5510.038] (assumes normal distribution)
+
+Secondary result "com.eignex.koblas.bench.KoblasJmhBenchmark.run:gc.alloc.rate":
+  0.062 ±(99.9%) 0.248 MB/sec [Average]
+  (min, avg, max) = (0.033, 0.062, 0.177), stdev = 0.064
+  CI (99.9%): [≈ 0, 0.309] (assumes normal distribution)
+
+Secondary result "com.eignex.koblas.bench.KoblasJmhBenchmark.run:gc.alloc.rate.norm":
+  0.341 ±(99.9%) 1.371 B/op [Average]
+  (min, avg, max) = (0.180, 0.341, 0.978), stdev = 0.356
+  CI (99.9%): [≈ 0, 1.713] (assumes normal distribution)
+
+Secondary result "com.eignex.koblas.bench.KoblasJmhBenchmark.run:gc.count":
+  ≈ 0 counts
+
+
+# JMH version: 1.38-SNAPSHOT+a194eead0136
+# VM version: JDK 25.0.1, OpenJDK 64-Bit Server VM, 25.0.1+8-LTS
+# VM invoker: /home/rasmus/.gradle/jdks/eclipse_adoptium-25-amd64-linux.2/bin/java
+# VM options: --enable-native-access=ALL-UNNAMED -Dfile.encoding=UTF-8 -Duser.country -Duser.language=en -Duser.variant -Dkoblas.bench.cases=/home/rasmus/.codex/worktrees/bec7/koblas/koblas-bench/cases-addressed.txt
+# Blackhole mode: compiler (auto-detected, use -Djmh.blackhole.autoDetect=false to disable)
+# Warmup: 3 iterations, 200000000 ns each
+# Measurement: 5 iterations, 200000000 ns each
+# Timeout: 10 min per iteration
+# Threads: 1 thread, will synchronize iterations
+# Benchmark mode: Average time, time/op
+# Benchmark: com.eignex.koblas.bench.KoblasJmhBenchmark.run
+# Parameters: (benchmarkMode = jvm-scalar, caseId = syr+129+uniform+uplo=L)
+
+# Run progress: 15.00% complete, ETA 00:00:30
+# Fork: 1 of 1
+# Warmup Iteration   1: fork_runtime case=syr+129+uniform+uplo=L mode=jvm-scalar java=25.0.1+8-LTS collectors=G1 Young Generation|G1 Concurrent GC|G1 Old Generation max_heap_bytes=16441671680 region_bytes=8388608 object_alignment=8 compact_headers=false
+6442.938 ns/op
+# Warmup Iteration   2: 5587.416 ns/op
+# Warmup Iteration   3: 5485.336 ns/op
+Iteration   1: 5236.120 ns/op
+                 gc.alloc.rate:      3.648 MB/sec
+                 gc.alloc.rate.norm: 20.060 B/op
+                 gc.count:           ≈ 0 counts
+
+Iteration   2: 5375.368 ns/op
+                 gc.alloc.rate:      2.868 MB/sec
+                 gc.alloc.rate.norm: 16.185 B/op
+                 gc.count:           ≈ 0 counts
+
+Iteration   3: 5521.930 ns/op
+                 gc.alloc.rate:      2.792 MB/sec
+                 gc.alloc.rate.norm: 16.190 B/op
+                 gc.count:           ≈ 0 counts
+
+Iteration   4: 5350.032 ns/op
+                 gc.alloc.rate:      2.880 MB/sec
+                 gc.alloc.rate.norm: 16.184 B/op
+                 gc.count:           ≈ 0 counts
+
+Iteration   5: 5345.627 ns/op
+                 gc.alloc.rate:      2.883 MB/sec
+                 gc.alloc.rate.norm: 16.184 B/op
+                 gc.count:           ≈ 0 counts
+
+
+
+Result "com.eignex.koblas.bench.KoblasJmhBenchmark.run":
+  5365.815 ±(99.9%) 394.294 ns/op [Average]
+  (min, avg, max) = (5236.120, 5365.815, 5521.930), stdev = 102.397
+  CI (99.9%): [4971.521, 5760.110] (assumes normal distribution)
+
+Secondary result "com.eignex.koblas.bench.KoblasJmhBenchmark.run:gc.alloc.rate":
+  3.014 ±(99.9%) 1.372 MB/sec [Average]
+  (min, avg, max) = (2.792, 3.014, 3.648), stdev = 0.356
+  CI (99.9%): [1.642, 4.386] (assumes normal distribution)
+
+Secondary result "com.eignex.koblas.bench.KoblasJmhBenchmark.run:gc.alloc.rate.norm":
+  16.961 ±(99.9%) 6.671 B/op [Average]
+  (min, avg, max) = (16.184, 16.961, 20.060), stdev = 1.732
+  CI (99.9%): [10.290, 23.632] (assumes normal distribution)
+
+Secondary result "com.eignex.koblas.bench.KoblasJmhBenchmark.run:gc.count":
+  ≈ 0 counts
+
+
+# JMH version: 1.38-SNAPSHOT+a194eead0136
+# VM version: JDK 25.0.1, OpenJDK 64-Bit Server VM, 25.0.1+8-LTS
+# VM invoker: /home/rasmus/.gradle/jdks/eclipse_adoptium-25-amd64-linux.2/bin/java
+# VM options: --enable-native-access=ALL-UNNAMED -Dfile.encoding=UTF-8 -Duser.country -Duser.language=en -Duser.variant -Dkoblas.bench.cases=/home/rasmus/.codex/worktrees/bec7/koblas/koblas-bench/cases-addressed.txt
+# Blackhole mode: compiler (auto-detected, use -Djmh.blackhole.autoDetect=false to disable)
+# Warmup: 3 iterations, 200000000 ns each
+# Measurement: 5 iterations, 200000000 ns each
+# Timeout: 10 min per iteration
+# Threads: 1 thread, will synchronize iterations
+# Benchmark mode: Average time, time/op
+# Benchmark: com.eignex.koblas.bench.KoblasJmhBenchmark.run
+# Parameters: (benchmarkMode = jvm-scalar, caseId = syr2+129+uniform+uplo=U)
+
+# Run progress: 20.00% complete, ETA 00:00:29
+# Fork: 1 of 1
+# Warmup Iteration   1: fork_runtime case=syr2+129+uniform+uplo=U mode=jvm-scalar java=25.0.1+8-LTS collectors=G1 Young Generation|G1 Concurrent GC|G1 Old Generation max_heap_bytes=16441671680 region_bytes=8388608 object_alignment=8 compact_headers=false
+8119.930 ns/op
+# Warmup Iteration   2: 7530.765 ns/op
+# Warmup Iteration   3: 7543.432 ns/op
+Iteration   1: 6939.683 ns/op
+                 gc.alloc.rate:      7.713 MB/sec
+                 gc.alloc.rate.norm: 56.239 B/op
+                 gc.count:           ≈ 0 counts
+
+Iteration   2: 7462.749 ns/op
+                 gc.alloc.rate:      4.452 MB/sec
+                 gc.alloc.rate.norm: 34.882 B/op
+                 gc.count:           ≈ 0 counts
+
+Iteration   3: 6903.876 ns/op
+                 gc.alloc.rate:      4.445 MB/sec
+                 gc.alloc.rate.norm: 32.238 B/op
+                 gc.count:           ≈ 0 counts
+
+Iteration   4: 6997.077 ns/op
+                 gc.alloc.rate:      4.387 MB/sec
+                 gc.alloc.rate.norm: 32.241 B/op
+                 gc.count:           ≈ 0 counts
+
+Iteration   5: 7006.793 ns/op
+                 gc.alloc.rate:      4.379 MB/sec
+                 gc.alloc.rate.norm: 32.241 B/op
+                 gc.count:           ≈ 0 counts
+
+
+
+Result "com.eignex.koblas.bench.KoblasJmhBenchmark.run":
+  7062.035 ±(99.9%) 877.717 ns/op [Average]
+  (min, avg, max) = (6903.876, 7062.035, 7462.749), stdev = 227.940
+  CI (99.9%): [6184.318, 7939.753] (assumes normal distribution)
+
+Secondary result "com.eignex.koblas.bench.KoblasJmhBenchmark.run:gc.alloc.rate":
+  5.075 ±(99.9%) 5.679 MB/sec [Average]
+  (min, avg, max) = (4.379, 5.075, 7.713), stdev = 1.475
+  CI (99.9%): [≈ 0, 10.754] (assumes normal distribution)
+
+Secondary result "com.eignex.koblas.bench.KoblasJmhBenchmark.run:gc.alloc.rate.norm":
+  37.568 ±(99.9%) 40.431 B/op [Average]
+  (min, avg, max) = (32.238, 37.568, 56.239), stdev = 10.500
+  CI (99.9%): [≈ 0, 77.999] (assumes normal distribution)
+
+Secondary result "com.eignex.koblas.bench.KoblasJmhBenchmark.run:gc.count":
+  ≈ 0 counts
+
+
+# JMH version: 1.38-SNAPSHOT+a194eead0136
+# VM version: JDK 25.0.1, OpenJDK 64-Bit Server VM, 25.0.1+8-LTS
+# VM invoker: /home/rasmus/.gradle/jdks/eclipse_adoptium-25-amd64-linux.2/bin/java
+# VM options: --enable-native-access=ALL-UNNAMED -Dfile.encoding=UTF-8 -Duser.country -Duser.language=en -Duser.variant -Dkoblas.bench.cases=/home/rasmus/.codex/worktrees/bec7/koblas/koblas-bench/cases-addressed.txt
+# Blackhole mode: compiler (auto-detected, use -Djmh.blackhole.autoDetect=false to disable)
+# Warmup: 3 iterations, 200000000 ns each
+# Measurement: 5 iterations, 200000000 ns each
+# Timeout: 10 min per iteration
+# Threads: 1 thread, will synchronize iterations
+# Benchmark mode: Average time, time/op
+# Benchmark: com.eignex.koblas.bench.KoblasJmhBenchmark.run
+# Parameters: (benchmarkMode = jvm-scalar, caseId = trsv+129+triangular+uplo=L+transA=N+diag=N)
+
+# Run progress: 25.00% complete, ETA 00:00:27
+# Fork: 1 of 1
+# Warmup Iteration   1: fork_runtime case=trsv+129+triangular+uplo=L+transA=N+diag=N mode=jvm-scalar java=25.0.1+8-LTS collectors=G1 Young Generation|G1 Concurrent GC|G1 Old Generation max_heap_bytes=16441671680 region_bytes=8388608 object_alignment=8 compact_headers=false
+3714.526 ns/op
+# Warmup Iteration   2: 3355.374 ns/op
+# Warmup Iteration   3: 3347.381 ns/op
+Iteration   1: 3267.206 ns/op
+                 gc.alloc.rate:      0.033 MB/sec
+                 gc.alloc.rate.norm: 0.112 B/op
+                 gc.count:           ≈ 0 counts
+
+Iteration   2: 3290.102 ns/op
+                 gc.alloc.rate:      0.033 MB/sec
+                 gc.alloc.rate.norm: 0.113 B/op
+                 gc.count:           ≈ 0 counts
+
+Iteration   3: 3573.653 ns/op
+                 gc.alloc.rate:      0.033 MB/sec
+                 gc.alloc.rate.norm: 0.123 B/op
+                 gc.count:           ≈ 0 counts
+
+Iteration   4: 3245.772 ns/op
+                 gc.alloc.rate:      0.033 MB/sec
+                 gc.alloc.rate.norm: 0.111 B/op
+                 gc.count:           ≈ 0 counts
+
+Iteration   5: 3316.549 ns/op
+                 gc.alloc.rate:      0.033 MB/sec
+                 gc.alloc.rate.norm: 0.114 B/op
+                 gc.count:           ≈ 0 counts
+
+
+
+Result "com.eignex.koblas.bench.KoblasJmhBenchmark.run":
+  3338.656 ±(99.9%) 515.908 ns/op [Average]
+  (min, avg, max) = (3245.772, 3338.656, 3573.653), stdev = 133.980
+  CI (99.9%): [2822.748, 3854.564] (assumes normal distribution)
+
+Secondary result "com.eignex.koblas.bench.KoblasJmhBenchmark.run:gc.alloc.rate":
+  0.033 ±(99.9%) 0.001 MB/sec [Average]
+  (min, avg, max) = (0.033, 0.033, 0.033), stdev = 0.001
+  CI (99.9%): [0.032, 0.033] (assumes normal distribution)
+
+Secondary result "com.eignex.koblas.bench.KoblasJmhBenchmark.run:gc.alloc.rate.norm":
+  0.115 ±(99.9%) 0.018 B/op [Average]
+  (min, avg, max) = (0.111, 0.115, 0.123), stdev = 0.005
+  CI (99.9%): [0.096, 0.133] (assumes normal distribution)
+
+Secondary result "com.eignex.koblas.bench.KoblasJmhBenchmark.run:gc.count":
+  ≈ 0 counts
+
+
+# JMH version: 1.38-SNAPSHOT+a194eead0136
+# VM version: JDK 25.0.1, OpenJDK 64-Bit Server VM, 25.0.1+8-LTS
+# VM invoker: /home/rasmus/.gradle/jdks/eclipse_adoptium-25-amd64-linux.2/bin/java
+# VM options: --enable-native-access=ALL-UNNAMED -Dfile.encoding=UTF-8 -Duser.country -Duser.language=en -Duser.variant -Dkoblas.bench.cases=/home/rasmus/.codex/worktrees/bec7/koblas/koblas-bench/cases-addressed.txt
+# Blackhole mode: compiler (auto-detected, use -Djmh.blackhole.autoDetect=false to disable)
+# Warmup: 3 iterations, 200000000 ns each
+# Measurement: 5 iterations, 200000000 ns each
+# Timeout: 10 min per iteration
+# Threads: 1 thread, will synchronize iterations
+# Benchmark mode: Average time, time/op
+# Benchmark: com.eignex.koblas.bench.KoblasJmhBenchmark.run
+# Parameters: (benchmarkMode = jvm-scalar, caseId = gemm+32x21x48+uniform)
+
+# Run progress: 30.00% complete, ETA 00:00:25
+# Fork: 1 of 1
+# Warmup Iteration   1: fork_runtime case=gemm+32x21x48+uniform mode=jvm-scalar java=25.0.1+8-LTS collectors=G1 Young Generation|G1 Concurrent GC|G1 Old Generation max_heap_bytes=16441671680 region_bytes=8388608 object_alignment=8 compact_headers=false
+11104.660 ns/op
+# Warmup Iteration   2: 10038.861 ns/op
+# Warmup Iteration   3: 10170.698 ns/op
+Iteration   1: 12128.552 ns/op
+                 gc.alloc.rate:      22.839 MB/sec
+                 gc.alloc.rate.norm: 290.911 B/op
+                 gc.count:           ≈ 0 counts
+
+Iteration   2: 10145.805 ns/op
+                 gc.alloc.rate:      27.822 MB/sec
+                 gc.alloc.rate.norm: 296.348 B/op
+                 gc.count:           ≈ 0 counts
+
+Iteration   3: 10811.596 ns/op
+                 gc.alloc.rate:      25.797 MB/sec
+                 gc.alloc.rate.norm: 292.725 B/op
+                 gc.count:           1.000 counts
+                 gc.time:            2.000 ms
+
+Iteration   4: 9496.515 ns/op
+                 gc.alloc.rate:      27.328 MB/sec
+                 gc.alloc.rate.norm: 272.327 B/op
+                 gc.count:           ≈ 0 counts
+
+Iteration   5: 9424.180 ns/op
+                 gc.alloc.rate:      27.528 MB/sec
+                 gc.alloc.rate.norm: 272.324 B/op
+                 gc.count:           ≈ 0 counts
+
+
+
+Result "com.eignex.koblas.bench.KoblasJmhBenchmark.run":
+  10401.330 ±(99.9%) 4301.024 ns/op [Average]
+  (min, avg, max) = (9424.180, 10401.330, 12128.552), stdev = 1116.962
+  CI (99.9%): [6100.306, 14702.354] (assumes normal distribution)
+
+Secondary result "com.eignex.koblas.bench.KoblasJmhBenchmark.run:gc.alloc.rate":
+  26.263 ±(99.9%) 7.963 MB/sec [Average]
+  (min, avg, max) = (22.839, 26.263, 27.822), stdev = 2.068
+  CI (99.9%): [18.300, 34.226] (assumes normal distribution)
+
+Secondary result "com.eignex.koblas.bench.KoblasJmhBenchmark.run:gc.alloc.rate.norm":
+  284.927 ±(99.9%) 44.932 B/op [Average]
+  (min, avg, max) = (272.324, 284.927, 296.348), stdev = 11.669
+  CI (99.9%): [239.995, 329.859] (assumes normal distribution)
+
+Secondary result "com.eignex.koblas.bench.KoblasJmhBenchmark.run:gc.count":
+  1.000 ±(99.9%) 0.001 counts [Sum]
+  (min, avg, max) = (≈ 0, 0.200, 1.000), stdev = 0.447
+  CI (99.9%): [1.000, 1.000] (assumes normal distribution)
+
+Secondary result "com.eignex.koblas.bench.KoblasJmhBenchmark.run:gc.time":
+  2.000 ±(99.9%) 0.001 ms [Sum]
+  (min, avg, max) = (≈ 0, 0.400, 2.000), stdev = 0.894
+  CI (99.9%): [2.000, 2.000] (assumes normal distribution)
+
+
+# JMH version: 1.38-SNAPSHOT+a194eead0136
+# VM version: JDK 25.0.1, OpenJDK 64-Bit Server VM, 25.0.1+8-LTS
+# VM invoker: /home/rasmus/.gradle/jdks/eclipse_adoptium-25-amd64-linux.2/bin/java
+# VM options: --enable-native-access=ALL-UNNAMED -Dfile.encoding=UTF-8 -Duser.country -Duser.language=en -Duser.variant -Dkoblas.bench.cases=/home/rasmus/.codex/worktrees/bec7/koblas/koblas-bench/cases-addressed.txt
+# Blackhole mode: compiler (auto-detected, use -Djmh.blackhole.autoDetect=false to disable)
+# Warmup: 3 iterations, 200000000 ns each
+# Measurement: 5 iterations, 200000000 ns each
+# Timeout: 10 min per iteration
+# Threads: 1 thread, will synchronize iterations
+# Benchmark mode: Average time, time/op
+# Benchmark: com.eignex.koblas.bench.KoblasJmhBenchmark.run
+# Parameters: (benchmarkMode = jvm-scalar, caseId = gemm+129x31x257+uniform+transA=T)
+
+# Run progress: 35.00% complete, ETA 00:00:23
+# Fork: 1 of 1
+# Warmup Iteration   1: fork_runtime case=gemm+129x31x257+uniform+transA=T mode=jvm-scalar java=25.0.1+8-LTS collectors=G1 Young Generation|G1 Concurrent GC|G1 Old Generation max_heap_bytes=16441671680 region_bytes=8388608 object_alignment=8 compact_headers=false
+321782.159 ns/op
+# Warmup Iteration   2: 280828.917 ns/op
+# Warmup Iteration   3: 289763.210 ns/op
+Iteration   1: 303914.552 ns/op
+                 gc.alloc.rate:      513.794 MB/sec
+                 gc.alloc.rate.norm: 163906.404 B/op
+                 gc.count:           ≈ 0 counts
+
+Iteration   2: 251297.447 ns/op
+                 gc.alloc.rate:      621.419 MB/sec
+                 gc.alloc.rate.norm: 163904.773 B/op
+                 gc.count:           1.000 counts
+                 gc.time:            1.000 ms
+
+Iteration   3: 233606.599 ns/op
+                 gc.alloc.rate:      668.451 MB/sec
+                 gc.alloc.rate.norm: 163904.000 B/op
+                 gc.count:           ≈ 0 counts
+
+Iteration   4: 240666.041 ns/op
+                 gc.alloc.rate:      648.612 MB/sec
+                 gc.alloc.rate.norm: 163904.230 B/op
+                 gc.count:           ≈ 0 counts
+
+Iteration   5: 279969.480 ns/op
+                 gc.alloc.rate:      557.456 MB/sec
+                 gc.alloc.rate.norm: 163905.788 B/op
+                 gc.count:           ≈ 0 counts
+
+
+
+Result "com.eignex.koblas.bench.KoblasJmhBenchmark.run":
+  261890.824 ±(99.9%) 113177.821 ns/op [Average]
+  (min, avg, max) = (233606.599, 261890.824, 303914.552), stdev = 29391.921
+  CI (99.9%): [148713.002, 375068.645] (assumes normal distribution)
+
+Secondary result "com.eignex.koblas.bench.KoblasJmhBenchmark.run:gc.alloc.rate":
+  601.947 ±(99.9%) 249.029 MB/sec [Average]
+  (min, avg, max) = (513.794, 601.947, 668.451), stdev = 64.672
+  CI (99.9%): [352.917, 850.976] (assumes normal distribution)
+
+Secondary result "com.eignex.koblas.bench.KoblasJmhBenchmark.run:gc.alloc.rate.norm":
+  163905.039 ±(99.9%) 3.958 B/op [Average]
+  (min, avg, max) = (163904.000, 163905.039, 163906.404), stdev = 1.028
+  CI (99.9%): [163901.081, 163908.997] (assumes normal distribution)
+
+Secondary result "com.eignex.koblas.bench.KoblasJmhBenchmark.run:gc.count":
+  1.000 ±(99.9%) 0.001 counts [Sum]
+  (min, avg, max) = (≈ 0, 0.200, 1.000), stdev = 0.447
+  CI (99.9%): [1.000, 1.000] (assumes normal distribution)
+
+Secondary result "com.eignex.koblas.bench.KoblasJmhBenchmark.run:gc.time":
+  1.000 ±(99.9%) 0.001 ms [Sum]
+  (min, avg, max) = (≈ 0, 0.200, 1.000), stdev = 0.447
+  CI (99.9%): [1.000, 1.000] (assumes normal distribution)
+
+
+# JMH version: 1.38-SNAPSHOT+a194eead0136
+# VM version: JDK 25.0.1, OpenJDK 64-Bit Server VM, 25.0.1+8-LTS
+# VM invoker: /home/rasmus/.gradle/jdks/eclipse_adoptium-25-amd64-linux.2/bin/java
+# VM options: --enable-native-access=ALL-UNNAMED -Dfile.encoding=UTF-8 -Duser.country -Duser.language=en -Duser.variant -Dkoblas.bench.cases=/home/rasmus/.codex/worktrees/bec7/koblas/koblas-bench/cases-addressed.txt
+# Blackhole mode: compiler (auto-detected, use -Djmh.blackhole.autoDetect=false to disable)
+# Warmup: 3 iterations, 200000000 ns each
+# Measurement: 5 iterations, 200000000 ns each
+# Timeout: 10 min per iteration
+# Threads: 1 thread, will synchronize iterations
+# Benchmark mode: Average time, time/op
+# Benchmark: com.eignex.koblas.bench.KoblasJmhBenchmark.run
+# Parameters: (benchmarkMode = jvm-scalar, caseId = gemm+65x127x33+uniform+transB=T)
+
+# Run progress: 40.00% complete, ETA 00:00:21
+# Fork: 1 of 1
+# Warmup Iteration   1: fork_runtime case=gemm+65x127x33+uniform+transB=T mode=jvm-scalar java=25.0.1+8-LTS collectors=G1 Young Generation|G1 Concurrent GC|G1 Old Generation max_heap_bytes=16441671680 region_bytes=8388608 object_alignment=8 compact_headers=false
+104074.683 ns/op
+# Warmup Iteration   2: 101291.343 ns/op
+# Warmup Iteration   3: 93172.410 ns/op
+Iteration   1: 88051.836 ns/op
+                 gc.alloc.rate:      1064.189 MB/sec
+                 gc.alloc.rate.norm: 98343.627 B/op
+                 gc.count:           ≈ 0 counts
+
+Iteration   2: 118066.427 ns/op
+                 gc.alloc.rate:      793.480 MB/sec
+                 gc.alloc.rate.norm: 98340.061 B/op
+                 gc.count:           ≈ 0 counts
+
+Iteration   3: 141904.434 ns/op
+                 gc.alloc.rate:      659.974 MB/sec
+                 gc.alloc.rate.norm: 98340.921 B/op
+                 gc.count:           1.000 counts
+                 gc.time:            2.000 ms
+
+Iteration   4: 121143.685 ns/op
+                 gc.alloc.rate:      772.811 MB/sec
+                 gc.alloc.rate.norm: 98340.167 B/op
+                 gc.count:           ≈ 0 counts
+
+Iteration   5: 143083.795 ns/op
+                 gc.alloc.rate:      654.319 MB/sec
+                 gc.alloc.rate.norm: 98340.924 B/op
+                 gc.count:           ≈ 0 counts
+
+
+
+Result "com.eignex.koblas.bench.KoblasJmhBenchmark.run":
+  122450.036 ±(99.9%) 86283.306 ns/op [Average]
+  (min, avg, max) = (88051.836, 122450.036, 143083.795), stdev = 22407.501
+  CI (99.9%): [36166.729, 208733.342] (assumes normal distribution)
+
+Secondary result "com.eignex.koblas.bench.KoblasJmhBenchmark.run:gc.alloc.rate":
+  788.954 ±(99.9%) 640.869 MB/sec [Average]
+  (min, avg, max) = (654.319, 788.954, 1064.189), stdev = 166.432
+  CI (99.9%): [148.086, 1429.823] (assumes normal distribution)
+
+Secondary result "com.eignex.koblas.bench.KoblasJmhBenchmark.run:gc.alloc.rate.norm":
+  98341.140 ±(99.9%) 5.577 B/op [Average]
+  (min, avg, max) = (98340.061, 98341.140, 98343.627), stdev = 1.448
+  CI (99.9%): [98335.563, 98346.717] (assumes normal distribution)
+
+Secondary result "com.eignex.koblas.bench.KoblasJmhBenchmark.run:gc.count":
+  1.000 ±(99.9%) 0.001 counts [Sum]
+  (min, avg, max) = (≈ 0, 0.200, 1.000), stdev = 0.447
+  CI (99.9%): [1.000, 1.000] (assumes normal distribution)
+
+Secondary result "com.eignex.koblas.bench.KoblasJmhBenchmark.run:gc.time":
+  2.000 ±(99.9%) 0.001 ms [Sum]
+  (min, avg, max) = (≈ 0, 0.400, 2.000), stdev = 0.894
+  CI (99.9%): [2.000, 2.000] (assumes normal distribution)
+
+
+# JMH version: 1.38-SNAPSHOT+a194eead0136
+# VM version: JDK 25.0.1, OpenJDK 64-Bit Server VM, 25.0.1+8-LTS
+# VM invoker: /home/rasmus/.gradle/jdks/eclipse_adoptium-25-amd64-linux.2/bin/java
+# VM options: --enable-native-access=ALL-UNNAMED -Dfile.encoding=UTF-8 -Duser.country -Duser.language=en -Duser.variant -Dkoblas.bench.cases=/home/rasmus/.codex/worktrees/bec7/koblas/koblas-bench/cases-addressed.txt
+# Blackhole mode: compiler (auto-detected, use -Djmh.blackhole.autoDetect=false to disable)
+# Warmup: 3 iterations, 200000000 ns each
+# Measurement: 5 iterations, 200000000 ns each
+# Timeout: 10 min per iteration
+# Threads: 1 thread, will synchronize iterations
+# Benchmark mode: Average time, time/op
+# Benchmark: com.eignex.koblas.bench.KoblasJmhBenchmark.run
+# Parameters: (benchmarkMode = jvm-scalar, caseId = symm+129x31+uniform+side=L+uplo=L)
+
+# Run progress: 45.00% complete, ETA 00:00:20
+# Fork: 1 of 1
+# Warmup Iteration   1: fork_runtime case=symm+129x31+uniform+side=L+uplo=L mode=jvm-scalar java=25.0.1+8-LTS collectors=G1 Young Generation|G1 Concurrent GC|G1 Old Generation max_heap_bytes=16441671680 region_bytes=8388608 object_alignment=8 compact_headers=false
+411569.881 ns/op
+# Warmup Iteration   2: 358489.819 ns/op
+# Warmup Iteration   3: 378112.857 ns/op
+Iteration   1: 268618.418 ns/op
+                 gc.alloc.rate:      1104.506 MB/sec
+                 gc.alloc.rate.norm: 311521.373 B/op
+                 gc.count:           ≈ 0 counts
+
+Iteration   2: 266239.744 ns/op
+                 gc.alloc.rate:      1114.017 MB/sec
+                 gc.alloc.rate.norm: 311521.105 B/op
+                 gc.count:           ≈ 0 counts
+
+Iteration   3: 345512.581 ns/op
+                 gc.alloc.rate:      858.773 MB/sec
+                 gc.alloc.rate.norm: 311523.917 B/op
+                 gc.count:           1.000 counts
+                 gc.time:            1.000 ms
+
+Iteration   4: 214200.955 ns/op
+                 gc.alloc.rate:      1384.868 MB/sec
+                 gc.alloc.rate.norm: 311519.367 B/op
+                 gc.count:           ≈ 0 counts
+
+Iteration   5: 224939.435 ns/op
+                 gc.alloc.rate:      1318.612 MB/sec
+                 gc.alloc.rate.norm: 311522.499 B/op
+                 gc.count:           1.000 counts
+                 gc.time:            2.000 ms
+
+
+
+Result "com.eignex.koblas.bench.KoblasJmhBenchmark.run":
+  263902.227 ±(99.9%) 198935.907 ns/op [Average]
+  (min, avg, max) = (214200.955, 263902.227, 345512.581), stdev = 51663.023
+  CI (99.9%): [64966.319, 462838.134] (assumes normal distribution)
+
+Secondary result "com.eignex.koblas.bench.KoblasJmhBenchmark.run:gc.alloc.rate":
+  1156.155 ±(99.9%) 797.514 MB/sec [Average]
+  (min, avg, max) = (858.773, 1156.155, 1384.868), stdev = 207.112
+  CI (99.9%): [358.640, 1953.669] (assumes normal distribution)
+
+Secondary result "com.eignex.koblas.bench.KoblasJmhBenchmark.run:gc.alloc.rate.norm":
+  311521.652 ±(99.9%) 6.514 B/op [Average]
+  (min, avg, max) = (311519.367, 311521.652, 311523.917), stdev = 1.692
+  CI (99.9%): [311515.138, 311528.166] (assumes normal distribution)
+
+Secondary result "com.eignex.koblas.bench.KoblasJmhBenchmark.run:gc.count":
+  2.000 ±(99.9%) 0.001 counts [Sum]
+  (min, avg, max) = (≈ 0, 0.400, 1.000), stdev = 0.548
+  CI (99.9%): [2.000, 2.000] (assumes normal distribution)
+
+Secondary result "com.eignex.koblas.bench.KoblasJmhBenchmark.run:gc.time":
+  3.000 ±(99.9%) 0.001 ms [Sum]
+  (min, avg, max) = (≈ 0, 0.600, 2.000), stdev = 0.894
+  CI (99.9%): [3.000, 3.000] (assumes normal distribution)
+
+
+# JMH version: 1.38-SNAPSHOT+a194eead0136
+# VM version: JDK 25.0.1, OpenJDK 64-Bit Server VM, 25.0.1+8-LTS
+# VM invoker: /home/rasmus/.gradle/jdks/eclipse_adoptium-25-amd64-linux.2/bin/java
+# VM options: --enable-native-access=ALL-UNNAMED -Dfile.encoding=UTF-8 -Duser.country -Duser.language=en -Duser.variant -Dkoblas.bench.cases=/home/rasmus/.codex/worktrees/bec7/koblas/koblas-bench/cases-addressed.txt
+# Blackhole mode: compiler (auto-detected, use -Djmh.blackhole.autoDetect=false to disable)
+# Warmup: 3 iterations, 200000000 ns each
+# Measurement: 5 iterations, 200000000 ns each
+# Timeout: 10 min per iteration
+# Threads: 1 thread, will synchronize iterations
+# Benchmark mode: Average time, time/op
+# Benchmark: com.eignex.koblas.bench.KoblasJmhBenchmark.run
+# Parameters: (benchmarkMode = jvm-scalar, caseId = syr2k+129x31+uniform+uplo=U+transA=T)
+
+# Run progress: 50.00% complete, ETA 00:00:18
+# Fork: 1 of 1
+# Warmup Iteration   1: fork_runtime case=syr2k+129x31+uniform+uplo=U+transA=T mode=jvm-scalar java=25.0.1+8-LTS collectors=G1 Young Generation|G1 Concurrent GC|G1 Old Generation max_heap_bytes=16441671680 region_bytes=8388608 object_alignment=8 compact_headers=false
+288788.847 ns/op
+# Warmup Iteration   2: 268966.741 ns/op
+# Warmup Iteration   3: 256267.156 ns/op
+Iteration   1: 251821.357 ns/op
+                 gc.alloc.rate:      497.186 MB/sec
+                 gc.alloc.rate.norm: 131467.904 B/op
+                 gc.count:           ≈ 0 counts
+
+Iteration   2: 240938.194 ns/op
+                 gc.alloc.rate:      519.751 MB/sec
+                 gc.alloc.rate.norm: 131456.356 B/op
+                 gc.count:           1.000 counts
+                 gc.time:            2.000 ms
+
+Iteration   3: 209470.282 ns/op
+                 gc.alloc.rate:      597.973 MB/sec
+                 gc.alloc.rate.norm: 131455.205 B/op
+                 gc.count:           ≈ 0 counts
+
+Iteration   4: 206485.719 ns/op
+                 gc.alloc.rate:      606.672 MB/sec
+                 gc.alloc.rate.norm: 131458.342 B/op
+                 gc.count:           ≈ 0 counts
+
+Iteration   5: 218582.202 ns/op
+                 gc.alloc.rate:      572.570 MB/sec
+                 gc.alloc.rate.norm: 131450.271 B/op
+                 gc.count:           ≈ 0 counts
+
+
+
+Result "com.eignex.koblas.bench.KoblasJmhBenchmark.run":
+  225459.551 ±(99.9%) 76952.548 ns/op [Average]
+  (min, avg, max) = (206485.719, 225459.551, 251821.357), stdev = 19984.332
+  CI (99.9%): [148507.003, 302412.099] (assumes normal distribution)
+
+Secondary result "com.eignex.koblas.bench.KoblasJmhBenchmark.run:gc.alloc.rate":
+  558.830 ±(99.9%) 186.040 MB/sec [Average]
+  (min, avg, max) = (497.186, 558.830, 606.672), stdev = 48.314
+  CI (99.9%): [372.790, 744.871] (assumes normal distribution)
+
+Secondary result "com.eignex.koblas.bench.KoblasJmhBenchmark.run:gc.alloc.rate.norm":
+  131457.616 ±(99.9%) 24.935 B/op [Average]
+  (min, avg, max) = (131450.271, 131457.616, 131467.904), stdev = 6.476
+  CI (99.9%): [131432.681, 131482.551] (assumes normal distribution)
+
+Secondary result "com.eignex.koblas.bench.KoblasJmhBenchmark.run:gc.count":
+  1.000 ±(99.9%) 0.001 counts [Sum]
+  (min, avg, max) = (≈ 0, 0.200, 1.000), stdev = 0.447
+  CI (99.9%): [1.000, 1.000] (assumes normal distribution)
+
+Secondary result "com.eignex.koblas.bench.KoblasJmhBenchmark.run:gc.time":
+  2.000 ±(99.9%) 0.001 ms [Sum]
+  (min, avg, max) = (≈ 0, 0.400, 2.000), stdev = 0.894
+  CI (99.9%): [2.000, 2.000] (assumes normal distribution)
+
+
+# JMH version: 1.38-SNAPSHOT+a194eead0136
+# VM version: JDK 25.0.1, OpenJDK 64-Bit Server VM, 25.0.1+8-LTS
+# VM invoker: /home/rasmus/.gradle/jdks/eclipse_adoptium-25-amd64-linux.2/bin/java
+# VM options: --enable-native-access=ALL-UNNAMED -Dfile.encoding=UTF-8 -Duser.country -Duser.language=en -Duser.variant -Dkoblas.bench.cases=/home/rasmus/.codex/worktrees/bec7/koblas/koblas-bench/cases-addressed.txt
+# Blackhole mode: compiler (auto-detected, use -Djmh.blackhole.autoDetect=false to disable)
+# Warmup: 3 iterations, 200000000 ns each
+# Measurement: 5 iterations, 200000000 ns each
+# Timeout: 10 min per iteration
+# Threads: 1 thread, will synchronize iterations
+# Benchmark mode: Average time, time/op
+# Benchmark: com.eignex.koblas.bench.KoblasJmhBenchmark.run
+# Parameters: (benchmarkMode = jvm-scalar, caseId = trsm+64x16+triangular+side=L+uplo=L+transA=N+diag=N)
+
+# Run progress: 55.00% complete, ETA 00:00:16
+# Fork: 1 of 1
+# Warmup Iteration   1: fork_runtime case=trsm+64x16+triangular+side=L+uplo=L+transA=N+diag=N mode=jvm-scalar java=25.0.1+8-LTS collectors=G1 Young Generation|G1 Concurrent GC|G1 Old Generation max_heap_bytes=16441671680 region_bytes=8388608 object_alignment=8 compact_headers=false
+31742.164 ns/op
+# Warmup Iteration   2: 23404.939 ns/op
+# Warmup Iteration   3: 27818.217 ns/op
+Iteration   1: 21751.577 ns/op
+                 gc.alloc.rate:      0.033 MB/sec
+                 gc.alloc.rate.norm: 0.748 B/op
+                 gc.count:           ≈ 0 counts
+
+Iteration   2: 19270.481 ns/op
+                 gc.alloc.rate:      0.033 MB/sec
+                 gc.alloc.rate.norm: 0.663 B/op
+                 gc.count:           ≈ 0 counts
+
+Iteration   3: 25186.361 ns/op
+                 gc.alloc.rate:      0.033 MB/sec
+                 gc.alloc.rate.norm: 0.867 B/op
+                 gc.count:           ≈ 0 counts
+
+Iteration   4: 28206.563 ns/op
+                 gc.alloc.rate:      0.033 MB/sec
+                 gc.alloc.rate.norm: 0.966 B/op
+                 gc.count:           ≈ 0 counts
+
+Iteration   5: 26901.280 ns/op
+                 gc.alloc.rate:      0.340 MB/sec
+                 gc.alloc.rate.norm: 9.601 B/op
+                 gc.count:           ≈ 0 counts
+
+
+
+Result "com.eignex.koblas.bench.KoblasJmhBenchmark.run":
+  24263.252 ±(99.9%) 14226.201 ns/op [Average]
+  (min, avg, max) = (19270.481, 24263.252, 28206.563), stdev = 3694.499
+  CI (99.9%): [10037.051, 38489.453] (assumes normal distribution)
+
+Secondary result "com.eignex.koblas.bench.KoblasJmhBenchmark.run:gc.alloc.rate":
+  0.094 ±(99.9%) 0.529 MB/sec [Average]
+  (min, avg, max) = (0.033, 0.094, 0.340), stdev = 0.137
+  CI (99.9%): [≈ 0, 0.623] (assumes normal distribution)
+
+Secondary result "com.eignex.koblas.bench.KoblasJmhBenchmark.run:gc.alloc.rate.norm":
+  2.569 ±(99.9%) 15.143 B/op [Average]
+  (min, avg, max) = (0.663, 2.569, 9.601), stdev = 3.933
+  CI (99.9%): [≈ 0, 17.712] (assumes normal distribution)
+
+Secondary result "com.eignex.koblas.bench.KoblasJmhBenchmark.run:gc.count":
+  ≈ 0 counts
+
+
+# JMH version: 1.38-SNAPSHOT+a194eead0136
+# VM version: JDK 25.0.1, OpenJDK 64-Bit Server VM, 25.0.1+8-LTS
+# VM invoker: /home/rasmus/.gradle/jdks/eclipse_adoptium-25-amd64-linux.2/bin/java
+# VM options: --enable-native-access=ALL-UNNAMED -Dfile.encoding=UTF-8 -Duser.country -Duser.language=en -Duser.variant -Dkoblas.bench.cases=/home/rasmus/.codex/worktrees/bec7/koblas/koblas-bench/cases-addressed.txt
+# Blackhole mode: compiler (auto-detected, use -Djmh.blackhole.autoDetect=false to disable)
+# Warmup: 3 iterations, 200000000 ns each
+# Measurement: 5 iterations, 200000000 ns each
+# Timeout: 10 min per iteration
+# Threads: 1 thread, will synchronize iterations
+# Benchmark mode: Average time, time/op
+# Benchmark: com.eignex.koblas.bench.KoblasJmhBenchmark.run
+# Parameters: (benchmarkMode = jvm-scalar, caseId = spmm+257x8x129+sparse-uniform+density=0.01+mode=oneshot)
+
+# Run progress: 60.00% complete, ETA 00:00:14
+# Fork: 1 of 1
+# Warmup Iteration   1: fork_runtime case=spmm+257x8x129+sparse-uniform+density=0.01+mode=oneshot mode=jvm-scalar java=25.0.1+8-LTS collectors=G1 Young Generation|G1 Concurrent GC|G1 Old Generation max_heap_bytes=16441671680 region_bytes=8388608 object_alignment=8 compact_headers=false
+4676.123 ns/op
+# Warmup Iteration   2: 4625.717 ns/op
+# Warmup Iteration   3: 5255.318 ns/op
+Iteration   1: 4892.633 ns/op
+                 gc.alloc.rate:      0.033 MB/sec
+                 gc.alloc.rate.norm: 0.168 B/op
+                 gc.count:           ≈ 0 counts
+
+Iteration   2: 4550.321 ns/op
+                 gc.alloc.rate:      0.033 MB/sec
+                 gc.alloc.rate.norm: 0.157 B/op
+                 gc.count:           ≈ 0 counts
+
+Iteration   3: 4528.113 ns/op
+                 gc.alloc.rate:      0.033 MB/sec
+                 gc.alloc.rate.norm: 0.156 B/op
+                 gc.count:           ≈ 0 counts
+
+Iteration   4: 4345.034 ns/op
+                 gc.alloc.rate:      0.033 MB/sec
+                 gc.alloc.rate.norm: 0.149 B/op
+                 gc.count:           ≈ 0 counts
+
+Iteration   5: 4423.601 ns/op
+                 gc.alloc.rate:      0.033 MB/sec
+                 gc.alloc.rate.norm: 0.152 B/op
+                 gc.count:           ≈ 0 counts
+
+
+
+Result "com.eignex.koblas.bench.KoblasJmhBenchmark.run":
+  4547.940 ±(99.9%) 807.358 ns/op [Average]
+  (min, avg, max) = (4345.034, 4547.940, 4892.633), stdev = 209.668
+  CI (99.9%): [3740.583, 5355.298] (assumes normal distribution)
+
+Secondary result "com.eignex.koblas.bench.KoblasJmhBenchmark.run:gc.alloc.rate":
+  0.033 ±(99.9%) 0.001 MB/sec [Average]
+  (min, avg, max) = (0.033, 0.033, 0.033), stdev = 0.001
+  CI (99.9%): [0.032, 0.033] (assumes normal distribution)
+
+Secondary result "com.eignex.koblas.bench.KoblasJmhBenchmark.run:gc.alloc.rate.norm":
+  0.156 ±(99.9%) 0.028 B/op [Average]
+  (min, avg, max) = (0.149, 0.156, 0.168), stdev = 0.007
+  CI (99.9%): [0.128, 0.185] (assumes normal distribution)
+
+Secondary result "com.eignex.koblas.bench.KoblasJmhBenchmark.run:gc.count":
+  ≈ 0 counts
+
+
+# JMH version: 1.38-SNAPSHOT+a194eead0136
+# VM version: JDK 25.0.1, OpenJDK 64-Bit Server VM, 25.0.1+8-LTS
+# VM invoker: /home/rasmus/.gradle/jdks/eclipse_adoptium-25-amd64-linux.2/bin/java
+# VM options: --enable-native-access=ALL-UNNAMED -Dfile.encoding=UTF-8 -Duser.country -Duser.language=en -Duser.variant -Dkoblas.bench.cases=/home/rasmus/.codex/worktrees/bec7/koblas/koblas-bench/cases-addressed.txt
+# Blackhole mode: compiler (auto-detected, use -Djmh.blackhole.autoDetect=false to disable)
+# Warmup: 3 iterations, 200000000 ns each
+# Measurement: 5 iterations, 200000000 ns each
+# Timeout: 10 min per iteration
+# Threads: 1 thread, will synchronize iterations
+# Benchmark mode: Average time, time/op
+# Benchmark: com.eignex.koblas.bench.KoblasJmhBenchmark.run
+# Parameters: (benchmarkMode = jvm-scalar, caseId = spmm+257x8x129+sparse-uniform+density=0.01+mode=prepared)
+
+# Run progress: 65.00% complete, ETA 00:00:13
+# Fork: 1 of 1
+# Warmup Iteration   1: fork_runtime case=spmm+257x8x129+sparse-uniform+density=0.01+mode=prepared mode=jvm-scalar java=25.0.1+8-LTS collectors=G1 Young Generation|G1 Concurrent GC|G1 Old Generation max_heap_bytes=16441671680 region_bytes=8388608 object_alignment=8 compact_headers=false
+4374.996 ns/op
+# Warmup Iteration   2: 3935.285 ns/op
+# Warmup Iteration   3: 6261.500 ns/op
+Iteration   1: 4973.218 ns/op
+                 gc.alloc.rate:      0.033 MB/sec
+                 gc.alloc.rate.norm: 0.171 B/op
+                 gc.count:           ≈ 0 counts
+
+Iteration   2: 5929.070 ns/op
+                 gc.alloc.rate:      0.033 MB/sec
+                 gc.alloc.rate.norm: 0.204 B/op
+                 gc.count:           ≈ 0 counts
+
+Iteration   3: 6524.991 ns/op
+                 gc.alloc.rate:      0.033 MB/sec
+                 gc.alloc.rate.norm: 0.225 B/op
+                 gc.count:           ≈ 0 counts
+
+Iteration   4: 5307.594 ns/op
+                 gc.alloc.rate:      0.033 MB/sec
+                 gc.alloc.rate.norm: 0.183 B/op
+                 gc.count:           ≈ 0 counts
+
+Iteration   5: 4743.439 ns/op
+                 gc.alloc.rate:      0.033 MB/sec
+                 gc.alloc.rate.norm: 0.163 B/op
+                 gc.count:           ≈ 0 counts
+
+
+
+Result "com.eignex.koblas.bench.KoblasJmhBenchmark.run":
+  5495.662 ±(99.9%) 2804.314 ns/op [Average]
+  (min, avg, max) = (4743.439, 5495.662, 6524.991), stdev = 728.272
+  CI (99.9%): [2691.348, 8299.977] (assumes normal distribution)
+
+Secondary result "com.eignex.koblas.bench.KoblasJmhBenchmark.run:gc.alloc.rate":
+  0.033 ±(99.9%) 0.001 MB/sec [Average]
+  (min, avg, max) = (0.033, 0.033, 0.033), stdev = 0.001
+  CI (99.9%): [0.033, 0.033] (assumes normal distribution)
+
+Secondary result "com.eignex.koblas.bench.KoblasJmhBenchmark.run:gc.alloc.rate.norm":
+  0.189 ±(99.9%) 0.096 B/op [Average]
+  (min, avg, max) = (0.163, 0.189, 0.225), stdev = 0.025
+  CI (99.9%): [0.093, 0.286] (assumes normal distribution)
+
+Secondary result "com.eignex.koblas.bench.KoblasJmhBenchmark.run:gc.count":
+  ≈ 0 counts
+
+
+# JMH version: 1.38-SNAPSHOT+a194eead0136
+# VM version: JDK 25.0.1, OpenJDK 64-Bit Server VM, 25.0.1+8-LTS
+# VM invoker: /home/rasmus/.gradle/jdks/eclipse_adoptium-25-amd64-linux.2/bin/java
+# VM options: --enable-native-access=ALL-UNNAMED -Dfile.encoding=UTF-8 -Duser.country -Duser.language=en -Duser.variant -Dkoblas.bench.cases=/home/rasmus/.codex/worktrees/bec7/koblas/koblas-bench/cases-addressed.txt
+# Blackhole mode: compiler (auto-detected, use -Djmh.blackhole.autoDetect=false to disable)
+# Warmup: 3 iterations, 200000000 ns each
+# Measurement: 5 iterations, 200000000 ns each
+# Timeout: 10 min per iteration
+# Threads: 1 thread, will synchronize iterations
+# Benchmark mode: Average time, time/op
+# Benchmark: com.eignex.koblas.bench.KoblasJmhBenchmark.run
+# Parameters: (benchmarkMode = jvm-scalar, caseId = spmm+257x8x129+sparse-uniform+density=0.01+mode=prepared+transA=T)
+
+# Run progress: 70.00% complete, ETA 00:00:11
+# Fork: 1 of 1
+# Warmup Iteration   1: fork_runtime case=spmm+257x8x129+sparse-uniform+density=0.01+mode=prepared+transA=T mode=jvm-scalar java=25.0.1+8-LTS collectors=G1 Young Generation|G1 Concurrent GC|G1 Old Generation max_heap_bytes=16441671680 region_bytes=8388608 object_alignment=8 compact_headers=false
+5566.747 ns/op
+# Warmup Iteration   2: 4811.310 ns/op
+# Warmup Iteration   3: 4840.320 ns/op
+Iteration   1: 4730.504 ns/op
+                 gc.alloc.rate:      0.033 MB/sec
+                 gc.alloc.rate.norm: 0.163 B/op
+                 gc.count:           ≈ 0 counts
+
+Iteration   2: 5177.908 ns/op
+                 gc.alloc.rate:      0.033 MB/sec
+                 gc.alloc.rate.norm: 0.178 B/op
+                 gc.count:           ≈ 0 counts
+
+Iteration   3: 5579.203 ns/op
+                 gc.alloc.rate:      0.033 MB/sec
+                 gc.alloc.rate.norm: 0.192 B/op
+                 gc.count:           ≈ 0 counts
+
+Iteration   4: 5780.547 ns/op
+                 gc.alloc.rate:      0.033 MB/sec
+                 gc.alloc.rate.norm: 0.199 B/op
+                 gc.count:           ≈ 0 counts
+
+Iteration   5: 5350.606 ns/op
+                 gc.alloc.rate:      0.033 MB/sec
+                 gc.alloc.rate.norm: 0.184 B/op
+                 gc.count:           ≈ 0 counts
+
+
+
+Result "com.eignex.koblas.bench.KoblasJmhBenchmark.run":
+  5323.754 ±(99.9%) 1549.677 ns/op [Average]
+  (min, avg, max) = (4730.504, 5323.754, 5780.547), stdev = 402.446
+  CI (99.9%): [3774.077, 6873.431] (assumes normal distribution)
+
+Secondary result "com.eignex.koblas.bench.KoblasJmhBenchmark.run:gc.alloc.rate":
+  0.033 ±(99.9%) 0.001 MB/sec [Average]
+  (min, avg, max) = (0.033, 0.033, 0.033), stdev = 0.001
+  CI (99.9%): [0.033, 0.033] (assumes normal distribution)
+
+Secondary result "com.eignex.koblas.bench.KoblasJmhBenchmark.run:gc.alloc.rate.norm":
+  0.183 ±(99.9%) 0.053 B/op [Average]
+  (min, avg, max) = (0.163, 0.183, 0.199), stdev = 0.014
+  CI (99.9%): [0.130, 0.237] (assumes normal distribution)
+
+Secondary result "com.eignex.koblas.bench.KoblasJmhBenchmark.run:gc.count":
+  ≈ 0 counts
+
+
+# JMH version: 1.38-SNAPSHOT+a194eead0136
+# VM version: JDK 25.0.1, OpenJDK 64-Bit Server VM, 25.0.1+8-LTS
+# VM invoker: /home/rasmus/.gradle/jdks/eclipse_adoptium-25-amd64-linux.2/bin/java
+# VM options: --enable-native-access=ALL-UNNAMED -Dfile.encoding=UTF-8 -Duser.country -Duser.language=en -Duser.variant -Dkoblas.bench.cases=/home/rasmus/.codex/worktrees/bec7/koblas/koblas-bench/cases-addressed.txt
+# Blackhole mode: compiler (auto-detected, use -Djmh.blackhole.autoDetect=false to disable)
+# Warmup: 3 iterations, 200000000 ns each
+# Measurement: 5 iterations, 200000000 ns each
+# Timeout: 10 min per iteration
+# Threads: 1 thread, will synchronize iterations
+# Benchmark mode: Average time, time/op
+# Benchmark: com.eignex.koblas.bench.KoblasJmhBenchmark.run
+# Parameters: (benchmarkMode = jvm-scalar, caseId = spgemm+129x97x65+sparse-uniform+density=0.01+mode=oneshot)
+
+# Run progress: 75.00% complete, ETA 00:00:09
+# Fork: 1 of 1
+# Warmup Iteration   1: fork_runtime case=spgemm+129x97x65+sparse-uniform+density=0.01+mode=oneshot mode=jvm-scalar java=25.0.1+8-LTS collectors=G1 Young Generation|G1 Concurrent GC|G1 Old Generation max_heap_bytes=16441671680 region_bytes=8388608 object_alignment=8 compact_headers=false
+2839.899 ns/op
+# Warmup Iteration   2: 1793.899 ns/op
+# Warmup Iteration   3: 1481.465 ns/op
+Iteration   1: 1406.048 ns/op
+                 gc.alloc.rate:      3892.855 MB/sec
+                 gc.alloc.rate.norm: 5744.049 B/op
+                 gc.count:           1.000 counts
+                 gc.time:            2.000 ms
+
+Iteration   2: 1470.397 ns/op
+                 gc.alloc.rate:      3722.133 MB/sec
+                 gc.alloc.rate.norm: 5744.051 B/op
+                 gc.count:           1.000 counts
+                 gc.time:            1.000 ms
+
+Iteration   3: 3052.641 ns/op
+                 gc.alloc.rate:      1792.406 MB/sec
+                 gc.alloc.rate.norm: 5744.106 B/op
+                 gc.count:           1.000 counts
+                 gc.time:            1.000 ms
+
+Iteration   4: 4091.931 ns/op
+                 gc.alloc.rate:      1336.890 MB/sec
+                 gc.alloc.rate.norm: 5744.141 B/op
+                 gc.count:           ≈ 0 counts
+
+Iteration   5: 4340.140 ns/op
+                 gc.alloc.rate:      1258.874 MB/sec
+                 gc.alloc.rate.norm: 5744.151 B/op
+                 gc.count:           1.000 counts
+                 gc.time:            3.000 ms
+
+
+
+Result "com.eignex.koblas.bench.KoblasJmhBenchmark.run":
+  2872.231 ±(99.9%) 5373.617 ns/op [Average]
+  (min, avg, max) = (1406.048, 2872.231, 4340.140), stdev = 1395.511
+  CI (99.9%): [≈ 0, 8245.849] (assumes normal distribution)
+
+Secondary result "com.eignex.koblas.bench.KoblasJmhBenchmark.run:gc.alloc.rate":
+  2400.632 ±(99.9%) 5012.568 MB/sec [Average]
+  (min, avg, max) = (1258.874, 2400.632, 3892.855), stdev = 1301.748
+  CI (99.9%): [≈ 0, 7413.199] (assumes normal distribution)
+
+Secondary result "com.eignex.koblas.bench.KoblasJmhBenchmark.run:gc.alloc.rate.norm":
+  5744.099 ±(99.9%) 0.186 B/op [Average]
+  (min, avg, max) = (5744.049, 5744.099, 5744.151), stdev = 0.048
+  CI (99.9%): [5743.913, 5744.285] (assumes normal distribution)
+
+Secondary result "com.eignex.koblas.bench.KoblasJmhBenchmark.run:gc.count":
+  4.000 ±(99.9%) 0.001 counts [Sum]
+  (min, avg, max) = (≈ 0, 0.800, 1.000), stdev = 0.447
+  CI (99.9%): [4.000, 4.000] (assumes normal distribution)
+
+Secondary result "com.eignex.koblas.bench.KoblasJmhBenchmark.run:gc.time":
+  7.000 ±(99.9%) 0.001 ms [Sum]
+  (min, avg, max) = (≈ 0, 1.400, 3.000), stdev = 1.140
+  CI (99.9%): [7.000, 7.000] (assumes normal distribution)
+
+
+# JMH version: 1.38-SNAPSHOT+a194eead0136
+# VM version: JDK 25.0.1, OpenJDK 64-Bit Server VM, 25.0.1+8-LTS
+# VM invoker: /home/rasmus/.gradle/jdks/eclipse_adoptium-25-amd64-linux.2/bin/java
+# VM options: --enable-native-access=ALL-UNNAMED -Dfile.encoding=UTF-8 -Duser.country -Duser.language=en -Duser.variant -Dkoblas.bench.cases=/home/rasmus/.codex/worktrees/bec7/koblas/koblas-bench/cases-addressed.txt
+# Blackhole mode: compiler (auto-detected, use -Djmh.blackhole.autoDetect=false to disable)
+# Warmup: 3 iterations, 200000000 ns each
+# Measurement: 5 iterations, 200000000 ns each
+# Timeout: 10 min per iteration
+# Threads: 1 thread, will synchronize iterations
+# Benchmark mode: Average time, time/op
+# Benchmark: com.eignex.koblas.bench.KoblasJmhBenchmark.run
+# Parameters: (benchmarkMode = jvm-scalar, caseId = spgemm+129x97x65+sparse-uniform+density=0.01+mode=prepared)
+
+# Run progress: 80.00% complete, ETA 00:00:07
+# Fork: 1 of 1
+# Warmup Iteration   1: fork_runtime case=spgemm+129x97x65+sparse-uniform+density=0.01+mode=prepared mode=jvm-scalar java=25.0.1+8-LTS collectors=G1 Young Generation|G1 Concurrent GC|G1 Old Generation max_heap_bytes=16441671680 region_bytes=8388608 object_alignment=8 compact_headers=false
+5552.697 ns/op
+# Warmup Iteration   2: 3776.249 ns/op
+# Warmup Iteration   3: 2761.449 ns/op
+Iteration   1: 2153.418 ns/op
+                 gc.alloc.rate:      2539.029 MB/sec
+                 gc.alloc.rate.norm: 5744.074 B/op
+                 gc.count:           1.000 counts
+                 gc.time:            1.000 ms
+
+Iteration   2: 2046.490 ns/op
+                 gc.alloc.rate:      2672.799 MB/sec
+                 gc.alloc.rate.norm: 5744.071 B/op
+                 gc.count:           1.000 counts
+                 gc.time:            2.000 ms
+
+Iteration   3: 2694.086 ns/op
+                 gc.alloc.rate:      2030.674 MB/sec
+                 gc.alloc.rate.norm: 5744.093 B/op
+                 gc.count:           1.000 counts
+                 gc.time:            2.000 ms
+
+Iteration   4: 2012.408 ns/op
+                 gc.alloc.rate:      2717.936 MB/sec
+                 gc.alloc.rate.norm: 5744.069 B/op
+                 gc.count:           1.000 counts
+                 gc.time:            1.000 ms
+
+Iteration   5: 1481.219 ns/op
+                 gc.alloc.rate:      3692.397 MB/sec
+                 gc.alloc.rate.norm: 5744.051 B/op
+                 gc.count:           1.000 counts
+                 gc.time:            2.000 ms
+
+
+
+Result "com.eignex.koblas.bench.KoblasJmhBenchmark.run":
+  2077.524 ±(99.9%) 1663.696 ns/op [Average]
+  (min, avg, max) = (1481.219, 2077.524, 2694.086), stdev = 432.057
+  CI (99.9%): [413.828, 3741.220] (assumes normal distribution)
+
+Secondary result "com.eignex.koblas.bench.KoblasJmhBenchmark.run:gc.alloc.rate":
+  2730.567 ±(99.9%) 2322.509 MB/sec [Average]
+  (min, avg, max) = (2030.674, 2730.567, 3692.397), stdev = 603.148
+  CI (99.9%): [408.058, 5053.076] (assumes normal distribution)
+
+Secondary result "com.eignex.koblas.bench.KoblasJmhBenchmark.run:gc.alloc.rate.norm":
+  5744.072 ±(99.9%) 0.057 B/op [Average]
+  (min, avg, max) = (5744.051, 5744.072, 5744.093), stdev = 0.015
+  CI (99.9%): [5744.014, 5744.129] (assumes normal distribution)
+
+Secondary result "com.eignex.koblas.bench.KoblasJmhBenchmark.run:gc.count":
+  5.000 ±(99.9%) 0.001 counts [Sum]
+  (min, avg, max) = (1.000, 1.000, 1.000), stdev = 0.001
+  CI (99.9%): [5.000, 5.000] (assumes normal distribution)
+
+Secondary result "com.eignex.koblas.bench.KoblasJmhBenchmark.run:gc.time":
+  8.000 ±(99.9%) 0.001 ms [Sum]
+  (min, avg, max) = (1.000, 1.600, 2.000), stdev = 0.548
+  CI (99.9%): [8.000, 8.000] (assumes normal distribution)
+
+
+# JMH version: 1.38-SNAPSHOT+a194eead0136
+# VM version: JDK 25.0.1, OpenJDK 64-Bit Server VM, 25.0.1+8-LTS
+# VM invoker: /home/rasmus/.gradle/jdks/eclipse_adoptium-25-amd64-linux.2/bin/java
+# VM options: --enable-native-access=ALL-UNNAMED -Dfile.encoding=UTF-8 -Duser.country -Duser.language=en -Duser.variant -Dkoblas.bench.cases=/home/rasmus/.codex/worktrees/bec7/koblas/koblas-bench/cases-addressed.txt
+# Blackhole mode: compiler (auto-detected, use -Djmh.blackhole.autoDetect=false to disable)
+# Warmup: 3 iterations, 200000000 ns each
+# Measurement: 5 iterations, 200000000 ns each
+# Timeout: 10 min per iteration
+# Threads: 1 thread, will synchronize iterations
+# Benchmark mode: Average time, time/op
+# Benchmark: com.eignex.koblas.bench.KoblasJmhBenchmark.run
+# Parameters: (benchmarkMode = jvm-scalar, caseId = gemm+16x16x4096+uniform+workspace=retained)
+
+# Run progress: 85.00% complete, ETA 00:00:05
+# Fork: 1 of 1
+# Warmup Iteration   1: fork_runtime case=gemm+16x16x4096+uniform+workspace=retained mode=jvm-scalar java=25.0.1+8-LTS collectors=G1 Young Generation|G1 Concurrent GC|G1 Old Generation max_heap_bytes=16441671680 region_bytes=8388608 object_alignment=8 compact_headers=false
+447194.795 ns/op
+# Warmup Iteration   2: 366680.738 ns/op
+# Warmup Iteration   3: 358462.374 ns/op
+Iteration   1: 418268.029 ns/op
+                 gc.alloc.rate:      0.087 MB/sec
+                 gc.alloc.rate.norm: 38.313 B/op
+                 gc.count:           ≈ 0 counts
+
+Iteration   2: 396733.358 ns/op
+                 gc.alloc.rate:      0.090 MB/sec
+                 gc.alloc.rate.norm: 37.640 B/op
+                 gc.count:           ≈ 0 counts
+
+Iteration   3: 361826.244 ns/op
+                 gc.alloc.rate:      0.096 MB/sec
+                 gc.alloc.rate.norm: 36.462 B/op
+                 gc.count:           ≈ 0 counts
+
+Iteration   4: 326818.909 ns/op
+                 gc.alloc.rate:      0.103 MB/sec
+                 gc.alloc.rate.norm: 35.184 B/op
+                 gc.count:           ≈ 0 counts
+
+Iteration   5: 330271.305 ns/op
+                 gc.alloc.rate:      0.102 MB/sec
+                 gc.alloc.rate.norm: 35.295 B/op
+                 gc.count:           ≈ 0 counts
+
+
+
+Result "com.eignex.koblas.bench.KoblasJmhBenchmark.run":
+  366783.569 ±(99.9%) 155254.675 ns/op [Average]
+  (min, avg, max) = (326818.909, 366783.569, 418268.029), stdev = 40319.146
+  CI (99.9%): [211528.894, 522038.244] (assumes normal distribution)
+
+Secondary result "com.eignex.koblas.bench.KoblasJmhBenchmark.run:gc.alloc.rate":
+  0.096 ±(99.9%) 0.026 MB/sec [Average]
+  (min, avg, max) = (0.087, 0.096, 0.103), stdev = 0.007
+  CI (99.9%): [0.070, 0.122] (assumes normal distribution)
+
+Secondary result "com.eignex.koblas.bench.KoblasJmhBenchmark.run:gc.alloc.rate.norm":
+  36.579 ±(99.9%) 5.356 B/op [Average]
+  (min, avg, max) = (35.184, 36.579, 38.313), stdev = 1.391
+  CI (99.9%): [31.222, 41.935] (assumes normal distribution)
+
+Secondary result "com.eignex.koblas.bench.KoblasJmhBenchmark.run:gc.count":
+  ≈ 0 counts
+
+
+# JMH version: 1.38-SNAPSHOT+a194eead0136
+# VM version: JDK 25.0.1, OpenJDK 64-Bit Server VM, 25.0.1+8-LTS
+# VM invoker: /home/rasmus/.gradle/jdks/eclipse_adoptium-25-amd64-linux.2/bin/java
+# VM options: --enable-native-access=ALL-UNNAMED -Dfile.encoding=UTF-8 -Duser.country -Duser.language=en -Duser.variant -Dkoblas.bench.cases=/home/rasmus/.codex/worktrees/bec7/koblas/koblas-bench/cases-addressed.txt
+# Blackhole mode: compiler (auto-detected, use -Djmh.blackhole.autoDetect=false to disable)
+# Warmup: 3 iterations, 200000000 ns each
+# Measurement: 5 iterations, 200000000 ns each
+# Timeout: 10 min per iteration
+# Threads: 1 thread, will synchronize iterations
+# Benchmark mode: Average time, time/op
+# Benchmark: com.eignex.koblas.bench.KoblasJmhBenchmark.run
+# Parameters: (benchmarkMode = jvm-scalar, caseId = gemm+17x9x31+uniform+workspace=retained+layout=borrowed)
+
+# Run progress: 90.00% complete, ETA 00:00:03
+# Fork: 1 of 1
+# Warmup Iteration   1: fork_runtime case=gemm+17x9x31+uniform+workspace=retained+layout=borrowed mode=jvm-scalar java=25.0.1+8-LTS collectors=G1 Young Generation|G1 Concurrent GC|G1 Old Generation max_heap_bytes=16441671680 region_bytes=8388608 object_alignment=8 compact_headers=false
+2757.108 ns/op
+# Warmup Iteration   2: 2208.527 ns/op
+# Warmup Iteration   3: 2254.920 ns/op
+Iteration   1: 2129.186 ns/op
+                 gc.alloc.rate:      0.033 MB/sec
+                 gc.alloc.rate.norm: 0.073 B/op
+                 gc.count:           ≈ 0 counts
+
+Iteration   2: 2212.570 ns/op
+                 gc.alloc.rate:      0.033 MB/sec
+                 gc.alloc.rate.norm: 0.076 B/op
+                 gc.count:           ≈ 0 counts
+
+Iteration   3: 2104.663 ns/op
+                 gc.alloc.rate:      0.033 MB/sec
+                 gc.alloc.rate.norm: 0.072 B/op
+                 gc.count:           ≈ 0 counts
+
+Iteration   4: 2236.713 ns/op
+                 gc.alloc.rate:      0.033 MB/sec
+                 gc.alloc.rate.norm: 0.077 B/op
+                 gc.count:           ≈ 0 counts
+
+Iteration   5: 2213.302 ns/op
+                 gc.alloc.rate:      0.033 MB/sec
+                 gc.alloc.rate.norm: 0.076 B/op
+                 gc.count:           ≈ 0 counts
+
+
+
+Result "com.eignex.koblas.bench.KoblasJmhBenchmark.run":
+  2179.287 ±(99.9%) 224.871 ns/op [Average]
+  (min, avg, max) = (2104.663, 2179.287, 2236.713), stdev = 58.398
+  CI (99.9%): [1954.417, 2404.158] (assumes normal distribution)
+
+Secondary result "com.eignex.koblas.bench.KoblasJmhBenchmark.run:gc.alloc.rate":
+  0.033 ±(99.9%) 0.001 MB/sec [Average]
+  (min, avg, max) = (0.033, 0.033, 0.033), stdev = 0.001
+  CI (99.9%): [0.033, 0.033] (assumes normal distribution)
+
+Secondary result "com.eignex.koblas.bench.KoblasJmhBenchmark.run:gc.alloc.rate.norm":
+  0.075 ±(99.9%) 0.008 B/op [Average]
+  (min, avg, max) = (0.072, 0.075, 0.077), stdev = 0.002
+  CI (99.9%): [0.067, 0.083] (assumes normal distribution)
+
+Secondary result "com.eignex.koblas.bench.KoblasJmhBenchmark.run:gc.count":
+  ≈ 0 counts
+
+
+# JMH version: 1.38-SNAPSHOT+a194eead0136
+# VM version: JDK 25.0.1, OpenJDK 64-Bit Server VM, 25.0.1+8-LTS
+# VM invoker: /home/rasmus/.gradle/jdks/eclipse_adoptium-25-amd64-linux.2/bin/java
+# VM options: --enable-native-access=ALL-UNNAMED -Dfile.encoding=UTF-8 -Duser.country -Duser.language=en -Duser.variant -Dkoblas.bench.cases=/home/rasmus/.codex/worktrees/bec7/koblas/koblas-bench/cases-addressed.txt
+# Blackhole mode: compiler (auto-detected, use -Djmh.blackhole.autoDetect=false to disable)
+# Warmup: 3 iterations, 200000000 ns each
+# Measurement: 5 iterations, 200000000 ns each
+# Timeout: 10 min per iteration
+# Threads: 1 thread, will synchronize iterations
+# Benchmark mode: Average time, time/op
+# Benchmark: com.eignex.koblas.bench.KoblasJmhBenchmark.run
+# Parameters: (benchmarkMode = jvm-scalar, caseId = gemm+17x9x31+uniform+transB=T+workspace=retained+layout=borrowed)
+
+# Run progress: 95.00% complete, ETA 00:00:01
+# Fork: 1 of 1
+# Warmup Iteration   1: fork_runtime case=gemm+17x9x31+uniform+transB=T+workspace=retained+layout=borrowed mode=jvm-scalar java=25.0.1+8-LTS collectors=G1 Young Generation|G1 Concurrent GC|G1 Old Generation max_heap_bytes=16441671680 region_bytes=8388608 object_alignment=8 compact_headers=false
+2539.495 ns/op
+# Warmup Iteration   2: 2812.083 ns/op
+# Warmup Iteration   3: 2191.288 ns/op
+Iteration   1: 2296.259 ns/op
+                 gc.alloc.rate:      0.033 MB/sec
+                 gc.alloc.rate.norm: 0.079 B/op
+                 gc.count:           ≈ 0 counts
+
+Iteration   2: 2182.717 ns/op
+                 gc.alloc.rate:      0.033 MB/sec
+                 gc.alloc.rate.norm: 0.075 B/op
+                 gc.count:           ≈ 0 counts
+
+Iteration   3: 2187.605 ns/op
+                 gc.alloc.rate:      0.033 MB/sec
+                 gc.alloc.rate.norm: 0.075 B/op
+                 gc.count:           ≈ 0 counts
+
+Iteration   4: 2190.925 ns/op
+                 gc.alloc.rate:      0.033 MB/sec
+                 gc.alloc.rate.norm: 0.075 B/op
+                 gc.count:           ≈ 0 counts
+
+Iteration   5: 2179.264 ns/op
+                 gc.alloc.rate:      0.033 MB/sec
+                 gc.alloc.rate.norm: 0.075 B/op
+                 gc.count:           ≈ 0 counts
+
+
+
+Result "com.eignex.koblas.bench.KoblasJmhBenchmark.run":
+  2207.354 ±(99.9%) 192.148 ns/op [Average]
+  (min, avg, max) = (2179.264, 2207.354, 2296.259), stdev = 49.900
+  CI (99.9%): [2015.206, 2399.502] (assumes normal distribution)
+
+Secondary result "com.eignex.koblas.bench.KoblasJmhBenchmark.run:gc.alloc.rate":
+  0.033 ±(99.9%) 0.001 MB/sec [Average]
+  (min, avg, max) = (0.033, 0.033, 0.033), stdev = 0.001
+  CI (99.9%): [0.032, 0.033] (assumes normal distribution)
+
+Secondary result "com.eignex.koblas.bench.KoblasJmhBenchmark.run:gc.alloc.rate.norm":
+  0.076 ±(99.9%) 0.007 B/op [Average]
+  (min, avg, max) = (0.075, 0.076, 0.079), stdev = 0.002
+  CI (99.9%): [0.069, 0.083] (assumes normal distribution)
+
+Secondary result "com.eignex.koblas.bench.KoblasJmhBenchmark.run:gc.count":
+  ≈ 0 counts
+
+
+# Run complete. Total time: 00:00:37
+
+REMEMBER: The numbers below are just data. To gain reusable insights, you need to follow up on
+why the numbers are the way they are. Use profilers (see -prof, -lprof), design factorial
+experiments, perform baseline and negative tests that provide experimental control, make sure
+the benchmarking environment is safe on JVM/OS/HW level, ask for reviews from the domain experts.
+Do not assume the numbers tell you what you want them to tell.
+
+NOTE: Current JVM experimentally supports Compiler Blackholes, and they are in use. Please exercise
+extra caution when trusting the results, look into the generated code to check the benchmark still
+works, and factor in a small probability of new VM bugs. Additionally, while comparisons between
+different JVMs are already problematic, the performance difference caused by different Blackhole
+modes can be very significant. Please make sure you use the consistent Blackhole mode for comparisons.
+
+Benchmark                                  (benchmarkMode)                                                           (caseId)  Mode  Cnt       Score        Error   Units
+KoblasJmhBenchmark.run                          jvm-scalar                                                 gemv+32x21+uniform  avgt    5     219.791 ±      8.182   ns/op
+KoblasJmhBenchmark.run:gc.alloc.rate            jvm-scalar                                                 gemv+32x21+uniform  avgt    5       0.033 ±      0.001  MB/sec
+KoblasJmhBenchmark.run:gc.alloc.rate.norm       jvm-scalar                                                 gemv+32x21+uniform  avgt    5       0.008 ±      0.001    B/op
+KoblasJmhBenchmark.run:gc.count                 jvm-scalar                                                 gemv+32x21+uniform  avgt    5         ≈ 0               counts
+KoblasJmhBenchmark.run                          jvm-scalar                                       gemv+129x31+uniform+transA=T  avgt    5    1078.208 ±    195.733   ns/op
+KoblasJmhBenchmark.run:gc.alloc.rate            jvm-scalar                                       gemv+129x31+uniform+transA=T  avgt    5       0.033 ±      0.001  MB/sec
+KoblasJmhBenchmark.run:gc.alloc.rate.norm       jvm-scalar                                       gemv+129x31+uniform+transA=T  avgt    5       0.037 ±      0.007    B/op
+KoblasJmhBenchmark.run:gc.count                 jvm-scalar                                       gemv+129x31+uniform+transA=T  avgt    5         ≈ 0               counts
+KoblasJmhBenchmark.run                          jvm-scalar                                            symv+129+uniform+uplo=U  avgt    5    5283.823 ±    226.215   ns/op
+KoblasJmhBenchmark.run:gc.alloc.rate            jvm-scalar                                            symv+129+uniform+uplo=U  avgt    5       0.062 ±      0.248  MB/sec
+KoblasJmhBenchmark.run:gc.alloc.rate.norm       jvm-scalar                                            symv+129+uniform+uplo=U  avgt    5       0.341 ±      1.371    B/op
+KoblasJmhBenchmark.run:gc.count                 jvm-scalar                                            symv+129+uniform+uplo=U  avgt    5         ≈ 0               counts
+KoblasJmhBenchmark.run                          jvm-scalar                                             syr+129+uniform+uplo=L  avgt    5    5365.815 ±    394.294   ns/op
+KoblasJmhBenchmark.run:gc.alloc.rate            jvm-scalar                                             syr+129+uniform+uplo=L  avgt    5       3.014 ±      1.372  MB/sec
+KoblasJmhBenchmark.run:gc.alloc.rate.norm       jvm-scalar                                             syr+129+uniform+uplo=L  avgt    5      16.961 ±      6.671    B/op
+KoblasJmhBenchmark.run:gc.count                 jvm-scalar                                             syr+129+uniform+uplo=L  avgt    5         ≈ 0               counts
+KoblasJmhBenchmark.run                          jvm-scalar                                            syr2+129+uniform+uplo=U  avgt    5    7062.035 ±    877.717   ns/op
+KoblasJmhBenchmark.run:gc.alloc.rate            jvm-scalar                                            syr2+129+uniform+uplo=U  avgt    5       5.075 ±      5.679  MB/sec
+KoblasJmhBenchmark.run:gc.alloc.rate.norm       jvm-scalar                                            syr2+129+uniform+uplo=U  avgt    5      37.568 ±     40.431    B/op
+KoblasJmhBenchmark.run:gc.count                 jvm-scalar                                            syr2+129+uniform+uplo=U  avgt    5         ≈ 0               counts
+KoblasJmhBenchmark.run                          jvm-scalar                         trsv+129+triangular+uplo=L+transA=N+diag=N  avgt    5    3338.656 ±    515.908   ns/op
+KoblasJmhBenchmark.run:gc.alloc.rate            jvm-scalar                         trsv+129+triangular+uplo=L+transA=N+diag=N  avgt    5       0.033 ±      0.001  MB/sec
+KoblasJmhBenchmark.run:gc.alloc.rate.norm       jvm-scalar                         trsv+129+triangular+uplo=L+transA=N+diag=N  avgt    5       0.115 ±      0.018    B/op
+KoblasJmhBenchmark.run:gc.count                 jvm-scalar                         trsv+129+triangular+uplo=L+transA=N+diag=N  avgt    5         ≈ 0               counts
+KoblasJmhBenchmark.run                          jvm-scalar                                              gemm+32x21x48+uniform  avgt    5   10401.330 ±   4301.024   ns/op
+KoblasJmhBenchmark.run:gc.alloc.rate            jvm-scalar                                              gemm+32x21x48+uniform  avgt    5      26.263 ±      7.963  MB/sec
+KoblasJmhBenchmark.run:gc.alloc.rate.norm       jvm-scalar                                              gemm+32x21x48+uniform  avgt    5     284.927 ±     44.932    B/op
+KoblasJmhBenchmark.run:gc.count                 jvm-scalar                                              gemm+32x21x48+uniform  avgt    5       1.000               counts
+KoblasJmhBenchmark.run:gc.time                  jvm-scalar                                              gemm+32x21x48+uniform  avgt    5       2.000                   ms
+KoblasJmhBenchmark.run                          jvm-scalar                                   gemm+129x31x257+uniform+transA=T  avgt    5  261890.824 ± 113177.821   ns/op
+KoblasJmhBenchmark.run:gc.alloc.rate            jvm-scalar                                   gemm+129x31x257+uniform+transA=T  avgt    5     601.947 ±    249.029  MB/sec
+KoblasJmhBenchmark.run:gc.alloc.rate.norm       jvm-scalar                                   gemm+129x31x257+uniform+transA=T  avgt    5  163905.039 ±      3.958    B/op
+KoblasJmhBenchmark.run:gc.count                 jvm-scalar                                   gemm+129x31x257+uniform+transA=T  avgt    5       1.000               counts
+KoblasJmhBenchmark.run:gc.time                  jvm-scalar                                   gemm+129x31x257+uniform+transA=T  avgt    5       1.000                   ms
+KoblasJmhBenchmark.run                          jvm-scalar                                    gemm+65x127x33+uniform+transB=T  avgt    5  122450.036 ±  86283.306   ns/op
+KoblasJmhBenchmark.run:gc.alloc.rate            jvm-scalar                                    gemm+65x127x33+uniform+transB=T  avgt    5     788.954 ±    640.869  MB/sec
+KoblasJmhBenchmark.run:gc.alloc.rate.norm       jvm-scalar                                    gemm+65x127x33+uniform+transB=T  avgt    5   98341.140 ±      5.577    B/op
+KoblasJmhBenchmark.run:gc.count                 jvm-scalar                                    gemm+65x127x33+uniform+transB=T  avgt    5       1.000               counts
+KoblasJmhBenchmark.run:gc.time                  jvm-scalar                                    gemm+65x127x33+uniform+transB=T  avgt    5       2.000                   ms
+KoblasJmhBenchmark.run                          jvm-scalar                                  symm+129x31+uniform+side=L+uplo=L  avgt    5  263902.227 ± 198935.907   ns/op
+KoblasJmhBenchmark.run:gc.alloc.rate            jvm-scalar                                  symm+129x31+uniform+side=L+uplo=L  avgt    5    1156.155 ±    797.514  MB/sec
+KoblasJmhBenchmark.run:gc.alloc.rate.norm       jvm-scalar                                  symm+129x31+uniform+side=L+uplo=L  avgt    5  311521.652 ±      6.514    B/op
+KoblasJmhBenchmark.run:gc.count                 jvm-scalar                                  symm+129x31+uniform+side=L+uplo=L  avgt    5       2.000               counts
+KoblasJmhBenchmark.run:gc.time                  jvm-scalar                                  symm+129x31+uniform+side=L+uplo=L  avgt    5       3.000                   ms
+KoblasJmhBenchmark.run                          jvm-scalar                               syr2k+129x31+uniform+uplo=U+transA=T  avgt    5  225459.551 ±  76952.548   ns/op
+KoblasJmhBenchmark.run:gc.alloc.rate            jvm-scalar                               syr2k+129x31+uniform+uplo=U+transA=T  avgt    5     558.830 ±    186.040  MB/sec
+KoblasJmhBenchmark.run:gc.alloc.rate.norm       jvm-scalar                               syr2k+129x31+uniform+uplo=U+transA=T  avgt    5  131457.616 ±     24.935    B/op
+KoblasJmhBenchmark.run:gc.count                 jvm-scalar                               syr2k+129x31+uniform+uplo=U+transA=T  avgt    5       1.000               counts
+KoblasJmhBenchmark.run:gc.time                  jvm-scalar                               syr2k+129x31+uniform+uplo=U+transA=T  avgt    5       2.000                   ms
+KoblasJmhBenchmark.run                          jvm-scalar                trsm+64x16+triangular+side=L+uplo=L+transA=N+diag=N  avgt    5   24263.252 ±  14226.201   ns/op
+KoblasJmhBenchmark.run:gc.alloc.rate            jvm-scalar                trsm+64x16+triangular+side=L+uplo=L+transA=N+diag=N  avgt    5       0.094 ±      0.529  MB/sec
+KoblasJmhBenchmark.run:gc.alloc.rate.norm       jvm-scalar                trsm+64x16+triangular+side=L+uplo=L+transA=N+diag=N  avgt    5       2.569 ±     15.143    B/op
+KoblasJmhBenchmark.run:gc.count                 jvm-scalar                trsm+64x16+triangular+side=L+uplo=L+transA=N+diag=N  avgt    5         ≈ 0               counts
+KoblasJmhBenchmark.run                          jvm-scalar            spmm+257x8x129+sparse-uniform+density=0.01+mode=oneshot  avgt    5    4547.940 ±    807.358   ns/op
+KoblasJmhBenchmark.run:gc.alloc.rate            jvm-scalar            spmm+257x8x129+sparse-uniform+density=0.01+mode=oneshot  avgt    5       0.033 ±      0.001  MB/sec
+KoblasJmhBenchmark.run:gc.alloc.rate.norm       jvm-scalar            spmm+257x8x129+sparse-uniform+density=0.01+mode=oneshot  avgt    5       0.156 ±      0.028    B/op
+KoblasJmhBenchmark.run:gc.count                 jvm-scalar            spmm+257x8x129+sparse-uniform+density=0.01+mode=oneshot  avgt    5         ≈ 0               counts
+KoblasJmhBenchmark.run                          jvm-scalar           spmm+257x8x129+sparse-uniform+density=0.01+mode=prepared  avgt    5    5495.662 ±   2804.314   ns/op
+KoblasJmhBenchmark.run:gc.alloc.rate            jvm-scalar           spmm+257x8x129+sparse-uniform+density=0.01+mode=prepared  avgt    5       0.033 ±      0.001  MB/sec
+KoblasJmhBenchmark.run:gc.alloc.rate.norm       jvm-scalar           spmm+257x8x129+sparse-uniform+density=0.01+mode=prepared  avgt    5       0.189 ±      0.096    B/op
+KoblasJmhBenchmark.run:gc.count                 jvm-scalar           spmm+257x8x129+sparse-uniform+density=0.01+mode=prepared  avgt    5         ≈ 0               counts
+KoblasJmhBenchmark.run                          jvm-scalar  spmm+257x8x129+sparse-uniform+density=0.01+mode=prepared+transA=T  avgt    5    5323.754 ±   1549.677   ns/op
+KoblasJmhBenchmark.run:gc.alloc.rate            jvm-scalar  spmm+257x8x129+sparse-uniform+density=0.01+mode=prepared+transA=T  avgt    5       0.033 ±      0.001  MB/sec
+KoblasJmhBenchmark.run:gc.alloc.rate.norm       jvm-scalar  spmm+257x8x129+sparse-uniform+density=0.01+mode=prepared+transA=T  avgt    5       0.183 ±      0.053    B/op
+KoblasJmhBenchmark.run:gc.count                 jvm-scalar  spmm+257x8x129+sparse-uniform+density=0.01+mode=prepared+transA=T  avgt    5         ≈ 0               counts
+KoblasJmhBenchmark.run                          jvm-scalar          spgemm+129x97x65+sparse-uniform+density=0.01+mode=oneshot  avgt    5    2872.231 ±   5373.617   ns/op
+KoblasJmhBenchmark.run:gc.alloc.rate            jvm-scalar          spgemm+129x97x65+sparse-uniform+density=0.01+mode=oneshot  avgt    5    2400.632 ±   5012.568  MB/sec
+KoblasJmhBenchmark.run:gc.alloc.rate.norm       jvm-scalar          spgemm+129x97x65+sparse-uniform+density=0.01+mode=oneshot  avgt    5    5744.099 ±      0.186    B/op
+KoblasJmhBenchmark.run:gc.count                 jvm-scalar          spgemm+129x97x65+sparse-uniform+density=0.01+mode=oneshot  avgt    5       4.000               counts
+KoblasJmhBenchmark.run:gc.time                  jvm-scalar          spgemm+129x97x65+sparse-uniform+density=0.01+mode=oneshot  avgt    5       7.000                   ms
+KoblasJmhBenchmark.run                          jvm-scalar         spgemm+129x97x65+sparse-uniform+density=0.01+mode=prepared  avgt    5    2077.524 ±   1663.696   ns/op
+KoblasJmhBenchmark.run:gc.alloc.rate            jvm-scalar         spgemm+129x97x65+sparse-uniform+density=0.01+mode=prepared  avgt    5    2730.567 ±   2322.509  MB/sec
+KoblasJmhBenchmark.run:gc.alloc.rate.norm       jvm-scalar         spgemm+129x97x65+sparse-uniform+density=0.01+mode=prepared  avgt    5    5744.072 ±      0.057    B/op
+KoblasJmhBenchmark.run:gc.count                 jvm-scalar         spgemm+129x97x65+sparse-uniform+density=0.01+mode=prepared  avgt    5       5.000               counts
+KoblasJmhBenchmark.run:gc.time                  jvm-scalar         spgemm+129x97x65+sparse-uniform+density=0.01+mode=prepared  avgt    5       8.000                   ms
+KoblasJmhBenchmark.run                          jvm-scalar                         gemm+16x16x4096+uniform+workspace=retained  avgt    5  366783.569 ± 155254.675   ns/op
+KoblasJmhBenchmark.run:gc.alloc.rate            jvm-scalar                         gemm+16x16x4096+uniform+workspace=retained  avgt    5       0.096 ±      0.026  MB/sec
+KoblasJmhBenchmark.run:gc.alloc.rate.norm       jvm-scalar                         gemm+16x16x4096+uniform+workspace=retained  avgt    5      36.579 ±      5.356    B/op
+KoblasJmhBenchmark.run:gc.count                 jvm-scalar                         gemm+16x16x4096+uniform+workspace=retained  avgt    5         ≈ 0               counts
+KoblasJmhBenchmark.run                          jvm-scalar            gemm+17x9x31+uniform+workspace=retained+layout=borrowed  avgt    5    2179.287 ±    224.871   ns/op
+KoblasJmhBenchmark.run:gc.alloc.rate            jvm-scalar            gemm+17x9x31+uniform+workspace=retained+layout=borrowed  avgt    5       0.033 ±      0.001  MB/sec
+KoblasJmhBenchmark.run:gc.alloc.rate.norm       jvm-scalar            gemm+17x9x31+uniform+workspace=retained+layout=borrowed  avgt    5       0.075 ±      0.008    B/op
+KoblasJmhBenchmark.run:gc.count                 jvm-scalar            gemm+17x9x31+uniform+workspace=retained+layout=borrowed  avgt    5         ≈ 0               counts
+KoblasJmhBenchmark.run                          jvm-scalar   gemm+17x9x31+uniform+transB=T+workspace=retained+layout=borrowed  avgt    5    2207.354 ±    192.148   ns/op
+KoblasJmhBenchmark.run:gc.alloc.rate            jvm-scalar   gemm+17x9x31+uniform+transB=T+workspace=retained+layout=borrowed  avgt    5       0.033 ±      0.001  MB/sec
+KoblasJmhBenchmark.run:gc.alloc.rate.norm       jvm-scalar   gemm+17x9x31+uniform+transB=T+workspace=retained+layout=borrowed  avgt    5       0.076 ±      0.007    B/op
+KoblasJmhBenchmark.run:gc.count                 jvm-scalar   gemm+17x9x31+uniform+transB=T+workspace=retained+layout=borrowed  avgt    5         ≈ 0               counts
+wrote 20 case summaries from 100 measurements to /tmp/koblas-666-scalar-before.csv
+resolved implementation=jvm-scalar/scalar/scalar/scalar-panel/scalar-tile(4x4)/scalar-substitution runtime=kotlin-2.4.21/jvm/Eclipse Adoptium/25.0.1 harness=jmh-average-time/JMH-1.38-SNAPSHOT+a194eead0136
+
+BUILD SUCCESSFUL in 40s
+14 actionable tasks: 4 executed, 10 up-to-date
+Configuration cache entry stored.

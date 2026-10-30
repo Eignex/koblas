@@ -27,7 +27,7 @@ Add the dependency to your JVM or `commonMain` source set:
 implementation("com.eignex:koblas:<version>")
 ```
 
-Supported: JDK 17+, Android API 24+, Linux x64/arm64, macOS arm64, and iOS arm64 devices and simulators.
+Supported: JDK 17+, Android API 24+, Linux x64/arm64, Windows x64, macOS arm64, and iOS arm64 devices and simulators.
 On desktop JDK 25+, enable SIMD with `--add-modules=jdk.incubator.vector`.
 See [engine loading and native libraries](BACKENDS.md) for optional acceleration and setup.
 
@@ -58,3 +58,6 @@ into existing arrays. See the [usage guide](USAGE.md) for more examples and reus
 
 Run `./gradlew check lintDocs`. Use `-Pkoblas.noSimd=true` to withhold the JVM Vector API module;
 installed native libraries remain visible.
+
+On Windows, use `gradlew.bat check lintDocs` with Git Bash available for benchmark script tests.
+See the [implementation inventory](docs/implementation-666.md) for test tasks and validation details.

@@ -83,7 +83,7 @@ val firstColumn = a.view(columnOffset = 0, cols = 1)
 firstColumn[0, 0] = 4.0 // Also changes a[0, 0]
 ```
 
-The engine accepts views directly for GEMM, GEMV, SYRK, TRSM and TRSV; other matrix APIs may copy them.
+Every dense BLAS routine accepts views directly, including dense operands in sparse products.
 A view itself shares storage, but an operation on it can still need temporary buffers. Built-in calls
 handle overlapping inputs and destinations by taking snapshots where needed. Direct vendor bindings
 have their own overlap rules.

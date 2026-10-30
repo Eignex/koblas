@@ -5,9 +5,8 @@
 package com.eignex.koblas
 
 import com.eignex.koblas.dense.DenseBlas
-import com.eignex.koblas.dense.applyBeta
-import com.eignex.koblas.sparse.internal.sparseSyr
-import com.eignex.koblas.sparse.internal.sparseSyr2
+import com.eignex.koblas.internal.sparse.sparseSyr
+import com.eignex.koblas.internal.sparse.sparseSyr2
 import kotlin.jvm.JvmOverloads
 
 /**
@@ -21,12 +20,11 @@ import kotlin.jvm.JvmOverloads
  * Operands may share [destination]'s backing array. They are snapshotted before [destination] is scaled or
  * written, so aliasing has the same result as a call over independent inputs.
  *
- * [workspace] lends that snapshot, and lends the gather a windowed or stepped [x] needs to reach a seam that
- * addresses one array, so a repeated call over one shape allocates nothing whichever storage [x] has.
+ * [workspace] lends logical alias snapshots. Addressed vectors pass their offsets and strides to panels.
  */
 @Suppress("LongParameterList") // the BLAS dgemv signature plus the workspace
 @JvmOverloads
-public fun DenseMatrix.gemvInto(
+public fun DenseMatrixRegion.gemvInto(
     alpha: Double,
     x: DenseVector,
     beta: Double,
@@ -34,23 +32,16 @@ public fun DenseMatrix.gemvInto(
     transpose: Boolean = false,
     workspace: Workspace? = null,
 ) {
-    val a = this
-    requireGemvOperands(a, transpose, x.size, destination.size)
-    val depth = if (transpose) a.rows else a.cols
-    // Unlike the BLAS gemv quick return, this API must overwrite NaN when beta is zero,
-    // including for a zero-column matrix.
-    if (alpha == 0.0 || depth == 0) {
-        destination.prescale(beta)
-        return
-    }
-    contiguous(workspace, x) { xv ->
-        koblas.gemv(alpha, a, xv, beta, destination, transpose, workspace)
+    if (x is ContiguousVector) {
+        koblas.gemv(alpha, this, x.values, beta, destination, transpose, workspace)
+    } else {
+        koblas.gemv(alpha, this, x, beta, DenseVector.wrap(destination), transpose, workspace)
     }
 }
 
 /** [gemvInto] with `alpha = 1, beta = 0`, so `destination` receives `op(A) * x`. */
 @JvmOverloads
-public fun DenseMatrix.gemvInto(
+public fun DenseMatrixRegion.gemvInto(
     x: DenseVector,
     destination: DoubleArray,
     transpose: Boolean = false,
@@ -65,11 +56,11 @@ public fun DenseMatrix.gemvInto(
  * touches half the entries, rather than the full-matrix [DenseMatrix.ger]. Outside the stored triangle
  * each entry is taken from its mirror, so the other half may hold anything. [x] and this matrix may share
  * [destination]'s backing array; built-in aliases are snapshotted before any output is written.
- * [workspace] lends that snapshot and the gather of a strided [x], as it does for [gemvInto].
+ * [workspace] lends logical alias snapshots, as it does for [gemvInto].
  */
 @Suppress("LongParameterList") // the BLAS dsymv signature plus the workspace
 @JvmOverloads
-public fun DenseMatrix.symvInto(
+public fun DenseMatrixRegion.symvInto(
     alpha: Double,
     x: DenseVector,
     beta: Double,
@@ -77,56 +68,46 @@ public fun DenseMatrix.symvInto(
     lower: Boolean = true,
     workspace: Workspace? = null,
 ) {
-    requireSymvOperands(this, x.size, destination.size)
-    if (alpha == 0.0) {
-        destination.prescale(beta)
-        return
-    }
-    contiguous(workspace, x) { xv ->
-        koblas.symv(alpha, this, xv, beta, destination, lower, workspace)
+    if (x is ContiguousVector) {
+        koblas.symv(alpha, this, x.values, beta, destination, lower, workspace)
+    } else {
+        koblas.symv(alpha, this, x, beta, DenseVector.wrap(destination), lower, workspace)
     }
 }
 
 /** [symvInto] with `alpha = 1, beta = 0`, so `destination` receives `A * x`. */
 @JvmOverloads
-public fun DenseMatrix.symvInto(
+public fun DenseMatrixRegion.symvInto(
     x: DenseVector,
     destination: DoubleArray,
     lower: Boolean = true,
     workspace: Workspace? = null,
 ): Unit = symvInto(1.0, x, 0.0, destination, lower, workspace)
 
-/** The `beta * y` half of a matvec. A zero [beta] overwrites without reading, as BLAS specifies, so the
- *  destination's previous contents cannot poison the result. */
-private fun DoubleArray.prescale(beta: Double) = applyBeta(koblas.vectorKernels, this, 0, size, beta)
-
 /**
  * Rank-one update `A = A + alpha * x * yT` (BLAS `dger`) in place. Subtract by passing
  * `alpha = -1.0`.
  *
- * [workspace] lends the gather each vector needs to reach a seam that addresses one array, and the snapshot
- * a vector sharing this matrix's buffer takes.
+ * [workspace] lends logical snapshots of vectors overlapping the destination. Their strides are addressed directly.
  */
 @JvmOverloads
-public fun DenseMatrix.ger(alpha: Double, x: DenseVector, y: DenseVector, workspace: Workspace? = null) {
-    requireGerOperands(x.size, y.size, this)
-    if (alpha == 0.0) return
-    contiguous(workspace, x) { xv ->
-        contiguous(workspace, y) { yv ->
-            koblas.ger(alpha, xv, yv, this, workspace)
-        }
-    }
+public fun DenseMatrixRegion.ger(alpha: Double, x: DenseVector, y: DenseVector, workspace: Workspace? = null) {
+    koblas.ger(alpha, x, y, this, workspace)
 }
 
 /** Symmetric rank-1 update `A += alpha * x * xT` (BLAS `dsyr`) in place. See [DenseBlas.syr]. */
 @JvmOverloads
-public fun DenseMatrix.syr(alpha: Double, x: DenseVector, lower: Boolean = true, workspace: Workspace? = null): Unit =
-    koblas.syr(alpha, x, this, lower, workspace)
+public fun DenseMatrixRegion.syr(
+    alpha: Double,
+    x: DenseVector,
+    lower: Boolean = true,
+    workspace: Workspace? = null,
+): Unit = koblas.syr(alpha, x, this, lower, workspace)
 
 /** Symmetric rank-2 update `A += alpha * (x * yT + y * xT)` (BLAS `dsyr2`) in place. See [DenseBlas.syr2]. */
 @Suppress("LongParameterList") // the BLAS dsyr2 signature plus the workspace
 @JvmOverloads
-public fun DenseMatrix.syr2(
+public fun DenseMatrixRegion.syr2(
     alpha: Double,
     x: DenseVector,
     y: DenseVector,

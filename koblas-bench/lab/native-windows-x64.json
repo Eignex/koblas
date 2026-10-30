@@ -1,0 +1,6 @@
+{
+  "main": "com.eignex.koblas.bench.LabAdapterKt",
+  "classpath": ["koblas-bench/build/lab/classes", "koblas-bench/build/lab/lib/*"],
+  "buildTasks": [":koblas-bench:prepareLabBenchmark", ":koblas-bench:linkReleaseExecutableMingwX64"],
+  "jvmArgs": ["-Xmx256m"]
+}

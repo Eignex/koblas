@@ -20,9 +20,9 @@ flowchart LR
 
 | Platform | What the default engine uses |
 |---|---|
-| JDK 25+ | JVM SIMD when enabled, otherwise portable Kotlin. Native access can add oneMKL on Intel or unidentified Linux x64. |
-| Kotlin/Native, Intel or unidentified Linux x64 | First available compatible library: oneMKL → AOCL → OpenBLAS |
-| Kotlin/Native, AMD Linux x64 | First available compatible library: AOCL → oneMKL → OpenBLAS |
+| JDK 25+ | JVM SIMD when enabled, otherwise portable Kotlin. Native access can add oneMKL on Intel or unidentified Linux/Windows x64. |
+| Kotlin/Native, Intel or unidentified Linux/Windows x64 | First available compatible library: oneMKL → AOCL → OpenBLAS |
+| Kotlin/Native, AMD Linux/Windows x64 | First available compatible library: AOCL → oneMKL → OpenBLAS |
 | Kotlin/Native, Linux ARM64 | First available compatible library: ArmPL → OpenBLAS |
 | Kotlin/Native, macOS | System Accelerate |
 | JDK 17–24, Android and iOS | Portable Kotlin; no native library lookup |
@@ -64,7 +64,12 @@ separate native cutoffs.
 To allow native calls on JDK 25+, also pass `--enable-native-access=ALL-UNNAMED` on the classpath,
 or `--enable-native-access=com.eignex.koblas` on the module path. Install a compatible library using 32-bit BLAS
 indices (LP64) and make it discoverable by the system loader. Koblas also searches `~/intel/oneapi/mkl/latest` and
-`/opt/intel/oneapi/mkl/latest` for oneMKL. Set flags and library locations before starting the application.
+`/opt/intel/oneapi/mkl/latest` for oneMKL on Linux. Set flags and library locations before starting the application.
+
+On Windows, put matching vendor DLLs in an absolute directory on PATH, with runtime dependencies beside
+the DLL or in Windows system directories. Windows shares Linux's vendor preferences and cutoffs, but
+runtime behavior and thresholds have not been verified on a Windows host. Windows Arm64 supports
+explicit JVM bindings; the Kotlin/Native target is Windows x64.
 
 Direct JVM bindings also support Accelerate, OpenBLAS, AOCL and ArmPL on their supported hosts;
 automatic JVM selection currently uses only oneMKL. The manual loader `openBlas(vendor)` means

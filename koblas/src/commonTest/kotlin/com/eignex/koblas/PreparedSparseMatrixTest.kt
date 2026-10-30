@@ -1,10 +1,10 @@
 package com.eignex.koblas
 
+import com.eignex.koblas.RouteKind
+import com.eignex.koblas.internal.sparse.axpy
 import com.eignex.koblas.sparse.ReferenceSparseBlas
-import com.eignex.koblas.sparse.SparseBlas
 import com.eignex.koblas.sparse.SparseCall
 import com.eignex.koblas.sparse.SparseMatrixOperation
-import com.eignex.koblas.vendor.RouteKind
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
@@ -252,17 +252,53 @@ class PreparedSparseMatrixTest {
         assertEquals(koblas.gemm(source, b), product)
     }
 
-    // Naming an engine to prepare with settles which kernels the products of that snapshot reach, so the
-    // common product surface asks it rather than the default engine.
     @Test
-    fun `a prepared product runs on the engine that prepared the snapshot`() {
-        val recording = RecordingSparseBlas(koblas)
-        val prepared = PreparedSparseMatrix(matrix(), recording)
+    fun `an explicit engine governs a snapshot prepared by another engine`() {
+        val source = matrix()
+        val prepared = (BuiltinEngines.simd ?: BuiltinEngines.scalar).prepare(source)
+        val left = DenseMatrix.diagonal(3)
+        val expected = DenseMatrix.zero(3, 2)
+        ReferenceSparseBlas.gemm(1.0, source, false, left, false, 0.0, expected, right = true)
+        var updates = 0
+        val vectors = object : com.eignex.koblas.dense.DenseVectorKernels by BuiltinEngines.scalar.vectorKernels {
+            override val name: String = "recording"
+            override fun implementationFor(
+                operation: com.eignex.koblas.dense.DenseOperation,
+                length: Int,
+                contiguous: Boolean,
+            ): String = name
+            override fun axpy(
+                y: DoubleArray,
+                yOff: Int,
+                alpha: Double,
+                x: DoubleArray,
+                xOff: Int,
+                len: Int,
+                yStride: Int,
+                xStride: Int,
+            ) {
+                updates++
+                BuiltinEngines.scalar.vectorKernels.axpy(y, yOff, alpha, x, xOff, len, yStride, xStride)
+            }
+        }
+        val engine = KoblasEngine(vectors, BuiltinEngines.scalar.indexedSparseKernels, null)
         val destination = DenseMatrix.zero(3, 2)
 
-        prepared.gemmInto(1.0, false, DenseMatrix.diagonal(2), false, 0.0, destination)
+        engine.gemm(1.0, left as Matrix, false, prepared, false, 0.0, destination)
 
-        assertEquals(1, recording.denseProducts)
+        assertTrue(updates > 0)
+        assertClose(expected.values, destination.values, "explicit prepared engine")
+        assertTrue(
+            engine.routeOf(
+                1.0,
+                left,
+                false,
+                prepared,
+                false,
+                0.0,
+                destination,
+            ).components.any { "recording" in it },
+        )
     }
 
     @Test
@@ -365,26 +401,5 @@ class PreparedSparseMatrixTest {
         }
 
         assertFalse(prepared.orientationDerived, "a repeated prepared dense product built the transpose cache")
-    }
-}
-
-/** An engine that counts the products reaching it, to see which one a prepared operand hands its call to. */
-private class RecordingSparseBlas(private val delegate: SparseBlas) : SparseBlas by delegate {
-    var denseProducts: Int = 0
-
-    @Suppress("LongParameterList") // the delegated dgemm signature
-    override fun gemm(
-        alpha: Double,
-        a: SparseMatrix,
-        transposeA: Boolean,
-        b: DenseMatrix,
-        transposeB: Boolean,
-        beta: Double,
-        c: DenseMatrix,
-        right: Boolean,
-        workspace: Workspace?,
-    ) {
-        denseProducts++
-        delegate.gemm(alpha, a, transposeA, b, transposeB, beta, c, right, workspace)
     }
 }

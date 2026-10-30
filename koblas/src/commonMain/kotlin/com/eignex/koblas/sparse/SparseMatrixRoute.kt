@@ -1,8 +1,8 @@
 package com.eignex.koblas.sparse
 
 import com.eignex.koblas.MatrixRoute
+import com.eignex.koblas.RouteKind
 import com.eignex.koblas.SparseMatrix
-import com.eignex.koblas.vendor.RouteKind
 
 /**
  * A built-in sparse Level 2 or 3 entry point, named so a caller can ask what a call of it actually executes.
@@ -93,6 +93,7 @@ public enum class SparseMatrixOperation(internal val entryPoint: String) {
  * @property transposeSparse Whether the sparse operand is transposed.
  * @property transposeDense Whether the dense operand is transposed.
  * @property lower Selected stored triangle.
+ * @property destinationRun Length of each dense scaling run, or null for a single contiguous destination.
  */
 public class SparseCall(
     public val matrix: SparseMatrix,
@@ -105,8 +106,10 @@ public class SparseCall(
     public val transposeSparse: Boolean = false,
     public val transposeDense: Boolean = false,
     public val lower: Boolean = true,
+    public val destinationRun: Int? = null,
 ) {
     init {
+        require(destinationRun == null || destinationRun >= 0) { "negative destination run" }
         require(destinationElements == null || destinationElements >= 0) { "negative destination element count" }
         require(depth == null || depth >= 0) { "negative product depth" }
         require(updateRun >= 0) { "negative update run length" }

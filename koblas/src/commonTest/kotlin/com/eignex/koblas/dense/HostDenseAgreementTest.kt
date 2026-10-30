@@ -4,11 +4,18 @@ import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.DenseVector
 import com.eignex.koblas.Workspace
 import com.eignex.koblas.assertClose
+import com.eignex.koblas.internal.dense.PortableDenseBlas
+import com.eignex.koblas.internal.dense.PortablePanelKernels
+import com.eignex.koblas.internal.dense.ScalarVectorKernels
+import com.eignex.koblas.internal.host.HOST_SCHEDULING
+import com.eignex.koblas.internal.host.HostDenseBlas
+import com.eignex.koblas.internal.host.HostDenseCall
 import com.eignex.koblas.poisonedSymmetric
 import com.eignex.koblas.poisonedTriangle
 import com.eignex.koblas.randomMatrix
 import com.eignex.koblas.randomVector
 import com.eignex.koblas.vendor.Blas
+import com.eignex.koblas.vendor.Vendor
 import com.eignex.koblas.vendor.openBlas
 import com.eignex.koblas.wellConditioned
 import kotlin.random.Random
@@ -36,14 +43,14 @@ class HostDenseAgreementTest {
         eligible = { _, _, _, _ -> true },
     )
 
-    /** The composition and the binding under it, or a line saying what this host could not check. */
+    /** Exercise every installed vendor; a host without one reports the missing coverage. */
     private inline fun withHost(what: String, block: (HostDenseBlas, Blas) -> Unit) {
-        val host = openBlas()
-        if (host == null) {
+        val hosts = Vendor.entries.mapNotNull { openBlas(it) }
+        if (hosts.isEmpty()) {
             println("SKIPPED: no CBLAS library installed; $what was not verified on this host")
             return
         }
-        block(composed(host), host)
+        for (host in hosts) block(composed(host), host)
     }
 
     /**

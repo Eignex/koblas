@@ -2,6 +2,8 @@
 
 package com.eignex.koblas.dense
 
+import com.eignex.koblas.internal.dense.DensePanelKernels
+import com.eignex.koblas.internal.dense.PortablePanelKernels
 import kotlin.test.Test
 import kotlin.test.assertTrue
 

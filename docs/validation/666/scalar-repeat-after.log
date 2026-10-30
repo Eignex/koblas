@@ -1,0 +1,172 @@
+Calculating task graph as configuration cache cannot be reused because Gradle property 'bench.cases' has changed.
+
+> Configure project :koblas
+Signing skipped: SNAPSHOT is a snapshot.
+
+> Task :koblas:kmpPartiallyResolvedDependenciesChecker
+> Task :koblas-bench:kmpPartiallyResolvedDependenciesChecker
+> Task :koblas:jvmProcessResources NO-SOURCE
+> Task :koblas:jvmJava25ProcessResources NO-SOURCE
+> Task :koblas:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :koblas-bench:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :koblas:processJvmMainResources SKIPPED
+> Task :koblas:processJvmJava25Resources SKIPPED
+> Task :koblas-bench:jvmProcessResources NO-SOURCE
+> Task :koblas-bench:processJvmMainResources SKIPPED
+> Task :koblas-bench:jmh:verifyUpstreamSource UP-TO-DATE
+> Task :koblas:compileKotlinJvm UP-TO-DATE
+> Task :koblas:compileJvmMainJava NO-SOURCE
+> Task :koblas:jvmMainClasses UP-TO-DATE
+> Task :koblas:compileJava25KotlinJvm UP-TO-DATE
+> Task :koblas:compileJvmJava25Java NO-SOURCE
+> Task :koblas:jvmJava25Classes UP-TO-DATE
+> Task :koblas:compileJvmModuleDescriptor UP-TO-DATE
+> Task :koblas:jvmJar UP-TO-DATE
+> Task :koblas-bench:jmh:unpackUpstreamSource UP-TO-DATE
+> Task :koblas-bench:jmh:processResources UP-TO-DATE
+> Task :koblas-bench:jmh:compileJava UP-TO-DATE
+> Task :koblas-bench:jmh:classes UP-TO-DATE
+> Task :koblas-bench:jmh:jar UP-TO-DATE
+> Task :koblas-bench:compileKotlinJvm UP-TO-DATE
+> Task :koblas-bench:compileJvmMainJava UP-TO-DATE
+> Task :koblas-bench:jvmMainClasses UP-TO-DATE
+
+> Task :koblas-bench:jvmScalarBenchmark
+# JMH version: 1.38-SNAPSHOT+a194eead0136
+# VM version: JDK 25.0.1, OpenJDK 64-Bit Server VM, 25.0.1+8-LTS
+# VM invoker: /home/rasmus/.gradle/jdks/eclipse_adoptium-25-amd64-linux.2/bin/java
+# VM options: --enable-native-access=ALL-UNNAMED -Dfile.encoding=UTF-8 -Duser.country -Duser.language=en -Duser.variant -Dkoblas.bench.cases=/tmp/koblas-666-repeat-cases.txt
+# Blackhole mode: compiler (auto-detected, use -Djmh.blackhole.autoDetect=false to disable)
+# Warmup: 5 iterations, 300000000 ns each
+# Measurement: 5 iterations, 300000000 ns each
+# Timeout: 10 min per iteration
+# Threads: 1 thread, will synchronize iterations
+# Benchmark mode: Average time, time/op
+# Benchmark: com.eignex.koblas.bench.KoblasJmhBenchmark.run
+# Parameters: (benchmarkMode = jvm-scalar, caseId = gemm+129x31x257+uniform+transA=T)
+
+# Run progress: 0.00% complete, ETA 00:00:06
+# Fork: 1 of 2
+# Warmup Iteration   1: fork_runtime case=gemm+129x31x257+uniform+transA=T mode=jvm-scalar java=25.0.1+8-LTS collectors=G1 Young Generation|G1 Concurrent GC|G1 Old Generation max_heap_bytes=16441671680 region_bytes=8388608 object_alignment=8 compact_headers=false
+269790.961 ns/op
+# Warmup Iteration   2: 260187.503 ns/op
+# Warmup Iteration   3: 245395.641 ns/op
+# Warmup Iteration   4: 247010.201 ns/op
+# Warmup Iteration   5: 232220.159 ns/op
+Iteration   1: 264151.923 ns/op
+                 gc.alloc.rate:      591.256 MB/sec
+                 gc.alloc.rate.norm: 163887.381 B/op
+                 gc.count:           1.000 counts
+                 gc.time:            1.000 ms
+
+Iteration   2: 354898.443 ns/op
+                 gc.alloc.rate:      440.026 MB/sec
+                 gc.alloc.rate.norm: 163880.132 B/op
+                 gc.count:           ≈ 0 counts
+
+Iteration   3: 256122.805 ns/op
+                 gc.alloc.rate:      609.769 MB/sec
+                 gc.alloc.rate.norm: 163877.845 B/op
+                 gc.count:           ≈ 0 counts
+
+Iteration   4: 248021.758 ns/op
+                 gc.alloc.rate:      629.792 MB/sec
+                 gc.alloc.rate.norm: 163877.734 B/op
+                 gc.count:           1.000 counts
+                 gc.time:            2.000 ms
+
+Iteration   5: 240772.945 ns/op
+                 gc.alloc.rate:      648.706 MB/sec
+                 gc.alloc.rate.norm: 163877.524 B/op
+                 gc.count:           ≈ 0 counts
+
+
+# Run progress: 50.00% complete, ETA 00:00:03
+# Fork: 2 of 2
+# Warmup Iteration   1: fork_runtime case=gemm+129x31x257+uniform+transA=T mode=jvm-scalar java=25.0.1+8-LTS collectors=G1 Young Generation|G1 Concurrent GC|G1 Old Generation max_heap_bytes=16441671680 region_bytes=8388608 object_alignment=8 compact_headers=false
+299083.476 ns/op
+# Warmup Iteration   2: 298857.760 ns/op
+# Warmup Iteration   3: 283896.218 ns/op
+# Warmup Iteration   4: 253425.101 ns/op
+# Warmup Iteration   5: 275347.536 ns/op
+Iteration   1: 291018.552 ns/op
+                 gc.alloc.rate:      536.624 MB/sec
+                 gc.alloc.rate.norm: 163881.256 B/op
+                 gc.count:           ≈ 0 counts
+
+Iteration   2: 284580.580 ns/op
+                 gc.alloc.rate:      548.803 MB/sec
+                 gc.alloc.rate.norm: 163878.545 B/op
+                 gc.count:           1.000 counts
+                 gc.time:            3.000 ms
+
+Iteration   3: 253987.018 ns/op
+                 gc.alloc.rate:      614.762 MB/sec
+                 gc.alloc.rate.norm: 163877.822 B/op
+                 gc.count:           ≈ 0 counts
+
+Iteration   4: 247918.524 ns/op
+                 gc.alloc.rate:      629.754 MB/sec
+                 gc.alloc.rate.norm: 163877.688 B/op
+                 gc.count:           ≈ 0 counts
+
+Iteration   5: 249331.350 ns/op
+                 gc.alloc.rate:      626.340 MB/sec
+                 gc.alloc.rate.norm: 163877.767 B/op
+                 gc.count:           1.000 counts
+                 gc.time:            1.000 ms
+
+
+
+Result "com.eignex.koblas.bench.KoblasJmhBenchmark.run":
+  269080.390 ±(99.9%) 51857.911 ns/op [Average]
+  (min, avg, max) = (240772.945, 269080.390, 354898.443), stdev = 34300.797
+  CI (99.9%): [217222.479, 320938.301] (assumes normal distribution)
+
+Secondary result "com.eignex.koblas.bench.KoblasJmhBenchmark.run:gc.alloc.rate":
+  587.583 ±(99.9%) 95.507 MB/sec [Average]
+  (min, avg, max) = (440.026, 587.583, 648.706), stdev = 63.172
+  CI (99.9%): [492.076, 683.090] (assumes normal distribution)
+
+Secondary result "com.eignex.koblas.bench.KoblasJmhBenchmark.run:gc.alloc.rate.norm":
+  163879.369 ±(99.9%) 4.652 B/op [Average]
+  (min, avg, max) = (163877.524, 163879.369, 163887.381), stdev = 3.077
+  CI (99.9%): [163874.718, 163884.021] (assumes normal distribution)
+
+Secondary result "com.eignex.koblas.bench.KoblasJmhBenchmark.run:gc.count":
+  4.000 ±(99.9%) 0.001 counts [Sum]
+  (min, avg, max) = (≈ 0, 0.400, 1.000), stdev = 0.516
+  CI (99.9%): [4.000, 4.000] (assumes normal distribution)
+
+Secondary result "com.eignex.koblas.bench.KoblasJmhBenchmark.run:gc.time":
+  7.000 ±(99.9%) 0.001 ms [Sum]
+  (min, avg, max) = (≈ 0, 0.700, 3.000), stdev = 1.059
+  CI (99.9%): [7.000, 7.000] (assumes normal distribution)
+
+
+# Run complete. Total time: 00:00:06
+
+REMEMBER: The numbers below are just data. To gain reusable insights, you need to follow up on
+why the numbers are the way they are. Use profilers (see -prof, -lprof), design factorial
+experiments, perform baseline and negative tests that provide experimental control, make sure
+the benchmarking environment is safe on JVM/OS/HW level, ask for reviews from the domain experts.
+Do not assume the numbers tell you what you want them to tell.
+
+NOTE: Current JVM experimentally supports Compiler Blackholes, and they are in use. Please exercise
+extra caution when trusting the results, look into the generated code to check the benchmark still
+works, and factor in a small probability of new VM bugs. Additionally, while comparisons between
+different JVMs are already problematic, the performance difference caused by different Blackhole
+modes can be very significant. Please make sure you use the consistent Blackhole mode for comparisons.
+
+Benchmark                                  (benchmarkMode)                          (caseId)  Mode  Cnt       Score       Error   Units
+KoblasJmhBenchmark.run                          jvm-scalar  gemm+129x31x257+uniform+transA=T  avgt   10  269080.390 ± 51857.911   ns/op
+KoblasJmhBenchmark.run:gc.alloc.rate            jvm-scalar  gemm+129x31x257+uniform+transA=T  avgt   10     587.583 ±    95.507  MB/sec
+KoblasJmhBenchmark.run:gc.alloc.rate.norm       jvm-scalar  gemm+129x31x257+uniform+transA=T  avgt   10  163879.369 ±     4.652    B/op
+KoblasJmhBenchmark.run:gc.count                 jvm-scalar  gemm+129x31x257+uniform+transA=T  avgt   10       4.000              counts
+KoblasJmhBenchmark.run:gc.time                  jvm-scalar  gemm+129x31x257+uniform+transA=T  avgt   10       7.000                  ms
+wrote 1 case summaries from 10 measurements to /tmp/koblas-666-scalar-repeat-after.csv
+resolved implementation=jvm-scalar/scalar/scalar/scalar-panel/scalar-tile(4x4)/scalar-substitution runtime=kotlin-2.4.21/jvm/Eclipse Adoptium/25.0.1 harness=jmh-average-time/JMH-1.38-SNAPSHOT+a194eead0136
+
+BUILD SUCCESSFUL in 8s
+14 actionable tasks: 3 executed, 11 up-to-date
+Configuration cache entry stored.

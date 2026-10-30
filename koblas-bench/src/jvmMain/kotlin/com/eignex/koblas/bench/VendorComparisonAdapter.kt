@@ -44,7 +44,7 @@ internal object VendorComparisonSuite : BenchSuite {
         plan(BenchRequest(case.parameters))
         val root = requireNotNull(context.worktree)
         val output = context.reportPath()
-        val argv = mutableListOf("bash", root.resolve("koblas-bench/lab/vendor-capture.sh").toString(),
+        val argv = mutableListOf(captureShell(), root.resolve("koblas-bench/lab/vendor-capture.sh").toString(),
             "--output", output.toString())
         case.parameters.forEach { (key, value) ->
             argv += "--$key"

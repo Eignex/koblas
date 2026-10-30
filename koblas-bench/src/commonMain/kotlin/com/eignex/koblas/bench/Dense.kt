@@ -6,14 +6,14 @@ import com.eignex.koblas.Matrix
 import com.eignex.koblas.MatrixRoute
 import com.eignex.koblas.VectorRoute
 import com.eignex.koblas.Workspace
-import com.eignex.koblas.dense.DenseCall
+import com.eignex.koblas.dense.DenseMatrixRoute
 import com.eignex.koblas.dense.DenseMatrixOperation
 import com.eignex.koblas.dense.DenseOperation
 import com.eignex.koblas.gemmInto
 import com.eignex.koblas.koblas
 import com.eignex.koblas.routeOf
 import com.eignex.koblas.sparse.SparseMatrixRoute
-import com.eignex.koblas.vendor.RouteKind
+import com.eignex.koblas.RouteKind
 
 internal class CaseWork(
     val comparisonKind: String,
@@ -41,16 +41,18 @@ private fun level1(
 ): CaseWork? {
     val route = engine.routeOf(operation, length)
     if (route.kind == RouteKind.NoWork) return null
-    val kernel = if (route.kind == RouteKind.Composed) {
-        "${route.implementation}+scalar-rescale/${route.entryPoint}"
-    } else {
-        vectorKernel(route)
-    }
-    return CaseWork(route.kind.name.lowercase(), timing, run, result = result, kernel = kernel)
+    return CaseWork(route.kind.name.lowercase(), timing, run, result = result, kernel = reductionKernel(route))
 }
 
 /** The attribution a Level 1 row carries, which is the same question for a dense run and a stored support. */
 internal fun vectorKernel(route: VectorRoute<*>): String = "${route.implementation}/${route.entryPoint}"
+
+/** A reduction's route includes the scalar retry when its norm depends on the input magnitudes. */
+internal fun reductionKernel(route: VectorRoute<*>): String = if (route.kind == RouteKind.Composed) {
+    "${route.implementation}+scalar-rescale/${route.entryPoint}"
+} else {
+    vectorKernel(route)
+}
 
 /**
  * Built-in Level 2 or 3 work, named by the route the call itself resolves.
@@ -63,14 +65,11 @@ internal fun vectorKernel(route: VectorRoute<*>): String = "${route.implementati
  */
 @Suppress("LongParameterList") // the operation, the facts its route needs, and both regions
 private fun level23(
-    engine: KoblasEngine,
-    operation: DenseMatrixOperation,
-    call: DenseCall,
+    route: DenseMatrixRoute,
     timing: String,
     verify: () -> Unit,
     run: () -> Double,
 ): CaseWork? {
-    val route = engine.routeOf(operation, call)
     if (route.kind == RouteKind.NoWork) return null
     verify()
     return CaseWork(route.kind.name.lowercase(), timing, run, kernel = matrixKernel(route))
@@ -157,7 +156,7 @@ internal fun denseWork(case: BenchCase, engine: KoblasEngine): CaseWork? {
             val x = Fixtures.vector(n, 2); val y0 = Fixtures.vector(m, 3); val y = y0.copyOf()
             val operation = if (trans) DenseMatrixOperation.GemvTransposed else DenseMatrixOperation.Gemv
             level23(
-                engine, operation, DenseCall(a.rows, a.cols, alpha, beta), "reset-and-arithmetic",
+                engine.routeOf(operation, alpha, a, DenseVector.wrap(x), beta, DenseVector.wrap(y)), "reset-and-arithmetic",
                 verify = {
                     val expected = DenseReference.gemv(alpha, a, trans, x, beta, y0)
                     y0.copyInto(y); engine.gemv(alpha, a, x, beta, y, trans)
@@ -169,7 +168,7 @@ internal fun denseWork(case: BenchCase, engine: KoblasEngine): CaseWork? {
             val n = d[0]; val lower = case.option("uplo", "L") == "L"; val a = Fixtures.matrix(n, n, 1)
             val x = Fixtures.vector(n, 2); val y0 = Fixtures.vector(n, 3); val y = y0.copyOf()
             level23(
-                engine, DenseMatrixOperation.Symv, DenseCall(n, n, alpha, beta, lower = lower), "reset-and-arithmetic",
+                engine.routeOf(DenseMatrixOperation.Symv, alpha, a, DenseVector.wrap(x), beta, DenseVector.wrap(y), lower), "reset-and-arithmetic",
                 verify = {
                     val expected = DenseReference.symv(alpha, a, lower, x, beta, y0)
                     y0.copyInto(y); engine.symv(alpha, a, x, beta, y, lower)
@@ -186,11 +185,7 @@ internal fun denseWork(case: BenchCase, engine: KoblasEngine): CaseWork? {
             val a = Fixtures.matrix(if (right) n else m, if (right) n else m, 1); val b = Fixtures.matrix(m, n, 2)
             val c0 = Fixtures.matrix(m, n, 3); val c = Fixtures.matrix(m, n, 3)
             level23(
-                engine,
-                DenseMatrixOperation.Symm,
-                // The side is a fact the route needs: it decides which operand of the product the
-                // symmetric one is and which extent of the destination its strips are cut along.
-                DenseCall(m, n, alpha, beta, depth = a.rows, lower = lower, right = right),
+                engine.routeOf(DenseMatrixOperation.Symm, alpha, a, b, false, false, beta, c, lower, right),
                 "reset-and-arithmetic",
                 verify = {
                     val expected = DenseReference.symm(alpha, a, lower, right, b, beta, c0)
@@ -204,9 +199,7 @@ internal fun denseWork(case: BenchCase, engine: KoblasEngine): CaseWork? {
             val a = Fixtures.matrix(if (ta) k else n, if (ta) n else k, 1); val b = Fixtures.matrix(if (tb) n else k, if (tb) k else n, 2)
             val c0 = Fixtures.matrix(n, n, 3); val c = Fixtures.matrix(n, n, 3)
             level23(
-                engine,
-                DenseMatrixOperation.Gemmt,
-                DenseCall(n, n, alpha, beta, depth = k, lower = lower, transposeA = ta, transposeB = tb),
+                engine.routeOf(DenseMatrixOperation.Gemmt, alpha, a, b, ta, tb, beta, c, lower),
                 "reset-and-arithmetic",
                 verify = {
                     val expected = DenseReference.gemmt(alpha, a, ta, b, tb, beta, c0, lower)
@@ -222,11 +215,8 @@ internal fun denseWork(case: BenchCase, engine: KoblasEngine): CaseWork? {
             val single = case.operation == "syrk"
             val operation = if (single) DenseMatrixOperation.Syrk else DenseMatrixOperation.Syr2k
             level23(
-                engine,
-                operation,
-                // A rank update's right operand is its left one transposed, so the one flag decides both
-                // and the route works the second out rather than being told a separate one.
-                DenseCall(n, n, alpha, beta, depth = k, lower = lower, transposeA = trans),
+                if (single) engine.routeOf(alpha, a, trans, beta, c, lower)
+                else engine.routeOf(operation, alpha, a, b, trans, !trans, beta, c, lower),
                 "reset-and-arithmetic",
                 verify = {
                     val expected = DenseReference.syrk(alpha, a, b, trans, beta, c0, lower, doubled = !single)
@@ -270,13 +260,6 @@ internal fun denseArm(case: BenchCase, engine: KoblasEngine): ArmChoice? = when 
 }
 
 private fun genericProductArm(case: BenchCase, engine: KoblasEngine): ArmChoice {
-    if (engine !== koblas) {
-        return ArmChoice(
-            null,
-            "the common Matrix product uses the platform-selected engine, so ${case.operation} is timed once " +
-                "as a default-policy case on the arm whose engine that is",
-        )
-    }
     val (m, n, k) = case.dimensions
     val alpha = 0.875
     val beta = -0.25
@@ -284,18 +267,18 @@ private fun genericProductArm(case: BenchCase, engine: KoblasEngine): ArmChoice 
     val b = Fixtures.matrix(k, n, 2)
     val c0 = Fixtures.matrix(m, n, 3)
     val c = Fixtures.matrix(m, n, 3)
-    val route = koblas.routeOf(alpha, a, false, b, false, beta, c)
+    val route = engine.routeOf(alpha, a, false, b, false, beta, c)
     if (route.kind == RouteKind.NoWork) {
         return ArmChoice(null, "this case's own contract stops before the arithmetic, so there is nothing to time")
     }
     val expected = DenseReference.gemm(alpha, a, false, b, false, beta, c0)
     c0.values.copyInto(c.values)
-    (a as Matrix).gemmInto(alpha, false, b as Matrix, false, beta, c)
+    engine.gemm(alpha, a as Matrix, false, b as Matrix, false, beta, c)
     DenseReference.check(expected, c.values, "${case.id} generic product")
     return ArmChoice(
-        CaseWork("default-policy", "reset-and-arithmetic", {
+        CaseWork(route.kind.name.lowercase(), "reset-and-arithmetic", {
             c0.values.copyInto(c.values)
-            (a as Matrix).gemmInto(alpha, false, b as Matrix, false, beta, c)
+            engine.gemm(alpha, a as Matrix, false, b as Matrix, false, beta, c)
             c.values[0]
         }, kernel = matrixKernel(route)),
         null,
@@ -320,7 +303,8 @@ private fun rankUpdateWork(case: BenchCase, engine: KoblasEngine): CaseWork? {
         else -> engine.syr2(alpha, DenseVector.wrap(x), DenseVector.wrap(y), target, lower)
     }
     return level23(
-        engine, operation, DenseCall(rows, cols, alpha, lower = lower), "reset-and-arithmetic",
+        if (operation == DenseMatrixOperation.Syr) engine.routeOf(alpha, DenseVector.wrap(x), target, lower)
+        else engine.routeOf(operation, alpha, DenseVector.wrap(x), DenseVector.wrap(y), target, lower), "reset-and-arithmetic",
         verify = {
             val expected = when (operation) {
                 DenseMatrixOperation.Ger -> DenseReference.ger(alpha, x, y, original)
@@ -348,7 +332,7 @@ private fun triangularVectorWork(case: BenchCase, engine: KoblasEngine): CaseWor
     }
     fun apply() = if (solve) engine.trsv(a, x, lower, trans, unit) else engine.trmv(a, x, lower, trans, unit)
     return level23(
-        engine, operation, DenseCall(n, n, lower = lower), "reset-and-arithmetic",
+        engine.routeOf(operation, a, DenseVector.wrap(x), lower), "reset-and-arithmetic",
         verify = {
             val expected = if (solve) {
                 DenseReference.trsv(a, x0, lower, trans, unit)
@@ -362,6 +346,7 @@ private fun triangularVectorWork(case: BenchCase, engine: KoblasEngine): CaseWor
 }
 
 private fun gemmWork(case: BenchCase, engine: KoblasEngine): CaseWork? {
+    if (case.options["layout"] == "borrowed") return borrowedProductWork(case, engine)
     val (m, n, k) = case.dimensions; val ta = case.flag("transA"); val tb = case.flag("transB")
     val alpha = 0.875; val beta = -0.25
     val a = Fixtures.matrix(if (ta) k else m, if (ta) m else k, 1)
@@ -369,11 +354,7 @@ private fun gemmWork(case: BenchCase, engine: KoblasEngine): CaseWork? {
     val original = Fixtures.matrix(m, n, 3); val c = Fixtures.matrix(m, n, 3)
     val workspace = if (case.options["workspace"] == "retained") Workspace() else null
     return level23(
-        engine,
-        DenseMatrixOperation.Gemm,
-        // The transpose flags are facts a product route needs: they decide which panel an unpacked product
-        // reaches and whether the vector it shares across a group is adjacent.
-        DenseCall(m, n, alpha, beta, depth = k, transposeA = ta, transposeB = tb),
+        engine.routeOf(alpha, a, ta, b, tb, beta, c) as DenseMatrixRoute,
         "reset-and-arithmetic",
         verify = {
             val expected = DenseReference.gemm(alpha, a, ta, b, tb, beta, original)
@@ -396,11 +377,7 @@ private fun triangularMatrixWork(case: BenchCase, engine: KoblasEngine): CaseWor
         engine.trmm(triangle, b, lower, trans, unit, right, alpha)
     }
     return level23(
-        engine,
-        operation,
-        // Side and transpose together decide which corner of the triangle a coefficient comes from and
-        // which direction the substitution runs, so both travel with the call.
-        DenseCall(m, n, alpha, depth = order, lower = lower, transposeA = trans, right = right),
+        engine.routeOf(operation, triangle, b, lower, trans, right, alpha),
         "reset-and-arithmetic",
         verify = {
             val expected = if (solve) {

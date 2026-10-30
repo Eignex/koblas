@@ -195,7 +195,7 @@ class SparseTest {
     // The generic entry point uses the selected engine, so an arm naming a different one would publish its
     // own label over another engine's work.
     @Test
-    fun `the generic entry point is timed only on the arm whose engine it actually uses`() {
+    fun `the generic entry point runs on every explicitly requested engine`() {
         for (id in listOf(
             "spmm-generic+9x3x7+sparse-uniform+density=0.3+mode=oneshot",
             "spmm-generic+9x3x7+sparse-uniform+density=0.3+mode=oneshot+transA=T",
@@ -206,16 +206,11 @@ class SparseTest {
             val case = Cases.parse(id).single()
             for (engine in listOfNotNull(koblas, BuiltinEngines.scalar, BuiltinEngines.simd).distinct()) {
                 val arm = assertNotNull(sparseArm(case, engine), id)
-                if (engine === koblas) {
-                    val work = assertNotNull(arm.work, "$id on the selected engine")
-                    assertEquals("default-policy", work.comparisonKind, id)
-                    assertEquals("oneshot-generic", work.timingMode, id)
-                    assertTrue(assertNotNull(work.kernel).startsWith("portable-csc"), id)
-                    assertTrue(work.run().isFinite(), id)
-                } else {
-                    assertNull(arm.work, "$id was timed under an engine it does not use")
-                    assertContains(assertNotNull(arm.reason), "platform-selected engine")
-                }
+                val work = assertNotNull(arm.work, "$id on ${engine.name}")
+                assertTrue(work.comparisonKind in listOf("direct", "composed"), id)
+                assertEquals("oneshot-generic", work.timingMode, id)
+                assertTrue(assertNotNull(work.kernel).startsWith("portable-csc"), id)
+                assertTrue(work.run().isFinite(), id)
             }
         }
     }

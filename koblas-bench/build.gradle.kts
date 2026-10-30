@@ -1,3 +1,5 @@
+@file:OptIn(org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi::class)
+
 import java.nio.file.Path as JdkPath
 import org.gradle.api.tasks.JavaExec
 
@@ -39,7 +41,18 @@ kotlin {
     jvm()
     linuxX64 { binaries.executable { entryPoint = "com.eignex.koblas.bench.main"; baseName = "koblas-bench" } }
     linuxArm64 { binaries.executable { entryPoint = "com.eignex.koblas.bench.main"; baseName = "koblas-bench" } }
+    mingwX64 { binaries.executable { entryPoint = "com.eignex.koblas.bench.main"; baseName = "koblas-bench" } }
     macosArm64 { binaries.executable { entryPoint = "com.eignex.koblas.bench.main"; baseName = "koblas-bench" } }
+    applyDefaultHierarchyTemplate {
+        common {
+            group("native") {
+                group("posix") {
+                    withLinux()
+                    withApple()
+                }
+            }
+        }
+    }
     sourceSets {
         commonMain.dependencies { implementation(project(":koblas")) }
         jvmMain.dependencies {
@@ -104,10 +117,11 @@ registerJvmBenchmark("jvmScalarBenchmark", "jvm-scalar", vectorModule = false)
 val hostTarget = when {
     System.getProperty("os.name").startsWith("Linux") && System.getProperty("os.arch") == "amd64" -> "LinuxX64"
     System.getProperty("os.name").startsWith("Mac") && System.getProperty("os.arch") == "aarch64" -> "MacosArm64"
+    System.getProperty("os.name").startsWith("Windows") && System.getProperty("os.arch") == "amd64" -> "MingwX64"
     else -> null
 }
 
-private val NO_NATIVE_HOST = "native benchmarks are supported on Linux x86-64 and macOS arm64"
+private val NO_NATIVE_HOST = "native benchmarks are supported on Linux x86-64, Windows x64 and macOS arm64"
 
 /**
  * Registers a native benchmark where one can be built, and a task that says why not where one cannot.
@@ -131,8 +145,9 @@ fun registerNativeBenchmark(name: String, buildType: String = "Release", configu
         dependsOn("link${buildType}Executable$target")
         val targetDir = target.replaceFirstChar(Char::lowercase)
         val binaryDir = "${buildType.replaceFirstChar(Char::lowercase)}Executable"
+        val extension = if (target == "MingwX64") "exe" else "kexe"
         commandLine(
-            layout.buildDirectory.file("bin/$targetDir/$binaryDir/koblas-bench.kexe").get().asFile.absolutePath,
+            layout.buildDirectory.file("bin/$targetDir/$binaryDir/koblas-bench.$extension").get().asFile.absolutePath,
         )
         workingDir(rootProject.projectDir)
         configure()
@@ -196,7 +211,8 @@ registerNativeBenchmark("linuxX64SelectedBenchmark", buildType = "Debug") {
 }
 
 tasks.withType<Test>().configureEach {
-    jvmArgs("--add-modules=jdk.incubator.vector", "--enable-native-access=ALL-UNNAMED")
+    jvmArgs("--enable-native-access=ALL-UNNAMED")
+    if (providers.gradleProperty("koblas.noSimd").orNull != "true") jvmArgs("--add-modules=jdk.incubator.vector")
 }
 
 tasks.register<Sync>("prepareLabBenchmark") {

@@ -41,6 +41,18 @@ class VendorSelectionTest {
     }
 
     @Test
+    fun `windows and linux share the same vendor preference on every cpu`() {
+        for (architecture in Architecture.entries) {
+            for (cpu in CpuVendor.entries) {
+                val linux = HostPlatform(OperatingSystem.Linux, architecture, cpu)
+                val windows = HostPlatform(OperatingSystem.Windows, architecture, cpu)
+
+                assertEquals(Vendor.select(linux), Vendor.select(windows), "$architecture $cpu")
+            }
+        }
+    }
+
+    @Test
     fun `an unsupported host selects nothing rather than guessing`() {
         // Neither half is enough on its own: the candidates are ELF sonames, so an unsupported operating
         // system rules them out even on a supported architecture, and the reverse.

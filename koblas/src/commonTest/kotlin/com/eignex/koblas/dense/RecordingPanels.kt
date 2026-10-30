@@ -1,9 +1,13 @@
 package com.eignex.koblas.dense
 
 import com.eignex.koblas.DenseVector
+import com.eignex.koblas.RouteKind
+import com.eignex.koblas.internal.dense.DensePanelKernels
+import com.eignex.koblas.internal.dense.PanelWork
+import com.eignex.koblas.internal.dense.PortableDenseBlas
+import com.eignex.koblas.internal.dense.ScalarVectorKernels
 import com.eignex.koblas.randomMatrix
 import com.eignex.koblas.randomVector
-import com.eignex.koblas.vendor.RouteKind
 import kotlin.random.Random
 import kotlin.test.assertEquals
 
@@ -64,7 +68,7 @@ internal class RecordingPanels(
         yOffset: Int,
         yStride: Int,
     ) {
-        record(PanelWork.MultiDot, rows, columns)
+        record(PanelWork.MultiDot, rows, columns, xStride == 1)
         delegate.multiDot(alpha, a, aOffset, lda, x, xOffset, xStride, rows, columns, beta, y, yOffset, yStride)
     }
 
@@ -82,7 +86,7 @@ internal class RecordingPanels(
         yOffset: Int,
         yStride: Int,
     ) {
-        record(PanelWork.ColumnUpdate, rows, columns)
+        record(PanelWork.ColumnUpdate, rows, columns, yStride == 1)
         delegate.columnUpdate(alpha, a, aOffset, lda, x, xOffset, xStride, rows, columns, y, yOffset, yStride)
     }
 
@@ -101,11 +105,20 @@ internal class RecordingPanels(
         coefficientOffset: Int,
         sums: DoubleArray,
         sumOffset: Int,
+        xStride: Int,
+        yStride: Int,
+        coefficientStride: Int,
+        sumStride: Int,
     ) {
-        record(PanelWork.CoupledDotUpdate, rows, columns)
+        record(
+            PanelWork.CoupledDotUpdate,
+            rows,
+            columns,
+            xStride == 1 && yStride == 1 && coefficientStride == 1 && sumStride == 1,
+        )
         delegate.coupledUpdateDot(
             alpha, a, aOffset, lda, x, xOffset, rows, columns, y, yOffset,
-            coefficients, coefficientOffset, sums, sumOffset,
+            coefficients, coefficientOffset, sums, sumOffset, xStride, yStride, coefficientStride, sumStride,
         )
     }
 
@@ -123,7 +136,7 @@ internal class RecordingPanels(
         coefficientOffset: Int,
         coefficientStride: Int,
     ) {
-        record(PanelWork.RankUpdate, rows, columns)
+        record(PanelWork.RankUpdate, rows, columns, xStride == 1)
         delegate.rankUpdate(
             alpha, a, aOffset, lda, x, xOffset, xStride, rows, columns,
             coefficients, coefficientOffset, coefficientStride,
@@ -186,11 +199,14 @@ internal class RecordingPanels(
         sums: DoubleArray,
         sumOffset: Int,
         excluded: Int,
+        destinationOffset: Int,
+        destinationRowStride: Int,
+        destinationIndexStride: Int,
     ) {
         if (columns > 0) record(PanelWork.SparseRightHandSides, rows, columns, rowStride == 1)
         delegate.indexedCoupledUpdate(
             alpha, a, b, offset, rowStride, indexStride, indices, values, fromIndex, columns, rows,
-            pivot, sums, sumOffset, excluded,
+            pivot, sums, sumOffset, excluded, destinationOffset, destinationRowStride, destinationIndexStride,
         )
     }
 }

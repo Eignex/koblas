@@ -139,6 +139,28 @@ needs a separate setup-inclusive solver A/B before claiming an end-to-end improv
 
 ## Capture hosts
 
+### Windows
+
+Windows uses the same capture script and production bindings as Linux. Install JDK 25 and Git for Windows,
+and run `capture-report.sh` in Git Bash. Put matching LP64 vendor DLL directories on `PATH` using absolute
+paths, with runtime dependencies beside the DLL or in Windows system directories. AOCL and oneMKL are x64 libraries; ArmPL requires an Arm64 JVM. The script converts input/output
+paths for native Windows processes, preserves the Windows classpath, and records hardware through PowerShell.
+The Java process architecture determines vendor selection, including when Git Bash runs under x64 emulation.
+Linux `--cpu` pinning is unavailable on Windows.
+
+On Windows x64, direct Gradle tasks also work from PowerShell or Command Prompt:
+
+```powershell
+.\gradlew.bat :koblas-bench:nativeVendorBenchmark -Pbench.vendor=aocl
+.\gradlew.bat :koblas-bench:jvmVendorBenchmark -Pbench.vendor=onemkl
+```
+
+The native benchmark target is `mingwX64`; its executable is `koblas-bench.exe`. It can be cross-linked
+on Linux with `:koblas-bench:linkReleaseExecutableMingwX64` and supplied with `--native-executable`
+on Windows. Arm64 Windows captures use JVM targets because Kotlin/Native has no Windows Arm64 target.
+A supplied Windows Native executable also requires an x64 JVM, so both runtimes select x64 vendor DLLs.
+Build/link and simulated capture-path checks on Linux do not establish Windows runtime or timing results.
+
 ### Native on ARM64
 
 The Kotlin/Native compiler ships no linux-aarch64 host, so an ARM64 machine cannot link the executable it
@@ -211,7 +233,7 @@ uses portable Kotlin when an installed host call is unavailable or ineligible.
 
 | Option | Effect |
 |---|---|
-| `--libraries openblas,accelerate,onemkl,aocl,armpl\|all` | Which vendors to run. `all` selects OpenBLAS plus oneMKL on x86-64 Linux, ArmPL on ARM64 Linux, or Accelerate on macOS. |
+| `--libraries openblas,accelerate,onemkl,aocl,armpl\|all` | Which vendors to run. `all` selects OpenBLAS plus oneMKL on x64 Linux/Windows, ArmPL on Arm64 Linux/Windows, or Accelerate on macOS. |
 | `--suite default\|sweep` | Case suite. `sweep` requires `--operation`. |
 | `--operation NAME\|all` | Intersects the suite with one kernel. |
 | `--samples N`, `--warmups N` | Measured and discarded repetitions per case. |
@@ -435,15 +457,10 @@ fails the capture instead of publishing a number.
 `spmm-right` is the sparse operand on the right of a dense one through the engine the row is published
 under, which is what makes it an exact arm rather than the default-policy `spmm-generic-right` beside it.
 
-The `gemm-generic`, `spmm-generic`, `spmm-generic-right` and `spgemm-generic` cases go through the common
-`Matrix` product with its dispatch included, the third of them with the sparse operand on the right of a
-dense one. That entry point uses the engine this platform selected rather than one a benchmark names, because a caller holding a
-`Matrix` has no engine to pass. They are therefore `default-policy` rows on the arm whose engine is the
-selected one, and are declined on every other arm rather than publishing that arm's label over another
-engine's work. On a JVM the exact arm admits them only when it is also the selected engine; a default that composes
-a host is a separate engine, so those generic calls are admitted only by `jvm-default`. On Kotlin/Native that arm is `native-default`; the exact portable `native` arm
-is not the selected engine and declines them. On a Kotlin/Native host with no library installed the two arms
-resolve to the same engine, so both admit these rows and both are that host's default policy.
+The `gemm-generic`, `spmm-generic`, `spmm-generic-right` and `spgemm-generic` cases call the
+selected benchmark engine's generic `Matrix` dispatch explicitly. Their reported arm and arithmetic policy
+therefore agree on scalar, SIMD and platform-default arms. Prepared modes also execute and inspect routes
+through that engine; preparing a snapshot does not bind execution policy.
 
 ## Direct Gradle runs
 
@@ -463,7 +480,8 @@ Omitting the suite selects `default`.
 ## Bench SDK adapter
 
 `lab/bench.json` owns the prepared JVM adapter's build tasks, entry point and
-classpath. `lab/native-linux-x64.json` also links the Linux x86_64 executable.
+classpath. `lab/native-linux-x64.json` also links the Linux x86_64 executable;
+`lab/native-windows-x64.json` links the Windows x64 executable.
 The JVM adapter imports `com.eignex:lab-bench:0.1.0` only from `jvmMain`; Native
 continues to use this repository's executable and report formats.
 
@@ -484,7 +502,11 @@ A lab submission uses `repository: "Eignex/koblas"` and
 `bench: {"manifest":"koblas-bench/lab/bench.json","request":{"parameters":{"targets":"jvm-scalar,jvm-simd","operation":"dot","smoke":"true"}}}`.
 Request keys are `targets`, `libraries`, `operation`, `suite`, `cases`, `samples`,
 `warmups`, `target-ms`, `forks`, `pass`, `rounds`, `cpu`, `jvm-gc`, `jvm-heap`,
-`vendors-only`, `smoke`, `memory-mib`, `timeout-seconds` and `native-executable`.
+`vendors-only`, `smoke`, `memory-mib`, `timeout-seconds`, `native-executable` and `platform`.
+`platform=windows` places JVM captures on Windows workers and selects the default Windows binary for Native
+captures. Linux and macOS behavior is unchanged when the parameter is omitted. A `mingwX64` executable
+also infers Windows placement. Windows workers need Git Bash on `PATH` for the shared capture script, or `KOBLAS_BASH` set to its
+absolute `bash.exe` path. The adapter resolves that executable explicitly so Windows cannot substitute WSL Bash.
 Each plan freezes one capture with one CPU and the selected memory/time limits.
 `rounds` defaults to one; repeated captures rotate target order and assign their own
 pass numbers, so `pass` cannot be combined with `rounds` greater than one. `smoke`
@@ -498,7 +520,7 @@ selection, which excludes AOCL).
 so the lab inventories and freezes its contents before dispatch. The adapter resolves
 it against the relocated worktree and passes it as one literal argument. A Native
 executable is also a declared input, under `koblas-bench/build/`, with a recognized
-`linuxX64`, `linuxArm64` or `macosArm64` path component. The selected targets and
+`linuxX64`, `linuxArm64`, `macosArm64` or `mingwX64` path component. The selected targets and
 executable determine required platform/architecture tags; incompatible combinations
 are rejected during planning. The adapter owns `--prepared`, `--retain-incomplete`
 and the output destination; these are not request parameters.
@@ -566,3 +588,12 @@ arithmetic through their binding, which has no workspace parameter and still inc
 Compare both owned cases before selecting a native crossover: removing repeated panel allocation can
 change which implementation wins. `lab/cases-thin-gemm-comparison.txt` includes depth, shape and
 transpose controls for that decision. JVM-only vendor captures skip linking an unused native executable.
+
+### Addressed operand comparisons
+
+`gemm` accepts `layout=borrowed` to use nonzero origins and padded leading dimensions for both inputs and
+the destination. Reset and validation include the whole backing buffer. `workspace=retained` preserves its
+ordinary meaning. These cases measure engine scheduling and eligible host composition; explicit vendor arms
+decline them. `cases-addressed.txt` targets small/transposed/structured products, mixed and prepared sparse
+products, a deep retained-workspace product and borrowed regions. Keep the same exact arm and case options
+when comparing revisions; adding a case supplies coverage and makes no performance claim.

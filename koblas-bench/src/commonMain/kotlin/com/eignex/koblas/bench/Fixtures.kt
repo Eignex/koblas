@@ -11,10 +11,7 @@ internal class PortableRandom(seed: Long) {
 
     fun nextLong(): Long {
         state += -7046029254386353131L
-        var z = state
-        z = (z xor (z ushr 30)) * -4658895280553007687L
-        z = (z xor (z ushr 27)) * -7723592293110705685L
-        return z xor (z ushr 31)
+        return mix(state)
     }
 
     fun nextDouble(): Double = (nextLong().ushr(11).toDouble() * 2.220446049250313e-16) - 1.0
@@ -136,13 +133,14 @@ internal object Fixtures {
     private const val BAND_SHIFT = 40
 
     private data class Candidate(val key: Long, val row: Int)
+}
 
-    private fun mix(input: Long): Long {
-        var z = input
-        z = (z xor (z ushr 30)) * -4658895280553007687L
-        z = (z xor (z ushr 27)) * -7723592293110705685L
-        return z xor (z ushr 31)
-    }
+/** SplitMix finalizer shared by the fixture stream and sparse support selection. */
+private fun mix(input: Long): Long {
+    var z = input
+    z = (z xor (z ushr 30)) * -4658895280553007687L
+    z = (z xor (z ushr 27)) * -7723592293110705685L
+    return z xor (z ushr 31)
 }
 
 internal fun digest(values: DoubleArray): String {

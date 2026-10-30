@@ -2,6 +2,8 @@ package com.eignex.koblas.sparse.internal
 
 import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.SparseVector
+import com.eignex.koblas.internal.sparse.replaceColumns
+import com.eignex.koblas.internal.sparse.snapshot
 import com.eignex.koblas.withColumn
 import kotlin.test.Test
 import kotlin.test.assertEquals

@@ -5,15 +5,16 @@ package com.eignex.koblas.bench
 import com.eignex.koblas.BuiltinEngines
 import com.eignex.koblas.KoblasEngine
 import com.eignex.koblas.koblas
+import com.eignex.koblas.vendor.hostPlatform
+import com.eignex.koblas.vendor.OperatingSystem
 import kotlinx.cinterop.memScoped
 import platform.posix.EOF
 import platform.posix.fclose
 import platform.posix.fgetc
-import platform.posix.fopen
 import platform.posix.fputs
 
 internal actual fun readTextFile(path: String): String = memScoped {
-    val file = fopen(path, "rb") ?: error("cannot open $path")
+    val file = openTextFile(path, "rb") ?: error("cannot open $path")
     try {
         buildString {
             while (true) {
@@ -26,15 +27,8 @@ internal actual fun readTextFile(path: String): String = memScoped {
 }
 
 internal actual fun writeTextFile(path: String, text: String) = memScoped {
-    val separator = path.lastIndexOf('/')
-    if (separator >= 0) {
-        var current = if (path.startsWith('/')) "/" else ""
-        for (part in path.substring(0, separator).split('/').filter { it.isNotEmpty() }) {
-            current = if (current == "/") "/$part" else if (current.isEmpty()) part else "$current/$part"
-            createDirectory(current)
-        }
-    }
-    val file = fopen(path, "wb") ?: error("cannot open $path (create its parent directory first)")
+    parentDirectories(path, windows = hostPlatform().operatingSystem == OperatingSystem.Windows).forEach(::createDirectory)
+    val file = openTextFile(path, "wb") ?: error("cannot open $path (create its parent directory first)")
     try { check(fputs(text, file) >= 0) { "write failed for $path" } }
     finally { fclose(file) }
 }
@@ -57,10 +51,7 @@ internal actual fun resolveEngine(mode: String): Pair<KoblasEngine, String> {
         "Native runner requires --mode=native or --mode=native-default"
     }
     val engine = if (mode == "native-default") koblas else BuiltinEngines.scalar
-    val host = engine.vendor?.let {
-        "/${it.vendor.vendorName}/${it.libraryPath}/${it.version}/threads=${it.threadEvidence.label}"
-    } ?: ""
-    return engine to "$mode/${engine.name}$host"
+    return engine to engineIdentity(mode, engine)
 }
 
-internal actual fun runtimeIdentity(): String = "kotlin-native-2.4.10"
+internal actual fun runtimeIdentity(): String = "kotlin-native-${KotlinVersion.CURRENT}"

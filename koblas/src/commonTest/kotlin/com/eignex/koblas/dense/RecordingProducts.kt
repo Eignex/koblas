@@ -3,8 +3,15 @@
 package com.eignex.koblas.dense
 
 import com.eignex.koblas.DenseMatrix
+import com.eignex.koblas.RouteKind
+import com.eignex.koblas.internal.dense.DensePanelKernels
+import com.eignex.koblas.internal.dense.DenseProductKernels
+import com.eignex.koblas.internal.dense.OutputTriangle
+import com.eignex.koblas.internal.dense.PortableDenseBlas
+import com.eignex.koblas.internal.dense.ScalarVectorKernels
+import com.eignex.koblas.internal.dense.TRIANGLE_SELECTION
+import com.eignex.koblas.internal.dense.insideTriangle
 import com.eignex.koblas.randomMatrix
-import com.eignex.koblas.vendor.RouteKind
 import kotlin.random.Random
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -26,21 +33,11 @@ internal class ProductBlockCall(
 )
 
 /** A product backend that records every block it is handed and delegates the arithmetic. */
-internal class RecordingProducts(private val delegate: DenseProductKernels) : DenseProductKernels {
+internal class RecordingProducts(private val delegate: DenseProductKernels) : DenseProductKernels by delegate {
     /** Every block, in call order. */
     val blocks: MutableList<ProductBlockCall> = ArrayList()
 
     override val name: String get() = "recording(${delegate.name})"
-
-    override val tileRows: Int get() = delegate.tileRows
-
-    override val tileColumns: Int get() = delegate.tileColumns
-
-    override fun implementationsFor(rows: Int, columns: Int, depth: Int): List<String> =
-        delegate.implementationsFor(rows, columns, depth)
-
-    override fun packsProduct(rows: Int, columns: Int, depth: Int): Boolean =
-        delegate.packsProduct(rows, columns, depth)
 
     override fun productBlock(
         alpha: Double,

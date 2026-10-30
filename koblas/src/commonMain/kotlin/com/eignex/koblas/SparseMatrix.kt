@@ -1,7 +1,7 @@
 package com.eignex.koblas
 
-import com.eignex.koblas.sparse.internal.pointerLength
-import com.eignex.koblas.sparse.internal.scratchLength
+import com.eignex.koblas.internal.sparse.pointerLength
+import com.eignex.koblas.internal.sparse.scratchLength
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient

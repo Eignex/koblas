@@ -1,5 +1,6 @@
 package com.eignex.koblas.sparse
 
+import com.eignex.koblas.internal.sparse.SparseTuning
 import kotlin.test.Test
 import kotlin.test.assertEquals
 

@@ -215,3 +215,11 @@ private fun csv(value: String): String = if (value.any { it == ',' || it == '"' 
 
 internal const val CSV_HEADER = "case,status,comparison_kind,timing_mode,actual_kernel,samples,forks,median_ns,min_ns,max_ns"
 private const val MAX_OPERATIONS = 1_000_000
+
+/** The same engine and host evidence on either runtime. */
+internal fun engineIdentity(mode: String, engine: KoblasEngine): String {
+    val host = engine.vendor?.let {
+        "/${it.vendor.vendorName}/${it.libraryPath}/${it.version}/threads=${it.threadEvidence.label}"
+    } ?: ""
+    return "$mode/${engine.name}$host"
+}
