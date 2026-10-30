@@ -55,6 +55,17 @@ internal fun regionsOverlap(a: DenseMatrixRegion, b: DenseMatrixRegion): Boolean
     return false
 }
 
+/** Logical alias snapshots are contiguous; disjoint operands retain their original column spacing. */
+internal fun stagedLeadingDimension(a: DenseMatrixRegion, destination: DenseMatrixRegion?): Int =
+    if (destination != null && regionsOverlap(a, destination)) a.rows else a.leadingDimension
+
+/** Length passed to each scaling kernel, either the full contiguous region or one padded column. */
+internal fun scalingLength(rows: Int, columns: Int, leadingDimension: Int): Int = when {
+    rows == 0 || columns == 0 -> 0
+    leadingDimension == rows -> rows * columns
+    else -> rows
+}
+
 /** Disjoint submatrices of the same parent need no snapshot. */
 internal inline fun <T> stagedRegion(
     workspace: Workspace?,
@@ -77,12 +88,13 @@ internal fun scaleRegion(
     lower: Boolean? = null,
     vectors: DenseVectorKernels? = null,
 ) {
-    if (beta == 1.0) return
+    if (beta == 1.0 || a.rows == 0 || a.cols == 0) return
     if (lower == null && vectors != null) {
+        val length = scalingLength(a.rows, a.cols, a.leadingDimension)
         if (a.leadingDimension == a.rows) {
-            applyBeta(vectors, a.values, a.offset, a.rows * a.cols, beta)
+            applyBeta(vectors, a.values, a.offset, length, beta)
         } else {
-            for (j in 0 until a.cols) applyBeta(vectors, a.values, a.offset + j * a.leadingDimension, a.rows, beta)
+            for (j in 0 until a.cols) applyBeta(vectors, a.values, a.offset + j * a.leadingDimension, length, beta)
         }
         return
     }

@@ -3,8 +3,32 @@ package com.eignex.koblas.sparse
 import com.eignex.koblas.*
 import com.eignex.koblas.dense.ReferenceBlas
 import kotlin.test.Test
+import kotlin.test.assertContentEquals
 
 class SparseMatrixViewTest {
+    @Test
+    fun `sparse pair products leave empty padded destinations untouched`() {
+        for (engine in listOfNotNull(BuiltinEngines.scalar, BuiltinEngines.simd, koblas).distinct()) {
+            for ((rows, columns) in listOf(0 to 3, 3 to 0)) {
+                for (size in intArrayOf(0, 3)) {
+                    for (alpha in doubleArrayOf(0.0, 1.0)) {
+                        for (beta in doubleArrayOf(0.0, 0.5, 1.0)) {
+                            val a = SparseMatrix.ofColumns(rows, 1, listOf(emptyList()))
+                            val b = SparseMatrix.ofColumns(1, columns, List(columns) { emptyList() })
+                            val backing = DoubleArray(size) { -77.0 }
+                            val before = backing.copyOf()
+                            val c = DenseMatrixView.wrap(rows, columns, backing, size, rows + 1)
+
+                            engine.gemm(alpha, a, false, b, false, beta, c)
+
+                            assertContentEquals(before, backing)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     private fun region(seed: Int): DenseMatrixView {
         val parent = DenseMatrix.wrap(9, 8, DoubleArray(72) { -77.0 })
         val result = parent.view(1, 1, 7, 6).view(1, 1, 5, 5)

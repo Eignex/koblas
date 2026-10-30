@@ -9,6 +9,8 @@ import com.eignex.koblas.dense.DenseMatrixOperation
 import com.eignex.koblas.dense.DenseMatrixRoute
 import com.eignex.koblas.internal.dense.DENSE_SCHEDULING
 import com.eignex.koblas.internal.dense.scaleComponent
+import com.eignex.koblas.internal.operands.scalingLength
+import com.eignex.koblas.internal.operands.stagedLeadingDimension
 import com.eignex.koblas.sparse.SparseCall
 import com.eignex.koblas.sparse.SparseMatrixOperation
 import com.eignex.koblas.sparse.SparseMatrixRoute
@@ -30,7 +32,7 @@ internal fun KoblasEngine.productRoute(
         val scaling = if (elements > 0 && beta != 0.0 && beta != 1.0) {
             scaleComponent(
                 vectorKernels,
-                if (destination != null && destination.leadingDimension != destination.rows) rows else elements,
+                scalingLength(rows, columns, destination?.leadingDimension ?: rows),
             )
         } else {
             emptyList()
@@ -63,7 +65,7 @@ internal fun KoblasEngine.productRoute(
                     destinationElements = elements,
                     depth = depth,
                     transposeSparse = transposeA,
-                    destinationRun = destination?.let { if (it.leadingDimension == it.rows) elements else it.rows },
+                    destinationRun = destination?.let { scalingLength(it.rows, it.cols, it.leadingDimension) },
                 ),
             )
             val empty = left.nnz == 0 || right.nnz == 0
@@ -92,7 +94,7 @@ internal fun KoblasEngine.productRoute(
                     rightHandSides = columns,
                     transposeSparse = transposeA,
                     transposeDense = transposeB,
-                    destinationRun = destination?.let { if (it.leadingDimension == it.rows) elements else it.rows },
+                    destinationRun = destination?.let { scalingLength(it.rows, it.cols, it.leadingDimension) },
                 ),
             )
         },
@@ -103,7 +105,7 @@ internal fun KoblasEngine.productRoute(
                 SparseCall(
                     right, alpha, beta, destinationElements = elements, depth = depth, updateRun = rows,
                     rightHandSides = rows, transposeSparse = transposeB, transposeDense = transposeA,
-                    destinationRun = destination?.let { if (it.leadingDimension == it.rows) elements else it.rows },
+                    destinationRun = destination?.let { scalingLength(it.rows, it.cols, it.leadingDimension) },
                 ),
             )
         },
@@ -122,8 +124,8 @@ internal fun KoblasEngine.productRoute(
                     aliased = aliased,
                     borrowed = a is DenseMatrixView || b is DenseMatrixView || destination is DenseMatrixView,
                     leadingDimension = destination?.leadingDimension,
-                    leftLeadingDimension = (a as? DenseMatrixRegion)?.leadingDimension,
-                    rightLeadingDimension = (b as? DenseMatrixRegion)?.leadingDimension,
+                    leftLeadingDimension = (a as? DenseMatrixRegion)?.let { stagedLeadingDimension(it, destination) },
+                    rightLeadingDimension = (b as? DenseMatrixRegion)?.let { stagedLeadingDimension(it, destination) },
                 ),
             )
         },

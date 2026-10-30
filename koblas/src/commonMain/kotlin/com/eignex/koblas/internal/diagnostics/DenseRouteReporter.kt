@@ -43,6 +43,7 @@ import com.eignex.koblas.internal.dense.scaleComponent
 import com.eignex.koblas.internal.dense.selectedTriangle
 import com.eignex.koblas.internal.dense.triangularGroup
 import com.eignex.koblas.internal.host.HostDenseCall
+import com.eignex.koblas.internal.operands.scalingLength
 import com.eignex.koblas.sparse.*
 import com.eignex.koblas.vendor.*
 
@@ -245,13 +246,7 @@ internal class DenseRouteReporter(
         val sides = if (call.right) call.rows else call.columns
         val parts = Parts()
         if (call.alpha != 1.0) {
-            val length = if (call.leadingDimension == null ||
-                call.leadingDimension == call.rows
-            ) {
-                order * sides
-            } else {
-                call.rows
-            }
+            val length = scalingLength(call.rows, call.columns, call.leadingDimension ?: call.rows)
             vectors.implementationFor(DenseOperation.Scale, length)?.let { parts.add("$it/scale") }
         }
         val flip = call.transposeA != call.right
@@ -340,7 +335,7 @@ internal class DenseRouteReporter(
         }
         val elements = when (operation) {
             DenseMatrixOperation.GemvTransposed -> call.columns
-            DenseMatrixOperation.Symm -> call.rows * call.columns
+            DenseMatrixOperation.Symm -> scalingLength(call.rows, call.columns, call.leadingDimension ?: call.rows)
             else -> call.rows
         }
         if (!scales || call.beta == 0.0 || call.beta == 1.0 || elements == 0) return emptyList()
