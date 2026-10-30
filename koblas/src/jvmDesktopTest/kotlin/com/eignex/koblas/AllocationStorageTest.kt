@@ -115,15 +115,15 @@ class AllocationStorageTest {
         val a = DenseMatrix.wrap(n, n, DoubleArray(n * n) { 1.0 + (it % 13) * 0.125 })
         val buffer = DoubleArray(2 * n) { 1.0 + (it % 7) * 0.25 }
         val strided = StridedVector(buffer, 0, n, 2)
-        val destination = DoubleArray(n)
+        val destination = DenseVector.wrap(DoubleArray(n))
         val oneGather = n * Double.SIZE_BYTES + ARRAY_HEADER_BYTES
 
         val gathered = bytesPerIteration(1_000, oneGather.toDouble()) {
-            a.gemvInto(1e-12, strided, 1.0, destination)
+            koblas.gemv(1e-12, a, strided, 1.0, destination)
             destination
         }
 
-        assertTrue(gathered <= oneGather + FLOOR_BYTES, "a strided gemvInto allocated $gathered B per call")
+        assertTrue(gathered <= oneGather + FLOOR_BYTES, "a strided gemv allocated $gathered B per call")
     }
 
     /** A workspace lends the gather buffer so repeated strided calls allocate no fresh array. */
@@ -133,16 +133,16 @@ class AllocationStorageTest {
         val a = DenseMatrix.wrap(n, n, DoubleArray(n * n) { 1.0 + (it % 13) * 0.125 })
         val buffer = DoubleArray(2 * n) { 1.0 + (it % 7) * 0.25 }
         val strided = StridedVector(buffer, 0, n, 2)
-        val destination = DoubleArray(n)
+        val destination = DenseVector.wrap(DoubleArray(n))
         val workspace = Workspace()
-        a.gemvInto(1e-12, strided, 1.0, destination, workspace = workspace)
+        koblas.gemv(1e-12, a, strided, 1.0, destination, workspace = workspace)
 
         val gathered = bytesPerIteration(1_000, FLOOR_BYTES) {
-            a.gemvInto(1e-12, strided, 1.0, destination, workspace = workspace)
+            koblas.gemv(1e-12, a, strided, 1.0, destination, workspace = workspace)
             destination
         }
 
-        assertTrue(gathered <= FLOOR_BYTES, "a strided gemvInto with a workspace allocated $gathered B per call")
+        assertTrue(gathered <= FLOOR_BYTES, "a strided gemv with a workspace allocated $gathered B per call")
     }
 
     /**

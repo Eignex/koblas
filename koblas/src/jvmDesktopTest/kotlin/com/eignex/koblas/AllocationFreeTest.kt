@@ -169,7 +169,7 @@ class AllocationFreeTest(private val name: String, private val iterations: Int, 
                 1_000,
                 with(ContiguousFixture()) {
                     {
-                        a.gemvInto(1e-12, contiguous, 1.0, destination)
+                        koblas.gemv(1e-12, a, contiguous, 1.0, destination)
                         destination
                     }
                 },
@@ -179,7 +179,7 @@ class AllocationFreeTest(private val name: String, private val iterations: Int, 
                 1_000,
                 with(ContiguousFixture()) {
                     {
-                        a.symvInto(1e-12, contiguous, 1.0, destination)
+                        koblas.symv(1e-12, a, contiguous, 1.0, destination)
                         destination
                     }
                 },
@@ -451,7 +451,7 @@ class AllocationFreeTest(private val name: String, private val iterations: Int, 
         val n = 128
         val a = DenseMatrix.wrap(n, n, DoubleArray(n * n) { 1.0 + (it % 13) * 0.125 })
         val contiguous = DenseVector.wrap(DoubleArray(n) { 1.0 + (it % 7) * 0.25 })
-        val destination = DoubleArray(n)
+        val destination = DenseVector.wrap(DoubleArray(n))
     }
 
     private class AliasedLevelTwoFixture {

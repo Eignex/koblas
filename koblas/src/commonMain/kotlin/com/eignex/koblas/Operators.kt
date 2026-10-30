@@ -33,14 +33,14 @@ public operator fun SparseMatrix.minus(other: SparseMatrix): SparseMatrix = kobl
 /**
  * Matrix-vector product into a fresh dense result.
  *
- * Both operands are dense storage: [gemvInto] writes into a destination the caller owns and provides the alpha
- * and beta scalars, and it says why the vector side is a [DenseVector] rather than any [Vector].
+ * Both operands are dense storage; [KoblasEngine.gemv] writes into a destination the caller owns and takes the
+ * alpha and beta scalars.
  */
 @kotlin.jvm.JvmName("multiply")
 public operator fun DenseMatrix.times(x: DenseVector): DenseVector {
     requireGemvOperands(this, false, x.size, rows)
     val out = DoubleArray(rows)
-    gemvInto(1.0, x, 0.0, out)
+    koblas.gemv(1.0, this, x, 0.0, DenseVector.wrap(out))
     return DenseVector.wrap(out)
 }
 
