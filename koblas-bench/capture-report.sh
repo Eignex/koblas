@@ -62,7 +62,7 @@ done
 if [[ -n $cpu && ${KOBLAS_BENCH_PINNED:-false} != true ]]; then
   [[ $(uname -s) == Linux ]] || { echo "--cpu requires Linux taskset" >&2; exit 2; }
   cpu_policy=$cpu
-  if [[ $cpu == spread ]]; then cpu=$(python3 "$bench/select-cpu.py"); fi
+  if [[ $cpu == spread ]]; then cpu=$(sh "$bench/select-cpu.sh"); fi
   if [[ $cpu == auto ]]; then cpu=$(first_allowed_cpu); fi
   [[ $cpu =~ ^[0-9]+$ ]] || { echo "cpu must be a logical CPU number, auto or spread" >&2; exit 2; }
   exec taskset -c "$cpu" env KOBLAS_BENCH_PINNED=true KOBLAS_BENCH_CPU_POLICY="$cpu_policy" "$0" "${original_args[@]}"

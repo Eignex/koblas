@@ -38,23 +38,49 @@ if [[ $(uname -s) == Linux ]]; then
   cpu=$(first_allowed_cpu)
   [[ $cpu =~ ^[0-9]+$ ]]
   taskset -c "$cpu" true
-  spread=$(python3 "$bench/select-cpu.py")
+  spread=$(sh "$bench/select-cpu.sh")
   taskset -c "$spread" true
-  python3 - "$bench/select-cpu.py" <<'PY'
-import random
-import runpy
-import sys
+  [[ $(taskset -c "$cpu" sh "$bench/select-cpu.sh") == "$cpu" ]]
 
-choose = runpy.run_path(sys.argv[1])['choose_cpu']
-before = {cpu: (100, 100) for cpu in range(4)}
-after = {0: (120, 120), 1: (120, 120), 2: (120, 100), 3: (120, 120)}
-topology = lambda cpu: {cpu, cpu + 2}
-# CPU 0 is idle but its sibling is busy and outside the allowed mask.
-assert choose({0, 1}, before, after, topology, random.Random(0)) == 1
-# Equal idle cores can both be selected, including with a restricted mask.
-selected = {choose({1, 3}, before, after, lambda cpu: {cpu}, random.Random(seed)) for seed in range(20)}
-assert selected == {1, 3}
-PY
+  cpu_fixture="$temporary/cpu"
+  mkdir -p "$cpu_fixture"
+  for cpu_index in 0 1 2 3; do
+    printf 'cpu%s 0 0 0 100 0 0 0 0 0 0\n' "$cpu_index"
+    mkdir -p "$cpu_fixture/cpu$cpu_index/topology"
+  done >"$cpu_fixture/before"
+  cat >"$cpu_fixture/after" <<'STAT'
+cpu0 0 0 0 120 0 0 0 0 0 0
+cpu1 0 0 0 120 0 0 0 0 0 0
+cpu2 20 0 0 100 0 0 0 0 0 0
+cpu3 0 0 0 120 0 0 0 0 0 0
+STAT
+  echo '0,2' >"$cpu_fixture/cpu0/topology/thread_siblings_list"
+  echo '1,3' >"$cpu_fixture/cpu1/topology/thread_siblings_list"
+  select_cpu() {
+    awk -v allowed="$1" -v topology="$cpu_fixture" -v seed="${2:-0}" \
+      -f "$bench/select-cpu.awk" "$cpu_fixture/before" "$cpu_fixture/after"
+  }
+  # An idle CPU loses to an idle physical core when its disallowed sibling is busy.
+  [[ $(select_cpu 0-1) == 1 ]]
+  # Equal idle cores must both be reachable within a restricted affinity mask.
+  for seed in {0..19}; do select_cpu 1,3 "$seed"; done | sort -u >"$cpu_fixture/ties"
+  printf '1\n3\n' >"$cpu_fixture/expected-ties"
+  cmp "$cpu_fixture/expected-ties" "$cpu_fixture/ties"
+  # Missing topology falls back to the CPU itself; missing counters count as busy.
+  [[ $(select_cpu 3-4) == 3 ]]
+  echo 0 >"$cpu_fixture/cpu0/topology/thread_siblings_list"
+  echo 1 >"$cpu_fixture/cpu1/topology/thread_siblings_list"
+  cat >"$cpu_fixture/after" <<'STAT'
+cpu0 0 0 0 100 0 0 0 0 0 0
+cpu1 0 0 0 120 0 0 0 0 0 0
+STAT
+  [[ $(select_cpu 0-1) == 1 ]]
+  # Guest time is already accounted for in user/nice; I/O wait also counts as idle.
+  cat >"$cpu_fixture/after" <<'STAT'
+cpu0 0 0 0 100 20 0 0 0 1000 0
+cpu1 2 0 0 118 0 0 0 0 0 0
+STAT
+  [[ $(select_cpu 0-1) == 0 ]]
 fi
 bash "$bench/capture-report.sh" --help >/dev/null 2>&1
 echo 'Benchmark script checks passed'
