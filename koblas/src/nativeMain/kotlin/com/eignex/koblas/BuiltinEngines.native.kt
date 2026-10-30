@@ -21,7 +21,7 @@ public actual object BuiltinEngines {
  * [BuiltinEngines.scalar] provides every level.
  *
  * Small calls, missing exports, no-read contracts and locally packed product tiles use portable
- * kernels. [KoblasEngine.routeOf] reports the route each call actually takes.
+ * kernels.
  *
  * Kotlin/Native reductions remain scalar, so sufficiently large vendor calls amortize pinning
  * and foreign-call overhead. The JVM uses its owned Vector API kernels under a separate default

@@ -1,12 +1,10 @@
 package com.eignex.koblas.sparse
 
 /**
- * A sparse Level 1 entry point, named so a caller can ask where a call of a given width would go.
- *
- * The width is the only route-relevant argument these operations have: every one of them walks a stored
- * support, and the choice between a vector kernel and its scalar fallback is made on how long that support is.
+ * A sparse Level 1 entry point. Every one of them walks a stored support, and the choice between a vector
+ * kernel and its scalar fallback is made on how long that support is.
  */
-public enum class SparseOperation(internal val entryPoint: String) {
+internal enum class SparseOperation(internal val entryPoint: String) {
     /** A sparse vector against a dense one, over an index and a value window. */
     DotDense("dotDense"),
 

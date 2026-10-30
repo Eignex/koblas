@@ -16,7 +16,6 @@ import com.eignex.koblas.internal.dense.PortableProductKernels
 import com.eignex.koblas.internal.dense.SYMMETRIC_BLOCK
 import com.eignex.koblas.internal.dense.ScalarVectorKernels
 import com.eignex.koblas.internal.dense.outsideTriangle
-import com.eignex.koblas.internal.dense.packsWindow
 import com.eignex.koblas.internal.dense.productWindow
 import com.eignex.koblas.poisonedSymmetric
 import com.eignex.koblas.randomMatrix
@@ -41,11 +40,11 @@ class StructuredProductTest {
         val depth = blockedDepth(products, order)
 
         assertTrue(
-            packsWindow(products, order, order, depth, OutputTriangle.Lower),
+            products.packsProduct(order, order, depth),
             "${products.name}: ${order}x$depth was meant to be the packed route and is not",
         )
         assertTrue(
-            !packsWindow(products, directOrder, directOrder, directDepth, OutputTriangle.Lower),
+            !products.packsProduct(directOrder, directOrder, directDepth),
             "${products.name}: ${directOrder}x$directDepth was meant to be the unpacked route and is not",
         )
         // An order one past a whole number of tiles is what leaves a block straddling the diagonal with an
@@ -141,7 +140,7 @@ class StructuredProductTest {
         val depth = maxOf(blockedDepth(products, order), PRODUCT_BLOCK_DEPTH + 7)
         assertTrue(depth > PRODUCT_BLOCK_DEPTH, "the fixture does not cut the depth")
         assertTrue(
-            packsWindow(products, order, order, depth, OutputTriangle.Lower),
+            products.packsProduct(order, order, depth),
             "${products.name}: ${order}x$depth does not take the blocked route",
         )
         for (lower in booleanArrayOf(false, true)) {
@@ -190,7 +189,7 @@ class StructuredProductTest {
     fun `a packed rank update over its own destination agrees with the oracle`() = withProducts { products ->
         val order = packedSquareOrder(products)
         assertTrue(
-            packsWindow(products, order, order, order, OutputTriangle.Lower),
+            products.packsProduct(order, order, order),
             "${products.name}: a square of $order does not take the blocked route",
         )
         val blas = PortableDenseBlas(ScalarVectorKernels, panelsFor(products), products)
@@ -236,7 +235,7 @@ class StructuredProductTest {
         val context = "${products.name} ${order}x$depth $selected packed=$packed tA=$transposeA tB=$transposeB"
         assertEquals(
             packed,
-            packsWindow(products, order, order, depth, selected),
+            products.packsProduct(order, order, depth),
             "$context: the fixture did not take the route it was chosen for",
         )
         val a = randomMatrix(if (transposeA) depth else order, if (transposeA) order else depth, rng)
@@ -456,14 +455,14 @@ class StructuredProductTest {
 
     // Run under a recorder, so the claim is checked against the blocks the schedule produced.
     @Test
-    fun `a selected triangle route names the blocks the call really cut`() = withProducts { products ->
+    fun `a selected triangle product writes only the blocks inside its triangle`() = withProducts { products ->
         val panels = panelsFor(products)
         val order = blockedOrder(products)
         val depth = blockedDepth(products, order)
         for (lower in booleanArrayOf(false, true)) {
-            assertTriangleProductRouteNamesExecutedBlocks(products, panels, order, depth, lower)
-            assertTriangleProductRouteNamesExecutedBlocks(products, panels, directOrder, directDepth, lower)
-            assertTriangleProductRouteNamesExecutedBlocks(
+            assertTriangleProductStaysInTriangle(products, panels, order, depth, lower)
+            assertTriangleProductStaysInTriangle(products, panels, directOrder, directDepth, lower)
+            assertTriangleProductStaysInTriangle(
                 products,
                 panels,
                 order,
@@ -472,19 +471,6 @@ class StructuredProductTest {
                 transposeA = true,
                 transposeB = true,
             )
-        }
-    }
-
-    @Test
-    fun `a rank two k route reports the composition it is`() {
-        for (engine in listOfNotNull(BuiltinEngines.scalar, BuiltinEngines.simd)) {
-            val route = engine.routeOf(
-                DenseMatrixOperation.Syr2k,
-                DenseCall(64, 64, 0.875, -0.25, depth = 64),
-            )
-
-            assertEquals(DenseMatrixOperation.Syr2k, route.operation)
-            assertTrue(!route.exactlyMeasurable, route.toString())
         }
     }
 

@@ -4,10 +4,6 @@
 package com.eignex.koblas
 
 import com.eignex.koblas.dense.DenseBlas
-import com.eignex.koblas.dense.DenseCall
-import com.eignex.koblas.dense.DenseMatrixOperation
-import com.eignex.koblas.dense.DenseMatrixRoute
-import com.eignex.koblas.dense.DenseOperation
 import com.eignex.koblas.dense.DenseVectorKernels
 import com.eignex.koblas.internal.dense.DensePanelKernels
 import com.eignex.koblas.internal.dense.DenseProductKernels
@@ -17,20 +13,15 @@ import com.eignex.koblas.internal.dense.PortablePanelKernels
 import com.eignex.koblas.internal.dense.PortableProductKernels
 import com.eignex.koblas.internal.dense.PortableTriangularKernels
 import com.eignex.koblas.internal.dense.ScalarVectorKernels
-import com.eignex.koblas.internal.diagnostics.SPARSE_SCHEDULING
-import com.eignex.koblas.internal.diagnostics.vectorRoute
 import com.eignex.koblas.internal.host.DenseHostEligibility
 import com.eignex.koblas.internal.host.HostDenseBlas
-import com.eignex.koblas.internal.host.RoutedDenseBlas
 import com.eignex.koblas.internal.sparse.IndexedSparseKernels
 import com.eignex.koblas.internal.sparse.PortableSparseBlas
 import com.eignex.koblas.internal.sparse.ScalarIndexedSparseKernels
 import com.eignex.koblas.internal.sparse.SparseKernelAdapter
 import com.eignex.koblas.internal.sparse.SparsePanelKernels
-import com.eignex.koblas.internal.sparse.snapshot
 import com.eignex.koblas.sparse.SparseBlas
 import com.eignex.koblas.sparse.SparseKernels
-import com.eignex.koblas.sparse.SparseOperation
 import com.eignex.koblas.vendor.Blas
 import com.eignex.koblas.vendor.openBlas
 
@@ -53,7 +44,7 @@ internal expect fun platformEngine(): KoblasEngine
  * [koblas] is the platform default. [portable] creates an explicitly portable engine for application code.
  * [BuiltinEngines] provides exact portable and JVM SIMD compositions
  * for tests and benchmarks, neither of which loads a host library. The platform default may compose
- * [vendor] into eligible calls. The [routeOf] overloads describe which implementations a call reaches.
+ * [vendor] into eligible calls.
  */
 public class KoblasEngine private constructor(
     /** Contiguous and strided dense Level 1 kernels. */
@@ -68,7 +59,7 @@ public class KoblasEngine private constructor(
     /** Diagonal-block substitution and the right-hand-side grouping triangular routines schedule with. */
     internal val triangularKernels: DenseTriangularKernels,
     sparseKernelName: String,
-    private val dense: RoutedDenseBlas,
+    private val dense: DenseBlas,
     private val sparseBlas: SparseBlas,
 ) : DenseBlas by dense,
     SparseBlas by sparseBlas {
@@ -91,9 +82,8 @@ public class KoblasEngine private constructor(
     )
 
     /**
-     * Allocates a product using this engine. Two sparse or prepared operands produce owned CSC storage;
+     * Allocates a product using this engine. Two sparse operands produce owned CSC storage;
      * other pairings produce dense storage. Custom [Matrix] operands are read once into dense scratch.
-     * Prepared snapshots contribute data and cached orientation, never execution policy.
      */
     public fun gemm(a: Matrix, b: Matrix): Matrix = product(1.0, a, false, b, false)
 
@@ -126,7 +116,7 @@ public class KoblasEngine private constructor(
 
     override fun gemm(a: SparseMatrix, b: SparseMatrix): SparseMatrix = product(1.0, a, false, b, false) as SparseMatrix
 
-    /** TRSV over readable dense, sparse, prepared or custom operands, using this engine. */
+    /** TRSV over readable dense, sparse or custom operands, using this engine. */
     @Suppress("LongParameterList") // triangle flags and workspace
     public fun trsv(
         a: Matrix,
@@ -150,7 +140,7 @@ public class KoblasEngine private constructor(
         }
     }
 
-    /** TRMV over readable dense, sparse, prepared or custom operands, using this engine. */
+    /** TRMV over readable dense, sparse or custom operands, using this engine. */
     @Suppress("LongParameterList") // triangle flags and workspace
     public fun trmv(
         a: Matrix,
@@ -174,7 +164,7 @@ public class KoblasEngine private constructor(
         }
     }
 
-    /** TRSM over readable dense, sparse, prepared or custom operands, using this engine. */
+    /** TRSM over readable dense, sparse or custom operands, using this engine. */
     @Suppress("LongParameterList") // triangle flags and workspace
     public fun trsm(
         a: Matrix,
@@ -204,7 +194,7 @@ public class KoblasEngine private constructor(
         }
     }
 
-    /** TRMM over readable dense, sparse, prepared or custom operands, using this engine. */
+    /** TRMM over readable dense, sparse or custom operands, using this engine. */
     @Suppress("LongParameterList") // triangle flags and workspace
     public fun trmm(
         a: Matrix,
@@ -234,51 +224,6 @@ public class KoblasEngine private constructor(
         }
     }
 
-    /** GEMV over an engine-neutral prepared snapshot. */
-    @Suppress("LongParameterList") // BLAS operands and workspace
-    public fun gemv(
-        alpha: Double,
-        a: PreparedSparseMatrix,
-        x: DoubleArray,
-        beta: Double,
-        y: DoubleArray,
-        transpose: Boolean = false,
-        workspace: Workspace? = null,
-    ): Unit = gemv(alpha, a.snapshot, x, beta, y, transpose, workspace)
-
-    /** SYMV over an engine-neutral prepared snapshot. */
-    @Suppress("LongParameterList") // BLAS operands and workspace
-    public fun symv(
-        alpha: Double,
-        a: PreparedSparseMatrix,
-        x: DoubleArray,
-        beta: Double,
-        y: DoubleArray,
-        lower: Boolean = true,
-        workspace: Workspace? = null,
-    ): Unit = symv(alpha, a.snapshot, x, beta, y, lower, workspace)
-
-    /** Symmetric product through this engine over an engine-neutral prepared sparse snapshot. */
-    @Suppress("LongParameterList") // BLAS operands, structure and workspace
-    public fun symm(
-        alpha: Double,
-        a: PreparedSparseMatrix,
-        b: DenseMatrixRegion,
-        beta: Double,
-        c: DenseMatrixRegion,
-        lower: Boolean = true,
-        right: Boolean = false,
-        workspace: Workspace? = null,
-    ): Unit = symm(alpha, a.snapshot, b, beta, c, lower, right, workspace)
-
-    /** Describes this engine's execution against a prepared snapshot without deriving its orientation. */
-    public fun routeOf(
-        operation: com.eignex.koblas.sparse.SparseMatrixOperation,
-        a: PreparedSparseMatrix,
-        call: com.eignex.koblas.sparse.SparseCall,
-    ): com.eignex.koblas.sparse.SparseMatrixRoute =
-        com.eignex.koblas.internal.diagnostics.preparedRoute(this, a, operation, call)
-
     /** Explicit application engine selection without changing the platform default. */
     public companion object {
         /**
@@ -298,53 +243,14 @@ public class KoblasEngine private constructor(
     public val sparseKernels: SparseKernels = SparseKernelAdapter(sparseKernelName, vectorKernels, indexedSparseKernels)
 
     /**
-     * The component that owns built-in sparse Level 2 and 3 calls.
-     *
-     * Always this library's portable CSC scheduling. The Level 1 kernels an individual column reaches are a
-     * separate question, and [com.eignex.koblas.sparse.SparseBlas.routeOf] is what answers it.
-     */
-    public val sparseImplementation: String = SPARSE_SCHEDULING
-
-    /**
      * Short read-only description of what this engine selected, for logs.
      *
      * A selection, not a claim about execution: which of the selected implementations a given call reaches
-     * depends on its shape. The [routeOf] overloads describe concrete dense and sparse calls.
+     * depends on its shape.
      */
     public val name: String
         get() = "${vectorKernels.name}/${sparseKernels.name}/${panelKernels.name}/${productKernels.name}/" +
             triangularKernels.name
-
-    /**
-     * The route for a dense matrix [operation] with the supplied [call] facts.
-     *
-     * Names the panels and kernels reached by the shared schedule, including short-window fallbacks.
-     * A whole-call host route identifies the library and entry point.
-     */
-    public fun routeOf(operation: DenseMatrixOperation, call: DenseCall): DenseMatrixRoute =
-        dense.routeOf(operation, call)
-
-    /**
-     * The route for a dense vector call of this [operation] and [length].
-     *
-     * [contiguous] says whether the operands have unit stride. A composed route means values
-     * decide which implementation finishes the call; inspecting a route does not execute it.
-     */
-    public fun routeOf(
-        operation: DenseOperation,
-        length: Int,
-        contiguous: Boolean = true,
-    ): VectorRoute<DenseOperation> = vectorRoute(
-        operation,
-        operation.name.lowercase(),
-        length,
-        vectorKernels.name,
-        vectorKernels.implementationFor(operation, length, contiguous),
-    )
-
-    /** The route for a sparse vector call over [count] stored entries. */
-    public fun routeOf(operation: SparseOperation, count: Int): VectorRoute<SparseOperation> =
-        sparseKernels.routeOf(operation, count)
 
     override fun toString(): String = "KoblasEngine($name)"
 }
@@ -365,8 +271,7 @@ public expect object BuiltinEngines {
      * Every JVM Vector API kernel this library owns, or null when the module is unavailable.
      *
      * On the JVM, [koblas] retains these kernels when available, including in its host composition.
-     * A window too short or too strided for a vector body runs a portable fallback. [KoblasEngine.routeOf]
-     * identifies the bodies reached by a particular call rather than treating the whole engine as vectorized.
+     * A window too short or too strided for a vector body runs a portable fallback.
      */
     public val simd: KoblasEngine?
 }

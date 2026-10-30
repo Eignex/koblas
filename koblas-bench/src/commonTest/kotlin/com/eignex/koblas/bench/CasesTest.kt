@@ -121,11 +121,11 @@ class CasesTest {
 
 
     /**
-     * The support distribution is a fixture fact and the reuse count belongs to one mode, so both are
-     * rejected where they mean nothing rather than being accepted and ignored.
+     * The support distribution is a fixture fact, so it is rejected where it means nothing rather than being
+     * accepted and ignored. One-shot is the only timing mode, so any other one is rejected too.
      */
     @Test
-    fun `a support distribution and a reuse count are accepted only where they apply`() {
+    fun `a support distribution and a timing mode are accepted only where they apply`() {
         val supported = Cases.parse("spmm+9x4x7+sparse-uniform+density=0.1+support=banded+mode=oneshot").single()
         assertEquals("banded", supported.option("support", "uniform"))
 

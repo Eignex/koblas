@@ -90,14 +90,14 @@ class RunnerTest {
 
     /** A timed row that cannot say which call produced it is a bug, not a row with a missing field. */
     @Test
-    fun `a timed record without a route is refused rather than reported`() {
+    fun `a timed record without attribution is refused rather than reported`() {
         val case = Cases.parse("dot+4+uniform").single()
 
         val failure = assertFailsWith<IllegalStateException> {
             measurement(case, settings(), 1, 2.5, "ok", "direct", "arithmetic")
         }
 
-        assertEquals(true, "carries no route" in failure.message.orEmpty(), failure.message)
+        assertEquals(true, "carries no attribution" in failure.message.orEmpty(), failure.message)
     }
 
     private fun settings() = Settings("jvm-scalar", "all", "cases.txt", "output.csv", 0, 1, 1_000_000, 2)

@@ -6,7 +6,6 @@ import com.eignex.koblas.*
 import com.eignex.koblas.dense.*
 import com.eignex.koblas.dense.DenseVectorKernels
 import com.eignex.koblas.internal.dense.applyBeta
-import com.eignex.koblas.internal.diagnostics.SparseRouteReporter
 import com.eignex.koblas.internal.operands.scaleRegion
 import com.eignex.koblas.internal.operands.staged
 import com.eignex.koblas.internal.operands.stagedRegion
@@ -35,7 +34,7 @@ import com.eignex.koblas.vendor.*
  *
  * Traversal, structure, alias staging and triangle selection are shared across platforms; numerical leaves
  * may group arithmetic differently. The kernels are reached where work is a contiguous run or an indexed
- * slice; [routeOf] is what says which of the two a given call is.
+ * slice.
  */
 @Suppress("TooManyFunctions") // the sparse BLAS surface
 @OptIn(UnsafeKoblasApi::class)
@@ -44,11 +43,6 @@ internal class PortableSparseBlas(
     private val indexedKernels: IndexedSparseKernels,
     private val panelKernels: SparsePanelKernels,
 ) : SparseBlas {
-    override fun prepare(a: SparseMatrix): PreparedSparseMatrix = PreparedSparseMatrix(a)
-
-    override fun routeOf(operation: SparseMatrixOperation, call: SparseCall): SparseMatrixRoute =
-        SparseRouteReporter(vectorKernels, indexedKernels, panelKernels).routeOf(operation, call)
-
     @Suppress("LongParameterList") // the BLAS dgemv signature plus the workspace
     override fun gemv(
         alpha: Double,

@@ -2,9 +2,6 @@ package com.eignex.koblas.bench
 
 import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.KoblasEngine
-import com.eignex.koblas.dense.DenseCall
-import com.eignex.koblas.dense.DenseMatrixOperation
-import com.eignex.koblas.RouteKind
 
 /** Reused, disjoint inputs for a sequence of rank updates with successively shorter trailing supports. */
 internal class ShrinkingRankUpdate(val order: Int) {
@@ -61,21 +58,5 @@ internal fun shrinkingRankUpdateWork(case: BenchCase, engine: KoblasEngine): Cas
         }
     }
     fixture.verify(case.id, run)
-    if (publicWindows) {
-        val routes = (n - 1 downTo 1).map { extent ->
-            engine.routeOf(DenseMatrixOperation.GerWindow, DenseCall(extent, extent, alpha = -1.0))
-        }
-        val bodies = routes.flatMap { it.components }.distinct()
-        val groups = routes.map { it.executionGroup }.distinct()
-        val kind = if (bodies.size == 1) RouteKind.Direct else RouteKind.Composed
-        return CaseWork(
-            kind.name.lowercase(), "arithmetic", run, result = fixture.matrix.values,
-            kernel = "${routes.first().scheduling}+${bodies.joinToString("+")}/ger-window@${groups.joinToString("+")}",
-        )
-    }
-    val route = engine.routeOf(DenseMatrixOperation.Ger, DenseCall(n, n, alpha = -1.0))
-    return CaseWork(
-        route.kind.name.lowercase(), "arithmetic", run,
-        result = fixture.matrix.values, kernel = matrixKernel(route),
-    )
+    return engineWork(engine, case.operation, "arithmetic", run, fixture.matrix.values)
 }

@@ -2,9 +2,7 @@ package com.eignex.koblas.dense
 
 import com.eignex.koblas.BuiltinEngines
 import com.eignex.koblas.internal.dense.DenseProductKernels
-import com.eignex.koblas.internal.dense.OutputTriangle
 import com.eignex.koblas.internal.dense.PortableProductKernels
-import com.eignex.koblas.internal.dense.packsWindow
 
 /** Runs [body] against every product backend this platform has, which is what decides the block geometry. */
 internal fun withProducts(body: (DenseProductKernels) -> Unit) {
@@ -24,7 +22,7 @@ internal fun blockedOrder(products: DenseProductKernels): Int = 4 * maxOf(produc
 /** The smallest depth at which a triangle-selected product of this order is packed into tiles. */
 internal fun blockedDepth(products: DenseProductKernels, order: Int): Int {
     var depth = 8
-    while (depth < MAXIMUM_FIXTURE_DEPTH && !packsWindow(products, order, order, depth, OutputTriangle.Lower)) {
+    while (depth < MAXIMUM_FIXTURE_DEPTH && !products.packsProduct(order, order, depth)) {
         depth *= 2
     }
     return depth
@@ -39,7 +37,7 @@ private const val MAXIMUM_FIXTURE_DEPTH = 4096
  */
 internal fun packedSquareOrder(products: DenseProductKernels): Int {
     var order = blockedOrder(products)
-    while (order < MAXIMUM_FIXTURE_ORDER && !packsWindow(products, order, order, order, OutputTriangle.Lower)) {
+    while (order < MAXIMUM_FIXTURE_ORDER && !products.packsProduct(order, order, order)) {
         order += products.tileRows
     }
     return order

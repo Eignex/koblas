@@ -51,9 +51,6 @@ internal object SimdRuntimePathCheck {
         assertEmptyExtentsReadNothing(panels)
         assertPanelsStayInsideTheirWindows(panels)
         assertExecutionGroupIsUsable(panels)
-        // Which bodies a schedule reaches moves with the species, so the same call is a composition at four
-        // lanes and direct at two.
-        assertRouteNamesExecutedBodies(panels)
 
         // The eligibility follows the species this process resolved, not the one it was written against.
         check(panels.implementationFor(PanelWork.MultiDot, lanes, 4) == panels.name) {
@@ -61,11 +58,6 @@ internal object SimdRuntimePathCheck {
         }
         check(panels.implementationFor(PanelWork.MultiDot, lanes - 1, 4) == PortablePanelKernels.name) {
             "a panel shorter than a lane block reached the vector body at $lanes lanes"
-        }
-        // Printed because it is what moves with the species and is easy to assume instead of reading.
-        for (order in intArrayOf(512, 513)) {
-            val route = engine.routeOf(DenseMatrixOperation.Symv, DenseCall(order, order))
-            println("symv order $order at $lanes lanes: ${route.kind} ${route.components}")
         }
         checkProducts(engine, lanes)
         val triangles = engine.triangularKernels
@@ -77,8 +69,8 @@ internal object SimdRuntimePathCheck {
     }
 
     /**
-     * The product tile at whatever species this process resolved, and the route over it. The tile's rows are
-     * lane blocks, so which destinations have a remainder moves with the species.
+     * The product tile at whatever species this process resolved. The tile's rows are lane blocks, so which
+     * destinations have a remainder moves with the species.
      */
     private fun checkProducts(engine: KoblasEngine, lanes: Int) {
         val products = engine.productKernels
@@ -94,9 +86,8 @@ internal object SimdRuntimePathCheck {
             Triple(products.tileRows * 4 + 1, products.tileColumns * 4 + 1, 64),
             Triple(37, 29, 41),
         )) {
-            assertProductRouteNamesExecutedBlocks(products, engine.panelKernels, m, n, k)
-            val route = engine.routeOf(DenseMatrixOperation.Gemm, DenseCall(m, n, depth = k))
-            println("gemm ${m}x${n}x$k at $lanes lanes: ${route.kind} ${route.components}")
+            // Printed because it is what moves with the species and is easy to assume instead of reading.
+            println("gemm ${m}x${n}x$k at $lanes lanes: ${products.implementationsFor(m, n, k)}")
         }
     }
 

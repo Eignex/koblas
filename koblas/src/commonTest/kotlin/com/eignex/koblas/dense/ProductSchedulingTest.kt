@@ -3,7 +3,6 @@ package com.eignex.koblas.dense
 import com.eignex.koblas.BuiltinEngines
 import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.KoblasEngine
-import com.eignex.koblas.RouteKind
 import com.eignex.koblas.Workspace
 import com.eignex.koblas.assertClose
 import com.eignex.koblas.internal.dense.DenseProductKernels
@@ -20,6 +19,7 @@ import com.eignex.koblas.randomMatrix
 import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 // The shapes reach what block scheduling has that a small product does not: more than one cache block on
@@ -117,28 +117,14 @@ class ProductSchedulingTest {
         }
     }
 
-    // That these shapes really are the packed route, so the test above is not checking the panel one.
+    // That these shapes really are packed, so the test above is not checking the panel path.
     @Test
-    fun `the blocked shapes reach the product tiles and a small one does not`() {
+    fun `the blocked shapes pack into product tiles and a small one does not`() {
         for (engine in engines) {
             for ((m, n, k) in blockedShapes(engine.productKernels)) {
-                val route = engine.routeOf(DenseMatrixOperation.Gemm, DenseCall(m, n, depth = k))
-                assertTrue(
-                    route.components.any { it.endsWith("/product-block") },
-                    "${engine.name} ${m}x${n}x$k named ${route.components}",
-                )
+                assertTrue(engine.productKernels.packsProduct(m, n, k), "${engine.name} ${m}x${n}x$k")
             }
-            val tile = engine.productKernels
-            val whole = engine.routeOf(
-                DenseMatrixOperation.Gemm,
-                DenseCall(tile.tileRows * 8, tile.tileColumns * 8, depth = 64),
-            )
-            assertEquals(RouteKind.Direct, whole.kind, "${engine.name} $whole")
-            val small = engine.routeOf(DenseMatrixOperation.Gemm, DenseCall(5, 4, depth = 6))
-            assertTrue(
-                small.components.none { it.endsWith("/product-block") },
-                "${engine.name} packed a product with nothing to amortise it over: ${small.components}",
-            )
+            assertFalse(engine.productKernels.packsProduct(5, 4, 6), "${engine.name} packed a 5x4x6 product")
         }
     }
 

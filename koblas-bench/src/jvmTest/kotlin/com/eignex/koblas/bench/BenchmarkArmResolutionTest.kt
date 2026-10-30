@@ -58,8 +58,8 @@ class BenchmarkArmResolutionTest {
     fun `the generic product is built by the measured fork on the default arm`() = withGenericCase { case, path ->
         val work = JvmBenchmarkBridge.create("jvm-default", case.id, path)
         try {
-            assertTrue(work.comparisonKind in listOf("direct", "composed"))
-            assertTrue(!work.kernel.isNullOrEmpty(), "the default arm's generic row named no route")
+            assertEquals(ENGINE_COMPARISON, work.comparisonKind)
+            assertEquals("${koblas.name}/${case.operation}", work.kernel)
         } finally {
             work.close()
         }
@@ -70,8 +70,8 @@ class BenchmarkArmResolutionTest {
         val mode = if (BuiltinEngines.simd != null) "jvm-simd" else "jvm-scalar"
         val work = JvmBenchmarkBridge.create(mode, case.id, path)
         try {
-            assertTrue(work.comparisonKind in listOf("direct", "composed"))
-            assertTrue(!work.kernel.isNullOrEmpty())
+            assertEquals(ENGINE_COMPARISON, work.comparisonKind)
+            assertEquals("${(BuiltinEngines.simd ?: BuiltinEngines.scalar).name}/${case.operation}", work.kernel)
         } finally {
             work.close()
         }

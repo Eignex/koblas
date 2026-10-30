@@ -6,9 +6,8 @@ package com.eignex.koblas
 
 import com.eignex.koblas.internal.operands.denseOperand
 import com.eignex.koblas.internal.operands.scaleRegion
-import com.eignex.koblas.internal.sparse.snapshot
 
-/** Allocates through [koblas], preserving CSC storage for a pair of sparse or prepared operands. */
+/** Allocates through [koblas], preserving CSC storage for a pair of sparse operands. */
 public fun Matrix.gemm(other: Matrix): Matrix = koblas.gemm(this, other)
 
 /** Allocates a scaled, independently transposed product through the default [koblas] engine. */
@@ -23,7 +22,7 @@ public operator fun Matrix.times(other: Matrix): Matrix = koblas.gemm(this, othe
  * Writes a generic product through [koblas]. Shapes are validated before mutation, zero alpha reads no
  * input, and zero beta overwrites without reading the destination. Aliased built-in operands are staged
  * over their logical entries. Custom operands are normalized once after no-read quick returns.
- * Call [KoblasEngine.gemm] to select an explicit engine, including for prepared operands.
+ * Call [KoblasEngine.gemm] to select an explicit engine.
  */
 public fun Matrix.gemmInto(
     alpha: Double,
@@ -35,7 +34,7 @@ public fun Matrix.gemmInto(
     workspace: Workspace? = null,
 ): Unit = koblas.gemm(alpha, this, transpose, other, transposeOther, beta, destination, workspace)
 
-/** Storage classification shared by execution and inspection; callbacks inline on the arithmetic path. */
+/** Storage classification; callbacks inline on the arithmetic path. */
 internal inline fun <T> dispatchProduct(
     a: Matrix,
     b: Matrix,
@@ -66,12 +65,7 @@ internal fun KoblasEngine.product(
     return dispatchProduct(
         a,
         b,
-        sparsePair = { left, right ->
-            val reached = reachesAPosition(alpha, left, right)
-            val la = orientationFor(a, transposeA, reached)
-            val rb = orientationFor(b, transposeB, reached)
-            gemm(alpha, la ?: left, transposeA && la == null, rb ?: right, transposeB && rb == null)
-        },
+        sparsePair = { left, right -> gemm(alpha, left, transposeA, right, transposeB) },
         sparseLeft = { denseProduct(alpha, a, transposeA, b, transposeB) },
         sparseRight = { denseProduct(alpha, a, transposeA, b, transposeB) },
         densePair = { denseProduct(alpha, a, transposeA, b, transposeB) },
@@ -110,12 +104,7 @@ internal fun KoblasEngine.productInto(
     dispatchProduct(
         a,
         b,
-        sparsePair = { left, right ->
-            val reached = reachesAPosition(alpha, left, right)
-            val la = orientationFor(a, transposeA, reached)
-            val rb = orientationFor(b, transposeB, reached)
-            gemm(alpha, la ?: left, transposeA && la == null, rb ?: right, transposeB && rb == null, beta, c, workspace)
-        },
+        sparsePair = { left, right -> gemm(alpha, left, transposeA, right, transposeB, beta, c, workspace) },
         sparseLeft = { left ->
             denseOperand(workspace, b) { right ->
                 gemm(alpha, left, transposeA, right, transposeB, beta, c, right = false, workspace = workspace)
@@ -141,30 +130,5 @@ internal fun KoblasEngine.productInto(
     )
 }
 
-/**
- * The CSC an operand traverses, or null when it has none.
- *
- * A [PreparedSparseMatrix] is the snapshot it copied: it takes part in a product as the sparse matrix it
- * holds, and those arrays stay behind this seam rather than being handed to a caller.
- */
-internal fun storedCsc(matrix: Matrix): SparseMatrix? = when (matrix) {
-    is SparseMatrix -> matrix
-    is PreparedSparseMatrix -> matrix.snapshot
-    else -> null
-}
-
-/**
- * The orientation a prepared operand lends a transposed product, or null when the call keeps its own flag.
- *
- * Deriving one is what preparing buys a product against a second sparse operand: the untransposed schedule
- * over a transpose derived once measured ahead of the transposed traversal there, and behind it for a
- * product against a dense block, which is why only this pairing asks. A call reaching no position orients
- * nothing, because an operand a product never reads must stay unread and a snapshot with more rows than an
- * array can index has no transpose to build.
- */
-private fun orientationFor(matrix: Matrix, transpose: Boolean, reached: Boolean): SparseMatrix? =
-    if (transpose && reached && matrix is PreparedSparseMatrix) matrix.transposedSnapshot else null
-
-/** Whether a product between two sparse operands evaluates any position, which decides what is read. */
-internal fun reachesAPosition(alpha: Double, left: SparseMatrix, right: SparseMatrix): Boolean =
-    alpha != 0.0 && left.nnz > 0 && right.nnz > 0
+/** The CSC an operand traverses, or null when it has none. */
+internal fun storedCsc(matrix: Matrix): SparseMatrix? = matrix as? SparseMatrix

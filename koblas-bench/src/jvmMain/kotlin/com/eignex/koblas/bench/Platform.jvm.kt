@@ -21,7 +21,7 @@ internal actual fun resolveEngine(mode: String): Pair<KoblasEngine, String> {
             "requested jvm-simd engine is unavailable; launch with jdk.incubator.vector"
         }
         // What an ordinary caller gets, which is a policy rather than an exact arm: its panels and kernels
-        // are whatever this platform selected, and its route is what says which those are.
+        // are whatever this platform selected, and the engine name in each row says which those are.
         "jvm-default" -> koblas
         else -> error("unknown JVM mode $mode")
     }

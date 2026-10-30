@@ -1,10 +1,9 @@
 package com.eignex.koblas
 
-import com.eignex.koblas.RouteKind
-import com.eignex.koblas.dense.DenseCall
-import com.eignex.koblas.dense.DenseMatrixOperation
 import com.eignex.koblas.dense.DenseOperation
-import com.eignex.koblas.sparse.SparseOperation
+import com.eignex.koblas.internal.dense.PanelWork
+import com.eignex.koblas.internal.dense.PortablePanelKernels
+import com.eignex.koblas.internal.dense.implementationFor
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotEquals
@@ -15,59 +14,11 @@ import kotlin.test.assertSame
  * and a vendor on Kotlin/Native, where operands can be pinned.
  */
 class PlatformEngineTest {
-    @Test
-    fun `dense and sparse vectors expose the same route contract`() {
-        val engine = BuiltinEngines.scalar
-        val routes = listOf(
-            engine.routeOf(DenseOperation.Dot, 16),
-            engine.routeOf(SparseOperation.DotDense, 16),
-        )
-
-        for (route in routes) {
-            assertEquals(RouteKind.Direct, route.kind)
-            assertEquals("scalar", route.implementation)
-            assertEquals(true, route.exactlyMeasurable)
-        }
-    }
 
     @Test
-    fun `stored value reductions use the platform selected dense level one arm`() {
-        val operations = listOf(
-            SparseOperation.Nrm2 to DenseOperation.Nrm2,
-            SparseOperation.Asum to DenseOperation.Asum,
-        )
-        for ((sparse, dense) in operations) {
-            for (count in listOf(0, 1, 63, 64, 96, 127, 128, 256)) {
-                val expected = koblas.routeOf(dense, count)
-
-                val actual = koblas.routeOf(sparse, count)
-
-                assertEquals(expected.implementation, actual.implementation, "$sparse at $count")
-                assertEquals(expected.kind, actual.kind, "$sparse at $count")
-            }
-        }
-    }
-
-    @Test
-    fun `exact built in engines do not resolve or execute a host library`() {
-        val call = DenseCall(WIDE, WIDE)
-        // Matrix routes visit cache blocks, so the Level 1 crossover fixture would enumerate millions of
-        // them; this bounded product is already large enough to be packed.
-        val product = DenseCall(256, 256, depth = 256)
-
+    fun `exact built in engines do not resolve a host library`() {
         assertEquals(null, BuiltinEngines.scalar.vendor)
-        assertEquals(
-            "portable-dense",
-            BuiltinEngines.scalar.routeOf(DenseMatrixOperation.Gemm, product).scheduling,
-        )
-        assertEquals(
-            "scalar-panel/multi-dot",
-            BuiltinEngines.scalar.routeOf(DenseMatrixOperation.GemvTransposed, call).components.single(),
-        )
-        BuiltinEngines.simd?.let {
-            assertEquals(null, it.vendor)
-            assertEquals("portable-dense", it.routeOf(DenseMatrixOperation.Gemm, product).scheduling)
-        }
+        assertEquals(null, BuiltinEngines.simd?.vendor)
     }
 
     // Without the Vector API the owned matrix backends are portable; Kotlin/Native can still compose whole
@@ -94,22 +45,20 @@ class PlatformEngineTest {
     }
 
     // A selection is not an execution: the Vector API backend hands a panel shorter than one lane block to
-    // the portable body, so this asks the route rather than the engine's name.
+    // the portable body, so this asks the backend which body a width reaches rather than reading its name.
     @Test
     fun `a wide panel reaches the vector body and a short one does not`() {
         val simd = BuiltinEngines.simd ?: return println(
-            "SKIPPED: no Vector API engine on this host; the panel bodies a route names were not compared",
+            "SKIPPED: no Vector API engine on this host; the panel bodies were not compared",
         )
-        val work = DenseMatrixOperation.GemvTransposed
+        val wide = simd.panelKernels.implementationFor(PanelWork.MultiDot, WIDE, 4)
+        val short = simd.panelKernels.implementationFor(PanelWork.MultiDot, 1, 4)
 
-        val wide = simd.routeOf(work, DenseCall(WIDE, 4)).components.single()
-        val short = simd.routeOf(work, DenseCall(1, 4)).components.single()
-
-        assertNotEquals(short, wide, "a wide panel and a single row named the same body")
-        assertEquals("scalar-panel/multi-dot", short)
+        assertNotEquals(short, wide, "a wide panel and a single row reached the same body")
+        assertEquals(PortablePanelKernels.name, short)
     }
 
-    // The JVM never routes Level 1 to a library, so under `-Pkoblas.noSimd=true` on a host with oneMKL the
+    // The JVM never hands Level 1 to a library, so under `-Pkoblas.noSimd=true` on a host with oneMKL the
     // arm is the portable one while a vendor exists; the kernels' own name is what says which was selected.
     @Test
     fun `a wide call reaches whichever accelerated arm this platform has`() {
@@ -118,7 +67,7 @@ class PlatformEngineTest {
             return
         }
 
-        val wide = koblas.routeOf(DenseOperation.Dot, WIDE).implementation
+        val wide = reached(DenseOperation.Dot, WIDE)
 
         assertNotEquals(PORTABLE, wide, "a wide dot stayed on the portable kernels")
     }
@@ -126,7 +75,7 @@ class PlatformEngineTest {
     /** Below any arm's threshold the call overhead outweighs the arithmetic, so the portable loop runs. */
     @Test
     fun `a single entry call stays with the portable kernels`() {
-        assertEquals(PORTABLE, koblas.routeOf(DenseOperation.Dot, 1).implementation)
+        assertEquals(PORTABLE, reached(DenseOperation.Dot, 1))
     }
 
     // `sum` is not a BLAS routine, so no library exports one to reach, but it still vectorises where there
@@ -136,7 +85,7 @@ class PlatformEngineTest {
         val vendor = koblas.vendor ?: return
         val vendorArm = "${vendor.vendor.vendorName.lowercase()}-level1"
 
-        assertNotEquals(vendorArm, koblas.routeOf(DenseOperation.Sum, WIDE).implementation)
+        assertNotEquals(vendorArm, reached(DenseOperation.Sum, WIDE))
     }
 
     /**
@@ -149,13 +98,16 @@ class PlatformEngineTest {
         val arm = "${vendor.vendor.vendorName.lowercase()}-level1"
         if (koblas.vectorKernels.name != arm) return skipped("this platform keeps Level 1 off the library")
 
-        assertEquals(PORTABLE, koblas.routeOf(DenseOperation.Dot, 32).implementation, "a dot at 32 is still the loop's")
-        assertEquals(arm, koblas.routeOf(DenseOperation.Dot, 96).implementation, "a dot at 96 has crossed")
-        assertEquals(PORTABLE, koblas.routeOf(DenseOperation.Nrm2, 96).implementation, "the robust norm crosses later")
-        assertEquals(PORTABLE, koblas.routeOf(DenseOperation.Iamax, 96).implementation, "and so does the index search")
-        assertEquals(arm, koblas.routeOf(DenseOperation.Nrm2, 128).implementation, "both have crossed by 128")
-        assertEquals(arm, koblas.routeOf(DenseOperation.Iamax, 128).implementation)
+        assertEquals(PORTABLE, reached(DenseOperation.Dot, 32), "a dot at 32 is still the loop's")
+        assertEquals(arm, reached(DenseOperation.Dot, 96), "a dot at 96 has crossed")
+        assertEquals(PORTABLE, reached(DenseOperation.Nrm2, 96), "the robust norm crosses later")
+        assertEquals(PORTABLE, reached(DenseOperation.Iamax, 96), "and so does the index search")
+        assertEquals(arm, reached(DenseOperation.Nrm2, 128), "both have crossed by 128")
+        assertEquals(arm, reached(DenseOperation.Iamax, 128))
     }
+
+    private fun reached(operation: DenseOperation, length: Int): String? =
+        koblas.vectorKernels.implementationFor(operation, length)
 
     private fun skipped(why: String) {
         println("SKIPPED: $why; the per-operation crossovers were not exercised here")

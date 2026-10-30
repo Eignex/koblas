@@ -8,7 +8,6 @@
 package com.eignex.koblas.internal.host
 
 import com.eignex.koblas.*
-import com.eignex.koblas.RouteKind
 import com.eignex.koblas.dense.*
 import com.eignex.koblas.internal.dense.PortableDenseBlas
 import com.eignex.koblas.internal.dense.triangularMatrix
@@ -21,33 +20,6 @@ import com.eignex.koblas.sparse.*
 import com.eignex.koblas.vendor.*
 import com.eignex.koblas.vendor.Blas
 import com.eignex.koblas.vendor.BlasOperation
-import com.eignex.koblas.vendor.CallRoute
-
-/**
- * A dense implementation that can say what one of its own calls executes.
- *
- * The seam an engine holds, so that a composition which sometimes reaches a host library answers the question
- * for the call that was actually made rather than letting the portable description stand for both.
- */
-internal interface RoutedDenseBlas : DenseBlas {
-    /** What a call of [operation] with the facts in [call] executes. */
-    fun routeOf(operation: DenseMatrixOperation, call: DenseCall): DenseMatrixRoute
-}
-
-/**
- * The name a composed host route carries as its scheduling, with the library named beside it as a component.
- *
- * Deliberately not the vendor's name on its own. A call served this way is Koblas's validation and alias
- * staging around one whole vendor entry point, and the two are different amounts of this library's code; the
- * component is what says which library and which symbol ran.
- */
-internal const val HOST_SCHEDULING: String = "host-dense"
-
-/** The copy a permitted alias is staged into before a whole-call binding, which cannot take one. */
-internal const val HOST_STAGING: String = "host-stage/alias"
-
-/** The packing a borrowed region takes before a binding that has no in-place region entry points. */
-internal const val HOST_REGION_STAGING: String = "host-stage/region"
 
 /** Platform eligibility with primitive extents, avoiding boxed dimensions on the ordinary call path. */
 internal fun interface DenseHostEligibility {
@@ -67,7 +39,7 @@ internal class HostDenseBlas(
     private val portable: PortableDenseBlas,
     private val host: Blas,
     private val eligible: DenseHostEligibility,
-) : RoutedDenseBlas {
+) : DenseBlas {
 
     /** Symbol availability is independent of the platform's performance policy. */
     private fun host(operation: DenseMatrixOperation, eligibleCall: Boolean): Boolean =
@@ -96,39 +68,6 @@ internal class HostDenseBlas(
         } else {
             policy.eligible(operation, rows, columns, depth)
         }
-    }
-
-    override fun routeOf(operation: DenseMatrixOperation, call: DenseCall): DenseMatrixRoute {
-        val depth = if (HostDenseCall.needsDepth(operation)) {
-            call.depth ?: return portable.routeOf(operation, call)
-        } else {
-            1
-        }
-        val permitted = eligibleCall(
-            operation,
-            call.rows,
-            call.columns,
-            depth,
-            call.alpha,
-            call.borrowed,
-        )
-        if (!host(operation, permitted)) return portable.routeOf(operation, call)
-        val entry = requireNotNull(HostDenseCall.entryPointFor(operation))
-        // Work, whole-entry-point eligibility and exports are settled above; only platform transfer remains.
-        val hostRoute = host.routeOf(entry)
-        val components = ArrayList<String>(2)
-        if (call.aliased) components.add(HOST_STAGING)
-        hostRoute.adapter?.let { components.add("host-adapter/$it") }
-        components.add("${host.vendor.vendorName.lowercase()}/${entry.entryPoint}")
-        return DenseMatrixRoute(
-            operation = operation,
-            kind = RouteKind.Direct,
-            scheduling = HOST_SCHEDULING,
-            entryPoint = operation.entryPoint,
-            components = components,
-            executionGroup = 0,
-            host = hostRoute,
-        )
     }
 
     override fun gemv(
@@ -640,25 +579,4 @@ internal object HostDenseCall {
         DenseMatrixOperation.Trsm -> BlasOperation.Trsm
         DenseMatrixOperation.GerWindow -> null
     }
-
-    /**
-     * Whether [operation] needs a shared dimension of its own before anything about it can be settled.
-     *
-     * The same rule the portable reporter holds to, and holding to it here is what keeps a host route from
-     * answering a question the portable one refuses. A Level 3 call with no depth is not a small call: it is
-     * a call whose extents have not been stated, and a route built from the other two would be a description
-     * of a product nobody described.
-     */
-    fun needsDepth(operation: DenseMatrixOperation): Boolean = when (operation) {
-        DenseMatrixOperation.Gemm,
-        DenseMatrixOperation.Gemmt, DenseMatrixOperation.Symm,
-        DenseMatrixOperation.Syrk, DenseMatrixOperation.Syr2k, DenseMatrixOperation.Trmm,
-        DenseMatrixOperation.Trsm,
-        -> true
-
-        else -> false
-    }
 }
-
-/** The general route of one whole entry point, with no operands to settle a quick return from. */
-private fun Blas.routeOf(operation: BlasOperation): CallRoute = routeOf(operation, emptyList(), emptyList())

@@ -66,7 +66,7 @@ internal enum class OutputTriangle {
 }
 
 /**
- * Executes the route selected by this window's extents, including strips passed by structured routines.
+ * Executes the path selected by this window's extents, including strips passed by structured routines.
  * Packing must amortize both operand copies; other windows use panels over the original storage.
  */
 internal fun productWindow(
@@ -92,7 +92,9 @@ internal fun productWindow(
     workspace: Workspace?,
 ) {
     if (m <= 0 || n <= 0) return
-    if (packsWindow(kernels, m, n, k, selected)) {
+    // A selected triangle uses the rectangular crossover over its actual extents: reducing the depth to stand
+    // for discarded triangle work would distort what a backend decides from.
+    if (kernels.packsProduct(m, n, k)) {
         blockedProduct(
             kernels, alpha, a, aOffset, lda, transposeA, b, bOffset, ldb, transposeB,
             beta, c, cOffset, ldc, m, n, k, selected, workspace,
@@ -104,18 +106,6 @@ internal fun productWindow(
         )
     }
 }
-
-/**
- * Whether a window is packed, using its actual extents even for a selected triangle.
- *
- * Backends may decide from depth, minimum dimensions or tails, so reducing depth to represent discarded
- * triangle work would distort their inputs. Selected triangles use the rectangular crossover; their
- * lower arithmetic per copied value may merit a higher threshold, but [packsProductByWork] records no
- * reliable secondary criterion. Routing and execution share this decision.
- */
-@Suppress("UNUSED_PARAMETER") // the selected triangle is part of the question even where the answer ignores it
-internal fun packsWindow(kernels: DenseProductKernels, m: Int, n: Int, k: Int, selected: OutputTriangle): Boolean =
-    kernels.packsProduct(m, n, k)
 
 /** Transient cache-block packing, with a tile-sized merge buffer for a selected triangle. */
 internal fun blockedProduct(
@@ -164,9 +154,6 @@ internal fun blockedProduct(
  * The column block is outermost and the depth block next, so a right panel is packed once for every strip of
  * the destination it serves rather than once per row block. The row block is innermost, which is what makes
  * the live piece of the destination one block rather than a whole column strip.
- *
- * One traversal, walked by the execution below and by the route that describes it. Writing the schedule out
- * twice is how a route comes to name blocks the call never cut, so there is one of it.
  */
 internal inline fun forEachProductBlock(
     m: Int,
@@ -241,7 +228,7 @@ internal fun insideTriangle(
 /**
  * The register tiles a block straddling the diagonal is cut into, skipping the ones it may not write.
  *
- * One walk, taken by the execution below and by the route that describes it. `whole` is true where every
+ * `whole` is true where every
  * entry of a tile is selected, which is the tile that reaches the destination directly; a tile that
  * straddles accumulates first and only its selected entries are merged.
  */
@@ -459,7 +446,7 @@ private fun mergeSelected(
  * The coefficient vector is a column of `op(B)`, adjacent when `B` is untransposed and [ldb] apart when it
  * is not. A strided one is scalar work for a reduction whatever the width, so where the reduction is long
  * enough to pay for it the column is gathered once into adjacent storage and the reduction runs vectorised
- * against that. [gathersCoefficients] is where that choice is made, and the route asks the same question.
+ * against that. [gathersCoefficients] is where that choice is made.
  *
  * A selected triangle shortens each destination column to the rows the call may write, and the panels it
  * hands over are that much of the operand. No entry outside the selected triangle is read or written.
@@ -522,17 +509,16 @@ internal fun directProduct(
 internal fun directColumnBlock(m: Int): Int = if (m < PRODUCT_BLOCK_ROWS) m else PRODUCT_BLOCK_ROWS
 
 /**
- * The panel the unpacked route's arithmetic is, and how many of its columns the backend recommends handing
+ * The panel the unpacked path's arithmetic is, and how many of its columns the backend recommends handing
  * over at a time.
  *
  * A transposed left operand reduces down stored columns and an untransposed one accumulates them into the
- * destination, which are different panels over different shapes. The execution and the route ask here, so a
- * route cannot report a grouping the call did not use.
+ * destination, which are different panels over different shapes.
  */
 internal fun directPanelWork(transposeA: Boolean): PanelWork =
     if (transposeA) PanelWork.MultiDot else PanelWork.ColumnUpdate
 
-/** The grouping for [directPanelWork], over the panel shape that route really cuts. */
+/** The grouping for [directPanelWork], over the panel shape that path really cuts. */
 internal fun directPanelGroup(panels: DensePanelKernels, m: Int, k: Int, transposeA: Boolean): Int = if (transposeA) {
     panels.executionGroup(PanelWork.MultiDot, k, m)
 } else {
@@ -590,7 +576,7 @@ internal fun selectedRows(j: Int, m: Int, selected: OutputTriangle): Int = when 
 }
 
 /**
- * Whether the direct route gathers a strided coefficient column into adjacent storage before reducing.
+ * Whether the direct path gathers a strided coefficient column into adjacent storage before reducing.
  *
  * Three conditions, and all of them have to hold for the copy to be worth making. The column has to be
  * strided, because an adjacent one is already what a vector body wants. The gather has to change which body
@@ -659,7 +645,7 @@ internal fun blockExtent(preferred: Int, tile: Int, extent: Int): Int {
     return if (atLeastOne < whole) atLeastOne else whole
 }
 
-/** Direct arithmetic windows, shared with route inspection, including selected support and tails. */
+/** Direct arithmetic windows, including selected support and tails. */
 internal inline fun forEachDirectProductPanel(
     m: Int,
     n: Int,

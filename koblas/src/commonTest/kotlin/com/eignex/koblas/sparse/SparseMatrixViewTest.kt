@@ -56,7 +56,7 @@ class SparseMatrixViewTest {
     }
 
     @Test
-    fun `mixed and prepared products retain dense operand addressing`() {
+    fun `mixed and generic products retain dense operand addressing`() {
         val sparse = source()
         for (engine in listOfNotNull(BuiltinEngines.scalar, BuiltinEngines.simd, koblas).distinct()) {
             for (transposeA in booleanArrayOf(false, true)) {
@@ -67,12 +67,12 @@ class SparseMatrixViewTest {
                         val expected = copy(c)
                         val before = c.values.copyOf()
                         ReferenceSparseBlas.gemm(0.875, sparse, transposeA, copy(b), transposeB, -0.25, expected, right)
-                        val prepared: Matrix = BuiltinEngines.scalar.prepare(sparse)
+                        val generic: Matrix = sparse
 
                         if (right) {
-                            engine.gemm(0.875, b as Matrix, transposeB, prepared, transposeA, -0.25, c)
+                            engine.gemm(0.875, b as Matrix, transposeB, generic, transposeA, -0.25, c)
                         } else {
-                            engine.gemm(0.875, prepared, transposeA, b as Matrix, transposeB, -0.25, c)
+                            engine.gemm(0.875, generic, transposeA, b as Matrix, transposeB, -0.25, c)
                         }
 
                         assertRegionAgreesWithReference(expected, c, before)
@@ -84,7 +84,7 @@ class SparseMatrixViewTest {
 
                     engine.gemm(
                         0.875,
-                        engine.prepare(sparse) as Matrix,
+                        sparse as Matrix,
                         transposeA,
                         sparse as Matrix,
                         transposeB,
@@ -123,12 +123,12 @@ class SparseMatrixViewTest {
 
                                 "trsm" -> {
                                     ReferenceBlas.trsm(copy(a), expected, lower, transpose, true, right, 0.875)
-                                    engine.trsm(engine.prepare(a) as Matrix, c, lower, transpose, true, right, 0.875)
+                                    engine.trsm(a as Matrix, c, lower, transpose, true, right, 0.875)
                                 }
 
                                 else -> {
                                     ReferenceBlas.trmm(copy(a), expected, lower, transpose, true, right, 0.875)
-                                    engine.trmm(engine.prepare(a) as Matrix, c, lower, transpose, true, right, 0.875)
+                                    engine.trmm(a as Matrix, c, lower, transpose, true, right, 0.875)
                                 }
                             }
                             assertRegionAgreesWithReference(expected, c, before)

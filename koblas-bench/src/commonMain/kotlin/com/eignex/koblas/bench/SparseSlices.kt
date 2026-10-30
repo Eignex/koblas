@@ -2,7 +2,6 @@ package com.eignex.koblas.bench
 
 import com.eignex.koblas.BuiltinEngines
 import com.eignex.koblas.KoblasEngine
-import com.eignex.koblas.sparse.SparseOperation
 import kotlin.math.sqrt
 
 /** Raw CSC windows through the selected engine, including validation and any indexed fallback. */
@@ -18,20 +17,15 @@ internal fun sparseSlicesArm(case: BenchCase, engine: KoblasEngine): ArmChoice {
     val destination = initial.copyOf()
     val scalar = BuiltinEngines.scalar.sparseKernels
     val kernels = engine.sparseKernels
-    val operation = when (case.operation) {
-        "spdot-slice" -> SparseOperation.DotDense
-        "spnrm2-slice" -> SparseOperation.IndexedNrm2
-        "spaxpy-slice" -> SparseOperation.Axpy
-        else -> SparseOperation.Scatter
-    }
-    val mutation = operation == SparseOperation.Axpy || operation == SparseOperation.Scatter
+    val operation = case.operation
+    val mutation = operation == "spaxpy-slice" || operation == "spscatter-slice"
     val run = {
         when (operation) {
-            SparseOperation.DotDense -> kernels.dot(indices, INDEX_OFFSET, values, VALUE_OFFSET, count, initial)
-            SparseOperation.IndexedNrm2 -> kernels.nrm2(indices, INDEX_OFFSET, count, initial)
+            "spdot-slice" -> kernels.dot(indices, INDEX_OFFSET, values, VALUE_OFFSET, count, initial)
+            "spnrm2-slice" -> kernels.nrm2(indices, INDEX_OFFSET, count, initial)
             else -> {
                 initial.copyInto(destination)
-                if (operation == SparseOperation.Axpy) {
+                if (operation == "spaxpy-slice") {
                     kernels.axpy(destination, 0.875, indices, INDEX_OFFSET, values, VALUE_OFFSET, count)
                 } else {
                     kernels.scatter(indices, INDEX_OFFSET, values, VALUE_OFFSET, count, destination)
@@ -42,7 +36,7 @@ internal fun sparseSlicesArm(case: BenchCase, engine: KoblasEngine): ArmChoice {
     }
     if (mutation) {
         val expected = initial.copyOf()
-        if (operation == SparseOperation.Axpy) {
+        if (operation == "spaxpy-slice") {
             scalar.axpy(expected, 0.875, indices, INDEX_OFFSET, values, VALUE_OFFSET, count)
         } else {
             scalar.scatter(indices, INDEX_OFFSET, values, VALUE_OFFSET, count, expected)
@@ -53,15 +47,13 @@ internal fun sparseSlicesArm(case: BenchCase, engine: KoblasEngine): ArmChoice {
         var sum = 0.0
         for (k in 0 until count) {
             val selected = initial[indices[INDEX_OFFSET + k]]
-            sum += if (operation == SparseOperation.DotDense) values[VALUE_OFFSET + k] * selected else selected * selected
+            sum += if (operation == "spdot-slice") values[VALUE_OFFSET + k] * selected else selected * selected
         }
-        val expected = if (operation == SparseOperation.DotDense) sum else sqrt(sum)
+        val expected = if (operation == "spdot-slice") sum else sqrt(sum)
         DenseReference.check(doubleArrayOf(expected), doubleArrayOf(run()), case.id)
     }
-    val route = engine.routeOf(operation, count)
-    val kernel = reductionKernel(route)
-    return ArmChoice(CaseWork(route.kind.name.lowercase(), if (mutation) "reset-and-arithmetic" else "arithmetic", run,
-        result = if (mutation) destination else null, kernel = "portable-index-validation+$kernel"), null)
+    val timing = if (mutation) "reset-and-arithmetic" else "arithmetic"
+    return ArmChoice(engineWork(engine, operation, timing, run, if (mutation) destination else null), null)
 }
 
 private const val INDEX_OFFSET = 3

@@ -189,7 +189,6 @@ class SparseKernelsTest {
         private val delegate = BuiltinEngines.scalar.sparseKernels
         val rawCalls = mutableListOf<Pair<Int, Int>>()
         override val name: String = "custom"
-        override fun routeOf(operation: SparseOperation, count: Int) = delegate.routeOf(operation, count)
         override fun dot(x: SparseVector, y: DoubleArray) = delegate.dot(x, y)
         override fun dot(x: SparseVector, y: SparseVector) = delegate.dot(x, y)
         override fun dot(

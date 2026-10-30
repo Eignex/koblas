@@ -36,21 +36,9 @@ do not establish performance on the target host.
 ## Cases
 
 [Cases](cases.txt) use `operation+dimensions+fixture[+option=value...]`. Untagged cases belong to
-`default`; `+suite=sweep` is opt-in. Compare identical case options: shape, transpose, sparse support,
-preparation and reset policy all change the work being timed.
-
-Prepared sparse modes account for different work:
-
-| Mode | Timed work |
-|---|---|
-| `oneshot` | Operation without preparation |
-| `prepared` | Reuse of a snapshot prepared before timing |
-| `setup` | Snapshot construction only |
-| `firstuse` | Preparation and one call |
-| `amortized` | Preparation and `reuse` calls, reported as one batch |
-
-Divide an amortized batch by `reuse` for a setup-inclusive per-use cost. This differs from the
-steady-state prepared cost. Preparation stores data; the selected benchmark engine controls execution.
+`default`; `+suite=sweep` is opt-in. Compare identical case options: shape, transpose, sparse support
+and reset policy all change the work being timed. Sparse matrix cases carry `mode=oneshot`, the only
+timing mode, which times the whole call.
 
 Other timing distinctions to keep in mind:
 
@@ -66,11 +54,12 @@ an end-to-end solver speedup. For exact boundaries, see the implementations in
 [Sparse.kt](src/commonMain/kotlin/com/eignex/koblas/bench/Sparse.kt), and
 [ShrinkingRankUpdate.kt](src/commonMain/kotlin/com/eignex/koblas/bench/ShrinkingRankUpdate.kt).
 
-A target names the requested engine or binding; the row's route identifies its implementation.
-Default engines can mix Kotlin and native calls. SIMD targets can take scalar fallbacks, and sparse
-scheduling remains Kotlin even when arithmetic uses SIMD. Composed routes can list multiple reachable
-bodies. JVM vendor timings include array transfers. Reject unresolved attribution when making claims
-about a particular implementation.
+An engine row's `comparison_kind` is `engine` and its `actual_kernel` is the selected engine's name and
+the operation: a selection, not the body a given size reached. Exact arms pin an engine through
+`BuiltinEngines`, which is what makes them exact. Default engines can mix Kotlin and native calls. SIMD
+targets can take scalar fallbacks below their crossovers, and sparse scheduling remains Kotlin even when
+arithmetic uses SIMD. Vendor rows name the entry point the binding reached. JVM vendor timings include
+array transfers.
 
 ## Lab captures
 

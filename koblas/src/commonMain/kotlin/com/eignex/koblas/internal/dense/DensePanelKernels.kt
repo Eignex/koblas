@@ -121,8 +121,8 @@ internal interface DensePanelKernels {
      *
      * This is a recommendation about copying rather than a claim about which body runs, and the two are
      * asked separately. Where it is true, [implementationFor] also names a different body for the two
-     * layouts, so that a route reports the body the copy was made for; where it is false the body may still
-     * differ, and the caller has simply been told not to pay for the difference.
+     * layouts; where it is false the body may still differ, and the caller has simply been told not to pay
+     * for the difference.
      */
     fun prefersContiguous(work: PanelWork, rows: Int, columns: Int): Boolean
 

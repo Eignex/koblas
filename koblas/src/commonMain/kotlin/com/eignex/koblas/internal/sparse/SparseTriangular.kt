@@ -28,14 +28,13 @@ internal inline fun forEachTriangleColumn(order: Int, forward: Boolean, action: 
 }
 
 /**
- * Which direction a triangular dependence runs, in one expression for the execution and the route: a route
- * lists the bodies in the order the traversal reached them, and this is what fixes that order.
+ * Which direction a triangular dependence runs.
  */
 internal fun triangularForward(lower: Boolean, transpose: Boolean, solve: Boolean): Boolean =
     lower != (transpose == solve)
 
 /**
- * The plan a triangular routine takes over a block of right-hand sides, for the execution and the route.
+ * The plan a triangular routine takes over a block of right-hand sides.
  *
  * The block is both the source and the destination, so a staged copy is read in and written back, and the
  * direction that gathers finished rows into a pivot is the shape the backend is asked about.

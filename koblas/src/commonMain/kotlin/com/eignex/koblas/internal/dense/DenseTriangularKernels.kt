@@ -63,7 +63,7 @@ internal interface DenseTriangularKernels {
      * The copy is two passes over a block of the caller's data, out and back, and it buys a substitution
      * whose independent values lie next to each other. A backend whose arithmetic is a value at a time gains
      * nothing from that and answers false, and so does one whose right-hand sides are already adjacent.
-     * Where this answers true the caller gathers, and the route says that a copy happened.
+     * Where this answers true the caller gathers.
      */
     fun gathersRightHandSides(rhsStride: Int, order: Int, sides: Int): Boolean
 

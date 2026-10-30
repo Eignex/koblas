@@ -4,7 +4,6 @@ import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.DenseMatrixRegion
 import com.eignex.koblas.KoblasEngine
 import com.eignex.koblas.Workspace
-import com.eignex.koblas.routeOf
 
 /** An addressed product, including reset and checks over every borrowed backing-buffer entry. */
 internal fun borrowedProductWork(case: BenchCase, engine: KoblasEngine): CaseWork {
@@ -40,6 +39,5 @@ internal fun borrowedProductWork(case: BenchCase, engine: KoblasEngine): CaseWor
     }
     apply()
     DenseReference.check(expected, c.values, "${case.id} borrowed backing")
-    val route = engine.routeOf(alpha, a, ta, b, tb, beta, c)
-    return CaseWork(route.kind.name.lowercase(), "reset-and-arithmetic", ::apply, kernel = matrixKernel(route))
+    return engineWork(engine, case.operation, "reset-and-arithmetic", ::apply)
 }

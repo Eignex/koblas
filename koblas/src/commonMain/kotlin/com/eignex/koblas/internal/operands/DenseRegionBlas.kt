@@ -55,10 +55,6 @@ internal fun regionsOverlap(a: DenseMatrixRegion, b: DenseMatrixRegion): Boolean
     return false
 }
 
-/** Logical alias snapshots are contiguous; disjoint operands retain their original column spacing. */
-internal fun stagedLeadingDimension(a: DenseMatrixRegion, destination: DenseMatrixRegion?): Int =
-    if (destination != null && regionsOverlap(a, destination)) a.rows else a.leadingDimension
-
 /** Length passed to each scaling kernel, either the full contiguous region or one padded column. */
 internal fun scalingLength(rows: Int, columns: Int, leadingDimension: Int): Int = when {
     rows == 0 || columns == 0 -> 0

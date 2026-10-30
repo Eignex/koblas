@@ -1,14 +1,12 @@
 package com.eignex.koblas.bench
 
 import com.eignex.koblas.BuiltinEngines
-import com.eignex.koblas.KoblasEngine
 import com.eignex.koblas.vendor.Vendor
 import com.eignex.koblas.vendor.Blas
 import com.eignex.koblas.vendor.openBlas
 import kotlin.math.abs
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertNotEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
@@ -118,40 +116,15 @@ class VendorArmTest {
         work.close()
     }
 
-    // The shape is whole tiles on both axes for every geometry this machine can resolve, so the row names
-    // the body a full tile reaches and never the scalar edge.
     @Test
-    fun `built in level three arms name their own packing and tile rather than an installed vendor`() {
+    fun `built in level three arms name their own engine rather than an installed vendor`() {
         val case = Cases.parse("gemm+64x64x64+uniform").single()
-        val scalar = assertNotNull(denseWork(case, BuiltinEngines.scalar))
-        val simdEngine = BuiltinEngines.simd
+        for (engine in listOfNotNull(BuiltinEngines.scalar, BuiltinEngines.simd)) {
+            val work = assertNotNull(denseWork(case, engine))
 
-        val scalarKernel = assertNotNull(scalar.kernel)
-        assertEquals(expectedProductKernel(BuiltinEngines.scalar), scalarKernel)
-        assertTrue("scalar-tile" in scalarKernel, scalarKernel)
-        if (simdEngine != null) {
-            val simd = assertNotNull(denseWork(case, simdEngine))
-
-            val simdKernel = assertNotNull(simd.kernel)
-            assertEquals(expectedProductKernel(simdEngine), simdKernel)
-            assertTrue("simd-tile" in simdKernel, "the vector arm fell back to $simdKernel")
-            assertTrue("scalar-tile-edge" !in simdKernel, "a whole-tile shape named an edge: $simdKernel")
-            assertNotEquals(scalarKernel, simdKernel, "both arms named the same product arithmetic")
-            simd.close()
+            assertEquals("${engine.name}/gemm", work.kernel)
+            work.close()
         }
-        scalar.close()
-    }
-
-    /** What a 64 by 64 by 64 product row must carry on [engine]: shared traversal, both packers, its tile. */
-    private fun expectedProductKernel(engine: KoblasEngine): String {
-        val route = engine.routeOf(
-            com.eignex.koblas.dense.DenseMatrixOperation.Gemm,
-            com.eignex.koblas.dense.DenseCall(64, 64, depth = 64),
-        )
-        assertEquals("portable-dense", route.scheduling)
-        assertEquals(listOf("portable-pack/right-panel", "portable-pack/left-panel"), route.components.take(2))
-        assertEquals(3, route.components.size, "a whole tile must reach exactly one arithmetic body")
-        return "portable-dense+portable-pack/right-panel+portable-pack/left-panel+${route.components.last()}/gemm"
     }
 
     @Test

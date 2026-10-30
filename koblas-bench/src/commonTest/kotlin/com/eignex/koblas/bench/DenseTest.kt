@@ -3,29 +3,23 @@ package com.eignex.koblas.bench
 import com.eignex.koblas.BuiltinEngines
 import com.eignex.koblas.KoblasEngine
 import com.eignex.koblas.koblas
-import com.eignex.koblas.dense.DenseOperation
-import com.eignex.koblas.RouteKind
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
-import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class DenseTest {
     @Test
-    fun `norm cases retain value dependent rescaling attribution`() {
+    fun `norm cases agree across engines and name the selected engine`() {
         val case = Cases.parse("nrm2+512+uniform").single()
         val expected = assertNotNull(denseWork(case, BuiltinEngines.scalar)).run()
         for (engine in listOfNotNull(BuiltinEngines.scalar, BuiltinEngines.simd)) {
             val work = assertNotNull(denseWork(case, engine))
-            val route = engine.routeOf(DenseOperation.Nrm2, 512)
 
-            assertEquals(route.kind.name.lowercase(), work.comparisonKind)
+            assertEquals(ENGINE_COMPARISON, work.comparisonKind)
+            assertEquals("${engine.name}/nrm2", work.kernel)
             assertEquals(expected, work.run(), 1e-12)
-            if (route.kind == RouteKind.Composed) {
-                assertTrue(assertNotNull(work.kernel).contains("+scalar-rescale/"))
-            }
         }
     }
 
@@ -45,7 +39,7 @@ class DenseTest {
 
     // Preflight must reject incorrect work before publishing a timing.
     @Test
-    fun `every product case names the route of the call it makes`() {
+    fun `every product case names the engine that runs it`() {
         val engines = listOfNotNull<KoblasEngine>(BuiltinEngines.scalar, BuiltinEngines.simd)
         for (line in listOf(
             "gemm+64x64x128+uniform",
@@ -54,7 +48,7 @@ class DenseTest {
             val case = Cases.parse(line).single()
             for (engine in engines) {
                 val work = assertNotNull(denseWork(case, engine), "$line on ${engine.name}")
-                val kernel = assertNotNull(work.kernel, "$line on ${engine.name} named no route")
+                val kernel = assertNotNull(work.kernel, "$line on ${engine.name} named no engine")
 
                 assertTrue(kernel.isNotEmpty(), "$line on ${engine.name}")
                 assertTrue(work.run().isFinite(), "$line on ${engine.name} produced no finite sink")
@@ -63,42 +57,18 @@ class DenseTest {
         }
     }
 
-    // Each pair changes one call fact that must appear in route attribution.
     @Test
-    fun `structured and triangular cases carry the facts their routes are built from`() {
+    fun `structured and triangular cases run on every engine and name it`() {
         val engines = listOfNotNull<KoblasEngine>(BuiltinEngines.scalar, BuiltinEngines.simd)
         for (line in STRUCTURED_CASES) {
             val case = Cases.parse(line).single()
             for (engine in engines) {
                 val work = assertNotNull(denseWork(case, engine), "$line on ${engine.name}")
-                val kernel = assertNotNull(work.kernel, "$line on ${engine.name} named no route")
-
-                assertTrue(kernel.startsWith("portable-dense+"), "$line on ${engine.name} named $kernel")
-                // These shapes exceed the block and substitution crossovers.
-                assertTrue(
-                    "/product-block" in kernel || "/diagonal-solve" in kernel || "/diagonal-multiply" in kernel,
-                    "$line on ${engine.name} named $kernel",
-                )
+                assertEquals("${engine.name}/${case.operation}", work.kernel)
                 assertTrue(work.run().isFinite(), "$line on ${engine.name} produced no finite sink")
                 work.close()
             }
         }
-    }
-
-    // The two solves are the same shape on the same engine and differ only in their side: a left one leaves
-    // its right-hand sides strided and the backend gathers them, where a right one finds them adjacent.
-    @Test
-    fun `a triangular row names the gather its side decides`() {
-        val engine = BuiltinEngines.simd ?: return
-        fun kernelOf(line: String): String =
-            assertNotNull(assertNotNull(denseWork(Cases.parse(line).single(), engine)).kernel)
-
-        val left = kernelOf("trsm+96x16+triangular+side=L+uplo=L+transA=N+diag=N")
-        val right = kernelOf("trsm+16x96+triangular+side=R+uplo=L+transA=N+diag=N")
-
-        assertTrue("portable-gather/rhs-block" in left, left)
-        assertTrue("portable-gather/rhs-block" !in right, right)
-        assertTrue("diagonal-solve" in left && "diagonal-solve" in right, "$left and $right")
     }
 
     @Test
@@ -107,7 +77,7 @@ class DenseTest {
         for (engine in listOfNotNull(koblas, BuiltinEngines.scalar, BuiltinEngines.simd).distinct()) {
             val work = assertNotNull(denseArm(case, engine)?.work)
 
-            assertTrue(work.comparisonKind in listOf("direct", "composed"))
+            assertEquals(ENGINE_COMPARISON, work.comparisonKind)
             assertNotNull(work.kernel)
             assertTrue(work.run().isFinite())
         }
@@ -128,11 +98,10 @@ class DenseTest {
     private companion object {
         /**
          * One case of each structured and triangular entry point, in both orientations. Deliberately smaller
-         * than the shapes the workload carries, since each case's preflight costs the cube of the order and
-         * what is under test is which facts reach the route.
+         * than the shapes the workload carries, since each case's preflight costs the cube of the order.
          *
-         * Each order is past the crossover its route needs: a square of forty-eight is packed into tiles on
-         * every backend here, and a triangle of ninety-six is more than one diagonal block.
+         * A square of forty-eight is packed into tiles on every backend here, and a triangle of ninety-six is
+         * more than one diagonal block, so the blocked paths are what preflight checks.
          */
         val STRUCTURED_CASES = listOf(
             "gemmt+48x48+uniform+uplo=L+transA=N+transB=N",

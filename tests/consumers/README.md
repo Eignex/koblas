@@ -41,6 +41,6 @@ Each API level has its own emulator name, cached snapshot, and reports, scoped t
 The [iOS consumer](../ios-consumer/README.md) runs this same check on an iOS simulator and links both
 device and simulator frameworks from the published Kotlin/Native dependencies.
 
-The shared fixture also exercises engine-neutral prepared snapshots through explicit generic engine dispatch,
-padded dense destinations, snapshot mutation isolation, operand-based route queries, and signed vector strides.
+The shared fixture also exercises sparse operands through explicit generic engine dispatch, padded dense
+destinations and signed vector strides.
 These checks run from the staged publication on JVM classpath/module-path and Android D8/R8 consumers.

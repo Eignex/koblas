@@ -3,8 +3,6 @@ package com.eignex.koblas.bench
 import com.eignex.koblas.BuiltinEngines
 import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.KoblasEngine
-import com.eignex.koblas.dense.DenseCall
-import com.eignex.koblas.dense.DenseMatrixOperation
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
@@ -49,26 +47,6 @@ class ShrinkingRankUpdateTest {
         }
     }
 
-    @Test
-    fun `full calls and shrinking panels name the bodies they reach`() {
-        for (engine in listOfNotNull<KoblasEngine>(BuiltinEngines.scalar, BuiltinEngines.simd)) {
-            for (n in intArrayOf(6, 34)) {
-                val full = assertNotNull(denseWork(Cases.parse("ger-shrinking+$n+uniform").single(), engine))
-                val publicWindow = assertNotNull(denseWork(Cases.parse("ger-window-shrinking+$n+uniform").single(), engine))
-                val kernel = assertNotNull(publicWindow.kernel)
-                val groups = kernel.substringAfter("/ger-window@").split('+').map(String::toInt)
-
-                assertEquals(matrixKernel(engine.routeOf(DenseMatrixOperation.Ger, DenseCall(n, n, alpha = -1.0))), full.kernel)
-                for (extent in n - 1 downTo 1) {
-                    val route = engine.routeOf(DenseMatrixOperation.GerWindow, DenseCall(extent, extent, alpha = -1.0))
-                    for (body in route.components) {
-                        assertTrue(body in kernel, "${engine.name} n=$n omitted $body at extent $extent: $kernel")
-                    }
-                    assertTrue(route.executionGroup in groups, "${engine.name} n=$n omitted group ${route.executionGroup}")
-                }
-            }
-        }
-    }
 
     private fun assertRankUpdateAgreesWithReference(expected: DoubleArray, actual: DoubleArray, context: String) {
         DenseReference.check(expected, actual, context)

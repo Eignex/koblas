@@ -63,7 +63,7 @@ internal interface DenseProductKernels {
      * with nothing. [name] identifies a selection instead, which is a different question: a backend whose
      * tile needs a vector unit answers here with the portable body where it has none.
      *
-     * Building a list belongs where a route is built, before a timed region and never inside one.
+     * Building a list allocates, so it belongs before a timed region and never inside one.
      */
     fun implementationsFor(rows: Int, columns: Int, depth: Int): List<String>
 
@@ -75,7 +75,7 @@ internal interface DenseProductKernels {
      * so a product with any small extent pays for a copy it cannot amortise, and a matrix-vector shaped call
      * pays for one it can never amortise at all. Where this answers false the caller runs the product as
      * panel work over the operands where they are, which is what avoids copying both of them into tiles. It
-     * is not a promise that nothing is copied: that route may still gather one strided coefficient column,
+     * is not a promise that nothing is copied: that path may still gather one strided coefficient column,
      * borrow a destination column to accumulate into, and stage an operand that shares the destination.
      *
      * The crossover is local: a tile that finishes more arithmetic per loaded value pays off a copy sooner.

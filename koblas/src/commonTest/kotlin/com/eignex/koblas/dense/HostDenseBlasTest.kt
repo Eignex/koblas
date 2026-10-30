@@ -3,24 +3,18 @@ package com.eignex.koblas.dense
 import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.DenseMatrixRegion
 import com.eignex.koblas.DenseVector
-import com.eignex.koblas.RouteKind
 import com.eignex.koblas.Workspace
 import com.eignex.koblas.assertClose
-import com.eignex.koblas.internal.dense.DENSE_SCHEDULING
 import com.eignex.koblas.internal.dense.PortableDenseBlas
 import com.eignex.koblas.internal.dense.PortablePanelKernels
 import com.eignex.koblas.internal.dense.ScalarVectorKernels
 import com.eignex.koblas.internal.host.DenseHostEligibility
-import com.eignex.koblas.internal.host.HOST_SCHEDULING
-import com.eignex.koblas.internal.host.HOST_STAGING
 import com.eignex.koblas.internal.host.HostDenseBlas
-import com.eignex.koblas.internal.operands.staged
 import com.eignex.koblas.vendor.Blas
 import com.eignex.koblas.vendor.BlasOperation
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
-import kotlin.test.assertFailsWith
 import kotlin.test.assertNotSame
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
@@ -35,7 +29,7 @@ class HostDenseBlasTest {
         assertClose(expected, actual, context = context)
 
     @Test
-    fun `platform eligibility rejects a host call in both execution and route`() {
+    fun `platform eligibility keeps a rejected host call portable`() {
         val recorder = RecordingBlas()
         val portable = PortableDenseBlas(ScalarVectorKernels, PortablePanelKernels)
         val blas = HostDenseBlas(portable, recorder, eligible = { _, _, _, _ -> false })
@@ -45,33 +39,9 @@ class HostDenseBlasTest {
         ReferenceBlas.gemm(0.875, a, false, a, false, -0.25, expected)
 
         blas.gemm(0.875, a, false, a, false, -0.25, actual)
-        val route = blas.routeOf(DenseMatrixOperation.Gemm, DenseCall(ORDER, ORDER, depth = ORDER))
 
         assertTrue(recorder.calls.isEmpty())
-        assertEquals(null, route.host)
         assertAgreesWithReference(expected.values, actual.values, "host eligibility fallback")
-    }
-
-    @Test
-    fun `level two routes ignore depth just as execution does`() {
-        for (order in intArrayOf(16, 32)) {
-            val recorder = RecordingBlas()
-            val portable = PortableDenseBlas(ScalarVectorKernels, PortablePanelKernels)
-            val blas = HostDenseBlas(
-                portable,
-                recorder,
-                eligible = { _, rows, columns, depth -> rows.toLong() * columns * depth >= 1024 },
-            )
-            val a = matrix(order)
-
-            blas.gemv(1.0, a, DoubleArray(order) { 1.0 }, 0.0, DoubleArray(order))
-            val executedHost = recorder.calls.any { it.operation == BlasOperation.Gemv }
-            for (depth in listOf(null, 0, 1, 64)) {
-                val route = blas.routeOf(DenseMatrixOperation.Gemv, DenseCall(order, order, depth = depth))
-
-                assertEquals(executedHost, route.host != null, "order=$order depth=$depth")
-            }
-        }
     }
 
     @Test
@@ -105,7 +75,6 @@ class HostDenseBlasTest {
             ReferenceBlas.gemm(0.875, copy(a), false, copy(b), false, -0.25, expected)
 
             blas.gemm(0.875, a, false, b, false, -0.25, c, Workspace())
-            val route = blas.routeOf(DenseMatrixOperation.Gemm, DenseCall(ORDER, ORDER, depth = ORDER, borrowed = true))
 
             for (j in 0 until ORDER) {
                 for (i in 0 until ORDER) {
@@ -113,7 +82,6 @@ class HostDenseBlasTest {
                 }
             }
             assertTrue(recorder.calls.isEmpty(), borrowedOperand)
-            assertEquals(null, route.host)
             assertAgreesWithReference(before, c.values, "$borrowedOperand region eligibility fallback")
         }
     }
@@ -171,12 +139,9 @@ class HostDenseBlasTest {
         ReferenceBlas.ger(-1.0, x, x, expected)
 
         blas.ger(-1.0, x, x, a, 1, 1, 5, 5, 1, 1)
-        val route = blas.routeOf(DenseMatrixOperation.GerWindow, DenseCall(5, 5, alpha = -1.0))
 
         assertContentEquals(expected.values, a.values)
         assertEquals(emptyList(), recorder.calls)
-        assertEquals(DENSE_SCHEDULING, route.scheduling)
-        assertEquals(null, route.host)
     }
 
     @Test
@@ -185,13 +150,8 @@ class HostDenseBlasTest {
         val a = matrix(ORDER)
 
         blas.gemm(SCALE, a, false, a, false, 0.0, matrix(ORDER))
-        val route = blas.routeOf(
-            DenseMatrixOperation.Gemm,
-            DenseCall(ORDER, ORDER, alpha = SCALE, depth = ORDER),
-        )
 
         assertEquals(listOf(BlasOperation.Gemm), recorder.calls.map { it.operation })
-        assertEquals(HOST_SCHEDULING, route.scheduling)
     }
 
     @Test
@@ -201,10 +161,8 @@ class HostDenseBlasTest {
         val a = matrix(ORDER)
 
         blas.gemmt(1.0, a, false, a, false, 0.0, matrix(ORDER))
-        val route = blas.routeOf(DenseMatrixOperation.Gemmt, DenseCall(ORDER, ORDER, depth = ORDER))
 
         assertEquals(emptyList(), recorder.calls.map { it.operation }, "an unexported entry point was called")
-        assertEquals(DENSE_SCHEDULING, route.scheduling)
     }
 
     // The engine here admits work of any size, so a zero multiplier stays portable even when every other
@@ -217,26 +175,8 @@ class HostDenseBlasTest {
 
         blas.gemm(0.0, a, false, a, false, 1.0, matrix(ORDER))
         blas.gemm(1.0, empty, false, DenseMatrix.wrap(0, ORDER, DoubleArray(0)), false, 1.0, matrix(ORDER))
-        val zeroAlpha = blas.routeOf(DenseMatrixOperation.Gemm, DenseCall(ORDER, ORDER, alpha = 0.0, depth = ORDER))
-        val zeroDepth = blas.routeOf(DenseMatrixOperation.Gemm, DenseCall(ORDER, ORDER, depth = 0))
 
         assertEquals(emptyList(), recorder.calls.map { it.operation }, "a no-work call reached the library")
-        assertEquals(RouteKind.NoWork, zeroAlpha.kind)
-        assertEquals(RouteKind.NoWork, zeroDepth.kind)
-        assertEquals(null, zeroAlpha.host)
-    }
-
-    // A route with no shared dimension is unstated rather than small, so a host branch answering from the
-    // other two extents would describe a product nobody described.
-    @Test
-    fun `a level three route with no shared dimension is refused rather than answered`() {
-        val (_, blas) = forced()
-
-        for (operation in NEEDS_DEPTH) {
-            assertFailsWith<IllegalArgumentException>("$operation answered without a shared dimension") {
-                blas.routeOf(operation, DenseCall(CROSSING_ORDER, CROSSING_ORDER))
-            }
-        }
     }
 
     @Test
@@ -320,31 +260,7 @@ class HostDenseBlasTest {
     }
 
     @Test
-    fun `a route names the staging a shared buffer forces and an ordinary call names none`() {
-        val (_, blas) = forced()
-        val call = DenseCall(ORDER, ORDER, depth = ORDER)
-
-        val plain = blas.routeOf(DenseMatrixOperation.Gemm, call)
-        val staged = blas.routeOf(DenseMatrixOperation.Gemm, DenseCall(ORDER, ORDER, depth = ORDER, aliased = true))
-
-        assertEquals(listOf("openblas/${BlasOperation.Gemm.entryPoint}"), plain.components)
-        assertEquals(listOf(HOST_STAGING, "openblas/${BlasOperation.Gemm.entryPoint}"), staged.components)
-    }
-
-    @Test
-    fun `a host route carries the library that would run it`() {
-        val (recorder, blas) = forced()
-
-        val route = blas.routeOf(DenseMatrixOperation.Gemm, DenseCall(ORDER, ORDER, depth = ORDER))
-
-        assertEquals(HOST_SCHEDULING, route.scheduling)
-        assertEquals(RouteKind.Direct, route.kind)
-        assertEquals(recorder.vendor, route.host?.vendor)
-        assertEquals(BlasOperation.Gemm.entryPoint, route.host?.entryPoint)
-    }
-
-    @Test
-    fun `borrowed host products pack logical entries and report staging`() {
+    fun `borrowed host products pack logical entries`() {
         val (recorder, blas) = forced()
         val parent = matrix(7)
         val a = parent.view(1, 1, 3, 2)
@@ -354,14 +270,12 @@ class HostDenseBlasTest {
         val expectedB = b.toArray()
 
         blas.gemm(1.0, a, false, b, false, 0.0, c, Workspace())
-        val route = blas.routeOf(DenseMatrixOperation.Gemm, DenseCall(3, 3, depth = 2, borrowed = true))
 
         val call = recorder.single()
         assertEquals(BlasOperation.Gemm, call.operation)
         for (i in expectedA.indices) assertContentEquals(expectedA[i], call.matrices[0].toArray()[i])
         for (i in expectedB.indices) assertContentEquals(expectedB[i], call.matrices[1].toArray()[i])
         assertNotSame(parent.values, call.matrices[0].values)
-        assertEquals(HOST_SCHEDULING, route.scheduling)
     }
 
     @Test
@@ -384,7 +298,6 @@ class HostDenseBlasTest {
         blas.syrk(-1.0, panel, false, 1.0, trailing, workspace = workspace)
         blas.trsv(triangle, DoubleArray(3), lower = true, workspace = workspace)
         blas.trsm(triangle, beside, lower = true, workspace = workspace)
-        val route = blas.routeOf(DenseMatrixOperation.Syrk, DenseCall(5, 5, depth = 3, borrowed = true))
 
         val expected = listOf(
             listOf(panel),
@@ -398,7 +311,6 @@ class HostDenseBlasTest {
             for ((actual, view) in call.matrices.zip(operands)) assertSame(view, actual, "${call.operation}")
         }
         assertEquals(0, workspace.idleLengths(), "a disjoint borrowed call borrowed scratch")
-        assertEquals(listOf("openblas/${BlasOperation.Syrk.entryPoint}"), route.components)
     }
 
     @Test
@@ -415,36 +327,18 @@ class HostDenseBlasTest {
         val entries = a.toArray()
 
         blas.syrk(-1.0, a, false, 1.0, c, workspace = Workspace())
-        val route = blas.routeOf(
-            DenseMatrixOperation.Syrk,
-            DenseCall(4, 4, depth = 3, borrowed = true, aliased = true),
-        )
 
         val call = recorder.calls.single()
         assertNotSame(parent.values, call.matrices[0].values)
         for (i in entries.indices) assertContentEquals(entries[i], call.matrices[0].toArray()[i])
         assertSame(c, call.matrices[1])
-        assertEquals(listOf(HOST_STAGING, "openblas/${BlasOperation.Syrk.entryPoint}"), route.components)
     }
 
     private companion object {
-        /** Small enough that only a forced policy sends it over, which is what the routing cases want. */
+        /** Small enough that only a forced policy sends it over, which is what these cases want. */
         const val ORDER = 3
 
-        /** A larger shape for missing-call-fact tests. */
-        const val CROSSING_ORDER = 64
-
         const val SCALE = 0.75
-
-        val NEEDS_DEPTH = listOf(
-            DenseMatrixOperation.Gemm,
-            DenseMatrixOperation.Gemmt,
-            DenseMatrixOperation.Symm,
-            DenseMatrixOperation.Syrk,
-            DenseMatrixOperation.Syr2k,
-            DenseMatrixOperation.Trmm,
-            DenseMatrixOperation.Trsm,
-        )
     }
 }
 

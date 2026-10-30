@@ -35,12 +35,13 @@ binding. Target availability and Native cross-compilation are covered in the [re
 ## Read the results
 
 Captures write one CSV per target plus `metadata.txt` into the chosen output directory. Repeated
-captures keep each round under `pass-1`, `pass-2`, and so on. Rows record timing and the implementation
-actually reached; an engine's name alone does not establish vectorization.
+captures keep each round under `pass-1`, `pass-2`, and so on. Engine rows record timing and the
+selected engine; pinning an exact engine through `BuiltinEngines` is what makes an arm exact, and an
+engine's name alone does not establish that a given size vectorized.
 
 Compare matching cases and settings on the same host. For repeated captures, take the median of each
 case's round medians, inspect the spread, and check unchanged controls. Setup validates results against
-scalar references before timing. Workloads differ in whether reset, preparation or allocation is timed;
+scalar references before timing. Workloads differ in whether reset or allocation is timed;
 check their [definitions](REFERENCE.md#cases) before comparing them.
 
 ## Details

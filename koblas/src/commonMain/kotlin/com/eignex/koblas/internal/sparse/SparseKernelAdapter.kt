@@ -2,10 +2,7 @@ package com.eignex.koblas.internal.sparse
 
 import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.SparseVector
-import com.eignex.koblas.VectorRoute
-import com.eignex.koblas.dense.DenseOperation
 import com.eignex.koblas.dense.DenseVectorKernels
-import com.eignex.koblas.internal.diagnostics.vectorRoute
 import com.eignex.koblas.requireIndex
 import com.eignex.koblas.requireShape
 import com.eignex.koblas.sparse.*
@@ -15,28 +12,6 @@ internal class SparseKernelAdapter(
     private val denseVectorKernels: DenseVectorKernels,
     private val indexedSparseKernels: IndexedSparseKernels,
 ) : SparseKernels {
-    override fun routeOf(operation: SparseOperation, count: Int): VectorRoute<SparseOperation> {
-        // Whole-support reductions use contiguous dense kernels; the other operations use indexed kernels.
-        if (operation == SparseOperation.Nrm2 || operation == SparseOperation.Asum) {
-            val dense = if (operation == SparseOperation.Nrm2) DenseOperation.Nrm2 else DenseOperation.Asum
-            return vectorRoute(
-                operation,
-                operation.entryPoint,
-                count,
-                denseVectorKernels.name,
-                denseVectorKernels.implementationFor(dense, count),
-                "a contiguous run of stored values",
-            )
-        }
-        return vectorRoute(
-            operation,
-            operation.entryPoint,
-            count,
-            indexedSparseKernels.name,
-            indexedSparseKernels.implementationFor(operation, count),
-        )
-    }
-
     override fun dot(x: SparseVector, y: DoubleArray): Double {
         requireShape(x.size == y.size) { "dot: sizes differ, ${x.size} vs ${y.size}" }
         return indexedSparseKernels.dotDense(x.indices, x.values, y)

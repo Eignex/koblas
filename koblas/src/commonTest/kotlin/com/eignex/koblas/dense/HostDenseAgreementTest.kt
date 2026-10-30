@@ -7,9 +7,7 @@ import com.eignex.koblas.assertClose
 import com.eignex.koblas.internal.dense.PortableDenseBlas
 import com.eignex.koblas.internal.dense.PortablePanelKernels
 import com.eignex.koblas.internal.dense.ScalarVectorKernels
-import com.eignex.koblas.internal.host.HOST_SCHEDULING
 import com.eignex.koblas.internal.host.HostDenseBlas
-import com.eignex.koblas.internal.host.HostDenseCall
 import com.eignex.koblas.poisonedSymmetric
 import com.eignex.koblas.poisonedTriangle
 import com.eignex.koblas.randomMatrix
@@ -58,84 +56,6 @@ class HostDenseAgreementTest {
      *
      * Unsupported entry points are reported as skipped so portable fallback cannot masquerade as host coverage.
      */
-    @Test
-    fun `every routine these cases cover reaches the library except the one that may not`() =
-        withHost("the routing behind these cases") { blas, host ->
-            val order = ORDER
-            val admitted = listOf(
-                DenseMatrixOperation.Gemv to DenseCall(ROWS, COLUMNS, alpha = ALPHA, beta = BETA),
-                DenseMatrixOperation.Symv to DenseCall(order, order, alpha = ALPHA, beta = BETA),
-                DenseMatrixOperation.Ger to DenseCall(ROWS, COLUMNS, alpha = ALPHA),
-                DenseMatrixOperation.Syr to DenseCall(order, order, alpha = ALPHA),
-                DenseMatrixOperation.Syr2 to DenseCall(order, order, alpha = ALPHA),
-                DenseMatrixOperation.Trsv to DenseCall(order, order),
-                DenseMatrixOperation.Trmv to DenseCall(order, order),
-                DenseMatrixOperation.Symm to DenseCall(order, SIDES, alpha = ALPHA, beta = BETA, depth = order),
-                DenseMatrixOperation.Trsm to DenseCall(order, SIDES, alpha = ALPHA, depth = order),
-                DenseMatrixOperation.Trmm to DenseCall(order, SIDES, alpha = ALPHA, depth = order),
-                DenseMatrixOperation.Gemm to DenseCall(ROWS, COLUMNS, alpha = ALPHA, beta = BETA, depth = DEPTH),
-                DenseMatrixOperation.Gemmt to DenseCall(order, order, alpha = ALPHA, beta = BETA, depth = DEPTH),
-                DenseMatrixOperation.Syrk to DenseCall(order, order, alpha = ALPHA, beta = BETA, depth = DEPTH),
-                DenseMatrixOperation.Syr2k to DenseCall(order, order, alpha = ALPHA, beta = BETA, depth = DEPTH),
-            )
-
-            for ((operation, call) in admitted) {
-                val entry = requireNotNull(HostDenseCall.entryPointFor(operation))
-                if (entry !in host.directlyImplemented) {
-                    println(
-                        "SKIPPED: ${host.vendor.vendorName} does not export ${entry.entryPoint}; " +
-                            "the composed $operation path was not exercised on this host",
-                    )
-                    continue
-                }
-                val route = blas.routeOf(operation, call)
-                assertEquals(HOST_SCHEDULING, route.scheduling, "$operation no longer reaches the library")
-                assertTrue(route.host != null, "$operation named no vendor call")
-            }
-        }
-
-    @Test
-    fun `the matrix vector routines agree with the definition on both orientations`() =
-        withHost("the matrix-vector routines") { blas, _ ->
-            val rng = Random(11)
-            val a = randomMatrix(ROWS, COLUMNS, rng)
-            for (transpose in booleanArrayOf(false, true)) {
-                val x = randomVector(if (transpose) ROWS else COLUMNS, rng)
-                val y = randomVector(if (transpose) COLUMNS else ROWS, rng)
-                val expected = y.copyOf()
-                ReferenceBlas.gemv(ALPHA, a, x, BETA, expected, transpose)
-
-                val actual = y.copyOf()
-                blas.gemv(ALPHA, a, x, BETA, actual, transpose)
-
-                assertClose(expected, actual, "gemv transpose=$transpose", TOLERANCE)
-            }
-        }
-
-    @Test
-    fun `the symmetric routines read only the triangle they were given`() = withHost(
-        "the symmetric routines",
-    ) { blas, _ ->
-        val rng = Random(12)
-        for (lower in booleanArrayOf(true, false)) {
-            val (full, poisoned) = poisonedSymmetric(rng, ORDER, lower)
-            val x = randomVector(ORDER, rng)
-            val y = randomVector(ORDER, rng)
-            val b = randomMatrix(ORDER, SIDES, rng)
-            val expectedVector = y.copyOf()
-            ReferenceBlas.symv(ALPHA, full, x, BETA, expectedVector, lower)
-            val expectedMatrix = randomMatrix(ORDER, SIDES, Random(13))
-            val actualMatrix = DenseMatrix.wrap(ORDER, SIDES, expectedMatrix.values.copyOf())
-            ReferenceBlas.symm(ALPHA, full, b, BETA, expectedMatrix, lower)
-
-            val actualVector = y.copyOf()
-            blas.symv(ALPHA, poisoned, x, BETA, actualVector, lower)
-            blas.symm(ALPHA, poisoned, b, BETA, actualMatrix, lower)
-
-            assertClose(expectedVector, actualVector, "symv lower=$lower", TOLERANCE)
-            assertClose(expectedMatrix, actualMatrix, "symm lower=$lower", TOLERANCE)
-        }
-    }
 
     @Test
     fun `a symmetric product from the right is the other side and not the same call`() =

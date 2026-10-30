@@ -2,7 +2,6 @@ package com.eignex.koblas.sparse
 
 import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.SparseVector
-import com.eignex.koblas.VectorRoute
 import com.eignex.koblas.internal.numeric.euclideanNorm
 import com.eignex.koblas.internal.sparse.gather
 import com.eignex.koblas.internal.sparse.scatter
@@ -18,18 +17,6 @@ public interface SparseKernels {
     /** Short implementation identifier for diagnostics. */
     public val name: String
 
-    /**
-     * Where a call of this [operation] over [count] stored entries would execute.
-     *
-     * The same decision the call makes, asked before making it. [name] identifies the selection as a whole and
-     * cannot answer this: a Vector API selection still runs the scalar loop for a support shorter than its
-     * crossover, for an operation it never vectorised, and on a host whose indexed loads or stores it cannot
-     * use. A measurement that reads only [name] publishes those as vector timings.
-     *
-     * Building a route allocates, so it belongs before a timed region and never inside one.
-     */
-    public fun routeOf(operation: SparseOperation, count: Int): VectorRoute<SparseOperation>
-
     /** `xᵀ·y` for a sparse [x] against a dense [y] (Sparse BLAS `usdot`); walks only the stored entries. */
     public fun dot(x: SparseVector, y: DoubleArray): Double
 
@@ -39,10 +26,9 @@ public interface SparseKernels {
      * Reads the current [SparseMatrix.values] on every call and permits that array to be [dense].
      *
      * Built-in implementations reuse the matrix's validated CSC support and call the indexed dot leaf
-     * at the column's offsets without copying or rescanning indices. [routeOf] with [SparseOperation.DotDense]
-     * and the column's stored count describes that leaf. Custom implementations default to the validated
-     * raw [dot] overload. The matrix's structural arrays must remain unchanged, as [SparseMatrix.wrap] requires;
-     * this call retains no arrays or column view after returning.
+     * at the column's offsets without copying or rescanning indices. Custom implementations default to the
+     * validated raw [dot] overload. The matrix's structural arrays must remain unchanged, as
+     * [SparseMatrix.wrap] requires; this call retains no arrays or column view after returning.
      *
      * @throws IndexOutOfBoundsException if [column] is outside the matrix's columns.
      * @throws IllegalArgumentException if [dense] has the wrong length.

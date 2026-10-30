@@ -28,7 +28,7 @@ internal object SimdPanelKernels : DensePanelKernels {
     private val LANE = if (simdAvailable) SPECIES.length() else 0
 
     /**
-     * Cache the name so route queries, including scheduling decisions, do not allocate.
+     * Cache the name so scheduling decisions that compare it do not allocate.
      */
     private val NAME: String = "simd-panel($LANE lanes)"
 

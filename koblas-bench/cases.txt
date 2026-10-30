@@ -78,23 +78,13 @@ spscatter-raw+262144+sparse-uniform+density=0.03125
 spgather+4096+sparse-uniform+density=0.01
 spgather-zero+4096+sparse-uniform+density=0.01
 spgemv+257x129+sparse-uniform+density=0.01+mode=oneshot
-spgemv+257x129+sparse-uniform+density=0.01+mode=prepared
-spgemv+257x129+sparse-uniform+density=0.01+mode=setup
-spgemv+257x129+sparse-uniform+density=0.01+mode=firstuse
 spgemv+257x129+sparse-uniform+density=0.01+mode=oneshot+transA=T
 spmm+257x8x129+sparse-uniform+density=0.01+mode=oneshot
-spmm+257x8x129+sparse-uniform+density=0.01+mode=prepared
-spmm+257x8x129+sparse-uniform+density=0.01+mode=setup+transA=T
-spmm+257x8x129+sparse-uniform+density=0.01+mode=firstuse+transA=T
-spmm+257x8x129+sparse-uniform+density=0.01+mode=prepared+transA=T
 spmm-generic+257x8x129+sparse-uniform+density=0.01+mode=oneshot
 spmm-generic+257x8x129+sparse-uniform+density=0.01+mode=oneshot+transA=T
 spmm-generic-right+257x8x129+sparse-uniform+density=0.01+mode=oneshot
 spmm-generic-right+257x8x129+sparse-uniform+density=0.01+mode=oneshot+transA=T
 spgemm+129x97x65+sparse-uniform+density=0.01+mode=oneshot
-spgemm+129x97x65+sparse-uniform+density=0.01+mode=prepared
-spgemm+129x97x65+sparse-uniform+density=0.01+mode=firstuse+transA=T
-spgemm+129x97x65+sparse-uniform+density=0.01+mode=prepared+transA=T
 spgemm-generic+129x97x65+sparse-uniform+density=0.01+mode=oneshot
 spsymv+129+sparse-triangular+density=0.02+mode=oneshot+uplo=L
 spsymm+129x8+sparse-triangular+density=0.02+mode=oneshot+side=L+uplo=L
@@ -132,13 +122,6 @@ spmm+257x64x129+sparse-uniform+density=0.25+mode=oneshot+transA=T
 spmm-right+257x8x129+sparse-uniform+density=0.01+mode=oneshot
 spmm-right+257x8x129+sparse-uniform+density=0.25+mode=oneshot
 spmm-right+257x8x129+sparse-uniform+density=0.01+mode=oneshot+transA=T
-# Reuse counts, which is where a snapshot's setup is paid back: an amortized row is one preparation and that
-# many uses, divided by the count, and is read against the one-shot row of the same case.
-spmm+257x8x129+sparse-uniform+density=0.01+mode=amortized+reuse=2
-spmm+257x8x129+sparse-uniform+density=0.01+mode=amortized+reuse=8
-spmm+257x8x129+sparse-uniform+density=0.01+mode=amortized+reuse=32+transA=T
-spgemv+257x129+sparse-uniform+density=0.01+mode=amortized+reuse=8+transA=T
-spgemm+129x97x65+sparse-uniform+density=0.01+mode=amortized+reuse=8+transA=T
 # The matrix-vector product over every distribution, where a scatter's conflicts and a reduction's gathers
 # are what separate them.
 spgemv+257x129+sparse-uniform+density=0.01+support=banded+mode=oneshot

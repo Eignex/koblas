@@ -9,7 +9,6 @@ import com.eignex.koblas.gemm
 import com.eignex.koblas.gemmInto
 import com.eignex.koblas.gemv
 import com.eignex.koblas.gemvInto
-import com.eignex.koblas.prepare
 import com.eignex.koblas.sparse.ReferenceSparseBlas
 import com.eignex.koblas.symmInto
 import com.eignex.koblas.symv
@@ -23,19 +22,6 @@ import kotlin.test.assertEquals
 
 /** The sparse surface as a consumer reaches it: root-package extensions against the independent oracle. */
 class SparseOpsTest {
-    @Test
-    fun `prepare is available from the root package`() {
-        val source = matrix()
-        val expected = DoubleArray(source.rows)
-        ReferenceSparseBlas.gemv(1.0, source, INPUT, 0.0, expected)
-
-        val prepared = source.prepare()
-        source.values.fill(Double.NaN)
-        val actual = DoubleArray(source.rows)
-        prepared.gemvInto(1.0, INPUT, 0.0, actual)
-
-        assertContentEquals(expected, actual)
-    }
 
     @Test
     fun `the allocating and in place matrix vector extensions agree with the reference`() {

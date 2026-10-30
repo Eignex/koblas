@@ -5,7 +5,6 @@ import com.eignex.koblas.KoblasEngine
 import com.eignex.koblas.StridedVector
 import com.eignex.koblas.axpy
 import com.eignex.koblas.copy
-import com.eignex.koblas.dense.DenseOperation
 import com.eignex.koblas.dot
 import com.eignex.koblas.koblas
 import com.eignex.koblas.swap
@@ -61,10 +60,7 @@ internal fun vectorViewsArm(case: BenchCase, engine: KoblasEngine): ArmChoice {
     DenseReference.check(expected, backing, case.id)
     val kernel = when (case.operation) {
         "copy-overlap" -> "portable-vector+array-copy/copy-overlap"
-        else -> {
-            val operation = if (case.operation == "axpy-views") DenseOperation.Axpy else DenseOperation.Swap
-            "portable-vector+${vectorKernel(engine.routeOf(operation, size, contiguous = false))}/${case.operation}"
-        }
+        else -> "portable-vector+${engineKernel(engine, case.operation)}"
     }
     return ArmChoice(CaseWork("default-policy", "reset-and-arithmetic", run, result = backing,
         kernel = kernel), null)

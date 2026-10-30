@@ -5,9 +5,7 @@ import com.eignex.koblas.DimensionMismatch
 import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.Workspace
 import com.eignex.koblas.gemm
-import com.eignex.koblas.gemmInto
 import com.eignex.koblas.koblas
-import com.eignex.koblas.prepare
 import com.eignex.koblas.times
 import com.eignex.koblas.transpose
 import kotlin.test.Test
@@ -163,29 +161,6 @@ class SparseCapacityTest {
         assertEquals(2, product.cols)
         assertEquals(1, product.nnz)
         assertEquals(2.0, product[0, 1])
-    }
-
-    // The result is empty and valid, so the snapshot must reach it without deriving a transpose whose
-    // pointer array could not exist.
-    @Test
-    fun `a prepared transposed product of a tall operand reaches its empty result`() {
-        val prepared = tallEmpty(Int.MAX_VALUE).prepare()
-        val destination = DenseMatrix.zero(0, 0)
-
-        prepared.gemmInto(1.0, true, DenseMatrix.zero(Int.MAX_VALUE, 0), false, 0.0, destination)
-
-        assertEquals(0, destination.values.size)
-    }
-
-    @Test
-    fun `a prepared transposed sparse product of a tall operand reaches its empty result`() {
-        val prepared = tallEmpty(Int.MAX_VALUE).prepare()
-
-        val product = prepared.gemm(1.0, true, tallEmpty(Int.MAX_VALUE), false) as SparseMatrix
-
-        assertEquals(0, product.rows)
-        assertEquals(0, product.cols)
-        assertEquals(0, product.nnz)
     }
 
     @Test
