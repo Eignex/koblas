@@ -7,6 +7,7 @@ package com.eignex.koblas
 import com.eignex.koblas.dense.*
 import com.eignex.koblas.internal.operands.regionVectorOverlap
 import com.eignex.koblas.internal.operands.regionsOverlap
+import com.eignex.koblas.internal.operands.stagedLeadingDimension
 
 /** Matrix-vector route derived from actual regions, strides and aliases, without reading coefficients. */
 public fun KoblasEngine.routeOf(
@@ -204,6 +205,3 @@ public fun KoblasEngine.routeOf(
         ),
     )
 }
-
-private fun stagedLeadingDimension(a: DenseMatrixRegion, destination: DenseMatrixRegion): Int =
-    if (regionsOverlap(a, destination)) a.rows else a.leadingDimension
