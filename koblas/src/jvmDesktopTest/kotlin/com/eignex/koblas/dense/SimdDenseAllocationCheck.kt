@@ -10,8 +10,6 @@ import com.eignex.koblas.Workspace
 import com.eignex.koblas.axpy
 import com.eignex.koblas.copy
 import com.eignex.koblas.dot
-import com.eignex.koblas.gemmInto
-import com.eignex.koblas.gemvInto
 import com.eignex.koblas.internal.dense.DenseProductKernels
 import com.eignex.koblas.internal.dense.PanelWork
 import com.eignex.koblas.internal.dense.PortableDenseBlas
@@ -192,19 +190,19 @@ internal object SimdDenseAllocationCheck {
         val matrix = DenseMatrix.wrap(ORDER, ORDER, DoubleArray(ORDER * ORDER) { 1.0 + (it % 13) * 0.125 })
         val x = DenseVector.wrap(DoubleArray(ORDER) { 1.0 + (it % 7) * 0.25 })
         val y = DenseVector.wrap(DoubleArray(ORDER) { 0.5 })
-        val destination = DoubleArray(ORDER)
+        val destination = DenseVector.wrap(DoubleArray(ORDER))
         val workspace = Workspace()
         val left = DenseMatrix.wrap(PRODUCT_ORDER, PRODUCT_ORDER, DoubleArray(PRODUCT_ORDER * PRODUCT_ORDER) { 1.0 })
         val right = DenseMatrix.wrap(PRODUCT_ORDER, PRODUCT_ORDER, DoubleArray(PRODUCT_ORDER * PRODUCT_ORDER) { 0.5 })
         val product = DenseMatrix.wrap(PRODUCT_ORDER, PRODUCT_ORDER, DoubleArray(PRODUCT_ORDER * PRODUCT_ORDER))
 
         assertAllocationFree("dot through the default engine") { x dot y }
-        assertAllocationFree("gemvInto through the default engine") {
-            matrix.gemvInto(0.875, x, -0.25, destination)
+        assertAllocationFree("gemv through the default engine") {
+            koblas.gemv(0.875, matrix, x, -0.25, destination)
             destination[0]
         }
         assertAllocationFree("generic product", PRODUCT_WARMUP, PRODUCT_ITERATIONS) {
-            left.gemmInto(1e-12, false, right, false, -0.25, product, workspace)
+            koblas.gemm(1e-12, left, false, right, false, -0.25, product, workspace)
             product.values[0]
         }
     }

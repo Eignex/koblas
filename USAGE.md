@@ -45,8 +45,8 @@ The names come from BLAS: GEMV means general matrix-vector multiplication, and G
 matrix-matrix multiplication.
 
 ```kotlin
-val destination = DoubleArray(a.rows)
-a.gemvInto(x, destination) // Same calculation as a * x
+val destination = DenseVector.wrap(DoubleArray(a.rows))
+koblas.gemv(1.0, a, x, 0.0, destination) // Same calculation as a * x
 ```
 
 The fuller forms can scale the product and add it to the destination in one call. For matrices,
@@ -95,7 +95,8 @@ general solvers belong in the calling library.
 
 ## Java and mobile projects
 
-From Java, factories are static methods and Kotlin operators and extensions are exposed through Koblas:
+From Java, factories are static methods, Kotlin operators and extensions are exposed through Koblas, and
+`Koblas.getDefault()` is the default engine:
 
 ```java
 import com.eignex.koblas.DenseMatrix;
@@ -106,8 +107,8 @@ DenseMatrix a = DenseMatrix.ofRows(new double[][] {{2.0, 1.0}, {1.0, 3.0}});
 DenseVector x = DenseVector.of(new double[] {3.0, 5.0});
 DenseVector y = Koblas.multiply(a, x);
 
-double[] destination = new double[a.getRows()];
-Koblas.gemvInto(a, x, destination);
+DenseVector destination = DenseVector.wrap(new double[a.getRows()]);
+Koblas.getDefault().gemv(1.0, a, x, 0.0, destination, false, null);
 ```
 
 Android uses the same dependency as desktop JVM projects, with Java 17 bytecode support in your Android

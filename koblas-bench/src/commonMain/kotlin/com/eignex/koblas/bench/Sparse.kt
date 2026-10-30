@@ -4,7 +4,6 @@ import com.eignex.koblas.KoblasEngine
 import com.eignex.koblas.BuiltinEngines
 import com.eignex.koblas.Matrix
 import com.eignex.koblas.SparseMatrix
-import com.eignex.koblas.gemm
 import com.eignex.koblas.Workspace
 import com.eignex.koblas.koblas
 import com.eignex.koblas.sparse.SparsePrimitives

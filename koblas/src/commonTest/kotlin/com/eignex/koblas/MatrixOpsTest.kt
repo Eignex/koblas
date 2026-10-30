@@ -30,7 +30,7 @@ class MatrixOpsTest {
         for ((x, expected) in vectors) {
             assertClose(expected, (dense * x).values, "product ${x::class.simpleName}")
             val out = DoubleArray(rows)
-            dense.gemvInto(x, out)
+            koblas.gemv(1.0, dense, x, 0.0, DenseVector.wrap(out))
             assertClose(expected, out, "gemvInto ${x::class.simpleName}")
         }
     }
@@ -43,15 +43,15 @@ class MatrixOpsTest {
             val context = x::class.simpleName
             // beta == 0 must overwrite rather than accumulate, so a poisoned destination stays clean.
             val fresh = doubleArrayOf(Double.NaN, Double.NaN)
-            A.gemvInto(2.0, x, 0.0, fresh)
+            koblas.gemv(2.0, A, x, 0.0, DenseVector.wrap(fresh))
             assertClose(doubleArrayOf(-2.0, -2.0), fresh, "alpha scaled, beta zero, $context")
 
             val accumulated = doubleArrayOf(1.0, 1.0)
-            A.gemvInto(1.0, x, 2.0, accumulated)
+            koblas.gemv(1.0, A, x, 2.0, DenseVector.wrap(accumulated))
             assertClose(doubleArrayOf(1.0, 1.0), accumulated, "alpha one, beta two, $context")
 
             val scaledOnly = doubleArrayOf(1.0, -2.0)
-            A.gemvInto(0.0, x, 3.0, scaledOnly)
+            koblas.gemv(0.0, A, x, 3.0, DenseVector.wrap(scaledOnly))
             assertClose(doubleArrayOf(3.0, -6.0), scaledOnly, "alpha zero leaves beta y, $context")
         }
     }
@@ -65,11 +65,11 @@ class MatrixOpsTest {
         val actual = expected.copyOf()
 
         koblas.gemv(0.75, A, x, -0.5, expected, transpose = true)
-        A.gemvInto(0.75, DenseVector.wrap(x), -0.5, actual, transpose = true)
+        koblas.gemv(0.75, A, DenseVector.wrap(x), -0.5, DenseVector.wrap(actual), transpose = true)
 
         assertClose(expected, actual, "transposed gemvInto")
         val fresh = DoubleArray(3)
-        A.gemvInto(DenseVector.wrap(x), fresh, transpose = true)
+        koblas.gemv(1.0, A, DenseVector.wrap(x), 0.0, DenseVector.wrap(fresh), transpose = true)
         koblas.gemv(1.0, A, x, 0.0, expected, transpose = true)
         assertClose(expected, fresh, "transposed gemvInto shorthand")
     }
@@ -93,7 +93,7 @@ class MatrixOpsTest {
             }
             for (x in xs) {
                 val out = DoubleArray(n)
-                poisoned.symvInto(x, out, lower)
+                koblas.symv(1.0, poisoned, x, 0.0, DenseVector.wrap(out), lower)
                 assertClose((full * x).values, out, "symvInto lower=$lower ${x::class.simpleName}")
             }
         }
@@ -105,15 +105,15 @@ class MatrixOpsTest {
         for (x in listOf(dense(1.0, -1.0), StridedVector(doubleArrayOf(1.0, 9.0, -1.0), 0, 2, 2))) {
             val context = x::class.simpleName
             val fresh = doubleArrayOf(Double.NaN, Double.NaN)
-            A.symvInto(2.0, x, 0.0, fresh)
+            koblas.symv(2.0, A, x, 0.0, DenseVector.wrap(fresh))
             assertClose(doubleArrayOf(2.0, -4.0), fresh, "alpha scaled, beta zero, $context")
 
             val accumulated = doubleArrayOf(1.0, 1.0)
-            A.symvInto(1.0, x, 2.0, accumulated)
+            koblas.symv(1.0, A, x, 2.0, DenseVector.wrap(accumulated))
             assertClose(doubleArrayOf(3.0, 0.0), accumulated, "alpha one, beta two, $context")
 
             val scaledOnly = doubleArrayOf(1.0, -2.0)
-            A.symvInto(0.0, x, 3.0, scaledOnly)
+            koblas.symv(0.0, A, x, 3.0, DenseVector.wrap(scaledOnly))
             assertClose(doubleArrayOf(3.0, -6.0), scaledOnly, "alpha zero leaves beta y, $context")
         }
     }
@@ -122,11 +122,19 @@ class MatrixOpsTest {
     fun `the matvec destinations reject mismatched shapes`() {
         val A = DenseMatrix.ofRows(arrayOf(doubleArrayOf(1.0, 2.0), doubleArrayOf(3.0, 4.0)))
         val x = dense(1.0, -1.0)
-        assertFailsWith<DimensionMismatch> { A.gemvInto(dense(1.0, 2.0, 3.0), DoubleArray(2)) }
-        assertFailsWith<DimensionMismatch> { A.gemvInto(x, DoubleArray(3)) }
-        assertFailsWith<DimensionMismatch> { A.symvInto(x, DoubleArray(3)) }
         assertFailsWith<DimensionMismatch> {
-            DenseMatrix.zero(2, 3).symvInto(dense(1.0, 2.0, 3.0), DoubleArray(2))
+            koblas.gemv(
+                1.0,
+                A,
+                dense(1.0, 2.0, 3.0),
+                0.0,
+                DenseVector.wrap(DoubleArray(2)),
+            )
+        }
+        assertFailsWith<DimensionMismatch> { koblas.gemv(1.0, A, x, 0.0, DenseVector.wrap(DoubleArray(3))) }
+        assertFailsWith<DimensionMismatch> { koblas.symv(1.0, A, x, 0.0, DenseVector.wrap(DoubleArray(3))) }
+        assertFailsWith<DimensionMismatch> {
+            koblas.symv(1.0, DenseMatrix.zero(2, 3), dense(1.0, 2.0, 3.0), 0.0, dense(0.0, 0.0))
         }
     }
 
@@ -143,9 +151,9 @@ class MatrixOpsTest {
                 val expected = DoubleArray(3) { source[it] + 0.5 * original[it] }
 
                 if (symmetric) {
-                    matrix.symvInto(1.0, source, 0.5, destination)
+                    koblas.symv(1.0, matrix, source, 0.5, DenseVector.wrap(destination))
                 } else {
-                    matrix.gemvInto(1.0, source, 0.5, destination)
+                    koblas.gemv(1.0, matrix, source, 0.5, DenseVector.wrap(destination))
                 }
 
                 assertContentEquals(expected, destination)
@@ -158,7 +166,7 @@ class MatrixOpsTest {
         val destination = doubleArrayOf(1.0, 2.0, 3.0)
         val matrix = DenseMatrix.wrap(3, 1, destination)
 
-        matrix.gemvInto(1.0, dense(2.0), 0.5, destination)
+        koblas.gemv(1.0, matrix, dense(2.0), 0.5, DenseVector.wrap(destination))
 
         assertContentEquals(doubleArrayOf(2.5, 5.0, 7.5), destination)
     }
@@ -168,7 +176,7 @@ class MatrixOpsTest {
         val destination = doubleArrayOf(2.0)
         val matrix = DenseMatrix.wrap(1, 1, destination)
 
-        matrix.symvInto(1.0, dense(3.0), 0.5, destination)
+        koblas.symv(1.0, matrix, dense(3.0), 0.5, DenseVector.wrap(destination))
 
         assertContentEquals(doubleArrayOf(7.0), destination)
     }
@@ -176,7 +184,7 @@ class MatrixOpsTest {
     @Test
     fun `ger updates a matrix with alpha x y transpose`() {
         val M = DenseMatrix.diagonal(2, 1.0)
-        M.ger(0.5, dense(1.0, 2.0), dense(3.0, 4.0))
+        koblas.ger(0.5, dense(1.0, 2.0), dense(3.0, 4.0), M)
         assertEquals(1.0 + 0.5 * 3, M[0, 0], 1e-12)
         assertEquals(0.5 * 4, M[0, 1], 1e-12)
         assertEquals(0.5 * 6, M[1, 0], 1e-12)
@@ -189,7 +197,7 @@ class MatrixOpsTest {
         y.axpy(0.0, DenseVector.of(doubleArrayOf(9.0, 9.0, 9.0)))
         assertTrue(y.toDoubleArray().contentEquals(doubleArrayOf(1.0, 2.0, 3.0)))
         val M = DenseMatrix.diagonal(2, 1.0)
-        M.ger(0.0, DenseVector.of(doubleArrayOf(1.0, 1.0)), DenseVector.of(doubleArrayOf(1.0, 1.0)))
+        koblas.ger(0.0, DenseVector.of(doubleArrayOf(1.0, 1.0)), DenseVector.of(doubleArrayOf(1.0, 1.0)), M)
         for (i in 0 until 2) {
             for (j in 0 until 2) assertEquals(if (i == j) 1.0 else 0.0, M[i, j])
         }
@@ -199,7 +207,7 @@ class MatrixOpsTest {
     fun `ger contributes nothing where an operand is zero`() {
         val a = DenseMatrix.diagonal(3, 0.0)
 
-        a.ger(1.0, dense(0.0, 2.0, 0.0), dense(1.0, 1.0, 1.0))
+        koblas.ger(1.0, dense(0.0, 2.0, 0.0), dense(1.0, 1.0, 1.0), a)
 
         for (i in 0 until 3) {
             for (j in 0 until 3) assertEquals(if (i == 1) 2.0 else 0.0, a[i, j], 1e-12, "a[$i,$j]")
@@ -214,16 +222,16 @@ class MatrixOpsTest {
         val y = DenseVector.of(randomVector(n, rng))
 
         val viaSyr = DenseMatrix(n, n)
-        viaSyr.syr(1.5, x)
+        koblas.syr(1.5, x, viaSyr)
         val viaGer = DenseMatrix(n, n)
-        viaGer.ger(1.5, x, x)
+        koblas.ger(1.5, x, x, viaGer)
         assertLowerTriangleClose(viaGer, viaSyr, "syr against ger")
 
         val viaSyr2 = DenseMatrix(n, n)
-        viaSyr2.syr2(-0.75, x, y)
+        koblas.syr2(-0.75, x, y, viaSyr2)
         val viaGer2 = DenseMatrix(n, n)
-        viaGer2.ger(-0.75, x, y)
-        viaGer2.ger(-0.75, y, x)
+        koblas.ger(-0.75, x, y, viaGer2)
+        koblas.ger(-0.75, y, x, viaGer2)
         assertLowerTriangleClose(viaGer2, viaSyr2, "syr2 against two gers")
     }
 
@@ -234,7 +242,7 @@ class MatrixOpsTest {
         val x = DenseVector.of(randomVector(n, rng))
 
         val lower = DenseMatrix(n, n)
-        lower.syr(1.0, x, lower = true)
+        koblas.syr(1.0, x, lower, lower = true)
         for (i in 0 until n) {
             for (j in 0 until n) {
                 if (i < j) assertEquals(0.0, lower[i, j], "syr wrote the upper triangle at [$i,$j]")
@@ -252,7 +260,7 @@ class MatrixOpsTest {
     @Test
     fun `matrix operations reject mismatched shapes`() {
         assertFailsWith<DimensionMismatch> {
-            DenseMatrix(2, 2).ger(1.0, dense(1.0, 2.0, 3.0), dense(1.0, 2.0))
+            koblas.ger(1.0, dense(1.0, 2.0, 3.0), dense(1.0, 2.0), DenseMatrix(2, 2))
         }
         assertFailsWith<DimensionMismatch> { DenseMatrix(2, 3) * dense(1.0, 2.0) }
     }
@@ -296,7 +304,7 @@ class MatrixOpsTest {
         val dense = DenseMatrix.zero(3, 0)
         val destination = doubleArrayOf(Double.NaN, Double.NaN, Double.NaN)
 
-        dense.gemvInto(1.0, DenseVector.zero(0), 0.0, destination)
+        koblas.gemv(1.0, dense, DenseVector.zero(0), 0.0, DenseVector.wrap(destination))
 
         assertContentEquals(doubleArrayOf(0.0, 0.0, 0.0), destination)
     }
@@ -310,11 +318,11 @@ class MatrixOpsTest {
         val backing = DoubleArray(2 * n) { 1.0 + it }
         val x = StridedVector(backing, 0, n, 2)
         val A = DenseMatrix.wrap(n, n, DoubleArray(n * n) { 1.0 + (it % 5) * 0.25 })
-        val expected = DoubleArray(n).also { A.gemvInto(x, it) }
+        val expected = DoubleArray(n).also { koblas.gemv(1.0, A, x, 0.0, DenseVector.wrap(it)) }
         val workspace = Workspace()
         val destination = DoubleArray(n)
 
-        A.gemvInto(x, destination, workspace = workspace)
+        koblas.gemv(1.0, A, x, 0.0, DenseVector.wrap(destination), workspace = workspace)
 
         assertContentEquals(expected, destination)
         assertEquals(0, workspace.available(n), "the addressed call borrowed a gather")
