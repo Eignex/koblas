@@ -1,96 +1,79 @@
-# Backends and native libraries
+# Engines and native libraries
 
-Koblas works without an installed BLAS library. Applications use ordinary `DoubleArray` storage and the
-default engine; backend selection is automatic.
+You can use every supported operation without installing a native library. Koblas works with ordinary
+Kotlin double arrays and chooses an implementation for you. On the JVM, enabling SIMD is the first step
+for faster vector and matrix arithmetic. A native library can help with larger matrix operations.
 
-## What should I install?
+An engine is the implementation that carries out your calculations. Operators such as `a * b` and
+convenience functions use the default engine, available as `koblas`.
 
-| Platform and workload | Setup |
+## How the default engine loads
+
+The first use of `koblas` selects the engine once, using what is available on your platform:
+
+```mermaid
+flowchart LR
+    P["Portable Kotlin"] --> E["Default engine"]
+    S["JVM SIMD<br/>when enabled"] --> E
+    N["Native library<br/>when eligible and available"] --> E
+```
+
+| Platform | What the default engine uses |
 |---|---|
-| Desktop JVM, vectors, sparse BLAS or small matrices | JDK 25+ with `--add-modules=jdk.incubator.vector` enables owned SIMD. No native library is needed. |
-| Desktop JVM, large dense matrix operations on Intel Linux or Windows x64 | On JDK 25+, optional oneMKL can help. Make its runtime discoverable. For classpath applications add `--enable-native-access=ALL-UNNAMED`; for module-path applications use `--enable-native-access=com.eignex.koblas`. |
-| Other desktop JVM hosts | The default uses owned kernels. Installing AOCL, ArmPL, OpenBLAS or Accelerate does not currently enable automatic JVM native dispatch. |
-| Kotlin/Native on Linux | Optional oneMKL on Intel, AOCL on AMD or ArmPL on ARM64, with OpenBLAS as fallback. |
-| Kotlin/Native on Windows x64 | Optional oneMKL on Intel or AOCL on AMD, with OpenBLAS as fallback. |
-| Kotlin/Native on macOS | Accelerate is supplied by the OS. |
-| JDK 17–24, Android and iOS | Portable Kotlin; no native library is needed. |
+| JDK 25+ | JVM SIMD when enabled, otherwise portable Kotlin. Native access can add oneMKL on Intel or unidentified Linux/Windows x64. |
+| Kotlin/Native, Intel or unidentified Linux/Windows x64 | First available compatible library: oneMKL → AOCL → OpenBLAS |
+| Kotlin/Native, AMD Linux/Windows x64 | First available compatible library: AOCL → oneMKL → OpenBLAS |
+| Kotlin/Native, Linux ARM64 | First available compatible library: ArmPL → OpenBLAS |
+| Kotlin/Native, macOS | System Accelerate |
+| JDK 17–24, Android and iOS | Portable Kotlin; no native library lookup |
 
-Every supported operation has a portable fallback. The Vector API and native-access flags are independent;
-a JVM host call does not require the Vector API module. Native library lookup and engine selection resolve
-once, so configure the process before first use. Install a supported LP64 CBLAS runtime through its
-vendor or distribution, and expose its shared library on the loader search path. Standard oneAPI
-`~/intel/oneapi/mkl/latest` and `/opt/intel/oneapi/mkl/latest` prefixes are also searched on Linux.
+Finding a library makes it available to the engine. Each calculation then uses it only if that operation
+and size qualify; the rest uses JVM SIMD where applicable, or portable Kotlin. Missing libraries leave
+the Kotlin implementation available. The engine does not search again for each call.
 
-On Windows, install DLLs matching the process architecture and expose their directory through an absolute
-`PATH` entry. Keep runtime dependencies beside the DLL or in Windows system directories. Windows shares
-Linux's vendor preference order and routing thresholds; runtime behavior and thresholds have not been
-verified on a Windows host. Arm64 Windows supports explicit JVM bindings; Kotlin/Native targets Windows x64.
+On JDK 25+, enable SIMD with this JVM argument:
 
-JVM bindings stage ordinary arrays into native memory and copy destinations back; arbitrary `DoubleArray`
-arguments have no zero-copy foreign-call guarantee. Owned kernels read the arrays directly.
+```text
+--add-modules=jdk.incubator.vector
+```
 
-## What is supported?
+SIMD processes several numbers in one CPU instruction. It requires no native numerical library and
+works independently of native access.
 
-| Functions | Default JVM implementation | Optional automatic JVM native acceleration |
-|---|---|---|
-| DOT, SUM, NRM2, ASUM, IAMAX, AXPY | Owned SIMD, with scalar fallbacks for short/strided calls and finite-range norm rescaling. | No. |
-| SCAL, COPY, SWAP, ROT | Owned loops and array-copy intrinsics; HotSpot can optimize the loops. | No. |
-| GEMV, SYMV, GER, SYR, SYR2, TRMV, TRSV | Owned matrix scheduling with SIMD panels where applicable. | No. |
-| GEMM, GEMMT, SYMM, SYRK, SYR2K, TRMM, TRSM | Owned SIMD with portable edges and fallbacks. | oneMKL on eligible Linux or Windows x64 hosts, under the rules below. |
-| Sparse vector and CSC matrix BLAS | Owned structure handling with SIMD numerical kernels where applicable. | No whole sparse call is handed to a vendor. |
+## When a native library helps
 
-Transpose, triangle and side variants are included where the API defines them. Windowed GER stays on the owned schedule. Product packing is transient and internal. Banded/packed-triangle BLAS interfaces and
-LAPACK factorizations are outside the current API; installing a library does not add them.
+On the JVM, vector operations and matrix-vector operations stay in Kotlin. SIMD covers dot products,
+sums, norms, absolute sums, maximum-magnitude searches and scaled vector addition (AXPY), with scalar
+fallbacks. Scaling, copying, swapping and rotations use Kotlin loops or array-copy intrinsics.
+Matrix-vector products and rank updates use SIMD where applicable. Sparse operations keep their Kotlin
+traversal and can use SIMD for the arithmetic within it.
 
-## Current selection thresholds
+Automatic JVM native calls are limited to larger matrix-matrix operations: GEMM, GEMMT, SYMM, SYRK,
+SYR2K, TRMM and TRSM. Their output dimensions and shared dimension or structured order must each be
+at least 128. Whole-matrix GEMM also qualifies with at least 16 output rows and columns and a shared
+dimension of 1,024–4,096; borrowed views keep the larger cutoff. These thresholds are built in.
 
-On the JVM, automatic native selection currently applies only when oneMKL is the first platform preference:
-Intel or unclassified Linux or Windows x64 CPUs. AMD prefers AOCL, so its JVM default stays owned. Other vendors remain
-available through explicit bindings on supported hosts.
+JVM native calls copy arrays to and from native memory. The retained Intel comparison includes this
+cost and measured oneMKL at 1.45–4.66x JVM SIMD throughput for matrix-matrix cases at orders 128, 256
+and 768. For those workloads, installing oneMKL can pay off. For vector and matrix-vector workloads,
+enabling SIMD is enough to reach the default engine's accelerated paths. See the
+[per-function results and limitations](koblas-bench/lab/vendor-comparison.md#retained-onemkl-dispatch-comparison)
+before applying the measurements to another host. Kotlin/Native can pin arrays in place and uses
+separate native cutoffs.
 
-| Native JVM call | Eligible shape |
-|---|---|
-| The seven dense Level 3 operations above | Logical rows, columns and shared depth are all at least 128. |
-| Additional whole-matrix GEMM cases | Both output sides are at least 16 and depth is 1,024–4,096. Borrowed views keep the larger rule. |
+To allow native calls on JDK 25+, also pass `--enable-native-access=ALL-UNNAMED` on the classpath,
+or `--enable-native-access=com.eignex.koblas` on the module path. Install a compatible library using 32-bit BLAS
+indices (LP64) and make it discoverable by the system loader. Koblas also searches `~/intel/oneapi/mkl/latest` and
+`/opt/intel/oneapi/mkl/latest` for oneMKL on Linux. Set flags and library locations before starting the application.
 
-These are current implementation choices, not requirements applications must tune. Missing libraries or
-symbols retain the owned route. Kotlin/Native has separate foreign-call thresholds; they do not apply to
-JVM array transfers. Kernel lane counts, packing sizes and unrolling choices are backend internals.
+On Windows, put matching vendor DLLs in an absolute directory on PATH, with runtime dependencies beside
+the DLL or in Windows system directories. Windows shares Linux's vendor preferences and cutoffs, but
+runtime behavior and thresholds have not been verified on a Windows host. Windows Arm64 supports
+explicit JVM bindings; the Kotlin/Native target is Windows x64.
 
-## How much does native help?
-
-Retained Intel comparisons measured oneMKL at roughly 1.5–4.7x the owned JVM throughput for the tested
-large Level 3 cases, and 1.29–2.13x for selected deep GEMM cases with retained workspace. Those JVM
-measurements include transfers into native memory and destination writeback.
-
-Owned JVM kernels read ordinary arrays directly. The measured JVM vendor transfers made several vector
-calls slower, which is why installing a library does not redirect those calls. General Level 2, sparse and
-other-platform performance gaps have not been established systematically. Supported does not mean
-benchmarked across every shape and host.
-
-The [measurement report](koblas-bench/lab/vendor-comparison.md) contains exact cases, hardware, ratios,
-threshold sources and limitations. It is evidence for the implementation, rather than application setup.
-Engine route queries and exact engines are directly callable. They report scheduling, actual
-leaves, whole-call native execution and relevant copies; a selected SIMD engine does not mean every sparse
-operation vectorizes. Normal application code uses the default engine without inspecting these internals.
-
-## Numerical and storage contracts
-
-Arithmetic follows each routine's ordinary BLAS semantics. Implementations may use FMA, tree reductions,
-blocking and different rounding. There is no reproducibility or uniform NaN/Inf, signed-zero or tied-index
-promise beyond the routine's requirements. Norms retain finite-range scaling. Zero-multiplier no-read,
-selected-triangle and unit-diagonal rules remain part of their routines.
-
-Storage guarantees are separate: Into calls support backing-buffer aliases, CSC stored positions participate
-while absent positions are never evaluated, fresh sparse results own their arrays, and prepared snapshots own
-immutable copies. Concurrent readers supply separate destinations and workspaces. Raw vector and indexed
-sparse offset/count APIs remain available without allocating container wrappers.
-
-Generic `Matrix` products can name any explicit engine. Preparation never binds subsequent arithmetic to an
-engine; prepared convenience calls and Matrix extensions use the immutable default. Dense matrix operations,
-including structured routines and mixed CSC products, use canonical regions with offsets and leading dimensions.
-JVM native transfers and Native pinning remain separate implementations at the binding boundary.
-
-Internal ownership is grouped under `internal.dense`, `internal.sparse`, `internal.operands`, `internal.host`
-and `internal.diagnostics`. Java 25 implementations separate `internal.jvm25.simd` from `internal.jvm25.host`.
-Public raw kernels, dense/CSC operation contracts and expert vendor bindings keep their API packages.
+Direct JVM bindings also support Accelerate, OpenBLAS, AOCL and ArmPL on their supported hosts;
+automatic JVM selection currently uses only oneMKL. The manual loader `openBlas(vendor)` means
+"open a BLAS binding": it returns a binding for direct calls, or null, without changing the default engine.
+To choose portable Kotlin explicitly, create a `KoblasEngine.portable()` and call it directly.
+See the [API overview](koblas/module.md) for explicit engines and bindings, or the
+[usage guide](USAGE.md) for array, workspace and view examples.

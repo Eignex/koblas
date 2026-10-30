@@ -153,9 +153,8 @@ repository adaptations are outside this change. Published JVM 17/25 classpath an
 maintained in this repository and exercise the reduced API.
 
 The unused factorization exceptions `KoblasException`, `SingularMatrix` and `NotPositiveDefinite` have no
-BLAS implementation and are removed. The [migration guide](../../MIGRATION.md) documents replacements for
-removed APIs. Exact engines, `vendor` metadata and route queries need no annotation opt-in; the
-`KoblasEngineApi` marker itself is removed.
+BLAS implementation and are removed. Exact engines, `vendor` metadata and route queries need no annotation
+opt-in; the `KoblasEngineApi` marker itself is removed.
 
 The final JVM ABI dump has 1,059 lines versus the baseline's 1,178. The implementation stack deletes
 retained packing and unsupported benchmark paths, drops numerical-order promises, and reduces

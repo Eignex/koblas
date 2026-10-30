@@ -24,7 +24,6 @@ original_args=("$@")
 vendors_only=false
 smoke=false
 selected_targets=
-custom_cases=false
 prepared=false
 retain_incomplete=false
 
@@ -39,7 +38,7 @@ while (($#)); do
     --targets) selected_targets=${2:?}; shift 2 ;;
     --suite) suite=${2:?}; shift 2 ;;
     --operation) operation=${2:?}; shift 2 ;;
-    --cases) cases=${2:?}; custom_cases=true; shift 2 ;;
+    --cases) cases=${2:?}; shift 2 ;;
     --output) output=${2:?}; shift 2 ;;
     --native-executable) native_executable=${2:?}; shift 2 ;;
     --samples) samples=${2:?}; shift 2 ;;
@@ -237,8 +236,7 @@ else
   dirty=unavailable
 fi
 if [[ -z $output ]]; then
-  if $vendors_only || $smoke || $custom_cases || [[ $operation != all || -n $selected_targets ]]; then output="$bench/build/benchmarks/$hardware_hash";
-  else output="$bench/reports/$hardware_hash"; fi
+  output="$bench/build/benchmarks/$hardware_hash"
 fi
 [[ $output == /* ]] || output="$PWD/$output"
 [[ ! -L $output && ( ! -e $output || -f $output/metadata.txt ) ]] || {
