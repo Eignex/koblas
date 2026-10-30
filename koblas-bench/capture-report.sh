@@ -354,7 +354,7 @@ run_native() {
       "--cases=$(native_path "$cases")" "--warmups=$warmups" "--samples=$samples" "--target-ms=$target_ms" \
       "--output=$(native_path "$results/$target.csv")"
   else
-    run_target "$target" ./gradlew --no-daemon ":koblas-bench:$task" "${common[@]}" "$@" \
+    run_target "$target" ./gradlew --no-daemon -Ptargets.full ":koblas-bench:$task" "${common[@]}" "$@" \
       "-Pbench.output=$(native_path "$results/$target.csv")"
   fi
 }
@@ -379,7 +379,7 @@ run_jvm() {
       "--cases=$(native_path "$cases")" "--warmups=$warmups" "--samples=$samples" "--target-ms=$target_ms" \
       "--forks=$forks" "--output=$(native_path "$results/$target.csv")"
   else
-    run_target "$target" ./gradlew --no-daemon "${jvm_init_args[@]}" ":koblas-bench:$task" "${common[@]}" "$@" \
+    run_target "$target" ./gradlew --no-daemon -Ptargets.full "${jvm_init_args[@]}" ":koblas-bench:$task" "${common[@]}" "$@" \
       "-Pbench.forks=$forks" "-Pbench.output=$(native_path "$results/$target.csv")"
   fi
 }

@@ -9,6 +9,8 @@ import org.jetbrains.kotlin.gradle.targets.jvm.KotlinJvmTarget
 
 plugins { id("com.eignex.kmp") }
 
+val fullTargets = providers.gradleProperty("targets.full").isPresent
+
 eignexPublish { publish.set(false) }
 eignexBuild {
     jvmToolchain.set(25)
@@ -40,9 +42,11 @@ kotlin {
     }
     jvm()
     linuxX64 { binaries.executable { entryPoint = "com.eignex.koblas.bench.main"; baseName = "koblas-bench" } }
-    linuxArm64 { binaries.executable { entryPoint = "com.eignex.koblas.bench.main"; baseName = "koblas-bench" } }
-    mingwX64 { binaries.executable { entryPoint = "com.eignex.koblas.bench.main"; baseName = "koblas-bench" } }
-    macosArm64 { binaries.executable { entryPoint = "com.eignex.koblas.bench.main"; baseName = "koblas-bench" } }
+    if (fullTargets) {
+        linuxArm64 { binaries.executable { entryPoint = "com.eignex.koblas.bench.main"; baseName = "koblas-bench" } }
+        mingwX64 { binaries.executable { entryPoint = "com.eignex.koblas.bench.main"; baseName = "koblas-bench" } }
+        macosArm64 { binaries.executable { entryPoint = "com.eignex.koblas.bench.main"; baseName = "koblas-bench" } }
+    }
     applyDefaultHierarchyTemplate {
         common {
             group("native") {

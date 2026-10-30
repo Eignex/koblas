@@ -10,7 +10,7 @@ kotlin {
     sourceSets {
         commonMain {
             kotlin.srcDir("../shared")
-            dependencies { implementation("com.eignex:koblas:${consumerVersion.get()}") }
+            dependencies { implementation("com.eignex:koblas:${consumerVersion.get()}") { isChanging = true } }
         }
     }
 }
@@ -44,3 +44,5 @@ for (jdk in listOf(17, 25)) {
         }
     }
 }
+
+configurations.configureEach { resolutionStrategy.cacheChangingModulesFor(0, "seconds") }

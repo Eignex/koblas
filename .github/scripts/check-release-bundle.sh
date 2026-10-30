@@ -12,7 +12,7 @@ cleanup() {
 }
 trap cleanup EXIT
 fail() { echo "::error::$*" >&2; exit 1; }
-artifacts=(koblas koblas-jvm koblas-linuxx64 koblas-linuxarm64 koblas-macosarm64 koblas-iosarm64 koblas-iossimulatorarm64)
+artifacts=(koblas koblas-jvm koblas-linuxx64 koblas-linuxarm64 koblas-mingwx64 koblas-macosarm64 koblas-iosarm64 koblas-iossimulatorarm64)
 validate_archive "$archive" "$temporary/entries" || fail 'invalid release archive'
 grep -v '/$' "$temporary/entries" >"$temporary/files"
 : >"$temporary/payloads"

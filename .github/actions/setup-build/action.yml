@@ -6,10 +6,13 @@ inputs:
     required: false
   cache-read-only:
     description: Restore caches without saving them
-    default: ${{ github.ref != format('refs/heads/{0}', github.event.repository.default_branch) }}
+    default: "false"
   native-cache:
     description: Cache the Kotlin Native toolchain
     default: 'false'
+  target-profile:
+    description: Separate routine and full target caches
+    default: default
 runs:
   using: composite
   steps:
@@ -17,7 +20,9 @@ runs:
       uses: actions/setup-java@v6
       with:
         distribution: temurin
-        java-version: 25
+        java-version: |
+          17
+          25
     - name: Set up Gradle
       uses: gradle/actions/setup-gradle@v6
       with:
@@ -28,12 +33,38 @@ runs:
       uses: actions/cache@v6
       with:
         path: ~/.konan
-        key: ${{ runner.os }}-${{ runner.arch }}-konan-${{ hashFiles('settings.gradle.kts', 'tests/ios-consumer/build.gradle.kts') }}
+        key: ${{ runner.os }}-${{ runner.arch }}-konan-${{ inputs.target-profile }}-${{ hashFiles('**/*.gradle.kts',
+          '**/gradle.properties', 'gradle/wrapper/gradle-wrapper.properties') }}
         restore-keys: ${{ runner.os }}-${{ runner.arch }}-konan-
     - name: Restore Kotlin Native toolchain
       if: inputs.native-cache == 'true' && inputs.cache-read-only == 'true'
       uses: actions/cache/restore@v6
       with:
         path: ~/.konan
-        key: ${{ runner.os }}-${{ runner.arch }}-konan-${{ hashFiles('settings.gradle.kts', 'tests/ios-consumer/build.gradle.kts') }}
+        key: ${{ runner.os }}-${{ runner.arch }}-konan-${{ inputs.target-profile }}-${{ hashFiles('**/*.gradle.kts',
+          '**/gradle.properties', 'gradle/wrapper/gradle-wrapper.properties') }}
         restore-keys: ${{ runner.os }}-${{ runner.arch }}-konan-
+    - name: Cache encrypted configuration state
+      if: inputs.cache-encryption-key != '' && inputs.cache-read-only != 'true'
+      uses: actions/cache@v6
+      with:
+        path: |
+          .gradle/configuration-cache
+          tests/consumers/.gradle/configuration-cache
+          tests/ios-consumer/.gradle/configuration-cache
+        key: ${{ runner.os }}-${{ runner.arch }}-configuration-${{ inputs.target-profile }}-${{ hashFiles('**/*.gradle.kts',
+          '**/gradle.properties', 'gradle/wrapper/gradle-wrapper.properties') }}-${{ github.sha }}
+        restore-keys: ${{ runner.os }}-${{ runner.arch }}-configuration-${{ inputs.target-profile }}-${{
+          hashFiles('**/*.gradle.kts', '**/gradle.properties', 'gradle/wrapper/gradle-wrapper.properties') }}-
+    - name: Restore encrypted configuration state
+      if: inputs.cache-encryption-key != '' && inputs.cache-read-only == 'true'
+      uses: actions/cache/restore@v6
+      with:
+        path: |
+          .gradle/configuration-cache
+          tests/consumers/.gradle/configuration-cache
+          tests/ios-consumer/.gradle/configuration-cache
+        key: ${{ runner.os }}-${{ runner.arch }}-configuration-${{ inputs.target-profile }}-${{ hashFiles('**/*.gradle.kts',
+          '**/gradle.properties', 'gradle/wrapper/gradle-wrapper.properties') }}-${{ github.sha }}
+        restore-keys: ${{ runner.os }}-${{ runner.arch }}-configuration-${{ inputs.target-profile }}-${{
+          hashFiles('**/*.gradle.kts', '**/gradle.properties', 'gradle/wrapper/gradle-wrapper.properties') }}-

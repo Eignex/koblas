@@ -7,10 +7,14 @@ import org.jetbrains.kotlin.gradle.targets.jvm.KotlinJvmTarget
 
 plugins {
     id("com.eignex.kmp")
+    id("com.eignex.publish.github")
     kotlin("plugin.serialization")
 }
 
+val fullTargets = providers.gradleProperty("targets.full").isPresent
+
 eignexBuild {
+    abiValidationEnabled.set(fullTargets)
     jvmToolchain.set(25)
     jvmTarget.set(17)
     multiReleaseJvmVersion.set(25)
@@ -55,11 +59,14 @@ kotlin {
             }
         }
     }
-    linuxX64(); linuxArm64()
-    mingwX64()
-    macosArm64()
-    iosArm64()
-    iosSimulatorArm64()
+    linuxX64()
+    if (fullTargets) {
+        linuxArm64()
+        mingwX64()
+        macosArm64()
+        iosArm64()
+        iosSimulatorArm64()
+    }
 
     applyDefaultHierarchyTemplate {
         common {
@@ -202,7 +209,7 @@ val isolatedChecks = profiles.map { profile ->
         }
     }
 }
-tasks.named("check") { dependsOn(isolatedChecks) }
+if (fullTargets) tasks.named("check") { dependsOn(isolatedChecks) }
 
 // Kotlin emits a `$DefaultImpls` holder for every interface with a body, and a bridge for every method with
 // a default argument. Neither is reachable from Kotlin call sites, so both count as permanently uncovered and

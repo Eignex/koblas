@@ -11,12 +11,6 @@ on:
   push:
     tags:
       - 'v*'
-  workflow_dispatch:
-    inputs:
-      dryRun:
-        description: Build and inspect the signed release bundle without publishing
-        type: boolean
-        default: false
 
 permissions:
   contents: read
@@ -30,19 +24,17 @@ concurrency:
 jobs:
   prepare:
     if: >-
-      github.event_name != 'workflow_run' ||
-      (github.event.workflow_run.conclusion == 'success' &&
-      github.event.workflow_run.event == 'push' &&
-      github.event.workflow_run.head_repository.full_name == github.repository)
+      github.event_name != 'workflow_run' || (github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push' && github.event.workflow_run.head_repository.full_name ==
+      github.repository)
     name: Resolve publication version and revision
     runs-on: ubuntu-latest
     timeout-minutes: 5
     outputs:
       version: ${{ steps.version.outputs.version }}
       is_snapshot: ${{ steps.version.outputs.is_snapshot }}
-      is_prerelease: ${{ steps.version.outputs.is_prerelease }}
-      dry_run: ${{ steps.version.outputs.dry_run }}
       revision: ${{ steps.version.outputs.revision }}
+      test_release: ${{ steps.version.outputs.test_release }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -51,28 +43,26 @@ jobs:
           fetch-depth: 0
       - name: Resolve publication version
         id: version
-        env:
-          DRY_RUN: ${{ inputs.dryRun || false }}
         run: .github/scripts/resolve-release-version.sh
 
-  # Automatic snapshots already have a successful build of this revision. Tags and manual runs use
-  # the same validation as pull requests, including macOS and the optional runtime configurations.
+  # Tags run full validation; automatic snapshots reuse the successful main build.
   validate:
     if: github.event_name != 'workflow_run'
     needs: prepare
     uses: ./.github/workflows/build.yml
     with:
       ref: ${{ needs.prepare.outputs.revision }}
+      fullTargets: true
+      ciVersion: ${{ needs.prepare.outputs.version }}
     secrets:
       GRADLE_ENCRYPTION_KEY: ${{ secrets.GRADLE_ENCRYPTION_KEY }}
       CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
   publish:
     if: >-
-      !cancelled() && needs.prepare.result == 'success' &&
-      (needs.validate.result == 'success' ||
-      (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success'))
-    needs: [prepare, validate]
+      !cancelled() && needs.prepare.result == 'success' && (needs.validate.result == 'success' || (github.event_name ==
+      'workflow_run' && github.event.workflow_run.conclusion == 'success'))
+    needs: [ prepare, validate ]
     runs-on: ubuntu-latest
     timeout-minutes: 45
     permissions:
@@ -80,7 +70,7 @@ jobs:
     env:
       RELEASE_VERSION: ${{ needs.prepare.outputs.version }}
       IS_SNAPSHOT: ${{ needs.prepare.outputs.is_snapshot }}
-      DRY_RUN: ${{ needs.prepare.outputs.dry_run }}
+      IS_TEST_RELEASE: ${{ needs.prepare.outputs.test_release }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -92,29 +82,22 @@ jobs:
           cache-encryption-key: ${{ secrets.GRADLE_ENCRYPTION_KEY }}
           cache-read-only: 'true'
           native-cache: 'true'
-      - name: Build and Test
-        if: env.IS_SNAPSHOT == 'false'
-        run: ./gradlew build lintDocs -PciVersion="$RELEASE_VERSION"
-      - name: Upload test reports
-        if: always() && env.IS_SNAPSHOT == 'false'
-        uses: actions/upload-artifact@v7
-        with:
-          name: release-test-reports
-          path: |
-            **/build/reports/tests/
-            **/build/test-results/
-          if-no-files-found: ignore
+          target-profile: full
+      - name: Publish RC to GitHub only
+        if: env.IS_TEST_RELEASE == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: ./gradlew :koblas:publishToGitHubRelease -Ptargets.full -PciVersion="$RELEASE_VERSION"
       - name: Build signed Maven Central bundle
-        if: env.IS_SNAPSHOT == 'false'
+        if: env.IS_SNAPSHOT == 'false' && env.IS_TEST_RELEASE != 'true'
         env:
           ORG_GRADLE_PROJECT_signingKey: ${{ secrets.SIGNING_KEY }}
           ORG_GRADLE_PROJECT_signingPassword: ${{ secrets.SIGNING_PASSWORD }}
         run: >-
-          ./gradlew :koblas:publishAllPublicationsToMavenCentralStagingRepository
-          :koblas:mavenCentralBundle
-          -PciVersion="$RELEASE_VERSION"
+          ./gradlew -Ptargets.full :koblas:publishAllPublicationsToMavenCentralStagingRepository
+          :koblas:mavenCentralBundle -PciVersion="$RELEASE_VERSION"
       - name: Inspect the signed Maven Central bundle
-        if: env.IS_SNAPSHOT == 'false'
+        if: env.IS_SNAPSHOT == 'false' && env.IS_TEST_RELEASE != 'true'
         env:
           SIGNING_KEY: ${{ secrets.SIGNING_KEY }}
         run: |
@@ -123,28 +106,28 @@ jobs:
           bash .github/scripts/check-release-bundle.sh \
             koblas/build/maven-central-publishing/bundle.zip "$RELEASE_VERSION"
       - name: Upload inspected release bundle
-        if: env.IS_SNAPSHOT == 'false'
+        if: env.IS_SNAPSHOT == 'false' && env.IS_TEST_RELEASE != 'true'
         uses: actions/upload-artifact@v7
         with:
           name: koblas-release-bundle
           path: koblas/build/maven-central-publishing/bundle.zip
           if-no-files-found: error
       - name: Publish to Maven Central (Portal)
-        if: env.IS_SNAPSHOT == 'false' && env.DRY_RUN != 'true'
+        if: env.IS_SNAPSHOT == 'false' && env.IS_TEST_RELEASE != 'true'
         env:
           ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.CENTRAL_PORTAL_USER }}
           ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.CENTRAL_PORTAL_PASSWORD }}
-        run: ./gradlew :koblas:uploadMavenCentralBundle -PciVersion="$RELEASE_VERSION"
+        run: ./gradlew -Ptargets.full :koblas:uploadMavenCentralBundle -PciVersion="$RELEASE_VERSION"
       - name: Publish to Sonatype Snapshots
-        if: env.IS_SNAPSHOT == 'true' && env.DRY_RUN != 'true'
+        if: env.IS_SNAPSHOT == 'true'
         env:
           ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.CENTRAL_PORTAL_USER }}
           ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.CENTRAL_PORTAL_PASSWORD }}
         run: >-
-          ./gradlew :koblas:publishAllPublicationsToSonatypeSnapshotsRepository -PciVersion="$RELEASE_VERSION"
+          ./gradlew -Ptargets.full :koblas:publishAllPublicationsToSonatypeSnapshotsRepository
+          -PciVersion="$RELEASE_VERSION"
       - name: Create GitHub Release
-        if: github.ref_type == 'tag' && env.IS_SNAPSHOT == 'false' && env.DRY_RUN != 'true'
+        if: github.ref_type == 'tag' && env.IS_SNAPSHOT == 'false' && env.IS_TEST_RELEASE != 'true'
         uses: softprops/action-gh-release@v3
         with:
-          prerelease: ${{ needs.prepare.outputs.is_prerelease }}
           generate_release_notes: true
