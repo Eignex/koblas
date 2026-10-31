@@ -8,8 +8,10 @@ import com.eignex.koblas.internal.dense.PanelWork
 import com.eignex.koblas.internal.dense.PortablePanelKernels
 import com.eignex.koblas.internal.dense.PortableTriangularKernels
 import com.eignex.koblas.internal.jvm25.simd.SIMD_SPECIES
+import com.eignex.koblas.internal.jvm25.simd.SparseSimd
 import com.eignex.koblas.internal.jvm25.simd.hardwareFusedMultiplyAdd
 import com.eignex.koblas.internal.numeric.assertHardwareFmaAgreesWithVm
+import com.eignex.koblas.internal.sparse.ScalarIndexedSparseKernels
 import com.eignex.koblas.poisonedTriangle
 import kotlin.random.Random
 import kotlin.test.assertEquals
@@ -69,6 +71,7 @@ internal object SimdRuntimePathCheck {
         }
         assertTriangularKernelsAgreeWithReference(triangles, lanes)
         assertSingleSideAgreesWithReference(triangles, lanes)
+        assertSparseDotAgreesWithReference()
         println("panel, tile and substitution conformance passed at $lanes lanes with fma=$hardwareFusedMultiplyAdd")
     }
 
@@ -205,6 +208,21 @@ internal object SimdRuntimePathCheck {
                     }
                 }
             }
+        }
+    }
+
+    /** The indexed dense dot, whose vector body only a two-lane unit reaches, against the scalar loop. */
+    private fun assertSparseDotAgreesWithReference() {
+        val rng = Random(20261101)
+        for (count in intArrayOf(1, 2, 3, 7, 32, 33, 257)) {
+            val indices = IntArray(count + 2) { 3 * it + 1 }
+            val values = DoubleArray(count + 3) { rng.nextDouble(-1.0, 1.0) }
+            val dense = DoubleArray(3 * count + 8) { rng.nextDouble(-1.0, 1.0) }
+
+            val expected = ScalarIndexedSparseKernels.dotDense(indices, 1, values, 2, count, dense)
+            val actual = SparseSimd.dotDense(indices, 1, values, 2, count, dense)
+
+            assertClose(expected, actual, "sparse dot count=$count vector=${SparseSimd.vectorDot}")
         }
     }
 }
