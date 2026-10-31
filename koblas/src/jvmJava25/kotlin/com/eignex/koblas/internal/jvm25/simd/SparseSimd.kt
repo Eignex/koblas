@@ -4,24 +4,27 @@ import com.eignex.koblas.*
 import com.eignex.koblas.dense.*
 import com.eignex.koblas.internal.sparse.IndexedSparseKernels
 import com.eignex.koblas.internal.sparse.ScalarIndexedSparseKernels
-import com.eignex.koblas.internal.sparse.dotSparse
 import com.eignex.koblas.sparse.*
 import com.eignex.koblas.vendor.*
 import jdk.incubator.vector.DoubleVector
 import jdk.incubator.vector.VectorOperators
-import java.lang.Double.MIN_NORMAL
-import kotlin.math.sqrt
 
-/** Its own object so the initializer, which touches DoubleVector, runs only once the module is present. */
-internal object SparseSimd : IndexedSparseKernels {
+/**
+ * The indexed dense dot in lanes, and the scalar kernels for every other indexed operation.
+ *
+ * The dot is the one indexed kernel whose lanes measured faster than HotSpot's scalar loop, and only on two-lane
+ * units, where a lane block is two scalar loads put side by side: 0.81 to 0.92 of the scalar time on Apple
+ * silicon. An indexed gather or scatter through the Vector API measured slower everywhere else, from about
+ * even to 1.4 times on four-lane ARM and from 2 to over 200 times on 512-bit x86, where it fell back to
+ * allocating Java code, so gather, scatter, axpy and the indexed norm stay scalar.
+ *
+ * Its own object so the initializer, which touches DoubleVector, runs only once the module is present.
+ */
+internal object SparseSimd : IndexedSparseKernels by ScalarIndexedSparseKernels {
     override val name: String = "simd"
 
-    // Rescaling depends on values; sparse intersections always use the scalar merge.
-    override fun implementationFor(operation: SparseOperation, count: Int): String? = when (operation) {
-        SparseOperation.IndexedNrm2 -> null
-        SparseOperation.DotSparse -> ScalarIndexedSparseKernels.name
-        else -> name
-    }
+    override fun implementationFor(operation: SparseOperation, count: Int): String? =
+        if (operation == SparseOperation.DotDense && vectorDot) name else ScalarIndexedSparseKernels.name
 
     private val SPECIES = SIMD_SPECIES
     private val LANE = SPECIES.length()
@@ -29,27 +32,8 @@ internal object SparseSimd : IndexedSparseKernels {
     /** The lane block every kernel here advances by, below which a call is its scalar tail and nothing else. */
     val lanes: Int get() = LANE
 
-    val autoScatterEligible: Boolean
-        get() = SPECIES.vectorBitSize() == 512 && System.getProperty("os.arch").orEmpty() in X86_ARCHITECTURES
-
-    // AVX2 gather loses to HotSpot's scalar indexed loop in the arithmetic gather cases.
-    val autoGatherEligible: Boolean
-        get() = autoIndexedLoadEligible &&
-            (SPECIES.vectorBitSize() != 256 || System.getProperty("os.arch").orEmpty() !in X86_ARCHITECTURES)
-
-    val autoIndexedLoadEligible: Boolean
-        get() = LANE > 1
-
-    // NEON has no gather instruction; the Vector API indexed load allocates fallback carriers on JDK 25.
-    // Inline the two scalar loads so the vector stays inside the caller's C2 compilation.
-    @Suppress("NOTHING_TO_INLINE")
-    private inline fun indexedLoad(values: DoubleArray, indices: IntArray, offset: Int): DoubleVector = if (LANE == 2) {
-        DoubleVector.zero(SPECIES)
-            .withLane(0, values[indices[offset]])
-            .withLane(1, values[indices[offset + 1]])
-    } else {
-        DoubleVector.fromArray(SPECIES, values, 0, indices, offset)
-    }
+    /** Whether this unit takes the vector dot: two lanes, each loaded as a scalar. */
+    val vectorDot: Boolean get() = LANE == 2
 
     @Suppress("LongParameterList")
     override fun dotDense(
@@ -60,11 +44,16 @@ internal object SparseSimd : IndexedSparseKernels {
         count: Int,
         dense: DoubleArray,
     ): Double {
+        if (!vectorDot) {
+            return ScalarIndexedSparseKernels.dotDense(indices, indexOffset, values, valueOffset, count, dense)
+        }
         var k = 0
         val bound = SPECIES.loopBound(count)
         var sum = DoubleVector.zero(SPECIES)
         while (k < bound) {
-            val gathered = indexedLoad(dense, indices, indexOffset + k)
+            val gathered = DoubleVector.zero(SPECIES)
+                .withLane(0, dense[indices[indexOffset + k]])
+                .withLane(1, dense[indices[indexOffset + k + 1]])
             sum = multiplyAdd(DoubleVector.fromArray(SPECIES, values, valueOffset + k), gathered, sum)
             k += LANE
         }
@@ -75,134 +64,4 @@ internal object SparseSimd : IndexedSparseKernels {
         }
         return s
     }
-
-    @Suppress("LongParameterList")
-    override fun axpy(
-        indices: IntArray,
-        indexOffset: Int,
-        values: DoubleArray,
-        valueOffset: Int,
-        count: Int,
-        alpha: Double,
-        destination: DoubleArray,
-    ) {
-        var k = 0
-        val bound = SPECIES.loopBound(count)
-        val multiplier = DoubleVector.broadcast(SPECIES, alpha)
-        while (k < bound) {
-            val old = indexedLoad(destination, indices, indexOffset + k)
-            val increment = DoubleVector.fromArray(SPECIES, values, valueOffset + k)
-            increment.mul(multiplier).add(old).intoArray(destination, 0, indices, indexOffset + k)
-            k += LANE
-        }
-        while (k < count) {
-            destination[indices[indexOffset + k]] += alpha * values[valueOffset + k]
-            k++
-        }
-    }
-
-    @Suppress("LongParameterList")
-    override fun scatter(
-        indices: IntArray,
-        indexOffset: Int,
-        values: DoubleArray,
-        valueOffset: Int,
-        count: Int,
-        destination: DoubleArray,
-    ) {
-        var k = 0
-        val bound = SPECIES.loopBound(count)
-        while (k < bound) {
-            DoubleVector.fromArray(SPECIES, values, valueOffset + k).intoArray(destination, 0, indices, indexOffset + k)
-            k += LANE
-        }
-        while (k < count) {
-            destination[indices[indexOffset + k]] = values[valueOffset + k]
-            k++
-        }
-    }
-
-    @Suppress("LongParameterList")
-    override fun gather(
-        indices: IntArray,
-        indexOffset: Int,
-        values: DoubleArray,
-        valueOffset: Int,
-        count: Int,
-        source: DoubleArray,
-    ) {
-        var k = 0
-        val bound = SPECIES.loopBound(count)
-        while (k < bound) {
-            indexedLoad(source, indices, indexOffset + k).intoArray(values, valueOffset + k)
-            k += LANE
-        }
-        while (k < count) {
-            values[valueOffset + k] = source[indices[indexOffset + k]]
-            k++
-        }
-    }
-
-    @Suppress("LongParameterList")
-    override fun gatherZero(
-        indices: IntArray,
-        indexOffset: Int,
-        values: DoubleArray,
-        valueOffset: Int,
-        count: Int,
-        source: DoubleArray,
-    ) {
-        var k = 0
-        val bound = SPECIES.loopBound(count)
-        val zero = DoubleVector.zero(SPECIES)
-        while (k < bound) {
-            indexedLoad(source, indices, indexOffset + k).intoArray(values, valueOffset + k)
-            zero.intoArray(source, 0, indices, indexOffset + k)
-            k += LANE
-        }
-        while (k < count) {
-            val index = indices[indexOffset + k]
-            values[valueOffset + k] = source[index]
-            source[index] = 0.0
-            k++
-        }
-    }
-
-    override fun nrm2(indices: IntArray, indexOffset: Int, count: Int, values: DoubleArray): Double {
-        var k = 0
-        val bound = SPECIES.loopBound(count)
-        var sum = DoubleVector.zero(SPECIES)
-        while (k < bound) {
-            val gathered = indexedLoad(values, indices, indexOffset + k)
-            sum = multiplyAdd(gathered, gathered, sum)
-            k += LANE
-        }
-        var squares = sum.reduceLanes(VectorOperators.ADD)
-        while (k < count) {
-            val value = values[indices[indexOffset + k]]
-            squares += value * value
-            k++
-        }
-        if (squares.isFinite() && squares >= MIN_NORMAL) return sqrt(squares)
-        return ScalarIndexedSparseKernels.rescaledNorm(indices, indexOffset, count, values, squares)
-    }
-
-    @Suppress("LongParameterList")
-    override fun dotSparse(
-        xIndices: IntArray,
-        xIndexOffset: Int,
-        xValues: DoubleArray,
-        xValueOffset: Int,
-        xCount: Int,
-        yIndices: IntArray,
-        yIndexOffset: Int,
-        yValues: DoubleArray,
-        yValueOffset: Int,
-        yCount: Int,
-    ): Double = ScalarIndexedSparseKernels.dotSparse(
-        xIndices, xIndexOffset, xValues, xValueOffset, xCount,
-        yIndices, yIndexOffset, yValues, yValueOffset, yCount,
-    )
-
-    private val X86_ARCHITECTURES = setOf("amd64", "x86_64", "x64")
 }

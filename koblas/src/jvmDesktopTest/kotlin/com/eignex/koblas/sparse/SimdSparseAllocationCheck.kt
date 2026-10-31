@@ -57,9 +57,6 @@ internal object SimdSparseAllocationCheck {
         require(engine.sparseKernels.name == "simd-sparse") {
             "SIMD sparse allocation check selected ${engine.sparseKernels.name}"
         }
-        require(SparseSimd.autoIndexedLoadEligible) {
-            "SIMD sparse allocation check requires a preferred species with more than one lane"
-        }
         require(crossesSimdCrossover(SparseTuning.simdIndexedCrossover)) {
             "SIMD sparse allocation check uses $ENTRY_COUNT entries below " +
                 "the ${SparseTuning.simdIndexedCrossover}-entry crossover"
