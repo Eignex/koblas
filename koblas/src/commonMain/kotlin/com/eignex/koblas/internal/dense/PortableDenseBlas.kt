@@ -659,37 +659,43 @@ internal class PortableDenseBlas(
         unitDiag: Boolean,
     ) {
         val n = a.rows
-        forEachTriangularColumn(n, lower, ascending = lower != transpose) { j, window, rows ->
-            if (transpose) {
-                if (rows >
-                    0
-                ) {
-                    panels.multiDot(
-                        -1.0, a.values, a.offset + window + j * a.leadingDimension, a.leadingDimension,
-                        x,
-                        xOffset + window * xStride, xStride, rows, 1, 1.0, x, xOffset + j * xStride,
-                        xStride,
-                    )
+        val lda = a.leadingDimension
+        val ascending = lower != transpose
+        forEachTriangularBlock(n, ascending) { start, end ->
+            // The rest of the stored triangle beside this block: below it when lower, above it when upper.
+            val outside = if (lower) end else 0
+            val outsideRows = if (lower) n - end else start
+            val block = a.offset + outside + start * lda
+            if (transpose && outsideRows > 0) {
+                panels.multiDot(
+                    -1.0, a.values, block, lda, x, xOffset + outside * xStride, xStride, outsideRows, end - start,
+                    1.0, x, xOffset + start * xStride, xStride,
+                )
+            }
+            forEachTriangularColumn(start, end, lower, ascending) { j, window, rows ->
+                if (transpose) {
+                    if (rows > 0) {
+                        panels.multiDot(
+                            -1.0, a.values, a.offset + window + j * lda, lda, x, xOffset + window * xStride,
+                            xStride, rows, 1, 1.0, x, xOffset + j * xStride, xStride,
+                        )
+                    }
+                    if (!unitDiag) x[xOffset + j * xStride] /= a.values[a.offset + j + j * lda]
+                } else {
+                    if (!unitDiag) x[xOffset + j * xStride] /= a.values[a.offset + j + j * lda]
+                    if (rows > 0) {
+                        panels.columnUpdate(
+                            -1.0, a.values, a.offset + window + j * lda, lda, x, xOffset + j * xStride, xStride,
+                            rows, 1, x, xOffset + window * xStride, xStride,
+                        )
+                    }
                 }
-                if (!unitDiag) {
-                    x[xOffset + j * xStride] =
-                        x[xOffset + j * xStride] / a.values[a.offset + j + j * a.leadingDimension]
-                }
-            } else {
-                if (!unitDiag) {
-                    x[xOffset + j * xStride] =
-                        x[xOffset + j * xStride] / a.values[a.offset + j + j * a.leadingDimension]
-                }
-                if (rows >
-                    0
-                ) {
-                    panels.columnUpdate(
-                        -1.0, a.values, a.offset + window + j * a.leadingDimension, a.leadingDimension,
-                        x,
-                        xOffset + j * xStride, xStride, rows, 1, x, xOffset + window * xStride,
-                        xStride,
-                    )
-                }
+            }
+            if (!transpose && outsideRows > 0) {
+                panels.columnUpdate(
+                    -1.0, a.values, block, lda, x, xOffset + start * xStride, xStride, outsideRows, end - start,
+                    x, xOffset + outside * xStride, xStride,
+                )
             }
         }
     }
@@ -745,37 +751,44 @@ internal class PortableDenseBlas(
         unitDiag: Boolean,
     ) {
         val n = a.rows
+        val lda = a.leadingDimension
         // Traverse in opposite directions for transpose variants to preserve values until their last use.
-        forEachTriangularColumn(n, lower, ascending = transpose == lower) { j, window, rows ->
-            if (transpose) {
-                if (!unitDiag) {
-                    x[xOffset + j * xStride] =
-                        a.values[a.offset + j + j * a.leadingDimension] * x[xOffset + j * xStride]
+        val ascending = transpose == lower
+        forEachTriangularBlock(n, ascending) { start, end ->
+            // The rest of the stored triangle beside this block: below it when lower, above it when upper.
+            val outside = if (lower) end else 0
+            val outsideRows = if (lower) n - end else start
+            val block = a.offset + outside + start * lda
+            if (!transpose && outsideRows > 0) {
+                panels.columnUpdate(
+                    1.0, a.values, block, lda, x, xOffset + start * xStride, xStride, outsideRows, end - start,
+                    x, xOffset + outside * xStride, xStride,
+                )
+            }
+            forEachTriangularColumn(start, end, lower, ascending) { j, window, rows ->
+                if (transpose) {
+                    if (!unitDiag) x[xOffset + j * xStride] *= a.values[a.offset + j + j * lda]
+                    if (rows > 0) {
+                        panels.multiDot(
+                            1.0, a.values, a.offset + window + j * lda, lda, x, xOffset + window * xStride,
+                            xStride, rows, 1, 1.0, x, xOffset + j * xStride, xStride,
+                        )
+                    }
+                } else {
+                    if (rows > 0) {
+                        panels.columnUpdate(
+                            1.0, a.values, a.offset + window + j * lda, lda, x, xOffset + j * xStride, xStride,
+                            rows, 1, x, xOffset + window * xStride, xStride,
+                        )
+                    }
+                    if (!unitDiag) x[xOffset + j * xStride] *= a.values[a.offset + j + j * lda]
                 }
-                if (rows >
-                    0
-                ) {
-                    panels.multiDot(
-                        1.0, a.values, a.offset + window + j * a.leadingDimension, a.leadingDimension,
-                        x,
-                        xOffset + window * xStride, xStride, rows, 1, 1.0, x, xOffset + j * xStride,
-                        xStride,
-                    )
-                }
-            } else {
-                if (rows >
-                    0
-                ) {
-                    panels.columnUpdate(
-                        1.0, a.values, a.offset + window + j * a.leadingDimension, a.leadingDimension,
-                        x,
-                        xOffset + j * xStride, xStride, rows, 1, x, xOffset + window * xStride, xStride,
-                    )
-                }
-                if (!unitDiag) {
-                    x[xOffset + j * xStride] =
-                        a.values[a.offset + j + j * a.leadingDimension] * x[xOffset + j * xStride]
-                }
+            }
+            if (transpose && outsideRows > 0) {
+                panels.multiDot(
+                    1.0, a.values, block, lda, x, xOffset + outside * xStride, xStride, outsideRows, end - start,
+                    1.0, x, xOffset + start * xStride, xStride,
+                )
             }
         }
     }
