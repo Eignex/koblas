@@ -177,6 +177,27 @@ class SimdOpsTest {
         }
     }
 
+    @Test
+    fun `iamax finds the largest finite magnitude beside a NaN in the same lane`() {
+        if (BuiltinEngines.simd == null) return
+        val lanes = SimdOps.lanes()
+
+        // Past the first block, which every scan reads while its threshold is still zero.
+        for (length in lengths().filter { it >= 16 * lanes }) {
+            for (vector in intArrayOf(0, 3, 6)) {
+                val values = DoubleArray(length) { 1.0 }
+                val nan = 8 * lanes + vector * lanes
+                values[nan] = Double.NaN
+                values[nan + lanes] = 4.0
+                val expected = ScalarVectorKernels.iamax(values, 0, length)
+
+                val actual = SimdOps.iamax(values, 0, length)
+
+                assertIamaxAgreesWithReference(expected, actual, "length=$length nan=$nan")
+            }
+        }
+    }
+
     private fun assertIamaxAgreesWithReference(expected: Int, actual: Int, context: String) {
         assertEquals(expected, actual, context)
     }
