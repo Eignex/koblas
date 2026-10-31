@@ -27,7 +27,7 @@ import jdk.incubator.vector.VectorOperators
  * [com.eignex.koblas.BuiltinEngines] before using this backend.
  */
 internal object SimdTriangularKernels : DenseTriangularKernels {
-    private val SPECIES = DoubleVector.SPECIES_PREFERRED
+    private val SPECIES = SIMD_SPECIES
     private val LANE = if (simdAvailable) SPECIES.length() else 0
 
     /** Built once, for the reason [SimdPanelKernels] builds its own once. */

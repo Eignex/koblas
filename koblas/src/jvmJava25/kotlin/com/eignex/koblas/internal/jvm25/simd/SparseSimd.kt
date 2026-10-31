@@ -23,7 +23,7 @@ internal object SparseSimd : IndexedSparseKernels {
         else -> name
     }
 
-    private val SPECIES = DoubleVector.SPECIES_PREFERRED
+    private val SPECIES = SIMD_SPECIES
     private val LANE = SPECIES.length()
 
     /** The lane block every kernel here advances by, below which a call is its scalar tail and nothing else. */
