@@ -254,16 +254,22 @@ internal object SimdOps {
         var improvingBlocks = 0
         var index = vOff
         val end = vOff + len
-        val blockEnd = end - len % (4 * LANE)
+        val blockEnd = end - len % (8 * LANE)
         while (index < blockEnd) {
             val a = signStripped(DoubleVector.fromArray(SPECIES, v, index), mask)
             val b = signStripped(DoubleVector.fromArray(SPECIES, v, index + LANE), mask)
             val c = signStripped(DoubleVector.fromArray(SPECIES, v, index + 2 * LANE), mask)
             val d = signStripped(DoubleVector.fromArray(SPECIES, v, index + 3 * LANE), mask)
+            val e = signStripped(DoubleVector.fromArray(SPECIES, v, index + 4 * LANE), mask)
+            val f = signStripped(DoubleVector.fromArray(SPECIES, v, index + 5 * LANE), mask)
+            val g = signStripped(DoubleVector.fromArray(SPECIES, v, index + 6 * LANE), mask)
+            val h = signStripped(DoubleVector.fromArray(SPECIES, v, index + 7 * LANE), mask)
             val candidates = a.compare(VectorOperators.GT, threshold).or(b.compare(VectorOperators.GT, threshold))
                 .or(c.compare(VectorOperators.GT, threshold).or(d.compare(VectorOperators.GT, threshold)))
+                .or(e.compare(VectorOperators.GT, threshold).or(f.compare(VectorOperators.GT, threshold)))
+                .or(g.compare(VectorOperators.GT, threshold).or(h.compare(VectorOperators.GT, threshold)))
             if (candidates.anyTrue()) {
-                val next = index + 4 * LANE
+                val next = index + 8 * LANE
                 while (index < next) {
                     val magnitude = abs(v[index])
                     if (magnitude > bestAbs) {
@@ -280,7 +286,7 @@ internal object SimdOps {
                 threshold = DoubleVector.broadcast(SPECIES, bestAbs)
             } else {
                 improvingBlocks = 0
-                index += 4 * LANE
+                index += 8 * LANE
             }
         }
         while (index < end) {
