@@ -279,16 +279,43 @@ internal class PortableDenseBlas(
     ) {
         val n = a.rows
         applyBeta(vectors, y, yOffset, a.rows, beta, yStride)
-        val group = panels.executionGroup(PanelWork.CoupledDotUpdate, n, n, xStride == 1 && yStride == 1)
-        forEachTrianglePanel(n, group, lower, fromDiagonal = false) { start, width, window, rows ->
-            symmetricCorner(alpha, a, x, xOffset, xStride, y, yOffset, yStride, start, width, lower)
-            if (rows > 0) {
-                panels.coupledUpdateDot(
-                    alpha, a.values, a.offset + window + start * a.leadingDimension, a.leadingDimension, x,
-                    xOffset + window * xStride, rows, width, y, yOffset + window * yStride, x,
-                    xOffset + start * xStride, y, yOffset + start * yStride, xStride, yStride,
-                    xStride, yStride,
-                )
+        val lda = a.leadingDimension
+        val contiguous = xStride == 1 && yStride == 1
+        val group = panels.executionGroup(PanelWork.CoupledDotUpdate, n, n, contiguous)
+        forEachTriangularBlock(n, ascending = true) { blockStart, blockEnd ->
+            val size = blockEnd - blockStart
+            // The diagonal block: coupled groups that stop at the block's edge.
+            forEachPanel(size, group) { offset, width ->
+                val start = blockStart + offset
+                symmetricCorner(alpha, a, x, xOffset, xStride, y, yOffset, yStride, start, width, lower)
+                val window = if (lower) start + width else blockStart
+                val rows = if (lower) blockEnd - window else start - blockStart
+                if (rows > 0) {
+                    panels.coupledUpdateDot(
+                        alpha, a.values, a.offset + window + start * lda, lda, x,
+                        xOffset + window * xStride, rows, width, y, yOffset + window * yStride, x,
+                        xOffset + start * xStride, y, yOffset + start * yStride, xStride, yStride,
+                        xStride, yStride,
+                    )
+                }
+            }
+            // The stored rectangle beside the block, as a column update and a multi-dot over the same panel.
+            val outside = if (lower) blockEnd else 0
+            val outsideRows = if (lower) n - blockEnd else blockStart
+            if (outsideRows > 0) {
+                val panel = a.offset + outside + blockStart * lda
+                forEachPanel(size, panels.executionGroup(PanelWork.ColumnUpdate, outsideRows, size, contiguous)) { o, w ->
+                    panels.columnUpdate(
+                        alpha, a.values, panel + o * lda, lda, x, xOffset + (blockStart + o) * xStride, xStride,
+                        outsideRows, w, y, yOffset + outside * yStride, yStride,
+                    )
+                }
+                forEachPanel(size, panels.executionGroup(PanelWork.MultiDot, outsideRows, size, contiguous)) { o, w ->
+                    panels.multiDot(
+                        alpha, a.values, panel + o * lda, lda, x, xOffset + outside * xStride, xStride,
+                        outsideRows, w, 1.0, y, yOffset + (blockStart + o) * yStride, yStride,
+                    )
+                }
             }
         }
     }
