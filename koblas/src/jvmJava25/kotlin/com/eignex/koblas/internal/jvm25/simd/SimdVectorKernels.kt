@@ -86,7 +86,9 @@ internal object SimdVectorKernels : DispatchingVectorKernels {
         -> if (vectorizes(length)) name else ScalarVectorKernels.name
 
         // These elementwise operations have no vector kernel here; see the class documentation.
-        DenseOperation.Scale, DenseOperation.Swap, DenseOperation.Rot,
+        DenseOperation.Rot -> if (vectorizes(length)) name else ScalarVectorKernels.name
+
+        DenseOperation.Scale, DenseOperation.Swap,
         -> ScalarVectorKernels.name
     }
 
@@ -152,5 +154,9 @@ internal object SimdVectorKernels : DispatchingVectorKernels {
 
     @Suppress("LongParameterList")
     override fun rot(x: DoubleArray, xOff: Int, y: DoubleArray, yOff: Int, len: Int, c: Double, s: Double) =
-        scalarRot(x, xOff, y, yOff, len, c, s)
+        if (x !== y && vectorizes(len)) {
+            SimdOps.rot(x, xOff, y, yOff, len, c, s)
+        } else {
+            scalarRot(x, xOff, y, yOff, len, c, s)
+        }
 }

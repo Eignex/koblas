@@ -24,6 +24,52 @@ internal object SimdOps {
 
     fun lanes(): Int = LANE
 
+    /**
+     * `x, y = c·x + s·y, c·y − s·x` along two distinct arrays, unfused so each value matches the scalar loop. Four
+     * lane blocks per iteration keep independent work in flight; one per iteration lost to the compiler's own
+     * unrolled loop from a few hundred elements.
+     */
+    fun rot(x: DoubleArray, xOff: Int, y: DoubleArray, yOff: Int, len: Int, c: Double, s: Double) {
+        val cv = DoubleVector.broadcast(SPECIES, c)
+        val sv = DoubleVector.broadcast(SPECIES, s)
+        val unrolled = len - len % (4 * LANE)
+        var i = 0
+        while (i < unrolled) {
+            rotBlock(cv, sv, x, xOff + i, y, yOff + i)
+            rotBlock(cv, sv, x, xOff + i + LANE, y, yOff + i + LANE)
+            rotBlock(cv, sv, x, xOff + i + 2 * LANE, y, yOff + i + 2 * LANE)
+            rotBlock(cv, sv, x, xOff + i + 3 * LANE, y, yOff + i + 3 * LANE)
+            i += 4 * LANE
+        }
+        val bound = SPECIES.loopBound(len)
+        while (i < bound) {
+            rotBlock(cv, sv, x, xOff + i, y, yOff + i)
+            i += LANE
+        }
+        while (i < len) {
+            val xi = x[xOff + i]
+            val yi = y[yOff + i]
+            x[xOff + i] = c * xi + s * yi
+            y[yOff + i] = c * yi - s * xi
+            i++
+        }
+    }
+
+    @Suppress("NOTHING_TO_INLINE") // keeps the loaded vectors in the caller's compilation
+    private inline fun rotBlock(
+        cv: DoubleVector,
+        sv: DoubleVector,
+        x: DoubleArray,
+        xAt: Int,
+        y: DoubleArray,
+        yAt: Int,
+    ) {
+        val xv = DoubleVector.fromArray(SPECIES, x, xAt)
+        val yv = DoubleVector.fromArray(SPECIES, y, yAt)
+        cv.mul(xv).add(sv.mul(yv)).intoArray(x, xAt)
+        cv.mul(yv).sub(sv.mul(xv)).intoArray(y, yAt)
+    }
+
     /** Contiguous AXPY with compact and streaming bodies. */
     @Suppress("LongParameterList") // two independently addressed vector windows and their multiplier
     fun axpy(y: DoubleArray, yOff: Int, alpha: Double, x: DoubleArray, xOff: Int, len: Int) {

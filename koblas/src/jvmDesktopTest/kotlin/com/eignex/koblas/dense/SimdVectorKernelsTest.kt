@@ -36,7 +36,6 @@ class SimdVectorKernelsTest {
         for (operation in listOf(
             DenseOperation.Scale,
             DenseOperation.Swap,
-            DenseOperation.Rot,
         )) {
             assertEquals(ScalarVectorKernels.name, reached(operation, WIDE), "$operation named a vector kernel")
         }
