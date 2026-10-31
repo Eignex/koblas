@@ -107,7 +107,7 @@ internal object SimdOps {
     private const val ALIGNMENT_MIN = 4_096
     private const val IAMAX_ALIGNMENT_MIN = 65_536
     private const val WIDE_ASUM_MIN = 65_536
-    private const val WIDE_AXPY_MIN = 65_536
+    private const val WIDE_AXPY_MIN = 1_024
 
     /**
      * Four independent accumulators hide addition latency on long runs. [multiplyAdd] uses FMA only
