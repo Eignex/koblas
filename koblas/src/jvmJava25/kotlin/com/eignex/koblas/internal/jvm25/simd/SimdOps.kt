@@ -30,14 +30,12 @@ internal object SimdOps {
         if (alpha == 0.0) return
         if (len >= WIDE_AXPY_MIN) {
             axpyUnrolled(y, yOff, alpha, x, xOff, len)
-        } else if (LANE >= 8 && len >= 2 * LANE && len % LANE >= LANE / 2) {
-            axpyTail(y, yOff, alpha, x, xOff, len)
         } else {
             axpyShort(y, yOff, alpha, x, xOff, len)
         }
     }
 
-    /** A scalar remainder is cheaper than another vector block for a tail shorter than half a vector. */
+    /** One lane block per iteration below the streaming length, then a scalar remainder. */
     @Suppress("LongParameterList") // two independently addressed vector windows and their multiplier
     private fun axpyShort(y: DoubleArray, yOff: Int, alpha: Double, x: DoubleArray, xOff: Int, len: Int) {
         val multiplier = DoubleVector.broadcast(SPECIES, alpha)
@@ -52,23 +50,6 @@ internal object SimdOps {
             y[yOff + i] += alpha * x[xOff + i]
             i++
         }
-    }
-
-    /** Multiple full vectors amortize a final block that also covers a substantial tail. */
-    @Suppress("LongParameterList") // two independently addressed vector windows and their multiplier
-    private fun axpyTail(y: DoubleArray, yOff: Int, alpha: Double, x: DoubleArray, xOff: Int, len: Int) {
-        val multiplier = DoubleVector.broadcast(SPECIES, alpha)
-        val last = len - LANE
-        // The last block can overlap the loop. Compute it before any stores so that overlap is updated once.
-        val finalValues = DoubleVector.fromArray(SPECIES, x, xOff + last).mul(multiplier)
-            .add(DoubleVector.fromArray(SPECIES, y, yOff + last))
-        var i = 0
-        while (i < last) {
-            DoubleVector.fromArray(SPECIES, x, xOff + i).mul(multiplier)
-                .add(DoubleVector.fromArray(SPECIES, y, yOff + i)).intoArray(y, yOff + i)
-            i += LANE
-        }
-        finalValues.intoArray(y, yOff + last)
     }
 
     /** Long streaming calls amortize four independent vector updates per iteration. */
@@ -106,7 +87,6 @@ internal object SimdOps {
     // Peeling trades aligned loads for scalar work at both ends; short windows do not amortise it.
     private const val ALIGNMENT_MIN = 4_096
     private const val IAMAX_ALIGNMENT_MIN = 65_536
-    private const val WIDE_ASUM_MIN = 65_536
     private const val WIDE_AXPY_MIN = 65_536
 
     /**
@@ -467,16 +447,11 @@ internal object SimdOps {
     }
 
     private fun asumAligned(v: DoubleArray, vOff: Int, len: Int): Double {
-        val wide = LANE >= 8 && len >= WIDE_ASUM_MIN && HotSpotArrayAlignment.hasKnownAlignment(v)
         val prefix = HotSpotArrayAlignment.prefix(v, vOff, len)
-        if (prefix == 0) return if (wide) asumWideUnrolled(v, vOff, len) else asumUnrolled(v, vOff, len)
+        if (prefix == 0) return asumUnrolled(v, vOff, len)
         var head = 0.0
         for (i in 0 until prefix) head += abs(v[vOff + i])
-        return head + if (wide) {
-            asumWideUnrolled(v, vOff + prefix, len - prefix)
-        } else {
-            asumUnrolled(v, vOff + prefix, len - prefix)
-        }
+        return head + asumUnrolled(v, vOff + prefix, len - prefix)
     }
 
     private fun asumOneChain(v: DoubleArray, vOff: Int, len: Int): Double {
@@ -518,36 +493,6 @@ internal object SimdOps {
         while (i < len) {
             tail += abs(v[vOff + i])
             i++
-        }
-        return head + tail
-    }
-
-    /** Eight loads amortise loop bookkeeping on long runs of wide vectors without adding accumulator chains. */
-    private fun asumWideUnrolled(v: DoubleArray, vOff: Int, len: Int): Double {
-        val mask = LongVector.fromArray(LONG_SPECIES, SIGN_MASK_BITS, 0)
-        var s0 = DoubleVector.zero(SPECIES)
-        var s1 = DoubleVector.zero(SPECIES)
-        var s2 = DoubleVector.zero(SPECIES)
-        var s3 = DoubleVector.zero(SPECIES)
-        val bound = vOff + len - len % (8 * LANE)
-        var index = vOff
-        while (index < bound) {
-            s0 = s0.add(signStripped(DoubleVector.fromArray(SPECIES, v, index), mask))
-            s1 = s1.add(signStripped(DoubleVector.fromArray(SPECIES, v, index + LANE), mask))
-            s2 = s2.add(signStripped(DoubleVector.fromArray(SPECIES, v, index + 2 * LANE), mask))
-            s3 = s3.add(signStripped(DoubleVector.fromArray(SPECIES, v, index + 3 * LANE), mask))
-            s0 = s0.add(signStripped(DoubleVector.fromArray(SPECIES, v, index + 4 * LANE), mask))
-            s1 = s1.add(signStripped(DoubleVector.fromArray(SPECIES, v, index + 5 * LANE), mask))
-            s2 = s2.add(signStripped(DoubleVector.fromArray(SPECIES, v, index + 6 * LANE), mask))
-            s3 = s3.add(signStripped(DoubleVector.fromArray(SPECIES, v, index + 7 * LANE), mask))
-            index += 8 * LANE
-        }
-        val head = s0.add(s1).add(s2.add(s3)).reduceLanes(VectorOperators.ADD)
-        var tail = 0.0
-        val end = vOff + len
-        while (index < end) {
-            tail += abs(v[index])
-            index++
         }
         return head + tail
     }
