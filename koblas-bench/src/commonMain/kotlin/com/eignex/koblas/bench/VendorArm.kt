@@ -118,8 +118,16 @@ internal fun vendorArm(case: BenchCase, blas: Blas): ArmChoice {
             val initial = Fixtures.vector(d[0], 2)
             val target = initial.copyOf()
             val y = DenseVector.wrap(target)
-            arm(BlasOperation.Axpy, emptyList(), listOf(x, y), "reset-and-arithmetic") {
-                initial.copyInto(target); blas.axpy(alpha, x, y); target[0]
+            if (case.option("timing", "reset-and-arithmetic") == "arithmetic") {
+                // Alternating the sign returns y close to where it started, so no reset joins the timed work.
+                var signed = alpha
+                arm(BlasOperation.Axpy, emptyList(), listOf(x, y), "arithmetic") {
+                    signed = -signed; blas.axpy(signed, x, y); target[0]
+                }
+            } else {
+                arm(BlasOperation.Axpy, emptyList(), listOf(x, y), "reset-and-arithmetic") {
+                    initial.copyInto(target); blas.axpy(alpha, x, y); target[0]
+                }
             }
         }
         "axpy-unit" -> {
@@ -169,8 +177,13 @@ internal fun vendorArm(case: BenchCase, blas: Blas): ArmChoice {
             val ys = y0.copyOf()
             val x = DenseVector.wrap(xs)
             val y = DenseVector.wrap(ys)
-            arm(BlasOperation.Swap, emptyList(), listOf(x, y), "reset-and-arithmetic") {
-                x0.copyInto(xs); y0.copyInto(ys); blas.swap(x, y); xs[0] + ys[0]
+            if (case.option("timing", "reset-and-arithmetic") == "arithmetic") {
+                // A swap is its own inverse, so the operands only ever trade places.
+                arm(BlasOperation.Swap, emptyList(), listOf(x, y), "arithmetic") { blas.swap(x, y); xs[0] + ys[0] }
+            } else {
+                arm(BlasOperation.Swap, emptyList(), listOf(x, y), "reset-and-arithmetic") {
+                    x0.copyInto(xs); y0.copyInto(ys); blas.swap(x, y); xs[0] + ys[0]
+                }
             }
         }
 
@@ -181,8 +194,13 @@ internal fun vendorArm(case: BenchCase, blas: Blas): ArmChoice {
             val ys = y0.copyOf()
             val x = DenseVector.wrap(xs)
             val y = DenseVector.wrap(ys)
-            arm(BlasOperation.Rot, emptyList(), listOf(x, y), "reset-and-arithmetic") {
-                x0.copyInto(xs); y0.copyInto(ys); blas.rot(x, y, 0.8, 0.6); xs[0] + ys[0]
+            if (case.option("timing", "reset-and-arithmetic") == "arithmetic") {
+                // A rotation preserves each pair's norm, so repeating it keeps the magnitudes normal.
+                arm(BlasOperation.Rot, emptyList(), listOf(x, y), "arithmetic") { blas.rot(x, y, 0.8, 0.6); xs[0] + ys[0] }
+            } else {
+                arm(BlasOperation.Rot, emptyList(), listOf(x, y), "reset-and-arithmetic") {
+                    x0.copyInto(xs); y0.copyInto(ys); blas.rot(x, y, 0.8, 0.6); xs[0] + ys[0]
+                }
             }
         }
 
