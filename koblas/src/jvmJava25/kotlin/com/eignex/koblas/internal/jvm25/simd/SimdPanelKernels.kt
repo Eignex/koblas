@@ -62,6 +62,8 @@ internal object SimdPanelKernels : DensePanelKernels {
         val preferred = when {
             contiguous && groupsWholeRow(work, rows) -> columns
 
+            work == PanelWork.CoupledDotUpdate && LANE >= 8 -> 8
+
             work == PanelWork.ColumnUpdate && contiguous ->
                 if (prefersLargeColumnUpdate(rows)) LARGE_COLUMN_UPDATE_GROUP else COLUMN_UPDATE_GROUP
 
@@ -653,6 +655,15 @@ internal object SimdPanelKernels : DensePanelKernels {
             return
         }
         var c = 0
+        if (LANE >= 8) {
+            while (c + 8 <= columns) {
+                coupledEight(
+                    alpha, a, aOffset + c * lda, lda, x, xOffset, rows, y, yOffset,
+                    coefficients, coefficientOffset + c, sums, sumOffset + c,
+                )
+                c += 8
+            }
+        }
         while (c + WIDE_GROUP <= columns) {
             coupledFour(
                 alpha, a, aOffset + c * lda, lda, x, xOffset, rows, y, yOffset,
@@ -674,6 +685,119 @@ internal object SimdPanelKernels : DensePanelKernels {
             )
             c++
         }
+    }
+
+    /** Eight columns per pass over the destination strip, for vector units with registers for all of them. */
+    private fun coupledEight(
+        alpha: Double,
+        a: DoubleArray,
+        aOffset: Int,
+        lda: Int,
+        x: DoubleArray,
+        xOffset: Int,
+        rows: Int,
+        y: DoubleArray,
+        yOffset: Int,
+        coefficients: DoubleArray,
+        coefficientOffset: Int,
+        sums: DoubleArray,
+        sumOffset: Int,
+    ) {
+        val t0 = alpha * coefficients[coefficientOffset]
+        val t1 = alpha * coefficients[coefficientOffset + 1]
+        val t2 = alpha * coefficients[coefficientOffset + 2]
+        val t3 = alpha * coefficients[coefficientOffset + 3]
+        val t4 = alpha * coefficients[coefficientOffset + 4]
+        val t5 = alpha * coefficients[coefficientOffset + 5]
+        val t6 = alpha * coefficients[coefficientOffset + 6]
+        val t7 = alpha * coefficients[coefficientOffset + 7]
+        val c0 = DoubleVector.broadcast(SPECIES, t0)
+        val c1 = DoubleVector.broadcast(SPECIES, t1)
+        val c2 = DoubleVector.broadcast(SPECIES, t2)
+        val c3 = DoubleVector.broadcast(SPECIES, t3)
+        val c4 = DoubleVector.broadcast(SPECIES, t4)
+        val c5 = DoubleVector.broadcast(SPECIES, t5)
+        val c6 = DoubleVector.broadcast(SPECIES, t6)
+        val c7 = DoubleVector.broadcast(SPECIES, t7)
+        var d0 = DoubleVector.zero(SPECIES)
+        var d1 = DoubleVector.zero(SPECIES)
+        var d2 = DoubleVector.zero(SPECIES)
+        var d3 = DoubleVector.zero(SPECIES)
+        var d4 = DoubleVector.zero(SPECIES)
+        var d5 = DoubleVector.zero(SPECIES)
+        var d6 = DoubleVector.zero(SPECIES)
+        var d7 = DoubleVector.zero(SPECIES)
+        var i = 0
+        val bound = SPECIES.loopBound(rows)
+        while (i < bound) {
+            val xv = DoubleVector.fromArray(SPECIES, x, xOffset + i)
+            val at = aOffset + i
+            val v0 = DoubleVector.fromArray(SPECIES, a, at)
+            val v1 = DoubleVector.fromArray(SPECIES, a, at + lda)
+            val v2 = DoubleVector.fromArray(SPECIES, a, at + 2 * lda)
+            val v3 = DoubleVector.fromArray(SPECIES, a, at + 3 * lda)
+            d0 = multiplyAdd(v0, xv, d0)
+            d1 = multiplyAdd(v1, xv, d1)
+            d2 = multiplyAdd(v2, xv, d2)
+            d3 = multiplyAdd(v3, xv, d3)
+            val low = multiplyAdd(v3, c3, multiplyAdd(v2, c2, multiplyAdd(v1, c1, multiplyAdd(v0, c0,
+                DoubleVector.fromArray(SPECIES, y, yOffset + i)))))
+            val v4 = DoubleVector.fromArray(SPECIES, a, at + 4 * lda)
+            val v5 = DoubleVector.fromArray(SPECIES, a, at + 5 * lda)
+            val v6 = DoubleVector.fromArray(SPECIES, a, at + 6 * lda)
+            val v7 = DoubleVector.fromArray(SPECIES, a, at + 7 * lda)
+            d4 = multiplyAdd(v4, xv, d4)
+            d5 = multiplyAdd(v5, xv, d5)
+            d6 = multiplyAdd(v6, xv, d6)
+            d7 = multiplyAdd(v7, xv, d7)
+            multiplyAdd(v7, c7, multiplyAdd(v6, c6, multiplyAdd(v5, c5, multiplyAdd(v4, c4, low))))
+                .intoArray(y, yOffset + i)
+            i += LANE
+        }
+        var s0 = d0.reduceLanes(VectorOperators.ADD)
+        var s1 = d1.reduceLanes(VectorOperators.ADD)
+        var s2 = d2.reduceLanes(VectorOperators.ADD)
+        var s3 = d3.reduceLanes(VectorOperators.ADD)
+        var s4 = d4.reduceLanes(VectorOperators.ADD)
+        var s5 = d5.reduceLanes(VectorOperators.ADD)
+        var s6 = d6.reduceLanes(VectorOperators.ADD)
+        var s7 = d7.reduceLanes(VectorOperators.ADD)
+        val a1 = aOffset + lda
+        val a2 = aOffset + 2 * lda
+        val a3 = aOffset + 3 * lda
+        val a4 = aOffset + 4 * lda
+        val a5 = aOffset + 5 * lda
+        val a6 = aOffset + 6 * lda
+        val a7 = aOffset + 7 * lda
+        while (i < rows) {
+            val xi = x[xOffset + i]
+            val v0 = a[aOffset + i]
+            val v1 = a[a1 + i]
+            val v2 = a[a2 + i]
+            val v3 = a[a3 + i]
+            val v4 = a[a4 + i]
+            val v5 = a[a5 + i]
+            val v6 = a[a6 + i]
+            val v7 = a[a7 + i]
+            y[yOffset + i] += t0 * v0 + t1 * v1 + t2 * v2 + t3 * v3 + t4 * v4 + t5 * v5 + t6 * v6 + t7 * v7
+            s0 += v0 * xi
+            s1 += v1 * xi
+            s2 += v2 * xi
+            s3 += v3 * xi
+            s4 += v4 * xi
+            s5 += v5 * xi
+            s6 += v6 * xi
+            s7 += v7 * xi
+            i++
+        }
+        sums[sumOffset] += alpha * s0
+        sums[sumOffset + 1] += alpha * s1
+        sums[sumOffset + 2] += alpha * s2
+        sums[sumOffset + 3] += alpha * s3
+        sums[sumOffset + 4] += alpha * s4
+        sums[sumOffset + 5] += alpha * s5
+        sums[sumOffset + 6] += alpha * s6
+        sums[sumOffset + 7] += alpha * s7
     }
 
     /** Four columns share each pass over the destination strip, which two columns spend twice as often. */
