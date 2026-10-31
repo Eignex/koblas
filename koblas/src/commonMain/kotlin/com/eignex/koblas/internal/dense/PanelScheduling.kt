@@ -39,19 +39,56 @@ internal inline fun forEachTrianglePanel(
 }
 
 /**
- * The stored off-diagonal part of every column of a triangle, in the order the dependence reaches them.
+ * Steps of the order a triangular vector routine finishes column by column before the rest of the call sees
+ * them through one panel.
+ *
+ * The scheduling's own number, separate from [TRIANGULAR_DIAGONAL_BLOCK] because here a block has one
+ * right-hand side. Inside a block every column is its own short panel, a dependency chain nothing overlaps;
+ * between blocks the whole block is a single panel as wide as the block, which a backend can keep its
+ * destination in registers across. A larger block moves work into the chain, a smaller one makes each panel
+ * narrower.
+ */
+internal const val TRIANGULAR_VECTOR_BLOCK: Int = 64
+
+/**
+ * The diagonal blocks of an order-[n] triangular vector routine, in the order the dependence reaches them,
+ * each as the half-open range of steps it covers.
+ */
+internal inline fun forEachTriangularBlock(n: Int, ascending: Boolean, action: (start: Int, end: Int) -> Unit) {
+    if (ascending) {
+        var start = 0
+        while (start < n) {
+            val end = if (n - start < TRIANGULAR_VECTOR_BLOCK) n else start + TRIANGULAR_VECTOR_BLOCK
+            action(start, end)
+            start = end
+        }
+    } else {
+        var end = n
+        while (end > 0) {
+            val start = if (end < TRIANGULAR_VECTOR_BLOCK) 0 else end - TRIANGULAR_VECTOR_BLOCK
+            action(start, end)
+            end = start
+        }
+    }
+}
+
+/**
+ * The stored off-diagonal part of every column of one diagonal block `[start, end)`, restricted to the
+ * block, in the order the dependence reaches them.
  *
  * One walk for all four variants of a triangular vector routine, because the window is the same in each and
- * only the order differs, which the caller states through [ascending].
+ * only the order differs, which the caller states through [ascending]. The part of a column outside the
+ * block is the caller's, as one panel over the whole block.
  */
 internal inline fun forEachTriangularColumn(
-    n: Int,
+    start: Int,
+    end: Int,
     lower: Boolean,
     ascending: Boolean,
     action: (j: Int, window: Int, rows: Int) -> Unit,
 ) {
-    for (step in 0 until n) {
-        val j = if (ascending) step else n - 1 - step
-        action(j, if (lower) j + 1 else 0, if (lower) n - 1 - j else j)
+    for (step in 0 until end - start) {
+        val j = if (ascending) start + step else end - 1 - step
+        action(j, if (lower) j + 1 else start, if (lower) end - 1 - j else j - start)
     }
 }
