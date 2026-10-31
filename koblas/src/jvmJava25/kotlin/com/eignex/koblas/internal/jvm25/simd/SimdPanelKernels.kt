@@ -20,10 +20,11 @@ import jdk.incubator.vector.VectorOperators
  * is independent of the lane count: lanes run down rows.
  *
  * A multi-dot or column update shorter than one lane block runs along its row instead, as a dot, an
- * elementwise update or a scalar pass over all its columns at once. Other short panels and strided operands requiring
- * gathers use the portable bodies; [implementationFor] reports the body reached. Species initialization
- * requires the Vector API module, so [com.eignex.koblas.BuiltinEngines] checks availability before using
- * this backend.
+ * elementwise update or a scalar pass over all its columns at once, and a column update of one or two lane
+ * blocks keeps its destination in registers across every column. Other short panels and strided operands
+ * requiring gathers use the portable bodies; [implementationFor] reports the body reached. Species
+ * initialization requires the Vector API module, so [com.eignex.koblas.BuiltinEngines] checks availability
+ * before using this backend.
  */
 internal object SimdPanelKernels : DensePanelKernels {
     private val SPECIES = DoubleVector.SPECIES_PREFERRED
@@ -119,9 +120,9 @@ internal object SimdPanelKernels : DensePanelKernels {
             return
         }
         var c = 0
-        while (c + COLUMN_UPDATE_GROUP <= columns) {
+        while (c + MULTI_DOT_GROUP <= columns) {
             dotEight(alpha, a, aOffset + c * lda, lda, x, xOffset, rows, beta, y, yOffset + c * yStride, yStride)
-            c += COLUMN_UPDATE_GROUP
+            c += MULTI_DOT_GROUP
         }
         while (c + WIDE_GROUP <= columns) {
             dotFour(alpha, a, aOffset + c * lda, lda, x, xOffset, rows, beta, y, yOffset + c * yStride, yStride)
@@ -1418,6 +1419,8 @@ internal object SimdPanelKernels : DensePanelKernels {
     private const val COPY_WORTH_BLOCKS = 2
 
     /** Columns grouped where one loaded vector serves all of them. */
+    /** Columns one pass of a multi-dot reduces against the shared vector. */
+    private const val MULTI_DOT_GROUP = 8
     private const val COLUMN_UPDATE_GROUP = 8
 
 
