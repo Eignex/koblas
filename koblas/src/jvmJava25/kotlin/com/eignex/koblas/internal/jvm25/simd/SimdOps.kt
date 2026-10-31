@@ -153,6 +153,7 @@ internal object SimdOps {
      * Each iteration updates every chain twice to amortise address and loop bookkeeping.
      */
     private fun dotUnrolled(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int): Double {
+        if (NARROW) return dotEightChains(a, aOff, b, bOff, len)
         var s0 = DoubleVector.zero(SPECIES)
         var s1 = DoubleVector.zero(SPECIES)
         var s2 = DoubleVector.zero(SPECIES)
@@ -496,6 +497,7 @@ internal object SimdOps {
 
     /** [asum] past [UNROLL_MIN], where the four chains pay for the reduce that combines them. */
     private fun asumUnrolled(v: DoubleArray, vOff: Int, len: Int): Double {
+        if (NARROW) return asumEightChains(v, vOff, len)
         val mask = LongVector.fromArray(LONG_SPECIES, SIGN_MASK_BITS, 0)
         var s0 = DoubleVector.zero(SPECIES)
         var s1 = DoubleVector.zero(SPECIES)
@@ -541,6 +543,112 @@ internal object SimdOps {
             index += 8 * LANE
         }
         val head = s0.add(s1).add(s2.add(s3)).reduceLanes(VectorOperators.ADD)
+        var tail = 0.0
+        val end = vOff + len
+        while (index < end) {
+            tail += abs(v[index])
+            index++
+        }
+        return head + tail
+    }
+
+    /**
+     * Whether a long reduction carries eight chains rather than four. A vector of two lanes holds too few
+     * values for four chains to cover the add latency on a core with several FMA pipes, which the measured
+     * Apple and NEON hosts have; wider vectors already keep enough in flight with four.
+     */
+    private val NARROW = LANE <= 2
+
+    /** [dotUnrolled] for [NARROW] vectors: eight chains, each updated once per iteration. */
+    private fun dotEightChains(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int): Double {
+        var s0 = DoubleVector.zero(SPECIES)
+        var s1 = DoubleVector.zero(SPECIES)
+        var s2 = DoubleVector.zero(SPECIES)
+        var s3 = DoubleVector.zero(SPECIES)
+        var s4 = DoubleVector.zero(SPECIES)
+        var s5 = DoubleVector.zero(SPECIES)
+        var s6 = DoubleVector.zero(SPECIES)
+        var s7 = DoubleVector.zero(SPECIES)
+        val unrolled = len - len % (8 * LANE)
+        val aEnd = aOff + unrolled
+        var aIndex = aOff
+        var bIndex = bOff
+        while (aIndex < aEnd) {
+            s0 = multiplyAdd(DoubleVector.fromArray(SPECIES, a, aIndex), DoubleVector.fromArray(SPECIES, b, bIndex), s0)
+            s1 = multiplyAdd(
+                DoubleVector.fromArray(SPECIES, a, aIndex + LANE),
+                DoubleVector.fromArray(SPECIES, b, bIndex + LANE),
+                s1,
+            )
+            s2 = multiplyAdd(
+                DoubleVector.fromArray(SPECIES, a, aIndex + 2 * LANE),
+                DoubleVector.fromArray(SPECIES, b, bIndex + 2 * LANE),
+                s2,
+            )
+            s3 = multiplyAdd(
+                DoubleVector.fromArray(SPECIES, a, aIndex + 3 * LANE),
+                DoubleVector.fromArray(SPECIES, b, bIndex + 3 * LANE),
+                s3,
+            )
+            s4 = multiplyAdd(
+                DoubleVector.fromArray(SPECIES, a, aIndex + 4 * LANE),
+                DoubleVector.fromArray(SPECIES, b, bIndex + 4 * LANE),
+                s4,
+            )
+            s5 = multiplyAdd(
+                DoubleVector.fromArray(SPECIES, a, aIndex + 5 * LANE),
+                DoubleVector.fromArray(SPECIES, b, bIndex + 5 * LANE),
+                s5,
+            )
+            s6 = multiplyAdd(
+                DoubleVector.fromArray(SPECIES, a, aIndex + 6 * LANE),
+                DoubleVector.fromArray(SPECIES, b, bIndex + 6 * LANE),
+                s6,
+            )
+            s7 = multiplyAdd(
+                DoubleVector.fromArray(SPECIES, a, aIndex + 7 * LANE),
+                DoubleVector.fromArray(SPECIES, b, bIndex + 7 * LANE),
+                s7,
+            )
+            aIndex += 8 * LANE
+            bIndex += 8 * LANE
+        }
+        val head = s0.add(s1).add(s2.add(s3)).add(s4.add(s5).add(s6.add(s7))).reduceLanes(VectorOperators.ADD)
+        var tail = 0.0
+        val end = aOff + len
+        while (aIndex < end) {
+            tail += a[aIndex] * b[bIndex]
+            aIndex++
+            bIndex++
+        }
+        return head + tail
+    }
+
+    /** [asumUnrolled] for [NARROW] vectors, for the same reason as [dotEightChains]. */
+    private fun asumEightChains(v: DoubleArray, vOff: Int, len: Int): Double {
+        val mask = LongVector.fromArray(LONG_SPECIES, SIGN_MASK_BITS, 0)
+        var s0 = DoubleVector.zero(SPECIES)
+        var s1 = DoubleVector.zero(SPECIES)
+        var s2 = DoubleVector.zero(SPECIES)
+        var s3 = DoubleVector.zero(SPECIES)
+        var s4 = DoubleVector.zero(SPECIES)
+        var s5 = DoubleVector.zero(SPECIES)
+        var s6 = DoubleVector.zero(SPECIES)
+        var s7 = DoubleVector.zero(SPECIES)
+        val bound = vOff + len - len % (8 * LANE)
+        var index = vOff
+        while (index < bound) {
+            s0 = s0.add(signStripped(DoubleVector.fromArray(SPECIES, v, index), mask))
+            s1 = s1.add(signStripped(DoubleVector.fromArray(SPECIES, v, index + LANE), mask))
+            s2 = s2.add(signStripped(DoubleVector.fromArray(SPECIES, v, index + 2 * LANE), mask))
+            s3 = s3.add(signStripped(DoubleVector.fromArray(SPECIES, v, index + 3 * LANE), mask))
+            s4 = s4.add(signStripped(DoubleVector.fromArray(SPECIES, v, index + 4 * LANE), mask))
+            s5 = s5.add(signStripped(DoubleVector.fromArray(SPECIES, v, index + 5 * LANE), mask))
+            s6 = s6.add(signStripped(DoubleVector.fromArray(SPECIES, v, index + 6 * LANE), mask))
+            s7 = s7.add(signStripped(DoubleVector.fromArray(SPECIES, v, index + 7 * LANE), mask))
+            index += 8 * LANE
+        }
+        val head = s0.add(s1).add(s2.add(s3)).add(s4.add(s5).add(s6.add(s7))).reduceLanes(VectorOperators.ADD)
         var tail = 0.0
         val end = vOff + len
         while (index < end) {
