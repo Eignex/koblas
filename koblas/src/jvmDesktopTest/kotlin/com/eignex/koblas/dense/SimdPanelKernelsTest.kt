@@ -12,8 +12,8 @@ import kotlin.test.assertNotEquals
 import kotlin.test.assertTrue
 
 /**
- * The Vector API panels, and which of their bodies a given panel actually reaches: a panel with fewer rows
- * than a lane block, or one whose shared vector is strided, is portable work.
+ * The Vector API panels, and which of their bodies a given panel actually reaches: a panel whose shared vector
+ * is strided is portable work, and so is one with fewer rows than a lane block unless it has a short body.
  *
  * Reached through the engine rather than by naming the object, because naming it resolves the species, which
  * on a runtime without the module is a linkage error before any test body runs.
@@ -33,13 +33,26 @@ class SimdPanelKernelsTest {
         val kernels = kernels ?: return skipped()
         val lanes = lanes(kernels)
 
-        for (work in vectorised()) {
+        for (work in vectorised() - SHORT_BODIES) {
             assertEquals(kernels.name, kernels.implementationFor(work, lanes, 4), "$work at $lanes rows")
             assertEquals(
                 PortablePanelKernels.name,
                 kernels.implementationFor(work, lanes - 1, 4),
                 "$work at ${lanes - 1} rows",
             )
+        }
+    }
+
+    @Test
+    fun `a reduction or column update shorter than a lane block runs a short body of its own`() {
+        val kernels = kernels ?: return skipped()
+        val lanes = lanes(kernels)
+
+        for (work in SHORT_BODIES) {
+            for (rows in 1 until lanes) {
+                assertEquals(kernels.name, kernels.implementationFor(work, rows, 4), "$work at $rows rows")
+            }
+            assertEquals(4096, kernels.executionGroup(work, 1, 4096), "$work groups the whole row")
         }
     }
 
@@ -128,5 +141,8 @@ class SimdPanelKernelsTest {
     private companion object {
         /** Wider than any lane block, so the vector body is reached wherever there is one. */
         const val WIDE = 512
+
+        /** The panels whose short extents are a body of this backend rather than portable work. */
+        val SHORT_BODIES = setOf(PanelWork.MultiDot, PanelWork.ColumnUpdate)
     }
 }
