@@ -11,6 +11,7 @@ import com.eignex.koblas.sparse.*
 import com.eignex.koblas.vendor.*
 import jdk.incubator.vector.DoubleVector
 import jdk.incubator.vector.VectorOperators
+import jdk.incubator.vector.VectorShuffle
 
 /**
  * JVM Vector API panel arithmetic with [PortablePanelKernels] fallbacks.
@@ -29,6 +30,16 @@ import jdk.incubator.vector.VectorOperators
 internal object SimdPanelKernels : DensePanelKernels {
     private val SPECIES = DoubleVector.SPECIES_PREFERRED
     private val LANE = if (simdAvailable) SPECIES.length() else 0
+
+    // Shuffles folding four eight-lane accumulators into their four sums; indices from 8 select the second vector.
+    private val EVEN: VectorShuffle<Double>? = shuffle(0, 8, 2, 10, 4, 12, 6, 14)
+    private val ODD: VectorShuffle<Double>? = shuffle(1, 9, 3, 11, 5, 13, 7, 15)
+    private val LOW_PAIRS: VectorShuffle<Double>? = shuffle(0, 1, 8, 9, 4, 5, 12, 13)
+    private val HIGH_PAIRS: VectorShuffle<Double>? = shuffle(2, 3, 10, 11, 6, 7, 14, 15)
+    private val SWAP_HALVES: VectorShuffle<Double>? = shuffle(4, 5, 6, 7, 0, 1, 2, 3)
+
+    private fun shuffle(vararg lanes: Int): VectorShuffle<Double>? =
+        if (LANE == 8) VectorShuffle.fromValues(SPECIES, *lanes) else null
 
     /**
      * Cache the name so scheduling decisions that compare it do not allocate.
@@ -723,10 +734,30 @@ internal object SimdPanelKernels : DensePanelKernels {
             multiplyAdd(v3, c3, multiplyAdd(v2, c2, low)).intoArray(y, yOffset + i)
             i += LANE
         }
-        var s0 = d0.reduceLanes(VectorOperators.ADD)
-        var s1 = d1.reduceLanes(VectorOperators.ADD)
-        var s2 = d2.reduceLanes(VectorOperators.ADD)
-        var s3 = d3.reduceLanes(VectorOperators.ADD)
+        var s0: Double
+        var s1: Double
+        var s2: Double
+        var s3: Double
+        if (LANE == 8) {
+            // Fold the four accumulators into one vector of column sums with paired shuffles, instead of four
+            // separate reductions each paying its own chain of lane extracts.
+            val even = requireNotNull(EVEN)
+            val odd = requireNotNull(ODD)
+            val first = d0.rearrange(even, d1).add(d0.rearrange(odd, d1))
+            val second = d2.rearrange(even, d3).add(d2.rearrange(odd, d3))
+            val halves = first.rearrange(requireNotNull(LOW_PAIRS), second)
+                .add(first.rearrange(requireNotNull(HIGH_PAIRS), second))
+            val sums4 = halves.add(halves.rearrange(requireNotNull(SWAP_HALVES)))
+            s0 = sums4.lane(0)
+            s1 = sums4.lane(1)
+            s2 = sums4.lane(2)
+            s3 = sums4.lane(3)
+        } else {
+            s0 = d0.reduceLanes(VectorOperators.ADD)
+            s1 = d1.reduceLanes(VectorOperators.ADD)
+            s2 = d2.reduceLanes(VectorOperators.ADD)
+            s3 = d3.reduceLanes(VectorOperators.ADD)
+        }
         while (i < rows) {
             val v0 = a[aOffset + i]
             val v1 = a[a1 + i]
