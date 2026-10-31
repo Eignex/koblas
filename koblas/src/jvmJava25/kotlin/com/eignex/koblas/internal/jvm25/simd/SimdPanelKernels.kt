@@ -70,7 +70,7 @@ internal object SimdPanelKernels : DensePanelKernels {
             work == PanelWork.SparseRightHandSides || work == PanelWork.SparseRightHandSideReduction ->
                 if (contiguous) ADJACENT_SPARSE_BLOCKS * LANE else SPARSE_GROUP
 
-            work == PanelWork.RankUpdate -> NARROW_GROUP
+            work == PanelWork.RankUpdate -> if (LANE <= 2) WIDE_GROUP else NARROW_GROUP
 
             else -> WIDE_GROUP
         }
@@ -853,6 +853,18 @@ internal object SimdPanelKernels : DensePanelKernels {
             return
         }
         var c = 0
+        if (LANE <= 2) {
+            while (c + WIDE_GROUP <= columns) {
+                rankFour(
+                    a, aOffset + c * lda, lda, x, xOffset, rows,
+                    alpha * coefficients[coefficientOffset + c * coefficientStride],
+                    alpha * coefficients[coefficientOffset + (c + 1) * coefficientStride],
+                    alpha * coefficients[coefficientOffset + (c + 2) * coefficientStride],
+                    alpha * coefficients[coefficientOffset + (c + 3) * coefficientStride],
+                )
+                c += WIDE_GROUP
+            }
+        }
         while (c + NARROW_GROUP <= columns) {
             rankTwo(
                 a,
@@ -989,6 +1001,46 @@ internal object SimdPanelKernels : DensePanelKernels {
         }
         while (i < rows) {
             a[aOffset + i] += s * x[xOffset + i] + t * y[yOffset + i]
+            i++
+        }
+    }
+
+    /** Four columns of a rank update sharing each loaded lane block of the source, for narrow vector units. */
+    private fun rankFour(
+        a: DoubleArray,
+        aOffset: Int,
+        lda: Int,
+        x: DoubleArray,
+        xOffset: Int,
+        rows: Int,
+        t0: Double,
+        t1: Double,
+        t2: Double,
+        t3: Double,
+    ) {
+        val c0 = DoubleVector.broadcast(SPECIES, t0)
+        val c1 = DoubleVector.broadcast(SPECIES, t1)
+        val c2 = DoubleVector.broadcast(SPECIES, t2)
+        val c3 = DoubleVector.broadcast(SPECIES, t3)
+        val a1 = aOffset + lda
+        val a2 = aOffset + 2 * lda
+        val a3 = aOffset + 3 * lda
+        var i = 0
+        val bound = SPECIES.loopBound(rows)
+        while (i < bound) {
+            val xv = DoubleVector.fromArray(SPECIES, x, xOffset + i)
+            multiplyAdd(xv, c0, DoubleVector.fromArray(SPECIES, a, aOffset + i)).intoArray(a, aOffset + i)
+            multiplyAdd(xv, c1, DoubleVector.fromArray(SPECIES, a, a1 + i)).intoArray(a, a1 + i)
+            multiplyAdd(xv, c2, DoubleVector.fromArray(SPECIES, a, a2 + i)).intoArray(a, a2 + i)
+            multiplyAdd(xv, c3, DoubleVector.fromArray(SPECIES, a, a3 + i)).intoArray(a, a3 + i)
+            i += LANE
+        }
+        while (i < rows) {
+            val v = x[xOffset + i]
+            a[aOffset + i] += t0 * v
+            a[a1 + i] += t1 * v
+            a[a2 + i] += t2 * v
+            a[a3 + i] += t3 * v
             i++
         }
     }
