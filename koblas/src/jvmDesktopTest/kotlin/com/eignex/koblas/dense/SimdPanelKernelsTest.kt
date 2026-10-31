@@ -36,7 +36,7 @@ class SimdPanelKernelsTest {
         for (work in vectorised()) {
             assertEquals(kernels.name, kernels.implementationFor(work, lanes, 4), "$work at $lanes rows")
             assertEquals(
-                if (hasShortBody(work, lanes - 1)) kernels.name else PortablePanelKernels.name,
+                if (hasShortBody(work)) kernels.name else PortablePanelKernels.name,
                 kernels.implementationFor(work, lanes - 1, 4),
                 "$work at ${lanes - 1} rows",
             )
@@ -44,12 +44,18 @@ class SimdPanelKernelsTest {
     }
 
     @Test
-    fun `a short reduction or single row update runs a body of its own and is handed over whole`() {
+    fun `a short reduction or update runs a body of its own and is handed over whole`() {
         val kernels = kernels ?: return skipped()
 
         for (work in listOf(PanelWork.MultiDot, PanelWork.ColumnUpdate)) {
-            assertEquals(kernels.name, kernels.implementationFor(work, 1, 4096), "$work along one row")
-            assertEquals(4096, kernels.executionGroup(work, 1, 4096), "$work groups the whole row")
+            for (rows in 1 until lanes(kernels)) {
+                assertEquals(kernels.name, kernels.implementationFor(work, rows, 4096), "$work over $rows rows")
+                assertEquals(
+                    4096,
+                    kernels.executionGroup(work, rows, 4096),
+                    "$work over $rows rows is handed over whole",
+                )
+            }
         }
     }
 
@@ -126,9 +132,8 @@ class SimdPanelKernelsTest {
         )
     }
 
-    /** A reduction shorter than a lane block, and a column update along one row, have bodies of their own. */
-    private fun hasShortBody(work: PanelWork, rows: Int): Boolean =
-        work == PanelWork.MultiDot || (work == PanelWork.ColumnUpdate && rows == 1)
+    /** A reduction or a column update shorter than a lane block has a body of its own. */
+    private fun hasShortBody(work: PanelWork): Boolean = work == PanelWork.MultiDot || work == PanelWork.ColumnUpdate
 
     /** The species this backend resolved, read back from the name it publishes. */
     private fun lanes(kernels: DensePanelKernels): Int = kernels.name.substringAfter('(').substringBefore(' ').toInt()

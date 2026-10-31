@@ -1306,8 +1306,8 @@ internal object SimdPanelKernels : DensePanelKernels {
         (work == PanelWork.ColumnUpdate && (isShort(rows) || isResident(rows)))
 
     /** The short panels this backend runs a body of its own for; a longer short column update is portable. */
-    private fun reachesShortBody(work: PanelWork, rows: Int): Boolean = (work == PanelWork.MultiDot && isShort(rows)) ||
-        (work == PanelWork.ColumnUpdate && rows == 1 && simdAvailable)
+    private fun reachesShortBody(work: PanelWork, rows: Int): Boolean =
+        (work == PanelWork.MultiDot || work == PanelWork.ColumnUpdate) && isShort(rows)
 
     /**
      * A short [multiDot]. A single row is an elementwise update along it; otherwise each column is a scalar
@@ -1380,8 +1380,8 @@ internal object SimdPanelKernels : DensePanelKernels {
     }
 
     /**
-     * A short [columnUpdate]. A single row is one dot along it; otherwise the portable body runs over every
-     * column in one call, which the whole-width [executionGroup] is for.
+     * A short [columnUpdate], handed over whole by [executionGroup]. A single row is one dot along it, and
+     * more rows are held in scalar registers across every column, four or two at a time.
      */
     private fun columnUpdateShort(
         alpha: Double,
@@ -1405,7 +1405,108 @@ internal object SimdPanelKernels : DensePanelKernels {
             y[yOffset] += alpha * sum
             return
         }
-        PortablePanelKernels.columnUpdate(alpha, a, aOffset, lda, x, xOffset, xStride, rows, columns, y, yOffset, 1)
+        var r = 0
+        while (r + 4 <= rows) {
+            shortQuad(alpha, a, aOffset + r, lda, x, xOffset, xStride, columns, y, yOffset + r)
+            r += 4
+        }
+        if (r + 2 <= rows) {
+            shortPair(alpha, a, aOffset + r, lda, x, xOffset, xStride, columns, y, yOffset + r)
+            r += 2
+        }
+        if (r < rows) y[yOffset + r] += alpha * stridedDot(a, aOffset + r, lda, x, xOffset, xStride, columns)
+    }
+
+    /**
+     * Four rows of a short column update in scalar registers across every column, two chains per row over
+     * the even and the odd columns. Written back per column pair, the destination was a chain through
+     * memory that left a wide panel of a few rows several times behind the vendors.
+     */
+    private fun shortQuad(
+        alpha: Double,
+        a: DoubleArray,
+        aOffset: Int,
+        lda: Int,
+        x: DoubleArray,
+        xOffset: Int,
+        xStride: Int,
+        columns: Int,
+        y: DoubleArray,
+        yOffset: Int,
+    ) {
+        var e0 = 0.0
+        var e1 = 0.0
+        var e2 = 0.0
+        var e3 = 0.0
+        var o0 = 0.0
+        var o1 = 0.0
+        var o2 = 0.0
+        var o3 = 0.0
+        var c = 0
+        while (c + 2 <= columns) {
+            val t0 = x[xOffset + c * xStride]
+            val t1 = x[xOffset + (c + 1) * xStride]
+            val at = aOffset + c * lda
+            val bt = at + lda
+            e0 += a[at] * t0
+            e1 += a[at + 1] * t0
+            e2 += a[at + 2] * t0
+            e3 += a[at + 3] * t0
+            o0 += a[bt] * t1
+            o1 += a[bt + 1] * t1
+            o2 += a[bt + 2] * t1
+            o3 += a[bt + 3] * t1
+            c += 2
+        }
+        if (c < columns) {
+            val t0 = x[xOffset + c * xStride]
+            val at = aOffset + c * lda
+            e0 += a[at] * t0
+            e1 += a[at + 1] * t0
+            e2 += a[at + 2] * t0
+            e3 += a[at + 3] * t0
+        }
+        y[yOffset] += alpha * (e0 + o0)
+        y[yOffset + 1] += alpha * (e1 + o1)
+        y[yOffset + 2] += alpha * (e2 + o2)
+        y[yOffset + 3] += alpha * (e3 + o3)
+    }
+
+    /** The two-row counterpart of [shortQuad]. */
+    private fun shortPair(
+        alpha: Double,
+        a: DoubleArray,
+        aOffset: Int,
+        lda: Int,
+        x: DoubleArray,
+        xOffset: Int,
+        xStride: Int,
+        columns: Int,
+        y: DoubleArray,
+        yOffset: Int,
+    ) {
+        var e0 = 0.0
+        var e1 = 0.0
+        var o0 = 0.0
+        var o1 = 0.0
+        var c = 0
+        while (c + 2 <= columns) {
+            val t0 = x[xOffset + c * xStride]
+            val t1 = x[xOffset + (c + 1) * xStride]
+            val at = aOffset + c * lda
+            e0 += a[at] * t0
+            e1 += a[at + 1] * t0
+            o0 += a[at + lda] * t1
+            o1 += a[at + lda + 1] * t1
+            c += 2
+        }
+        if (c < columns) {
+            val t0 = x[xOffset + c * xStride]
+            e0 += a[aOffset + c * lda] * t0
+            e1 += a[aOffset + c * lda + 1] * t0
+        }
+        y[yOffset] += alpha * (e0 + o0)
+        y[yOffset + 1] += alpha * (e1 + o1)
     }
 
     /** Rows a column update keeps in registers across every column instead of reloading per group. */
