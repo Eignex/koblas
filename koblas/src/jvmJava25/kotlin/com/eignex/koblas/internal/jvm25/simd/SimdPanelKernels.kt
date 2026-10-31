@@ -1311,8 +1311,8 @@ internal object SimdPanelKernels : DensePanelKernels {
 
     /**
      * A short [multiDot]. A single row is an elementwise update along it; otherwise each column is a scalar
-     * dot over its few rows. Masked lane blocks would read only the window, but their masks are heap objects
-     * on the measured runtime.
+     * dot over its few rows, with the shared vector held in registers. Masked lane blocks would read only the
+     * window, but their masks are heap objects on the measured runtime.
      */
     private fun multiDotShort(
         alpha: Double,
@@ -1332,10 +1332,26 @@ internal object SimdPanelKernels : DensePanelKernels {
             scaledRow(alpha * x[xOffset], a, aOffset, lda, columns, beta, y, yOffset, yStride)
             return
         }
+        // The first rows' x stays in registers across every column, and a column's products sum as a tree so
+        // neighbouring columns overlap; reloading x and chaining the sum per column made a wide panel of a
+        // few rows several times slower than the vendors.
+        val x0 = x[xOffset]
+        val x1 = x[xOffset + 1]
+        if (rows >= 4) {
+            val x2 = x[xOffset + 2]
+            val x3 = x[xOffset + 3]
+            for (c in 0 until columns) {
+                val at = aOffset + c * lda
+                var sum = (a[at] * x0 + a[at + 1] * x1) + (a[at + 2] * x2 + a[at + 3] * x3)
+                for (i in 4 until rows) sum += a[at + i] * x[xOffset + i]
+                store(y, yOffset + c * yStride, alpha, sum, beta)
+            }
+            return
+        }
         for (c in 0 until columns) {
             val at = aOffset + c * lda
-            var sum = 0.0
-            for (i in 0 until rows) sum += a[at + i] * x[xOffset + i]
+            var sum = a[at] * x0 + a[at + 1] * x1
+            if (rows == 3) sum += a[at + 2] * x[xOffset + 2]
             store(y, yOffset + c * yStride, alpha, sum, beta)
         }
     }
