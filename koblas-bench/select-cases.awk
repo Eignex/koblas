@@ -3,6 +3,7 @@ BEGIN {
     FS = "+"
     if (suite != "default" && suite != "sweep") fail("suite must be default or sweep")
     if (suite == "sweep" && operation == "all") fail("suite sweep requires a specific operation")
+    if (shards == "") { shard = 1; shards = 1 }
 }
 function fail(message) {
     print "error: " message > "/dev/stderr"
@@ -26,10 +27,13 @@ function fail(message) {
         }
     }
     if (index("," membership ",", "," suite ",") && (operation == "all" || $1 == operation)) {
-        if (smoke != "true" || count < 3) print
-        count++
+        # Round-robin keeps each shard a similar mix of operations and sizes.
+        if (selected++ % shards == shard - 1) {
+            if (smoke != "true" || count < 3) print
+            count++
+        }
     }
 }
 END {
-    if (!failed && !count) fail("suite and operation selected no cases")
+    if (!failed && !count) fail("suite, operation and shard selected no cases")
 }
