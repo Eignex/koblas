@@ -79,8 +79,16 @@ internal fun denseWork(case: BenchCase, engine: KoblasEngine): CaseWork? {
         }
         "axpy" -> {
             val x = Fixtures.vector(d[0], 1); val initial = Fixtures.vector(d[0], 2); val y = initial.copyOf()
-            level1(engine, case.operation, d[0], "reset-and-arithmetic") {
-                initial.copyInto(y); vectors.axpy(y, 0, alpha, x, 0, d[0]); y[0]
+            if (case.option("timing", "reset-and-arithmetic") == "arithmetic") {
+                // Alternating the sign returns y close to where it started, so no reset joins the timed work.
+                var signed = alpha
+                level1(engine, case.operation, d[0], "arithmetic", result = y) {
+                    signed = -signed; vectors.axpy(y, 0, signed, x, 0, d[0]); y[0]
+                }
+            } else {
+                level1(engine, case.operation, d[0], "reset-and-arithmetic") {
+                    initial.copyInto(y); vectors.axpy(y, 0, alpha, x, 0, d[0]); y[0]
+                }
             }
         }
         "axpy-unit" -> {
@@ -114,14 +122,28 @@ internal fun denseWork(case: BenchCase, engine: KoblasEngine): CaseWork? {
         "iamax" -> vectorReduction(engine, case.operation, d[0]) { x -> vectors.iamax(x, 0, x.size).toDouble() }
         "swap" -> {
             val x0 = Fixtures.vector(d[0], 1); val y0 = Fixtures.vector(d[0], 2); val x = x0.copyOf(); val y = y0.copyOf()
-            level1(engine, case.operation, d[0], "reset-and-arithmetic") {
-                x0.copyInto(x); y0.copyInto(y); vectors.swap(x, 0, y, 0, d[0]); x[0] + y[0]
+            if (case.option("timing", "reset-and-arithmetic") == "arithmetic") {
+                // A swap is its own inverse, so the operands only ever trade places.
+                level1(engine, case.operation, d[0], "arithmetic", result = y) {
+                    vectors.swap(x, 0, y, 0, d[0]); x[0] + y[0]
+                }
+            } else {
+                level1(engine, case.operation, d[0], "reset-and-arithmetic") {
+                    x0.copyInto(x); y0.copyInto(y); vectors.swap(x, 0, y, 0, d[0]); x[0] + y[0]
+                }
             }
         }
         "rot" -> {
             val x0 = Fixtures.vector(d[0], 1); val y0 = Fixtures.vector(d[0], 2); val x = x0.copyOf(); val y = y0.copyOf()
-            level1(engine, case.operation, d[0], "reset-and-arithmetic") {
-                x0.copyInto(x); y0.copyInto(y); vectors.rot(x, 0, y, 0, d[0], 0.8, 0.6); x[0] + y[0]
+            if (case.option("timing", "reset-and-arithmetic") == "arithmetic") {
+                // A rotation preserves each pair's norm, so repeating it keeps the magnitudes normal.
+                level1(engine, case.operation, d[0], "arithmetic", result = y) {
+                    vectors.rot(x, 0, y, 0, d[0], 0.8, 0.6); x[0] + y[0]
+                }
+            } else {
+                level1(engine, case.operation, d[0], "reset-and-arithmetic") {
+                    x0.copyInto(x); y0.copyInto(y); vectors.rot(x, 0, y, 0, d[0], 0.8, 0.6); x[0] + y[0]
+                }
             }
         }
         "gemv" -> {

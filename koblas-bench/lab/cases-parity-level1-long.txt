@@ -1,4 +1,5 @@
-# Lengths 1,024 to 65,536 of cases-parity-level1.txt, for quick vendor A/B runs on the long bodies.
+# Lengths 1,024 to 65,536 of cases-parity-level1.txt, for quick vendor A/B runs on the long bodies; the
+# arithmetic rows time the updating routines without the reset copy, which is not the kernel.
 dot+1024+uniform
 dot+4096+uniform
 dot+16384+uniform
@@ -31,3 +32,19 @@ rot+1024+uniform
 rot+4096+uniform
 rot+16384+uniform
 rot+65536+uniform
+axpy+1024+uniform+timing=arithmetic
+axpy+4096+uniform+timing=arithmetic
+axpy+16384+uniform+timing=arithmetic
+axpy+65536+uniform+timing=arithmetic
+scal+1024+uniform+timing=arithmetic
+scal+4096+uniform+timing=arithmetic
+scal+16384+uniform+timing=arithmetic
+scal+65536+uniform+timing=arithmetic
+swap+1024+uniform+timing=arithmetic
+swap+4096+uniform+timing=arithmetic
+swap+16384+uniform+timing=arithmetic
+swap+65536+uniform+timing=arithmetic
+rot+1024+uniform+timing=arithmetic
+rot+4096+uniform+timing=arithmetic
+rot+16384+uniform+timing=arithmetic
+rot+65536+uniform+timing=arithmetic
