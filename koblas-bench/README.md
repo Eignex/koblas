@@ -46,7 +46,7 @@ check their [definitions](REFERENCE.md#cases) before comparing them.
 
 ## Details
 
-- [Capture reference](REFERENCE.md): options, workload definitions, attribution, host setup and lab adapter.
+- [Capture reference](REFERENCE.md): options, workload definitions, attribution, host setup, lab adapter and scoring.
 - [Case inventory](cases.txt): available workloads and sizes.
 - [Measurement report](lab/vendor-comparison.md): retained native/SIMD comparisons and limitations.
 - [Engine guide](../BACKENDS.md): library setup, automatic selection and native thresholds.
