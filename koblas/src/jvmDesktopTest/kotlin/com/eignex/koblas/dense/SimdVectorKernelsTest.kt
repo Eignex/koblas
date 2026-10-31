@@ -30,7 +30,7 @@ class SimdVectorKernelsTest {
     }
 
     @Test
-    fun `elementwise operations without vector bodies stay with the portable loops`() {
+    fun `contiguous elementwise operations have explicit vector paths`() {
         if (!SimdVectorKernels.isAvailable) return skipped()
 
         for (operation in listOf(
@@ -38,7 +38,7 @@ class SimdVectorKernelsTest {
             DenseOperation.Swap,
             DenseOperation.Rot,
         )) {
-            assertEquals(ScalarVectorKernels.name, reached(operation, WIDE), "$operation named a vector kernel")
+            assertEquals(SimdVectorKernels.name, reached(operation, WIDE), "$operation stayed scalar")
         }
     }
 

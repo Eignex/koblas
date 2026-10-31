@@ -85,9 +85,8 @@ internal object SimdVectorKernels : DispatchingVectorKernels {
         DenseOperation.Dot, DenseOperation.Sum, DenseOperation.Asum, DenseOperation.Axpy,
         -> if (vectorizes(length)) name else ScalarVectorKernels.name
 
-        // These elementwise operations have no vector kernel here; see the class documentation.
         DenseOperation.Scale, DenseOperation.Swap, DenseOperation.Rot,
-        -> ScalarVectorKernels.name
+        -> if (vectorizes(length)) name else ScalarVectorKernels.name
     }
 
     override fun dot(
@@ -126,7 +125,11 @@ internal object SimdVectorKernels : DispatchingVectorKernels {
     }
 
     override fun scale(v: DoubleArray, vOff: Int, alpha: Double, len: Int, vStride: Int) =
-        scalarScale(v, vOff, vStride, alpha, len)
+        if (vectorizes(len, vStride == 1)) {
+            SimdOps.scale(v, vOff, alpha, len)
+        } else {
+            scalarScale(v, vOff, vStride, alpha, len)
+        }
 
     override fun nrm2(v: DoubleArray, vOff: Int, len: Int, vStride: Int): Double {
         if (vectorizes(len, vStride == 1)) {
@@ -148,9 +151,17 @@ internal object SimdVectorKernels : DispatchingVectorKernels {
         if (vectorizes(len, vStride == 1)) SimdOps.asum(v, vOff, len) else absoluteSum(v, vOff, vStride, len)
 
     override fun swap(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int, aStride: Int, bStride: Int) =
-        scalarSwap(a, aOff, aStride, b, bOff, bStride, len)
+        if (a !== b && vectorizes(len, aStride == 1 && bStride == 1)) {
+            SimdOps.swap(a, aOff, b, bOff, len)
+        } else {
+            scalarSwap(a, aOff, aStride, b, bOff, bStride, len)
+        }
 
     @Suppress("LongParameterList")
     override fun rot(x: DoubleArray, xOff: Int, y: DoubleArray, yOff: Int, len: Int, c: Double, s: Double) =
-        scalarRot(x, xOff, y, yOff, len, c, s)
+        if (x !== y && vectorizes(len)) {
+            SimdOps.rot(x, xOff, y, yOff, len, c, s)
+        } else {
+            scalarRot(x, xOff, y, yOff, len, c, s)
+        }
 }

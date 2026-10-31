@@ -24,6 +24,61 @@ internal object SimdOps {
 
     fun lanes(): Int = LANE
 
+    /** `x, y = c·x + s·y, c·y − s·x` along two distinct arrays, unfused so each value matches the scalar loop. */
+    fun rot(x: DoubleArray, xOff: Int, y: DoubleArray, yOff: Int, len: Int, c: Double, s: Double) {
+        val cv = DoubleVector.broadcast(SPECIES, c)
+        val sv = DoubleVector.broadcast(SPECIES, s)
+        val bound = SPECIES.loopBound(len)
+        var i = 0
+        while (i < bound) {
+            val xv = DoubleVector.fromArray(SPECIES, x, xOff + i)
+            val yv = DoubleVector.fromArray(SPECIES, y, yOff + i)
+            cv.mul(xv).add(sv.mul(yv)).intoArray(x, xOff + i)
+            cv.mul(yv).sub(sv.mul(xv)).intoArray(y, yOff + i)
+            i += LANE
+        }
+        while (i < len) {
+            val xi = x[xOff + i]
+            val yi = y[yOff + i]
+            x[xOff + i] = c * xi + s * yi
+            y[yOff + i] = c * yi - s * xi
+            i++
+        }
+    }
+
+    /** Exchange two runs of distinct arrays a lane block at a time. */
+    fun swap(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int) {
+        val bound = SPECIES.loopBound(len)
+        var i = 0
+        while (i < bound) {
+            val av = DoubleVector.fromArray(SPECIES, a, aOff + i)
+            DoubleVector.fromArray(SPECIES, b, bOff + i).intoArray(a, aOff + i)
+            av.intoArray(b, bOff + i)
+            i += LANE
+        }
+        while (i < len) {
+            val t = a[aOff + i]
+            a[aOff + i] = b[bOff + i]
+            b[bOff + i] = t
+            i++
+        }
+    }
+
+    /** `v(i) = alpha · v(i)` a lane block at a time. */
+    fun scale(v: DoubleArray, vOff: Int, alpha: Double, len: Int) {
+        val multiplier = DoubleVector.broadcast(SPECIES, alpha)
+        val bound = SPECIES.loopBound(len)
+        var i = 0
+        while (i < bound) {
+            DoubleVector.fromArray(SPECIES, v, vOff + i).mul(multiplier).intoArray(v, vOff + i)
+            i += LANE
+        }
+        while (i < len) {
+            v[vOff + i] *= alpha
+            i++
+        }
+    }
+
     /** Contiguous AXPY with compact and streaming bodies. */
     @Suppress("LongParameterList") // two independently addressed vector windows and their multiplier
     fun axpy(y: DoubleArray, yOff: Int, alpha: Double, x: DoubleArray, xOff: Int, len: Int) {
