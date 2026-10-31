@@ -28,7 +28,7 @@ import jdk.incubator.vector.DoubleVector
  * availability before constructing an engine with this backend.
  */
 internal object SimdProductKernels : DenseProductKernels {
-    private val SPECIES = DoubleVector.SPECIES_PREFERRED
+    private val SPECIES = SIMD_SPECIES
     private val LANE = if (simdAvailable) SPECIES.length() else 0
 
     /** Two lane blocks where the module is present, and the portable tile's own rows where it is not. */

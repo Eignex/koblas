@@ -5,7 +5,6 @@ import com.eignex.koblas.dense.*
 import com.eignex.koblas.sparse.*
 import com.eignex.koblas.vendor.*
 import com.sun.management.HotSpotDiagnosticMXBean
-import jdk.incubator.vector.DoubleVector
 import java.lang.management.ManagementFactory
 
 /**
@@ -15,7 +14,7 @@ import java.lang.management.ManagementFactory
  * Unknown layouts keep their ordinary loop; the hint never licenses unchecked access.
  */
 internal object HotSpotArrayAlignment {
-    private val ALIGNMENT_BYTES = DoubleVector.SPECIES_PREFERRED.vectorByteSize()
+    private val ALIGNMENT_BYTES = SIMD_SPECIES.vectorByteSize()
     private val HEADER_BYTES = headerBytes()
     private val OBJECT_ALIGNMENT_BYTES = objectAlignmentBytes()
     private val REGION_BYTES = regionBytes()

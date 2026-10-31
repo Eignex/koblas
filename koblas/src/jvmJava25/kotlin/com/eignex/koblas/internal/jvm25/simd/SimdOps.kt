@@ -12,7 +12,7 @@ import jdk.incubator.vector.VectorOperators
 import kotlin.math.abs
 
 internal object SimdOps {
-    private val SPECIES = DoubleVector.SPECIES_PREFERRED
+    private val SPECIES = SIMD_SPECIES
 
     /** Every bit but the sign bit of a double. */
     private const val SIGN_MASK = 0x7fffffffffffffffL

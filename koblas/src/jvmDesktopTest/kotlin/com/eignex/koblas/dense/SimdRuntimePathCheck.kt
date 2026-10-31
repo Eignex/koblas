@@ -7,10 +7,10 @@ import com.eignex.koblas.internal.dense.DenseTriangularKernels
 import com.eignex.koblas.internal.dense.PanelWork
 import com.eignex.koblas.internal.dense.PortablePanelKernels
 import com.eignex.koblas.internal.dense.PortableTriangularKernels
+import com.eignex.koblas.internal.jvm25.simd.SIMD_SPECIES
 import com.eignex.koblas.internal.jvm25.simd.hardwareFusedMultiplyAdd
 import com.eignex.koblas.internal.numeric.assertHardwareFmaAgreesWithVm
 import com.eignex.koblas.poisonedTriangle
-import jdk.incubator.vector.DoubleVector
 import kotlin.random.Random
 import kotlin.test.assertEquals
 
@@ -24,7 +24,7 @@ import kotlin.test.assertEquals
 internal object SimdRuntimePathCheck {
     @JvmStatic
     fun main(args: Array<String>) {
-        val lanes = DoubleVector.SPECIES_PREFERRED.length()
+        val lanes = SIMD_SPECIES.length()
         println("preferred lanes=$lanes hardware fma=$hardwareFusedMultiplyAdd")
         assertHardwareFmaAgreesWithVm()
         val expectedLanes = args.getOrNull(0)?.toIntOrNull()

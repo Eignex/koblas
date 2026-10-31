@@ -27,7 +27,7 @@ import jdk.incubator.vector.VectorOperators
  * before using this backend.
  */
 internal object SimdPanelKernels : DensePanelKernels {
-    private val SPECIES = DoubleVector.SPECIES_PREFERRED
+    private val SPECIES = SIMD_SPECIES
     private val LANE = if (simdAvailable) SPECIES.length() else 0
 
     /**
