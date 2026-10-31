@@ -11,7 +11,6 @@ warmups=5
 target_ms=200
 forks=2
 rounds=3
-shard=1/1
 targets=
 while (($#)); do
   case "$1" in
@@ -26,7 +25,6 @@ while (($#)); do
     --target-ms) target_ms=${2:?}; shift 2 ;;
     --forks) forks=${2:?}; shift 2 ;;
     --rounds) rounds=${2:?}; shift 2 ;;
-    --shard) shard=${2:?}; shift 2 ;;
     --targets) targets=${2:?}; shift 2 ;;
     --profile-gc) export KOBLAS_BENCH_PROFILE_GC=${2:?}; shift 2 ;;
     *) echo "usage: vendor-capture.sh --output DIR [--operation NAME] [--vendor NAME]" >&2; exit 2 ;;
@@ -100,5 +98,5 @@ exec bash koblas-bench/capture-report.sh --prepared --retain-incomplete \
   --libraries "$vendor" --targets "$targets" \
   --cases "$cases" \
   --operation "$operation" \
-  --rounds "$rounds" --shard "$shard" --samples "$samples" --warmups "$warmups" --target-ms "$target_ms" --forks "$forks" \
+  --rounds "$rounds" --samples "$samples" --warmups "$warmups" --target-ms "$target_ms" --forks "$forks" \
   --jvm-gc serial --jvm-heap 512m "${pin[@]}" --output "$output/report"
