@@ -313,14 +313,20 @@ internal class PortableDenseBlas(
         width: Int,
         lower: Boolean,
     ) {
+        val lda = a.leadingDimension
         for (c in start until start + width) {
-            val coefficient = alpha * x[xOffset + (c) * xStride]
-            for (i in start until start + width) {
-                if (if (lower) i < c else i > c) continue
-                val value = a.values[a.offset + i + c * a.leadingDimension]
-                y[yOffset + (i) * yStride] += coefficient * value
-                if (i != c) y[yOffset + (c) * yStride] += alpha * (value * x[xOffset + (i) * xStride])
+            val coefficient = alpha * x[xOffset + c * xStride]
+            val diagonal = a.values[a.offset + c + c * lda]
+            var mirrored = 0.0
+            // Only the stored positions of this column, so no test per entry; the mirrored row sums once.
+            val first = if (lower) c + 1 else start
+            val last = if (lower) start + width else c
+            for (i in first until last) {
+                val value = a.values[a.offset + i + c * lda]
+                y[yOffset + i * yStride] += coefficient * value
+                mirrored += value * x[xOffset + i * xStride]
             }
+            y[yOffset + c * yStride] += coefficient * diagonal + alpha * mirrored
         }
     }
 
