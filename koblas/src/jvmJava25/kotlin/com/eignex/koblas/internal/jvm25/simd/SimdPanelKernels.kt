@@ -51,10 +51,10 @@ internal object SimdPanelKernels : DensePanelKernels {
 
     /**
      * A multi-dot is handed over whole and reuses one loaded vector across eight columns at a time; column
-     * updates share destination traffic across eight, or twelve on long strips with wide vector registers. Coupled bodies take four
-     * columns per pass over the destination. Rank-update bodies are two columns wide; wider groups would
-     * repeat those bodies and grow a triangular caller's scalar corner. Group sizes reflect measurements on
-     * one host.
+     * updates share destination traffic across eight, or twelve on long strips with wide vector registers.
+     * Coupled bodies take four columns per pass over the destination. Rank-update bodies are two columns
+     * wide; wider groups would repeat those bodies and grow a triangular caller's scalar corner. Group sizes
+     * reflect measurements on one host.
      */
     override fun executionGroup(work: PanelWork, rows: Int, columns: Int, contiguous: Boolean): Int {
         if (!simdAvailable) return PortablePanelKernels.executionGroup(work, rows, columns, contiguous)
