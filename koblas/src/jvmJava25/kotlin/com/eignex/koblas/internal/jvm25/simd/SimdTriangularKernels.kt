@@ -10,6 +10,7 @@ import com.eignex.koblas.internal.dense.triangleEntry
 import com.eignex.koblas.sparse.*
 import com.eignex.koblas.vendor.*
 import jdk.incubator.vector.DoubleVector
+import jdk.incubator.vector.VectorOperators
 
 /**
  * JVM Vector API diagonal substitution with portable fallbacks.
@@ -58,6 +59,7 @@ internal object SimdTriangularKernels : DenseTriangularKernels {
     override fun implementationsFor(order: Int, sides: Int, contiguous: Boolean): List<String> = when {
         !simdAvailable -> PortableTriangularKernels.implementationsFor(order, sides, contiguous)
         order <= 0 || sides <= 0 -> emptyList()
+        sides == 1 && contiguous -> listOf(NAME)
         !contiguous || sides < LANE -> PortableTriangularKernels.implementationsFor(order, sides, contiguous)
         sides % LANE == 0 -> listOf(NAME)
         else -> listOf(NAME) + PortableTriangularKernels.implementationsFor(order, sides, contiguous)
@@ -79,6 +81,10 @@ internal object SimdTriangularKernels : DenseTriangularKernels {
         tOffset: Int,
     ) {
         if (size <= 0 || sides <= 0) return
+        if (simdAvailable && sides == 1 && orderStride == 1) {
+            singleSolve(t, n, start, size, transposed, lower, unitDiag, x, xOffset, tOffset)
+            return
+        }
         if (!simdAvailable || rhsStride != 1 || sides < LANE) {
             PortableTriangularKernels.diagonalSolve(
                 t, n, start, size, transposed, lower, unitDiag, x, xOffset, orderStride, rhsStride, sides, tOffset,
@@ -115,6 +121,10 @@ internal object SimdTriangularKernels : DenseTriangularKernels {
         tOffset: Int,
     ) {
         if (size <= 0 || sides <= 0) return
+        if (simdAvailable && sides == 1 && orderStride == 1) {
+            singleMultiply(t, n, start, size, transposed, lower, unitDiag, x, xOffset, tOffset)
+            return
+        }
         if (!simdAvailable || rhsStride != 1 || sides < LANE) {
             PortableTriangularKernels.diagonalMultiply(
                 t, n, start, size, transposed, lower, unitDiag, x, xOffset, orderStride, rhsStride, sides, tOffset,
@@ -203,6 +213,137 @@ internal object SimdTriangularKernels : DenseTriangularKernels {
             }
             accumulated.intoArray(x, at)
         }
+    }
+
+    /**
+     * One contiguous right-hand side, vectorised along the block instead of across sides.
+     *
+     * Untransposed, a column of the block is adjacent in memory, so each finished step is removed from the
+     * steps after it in one vector run; transposed, a row is, so each step is one vector dot over the steps
+     * before it. As separate one-column panels, every step paid a call and a dispatch for a few lane blocks.
+     */
+    private fun singleSolve(
+        t: DoubleArray,
+        n: Int,
+        start: Int,
+        size: Int,
+        transposed: Boolean,
+        lower: Boolean,
+        unitDiag: Boolean,
+        x: DoubleArray,
+        xOffset: Int,
+        tOffset: Int,
+    ) {
+        val base = tOffset + start + start * n
+        for (step in 0 until size) {
+            val p = if (lower) step else size - 1 - step
+            val diagonal = base + p + p * n
+            if (transposed) {
+                // Row p of the block is column start + p of the stored triangle.
+                val from = if (lower) 0 else p + 1
+                val until = if (lower) p else size
+                var value = x[xOffset + p] - runDot(t, base + p * n + from, x, xOffset + from, until - from)
+                if (!unitDiag) value /= t[diagonal]
+                x[xOffset + p] = value
+            } else {
+                var value = x[xOffset + p]
+                if (!unitDiag) value /= t[diagonal]
+                x[xOffset + p] = value
+                val from = if (lower) p + 1 else 0
+                val until = if (lower) size else p
+                runUpdate(t, base + p * n + from, x, xOffset + from, until - from, -value)
+            }
+        }
+    }
+
+    /** The multiply counterpart of [singleSolve], in the order that keeps each input until its last use. */
+    private fun singleMultiply(
+        t: DoubleArray,
+        n: Int,
+        start: Int,
+        size: Int,
+        transposed: Boolean,
+        lower: Boolean,
+        unitDiag: Boolean,
+        x: DoubleArray,
+        xOffset: Int,
+        tOffset: Int,
+    ) {
+        val base = tOffset + start + start * n
+        for (step in 0 until size) {
+            val p = if (lower) size - 1 - step else step
+            val own = x[xOffset + p]
+            val scaled = if (unitDiag) own else t[base + p + p * n] * own
+            if (transposed) {
+                val from = if (lower) 0 else p + 1
+                val until = if (lower) p else size
+                x[xOffset + p] = scaled + runDot(t, base + p * n + from, x, xOffset + from, until - from)
+            } else {
+                x[xOffset + p] = scaled
+                val from = if (lower) p + 1 else 0
+                val until = if (lower) size else p
+                runUpdate(t, base + p * n + from, x, xOffset + from, until - from, own)
+            }
+        }
+    }
+
+    /** `x(i) += scale · t(i)` along one contiguous run, the column step of [singleSolve]. */
+    private fun runUpdate(t: DoubleArray, tFrom: Int, x: DoubleArray, xFrom: Int, length: Int, scale: Double) {
+        var i = 0
+        val bound = SPECIES.loopBound(length)
+        if (bound > 0) {
+            val coefficient = DoubleVector.broadcast(SPECIES, scale)
+            while (i < bound) {
+                multiplyAdd(
+                    DoubleVector.fromArray(SPECIES, t, tFrom + i),
+                    coefficient,
+                    DoubleVector.fromArray(SPECIES, x, xFrom + i),
+                ).intoArray(x, xFrom + i)
+                i += LANE
+            }
+        }
+        while (i < length) {
+            x[xFrom + i] += scale * t[tFrom + i]
+            i++
+        }
+    }
+
+    /** The dot of two contiguous runs, the row step of [singleSolve], with two chains on a long run. */
+    private fun runDot(t: DoubleArray, tFrom: Int, x: DoubleArray, xFrom: Int, length: Int): Double {
+        var i = 0
+        var sum = 0.0
+        val bound = SPECIES.loopBound(length)
+        if (bound > 0) {
+            var even = DoubleVector.zero(SPECIES)
+            var odd = DoubleVector.zero(SPECIES)
+            while (i + 2 * LANE <= bound) {
+                even = multiplyAdd(
+                    DoubleVector.fromArray(SPECIES, t, tFrom + i),
+                    DoubleVector.fromArray(SPECIES, x, xFrom + i),
+                    even,
+                )
+                odd = multiplyAdd(
+                    DoubleVector.fromArray(SPECIES, t, tFrom + i + LANE),
+                    DoubleVector.fromArray(SPECIES, x, xFrom + i + LANE),
+                    odd,
+                )
+                i += 2 * LANE
+            }
+            if (i < bound) {
+                even = multiplyAdd(
+                    DoubleVector.fromArray(SPECIES, t, tFrom + i),
+                    DoubleVector.fromArray(SPECIES, x, xFrom + i),
+                    even,
+                )
+                i += LANE
+            }
+            sum = even.add(odd).reduceLanes(VectorOperators.ADD)
+        }
+        while (i < length) {
+            sum += t[tFrom + i] * x[xFrom + i]
+            i++
+        }
+        return sum
     }
 
     /**

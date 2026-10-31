@@ -43,10 +43,10 @@ internal inline fun forEachTrianglePanel(
  * them through one panel.
  *
  * The scheduling's own number, separate from [TRIANGULAR_DIAGONAL_BLOCK] because here a block has one
- * right-hand side. Inside a block every column is its own short panel, a dependency chain nothing overlaps;
- * between blocks the whole block is a single panel as wide as the block, which a backend can keep its
- * destination in registers across. A larger block moves work into the chain, a smaller one makes each panel
- * narrower.
+ * right-hand side. Inside a block the substitution is one [DenseTriangularKernels] diagonal call, a dependency
+ * chain nothing overlaps; between blocks the whole block is a single panel as wide as the block, which a
+ * backend can keep its destination in registers across. A larger block moves work into the chain, a smaller
+ * one makes each panel narrower.
  */
 internal const val TRIANGULAR_VECTOR_BLOCK: Int = 64
 
@@ -69,26 +69,5 @@ internal inline fun forEachTriangularBlock(n: Int, ascending: Boolean, action: (
             action(start, end)
             end = start
         }
-    }
-}
-
-/**
- * The stored off-diagonal part of every column of one diagonal block `[start, end)`, restricted to the
- * block, in the order the dependence reaches them.
- *
- * One walk for all four variants of a triangular vector routine, because the window is the same in each and
- * only the order differs, which the caller states through [ascending]. The part of a column outside the
- * block is the caller's, as one panel over the whole block.
- */
-internal inline fun forEachTriangularColumn(
-    start: Int,
-    end: Int,
-    lower: Boolean,
-    ascending: Boolean,
-    action: (j: Int, window: Int, rows: Int) -> Unit,
-) {
-    for (step in 0 until end - start) {
-        val j = if (ascending) start + step else end - 1 - step
-        action(j, if (lower) j + 1 else start, if (lower) end - 1 - j else j - start)
     }
 }

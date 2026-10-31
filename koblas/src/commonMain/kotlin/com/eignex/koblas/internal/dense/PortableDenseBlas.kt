@@ -680,25 +680,10 @@ internal class PortableDenseBlas(
                     1.0, x, xOffset + start * xStride, xStride,
                 )
             }
-            forEachTriangularColumn(start, end, lower, ascending) { j, window, rows ->
-                if (transpose) {
-                    if (rows > 0) {
-                        panels.multiDot(
-                            -1.0, a.values, a.offset + window + j * lda, lda, x, xOffset + window * xStride,
-                            xStride, rows, 1, 1.0, x, xOffset + j * xStride, xStride,
-                        )
-                    }
-                    if (!unitDiag) x[xOffset + j * xStride] /= a.values[a.offset + j + j * lda]
-                } else {
-                    if (!unitDiag) x[xOffset + j * xStride] /= a.values[a.offset + j + j * lda]
-                    if (rows > 0) {
-                        panels.columnUpdate(
-                            -1.0, a.values, a.offset + window + j * lda, lda, x, xOffset + j * xStride, xStride,
-                            rows, 1, x, xOffset + window * xStride, xStride,
-                        )
-                    }
-                }
-            }
+            triangles.diagonalSolve(
+                a.values, lda, start, end - start, transpose, lower != transpose, unitDiag,
+                x, xOffset + start * xStride, xStride, 1, 1, a.offset,
+            )
             if (!transpose && outsideRows > 0) {
                 panels.columnUpdate(
                     -1.0, a.values, block, lda, x, xOffset + start * xStride, xStride, outsideRows, end - start,
@@ -773,25 +758,10 @@ internal class PortableDenseBlas(
                     x, xOffset + outside * xStride, xStride,
                 )
             }
-            forEachTriangularColumn(start, end, lower, ascending) { j, window, rows ->
-                if (transpose) {
-                    if (!unitDiag) x[xOffset + j * xStride] *= a.values[a.offset + j + j * lda]
-                    if (rows > 0) {
-                        panels.multiDot(
-                            1.0, a.values, a.offset + window + j * lda, lda, x, xOffset + window * xStride,
-                            xStride, rows, 1, 1.0, x, xOffset + j * xStride, xStride,
-                        )
-                    }
-                } else {
-                    if (rows > 0) {
-                        panels.columnUpdate(
-                            1.0, a.values, a.offset + window + j * lda, lda, x, xOffset + j * xStride, xStride,
-                            rows, 1, x, xOffset + window * xStride, xStride,
-                        )
-                    }
-                    if (!unitDiag) x[xOffset + j * xStride] *= a.values[a.offset + j + j * lda]
-                }
-            }
+            triangles.diagonalMultiply(
+                a.values, lda, start, end - start, transpose, lower != transpose, unitDiag,
+                x, xOffset + start * xStride, xStride, 1, 1, a.offset,
+            )
             if (transpose && outsideRows > 0) {
                 panels.multiDot(
                     1.0, a.values, block, lda, x, xOffset + outside * xStride, xStride, outsideRows, end - start,

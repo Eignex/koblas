@@ -68,6 +68,7 @@ internal object SimdRuntimePathCheck {
             "the backend named ${triangles.name} at $lanes lanes"
         }
         assertTriangularKernelsAgreeWithReference(triangles, lanes)
+        assertSingleSideAgreesWithReference(triangles, lanes)
         println("panel, tile and substitution conformance passed at $lanes lanes with fma=$hardwareFusedMultiplyAdd")
     }
 
@@ -114,7 +115,7 @@ internal object SimdRuntimePathCheck {
                 }
                 assertEquals(
                     bodies,
-                    kernels.implementationsFor(order, sides, rhsStride == 1),
+                    kernels.implementationsFor(order, sides, if (sides == 1) orderStride == 1 else rhsStride == 1),
                     "diagonal block order=$order sides=$sides rhsStride=$rhsStride",
                 )
                 for (lower in booleanArrayOf(false, true)) {
@@ -151,6 +152,55 @@ internal object SimdRuntimePathCheck {
                                         "sides=$sides rhsStride=$rhsStride bodies=$bodies",
                                 )
                             }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * One contiguous side runs along the block. The oracle is the portable loop over every side, reached by
+     * giving it a second side it does not otherwise take, so the new body is not checked against itself.
+     */
+    private fun assertSingleSideAgreesWithReference(kernels: DenseTriangularKernels, lanes: Int) {
+        val rng = Random(20261031)
+        for (order in intArrayOf(lanes + 1, 4 * lanes + 3)) {
+            val n = order + 2
+            val start = 1
+            check(kernels.implementationsFor(order, 1, contiguous = true) == listOf(kernels.name)) {
+                "a single contiguous side of order $order missed its body at $lanes lanes"
+            }
+            for (lower in booleanArrayOf(false, true)) {
+                for (transposed in booleanArrayOf(false, true)) {
+                    for (unitDiag in booleanArrayOf(false, true)) {
+                        val (triangle, _) = poisonedTriangle(rng, n, lower != transposed, unitDiag)
+                        val values = DoubleArray(order) { rng.nextDouble(-1.0, 1.0) }
+                        for (solve in booleanArrayOf(false, true)) {
+                            val paired = DoubleArray(2 * order) { if (it % 2 == 0) values[it / 2] else 0.0 }
+                            val actual = values.copyOf()
+                            if (solve) {
+                                PortableTriangularKernels.diagonalSolve(
+                                    triangle.values, n, start, order, transposed, lower, unitDiag, paired, 0, 2, 1, 2,
+                                )
+                                kernels.diagonalSolve(
+                                    triangle.values, n, start, order, transposed, lower, unitDiag, actual, 0, 1, 1, 1,
+                                )
+                            } else {
+                                PortableTriangularKernels.diagonalMultiply(
+                                    triangle.values, n, start, order, transposed, lower, unitDiag, paired, 0, 2, 1, 2,
+                                )
+                                kernels.diagonalMultiply(
+                                    triangle.values, n, start, order, transposed, lower, unitDiag, actual, 0, 1, 1, 1,
+                                )
+                            }
+
+                            assertClose(
+                                DoubleArray(order) { paired[2 * it] },
+                                actual,
+                                "single side order=$order solve=$solve lower=$lower transposed=$transposed " +
+                                    "unit=$unitDiag",
+                            )
                         }
                     }
                 }
