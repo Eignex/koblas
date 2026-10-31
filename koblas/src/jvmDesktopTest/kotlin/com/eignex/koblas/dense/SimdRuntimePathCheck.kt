@@ -56,8 +56,11 @@ internal object SimdRuntimePathCheck {
         check(panels.implementationFor(PanelWork.MultiDot, lanes, 4) == panels.name) {
             "a panel of one whole lane block did not reach the vector body at $lanes lanes"
         }
-        check(panels.implementationFor(PanelWork.MultiDot, lanes - 1, 4) == PortablePanelKernels.name) {
-            "a panel shorter than a lane block reached the vector body at $lanes lanes"
+        check(panels.implementationFor(PanelWork.RankUpdate, lanes - 1, 4) == PortablePanelKernels.name) {
+            "a rank update shorter than a lane block reached the vector body at $lanes lanes"
+        }
+        check(panels.implementationFor(PanelWork.MultiDot, lanes - 1, 4) == panels.name) {
+            "a reduction shorter than a lane block missed its short body at $lanes lanes"
         }
         checkProducts(engine, lanes)
         val triangles = engine.triangularKernels
