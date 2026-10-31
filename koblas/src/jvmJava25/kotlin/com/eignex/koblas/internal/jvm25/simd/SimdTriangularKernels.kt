@@ -41,6 +41,9 @@ internal object SimdTriangularKernels : DenseTriangularKernels {
      */
     private const val GROUP_BLOCKS = 4
 
+    /** Steps a single-side substitution finishes together before one vector pass carries them on. */
+    private const val GROUP = 4
+
     override fun rightHandSideGroup(order: Int, sides: Int): Int {
         if (!simdAvailable) return PortableTriangularKernels.rightHandSideGroup(order, sides)
         val recommended = GROUP_BLOCKS * LANE
@@ -218,9 +221,13 @@ internal object SimdTriangularKernels : DenseTriangularKernels {
     /**
      * One contiguous right-hand side, vectorised along the block instead of across sides.
      *
-     * Untransposed, a column of the block is adjacent in memory, so each finished step is removed from the
-     * steps after it in one vector run; transposed, a row is, so each step is one vector dot over the steps
-     * before it. As separate one-column panels, every step paid a call and a dispatch for a few lane blocks.
+     * Four steps finish together: their corner is substituted in scalars, and then one vector pass carries all
+     * four into the steps that remain, which untransposed are the columns' runs below them and transposed are
+     * the rows' dots against the steps before them. A step at a time paid a pass and a scalar tail per step,
+     * which on a block a few lane blocks long cost as much as the arithmetic.
+     *
+     * Line `k` of the block, a column untransposed and a row transposed, starts at `base + k · n`, so both
+     * orientations walk the same memory and differ only in whether a pass reads a line or reduces it.
      */
     private fun singleSolve(
         t: DoubleArray,
@@ -235,19 +242,66 @@ internal object SimdTriangularKernels : DenseTriangularKernels {
         tOffset: Int,
     ) {
         val base = tOffset + start + start * n
-        for (step in 0 until size) {
-            val p = if (lower) step else size - 1 - step
-            val diagonal = base + p + p * n
+        val direction = if (lower) 1 else -1
+        var done = 0
+        while (size - done >= GROUP) {
+            val p0 = if (lower) done else size - 1 - done
+            val p1 = p0 + direction
+            val p2 = p0 + 2 * direction
+            val p3 = p0 + 3 * direction
             if (transposed) {
-                // Row p of the block is column start + p of the stored triangle.
+                // Reduce each row against the steps already finished, which lie before the group.
+                val from = if (lower) 0 else p0 + 1
+                val until = if (lower) p0 else size
+                fourDots(t, base, n, p0, p1, p2, p3, x, xOffset, from, until - from, -1.0)
+            }
+            val x0 = divide(x[xOffset + p0], t, base, n, p0, unitDiag)
+            val x1 = divide(x[xOffset + p1] - entry(t, base, n, transposed, p1, p0) * x0, t, base, n, p1, unitDiag)
+            val x2 = divide(
+                x[xOffset + p2] - entry(
+                    t,
+                    base,
+                    n,
+                    transposed,
+                    p2,
+                    p0,
+                ) * x0 - entry(t, base, n, transposed, p2, p1) * x1,
+                t,
+                base,
+                n,
+                p2,
+                unitDiag,
+            )
+            val x3 = divide(
+                x[xOffset + p3] - entry(t, base, n, transposed, p3, p0) * x0 -
+                    entry(t, base, n, transposed, p3, p1) * x1 - entry(t, base, n, transposed, p3, p2) * x2,
+                t,
+                base,
+                n,
+                p3,
+                unitDiag,
+            )
+            x[xOffset + p0] = x0
+            x[xOffset + p1] = x1
+            x[xOffset + p2] = x2
+            x[xOffset + p3] = x3
+            if (!transposed) {
+                // Carry the four finished steps into the ones after the group.
+                val from = if (lower) p3 + 1 else 0
+                val until = if (lower) size else p3
+                fourUpdate(t, base, n, p0, p1, p2, p3, x, xOffset, from, until - from, -x0, -x1, -x2, -x3)
+            }
+            done += GROUP
+        }
+        for (step in done until size) {
+            val p = if (lower) step else size - 1 - step
+            if (transposed) {
                 val from = if (lower) 0 else p + 1
                 val until = if (lower) p else size
-                var value = x[xOffset + p] - runDot(t, base + p * n + from, x, xOffset + from, until - from)
-                if (!unitDiag) value /= t[diagonal]
-                x[xOffset + p] = value
+                x[xOffset + p] -= runDot(t, base + p * n + from, x, xOffset + from, until - from)
+                x[xOffset + p] = divide(x[xOffset + p], t, base, n, p, unitDiag)
             } else {
-                var value = x[xOffset + p]
-                if (!unitDiag) value /= t[diagonal]
+                val value = divide(x[xOffset + p], t, base, n, p, unitDiag)
                 x[xOffset + p] = value
                 val from = if (lower) p + 1 else 0
                 val until = if (lower) size else p
@@ -256,7 +310,11 @@ internal object SimdTriangularKernels : DenseTriangularKernels {
         }
     }
 
-    /** The multiply counterpart of [singleSolve], in the order that keeps each input until its last use. */
+    /**
+     * The multiply counterpart of [singleSolve]. Groups run from the end a step's own value is needed last,
+     * and each finished step is `M(p, p) · x(p)` plus the steps after it in that order, inside the group from
+     * the corner and outside it from one vector pass over inputs no group has overwritten yet.
+     */
     private fun singleMultiply(
         t: DoubleArray,
         n: Int,
@@ -270,10 +328,41 @@ internal object SimdTriangularKernels : DenseTriangularKernels {
         tOffset: Int,
     ) {
         val base = tOffset + start + start * n
-        for (step in 0 until size) {
+        val direction = if (lower) -1 else 1
+        var done = 0
+        while (size - done >= GROUP) {
+            val p0 = if (lower) size - 1 - done else done
+            val p1 = p0 + direction
+            val p2 = p0 + 2 * direction
+            val p3 = p0 + 3 * direction
+            val x0 = x[xOffset + p0]
+            val x1 = x[xOffset + p1]
+            val x2 = x[xOffset + p2]
+            val x3 = x[xOffset + p3]
+            if (!transposed) {
+                // The group's columns reach the steps already finished, which lie before it in this order.
+                val from = if (lower) p0 + 1 else 0
+                val until = if (lower) size else p0
+                fourUpdate(t, base, n, p0, p1, p2, p3, x, xOffset, from, until - from, x0, x1, x2, x3)
+            }
+            x[xOffset + p0] = scale(x0, t, base, n, p0, unitDiag) + entry(t, base, n, transposed, p0, p1) * x1 +
+                entry(t, base, n, transposed, p0, p2) * x2 + entry(t, base, n, transposed, p0, p3) * x3
+            x[xOffset + p1] = scale(x1, t, base, n, p1, unitDiag) + entry(t, base, n, transposed, p1, p2) * x2 +
+                entry(t, base, n, transposed, p1, p3) * x3
+            x[xOffset + p2] = scale(x2, t, base, n, p2, unitDiag) + entry(t, base, n, transposed, p2, p3) * x3
+            x[xOffset + p3] = scale(x3, t, base, n, p3, unitDiag)
+            if (transposed) {
+                // Each row also reduces the steps not yet reached, which still hold their inputs.
+                val from = if (lower) 0 else p3 + 1
+                val until = if (lower) p3 else size
+                fourDots(t, base, n, p0, p1, p2, p3, x, xOffset, from, until - from, 1.0)
+            }
+            done += GROUP
+        }
+        for (step in done until size) {
             val p = if (lower) size - 1 - step else step
             val own = x[xOffset + p]
-            val scaled = if (unitDiag) own else t[base + p + p * n] * own
+            val scaled = scale(own, t, base, n, p, unitDiag)
             if (transposed) {
                 val from = if (lower) 0 else p + 1
                 val until = if (lower) p else size
@@ -285,6 +374,119 @@ internal object SimdTriangularKernels : DenseTriangularKernels {
                 runUpdate(t, base + p * n + from, x, xOffset + from, until - from, own)
             }
         }
+    }
+
+    /** `M(i, j)`: line `j` at offset `i` untransposed, line `i` at offset `j` transposed. */
+    private fun entry(t: DoubleArray, base: Int, n: Int, transposed: Boolean, i: Int, j: Int): Double =
+        if (transposed) t[base + i * n + j] else t[base + j * n + i]
+
+    private fun divide(value: Double, t: DoubleArray, base: Int, n: Int, p: Int, unitDiag: Boolean): Double =
+        if (unitDiag) value else value / t[base + p * n + p]
+
+    private fun scale(value: Double, t: DoubleArray, base: Int, n: Int, p: Int, unitDiag: Boolean): Double =
+        if (unitDiag) value else t[base + p * n + p] * value
+
+    /** `x(q) += s0 · line(p0, q) + … + s3 · line(p3, q)` over one run of steps, the column pass of a group. */
+    private fun fourUpdate(
+        t: DoubleArray,
+        base: Int,
+        n: Int,
+        p0: Int,
+        p1: Int,
+        p2: Int,
+        p3: Int,
+        x: DoubleArray,
+        xOffset: Int,
+        from: Int,
+        length: Int,
+        s0: Double,
+        s1: Double,
+        s2: Double,
+        s3: Double,
+    ) {
+        val l0 = base + p0 * n + from
+        val l1 = base + p1 * n + from
+        val l2 = base + p2 * n + from
+        val l3 = base + p3 * n + from
+        val at = xOffset + from
+        var i = 0
+        val bound = SPECIES.loopBound(length)
+        if (bound > 0) {
+            val c0 = DoubleVector.broadcast(SPECIES, s0)
+            val c1 = DoubleVector.broadcast(SPECIES, s1)
+            val c2 = DoubleVector.broadcast(SPECIES, s2)
+            val c3 = DoubleVector.broadcast(SPECIES, s3)
+            while (i < bound) {
+                var sum = DoubleVector.fromArray(SPECIES, x, at + i)
+                sum = multiplyAdd(DoubleVector.fromArray(SPECIES, t, l0 + i), c0, sum)
+                sum = multiplyAdd(DoubleVector.fromArray(SPECIES, t, l1 + i), c1, sum)
+                sum = multiplyAdd(DoubleVector.fromArray(SPECIES, t, l2 + i), c2, sum)
+                multiplyAdd(DoubleVector.fromArray(SPECIES, t, l3 + i), c3, sum).intoArray(x, at + i)
+                i += LANE
+            }
+        }
+        while (i < length) {
+            x[at + i] += s0 * t[l0 + i] + s1 * t[l1 + i] + s2 * t[l2 + i] + s3 * t[l3 + i]
+            i++
+        }
+    }
+
+    /** `x(pk) += sign · (line(pk) · x)` over one run of steps for four lines at once, the row pass of a group. */
+    private fun fourDots(
+        t: DoubleArray,
+        base: Int,
+        n: Int,
+        p0: Int,
+        p1: Int,
+        p2: Int,
+        p3: Int,
+        x: DoubleArray,
+        xOffset: Int,
+        from: Int,
+        length: Int,
+        sign: Double,
+    ) {
+        val l0 = base + p0 * n + from
+        val l1 = base + p1 * n + from
+        val l2 = base + p2 * n + from
+        val l3 = base + p3 * n + from
+        val at = xOffset + from
+        var i = 0
+        var d0 = 0.0
+        var d1 = 0.0
+        var d2 = 0.0
+        var d3 = 0.0
+        val bound = SPECIES.loopBound(length)
+        if (bound > 0) {
+            var v0 = DoubleVector.zero(SPECIES)
+            var v1 = DoubleVector.zero(SPECIES)
+            var v2 = DoubleVector.zero(SPECIES)
+            var v3 = DoubleVector.zero(SPECIES)
+            while (i < bound) {
+                val xv = DoubleVector.fromArray(SPECIES, x, at + i)
+                v0 = multiplyAdd(DoubleVector.fromArray(SPECIES, t, l0 + i), xv, v0)
+                v1 = multiplyAdd(DoubleVector.fromArray(SPECIES, t, l1 + i), xv, v1)
+                v2 = multiplyAdd(DoubleVector.fromArray(SPECIES, t, l2 + i), xv, v2)
+                v3 = multiplyAdd(DoubleVector.fromArray(SPECIES, t, l3 + i), xv, v3)
+                i += LANE
+            }
+            d0 = v0.reduceLanes(VectorOperators.ADD)
+            d1 = v1.reduceLanes(VectorOperators.ADD)
+            d2 = v2.reduceLanes(VectorOperators.ADD)
+            d3 = v3.reduceLanes(VectorOperators.ADD)
+        }
+        while (i < length) {
+            val xi = x[at + i]
+            d0 += t[l0 + i] * xi
+            d1 += t[l1 + i] * xi
+            d2 += t[l2 + i] * xi
+            d3 += t[l3 + i] * xi
+            i++
+        }
+        x[xOffset + p0] += sign * d0
+        x[xOffset + p1] += sign * d1
+        x[xOffset + p2] += sign * d2
+        x[xOffset + p3] += sign * d3
     }
 
     /** `x(i) += scale · t(i)` along one contiguous run, the column step of [singleSolve]. */
