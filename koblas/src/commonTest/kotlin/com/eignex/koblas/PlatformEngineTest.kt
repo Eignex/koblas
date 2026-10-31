@@ -44,15 +44,15 @@ class PlatformEngineTest {
         assertNotEquals(BuiltinEngines.scalar.triangularKernels.name, koblas.triangularKernels.name)
     }
 
-    // A selection is not an execution: the Vector API backend hands a panel shorter than one lane block to
-    // the portable body, so this asks the backend which body a width reaches rather than reading its name.
+    // A selection is not an execution: the Vector API backend hands a rank update shorter than one lane block
+    // to the portable body, so this asks the backend which body a width reaches rather than reading its name.
     @Test
     fun `a wide panel reaches the vector body and a short one does not`() {
         val simd = BuiltinEngines.simd ?: return println(
             "SKIPPED: no Vector API engine on this host; the panel bodies were not compared",
         )
-        val wide = simd.panelKernels.implementationFor(PanelWork.MultiDot, WIDE, 4)
-        val short = simd.panelKernels.implementationFor(PanelWork.MultiDot, 1, 4)
+        val wide = simd.panelKernels.implementationFor(PanelWork.RankUpdate, WIDE, 4)
+        val short = simd.panelKernels.implementationFor(PanelWork.RankUpdate, 1, 4)
 
         assertNotEquals(short, wide, "a wide panel and a single row reached the same body")
         assertEquals(PortablePanelKernels.name, short)

@@ -1180,7 +1180,6 @@ internal object SimdPanelKernels : DensePanelKernels {
         }
     }
 
-    /** `y = alpha · sum + beta · y`, where a zero beta overwrites without reading the destination. */
     /** A panel with fewer rows than one lane block, which a column cannot fill and the work runs along. */
     private fun isShort(rows: Int): Boolean = simdAvailable && rows in 1 until VECTOR_MINIMUM
 
@@ -1193,9 +1192,8 @@ internal object SimdPanelKernels : DensePanelKernels {
         (work == PanelWork.ColumnUpdate && (isShort(rows) || isResident(rows)))
 
     /** The short panels this backend runs a body of its own for; a longer short column update is portable. */
-    private fun reachesShortBody(work: PanelWork, rows: Int): Boolean =
-        (work == PanelWork.MultiDot && isShort(rows)) ||
-            (work == PanelWork.ColumnUpdate && rows == 1 && simdAvailable)
+    private fun reachesShortBody(work: PanelWork, rows: Int): Boolean = (work == PanelWork.MultiDot && isShort(rows)) ||
+        (work == PanelWork.ColumnUpdate && rows == 1 && simdAvailable)
 
     /**
      * A short [multiDot]. A single row is an elementwise update along it; otherwise each column is a scalar
@@ -1406,6 +1404,7 @@ internal object SimdPanelKernels : DensePanelKernels {
         return (s0 + s1) + (s2 + s3)
     }
 
+    /** `y = alpha · sum + beta · y`, where a zero beta overwrites without reading the destination. */
     private fun store(y: DoubleArray, at: Int, alpha: Double, sum: Double, beta: Double) {
         y[at] = if (beta == 0.0) alpha * sum else alpha * sum + beta * y[at]
     }
@@ -1418,16 +1417,16 @@ internal object SimdPanelKernels : DensePanelKernels {
      */
     private const val COPY_WORTH_BLOCKS = 2
 
-    /** Columns grouped where one loaded vector serves all of them. */
     /** Columns one pass of a multi-dot reduces against the shared vector. */
     private const val MULTI_DOT_GROUP = 8
-    private const val COLUMN_UPDATE_GROUP = 8
 
+    /** Columns grouped where one loaded vector serves all of them. */
+    private const val COLUMN_UPDATE_GROUP = 8
+    private const val LARGE_COLUMN_UPDATE_GROUP = 12
 
     /** Lane blocks below which a column update keeps its destination in registers across the columns. */
     private const val RESIDENT_BLOCKS = 3
 
-    private const val LARGE_COLUMN_UPDATE_GROUP = 12
     private const val LARGE_COLUMN_UPDATE_MINIMUM_ROWS = 4_096
 
     private const val WIDE_GROUP = 4
