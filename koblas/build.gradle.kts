@@ -22,6 +22,11 @@ eignexBuild {
 eignexPublish {
     description.set("Portable dense and sparse BLAS for Kotlin Multiplatform with JVM SIMD and optional host bindings.")
     githubRepo.set("Eignex/koblas")
+    // Kotlin/Native has no Linux ARM64 host, so the multiplatform publication is never created there. Releases
+    // are built elsewhere; skipping publication lets ARM benchmark workers configure the JVM build.
+    publish.set(
+        !(System.getProperty("os.name").startsWith("Linux") && System.getProperty("os.arch") in setOf("aarch64", "arm64")),
+    )
 }
 
 kotlin {
