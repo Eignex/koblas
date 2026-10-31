@@ -1,6 +1,7 @@
 package com.eignex.koblas.internal.jvm25.simd
 
 import jdk.incubator.vector.DoubleVector
+import jdk.incubator.vector.VectorShape
 import jdk.incubator.vector.VectorSpecies
 
 /**
@@ -16,6 +17,10 @@ import jdk.incubator.vector.VectorSpecies
  * already found [simdAvailable] may.
  */
 internal val SIMD_SPECIES: VectorSpecies<Double> = DoubleVector.SPECIES_PREFERRED.let { preferred ->
-    val x86 = System.getProperty("os.arch").orEmpty() in setOf("amd64", "x86_64", "x64")
-    if (x86 && preferred.vectorBitSize() > 256) DoubleVector.SPECIES_256 else preferred
+    val bits = simdBitSizeFor(System.getProperty("os.arch").orEmpty(), preferred.vectorBitSize())
+    if (bits == preferred.vectorBitSize()) preferred else preferred.withShape(VectorShape.forBitSize(bits))
 }
+
+/** The vector width [SIMD_SPECIES] takes on architecture [osArch] whose preferred width is [preferredBits]. */
+internal fun simdBitSizeFor(osArch: String, preferredBits: Int): Int =
+    if (osArch in setOf("amd64", "x86_64", "x64") && preferredBits > 256) 256 else preferredBits
