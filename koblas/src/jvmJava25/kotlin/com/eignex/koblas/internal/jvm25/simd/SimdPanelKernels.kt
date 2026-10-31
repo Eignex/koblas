@@ -19,9 +19,11 @@ import jdk.incubator.vector.VectorOperators
  * keep a destination strip in registers while several columns accumulate into it. Column grouping
  * is independent of the lane count: lanes run down rows.
  *
- * Short panels and strided operands requiring gathers use the portable bodies;
- * [implementationFor] reports the body reached. Species initialization requires the Vector API
- * module, so [com.eignex.koblas.BuiltinEngines] checks availability before using this backend.
+ * A multi-dot or column update shorter than one lane block runs along its row instead, as a dot, an
+ * elementwise update or one masked block per column. Other short panels and strided operands requiring
+ * gathers use the portable bodies; [implementationFor] reports the body reached. Species initialization
+ * requires the Vector API module, so [com.eignex.koblas.BuiltinEngines] checks availability before using
+ * this backend.
  */
 internal object SimdPanelKernels : DensePanelKernels {
     private val SPECIES = DoubleVector.SPECIES_PREFERRED
@@ -40,6 +42,9 @@ internal object SimdPanelKernels : DensePanelKernels {
      */
     private val VECTOR_MINIMUM = MINIMUM_BLOCKS * LANE
 
+    /** Column length from which a reduction carries two accumulators per column; shorter ones are reduce-bound. */
+    private val PAIRED_MINIMUM = 16 * LANE
+
     /** Whether a panel of this shape and spacing reaches the vector bodies rather than the portable ones. */
     private fun vectorizes(rows: Int, contiguous: Boolean): Boolean =
         simdAvailable && contiguous && rows >= VECTOR_MINIMUM
@@ -53,6 +58,8 @@ internal object SimdPanelKernels : DensePanelKernels {
     override fun executionGroup(work: PanelWork, rows: Int, columns: Int, contiguous: Boolean): Int {
         if (!simdAvailable) return PortablePanelKernels.executionGroup(work, rows, columns, contiguous)
         val preferred = when {
+            contiguous && reachesShortBody(work, rows) -> columns
+
             work == PanelWork.ColumnUpdate && contiguous ->
                 if (prefersLargeColumnUpdate(rows)) LARGE_COLUMN_UPDATE_GROUP else COLUMN_UPDATE_GROUP
 
@@ -79,7 +86,7 @@ internal object SimdPanelKernels : DensePanelKernels {
         simdAvailable && rows >= COPY_WORTH_BLOCKS * LANE && !vectorizes(rows, contiguous = false)
 
     override fun implementationFor(work: PanelWork, rows: Int, columns: Int, contiguous: Boolean): String =
-        if (vectorizes(rows, contiguous)) {
+        if (vectorizes(rows, contiguous) || (contiguous && reachesShortBody(work, rows))) {
             name
         } else {
             PortablePanelKernels.implementationFor(work, rows, columns, contiguous)
@@ -100,6 +107,10 @@ internal object SimdPanelKernels : DensePanelKernels {
         yOffset: Int,
         yStride: Int,
     ) {
+        if (isShort(rows) && xStride == 1) {
+            multiDotShort(alpha, a, aOffset, lda, x, xOffset, rows, columns, beta, y, yOffset, yStride)
+            return
+        }
         if (!vectorizes(rows, xStride == 1)) {
             PortablePanelKernels.multiDot(
                 alpha, a, aOffset, lda, x, xOffset, xStride, rows, columns, beta, y, yOffset, yStride,
@@ -121,6 +132,10 @@ internal object SimdPanelKernels : DensePanelKernels {
         }
     }
 
+    /**
+     * Two accumulators per column: one FMA per column and lane block would wait out the instruction's
+     * latency on a long column rather than run at the load rate.
+     */
     private fun dotFour(
         alpha: Double,
         a: DoubleArray,
@@ -138,26 +153,46 @@ internal object SimdPanelKernels : DensePanelKernels {
         var v1 = DoubleVector.zero(SPECIES)
         var v2 = DoubleVector.zero(SPECIES)
         var v3 = DoubleVector.zero(SPECIES)
+        var w0 = DoubleVector.zero(SPECIES)
+        var w1 = DoubleVector.zero(SPECIES)
+        var w2 = DoubleVector.zero(SPECIES)
+        var w3 = DoubleVector.zero(SPECIES)
+        val a1 = aOffset + lda
+        val a2 = aOffset + 2 * lda
+        val a3 = aOffset + 3 * lda
         var i = 0
-        val bound = SPECIES.loopBound(rows)
-        while (i < bound) {
+        val pairs = if (rows >= PAIRED_MINIMUM) rows - rows % (2 * LANE) else 0
+        while (i < pairs) {
+            val xv = DoubleVector.fromArray(SPECIES, x, xOffset + i)
+            val xw = DoubleVector.fromArray(SPECIES, x, xOffset + i + LANE)
+            v0 = multiplyAdd(DoubleVector.fromArray(SPECIES, a, aOffset + i), xv, v0)
+            v1 = multiplyAdd(DoubleVector.fromArray(SPECIES, a, a1 + i), xv, v1)
+            v2 = multiplyAdd(DoubleVector.fromArray(SPECIES, a, a2 + i), xv, v2)
+            v3 = multiplyAdd(DoubleVector.fromArray(SPECIES, a, a3 + i), xv, v3)
+            w0 = multiplyAdd(DoubleVector.fromArray(SPECIES, a, aOffset + i + LANE), xw, w0)
+            w1 = multiplyAdd(DoubleVector.fromArray(SPECIES, a, a1 + i + LANE), xw, w1)
+            w2 = multiplyAdd(DoubleVector.fromArray(SPECIES, a, a2 + i + LANE), xw, w2)
+            w3 = multiplyAdd(DoubleVector.fromArray(SPECIES, a, a3 + i + LANE), xw, w3)
+            i += 2 * LANE
+        }
+        if (i + LANE <= rows) {
             val xv = DoubleVector.fromArray(SPECIES, x, xOffset + i)
             v0 = multiplyAdd(DoubleVector.fromArray(SPECIES, a, aOffset + i), xv, v0)
-            v1 = multiplyAdd(DoubleVector.fromArray(SPECIES, a, aOffset + i + lda), xv, v1)
-            v2 = multiplyAdd(DoubleVector.fromArray(SPECIES, a, aOffset + i + 2 * lda), xv, v2)
-            v3 = multiplyAdd(DoubleVector.fromArray(SPECIES, a, aOffset + i + 3 * lda), xv, v3)
+            v1 = multiplyAdd(DoubleVector.fromArray(SPECIES, a, a1 + i), xv, v1)
+            v2 = multiplyAdd(DoubleVector.fromArray(SPECIES, a, a2 + i), xv, v2)
+            v3 = multiplyAdd(DoubleVector.fromArray(SPECIES, a, a3 + i), xv, v3)
             i += LANE
         }
-        var s0 = v0.reduceLanes(VectorOperators.ADD)
-        var s1 = v1.reduceLanes(VectorOperators.ADD)
-        var s2 = v2.reduceLanes(VectorOperators.ADD)
-        var s3 = v3.reduceLanes(VectorOperators.ADD)
+        var s0 = v0.add(w0).reduceLanes(VectorOperators.ADD)
+        var s1 = v1.add(w1).reduceLanes(VectorOperators.ADD)
+        var s2 = v2.add(w2).reduceLanes(VectorOperators.ADD)
+        var s3 = v3.add(w3).reduceLanes(VectorOperators.ADD)
         while (i < rows) {
             val xi = x[xOffset + i]
             s0 += a[aOffset + i] * xi
-            s1 += a[aOffset + i + lda] * xi
-            s2 += a[aOffset + i + 2 * lda] * xi
-            s3 += a[aOffset + i + 3 * lda] * xi
+            s1 += a[a1 + i] * xi
+            s2 += a[a2 + i] * xi
+            s3 += a[a3 + i] * xi
             i++
         }
         store(y, yOffset, alpha, s0, beta)
@@ -181,45 +216,41 @@ internal object SimdPanelKernels : DensePanelKernels {
     ) {
         var v0 = DoubleVector.zero(SPECIES)
         var v1 = DoubleVector.zero(SPECIES)
+        var w0 = DoubleVector.zero(SPECIES)
+        var w1 = DoubleVector.zero(SPECIES)
+        val a1 = aOffset + lda
         var i = 0
-        val bound = SPECIES.loopBound(rows)
-        while (i < bound) {
+        val pairs = if (rows >= PAIRED_MINIMUM) rows - rows % (2 * LANE) else 0
+        while (i < pairs) {
+            val xv = DoubleVector.fromArray(SPECIES, x, xOffset + i)
+            val xw = DoubleVector.fromArray(SPECIES, x, xOffset + i + LANE)
+            v0 = multiplyAdd(DoubleVector.fromArray(SPECIES, a, aOffset + i), xv, v0)
+            v1 = multiplyAdd(DoubleVector.fromArray(SPECIES, a, a1 + i), xv, v1)
+            w0 = multiplyAdd(DoubleVector.fromArray(SPECIES, a, aOffset + i + LANE), xw, w0)
+            w1 = multiplyAdd(DoubleVector.fromArray(SPECIES, a, a1 + i + LANE), xw, w1)
+            i += 2 * LANE
+        }
+        if (i + LANE <= rows) {
             val xv = DoubleVector.fromArray(SPECIES, x, xOffset + i)
             v0 = multiplyAdd(DoubleVector.fromArray(SPECIES, a, aOffset + i), xv, v0)
-            v1 = multiplyAdd(DoubleVector.fromArray(SPECIES, a, aOffset + i + lda), xv, v1)
+            v1 = multiplyAdd(DoubleVector.fromArray(SPECIES, a, a1 + i), xv, v1)
             i += LANE
         }
-        var s0 = v0.reduceLanes(VectorOperators.ADD)
-        var s1 = v1.reduceLanes(VectorOperators.ADD)
+        var s0 = v0.add(w0).reduceLanes(VectorOperators.ADD)
+        var s1 = v1.add(w1).reduceLanes(VectorOperators.ADD)
         while (i < rows) {
             val xi = x[xOffset + i]
             s0 += a[aOffset + i] * xi
-            s1 += a[aOffset + i + lda] * xi
+            s1 += a[a1 + i] * xi
             i++
         }
         store(y, yOffset, alpha, s0, beta)
         store(y, yOffset + yStride, alpha, s1, beta)
     }
 
-    private fun dotOne(a: DoubleArray, aOffset: Int, x: DoubleArray, xOffset: Int, rows: Int): Double {
-        var v = DoubleVector.zero(SPECIES)
-        var i = 0
-        val bound = SPECIES.loopBound(rows)
-        while (i < bound) {
-            v = multiplyAdd(
-                DoubleVector.fromArray(SPECIES, a, aOffset + i),
-                DoubleVector.fromArray(SPECIES, x, xOffset + i),
-                v,
-            )
-            i += LANE
-        }
-        var sum = v.reduceLanes(VectorOperators.ADD)
-        while (i < rows) {
-            sum += a[aOffset + i] * x[xOffset + i]
-            i++
-        }
-        return sum
-    }
+    /** A single column is the vector kernel's dot, which keeps several accumulators on a long run. */
+    private fun dotOne(a: DoubleArray, aOffset: Int, x: DoubleArray, xOffset: Int, rows: Int): Double =
+        SimdOps.dot(a, aOffset, x, xOffset, rows)
 
     override fun columnUpdate(
         alpha: Double,
@@ -236,6 +267,10 @@ internal object SimdPanelKernels : DensePanelKernels {
         yStride: Int,
     ) {
         if (rows <= 0 || columns <= 0) return
+        if (isShort(rows) && (rows == 1 || yStride == 1)) {
+            columnUpdateShort(alpha, a, aOffset, lda, x, xOffset, xStride, rows, columns, y, yOffset)
+            return
+        }
         if (!vectorizes(rows, yStride == 1)) {
             PortablePanelKernels.columnUpdate(
                 alpha, a, aOffset, lda, x, xOffset, xStride, rows, columns, y, yOffset, yStride,
@@ -988,6 +1023,169 @@ internal object SimdPanelKernels : DensePanelKernels {
     }
 
     /** `y = alpha · sum + beta · y`, where a zero beta overwrites without reading the destination. */
+    /** A panel with fewer rows than one lane block, which a column cannot fill and the work runs along. */
+    private fun isShort(rows: Int): Boolean = simdAvailable && rows in 1 until VECTOR_MINIMUM
+
+    /** The two panels with a short body of their own; every other short panel is portable work. */
+    private fun reachesShortBody(work: PanelWork, rows: Int): Boolean =
+        (work == PanelWork.MultiDot || work == PanelWork.ColumnUpdate) && isShort(rows)
+
+    /**
+     * A short [multiDot]. A single row is an elementwise update along it; otherwise each column is one
+     * masked lane block reduced against the shared vector.
+     */
+    private fun multiDotShort(
+        alpha: Double,
+        a: DoubleArray,
+        aOffset: Int,
+        lda: Int,
+        x: DoubleArray,
+        xOffset: Int,
+        rows: Int,
+        columns: Int,
+        beta: Double,
+        y: DoubleArray,
+        yOffset: Int,
+        yStride: Int,
+    ) {
+        if (rows == 1) {
+            scaledRow(alpha * x[xOffset], a, aOffset, lda, columns, beta, y, yOffset, yStride)
+            return
+        }
+        val mask = SPECIES.indexInRange(0, rows)
+        val xv = DoubleVector.fromArray(SPECIES, x, xOffset, mask)
+        for (c in 0 until columns) {
+            val sum = DoubleVector.fromArray(SPECIES, a, aOffset + c * lda, mask).mul(xv)
+                .reduceLanes(VectorOperators.ADD)
+            store(y, yOffset + c * yStride, alpha, sum, beta)
+        }
+    }
+
+    /** `y(c) = t · a(0, c) + beta · y(c)` along one stored row. */
+    private fun scaledRow(
+        t: Double,
+        a: DoubleArray,
+        aOffset: Int,
+        lda: Int,
+        columns: Int,
+        beta: Double,
+        y: DoubleArray,
+        yOffset: Int,
+        yStride: Int,
+    ) {
+        var c = 0
+        if (lda == 1 && yStride == 1) {
+            val tv = DoubleVector.broadcast(SPECIES, t)
+            val bound = SPECIES.loopBound(columns)
+            if (beta == 0.0) {
+                while (c < bound) {
+                    DoubleVector.fromArray(SPECIES, a, aOffset + c).mul(tv).intoArray(y, yOffset + c)
+                    c += LANE
+                }
+            } else {
+                val bv = DoubleVector.broadcast(SPECIES, beta)
+                while (c < bound) {
+                    multiplyAdd(
+                        DoubleVector.fromArray(SPECIES, a, aOffset + c),
+                        tv,
+                        DoubleVector.fromArray(SPECIES, y, yOffset + c).mul(bv),
+                    ).intoArray(y, yOffset + c)
+                    c += LANE
+                }
+            }
+        }
+        while (c < columns) {
+            store(y, yOffset + c * yStride, 1.0, t * a[aOffset + c * lda], beta)
+            c++
+        }
+    }
+
+    /**
+     * A short [columnUpdate]. A single row is one dot along it; otherwise the destination is one masked lane
+     * block that two accumulators carry across the columns before it is written back once.
+     */
+    private fun columnUpdateShort(
+        alpha: Double,
+        a: DoubleArray,
+        aOffset: Int,
+        lda: Int,
+        x: DoubleArray,
+        xOffset: Int,
+        xStride: Int,
+        rows: Int,
+        columns: Int,
+        y: DoubleArray,
+        yOffset: Int,
+    ) {
+        if (rows == 1) {
+            val sum = if (lda == 1 && xStride == 1) {
+                SimdOps.dot(a, aOffset, x, xOffset, columns)
+            } else {
+                stridedDot(a, aOffset, lda, x, xOffset, xStride, columns)
+            }
+            y[yOffset] += alpha * sum
+            return
+        }
+        val mask = SPECIES.indexInRange(0, rows)
+        var even = DoubleVector.zero(SPECIES)
+        var odd = DoubleVector.zero(SPECIES)
+        var c = 0
+        while (c + 2 <= columns) {
+            even = multiplyAdd(
+                DoubleVector.fromArray(SPECIES, a, aOffset + c * lda, mask),
+                DoubleVector.broadcast(SPECIES, x[xOffset + c * xStride]),
+                even,
+            )
+            odd = multiplyAdd(
+                DoubleVector.fromArray(SPECIES, a, aOffset + (c + 1) * lda, mask),
+                DoubleVector.broadcast(SPECIES, x[xOffset + (c + 1) * xStride]),
+                odd,
+            )
+            c += 2
+        }
+        if (c < columns) {
+            even = multiplyAdd(
+                DoubleVector.fromArray(SPECIES, a, aOffset + c * lda, mask),
+                DoubleVector.broadcast(SPECIES, x[xOffset + c * xStride]),
+                even,
+            )
+        }
+        multiplyAdd(
+            even.add(odd),
+            DoubleVector.broadcast(SPECIES, alpha),
+            DoubleVector.fromArray(SPECIES, y, yOffset, mask),
+        ).intoArray(y, yOffset, mask)
+    }
+
+    /** A dot whose operands are both strided, with four sums so the additions do not wait on each other. */
+    private fun stridedDot(
+        a: DoubleArray,
+        aOffset: Int,
+        aStride: Int,
+        x: DoubleArray,
+        xOffset: Int,
+        xStride: Int,
+        length: Int,
+    ): Double {
+        var s0 = 0.0
+        var s1 = 0.0
+        var s2 = 0.0
+        var s3 = 0.0
+        var c = 0
+        while (c + 4 <= length) {
+            s0 += a[aOffset + c * aStride] * x[xOffset + c * xStride]
+            s1 += a[aOffset + (c + 1) * aStride] * x[xOffset + (c + 1) * xStride]
+            s2 += a[aOffset + (c + 2) * aStride] * x[xOffset + (c + 2) * xStride]
+            s3 += a[aOffset + (c + 3) * aStride] * x[xOffset + (c + 3) * xStride]
+            c += 4
+        }
+        while (c < length) {
+            s0 += a[aOffset + c * aStride] * x[xOffset + c * xStride]
+            c++
+        }
+        return (s0 + s1) + (s2 + s3)
+    }
+
     private fun store(y: DoubleArray, at: Int, alpha: Double, sum: Double, beta: Double) {
         y[at] = if (beta == 0.0) alpha * sum else alpha * sum + beta * y[at]
     }
@@ -1002,6 +1200,7 @@ internal object SimdPanelKernels : DensePanelKernels {
 
     /** Columns grouped where one loaded vector serves all of them. */
     private const val COLUMN_UPDATE_GROUP = 8
+
     private const val LARGE_COLUMN_UPDATE_GROUP = 12
     private const val LARGE_COLUMN_UPDATE_MINIMUM_ROWS = 4_096
 

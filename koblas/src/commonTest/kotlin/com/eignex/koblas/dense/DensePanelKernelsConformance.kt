@@ -193,6 +193,7 @@ internal fun assertPanelKernelsAgreeWithReference(kernels: DensePanelKernels) {
             assertCoupledAgrees(kernels, alpha, a, lda, rows, columns, context, rng)
         }
     }
+    assertSingleRowPanelsAgreeWithReference(kernels)
     assertIndexedPanelsAgreeWithReference(kernels)
 }
 
@@ -549,6 +550,34 @@ internal fun assertLargeColumnUpdatesAgreeWithReference(kernels: DensePanelKerne
 
                 assertClose(expected, actual, "long column update rows=$rows columns=$columns stride=$stride")
             }
+        }
+    }
+}
+
+/**
+ * A panel of one stored row whose columns are adjacent, which a backend may run along the row: as one dot
+ * for a column update and as an elementwise update for a multi-dot. Lengths straddle the unrolled bodies.
+ */
+internal fun assertSingleRowPanelsAgreeWithReference(kernels: DensePanelKernels) {
+    for (columns in intArrayOf(1, 7, 33, 1_000, 4_099)) {
+        for (beta in doubleArrayOf(0.0, -0.25)) {
+            val a = DoubleArray(PAD + columns + PAD) { ((it % 17) - 8) / 16.0 }
+            val vector = DoubleArray(PAD + columns + PAD) { ((it % 13) - 6) / 16.0 }
+            val context = "columns=$columns beta=$beta"
+
+            val expectedRow = referenceMultiDot(
+                0.875, a, PAD, 1, doubleArrayOf(0.5), 0, 1, 1, columns, beta, vector, PAD, 1,
+            )
+            val actualDot = vector.copyOf()
+            kernels.multiDot(0.875, a, PAD, 1, doubleArrayOf(0.5), 0, 1, 1, columns, beta, actualDot, PAD, 1)
+            assertClose(expectedRow, actualDot, "single row multiDot $context")
+
+            val destination = doubleArrayOf(-12345.0, 0.25, -12345.0)
+            val expectedUpdate =
+                referenceColumnUpdate(0.875, a, PAD, 1, vector, PAD, 1, 1, columns, destination, 1, 1)
+            val actualUpdate = destination.copyOf()
+            kernels.columnUpdate(0.875, a, PAD, 1, vector, PAD, 1, 1, columns, actualUpdate, 1, 1)
+            assertClose(expectedUpdate, actualUpdate, "single row columnUpdate $context")
         }
     }
 }
