@@ -83,4 +83,32 @@ STAT
   [[ $(select_cpu 0-1) == 0 ]]
 fi
 bash "$bench/capture-report.sh" --help >/dev/null 2>&1
+
+# Two passes of two cells; the failed row and the case only one target measured are left out.
+report="$temporary/report"
+header='case,status,comparison_kind,timing_mode,actual_kernel,samples,forks,median_ns,min_ns,max_ns'
+mkdir -p "$report/cases/0/pass-1" "$report/cases/0/pass-2" "$report/cases/1/pass-1"
+printf '%s\n%s\n%s\n' "$header" 'dot+64+uniform,ok,d,a,k,5,1,10,9,11' 'dot+8192+uniform,ok,d,a,k,5,1,100,99,101' \
+  >"$report/cases/0/pass-1/vendor.csv"
+printf '%s\n%s\n' "$header" 'dot+64+uniform,ok,d,a,k,5,1,30,29,31' >"$report/cases/0/pass-2/vendor.csv"
+printf '%s\n%s\n%s\n' "$header" 'dot+64+uniform,ok,d,a,k,5,1,8,7,9' 'dot+8192+uniform,ok,d,a,k,5,1,150,149,151' \
+  >"$report/cases/0/pass-1/jvm.csv"
+printf '%s\n%s\n%s\n' "$header" 'dot+64+uniform,failed,d,a,k,5,1,1,1,1' 'gemv+4x4+uniform,ok,d,a,k,5,1,1,1,1' \
+  >"$report/cases/1/pass-1/jvm.csv"
+bash "$bench/lab/compare.sh" "$report" jvm vendor >"$temporary/compared"
+printf '%s\n' 'dot+64+uniform 20.0 0.4000' 'dot+8192+uniform 100.0 1.5000' | cmp - "$temporary/compared"
+printf '%s\n' 'dot+64+uniform 40.0 0.6000' >"$temporary/second"
+printf '%s\n' 'dot+64+uniform 60.0 0.8000' >"$temporary/third"
+bash "$bench/lab/median.sh" "$temporary/compared" "$temporary/second" "$temporary/third" >"$temporary/median"
+printf '%s\n' 'dot+64+uniform 40.0 0.6000' 'dot+8192+uniform 100.0 1.5000' | cmp - "$temporary/median"
+# One losing row sinks a small cell; a mid cell wins on its geometric mean despite a losing row.
+printf '%s\n' 'axpy+64+uniform 1.0 0.5' 'axpy+128+uniform 1.0 1.01' 'axpy+4096+uniform 1.0 1.2' \
+  'axpy+8192+uniform 1.0 0.5' >"$temporary/cells"
+bash "$bench/lab/score.sh" openblas "$temporary/cells" >"$temporary/scored"
+grep -Eq '^axpy +small +lose ' "$temporary/scored"
+grep -Eq '^axpy +mid +win ' "$temporary/scored"
+# Only Accelerate cells whose reference outruns the vector unit on every row are set aside.
+printf '%s\n' 'dot+65536+uniform 655.36 2.0' >"$temporary/fast"
+bash "$bench/lab/score.sh" accelerate "$temporary/fast" | grep -Eq '^dot +large +coprocessor '
+bash "$bench/lab/score.sh" openblas "$temporary/fast" | grep -Eq '^dot +large +lose '
 echo 'Benchmark script checks passed'

@@ -88,3 +88,20 @@ The adapter owns the output directory and retains logs and partial results on fa
 Use automatic placement. Keep all arms of a comparison row on one machine in one worker attempt;
 replacement attempts rerun the complete unfinished row. Other rows may use different compatible machines.
 See [LabAdapter.kt](src/jvmMain/kotlin/com/eignex/koblas/bench/LabAdapter.kt) for accepted parameters and validation.
+
+### Score lab comparisons
+
+The scripts under [lab](lab) read fetched job directories, whatever their case layout, and need only Bash and awk:
+
+```bash
+# Ratio of jvm-simd to openblas per case, each time the median over the job's passes.
+koblas-bench/lab/compare.sh results/run-1 jvm-simd openblas >run-1.txt
+# Median of each case over repeated jobs.
+koblas-bench/lab/median.sh run-1.txt run-2.txt run-3.txt >median.txt
+# Win or lose per routine and size band.
+koblas-bench/lab/score.sh openblas median.txt
+```
+
+Each job is a fresh JVM whose arrays land at a different alignment, and single runs of one commit differ by
+tens of percent per routine on cloud hosts. Compare a variant with the median of at least three runs of its
+base rather than with one. `score.sh` documents its size bands and the Accelerate coprocessor exemption.
