@@ -272,6 +272,10 @@ internal object SimdPanelKernels : DensePanelKernels {
             columnUpdateShort(alpha, a, aOffset, lda, x, xOffset, xStride, rows, columns, y, yOffset)
             return
         }
+        if (isResident(rows) && yStride == 1) {
+            columnUpdateResident(alpha, a, aOffset, lda, x, xOffset, xStride, rows, columns, y, yOffset)
+            return
+        }
         if (!vectorizes(rows, yStride == 1)) {
             PortablePanelKernels.columnUpdate(
                 alpha, a, aOffset, lda, x, xOffset, xStride, rows, columns, y, yOffset, yStride,
@@ -1109,7 +1113,8 @@ internal object SimdPanelKernels : DensePanelKernels {
      * than the arithmetic in them.
      */
     private fun groupsWholeRow(work: PanelWork, rows: Int): Boolean =
-        (work == PanelWork.MultiDot || work == PanelWork.ColumnUpdate) && isShort(rows)
+        (work == PanelWork.MultiDot || work == PanelWork.ColumnUpdate) && isShort(rows) ||
+            (work == PanelWork.ColumnUpdate && isResident(rows))
 
     /** The short panels this backend runs a body of its own for; a longer short column update is portable. */
     private fun reachesShortBody(work: PanelWork, rows: Int): Boolean =
@@ -1215,6 +1220,87 @@ internal object SimdPanelKernels : DensePanelKernels {
         PortablePanelKernels.columnUpdate(alpha, a, aOffset, lda, x, xOffset, xStride, rows, columns, y, yOffset, 1)
     }
 
+    /** Rows a column update keeps in registers across every column instead of reloading per group. */
+    private fun isResident(rows: Int): Boolean = simdAvailable && rows >= LANE && rows < RESIDENT_BLOCKS * LANE
+
+    /**
+     * A column update over one or two lane blocks of rows, with the destination held in registers across
+     * every column. On a panel this short each group of columns is a single vector iteration, and a group
+     * reloading what the previous one stored makes the whole call one dependency chain through memory; here
+     * two chains per block run across the columns and the destination is written once.
+     */
+    private fun columnUpdateResident(
+        alpha: Double,
+        a: DoubleArray,
+        aOffset: Int,
+        lda: Int,
+        x: DoubleArray,
+        xOffset: Int,
+        xStride: Int,
+        rows: Int,
+        columns: Int,
+        y: DoubleArray,
+        yOffset: Int,
+    ) {
+        val two = rows >= 2 * LANE
+        var even0 = DoubleVector.zero(SPECIES)
+        var odd0 = DoubleVector.zero(SPECIES)
+        var even1 = DoubleVector.zero(SPECIES)
+        var odd1 = DoubleVector.zero(SPECIES)
+        var c = 0
+        if (two) {
+            while (c + 2 <= columns) {
+                val t0 = DoubleVector.broadcast(SPECIES, x[xOffset + c * xStride])
+                val t1 = DoubleVector.broadcast(SPECIES, x[xOffset + (c + 1) * xStride])
+                val at = aOffset + c * lda
+                even0 = multiplyAdd(DoubleVector.fromArray(SPECIES, a, at), t0, even0)
+                even1 = multiplyAdd(DoubleVector.fromArray(SPECIES, a, at + LANE), t0, even1)
+                odd0 = multiplyAdd(DoubleVector.fromArray(SPECIES, a, at + lda), t1, odd0)
+                odd1 = multiplyAdd(DoubleVector.fromArray(SPECIES, a, at + lda + LANE), t1, odd1)
+                c += 2
+            }
+            if (c < columns) {
+                val t0 = DoubleVector.broadcast(SPECIES, x[xOffset + c * xStride])
+                even0 = multiplyAdd(DoubleVector.fromArray(SPECIES, a, aOffset + c * lda), t0, even0)
+                even1 = multiplyAdd(DoubleVector.fromArray(SPECIES, a, aOffset + c * lda + LANE), t0, even1)
+            }
+        } else {
+            while (c + 2 <= columns) {
+                val at = aOffset + c * lda
+                even0 = multiplyAdd(
+                    DoubleVector.fromArray(SPECIES, a, at),
+                    DoubleVector.broadcast(SPECIES, x[xOffset + c * xStride]),
+                    even0,
+                )
+                odd0 = multiplyAdd(
+                    DoubleVector.fromArray(SPECIES, a, at + lda),
+                    DoubleVector.broadcast(SPECIES, x[xOffset + (c + 1) * xStride]),
+                    odd0,
+                )
+                c += 2
+            }
+            if (c < columns) {
+                even0 = multiplyAdd(
+                    DoubleVector.fromArray(SPECIES, a, aOffset + c * lda),
+                    DoubleVector.broadcast(SPECIES, x[xOffset + c * xStride]),
+                    even0,
+                )
+            }
+        }
+        val scale = DoubleVector.broadcast(SPECIES, alpha)
+        multiplyAdd(even0.add(odd0), scale, DoubleVector.fromArray(SPECIES, y, yOffset)).intoArray(y, yOffset)
+        var i = LANE
+        if (two) {
+            multiplyAdd(even1.add(odd1), scale, DoubleVector.fromArray(SPECIES, y, yOffset + LANE))
+                .intoArray(y, yOffset + LANE)
+            i = 2 * LANE
+        }
+        while (i < rows) {
+            y[yOffset + i] += alpha * stridedDot(a, aOffset + i, lda, x, xOffset, xStride, columns)
+            i++
+        }
+    }
+
     /** A dot whose operands are both strided, with four sums so the additions do not wait on each other. */
     private fun stridedDot(
         a: DoubleArray,
@@ -1258,6 +1344,10 @@ internal object SimdPanelKernels : DensePanelKernels {
 
     /** Columns grouped where one loaded vector serves all of them. */
     private const val COLUMN_UPDATE_GROUP = 8
+
+
+    /** Lane blocks below which a column update keeps its destination in registers across the columns. */
+    private const val RESIDENT_BLOCKS = 3
 
     private const val LARGE_COLUMN_UPDATE_GROUP = 12
     private const val LARGE_COLUMN_UPDATE_MINIMUM_ROWS = 4_096
