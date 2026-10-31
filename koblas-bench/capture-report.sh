@@ -24,12 +24,11 @@ original_args=("$@")
 vendors_only=false
 smoke=false
 selected_targets=
-shard=1/1
 prepared=false
 retain_incomplete=false
 
 usage() {
-  echo "usage: capture-report.sh [--libraries openblas,accelerate,onemkl,aocl,armpl|all] [--targets NAME,...] [--prepared] [--retain-incomplete] [--vendors-only] [--smoke] [--output DIR] [--native-executable PATH] [--cases FILE] [--operation NAME|all] [--suite default|sweep] [--samples N] [--warmups N] [--target-ms N] [--forks N] [--pass N] [--rounds N] [--shard I/N] [--cpu N|auto|spread] [--jvm-gc g1|serial|zgc] [--jvm-heap SIZE]" >&2
+  echo "usage: capture-report.sh [--libraries openblas,accelerate,onemkl,aocl,armpl|all] [--targets NAME,...] [--prepared] [--retain-incomplete] [--vendors-only] [--smoke] [--output DIR] [--native-executable PATH] [--cases FILE] [--operation NAME|all] [--suite default|sweep] [--samples N] [--warmups N] [--target-ms N] [--forks N] [--pass N] [--rounds N] [--cpu N|auto|spread] [--jvm-gc g1|serial|zgc] [--jvm-heap SIZE]" >&2
 }
 while (($#)); do
   case "$1" in
@@ -48,7 +47,6 @@ while (($#)); do
     --forks) forks=${2:?}; shift 2 ;;
     --pass) pass=${2:?}; shift 2 ;;
     --rounds) rounds=${2:?}; shift 2 ;;
-    --shard) shard=${2:?}; shift 2 ;;
     --cpu) cpu=${2:?}; shift 2 ;;
     --jvm-gc) jvm_gc=${2:?}; shift 2 ;;
     --jvm-heap) jvm_heap=${2:?}; shift 2 ;;
@@ -59,7 +57,6 @@ while (($#)); do
   esac
 done
 [[ $rounds =~ ^[1-9][0-9]*$ ]] || { echo "rounds must be a positive integer" >&2; exit 2; }
-[[ $shard =~ ^([1-9][0-9]*)/([1-9][0-9]*)$ ]] && ((BASH_REMATCH[1] <= BASH_REMATCH[2])) || { echo "shard must be I/N with 1 <= I <= N" >&2; exit 2; }
 [[ -z $jvm_gc || $jvm_gc == g1 || $jvm_gc == serial || $jvm_gc == zgc ]] || { echo "jvm-gc must be g1, serial or zgc" >&2; exit 2; }
 [[ -z $jvm_heap || $jvm_heap =~ ^[1-9][0-9]*[mg]$ ]] || { echo "jvm-heap must be a positive size ending in m or g" >&2; exit 2; }
 if [[ -n $cpu && ${KOBLAS_BENCH_PINNED:-false} != true ]]; then
@@ -266,7 +263,7 @@ if ((rounds > 1)); then
     printf 'round_%s_targets=%s\n' "$round" "$order" >>"$metadata"
     args=(--libraries "$libraries" --targets "$order" --cases "$cases" --suite "$suite" --operation "$operation"
       --samples "$samples" --warmups "$warmups" --target-ms "$target_ms" --forks "$forks"
-      --pass "$round" --shard "$shard" --output "$output/pass-$round")
+      --pass "$round" --output "$output/pass-$round")
     if [[ -n $native_executable ]]; then args+=(--native-executable "$native_executable"); fi
     if [[ -n $jvm_gc ]]; then args+=(--jvm-gc "$jvm_gc"); fi
     if [[ -n $jvm_heap ]]; then args+=(--jvm-heap "$jvm_heap"); fi
@@ -291,7 +288,7 @@ fi
 results="$temporary/results"
 mkdir "$results"
 metadata="$results/metadata.txt"
-awk -v operation="$operation" -v suite="$suite" -v smoke="$smoke" -v shard="${shard%/*}" -v shards="${shard#*/}" \
+awk -v operation="$operation" -v suite="$suite" -v smoke="$smoke" \
   -f "$bench/select-cases.awk" "$cases" >"$temporary/cases.txt"
 cases="$temporary/cases.txt"
 cp "$cases" "$results/cases.txt"
@@ -305,7 +302,7 @@ cp "$cases" "$results/cases.txt"
   echo "dirty=$dirty"
   printf 'jvm_gc=%s\njvm_heap=%s\n' "${jvm_gc:-default}" "${jvm_heap:-default}"
   echo "platform=$(uname -a)"
-  printf '%s\n' "operation=$operation" "suite=$suite" "selected_cases=$(wc -l <"$cases" | tr -d ' ')" "shard=$shard" "warmups=$warmups" "requested_samples=$samples" \
+  printf '%s\n' "operation=$operation" "suite=$suite" "selected_cases=$(wc -l <"$cases" | tr -d ' ')" "warmups=$warmups" "requested_samples=$samples" \
     "target_ns=$((target_ms * 1000000))" "pass=$pass" "libraries=$libraries" "vendors_only=$vendors_only"
   echo "native_capable=$native_capable"
   # Which binary the native rows came from, since a supplied one was built on another machine and is the only

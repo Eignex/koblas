@@ -42,21 +42,6 @@ class CasesFileTest {
     }
 
     @Test
-    fun `capture shards partition the selection round robin`() {
-        val selected = Cases.select(Cases.parse(Files.readString(Path.of("cases.txt"))), "default", "all")
-        val shards = (1..3).map { shard ->
-            val process = ProcessBuilder("awk", "-v", "suite=default", "-v", "operation=all", "-v", "smoke=false",
-                "-v", "shard=$shard", "-v", "shards=3", "-f", "select-cases.awk", "cases.txt").redirectErrorStream(true).start()
-            val output = process.inputStream.bufferedReader().readText()
-            assertEquals(0, process.waitFor(), output)
-            Cases.parse(output)
-        }
-
-        assertEquals(selected.filterIndexed { index, _ -> index % 3 == 1 }, shards[1])
-        assertEquals(selected.sortedBy { it.id }, shards.flatten().sortedBy { it.id })
-    }
-
-    @Test
     fun `capture rejects invalid and empty selections`() {
         // gemm has no sweep, so asking for one is the empty intersection this rejects.
         for ((suite, operation) in listOf("sweep" to "all", "unknown" to "dot", "sweep" to "gemm", "default" to "unknown")) {
