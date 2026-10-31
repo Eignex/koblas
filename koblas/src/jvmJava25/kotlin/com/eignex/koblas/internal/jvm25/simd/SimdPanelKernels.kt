@@ -62,6 +62,8 @@ internal object SimdPanelKernels : DensePanelKernels {
         val preferred = when {
             contiguous && groupsWholeRow(work, rows) -> columns
 
+            work == PanelWork.CoupledDotUpdate && LANE >= 8 -> 8
+
             work == PanelWork.ColumnUpdate && contiguous ->
                 if (prefersLargeColumnUpdate(rows)) LARGE_COLUMN_UPDATE_GROUP else COLUMN_UPDATE_GROUP
 
@@ -653,6 +655,15 @@ internal object SimdPanelKernels : DensePanelKernels {
             return
         }
         var c = 0
+        if (LANE >= 8) {
+            while (c + 8 <= columns) {
+                coupledEight(
+                    alpha, a, aOffset + c * lda, lda, x, xOffset, rows, y, yOffset,
+                    coefficients, coefficientOffset + c, sums, sumOffset + c,
+                )
+                c += 8
+            }
+        }
         while (c + WIDE_GROUP <= columns) {
             coupledFour(
                 alpha, a, aOffset + c * lda, lda, x, xOffset, rows, y, yOffset,
@@ -674,6 +685,86 @@ internal object SimdPanelKernels : DensePanelKernels {
             )
             c++
         }
+    }
+
+    /** Eight columns per pass over the destination strip, for vector units with registers for all of them. */
+    private fun coupledEight(
+        alpha: Double,
+        a: DoubleArray,
+        aOffset: Int,
+        lda: Int,
+        x: DoubleArray,
+        xOffset: Int,
+        rows: Int,
+        y: DoubleArray,
+        yOffset: Int,
+        coefficients: DoubleArray,
+        coefficientOffset: Int,
+        sums: DoubleArray,
+        sumOffset: Int,
+    ) {
+        val t = DoubleArray(8) { alpha * coefficients[coefficientOffset + it] }
+        val c0 = DoubleVector.broadcast(SPECIES, t[0])
+        val c1 = DoubleVector.broadcast(SPECIES, t[1])
+        val c2 = DoubleVector.broadcast(SPECIES, t[2])
+        val c3 = DoubleVector.broadcast(SPECIES, t[3])
+        val c4 = DoubleVector.broadcast(SPECIES, t[4])
+        val c5 = DoubleVector.broadcast(SPECIES, t[5])
+        val c6 = DoubleVector.broadcast(SPECIES, t[6])
+        val c7 = DoubleVector.broadcast(SPECIES, t[7])
+        var d0 = DoubleVector.zero(SPECIES)
+        var d1 = DoubleVector.zero(SPECIES)
+        var d2 = DoubleVector.zero(SPECIES)
+        var d3 = DoubleVector.zero(SPECIES)
+        var d4 = DoubleVector.zero(SPECIES)
+        var d5 = DoubleVector.zero(SPECIES)
+        var d6 = DoubleVector.zero(SPECIES)
+        var d7 = DoubleVector.zero(SPECIES)
+        var i = 0
+        val bound = SPECIES.loopBound(rows)
+        while (i < bound) {
+            val xv = DoubleVector.fromArray(SPECIES, x, xOffset + i)
+            val at = aOffset + i
+            val v0 = DoubleVector.fromArray(SPECIES, a, at)
+            val v1 = DoubleVector.fromArray(SPECIES, a, at + lda)
+            val v2 = DoubleVector.fromArray(SPECIES, a, at + 2 * lda)
+            val v3 = DoubleVector.fromArray(SPECIES, a, at + 3 * lda)
+            d0 = multiplyAdd(v0, xv, d0)
+            d1 = multiplyAdd(v1, xv, d1)
+            d2 = multiplyAdd(v2, xv, d2)
+            d3 = multiplyAdd(v3, xv, d3)
+            val low = multiplyAdd(v3, c3, multiplyAdd(v2, c2, multiplyAdd(v1, c1, multiplyAdd(v0, c0,
+                DoubleVector.fromArray(SPECIES, y, yOffset + i)))))
+            val v4 = DoubleVector.fromArray(SPECIES, a, at + 4 * lda)
+            val v5 = DoubleVector.fromArray(SPECIES, a, at + 5 * lda)
+            val v6 = DoubleVector.fromArray(SPECIES, a, at + 6 * lda)
+            val v7 = DoubleVector.fromArray(SPECIES, a, at + 7 * lda)
+            d4 = multiplyAdd(v4, xv, d4)
+            d5 = multiplyAdd(v5, xv, d5)
+            d6 = multiplyAdd(v6, xv, d6)
+            d7 = multiplyAdd(v7, xv, d7)
+            multiplyAdd(v7, c7, multiplyAdd(v6, c6, multiplyAdd(v5, c5, multiplyAdd(v4, c4, low))))
+                .intoArray(y, yOffset + i)
+            i += LANE
+        }
+        val s = doubleArrayOf(
+            d0.reduceLanes(VectorOperators.ADD), d1.reduceLanes(VectorOperators.ADD),
+            d2.reduceLanes(VectorOperators.ADD), d3.reduceLanes(VectorOperators.ADD),
+            d4.reduceLanes(VectorOperators.ADD), d5.reduceLanes(VectorOperators.ADD),
+            d6.reduceLanes(VectorOperators.ADD), d7.reduceLanes(VectorOperators.ADD),
+        )
+        while (i < rows) {
+            val xi = x[xOffset + i]
+            var update = 0.0
+            for (k in 0 until 8) {
+                val v = a[aOffset + i + k * lda]
+                update += t[k] * v
+                s[k] += v * xi
+            }
+            y[yOffset + i] += update
+            i++
+        }
+        for (k in 0 until 8) sums[sumOffset + k] += alpha * s[k]
     }
 
     /** Four columns share each pass over the destination strip, which two columns spend twice as often. */
