@@ -213,8 +213,9 @@ internal fun vendorArm(case: BenchCase, blas: Blas): ArmChoice {
             val y0 = Fixtures.vector(m, 3)
             val target = y0.copyOf()
             val y = DenseVector.wrap(target)
-            arm(BlasOperation.Gemv, listOf(a), emptyList(), "reset-and-arithmetic") {
-                y0.copyInto(target); blas.gemv(alpha, a, transA, x, beta, y); target[0]
+            val resets = resets(case)
+            arm(BlasOperation.Gemv, listOf(a), emptyList(), timing(case)) {
+                if (resets) y0.copyInto(target); blas.gemv(alpha, a, transA, x, beta, y); target[0]
             }
         }
 
@@ -225,8 +226,9 @@ internal fun vendorArm(case: BenchCase, blas: Blas): ArmChoice {
             val y0 = Fixtures.vector(n, 3)
             val target = y0.copyOf()
             val y = DenseVector.wrap(target)
-            arm(BlasOperation.Symv, listOf(a), emptyList(), "reset-and-arithmetic") {
-                y0.copyInto(target); blas.symv(alpha, a, structure(), x, beta, y); target[0]
+            val resets = resets(case)
+            arm(BlasOperation.Symv, listOf(a), emptyList(), timing(case)) {
+                if (resets) y0.copyInto(target); blas.symv(alpha, a, structure(), x, beta, y); target[0]
             }
         }
 

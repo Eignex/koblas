@@ -150,26 +150,28 @@ internal fun denseWork(case: BenchCase, engine: KoblasEngine): CaseWork? {
             val m = d[0]; val n = d[1]; val trans = case.flag("transA")
             val a = Fixtures.matrix(if (trans) n else m, if (trans) m else n, 1)
             val x = Fixtures.vector(n, 2); val y0 = Fixtures.vector(m, 3); val y = y0.copyOf()
+            val resets = resets(case)
             level23(
-                engine, case, "reset-and-arithmetic",
+                engine, case, timing(case),
                 verify = {
                     val expected = DenseReference.gemv(alpha, a, trans, x, beta, y0)
                     y0.copyInto(y); engine.gemv(alpha, a, x, beta, y, trans)
                     DenseReference.check(expected, y, "${case.id} gemv")
                 },
-            ) { y0.copyInto(y); engine.gemv(alpha, a, x, beta, y, trans); y[0] }
+            ) { if (resets) y0.copyInto(y); engine.gemv(alpha, a, x, beta, y, trans); y[0] }
         }
         "symv" -> {
             val n = d[0]; val lower = case.option("uplo", "L") == "L"; val a = Fixtures.matrix(n, n, 1)
             val x = Fixtures.vector(n, 2); val y0 = Fixtures.vector(n, 3); val y = y0.copyOf()
+            val resets = resets(case)
             level23(
-                engine, case, "reset-and-arithmetic",
+                engine, case, timing(case),
                 verify = {
                     val expected = DenseReference.symv(alpha, a, lower, x, beta, y0)
                     y0.copyInto(y); engine.symv(alpha, a, x, beta, y, lower)
                     DenseReference.check(expected, y, "${case.id} symv")
                 },
-            ) { y0.copyInto(y); engine.symv(alpha, a, x, beta, y, lower); y[0] }
+            ) { if (resets) y0.copyInto(y); engine.symv(alpha, a, x, beta, y, lower); y[0] }
         }
         "ger", "syr", "syr2" -> rankUpdateWork(case, engine)
         "ger-shrinking", "ger-window-shrinking" -> shrinkingRankUpdateWork(case, engine)
@@ -364,3 +366,12 @@ private fun triangularMatrixWork(case: BenchCase, engine: KoblasEngine): CaseWor
         },
     ) { original.values.copyInto(b.values); apply(); b.values[0] }
 }
+
+/**
+ * The timing a case asked for. Its arithmetic form leaves the reset out of the timed work, which an operation
+ * offers where repeating it keeps the destination's magnitudes normal, as a nonzero beta below one does.
+ */
+internal fun timing(case: BenchCase): String = case.option("timing", "reset-and-arithmetic")
+
+/** Whether each timed call first restores its destination, read once so the timed work does not parse the case. */
+internal fun resets(case: BenchCase): Boolean = timing(case) != "arithmetic"
