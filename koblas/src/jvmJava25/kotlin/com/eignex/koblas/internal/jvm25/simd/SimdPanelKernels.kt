@@ -709,6 +709,31 @@ internal object SimdPanelKernels : DensePanelKernels {
         val a3 = aOffset + 3 * lda
         var i = 0
         val bound = SPECIES.loopBound(rows)
+        if (LANE >= 8) {
+            // Thirty-two registers hold two lane blocks of everything, which halves the loop per row.
+            while (i + 2 * LANE <= bound) {
+                val j = i + LANE
+                val v0 = DoubleVector.fromArray(SPECIES, a, aOffset + i)
+                val v1 = DoubleVector.fromArray(SPECIES, a, a1 + i)
+                val v2 = DoubleVector.fromArray(SPECIES, a, a2 + i)
+                val v3 = DoubleVector.fromArray(SPECIES, a, a3 + i)
+                val w0 = DoubleVector.fromArray(SPECIES, a, aOffset + j)
+                val w1 = DoubleVector.fromArray(SPECIES, a, a1 + j)
+                val w2 = DoubleVector.fromArray(SPECIES, a, a2 + j)
+                val w3 = DoubleVector.fromArray(SPECIES, a, a3 + j)
+                val xv = DoubleVector.fromArray(SPECIES, x, xOffset + i)
+                val xw = DoubleVector.fromArray(SPECIES, x, xOffset + j)
+                d0 = multiplyAdd(w0, xw, multiplyAdd(v0, xv, d0))
+                d1 = multiplyAdd(w1, xw, multiplyAdd(v1, xv, d1))
+                d2 = multiplyAdd(w2, xw, multiplyAdd(v2, xv, d2))
+                d3 = multiplyAdd(w3, xw, multiplyAdd(v3, xv, d3))
+                val low = multiplyAdd(v1, c1, multiplyAdd(v0, c0, DoubleVector.fromArray(SPECIES, y, yOffset + i)))
+                multiplyAdd(v3, c3, multiplyAdd(v2, c2, low)).intoArray(y, yOffset + i)
+                val high = multiplyAdd(w1, c1, multiplyAdd(w0, c0, DoubleVector.fromArray(SPECIES, y, yOffset + j)))
+                multiplyAdd(w3, c3, multiplyAdd(w2, c2, high)).intoArray(y, yOffset + j)
+                i += 2 * LANE
+            }
+        }
         while (i < bound) {
             val v0 = DoubleVector.fromArray(SPECIES, a, aOffset + i)
             val v1 = DoubleVector.fromArray(SPECIES, a, a1 + i)
