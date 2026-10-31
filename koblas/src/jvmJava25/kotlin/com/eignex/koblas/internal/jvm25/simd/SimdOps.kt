@@ -498,7 +498,6 @@ internal object SimdOps {
     /** [asum] past [UNROLL_MIN], where the four chains pay for the reduce that combines them. */
     private fun asumUnrolled(v: DoubleArray, vOff: Int, len: Int): Double {
         if (NARROW) return asumEightChains(v, vOff, len)
-        val mask = LongVector.fromArray(LONG_SPECIES, SIGN_MASK_BITS, 0)
         var s0 = DoubleVector.zero(SPECIES)
         var s1 = DoubleVector.zero(SPECIES)
         var s2 = DoubleVector.zero(SPECIES)
@@ -506,10 +505,10 @@ internal object SimdOps {
         var i = 0
         val unrolled = len - len % (4 * LANE)
         while (i < unrolled) {
-            s0 = s0.add(signStripped(DoubleVector.fromArray(SPECIES, v, vOff + i), mask))
-            s1 = s1.add(signStripped(DoubleVector.fromArray(SPECIES, v, vOff + i + LANE), mask))
-            s2 = s2.add(signStripped(DoubleVector.fromArray(SPECIES, v, vOff + i + 2 * LANE), mask))
-            s3 = s3.add(signStripped(DoubleVector.fromArray(SPECIES, v, vOff + i + 3 * LANE), mask))
+            s0 = s0.add(DoubleVector.fromArray(SPECIES, v, vOff + i).abs())
+            s1 = s1.add(DoubleVector.fromArray(SPECIES, v, vOff + i + LANE).abs())
+            s2 = s2.add(DoubleVector.fromArray(SPECIES, v, vOff + i + 2 * LANE).abs())
+            s3 = s3.add(DoubleVector.fromArray(SPECIES, v, vOff + i + 3 * LANE).abs())
             i += 4 * LANE
         }
         val head = s0.add(s1).add(s2.add(s3)).reduceLanes(VectorOperators.ADD)
