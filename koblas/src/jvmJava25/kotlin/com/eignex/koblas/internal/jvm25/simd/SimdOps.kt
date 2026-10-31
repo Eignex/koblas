@@ -557,7 +557,7 @@ internal object SimdOps {
      * values for four chains to cover the add latency on a core with several FMA pipes, which the measured
      * Apple and NEON hosts have; wider vectors already keep enough in flight with four.
      */
-    private val NARROW = LANE <= 2
+    private val NARROW = LANE <= 4
 
     /** [dotUnrolled] for [NARROW] vectors: eight chains, each updated once per iteration. */
     private fun dotEightChains(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int): Double {
