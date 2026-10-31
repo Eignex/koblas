@@ -238,6 +238,37 @@ internal interface DensePanelKernels {
     )
 
     /**
+     * `a(i, c) += alpha · (x(i) · u(c) + y(i) · v(c))`, the symmetric rank-two update of a panel.
+     *
+     * Two [rankUpdate] calls compute the same thing, and that is what this does unless a backend overrides it.
+     * One pass loads and stores each destination entry once instead of twice, which is the limit a narrow
+     * vector unit reaches first.
+     */
+    fun rankTwoUpdate(
+        alpha: Double,
+        a: DoubleArray,
+        aOffset: Int,
+        lda: Int,
+        x: DoubleArray,
+        xOffset: Int,
+        xStride: Int,
+        y: DoubleArray,
+        yOffset: Int,
+        yStride: Int,
+        rows: Int,
+        columns: Int,
+        u: DoubleArray,
+        uOffset: Int,
+        uStride: Int,
+        v: DoubleArray,
+        vOffset: Int,
+        vStride: Int,
+    ) {
+        rankUpdate(alpha, a, aOffset, lda, x, xOffset, xStride, rows, columns, u, uOffset, uStride)
+        rankUpdate(alpha, a, aOffset, lda, y, yOffset, yStride, rows, columns, v, vOffset, vStride)
+    }
+
+    /**
      * `y(i) += Σ (alpha · values(c)) · a(i, indices(c))` over a panel whose columns an index array selects.
      *
      * The sparse counterpart of [columnUpdate], and the shape a sparse column takes when its dense operand
