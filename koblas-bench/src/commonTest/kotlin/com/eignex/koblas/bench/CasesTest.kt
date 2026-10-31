@@ -99,7 +99,7 @@ class CasesTest {
 
     @Test
     fun `vector timings reject unrelated boundaries`() {
-        for (operation in listOf("scal+64+uniform", "spgather+64+sparse-uniform+density=0.25")) {
+        for (operation in listOf("scal+64+uniform", "ger+8x4+uniform", "spgather+64+sparse-uniform+density=0.25")) {
             assertEquals("arithmetic", Cases.parse("$operation+timing=arithmetic").single().options["timing"])
             for (timing in listOf("pack-plus-compute", "prepacked-compute", "reset-and-arithmetic", "unknown")) {
                 assertFailsWith<IllegalArgumentException> { Cases.parse("$operation+timing=$timing") }

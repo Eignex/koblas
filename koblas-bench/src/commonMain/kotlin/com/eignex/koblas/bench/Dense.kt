@@ -282,23 +282,30 @@ private fun rankUpdateWork(case: BenchCase, engine: KoblasEngine): CaseWork? {
     val original = Fixtures.matrix(rows, cols, 1); val target = Fixtures.matrix(rows, cols, 1)
     val x = Fixtures.vector(rows, 2); val y = Fixtures.vector(cols, 3)
     val operation = case.operation
-    fun apply() = when (operation) {
-        "ger" -> engine.ger(alpha, x, y, target)
-        "syr" -> engine.syr(alpha, DenseVector.wrap(x), target, lower)
-        else -> engine.syr2(alpha, DenseVector.wrap(x), DenseVector.wrap(y), target, lower)
+    fun apply(scale: Double) = when (operation) {
+        "ger" -> engine.ger(scale, x, y, target)
+        "syr" -> engine.syr(scale, DenseVector.wrap(x), target, lower)
+        else -> engine.syr2(scale, DenseVector.wrap(x), DenseVector.wrap(y), target, lower)
     }
+    val resets = resets(case)
+    // Without the reset, alternating the sign returns the matrix close to where it started.
+    var signed = -alpha
     return level23(
-        engine, case, "reset-and-arithmetic",
+        engine, case, timing(case),
         verify = {
             val expected = when (operation) {
                 "ger" -> DenseReference.ger(alpha, x, y, original)
                 "syr" -> DenseReference.syr(alpha, x, original, lower)
                 else -> DenseReference.syr2(alpha, x, y, original, lower)
             }
-            original.values.copyInto(target.values); apply()
+            original.values.copyInto(target.values); apply(alpha)
             DenseReference.check(expected, target.values, "${case.id} ${case.operation}")
+            original.values.copyInto(target.values)
         },
-    ) { original.values.copyInto(target.values); apply(); target.values[0] }
+    ) {
+        if (resets) original.values.copyInto(target.values) else signed = -signed
+        apply(if (resets) alpha else signed); target.values[0]
+    }
 }
 
 private fun triangularVectorWork(case: BenchCase, engine: KoblasEngine): CaseWork? {

@@ -140,7 +140,7 @@ internal object Cases {
         val defaults = mapOf("side" to "L", "uplo" to "L", "transA" to "N", "transB" to "N", "diag" to "N")
         val redundant = options.entries.firstOrNull { (name, value) -> name !in required && defaults[name] == value }
         if (redundant != null) invalid("redundant default option '${redundant.key}=${redundant.value}'")
-        if (operation in setOf("scal", "axpy", "swap", "rot", "gemv", "symv", "spgather") && "timing" in options && options["timing"] != "arithmetic") {
+        if (operation in setOf("scal", "axpy", "swap", "rot", "gemv", "symv", "ger", "syr", "syr2", "spgather") && "timing" in options && options["timing"] != "arithmetic") {
             invalid("$operation supports only timing=arithmetic as an explicit override")
         }
     }
@@ -163,7 +163,7 @@ internal object Cases {
         // Dense storage changes the axis available to a right-hand side panel. The benchmark currently
         // exposes this flag for left-sparse products; the production right-sparse API also supports it.
         if (operation in setOf("spmm", "spmm-generic")) add("transB")
-        if (operation in setOf("scal", "axpy", "swap", "rot", "gemv", "symv", "spgather")) add("timing")
+        if (operation in setOf("scal", "axpy", "swap", "rot", "gemv", "symv", "ger", "syr", "syr2", "spgather")) add("timing")
         if (operation in MODE_OPERATIONS) add("mode")
     }
 

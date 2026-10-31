@@ -240,8 +240,12 @@ internal fun vendorArm(case: BenchCase, blas: Blas): ArmChoice {
             val a = target
             val x = DenseVector.wrap(Fixtures.vector(m, 2))
             val y = DenseVector.wrap(Fixtures.vector(n, 3))
-            arm(BlasOperation.Ger, listOf(a), emptyList(), "reset-and-arithmetic") {
-                original.values.copyInto(target.values); blas.ger(alpha, x, y, a); target.values[0]
+            val resets = resets(case)
+            // Without the reset, alternating the sign returns the matrix close to where it started.
+            var signed = -alpha
+            arm(BlasOperation.Ger, listOf(a), emptyList(), timing(case)) {
+                if (resets) original.values.copyInto(target.values) else signed = -signed
+                blas.ger(if (resets) alpha else signed, x, y, a); target.values[0]
             }
         }
 
@@ -266,9 +270,12 @@ internal fun vendorArm(case: BenchCase, blas: Blas): ArmChoice {
             val x = DenseVector.wrap(Fixtures.vector(n, 2))
             val y = DenseVector.wrap(Fixtures.vector(n, 3))
             val operation = if (case.operation == "syr") BlasOperation.Syr else BlasOperation.Syr2
-            arm(operation, listOf(a), emptyList(), "reset-and-arithmetic") {
-                original.values.copyInto(target.values)
-                if (operation == BlasOperation.Syr) blas.syr(alpha, x, a, structure()) else blas.syr2(alpha, x, y, a, structure())
+            val resets = resets(case)
+            var signed = -alpha
+            arm(operation, listOf(a), emptyList(), timing(case)) {
+                if (resets) original.values.copyInto(target.values) else signed = -signed
+                val scale = if (resets) alpha else signed
+                if (operation == BlasOperation.Syr) blas.syr(scale, x, a, structure()) else blas.syr2(scale, x, y, a, structure())
                 // The same entry the portable arm returns. Both triangles contain (0, 0), so it is written
                 // either way, and reading a different corner per triangle would compare two different numbers.
                 target.values[0]

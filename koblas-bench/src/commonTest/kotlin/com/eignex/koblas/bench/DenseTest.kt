@@ -37,6 +37,21 @@ class DenseTest {
         assertContentEquals(initial, work.result)
     }
 
+    @Test
+    fun `arithmetic rank updates return the matrix to its fixture every second call`() {
+        for (line in listOf("ger+9x5+uniform", "syr+9+uniform+uplo=L", "syr2+9+uniform+uplo=U")) {
+            val work = assertNotNull(denseWork(Cases.parse("$line+timing=arithmetic").single(), BuiltinEngines.scalar))
+            val initial = Fixtures.matrix(9, if (line.startsWith("ger")) 5 else 9, 1).values[0]
+
+            val first = work.run()
+            val second = work.run()
+
+            assertEquals("arithmetic", work.timingMode, line)
+            assertTrue(first != initial, line)
+            assertEquals(initial, second, 1e-12, line)
+        }
+    }
+
     // Preflight must reject incorrect work before publishing a timing.
     @Test
     fun `every product case names the engine that runs it`() {
