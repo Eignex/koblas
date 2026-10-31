@@ -559,14 +559,12 @@ internal class PortableDenseBlas(
     }
 
     /**
-     * `A += alpha · (x · yᵀ + y · xᵀ)` over the stored triangle.
+     * `A += alpha · (x · yᵀ + y · xᵀ)` over the stored triangle, as two rank updates per group plus its corner.
      *
-     * The arithmetic stays here rather than becoming two rank updates through [DensePanelKernels], because
-     * the composition was measured and does not win outright: each entry takes both contributions in one
-     * read-modify-write where two passes take two, and the composed form was behind at the smaller orders,
-     * level in the middle and ahead at the larger ones. Adopting it would mean choosing a crossover from one
-     * machine's numbers for a modest best case, so the simpler path is kept; the comparison is in the stage
-     * evidence.
+     * Each entry takes its two contributions in two read-modify-writes rather than one, but the second finds
+     * the group's window still in cache. Against an entry-at-a-time loop this is behind at the small orders,
+     * where both stay well ahead of the measured vendors, and ahead from order 64, where the loop was behind
+     * them.
      */
     @Suppress("LongParameterList") // the BLAS dsyr2 signature plus the workspace
     override fun syr2(
@@ -593,15 +591,31 @@ internal class PortableDenseBlas(
         val xStep = x.stride
         val yOrigin = y.offset
         val yStep = y.stride
-        for (c in 0 until n) {
-            val first = if (lower) c else 0
-            val last = if (lower) n else c + 1
-            val xc = xv[xOrigin + c * xStep]
-            val yc = yv[yOrigin + c * yStep]
-            for (i in first until last) {
-                a.values[a.offset + i + c * a.leadingDimension] +=
-                    alpha * (xv[xOrigin + i * xStep] * yc + yv[yOrigin + i * yStep] * xc)
+        val lda = a.leadingDimension
+        val group = panels.executionGroup(PanelWork.RankUpdate, n, n, xStep == 1 && yStep == 1)
+        forEachTrianglePanel(n, group, lower, fromDiagonal = true) { start, width, window, rows ->
+            // Only the diagonal corner has differing stored rows; the remaining window is shared by the group.
+            val cornerFirst = if (lower) start else start + 1
+            val cornerLast = if (lower) start + width - 1 else start + width
+            for (c in start until start + width) {
+                val xc = xv[xOrigin + c * xStep]
+                val yc = yv[yOrigin + c * yStep]
+                for (i in cornerFirst until cornerLast) {
+                    if (if (lower) i < c else i > c) continue
+                    a.values[a.offset + i + c * lda] +=
+                        alpha * (xv[xOrigin + i * xStep] * yc + yv[yOrigin + i * yStep] * xc)
+                }
             }
+            // The second update finds the group's window still in cache from the first.
+            val panel = a.offset + window + start * lda
+            panels.rankUpdate(
+                alpha, a.values, panel, lda, xv, xOrigin + window * xStep, xStep, rows, width,
+                yv, yOrigin + start * yStep, yStep,
+            )
+            panels.rankUpdate(
+                alpha, a.values, panel, lda, yv, yOrigin + window * yStep, yStep, rows, width,
+                xv, xOrigin + start * xStep, xStep,
+            )
         }
     }
 
