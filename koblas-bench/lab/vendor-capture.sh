@@ -91,7 +91,7 @@ if [[ ,$targets, == *,$vendor,* || ,$targets, == *,native,* || ,$targets, == *,n
   esac
   native_args=(--native-executable "$root/koblas-bench/build/bin/$native_target/releaseExecutable/koblas-bench.kexe")
 fi
-./gradlew --no-daemon -Pkotlin.compiler.execution.strategy=in-process "${build_tasks[@]}" > "$output/build.log" 2>&1
+./gradlew --no-daemon -Ptargets.full -Pkotlin.compiler.execution.strategy=in-process "${build_tasks[@]}" > "$output/build.log" 2>&1
 export KOBLAS_BENCH_JAVA="${JAVA_HOME:+$JAVA_HOME/bin/}java"
 export KOBLAS_BENCH_CLASSPATH="$root/koblas-bench/build/lab/classes:$root/koblas-bench/build/lab/lib/*"
 export KOBLAS_BENCH_HEAP_MIB=512
