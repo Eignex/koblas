@@ -50,8 +50,8 @@ internal object SimdPanelKernels : DensePanelKernels {
         simdAvailable && contiguous && rows >= VECTOR_MINIMUM
 
     /**
-     * Multi-dot groups reuse one loaded vector across four columns; column updates share destination
-     * traffic across eight, or twelve on long strips with wide vector registers. Coupled bodies take four
+     * A multi-dot is handed over whole and reuses one loaded vector across four columns at a time; column
+     * updates share destination traffic across eight, or twelve on long strips with wide vector registers. Coupled bodies take four
      * columns per pass over the destination. Rank-update bodies are two columns wide; wider groups would
      * repeat those bodies and grow a triangular caller's scalar corner. Group sizes reflect measurements on
      * one host.
@@ -176,7 +176,7 @@ internal object SimdPanelKernels : DensePanelKernels {
             w3 = multiplyAdd(DoubleVector.fromArray(SPECIES, a, a3 + i + LANE), xw, w3)
             i += 2 * LANE
         }
-        if (i + LANE <= rows) {
+        while (i + LANE <= rows) {
             val xv = DoubleVector.fromArray(SPECIES, x, xOffset + i)
             v0 = multiplyAdd(DoubleVector.fromArray(SPECIES, a, aOffset + i), xv, v0)
             v1 = multiplyAdd(DoubleVector.fromArray(SPECIES, a, a1 + i), xv, v1)
@@ -231,7 +231,7 @@ internal object SimdPanelKernels : DensePanelKernels {
             w1 = multiplyAdd(DoubleVector.fromArray(SPECIES, a, a1 + i + LANE), xw, w1)
             i += 2 * LANE
         }
-        if (i + LANE <= rows) {
+        while (i + LANE <= rows) {
             val xv = DoubleVector.fromArray(SPECIES, x, xOffset + i)
             v0 = multiplyAdd(DoubleVector.fromArray(SPECIES, a, aOffset + i), xv, v0)
             v1 = multiplyAdd(DoubleVector.fromArray(SPECIES, a, a1 + i), xv, v1)
@@ -1109,12 +1109,12 @@ internal object SimdPanelKernels : DensePanelKernels {
     private fun isShort(rows: Int): Boolean = simdAvailable && rows in 1 until VECTOR_MINIMUM
 
     /**
-     * A short multi-dot or column update, which is handed over whole: per-group calls over a few rows cost more
-     * than the arithmetic in them.
+     * Panels handed over whole. A multi-dot groups its columns itself and reuses the shared vector across all of
+     * them, so a call per group only adds calls; so does a column update short enough that a call per group
+     * costs more than the arithmetic in it.
      */
-    private fun groupsWholeRow(work: PanelWork, rows: Int): Boolean =
-        (work == PanelWork.MultiDot || work == PanelWork.ColumnUpdate) && isShort(rows) ||
-            (work == PanelWork.ColumnUpdate && isResident(rows))
+    private fun groupsWholeRow(work: PanelWork, rows: Int): Boolean = work == PanelWork.MultiDot ||
+        (work == PanelWork.ColumnUpdate && (isShort(rows) || isResident(rows)))
 
     /** The short panels this backend runs a body of its own for; a longer short column update is portable. */
     private fun reachesShortBody(work: PanelWork, rows: Int): Boolean =
