@@ -920,6 +920,18 @@ internal object SimdPanelKernels : DensePanelKernels {
             return
         }
         var c = 0
+        if (LANE <= 2) {
+            while (c + WIDE_GROUP <= columns) {
+                symmetricFour(
+                    a, aOffset + c * lda, lda, x, xOffset, y, yOffset, rows,
+                    alpha * u[uOffset + c * uStride], alpha * v[vOffset + c * vStride],
+                    alpha * u[uOffset + (c + 1) * uStride], alpha * v[vOffset + (c + 1) * vStride],
+                    alpha * u[uOffset + (c + 2) * uStride], alpha * v[vOffset + (c + 2) * vStride],
+                    alpha * u[uOffset + (c + 3) * uStride], alpha * v[vOffset + (c + 3) * vStride],
+                )
+                c += WIDE_GROUP
+            }
+        }
         while (c + NARROW_GROUP <= columns) {
             symmetricTwo(
                 a, aOffset + c * lda, lda, x, xOffset, y, yOffset, rows,
@@ -933,6 +945,59 @@ internal object SimdPanelKernels : DensePanelKernels {
                 a, aOffset + c * lda, x, xOffset, y, yOffset, rows,
                 alpha * u[uOffset + c * uStride], alpha * v[vOffset + c * vStride],
             )
+        }
+    }
+
+    /** Four columns of a rank-two update sharing each lane block of both sources, for narrow vector units. */
+    private fun symmetricFour(
+        a: DoubleArray,
+        aOffset: Int,
+        lda: Int,
+        x: DoubleArray,
+        xOffset: Int,
+        y: DoubleArray,
+        yOffset: Int,
+        rows: Int,
+        s0: Double,
+        t0: Double,
+        s1: Double,
+        t1: Double,
+        s2: Double,
+        t2: Double,
+        s3: Double,
+        t3: Double,
+    ) {
+        val xs0 = DoubleVector.broadcast(SPECIES, s0)
+        val yt0 = DoubleVector.broadcast(SPECIES, t0)
+        val xs1 = DoubleVector.broadcast(SPECIES, s1)
+        val yt1 = DoubleVector.broadcast(SPECIES, t1)
+        val xs2 = DoubleVector.broadcast(SPECIES, s2)
+        val yt2 = DoubleVector.broadcast(SPECIES, t2)
+        val xs3 = DoubleVector.broadcast(SPECIES, s3)
+        val yt3 = DoubleVector.broadcast(SPECIES, t3)
+        val a1 = aOffset + lda
+        val a2 = aOffset + 2 * lda
+        val a3 = aOffset + 3 * lda
+        var i = 0
+        val bound = SPECIES.loopBound(rows)
+        while (i < bound) {
+            val xv = DoubleVector.fromArray(SPECIES, x, xOffset + i)
+            val yv = DoubleVector.fromArray(SPECIES, y, yOffset + i)
+            multiplyAdd(yv, yt0, multiplyAdd(xv, xs0, DoubleVector.fromArray(SPECIES, a, aOffset + i)))
+                .intoArray(a, aOffset + i)
+            multiplyAdd(yv, yt1, multiplyAdd(xv, xs1, DoubleVector.fromArray(SPECIES, a, a1 + i))).intoArray(a, a1 + i)
+            multiplyAdd(yv, yt2, multiplyAdd(xv, xs2, DoubleVector.fromArray(SPECIES, a, a2 + i))).intoArray(a, a2 + i)
+            multiplyAdd(yv, yt3, multiplyAdd(xv, xs3, DoubleVector.fromArray(SPECIES, a, a3 + i))).intoArray(a, a3 + i)
+            i += LANE
+        }
+        while (i < rows) {
+            val xi = x[xOffset + i]
+            val yi = y[yOffset + i]
+            a[aOffset + i] += s0 * xi + t0 * yi
+            a[a1 + i] += s1 * xi + t1 * yi
+            a[a2 + i] += s2 * xi + t2 * yi
+            a[a3 + i] += s3 * xi + t3 * yi
+            i++
         }
     }
 
