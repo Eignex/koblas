@@ -48,7 +48,7 @@ internal inline fun forEachTrianglePanel(
  * destination in registers across. A larger block moves work into the chain, a smaller one makes each panel
  * narrower.
  */
-internal const val TRIANGULAR_VECTOR_BLOCK: Int = 64
+internal const val TRIANGULAR_VECTOR_BLOCK: Int = 4
 
 /**
  * The diagonal blocks of an order-[n] triangular vector routine, in the order the dependence reaches them,
