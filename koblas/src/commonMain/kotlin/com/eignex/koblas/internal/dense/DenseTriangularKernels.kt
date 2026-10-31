@@ -75,7 +75,9 @@ internal interface DenseTriangularKernels {
      *
      * [contiguous] is part of the question rather than a detail of it: a vector body loads a lane block of
      * independent right-hand sides from consecutive entries, so a block whose right-hand sides are strided is
-     * scalar work at any width unless the caller gathered it first.
+     * scalar work at any width unless the caller gathered it first. A single right-hand side has nothing
+     * across to vectorise, so a backend may run along the block instead, and for it [contiguous] says whether
+     * the steps of that one side are adjacent.
      */
     fun implementationsFor(order: Int, sides: Int, contiguous: Boolean): List<String>
 
