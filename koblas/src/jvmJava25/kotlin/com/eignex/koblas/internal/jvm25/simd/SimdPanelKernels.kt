@@ -119,6 +119,12 @@ internal object SimdPanelKernels : DensePanelKernels {
             )
             return
         }
+        if (rows >= 4096) {
+            for (column in 0 until columns) {
+                store(y, yOffset + column * yStride, alpha, dotOne(a, aOffset + column * lda, x, xOffset, rows), beta)
+            }
+            return
+        }
         var c = 0
         while (c + MULTI_DOT_GROUP <= columns) {
             dotEight(alpha, a, aOffset + c * lda, lda, x, xOffset, rows, beta, y, yOffset + c * yStride, yStride)
