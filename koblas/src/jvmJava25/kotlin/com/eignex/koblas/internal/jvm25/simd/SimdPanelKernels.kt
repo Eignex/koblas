@@ -50,7 +50,7 @@ internal object SimdPanelKernels : DensePanelKernels {
         simdAvailable && contiguous && rows >= VECTOR_MINIMUM
 
     /**
-     * A multi-dot is handed over whole and reuses one loaded vector across four columns at a time; column
+     * A multi-dot is handed over whole and reuses one loaded vector across eight columns at a time; column
      * updates share destination traffic across eight, or twelve on long strips with wide vector registers. Coupled bodies take four
      * columns per pass over the destination. Rank-update bodies are two columns wide; wider groups would
      * repeat those bodies and grow a triangular caller's scalar corner. Group sizes reflect measurements on
@@ -119,6 +119,10 @@ internal object SimdPanelKernels : DensePanelKernels {
             return
         }
         var c = 0
+        while (c + COLUMN_UPDATE_GROUP <= columns) {
+            dotEight(alpha, a, aOffset + c * lda, lda, x, xOffset, rows, beta, y, yOffset + c * yStride, yStride)
+            c += COLUMN_UPDATE_GROUP
+        }
         while (c + WIDE_GROUP <= columns) {
             dotFour(alpha, a, aOffset + c * lda, lda, x, xOffset, rows, beta, y, yOffset + c * yStride, yStride)
             c += WIDE_GROUP
@@ -131,6 +135,77 @@ internal object SimdPanelKernels : DensePanelKernels {
             store(y, yOffset + c * yStride, alpha, dotOne(a, aOffset + c * lda, x, xOffset, rows), beta)
             c++
         }
+    }
+
+    /**
+     * Eight columns per pass over the shared vector, which halves its reloads against four and gives every
+     * column a chain of its own: eight chains cover the FMA latency without pairing.
+     */
+    private fun dotEight(
+        alpha: Double,
+        a: DoubleArray,
+        aOffset: Int,
+        lda: Int,
+        x: DoubleArray,
+        xOffset: Int,
+        rows: Int,
+        beta: Double,
+        y: DoubleArray,
+        yOffset: Int,
+        yStride: Int,
+    ) {
+        var v0 = DoubleVector.zero(SPECIES)
+        var v1 = DoubleVector.zero(SPECIES)
+        var v2 = DoubleVector.zero(SPECIES)
+        var v3 = DoubleVector.zero(SPECIES)
+        var v4 = DoubleVector.zero(SPECIES)
+        var v5 = DoubleVector.zero(SPECIES)
+        var v6 = DoubleVector.zero(SPECIES)
+        var v7 = DoubleVector.zero(SPECIES)
+        var i = 0
+        val bound = SPECIES.loopBound(rows)
+        while (i < bound) {
+            val xv = DoubleVector.fromArray(SPECIES, x, xOffset + i)
+            val at = aOffset + i
+            v0 = multiplyAdd(DoubleVector.fromArray(SPECIES, a, at), xv, v0)
+            v1 = multiplyAdd(DoubleVector.fromArray(SPECIES, a, at + lda), xv, v1)
+            v2 = multiplyAdd(DoubleVector.fromArray(SPECIES, a, at + 2 * lda), xv, v2)
+            v3 = multiplyAdd(DoubleVector.fromArray(SPECIES, a, at + 3 * lda), xv, v3)
+            v4 = multiplyAdd(DoubleVector.fromArray(SPECIES, a, at + 4 * lda), xv, v4)
+            v5 = multiplyAdd(DoubleVector.fromArray(SPECIES, a, at + 5 * lda), xv, v5)
+            v6 = multiplyAdd(DoubleVector.fromArray(SPECIES, a, at + 6 * lda), xv, v6)
+            v7 = multiplyAdd(DoubleVector.fromArray(SPECIES, a, at + 7 * lda), xv, v7)
+            i += LANE
+        }
+        var s0 = v0.reduceLanes(VectorOperators.ADD)
+        var s1 = v1.reduceLanes(VectorOperators.ADD)
+        var s2 = v2.reduceLanes(VectorOperators.ADD)
+        var s3 = v3.reduceLanes(VectorOperators.ADD)
+        var s4 = v4.reduceLanes(VectorOperators.ADD)
+        var s5 = v5.reduceLanes(VectorOperators.ADD)
+        var s6 = v6.reduceLanes(VectorOperators.ADD)
+        var s7 = v7.reduceLanes(VectorOperators.ADD)
+        while (i < rows) {
+            val xi = x[xOffset + i]
+            val at = aOffset + i
+            s0 += a[at] * xi
+            s1 += a[at + lda] * xi
+            s2 += a[at + 2 * lda] * xi
+            s3 += a[at + 3 * lda] * xi
+            s4 += a[at + 4 * lda] * xi
+            s5 += a[at + 5 * lda] * xi
+            s6 += a[at + 6 * lda] * xi
+            s7 += a[at + 7 * lda] * xi
+            i++
+        }
+        store(y, yOffset, alpha, s0, beta)
+        store(y, yOffset + yStride, alpha, s1, beta)
+        store(y, yOffset + 2 * yStride, alpha, s2, beta)
+        store(y, yOffset + 3 * yStride, alpha, s3, beta)
+        store(y, yOffset + 4 * yStride, alpha, s4, beta)
+        store(y, yOffset + 5 * yStride, alpha, s5, beta)
+        store(y, yOffset + 6 * yStride, alpha, s6, beta)
+        store(y, yOffset + 7 * yStride, alpha, s7, beta)
     }
 
     /**
