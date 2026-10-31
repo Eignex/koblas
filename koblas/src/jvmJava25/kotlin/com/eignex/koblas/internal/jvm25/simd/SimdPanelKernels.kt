@@ -43,9 +43,6 @@ internal object SimdPanelKernels : DensePanelKernels {
      */
     private val VECTOR_MINIMUM = MINIMUM_BLOCKS * LANE
 
-    /** Column length from which a reduction carries two accumulators per column; shorter ones are reduce-bound. */
-    private val PAIRED_MINIMUM = 16 * LANE
-
     /** Whether a panel of this shape and spacing reaches the vector bodies rather than the portable ones. */
     private fun vectorizes(rows: Int, contiguous: Boolean): Boolean =
         simdAvailable && contiguous && rows >= VECTOR_MINIMUM
@@ -204,10 +201,7 @@ internal object SimdPanelKernels : DensePanelKernels {
         store(y, yOffset + 7 * yStride, alpha, s7, beta)
     }
 
-    /**
-     * Two accumulators per column: one FMA per column and lane block would wait out the instruction's
-     * latency on a long column rather than run at the load rate.
-     */
+    /** Four columns per pass over the shared vector, one chain each. */
     private fun dotFour(
         alpha: Double,
         a: DoubleArray,
@@ -225,28 +219,10 @@ internal object SimdPanelKernels : DensePanelKernels {
         var v1 = DoubleVector.zero(SPECIES)
         var v2 = DoubleVector.zero(SPECIES)
         var v3 = DoubleVector.zero(SPECIES)
-        var w0 = DoubleVector.zero(SPECIES)
-        var w1 = DoubleVector.zero(SPECIES)
-        var w2 = DoubleVector.zero(SPECIES)
-        var w3 = DoubleVector.zero(SPECIES)
         val a1 = aOffset + lda
         val a2 = aOffset + 2 * lda
         val a3 = aOffset + 3 * lda
         var i = 0
-        val pairs = if (rows >= PAIRED_MINIMUM) rows - rows % (2 * LANE) else 0
-        while (i < pairs) {
-            val xv = DoubleVector.fromArray(SPECIES, x, xOffset + i)
-            val xw = DoubleVector.fromArray(SPECIES, x, xOffset + i + LANE)
-            v0 = multiplyAdd(DoubleVector.fromArray(SPECIES, a, aOffset + i), xv, v0)
-            v1 = multiplyAdd(DoubleVector.fromArray(SPECIES, a, a1 + i), xv, v1)
-            v2 = multiplyAdd(DoubleVector.fromArray(SPECIES, a, a2 + i), xv, v2)
-            v3 = multiplyAdd(DoubleVector.fromArray(SPECIES, a, a3 + i), xv, v3)
-            w0 = multiplyAdd(DoubleVector.fromArray(SPECIES, a, aOffset + i + LANE), xw, w0)
-            w1 = multiplyAdd(DoubleVector.fromArray(SPECIES, a, a1 + i + LANE), xw, w1)
-            w2 = multiplyAdd(DoubleVector.fromArray(SPECIES, a, a2 + i + LANE), xw, w2)
-            w3 = multiplyAdd(DoubleVector.fromArray(SPECIES, a, a3 + i + LANE), xw, w3)
-            i += 2 * LANE
-        }
         while (i + LANE <= rows) {
             val xv = DoubleVector.fromArray(SPECIES, x, xOffset + i)
             v0 = multiplyAdd(DoubleVector.fromArray(SPECIES, a, aOffset + i), xv, v0)
@@ -255,10 +231,10 @@ internal object SimdPanelKernels : DensePanelKernels {
             v3 = multiplyAdd(DoubleVector.fromArray(SPECIES, a, a3 + i), xv, v3)
             i += LANE
         }
-        var s0 = v0.add(w0).reduceLanes(VectorOperators.ADD)
-        var s1 = v1.add(w1).reduceLanes(VectorOperators.ADD)
-        var s2 = v2.add(w2).reduceLanes(VectorOperators.ADD)
-        var s3 = v3.add(w3).reduceLanes(VectorOperators.ADD)
+        var s0 = v0.reduceLanes(VectorOperators.ADD)
+        var s1 = v1.reduceLanes(VectorOperators.ADD)
+        var s2 = v2.reduceLanes(VectorOperators.ADD)
+        var s3 = v3.reduceLanes(VectorOperators.ADD)
         while (i < rows) {
             val xi = x[xOffset + i]
             s0 += a[aOffset + i] * xi
@@ -288,28 +264,16 @@ internal object SimdPanelKernels : DensePanelKernels {
     ) {
         var v0 = DoubleVector.zero(SPECIES)
         var v1 = DoubleVector.zero(SPECIES)
-        var w0 = DoubleVector.zero(SPECIES)
-        var w1 = DoubleVector.zero(SPECIES)
         val a1 = aOffset + lda
         var i = 0
-        val pairs = if (rows >= PAIRED_MINIMUM) rows - rows % (2 * LANE) else 0
-        while (i < pairs) {
-            val xv = DoubleVector.fromArray(SPECIES, x, xOffset + i)
-            val xw = DoubleVector.fromArray(SPECIES, x, xOffset + i + LANE)
-            v0 = multiplyAdd(DoubleVector.fromArray(SPECIES, a, aOffset + i), xv, v0)
-            v1 = multiplyAdd(DoubleVector.fromArray(SPECIES, a, a1 + i), xv, v1)
-            w0 = multiplyAdd(DoubleVector.fromArray(SPECIES, a, aOffset + i + LANE), xw, w0)
-            w1 = multiplyAdd(DoubleVector.fromArray(SPECIES, a, a1 + i + LANE), xw, w1)
-            i += 2 * LANE
-        }
         while (i + LANE <= rows) {
             val xv = DoubleVector.fromArray(SPECIES, x, xOffset + i)
             v0 = multiplyAdd(DoubleVector.fromArray(SPECIES, a, aOffset + i), xv, v0)
             v1 = multiplyAdd(DoubleVector.fromArray(SPECIES, a, a1 + i), xv, v1)
             i += LANE
         }
-        var s0 = v0.add(w0).reduceLanes(VectorOperators.ADD)
-        var s1 = v1.add(w1).reduceLanes(VectorOperators.ADD)
+        var s0 = v0.reduceLanes(VectorOperators.ADD)
+        var s1 = v1.reduceLanes(VectorOperators.ADD)
         while (i < rows) {
             val xi = x[xOffset + i]
             s0 += a[aOffset + i] * xi
