@@ -44,7 +44,7 @@ internal object SimdPanelKernels : DensePanelKernels {
     private val VECTOR_MINIMUM = MINIMUM_BLOCKS * LANE
 
     /** Column length from which a reduction carries two accumulators per column; shorter ones are reduce-bound. */
-    private val PAIRED_MINIMUM = 16 * LANE
+    private val PAIRED_MINIMUM = Int.MAX_VALUE
 
     /** Whether a panel of this shape and spacing reaches the vector bodies rather than the portable ones. */
     private fun vectorizes(rows: Int, contiguous: Boolean): Boolean =
