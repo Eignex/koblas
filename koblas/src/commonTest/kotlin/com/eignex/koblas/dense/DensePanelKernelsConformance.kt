@@ -190,6 +190,17 @@ internal fun assertPanelKernelsAgreeWithReference(kernels: DensePanelKernels) {
             )
             assertClose(expectedRank, actualRank, "rankUpdate $context")
 
+            // The second source is the wide buffer, so the two windows and coefficient vectors differ in stride.
+            val expectedRankTwo = referenceRankUpdate(
+                alpha, expectedRank, PAD, lda, wide, PAD, yStride, rows, columns, wide, PAD, yStride,
+            )
+            val actualRankTwo = a.copyOf()
+            kernels.rankTwoUpdate(
+                alpha, actualRankTwo, PAD, lda, x, PAD, xStride, wide, PAD, yStride, rows, columns,
+                coefficients, PAD, xStride, wide, PAD, yStride,
+            )
+            assertClose(expectedRankTwo, actualRankTwo, "rankTwoUpdate $context")
+
             assertCoupledAgrees(kernels, alpha, a, lda, rows, columns, context, rng)
         }
     }
@@ -497,6 +508,9 @@ internal fun assertPanelsStayInsideTheirWindows(kernels: DensePanelKernels) {
             kernels.columnUpdate(0.5, a, PAD, lda, coefficients, PAD, 1, rows, columns, y, PAD, 1)
             kernels.coupledUpdateDot(0.5, a, PAD, lda, x, PAD, rows, columns, y, PAD, coefficients, PAD, sums, PAD)
             kernels.rankUpdate(0.5, a, PAD, lda, x, PAD, 1, rows, columns, coefficients, PAD, 1)
+            kernels.rankTwoUpdate(
+                0.5, a, PAD, lda, x, PAD, 1, y, PAD, 1, rows, columns, coefficients, PAD, 1, sums, PAD, 1,
+            )
             val indices = IntArray(PAD + columns + PAD) { if (it < PAD) 0 else it - PAD }
             val indexed = DoubleArray(PAD + rows * columns + PAD) { guard }
             val gathered = DoubleArray(PAD + rows + PAD) { guard }
@@ -522,7 +536,7 @@ internal fun assertPanelsStayInsideTheirWindows(kernels: DensePanelKernels) {
             assertGuards(source, rows * columns, "indexedCoupledUpdate source $context", guard)
             assertGuards(y, rows, "columnUpdate destination $context", guard)
             assertGuards(sums, columns, "coupledUpdateDot sums $context", guard)
-            assertGuards(a, lda * columns, "rankUpdate panel $context", guard)
+            assertGuards(a, lda * columns, "rankUpdate and rankTwoUpdate panel $context", guard)
         }
     }
 }

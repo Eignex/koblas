@@ -269,6 +269,41 @@ internal object PortablePanelKernels : DensePanelKernels {
         }
     }
 
+    override fun rankTwoUpdate(
+        alpha: Double,
+        a: DoubleArray,
+        aOffset: Int,
+        lda: Int,
+        x: DoubleArray,
+        xOffset: Int,
+        xStride: Int,
+        y: DoubleArray,
+        yOffset: Int,
+        yStride: Int,
+        rows: Int,
+        columns: Int,
+        u: DoubleArray,
+        uOffset: Int,
+        uStride: Int,
+        v: DoubleArray,
+        vOffset: Int,
+        vStride: Int,
+    ) {
+        if (rows <= 0 || columns <= 0) return
+        for (c in 0 until columns) {
+            val s = alpha * u[uOffset + c * uStride]
+            val t = alpha * v[vOffset + c * vStride]
+            val at = aOffset + c * lda
+            var fromX = xOffset
+            var fromY = yOffset
+            for (i in 0 until rows) {
+                a[at + i] += s * x[fromX] + t * y[fromY]
+                fromX += xStride
+                fromY += yStride
+            }
+        }
+    }
+
     override fun indexedColumnUpdate(
         alpha: Double,
         a: DoubleArray,

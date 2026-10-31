@@ -879,6 +879,120 @@ internal object SimdPanelKernels : DensePanelKernels {
         }
     }
 
+    override fun rankTwoUpdate(
+        alpha: Double,
+        a: DoubleArray,
+        aOffset: Int,
+        lda: Int,
+        x: DoubleArray,
+        xOffset: Int,
+        xStride: Int,
+        y: DoubleArray,
+        yOffset: Int,
+        yStride: Int,
+        rows: Int,
+        columns: Int,
+        u: DoubleArray,
+        uOffset: Int,
+        uStride: Int,
+        v: DoubleArray,
+        vOffset: Int,
+        vStride: Int,
+    ) {
+        if (rows <= 0 || columns <= 0) return
+        if (!vectorizes(rows, xStride == 1 && yStride == 1)) {
+            PortablePanelKernels.rankTwoUpdate(
+                alpha, a, aOffset, lda, x, xOffset, xStride, y, yOffset, yStride, rows, columns,
+                u, uOffset, uStride, v, vOffset, vStride,
+            )
+            return
+        }
+        var c = 0
+        while (c + NARROW_GROUP <= columns) {
+            symmetricTwo(
+                a, aOffset + c * lda, lda, x, xOffset, y, yOffset, rows,
+                alpha * u[uOffset + c * uStride], alpha * v[vOffset + c * vStride],
+                alpha * u[uOffset + (c + 1) * uStride], alpha * v[vOffset + (c + 1) * vStride],
+            )
+            c += NARROW_GROUP
+        }
+        if (c < columns) {
+            symmetricOne(
+                a, aOffset + c * lda, x, xOffset, y, yOffset, rows,
+                alpha * u[uOffset + c * uStride], alpha * v[vOffset + c * vStride],
+            )
+        }
+    }
+
+    /** Two columns of a rank-two update, sharing each lane block of both source windows. */
+    private fun symmetricTwo(
+        a: DoubleArray,
+        aOffset: Int,
+        lda: Int,
+        x: DoubleArray,
+        xOffset: Int,
+        y: DoubleArray,
+        yOffset: Int,
+        rows: Int,
+        s0: Double,
+        t0: Double,
+        s1: Double,
+        t1: Double,
+    ) {
+        val xs0 = DoubleVector.broadcast(SPECIES, s0)
+        val yt0 = DoubleVector.broadcast(SPECIES, t0)
+        val xs1 = DoubleVector.broadcast(SPECIES, s1)
+        val yt1 = DoubleVector.broadcast(SPECIES, t1)
+        var i = 0
+        val bound = SPECIES.loopBound(rows)
+        while (i < bound) {
+            val xv = DoubleVector.fromArray(SPECIES, x, xOffset + i)
+            val yv = DoubleVector.fromArray(SPECIES, y, yOffset + i)
+            multiplyAdd(yv, yt0, multiplyAdd(xv, xs0, DoubleVector.fromArray(SPECIES, a, aOffset + i)))
+                .intoArray(a, aOffset + i)
+            multiplyAdd(yv, yt1, multiplyAdd(xv, xs1, DoubleVector.fromArray(SPECIES, a, aOffset + i + lda)))
+                .intoArray(a, aOffset + i + lda)
+            i += LANE
+        }
+        while (i < rows) {
+            val xi = x[xOffset + i]
+            val yi = y[yOffset + i]
+            a[aOffset + i] += s0 * xi + t0 * yi
+            a[aOffset + i + lda] += s1 * xi + t1 * yi
+            i++
+        }
+    }
+
+    private fun symmetricOne(
+        a: DoubleArray,
+        aOffset: Int,
+        x: DoubleArray,
+        xOffset: Int,
+        y: DoubleArray,
+        yOffset: Int,
+        rows: Int,
+        s: Double,
+        t: Double,
+    ) {
+        val xs = DoubleVector.broadcast(SPECIES, s)
+        val yt = DoubleVector.broadcast(SPECIES, t)
+        var i = 0
+        val bound = SPECIES.loopBound(rows)
+        while (i < bound) {
+            val partial = multiplyAdd(
+                DoubleVector.fromArray(SPECIES, x, xOffset + i),
+                xs,
+                DoubleVector.fromArray(SPECIES, a, aOffset + i),
+            )
+            multiplyAdd(DoubleVector.fromArray(SPECIES, y, yOffset + i), yt, partial).intoArray(a, aOffset + i)
+            i += LANE
+        }
+        while (i < rows) {
+            a[aOffset + i] += s * x[xOffset + i] + t * y[yOffset + i]
+            i++
+        }
+    }
+
     private fun rankTwo(
         a: DoubleArray,
         aOffset: Int,

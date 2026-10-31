@@ -559,12 +559,11 @@ internal class PortableDenseBlas(
     }
 
     /**
-     * `A += alpha · (x · yᵀ + y · xᵀ)` over the stored triangle, as two rank updates per group plus its corner.
+     * `A += alpha · (x · yᵀ + y · xᵀ)` over the stored triangle, as one rank-two panel per group plus its
+     * corner.
      *
-     * Each entry takes its two contributions in two read-modify-writes rather than one, but the second finds
-     * the group's window still in cache. Against an entry-at-a-time loop this is behind at the small orders,
-     * where both stay well ahead of the measured vendors, and ahead from order 64, where the loop was behind
-     * them.
+     * The panel takes both contributions to an entry in one read-modify-write, so a backend that overrides
+     * [DensePanelKernels.rankTwoUpdate] loads and stores the stored triangle once.
      */
     @Suppress("LongParameterList") // the BLAS dsyr2 signature plus the workspace
     override fun syr2(
@@ -606,15 +605,10 @@ internal class PortableDenseBlas(
                         alpha * (xv[xOrigin + i * xStep] * yc + yv[yOrigin + i * yStep] * xc)
                 }
             }
-            // The second update finds the group's window still in cache from the first.
-            val panel = a.offset + window + start * lda
-            panels.rankUpdate(
-                alpha, a.values, panel, lda, xv, xOrigin + window * xStep, xStep, rows, width,
-                yv, yOrigin + start * yStep, yStep,
-            )
-            panels.rankUpdate(
-                alpha, a.values, panel, lda, yv, yOrigin + window * yStep, yStep, rows, width,
-                xv, xOrigin + start * xStep, xStep,
+            panels.rankTwoUpdate(
+                alpha, a.values, a.offset + window + start * lda, lda,
+                xv, xOrigin + window * xStep, xStep, yv, yOrigin + window * yStep, yStep, rows, width,
+                yv, yOrigin + start * yStep, yStep, xv, xOrigin + start * xStep, xStep,
             )
         }
     }
