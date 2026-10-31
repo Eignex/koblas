@@ -107,6 +107,11 @@ printf '%s\n' 'axpy+64+uniform 1.0 0.5' 'axpy+128+uniform 1.0 1.01' 'axpy+4096+u
 bash "$bench/lab/score.sh" openblas "$temporary/cells" >"$temporary/scored"
 grep -Eq '^axpy +small +lose ' "$temporary/scored"
 grep -Eq '^axpy +mid +win ' "$temporary/scored"
+# A Level 3 case is banded by its largest operand, which for GEMM may be either input rather than the output.
+printf '%s\n' 'gemm+16x16x4096+uniform 1.0 0.5' 'trsm+64x64+triangular+side=L 1.0 0.5' >"$temporary/level3"
+bash "$bench/lab/score.sh" openblas "$temporary/level3" >"$temporary/level3-scored"
+grep -Eq '^gemm +large +win ' "$temporary/level3-scored"
+grep -Eq '^trsm +small +win ' "$temporary/level3-scored"
 # Only Accelerate cells whose reference outruns the vector unit on every row are set aside.
 printf '%s\n' 'dot+65536+uniform 655.36 2.0' >"$temporary/fast"
 bash "$bench/lab/score.sh" accelerate "$temporary/fast" | grep -Eq '^dot +large +coprocessor '
