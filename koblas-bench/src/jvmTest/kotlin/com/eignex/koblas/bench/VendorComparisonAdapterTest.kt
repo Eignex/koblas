@@ -59,6 +59,18 @@ class VendorComparisonAdapterTest {
         }
     }
 
+    @Test fun `jvm options take only hotspot flags`() {
+        val accepted = mapOf("vendor" to "onemkl", "operation" to "dot", "jvm-options" to "-XX:MaxVectorSize=32 -XX:-UseFMA")
+
+        VendorComparisonSuite.plan(BenchRequest(accepted))
+
+        for (rejected in listOf("-cp /tmp", "-XX:MaxVectorSize=32;rm", "-Dkoblas=1", "")) {
+            assertFailsWith<IllegalArgumentException>(rejected) {
+                VendorComparisonSuite.plan(BenchRequest(accepted + ("jvm-options" to rejected)))
+            }
+        }
+    }
+
     @Test fun `size bands follow the parity thresholds`() {
         for ((line, band) in listOf(
             "dot+4095+uniform" to "small", "dot+4096+uniform" to "mid", "dot+65535+uniform" to "large",

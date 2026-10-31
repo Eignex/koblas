@@ -23,6 +23,7 @@ internal object VendorComparisonSuite : BenchSuite {
     private const val CASES = "koblas-bench/lab/cases-vendor-comparison.txt"
     private val PARAMETERS = setOf(
         "vendor", "arch", "operation", "cases", "samples", "warmups", "target-ms", "forks", "rounds", "targets", "profile-gc",
+        "jvm-options",
     )
 
     /** The rows of one planned case, one case-file line each; set by [plan], never by a request. */
@@ -59,13 +60,15 @@ internal object VendorComparisonSuite : BenchSuite {
         val argv = mutableListOf(captureShell(), root.resolve("koblas-bench/lab/vendor-capture.sh").toString(),
             "--output", output.toString(), "--cases", cases.toString())
         case.parameters.forEach { (key, value) ->
-            if (key != ROWS && key != "cases" && key != "operation") {
+            if (key != ROWS && key != "cases" && key != "operation" && key != "jvm-options") {
                 argv += "--$key"
                 argv += value
             }
         }
-        val exit = context.process(argv, "comparison.log",
-            environment = mapOf("TMPDIR" to context.outputDirectory.toString()))
+        // Every JVM the capture starts reads these, the measured JMH fork included; native arms ignore them.
+        val environment = mapOf("TMPDIR" to context.outputDirectory.toString()) +
+            (case.parameters["jvm-options"]?.let { mapOf("JAVA_TOOL_OPTIONS" to it) } ?: emptyMap())
+        val exit = context.process(argv, "comparison.log", environment = environment)
         val report = output.resolve("report")
         val complete = Files.isRegularFile(report.resolve("metadata.txt")) &&
             Files.readAllLines(report.resolve("metadata.txt")).firstOrNull() == "status=complete"
@@ -90,6 +93,11 @@ internal object VendorComparisonSuite : BenchSuite {
             }) { "Invalid comparison targets" }
         }
         p["profile-gc"]?.let { require(it in setOf("true", "false")) { "profile-gc must be true or false" } }
+        p["jvm-options"]?.let { options ->
+            require(options.split(' ').all { it.matches(Regex("-XX:[+-]?[A-Za-z]+(=[0-9]+)?")) }) {
+                "jvm-options takes space-separated -XX options"
+            }
+        }
         p["operation"]?.let { require(it.matches(Regex("[a-z][a-z0-9-]*"))) { "Invalid operation" } }
         for (key in listOf("samples", "warmups", "target-ms", "forks", "rounds")) {
             p[key]?.let { require(it.matches(Regex("[1-9][0-9]*")) && it.toIntOrNull() != null) { "$key must be positive" } }
