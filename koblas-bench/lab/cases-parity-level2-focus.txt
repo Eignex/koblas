@@ -1,5 +1,6 @@
-# The rows of cases-parity-level2.txt from order 64 up, for quick vendor A/B runs; gemv and symv time the
-# arithmetic alone, since their beta keeps a repeated call's destination normal without a reset.
+# The rows of cases-parity-level2.txt from order 64 up, for quick vendor A/B runs. gemv and symv time the
+# arithmetic alone, since their beta keeps a repeated call's destination normal without a reset, and the rank
+# updates alternate the sign of alpha so the matrix returns to where it started.
 gemv+64x64+uniform+timing=arithmetic
 gemv+64x64+uniform+transA=T+timing=arithmetic
 gemv+128x128+uniform+timing=arithmetic
@@ -32,36 +33,36 @@ symv+255+uniform+uplo=L+timing=arithmetic
 symv+255+uniform+uplo=U+timing=arithmetic
 symv+256+uniform+uplo=L+timing=arithmetic
 symv+256+uniform+uplo=U+timing=arithmetic
-ger+64x64+uniform
-ger+128x128+uniform
-ger+255x255+uniform
-ger+256x256+uniform
-ger+65536x1+uniform
-ger+1x65536+uniform
-ger+4096x16+uniform
-ger+16x4096+uniform
-ger+1024x64+uniform
-ger+64x1024+uniform
-syr+64+uniform+uplo=L
-syr+64+uniform+uplo=U
-syr+128+uniform+uplo=L
-syr+128+uniform+uplo=U
-syr+129+uniform+uplo=L
-syr+129+uniform+uplo=U
-syr+255+uniform+uplo=L
-syr+255+uniform+uplo=U
-syr+256+uniform+uplo=L
-syr+256+uniform+uplo=U
-syr2+64+uniform+uplo=L
-syr2+64+uniform+uplo=U
-syr2+128+uniform+uplo=L
-syr2+128+uniform+uplo=U
-syr2+129+uniform+uplo=L
-syr2+129+uniform+uplo=U
-syr2+255+uniform+uplo=L
-syr2+255+uniform+uplo=U
-syr2+256+uniform+uplo=L
-syr2+256+uniform+uplo=U
+ger+64x64+uniform+timing=arithmetic
+ger+128x128+uniform+timing=arithmetic
+ger+255x255+uniform+timing=arithmetic
+ger+256x256+uniform+timing=arithmetic
+ger+65536x1+uniform+timing=arithmetic
+ger+1x65536+uniform+timing=arithmetic
+ger+4096x16+uniform+timing=arithmetic
+ger+16x4096+uniform+timing=arithmetic
+ger+1024x64+uniform+timing=arithmetic
+ger+64x1024+uniform+timing=arithmetic
+syr+64+uniform+uplo=L+timing=arithmetic
+syr+64+uniform+uplo=U+timing=arithmetic
+syr+128+uniform+uplo=L+timing=arithmetic
+syr+128+uniform+uplo=U+timing=arithmetic
+syr+129+uniform+uplo=L+timing=arithmetic
+syr+129+uniform+uplo=U+timing=arithmetic
+syr+255+uniform+uplo=L+timing=arithmetic
+syr+255+uniform+uplo=U+timing=arithmetic
+syr+256+uniform+uplo=L+timing=arithmetic
+syr+256+uniform+uplo=U+timing=arithmetic
+syr2+64+uniform+uplo=L+timing=arithmetic
+syr2+64+uniform+uplo=U+timing=arithmetic
+syr2+128+uniform+uplo=L+timing=arithmetic
+syr2+128+uniform+uplo=U+timing=arithmetic
+syr2+129+uniform+uplo=L+timing=arithmetic
+syr2+129+uniform+uplo=U+timing=arithmetic
+syr2+255+uniform+uplo=L+timing=arithmetic
+syr2+255+uniform+uplo=U+timing=arithmetic
+syr2+256+uniform+uplo=L+timing=arithmetic
+syr2+256+uniform+uplo=U+timing=arithmetic
 trmv+64+triangular+uplo=L+transA=N+diag=N
 trmv+64+triangular+uplo=U+transA=N+diag=N
 trmv+64+triangular+uplo=L+transA=T+diag=N
