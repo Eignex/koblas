@@ -84,19 +84,29 @@ STAT
 fi
 bash "$bench/capture-report.sh" --help >/dev/null 2>&1
 
-# Two passes of two cells; the failed row and the case only one target measured are left out.
+# Ratios pair within one pass: a pass measured by one target, a failed row and a case only one target measured
+# are left out. Each CPU model gives one median and the models weigh equally, so one pass on model A at 0.8 and
+# three on model B at 0.2 combine to 0.4 where pooling the passes would give 0.2.
 report="$temporary/report"
 header='case,status,comparison_kind,timing_mode,actual_kernel,samples,forks,median_ns,min_ns,max_ns'
 mkdir -p "$report/cases/0/pass-1" "$report/cases/0/pass-2" "$report/cases/1/pass-1"
+echo 'model name=Model A' >"$report/cases/0/pass-1/metadata.txt"
 printf '%s\n%s\n%s\n' "$header" 'dot+64+uniform,ok,d,a,k,5,1,10,9,11' 'dot+8192+uniform,ok,d,a,k,5,1,100,99,101' \
   >"$report/cases/0/pass-1/vendor.csv"
-printf '%s\n%s\n' "$header" 'dot+64+uniform,ok,d,a,k,5,1,30,29,31' >"$report/cases/0/pass-2/vendor.csv"
 printf '%s\n%s\n%s\n' "$header" 'dot+64+uniform,ok,d,a,k,5,1,8,7,9' 'dot+8192+uniform,ok,d,a,k,5,1,150,149,151' \
   >"$report/cases/0/pass-1/jvm.csv"
+printf '%s\n%s\n' "$header" 'dot+64+uniform,ok,d,a,k,5,1,30,29,31' >"$report/cases/0/pass-2/vendor.csv"
 printf '%s\n%s\n%s\n' "$header" 'dot+64+uniform,failed,d,a,k,5,1,1,1,1' 'gemv+4x4+uniform,ok,d,a,k,5,1,1,1,1' \
   >"$report/cases/1/pass-1/jvm.csv"
+printf '%s\n%s\n' "$header" 'dot+64+uniform,ok,d,a,k,5,1,10,9,11' >"$report/cases/1/pass-1/vendor.csv"
+for pass in 2 3 4; do
+  mkdir -p "$report/cases/$pass/pass-1"
+  echo 'model name=Model B' >"$report/cases/$pass/pass-1/metadata.txt"
+  printf '%s\n%s\n' "$header" 'dot+64+uniform,ok,d,a,k,5,1,10,9,11' >"$report/cases/$pass/pass-1/vendor.csv"
+  printf '%s\n%s\n' "$header" 'dot+64+uniform,ok,d,a,k,5,1,2,1,3' >"$report/cases/$pass/pass-1/jvm.csv"
+done
 bash "$bench/lab/compare.sh" "$report" jvm vendor >"$temporary/compared"
-printf '%s\n' 'dot+64+uniform 20.0 0.4000' 'dot+8192+uniform 100.0 1.5000' | cmp - "$temporary/compared"
+printf '%s\n' 'dot+64+uniform 10.0 0.4000' 'dot+8192+uniform 100.0 1.5000' | cmp - "$temporary/compared"
 # An A/B job: each arm is read alone, and a row counts only when every arm in it finished.
 job="$temporary/job"
 # usage: lab_case INDEX STATUS CELL ARM REPEAT JVM_NS
