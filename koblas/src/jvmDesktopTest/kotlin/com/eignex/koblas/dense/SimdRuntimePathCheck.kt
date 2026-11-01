@@ -108,12 +108,13 @@ internal object SimdRuntimePathCheck {
         val n = order + 2
         val start = 1
         val xOffset = 3
-        for (sides in intArrayOf(lanes - 1, lanes, lanes + 1)) {
+        // Four lane blocks go through each step together; five and one more also reach one block alone and the tail.
+        for (sides in intArrayOf(lanes - 1, lanes, lanes + 1, 4 * lanes, 5 * lanes + 1)) {
             for (rhsStride in intArrayOf(1, 2)) {
                 val orderStride = sides * rhsStride + 2
                 val bodies = when {
                     rhsStride != 1 || sides < lanes -> listOf(PortableTriangularKernels.name)
-                    sides == lanes -> listOf(kernels.name)
+                    sides % lanes == 0 -> listOf(kernels.name)
                     else -> listOf(kernels.name, PortableTriangularKernels.name)
                 }
                 assertEquals(

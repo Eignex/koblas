@@ -44,6 +44,9 @@ internal object SimdTriangularKernels : DenseTriangularKernels {
     /** Steps a single-side substitution finishes together before one vector pass carries them on. */
     private const val GROUP = 4
 
+    /** Lane blocks of sides a diagonal substitution carries through each step together. */
+    private const val FOUR_BLOCKS = 4
+
     override fun rightHandSideGroup(order: Int, sides: Int): Int {
         if (!simdAvailable) return PortableTriangularKernels.rightHandSideGroup(order, sides)
         val recommended = GROUP_BLOCKS * LANE
@@ -96,6 +99,10 @@ internal object SimdTriangularKernels : DenseTriangularKernels {
         }
         var lane = 0
         val bound = sides - sides % LANE
+        while (lane + FOUR_BLOCKS * LANE <= bound) {
+            solveFour(t, n, start, size, transposed, lower, unitDiag, x, xOffset + lane, orderStride, tOffset)
+            lane += FOUR_BLOCKS * LANE
+        }
         while (lane < bound) {
             solveBlock(t, n, start, size, transposed, lower, unitDiag, x, xOffset + lane, orderStride, tOffset)
             lane += LANE
@@ -136,6 +143,10 @@ internal object SimdTriangularKernels : DenseTriangularKernels {
         }
         var lane = 0
         val bound = sides - sides % LANE
+        while (lane + FOUR_BLOCKS * LANE <= bound) {
+            multiplyFour(t, n, start, size, transposed, lower, unitDiag, x, xOffset + lane, orderStride, tOffset)
+            lane += FOUR_BLOCKS * LANE
+        }
         while (lane < bound) {
             multiplyBlock(t, n, start, size, transposed, lower, unitDiag, x, xOffset + lane, orderStride, tOffset)
             lane += LANE
@@ -181,6 +192,104 @@ internal object SimdTriangularKernels : DenseTriangularKernels {
             }
             if (!unitDiag) accumulated = accumulated.div(triangleEntry(t, n, start, p, p, transposed, tOffset))
             accumulated.intoArray(x, at)
+        }
+    }
+
+    /**
+     * [solveBlock] over four adjacent lane blocks at once.
+     *
+     * One lane block is a single chain of fused steps, each waiting on the last, so it runs at the
+     * instruction's latency rather than its throughput. Four blocks are four independent chains that share
+     * each coefficient's broadcast.
+     */
+    private fun solveFour(
+        t: DoubleArray,
+        n: Int,
+        start: Int,
+        size: Int,
+        transposed: Boolean,
+        lower: Boolean,
+        unitDiag: Boolean,
+        x: DoubleArray,
+        xOffset: Int,
+        orderStride: Int,
+        tOffset: Int,
+    ) {
+        for (step in 0 until size) {
+            val p = if (lower) step else size - 1 - step
+            val at = xOffset + p * orderStride
+            var a0 = DoubleVector.fromArray(SPECIES, x, at)
+            var a1 = DoubleVector.fromArray(SPECIES, x, at + LANE)
+            var a2 = DoubleVector.fromArray(SPECIES, x, at + 2 * LANE)
+            var a3 = DoubleVector.fromArray(SPECIES, x, at + 3 * LANE)
+            val first = if (lower) 0 else p + 1
+            val last = if (lower) p else size
+            for (q in first until last) {
+                val entry = triangleEntry(t, n, start, p, q, transposed, tOffset)
+                val coefficient = DoubleVector.broadcast(SPECIES, -entry)
+                val from = xOffset + q * orderStride
+                a0 = fusedStep(DoubleVector.fromArray(SPECIES, x, from), coefficient, a0)
+                a1 = fusedStep(DoubleVector.fromArray(SPECIES, x, from + LANE), coefficient, a1)
+                a2 = fusedStep(DoubleVector.fromArray(SPECIES, x, from + 2 * LANE), coefficient, a2)
+                a3 = fusedStep(DoubleVector.fromArray(SPECIES, x, from + 3 * LANE), coefficient, a3)
+            }
+            if (!unitDiag) {
+                val diagonal = triangleEntry(t, n, start, p, p, transposed, tOffset)
+                a0 = a0.div(diagonal)
+                a1 = a1.div(diagonal)
+                a2 = a2.div(diagonal)
+                a3 = a3.div(diagonal)
+            }
+            a0.intoArray(x, at)
+            a1.intoArray(x, at + LANE)
+            a2.intoArray(x, at + 2 * LANE)
+            a3.intoArray(x, at + 3 * LANE)
+        }
+    }
+
+    /** [multiplyBlock] over four adjacent lane blocks at once, for the reason [solveFour] gives. */
+    private fun multiplyFour(
+        t: DoubleArray,
+        n: Int,
+        start: Int,
+        size: Int,
+        transposed: Boolean,
+        lower: Boolean,
+        unitDiag: Boolean,
+        x: DoubleArray,
+        xOffset: Int,
+        orderStride: Int,
+        tOffset: Int,
+    ) {
+        for (step in 0 until size) {
+            val p = if (lower) size - 1 - step else step
+            val at = xOffset + p * orderStride
+            var a0 = DoubleVector.fromArray(SPECIES, x, at)
+            var a1 = DoubleVector.fromArray(SPECIES, x, at + LANE)
+            var a2 = DoubleVector.fromArray(SPECIES, x, at + 2 * LANE)
+            var a3 = DoubleVector.fromArray(SPECIES, x, at + 3 * LANE)
+            if (!unitDiag) {
+                val diagonal = triangleEntry(t, n, start, p, p, transposed, tOffset)
+                a0 = a0.mul(diagonal)
+                a1 = a1.mul(diagonal)
+                a2 = a2.mul(diagonal)
+                a3 = a3.mul(diagonal)
+            }
+            val first = if (lower) 0 else p + 1
+            val last = if (lower) p else size
+            for (q in first until last) {
+                val entry = triangleEntry(t, n, start, p, q, transposed, tOffset)
+                val coefficient = DoubleVector.broadcast(SPECIES, entry)
+                val from = xOffset + q * orderStride
+                a0 = fusedStep(DoubleVector.fromArray(SPECIES, x, from), coefficient, a0)
+                a1 = fusedStep(DoubleVector.fromArray(SPECIES, x, from + LANE), coefficient, a1)
+                a2 = fusedStep(DoubleVector.fromArray(SPECIES, x, from + 2 * LANE), coefficient, a2)
+                a3 = fusedStep(DoubleVector.fromArray(SPECIES, x, from + 3 * LANE), coefficient, a3)
+            }
+            a0.intoArray(x, at)
+            a1.intoArray(x, at + LANE)
+            a2.intoArray(x, at + 2 * LANE)
+            a3.intoArray(x, at + 3 * LANE)
         }
     }
 
@@ -574,6 +683,18 @@ internal object SimdTriangularKernels : DenseTriangularKernels {
         accumulated: DoubleVector,
     ): DoubleVector = if (hardwareFusedMultiplyAdd) {
         values.fma(DoubleVector.broadcast(SPECIES, coefficient), accumulated)
+    } else {
+        accumulated.add(values.mul(coefficient))
+    }
+
+    /** `accumulated + coefficient · values` over a broadcast coefficient, inline as [multiplySubtract] is. */
+    @Suppress("NOTHING_TO_INLINE")
+    private inline fun fusedStep(
+        values: DoubleVector,
+        coefficient: DoubleVector,
+        accumulated: DoubleVector,
+    ): DoubleVector = if (hardwareFusedMultiplyAdd) {
+        values.fma(coefficient, accumulated)
     } else {
         accumulated.add(values.mul(coefficient))
     }
