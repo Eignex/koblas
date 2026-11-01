@@ -9,11 +9,12 @@ class JvmHostDensePolicyTest {
     @Test
     fun `all product extents must amortize operand transfers`() {
         for (operation in operations) {
-            assertTrue(JvmHostDensePolicy.eligible(operation, 128, 128, 128), "$operation")
+            val minimum = if (operation == DenseMatrixOperation.Gemmt) 128 else 64
+            assertTrue(JvmHostDensePolicy.eligible(operation, minimum, minimum, minimum), "$operation")
             for ((rows, columns, depth) in listOf(
-                Triple(127, 512, 512),
-                Triple(512, 127, 512),
-                Triple(512, 512, 127),
+                Triple(minimum - 1, 512, 512),
+                Triple(512, minimum - 1, 512),
+                Triple(512, 512, minimum - 1),
             )) {
                 assertFalse(
                     JvmHostDensePolicy.eligible(operation, rows, columns, depth),
@@ -46,9 +47,13 @@ class JvmHostDensePolicyTest {
     }
 
     @Test
-    fun `borrowed deep products keep the larger cutoff for extra packing`() {
+    fun `borrowed products keep the larger cutoff for extra packing`() {
         assertFalse(JvmHostDensePolicy.eligibleBorrowed(DenseMatrixOperation.Gemm, 16, 16, 4096))
         assertTrue(JvmHostDensePolicy.eligibleBorrowed(DenseMatrixOperation.Gemm, 128, 128, 4096))
+        for (operation in operations) {
+            assertFalse(JvmHostDensePolicy.eligibleBorrowed(operation, 127, 127, 127), "$operation")
+            assertTrue(JvmHostDensePolicy.eligibleBorrowed(operation, 128, 128, 128), "$operation")
+        }
     }
 
     private val operations = listOf(

@@ -59,8 +59,8 @@ traversal and can use SIMD for the arithmetic within it.
 
 Automatic JVM native calls are limited to larger matrix-matrix operations: GEMM, GEMMT, SYMM, SYRK,
 SYR2K, TRMM and TRSM. Their output dimensions and shared dimension or structured order must each be
-at least 128. Whole-matrix GEMM also qualifies with at least 16 output rows and columns and a shared
-dimension of 1,024–4,096; borrowed views keep the larger cutoff. These thresholds are built in.
+at least 64, or at least 128 for GEMMT and for borrowed views. Whole-matrix GEMM also qualifies with at
+least 16 output rows and columns and a shared dimension of 1,024–4,096. These thresholds are built in.
 
 JVM native calls copy arrays to and from native memory. The retained Intel comparison includes this
 cost and measured oneMKL at 1.45–4.66x JVM SIMD throughput for matrix-matrix cases at orders 128, 256
