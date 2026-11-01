@@ -72,6 +72,56 @@ class DenseMatrixViewTest {
         }
     }
 
+    // One destination row or column is a matrix-vector product, which reads the vector operand along a
+    // stored row as often as along a stored column, so padding decides the stride it is read at.
+    @Test
+    fun `single row and single column products address padded rectangles`() = withRegions { blas ->
+        for ((m, n) in listOf(1 to 6, 7 to 1, 1 to 1)) {
+            for (ta in booleanArrayOf(false, true)) {
+                for (tb in booleanArrayOf(false, true)) {
+                    val a = region(if (ta) 5 else m, if (ta) m else 5)
+                    val b = region(if (tb) n else 5, if (tb) 5 else n, 2)
+                    val c = region(m, n, 3)
+                    val before = c.values.copyOf()
+                    val expected = copy(c)
+                    ReferenceBlas.gemm(0.875, copy(a), ta, copy(b), tb, -0.25, expected)
+
+                    blas.gemm(0.875, a, ta, b, tb, -0.25, c, Workspace())
+
+                    assertRegionAgreesWithReference(expected, c, before)
+                }
+            }
+        }
+    }
+
+    // The destination is a row or a column of the matrix operand, and also the vector operand when that one
+    // is stored the same way round, so both reads have to see the values from before the call.
+    @Test
+    fun `single row and column products snapshot operands holding the destination`() = withRegions { blas ->
+        for (row in booleanArrayOf(true, false)) {
+            for (transposed in booleanArrayOf(false, true)) {
+                val parent = DenseMatrix.wrap(6, 6, DoubleArray(36) { (it % 13 - 6) / 16.0 })
+                val c = if (row) parent.view(2, 0, 1, 6) else parent.view(0, 2, 6, 1)
+                val vector = when {
+                    !transposed -> c
+                    row -> region(6, 1)
+                    else -> region(1, 6)
+                }
+                val a = if (row) vector else parent
+                val b = if (row) parent else vector
+                val ta = row && transposed
+                val tb = !row && transposed
+                val before = parent.values.copyOf()
+                val expected = copy(c)
+                ReferenceBlas.gemm(0.875, copy(a), ta, copy(b), tb, -0.25, expected)
+
+                blas.gemm(0.875, a, ta, b, tb, -0.25, c, Workspace())
+
+                assertRegionAgreesWithReference(expected, c, before)
+            }
+        }
+    }
+
     @Test
     fun `packed products retain destination padding`() = withRegions { blas ->
         val a = region(67, 65)

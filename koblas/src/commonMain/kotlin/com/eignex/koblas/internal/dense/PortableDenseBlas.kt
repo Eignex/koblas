@@ -159,7 +159,11 @@ internal class PortableDenseBlas(
     /**
      * The product itself, over operands already staged against an overlap with the destination.
      *
-     * Which of the two paths runs is the extents' answer rather than the engine's.
+     * Which path runs is the extents' answer rather than the engine's. A destination with one column or one
+     * row is a matrix-vector product, so it runs as [gemv] arithmetic over the operand that is a matrix: the
+     * product schedule would otherwise make a separate panel call for every destination column, which on a
+     * single row is one call per entry. A single entry is a dot product either way and stays on the schedule,
+     * which measured slightly ahead of the matrix-vector form for a long shared dimension.
      */
     private fun gemmCore(
         alpha: Double,
@@ -172,6 +176,22 @@ internal class PortableDenseBlas(
         depth: Int,
         workspace: Workspace?,
     ) {
+        if (c.cols == 1 && c.rows > 1) {
+            // The column of op(B) is a stored column, or a stored row when B is transposed.
+            gemvCore(
+                alpha, a, b.values, b.offset, if (transposeB) b.leadingDimension else 1,
+                beta, c.values, c.offset, 1, transposeA,
+            )
+            return
+        }
+        if (c.rows == 1 && c.cols > 1) {
+            // The destination row is op(B)ᵀ times the row of op(A), a stored column when A is transposed.
+            gemvCore(
+                alpha, b, a.values, a.offset, if (transposeA) 1 else a.leadingDimension,
+                beta, c.values, c.offset, c.leadingDimension, !transposeB,
+            )
+            return
+        }
         productWindow(
             products, panels, alpha, a.values, a.offset, a.leadingDimension, transposeA, b.values, b.offset,
             b.leadingDimension, transposeB,
