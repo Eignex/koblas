@@ -7,18 +7,12 @@ public class EngineRule(
     /** Identifier of a backend supplying the requested implementations. */
     public val backend: String,
     implementations: Set<EngineImplementation>,
-    /** Minimum run length or matrix row extent. */
-    public val rows: Int = 0,
-    /** Maximum run length or matrix row extent covered by measurements. */
-    public val maximumRows: Int = Int.MAX_VALUE,
-    /** Minimum output column extent. */
-    public val columns: Int = 0,
-    /** Maximum output column extent covered by measurements. */
-    public val maximumColumns: Int = Int.MAX_VALUE,
-    /** Minimum shared dimension or structured order. */
-    public val depth: Int = 0,
-    /** Maximum shared dimension supported by this measured preference. */
-    public val maximumDepth: Int = Int.MAX_VALUE,
+    /** Covered run lengths or matrix row extents. */
+    public val rows: IntRange = 0..Int.MAX_VALUE,
+    /** Covered output column extents. */
+    public val columns: IntRange = 0..Int.MAX_VALUE,
+    /** Covered shared dimensions or structured orders. */
+    public val depth: IntRange = 0..Int.MAX_VALUE,
     /** Minimum rows times columns times depth, compared without overflowing. */
     public val work: Long = 0,
     /** Required vector layout, or null for either layout. */
@@ -30,17 +24,16 @@ public class EngineRule(
     public val implementations: Set<EngineImplementation> = implementations.toSet()
 
     init {
-        require(rows >= 0 && columns >= 0 && depth >= 0 && maximumDepth >= depth && work >= 0)
-        require(maximumRows >= rows && maximumColumns >= columns)
+        require(listOf(rows, columns, depth).all { it.first >= 0 && !it.isEmpty() })
+        require(work >= 0)
         require(this.implementations.isNotEmpty())
     }
 
-    internal val unconditional: Boolean get() = rows == 0 && columns == 0 && depth == 0 &&
-        maximumRows == Int.MAX_VALUE && maximumColumns == Int.MAX_VALUE &&
-        maximumDepth == Int.MAX_VALUE && work == 0L && contiguous == null && borrowed == null
+    internal val unconditional: Boolean get() = rows == 0..Int.MAX_VALUE && columns == 0..Int.MAX_VALUE &&
+        depth == 0..Int.MAX_VALUE && work == 0L && contiguous == null && borrowed == null
 
     internal fun matches(r: Int, c: Int, d: Int, adjacent: Boolean, view: Boolean): Boolean {
-        if (r < rows || r > maximumRows || c < columns || c > maximumColumns || d < depth || d > maximumDepth ||
+        if (r !in rows || c !in columns || d !in depth ||
             (contiguous != null && contiguous != adjacent) || (borrowed != null && borrowed != view)
         ) {
             return false
@@ -94,11 +87,14 @@ public class EngineProfile(
             val rules = lines.drop(1).map { fields ->
                 require(fields.size == 11) { "Invalid routing rule" }
                 EngineRule(
-                    fields[0], fields[1].split(',').map(EngineImplementation::valueOf).toSet(),
-                    rows = fields[2].toInt(), maximumRows = fields[3].toInt(),
-                    columns = fields[4].toInt(), maximumColumns = fields[5].toInt(),
-                    depth = fields[6].toInt(), maximumDepth = fields[7].toInt(), work = fields[8].toLong(),
-                    contiguous = flag(fields[9]), borrowed = flag(fields[10]),
+                    fields[0],
+                    fields[1].split(',').map(EngineImplementation::valueOf).toSet(),
+                    rows = fields[2].toInt()..fields[3].toInt(),
+                    columns = fields[4].toInt()..fields[5].toInt(),
+                    depth = fields[6].toInt()..fields[7].toInt(),
+                    work = fields[8].toLong(),
+                    contiguous = flag(fields[9]),
+                    borrowed = flag(fields[10]),
                 )
             }
             return EngineProfile(

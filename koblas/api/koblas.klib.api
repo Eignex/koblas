@@ -350,13 +350,6 @@ sealed interface com.eignex.koblas/DenseVector : com.eignex.koblas/Vector { // c
     }
 }
 
-sealed interface com.eignex.koblas/EngineBackend { // com.eignex.koblas/EngineBackend|null[0]
-    abstract val implementations // com.eignex.koblas/EngineBackend.implementations|{}implementations[0]
-        abstract fun <get-implementations>(): kotlin.collections/Set<com.eignex.koblas/EngineImplementation> // com.eignex.koblas/EngineBackend.implementations.<get-implementations>|<get-implementations>(){}[0]
-    abstract val name // com.eignex.koblas/EngineBackend.name|{}name[0]
-        abstract fun <get-name>(): kotlin/String // com.eignex.koblas/EngineBackend.name.<get-name>|<get-name>(){}[0]
-}
-
 sealed interface com.eignex.koblas/MatrixStorage : com.eignex.koblas/Matrix { // com.eignex.koblas/MatrixStorage|null[0]
     final object Companion : kotlinx.serialization.internal/SerializerFactory { // com.eignex.koblas/MatrixStorage.Companion|null[0]
         final fun serializer(): kotlinx.serialization/KSerializer<com.eignex.koblas/MatrixStorage> // com.eignex.koblas/MatrixStorage.Companion.serializer|serializer(){}[0]
@@ -500,6 +493,13 @@ final class com.eignex.koblas/DimensionMismatch : kotlin/IllegalArgumentExceptio
     constructor <init>(kotlin/String) // com.eignex.koblas/DimensionMismatch.<init>|<init>(kotlin.String){}[0]
 }
 
+final class com.eignex.koblas/EngineBackend { // com.eignex.koblas/EngineBackend|null[0]
+    final val implementations // com.eignex.koblas/EngineBackend.implementations|{}implementations[0]
+        final fun <get-implementations>(): kotlin.collections/Set<com.eignex.koblas/EngineImplementation> // com.eignex.koblas/EngineBackend.implementations.<get-implementations>|<get-implementations>(){}[0]
+    final val name // com.eignex.koblas/EngineBackend.name|{}name[0]
+        final fun <get-name>(): kotlin/String // com.eignex.koblas/EngineBackend.name.<get-name>|<get-name>(){}[0]
+}
+
 final class com.eignex.koblas/EngineProfile { // com.eignex.koblas/EngineProfile|null[0]
     constructor <init>(kotlin/String, kotlin.collections/List<com.eignex.koblas/EngineRule>, kotlin/String? = ..., com.eignex.koblas.vendor/HostPlatform? = ..., kotlin/String = ...) // com.eignex.koblas/EngineProfile.<init>|<init>(kotlin.String;kotlin.collections.List<com.eignex.koblas.EngineRule>;kotlin.String?;com.eignex.koblas.vendor.HostPlatform?;kotlin.String){}[0]
 
@@ -522,28 +522,22 @@ final class com.eignex.koblas/EngineProfile { // com.eignex.koblas/EngineProfile
 }
 
 final class com.eignex.koblas/EngineRule { // com.eignex.koblas/EngineRule|null[0]
-    constructor <init>(kotlin/String, kotlin.collections/Set<com.eignex.koblas/EngineImplementation>, kotlin/Int = ..., kotlin/Int = ..., kotlin/Int = ..., kotlin/Int = ..., kotlin/Int = ..., kotlin/Int = ..., kotlin/Long = ..., kotlin/Boolean? = ..., kotlin/Boolean? = ...) // com.eignex.koblas/EngineRule.<init>|<init>(kotlin.String;kotlin.collections.Set<com.eignex.koblas.EngineImplementation>;kotlin.Int;kotlin.Int;kotlin.Int;kotlin.Int;kotlin.Int;kotlin.Int;kotlin.Long;kotlin.Boolean?;kotlin.Boolean?){}[0]
+    constructor <init>(kotlin/String, kotlin.collections/Set<com.eignex.koblas/EngineImplementation>, kotlin.ranges/IntRange = ..., kotlin.ranges/IntRange = ..., kotlin.ranges/IntRange = ..., kotlin/Long = ..., kotlin/Boolean? = ..., kotlin/Boolean? = ...) // com.eignex.koblas/EngineRule.<init>|<init>(kotlin.String;kotlin.collections.Set<com.eignex.koblas.EngineImplementation>;kotlin.ranges.IntRange;kotlin.ranges.IntRange;kotlin.ranges.IntRange;kotlin.Long;kotlin.Boolean?;kotlin.Boolean?){}[0]
 
     final val backend // com.eignex.koblas/EngineRule.backend|{}backend[0]
         final fun <get-backend>(): kotlin/String // com.eignex.koblas/EngineRule.backend.<get-backend>|<get-backend>(){}[0]
     final val borrowed // com.eignex.koblas/EngineRule.borrowed|{}borrowed[0]
         final fun <get-borrowed>(): kotlin/Boolean? // com.eignex.koblas/EngineRule.borrowed.<get-borrowed>|<get-borrowed>(){}[0]
     final val columns // com.eignex.koblas/EngineRule.columns|{}columns[0]
-        final fun <get-columns>(): kotlin/Int // com.eignex.koblas/EngineRule.columns.<get-columns>|<get-columns>(){}[0]
+        final fun <get-columns>(): kotlin.ranges/IntRange // com.eignex.koblas/EngineRule.columns.<get-columns>|<get-columns>(){}[0]
     final val contiguous // com.eignex.koblas/EngineRule.contiguous|{}contiguous[0]
         final fun <get-contiguous>(): kotlin/Boolean? // com.eignex.koblas/EngineRule.contiguous.<get-contiguous>|<get-contiguous>(){}[0]
     final val depth // com.eignex.koblas/EngineRule.depth|{}depth[0]
-        final fun <get-depth>(): kotlin/Int // com.eignex.koblas/EngineRule.depth.<get-depth>|<get-depth>(){}[0]
+        final fun <get-depth>(): kotlin.ranges/IntRange // com.eignex.koblas/EngineRule.depth.<get-depth>|<get-depth>(){}[0]
     final val implementations // com.eignex.koblas/EngineRule.implementations|{}implementations[0]
         final fun <get-implementations>(): kotlin.collections/Set<com.eignex.koblas/EngineImplementation> // com.eignex.koblas/EngineRule.implementations.<get-implementations>|<get-implementations>(){}[0]
-    final val maximumColumns // com.eignex.koblas/EngineRule.maximumColumns|{}maximumColumns[0]
-        final fun <get-maximumColumns>(): kotlin/Int // com.eignex.koblas/EngineRule.maximumColumns.<get-maximumColumns>|<get-maximumColumns>(){}[0]
-    final val maximumDepth // com.eignex.koblas/EngineRule.maximumDepth|{}maximumDepth[0]
-        final fun <get-maximumDepth>(): kotlin/Int // com.eignex.koblas/EngineRule.maximumDepth.<get-maximumDepth>|<get-maximumDepth>(){}[0]
-    final val maximumRows // com.eignex.koblas/EngineRule.maximumRows|{}maximumRows[0]
-        final fun <get-maximumRows>(): kotlin/Int // com.eignex.koblas/EngineRule.maximumRows.<get-maximumRows>|<get-maximumRows>(){}[0]
     final val rows // com.eignex.koblas/EngineRule.rows|{}rows[0]
-        final fun <get-rows>(): kotlin/Int // com.eignex.koblas/EngineRule.rows.<get-rows>|<get-rows>(){}[0]
+        final fun <get-rows>(): kotlin.ranges/IntRange // com.eignex.koblas/EngineRule.rows.<get-rows>|<get-rows>(){}[0]
     final val work // com.eignex.koblas/EngineRule.work|{}work[0]
         final fun <get-work>(): kotlin/Long // com.eignex.koblas/EngineRule.work.<get-work>|<get-work>(){}[0]
 }

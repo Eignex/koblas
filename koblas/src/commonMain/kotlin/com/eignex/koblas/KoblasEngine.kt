@@ -39,48 +39,22 @@ internal expect fun platformEngine(): KoblasEngine
  * for tests and benchmarks, neither of which loads a host library. The platform default may compose
  * [vendor] into eligible calls.
  */
-public class KoblasEngine private constructor(
+public class KoblasEngine internal constructor(
     /** Contiguous and strided dense Level 1 kernels. */
     public val vectorKernels: DenseVectorKernels,
     internal val indexedSparseKernels: IndexedSparseKernels,
     /** Optional production native adapter, exposed only for expert benchmark attribution. */
     public val vendor: Blas?,
-    /** Panel arithmetic and the local execution grouping that dense and sparse algorithms schedule with. */
-    internal val panelKernels: DensePanelKernels,
-    /** Register-tile product arithmetic and the tile geometry dense products pack for. */
-    internal val productKernels: DenseProductKernels,
-    /** Diagonal-block substitution and the right-hand-side grouping triangular routines schedule with. */
-    internal val triangularKernels: DenseTriangularKernels,
-    private val dense: DenseBlas,
-    private val sparseBlas: SparseBlas,
-) : DenseBlas by dense,
-    SparseBlas by sparseBlas {
-    /** Execution policy and arithmetic components have one composition owner. */
-    internal constructor(
-        vectorKernels: DenseVectorKernels,
-        indexedSparseKernels: IndexedSparseKernels,
-        vendor: Blas?,
-        panelKernels: DensePanelKernels = PortablePanelKernels,
-        productKernels: DenseProductKernels = PortableProductKernels,
-        triangularKernels: DenseTriangularKernels = PortableTriangularKernels,
-        hostSelection: DenseHostSelection? = null,
-    ) : this(
+    internal val panelKernels: DensePanelKernels = PortablePanelKernels,
+    internal val productKernels: DenseProductKernels = PortableProductKernels,
+    internal val triangularKernels: DenseTriangularKernels = PortableTriangularKernels,
+    hostSelection: DenseHostSelection? = null,
+) : DenseBlas by PortableDenseBlas(vectorKernels, panelKernels, productKernels, triangularKernels, hostSelection),
+    SparseBlas by PortableSparseBlas(
         vectorKernels,
         indexedSparseKernels,
-        vendor,
-        panelKernels,
-        productKernels,
-        triangularKernels,
-        PortableDenseBlas(
-            vectorKernels,
-            panelKernels,
-            productKernels,
-            triangularKernels,
-            hostSelection,
-        ),
-        PortableSparseBlas(vectorKernels, indexedSparseKernels, SparsePanelKernels(vectorKernels, panelKernels)),
-    )
-
+        SparsePanelKernels(vectorKernels, panelKernels),
+    ) {
     /**
      * Allocates a product using this engine. Two sparse operands produce owned CSC storage;
      * other pairings produce dense storage. Custom [Matrix] operands are read once into dense scratch.
@@ -249,13 +223,14 @@ public class KoblasEngine private constructor(
             val routing = CompiledRouting(profile, backends.toList())
             val acceleratedVectors = EngineImplementation.entries.takeWhile { it != EngineImplementation.IndexedDot }
                 .any(routing::hasPreference)
-            val vectors = if (acceleratedVectors) CombinedVectorKernels(routing, profile.name) else ScalarVectorKernels
+            val kernels = CombinedKernels(routing, profile.name)
+            val vectors = if (acceleratedVectors) kernels else ScalarVectorKernels
             val indexed = if (routing.hasPreference(EngineImplementation.IndexedDot)) {
-                CombinedIndexedKernels(routing)
+                kernels
             } else {
                 ScalarIndexedSparseKernels
             }
-            val binding = backends.filterIsInstance<BackendContributions>().firstNotNullOfOrNull { it.binding }
+            val binding = backends.firstNotNullOfOrNull { it.binding }
             val hostSelection = DenseHostSelection { operation, rows, columns, depth, borrowed ->
                 routing.select(operation, rows, columns, depth, borrowed = borrowed).binding
             }

@@ -1,7 +1,7 @@
 package com.eignex.koblas.internal.jvm25.simd
 
-import com.eignex.koblas.BackendContributions
 import com.eignex.koblas.BuiltinEngines
+import com.eignex.koblas.EngineBackend
 import com.eignex.koblas.EngineImplementation.*
 import com.eignex.koblas.dense.DenseVectorKernels
 import com.eignex.koblas.internal.dense.ScalarVectorKernels
@@ -54,8 +54,8 @@ private object SimdVectorLeaves : DenseVectorKernels {
     ) = SimdOps.axpy(y, yOff, alpha, x, xOff, len)
 }
 
-internal val simdContributions: BackendContributions by lazy {
-    BackendContributions(
+internal val simdContributions: EngineBackend by lazy {
+    EngineBackend(
         "jvm-simd", SimdVectorLeaves, setOf(Dot, Sum, Nrm2, Iamax, Asum, Axpy),
         indexedDot = if (SparseSimd.vectorDot) SparseSimd else null,
         panels = SimdPanelKernels, products = SimdProductKernels, triangular = SimdTriangularKernels,
