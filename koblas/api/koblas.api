@@ -135,9 +135,9 @@ public final class com/eignex/koblas/DimensionMismatch : java/lang/IllegalArgume
 	public fun <init> (Ljava/lang/String;)V
 }
 
-public abstract interface class com/eignex/koblas/EngineBackend {
-	public abstract fun getImplementations ()Ljava/util/Set;
-	public abstract fun getName ()Ljava/lang/String;
+public final class com/eignex/koblas/EngineBackend {
+	public final fun getImplementations ()Ljava/util/Set;
+	public final fun getName ()Ljava/lang/String;
 }
 
 public final class com/eignex/koblas/EngineBackends {
@@ -200,18 +200,15 @@ public final class com/eignex/koblas/EngineProfile$Companion {
 }
 
 public final class com/eignex/koblas/EngineRule {
-	public fun <init> (Ljava/lang/String;Ljava/util/Set;IIIIIIJLjava/lang/Boolean;Ljava/lang/Boolean;)V
-	public synthetic fun <init> (Ljava/lang/String;Ljava/util/Set;IIIIIIJLjava/lang/Boolean;Ljava/lang/Boolean;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun <init> (Ljava/lang/String;Ljava/util/Set;Lkotlin/ranges/IntRange;Lkotlin/ranges/IntRange;Lkotlin/ranges/IntRange;JLjava/lang/Boolean;Ljava/lang/Boolean;)V
+	public synthetic fun <init> (Ljava/lang/String;Ljava/util/Set;Lkotlin/ranges/IntRange;Lkotlin/ranges/IntRange;Lkotlin/ranges/IntRange;JLjava/lang/Boolean;Ljava/lang/Boolean;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public final fun getBackend ()Ljava/lang/String;
 	public final fun getBorrowed ()Ljava/lang/Boolean;
-	public final fun getColumns ()I
+	public final fun getColumns ()Lkotlin/ranges/IntRange;
 	public final fun getContiguous ()Ljava/lang/Boolean;
-	public final fun getDepth ()I
+	public final fun getDepth ()Lkotlin/ranges/IntRange;
 	public final fun getImplementations ()Ljava/util/Set;
-	public final fun getMaximumColumns ()I
-	public final fun getMaximumDepth ()I
-	public final fun getMaximumRows ()I
-	public final fun getRows ()I
+	public final fun getRows ()Lkotlin/ranges/IntRange;
 	public final fun getWork ()J
 }
 

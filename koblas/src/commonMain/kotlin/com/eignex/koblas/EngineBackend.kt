@@ -1,14 +1,44 @@
 package com.eignex.koblas
 
+import com.eignex.koblas.dense.DenseVectorKernels
+import com.eignex.koblas.internal.dense.*
+import com.eignex.koblas.internal.host.BindingVectorKernels
+import com.eignex.koblas.internal.host.HostDenseCall
+import com.eignex.koblas.internal.sparse.IndexedSparseKernels
 import com.eignex.koblas.vendor.Blas
 
-/** A source of typed arithmetic implementations, independently of the policy selecting them. */
-public sealed interface EngineBackend {
+/** Available arithmetic and positive capabilities, independently of the policy selecting them. */
+public class EngineBackend internal constructor(
     /** Stable identifier used in routing configurations. */
-    public val name: String
-
-    /** Implementations supplied directly by this backend; portable fallbacks are not included. */
-    public val implementations: Set<EngineImplementation>
+    public val name: String,
+    internal val vectors: DenseVectorKernels = ScalarVectorKernels,
+    implementations: Set<EngineImplementation> = emptySet(),
+    internal val indexedDot: IndexedSparseKernels? = null,
+    internal val panels: DensePanelKernels? = null,
+    internal val products: DenseProductKernels? = null,
+    internal val triangular: DenseTriangularKernels? = null,
+    internal val binding: Blas? = null,
+    internal val vectorName: String = name,
+    internal val dynamicNorm: Boolean = false,
+    internal val contiguousVectors: Boolean = false,
+    internal val minimumVectorLength: Int = 0,
+    internal val minimumIndexedLength: Int = 0,
+) {
+    /** Supplied capabilities, excluding unselected portable defaults. */
+    public val implementations: Set<EngineImplementation> = buildSet {
+        addAll(implementations)
+        if (indexedDot != null) add(EngineImplementation.IndexedDot)
+        if (panels != null) add(EngineImplementation.Panels)
+        if (products != null) add(EngineImplementation.Products)
+        if (triangular != null) add(EngineImplementation.Triangular)
+        if (binding != null) {
+            for (operation in EngineImplementation.entries) {
+                if (HostDenseCall.entryPointFor(operation) in binding.directlyImplemented) {
+                    add(operation)
+                }
+            }
+        }
+    }
 }
 
 /** Arithmetic boundaries a routing configuration can select independently. */
@@ -113,8 +143,26 @@ public object EngineBackends {
     public val simd: EngineBackend? get() = simdBackend()
 
     /** Adapts an already opened binding without changing the default engine. */
-    public fun vendor(binding: Blas): EngineBackend = vendorBackend(binding)
+    public fun vendor(binding: Blas): EngineBackend {
+        val vectors = binding as? DenseVectorKernels ?: BindingVectorKernels(binding)
+        return EngineBackend(
+            binding.vendor.vendorName.lowercase(),
+            vectors,
+            binding = binding,
+            vectorName = vectors.name,
+            minimumVectorLength = 1,
+        )
+    }
 }
 
-internal expect fun simdBackend(): BackendContributions?
-internal expect fun vendorBackend(binding: Blas): BackendContributions
+internal expect fun simdBackend(): EngineBackend?
+
+/** Shared schedules and portable interface defaults provide the intrinsic availability floor. */
+internal val portableBackend: EngineBackend = EngineBackend(
+    "portable",
+    implementations = EngineImplementation.entries.toSet(),
+    panels = PortablePanelKernels,
+    products = PortableProductKernels,
+    triangular = PortableTriangularKernels,
+    vectorName = "scalar",
+)

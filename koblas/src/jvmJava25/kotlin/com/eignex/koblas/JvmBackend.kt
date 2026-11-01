@@ -10,7 +10,7 @@ import com.eignex.koblas.vendor.hostPlatform
 
 /** Desktop implementation selected by the multi-release JAR on JDK 25 or later. */
 internal object JvmBackend {
-    val backend: BackendContributions? get() =
+    val backend: EngineBackend? get() =
         if (simdAvailable) simdContributions else null
 
     val default: KoblasEngine by lazy {

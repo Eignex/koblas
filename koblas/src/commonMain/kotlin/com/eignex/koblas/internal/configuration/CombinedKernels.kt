@@ -9,14 +9,14 @@ import com.eignex.koblas.internal.sparse.IndexedSparseKernels
 import com.eignex.koblas.internal.sparse.ScalarIndexedSparseKernels
 import com.eignex.koblas.sparse.SparseOperation
 
-/** Rule candidates are bound to typed callables once, never looked up by name during arithmetic. */
+/** Backends are bound once; arithmetic never resolves identifiers or capabilities. */
 internal class CompiledRouting(profile: EngineProfile, backends: List<EngineBackend>) {
     private val routes = Array(EngineImplementation.entries.size) { index ->
         val operation = EngineImplementation.entries[index]
         profile.rules.mapNotNull { rule ->
             backends.firstOrNull { it.name == rule.backend && operation in it.implementations }
                 ?.takeIf { operation in rule.implementations }
-                ?.let { rule to it as BackendContributions }
+                ?.let { rule to it }
         }.toTypedArray()
     }
 
@@ -36,7 +36,7 @@ internal class CompiledRouting(profile: EngineProfile, backends: List<EngineBack
             } else {
                 backend.minimumVectorLength
             }
-            val lower = maxOf(rule.rows, minimum, rule.work.coerceAtMost(Int.MAX_VALUE.toLong()).toInt())
+            val lower = maxOf(rule.rows.first, minimum, rule.work.coerceAtMost(Int.MAX_VALUE.toLong()).toInt())
             val strided = operation != EngineImplementation.Rot &&
                 (operation == EngineImplementation.IndexedDot || !backend.contiguousVectors)
             val mask = (if (rule.matches(lower, 1, 1, true, false)) 1 else 0) or
@@ -45,7 +45,7 @@ internal class CompiledRouting(profile: EngineProfile, backends: List<EngineBack
                 result = LengthDispatch(
                     backend,
                     lower,
-                    rule.maximumRows,
+                    rule.rows.last,
                     mask,
                     result,
                 )
@@ -61,7 +61,7 @@ internal class CompiledRouting(profile: EngineProfile, backends: List<EngineBack
         depth: Int = 1,
         contiguous: Boolean = true,
         borrowed: Boolean = false,
-    ): BackendContributions {
+    ): EngineBackend {
         if (operation.ordinal <= EngineImplementation.IndexedDot.ordinal) {
             return lengths[operation.ordinal].select(rows, contiguous)
         }
@@ -72,18 +72,18 @@ internal class CompiledRouting(profile: EngineProfile, backends: List<EngineBack
     }
 }
 
-/** A bounded primitive comparison over callables already bound to this operation. */
+/** Primitive length and layout checks over the backends bound to one operation. */
 internal class LengthDispatch(
-    private val call: BackendContributions,
+    private val backend: EngineBackend,
     private val minimum: Int,
     private val maximum: Int,
     private val layouts: Int,
     private val fallback: LengthDispatch?,
 ) {
-    fun select(length: Int, contiguous: Boolean = true): BackendContributions {
-        if (fallback == null) return call
+    fun select(length: Int, contiguous: Boolean = true): EngineBackend {
+        if (fallback == null) return backend
         return if (length >= minimum && length <= maximum && layouts and (if (contiguous) 1 else 2) != 0) {
-            call
+            backend
         } else {
             fallback.select(length, contiguous)
         }
@@ -91,8 +91,9 @@ internal class LengthDispatch(
 }
 
 /** One primitive-window interface serves leaves and the immutable routed composition. */
-internal class CombinedVectorKernels(private val routing: CompiledRouting, override val name: String) :
-    DenseVectorKernels {
+internal class CombinedKernels(private val routing: CompiledRouting, override val name: String) :
+    DenseVectorKernels,
+    IndexedSparseKernels {
     private fun vectors(operation: EngineImplementation, length: Int, contiguous: Boolean = true): DenseVectorKernels =
         routing.select(operation, length, contiguous = contiguous).vectors
 
@@ -146,11 +147,6 @@ internal class CombinedVectorKernels(private val routing: CompiledRouting, overr
         val kernels = if (x === y && xOff == yOff) ScalarVectorKernels else vectors(EngineImplementation.Rot, len)
         kernels.rot(x, xOff, y, yOff, len, c, s)
     }
-}
-
-/** Only indexed dot is selectable; other operations inherit portable CSC arithmetic. */
-internal class CombinedIndexedKernels(private val routing: CompiledRouting) : IndexedSparseKernels {
-    override val name: String = "combined-indexed"
     override fun implementationFor(operation: SparseOperation, count: Int): String? =
         if (operation == SparseOperation.DotDense) {
             routing.select(EngineImplementation.IndexedDot, count).vectorName

@@ -15,7 +15,7 @@ class EngineProfileTest {
     @Test
     fun `threshold and layout select the same body that executes`() {
         val calls = mutableListOf<Int>()
-        val backend = BackendContributions(
+        val backend = EngineBackend(
             "dot",
             vectors = object : DenseVectorKernels {
                 override val name: String = "dot"
@@ -34,18 +34,18 @@ class EngineProfileTest {
                     return ScalarVectorKernels.dot(a, aOff, b, bOff, len, aStride, bStride)
                 }
             },
-            vectorImplementations = setOf(EngineImplementation.Dot),
+            implementations = setOf(EngineImplementation.Dot),
             contiguousVectors = true,
             minimumVectorLength = 2,
         )
         val operation = setOf(EngineImplementation.Dot)
         val rules = listOf(
-            EngineRule("dot", operation, rows = 4),
+            EngineRule("dot", operation, rows = 4..Int.MAX_VALUE),
             EngineRule("dot", operation, work = 4),
-            EngineRule("dot", operation, columns = 2),
-            EngineRule("dot", operation, maximumColumns = 0),
-            EngineRule("dot", operation, depth = 2),
-            EngineRule("dot", operation, maximumDepth = 0),
+            EngineRule("dot", operation, columns = 2..Int.MAX_VALUE),
+            EngineRule("dot", operation, columns = 0..0),
+            EngineRule("dot", operation, depth = 2..Int.MAX_VALUE),
+            EngineRule("dot", operation, depth = 0..0),
             EngineRule("dot", operation, borrowed = true),
             EngineRule("dot", operation, contiguous = false),
         )
@@ -70,7 +70,7 @@ class EngineProfileTest {
 
     @Test
     fun `missing backend and missing capabilities fall through ordered preferences`() {
-        val backend = BackendContributions("sum", vectorImplementations = setOf(EngineImplementation.Sum))
+        val backend = EngineBackend("sum", implementations = setOf(EngineImplementation.Sum))
         val engine = KoblasEngine.combine(
             EngineProfile(
                 "test",
@@ -93,7 +93,7 @@ class EngineProfileTest {
     @Test
     fun `indexed dot registration preserves every window argument`() {
         val counts = mutableListOf<Int>()
-        val backend = BackendContributions(
+        val backend = EngineBackend(
             "indexed",
             indexedDot = object : IndexedSparseKernels {
                 override val name: String = "indexed"
@@ -118,7 +118,7 @@ class EngineProfileTest {
             EngineProfile(
                 "test",
                 listOf(
-                    EngineRule("indexed", setOf(EngineImplementation.IndexedDot), rows = 2),
+                    EngineRule("indexed", setOf(EngineImplementation.IndexedDot), rows = 2..Int.MAX_VALUE),
                 ),
             ),
             backend,
@@ -161,7 +161,7 @@ class EngineProfileTest {
         val operations = mutableSetOf(EngineImplementation.Sum)
         val rules = mutableListOf(EngineRule("test", operations))
         val profile = EngineProfile("test", rules)
-        val backend = BackendContributions("test", vectorImplementations = setOf(EngineImplementation.Sum))
+        val backend = EngineBackend("test", implementations = setOf(EngineImplementation.Sum))
         val engine = KoblasEngine.combine(profile, backend)
         operations.clear()
         rules.clear()
@@ -174,7 +174,7 @@ class EngineProfileTest {
     fun `conditional product geometry is rejected before packing`() {
         val profile = EngineProfile(
             "test",
-            listOf(EngineRule("portable", setOf(EngineImplementation.Products), rows = 32)),
+            listOf(EngineRule("portable", setOf(EngineImplementation.Products), rows = 32..Int.MAX_VALUE)),
         )
 
         assertFailsWith<IllegalArgumentException> { KoblasEngine.combine(profile, EngineBackends.portable) }
@@ -233,13 +233,12 @@ class EngineProfileTest {
         assertFalse(rule.matches(3, 1, 1, true, false))
         assertFalse(rule.matches(9, 1, 1, true, false))
         assertFalse(rule.matches(4, 1, 1, false, false))
-        assertFailsWith<IllegalArgumentException> {
-            EngineProfile.parse(
-                text.replace(
-                    "portable\tDot",
-                    "portable\tUnknown",
-                ),
-            )
+        for ((before, after) in listOf(
+            "portable\tDot" to "portable\tUnknown",
+            "\t4\t8\t" to "\t8\t4\t",
+            "\t4\t8\t" to "\t-1\t8\t",
+        )) {
+            assertFailsWith<IllegalArgumentException> { EngineProfile.parse(text.replace(before, after)) }
         }
     }
 }
