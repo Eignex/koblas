@@ -7,9 +7,7 @@
 
 package com.eignex.koblas
 
-import com.eignex.koblas.dense.DenseMatrixOperation
 import com.eignex.koblas.dense.ReferenceBlas
-import com.eignex.koblas.internal.host.NativeBlasPolicy
 import kotlin.native.concurrent.TransferMode
 import kotlin.native.concurrent.Worker
 import kotlin.random.Random
@@ -30,9 +28,16 @@ class NativeHostConcurrencyTest {
     /** Whether a product of these extents is one the default hands to a library, asserted not assumed. */
     private fun assertHostEligible(rows: Int, columns: Int, depth: Int, what: String) {
         if (koblas.vendor == null) {
-            println("SKIPPED: no CBLAS library installed; $what exercised the portable schedule instead")
+            println(
+                "SKIPPED: no measured host profile or binding; $what exercised portable scheduling",
+            )
         }
-        assertTrue(NativeBlasPolicy.eligible(DenseMatrixOperation.Gemm, rows, columns, depth), "$what stays portable")
+        assertTrue(
+            StandardEngineProfiles.nativeLinuxOneMkl.rules.any {
+                EngineImplementation.Gemm in it.implementations && it.matches(rows, columns, depth, true, false)
+            },
+            "$what stays portable",
+        )
     }
 
     /** Eight workers, one shared pair of operands, and a destination and a workspace each. */
@@ -109,7 +114,7 @@ class NativeHostConcurrencyTest {
     @Test
     fun `the composed default runs on a library held to one compute thread`() {
         val vendor = koblas.vendor ?: return println(
-            "SKIPPED: no CBLAS library installed; the one-thread configuration was not verified on this host",
+            "SKIPPED: no measured host profile or binding; host thread configuration was not verified",
         )
 
         assertTrue(

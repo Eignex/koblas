@@ -28,7 +28,7 @@ import jdk.incubator.vector.VectorOperators
  */
 internal object SimdPanelKernels : DensePanelKernels {
     private val SPECIES = SIMD_SPECIES
-    private val LANE = if (simdAvailable) SPECIES.length() else 0
+    private val LANE = SPECIES.length()
 
     /**
      * Cache the name so scheduling decisions that compare it do not allocate.
@@ -44,8 +44,7 @@ internal object SimdPanelKernels : DensePanelKernels {
     private val VECTOR_MINIMUM = MINIMUM_BLOCKS * LANE
 
     /** Whether a panel of this shape and spacing reaches the vector bodies rather than the portable ones. */
-    private fun vectorizes(rows: Int, contiguous: Boolean): Boolean =
-        simdAvailable && contiguous && rows >= VECTOR_MINIMUM
+    private fun vectorizes(rows: Int, contiguous: Boolean): Boolean = contiguous && rows >= VECTOR_MINIMUM
 
     /**
      * A multi-dot is handed over whole and reuses one loaded vector across eight columns at a time; column
@@ -54,7 +53,6 @@ internal object SimdPanelKernels : DensePanelKernels {
      * a triangular caller's scalar corner. Group sizes reflect measurements on one host.
      */
     override fun executionGroup(work: PanelWork, rows: Int, columns: Int, contiguous: Boolean): Int {
-        if (!simdAvailable) return PortablePanelKernels.executionGroup(work, rows, columns, contiguous)
         val preferred = when {
             contiguous && groupsWholeRow(work, rows) -> columns
 
@@ -77,7 +75,7 @@ internal object SimdPanelKernels : DensePanelKernels {
      * one vector operation per column and did not pay for itself on the measured host.
      */
     override fun prefersContiguous(work: PanelWork, rows: Int, columns: Int): Boolean =
-        simdAvailable && rows >= COPY_WORTH_BLOCKS * LANE && !vectorizes(rows, contiguous = false)
+        rows >= COPY_WORTH_BLOCKS * LANE && !vectorizes(rows, contiguous = false)
 
     override fun implementationFor(work: PanelWork, rows: Int, columns: Int, contiguous: Boolean): String =
         if (vectorizes(rows, contiguous) || (contiguous && reachesShortBody(work, rows))) {
@@ -1217,7 +1215,7 @@ internal object SimdPanelKernels : DensePanelKernels {
     }
 
     /** A panel with fewer rows than one lane block, which a column cannot fill and the work runs along. */
-    private fun isShort(rows: Int): Boolean = simdAvailable && rows in 1 until VECTOR_MINIMUM
+    private fun isShort(rows: Int): Boolean = rows in 1 until VECTOR_MINIMUM
 
     /**
      * Panels handed over whole. A multi-dot groups its columns itself and reuses the shared vector across all of
@@ -1448,7 +1446,7 @@ internal object SimdPanelKernels : DensePanelKernels {
     }
 
     /** Rows a column update keeps in registers across every column instead of reloading per group. */
-    private fun isResident(rows: Int): Boolean = simdAvailable && rows >= LANE && rows < RESIDENT_BLOCKS * LANE
+    private fun isResident(rows: Int): Boolean = rows >= LANE && rows < RESIDENT_BLOCKS * LANE
 
     /**
      * A column update over one or two lane blocks of rows, with the destination held in registers across

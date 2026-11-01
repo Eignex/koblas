@@ -32,6 +32,7 @@ class SparseSimdTest {
 
     private fun forEachPattern(block: (Pattern) -> Unit) {
         Assume.assumeTrue("the Vector API module is unavailable", simdAvailable)
+        Assume.assumeTrue("the indexed vector leaf requires two lanes", SparseSimd.vectorDot)
         val lanes = SparseSimd.lanes
         val counts = (
             listOf(lanes - 1, lanes, lanes + 1, 2 * lanes + 1) +

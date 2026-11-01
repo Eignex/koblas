@@ -47,7 +47,7 @@ internal fun sparseArm(case: BenchCase, engine: KoblasEngine): ArmChoice? {
         "spaccumulate" -> {
             // The generic primitives are one implementation for every engine, so this is timed once rather
             // than repeated under each label, where it would compare a selection against a copy of itself.
-            if (kernels.name != "scalar") {
+            if (engine !== BuiltinEngines.scalar) {
                 return ArmChoice(null, "the generic primitives have one implementation, timed on the scalar arm")
             }
             val x = Fixtures.sparseVector(d[0], density, 1)

@@ -3,6 +3,7 @@ package com.eignex.koblas.sparse
 import com.eignex.koblas.internal.jvm25.simd.SimdIndexedSparseKernels
 import com.eignex.koblas.internal.jvm25.simd.SparseSimd
 import com.eignex.koblas.internal.jvm25.simd.simdAvailable
+import com.eignex.koblas.internal.jvm25.simd.simdContributions
 import kotlin.test.Test
 import kotlin.test.assertNotEquals
 
@@ -15,7 +16,7 @@ class SimdIndexedSparseKernelsTest {
         val reached = kernels.implementationFor(SparseOperation.IndexedNrm2, WIDE)
 
         // Gathering may retry with scalar rescaling; hosts without gather use scalar from the start.
-        assertNotEquals(kernels.name, reached)
+        assertNotEquals(simdContributions.vectorName, reached)
     }
 
     @Test
@@ -25,7 +26,11 @@ class SimdIndexedSparseKernelsTest {
 
         for (count in 1 until SparseSimd.lanes) {
             for (operation in SparseOperation.entries) {
-                assertNotEquals(kernels.name, kernels.implementationFor(operation, count), "$operation at $count")
+                assertNotEquals(
+                    simdContributions.vectorName,
+                    kernels.implementationFor(operation, count),
+                    "$operation at $count",
+                )
             }
         }
     }

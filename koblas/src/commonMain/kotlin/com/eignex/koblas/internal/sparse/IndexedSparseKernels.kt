@@ -1,26 +1,15 @@
 package com.eignex.koblas.internal.sparse
 
-import com.eignex.koblas.*
-import com.eignex.koblas.dense.*
-import com.eignex.koblas.sparse.*
-import com.eignex.koblas.vendor.*
+import com.eignex.koblas.internal.numeric.MIN_NORMAL
+import com.eignex.koblas.internal.numeric.rescaledEuclideanNorm
+import com.eignex.koblas.sparse.SparseOperation
+import kotlin.math.sqrt
 
-/** Numerical leaves over trusted sorted indexed slices. Callers own shape and slice validation. */
+/** Trusted indexed windows, with portable defaults for every unselected operation. */
 internal interface IndexedSparseKernels {
-    /** Short implementation identifier, and the answer [implementationFor] gives when nothing is handed on. */
     val name: String
-
-    /**
-     * The implementation a call of this [operation] and [count] reaches, or null when its values decide.
-     *
-     * [DispatchingIndexedSparseKernels] derives this from the leaf it selects for execution. A leaf that
-     * falls back internally names what it falls back to rather than itself. Null is the honest answer where
-     * no width establishes which kernel produces the result, as for the indexed norm that retries through the
-     * rescaling loop when its square sum leaves the normal range.
-     */
     fun implementationFor(operation: SparseOperation, count: Int): String? = name
 
-    @Suppress("LongParameterList")
     fun dotDense(
         indices: IntArray,
         indexOffset: Int,
@@ -28,9 +17,12 @@ internal interface IndexedSparseKernels {
         valueOffset: Int,
         count: Int,
         dense: DoubleArray,
-    ): Double
+    ): Double {
+        var sum = 0.0
+        for (k in 0 until count) sum += values[valueOffset + k] * dense[indices[indexOffset + k]]
+        return sum
+    }
 
-    @Suppress("LongParameterList")
     fun dotSparse(
         xIndices: IntArray,
         xIndexOffset: Int,
@@ -42,9 +34,28 @@ internal interface IndexedSparseKernels {
         yValues: DoubleArray,
         yValueOffset: Int,
         yCount: Int,
-    ): Double
+    ): Double {
+        var sum = 0.0
+        var a = 0
+        var b = 0
+        while (a < xCount && b < yCount) {
+            val ia = xIndices[xIndexOffset + a]
+            val ib = yIndices[yIndexOffset + b]
+            when {
+                ia < ib -> a++
 
-    @Suppress("LongParameterList")
+                ia > ib -> b++
+
+                else -> {
+                    sum += xValues[xValueOffset + a] * yValues[yValueOffset + b]
+                    a++
+                    b++
+                }
+            }
+        }
+        return sum
+    }
+
     fun axpy(
         indices: IntArray,
         indexOffset: Int,
@@ -53,9 +64,10 @@ internal interface IndexedSparseKernels {
         count: Int,
         alpha: Double,
         destination: DoubleArray,
-    )
+    ) {
+        for (k in 0 until count) destination[indices[indexOffset + k]] += alpha * values[valueOffset + k]
+    }
 
-    @Suppress("LongParameterList")
     fun scatter(
         indices: IntArray,
         indexOffset: Int,
@@ -63,9 +75,10 @@ internal interface IndexedSparseKernels {
         valueOffset: Int,
         count: Int,
         destination: DoubleArray,
-    )
+    ) {
+        for (k in 0 until count) destination[indices[indexOffset + k]] = values[valueOffset + k]
+    }
 
-    @Suppress("LongParameterList")
     fun gather(
         indices: IntArray,
         indexOffset: Int,
@@ -73,9 +86,10 @@ internal interface IndexedSparseKernels {
         valueOffset: Int,
         count: Int,
         source: DoubleArray,
-    )
+    ) {
+        for (k in 0 until count) values[valueOffset + k] = source[indices[indexOffset + k]]
+    }
 
-    @Suppress("LongParameterList")
     fun gatherZero(
         indices: IntArray,
         indexOffset: Int,
@@ -83,12 +97,58 @@ internal interface IndexedSparseKernels {
         valueOffset: Int,
         count: Int,
         source: DoubleArray,
-    )
+    ) {
+        for (k in 0 until count) {
+            val index = indices[indexOffset + k]
+            values[valueOffset + k] = source[index]
+            source[index] = 0.0
+        }
+    }
 
-    fun nrm2(indices: IntArray, indexOffset: Int, count: Int, values: DoubleArray): Double
+    fun nrm2(indices: IntArray, indexOffset: Int, count: Int, values: DoubleArray): Double {
+        var squares = 0.0
+        if (count >= 64) {
+            squares = indexedSquareSum(indices, indexOffset, count, values)
+        } else {
+            for (k in 0 until count) {
+                val value = values[indices[indexOffset + k]]
+                squares += value * value
+            }
+        }
+        if (squares.isFinite() && squares >= MIN_NORMAL) return sqrt(squares)
+        return rescaledEuclideanNorm(count, squares) { values[indices[indexOffset + it]] }
+    }
+
+    private fun indexedSquareSum(indices: IntArray, indexOffset: Int, count: Int, values: DoubleArray): Double {
+        // Independent sums avoid serialising every indexed load behind one addition chain.
+        var squares = 0.0
+        var squares1 = 0.0
+        var squares2 = 0.0
+        var squares3 = 0.0
+        var k = 0
+        val bound = count - 3
+        while (k < bound) {
+            val value = values[indices[indexOffset + k]]
+            val value1 = values[indices[indexOffset + k + 1]]
+            val value2 = values[indices[indexOffset + k + 2]]
+            val value3 = values[indices[indexOffset + k + 3]]
+            squares += value * value
+            squares1 += value1 * value1
+            squares2 += value2 * value2
+            squares3 += value3 * value3
+            k += 4
+        }
+        squares += squares1 + squares2 + squares3
+        while (k < count) {
+            val value = values[indices[indexOffset + k]]
+            squares += value * value
+            k++
+        }
+        return squares
+    }
 }
 
-// An interface default on a delegated implementation calls the scalar delegate instead of its override.
+// Window conveniences dispatch through the selected override, including delegated implementations.
 internal fun IndexedSparseKernels.gather(indices: IntArray, values: DoubleArray, source: DoubleArray) =
     gather(indices, 0, values, 0, values.size, source)
 

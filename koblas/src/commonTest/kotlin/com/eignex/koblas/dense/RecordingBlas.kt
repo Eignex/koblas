@@ -5,7 +5,7 @@ package com.eignex.koblas.dense
 import com.eignex.koblas.DenseMatrixRegion
 import com.eignex.koblas.DenseVector
 import com.eignex.koblas.RouteKind
-import com.eignex.koblas.internal.host.HostDenseBlas
+import com.eignex.koblas.internal.dense.PortableDenseBlas
 import com.eignex.koblas.vendor.Blas
 import com.eignex.koblas.vendor.BlasOperation
 import com.eignex.koblas.vendor.CallRoute
@@ -38,7 +38,7 @@ internal class BlasCall(
  * Records [Blas] calls without computing, exposing flag and storage translation errors that
  * symmetric fixtures or round trips can conceal.
  *
- * This covers [HostDenseBlas] translation into [MatrixStructure] and [DenseVector]. Platform
+ * This covers [PortableDenseBlas] translation into [MatrixStructure] and [DenseVector]. Platform
  * vendor tests cover the CBLAS integers, leading dimensions and increments produced below this seam.
  */
 internal class RecordingBlas(

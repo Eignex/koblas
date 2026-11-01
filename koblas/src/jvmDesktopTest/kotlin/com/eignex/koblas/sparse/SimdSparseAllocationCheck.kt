@@ -8,7 +8,6 @@ import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.Workspace
 import com.eignex.koblas.internal.dense.PanelWork
 import com.eignex.koblas.internal.jvm25.simd.SimdIndexedSparseKernels
-import com.eignex.koblas.internal.jvm25.simd.SparseSimd
 import com.eignex.koblas.internal.sparse.SparseTuning
 import com.eignex.koblas.internal.sparse.axpy
 import com.eignex.koblas.internal.sparse.dotDense
@@ -54,9 +53,6 @@ internal object SimdSparseAllocationCheck {
         val engine = requireNotNull(BuiltinEngines.simd) {
             "SIMD sparse allocation check requires the Vector API module"
         }
-        require(engine.sparseKernels.name == "simd-sparse") {
-            "SIMD sparse allocation check selected ${engine.sparseKernels.name}"
-        }
         require(crossesSimdCrossover(SparseTuning.simdIndexedCrossover)) {
             "SIMD sparse allocation check uses $ENTRY_COUNT entries below " +
                 "the ${SparseTuning.simdIndexedCrossover}-entry crossover"
@@ -70,19 +66,6 @@ internal object SimdSparseAllocationCheck {
         val values = DoubleArray(ENTRY_COUNT) { it * 0.125 - 16.0 }
         val dense = DoubleArray(DIMENSION) { 1.0 + (it % 17) * 0.03125 }
 
-        assertAllocationFree("indexed dot") {
-            // Exercise the Vector API leaf even where production prefers scalar indexed loads.
-            SparseSimd.dotDense(indices, 0, values, 0, ENTRY_COUNT, dense)
-        }
-        assertAllocationFree("indexed gather") {
-            // Exercise the Vector API leaf even where production prefers scalar indexed loads.
-            SparseSimd.gather(indices, 0, values, 0, ENTRY_COUNT, dense)
-            values[ENTRY_COUNT / 2]
-        }
-        assertAllocationFree("indexed norm") {
-            // Exercise the Vector API leaf even where production prefers scalar indexed loads.
-            SparseSimd.nrm2(indices, 0, ENTRY_COUNT, dense)
-        }
         assertAllocationFree("dispatched indexed dot") {
             SimdIndexedSparseKernels.dotDense(indices, values, dense)
         }

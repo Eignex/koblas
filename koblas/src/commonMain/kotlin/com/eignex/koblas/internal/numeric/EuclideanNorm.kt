@@ -23,23 +23,23 @@ internal fun euclideanNorm(v: DoubleArray, off: Int, stride: Int, len: Int): Dou
 }
 
 /** Range protection after a caller has already found an unsafe square sum. */
-internal fun rescaledEuclideanNorm(v: DoubleArray, off: Int, stride: Int, len: Int, squares: Double): Double {
-    var amax = 0.0
-    var iv = off
+internal fun rescaledEuclideanNorm(v: DoubleArray, off: Int, stride: Int, len: Int, squares: Double): Double =
+    rescaledEuclideanNorm(len, squares) { v[off + it * stride] }
+
+/** Inline indexed access keeps range protection shared without gathering or allocating adapters. */
+internal inline fun rescaledEuclideanNorm(len: Int, squares: Double, value: (Int) -> Double): Double {
+    var maximum = 0.0
     for (i in 0 until len) {
-        val a = abs(v[iv])
-        if (a > amax) amax = a
-        iv += stride
+        val magnitude = abs(value(i))
+        if (magnitude > maximum) maximum = magnitude
     }
-    if (amax == 0.0 || amax.isInfinite()) return sqrt(squares)
-    var t = 0.0
-    iv = off
+    if (maximum == 0.0 || maximum.isInfinite()) return sqrt(squares)
+    var scaledSquares = 0.0
     for (i in 0 until len) {
-        val r = v[iv] / amax
-        t += r * r
-        iv += stride
+        val scaled = value(i) / maximum
+        scaledSquares += scaled * scaled
     }
-    return amax * sqrt(t)
+    return maximum * sqrt(scaledSquares)
 }
 
 /** Plain sum over the run v(off until off + len). Not a BLAS routine: `dasum` sums absolute values. */

@@ -4,9 +4,11 @@
 package com.eignex.koblas.internal.host
 
 import com.eignex.koblas.*
+import com.eignex.koblas.dense.DenseVectorKernels
 import com.eignex.koblas.dense.MatrixStructure
 import com.eignex.koblas.dense.requireStructured
 import com.eignex.koblas.dense.requireTriangular
+import com.eignex.koblas.internal.dense.ScalarVectorKernels
 import com.eignex.koblas.internal.dense.triangularMatrix
 import com.eignex.koblas.internal.host.Cblas
 import com.eignex.koblas.internal.host.diagFor
@@ -74,7 +76,10 @@ internal class NativeVendorBlas private constructor(
     override val vendor: Vendor,
     private val candidate: String,
     private val library: NativeLibrary,
-) : Blas {
+) : Blas,
+    DenseVectorKernels {
+    override val name: String get() = "${vendor.vendorName.lowercase()}-level1"
+
     /**
      * File reported by the dynamic loader for the key symbol. A bare soname can resolve to an
      * already-loaded absolute path, so the candidate name alone does not identify the executing file.
@@ -224,12 +229,12 @@ internal class NativeVendorBlas private constructor(
 
     override fun dot(x: DenseVector, y: DenseVector): Double {
         requireSameSize(x.size, y.size, "dot")
-        return rawDot(x.values, x.offset, x.stride, y.values, y.offset, y.stride, x.size)
+        return dot(x.values, x.offset, y.values, y.offset, x.size, x.stride, y.stride)
     }
 
-    override fun nrm2(x: DenseVector): Double = rawNrm2(x.values, x.offset, x.stride, x.size)
+    override fun nrm2(x: DenseVector): Double = nrm2(x.values, x.offset, x.size, x.stride)
 
-    override fun asum(x: DenseVector): Double = rawAsum(x.values, x.offset, x.stride, x.size)
+    override fun asum(x: DenseVector): Double = asum(x.values, x.offset, x.size, x.stride)
 
     /*
      * Raw Level 1 runs avoid allocating operand wrappers for short calls. [DenseVector] methods
@@ -237,35 +242,35 @@ internal class NativeVendorBlas private constructor(
      *
      * Inlined `usePinned` releases each pin even when a call throws.
      */
-    internal fun rawDot(
+    override fun dot(
         a: DoubleArray,
-        aOffset: Int,
-        aStride: Int,
+        aOff: Int,
         b: DoubleArray,
-        bOffset: Int,
+        bOff: Int,
+        len: Int,
+        aStride: Int,
         bStride: Int,
-        n: Int,
     ): Double {
-        if (n == 0) return 0.0
+        if (len == 0) return 0.0
         val fn = symbol(BlasOperation.Dot).reinterpret<DotFn>()
         a.usePinned { pa ->
             b.usePinned { pb ->
                 return fn(
-                    n,
-                    pa.addressOf(baseIndex(aOffset, aStride, n)),
+                    len,
+                    pa.addressOf(baseIndex(aOff, aStride, len)),
                     aStride,
-                    pb.addressOf(baseIndex(bOffset, bStride, n)),
+                    pb.addressOf(baseIndex(bOff, bStride, len)),
                     bStride,
                 )
             }
         }
     }
 
-    internal fun rawNrm2(a: DoubleArray, offset: Int, stride: Int, n: Int): Double =
-        rawReduce(a, offset, stride, n, BlasOperation.Nrm2)
+    override fun nrm2(v: DoubleArray, vOff: Int, len: Int, vStride: Int): Double =
+        rawReduce(v, vOff, vStride, len, BlasOperation.Nrm2)
 
-    internal fun rawAsum(a: DoubleArray, offset: Int, stride: Int, n: Int): Double =
-        rawReduce(a, offset, stride, n, BlasOperation.Asum)
+    override fun asum(v: DoubleArray, vOff: Int, len: Int, vStride: Int): Double =
+        rawReduce(v, vOff, vStride, len, BlasOperation.Asum)
 
     private fun rawReduce(a: DoubleArray, offset: Int, stride: Int, n: Int, operation: BlasOperation): Double {
         if (n == 0) return 0.0
@@ -276,76 +281,65 @@ internal class NativeVendorBlas private constructor(
     }
 
     /** The index the library returns, restored to the caller's order when the stride runs backwards. */
-    internal fun rawIamax(a: DoubleArray, offset: Int, stride: Int, n: Int): Int {
-        if (n == 0) return 0
+    override fun iamax(v: DoubleArray, vOff: Int, len: Int, vStride: Int): Int {
+        if (len == 0) return -1
         val fn = symbol(BlasOperation.Iamax).reinterpret<IndexFn>()
-        a.usePinned { pinned ->
-            val found = fn(n, pinned.addressOf(baseIndex(offset, stride, n)), positiveIncrement(stride, n))
-            return if (stride >= 0) found else n - 1 - found
+        v.usePinned { pinned ->
+            val found = fn(len, pinned.addressOf(baseIndex(vOff, vStride, len)), positiveIncrement(vStride, len))
+            return if (vStride >= 0) found else len - 1 - found
         }
     }
 
-    @Suppress("LongParameterList") // the BLAS daxpy signature, unwrapped
-    internal fun rawAxpy(
+    override fun axpy(
+        y: DoubleArray,
+        yOff: Int,
         alpha: Double,
         x: DoubleArray,
-        xOffset: Int,
-        xStride: Int,
-        y: DoubleArray,
-        yOffset: Int,
+        xOff: Int,
+        len: Int,
         yStride: Int,
-        n: Int,
+        xStride: Int,
     ) {
-        if (n == 0) return
+        if (len == 0) return
         val fn = symbol(BlasOperation.Axpy).reinterpret<AxpyFn>()
         x.usePinned { px ->
             y.usePinned { py ->
                 fn(
-                    n,
+                    len,
                     alpha,
-                    px.addressOf(baseIndex(xOffset, xStride, n)),
+                    px.addressOf(baseIndex(xOff, xStride, len)),
                     xStride,
-                    py.addressOf(baseIndex(yOffset, yStride, n)),
+                    py.addressOf(baseIndex(yOff, yStride, len)),
                     yStride,
                 )
             }
         }
     }
 
-    internal fun rawScal(alpha: Double, a: DoubleArray, offset: Int, stride: Int, n: Int) {
-        if (n == 0) return
+    override fun scale(v: DoubleArray, vOff: Int, alpha: Double, len: Int, vStride: Int) {
+        if (len == 0) return
         val fn = symbol(BlasOperation.Scal).reinterpret<ScalFn>()
-        a.usePinned { pinned ->
-            fn(n, alpha, pinned.addressOf(baseIndex(offset, stride, n)), positiveIncrement(stride, n))
+        v.usePinned { pinned ->
+            fn(len, alpha, pinned.addressOf(baseIndex(vOff, vStride, len)), positiveIncrement(vStride, len))
         }
     }
 
-    @Suppress("LongParameterList") // the BLAS dswap signature, unwrapped
-    internal fun rawSwap(
-        x: DoubleArray,
-        xOffset: Int,
-        xStride: Int,
-        y: DoubleArray,
-        yOffset: Int,
-        yStride: Int,
-        n: Int,
-    ) {
-        if (n == 0) return
+    override fun swap(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int, aStride: Int, bStride: Int) {
+        if (len == 0) return
         val fn = symbol(BlasOperation.Swap).reinterpret<CopyFn>()
-        x.usePinned { px ->
-            y.usePinned { py ->
+        a.usePinned { px ->
+            b.usePinned { py ->
                 fn(
-                    n,
-                    px.addressOf(baseIndex(xOffset, xStride, n)),
-                    xStride,
-                    py.addressOf(baseIndex(yOffset, yStride, n)),
-                    yStride,
+                    len,
+                    px.addressOf(baseIndex(aOff, aStride, len)),
+                    aStride,
+                    py.addressOf(baseIndex(bOff, bStride, len)),
+                    bStride,
                 )
             }
         }
     }
 
-    @Suppress("LongParameterList") // the BLAS drot signature, unwrapped
     internal fun rawRot(
         x: DoubleArray,
         xOffset: Int,
@@ -374,20 +368,20 @@ internal class NativeVendorBlas private constructor(
         }
     }
 
-    override fun iamax(x: DenseVector): Int = rawIamax(x.values, x.offset, x.stride, x.size)
+    override fun iamax(x: DenseVector): Int = if (x.size == 0) 0 else iamax(x.values, x.offset, x.size, x.stride)
 
     override fun axpy(alpha: Double, x: DenseVector, y: DenseVector) {
         requireSameSize(x.size, y.size, "axpy")
-        rawAxpy(alpha, x.values, x.offset, x.stride, y.values, y.offset, y.stride, x.size)
+        axpy(y.values, y.offset, alpha, x.values, x.offset, x.size, y.stride, x.stride)
     }
 
-    override fun scal(alpha: Double, x: DenseVector) = rawScal(alpha, x.values, x.offset, x.stride, x.size)
+    override fun scal(alpha: Double, x: DenseVector) = scale(x.values, x.offset, alpha, x.size, x.stride)
 
     override fun copy(x: DenseVector, y: DenseVector) = twoVector(x, y, BlasOperation.Copy, "copy")
 
     override fun swap(x: DenseVector, y: DenseVector) {
         requireSameSize(x.size, y.size, "swap")
-        rawSwap(x.values, x.offset, x.stride, y.values, y.offset, y.stride, x.size)
+        swap(x.values, x.offset, y.values, y.offset, x.size, x.stride, y.stride)
     }
 
     private fun twoVector(x: DenseVector, y: DenseVector, operation: BlasOperation, what: String) {
@@ -398,6 +392,14 @@ internal class NativeVendorBlas private constructor(
             val py = pins.stage(y)
             val fn = symbol(operation).reinterpret<CopyFn>()
             fn(x.size, px.pointer, px.increment, py.pointer, py.increment)
+        }
+    }
+
+    override fun rot(x: DoubleArray, xOff: Int, y: DoubleArray, yOff: Int, len: Int, c: Double, s: Double) {
+        if (x === y && xOff == yOff) {
+            ScalarVectorKernels.rot(x, xOff, y, yOff, len, c, s)
+        } else {
+            rawRot(x, xOff, 1, y, yOff, 1, len, c, s)
         }
     }
 

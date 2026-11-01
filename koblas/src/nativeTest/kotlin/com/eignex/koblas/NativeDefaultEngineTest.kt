@@ -4,7 +4,6 @@
 
 package com.eignex.koblas
 
-import com.eignex.koblas.dense.DenseOperation
 import com.eignex.koblas.dense.ReferenceBlas
 import com.eignex.koblas.internal.dense.implementationFor
 import kotlin.test.Test
@@ -13,7 +12,7 @@ import kotlin.test.assertEquals
 /** Checks the Native default engine. Missing libraries are reported explicitly. */
 class NativeDefaultEngineTest {
     private fun skipped(what: String) {
-        println("SKIPPED: no CBLAS library installed; $what was not verified on this host")
+        println("SKIPPED: no applicable measured host profile or binding; $what was not verified on this host")
     }
 
     /**
@@ -24,9 +23,15 @@ class NativeDefaultEngineTest {
     fun `a wide rotation is decided by its operands rather than its width`() {
         val vendor = koblas.vendor ?: return skipped("the rotation's alias-dependent dispatch")
         val arm = "${vendor.vendor.vendorName.lowercase()}-level1"
-        if (koblas.vectorKernels.name != arm) return skipped("this platform keeps Level 1 off the library")
+        if (koblas.vectorKernels.implementationFor(
+                EngineImplementation.Dot,
+                LONG_COLUMN,
+            ) != arm
+        ) {
+            return skipped("this platform keeps Level 1 off the library")
+        }
 
-        assertEquals(null, koblas.vectorKernels.implementationFor(DenseOperation.Rot, LONG_COLUMN))
+        assertEquals(null, koblas.vectorKernels.implementationFor(EngineImplementation.Rot, LONG_COLUMN))
     }
 
     /** The exact portable engine resolves no host binding and provides the availability floor. */

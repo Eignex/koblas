@@ -14,7 +14,7 @@ import kotlin.math.abs
 object ConsumerCheck {
     /** Exercises transpose products, workspace reuse, and writes through aliased caller storage. */
     fun run(expectSimd: Boolean = false) {
-        check(koblas.vectorKernels.name.startsWith("simd(") == expectSimd)
+        check((com.eignex.koblas.EngineBackends.simd != null) == expectSimd)
         if (!expectSimd) {
             check(koblas.vendor == null)
             check(openBlas() == null)

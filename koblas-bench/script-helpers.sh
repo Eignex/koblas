@@ -28,6 +28,9 @@ fingerprint() (
         if [[ -d $directory ]]; then find "$directory" \( -type f -o -type l \); fi
       done
     fi
+    if [[ $kind == sources && -n ${KOBLAS_BENCH_ENGINE_PROFILE:-} ]]; then
+      printf '%s\n' "$KOBLAS_BENCH_ENGINE_PROFILE"
+    fi
   } | LC_ALL=C sort | while IFS= read -r path; do
     [[ -f $path ]] || continue
     printf '%s %s\n' "$(sha256 "$path")" "$path"
