@@ -96,16 +96,23 @@ See [LabAdapter.kt](src/jvmMain/kotlin/com/eignex/koblas/bench/LabAdapter.kt) fo
 The scripts under [lab](lab) read fetched job directories, whatever their case layout, and need only Bash and awk:
 
 ```bash
-# Ratio of jvm-simd to openblas per case, each time the median over the job's passes.
+# Ratio of jvm-simd to openblas per case, paired within each pass and weighted equally over CPU models.
 koblas-bench/lab/compare.sh results/run-1 jvm-simd openblas >run-1.txt
-# Median of each case over repeated jobs.
-koblas-bench/lab/median.sh run-1.txt run-2.txt run-3.txt >median.txt
+# Several jobs: pool their cases in one directory so the weighting spans all of them.
+mkdir -p pooled && cp -r results/run-1/cases pooled/run-1 && cp -r results/run-2/cases pooled/run-2
+koblas-bench/lab/compare.sh pooled jvm-simd openblas >pooled.txt
 # Win or lose per routine and size band.
-koblas-bench/lab/score.sh openblas median.txt
+koblas-bench/lab/score.sh openblas pooled.txt
 ```
 
-Separate jobs land on different hosts: on cloud x86 hosts one commit's ratios differ by tens of percent per
-routine between jobs, and the vendor's own times move with the host. To compare a variant, put it and its
-base in one job as `configs` arms with `repeats` of at least 3, so that each row runs every arm on one
-machine, and pass the arm's label as the fourth argument to `compare.sh`. It then reads only rows in which
-every arm finished. `score.sh` documents its size bands and the Accelerate coprocessor exemption.
+The lab places each job automatically, and one pool can mix CPU models; the x86 AVX-512 pool mixes Ice Lake
+and Sapphire Rapids, whose ratios for one commit differ by up to a third in a cell. A pass is one machine, so
+`compare.sh` forms each ratio within a pass, takes the median per CPU model from the pass's `metadata.txt`,
+and weighs the models equally, so a different mix of machines cannot move the result. `median.sh` combines
+finished comparisons without that weighting; use it only for runs on one CPU model. When comparing jobs
+over time, compare like models or note where the mix changed.
+
+To compare a variant, put it and its base in one job as `configs` arms with `repeats` of at least 3, so that
+each row runs every arm on one machine, and pass the arm's label as the fourth argument to `compare.sh`. It
+then reads only rows in which every arm finished. `score.sh` documents its size bands and the Accelerate
+coprocessor exemption.

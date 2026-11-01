@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # usage: median.sh COMPARISON...
 # Combines compare.sh outputs from repeated runs into one, each case's reference time and ratio the median over
-# the runs that measured it. Each lab run is a fresh JVM whose arrays land at a different alignment, and single
-# runs of one commit differ by tens of percent per routine on cloud hosts, so a verdict reads the median.
+# the runs that measured it. It does not weigh CPU models, so use it only for runs on one model; to combine jobs
+# whose machines differ, pool their cases in one directory and run compare.sh once.
 set -euo pipefail
 [[ $# -ge 1 ]] || { echo "usage: median.sh COMPARISON..." >&2; exit 2; }
 cat "$@" | awk '

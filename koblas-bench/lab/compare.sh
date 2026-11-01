@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # usage: compare.sh REPORT_DIR CANDIDATE REFERENCE [ARM]
-# Prints "case reference_ns ratio" for every case both targets measured, where each time is the median of the
-# target's median_ns over every pass and cell report under REPORT_DIR, and ratio is candidate over reference:
-# below 1 the candidate is faster. A lab job's fetched directory is a REPORT_DIR, whatever its case layout.
+# Prints "case reference_ns ratio" for every case both targets measured in one report directory, which is one
+# machine's pass. ratio is candidate over reference, below 1 when the candidate is faster: the median per CPU model
+# (the report's "model name"), combined over the models with equal weight. reference_ns is the median over every
+# such pass. A lab job's fetched directory is a REPORT_DIR, whatever its case layout.
 #
 # A fetched job lists its cases in lab-cases.jsonl. Only cases of ARM count, and only from rows in which every
 # arm finished, so the arms of an A/B job are compared over the same machines. A job with one arm needs no ARM.
@@ -38,18 +39,35 @@ elif [[ -n $arm ]]; then
   echo "compare.sh: ARM needs a fetched lab job with lab-cases.jsonl" >&2; exit 2
 fi
 
-medians() {
-  find "${sources[@]}" -name "$1.csv" -print0 | xargs -0 -r awk -F, '
-    FNR == 1 { for (i = 1; i <= NF; i++) column[$i] = i; next }
-    $column["status"] == "ok" { print $column["case"], $column["median_ns"] }' |
-    awk '{ times[$1] = times[$1] " " $2 }
-    END {
-      for (id in times) {
-        n = split(substr(times[id], 2), t, " ")
-        for (i = 2; i <= n; i++) { v = t[i]; for (j = i - 1; j >= 1 && t[j] > v; j--) t[j + 1] = t[j]; t[j + 1] = v }
-        print id, (n % 2) ? t[(n + 1) / 2] : (t[n / 2] + t[n / 2 + 1]) / 2
-      }
-    }' | LC_ALL=C sort
+# One line per measured case and pass: case, reference time, candidate over reference, CPU model. Both times come
+# from one report directory, which one machine wrote in one attempt.
+pairs() {
+  find "${sources[@]}" -name "$candidate.csv" -print0 | while IFS= read -r -d '' file; do
+    local directory=${file%/*}
+    [[ -f $directory/$reference.csv ]] || continue
+    local cpu=
+    [[ ! -f $directory/metadata.txt ]] || cpu=$(sed -n '/^model name=/{s///p;q;}' "$directory/metadata.txt")
+    awk -F, -v cpu="${cpu:-unknown}" '
+      FNR == 1 { for (i = 1; i <= NF; i++) column[$i] = i; next }
+      $column["status"] != "ok" { next }
+      FILENAME == ARGV[1] { reference[$column["case"]] = $column["median_ns"]; next }
+      $column["case"] in reference {
+        id = $column["case"]; gsub(/[ \t]+/, "_", cpu)
+        print id, reference[id], $column["median_ns"] / reference[id], cpu
+      }' "$directory/$reference.csv" "$file"
+  done
 }
 
-LC_ALL=C join <(medians "$reference") <(medians "$candidate") | awk '{ printf "%s %.1f %.4f\n", $1, $2, $3 / $2 }'
+# The ratio is each CPU model's median, combined over the models with equal weight, so a different mix of
+# machines between jobs cannot move it; the reference time is the median over every pass.
+pairs | awk '
+  function median(list,   n, t, i, j, v) {
+    n = split(substr(list, 2), t, " ")
+    for (i = 2; i <= n; i++) { v = t[i]; for (j = i - 1; j >= 1 && t[j] > v; j--) t[j + 1] = t[j]; t[j + 1] = v }
+    return (n % 2) ? t[(n + 1) / 2] : (t[n / 2] + t[n / 2 + 1]) / 2
+  }
+  { times[$1] = times[$1] " " $2; ratios[$1 SUBSEP $4] = ratios[$1 SUBSEP $4] " " $3 }
+  END {
+    for (key in ratios) { split(key, k, SUBSEP); logs[k[1]] += log(median(ratios[key])); models[k[1]]++ }
+    for (id in times) printf "%s %.1f %.4f\n", id, median(times[id]), exp(logs[id] / models[id])
+  }' | LC_ALL=C sort
