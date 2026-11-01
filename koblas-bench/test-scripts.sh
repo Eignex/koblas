@@ -97,6 +97,26 @@ printf '%s\n%s\n%s\n' "$header" 'dot+64+uniform,failed,d,a,k,5,1,1,1,1' 'gemv+4x
   >"$report/cases/1/pass-1/jvm.csv"
 bash "$bench/lab/compare.sh" "$report" jvm vendor >"$temporary/compared"
 printf '%s\n' 'dot+64+uniform 20.0 0.4000' 'dot+8192+uniform 100.0 1.5000' | cmp - "$temporary/compared"
+# An A/B job: each arm is read alone, and a row counts only when every arm in it finished.
+job="$temporary/job"
+# usage: lab_case INDEX STATUS CELL ARM REPEAT JVM_NS
+lab_case() {
+  printf '{"index":%s,"status":"%s","problem":{"problem":"comparison/dot/%s"},"arm":"%s","seed":null,"repeat":%s}\n' \
+    "$1" "$2" "$3" "$4" "$5"
+  mkdir -p "$job/cases/$1"
+  printf '%s\n%s\n' "$header" "dot+64+uniform,ok,d,a,k,5,1,10,9,11" >"$job/cases/$1/vendor.csv"
+  printf '%s\n%s\n' "$header" "dot+64+uniform,ok,d,a,k,5,1,$6,1,1" >"$job/cases/$1/jvm.csv"
+}
+mkdir -p "$job"
+{
+  lab_case 0 DONE small before 0 8
+  lab_case 1 DONE small after 0 6
+  lab_case 2 DONE small before 1 2
+  lab_case 3 FAILED small after 1 1
+} >"$job/lab-cases.jsonl"
+printf '%s\n' 'dot+64+uniform 10.0 0.8000' | cmp - <(bash "$bench/lab/compare.sh" "$job" jvm vendor before)
+printf '%s\n' 'dot+64+uniform 10.0 0.6000' | cmp - <(bash "$bench/lab/compare.sh" "$job" jvm vendor after)
+if bash "$bench/lab/compare.sh" "$job" jvm vendor 2>/dev/null; then echo 'An A/B job must name its arm' >&2; exit 1; fi
 printf '%s\n' 'dot+64+uniform 40.0 0.6000' >"$temporary/second"
 printf '%s\n' 'dot+64+uniform 60.0 0.8000' >"$temporary/third"
 bash "$bench/lab/median.sh" "$temporary/compared" "$temporary/second" "$temporary/third" >"$temporary/median"
