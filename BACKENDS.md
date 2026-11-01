@@ -40,6 +40,15 @@ On JDK 25+, enable SIMD with this JVM argument:
 SIMD processes several numbers in one CPU instruction. It requires no native numerical library and
 works independently of native access.
 
+On x86-64, vector-heavy workloads can also add `-XX:ObjectAlignmentInBytes=32`. HotSpot then starts
+every array at a known offset, so dot products, absolute sums and maximum-magnitude searches can align
+their loads. On Intel AVX-512 lab hosts, with both settings on the same machine
+([10006](https://lab.eignex.com/jobs/10006), [10007](https://lab.eignex.com/jobs/10007)), dot products
+of 4,096 elements and longer ran 13–19% faster, and norms and AXPY of 4,096 to 16,384 elements 21–28%
+faster, and absolute sums 4–16% faster. AXPY of 65,536 elements ran 3–11% slower. Scaling, swaps,
+rotations and vectors shorter than 4,096 elements changed by a few percent either way. The cost is memory:
+every object is padded to 32 bytes.
+
 ## When a native library helps
 
 On the JVM, vector operations and matrix-vector operations stay in Kotlin. SIMD covers dot products,
