@@ -179,7 +179,7 @@ registerNativeBenchmark("nativeVendorBenchmark") {
 // capture-report.sh, which is what lets that script's vendor loop use Gradle without a build inside a build.
 // The task names and the resolution lines they print are fixed by the workflow that greps for them.
 private val smokeArguments = listOf(
-    "--operation=gemm", "--suite=default", "--cases=koblas-bench/cases.txt",
+    "--operation=gemm", "--suite=default", "--cases=koblas-bench/smoke-cases.txt",
     "--warmups=0", "--samples=1", "--target-ms=1",
 )
 

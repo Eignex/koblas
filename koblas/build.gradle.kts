@@ -20,7 +20,7 @@ eignexBuild {
     multiReleaseJvmVersion.set(25)
     jvmModuleDescriptor.set(layout.projectDirectory.file("src/jvmModule/module-info.java"))
     jvmModuleVersioned.set(true)
-    packagedTestJdks.set(listOf(17, 25))
+    packagedTestJdks.set(listOf(17))
 }
 
 eignexPublish {
@@ -131,11 +131,6 @@ tasks.named<Test>("jvmTest") {
     classpath = packagedDesktopClasspath
     javaLauncher.set(desktopJavaLauncher)
     jvmArgs(desktopJvmArguments)
-}
-// Retain the packaged entrypoints kbuild registers, with one canonical Java 25 execution for coverage.
-tasks.withType<Test>().matching { it.name == "jvmTestJarOnJava25" }.configureEach {
-    dependsOn(tasks.named("jvmTest"))
-    enabled = false
 }
 tasks.withType<Test>().matching { it.name == "jvmTestJarOnJava17" }.configureEach {
     testClassesDirs = baselineTest.output.classesDirs
