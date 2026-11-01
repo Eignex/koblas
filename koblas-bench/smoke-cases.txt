@@ -1,0 +1,2 @@
+# One workload for JVM and Native vendor integration checks.
+gemm+32x21x48+uniform

@@ -16,24 +16,16 @@ reject() {
   if "$@" >"$temporary/rejected.log" 2>&1; then fail "Expected rejection: $expected"; fi
   grep -Fq "$expected" "$temporary/rejected.log" || { cat "$temporary/rejected.log" >&2; fail "Missing rejection: $expected"; }
 }
-extract() {
-  bash -c 'source "$1"; extract_verified_archive "$2" "$3" "$4"' bash "$scripts/archive-helpers.sh" "$@"
-}
 mkdir -p "$temporary/artifact/nested"
 echo publication >"$temporary/artifact/nested/publication.pom"
 (cd "$temporary/artifact" && zip -qr "$temporary/artifact.zip" .)
-digest="sha256:$(sha256 "$temporary/artifact.zip")"
-extract "$temporary/artifact.zip" "$digest" "$temporary/extracted"
-cmp "$temporary/artifact/nested/publication.pom" "$temporary/extracted/nested/publication.pom"
-reject 'digest mismatch' extract "$temporary/artifact.zip" sha256:wrong "$temporary/corrupt"
-[[ ! -e $temporary/corrupt ]]
-reject 'no SHA-256 digest' extract "$temporary/artifact.zip" '' "$temporary/missing-digest"
+validate_archive "$temporary/artifact.zip" "$temporary/entries"
 echo publication >"$temporary/artifact/outside.pom"
 (cd "$temporary/artifact/nested" && zip -q "$temporary/unsafe.zip" ../outside.pom)
-reject 'unsafe artifact path' extract "$temporary/unsafe.zip" "sha256:$(sha256 "$temporary/unsafe.zip")" "$temporary/unsafe"
+reject 'unsafe artifact path' validate_archive "$temporary/unsafe.zip" "$temporary/entries"
 ln -s "$temporary" "$temporary/artifact/link"
 (cd "$temporary/artifact" && zip -qy "$temporary/symlink.zip" link)
-reject 'unsafe artifact symlink' extract "$temporary/symlink.zip" "sha256:$(sha256 "$temporary/symlink.zip")" "$temporary/symlink"
+reject 'unsafe artifact symlink' validate_archive "$temporary/symlink.zip" "$temporary/entries"
 
 mkdir "$temporary/repository"
 git -C "$temporary/repository" init -q

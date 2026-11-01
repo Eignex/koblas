@@ -22,24 +22,3 @@ validate_archive() {
     echo 'unsafe artifact symlink' >&2; return 1
   fi
 }
-
-extract_verified_archive() (
-  set -euo pipefail
-  local archive=$1 digest=$2 destination=$3 temporary
-  [[ $digest == sha256:* ]] || { echo 'artifact has no SHA-256 digest' >&2; exit 1; }
-  [[ $digest == "sha256:$(sha256 "$archive")" ]] || { echo 'artifact digest mismatch' >&2; exit 1; }
-  temporary=$(mktemp -d)
-  trap 'rm -rf "$temporary"' EXIT
-  validate_archive "$archive" "$temporary/entries" || exit 1
-  # Extract into a fresh directory so existing destination symlinks cannot redirect unzip.
-  mkdir "$temporary/extracted"
-  unzip -q "$archive" -d "$temporary/extracted"
-  if [[ -e $destination ]]; then
-    [[ -d $destination && ! -L $destination && -z $(find "$destination" -mindepth 1 -print -quit) ]] || {
-      echo "artifact destination must be empty: $destination" >&2; exit 1;
-    }
-  else
-    mkdir -p "$destination"
-  fi
-  cp -R "$temporary/extracted/." "$destination/"
-)
