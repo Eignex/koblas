@@ -102,6 +102,8 @@ koblas-bench/lab/median.sh run-1.txt run-2.txt run-3.txt >median.txt
 koblas-bench/lab/score.sh openblas median.txt
 ```
 
-Each job is a fresh JVM whose arrays land at a different alignment, and single runs of one commit differ by
-tens of percent per routine on cloud hosts. Compare a variant with the median of at least three runs of its
-base rather than with one. `score.sh` documents its size bands and the Accelerate coprocessor exemption.
+Separate jobs land on different hosts: on cloud x86 hosts one commit's ratios differ by tens of percent per
+routine between jobs, and the vendor's own times move with the host. To compare a variant, put it and its
+base in one job as `configs` arms with `repeats` of at least 3, so that each row runs every arm on one
+machine, and pass the arm's label as the fourth argument to `compare.sh`. It then reads only rows in which
+every arm finished. `score.sh` documents its size bands and the Accelerate coprocessor exemption.
