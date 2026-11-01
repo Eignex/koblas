@@ -5,6 +5,7 @@ package com.eignex.koblas
 
 import com.eignex.koblas.dense.DenseBlas
 import com.eignex.koblas.dense.DenseVectorKernels
+import com.eignex.koblas.internal.configuration.*
 import com.eignex.koblas.internal.dense.DensePanelKernels
 import com.eignex.koblas.internal.dense.DenseProductKernels
 import com.eignex.koblas.internal.dense.DenseTriangularKernels
@@ -13,8 +14,7 @@ import com.eignex.koblas.internal.dense.PortablePanelKernels
 import com.eignex.koblas.internal.dense.PortableProductKernels
 import com.eignex.koblas.internal.dense.PortableTriangularKernels
 import com.eignex.koblas.internal.dense.ScalarVectorKernels
-import com.eignex.koblas.internal.host.DenseHostEligibility
-import com.eignex.koblas.internal.host.HostDenseBlas
+import com.eignex.koblas.internal.host.DenseHostSelection
 import com.eignex.koblas.internal.sparse.IndexedSparseKernels
 import com.eignex.koblas.internal.sparse.PortableSparseBlas
 import com.eignex.koblas.internal.sparse.ScalarIndexedSparseKernels
@@ -23,15 +23,8 @@ import com.eignex.koblas.internal.sparse.SparsePanelKernels
 import com.eignex.koblas.sparse.SparseBlas
 import com.eignex.koblas.sparse.SparseKernels
 import com.eignex.koblas.vendor.Blas
-import com.eignex.koblas.vendor.openBlas
 
-/**
- * The immutable platform-selected BLAS engine used by top-level convenience operations.
- *
- * Deferred rather than computed while this file's class initializes. Picking an engine reads
- * [selectedVendor], which is declared below and is itself deferred; resolving eagerly would read that
- * property's backing delegate before the initializer reached it and select against a null vendor.
- */
+/** The immutable platform-selected BLAS engine used by top-level convenience operations. */
 @get:kotlin.jvm.JvmName("getDefault")
 public val koblas: KoblasEngine by lazy { platformEngine() }
 
@@ -58,7 +51,6 @@ public class KoblasEngine private constructor(
     internal val productKernels: DenseProductKernels,
     /** Diagonal-block substitution and the right-hand-side grouping triangular routines schedule with. */
     internal val triangularKernels: DenseTriangularKernels,
-    sparseKernelName: String,
     private val dense: DenseBlas,
     private val sparseBlas: SparseBlas,
 ) : DenseBlas by dense,
@@ -71,13 +63,21 @@ public class KoblasEngine private constructor(
         panelKernels: DensePanelKernels = PortablePanelKernels,
         productKernels: DenseProductKernels = PortableProductKernels,
         triangularKernels: DenseTriangularKernels = PortableTriangularKernels,
-        sparseKernelName: String = indexedSparseKernels.name,
-        nativeEligible: DenseHostEligibility? = null,
+        hostSelection: DenseHostSelection? = null,
     ) : this(
-        vectorKernels, indexedSparseKernels, vendor, panelKernels, productKernels, triangularKernels, sparseKernelName,
-        PortableDenseBlas(vectorKernels, panelKernels, productKernels, triangularKernels).let { portable ->
-            vendor?.let { HostDenseBlas(portable, it, requireNotNull(nativeEligible)) } ?: portable
-        },
+        vectorKernels,
+        indexedSparseKernels,
+        vendor,
+        panelKernels,
+        productKernels,
+        triangularKernels,
+        PortableDenseBlas(
+            vectorKernels,
+            panelKernels,
+            productKernels,
+            triangularKernels,
+            hostSelection,
+        ),
         PortableSparseBlas(vectorKernels, indexedSparseKernels, SparsePanelKernels(vectorKernels, panelKernels)),
     )
 
@@ -227,6 +227,50 @@ public class KoblasEngine private constructor(
     /** Explicit application engine selection without changing the platform default. */
     public companion object {
         /**
+         * Combines available arithmetic with ordered routing preferences and complete portable coverage.
+         *
+         * Backends named by no applicable rule contribute no arithmetic. Missing backends fall through to
+         * later preferences and then portable Kotlin. This never changes [koblas]. The caller chooses an
+         * applicable profile explicitly; automatic platform selection also checks [EngineProfile.appliesTo].
+         * Panel, product and triangular families are selected unconditionally before a schedule starts,
+         * because packing and grouping must use the same geometry as the selected arithmetic.
+         * Whole-call portable preferences retain the shared schedule with those separately selected families.
+         */
+        public fun combine(profile: EngineProfile, vararg backends: EngineBackend): KoblasEngine {
+            require(backends.map { it.name }.distinct().size == backends.size) { "Duplicate backend identifiers" }
+            val families = setOf(
+                EngineImplementation.Panels,
+                EngineImplementation.Products,
+                EngineImplementation.Triangular,
+            )
+            require(profile.rules.none { rule -> !rule.unconditional && rule.implementations.any { it in families } }) {
+                "Scheduled kernel families require unconditional selection before packing"
+            }
+            val routing = CompiledRouting(profile, backends.toList())
+            val acceleratedVectors = EngineImplementation.entries.takeWhile { it != EngineImplementation.IndexedDot }
+                .any(routing::hasPreference)
+            val vectors = if (acceleratedVectors) CombinedVectorKernels(routing, profile.name) else ScalarVectorKernels
+            val indexed = if (routing.hasPreference(EngineImplementation.IndexedDot)) {
+                CombinedIndexedKernels(routing)
+            } else {
+                ScalarIndexedSparseKernels
+            }
+            val binding = backends.filterIsInstance<BackendContributions>().firstNotNullOfOrNull { it.binding }
+            val hostSelection = DenseHostSelection { operation, rows, columns, depth, borrowed ->
+                routing.select(operation, rows, columns, depth, borrowed = borrowed).binding
+            }
+            return KoblasEngine(
+                vectors,
+                indexed,
+                binding,
+                routing.select(EngineImplementation.Panels).panels!!,
+                routing.select(EngineImplementation.Products).products!!,
+                routing.select(EngineImplementation.Triangular).triangular!!,
+                hostSelection = hostSelection.takeIf { binding != null },
+            )
+        }
+
+        /**
          * Creates an immutable engine using portable Kotlin for every dense and sparse operation.
          *
          * Does not resolve a host library or require JVM modules or native-access flags. Keep the returned
@@ -240,7 +284,11 @@ public class KoblasEngine private constructor(
     }
 
     /** Sparse-vector kernels composed from this engine's dense and indexed Level 1 selections. */
-    public val sparseKernels: SparseKernels = SparseKernelAdapter(sparseKernelName, vectorKernels, indexedSparseKernels)
+    public val sparseKernels: SparseKernels = SparseKernelAdapter(
+        indexedSparseKernels.name,
+        vectorKernels,
+        indexedSparseKernels,
+    )
 
     /**
      * Short read-only description of what this engine selected, for logs.
@@ -260,12 +308,13 @@ public class KoblasEngine private constructor(
  *
  * The JVM default retains [simd] when available and [scalar] otherwise as its owned kernels, and may
  * compose eligible oneMKL matrix calls when native access is enabled. Native has no SIMD
- * engine and composes an installed host library with portable fallbacks, or uses [scalar] without one.
+ * engine and uses an applicable measured host profile, or [scalar] when none applies.
  * Android and desktop JDKs below 25 use [scalar] without resolving a host library.
  */
-public expect object BuiltinEngines {
+public object BuiltinEngines {
     /** Portable Kotlin across all three levels. */
-    public val scalar: KoblasEngine
+    @get:kotlin.jvm.JvmStatic
+    public val scalar: KoblasEngine get() = scalarEngine
 
     /**
      * Every JVM Vector API kernel this library owns, or null when the module is unavailable.
@@ -273,11 +322,11 @@ public expect object BuiltinEngines {
      * On the JVM, [koblas] retains these kernels when available, including in its host composition.
      * A window too short or too strided for a vector body runs a portable fallback.
      */
-    public val simd: KoblasEngine?
+    @get:kotlin.jvm.JvmStatic
+    public val simd: KoblasEngine? by lazy {
+        simdBackend()?.let { KoblasEngine.combine(requireNotNull(StandardEngineProfiles.jvmSimd), it) }
+    }
 }
-
-/** Optional platform-default Native host binding, resolved once only when that platform policy asks for it. */
-internal val selectedVendor: Blas? by lazy { openBlas() }
 
 /** Shared scalar composition; availability and default selection remain platform decisions. */
 internal val scalarEngine: KoblasEngine by lazy { KoblasEngine.portable() }

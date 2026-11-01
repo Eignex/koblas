@@ -14,7 +14,6 @@ import com.eignex.koblas.internal.dense.DenseProductKernels
 import com.eignex.koblas.internal.dense.PanelWork
 import com.eignex.koblas.internal.dense.PortableDenseBlas
 import com.eignex.koblas.internal.dense.TRIANGULAR_DIAGONAL_BLOCK
-import com.eignex.koblas.internal.host.HostDenseBlas
 import com.eignex.koblas.internal.jvm25.simd.SimdPanelKernels
 import com.eignex.koblas.internal.jvm25.simd.SimdProductKernels
 import com.eignex.koblas.internal.sparse.axpy
@@ -218,10 +217,9 @@ internal object SimdDenseAllocationCheck {
             engine.productKernels,
             engine.triangularKernels,
         )
-        val composed = HostDenseBlas(
+        val composed = PortableDenseBlas(
             portable,
             RecordingBlas(directlyImplemented = emptySet()),
-            eligible = { _, _, _, _ -> true },
         )
         val matrix = DenseMatrix.wrap(ORDER, ORDER, DoubleArray(ORDER * ORDER) { 1.0 + (it % 13) * 0.125 })
         val x = DoubleArray(ORDER) { 1.0 + (it % 7) * 0.25 }

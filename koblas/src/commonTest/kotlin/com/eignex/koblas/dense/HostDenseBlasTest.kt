@@ -8,8 +8,6 @@ import com.eignex.koblas.assertClose
 import com.eignex.koblas.internal.dense.PortableDenseBlas
 import com.eignex.koblas.internal.dense.PortablePanelKernels
 import com.eignex.koblas.internal.dense.ScalarVectorKernels
-import com.eignex.koblas.internal.host.DenseHostEligibility
-import com.eignex.koblas.internal.host.HostDenseBlas
 import com.eignex.koblas.vendor.Blas
 import com.eignex.koblas.vendor.BlasOperation
 import kotlin.test.Test
@@ -21,8 +19,7 @@ import kotlin.test.assertTrue
 
 /**
  * Checks supplied eligibility, symbol fallback, aliases and argument translation with a recording binding.
- * Allowing small fixtures isolates composition from platform cutoffs; NativeBlasPolicyTest and
- * JvmHostDensePolicyTest cover those cutoffs.
+ * Allowing small fixtures isolates composition from platform cutoffs; EngineProfileTest cover those cutoffs.
  */
 class HostDenseBlasTest {
     private fun assertAgreesWithReference(expected: DoubleArray, actual: DoubleArray, context: String) =
@@ -32,7 +29,7 @@ class HostDenseBlasTest {
     fun `platform eligibility keeps a rejected host call portable`() {
         val recorder = RecordingBlas()
         val portable = PortableDenseBlas(ScalarVectorKernels, PortablePanelKernels)
-        val blas = HostDenseBlas(portable, recorder, eligible = { _, _, _, _ -> false })
+        val blas = PortableDenseBlas(portable, recorder, eligible = false)
         val a = matrix(ORDER)
         val actual = matrix(ORDER)
         val expected = matrix(ORDER)
@@ -46,20 +43,10 @@ class HostDenseBlasTest {
 
     @Test
     fun `borrowed eligibility rejects any adapted operand before staging`() {
-        val policy = object : DenseHostEligibility {
-            override fun eligible(operation: DenseMatrixOperation, rows: Int, columns: Int, depth: Int): Boolean = true
-
-            override fun eligibleBorrowed(
-                operation: DenseMatrixOperation,
-                rows: Int,
-                columns: Int,
-                depth: Int,
-            ): Boolean = false
-        }
         for (borrowedOperand in listOf("left", "right", "destination")) {
             val recorder = RecordingBlas()
             val portable = PortableDenseBlas(ScalarVectorKernels, PortablePanelKernels)
-            val blas = HostDenseBlas(portable, recorder, eligible = policy)
+            val blas = PortableDenseBlas(portable, recorder, borrowed = false)
             val parent = matrix(ORDER + 2)
             val view = parent.view(1, 1, ORDER, ORDER)
             val a: DenseMatrixRegion = if (borrowedOperand == "left") view else matrix(ORDER)
@@ -86,11 +73,10 @@ class HostDenseBlasTest {
         }
     }
 
-    private fun forced(recorder: RecordingBlas = RecordingBlas()): Pair<RecordingBlas, HostDenseBlas> =
-        recorder to HostDenseBlas(
+    private fun forced(recorder: RecordingBlas = RecordingBlas()): Pair<RecordingBlas, PortableDenseBlas> =
+        recorder to PortableDenseBlas(
             PortableDenseBlas(ScalarVectorKernels, PortablePanelKernels),
             recorder,
-            eligible = { _, _, _, _ -> true },
         )
 
     private fun matrix(rows: Int, cols: Int = rows, from: Double = 1.0) =
@@ -231,7 +217,7 @@ class HostDenseBlasTest {
     @Test
     fun `host product aliases agree with the reference and share one snapshot`() {
         val portable = PortableDenseBlas(ScalarVectorKernels, PortablePanelKernels)
-        val blas = HostDenseBlas(portable, ReferenceProductBlas(), eligible = { _, _, _, _ -> true })
+        val blas = PortableDenseBlas(portable, ReferenceProductBlas())
 
         assertDenseProductAliasesAgreeWithReference(blas)
     }
@@ -239,7 +225,7 @@ class HostDenseBlasTest {
     @Test
     fun `host rectangular product aliases retain their operand shapes`() {
         val portable = PortableDenseBlas(ScalarVectorKernels, PortablePanelKernels)
-        val blas = HostDenseBlas(portable, ReferenceProductBlas(), eligible = { _, _, _, _ -> true })
+        val blas = PortableDenseBlas(portable, ReferenceProductBlas())
 
         assertRectangularProductAliasesAgreeWithReference(blas)
     }
@@ -281,10 +267,9 @@ class HostDenseBlasTest {
     @Test
     fun `borrowed host calls reach a region binding in place`() {
         val recorder = RecordingBlas()
-        val blas = HostDenseBlas(
+        val blas = PortableDenseBlas(
             PortableDenseBlas(ScalarVectorKernels, PortablePanelKernels),
             recorder,
-            eligible = { _, _, _, _ -> true },
         )
         val parent = matrix(9)
         val panel = parent.view(4, 0, 5, 3)
@@ -316,10 +301,9 @@ class HostDenseBlasTest {
     @Test
     fun `a borrowed input overlapping the destination is staged before a region binding`() {
         val recorder = RecordingBlas()
-        val blas = HostDenseBlas(
+        val blas = PortableDenseBlas(
             PortableDenseBlas(ScalarVectorKernels, PortablePanelKernels),
             recorder,
-            eligible = { _, _, _, _ -> true },
         )
         val parent = matrix(7)
         val a = parent.view(0, 0, 4, 3)

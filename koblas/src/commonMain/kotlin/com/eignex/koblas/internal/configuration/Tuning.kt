@@ -6,14 +6,6 @@ internal expect fun systemPropertyOrNull(name: String): String?
 /** One environment variable, or null on a target that cannot read the environment. */
 internal expect fun environmentVariableOrNull(name: String): String?
 
-/*
- * Reading one tuning entry.
- *
- * The entries themselves live beside the routines they steer, in `SparseTuning`, because a crossover means
- * nothing without the measurement that chose it. What is separable is only how a value is found and what
- * makes one unacceptable, which is here so that a second collection could not drift away from the first.
- */
-
 /** The system property spelling of one tuning entry, for example `koblas.sparse.indexed.simd.crossover`. */
 internal fun tuningProperty(prefix: String, name: String): String = "koblas.$prefix.$name"
 

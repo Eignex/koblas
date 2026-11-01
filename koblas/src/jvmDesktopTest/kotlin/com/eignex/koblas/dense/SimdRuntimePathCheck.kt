@@ -8,7 +8,7 @@ import com.eignex.koblas.internal.dense.PanelWork
 import com.eignex.koblas.internal.dense.PortablePanelKernels
 import com.eignex.koblas.internal.dense.PortableTriangularKernels
 import com.eignex.koblas.internal.jvm25.simd.SIMD_SPECIES
-import com.eignex.koblas.internal.jvm25.simd.SparseSimd
+import com.eignex.koblas.internal.jvm25.simd.SimdIndexedSparseKernels
 import com.eignex.koblas.internal.jvm25.simd.hardwareFusedMultiplyAdd
 import com.eignex.koblas.internal.numeric.assertHardwareFmaAgreesWithVm
 import com.eignex.koblas.internal.sparse.ScalarIndexedSparseKernels
@@ -212,7 +212,7 @@ internal object SimdRuntimePathCheck {
         }
     }
 
-    /** The indexed dense dot, whose vector body only a two-lane unit reaches, against the scalar loop. */
+    /** The exact indexed composition, whose vector body only two lanes reach, against the scalar loop. */
     private fun assertSparseDotAgreesWithReference() {
         val rng = Random(20261101)
         for (count in intArrayOf(1, 2, 3, 7, 32, 33, 257)) {
@@ -221,9 +221,9 @@ internal object SimdRuntimePathCheck {
             val dense = DoubleArray(3 * count + 8) { rng.nextDouble(-1.0, 1.0) }
 
             val expected = ScalarIndexedSparseKernels.dotDense(indices, 1, values, 2, count, dense)
-            val actual = SparseSimd.dotDense(indices, 1, values, 2, count, dense)
+            val actual = SimdIndexedSparseKernels.dotDense(indices, 1, values, 2, count, dense)
 
-            assertClose(expected, actual, "sparse dot count=$count vector=${SparseSimd.vectorDot}")
+            assertClose(expected, actual, "sparse dot count=$count engine=${SimdIndexedSparseKernels.name}")
         }
     }
 }

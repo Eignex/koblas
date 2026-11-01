@@ -292,6 +292,10 @@ awk -v operation="$operation" -v suite="$suite" -v smoke="$smoke" \
   -f "$bench/select-cases.awk" "$cases" >"$temporary/cases.txt"
 cases="$temporary/cases.txt"
 cp "$cases" "$results/cases.txt"
+if [[ -n ${KOBLAS_BENCH_ENGINE_PROFILE:-} ]]; then
+  cp "$KOBLAS_BENCH_ENGINE_PROFILE" "$results/engine-profile.tsv"
+  profile_hash=$(sha256 "$results/engine-profile.tsv")
+fi
 {
   echo "status=incomplete"
   printf '\n[capture]\n'
@@ -316,6 +320,9 @@ cp "$cases" "$results/cases.txt"
   # Koblas arms are single-threaded by construction. Each vendor arm records what its binding read back from
   # the library it opened, in that target's own section, rather than being covered by a claim made here.
   echo "koblas_threads=1"
+  if [[ -n ${KOBLAS_BENCH_ENGINE_PROFILE:-} ]]; then
+    printf 'engine_profile=%s\nengine_profile_sha256=%s\n' "$KOBLAS_BENCH_ENGINE_PROFILE" "$profile_hash"
+  fi
   printf '\n[hardware]\n'
   cat "$temporary/hardware.txt"
 } >"$metadata"
@@ -417,6 +424,11 @@ for target in "${targets[@]}"; do
       ;;
   esac
 done
+if [[ -n ${KOBLAS_BENCH_ENGINE_PROFILE:-} ]]; then
+  [[ $(sha256 "$KOBLAS_BENCH_ENGINE_PROFILE") == "$profile_hash" ]] || {
+    echo "engine profile changed during capture" >&2; exit 2;
+  }
+fi
 sed -e '1s/status=incomplete/status=complete/' \
   -e "s/^completed_at=pending$/completed_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)/" \
   "$metadata" >"$temporary/metadata.txt"

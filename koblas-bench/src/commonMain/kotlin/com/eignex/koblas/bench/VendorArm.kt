@@ -53,7 +53,7 @@ internal fun openVendorForMode(mode: String): Pair<Blas, String> {
         ?: error("requested vendor ${vendor.vendorName} is not installed; it cannot be benchmarked on this host")
     val description = "$mode/${blas.vendor.vendorName}/${blas.libraryPath}/" +
         "${blas.version}/threads=${blas.threadEvidence.label}"
-    return blas to description
+    return blas to (description + com.eignex.koblas.EngineBackends.vendor(blas).capabilities())
 }
 
 /**
@@ -196,7 +196,8 @@ internal fun vendorArm(case: BenchCase, blas: Blas): ArmChoice {
             val y = DenseVector.wrap(ys)
             if (case.option("timing", "reset-and-arithmetic") == "arithmetic") {
                 // A rotation preserves each pair's norm, so repeating it keeps the magnitudes normal.
-                arm(BlasOperation.Rot, emptyList(), listOf(x, y), "arithmetic") { blas.rot(x, y, 0.8, 0.6); xs[0] + ys[0] }
+                arm(BlasOperation.Rot, emptyList(), listOf(x, y), "arithmetic") { blas.rot(x, y, 0.8,
+                    0.6); xs[0] + ys[0] }
             } else {
                 arm(BlasOperation.Rot, emptyList(), listOf(x, y), "reset-and-arithmetic") {
                     x0.copyInto(xs); y0.copyInto(ys); blas.rot(x, y, 0.8, 0.6); xs[0] + ys[0]
@@ -275,7 +276,8 @@ internal fun vendorArm(case: BenchCase, blas: Blas): ArmChoice {
             arm(operation, listOf(a), emptyList(), timing(case)) {
                 if (resets) original.values.copyInto(target.values) else signed = -signed
                 val scale = if (resets) alpha else signed
-                if (operation == BlasOperation.Syr) blas.syr(scale, x, a, structure()) else blas.syr2(scale, x, y, a, structure())
+                if (operation == BlasOperation.Syr) blas.syr(scale, x, a, structure()) else blas.syr2(scale, x, y, a,
+                    structure())
                 // The same entry the portable arm returns. Both triangles contain (0, 0), so it is written
                 // either way, and reading a different corner per triangle would compare two different numbers.
                 target.values[0]
@@ -291,7 +293,8 @@ internal fun vendorArm(case: BenchCase, blas: Blas): ArmChoice {
             val operation = if (case.operation == "trsv") BlasOperation.Trsv else BlasOperation.Trmv
             arm(operation, listOf(a), emptyList(), "reset-and-arithmetic") {
                 x0.copyInto(values)
-                if (operation == BlasOperation.Trsv) blas.trsv(a, triangleStructure(), transA, x) else blas.trmv(a, triangleStructure(), transA, x)
+                if (operation == BlasOperation.Trsv) blas.trsv(a, triangleStructure(), transA, x) else blas.trmv(a,
+                    triangleStructure(), transA, x)
                 values[0]
             }
         }
@@ -306,7 +309,8 @@ internal fun vendorArm(case: BenchCase, blas: Blas): ArmChoice {
             val target = Fixtures.matrix(m, n, 3)
             val c = target
             arm(BlasOperation.Gemm, listOf(a, b, c), emptyList(), "reset-and-arithmetic") {
-                original.values.copyInto(target.values); blas.gemm(alpha, a, transA, b, transB, beta, c); target.values[0]
+                original.values.copyInto(target.values); blas.gemm(alpha, a, transA, b, transB, beta,
+                    c); target.values[0]
             }
         }
 
@@ -320,7 +324,8 @@ internal fun vendorArm(case: BenchCase, blas: Blas): ArmChoice {
             val target = Fixtures.matrix(m, n, 3)
             val c = target
             arm(BlasOperation.Symm, listOf(a, b, c), emptyList(), "reset-and-arithmetic") {
-                original.values.copyInto(target.values); blas.symm(alpha, a, structure(), b, beta, c, right); target.values[0]
+                original.values.copyInto(target.values); blas.symm(alpha, a, structure(), b, beta, c,
+                    right); target.values[0]
             }
         }
 
@@ -335,7 +340,8 @@ internal fun vendorArm(case: BenchCase, blas: Blas): ArmChoice {
             val target = Fixtures.matrix(n, n, 3)
             val c = target
             arm(BlasOperation.Gemmt, listOf(a, b, c), emptyList(), "reset-and-arithmetic") {
-                original.values.copyInto(target.values); blas.gemmt(alpha, a, transA, b, transB, beta, c, structure()); target.values[0]
+                original.values.copyInto(target.values); blas.gemmt(alpha, a, transA, b, transB, beta, c,
+                    structure()); target.values[0]
             }
         }
 

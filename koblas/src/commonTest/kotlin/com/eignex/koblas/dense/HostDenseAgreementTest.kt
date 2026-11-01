@@ -7,7 +7,6 @@ import com.eignex.koblas.assertClose
 import com.eignex.koblas.internal.dense.PortableDenseBlas
 import com.eignex.koblas.internal.dense.PortablePanelKernels
 import com.eignex.koblas.internal.dense.ScalarVectorKernels
-import com.eignex.koblas.internal.host.HostDenseBlas
 import com.eignex.koblas.poisonedSymmetric
 import com.eignex.koblas.poisonedTriangle
 import com.eignex.koblas.randomMatrix
@@ -26,7 +25,7 @@ import kotlin.test.assertTrue
  * Real bindings expose operand, stride and flag translation below the recording seam. A loose
  * tolerance admits the library's accumulation order while catching incorrect translation.
  * Allowing small fixtures isolates translation from platform cutoffs. [HostDenseBlasTest] covers supplied
- * eligibility; NativeBlasPolicyTest and JvmHostDensePolicyTest cover the cutoffs.
+ * eligibility; EngineProfileTest cover the cutoffs.
  */
 class HostDenseAgreementTest {
     @Test
@@ -35,14 +34,13 @@ class HostDenseAgreementTest {
             assertShrinkingGerAgreesWithReference { x, y, a -> blas.ger(-1.0, x, y, a) }
         }
 
-    private fun composed(host: Blas): HostDenseBlas = HostDenseBlas(
+    private fun composed(host: Blas): PortableDenseBlas = PortableDenseBlas(
         PortableDenseBlas(ScalarVectorKernels, PortablePanelKernels),
         host,
-        eligible = { _, _, _, _ -> true },
     )
 
     /** Exercise every installed vendor; a host without one reports the missing coverage. */
-    private inline fun withHost(what: String, block: (HostDenseBlas, Blas) -> Unit) {
+    private inline fun withHost(what: String, block: (PortableDenseBlas, Blas) -> Unit) {
         val hosts = Vendor.entries.mapNotNull { openBlas(it) }
         if (hosts.isEmpty()) {
             println("SKIPPED: no CBLAS library installed; $what was not verified on this host")

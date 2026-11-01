@@ -1,95 +1,25 @@
 package com.eignex.koblas.internal.jvm25.simd
 
-import com.eignex.koblas.*
-import com.eignex.koblas.dense.*
-import com.eignex.koblas.internal.dense.DispatchingVectorKernels
+import com.eignex.koblas.BackendContributions
+import com.eignex.koblas.BuiltinEngines
+import com.eignex.koblas.EngineImplementation.*
+import com.eignex.koblas.dense.DenseVectorKernels
 import com.eignex.koblas.internal.dense.ScalarVectorKernels
-import com.eignex.koblas.internal.numeric.*
 import com.eignex.koblas.internal.numeric.MIN_NORMAL
-import com.eignex.koblas.internal.numeric.absoluteSum
-import com.eignex.koblas.internal.numeric.euclideanNorm
 import com.eignex.koblas.internal.numeric.rescaledEuclideanNorm
-import com.eignex.koblas.internal.numeric.scalarAxpy
-import com.eignex.koblas.internal.numeric.scalarDot
-import com.eignex.koblas.internal.numeric.scalarIamax
-import com.eignex.koblas.internal.numeric.scalarRot
-import com.eignex.koblas.internal.numeric.scalarScale
-import com.eignex.koblas.internal.numeric.scalarSum
-import com.eignex.koblas.internal.numeric.scalarSwap
-import com.eignex.koblas.internal.sparse.axpy
-import com.eignex.koblas.sparse.*
-import com.eignex.koblas.vendor.*
 import kotlin.math.sqrt
 
-/** Whether the incubating Vector API resolved without initializing its implementation classes. */
+/** Check the optional module without initializing a Vector API implementation. */
 internal val simdAvailable: Boolean = try {
     Class.forName("jdk.incubator.vector.DoubleVector")
     true
-} catch (_: Throwable) {
+} catch (_: ClassNotFoundException) {
     false
 }
 
-/**
- * JVM Vector API reductions and contiguous AXPY.
- *
- * A reduction is what the compiler cannot do for us. Vectorising a sum of doubles means adding them in a
- * different order, which changes the answer, so HotSpot leaves the loop alone unless it is written in lanes.
- * Writing it in lanes is worth 3 to 10 times the scalar loop for `dot`, `asum` and `sum` above 128.
- *
- * Elementwise work is the opposite: each element's result depends on nothing else, so the JIT vectorises the
- * ordinary Kotlin loop by itself. `scal`, `swap` and `rot` retain those loops. Written in
- * lanes they measure 0.93 to 1.10 against the portable loops, and `scal` measures 0.44 to 0.55 above 512.
- * Measured on 12th Gen Intel Core i9-12900H with the sweep suite, comparing the `jvm-scalar` and `jvm-simd`
- * targets.
- *
- * AXPY also has an explicit vector body so callers of the raw array kernel can select lanes without
- * depending on HotSpot's automatic vectorisation of their surrounding compilation.
- *
- * `nrm2` is here because its fast path is a sum of squares, which is a reduction; it falls back to the
- * rescaling loop when a value leaves the normal range.
- */
-internal object SimdVectorKernels : DispatchingVectorKernels {
-    /**
-     * Conservative crossover for vector filtering and its unconditional reduction fallback. Short
-     * calls stay scalar to avoid setting up vector masks and reduction state.
-     */
-    private const val IAMAX_CROSSOVER = 256
-
-    private val lanes: Int = if (simdAvailable) SimdOps.lanes() else 0
-
-    override val name: String get() = "simd($lanes lanes)"
-
-    val isAvailable: Boolean get() = simdAvailable
-
-    private fun vectorizes(len: Int): Boolean = simdAvailable && len >= lanes
-
-    /**
-     * Strided runs stay scalar because Vector API gathers lose to scalar indexed loads on the measured
-     * hardware. [implementationFor] reports that fallback.
-     */
-    private fun vectorizes(len: Int, contiguous: Boolean): Boolean = contiguous && vectorizes(len)
-
-    override fun implementationFor(operation: DenseOperation, length: Int, contiguous: Boolean): String? {
-        if (!contiguous) return ScalarVectorKernels.name
-        return vectorisedImplementationFor(operation, length)
-    }
-
-    private fun vectorisedImplementationFor(operation: DenseOperation, length: Int): String? = when (operation) {
-        // The square sum is tried first and abandoned for the rescaling loop when it leaves the normal range,
-        // so which kernel produces the norm depends on the values rather than on the width.
-        DenseOperation.Nrm2 -> if (vectorizes(length)) null else ScalarVectorKernels.name
-
-        DenseOperation.Iamax ->
-            if (vectorizes(length) && length >= IAMAX_CROSSOVER) name else ScalarVectorKernels.name
-
-        DenseOperation.Dot, DenseOperation.Sum, DenseOperation.Asum, DenseOperation.Axpy,
-        -> if (vectorizes(length)) name else ScalarVectorKernels.name
-
-        // These elementwise operations have no vector kernel here; see the class documentation.
-        DenseOperation.Scale, DenseOperation.Swap, DenseOperation.Rot,
-        -> ScalarVectorKernels.name
-    }
-
+/** Only supplied operations are capabilities; the shared interface owns the portable defaults. */
+private object SimdVectorLeaves : DenseVectorKernels {
+    override val name: String = "simd(${SimdOps.lanes()} lanes)"
     override fun dot(
         a: DoubleArray,
         aOff: Int,
@@ -98,14 +28,18 @@ internal object SimdVectorKernels : DispatchingVectorKernels {
         len: Int,
         aStride: Int,
         bStride: Int,
-    ): Double = if (vectorizes(len, aStride == 1 && bStride == 1)) {
-        SimdOps.dot(a, aOff, b, bOff, len)
-    } else {
-        scalarDot(a, aOff, aStride, b, bOff, bStride, len)
+    ): Double = SimdOps.dot(a, aOff, b, bOff, len)
+    override fun sum(v: DoubleArray, vOff: Int, len: Int, vStride: Int): Double = SimdOps.sum(v, vOff, len)
+    override fun asum(v: DoubleArray, vOff: Int, len: Int, vStride: Int): Double = SimdOps.asum(v, vOff, len)
+    override fun iamax(v: DoubleArray, vOff: Int, len: Int, vStride: Int): Int = SimdOps.iamax(v, vOff, len)
+    override fun nrm2(v: DoubleArray, vOff: Int, len: Int, vStride: Int): Double {
+        val squares = SimdOps.dot(v, vOff, v, vOff, len)
+        return if (squares.isFinite() && squares >= MIN_NORMAL) {
+            sqrt(squares)
+        } else {
+            rescaledEuclideanNorm(v, vOff, vStride, len, squares)
+        }
     }
-
-    override fun sum(v: DoubleArray, vOff: Int, len: Int, vStride: Int): Double =
-        if (vectorizes(len, vStride == 1)) SimdOps.sum(v, vOff, len) else scalarSum(v, vOff, vStride, len)
 
     @Suppress("LongParameterList")
     override fun axpy(
@@ -117,40 +51,18 @@ internal object SimdVectorKernels : DispatchingVectorKernels {
         len: Int,
         yStride: Int,
         xStride: Int,
-    ) {
-        if (vectorizes(len, yStride == 1 && xStride == 1)) {
-            SimdOps.axpy(y, yOff, alpha, x, xOff, len)
-        } else {
-            scalarAxpy(y, yOff, yStride, alpha, x, xOff, xStride, len)
-        }
-    }
-
-    override fun scale(v: DoubleArray, vOff: Int, alpha: Double, len: Int, vStride: Int) =
-        scalarScale(v, vOff, vStride, alpha, len)
-
-    override fun nrm2(v: DoubleArray, vOff: Int, len: Int, vStride: Int): Double {
-        if (vectorizes(len, vStride == 1)) {
-            val squares = SimdOps.dot(v, vOff, v, vOff, len)
-            if (squares.isFinite() && squares >= MIN_NORMAL) return sqrt(squares)
-            return rescaledEuclideanNorm(v, vOff, vStride, len, squares)
-        }
-        return euclideanNorm(v, vOff, vStride, len)
-    }
-
-    override fun iamax(v: DoubleArray, vOff: Int, len: Int, vStride: Int): Int =
-        if (vectorizes(len, vStride == 1) && len >= IAMAX_CROSSOVER) {
-            SimdOps.iamax(v, vOff, len)
-        } else {
-            scalarIamax(v, vOff, vStride, len)
-        }
-
-    override fun asum(v: DoubleArray, vOff: Int, len: Int, vStride: Int): Double =
-        if (vectorizes(len, vStride == 1)) SimdOps.asum(v, vOff, len) else absoluteSum(v, vOff, vStride, len)
-
-    override fun swap(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int, aStride: Int, bStride: Int) =
-        scalarSwap(a, aOff, aStride, b, bOff, bStride, len)
-
-    @Suppress("LongParameterList")
-    override fun rot(x: DoubleArray, xOff: Int, y: DoubleArray, yOff: Int, len: Int, c: Double, s: Double) =
-        scalarRot(x, xOff, y, yOff, len, c, s)
+    ) = SimdOps.axpy(y, yOff, alpha, x, xOff, len)
 }
+
+internal val simdContributions: BackendContributions by lazy {
+    BackendContributions(
+        "jvm-simd", SimdVectorLeaves, setOf(Dot, Sum, Nrm2, Iamax, Asum, Axpy),
+        indexedDot = if (SparseSimd.vectorDot) SparseSimd else null,
+        panels = SimdPanelKernels, products = SimdProductKernels, triangular = SimdTriangularKernels,
+        vectorName = SimdVectorLeaves.name, dynamicNorm = true,
+        contiguousVectors = true, minimumVectorLength = SimdOps.lanes(), minimumIndexedLength = 2,
+    )
+}
+
+/** Exact owned composition retained for kernel conformance and allocation checks. */
+internal val SimdVectorKernels: DenseVectorKernels get() = BuiltinEngines.simd?.vectorKernels ?: ScalarVectorKernels

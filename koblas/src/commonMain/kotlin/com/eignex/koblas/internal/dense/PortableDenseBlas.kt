@@ -10,6 +10,7 @@ package com.eignex.koblas.internal.dense
 
 import com.eignex.koblas.*
 import com.eignex.koblas.dense.*
+import com.eignex.koblas.internal.host.DenseHostSelection
 import com.eignex.koblas.internal.operands.regionVectorOverlap
 import com.eignex.koblas.internal.operands.sameRegion
 import com.eignex.koblas.internal.operands.scaleRegion
@@ -34,7 +35,18 @@ internal class PortableDenseBlas(
     private val panels: DensePanelKernels,
     private val products: DenseProductKernels = PortableProductKernels,
     private val triangles: DenseTriangularKernels = PortableTriangularKernels,
+    private val selection: DenseHostSelection? = null,
 ) : DenseBlas {
+    internal fun withHost(selection: DenseHostSelection): PortableDenseBlas =
+        PortableDenseBlas(vectors, panels, products, triangles, selection)
+
+    private fun host(
+        operation: EngineImplementation,
+        rows: Int,
+        columns: Int,
+        depth: Int = 1,
+        borrowed: Boolean = false,
+    ): Blas? = selection?.select(operation, rows, columns, depth, borrowed)
 
     override fun gemv(
         alpha: Double,
@@ -51,7 +63,13 @@ internal class PortableDenseBlas(
             applyBeta(vectors, y, 0, y.size, beta)
             return
         }
-        if (a.values === y || x === y) {
+        if (a.values === y || x === y || host(
+                if (transpose) EngineImplementation.GemvTransposed else EngineImplementation.Gemv,
+                a.rows,
+                a.cols,
+                borrowed = a !is DenseMatrix,
+            ) != null
+        ) {
             gemv(alpha, a, DenseVector.wrap(x), beta, DenseVector.wrap(y), transpose, workspace)
         } else {
             gemvCore(alpha, a, x, 0, 1, beta, y, 0, 1, transpose)
@@ -75,9 +93,22 @@ internal class PortableDenseBlas(
             return
         }
         // Snapshot aliased operands before scaling the destination, and retain them for the call.
+        val binding = host(
+            if (transpose) EngineImplementation.GemvTransposed else EngineImplementation.Gemv,
+            a.rows,
+            a.cols,
+            borrowed = a !is DenseMatrix,
+        )
         stagedRegion(workspace, a, y) { stableA ->
             staged(workspace, x, x.overlaps(y)) { stableX ->
-                gemvCore(alpha, stableA, stableX.values, stableX.offset, stableX.stride, beta, y.values, y.offset, y.stride, transpose)
+                if (binding != null) {
+                    binding.gemv(alpha, stableA, transpose, stableX, beta, y)
+                } else {
+                    gemvCore(
+                        alpha, stableA, stableX.values, stableX.offset, stableX.stride, beta, y.values,
+                        y.offset, y.stride, transpose,
+                    )
+                }
             }
         }
     }
@@ -149,8 +180,19 @@ internal class PortableDenseBlas(
             scaleRegion(c, beta)
             return
         }
+        val binding = host(
+            EngineImplementation.Gemm,
+            c.rows,
+            c.cols,
+            depth,
+            a !is DenseMatrix || b !is DenseMatrix || c !is DenseMatrix,
+        )
         stagedRegion(workspace, a, c) { sa ->
             stagedRegion(workspace, b, c, stable = sa, original = a) { sb ->
+                if (binding != null) {
+                    binding.gemm(alpha, sa, transposeA, sb, transposeB, beta, c)
+                    return@stagedRegion
+                }
                 gemmCore(alpha, sa, transposeA, sb, transposeB, beta, c, depth, workspace)
             }
         }
@@ -218,8 +260,19 @@ internal class PortableDenseBlas(
             scaleRegion(c, beta, lower)
             return
         }
+        val binding = host(
+            EngineImplementation.Gemmt,
+            c.rows,
+            c.cols,
+            depth,
+            a !is DenseMatrix || b !is DenseMatrix || c !is DenseMatrix,
+        )
         stagedRegion(workspace, a, c) { sa ->
             stagedRegion(workspace, b, c, stable = sa, original = a) { sb ->
+                if (binding != null) {
+                    binding.gemmt(alpha, sa, transposeA, sb, transposeB, beta, c, symmetricStructure(lower))
+                    return@stagedRegion
+                }
                 productWindow(
                     products, panels, alpha, sa.values, sa.offset, sa.leadingDimension, transposeA, sb.values,
                     sb.offset, sb.leadingDimension, transposeB,
@@ -254,7 +307,9 @@ internal class PortableDenseBlas(
             applyBeta(vectors, y, 0, y.size, beta)
             return
         }
-        if (a.values === y || x === y) {
+        if (a.values === y || x === y ||
+            host(EngineImplementation.Symv, a.rows, a.cols, borrowed = a !is DenseMatrix) != null
+        ) {
             symv(alpha, a, DenseVector.wrap(x), beta, DenseVector.wrap(y), lower, workspace)
         } else {
             symvCore(alpha, a, x, 0, 1, beta, y, 0, 1, lower)
@@ -277,9 +332,14 @@ internal class PortableDenseBlas(
             return
         }
         // Snapshot aliased operands before beta overwrites values still needed by the product.
+        val binding = host(EngineImplementation.Symv, a.rows, a.cols, 1, a !is DenseMatrix)
         stagedRegion(workspace, a, y, lower = lower) { sa ->
             staged(workspace, x, x.overlaps(y)) { xv ->
-                symvCore(alpha, sa, xv.values, xv.offset, xv.stride, beta, y.values, y.offset, y.stride, lower)
+                if (binding != null) {
+                    binding.symv(alpha, sa, symmetricStructure(lower), xv, beta, y)
+                } else {
+                    symvCore(alpha, sa, xv.values, xv.offset, xv.stride, beta, y.values, y.offset, y.stride, lower)
+                }
             }
         }
     }
@@ -366,8 +426,19 @@ internal class PortableDenseBlas(
             scaleRegion(c, beta, vectors = vectors)
             return
         }
+        val binding = host(
+            EngineImplementation.Symm,
+            c.rows,
+            c.cols,
+            a.rows,
+            a !is DenseMatrix || b !is DenseMatrix || c !is DenseMatrix,
+        )
         stagedRegion(workspace, a, c, lower = if (sameRegion(a, b)) null else lower) { sa ->
             stagedRegion(workspace, b, c, stable = sa, original = a) { sb ->
+                if (binding != null) {
+                    binding.symm(alpha, sa, symmetricStructure(lower), sb, beta, c, rightSide = right)
+                    return@stagedRegion
+                }
                 // Scale once because multiple symmetric windows accumulate into each destination entry.
                 scaleRegion(c, beta, vectors = vectors)
                 symmetricProduct(
@@ -397,7 +468,12 @@ internal class PortableDenseBlas(
             scaleRegion(c, beta, lower)
             return
         }
+        val binding = host(EngineImplementation.Syrk, c.rows, c.cols, depth, a !is DenseMatrix || c !is DenseMatrix)
         stagedRegion(workspace, a, c) { sa ->
+            if (binding != null) {
+                binding.syrk(alpha, sa, transpose, beta, c, symmetricStructure(lower))
+                return@stagedRegion
+            }
             productWindow(
                 products, panels, alpha, sa.values, sa.offset, sa.leadingDimension, transpose,
                 sa.values, sa.offset, sa.leadingDimension, !transpose,
@@ -418,12 +494,11 @@ internal class PortableDenseBlas(
         workspace: Workspace?,
     ) {
         requireSyr2kOperands(a, b, transpose, c)
-        productTriangle(alpha, a, b, transpose, beta, c, lower, doubled = true, workspace = workspace)
+        productTriangle(alpha, a, b, transpose, beta, c, lower, workspace)
     }
 
     /**
-     * `alpha · op(A) · op(B)ᵀ + beta · C` in one triangle, and the same with the operands swapped when
-     * [doubled].
+     * `alpha · op(A) · op(B)ᵀ + beta · C` in one triangle, and the same with the operands swapped.
      *
      * A rank-k update is a product whose right operand is the left one transposed, and a rank-2k update is
      * the sum of the two products its definition names. Composing rather than fusing is deliberate: both
@@ -442,7 +517,6 @@ internal class PortableDenseBlas(
         beta: Double,
         c: DenseMatrixRegion,
         lower: Boolean,
-        doubled: Boolean,
         workspace: Workspace?,
     ) {
         if (c.rows == 0) return
@@ -452,20 +526,29 @@ internal class PortableDenseBlas(
             return
         }
         val selected = selectedTriangle(lower)
+        val binding = host(
+            EngineImplementation.Syr2k,
+            c.rows,
+            c.cols,
+            depth,
+            a !is DenseMatrix || b !is DenseMatrix || c !is DenseMatrix,
+        )
         stagedRegion(workspace, a, c) { sa ->
             stagedRegion(workspace, b, c, stable = sa, original = a) { sb ->
+                if (binding != null) {
+                    binding.syr2k(alpha, sa, sb, transpose, beta, c, symmetricStructure(lower))
+                    return@stagedRegion
+                }
                 productWindow(
                     products, panels, alpha, sa.values, sa.offset, sa.leadingDimension, transpose, sb.values,
                     sb.offset, sb.leadingDimension, !transpose,
                     beta, c.values, c.offset, c.leadingDimension, c.rows, c.cols, depth, selected, workspace,
                 )
-                if (doubled) {
-                    productWindow(
-                        products, panels, alpha, sb.values, sb.offset, sb.leadingDimension, transpose, sa.values,
-                        sa.offset, sa.leadingDimension, !transpose,
-                        1.0, c.values, c.offset, c.leadingDimension, c.rows, c.cols, depth, selected, workspace,
-                    )
-                }
+                productWindow(
+                    products, panels, alpha, sb.values, sb.offset, sb.leadingDimension, transpose, sa.values,
+                    sa.offset, sa.leadingDimension, !transpose,
+                    1.0, c.values, c.offset, c.leadingDimension, c.rows, c.cols, depth, selected, workspace,
+                )
             }
         }
     }
@@ -473,7 +556,12 @@ internal class PortableDenseBlas(
     override fun ger(alpha: Double, x: DenseVector, y: DenseVector, a: DenseMatrixRegion, workspace: Workspace?) {
         requireGerOperands(x.size, y.size, a)
         if (alpha == 0.0 || a.rows == 0 || a.cols == 0) return
+        val binding = host(EngineImplementation.Ger, a.rows, a.cols, 1, a !is DenseMatrix)
         stagedVectors(workspace, x, y, a) { sx, sy ->
+            if (binding != null) {
+                binding.ger(alpha, sx, sy, a)
+                return@stagedVectors
+            }
             gerCore(
                 alpha, sx.values, sx.offset, sx.stride, sy.values, sy.offset, sy.stride,
                 a, a.offset, a.rows, a.cols,
@@ -509,7 +597,9 @@ internal class PortableDenseBlas(
     override fun ger(alpha: Double, x: DoubleArray, y: DoubleArray, a: DenseMatrixRegion, workspace: Workspace?) {
         requireGerOperands(x.size, y.size, a)
         if (alpha == 0.0 || a.rows == 0 || a.cols == 0) return
-        if (x === a.values || y === a.values) {
+        if (x === a.values || y === a.values ||
+            host(EngineImplementation.Ger, a.rows, a.cols, borrowed = a !is DenseMatrix) != null
+        ) {
             ger(alpha, DenseVector.wrap(x), DenseVector.wrap(y), a, workspace)
         } else {
             gerCore(alpha, x, 0, 1, y, 0, 1, a, a.offset, a.rows, a.cols)
@@ -532,13 +622,18 @@ internal class PortableDenseBlas(
         requireGerWindowOperands(x.size, y.size, a, rowOffset, columnOffset, rows, columns, xOffset, yOffset)
         if (alpha == 0.0 || rows == 0 || columns == 0) return
         if (x === a.values || y === a.values) {
-            ger(
-                alpha,
+            val window = a.view(rowOffset, columnOffset, rows, columns)
+            stagedVectors(
+                workspace,
                 StridedVector(x, xOffset, rows, 1),
                 StridedVector(y, yOffset, columns, 1),
-                a.view(rowOffset, columnOffset, rows, columns),
-                workspace,
-            )
+                window,
+            ) { sx, sy ->
+                gerCore(
+                    alpha, sx.values, sx.offset, sx.stride, sy.values, sy.offset, sy.stride,
+                    window, window.offset, rows, columns,
+                )
+            }
         } else {
             gerCore(
                 alpha, x, xOffset, 1, y, yOffset, 1, a,
@@ -559,7 +654,12 @@ internal class PortableDenseBlas(
         val n = a.rows
         if (alpha == 0.0 || n == 0) return
         // Snapshot an aliased vector before updates overwrite coefficients needed by later columns.
+        val binding = host(EngineImplementation.Syr, n, n, 1, a !is DenseMatrix)
         staged(workspace, x, regionVectorOverlap(a, x)) { sx ->
+            if (binding != null) {
+                binding.syr(alpha, sx, a, symmetricStructure(lower))
+                return@staged
+            }
             val xv = sx.values
             val origin = sx.offset
             val step = sx.stride
@@ -603,7 +703,12 @@ internal class PortableDenseBlas(
         requireSyr2Operands(a, x.size, y.size, "syr2")
         val n = a.rows
         if (alpha == 0.0 || n == 0) return
+        val binding = host(EngineImplementation.Syr2, n, n, 1, a !is DenseMatrix)
         stagedVectors(workspace, x, y, a) { sx, sy ->
+            if (binding != null) {
+                binding.syr2(alpha, sx, sy, a, symmetricStructure(lower))
+                return@stagedVectors
+            }
             syr2Core(alpha, sx, sy, a, lower)
         }
     }
@@ -660,7 +765,13 @@ internal class PortableDenseBlas(
     ) {
         requireTriangularVectorOperands(a, x.size, "trsv")
         if (a.rows == 0) return
-        if (a.values === x) {
+        if (a.values === x || host(
+                if (transpose) EngineImplementation.TrsvTransposed else EngineImplementation.Trsv,
+                a.rows,
+                a.cols,
+                borrowed = a !is DenseMatrix,
+            ) != null
+        ) {
             trsv(a, DenseVector.wrap(x), lower, transpose, unitDiag, workspace)
         } else {
             trsvCore(a, x, 0, 1, lower, transpose, unitDiag)
@@ -678,7 +789,17 @@ internal class PortableDenseBlas(
         requireTriangularVectorOperands(a, x.size, "trsv")
         val n = a.rows
         if (n == 0) return
+        val binding = host(
+            if (transpose) EngineImplementation.TrsvTransposed else EngineImplementation.Trsv,
+            n,
+            n,
+            borrowed = a !is DenseMatrix,
+        )
         stagedRegion(workspace, a, x, lower = lower, unitDiag = unitDiag) { sa ->
+            if (binding != null) {
+                binding.trsv(sa, triangle(lower, unitDiag), transpose, x)
+                return@stagedRegion
+            }
             trsvCore(sa, x.values, x.offset, x.stride, lower, transpose, unitDiag)
         }
     }
@@ -738,7 +859,13 @@ internal class PortableDenseBlas(
     ) {
         requireTriangularVectorOperands(a, x.size, "trmv")
         if (a.rows == 0) return
-        if (a.values === x) {
+        if (a.values === x || host(
+                if (transpose) EngineImplementation.TrmvTransposed else EngineImplementation.Trmv,
+                a.rows,
+                a.cols,
+                borrowed = a !is DenseMatrix,
+            ) != null
+        ) {
             trmv(a, DenseVector.wrap(x), lower, transpose, unitDiag, workspace)
         } else {
             trmvCore(a, x, 0, 1, lower, transpose, unitDiag)
@@ -755,7 +882,17 @@ internal class PortableDenseBlas(
     ) {
         requireTriangularVectorOperands(a, x.size, "trmv")
         val n = a.rows
+        val binding = host(
+            if (transpose) EngineImplementation.TrmvTransposed else EngineImplementation.Trmv,
+            n,
+            n,
+            borrowed = a !is DenseMatrix,
+        )
         stagedRegion(workspace, a, x, lower = lower, unitDiag = unitDiag) { sa ->
+            if (binding != null) {
+                binding.trmv(sa, triangle(lower, unitDiag), transpose, x)
+                return@stagedRegion
+            }
             trmvCore(sa, x.values, x.offset, x.stride, lower, transpose, unitDiag)
         }
     }
@@ -847,7 +984,23 @@ internal class PortableDenseBlas(
         val sides = if (right) b.rows else b.cols
         val order = a.rows
         if (sides == 0 || order == 0) return
+        val binding = host(
+            if (solve) EngineImplementation.Trsm else EngineImplementation.Trmm,
+            b.rows,
+            b.cols,
+            order,
+            a !is DenseMatrix || b !is DenseMatrix,
+        )
         stagedRegion(workspace, a, b, lower = lower, unitDiag = unitDiag) { sa ->
+            if (binding != null) {
+                val structure = triangle(lower, unitDiag)
+                if (solve) {
+                    binding.trsm(alpha, sa, structure, transpose, b, rightSide = right)
+                } else {
+                    binding.trmm(alpha, sa, structure, transpose, b, rightSide = right)
+                }
+                return@stagedRegion
+            }
             triangularMatrix(
                 triangles, products, panels, vectors, sa.values, order, b.values, b.leadingDimension, sides,
                 lower, transpose, unitDiag, right, alpha, solve, workspace, sa.offset, sa.leadingDimension, b.offset,

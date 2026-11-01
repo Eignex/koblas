@@ -4,7 +4,6 @@ import com.eignex.koblas.*
 import com.eignex.koblas.internal.dense.PortableDenseBlas
 import com.eignex.koblas.internal.dense.PortablePanelKernels
 import com.eignex.koblas.internal.dense.ScalarVectorKernels
-import com.eignex.koblas.internal.host.HostDenseBlas
 import com.eignex.koblas.vendor.openBlas
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
@@ -579,10 +578,9 @@ class DenseMatrixViewTest {
 
     private companion object {
         val installedHost: DenseBlas? = openBlas()?.let {
-            HostDenseBlas(
+            PortableDenseBlas(
                 PortableDenseBlas(ScalarVectorKernels, PortablePanelKernels),
                 it,
-                eligible = { _, _, _, _ -> true },
             )
         }
     }

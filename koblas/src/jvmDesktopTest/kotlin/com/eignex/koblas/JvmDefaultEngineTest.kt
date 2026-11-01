@@ -1,6 +1,7 @@
 package com.eignex.koblas
 
 import com.eignex.koblas.dense.ReferenceBlas
+import com.eignex.koblas.internal.dense.implementationFor
 import com.eignex.koblas.vendor.BlasOperation
 import com.eignex.koblas.vendor.Vendor
 import com.eignex.koblas.vendor.assertAgreesWithReference
@@ -19,8 +20,11 @@ class JvmDefaultEngineTest {
     fun `the default preserves the owned level one arm with an installed host`() {
         val exact = BuiltinEngines.simd ?: BuiltinEngines.scalar
 
-        assertSame(exact.vectorKernels, koblas.vectorKernels)
-        assertSame(exact.indexedSparseKernels, koblas.indexedSparseKernels)
+        assertEquals(
+            exact.vectorKernels.implementationFor(EngineImplementation.Dot, 1024),
+            koblas.vectorKernels.implementationFor(EngineImplementation.Dot, 1024),
+        )
+        assertEquals(exact.indexedSparseKernels.name, koblas.indexedSparseKernels.name)
         assertSame(exact.panelKernels, koblas.panelKernels)
         assertTrue(koblas.vendor == null || koblas.vendor?.vendor == Vendor.OneMkl)
     }

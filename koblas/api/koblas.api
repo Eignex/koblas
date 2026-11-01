@@ -135,6 +135,86 @@ public final class com/eignex/koblas/DimensionMismatch : java/lang/IllegalArgume
 	public fun <init> (Ljava/lang/String;)V
 }
 
+public abstract interface class com/eignex/koblas/EngineBackend {
+	public abstract fun getImplementations ()Ljava/util/Set;
+	public abstract fun getName ()Ljava/lang/String;
+}
+
+public final class com/eignex/koblas/EngineBackends {
+	public static final field INSTANCE Lcom/eignex/koblas/EngineBackends;
+	public final fun getPortable ()Lcom/eignex/koblas/EngineBackend;
+	public final fun getSimd ()Lcom/eignex/koblas/EngineBackend;
+	public final fun vendor (Lcom/eignex/koblas/vendor/Blas;)Lcom/eignex/koblas/EngineBackend;
+}
+
+public final class com/eignex/koblas/EngineImplementation : java/lang/Enum {
+	public static final field Asum Lcom/eignex/koblas/EngineImplementation;
+	public static final field Axpy Lcom/eignex/koblas/EngineImplementation;
+	public static final field Dot Lcom/eignex/koblas/EngineImplementation;
+	public static final field Gemm Lcom/eignex/koblas/EngineImplementation;
+	public static final field Gemmt Lcom/eignex/koblas/EngineImplementation;
+	public static final field Gemv Lcom/eignex/koblas/EngineImplementation;
+	public static final field GemvTransposed Lcom/eignex/koblas/EngineImplementation;
+	public static final field Ger Lcom/eignex/koblas/EngineImplementation;
+	public static final field Iamax Lcom/eignex/koblas/EngineImplementation;
+	public static final field IndexedDot Lcom/eignex/koblas/EngineImplementation;
+	public static final field Nrm2 Lcom/eignex/koblas/EngineImplementation;
+	public static final field Panels Lcom/eignex/koblas/EngineImplementation;
+	public static final field Products Lcom/eignex/koblas/EngineImplementation;
+	public static final field Rot Lcom/eignex/koblas/EngineImplementation;
+	public static final field Scale Lcom/eignex/koblas/EngineImplementation;
+	public static final field Sum Lcom/eignex/koblas/EngineImplementation;
+	public static final field Swap Lcom/eignex/koblas/EngineImplementation;
+	public static final field Symm Lcom/eignex/koblas/EngineImplementation;
+	public static final field Symv Lcom/eignex/koblas/EngineImplementation;
+	public static final field Syr Lcom/eignex/koblas/EngineImplementation;
+	public static final field Syr2 Lcom/eignex/koblas/EngineImplementation;
+	public static final field Syr2k Lcom/eignex/koblas/EngineImplementation;
+	public static final field Syrk Lcom/eignex/koblas/EngineImplementation;
+	public static final field Triangular Lcom/eignex/koblas/EngineImplementation;
+	public static final field Trmm Lcom/eignex/koblas/EngineImplementation;
+	public static final field Trmv Lcom/eignex/koblas/EngineImplementation;
+	public static final field TrmvTransposed Lcom/eignex/koblas/EngineImplementation;
+	public static final field Trsm Lcom/eignex/koblas/EngineImplementation;
+	public static final field Trsv Lcom/eignex/koblas/EngineImplementation;
+	public static final field TrsvTransposed Lcom/eignex/koblas/EngineImplementation;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lcom/eignex/koblas/EngineImplementation;
+	public static fun values ()[Lcom/eignex/koblas/EngineImplementation;
+}
+
+public final class com/eignex/koblas/EngineProfile {
+	public static final field Companion Lcom/eignex/koblas/EngineProfile$Companion;
+	public fun <init> (Ljava/lang/String;Ljava/util/List;Ljava/lang/String;Lcom/eignex/koblas/vendor/HostPlatform;Ljava/lang/String;)V
+	public synthetic fun <init> (Ljava/lang/String;Ljava/util/List;Ljava/lang/String;Lcom/eignex/koblas/vendor/HostPlatform;Ljava/lang/String;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun appliesTo (Ljava/lang/String;Lcom/eignex/koblas/vendor/HostPlatform;)Z
+	public final fun getEvidence ()Ljava/lang/String;
+	public final fun getName ()Ljava/lang/String;
+	public final fun getRules ()Ljava/util/List;
+	public final fun getRuntime ()Ljava/lang/String;
+	public final fun getTarget ()Lcom/eignex/koblas/vendor/HostPlatform;
+}
+
+public final class com/eignex/koblas/EngineProfile$Companion {
+	public final fun parse (Ljava/lang/String;)Lcom/eignex/koblas/EngineProfile;
+}
+
+public final class com/eignex/koblas/EngineRule {
+	public fun <init> (Ljava/lang/String;Ljava/util/Set;IIIIIIJLjava/lang/Boolean;Ljava/lang/Boolean;)V
+	public synthetic fun <init> (Ljava/lang/String;Ljava/util/Set;IIIIIIJLjava/lang/Boolean;Ljava/lang/Boolean;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun getBackend ()Ljava/lang/String;
+	public final fun getBorrowed ()Ljava/lang/Boolean;
+	public final fun getColumns ()I
+	public final fun getContiguous ()Ljava/lang/Boolean;
+	public final fun getDepth ()I
+	public final fun getImplementations ()Ljava/util/Set;
+	public final fun getMaximumColumns ()I
+	public final fun getMaximumDepth ()I
+	public final fun getMaximumRows ()I
+	public final fun getRows ()I
+	public final fun getWork ()J
+}
+
 public final class com/eignex/koblas/Koblas {
 	public static final fun add (Lcom/eignex/koblas/DenseMatrix;Lcom/eignex/koblas/DenseMatrix;)Lcom/eignex/koblas/DenseMatrix;
 	public static final fun add (Lcom/eignex/koblas/DenseVector;Lcom/eignex/koblas/DenseVector;)Lcom/eignex/koblas/DenseVector;
@@ -252,6 +332,7 @@ public final class com/eignex/koblas/KoblasEngine : com/eignex/koblas/dense/Dens
 }
 
 public final class com/eignex/koblas/KoblasEngine$Companion {
+	public final fun combine (Lcom/eignex/koblas/EngineProfile;[Lcom/eignex/koblas/EngineBackend;)Lcom/eignex/koblas/KoblasEngine;
 	public final fun portable ()Lcom/eignex/koblas/KoblasEngine;
 }
 
@@ -351,6 +432,15 @@ public final class com/eignex/koblas/SparseVector$Companion {
 	public final fun of (I[I[D)Lcom/eignex/koblas/SparseVector;
 	public final fun serializer ()Lkotlinx/serialization/KSerializer;
 	public final fun wrap (I[I[D)Lcom/eignex/koblas/SparseVector;
+}
+
+public final class com/eignex/koblas/StandardEngineProfiles {
+	public static final field INSTANCE Lcom/eignex/koblas/StandardEngineProfiles;
+	public final fun forTarget (Ljava/lang/String;Lcom/eignex/koblas/vendor/HostPlatform;)Ljava/util/List;
+	public final fun getJvmLinuxOneMkl ()Lcom/eignex/koblas/EngineProfile;
+	public final fun getJvmSimd ()Lcom/eignex/koblas/EngineProfile;
+	public final fun getNativeLinuxOneMkl ()Lcom/eignex/koblas/EngineProfile;
+	public final fun getPortable ()Lcom/eignex/koblas/EngineProfile;
 }
 
 public final class com/eignex/koblas/StridedVector : com/eignex/koblas/DenseVector {
@@ -476,34 +566,43 @@ public final class com/eignex/koblas/dense/DenseBlas$DefaultImpls {
 }
 
 public abstract interface class com/eignex/koblas/dense/DenseVectorKernels {
-	public abstract fun asum ([DIII)D
+	public fun asum ([DIII)D
 	public static synthetic fun asum$default (Lcom/eignex/koblas/dense/DenseVectorKernels;[DIIIILjava/lang/Object;)D
-	public abstract fun axpy ([DID[DIIII)V
+	public fun axpy ([DID[DIIII)V
 	public static synthetic fun axpy$default (Lcom/eignex/koblas/dense/DenseVectorKernels;[DID[DIIIIILjava/lang/Object;)V
-	public abstract fun dot ([DI[DIIII)D
+	public fun dot ([DI[DIIII)D
 	public static synthetic fun dot$default (Lcom/eignex/koblas/dense/DenseVectorKernels;[DI[DIIIIILjava/lang/Object;)D
 	public abstract fun getName ()Ljava/lang/String;
-	public abstract fun iamax ([DIII)I
+	public fun iamax ([DIII)I
 	public static synthetic fun iamax$default (Lcom/eignex/koblas/dense/DenseVectorKernels;[DIIIILjava/lang/Object;)I
-	public abstract fun nrm2 ([DIII)D
+	public fun nrm2 ([DIII)D
 	public static synthetic fun nrm2$default (Lcom/eignex/koblas/dense/DenseVectorKernels;[DIIIILjava/lang/Object;)D
-	public abstract fun rot ([DI[DIIDD)V
-	public abstract fun scale ([DIDII)V
+	public fun rot ([DI[DIIDD)V
+	public fun scale ([DIDII)V
 	public static synthetic fun scale$default (Lcom/eignex/koblas/dense/DenseVectorKernels;[DIDIIILjava/lang/Object;)V
-	public abstract fun sum ([DIII)D
+	public fun sum ([DIII)D
 	public static synthetic fun sum$default (Lcom/eignex/koblas/dense/DenseVectorKernels;[DIIIILjava/lang/Object;)D
-	public abstract fun swap ([DI[DIIII)V
+	public fun swap ([DI[DIIII)V
 	public static synthetic fun swap$default (Lcom/eignex/koblas/dense/DenseVectorKernels;[DI[DIIIIILjava/lang/Object;)V
 }
 
 public final class com/eignex/koblas/dense/DenseVectorKernels$DefaultImpls {
+	public static fun asum (Lcom/eignex/koblas/dense/DenseVectorKernels;[DIII)D
 	public static synthetic fun asum$default (Lcom/eignex/koblas/dense/DenseVectorKernels;[DIIIILjava/lang/Object;)D
+	public static fun axpy (Lcom/eignex/koblas/dense/DenseVectorKernels;[DID[DIIII)V
 	public static synthetic fun axpy$default (Lcom/eignex/koblas/dense/DenseVectorKernels;[DID[DIIIIILjava/lang/Object;)V
+	public static fun dot (Lcom/eignex/koblas/dense/DenseVectorKernels;[DI[DIIII)D
 	public static synthetic fun dot$default (Lcom/eignex/koblas/dense/DenseVectorKernels;[DI[DIIIIILjava/lang/Object;)D
+	public static fun iamax (Lcom/eignex/koblas/dense/DenseVectorKernels;[DIII)I
 	public static synthetic fun iamax$default (Lcom/eignex/koblas/dense/DenseVectorKernels;[DIIIILjava/lang/Object;)I
+	public static fun nrm2 (Lcom/eignex/koblas/dense/DenseVectorKernels;[DIII)D
 	public static synthetic fun nrm2$default (Lcom/eignex/koblas/dense/DenseVectorKernels;[DIIIILjava/lang/Object;)D
+	public static fun rot (Lcom/eignex/koblas/dense/DenseVectorKernels;[DI[DIIDD)V
+	public static fun scale (Lcom/eignex/koblas/dense/DenseVectorKernels;[DIDII)V
 	public static synthetic fun scale$default (Lcom/eignex/koblas/dense/DenseVectorKernels;[DIDIIILjava/lang/Object;)V
+	public static fun sum (Lcom/eignex/koblas/dense/DenseVectorKernels;[DIII)D
 	public static synthetic fun sum$default (Lcom/eignex/koblas/dense/DenseVectorKernels;[DIIIILjava/lang/Object;)D
+	public static fun swap (Lcom/eignex/koblas/dense/DenseVectorKernels;[DI[DIIII)V
 	public static synthetic fun swap$default (Lcom/eignex/koblas/dense/DenseVectorKernels;[DI[DIIIIILjava/lang/Object;)V
 }
 
