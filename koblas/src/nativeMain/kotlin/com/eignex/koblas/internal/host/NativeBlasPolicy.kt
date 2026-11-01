@@ -7,7 +7,7 @@ import com.eignex.koblas.vendor.*
 
 /** Native array pinning amortizes foreign calls without the JVM binding's operand transfers. */
 internal object NativeBlasPolicy : DenseHostEligibility {
-    // Retained local Native floor; provenance and host limits are in koblas-bench/lab/simplification.md.
+    // The smallest native call worth its foreign-call overhead, measured on one development host.
     private const val MINIMUM_WORK = 1024L
 
     /** Retained i9-12900H oneMKL 2026.1 cutoffs with Kotlin/Native 2.4.10; unmeasured hosts need evidence. */

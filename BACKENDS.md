@@ -62,12 +62,11 @@ SYR2K, TRMM and TRSM. Their output dimensions and shared dimension or structured
 at least 64, or at least 128 for GEMMT and for borrowed views. Whole-matrix GEMM also qualifies with at
 least 16 output rows and columns and a shared dimension of 1,024–4,096. These thresholds are built in.
 
-JVM native calls copy arrays to and from native memory. The retained Intel comparison includes this
-cost and measured oneMKL at 1.45–4.66x JVM SIMD throughput for matrix-matrix cases at orders 128, 256
+JVM native calls copy arrays to and from native memory. An Intel comparison that includes this
+cost measured oneMKL at 1.45–4.66x JVM SIMD throughput for matrix-matrix cases at orders 128, 256
 and 768. For those workloads, installing oneMKL can pay off. For vector and matrix-vector workloads,
-enabling SIMD is enough to reach the default engine's accelerated paths. See the
-[per-function results and limitations](koblas-bench/lab/vendor-comparison.md#retained-onemkl-dispatch-comparison)
-before applying the measurements to another host. Kotlin/Native can pin arrays in place and uses
+enabling SIMD is enough to reach the default engine's accelerated paths. These figures come from Intel
+hosts; measure before relying on them elsewhere. Kotlin/Native can pin arrays in place and uses
 separate native cutoffs.
 
 To allow native calls on JDK 25+, also pass `--enable-native-access=ALL-UNNAMED` on the classpath,
