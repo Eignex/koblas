@@ -95,6 +95,25 @@ class DenseBlasTest {
         checkGemmShape(blas, Random(20260728), m = 3, k = 7, n = 6)
     }
 
+    @Test
+    fun `gemm agrees with the scalar oracle for a single row result in every mode`() = withDenseBlas { blas ->
+        val rng = Random(20261101)
+        checkGemmShape(blas, rng, m = 1, k = 7, n = 6)
+        checkGemmShape(blas, rng, m = 1, k = 1, n = 9)
+    }
+
+    @Test
+    fun `gemm agrees with the scalar oracle for a single column result in every mode`() = withDenseBlas { blas ->
+        val rng = Random(20261102)
+        checkGemmShape(blas, rng, m = 6, k = 7, n = 1)
+        checkGemmShape(blas, rng, m = 9, k = 1, n = 1)
+    }
+
+    @Test
+    fun `gemm agrees with the scalar oracle for a single entry result in every mode`() = withDenseBlas { blas ->
+        checkGemmShape(blas, Random(20261103), m = 1, k = 7, n = 1)
+    }
+
     private fun checkGemmShape(blas: DenseBlas, rng: Random, m: Int, k: Int, n: Int) {
         for (tA in booleanArrayOf(false, true)) {
             for (tB in booleanArrayOf(false, true)) {
