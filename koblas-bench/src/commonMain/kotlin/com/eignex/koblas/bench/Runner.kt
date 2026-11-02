@@ -306,4 +306,5 @@ internal fun printIdentity(implementation: String, harness: String, runtime: Eng
     println("profile_os=${platform.operatingSystem}")
     println("profile_arch=${platform.architecture}")
     println("profile_cpu_model=${platform.cpuModel ?: "*"}")
+    println("profile_cpu_class=${platform.cpuClass ?: "*"}")
 }

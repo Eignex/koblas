@@ -193,7 +193,7 @@ def main():
     rules, precedence = compose(captures)
     hashes = {path: digest for capture in captures.values() for path, digest in capture.hashes.items()}
     digest = hashlib.sha256(json.dumps([target, rules, sorted(hashes.values())], sort_keys=True).encode()).hexdigest()[:12]
-    header = ["koblas-profile-v1", f"{args.runtime}-{'-'.join(candidates)}-{digest}", *target,
+    header = ["koblas-profile-v2", f"{args.runtime}-{'-'.join(candidates)}-{digest}", *target,
               str(results), "see evidence.json for paired measurements and hashes"]
     (args.output / "profile.tsv").write_text("\n".join("\t".join(map(str, row)) for row in [header, *rules]) + "\n")
     (args.output / "evidence.json").write_text(json.dumps(dict(

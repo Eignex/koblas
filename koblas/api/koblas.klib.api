@@ -38,6 +38,19 @@ final enum class com.eignex.koblas.vendor/Architecture : kotlin/Enum<com.eignex.
     final fun values(): kotlin/Array<com.eignex.koblas.vendor/Architecture> // com.eignex.koblas.vendor/Architecture.values|values#static(){}[0]
 }
 
+final enum class com.eignex.koblas.vendor/CpuClass : kotlin/Enum<com.eignex.koblas.vendor/CpuClass> { // com.eignex.koblas.vendor/CpuClass|null[0]
+    enum entry Arm64 // com.eignex.koblas.vendor/CpuClass.Arm64|null[0]
+    enum entry Avx2 // com.eignex.koblas.vendor/CpuClass.Avx2|null[0]
+    enum entry Avx512 // com.eignex.koblas.vendor/CpuClass.Avx512|null[0]
+    enum entry X86_64 // com.eignex.koblas.vendor/CpuClass.X86_64|null[0]
+
+    final val entries // com.eignex.koblas.vendor/CpuClass.entries|#static{}entries[0]
+        final fun <get-entries>(): kotlin.enums/EnumEntries<com.eignex.koblas.vendor/CpuClass> // com.eignex.koblas.vendor/CpuClass.entries.<get-entries>|<get-entries>#static(){}[0]
+
+    final fun valueOf(kotlin/String): com.eignex.koblas.vendor/CpuClass // com.eignex.koblas.vendor/CpuClass.valueOf|valueOf#static(kotlin.String){}[0]
+    final fun values(): kotlin/Array<com.eignex.koblas.vendor/CpuClass> // com.eignex.koblas.vendor/CpuClass.values|values#static(){}[0]
+}
+
 final enum class com.eignex.koblas.vendor/OperatingSystem : kotlin/Enum<com.eignex.koblas.vendor/OperatingSystem> { // com.eignex.koblas.vendor/OperatingSystem|null[0]
     enum entry Linux // com.eignex.koblas.vendor/OperatingSystem.Linux|null[0]
     enum entry MacOs // com.eignex.koblas.vendor/OperatingSystem.MacOs|null[0]
@@ -290,10 +303,12 @@ sealed interface com.eignex.koblas/VectorStorage : com.eignex.koblas/Vector { //
 }
 
 final class com.eignex.koblas.vendor/HostPlatform { // com.eignex.koblas.vendor/HostPlatform|null[0]
-    constructor <init>(com.eignex.koblas.vendor/OperatingSystem, com.eignex.koblas.vendor/Architecture, kotlin/String? = ...) // com.eignex.koblas.vendor/HostPlatform.<init>|<init>(com.eignex.koblas.vendor.OperatingSystem;com.eignex.koblas.vendor.Architecture;kotlin.String?){}[0]
+    constructor <init>(com.eignex.koblas.vendor/OperatingSystem, com.eignex.koblas.vendor/Architecture, kotlin/String? = ..., com.eignex.koblas.vendor/CpuClass? = ...) // com.eignex.koblas.vendor/HostPlatform.<init>|<init>(com.eignex.koblas.vendor.OperatingSystem;com.eignex.koblas.vendor.Architecture;kotlin.String?;com.eignex.koblas.vendor.CpuClass?){}[0]
 
     final val architecture // com.eignex.koblas.vendor/HostPlatform.architecture|{}architecture[0]
         final fun <get-architecture>(): com.eignex.koblas.vendor/Architecture // com.eignex.koblas.vendor/HostPlatform.architecture.<get-architecture>|<get-architecture>(){}[0]
+    final val cpuClass // com.eignex.koblas.vendor/HostPlatform.cpuClass|{}cpuClass[0]
+        final fun <get-cpuClass>(): com.eignex.koblas.vendor/CpuClass? // com.eignex.koblas.vendor/HostPlatform.cpuClass.<get-cpuClass>|<get-cpuClass>(){}[0]
     final val cpuModel // com.eignex.koblas.vendor/HostPlatform.cpuModel|{}cpuModel[0]
         final fun <get-cpuModel>(): kotlin/String? // com.eignex.koblas.vendor/HostPlatform.cpuModel.<get-cpuModel>|<get-cpuModel>(){}[0]
     final val operatingSystem // com.eignex.koblas.vendor/HostPlatform.operatingSystem|{}operatingSystem[0]

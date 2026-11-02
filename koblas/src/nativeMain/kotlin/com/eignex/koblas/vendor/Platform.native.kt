@@ -12,7 +12,7 @@ import platform.posix.fopen
 
 /** Resolved once; none of these facts change while the process runs. */
 private val host: HostPlatform by lazy {
-    HostPlatform(operatingSystem(), architecture(), cpuModel())
+    HostPlatform(operatingSystem(), architecture(), cpuInfo("model name"), cpuClass(architecture(), cpuInfo("flags")))
 }
 
 /** The platform this process is running on, which a Native target largely knows at compile time. */
@@ -32,9 +32,9 @@ private fun architecture(): Architecture = when (Platform.cpuArchitecture) {
     else -> Architecture.Other
 }
 
-/** Reported models let explicitly calibrated profiles restrict their applicability. */
+/** Linux supplies the model and instruction flags used by calibrated profiles. */
 @OptIn(ExperimentalForeignApi::class)
-private fun cpuModel(): String? {
+private fun cpuInfo(key: String): String? {
     if (operatingSystem() != OperatingSystem.Linux) return null
     val file = fopen("/proc/cpuinfo", "r") ?: return null
     try {
@@ -42,7 +42,7 @@ private fun cpuModel(): String? {
             val line = allocArray<kotlinx.cinterop.ByteVar>(LINE_BUFFER)
             while (fgets(line, LINE_BUFFER, file) != null) {
                 val text = line.toKString()
-                if (!text.startsWith("model name")) continue
+                if (!text.startsWith(key)) continue
                 return text.substringAfter(':').trim().takeIf { it.isNotEmpty() }
             }
         }
@@ -52,4 +52,4 @@ private fun cpuModel(): String? {
     return null
 }
 
-private const val LINE_BUFFER = 512
+private const val LINE_BUFFER = 4096

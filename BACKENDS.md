@@ -82,8 +82,10 @@ Use `BuiltinEngines.scalar` to select portable Kotlin explicitly.
 
 `KoblasEngine` is the single contract for portable, SIMD, vendor and combined engines. Implementations
 implement the parts they supply and declare positive `EngineImplementation` sets. The interface contains
-no arithmetic defaults: unsupported parts fail without calling another engine. `PortableEngine` owns the
-portable arithmetic, and vendor providers contain only their foreign calls and binding adaptations. `BuiltinEngines` selects exact portable, SIMD or named vendor engines. Vendor
+no arithmetic defaults: unsupported parts fail without calling another engine. `PortableEngine` supplies
+vector, indexed, panel, product and substitution arithmetic to the shared schedules. Vendor providers
+contain only their foreign calls and binding adaptations. `BuiltinEngines` selects exact portable, SIMD
+or named vendor engines. Vendor
 capabilities follow exported symbols, and the composer binds capabilities to their actual implementations.
 The combined engine explicitly calls a separate portable provider for unselected operations. Shared schedules still own dense
 traversal, CSC traversal, validation and alias staging; packed product geometry is selected before packing.
@@ -95,6 +97,7 @@ val engine = BuiltinEngines.configured(profile)
 
 Profiles contain ordered `EngineRule` preferences: unconditional selection, length/work thresholds, and
 bounded shape/layout regions. For an explicit profile, check `profile.appliesTo(runtime, hostPlatform())`.
+Measured profiles can require a CPU instruction class (`Avx2`, `Avx512` or `Arm64`) independently of an exact model.
 To load a recalculated profile, pass its text to `EngineProfile.parse`; the library performs no file I/O.
 `BuiltinEngines.configured` resolves named libraries and uses exactly the profile's preferences.
 Include owned SIMD rules explicitly when wanted. Missing optional libraries fall through; unknown source identifiers are rejected. Use
@@ -132,8 +135,9 @@ Capability metadata filters unsupported operations.
 The emitted profile uses the library's runtime CPU identity from capture metadata, so it matches startup
 applicability checks. Runtime, OS and architecture come from the measured arms; `--os` and `--arch` can
 require particular values. Mixed models require an explicit `--cpu '*'` and remain separate evidence
-strata. If the runtime cannot detect the model, explicitly use `--cpu '*'` for an OS and
-architecture profile; hardware display names remain in the capture as evidence.
+strata. Model-independent profiles require a single verified instruction class, taken from runtime metadata,
+recorded CPU flags or the lab's AVX-512 placement constraint. Unknown or mixed classes cannot produce a
+model-independent profile; hardware display names remain in the capture as evidence.
 JVM vendor fitting compares against the faster paired portable or exact SIMD arm in each round;
 `--baseline jvm-scalar` supports deployments without SIMD.
 

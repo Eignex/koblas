@@ -2,7 +2,6 @@
 
 package com.eignex.koblas
 
-import com.eignex.koblas.dense.*
 import com.eignex.koblas.internal.dense.*
 import com.eignex.koblas.internal.numeric.*
 import com.eignex.koblas.internal.sparse.indexedSquareSum
@@ -12,7 +11,7 @@ import kotlin.math.sqrt
 internal object PortableEngine : KoblasEngine {
     override val name: String = "scalar"
     override val id: String = "portable"
-    override val implementations = EngineImplementation.entries.toSet()
+    override val implementations = EngineImplementation.entries.filterNot { it.matrix }.toSet()
 
     override fun dot(
         a: DoubleArray,
@@ -943,122 +942,4 @@ internal object PortableEngine : KoblasEngine {
             }
         }
     }
-
-    override fun computeGemv(
-        alpha: Double,
-        a: DenseMatrixRegion,
-        transposeA: Boolean,
-        x: DenseVector,
-        beta: Double,
-        y: DenseVector,
-    ): Unit = gemv(alpha, a, x, beta, y, transposeA)
-
-    override fun computeSymv(
-        alpha: Double,
-        a: DenseMatrixRegion,
-        structure: MatrixStructure,
-        x: DenseVector,
-        beta: Double,
-        y: DenseVector,
-    ): Unit = symv(alpha, a, x, beta, y, structure.isLower)
-
-    override fun computeGer(alpha: Double, x: DenseVector, y: DenseVector, a: DenseMatrixRegion): Unit = ger(
-        alpha,
-        x,
-        y,
-        a,
-    )
-
-    override fun computeSyr(alpha: Double, x: DenseVector, a: DenseMatrixRegion, structure: MatrixStructure): Unit =
-        syr(alpha, x, a, structure.isLower)
-
-    override fun computeSyr2(
-        alpha: Double,
-        x: DenseVector,
-        y: DenseVector,
-        a: DenseMatrixRegion,
-        structure: MatrixStructure,
-    ): Unit = syr2(alpha, x, y, a, structure.isLower)
-
-    override fun computeTrsv(
-        a: DenseMatrixRegion,
-        structure: MatrixStructure,
-        transposeA: Boolean,
-        x: DenseVector,
-    ): Unit = trsv(a, x, structure.isLower, transposeA, structure.isUnitDiagonal)
-
-    override fun computeTrmv(
-        a: DenseMatrixRegion,
-        structure: MatrixStructure,
-        transposeA: Boolean,
-        x: DenseVector,
-    ): Unit = trmv(a, x, structure.isLower, transposeA, structure.isUnitDiagonal)
-
-    override fun computeGemm(
-        alpha: Double,
-        a: DenseMatrixRegion,
-        transposeA: Boolean,
-        b: DenseMatrixRegion,
-        transposeB: Boolean,
-        beta: Double,
-        c: DenseMatrixRegion,
-    ): Unit = gemm(alpha, a, transposeA, b, transposeB, beta, c)
-
-    override fun computeSymm(
-        alpha: Double,
-        a: DenseMatrixRegion,
-        structure: MatrixStructure,
-        b: DenseMatrixRegion,
-        beta: Double,
-        c: DenseMatrixRegion,
-        rightSide: Boolean,
-    ): Unit = symm(alpha, a, b, beta, c, structure.isLower, rightSide)
-
-    override fun computeSyrk(
-        alpha: Double,
-        a: DenseMatrixRegion,
-        transposeA: Boolean,
-        beta: Double,
-        c: DenseMatrixRegion,
-        structure: MatrixStructure,
-    ): Unit = syrk(alpha, a, transposeA, beta, c, structure.isLower)
-
-    override fun computeSyr2k(
-        alpha: Double,
-        a: DenseMatrixRegion,
-        b: DenseMatrixRegion,
-        transposeA: Boolean,
-        beta: Double,
-        c: DenseMatrixRegion,
-        structure: MatrixStructure,
-    ): Unit = syr2k(alpha, a, b, transposeA, beta, c, structure.isLower)
-
-    override fun computeTrmm(
-        alpha: Double,
-        a: DenseMatrixRegion,
-        structure: MatrixStructure,
-        transposeA: Boolean,
-        b: DenseMatrixRegion,
-        rightSide: Boolean,
-    ): Unit = trmm(a, b, structure.isLower, transposeA, structure.isUnitDiagonal, rightSide, alpha)
-
-    override fun computeTrsm(
-        alpha: Double,
-        a: DenseMatrixRegion,
-        structure: MatrixStructure,
-        transposeA: Boolean,
-        b: DenseMatrixRegion,
-        rightSide: Boolean,
-    ): Unit = trsm(a, b, structure.isLower, transposeA, structure.isUnitDiagonal, rightSide, alpha)
-
-    override fun computeGemmt(
-        alpha: Double,
-        a: DenseMatrixRegion,
-        transposeA: Boolean,
-        b: DenseMatrixRegion,
-        transposeB: Boolean,
-        beta: Double,
-        c: DenseMatrixRegion,
-        structure: MatrixStructure,
-    ): Unit = gemmt(alpha, a, transposeA, b, transposeB, beta, c, structure.isLower)
 }

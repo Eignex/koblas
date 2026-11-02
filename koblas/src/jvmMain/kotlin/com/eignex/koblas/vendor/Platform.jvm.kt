@@ -4,7 +4,7 @@ import java.io.File
 
 /** Resolved once; none of these facts change while the process runs. */
 private val host: HostPlatform by lazy {
-    HostPlatform(operatingSystem(), architecture(), cpuModel())
+    HostPlatform(operatingSystem(), architecture(), cpuInfo("model name"), cpuClass(architecture(), cpuInfo("flags")))
 }
 
 /** Platform facts read once from JVM properties and Linux CPU metadata where available. */
@@ -27,12 +27,12 @@ private fun architecture(): Architecture = when (System.getProperty("os.arch")) 
     else -> Architecture.Other
 }
 
-/** Reported models let explicitly calibrated profiles restrict their applicability. */
-private fun cpuModel(): String? {
+/** Linux supplies the model and instruction flags used by calibrated profiles. */
+private fun cpuInfo(key: String): String? {
     if (operatingSystem() != OperatingSystem.Linux) return null
     return try {
         File("/proc/cpuinfo").bufferedReader().use { reader ->
-            reader.lineSequence().firstOrNull { it.startsWith("model name") }
+            reader.lineSequence().firstOrNull { it.startsWith(key) }
                 ?.substringAfter(':')?.trim()?.takeIf { it.isNotEmpty() }
         }
     } catch (_: java.io.IOException) {

@@ -61,7 +61,7 @@ public class EngineProfile(
     rules: List<EngineRule>,
     /** Execution binding, or null for either runtime. */
     public val runtime: EngineRuntime? = null,
-    /** Target OS, architecture and optional CPU model, or null for any host. */
+    /** Target OS, architecture and optional CPU model and instruction class, or null for any host. */
     public val target: HostPlatform? = null,
     /** Retained measurement location or a description of the configuration's provenance. */
     public val evidence: String = "explicit configuration",
@@ -76,7 +76,8 @@ public class EngineProfile(
                 target == null || (
                     target.operatingSystem == host.operatingSystem &&
                         target.architecture == host.architecture &&
-                        (target.cpuModel == null || target.cpuModel == host.cpuModel)
+                        (target.cpuModel == null || target.cpuModel == host.cpuModel) &&
+                        (target.cpuClass == null || target.cpuClass == host.cpuClass)
                     )
                 )
 
@@ -91,7 +92,7 @@ public class EngineProfile(
                 .map { it.split('\t') }.toList()
             require(lines.isNotEmpty()) { "Empty profile" }
             val header = lines.first()
-            require(header.size == 8 && header[0] == "koblas-profile-v1") { "Invalid profile header" }
+            require(header.size == 9 && header[0] == "koblas-profile-v2") { "Invalid profile header" }
             fun optional(value: String): String? = value.takeUnless { it == "*" }
             fun flag(value: String): Boolean? = if (value == "*") null else value.toBooleanStrict()
             val rules = lines.drop(1).map { fields ->
@@ -111,16 +112,17 @@ public class EngineProfile(
                 header[1],
                 rules,
                 optional(header[2])?.let { EngineRuntime.valueOf(it.replaceFirstChar(Char::uppercase)) },
-                if (header.subList(3, 6).all { it == "*" }) {
+                if (header.subList(3, 7).all { it == "*" }) {
                     null
                 } else {
                     HostPlatform(
                         OperatingSystem.valueOf(header[3]),
                         Architecture.valueOf(header[4]),
                         optional(header[5]),
+                        optional(header[6])?.let(CpuClass::valueOf),
                     )
                 },
-                header[6] + "; " + header[7],
+                header[7] + "; " + header[8],
             )
         }
     }

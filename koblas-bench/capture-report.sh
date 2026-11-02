@@ -187,7 +187,7 @@ fi
   echo "architecture=$architecture"
   if [[ $platform == Linux ]]; then
     LC_ALL=C lscpu | awk -F: '
-      /^[[:space:]]*(Vendor ID|Model name|CPU family|Model|Stepping|Thread\(s\) per core|Core\(s\) per socket|Socket\(s\)|.*[Cc]ache|NUMA node\(s\)):/ {
+      /^[[:space:]]*(Flags|Vendor ID|Model name|CPU family|Model|Stepping|Thread\(s\) per core|Core\(s\) per socket|Socket\(s\)|.*[Cc]ache|NUMA node\(s\)):/ {
         key=$1; value=$2
         gsub(/^[[:space:]]+|[[:space:]]+$/, "", key)
         gsub(/^[[:space:]]+|[[:space:]]+$/, "", value)

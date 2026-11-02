@@ -727,10 +727,21 @@ public final class com/eignex/koblas/vendor/Architecture : java/lang/Enum {
 	public static fun values ()[Lcom/eignex/koblas/vendor/Architecture;
 }
 
+public final class com/eignex/koblas/vendor/CpuClass : java/lang/Enum {
+	public static final field Arm64 Lcom/eignex/koblas/vendor/CpuClass;
+	public static final field Avx2 Lcom/eignex/koblas/vendor/CpuClass;
+	public static final field Avx512 Lcom/eignex/koblas/vendor/CpuClass;
+	public static final field X86_64 Lcom/eignex/koblas/vendor/CpuClass;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lcom/eignex/koblas/vendor/CpuClass;
+	public static fun values ()[Lcom/eignex/koblas/vendor/CpuClass;
+}
+
 public final class com/eignex/koblas/vendor/HostPlatform {
-	public fun <init> (Lcom/eignex/koblas/vendor/OperatingSystem;Lcom/eignex/koblas/vendor/Architecture;Ljava/lang/String;)V
-	public synthetic fun <init> (Lcom/eignex/koblas/vendor/OperatingSystem;Lcom/eignex/koblas/vendor/Architecture;Ljava/lang/String;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun <init> (Lcom/eignex/koblas/vendor/OperatingSystem;Lcom/eignex/koblas/vendor/Architecture;Ljava/lang/String;Lcom/eignex/koblas/vendor/CpuClass;)V
+	public synthetic fun <init> (Lcom/eignex/koblas/vendor/OperatingSystem;Lcom/eignex/koblas/vendor/Architecture;Ljava/lang/String;Lcom/eignex/koblas/vendor/CpuClass;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public final fun getArchitecture ()Lcom/eignex/koblas/vendor/Architecture;
+	public final fun getCpuClass ()Lcom/eignex/koblas/vendor/CpuClass;
 	public final fun getCpuModel ()Ljava/lang/String;
 	public final fun getOperatingSystem ()Lcom/eignex/koblas/vendor/OperatingSystem;
 	public fun toString ()Ljava/lang/String;

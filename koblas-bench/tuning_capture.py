@@ -84,6 +84,7 @@ class Capture:
     commits: set
     cache_by_cpu: dict
     lab: dict
+    classes: set
 
     def target(self, runtime, operating_system=None, architecture=None, cpu=None):
         if len(self.platforms) != 1:
@@ -94,13 +95,18 @@ class Capture:
             raise ValueError(f"requested target {requested} differs from measured target {measured}")
         if cpu != "*" and (len(self.models) != 1 or "*" in self.models or cpu is not None and cpu not in self.models):
             raise ValueError("CPU model is mixed, unknown or mismatched; select one model or explicitly use --cpu '*'")
-        return (*measured, cpu or next(iter(self.models)))
+        if len(self.classes) != 1:
+            raise ValueError("CPU instruction classes differ; fit each target separately")
+        cpu_class = next(iter(self.classes))
+        if cpu == "*" and cpu_class == "*":
+            raise ValueError("a model-independent profile requires a verified CPU instruction class")
+        return (*measured, cpu or next(iter(self.models)), cpu_class)
 
 
 def measurements(directory, baseline, candidate, backend=None, strict=False, arm=None, owned_target="jvm-simd"):
     targets = ["jvm-scalar", owned_target, candidate] if baseline == "jvm-owned" else [baseline, candidate]
     groups, lab = capture_groups(directory, arm, targets)
-    result = Capture({}, {}, {}, {}, {}, set(), set(), set(), {}, lab)
+    result = Capture({}, {}, {}, {}, {}, set(), set(), set(), {}, lab, set())
     for passes in groups:
         if len(passes) < 3:
             raise ValueError("at least three paired capture rounds are required in each accepted row")
@@ -134,6 +140,17 @@ def measurements(directory, baseline, candidate, backend=None, strict=False, arm
                    for key in ("profile_runtime", "profile_os", "profile_arch", "profile_cpu_model")):
                 raise ValueError("paired arms report different runtime platform identities")
             hardware = metadata.get("hardware", {})
+            flags = set(hardware.get("flags", "").split())
+            required = lab.get("resources", {}).get("lab-job.json", {}).get("experiment", {}).get("nodeTags") or {}
+            declared = {identity.get("profile_cpu_class", "*") for identity in identities}
+            if len(declared) != 1:
+                raise ValueError("paired arms report different CPU instruction classes")
+            instruction_class = next(iter(declared))
+            if instruction_class == "*":
+                instruction_class = ("Arm64" if platform[2] == "Arm64" else
+                                     "Avx512" if "avx512f" in flags or "simd:avx512" in required.get("require", []) else
+                                     "Avx2" if "avx2" in flags else "X86_64" if flags else "*")
+            result.classes.add(instruction_class)
             model = hardware.get("model name", hardware.get("cpu_model", identities[0]["profile_cpu_model"]))
             if model == "*":
                 raise ValueError("missing CPU model for measurement stratification")

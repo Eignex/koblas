@@ -1,6 +1,7 @@
 package com.eignex.koblas
 
 import com.eignex.koblas.dense.ReferenceBlas
+import com.eignex.koblas.vendor.*
 import kotlin.test.*
 
 class EngineProfileTest {
@@ -196,13 +197,14 @@ class EngineProfileTest {
 
     @Test
     fun `generated profile parsing preserves bounded routing preferences`() {
-        val text = "koblas-profile-v1\ttest\tnative\tLinux\tX86_64\tmeasured cpu\tcapture\tevidence\n" +
+        val text = "koblas-profile-v2\ttest\tnative\tLinux\tX86_64\tmeasured cpu\tAvx512\tcapture\tevidence\n" +
             "portable\tDot\t4\t8\t0\t2147483647\t0\t2147483647\t0\ttrue\t*\n"
         val profile = EngineProfile.parse(text)
         val rule = profile.rules.single()
 
         assertEquals(EngineRuntime.Native, profile.runtime)
         assertEquals("measured cpu", profile.target?.cpuModel)
+        assertEquals(CpuClass.Avx512, profile.target?.cpuClass)
         assertTrue(rule.matches(4, 1, 1, true, false))
         assertTrue(rule.matches(8, 1, 1, true, false))
         assertFalse(rule.matches(3, 1, 1, true, false))
@@ -210,12 +212,36 @@ class EngineProfileTest {
         assertFalse(rule.matches(4, 1, 1, false, false))
         for ((before, after) in listOf(
             "\tnative\t" to "\tunknown\t",
+            "Avx512" to "Unknown",
+            "koblas-profile-v2" to "koblas-profile-v1",
             "portable\tDot" to "portable\tUnknown",
             "\t4\t8\t" to "\t8\t4\t",
             "\t4\t8\t" to "\t-1\t8\t",
         )) {
             assertFailsWith<IllegalArgumentException> { EngineProfile.parse(text.replace(before, after)) }
         }
+    }
+
+    @Test
+    fun `profiles require their measured instruction class`() {
+        val profile = EngineProfile(
+            "measured",
+            emptyList(),
+            EngineRuntime.Native,
+            HostPlatform(OperatingSystem.Linux, Architecture.X86_64, cpuClass = CpuClass.Avx512),
+        )
+
+        for (actual in listOf(null, CpuClass.X86_64, CpuClass.Avx2, CpuClass.Avx512)) {
+            val host = HostPlatform(OperatingSystem.Linux, Architecture.X86_64, cpuClass = actual)
+
+            assertEquals(actual == CpuClass.Avx512, profile.appliesTo(EngineRuntime.Native, host))
+            assertFalse(profile.appliesTo(EngineRuntime.Jvm, host))
+        }
+        assertEquals(CpuClass.Avx512, cpuClass(Architecture.X86_64, "sse2 avx2 avx512f"))
+        assertEquals(CpuClass.Avx2, cpuClass(Architecture.X86_64, "sse2 avx2"))
+        assertEquals(CpuClass.X86_64, cpuClass(Architecture.X86_64, "sse2"))
+        assertEquals(CpuClass.Arm64, cpuClass(Architecture.Arm64, null))
+        assertNull(cpuClass(Architecture.X86_64, null))
     }
 
     @Test

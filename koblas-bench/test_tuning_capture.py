@@ -12,7 +12,7 @@ def rounds(root, model="measured CPU", runtime="native"):
         path.mkdir(parents=True)
         metadata = ("status=complete\n[capture]\nrequested_samples=5\ntarget_ns=200000000\n"
                     "warmups=20\nrequested_jvm_forks=2\ndirty=false\nsource_commit=" + "a" * 40 + "\n")
-        metadata += f"[hardware]\nmodel name={model}\n"
+        metadata += f"[hardware]\nmodel name={model}\nflags=avx2\n"
         for name, timing in (("native", base), ("onemkl", candidate)):
             metadata += (f"[{name}]\nprofile_runtime={runtime}\nprofile_os=Linux\nprofile_arch=X86_64\n"
                          f"profile_cpu_model={model}\nimplementation={name}/caps[{'portable' if name == 'native' else name}:Dot]\n")
@@ -43,7 +43,7 @@ class TuningCaptureTest(unittest.TestCase):
             self.assertEqual([0.5] * 3, capture.paired["dot+32+uniform"])
             self.assertEqual(9, len(capture.hashes))
             self.assertEqual(("Dot", 32, 1, 1, False, 1, True), capture.shapes["dot+32+uniform"])
-            self.assertEqual(("native", "Linux", "X86_64", "measured CPU"), capture.target("native"))
+            self.assertEqual(("native", "Linux", "X86_64", "measured CPU", "Avx2"), capture.target("native"))
             for target in (("jvm",), ("native", "MacOs"), ("native", "Linux", "Arm64"),
                            ("native", "Linux", "X86_64", "another CPU")):
                 with self.assertRaises(ValueError):
@@ -58,7 +58,31 @@ class TuningCaptureTest(unittest.TestCase):
             capture = measurements(root, "native", "onemkl")
             with self.assertRaises(ValueError):
                 capture.target("native")
-            self.assertEqual("*", capture.target("native", cpu="*")[-1])
+            self.assertEqual("*", capture.target("native", cpu="*")[3])
+
+    def test_model_independent_profiles_require_a_single_verified_instruction_class(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            rounds(root)
+            path = root / "pass-1/metadata.txt"
+            path.write_text(path.read_text().replace("flags=avx2", "flags=avx2 avx512f"))
+            with self.assertRaises(ValueError):
+                measurements(root, "native", "onemkl").target("native", cpu="*")
+            for path in root.glob("*/metadata.txt"):
+                path.write_text("\n".join("flags=" if line.startswith("flags=") else line for line in path.read_text().splitlines()) + "\n")
+            with self.assertRaises(ValueError):
+                measurements(root, "native", "onemkl").target("native", cpu="*")
+
+    def test_frozen_lab_placement_can_establish_the_instruction_class(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            lab_index(root, [lab_row(0, "candidate")])
+            rounds(root / "cases/0/out/report")
+            for path in root.glob("cases/0/out/report/pass-*/metadata.txt"):
+                path.write_text(path.read_text().replace("flags=avx2", "flags="))
+            (root / "lab-job.json").write_text(json.dumps(dict(status="DONE", experiment=dict(nodeTags=dict(require=["simd:avx512"])))))
+
+            self.assertEqual("Avx512", measurements(root, "native", "onemkl").target("native", cpu="*")[-1])
 
     def test_rejects_missing_runtime_identity_and_smoke(self):
         for previous, replacement in (("profile_cpu_model=measured CPU", "cpu_model=hardware only"),
@@ -124,7 +148,7 @@ class TuningCaptureTest(unittest.TestCase):
             self.assertEqual({"CPU A": [0.5] * 3, "CPU B": [0.5] * 3}, capture.by_cpu["dot+32+uniform"])
             with self.assertRaises(ValueError):
                 capture.target("native")
-            self.assertEqual("*", capture.target("native", cpu="*")[-1])
+            self.assertEqual("*", capture.target("native", cpu="*")[3])
 
     def test_vendor_competes_with_the_faster_owned_arm_in_each_round(self):
         with tempfile.TemporaryDirectory() as directory:

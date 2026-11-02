@@ -172,6 +172,29 @@ public enum class Architecture {
     Other,
 }
 
+/** SIMD instruction classes distinguished by measured profiles. */
+public enum class CpuClass {
+    /** x86-64 without a reported AVX2 extension. */
+    X86_64,
+
+    /** x86-64 with AVX2. */
+    Avx2,
+
+    /** x86-64 with AVX-512 foundation instructions. */
+    Avx512,
+
+    /** 64-bit Arm with its platform SIMD. */
+    Arm64,
+}
+
+internal fun cpuClass(architecture: Architecture, flags: String?): CpuClass? = when {
+    architecture == Architecture.Arm64 -> CpuClass.Arm64
+    architecture != Architecture.X86_64 || flags.isNullOrBlank() -> null
+    "avx512f" in flags.split(' ') -> CpuClass.Avx512
+    "avx2" in flags.split(' ') -> CpuClass.Avx2
+    else -> CpuClass.X86_64
+}
+
 /**
  * The host facts measured profiles match. Resolved once per process; none of these change while it runs.
  */
@@ -182,6 +205,8 @@ public class HostPlatform(
     public val architecture: Architecture,
     /** The reported CPU model, or null when it could not be identified. */
     public val cpuModel: String? = null,
+    /** Reported SIMD instruction class, or null when it cannot be established. */
+    public val cpuClass: CpuClass? = null,
 ) {
     override fun toString(): String = "$operatingSystem/$architecture/${cpuModel ?: "unknown"}"
 }
