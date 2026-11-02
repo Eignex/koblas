@@ -3,19 +3,14 @@
 import argparse
 import hashlib
 import json
+import math
 import os
 import statistics
 import subprocess
-import sys
 from pathlib import Path
 from tuning_capture import measurements
 
 MAX = 2**31 - 1
-
-
-def forced_simd():
-    return [["jvm-simd", "Dot,Sum,Nrm2,Iamax,Asum,Axpy,IndexedDot", 0, MAX, 0, MAX, 0, MAX, 0, "*", "*"],
-            ["jvm-simd", "Panels,Products,Triangular", 0, MAX, 0, MAX, 0, MAX, 0, "*", "*"]]
 
 
 def fit(paired, backend, shapes, by_cpu=None, cache_bytes=None):
@@ -64,8 +59,39 @@ def fit(paired, backend, shapes, by_cpu=None, cache_bytes=None):
                                       min(band), max(band), 0, "*", str(borrowed).lower()])
                         band = []
     if backend == "jvm-simd":
-        rules.append(forced_simd()[-1])
+        rules.append([backend, "Panels,Products,Triangular", 0, MAX, 0, MAX, 0, MAX, 0, "*", "*"])
     return rules
+
+
+def compose(captures):
+    fitted = {}
+    for source, capture in captures.items():
+        caches = list(capture.cache_by_cpu.values())
+        fitted[source] = fit(capture.paired, source, capture.shapes, capture.by_cpu,
+                             max(caches) if caches and all(caches) else None)
+    rules, precedence = [], {}
+    vendors = {source: rows for source, rows in fitted.items() if source != "jvm-simd"}
+    for operation in sorted({rule[1] for rows in vendors.values() for rule in rows}):
+        sources = [source for source, rows in vendors.items() if any(rule[1] == operation for rule in rows)]
+        common = set.intersection(*({case for case in captures[source].paired
+                                    if captures[source].shapes[case] and captures[source].shapes[case][0] == operation} for source in sources))
+        costs = {}
+        for source in sources:
+            by_model = {}
+            for case in sorted(common):
+                models = set.intersection(*(set(captures[other].by_cpu[case]) for other in sources))
+                for model in sorted(models):
+                    lengths = {len(captures[other].by_cpu[case][model]) for other in sources}
+                    if len(lengths) != 1:
+                        raise ValueError("vendor precedence needs the same paired rounds")
+                    by_model.setdefault(model, []).append(math.log(statistics.median(captures[source].by_cpu[case][model])))
+            if not by_model:
+                raise ValueError(f"no paired vendor precedence evidence for {operation}")
+            costs[source] = math.exp(statistics.mean(statistics.mean(values) for values in by_model.values()))
+        ordered = sorted(sources, key=lambda source: (costs[source], source))
+        precedence[operation] = dict(sources=ordered, relative_cost=costs, cases=sorted(common))
+        rules.extend(rule for source in ordered for rule in fitted[source] if rule[1] == operation)
+    return rules + fitted.get("jvm-simd", []), precedence
 
 
 def training_cases():
@@ -95,12 +121,13 @@ def training_cases():
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--runtime", choices=("native", "jvm"))
-    parser.add_argument("--backend", choices=("onemkl", "openblas", "aocl", "armpl", "accelerate", "jvm-simd"))
+    parser.add_argument("--backend", action="append", choices=("onemkl", "openblas", "aocl", "armpl", "accelerate", "jvm-simd"),
+                        help="repeat to fit a complete composition with measured vendor precedence")
     parser.add_argument("--output", type=Path)
     parser.add_argument("--write-cases", type=Path, help="write the shared training and holdout grids without measuring")
-    parser.add_argument("--candidate", help="capture target for an explicitly configured combined engine")
-    parser.add_argument("--baseline", choices=("native", "jvm-scalar", "jvm-simd", "jvm-default", "jvm-owned"),
-                        help="jvm-owned uses the faster paired portable or forced SIMD timing per case and round")
+    parser.add_argument("--candidate", help="capture target for one explicitly configured candidate")
+    parser.add_argument("--baseline", choices=("native", "jvm-scalar", "jvm-simd", "jvm-owned"))
+    parser.add_argument("--simd-target", default="jvm-simd", help="owned SIMD capture target; JVM profiles include its fitted rules")
     parser.add_argument("--results", type=Path, help="local capture or fetched lab job")
     parser.add_argument("--lab-arm", help="SDK arm in a multi-arm fetched job")
     parser.add_argument("--capture", action="store_true")
@@ -109,73 +136,72 @@ def main():
     parser.add_argument("--native-executable", type=Path)
     parser.add_argument("--os", help="require the measured operating system")
     parser.add_argument("--arch", help="require the measured architecture")
-    parser.add_argument("--cpu", help="explicit target model; defaults to the runtime CPU identity; use * explicitly for platform wide profiles")
+    parser.add_argument("--cpu", help="runtime CPU model; use * explicitly for platform wide profiles")
     args = parser.parse_args()
     if args.write_cases:
         args.write_cases.mkdir(parents=True, exist_ok=True)
-        (args.write_cases / "training.txt").write_text("\n".join(training_cases()) + "\n")
+        training = training_cases()
+        (args.write_cases / "training.txt").write_text("\n".join(training) + "\n")
         (args.write_cases / "holdout.txt").write_text(Path(__file__).with_name("cases-addressed.txt").read_text())
-        header = ["koblas-profile-v1", "forced-simd", "jvm", "*", "*", "*", "declared contributions", "calibration only"]
-        (args.write_cases / "forced-simd.tsv").write_text("\n".join("\t".join(map(str, row))
-            for row in [header, *forced_simd()]) + "\n")
+        timing = {"dot+64+uniform", "dot+1000000+uniform", "copy+1000000+uniform+stride=2",
+                  "axpy+64+uniform+stride=-2", "gemm+128x128x128+uniform", "gemm+16x16x2048+uniform",
+                  "trsm+128x128+triangular+side=L+uplo=L+transA=N+diag=N"}
+        (args.write_cases / "native-timing.txt").write_text("\n".join(case for case in training if case in timing) + "\n")
         return
     if args.runtime is None or args.backend is None or args.output is None:
         parser.error("--runtime, --backend and --output are required for tuning")
     if args.capture == bool(args.results):
         parser.error("choose --capture or --results")
-    if args.capture and args.baseline == "jvm-owned":
-        parser.error("jvm-owned requires --results from paired portable and explicitly forced SIMD arms")
-    if args.backend == "jvm-simd" and args.runtime != "jvm":
+    if args.capture and args.simd_target != "jvm-simd":
+        parser.error("local capture uses the exact jvm-simd arm")
+    if "jvm-simd" in args.backend and args.runtime != "jvm":
         parser.error("jvm-simd requires --runtime jvm")
-    baseline = args.baseline or ("native" if args.runtime == "native" else
-                                 "jvm-scalar" if args.backend == "jvm-simd" else "jvm-simd")
+    sources = list(dict.fromkeys(args.backend))
+    if args.candidate and len(sources) != 1:
+        parser.error("--candidate names one backend; omit it to fit multiple exact arms")
+    baseline = args.baseline or ("native" if args.runtime == "native" else "jvm-owned")
     if baseline.startswith("jvm") != (args.runtime == "jvm"):
         parser.error("baseline must use the selected runtime")
-    candidate = args.candidate or args.backend + ("-jvm" if args.runtime == "jvm" and args.backend != "jvm-simd" else "")
+    candidates = {source: args.candidate or source + ("-jvm" if args.runtime == "jvm" else "")
+                  for source in sources if source != "jvm-simd"}
+    if args.runtime == "jvm":
+        candidates["jvm-simd"] = args.candidate if sources == ["jvm-simd"] and args.candidate else args.simd_target
     args.output.mkdir(parents=True, exist_ok=False)
     if args.cases is None:
         args.cases = args.output / "training-cases.txt"
-        cases = training_cases()
-        args.cases.write_text("\n".join(cases) + "\n")
+        args.cases.write_text("\n".join(training_cases()) + "\n")
     results = args.results or args.output / "capture"
-    header = ["koblas-profile-v1", f"{args.runtime}-{args.backend}-recalculated-v1", args.runtime,
-              "*", "*", "*", str(results), "see evidence.json for paired measurements and hashes"]
-    def write_profile(path, preferences):
-        path.write_text("\n".join("\t".join(map(str, row)) for row in [header, *preferences]) + "\n")
-    capture_env = dict(os.environ)
-    if args.capture and args.backend == "jvm-simd" and args.candidate is None:
-        candidate = "jvm-default"
-        force_path = args.output / "force.tsv"
-        write_profile(force_path, forced_simd())
-        capture_env["KOBLAS_BENCH_ENGINE_PROFILE"] = str(force_path.resolve())
+    targets = list(dict.fromkeys((["native"] if args.runtime == "native" else ["jvm-scalar", args.simd_target]) + list(candidates.values())))
     if args.capture:
-        command = ["bash", "koblas-bench/capture-report.sh", "--targets", f"{baseline},{candidate}",
+        command = ["bash", "koblas-bench/capture-report.sh", "--targets", ",".join(targets),
                    "--cases", str(args.cases), "--rounds", "3", "--samples", "5", "--warmups", "20",
                    "--target-ms", "200", "--forks", "2", "--output", str(results)]
-        if sys.platform == "linux":
-            cpu = subprocess.check_output(["sh", "koblas-bench/select-cpu.sh"], text=True).strip()
-            command += ["--cpu", cpu]
-        if args.backend != "jvm-simd":
-            command += ["--libraries", args.backend]
+        vendors = [source for source in sources if source != "jvm-simd"]
+        if vendors:
+            command += ["--libraries", ",".join(vendors)]
         if args.native_executable:
             command += ["--native-executable", str(args.native_executable)]
-        subprocess.run(command, check=True, env=capture_env)
-    capture = measurements(results, baseline, candidate, args.backend, arm=args.lab_arm)
-    if not capture.paired:
-        raise ValueError("no complete paired measurements")
-    header[2:6] = capture.target(args.runtime, args.os, args.arch, args.cpu)
-    caches = list(capture.cache_by_cpu.values())
-    rules = fit(capture.paired, args.backend, capture.shapes, capture.by_cpu,
-                max(caches) if caches and all(caches) else None)
-    digest = hashlib.sha256(json.dumps([header[2:6], rules, sorted(capture.hashes.values())], sort_keys=True).encode()).hexdigest()[:12]
-    header[1] = f"{args.runtime}-{args.backend}-{digest}"
-    write_profile(args.output / "profile.tsv", rules)
+        subprocess.run(command, check=True)
+    captures = {source: measurements(results, "jvm-scalar" if source == "jvm-simd" else baseline,
+                                    candidate, source, arm=args.lab_arm, owned_target=args.simd_target)
+                for source, candidate in candidates.items()}
+    if any(not capture.paired for capture in captures.values()):
+        raise ValueError("no complete paired measurements for a requested backend")
+    target = next(iter(captures.values())).target(args.runtime, args.os, args.arch, args.cpu)
+    if any(capture.target(args.runtime, args.os, args.arch, args.cpu) != target for capture in captures.values()):
+        raise ValueError("composition sources were measured on different targets")
+    rules, precedence = compose(captures)
+    hashes = {path: digest for capture in captures.values() for path, digest in capture.hashes.items()}
+    digest = hashlib.sha256(json.dumps([target, rules, sorted(hashes.values())], sort_keys=True).encode()).hexdigest()[:12]
+    header = ["koblas-profile-v1", f"{args.runtime}-{'-'.join(candidates)}-{digest}", *target,
+              str(results), "see evidence.json for paired measurements and hashes"]
+    (args.output / "profile.tsv").write_text("\n".join("\t".join(map(str, row)) for row in [header, *rules]) + "\n")
     (args.output / "evidence.json").write_text(json.dumps(dict(
-        baseline=baseline, candidate=candidate, source_hashes=capture.hashes,
-        source_commits=sorted(capture.commits), target=header[2:6],
-        last_level_cache_bytes=capture.cache_by_cpu,
-        paired_ratios=capture.paired, ratios_by_cpu=capture.by_cpu, lab=capture.lab,
-        selected_providers=capture.providers, initial_rules=rules, criterion="median <= 0.95 and every round <= 1.02",
+        baseline=baseline, candidates=candidates, source_hashes=hashes, target=target, vendor_precedence=precedence,
+        sources={source: dict(paired_ratios=capture.paired, ratios_by_cpu=capture.by_cpu, lab=capture.lab,
+                             source_commits=sorted(capture.commits), last_level_cache_bytes=capture.cache_by_cpu,
+                             selected_providers=capture.providers) for source, capture in captures.items()},
+        rules=rules, criterion="every variant and CPU: median <= 0.95 and every round <= 1.02",
         bounded_vector_rules=[dict(operation=rule[1], last_measured_length=rule[3],
                                    reason="No verified beyond-cache tail; routing remains bounded")
                               for rule in rules if rule[9] != "*" and rule[3] < MAX],
@@ -189,22 +215,22 @@ def main():
             raise ValueError("validation requires cases disjoint from training")
         validation_cases.write_text("\n".join(holdout) + "\n")
         validation = args.output / "validation"
-        command[command.index("--targets") + 1] = f"{baseline},{args.runtime}-default"
+        reference = ["jvm-scalar", args.simd_target] if baseline == "jvm-owned" else [baseline]
+        command[command.index("--targets") + 1] = ",".join([*reference, f"{args.runtime}-default"])
         command[command.index("--cases") + 1] = str(validation_cases)
         command[command.index("--output") + 1] = str(validation)
         subprocess.run(command, check=True, env=dict(os.environ,
                        KOBLAS_BENCH_ENGINE_PROFILE=str((args.output / "profile.tsv").resolve())))
-        checked = measurements(validation, baseline, f"{args.runtime}-default", strict=True)
-        ratios, hashes, reached = checked.paired, checked.hashes, checked.providers
-        if any(rule[1] != "Panels,Products,Triangular" for rule in rules) and not any(args.backend in models.values() for models in reached.values()):
-            raise ValueError("holdout did not reach any fitted provider; add cases covering the selected regions")
-        regressions = {case: values for case, values in ratios.items()
-                       if statistics.median(values) > 1.05 and min(values) > 1.02}
+        checked = measurements(validation, baseline, f"{args.runtime}-default", strict=True, owned_target=args.simd_target)
+        reached = {provider for models in checked.providers.values() for provider in models.values()}
+        fitted_sources = {rule[0] for rule in rules if rule[1] != "Panels,Products,Triangular"}
+        if not fitted_sources.issubset(reached):
+            raise ValueError(f"holdout did not reach fitted providers {sorted(fitted_sources - reached)}")
+        regressions = {case: models for case, models in checked.by_cpu.items()
+                       if any(statistics.median(values) > 1.05 and min(values) > 1.02 for values in models.values())}
         (args.output / "validation.json").write_text(json.dumps(dict(
-            paired_ratios=ratios, source_hashes=hashes, selected_providers=reached,
-            selected_regressions={case: values for case, values in regressions.items() if args.backend in reached[case].values()},
-            control_regressions={case: values for case, values in regressions.items() if args.backend not in reached[case].values()}),
-            indent=2) + "\n")
+            paired_ratios=checked.paired, ratios_by_cpu=checked.by_cpu, source_hashes=checked.hashes,
+            selected_providers=checked.providers, regressions=regressions), indent=2) + "\n")
         if regressions:
             raise ValueError("combined profile or control regression; inspect retained validation.json")
     print(f"Wrote {len(rules)} rules to {args.output / 'profile.tsv'}; retained evidence is available beside the profile.")

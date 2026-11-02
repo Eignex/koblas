@@ -69,12 +69,18 @@ class StandardEngineProfilesTest {
     }
 
     @Test
-    fun `an absent host provider retains the supplied owned engine`() {
-        val owned = provider("owned", setOf(Sum))
+    fun `profiles use only their explicit owned preferences`() {
+        val owned = provider("jvm-simd", setOf(Sum))
+        for (rules in listOf(emptyList(), listOf(EngineRule("jvm-simd", setOf(Sum), rows = 32..64)))) {
+            val engine = configuredEngine(EngineProfile("explicit", rules), owned) { error("Unexpected vendor open") }
 
-        val engine = configuredEngine(EngineProfile("portable", emptyList()), owned) { error("Unexpected vendor open") }
-
-        assertSame(owned, engine)
+            for (length in listOf(16, 32, 64, 128)) {
+                assertEquals(
+                    if (rules.isNotEmpty() && length in 32..64) owned.name else PortableEngine.name,
+                    engine.implementationFor(Sum, length),
+                )
+            }
+        }
     }
 
     @Test
@@ -86,7 +92,7 @@ class StandardEngineProfilesTest {
         }
         val profile = EngineProfile("optional", listOf(EngineRule("onemkl", setOf(Dot))))
 
-        assertSame(BuiltinEngines.scalar, configuredEngine(profile, owned = null) { null })
+        assertEquals(PortableEngine.name, configuredEngine(profile, owned = null) { null }.implementationFor(Dot, 32))
     }
 
     private fun provider(id: String, operations: Set<EngineImplementation>): KoblasEngine = object : KoblasEngine {

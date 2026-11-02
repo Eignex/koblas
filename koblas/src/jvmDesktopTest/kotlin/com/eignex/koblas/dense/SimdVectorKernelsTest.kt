@@ -117,16 +117,14 @@ class SimdVectorKernelsTest {
     }
 
     @Test
-    fun `the index search waits for its own measured width`() {
+    fun `the standard index search observes its configured crossover`() {
         if (!simdAvailable) return skipped()
+        val profile = requireNotNull(StandardEngineProfiles.jvmSimd)
+        val tuned = BuiltinEngines.configured(profile)
+        val minimum = profile.rules.first { EngineImplementation.Iamax in it.implementations }.rows.first
 
-        // Below its crossover the vectorised search is inside the noise and loses at one width; see the
-        // constant's own documentation for the measurement.
-        assertEquals(PortableEngine.name, reached(EngineImplementation.Iamax, 128))
-        assertEquals(
-            simdContributions.first().name,
-            reached(EngineImplementation.Iamax, WIDE),
-        )
+        assertEquals(PortableEngine.name, tuned.implementationFor(EngineImplementation.Iamax, minimum - 1))
+        assertEquals(simdContributions.first().name, tuned.implementationFor(EngineImplementation.Iamax, minimum))
     }
 
     @Test

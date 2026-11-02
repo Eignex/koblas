@@ -17,6 +17,17 @@ class PlatformEngineTest {
         assertEquals(null, BuiltinEngines.simd?.vendor)
     }
 
+    @Test
+    fun `exact SIMD uses supplied kernels from their intrinsic minimum length`() {
+        val simd = BuiltinEngines.simd ?: return
+        val leaf = simd.providers.first { it.id == "jvm-simd" && EngineImplementation.Iamax in it.implementations }
+
+        assertEquals(
+            leaf.name,
+            simd.implementationFor(EngineImplementation.Iamax, leaf.minimumLength(EngineImplementation.Iamax)),
+        )
+    }
+
     // Without the Vector API the owned matrix backends are portable; Kotlin/Native can still compose whole
     // host calls over them, which is checked separately.
     @Test

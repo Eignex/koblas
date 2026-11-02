@@ -97,8 +97,8 @@ class Capture:
         return (*measured, cpu or next(iter(self.models)))
 
 
-def measurements(directory, baseline, candidate, backend=None, strict=False, arm=None):
-    targets = ["jvm-scalar", "jvm-default", candidate] if baseline == "jvm-owned" else [baseline, candidate]
+def measurements(directory, baseline, candidate, backend=None, strict=False, arm=None, owned_target="jvm-simd"):
+    targets = ["jvm-scalar", owned_target, candidate] if baseline == "jvm-owned" else [baseline, candidate]
     groups, lab = capture_groups(directory, arm, targets)
     result = Capture({}, {}, {}, {}, {}, set(), set(), set(), {}, lab)
     for passes in groups:

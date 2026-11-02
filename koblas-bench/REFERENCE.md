@@ -101,10 +101,15 @@ See [LabAdapter.kt](src/jvmMain/kotlin/com/eignex/koblas/bench/LabAdapter.kt) fo
 
 The [calibration manifest](lab/calibration.json) prepares the same generated grids as local tuning under
 `koblas-bench/build/calibration/`. Set `cases` to `training.txt` or `holdout.txt` under that directory.
-`forced-simd.tsv` is an explicit profile for measuring every supplied owned SIMD contribution; use it
-with the `jvm-default` arm. Generation requires Python 3 (`KOBLAS_PYTHON` can name its executable).
+Use [the macOS manifest](lab/calibration-macos.json) for Accelerate so preparation builds on a compatible
+Mac. Native executables are frozen inputs built once during preparation; measured rows never invoke Gradle.
+Each workload has its own paired case, uses the lab's normal CPU accounting and 2 GiB, and runs without
+CPU affinity pinning. Placement chooses compatible hardware automatically. `native-timing.txt` is a small
+subset for comparing timing protocols before changing measurement settings.
+The exact `jvm-simd` arm measures every supplied owned contribution from its intrinsic minimum length.
+Generation requires Python 3 (`KOBLAS_PYTHON` can name its executable).
 OneMKL comparisons may also include OpenBLAS arms, keeping vendor-precedence measurements in the same
-worker attempt. Generated grids and profiles are declared inputs; they are not checked into source control.
+worker attempt. Generated grids are declared inputs; they are not checked into source control.
 
 ### Score lab comparisons
 

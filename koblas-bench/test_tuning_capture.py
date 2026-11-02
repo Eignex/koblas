@@ -143,7 +143,7 @@ class TuningCaptureTest(unittest.TestCase):
                 identity = text[text.index("[native]"):text.index("[onemkl]")]
                 metadata.write_text(text + identity.replace("[native]", "[jvm-scalar]") +
                                     identity.replace("[native]", "[jvm-default]"))
-            capture = measurements(root, "jvm-owned", "onemkl")
+            capture = measurements(root, "jvm-owned", "onemkl", owned_target="jvm-default")
             self.assertEqual([0.5, 2.0, 0.5], capture.paired["dot+32+uniform"])
 
     def test_capture_rounds_cannot_mix_source_revisions(self):

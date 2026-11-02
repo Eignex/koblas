@@ -96,8 +96,8 @@ val engine = BuiltinEngines.configured(profile)
 Profiles contain ordered `EngineRule` preferences: unconditional selection, length/work thresholds, and
 bounded shape/layout regions. For an explicit profile, check `profile.appliesTo(runtime, hostPlatform())`.
 To load a recalculated profile, pass its text to `EngineProfile.parse`; the library performs no file I/O.
-`BuiltinEngines.configured` resolves named libraries and retains owned SIMD preferences beneath custom
-rules. Missing optional libraries fall through; unknown source identifiers are rejected. Use
+`BuiltinEngines.configured` resolves named libraries and uses exactly the profile's preferences.
+Include owned SIMD rules explicitly when wanted. Missing optional libraries fall through; unknown source identifiers are rejected. Use
 `KoblasEngine.combine(profile, providers...)` for explicit custom providers or scalar-only composition.
 Panel, product and triangular families require unconditional rules so the
 schedule and its packed arithmetic agree on geometry. Intrinsic scalar edges and safe norm retries remain
@@ -110,11 +110,12 @@ Recalculate a profile explicitly on the intended host:
 
 ```bash
 python3 koblas-bench/tune-engine.py --capture --runtime native --backend onemkl \
+  --backend openblas \
   --output /tmp/native-onemkl-profile
 ```
 
 The workflow retains three paired rounds, timing metadata, CSVs, ratios and hashes, then emits `profile.tsv`.
-On Linux, fitting and validation share one automatically selected allowed core, recorded in each capture.
+Fitting and validation use the scheduler's compatible hardware without CPU affinity pinning.
 It uses twenty warmups of 200 ms and validates the combined configuration on disjoint holdout cases.
 `validation.json` records the dispatcher-selected providers and all paired ratios. Persistent regressions
 over five percent in either selected routes or unchanged controls fail validation; missing, empty or
@@ -124,14 +125,17 @@ measured size. Length rules remain bounded and are flagged in the evidence until
 verified. Matrix rules fit minimum extents and work together, with bounded depth bands for residual deep
 shapes. Borrowed layouts are fitted separately. Every covered measured variant must win on each CPU model.
 Use `--runtime jvm` for transfer-inclusive JVM vendor tuning or `--backend jvm-simd` for owned vector tuning.
-SIMD fitting forces its supplied vector bodies so an existing cutoff cannot hide a better crossover;
-packing families retain their owned configuration. Capability metadata filters unsupported operations.
+The exact SIMD arm exposes every supplied kernel from its intrinsic minimum length; performance cutoffs
+belong to profiles. JVM fitting includes explicit owned SIMD rules and retains its packing families.
+Repeat `--backend` to measure vendor precedence per operation and emit one complete composition.
+Capability metadata filters unsupported operations.
 The emitted profile uses the library's runtime CPU identity from capture metadata, so it matches startup
 applicability checks. Runtime, OS and architecture come from the measured arms; `--os` and `--arch` can
 require particular values. Mixed models require an explicit `--cpu '*'` and remain separate evidence
 strata. If the runtime cannot detect the model, explicitly use `--cpu '*'` for an OS and
 architecture profile; hardware display names remain in the capture as evidence.
-JVM vendor fitting compares against the owned SIMD engine by default; `--baseline jvm-scalar` supports deployments without SIMD.
+JVM vendor fitting compares against the faster paired portable or exact SIMD arm in each round;
+`--baseline jvm-scalar` supports deployments without SIMD.
 
 Validate the emitted configuration on additional cases and compare the combined engine, not only direct
 vendor arms. `KOBLAS_BENCH_ENGINE_PROFILE=/absolute/path/profile.tsv` selects it on the benchmark harness's
@@ -154,9 +158,9 @@ python3 koblas-bench/tune-engine.py --results /tmp/calibration --runtime native 
 For multi-arm jobs, select `--lab-arm LABEL`. Only rows where every SDK arm completed successfully are
 accepted, and only their declared artifacts are read. Each accepted row needs at least three complete
 paired rounds on one CPU model. Fitting requires a completed job and one clean source revision.
-For the generated JVM calibration grid, `--baseline jvm-owned` compares a vendor against the faster
-paired `jvm-scalar` or explicitly forced `jvm-default` timing in each round. This prevents a slow SIMD
-body from making a vendor look preferable to the available portable implementation.
+For a capture with owned SIMD under another target name, pass `--simd-target NAME`. The default
+`jvm-owned` reference compares vendors against the faster paired `jvm-scalar` or owned SIMD timing in
+each round. This prevents a slow SIMD body from hiding a faster available portable implementation.
 
 Benchmark reports and result data stay outside the source tree. The retained lab reports cover
 [Native calibration](https://lab.eignex.com/jobs/10142) and the [JVM comparison](https://lab.eignex.com/jobs/10183).

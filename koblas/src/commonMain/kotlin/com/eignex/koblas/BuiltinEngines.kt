@@ -23,8 +23,9 @@ public object BuiltinEngines {
     public fun vendor(vendor: Vendor): KoblasEngine? = vendorEngine(vendor)
 
     /**
-     * Resolves a profile's built-in sources and retains owned SIMD preferences beneath its rules.
-     * Missing optional libraries retain portable or SIMD coverage; unknown source identifiers fail.
+     * Resolves exactly the profile's declared routing preferences and built-in sources.
+     * Missing optional libraries retain the profile's other choices and portable coverage.
+     * Unknown source identifiers fail.
      * The caller checks [EngineProfile.appliesTo] before choosing this configuration.
      */
     public fun configured(profile: EngineProfile): KoblasEngine = configuredEngine(profile)
@@ -41,7 +42,12 @@ public object BuiltinEngines {
      */
     @get:kotlin.jvm.JvmStatic
     public val simd: KoblasEngine? by lazy {
-        simdBackend()?.let { KoblasEngine.combine(requireNotNull(StandardEngineProfiles.jvmSimd), *it.toTypedArray()) }
+        simdBackend()?.let { parts ->
+            val rules = parts.groupBy { it.id }.map { (source, providers) ->
+                EngineRule(source, providers.flatMapTo(mutableSetOf()) { it.implementations })
+            }
+            KoblasEngine.combine(EngineProfile("jvm-simd", rules), *parts.toTypedArray())
+        }
     }
 }
 
@@ -52,20 +58,13 @@ internal expect fun vendorEngine(vendor: Vendor): KoblasEngine?
 /** One composition path for automatic selection, explicit profiles and benchmark configurations. */
 internal fun configuredEngine(
     profile: EngineProfile,
-    owned: KoblasEngine? = BuiltinEngines.simd,
+    owned: KoblasEngine? = if (profile.rules.any { it.source == "jvm-simd" }) BuiltinEngines.simd else null,
     openVendor: (Vendor) -> KoblasEngine? = BuiltinEngines::vendor,
 ): KoblasEngine {
     val vendors = Vendor.entries.filter { vendor -> profile.rules.any { it.source == vendor.vendorName.lowercase() } }
         .mapNotNull(openVendor)
-    val rules = profile.rules + if (owned != null && profile.rules.none { it.source == "jvm-simd" }) {
-        StandardEngineProfiles.jvmSimd?.rules.orEmpty()
-    } else {
-        emptyList()
-    }
-    val combined = KoblasEngine.combine(
-        EngineProfile(profile.name, rules),
+    return KoblasEngine.combine(
+        profile,
         *(vendors + listOfNotNull(owned)).toTypedArray(),
     )
-    if (vendors.isEmpty() && (owned == null || profile.rules.isEmpty())) return owned ?: BuiltinEngines.scalar
-    return combined
 }

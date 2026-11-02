@@ -2,6 +2,7 @@
 import importlib.util
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
 
 spec = importlib.util.spec_from_file_location("tune", Path(__file__).with_name("tune-engine.py"))
 tune = importlib.util.module_from_spec(spec)
@@ -67,6 +68,20 @@ class TuneEngineTest(unittest.TestCase):
         rules = tune.fit(paired, "onemkl", shapes)
         self.assertEqual([[1024, 2048], [1024, 1024]], [rule[6:8] for rule in rules])
         self.assertEqual(["false", "true"], [rule[10] for rule in rules])
+
+    def test_complete_profiles_use_measured_vendor_precedence_and_explicit_owned_rules(self):
+        shapes = {"dot": ("Dot", 32, 1, 1, False, 1, True), "gemm": ("Gemm", 32, 32, 32, False, 3, True)}
+        def capture(costs):
+            paired = {case: [cost] * 3 for case, cost in costs.items()}
+            return SimpleNamespace(paired=paired, shapes=shapes, by_cpu={case: {"CPU A": values} for case, values in paired.items()}, cache_by_cpu={})
+        rules, precedence = tune.compose({"onemkl": capture({"dot": 0.8, "gemm": 0.5}),
+                                          "openblas": capture({"dot": 0.5, "gemm": 0.8}),
+                                          "jvm-simd": capture({"dot": 0.6})})
+
+        self.assertEqual(["openblas", "onemkl"], precedence["Dot"]["sources"])
+        self.assertEqual(["onemkl", "openblas"], precedence["Gemm"]["sources"])
+        self.assertEqual(["jvm-simd", "Dot"], rules[-2][:2])
+        self.assertEqual(["jvm-simd", "Panels,Products,Triangular"], rules[-1][:2])
 
 
 if __name__ == "__main__":

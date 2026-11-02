@@ -16,7 +16,9 @@ class VendorComparisonAdapterTest {
             val cases = VendorComparisonSuite.plan(BenchRequest(mapOf("vendor" to "onemkl",
                 "cases" to "koblas-bench/build/calibration/plan-fixture.txt", "targets" to "native,onemkl,openblas")))
 
-            assertEquals(2, cases.sumOf { it.parameters.getValue("rows").lines().size })
+            assertEquals(2, cases.size)
+            assertTrue(cases.all { it.resources.memoryMiB == 2048L })
+            assertTrue(cases.all { it.inputs.any { input -> input.role == "executable" && "/linuxX64/" in input.path } })
             assertTrue(cases.all { case -> case.inputs.any { it.path.endsWith("calibration/plan-fixture.txt") } })
         } finally { Files.delete(file) }
     }

@@ -1,0 +1,7 @@
+{
+  "main": "com.eignex.koblas.bench.VendorComparisonAdapter",
+  "classpath": ["koblas-bench/build/lab/classes", "koblas-bench/build/lab/lib/*"],
+  "buildTasks": [":koblas-bench:prepareLabCalibration"],
+  "jvmArgs": ["-Xmx256m"],
+  "runtime": {"java": 25, "requiredTags": ["platform:mac", "arch:arm64"]}
+}

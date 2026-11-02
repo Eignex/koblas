@@ -42,9 +42,10 @@ internal object VendorComparisonSuite : BenchSuite {
         val native = targets.any { !it.startsWith("jvm-") && !it.endsWith("-jvm") }
         val platform = if (vendor == "accelerate") "macosArm64" else if (arch == "arm64") "linuxArm64" else "linuxX64"
         val resources = BenchResources(memoryMiB = 2048, timeoutSeconds = 7200, requiredTags = tags)
-        val inputs = listOf(BenchInput(cases, role = "cases")) + p["profile"]?.let { listOf(BenchInput(it, role = "profile")) }.orEmpty() +
+        val inputs = listOf(BenchInput(cases, role = "cases")) +
             (if (native) listOf(BenchInput("koblas-bench/build/bin/$platform/releaseExecutable/koblas-bench.kexe", role = "executable")) else emptyList()) +
-            (if (vendor == "onemkl") listOf(BenchInput("koblas-bench/build/vendor-reference", role = "vendor")) else emptyList())
+            (if (vendor == "onemkl") listOf(BenchInput("koblas-bench/build/vendor-reference", role = "vendor")) else emptyList()) +
+            p["profile"]?.let { listOf(BenchInput(it, role = "profile")) }.orEmpty()
         return rows.map { (case, row) ->
             LabCase("comparison/$host/${case.operation}/${case.id}", p + (ROWS to row),
                 resources, inputs = inputs)
