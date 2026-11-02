@@ -1,6 +1,7 @@
 package com.eignex.koblas.bench
 
 import com.eignex.lab.bench.BenchRequest
+import java.nio.file.Files
 import java.nio.file.Path
 import kotlin.test.Test
 import kotlin.test.assertEquals
