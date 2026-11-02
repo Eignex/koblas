@@ -304,7 +304,7 @@ jobs:
       # One linker at a time shares the runner with the booting simulator without oversubscribing it.
       - name: Run JVM and macOS tests and prepare the iOS publication and tests
         run: >-
-          ./gradlew -Ptargets.full -PciVersion="$CI_VERSION" :koblas:jvmTest :koblas:macosArm64Test
+          ./gradlew -Ptargets.full -PciVersion="$CI_VERSION" :koblas:jvmTest :koblas-bench:jvmTest :koblas:macosArm64Test
           :koblas:linkDebugTestIosSimulatorArm64 :koblas:publishKotlinMultiplatformPublicationToLocalStagingRepository
           :koblas:publishIosArm64PublicationToLocalStagingRepository
           :koblas:publishIosSimulatorArm64PublicationToLocalStagingRepository  --max-workers=1
