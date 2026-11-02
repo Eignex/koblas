@@ -23,7 +23,7 @@ class NativeDefaultEngineTest {
         val vendor = koblas.takeIf { it.vendor != null } ?: return skipped(
             "the rotation's alias-dependent dispatch",
         )
-        val arm = "${vendor.vendor!!.vendorName.lowercase()}-level1"
+        val arm = vendor.vendor!!.vendorName.lowercase()
         if (koblas.implementationFor(
                 EngineImplementation.Dot,
                 LONG_COLUMN,

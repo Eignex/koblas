@@ -5,7 +5,6 @@ import com.eignex.koblas.vendor.*
 
 /** Standard configurations; host acceleration applies only to the declared measurement targets. */
 public object StandardEngineProfiles {
-    private val intelLinux = HostPlatform(OperatingSystem.Linux, Architecture.X86_64, CpuVendor.Intel)
     private val levelThree = setOf(Gemm, Gemmt, Symm, Syrk, Syr2k, Trmm, Trsm)
     private val halfWork = setOf(Syr, Trmv, TrmvTransposed, Trsv, TrsvTransposed, Gemmt, Syrk, Trmm, Trsm)
     private val wholeMatrices = EngineImplementation.entries.filter { it.ordinal >= Gemv.ordinal }.toSet()
@@ -61,7 +60,7 @@ public object StandardEngineProfiles {
             EngineRule("onemkl", wholeMatrices - halfWork, work = 1024),
         ),
         "native",
-        intelLinux,
+        HostPlatform(OperatingSystem.Linux, Architecture.X86_64, "12th Gen Intel(R) Core(TM) i9-12900H"),
         "i9-12900H; oneMKL 2026.1; Kotlin/Native 2.4.10; koblas-bench Level 1 and dense suites",
     )
 
@@ -94,8 +93,8 @@ public object StandardEngineProfiles {
             ),
         ),
         "jvm",
-        intelLinux,
-        "Intel AVX-512; koblas-bench transfer-inclusive suites; see BACKENDS.md",
+        HostPlatform(OperatingSystem.Linux, Architecture.X86_64, "Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz"),
+        "Xeon Platinum 8375C AVX-512; koblas-bench transfer-inclusive suites; see BACKENDS.md",
     )
 }
 

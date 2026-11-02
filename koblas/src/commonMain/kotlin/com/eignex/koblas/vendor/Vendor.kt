@@ -172,28 +172,6 @@ public enum class Architecture {
     Other,
 }
 
-/** CPU manufacturers used when matching measured profiles. */
-public enum class CpuVendor {
-    /** An Intel part. */
-    Intel,
-
-    /** An AMD part. */
-    Amd,
-
-    /** A part whose manufacturer was not identified. */
-    Unknown,
-}
-
-/** Linux vendor_id and Windows PROCESSOR_IDENTIFIER carry the same manufacturer identifiers. */
-internal fun cpuVendorFromIdentifier(identifier: String?): CpuVendor {
-    val words = identifier.orEmpty().split(' ', '\t', ',')
-    return when {
-        words.any { it.equals("GenuineIntel", ignoreCase = true) } -> CpuVendor.Intel
-        words.any { it.equals("AuthenticAMD", ignoreCase = true) } -> CpuVendor.Amd
-        else -> CpuVendor.Unknown
-    }
-}
-
 /**
  * The host facts measured profiles match. Resolved once per process; none of these change while it runs.
  */
@@ -202,10 +180,10 @@ public class HostPlatform(
     public val operatingSystem: OperatingSystem,
     /** The instruction set architecture. */
     public val architecture: Architecture,
-    /** The CPU manufacturer, which only refines the order within an architecture. */
-    public val cpuVendor: CpuVendor,
+    /** The reported CPU model, or null when it could not be identified. */
+    public val cpuModel: String? = null,
 ) {
-    override fun toString(): String = "$operatingSystem/$architecture/$cpuVendor"
+    override fun toString(): String = "$operatingSystem/$architecture/${cpuModel ?: "unknown"}"
 }
 
 /** The platform this process is running on. */

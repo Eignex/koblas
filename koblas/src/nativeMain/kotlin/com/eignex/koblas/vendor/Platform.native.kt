@@ -9,11 +9,10 @@ import kotlinx.cinterop.toKString
 import platform.posix.fclose
 import platform.posix.fgets
 import platform.posix.fopen
-import platform.posix.getenv
 
 /** Resolved once; none of these facts change while the process runs. */
 private val host: HostPlatform by lazy {
-    HostPlatform(operatingSystem(), architecture(), cpuVendor())
+    HostPlatform(operatingSystem(), architecture(), cpuModel())
 }
 
 /** The platform this process is running on, which a Native target largely knows at compile time. */
@@ -33,32 +32,24 @@ private fun architecture(): Architecture = when (Platform.cpuArchitecture) {
     else -> Architecture.Other
 }
 
-/**
- * The CPU manufacturer, read from `/proc/cpuinfo` on Linux and `PROCESSOR_IDENTIFIER` on Windows.
- *
- * Nothing else needs it: macOS takes Accelerate and Arm takes ArmPL without consulting the manufacturer, so it
- * only ever chooses between AOCL and oneMKL on 64-bit x86.
- */
+/** Unknown CPU models retain portable coverage instead of borrowing another model's measurements. */
 @OptIn(ExperimentalForeignApi::class)
-private fun cpuVendor(): CpuVendor {
-    if (operatingSystem() == OperatingSystem.Windows) {
-        return cpuVendorFromIdentifier(getenv("PROCESSOR_IDENTIFIER")?.toKString())
-    }
-    if (operatingSystem() != OperatingSystem.Linux) return CpuVendor.Unknown
-    val file = fopen("/proc/cpuinfo", "r") ?: return CpuVendor.Unknown
+private fun cpuModel(): String? {
+    if (operatingSystem() != OperatingSystem.Linux) return null
+    val file = fopen("/proc/cpuinfo", "r") ?: return null
     try {
         memScoped {
             val line = allocArray<kotlinx.cinterop.ByteVar>(LINE_BUFFER)
             while (fgets(line, LINE_BUFFER, file) != null) {
                 val text = line.toKString()
-                if (!text.startsWith("vendor_id")) continue
-                return cpuVendorFromIdentifier(text.substringAfter(':', "").trim())
+                if (!text.startsWith("model name")) continue
+                return text.substringAfter(':').trim().takeIf { it.isNotEmpty() }
             }
         }
     } finally {
         fclose(file)
     }
-    return CpuVendor.Unknown
+    return null
 }
 
 private const val LINE_BUFFER = 512

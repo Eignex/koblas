@@ -52,7 +52,7 @@ public class EngineProfile(
     rules: List<EngineRule>,
     /** Execution runtime, such as `jvm` or `native`, or null for any runtime. */
     public val runtime: String? = null,
-    /** Complete measured host, or null for any host. */
+    /** Target OS, architecture and optional CPU model, or null for any host. */
     public val target: HostPlatform? = null,
     /** Retained measurement location or a description of the configuration's provenance. */
     public val evidence: String = "explicit configuration",
@@ -66,7 +66,8 @@ public class EngineProfile(
             (
                 target == null || (
                     target.operatingSystem == host.operatingSystem &&
-                        target.architecture == host.architecture && target.cpuVendor == host.cpuVendor
+                        target.architecture == host.architecture &&
+                        (target.cpuModel == null || target.cpuModel == host.cpuModel)
                     )
                 )
 
@@ -107,7 +108,7 @@ public class EngineProfile(
                     HostPlatform(
                         OperatingSystem.valueOf(header[3]),
                         Architecture.valueOf(header[4]),
-                        CpuVendor.valueOf(header[5]),
+                        optional(header[5]),
                     )
                 },
                 header[6] + "; " + header[7],

@@ -582,19 +582,11 @@ public final class com/eignex/koblas/vendor/Architecture : java/lang/Enum {
 	public static fun values ()[Lcom/eignex/koblas/vendor/Architecture;
 }
 
-public final class com/eignex/koblas/vendor/CpuVendor : java/lang/Enum {
-	public static final field Amd Lcom/eignex/koblas/vendor/CpuVendor;
-	public static final field Intel Lcom/eignex/koblas/vendor/CpuVendor;
-	public static final field Unknown Lcom/eignex/koblas/vendor/CpuVendor;
-	public static fun getEntries ()Lkotlin/enums/EnumEntries;
-	public static fun valueOf (Ljava/lang/String;)Lcom/eignex/koblas/vendor/CpuVendor;
-	public static fun values ()[Lcom/eignex/koblas/vendor/CpuVendor;
-}
-
 public final class com/eignex/koblas/vendor/HostPlatform {
-	public fun <init> (Lcom/eignex/koblas/vendor/OperatingSystem;Lcom/eignex/koblas/vendor/Architecture;Lcom/eignex/koblas/vendor/CpuVendor;)V
+	public fun <init> (Lcom/eignex/koblas/vendor/OperatingSystem;Lcom/eignex/koblas/vendor/Architecture;Ljava/lang/String;)V
+	public synthetic fun <init> (Lcom/eignex/koblas/vendor/OperatingSystem;Lcom/eignex/koblas/vendor/Architecture;Ljava/lang/String;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public final fun getArchitecture ()Lcom/eignex/koblas/vendor/Architecture;
-	public final fun getCpuVendor ()Lcom/eignex/koblas/vendor/CpuVendor;
+	public final fun getCpuModel ()Ljava/lang/String;
 	public final fun getOperatingSystem ()Lcom/eignex/koblas/vendor/OperatingSystem;
 	public fun toString ()Ljava/lang/String;
 }
