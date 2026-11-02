@@ -2,12 +2,9 @@ package com.eignex.koblas
 
 import com.eignex.koblas.internal.configuration.CombinedEngine
 
-/** Positive contributions grouped without exposing the private pieces of a composition. */
-public val KoblasEngine.capabilities: Map<String, Set<EngineImplementation>> get() = components.groupBy { it.id }
-    .mapValues { (_, parts) -> parts.flatMapTo(mutableSetOf()) { it.implementations } }
-
-internal val KoblasEngine.components: List<KoblasEngine> get() =
-    if (this is CombinedEngine) components else listOf(this)
+/** Leaf providers in routing order, including their own capabilities and host provenance. */
+public val KoblasEngine.providers: List<KoblasEngine> get() =
+    if (this is CombinedEngine) components.toList() else listOf(this)
 
 internal fun KoblasEngine.wholeCallFor(
     operation: EngineImplementation,

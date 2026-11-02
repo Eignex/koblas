@@ -17,13 +17,6 @@ import jdk.incubator.vector.VectorOperators
  */
 internal object SparseSimd : KoblasEngine {
     override val id: String = "jvm-simd"
-    override val implementations get() = if (vectorDot) {
-        setOf(
-            EngineImplementation.IndexedDot,
-        )
-    } else {
-        emptySet()
-    }
     override fun minimumLength(implementation: EngineImplementation): Int = 2
 
     override val name: String = "simd-indexed"
@@ -35,6 +28,8 @@ internal object SparseSimd : KoblasEngine {
 
     /** Whether this unit takes the vector dot: two lanes, each loaded as a scalar. */
     val vectorDot: Boolean get() = LANE == 2
+
+    override val implementations = if (vectorDot) setOf(EngineImplementation.IndexedDot) else emptySet()
 
     @Suppress("LongParameterList")
     override fun dotDense(

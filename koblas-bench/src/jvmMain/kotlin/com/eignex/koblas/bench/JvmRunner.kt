@@ -78,7 +78,7 @@ public fun main(args: Array<String>) {
     }
     writeRows(settings, selected, rowsByCase)
     println("wrote ${selected.size} case summaries from ${rowsByCase.values.sumOf { rows -> rows.count { it.nanos != null } }} measurements to ${settings.outputPath}")
-    println("resolved implementation=$implementation runtime=${runtimeIdentity()} harness=jmh-average-time/JMH-${Version.getPlainVersion()}")
+    printIdentity(implementation, "jmh-average-time/JMH-${Version.getPlainVersion()}")
 }
 
 private fun writeRows(settings: Settings, selected: List<BenchCase>, rowsByCase: Map<String, List<Measurement>>) {

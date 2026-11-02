@@ -200,7 +200,7 @@ internal class NativeVendorBlas private constructor(
         ) { EngineImplementation.entries[it].entryPoint.takeIf { it.isNotEmpty() }?.let(library::symbol) }
 
     override val implementations: Set<EngineImplementation> =
-        exportedImplementations { library.symbol(it) != null }
+        EngineImplementation.entries.filterTo(mutableSetOf()) { entryPoints[it.ordinal] != null }
 
     private fun symbol(operation: EngineImplementation): COpaquePointer = checkNotNull(entryPoints[operation.ordinal]) {
         "${vendor.vendorName} at $libraryPath does not export ${operation.entryPoint}"
@@ -627,9 +627,6 @@ internal class NativeVendorBlas private constructor(
         structure: MatrixStructure,
     ) {
         val depth = if (transposeA) a.rows else a.cols
-        if (EngineImplementation.Gemmt !in implementations) {
-            error("Backend does not supply Gemmt")
-        }
         withPins { pins ->
             val pa = pins.stage(a)
             val pb = pins.stage(b)

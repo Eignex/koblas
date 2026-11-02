@@ -123,11 +123,11 @@ measured extents and require matching variants to agree. Unmeasured regions reta
 Use `--runtime jvm` for transfer-inclusive JVM vendor tuning or `--backend jvm-simd` for owned vector tuning.
 SIMD fitting forces its supplied vector bodies so an existing cutoff cannot hide a better crossover;
 packing families retain their owned configuration. Capability metadata filters unsupported operations.
-The emitted profile records the CPU model from capture metadata; mixed or unidentified models require
-separate captures. Set `--os` and `--arch` for targets other than Linux x64; `--cpu` explicitly supplies a
-target model when capture metadata cannot identify it. Platform model detection currently covers Linux.
-For explicit profiles on other operating systems, `--cpu '*'` matches OS and architecture while the
-capture retains the measured CPU evidence. JVM vendor fitting compares against the owned SIMD engine by default; `--baseline jvm-scalar` supports deployments without SIMD.
+The emitted profile uses the library's runtime CPU identity from capture metadata, so it matches startup
+applicability checks. Mixed models require separate captures. Set `--os` and `--arch` for targets other
+than Linux x64. If the runtime cannot detect the model, explicitly use `--cpu '*'` for an OS and
+architecture profile; hardware display names remain in the capture as evidence.
+JVM vendor fitting compares against the owned SIMD engine by default; `--baseline jvm-scalar` supports deployments without SIMD.
 
 Validate the emitted configuration on additional cases and compare the combined engine, not only direct
 vendor arms. `KOBLAS_BENCH_ENGINE_PROFILE=/absolute/path/profile.tsv` selects it on the benchmark harness's

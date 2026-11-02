@@ -133,11 +133,11 @@ class SimdPanelKernelsTest {
     private fun hasShortBody(work: PanelWork): Boolean = work == PanelWork.MultiDot || work == PanelWork.ColumnUpdate
 
     /** The species this backend resolved, read back from the name it publishes. */
-    private fun lanes(kernels: KoblasEngine): Int = kernels.components.first {
+    private fun lanes(kernels: KoblasEngine): Int = kernels.providers.first {
         EngineImplementation.Dot in it.implementations
     }.minimumLength(EngineImplementation.Dot)
 
-    private fun panelName(kernels: KoblasEngine): String = kernels.components.first {
+    private fun panelName(kernels: KoblasEngine): String = kernels.providers.first {
         EngineImplementation.Panels in it.implementations
     }.name
 

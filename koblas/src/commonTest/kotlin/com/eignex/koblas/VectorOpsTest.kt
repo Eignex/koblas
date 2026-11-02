@@ -118,53 +118,57 @@ class VectorOpsTest {
 
     @Test
     fun `shared buffer axpy agrees with the scalar snapshot reference`() {
-        for ((sourceOffset, destinationOffset, stride) in listOf(
-            Triple(0, 1, 2),
-            Triple(8, 9, -2),
-            Triple(0, 5, 1),
-            Triple(0, 1, 1),
-        )) {
-            val backing = DoubleArray(10) { it + 0.25 }
-            val source = StridedVector(backing, sourceOffset, 5, stride)
-            val destination = StridedVector(backing, destinationOffset, 5, stride)
-            val expected = backing.copyOf()
-            BuiltinEngines.scalar.axpy(
-                expected,
-                destinationOffset,
-                0.75,
-                source.toDoubleArray(),
-                0,
-                5,
-                stride,
-            )
+        for (engine in listOfNotNull(BuiltinEngines.scalar, BuiltinEngines.simd, koblas)) {
+            for ((sourceOffset, destinationOffset, stride) in listOf(
+                Triple(0, 1, 2),
+                Triple(8, 9, -2),
+                Triple(0, 5, 1),
+                Triple(0, 1, 1),
+            )) {
+                val backing = DoubleArray(10) { it + 0.25 }
+                val source = StridedVector(backing, sourceOffset, 5, stride)
+                val destination = StridedVector(backing, destinationOffset, 5, stride)
+                val expected = backing.copyOf()
+                BuiltinEngines.scalar.axpy(
+                    expected,
+                    destinationOffset,
+                    0.75,
+                    source.toDoubleArray(),
+                    0,
+                    5,
+                    stride,
+                )
 
-            destination.axpy(0.75, source)
+                engine.axpy(0.75, source, destination)
 
-            assertAxpyAgreesWithReference(expected, backing)
+                assertAxpyAgreesWithReference(expected, backing)
+            }
         }
     }
 
     @Test
     fun `shared buffer copy preserves the snapshot sequence and padding`() {
-        for ((sourceOffset, destinationOffset, stride) in listOf(
-            Triple(0, 1, 2),
-            Triple(8, 9, -2),
-            Triple(0, 5, 1),
-            Triple(0, 1, 1),
-            Triple(1, 0, 1),
-            Triple(2, 7, 1),
-            Triple(9, 8, -1),
-        )) {
-            val backing = DoubleArray(14) { it + 0.25 }
-            val source = StridedVector(backing, sourceOffset, 5, stride)
-            val destination = StridedVector(backing, destinationOffset, 5, stride)
-            val expected = backing.copyOf()
-            val snapshot = source.toDoubleArray()
-            for (i in snapshot.indices) expected[destinationOffset + i * stride] = snapshot[i]
+        for (engine in listOfNotNull(BuiltinEngines.scalar, BuiltinEngines.simd, koblas)) {
+            for ((sourceOffset, destinationOffset, stride) in listOf(
+                Triple(0, 1, 2),
+                Triple(8, 9, -2),
+                Triple(0, 5, 1),
+                Triple(0, 1, 1),
+                Triple(1, 0, 1),
+                Triple(2, 7, 1),
+                Triple(9, 8, -1),
+            )) {
+                val backing = DoubleArray(14) { it + 0.25 }
+                val source = StridedVector(backing, sourceOffset, 5, stride)
+                val destination = StridedVector(backing, destinationOffset, 5, stride)
+                val expected = backing.copyOf()
+                val snapshot = source.toDoubleArray()
+                for (i in snapshot.indices) expected[destinationOffset + i * stride] = snapshot[i]
 
-            copy(source, destination)
+                engine.copy(source, destination)
 
-            assertContentEquals(expected, backing)
+                assertContentEquals(expected, backing)
+            }
         }
     }
 
@@ -344,18 +348,20 @@ class VectorOpsTest {
 
     @Test
     fun `swap snapshots overlapping borrowed slices`() {
-        val backing = doubleArrayOf(1.0, 2.0, 3.0, 4.0, 5.0)
-        val a = StridedVector(backing, 0, 4)
-        val b = StridedVector(backing, 4, 4, -1)
-        val originalA = a.toDoubleArray()
-        val originalB = b.toDoubleArray()
-        val expected = backing.copyOf()
-        for (i in 0 until a.size) expected[a.offset + i * a.stride] = originalB[i]
-        for (i in 0 until b.size) expected[b.offset + i * b.stride] = originalA[i]
+        for (engine in listOfNotNull(BuiltinEngines.scalar, BuiltinEngines.simd, koblas)) {
+            val backing = doubleArrayOf(1.0, 2.0, 3.0, 4.0, 5.0)
+            val a = StridedVector(backing, 0, 4)
+            val b = StridedVector(backing, 4, 4, -1)
+            val originalA = a.toDoubleArray()
+            val originalB = b.toDoubleArray()
+            val expected = backing.copyOf()
+            for (i in 0 until a.size) expected[a.offset + i * a.stride] = originalB[i]
+            for (i in 0 until b.size) expected[b.offset + i * b.stride] = originalA[i]
 
-        swap(a, b)
+            engine.swap(a, b)
 
-        assertContentEquals(expected, backing)
+            assertContentEquals(expected, backing)
+        }
     }
 
     @Test

@@ -10,7 +10,7 @@ object ConsumerCheck {
     fun run(expectSimd: Boolean = false) {
         check((BuiltinEngines.simd != null) == expectSimd)
         if (!expectSimd) {
-            check(koblas.vendor == null)
+            check(koblas.providers.none { it.vendor != null })
             check(Vendor.entries.firstNotNullOfOrNull { BuiltinEngines.vendor(it) } == null)
         }
         checkPartialProvider()

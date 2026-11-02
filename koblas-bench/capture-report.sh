@@ -335,7 +335,7 @@ run_target() {
   "$@" 2>&1 | tee "$results/$target.log"
   awk '/^resolved implementation=/ {
     sub(/^resolved /, ""); sub(/ runtime=/, "\nruntime="); sub(/ harness=/, "\nharness="); print
-  }' "$results/$target.log" >>"$metadata"
+  } /^profile_cpu_model=/ { print }' "$results/$target.log" >>"$metadata"
   if [[ $target == jvm-* || $target == *-jvm ]]; then
     echo "warmup_target_ns=$((target_ms * 1000000))"
   else

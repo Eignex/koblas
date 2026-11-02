@@ -58,14 +58,22 @@ def measurements(directory, baseline, candidate, backend=None):
     return {case: ratios for case, ratios in paired.items() if len(ratios) == len(passes)}, provenance, shapes
 
 
-def measured_cpu(directory):
+def measured_cpu(directory, requested=None):
     models = set()
     for path in directory.glob("pass-*/metadata.txt"):
-        fields = dict(line.split("=", 1) for line in path.read_text().splitlines() if "=" in line)
-        models.add(fields.get("model name") or fields.get("cpu_model"))
-    if len(models) != 1 or None in models:
-        raise ValueError("profile fitting requires one identified CPU model; use separate captures per model")
-    return models.pop()
+        detected = [line.partition("=")[2] for line in path.read_text().splitlines()
+                    if line.startswith("profile_cpu_model=")]
+        if not detected or not all(detected):
+            raise ValueError(f"{path}: missing runtime CPU identity; recapture with the current harness")
+        models.update(detected)
+    if len(models) != 1:
+        raise ValueError("profile fitting requires one runtime CPU model; use separate captures per model")
+    model = models.pop()
+    if requested == "*":
+        return requested
+    if model == "*" or requested is not None and requested != model:
+        raise ValueError("CPU model is not detectable by the runtime; use --cpu '*' for a platform wide profile")
+    return model
 
 
 def fit(paired, backend, shapes):
@@ -109,7 +117,7 @@ def main():
     parser.add_argument("--native-executable", type=Path)
     parser.add_argument("--os", default="Linux")
     parser.add_argument("--arch", default="X86_64")
-    parser.add_argument("--cpu", help="explicit target model; defaults to the CPU model in capture metadata")
+    parser.add_argument("--cpu", help="explicit target model; defaults to the runtime CPU identity; use * explicitly for platform wide profiles")
     args = parser.parse_args()
     if args.capture == bool(args.results):
         parser.error("choose --capture or --results")
@@ -157,7 +165,7 @@ def main():
     paired, provenance, shapes = measurements(results, baseline, candidate, args.backend)
     if not paired:
         raise ValueError("no complete paired measurements")
-    header[5] = args.cpu or measured_cpu(results)
+    header[5] = measured_cpu(results, args.cpu)
     rules = fit(paired, args.backend, shapes)
     write_profile(args.output / "profile.tsv", rules)
     (args.output / "evidence.json").write_text(json.dumps(dict(

@@ -13,9 +13,8 @@ import kotlin.math.abs
  * These constants are part of the CBLAS ABI rather than of any one vendor, so JVM and Native share this file
  * and neither restates them.
  *
- * Every matrix Koblas hands over is contiguous column-major with a leading dimension equal to its row count,
- * so the layout is always column-major and a transpose is a flag rather than a different addressing. There is
- * no case here where an operand has to be repacked to be described.
+ * Matrices use column-major addressing with their own leading dimensions. A borrowed region retains its
+ * parent column spacing, and transposition is a flag.
  */
 internal object Cblas {
     /** `CblasColMajor`. */

@@ -9,16 +9,15 @@ import com.eignex.koblas.vendor.Vendor
 
 /** Backends are bound once; arithmetic never resolves identifiers or capabilities. */
 internal class CompiledRouting(profile: EngineProfile, engines: List<KoblasEngine>) {
-    val backends = engines.flatMap { it.components }.filterNot { it === PortableEngine }.distinct() + PortableEngine
-    private val sources = backends + engines
+    val backends = engines.flatMap { it.providers }.filterNot { it === PortableEngine }.distinct() + PortableEngine
     init {
-        val known = sources.map { it.id } + "jvm-simd" + Vendor.entries.map { it.vendorName.lowercase() }
+        val known = backends.map { it.id } + "jvm-simd" + Vendor.entries.map { it.vendorName.lowercase() }
         require(profile.rules.all { it.source in known }) { "Unknown engine source in ${profile.name}" }
     }
     private val routes = Array(EngineImplementation.entries.size) { index ->
         val operation = EngineImplementation.entries[index]
         profile.rules.mapNotNull { rule ->
-            sources.firstOrNull { it.id == rule.source && operation in it.implementations }
+            backends.firstOrNull { it.id == rule.source && operation in it.implementations }
                 ?.takeIf { operation in rule.implementations }
                 ?.let { rule to it }
         }.toTypedArray()
@@ -87,11 +86,6 @@ internal class LengthDispatch(
 /** One primitive-window interface serves leaves and the immutable routed composition. */
 internal class CombinedEngine(private val routing: CompiledRouting, override val name: String) : KoblasEngine {
     internal val components get() = routing.backends
-    private val host = routing.backends.firstOrNull { it.vendor != null }
-    override val vendor get() = host?.vendor
-    override val libraryPath get() = host?.libraryPath.orEmpty()
-    override val version get() = host?.version.orEmpty()
-    override val threadEvidence get() = host?.threadEvidence ?: com.eignex.koblas.vendor.ThreadEvidence.Unconfirmed
     override val implementations = routing.backends.flatMapTo(mutableSetOf()) { it.implementations }
     internal fun wholeCallFor(
         operation: EngineImplementation,
@@ -109,7 +103,7 @@ internal class CombinedEngine(private val routing: CompiledRouting, override val
     internal val panelImplementation = routing.select(EngineImplementation.Panels)
     internal val productImplementation = routing.select(EngineImplementation.Products)
     internal val triangularImplementation = routing.select(EngineImplementation.Triangular)
-    private fun vectors(operation: EngineImplementation, length: Int, contiguous: Boolean = true): KoblasEngine =
+    internal fun vectors(operation: EngineImplementation, length: Int, contiguous: Boolean = true): KoblasEngine =
         routing.select(operation, length, contiguous = contiguous)
 
     internal fun implementationFor(operation: EngineImplementation, length: Int, contiguous: Boolean): String? =

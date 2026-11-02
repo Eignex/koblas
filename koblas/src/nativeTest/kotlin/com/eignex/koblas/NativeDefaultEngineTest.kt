@@ -17,11 +17,8 @@ class NativeDefaultEngineTest {
     /** Equal runs are staged before the vendor call, without changing arithmetic providers. */
     @Test
     fun `an aliased rotation stays on the selected vendor`() {
-        val vendor = koblas.takeIf { it.vendor != null } ?: return skipped("vendor rotation")
-        val arm = vendor.vendor!!.vendorName.lowercase()
-        if (koblas.implementationFor(EngineImplementation.Dot, LONG_COLUMN) != arm) {
-            return skipped("this platform keeps Level 1 off the library")
-        }
+        val arm = koblas.implementationFor(EngineImplementation.Rot, LONG_COLUMN)
+        if (koblas.providers.none { it.vendor != null && it.name == arm }) return skipped("vendor rotation")
         val values = DoubleArray(LONG_COLUMN) { (it - 17) / 13.0 }
         val expected = values.copyOf()
         BuiltinEngines.scalar.rot(expected, 0, expected, 0, LONG_COLUMN, 0.75, -0.25)

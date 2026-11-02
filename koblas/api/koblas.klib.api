@@ -562,10 +562,10 @@ final object com.eignex.koblas/StandardEngineProfiles { // com.eignex.koblas/Sta
     final fun forTarget(com.eignex.koblas/EngineRuntime, com.eignex.koblas.vendor/HostPlatform, kotlin/Boolean = ...): com.eignex.koblas/EngineProfile // com.eignex.koblas/StandardEngineProfiles.forTarget|forTarget(com.eignex.koblas.EngineRuntime;com.eignex.koblas.vendor.HostPlatform;kotlin.Boolean){}[0]
 }
 
-final val com.eignex.koblas/capabilities // com.eignex.koblas/capabilities|@com.eignex.koblas.KoblasEngine{}capabilities[0]
-    final fun (com.eignex.koblas/KoblasEngine).<get-capabilities>(): kotlin.collections/Map<kotlin/String, kotlin.collections/Set<com.eignex.koblas/EngineImplementation>> // com.eignex.koblas/capabilities.<get-capabilities>|<get-capabilities>@com.eignex.koblas.KoblasEngine(){}[0]
 final val com.eignex.koblas/koblas // com.eignex.koblas/koblas|{}koblas[0]
     final fun <get-koblas>(): com.eignex.koblas/KoblasEngine // com.eignex.koblas/koblas.<get-koblas>|<get-koblas>(){}[0]
+final val com.eignex.koblas/providers // com.eignex.koblas/providers|@com.eignex.koblas.KoblasEngine{}providers[0]
+    final fun (com.eignex.koblas/KoblasEngine).<get-providers>(): kotlin.collections/List<com.eignex.koblas/KoblasEngine> // com.eignex.koblas/providers.<get-providers>|<get-providers>@com.eignex.koblas.KoblasEngine(){}[0]
 
 final fun (com.eignex.koblas/DenseMatrix).com.eignex.koblas/column(kotlin/Int): com.eignex.koblas/DenseVector // com.eignex.koblas/column|column@com.eignex.koblas.DenseMatrix(kotlin.Int){}[0]
 final fun (com.eignex.koblas/DenseMatrix).com.eignex.koblas/maskTo(com.eignex.koblas.dense/MatrixStructure) // com.eignex.koblas/maskTo|maskTo@com.eignex.koblas.DenseMatrix(com.eignex.koblas.dense.MatrixStructure){}[0]
@@ -679,7 +679,6 @@ final fun com.eignex.koblas/copy(com.eignex.koblas/Vector, com.eignex.koblas/Den
 final fun com.eignex.koblas/gather(com.eignex.koblas/SparseVector, com.eignex.koblas/ContiguousVector) // com.eignex.koblas/gather|gather(com.eignex.koblas.SparseVector;com.eignex.koblas.ContiguousVector){}[0]
 final fun com.eignex.koblas/gatherZero(com.eignex.koblas/SparseVector, com.eignex.koblas/ContiguousVector) // com.eignex.koblas/gatherZero|gatherZero(com.eignex.koblas.SparseVector;com.eignex.koblas.ContiguousVector){}[0]
 final fun com.eignex.koblas/rot(com.eignex.koblas/DenseVector, com.eignex.koblas/DenseVector, kotlin/Double, kotlin/Double) // com.eignex.koblas/rot|rot(com.eignex.koblas.DenseVector;com.eignex.koblas.DenseVector;kotlin.Double;kotlin.Double){}[0]
-final fun com.eignex.koblas/rot(com.eignex.koblas/StridedVector, com.eignex.koblas/StridedVector, kotlin/Double, kotlin/Double) // com.eignex.koblas/rot|rot(com.eignex.koblas.StridedVector;com.eignex.koblas.StridedVector;kotlin.Double;kotlin.Double){}[0]
 final fun com.eignex.koblas/swap(com.eignex.koblas/DenseVector, com.eignex.koblas/DenseVector) // com.eignex.koblas/swap|swap(com.eignex.koblas.DenseVector;com.eignex.koblas.DenseVector){}[0]
 final inline fun (com.eignex.koblas/Vector).com.eignex.koblas/forEachStored(kotlin/Function2<kotlin/Int, kotlin/Double, kotlin/Unit>) // com.eignex.koblas/forEachStored|forEachStored@com.eignex.koblas.Vector(kotlin.Function2<kotlin.Int,kotlin.Double,kotlin.Unit>){}[0]
 final inline fun <#A: kotlin/Any?> (com.eignex.koblas/Workspace?).com.eignex.koblas/borrow(kotlin/Int, kotlin/Function1<kotlin/DoubleArray, #A>): #A // com.eignex.koblas/borrow|borrow@com.eignex.koblas.Workspace?(kotlin.Int;kotlin.Function1<kotlin.DoubleArray,0:0>){0§<kotlin.Any?>}[0]

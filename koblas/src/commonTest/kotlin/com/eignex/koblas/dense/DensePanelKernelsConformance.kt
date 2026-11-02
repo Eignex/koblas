@@ -635,6 +635,9 @@ private fun assertExcludedPositionIsNotReduced(kernels: KoblasEngine) {
  */
 private fun assertIndexedPanelsEvaluateZeroCoefficients(kernels: KoblasEngine) {
     val full = vectorWidth(kernels)
+    if (kernels.providers.any { it.id == "jvm-simd" && EngineImplementation.Panels in it.implementations }) {
+        assertTrue(kernels.implementationFor(PanelWork.SparseRightHandSides, full, 2) != PortableEngine.name)
+    }
     for (width in intArrayOf(2, full, full + 1)) {
         val positions = 2
         val zeroValues = DoubleArray(positions)

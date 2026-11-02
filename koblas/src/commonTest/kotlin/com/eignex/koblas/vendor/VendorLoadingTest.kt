@@ -64,7 +64,7 @@ class VendorLoadingTest {
     fun `exact vendor providers do not supply portable only operations`() {
         val engine = installed() ?: return skipped("exact vendor separation")
 
-        assertEquals(setOf(engine.id), engine.capabilities.keys)
+        assertEquals(setOf(engine.id), engine.providers.map { it.id }.toSet())
         assertTrue(EngineImplementation.Sum !in engine.implementations)
         assertFailsWith<UnsupportedOperationException> { engine.sum(doubleArrayOf(1.0), 0, 1) }
         assertEquals(null, engine.implementationFor(EngineImplementation.Sum, 1))

@@ -26,7 +26,7 @@ import jdk.incubator.vector.VectorOperators
  */
 internal object SimdTriangularKernels : KoblasEngine {
     override val id: String = "jvm-simd"
-    override val implementations get() = setOf(EngineImplementation.Triangular)
+    override val implementations = setOf(EngineImplementation.Triangular)
 
     private val SPECIES = SIMD_SPECIES
     private val LANE = SPECIES.length()

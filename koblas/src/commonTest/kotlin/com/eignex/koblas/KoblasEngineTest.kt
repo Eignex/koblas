@@ -48,7 +48,7 @@ class KoblasEngineTest {
             partial,
             BuiltinEngines.scalar,
         )
-        assertEquals(setOf(partial.id, BuiltinEngines.scalar.id), engine.capabilities.keys)
+        assertEquals(setOf(partial.id, BuiltinEngines.scalar.id), engine.providers.map { it.id }.toSet())
         val values = doubleArrayOf(0.5, -2.0, 3.0)
 
         val dot = engine.dot(values, 0, values, 0, values.size)

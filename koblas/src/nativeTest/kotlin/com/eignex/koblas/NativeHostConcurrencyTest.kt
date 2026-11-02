@@ -27,7 +27,7 @@ class NativeHostConcurrencyTest {
 
     /** Whether a product of these extents is one the default hands to a library, asserted not assumed. */
     private fun assertHostEligible(rows: Int, columns: Int, depth: Int, what: String) {
-        if (koblas.vendor == null) {
+        if (koblas.providers.none { it.vendor != null }) {
             println(
                 "SKIPPED: no host binding; $what exercised portable scheduling",
             )
@@ -109,14 +109,14 @@ class NativeHostConcurrencyTest {
     /** The library the cases above reached reports one compute thread, or exports no way to be asked. */
     @Test
     fun `the composed default runs on a library held to one compute thread`() {
-        val vendor = koblas.takeIf { it.vendor != null } ?: return println(
-            "SKIPPED: no host binding; host thread configuration was not verified",
-        )
-
-        assertTrue(
-            vendor.threadEvidence.label.startsWith("1-thread-"),
-            "the default composed a library that was not held to one compute thread",
-        )
+        val vendors = koblas.providers.filter { it.vendor != null }
+        if (vendors.isEmpty()) return println("SKIPPED: no host binding; thread configuration was not verified")
+        for (vendor in vendors) {
+            assertTrue(
+                vendor.threadEvidence.label.startsWith("1-thread-"),
+                "${vendor.name} was not held to one compute thread",
+            )
+        }
     }
 
     /** A destination multiplier that is this worker's own, so no two workers expect the same answer. */

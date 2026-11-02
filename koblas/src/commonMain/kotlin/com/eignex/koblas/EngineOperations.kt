@@ -39,7 +39,9 @@ public fun KoblasEngine.iamax(x: DenseVector): Int = if (x.size == 0) 0 else iam
 /** `y = alpha · x + y`. */
 public fun KoblasEngine.axpy(alpha: Double, x: DenseVector, y: DenseVector) {
     requireSameSize(x.size, y.size, "axpy")
-    axpy(y.values, y.offset, alpha, x.values, x.offset, x.size, y.stride, x.stride)
+    if (alpha == 0.0) return
+    val source = x.stableFor(y)
+    axpy(y.values, y.offset, alpha, source.values, source.offset, x.size, y.stride, source.stride)
 }
 
 /**
@@ -54,19 +56,36 @@ public fun KoblasEngine.scale(alpha: Double, x: DenseVector): Unit = scale(x.val
 /** `y = x`. */
 public fun KoblasEngine.copy(x: DenseVector, y: DenseVector) {
     requireSameSize(x.size, y.size, "copy")
-    copy(x.values, x.offset, y.values, y.offset, x.size, x.stride, y.stride)
+    if (sameVectorMapping(x, y)) return
+    val contiguous = x.stride == 1 && y.stride == 1
+    val provider = if (this is CombinedEngine) vectors(EngineImplementation.Copy, x.size, contiguous) else this
+    // Portable contiguous copy is a memmove, so it needs no alias snapshot.
+    val source = if (provider === PortableEngine && contiguous) x else x.stableFor(y)
+    provider.copy(source.values, source.offset, y.values, y.offset, x.size, source.stride, y.stride)
 }
 
 /** Exchanges the entries of [x] and [y]. */
 public fun KoblasEngine.swap(x: DenseVector, y: DenseVector) {
     requireSameSize(x.size, y.size, "swap")
-    swap(x.values, x.offset, y.values, y.offset, x.size, x.stride, y.stride)
+    if (sameVectorMapping(x, y)) return
+    withStablePair(x, y) { a, b -> swap(a.values, a.offset, b.values, b.offset, a.size, a.stride, b.stride) }
 }
 
-/** Applies the plane rotation given by [c] and [s] to [x] and [y]. */
+/** Applies [rot] through this engine, including its overlap and negative stride semantics. */
 public fun KoblasEngine.rot(x: DenseVector, y: DenseVector, c: Double, s: Double) {
     requireSameSize(x.size, y.size, "rot")
-    rot(x.values, x.offset, y.values, y.offset, x.size, c, s, x.stride, y.stride)
+    if (c == 1.0 && s == 0.0) return
+    withStablePair(x, y) { a, b -> rot(a.values, a.offset, b.values, b.offset, a.size, c, s, a.stride, b.stride) }
+}
+
+/** Both inputs precede every write; at a shared entry the final write belongs to [y]. */
+private inline fun withStablePair(x: DenseVector, y: DenseVector, operation: (DenseVector, DenseVector) -> Unit) {
+    if (!x.overlaps(y)) return operation(x, y)
+    val a = DenseVector.wrap(x.toDoubleArray())
+    val b = DenseVector.wrap(y.toDoubleArray())
+    operation(a, b)
+    for (i in 0 until x.size) x[i] = a[i]
+    for (i in 0 until y.size) y[i] = b[i]
 }
 
 // Whole-call hooks are reached only after capability selection, validation and alias staging.
@@ -1165,6 +1184,7 @@ public fun KoblasEngine.trmv(
 ) {
     requireTriangularVectorOperands(a, x.size, "trmv")
     val n = a.rows
+    if (n == 0) return
     val implementation = wholeCallFor(
         if (transpose) EngineImplementation.TrmvTransposed else EngineImplementation.Trmv,
         n,

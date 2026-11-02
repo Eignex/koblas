@@ -80,21 +80,20 @@ class RotTest {
 
     @Test
     fun `rot supports strided inputs and snapshots overlaps`() {
-        val backing = doubleArrayOf(1.0, 2.0, 3.0, 4.0, 5.0)
-        val x = StridedVector(backing, 0, 4)
-        val y = StridedVector(backing, 4, 4, -1)
-        val originalX = x.toDoubleArray()
-        val originalY = y.toDoubleArray()
-        val expected = backing.copyOf()
-        for (i in 0 until x.size) {
-            expected[x.offset + i * x.stride] = c * originalX[i] + s * originalY[i]
-        }
-        for (i in 0 until y.size) {
-            expected[y.offset + i * y.stride] = c * originalY[i] - s * originalX[i]
-        }
+        for (engine in listOfNotNull(BuiltinEngines.scalar, BuiltinEngines.simd, koblas)) {
+            val backing = doubleArrayOf(1.0, 2.0, 3.0, 4.0, 5.0)
+            val x = StridedVector(backing, 0, 4)
+            val y = StridedVector(backing, 4, 4, -1)
+            val originalX = x.toDoubleArray()
+            val originalY = y.toDoubleArray()
+            BuiltinEngines.scalar.rot(originalX, 0, originalY, 0, x.size, c, s)
+            val expected = backing.copyOf()
+            for (i in 0 until x.size) expected[x.offset + i * x.stride] = originalX[i]
+            for (i in 0 until y.size) expected[y.offset + i * y.stride] = originalY[i]
 
-        rot(x, y, c, s)
+            engine.rot(x, y, c, s)
 
-        assertContentEquals(expected, backing)
+            assertContentEquals(expected, backing)
+        }
     }
 }

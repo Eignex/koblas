@@ -437,9 +437,6 @@ internal class JvmVendorBlas(private val library: JvmVendorLibrary) : KoblasEngi
         structure: MatrixStructure,
     ) {
         val depth = if (transposeA) a.rows else a.cols
-        if (EngineImplementation.Gemmt !in implementations) {
-            error("Backend does not supply Gemmt")
-        }
         Arena.ofConfined().use { arena ->
             val na = arena.stage(a)
             val nb = arena.stage(b)
@@ -581,9 +578,6 @@ internal class JvmVendorBlas(private val library: JvmVendorLibrary) : KoblasEngi
     )
 
     private companion object {
-        /** Named in every route because every JVM call pays it. */
-        const val TRANSFER = "native buffer transfer"
-
         val TRIANGULAR_VECTOR: FunctionDescriptor = FunctionDescriptor.ofVoid(
             JAVA_INT, JAVA_INT, JAVA_INT, JAVA_INT, JAVA_INT, ADDRESS, JAVA_INT, ADDRESS, JAVA_INT,
         )

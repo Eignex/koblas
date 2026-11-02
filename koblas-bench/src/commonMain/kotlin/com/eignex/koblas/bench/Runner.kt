@@ -77,7 +77,7 @@ public fun main(args: Array<String>) {
     if (sink == Double.POSITIVE_INFINITY) throw IllegalStateException("unreachable result sink")
     writeTextFile(settings.outputPath, reportCsv(rows))
     println("wrote ${selected.size} case summaries from ${rows.count { it.nanos != null }} measurements to ${settings.outputPath}")
-    println("resolved implementation=$implementation runtime=${runtimeIdentity()} harness=native-calibrated")
+    printIdentity(implementation, "native-calibrated")
     println("last retained result=${Retained.describe()}")
 }
 
@@ -207,12 +207,13 @@ private fun BenchCase.routingKey(): String {
     val selected = if (operation in setOf("gemv", "trmv", "trsv") && flag("transA")) {
         EngineImplementation.valueOf("${base.name}Transposed")
     } else base
-    val rows = dimension(0)
+    val transposedGemv = selected == EngineImplementation.GemvTransposed
+    val rows = dimension(if (transposedGemv) 1 else 0)
     val vector = dimensions.size == 1 && operation !in setOf("symv", "syr", "syr2", "trmv", "trsv")
     val columns = when {
         vector -> 1
         operation in setOf("gemmt", "syrk", "syr2k") || dimensions.size == 1 -> rows
-        else -> dimension(1)
+        else -> dimension(if (transposedGemv) 0 else 1)
     }
     val (level, depth) = when (operation) {
         "gemm" -> 3 to dimension(2)
@@ -252,11 +253,17 @@ private const val MAX_OPERATIONS = 1_000_000
 
 /** The same engine and host evidence on either runtime. */
 internal fun engineIdentity(mode: String, engine: KoblasEngine): String {
-    val host = engine.takeIf { it.vendor != null }?.let {
+    val host = engine.providers.filter { it.vendor != null }.joinToString("") {
         "/${it.vendor!!.vendorName}/${it.libraryPath}/${it.version}/threads=${it.threadEvidence.label}"
-    } ?: ""
-    val owned = engine.capabilities.entries.joinToString("") { (id, operations) ->
+    }
+    val owned = engine.providers.groupBy { it.id }.entries.joinToString("") { (id, providers) ->
+        val operations = providers.flatMapTo(mutableSetOf()) { it.implementations }
         "/caps[$id:${operations.joinToString(",") { it.name }}]"
     }
     return "$mode/${engine.name}$host$owned"
+}
+
+internal fun printIdentity(implementation: String, harness: String) {
+    println("resolved implementation=$implementation runtime=${runtimeIdentity()} harness=$harness")
+    println("profile_cpu_model=${hostPlatform().cpuModel ?: "*"}")
 }

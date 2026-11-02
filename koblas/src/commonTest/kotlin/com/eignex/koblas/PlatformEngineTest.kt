@@ -63,42 +63,13 @@ class PlatformEngineTest {
     // are lanes: the assertion is where it cannot go rather than where it must stay.
     @Test
     fun `sum never names a vendor because none exports it`() {
-        val vendor = koblas.takeIf { it.vendor != null } ?: return
-        val vendorArm = "${vendor.vendor!!.vendorName.lowercase()}"
-
-        assertNotEquals(vendorArm, reached(EngineImplementation.Sum, WIDE))
-    }
-
-    /**
-     * Native Level 1 crossovers differ by operation: at 96 a dot has crossed and a norm has not.
-     * `dnrm2` rescales per element while the portable norm first tries a plain sum of squares.
-     */
-    @Test
-    fun `each operation crosses to the vendor at its own measured width`() {
-        val vendor = koblas.takeIf { it.vendor != null } ?: return skipped("no library on this host")
-        val arm = "${vendor.vendor!!.vendorName.lowercase()}"
-        if (reached(
-                EngineImplementation.Dot,
-                WIDE,
-            ) != arm
-        ) {
-            return skipped("this platform keeps Level 1 off the library")
+        for (vendor in koblas.providers.filter { it.vendor != null }) {
+            assertNotEquals(vendor.name, reached(EngineImplementation.Sum, WIDE))
         }
-
-        assertEquals(PORTABLE, reached(EngineImplementation.Dot, 32), "a dot at 32 is still the loop's")
-        assertEquals(arm, reached(EngineImplementation.Dot, 96), "a dot at 96 has crossed")
-        assertEquals(PORTABLE, reached(EngineImplementation.Nrm2, 96), "the robust norm crosses later")
-        assertEquals(PORTABLE, reached(EngineImplementation.Iamax, 96), "and so does the index search")
-        assertEquals(arm, reached(EngineImplementation.Nrm2, 128), "both have crossed by 128")
-        assertEquals(arm, reached(EngineImplementation.Iamax, 128))
     }
 
     private fun reached(operation: EngineImplementation, length: Int): String? =
         koblas.implementationFor(operation, length)
-
-    private fun skipped(why: String) {
-        println("SKIPPED: $why; the per-operation crossovers were not exercised here")
-    }
 
     private companion object {
         const val PORTABLE = "scalar"

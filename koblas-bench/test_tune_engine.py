@@ -30,14 +30,26 @@ class TuneEngineTest(unittest.TestCase):
             for index in range(1, 4):
                 path = root / f"pass-{index}"
                 path.mkdir()
-                (path / "metadata.txt").write_text("model name=measured cpu\n")
+                (path / "metadata.txt").write_text("model name=hardware display name\nprofile_cpu_model=measured cpu\n")
             self.assertEqual("measured cpu", tune.measured_cpu(root))
-            (root / "pass-3/metadata.txt").write_text("model name=different cpu\n")
+            with self.assertRaises(ValueError):
+                tune.measured_cpu(root, "another model")
+            (root / "pass-3/metadata.txt").write_text("profile_cpu_model=different cpu\n")
             with self.assertRaises(ValueError):
                 tune.measured_cpu(root)
-            (root / "pass-3/metadata.txt").write_text("model name=\n")
+            (root / "pass-3/metadata.txt").write_text("model name=hardware only\n")
             with self.assertRaises(ValueError):
                 tune.measured_cpu(root)
+
+    def test_unknown_runtime_cpu_requires_an_explicit_wildcard(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "pass-1").mkdir()
+            (root / "pass-1/metadata.txt").write_text("profile_cpu_model=*\n")
+            for requested in (None, "hardware display name"):
+                with self.assertRaises(ValueError):
+                    tune.measured_cpu(root, requested)
+            self.assertEqual("*", tune.measured_cpu(root, "*"))
 
     def test_pairing_uses_round_ratios_and_rejects_smoke_captures(self):
         with tempfile.TemporaryDirectory() as directory:

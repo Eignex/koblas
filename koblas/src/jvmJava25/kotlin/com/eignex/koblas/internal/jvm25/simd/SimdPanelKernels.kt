@@ -25,7 +25,7 @@ import jdk.incubator.vector.VectorOperators
  */
 internal object SimdPanelKernels : KoblasEngine {
     override val id: String = "jvm-simd"
-    override val implementations get() = setOf(EngineImplementation.Panels)
+    override val implementations = setOf(EngineImplementation.Panels)
 
     private val SPECIES = SIMD_SPECIES
     private val LANE = SPECIES.length()

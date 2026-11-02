@@ -1,7 +1,6 @@
 package com.eignex.koblas
 
 import com.eignex.koblas.EngineImplementation.*
-import com.eignex.koblas.internal.dense.*
 
 internal fun engineWithKernels(
     vectors: KoblasEngine = PortableEngine,
@@ -13,15 +12,14 @@ internal fun engineWithKernels(
     EngineProfile(
         "test",
         listOf(
-            EngineRule(
-                vectors.id,
-                EngineImplementation.entries.filter { it.vector && !it.name.startsWith("Indexed") }.toSet(),
-            ),
-            EngineRule(indexed.id, setOf(IndexedDot)),
-            EngineRule(panels.id, setOf(Panels)),
-            EngineRule(products.id, setOf(Products)),
-            EngineRule(triangles.id, setOf(Triangular)),
-        ),
+            vectors to EngineImplementation.entries.filter { it.vector && !it.name.startsWith("Indexed") }.toSet(),
+            indexed to setOf(IndexedDot),
+            panels to setOf(Panels),
+            products to setOf(Products),
+            triangles to setOf(Triangular),
+        ).flatMap { (engine, operations) ->
+            engine.providers.map { EngineRule(it.id, operations) }
+        },
     ),
     panels,
     products,
@@ -42,7 +40,9 @@ internal fun engineWithHost(
             if (eligible && host.implementations.isNotEmpty()) {
                 add(EngineRule(host.id, host.implementations, borrowed = if (borrowed) null else false))
             }
-            add(EngineRule(portable.id, EngineImplementation.entries.toSet()))
+            portable.providers.filter { it.implementations.isNotEmpty() }.forEach {
+                add(EngineRule(it.id, it.implementations))
+            }
         },
     ),
     host,

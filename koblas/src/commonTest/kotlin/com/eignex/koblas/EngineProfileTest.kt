@@ -8,6 +8,36 @@ class EngineProfileTest {
         assertClose(expected, actual, context = "partial engine composition")
 
     @Test
+    fun `nested compositions retain leaf identity and missing exports reach the next provider`() {
+        val vendor = object : KoblasEngine {
+            override val name = "host"
+            override val vendor = com.eignex.koblas.vendor.Vendor.OneMkl
+            override val implementations = setOf(EngineImplementation.Dot)
+        }
+        val fallback = object : KoblasEngine {
+            override val name = "custom"
+            override val implementations = setOf(EngineImplementation.Asum)
+        }
+        val nested = KoblasEngine.combine(EngineProfile("nested", emptyList()), vendor)
+        val combined = KoblasEngine.combine(
+            EngineProfile(
+                "outer",
+                listOf(
+                    EngineRule(vendor.id, setOf(EngineImplementation.Asum)),
+                    EngineRule(fallback.id, fallback.implementations),
+                ),
+            ),
+            nested,
+            fallback,
+        )
+
+        assertEquals("nested", nested.id)
+        assertEquals(null, nested.vendor)
+        assertEquals(listOf(vendor, fallback, PortableEngine), combined.providers)
+        assertEquals(fallback.name, combined.implementationFor(EngineImplementation.Asum, 128))
+    }
+
+    @Test
     fun `threshold and layout select the same body that executes`() {
         val calls = mutableListOf<Int>()
         val backend = object : KoblasEngine {

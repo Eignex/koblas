@@ -26,7 +26,7 @@ import jdk.incubator.vector.DoubleVector
  */
 internal object SimdProductKernels : KoblasEngine {
     override val id: String = "jvm-simd"
-    override val implementations get() = setOf(EngineImplementation.Products)
+    override val implementations = setOf(EngineImplementation.Products)
 
     private val SPECIES = SIMD_SPECIES
     private val LANE = SPECIES.length()
