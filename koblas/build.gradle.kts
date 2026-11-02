@@ -11,7 +11,8 @@ plugins {
     kotlin("plugin.serialization")
 }
 
-val fullTargets = providers.gradleProperty("targets.full").isPresent
+val fullTargets = providers.gradleProperty("targets.full").isPresent ||
+    gradle.startParameter.taskNames.any { it.endsWith("LinuxArm64") }
 
 eignexBuild {
     abiValidationEnabled.set(fullTargets)

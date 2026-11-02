@@ -9,7 +9,8 @@ import org.jetbrains.kotlin.gradle.targets.jvm.KotlinJvmTarget
 
 plugins { id("com.eignex.kmp") }
 
-val fullTargets = providers.gradleProperty("targets.full").isPresent
+val fullTargets = providers.gradleProperty("targets.full").isPresent ||
+    gradle.startParameter.taskNames.any { it.endsWith("LinuxArm64") }
 
 eignexPublish { publish.set(false) }
 eignexBuild {

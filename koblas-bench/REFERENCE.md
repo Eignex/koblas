@@ -121,7 +121,10 @@ coprocessor exemption.
 
 [The vendor comparison manifest](lab/vendor-comparison.json) builds the Native executable and pins the
 oneMKL reference during preparation. [The macOS manifest](lab/vendor-comparison-macos.json) prepares
-Accelerate comparisons on a compatible Mac. Timed workers use these frozen inputs without invoking
+Accelerate comparisons on a compatible Mac. [The Linux ARM64 manifest](lab/vendor-comparison-linux-arm64.json)
+cross-builds the executable during preparation, since Kotlin/Native has no Linux ARM64 compiler host.
+Use it with OpenBLAS and `arch=arm64`; execution rows select compatible ARM workers automatically.
+Timed workers use these frozen inputs without invoking
 Gradle or downloading vendor packages. JVM-only arms need no Native executable input.
 
 Each workload is a separate paired lab case. All selected arms run on the same compatible machine in one
