@@ -2,7 +2,6 @@ package com.eignex.koblas
 
 import com.eignex.koblas.dense.ReferenceBlas
 import com.eignex.koblas.vendor.Architecture
-import com.eignex.koblas.vendor.CpuVendor
 import com.eignex.koblas.vendor.HostPlatform
 import com.eignex.koblas.vendor.OperatingSystem
 import kotlin.test.*
@@ -133,18 +132,24 @@ class EngineProfileTest {
     }
 
     @Test
-    fun `profile applicability distinguishes runtime architecture and manufacturer`() {
-        val profile = StandardEngineProfiles.nativeLinuxOneMkl
-        val host = HostPlatform(OperatingSystem.Linux, Architecture.X86_64, CpuVendor.Intel)
-
-        assertTrue(profile.appliesTo("native", host))
-        assertFalse(profile.appliesTo("jvm", host))
-        assertFalse(
-            profile.appliesTo("native", HostPlatform(OperatingSystem.Linux, Architecture.X86_64, CpuVendor.Amd)),
-        )
-        assertFalse(
-            profile.appliesTo("native", HostPlatform(OperatingSystem.MacOs, Architecture.Arm64, CpuVendor.Unknown)),
-        )
+    fun `automatic profiles apply only to their measured cpu model and runtime`() {
+        for ((runtime, profile) in listOf(
+            "native" to StandardEngineProfiles.nativeLinuxOneMkl,
+            "jvm" to StandardEngineProfiles.jvmLinuxOneMkl,
+        )) {
+            val host = requireNotNull(profile.target)
+            assertTrue(profile.appliesTo(runtime, host))
+            assertTrue(profile in StandardEngineProfiles.forTarget(runtime, host))
+            for (other in listOf(
+                HostPlatform(host.operatingSystem, host.architecture),
+                HostPlatform(host.operatingSystem, host.architecture, "Intel(R) Core(TM) i7-6700"),
+                HostPlatform(OperatingSystem.MacOs, Architecture.Arm64, host.cpuModel),
+            )) {
+                assertFalse(profile.appliesTo(runtime, other))
+                assertFalse(profile in StandardEngineProfiles.forTarget(runtime, other))
+            }
+            assertFalse(profile.appliesTo(if (runtime == "native") "jvm" else "native", host))
+        }
     }
 
     @Test
@@ -226,11 +231,12 @@ class EngineProfileTest {
 
     @Test
     fun `generated profile parsing preserves bounded routing preferences`() {
-        val text = "koblas-profile-v1\ttest\tnative\tLinux\tX86_64\tIntel\tcapture\tevidence\n" +
+        val text = "koblas-profile-v1\ttest\tnative\tLinux\tX86_64\tmeasured cpu\tcapture\tevidence\n" +
             "portable\tDot\t4\t8\t0\t2147483647\t0\t2147483647\t0\ttrue\t*\n"
         val profile = EngineProfile.parse(text)
         val rule = profile.rules.single()
 
+        assertEquals("measured cpu", profile.target?.cpuModel)
         assertTrue(rule.matches(4, 1, 1, true, false))
         assertTrue(rule.matches(8, 1, 1, true, false))
         assertFalse(rule.matches(3, 1, 1, true, false))

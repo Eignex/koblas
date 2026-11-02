@@ -25,6 +25,21 @@ class TuneEngineTest(unittest.TestCase):
         self.assertEqual("true", rule[10])
         self.assertEqual(("Trsm", 16, 32, 32, False), tune.shape("trsm+16x32+triangular+side=R"))
 
+    def test_profile_cpu_comes_from_measurements_and_rejects_mixed_models(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            for index in range(1, 4):
+                path = root / f"pass-{index}"
+                path.mkdir()
+                (path / "metadata.txt").write_text("model name=measured cpu\n")
+            self.assertEqual("measured cpu", tune.measured_cpu(root))
+            (root / "pass-3/metadata.txt").write_text("model name=different cpu\n")
+            with self.assertRaises(ValueError):
+                tune.measured_cpu(root)
+            (root / "pass-3/metadata.txt").write_text("model name=\n")
+            with self.assertRaises(ValueError):
+                tune.measured_cpu(root)
+
     def test_pairing_uses_round_ratios_and_rejects_smoke_captures(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

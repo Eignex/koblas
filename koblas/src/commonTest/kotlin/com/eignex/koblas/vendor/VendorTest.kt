@@ -33,19 +33,6 @@ class VendorTest {
     }
 
     @Test
-    fun `cpu manufacturer identifiers agree across linux and windows formats`() {
-        for (identifier in listOf("GenuineIntel", "Intel64 Family 6 Model 154 Stepping 3, GenuineIntel")) {
-            assertEquals(CpuVendor.Intel, cpuVendorFromIdentifier(identifier))
-        }
-        for (identifier in listOf("AuthenticAMD", "AMD64 Family 25 Model 97 Stepping 2, AuthenticAMD")) {
-            assertEquals(CpuVendor.Amd, cpuVendorFromIdentifier(identifier))
-        }
-        for (identifier in listOf(null, "", "Intel", "AMD", "notGenuineIntel", "ARMv8")) {
-            assertEquals(CpuVendor.Unknown, cpuVendorFromIdentifier(identifier))
-        }
-    }
-
-    @Test
     fun `linux candidates retain installer prefixes and exclude windows dlls`() {
         val candidates = Vendor.OneMkl.resolvedCandidates("/home/test/", OperatingSystem.Linux)
 

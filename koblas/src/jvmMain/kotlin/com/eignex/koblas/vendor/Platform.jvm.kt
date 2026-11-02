@@ -4,10 +4,10 @@ import java.io.File
 
 /** Resolved once; none of these facts change while the process runs. */
 private val host: HostPlatform by lazy {
-    HostPlatform(operatingSystem(), architecture(), cpuVendor())
+    HostPlatform(operatingSystem(), architecture(), cpuModel())
 }
 
-/** The platform this process is running on, read from the JVM's own system properties. */
+/** Platform facts read once from JVM properties and Linux CPU metadata where available. */
 public actual fun hostPlatform(): HostPlatform = host
 
 private fun operatingSystem(): OperatingSystem {
@@ -27,23 +27,15 @@ private fun architecture(): Architecture = when (System.getProperty("os.arch")) 
     else -> Architecture.Other
 }
 
-/**
- * The CPU manufacturer, which only ever refines the order within one architecture.
- *
- * Linux reports it in `/proc/cpuinfo`; Windows includes it in `PROCESSOR_IDENTIFIER`.
- * Elsewhere it stays [CpuVendor.Unknown]; macOS and Arm selection do not consult the manufacturer.
- */
-private fun cpuVendor(): CpuVendor {
-    if (operatingSystem() == OperatingSystem.Windows) {
-        return cpuVendorFromIdentifier(System.getenv("PROCESSOR_IDENTIFIER"))
-    }
-    if (operatingSystem() != OperatingSystem.Linux) return CpuVendor.Unknown
-    val line = try {
+/** Unknown CPU models retain portable coverage instead of borrowing another model's measurements. */
+private fun cpuModel(): String? {
+    if (operatingSystem() != OperatingSystem.Linux) return null
+    return try {
         File("/proc/cpuinfo").bufferedReader().use { reader ->
-            reader.lineSequence().firstOrNull { it.startsWith("vendor_id") }
+            reader.lineSequence().firstOrNull { it.startsWith("model name") }
+                ?.substringAfter(':')?.trim()?.takeIf { it.isNotEmpty() }
         }
     } catch (_: java.io.IOException) {
         null
-    } ?: return CpuVendor.Unknown
-    return cpuVendorFromIdentifier(line.substringAfter(':', "").trim())
+    }
 }

@@ -56,6 +56,16 @@ def measurements(directory, baseline, candidate, backend=None):
     return {case: ratios for case, ratios in paired.items() if len(ratios) == len(passes)}, provenance
 
 
+def measured_cpu(directory):
+    models = set()
+    for path in directory.glob("pass-*/metadata.txt"):
+        fields = dict(line.split("=", 1) for line in path.read_text().splitlines() if "=" in line)
+        models.add(fields.get("model name") or fields.get("cpu_model"))
+    if len(models) != 1 or None in models:
+        raise ValueError("profile fitting requires one identified CPU model; use separate captures per model")
+    return models.pop()
+
+
 def shape(case):
     operation, dimensions, _, *options = case.split("+")
     flags = dict(option.split("=", 1) for option in options)
@@ -122,7 +132,7 @@ def main():
     parser.add_argument("--native-executable", type=Path)
     parser.add_argument("--os", default="Linux")
     parser.add_argument("--arch", default="X86_64")
-    parser.add_argument("--cpu", default="Intel")
+    parser.add_argument("--cpu", help="explicit target model; defaults to the CPU model in capture metadata")
     args = parser.parse_args()
     if args.capture == bool(args.results):
         parser.error("choose --capture or --results")
@@ -145,7 +155,7 @@ def main():
         args.cases.write_text("\n".join(cases) + "\n")
     results = args.results or args.output / "capture"
     header = ["koblas-profile-v1", f"{args.runtime}-{args.backend}-recalculated-v1", args.runtime,
-              args.os, args.arch, args.cpu, str(results), "see evidence.json for paired measurements and hashes"]
+              args.os, args.arch, args.cpu or "*", str(results), "see evidence.json for paired measurements and hashes"]
     def write_profile(path, preferences):
         path.write_text("\n".join("\t".join(map(str, row)) for row in [header, *preferences]) + "\n")
     capture_env = dict(os.environ)
@@ -170,6 +180,7 @@ def main():
     paired, provenance = measurements(results, baseline, candidate, args.backend)
     if not paired:
         raise ValueError("no complete paired measurements")
+    header[5] = args.cpu or measured_cpu(results)
     rules = fit(paired, args.backend)
     write_profile(args.output / "profile.tsv", rules)
     (args.output / "evidence.json").write_text(json.dumps(dict(

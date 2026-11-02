@@ -12,15 +12,17 @@ The first use of `koblas` selects the engine once, using what is available on yo
 
 | Platform | What the default engine uses |
 |---|---|
-| JDK 25+ | Measured owned JVM SIMD configuration when enabled; eligible oneMKL calls on Intel Linux x64 with native access. |
-| Kotlin/Native, Intel Linux x64 | Measured portable + oneMKL configuration when the library is available. |
+| JDK 25+ | Measured owned JVM SIMD configuration when enabled; eligible oneMKL calls on measured Xeon Platinum 8375C Linux x64 hosts with native access. |
+| Kotlin/Native, i9-12900H Linux x64 | Measured portable + oneMKL configuration when the library is available. |
 | Other Kotlin/Native targets | Portable Kotlin until a measured host profile applies. Explicit vendor bindings remain available. |
 | JDK 17–24, Android and iOS | Portable Kotlin; no native library lookup |
 
 The default composes available backend implementations with an applicable standard routing profile once.
 A capability says which arithmetic exists; the profile says when to select it. Missing exports, optional
 modules or libraries leave portable coverage. An accelerated host profile applies to its declared runtime,
-OS, architecture and CPU manufacturer; availability alone does not select it.
+OS, architecture and exact reported CPU model; availability alone does not select it. Unknown and other
+CPU models retain portable or owned JVM SIMD coverage. The initial vendor profiles cover the i9-12900H
+on Native and Xeon Platinum 8375C on the JVM; recalculate an explicit profile for another host.
 
 On JDK 25+, enable SIMD with this JVM argument:
 
@@ -114,8 +116,11 @@ measured extents and require matching variants to agree. Unmeasured regions reta
 Use `--runtime jvm` for transfer-inclusive JVM vendor tuning or `--backend jvm-simd` for owned vector tuning.
 SIMD fitting forces its supplied vector bodies so an existing cutoff cannot hide a better crossover;
 packing families retain their owned configuration. Capability metadata filters unsupported operations.
-Set `--os`, `--arch` and `--cpu` to the actual target when it differs from Intel Linux x64. JVM vendor fitting
-compares against the owned SIMD engine by default; `--baseline jvm-scalar` supports deployments without SIMD.
+The emitted profile records the CPU model from capture metadata; mixed or unidentified models require
+separate captures. Set `--os` and `--arch` for targets other than Linux x64; `--cpu` explicitly supplies a
+target model when capture metadata cannot identify it. Platform model detection currently covers Linux.
+For explicit profiles on other operating systems, `--cpu '*'` matches OS and architecture while the
+capture retains the measured CPU evidence. JVM vendor fitting compares against the owned SIMD engine by default; `--baseline jvm-scalar` supports deployments without SIMD.
 
 Validate the emitted configuration on additional cases and compare the combined engine, not only direct
 vendor arms. `KOBLAS_BENCH_ENGINE_PROFILE=/absolute/path/profile.tsv` selects it on the benchmark harness's
