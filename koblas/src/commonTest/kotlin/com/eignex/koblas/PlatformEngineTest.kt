@@ -1,7 +1,6 @@
 package com.eignex.koblas
 
-import com.eignex.koblas.internal.dense.PanelWork
-import com.eignex.koblas.internal.dense.PortablePanelKernels
+import com.eignex.koblas.*
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotEquals
@@ -26,7 +25,7 @@ class PlatformEngineTest {
 
         if (vector == null) {
             // These are the owned matrix backends; Native whole-call host routing is independent of them.
-            assertEquals(PortablePanelKernels.name, koblas.implementationFor(PanelWork.RankUpdate, WIDE, 4))
+            assertEquals(PortableEngine.name, koblas.implementationFor(PanelWork.RankUpdate, WIDE, 4))
             return
         }
         assertEquals(
@@ -53,7 +52,7 @@ class PlatformEngineTest {
         val short = simd.implementationFor(PanelWork.RankUpdate, 1, 4)
 
         assertNotEquals(short, wide, "a wide panel and a single row reached the same body")
-        assertEquals(PortablePanelKernels.name, short)
+        assertEquals(PortableEngine.name, short)
     }
 
     /** Below any arm's threshold the call overhead outweighs the arithmetic, so the portable loop runs. */

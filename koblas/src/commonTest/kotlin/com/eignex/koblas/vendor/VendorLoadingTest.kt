@@ -1,9 +1,6 @@
 package com.eignex.koblas.vendor
 
-import com.eignex.koblas.BuiltinEngines
-import com.eignex.koblas.DenseMatrix
-import com.eignex.koblas.DenseVector
-import com.eignex.koblas.KoblasEngine
+import com.eignex.koblas.*
 import com.eignex.koblas.internal.configuration.environmentVariableOrNull
 import kotlin.math.abs
 import kotlin.test.Test
@@ -54,22 +51,24 @@ class VendorLoadingTest {
     }
 
     @Test
-    fun `a library missing any required entry point is rejected rather than half bound`() {
-        val complete = missingRequiredSymbols { true }
-        val withoutGemm = missingRequiredSymbols { it != "cblas_dgemm" }
-        val withoutTrsm = missingRequiredSymbols { it != "cblas_dtrsm" }
+    fun `missing exports remove only their own capabilities`() {
+        for (missing in listOf("cblas_dgemmt", "cblas_dtrsm", "cblas_dnrm2")) {
+            val supplied = exportedImplementations { it != missing }
 
-        assertEquals(emptyList(), complete)
-        assertEquals(listOf("cblas_dgemm"), withoutGemm)
-        assertEquals(listOf("cblas_dtrsm"), withoutTrsm)
+            assertTrue(EngineImplementation.Dot in supplied)
+            assertTrue(EngineImplementation.Gemm in supplied)
+            assertTrue(supplied.none { it.entryPoint == missing })
+        }
     }
 
     @Test
-    fun `an operation outside the required surface does not make a library partial`() {
-        // gemmt is the one operation a supported vendor may legitimately lack; it composes instead.
-        val withoutGemmt = missingRequiredSymbols { it != "cblas_dgemmt" }
+    fun `exact vendor providers do not supply portable only operations`() {
+        val engine = installed() ?: return skipped("exact vendor separation")
 
-        assertEquals(emptyList(), withoutGemmt)
+        assertEquals(setOf(engine.id), engine.capabilities.keys)
+        assertTrue(EngineImplementation.Sum !in engine.implementations)
+        assertFailsWith<UnsupportedOperationException> { engine.sum(doubleArrayOf(1.0), 0, 1) }
+        assertEquals(null, engine.implementationFor(EngineImplementation.Sum, 1))
     }
 
     @Test

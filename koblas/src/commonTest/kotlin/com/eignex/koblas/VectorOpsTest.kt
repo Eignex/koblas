@@ -295,7 +295,7 @@ class VectorOpsTest {
     @Test
     fun `public iamax returns logical indices across strides and kernel boundaries`() {
         for (stride in intArrayOf(1, 2, -2)) {
-            val publicKernels = object : KoblasEngine() {
+            val publicKernels = object : KoblasEngine {
                 override val implementations = setOf(EngineImplementation.Iamax)
                 override val name: String = "test-VectorOpsTest"
 

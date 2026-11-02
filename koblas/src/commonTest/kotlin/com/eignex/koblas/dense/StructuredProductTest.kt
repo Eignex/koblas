@@ -1,18 +1,12 @@
 package com.eignex.koblas.dense
 
-import com.eignex.koblas.BuiltinEngines
-import com.eignex.koblas.DenseMatrix
-import com.eignex.koblas.KoblasEngine
-import com.eignex.koblas.PortableEngine
-import com.eignex.koblas.Workspace
+import com.eignex.koblas.*
 import com.eignex.koblas.assertClose
 import com.eignex.koblas.copyOf
 import com.eignex.koblas.engineWithKernels
 import com.eignex.koblas.internal.dense.OutputTriangle
 import com.eignex.koblas.internal.dense.PORTABLE_PRODUCT_TILE
 import com.eignex.koblas.internal.dense.PRODUCT_BLOCK_DEPTH
-import com.eignex.koblas.internal.dense.PortablePanelKernels
-import com.eignex.koblas.internal.dense.PortableProductKernels
 import com.eignex.koblas.internal.dense.SYMMETRIC_BLOCK
 import com.eignex.koblas.internal.dense.outsideTriangle
 import com.eignex.koblas.internal.dense.productWindow
@@ -475,11 +469,11 @@ class StructuredProductTest {
         }
     }
 
-    private fun koblasPanels(): KoblasEngine = BuiltinEngines.simd ?: PortablePanelKernels
+    private fun koblasPanels(): KoblasEngine = BuiltinEngines.simd ?: PortableEngine
 
     /** The panel backend that belongs beside [products], so a composition under test is a real one. */
     private fun panelsFor(products: KoblasEngine): KoblasEngine =
-        if (products === PortableProductKernels) PortablePanelKernels else koblasPanels()
+        if (products === PortableEngine) PortableEngine else koblasPanels()
 
     /** The blocked shape and the direct one, so every conformance check covers both routes. */
     private fun shapes(): List<Pair<Int, Int>> {

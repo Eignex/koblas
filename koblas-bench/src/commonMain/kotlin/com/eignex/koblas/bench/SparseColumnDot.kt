@@ -1,8 +1,6 @@
 package com.eignex.koblas.bench
 
-import com.eignex.koblas.BuiltinEngines
-import com.eignex.koblas.KoblasEngine
-import com.eignex.koblas.SparseMatrix
+import com.eignex.koblas.*
 
 /** Matched CSC column windows, including public validation, through the selected engine. */
 internal fun sparseColumnDotArm(case: BenchCase, engine: KoblasEngine): ArmChoice {

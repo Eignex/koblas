@@ -10,4 +10,20 @@ internal object JvmBackend {
 
     @Suppress("UNUSED_PARAMETER", "FunctionOnlyReturningConstant") // Matches the desktop selection entry point.
     fun open(vendor: Vendor): KoblasEngine? = null
+
+    @Suppress("UNUSED_PARAMETER", "FunctionOnlyReturningConstant")
+    fun panelImplementation(
+        engine: KoblasEngine,
+        work: PanelWork,
+        rows: Int,
+        columns: Int,
+        contiguous: Boolean,
+    ): String? = null
+
+    @Suppress("UNUSED_PARAMETER", "FunctionOnlyReturningConstant")
+    fun productImplementations(engine: KoblasEngine, rows: Int, columns: Int, depth: Int): List<String>? = null
+
+    @Suppress("UNUSED_PARAMETER", "FunctionOnlyReturningConstant")
+    fun triangularImplementations(engine: KoblasEngine, order: Int, sides: Int, contiguous: Boolean): List<String>? =
+        null
 }

@@ -13,7 +13,7 @@ class EngineProfileTest {
     @Test
     fun `threshold and layout select the same body that executes`() {
         val calls = mutableListOf<Int>()
-        val backend = object : KoblasEngine() {
+        val backend = object : KoblasEngine {
             override val contiguousVectors: Boolean = true
             override val minimumVectorLength: Int = 2
 
@@ -67,7 +67,7 @@ class EngineProfileTest {
 
     @Test
     fun `missing backend and missing capabilities fall through ordered preferences`() {
-        val backend = object : KoblasEngine() {
+        val backend = object : KoblasEngine {
             override val name = "sum"
             override val implementations = setOf(EngineImplementation.Sum)
         }
@@ -93,7 +93,7 @@ class EngineProfileTest {
     @Test
     fun `indexed dot registration preserves every window argument`() {
         val counts = mutableListOf<Int>()
-        val backend = object : KoblasEngine() {
+        val backend = object : KoblasEngine {
 
             override val implementations = setOf(EngineImplementation.IndexedDot)
             override val name: String = "indexed"
@@ -166,7 +166,7 @@ class EngineProfileTest {
         val operations = mutableSetOf(EngineImplementation.Sum)
         val rules = mutableListOf(EngineRule("test", operations))
         val profile = EngineProfile("test", rules)
-        val backend = object : KoblasEngine() {
+        val backend = object : KoblasEngine {
             override val name = "test"
             override val implementations = setOf(EngineImplementation.Sum)
         }
@@ -254,7 +254,7 @@ class EngineProfileTest {
     @Test
     fun `partial implementations sharing one backend compose across arithmetic families`() {
         val calls = mutableListOf<String>()
-        val vectors = object : KoblasEngine() {
+        val vectors = object : KoblasEngine {
             override val name = "vectors"
             override val id = "partial"
             override val implementations = setOf(EngineImplementation.Dot)
@@ -271,7 +271,7 @@ class EngineProfileTest {
                 return PortableEngine.dot(a, aOff, b, bOff, len, aStride, bStride)
             }
         }
-        val indexed = object : KoblasEngine() {
+        val indexed = object : KoblasEngine {
             override val name = "indexed"
             override val id = "partial"
             override val implementations = setOf(EngineImplementation.IndexedAxpy)
@@ -288,7 +288,7 @@ class EngineProfileTest {
                 PortableEngine.axpy(indices, indexOffset, values, valueOffset, count, alpha, destination)
             }
         }
-        val matrices = object : KoblasEngine() {
+        val matrices = object : KoblasEngine {
             override val name = "matrices"
             override val id = "partial"
             override val implementations = setOf(EngineImplementation.Gemm)

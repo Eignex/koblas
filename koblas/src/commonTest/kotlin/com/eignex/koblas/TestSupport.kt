@@ -1,6 +1,6 @@
 package com.eignex.koblas
 
-import com.eignex.koblas.internal.dense.PanelWork
+import com.eignex.koblas.*
 import kotlin.math.abs
 import kotlin.random.Random
 import kotlin.test.assertEquals

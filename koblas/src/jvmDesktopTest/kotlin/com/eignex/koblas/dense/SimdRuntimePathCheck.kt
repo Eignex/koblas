@@ -1,12 +1,8 @@
 package com.eignex.koblas.dense
 
-import com.eignex.koblas.BuiltinEngines
-import com.eignex.koblas.KoblasEngine
-import com.eignex.koblas.PortableEngine
+import com.eignex.koblas.*
 import com.eignex.koblas.assertClose
-import com.eignex.koblas.internal.dense.PanelWork
-import com.eignex.koblas.internal.dense.PortablePanelKernels
-import com.eignex.koblas.internal.dense.PortableTriangularKernels
+import com.eignex.koblas.internal.configuration.CombinedEngine
 import com.eignex.koblas.internal.jvm25.simd.SIMD_SPECIES
 import com.eignex.koblas.internal.jvm25.simd.hardwareFusedMultiplyAdd
 import com.eignex.koblas.internal.numeric.assertHardwareFmaAgreesWithVm
@@ -47,7 +43,7 @@ internal object SimdRuntimePathCheck {
         SimdOpsTest().`iamax distinguishes magnitudes sharing a high word`()
         val panels = engine
         check(
-            panels.panelImplementation.name == "simd-panel($lanes lanes)",
+            (panels as CombinedEngine).panelImplementation.name == "simd-panel($lanes lanes)",
         ) { "the backend named ${panels.name} at $lanes lanes" }
 
         assertPanelKernelsAgreeWithReference(panels)
@@ -60,7 +56,7 @@ internal object SimdRuntimePathCheck {
         check(panels.implementationFor(PanelWork.MultiDot, lanes, 4) == panels.panelImplementation.name) {
             "a panel of one whole lane block did not reach the vector body at $lanes lanes"
         }
-        check(panels.implementationFor(PanelWork.RankUpdate, lanes - 1, 4) == PortablePanelKernels.name) {
+        check(panels.implementationFor(PanelWork.RankUpdate, lanes - 1, 4) == PortableEngine.name) {
             "a rank update shorter than a lane block reached the vector body at $lanes lanes"
         }
         check(panels.implementationFor(PanelWork.MultiDot, lanes - 1, 4) == panels.panelImplementation.name) {
@@ -115,9 +111,9 @@ internal object SimdRuntimePathCheck {
             for (rhsStride in intArrayOf(1, 2)) {
                 val orderStride = sides * rhsStride + 2
                 val bodies = when {
-                    rhsStride != 1 || sides < lanes -> listOf(PortableTriangularKernels.name)
-                    sides % lanes == 0 -> listOf(kernels.triangularImplementation.name)
-                    else -> listOf(kernels.triangularImplementation.name, PortableTriangularKernels.name)
+                    rhsStride != 1 || sides < lanes -> listOf(PortableEngine.name)
+                    sides % lanes == 0 -> listOf((kernels as CombinedEngine).triangularImplementation.name)
+                    else -> listOf((kernels as CombinedEngine).triangularImplementation.name, PortableEngine.name)
                 }
                 assertEquals(
                     bodies,
@@ -137,7 +133,7 @@ internal object SimdRuntimePathCheck {
                             for (solve in booleanArrayOf(false, true)) {
                                 val expected = initial.copyOf()
                                 val actual = initial.copyOf()
-                                for ((backend, x) in listOf(PortableTriangularKernels to expected, kernels to actual)) {
+                                for ((backend, x) in listOf(PortableEngine to expected, kernels to actual)) {
                                     if (solve) {
                                         backend.diagonalSolve(
                                             triangle.values, n, start, order, transposed, lower, unitDiag,
@@ -176,7 +172,7 @@ internal object SimdRuntimePathCheck {
             val start = 1
             check(
                 kernels.implementationsFor(order, 1, contiguous = true) ==
-                    listOf(kernels.triangularImplementation.name),
+                    listOf((kernels as CombinedEngine).triangularImplementation.name),
             ) {
                 "a single contiguous side of order $order missed its body at $lanes lanes"
             }
@@ -189,14 +185,14 @@ internal object SimdRuntimePathCheck {
                             val paired = DoubleArray(2 * order) { if (it % 2 == 0) values[it / 2] else 0.0 }
                             val actual = values.copyOf()
                             if (solve) {
-                                PortableTriangularKernels.diagonalSolve(
+                                PortableEngine.diagonalSolve(
                                     triangle.values, n, start, order, transposed, lower, unitDiag, paired, 0, 2, 1, 2,
                                 )
                                 kernels.diagonalSolve(
                                     triangle.values, n, start, order, transposed, lower, unitDiag, actual, 0, 1, 1, 1,
                                 )
                             } else {
-                                PortableTriangularKernels.diagonalMultiply(
+                                PortableEngine.diagonalMultiply(
                                     triangle.values, n, start, order, transposed, lower, unitDiag, paired, 0, 2, 1, 2,
                                 )
                                 kernels.diagonalMultiply(

@@ -1,17 +1,9 @@
 package com.eignex.koblas.dense
 
-import com.eignex.koblas.BuiltinEngines
-import com.eignex.koblas.DenseMatrix
-import com.eignex.koblas.KoblasEngine
-import com.eignex.koblas.MAX_IDLE_LENGTHS
-import com.eignex.koblas.PortableEngine
-import com.eignex.koblas.Workspace
+import com.eignex.koblas.*
 import com.eignex.koblas.assertClose
 import com.eignex.koblas.copyOf
 import com.eignex.koblas.engineWithKernels
-import com.eignex.koblas.internal.dense.PortablePanelKernels
-import com.eignex.koblas.internal.dense.PortableProductKernels
-import com.eignex.koblas.internal.dense.PortableTriangularKernels
 import com.eignex.koblas.internal.dense.SYMMETRIC_BLOCK
 import com.eignex.koblas.internal.dense.TRIANGULAR_DIAGONAL_BLOCK
 import com.eignex.koblas.poisonedTriangle
@@ -456,6 +448,6 @@ private const val UNGROUPED_SIDES = 1024
 
 /** Runs [body] against every composition of panel, product and substitution backends this platform has. */
 internal fun withBackends(body: (KoblasEngine, KoblasEngine, KoblasEngine) -> Unit) {
-    body(PortablePanelKernels, PortableProductKernels, PortableTriangularKernels)
+    body(PortableEngine, PortableEngine, PortableEngine)
     BuiltinEngines.simd?.let { body(it, it, it) }
 }

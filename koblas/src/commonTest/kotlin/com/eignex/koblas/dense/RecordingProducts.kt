@@ -2,10 +2,7 @@
 
 package com.eignex.koblas.dense
 
-import com.eignex.koblas.DenseMatrix
-import com.eignex.koblas.EngineImplementation
-import com.eignex.koblas.KoblasEngine
-import com.eignex.koblas.PortableEngine
+import com.eignex.koblas.*
 import com.eignex.koblas.engineWithKernels
 import com.eignex.koblas.internal.dense.OutputTriangle
 import com.eignex.koblas.internal.dense.insideTriangle
@@ -31,14 +28,8 @@ internal class ProductBlockCall(
 )
 
 /** A product backend that records every block it is handed and delegates the arithmetic. */
-internal class RecordingProducts(private val delegate: KoblasEngine) : KoblasEngine() {
+internal class RecordingProducts(private val delegate: KoblasEngine) : KoblasEngine {
     override val implementations = setOf(EngineImplementation.Products)
-
-    override fun implementationsFor(rows: Int, columns: Int, depth: Int): List<String> = delegate.implementationsFor(
-        rows,
-        columns,
-        depth,
-    )
 
     override fun packsProduct(rows: Int, columns: Int, depth: Int): Boolean = delegate.packsProduct(
         rows,

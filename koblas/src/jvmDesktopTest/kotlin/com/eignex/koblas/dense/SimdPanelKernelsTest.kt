@@ -1,10 +1,6 @@
 package com.eignex.koblas.dense
 
-import com.eignex.koblas.BuiltinEngines
-import com.eignex.koblas.EngineImplementation
-import com.eignex.koblas.KoblasEngine
-import com.eignex.koblas.internal.dense.PanelWork
-import com.eignex.koblas.internal.dense.PortablePanelKernels
+import com.eignex.koblas.*
 import com.eignex.koblas.internal.jvm25.simd.hardwareFusedMultiplyAdd
 import kotlin.math.abs
 import kotlin.test.Test
@@ -37,7 +33,7 @@ class SimdPanelKernelsTest {
         for (work in vectorised()) {
             assertEquals(panelName(kernels), kernels.implementationFor(work, lanes, 4), "$work at $lanes rows")
             assertEquals(
-                if (hasShortBody(work)) panelName(kernels) else PortablePanelKernels.name,
+                if (hasShortBody(work)) panelName(kernels) else PortableEngine.name,
                 kernels.implementationFor(work, lanes - 1, 4),
                 "$work at ${lanes - 1} rows",
             )
@@ -66,7 +62,7 @@ class SimdPanelKernelsTest {
 
         for (work in vectorised()) {
             assertEquals(
-                PortablePanelKernels.name,
+                PortableEngine.name,
                 kernels.implementationFor(work, WIDE, 4, contiguous = false),
                 "$work strided",
             )
@@ -86,12 +82,12 @@ class SimdPanelKernelsTest {
             "adjacent right-hand sides",
         )
         assertEquals(
-            PortablePanelKernels.name,
+            PortableEngine.name,
             kernels.implementationFor(PanelWork.SparseRightHandSides, WIDE, 4, contiguous = false),
             "strided right-hand sides",
         )
         assertEquals(
-            PortablePanelKernels.name,
+            PortableEngine.name,
             kernels.implementationFor(PanelWork.SparseRightHandSides, lanes - 1, 4),
             "fewer adjacent right-hand sides than one lane block",
         )
@@ -124,7 +120,7 @@ class SimdPanelKernelsTest {
         val vector = DoubleArray(1)
         kernels.multiDot(1.0, a, 0, rows, x, 0, 1, rows, 1, 0.0, vector, 0, 1)
         val portable = DoubleArray(1)
-        PortablePanelKernels.multiDot(1.0, a, 0, rows, x, 0, 1, rows, 1, 0.0, portable, 0, 1)
+        PortableEngine.multiDot(1.0, a, 0, rows, x, 0, 1, rows, 1, 0.0, portable, 0, 1)
 
         val bound = rows * 2.220446049250313e-16 * portable[0]
         assertTrue(

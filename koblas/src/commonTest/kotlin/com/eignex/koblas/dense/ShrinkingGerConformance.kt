@@ -1,6 +1,6 @@
 package com.eignex.koblas.dense
 
-import com.eignex.koblas.DenseMatrix
+import com.eignex.koblas.*
 import kotlin.math.abs
 import kotlin.math.ulp
 import kotlin.test.assertTrue

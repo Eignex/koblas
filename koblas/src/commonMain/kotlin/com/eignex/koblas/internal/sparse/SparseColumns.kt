@@ -1,9 +1,6 @@
 package com.eignex.koblas.internal.sparse
 
 import com.eignex.koblas.*
-import com.eignex.koblas.SparseMatrix
-import com.eignex.koblas.SparseVector
-import com.eignex.koblas.UnsafeKoblasApi
 import com.eignex.koblas.dense.*
 import com.eignex.koblas.forEachStored
 import com.eignex.koblas.requireIndex

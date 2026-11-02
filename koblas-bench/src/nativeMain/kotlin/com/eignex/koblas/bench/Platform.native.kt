@@ -2,9 +2,7 @@
 
 package com.eignex.koblas.bench
 
-import com.eignex.koblas.BuiltinEngines
-import com.eignex.koblas.KoblasEngine
-import com.eignex.koblas.koblas
+import com.eignex.koblas.*
 import com.eignex.koblas.vendor.hostPlatform
 import com.eignex.koblas.vendor.OperatingSystem
 import kotlinx.cinterop.memScoped

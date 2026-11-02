@@ -1,8 +1,6 @@
 package com.eignex.koblas.sparse
 
-import com.eignex.koblas.DenseVector
-import com.eignex.koblas.DimensionMismatch
-import com.eignex.koblas.SparseVector
+import com.eignex.koblas.*
 import com.eignex.koblas.gather
 import com.eignex.koblas.gatherZero
 import kotlin.test.Test

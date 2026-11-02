@@ -1,9 +1,6 @@
 package com.eignex.koblas.bench
 
-import com.eignex.koblas.DenseMatrix
-import com.eignex.koblas.DenseMatrixRegion
-import com.eignex.koblas.KoblasEngine
-import com.eignex.koblas.Workspace
+import com.eignex.koblas.*
 
 /** An addressed product, including reset and checks over every borrowed backing-buffer entry. */
 internal fun borrowedProductWork(case: BenchCase, engine: KoblasEngine): CaseWork {

@@ -1,12 +1,6 @@
 package com.eignex.koblas.consumer
 
-import com.eignex.koblas.BuiltinEngines
-import com.eignex.koblas.DenseMatrix
-import com.eignex.koblas.Matrix
-import com.eignex.koblas.SparseMatrix
-import com.eignex.koblas.StridedVector
-import com.eignex.koblas.Workspace
-import com.eignex.koblas.koblas
+import com.eignex.koblas.*
 import com.eignex.koblas.vendor.Vendor
 import kotlin.math.abs
 
@@ -19,6 +13,7 @@ object ConsumerCheck {
             check(koblas.vendor == null)
             check(Vendor.entries.firstNotNullOfOrNull { BuiltinEngines.vendor(it) } == null)
         }
+        checkPartialProvider()
         val portable = BuiltinEngines.scalar
         check(portable.vendor == null)
         check(portable.name == "scalar")
@@ -75,6 +70,29 @@ object ConsumerCheck {
                 println("Published FFM binding: ${host.vendor}")
             }
         }
+    }
+
+    private fun checkPartialProvider() {
+        var called = false
+        val provider = object : KoblasEngine {
+            override val name = "consumer gemm"
+            override val implementations = setOf(EngineImplementation.Gemm)
+            override fun computeGemm(
+                alpha: Double, a: DenseMatrixRegion, transposeA: Boolean, b: DenseMatrixRegion,
+                transposeB: Boolean, beta: Double, c: DenseMatrixRegion,
+            ) {
+                called = true
+                BuiltinEngines.scalar.computeGemm(alpha, a, transposeA, b, transposeB, beta, c)
+            }
+        }
+        val engine = KoblasEngine.combine(
+            EngineProfile("consumer", listOf(EngineRule(provider.id, provider.implementations))), provider,
+        )
+        val a = DenseMatrix.wrap(2, 2, doubleArrayOf(0.5, -2.0, 3.0, 1.0))
+        val result = DenseMatrix.zero(2, 2)
+        engine.gemm(1.0, a, false, a, false, 0.0, result)
+        check(called)
+        assertAgreesWithReference(referenceProduct(a, a).values, result.values)
     }
 
     private fun referenceGemv(a: DenseMatrix, x: DoubleArray, transpose: Boolean = false): DoubleArray {

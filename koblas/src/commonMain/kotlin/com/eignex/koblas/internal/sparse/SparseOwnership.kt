@@ -1,7 +1,6 @@
 package com.eignex.koblas.internal.sparse
 
-import com.eignex.koblas.SparseMatrix
-import com.eignex.koblas.Workspace
+import com.eignex.koblas.*
 import com.eignex.koblas.borrow
 import com.eignex.koblas.borrowI32
 import com.eignex.koblas.dense.*

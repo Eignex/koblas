@@ -1,7 +1,6 @@
 package com.eignex.koblas.bench
 
-import com.eignex.koblas.BuiltinEngines
-import com.eignex.koblas.KoblasEngine
+import com.eignex.koblas.*
 import kotlin.math.sqrt
 
 /** Raw CSC windows through the selected engine, including validation and any indexed fallback. */

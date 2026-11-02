@@ -4,7 +4,6 @@ package com.eignex.koblas.internal.jvm25.simd
 
 import com.eignex.koblas.*
 import com.eignex.koblas.dense.*
-import com.eignex.koblas.internal.dense.PortableTriangularKernels
 import com.eignex.koblas.internal.dense.triangleEntry
 import com.eignex.koblas.sparse.*
 import com.eignex.koblas.vendor.*
@@ -20,12 +19,12 @@ import jdk.incubator.vector.VectorOperators
  * Use division directly: a reciprocal of a subnormal diagonal can overflow even when the quotient
  * is finite. Zero and infinite diagonals also retain division semantics.
  *
- * Strided sides and incomplete lane blocks use [PortableTriangularKernels];
+ * Strided sides and incomplete lane blocks use [PortableEngine];
  * [implementationsFor] reports those bodies. [gathersRightHandSides] requests a copy when it can
  * amortize vector loads. Species initialization requires the Vector API module, checked by
  * [BuiltinEngines] before using this backend.
  */
-internal object SimdTriangularKernels : KoblasEngine() {
+internal object SimdTriangularKernels : KoblasEngine {
     override val id: String = "jvm-simd"
     override val implementations get() = setOf(EngineImplementation.Triangular)
 
@@ -63,12 +62,12 @@ internal object SimdTriangularKernels : KoblasEngine() {
     override fun gathersRightHandSides(rhsStride: Int, order: Int, sides: Int): Boolean =
         rhsStride != 1 && sides >= LANE && order > 1
 
-    override fun implementationsFor(order: Int, sides: Int, contiguous: Boolean): List<String> = when {
+    internal fun implementationsFor(order: Int, sides: Int, contiguous: Boolean): List<String> = when {
         order <= 0 || sides <= 0 -> emptyList()
         sides == 1 && contiguous -> listOf(NAME)
-        !contiguous || sides < LANE -> PortableTriangularKernels.implementationsFor(order, sides, contiguous)
+        !contiguous || sides < LANE -> PortableEngine.implementationsFor(order, sides, contiguous)
         sides % LANE == 0 -> listOf(NAME)
-        else -> listOf(NAME) + PortableTriangularKernels.implementationsFor(order, sides, contiguous)
+        else -> listOf(NAME) + PortableEngine.implementationsFor(order, sides, contiguous)
     }
 
     override fun diagonalSolve(
@@ -92,7 +91,7 @@ internal object SimdTriangularKernels : KoblasEngine() {
             return
         }
         if (rhsStride != 1 || sides < LANE) {
-            PortableTriangularKernels.diagonalSolve(
+            PortableEngine.diagonalSolve(
                 t, n, start, size, transposed, lower, unitDiag, x, xOffset, orderStride, rhsStride, sides, tOffset,
             )
             return
@@ -109,7 +108,7 @@ internal object SimdTriangularKernels : KoblasEngine() {
             lane += LANE
         }
         if (lane < sides) {
-            PortableTriangularKernels.diagonalSolve(
+            PortableEngine.diagonalSolve(
                 t, n, start, size, transposed, lower, unitDiag, x, xOffset + lane, orderStride,
                 1, sides - lane, tOffset,
             )
@@ -137,7 +136,7 @@ internal object SimdTriangularKernels : KoblasEngine() {
             return
         }
         if (rhsStride != 1 || sides < LANE) {
-            PortableTriangularKernels.diagonalMultiply(
+            PortableEngine.diagonalMultiply(
                 t, n, start, size, transposed, lower, unitDiag, x, xOffset, orderStride, rhsStride, sides, tOffset,
             )
             return
@@ -154,7 +153,7 @@ internal object SimdTriangularKernels : KoblasEngine() {
             lane += LANE
         }
         if (lane < sides) {
-            PortableTriangularKernels.diagonalMultiply(
+            PortableEngine.diagonalMultiply(
                 t, n, start, size, transposed, lower, unitDiag, x, xOffset + lane, orderStride,
                 1, sides - lane, tOffset,
             )

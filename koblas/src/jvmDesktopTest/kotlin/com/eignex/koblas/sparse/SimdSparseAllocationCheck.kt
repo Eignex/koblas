@@ -1,14 +1,7 @@
 package com.eignex.koblas.sparse
 
-import com.eignex.koblas.BuiltinEngines
-import com.eignex.koblas.DenseMatrix
-import com.eignex.koblas.KoblasEngine
-import com.eignex.koblas.Matrix
-import com.eignex.koblas.PortableEngine
-import com.eignex.koblas.SparseMatrix
-import com.eignex.koblas.Workspace
-import com.eignex.koblas.internal.dense.PanelWork
-import com.eignex.koblas.koblas
+import com.eignex.koblas.*
+import com.eignex.koblas.internal.configuration.CombinedEngine
 import com.eignex.koblas.testutil.allocation.AllocationProbe
 import com.eignex.koblas.testutil.allocation.bytesPerCall
 
@@ -60,7 +53,7 @@ internal object SimdSparseAllocationCheck {
                 PanelWork.SparseRightHandSides,
                 PANEL_SIDES,
                 PANEL_ENTRIES,
-            ) == panels.panelImplementation.name,
+            ) == (panels as CombinedEngine).panelImplementation.name,
         ) {
             "the panel probes use $PANEL_SIDES right-hand sides, which do not reach the vector body"
         }

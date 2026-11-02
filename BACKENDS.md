@@ -75,10 +75,11 @@ Use `BuiltinEngines.scalar` to select portable Kotlin explicitly.
 ## Explicit composition and recalculation
 
 `KoblasEngine` is the single contract for portable, SIMD, vendor and combined engines. Implementations
-override the parts they supply and declare positive `EngineImplementation` sets; common defaults provide
-portable arithmetic. `BuiltinEngines` selects exact portable, SIMD or named vendor engines. Vendor
+implement the parts they supply and declare positive `EngineImplementation` sets. The interface contains
+no arithmetic defaults: unsupported parts fail without calling another engine. `PortableEngine` owns the
+portable arithmetic, and vendor providers contain only their foreign calls and binding adaptations. `BuiltinEngines` selects exact portable, SIMD or named vendor engines. Vendor
 capabilities follow exported symbols, and the composer binds capabilities to their actual implementations.
-The combined engine fills unselected operations with portable Kotlin. Shared schedules still own dense
+The combined engine explicitly calls a separate portable provider for unselected operations. Shared schedules still own dense
 traversal, CSC traversal, validation and alias staging; packed product geometry is selected before packing.
 
 ```kotlin
@@ -95,9 +96,9 @@ beneath custom vendor rules, and pass `BuiltinEngines.simd` to the composer when
 Panel, product and triangular families require unconditional rules so the
 schedule and its packed arithmetic agree on geometry. Intrinsic scalar edges and safe norm retries remain
 inside their implementations and are reflected by internal implementation attribution. The application engine
-owns dense and sparse operations directly; separate backend and BLAS interfaces, vendor adapters, vendor preference selection and route objects are
+uses shared checked operations for dense and sparse scheduling; separate backend and BLAS interfaces, vendor adapters, vendor preference selection and route objects are
 removed. Explicit composition flattens the supplied engines into arithmetic sources once, with intrinsic
-portable coverage. The composer binds each arithmetic family once, and its inherited methods use that bound source.
+portable coverage. The composer binds each arithmetic family once, and forwards its calls to that bound provider. No engine inherits implementation code.
 
 Recalculate a profile explicitly on the intended host:
 

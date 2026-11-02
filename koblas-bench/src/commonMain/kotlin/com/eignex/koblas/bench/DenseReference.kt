@@ -2,7 +2,7 @@
 
 package com.eignex.koblas.bench
 
-import com.eignex.koblas.DenseMatrix
+import com.eignex.koblas.*
 import kotlin.math.abs
 
 /**

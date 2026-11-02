@@ -117,7 +117,4 @@ public enum class EngineImplementation(
 
     /** Whole triangular matrix substitution. */
     Trsm("cblas_dtrsm", 3),
-    ;
-
-    internal val required: Boolean get() = entryPoint.isNotEmpty() && this != Gemmt && !name.endsWith("Transposed")
 }

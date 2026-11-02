@@ -5,7 +5,7 @@ import com.eignex.koblas.vendor.Vendor
 import kotlin.test.*
 
 class ExactArmRejectionTest {
-    private fun backend(operations: Set<EngineImplementation>) = object : KoblasEngine() {
+    private fun backend(operations: Set<EngineImplementation>) = object : KoblasEngine {
         override val name = "openblas"
         override val vendor = Vendor.OpenBlas
         override val implementations = operations

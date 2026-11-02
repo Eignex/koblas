@@ -1,7 +1,6 @@
 package com.eignex.koblas.dense
 
 import com.eignex.koblas.*
-import com.eignex.koblas.DenseMatrix
 import kotlin.random.Random
 import kotlin.test.*
 

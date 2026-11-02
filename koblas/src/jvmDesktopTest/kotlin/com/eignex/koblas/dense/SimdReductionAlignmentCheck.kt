@@ -1,6 +1,6 @@
 package com.eignex.koblas.dense
 
-import com.eignex.koblas.BuiltinEngines
+import com.eignex.koblas.*
 import com.eignex.koblas.internal.jvm25.simd.HotSpotArrayAlignment
 import com.eignex.koblas.internal.jvm25.simd.SimdOps
 import com.eignex.koblas.testutil.allocation.AllocationProbe

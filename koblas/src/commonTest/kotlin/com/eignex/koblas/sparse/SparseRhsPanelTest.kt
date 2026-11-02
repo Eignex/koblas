@@ -1,24 +1,16 @@
 package com.eignex.koblas.sparse
 
-import com.eignex.koblas.BuiltinEngines
-import com.eignex.koblas.DenseMatrix
-import com.eignex.koblas.EngineImplementation
-import com.eignex.koblas.KoblasEngine
-import com.eignex.koblas.SparseMatrix
-import com.eignex.koblas.Workspace
+import com.eignex.koblas.*
 import com.eignex.koblas.assertClose
 import com.eignex.koblas.copyOf
 import com.eignex.koblas.dense.ReferenceBlas
 import com.eignex.koblas.engineWithKernels
-import com.eignex.koblas.internal.dense.PanelWork
-import com.eignex.koblas.internal.dense.PortablePanelKernels
 import com.eignex.koblas.internal.operands.staged
-import com.eignex.koblas.internal.sparse.SparsePanelKernels
+import com.eignex.koblas.internal.sparse.*
 import com.eignex.koblas.internal.sparse.productRhsPlan
 import com.eignex.koblas.internal.sparse.rhsStaged
 import com.eignex.koblas.internal.sparse.symmetricRhsPlan
 import com.eignex.koblas.internal.sparse.triangularRhsPlan
-import com.eignex.koblas.koblas
 import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
@@ -29,9 +21,9 @@ import kotlin.test.assertTrue
 // and leave this untested. [AdjacentPreferringPanels] asks for adjacent right-hand sides and keeps the
 // portable arithmetic, which puts the copy, the addressing and the writeback under test everywhere.
 class SparseRhsPanelTest {
-    private val stagingPanels = SparsePanelKernels(engineWithKernels(panels = AdjacentPreferringPanels()))
+    private val stagingPanels = engineWithKernels(panels = AdjacentPreferringPanels())
     private val staging = engineWith(AdjacentPreferringPanels())
-    private val plain = engineWith(PortablePanelKernels)
+    private val plain = engineWith(PortableEngine)
 
     @Test
     fun `transposed products leave empty columns at their scaled value`() {
@@ -591,9 +583,8 @@ internal fun engineWith(panels: KoblasEngine): KoblasEngine = engineWithKernels(
 internal open class AdjacentPreferringPanels(
     private val group: Int = 3,
     private val minimumRows: Int = 1,
-    private val entryThreshold: Int? = null,
-    private val delegate: KoblasEngine = PortablePanelKernels,
-) : KoblasEngine() {
+    private val delegate: KoblasEngine = PortableEngine,
+) : KoblasEngine {
     override val implementations = setOf(EngineImplementation.Panels)
 
     override fun multiDot(
@@ -844,15 +835,6 @@ internal open class AdjacentPreferringPanels(
 
     override fun prefersContiguous(work: PanelWork, rows: Int, columns: Int): Boolean =
         sparse(work) && rows >= minimumRows
-
-    override fun implementationFor(work: PanelWork, rows: Int, columns: Int, contiguous: Boolean): String = when {
-        !sparse(work) || !contiguous || rows < minimumRows ->
-            delegate.implementationFor(work, rows, columns, contiguous)
-
-        entryThreshold != null && columns < entryThreshold -> "$name-short"
-
-        else -> name
-    }
 
     /** Both sparse panel shapes, since what this stands in for is a backend that vectorises either. */
     private fun sparse(work: PanelWork): Boolean =

@@ -2,8 +2,7 @@
 
 package com.eignex.koblas.internal.host
 
-import com.eignex.koblas.DenseMatrixRegion
-import com.eignex.koblas.DenseVector
+import com.eignex.koblas.*
 import com.eignex.koblas.vendor.*
 import kotlinx.cinterop.CPointer
 import kotlinx.cinterop.DoubleVar

@@ -2,8 +2,7 @@
 
 package com.eignex.koblas.sparse
 
-import com.eignex.koblas.DenseMatrix
-import com.eignex.koblas.SparseMatrix
+import com.eignex.koblas.*
 import com.eignex.koblas.internal.dense.selectedTriangle
 
 /**

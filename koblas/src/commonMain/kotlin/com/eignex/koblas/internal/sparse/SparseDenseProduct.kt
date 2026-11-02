@@ -3,17 +3,12 @@
 package com.eignex.koblas.internal.sparse
 
 import com.eignex.koblas.*
-import com.eignex.koblas.DenseMatrix
-import com.eignex.koblas.DenseMatrixRegion
-import com.eignex.koblas.SparseMatrix
-import com.eignex.koblas.UnsafeKoblasApi
-import com.eignex.koblas.Workspace
 import com.eignex.koblas.borrow
 import com.eignex.koblas.dense.*
 import com.eignex.koblas.internal.dense.borrowOptional
 import com.eignex.koblas.internal.dense.forEachPanel
 import com.eignex.koblas.internal.operands.staged
-import com.eignex.koblas.internal.sparse.SparsePanelKernels
+import com.eignex.koblas.internal.sparse.*
 import com.eignex.koblas.internal.sparse.SparseTuning
 import com.eignex.koblas.sparse.*
 import com.eignex.koblas.vendor.*
@@ -40,7 +35,7 @@ import kotlin.math.min
  */
 @Suppress("LongParameterList") // the seam, the two extents, the copy's cost and what the direction admits
 internal fun planRightHandSides(
-    kernels: SparsePanelKernels,
+    kernels: KoblasEngine,
     rows: Int,
     sides: Int,
     entries: Int,
@@ -51,13 +46,13 @@ internal fun planRightHandSides(
     if (sides <= 0) return 0
     val adjacent = min(
         sides,
-        min(kernels.rightHandSideGroup(rows, sides, contiguous = true, reduction = reduction), stagedPanelCap()),
+        min(kernels.sparseRightHandSideGroup(rows, sides, contiguous = true, reduction = reduction), stagedPanelCap()),
     )
     if (nativelyContiguous) return adjacent
-    val strided = kernels.rightHandSideGroup(rows, sides, contiguous = false, reduction = reduction)
+    val strided = kernels.sparseRightHandSideGroup(rows, sides, contiguous = false, reduction = reduction)
     if (entries <= 0) return strided
     // A backend that does no better over an adjacent panel gains nothing from the copy.
-    if (!kernels.prefersAdjacentSides(adjacent, entries, reduction)) return strided
+    if (!kernels.sparsePrefersAdjacentSides(adjacent, entries, reduction)) return strided
     // Pack only when the accelerated arithmetic outweighs the copy.
     if (entries.toLong() < SparseTuning.stagedRhsCrossover.toLong() * copiedPerSide) return strided
     return -adjacent
@@ -74,7 +69,7 @@ private fun stagedPanelCap(): Int = SparseTuning.contiguousRhsPanel
  * none; an untransposed one spreads a column across the destination, which is read in and written back.
  */
 internal fun productRhsPlan(
-    kernels: SparsePanelKernels,
+    kernels: KoblasEngine,
     rows: Int,
     sides: Int,
     depth: Int,
@@ -101,7 +96,7 @@ internal fun productRhsPlan(
  * Three passes over a right-hand side against the two a general product's destination costs, which is why
  * the two weigh the copy differently.
  */
-internal fun symmetricRhsPlan(kernels: SparsePanelKernels, order: Int, sides: Int, entries: Int): Int =
+internal fun symmetricRhsPlan(kernels: KoblasEngine, order: Int, sides: Int, entries: Int): Int =
     planRightHandSides(kernels, order, sides, entries, copiedPerSide = 3L * order, nativelyContiguous = false)
 
 /** The width in a plan from [planRightHandSides]. */
@@ -171,7 +166,7 @@ internal fun unstageRhsPanel(
 @OptIn(UnsafeKoblasApi::class)
 @Suppress("LongParameterList") // the operands, their flags, and the shape already worked out
 internal fun multiplyFromTheLeft(
-    kernels: SparsePanelKernels,
+    kernels: KoblasEngine,
     alpha: Double,
     a: SparseMatrix,
     transposeA: Boolean,
@@ -215,7 +210,7 @@ internal fun multiplyFromTheLeft(
 @OptIn(UnsafeKoblasApi::class)
 @Suppress("LongParameterList") // the operands, the panel window, and the staged buffers
 private fun gatherPanel(
-    kernels: SparsePanelKernels,
+    kernels: KoblasEngine,
     alpha: Double,
     a: SparseMatrix,
     b: DenseMatrixRegion,
@@ -248,7 +243,7 @@ private fun gatherPanel(
     }
     if (actual == 1) {
         forEachSparseColumn(a) { outputRow, from, to ->
-            kernels.gatherProductColumn(
+            kernels.sparseGatherProductColumn(
                 alpha, a.rowIndices, a.values, from, to,
                 source, offset, indexStride, c.values, c.offset + outputRow + columnStart * c.leadingDimension,
             )
@@ -256,7 +251,7 @@ private fun gatherPanel(
         return
     }
     forEachSparseColumn(a) { outputRow, from, to ->
-        kernels.gatherProductPanel(
+        kernels.sparseGatherProductPanel(
             alpha, a.rowIndices, a.values, from, to,
             source, offset, rhsStride, indexStride, actual,
             c.values, c.offset + outputRow + columnStart * c.leadingDimension, c.leadingDimension, work,
@@ -268,7 +263,7 @@ private fun gatherPanel(
 @OptIn(UnsafeKoblasApi::class)
 @Suppress("LongParameterList") // the operands, the panel window, and the staged buffers
 private fun scatterPanel(
-    kernels: SparsePanelKernels,
+    kernels: KoblasEngine,
     alpha: Double,
     a: SparseMatrix,
     b: DenseMatrixRegion,
@@ -301,7 +296,7 @@ private fun scatterPanel(
     }
     if (actual == 1) {
         forEachSparseColumn(a) { inner, from, to ->
-            kernels.scatterProductColumn(
+            kernels.sparseScatterProductColumn(
                 alpha, a.rowIndices, a.values, from, to,
                 b.values, b.offset + columnStart * bRhsStride + inner * bIndexStride,
                 destination, offset, indexStride,
@@ -309,7 +304,7 @@ private fun scatterPanel(
         }
     } else {
         forEachSparseColumn(a) { inner, from, to ->
-            kernels.scatterProductPanel(
+            kernels.sparseScatterProductPanel(
                 alpha, a.rowIndices, a.values, from, to,
                 b.values, b.offset + columnStart * bRhsStride + inner * bIndexStride, bRhsStride, actual,
                 destination, offset, rhsStride, indexStride, work,
@@ -341,7 +336,7 @@ private fun scatterPanel(
 @OptIn(UnsafeKoblasApi::class)
 @Suppress("LongParameterList") // the operands, the triangle flag, and the scratch
 internal fun multiplySymmetricFromTheLeft(
-    kernels: SparsePanelKernels,
+    kernels: KoblasEngine,
     alpha: Double,
     a: SparseMatrix,
     b: DenseMatrixRegion,
@@ -382,13 +377,13 @@ internal fun multiplySymmetricFromTheLeft(
                 }
                 forEachSparseColumn(a, SparseColumnShape.Selected, lower) { column, from, to ->
                     if (actual == 1) {
-                        kernels.symmetricLeftColumnSingle(
+                        kernels.sparseSymmetricLeftColumnSingle(
                             alpha, column, a.rowIndices, a.values,
                             from, to,
                             sourceValues, into, offset, indexStride, lower, destinationOffset,
                         )
                     } else {
-                        kernels.symmetricLeftColumn(
+                        kernels.sparseSymmetricLeftColumn(
                             alpha, column, a.rowIndices, a.values,
                             from, to,
                             sourceValues, into, offset, rhsStride, indexStride, actual, lower, destinationOffset,
@@ -421,7 +416,7 @@ internal fun multiplySymmetricFromTheLeft(
  */
 @Suppress("LongParameterList") // the operands, their flags, and the shape already worked out
 internal fun multiplyFromTheRight(
-    kernels: SparsePanelKernels,
+    kernels: KoblasEngine,
     alpha: Double,
     a: SparseMatrix,
     transposeA: Boolean,
@@ -452,7 +447,7 @@ internal fun multiplyFromTheRight(
 @OptIn(UnsafeKoblasApi::class)
 @Suppress("LongParameterList") // the operands, their flags, and both dense windows
 internal fun multiplyFromTheRightColumns(
-    kernels: SparsePanelKernels,
+    kernels: KoblasEngine,
     alpha: Double,
     a: SparseMatrix,
     transposeA: Boolean,
@@ -465,7 +460,7 @@ internal fun multiplyFromTheRightColumns(
     ldc: Int = rows,
 ) {
     forEachSparseColumn(a) { column, from, to ->
-        kernels.rightProductColumn(
+        kernels.sparseRightProductColumn(
             alpha, column, a.rowIndices, a.values, from, to, transposeA,
             b, leadingDimension, c, rows, bOffset, cOffset, ldc,
         )

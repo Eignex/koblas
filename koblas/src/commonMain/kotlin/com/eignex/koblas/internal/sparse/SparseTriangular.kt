@@ -3,16 +3,12 @@
 package com.eignex.koblas.internal.sparse
 
 import com.eignex.koblas.*
-import com.eignex.koblas.DenseMatrixRegion
-import com.eignex.koblas.SparseMatrix
-import com.eignex.koblas.UnsafeKoblasApi
-import com.eignex.koblas.Workspace
 import com.eignex.koblas.borrow
 import com.eignex.koblas.dense.*
 import com.eignex.koblas.internal.dense.borrowOptional
 import com.eignex.koblas.internal.dense.forEachPanel
 import com.eignex.koblas.internal.operands.staged
-import com.eignex.koblas.internal.sparse.SparsePanelKernels
+import com.eignex.koblas.internal.sparse.*
 import com.eignex.koblas.sparse.*
 import com.eignex.koblas.vendor.*
 
@@ -39,21 +35,16 @@ internal fun triangularForward(lower: Boolean, transpose: Boolean, solve: Boolea
  * The block is both the source and the destination, so a staged copy is read in and written back, and the
  * direction that gathers finished rows into a pivot is the shape the backend is asked about.
  */
-internal fun triangularRhsPlan(
-    kernels: SparsePanelKernels,
-    order: Int,
-    sides: Int,
-    entries: Int,
-    transpose: Boolean,
-): Int = planRightHandSides(
-    kernels,
-    order,
-    sides,
-    entries,
-    copiedPerSide = 2L * order,
-    nativelyContiguous = false,
-    reduction = transpose,
-)
+internal fun triangularRhsPlan(kernels: KoblasEngine, order: Int, sides: Int, entries: Int, transpose: Boolean): Int =
+    planRightHandSides(
+        kernels,
+        order,
+        sides,
+        entries,
+        copiedPerSide = 2L * order,
+        nativelyContiguous = false,
+        reduction = transpose,
+    )
 
 /** Runs [block] with the diagonal of [a] borrowed from [workspace], or null when [unitDiag] takes it as 1. */
 internal inline fun withExplicitDiagonal(
@@ -88,7 +79,7 @@ internal inline fun withExplicitDiagonal(
 @OptIn(UnsafeKoblasApi::class)
 @Suppress("LongParameterList") // the triangle, the block, and the four BLAS triangle flags
 internal fun triangularLeftCore(
-    kernels: SparsePanelKernels,
+    kernels: KoblasEngine,
     solve: Boolean,
     a: SparseMatrix,
     b: DenseMatrixRegion,
@@ -131,24 +122,24 @@ internal fun triangularLeftCore(
                     val dj = diagonal?.get(j) ?: 1.0
                     if (actual == 1) {
                         if (!transpose) {
-                            kernels.triangularScatterSingle(
+                            kernels.sparseTriangularScatterSingle(
                                 solve, j, lower, unitDiag, dj, a.rowIndices, a.values,
                                 from, to, dense, offset, indexStride,
                             )
                         } else {
-                            kernels.triangularGatherSingle(
+                            kernels.sparseTriangularGatherSingle(
                                 solve, j, lower, unitDiag, dj, a.rowIndices, a.values,
                                 from, to, dense, offset, indexStride,
                             )
                         }
                     } else if (!transpose) {
-                        kernels.triangularPanelScatter(
+                        kernels.sparseTriangularPanelScatter(
                             solve, j, lower, unitDiag, dj, a.rowIndices, a.values,
                             from, to,
                             dense, offset, rhsStride, indexStride, actual, work,
                         )
                     } else {
-                        kernels.triangularPanelGather(
+                        kernels.sparseTriangularPanelGather(
                             solve, j, lower, unitDiag, dj, a.rowIndices, a.values,
                             from, to,
                             dense, offset, rhsStride, indexStride, actual, work,
@@ -181,7 +172,7 @@ internal fun triangularLeftCore(
 @OptIn(UnsafeKoblasApi::class)
 @Suppress("LongParameterList") // the triangle, the block, and the three BLAS triangle flags
 internal fun trmmRightCore(
-    kernels: SparsePanelKernels,
+    kernels: KoblasEngine,
     a: SparseMatrix,
     b: DenseMatrixRegion,
     lower: Boolean,
@@ -194,7 +185,7 @@ internal fun trmmRightCore(
     val n = a.rows
     val gather = !transpose
     forEachTriangleColumn(n, lower == gather) { l ->
-        kernels.triangularRightColumn(
+        kernels.sparseTriangularRightColumn(
             false, gather, l, lower, unitDiag, diagonal?.get(l) ?: 1.0,
             a.rowIndices, a.values, a.colPointers[l], a.colPointers[l + 1], b.values, rows, b.offset,
             b.leadingDimension,
@@ -212,7 +203,7 @@ internal fun trmmRightCore(
 @OptIn(UnsafeKoblasApi::class)
 @Suppress("LongParameterList") // the three BLAS triangle flags
 internal fun trmvCore(
-    kernels: SparsePanelKernels,
+    kernels: KoblasEngine,
     a: SparseMatrix,
     x: DoubleArray,
     lower: Boolean,
@@ -224,11 +215,20 @@ internal fun trmvCore(
             val xj = x[j]
             if (xj != 0.0) {
                 x[j] = if (unitDiag) xj else a[j, j] * xj
-                kernels.triangularAxpy(j, lower, a.rowIndices, a.values, a.colPointers[j], a.colPointers[j + 1], xj, x)
+                kernels.sparseTriangularAxpy(
+                    j,
+                    lower,
+                    a.rowIndices,
+                    a.values,
+                    a.colPointers[j],
+                    a.colPointers[j + 1],
+                    xj,
+                    x,
+                )
             }
         } else {
             val scaled = if (unitDiag) x[j] else a[j, j] * x[j]
-            x[j] = kernels.triangularReduce(
+            x[j] = kernels.sparseTriangularReduce(
                 j, lower, a.rowIndices, a.values, a.colPointers[j], a.colPointers[j + 1], x, scaled, subtract = false,
             )
         }
@@ -238,7 +238,7 @@ internal fun trmvCore(
 /** Right solve over contiguous dense columns, which turns every sparse update into a Level 1 operation. */
 @OptIn(UnsafeKoblasApi::class)
 internal fun trsmRightCore(
-    kernels: SparsePanelKernels,
+    kernels: KoblasEngine,
     a: SparseMatrix,
     b: DenseMatrixRegion,
     lower: Boolean,
@@ -249,7 +249,7 @@ internal fun trsmRightCore(
     if (rows == 0) return
     val gather = !transpose
     forEachTriangleColumn(a.rows, lower != transpose) { j ->
-        kernels.triangularRightColumn(
+        kernels.sparseTriangularRightColumn(
             true, gather, j, lower, diagonal == null, diagonal?.get(j) ?: 1.0,
             a.rowIndices, a.values, a.colPointers[j], a.colPointers[j + 1], b.values, rows, b.offset,
             b.leadingDimension,
@@ -261,7 +261,7 @@ internal fun trsmRightCore(
 @OptIn(UnsafeKoblasApi::class)
 @Suppress("LongParameterList") // the three BLAS triangle flags
 internal fun trsvCore(
-    kernels: SparsePanelKernels,
+    kernels: KoblasEngine,
     a: SparseMatrix,
     x: DoubleArray,
     lower: Boolean,
@@ -275,9 +275,18 @@ internal fun trsvCore(
             if (raw == 0.0) return@forEachTriangleColumn
             val xj = if (unitDiag) raw else raw / a[j, j]
             x[j] = xj
-            kernels.triangularAxpy(j, lower, a.rowIndices, a.values, a.colPointers[j], a.colPointers[j + 1], -xj, x)
+            kernels.sparseTriangularAxpy(
+                j,
+                lower,
+                a.rowIndices,
+                a.values,
+                a.colPointers[j],
+                a.colPointers[j + 1],
+                -xj,
+                x,
+            )
         } else {
-            val s = kernels.triangularReduce(
+            val s = kernels.sparseTriangularReduce(
                 j, lower, a.rowIndices, a.values, a.colPointers[j], a.colPointers[j + 1], x, x[j], subtract = true,
             )
             x[j] = if (unitDiag) s else s / a[j, j]

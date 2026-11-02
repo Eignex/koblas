@@ -14,26 +14,26 @@ class NativeDefaultEngineTest {
         println("SKIPPED: no applicable measured host profile or binding; $what was not verified on this host")
     }
 
-    /**
-     * Aliased rotations stay portable because reference `drot` reads an entry after storing it,
-     * while owned kernels read both inputs before writing. Width alone cannot settle the kernel.
-     */
+    /** Equal runs are staged before the vendor call, without changing arithmetic providers. */
     @Test
-    fun `a wide rotation is decided by its operands rather than its width`() {
-        val vendor = koblas.takeIf { it.vendor != null } ?: return skipped(
-            "the rotation's alias-dependent dispatch",
-        )
+    fun `an aliased rotation stays on the selected vendor`() {
+        val vendor = koblas.takeIf { it.vendor != null } ?: return skipped("vendor rotation")
         val arm = vendor.vendor!!.vendorName.lowercase()
-        if (koblas.implementationFor(
-                EngineImplementation.Dot,
-                LONG_COLUMN,
-            ) != arm
-        ) {
+        if (koblas.implementationFor(EngineImplementation.Dot, LONG_COLUMN) != arm) {
             return skipped("this platform keeps Level 1 off the library")
         }
+        val values = DoubleArray(LONG_COLUMN) { (it - 17) / 13.0 }
+        val expected = values.copyOf()
+        BuiltinEngines.scalar.rot(expected, 0, expected, 0, LONG_COLUMN, 0.75, -0.25)
 
-        assertEquals(null, koblas.implementationFor(EngineImplementation.Rot, LONG_COLUMN))
+        koblas.rot(values, 0, values, 0, LONG_COLUMN, 0.75, -0.25)
+
+        assertEquals(arm, koblas.implementationFor(EngineImplementation.Rot, LONG_COLUMN))
+        assertRotationAgreesWithReference(expected, values)
     }
+
+    private fun assertRotationAgreesWithReference(expected: DoubleArray, actual: DoubleArray) =
+        assertClose(expected, actual, "aliased vendor rotation")
 
     /** The exact portable engine resolves no host binding and provides the availability floor. */
     @Test

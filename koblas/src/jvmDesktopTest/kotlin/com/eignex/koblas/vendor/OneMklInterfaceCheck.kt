@@ -1,8 +1,6 @@
 package com.eignex.koblas.vendor
 
-import com.eignex.koblas.DenseMatrix
-import com.eignex.koblas.DenseVector
-import com.eignex.koblas.PortableEngine
+import com.eignex.koblas.*
 import com.eignex.koblas.copyOf
 import com.eignex.koblas.dense.ReferenceBlas
 import com.eignex.koblas.internal.jvm25.host.JvmVendorBlas
@@ -46,7 +44,9 @@ internal object OneMklInterfaceCheck {
 
     private fun checkInheritedInterface() {
         val library = assertNotNull(JvmVendorLibrary.open(Vendor.OneMkl), "installed oneMKL failed LP64 loading")
-        val interfaceLayer = library.handle("MKL_Set_Interface_Layer", FunctionDescriptor.of(JAVA_INT, JAVA_INT))
+        val interfaceLayer = assertNotNull(
+            library.handleOrNull("MKL_Set_Interface_Layer", FunctionDescriptor.of(JAVA_INT, JAVA_INT)),
+        )
         assertEquals(
             MKL_LP64,
             interfaceLayer.invokeExact(-1) as Int,
@@ -125,7 +125,13 @@ internal object OneMklInterfaceCheck {
             } catch (_: UnsatisfiedLinkError) {
                 continue
             }
-            if (missingRequiredSymbols { lookup.find(it).isPresent }.isEmpty()) runtimes.add(lookup)
+            if (listOf(
+                    EngineImplementation.Dot,
+                    EngineImplementation.Gemm,
+                ).all { lookup.find(it.entryPoint).isPresent }
+            ) {
+                runtimes.add(lookup)
+            }
         }
         return runtimes
     }

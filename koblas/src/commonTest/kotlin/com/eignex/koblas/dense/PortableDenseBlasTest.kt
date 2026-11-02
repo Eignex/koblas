@@ -2,20 +2,10 @@
 
 package com.eignex.koblas.dense
 
-import com.eignex.koblas.BuiltinEngines
-import com.eignex.koblas.DenseMatrix
-import com.eignex.koblas.DenseVector
-import com.eignex.koblas.DimensionMismatch
-import com.eignex.koblas.EngineImplementation
-import com.eignex.koblas.KoblasEngine
-import com.eignex.koblas.PortableEngine
-import com.eignex.koblas.StridedVector
+import com.eignex.koblas.*
 import com.eignex.koblas.assertClose
 import com.eignex.koblas.copyOf
 import com.eignex.koblas.engineWithKernels
-import com.eignex.koblas.internal.dense.PanelWork
-import com.eignex.koblas.internal.dense.PortablePanelKernels
-import com.eignex.koblas.koblas
 import com.eignex.koblas.randomMatrix
 import com.eignex.koblas.randomVector
 import kotlin.random.Random
@@ -28,7 +18,7 @@ import kotlin.test.assertFailsWith
  * A backend that recommends a grouping of its own, so the shared traversal runs at widths no production
  * backend chooses. The arithmetic stays the portable backend's, since the scheduling is what is under test.
  */
-private class RegroupedPanels(private val group: Int) : KoblasEngine() {
+private class RegroupedPanels(private val group: Int) : KoblasEngine by PortableEngine {
     override val implementations = setOf(EngineImplementation.Panels)
 
     override val name: String get() = "regrouped($group)"
@@ -66,7 +56,7 @@ class PortableDenseBlasTest {
 
     @Test
     fun `no work products agree with the reference for dense operands`() = withProducts { products ->
-        val blas = engineWithKernels(PortableEngine, PortablePanelKernels, products)
+        val blas = engineWithKernels(PortableEngine, PortableEngine, products)
         val rng = Random(20261014)
         for ((alpha, depth) in listOf(0.0 to 3, 0.875 to 0)) {
             for (transposeA in booleanArrayOf(false, true)) {

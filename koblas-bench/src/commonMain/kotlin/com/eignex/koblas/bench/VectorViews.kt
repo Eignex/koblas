@@ -1,12 +1,9 @@
 package com.eignex.koblas.bench
 
-import com.eignex.koblas.BuiltinEngines
-import com.eignex.koblas.KoblasEngine
-import com.eignex.koblas.StridedVector
+import com.eignex.koblas.*
 import com.eignex.koblas.axpy
 import com.eignex.koblas.copy
 import com.eignex.koblas.dot
-import com.eignex.koblas.koblas
 import com.eignex.koblas.swap
 
 /**

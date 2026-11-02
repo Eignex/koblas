@@ -1,8 +1,6 @@
 package com.eignex.koblas.bench
 
-import com.eignex.koblas.BuiltinEngines
-import com.eignex.koblas.KoblasEngine
-import com.eignex.koblas.koblas
+import com.eignex.koblas.*
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals

@@ -3,6 +3,7 @@
 package com.eignex.koblas.internal.configuration
 
 import com.eignex.koblas.*
+import com.eignex.koblas.dense.*
 import com.eignex.koblas.internal.dense.*
 
 /** Backends are bound once; arithmetic never resolves identifiers or capabilities. */
@@ -84,15 +85,15 @@ internal class LengthDispatch(
 }
 
 /** One primitive-window interface serves leaves and the immutable routed composition. */
-internal class CombinedEngine(private val routing: CompiledRouting, override val name: String) : KoblasEngine() {
-    override val components get() = routing.backends
+internal class CombinedEngine(private val routing: CompiledRouting, override val name: String) : KoblasEngine {
+    internal val components get() = routing.backends
     private val host = routing.backends.firstOrNull { it.vendor != null }
     override val vendor get() = host?.vendor
     override val libraryPath get() = host?.libraryPath.orEmpty()
     override val version get() = host?.version.orEmpty()
-    override val threadEvidence get() = host?.threadEvidence ?: super.threadEvidence
+    override val threadEvidence get() = host?.threadEvidence ?: com.eignex.koblas.vendor.ThreadEvidence.Unconfirmed
     override val implementations = routing.backends.flatMapTo(mutableSetOf()) { it.implementations }
-    override fun wholeCallFor(
+    internal fun wholeCallFor(
         operation: EngineImplementation,
         rows: Int,
         columns: Int,
@@ -105,19 +106,15 @@ internal class CombinedEngine(private val routing: CompiledRouting, override val
         depth,
         borrowed = borrowed,
     ).takeUnless { it === PortableEngine }
-    override val panelImplementation = family(EngineImplementation.Panels, PortablePanelKernels)
-    override val productImplementation = family(EngineImplementation.Products, PortableProductKernels)
-    override val triangularImplementation = family(EngineImplementation.Triangular, PortableTriangularKernels)
-    private fun family(operation: EngineImplementation, portable: KoblasEngine): KoblasEngine =
-        routing.select(operation).takeUnless { it === PortableEngine } ?: portable
+    internal val panelImplementation = routing.select(EngineImplementation.Panels)
+    internal val productImplementation = routing.select(EngineImplementation.Products)
+    internal val triangularImplementation = routing.select(EngineImplementation.Triangular)
     private fun vectors(operation: EngineImplementation, length: Int, contiguous: Boolean = true): KoblasEngine =
         routing.select(operation, length, contiguous = contiguous)
 
-    override fun implementationFor(operation: EngineImplementation, length: Int, contiguous: Boolean): String? {
+    internal fun implementationFor(operation: EngineImplementation, length: Int, contiguous: Boolean): String? {
         val backend = routing.select(operation, length, contiguous = contiguous)
-        return if ((operation == EngineImplementation.Nrm2 && backend.dynamicNorm) ||
-            (operation == EngineImplementation.Rot && backend.vendor != null)
-        ) {
+        return if ((operation == EngineImplementation.Nrm2 && backend.dynamicNorm)) {
             null
         } else {
             backend.name
@@ -169,16 +166,7 @@ internal class CombinedEngine(private val routing: CompiledRouting, override val
         xStride: Int,
         yStride: Int,
     ) {
-        // CBLAS may store x before loading y; the owned contract loads both before either write.
-        val kernels = if (x === y && xOff == yOff && xStride == yStride) {
-            PortableEngine
-        } else {
-            vectors(
-                EngineImplementation.Rot,
-                len,
-                xStride == 1 && yStride == 1,
-            )
-        }
+        val kernels = vectors(EngineImplementation.Rot, len, xStride == 1 && yStride == 1)
         kernels.rot(x, xOff, y, yOff, len, c, s, xStride, yStride)
     }
     override fun dotDense(
@@ -273,4 +261,495 @@ internal class CombinedEngine(private val routing: CompiledRouting, override val
     override fun copy(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int, aStride: Int, bStride: Int) =
         routing.select(EngineImplementation.Copy, len, contiguous = aStride == 1 && bStride == 1)
             .copy(a, aOff, b, bOff, len, aStride, bStride)
+
+    override fun executionGroup(work: PanelWork, rows: Int, columns: Int, contiguous: Boolean): Int =
+        panelImplementation.executionGroup(work, rows, columns, contiguous)
+
+    override fun prefersContiguous(work: PanelWork, rows: Int, columns: Int): Boolean =
+        panelImplementation.prefersContiguous(work, rows, columns)
+
+    override fun multiDot(
+        alpha: Double,
+        a: DoubleArray,
+        aOffset: Int,
+        lda: Int,
+        x: DoubleArray,
+        xOffset: Int,
+        xStride: Int,
+        rows: Int,
+        columns: Int,
+        beta: Double,
+        y: DoubleArray,
+        yOffset: Int,
+        yStride: Int,
+    ): Unit = panelImplementation.multiDot(
+        alpha,
+        a,
+        aOffset,
+        lda,
+        x,
+        xOffset,
+        xStride,
+        rows,
+        columns,
+        beta,
+        y,
+        yOffset,
+        yStride,
+    )
+
+    override fun columnUpdate(
+        alpha: Double,
+        a: DoubleArray,
+        aOffset: Int,
+        lda: Int,
+        x: DoubleArray,
+        xOffset: Int,
+        xStride: Int,
+        rows: Int,
+        columns: Int,
+        y: DoubleArray,
+        yOffset: Int,
+        yStride: Int,
+    ): Unit = panelImplementation.columnUpdate(
+        alpha,
+        a,
+        aOffset,
+        lda,
+        x,
+        xOffset,
+        xStride,
+        rows,
+        columns,
+        y,
+        yOffset,
+        yStride,
+    )
+
+    override fun coupledUpdateDot(
+        alpha: Double,
+        a: DoubleArray,
+        aOffset: Int,
+        lda: Int,
+        x: DoubleArray,
+        xOffset: Int,
+        rows: Int,
+        columns: Int,
+        y: DoubleArray,
+        yOffset: Int,
+        coefficients: DoubleArray,
+        coefficientOffset: Int,
+        sums: DoubleArray,
+        sumOffset: Int,
+        xStride: Int,
+        yStride: Int,
+        coefficientStride: Int,
+        sumStride: Int,
+    ): Unit = panelImplementation.coupledUpdateDot(
+        alpha,
+        a,
+        aOffset,
+        lda,
+        x,
+        xOffset,
+        rows,
+        columns,
+        y,
+        yOffset,
+        coefficients,
+        coefficientOffset,
+        sums,
+        sumOffset,
+        xStride,
+        yStride,
+        coefficientStride,
+        sumStride,
+    )
+
+    override fun rankUpdate(
+        alpha: Double,
+        a: DoubleArray,
+        aOffset: Int,
+        lda: Int,
+        x: DoubleArray,
+        xOffset: Int,
+        xStride: Int,
+        rows: Int,
+        columns: Int,
+        coefficients: DoubleArray,
+        coefficientOffset: Int,
+        coefficientStride: Int,
+    ): Unit = panelImplementation.rankUpdate(
+        alpha,
+        a,
+        aOffset,
+        lda,
+        x,
+        xOffset,
+        xStride,
+        rows,
+        columns,
+        coefficients,
+        coefficientOffset,
+        coefficientStride,
+    )
+
+    override fun rankTwoUpdate(
+        alpha: Double,
+        a: DoubleArray,
+        aOffset: Int,
+        lda: Int,
+        x: DoubleArray,
+        xOffset: Int,
+        xStride: Int,
+        y: DoubleArray,
+        yOffset: Int,
+        yStride: Int,
+        rows: Int,
+        columns: Int,
+        u: DoubleArray,
+        uOffset: Int,
+        uStride: Int,
+        v: DoubleArray,
+        vOffset: Int,
+        vStride: Int,
+    ): Unit = panelImplementation.rankTwoUpdate(
+        alpha,
+        a,
+        aOffset,
+        lda,
+        x,
+        xOffset,
+        xStride,
+        y,
+        yOffset,
+        yStride,
+        rows,
+        columns,
+        u,
+        uOffset,
+        uStride,
+        v,
+        vOffset,
+        vStride,
+    )
+
+    override fun indexedColumnUpdate(
+        alpha: Double,
+        a: DoubleArray,
+        aOffset: Int,
+        rowStride: Int,
+        indexStride: Int,
+        indices: IntArray,
+        values: DoubleArray,
+        fromIndex: Int,
+        columns: Int,
+        rows: Int,
+        y: DoubleArray,
+        yOffset: Int,
+    ): Unit = panelImplementation.indexedColumnUpdate(
+        alpha,
+        a,
+        aOffset,
+        rowStride,
+        indexStride,
+        indices,
+        values,
+        fromIndex,
+        columns,
+        rows,
+        y,
+        yOffset,
+    )
+
+    override fun indexedRankUpdate(
+        alpha: Double,
+        a: DoubleArray,
+        aOffset: Int,
+        rowStride: Int,
+        indexStride: Int,
+        indices: IntArray,
+        values: DoubleArray,
+        fromIndex: Int,
+        columns: Int,
+        rows: Int,
+        x: DoubleArray,
+        xOffset: Int,
+    ): Unit = panelImplementation.indexedRankUpdate(
+        alpha,
+        a,
+        aOffset,
+        rowStride,
+        indexStride,
+        indices,
+        values,
+        fromIndex,
+        columns,
+        rows,
+        x,
+        xOffset,
+    )
+
+    override fun indexedCoupledUpdate(
+        alpha: Double,
+        a: DoubleArray,
+        b: DoubleArray,
+        offset: Int,
+        rowStride: Int,
+        indexStride: Int,
+        indices: IntArray,
+        values: DoubleArray,
+        fromIndex: Int,
+        columns: Int,
+        rows: Int,
+        pivot: Int,
+        sums: DoubleArray,
+        sumOffset: Int,
+        excluded: Int,
+        destinationOffset: Int,
+        destinationRowStride: Int,
+        destinationIndexStride: Int,
+    ): Unit = panelImplementation.indexedCoupledUpdate(
+        alpha,
+        a,
+        b,
+        offset,
+        rowStride,
+        indexStride,
+        indices,
+        values,
+        fromIndex,
+        columns,
+        rows,
+        pivot,
+        sums,
+        sumOffset,
+        excluded,
+        destinationOffset,
+        destinationRowStride,
+        destinationIndexStride,
+    )
+
+    override val tileRows: Int get() = productImplementation.tileRows
+
+    override val tileColumns: Int get() = productImplementation.tileColumns
+
+    override fun packsProduct(rows: Int, columns: Int, depth: Int): Boolean =
+        productImplementation.packsProduct(rows, columns, depth)
+
+    override fun productBlock(
+        alpha: Double,
+        packedA: DoubleArray,
+        aOffset: Int,
+        aGroupStride: Int,
+        packedB: DoubleArray,
+        bOffset: Int,
+        bGroupStride: Int,
+        rows: Int,
+        columns: Int,
+        depth: Int,
+        beta: Double,
+        c: DoubleArray,
+        cOffset: Int,
+        ldc: Int,
+    ): Unit = productImplementation.productBlock(
+        alpha,
+        packedA,
+        aOffset,
+        aGroupStride,
+        packedB,
+        bOffset,
+        bGroupStride,
+        rows,
+        columns,
+        depth,
+        beta,
+        c,
+        cOffset,
+        ldc,
+    )
+
+    override fun rightHandSideGroup(order: Int, sides: Int): Int =
+        triangularImplementation.rightHandSideGroup(order, sides)
+
+    override fun gathersRightHandSides(rhsStride: Int, order: Int, sides: Int): Boolean =
+        triangularImplementation.gathersRightHandSides(rhsStride, order, sides)
+
+    override fun diagonalSolve(
+        t: DoubleArray,
+        n: Int,
+        start: Int,
+        size: Int,
+        transposed: Boolean,
+        lower: Boolean,
+        unitDiag: Boolean,
+        x: DoubleArray,
+        xOffset: Int,
+        orderStride: Int,
+        rhsStride: Int,
+        sides: Int,
+        tOffset: Int,
+    ): Unit = triangularImplementation.diagonalSolve(
+        t,
+        n,
+        start,
+        size,
+        transposed,
+        lower,
+        unitDiag,
+        x,
+        xOffset,
+        orderStride,
+        rhsStride,
+        sides,
+        tOffset,
+    )
+
+    override fun diagonalMultiply(
+        t: DoubleArray,
+        n: Int,
+        start: Int,
+        size: Int,
+        transposed: Boolean,
+        lower: Boolean,
+        unitDiag: Boolean,
+        x: DoubleArray,
+        xOffset: Int,
+        orderStride: Int,
+        rhsStride: Int,
+        sides: Int,
+        tOffset: Int,
+    ): Unit = triangularImplementation.diagonalMultiply(
+        t,
+        n,
+        start,
+        size,
+        transposed,
+        lower,
+        unitDiag,
+        x,
+        xOffset,
+        orderStride,
+        rhsStride,
+        sides,
+        tOffset,
+    )
+
+    override fun computeGemv(
+        alpha: Double,
+        a: DenseMatrixRegion,
+        transposeA: Boolean,
+        x: DenseVector,
+        beta: Double,
+        y: DenseVector,
+    ): Unit = gemv(alpha, a, x, beta, y, transposeA)
+
+    override fun computeSymv(
+        alpha: Double,
+        a: DenseMatrixRegion,
+        structure: MatrixStructure,
+        x: DenseVector,
+        beta: Double,
+        y: DenseVector,
+    ): Unit = symv(alpha, a, x, beta, y, structure.isLower)
+
+    override fun computeGer(alpha: Double, x: DenseVector, y: DenseVector, a: DenseMatrixRegion): Unit = ger(
+        alpha,
+        x,
+        y,
+        a,
+    )
+
+    override fun computeSyr(alpha: Double, x: DenseVector, a: DenseMatrixRegion, structure: MatrixStructure): Unit =
+        syr(alpha, x, a, structure.isLower)
+
+    override fun computeSyr2(
+        alpha: Double,
+        x: DenseVector,
+        y: DenseVector,
+        a: DenseMatrixRegion,
+        structure: MatrixStructure,
+    ): Unit = syr2(alpha, x, y, a, structure.isLower)
+
+    override fun computeTrsv(
+        a: DenseMatrixRegion,
+        structure: MatrixStructure,
+        transposeA: Boolean,
+        x: DenseVector,
+    ): Unit = trsv(a, x, structure.isLower, transposeA, structure.isUnitDiagonal)
+
+    override fun computeTrmv(
+        a: DenseMatrixRegion,
+        structure: MatrixStructure,
+        transposeA: Boolean,
+        x: DenseVector,
+    ): Unit = trmv(a, x, structure.isLower, transposeA, structure.isUnitDiagonal)
+
+    override fun computeGemm(
+        alpha: Double,
+        a: DenseMatrixRegion,
+        transposeA: Boolean,
+        b: DenseMatrixRegion,
+        transposeB: Boolean,
+        beta: Double,
+        c: DenseMatrixRegion,
+    ): Unit = gemm(alpha, a, transposeA, b, transposeB, beta, c)
+
+    override fun computeSymm(
+        alpha: Double,
+        a: DenseMatrixRegion,
+        structure: MatrixStructure,
+        b: DenseMatrixRegion,
+        beta: Double,
+        c: DenseMatrixRegion,
+        rightSide: Boolean,
+    ): Unit = symm(alpha, a, b, beta, c, structure.isLower, rightSide)
+
+    override fun computeSyrk(
+        alpha: Double,
+        a: DenseMatrixRegion,
+        transposeA: Boolean,
+        beta: Double,
+        c: DenseMatrixRegion,
+        structure: MatrixStructure,
+    ): Unit = syrk(alpha, a, transposeA, beta, c, structure.isLower)
+
+    override fun computeSyr2k(
+        alpha: Double,
+        a: DenseMatrixRegion,
+        b: DenseMatrixRegion,
+        transposeA: Boolean,
+        beta: Double,
+        c: DenseMatrixRegion,
+        structure: MatrixStructure,
+    ): Unit = syr2k(alpha, a, b, transposeA, beta, c, structure.isLower)
+
+    override fun computeTrmm(
+        alpha: Double,
+        a: DenseMatrixRegion,
+        structure: MatrixStructure,
+        transposeA: Boolean,
+        b: DenseMatrixRegion,
+        rightSide: Boolean,
+    ): Unit = trmm(a, b, structure.isLower, transposeA, structure.isUnitDiagonal, rightSide, alpha)
+
+    override fun computeTrsm(
+        alpha: Double,
+        a: DenseMatrixRegion,
+        structure: MatrixStructure,
+        transposeA: Boolean,
+        b: DenseMatrixRegion,
+        rightSide: Boolean,
+    ): Unit = trsm(a, b, structure.isLower, transposeA, structure.isUnitDiagonal, rightSide, alpha)
+
+    override fun computeGemmt(
+        alpha: Double,
+        a: DenseMatrixRegion,
+        transposeA: Boolean,
+        b: DenseMatrixRegion,
+        transposeB: Boolean,
+        beta: Double,
+        c: DenseMatrixRegion,
+        structure: MatrixStructure,
+    ): Unit = gemmt(alpha, a, transposeA, b, transposeB, beta, c, structure.isLower)
 }

@@ -1,10 +1,7 @@
 package com.eignex.koblas.sparse.internal
 
 import com.eignex.koblas.*
-import com.eignex.koblas.DenseMatrix
-import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.dense.ReferenceBlas
-import com.eignex.koblas.internal.dense.PanelWork
 import com.eignex.koblas.randomMatrix
 import kotlin.random.Random
 import kotlin.test.*

@@ -1,10 +1,6 @@
 package com.eignex.koblas.dense
 
-import com.eignex.koblas.BuiltinEngines
-import com.eignex.koblas.DenseMatrix
-import com.eignex.koblas.EngineImplementation
-import com.eignex.koblas.KoblasEngine
-import com.eignex.koblas.Workspace
+import com.eignex.koblas.*
 import com.eignex.koblas.assertClose
 import com.eignex.koblas.internal.dense.PRODUCT_BLOCK_COLUMNS
 import com.eignex.koblas.internal.dense.PRODUCT_BLOCK_DEPTH
@@ -61,12 +57,10 @@ class ProductSchedulingTest {
     }
 
     /** A tile of a stated shape that answers the shipped packing rule and nothing else. */
-    private class TileGeometry(override val tileRows: Int, override val tileColumns: Int) : KoblasEngine() {
+    private class TileGeometry(override val tileRows: Int, override val tileColumns: Int) : KoblasEngine {
         override val implementations = setOf(EngineImplementation.Products)
 
         override val name: String get() = "geometry(${tileRows}x$tileColumns)"
-
-        override fun implementationsFor(rows: Int, columns: Int, depth: Int): List<String> = listOf(name)
 
         override fun packsProduct(rows: Int, columns: Int, depth: Int): Boolean =
             packsProductByWork(rows, columns, depth, tileRows, tileColumns)

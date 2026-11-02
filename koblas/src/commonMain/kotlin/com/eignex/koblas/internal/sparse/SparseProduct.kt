@@ -1,9 +1,6 @@
 package com.eignex.koblas.internal.sparse
 
 import com.eignex.koblas.*
-import com.eignex.koblas.DenseMatrixRegion
-import com.eignex.koblas.SparseMatrix
-import com.eignex.koblas.UnsafeKoblasApi
 import com.eignex.koblas.dense.*
 import com.eignex.koblas.internal.sparse.SparseTuning
 import com.eignex.koblas.requireShape

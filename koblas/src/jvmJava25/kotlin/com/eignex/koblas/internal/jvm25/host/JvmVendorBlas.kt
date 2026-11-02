@@ -5,7 +5,6 @@ package com.eignex.koblas.internal.jvm25.host
 import com.eignex.koblas.*
 import com.eignex.koblas.dense.*
 import com.eignex.koblas.dense.MatrixStructure
-import com.eignex.koblas.internal.dense.triangularMatrix
 import com.eignex.koblas.internal.host.Cblas
 import com.eignex.koblas.internal.host.diagFor
 import com.eignex.koblas.internal.host.positiveIncrement
@@ -29,7 +28,7 @@ import java.lang.invoke.MethodHandle
  * exception. Nothing is cached between calls and no segment escapes one, so instances are safe to share and
  * concurrent calls on one instance do not interfere.
  */
-internal class JvmVendorBlas(private val library: JvmVendorLibrary) : KoblasEngine() {
+internal class JvmVendorBlas(private val library: JvmVendorLibrary) : KoblasEngine {
     override val name: String get() = vendor.vendorName.lowercase()
     override val minimumVectorLength: Int get() = 1
 
@@ -38,10 +37,9 @@ internal class JvmVendorBlas(private val library: JvmVendorLibrary) : KoblasEngi
     override val version: String get() = library.version
     override val threadEvidence: ThreadEvidence get() = library.threadEvidence
 
-    override val implementations: Set<EngineImplementation> = EngineImplementation.entries
-        .filterTo(LinkedHashSet()) { it.entryPoint.isNotEmpty() && library.exports(it.entryPoint) }
+    override val implementations: Set<EngineImplementation> = exportedImplementations(library::exports)
 
-    // Level 1. A vector window is always expressible, so these never stage and never compose.
+    // Level 1 bindings stage foreign memory while keeping arithmetic in this library.
 
     override fun dot(
         a: DoubleArray,
@@ -58,7 +56,7 @@ internal class JvmVendorBlas(private val library: JvmVendorLibrary) : KoblasEngi
         return Arena.ofConfined().use { arena ->
             val nx = arena.stage(x)
             val ny = arena.stage(y)
-            dotHandle.invokeExact(x.size, nx.segment, nx.increment, ny.segment, ny.increment) as Double
+            supplied(dotHandle).invokeExact(x.size, nx.segment, nx.increment, ny.segment, ny.increment) as Double
         }
     }
 
@@ -67,7 +65,7 @@ internal class JvmVendorBlas(private val library: JvmVendorLibrary) : KoblasEngi
         if (len == 0) return 0.0
         return Arena.ofConfined().use { arena ->
             val nx = arena.stage(x)
-            nrm2Handle.invokeExact(x.size, nx.segment, positiveIncrement(nx.increment, x.size)) as Double
+            supplied(nrm2Handle).invokeExact(x.size, nx.segment, positiveIncrement(nx.increment, x.size)) as Double
         }
     }
 
@@ -76,7 +74,7 @@ internal class JvmVendorBlas(private val library: JvmVendorLibrary) : KoblasEngi
         if (len == 0) return 0.0
         return Arena.ofConfined().use { arena ->
             val nx = arena.stage(x)
-            asumHandle.invokeExact(x.size, nx.segment, positiveIncrement(nx.increment, x.size)) as Double
+            supplied(asumHandle).invokeExact(x.size, nx.segment, positiveIncrement(nx.increment, x.size)) as Double
         }
     }
 
@@ -85,7 +83,9 @@ internal class JvmVendorBlas(private val library: JvmVendorLibrary) : KoblasEngi
         if (len == 0) return -1
         return Arena.ofConfined().use { arena ->
             val nx = arena.stage(x)
-            val found = iamaxHandle.invokeExact(x.size, nx.segment, positiveIncrement(nx.increment, x.size)) as Int
+            val found = supplied(
+                iamaxHandle,
+            ).invokeExact(x.size, nx.segment, positiveIncrement(nx.increment, x.size)) as Int
             if (x.stride >= 0) found else x.size - 1 - found
         }
     }
@@ -106,7 +106,7 @@ internal class JvmVendorBlas(private val library: JvmVendorLibrary) : KoblasEngi
         Arena.ofConfined().use { arena ->
             val nx = arena.stage(source)
             val ny = arena.stage(destination)
-            axpyHandle.invokeExact(source.size, alpha, nx.segment, nx.increment, ny.segment, ny.increment)
+            supplied(axpyHandle).invokeExact(source.size, alpha, nx.segment, nx.increment, ny.segment, ny.increment)
             ny.writeBack()
         }
     }
@@ -116,7 +116,7 @@ internal class JvmVendorBlas(private val library: JvmVendorLibrary) : KoblasEngi
         if (len == 0) return
         Arena.ofConfined().use { arena ->
             val nx = arena.stage(x)
-            scalHandle.invokeExact(x.size, alpha, nx.segment, positiveIncrement(nx.increment, x.size))
+            supplied(scalHandle).invokeExact(x.size, alpha, nx.segment, positiveIncrement(nx.increment, x.size))
             nx.writeBack()
         }
     }
@@ -128,7 +128,7 @@ internal class JvmVendorBlas(private val library: JvmVendorLibrary) : KoblasEngi
         Arena.ofConfined().use { arena ->
             val nx = arena.stage(x)
             val ny = arena.stage(y)
-            copyHandle.invokeExact(x.size, nx.segment, nx.increment, ny.segment, ny.increment)
+            supplied(copyHandle).invokeExact(x.size, nx.segment, nx.increment, ny.segment, ny.increment)
             ny.writeBack()
         }
     }
@@ -140,7 +140,7 @@ internal class JvmVendorBlas(private val library: JvmVendorLibrary) : KoblasEngi
         Arena.ofConfined().use { arena ->
             val nx = arena.stage(x)
             val ny = arena.stage(y)
-            swapHandle.invokeExact(x.size, nx.segment, nx.increment, ny.segment, ny.increment)
+            supplied(swapHandle).invokeExact(x.size, nx.segment, nx.increment, ny.segment, ny.increment)
             nx.writeBack()
             ny.writeBack()
         }
@@ -163,7 +163,7 @@ internal class JvmVendorBlas(private val library: JvmVendorLibrary) : KoblasEngi
         Arena.ofConfined().use { arena ->
             val nx = arena.stage(source)
             val ny = arena.stage(destination)
-            rotHandle.invokeExact(source.size, nx.segment, nx.increment, ny.segment, ny.increment, c, s)
+            supplied(rotHandle).invokeExact(source.size, nx.segment, nx.increment, ny.segment, ny.increment, c, s)
             nx.writeBack()
             ny.writeBack()
         }
@@ -183,7 +183,7 @@ internal class JvmVendorBlas(private val library: JvmVendorLibrary) : KoblasEngi
             val na = arena.stage(a)
             val nx = arena.stage(x)
             val ny = arena.stage(y, read = beta != 0.0)
-            gemvHandle.invokeExact(
+            supplied(gemvHandle).invokeExact(
                 Cblas.COL_MAJOR, transposeFor(transposeA), a.rows, a.cols, alpha,
                 na.segment, na.leadingDimension, nx.segment, nx.increment, beta, ny.segment, ny.increment,
             )
@@ -203,7 +203,7 @@ internal class JvmVendorBlas(private val library: JvmVendorLibrary) : KoblasEngi
             val na = arena.stage(a, structure)
             val nx = arena.stage(x)
             val ny = arena.stage(y, read = beta != 0.0)
-            symvHandle.invokeExact(
+            supplied(symvHandle).invokeExact(
                 Cblas.COL_MAJOR, uploFor(structure), a.rows, alpha,
                 na.segment, na.leadingDimension, nx.segment, nx.increment, beta, ny.segment, ny.increment,
             )
@@ -216,7 +216,7 @@ internal class JvmVendorBlas(private val library: JvmVendorLibrary) : KoblasEngi
             val na = arena.stage(a)
             val nx = arena.stage(x)
             val ny = arena.stage(y)
-            gerHandle.invokeExact(
+            supplied(gerHandle).invokeExact(
                 Cblas.COL_MAJOR, a.rows, a.cols, alpha,
                 nx.segment, nx.increment, ny.segment, ny.increment, na.segment, na.leadingDimension,
             )
@@ -228,7 +228,7 @@ internal class JvmVendorBlas(private val library: JvmVendorLibrary) : KoblasEngi
         Arena.ofConfined().use { arena ->
             val na = arena.stage(a, structure)
             val nx = arena.stage(x)
-            syrHandle.invokeExact(
+            supplied(syrHandle).invokeExact(
                 Cblas.COL_MAJOR,
                 uploFor(structure),
                 a.rows,
@@ -253,7 +253,7 @@ internal class JvmVendorBlas(private val library: JvmVendorLibrary) : KoblasEngi
             val na = arena.stage(a, structure)
             val nx = arena.stage(x)
             val ny = arena.stage(y)
-            syr2Handle.invokeExact(
+            supplied(syr2Handle).invokeExact(
                 Cblas.COL_MAJOR, uploFor(structure), a.rows, alpha,
                 nx.segment, nx.increment, ny.segment, ny.increment, na.segment, na.leadingDimension,
             )
@@ -262,10 +262,10 @@ internal class JvmVendorBlas(private val library: JvmVendorLibrary) : KoblasEngi
     }
 
     override fun computeTrsv(a: DenseMatrixRegion, structure: MatrixStructure, transposeA: Boolean, x: DenseVector) =
-        triangularVector(a, structure, transposeA, x, trsvHandle)
+        triangularVector(a, structure, transposeA, x, supplied(trsvHandle))
 
     override fun computeTrmv(a: DenseMatrixRegion, structure: MatrixStructure, transposeA: Boolean, x: DenseVector) =
-        triangularVector(a, structure, transposeA, x, trmvHandle)
+        triangularVector(a, structure, transposeA, x, supplied(trmvHandle))
 
     @Suppress("LongParameterList") // the shared triangular vector signature plus its handle
     private fun triangularVector(
@@ -303,7 +303,7 @@ internal class JvmVendorBlas(private val library: JvmVendorLibrary) : KoblasEngi
             val na = arena.stage(a)
             val nb = arena.stage(b)
             val nc = arena.stage(c, read = beta != 0.0)
-            gemmHandle.invokeExact(
+            supplied(gemmHandle).invokeExact(
                 Cblas.COL_MAJOR, transposeFor(transposeA), transposeFor(transposeB),
                 c.rows, c.cols, depth, alpha,
                 na.segment, na.leadingDimension, nb.segment, nb.leadingDimension, beta,
@@ -327,7 +327,7 @@ internal class JvmVendorBlas(private val library: JvmVendorLibrary) : KoblasEngi
             val na = arena.stage(a, structure)
             val nb = arena.stage(b)
             val nc = arena.stage(c, read = beta != 0.0)
-            symmHandle.invokeExact(
+            supplied(symmHandle).invokeExact(
                 Cblas.COL_MAJOR, sideFor(rightSide), uploFor(structure), c.rows, c.cols, alpha,
                 na.segment, na.leadingDimension, nb.segment, nb.leadingDimension, beta,
                 nc.segment, nc.leadingDimension,
@@ -349,7 +349,7 @@ internal class JvmVendorBlas(private val library: JvmVendorLibrary) : KoblasEngi
         Arena.ofConfined().use { arena ->
             val na = arena.stage(a)
             val nc = arena.stage(c, structure, read = beta != 0.0)
-            syrkHandle.invokeExact(
+            supplied(syrkHandle).invokeExact(
                 Cblas.COL_MAJOR, uploFor(structure), transposeFor(transposeA),
                 c.rows, depth, alpha, na.segment, na.leadingDimension, beta,
                 nc.segment, nc.leadingDimension,
@@ -373,7 +373,7 @@ internal class JvmVendorBlas(private val library: JvmVendorLibrary) : KoblasEngi
             val na = arena.stage(a)
             val nb = arena.stage(b)
             val nc = arena.stage(c, structure, read = beta != 0.0)
-            syr2kHandle.invokeExact(
+            supplied(syr2kHandle).invokeExact(
                 Cblas.COL_MAJOR, uploFor(structure), transposeFor(transposeA),
                 c.rows, depth, alpha, na.segment, na.leadingDimension,
                 nb.segment, nb.leadingDimension, beta, nc.segment, nc.leadingDimension,
@@ -390,7 +390,7 @@ internal class JvmVendorBlas(private val library: JvmVendorLibrary) : KoblasEngi
         transposeA: Boolean,
         b: DenseMatrixRegion,
         rightSide: Boolean,
-    ) = triangularMatrix(alpha, a, structure, transposeA, b, rightSide, trmmHandle)
+    ) = triangularMatrix(alpha, a, structure, transposeA, b, rightSide, supplied(trmmHandle))
 
     @Suppress("LongParameterList") // the BLAS dtrsm signature
     override fun computeTrsm(
@@ -400,7 +400,7 @@ internal class JvmVendorBlas(private val library: JvmVendorLibrary) : KoblasEngi
         transposeA: Boolean,
         b: DenseMatrixRegion,
         rightSide: Boolean,
-    ) = triangularMatrix(alpha, a, structure, transposeA, b, rightSide, trsmHandle)
+    ) = triangularMatrix(alpha, a, structure, transposeA, b, rightSide, supplied(trsmHandle))
 
     @Suppress("LongParameterList") // the shared triangular matrix signature plus its handle
     private fun triangularMatrix(
@@ -424,7 +424,7 @@ internal class JvmVendorBlas(private val library: JvmVendorLibrary) : KoblasEngi
         }
     }
 
-    /** Direct where the vendor exports `cblas_dgemmt`, and otherwise the shared composition. */
+    /** Calls only this library's exported `cblas_dgemmt`. */
     @Suppress("LongParameterList") // the BLAS gemmt signature
     override fun computeGemmt(
         alpha: Double,
@@ -454,17 +454,20 @@ internal class JvmVendorBlas(private val library: JvmVendorLibrary) : KoblasEngi
         }
     }
 
-    private fun gemmtHandle(): MethodHandle = checkNotNull(gemmtOrNull) { "gemmt is not exported" }
+    private fun gemmtHandle(): MethodHandle = supplied(gemmtOrNull)
 
-    private val dotHandle = library.handle(
+    private fun supplied(handle: MethodHandle?): MethodHandle =
+        handle ?: throw UnsupportedOperationException("Operation is not exported by ${vendor.vendorName}")
+
+    private val dotHandle = library.handleOrNull(
         EngineImplementation.Dot.entryPoint,
         FunctionDescriptor.of(JAVA_DOUBLE, JAVA_INT, ADDRESS, JAVA_INT, ADDRESS, JAVA_INT),
     )
-    private val nrm2Handle = library.handle(
+    private val nrm2Handle = library.handleOrNull(
         EngineImplementation.Nrm2.entryPoint,
         FunctionDescriptor.of(JAVA_DOUBLE, JAVA_INT, ADDRESS, JAVA_INT),
     )
-    private val asumHandle = library.handle(
+    private val asumHandle = library.handleOrNull(
         EngineImplementation.Asum.entryPoint,
         FunctionDescriptor.of(JAVA_DOUBLE, JAVA_INT, ADDRESS, JAVA_INT),
     )
@@ -474,51 +477,51 @@ internal class JvmVendorBlas(private val library: JvmVendorLibrary) : KoblasEngi
      * 32 bits agree for every index a 32-bit BLAS integer can address, so binding it as `int` reads the same
      * value either way and avoids depending on which one this library used.
      */
-    private val iamaxHandle = library.handle(
+    private val iamaxHandle = library.handleOrNull(
         EngineImplementation.Iamax.entryPoint,
         FunctionDescriptor.of(JAVA_INT, JAVA_INT, ADDRESS, JAVA_INT),
     )
-    private val axpyHandle = library.handle(
+    private val axpyHandle = library.handleOrNull(
         EngineImplementation.Axpy.entryPoint,
         FunctionDescriptor.ofVoid(JAVA_INT, JAVA_DOUBLE, ADDRESS, JAVA_INT, ADDRESS, JAVA_INT),
     )
-    private val scalHandle = library.handle(
+    private val scalHandle = library.handleOrNull(
         EngineImplementation.Scale.entryPoint,
         FunctionDescriptor.ofVoid(JAVA_INT, JAVA_DOUBLE, ADDRESS, JAVA_INT),
     )
-    private val copyHandle = library.handle(
+    private val copyHandle = library.handleOrNull(
         EngineImplementation.Copy.entryPoint,
         FunctionDescriptor.ofVoid(JAVA_INT, ADDRESS, JAVA_INT, ADDRESS, JAVA_INT),
     )
-    private val swapHandle = library.handle(
+    private val swapHandle = library.handleOrNull(
         EngineImplementation.Swap.entryPoint,
         FunctionDescriptor.ofVoid(JAVA_INT, ADDRESS, JAVA_INT, ADDRESS, JAVA_INT),
     )
-    private val rotHandle = library.handle(
+    private val rotHandle = library.handleOrNull(
         EngineImplementation.Rot.entryPoint,
         FunctionDescriptor.ofVoid(JAVA_INT, ADDRESS, JAVA_INT, ADDRESS, JAVA_INT, JAVA_DOUBLE, JAVA_DOUBLE),
     )
-    private val gemvHandle = library.handle(
+    private val gemvHandle = library.handleOrNull(
         EngineImplementation.Gemv.entryPoint,
         FunctionDescriptor.ofVoid(
             JAVA_INT, JAVA_INT, JAVA_INT, JAVA_INT, JAVA_DOUBLE, ADDRESS, JAVA_INT,
             ADDRESS, JAVA_INT, JAVA_DOUBLE, ADDRESS, JAVA_INT,
         ),
     )
-    private val symvHandle = library.handle(
+    private val symvHandle = library.handleOrNull(
         EngineImplementation.Symv.entryPoint,
         FunctionDescriptor.ofVoid(
             JAVA_INT, JAVA_INT, JAVA_INT, JAVA_DOUBLE, ADDRESS, JAVA_INT,
             ADDRESS, JAVA_INT, JAVA_DOUBLE, ADDRESS, JAVA_INT,
         ),
     )
-    private val gerHandle = library.handle(
+    private val gerHandle = library.handleOrNull(
         EngineImplementation.Ger.entryPoint,
         FunctionDescriptor.ofVoid(
             JAVA_INT, JAVA_INT, JAVA_INT, JAVA_DOUBLE, ADDRESS, JAVA_INT, ADDRESS, JAVA_INT, ADDRESS, JAVA_INT,
         ),
     )
-    private val syrHandle = library.handle(
+    private val syrHandle = library.handleOrNull(
         EngineImplementation.Syr.entryPoint,
         FunctionDescriptor.ofVoid(
             JAVA_INT,
@@ -531,44 +534,44 @@ internal class JvmVendorBlas(private val library: JvmVendorLibrary) : KoblasEngi
             JAVA_INT,
         ),
     )
-    private val syr2Handle = library.handle(
+    private val syr2Handle = library.handleOrNull(
         EngineImplementation.Syr2.entryPoint,
         FunctionDescriptor.ofVoid(
             JAVA_INT, JAVA_INT, JAVA_INT, JAVA_DOUBLE, ADDRESS, JAVA_INT, ADDRESS, JAVA_INT, ADDRESS, JAVA_INT,
         ),
     )
-    private val trsvHandle = library.handle(EngineImplementation.Trsv.entryPoint, TRIANGULAR_VECTOR)
-    private val trmvHandle = library.handle(EngineImplementation.Trmv.entryPoint, TRIANGULAR_VECTOR)
-    private val gemmHandle = library.handle(
+    private val trsvHandle = library.handleOrNull(EngineImplementation.Trsv.entryPoint, TRIANGULAR_VECTOR)
+    private val trmvHandle = library.handleOrNull(EngineImplementation.Trmv.entryPoint, TRIANGULAR_VECTOR)
+    private val gemmHandle = library.handleOrNull(
         EngineImplementation.Gemm.entryPoint,
         FunctionDescriptor.ofVoid(
             JAVA_INT, JAVA_INT, JAVA_INT, JAVA_INT, JAVA_INT, JAVA_INT, JAVA_DOUBLE,
             ADDRESS, JAVA_INT, ADDRESS, JAVA_INT, JAVA_DOUBLE, ADDRESS, JAVA_INT,
         ),
     )
-    private val symmHandle = library.handle(
+    private val symmHandle = library.handleOrNull(
         EngineImplementation.Symm.entryPoint,
         FunctionDescriptor.ofVoid(
             JAVA_INT, JAVA_INT, JAVA_INT, JAVA_INT, JAVA_INT, JAVA_DOUBLE,
             ADDRESS, JAVA_INT, ADDRESS, JAVA_INT, JAVA_DOUBLE, ADDRESS, JAVA_INT,
         ),
     )
-    private val syrkHandle = library.handle(
+    private val syrkHandle = library.handleOrNull(
         EngineImplementation.Syrk.entryPoint,
         FunctionDescriptor.ofVoid(
             JAVA_INT, JAVA_INT, JAVA_INT, JAVA_INT, JAVA_INT, JAVA_DOUBLE,
             ADDRESS, JAVA_INT, JAVA_DOUBLE, ADDRESS, JAVA_INT,
         ),
     )
-    private val syr2kHandle = library.handle(
+    private val syr2kHandle = library.handleOrNull(
         EngineImplementation.Syr2k.entryPoint,
         FunctionDescriptor.ofVoid(
             JAVA_INT, JAVA_INT, JAVA_INT, JAVA_INT, JAVA_INT, JAVA_DOUBLE,
             ADDRESS, JAVA_INT, ADDRESS, JAVA_INT, JAVA_DOUBLE, ADDRESS, JAVA_INT,
         ),
     )
-    private val trmmHandle = library.handle(EngineImplementation.Trmm.entryPoint, TRIANGULAR_MATRIX)
-    private val trsmHandle = library.handle(EngineImplementation.Trsm.entryPoint, TRIANGULAR_MATRIX)
+    private val trmmHandle = library.handleOrNull(EngineImplementation.Trmm.entryPoint, TRIANGULAR_MATRIX)
+    private val trsmHandle = library.handleOrNull(EngineImplementation.Trsm.entryPoint, TRIANGULAR_MATRIX)
     private val gemmtOrNull = library.handleOrNull(
         EngineImplementation.Gemmt.entryPoint,
         FunctionDescriptor.ofVoid(

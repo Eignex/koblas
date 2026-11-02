@@ -224,10 +224,6 @@ internal class JvmVendorLibrary private constructor(
         return linker.downcallHandle(address, descriptor)
     }
 
-    /** A non-critical handle for [name], which the library is required to export. */
-    fun handle(name: String, descriptor: FunctionDescriptor): MethodHandle =
-        checkNotNull(handleOrNull(name, descriptor)) { "${vendor.vendorName} at $path does not export $name" }
-
     private fun readVersion(): String {
         mklVersion()?.let { return it }
         stringVersion("openblas_get_config")?.let { return it }
@@ -269,8 +265,8 @@ internal class JvmVendorLibrary private constructor(
         private const val WINDOWS_MODULE_FLAGS = 6
 
         /**
-         * Open the first [vendor] candidate with every required CBLAS symbol, or null. Reject partial
-         * installs before arithmetic; the ABI and single-thread checks must also succeed.
+         * Open the first [vendor] candidate that passes the LP64 probes and single-thread checks.
+         * Missing non-probe exports remain absent capabilities.
          */
         fun open(vendor: Vendor): JvmVendorLibrary? {
             val linker = try {
@@ -301,7 +297,6 @@ internal class JvmVendorLibrary private constructor(
                 return null // present but unloadable
             }
             val library = JvmVendorLibrary(vendor, candidate, lookup, linker)
-            if (missingRequiredSymbols(library::exports).isNotEmpty()) return null
             // oneMKL interface selection must precede dynamic/thread controls, version reads and probes.
             if (!library.establishIntegerInterface()) return null
             library.enforceSingleThread()

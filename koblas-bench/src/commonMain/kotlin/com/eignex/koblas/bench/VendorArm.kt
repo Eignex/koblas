@@ -1,10 +1,6 @@
 package com.eignex.koblas.bench
 
-import com.eignex.koblas.BuiltinEngines
-import com.eignex.koblas.DenseMatrix
-import com.eignex.koblas.DenseVector
-import com.eignex.koblas.EngineImplementation
-import com.eignex.koblas.KoblasEngine
+import com.eignex.koblas.*
 import com.eignex.koblas.vendor.Vendor
 
 /**

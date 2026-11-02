@@ -1,10 +1,6 @@
 package com.eignex.koblas.sparse.internal
 
-import com.eignex.koblas.DenseMatrix
-import com.eignex.koblas.DimensionMismatch
-import com.eignex.koblas.SparseMatrix
-import com.eignex.koblas.Workspace
-import com.eignex.koblas.koblas
+import com.eignex.koblas.*
 import com.eignex.koblas.times
 import com.eignex.koblas.transpose
 import kotlin.test.Test

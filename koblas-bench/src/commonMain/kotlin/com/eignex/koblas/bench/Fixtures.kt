@@ -1,8 +1,6 @@
 package com.eignex.koblas.bench
 
-import com.eignex.koblas.DenseMatrix
-import com.eignex.koblas.SparseMatrix
-import com.eignex.koblas.SparseVector
+import com.eignex.koblas.*
 
 internal const val FIXTURE_SEED: Long = 0x243f6a8885a308d3L
 

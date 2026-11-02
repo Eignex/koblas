@@ -1,15 +1,9 @@
 package com.eignex.koblas.dense
 
-import com.eignex.koblas.BuiltinEngines
-import com.eignex.koblas.DenseMatrix
-import com.eignex.koblas.DenseVector
-import com.eignex.koblas.KoblasEngine
-import com.eignex.koblas.PortableEngine
-import com.eignex.koblas.Workspace
+import com.eignex.koblas.*
 import com.eignex.koblas.assertClose
 import com.eignex.koblas.engineWithHost
 import com.eignex.koblas.engineWithKernels
-import com.eignex.koblas.internal.dense.PortablePanelKernels
 import com.eignex.koblas.poisonedSymmetric
 import com.eignex.koblas.poisonedTriangle
 import com.eignex.koblas.randomMatrix
@@ -36,7 +30,7 @@ class HostDenseAgreementTest {
         }
 
     private fun composed(host: KoblasEngine): KoblasEngine = engineWithHost(
-        engineWithKernels(PortableEngine, PortablePanelKernels),
+        engineWithKernels(PortableEngine, PortableEngine),
         host,
     )
 

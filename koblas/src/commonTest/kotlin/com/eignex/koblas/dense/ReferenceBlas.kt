@@ -2,8 +2,7 @@
 
 package com.eignex.koblas.dense
 
-import com.eignex.koblas.DenseMatrixRegion
-import com.eignex.koblas.Vector
+import com.eignex.koblas.*
 import com.eignex.koblas.internal.dense.triangularMatrix
 
 /**

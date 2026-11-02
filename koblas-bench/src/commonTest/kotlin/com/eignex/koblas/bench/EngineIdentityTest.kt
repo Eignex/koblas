@@ -1,8 +1,6 @@
 package com.eignex.koblas.bench
 
-import com.eignex.koblas.EngineImplementation
-import com.eignex.koblas.EngineProfile
-import com.eignex.koblas.KoblasEngine
+import com.eignex.koblas.*
 import com.eignex.koblas.vendor.Vendor
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -11,7 +9,7 @@ import kotlin.test.assertTrue
 class EngineIdentityTest {
     @Test
     fun `combined identity attributes only the supplied capabilities to each source`() {
-        val source = object : KoblasEngine() {
+        val source = object : KoblasEngine {
             override val name = "vendor"
             override val vendor = Vendor.OneMkl
             override val implementations = setOf(EngineImplementation.Dot)

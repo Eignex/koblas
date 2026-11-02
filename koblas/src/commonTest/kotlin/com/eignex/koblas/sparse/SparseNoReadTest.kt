@@ -1,8 +1,6 @@
 package com.eignex.koblas.sparse
 
-import com.eignex.koblas.SparseMatrix
-import com.eignex.koblas.Vector
-import com.eignex.koblas.koblas
+import com.eignex.koblas.*
 import com.eignex.koblas.syr
 import com.eignex.koblas.syr2
 import kotlin.test.Test

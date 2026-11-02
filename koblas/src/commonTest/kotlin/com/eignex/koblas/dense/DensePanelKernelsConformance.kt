@@ -2,10 +2,8 @@
 
 package com.eignex.koblas.dense
 
-import com.eignex.koblas.KoblasEngine
+import com.eignex.koblas.*
 import com.eignex.koblas.assertClose
-import com.eignex.koblas.internal.dense.PanelWork
-import com.eignex.koblas.internal.dense.PortablePanelKernels
 import kotlin.random.Random
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -682,7 +680,7 @@ internal fun vectorWidth(kernels: KoblasEngine): Int {
                 PanelWork.SparseRightHandSides,
                 width,
                 2,
-            ) != PortablePanelKernels.name
+            ) != PortableEngine.name
         ) {
             return width
         }

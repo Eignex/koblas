@@ -1,7 +1,6 @@
 package com.eignex.koblas.dense
 
 import com.eignex.koblas.*
-import com.eignex.koblas.internal.dense.PortablePanelKernels
 import com.eignex.koblas.vendor.Vendor
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
@@ -581,7 +580,7 @@ class DenseMatrixViewTest {
             )
         }?.let {
             engineWithHost(
-                engineWithKernels(PortableEngine, PortablePanelKernels),
+                engineWithKernels(PortableEngine, PortableEngine),
                 it,
             )
         }

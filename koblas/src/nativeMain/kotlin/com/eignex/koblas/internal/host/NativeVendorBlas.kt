@@ -5,7 +5,6 @@ package com.eignex.koblas.internal.host
 
 import com.eignex.koblas.*
 import com.eignex.koblas.dense.MatrixStructure
-import com.eignex.koblas.internal.dense.triangularMatrix
 import com.eignex.koblas.internal.host.Cblas
 import com.eignex.koblas.internal.host.diagFor
 import com.eignex.koblas.internal.host.positiveIncrement
@@ -70,7 +69,7 @@ internal class NativeVendorBlas private constructor(
     override val vendor: Vendor,
     private val candidate: String,
     private val library: NativeLibrary,
-) : KoblasEngine() {
+) : KoblasEngine {
     override val name: String get() = "${vendor.vendorName.lowercase()}"
 
     /**
@@ -201,13 +200,13 @@ internal class NativeVendorBlas private constructor(
         ) { EngineImplementation.entries[it].entryPoint.takeIf { it.isNotEmpty() }?.let(library::symbol) }
 
     override val implementations: Set<EngineImplementation> =
-        EngineImplementation.entries.filterTo(LinkedHashSet()) { entryPoints[it.ordinal] != null }
+        exportedImplementations { library.symbol(it) != null }
 
     private fun symbol(operation: EngineImplementation): COpaquePointer = checkNotNull(entryPoints[operation.ordinal]) {
         "${vendor.vendorName} at $libraryPath does not export ${operation.entryPoint}"
     }
 
-    // Level 1. A vector window is always expressible, so these never stage and never compose.
+    // Level 1 windows call the selected library directly; alias adaptation preserves that provider.
 
     /*
      * Primitive Level 1 windows reach pinned storage directly, avoiding operand wrappers for short calls.
@@ -339,23 +338,23 @@ internal class NativeVendorBlas private constructor(
         xStride: Int,
         yStride: Int,
     ) {
-        if (x === y && xOff == yOff && xStride == yStride) {
-            PortableEngine.rot(x, xOff, y, yOff, len, c, s, xStride, yStride)
-        } else {
-            if (len == 0) return
-            val fn = symbol(EngineImplementation.Rot).reinterpret<RotFn>()
-            x.usePinned { px ->
-                y.usePinned { py ->
-                    fn(
-                        len,
-                        px.addressOf(baseIndex(xOff, xStride, len)),
-                        xStride,
-                        py.addressOf(baseIndex(yOff, yStride, len)),
-                        yStride,
-                        c,
-                        s,
-                    )
-                }
+        if (len == 0) return
+        val aliased = x === y && xOff == yOff && xStride == yStride
+        val stableX = if (aliased) DoubleArray(len) { x[xOff + it * xStride] } else x
+        val stableOffset = if (aliased) 0 else xOff
+        val stableStride = if (aliased) 1 else xStride
+        val fn = symbol(EngineImplementation.Rot).reinterpret<RotFn>()
+        stableX.usePinned { px ->
+            y.usePinned { py ->
+                fn(
+                    len,
+                    px.addressOf(baseIndex(stableOffset, stableStride, len)),
+                    stableStride,
+                    py.addressOf(baseIndex(yOff, yStride, len)),
+                    yStride,
+                    c,
+                    s,
+                )
             }
         }
     }
@@ -615,7 +614,7 @@ internal class NativeVendorBlas private constructor(
         }
     }
 
-    /** Direct where the vendor exports `cblas_dgemmt`, and otherwise the shared composition. */
+    /** Calls only this library's exported `cblas_dgemmt`. */
     @Suppress("LongParameterList") // the BLAS gemmt signature
     override fun computeGemmt(
         alpha: Double,
@@ -675,8 +674,8 @@ internal class NativeVendorBlas private constructor(
         private const val MKL_SEQUENTIAL = 1
 
         /**
-         * Open the first [vendor] candidate with every required CBLAS symbol, or null. Reject partial
-         * installs before arithmetic; the ABI and single-thread checks must also succeed.
+         * Open the first [vendor] candidate that passes the LP64 probes and single-thread checks.
+         * Missing non-probe exports remain absent capabilities.
          */
         fun open(vendor: Vendor): NativeVendorBlas? {
             val installed = vendor.loadCandidates(
@@ -686,11 +685,6 @@ internal class NativeVendorBlas private constructor(
             )
             for (candidate in installed) {
                 val library = NativeLibrary.open(candidate) ?: continue
-                if (missingRequiredSymbols { library.symbol(it) != null }.isNotEmpty()) {
-                    // No calls have used this handle; unload the partial library to avoid symbol conflicts.
-                    library.close()
-                    continue
-                }
                 val blas = NativeVendorBlas(vendor, candidate, library)
                 // oneMKL interface selection must precede dynamic/thread controls, version reads and probes.
                 if (!blas.establishIntegerInterface()) continue

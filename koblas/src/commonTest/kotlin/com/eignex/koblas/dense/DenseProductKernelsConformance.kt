@@ -2,7 +2,7 @@
 
 package com.eignex.koblas.dense
 
-import com.eignex.koblas.KoblasEngine
+import com.eignex.koblas.*
 import com.eignex.koblas.assertClose
 import kotlin.math.abs
 import kotlin.random.Random

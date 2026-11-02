@@ -1,7 +1,6 @@
 package com.eignex.koblas
 
-import com.eignex.koblas.DimensionMismatch
-import com.eignex.koblas.koblas
+import com.eignex.koblas.*
 import com.eignex.koblas.times
 import com.eignex.koblas.transpose
 import com.eignex.koblas.withColumn

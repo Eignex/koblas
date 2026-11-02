@@ -2,10 +2,7 @@
 
 package com.eignex.koblas.dense
 
-import com.eignex.koblas.DenseMatrixRegion
-import com.eignex.koblas.DenseVector
-import com.eignex.koblas.EngineImplementation
-import com.eignex.koblas.KoblasEngine
+import com.eignex.koblas.*
 import com.eignex.koblas.vendor.ThreadEvidence
 import com.eignex.koblas.vendor.Vendor
 
@@ -43,7 +40,7 @@ internal open class RecordingBlas(
     override val implementations: Set<EngineImplementation> = EngineImplementation.entries.filter {
         it.entryPoint.isNotEmpty()
     }.toSet(),
-) : KoblasEngine() {
+) : KoblasEngine {
     override val name: String get() = vendor.vendorName.lowercase()
     private val recorded = mutableListOf<BlasCall>()
 
@@ -61,42 +58,99 @@ internal open class RecordingBlas(
     override val version: String get() = "recording"
     override val threadEvidence: ThreadEvidence get() = ThreadEvidence.Confirmed
 
-    override fun dot(x: DenseVector, y: DenseVector): Double {
-        record(BlasCall(EngineImplementation.Dot, vectors = listOf(x, y)))
+    override fun dot(
+        a: DoubleArray,
+        aOff: Int,
+        b: DoubleArray,
+        bOff: Int,
+        len: Int,
+        aStride: Int,
+        bStride: Int,
+    ): Double {
+        record(
+            BlasCall(
+                EngineImplementation.Dot,
+                vectors = listOf(StridedVector(a, aOff, len, aStride), StridedVector(b, bOff, len, bStride)),
+            ),
+        )
         return 0.0
     }
 
-    override fun nrm2(x: DenseVector): Double {
-        record(BlasCall(EngineImplementation.Nrm2, vectors = listOf(x)))
+    override fun nrm2(v: DoubleArray, vOff: Int, len: Int, vStride: Int): Double {
+        record(BlasCall(EngineImplementation.Nrm2, vectors = listOf(StridedVector(v, vOff, len, vStride))))
         return 0.0
     }
 
-    override fun asum(x: DenseVector): Double {
-        record(BlasCall(EngineImplementation.Asum, vectors = listOf(x)))
+    override fun asum(v: DoubleArray, vOff: Int, len: Int, vStride: Int): Double {
+        record(BlasCall(EngineImplementation.Asum, vectors = listOf(StridedVector(v, vOff, len, vStride))))
         return 0.0
     }
 
-    override fun iamax(x: DenseVector): Int {
-        record(BlasCall(EngineImplementation.Iamax, vectors = listOf(x)))
+    override fun iamax(v: DoubleArray, vOff: Int, len: Int, vStride: Int): Int {
+        record(BlasCall(EngineImplementation.Iamax, vectors = listOf(StridedVector(v, vOff, len, vStride))))
         return 0
     }
 
-    override fun axpy(alpha: Double, x: DenseVector, y: DenseVector) =
-        record(BlasCall(EngineImplementation.Axpy, vectors = listOf(x, y), scalars = listOf(alpha)))
+    override fun axpy(
+        y: DoubleArray,
+        yOff: Int,
+        alpha: Double,
+        x: DoubleArray,
+        xOff: Int,
+        len: Int,
+        yStride: Int,
+        xStride: Int,
+    ) = record(
+        BlasCall(
+            EngineImplementation.Axpy,
+            vectors = listOf(StridedVector(x, xOff, len, xStride), StridedVector(y, yOff, len, yStride)),
+            scalars = listOf(alpha),
+        ),
+    )
 
-    override fun scale(alpha: Double, x: DenseVector) =
-        record(BlasCall(EngineImplementation.Scale, vectors = listOf(x), scalars = listOf(alpha)))
+    override fun scale(v: DoubleArray, vOff: Int, alpha: Double, len: Int, vStride: Int) = record(
+        BlasCall(
+            EngineImplementation.Scale,
+            vectors = listOf(StridedVector(v, vOff, len, vStride)),
+            scalars = listOf(alpha),
+        ),
+    )
 
-    override fun copy(x: DenseVector, y: DenseVector) {
-        record(BlasCall(EngineImplementation.Copy, vectors = listOf(x, y)))
+    override fun copy(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int, aStride: Int, bStride: Int) {
+        record(
+            BlasCall(
+                EngineImplementation.Copy,
+                vectors = listOf(StridedVector(a, aOff, len, aStride), StridedVector(b, bOff, len, bStride)),
+            ),
+        )
     }
 
-    override fun swap(x: DenseVector, y: DenseVector) {
-        record(BlasCall(EngineImplementation.Swap, vectors = listOf(x, y)))
+    override fun swap(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int, aStride: Int, bStride: Int) {
+        record(
+            BlasCall(
+                EngineImplementation.Swap,
+                vectors = listOf(StridedVector(a, aOff, len, aStride), StridedVector(b, bOff, len, bStride)),
+            ),
+        )
     }
 
-    override fun rot(x: DenseVector, y: DenseVector, c: Double, s: Double) =
-        record(BlasCall(EngineImplementation.Rot, vectors = listOf(x, y), scalars = listOf(c, s)))
+    override fun rot(
+        x: DoubleArray,
+        xOff: Int,
+        y: DoubleArray,
+        yOff: Int,
+        len: Int,
+        c: Double,
+        s: Double,
+        xStride: Int,
+        yStride: Int,
+    ) = record(
+        BlasCall(
+            EngineImplementation.Rot,
+            vectors = listOf(StridedVector(x, xOff, len, xStride), StridedVector(y, yOff, len, yStride)),
+            scalars = listOf(c, s),
+        ),
+    )
 
     override fun computeGemv(
         alpha: Double,

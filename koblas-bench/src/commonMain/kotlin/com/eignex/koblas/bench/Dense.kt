@@ -1,10 +1,6 @@
 package com.eignex.koblas.bench
 
-import com.eignex.koblas.DenseVector
-import com.eignex.koblas.KoblasEngine
-import com.eignex.koblas.Matrix
-import com.eignex.koblas.Workspace
-import com.eignex.koblas.koblas
+import com.eignex.koblas.*
 
 internal class CaseWork(
     val comparisonKind: String,

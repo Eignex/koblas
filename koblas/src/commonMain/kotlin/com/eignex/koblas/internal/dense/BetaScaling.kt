@@ -1,6 +1,6 @@
 package com.eignex.koblas.internal.dense
 
-import com.eignex.koblas.KoblasEngine
+import com.eignex.koblas.*
 import com.eignex.koblas.dense.*
 
 /** `v = beta * v` over the [len] entries from [off], honoring the `beta == 0` overwrite convention. */

@@ -1,16 +1,9 @@
 package com.eignex.koblas.dense
 
-import com.eignex.koblas.DenseMatrix
-import com.eignex.koblas.DenseMatrixRegion
-import com.eignex.koblas.DenseVector
-import com.eignex.koblas.EngineImplementation
-import com.eignex.koblas.KoblasEngine
-import com.eignex.koblas.PortableEngine
-import com.eignex.koblas.Workspace
+import com.eignex.koblas.*
 import com.eignex.koblas.assertClose
 import com.eignex.koblas.engineWithHost
 import com.eignex.koblas.engineWithKernels
-import com.eignex.koblas.internal.dense.PortablePanelKernels
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
@@ -29,7 +22,7 @@ class HostDenseBlasTest {
     @Test
     fun `platform eligibility keeps a rejected host call portable`() {
         val recorder = RecordingBlas()
-        val portable = engineWithKernels(PortableEngine, PortablePanelKernels)
+        val portable = engineWithKernels(PortableEngine, PortableEngine)
         val blas = engineWithHost(portable, recorder, eligible = false)
         val a = matrix(ORDER)
         val actual = matrix(ORDER)
@@ -46,7 +39,7 @@ class HostDenseBlasTest {
     fun `borrowed eligibility rejects any adapted operand before staging`() {
         for (borrowedOperand in listOf("left", "right", "destination")) {
             val recorder = RecordingBlas()
-            val portable = engineWithKernels(PortableEngine, PortablePanelKernels)
+            val portable = engineWithKernels(PortableEngine, PortableEngine)
             val blas = engineWithHost(portable, recorder, borrowed = false)
             val parent = matrix(ORDER + 2)
             val view = parent.view(1, 1, ORDER, ORDER)
@@ -76,7 +69,7 @@ class HostDenseBlasTest {
 
     private fun forced(recorder: RecordingBlas = RecordingBlas()): Pair<RecordingBlas, KoblasEngine> =
         recorder to engineWithHost(
-            engineWithKernels(PortableEngine, PortablePanelKernels),
+            engineWithKernels(PortableEngine, PortableEngine),
             recorder,
         )
 
@@ -151,7 +144,10 @@ class HostDenseBlasTest {
 
     @Test
     fun `an operation the library does not export stays on the portable schedule`() {
-        val without = RecordingBlas(implementations = EngineImplementation.entries.toSet() - EngineImplementation.Gemmt)
+        val without = RecordingBlas(
+            implementations =
+            EngineImplementation.entries.filter { it.entryPoint.isNotEmpty() }.toSet() - EngineImplementation.Gemmt,
+        )
         val (recorder, blas) = forced(without)
         val a = matrix(ORDER)
 
@@ -243,7 +239,7 @@ class HostDenseBlasTest {
 
     @Test
     fun `host product aliases agree with the reference and share one snapshot`() {
-        val portable = engineWithKernels(PortableEngine, PortablePanelKernels)
+        val portable = engineWithKernels(PortableEngine, PortableEngine)
         val blas = engineWithHost(portable, ReferenceProductBlas())
 
         assertDenseProductAliasesAgreeWithReference(blas)
@@ -251,7 +247,7 @@ class HostDenseBlasTest {
 
     @Test
     fun `host rectangular product aliases retain their operand shapes`() {
-        val portable = engineWithKernels(PortableEngine, PortablePanelKernels)
+        val portable = engineWithKernels(PortableEngine, PortableEngine)
         val blas = engineWithHost(portable, ReferenceProductBlas())
 
         assertRectangularProductAliasesAgreeWithReference(blas)
@@ -295,7 +291,7 @@ class HostDenseBlasTest {
     fun `borrowed host calls reach a region binding in place`() {
         val recorder = RecordingBlas()
         val blas = engineWithHost(
-            engineWithKernels(PortableEngine, PortablePanelKernels),
+            engineWithKernels(PortableEngine, PortableEngine),
             recorder,
         )
         val parent = matrix(9)
@@ -329,7 +325,7 @@ class HostDenseBlasTest {
     fun `a borrowed input overlapping the destination is staged before a region binding`() {
         val recorder = RecordingBlas()
         val blas = engineWithHost(
-            engineWithKernels(PortableEngine, PortablePanelKernels),
+            engineWithKernels(PortableEngine, PortableEngine),
             recorder,
         )
         val parent = matrix(7)

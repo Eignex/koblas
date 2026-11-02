@@ -1,10 +1,7 @@
 package com.eignex.koblas.sparse
 
-import com.eignex.koblas.DenseMatrix
-import com.eignex.koblas.SparseMatrix
-import com.eignex.koblas.Workspace
+import com.eignex.koblas.*
 import com.eignex.koblas.assertClose
-import com.eignex.koblas.koblas
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
 

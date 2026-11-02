@@ -1,7 +1,7 @@
 package com.eignex.koblas.internal.jvm25.simd
 
+import com.eignex.koblas.*
 import com.eignex.koblas.EngineImplementation.*
-import com.eignex.koblas.KoblasEngine
 import com.eignex.koblas.internal.numeric.MIN_NORMAL
 import com.eignex.koblas.internal.numeric.rescaledEuclideanNorm
 import kotlin.math.sqrt
@@ -14,8 +14,8 @@ internal val simdAvailable: Boolean = try {
     false
 }
 
-/** Only supplied operations are capabilities; the shared interface owns the portable defaults. */
-private object SimdVectorLeaves : KoblasEngine() {
+/** Only supplied operations are capabilities; the composer supplies other providers. */
+private object SimdVectorLeaves : KoblasEngine {
     override val id: String = "jvm-simd"
     override val implementations = setOf(Dot, Sum, Nrm2, Iamax, Asum, Axpy)
     override val dynamicNorm: Boolean get() = true

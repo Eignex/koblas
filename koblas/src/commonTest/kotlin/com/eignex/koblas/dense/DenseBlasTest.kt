@@ -1,12 +1,7 @@
 package com.eignex.koblas.dense
 
-import com.eignex.koblas.BuiltinEngines
-import com.eignex.koblas.DenseMatrix
-import com.eignex.koblas.DimensionMismatch
-import com.eignex.koblas.KoblasEngine
-import com.eignex.koblas.Workspace
+import com.eignex.koblas.*
 import com.eignex.koblas.assertClose
-import com.eignex.koblas.koblas
 import com.eignex.koblas.times
 import kotlin.math.abs
 import kotlin.random.Random

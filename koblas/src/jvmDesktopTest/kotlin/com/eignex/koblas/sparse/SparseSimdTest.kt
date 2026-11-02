@@ -1,6 +1,6 @@
 package com.eignex.koblas.sparse
 
-import com.eignex.koblas.PortableEngine
+import com.eignex.koblas.*
 import com.eignex.koblas.assertClose
 import com.eignex.koblas.internal.jvm25.simd.SparseSimd
 import com.eignex.koblas.internal.jvm25.simd.simdAvailable

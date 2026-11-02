@@ -1,10 +1,6 @@
 package com.eignex.koblas.sparse
 
-import com.eignex.koblas.BuiltinEngines
-import com.eignex.koblas.EngineImplementation
-import com.eignex.koblas.KoblasEngine
-import com.eignex.koblas.PortableEngine
-import com.eignex.koblas.SparseMatrix
+import com.eignex.koblas.*
 import com.eignex.koblas.engineWithKernels
 import kotlin.math.abs
 import kotlin.test.Test
@@ -184,7 +180,7 @@ class SparseKernelsTest {
         }
     }
 
-    private class CustomIndexedDot : KoblasEngine() {
+    private class CustomIndexedDot : KoblasEngine {
         override val name = "custom-indexed"
         override val implementations = setOf(EngineImplementation.IndexedDot)
         val rawCalls = mutableListOf<Pair<Int, Int>>()

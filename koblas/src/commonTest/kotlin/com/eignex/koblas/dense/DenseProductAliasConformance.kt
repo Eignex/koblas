@@ -1,8 +1,6 @@
 package com.eignex.koblas.dense
 
-import com.eignex.koblas.DenseMatrix
-import com.eignex.koblas.KoblasEngine
-import com.eignex.koblas.Workspace
+import com.eignex.koblas.*
 import com.eignex.koblas.assertClose
 import com.eignex.koblas.copyOf
 import com.eignex.koblas.randomMatrix

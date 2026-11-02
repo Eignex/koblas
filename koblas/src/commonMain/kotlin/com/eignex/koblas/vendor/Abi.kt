@@ -1,6 +1,6 @@
 package com.eignex.koblas.vendor
 
-import com.eignex.koblas.EngineImplementation
+import com.eignex.koblas.*
 
 /**
  * Whether the single compute thread the binding requires was confirmed against the library itself.
@@ -87,14 +87,9 @@ internal enum class ThreadControl(
  */
 internal const val ACCELERATE_THREAD_LIMIT: String = "VECLIB_MAXIMUM_THREADS"
 
-/**
- * The required entry points [exports] does not have.
- *
- * Separated from the loaders so the rejection rule can be tested without a library that is partial in exactly
- * the right way. Both platforms ask this question the same way and reject on the same answer.
- */
-internal fun missingRequiredSymbols(exports: (String) -> Boolean): List<String> =
-    EngineImplementation.entries.filter { it.required && !exports(it.entryPoint) }.map { it.entryPoint }
+/** Positive vendor contributions resolved from that library's own exported symbols. */
+internal fun exportedImplementations(exports: (String) -> Boolean): Set<EngineImplementation> =
+    EngineImplementation.entries.filterTo(LinkedHashSet()) { it.entryPoint.isNotEmpty() && exports(it.entryPoint) }
 
 /**
  * Whether a library's own configuration string says it was built with 64-bit BLAS integers.

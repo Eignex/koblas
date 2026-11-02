@@ -1,6 +1,6 @@
 package com.eignex.koblas.sparse
 
-import com.eignex.koblas.PortableEngine
+import com.eignex.koblas.*
 import com.eignex.koblas.internal.numeric.euclideanNorm
 import kotlin.math.abs
 import kotlin.test.Test

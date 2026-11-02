@@ -1,7 +1,6 @@
 package com.eignex.koblas.dense
 
-import com.eignex.koblas.BuiltinEngines
-import com.eignex.koblas.PortableEngine
+import com.eignex.koblas.*
 import com.eignex.koblas.assertClose
 import com.eignex.koblas.internal.jvm25.simd.SimdOps
 import kotlin.test.Test

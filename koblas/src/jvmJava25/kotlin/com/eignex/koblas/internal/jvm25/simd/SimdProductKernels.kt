@@ -24,7 +24,7 @@ import jdk.incubator.vector.DoubleVector
  * Species initialization requires the Vector API module. [BuiltinEngines] checks
  * availability before constructing an engine with this backend.
  */
-internal object SimdProductKernels : KoblasEngine() {
+internal object SimdProductKernels : KoblasEngine {
     override val id: String = "jvm-simd"
     override val implementations get() = setOf(EngineImplementation.Products)
 
@@ -48,7 +48,7 @@ internal object SimdProductKernels : KoblasEngine() {
      * scalar edge for the rows a last tile does not fill, in that order because that is the order the row
      * sweep below takes them in.
      */
-    override fun implementationsFor(rows: Int, columns: Int, depth: Int): List<String> = when {
+    internal fun implementationsFor(rows: Int, columns: Int, depth: Int): List<String> = when {
         rows <= 0 || columns <= 0 || depth <= 0 -> emptyList()
         rows < ROWS -> listOf(EDGE_NAME)
         rows % ROWS == 0 -> listOf(name)

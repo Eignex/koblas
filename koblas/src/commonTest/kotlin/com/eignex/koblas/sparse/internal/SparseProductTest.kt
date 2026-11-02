@@ -1,15 +1,9 @@
 package com.eignex.koblas.sparse.internal
 
-import com.eignex.koblas.DenseMatrix
-import com.eignex.koblas.DimensionMismatch
-import com.eignex.koblas.SparseMatrix
-import com.eignex.koblas.UnsafeKoblasApi
-import com.eignex.koblas.Workspace
+import com.eignex.koblas.*
 import com.eignex.koblas.assertClose
 import com.eignex.koblas.copyOf
-import com.eignex.koblas.internal.dense.PanelWork
 import com.eignex.koblas.internal.sparse.sweepsTouchedRows
-import com.eignex.koblas.koblas
 import com.eignex.koblas.partialPanelWidth
 import com.eignex.koblas.randomMatrix
 import com.eignex.koblas.sparse.ReferenceSparseBlas

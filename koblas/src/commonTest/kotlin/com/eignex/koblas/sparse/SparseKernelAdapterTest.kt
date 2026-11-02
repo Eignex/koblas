@@ -1,9 +1,6 @@
 package com.eignex.koblas.sparse
 
-import com.eignex.koblas.EngineImplementation
-import com.eignex.koblas.KoblasEngine
-import com.eignex.koblas.SparseMatrix
-import com.eignex.koblas.SparseVector
+import com.eignex.koblas.*
 import com.eignex.koblas.engineWithKernels
 import com.eignex.koblas.internal.operands.denseOperand
 import kotlin.test.Test
@@ -22,7 +19,7 @@ class SparseKernelAdapterTest {
         )
         val denseOperand = DoubleArray(matrix.rows)
         val calls = mutableListOf<Pair<Int, Int>>()
-        val selected = object : KoblasEngine() {
+        val selected = object : KoblasEngine {
             override val implementations = setOf(EngineImplementation.IndexedDot)
             override val name: String = "test-SparseKernelAdapterTest"
 
@@ -61,7 +58,7 @@ class SparseKernelAdapterTest {
                 assertEquals(1, stride)
                 calls += operation
             }
-            val selected = object : KoblasEngine() {
+            val selected = object : KoblasEngine {
                 override val name = "stored-reductions"
                 override val implementations = setOf(EngineImplementation.Nrm2, EngineImplementation.Asum)
                 override fun nrm2(v: DoubleArray, vOff: Int, len: Int, vStride: Int): Double {

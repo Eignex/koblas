@@ -1,6 +1,6 @@
 @file:Suppress("LongParameterList") // a panel carries its window, its extents and its scaling as plain numbers
 
-package com.eignex.koblas.internal.dense
+package com.eignex.koblas
 
 import com.eignex.koblas.*
 import com.eignex.koblas.dense.*
@@ -14,7 +14,7 @@ import com.eignex.koblas.vendor.*
  * answer to [KoblasEngine.executionGroup], and a caller that hard-coded four columns would be writing
  * one machine's geometry into an algorithm every machine runs.
  */
-internal enum class PanelWork {
+public enum class PanelWork {
     /** Several logical columns reduced against one vector, producing one value per column. */
     MultiDot,
 

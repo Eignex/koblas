@@ -1,22 +1,15 @@
 package com.eignex.koblas.dense
 
-import com.eignex.koblas.BuiltinEngines
-import com.eignex.koblas.DenseMatrix
-import com.eignex.koblas.DenseVector
-import com.eignex.koblas.KoblasEngine
-import com.eignex.koblas.SparseVector
-import com.eignex.koblas.StridedVector
-import com.eignex.koblas.Workspace
+import com.eignex.koblas.*
 import com.eignex.koblas.axpy
 import com.eignex.koblas.copy
 import com.eignex.koblas.dot
 import com.eignex.koblas.engineWithHost
 import com.eignex.koblas.engineWithKernels
-import com.eignex.koblas.internal.dense.PanelWork
+import com.eignex.koblas.internal.configuration.CombinedEngine
 import com.eignex.koblas.internal.dense.TRIANGULAR_DIAGONAL_BLOCK
 import com.eignex.koblas.internal.jvm25.simd.SimdPanelKernels
 import com.eignex.koblas.internal.jvm25.simd.SimdProductKernels
-import com.eignex.koblas.koblas
 import com.eignex.koblas.swap
 import com.eignex.koblas.testutil.allocation.AllocationProbe
 import com.eignex.koblas.testutil.allocation.bytesPerCall
@@ -72,7 +65,9 @@ internal object SimdDenseAllocationCheck {
             "dense allocation check requires the Vector API panel candidate"
         }
         val panels = engine
-        require(panels.panelImplementation === SimdPanelKernels) { "dense allocation check selected ${panels.name}" }
+        require(
+            (panels as CombinedEngine).panelImplementation === SimdPanelKernels,
+        ) { "dense allocation check selected ${panels.name}" }
         require(panels.implementationFor(PanelWork.MultiDot, ORDER, COLUMNS) == panels.panelImplementation.name) {
             "dense allocation check uses $ORDER rows, which does not reach the vector body"
         }
@@ -379,7 +374,7 @@ internal object SimdDenseAllocationCheck {
     private fun checkProducts(engine: KoblasEngine) {
         val products = engine
         require(
-            products.productImplementation === SimdProductKernels,
+            (products as CombinedEngine).productImplementation === SimdProductKernels,
         ) { "product allocation check selected ${products.name}" }
         val rows = products.tileRows
         val columns = products.tileColumns

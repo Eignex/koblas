@@ -1,7 +1,6 @@
 package com.eignex.koblas.internal.jvm25.simd
 
-import com.eignex.koblas.EngineImplementation
-import com.eignex.koblas.KoblasEngine
+import com.eignex.koblas.*
 import jdk.incubator.vector.DoubleVector
 import jdk.incubator.vector.VectorOperators
 
@@ -16,7 +15,7 @@ import jdk.incubator.vector.VectorOperators
  *
  * Its own object so the initializer, which touches DoubleVector, runs only once the module is present.
  */
-internal object SparseSimd : KoblasEngine() {
+internal object SparseSimd : KoblasEngine {
     override val id: String = "jvm-simd"
     override val implementations get() = if (vectorDot) {
         setOf(

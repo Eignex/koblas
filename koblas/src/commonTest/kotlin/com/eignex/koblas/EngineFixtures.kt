@@ -5,9 +5,9 @@ import com.eignex.koblas.internal.dense.*
 
 internal fun engineWithKernels(
     vectors: KoblasEngine = PortableEngine,
-    panels: KoblasEngine = PortablePanelKernels,
-    products: KoblasEngine = PortableProductKernels,
-    triangles: KoblasEngine = PortableTriangularKernels,
+    panels: KoblasEngine = PortableEngine,
+    products: KoblasEngine = PortableEngine,
+    triangles: KoblasEngine = PortableEngine,
     indexed: KoblasEngine = PortableEngine,
 ): KoblasEngine = KoblasEngine.combine(
     EngineProfile(
