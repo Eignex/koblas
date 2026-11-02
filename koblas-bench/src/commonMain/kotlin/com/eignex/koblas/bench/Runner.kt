@@ -235,14 +235,10 @@ private const val MAX_OPERATIONS = 1_000_000
 /** The same engine and host evidence on either runtime. */
 internal fun engineIdentity(mode: String, engine: KoblasEngine): String {
     val host = engine.takeIf { it.vendor != null }?.let {
-        "/${it.vendor!!.vendorName}/${it.libraryPath}/${it.version}/threads=${it.threadEvidence.label}" +
-            (it).capabilities()
+        "/${it.vendor!!.vendorName}/${it.libraryPath}/${it.version}/threads=${it.threadEvidence.label}"
     } ?: ""
     val owned = engine.capabilities.entries.joinToString("") { (id, operations) ->
         "/caps[$id:${operations.joinToString(",") { it.name }}]"
     }
     return "$mode/${engine.name}$host$owned"
 }
-
-internal fun KoblasEngine.capabilities(): String =
-    "/caps[$id:${implementations.joinToString(",") { it.name }}]"

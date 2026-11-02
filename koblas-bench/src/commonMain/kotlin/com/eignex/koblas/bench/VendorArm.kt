@@ -1,13 +1,10 @@
 package com.eignex.koblas.bench
 
 import com.eignex.koblas.BuiltinEngines
-
-import com.eignex.koblas.EngineImplementation
-
-import com.eignex.koblas.KoblasEngine
-
 import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.DenseVector
+import com.eignex.koblas.EngineImplementation
+import com.eignex.koblas.KoblasEngine
 import com.eignex.koblas.vendor.Vendor
 
 /**
@@ -52,9 +49,7 @@ internal fun openVendorForMode(mode: String): Pair<KoblasEngine, String> {
     val vendor = vendorFromMode(mode) ?: error("$mode is not a vendor mode")
     val blas = BuiltinEngines.vendor(vendor)
         ?: error("requested vendor ${vendor.vendorName} is not installed; it cannot be benchmarked on this host")
-    val description = "$mode/${blas.vendor!!.vendorName}/${blas.libraryPath}/" +
-        "${blas.version}/threads=${blas.threadEvidence.label}"
-    return blas to (description + blas.capabilities())
+    return blas to engineIdentity(mode, blas)
 }
 
 /**
