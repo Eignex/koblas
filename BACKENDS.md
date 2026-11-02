@@ -101,6 +101,13 @@ Measured profiles can require a CPU instruction class (`Avx2`, `Avx512`, `Arm64`
 SVE profiles also require their measured active vector width. Native reads `PR_SVE_GET_VL`; JVM reads
 HotSpot's active `UseSVE`/`MaxVectorSize` settings, including on the scalar arm without the Vector API.
 Unknown or different widths do not match. The tab-separated profile format is v3; earlier formats are rejected.
+When no measured profile applies, standard selection borrows a best-effort configuration within the same
+runtime. Vendor preferences favor the same OS, then architecture and instruction class; only vendors
+supported on the destination are retained. Owned JVM preferences favor the same architecture and class.
+Windows therefore borrows the corresponding Linux preferences, while Intel macOS borrows Accelerate
+preferences from macOS ARM and owned SIMD preferences from Linux x86. These profiles are named
+`best-effort-*`, record their source profile names and explicitly say `Unmeasured best effort` in their
+evidence. They retain portable coverage and are estimates, not performance measurements for the destination.
 To load a recalculated profile, pass its text to `EngineProfile.parse`; the library performs no file I/O.
 `BuiltinEngines.configured` resolves named libraries and uses exactly the profile's preferences.
 Include owned SIMD rules explicitly when wanted. Missing optional libraries fall through; unknown source identifiers are rejected. Use

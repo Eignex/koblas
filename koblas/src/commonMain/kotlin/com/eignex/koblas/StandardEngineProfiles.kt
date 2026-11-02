@@ -39,8 +39,16 @@ public object StandardEngineProfiles {
     private val portable = EngineProfile("portable", emptyList())
     private val profiles by lazy {
         EngineRuntime.entries.flatMap { runtime ->
-            listOf(OperatingSystem.Linux, OperatingSystem.MacOs, OperatingSystem.Windows).flatMap { os ->
-                listOf(Architecture.X86_64, Architecture.Arm64).map { arch ->
+            listOf(OperatingSystem.Linux, OperatingSystem.MacOs).flatMap { os ->
+                (
+                    if (os == OperatingSystem.MacOs) {
+                        listOf(
+                            Architecture.Arm64,
+                        )
+                    } else {
+                        listOf(Architecture.X86_64, Architecture.Arm64)
+                    }
+                    ).map { arch ->
                     val vendors = if (os == OperatingSystem.MacOs) {
                         listOf(Vendor.Accelerate)
                     } else {
@@ -70,7 +78,12 @@ public object StandardEngineProfiles {
     /** One complete prebuilt profile; unavailable providers fall through to owned SIMD or portable arithmetic. */
     public fun forTarget(runtime: EngineRuntime, host: HostPlatform, nativeAccess: Boolean = true): EngineProfile =
         if (nativeAccess) {
-            profiles.firstOrNull { it.appliesTo(runtime, host) } ?: portable
+            profiles.firstOrNull {
+                it.appliesTo(
+                    runtime,
+                    host,
+                )
+            } ?: bestEffortProfile(runtime, host, profiles) ?: portable
         } else {
             if (runtime == EngineRuntime.Jvm) jvmSimd ?: portable else portable
         }
@@ -107,6 +120,43 @@ public object StandardEngineProfiles {
             EngineRule(source, wholeMatrices - halfWork, work = work),
         )
     }
+}
+
+/** Borrow performance preferences while keeping runtime bindings and available arithmetic independent. */
+internal fun bestEffortProfile(
+    runtime: EngineRuntime,
+    host: HostPlatform,
+    profiles: List<EngineProfile>,
+): EngineProfile? {
+    if (host.operatingSystem == OperatingSystem.Other || host.architecture == Architecture.Other) return null
+    val vendors = when {
+        host.operatingSystem == OperatingSystem.MacOs -> setOf(Vendor.Accelerate)
+        host.architecture == Architecture.X86_64 -> setOf(Vendor.OneMkl, Vendor.OpenBlas, Vendor.Aocl)
+        else -> setOf(Vendor.OpenBlas, Vendor.ArmPl)
+    }
+    val allowed = vendors.map { it.vendorName.lowercase() }
+    fun closest(vendor: Boolean): EngineProfile? = profiles.filter { profile ->
+        profile.runtime == runtime && profile.target != null && profile.rules.any {
+            if (vendor) it.source in allowed else it.source == "jvm-simd"
+        }
+    }.maxByOrNull { profile ->
+        val target = requireNotNull(profile.target)
+        (if (vendor && target.operatingSystem == host.operatingSystem) 100 else 0) +
+            (if (target.architecture == host.architecture) 10 else 0) +
+            (if (target.cpuClass == host.cpuClass) 2 else 0) +
+            (if (target.sveVectorBits == host.sveVectorBits) 1 else 0)
+    }
+    val vendor = closest(true)
+    val owned = if (runtime == EngineRuntime.Jvm) closest(false) else null
+    if (vendor == null && owned == null) return null
+    return EngineProfile(
+        "best-effort-$runtime-${host.operatingSystem}-${host.architecture}",
+        vendor?.rules.orEmpty().filter { it.source in allowed } +
+            owned?.rules.orEmpty().filter { it.source == "jvm-simd" },
+        runtime,
+        HostPlatform(host.operatingSystem, host.architecture),
+        "Unmeasured best effort; vendor preferences from ${vendor?.name}; owned preferences from ${owned?.name}",
+    )
 }
 
 /** Platform code supplies access facts; target data and available providers determine the composition. */

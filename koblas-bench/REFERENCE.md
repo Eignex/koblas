@@ -90,11 +90,14 @@ A request identifies `repository: "Eignex/koblas"` and supplies:
 }
 ```
 
-Pass this object as `bench`. Parameters follow the capture options; paths are relative to the repository.
+Pass this object as `bench`. Each selected workload becomes one paired case; paths are relative to the repository.
 The optional `profile` parameter names a source-relative configuration file, frozen with role `profile`
-and exported as `KOBLAS_BENCH_ENGINE_PROFILE` for default-engine arms. Both lab adapters support it.
-The adapter owns the output directory and retains logs and partial results on failure. It also accepts
-`platform`, `memory-mib` and `timeout-seconds`; Windows workers need Git Bash or an absolute KOBLAS_BASH.
+and exported as `KOBLAS_BENCH_ENGINE_PROFILE` for default-engine arms. One adapter handles owned and vendor
+captures, with `vendor`, `platform` and `arch` selecting compatible placement. It uses 2 GiB per case,
+a 512 MiB JVM heap and serial GC; `samples`, `warmups`, `target-ms`, `forks` and `rounds` set the timing
+protocol. `jvm-options`, `profile-gc` and `smoke` are explicit options. Direct captures retain the CLI's
+other controls. The adapter owns the output directory and retains logs and partial results on failure.
+Windows workers need Git Bash or an absolute KOBLAS_BASH.
 Use automatic placement. Keep all arms of a comparison row on one machine in one worker attempt;
 replacement attempts rerun the complete unfinished row. Other rows may use different compatible machines.
 See [LabAdapter.kt](src/jvmMain/kotlin/com/eignex/koblas/bench/LabAdapter.kt) for accepted parameters and validation.

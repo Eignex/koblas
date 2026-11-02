@@ -1,9 +1,6 @@
 package com.eignex.koblas.bench
 
 import com.eignex.lab.bench.*
-import com.eignex.lab.bench.BenchCase as LabCase
-import kotlinx.serialization.encodeToString
-import java.io.File
 import java.nio.file.Files
 import java.nio.file.Path
 import kotlin.test.Test
@@ -12,298 +9,168 @@ import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
 class LabAdapterTest {
-    @Test fun `native capture declares the binary and compatible platform`() {
-        val case = KoblasLabSuite.plan(BenchRequest(mapOf("targets" to "native", "smoke" to "true"))).single()
-        assertEquals(setOf("platform:linux", "arch:x86_64"), case.resources.requiredTags)
-        assertEquals(case.parameters.getValue("native-executable"), case.inputs.single().path)
+    @Test fun `generated calibration inputs permit paired native vendors`() {
+        val file = Path.of("build/calibration/plan-fixture.txt")
+        Files.createDirectories(file.parent)
+        Files.writeString(file, "dot+64+uniform\ncopy+17+uniform+stride=2\n")
+        try {
+            val cases = KoblasLabSuite.plan(BenchRequest(mapOf("vendor" to "onemkl",
+                "cases" to "koblas-bench/build/calibration/plan-fixture.txt", "targets" to "native,onemkl,openblas")))
+
+            assertEquals(2, cases.size)
+            assertTrue(cases.all { it.resources.memoryMiB == 2048L })
+            assertTrue(cases.all { it.inputs.any { input -> input.role == "executable" && "/linuxX64/" in input.path } })
+            assertTrue(cases.all { case -> case.inputs.any { it.path.endsWith("calibration/plan-fixture.txt") } })
+        } finally { Files.delete(file) }
     }
 
-    @Test fun `invalid capture targets are refused before execution`() {
-        assertFailsWith<IllegalArgumentException> { KoblasLabSuite.plan(BenchRequest(mapOf("targets" to "typo"))) }
+    @Test fun `explicit profiles are declared inputs of every comparison row`() {
+        val cases = KoblasLabSuite.plan(BenchRequest(mapOf("vendor" to "openblas",
+            "targets" to "jvm-simd,jvm-default", "profile" to "profiles/target.tsv")))
+
+        assertTrue(cases.all { case -> case.inputs.any { it.role == "profile" && it.path == "profiles/target.tsv" } })
     }
 
-    @Test fun `windows native captures declare the windows executable and hardware`() {
-        val case = KoblasLabSuite.plan(BenchRequest(mapOf("targets" to "native,aocl", "platform" to "windows"))).single()
+    @Test fun `openblas is placed on the requested architecture`() {
+        for (arch in listOf("x86_64", "arm64")) {
+            val cases = KoblasLabSuite.plan(BenchRequest(mapOf("vendor" to "openblas", "arch" to arch)))
 
-        assertEquals(setOf("platform:windows", "arch:x86_64"), case.resources.requiredTags)
-        assertEquals("koblas-bench/build/bin/mingwX64/releaseExecutable/koblas-bench.exe", case.inputs.single().path)
-    }
-
-    @Test fun `windows vendor captures use the library architecture without linux constraints`() {
-        for ((vendor, architecture) in mapOf("aocl" to "x86_64", "onemkl" to "x86_64", "armpl" to "arm64")) {
-            val case = KoblasLabSuite.plan(BenchRequest(mapOf("targets" to "$vendor-jvm", "platform" to "windows"))).single()
-
-            assertEquals(setOf("platform:windows", "arch:$architecture"), case.resources.requiredTags)
+            assertEquals(setOf(setOf("platform:linux", "arch:$arch")), cases.map { it.resources.requiredTags }.toSet())
+            assertTrue(cases.all { it.id.startsWith("comparison/openblas-$arch/") })
         }
     }
 
-    @Test fun `windows native binary infers the platform without an override`() {
-        val case = KoblasLabSuite.plan(BenchRequest(mapOf("targets" to "native,onemkl",
-            "native-executable" to "koblas-bench/build/bin/mingwX64/releaseExecutable/koblas-bench.exe"))).single()
+    @Test fun `onemkl and accelerate keep their fixed hosts`() {
+        val onemkl = KoblasLabSuite.plan(BenchRequest(mapOf("vendor" to "onemkl")))
+        val accelerate = KoblasLabSuite.plan(BenchRequest(mapOf("vendor" to "accelerate")))
 
-        assertEquals(setOf("platform:windows", "arch:x86_64"), case.resources.requiredTags)
+        assertEquals(setOf(setOf("platform:linux", "arch:x86_64")), onemkl.map { it.resources.requiredTags }.toSet())
+        assertEquals(setOf(setOf("platform:mac", "arch:arm64")), accelerate.map { it.resources.requiredTags }.toSet())
     }
 
-    @Test fun `capture controls are frozen with compatible resources`() {
-        val parameters = mapOf("targets" to "jvm-simd,jvm-scalar", "rounds" to "3", "jvm-gc" to "zgc",
-            "jvm-heap" to "1g", "memory-mib" to "4096", "timeout-seconds" to "120", "cpu" to "auto",
-            "cases" to "koblas-bench/cases-reductions.txt", "samples" to "5", "warmups" to "0",
-            "target-ms" to "200", "forks" to "2", "smoke" to "false", "profile" to "profiles/target.tsv")
-
-        val case = KoblasLabSuite.plan(BenchRequest(parameters)).single()
-
-        assertEquals(parameters - setOf("memory-mib", "timeout-seconds"), case.parameters)
-        assertEquals(BenchResources(1, 4096, 120, setOf("platform:linux")), case.resources)
-        assertEquals(listOf(BenchInput("koblas-bench/cases-reductions.txt", role = "cases"),
-            BenchInput("profiles/target.tsv", role = "profile")), case.inputs)
-        assertEquals(case, BenchProtocol.json.decodeFromString<LabCase>(BenchProtocol.json.encodeToString(case)))
-    }
-
-    @Test fun `invalid capture controls are refused before execution`() {
-        val invalid = listOf(
-            mapOf("rounds" to "0"), mapOf("rounds" to "2147483648"), mapOf("rounds" to "2", "pass" to "3"),
-            mapOf("samples" to "-1"), mapOf("warmups" to "-1"), mapOf("forks" to "0"),
-            mapOf("jvm-gc" to "parallel"), mapOf("jvm-heap" to "1G"), mapOf("jvm-heap" to "1g"),
-            mapOf("jvm-heap" to "999999999999999999999999g"), mapOf("memory-mib" to "1023"),
-            mapOf("timeout-seconds" to "0"), mapOf("cpu" to "1,2"), mapOf("cpu" to "-1"),
-            mapOf("vendors-only" to "true"), mapOf("vendors-only" to "yes"), mapOf("smoke" to "yes"),
-            mapOf("suite" to "other"), mapOf("suite" to "sweep"), mapOf("operation" to "dot\n"),
-            mapOf("targets" to "jvm-scalar,jvm-scalar"), mapOf("libraries" to "unknown"),
-            mapOf("targets" to "openblas-jvm", "libraries" to "onemkl"),
-            mapOf("targets" to "aocl-jvm", "libraries" to "all"),
-            mapOf("targets" to "jvm-scalar", "vendors-only" to "true"),
-            mapOf("targets" to "native", "jvm-heap" to "128m"), mapOf("targets" to "native", "jvm-gc" to "g1"),
-            mapOf("targets" to "native", "native-executable" to "koblas-bench/build/unknown/bench"),
-            mapOf("targets" to "native", "native-executable" to "koblas-bench/build/../linuxX64/bench"),
-            mapOf("targets" to "native", "native-executable" to "/tmp/linuxX64/bench"),
-            mapOf("targets" to "native", "native-executable" to "koblas-bench/build/bin/macosArm64/bench", "cpu" to "auto"),
-            mapOf("targets" to "armpl,onemkl"), mapOf("targets" to "accelerate-jvm", "cpu" to "auto"),
-            mapOf("platform" to "unknown"), mapOf("platform" to "windows", "cpu" to "auto"),
-            mapOf("platform" to "windows", "targets" to "accelerate-jvm"),
-            mapOf("platform" to "windows", "targets" to "native,armpl-jvm"),
-            mapOf("platform" to "linux", "targets" to "native", "native-executable" to "koblas-bench/build/bin/mingwX64/bench.exe"),
-            mapOf("output" to "elsewhere"), mapOf("prepared" to "true"), mapOf("retain-incomplete" to "false"),
-        ) + listOf("/tmp/cases", "../cases", "koblas-bench/../cases", "a\\b", "a:b", "a//b", "./cases")
-            .map { mapOf("cases" to it) }
-
-        for (parameters in invalid) {
-            assertFailsWith<IllegalArgumentException>(parameters.toString()) { KoblasLabSuite.plan(BenchRequest(parameters)) }
-        }
-    }
-
-    @Test fun `vendor captures declare their libraries and hardware`() {
-        for ((target, tags) in mapOf(
-            "openblas-jvm" to emptySet(), "onemkl-jvm" to setOf("platform:linux", "arch:x86_64"),
-            "armpl-jvm" to setOf("platform:linux", "arch:arm64"), "accelerate-jvm" to setOf("platform:mac"),
-        )) {
-            val case = KoblasLabSuite.plan(BenchRequest(mapOf("targets" to target, "vendors-only" to "true"))).single()
-            assertEquals(target.removeSuffix("-jvm"), case.parameters["libraries"])
-            assertEquals(tags, case.resources.requiredTags)
-        }
-        val case = KoblasLabSuite.plan(BenchRequest(mapOf("targets" to "openblas-jvm", "libraries" to "all"))).single()
-        assertEquals("all", case.parameters["libraries"])
-    }
-
-    @Test fun `custom cases resolve after relocation with literal arguments`() = withCapture { root, repository ->
-        val relative = "koblas-bench/custom cases ${'$'}(touch escaped) `literal`.txt"
-        Files.writeString(repository.resolve(relative), "dot+8+random\n")
-        val planned = KoblasLabSuite.plan(BenchRequest(mapOf("targets" to "jvm-scalar", "cases" to relative,
-            "rounds" to "2", "jvm-gc" to "serial", "jvm-heap" to "256m", "smoke" to "false", "vendors-only" to "false"))).single()
-        val frozen = BenchProtocol.json.decodeFromString<LabCase>(BenchProtocol.json.encodeToString(planned))
-        val relocated = Files.move(repository, root.resolve("relocated repository"))
-
-        val result = KoblasLabSuite.run(frozen, BenchContext(root.resolve("out"), worktree = relocated))
-
-        assertEquals(BenchStatus.SUCCESS, result.status)
-        val arguments = Files.readAllLines(root.resolve("out/arguments.txt"))
-        assertEquals(relocated.resolve(relative).toString(), arguments[arguments.indexOf("--cases") + 1])
-        assertEquals("2", arguments[arguments.indexOf("--rounds") + 1])
-        assertEquals("serial", arguments[arguments.indexOf("--jvm-gc") + 1])
-        assertEquals("256m", arguments[arguments.indexOf("--jvm-heap") + 1])
-        assertTrue("--smoke" !in arguments && "--vendors-only" !in arguments)
-        assertEquals(1, arguments.count { it == "--output" })
-        assertEquals(root.resolve("out/report").toString(), arguments[arguments.indexOf("--output") + 1])
-        assertEquals("dot+8+random\n", Files.readString(root.resolve("out/report/cases.txt")))
-        assertTrue(!Files.exists(relocated.resolve("escaped")))
-    }
-
-    @Test fun `repeated captures count target CSV rows once and retain every artifact`() = withCapture { root, repository ->
-        val case = KoblasLabSuite.plan(BenchRequest(mapOf("rounds" to "2"))).single()
-
-        val result = KoblasLabSuite.run(case, BenchContext(root.resolve("out"), worktree = repository))
-
-        assertEquals(BenchStatus.SUCCESS, result.status)
-        assertEquals(mapOf("captured-rows" to 4.0, "captured-csv-files" to 4.0, "completed-rounds" to 2.0),
-            result.metrics.associate { it.name to it.value })
-        assertTrue(result.artifacts.map { it.path }.containsAll(listOf("capture.log", "report/metadata.txt",
-            "report/pass-1/jvm-scalar.csv", "report/pass-2/jvm-simd.csv", "report/pass-2/jvm-simd.log",
-            "report/pass-1/sidecars/jvm-scalar.csv", "report/jvm-scalar.csv")))
-        assertEquals(result.artifacts.size, result.artifacts.map { it.path }.distinct().size)
-    }
-
-    @Test fun `partial repeated captures retain completed and failed round output`() = withCapture("partial") { root, repository ->
-        val case = KoblasLabSuite.plan(BenchRequest(mapOf("rounds" to "3"))).single()
-
-        val result = KoblasLabSuite.run(case, BenchContext(root.resolve("out"), worktree = repository))
-
-        assertEquals(BenchStatus.FAILED, result.status)
-        assertEquals(mapOf("captured-rows" to 3.0, "captured-csv-files" to 3.0, "completed-rounds" to 1.0),
-            result.metrics.associate { it.name to it.value })
-        assertTrue(result.message.orEmpty().contains("exit 7, 1/3 rounds complete"))
-        assertTrue(result.artifacts.map { it.path }.containsAll(listOf("capture.log", "report/metadata.txt",
-            "report/pass-1/jvm-simd.csv", "report/pass-2/jvm-scalar.csv", "report/pass-2/jvm-scalar.log")))
-        assertTrue(Files.readString(root.resolve("out/capture.log")).contains("failure-log"))
-    }
-
-    @Test fun `single captures count direct target CSV rows`() = withCapture { root, repository ->
-        val case = KoblasLabSuite.plan(BenchRequest(mapOf("targets" to "openblas-jvm", "vendors-only" to "true"))).single()
-
-        val result = KoblasLabSuite.run(case, BenchContext(root.resolve("out"), worktree = repository))
-
-        assertEquals(BenchStatus.SUCCESS, result.status)
-        assertEquals(mapOf("captured-rows" to 1.0, "captured-csv-files" to 1.0, "completed-rounds" to 1.0),
-            result.metrics.associate { it.name to it.value })
-        assertTrue("--vendors-only" in Files.readAllLines(root.resolve("out/arguments.txt")))
-    }
-
-    @Test fun `complete empty captures still fail`() = withCapture("empty") { root, repository ->
-        val case = KoblasLabSuite.plan(BenchRequest()).single()
-
-        val result = KoblasLabSuite.run(case, BenchContext(root.resolve("out"), worktree = repository))
-
-        assertEquals(BenchStatus.FAILED, result.status)
-        assertEquals(0.0, result.metrics.single { it.name == "captured-rows" }.value)
-    }
-
-    @Test fun `execution rejects undeclared inputs and output overrides`() = withCapture { root, repository ->
-        val case = KoblasLabSuite.plan(BenchRequest(mapOf("cases" to "koblas-bench/cases.txt"))).single()
-        val context = BenchContext(root.resolve("out"), worktree = repository)
-
-        assertFailsWith<IllegalArgumentException> { KoblasLabSuite.run(case.copy(inputs = emptyList()), context) }
+    @Test fun `vendor placement rejects an incompatible architecture`() {
         assertFailsWith<IllegalArgumentException> {
-            KoblasLabSuite.run(case.copy(parameters = case.parameters + ("output" to "elsewhere")), context)
+            KoblasLabSuite.plan(BenchRequest(mapOf("vendor" to "onemkl", "arch" to "arm64")))
         }
-        assertTrue(!Files.exists(root.resolve("out/report")))
     }
 
-    private fun withCapture(scenario: String = "complete", test: (Path, Path) -> Unit) {
-        val root = Files.createTempDirectory("koblas-adapter")
-        try {
-            val repository = Files.createDirectories(root.resolve("repository/koblas-bench")).parent
-            Files.writeString(repository.resolve("koblas-bench/capture-report.sh"), """
-                #!/usr/bin/env bash
-                set -eu
-                scenario=$scenario
-                rounds=1
-                cases=
-                original=("${'$'}@")
-                while ((${ '$'}#)); do
-                  case "${'$'}1" in
-                    --prepared|--retain-incomplete|--smoke|--vendors-only) shift ;;
-                    --output) output=${'$'}2; shift 2 ;;
-                    --targets) targets=${'$'}2; shift 2 ;;
-                    --rounds) rounds=${'$'}2; shift 2 ;;
-                    --cases) cases=${'$'}2; shift 2 ;;
-                    *) shift 2 ;;
-                  esac
-                done
-                printf '%s\n' "${'$'}{original[@]}" > "${'$'}{output%/*}/arguments.txt"
-                mkdir "${'$'}output"
-                printf 'status=incomplete\n' > "${'$'}output/metadata.txt"
-                if [[ -n ${'$'}cases ]]; then cp "${'$'}cases" "${'$'}output/cases.txt"; fi
-                IFS=, read -r -a selected <<<"${'$'}targets"
-                for ((round=1; round<=rounds; round++)); do
-                  report=${'$'}output
-                  if ((rounds > 1)); then report=${'$'}output/pass-${'$'}round; mkdir "${'$'}report"; fi
-                  printf 'status=incomplete\n' > "${'$'}report/metadata.txt"
-                  for target in "${'$'}{selected[@]}"; do
-                    printf 'case,ns\n' > "${'$'}report/${'$'}target.csv"
-                    if [[ ${'$'}scenario != empty ]]; then printf 'fixture,12\n' >> "${'$'}report/${'$'}target.csv"; fi
-                    echo target-log > "${'$'}report/${'$'}target.log"
-                    if [[ ${'$'}scenario == partial && ${'$'}round == 2 ]]; then echo failure-log; exit 7; fi
-                  done
-                  mkdir "${'$'}report/sidecars"
-                  printf 'case,ns\nsidecar,12\n' > "${'$'}report/sidecars/jvm-scalar.csv"
-                  printf 'status=complete\n' > "${'$'}report/metadata.txt"
-                done
-                if ((rounds > 1)); then printf 'case,ns\naggregate,12\n' > "${'$'}output/jvm-scalar.csv"; fi
-                printf 'status=complete\n' > "${'$'}output/metadata.txt"
-            """.trimIndent() + "\n")
-            test(root, repository)
-        } finally { root.toFile().deleteRecursively() }
+    @Test fun `every selected workload is its own complete paired case`() {
+        val grid = "koblas-bench/lab/cases-parity-level2.txt"
+        val selected = Cases.select(Cases.parse(repositoryFile(grid)))
+
+        val cases = KoblasLabSuite.plan(BenchRequest(mapOf("vendor" to "onemkl", "cases" to grid)))
+
+        val rows = cases.flatMap { case -> case.parameters.getValue("row").lines().map { case.id to it } }
+        assertEquals(selected.size, rows.size)
+        assertEquals(cases.size, cases.map { it.id }.distinct().size)
+        for ((id, row) in rows) {
+            val parsed = Cases.parse(row).single()
+            assertEquals("comparison/onemkl/${parsed.operation}/${parsed.id}", id, row)
+        }
+        assertTrue(cases.all { it.parameters.getValue("row").lines().size == 1 })
+        assertTrue(cases.all { it.resources.memoryMiB == 2048L })
+        assertTrue(cases.all { case -> case.inputs.any { it.role == "executable" } })
+        assertTrue(cases.all { case -> case.inputs.any { it.role == "vendor" } })
     }
 
-    @Test fun `failed prepared captures retain partial CSV and logs`() {
-        val root = Files.createTempDirectory("koblas-partial")
-        try {
-            val java = root.resolve("java")
-            Files.writeString(java, "#!/usr/bin/env bash\nfor arg in \"\$@\"; do case \"\$arg\" in --output=*) printf 'case,ns\\npartial,12\\n' > \"\${arg#--output=}\";; esac; done\necho failure-log\nexit 7\n")
-            check(java.toFile().setExecutable(true))
-            val output = root.resolve("report")
-            val script = File("capture-report.sh").absoluteFile
-            val process = ProcessBuilder(captureShell(), script.path, "--targets", "jvm-scalar", "--libraries", "openblas", "--prepared", "--retain-incomplete", "--smoke", "--output", output.toString())
-                .redirectErrorStream(true).apply { environment()["KOBLAS_BENCH_JAVA"] = java.toString(); environment()["KOBLAS_BENCH_CLASSPATH"] = "unused" }.start()
-            val log = process.inputStream.bufferedReader().readText()
-            assertEquals(7, process.waitFor(), log)
-            assertTrue(Files.readString(output.resolve("jvm-scalar.csv")).contains("partial,12"))
-            assertEquals("status=incomplete", Files.readAllLines(output.resolve("metadata.txt")).first())
-            assertTrue(Files.readString(output.resolve("jvm-scalar.log")).contains("failure-log"))
-        } finally { root.toFile().deleteRecursively() }
+    @Test fun `an operation selects only its own cells`() {
+        val cases = KoblasLabSuite.plan(BenchRequest(mapOf("vendor" to "onemkl", "operation" to "dot")))
+
+        assertTrue(cases.isNotEmpty() && cases.all { it.id.startsWith("comparison/onemkl/dot/") })
     }
 
-    @Test fun `prepared rounds preserve target ordering and JVM settings`() {
-        val root = Files.createTempDirectory("koblas-prepared-rounds")
-        try {
-            val repository = root.resolve("repository")
-            val bench = Files.createDirectories(repository.resolve("koblas-bench"))
-            listOf("cases.txt", "select-cases.awk").forEach { name ->
-                Files.copy(File(name).toPath(), bench.resolve(name))
+    @Test fun `a request cannot supply its own rows`() {
+        assertFailsWith<IllegalArgumentException> {
+            KoblasLabSuite.plan(BenchRequest(mapOf("vendor" to "onemkl", "rows" to "dot+4+uniform")))
+        }
+    }
+
+    @Test fun `jvm options take only hotspot flags`() {
+        val accepted = mapOf("vendor" to "onemkl", "operation" to "dot", "jvm-options" to "-XX:MaxVectorSize=32 -XX:-UseFMA")
+
+        KoblasLabSuite.plan(BenchRequest(accepted))
+
+        for (rejected in listOf("-cp /tmp", "-XX:MaxVectorSize=32;rm", "-Dkoblas=1", "")) {
+            assertFailsWith<IllegalArgumentException>(rejected) {
+                KoblasLabSuite.plan(BenchRequest(accepted + ("jvm-options" to rejected)))
             }
-            val java = root.resolve("java")
-            Files.writeString(java, """
-                #!/usr/bin/env bash
-                set -eu
-                for arg in "${'$'}@"; do
-                  case "${'$'}arg" in --output=*) output=${'$'}{arg#--output=};; esac
-                done
-                printf 'case,ns\nfixture,12\n' > "${'$'}output"
-                printf '%s\n' "${'$'}@" > "${'$'}{output%.csv}.args"
-                echo 'resolved implementation=fixture runtime=fixture harness=fixture'
-                echo 'profile_cpu_model=runtime fixture'
-                echo 'profile_cpu_class=Avx2'
-                echo 'profile_sve_vector_bits=*'
-                echo 'profile_runtime=jvm'
-                echo 'profile_os=Linux'
-                echo 'profile_arch=X86_64'
-            """.trimIndent() + "\n")
-            check(java.toFile().setExecutable(true))
-            val output = root.resolve("report")
-            val process = ProcessBuilder(captureShell(), File("capture-report.sh").absolutePath,
-                "--targets", "jvm-simd,jvm-scalar", "--libraries", "openblas", "--prepared",
-                "--retain-incomplete", "--smoke", "--rounds", "2", "--jvm-gc", "serial",
-                "--jvm-heap", "256m", "--output", output.toString()).redirectErrorStream(true).apply {
-                environment()["KOBLAS_CAPTURE_ROOT"] = repository.toString()
-                environment()["KOBLAS_BENCH_JAVA"] = java.toString()
-                environment()["KOBLAS_BENCH_CLASSPATH"] = "fixture-classpath"
-            }.start()
-            val log = process.inputStream.bufferedReader().readText()
-            assertEquals(0, process.waitFor(), log)
-            val metadata = Files.readString(output.resolve("metadata.txt"))
-            assertTrue(metadata.startsWith("status=complete\n"), metadata)
-            assertTrue(metadata.contains("round_1_targets=jvm-simd,jvm-scalar"), metadata)
-            assertTrue(metadata.contains("round_2_targets=jvm-scalar,jvm-simd"), metadata)
-            for (round in 1..2) for (target in listOf("jvm-scalar", "jvm-simd")) {
-                assertTrue(Files.readString(output.resolve("pass-$round/metadata.txt")).contains("profile_cpu_model=runtime fixture"))
-                assertTrue(Files.readString(output.resolve("pass-$round/metadata.txt")).contains("profile_cpu_class=Avx2"))
-                assertTrue(Files.readString(output.resolve("pass-$round/metadata.txt")).contains("profile_sve_vector_bits=*"))
-                assertTrue(Files.readString(output.resolve("pass-$round/metadata.txt")).contains("profile_runtime=jvm\nprofile_os=Linux\nprofile_arch=X86_64"))
-                val arguments = Files.readAllLines(output.resolve("pass-$round/$target.args"))
-                assertTrue("-XX:+UseSerialGC" in arguments)
-                assertTrue("-Xms256m" in arguments && "-Xmx256m" in arguments)
-                assertTrue("fixture-classpath" in arguments)
-                assertEquals(target == "jvm-simd", "--add-modules=jdk.incubator.vector" in arguments)
-                assertTrue(Files.readString(output.resolve("pass-$round/$target.csv")).contains("fixture,12"))
-            }
-        } finally { root.toFile().deleteRecursively() }
+        }
     }
+
+    @Test fun `JVM only rows need no Native executable`() {
+        val cases = KoblasLabSuite.plan(BenchRequest(mapOf("vendor" to "openblas", "arch" to "arm64",
+            "targets" to "jvm-scalar,jvm-simd,openblas-jvm")))
+
+        assertTrue(cases.all { case -> case.inputs.none { it.role == "executable" } })
+    }
+
+    @Test fun `the native engine is an accepted comparison target`() {
+        val request = BenchRequest(mapOf("vendor" to "openblas", "targets" to "jvm-simd,native,openblas,openblas-jvm"))
+
+        KoblasLabSuite.plan(request)
+    }
+
+    @Test fun `owned captures need no vendor and windows keeps compatible library architectures`() {
+        val owned = KoblasLabSuite.plan(BenchRequest(mapOf("targets" to "jvm-scalar,jvm-simd")))
+        assertTrue(owned.all { it.inputs.none { input -> input.role in setOf("vendor", "executable") } })
+        for ((vendor, arch) in mapOf("onemkl" to "x86_64", "aocl" to "x86_64", "armpl" to "arm64")) {
+            val cases = KoblasLabSuite.plan(BenchRequest(mapOf("vendor" to vendor, "arch" to arch,
+                "platform" to "windows", "targets" to "$vendor-jvm")))
+            assertTrue(cases.all { it.resources.requiredTags == setOf("platform:windows", "arch:$arch") })
+        }
+        val native = KoblasLabSuite.plan(BenchRequest(mapOf("platform" to "windows", "targets" to "native")))
+        assertTrue(native.all { case -> case.inputs.any { it.path.endsWith("mingwX64/releaseExecutable/koblas-bench.exe") } })
+    }
+
+    @Test fun `prepared capture retains partial outputs and receives its frozen profile`() {
+        for ((complete, exit) in listOf(true to 0, false to 0, true to 7)) {
+            val root = Files.createTempDirectory("koblas-lab-adapter")
+            try {
+                val repository = Files.createDirectories(root.resolve("repository/koblas-bench")).parent
+                Files.createDirectories(repository.resolve("profiles"))
+                Files.writeString(repository.resolve("profiles/target.tsv"),
+                    "koblas-profile-v3\tfixture\t*\t*\t*\t*\t*\t*\tfixture\ttest\n")
+                Files.writeString(repository.resolve("koblas-bench/capture-report.sh"), """
+                    #!/usr/bin/env bash
+                    set -eu
+                    original=("${'$'}@")
+                    while ((${ '$'}#)); do
+                      case "${'$'}1" in
+                        --prepared|--retain-incomplete) shift ;;
+                        --output) output=${'$'}2; shift 2 ;;
+                        --cases) cases=${'$'}2; shift 2 ;;
+                        *) shift 2 ;;
+                      esac
+                    done
+                    mkdir "${'$'}output"
+                    printf '%s\n' "${'$'}{original[@]}" > "${'$'}output/arguments.txt"
+                    printf '%s\n' "${'$'}KOBLAS_BENCH_ENGINE_PROFILE" > "${'$'}output/profile.txt"
+                    cp "${'$'}cases" "${'$'}output/cases.txt"
+                    printf 'case,ns\nfixture,12\n' > "${'$'}output/jvm-scalar.csv"
+                    printf 'status=${if (complete) "complete" else "incomplete"}\n' > "${'$'}output/metadata.txt"
+                    echo retained-log
+                    exit $exit
+                """.trimIndent() + "\n")
+                val case = KoblasLabSuite.plan(BenchRequest(mapOf("targets" to "jvm-scalar", "operation" to "dot",
+                    "profile" to "profiles/target.tsv"))).first()
+
+                val result = KoblasLabSuite.run(case, BenchContext(root.resolve("out"), worktree = repository))
+
+                assertEquals(if (complete && exit == 0) BenchStatus.SUCCESS else BenchStatus.FAILED, result.status)
+                assertTrue(result.artifacts.any { it.path == "report/jvm-scalar.csv" })
+                assertTrue(Files.readString(root.resolve("out/capture.log")).contains("retained-log"))
+                assertEquals(repository.resolve("profiles/target.tsv").toString(), Files.readString(root.resolve("out/report/profile.txt")).trim())
+                assertEquals(case.parameters.getValue("row"), Files.readString(root.resolve("out/report/cases.txt")).trim())
+                val arguments = Files.readAllLines(root.resolve("out/report/arguments.txt"))
+                assertTrue("--prepared" in arguments && "--retain-incomplete" in arguments)
+                assertFailsWith<IllegalArgumentException> {
+                    KoblasLabSuite.run(case.copy(inputs = emptyList()), BenchContext(root.resolve("forged"), worktree = repository))
+                }
+            } finally { root.toFile().deleteRecursively() }
+        }
+    }
+
+    private fun repositoryFile(path: String): String =
+        generateSequence(Path.of("").toAbsolutePath()) { it.parent }
+            .map { it.resolve(path) }.first { java.nio.file.Files.isRegularFile(it) }.let(java.nio.file.Files::readString)
 }

@@ -33,7 +33,7 @@ class StandardEngineProfilesTest {
                                 .takeIf { requested in available }
                         }
 
-                        assertSame(profile, StandardEngineProfiles.forTarget(runtime, host))
+                        assertEquals(profile.name, StandardEngineProfiles.forTarget(runtime, host).name)
                         assertEquals(if (access) candidates + extra else emptySet(), opened)
                         val selected = if (access) choices.firstOrNull { it in available } else null
                         for (borrowed in listOf(false, true)) {
@@ -46,6 +46,70 @@ class StandardEngineProfilesTest {
                     }
                 }
             }
+        }
+    }
+
+    @Test
+    fun `best effort borrows compatible vendors and matching owned architecture within one runtime`() {
+        data class Case(val runtime: EngineRuntime, val os: OperatingSystem, val source: String, val boundary: Int)
+        val linux = HostPlatform(OperatingSystem.Linux, Architecture.X86_64, cpuClass = CpuClass.Avx512)
+        val mac = HostPlatform(OperatingSystem.MacOs, Architecture.Arm64, cpuClass = CpuClass.Arm64)
+        val profiles = listOf(
+            EngineProfile(
+                "linux-jvm",
+                listOf(
+                    EngineRule("onemkl", setOf(Dot), rows = 64..128),
+                    EngineRule("jvm-simd", setOf(Dot), rows = 8..128),
+                ),
+                EngineRuntime.Jvm,
+                linux,
+            ),
+            EngineProfile(
+                "mac-jvm",
+                listOf(
+                    EngineRule("accelerate", setOf(Dot), rows = 128..256),
+                    EngineRule("jvm-simd", setOf(Dot), rows = 2..256),
+                ),
+                EngineRuntime.Jvm,
+                mac,
+            ),
+            EngineProfile(
+                "linux-native",
+                listOf(EngineRule("onemkl", setOf(Dot), rows = 4..128)),
+                EngineRuntime.Native,
+                linux,
+            ),
+        )
+        for (case in listOf(
+            Case(EngineRuntime.Jvm, OperatingSystem.MacOs, "accelerate", 128),
+            Case(EngineRuntime.Jvm, OperatingSystem.Windows, "onemkl", 64),
+            Case(EngineRuntime.Native, OperatingSystem.Windows, "onemkl", 4),
+        )) {
+            val profile = assertNotNull(
+                bestEffortProfile(
+                    case.runtime,
+                    HostPlatform(case.os, Architecture.X86_64, cpuClass = CpuClass.Avx512),
+                    profiles,
+                ),
+            )
+            val engine = KoblasEngine.combine(
+                profile,
+                provider("onemkl", setOf(Dot)),
+                provider("accelerate", setOf(Dot)),
+                provider("jvm-simd", setOf(Dot)),
+            )
+
+            assertTrue(profile.name.startsWith("best-effort-"))
+            assertTrue(profile.evidence.startsWith("Unmeasured best effort"))
+            assertEquals(case.source, engine.implementationFor(Dot, case.boundary))
+            assertEquals(
+                if (case.runtime == EngineRuntime.Jvm) "jvm-simd" else PortableEngine.name,
+                engine.implementationFor(Dot, case.boundary - 1),
+            )
+            assertEquals(
+                PortableEngine.name,
+                engine.implementationFor(Dot, if (case.runtime == EngineRuntime.Jvm) 7 else 3),
+            )
         }
     }
 

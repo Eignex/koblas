@@ -118,4 +118,78 @@ class CaptureReportTest {
         Files.writeString(path, "#!/usr/bin/env bash\nset -eu\n${body.trimIndent()}\n")
         check(path.toFile().setExecutable(true))
     }
+
+    @Test fun `failed prepared captures retain partial CSV and logs`() {
+        val root = Files.createTempDirectory("koblas-partial")
+        try {
+            val java = root.resolve("java")
+            Files.writeString(java, "#!/usr/bin/env bash\nfor arg in \"\$@\"; do case \"\$arg\" in --output=*) printf 'case,ns\\npartial,12\\n' > \"\${arg#--output=}\";; esac; done\necho failure-log\nexit 7\n")
+            check(java.toFile().setExecutable(true))
+            val output = root.resolve("report")
+            val script = File("capture-report.sh").absoluteFile
+            val process = ProcessBuilder(captureShell(), script.path, "--targets", "jvm-scalar", "--libraries", "openblas", "--prepared", "--retain-incomplete", "--smoke", "--output", output.toString())
+                .redirectErrorStream(true).apply { environment()["KOBLAS_BENCH_JAVA"] = java.toString(); environment()["KOBLAS_BENCH_CLASSPATH"] = "unused" }.start()
+            val log = process.inputStream.bufferedReader().readText()
+            assertEquals(7, process.waitFor(), log)
+            assertTrue(Files.readString(output.resolve("jvm-scalar.csv")).contains("partial,12"))
+            assertEquals("status=incomplete", Files.readAllLines(output.resolve("metadata.txt")).first())
+            assertTrue(Files.readString(output.resolve("jvm-scalar.log")).contains("failure-log"))
+        } finally { root.toFile().deleteRecursively() }
+    }
+
+    @Test fun `prepared rounds preserve target ordering and JVM settings`() {
+        val root = Files.createTempDirectory("koblas-prepared-rounds")
+        try {
+            val repository = root.resolve("repository")
+            val bench = Files.createDirectories(repository.resolve("koblas-bench"))
+            listOf("cases.txt", "select-cases.awk").forEach { name ->
+                Files.copy(File(name).toPath(), bench.resolve(name))
+            }
+            val java = root.resolve("java")
+            Files.writeString(java, """
+                #!/usr/bin/env bash
+                set -eu
+                for arg in "${'$'}@"; do
+                  case "${'$'}arg" in --output=*) output=${'$'}{arg#--output=};; esac
+                done
+                printf 'case,ns\nfixture,12\n' > "${'$'}output"
+                printf '%s\n' "${'$'}@" > "${'$'}{output%.csv}.args"
+                echo 'resolved implementation=fixture runtime=fixture harness=fixture'
+                echo 'profile_cpu_model=runtime fixture'
+                echo 'profile_cpu_class=Avx2'
+                echo 'profile_sve_vector_bits=*'
+                echo 'profile_runtime=jvm'
+                echo 'profile_os=Linux'
+                echo 'profile_arch=X86_64'
+            """.trimIndent() + "\n")
+            check(java.toFile().setExecutable(true))
+            val output = root.resolve("report")
+            val process = ProcessBuilder(captureShell(), File("capture-report.sh").absolutePath,
+                "--targets", "jvm-simd,jvm-scalar", "--libraries", "openblas", "--prepared",
+                "--retain-incomplete", "--smoke", "--rounds", "2", "--jvm-gc", "serial",
+                "--jvm-heap", "256m", "--output", output.toString()).redirectErrorStream(true).apply {
+                environment()["KOBLAS_CAPTURE_ROOT"] = repository.toString()
+                environment()["KOBLAS_BENCH_JAVA"] = java.toString()
+                environment()["KOBLAS_BENCH_CLASSPATH"] = "fixture-classpath"
+            }.start()
+            val log = process.inputStream.bufferedReader().readText()
+            assertEquals(0, process.waitFor(), log)
+            val metadata = Files.readString(output.resolve("metadata.txt"))
+            assertTrue(metadata.startsWith("status=complete\n"), metadata)
+            assertTrue(metadata.contains("round_1_targets=jvm-simd,jvm-scalar"), metadata)
+            assertTrue(metadata.contains("round_2_targets=jvm-scalar,jvm-simd"), metadata)
+            for (round in 1..2) for (target in listOf("jvm-scalar", "jvm-simd")) {
+                assertTrue(Files.readString(output.resolve("pass-$round/metadata.txt")).contains("profile_cpu_model=runtime fixture"))
+                assertTrue(Files.readString(output.resolve("pass-$round/metadata.txt")).contains("profile_cpu_class=Avx2"))
+                assertTrue(Files.readString(output.resolve("pass-$round/metadata.txt")).contains("profile_sve_vector_bits=*"))
+                assertTrue(Files.readString(output.resolve("pass-$round/metadata.txt")).contains("profile_runtime=jvm\nprofile_os=Linux\nprofile_arch=X86_64"))
+                val arguments = Files.readAllLines(output.resolve("pass-$round/$target.args"))
+                assertTrue("-XX:+UseSerialGC" in arguments)
+                assertTrue("-Xms256m" in arguments && "-Xmx256m" in arguments)
+                assertTrue("fixture-classpath" in arguments)
+                assertEquals(target == "jvm-simd", "--add-modules=jdk.incubator.vector" in arguments)
+                assertTrue(Files.readString(output.resolve("pass-$round/$target.csv")).contains("fixture,12"))
+            }
+        } finally { root.toFile().deleteRecursively() }
+    }
 }

@@ -318,7 +318,8 @@ def measurements(directories, baseline, candidate, backend=None, strict=False, a
             models.add(model)
             cache = re.fullmatch(r"([\d.]+)\s*([KMGT]?)i?B(?:\s+.*)?", hardware.get("l3 cache", ""))
             capacity = int(float(cache[1]) * 1024 ** (" KMGT".index(cache[2]))) if cache else int(hardware.get("l2_cache_bytes", 0)) or None
-            cores = int(hardware.get("core(s) per socket", 0)) * int(hardware.get("socket(s)", 0))
+            topology = [hardware.get(key, "0") for key in ("core(s) per socket", "socket(s)")]
+            cores = math.prod(int(value) if value.isdecimal() else 0 for value in topology)
             if cache and cores > 0:
                 capacity = (capacity + cores - 1) // cores
             if model in result.cache_by_cpu:

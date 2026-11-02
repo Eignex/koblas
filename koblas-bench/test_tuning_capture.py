@@ -75,6 +75,8 @@ class TuningCaptureTest(unittest.TestCase):
             path.write_text(path.read_text().replace("flags=avx2", "flags=avx2\nl3 cache=80 MiB\ncore(s) per socket=20\nsocket(s)=2"))
 
             self.assertEqual(2 * 1024 ** 2, measurements([root], "native", "onemkl").cache_by_cpu["measured CPU"])
+            path.write_text(path.read_text().replace("socket(s)=2", "socket(s)=-"))
+            self.assertEqual(80 * 1024 ** 2, measurements([root], "native", "onemkl").cache_by_cpu["measured CPU"])
 
     def test_model_independent_profiles_require_a_single_verified_instruction_class(self):
         with tempfile.TemporaryDirectory() as directory:
