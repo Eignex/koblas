@@ -13,17 +13,16 @@ class TuneEngineTest(unittest.TestCase):
     def test_noisy_or_losing_larger_lengths_delay_the_crossover(self):
         paired = {"dot+32+uniform": [0.5, 0.5, 0.5], "dot+64+uniform": [0.8, 1.2, 0.8],
                   "dot+128+uniform": [0.7, 0.8, 0.9], "dot+256+uniform": [0.8, 0.8, 0.8]}
-        rule, = tune.fit(paired, "onemkl")
+        rule, = tune.fit(paired, "onemkl", {case: ("Dot", n, 1, 1, False, 1) for case, n in zip(paired, (32, 64, 128, 256))})
         self.assertEqual([128, 256], rule[2:4])
 
     def test_matrix_variants_must_all_win_and_shapes_stay_bounded(self):
         paired = {"gemm+16x32x64+uniform": [0.5, 0.6, 0.7],
                   "gemm+16x32x64+uniform+transA=T": [1.1, 1.1, 1.1],
                   "gemm+64x16x32+uniform+layout=borrowed": [0.5, 0.5, 0.5]}
-        rule, = tune.fit(paired, "onemkl")
+        rule, = tune.fit(paired, "onemkl", dict(zip(paired, [("Gemm", 16, 32, 64, False, 3)] * 2 + [("Gemm", 64, 16, 32, True, 3)])))
         self.assertEqual([64, 64, 16, 16, 32, 32], rule[2:8])
         self.assertEqual("true", rule[10])
-        self.assertEqual(("Trsm", 16, 32, 32, False), tune.shape("trsm+16x32+triangular+side=R"))
 
     def test_profile_cpu_comes_from_measurements_and_rejects_mixed_models(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -49,10 +48,11 @@ class TuneEngineTest(unittest.TestCase):
                 (path / "metadata.txt").write_text("status=complete\nrequested_samples=5\ntarget_ns=100000000\n")
                 for name, timing in [("native", base), ("onemkl", candidate)]:
                     (path / f"{name}.csv").write_text(
-                        "case,status,timing_mode,median_ns\n" + f"dot+32+uniform,ok,arithmetic,{timing}\n")
-            paired, hashes = tune.measurements(root, "native", "onemkl")
+                        "case,status,timing_mode,routing_key,median_ns\n" + f"dot+32+uniform,ok,arithmetic,Dot:32:1:1:false:1,{timing}\n")
+            paired, hashes, shapes = tune.measurements(root, "native", "onemkl")
             self.assertEqual([0.5, 0.5, 0.5], paired["dot+32+uniform"])
             self.assertEqual(9, len(hashes))
+            self.assertEqual(("Dot", 32, 1, 1, False, 1), shapes["dot+32+uniform"])
             (root / "pass-1/metadata.txt").write_text("status=complete\nrequested_samples=1\ntarget_ns=1000000\n")
             with self.assertRaises(ValueError):
                 tune.measurements(root, "native", "onemkl")

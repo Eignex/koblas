@@ -14,8 +14,8 @@ class EngineProfileTest {
     fun `threshold and layout select the same body that executes`() {
         val calls = mutableListOf<Int>()
         val backend = object : KoblasEngine {
-            override val contiguousVectors: Boolean = true
-            override val minimumVectorLength: Int = 2
+            override fun requiresUnitStride(implementation: EngineImplementation): Boolean = true
+            override fun minimumLength(implementation: EngineImplementation): Int = 2
 
             override val implementations = setOf(EngineImplementation.Dot)
 
@@ -75,7 +75,7 @@ class EngineProfileTest {
             EngineProfile(
                 "test",
                 listOf(
-                    EngineRule("absent", setOf(EngineImplementation.Sum)),
+                    EngineRule("onemkl", setOf(EngineImplementation.Sum)),
                     EngineRule("sum", setOf(EngineImplementation.Sum, EngineImplementation.Dot)),
                 ),
             ),
@@ -312,17 +312,22 @@ class EngineProfileTest {
             indexed,
             matrices,
         )
+        val nested = KoblasEngine.combine(
+            EngineProfile("nested", listOf(EngineRule(engine.id, engine.implementations))),
+            engine,
+        )
         val values = doubleArrayOf(2.0, 3.0)
         val destination = DoubleArray(2)
         val matrix = DenseMatrix.wrap(2, 2, doubleArrayOf(1.0, 2.0, 3.0, 4.0))
         val expectedProduct = BuiltinEngines.scalar.gemm(matrix, matrix)
 
-        assertEquals(PortableEngine.dot(values, 0, values, 0, 2), engine.dot(values, 0, values, 0, 2))
+        assertEquals(PortableEngine.dot(values, 0, values, 0, 2), nested.dot(values, 0, values, 0, 2))
         engine.axpy(destination, 1.0, intArrayOf(0, 1), 0, values, 0, 2)
         val actualProduct = engine.gemm(matrix, matrix)
 
         assertContentEquals(values, destination)
         assertAgreesWithReference(expectedProduct.values, actualProduct.values)
+        assertEquals("vectors", nested.implementationFor(EngineImplementation.Dot, 2))
         assertEquals(listOf("dot", "indexed update", "matrix product"), calls)
     }
 }

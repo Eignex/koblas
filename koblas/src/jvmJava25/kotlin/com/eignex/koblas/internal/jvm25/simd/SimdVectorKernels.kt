@@ -18,9 +18,9 @@ internal val simdAvailable: Boolean = try {
 private object SimdVectorLeaves : KoblasEngine {
     override val id: String = "jvm-simd"
     override val implementations = setOf(Dot, Sum, Nrm2, Iamax, Asum, Axpy)
-    override val dynamicNorm: Boolean get() = true
-    override val contiguousVectors: Boolean get() = true
-    override val minimumVectorLength: Int get() = SimdOps.lanes()
+    override fun dynamicAttribution(implementation: EngineImplementation): Boolean = implementation == Nrm2
+    override fun requiresUnitStride(implementation: EngineImplementation): Boolean = true
+    override fun minimumLength(implementation: EngineImplementation): Int = SimdOps.lanes()
 
     override val name: String = "simd(${SimdOps.lanes()} lanes)"
     override fun dot(
@@ -31,11 +31,24 @@ private object SimdVectorLeaves : KoblasEngine {
         len: Int,
         aStride: Int,
         bStride: Int,
-    ): Double = SimdOps.dot(a, aOff, b, bOff, len)
-    override fun sum(v: DoubleArray, vOff: Int, len: Int, vStride: Int): Double = SimdOps.sum(v, vOff, len)
-    override fun asum(v: DoubleArray, vOff: Int, len: Int, vStride: Int): Double = SimdOps.asum(v, vOff, len)
-    override fun iamax(v: DoubleArray, vOff: Int, len: Int, vStride: Int): Int = SimdOps.iamax(v, vOff, len)
+    ): Double {
+        require(aStride == 1 && bStride == 1)
+        return SimdOps.dot(a, aOff, b, bOff, len)
+    }
+    override fun sum(v: DoubleArray, vOff: Int, len: Int, vStride: Int): Double {
+        require(vStride == 1)
+        return SimdOps.sum(v, vOff, len)
+    }
+    override fun asum(v: DoubleArray, vOff: Int, len: Int, vStride: Int): Double {
+        require(vStride == 1)
+        return SimdOps.asum(v, vOff, len)
+    }
+    override fun iamax(v: DoubleArray, vOff: Int, len: Int, vStride: Int): Int {
+        require(vStride == 1)
+        return SimdOps.iamax(v, vOff, len)
+    }
     override fun nrm2(v: DoubleArray, vOff: Int, len: Int, vStride: Int): Double {
+        require(vStride == 1)
         val squares = SimdOps.dot(v, vOff, v, vOff, len)
         return if (squares.isFinite() && squares >= MIN_NORMAL) {
             sqrt(squares)
@@ -54,7 +67,10 @@ private object SimdVectorLeaves : KoblasEngine {
         len: Int,
         yStride: Int,
         xStride: Int,
-    ) = SimdOps.axpy(y, yOff, alpha, x, xOff, len)
+    ) {
+        require(yStride == 1 && xStride == 1)
+        SimdOps.axpy(y, yOff, alpha, x, xOff, len)
+    }
 }
 
 internal val simdContributions: List<KoblasEngine> by lazy {

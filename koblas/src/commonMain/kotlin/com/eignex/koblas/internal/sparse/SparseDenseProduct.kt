@@ -9,16 +9,40 @@ import com.eignex.koblas.internal.dense.borrowOptional
 import com.eignex.koblas.internal.dense.forEachPanel
 import com.eignex.koblas.internal.operands.staged
 import com.eignex.koblas.internal.sparse.*
-import com.eignex.koblas.internal.sparse.SparseTuning
 import com.eignex.koblas.sparse.*
 import com.eignex.koblas.vendor.*
 import kotlin.math.min
 
 /**
+ * The most right-hand sides the sparse scheduling will hold staged adjacent at once.
+ *
+ * A ceiling over the backend's recommendation rather than the width itself: how many right-hand sides a
+ * panel wants is the backend's question, since it is the one with the body, and how much of a dense
+ * block may be copied into a workspace buffer while one sparse column is walked is the scheduling's.
+ * Where the recommendation is below this, this changes nothing.
+ */
+private const val CONTIGUOUS_RHS_PANEL: Int = 64
+
+/**
+ * Stored entries per dense element copied, below which a sparse product keeps the caller's layout.
+ *
+ * Staging a panel of right-hand sides into adjacent order costs a copy of the dense operand, or of the
+ * destination twice over, and buys vector arithmetic over the entries the traversal walks. The ratio
+ * between those two is this number, and a product too sparse to pay it runs where its operands already
+ * are.
+ *
+ * The measured ratio is four: the band just below it was no better than the caller's own layout,
+ * and above it the copy pays and keeps paying as the support thickens. A gathering product copies half
+ * as much as a scattering one, so the same ratio admits it at half the density, which is what a ratio
+ * rather than a density is for.
+ */
+private const val STAGED_RHS_CROSSOVER: Int = 4
+
+/**
  * Chooses right-hand-side grouping and staging for a sparse product with a dense block.
  *
  * Staging makes right-hand sides adjacent for vector panels. The backend recommends a width for the
- * resulting layout; [SparseTuning.contiguousRhsPanel] caps retained staging storage. Copy only when the
+ * resulting layout; [CONTIGUOUS_RHS_PANEL] caps retained staging storage. Copy only when the
  * backend prefers adjacent panels and the accelerated arithmetic outweighs the copy. Already-adjacent
  * inputs need no copy, and the portable backend never stages.
  *
@@ -46,7 +70,10 @@ internal fun planRightHandSides(
     if (sides <= 0) return 0
     val adjacent = min(
         sides,
-        min(kernels.sparseRightHandSideGroup(rows, sides, contiguous = true, reduction = reduction), stagedPanelCap()),
+        min(
+            kernels.sparseRightHandSideGroup(rows, sides, contiguous = true, reduction = reduction),
+            CONTIGUOUS_RHS_PANEL,
+        ),
     )
     if (nativelyContiguous) return adjacent
     val strided = kernels.sparseRightHandSideGroup(rows, sides, contiguous = false, reduction = reduction)
@@ -54,12 +81,9 @@ internal fun planRightHandSides(
     // A backend that does no better over an adjacent panel gains nothing from the copy.
     if (!kernels.sparsePrefersAdjacentSides(adjacent, entries, reduction)) return strided
     // Pack only when the accelerated arithmetic outweighs the copy.
-    if (entries.toLong() < SparseTuning.stagedRhsCrossover.toLong() * copiedPerSide) return strided
+    if (entries.toLong() < STAGED_RHS_CROSSOVER.toLong() * copiedPerSide) return strided
     return -adjacent
 }
-
-/** Right-hand sides the scheduling is willing to hold staged at once, whatever a backend would like. */
-private fun stagedPanelCap(): Int = SparseTuning.contiguousRhsPanel
 
 /**
  * The plan a sparse-by-dense product takes.

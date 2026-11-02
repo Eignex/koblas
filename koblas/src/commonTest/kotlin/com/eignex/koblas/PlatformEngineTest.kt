@@ -37,8 +37,6 @@ class PlatformEngineTest {
             koblas.name,
             "an available vector panel backend was not selected",
         )
-        assertNotEquals(BuiltinEngines.scalar.name, koblas.name)
-        assertNotEquals(BuiltinEngines.scalar.name, koblas.name)
     }
 
     // A selection is not an execution: the Vector API backend hands a rank update shorter than one lane block

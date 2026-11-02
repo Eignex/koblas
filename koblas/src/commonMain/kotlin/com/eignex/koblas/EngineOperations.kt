@@ -223,14 +223,6 @@ public fun KoblasEngine.trmm(
     }
 }
 
-private fun KoblasEngine.wholeCall(
-    operation: EngineImplementation,
-    rows: Int,
-    columns: Int,
-    depth: Int = 1,
-    borrowed: Boolean = false,
-): KoblasEngine? = this.wholeCallFor(operation, rows, columns, depth, borrowed)
-
 /** Array convenience for the addressed [gemv] operation. */
 @Suppress("LongParameterList") // BLAS operands and workspace
 public fun KoblasEngine.gemv(
@@ -248,14 +240,18 @@ public fun KoblasEngine.gemv(
         applyBeta(this, y, 0, y.size, beta)
         return
     }
-    if (a.values === y || x === y || wholeCall(
-            if (transpose) EngineImplementation.GemvTransposed else EngineImplementation.Gemv,
-            a.rows,
-            a.cols,
-            borrowed = a !is DenseMatrix,
-        ) != null
-    ) {
+    if (a.values === y || x === y) {
         gemv(alpha, a, DenseVector.wrap(x), beta, DenseVector.wrap(y), transpose, workspace)
+        return
+    }
+    val implementation = wholeCallFor(
+        if (transpose) EngineImplementation.GemvTransposed else EngineImplementation.Gemv,
+        a.rows,
+        a.cols,
+        borrowed = a !is DenseMatrix,
+    )
+    if (implementation != null) {
+        implementation.computeGemv(alpha, a, transpose, DenseVector.wrap(x), beta, DenseVector.wrap(y))
     } else {
         gemvCore(alpha, a, x, 0, 1, beta, y, 0, 1, transpose)
     }
@@ -285,7 +281,7 @@ public fun KoblasEngine.gemv(
         return
     }
     // Snapshot aliased operands before scaling the destination, and retain them for the call.
-    val implementation = wholeCall(
+    val implementation = wholeCallFor(
         if (transpose) EngineImplementation.GemvTransposed else EngineImplementation.Gemv,
         a.rows,
         a.cols,
@@ -392,7 +388,7 @@ public fun KoblasEngine.gemm(
         scaleRegion(c, beta)
         return
     }
-    val implementation = wholeCall(
+    val implementation = wholeCallFor(
         EngineImplementation.Gemm,
         c.rows,
         c.cols,
@@ -478,7 +474,7 @@ public fun KoblasEngine.gemmt(
         scaleRegion(c, beta, lower)
         return
     }
-    val implementation = wholeCall(
+    val implementation = wholeCallFor(
         EngineImplementation.Gemmt,
         c.rows,
         c.cols,
@@ -528,10 +524,13 @@ public fun KoblasEngine.symv(
         applyBeta(this, y, 0, y.size, beta)
         return
     }
-    if (a.values === y || x === y ||
-        wholeCall(EngineImplementation.Symv, a.rows, a.cols, borrowed = a !is DenseMatrix) != null
-    ) {
+    if (a.values === y || x === y) {
         symv(alpha, a, DenseVector.wrap(x), beta, DenseVector.wrap(y), lower, workspace)
+        return
+    }
+    val implementation = wholeCallFor(EngineImplementation.Symv, a.rows, a.cols, borrowed = a !is DenseMatrix)
+    if (implementation != null) {
+        implementation.computeSymv(alpha, a, symmetricStructure(lower), DenseVector.wrap(x), beta, DenseVector.wrap(y))
     } else {
         symvCore(alpha, a, x, 0, 1, beta, y, 0, 1, lower)
     }
@@ -556,7 +555,7 @@ public fun KoblasEngine.symv(
         return
     }
     // Snapshot aliased operands before beta overwrites values still needed by the product.
-    val implementation = wholeCall(EngineImplementation.Symv, a.rows, a.cols, 1, a !is DenseMatrix)
+    val implementation = wholeCallFor(EngineImplementation.Symv, a.rows, a.cols, 1, a !is DenseMatrix)
     stagedRegion(workspace, a, y, lower = lower) { sa ->
         staged(workspace, x, x.overlaps(y)) { xv ->
             if (implementation != null) {
@@ -653,7 +652,7 @@ public fun KoblasEngine.symm(
         scaleRegion(c, beta, vectors = this)
         return
     }
-    val implementation = wholeCall(
+    val implementation = wholeCallFor(
         EngineImplementation.Symm,
         c.rows,
         c.cols,
@@ -698,7 +697,7 @@ public fun KoblasEngine.syrk(
         scaleRegion(c, beta, lower)
         return
     }
-    val implementation = wholeCall(
+    val implementation = wholeCallFor(
         EngineImplementation.Syrk,
         c.rows,
         c.cols,
@@ -771,7 +770,7 @@ private fun KoblasEngine.productTriangle(
         return
     }
     val selected = selectedTriangle(lower)
-    val implementation = wholeCall(
+    val implementation = wholeCallFor(
         EngineImplementation.Syr2k,
         c.rows,
         c.cols,
@@ -805,7 +804,7 @@ public fun KoblasEngine.ger(
 ) {
     requireGerOperands(x.size, y.size, a)
     if (alpha == 0.0 || a.rows == 0 || a.cols == 0) return
-    val implementation = wholeCall(EngineImplementation.Ger, a.rows, a.cols, 1, a !is DenseMatrix)
+    val implementation = wholeCallFor(EngineImplementation.Ger, a.rows, a.cols, 1, a !is DenseMatrix)
     stagedVectors(workspace, x, y, a) { sx, sy ->
         if (implementation != null) {
             implementation.computeGer(alpha, sx, sy, a)
@@ -854,10 +853,13 @@ public fun KoblasEngine.ger(
 ) {
     requireGerOperands(x.size, y.size, a)
     if (alpha == 0.0 || a.rows == 0 || a.cols == 0) return
-    if (x === a.values || y === a.values ||
-        wholeCall(EngineImplementation.Ger, a.rows, a.cols, borrowed = a !is DenseMatrix) != null
-    ) {
+    if (x === a.values || y === a.values) {
         ger(alpha, DenseVector.wrap(x), DenseVector.wrap(y), a, workspace)
+        return
+    }
+    val implementation = wholeCallFor(EngineImplementation.Ger, a.rows, a.cols, borrowed = a !is DenseMatrix)
+    if (implementation != null) {
+        implementation.computeGer(alpha, DenseVector.wrap(x), DenseVector.wrap(y), a)
     } else {
         gerCore(alpha, x, 0, 1, y, 0, 1, a, a.offset, a.rows, a.cols)
     }
@@ -925,7 +927,7 @@ public fun KoblasEngine.syr(
     val n = a.rows
     if (alpha == 0.0 || n == 0) return
     // Snapshot an aliased vector before updates overwrite coefficients needed by later columns.
-    val implementation = wholeCall(EngineImplementation.Syr, n, n, 1, a !is DenseMatrix)
+    val implementation = wholeCallFor(EngineImplementation.Syr, n, n, 1, a !is DenseMatrix)
     staged(workspace, x, regionVectorOverlap(a, x)) { sx ->
         if (implementation != null) {
             implementation.computeSyr(alpha, sx, a, symmetricStructure(lower))
@@ -969,7 +971,7 @@ public fun KoblasEngine.syr2(
     requireSyr2Operands(a, x.size, y.size, "syr2")
     val n = a.rows
     if (alpha == 0.0 || n == 0) return
-    val implementation = wholeCall(EngineImplementation.Syr2, n, n, 1, a !is DenseMatrix)
+    val implementation = wholeCallFor(EngineImplementation.Syr2, n, n, 1, a !is DenseMatrix)
     stagedVectors(workspace, x, y, a) { sx, sy ->
         if (implementation != null) {
             implementation.computeSyr2(alpha, sx, sy, a, symmetricStructure(lower))
@@ -1022,14 +1024,18 @@ public fun KoblasEngine.trsv(
 ) {
     requireTriangularVectorOperands(a, x.size, "trsv")
     if (a.rows == 0) return
-    if (a.values === x || wholeCall(
-            if (transpose) EngineImplementation.TrsvTransposed else EngineImplementation.Trsv,
-            a.rows,
-            a.cols,
-            borrowed = a !is DenseMatrix,
-        ) != null
-    ) {
+    if (a.values === x) {
         trsv(a, DenseVector.wrap(x), lower, transpose, unitDiag, workspace)
+        return
+    }
+    val implementation = wholeCallFor(
+        if (transpose) EngineImplementation.TrsvTransposed else EngineImplementation.Trsv,
+        a.rows,
+        a.cols,
+        borrowed = a !is DenseMatrix,
+    )
+    if (implementation != null) {
+        implementation.computeTrsv(a, triangle(lower, unitDiag), transpose, DenseVector.wrap(x))
     } else {
         trsvCore(a, x, 0, 1, lower, transpose, unitDiag)
     }
@@ -1057,7 +1063,7 @@ public fun KoblasEngine.trsv(
     requireTriangularVectorOperands(a, x.size, "trsv")
     val n = a.rows
     if (n == 0) return
-    val implementation = wholeCall(
+    val implementation = wholeCallFor(
         if (transpose) EngineImplementation.TrsvTransposed else EngineImplementation.Trsv,
         n,
         n,
@@ -1129,14 +1135,18 @@ public fun KoblasEngine.trmv(
 ) {
     requireTriangularVectorOperands(a, x.size, "trmv")
     if (a.rows == 0) return
-    if (a.values === x || wholeCall(
-            if (transpose) EngineImplementation.TrmvTransposed else EngineImplementation.Trmv,
-            a.rows,
-            a.cols,
-            borrowed = a !is DenseMatrix,
-        ) != null
-    ) {
+    if (a.values === x) {
         trmv(a, DenseVector.wrap(x), lower, transpose, unitDiag, workspace)
+        return
+    }
+    val implementation = wholeCallFor(
+        if (transpose) EngineImplementation.TrmvTransposed else EngineImplementation.Trmv,
+        a.rows,
+        a.cols,
+        borrowed = a !is DenseMatrix,
+    )
+    if (implementation != null) {
+        implementation.computeTrmv(a, triangle(lower, unitDiag), transpose, DenseVector.wrap(x))
     } else {
         trmvCore(a, x, 0, 1, lower, transpose, unitDiag)
     }
@@ -1155,7 +1165,7 @@ public fun KoblasEngine.trmv(
 ) {
     requireTriangularVectorOperands(a, x.size, "trmv")
     val n = a.rows
-    val implementation = wholeCall(
+    val implementation = wholeCallFor(
         if (transpose) EngineImplementation.TrmvTransposed else EngineImplementation.Trmv,
         n,
         n,
@@ -1263,7 +1273,7 @@ private fun KoblasEngine.triangularMatrix(
     val sides = if (right) b.rows else b.cols
     val order = a.rows
     if (sides == 0 || order == 0) return
-    val implementation = wholeCall(
+    val implementation = wholeCallFor(
         if (solve) EngineImplementation.Trsm else EngineImplementation.Trmm,
         b.rows,
         b.cols,

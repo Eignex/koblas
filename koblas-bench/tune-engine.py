@@ -13,11 +13,6 @@ import sys
 from pathlib import Path
 
 MAX = 2**31 - 1
-VECTOR = dict(dot="Dot", sum="Sum", nrm2="Nrm2", iamax="Iamax", asum="Asum",
-              axpy="Axpy", scal="Scale", swap="Swap", rot="Rot")
-MATRIX = dict(gemv="Gemv", symv="Symv", ger="Ger", syr="Syr", syr2="Syr2", trmv="Trmv",
-              trsv="Trsv", gemm="Gemm", gemmt="Gemmt", symm="Symm", syrk="Syrk",
-              syr2k="Syr2k", trmm="Trmm", trsm="Trsm")
 
 
 def measurements(directory, baseline, candidate, backend=None):
@@ -25,7 +20,7 @@ def measurements(directory, baseline, candidate, backend=None):
     passes = [p for p in passes if p.is_dir()]
     if len(passes) < 3:
         raise ValueError("at least three paired capture rounds are required")
-    paired, provenance = {}, {}
+    paired, provenance, shapes = {}, {}, {}
     for path in passes:
         metadata = (path / "metadata.txt").read_text()
         fields = dict(line.split("=", 1) for line in metadata.splitlines() if "=" in line)
@@ -41,19 +36,26 @@ def measurements(directory, baseline, candidate, backend=None):
                 rows.append({row["case"]: row for row in csv.DictReader(source)})
         for case in rows[0].keys() & rows[1].keys():
             left, right = rows[0][case], rows[1][case]
-            if supported is not None and (key := shape(case)) and key[0] not in supported:
-                continue
             if left["status"] != "ok" or right["status"] != "ok":
                 continue
             if left["timing_mode"] != right["timing_mode"]:
                 raise ValueError(f"{case}: different timing boundaries")
+            if left["routing_key"] != right["routing_key"]:
+                raise ValueError(f"{case}: different routing dimensions")
+            fields = left["routing_key"].split(":")
+            key = (fields[0], *map(int, fields[1:4]), fields[4] == "true", int(fields[5])) if fields[0] else None
+            if case in shapes and shapes[case] != key:
+                raise ValueError(f"{case}: routing dimensions changed between rounds")
+            shapes[case] = key
+            if supported is not None and key and key[0] not in supported:
+                continue
             times = [float(row["median_ns"]) for row in (left, right)]
             if not all(math.isfinite(t) and t > 0 for t in times):
                 raise ValueError(f"{case}: invalid timings")
             paired.setdefault(case, []).append(times[1] / times[0])
         for name in ("metadata.txt", f"{baseline}.csv", f"{candidate}.csv"):
             provenance[str(path / name)] = hashlib.sha256((path / name).read_bytes()).hexdigest()
-    return {case: ratios for case, ratios in paired.items() if len(ratios) == len(passes)}, provenance
+    return {case: ratios for case, ratios in paired.items() if len(ratios) == len(passes)}, provenance, shapes
 
 
 def measured_cpu(directory):
@@ -66,35 +68,10 @@ def measured_cpu(directory):
     return models.pop()
 
 
-def shape(case):
-    operation, dimensions, _, *options = case.split("+")
-    flags = dict(option.split("=", 1) for option in options)
-    dims = [int(n) for n in dimensions.split("x")]
-    if operation in VECTOR:
-        return VECTOR[operation], dims[0], 1, 1, False
-    if operation not in MATRIX:
-        return None
-    borrowed = flags.get("layout") == "borrowed"
-    name = MATRIX[operation]
-    if operation in ("gemv", "trmv", "trsv") and flags.get("transA") == "T":
-        name += "Transposed"
-    if operation == "gemm":
-        return name, *dims, borrowed
-    if len(dims) == 1:
-        return name, dims[0], dims[0], 1, borrowed
-    if operation in ("gemmt", "syrk", "syr2k"):
-        return name, dims[0], dims[0], dims[1], borrowed
-    if operation in ("symm", "trmm", "trsm"):
-        rows, columns = dims
-        order = columns if flags.get("side") == "R" else rows
-        return name, rows, columns, order, borrowed
-    return name, *dims, 1, borrowed
-
-
-def fit(paired, backend):
+def fit(paired, backend, shapes):
     groups = {}
     for case, ratios in paired.items():
-        key = shape(case)
+        key = shapes[case]
         if key:
             groups.setdefault(key, []).extend(ratios)
     wins = {key: statistics.median(ratios) <= 0.95 and max(ratios) <= 1.02
@@ -102,7 +79,7 @@ def fit(paired, backend):
     rules = []
     for operation in sorted({key[0] for key in groups}):
         keys = sorted(key for key in groups if key[0] == operation)
-        if operation in VECTOR.values():
+        if keys[0][5] == 1:
             # A threshold must keep winning at every larger measured length, including all variants.
             start = next((i for i in range(len(keys)) if all(wins[k] for k in keys[i:])), None)
             if start is not None:
@@ -111,7 +88,7 @@ def fit(paired, backend):
             # Matrix shapes are bounded to observed extents; no square-only extrapolation to skinny calls.
             for key in keys:
                 if wins[key]:
-                    _, rows, columns, depth, borrowed = key
+                    _, rows, columns, depth, borrowed, _ = key
                     rules.append([backend, operation, rows, rows, columns, columns, depth, depth, 0, "*", str(borrowed).lower()])
     if backend == "jvm-simd":
         rules.append([backend, "Panels,Products,Triangular", 0, MAX, 0, MAX, 0, MAX, 0, "*", "*"])
@@ -146,7 +123,7 @@ def main():
     args.output.mkdir(parents=True, exist_ok=False)
     if args.cases is None:
         args.cases = args.output / "training-cases.txt"
-        cases = [f"{op}+{n}+uniform" for op in VECTOR for n in (32, 64, 96, 128, 256, 1024, 4096)]
+        cases = [f"{op}+{n}+uniform" for op in ("dot", "sum", "nrm2", "iamax", "asum", "axpy", "scal", "swap", "rot") for n in (32, 64, 96, 128, 256, 1024, 4096)]
         for n in (8, 16, 32, 64, 128):
             cases += [f"gemm+{n}x{n}x{n}+uniform", f"gemv+{n}x{n}+uniform",
                       f"syrk+{n}x{n}+uniform+uplo=L+transA=N",
@@ -161,9 +138,9 @@ def main():
     capture_env = dict(os.environ)
     if args.capture and args.backend == "jvm-simd" and args.candidate is None:
         candidate = "jvm-default"
-        forcing = [[args.backend, ",".join(VECTOR.values()), 0, MAX, 0, MAX, 0, MAX, 0, "true", "*"]]
+        forcing = [[args.backend, "Dot,Sum,Nrm2,Iamax,Asum,Axpy", 0, MAX, 0, MAX, 0, MAX, 0, "true", "*"]]
         force_path = args.output / "force.tsv"
-        write_profile(force_path, forcing + fit({}, args.backend))
+        write_profile(force_path, forcing + fit({}, args.backend, {}))
         capture_env["KOBLAS_BENCH_ENGINE_PROFILE"] = str(force_path.resolve())
     if args.capture:
         command = ["bash", "koblas-bench/capture-report.sh", "--targets", f"{baseline},{candidate}",
@@ -177,11 +154,11 @@ def main():
         if args.native_executable:
             command += ["--native-executable", str(args.native_executable)]
         subprocess.run(command, check=True, env=capture_env)
-    paired, provenance = measurements(results, baseline, candidate, args.backend)
+    paired, provenance, shapes = measurements(results, baseline, candidate, args.backend)
     if not paired:
         raise ValueError("no complete paired measurements")
     header[5] = args.cpu or measured_cpu(results)
-    rules = fit(paired, args.backend)
+    rules = fit(paired, args.backend, shapes)
     write_profile(args.output / "profile.tsv", rules)
     (args.output / "evidence.json").write_text(json.dumps(dict(
         baseline=baseline, candidate=candidate, source_hashes=provenance,
@@ -198,10 +175,10 @@ def main():
             command[command.index("--output") + 1] = str(validation)
             subprocess.run(command, check=True, env=dict(os.environ,
                            KOBLAS_BENCH_ENGINE_PROFILE=str((args.output / "profile.tsv").resolve())))
-            ratios, hashes = measurements(validation, baseline, f"{args.runtime}-default")
+            ratios, hashes, validation_shapes = measurements(validation, baseline, f"{args.runtime}-default")
             regressions = {case: values for case, values in ratios.items()
                            if statistics.median(values) > 1.05 and min(values) > 1.02}
-            covered = {case: values for case, values in ratios.items() if (key := shape(case)) and any(
+            covered = {case: values for case, values in ratios.items() if (key := validation_shapes[case]) and any(
                 key[0] == rule[1] and (rule[10] == "*" or (rule[10] == "true") == key[4]) and
                 all(rule[low] <= n <= rule[low + 1] for low, n in zip((2, 4, 6), key[1:4])) for rule in rules)}
             selected = {case: values for case, values in regressions.items() if case in covered}
@@ -211,7 +188,7 @@ def main():
                 indent=2) + "\n")
             if ratios and not selected:
                 break
-            refined = fit(covered, args.backend)
+            refined = fit(covered, args.backend, validation_shapes)
             if attempt == 3 or refined == rules:
                 raise ValueError("combined profile validation failed; inspect retained validation reports")
             rules = refined

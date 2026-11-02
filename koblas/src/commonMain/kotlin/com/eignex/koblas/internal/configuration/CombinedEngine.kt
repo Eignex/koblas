@@ -5,34 +5,36 @@ package com.eignex.koblas.internal.configuration
 import com.eignex.koblas.*
 import com.eignex.koblas.dense.*
 import com.eignex.koblas.internal.dense.*
+import com.eignex.koblas.vendor.Vendor
 
 /** Backends are bound once; arithmetic never resolves identifiers or capabilities. */
 internal class CompiledRouting(profile: EngineProfile, engines: List<KoblasEngine>) {
-    val backends = engines.filterNot { it === PortableEngine } + PortableEngine
+    val backends = engines.flatMap { it.components }.filterNot { it === PortableEngine }.distinct() + PortableEngine
+    private val sources = backends + engines
+    init {
+        val known = sources.map { it.id } + "jvm-simd" + Vendor.entries.map { it.vendorName.lowercase() }
+        require(profile.rules.all { it.source in known }) { "Unknown engine source in ${profile.name}" }
+    }
     private val routes = Array(EngineImplementation.entries.size) { index ->
         val operation = EngineImplementation.entries[index]
         profile.rules.mapNotNull { rule ->
-            backends.firstOrNull { it.id == rule.source && operation in it.implementations }
+            sources.firstOrNull { it.id == rule.source && operation in it.implementations }
                 ?.takeIf { operation in rule.implementations }
                 ?.let { rule to it }
         }.toTypedArray()
     }
 
-    private val lengths = Array(EngineImplementation.Panels.ordinal) {
-        compileLength(EngineImplementation.entries[it])
+    private val lengths = Array(EngineImplementation.entries.size) { index ->
+        EngineImplementation.entries[index].takeIf { it.vector }?.let(::compileLength)
     }
 
     /** Fold all vector-invariant shape/work constraints before arithmetic reaches a length check. */
     private fun compileLength(operation: EngineImplementation): LengthDispatch {
         var result = LengthDispatch(PortableEngine, 0, Int.MAX_VALUE, 3, null)
         for ((rule, backend) in routes[operation.ordinal].reversed()) {
-            val minimum = if (operation.ordinal >= EngineImplementation.IndexedDot.ordinal) {
-                backend.minimumIndexedLength
-            } else {
-                backend.minimumVectorLength
-            }
+            val minimum = backend.minimumLength(operation)
             val lower = maxOf(rule.rows.first, minimum, rule.work.coerceAtMost(Int.MAX_VALUE.toLong()).toInt())
-            val strided = (operation.ordinal >= EngineImplementation.IndexedDot.ordinal || !backend.contiguousVectors)
+            val strided = !backend.requiresUnitStride(operation)
             val mask = (if (rule.matches(lower, 1, 1, true, false)) 1 else 0) or
                 (if (strided && rule.matches(lower, 1, 1, false, false)) 2 else 0)
             if (mask != 0) {
@@ -56,9 +58,7 @@ internal class CompiledRouting(profile: EngineProfile, engines: List<KoblasEngin
         contiguous: Boolean = true,
         borrowed: Boolean = false,
     ): KoblasEngine {
-        if (operation.ordinal < EngineImplementation.Panels.ordinal) {
-            return lengths[operation.ordinal].select(rows, contiguous)
-        }
+        lengths[operation.ordinal]?.let { return it.select(rows, contiguous) }
         for ((rule, backend) in routes[operation.ordinal]) {
             if (rule.matches(rows, columns, depth, contiguous, borrowed)) return backend
         }
@@ -105,21 +105,15 @@ internal class CombinedEngine(private val routing: CompiledRouting, override val
         columns,
         depth,
         borrowed = borrowed,
-    ).takeUnless { it === PortableEngine }
+    ).wholeCallFor(operation, rows, columns, depth, borrowed)
     internal val panelImplementation = routing.select(EngineImplementation.Panels)
     internal val productImplementation = routing.select(EngineImplementation.Products)
     internal val triangularImplementation = routing.select(EngineImplementation.Triangular)
     private fun vectors(operation: EngineImplementation, length: Int, contiguous: Boolean = true): KoblasEngine =
         routing.select(operation, length, contiguous = contiguous)
 
-    internal fun implementationFor(operation: EngineImplementation, length: Int, contiguous: Boolean): String? {
-        val backend = routing.select(operation, length, contiguous = contiguous)
-        return if ((operation == EngineImplementation.Nrm2 && backend.dynamicNorm)) {
-            null
-        } else {
-            backend.name
-        }
-    }
+    internal fun implementationFor(operation: EngineImplementation, length: Int, contiguous: Boolean): String? =
+        routing.select(operation, length, contiguous = contiguous).implementationFor(operation, length, contiguous)
 
     override fun dot(
         a: DoubleArray,

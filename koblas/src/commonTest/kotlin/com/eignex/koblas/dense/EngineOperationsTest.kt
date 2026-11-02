@@ -4,7 +4,7 @@ import com.eignex.koblas.*
 import kotlin.math.sqrt
 import kotlin.test.*
 
-class DenseVectorKernelsTest {
+class EngineOperationsTest {
     @Test
     fun `platform scaling agrees with reference across windows`() = assertScaleAgreesWithReference(koblas)
 

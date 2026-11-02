@@ -1,7 +1,6 @@
 package com.eignex.koblas.vendor
 
 import com.eignex.koblas.*
-import com.eignex.koblas.internal.configuration.environmentVariableOrNull
 import kotlin.math.abs
 import kotlin.test.Test
 import kotlin.test.assertEquals

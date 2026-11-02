@@ -8,7 +8,7 @@ import kotlin.test.assertTrue
 
 class GemmtTest {
     @Test
-    fun `gemmt preserves the unselected triangle and zero no read rules`() = withDenseBlas { blas ->
+    fun `gemmt preserves the unselected triangle and zero no read rules`() = withEngines { blas ->
         for (lower in booleanArrayOf(false, true)) {
             val a = DenseMatrix.wrap(2, 3, DoubleArray(6) { Double.NaN })
             val b = DenseMatrix.wrap(3, 2, DoubleArray(6) { Double.POSITIVE_INFINITY })
@@ -29,7 +29,7 @@ class GemmtTest {
     }
 
     @Test
-    fun `gemmt zero depth applies beta in every orientation`() = withDenseBlas { blas ->
+    fun `gemmt zero depth applies beta in every orientation`() = withEngines { blas ->
         for (transposeA in booleanArrayOf(false, true)) {
             for (transposeB in booleanArrayOf(false, true)) {
                 val a = if (transposeA) DenseMatrix(0, 2) else DenseMatrix(2, 0)

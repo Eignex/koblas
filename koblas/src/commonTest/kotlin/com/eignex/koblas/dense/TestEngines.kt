@@ -5,7 +5,7 @@ import com.eignex.koblas.*
 /**
  * Portable dense Level 2 and 3 under test. Core conformance never depends on an installed library.
  */
-internal val testDenseBlas: KoblasEngine get() = BuiltinEngines.scalar
+internal val portableEngine: KoblasEngine get() = BuiltinEngines.scalar
 
 /**
  * Runs [body] against the mandatory portable seam, and against every other built-in composition this
@@ -16,7 +16,7 @@ internal val testDenseBlas: KoblasEngine get() = BuiltinEngines.scalar
  * whole surface on each composition is what makes the conformance above cover those paths rather than only
  * the portable floor.
  */
-internal fun withDenseBlas(body: (KoblasEngine) -> Unit) {
+internal fun withEngines(body: (KoblasEngine) -> Unit) {
     body(BuiltinEngines.scalar)
     BuiltinEngines.simd?.let(body)
 }

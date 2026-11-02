@@ -20,75 +20,72 @@ class TriangularSchedulingTest {
     private val rng = Random(20261103)
 
     @Test
-    fun `trsm solves every transpose and diagonal mode from the left with an upper triangle`() = withDenseBlas { blas ->
+    fun `trsm solves every transpose and diagonal mode from the left with an upper triangle`() = withEngines { blas ->
         assertSolves(blas, right = false, lower = false)
     }
 
     @Test
-    fun `trsm solves every transpose and diagonal mode from the left with a lower triangle`() = withDenseBlas { blas ->
+    fun `trsm solves every transpose and diagonal mode from the left with a lower triangle`() = withEngines { blas ->
         assertSolves(blas, right = false, lower = true)
     }
 
     @Test
-    fun `trsm solves every transpose and diagonal mode from the right with an upper triangle`() =
-        withDenseBlas { blas ->
-            assertSolves(blas, right = true, lower = false)
-        }
+    fun `trsm solves every transpose and diagonal mode from the right with an upper triangle`() = withEngines { blas ->
+        assertSolves(blas, right = true, lower = false)
+    }
 
     @Test
-    fun `trsm solves every transpose and diagonal mode from the right with a lower triangle`() = withDenseBlas { blas ->
+    fun `trsm solves every transpose and diagonal mode from the right with a lower triangle`() = withEngines { blas ->
         assertSolves(blas, right = true, lower = true)
     }
 
     @Test
-    fun `trmm multiplies every uplo transpose and diagonal mode from the left`() = withDenseBlas { blas ->
+    fun `trmm multiplies every uplo transpose and diagonal mode from the left`() = withEngines { blas ->
         assertMultiplies(blas, right = false)
     }
 
     @Test
-    fun `trmm multiplies every uplo transpose and diagonal mode from the right`() = withDenseBlas { blas ->
+    fun `trmm multiplies every uplo transpose and diagonal mode from the right`() = withEngines { blas ->
         assertMultiplies(blas, right = true)
     }
 
     @Test
-    fun `trsm agrees with the oracle over three blocks from the left with an upper triangle`() = withDenseBlas { blas ->
+    fun `trsm agrees with the oracle over three blocks from the left with an upper triangle`() = withEngines { blas ->
         assertSolves(blas, right = false, lower = false, shapes = threeBlockShapes())
     }
 
     @Test
-    fun `trsm agrees with the oracle over three blocks from the left with a lower triangle`() = withDenseBlas { blas ->
+    fun `trsm agrees with the oracle over three blocks from the left with a lower triangle`() = withEngines { blas ->
         assertSolves(blas, right = false, lower = true, shapes = threeBlockShapes())
     }
 
     @Test
-    fun `trsm agrees with the oracle over three blocks from the right with an upper triangle`() =
-        withDenseBlas { blas ->
-            assertSolves(blas, right = true, lower = false, shapes = threeBlockShapes())
-        }
+    fun `trsm agrees with the oracle over three blocks from the right with an upper triangle`() = withEngines { blas ->
+        assertSolves(blas, right = true, lower = false, shapes = threeBlockShapes())
+    }
 
     @Test
-    fun `trsm agrees with the oracle over three blocks from the right with a lower triangle`() = withDenseBlas { blas ->
+    fun `trsm agrees with the oracle over three blocks from the right with a lower triangle`() = withEngines { blas ->
         assertSolves(blas, right = true, lower = true, shapes = threeBlockShapes())
     }
 
     @Test
-    fun `trmm agrees with the oracle over three blocks from the left with an upper triangle`() = withDenseBlas { blas ->
+    fun `trmm agrees with the oracle over three blocks from the left with an upper triangle`() = withEngines { blas ->
         assertMultiplies(blas, right = false, lowerModes = booleanArrayOf(false), shapes = threeBlockShapes())
     }
 
     @Test
-    fun `trmm agrees with the oracle over three blocks from the left with a lower triangle`() = withDenseBlas { blas ->
+    fun `trmm agrees with the oracle over three blocks from the left with a lower triangle`() = withEngines { blas ->
         assertMultiplies(blas, right = false, lowerModes = booleanArrayOf(true), shapes = threeBlockShapes())
     }
 
     @Test
-    fun `trmm agrees with the oracle over three blocks from the right with an upper triangle`() =
-        withDenseBlas { blas ->
-            assertMultiplies(blas, right = true, lowerModes = booleanArrayOf(false), shapes = threeBlockShapes())
-        }
+    fun `trmm agrees with the oracle over three blocks from the right with an upper triangle`() = withEngines { blas ->
+        assertMultiplies(blas, right = true, lowerModes = booleanArrayOf(false), shapes = threeBlockShapes())
+    }
 
     @Test
-    fun `trmm agrees with the oracle over three blocks from the right with a lower triangle`() = withDenseBlas { blas ->
+    fun `trmm agrees with the oracle over three blocks from the right with a lower triangle`() = withEngines { blas ->
         assertMultiplies(blas, right = true, lowerModes = booleanArrayOf(true), shapes = threeBlockShapes())
     }
 
@@ -151,7 +148,7 @@ class TriangularSchedulingTest {
 
     /** A zero multiplier writes zeros over the whole block and reads no coefficient at all. */
     @Test
-    fun `a zero alpha fills the block without reading the triangle`() = withDenseBlas { blas ->
+    fun `a zero alpha fills the block without reading the triangle`() = withEngines { blas ->
         val order = TRIANGULAR_DIAGONAL_BLOCK + 3
         val sides = 5
         val triangle = DenseMatrix.wrap(order, order, DoubleArray(order * order) { Double.NaN })
@@ -171,7 +168,7 @@ class TriangularSchedulingTest {
     // Scaling by alpha writes the block before the substitution starts, so a call that scaled first and
     // staged afterwards would feed the substitution coefficients the caller never gave it.
     @Test
-    fun `a triangle sharing its own block is staged before the block is scaled`() = withDenseBlas { blas ->
+    fun `a triangle sharing its own block is staged before the block is scaled`() = withEngines { blas ->
         val order = TRIANGULAR_DIAGONAL_BLOCK + 3
         val workspace = Workspace()
         for (solve in booleanArrayOf(false, true)) {
@@ -199,13 +196,13 @@ class TriangularSchedulingTest {
     // Twenty four shrinking windows exceed the workspace retention limit and expose scratch sized by call order.
     @Test
     fun `portable trmm retains bounded scratch over twenty four blocks`() {
-        val blas = testDenseBlas
+        val blas = portableEngine
         longThinScratch(blas, 24 * TRIANGULAR_DIAGONAL_BLOCK, solve = false)
     }
 
     @Test
     fun `portable trsm retains bounded scratch over twenty four blocks`() {
-        val blas = testDenseBlas
+        val blas = portableEngine
         longThinScratch(blas, 24 * TRIANGULAR_DIAGONAL_BLOCK, solve = true)
     }
 
@@ -255,7 +252,7 @@ class TriangularSchedulingTest {
     /** The same for a symmetric product, whose strips beside the diagonal shrink the same way. */
     @Test
     fun `a long thin portable symmetric product retains bounded scratch`() {
-        assertSymmetricScratchIsBounded(testDenseBlas)
+        assertSymmetricScratchIsBounded(portableEngine)
     }
 
     @Test

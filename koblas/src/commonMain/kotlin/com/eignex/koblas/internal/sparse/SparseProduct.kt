@@ -2,10 +2,18 @@ package com.eignex.koblas.internal.sparse
 
 import com.eignex.koblas.*
 import com.eignex.koblas.dense.*
-import com.eignex.koblas.internal.sparse.SparseTuning
 import com.eignex.koblas.requireShape
 import com.eignex.koblas.sparse.*
 import com.eignex.koblas.vendor.*
+
+/**
+ * Rows of range per row touched, below which a discovered column is swept into order rather than sorted.
+ *
+ * A column of a sparse product collects its rows in the order the contributing columns held them and has
+ * to emit them ascending. Sorting costs with what the column holds; sweeping the marks costs with the
+ * range the column could have reached, whatever it found there. This is where the two cross.
+ */
+private const val SUPPORT_SWEEP_FACTOR: Int = 8
 
 /**
  * `A · B` for two CSC operands, by Gustavson's method: one column of the result at a time, accumulated in a
@@ -200,7 +208,7 @@ internal fun symmetricRankInto(
  * Sorting costs with what the column holds and sweeping with the range it could have reached, so a column
  * that touched most of its range is swept and a thin one is sorted. Both produce the same rows, and the
  * sweep reads them from the marks the accumulation already wrote, so neither needs a pass of its own to set
- * up. [SparseTuning.supportSweepFactor] is where the crossover between them is.
+ * up. [SUPPORT_SWEEP_FACTOR] is where the crossover between them is.
  */
 @Suppress("LongParameterList") // the marks, the range they cover, and the list being ordered
 private fun orderTouchedRows(
@@ -219,8 +227,7 @@ private fun orderTouchedRows(
 }
 
 /** Whether a column that touched [used] of [range] rows is cheaper swept than sorted. */
-internal fun sweepsTouchedRows(used: Int, range: Int): Boolean =
-    range.toLong() <= used.toLong() * SparseTuning.supportSweepFactor
+internal fun sweepsTouchedRows(used: Int, range: Int): Boolean = range.toLong() <= used.toLong() * SUPPORT_SWEEP_FACTOR
 
 /** Accumulates one selected rank-update column while adjacency and triangle scheduling stay structural policy. */
 @OptIn(UnsafeKoblasApi::class)

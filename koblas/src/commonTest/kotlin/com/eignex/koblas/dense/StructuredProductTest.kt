@@ -46,7 +46,7 @@ class StructuredProductTest {
     }
 
     @Test
-    fun `gemmt agrees with the oracle on both routes in every orientation`() = withDenseBlas { blas ->
+    fun `gemmt agrees with the oracle on both routes in every orientation`() = withEngines { blas ->
         for ((order, depth) in shapes()) {
             for (transposeA in booleanArrayOf(false, true)) {
                 for (transposeB in booleanArrayOf(false, true)) {
@@ -73,7 +73,7 @@ class StructuredProductTest {
     }
 
     @Test
-    fun `the rank updates agree with the oracle on both routes in every orientation`() = withDenseBlas { blas ->
+    fun `the rank updates agree with the oracle on both routes in every orientation`() = withEngines { blas ->
         for ((order, depth) in shapes()) {
             for (transpose in booleanArrayOf(false, true)) {
                 for (lower in booleanArrayOf(false, true)) {
@@ -101,7 +101,7 @@ class StructuredProductTest {
     // A NaN outside the selection catches both a write outside it and a read of it; both routes, since the
     // packed one masks at the tile and the unpacked one shortens each destination column.
     @Test
-    fun `a selected triangle product leaves the opposite triangle exactly as it found it`() = withDenseBlas { blas ->
+    fun `a selected triangle product leaves the opposite triangle exactly as it found it`() = withEngines { blas ->
         for ((order, depth) in shapes()) {
             for (lower in booleanArrayOf(false, true)) {
                 val a = randomMatrix(order, depth, rng)
@@ -299,7 +299,7 @@ class StructuredProductTest {
     }
 
     @Test
-    fun `symm agrees with the oracle on both sides and reads only the stored triangle`() = withDenseBlas { blas ->
+    fun `symm agrees with the oracle on both sides and reads only the stored triangle`() = withEngines { blas ->
         for ((order, sides) in symmetricShapes()) {
             for (lower in booleanArrayOf(false, true)) {
                 for (right in booleanArrayOf(false, true)) {
@@ -310,7 +310,7 @@ class StructuredProductTest {
     }
 
     @Test
-    fun `symm agrees with the oracle over three blocks from the left with an upper triangle`() = withDenseBlas { blas ->
+    fun `symm agrees with the oracle over three blocks from the left with an upper triangle`() = withEngines { blas ->
         assertSymmetricProductAgreesWithReference(
             blas,
             2 * SYMMETRIC_BLOCK + 3,
@@ -321,7 +321,7 @@ class StructuredProductTest {
     }
 
     @Test
-    fun `symm agrees with the oracle over three blocks from the left with a lower triangle`() = withDenseBlas { blas ->
+    fun `symm agrees with the oracle over three blocks from the left with a lower triangle`() = withEngines { blas ->
         assertSymmetricProductAgreesWithReference(
             blas,
             2 * SYMMETRIC_BLOCK + 3,
@@ -332,19 +332,18 @@ class StructuredProductTest {
     }
 
     @Test
-    fun `symm agrees with the oracle over three blocks from the right with an upper triangle`() =
-        withDenseBlas { blas ->
-            assertSymmetricProductAgreesWithReference(
-                blas,
-                2 * SYMMETRIC_BLOCK + 3,
-                VECTOR_SIDES + 3,
-                lower = false,
-                right = true,
-            )
-        }
+    fun `symm agrees with the oracle over three blocks from the right with an upper triangle`() = withEngines { blas ->
+        assertSymmetricProductAgreesWithReference(
+            blas,
+            2 * SYMMETRIC_BLOCK + 3,
+            VECTOR_SIDES + 3,
+            lower = false,
+            right = true,
+        )
+    }
 
     @Test
-    fun `symm agrees with the oracle over three blocks from the right with a lower triangle`() = withDenseBlas { blas ->
+    fun `symm agrees with the oracle over three blocks from the right with a lower triangle`() = withEngines { blas ->
         assertSymmetricProductAgreesWithReference(
             blas,
             2 * SYMMETRIC_BLOCK + 3,
@@ -384,7 +383,7 @@ class StructuredProductTest {
 
     /** A symmetric product with nothing to add still overwrites its destination rather than scaling it. */
     @Test
-    fun `symm with a zero beta overwrites a poisoned destination`() = withDenseBlas { blas ->
+    fun `symm with a zero beta overwrites a poisoned destination`() = withEngines { blas ->
         val order = SYMMETRIC_BLOCK + 3
         val sides = 5
         val (_, poisoned) = poisonedSymmetric(rng, order, lower = true)
@@ -398,7 +397,7 @@ class StructuredProductTest {
 
     /** A rank update whose operand is its own destination reads the operand it was given, not the result. */
     @Test
-    fun `a rank update over its own destination agrees with the oracle`() = withDenseBlas { blas ->
+    fun `a rank update over its own destination agrees with the oracle`() = withEngines { blas ->
         val order = 2 * PORTABLE_PRODUCT_TILE + 1
         val start = randomMatrix(order, order, rng)
         for (lower in booleanArrayOf(false, true)) {
@@ -414,7 +413,7 @@ class StructuredProductTest {
 
     /** A symmetric product whose dense operand is its destination reads what the caller supplied. */
     @Test
-    fun `symm over its own destination agrees with the oracle`() = withDenseBlas { blas ->
+    fun `symm over its own destination agrees with the oracle`() = withEngines { blas ->
         val order = SYMMETRIC_BLOCK + 3
         val (full, poisoned) = poisonedSymmetric(rng, order, lower = true)
         val start = randomMatrix(order, order, rng)
@@ -430,7 +429,7 @@ class StructuredProductTest {
     // Every operand shares one empty array, so a call testing for an alias before testing for an empty
     // destination would take a staging loan for a result that does not exist.
     @Test
-    fun `a structured call with no output borrows nothing`() = withDenseBlas { blas ->
+    fun `a structured call with no output borrows nothing`() = withEngines { blas ->
         val workspace = Workspace()
         val shared = DoubleArray(0)
         val tall = DenseMatrix.wrap(0, 4, shared)

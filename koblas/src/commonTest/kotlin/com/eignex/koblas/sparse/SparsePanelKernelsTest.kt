@@ -7,7 +7,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertSame
 
-class SparseKernelAdapterTest {
+class SparsePanelKernelsTest {
     @Test
     fun `column dot lends the original arrays at the selected offsets to the indexed leaf`() {
         val matrix = SparseMatrix.wrap(
@@ -21,7 +21,7 @@ class SparseKernelAdapterTest {
         val calls = mutableListOf<Pair<Int, Int>>()
         val selected = object : KoblasEngine {
             override val implementations = setOf(EngineImplementation.IndexedDot)
-            override val name: String = "test-SparseKernelAdapterTest"
+            override val name: String = "test-SparsePanelKernelsTest"
 
             override fun dotDense(
                 indices: IntArray,

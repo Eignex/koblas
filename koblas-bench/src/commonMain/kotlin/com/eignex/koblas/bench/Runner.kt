@@ -1,7 +1,6 @@
 package com.eignex.koblas.bench
 
 import com.eignex.koblas.*
-import com.eignex.koblas.vendor.Vendor
 import com.eignex.koblas.vendor.hostPlatform
 import kotlin.math.max
 import kotlin.time.TimeSource
@@ -15,13 +14,7 @@ internal expect fun engineProfilePath(): String?
 internal fun profileEngine(runtime: String): KoblasEngine? = engineProfilePath()?.let { path ->
     val profile = EngineProfile.parse(readTextFile(path))
     require(profile.appliesTo(runtime, hostPlatform())) { "Profile ${profile.name} does not apply to this target" }
-    val backends = listOfNotNull(BuiltinEngines.simd) + Vendor.entries.mapNotNull { vendor ->
-        if (profile.rules.none { it.source == vendor.vendorName.lowercase() }) null
-        else (requireNotNull(BuiltinEngines.vendor(vendor)) { "Requested profile backend $vendor is unavailable" })
-    }
-    val owned = if (runtime == "jvm" && profile.rules.none { it.source == "jvm-simd" })
-        StandardEngineProfiles.jvmSimd?.rules.orEmpty() else emptyList()
-    KoblasEngine.combine(EngineProfile(profile.name, profile.rules + owned), *backends.toTypedArray())
+    BuiltinEngines.configured(profile)
 }
 
 private val clockOrigin = TimeSource.Monotonic.markNow()
@@ -200,10 +193,35 @@ internal fun measurement(
         if (status != "ok") kernel ?: "unavailable" else checkNotNull(kernel) {
             "timed ${case.id} carries no attribution for the call it made"
         },
+        case.routingKey(),
     ),
     if (settings.mode.startsWith("jvm")) (sample - 1) / settings.samples + 1 else 1,
     nanos,
 )
+
+/** Routing dimensions come from parsed cases, shared by Native and JVM report writers. */
+private fun BenchCase.routingKey(): String {
+    val base = EngineImplementation.entries.firstOrNull {
+        !it.name.endsWith("Transposed") &&
+            (it.name.equals(operation, ignoreCase = true) || it.entryPoint == "cblas_d$operation")
+    } ?: return ""
+    val selected = if (operation in setOf("gemv", "trmv", "trsv") && flag("transA")) {
+        EngineImplementation.valueOf("${base.name}Transposed")
+    } else base
+    val rows = dimension(0)
+    val columns = when {
+        base.level == 1 -> 1
+        operation in setOf("gemmt", "syrk", "syr2k") || dimensions.size == 1 -> rows
+        else -> dimension(1)
+    }
+    val depth = when (operation) {
+        "gemm" -> dimension(2)
+        "gemmt", "syrk", "syr2k" -> dimension(1)
+        "symm", "trmm", "trsm" -> if (option("side", "L") == "R") columns else rows
+        else -> 1
+    }
+    return "${selected.name}:$rows:$columns:$depth:${option("layout", "owned") == "borrowed"}:${base.level}"
+}
 
 internal data class Measurement(val case: List<String>, val fork: Int, val nanos: Double?)
 
@@ -229,7 +247,7 @@ private fun csv(value: String): String = if (value.any { it == ',' || it == '"' 
     "\"${value.replace("\"", "\"\"")}\""
 } else value
 
-internal const val CSV_HEADER = "case,status,comparison_kind,timing_mode,actual_kernel,samples,forks,median_ns,min_ns,max_ns"
+internal const val CSV_HEADER = "case,status,comparison_kind,timing_mode,actual_kernel,routing_key,samples,forks,median_ns,min_ns,max_ns"
 private const val MAX_OPERATIONS = 1_000_000
 
 /** The same engine and host evidence on either runtime. */

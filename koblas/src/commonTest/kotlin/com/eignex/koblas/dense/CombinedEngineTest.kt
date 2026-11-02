@@ -15,7 +15,7 @@ import kotlin.test.assertTrue
  * Checks supplied eligibility, symbol fallback, aliases and argument translation with a recording binding.
  * Allowing small fixtures isolates composition from platform cutoffs; EngineProfileTest cover those cutoffs.
  */
-class HostDenseBlasTest {
+class CombinedEngineTest {
     private fun assertAgreesWithReference(expected: DoubleArray, actual: DoubleArray, context: String) =
         assertClose(expected, actual, context = context)
 

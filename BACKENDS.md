@@ -21,7 +21,8 @@ The default composes available backend implementations with an applicable standa
 A capability says which arithmetic exists; the profile says when to select it. Missing exports, optional
 modules or libraries leave portable coverage. An accelerated host profile applies to its declared runtime,
 OS, architecture and exact reported CPU model; availability alone does not select it. Unknown and other
-CPU models retain portable or owned JVM SIMD coverage. The initial vendor profiles cover the i9-12900H
+CPU models retain portable or owned JVM SIMD coverage. Vendor applicability stays conservative until
+measurements justify a wider CPU class; owned SIMD instead detects the available Vector API width. The initial vendor profiles cover the i9-12900H
 on Native and Xeon Platinum 8375C on the JVM; recalculate an explicit profile for another host.
 
 On JDK 25+, enable SIMD with this JVM argument:
@@ -83,16 +84,16 @@ The combined engine explicitly calls a separate portable provider for unselected
 traversal, CSC traversal, validation and alias staging; packed product geometry is selected before packing.
 
 ```kotlin
-val vendor = requireNotNull(BuiltinEngines.vendor(Vendor.OneMkl))
 val profile = StandardEngineProfiles.nativeLinuxOneMkl
-val engine = KoblasEngine.combine(profile, vendor)
+val engine = BuiltinEngines.configured(profile)
 ```
 
 Profiles contain ordered `EngineRule` preferences: unconditional selection, length/work thresholds, and
 bounded shape/layout regions. For an explicit profile, check `profile.appliesTo(runtime, hostPlatform())`.
 To load a recalculated profile, pass its text to `EngineProfile.parse`; the library performs no file I/O.
-On the JVM, append `StandardEngineProfiles.jvmSimd?.rules.orEmpty()` to retain owned SIMD preferences
-beneath custom vendor rules, and pass `BuiltinEngines.simd` to the composer when available.
+`BuiltinEngines.configured` resolves named libraries and retains owned SIMD preferences beneath custom
+rules. Missing optional libraries fall through; unknown source identifiers are rejected. Use
+`KoblasEngine.combine(profile, providers...)` for explicit custom providers or scalar-only composition.
 Panel, product and triangular families require unconditional rules so the
 schedule and its packed arithmetic agree on geometry. Intrinsic scalar edges and safe norm retries remain
 inside their implementations and are reflected by internal implementation attribution. The application engine

@@ -24,7 +24,7 @@ internal object SparseSimd : KoblasEngine {
     } else {
         emptySet()
     }
-    override val minimumIndexedLength: Int get() = 2
+    override fun minimumLength(implementation: EngineImplementation): Int = 2
 
     override val name: String = "simd-indexed"
     private val SPECIES = SIMD_SPECIES

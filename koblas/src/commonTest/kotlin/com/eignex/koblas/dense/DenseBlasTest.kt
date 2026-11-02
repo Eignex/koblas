@@ -32,7 +32,7 @@ class DenseBlasTest {
     }
 
     @Test
-    fun `full gemv agrees with the scalar oracle across alpha beta and transpose`() = withDenseBlas { blas ->
+    fun `full gemv agrees with the scalar oracle across alpha beta and transpose`() = withEngines { blas ->
         val rng = Random(20260727)
         for (n in intArrayOf(1, 4, 17)) {
             val m = n + 3 // non-square to catch row/col mixups
@@ -72,7 +72,7 @@ class DenseBlasTest {
     }
 
     @Test
-    fun `allocating gemm rejects inner dimensions before result capacity`() = withDenseBlas { blas ->
+    fun `allocating gemm rejects inner dimensions before result capacity`() = withEngines { blas ->
         val a = DenseMatrix.zero(Int.MAX_VALUE, 0)
         val b = DenseMatrix.zero(1, 2)
 
@@ -82,31 +82,31 @@ class DenseBlasTest {
     }
 
     @Test
-    fun `gemm agrees with the scalar oracle for a tall result in every mode`() = withDenseBlas { blas ->
+    fun `gemm agrees with the scalar oracle for a tall result in every mode`() = withEngines { blas ->
         checkGemmShape(blas, Random(20260728), m = 5, k = 7, n = 4)
     }
 
     @Test
-    fun `gemm agrees with the scalar oracle for a wide result in every mode`() = withDenseBlas { blas ->
+    fun `gemm agrees with the scalar oracle for a wide result in every mode`() = withEngines { blas ->
         checkGemmShape(blas, Random(20260728), m = 3, k = 7, n = 6)
     }
 
     @Test
-    fun `gemm agrees with the scalar oracle for a single row result in every mode`() = withDenseBlas { blas ->
+    fun `gemm agrees with the scalar oracle for a single row result in every mode`() = withEngines { blas ->
         val rng = Random(20261101)
         checkGemmShape(blas, rng, m = 1, k = 7, n = 6)
         checkGemmShape(blas, rng, m = 1, k = 1, n = 9)
     }
 
     @Test
-    fun `gemm agrees with the scalar oracle for a single column result in every mode`() = withDenseBlas { blas ->
+    fun `gemm agrees with the scalar oracle for a single column result in every mode`() = withEngines { blas ->
         val rng = Random(20261102)
         checkGemmShape(blas, rng, m = 6, k = 7, n = 1)
         checkGemmShape(blas, rng, m = 9, k = 1, n = 1)
     }
 
     @Test
-    fun `gemm agrees with the scalar oracle for a single entry result in every mode`() = withDenseBlas { blas ->
+    fun `gemm agrees with the scalar oracle for a single entry result in every mode`() = withEngines { blas ->
         checkGemmShape(blas, Random(20261103), m = 1, k = 7, n = 1)
     }
 

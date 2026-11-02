@@ -30,7 +30,7 @@ import java.lang.invoke.MethodHandle
  */
 internal class JvmVendorBlas(private val library: JvmVendorLibrary) : KoblasEngine {
     override val name: String get() = vendor.vendorName.lowercase()
-    override val minimumVectorLength: Int get() = 1
+    override fun minimumLength(implementation: EngineImplementation): Int = 1
 
     override val vendor: Vendor get() = library.vendor
     override val libraryPath: String get() = library.resolvedFile

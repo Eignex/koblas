@@ -117,4 +117,8 @@ public enum class EngineImplementation(
 
     /** Whole triangular matrix substitution. */
     Trsm("cblas_dtrsm", 3),
+    ;
+
+    internal val family: Boolean get() = this == Panels || this == Products || this == Triangular
+    internal val vector: Boolean get() = level == 1 && !family
 }

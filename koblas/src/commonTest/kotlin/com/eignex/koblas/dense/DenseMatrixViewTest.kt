@@ -45,7 +45,7 @@ class DenseMatrixViewTest {
     }
 
     private fun withRegions(body: (KoblasEngine) -> Unit) {
-        withDenseBlas(body)
+        withEngines(body)
         // Admitting every size sends each fixture to the installed library, in place where its binding takes regions.
         installedHost?.let(body)
     }
@@ -252,7 +252,7 @@ class DenseMatrixViewTest {
     }
 
     @Test
-    fun `disjoint trailing updates borrow no panel snapshot`() = withDenseBlas { blas ->
+    fun `disjoint trailing updates borrow no panel snapshot`() = withEngines { blas ->
         val parent = region(12, 12)
         val a = parent.view(4, 0, 8, 4)
         val c = parent.view(4, 4, 8, 8)

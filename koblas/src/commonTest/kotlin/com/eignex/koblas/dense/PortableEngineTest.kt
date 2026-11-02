@@ -30,7 +30,7 @@ private class RegroupedPanels(private val group: Int) : KoblasEngine by Portable
  * The shared dense scheduling, at every grouping a backend might recommend, since a traversal right at four
  * columns and wrong at three would pass on this machine and fail on the next one.
  */
-class PortableDenseBlasTest {
+class PortableEngineTest {
     @Test
     fun `GER agrees with the reference on shrinking supports and extreme finite inputs`() {
         for (engine in listOfNotNull(BuiltinEngines.scalar, BuiltinEngines.simd, koblas).distinct()) {
@@ -40,12 +40,12 @@ class PortableDenseBlasTest {
 
     @Test
     fun `product aliases agree with the reference and share one snapshot`() {
-        withDenseBlas { blas -> assertDenseProductAliasesAgreeWithReference(blas) }
+        withEngines { blas -> assertDenseProductAliasesAgreeWithReference(blas) }
     }
 
     @Test
     fun `rectangular product aliases retain their operand shapes`() {
-        withDenseBlas { blas -> assertRectangularProductAliasesAgreeWithReference(blas) }
+        withEngines { blas -> assertRectangularProductAliasesAgreeWithReference(blas) }
     }
 
     private val groups = intArrayOf(1, 2, 3, 5, 7, 64)

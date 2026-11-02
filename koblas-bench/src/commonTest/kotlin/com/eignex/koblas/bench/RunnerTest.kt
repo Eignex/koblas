@@ -75,7 +75,7 @@ class RunnerTest {
 
         val records = reportCsv(measurements).trim().lines()
 
-        assertEquals(listOf(CSV_HEADER, "dot+4+uniform,ok,direct,arithmetic,scalar/dot,2,2,3.0,2.5,3.5"), records)
+        assertEquals(listOf(CSV_HEADER, "dot+4+uniform,ok,direct,arithmetic,scalar/dot,Dot:4:1:1:false:1,2,2,3.0,2.5,3.5"), records)
     }
 
     @Test
@@ -85,7 +85,7 @@ class RunnerTest {
 
         val records = reportCsv(listOf(measurement)).trim().lines()
 
-        assertEquals(listOf(CSV_HEADER, "dot+4+uniform,unsupported,unsupported,arithmetic,unavailable,0,0,,,"), records)
+        assertEquals(listOf(CSV_HEADER, "dot+4+uniform,unsupported,unsupported,arithmetic,unavailable,Dot:4:1:1:false:1,0,0,,,"), records)
     }
 
     /** A timed row that cannot say which call produced it is a bug, not a row with a missing field. */
@@ -98,6 +98,20 @@ class RunnerTest {
         }
 
         assertEquals(true, "carries no attribution" in failure.message.orEmpty(), failure.message)
+    }
+
+    @Test
+    fun `reports carry the routing dimensions used by the engine`() {
+        for ((id, key) in listOf(
+            "gemv+16x32+uniform+transA=T" to "GemvTransposed:16:32:1:false:2",
+            "trsm+16x32+triangular+side=R+uplo=L+transA=N+diag=N" to "Trsm:16:32:32:false:3",
+            "syrk+16x32+uniform+uplo=L+transA=T" to "Syrk:16:16:32:false:3",
+            "gemm+16x32x64+uniform+layout=borrowed" to "Gemm:16:32:64:true:3",
+        )) {
+            val row = measurement(Cases.parse(id).single(), settings(), 0, null, "unsupported", "unsupported", "arithmetic")
+
+            assertEquals(key, row.case.last())
+        }
     }
 
     private fun settings() = Settings("jvm-scalar", "all", "cases.txt", "output.csv", 0, 1, 1_000_000, 2)

@@ -43,17 +43,14 @@ public interface KoblasEngine {
     /** Evidence for the host library's compute thread count. */
     public val threadEvidence: ThreadEvidence get() = ThreadEvidence.Unconfirmed
 
-    /** Whether a norm can retry its own overflow avoiding algorithm. */
-    public val dynamicNorm: Boolean get() = false
+    /** Whether attribution can depend on the values processed by this contribution. */
+    public fun dynamicAttribution(implementation: EngineImplementation): Boolean = false
 
-    /** Whether this provider's dense vector kernels require unit strides. */
-    public val contiguousVectors: Boolean get() = false
+    /** Whether this contribution requires unit strides. */
+    public fun requiresUnitStride(implementation: EngineImplementation): Boolean = false
 
-    /** Smallest dense vector run the supplied kernels can execute. */
-    public val minimumVectorLength: Int get() = 0
-
-    /** Smallest indexed run the supplied kernels can execute. */
-    public val minimumIndexedLength: Int get() = 0
+    /** Smallest run the contribution can execute. The composer checks it before calling the provider. */
+    public fun minimumLength(implementation: EngineImplementation): Int = 0
 
     /** Returns `sum(a[aOff + i] * b[bOff + i])` over [len] entries, or zero for an empty run. */
     public fun dot(
@@ -794,23 +791,18 @@ public interface KoblasEngine {
         /**
          * Combines available arithmetic with ordered routing preferences and complete portable coverage.
          *
-         * Backends named by no applicable rule contribute no arithmetic. Missing backends fall through to
-         * later preferences and then portable Kotlin. This never changes [koblas]. The caller chooses an
+         * Backends named by no applicable rule contribute no arithmetic. Known unavailable built-in backends fall through to
+         * later preferences and then portable Kotlin; unknown source identifiers are rejected. This never changes [koblas]. The caller chooses an
          * applicable profile explicitly; automatic platform selection also checks [EngineProfile.appliesTo].
          * Panel, product and triangular families are selected unconditionally before a schedule starts,
          * because packing and grouping must use the same geometry as the selected arithmetic.
          * Whole-call portable preferences retain the shared schedule with those separately selected families.
          */
         public fun combine(profile: EngineProfile, vararg backends: KoblasEngine): KoblasEngine {
-            val families = setOf(
-                EngineImplementation.Panels,
-                EngineImplementation.Products,
-                EngineImplementation.Triangular,
-            )
-            require(profile.rules.none { rule -> !rule.unconditional && rule.implementations.any { it in families } }) {
+            require(profile.rules.none { rule -> !rule.unconditional && rule.implementations.any { it.family } }) {
                 "Scheduled kernel families require unconditional selection before packing"
             }
-            return CombinedEngine(CompiledRouting(profile, backends.flatMap { it.components }), profile.name)
+            return CombinedEngine(CompiledRouting(profile, backends.toList()), profile.name)
         }
     }
 }

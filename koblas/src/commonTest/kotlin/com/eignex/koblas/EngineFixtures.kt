@@ -13,7 +13,10 @@ internal fun engineWithKernels(
     EngineProfile(
         "test",
         listOf(
-            EngineRule(vectors.id, EngineImplementation.entries.takeWhile { it != IndexedDot }.toSet()),
+            EngineRule(
+                vectors.id,
+                EngineImplementation.entries.filter { it.vector && !it.name.startsWith("Indexed") }.toSet(),
+            ),
             EngineRule(indexed.id, setOf(IndexedDot)),
             EngineRule(panels.id, setOf(Panels)),
             EngineRule(products.id, setOf(Products)),

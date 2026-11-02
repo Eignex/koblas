@@ -7,12 +7,12 @@ import com.eignex.koblas.vendor.*
 public object StandardEngineProfiles {
     private val levelThree = setOf(Gemm, Gemmt, Symm, Syrk, Syr2k, Trmm, Trsm)
     private val halfWork = setOf(Syr, Trmv, TrmvTransposed, Trsv, TrsvTransposed, Gemmt, Syrk, Trmm, Trsm)
-    private val wholeMatrices = EngineImplementation.entries.filter { it.ordinal >= Gemv.ordinal }.toSet()
+    private val wholeMatrices = EngineImplementation.entries.filter { it.level >= 2 }.toSet()
 
     /** Owned JVM preferences for the current vector width, or null when the module is unavailable. */
     public val jvmSimd: EngineProfile? by lazy {
         simdBackend()?.let { backend ->
-            val lanes = backend.first().minimumVectorLength
+            val lanes = backend.first().minimumLength(Dot)
             EngineProfile(
                 "jvm-simd-v1",
                 listOf(
@@ -35,13 +35,6 @@ public object StandardEngineProfiles {
             )
         }
     }
-
-    /** Complete portable coverage with no accelerated preferences. */
-    public val portable: EngineProfile = EngineProfile(
-        "portable-v1",
-        emptyList(),
-        evidence = "portable availability floor",
-    )
 
     /** Standard profiles applicable to a target; composition also checks backend availability. */
     public fun forTarget(runtime: String, host: HostPlatform): List<EngineProfile> = listOfNotNull(
@@ -98,22 +91,19 @@ public object StandardEngineProfiles {
     )
 }
 
-/** Platform code supplies runtime access facts; profile data owns the backend preferences. */
-@Suppress("SpreadOperator") // Backend arrays are copied only during immutable engine construction.
-internal fun standardEngine(runtime: String, nativeAccess: Boolean = true): KoblasEngine {
-    val profiles = StandardEngineProfiles.forTarget(runtime, hostPlatform())
-    val rules = profiles.flatMap { it.rules }.filter { nativeAccess || it.source == "jvm-simd" }
-    val vendors = Vendor.entries.mapNotNull { vendor ->
-        if (rules.none { it.source == vendor.vendorName.lowercase() }) {
-            null
-        } else {
-            BuiltinEngines.vendor(vendor)
-        }
-    }
-    val owned = BuiltinEngines.simd ?: BuiltinEngines.scalar
-    if (vendors.isEmpty()) return owned
-    return KoblasEngine.combine(
-        EngineProfile(profiles.joinToString("+") { it.name }, rules),
-        *(vendors + listOfNotNull(BuiltinEngines.simd)).toTypedArray(),
-    )
-}
+/** Platform code supplies access facts; target data and available providers determine the composition. */
+internal fun standardEngine(
+    runtime: String,
+    nativeAccess: Boolean = true,
+    host: HostPlatform = hostPlatform(),
+    owned: KoblasEngine? = BuiltinEngines.simd,
+    openVendor: (Vendor) -> KoblasEngine? = BuiltinEngines::vendor,
+): KoblasEngine = configuredEngine(
+    EngineProfile(
+        "standard-$runtime",
+        StandardEngineProfiles.forTarget(runtime, host).flatMap { it.rules }
+            .filter { nativeAccess || it.source == "jvm-simd" },
+    ),
+    owned,
+    openVendor,
+)

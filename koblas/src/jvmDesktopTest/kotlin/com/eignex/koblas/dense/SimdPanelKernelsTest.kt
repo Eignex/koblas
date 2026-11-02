@@ -135,7 +135,7 @@ class SimdPanelKernelsTest {
     /** The species this backend resolved, read back from the name it publishes. */
     private fun lanes(kernels: KoblasEngine): Int = kernels.components.first {
         EngineImplementation.Dot in it.implementations
-    }.minimumVectorLength
+    }.minimumLength(EngineImplementation.Dot)
 
     private fun panelName(kernels: KoblasEngine): String = kernels.components.first {
         EngineImplementation.Panels in it.implementations

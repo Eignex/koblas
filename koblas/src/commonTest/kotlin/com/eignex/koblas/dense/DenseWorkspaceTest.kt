@@ -16,7 +16,7 @@ import kotlin.test.assertTrue
  * the loan is checked as the buffers the workspace holds afterwards.
  */
 class DenseWorkspaceTest {
-    private val blas: KoblasEngine get() = testDenseBlas
+    private val blas: KoblasEngine get() = portableEngine
 
     /**
      * A matrix-vector product whose input is also its destination, against the oracle's answer for the same

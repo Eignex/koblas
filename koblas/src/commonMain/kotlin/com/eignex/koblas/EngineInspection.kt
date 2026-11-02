@@ -13,8 +13,8 @@ internal fun KoblasEngine.wholeCallFor(
     operation: EngineImplementation,
     rows: Int,
     columns: Int,
-    depth: Int,
-    borrowed: Boolean,
+    depth: Int = 1,
+    borrowed: Boolean = false,
 ): KoblasEngine? = when (this) {
     is CombinedEngine -> wholeCallFor(operation, rows, columns, depth, borrowed)
 
@@ -36,7 +36,7 @@ internal fun KoblasEngine.implementationFor(
 ): String? = when {
     this is CombinedEngine -> implementationFor(operation, length, contiguous)
     operation !in implementations -> null
-    operation == EngineImplementation.Nrm2 && dynamicNorm -> null
+    dynamicAttribution(operation) -> null
     else -> name
 }
 
@@ -47,19 +47,31 @@ internal fun KoblasEngine.implementationFor(
     contiguous: Boolean = true,
 ): String {
     val engine = if (this is CombinedEngine) panelImplementation else this
-    return platformPanelImplementation(engine, work, rows, columns, contiguous) ?: engine.name
+    return if (engine is CombinedEngine) {
+        engine.implementationFor(work, rows, columns, contiguous)
+    } else {
+        platformPanelImplementation(engine, work, rows, columns, contiguous) ?: engine.name
+    }
 }
 
 internal fun KoblasEngine.implementationsFor(rows: Int, columns: Int, depth: Int): List<String> {
     val engine = if (this is CombinedEngine) productImplementation else this
-    return platformProductImplementations(engine, rows, columns, depth)
-        ?: if (rows <= 0 || columns <= 0 || depth <= 0) emptyList() else listOf(engine.name)
+    return if (engine is CombinedEngine) {
+        engine.implementationsFor(rows, columns, depth)
+    } else {
+        platformProductImplementations(engine, rows, columns, depth)
+            ?: if (rows <= 0 || columns <= 0 || depth <= 0) emptyList() else listOf(engine.name)
+    }
 }
 
 internal fun KoblasEngine.implementationsFor(order: Int, sides: Int, contiguous: Boolean): List<String> {
     val engine = if (this is CombinedEngine) triangularImplementation else this
-    return platformTriangularImplementations(engine, order, sides, contiguous)
-        ?: if (order <= 0 || sides <= 0) emptyList() else listOf(engine.name)
+    return if (engine is CombinedEngine) {
+        engine.implementationsFor(order, sides, contiguous)
+    } else {
+        platformTriangularImplementations(engine, order, sides, contiguous)
+            ?: if (order <= 0 || sides <= 0) emptyList() else listOf(engine.name)
+    }
 }
 
 internal expect fun platformPanelImplementation(

@@ -1,5 +1,6 @@
 public final class com/eignex/koblas/BuiltinEngines {
 	public static final field INSTANCE Lcom/eignex/koblas/BuiltinEngines;
+	public final fun configured (Lcom/eignex/koblas/EngineProfile;)Lcom/eignex/koblas/KoblasEngine;
 	public static final fun getScalar ()Lcom/eignex/koblas/KoblasEngine;
 	public static final fun getSimd ()Lcom/eignex/koblas/KoblasEngine;
 	public final fun vendor (Lcom/eignex/koblas/vendor/Vendor;)Lcom/eignex/koblas/KoblasEngine;
@@ -415,18 +416,15 @@ public abstract interface class com/eignex/koblas/KoblasEngine {
 	public static synthetic fun dot$default (Lcom/eignex/koblas/KoblasEngine;[DI[DIIIIILjava/lang/Object;)D
 	public fun dotDense ([II[DII[D)D
 	public fun dotSparse ([II[DII[II[DII)D
+	public fun dynamicAttribution (Lcom/eignex/koblas/EngineImplementation;)Z
 	public fun executionGroup (Lcom/eignex/koblas/PanelWork;IIZ)I
 	public static synthetic fun executionGroup$default (Lcom/eignex/koblas/KoblasEngine;Lcom/eignex/koblas/PanelWork;IIZILjava/lang/Object;)I
 	public fun gather ([II[DII[D)V
 	public fun gatherZero ([II[DII[D)V
 	public fun gathersRightHandSides (III)Z
-	public fun getContiguousVectors ()Z
-	public fun getDynamicNorm ()Z
 	public fun getId ()Ljava/lang/String;
 	public fun getImplementations ()Ljava/util/Set;
 	public fun getLibraryPath ()Ljava/lang/String;
-	public fun getMinimumIndexedLength ()I
-	public fun getMinimumVectorLength ()I
 	public abstract fun getName ()Ljava/lang/String;
 	public fun getThreadEvidence ()Lcom/eignex/koblas/vendor/ThreadEvidence;
 	public fun getTileColumns ()I
@@ -439,6 +437,7 @@ public abstract interface class com/eignex/koblas/KoblasEngine {
 	public fun indexedCoupledUpdate (D[D[DIII[I[DIIII[DIIIII)V
 	public static synthetic fun indexedCoupledUpdate$default (Lcom/eignex/koblas/KoblasEngine;D[D[DIII[I[DIIII[DIIIIIILjava/lang/Object;)V
 	public fun indexedRankUpdate (D[DIII[I[DIII[DI)V
+	public fun minimumLength (Lcom/eignex/koblas/EngineImplementation;)I
 	public fun multiDot (D[DII[DIIIID[DII)V
 	public fun nrm2 ([DIII)D
 	public static synthetic fun nrm2$default (Lcom/eignex/koblas/KoblasEngine;[DIIIILjava/lang/Object;)D
@@ -447,6 +446,7 @@ public abstract interface class com/eignex/koblas/KoblasEngine {
 	public fun productBlock (D[DII[DIIIIID[DII)V
 	public fun rankTwoUpdate (D[DII[DII[DIIII[DII[DII)V
 	public fun rankUpdate (D[DII[DIIII[DII)V
+	public fun requiresUnitStride (Lcom/eignex/koblas/EngineImplementation;)Z
 	public fun rightHandSideGroup (II)I
 	public fun rot ([DI[DIIDDII)V
 	public static synthetic fun rot$default (Lcom/eignex/koblas/KoblasEngine;[DI[DIIDDIIILjava/lang/Object;)V
@@ -500,18 +500,15 @@ public final class com/eignex/koblas/KoblasEngine$DefaultImpls {
 	public static synthetic fun dot$default (Lcom/eignex/koblas/KoblasEngine;[DI[DIIIIILjava/lang/Object;)D
 	public static fun dotDense (Lcom/eignex/koblas/KoblasEngine;[II[DII[D)D
 	public static fun dotSparse (Lcom/eignex/koblas/KoblasEngine;[II[DII[II[DII)D
+	public static fun dynamicAttribution (Lcom/eignex/koblas/KoblasEngine;Lcom/eignex/koblas/EngineImplementation;)Z
 	public static fun executionGroup (Lcom/eignex/koblas/KoblasEngine;Lcom/eignex/koblas/PanelWork;IIZ)I
 	public static synthetic fun executionGroup$default (Lcom/eignex/koblas/KoblasEngine;Lcom/eignex/koblas/PanelWork;IIZILjava/lang/Object;)I
 	public static fun gather (Lcom/eignex/koblas/KoblasEngine;[II[DII[D)V
 	public static fun gatherZero (Lcom/eignex/koblas/KoblasEngine;[II[DII[D)V
 	public static fun gathersRightHandSides (Lcom/eignex/koblas/KoblasEngine;III)Z
-	public static fun getContiguousVectors (Lcom/eignex/koblas/KoblasEngine;)Z
-	public static fun getDynamicNorm (Lcom/eignex/koblas/KoblasEngine;)Z
 	public static fun getId (Lcom/eignex/koblas/KoblasEngine;)Ljava/lang/String;
 	public static fun getImplementations (Lcom/eignex/koblas/KoblasEngine;)Ljava/util/Set;
 	public static fun getLibraryPath (Lcom/eignex/koblas/KoblasEngine;)Ljava/lang/String;
-	public static fun getMinimumIndexedLength (Lcom/eignex/koblas/KoblasEngine;)I
-	public static fun getMinimumVectorLength (Lcom/eignex/koblas/KoblasEngine;)I
 	public static fun getThreadEvidence (Lcom/eignex/koblas/KoblasEngine;)Lcom/eignex/koblas/vendor/ThreadEvidence;
 	public static fun getTileColumns (Lcom/eignex/koblas/KoblasEngine;)I
 	public static fun getTileRows (Lcom/eignex/koblas/KoblasEngine;)I
@@ -523,6 +520,7 @@ public final class com/eignex/koblas/KoblasEngine$DefaultImpls {
 	public static fun indexedCoupledUpdate (Lcom/eignex/koblas/KoblasEngine;D[D[DIII[I[DIIII[DIIIII)V
 	public static synthetic fun indexedCoupledUpdate$default (Lcom/eignex/koblas/KoblasEngine;D[D[DIII[I[DIIII[DIIIIIILjava/lang/Object;)V
 	public static fun indexedRankUpdate (Lcom/eignex/koblas/KoblasEngine;D[DIII[I[DIII[DI)V
+	public static fun minimumLength (Lcom/eignex/koblas/KoblasEngine;Lcom/eignex/koblas/EngineImplementation;)I
 	public static fun multiDot (Lcom/eignex/koblas/KoblasEngine;D[DII[DIIIID[DII)V
 	public static fun nrm2 (Lcom/eignex/koblas/KoblasEngine;[DIII)D
 	public static synthetic fun nrm2$default (Lcom/eignex/koblas/KoblasEngine;[DIIIILjava/lang/Object;)D
@@ -531,6 +529,7 @@ public final class com/eignex/koblas/KoblasEngine$DefaultImpls {
 	public static fun productBlock (Lcom/eignex/koblas/KoblasEngine;D[DII[DIIIIID[DII)V
 	public static fun rankTwoUpdate (Lcom/eignex/koblas/KoblasEngine;D[DII[DII[DIIII[DII[DII)V
 	public static fun rankUpdate (Lcom/eignex/koblas/KoblasEngine;D[DII[DIIII[DII)V
+	public static fun requiresUnitStride (Lcom/eignex/koblas/KoblasEngine;Lcom/eignex/koblas/EngineImplementation;)Z
 	public static fun rightHandSideGroup (Lcom/eignex/koblas/KoblasEngine;II)I
 	public static fun rot (Lcom/eignex/koblas/KoblasEngine;[DI[DIIDDII)V
 	public static synthetic fun rot$default (Lcom/eignex/koblas/KoblasEngine;[DI[DIIDDIIILjava/lang/Object;)V
@@ -647,7 +646,6 @@ public final class com/eignex/koblas/StandardEngineProfiles {
 	public final fun getJvmLinuxOneMkl ()Lcom/eignex/koblas/EngineProfile;
 	public final fun getJvmSimd ()Lcom/eignex/koblas/EngineProfile;
 	public final fun getNativeLinuxOneMkl ()Lcom/eignex/koblas/EngineProfile;
-	public final fun getPortable ()Lcom/eignex/koblas/EngineProfile;
 }
 
 public final class com/eignex/koblas/StridedVector : com/eignex/koblas/DenseVector {
