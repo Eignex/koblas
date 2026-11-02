@@ -85,7 +85,7 @@ internal fun vendorArm(case: BenchCase, blas: KoblasEngine): ArmChoice {
             "direct",
             timing,
             run,
-            kernel = "${blas.vendor?.vendorName}/${operation.entryPoint}",
+            kernel = "${blas.vendor?.vendorName}/$operation",
         ), null)
     }
 

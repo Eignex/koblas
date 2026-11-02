@@ -176,8 +176,6 @@ public final class com/eignex/koblas/EngineImplementation : java/lang/Enum {
 	public static final field Trsv Lcom/eignex/koblas/EngineImplementation;
 	public static final field TrsvTransposed Lcom/eignex/koblas/EngineImplementation;
 	public static fun getEntries ()Lkotlin/enums/EnumEntries;
-	public final fun getEntryPoint ()Ljava/lang/String;
-	public final fun getLevel ()I
 	public static fun valueOf (Ljava/lang/String;)Lcom/eignex/koblas/EngineImplementation;
 	public static fun values ()[Lcom/eignex/koblas/EngineImplementation;
 }

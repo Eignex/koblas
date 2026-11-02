@@ -121,10 +121,6 @@ final enum class com.eignex.koblas/EngineImplementation : kotlin/Enum<com.eignex
 
     final val entries // com.eignex.koblas/EngineImplementation.entries|#static{}entries[0]
         final fun <get-entries>(): kotlin.enums/EnumEntries<com.eignex.koblas/EngineImplementation> // com.eignex.koblas/EngineImplementation.entries.<get-entries>|<get-entries>#static(){}[0]
-    final val entryPoint // com.eignex.koblas/EngineImplementation.entryPoint|{}entryPoint[0]
-        final fun <get-entryPoint>(): kotlin/String // com.eignex.koblas/EngineImplementation.entryPoint.<get-entryPoint>|<get-entryPoint>(){}[0]
-    final val level // com.eignex.koblas/EngineImplementation.level|{}level[0]
-        final fun <get-level>(): kotlin/Int // com.eignex.koblas/EngineImplementation.level.<get-level>|<get-level>(){}[0]
 
     final fun valueOf(kotlin/String): com.eignex.koblas/EngineImplementation // com.eignex.koblas/EngineImplementation.valueOf|valueOf#static(kotlin.String){}[0]
     final fun values(): kotlin/Array<com.eignex.koblas/EngineImplementation> // com.eignex.koblas/EngineImplementation.values|values#static(){}[0]

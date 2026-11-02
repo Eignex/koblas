@@ -202,25 +202,25 @@ internal fun measurement(
 /** Routing dimensions come from parsed cases, shared by Native and JVM report writers. */
 private fun BenchCase.routingKey(): String {
     val base = EngineImplementation.entries.firstOrNull {
-        !it.name.endsWith("Transposed") &&
-            (it.name.equals(operation, ignoreCase = true) || it.entryPoint == "cblas_d$operation")
+        it.name.equals(if (operation == "scal") "Scale" else operation, ignoreCase = true)
     } ?: return ""
     val selected = if (operation in setOf("gemv", "trmv", "trsv") && flag("transA")) {
         EngineImplementation.valueOf("${base.name}Transposed")
     } else base
     val rows = dimension(0)
+    val vector = dimensions.size == 1 && operation !in setOf("symv", "syr", "syr2", "trmv", "trsv")
     val columns = when {
-        base.level == 1 -> 1
+        vector -> 1
         operation in setOf("gemmt", "syrk", "syr2k") || dimensions.size == 1 -> rows
         else -> dimension(1)
     }
-    val depth = when (operation) {
-        "gemm" -> dimension(2)
-        "gemmt", "syrk", "syr2k" -> dimension(1)
-        "symm", "trmm", "trsm" -> if (option("side", "L") == "R") columns else rows
-        else -> 1
+    val (level, depth) = when (operation) {
+        "gemm" -> 3 to dimension(2)
+        "gemmt", "syrk", "syr2k" -> 3 to dimension(1)
+        "symm", "trmm", "trsm" -> 3 to if (option("side", "L") == "R") columns else rows
+        else -> (if (vector) 1 else 2) to 1
     }
-    return "${selected.name}:$rows:$columns:$depth:${option("layout", "owned") == "borrowed"}:${base.level}"
+    return "${selected.name}:$rows:$columns:$depth:${option("layout", "owned") == "borrowed"}:$level"
 }
 
 internal data class Measurement(val case: List<String>, val fork: Int, val nanos: Double?)

@@ -103,6 +103,7 @@ class RunnerTest {
     @Test
     fun `reports carry the routing dimensions used by the engine`() {
         for ((id, key) in listOf(
+            "scal+32+uniform" to "Scale:32:1:1:false:1",
             "gemv+16x32+uniform+transA=T" to "GemvTransposed:16:32:1:false:2",
             "trsm+16x32+triangular+side=R+uplo=L+transA=N+diag=N" to "Trsm:16:32:32:false:3",
             "syrk+16x32+uniform+uplo=L+transA=T" to "Syrk:16:16:32:false:3",

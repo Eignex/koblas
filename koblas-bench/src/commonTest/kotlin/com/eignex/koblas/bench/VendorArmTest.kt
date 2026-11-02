@@ -96,7 +96,7 @@ class VendorArmTest {
     }
 
     @Test
-    fun `a timed vendor case reports the entry point it called`() {
+    fun `a timed vendor case reports the implementation it called`() {
         val blas = vendor()
         if (blas == null) {
             println("SKIPPED: no CBLAS library installed; vendor attribution was not verified on this host")
@@ -108,9 +108,9 @@ class VendorArmTest {
 
         assertEquals("direct", work.comparisonKind)
         assertEquals(
-            "${blas.vendor!!.vendorName}/cblas_dgemm",
+            "${blas.vendor!!.vendorName}/Gemm",
             work.kernel,
-            "a vendor arm must carry the entry point of the call it makes",
+            "a vendor arm must identify the implementation it calls",
         )
         work.close()
     }

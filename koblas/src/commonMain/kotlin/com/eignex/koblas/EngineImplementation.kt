@@ -3,36 +3,35 @@ package com.eignex.koblas
 /** Arithmetic boundaries a routing configuration can select independently. */
 public enum class EngineImplementation(
     /** Unsuffixed LP64 CBLAS entry point, when this contribution is a foreign call. */
-    public val entryPoint: String = "",
-    /** BLAS level used to group measurements. */
-    public val level: Int = 1,
+    internal val entryPoint: String = "",
+    internal val matrix: Boolean = false,
 ) {
     /** Dense dot product. */
-    Dot("cblas_ddot", 1),
+    Dot("cblas_ddot"),
 
     /** Dense sum. */
     Sum,
 
     /** Dense rescaled norm. */
-    Nrm2("cblas_dnrm2", 1),
+    Nrm2("cblas_dnrm2"),
 
     /** Dense maximum magnitude index. */
-    Iamax("cblas_idamax", 1),
+    Iamax("cblas_idamax"),
 
     /** Dense absolute sum. */
-    Asum("cblas_dasum", 1),
+    Asum("cblas_dasum"),
 
     /** Dense scaled addition. */
-    Axpy("cblas_daxpy", 1),
+    Axpy("cblas_daxpy"),
 
     /** Dense scaling. */
-    Scale("cblas_dscal", 1),
+    Scale("cblas_dscal"),
 
     /** Dense exchange. */
-    Swap("cblas_dswap", 1),
+    Swap("cblas_dswap"),
 
     /** Dense rotation. */
-    Rot("cblas_drot", 1),
+    Rot("cblas_drot"),
 
     /** Dense storage copy. */
     Copy("cblas_dcopy"),
@@ -68,57 +67,57 @@ public enum class EngineImplementation(
     Triangular,
 
     /** Whole matrix vector product. */
-    Gemv("cblas_dgemv", 2),
+    Gemv("cblas_dgemv", matrix = true),
 
     /** Whole transposed matrix vector product. */
-    GemvTransposed("cblas_dgemv", 2),
+    GemvTransposed("cblas_dgemv", matrix = true),
 
     /** Whole symmetric matrix vector product. */
-    Symv("cblas_dsymv", 2),
+    Symv("cblas_dsymv", matrix = true),
 
     /** Whole rank one update. */
-    Ger("cblas_dger", 2),
+    Ger("cblas_dger", matrix = true),
 
     /** Whole symmetric rank one update. */
-    Syr("cblas_dsyr", 2),
+    Syr("cblas_dsyr", matrix = true),
 
     /** Whole symmetric rank two update. */
-    Syr2("cblas_dsyr2", 2),
+    Syr2("cblas_dsyr2", matrix = true),
 
     /** Whole triangular matrix vector product. */
-    Trmv("cblas_dtrmv", 2),
+    Trmv("cblas_dtrmv", matrix = true),
 
     /** Whole transposed triangular matrix vector product. */
-    TrmvTransposed("cblas_dtrmv", 2),
+    TrmvTransposed("cblas_dtrmv", matrix = true),
 
     /** Whole triangular vector substitution. */
-    Trsv("cblas_dtrsv", 2),
+    Trsv("cblas_dtrsv", matrix = true),
 
     /** Whole transposed triangular vector substitution. */
-    TrsvTransposed("cblas_dtrsv", 2),
+    TrsvTransposed("cblas_dtrsv", matrix = true),
 
     /** Whole matrix product. */
-    Gemm("cblas_dgemm", 3),
+    Gemm("cblas_dgemm", matrix = true),
 
     /** Whole selected triangle product. */
-    Gemmt("cblas_dgemmt", 3),
+    Gemmt("cblas_dgemmt", matrix = true),
 
     /** Whole symmetric product. */
-    Symm("cblas_dsymm", 3),
+    Symm("cblas_dsymm", matrix = true),
 
     /** Whole symmetric rank k update. */
-    Syrk("cblas_dsyrk", 3),
+    Syrk("cblas_dsyrk", matrix = true),
 
     /** Whole symmetric rank two k update. */
-    Syr2k("cblas_dsyr2k", 3),
+    Syr2k("cblas_dsyr2k", matrix = true),
 
     /** Whole triangular matrix product. */
-    Trmm("cblas_dtrmm", 3),
+    Trmm("cblas_dtrmm", matrix = true),
 
     /** Whole triangular matrix substitution. */
-    Trsm("cblas_dtrsm", 3),
+    Trsm("cblas_dtrsm", matrix = true),
     ;
 
     internal val family: Boolean get() = this == Panels || this == Products || this == Triangular
-    internal val vector: Boolean get() = level == 1 && !family
+    internal val vector: Boolean get() = !matrix && !family
 }

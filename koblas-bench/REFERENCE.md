@@ -60,7 +60,7 @@ the operation: a selection, not the body a given size reached. Exact arms pin an
 engine that loaded a native library names it, with its path, version and thread evidence, in the
 target's `implementation` line in `metadata.txt`; no row says whether its own call reached that library. SIMD
 targets can take scalar fallbacks below their crossovers, and sparse scheduling remains Kotlin even when
-arithmetic uses SIMD. Vendor rows name the entry point the binding reached. JVM vendor timings include
+arithmetic uses SIMD. Vendor rows name the implementation supplied by the binding. JVM vendor timings include
 array transfers.
 
 ## Lab captures

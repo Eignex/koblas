@@ -11,10 +11,10 @@ internal fun exactArmRejection(
     alpha: Double = 1.0,
 ): String? {
     if (backend.vendor == null) return "Backend has no vendor"
-    if (operation !in backend.implementations) return "Backend does not export ${operation.entryPoint}"
+    if (operation !in backend.implementations) return "Backend does not supply $operation"
     if (vectors.any { it.size == 0 } || matrices.any { it.rows == 0 || it.cols == 0 }) {
         return "Call does not reach the requested vendor entry point"
     }
-    if (operation.level >= 2 && alpha == 0.0) return "Zero product multiplier uses shared scaling instead of the requested entry point"
+    if (matrices.isNotEmpty() && alpha == 0.0) return "Zero product multiplier uses shared scaling instead of the requested entry point"
     return null
 }

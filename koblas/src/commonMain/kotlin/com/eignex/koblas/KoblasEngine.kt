@@ -28,7 +28,7 @@ public interface KoblasEngine {
     /** Stable identifier used by routing profiles. */
     public val id: String get() = vendor?.vendorName?.lowercase() ?: name
 
-    /** Only the arithmetic this provider supplies. */
+    /** Arithmetic supplied by this provider, trusted by the composer. */
     public val implementations: Set<EngineImplementation> get() = emptySet()
 
     /** Library provenance, when applicable. */

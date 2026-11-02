@@ -7,7 +7,7 @@ import com.eignex.koblas.vendor.*
 public object StandardEngineProfiles {
     private val levelThree = setOf(Gemm, Gemmt, Symm, Syrk, Syr2k, Trmm, Trsm)
     private val halfWork = setOf(Syr, Trmv, TrmvTransposed, Trsv, TrsvTransposed, Gemmt, Syrk, Trmm, Trsm)
-    private val wholeMatrices = EngineImplementation.entries.filter { it.level >= 2 }.toSet()
+    private val wholeMatrices = EngineImplementation.entries.filter { it.matrix }.toSet()
 
     /** Owned JVM preferences for the current vector width, or null when the module is unavailable. */
     public val jvmSimd: EngineProfile? by lazy {

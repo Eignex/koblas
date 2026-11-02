@@ -12,10 +12,16 @@ class ExactArmRejectionTest {
     }
 
     @Test
-    fun `exported operations with work qualify for exact timing`() {
+    fun `only nonzero matrix products qualify for exact timing`() {
         val binding = backend(setOf(EngineImplementation.Gemm))
         val matrix = DenseMatrix.zero(2, 2)
-        assertNull(exactArmRejection(binding, EngineImplementation.Gemm, listOf(matrix, matrix, matrix)))
+        val operands = listOf(matrix, matrix, matrix)
+
+        for (alpha in listOf(0.0, 1.0)) {
+            val rejection = exactArmRejection(binding, EngineImplementation.Gemm, operands, alpha = alpha)
+
+            assertEquals(alpha == 0.0, rejection != null)
+        }
     }
 
     @Test
