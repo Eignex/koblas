@@ -220,7 +220,16 @@ public class HostPlatform(
     public val cpuModel: String? = null,
     /** Reported SIMD instruction class, or null when it cannot be established. */
     public val cpuClass: CpuClass? = null,
+    /** Active SVE vector width in bits, or null when SVE is unavailable or its width is unknown. */
+    public val sveVectorBits: Int? = null,
 ) {
+    init {
+        if (sveVectorBits != null) {
+            require(cpuClass == CpuClass.Sve)
+            require(sveVectorBits in 128..2048 && sveVectorBits % 128 == 0)
+        }
+    }
+
     override fun toString(): String = "$operatingSystem/$architecture/${cpuModel ?: "unknown"}"
 }
 

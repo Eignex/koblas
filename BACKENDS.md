@@ -98,6 +98,9 @@ val engine = BuiltinEngines.configured(profile)
 Profiles contain ordered `EngineRule` preferences: unconditional selection, length/work thresholds, and
 bounded shape/layout regions. For an explicit profile, check `profile.appliesTo(runtime, hostPlatform())`.
 Measured profiles can require a CPU instruction class (`Avx2`, `Avx512`, `Arm64` or `Sve`) independently of an exact model.
+SVE profiles also require their measured active vector width. Native reads `PR_SVE_GET_VL`; JVM reads
+HotSpot's active `UseSVE`/`MaxVectorSize` settings, including on the scalar arm without the Vector API.
+Unknown or different widths do not match. The tab-separated profile format is v3; earlier formats are rejected.
 To load a recalculated profile, pass its text to `EngineProfile.parse`; the library performs no file I/O.
 `BuiltinEngines.configured` resolves named libraries and uses exactly the profile's preferences.
 Include owned SIMD rules explicitly when wanted. Missing optional libraries fall through; unknown source identifiers are rejected. Use
@@ -142,8 +145,10 @@ The emitted profile uses the library's runtime CPU identity from capture metadat
 applicability checks. Runtime, OS and architecture come from the measured arms; `--os` and `--arch` can
 require particular values. Mixed models require an explicit `--cpu '*'` and remain separate evidence
 strata. Model-independent profiles require a single verified instruction class, taken from runtime metadata,
-recorded CPU flags or the lab's AVX-512 placement constraint. Unknown or mixed classes cannot produce a
-model-independent profile; hardware display names remain in the capture as evidence.
+recorded CPU flags or the lab's AVX-512 placement constraint. Use `--cpu-class Avx2` to select one class
+from a mixed-placement capture, or `--cpu-class Sve --sve-vector-bits 256` to select an SVE width.
+Excluded rows and their costs remain in the evidence. SVE captures without recorded widths must be
+remeasured; other unknown or mixed classes cannot produce a model-independent profile.
 JVM vendor fitting compares against the faster paired portable or exact SIMD arm in each round;
 `--baseline jvm-scalar` supports deployments without SIMD.
 

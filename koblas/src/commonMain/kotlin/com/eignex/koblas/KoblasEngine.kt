@@ -61,7 +61,7 @@ public interface KoblasEngine {
         len: Int,
         aStride: Int = 1,
         bStride: Int = 1,
-    ): Double = unsupportedEngineOperation(name, "dot")
+    ): Double = unsupported()
 
     /**
      * Adds `alpha * x[xOff + i]` into `y[yOff + i]` over [len] entries. A zero [alpha] returns without
@@ -76,29 +76,19 @@ public interface KoblasEngine {
         len: Int,
         yStride: Int = 1,
         xStride: Int = 1,
-    ): Unit = unsupportedEngineOperation(name, "axpy")
+    ): Unit = unsupported()
 
     /** Scales [len] entries in [v] by [alpha]. */
-    public fun scale(v: DoubleArray, vOff: Int, alpha: Double, len: Int, vStride: Int = 1): Unit =
-        unsupportedEngineOperation(
-            name,
-            "scale",
-        )
+    public fun scale(v: DoubleArray, vOff: Int, alpha: Double, len: Int, vStride: Int = 1): Unit = unsupported()
 
     /**
      * Returns the rescaled Euclidean norm over [len] entries, or zero for an empty run. Implementations
      * must avoid the avoidable overflow and underflow of a plain square-sum followed by a square root.
      */
-    public fun nrm2(v: DoubleArray, vOff: Int, len: Int, vStride: Int = 1): Double = unsupportedEngineOperation(
-        name,
-        "nrm2",
-    )
+    public fun nrm2(v: DoubleArray, vOff: Int, len: Int, vStride: Int = 1): Double = unsupported()
 
     /** Sum of absolute values over [len] entries, or zero for an empty run. */
-    public fun asum(v: DoubleArray, vOff: Int, len: Int, vStride: Int = 1): Double = unsupportedEngineOperation(
-        name,
-        "asum",
-    )
+    public fun asum(v: DoubleArray, vOff: Int, len: Int, vStride: Int = 1): Double = unsupported()
 
     /**
      * Zero-based index within the selected run of a maximum absolute value, or `-1` when empty. A nonempty
@@ -109,10 +99,7 @@ public interface KoblasEngine {
      * ties go to the first and a NaN loses to a later finite entry, while a vendor may report the NaN's index
      * and may resolve a tie the other way for a negatively spaced run.
      */
-    public fun iamax(v: DoubleArray, vOff: Int, len: Int, vStride: Int = 1): Int = unsupportedEngineOperation(
-        name,
-        "iamax",
-    )
+    public fun iamax(v: DoubleArray, vOff: Int, len: Int, vStride: Int = 1): Int = unsupported()
 
     /**
      * Applies the plane rotation `(c, s, -s, c)` to two primitive vector runs. Each pair is loaded before either
@@ -130,7 +117,7 @@ public interface KoblasEngine {
         s: Double,
         xStride: Int = 1,
         yStride: Int = 1,
-    ): Unit = unsupportedEngineOperation(name, "rot")
+    ): Unit = unsupported()
 
     /** Exchanges [len] entries of the two runs. */
     public fun swap(
@@ -141,7 +128,7 @@ public interface KoblasEngine {
         len: Int,
         aStride: Int = 1,
         bStride: Int = 1,
-    ): Unit = unsupportedEngineOperation(name, "swap")
+    ): Unit = unsupported()
 
     /** Copies a primitive vector window. Callers stage destructive overlap before dispatch. */
     public fun copy(
@@ -152,16 +139,13 @@ public interface KoblasEngine {
         len: Int,
         aStride: Int = 1,
         bStride: Int = 1,
-    ): Unit = unsupportedEngineOperation(name, "copy")
+    ): Unit = unsupported()
 
     /**
      * Returns the plain sum over [len] entries, or zero for an empty run. This is not compensated summation;
      * compiled leaves may reduce vector lanes as a tree.
      */
-    public fun sum(v: DoubleArray, vOff: Int, len: Int, vStride: Int = 1): Double = unsupportedEngineOperation(
-        name,
-        "sum",
-    )
+    public fun sum(v: DoubleArray, vOff: Int, len: Int, vStride: Int = 1): Double = unsupported()
 
     /** Dot product of the stored entries and their addressed dense positions. The caller validates and stages aliases before dispatch. */
     public fun dotDense(
@@ -171,7 +155,7 @@ public interface KoblasEngine {
         valueOffset: Int,
         count: Int,
         dense: DoubleArray,
-    ): Double = unsupportedEngineOperation(name, "dotDense")
+    ): Double = unsupported()
 
     /** Dot product of matching stored positions in two sorted sparse runs. The caller validates and stages aliases before dispatch. */
     public fun dotSparse(
@@ -185,7 +169,7 @@ public interface KoblasEngine {
         yValues: DoubleArray,
         yValueOffset: Int,
         yCount: Int,
-    ): Double = unsupportedEngineOperation(name, "dotSparse")
+    ): Double = unsupported()
 
     /** Adds the scaled stored run at its addressed dense positions. */
     public fun axpy(
@@ -196,7 +180,7 @@ public interface KoblasEngine {
         count: Int,
         alpha: Double,
         destination: DoubleArray,
-    ): Unit = unsupportedEngineOperation(name, "axpy")
+    ): Unit = unsupported()
 
     /** Copies stored values to their addressed dense positions. The caller validates and stages aliases before dispatch. */
     public fun computeIndexedScatter(
@@ -206,7 +190,7 @@ public interface KoblasEngine {
         valueOffset: Int,
         count: Int,
         destination: DoubleArray,
-    ): Unit = unsupportedEngineOperation(name, "computeIndexedScatter")
+    ): Unit = unsupported()
 
     /** Copies addressed dense entries to the stored value run. The caller validates and stages aliases before dispatch. */
     public fun gather(
@@ -216,7 +200,7 @@ public interface KoblasEngine {
         valueOffset: Int,
         count: Int,
         source: DoubleArray,
-    ): Unit = unsupportedEngineOperation(name, "gather")
+    ): Unit = unsupported()
 
     /** Gathers addressed entries and replaces those dense positions with zero. The caller validates and stages aliases before dispatch. */
     public fun gatherZero(
@@ -226,14 +210,11 @@ public interface KoblasEngine {
         valueOffset: Int,
         count: Int,
         source: DoubleArray,
-    ): Unit = unsupportedEngineOperation(name, "gatherZero")
+    ): Unit = unsupported()
 
     /** Euclidean norm over the addressed dense positions. The caller validates and stages aliases before dispatch. */
     public fun computeIndexedNrm2(indices: IntArray, indexOffset: Int, count: Int, values: DoubleArray): Double =
-        unsupportedEngineOperation(
-            name,
-            "computeIndexedNrm2",
-        )
+        unsupported()
 
     /**
      * How many columns of [work] this engine recommends processing together, for a panel of [rows] by
@@ -249,11 +230,7 @@ public interface KoblasEngine {
      * it is not going to reach. A scheduling of its own may then take less than what was recommended, for a
      * cache or a workspace it is keeping within; passing less is always correct.
      */
-    public fun executionGroup(work: PanelWork, rows: Int, columns: Int, contiguous: Boolean = true): Int =
-        unsupportedEngineOperation(
-            name,
-            "executionGroup",
-        )
+    public fun executionGroup(work: PanelWork, rows: Int, columns: Int, contiguous: Boolean = true): Int = unsupported()
 
     /**
      * Whether a panel of these extents is worth copying into adjacent rows before it is handed over.
@@ -270,10 +247,7 @@ public interface KoblasEngine {
      * layouts; where it is false the body may still differ, and the caller has simply been told not to pay
      * for the difference.
      */
-    public fun prefersContiguous(work: PanelWork, rows: Int, columns: Int): Boolean = unsupportedEngineOperation(
-        name,
-        "prefersContiguous",
-    )
+    public fun prefersContiguous(work: PanelWork, rows: Int, columns: Int): Boolean = unsupported()
 
     /**
      * `y(c) = alpha · Σ a(i, c) · x(i) + beta · y(c)` for each of [columns] columns.
@@ -297,7 +271,7 @@ public interface KoblasEngine {
         y: DoubleArray,
         yOffset: Int,
         yStride: Int,
-    ): Unit = unsupportedEngineOperation(name, "multiDot")
+    ): Unit = unsupported()
 
     /**
      * `y(i) += Σ (alpha · x(c)) · a(i, c)` over [rows] destination entries and [columns] panel columns.
@@ -318,7 +292,7 @@ public interface KoblasEngine {
         y: DoubleArray,
         yOffset: Int,
         yStride: Int,
-    ): Unit = unsupportedEngineOperation(name, "columnUpdate")
+    ): Unit = unsupported()
 
     /**
      * One pass over a panel that both updates a destination window and reduces the panel against a vector.
@@ -351,7 +325,7 @@ public interface KoblasEngine {
         yStride: Int = 1,
         coefficientStride: Int = 1,
         sumStride: Int = 1,
-    ): Unit = unsupportedEngineOperation(name, "coupledUpdateDot")
+    ): Unit = unsupported()
 
     /**
      * `a(i, c) += (alpha · coefficients(c)) · x(i)`, the rank-one update of a panel of destination columns.
@@ -372,7 +346,7 @@ public interface KoblasEngine {
         coefficients: DoubleArray,
         coefficientOffset: Int,
         coefficientStride: Int,
-    ): Unit = unsupportedEngineOperation(name, "rankUpdate")
+    ): Unit = unsupported()
 
     /**
      * `a(i, c) += alpha · (x(i) · u(c) + y(i) · v(c))`, the symmetric rank-two update of a panel.
@@ -400,7 +374,7 @@ public interface KoblasEngine {
         v: DoubleArray,
         vOffset: Int,
         vStride: Int,
-    ): Unit = unsupportedEngineOperation(name, "rankTwoUpdate")
+    ): Unit = unsupported()
 
     /**
      * `y(i) += Σ (alpha · values(c)) · a(i, indices(c))` over a panel whose columns an index array selects.
@@ -435,7 +409,7 @@ public interface KoblasEngine {
         rows: Int,
         y: DoubleArray,
         yOffset: Int,
-    ): Unit = unsupportedEngineOperation(name, "indexedColumnUpdate")
+    ): Unit = unsupported()
 
     /**
      * `a(i, indices(c)) += (alpha · values(c)) · x(i)`, the indexed counterpart of [rankUpdate].
@@ -467,7 +441,7 @@ public interface KoblasEngine {
         rows: Int,
         x: DoubleArray,
         xOffset: Int,
-    ): Unit = unsupportedEngineOperation(name, "indexedRankUpdate")
+    ): Unit = unsupported()
 
     /**
      * One pass over an indexed panel that both scatters into the positions it selects and reduces them.
@@ -523,17 +497,17 @@ public interface KoblasEngine {
         destinationOffset: Int = offset,
         destinationRowStride: Int = rowStride,
         destinationIndexStride: Int = indexStride,
-    ): Unit = unsupportedEngineOperation(name, "indexedCoupledUpdate")
+    ): Unit = unsupported()
 
     /**
      * Destination rows one register tile accumulates, which is the group a left panel is packed in.
      *
      * Positive and fixed for the life of an implementation.
      */
-    public val tileRows: Int get() = unsupportedEngineOperation(name, "tileRows")
+    public val tileRows: Int get() = unsupported()
 
     /** Destination columns one register tile accumulates, which is the group a right panel is packed in. */
-    public val tileColumns: Int get() = unsupportedEngineOperation(name, "tileColumns")
+    public val tileColumns: Int get() = unsupported()
 
     /**
      * Whether a product of these logical extents is worth packing into this engine's tiles at all.
@@ -548,10 +522,7 @@ public interface KoblasEngine {
      *
      * The crossover is local: a tile that finishes more arithmetic per loaded value pays off a copy sooner.
      */
-    public fun packsProduct(rows: Int, columns: Int, depth: Int): Boolean = unsupportedEngineOperation(
-        name,
-        "packsProduct",
-    )
+    public fun packsProduct(rows: Int, columns: Int, depth: Int): Boolean = unsupported()
 
     /**
      * `C = alpha · A · B + beta · C` over one `rows` by `columns` window, accumulating `depth` steps.
@@ -583,7 +554,7 @@ public interface KoblasEngine {
         c: DoubleArray,
         cOffset: Int,
         ldc: Int,
-    ): Unit = unsupportedEngineOperation(name, "productBlock")
+    ): Unit = unsupported()
 
     /**
      * How many right-hand sides this engine recommends substituting at once, for a block of [order] steps
@@ -594,7 +565,7 @@ public interface KoblasEngine {
      * scheduling chose: a diagonal block is as wide as the dependency chain is long, and this is how much of
      * the work beside it is done together.
      */
-    public fun rightHandSideGroup(order: Int, sides: Int): Int = unsupportedEngineOperation(name, "rightHandSideGroup")
+    public fun rightHandSideGroup(order: Int, sides: Int): Int = unsupported()
 
     /**
      * Whether a group of right-hand sides this far apart is worth copying into adjacent storage first.
@@ -604,10 +575,7 @@ public interface KoblasEngine {
      * nothing from that and answers false, and so does one whose right-hand sides are already adjacent.
      * Where this answers true the caller gathers.
      */
-    public fun gathersRightHandSides(rhsStride: Int, order: Int, sides: Int): Boolean = unsupportedEngineOperation(
-        name,
-        "gathersRightHandSides",
-    )
+    public fun gathersRightHandSides(rhsStride: Int, order: Int, sides: Int): Boolean = unsupported()
 
     /**
      * Solves `M · X = X` in place over one diagonal block, for every right-hand side at once.
@@ -630,7 +598,7 @@ public interface KoblasEngine {
         rhsStride: Int,
         sides: Int,
         tOffset: Int = 0,
-    ): Unit = unsupportedEngineOperation(name, "diagonalSolve")
+    ): Unit = unsupported()
 
     /**
      * Multiplies `X = M · X` in place over one diagonal block, for every right-hand side at once.
@@ -653,7 +621,7 @@ public interface KoblasEngine {
         rhsStride: Int,
         sides: Int,
         tOffset: Int = 0,
-    ): Unit = unsupportedEngineOperation(name, "diagonalMultiply")
+    ): Unit = unsupported()
 
     /** Whole matrix vector product over validated operands. The caller validates and stages aliases before dispatch. */
     public fun computeGemv(
@@ -663,7 +631,7 @@ public interface KoblasEngine {
         x: DenseVector,
         beta: Double,
         y: DenseVector,
-    ): Unit = unsupportedEngineOperation(name, "computeGemv")
+    ): Unit = unsupported()
 
     /** Whole symmetric matrix vector product over the stored triangle. The caller validates and stages aliases before dispatch. */
     public fun computeSymv(
@@ -673,18 +641,14 @@ public interface KoblasEngine {
         x: DenseVector,
         beta: Double,
         y: DenseVector,
-    ): Unit = unsupportedEngineOperation(name, "computeSymv")
+    ): Unit = unsupported()
 
     /** Whole rank one update over validated operands. The caller validates and stages aliases before dispatch. */
-    public fun computeGer(alpha: Double, x: DenseVector, y: DenseVector, a: DenseMatrixRegion): Unit =
-        unsupportedEngineOperation(
-            name,
-            "computeGer",
-        )
+    public fun computeGer(alpha: Double, x: DenseVector, y: DenseVector, a: DenseMatrixRegion): Unit = unsupported()
 
     /** Whole symmetric rank one update over the stored triangle. The caller validates and stages aliases before dispatch. */
     public fun computeSyr(alpha: Double, x: DenseVector, a: DenseMatrixRegion, structure: MatrixStructure): Unit =
-        unsupportedEngineOperation(name, "computeSyr")
+        unsupported()
 
     /** Whole symmetric rank two update over the stored triangle. The caller validates and stages aliases before dispatch. */
     public fun computeSyr2(
@@ -693,7 +657,7 @@ public interface KoblasEngine {
         y: DenseVector,
         a: DenseMatrixRegion,
         structure: MatrixStructure,
-    ): Unit = unsupportedEngineOperation(name, "computeSyr2")
+    ): Unit = unsupported()
 
     /** Whole triangular vector substitution over validated operands. The caller validates and stages aliases before dispatch. */
     public fun computeTrsv(
@@ -701,7 +665,7 @@ public interface KoblasEngine {
         structure: MatrixStructure,
         transposeA: Boolean,
         x: DenseVector,
-    ): Unit = unsupportedEngineOperation(name, "computeTrsv")
+    ): Unit = unsupported()
 
     /** Whole triangular vector product over validated operands. The caller validates and stages aliases before dispatch. */
     public fun computeTrmv(
@@ -709,7 +673,7 @@ public interface KoblasEngine {
         structure: MatrixStructure,
         transposeA: Boolean,
         x: DenseVector,
-    ): Unit = unsupportedEngineOperation(name, "computeTrmv")
+    ): Unit = unsupported()
 
     /** Whole dense matrix product over validated operands. The caller validates and stages aliases before dispatch. */
     public fun computeGemm(
@@ -720,7 +684,7 @@ public interface KoblasEngine {
         transposeB: Boolean,
         beta: Double,
         c: DenseMatrixRegion,
-    ): Unit = unsupportedEngineOperation(name, "computeGemm")
+    ): Unit = unsupported()
 
     /** Whole symmetric matrix product over the stored triangle. The caller validates and stages aliases before dispatch. */
     public fun computeSymm(
@@ -731,7 +695,7 @@ public interface KoblasEngine {
         beta: Double,
         c: DenseMatrixRegion,
         rightSide: Boolean = false,
-    ): Unit = unsupportedEngineOperation(name, "computeSymm")
+    ): Unit = unsupported()
 
     /** Whole symmetric rank k update over the stored triangle. The caller validates and stages aliases before dispatch. */
     public fun computeSyrk(
@@ -741,7 +705,7 @@ public interface KoblasEngine {
         beta: Double,
         c: DenseMatrixRegion,
         structure: MatrixStructure,
-    ): Unit = unsupportedEngineOperation(name, "computeSyrk")
+    ): Unit = unsupported()
 
     /** Whole symmetric rank two k update over the stored triangle. The caller validates and stages aliases before dispatch. */
     public fun computeSyr2k(
@@ -752,7 +716,7 @@ public interface KoblasEngine {
         beta: Double,
         c: DenseMatrixRegion,
         structure: MatrixStructure,
-    ): Unit = unsupportedEngineOperation(name, "computeSyr2k")
+    ): Unit = unsupported()
 
     /** Whole triangular matrix product over validated operands. The caller validates and stages aliases before dispatch. */
     public fun computeTrmm(
@@ -762,7 +726,7 @@ public interface KoblasEngine {
         transposeA: Boolean,
         b: DenseMatrixRegion,
         rightSide: Boolean = false,
-    ): Unit = unsupportedEngineOperation(name, "computeTrmm")
+    ): Unit = unsupported()
 
     /** Whole triangular matrix substitution over validated operands. The caller validates and stages aliases before dispatch. */
     public fun computeTrsm(
@@ -772,7 +736,7 @@ public interface KoblasEngine {
         transposeA: Boolean,
         b: DenseMatrixRegion,
         rightSide: Boolean = false,
-    ): Unit = unsupportedEngineOperation(name, "computeTrsm")
+    ): Unit = unsupported()
 
     /** Whole dense product restricted to the selected output triangle. The caller validates and stages aliases before dispatch. */
     public fun computeGemmt(
@@ -784,7 +748,7 @@ public interface KoblasEngine {
         beta: Double,
         c: DenseMatrixRegion,
         structure: MatrixStructure,
-    ): Unit = unsupportedEngineOperation(name, "computeGemmt")
+    ): Unit = unsupported()
 
     /** Explicit composition without changing the platform default. */
     public companion object {
@@ -807,5 +771,5 @@ public interface KoblasEngine {
     }
 }
 
-private fun unsupportedEngineOperation(name: String, operation: String): Nothing =
-    throw UnsupportedOperationException("$operation is not supplied by $name")
+private fun KoblasEngine.unsupported(): Nothing =
+    throw UnsupportedOperationException("This operation is not supplied by $name")

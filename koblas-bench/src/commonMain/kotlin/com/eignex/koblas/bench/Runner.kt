@@ -307,4 +307,5 @@ internal fun printIdentity(implementation: String, harness: String, runtime: Eng
     println("profile_arch=${platform.architecture}")
     println("profile_cpu_model=${platform.cpuModel ?: "*"}")
     println("profile_cpu_class=${platform.cpuClass ?: "*"}")
+    println("profile_sve_vector_bits=${platform.sveVectorBits ?: "*"}")
 }

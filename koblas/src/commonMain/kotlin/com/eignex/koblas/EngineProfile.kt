@@ -69,6 +69,12 @@ public class EngineProfile(
     /** Ordered preferences, copied at construction so caller mutations cannot change an engine. */
     public val rules: List<EngineRule> = rules.toList()
 
+    init {
+        require(
+            target?.cpuClass != CpuClass.Sve || target.sveVectorBits != null,
+        ) { "SVE profiles require a measured vector width" }
+    }
+
     /** Whether this profile was declared applicable to the supplied runtime and platform. */
     public fun appliesTo(runtime: EngineRuntime, host: HostPlatform): Boolean =
         (this.runtime == null || this.runtime == runtime) &&
@@ -77,7 +83,8 @@ public class EngineProfile(
                     target.operatingSystem == host.operatingSystem &&
                         target.architecture == host.architecture &&
                         (target.cpuModel == null || target.cpuModel == host.cpuModel) &&
-                        (target.cpuClass == null || target.cpuClass == host.cpuClass)
+                        (target.cpuClass == null || target.cpuClass == host.cpuClass) &&
+                        (target.sveVectorBits == null || target.sveVectorBits == host.sveVectorBits)
                     )
                 )
 
@@ -92,7 +99,7 @@ public class EngineProfile(
                 .map { it.split('\t') }.toList()
             require(lines.isNotEmpty()) { "Empty profile" }
             val header = lines.first()
-            require(header.size == 9 && header[0] == "koblas-profile-v2") { "Invalid profile header" }
+            require(header.size == 10 && header[0] == "koblas-profile-v3") { "Invalid profile header" }
             fun optional(value: String): String? = value.takeUnless { it == "*" }
             fun flag(value: String): Boolean? = if (value == "*") null else value.toBooleanStrict()
             val rules = lines.drop(1).map { fields ->
@@ -112,7 +119,7 @@ public class EngineProfile(
                 header[1],
                 rules,
                 optional(header[2])?.let { EngineRuntime.valueOf(it.replaceFirstChar(Char::uppercase)) },
-                if (header.subList(3, 7).all { it == "*" }) {
+                if (header.subList(3, 8).all { it == "*" }) {
                     null
                 } else {
                     HostPlatform(
@@ -120,9 +127,10 @@ public class EngineProfile(
                         Architecture.valueOf(header[4]),
                         optional(header[5]),
                         optional(header[6])?.let(CpuClass::valueOf),
+                        optional(header[7])?.toInt(),
                     )
                 },
-                header[7] + "; " + header[8],
+                header[8] + "; " + header[9],
             )
         }
     }

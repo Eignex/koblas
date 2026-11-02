@@ -81,6 +81,22 @@ def protocol_signature(fields, identities, path, parameters):
                 package=package.read_text().strip() if mkl and package.is_file() else None)
 
 
+def instruction_class(identities, hardware, lab):
+    declared = {identity.get("profile_cpu_class", "*") for identity in identities}
+    if len(declared) != 1:
+        raise ValueError("paired arms report different CPU instruction classes")
+    value = next(iter(declared))
+    if value != "*":
+        return value
+    flags = set(hardware.get("flags", "").split())
+    platform = identities[0]
+    required = lab.get("resources", {}).get("lab-job.json", {}).get("experiment", {}).get("nodeTags") or {}
+    return ("Sve" if platform.get("profile_arch") == "Arm64" and "sve" in flags else
+            "Arm64" if platform.get("profile_arch") == "Arm64" and (platform.get("profile_os") == "MacOs" or flags & {"asimd", "neon"}) else
+            "Avx512" if "avx512f" in flags or "simd:avx512" in required.get("require", []) else
+            "Avx2" if "avx2" in flags else "X86_64" if flags and platform.get("profile_arch") == "X86_64" else "*")
+
+
 def verify_anchors(records, shapes):
     by_manifest = {}
     for record in records:
@@ -193,6 +209,8 @@ class Capture:
     missing_rows: set = field(default_factory=set)
     modes: dict = field(default_factory=dict)
     anchor_checks: list = field(default_factory=list)
+    sve_widths: set = field(default_factory=set)
+    excluded: list = field(default_factory=list)
 
     def target(self, runtime, operating_system=None, architecture=None, cpu=None):
         if len(self.platforms) != 1:
@@ -208,10 +226,13 @@ class Capture:
         cpu_class = next(iter(self.classes))
         if cpu == "*" and cpu_class == "*":
             raise ValueError("a model-independent profile requires a verified CPU instruction class")
-        return (*measured, cpu or next(iter(self.models)), cpu_class)
+        if cpu_class == "Sve" and (len(self.sve_widths) != 1 or "*" in self.sve_widths):
+            raise ValueError("SVE fitting requires one verified vector width; recapture or select --sve-vector-bits")
+        return (*measured, cpu or next(iter(self.models)), cpu_class, next(iter(self.sve_widths)) if cpu_class == "Sve" else "*")
 
 
-def measurements(directories, baseline, candidate, backend=None, strict=False, arm=None, owned_target="jvm-simd", profile_sha256=None):
+def measurements(directories, baseline, candidate, backend=None, strict=False, arm=None, owned_target="jvm-simd", profile_sha256=None,
+                 cpu_class=None, sve_vector_bits=None):
     if len({directory.resolve() for directory in directories}) != len(directories):
         raise ValueError("repeated capture directory")
     targets = ["jvm-scalar", owned_target, candidate] if baseline == "jvm-owned" else [baseline, candidate]
@@ -229,6 +250,15 @@ def measurements(directories, baseline, candidate, backend=None, strict=False, a
         parameters = lab_parameters(lab)
         if len(passes) < 3:
             raise ValueError("at least three paired capture rounds are required in each accepted row")
+        first = sections((passes[0] / "metadata.txt").read_text())
+        selected_class = instruction_class([first.get(target, {}) for target in targets], first.get("hardware", {}), lab)
+        selected_width = first.get(targets[0], {}).get("profile_sve_vector_bits", "*")
+        if cpu_class and selected_class == "*" or sve_vector_bits and selected_class == "Sve" and selected_width == "*":
+            raise ValueError("cannot filter a capture with unverified CPU class or SVE width")
+        if cpu_class and selected_class != cpu_class or sve_vector_bits and selected_width != str(sve_vector_bits):
+            result.excluded.append(dict(capture=str(passes[0].parent), cpu_class=selected_class, sve_vector_bits=selected_width,
+                                        job=lab.get("resources", {}).get("lab-job.json", {}).get("id")))
+            continue
         paired, models, commits, manifests, expected = {}, set(), set(), set(), None
         for path in passes:
             metadata = sections((path / "metadata.txt").read_text())
@@ -271,18 +301,14 @@ def measurements(directories, baseline, candidate, backend=None, strict=False, a
                    for key in ("profile_runtime", "profile_os", "profile_arch", "profile_cpu_model")):
                 raise ValueError("paired arms report different runtime platform identities")
             hardware = metadata.get("hardware", {})
-            flags = set(hardware.get("flags", "").split())
-            required = lab.get("resources", {}).get("lab-job.json", {}).get("experiment", {}).get("nodeTags") or {}
-            declared = {identity.get("profile_cpu_class", "*") for identity in identities}
-            if len(declared) != 1:
-                raise ValueError("paired arms report different CPU instruction classes")
-            instruction_class = next(iter(declared))
-            if instruction_class == "*":
-                instruction_class = ("Sve" if platform[2] == "Arm64" and "sve" in flags else
-                                     "Arm64" if platform[2] == "Arm64" and (platform[1] == "MacOs" or flags & {"asimd", "neon"}) else
-                                     "Avx512" if "avx512f" in flags or "simd:avx512" in required.get("require", []) else
-                                     "Avx2" if "avx2" in flags else "X86_64" if flags and platform[2] == "X86_64" else "*")
-            result.classes.add(instruction_class)
+            if instruction_class(identities, hardware, lab) != selected_class:
+                raise ValueError("capture rounds within one worker attempt report different CPU classes")
+            widths = {identity.get("profile_sve_vector_bits", "*") for identity in identities}
+            if selected_class == "Sve":
+                if widths != {selected_width} or selected_width != "*" and (not selected_width.isdigit() or int(selected_width) not in range(128, 2049, 128)):
+                    raise ValueError("invalid or inconsistent SVE vector width")
+                result.sve_widths.update(widths)
+            result.classes.add(selected_class)
             model = hardware.get("model name", hardware.get("cpu_model", identities[0]["profile_cpu_model"]))
             if model == "*":
                 raise ValueError("missing CPU model for measurement stratification")

@@ -50,7 +50,7 @@ class TuningCaptureTest(unittest.TestCase):
             self.assertEqual([0.5] * 3, capture.paired["dot+32+uniform"])
             self.assertEqual(10, len(capture.hashes))
             self.assertEqual(("Dot", 32, 1, 1, False, 1, True), capture.shapes["dot+32+uniform"])
-            self.assertEqual(("native", "Linux", "X86_64", "measured CPU", "Avx2"), capture.target("native"))
+            self.assertEqual(("native", "Linux", "X86_64", "measured CPU", "Avx2", "*"), capture.target("native"))
             for target in (("jvm",), ("native", "MacOs"), ("native", "Linux", "Arm64"),
                            ("native", "Linux", "X86_64", "another CPU")):
                 with self.assertRaises(ValueError):
@@ -101,7 +101,7 @@ class TuningCaptureTest(unittest.TestCase):
             job["experiment"]["nodeTags"] = dict(require=["simd:avx512"])
             (root / "lab-job.json").write_text(json.dumps(job))
 
-            self.assertEqual("Avx512", measurements([root], "native", "onemkl").target("native", cpu="*")[-1])
+            self.assertEqual("Avx512", measurements([root], "native", "onemkl").target("native", cpu="*")[4])
 
     def test_arm_flags_distinguish_scalable_vectors(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -109,10 +109,10 @@ class TuningCaptureTest(unittest.TestCase):
             rounds(root)
             for path in root.glob("*/metadata.txt"):
                 path.write_text(path.read_text().replace("profile_arch=X86_64", "profile_arch=Arm64")
-                                .replace("profile_cpu_class=Avx2", "profile_cpu_class=*")
+                                .replace("profile_cpu_class=Avx2", "profile_cpu_class=*\nprofile_sve_vector_bits=256")
                                 .replace("flags=avx2", "flags=fp asimd sve"))
 
-            self.assertEqual("Sve", measurements([root], "native", "onemkl").target("native", cpu="*")[-1])
+            self.assertEqual("Sve", measurements([root], "native", "onemkl").target("native", cpu="*")[4])
 
     def test_supplemental_rows_retain_separate_clean_source_revisions(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -129,6 +129,32 @@ class TuningCaptureTest(unittest.TestCase):
             path.write_text(path.read_text().replace("b" * 40, "c" * 40))
             with self.assertRaises(ValueError):
                 measurements(roots, "native", "onemkl")
+
+    def test_class_and_sve_width_projection_retains_excluded_rows(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            lab_index(root, [lab_row(i, "candidate", str(i)) for i in range(3)])
+            for index, bits in enumerate((None, 128, 256)):
+                report = root / f"cases/{index}/out/report"
+                rounds(report, model=f"CPU {index}")
+                if bits:
+                    for path in report.glob("*/metadata.txt"):
+                        path.write_text(path.read_text().replace("profile_arch=X86_64", "profile_arch=Arm64")
+                                        .replace("profile_cpu_class=Avx2", f"profile_cpu_class=Sve\nprofile_sve_vector_bits={bits}"))
+
+            capture = measurements([root], "native", "onemkl", cpu_class="Sve", sve_vector_bits=256)
+
+            self.assertEqual(("Sve", "256"), capture.target("native", cpu="*")[4:])
+            self.assertEqual({"CPU 2"}, capture.models)
+            self.assertEqual(2, len(capture.excluded))
+            self.assertEqual(3, len(capture.lab[0]["rows"]))
+            self.assertEqual(set(), capture.missing_rows)
+            with self.assertRaisesRegex(ValueError, "one verified vector width"):
+                measurements([root], "native", "onemkl", cpu_class="Sve").target("native", cpu="*")
+            for path in (root / "cases/2/out/report").glob("*/metadata.txt"):
+                path.write_text(path.read_text().replace("profile_sve_vector_bits=256", "profile_sve_vector_bits=*"))
+            with self.assertRaisesRegex(ValueError, "unverified"):
+                measurements([root], "native", "onemkl", cpu_class="Sve", sve_vector_bits=256)
 
     def test_inputs_cannot_mix_runtime_vendor_or_timing_protocols(self):
         for previous, replacement in (("native-version", "new-version"), ("harness=calibrated", "harness=other"),

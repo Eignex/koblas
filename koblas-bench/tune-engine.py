@@ -184,16 +184,16 @@ def training_cases():
 def validate_profile(results, profile, output, baseline=None, simd_target="jvm-simd", arm=None):
     lines = [line.split("\t") for line in profile.read_text().splitlines() if line and not line.startswith("#")]
     header, rules = lines[0], lines[1:]
-    if len(header) != 9 or header[0] != "koblas-profile-v2":
-        raise ValueError("validation requires a v2 profile")
+    if len(header) != 10 or header[0] != "koblas-profile-v3":
+        raise ValueError("validation requires a v3 profile")
     runtime = header[2]
     baseline = baseline or ("native" if runtime == "native" else "jvm-owned")
     digest = hashlib.sha256(profile.read_bytes()).hexdigest()
     checked = measurements(results, baseline, f"{runtime}-default", strict=True, arm=arm,
                            owned_target=simd_target, profile_sha256=digest)
     target = checked.target(runtime, header[3], header[4], header[5])
-    if target[-1] != header[6]:
-        raise ValueError("validation instruction class differs from the profile")
+    if list(target[4:]) != header[6:8]:
+        raise ValueError("validation instruction class or SVE width differs from the profile")
     evidence = json.loads(profile.with_name("evidence.json").read_text())
     training = {case for source in evidence["sources"].values() for case in source["paired_ratios"]}
     if training & checked.paired.keys():
@@ -233,6 +233,8 @@ def main():
     parser.add_argument("--os", help="require the measured operating system")
     parser.add_argument("--arch", help="require the measured architecture")
     parser.add_argument("--cpu", help="runtime CPU model; use * explicitly for platform wide profiles")
+    parser.add_argument("--cpu-class", choices=("X86_64", "Avx2", "Avx512", "Arm64", "Sve"), help="fit only this instruction class, retaining other rows as excluded evidence")
+    parser.add_argument("--sve-vector-bits", type=int, choices=range(128, 2049, 128), help="fit only this verified SVE vector width")
     args = parser.parse_args()
     if args.write_cases:
         args.write_cases.mkdir(parents=True, exist_ok=True)
@@ -288,7 +290,8 @@ def main():
             command += ["--native-executable", str(args.native_executable)]
         subprocess.run(command, check=True)
     captures = {source: measurements(results, "jvm-scalar" if source == "jvm-simd" else baseline,
-                                    candidate, source, arm=args.lab_arm, owned_target=args.simd_target)
+                                    candidate, source, arm=args.lab_arm, owned_target=args.simd_target,
+                                    cpu_class=args.cpu_class, sve_vector_bits=args.sve_vector_bits)
                 for source, candidate in candidates.items()}
     if any(not capture.paired for capture in captures.values()):
         raise ValueError("no complete paired measurements for a requested backend")
@@ -302,7 +305,7 @@ def main():
     digest = hashlib.sha256(json.dumps([target, rules, sorted(hashes.values())], sort_keys=True).encode()).hexdigest()[:12]
     provenance = [f"https://lab.eignex.com/jobs/{lab['resources']['lab-job.json']['id']}" if lab else str(directory)
                   for directory, lab in zip(results, next(iter(captures.values())).lab)]
-    header = ["koblas-profile-v2", f"{args.runtime}-{'-'.join(candidates)}-{digest}", *target,
+    header = ["koblas-profile-v3", f"{args.runtime}-{'-'.join(candidates)}-{digest}", *target,
               "; ".join(provenance), "see evidence.json for paired measurements and hashes"]
     (args.output / "profile.tsv").write_text("\n".join("\t".join(map(str, row)) for row in [header, *rules]) + "\n")
     (args.output / "evidence.json").write_text(json.dumps(dict(
@@ -310,6 +313,7 @@ def main():
         sources={source: dict(paired_ratios=capture.paired, ratios_by_cpu=capture.by_cpu, lab=capture.lab,
                              provenance=capture.provenance,
                              anchor_checks=capture.anchor_checks,
+                             excluded_rows=capture.excluded,
                              timing_modes=capture.modes,
                              source_commits=sorted(capture.commits), vector_tail_cache_bytes=capture.cache_by_cpu,
                              selected_providers=capture.providers) for source, capture in captures.items()},

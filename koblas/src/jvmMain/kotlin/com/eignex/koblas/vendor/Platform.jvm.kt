@@ -1,6 +1,8 @@
 package com.eignex.koblas.vendor
 
+import com.sun.management.HotSpotDiagnosticMXBean
 import java.io.File
+import java.lang.management.ManagementFactory
 
 /** Resolved once; none of these facts change while the process runs. */
 private val host: HostPlatform by lazy {
@@ -11,11 +13,25 @@ private val host: HostPlatform by lazy {
     } else {
         cpuInfo(if (arch == Architecture.Arm64) "Features" else "flags")
     }
-    HostPlatform(os, arch, cpuInfo("model name"), cpuClass(arch, flags))
+    val instructionClass = cpuClass(arch, flags)
+    val bits = if (instructionClass == CpuClass.Sve) sveVectorBits() else null
+    HostPlatform(os, arch, cpuInfo("model name"), instructionClass, bits)
 }
 
 /** Platform facts read once from JVM properties and Linux CPU metadata where available. */
 public actual fun hostPlatform(): HostPlatform = host
+
+/** The scalar arm omits the Vector API module but must report the same active VM width. */
+private fun sveVectorBits(): Int? = try {
+    val vm = ManagementFactory.getPlatformMXBean(HotSpotDiagnosticMXBean::class.java)
+    if (vm?.getVMOption("UseSVE")?.value?.toIntOrNull()?.let { it > 0 } == true) {
+        vm.getVMOption("MaxVectorSize").value.toIntOrNull()?.times(8)
+    } else {
+        null
+    }
+} catch (_: IllegalArgumentException) {
+    null
+}
 
 private fun operatingSystem(): OperatingSystem {
     if (System.getProperty("java.vm.name") == "Dalvik") return OperatingSystem.Other

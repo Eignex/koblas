@@ -19,8 +19,18 @@ private val host: HostPlatform by lazy {
     } else {
         cpuInfo(if (arch == Architecture.Arm64) "Features" else "flags")
     }
-    HostPlatform(os, arch, cpuInfo("model name"), cpuClass(arch, flags))
+    val instructionClass = cpuClass(arch, flags)
+    HostPlatform(
+        os,
+        arch,
+        cpuInfo("model name"),
+        instructionClass,
+        if (instructionClass == CpuClass.Sve) sveVectorBits() else null,
+    )
 }
+
+/** Linux reports the current thread's SVE width without changing its vector configuration. */
+internal expect fun sveVectorBits(): Int?
 
 /** The platform this process is running on, which a Native target largely knows at compile time. */
 public actual fun hostPlatform(): HostPlatform = host

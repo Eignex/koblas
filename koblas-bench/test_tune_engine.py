@@ -112,7 +112,7 @@ class TuneEngineTest(unittest.TestCase):
                 root = Path(directory)
                 rounds(root)
                 profile = root / "profile.tsv"
-                profile.write_text("koblas-profile-v2\ttest\tnative\tLinux\tX86_64\t*\tAvx2\tfixture\ttest\n"
+                profile.write_text("koblas-profile-v3\ttest\tnative\tLinux\tX86_64\t*\tAvx2\t*\tfixture\ttest\n"
                                    "onemkl\tDot\t0\t2147483647\t0\t2147483647\t0\t2147483647\t0\t*\t*\n")
                 digest = hashlib.sha256(profile.read_bytes()).hexdigest()
                 (root / "evidence.json").write_text(json.dumps(dict(sources=dict(onemkl=dict(

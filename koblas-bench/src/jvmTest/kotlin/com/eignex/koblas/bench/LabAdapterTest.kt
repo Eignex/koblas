@@ -271,6 +271,7 @@ class LabAdapterTest {
                 echo 'resolved implementation=fixture runtime=fixture harness=fixture'
                 echo 'profile_cpu_model=runtime fixture'
                 echo 'profile_cpu_class=Avx2'
+                echo 'profile_sve_vector_bits=*'
                 echo 'profile_runtime=jvm'
                 echo 'profile_os=Linux'
                 echo 'profile_arch=X86_64'
@@ -294,6 +295,7 @@ class LabAdapterTest {
             for (round in 1..2) for (target in listOf("jvm-scalar", "jvm-simd")) {
                 assertTrue(Files.readString(output.resolve("pass-$round/metadata.txt")).contains("profile_cpu_model=runtime fixture"))
                 assertTrue(Files.readString(output.resolve("pass-$round/metadata.txt")).contains("profile_cpu_class=Avx2"))
+                assertTrue(Files.readString(output.resolve("pass-$round/metadata.txt")).contains("profile_sve_vector_bits=*"))
                 assertTrue(Files.readString(output.resolve("pass-$round/metadata.txt")).contains("profile_runtime=jvm\nprofile_os=Linux\nprofile_arch=X86_64"))
                 val arguments = Files.readAllLines(output.resolve("pass-$round/$target.args"))
                 assertTrue("-XX:+UseSerialGC" in arguments)
