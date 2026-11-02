@@ -92,16 +92,20 @@ class TuneEngineTest(unittest.TestCase):
         self.assertEqual(["false", "true"], [rule[10] for rule in rules])
 
     def test_complete_profiles_use_measured_vendor_precedence_and_explicit_owned_rules(self):
-        shapes = {"dot": ("Dot", 32, 1, 1, False, 1, True), "gemm": ("Gemm", 32, 32, 32, False, 3, True)}
+        shapes = {"dot": ("Dot", 32, 1, 1, False, 1, True), "asum": ("Asum", 32, 1, 1, False, 1, True),
+                  "gemm": ("Gemm", 32, 32, 32, False, 3, True)}
         def capture(costs):
             paired = {case: [cost] * 3 for case, cost in costs.items()}
             return SimpleNamespace(paired=paired, shapes=shapes, by_cpu={case: {"CPU A": values} for case, values in paired.items()}, cache_by_cpu={})
-        rules, precedence = tune.compose({"onemkl": capture({"dot": 0.8, "gemm": 0.5}),
-                                          "openblas": capture({"dot": 0.5, "gemm": 0.8}),
+        rules, precedence = tune.compose({"onemkl": capture({"dot": 0.8, "asum": 0.8, "gemm": 0.5}),
+                                          "openblas": capture({"dot": 0.5, "asum": 0.5, "gemm": 0.8}),
                                           "jvm-simd": capture({"dot": 0.6})})
 
         self.assertEqual(["openblas", "onemkl"], precedence["Dot"]["sources"])
         self.assertEqual(["onemkl", "openblas"], precedence["Gemm"]["sources"])
+        self.assertEqual(["openblas", "onemkl"], [rule[0] for rule in rules if rule[1] == "Asum,Dot"])
+        for operation, source in {"Asum": "openblas", "Dot": "openblas", "Gemm": "onemkl"}.items():
+            self.assertEqual(source, next(rule[0] for rule in rules if operation in rule[1].split(',')))
         self.assertEqual(["jvm-simd", "Dot"], rules[-2][:2])
         self.assertEqual(["jvm-simd", "Panels,Products,Triangular"], rules[-1][:2])
 

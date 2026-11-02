@@ -34,6 +34,23 @@ eignexPublish {
     )
 }
 
+val profileFiles = layout.projectDirectory.dir("src/engineProfiles").asFileTree.matching { include("*.tsv") }
+val generatedProfiles = layout.buildDirectory.dir("generated/engineProfiles")
+val embedEngineProfiles = tasks.register("embedEngineProfiles") {
+    inputs.files(profileFiles).withPathSensitivity(PathSensitivity.RELATIVE)
+    outputs.dir(generatedProfiles)
+    doLast {
+        val literals = inputs.files.files.sortedBy { it.name }.joinToString(",\n") { file ->
+            "    \"" + file.readText().replace("\\", "\\\\").replace("\"", "\\\"").replace("$", "\\$")
+                .replace("\r", "\\r").replace("\n", "\\n").replace("\t", "\\t") + "\""
+        }
+        val output = outputs.files.singleFile.resolve("com/eignex/koblas/StandardProfileData.kt")
+        output.parentFile.mkdirs()
+        output.writeText("@file:Suppress(\"MaxLineLength\")\npackage com.eignex.koblas\n\n" +
+            "internal val standardProfileData: List<String> = listOf(\n$literals,\n)\n")
+    }
+}
+
 kotlin {
     explicitApi()
     compilerOptions {
@@ -86,6 +103,7 @@ kotlin {
     }
 
     sourceSets {
+        commonMain { kotlin.srcDir(embedEngineProfiles) }
         commonMain.dependencies {
             api("org.jetbrains.kotlinx:kotlinx-serialization-core")
         }

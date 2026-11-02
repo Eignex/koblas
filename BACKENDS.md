@@ -109,6 +109,9 @@ preferences from macOS ARM and owned SIMD preferences from Linux x86. These prof
 `best-effort-*`, record their source profile names and explicitly say `Unmeasured best effort` in their
 evidence. They retain portable coverage and are estimates, not performance measurements for the destination.
 To load a recalculated profile, pass its text to `EngineProfile.parse`; the library performs no file I/O.
+Standard configuration files live under `koblas/src/engineProfiles/` and are embedded during compilation.
+Replace the target's file with the validated `profile.tsv` to update its standard tuning. The current
+files are explicitly provisional while the pre-merge measurement campaign finishes.
 `BuiltinEngines.configured` resolves named libraries and uses exactly the profile's preferences.
 Include owned SIMD rules explicitly when wanted. Missing optional libraries fall through; unknown source identifiers are rejected. Use
 `KoblasEngine.combine(profile, providers...)` for explicit custom providers or scalar-only composition.

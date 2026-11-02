@@ -26,7 +26,7 @@ def measured_manifest(path):
     selected = {}
     for line in manifest.read_text().splitlines():
         digest, name = line.split(" ", 1)
-        if re.match(r"(?:koblas/src/(?:[^/]*Main|jvmJava25)/|koblas-bench/src/[^/]*Main/|koblas-bench/jmh/|gradle/)", name) or name in {
+        if re.match(r"(?:koblas/src/(?:[^/]*Main|jvmJava25|engineProfiles)/|koblas-bench/src/[^/]*Main/|koblas-bench/jmh/|gradle/)", name) or name in {
             "build.gradle.kts", "settings.gradle.kts", "gradle.properties", "koblas/build.gradle.kts", "koblas-bench/build.gradle.kts",
             "koblas-bench/capture-report.sh", "koblas-bench/script-helpers.sh", "koblas-bench/lab/vendor-capture.sh", "koblas-bench/lab/prepare-vendor.sh",
         }:

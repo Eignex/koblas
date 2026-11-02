@@ -70,7 +70,7 @@ def compose(captures):
         caches = list(capture.cache_by_cpu.values())
         fitted[source] = fit(capture.paired, source, capture.shapes, capture.by_cpu,
                              max(caches) if caches and all(caches) else None)
-    rules, precedence = [], {}
+    by_order, precedence = {}, {}
     vendors = {source: rows for source, rows in fitted.items() if source != "jvm-simd"}
     for operation in sorted({rule[1] for rows in vendors.values() for rule in rows}):
         sources = [source for source, rows in vendors.items() if any(rule[1] == operation for rule in rows)]
@@ -98,7 +98,17 @@ def compose(captures):
             costs[source] = math.exp(statistics.mean(statistics.mean(values) for values in by_model.values())) if by_model else 1.0
         ordered = sorted(sources, key=lambda source: (costs[source], source))
         precedence[operation] = dict(sources=ordered, relative_cost=costs, cases=sorted(common))
-        rules.extend(rule for source in ordered for rule in fitted[source] if rule[1] == operation)
+        by_order.setdefault(tuple(ordered), []).extend(
+            rule for source in ordered for rule in fitted[source] if rule[1] == operation)
+    rules = []
+    # Equal bounds can share operations only when their vendor order also agrees.
+    for ordered, rows in by_order.items():
+        for source in ordered:
+            grouped = {}
+            for rule in rows:
+                if rule[0] == source:
+                    grouped.setdefault(tuple(rule[2:]), []).append(rule[1])
+            rules.extend([source, ",".join(operations), *bounds] for bounds, operations in grouped.items())
     return rules + fitted.get("jvm-simd", []), precedence
 
 
