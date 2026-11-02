@@ -103,7 +103,7 @@ class Capture:
         return (*measured, cpu or next(iter(self.models)), cpu_class)
 
 
-def measurements(directories, baseline, candidate, backend=None, strict=False, arm=None, owned_target="jvm-simd"):
+def measurements(directories, baseline, candidate, backend=None, strict=False, arm=None, owned_target="jvm-simd", profile_sha256=None):
     targets = ["jvm-scalar", owned_target, candidate] if baseline == "jvm-owned" else [baseline, candidate]
     inputs = [capture_groups(directory, arm, targets) for directory in directories]
     result = Capture({}, {}, {}, {}, {}, set(), set(), set(), {}, [lab for _, lab in inputs], set())
@@ -114,6 +114,8 @@ def measurements(directories, baseline, candidate, backend=None, strict=False, a
         for path in passes:
             metadata = sections((path / "metadata.txt").read_text())
             fields = metadata.get("capture", metadata[""])
+            if profile_sha256 is not None and fields.get("engine_profile_sha256") != profile_sha256:
+                raise ValueError("validation capture does not match the requested profile hash")
             if metadata[""].get("status") != "complete" or int(fields.get("requested_samples", 0)) < 3 or int(fields.get("target_ns", 0)) < 10_000_000:
                 raise ValueError(f"{path}: incomplete capture or smoke timing settings")
             commit = fields.get("source_commit", "")

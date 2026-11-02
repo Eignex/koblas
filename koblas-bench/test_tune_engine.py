@@ -1,8 +1,14 @@
 """Behavior checks for paired capture fitting, independent of installed BLAS libraries."""
 import importlib.util
+import hashlib
+import json
+import sys
+import tempfile
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
+from unittest.mock import patch
+from test_tuning_capture import rounds
 
 spec = importlib.util.spec_from_file_location("tune", Path(__file__).with_name("tune-engine.py"))
 tune = importlib.util.module_from_spec(spec)
@@ -83,6 +89,51 @@ class TuneEngineTest(unittest.TestCase):
         self.assertEqual(["onemkl", "openblas"], precedence["Gemm"]["sources"])
         self.assertEqual(["jvm-simd", "Dot"], rules[-2][:2])
         self.assertEqual(["jvm-simd", "Panels,Products,Triangular"], rules[-1][:2])
+
+    def test_vendor_precedence_ignores_losses_outside_the_overlapping_routed_region(self):
+        shapes = {str(n): ("Dot", n, 1, 1, False, 1, True) for n in (16, 32, 64)}
+        def capture(costs):
+            paired = {case: [cost] * 3 for case, cost in zip(shapes, costs)}
+            return SimpleNamespace(paired=paired, shapes=shapes, by_cpu={case: {"CPU": ratios} for case, ratios in paired.items()}, cache_by_cpu={})
+
+        _, precedence = tune.compose({"openblas": capture([3.0, 3.0, 0.6]), "onemkl": capture([1.5, 1.5, 0.7])})
+
+        self.assertEqual(["openblas", "onemkl"], precedence["Dot"]["sources"])
+        self.assertEqual(["64"], precedence["Dot"]["cases"])
+
+    def test_profile_validation_gates_hash_disjointness_and_control_regressions(self):
+        for failure in (None, "hash", "overlap", "regression"):
+            with self.subTest(failure=failure), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                rounds(root)
+                profile = root / "profile.tsv"
+                profile.write_text("koblas-profile-v2\ttest\tnative\tLinux\tX86_64\t*\tAvx2\tfixture\ttest\n"
+                                   "onemkl\tDot\t0\t2147483647\t0\t2147483647\t0\t2147483647\t0\t*\t*\n")
+                digest = hashlib.sha256(profile.read_bytes()).hexdigest()
+                (root / "evidence.json").write_text(json.dumps(dict(sources=dict(onemkl=dict(
+                    paired_ratios={"dot+64+uniform" if failure == "overlap" else "dot+32+uniform": [0.5] * 3})))))
+                for path in root.glob("pass-*"):
+                    metadata = (path / "metadata.txt").read_text().replace("[onemkl]", "[native-default]")
+                    (path / "metadata.txt").write_text(metadata.replace("dirty=false", f"engine_profile_sha256={digest}\ndirty=false"))
+                    for name in ("native", "onemkl"):
+                        csv = path / f"{name}.csv"
+                        text = csv.read_text().replace("dot+32", "dot+64").replace("Dot:32:", "Dot:64:")
+                        if name == "onemkl":
+                            if failure == "regression":
+                                previous = 5 * 10 ** (int(path.name.removeprefix("pass-")) - 1)
+                                text = text.replace(f",{previous},onemkl", f",{previous * 3},onemkl")
+                            csv = path / "native-default.csv"
+                        csv.write_text(text)
+                if failure == "hash":
+                    profile.write_text(profile.read_text() + "# changed profile\n")
+                if failure:
+                    with self.assertRaises(ValueError):
+                        tune.validate_profile([root], profile, root, "native")
+                else:
+                    with patch.object(sys, "argv", ["tune-engine.py", "--validate-results", str(root), "--profile", str(profile),
+                                                    "--output", str(root / "validated")]):
+                        tune.main()
+                    self.assertEqual({}, json.loads((root / "validated/validation.json").read_text())["regressions"])
 
 
 if __name__ == "__main__":

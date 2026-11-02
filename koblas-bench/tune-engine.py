@@ -73,8 +73,15 @@ def compose(captures):
     vendors = {source: rows for source, rows in fitted.items() if source != "jvm-simd"}
     for operation in sorted({rule[1] for rows in vendors.values() for rule in rows}):
         sources = [source for source, rows in vendors.items() if any(rule[1] == operation for rule in rows)]
+        def covered(source, case):
+            key = captures[source].shapes[case]
+            return any(rule[1] == operation and all(rule[2 + 2 * i] <= key[1 + i] <= rule[3 + 2 * i] for i in range(3))
+                       and key[1] * key[2] * key[3] >= rule[8]
+                       and rule[9] in ("*", str(key[6]).lower()) and rule[10] in ("*", str(key[4]).lower())
+                       for rule in fitted[source])
         common = set.intersection(*({case for case in captures[source].paired
                                     if captures[source].shapes[case] and captures[source].shapes[case][0] == operation} for source in sources))
+        common = {case for case in common if len(sources) == 1 or sum(covered(source, case) for source in sources) > 1}
         costs = {}
         for source in sources:
             by_model = {}
@@ -85,9 +92,9 @@ def compose(captures):
                     if len(lengths) != 1:
                         raise ValueError("vendor precedence needs the same paired rounds")
                     by_model.setdefault(model, []).append(math.log(statistics.median(captures[source].by_cpu[case][model])))
-            if not by_model:
+            if common and not by_model:
                 raise ValueError(f"no paired vendor precedence evidence for {operation}")
-            costs[source] = math.exp(statistics.mean(statistics.mean(values) for values in by_model.values()))
+            costs[source] = math.exp(statistics.mean(statistics.mean(values) for values in by_model.values())) if by_model else 1.0
         ordered = sorted(sources, key=lambda source: (costs[source], source))
         precedence[operation] = dict(sources=ordered, relative_cost=costs, cases=sorted(common))
         rules.extend(rule for source in ordered for rule in fitted[source] if rule[1] == operation)
@@ -148,6 +155,37 @@ def training_cases():
     return cases + supplementary_cases()
 
 
+def validate_profile(results, profile, output, baseline=None, simd_target="jvm-simd", arm=None):
+    lines = [line.split("\t") for line in profile.read_text().splitlines() if line and not line.startswith("#")]
+    header, rules = lines[0], lines[1:]
+    if len(header) != 9 or header[0] != "koblas-profile-v2":
+        raise ValueError("validation requires a v2 profile")
+    runtime = header[2]
+    baseline = baseline or ("native" if runtime == "native" else "jvm-owned")
+    digest = hashlib.sha256(profile.read_bytes()).hexdigest()
+    checked = measurements(results, baseline, f"{runtime}-default", strict=True, arm=arm,
+                           owned_target=simd_target, profile_sha256=digest)
+    target = checked.target(runtime, header[3], header[4], header[5])
+    if target[-1] != header[6]:
+        raise ValueError("validation instruction class differs from the profile")
+    evidence = json.loads(profile.with_name("evidence.json").read_text())
+    training = {case for source in evidence["sources"].values() for case in source["paired_ratios"]}
+    if training & checked.paired.keys():
+        raise ValueError("validation cases overlap the fitted training cases")
+    reached = {provider for models in checked.providers.values() for provider in models.values()}
+    fitted_sources = {rule[0] for rule in rules if rule[1] != "Panels,Products,Triangular"}
+    if not fitted_sources.issubset(reached):
+        raise ValueError(f"holdout did not reach fitted providers {sorted(fitted_sources - reached)}")
+    regressions = {case: models for case, models in checked.by_cpu.items()
+                   if any(statistics.median(values) > 1.05 and min(values) > 1.02 for values in models.values())}
+    (output / "validation.json").write_text(json.dumps(dict(
+        profile_sha256=digest, paired_ratios=checked.paired, ratios_by_cpu=checked.by_cpu,
+        source_hashes=checked.hashes, selected_providers=checked.providers, regressions=regressions,
+        lab=checked.lab), indent=2) + "\n")
+    if regressions:
+        raise ValueError("combined profile or control regression; inspect retained validation.json")
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--runtime", choices=("native", "jvm"))
@@ -159,6 +197,8 @@ def main():
     parser.add_argument("--baseline", choices=("native", "jvm-scalar", "jvm-simd", "jvm-owned"))
     parser.add_argument("--simd-target", default="jvm-simd", help="owned SIMD capture target; JVM profiles include its fitted rules")
     parser.add_argument("--results", type=Path, action="append", help="local capture or fetched lab job; repeat for supplemental cases")
+    parser.add_argument("--validate-results", type=Path, action="append", help="validate fetched holdouts against --profile")
+    parser.add_argument("--profile", type=Path, help="fitted profile beside its retained evidence.json")
     parser.add_argument("--lab-arm", help="SDK arm in a multi-arm fetched job")
     parser.add_argument("--capture", action="store_true")
     parser.add_argument("--cases", type=Path, help="custom training cases; defaults to a regular dense grid")
@@ -178,6 +218,12 @@ def main():
                   "axpy+64+uniform+stride=-2", "gemm+128x128x128+uniform", "gemm+16x16x2048+uniform",
                   "trsm+128x128+triangular+side=L+uplo=L+transA=N+diag=N"}
         (args.write_cases / "native-timing.txt").write_text("\n".join(case for case in training if case in timing) + "\n")
+        return
+    if args.validate_results:
+        if args.profile is None or args.output is None or args.capture or args.results:
+            parser.error("--validate-results requires --profile and --output, without --capture or --results")
+        args.output.mkdir(parents=True, exist_ok=False)
+        validate_profile(args.validate_results, args.profile, args.output, args.baseline, args.simd_target, args.lab_arm)
         return
     if args.runtime is None or args.backend is None or args.output is None:
         parser.error("--runtime, --backend and --output are required for tuning")
@@ -254,18 +300,7 @@ def main():
         command[command.index("--output") + 1] = str(validation)
         subprocess.run(command, check=True, env=dict(os.environ,
                        KOBLAS_BENCH_ENGINE_PROFILE=str((args.output / "profile.tsv").resolve())))
-        checked = measurements([validation], baseline, f"{args.runtime}-default", strict=True, owned_target=args.simd_target)
-        reached = {provider for models in checked.providers.values() for provider in models.values()}
-        fitted_sources = {rule[0] for rule in rules if rule[1] != "Panels,Products,Triangular"}
-        if not fitted_sources.issubset(reached):
-            raise ValueError(f"holdout did not reach fitted providers {sorted(fitted_sources - reached)}")
-        regressions = {case: models for case, models in checked.by_cpu.items()
-                       if any(statistics.median(values) > 1.05 and min(values) > 1.02 for values in models.values())}
-        (args.output / "validation.json").write_text(json.dumps(dict(
-            paired_ratios=checked.paired, ratios_by_cpu=checked.by_cpu, source_hashes=checked.hashes,
-            selected_providers=checked.providers, regressions=regressions), indent=2) + "\n")
-        if regressions:
-            raise ValueError("combined profile or control regression; inspect retained validation.json")
+        validate_profile([validation], args.output / "profile.tsv", args.output, baseline, args.simd_target)
     print(f"Wrote {len(rules)} rules to {args.output / 'profile.tsv'}; retained evidence is available beside the profile.")
 
 

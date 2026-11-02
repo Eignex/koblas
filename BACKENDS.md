@@ -166,6 +166,17 @@ arithmetic and runtime/library versions. Each paired row still uses one revision
 Re-measure affected cases after arithmetic changes. Profile provenance points to every input lab job;
 metadata, source commits and hashes remain in the external evidence.
 
+Run the disjoint holdouts with the fitted profile as the lab job's `profile` input, then fetch that job
+and its snapshots as above. Apply the same completeness, provider-reach and regression gates:
+
+```bash
+python3 koblas-bench/tune-engine.py --validate-results /tmp/holdouts \
+  --profile /tmp/native-onemkl-profile/profile.tsv --output /tmp/validated-profile
+```
+
+Keep `evidence.json` beside the profile. Every validation round must record its exact profile hash;
+training overlap, mismatched targets and regressing selected routes or unchanged controls fail the gate.
+
 For multi-arm jobs, select `--lab-arm LABEL`. Only rows where every SDK arm completed successfully are
 accepted, and only their declared artifacts are read. Each accepted row needs at least three complete
 paired rounds on one CPU model. Each input job must be complete, with one clean source revision across the rounds of each paired row.
