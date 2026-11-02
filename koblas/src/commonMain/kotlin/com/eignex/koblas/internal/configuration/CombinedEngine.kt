@@ -3,6 +3,7 @@
 package com.eignex.koblas.internal.configuration
 
 import com.eignex.koblas.*
+import com.eignex.koblas.internal.dense.*
 
 /** Backends are bound once; arithmetic never resolves identifiers or capabilities. */
 internal class CompiledRouting(profile: EngineProfile, engines: List<KoblasEngine>) {
@@ -104,9 +105,11 @@ internal class CombinedEngine(private val routing: CompiledRouting, override val
         depth,
         borrowed = borrowed,
     ).takeUnless { it === PortableEngine }
-    override val panelImplementation = routing.select(EngineImplementation.Panels)
-    override val productImplementation = routing.select(EngineImplementation.Products)
-    override val triangularImplementation = routing.select(EngineImplementation.Triangular)
+    override val panelImplementation = family(EngineImplementation.Panels, PortablePanelKernels)
+    override val productImplementation = family(EngineImplementation.Products, PortableProductKernels)
+    override val triangularImplementation = family(EngineImplementation.Triangular, PortableTriangularKernels)
+    private fun family(operation: EngineImplementation, portable: KoblasEngine): KoblasEngine =
+        routing.select(operation).takeUnless { it === PortableEngine } ?: portable
     private fun vectors(operation: EngineImplementation, length: Int, contiguous: Boolean = true): KoblasEngine =
         routing.select(operation, length, contiguous = contiguous)
 
