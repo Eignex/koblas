@@ -1,6 +1,6 @@
 {
   "main": "com.eignex.koblas.bench.VendorComparisonAdapter",
   "classpath": ["koblas-bench/build/lab/classes", "koblas-bench/build/lab/lib/*"],
-  "buildTasks": [":koblas-bench:prepareLabBenchmark"],
+  "buildTasks": [":koblas-bench:prepareLabComparison"],
   "jvmArgs": ["-Xmx256m"]
 }

@@ -116,3 +116,15 @@ To compare a variant, put it and its base in one job as `configs` arms with `rep
 each row runs every arm on one machine, and pass the arm's label as the fourth argument to `compare.sh`. It
 then reads only rows in which every arm finished. `score.sh` documents its size bands and the Accelerate
 coprocessor exemption.
+
+### Prepared vendor comparisons
+
+[The vendor comparison manifest](lab/vendor-comparison.json) builds the Native executable and pins the
+oneMKL reference during preparation. [The macOS manifest](lab/vendor-comparison-macos.json) prepares
+Accelerate comparisons on a compatible Mac. Timed workers use these frozen inputs without invoking
+Gradle or downloading vendor packages. JVM-only arms need no Native executable input.
+
+Each workload is a separate paired lab case. All selected arms run on the same compatible machine in one
+attempt, with automatic placement and no CPU affinity. The SDK's default CPU accounting and 2 GiB memory
+allowance cover measurement rather than reserving compiler resources throughout the run. Completed rows
+are visible individually, and a lost worker repeats only the unfinished workload.

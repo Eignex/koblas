@@ -67,11 +67,11 @@ kotlin {
     linuxX64()
     if (fullTargets) {
         linuxArm64()
-        mingwX64()
-        macosArm64()
         iosArm64()
         iosSimulatorArm64()
     }
+    if (fullTargets || System.getProperty("os.name").startsWith("Windows")) mingwX64()
+    if (fullTargets || System.getProperty("os.name").startsWith("Mac")) macosArm64()
 
     applyDefaultHierarchyTemplate {
         common {

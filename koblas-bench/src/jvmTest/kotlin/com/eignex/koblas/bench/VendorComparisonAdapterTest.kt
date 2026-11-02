@@ -1,7 +1,6 @@
 package com.eignex.koblas.bench
 
 import com.eignex.lab.bench.BenchRequest
-import java.nio.file.Files
 import java.nio.file.Path
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -32,7 +31,7 @@ class VendorComparisonAdapterTest {
         }
     }
 
-    @Test fun `every selected row lands in exactly one routine and size band case`() {
+    @Test fun `every selected workload is its own complete paired case`() {
         val grid = "koblas-bench/lab/cases-parity-level2.txt"
         val selected = Cases.select(Cases.parse(repositoryFile(grid)))
 
@@ -43,8 +42,12 @@ class VendorComparisonAdapterTest {
         assertEquals(cases.size, cases.map { it.id }.distinct().size)
         for ((id, row) in rows) {
             val parsed = Cases.parse(row).single()
-            assertEquals("comparison/onemkl/${parsed.operation}/${sizeBand(parsed)}", id, row)
+            assertEquals("comparison/onemkl/${parsed.operation}/${parsed.id}", id, row)
         }
+        assertTrue(cases.all { it.parameters.getValue("rows").lines().size == 1 })
+        assertTrue(cases.all { it.resources.memoryMiB == 2048L })
+        assertTrue(cases.all { case -> case.inputs.any { it.role == "executable" } })
+        assertTrue(cases.all { case -> case.inputs.any { it.role == "vendor" } })
     }
 
     @Test fun `an operation selects only its own cells`() {
@@ -71,15 +74,11 @@ class VendorComparisonAdapterTest {
         }
     }
 
-    @Test fun `size bands follow the parity thresholds`() {
-        for ((line, band) in listOf(
-            "dot+4095+uniform" to "small", "dot+4096+uniform" to "mid", "dot+65535+uniform" to "large",
-            "gemv+127x127+uniform" to "small", "gemv+128x128+uniform" to "mid", "gemv+16384x4+uniform" to "large",
-            "trsv+127+triangular+uplo=L+transA=N+diag=N" to "small",
-            "trsv+256+triangular+uplo=L+transA=N+diag=N" to "large",
-        )) {
-            assertEquals(band, sizeBand(Cases.parse(line).single()), line)
-        }
+    @Test fun `JVM only rows need no Native executable`() {
+        val cases = VendorComparisonSuite.plan(BenchRequest(mapOf("vendor" to "openblas", "arch" to "arm64",
+            "targets" to "jvm-scalar,jvm-simd,openblas-jvm")))
+
+        assertTrue(cases.all { case -> case.inputs.none { it.role == "executable" } })
     }
 
     @Test fun `the native engine is an accepted comparison target`() {
@@ -90,5 +89,5 @@ class VendorComparisonAdapterTest {
 
     private fun repositoryFile(path: String): String =
         generateSequence(Path.of("").toAbsolutePath()) { it.parent }
-            .map { it.resolve(path) }.first { Files.isRegularFile(it) }.let(Files::readString)
+            .map { it.resolve(path) }.first { java.nio.file.Files.isRegularFile(it) }.let(java.nio.file.Files::readString)
 }
