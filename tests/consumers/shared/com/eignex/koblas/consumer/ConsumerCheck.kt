@@ -82,7 +82,7 @@ object ConsumerCheck {
                 transposeB: Boolean, beta: Double, c: DenseMatrixRegion,
             ) {
                 called = true
-                BuiltinEngines.scalar.computeGemm(alpha, a, transposeA, b, transposeB, beta, c)
+                BuiltinEngines.scalar.gemm(alpha, a, transposeA, b, transposeB, beta, c)
             }
         }
         val engine = KoblasEngine.combine(
