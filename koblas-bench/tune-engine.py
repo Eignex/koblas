@@ -9,6 +9,7 @@ import os
 import re
 import statistics
 import subprocess
+import sys
 from pathlib import Path
 
 MAX = 2**31 - 1
@@ -158,6 +159,9 @@ def main():
         command = ["bash", "koblas-bench/capture-report.sh", "--targets", f"{baseline},{candidate}",
                    "--cases", str(args.cases), "--rounds", "3", "--samples", "5", "--warmups", "5",
                    "--target-ms", "100", "--forks", "2", "--output", str(results)]
+        if sys.platform == "linux":
+            cpu = subprocess.check_output(["sh", "koblas-bench/select-cpu.sh"], text=True).strip()
+            command += ["--cpu", cpu]
         if args.backend != "jvm-simd":
             command += ["--libraries", args.backend]
         if args.native_executable:
