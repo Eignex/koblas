@@ -45,10 +45,12 @@ class FingerprintScriptTest {
             set -euo pipefail
             source "${'$'}1"
             cd "${'$'}2"
+            fixture_error="${'$'}3/filename-error"
+            trap 'printf "filename fixture failed at line %s\n" "${'$'}LINENO" >&2; cat "${'$'}fixture_error" >&2' ERR
             if ! (printf original > ${'$'}'bad\xff') 2>"${'$'}3/filename-error"; then
                 # APFS refuses malformed UTF-8 names before either fingerprint path can inspect them.
                 test "${'$'}(uname -s)" = Darwin
-                grep -q 'Illegal byte sequence' "${'$'}3/filename-error"
+                LC_ALL=C grep -q 'Illegal byte sequence' "${'$'}3/filename-error"
             fi
             printf newline > ${'$'}'split\nname'
             printf ordinary > ordinary
