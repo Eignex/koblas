@@ -113,7 +113,7 @@ class DenseTest {
     @Test
     fun `strided vector workloads preserve padding and agree with the scalar reference`() {
         for (operation in listOf("dot", "copy", "axpy", "scal", "nrm2", "asum", "sum", "iamax", "swap", "rot")) {
-            for (stride in listOf(2, -1, -2)) {
+            for (stride in listOf(2, -1, -2, 256, -257)) {
                 val case = Cases.parse("$operation+17+uniform+stride=$stride").single()
                 for (engine in listOfNotNull(BuiltinEngines.scalar, BuiltinEngines.simd, koblas)) {
                     val work = assertNotNull(engineArm(case, engine)?.work)

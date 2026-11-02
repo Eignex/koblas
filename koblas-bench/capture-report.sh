@@ -199,6 +199,7 @@ fi
     sysctl -n hw.physicalcpu | sed 's/^/physical_cpus=/'
     sysctl -n hw.physicalcpu_max | sed 's/^/physical_cpus_max=/'
     sysctl -n hw.memsize | sed 's/^/memory_bytes=/'
+    sysctl -n hw.l2cachesize 2>/dev/null | sed 's/^/l2_cache_bytes=/' || true
   elif [[ $platform == Windows ]]; then
     powershell.exe -NoProfile -NonInteractive -Command '
       Get-CimInstance Win32_Processor | ForEach-Object {
@@ -313,6 +314,8 @@ fi
   # way an ARM64 host has any. A report that does not say this cannot be told apart from one that linked here.
   echo "native_executable=${native_executable:-not supplied}"
   echo "requested_jvm_forks=$forks"
+  printf 'JAVA_TOOL_OPTIONS=%s\nJDK_JAVA_OPTIONS=%s\nKOBLAS_BENCH_PROFILE_GC=%s\n' \
+    "${JAVA_TOOL_OPTIONS:-}" "${JDK_JAVA_OPTIONS:-}" "${KOBLAS_BENCH_PROFILE_GC:-false}"
   echo "cpu_policy=${KOBLAS_BENCH_CPU_POLICY:-unbound}"
   if [[ $platform == Linux ]]; then awk '/^Cpus_allowed_list:/ { print "cpu_affinity=" $2 }' /proc/self/status; fi
   echo "targets=$(IFS=,; echo "${targets[*]}")"

@@ -11,6 +11,7 @@ from pathlib import Path
 from tuning_capture import measurements
 
 MAX = 2**31 - 1
+VECTORS = ("dot", "copy", "sum", "nrm2", "iamax", "asum", "axpy", "scal", "swap", "rot")
 
 
 def fit(paired, backend, shapes, by_cpu=None, cache_bytes=None):
@@ -30,7 +31,7 @@ def fit(paired, backend, shapes, by_cpu=None, cache_bytes=None):
             if start is not None:
                 tail = keys[start:][-2:]
                 beyond_cache = cache_bytes is not None and len(tail) == 2 and all(key[1] * 8 > cache_bytes for key in tail)
-                rules.append([backend, operation, keys[start][1], MAX if beyond_cache else keys[-1][1],
+                rules.append([backend, operation, keys[start][1], MAX if beyond_cache or backend == "jvm-simd" and len(tail) == 2 else keys[-1][1],
                               0, MAX, 0, MAX, 0, str(contiguous).lower(), "*"])
         else:
             # Fit work and minimum extents jointly; skinny losing calls constrain the same region.
@@ -128,12 +129,37 @@ def holdout_cases():
                     "gemm+512x257x129+uniform+layout=borrowed+transB=T",
                     "symm+257x129+uniform+side=R+uplo=U",
                     "trsm+257x129+triangular+side=R+uplo=U+transA=T+diag=N",
-                    "trmm+257x129+triangular+side=R+uplo=U+transA=T+diag=N"]
+                    "trmm+257x129+triangular+side=R+uplo=U+transA=T+diag=N",
+                    "dot+8388609+uniform", "axpy+8388609+uniform",
+                    "dot+4194305+uniform+stride=2", "axpy+4194305+uniform+stride=-2",
+                    "spdot+524288+sparse-uniform+density=0.25",
+                    "dot+4097+uniform+stride=257", "axpy+4097+uniform+stride=257"]
+
+
+def tail_cases():
+    return ([f"{op}+{n}+uniform{stride}" for op in VECTORS for n in (2097152, 4194304)
+             for stride in ("", "+stride=2", "+stride=-1", "+stride=-2")] +
+            [f"{op}+8388608+uniform" for op in VECTORS] +
+            [f"{op}+4096+uniform+stride=256" for op in VECTORS] +
+            [f"{op}+{n * 4}+sparse-uniform+density=0.25" for n in (8192, 65536)
+             for op in ("spdot", "spdot-sparse", "spaxpy", "spscatter", "spgather", "spgather-zero", "spnrm2-indexed")])
+
+
+def anchor_cases():
+    selected = []
+    for case in training_cases():
+        op, dimensions, *_ = case.split('+')
+        if (op in VECTORS and dimensions in ("1024", "65536") and ("stride=" not in case or case.endswith("stride=2")) or
+            op.startswith("sp") and dimensions in ("256", "4096") or
+            op not in VECTORS and all(n == "64" for n in dimensions.split('x')) or
+            op not in VECTORS and all(n == "256" for n in dimensions.split('x')) or
+            op == "gemm" and dimensions in ("16x16x1024", "16x16x2048") and "layout=borrowed" in case):
+            selected.append(case)
+    return list(dict.fromkeys(selected + supplementary_cases() + tail_cases()))
 
 
 def training_cases():
-    vectors = ("dot", "copy", "sum", "nrm2", "iamax", "asum", "axpy", "scal", "swap", "rot")
-    cases = [f"{op}+{n}+uniform{stride}" for op in vectors
+    cases = [f"{op}+{n}+uniform{stride}" for op in VECTORS
              for n in (2, 4, 8, 16, 32, 64, 96, 128, 256, 1024, 65536, 1_000_000)
              for stride in ("", "+stride=2", "+stride=-1", "+stride=-2")]
     for n in (8, 16, 32, 64, 128, 256, 512):
@@ -152,7 +178,7 @@ def training_cases():
         cases += [f"gemm+{m}x{n}x{k}+uniform{layout}" for layout in ("", "+layout=borrowed")]
     cases += [f"{op}+{n * 4}+sparse-uniform+density=0.25" for n in (2, 4, 8, 16, 32, 64, 256, 1024)
               for op in ("spdot", "spdot-sparse", "spaxpy", "spscatter", "spgather", "spgather-zero", "spnrm2-indexed")]
-    return cases + supplementary_cases()
+    return cases + supplementary_cases() + tail_cases()
 
 
 def validate_profile(results, profile, output, baseline=None, simd_target="jvm-simd", arm=None):
@@ -214,6 +240,8 @@ def main():
         (args.write_cases / "training.txt").write_text("\n".join(training) + "\n")
         (args.write_cases / "holdout.txt").write_text("\n".join(holdout_cases()) + "\n")
         (args.write_cases / "supplement.txt").write_text("\n".join(supplementary_cases()) + "\n")
+        (args.write_cases / "anchors.txt").write_text("\n".join(anchor_cases()) + "\n")
+        (args.write_cases / "tail.txt").write_text("\n".join(tail_cases()) + "\n")
         timing = {"dot+64+uniform", "dot+1000000+uniform", "copy+1000000+uniform+stride=2",
                   "axpy+64+uniform+stride=-2", "gemm+128x128x128+uniform", "gemm+16x16x2048+uniform",
                   "trsm+128x128+triangular+side=L+uplo=L+transA=N+diag=N"}
@@ -264,6 +292,8 @@ def main():
                 for source, candidate in candidates.items()}
     if any(not capture.paired for capture in captures.values()):
         raise ValueError("no complete paired measurements for a requested backend")
+    if any(capture.missing_rows for capture in captures.values()):
+        raise ValueError(f"requested training rows have no accepted results: {sorted(next(iter(captures.values())).missing_rows, key=str)}")
     target = next(iter(captures.values())).target(args.runtime, args.os, args.arch, args.cpu)
     if any(capture.target(args.runtime, args.os, args.arch, args.cpu) != target for capture in captures.values()):
         raise ValueError("composition sources were measured on different targets")
@@ -278,7 +308,10 @@ def main():
     (args.output / "evidence.json").write_text(json.dumps(dict(
         baseline=baseline, candidates=candidates, source_hashes=hashes, target=target, vendor_precedence=precedence,
         sources={source: dict(paired_ratios=capture.paired, ratios_by_cpu=capture.by_cpu, lab=capture.lab,
-                             source_commits=sorted(capture.commits), last_level_cache_bytes=capture.cache_by_cpu,
+                             provenance=capture.provenance,
+                             anchor_checks=capture.anchor_checks,
+                             timing_modes=capture.modes,
+                             source_commits=sorted(capture.commits), vector_tail_cache_bytes=capture.cache_by_cpu,
                              selected_providers=capture.providers) for source, capture in captures.items()},
         rules=rules, criterion="every variant and CPU: median <= 0.95 and every round <= 1.02",
         bounded_vector_rules=[dict(operation=rule[1], last_measured_length=rule[3],

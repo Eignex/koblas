@@ -75,9 +75,10 @@ class CasesTest {
             dot+32+uniform
             gemm+32x21x48+uniform+transA=T
             spdot+4096+sparse-uniform+density=0.01
+            dot+8388609+uniform+stride=257
         """.trimIndent())
 
-        assertEquals(listOf("dot", "gemm", "spdot"), cases.map { it.operation })
+        assertEquals(listOf("dot", "gemm", "spdot", "dot"), cases.map { it.operation })
         assertEquals("gemm+32x21x48+uniform+transA=T", cases[1].id)
     }
 
@@ -86,7 +87,9 @@ class CasesTest {
         assertFailsWith<IllegalArgumentException> { Cases.parse("unknown+4+uniform") }
         assertFailsWith<IllegalArgumentException> { Cases.parse("dot++4+uniform") }
         assertFailsWith<IllegalArgumentException> { Cases.parse("gemm+4x4+uniform") }
-        assertFailsWith<IllegalArgumentException> { Cases.parse("dot+1000001+uniform") }
+        assertFailsWith<IllegalArgumentException> { Cases.parse("dot+2147483648+uniform") }
+        assertFailsWith<IllegalArgumentException> { Cases.parse("dot+4+uniform+stride=0") }
+        assertFailsWith<IllegalArgumentException> { Cases.parse("dot+4+uniform+stride=-2147483648") }
         assertFailsWith<IllegalArgumentException> { Cases.parse("dot+4+uniform+transA=T") }
         assertFailsWith<IllegalArgumentException> { Cases.parse("spdot+4096+sparse-uniform+density=0.01+transA=T") }
         assertFailsWith<IllegalArgumentException> { Cases.parse("spdot+4096+uniform+density=0.01") }

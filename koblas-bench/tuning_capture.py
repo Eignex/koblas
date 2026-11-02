@@ -4,7 +4,9 @@ import hashlib
 import json
 import math
 import re
-from dataclasses import dataclass
+import statistics
+from dataclasses import dataclass, field
+from itertools import product
 
 
 def sections(text):
@@ -17,6 +19,99 @@ def sections(text):
             key, value = line.split("=", 1)
             result[current][key] = value
     return result
+
+
+def measured_manifest(path):
+    manifest = path.parent / "source-hashes.txt"
+    selected = {}
+    for line in manifest.read_text().splitlines():
+        digest, name = line.split(" ", 1)
+        if re.match(r"(?:koblas/src/(?:[^/]*Main|jvmJava25)/|koblas-bench/src/[^/]*Main/|koblas-bench/jmh/|gradle/)", name) or name in {
+            "build.gradle.kts", "settings.gradle.kts", "gradle.properties", "koblas/build.gradle.kts", "koblas-bench/build.gradle.kts",
+            "koblas-bench/capture-report.sh", "koblas-bench/script-helpers.sh", "koblas-bench/lab/vendor-capture.sh", "koblas-bench/lab/prepare-vendor.sh",
+        }:
+            if not re.fullmatch(r"[0-9a-f]{64}", digest) or name in selected:
+                raise ValueError("invalid or repeated measured source hash")
+            selected[name] = digest
+    if not selected:
+        raise ValueError("capture has no measured-path source manifest")
+    return hashlib.sha256(json.dumps(selected, sort_keys=True).encode()).hexdigest(), manifest
+
+
+def lab_parameters(lab):
+    if not lab:
+        return {}
+    experiment = lab.get("resources", {}).get("lab-job.json", {}).get("experiment", {})
+    parameters = experiment.get("bench", {}).get("request", {}).get("parameters", {}).copy()
+    grid = experiment.get("grid") or {}
+    arms = [{**(experiment.get("base") or {}), **config, **dict(zip(grid, values))}
+            for config in experiment.get("configs") or [{}] for values in product(*grid.values())]
+    varying = [key for key in dict.fromkeys(key for arm in arms for key in arm)
+               if key != "label" and len({arm.get(key) for arm in arms}) > 1]
+    selected = [arm for arm in arms if arm.get("label", " ".join(f"{key}={arm.get(key, '-')}" for key in varying) or "base") == lab.get("arm", "base")]
+    if len(selected) != 1:
+        raise ValueError("cannot recover the selected lab arm parameters")
+    parameters.update({key.removeprefix("param."): value for key, value in selected[0].items() if key.startswith("param.")})
+    return parameters
+
+
+def protocol_signature(fields, identities, path, parameters):
+    keys = ("warmups", "requested_samples", "target_ns", "requested_jvm_forks", "jvm_gc", "jvm_heap", "cpu_policy", "koblas_threads")
+    if any(not fields.get(key) for key in keys) or not fields.get("platform"):
+        raise ValueError("capture is missing timing or thread protocol metadata")
+    bindings, mkl = [], False
+    for identity in identities:
+        if not identity.get("runtime") or not identity.get("harness") or not identity.get("warmup_target_ns"):
+            raise ValueError("capture is missing runtime or harness metadata")
+        vendors = re.findall(r"/(Accelerate|oneMKL|OpenBLAS|AOCL|ArmPL)/(.*?)/threads=([^/]+)", identity.get("implementation", ""))
+        mkl |= any(vendor == "oneMKL" for vendor, _, _ in vendors)
+        if not vendors and set(re.findall(r"/caps\[([^:]+):", identity.get("implementation", ""))) & {"onemkl", "openblas", "accelerate", "aocl", "armpl"}:
+            raise ValueError("capture is missing vendor version and thread evidence")
+        bindings.append([identity["runtime"], identity["harness"], identity["warmup_target_ns"],
+                         [(vendor, location.rsplit("/", 1)[-1], threads) for vendor, location, threads in vendors]])
+    package = path.parent.parent / "vendor-package.txt"
+    if mkl and parameters.get("vendor") == "onemkl" and not package.is_file():
+        raise ValueError("lab oneMKL capture is missing its pinned package evidence")
+    protocol = {key: value for key, value in fields.items() if key in keys or key.startswith(("KOBLAS_DENSE_", "KOBLAS_SPARSE_")) or key == "engine_profile_sha256"}
+    if any(identity.get("profile_runtime") == "jvm" for identity in identities):
+        protocol.update(JAVA_TOOL_OPTIONS=fields.get("JAVA_TOOL_OPTIONS", parameters.get("jvm-options", "")),
+                        JDK_JAVA_OPTIONS=fields.get("JDK_JAVA_OPTIONS", ""),
+                        KOBLAS_BENCH_PROFILE_GC=fields.get("KOBLAS_BENCH_PROFILE_GC", parameters.get("profile-gc", "false")))
+    return dict(protocol=protocol, bindings=bindings, system=fields["platform"].split()[2:],
+                package=package.read_text().strip() if mkl and package.is_file() else None)
+
+
+def verify_anchors(records, shapes):
+    by_manifest = {}
+    for record in records:
+        for case, ratios in record["paired"].items():
+            if shapes[case]:
+                shape = shapes[case]
+                by_manifest.setdefault(record["manifest"], {}).setdefault((shape[0], shape[6], shape[4], record["cpu"]), {}).setdefault(case, []).extend(ratios)
+    checks = []
+    for stratum in sorted({key for groups in by_manifest.values() for key in groups}):
+        nodes = {digest: groups.get(stratum, {}) for digest, groups in by_manifest.items()
+                 if any(key[:3] == stratum[:3] for key in groups)}
+        pending = set(nodes)
+        reached = {min(pending)}
+        pending -= reached
+        while pending:
+            linked = set()
+            for left in sorted(reached):
+                for right in sorted(pending):
+                    anchors = nodes[left].keys() & nodes[right].keys()
+                    if len({shapes[case] for case in anchors}) >= 2 and all(
+                        (statistics.median(nodes[left][case]) <= 0.95 and max(nodes[left][case]) <= 1.02) ==
+                        (statistics.median(nodes[right][case]) <= 0.95 and max(nodes[right][case]) <= 1.02) for case in anchors
+                    ):
+                        linked.add(right)
+                        checks.append(dict(operation=stratum[0], contiguous=stratum[1], borrowed=stratum[2], cpu=stratum[3],
+                                           left=left, right=right, cases=sorted(anchors)))
+            if not linked:
+                raise ValueError(f"changed measured paths need two agreeing repeated anchors for {stratum}")
+            reached.update(linked)
+            pending -= linked
+    return checks
 
 
 def capture_groups(directory, arm, targets):
@@ -47,16 +142,23 @@ def capture_groups(directory, arm, targets):
         row = next(row for row in members if row["arm"] == arm)
         root = (directory / "cases" / str(row["index"]) / "out").resolve()
         artifacts = {artifact["path"] for artifact in row["record"]["artifacts"]}
+        def declared_path(name):
+            path = (root / name).resolve()
+            if name not in artifacts or not path.is_relative_to(root) or not path.is_file():
+                raise ValueError(f"invalid or missing accepted artifact: {path}")
+            return path
         paths = []
         for artifact in row["record"]["artifacts"]:
             name = artifact["path"]
             if not re.search(r"(?:^|/)pass-\d+/metadata\.txt$", name):
                 continue
-            path = (root / name).resolve()
-            if not path.is_relative_to(root) or not path.is_file():
-                raise ValueError(f"invalid or missing accepted artifact: {path}")
+            path = declared_path(name)
             if any(name.removesuffix("metadata.txt") + target + ".csv" not in artifacts for target in targets):
                 raise ValueError("accepted row does not declare every paired CSV artifact")
+            declared_path(str((path.parent.parent / "source-hashes.txt").relative_to(root)))
+            package = path.parent.parent.parent / "vendor-package.txt"
+            if package.is_file():
+                declared_path(str(package.relative_to(root)))
             paths.append(path.parent)
         if len(paths) != len(set(paths)) or not paths:
             raise ValueError("accepted row has missing or repeated capture rounds")
@@ -67,9 +169,11 @@ def capture_groups(directory, arm, targets):
     # Execution snapshots retain preparation and failed-attempt resource counters as well as winners.
     resources = {name: json.loads((directory / name).read_text())
                  for name in ("lab-job.json", "lab-execution.json")}
-    if resources["lab-job.json"]["status"] != "DONE":
+    if resources["lab-job.json"]["status"] != "DONE" or type(resources["lab-job.json"].get("id")) is not int:
         raise ValueError("fitting requires a completed job snapshot")
-    return groups, dict(arm=arm, accepted_rows=accepted, rows=rows, resources=resources)
+    return groups, dict(arm=arm, accepted_rows=accepted, rows=rows, resources=resources,
+                        requested=[key for key in paired], accepted=[key for key, members in paired.items()
+                        if any(row["index"] in accepted for row in members)])
 
 
 @dataclass
@@ -85,6 +189,10 @@ class Capture:
     cache_by_cpu: dict
     lab: list
     classes: set
+    provenance: list = field(default_factory=list)
+    missing_rows: set = field(default_factory=set)
+    modes: dict = field(default_factory=dict)
+    anchor_checks: list = field(default_factory=list)
 
     def target(self, runtime, operating_system=None, architecture=None, cpu=None):
         if len(self.platforms) != 1:
@@ -104,13 +212,24 @@ class Capture:
 
 
 def measurements(directories, baseline, candidate, backend=None, strict=False, arm=None, owned_target="jvm-simd", profile_sha256=None):
+    if len({directory.resolve() for directory in directories}) != len(directories):
+        raise ValueError("repeated capture directory")
     targets = ["jvm-scalar", owned_target, candidate] if baseline == "jvm-owned" else [baseline, candidate]
     inputs = [capture_groups(directory, arm, targets) for directory in directories]
+    jobs = [lab["resources"]["lab-job.json"].get("id") for _, lab in inputs if lab]
+    if len(jobs) != len(set(jobs)):
+        raise ValueError("repeated input lab job")
     result = Capture({}, {}, {}, {}, {}, set(), set(), set(), {}, [lab for _, lab in inputs], set())
+    requested = {tuple(key) for _, lab in inputs for key in lab.get("requested", [])}
+    result.missing_rows = requested - {tuple(key) for _, lab in inputs for key in lab.get("accepted", [])}
+    if strict and result.missing_rows:
+        raise ValueError("validation has requested rows without accepted results")
+    protocol, environments = None, {}
     for passes, lab in ((passes, lab) for groups, lab in inputs for passes in groups):
+        parameters = lab_parameters(lab)
         if len(passes) < 3:
             raise ValueError("at least three paired capture rounds are required in each accepted row")
-        paired, models, commits, expected = {}, set(), set(), None
+        paired, models, commits, manifests, expected = {}, set(), set(), set(), None
         for path in passes:
             metadata = sections((path / "metadata.txt").read_text())
             fields = metadata.get("capture", metadata[""])
@@ -126,6 +245,15 @@ def measurements(directories, baseline, candidate, backend=None, strict=False, a
                 raise ValueError("capture rounds within one worker attempt use different source commits")
             result.commits.add(commit)
             identities = [metadata.get(target, {}) for target in targets]
+            signature = protocol_signature(fields, identities, path, parameters)
+            if protocol is not None and protocol != signature["protocol"]:
+                raise ValueError("capture rows use different timing protocols")
+            protocol = signature["protocol"]
+            manifest, source_hashes = measured_manifest(path)
+            manifests.add(manifest)
+            result.hashes[str(source_hashes)] = hashlib.sha256(source_hashes.read_bytes()).hexdigest()
+            if len(manifests) != 1:
+                raise ValueError("capture rounds within one worker attempt use different measured code")
             owned = [set(re.findall(r"/caps\[([^:]+):", identity.get("implementation", ""))) for identity in identities[:2]]
             if baseline == "jvm-owned" and any(not sources or sources - {"portable", "jvm-simd"} for sources in owned):
                 raise ValueError("owned baseline contains vendor providers")
@@ -158,12 +286,18 @@ def measurements(directories, baseline, candidate, backend=None, strict=False, a
             model = hardware.get("model name", hardware.get("cpu_model", identities[0]["profile_cpu_model"]))
             if model == "*":
                 raise ValueError("missing CPU model for measurement stratification")
+            environment = {key: value for key, value in signature.items() if key != "protocol"}
+            if environments.setdefault(model, environment) != environment:
+                raise ValueError("capture rows use different runtime vendor or OS protocols within a CPU model")
             models.add(model)
             cache = re.fullmatch(r"([\d.]+)\s*([KMGT]?)i?B(?:\s+.*)?", hardware.get("l3 cache", ""))
-            capacity = int(float(cache[1]) * 1024 ** (" KMGT".index(cache[2]))) if cache else None
+            capacity = int(float(cache[1]) * 1024 ** (" KMGT".index(cache[2]))) if cache else int(hardware.get("l2_cache_bytes", 0)) or None
+            cores = int(hardware.get("core(s) per socket", 0)) * int(hardware.get("socket(s)", 0))
+            if cache and cores > 0:
+                capacity = (capacity + cores - 1) // cores
             if model in result.cache_by_cpu:
                 previous = result.cache_by_cpu[model]
-                capacity = max(previous, capacity) if previous and capacity else None
+                capacity = max(previous or 0, capacity or 0) or None
             result.cache_by_cpu[model] = capacity
             exported = re.findall(r"/caps\[" + re.escape(backend or "") + r":([^]]*)\]", identities[-1].get("implementation", ""))
             supported = set(exported[-1].split(',')) if exported else None
@@ -197,8 +331,10 @@ def measurements(directories, baseline, candidate, backend=None, strict=False, a
                 raise ValueError("validation arms contain different cases")
             for case in rows[0].keys() & rows[1].keys():
                 left, right = rows[0][case], rows[1][case]
+                if result.modes.setdefault(case, left["timing_mode"]) != left["timing_mode"]:
+                    raise ValueError(f"{case}: timing boundaries changed between capture inputs")
                 if left["status"] != "ok" or right["status"] != "ok":
-                    if strict:
+                    if strict or left["status"] != "ok" or supported and left["routing_key"].split(':')[0] in supported:
                         raise ValueError(f"{case}: validation contains an untimed case")
                     continue
                 if any(left[key] != right[key] for key in ("timing_mode", "routing_key")):
@@ -208,12 +344,12 @@ def measurements(directories, baseline, candidate, backend=None, strict=False, a
                     raise ValueError(f"{case}: malformed routing dimensions")
                 shape = (key[0], *map(int, key[1:4]), key[4] == "true", int(key[5]), key[6] == "true") if key[0] else None
                 provider = right["provider"]
-                if not provider or result.providers.setdefault(case, {}).setdefault(model, provider) != provider:
-                    raise ValueError(f"{case}: missing or inconsistent selected provider")
                 if result.shapes.setdefault(case, shape) != shape:
                     raise ValueError(f"{case}: routing dimensions changed between rounds")
                 if backend and provider != backend or supported is not None and shape and shape[0] not in supported:
                     continue
+                if not provider or result.providers.setdefault(case, {}).setdefault(model, provider) != provider:
+                    raise ValueError(f"{case}: missing or inconsistent selected provider")
                 times = [float(row["median_ns"]) for row in (left, right)]
                 if not all(math.isfinite(t) and t > 0 for t in times) or any(int(row["samples"]) < 3 for row in (left, right)):
                     raise ValueError(f"{case}: invalid timings or insufficient measured samples")
@@ -225,7 +361,12 @@ def measurements(directories, baseline, candidate, backend=None, strict=False, a
         complete = {case: ratios for case, ratios in paired.items() if len(ratios) == len(passes)}
         if strict and (not complete or len(complete) != len(rows[0])):
             raise ValueError("validation requires complete paired timings for every case")
+        result.provenance.append(dict(job=lab.get("resources", {}).get("lab-job.json", {}).get("id"),
+                                      capture=str(passes[0].parent),
+                                      commit=next(iter(commits)), manifest=next(iter(manifests)),
+                                      signature=signature, cpu=next(iter(models)), paired=complete))
         for case, ratios in complete.items():
             result.paired.setdefault(case, []).extend(ratios)
             result.by_cpu.setdefault(case, {}).setdefault(next(iter(models)), []).extend(ratios)
+    result.anchor_checks = verify_anchors(result.provenance, result.shapes)
     return result

@@ -122,12 +122,16 @@ Fitting and validation use the scheduler's compatible hardware without CPU affin
 It uses twenty warmups of 200 ms and validates the combined configuration on disjoint holdout cases.
 Generated training includes non-square Level 2 calls, both structured Level 3 sides and large borrowed
 GEMM views; `supplement.txt` measures these additions independently of an existing training capture.
+`tail.txt` adds larger dense/indexed inputs and large strides. `anchors.txt` combines these with repeated
+base shapes and the matrix supplement, so producer revisions can be checked before pooling captures.
 `validation.json` records the dispatcher-selected providers and all paired ratios. Persistent regressions
 over five percent in either selected routes or unchanged controls fail validation; missing, empty or
 untimed validation cases fail as well. Profile names include a hash of their configuration and evidence.
 Contiguous and strided length thresholds are fitted independently and must keep winning at every larger
-measured size. Length rules remain bounded and are flagged in the evidence until a beyond-cache tail is
-verified. Matrix rules fit minimum extents and work together, with bounded depth bands for residual deep
+measured size. Owned SIMD tails open only after two winning larger lengths. Vendor tails require two
+winning lengths beyond the reported per-core share of last-level cache, or the full reported L2 on macOS.
+Other length rules stay bounded and are flagged in the evidence. Holdouts also exercise inputs above the
+training caps. Matrix rules fit minimum extents and work together, with bounded depth bands for residual deep
 shapes. Borrowed layouts are fitted separately. Every covered measured variant must win on each CPU model.
 Use `--runtime jvm` for transfer-inclusive JVM vendor tuning or `--backend jvm-simd` for owned vector tuning.
 The exact SIMD arm exposes every supplied kernel from its intrinsic minimum length; performance cutoffs
@@ -161,10 +165,15 @@ python3 koblas-bench/tune-engine.py --results /tmp/calibration --runtime native 
   --cpu '*' --output /tmp/native-onemkl-profile
 ```
 
-Repeat `--results PATH` to add supplemental measurements from clean producer revisions with unchanged
-arithmetic and runtime/library versions. Each paired row still uses one revision and one worker attempt.
-Re-measure affected cases after arithmetic changes. Profile provenance points to every input lab job;
-metadata, source commits and hashes remain in the external evidence.
+Repeat `--results PATH` to add supplemental measurements. Rows must agree on timing settings,
+GC/heap, effective JVM options, GC profiling and CPU policy. Runtime, OS version, vendor version and
+thread evidence must agree within each CPU-model stratum; oneMKL comparisons also retain the pinned
+package. Each paired row uses one clean revision and worker attempt. The reader compares measured-path
+source manifests; changed code requires two distinct repeated anchors per operation, contiguity,
+owned/borrowed layout and CPU stratum with agreeing
+win/lose classifications. Otherwise remeasure the affected cases. Duplicate inputs and missing
+requested training rows stop fitting. Per-row commits, manifests, protocol signatures and anchor checks
+are retained externally with the job provenance and preparation/failed-attempt costs.
 
 Run the disjoint holdouts with the fitted profile as the lab job's `profile` input, then fetch that job
 and its snapshots as above. Apply the same completeness, provider-reach and regression gates:

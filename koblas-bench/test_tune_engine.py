@@ -22,6 +22,8 @@ class TuneEngineTest(unittest.TestCase):
         self.assertEqual(len(training), len(set(training)))
         self.assertTrue(set(training).isdisjoint(holdout))
         self.assertTrue(set(tune.supplementary_cases()).issubset(training))
+        self.assertTrue(set(tune.tail_cases()).issubset(training))
+        self.assertTrue(set(tune.anchor_cases()).issubset(training))
         self.assertEqual(len(holdout), len(set(holdout)))
 
     def test_noisy_or_losing_larger_lengths_delay_the_crossover(self):
@@ -57,6 +59,9 @@ class TuneEngineTest(unittest.TestCase):
         self.assertEqual(tune.MAX, tune.fit(paired, "onemkl", shapes, cache_bytes=512)[0][3])
         self.assertEqual(256, tune.fit(paired, "onemkl", shapes, cache_bytes=1024)[0][3])
         self.assertEqual(256, tune.fit(paired, "onemkl", shapes)[0][3])
+        self.assertEqual(tune.MAX, tune.fit(paired, "jvm-simd", shapes)[0][3])
+        paired["128"] = [1.5] * 3
+        self.assertEqual(256, tune.fit(paired, "jvm-simd", shapes)[0][3])
 
     def test_matrix_work_and_extents_exclude_skinny_and_small_losses(self):
         shapes = {"small": ("Gemm", 8, 8, 8, False, 3, True),

@@ -68,7 +68,7 @@ internal object Cases {
         val operation = parts[0]
         val count = dimensionCounts[operation] ?: invalid("unknown operation '$operation'")
         val dimensions = parts[1].split('x').map {
-            it.toIntOrNull()?.takeIf { value -> value in 1..MAX_DIMENSION } ?: invalid("invalid positive dimension '$it'")
+            it.toIntOrNull()?.takeIf { value -> value > 0 } ?: invalid("invalid positive dimension '$it'")
         }
         if (dimensions.size != count) invalid("$operation requires $count dimensions")
         if (operation in setOf("ger-shrinking", "ger-window-shrinking") && dimensions[0] < 2) {
@@ -111,7 +111,7 @@ internal object Cases {
             "diag" -> if (value !in setOf("N", "U")) invalid("invalid diag '$value'")
             "workspace" -> if (value != "retained") invalid("workspace must be retained")
             "layout" -> if (value != "borrowed") invalid("layout must be borrowed")
-            "stride" -> if (value !in setOf("2", "-1", "-2")) invalid("stride must be 2, -1 or -2")
+            "stride" -> if (value.toIntOrNull()?.let { it != 0 && it != Int.MIN_VALUE } != true) invalid("invalid stride '$value'")
         }
     }
 
@@ -210,5 +210,4 @@ internal object Cases {
         "spsyrk-dense", "spsyrk-sparse", "spadd", "spmm-generic", "spmm-generic-right", "spgemm-generic",
         "spbuild-triplets", "spbuild-duplicates",
     )
-    private const val MAX_DIMENSION = 1_000_000
 }
