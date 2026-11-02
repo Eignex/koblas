@@ -1,6 +1,7 @@
 @file:OptIn(org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi::class)
 
 import java.nio.file.Path as JdkPath
+import java.io.File as JdkFile
 import org.gradle.api.tasks.JavaExec
 
 import org.gradle.jvm.toolchain.JavaLanguageVersion
@@ -65,6 +66,23 @@ kotlin {
         jvmMain.dependencies {
             implementation(project(":koblas-bench:jmh"))
             implementation("com.eignex:lab-bench:$labBenchVersion")
+        }
+    }
+}
+
+// Benchmarks inspect the same internal dispatchers as conformance tests without publishing a route API.
+kotlin.targets.configureEach {
+    compilations.configureEach {
+        val friends = compileDependencyFiles.filter { it.path.contains("koblas") && !it.path.contains("koblas-bench") }
+        val inspect = name != "test"
+        compileTaskProvider.configure {
+            if (this is org.jetbrains.kotlin.gradle.tasks.BaseKotlinCompile) friendPaths.from(friends)
+            if (this is org.jetbrains.kotlin.gradle.tasks.KotlinNativeCompile && inspect) {
+                val nativeFriends = libraries.filter { it.path.contains("koblas") && !it.path.contains("koblas-bench") }
+                compilerOptions.freeCompilerArgs.add(nativeFriends.elements.map {
+                    "-friend-modules=" + it.joinToString(JdkFile.pathSeparator) { entry -> entry.asFile.absolutePath }
+                })
+            }
         }
     }
 }

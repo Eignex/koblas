@@ -115,10 +115,11 @@ python3 koblas-bench/tune-engine.py --capture --runtime native --backend onemkl 
 
 The workflow retains three paired rounds, timing metadata, CSVs, ratios and hashes, then emits `profile.tsv`.
 On Linux, fitting and validation share one automatically selected allowed core, recorded in each capture.
-It benchmarks the combined configuration on the fitting cases plus the addressed holdout suite, records
-`validation-N.json`, and refines the selected regions up to three times. Unresolved persistent regressions
-over five percent in selected regions fail validation; unselected control costs are retained separately.
-A length threshold must keep winning at every larger measured size; matrix preferences are bounded to
+It uses twenty warmups of 200 ms and validates the combined configuration on disjoint holdout cases.
+`validation.json` records the dispatcher-selected providers and all paired ratios. Persistent regressions
+over five percent in either selected routes or unchanged controls fail validation; missing, empty or
+untimed validation cases fail as well. Profile names include a hash of their configuration and evidence.
+Contiguous and strided length thresholds are fitted independently and must keep winning at every larger measured size; matrix preferences are bounded to
 measured extents and require matching variants to agree. Unmeasured regions retain portable coverage.
 Use `--runtime jvm` for transfer-inclusive JVM vendor tuning or `--backend jvm-simd` for owned vector tuning.
 SIMD fitting forces its supplied vector bodies so an existing cutoff cannot hide a better crossover;

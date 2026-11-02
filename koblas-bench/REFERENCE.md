@@ -45,7 +45,7 @@ Other timing distinctions to keep in mind:
 - Ordinary mutating cases commonly include destination reset. `timing=arithmetic` excludes it where supported.
 - `axpy-unit` accumulates with alpha one without a timed reset; ordinary `axpy` uses a nonunit multiplier and includes reset.
 - `ger-shrinking` and `ger-window-shrinking` report a batch of `n - 1` updates, excluding matrix reset and factorization work.
-- GEMM's `workspace=retained` reuses scratch; `layout=borrowed` uses offsets and padded storage. Explicit vendor arms decline borrowed cases.
+- GEMM's `workspace=retained` reuses scratch; `layout=borrowed` uses offsets and padded storage. All engine arms share these addressed fixtures.
 - Sparse construction cases include allocation; view and raw indexed cases include their public validation and dispatch.
 
 Setup validates results against scalar references before measurement. Kernel timings do not establish
@@ -58,10 +58,16 @@ An engine row's `comparison_kind` is `engine` and its `actual_kernel` is the sel
 the operation: a selection, not the body a given size reached. Exact arms pin an engine through
 `BuiltinEngines`, which is what makes them exact. Default engines can mix Kotlin and native calls. A default
 engine that loaded a native library names it, with its path, version and thread evidence, in the
-target's `implementation` line in `metadata.txt`; no row says whether its own call reached that library. SIMD
+target's `implementation` line in `metadata.txt`. The `provider` column records the Level 1 or whole-call
+provider selected by the same internal dispatcher the call uses. `scheduled` denotes shared scheduling
+with owned kernels, including portable CSC traversal; it does not claim a single arithmetic body. SIMD
 targets can take scalar fallbacks below their crossovers, and sparse scheduling remains Kotlin even when
 arithmetic uses SIMD. Vendor rows name the implementation supplied by the binding. JVM vendor timings include
 array transfers.
+
+Dense vector cases accept `stride=2`, `stride=-1` and `stride=-2`; omitted stride means contiguous owned
+arrays. `copy` measures the same checked engine operation as the other arms. Routing keys record
+`operation:rows:columns:depth:borrowed:level:contiguous`; indexed vector keys use stored counts.
 
 ## Lab captures
 
@@ -85,6 +91,8 @@ A request identifies `repository: "Eignex/koblas"` and supplies:
 ```
 
 Pass this object as `bench`. Parameters follow the capture options; paths are relative to the repository.
+The optional `profile` parameter names a source-relative configuration file, frozen with role `profile`
+and exported as `KOBLAS_BENCH_ENGINE_PROFILE` for default-engine arms. Both lab adapters support it.
 The adapter owns the output directory and retains logs and partial results on failure. It also accepts
 `platform`, `memory-mib` and `timeout-seconds`; Windows workers need Git Bash or an absolute KOBLAS_BASH.
 Use automatic placement. Keep all arms of a comparison row on one machine in one worker attempt;

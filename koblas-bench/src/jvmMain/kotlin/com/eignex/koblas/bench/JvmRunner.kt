@@ -55,11 +55,12 @@ public fun main(args: Array<String>) {
     val implementation = vendor?.second ?: checkNotNull(resolved).second
     val supported = linkedMapOf<String, Pair<String, String>>()
     val kernels = linkedMapOf<String, String>()
+    val providers = linkedMapOf<String, String>()
     val rowsByCase = linkedMapOf<String, MutableList<Measurement>>()
     for (case in selected) {
         // Build and verify work outside timing and decline unsupported arms before starting JMH.
         val arm = vendor?.let { vendorArm(case, it.first) }
-            ?: engine?.let { sparseArm(case, it) ?: denseArm(case, it) }
+            ?: engine?.let { engineArm(case, it) }
         val work = arm?.work
         if (work == null) {
             rowsByCase.getOrPut(case.id, ::arrayListOf) += measurement(
@@ -69,12 +70,13 @@ public fun main(args: Array<String>) {
         } else {
             supported[case.id] = work.comparisonKind to work.timingMode
             work.kernel?.let { kernels[case.id] = it }
+            work.provider?.let { providers[case.id] = it }
             work.close()
         }
     }
     if (supported.isNotEmpty()) {
         val results = Runner(jmhOptions(settings, supported.keys)).run()
-        appendJmhRows(rowsByCase, results, allCases.associateBy { it.id }, supported, settings, kernels)
+        appendJmhRows(rowsByCase, results, allCases.associateBy { it.id }, supported, settings, kernels, providers)
     }
     writeRows(settings, selected, rowsByCase)
     println("wrote ${selected.size} case summaries from ${rowsByCase.values.sumOf { rows -> rows.count { it.nanos != null } }} measurements to ${settings.outputPath}")
@@ -109,6 +111,7 @@ private fun appendJmhRows(
     supported: Map<String, Pair<String, String>>,
     settings: Settings,
     kernels: Map<String, String>,
+    providers: Map<String, String>,
 ) {
     for (result in results.sortedBy { it.params.getParam("caseId") }) {
         val caseId = result.params.getParam("caseId")
@@ -122,7 +125,7 @@ private fun appendJmhRows(
                 "invalid JMH result for $caseId"
             }
             rowsByCase.getOrPut(caseId, ::arrayListOf) += measurement(
-                case, settings, ++sample, nanosPerOperation, "ok", comparison, timing, kernels[caseId],
+                case, settings, ++sample, nanosPerOperation, "ok", comparison, timing, kernels[caseId], providers[caseId],
             )
         }
         require(sample == settings.samples * settings.forks) { "JMH returned $sample samples for $caseId" }

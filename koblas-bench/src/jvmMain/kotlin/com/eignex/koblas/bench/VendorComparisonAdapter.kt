@@ -20,7 +20,7 @@ internal object VendorComparisonSuite : BenchSuite {
     private const val CASES = "koblas-bench/lab/cases-vendor-comparison.txt"
     private val PARAMETERS = setOf(
         "vendor", "arch", "operation", "cases", "samples", "warmups", "target-ms", "forks", "rounds", "targets", "profile-gc",
-        "jvm-options",
+        "jvm-options", "profile",
     )
 
     /** The rows of one planned case, one case-file line each; set by [plan], never by a request. */
@@ -42,7 +42,7 @@ internal object VendorComparisonSuite : BenchSuite {
         val native = targets.any { !it.startsWith("jvm-") && !it.endsWith("-jvm") }
         val platform = if (vendor == "accelerate") "macosArm64" else if (arch == "arm64") "linuxArm64" else "linuxX64"
         val resources = BenchResources(memoryMiB = 2048, timeoutSeconds = 7200, requiredTags = tags)
-        val inputs = listOf(BenchInput(cases, role = "cases")) +
+        val inputs = listOf(BenchInput(cases, role = "cases")) + p["profile"]?.let { listOf(BenchInput(it, role = "profile")) }.orEmpty() +
             (if (native) listOf(BenchInput("koblas-bench/build/bin/$platform/releaseExecutable/koblas-bench.kexe", role = "executable")) else emptyList()) +
             (if (vendor == "onemkl") listOf(BenchInput("koblas-bench/build/vendor-reference", role = "vendor")) else emptyList())
         return rows.map { (case, row) ->
@@ -65,13 +65,17 @@ internal object VendorComparisonSuite : BenchSuite {
             argv += listOf("--native-executable", root.resolve(input.path).toString())
         }
         case.parameters.forEach { (key, value) ->
-            if (key != ROWS && key != "cases" && key != "operation" && key != "jvm-options") {
+            if (key != ROWS && key != "cases" && key != "operation" && key != "jvm-options" && key != "profile") {
                 argv += "--$key"
                 argv += value
             }
         }
         // Every JVM the capture starts reads these, the measured JMH fork included; native arms ignore them.
-        val environment = mapOf("TMPDIR" to context.outputDirectory.toString()) +
+        val profile = case.parameters["profile"]?.let { path ->
+            require(case.inputs.any { it.path == path && it.root == BenchInputRoot.SOURCE && it.role == "profile" }) { "Undeclared profile input" }
+            root.resolve(path).also { com.eignex.koblas.EngineProfile.parse(Files.readString(it)) }
+        }
+        val environment = (profile?.let { mapOf("KOBLAS_BENCH_ENGINE_PROFILE" to it.toString()) } ?: emptyMap()) + mapOf("TMPDIR" to context.outputDirectory.toString()) +
             (case.parameters["jvm-options"]?.let { mapOf("JAVA_TOOL_OPTIONS" to it) } ?: emptyMap())
         val exit = context.process(argv, "comparison.log", environment = environment)
         val report = output.resolve("report")
@@ -94,7 +98,7 @@ internal object VendorComparisonSuite : BenchSuite {
         p["targets"]?.let { targets ->
             val selected = targets.split(',')
             require(selected.distinct().size == selected.size && selected.all {
-                it in setOf("jvm-scalar", "jvm-simd", "jvm-default", "native", vendor, "$vendor-jvm") ||
+                it in setOf("jvm-scalar", "jvm-simd", "jvm-default", "native", "native-default", vendor, "$vendor-jvm") ||
                     vendor == "onemkl" && it in setOf("openblas", "openblas-jvm")
             }) { "Invalid comparison targets" }
         }

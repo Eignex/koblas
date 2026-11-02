@@ -29,3 +29,6 @@ internal actual fun resolveEngine(mode: String): Pair<KoblasEngine, String> {
 internal actual fun runtimeIdentity(): String = "kotlin-${KotlinVersion.CURRENT}/jvm/${System.getProperty("java.vendor")}/${System.getProperty("java.version")}".replace(',', '_')
 
 internal actual fun engineProfilePath(): String? = System.getenv("KOBLAS_BENCH_ENGINE_PROFILE")
+
+internal actual fun RoutingKey.provider(engine: KoblasEngine): String =
+    engine.providerFor(operation, rows, columns, depth, contiguous, borrowed)

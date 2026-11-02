@@ -48,7 +48,7 @@ public fun main(args: Array<String>) {
     var sink = 0.0
     for (case in selected) {
         val arm = vendor?.let { vendorArm(case, it.first) }
-            ?: engine?.let { sparseArm(case, it) ?: denseArm(case, it) }
+            ?: engine?.let { engineArm(case, it) }
         val work = arm?.work
         if (work == null) {
             rows += measurement(
@@ -67,7 +67,7 @@ public fun main(args: Array<String>) {
                 val elapsed = max(1L, nanoTime() - start)
                 rows += measurement(
                     case, settings, sample, elapsed.toDouble() / operations, "ok",
-                    work.comparisonKind, work.timingMode, work.kernel,
+                    work.comparisonKind, work.timingMode, work.kernel, work.provider,
                 )
             }
         } finally {
@@ -186,6 +186,7 @@ internal fun measurement(
     comparisonKind: String,
     timingMode: String,
     kernel: String? = null,
+    provider: String? = null,
 ): Measurement = Measurement(
     listOf(
         case.id, status, comparisonKind, timingMode,
@@ -193,23 +194,43 @@ internal fun measurement(
         if (status != "ok") kernel ?: "unavailable" else checkNotNull(kernel) {
             "timed ${case.id} carries no attribution for the call it made"
         },
-        case.routingKey(),
+        if (status == "ok") checkNotNull(provider) { "timed ${case.id} carries no selected provider" } else "",
+        case.routingKey()?.toString().orEmpty(),
     ),
     if (settings.mode.startsWith("jvm")) (sample - 1) / settings.samples + 1 else 1,
     nanos,
 )
 
-/** Routing dimensions come from parsed cases, shared by Native and JVM report writers. */
-private fun BenchCase.routingKey(): String {
-    val base = EngineImplementation.entries.firstOrNull {
-        it.name.equals(if (operation == "scal") "Scale" else operation, ignoreCase = true)
-    } ?: return ""
-    val selected = if (operation in setOf("gemv", "trmv", "trsv") && flag("transA")) {
+/** A case's primitive operation; batched schedules and construction cases carry no single routing key. */
+internal val BenchCase.implementation: EngineImplementation? get() {
+    val name = when (operation) {
+        "scal" -> "Scale"
+        "axpy-unit" -> "Axpy"
+        "spdot", "spdot-raw", "spdot-slice" -> "IndexedDot"
+        "spdot-sparse" -> "IndexedSparseDot"
+        "spaxpy", "spaxpy-raw", "spaxpy-slice" -> "IndexedAxpy"
+        "spscatter", "spscatter-raw", "spscatter-slice" -> "IndexedScatter"
+        "spgather" -> "IndexedGather"
+        "spgather-zero" -> "IndexedGatherZero"
+        "spnrm2-indexed", "spnrm2-slice" -> "IndexedNrm2"
+        "spnrm2" -> "Nrm2"
+        "spasum" -> "Asum"
+        else -> operation
+    }
+    val base = EngineImplementation.entries.firstOrNull { it.name.equals(name, ignoreCase = true) } ?: return null
+    return if (operation in setOf("gemv", "trmv", "trsv") && flag("transA")) {
         EngineImplementation.valueOf("${base.name}Transposed")
     } else base
+}
+
+/** Shape passed to the engine, shared by both report writers and routing inspection outside timing. */
+internal fun BenchCase.routingKey(): RoutingKey? {
+    val selected = implementation ?: return null
     val transposedGemv = selected == EngineImplementation.GemvTransposed
-    val rows = dimension(if (transposedGemv) 1 else 0)
     val vector = dimensions.size == 1 && operation !in setOf("symv", "syr", "syr2", "trmv", "trsv")
+    val rows = if (operation.startsWith("sp")) {
+        Fixtures.storedCount(dimension(0), option("density", "0.01").toDouble())
+    } else dimension(if (transposedGemv) 1 else 0)
     val columns = when {
         vector -> 1
         operation in setOf("gemmt", "syrk", "syr2k") || dimensions.size == 1 -> rows
@@ -221,8 +242,23 @@ private fun BenchCase.routingKey(): String {
         "symm", "trmm", "trsm" -> 3 to if (option("side", "L") == "R") columns else rows
         else -> (if (vector) 1 else 2) to 1
     }
-    return "${selected.name}:$rows:$columns:$depth:${option("layout", "owned") == "borrowed"}:$level"
+    return RoutingKey(selected, rows, columns, depth, option("layout", "owned") == "borrowed", level, option("stride", "1") == "1")
 }
+
+internal data class RoutingKey(
+    val operation: EngineImplementation,
+    val rows: Int,
+    val columns: Int,
+    val depth: Int,
+    val borrowed: Boolean,
+    val level: Int,
+    val contiguous: Boolean,
+) {
+    override fun toString(): String = "$operation:$rows:$columns:$depth:$borrowed:$level:$contiguous"
+
+}
+
+internal expect fun RoutingKey.provider(engine: KoblasEngine): String
 
 internal data class Measurement(val case: List<String>, val fork: Int, val nanos: Double?)
 
@@ -248,7 +284,7 @@ private fun csv(value: String): String = if (value.any { it == ',' || it == '"' 
     "\"${value.replace("\"", "\"\"")}\""
 } else value
 
-internal const val CSV_HEADER = "case,status,comparison_kind,timing_mode,actual_kernel,routing_key,samples,forks,median_ns,min_ns,max_ns"
+internal const val CSV_HEADER = "case,status,comparison_kind,timing_mode,actual_kernel,provider,routing_key,samples,forks,median_ns,min_ns,max_ns"
 private const val MAX_OPERATIONS = 1_000_000
 
 /** The same engine and host evidence on either runtime. */

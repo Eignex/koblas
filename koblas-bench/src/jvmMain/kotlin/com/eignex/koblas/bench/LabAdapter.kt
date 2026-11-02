@@ -8,7 +8,7 @@ import java.nio.file.Path
 fun main(args: Array<String>) = BenchCli.execute(KoblasLabSuite, args)
 
 internal object KoblasLabSuite : BenchSuite {
-    private val options = setOf("targets", "libraries", "operation", "suite", "cases", "samples", "warmups", "target-ms", "forks", "pass", "rounds", "cpu", "jvm-gc", "jvm-heap", "vendors-only", "smoke", "native-executable", "memory-mib", "timeout-seconds", "platform")
+    private val options = setOf("targets", "libraries", "profile", "operation", "suite", "cases", "samples", "warmups", "target-ms", "forks", "pass", "rounds", "cpu", "jvm-gc", "jvm-heap", "vendors-only", "smoke", "native-executable", "memory-mib", "timeout-seconds", "platform")
     private val vendors = setOf("openblas", "onemkl", "aocl", "armpl", "accelerate")
     private val jvmTargets = setOf("jvm-scalar", "jvm-simd", "jvm-default")
     private val nativePlatforms = mapOf(
@@ -59,7 +59,7 @@ internal object KoblasLabSuite : BenchSuite {
             require(libraries == "all" || selectedVendors.all { it in libraries.split(',') }) { "Vendor targets must be included in libraries" }
         }
         val inputs = mutableListOf<BenchInput>()
-        p["cases"]?.let { inputs += BenchInput(it, role = "cases") }
+        for (role in listOf("cases", "profile")) p[role]?.let { inputs += BenchInput(it, role = role) }
         val tags = mutableSetOf<String>()
         p["platform"]?.let { require(it in setOf("linux", "windows", "mac")) { "Unknown capture platform" } }
         val defaultExecutable = if (p["platform"] == "windows") "mingwX64/releaseExecutable/koblas-bench.exe"
@@ -108,7 +108,7 @@ internal object KoblasLabSuite : BenchSuite {
             "--prepared", "--retain-incomplete", "--output", output.toString())
         case.parameters.forEach { (key, value) ->
             when (key) {
-                "platform" -> Unit // Placement constraint; the capture reads the actual host identity.
+                "platform", "profile" -> Unit // Placement and environment inputs are not capture flags.
                 "smoke", "vendors-only" -> if (value.toBooleanStrict()) argv += "--$key"
                 "cases", "native-executable" -> {
                     require(case.inputs.any { it.path == value && it.root == BenchInputRoot.SOURCE }) { "Undeclared capture input: $key" }
@@ -118,11 +118,16 @@ internal object KoblasLabSuite : BenchSuite {
                 else -> { argv += "--$key"; argv += value }
             }
         }
+        val profile = case.parameters["profile"]?.let { path ->
+            require(case.inputs.any { it.path == path && it.root == BenchInputRoot.SOURCE && it.role == "profile" }) { "Undeclared profile input" }
+            root.resolve(path).also { com.eignex.koblas.EngineProfile.parse(Files.readString(it)) }
+        }
         val exit = context.process(argv, "capture.log", environment = mapOf(
             "TMPDIR" to context.outputDirectory.toString(),
             "KOBLAS_BENCH_JAVA" to Path.of(System.getProperty("java.home"), "bin", "java").toString(),
             "KOBLAS_BENCH_CLASSPATH" to System.getProperty("java.class.path"),
-            "KOBLAS_BENCH_HEAP_MIB" to heapBudgetMiB(case.resources.memoryMiB).toString()))
+            "KOBLAS_BENCH_HEAP_MIB" to heapBudgetMiB(case.resources.memoryMiB).toString()) +
+            (profile?.let { mapOf("KOBLAS_BENCH_ENGINE_PROFILE" to it.toString()) } ?: emptyMap()))
         val artifacts = context.artifacts() + context.artifact("capture.log", "text/plain")
         val rounds = (case.parameters["rounds"] ?: "1").toInt()
         val targets = case.parameters.getValue("targets").split(',')

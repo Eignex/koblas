@@ -8,6 +8,13 @@ import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
 class VendorComparisonAdapterTest {
+    @Test fun `explicit profiles are declared inputs of every comparison row`() {
+        val cases = VendorComparisonSuite.plan(BenchRequest(mapOf("vendor" to "openblas",
+            "targets" to "jvm-simd,jvm-default", "profile" to "profiles/target.tsv")))
+
+        assertTrue(cases.all { case -> case.inputs.any { it.role == "profile" && it.path == "profiles/target.tsv" } })
+    }
+
     @Test fun `openblas is placed on the requested architecture`() {
         for (arch in listOf("x86_64", "arm64")) {
             val cases = VendorComparisonSuite.plan(BenchRequest(mapOf("vendor" to "openblas", "arch" to arch)))

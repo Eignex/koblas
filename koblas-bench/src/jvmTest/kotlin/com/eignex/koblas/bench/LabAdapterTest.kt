@@ -48,13 +48,14 @@ class LabAdapterTest {
         val parameters = mapOf("targets" to "jvm-simd,jvm-scalar", "rounds" to "3", "jvm-gc" to "zgc",
             "jvm-heap" to "1g", "memory-mib" to "4096", "timeout-seconds" to "120", "cpu" to "auto",
             "cases" to "koblas-bench/cases-reductions.txt", "samples" to "5", "warmups" to "0",
-            "target-ms" to "200", "forks" to "2", "smoke" to "false")
+            "target-ms" to "200", "forks" to "2", "smoke" to "false", "profile" to "profiles/target.tsv")
 
         val case = KoblasLabSuite.plan(BenchRequest(parameters)).single()
 
         assertEquals(parameters - setOf("memory-mib", "timeout-seconds"), case.parameters)
         assertEquals(BenchResources(1, 4096, 120, setOf("platform:linux")), case.resources)
-        assertEquals(listOf(BenchInput("koblas-bench/cases-reductions.txt", role = "cases")), case.inputs)
+        assertEquals(listOf(BenchInput("koblas-bench/cases-reductions.txt", role = "cases"),
+            BenchInput("profiles/target.tsv", role = "profile")), case.inputs)
         assertEquals(case, BenchProtocol.json.decodeFromString<LabCase>(BenchProtocol.json.encodeToString(case)))
     }
 

@@ -6,6 +6,20 @@ import com.eignex.koblas.internal.configuration.CombinedEngine
 public val KoblasEngine.providers: List<KoblasEngine> get() =
     if (this is CombinedEngine) components.toList() else listOf(this)
 
+/** The provider bound by the dispatcher, before any value-dependent arithmetic fallback. */
+internal fun KoblasEngine.providerFor(
+    operation: EngineImplementation,
+    rows: Int,
+    columns: Int,
+    depth: Int,
+    contiguous: Boolean,
+    borrowed: Boolean,
+): String = if (operation.vector) {
+    (if (this is CombinedEngine) vectors(operation, rows, contiguous) else this).id
+} else {
+    wholeCallFor(operation, rows, columns, depth, borrowed)?.id ?: "scheduled"
+}
+
 internal fun KoblasEngine.wholeCallFor(
     operation: EngineImplementation,
     rows: Int,
