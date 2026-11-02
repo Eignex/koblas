@@ -1,18 +1,26 @@
 package com.eignex.koblas.vendor
 
+import com.eignex.koblas.BuiltinEngines
+import com.eignex.koblas.KoblasEngine
 import com.eignex.koblas.assertClose
 import kotlin.math.abs
 import kotlin.test.assertTrue
 import kotlin.test.fail
 
 /** A vendor to test against through production selection, or null when this host has none installed. */
-internal val testVendor: Blas? by lazy { openBlas() }
+internal val testVendor: KoblasEngine? by lazy {
+    Vendor.entries.firstNotNullOfOrNull {
+        BuiltinEngines.vendor(
+            it,
+        )
+    }
+}
 
 /**
  * Runs [body] against an installed vendor, or reports that it did not run: a green result from a host with
  * nothing installed must not be read as evidence.
  */
-internal fun withVendor(body: (Blas) -> Unit) {
+internal fun withVendor(body: (KoblasEngine) -> Unit) {
     val blas = testVendor
     if (blas == null) {
         println("SKIPPED: no CBLAS library installed; vendor execution was not verified on this host")

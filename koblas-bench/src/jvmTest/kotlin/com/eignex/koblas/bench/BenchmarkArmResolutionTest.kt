@@ -13,7 +13,7 @@ class BenchmarkArmResolutionTest {
     fun `jvm scalar mode resolves the exact built in engine`() {
         val (engine, identity) = resolveEngine("jvm-scalar")
 
-        assertTrue(identity.startsWith("jvm-scalar/scalar/"), identity)
+        assertTrue(identity.startsWith("jvm-scalar/scalar"), identity)
         assertTrue(engine === BuiltinEngines.scalar)
     }
 
@@ -28,13 +28,13 @@ class BenchmarkArmResolutionTest {
         val (engine, identity) = resolveEngine("jvm-simd")
 
         assertTrue(engine === available, "jvm-simd resolved an engine other than the Vector API one")
-        assertTrue(identity.startsWith("jvm-simd/${engine.vectorKernels.name}/"), identity)
+        assertTrue(identity.startsWith("jvm-simd/${engine.name}/"), identity)
     }
 
     /**
      * The default arm is the platform's own policy, which is what the generic entry points use, so naming it
      * separately keeps a default-policy row from being read as a measurement of an exact arm. Where the
-     * module resolved, the two arms name the same object; where it did not, `jvm-simd` refuses to run.
+     * module resolved, the two arms retain the same owned arithmetic; where it did not, `jvm-simd` refuses to run.
      */
     @Test
     fun `jvm default mode resolves the platform selection`() {
@@ -42,11 +42,10 @@ class BenchmarkArmResolutionTest {
 
         assertTrue(engine === koblas, "jvm-default resolved an engine other than the platform default")
         assertTrue(identity.startsWith("jvm-default/"), identity)
-        assertEquals(
-            (BuiltinEngines.simd ?: BuiltinEngines.scalar).vectorKernels,
-            engine.vectorKernels,
-            "host composition replaced the platform Level 1 arm",
-        )
+        val values = DoubleArray(128) { it / 17.0 }
+        val exact = BuiltinEngines.simd ?: BuiltinEngines.scalar
+        assertEquals(exact.dot(values, 0, values, 0, values.size),
+            engine.dot(values, 0, values, 0, values.size))
     }
 
     @Test

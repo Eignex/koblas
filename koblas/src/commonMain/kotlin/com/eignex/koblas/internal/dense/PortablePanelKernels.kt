@@ -19,7 +19,9 @@ import com.eignex.koblas.vendor.*
  * remainder; and each of them carries an address of its own, computed from an index rather than from a
  * leading dimension.
  */
-internal object PortablePanelKernels : DensePanelKernels {
+internal object PortablePanelKernels : KoblasEngine() {
+    override val implementations = setOf(EngineImplementation.Panels)
+
     override val name: String get() = "scalar-panel"
 
     /**

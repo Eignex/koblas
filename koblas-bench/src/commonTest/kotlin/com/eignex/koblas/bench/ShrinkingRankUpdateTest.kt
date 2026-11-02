@@ -36,7 +36,11 @@ class ShrinkingRankUpdateTest {
 
                 repeat(3) {
                     for (step in fixture.x.indices) {
-                        expected = DenseReference.ger(-1.0, fixture.x[step], fixture.y[step], DenseMatrix.wrap(n, n, expected))
+                        expected = DenseReference.ger(-1.0, fixture.x[step], fixture.y[step], DenseMatrix.wrap(
+                            n,
+                            n,
+                            expected,
+                        ))
                     }
                     work.run()
                     assertRankUpdateAgreesWithReference(expected, assertNotNull(work.result), "$operation n=$n ${engine.name}")

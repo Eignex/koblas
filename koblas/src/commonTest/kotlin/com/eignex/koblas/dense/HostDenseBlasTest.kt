@@ -3,15 +3,14 @@ package com.eignex.koblas.dense
 import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.DenseMatrixRegion
 import com.eignex.koblas.DenseVector
+import com.eignex.koblas.EngineImplementation
+import com.eignex.koblas.KoblasEngine
+import com.eignex.koblas.PortableEngine
 import com.eignex.koblas.Workspace
 import com.eignex.koblas.assertClose
-import com.eignex.koblas.internal.dense.PortableDenseBlas
+import com.eignex.koblas.engineWithHost
+import com.eignex.koblas.engineWithKernels
 import com.eignex.koblas.internal.dense.PortablePanelKernels
-import com.eignex.koblas.internal.dense.ScalarVectorKernels
-import com.eignex.koblas.internal.host.DenseHostEligibility
-import com.eignex.koblas.internal.host.HostDenseBlas
-import com.eignex.koblas.vendor.Blas
-import com.eignex.koblas.vendor.BlasOperation
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
@@ -21,8 +20,7 @@ import kotlin.test.assertTrue
 
 /**
  * Checks supplied eligibility, symbol fallback, aliases and argument translation with a recording binding.
- * Allowing small fixtures isolates composition from platform cutoffs; NativeBlasPolicyTest and
- * JvmHostDensePolicyTest cover those cutoffs.
+ * Allowing small fixtures isolates composition from platform cutoffs; EngineProfileTest cover those cutoffs.
  */
 class HostDenseBlasTest {
     private fun assertAgreesWithReference(expected: DoubleArray, actual: DoubleArray, context: String) =
@@ -31,8 +29,8 @@ class HostDenseBlasTest {
     @Test
     fun `platform eligibility keeps a rejected host call portable`() {
         val recorder = RecordingBlas()
-        val portable = PortableDenseBlas(ScalarVectorKernels, PortablePanelKernels)
-        val blas = HostDenseBlas(portable, recorder, eligible = { _, _, _, _ -> false })
+        val portable = engineWithKernels(PortableEngine, PortablePanelKernels)
+        val blas = engineWithHost(portable, recorder, eligible = false)
         val a = matrix(ORDER)
         val actual = matrix(ORDER)
         val expected = matrix(ORDER)
@@ -46,20 +44,10 @@ class HostDenseBlasTest {
 
     @Test
     fun `borrowed eligibility rejects any adapted operand before staging`() {
-        val policy = object : DenseHostEligibility {
-            override fun eligible(operation: DenseMatrixOperation, rows: Int, columns: Int, depth: Int): Boolean = true
-
-            override fun eligibleBorrowed(
-                operation: DenseMatrixOperation,
-                rows: Int,
-                columns: Int,
-                depth: Int,
-            ): Boolean = false
-        }
         for (borrowedOperand in listOf("left", "right", "destination")) {
             val recorder = RecordingBlas()
-            val portable = PortableDenseBlas(ScalarVectorKernels, PortablePanelKernels)
-            val blas = HostDenseBlas(portable, recorder, eligible = policy)
+            val portable = engineWithKernels(PortableEngine, PortablePanelKernels)
+            val blas = engineWithHost(portable, recorder, borrowed = false)
             val parent = matrix(ORDER + 2)
             val view = parent.view(1, 1, ORDER, ORDER)
             val a: DenseMatrixRegion = if (borrowedOperand == "left") view else matrix(ORDER)
@@ -86,11 +74,10 @@ class HostDenseBlasTest {
         }
     }
 
-    private fun forced(recorder: RecordingBlas = RecordingBlas()): Pair<RecordingBlas, HostDenseBlas> =
-        recorder to HostDenseBlas(
-            PortableDenseBlas(ScalarVectorKernels, PortablePanelKernels),
+    private fun forced(recorder: RecordingBlas = RecordingBlas()): Pair<RecordingBlas, KoblasEngine> =
+        recorder to engineWithHost(
+            engineWithKernels(PortableEngine, PortablePanelKernels),
             recorder,
-            eligible = { _, _, _, _ -> true },
         )
 
     private fun matrix(rows: Int, cols: Int = rows, from: Double = 1.0) =
@@ -106,9 +93,17 @@ class HostDenseBlasTest {
         val y = DoubleArray(ORDER)
         val v = DenseVector.wrap(x)
         val expected = listOf(
-            BlasOperation.Gemv, BlasOperation.Symv, BlasOperation.Ger, BlasOperation.Syr, BlasOperation.Syr2,
-            BlasOperation.Trsv, BlasOperation.Trmv, BlasOperation.Gemm, BlasOperation.Gemmt, BlasOperation.Syrk,
-            BlasOperation.Syr2k, BlasOperation.Symm, BlasOperation.Trsm, BlasOperation.Trmm,
+            EngineImplementation.Gemv,
+            EngineImplementation.Symv,
+            EngineImplementation.Ger,
+            EngineImplementation.Syr,
+            EngineImplementation.Syr2,
+            EngineImplementation.Trsv,
+            EngineImplementation.Trmv,
+            EngineImplementation.Gemm,
+            EngineImplementation.Gemmt,
+            EngineImplementation.Syrk,
+            EngineImplementation.Syr2k, EngineImplementation.Symm, EngineImplementation.Trsm, EngineImplementation.Trmm,
         )
         val (recorder, blas) = forced()
 
@@ -151,12 +146,12 @@ class HostDenseBlasTest {
 
         blas.gemm(SCALE, a, false, a, false, 0.0, matrix(ORDER))
 
-        assertEquals(listOf(BlasOperation.Gemm), recorder.calls.map { it.operation })
+        assertEquals(listOf(EngineImplementation.Gemm), recorder.calls.map { it.operation })
     }
 
     @Test
     fun `an operation the library does not export stays on the portable schedule`() {
-        val without = RecordingBlas(directlyImplemented = BlasOperation.entries.toSet() - BlasOperation.Gemmt)
+        val without = RecordingBlas(implementations = EngineImplementation.entries.toSet() - EngineImplementation.Gemmt)
         val (recorder, blas) = forced(without)
         val a = matrix(ORDER)
 
@@ -201,7 +196,12 @@ class HostDenseBlasTest {
 
     @Test
     fun `shared operands reach the library through one snapshot`() {
-        for (operation in listOf(BlasOperation.Gemm, BlasOperation.Gemmt, BlasOperation.Symm, BlasOperation.Syr2k)) {
+        for (operation in listOf(
+            EngineImplementation.Gemm,
+            EngineImplementation.Gemmt,
+            EngineImplementation.Symm,
+            EngineImplementation.Syr2k,
+        )) {
             for (sameMatrix in booleanArrayOf(false, true)) {
                 for (useWorkspace in booleanArrayOf(false, true)) {
                     val (recorder, blas) = forced()
@@ -210,10 +210,23 @@ class HostDenseBlasTest {
                     val workspace = if (useWorkspace) Workspace() else null
 
                     when (operation) {
-                        BlasOperation.Gemm -> blas.gemm(0.875, c, false, b, true, -0.25, c, workspace)
-                        BlasOperation.Gemmt -> blas.gemmt(0.875, c, false, b, true, -0.25, c, workspace = workspace)
-                        BlasOperation.Symm -> blas.symm(0.875, c, b, -0.25, c, workspace = workspace)
-                        BlasOperation.Syr2k -> blas.syr2k(0.875, c, b, true, -0.25, c, workspace = workspace)
+                        EngineImplementation.Gemm -> blas.gemm(0.875, c, false, b, true, -0.25, c, workspace)
+
+                        EngineImplementation.Gemmt -> blas.gemmt(
+                            0.875,
+                            c,
+                            false,
+                            b,
+                            true,
+                            -0.25,
+                            c,
+                            workspace = workspace,
+                        )
+
+                        EngineImplementation.Symm -> blas.symm(0.875, c, b, -0.25, c, workspace = workspace)
+
+                        EngineImplementation.Syr2k -> blas.syr2k(0.875, c, b, true, -0.25, c, workspace = workspace)
+
                         else -> error("unexpected product $operation")
                     }
 
@@ -230,16 +243,16 @@ class HostDenseBlasTest {
 
     @Test
     fun `host product aliases agree with the reference and share one snapshot`() {
-        val portable = PortableDenseBlas(ScalarVectorKernels, PortablePanelKernels)
-        val blas = HostDenseBlas(portable, ReferenceProductBlas(), eligible = { _, _, _, _ -> true })
+        val portable = engineWithKernels(PortableEngine, PortablePanelKernels)
+        val blas = engineWithHost(portable, ReferenceProductBlas())
 
         assertDenseProductAliasesAgreeWithReference(blas)
     }
 
     @Test
     fun `host rectangular product aliases retain their operand shapes`() {
-        val portable = PortableDenseBlas(ScalarVectorKernels, PortablePanelKernels)
-        val blas = HostDenseBlas(portable, ReferenceProductBlas(), eligible = { _, _, _, _ -> true })
+        val portable = engineWithKernels(PortableEngine, PortablePanelKernels)
+        val blas = engineWithHost(portable, ReferenceProductBlas())
 
         assertRectangularProductAliasesAgreeWithReference(blas)
     }
@@ -272,7 +285,7 @@ class HostDenseBlasTest {
         blas.gemm(1.0, a, false, b, false, 0.0, c, Workspace())
 
         val call = recorder.single()
-        assertEquals(BlasOperation.Gemm, call.operation)
+        assertEquals(EngineImplementation.Gemm, call.operation)
         for (i in expectedA.indices) assertContentEquals(expectedA[i], call.matrices[0].toArray()[i])
         for (i in expectedB.indices) assertContentEquals(expectedB[i], call.matrices[1].toArray()[i])
         assertNotSame(parent.values, call.matrices[0].values)
@@ -281,10 +294,9 @@ class HostDenseBlasTest {
     @Test
     fun `borrowed host calls reach a region binding in place`() {
         val recorder = RecordingBlas()
-        val blas = HostDenseBlas(
-            PortableDenseBlas(ScalarVectorKernels, PortablePanelKernels),
+        val blas = engineWithHost(
+            engineWithKernels(PortableEngine, PortablePanelKernels),
             recorder,
-            eligible = { _, _, _, _ -> true },
         )
         val parent = matrix(9)
         val panel = parent.view(4, 0, 5, 3)
@@ -316,10 +328,9 @@ class HostDenseBlasTest {
     @Test
     fun `a borrowed input overlapping the destination is staged before a region binding`() {
         val recorder = RecordingBlas()
-        val blas = HostDenseBlas(
-            PortableDenseBlas(ScalarVectorKernels, PortablePanelKernels),
+        val blas = engineWithHost(
+            engineWithKernels(PortableEngine, PortablePanelKernels),
             recorder,
-            eligible = { _, _, _, _ -> true },
         )
         val parent = matrix(7)
         val a = parent.view(0, 0, 4, 3)
@@ -344,8 +355,8 @@ class HostDenseBlasTest {
 
 /** Computes host products from the received operands, so staging is checked without an installed library. */
 @Suppress("LongParameterList") // the host BLAS product signatures
-private class ReferenceProductBlas : Blas by RecordingBlas() {
-    override fun gemm(
+private class ReferenceProductBlas : RecordingBlas() {
+    override fun computeGemm(
         alpha: Double,
         a: DenseMatrixRegion,
         transposeA: Boolean,
@@ -355,7 +366,7 @@ private class ReferenceProductBlas : Blas by RecordingBlas() {
         c: DenseMatrixRegion,
     ) = ReferenceBlas.gemm(alpha, a, transposeA, b, transposeB, beta, c)
 
-    override fun gemmt(
+    override fun computeGemmt(
         alpha: Double,
         a: DenseMatrixRegion,
         transposeA: Boolean,
@@ -366,7 +377,7 @@ private class ReferenceProductBlas : Blas by RecordingBlas() {
         structure: MatrixStructure,
     ) = ReferenceBlas.gemmt(alpha, a, transposeA, b, transposeB, beta, c, structure == MatrixStructure.SymmetricLower)
 
-    override fun symm(
+    override fun computeSymm(
         alpha: Double,
         a: DenseMatrixRegion,
         structure: MatrixStructure,
@@ -376,7 +387,7 @@ private class ReferenceProductBlas : Blas by RecordingBlas() {
         rightSide: Boolean,
     ) = ReferenceBlas.symm(alpha, a, b, beta, c, structure == MatrixStructure.SymmetricLower, rightSide)
 
-    override fun syr2k(
+    override fun computeSyr2k(
         alpha: Double,
         a: DenseMatrixRegion,
         b: DenseMatrixRegion,

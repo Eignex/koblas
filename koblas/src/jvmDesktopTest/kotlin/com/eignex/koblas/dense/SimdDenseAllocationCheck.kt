@@ -10,14 +10,12 @@ import com.eignex.koblas.Workspace
 import com.eignex.koblas.axpy
 import com.eignex.koblas.copy
 import com.eignex.koblas.dot
-import com.eignex.koblas.internal.dense.DenseProductKernels
+import com.eignex.koblas.engineWithHost
+import com.eignex.koblas.engineWithKernels
 import com.eignex.koblas.internal.dense.PanelWork
-import com.eignex.koblas.internal.dense.PortableDenseBlas
 import com.eignex.koblas.internal.dense.TRIANGULAR_DIAGONAL_BLOCK
-import com.eignex.koblas.internal.host.HostDenseBlas
 import com.eignex.koblas.internal.jvm25.simd.SimdPanelKernels
 import com.eignex.koblas.internal.jvm25.simd.SimdProductKernels
-import com.eignex.koblas.internal.sparse.axpy
 import com.eignex.koblas.koblas
 import com.eignex.koblas.swap
 import com.eignex.koblas.testutil.allocation.AllocationProbe
@@ -73,9 +71,9 @@ internal object SimdDenseAllocationCheck {
         val engine = requireNotNull(BuiltinEngines.simd) {
             "dense allocation check requires the Vector API panel candidate"
         }
-        val panels = engine.panelKernels
-        require(panels === SimdPanelKernels) { "dense allocation check selected ${panels.name}" }
-        require(panels.implementationFor(PanelWork.MultiDot, ORDER, COLUMNS) == panels.name) {
+        val panels = engine
+        require(panels.panelImplementation === SimdPanelKernels) { "dense allocation check selected ${panels.name}" }
+        require(panels.implementationFor(PanelWork.MultiDot, ORDER, COLUMNS) == panels.panelImplementation.name) {
             "dense allocation check uses $ORDER rows, which does not reach the vector body"
         }
         assertLargeColumnUpdatesAgreeWithReference(panels)
@@ -115,31 +113,31 @@ internal object SimdDenseAllocationCheck {
             a[0]
         }
         assertAllocationFree("unrolled absolute sum with a tail") {
-            engine.vectorKernels.asum(x, 3, ORDER - 3)
+            engine.asum(x, 3, ORDER - 3)
         }
         assertAllocationFree("unrolled dot with offsets and a tail") {
-            engine.vectorKernels.dot(x, 3, y, 5, ORDER - 5)
+            engine.dot(x, 3, y, 5, ORDER - 5)
         }
         assertAllocationFree("contiguous axpy with offsets and a tail") {
-            engine.vectorKernels.axpy(y, 3, 1e-12, x, 1, ORDER - 3)
+            engine.axpy(y, 3, 1e-12, x, 1, ORDER - 3)
             y[3]
         }
         assertAllocationFree("unit axpy at simplex width with offsets and a tail") {
-            engine.vectorKernels.axpy(y, 3, 1.0, x, 1, 70)
+            engine.axpy(y, 3, 1.0, x, 1, 70)
             y[3]
         }
         val streamingSource = DoubleArray(65_552) { 0.125 }
         val streamingDestination = DoubleArray(streamingSource.size)
         assertAllocationFree("streaming axpy with offsets and a tail", warmup = 20_000, iterations = 2_000) {
-            engine.vectorKernels.axpy(streamingDestination, 3, 1e-12, streamingSource, 1, 65_537)
+            engine.axpy(streamingDestination, 3, 1e-12, streamingSource, 1, 65_537)
             streamingDestination[3]
         }
         assertAllocationFree("filtered iamax with an offset and a tail") {
-            engine.vectorKernels.iamax(x, 3, ORDER - 3).toDouble()
+            engine.iamax(x, 3, ORDER - 3).toDouble()
         }
         val peaked = DoubleArray(ORDER) { if (it == 3) 2.0 else -1.0 }
         assertAllocationFree("iamax filtering non improving blocks") {
-            engine.vectorKernels.iamax(peaked, 3, ORDER - 3).toDouble()
+            engine.iamax(peaked, 3, ORDER - 3).toDouble()
         }
         checkWholeOperations(engine)
         checkDefaultDispatch()
@@ -212,16 +210,15 @@ internal object SimdDenseAllocationCheck {
      * policy decision plus portable scheduling, including small calls that stay portable on Native.
      */
     private fun checkHostComposition(engine: KoblasEngine) {
-        val portable = PortableDenseBlas(
-            engine.vectorKernels,
-            engine.panelKernels,
-            engine.productKernels,
-            engine.triangularKernels,
+        val portable = engineWithKernels(
+            engine,
+            engine,
+            engine,
+            engine,
         )
-        val composed = HostDenseBlas(
+        val composed = engineWithHost(
             portable,
-            RecordingBlas(directlyImplemented = emptySet()),
-            eligible = { _, _, _, _ -> true },
+            RecordingBlas(implementations = emptySet()),
         )
         val matrix = DenseMatrix.wrap(ORDER, ORDER, DoubleArray(ORDER * ORDER) { 1.0 + (it % 13) * 0.125 })
         val x = DoubleArray(ORDER) { 1.0 + (it % 7) * 0.25 }
@@ -245,7 +242,7 @@ internal object SimdDenseAllocationCheck {
      * borrowed tiles and squares no rectangular product does, so a loan that escaped shows up here.
      */
     private fun checkStructuredProducts(engine: KoblasEngine) {
-        val products = engine.productKernels
+        val products = engine
         val order = maxOf(products.tileRows * 3 + 1, STRUCTURED_ORDER)
         require(products.packsProduct(order, order, order)) {
             "the structured probe at $order cubed is not packed on this machine"
@@ -315,7 +312,7 @@ internal object SimdDenseAllocationCheck {
     private fun checkTriangularOrder(engine: KoblasEngine, order: Int) {
         val workspace = Workspace()
         val triangle = dominantTriangle(order)
-        val group = engine.triangularKernels.rightHandSideGroup(TRIANGULAR_DIAGONAL_BLOCK, UNGROUPED_SIDES)
+        val group = engine.rightHandSideGroup(TRIANGULAR_DIAGONAL_BLOCK, UNGROUPED_SIDES)
         for (sides in intArrayOf(1, group + 1)) {
             val left = DenseMatrix.wrap(order, sides, DoubleArray(order * sides))
             val right = DenseMatrix.wrap(sides, order, DoubleArray(sides * order))
@@ -380,8 +377,10 @@ internal object SimdDenseAllocationCheck {
      * scalar-replace one would allocate once per depth step.
      */
     private fun checkProducts(engine: KoblasEngine) {
-        val products = engine.productKernels
-        require(products === SimdProductKernels) { "product allocation check selected ${products.name}" }
+        val products = engine
+        require(
+            products.productImplementation === SimdProductKernels,
+        ) { "product allocation check selected ${products.name}" }
         val rows = products.tileRows
         val columns = products.tileColumns
         val shallow = 4
@@ -416,7 +415,7 @@ internal object SimdDenseAllocationCheck {
      * whole tile and a column edge stores fewer columns, and the writeback is where accumulators that
      * stopped living in registers show up.
      */
-    private fun checkShortEdges(products: DenseProductKernels, tileRows: Int, tileColumns: Int) {
+    private fun checkShortEdges(products: KoblasEngine, tileRows: Int, tileColumns: Int) {
         val depth = 32
         val left = DoubleArray(tileRows * depth) { 1.0 + (it % 13) * 0.125 }
         val right = DoubleArray(tileColumns * depth) { 0.5 + (it % 7) * 0.25 }
@@ -452,7 +451,7 @@ internal object SimdDenseAllocationCheck {
      * inlined into a traversal is not, since what a compiler keeps in registers depends on the size of the
      * method it ended up compiling.
      */
-    private fun checkBlockOfTiles(products: DenseProductKernels, tileRows: Int, tileColumns: Int) {
+    private fun checkBlockOfTiles(products: KoblasEngine, tileRows: Int, tileColumns: Int) {
         val depth = 64
         // One row and one column short of whole tiles, so the block has both edges inside it as well as the
         // full tiles that surround them.
@@ -475,11 +474,11 @@ internal object SimdDenseAllocationCheck {
         val workspace = Workspace()
         // Both shapes have to be ones this machine's tile geometry really packs, or the deep probe would
         // measure the unpacked route while claiming to measure depth blocks.
-        val narrow = maxOf(engine.productKernels.tileRows + 1, PRODUCT_NARROW)
-        require(engine.productKernels.packsProduct(narrow, narrow, PRODUCT_DEPTH)) {
+        val narrow = maxOf(engine.tileRows + 1, PRODUCT_NARROW)
+        require(engine.packsProduct(narrow, narrow, PRODUCT_DEPTH)) {
             "the deep product probe at ${narrow}x${narrow}x$PRODUCT_DEPTH is not packed on this machine"
         }
-        require(engine.productKernels.packsProduct(PRODUCT_ORDER, PRODUCT_ORDER, PRODUCT_ORDER)) {
+        require(engine.packsProduct(PRODUCT_ORDER, PRODUCT_ORDER, PRODUCT_ORDER)) {
             "the square product probe at $PRODUCT_ORDER cubed is not packed on this machine"
         }
         val square = PRODUCT_ORDER * PRODUCT_ORDER

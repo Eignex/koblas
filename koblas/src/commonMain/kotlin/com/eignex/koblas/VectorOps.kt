@@ -4,7 +4,6 @@
 
 package com.eignex.koblas
 
-import com.eignex.koblas.dense.DenseVectorKernels
 import com.eignex.koblas.internal.numeric.euclideanNorm
 import com.eignex.koblas.internal.operands.sameVectorMapping
 import kotlin.math.abs
@@ -39,13 +38,13 @@ public inline fun Vector.forEachStored(block: (i: Int, v: Double) -> Unit) {
 public infix fun Vector.dot(other: Vector): Double {
     requireSameSize(size, other.size, "dot")
     if (this is DenseVector && other is DenseVector) {
-        return koblas.vectorKernels.dot(values, offset, other.values, other.offset, size, stride, other.stride)
+        return koblas.dot(values, offset, other.values, other.offset, size, stride, other.stride)
     }
-    if (this is SparseVector && other is SparseVector) return koblas.sparseKernels.dot(this, other)
+    if (this is SparseVector && other is SparseVector) return koblas.dot(this, other)
     if (this is SparseVector && other is DenseVector && other.isWholeArray) {
-        return koblas.sparseKernels.dot(this, other.values)
+        return koblas.dot(this, other.values)
     }
-    if (this is DenseVector && other is SparseVector && isWholeArray) return koblas.sparseKernels.dot(other, values)
+    if (this is DenseVector && other is SparseVector && isWholeArray) return koblas.dot(other, values)
     // A view needs only the entries the sparse operand stores; gathering its whole logical extent would
     // make both the scratch and the reads scale with size rather than with the stored support.
     if (this is SparseVector) {
@@ -64,19 +63,19 @@ public infix fun Vector.dot(other: Vector): Double {
  * finite input gives the correct norm.
  */
 public fun Vector.norm2(): Double = when (this) {
-    is DenseVector -> koblas.vectorKernels.nrm2(values, offset, size, stride)
-    is SparseVector -> koblas.sparseKernels.nrm2(this)
+    is DenseVector -> koblas.nrm2(values, offset, size, stride)
+    is SparseVector -> koblas.nrm2(this)
     else -> euclideanNorm(toDoubleArray(), 0, 1, size)
 }
 
 /**
  * Plain sum of the entries. Distinct from [asum], which sums their absolute values.
  *
- * A dense operand reaches [DenseVectorKernels.sum]; any other storage sums its stored entries, since the ones it
+ * A dense operand reaches [KoblasEngine.sum]; any other storage sums its stored entries, since the ones it
  * does not store are zero and contribute nothing.
  */
 public fun Vector.sum(): Double = when (this) {
-    is DenseVector -> koblas.vectorKernels.sum(values, offset, size, stride)
+    is DenseVector -> koblas.sum(values, offset, size, stride)
 
     else -> {
         var s = 0.0
@@ -87,9 +86,9 @@ public fun Vector.sum(): Double = when (this) {
 
 /** Sum of absolute values (BLAS `dasum`). Sparse vectors sum over stored entries only. */
 public fun Vector.asum(): Double = when (this) {
-    is DenseVector -> koblas.vectorKernels.asum(values, offset, size, stride)
+    is DenseVector -> koblas.asum(values, offset, size, stride)
 
-    is SparseVector -> koblas.sparseKernels.asum(this)
+    is SparseVector -> koblas.asum(this)
 
     else -> {
         var s = 0.0
@@ -100,7 +99,7 @@ public fun Vector.asum(): Double = when (this) {
 
 /**
  * Zero-based logical index of the maximum absolute value (BLAS `idamax`), or `-1` when empty.
- * Dense vectors use [DenseVectorKernels.iamax]; sparse vectors visit only their stored entries.
+ * Dense vectors use [KoblasEngine.iamax]; sparse vectors visit only their stored entries.
  * All-zero nonempty inputs return `0`, as do sparse inputs whose maximum is an implicit zero. Strided views
  * report their logical index rather than a backing-array offset.
  *
@@ -111,7 +110,7 @@ public fun Vector.asum(): Double = when (this) {
  * this routine.
  */
 public fun Vector.iamax(): Int {
-    if (this is DenseVector) return koblas.vectorKernels.iamax(values, offset, size, stride)
+    if (this is DenseVector) return koblas.iamax(values, offset, size, stride)
     if (size == 0) return -1
     var best = -1
     var bestAbs = 0.0
@@ -147,7 +146,7 @@ public fun copy(src: Vector, dst: DenseVector) {
         // Only contiguous destinations can use the indexed kernel, whose seam carries no increment.
         if (dst.isWholeArray) {
             dst.values.fill(0.0)
-            koblas.sparseKernels.scatter(source, dst.values)
+            koblas.scatter(source, dst.values)
         } else {
             for (i in 0 until dst.size) dst[i] = 0.0
             source.forEachStored { i, v -> dst[i] = v }
@@ -190,13 +189,13 @@ internal val DenseVector.isWholeArray: Boolean
  */
 public fun gather(x: SparseVector, from: ContiguousVector) {
     requireSameSize(x.size, from.size, "gather")
-    koblas.sparseKernels.gather(x, from.values)
+    koblas.gather(x, from.values)
 }
 
 /** [gather], and zero in [from] the positions it read (Sparse BLAS `usgz`). */
 public fun gatherZero(x: SparseVector, from: ContiguousVector) {
     requireSameSize(x.size, from.size, "gatherZero")
-    koblas.sparseKernels.gatherZero(x, from.values)
+    koblas.gatherZero(x, from.values)
 }
 
 /**
@@ -216,7 +215,7 @@ public fun swap(a: DenseVector, b: DenseVector) {
         for (i in 0 until b.size) b[i] = snapshotA[i]
         return
     }
-    koblas.vectorKernels.swap(a.values, a.offset, b.values, b.offset, a.size, a.stride, b.stride)
+    koblas.swap(a.values, a.offset, b.values, b.offset, a.size, a.stride, b.stride)
 }
 
 /**
@@ -230,11 +229,11 @@ public fun DenseVector.axpy(alpha: Double, x: Vector) {
     if (alpha == 0.0) return
     when (val source = x.stableFor(this)) {
         is DenseVector ->
-            koblas.vectorKernels.axpy(values, offset, alpha, source.values, source.offset, size, stride, source.stride)
+            koblas.axpy(values, offset, alpha, source.values, source.offset, size, stride, source.stride)
 
         // SparseVector uses indexed kernels; foreign Vector implementations use the generic loop.
         is SparseVector -> if (isWholeArray) {
-            koblas.sparseKernels.axpy(values, alpha, source)
+            koblas.axpy(values, alpha, source)
         } else {
             source.forEachStored { i, v -> this[i] += alpha * v }
         }
@@ -253,5 +252,5 @@ public fun DenseVector.axpy(alpha: Double, x: Vector) {
  */
 public fun DenseVector.scale(alpha: Double) {
     if (alpha == 1.0) return
-    koblas.vectorKernels.scale(values, offset, alpha, size, stride)
+    koblas.scale(values, offset, alpha, size, stride)
 }

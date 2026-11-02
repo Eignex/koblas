@@ -1,15 +1,10 @@
 package com.eignex.koblas
 
-/** JVM built-in engines. */
-public actual object BuiltinEngines {
-    /** Pure Kotlin scalar at every level, without resolving a host library. */
-    @get:JvmStatic
-    public actual val scalar: KoblasEngine get() = scalarEngine
-
-    /** Vector API kernels on desktop JDK 25 or later, or null on portable runtimes. */
-    @get:JvmStatic
-    public actual val simd: KoblasEngine? get() = JvmBackend.simd
-}
+import com.eignex.koblas.vendor.Vendor
 
 /** Owned JVM kernels, with eligible host calls when native access and a measured vendor are available. */
 internal actual fun platformEngine(): KoblasEngine = JvmBackend.default
+
+internal actual fun simdBackend(): List<KoblasEngine>? = JvmBackend.contributions
+
+internal actual fun vendorEngine(vendor: Vendor): KoblasEngine? = JvmBackend.open(vendor)

@@ -2,19 +2,18 @@ package com.eignex.koblas.dense
 
 import com.eignex.koblas.BuiltinEngines
 import com.eignex.koblas.DenseMatrix
+import com.eignex.koblas.KoblasEngine
+import com.eignex.koblas.PortableEngine
 import com.eignex.koblas.Workspace
 import com.eignex.koblas.assertClose
 import com.eignex.koblas.copyOf
-import com.eignex.koblas.internal.dense.DensePanelKernels
-import com.eignex.koblas.internal.dense.DenseProductKernels
+import com.eignex.koblas.engineWithKernels
 import com.eignex.koblas.internal.dense.OutputTriangle
 import com.eignex.koblas.internal.dense.PORTABLE_PRODUCT_TILE
 import com.eignex.koblas.internal.dense.PRODUCT_BLOCK_DEPTH
-import com.eignex.koblas.internal.dense.PortableDenseBlas
 import com.eignex.koblas.internal.dense.PortablePanelKernels
 import com.eignex.koblas.internal.dense.PortableProductKernels
 import com.eignex.koblas.internal.dense.SYMMETRIC_BLOCK
-import com.eignex.koblas.internal.dense.ScalarVectorKernels
 import com.eignex.koblas.internal.dense.outsideTriangle
 import com.eignex.koblas.internal.dense.productWindow
 import com.eignex.koblas.poisonedSymmetric
@@ -145,7 +144,7 @@ class StructuredProductTest {
         )
         for (lower in booleanArrayOf(false, true)) {
             val recorder = RecordingProducts(products)
-            val blas = PortableDenseBlas(ScalarVectorKernels, panelsFor(products), recorder)
+            val blas = engineWithKernels(PortableEngine, panelsFor(products), recorder)
             val a = randomMatrix(order, depth, rng)
             val b = randomMatrix(depth, order, rng)
             val poisoned = DenseMatrix.wrap(order, order, DoubleArray(order * order) { Double.NaN })
@@ -192,7 +191,7 @@ class StructuredProductTest {
             products.packsProduct(order, order, order),
             "${products.name}: a square of $order does not take the blocked route",
         )
-        val blas = PortableDenseBlas(ScalarVectorKernels, panelsFor(products), products)
+        val blas = engineWithKernels(PortableEngine, panelsFor(products), products)
         val start = randomMatrix(order, order, rng)
         for (lower in booleanArrayOf(false, true)) {
             val expected = start.copyOf()
@@ -224,7 +223,7 @@ class StructuredProductTest {
 
     @Suppress("LongParameterList") // the backend and the four facts that pick out one case of the sweep
     private fun assertWindowed(
-        products: DenseProductKernels,
+        products: KoblasEngine,
         selected: OutputTriangle,
         packed: Boolean,
         transposeA: Boolean,
@@ -264,11 +263,13 @@ class StructuredProductTest {
         val rightBefore = right.copyOf()
 
         productWindow(
-            products, panelsFor(products), ALPHA,
-            left, A_ORIGIN, a.rows + 3, transposeA,
-            right, B_ORIGIN, b.rows + 5, transposeB,
-            BETA, destination, C_ORIGIN, order + 7,
-            order, order, depth, selected, Workspace(),
+            engineWithKernels(
+                products = products,
+                panels = panelsFor(products),
+            ),
+            ALPHA, left, A_ORIGIN, a.rows + 3, transposeA, right, B_ORIGIN, b.rows + 5, transposeB,
+            BETA, destination, C_ORIGIN,
+            order + 7, order, order, depth, selected, Workspace(),
         )
 
         assertContentEquals(leftBefore, left, "$context: the left operand was written")
@@ -360,7 +361,7 @@ class StructuredProductTest {
     }
 
     private fun assertSymmetricProductAgreesWithReference(
-        blas: DenseBlas,
+        blas: KoblasEngine,
         order: Int,
         sides: Int,
         lower: Boolean,
@@ -474,10 +475,10 @@ class StructuredProductTest {
         }
     }
 
-    private fun koblasPanels(): DensePanelKernels = BuiltinEngines.simd?.panelKernels ?: PortablePanelKernels
+    private fun koblasPanels(): KoblasEngine = BuiltinEngines.simd ?: PortablePanelKernels
 
     /** The panel backend that belongs beside [products], so a composition under test is a real one. */
-    private fun panelsFor(products: DenseProductKernels): DensePanelKernels =
+    private fun panelsFor(products: KoblasEngine): KoblasEngine =
         if (products === PortableProductKernels) PortablePanelKernels else koblasPanels()
 
     /** The blocked shape and the direct one, so every conformance check covers both routes. */

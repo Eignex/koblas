@@ -3,9 +3,6 @@ package com.eignex.koblas.sparse
 import com.eignex.koblas.BuiltinEngines
 import com.eignex.koblas.SparseVector
 import com.eignex.koblas.assertClose
-import com.eignex.koblas.internal.sparse.axpy
-import com.eignex.koblas.internal.sparse.gather
-import com.eignex.koblas.internal.sparse.scatter
 import com.eignex.koblas.koblas
 import com.eignex.koblas.randomVector
 import kotlin.math.abs
@@ -36,8 +33,8 @@ class PlatformSparseKernelsTest {
             val size = nnz * 8
             val x = sparse(size, nnz, rng)
             val y = randomVector(size, rng)
-            val expected = ReferenceSparseBlas.dot(x, y)
-            val actual = koblas.sparseKernels.dot(x, y)
+            val expected = BuiltinEngines.scalar.dot(x, y)
+            val actual = koblas.dot(x, y)
             // A vectorized reduction sums lanes in a different order, so the bound scales with the count.
             assertTrue(
                 abs(actual - expected) <= 1e-13 * nnz * (1.0 + abs(expected)),
@@ -53,8 +50,8 @@ class PlatformSparseKernelsTest {
             val size = nnz * 8
             val x = sparse(size, nnz, rng)
             val y = sparse(size, nnz, rng)
-            val expected = ReferenceSparseBlas.dot(x, y)
-            val actual = koblas.sparseKernels.dot(x, y)
+            val expected = BuiltinEngines.scalar.dot(x, y)
+            val actual = koblas.dot(x, y)
             assertTrue(
                 abs(actual - expected) <= 1e-13 * nnz * (1.0 + abs(expected)),
                 "nnz=$nnz: $actual vs $expected",
@@ -69,8 +66,8 @@ class PlatformSparseKernelsTest {
             val x = sparse(nnz * 8, nnz, rng)
             val expected = randomVector(x.size, rng)
             val actual = expected.copyOf()
-            ReferenceSparseBlas.axpy(expected, -0.75, x)
-            koblas.sparseKernels.axpy(actual, -0.75, x)
+            BuiltinEngines.scalar.axpy(expected, -0.75, x)
+            koblas.axpy(actual, -0.75, x)
             assertClose(expected, actual, "nnz=$nnz", tolerance = 1e-15)
         }
     }
@@ -82,8 +79,8 @@ class PlatformSparseKernelsTest {
             val x = sparse(nnz * 8, nnz, rng)
             val expected = randomVector(x.size, rng)
             val actual = expected.copyOf()
-            ReferenceSparseBlas.scatter(x, expected)
-            koblas.sparseKernels.scatter(x, actual)
+            BuiltinEngines.scalar.scatter(x, expected)
+            koblas.scatter(x, actual)
             assertContentEquals(expected, actual, "nnz=$nnz")
         }
     }
@@ -96,8 +93,8 @@ class PlatformSparseKernelsTest {
             val expected = SparseVector.of(pattern.size, pattern.indices, pattern.values)
             val actual = SparseVector.of(pattern.size, pattern.indices, pattern.values)
             val from = randomVector(pattern.size, rng)
-            ReferenceSparseBlas.gather(expected, from)
-            koblas.sparseKernels.gather(actual, from)
+            BuiltinEngines.scalar.gather(expected, from)
+            koblas.gather(actual, from)
             assertContentEquals(expected.values, actual.values, "nnz=$nnz")
         }
     }
@@ -111,8 +108,8 @@ class PlatformSparseKernelsTest {
             val actual = SparseVector.of(pattern.size, pattern.indices, pattern.values)
             val expectedFrom = randomVector(pattern.size, rng)
             val actualFrom = expectedFrom.copyOf()
-            ReferenceSparseBlas.gatherZero(expected, expectedFrom)
-            koblas.sparseKernels.gatherZero(actual, actualFrom)
+            BuiltinEngines.scalar.gatherZero(expected, expectedFrom)
+            koblas.gatherZero(actual, actualFrom)
             assertContentEquals(expected.values, actual.values, "values nnz=$nnz")
             assertContentEquals(expectedFrom, actualFrom, "source nnz=$nnz")
         }
@@ -125,14 +122,14 @@ class PlatformSparseKernelsTest {
             val rng = Random(nnz * 6151)
             val x = sparse(nnz * 8, nnz, rng)
             // Vector reductions reorder stored values, so the tolerance scales with their count.
-            val expectedAsum = ReferenceSparseBlas.asum(x)
-            val actualAsum = koblas.sparseKernels.asum(x)
+            val expectedAsum = BuiltinEngines.scalar.asum(x)
+            val actualAsum = koblas.asum(x)
             assertTrue(
                 abs(actualAsum - expectedAsum) <= 1e-13 * nnz * (1.0 + abs(expectedAsum)),
                 "asum nnz=$nnz: $actualAsum vs $expectedAsum",
             )
-            val expectedNrm2 = ReferenceSparseBlas.nrm2(x)
-            val actualNrm2 = koblas.sparseKernels.nrm2(x)
+            val expectedNrm2 = BuiltinEngines.scalar.nrm2(x)
+            val actualNrm2 = koblas.nrm2(x)
             assertTrue(
                 abs(actualNrm2 - expectedNrm2) <= 1e-13 * nnz * (1.0 + abs(expectedNrm2)),
                 "nrm2 nnz=$nnz: $actualNrm2 vs $expectedNrm2",
@@ -148,15 +145,15 @@ class PlatformSparseKernelsTest {
             val nnz = 64
             val values = DoubleArray(nnz) { rng.nextDouble(0.5, 1.0) * scale }
             val x = SparseVector.of(nnz * 4, IntArray(nnz) { it * 4 }, values)
-            val expectedNrm2 = ReferenceSparseBlas.nrm2(x)
-            val actualNrm2 = koblas.sparseKernels.nrm2(x)
+            val expectedNrm2 = BuiltinEngines.scalar.nrm2(x)
+            val actualNrm2 = koblas.nrm2(x)
             assertTrue(actualNrm2.isFinite() && actualNrm2 > 0.0, "nrm2 at scale $scale is $actualNrm2")
             assertTrue(
                 abs(actualNrm2 - expectedNrm2) <= 1e-13 * nnz * expectedNrm2,
                 "nrm2 scale=$scale: $actualNrm2 vs $expectedNrm2",
             )
-            val expectedAsum = ReferenceSparseBlas.asum(x)
-            val actualAsum = koblas.sparseKernels.asum(x)
+            val expectedAsum = BuiltinEngines.scalar.asum(x)
+            val actualAsum = koblas.asum(x)
             assertTrue(
                 abs(actualAsum - expectedAsum) <= 1e-13 * nnz * expectedAsum,
                 "asum scale=$scale: $actualAsum vs $expectedAsum",
@@ -171,7 +168,7 @@ class PlatformSparseKernelsTest {
             val x = sparse(nnz * 8, nnz, rng)
             val wrong = DoubleArray(x.size + 1)
             val failed = try {
-                koblas.sparseKernels.dot(x, wrong)
+                koblas.dot(x, wrong)
                 false
             } catch (_: IllegalArgumentException) {
                 true
@@ -186,7 +183,7 @@ class PlatformSparseKernelsTest {
         val values = doubleArrayOf(99.0, 99.0, 2.0, -3.0, 4.0, 99.0)
         val dense = doubleArrayOf(10.0, 5.0, 20.0, 30.0, 7.0, 50.0, -2.0)
         for (engine in engines) {
-            val kernels = engine.sparseKernels
+            val kernels = engine
             assertEquals(-19.0, kernels.dot(indices, 1, values, 2, 3, dense), engine.name)
 
             val updated = dense.copyOf()
@@ -205,15 +202,15 @@ class PlatformSparseKernelsTest {
         val values = doubleArrayOf(3.0, 4.0, 5.0)
         val dense = doubleArrayOf(2.0, 7.0, -1.0)
         for (engine in engines) {
-            assertEquals(0.0, engine.sparseKernels.dot(indices, 0, values, 0, 3, dense), engine.name)
-            assertEquals(sqrt(6.0), engine.sparseKernels.nrm2(indices, 0, 3, dense), engine.name)
+            assertEquals(0.0, engine.dot(indices, 0, values, 0, 3, dense), engine.name)
+            assertEquals(sqrt(6.0), engine.nrm2(indices, 0, 3, dense), engine.name)
         }
     }
 
     @Test
     fun `raw empty slices at array ends are legal`() {
         for (engine in engines) {
-            val kernels = engine.sparseKernels
+            val kernels = engine
             val destination = doubleArrayOf(3.0)
             assertEquals(0.0, kernels.dot(intArrayOf(9), 1, doubleArrayOf(9.0), 1, 0, DoubleArray(0)))
             kernels.axpy(destination, 2.0, intArrayOf(9), 1, doubleArrayOf(9.0), 1, 0)
@@ -226,7 +223,7 @@ class PlatformSparseKernelsTest {
     @Test
     fun `raw mutations validate before changing the destination`() {
         for (engine in engines) {
-            val kernels = engine.sparseKernels
+            val kernels = engine
             val outOfRangeDestination = doubleArrayOf(5.0, 6.0, 7.0)
             assertFailsWith<IndexOutOfBoundsException>(engine.name) {
                 kernels.axpy(
@@ -258,7 +255,7 @@ class PlatformSparseKernelsTest {
     @Test
     fun `raw operations reject invalid windows and dimensions`() {
         for (engine in engines) {
-            val kernels = engine.sparseKernels
+            val kernels = engine
             assertFailsWith<IllegalArgumentException>(engine.name) {
                 kernels.dot(intArrayOf(0), 1, doubleArrayOf(1.0), 0, 1, doubleArrayOf(2.0))
             }
@@ -280,7 +277,7 @@ class PlatformSparseKernelsTest {
     fun `raw axpy with zero alpha does not evaluate values`() {
         for (engine in engines) {
             val destination = doubleArrayOf(Double.NaN, -0.0)
-            engine.sparseKernels.axpy(
+            engine.axpy(
                 destination,
                 -0.0,
                 intArrayOf(0, 1),
@@ -299,7 +296,7 @@ class PlatformSparseKernelsTest {
         val source = doubleArrayOf(-0.0, Double.NaN, Double.NEGATIVE_INFINITY)
         for (engine in engines) {
             val destination = DoubleArray(3)
-            engine.sparseKernels.scatter(intArrayOf(0, 1, 2), 0, source, 0, 3, destination)
+            engine.scatter(intArrayOf(0, 1, 2), 0, source, 0, 3, destination)
             assertEquals((-0.0).toBits(), destination[0].toBits(), engine.name)
             assertTrue(destination[1].isNaN(), engine.name)
             assertEquals(Double.NEGATIVE_INFINITY, destination[2], engine.name)
@@ -310,7 +307,7 @@ class PlatformSparseKernelsTest {
     fun `indexed norm rescales finite values`() {
         val support = intArrayOf(1, 3)
         for (engine in engines) {
-            val kernels = engine.sparseKernels
+            val kernels = engine
             assertEquals(
                 5e200,
                 kernels.nrm2(support, 0, 2, doubleArrayOf(0.0, 3e200, 0.0, 4e200)),
@@ -331,7 +328,7 @@ class PlatformSparseKernelsTest {
         val x = SparseVector.of(6, intArrayOf(1, 4), doubleArrayOf(2.0, -3.0))
         val dense = doubleArrayOf(1.0, 5.0, 2.0, 3.0, 7.0, 4.0)
         for (engine in engines) {
-            val kernels = engine.sparseKernels
+            val kernels = engine
             assertEquals(
                 kernels.dot(x, dense),
                 kernels.dot(x.indices, 0, x.values, 0, x.values.size, dense),
@@ -367,11 +364,11 @@ class PlatformSparseKernelsTest {
             values[3 + k] = (k % 17 - 8) * 0.125
         }
         val dense = DoubleArray(dimension) { (it % 23 - 11) * 0.0625 }
-        val scalar = BuiltinEngines.scalar.sparseKernels
+        val scalar = BuiltinEngines.scalar
         val expectedDot = scalar.dot(indices, 2, values, 3, count, dense)
         val expectedNorm = scalar.nrm2(indices, 2, count, dense)
         for (engine in engines) {
-            val kernels = engine.sparseKernels
+            val kernels = engine
             val actualDot = kernels.dot(indices, 2, values, 3, count, dense)
             assertTrue(
                 abs(actualDot - expectedDot) <= 1e-12 * (1.0 + abs(expectedDot)),

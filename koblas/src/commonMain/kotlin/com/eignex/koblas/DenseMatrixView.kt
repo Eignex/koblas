@@ -4,7 +4,7 @@ package com.eignex.koblas
  * Mutable column-major storage with unit row stride, shared by [DenseMatrix] and [DenseMatrixView].
  * Entry `A(i, j)` is at `offset + i + j * leadingDimension` in [values].
  *
- * [com.eignex.koblas.dense.DenseBlas] accepts regions for every dense matrix operation, as do mixed CSC
+ * [com.eignex.koblas.KoblasEngine] accepts regions for every dense matrix operation, as do mixed CSC
  * products. A region is mutable through its buffer and [set].
  */
 public sealed interface DenseMatrixRegion : Matrix {

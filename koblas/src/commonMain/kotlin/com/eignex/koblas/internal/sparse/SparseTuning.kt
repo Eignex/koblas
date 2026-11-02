@@ -7,28 +7,11 @@ import com.eignex.koblas.sparse.*
 import com.eignex.koblas.vendor.*
 
 /**
- * Every dispatch crossover and search width the sparse routines apply, in one place and settable from
- * outside the build.
- *
- * The dense half has no counterpart. Its crossovers are measured constants beside the kernels and the
- * schedules that use them: a Level 1 threshold sits with its kernel, and a cache block, a register tile and
- * a right-hand-side block sit with the scheduling or the backend that owns each. What is here is the sparse
- * half's dispatch, which a deployment may have to move without a rebuild.
- *
- * Each resolves from a JVM system property, then an environment variable, then the compiled-in default. The
- * property is `koblas.sparse.<name>` and the variable is its upper-case spelling with dots replaced by
- * underscores. There are no system properties off the JVM, so a Native target reads the variable alone.
- * Every value is read once, when this object initializes.
- *
- * An override that does not parse, or that falls outside the range its entry allows, is ignored and the
- * default stands, for the reason given on `tunedIntValue`.
- *
- * Only retained sparse BLAS dispatch decisions belong here.
+ * Sparse schedule and workspace tuning.
+ * Entries resolve once from a JVM system property, then an environment variable, then the default.
+ * Invalid values retain the default; backend choice otherwise belongs to engine profiles.
  */
 internal object SparseTuning {
-    /** Minimum support width for a JVM Vector API indexed load or store. */
-    val simdIndexedCrossover: Int = tuned("indexed.simd.crossover", default = 16)
-
     /**
      * The most right-hand sides the sparse scheduling will hold staged adjacent at once.
      *

@@ -1,8 +1,8 @@
 package com.eignex.koblas.dense
 
 import com.eignex.koblas.BuiltinEngines
+import com.eignex.koblas.PortableEngine
 import com.eignex.koblas.assertClose
-import com.eignex.koblas.internal.dense.ScalarVectorKernels
 import com.eignex.koblas.internal.jvm25.simd.SimdOps
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -10,7 +10,7 @@ import kotlin.test.assertEquals
 class SimdOpsTest {
     @Test
     fun `reductions agree with the scalar oracle for windows in large backing arrays`() {
-        val kernels = BuiltinEngines.simd?.vectorKernels ?: return
+        val kernels = BuiltinEngines.simd ?: return
         val a = DoubleArray(65_560)
         val b = DoubleArray(65_560) { (it % 11 - 5) / 8.0 }
 
@@ -20,9 +20,9 @@ class SimdOpsTest {
                 for (i in 0 until length) a[offset + i] = (i % 17 - 8) / 16.0
                 if (length > 0) a[offset + length / 2] = 1.0
                 val bOffset = 7 - offset
-                val expectedSum = ScalarVectorKernels.asum(a, offset, length)
-                val expectedDot = ScalarVectorKernels.dot(a, offset, b, bOffset, length)
-                val expectedIndex = ScalarVectorKernels.iamax(a, offset, length)
+                val expectedSum = PortableEngine.asum(a, offset, length)
+                val expectedDot = PortableEngine.dot(a, offset, b, bOffset, length)
+                val expectedIndex = PortableEngine.iamax(a, offset, length)
 
                 val actualSum = kernels.asum(a, offset, length)
                 val actualDot = kernels.dot(a, offset, b, bOffset, length)
@@ -43,7 +43,7 @@ class SimdOpsTest {
     }
 
     internal fun assertFiniteReductionsAgreeWithReference(length: Int) {
-        val kernels = BuiltinEngines.simd?.vectorKernels ?: return
+        val kernels = BuiltinEngines.simd ?: return
         val values = DoubleArray(65_560)
         val other = DoubleArray(65_560) { 0.5 }
 
@@ -53,9 +53,9 @@ class SimdOpsTest {
                     values.fill(Double.NaN)
                     values.fill(-0.0, offset, offset + length)
                     values[offset + position] = value
-                    val expectedSum = ScalarVectorKernels.asum(values, offset, length)
-                    val expectedDot = ScalarVectorKernels.dot(values, offset, other, 7 - offset, length)
-                    val expectedIndex = ScalarVectorKernels.iamax(values, offset, length)
+                    val expectedSum = PortableEngine.asum(values, offset, length)
+                    val expectedDot = PortableEngine.dot(values, offset, other, 7 - offset, length)
+                    val expectedIndex = PortableEngine.iamax(values, offset, length)
 
                     val actualSum = kernels.asum(values, offset, length)
                     val actualDot = kernels.dot(values, offset, other, 7 - offset, length)
@@ -72,13 +72,13 @@ class SimdOpsTest {
 
     @Test
     fun `absolute sum agrees with the scalar oracle across offsets and vector boundaries`() {
-        val kernels = BuiltinEngines.simd?.vectorKernels ?: return
+        val kernels = BuiltinEngines.simd ?: return
 
         for (length in lengths()) {
             for (offset in intArrayOf(0, 1, 3, 7)) {
                 val values = DoubleArray(offset + length + 3) { Double.NaN }
                 for (i in 0 until length) values[offset + i] = (i % 17 - 8) / 16.0
-                val expected = ScalarVectorKernels.asum(values, offset, length)
+                val expected = PortableEngine.asum(values, offset, length)
 
                 val actual = kernels.asum(values, offset, length)
 
@@ -89,7 +89,7 @@ class SimdOpsTest {
 
     @Test
     fun `absolute sum agrees with the scalar oracle for finite scales`() {
-        val kernels = BuiltinEngines.simd?.vectorKernels ?: return
+        val kernels = BuiltinEngines.simd ?: return
 
         for (length in lengths().filter { it > 0 }) {
             for (value in doubleArrayOf(-1.25e-250, Double.MIN_VALUE, 1.25e200)) {
@@ -97,7 +97,7 @@ class SimdOpsTest {
                     val values = DoubleArray(length + 6) { Double.NaN }
                     values.fill(-0.0, 3, 3 + length)
                     values[3 + position] = value
-                    val expected = ScalarVectorKernels.asum(values, 3, length)
+                    val expected = PortableEngine.asum(values, 3, length)
 
                     val actual = kernels.asum(values, 3, length)
 
@@ -109,7 +109,7 @@ class SimdOpsTest {
 
     @Test
     fun `dot agrees with the scalar oracle across independent offsets and vector boundaries`() {
-        val kernels = BuiltinEngines.simd?.vectorKernels ?: return
+        val kernels = BuiltinEngines.simd ?: return
 
         for (length in lengths()) {
             for (aOffset in intArrayOf(0, 1, 3, 7)) {
@@ -120,7 +120,7 @@ class SimdOpsTest {
                         a[aOffset + i] = (i % 17 - 8) / 16.0
                         b[bOffset + i] = (i % 11 - 5) / 8.0
                     }
-                    val expected = ScalarVectorKernels.dot(a, aOffset, b, bOffset, length)
+                    val expected = PortableEngine.dot(a, aOffset, b, bOffset, length)
 
                     val actual = kernels.dot(a, aOffset, b, bOffset, length)
 
@@ -147,7 +147,7 @@ class SimdOpsTest {
                             else -> if (i % (4 * lanes) == 0) (i + 1) * Double.MIN_VALUE else 0.0
                         }
                     }
-                    val expected = ScalarVectorKernels.iamax(values, offset, length)
+                    val expected = PortableEngine.iamax(values, offset, length)
 
                     val actual = SimdOps.iamax(values, offset, length)
 
@@ -167,7 +167,7 @@ class SimdOpsTest {
                     val values = DoubleArray(offset + length + 3) { Double.NaN }
                     values.fill(1.0, offset, offset + length)
                     values[offset + position] = Double.fromBits(1.0.toRawBits() + 1)
-                    val expected = ScalarVectorKernels.iamax(values, offset, length)
+                    val expected = PortableEngine.iamax(values, offset, length)
 
                     val actual = SimdOps.iamax(values, offset, length)
 
@@ -189,7 +189,7 @@ class SimdOpsTest {
                 val nan = 8 * lanes + vector * lanes
                 values[nan] = Double.NaN
                 values[nan + lanes] = 4.0
-                val expected = ScalarVectorKernels.iamax(values, 0, length)
+                val expected = PortableEngine.iamax(values, 0, length)
 
                 val actual = SimdOps.iamax(values, 0, length)
 

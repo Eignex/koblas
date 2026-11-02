@@ -183,7 +183,7 @@ internal class JvmVendorLibrary private constructor(
     @Suppress("SpreadOperator") // The small ABI probe copies only once when a library is opened.
     private fun probeDot(): Boolean {
         val handle = handleOrNull(
-            BlasOperation.Dot.entryPoint,
+            EngineImplementation.Dot.entryPoint,
             FunctionDescriptor.of(JAVA_DOUBLE, JAVA_INT, ADDRESS, JAVA_INT, ADDRESS, JAVA_INT),
         ) ?: return false
         Arena.ofConfined().use { arena ->
@@ -196,7 +196,7 @@ internal class JvmVendorLibrary private constructor(
     @Suppress("SpreadOperator") // The small ABI probe copies only once when a library is opened.
     private fun probeGemm(): Boolean {
         val handle = handleOrNull(
-            BlasOperation.Gemm.entryPoint,
+            EngineImplementation.Gemm.entryPoint,
             FunctionDescriptor.ofVoid(
                 JAVA_INT, JAVA_INT, JAVA_INT, JAVA_INT, JAVA_INT, JAVA_INT, JAVA_DOUBLE,
                 ADDRESS, JAVA_INT, ADDRESS, JAVA_INT, JAVA_DOUBLE, ADDRESS, JAVA_INT,

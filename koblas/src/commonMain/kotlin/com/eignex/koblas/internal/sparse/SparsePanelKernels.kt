@@ -2,8 +2,6 @@ package com.eignex.koblas.internal.sparse
 
 import com.eignex.koblas.*
 import com.eignex.koblas.dense.*
-import com.eignex.koblas.dense.DenseVectorKernels
-import com.eignex.koblas.internal.dense.DensePanelKernels
 import com.eignex.koblas.internal.dense.PanelWork
 import com.eignex.koblas.sparse.*
 import com.eignex.koblas.vendor.*
@@ -17,7 +15,7 @@ import com.eignex.koblas.vendor.*
  *
  * Where the arithmetic over such a group goes is the point of this file. The traversal, the indices and the
  * structural rules are written here and are portable; the arithmetic over one group of right-hand sides is
- * handed to [DensePanelKernels.indexedColumnUpdate] and [DensePanelKernels.indexedRankUpdate], which are the
+ * handed to [KoblasEngine.indexedColumnUpdate] and [KoblasEngine.indexedRankUpdate], which are the
  * seam's own leaves and the only place a backend's choice of body enters a sparse matrix product. The
  * right-hand sides are the axis with nothing to carry between their entries, so they are what a backend may
  * vectorise; the indices are read as indices on every backend.
@@ -31,10 +29,7 @@ import com.eignex.koblas.vendor.*
  * Contiguous whole-column work is where a selected Level 1 kernel is called instead, which is the other way
  * an engine's choice of dense kernels reaches a sparse matrix operation.
  */
-internal class SparsePanelKernels(
-    private val denseVectors: DenseVectorKernels,
-    private val densePanels: DensePanelKernels,
-) {
+internal class SparsePanelKernels(private val engine: KoblasEngine) {
 
     /**
      * Dense right-hand sides to visit per walk of a sparse column, for a destination of [columns] of them.
@@ -47,7 +42,7 @@ internal class SparsePanelKernels(
      * staging buffer a copy has to fit in.
      */
     fun rightHandSideGroup(rows: Int, columns: Int, contiguous: Boolean = false, reduction: Boolean = false): Int =
-        densePanels.executionGroup(panelWork(reduction), rows, columns, contiguous)
+        engine.executionGroup(panelWork(reduction), rows, columns, contiguous)
 
     /**
      * Whether this backend does better over a panel of [width] adjacent right-hand sides than over a strided
@@ -58,7 +53,7 @@ internal class SparsePanelKernels(
      * it has a whole lane block of them.
      */
     fun prefersAdjacentSides(width: Int, entries: Int, reduction: Boolean = false): Boolean =
-        densePanels.prefersContiguous(panelWork(reduction), width, entries)
+        engine.prefersContiguous(panelWork(reduction), width, entries)
 
     /**
      * Which of the two sparse panel shapes a caller is asking about.
@@ -136,7 +131,7 @@ internal class SparsePanelKernels(
             else -> -1
         }
         // Both halves read the same source layout; the mirrored half accumulates directly into the pivot row.
-        densePanels.indexedCoupledUpdate(
+        engine.indexedCoupledUpdate(
             alpha, c, b, offset, rhsStride, indexStride, rowIndices, values, start, end - start, width,
             pivot, c, cOffset + column * indexStride, diagonal, cOffset, cRhsStride, indexStride,
         )
@@ -199,7 +194,7 @@ internal class SparsePanelKernels(
     ) {
         if (fromIndex == toIndex) return
         work.fill(0.0, 0, width)
-        densePanels.indexedColumnUpdate(
+        engine.indexedColumnUpdate(
             1.0, b, offset, rhsStride, indexStride, rowIndices, values, fromIndex, toIndex - fromIndex,
             width, work, 0,
         )
@@ -231,7 +226,7 @@ internal class SparsePanelKernels(
         work: DoubleArray,
     ) {
         for (rhs in 0 until width) work[rhs] = alpha * b[bOffset + rhs * bRhsStride]
-        densePanels.indexedRankUpdate(
+        engine.indexedRankUpdate(
             1.0, c, offset, rhsStride, indexStride, rowIndices, values, fromIndex, toIndex - fromIndex,
             width, work, 0,
         )
@@ -469,7 +464,7 @@ internal class SparsePanelKernels(
      * One triangular column against a panel of right-hand sides, in the direction that finishes the pivot
      * first and then updates the rows below it.
      *
-     * A right-hand side that is exactly zero is skipped, which is [SparseBlas.trsv]'s rule carried to several
+     * A right-hand side that is exactly zero is skipped, which is [KoblasEngine.trsv]'s rule carried to several
      * columns at once: it is what keeps a zero right-hand side from forming a product against a stored
      * infinity. Which ones are live is recorded in the second half of [work], so the update loop reads that
      * rather than the values again, and so no width is wider than the record can hold. [work] therefore needs
@@ -522,7 +517,7 @@ internal class SparsePanelKernels(
         val end = strictRunEnd(rowIndices, fromIndex, toIndex, column, lower)
         if (start >= end) return
         if (live == width) {
-            densePanels.indexedRankUpdate(
+            engine.indexedRankUpdate(
                 if (solve) -1.0 else 1.0, dense, offset, rhsStride, indexStride,
                 rowIndices, values, start, end - start, width, work, 0,
             )
@@ -574,7 +569,7 @@ internal class SparsePanelKernels(
         val start = strictRunStart(rowIndices, fromIndex, toIndex, column, lower)
         val end = strictRunEnd(rowIndices, fromIndex, toIndex, column, lower)
         if (start < end) {
-            densePanels.indexedColumnUpdate(
+            engine.indexedColumnUpdate(
                 if (solve) -1.0 else 1.0, dense, offset, rhsStride, indexStride,
                 rowIndices, values, start, end - start, width, work, 0,
             )
@@ -590,7 +585,7 @@ internal class SparsePanelKernels(
      * whole contiguous dense column and therefore the selected Level 1 `axpy` and `scale`.
      *
      * The diagonal is divided by rather than multiplied by its reciprocal, so a right-hand solve rounds the
-     * way [SparseBlas.trsv] does over the same triangle.
+     * way [KoblasEngine.trsv] does over the same triangle.
      */
     @Suppress("LongParameterList") // the column slice, its four flags, and the dense block
     fun triangularRightColumn(
@@ -618,9 +613,9 @@ internal class SparsePanelKernels(
                 val alpha = if (solve) -value else value
                 val rowOffset = origin + row * leadingDimension
                 if (solve == gather) {
-                    denseVectors.axpy(dense, rowOffset, alpha, dense, columnOffset, rows)
+                    engine.axpy(dense, rowOffset, alpha, dense, columnOffset, rows)
                 } else {
-                    denseVectors.axpy(dense, columnOffset, alpha, dense, rowOffset, rows)
+                    engine.axpy(dense, columnOffset, alpha, dense, rowOffset, rows)
                 }
             }
         }
@@ -631,7 +626,7 @@ internal class SparsePanelKernels(
         if (solve) {
             for (i in 0 until rows) dense[offset + i] = dense[offset + i] / diagonal
         } else {
-            denseVectors.scale(dense, offset, diagonal, rows)
+            engine.scale(dense, offset, diagonal, rows)
         }
     }
 
@@ -645,7 +640,7 @@ internal class SparsePanelKernels(
     @Suppress("LongParameterList") // the two windows and the run length
     private fun evaluatedAxpy(y: DoubleArray, yOffset: Int, alpha: Double, x: DoubleArray, xOffset: Int, length: Int) {
         if (alpha != 0.0) {
-            denseVectors.axpy(y, yOffset, alpha, x, xOffset, length)
+            engine.axpy(y, yOffset, alpha, x, xOffset, length)
             return
         }
         for (i in 0 until length) y[yOffset + i] += alpha * x[xOffset + i]

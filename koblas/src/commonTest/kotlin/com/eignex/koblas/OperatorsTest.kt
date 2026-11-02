@@ -1,8 +1,6 @@
 package com.eignex.koblas
 
 import com.eignex.koblas.*
-import com.eignex.koblas.internal.dense.ScalarVectorKernels
-import com.eignex.koblas.internal.sparse.axpy
 import kotlin.test.*
 
 class OperatorsTest {
@@ -19,7 +17,7 @@ class OperatorsTest {
                 val original = backing.copyOf()
                 val view = StridedVector(backing, if (stride < 0) 6 else 1, size, stride)
                 val expected = view.toDoubleArray()
-                ScalarVectorKernels.scale(expected, 0, 2.0, size)
+                PortableEngine.scale(expected, 0, 2.0, size)
 
                 val right = view * 2.0
                 val left = 2.0 * view
@@ -27,7 +25,7 @@ class OperatorsTest {
 
                 assertVectorAgreesWithReference(expected, right)
                 assertVectorAgreesWithReference(expected, left)
-                ScalarVectorKernels.scale(expected, 0, -0.5, size)
+                PortableEngine.scale(expected, 0, -0.5, size)
                 assertVectorAgreesWithReference(expected, negated)
                 assertContentEquals(original, backing)
             }
@@ -46,7 +44,7 @@ class OperatorsTest {
                 val y = StridedVector(second, 5, size, -2)
                 for (alpha in doubleArrayOf(1.0, -1.0)) {
                     val expected = x.toDoubleArray()
-                    ScalarVectorKernels.axpy(expected, 0, alpha, y.toDoubleArray(), 0, size)
+                    PortableEngine.axpy(expected, 0, alpha, y.toDoubleArray(), 0, size)
 
                     val actual = if (alpha == 1.0) x + y else x - y
 

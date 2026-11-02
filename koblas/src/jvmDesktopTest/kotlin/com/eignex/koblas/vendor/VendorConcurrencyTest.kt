@@ -1,10 +1,10 @@
 package com.eignex.koblas.vendor
 
+import com.eignex.koblas.BuiltinEngines
 import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.DenseVector
+import com.eignex.koblas.PortableEngine
 import com.eignex.koblas.dense.ReferenceBlas
-import com.eignex.koblas.internal.dense.ScalarVectorKernels
-import com.eignex.koblas.internal.sparse.axpy
 import java.util.concurrent.Callable
 import java.util.concurrent.CyclicBarrier
 import java.util.concurrent.Executors
@@ -22,7 +22,7 @@ class VendorConcurrencyTest {
     @Test
     fun `every resolved vendor reports one compute thread`() {
         for (vendor in Vendor.entries) {
-            val blas = openBlas(vendor) ?: continue
+            val blas = BuiltinEngines.vendor(vendor) ?: continue
 
             // A library that could not be held to one thread is refused at load, so resolving one is the
             // assertion: the count is not readable through the binding because it is not configurable.
@@ -34,7 +34,7 @@ class VendorConcurrencyTest {
     fun `an opened library confirmed one compute thread where it can be asked`() {
         var checked = 0
         for (vendor in Vendor.entries) {
-            val blas = openBlas(vendor) ?: continue
+            val blas = BuiltinEngines.vendor(vendor) ?: continue
             checked++
 
             // These are multithreaded builds by default, and one that would not hold to a single thread never
@@ -105,7 +105,7 @@ class VendorConcurrencyTest {
             for (future in pool.invokeAll(work)) {
                 val (alpha, actual) = future.get()
                 val expected = DoubleArray(size)
-                ScalarVectorKernels.axpy(expected, 0, alpha, shared, 0, size)
+                PortableEngine.axpy(expected, 0, alpha, shared, 0, size)
                 assertAgreesWithReference(expected, actual, "concurrent axpy")
             }
         } finally {
@@ -132,7 +132,7 @@ class VendorConcurrencyTest {
                     total / REPEATS
                 }
             }
-            val expected = ScalarVectorKernels.dot(shared, 0, shared, 0, size)
+            val expected = PortableEngine.dot(shared, 0, shared, 0, size)
             for (future in pool.invokeAll(work)) {
                 val actual = future.get()
                 assertAgreesWithReference(expected, actual, "concurrent dot")

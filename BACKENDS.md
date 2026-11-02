@@ -4,32 +4,25 @@ You can use every supported operation without installing a native library. Kobla
 Kotlin double arrays and chooses an implementation for you. On the JVM, enabling SIMD is the first step
 for faster vector and matrix arithmetic. A native library can help with larger matrix operations.
 
-An engine is the implementation that carries out your calculations. Operators such as `a * b` and
-convenience functions use the default engine, available as `koblas`.
+Operators such as `a * b` and convenience functions use the default engine, available as `koblas`.
 
 ## How the default engine loads
 
 The first use of `koblas` selects the engine once, using what is available on your platform:
 
-```mermaid
-flowchart LR
-    P["Portable Kotlin"] --> E["Default engine"]
-    S["JVM SIMD<br/>when enabled"] --> E
-    N["Native library<br/>when eligible and available"] --> E
-```
-
 | Platform | What the default engine uses |
 |---|---|
-| JDK 25+ | JVM SIMD when enabled, otherwise portable Kotlin. Native access can add oneMKL on Intel or unidentified Linux/Windows x64. |
-| Kotlin/Native, Intel or unidentified Linux/Windows x64 | First available compatible library: oneMKL → AOCL → OpenBLAS |
-| Kotlin/Native, AMD Linux/Windows x64 | First available compatible library: AOCL → oneMKL → OpenBLAS |
-| Kotlin/Native, Linux ARM64 | First available compatible library: ArmPL → OpenBLAS |
-| Kotlin/Native, macOS | System Accelerate |
+| JDK 25+ | Measured owned JVM SIMD configuration when enabled; eligible oneMKL calls on measured Xeon Platinum 8375C Linux x64 hosts with native access. |
+| Kotlin/Native, i9-12900H Linux x64 | Measured portable + oneMKL configuration when the library is available. |
+| Other Kotlin/Native targets | Portable Kotlin until a measured host profile applies. Explicit vendor bindings remain available. |
 | JDK 17–24, Android and iOS | Portable Kotlin; no native library lookup |
 
-Finding a library makes it available to the engine. Each calculation then uses it only if that operation
-and size qualify; the rest uses JVM SIMD where applicable, or portable Kotlin. Missing libraries leave
-the Kotlin implementation available. The engine does not search again for each call.
+The default composes available backend implementations with an applicable standard routing profile once.
+A capability says which arithmetic exists; the profile says when to select it. Missing exports, optional
+modules or libraries leave portable coverage. An accelerated host profile applies to its declared runtime,
+OS, architecture and exact reported CPU model; availability alone does not select it. Unknown and other
+CPU models retain portable or owned JVM SIMD coverage. The initial vendor profiles cover the i9-12900H
+on Native and Xeon Platinum 8375C on the JVM; recalculate an explicit profile for another host.
 
 On JDK 25+, enable SIMD with this JVM argument:
 
@@ -74,14 +67,71 @@ or `--enable-native-access=com.eignex.koblas` on the module path. Install a comp
 indices (LP64) and make it discoverable by the system loader. Koblas also searches `~/intel/oneapi/mkl/latest` and
 `/opt/intel/oneapi/mkl/latest` for oneMKL on Linux. Set flags and library locations before starting the application.
 
-On Windows, put matching vendor DLLs in an absolute directory on PATH, with runtime dependencies beside
-the DLL or in Windows system directories. Windows shares Linux's vendor preferences and cutoffs, but
-runtime behavior and thresholds have not been verified on a Windows host. Windows Arm64 supports
-explicit JVM bindings; the Kotlin/Native target is Windows x64.
+Explicit bindings support Accelerate, OpenBLAS, AOCL, ArmPL and oneMKL on their supported hosts.
+On Windows, place matching LP64 DLLs and their dependencies in an absolute directory on PATH. The manual
+factory `BuiltinEngines.vendor(vendor)` returns an engine without changing the default.
+Use `BuiltinEngines.scalar` to select portable Kotlin explicitly.
 
-Direct JVM bindings also support Accelerate, OpenBLAS, AOCL and ArmPL on their supported hosts;
-automatic JVM selection currently uses only oneMKL. The manual loader `openBlas(vendor)` means
-"open a BLAS binding": it returns a binding for direct calls, or null, without changing the default engine.
-To choose portable Kotlin explicitly, create a `KoblasEngine.portable()` and call it directly.
+## Explicit composition and recalculation
+
+`KoblasEngine` is the single contract for portable, SIMD, vendor and combined engines. Implementations
+override the parts they supply and declare positive `EngineImplementation` sets; common defaults provide
+portable arithmetic. `BuiltinEngines` selects exact portable, SIMD or named vendor engines. Vendor
+capabilities follow exported symbols, and the composer binds capabilities to their actual implementations.
+The combined engine fills unselected operations with portable Kotlin. Shared schedules still own dense
+traversal, CSC traversal, validation and alias staging; packed product geometry is selected before packing.
+
+```kotlin
+val vendor = requireNotNull(BuiltinEngines.vendor(Vendor.OneMkl))
+val profile = StandardEngineProfiles.nativeLinuxOneMkl
+val engine = KoblasEngine.combine(profile, vendor)
+```
+
+Profiles contain ordered `EngineRule` preferences: unconditional selection, length/work thresholds, and
+bounded shape/layout regions. For an explicit profile, check `profile.appliesTo(runtime, hostPlatform())`.
+To load a recalculated profile, pass its text to `EngineProfile.parse`; the library performs no file I/O.
+On the JVM, append `StandardEngineProfiles.jvmSimd?.rules.orEmpty()` to retain owned SIMD preferences
+beneath custom vendor rules, and pass `BuiltinEngines.simd` to the composer when available.
+Panel, product and triangular families require unconditional rules so the
+schedule and its packed arithmetic agree on geometry. Intrinsic scalar edges and safe norm retries remain
+inside their implementations and are reflected by internal implementation attribution. The application engine
+owns dense and sparse operations directly; separate backend and BLAS interfaces, vendor adapters, vendor preference selection and route objects are
+removed. Explicit composition flattens the supplied engines into arithmetic sources once, with intrinsic
+portable coverage. The composer binds each arithmetic family once, and its inherited methods use that bound source.
+
+Recalculate a profile explicitly on the intended host:
+
+```bash
+python3 koblas-bench/tune-engine.py --capture --runtime native --backend onemkl \
+  --output /tmp/native-onemkl-profile
+```
+
+The workflow retains three paired rounds, timing metadata, CSVs, ratios and hashes, then emits `profile.tsv`.
+On Linux, fitting and validation share one automatically selected allowed core, recorded in each capture.
+It benchmarks the combined configuration on the fitting cases plus the addressed holdout suite, records
+`validation-N.json`, and refines the selected regions up to three times. Unresolved persistent regressions
+over five percent in selected regions fail validation; unselected control costs are retained separately.
+A length threshold must keep winning at every larger measured size; matrix preferences are bounded to
+measured extents and require matching variants to agree. Unmeasured regions retain portable coverage.
+Use `--runtime jvm` for transfer-inclusive JVM vendor tuning or `--backend jvm-simd` for owned vector tuning.
+SIMD fitting forces its supplied vector bodies so an existing cutoff cannot hide a better crossover;
+packing families retain their owned configuration. Capability metadata filters unsupported operations.
+The emitted profile records the CPU model from capture metadata; mixed or unidentified models require
+separate captures. Set `--os` and `--arch` for targets other than Linux x64; `--cpu` explicitly supplies a
+target model when capture metadata cannot identify it. Platform model detection currently covers Linux.
+For explicit profiles on other operating systems, `--cpu '*'` matches OS and architecture while the
+capture retains the measured CPU evidence. JVM vendor fitting compares against the owned SIMD engine by default; `--baseline jvm-scalar` supports deployments without SIMD.
+
+Validate the emitted configuration on additional cases and compare the combined engine, not only direct
+vendor arms. `KOBLAS_BENCH_ENGINE_PROFILE=/absolute/path/profile.tsv` selects it on the benchmark harness's
+`native-default` or `jvm-default` arm, without changing the library's process default. Refit existing repeated
+captures with `--results PATH` instead of `--capture`. SIMD captures need current capability metadata.
+Use `--candidate native-default` with an explicitly forced profile to fit combined borrowed-layout captures.
+Timing smoke runs cannot produce profiles.
+
+Benchmark reports and result data stay outside the source tree. The retained lab reports cover
+[Native calibration](https://lab.eignex.com/jobs/10142) and the [JVM comparison](https://lab.eignex.com/jobs/10183).
+Use the maintained client, `lab fetch ID /tmp/report`, to retrieve their CSVs, metadata and hashes.
+
 See the [API overview](koblas/module.md) for explicit engines and bindings, or the
 [usage guide](USAGE.md) for array, workspace and view examples.

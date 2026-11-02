@@ -2,6 +2,7 @@ package com.eignex.koblas.dense
 
 import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.DenseVector
+import com.eignex.koblas.KoblasEngine
 import com.eignex.koblas.Workspace
 import com.eignex.koblas.assertClose
 import com.eignex.koblas.copyOf
@@ -18,7 +19,7 @@ import kotlin.test.assertTrue
  * the loan is checked as the buffers the workspace holds afterwards.
  */
 class DenseWorkspaceTest {
-    private val blas: DenseBlas get() = testDenseBlas
+    private val blas: KoblasEngine get() = testDenseBlas
 
     /**
      * A matrix-vector product whose input is also its destination, against the oracle's answer for the same

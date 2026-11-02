@@ -4,9 +4,6 @@ package com.eignex.koblas.internal.jvm25.simd
 
 import com.eignex.koblas.*
 import com.eignex.koblas.dense.*
-import com.eignex.koblas.internal.dense.DenseProductKernels
-import com.eignex.koblas.internal.dense.PORTABLE_PRODUCT_TILE
-import com.eignex.koblas.internal.dense.PortableProductKernels
 import com.eignex.koblas.internal.dense.packsProductByWork
 import com.eignex.koblas.internal.dense.scaleProductWindow
 import com.eignex.koblas.sparse.*
@@ -24,15 +21,18 @@ import jdk.incubator.vector.DoubleVector
  * fewer stores. Partial rows use the scalar edge because masked stores allocate on this
  * implementation. [implementationsFor] reports both bodies when needed.
  *
- * Species initialization requires the Vector API module. [com.eignex.koblas.BuiltinEngines] checks
+ * Species initialization requires the Vector API module. [BuiltinEngines] checks
  * availability before constructing an engine with this backend.
  */
-internal object SimdProductKernels : DenseProductKernels {
-    private val SPECIES = SIMD_SPECIES
-    private val LANE = if (simdAvailable) SPECIES.length() else 0
+internal object SimdProductKernels : KoblasEngine() {
+    override val id: String = "jvm-simd"
+    override val implementations get() = setOf(EngineImplementation.Products)
 
-    /** Two lane blocks where the module is present, and the portable tile's own rows where it is not. */
-    private val ROWS = if (simdAvailable) ROW_BLOCKS * LANE else PORTABLE_PRODUCT_TILE
+    private val SPECIES = SIMD_SPECIES
+    private val LANE = SPECIES.length()
+
+    /** Two lane blocks per register tile. */
+    private val ROWS = ROW_BLOCKS * LANE
 
     /** Built once, for the reason [SimdPanelKernels] builds its own once. */
     private val NAME: String = "simd-tile(${ROWS}x$TILE_COLUMNS)"
@@ -49,7 +49,6 @@ internal object SimdProductKernels : DenseProductKernels {
      * sweep below takes them in.
      */
     override fun implementationsFor(rows: Int, columns: Int, depth: Int): List<String> = when {
-        !simdAvailable -> PortableProductKernels.implementationsFor(rows, columns, depth)
         rows <= 0 || columns <= 0 || depth <= 0 -> emptyList()
         rows < ROWS -> listOf(EDGE_NAME)
         rows % ROWS == 0 -> listOf(name)
@@ -75,13 +74,6 @@ internal object SimdProductKernels : DenseProductKernels {
         cOffset: Int,
         ldc: Int,
     ) {
-        if (!simdAvailable) {
-            PortableProductKernels.productBlock(
-                alpha, packedA, aOffset, aGroupStride, packedB, bOffset, bGroupStride,
-                rows, columns, depth, beta, c, cOffset, ldc,
-            )
-            return
-        }
         if (rows <= 0 || columns <= 0) return
         // Apply beta once: branched tile writeback prevents keeping accumulators in registers.
         scaleProductWindow(beta, c, cOffset, ldc, rows, columns)

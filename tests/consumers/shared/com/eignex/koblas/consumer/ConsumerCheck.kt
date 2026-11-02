@@ -1,27 +1,27 @@
 package com.eignex.koblas.consumer
 
+import com.eignex.koblas.BuiltinEngines
 import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.Matrix
 import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.StridedVector
-import com.eignex.koblas.KoblasEngine
 import com.eignex.koblas.Workspace
 import com.eignex.koblas.koblas
-import com.eignex.koblas.vendor.openBlas
+import com.eignex.koblas.vendor.Vendor
 import kotlin.math.abs
 
 /** Checks the published dependency through its public API on each consuming runtime. */
 object ConsumerCheck {
     /** Exercises transpose products, workspace reuse, and writes through aliased caller storage. */
     fun run(expectSimd: Boolean = false) {
-        check(koblas.vectorKernels.name.startsWith("simd(") == expectSimd)
+        check((BuiltinEngines.simd != null) == expectSimd)
         if (!expectSimd) {
             check(koblas.vendor == null)
-            check(openBlas() == null)
+            check(Vendor.entries.firstNotNullOfOrNull { BuiltinEngines.vendor(it) } == null)
         }
-        val portable = KoblasEngine.portable()
+        val portable = BuiltinEngines.scalar
         check(portable.vendor == null)
-        check(portable.vectorKernels.name == "scalar")
+        check(portable.name == "scalar")
         for (engine in listOf(portable, koblas)) {
             val workspace = Workspace()
             for ((rows, cols) in listOf(12 to 24, 24 to 48, 48 to 48)) {
@@ -66,7 +66,7 @@ object ConsumerCheck {
             assertAgreesWithReference(doubleArrayOf(-99.0, expectedStrided[1], -99.0, expectedStrided[0], -99.0), output)
         }
         if (expectSimd) {
-            openBlas()?.let { host ->
+            Vendor.entries.firstNotNullOfOrNull { BuiltinEngines.vendor(it) }?.let { host ->
                 val actual = DenseMatrix.zero(2, 2)
                 val matrix = DenseMatrix.wrap(2, 2, doubleArrayOf(2.0, 3.0, 5.0, 7.0))
                 val expectedProduct = referenceProduct(matrix, matrix)

@@ -1,20 +1,20 @@
 package com.eignex.koblas.dense
 
+import com.eignex.koblas.BuiltinEngines
 import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.DenseVector
+import com.eignex.koblas.KoblasEngine
+import com.eignex.koblas.PortableEngine
 import com.eignex.koblas.Workspace
 import com.eignex.koblas.assertClose
-import com.eignex.koblas.internal.dense.PortableDenseBlas
+import com.eignex.koblas.engineWithHost
+import com.eignex.koblas.engineWithKernels
 import com.eignex.koblas.internal.dense.PortablePanelKernels
-import com.eignex.koblas.internal.dense.ScalarVectorKernels
-import com.eignex.koblas.internal.host.HostDenseBlas
 import com.eignex.koblas.poisonedSymmetric
 import com.eignex.koblas.poisonedTriangle
 import com.eignex.koblas.randomMatrix
 import com.eignex.koblas.randomVector
-import com.eignex.koblas.vendor.Blas
 import com.eignex.koblas.vendor.Vendor
-import com.eignex.koblas.vendor.openBlas
 import com.eignex.koblas.wellConditioned
 import kotlin.random.Random
 import kotlin.test.Test
@@ -26,7 +26,7 @@ import kotlin.test.assertTrue
  * Real bindings expose operand, stride and flag translation below the recording seam. A loose
  * tolerance admits the library's accumulation order while catching incorrect translation.
  * Allowing small fixtures isolates translation from platform cutoffs. [HostDenseBlasTest] covers supplied
- * eligibility; NativeBlasPolicyTest and JvmHostDensePolicyTest cover the cutoffs.
+ * eligibility; EngineProfileTest cover the cutoffs.
  */
 class HostDenseAgreementTest {
     @Test
@@ -35,15 +35,14 @@ class HostDenseAgreementTest {
             assertShrinkingGerAgreesWithReference { x, y, a -> blas.ger(-1.0, x, y, a) }
         }
 
-    private fun composed(host: Blas): HostDenseBlas = HostDenseBlas(
-        PortableDenseBlas(ScalarVectorKernels, PortablePanelKernels),
+    private fun composed(host: KoblasEngine): KoblasEngine = engineWithHost(
+        engineWithKernels(PortableEngine, PortablePanelKernels),
         host,
-        eligible = { _, _, _, _ -> true },
     )
 
     /** Exercise every installed vendor; a host without one reports the missing coverage. */
-    private inline fun withHost(what: String, block: (HostDenseBlas, Blas) -> Unit) {
-        val hosts = Vendor.entries.mapNotNull { openBlas(it) }
+    private inline fun withHost(what: String, block: (KoblasEngine, KoblasEngine) -> Unit) {
+        val hosts = Vendor.entries.mapNotNull { BuiltinEngines.vendor(it) }
         if (hosts.isEmpty()) {
             println("SKIPPED: no CBLAS library installed; $what was not verified on this host")
             return

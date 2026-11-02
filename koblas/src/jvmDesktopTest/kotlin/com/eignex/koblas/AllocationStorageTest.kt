@@ -172,7 +172,7 @@ class AllocationStorageTest {
         val vector = SparseVector.of(n, IntArray(n / 2) { it * 2 }, DoubleArray(n / 2) { it + 1.0 })
         val x = DoubleArray(n) { it * 0.01 }
 
-        val levelOneBytes = bytesPerIteration(1_000, FLOOR_BYTES) { engine.sparseKernels.dot(vector, x) }
+        val levelOneBytes = bytesPerIteration(1_000, FLOOR_BYTES) { engine.dot(vector, x) }
 
         assertTrue(levelOneBytes <= FLOOR_BYTES, "sparse level one allocated $levelOneBytes B per call")
     }

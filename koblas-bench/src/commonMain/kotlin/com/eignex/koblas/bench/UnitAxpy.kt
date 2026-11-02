@@ -12,7 +12,7 @@ internal class UnitAxpy(size: Int) {
     fun verify(what: String, run: () -> Double) {
         val expected = initial.copyOf()
         repeat(2) {
-            BuiltinEngines.scalar.vectorKernels.axpy(expected, 0, 1.0, x, 0, x.size)
+            BuiltinEngines.scalar.axpy(expected, 0, 1.0, x, 0, x.size)
             run()
         }
         DenseReference.check(expected, y, what)

@@ -1,11 +1,8 @@
 package com.eignex.koblas.dense
 
 import com.eignex.koblas.*
-import com.eignex.koblas.internal.dense.PortableDenseBlas
 import com.eignex.koblas.internal.dense.PortablePanelKernels
-import com.eignex.koblas.internal.dense.ScalarVectorKernels
-import com.eignex.koblas.internal.host.HostDenseBlas
-import com.eignex.koblas.vendor.openBlas
+import com.eignex.koblas.vendor.Vendor
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
@@ -48,7 +45,7 @@ class DenseMatrixViewTest {
         }
     }
 
-    private fun withRegions(body: (DenseBlas) -> Unit) {
+    private fun withRegions(body: (KoblasEngine) -> Unit) {
         withDenseBlas(body)
         // Admitting every size sends each fixture to the installed library, in place where its binding takes regions.
         installedHost?.let(body)
@@ -578,11 +575,14 @@ class DenseMatrixViewTest {
     }
 
     private companion object {
-        val installedHost: DenseBlas? = openBlas()?.let {
-            HostDenseBlas(
-                PortableDenseBlas(ScalarVectorKernels, PortablePanelKernels),
+        val installedHost: KoblasEngine? = Vendor.entries.firstNotNullOfOrNull {
+            BuiltinEngines.vendor(
                 it,
-                eligible = { _, _, _, _ -> true },
+            )
+        }?.let {
+            engineWithHost(
+                engineWithKernels(PortableEngine, PortablePanelKernels),
+                it,
             )
         }
     }

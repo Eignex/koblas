@@ -23,7 +23,7 @@ internal fun vectorViewsArm(case: BenchCase, engine: KoblasEngine): ArmChoice {
         val dense = Fixtures.vector(size, 2)
         val backing = DoubleArray(2 * size) { if (it % 2 == 0) dense[it / 2] else Double.NaN }
         val view = StridedVector(backing, 0, size, 2)
-        val expected = BuiltinEngines.scalar.sparseKernels.dot(sparse, dense)
+        val expected = BuiltinEngines.scalar.dot(sparse, dense)
         DenseReference.check(doubleArrayOf(expected), doubleArrayOf(sparse dot view), case.id)
         return ArmChoice(CaseWork("default-policy", "arithmetic", { sparse dot view },
             kernel = "portable-vector+scalar/dot-view"), null)
@@ -36,7 +36,7 @@ internal fun vectorViewsArm(case: BenchCase, engine: KoblasEngine): ArmChoice {
     val destination = StridedVector(backing, 1, size, stride)
     val x = DoubleArray(size) { initial[it * stride] }
     val y = DoubleArray(size) { initial[1 + it * stride] }
-    val kernels = BuiltinEngines.scalar.vectorKernels
+    val kernels = BuiltinEngines.scalar
     when (case.operation) {
         "copy-overlap" -> x.copyInto(y)
         "axpy-views" -> kernels.axpy(y, 0, 0.875, x, 0, size)

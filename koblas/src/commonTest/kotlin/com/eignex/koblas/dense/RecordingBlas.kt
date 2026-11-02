@@ -4,17 +4,14 @@ package com.eignex.koblas.dense
 
 import com.eignex.koblas.DenseMatrixRegion
 import com.eignex.koblas.DenseVector
-import com.eignex.koblas.RouteKind
-import com.eignex.koblas.internal.host.HostDenseBlas
-import com.eignex.koblas.vendor.Blas
-import com.eignex.koblas.vendor.BlasOperation
-import com.eignex.koblas.vendor.CallRoute
+import com.eignex.koblas.EngineImplementation
+import com.eignex.koblas.KoblasEngine
 import com.eignex.koblas.vendor.ThreadEvidence
 import com.eignex.koblas.vendor.Vendor
 
 /** Records operand identities so tests can distinguish caller storage from staged copies. */
 internal class BlasCall(
-    val operation: BlasOperation,
+    val operation: EngineImplementation,
     val matrices: List<DenseMatrixRegion> = emptyList(),
     val vectors: List<DenseVector> = emptyList(),
     val scalars: List<Double> = emptyList(),
@@ -35,16 +32,19 @@ internal class BlasCall(
 }
 
 /**
- * Records [Blas] calls without computing, exposing flag and storage translation errors that
+ * Records [KoblasEngine] calls without computing, exposing flag and storage translation errors that
  * symmetric fixtures or round trips can conceal.
  *
- * This covers [HostDenseBlas] translation into [MatrixStructure] and [DenseVector]. Platform
+ * This covers [KoblasEngine] translation into [MatrixStructure] and [DenseVector]. Platform
  * vendor tests cover the CBLAS integers, leading dimensions and increments produced below this seam.
  */
-internal class RecordingBlas(
+internal open class RecordingBlas(
     override val vendor: Vendor = Vendor.OpenBlas,
-    override val directlyImplemented: Set<BlasOperation> = BlasOperation.entries.toSet(),
-) : Blas {
+    override val implementations: Set<EngineImplementation> = EngineImplementation.entries.filter {
+        it.entryPoint.isNotEmpty()
+    }.toSet(),
+) : KoblasEngine() {
+    override val name: String get() = vendor.vendorName.lowercase()
     private val recorded = mutableListOf<BlasCall>()
 
     /** Every call received so far, in order. */
@@ -61,50 +61,44 @@ internal class RecordingBlas(
     override val version: String get() = "recording"
     override val threadEvidence: ThreadEvidence get() = ThreadEvidence.Confirmed
 
-    override fun routeOf(
-        operation: BlasOperation,
-        matrices: List<DenseMatrixRegion>,
-        vectors: List<DenseVector>,
-    ): CallRoute = CallRoute(operation, RouteKind.Direct, vendor, operation.entryPoint, null, null)
-
     override fun dot(x: DenseVector, y: DenseVector): Double {
-        record(BlasCall(BlasOperation.Dot, vectors = listOf(x, y)))
+        record(BlasCall(EngineImplementation.Dot, vectors = listOf(x, y)))
         return 0.0
     }
 
     override fun nrm2(x: DenseVector): Double {
-        record(BlasCall(BlasOperation.Nrm2, vectors = listOf(x)))
+        record(BlasCall(EngineImplementation.Nrm2, vectors = listOf(x)))
         return 0.0
     }
 
     override fun asum(x: DenseVector): Double {
-        record(BlasCall(BlasOperation.Asum, vectors = listOf(x)))
+        record(BlasCall(EngineImplementation.Asum, vectors = listOf(x)))
         return 0.0
     }
 
     override fun iamax(x: DenseVector): Int {
-        record(BlasCall(BlasOperation.Iamax, vectors = listOf(x)))
+        record(BlasCall(EngineImplementation.Iamax, vectors = listOf(x)))
         return 0
     }
 
     override fun axpy(alpha: Double, x: DenseVector, y: DenseVector) =
-        record(BlasCall(BlasOperation.Axpy, vectors = listOf(x, y), scalars = listOf(alpha)))
+        record(BlasCall(EngineImplementation.Axpy, vectors = listOf(x, y), scalars = listOf(alpha)))
 
-    override fun scal(alpha: Double, x: DenseVector) =
-        record(BlasCall(BlasOperation.Scal, vectors = listOf(x), scalars = listOf(alpha)))
+    override fun scale(alpha: Double, x: DenseVector) =
+        record(BlasCall(EngineImplementation.Scale, vectors = listOf(x), scalars = listOf(alpha)))
 
     override fun copy(x: DenseVector, y: DenseVector) {
-        record(BlasCall(BlasOperation.Copy, vectors = listOf(x, y)))
+        record(BlasCall(EngineImplementation.Copy, vectors = listOf(x, y)))
     }
 
     override fun swap(x: DenseVector, y: DenseVector) {
-        record(BlasCall(BlasOperation.Swap, vectors = listOf(x, y)))
+        record(BlasCall(EngineImplementation.Swap, vectors = listOf(x, y)))
     }
 
     override fun rot(x: DenseVector, y: DenseVector, c: Double, s: Double) =
-        record(BlasCall(BlasOperation.Rot, vectors = listOf(x, y), scalars = listOf(c, s)))
+        record(BlasCall(EngineImplementation.Rot, vectors = listOf(x, y), scalars = listOf(c, s)))
 
-    override fun gemv(
+    override fun computeGemv(
         alpha: Double,
         a: DenseMatrixRegion,
         transposeA: Boolean,
@@ -113,7 +107,7 @@ internal class RecordingBlas(
         y: DenseVector,
     ) = record(
         BlasCall(
-            BlasOperation.Gemv,
+            EngineImplementation.Gemv,
             matrices = listOf(a),
             vectors = listOf(x, y),
             scalars = listOf(alpha, beta),
@@ -121,7 +115,7 @@ internal class RecordingBlas(
         ),
     )
 
-    override fun symv(
+    override fun computeSymv(
         alpha: Double,
         a: DenseMatrixRegion,
         structure: MatrixStructure,
@@ -130,7 +124,7 @@ internal class RecordingBlas(
         y: DenseVector,
     ) = record(
         BlasCall(
-            BlasOperation.Symv,
+            EngineImplementation.Symv,
             matrices = listOf(a),
             vectors = listOf(x, y),
             scalars = listOf(alpha, beta),
@@ -138,12 +132,13 @@ internal class RecordingBlas(
         ),
     )
 
-    override fun ger(alpha: Double, x: DenseVector, y: DenseVector, a: DenseMatrixRegion) =
-        record(BlasCall(BlasOperation.Ger, matrices = listOf(a), vectors = listOf(x, y), scalars = listOf(alpha)))
+    override fun computeGer(alpha: Double, x: DenseVector, y: DenseVector, a: DenseMatrixRegion) = record(
+        BlasCall(EngineImplementation.Ger, matrices = listOf(a), vectors = listOf(x, y), scalars = listOf(alpha)),
+    )
 
-    override fun syr(alpha: Double, x: DenseVector, a: DenseMatrixRegion, structure: MatrixStructure) = record(
+    override fun computeSyr(alpha: Double, x: DenseVector, a: DenseMatrixRegion, structure: MatrixStructure) = record(
         BlasCall(
-            BlasOperation.Syr,
+            EngineImplementation.Syr,
             matrices = listOf(a),
             vectors = listOf(x),
             scalars = listOf(alpha),
@@ -151,38 +146,45 @@ internal class RecordingBlas(
         ),
     )
 
-    override fun syr2(alpha: Double, x: DenseVector, y: DenseVector, a: DenseMatrixRegion, structure: MatrixStructure) =
+    override fun computeSyr2(
+        alpha: Double,
+        x: DenseVector,
+        y: DenseVector,
+        a: DenseMatrixRegion,
+        structure: MatrixStructure,
+    ) = record(
+        BlasCall(
+            EngineImplementation.Syr2,
+            matrices = listOf(a),
+            vectors = listOf(x, y),
+            scalars = listOf(alpha),
+            structure = structure,
+        ),
+    )
+
+    override fun computeTrsv(a: DenseMatrixRegion, structure: MatrixStructure, transposeA: Boolean, x: DenseVector) =
         record(
             BlasCall(
-                BlasOperation.Syr2,
+                EngineImplementation.Trsv,
                 matrices = listOf(a),
-                vectors = listOf(x, y),
-                scalars = listOf(alpha),
+                vectors = listOf(x),
                 structure = structure,
+                transposeA = transposeA,
             ),
         )
 
-    override fun trsv(a: DenseMatrixRegion, structure: MatrixStructure, transposeA: Boolean, x: DenseVector) = record(
-        BlasCall(
-            BlasOperation.Trsv,
-            matrices = listOf(a),
-            vectors = listOf(x),
-            structure = structure,
-            transposeA = transposeA,
-        ),
-    )
+    override fun computeTrmv(a: DenseMatrixRegion, structure: MatrixStructure, transposeA: Boolean, x: DenseVector) =
+        record(
+            BlasCall(
+                EngineImplementation.Trmv,
+                matrices = listOf(a),
+                vectors = listOf(x),
+                structure = structure,
+                transposeA = transposeA,
+            ),
+        )
 
-    override fun trmv(a: DenseMatrixRegion, structure: MatrixStructure, transposeA: Boolean, x: DenseVector) = record(
-        BlasCall(
-            BlasOperation.Trmv,
-            matrices = listOf(a),
-            vectors = listOf(x),
-            structure = structure,
-            transposeA = transposeA,
-        ),
-    )
-
-    override fun gemm(
+    override fun computeGemm(
         alpha: Double,
         a: DenseMatrixRegion,
         transposeA: Boolean,
@@ -192,7 +194,7 @@ internal class RecordingBlas(
         c: DenseMatrixRegion,
     ) = record(
         BlasCall(
-            BlasOperation.Gemm,
+            EngineImplementation.Gemm,
             matrices = listOf(a, b, c),
             scalars = listOf(alpha, beta),
             transposeA = transposeA,
@@ -200,7 +202,7 @@ internal class RecordingBlas(
         ),
     )
 
-    override fun symm(
+    override fun computeSymm(
         alpha: Double,
         a: DenseMatrixRegion,
         structure: MatrixStructure,
@@ -210,7 +212,7 @@ internal class RecordingBlas(
         rightSide: Boolean,
     ) = record(
         BlasCall(
-            BlasOperation.Symm,
+            EngineImplementation.Symm,
             matrices = listOf(a, b, c),
             scalars = listOf(alpha, beta),
             structure = structure,
@@ -218,7 +220,7 @@ internal class RecordingBlas(
         ),
     )
 
-    override fun syrk(
+    override fun computeSyrk(
         alpha: Double,
         a: DenseMatrixRegion,
         transposeA: Boolean,
@@ -227,7 +229,7 @@ internal class RecordingBlas(
         structure: MatrixStructure,
     ) = record(
         BlasCall(
-            BlasOperation.Syrk,
+            EngineImplementation.Syrk,
             matrices = listOf(a, c),
             scalars = listOf(alpha, beta),
             structure = structure,
@@ -235,7 +237,7 @@ internal class RecordingBlas(
         ),
     )
 
-    override fun syr2k(
+    override fun computeSyr2k(
         alpha: Double,
         a: DenseMatrixRegion,
         b: DenseMatrixRegion,
@@ -245,7 +247,7 @@ internal class RecordingBlas(
         structure: MatrixStructure,
     ) = record(
         BlasCall(
-            BlasOperation.Syr2k,
+            EngineImplementation.Syr2k,
             matrices = listOf(a, b, c),
             scalars = listOf(alpha, beta),
             structure = structure,
@@ -253,7 +255,7 @@ internal class RecordingBlas(
         ),
     )
 
-    override fun trmm(
+    override fun computeTrmm(
         alpha: Double,
         a: DenseMatrixRegion,
         structure: MatrixStructure,
@@ -262,7 +264,7 @@ internal class RecordingBlas(
         rightSide: Boolean,
     ) = record(
         BlasCall(
-            BlasOperation.Trmm,
+            EngineImplementation.Trmm,
             matrices = listOf(a, b),
             scalars = listOf(alpha),
             structure = structure,
@@ -271,7 +273,7 @@ internal class RecordingBlas(
         ),
     )
 
-    override fun trsm(
+    override fun computeTrsm(
         alpha: Double,
         a: DenseMatrixRegion,
         structure: MatrixStructure,
@@ -280,7 +282,7 @@ internal class RecordingBlas(
         rightSide: Boolean,
     ) = record(
         BlasCall(
-            BlasOperation.Trsm,
+            EngineImplementation.Trsm,
             matrices = listOf(a, b),
             scalars = listOf(alpha),
             structure = structure,
@@ -289,7 +291,7 @@ internal class RecordingBlas(
         ),
     )
 
-    override fun gemmt(
+    override fun computeGemmt(
         alpha: Double,
         a: DenseMatrixRegion,
         transposeA: Boolean,
@@ -300,7 +302,7 @@ internal class RecordingBlas(
         structure: MatrixStructure,
     ) = record(
         BlasCall(
-            BlasOperation.Gemmt,
+            EngineImplementation.Gemmt,
             matrices = listOf(a, b, c),
             scalars = listOf(alpha, beta),
             structure = structure,

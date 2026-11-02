@@ -1,7 +1,8 @@
 package com.eignex.koblas.dense
 
 import com.eignex.koblas.BuiltinEngines
-import com.eignex.koblas.internal.dense.DensePanelKernels
+import com.eignex.koblas.EngineImplementation
+import com.eignex.koblas.KoblasEngine
 import com.eignex.koblas.internal.dense.PanelWork
 import com.eignex.koblas.internal.dense.PortablePanelKernels
 import com.eignex.koblas.internal.jvm25.simd.hardwareFusedMultiplyAdd
@@ -19,7 +20,7 @@ import kotlin.test.assertTrue
  * on a runtime without the module is a linkage error before any test body runs.
  */
 class SimdPanelKernelsTest {
-    private val kernels: DensePanelKernels? = BuiltinEngines.simd?.panelKernels
+    private val kernels: KoblasEngine? = BuiltinEngines.simd
 
     @Test
     fun `long column updates agree with the scalar oracle`() {
@@ -34,9 +35,9 @@ class SimdPanelKernelsTest {
         val lanes = lanes(kernels)
 
         for (work in vectorised()) {
-            assertEquals(kernels.name, kernels.implementationFor(work, lanes, 4), "$work at $lanes rows")
+            assertEquals(panelName(kernels), kernels.implementationFor(work, lanes, 4), "$work at $lanes rows")
             assertEquals(
-                if (hasShortBody(work)) kernels.name else PortablePanelKernels.name,
+                if (hasShortBody(work)) panelName(kernels) else PortablePanelKernels.name,
                 kernels.implementationFor(work, lanes - 1, 4),
                 "$work at ${lanes - 1} rows",
             )
@@ -49,7 +50,7 @@ class SimdPanelKernelsTest {
 
         for (work in listOf(PanelWork.MultiDot, PanelWork.ColumnUpdate)) {
             for (rows in 1 until lanes(kernels)) {
-                assertEquals(kernels.name, kernels.implementationFor(work, rows, 4096), "$work over $rows rows")
+                assertEquals(panelName(kernels), kernels.implementationFor(work, rows, 4096), "$work over $rows rows")
                 assertEquals(
                     4096,
                     kernels.executionGroup(work, rows, 4096),
@@ -80,7 +81,7 @@ class SimdPanelKernelsTest {
         val lanes = lanes(kernels)
 
         assertEquals(
-            kernels.name,
+            panelName(kernels),
             kernels.implementationFor(PanelWork.SparseRightHandSides, WIDE, 4),
             "adjacent right-hand sides",
         )
@@ -136,7 +137,13 @@ class SimdPanelKernelsTest {
     private fun hasShortBody(work: PanelWork): Boolean = work == PanelWork.MultiDot || work == PanelWork.ColumnUpdate
 
     /** The species this backend resolved, read back from the name it publishes. */
-    private fun lanes(kernels: DensePanelKernels): Int = kernels.name.substringAfter('(').substringBefore(' ').toInt()
+    private fun lanes(kernels: KoblasEngine): Int = kernels.components.first {
+        EngineImplementation.Dot in it.implementations
+    }.minimumVectorLength
+
+    private fun panelName(kernels: KoblasEngine): String = kernels.components.first {
+        EngineImplementation.Panels in it.implementations
+    }.name
 
     private fun vectorised() = PanelWork.entries
 

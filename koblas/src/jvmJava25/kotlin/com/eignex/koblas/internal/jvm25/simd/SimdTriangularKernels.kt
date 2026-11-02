@@ -4,7 +4,6 @@ package com.eignex.koblas.internal.jvm25.simd
 
 import com.eignex.koblas.*
 import com.eignex.koblas.dense.*
-import com.eignex.koblas.internal.dense.DenseTriangularKernels
 import com.eignex.koblas.internal.dense.PortableTriangularKernels
 import com.eignex.koblas.internal.dense.triangleEntry
 import com.eignex.koblas.sparse.*
@@ -24,11 +23,14 @@ import jdk.incubator.vector.VectorOperators
  * Strided sides and incomplete lane blocks use [PortableTriangularKernels];
  * [implementationsFor] reports those bodies. [gathersRightHandSides] requests a copy when it can
  * amortize vector loads. Species initialization requires the Vector API module, checked by
- * [com.eignex.koblas.BuiltinEngines] before using this backend.
+ * [BuiltinEngines] before using this backend.
  */
-internal object SimdTriangularKernels : DenseTriangularKernels {
+internal object SimdTriangularKernels : KoblasEngine() {
+    override val id: String = "jvm-simd"
+    override val implementations get() = setOf(EngineImplementation.Triangular)
+
     private val SPECIES = SIMD_SPECIES
-    private val LANE = if (simdAvailable) SPECIES.length() else 0
+    private val LANE = SPECIES.length()
 
     /** Built once, for the reason [SimdPanelKernels] builds its own once. */
     private val NAME: String = "simd-substitution($LANE lanes)"
@@ -48,7 +50,6 @@ internal object SimdTriangularKernels : DenseTriangularKernels {
     private const val FOUR_BLOCKS = 4
 
     override fun rightHandSideGroup(order: Int, sides: Int): Int {
-        if (!simdAvailable) return PortableTriangularKernels.rightHandSideGroup(order, sides)
         val recommended = GROUP_BLOCKS * LANE
         if (sides in 1 until recommended) return sides
         return if (sides < 1) 1 else recommended
@@ -60,10 +61,9 @@ internal object SimdTriangularKernels : DenseTriangularKernels {
      * single step offers no reuse.
      */
     override fun gathersRightHandSides(rhsStride: Int, order: Int, sides: Int): Boolean =
-        simdAvailable && rhsStride != 1 && sides >= LANE && order > 1
+        rhsStride != 1 && sides >= LANE && order > 1
 
     override fun implementationsFor(order: Int, sides: Int, contiguous: Boolean): List<String> = when {
-        !simdAvailable -> PortableTriangularKernels.implementationsFor(order, sides, contiguous)
         order <= 0 || sides <= 0 -> emptyList()
         sides == 1 && contiguous -> listOf(NAME)
         !contiguous || sides < LANE -> PortableTriangularKernels.implementationsFor(order, sides, contiguous)
@@ -87,11 +87,11 @@ internal object SimdTriangularKernels : DenseTriangularKernels {
         tOffset: Int,
     ) {
         if (size <= 0 || sides <= 0) return
-        if (simdAvailable && sides == 1 && orderStride == 1) {
+        if (sides == 1 && orderStride == 1) {
             singleSolve(t, n, start, size, transposed, lower, unitDiag, x, xOffset, tOffset)
             return
         }
-        if (!simdAvailable || rhsStride != 1 || sides < LANE) {
+        if (rhsStride != 1 || sides < LANE) {
             PortableTriangularKernels.diagonalSolve(
                 t, n, start, size, transposed, lower, unitDiag, x, xOffset, orderStride, rhsStride, sides, tOffset,
             )
@@ -99,7 +99,8 @@ internal object SimdTriangularKernels : DenseTriangularKernels {
         }
         var lane = 0
         val bound = sides - sides % LANE
-        while (lane + FOUR_BLOCKS * LANE <= bound) {
+        // Unfused four-block compilation exceeds the JIT budget and materializes vectors on the heap.
+        while (hardwareFusedMultiplyAdd && lane + FOUR_BLOCKS * LANE <= bound) {
             solveFour(t, n, start, size, transposed, lower, unitDiag, x, xOffset + lane, orderStride, tOffset)
             lane += FOUR_BLOCKS * LANE
         }
@@ -131,11 +132,11 @@ internal object SimdTriangularKernels : DenseTriangularKernels {
         tOffset: Int,
     ) {
         if (size <= 0 || sides <= 0) return
-        if (simdAvailable && sides == 1 && orderStride == 1) {
+        if (sides == 1 && orderStride == 1) {
             singleMultiply(t, n, start, size, transposed, lower, unitDiag, x, xOffset, tOffset)
             return
         }
-        if (!simdAvailable || rhsStride != 1 || sides < LANE) {
+        if (rhsStride != 1 || sides < LANE) {
             PortableTriangularKernels.diagonalMultiply(
                 t, n, start, size, transposed, lower, unitDiag, x, xOffset, orderStride, rhsStride, sides, tOffset,
             )
@@ -143,7 +144,8 @@ internal object SimdTriangularKernels : DenseTriangularKernels {
         }
         var lane = 0
         val bound = sides - sides % LANE
-        while (lane + FOUR_BLOCKS * LANE <= bound) {
+        // Unfused four-block compilation exceeds the JIT budget and materializes vectors on the heap.
+        while (hardwareFusedMultiplyAdd && lane + FOUR_BLOCKS * LANE <= bound) {
             multiplyFour(t, n, start, size, transposed, lower, unitDiag, x, xOffset + lane, orderStride, tOffset)
             lane += FOUR_BLOCKS * LANE
         }

@@ -1,6 +1,8 @@
 package com.eignex.koblas.bench
 
-import com.eignex.koblas.KoblasEngine
+import com.eignex.koblas.*
+import com.eignex.koblas.vendor.Vendor
+import com.eignex.koblas.vendor.hostPlatform
 import kotlin.math.max
 import kotlin.time.TimeSource
 
@@ -8,6 +10,20 @@ internal expect fun readTextFile(path: String): String
 internal expect fun writeTextFile(path: String, text: String)
 internal expect fun resolveEngine(mode: String): Pair<KoblasEngine, String>
 internal expect fun runtimeIdentity(): String
+internal expect fun engineProfilePath(): String?
+/** A generated profile is exercised as an explicit combined engine, with binding costs inside the timed call. */
+internal fun profileEngine(runtime: String): KoblasEngine? = engineProfilePath()?.let { path ->
+    val profile = EngineProfile.parse(readTextFile(path))
+    require(profile.appliesTo(runtime, hostPlatform())) { "Profile ${profile.name} does not apply to this target" }
+    val backends = listOfNotNull(BuiltinEngines.simd) + Vendor.entries.mapNotNull { vendor ->
+        if (profile.rules.none { it.source == vendor.vendorName.lowercase() }) null
+        else (requireNotNull(BuiltinEngines.vendor(vendor)) { "Requested profile backend $vendor is unavailable" })
+    }
+    val owned = if (runtime == "jvm" && profile.rules.none { it.source == "jvm-simd" })
+        StandardEngineProfiles.jvmSimd?.rules.orEmpty() else emptyList()
+    KoblasEngine.combine(EngineProfile(profile.name, profile.rules + owned), *backends.toTypedArray())
+}
+
 private val clockOrigin = TimeSource.Monotonic.markNow()
 internal fun nanoTime(): Long = clockOrigin.elapsedNow().inWholeNanoseconds
 
@@ -218,8 +234,11 @@ private const val MAX_OPERATIONS = 1_000_000
 
 /** The same engine and host evidence on either runtime. */
 internal fun engineIdentity(mode: String, engine: KoblasEngine): String {
-    val host = engine.vendor?.let {
-        "/${it.vendor.vendorName}/${it.libraryPath}/${it.version}/threads=${it.threadEvidence.label}"
+    val host = engine.takeIf { it.vendor != null }?.let {
+        "/${it.vendor!!.vendorName}/${it.libraryPath}/${it.version}/threads=${it.threadEvidence.label}"
     } ?: ""
-    return "$mode/${engine.name}$host"
+    val owned = engine.capabilities.entries.joinToString("") { (id, operations) ->
+        "/caps[$id:${operations.joinToString(",") { it.name }}]"
+    }
+    return "$mode/${engine.name}$host$owned"
 }
