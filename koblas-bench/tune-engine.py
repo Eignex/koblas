@@ -88,6 +88,11 @@ def measured_cpu(directory, requested=None):
     return model
 
 
+def forced_simd():
+    return [["jvm-simd", "Dot,Sum,Nrm2,Iamax,Asum,Axpy,IndexedDot", 0, MAX, 0, MAX, 0, MAX, 0, "*", "*"],
+            ["jvm-simd", "Panels,Products,Triangular", 0, MAX, 0, MAX, 0, MAX, 0, "*", "*"]]
+
+
 def fit(paired, backend, shapes):
     groups = {}
     for case, ratios in paired.items():
@@ -111,7 +116,7 @@ def fit(paired, backend, shapes):
                     _, rows, columns, depth, borrowed, _, _ = key
                     rules.append([backend, operation, rows, rows, columns, columns, depth, depth, 0, "*", str(borrowed).lower()])
     if backend == "jvm-simd":
-        rules.append([backend, "Panels,Products,Triangular", 0, MAX, 0, MAX, 0, MAX, 0, "*", "*"])
+        rules.append(forced_simd()[-1])
     return rules
 
 
@@ -141,9 +146,10 @@ def training_cases():
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--runtime", choices=("native", "jvm"), required=True)
-    parser.add_argument("--backend", choices=("onemkl", "openblas", "aocl", "armpl", "accelerate", "jvm-simd"), required=True)
-    parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--runtime", choices=("native", "jvm"))
+    parser.add_argument("--backend", choices=("onemkl", "openblas", "aocl", "armpl", "accelerate", "jvm-simd"))
+    parser.add_argument("--output", type=Path)
+    parser.add_argument("--write-cases", type=Path, help="write the shared training and holdout grids without measuring")
     parser.add_argument("--candidate", help="capture target for an explicitly configured combined engine")
     parser.add_argument("--baseline", choices=("native", "jvm-scalar", "jvm-simd"))
     parser.add_argument("--results", type=Path)
@@ -155,6 +161,16 @@ def main():
     parser.add_argument("--arch", default="X86_64")
     parser.add_argument("--cpu", help="explicit target model; defaults to the runtime CPU identity; use * explicitly for platform wide profiles")
     args = parser.parse_args()
+    if args.write_cases:
+        args.write_cases.mkdir(parents=True, exist_ok=True)
+        (args.write_cases / "training.txt").write_text("\n".join(training_cases()) + "\n")
+        (args.write_cases / "holdout.txt").write_text(Path(__file__).with_name("cases-addressed.txt").read_text())
+        header = ["koblas-profile-v1", "forced-simd", "jvm", "*", "*", "*", "declared contributions", "calibration only"]
+        (args.write_cases / "forced-simd.tsv").write_text("\n".join("\t".join(map(str, row))
+            for row in [header, *forced_simd()]) + "\n")
+        return
+    if args.runtime is None or args.backend is None or args.output is None:
+        parser.error("--runtime, --backend and --output are required for tuning")
     if args.capture == bool(args.results):
         parser.error("choose --capture or --results")
     if args.backend == "jvm-simd" and args.runtime != "jvm":
@@ -177,9 +193,8 @@ def main():
     capture_env = dict(os.environ)
     if args.capture and args.backend == "jvm-simd" and args.candidate is None:
         candidate = "jvm-default"
-        forcing = [[args.backend, "Dot,Sum,Nrm2,Iamax,Asum,Axpy,IndexedDot", 0, MAX, 0, MAX, 0, MAX, 0, "true", "*"]]
         force_path = args.output / "force.tsv"
-        write_profile(force_path, forcing + fit({}, args.backend, {}))
+        write_profile(force_path, forced_simd())
         capture_env["KOBLAS_BENCH_ENGINE_PROFILE"] = str(force_path.resolve())
     if args.capture:
         command = ["bash", "koblas-bench/capture-report.sh", "--targets", f"{baseline},{candidate}",

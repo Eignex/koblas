@@ -77,7 +77,7 @@ public fun main(args: Array<String>) {
     if (sink == Double.POSITIVE_INFINITY) throw IllegalStateException("unreachable result sink")
     writeTextFile(settings.outputPath, reportCsv(rows))
     println("wrote ${selected.size} case summaries from ${rows.count { it.nanos != null }} measurements to ${settings.outputPath}")
-    printIdentity(implementation, "native-calibrated")
+    printIdentity(implementation, "native-calibrated", EngineRuntime.Native)
     println("last retained result=${Retained.describe()}")
 }
 
@@ -299,7 +299,11 @@ internal fun engineIdentity(mode: String, engine: KoblasEngine): String {
     return "$mode/${engine.name}$host$owned"
 }
 
-internal fun printIdentity(implementation: String, harness: String) {
+internal fun printIdentity(implementation: String, harness: String, runtime: EngineRuntime) {
+    val platform = hostPlatform()
     println("resolved implementation=$implementation runtime=${runtimeIdentity()} harness=$harness")
-    println("profile_cpu_model=${hostPlatform().cpuModel ?: "*"}")
+    println("profile_runtime=${runtime.name.lowercase()}")
+    println("profile_os=${platform.operatingSystem}")
+    println("profile_arch=${platform.architecture}")
+    println("profile_cpu_model=${platform.cpuModel ?: "*"}")
 }

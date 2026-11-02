@@ -1,5 +1,7 @@
 package com.eignex.koblas.bench
 
+import com.eignex.koblas.EngineRuntime
+
 import java.io.File
 import java.util.concurrent.TimeUnit
 import org.openjdk.jmh.results.RunResult
@@ -80,7 +82,7 @@ public fun main(args: Array<String>) {
     }
     writeRows(settings, selected, rowsByCase)
     println("wrote ${selected.size} case summaries from ${rowsByCase.values.sumOf { rows -> rows.count { it.nanos != null } }} measurements to ${settings.outputPath}")
-    printIdentity(implementation, "jmh-average-time/JMH-${Version.getPlainVersion()}")
+    printIdentity(implementation, "jmh-average-time/JMH-${Version.getPlainVersion()}", EngineRuntime.Jvm)
 }
 
 private fun writeRows(settings: Settings, selected: List<BenchCase>, rowsByCase: Map<String, List<Measurement>>) {

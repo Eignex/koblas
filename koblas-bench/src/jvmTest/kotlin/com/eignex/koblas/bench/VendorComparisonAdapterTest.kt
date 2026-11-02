@@ -8,6 +8,19 @@ import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
 class VendorComparisonAdapterTest {
+    @Test fun `generated calibration inputs permit paired native vendors`() {
+        val file = Path.of("build/calibration/plan-fixture.txt")
+        Files.createDirectories(file.parent)
+        Files.writeString(file, "dot+64+uniform\ncopy+17+uniform+stride=2\n")
+        try {
+            val cases = VendorComparisonSuite.plan(BenchRequest(mapOf("vendor" to "onemkl",
+                "cases" to "koblas-bench/build/calibration/plan-fixture.txt", "targets" to "native,onemkl,openblas")))
+
+            assertEquals(2, cases.sumOf { it.parameters.getValue("rows").lines().size })
+            assertTrue(cases.all { case -> case.inputs.any { it.path.endsWith("calibration/plan-fixture.txt") } })
+        } finally { Files.delete(file) }
+    }
+
     @Test fun `explicit profiles are declared inputs of every comparison row`() {
         val cases = VendorComparisonSuite.plan(BenchRequest(mapOf("vendor" to "openblas",
             "targets" to "jvm-simd,jvm-default", "profile" to "profiles/target.tsv")))

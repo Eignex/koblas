@@ -113,7 +113,7 @@ internal object VendorComparisonSuite : BenchSuite {
             p[key]?.let { require(it.matches(Regex("[1-9][0-9]*")) && it.toIntOrNull() != null) { "$key must be positive" } }
         }
         val cases = p["cases"] ?: CASES
-        require(cases.matches(Regex("koblas-bench/lab/[a-z0-9-]+\\.txt"))) { "Invalid comparison case path" }
+        require(cases.matches(Regex("koblas-bench/(lab|build/calibration)/[a-z0-9-]+\\.txt"))) { "Invalid comparison case path" }
     }
 
     /** Each default-suite line of [file] that [operation] selects, parsed and as written. */

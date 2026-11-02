@@ -99,6 +99,13 @@ Use automatic placement. Keep all arms of a comparison row on one machine in one
 replacement attempts rerun the complete unfinished row. Other rows may use different compatible machines.
 See [LabAdapter.kt](src/jvmMain/kotlin/com/eignex/koblas/bench/LabAdapter.kt) for accepted parameters and validation.
 
+The [calibration manifest](lab/calibration.json) prepares the same generated grids as local tuning under
+`koblas-bench/build/calibration/`. Set `cases` to `training.txt` or `holdout.txt` under that directory.
+`forced-simd.tsv` is an explicit profile for measuring every supplied owned SIMD contribution; use it
+with the `jvm-default` arm. Generation requires Python 3 (`KOBLAS_PYTHON` can name its executable).
+OneMKL comparisons may also include OpenBLAS arms, keeping vendor-precedence measurements in the same
+worker attempt. Generated grids and profiles are declared inputs; they are not checked into source control.
+
 ### Score lab comparisons
 
 The scripts under [lab](lab) read fetched job directories, whatever their case layout, and need only Bash and awk:

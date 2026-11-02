@@ -91,6 +91,19 @@ dependencies {
     add("jvmMainAnnotationProcessor", project(":koblas-bench:jmh"))
 }
 
+val generateCalibrationGrids = tasks.register<Exec>("generateCalibrationGrids") {
+    val output = layout.buildDirectory.dir("calibration")
+    inputs.files("tune-engine.py", "cases-addressed.txt")
+    outputs.files(output.map { it.file("training.txt") }, output.map { it.file("holdout.txt") },
+        output.map { it.file("forced-simd.tsv") })
+    workingDir(rootProject.projectDir)
+    commandLine(providers.environmentVariable("KOBLAS_PYTHON").getOrElse(
+        if (System.getProperty("os.name").startsWith("Windows")) "python" else "python3"),
+        project.file("tune-engine.py"), "--write-cases", output.get().asFile)
+}
+
+tasks.register("prepareLabCalibration") { dependsOn("prepareLabBenchmark", generateCalibrationGrids) }
+
 private fun benchmarkArguments(mode: String, jmh: Boolean): List<String> = listOf(
     "--mode=$mode",
     "--operation=${providers.gradleProperty("bench.operation").orElse("all").get()}",

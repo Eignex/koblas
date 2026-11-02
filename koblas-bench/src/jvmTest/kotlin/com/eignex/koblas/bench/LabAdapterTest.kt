@@ -270,6 +270,9 @@ class LabAdapterTest {
                 printf '%s\n' "${'$'}@" > "${'$'}{output%.csv}.args"
                 echo 'resolved implementation=fixture runtime=fixture harness=fixture'
                 echo 'profile_cpu_model=runtime fixture'
+                echo 'profile_runtime=jvm'
+                echo 'profile_os=Linux'
+                echo 'profile_arch=X86_64'
             """.trimIndent() + "\n")
             check(java.toFile().setExecutable(true))
             val output = root.resolve("report")
@@ -289,6 +292,7 @@ class LabAdapterTest {
             assertTrue(metadata.contains("round_2_targets=jvm-scalar,jvm-simd"), metadata)
             for (round in 1..2) for (target in listOf("jvm-scalar", "jvm-simd")) {
                 assertTrue(Files.readString(output.resolve("pass-$round/metadata.txt")).contains("profile_cpu_model=runtime fixture"))
+                assertTrue(Files.readString(output.resolve("pass-$round/metadata.txt")).contains("profile_runtime=jvm\nprofile_os=Linux\nprofile_arch=X86_64"))
                 val arguments = Files.readAllLines(output.resolve("pass-$round/$target.args"))
                 assertTrue("-XX:+UseSerialGC" in arguments)
                 assertTrue("-Xms256m" in arguments && "-Xmx256m" in arguments)
