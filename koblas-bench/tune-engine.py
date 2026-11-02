@@ -94,6 +94,36 @@ def compose(captures):
     return rules + fitted.get("jvm-simd", []), precedence
 
 
+def supplementary_cases():
+    cases = [f"{op}+{m}x{n}+uniform{transpose}"
+             for m, n in ((16, 512), (512, 16), (63, 257), (257, 63))
+             for op in ("gemv", "ger")
+             for transpose in (("", "+transA=T") if op == "gemv" else ("",))]
+    cases += [f"gemm+{n}x{n}x{n}+uniform+layout=borrowed{transpose}"
+              for n in (64, 128, 256, 512) for transpose in ("", "+transA=T")]
+    for m, n in ((16, 128), (128, 16), (64, 256), (256, 64), (512, 512)):
+        cases += [f"symm+{m}x{n}+uniform+side=R+uplo=L"]
+        cases += [f"{op}+{m}x{n}+triangular+side=R+uplo=L+transA=N+diag=N" for op in ("trsm", "trmm")]
+    cases += [f"gemm+{m}x{n}x{k}+uniform{layout}"
+              for m, n, k in ((64, 256, 128), (128, 256, 128), (256, 128, 128), (256, 512, 256), (512, 256, 256))
+              for layout in ("", "+layout=borrowed")]
+    return cases
+
+
+def holdout_cases():
+    cases = [line for line in Path(__file__).with_name("cases-addressed.txt").read_text().splitlines()
+             if line and not line.startswith("#")]
+    return cases + ["gemv+257x131+uniform+transA=T", "ger+131x257+uniform",
+                    "gemm+129x257x193+uniform+layout=borrowed",
+                    "gemm+257x129x193+uniform+layout=borrowed+transA=T",
+                    "gemm+257x257x257+uniform+layout=borrowed",
+                    "gemm+384x384x384+uniform+layout=borrowed",
+                    "gemm+512x257x129+uniform+layout=borrowed+transB=T",
+                    "symm+257x129+uniform+side=R+uplo=U",
+                    "trsm+257x129+triangular+side=R+uplo=U+transA=T+diag=N",
+                    "trmm+257x129+triangular+side=R+uplo=U+transA=T+diag=N"]
+
+
 def training_cases():
     vectors = ("dot", "copy", "sum", "nrm2", "iamax", "asum", "axpy", "scal", "swap", "rot")
     cases = [f"{op}+{n}+uniform{stride}" for op in vectors
@@ -115,7 +145,7 @@ def training_cases():
         cases += [f"gemm+{m}x{n}x{k}+uniform{layout}" for layout in ("", "+layout=borrowed")]
     cases += [f"{op}+{n * 4}+sparse-uniform+density=0.25" for n in (2, 4, 8, 16, 32, 64, 256, 1024)
               for op in ("spdot", "spdot-sparse", "spaxpy", "spscatter", "spgather", "spgather-zero", "spnrm2-indexed")]
-    return cases
+    return cases + supplementary_cases()
 
 
 def main():
@@ -128,11 +158,11 @@ def main():
     parser.add_argument("--candidate", help="capture target for one explicitly configured candidate")
     parser.add_argument("--baseline", choices=("native", "jvm-scalar", "jvm-simd", "jvm-owned"))
     parser.add_argument("--simd-target", default="jvm-simd", help="owned SIMD capture target; JVM profiles include its fitted rules")
-    parser.add_argument("--results", type=Path, help="local capture or fetched lab job")
+    parser.add_argument("--results", type=Path, action="append", help="local capture or fetched lab job; repeat for supplemental cases")
     parser.add_argument("--lab-arm", help="SDK arm in a multi-arm fetched job")
     parser.add_argument("--capture", action="store_true")
     parser.add_argument("--cases", type=Path, help="custom training cases; defaults to a regular dense grid")
-    parser.add_argument("--validation-cases", default="koblas-bench/cases-addressed.txt")
+    parser.add_argument("--validation-cases", type=Path, help="custom disjoint holdouts; defaults to the generated grid")
     parser.add_argument("--native-executable", type=Path)
     parser.add_argument("--os", help="require the measured operating system")
     parser.add_argument("--arch", help="require the measured architecture")
@@ -142,7 +172,8 @@ def main():
         args.write_cases.mkdir(parents=True, exist_ok=True)
         training = training_cases()
         (args.write_cases / "training.txt").write_text("\n".join(training) + "\n")
-        (args.write_cases / "holdout.txt").write_text(Path(__file__).with_name("cases-addressed.txt").read_text())
+        (args.write_cases / "holdout.txt").write_text("\n".join(holdout_cases()) + "\n")
+        (args.write_cases / "supplement.txt").write_text("\n".join(supplementary_cases()) + "\n")
         timing = {"dot+64+uniform", "dot+1000000+uniform", "copy+1000000+uniform+stride=2",
                   "axpy+64+uniform+stride=-2", "gemm+128x128x128+uniform", "gemm+16x16x2048+uniform",
                   "trsm+128x128+triangular+side=L+uplo=L+transA=N+diag=N"}
@@ -170,12 +201,12 @@ def main():
     if args.cases is None:
         args.cases = args.output / "training-cases.txt"
         args.cases.write_text("\n".join(training_cases()) + "\n")
-    results = args.results or args.output / "capture"
+    results = args.results or [args.output / "capture"]
     targets = list(dict.fromkeys((["native"] if args.runtime == "native" else ["jvm-scalar", args.simd_target]) + list(candidates.values())))
     if args.capture:
         command = ["bash", "koblas-bench/capture-report.sh", "--targets", ",".join(targets),
                    "--cases", str(args.cases), "--rounds", "3", "--samples", "5", "--warmups", "20",
-                   "--target-ms", "200", "--forks", "2", "--output", str(results)]
+                   "--target-ms", "200", "--forks", "2", "--output", str(results[0])]
         vendors = [source for source in sources if source != "jvm-simd"]
         if vendors:
             command += ["--libraries", ",".join(vendors)]
@@ -193,8 +224,10 @@ def main():
     rules, precedence = compose(captures)
     hashes = {path: digest for capture in captures.values() for path, digest in capture.hashes.items()}
     digest = hashlib.sha256(json.dumps([target, rules, sorted(hashes.values())], sort_keys=True).encode()).hexdigest()[:12]
+    provenance = [f"https://lab.eignex.com/jobs/{lab['resources']['lab-job.json']['id']}" if lab else str(directory)
+                  for directory, lab in zip(results, next(iter(captures.values())).lab)]
     header = ["koblas-profile-v2", f"{args.runtime}-{'-'.join(candidates)}-{digest}", *target,
-              str(results), "see evidence.json for paired measurements and hashes"]
+              "; ".join(provenance), "see evidence.json for paired measurements and hashes"]
     (args.output / "profile.tsv").write_text("\n".join("\t".join(map(str, row)) for row in [header, *rules]) + "\n")
     (args.output / "evidence.json").write_text(json.dumps(dict(
         baseline=baseline, candidates=candidates, source_hashes=hashes, target=target, vendor_precedence=precedence,
@@ -209,7 +242,7 @@ def main():
     if args.capture:
         validation_cases = args.output / "validation-cases.txt"
         training = set(args.cases.read_text().splitlines())
-        holdout = [line for line in Path(args.validation_cases).read_text().splitlines()
+        holdout = [line for line in (args.validation_cases.read_text().splitlines() if args.validation_cases else holdout_cases())
                    if line.strip() and not line.startswith("#") and line not in training]
         if not holdout:
             raise ValueError("validation requires cases disjoint from training")
@@ -221,7 +254,7 @@ def main():
         command[command.index("--output") + 1] = str(validation)
         subprocess.run(command, check=True, env=dict(os.environ,
                        KOBLAS_BENCH_ENGINE_PROFILE=str((args.output / "profile.tsv").resolve())))
-        checked = measurements(validation, baseline, f"{args.runtime}-default", strict=True, owned_target=args.simd_target)
+        checked = measurements([validation], baseline, f"{args.runtime}-default", strict=True, owned_target=args.simd_target)
         reached = {provider for models in checked.providers.values() for provider in models.values()}
         fitted_sources = {rule[0] for rule in rules if rule[1] != "Panels,Products,Triangular"}
         if not fitted_sources.issubset(reached):

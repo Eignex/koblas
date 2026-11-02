@@ -12,10 +12,11 @@ spec.loader.exec_module(tune)
 class TuneEngineTest(unittest.TestCase):
     def test_generated_grid_is_unique_and_disjoint_from_holdouts(self):
         training = tune.training_cases()
-        holdout = [line for line in Path(__file__).with_name("cases-addressed.txt").read_text().splitlines()
-                   if line and not line.startswith("#")]
+        holdout = tune.holdout_cases()
         self.assertEqual(len(training), len(set(training)))
         self.assertTrue(set(training).isdisjoint(holdout))
+        self.assertTrue(set(tune.supplementary_cases()).issubset(training))
+        self.assertEqual(len(holdout), len(set(holdout)))
 
     def test_noisy_or_losing_larger_lengths_delay_the_crossover(self):
         paired = {"dot+32+uniform": [0.5, 0.5, 0.5], "dot+64+uniform": [0.8, 1.2, 0.8],

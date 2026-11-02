@@ -83,7 +83,7 @@ class Capture:
     models: set
     commits: set
     cache_by_cpu: dict
-    lab: dict
+    lab: list
     classes: set
 
     def target(self, runtime, operating_system=None, architecture=None, cpu=None):
@@ -103,14 +103,14 @@ class Capture:
         return (*measured, cpu or next(iter(self.models)), cpu_class)
 
 
-def measurements(directory, baseline, candidate, backend=None, strict=False, arm=None, owned_target="jvm-simd"):
+def measurements(directories, baseline, candidate, backend=None, strict=False, arm=None, owned_target="jvm-simd"):
     targets = ["jvm-scalar", owned_target, candidate] if baseline == "jvm-owned" else [baseline, candidate]
-    groups, lab = capture_groups(directory, arm, targets)
-    result = Capture({}, {}, {}, {}, {}, set(), set(), set(), {}, lab, set())
-    for passes in groups:
+    inputs = [capture_groups(directory, arm, targets) for directory in directories]
+    result = Capture({}, {}, {}, {}, {}, set(), set(), set(), {}, [lab for _, lab in inputs], set())
+    for passes, lab in ((passes, lab) for groups, lab in inputs for passes in groups):
         if len(passes) < 3:
             raise ValueError("at least three paired capture rounds are required in each accepted row")
-        paired, models, expected = {}, set(), None
+        paired, models, commits, expected = {}, set(), set(), None
         for path in passes:
             metadata = sections((path / "metadata.txt").read_text())
             fields = metadata.get("capture", metadata[""])
@@ -119,9 +119,10 @@ def measurements(directory, baseline, candidate, backend=None, strict=False, arm
             commit = fields.get("source_commit", "")
             if not re.fullmatch(r"[0-9a-f]{40}", commit) or fields.get("dirty") != "false":
                 raise ValueError(f"{path}: fitting requires a clean, recorded source commit")
+            commits.add(commit)
+            if len(commits) != 1:
+                raise ValueError("capture rounds within one worker attempt use different source commits")
             result.commits.add(commit)
-            if len(result.commits) != 1:
-                raise ValueError("capture rows use different source commits")
             identities = [metadata.get(target, {}) for target in targets]
             owned = [set(re.findall(r"/caps\[([^:]+):", identity.get("implementation", ""))) for identity in identities[:2]]
             if baseline == "jvm-owned" and any(not sources or sources - {"portable", "jvm-simd"} for sources in owned):
@@ -147,9 +148,10 @@ def measurements(directory, baseline, candidate, backend=None, strict=False, arm
                 raise ValueError("paired arms report different CPU instruction classes")
             instruction_class = next(iter(declared))
             if instruction_class == "*":
-                instruction_class = ("Arm64" if platform[2] == "Arm64" else
+                instruction_class = ("Sve" if platform[2] == "Arm64" and "sve" in flags else
+                                     "Arm64" if platform[2] == "Arm64" and (platform[1] == "MacOs" or flags & {"asimd", "neon"}) else
                                      "Avx512" if "avx512f" in flags or "simd:avx512" in required.get("require", []) else
-                                     "Avx2" if "avx2" in flags else "X86_64" if flags else "*")
+                                     "Avx2" if "avx2" in flags else "X86_64" if flags and platform[2] == "X86_64" else "*")
             result.classes.add(instruction_class)
             model = hardware.get("model name", hardware.get("cpu_model", identities[0]["profile_cpu_model"]))
             if model == "*":

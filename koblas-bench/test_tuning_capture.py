@@ -39,7 +39,7 @@ class TuningCaptureTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             rounds(root)
-            capture = measurements(root, "native", "onemkl")
+            capture = measurements([root], "native", "onemkl")
             self.assertEqual([0.5] * 3, capture.paired["dot+32+uniform"])
             self.assertEqual(9, len(capture.hashes))
             self.assertEqual(("Dot", 32, 1, 1, False, 1, True), capture.shapes["dot+32+uniform"])
@@ -55,7 +55,7 @@ class TuningCaptureTest(unittest.TestCase):
             rounds(root)
             for path in root.glob("*/metadata.txt"):
                 path.write_text(path.read_text().replace("profile_cpu_model=measured CPU", "profile_cpu_model=*"))
-            capture = measurements(root, "native", "onemkl")
+            capture = measurements([root], "native", "onemkl")
             with self.assertRaises(ValueError):
                 capture.target("native")
             self.assertEqual("*", capture.target("native", cpu="*")[3])
@@ -67,11 +67,11 @@ class TuningCaptureTest(unittest.TestCase):
             path = root / "pass-1/metadata.txt"
             path.write_text(path.read_text().replace("flags=avx2", "flags=avx2 avx512f"))
             with self.assertRaises(ValueError):
-                measurements(root, "native", "onemkl").target("native", cpu="*")
+                measurements([root], "native", "onemkl").target("native", cpu="*")
             for path in root.glob("*/metadata.txt"):
                 path.write_text("\n".join("flags=" if line.startswith("flags=") else line for line in path.read_text().splitlines()) + "\n")
             with self.assertRaises(ValueError):
-                measurements(root, "native", "onemkl").target("native", cpu="*")
+                measurements([root], "native", "onemkl").target("native", cpu="*")
 
     def test_frozen_lab_placement_can_establish_the_instruction_class(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -82,7 +82,33 @@ class TuningCaptureTest(unittest.TestCase):
                 path.write_text(path.read_text().replace("flags=avx2", "flags="))
             (root / "lab-job.json").write_text(json.dumps(dict(status="DONE", experiment=dict(nodeTags=dict(require=["simd:avx512"])))))
 
-            self.assertEqual("Avx512", measurements(root, "native", "onemkl").target("native", cpu="*")[-1])
+            self.assertEqual("Avx512", measurements([root], "native", "onemkl").target("native", cpu="*")[-1])
+
+    def test_arm_flags_distinguish_scalable_vectors(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            rounds(root)
+            for path in root.glob("*/metadata.txt"):
+                path.write_text(path.read_text().replace("profile_arch=X86_64", "profile_arch=Arm64")
+                                .replace("flags=avx2", "flags=fp asimd sve"))
+
+            self.assertEqual("Sve", measurements([root], "native", "onemkl").target("native", cpu="*")[-1])
+
+    def test_supplemental_rows_retain_separate_clean_source_revisions(self):
+        with tempfile.TemporaryDirectory() as directory:
+            roots = [Path(directory) / name for name in ("training", "supplement")]
+            for root in roots:
+                rounds(root)
+            for path in roots[1].glob("*/metadata.txt"):
+                path.write_text(path.read_text().replace("a" * 40, "b" * 40))
+            capture = measurements(roots, "native", "onemkl")
+
+            self.assertEqual({"a" * 40, "b" * 40}, capture.commits)
+            self.assertEqual([0.5] * 6, capture.paired["dot+32+uniform"])
+            path = roots[1] / "pass-1/metadata.txt"
+            path.write_text(path.read_text().replace("b" * 40, "c" * 40))
+            with self.assertRaises(ValueError):
+                measurements(roots, "native", "onemkl")
 
     def test_rejects_missing_runtime_identity_and_smoke(self):
         for previous, replacement in (("profile_cpu_model=measured CPU", "cpu_model=hardware only"),
@@ -94,7 +120,7 @@ class TuningCaptureTest(unittest.TestCase):
                 path = root / "pass-1/metadata.txt"
                 path.write_text(path.read_text().replace(previous, replacement))
                 with self.assertRaises(ValueError):
-                    measurements(root, "native", "onemkl")
+                    measurements([root], "native", "onemkl")
 
     def test_validation_rejects_empty_untimed_or_inconsistent_cases(self):
         for replacement in ("", "dot+32+uniform,unsupported,arithmetic,Dot:32:1:1:false:1:true,,onemkl\n",
@@ -105,7 +131,7 @@ class TuningCaptureTest(unittest.TestCase):
                 for path in root.glob("*/onemkl.csv"):
                     path.write_text(path.read_text().splitlines()[0] + "\n" + replacement)
                 with self.assertRaises(ValueError):
-                    measurements(root, "native", "onemkl", strict=True)
+                    measurements([root], "native", "onemkl", strict=True)
 
     def test_accepts_only_complete_rows_and_retains_failure_cost_evidence(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -116,13 +142,13 @@ class TuningCaptureTest(unittest.TestCase):
             rounds(root / "cases/1/out/report")
             # Tempting timings in an excluded row must never enter a fitted crossover.
             rounds(root / "cases/3/out/report", "another CPU")
-            capture = measurements(root, "native", "onemkl", arm="candidate")
-            self.assertEqual([1], capture.lab["accepted_rows"])
+            capture = measurements([root], "native", "onemkl", arm="candidate")
+            self.assertEqual([1], capture.lab[0]["accepted_rows"])
             self.assertEqual({"measured CPU"}, capture.models)
-            self.assertEqual(4, len(capture.lab["rows"]))
-            self.assertEqual(1234, capture.lab["resources"]["lab-execution.json"][0]["failedAttempt"]["cpuMillis"])
+            self.assertEqual(4, len(capture.lab[0]["rows"]))
+            self.assertEqual(1234, capture.lab[0]["resources"]["lab-execution.json"][0]["failedAttempt"]["cpuMillis"])
             with self.assertRaises(ValueError):
-                measurements(root, "native", "onemkl")
+                measurements([root], "native", "onemkl")
 
     def test_missing_arm_and_escaping_artifacts_cannot_supply_pairs(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -130,12 +156,12 @@ class TuningCaptureTest(unittest.TestCase):
             rows = [lab_row(0, "base"), lab_row(1, "candidate", "another problem")]
             lab_index(root, rows)
             with self.assertRaises(ValueError):
-                measurements(root, "native", "onemkl", arm="candidate")
+                measurements([root], "native", "onemkl", arm="candidate")
             rows[1]["problem"]["problem"] = "dot"
             rows[1]["record"]["artifacts"][0]["path"] = "../../../../outside/pass-1/metadata.txt"
             lab_index(root, rows)
             with self.assertRaises(ValueError):
-                measurements(root, "native", "onemkl", arm="candidate")
+                measurements([root], "native", "onemkl", arm="candidate")
 
     def test_different_cpu_models_stay_in_separate_strata(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -144,7 +170,7 @@ class TuningCaptureTest(unittest.TestCase):
             lab_index(root, rows)
             rounds(root / "cases/0/out/report", "CPU A")
             rounds(root / "cases/1/out/report", "CPU B")
-            capture = measurements(root, "native", "onemkl")
+            capture = measurements([root], "native", "onemkl")
             self.assertEqual({"CPU A": [0.5] * 3, "CPU B": [0.5] * 3}, capture.by_cpu["dot+32+uniform"])
             with self.assertRaises(ValueError):
                 capture.target("native")
@@ -167,7 +193,7 @@ class TuningCaptureTest(unittest.TestCase):
                 identity = text[text.index("[native]"):text.index("[onemkl]")]
                 metadata.write_text(text + identity.replace("[native]", "[jvm-scalar]") +
                                     identity.replace("[native]", "[jvm-default]"))
-            capture = measurements(root, "jvm-owned", "onemkl", owned_target="jvm-default")
+            capture = measurements([root], "jvm-owned", "onemkl", owned_target="jvm-default")
             self.assertEqual([0.5, 2.0, 0.5], capture.paired["dot+32+uniform"])
 
     def test_capture_rounds_cannot_mix_source_revisions(self):
@@ -177,7 +203,7 @@ class TuningCaptureTest(unittest.TestCase):
             path = root / "pass-3/metadata.txt"
             path.write_text(path.read_text().replace("a" * 40, "b" * 40))
             with self.assertRaises(ValueError):
-                measurements(root, "native", "onemkl")
+                measurements([root], "native", "onemkl")
 
 
 if __name__ == "__main__":

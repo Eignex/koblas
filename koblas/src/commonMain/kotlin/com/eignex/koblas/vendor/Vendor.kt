@@ -183,15 +183,28 @@ public enum class CpuClass {
     /** x86-64 with AVX-512 foundation instructions. */
     Avx512,
 
-    /** 64-bit Arm with its platform SIMD. */
+    /** 64-bit Arm with its fixed-width platform SIMD. */
     Arm64,
+
+    /** 64-bit Arm with Scalable Vector Extension instructions. */
+    Sve,
 }
 
 internal fun cpuClass(architecture: Architecture, flags: String?): CpuClass? = when {
-    architecture == Architecture.Arm64 -> CpuClass.Arm64
-    architecture != Architecture.X86_64 || flags.isNullOrBlank() -> null
+    flags.isNullOrBlank() -> null
+
+    architecture == Architecture.Arm64 -> when {
+        "sve" in flags.split(' ') -> CpuClass.Sve
+        "asimd" in flags.split(' ') || "neon" in flags.split(' ') -> CpuClass.Arm64
+        else -> null
+    }
+
+    architecture != Architecture.X86_64 -> null
+
     "avx512f" in flags.split(' ') -> CpuClass.Avx512
+
     "avx2" in flags.split(' ') -> CpuClass.Avx2
+
     else -> CpuClass.X86_64
 }
 

@@ -97,7 +97,7 @@ val engine = BuiltinEngines.configured(profile)
 
 Profiles contain ordered `EngineRule` preferences: unconditional selection, length/work thresholds, and
 bounded shape/layout regions. For an explicit profile, check `profile.appliesTo(runtime, hostPlatform())`.
-Measured profiles can require a CPU instruction class (`Avx2`, `Avx512` or `Arm64`) independently of an exact model.
+Measured profiles can require a CPU instruction class (`Avx2`, `Avx512`, `Arm64` or `Sve`) independently of an exact model.
 To load a recalculated profile, pass its text to `EngineProfile.parse`; the library performs no file I/O.
 `BuiltinEngines.configured` resolves named libraries and uses exactly the profile's preferences.
 Include owned SIMD rules explicitly when wanted. Missing optional libraries fall through; unknown source identifiers are rejected. Use
@@ -120,6 +120,8 @@ python3 koblas-bench/tune-engine.py --capture --runtime native --backend onemkl 
 The workflow retains three paired rounds, timing metadata, CSVs, ratios and hashes, then emits `profile.tsv`.
 Fitting and validation use the scheduler's compatible hardware without CPU affinity pinning.
 It uses twenty warmups of 200 ms and validates the combined configuration on disjoint holdout cases.
+Generated training includes non-square Level 2 calls, both structured Level 3 sides and large borrowed
+GEMM views; `supplement.txt` measures these additions independently of an existing training capture.
 `validation.json` records the dispatcher-selected providers and all paired ratios. Persistent regressions
 over five percent in either selected routes or unchanged controls fail validation; missing, empty or
 untimed validation cases fail as well. Profile names include a hash of their configuration and evidence.
@@ -159,9 +161,14 @@ python3 koblas-bench/tune-engine.py --results /tmp/calibration --runtime native 
   --cpu '*' --output /tmp/native-onemkl-profile
 ```
 
+Repeat `--results PATH` to add supplemental measurements from clean producer revisions with unchanged
+arithmetic and runtime/library versions. Each paired row still uses one revision and one worker attempt.
+Re-measure affected cases after arithmetic changes. Profile provenance points to every input lab job;
+metadata, source commits and hashes remain in the external evidence.
+
 For multi-arm jobs, select `--lab-arm LABEL`. Only rows where every SDK arm completed successfully are
 accepted, and only their declared artifacts are read. Each accepted row needs at least three complete
-paired rounds on one CPU model. Fitting requires a completed job and one clean source revision.
+paired rounds on one CPU model. Each input job must be complete, with one clean source revision across the rounds of each paired row.
 For a capture with owned SIMD under another target name, pass `--simd-target NAME`. The default
 `jvm-owned` reference compares vendors against the faster paired `jvm-scalar` or owned SIMD timing in
 each round. This prevents a slow SIMD body from hiding a faster available portable implementation.

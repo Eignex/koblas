@@ -12,7 +12,14 @@ import platform.posix.fopen
 
 /** Resolved once; none of these facts change while the process runs. */
 private val host: HostPlatform by lazy {
-    HostPlatform(operatingSystem(), architecture(), cpuInfo("model name"), cpuClass(architecture(), cpuInfo("flags")))
+    val os = operatingSystem()
+    val arch = architecture()
+    val flags = if (os == OperatingSystem.MacOs && arch == Architecture.Arm64) {
+        "asimd"
+    } else {
+        cpuInfo(if (arch == Architecture.Arm64) "Features" else "flags")
+    }
+    HostPlatform(os, arch, cpuInfo("model name"), cpuClass(arch, flags))
 }
 
 /** The platform this process is running on, which a Native target largely knows at compile time. */

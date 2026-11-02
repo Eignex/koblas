@@ -240,7 +240,9 @@ class EngineProfileTest {
         assertEquals(CpuClass.Avx512, cpuClass(Architecture.X86_64, "sse2 avx2 avx512f"))
         assertEquals(CpuClass.Avx2, cpuClass(Architecture.X86_64, "sse2 avx2"))
         assertEquals(CpuClass.X86_64, cpuClass(Architecture.X86_64, "sse2"))
-        assertEquals(CpuClass.Arm64, cpuClass(Architecture.Arm64, null))
+        assertEquals(CpuClass.Arm64, cpuClass(Architecture.Arm64, "fp asimd"))
+        assertNull(cpuClass(Architecture.Arm64, null))
+        assertEquals(CpuClass.Sve, cpuClass(Architecture.Arm64, "fp asimd sve"))
         assertNull(cpuClass(Architecture.X86_64, null))
     }
 

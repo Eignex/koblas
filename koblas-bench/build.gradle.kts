@@ -95,7 +95,7 @@ val generateCalibrationGrids = tasks.register<Exec>("generateCalibrationGrids") 
     val output = layout.buildDirectory.dir("calibration")
     inputs.files("tune-engine.py", "tuning_capture.py", "cases-addressed.txt")
     outputs.files(output.map { it.file("training.txt") }, output.map { it.file("holdout.txt") },
-        output.map { it.file("native-timing.txt") })
+        output.map { it.file("native-timing.txt") }, output.map { it.file("supplement.txt") })
     workingDir(rootProject.projectDir)
     commandLine(providers.environmentVariable("KOBLAS_PYTHON").getOrElse(
         if (System.getProperty("os.name").startsWith("Windows")) "python" else "python3"),

@@ -42,6 +42,7 @@ final enum class com.eignex.koblas.vendor/CpuClass : kotlin/Enum<com.eignex.kobl
     enum entry Arm64 // com.eignex.koblas.vendor/CpuClass.Arm64|null[0]
     enum entry Avx2 // com.eignex.koblas.vendor/CpuClass.Avx2|null[0]
     enum entry Avx512 // com.eignex.koblas.vendor/CpuClass.Avx512|null[0]
+    enum entry Sve // com.eignex.koblas.vendor/CpuClass.Sve|null[0]
     enum entry X86_64 // com.eignex.koblas.vendor/CpuClass.X86_64|null[0]
 
     final val entries // com.eignex.koblas.vendor/CpuClass.entries|#static{}entries[0]

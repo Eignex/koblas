@@ -731,6 +731,7 @@ public final class com/eignex/koblas/vendor/CpuClass : java/lang/Enum {
 	public static final field Arm64 Lcom/eignex/koblas/vendor/CpuClass;
 	public static final field Avx2 Lcom/eignex/koblas/vendor/CpuClass;
 	public static final field Avx512 Lcom/eignex/koblas/vendor/CpuClass;
+	public static final field Sve Lcom/eignex/koblas/vendor/CpuClass;
 	public static final field X86_64 Lcom/eignex/koblas/vendor/CpuClass;
 	public static fun getEntries ()Lkotlin/enums/EnumEntries;
 	public static fun valueOf (Ljava/lang/String;)Lcom/eignex/koblas/vendor/CpuClass;
