@@ -119,14 +119,17 @@ It uses twenty warmups of 200 ms and validates the combined configuration on dis
 `validation.json` records the dispatcher-selected providers and all paired ratios. Persistent regressions
 over five percent in either selected routes or unchanged controls fail validation; missing, empty or
 untimed validation cases fail as well. Profile names include a hash of their configuration and evidence.
-Contiguous and strided length thresholds are fitted independently and must keep winning at every larger measured size; matrix preferences are bounded to
-measured extents and require matching variants to agree. Unmeasured regions retain portable coverage.
+Contiguous and strided length thresholds are fitted independently and must keep winning at every larger
+measured size. Length rules remain bounded and are flagged in the evidence until a beyond-cache tail is
+verified. Matrix rules fit minimum extents and work together, with bounded depth bands for residual deep
+shapes. Borrowed layouts are fitted separately. Every covered measured variant must win on each CPU model.
 Use `--runtime jvm` for transfer-inclusive JVM vendor tuning or `--backend jvm-simd` for owned vector tuning.
 SIMD fitting forces its supplied vector bodies so an existing cutoff cannot hide a better crossover;
 packing families retain their owned configuration. Capability metadata filters unsupported operations.
 The emitted profile uses the library's runtime CPU identity from capture metadata, so it matches startup
-applicability checks. Mixed models require separate captures. Set `--os` and `--arch` for targets other
-than Linux x64. If the runtime cannot detect the model, explicitly use `--cpu '*'` for an OS and
+applicability checks. Runtime, OS and architecture come from the measured arms; `--os` and `--arch` can
+require particular values. Mixed models require an explicit `--cpu '*'` and remain separate evidence
+strata. If the runtime cannot detect the model, explicitly use `--cpu '*'` for an OS and
 architecture profile; hardware display names remain in the capture as evidence.
 JVM vendor fitting compares against the owned SIMD engine by default; `--baseline jvm-scalar` supports deployments without SIMD.
 
@@ -136,6 +139,24 @@ vendor arms. `KOBLAS_BENCH_ENGINE_PROFILE=/absolute/path/profile.tsv` selects it
 captures with `--results PATH` instead of `--capture`. SIMD captures need current capability metadata.
 Use `--candidate native-default` with an explicitly forced profile to fit combined borrowed-layout captures.
 Timing smoke runs cannot produce profiles.
+
+Fetched lab jobs are also accepted. Save the job and execution snapshots beside the fetched files so
+the evidence retains preparation and failed-attempt resource counters:
+
+```bash
+lab fetch ID /tmp/calibration
+lab show ID > /tmp/calibration/lab-job.json
+lab execution ID > /tmp/calibration/lab-execution.json
+python3 koblas-bench/tune-engine.py --results /tmp/calibration --runtime native --backend onemkl \
+  --cpu '*' --output /tmp/native-onemkl-profile
+```
+
+For multi-arm jobs, select `--lab-arm LABEL`. Only rows where every SDK arm completed successfully are
+accepted, and only their declared artifacts are read. Each accepted row needs at least three complete
+paired rounds on one CPU model. Fitting requires a completed job and one clean source revision.
+For the generated JVM calibration grid, `--baseline jvm-owned` compares a vendor against the faster
+paired `jvm-scalar` or explicitly forced `jvm-default` timing in each round. This prevents a slow SIMD
+body from making a vendor look preferable to the available portable implementation.
 
 Benchmark reports and result data stay outside the source tree. The retained lab reports cover
 [Native calibration](https://lab.eignex.com/jobs/10142) and the [JVM comparison](https://lab.eignex.com/jobs/10183).

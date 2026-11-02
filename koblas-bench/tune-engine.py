@@ -1,91 +1,16 @@
 #!/usr/bin/env python3
 """Fit conservative engine preferences from repeated, paired capture-report outputs."""
 import argparse
-import csv
 import hashlib
 import json
-import math
 import os
-import re
 import statistics
 import subprocess
 import sys
 from pathlib import Path
+from tuning_capture import measurements
 
 MAX = 2**31 - 1
-
-
-def measurements(directory, baseline, candidate, backend=None, strict=False):
-    passes = sorted(directory.glob("pass-*"))
-    passes = [p for p in passes if p.is_dir()]
-    if len(passes) < 3:
-        raise ValueError("at least three paired capture rounds are required")
-    paired, provenance, shapes, providers = {}, {}, {}, {}
-    for path in passes:
-        metadata = (path / "metadata.txt").read_text()
-        fields = dict(line.split("=", 1) for line in metadata.splitlines() if "=" in line)
-        if fields.get("status") != "complete" or int(fields.get("requested_samples", 0)) < 3 or int(fields.get("target_ns", 0)) < 10_000_000:
-            raise ValueError(f"{path}: incomplete capture or smoke timing settings")
-        exported = re.findall(r"/caps\[" + re.escape(backend or "") + r":([^]]*)\]", metadata)
-        supported = set(exported[-1].split(',')) if exported else None
-        if backend and supported is None and (backend == "jvm-simd" or candidate.endswith("-default")):
-            raise ValueError("Combined fitting needs capability metadata; recapture with the current harness")
-        rows = []
-        for target in (baseline, candidate):
-            with (path / f"{target}.csv").open() as source:
-                rows.append({row["case"]: row for row in csv.DictReader(source)})
-        if strict and rows[0].keys() != rows[1].keys():
-            raise ValueError("validation arms contain different cases")
-        for case in rows[0].keys() & rows[1].keys():
-            left, right = rows[0][case], rows[1][case]
-            if left["status"] != "ok" or right["status"] != "ok":
-                if strict:
-                    raise ValueError(f"{case}: validation contains an untimed case")
-                continue
-            if left["timing_mode"] != right["timing_mode"]:
-                raise ValueError(f"{case}: different timing boundaries")
-            if left["routing_key"] != right["routing_key"]:
-                raise ValueError(f"{case}: different routing dimensions")
-            fields = left["routing_key"].split(":")
-            key = (fields[0], *map(int, fields[1:4]), fields[4] == "true", int(fields[5]), fields[6] == "true") if fields[0] else None
-            provider = right["provider"]
-            if not provider or providers.setdefault(case, provider) != provider:
-                raise ValueError(f"{case}: missing or inconsistent selected provider")
-            if case in shapes and shapes[case] != key:
-                raise ValueError(f"{case}: routing dimensions changed between rounds")
-            shapes[case] = key
-            if backend and provider != backend:
-                continue
-            if supported is not None and key and key[0] not in supported:
-                continue
-            times = [float(row["median_ns"]) for row in (left, right)]
-            if not all(math.isfinite(t) and t > 0 for t in times):
-                raise ValueError(f"{case}: invalid timings")
-            paired.setdefault(case, []).append(times[1] / times[0])
-        for name in ("metadata.txt", f"{baseline}.csv", f"{candidate}.csv"):
-            provenance[str(path / name)] = hashlib.sha256((path / name).read_bytes()).hexdigest()
-    complete = {case: ratios for case, ratios in paired.items() if len(ratios) == len(passes)}
-    if strict and (not complete or len(complete) != len(rows[0])):
-        raise ValueError("validation requires complete paired timings for every case")
-    return complete, provenance, shapes, providers
-
-
-def measured_cpu(directory, requested=None):
-    models = set()
-    for path in directory.glob("pass-*/metadata.txt"):
-        detected = [line.partition("=")[2] for line in path.read_text().splitlines()
-                    if line.startswith("profile_cpu_model=")]
-        if not detected or not all(detected):
-            raise ValueError(f"{path}: missing runtime CPU identity; recapture with the current harness")
-        models.update(detected)
-    if len(models) != 1:
-        raise ValueError("profile fitting requires one runtime CPU model; use separate captures per model")
-    model = models.pop()
-    if requested == "*":
-        return requested
-    if model == "*" or requested is not None and requested != model:
-        raise ValueError("CPU model is not detectable by the runtime; use --cpu '*' for a platform wide profile")
-    return model
 
 
 def forced_simd():
@@ -93,28 +18,51 @@ def forced_simd():
             ["jvm-simd", "Panels,Products,Triangular", 0, MAX, 0, MAX, 0, MAX, 0, "*", "*"]]
 
 
-def fit(paired, backend, shapes):
+def fit(paired, backend, shapes, by_cpu=None, cache_bytes=None):
     groups = {}
     for case, ratios in paired.items():
         key = shapes[case]
         if key:
-            groups.setdefault(key, []).extend(ratios)
-    wins = {key: statistics.median(ratios) <= 0.95 and max(ratios) <= 1.02
-            for key, ratios in groups.items()}
+            groups.setdefault(key, []).extend((by_cpu or {}).get(case, {"local": ratios}).values())
+    wins = {key: all(statistics.median(ratios) <= 0.95 and max(ratios) <= 1.02 for ratios in strata)
+            for key, strata in groups.items()}
     rules = []
-    for operation, contiguous in sorted({(key[0], key[6]) for key in groups}):
-        keys = sorted(key for key in groups if (key[0], key[6]) == (operation, contiguous))
+    for operation, contiguous, borrowed in sorted({(key[0], key[6], key[4]) for key in groups}):
+        keys = sorted(key for key in groups if (key[0], key[6], key[4]) == (operation, contiguous, borrowed))
         if keys[0][5] == 1:
             # A threshold must keep winning at every larger measured length, including all variants.
             start = next((i for i in range(len(keys)) if all(wins[k] for k in keys[i:])), None)
             if start is not None:
-                rules.append([backend, operation, keys[start][1], keys[-1][1], 0, MAX, 0, MAX, 0, str(contiguous).lower(), "*"])
+                tail = keys[start:][-2:]
+                beyond_cache = cache_bytes is not None and len(tail) == 2 and all(key[1] * 8 > cache_bytes for key in tail)
+                rules.append([backend, operation, keys[start][1], MAX if beyond_cache else keys[-1][1],
+                              0, MAX, 0, MAX, 0, str(contiguous).lower(), "*"])
         else:
-            # Matrix shapes are bounded to observed extents; no square-only extrapolation to skinny calls.
-            for key in keys:
-                if wins[key]:
-                    _, rows, columns, depth, borrowed, _, _ = key
-                    rules.append([backend, operation, rows, rows, columns, columns, depth, depth, 0, "*", str(borrowed).lower()])
+            # Fit work and minimum extents jointly; skinny losing calls constrain the same region.
+            dimensions = 3 if keys[0][5] == 3 else 2
+            work = lambda key: key[1] * key[2] * key[3]
+            extent = lambda key: min(key[1:1 + dimensions])
+            regions = []
+            for minimum in sorted({extent(key) for key in keys if wins[key]}):
+                for threshold in sorted({work(key) for key in keys if wins[key]}):
+                    covered = {key for key in keys if extent(key) >= minimum and work(key) >= threshold}
+                    if len(covered) >= 2 and all(wins[key] for key in covered):
+                        regions.append((len(covered), -minimum, -threshold, covered))
+            covered = set()
+            if regions:
+                _, minimum, threshold, covered = max(regions, key=lambda region: region[:3])
+                rules.append([backend, operation, -minimum, MAX, -minimum, MAX,
+                              -minimum if dimensions == 3 else 0, MAX, -threshold, "*", str(borrowed).lower()])
+            # Residual deep wins become depth bands; losing measured depths split a band.
+            for rows, columns in sorted({key[1:3] for key in keys}):
+                band = []
+                for key in [key for key in keys if key[1:3] == (rows, columns)] + [None]:
+                    if key is not None and wins[key] and key not in covered:
+                        band.append(key[3])
+                    elif band:
+                        rules.append([backend, operation, rows, rows, columns, columns,
+                                      min(band), max(band), 0, "*", str(borrowed).lower()])
+                        band = []
     if backend == "jvm-simd":
         rules.append(forced_simd()[-1])
     return rules
@@ -151,14 +99,16 @@ def main():
     parser.add_argument("--output", type=Path)
     parser.add_argument("--write-cases", type=Path, help="write the shared training and holdout grids without measuring")
     parser.add_argument("--candidate", help="capture target for an explicitly configured combined engine")
-    parser.add_argument("--baseline", choices=("native", "jvm-scalar", "jvm-simd"))
-    parser.add_argument("--results", type=Path)
+    parser.add_argument("--baseline", choices=("native", "jvm-scalar", "jvm-simd", "jvm-default", "jvm-owned"),
+                        help="jvm-owned uses the faster paired portable or forced SIMD timing per case and round")
+    parser.add_argument("--results", type=Path, help="local capture or fetched lab job")
+    parser.add_argument("--lab-arm", help="SDK arm in a multi-arm fetched job")
     parser.add_argument("--capture", action="store_true")
     parser.add_argument("--cases", type=Path, help="custom training cases; defaults to a regular dense grid")
     parser.add_argument("--validation-cases", default="koblas-bench/cases-addressed.txt")
     parser.add_argument("--native-executable", type=Path)
-    parser.add_argument("--os", default="Linux")
-    parser.add_argument("--arch", default="X86_64")
+    parser.add_argument("--os", help="require the measured operating system")
+    parser.add_argument("--arch", help="require the measured architecture")
     parser.add_argument("--cpu", help="explicit target model; defaults to the runtime CPU identity; use * explicitly for platform wide profiles")
     args = parser.parse_args()
     if args.write_cases:
@@ -173,6 +123,8 @@ def main():
         parser.error("--runtime, --backend and --output are required for tuning")
     if args.capture == bool(args.results):
         parser.error("choose --capture or --results")
+    if args.capture and args.baseline == "jvm-owned":
+        parser.error("jvm-owned requires --results from paired portable and explicitly forced SIMD arms")
     if args.backend == "jvm-simd" and args.runtime != "jvm":
         parser.error("jvm-simd requires --runtime jvm")
     baseline = args.baseline or ("native" if args.runtime == "native" else
@@ -187,7 +139,7 @@ def main():
         args.cases.write_text("\n".join(cases) + "\n")
     results = args.results or args.output / "capture"
     header = ["koblas-profile-v1", f"{args.runtime}-{args.backend}-recalculated-v1", args.runtime,
-              args.os, args.arch, args.cpu or "*", str(results), "see evidence.json for paired measurements and hashes"]
+              "*", "*", "*", str(results), "see evidence.json for paired measurements and hashes"]
     def write_profile(path, preferences):
         path.write_text("\n".join("\t".join(map(str, row)) for row in [header, *preferences]) + "\n")
     capture_env = dict(os.environ)
@@ -208,17 +160,25 @@ def main():
         if args.native_executable:
             command += ["--native-executable", str(args.native_executable)]
         subprocess.run(command, check=True, env=capture_env)
-    paired, provenance, shapes, providers = measurements(results, baseline, candidate, args.backend)
-    if not paired:
+    capture = measurements(results, baseline, candidate, args.backend, arm=args.lab_arm)
+    if not capture.paired:
         raise ValueError("no complete paired measurements")
-    header[5] = measured_cpu(results, args.cpu)
-    rules = fit(paired, args.backend, shapes)
-    digest = hashlib.sha256(json.dumps([header[2:6], rules, sorted(provenance.values())], sort_keys=True).encode()).hexdigest()[:12]
+    header[2:6] = capture.target(args.runtime, args.os, args.arch, args.cpu)
+    caches = list(capture.cache_by_cpu.values())
+    rules = fit(capture.paired, args.backend, capture.shapes, capture.by_cpu,
+                max(caches) if caches and all(caches) else None)
+    digest = hashlib.sha256(json.dumps([header[2:6], rules, sorted(capture.hashes.values())], sort_keys=True).encode()).hexdigest()[:12]
     header[1] = f"{args.runtime}-{args.backend}-{digest}"
     write_profile(args.output / "profile.tsv", rules)
     (args.output / "evidence.json").write_text(json.dumps(dict(
-        baseline=baseline, candidate=candidate, source_hashes=provenance,
-        paired_ratios=paired, selected_providers=providers, initial_rules=rules, criterion="median <= 0.95 and every round <= 1.02",
+        baseline=baseline, candidate=candidate, source_hashes=capture.hashes,
+        source_commits=sorted(capture.commits), target=header[2:6],
+        last_level_cache_bytes=capture.cache_by_cpu,
+        paired_ratios=capture.paired, ratios_by_cpu=capture.by_cpu, lab=capture.lab,
+        selected_providers=capture.providers, initial_rules=rules, criterion="median <= 0.95 and every round <= 1.02",
+        bounded_vector_rules=[dict(operation=rule[1], last_measured_length=rule[3],
+                                   reason="No verified beyond-cache tail; routing remains bounded")
+                              for rule in rules if rule[9] != "*" and rule[3] < MAX],
     ), indent=2) + "\n")
     if args.capture:
         validation_cases = args.output / "validation-cases.txt"
@@ -234,15 +194,16 @@ def main():
         command[command.index("--output") + 1] = str(validation)
         subprocess.run(command, check=True, env=dict(os.environ,
                        KOBLAS_BENCH_ENGINE_PROFILE=str((args.output / "profile.tsv").resolve())))
-        ratios, hashes, _, reached = measurements(validation, baseline, f"{args.runtime}-default", strict=True)
-        if any(rule[1] != "Panels,Products,Triangular" for rule in rules) and args.backend not in reached.values():
+        checked = measurements(validation, baseline, f"{args.runtime}-default", strict=True)
+        ratios, hashes, reached = checked.paired, checked.hashes, checked.providers
+        if any(rule[1] != "Panels,Products,Triangular" for rule in rules) and not any(args.backend in models.values() for models in reached.values()):
             raise ValueError("holdout did not reach any fitted provider; add cases covering the selected regions")
         regressions = {case: values for case, values in ratios.items()
                        if statistics.median(values) > 1.05 and min(values) > 1.02}
         (args.output / "validation.json").write_text(json.dumps(dict(
             paired_ratios=ratios, source_hashes=hashes, selected_providers=reached,
-            selected_regressions={case: values for case, values in regressions.items() if reached[case] == args.backend},
-            control_regressions={case: values for case, values in regressions.items() if reached[case] != args.backend}),
+            selected_regressions={case: values for case, values in regressions.items() if args.backend in reached[case].values()},
+            control_regressions={case: values for case, values in regressions.items() if args.backend not in reached[case].values()}),
             indent=2) + "\n")
         if regressions:
             raise ValueError("combined profile or control regression; inspect retained validation.json")

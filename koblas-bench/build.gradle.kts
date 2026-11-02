@@ -93,7 +93,7 @@ dependencies {
 
 val generateCalibrationGrids = tasks.register<Exec>("generateCalibrationGrids") {
     val output = layout.buildDirectory.dir("calibration")
-    inputs.files("tune-engine.py", "cases-addressed.txt")
+    inputs.files("tune-engine.py", "tuning_capture.py", "cases-addressed.txt")
     outputs.files(output.map { it.file("training.txt") }, output.map { it.file("holdout.txt") },
         output.map { it.file("forced-simd.tsv") })
     workingDir(rootProject.projectDir)

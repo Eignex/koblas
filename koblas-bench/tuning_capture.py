@@ -1,0 +1,210 @@
+"""Read paired local captures or accepted rows from a fetched lab job."""
+import csv
+import hashlib
+import json
+import math
+import re
+from dataclasses import dataclass
+
+
+def sections(text):
+    result, current = {"": {}}, ""
+    for line in text.splitlines():
+        if line.startswith("[") and line.endswith("]"):
+            current = line[1:-1]
+            result.setdefault(current, {})
+        elif "=" in line:
+            key, value = line.split("=", 1)
+            result[current][key] = value
+    return result
+
+
+def capture_groups(directory, arm, targets):
+    index = directory / "lab-cases.jsonl"
+    if not index.exists():
+        if arm:
+            raise ValueError("--lab-arm requires a fetched job")
+        return [sorted(p for p in directory.glob("pass-*") if p.is_dir())], {}
+    rows = [json.loads(line) for line in index.read_text().splitlines() if line.strip()]
+    if any(type(row["index"]) is not int or row["index"] < 0 for row in rows) or len({row["index"] for row in rows}) != len(rows):
+        raise ValueError("invalid or repeated lab case index")
+    arms = {row["arm"] for row in rows}
+    if arm is None and len(arms) == 1:
+        arm = next(iter(arms))
+    if arm not in arms:
+        raise ValueError(f"select --lab-arm from {sorted(arms)}")
+    paired = {}
+    for row in rows:
+        key = (row["problem"]["problem"], row["seed"], row["repeat"])
+        paired.setdefault(key, []).append(row)
+    groups, accepted = [], []
+    for members in paired.values():
+        if {row["arm"] for row in members} != arms or len(members) != len(arms) or any(
+            row["status"] != "DONE" or (row.get("record") or {}).get("status") != "success"
+            for row in members
+        ):
+            continue
+        row = next(row for row in members if row["arm"] == arm)
+        root = (directory / "cases" / str(row["index"]) / "out").resolve()
+        artifacts = {artifact["path"] for artifact in row["record"]["artifacts"]}
+        paths = []
+        for artifact in row["record"]["artifacts"]:
+            name = artifact["path"]
+            if not re.search(r"(?:^|/)pass-\d+/metadata\.txt$", name):
+                continue
+            path = (root / name).resolve()
+            if not path.is_relative_to(root) or not path.is_file():
+                raise ValueError(f"invalid or missing accepted artifact: {path}")
+            if any(name.removesuffix("metadata.txt") + target + ".csv" not in artifacts for target in targets):
+                raise ValueError("accepted row does not declare every paired CSV artifact")
+            paths.append(path.parent)
+        if len(paths) != len(set(paths)) or not paths:
+            raise ValueError("accepted row has missing or repeated capture rounds")
+        groups.append(sorted(paths))
+        accepted.append(row["index"])
+    if not groups:
+        raise ValueError("no rows where every arm completed successfully")
+    # Execution snapshots retain preparation and failed-attempt resource counters as well as winners.
+    resources = {name: json.loads((directory / name).read_text())
+                 for name in ("lab-job.json", "lab-execution.json")}
+    if resources["lab-job.json"]["status"] != "DONE":
+        raise ValueError("fitting requires a completed job snapshot")
+    return groups, dict(arm=arm, accepted_rows=accepted, rows=rows, resources=resources)
+
+
+@dataclass
+class Capture:
+    paired: dict
+    hashes: dict
+    shapes: dict
+    providers: dict
+    by_cpu: dict
+    platforms: set
+    models: set
+    commits: set
+    cache_by_cpu: dict
+    lab: dict
+
+    def target(self, runtime, operating_system=None, architecture=None, cpu=None):
+        if len(self.platforms) != 1:
+            raise ValueError("fitting requires a single runtime, OS and architecture")
+        measured = next(iter(self.platforms))
+        requested = (runtime, operating_system, architecture)
+        if any(want is not None and want != actual for want, actual in zip(requested, measured)):
+            raise ValueError(f"requested target {requested} differs from measured target {measured}")
+        if cpu != "*" and (len(self.models) != 1 or "*" in self.models or cpu is not None and cpu not in self.models):
+            raise ValueError("CPU model is mixed, unknown or mismatched; select one model or explicitly use --cpu '*'")
+        return (*measured, cpu or next(iter(self.models)))
+
+
+def measurements(directory, baseline, candidate, backend=None, strict=False, arm=None):
+    targets = ["jvm-scalar", "jvm-default", candidate] if baseline == "jvm-owned" else [baseline, candidate]
+    groups, lab = capture_groups(directory, arm, targets)
+    result = Capture({}, {}, {}, {}, {}, set(), set(), set(), {}, lab)
+    for passes in groups:
+        if len(passes) < 3:
+            raise ValueError("at least three paired capture rounds are required in each accepted row")
+        paired, models, expected = {}, set(), None
+        for path in passes:
+            metadata = sections((path / "metadata.txt").read_text())
+            fields = metadata.get("capture", metadata[""])
+            if metadata[""].get("status") != "complete" or int(fields.get("requested_samples", 0)) < 3 or int(fields.get("target_ns", 0)) < 10_000_000:
+                raise ValueError(f"{path}: incomplete capture or smoke timing settings")
+            commit = fields.get("source_commit", "")
+            if not re.fullmatch(r"[0-9a-f]{40}", commit) or fields.get("dirty") != "false":
+                raise ValueError(f"{path}: fitting requires a clean, recorded source commit")
+            result.commits.add(commit)
+            if len(result.commits) != 1:
+                raise ValueError("capture rows use different source commits")
+            identities = [metadata.get(target, {}) for target in targets]
+            owned = [set(re.findall(r"/caps\[([^:]+):", identity.get("implementation", ""))) for identity in identities[:2]]
+            if baseline == "jvm-owned" and any(not sources or sources - {"portable", "jvm-simd"} for sources in owned):
+                raise ValueError("owned baseline contains vendor providers")
+            for identity in identities:
+                platform = tuple(identity.get("profile_" + key) for key in ("runtime", "os", "arch"))
+                model = identity.get("profile_cpu_model")
+                if not all(platform) or not model:
+                    raise ValueError(f"{path}: missing runtime platform identity; recapture with the current harness")
+                if platform[0] == "jvm" and (int(fields.get("warmups", 0)) < 20 or
+                    int(fields.get("target_ns", 0)) < 200_000_000 or int(fields.get("requested_jvm_forks", 0)) < 2):
+                    raise ValueError("JVM fitting needs twenty 200 ms warmups and two forks")
+                result.platforms.add(platform)
+                result.models.add(model)
+            if any(identities[0].get(key) != identity.get(key) for identity in identities[1:]
+                   for key in ("profile_runtime", "profile_os", "profile_arch", "profile_cpu_model")):
+                raise ValueError("paired arms report different runtime platform identities")
+            hardware = metadata.get("hardware", {})
+            model = hardware.get("model name", hardware.get("cpu_model", identities[0]["profile_cpu_model"]))
+            if model == "*":
+                raise ValueError("missing CPU model for measurement stratification")
+            models.add(model)
+            cache = re.fullmatch(r"([\d.]+)\s*([KMGT]?)i?B(?:\s+.*)?", hardware.get("l3 cache", ""))
+            capacity = int(float(cache[1]) * 1024 ** (" KMGT".index(cache[2]))) if cache else None
+            if model in result.cache_by_cpu:
+                previous = result.cache_by_cpu[model]
+                capacity = max(previous, capacity) if previous and capacity else None
+            result.cache_by_cpu[model] = capacity
+            exported = re.findall(r"/caps\[" + re.escape(backend or "") + r":([^]]*)\]", identities[-1].get("implementation", ""))
+            supported = set(exported[-1].split(',')) if exported else None
+            if backend and supported is None and (backend == "jvm-simd" or candidate.endswith("-default")):
+                raise ValueError("combined fitting requires capability metadata")
+            rows = []
+            for target in targets:
+                with (path / f"{target}.csv").open() as source:
+                    table = list(csv.DictReader(source))
+                keyed = {row["case"]: row for row in table}
+                if len(keyed) != len(table):
+                    raise ValueError("repeated cases in a capture round")
+                rows.append(keyed)
+            case_sets = [set(table) for table in rows]
+            if expected is not None and expected != case_sets:
+                raise ValueError("capture rounds contain different cases")
+            expected = case_sets
+            if baseline == "jvm-owned":
+                if case_sets[0] != case_sets[1]:
+                    raise ValueError("owned comparison arms contain different cases")
+                best = {}
+                for case in rows[0]:
+                    variants = [table[case] for table in rows[:2]]
+                    if any(row["status"] != "ok" for row in variants) or any(
+                        variants[0][key] != variants[1][key] for key in ("timing_mode", "routing_key")
+                    ) or not all(math.isfinite(float(row["median_ns"])) and float(row["median_ns"]) > 0 for row in variants):
+                        raise ValueError(f"{case}: owned baseline is incomplete or incomparable")
+                    best[case] = min(variants, key=lambda row: float(row["median_ns"]))
+                rows = [best, rows[-1]]
+            if strict and rows[0].keys() != rows[1].keys():
+                raise ValueError("validation arms contain different cases")
+            for case in rows[0].keys() & rows[1].keys():
+                left, right = rows[0][case], rows[1][case]
+                if left["status"] != "ok" or right["status"] != "ok":
+                    if strict:
+                        raise ValueError(f"{case}: validation contains an untimed case")
+                    continue
+                if any(left[key] != right[key] for key in ("timing_mode", "routing_key")):
+                    raise ValueError(f"{case}: different timing boundaries or routing dimensions")
+                key = left["routing_key"].split(":")
+                if key[0] and (len(key) != 7 or any(key[i] not in ("true", "false") for i in (4, 6))):
+                    raise ValueError(f"{case}: malformed routing dimensions")
+                shape = (key[0], *map(int, key[1:4]), key[4] == "true", int(key[5]), key[6] == "true") if key[0] else None
+                provider = right["provider"]
+                if not provider or result.providers.setdefault(case, {}).setdefault(model, provider) != provider:
+                    raise ValueError(f"{case}: missing or inconsistent selected provider")
+                if result.shapes.setdefault(case, shape) != shape:
+                    raise ValueError(f"{case}: routing dimensions changed between rounds")
+                if backend and provider != backend or supported is not None and shape and shape[0] not in supported:
+                    continue
+                times = [float(row["median_ns"]) for row in (left, right)]
+                if not all(math.isfinite(t) and t > 0 for t in times) or any(int(row["samples"]) < 3 for row in (left, right)):
+                    raise ValueError(f"{case}: invalid timings or insufficient measured samples")
+                paired.setdefault(case, []).append(times[1] / times[0])
+            for name in ["metadata.txt", *(f"{target}.csv" for target in targets)]:
+                result.hashes[str(path / name)] = hashlib.sha256((path / name).read_bytes()).hexdigest()
+        if len(models) != 1:
+            raise ValueError("capture rounds within one worker attempt report different CPU models")
+        complete = {case: ratios for case, ratios in paired.items() if len(ratios) == len(passes)}
+        if strict and (not complete or len(complete) != len(rows[0])):
+            raise ValueError("validation requires complete paired timings for every case")
+        for case, ratios in complete.items():
+            result.paired.setdefault(case, []).extend(ratios)
+            result.by_cpu.setdefault(case, {}).setdefault(next(iter(models)), []).extend(ratios)
+    return result
