@@ -37,6 +37,11 @@ internal fun scalarDot(
     len: Int,
 ): Double {
     var s = 0.0
+    // Keep whole contiguous vectors visible to Native when the engine receiver stays virtual.
+    if (aOff == 0 && bOff == 0 && aStride == 1 && bStride == 1) {
+        for (i in 0 until len) s += a[i] * b[i]
+        return s
+    }
     var ia = aOff
     var ib = bOff
     for (i in 0 until len) {
