@@ -2,9 +2,10 @@
 
 package com.eignex.koblas.dense
 
+import com.eignex.koblas.KoblasEngine
 import com.eignex.koblas.assertClose
-import com.eignex.koblas.internal.dense.DensePanelKernels
 import com.eignex.koblas.internal.dense.PanelWork
+import com.eignex.koblas.internal.dense.PortablePanelKernels
 import kotlin.random.Random
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -151,7 +152,7 @@ private fun referenceIndexedRankUpdate(
  * Checks [kernels] against independent definitions across lane and grouping boundaries,
  * nonzero offsets and padded leading dimensions. Strides rotate with extent to bound the sweep.
  */
-internal fun assertPanelKernelsAgreeWithReference(kernels: DensePanelKernels) {
+internal fun assertPanelKernelsAgreeWithReference(kernels: KoblasEngine) {
     val rng = Random(20260919)
     var variant = 0
     for (rows in ROWS) {
@@ -244,7 +245,7 @@ private fun referenceIndexedCoupled(
  * columns are stored entries. Counts straddle lane boundaries and include empty sparse columns;
  * spread indices exercise gathering in both adjacent and strided groups.
  */
-private fun assertIndexedPanelsAgreeWithReference(kernels: DensePanelKernels) {
+private fun assertIndexedPanelsAgreeWithReference(kernels: KoblasEngine) {
     val rng = Random(20260930)
     val alpha = 0.875
     for (rows in intArrayOf(0, 1, 2, 3, 4, 5, 7, 8, 9, 16, 17, 64)) {
@@ -323,7 +324,7 @@ private fun assertIndexedPanelsAgreeWithReference(kernels: DensePanelKernels) {
  * window; contiguous throughout, which is what its contract takes.
  */
 private fun assertCoupledAgrees(
-    kernels: DensePanelKernels,
+    kernels: KoblasEngine,
     alpha: Double,
     a: DoubleArray,
     lda: Int,
@@ -358,7 +359,7 @@ private fun assertCoupledAgrees(
  * Offsets and strides are full array indices. Each is tested beyond twenty-one bits in both
  * panel orientations, as a legal large dense window can require.
  */
-internal fun assertIndexedPanelsAddressPastAPackedBound(kernels: DensePanelKernels) {
+internal fun assertIndexedPanelsAddressPastAPackedBound(kernels: KoblasEngine) {
     val bound = 1 shl 21
     val block = DoubleArray(bound + 16)
     val indices = intArrayOf(0, 1)
@@ -394,7 +395,7 @@ internal fun assertIndexedPanelsAddressPastAPackedBound(kernels: DensePanelKerne
  * Zero beta overwrites without reading the destination. Finite zero coefficients and negative strides
  * exercise ordinary updates without prescribing exceptional-value behavior.
  */
-internal fun assertPanelContractHolds(kernels: DensePanelKernels) {
+internal fun assertPanelContractHolds(kernels: KoblasEngine) {
     val rows = 17
     val a = DoubleArray(rows * 2) { 1.0 + it }
     val x = DoubleArray(rows) { 1.0 }
@@ -434,7 +435,7 @@ internal fun assertPanelContractHolds(kernels: DensePanelKernels) {
 }
 
 /** The grouping a backend recommends, which has to be usable and must not claim more columns than exist. */
-internal fun assertExecutionGroupIsUsable(kernels: DensePanelKernels) {
+internal fun assertExecutionGroupIsUsable(kernels: KoblasEngine) {
     for (work in PanelWork.entries) {
         for (columns in intArrayOf(0, 1, 2, 3, 7, 1024)) {
             for (contiguous in booleanArrayOf(true, false)) {
@@ -466,7 +467,7 @@ internal fun assertExecutionGroupIsUsable(kernels: DensePanelKernels) {
  * Too-short arrays expose forbidden reads at empty extents. Multi-dot still writes outputs
  * selected by its columns even when it has no rows.
  */
-internal fun assertEmptyExtentsReadNothing(kernels: DensePanelKernels) {
+internal fun assertEmptyExtentsReadNothing(kernels: KoblasEngine) {
     val nothing = DoubleArray(0)
     val destination = DoubleArray(2) { Double.NaN }
 
@@ -495,7 +496,7 @@ internal fun assertEmptyExtentsReadNothing(kernels: DensePanelKernels) {
 }
 
 /** Guard values around each window expose overruns and stores through masked tails. */
-internal fun assertPanelsStayInsideTheirWindows(kernels: DensePanelKernels) {
+internal fun assertPanelsStayInsideTheirWindows(kernels: KoblasEngine) {
     val guard = -12345.0
     for (rows in intArrayOf(1, 3, 5, 8, 13)) {
         for (columns in intArrayOf(1, 2, 3, 5)) {
@@ -542,7 +543,7 @@ internal fun assertPanelsStayInsideTheirWindows(kernels: DensePanelKernels) {
 }
 
 /** Long strips exercise wider column groups, a partial group and a scalar row tail. */
-internal fun assertLargeColumnUpdatesAgreeWithReference(kernels: DensePanelKernels) {
+internal fun assertLargeColumnUpdatesAgreeWithReference(kernels: KoblasEngine) {
     for (rows in intArrayOf(4_096, 4_097)) {
         for (columns in intArrayOf(12, 13, 25)) {
             for (stride in 1..2) {
@@ -572,7 +573,7 @@ internal fun assertLargeColumnUpdatesAgreeWithReference(kernels: DensePanelKerne
  * A panel of one stored row whose columns are adjacent, which a backend may run along the row: as one dot
  * for a column update and as an elementwise update for a multi-dot. Lengths straddle the unrolled bodies.
  */
-internal fun assertSingleRowPanelsAgreeWithReference(kernels: DensePanelKernels) {
+internal fun assertSingleRowPanelsAgreeWithReference(kernels: KoblasEngine) {
     for (columns in intArrayOf(1, 7, 33, 1_000, 4_099)) {
         for (beta in doubleArrayOf(0.0, -0.25)) {
             val a = DoubleArray(PAD + columns + PAD) { ((it % 17) - 8) / 16.0 }
@@ -600,7 +601,7 @@ internal fun assertSingleRowPanelsAgreeWithReference(kernels: DensePanelKernels)
  * The excluded diagonal is scattered but not reduced. A NaN there exposes forbidden reduction;
  * a separate pivot column remains readable by the scatter, including at that position.
  */
-private fun assertExcludedPositionIsNotReduced(kernels: DensePanelKernels) {
+private fun assertExcludedPositionIsNotReduced(kernels: KoblasEngine) {
     val width = vectorWidth(kernels) + 1
     val positions = 3
     for (excluded in 0 until positions) {
@@ -634,7 +635,7 @@ private fun assertExcludedPositionIsNotReduced(kernels: DensePanelKernels) {
  * The sparse stored-position contract requires zero evaluation at the first owned-body width and a
  * scalar tail. Fixed narrow fixtures could exercise only portable fallback.
  */
-private fun assertIndexedPanelsEvaluateZeroCoefficients(kernels: DensePanelKernels) {
+private fun assertIndexedPanelsEvaluateZeroCoefficients(kernels: KoblasEngine) {
     val full = vectorWidth(kernels)
     for (width in intArrayOf(2, full, full + 1)) {
         val positions = 2
@@ -672,17 +673,19 @@ private fun assertIndexedPanelsEvaluateZeroCoefficients(kernels: DensePanelKerne
             assertTrue(coupledPanel[i].isNaN(), "a zero coupled coefficient skipped its scatter at lane $i")
         }
     }
-    assertEquals(
-        kernels.implementationFor(PanelWork.SparseRightHandSides, full, 2),
-        kernels.name,
-        "the full width did not reach ${kernels.name}'s own body",
-    )
 }
 
 /** The narrowest group of adjacent right-hand sides this backend answers for with its own body. */
-internal fun vectorWidth(kernels: DensePanelKernels): Int {
+internal fun vectorWidth(kernels: KoblasEngine): Int {
     for (width in 1..64) {
-        if (kernels.implementationFor(PanelWork.SparseRightHandSides, width, 2) == kernels.name) return width
+        if (kernels.implementationFor(
+                PanelWork.SparseRightHandSides,
+                width,
+                2,
+            ) != PortablePanelKernels.name
+        ) {
+            return width
+        }
     }
     return 1
 }

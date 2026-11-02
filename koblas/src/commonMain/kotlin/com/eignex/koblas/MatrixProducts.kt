@@ -75,7 +75,7 @@ internal fun KoblasEngine.productInto(
     requireGemmOperands(a, transposeA, b, transposeB, c)
     if (c.rows == 0 || c.cols == 0) return
     if (alpha == 0.0 || (if (transposeA) a.rows else a.cols) == 0) {
-        scaleRegion(c, beta, vectors = vectorKernels)
+        scaleRegion(c, beta, vectors = this)
         return
     }
     dispatchProduct(

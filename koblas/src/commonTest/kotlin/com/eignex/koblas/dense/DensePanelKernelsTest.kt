@@ -2,7 +2,8 @@
 
 package com.eignex.koblas.dense
 
-import com.eignex.koblas.internal.dense.DensePanelKernels
+import com.eignex.koblas.EngineImplementation
+import com.eignex.koblas.KoblasEngine
 import com.eignex.koblas.internal.dense.PortablePanelKernels
 import kotlin.test.Test
 import kotlin.test.assertTrue
@@ -63,7 +64,9 @@ class DensePanelKernelsTest {
     }
 
     /** A valid dense zero shortcut; indexed leaves retain their separate stored-position behavior. */
-    private class ZeroSkippingPanels : DensePanelKernels by PortablePanelKernels {
+    private class ZeroSkippingPanels : KoblasEngine() {
+        override val name = "zero-skipping"
+        override val implementations = setOf(EngineImplementation.Panels)
         var skippedCoefficients: Int = 0
             private set
 

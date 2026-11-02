@@ -2,7 +2,6 @@
 
 package com.eignex.koblas.sparse
 
-import com.eignex.koblas.BuiltinEngines
 import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.internal.dense.selectedTriangle
@@ -12,7 +11,7 @@ import com.eignex.koblas.internal.dense.selectedTriangle
  * Absent positions form no product; stored zeros participate. Dense expansion would lose that
  * distinction for non-finite values.
  */
-internal object ReferenceSparseBlas : SparseKernels by BuiltinEngines.scalar.sparseKernels {
+internal object ReferenceSparseBlas {
 
     /** One stored coordinate of a sparse operand. */
     data class Entry(val row: Int, val col: Int, val value: Double)

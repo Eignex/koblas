@@ -15,8 +15,8 @@ internal fun sparseSlicesArm(case: BenchCase, engine: KoblasEngine): ArmChoice {
     sparse.values.copyInto(values, VALUE_OFFSET)
     val initial = Fixtures.vector(size, 2)
     val destination = initial.copyOf()
-    val scalar = BuiltinEngines.scalar.sparseKernels
-    val kernels = engine.sparseKernels
+    val scalar = BuiltinEngines.scalar
+    val kernels = engine
     val operation = case.operation
     val mutation = operation == "spaxpy-slice" || operation == "spscatter-slice"
     val run = {

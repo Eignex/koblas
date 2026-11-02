@@ -13,7 +13,7 @@ class BenchmarkArmResolutionTest {
     fun `jvm scalar mode resolves the exact built in engine`() {
         val (engine, identity) = resolveEngine("jvm-scalar")
 
-        assertTrue(identity.startsWith("jvm-scalar/scalar/"), identity)
+        assertTrue(identity.startsWith("jvm-scalar/scalar"), identity)
         assertTrue(engine === BuiltinEngines.scalar)
     }
 
@@ -28,7 +28,7 @@ class BenchmarkArmResolutionTest {
         val (engine, identity) = resolveEngine("jvm-simd")
 
         assertTrue(engine === available, "jvm-simd resolved an engine other than the Vector API one")
-        assertTrue(identity.startsWith("jvm-simd/${engine.vectorKernels.name}/"), identity)
+        assertTrue(identity.startsWith("jvm-simd/${engine.name}/"), identity)
     }
 
     /**
@@ -44,8 +44,8 @@ class BenchmarkArmResolutionTest {
         assertTrue(identity.startsWith("jvm-default/"), identity)
         val values = DoubleArray(128) { it / 17.0 }
         val exact = BuiltinEngines.simd ?: BuiltinEngines.scalar
-        assertEquals(exact.vectorKernels.dot(values, 0, values, 0, values.size),
-            engine.vectorKernels.dot(values, 0, values, 0, values.size))
+        assertEquals(exact.dot(values, 0, values, 0, values.size),
+            engine.dot(values, 0, values, 0, values.size))
     }
 
     @Test

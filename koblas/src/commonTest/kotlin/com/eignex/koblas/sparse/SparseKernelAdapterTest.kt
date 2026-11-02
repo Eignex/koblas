@@ -1,14 +1,11 @@
 package com.eignex.koblas.sparse
 
 import com.eignex.koblas.EngineImplementation
+import com.eignex.koblas.KoblasEngine
 import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.SparseVector
-import com.eignex.koblas.dense.DenseVectorKernels
-import com.eignex.koblas.internal.dense.ScalarVectorKernels
+import com.eignex.koblas.engineWithKernels
 import com.eignex.koblas.internal.operands.denseOperand
-import com.eignex.koblas.internal.sparse.IndexedSparseKernels
-import com.eignex.koblas.internal.sparse.ScalarIndexedSparseKernels
-import com.eignex.koblas.internal.sparse.SparseKernelAdapter
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertSame
@@ -25,7 +22,10 @@ class SparseKernelAdapterTest {
         )
         val denseOperand = DoubleArray(matrix.rows)
         val calls = mutableListOf<Pair<Int, Int>>()
-        val selected = object : IndexedSparseKernels by ScalarIndexedSparseKernels {
+        val selected = object : KoblasEngine() {
+            override val implementations = setOf(EngineImplementation.IndexedDot)
+            override val name: String = "test-SparseKernelAdapterTest"
+
             override fun dotDense(
                 indices: IntArray,
                 indexOffset: Int,
@@ -42,7 +42,7 @@ class SparseKernelAdapterTest {
                 return 0.0
             }
         }
-        val kernels = SparseKernelAdapter("selected", ScalarVectorKernels, selected)
+        val kernels = engineWithKernels(indexed = selected)
 
         for (column in 0 until matrix.cols) kernels.dotColumn(matrix, column, denseOperand)
 
@@ -61,7 +61,9 @@ class SparseKernelAdapterTest {
                 assertEquals(1, stride)
                 calls += operation
             }
-            val selected = object : DenseVectorKernels by ScalarVectorKernels {
+            val selected = object : KoblasEngine() {
+                override val name = "stored-reductions"
+                override val implementations = setOf(EngineImplementation.Nrm2, EngineImplementation.Asum)
                 override fun nrm2(v: DoubleArray, vOff: Int, len: Int, vStride: Int): Double {
                     record(EngineImplementation.Nrm2, v, vOff, len, vStride)
                     return 0.0
@@ -72,7 +74,7 @@ class SparseKernelAdapterTest {
                     return 0.0
                 }
             }
-            val kernels = SparseKernelAdapter("selected", selected, ScalarIndexedSparseKernels)
+            val kernels = engineWithKernels(vectors = selected)
 
             kernels.nrm2(x)
             kernels.asum(x)

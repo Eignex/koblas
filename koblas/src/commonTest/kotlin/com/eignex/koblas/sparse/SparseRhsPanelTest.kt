@@ -2,18 +2,17 @@ package com.eignex.koblas.sparse
 
 import com.eignex.koblas.BuiltinEngines
 import com.eignex.koblas.DenseMatrix
+import com.eignex.koblas.EngineImplementation
+import com.eignex.koblas.KoblasEngine
 import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.Workspace
 import com.eignex.koblas.assertClose
 import com.eignex.koblas.copyOf
 import com.eignex.koblas.dense.ReferenceBlas
-import com.eignex.koblas.internal.dense.DensePanelKernels
+import com.eignex.koblas.engineWithKernels
 import com.eignex.koblas.internal.dense.PanelWork
 import com.eignex.koblas.internal.dense.PortablePanelKernels
-import com.eignex.koblas.internal.dense.ScalarVectorKernels
 import com.eignex.koblas.internal.operands.staged
-import com.eignex.koblas.internal.sparse.PortableSparseBlas
-import com.eignex.koblas.internal.sparse.ScalarIndexedSparseKernels
 import com.eignex.koblas.internal.sparse.SparsePanelKernels
 import com.eignex.koblas.internal.sparse.productRhsPlan
 import com.eignex.koblas.internal.sparse.rhsStaged
@@ -30,7 +29,7 @@ import kotlin.test.assertTrue
 // and leave this untested. [AdjacentPreferringPanels] asks for adjacent right-hand sides and keeps the
 // portable arithmetic, which puts the copy, the addressing and the writeback under test everywhere.
 class SparseRhsPanelTest {
-    private val stagingPanels = SparsePanelKernels(ScalarVectorKernels, AdjacentPreferringPanels())
+    private val stagingPanels = SparsePanelKernels(engineWithKernels(panels = AdjacentPreferringPanels()))
     private val staging = engineWith(AdjacentPreferringPanels())
     private val plain = engineWith(PortablePanelKernels)
 
@@ -509,7 +508,7 @@ class SparseRhsPanelTest {
     }
 
     /** Every sparse engine this runtime has, so a rule is checked where it is implemented and where selected. */
-    private fun engines(): List<Pair<String, SparseBlas>> = buildList {
+    private fun engines(): List<Pair<String, KoblasEngine>> = buildList {
         add("strided" to plain)
         add("staged" to staging)
         add("selected" to koblas)
@@ -523,7 +522,7 @@ class SparseRhsPanelTest {
         b: DenseMatrix,
         transposeB: Boolean,
         c0: DenseMatrix,
-        engine: PortableSparseBlas,
+        engine: KoblasEngine,
     ): DenseMatrix {
         val c = c0.copyOf()
         engine.gemm(ALPHA, a, transposeA, b, transposeB, BETA, c, right = false, workspace = Workspace())
@@ -580,11 +579,7 @@ class SparseRhsPanelTest {
 }
 
 /** An engine's sparse algorithms over a chosen panel backend, which is what selects the staged schedule. */
-internal fun engineWith(panels: DensePanelKernels): PortableSparseBlas = PortableSparseBlas(
-    ScalarVectorKernels,
-    ScalarIndexedSparseKernels,
-    SparsePanelKernels(ScalarVectorKernels, panels),
-)
+internal fun engineWith(panels: KoblasEngine): KoblasEngine = engineWithKernels(panels = panels)
 
 /**
  * A backend that asks for adjacent right-hand sides and computes with the portable bodies, so the staged
@@ -597,10 +592,247 @@ internal open class AdjacentPreferringPanels(
     private val group: Int = 3,
     private val minimumRows: Int = 1,
     private val entryThreshold: Int? = null,
-    private val delegate: DensePanelKernels = PortablePanelKernels,
-) : DensePanelKernels by delegate {
+    private val delegate: KoblasEngine = PortablePanelKernels,
+) : KoblasEngine() {
+    override val implementations = setOf(EngineImplementation.Panels)
+
+    override fun multiDot(
+        alpha: Double,
+        a: DoubleArray,
+        aOffset: Int,
+        lda: Int,
+        x: DoubleArray,
+        xOffset: Int,
+        xStride: Int,
+        rows: Int,
+        columns: Int,
+        beta: Double,
+        y: DoubleArray,
+        yOffset: Int,
+        yStride: Int,
+    ): Unit = delegate.multiDot(alpha, a, aOffset, lda, x, xOffset, xStride, rows, columns, beta, y, yOffset, yStride)
+
+    override fun columnUpdate(
+        alpha: Double,
+        a: DoubleArray,
+        aOffset: Int,
+        lda: Int,
+        x: DoubleArray,
+        xOffset: Int,
+        xStride: Int,
+        rows: Int,
+        columns: Int,
+        y: DoubleArray,
+        yOffset: Int,
+        yStride: Int,
+    ): Unit = delegate.columnUpdate(alpha, a, aOffset, lda, x, xOffset, xStride, rows, columns, y, yOffset, yStride)
+
+    override fun coupledUpdateDot(
+        alpha: Double,
+        a: DoubleArray,
+        aOffset: Int,
+        lda: Int,
+        x: DoubleArray,
+        xOffset: Int,
+        rows: Int,
+        columns: Int,
+        y: DoubleArray,
+        yOffset: Int,
+        coefficients: DoubleArray,
+        coefficientOffset: Int,
+        sums: DoubleArray,
+        sumOffset: Int,
+        xStride: Int,
+        yStride: Int,
+        coefficientStride: Int,
+        sumStride: Int,
+    ): Unit = delegate.coupledUpdateDot(
+        alpha,
+        a,
+        aOffset,
+        lda,
+        x,
+        xOffset,
+        rows,
+        columns,
+        y,
+        yOffset,
+        coefficients,
+        coefficientOffset,
+        sums,
+        sumOffset,
+        xStride,
+        yStride,
+        coefficientStride,
+        sumStride,
+    )
+
+    override fun rankUpdate(
+        alpha: Double,
+        a: DoubleArray,
+        aOffset: Int,
+        lda: Int,
+        x: DoubleArray,
+        xOffset: Int,
+        xStride: Int,
+        rows: Int,
+        columns: Int,
+        coefficients: DoubleArray,
+        coefficientOffset: Int,
+        coefficientStride: Int,
+    ): Unit = delegate.rankUpdate(
+        alpha,
+        a,
+        aOffset,
+        lda,
+        x,
+        xOffset,
+        xStride,
+        rows,
+        columns,
+        coefficients,
+        coefficientOffset,
+        coefficientStride,
+    )
+
+    override fun rankTwoUpdate(
+        alpha: Double,
+        a: DoubleArray,
+        aOffset: Int,
+        lda: Int,
+        x: DoubleArray,
+        xOffset: Int,
+        xStride: Int,
+        y: DoubleArray,
+        yOffset: Int,
+        yStride: Int,
+        rows: Int,
+        columns: Int,
+        u: DoubleArray,
+        uOffset: Int,
+        uStride: Int,
+        v: DoubleArray,
+        vOffset: Int,
+        vStride: Int,
+    ): Unit = delegate.rankTwoUpdate(
+        alpha,
+        a,
+        aOffset,
+        lda,
+        x,
+        xOffset,
+        xStride,
+        y,
+        yOffset,
+        yStride,
+        rows,
+        columns,
+        u,
+        uOffset,
+        uStride,
+        v,
+        vOffset,
+        vStride,
+    )
+
+    override fun indexedColumnUpdate(
+        alpha: Double,
+        a: DoubleArray,
+        aOffset: Int,
+        rowStride: Int,
+        indexStride: Int,
+        indices: IntArray,
+        values: DoubleArray,
+        fromIndex: Int,
+        columns: Int,
+        rows: Int,
+        y: DoubleArray,
+        yOffset: Int,
+    ): Unit = delegate.indexedColumnUpdate(
+        alpha,
+        a,
+        aOffset,
+        rowStride,
+        indexStride,
+        indices,
+        values,
+        fromIndex,
+        columns,
+        rows,
+        y,
+        yOffset,
+    )
+
+    override fun indexedRankUpdate(
+        alpha: Double,
+        a: DoubleArray,
+        aOffset: Int,
+        rowStride: Int,
+        indexStride: Int,
+        indices: IntArray,
+        values: DoubleArray,
+        fromIndex: Int,
+        columns: Int,
+        rows: Int,
+        x: DoubleArray,
+        xOffset: Int,
+    ): Unit = delegate.indexedRankUpdate(
+        alpha,
+        a,
+        aOffset,
+        rowStride,
+        indexStride,
+        indices,
+        values,
+        fromIndex,
+        columns,
+        rows,
+        x,
+        xOffset,
+    )
+
+    override fun indexedCoupledUpdate(
+        alpha: Double,
+        a: DoubleArray,
+        b: DoubleArray,
+        offset: Int,
+        rowStride: Int,
+        indexStride: Int,
+        indices: IntArray,
+        values: DoubleArray,
+        fromIndex: Int,
+        columns: Int,
+        rows: Int,
+        pivot: Int,
+        sums: DoubleArray,
+        sumOffset: Int,
+        excluded: Int,
+        destinationOffset: Int,
+        destinationRowStride: Int,
+        destinationIndexStride: Int,
+    ): Unit = delegate.indexedCoupledUpdate(
+        alpha,
+        a,
+        b,
+        offset,
+        rowStride,
+        indexStride,
+        indices,
+        values,
+        fromIndex,
+        columns,
+        rows,
+        pivot,
+        sums,
+        sumOffset,
+        excluded,
+        destinationOffset,
+        destinationRowStride,
+        destinationIndexStride,
+    )
+
     /** The portable bodies this backend computes with, which a subclass recording its runs delegates to. */
-    protected val bodies: DensePanelKernels get() = delegate
+    protected val bodies: KoblasEngine get() = delegate
 
     override val name: String get() = "adjacent-preferring"
 

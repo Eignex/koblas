@@ -1,9 +1,5 @@
 package com.eignex.koblas
 
-import com.eignex.koblas.dense.DenseVectorKernels
-import com.eignex.koblas.internal.dense.ScalarVectorKernels
-import com.eignex.koblas.internal.sparse.IndexedSparseKernels
-import com.eignex.koblas.internal.sparse.ScalarIndexedSparseKernels
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
@@ -12,21 +8,19 @@ import kotlin.test.assertSame
 class KoblasEngineTest {
     @Test
     fun `portable factory selects owned scalar kernels without a vendor`() {
-        val engine = KoblasEngine.portable()
+        val engine = BuiltinEngines.scalar
 
         assertNull(engine.vendor)
-        assertSame(ScalarVectorKernels, engine.vectorKernels)
-        assertSame(ScalarIndexedSparseKernels, engine.indexedSparseKernels)
-        assertEquals("scalar-panel", engine.panelKernels.name)
-        assertEquals(BuiltinEngines.scalar.productKernels.name, engine.productKernels.name)
-        assertEquals(BuiltinEngines.scalar.triangularKernels.name, engine.triangularKernels.name)
+        assertSame(PortableEngine, engine)
+        assertEquals("scalar", engine.name)
+        assertEquals(BuiltinEngines.scalar.name, engine.name)
     }
 
     @Test
     fun `portable selection leaves the platform default intact`() {
         val default = koblas
 
-        KoblasEngine.portable()
+        BuiltinEngines.scalar
         assertSame(default, koblas)
     }
 
@@ -34,7 +28,9 @@ class KoblasEngineTest {
     fun `sparse convenience operations execute the engine selected kernels`() {
         val x = SparseVector.of(4, intArrayOf(1, 3), doubleArrayOf(2.0, 4.0))
         val calls = mutableListOf<String>()
-        val dense = object : DenseVectorKernels by ScalarVectorKernels {
+        val dense = object : KoblasEngine() {
+            override val implementations = setOf(EngineImplementation.Nrm2)
+
             override val name = "selected-dense"
             override fun nrm2(v: DoubleArray, vOff: Int, len: Int, vStride: Int): Double {
                 assertSame(x.values, v)
@@ -42,7 +38,8 @@ class KoblasEngineTest {
                 return 0.0
             }
         }
-        val indexed = object : IndexedSparseKernels by ScalarIndexedSparseKernels {
+        val indexed = object : KoblasEngine() {
+            override val implementations = setOf(EngineImplementation.IndexedDot)
             override val name = "selected-indexed"
             override fun dotDense(
                 indices: IntArray,
@@ -58,10 +55,10 @@ class KoblasEngineTest {
                 return 0.0
             }
         }
-        val engine = KoblasEngine(dense, indexed, null)
+        val engine = engineWithKernels(vectors = dense, indexed = indexed)
 
-        engine.sparseKernels.nrm2(x)
-        engine.sparseKernels.dot(x, DoubleArray(x.size))
+        engine.nrm2(x)
+        engine.dot(x, DoubleArray(x.size))
 
         assertEquals(listOf(dense.name, indexed.name), calls)
     }

@@ -33,7 +33,7 @@ final class JavaInteropSmoke {
             new double[] {2.0, 3.0}
         );
         double[] scattered = new double[2];
-        Koblas.getDefault().getSparseKernels().scatter(Koblas.column(sparse, 0), scattered);
+        Koblas.getDefault().scatter(Koblas.column(sparse, 0), scattered);
         assertArrayEquals(new double[] {2.0, 0.0}, scattered);
 
         double[] gemvResult = new double[2];

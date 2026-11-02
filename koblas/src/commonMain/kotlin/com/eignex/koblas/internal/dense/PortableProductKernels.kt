@@ -20,7 +20,9 @@ import com.eignex.koblas.vendor.*
  * shared scheduling's choice. A caller learns it from [tileRows] and [tileColumns] when it packs, which is
  * the only place the number is needed.
  */
-internal object PortableProductKernels : DenseProductKernels {
+internal object PortableProductKernels : KoblasEngine() {
+    override val implementations = setOf(EngineImplementation.Products)
+
     private val NAME: String = "scalar-tile(${PORTABLE_PRODUCT_TILE}x$PORTABLE_PRODUCT_TILE)"
 
     override val name: String get() = NAME

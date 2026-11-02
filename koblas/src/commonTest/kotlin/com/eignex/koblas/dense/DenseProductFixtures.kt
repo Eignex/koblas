@@ -1,26 +1,26 @@
 package com.eignex.koblas.dense
 
 import com.eignex.koblas.BuiltinEngines
-import com.eignex.koblas.internal.dense.DenseProductKernels
+import com.eignex.koblas.KoblasEngine
 import com.eignex.koblas.internal.dense.PortableProductKernels
 
 /** Runs [body] against every product backend this platform has, which is what decides the block geometry. */
-internal fun withProducts(body: (DenseProductKernels) -> Unit) {
+internal fun withProducts(body: (KoblasEngine) -> Unit) {
     body(PortableProductKernels)
-    BuiltinEngines.simd?.let { body(it.productKernels) }
+    BuiltinEngines.simd?.let { body(it) }
 }
 
 /** The product backend of the engine whose scheduling the conformance checks above run under. */
-internal fun defaultProducts(): DenseProductKernels = BuiltinEngines.simd?.productKernels ?: PortableProductKernels
+internal fun defaultProducts(): KoblasEngine = BuiltinEngines.simd ?: PortableProductKernels
 
 /**
  * A destination order past several of this backend's tiles and one row short of a whole number of them,
  * read from the backend because a fixed order fills a narrow tile exactly and leaves a wide one short.
  */
-internal fun blockedOrder(products: DenseProductKernels): Int = 4 * maxOf(products.tileRows, products.tileColumns) + 1
+internal fun blockedOrder(products: KoblasEngine): Int = 4 * maxOf(products.tileRows, products.tileColumns) + 1
 
 /** The smallest depth at which a triangle-selected product of this order is packed into tiles. */
-internal fun blockedDepth(products: DenseProductKernels, order: Int): Int {
+internal fun blockedDepth(products: KoblasEngine, order: Int): Int {
     var depth = 8
     while (depth < MAXIMUM_FIXTURE_DEPTH && !products.packsProduct(order, order, depth)) {
         depth *= 2
@@ -35,7 +35,7 @@ private const val MAXIMUM_FIXTURE_DEPTH = 4096
  * A square order at which a product of it by itself is packed and which leaves a row edge; a rank update's
  * operand can share its destination only at one shape, so the packed alias case cannot use a rectangle.
  */
-internal fun packedSquareOrder(products: DenseProductKernels): Int {
+internal fun packedSquareOrder(products: KoblasEngine): Int {
     var order = blockedOrder(products)
     while (order < MAXIMUM_FIXTURE_ORDER && !products.packsProduct(order, order, order)) {
         order += products.tileRows

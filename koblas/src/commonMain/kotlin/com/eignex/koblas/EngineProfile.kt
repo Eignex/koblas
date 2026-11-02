@@ -5,7 +5,7 @@ import com.eignex.koblas.vendor.*
 /** One positive routing preference. Earlier matching rules take precedence over later ones. */
 public class EngineRule(
     /** Identifier of a backend supplying the requested implementations. */
-    public val backend: String,
+    public val source: String,
     implementations: Set<EngineImplementation>,
     /** Covered run lengths or matrix row extents. */
     public val rows: IntRange = 0..Int.MAX_VALUE,

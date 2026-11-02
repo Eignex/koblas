@@ -1,6 +1,7 @@
 package com.eignex.koblas.dense
 
 import com.eignex.koblas.DenseMatrix
+import com.eignex.koblas.KoblasEngine
 import com.eignex.koblas.Workspace
 import com.eignex.koblas.assertClose
 import com.eignex.koblas.copyOf
@@ -66,7 +67,7 @@ private fun assertProductAliasesAgreeWithReference(
 }
 
 /** Shared storage must retain distinct shapes, including a transposed input staged against its destination. */
-internal fun assertRectangularProductAliasesAgreeWithReference(blas: DenseBlas) {
+internal fun assertRectangularProductAliasesAgreeWithReference(blas: KoblasEngine) {
     val rng = Random(20261014)
     for (useWorkspace in booleanArrayOf(false, true)) {
         for (aliasDestination in booleanArrayOf(false, true)) {
@@ -86,7 +87,7 @@ internal fun assertRectangularProductAliasesAgreeWithReference(blas: DenseBlas) 
 }
 
 /** All affected products, with independent transpose flags, stored triangles and symmetric sides. */
-internal fun assertDenseProductAliasesAgreeWithReference(blas: DenseBlas) {
+internal fun assertDenseProductAliasesAgreeWithReference(blas: KoblasEngine) {
     for (transposeA in booleanArrayOf(false, true)) {
         for (transposeB in booleanArrayOf(false, true)) {
             assertProductAliasesAgreeWithReference(

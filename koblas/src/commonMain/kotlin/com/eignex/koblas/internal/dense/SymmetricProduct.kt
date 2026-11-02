@@ -67,8 +67,7 @@ internal inline fun forEachSymmetricBlock(
  * both already staged against an overlap with [c].
  */
 internal fun symmetricProduct(
-    products: DenseProductKernels,
-    panels: DensePanelKernels,
+    engine: KoblasEngine,
     alpha: Double,
     a: DoubleArray,
     order: Int,
@@ -145,10 +144,9 @@ internal fun symmetricProduct(
                     lda
                 }
                 productWindow(
-                    products, panels, alpha,
-                    left, leftOrigin + leftOffset, leftStride, transposeA,
-                    rightValues, rightOrigin + rightOffset, rightStride, transposeB,
-                    1.0, c, cOffset + targetOffset, ldc, m, n, k, OutputTriangle.Full, workspace,
+                    engine, alpha, left, leftOrigin + leftOffset, leftStride, transposeA, rightValues,
+                    rightOrigin + rightOffset, rightStride, transposeB, 1.0, c,
+                    cOffset + targetOffset, ldc, m, n, k, OutputTriangle.Full, workspace,
                 )
             }
         }

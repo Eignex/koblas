@@ -1,6 +1,5 @@
 package com.eignex.koblas
 
-import com.eignex.koblas.internal.dense.ScalarVectorKernels
 import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
@@ -115,7 +114,7 @@ class StridedVectorTest {
         val backing = DoubleArray(8) { it + 1.0 }
         val even = StridedVector(backing, 0, 4, 2)
         val odd = StridedVector(backing, 1, 4, 2)
-        val expected = ScalarVectorKernels.dot(backing, 0, backing, 1, 4, 2, 2)
+        val expected = PortableEngine.dot(backing, 0, backing, 1, 4, 2, 2)
 
         val actual = even dot odd
 
@@ -127,7 +126,7 @@ class StridedVectorTest {
         val backing = DoubleArray(8) { it + 1.0 }
         val even = StridedVector(backing, 0, 4, 2)
         val expected = backing.copyOf()
-        ScalarVectorKernels.scale(expected, 0, 2.0, 4, 2)
+        PortableEngine.scale(expected, 0, 2.0, 4, 2)
 
         even.scale(2.0)
 
@@ -159,7 +158,7 @@ class StridedVectorTest {
         val y0 = ys.copyOf()
         val expectedX = xs.copyOf()
         val expectedY = ys.copyOf()
-        ScalarVectorKernels.rot(expectedX, pad, expectedY, pad, n, 0.6, 0.8)
+        PortableEngine.rot(expectedX, pad, expectedY, pad, n, 0.6, 0.8)
 
         // Typed as the shape that routes through asView, which is the overload that has to compose windows.
         val x: DenseVector = StridedVector(xs, pad, n)

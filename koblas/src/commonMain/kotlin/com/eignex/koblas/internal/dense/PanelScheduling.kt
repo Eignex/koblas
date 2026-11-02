@@ -43,7 +43,7 @@ internal inline fun forEachTrianglePanel(
  * them through one panel.
  *
  * The scheduling's own number, separate from [TRIANGULAR_DIAGONAL_BLOCK] because here a block has one
- * right-hand side. Inside a block the substitution is one [DenseTriangularKernels] diagonal call, a dependency
+ * right-hand side. Inside a block the substitution is one [KoblasEngine] diagonal call, a dependency
  * chain nothing overlaps; between blocks the whole block is a single panel as wide as the block, which a
  * backend can keep its destination in registers across. A larger block moves work into the chain, a smaller
  * one makes each panel narrower.

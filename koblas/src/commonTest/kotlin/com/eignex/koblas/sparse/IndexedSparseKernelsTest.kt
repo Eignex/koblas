@@ -1,9 +1,8 @@
 package com.eignex.koblas.sparse
 
 import com.eignex.koblas.BuiltinEngines
+import com.eignex.koblas.PortableEngine
 import com.eignex.koblas.SparseVector
-import com.eignex.koblas.internal.sparse.ScalarIndexedSparseKernels
-import com.eignex.koblas.internal.sparse.gather
 import com.eignex.koblas.koblas
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
@@ -20,9 +19,9 @@ class IndexedSparseKernelsTest {
                     val expected = DoubleArray(offset + count + 3) { -0.0 }
                     val actual = expected.copyOf()
                     val before = source.copyOf()
-                    ScalarIndexedSparseKernels.gather(indices, offset, expected, offset, count, source)
+                    PortableEngine.gather(indices, offset, expected, offset, count, source)
 
-                    engine.indexedSparseKernels.gather(indices, offset, actual, offset, count, source)
+                    engine.gather(indices, offset, actual, offset, count, source)
 
                     assertGatherAgreesWithReference(expected, actual, "count=$count offset=$offset")
                     assertContentEquals(before, source)
@@ -35,8 +34,8 @@ class IndexedSparseKernelsTest {
     fun `gather rejects a source that is its own destination`() {
         val x = SparseVector.of(4, intArrayOf(0, 1, 2, 3), doubleArrayOf(0.0, 1.0, 2.0, 3.0))
 
-        assertFailsWith<IllegalArgumentException> { koblas.sparseKernels.gather(x, x.values) }
-        assertFailsWith<IllegalArgumentException> { koblas.sparseKernels.gatherZero(x, x.values) }
+        assertFailsWith<IllegalArgumentException> { koblas.gather(x, x.values) }
+        assertFailsWith<IllegalArgumentException> { koblas.gatherZero(x, x.values) }
         assertContentEquals(doubleArrayOf(0.0, 1.0, 2.0, 3.0), x.values)
     }
 

@@ -13,7 +13,7 @@ import com.eignex.koblas.sparse.SparsePrimitives
  * is not a sparse one.
  *
  * The engine-dispatched arms are exact because each runs on the engine its arm pinned through
- * [com.eignex.koblas.BuiltinEngines]. A row records that selection, not the body a given width reached: a
+ * [BuiltinEngines]. A row records that selection, not the body a given width reached: a
  * Vector API selection still runs scalar loops below its crossover.
  *
  * The generic primitives are the exception, because no engine selects them. They are one implementation, timed
@@ -24,7 +24,7 @@ internal fun sparseArm(case: BenchCase, engine: KoblasEngine): ArmChoice? {
     if (!case.operation.startsWith("sp")) return null
     val density = case.option("density", "0.01").toDouble()
     val d = case.dimensions
-    val kernels = engine.sparseKernels
+    val kernels = engine
 
     fun arm(count: Int, timing: String, result: DoubleArray? = null, run: () -> Double): ArmChoice =
         if (count == 0) {
@@ -256,7 +256,17 @@ internal fun sparseMatrixArm(case: BenchCase, engine: KoblasEngine): ArmChoice? 
             arm(
                 verify = {
                     mirror0.values.copyInto(mirror.values)
-                    engine.gemm(alpha, a, transpose, leftDense, false, beta, mirror, right = true, workspace = workspace)
+                    engine.gemm(
+                        alpha,
+                        a,
+                        transpose,
+                        leftDense,
+                        false,
+                        beta,
+                        mirror,
+                        right = true,
+                        workspace = workspace,
+                    )
                     SparseReference.check(expected, SparseReference.dense(mirror), "${case.id} product")
                 },
             ) {

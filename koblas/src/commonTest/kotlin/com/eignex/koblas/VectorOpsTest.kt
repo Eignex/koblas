@@ -1,9 +1,6 @@
 package com.eignex.koblas
 
-import com.eignex.koblas.dense.DenseVectorKernels
 import com.eignex.koblas.dense.assertIamaxHonoursItsContract
-import com.eignex.koblas.internal.dense.ScalarVectorKernels
-import com.eignex.koblas.internal.sparse.axpy
 import com.eignex.koblas.internal.sparse.snapshot
 import kotlin.math.sqrt
 import kotlin.test.*
@@ -25,7 +22,7 @@ class VectorOpsTest {
             for ((source, destination) in identicalDenseMappings()) {
                 for (i in 0 until source.size) source[i] = inputs[i % inputs.size]
                 val expected = source.values.copyOf()
-                BuiltinEngines.scalar.vectorKernels.axpy(
+                BuiltinEngines.scalar.axpy(
                     expected,
                     destination.offset,
                     alpha,
@@ -85,7 +82,7 @@ class VectorOpsTest {
         val source = StridedVector(backing, 2, 5)
         val destination = StridedVector(backing, 6, 5, -1)
         val expected = backing.copyOf()
-        BuiltinEngines.scalar.vectorKernels.axpy(expected, 6, 0.75, source.toDoubleArray(), 0, 5, -1)
+        BuiltinEngines.scalar.axpy(expected, 6, 0.75, source.toDoubleArray(), 0, 5, -1)
 
         destination.axpy(0.75, source)
 
@@ -98,7 +95,7 @@ class VectorOpsTest {
         for (stride in intArrayOf(-3, -1, 1, 3)) {
             val backing = DoubleArray(18) { it * 0.125 - 0.75 }
             val view = StridedVector(backing, if (stride > 0) 2 else 14, 5, stride)
-            val expected = BuiltinEngines.scalar.sparseKernels.dot(source, view.toDoubleArray())
+            val expected = BuiltinEngines.scalar.dot(source, view.toDoubleArray())
 
             assertDotAgreesWithReference(expected, source dot view)
             assertDotAgreesWithReference(expected, view dot source)
@@ -109,7 +106,7 @@ class VectorOpsTest {
     fun `sparse dot against dense views evaluates stored zeros`() {
         val source = sparse(3, 1 to 0.0)
         val view = StridedVector(doubleArrayOf(Double.NaN, 1.0, Double.POSITIVE_INFINITY, 1.0, Double.NaN), 0, 3, 2)
-        val expected = BuiltinEngines.scalar.sparseKernels.dot(source, view.toDoubleArray())
+        val expected = BuiltinEngines.scalar.dot(source, view.toDoubleArray())
 
         assertDotAgreesWithReference(expected, source dot view)
         assertDotAgreesWithReference(expected, view dot source)
@@ -131,7 +128,7 @@ class VectorOpsTest {
             val source = StridedVector(backing, sourceOffset, 5, stride)
             val destination = StridedVector(backing, destinationOffset, 5, stride)
             val expected = backing.copyOf()
-            BuiltinEngines.scalar.vectorKernels.axpy(
+            BuiltinEngines.scalar.axpy(
                 expected,
                 destinationOffset,
                 0.75,
@@ -194,7 +191,7 @@ class VectorOpsTest {
             val destination = StridedVector(backing, 0, size)
             val source = if (size == 0) sparse(0) else sparse(size, 0 to 2.0, 2 to -1.0)
             val expected = backing.copyOf()
-            BuiltinEngines.scalar.sparseKernels.axpy(
+            BuiltinEngines.scalar.axpy(
                 expected,
                 2.0,
                 source.indices,
@@ -298,7 +295,10 @@ class VectorOpsTest {
     @Test
     fun `public iamax returns logical indices across strides and kernel boundaries`() {
         for (stride in intArrayOf(1, 2, -2)) {
-            val publicKernels = object : DenseVectorKernels by ScalarVectorKernels {
+            val publicKernels = object : KoblasEngine() {
+                override val implementations = setOf(EngineImplementation.Iamax)
+                override val name: String = "test-VectorOpsTest"
+
                 override fun iamax(v: DoubleArray, vOff: Int, len: Int, vStride: Int): Int {
                     val values = DoubleArray(len) { v[vOff + it * vStride] }
                     if (stride == 1) return DenseVector.wrap(values).iamax()
@@ -435,7 +435,7 @@ class VectorOpsTest {
             val destination = if (borrowed) StridedVector(backing, 1, 4) else DenseVector.wrap(backing)
             val source = ForeignVector(StridedVector(backing, destination.offset + 3, 4, -1))
             val expected = backing.copyOf()
-            BuiltinEngines.scalar.vectorKernels.axpy(expected, destination.offset, 2.0, source.toDoubleArray(), 0, 4)
+            BuiltinEngines.scalar.axpy(expected, destination.offset, 2.0, source.toDoubleArray(), 0, 4)
 
             destination.axpy(2.0, source)
 
@@ -511,7 +511,7 @@ class VectorOpsTest {
     fun `the norm accepts a foreign vector`() {
         val source = ForeignRampVector(9)
         val values = source.toDoubleArray()
-        val expected = ScalarVectorKernels.nrm2(values, 0, values.size)
+        val expected = PortableEngine.nrm2(values, 0, values.size)
 
         val actual = source.norm2()
 
@@ -522,7 +522,7 @@ class VectorOpsTest {
     fun `the absolute sum accepts a foreign vector`() {
         val source = ForeignRampVector(9)
         val values = source.toDoubleArray()
-        val expected = ScalarVectorKernels.asum(values, 0, values.size)
+        val expected = PortableEngine.asum(values, 0, values.size)
 
         val actual = source.asum()
 
@@ -533,7 +533,7 @@ class VectorOpsTest {
     fun `the index search accepts a foreign vector`() {
         val source = ForeignRampVector(9)
         val values = source.toDoubleArray()
-        val expected = ScalarVectorKernels.iamax(values, 0, values.size)
+        val expected = PortableEngine.iamax(values, 0, values.size)
 
         val actual = source.iamax()
 
@@ -545,7 +545,7 @@ class VectorOpsTest {
         val source = ForeignRampVector(9)
         val values = source.toDoubleArray()
         val dense = DenseVector.of(values)
-        val expected = ScalarVectorKernels.dot(values, 0, values, 0, values.size)
+        val expected = PortableEngine.dot(values, 0, values, 0, values.size)
 
         for ((left, right) in listOf(source to source, dense to source, source to dense)) {
             val actual = left dot right

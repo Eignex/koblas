@@ -12,7 +12,7 @@ import com.eignex.koblas.vendor.*
 /*
  * Shared scheduling for `C = alpha * op(A) * op(B) + beta * C`.
  *
- * Large products use cache blocks packed for [DenseProductKernels.productBlock]; small or thin products
+ * Large products use cache blocks packed for [KoblasEngine.productBlock]; small or thin products
  * use Level 2 panels over the original storage, gathering strided coefficients when profitable.
  * The schedule owns traversal and applies beta once per output window: in the first depth block for packed
  * products, or when an unpacked column is written. Backends own the arithmetic within those windows.
@@ -70,8 +70,7 @@ internal enum class OutputTriangle {
  * Packing must amortize both operand copies; other windows use panels over the original storage.
  */
 internal fun productWindow(
-    kernels: DenseProductKernels,
-    panels: DensePanelKernels,
+    engine: KoblasEngine,
     alpha: Double,
     a: DoubleArray,
     aOffset: Int,
@@ -94,14 +93,14 @@ internal fun productWindow(
     if (m <= 0 || n <= 0) return
     // A selected triangle uses the rectangular crossover over its actual extents: reducing the depth to stand
     // for discarded triangle work would distort what a backend decides from.
-    if (kernels.packsProduct(m, n, k)) {
+    if (engine.packsProduct(m, n, k)) {
         blockedProduct(
-            kernels, alpha, a, aOffset, lda, transposeA, b, bOffset, ldb, transposeB,
+            engine, alpha, a, aOffset, lda, transposeA, b, bOffset, ldb, transposeB,
             beta, c, cOffset, ldc, m, n, k, selected, workspace,
         )
     } else {
         directProduct(
-            panels, alpha, a, aOffset, lda, transposeA, b, bOffset, ldb, transposeB,
+            engine, alpha, a, aOffset, lda, transposeA, b, bOffset, ldb, transposeB,
             beta, c, cOffset, ldc, m, n, k, selected, workspace,
         )
     }
@@ -109,7 +108,7 @@ internal fun productWindow(
 
 /** Transient cache-block packing, with a tile-sized merge buffer for a selected triangle. */
 internal fun blockedProduct(
-    kernels: DenseProductKernels,
+    kernels: KoblasEngine,
     alpha: Double,
     a: DoubleArray,
     aOffset: Int,
@@ -183,11 +182,10 @@ internal inline fun forEachProductBlock(
 }
 
 /** The block extents a product of these logical extents is scheduled with, for [forEachProductBlock]. */
-internal fun productBlockRows(kernels: DenseProductKernels, m: Int): Int =
-    blockExtent(PRODUCT_BLOCK_ROWS, kernels.tileRows, m)
+internal fun productBlockRows(kernels: KoblasEngine, m: Int): Int = blockExtent(PRODUCT_BLOCK_ROWS, kernels.tileRows, m)
 
 /** The destination columns one block covers, rounded to whole tiles. */
-internal fun productBlockColumns(kernels: DenseProductKernels, n: Int): Int =
+internal fun productBlockColumns(kernels: KoblasEngine, n: Int): Int =
     blockExtent(PRODUCT_BLOCK_COLUMNS, kernels.tileColumns, n)
 
 /** The shared-dimension steps one block accumulates, which needs no rounding. */
@@ -233,7 +231,7 @@ internal fun insideTriangle(
  * straddles accumulates first and only its selected entries are merged.
  */
 internal inline fun forEachSelectedTile(
-    kernels: DenseProductKernels,
+    kernels: KoblasEngine,
     row: Int,
     rowCount: Int,
     column: Int,
@@ -263,7 +261,7 @@ internal inline fun forEachSelectedTile(
 /** The block traversal itself, over panels packed into [left] and [right]. */
 @Suppress("CyclomaticComplexMethod") // the traversal, its lazy packing and the three positions of a block
 private fun blockedProductCore(
-    kernels: DenseProductKernels,
+    kernels: KoblasEngine,
     alpha: Double,
     a: DoubleArray,
     aOffset: Int,
@@ -349,7 +347,7 @@ private fun blockedProductCore(
  * happens here rather than over the enclosing block.
  */
 private fun selectedBlock(
-    kernels: DenseProductKernels,
+    kernels: KoblasEngine,
     alpha: Double,
     leftPanel: DoubleArray,
     leftBase: Int,
@@ -452,7 +450,7 @@ private fun mergeSelected(
  * hands over are that much of the operand. No entry outside the selected triangle is read or written.
  */
 internal fun directProduct(
-    panels: DensePanelKernels,
+    panels: KoblasEngine,
     alpha: Double,
     a: DoubleArray,
     aOffset: Int,
@@ -519,7 +517,7 @@ internal fun directPanelWork(transposeA: Boolean): PanelWork =
     if (transposeA) PanelWork.MultiDot else PanelWork.ColumnUpdate
 
 /** The grouping for [directPanelWork], over the panel shape that path really cuts. */
-internal fun directPanelGroup(panels: DensePanelKernels, m: Int, k: Int, transposeA: Boolean): Int = if (transposeA) {
+internal fun directPanelGroup(panels: KoblasEngine, m: Int, k: Int, transposeA: Boolean): Int = if (transposeA) {
     panels.executionGroup(PanelWork.MultiDot, k, m)
 } else {
     panels.executionGroup(PanelWork.ColumnUpdate, directColumnBlock(m), k)
@@ -527,7 +525,7 @@ internal fun directPanelGroup(panels: DensePanelKernels, m: Int, k: Int, transpo
 
 /** The transposed-left half of [directProduct], with or without the gathered coefficient column. */
 private fun reducedProduct(
-    panels: DensePanelKernels,
+    panels: KoblasEngine,
     alpha: Double,
     a: DoubleArray,
     aOffset: Int,
@@ -589,7 +587,7 @@ internal fun selectedRows(j: Int, m: Int, selected: OutputTriangle): Int = when 
  * leads by a wide margin at every depth long enough to have something to read back, and at four rows the two
  * swap places between captures. That is one machine, and it establishes no crossover for another host.
  */
-internal fun gathersCoefficients(panels: DensePanelKernels, rows: Int, depth: Int, strided: Boolean): Boolean {
+internal fun gathersCoefficients(panels: KoblasEngine, rows: Int, depth: Int, strided: Boolean): Boolean {
     if (!strided || rows < DIRECT_GATHER_MINIMUM_ROWS || depth <= 0) return false
     val group = panels.executionGroup(PanelWork.MultiDot, depth, rows)
     return panels.implementationFor(PanelWork.MultiDot, depth, group, contiguous = true) !=

@@ -6,12 +6,13 @@ The immutable [koblas][com.eignex.koblas.koblas] engine uses owned Vector API ke
 later with the incubator module, and portable Kotlin on Android, iOS devices and simulators, and other supported JVMs.
 With native access enabled, applicable measured profiles can compose oneMKL for larger JVM matrix calls
 or Native vector and matrix calls on Intel Linux x64. Other targets retain portable coverage and can use
-explicit vendor bindings or a locally recalculated profile. [EngineBackends][com.eignex.koblas.EngineBackends], [EngineProfile][com.eignex.koblas.EngineProfile] and
+explicit vendor bindings or a locally recalculated profile. [BuiltinEngines][com.eignex.koblas.BuiltinEngines], [EngineProfile][com.eignex.koblas.EngineProfile] and
 [KoblasEngine.combine][com.eignex.koblas.KoblasEngine.combine] expose the same composition mechanism used by automatic platform selection.
 
 Container conveniences in `com.eignex.koblas` call the BLAS contracts through the default engine.
-The `dense` and `sparse` packages expose operations and useful raw array arithmetic; scheduling and
-panel/product/triangular implementation interfaces are internal.
+All engine operations use [KoblasEngine][com.eignex.koblas.KoblasEngine]. Arithmetic implementations share
+one [KoblasEngine][com.eignex.koblas.KoblasEngine] contract and declare positive capability sets. Shared
+schedules bind panel, product and triangular families before packing or grouping work.
 The `vendor` package contains explicit host bindings, which platform engines may compose into eligible dense calls.
 Schedules and kernels receive their dependencies from the engine; they do not read the global default.
 
@@ -19,17 +20,16 @@ Schedules and kernels receive their dependencies from the engine; they do not re
 invocation at a time; concurrent calls need separate outputs and scratch. Allocating operations still own
 their fresh results. Factorization and solver workflows are outside this artifact.
 
-[KoblasEngine.portable][com.eignex.koblas.KoblasEngine.portable] creates an immutable application engine
-using portable Kotlin for every operation, without an opt-in, host library or JVM flags. Call that instance
-directly; container conveniences continue to use the platform default. Each routine permits normal BLAS
-rounding, FMA and reduction-order latitude. Norms retain finite-range scaling; unspecified exceptional
-results and tied-index choices belong to the selected implementation. Concurrent calls need separate
-mutable destinations and workspaces.
+[BuiltinEngines.scalar][com.eignex.koblas.BuiltinEngines.scalar] selects portable Kotlin for every operation
+without a host library, JVM flags or changing the default. Every engine uses the same operations and shared
+validation, no-read behavior, alias staging and portable schedules. Implementations supply only their declared
+arithmetic parts. Norms retain finite-range scaling; rounding, FMA, exceptional results and tied-index choices
+follow the selected implementation. Concurrent calls need separate mutable destinations and workspaces.
 
 [BuiltinEngines][com.eignex.koblas.BuiltinEngines] names exact engines for tests and benchmarks, without
 annotation opt-ins.
-[Blas.routeOf][com.eignex.koblas.vendor.Blas.routeOf] describes an explicit host call. The host binding
-exposes its resolved binary, version and thread evidence.
+Host backends expose their resolved binary, version, capabilities and single-thread evidence. Missing exports
+are absent capabilities and retain portable coverage through the combined engine.
 
 # Package com.eignex.koblas
 
@@ -42,34 +42,28 @@ either side. Two sparse operands produce CSC storage; other built-in pairings pr
 operand is densified to reach a kernel. Operators use the default engine.
 Dense operations and mixed CSC products address [DenseMatrixRegion] directly, including padded views.
 
+Dense and indexed vector arithmetic, panels, packed products, diagonal substitutions and whole host calls
+share [KoblasEngine]. Providers override their supported parts and declare [EngineImplementation] capabilities;
+common defaults supply portable arithmetic. [KoblasEngine.combine] binds these parts to an [EngineProfile].
+[StandardEngineProfiles] contains the measured configurations used by automatic default selection.
+
+[KoblasEngine.dotColumn] reads a CSC column directly against a dense array without extracting a sparse
+vector or rescanning its validated support. Coefficient updates remain visible on each call. Raw indexed
+reductions permit repeated/unsorted support; mutations require sorted unique destinations.
+
 # Package com.eignex.koblas.dense
 
-[DenseVectorKernels] supplies Level 1 arithmetic over array windows and strides. [DenseBlas] supplies the
-Level 2 and 3 contracts, with shared portable traversal, validation, no-read behavior and alias staging.
-
-Shared internal kernels supply panel arithmetic, packed product tiles and diagonal substitutions.
-Transient packing and coefficient gathering borrow scoped scratch from [com.eignex.koblas.Workspace].
-
-Dense matrix operands use [com.eignex.koblas.DenseMatrixRegion] and vectors use
-[com.eignex.koblas.DenseVector], preserving offsets, leading dimensions and signed strides; transposition and [MatrixStructure] travel as flags. `gemmt` is the
-triangle-selected general product Netlib calls `GEMMTR`: full column-major operands and a full-storage
-selected output triangle, not compact BLAS packed storage. A host binding without `cblas_dgemmt` composes
-the operation from `gemm`.
+[MatrixStructure] describes the stored triangle and implicit diagonal passed to a whole host call.
+Dense matrices and vector windows retain their offsets, column spacing and signed strides. `gemmt` is the
+triangle-selected general product Netlib calls `GEMMTR`, over full column-major storage. Missing host exports
+retain the shared selected-triangle schedule.
 
 # Package com.eignex.koblas.sparse
-
-[SparseBlas] provides portable CSC matrix-vector and matrix-matrix products, symmetric/rank-k operations,
-triangular multiply/solve, scaled addition and transpose, over the engine's Level 1 kernels.
-
-Stored zeros participate, cancellation retains an entry, and an absent position is never evaluated. Fresh
-results own their arrays with ascending row indices. Mutable scratch belongs to each invocation.
-
-[SparseKernels] supplies allocation-free indexed arithmetic over validated caller-owned windows. Reductions
-admit repeated/unsorted support with contribution semantics; indexed mutations require sorted unique
-destinations.
-[SparseKernels.dotColumn] reads a selected CSC column against a dense array, reusing the matrix's validated
-support without extracting a vector or rescanning indices. Coefficient updates remain visible on every call.
 
 [SparsePrimitives] provides stateless arithmetic over caller-owned support, marks, accumulators, diagnostics
 and output buffers. Pivot selection, permutations, dropping policies, factors and solver state belong to the
 consumer. Empty masked reductions return the identity and report no position.
+
+Sparse Levels 1–3 use [com.eignex.koblas.KoblasEngine]. Traversal stays in validated CSC storage: stored zeros
+participate, cancellation retains an entry, and an absent position is never evaluated. Fresh results own their
+arrays with ascending row indices; mutable scratch belongs to one invocation.

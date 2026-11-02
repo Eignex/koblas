@@ -7,14 +7,11 @@ import com.eignex.koblas.sparse.*
 import com.eignex.koblas.vendor.*
 
 /**
- * Sparse schedule/workspace tuning and the standard indexed profile's crossover override.
+ * Sparse schedule and workspace tuning.
  * Entries resolve once from a JVM system property, then an environment variable, then the default.
  * Invalid values retain the default; backend choice otherwise belongs to engine profiles.
  */
 internal object SparseTuning {
-    /** Minimum support width for a JVM Vector API indexed load or store. */
-    val simdIndexedCrossover: Int = tuned("indexed.simd.crossover", default = 16)
-
     /**
      * The most right-hand sides the sparse scheduling will hold staged adjacent at once.
      *

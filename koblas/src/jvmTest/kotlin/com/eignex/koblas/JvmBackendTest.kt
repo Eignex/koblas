@@ -1,6 +1,6 @@
 package com.eignex.koblas
 
-import com.eignex.koblas.vendor.openBlas
+import com.eignex.koblas.vendor.Vendor
 import kotlin.test.Test
 import kotlin.test.assertNull
 import kotlin.test.assertSame
@@ -21,6 +21,6 @@ class JvmBackendTest {
 
         assertSame(BuiltinEngines.scalar, koblas)
         assertNull(BuiltinEngines.simd)
-        assertNull(openBlas())
+        assertNull(Vendor.entries.firstNotNullOfOrNull { BuiltinEngines.vendor(it) })
     }
 }

@@ -9,7 +9,7 @@ import kotlin.jvm.JvmOverloads
 
 /**
  * Fresh CSC matrix holding `A + alpha * x * xT` in its [lower] or upper triangle. The other triangle is
- * copied unchanged. Unlike dense [com.eignex.koblas.dense.DenseBlas.syr], this is not in place: a rank
+ * copied unchanged. Unlike dense [com.eignex.koblas.KoblasEngine.syr], this is not in place: a rank
  * update can introduce entries that the source CSC pattern has no room to store.
  *
  * Existing explicit zeros survive. A coordinate reached by nonzero vector support is stored even when its
@@ -26,7 +26,7 @@ public fun SparseMatrix.syr(alpha: Double, x: Vector, lower: Boolean = true): Sp
 /**
  * Fresh CSC matrix holding `A + alpha * (x * yT + y * xT)` in its [lower] or upper triangle. The other
  * triangle is copied unchanged. This structural counterpart of dense
- * [com.eignex.koblas.dense.DenseBlas.syr2] never mutates its source, because newly nonzero entries may
+ * [com.eignex.koblas.KoblasEngine.syr2] never mutates its source, because newly nonzero entries may
  * require CSC fill.
  *
  * Existing explicit zeros survive. A coordinate reached by nonzero vector support is stored even when its

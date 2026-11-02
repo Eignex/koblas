@@ -1,10 +1,6 @@
 package com.eignex.koblas
 
-import com.eignex.koblas.dense.DenseVectorKernels
-import com.eignex.koblas.internal.dense.ScalarVectorKernels
-import com.eignex.koblas.internal.dense.implementationFor
-import com.eignex.koblas.internal.sparse.IndexedSparseKernels
-import com.eignex.koblas.internal.sparse.ScalarIndexedSparseKernels
+import com.eignex.koblas.dense.ReferenceBlas
 import com.eignex.koblas.vendor.Architecture
 import com.eignex.koblas.vendor.CpuVendor
 import com.eignex.koblas.vendor.HostPlatform
@@ -12,32 +8,34 @@ import com.eignex.koblas.vendor.OperatingSystem
 import kotlin.test.*
 
 class EngineProfileTest {
+    private fun assertAgreesWithReference(expected: DoubleArray, actual: DoubleArray) =
+        assertClose(expected, actual, context = "partial engine composition")
+
     @Test
     fun `threshold and layout select the same body that executes`() {
         val calls = mutableListOf<Int>()
-        val backend = EngineBackend(
-            "dot",
-            vectors = object : DenseVectorKernels {
-                override val name: String = "dot"
+        val backend = object : KoblasEngine() {
+            override val contiguousVectors: Boolean = true
+            override val minimumVectorLength: Int = 2
 
-                @Suppress("LongParameterList")
-                override fun dot(
-                    a: DoubleArray,
-                    aOff: Int,
-                    b: DoubleArray,
-                    bOff: Int,
-                    len: Int,
-                    aStride: Int,
-                    bStride: Int,
-                ): Double {
-                    calls += len
-                    return ScalarVectorKernels.dot(a, aOff, b, bOff, len, aStride, bStride)
-                }
-            },
-            implementations = setOf(EngineImplementation.Dot),
-            contiguousVectors = true,
-            minimumVectorLength = 2,
-        )
+            override val implementations = setOf(EngineImplementation.Dot)
+
+            override val name: String = "dot"
+
+            @Suppress("LongParameterList")
+            override fun dot(
+                a: DoubleArray,
+                aOff: Int,
+                b: DoubleArray,
+                bOff: Int,
+                len: Int,
+                aStride: Int,
+                bStride: Int,
+            ): Double {
+                calls += len
+                return PortableEngine.dot(a, aOff, b, bOff, len, aStride, bStride)
+            }
+        }
         val operation = setOf(EngineImplementation.Dot)
         val rules = listOf(
             EngineRule("dot", operation, rows = 4..Int.MAX_VALUE),
@@ -54,10 +52,10 @@ class EngineProfileTest {
             val engine = KoblasEngine.combine(EngineProfile("test", listOf(rule)), backend)
             for (length in listOf(0, 1, 3, 4, 5)) {
                 for (stride in listOf(1, 2)) {
-                    val expected = ScalarVectorKernels.dot(x, 0, x, 1, length, stride, stride)
+                    val expected = PortableEngine.dot(x, 0, x, 1, length, stride, stride)
                     val previous = calls.size
-                    val reached = engine.vectorKernels.implementationFor(EngineImplementation.Dot, length, stride == 1)
-                    val actual = engine.vectorKernels.dot(x, 0, x, 1, length, stride, stride)
+                    val reached = engine.implementationFor(EngineImplementation.Dot, length, stride == 1)
+                    val actual = engine.dot(x, 0, x, 1, length, stride, stride)
 
                     assertEquals(expected, actual)
                     val selected = length >= 2 && stride == 1 && rule.matches(length, 1, 1, true, false)
@@ -70,7 +68,10 @@ class EngineProfileTest {
 
     @Test
     fun `missing backend and missing capabilities fall through ordered preferences`() {
-        val backend = EngineBackend("sum", implementations = setOf(EngineImplementation.Sum))
+        val backend = object : KoblasEngine() {
+            override val name = "sum"
+            override val implementations = setOf(EngineImplementation.Sum)
+        }
         val engine = KoblasEngine.combine(
             EngineProfile(
                 "test",
@@ -82,38 +83,37 @@ class EngineProfileTest {
             backend,
         )
 
-        assertEquals("sum", engine.vectorKernels.implementationFor(EngineImplementation.Sum, 8))
-        assertEquals("scalar", engine.vectorKernels.implementationFor(EngineImplementation.Dot, 8))
+        assertEquals("sum", engine.implementationFor(EngineImplementation.Sum, 8))
+        assertEquals("scalar", engine.implementationFor(EngineImplementation.Dot, 8))
         assertEquals(
-            ScalarVectorKernels.nrm2(doubleArrayOf(2.0, 3.0), 0, 2),
-            engine.vectorKernels.nrm2(doubleArrayOf(2.0, 3.0), 0, 2),
+            PortableEngine.nrm2(doubleArrayOf(2.0, 3.0), 0, 2),
+            engine.nrm2(doubleArrayOf(2.0, 3.0), 0, 2),
         )
     }
 
     @Test
     fun `indexed dot registration preserves every window argument`() {
         val counts = mutableListOf<Int>()
-        val backend = EngineBackend(
-            "indexed",
-            indexedDot = object : IndexedSparseKernels {
-                override val name: String = "indexed"
+        val backend = object : KoblasEngine() {
 
-                @Suppress("LongParameterList")
-                override fun dotDense(
-                    indices: IntArray,
-                    indexOffset: Int,
-                    values: DoubleArray,
-                    valueOffset: Int,
-                    count: Int,
-                    dense: DoubleArray,
-                ): Double {
-                    counts += count
-                    assertEquals(2, indexOffset)
-                    assertEquals(1, valueOffset)
-                    return ScalarIndexedSparseKernels.dotDense(indices, indexOffset, values, valueOffset, count, dense)
-                }
-            },
-        )
+            override val implementations = setOf(EngineImplementation.IndexedDot)
+            override val name: String = "indexed"
+
+            @Suppress("LongParameterList")
+            override fun dotDense(
+                indices: IntArray,
+                indexOffset: Int,
+                values: DoubleArray,
+                valueOffset: Int,
+                count: Int,
+                dense: DoubleArray,
+            ): Double {
+                counts += count
+                assertEquals(2, indexOffset)
+                assertEquals(1, valueOffset)
+                return PortableEngine.dotDense(indices, indexOffset, values, valueOffset, count, dense)
+            }
+        }
         val engine = KoblasEngine.combine(
             EngineProfile(
                 "test",
@@ -126,9 +126,9 @@ class EngineProfileTest {
         val indices = intArrayOf(9, 8, 1, 3)
         val values = doubleArrayOf(77.0, 0.5, -0.75)
         val dense = doubleArrayOf(1.0, 2.0, 3.0, 4.0)
-        val expected = BuiltinEngines.scalar.indexedSparseKernels.dotDense(indices, 2, values, 1, 2, dense)
+        val expected = BuiltinEngines.scalar.dotDense(indices, 2, values, 1, 2, dense)
 
-        assertEquals(expected, engine.indexedSparseKernels.dotDense(indices, 2, values, 1, 2, dense))
+        assertEquals(expected, engine.dotDense(indices, 2, values, 1, 2, dense))
         assertEquals(listOf(2), counts)
     }
 
@@ -161,12 +161,15 @@ class EngineProfileTest {
         val operations = mutableSetOf(EngineImplementation.Sum)
         val rules = mutableListOf(EngineRule("test", operations))
         val profile = EngineProfile("test", rules)
-        val backend = EngineBackend("test", implementations = setOf(EngineImplementation.Sum))
+        val backend = object : KoblasEngine() {
+            override val name = "test"
+            override val implementations = setOf(EngineImplementation.Sum)
+        }
         val engine = KoblasEngine.combine(profile, backend)
         operations.clear()
         rules.clear()
 
-        assertEquals("test", engine.vectorKernels.implementationFor(EngineImplementation.Sum, 8))
+        assertEquals("test", engine.implementationFor(EngineImplementation.Sum, 8))
         assertEquals(1, profile.rules.size)
     }
 
@@ -177,7 +180,7 @@ class EngineProfileTest {
             listOf(EngineRule("portable", setOf(EngineImplementation.Products), rows = 32..Int.MAX_VALUE)),
         )
 
-        assertFailsWith<IllegalArgumentException> { KoblasEngine.combine(profile, EngineBackends.portable) }
+        assertFailsWith<IllegalArgumentException> { KoblasEngine.combine(profile, BuiltinEngines.scalar) }
     }
 
     @Test
@@ -240,5 +243,80 @@ class EngineProfileTest {
         )) {
             assertFailsWith<IllegalArgumentException> { EngineProfile.parse(text.replace(before, after)) }
         }
+    }
+
+    @Test
+    fun `partial implementations sharing one backend compose across arithmetic families`() {
+        val calls = mutableListOf<String>()
+        val vectors = object : KoblasEngine() {
+            override val name = "vectors"
+            override val id = "partial"
+            override val implementations = setOf(EngineImplementation.Dot)
+            override fun dot(
+                a: DoubleArray,
+                aOff: Int,
+                b: DoubleArray,
+                bOff: Int,
+                len: Int,
+                aStride: Int,
+                bStride: Int,
+            ): Double {
+                calls += "dot"
+                return PortableEngine.dot(a, aOff, b, bOff, len, aStride, bStride)
+            }
+        }
+        val indexed = object : KoblasEngine() {
+            override val name = "indexed"
+            override val id = "partial"
+            override val implementations = setOf(EngineImplementation.IndexedAxpy)
+            override fun axpy(
+                indices: IntArray,
+                indexOffset: Int,
+                values: DoubleArray,
+                valueOffset: Int,
+                count: Int,
+                alpha: Double,
+                destination: DoubleArray,
+            ) {
+                calls += "indexed update"
+                PortableEngine.axpy(indices, indexOffset, values, valueOffset, count, alpha, destination)
+            }
+        }
+        val matrices = object : KoblasEngine() {
+            override val name = "matrices"
+            override val id = "partial"
+            override val implementations = setOf(EngineImplementation.Gemm)
+            override fun computeGemm(
+                alpha: Double,
+                a: DenseMatrixRegion,
+                transposeA: Boolean,
+                b: DenseMatrixRegion,
+                transposeB: Boolean,
+                beta: Double,
+                c: DenseMatrixRegion,
+            ) {
+                calls += "matrix product"
+                ReferenceBlas.gemm(alpha, a, transposeA, b, transposeB, beta, c)
+            }
+        }
+        val operations = vectors.implementations + indexed.implementations + matrices.implementations
+        val engine = KoblasEngine.combine(
+            EngineProfile("partial", listOf(EngineRule("partial", operations))),
+            vectors,
+            indexed,
+            matrices,
+        )
+        val values = doubleArrayOf(2.0, 3.0)
+        val destination = DoubleArray(2)
+        val matrix = DenseMatrix.wrap(2, 2, doubleArrayOf(1.0, 2.0, 3.0, 4.0))
+        val expectedProduct = BuiltinEngines.scalar.gemm(matrix, matrix)
+
+        assertEquals(PortableEngine.dot(values, 0, values, 0, 2), engine.dot(values, 0, values, 0, 2))
+        engine.axpy(destination, 1.0, intArrayOf(0, 1), 0, values, 0, 2)
+        val actualProduct = engine.gemm(matrix, matrix)
+
+        assertContentEquals(values, destination)
+        assertAgreesWithReference(expectedProduct.values, actualProduct.values)
+        assertEquals(listOf("dot", "indexed update", "matrix product"), calls)
     }
 }
