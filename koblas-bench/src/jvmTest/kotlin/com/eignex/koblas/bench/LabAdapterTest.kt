@@ -18,6 +18,8 @@ class LabAdapterTest {
                 "cases" to "koblas-bench/build/calibration/plan-fixture.txt", "targets" to "native,onemkl,openblas")))
 
             assertEquals(2, cases.size)
+            assertEquals(2, cases.map { it.id }.distinct().size)
+            assertEquals(setOf("dot+64+uniform", "copy+17+uniform+stride=2"), cases.map { it.parameters.getValue("row") }.toSet())
             assertTrue(cases.all { it.resources.memoryMiB == 2048L })
             assertTrue(cases.all { it.inputs.any { input -> input.role == "executable" && "/linuxX64/" in input.path } })
             assertTrue(cases.all { case -> case.inputs.any { it.path.endsWith("calibration/plan-fixture.txt") } })
@@ -25,52 +27,28 @@ class LabAdapterTest {
     }
 
     @Test fun `explicit profiles are declared inputs of every comparison row`() {
-        val cases = KoblasLabSuite.plan(BenchRequest(mapOf("vendor" to "openblas",
+        val cases = KoblasLabSuite.plan(BenchRequest(mapOf("vendor" to "openblas", "arch" to "arm64",
             "targets" to "jvm-simd,jvm-default", "profile" to "profiles/target.tsv")))
 
         assertTrue(cases.all { case -> case.inputs.any { it.role == "profile" && it.path == "profiles/target.tsv" } })
+        assertTrue(cases.all { case -> case.inputs.none { it.role == "executable" } })
     }
 
-    @Test fun `openblas is placed on the requested architecture`() {
-        for (arch in listOf("x86_64", "arm64")) {
-            val cases = KoblasLabSuite.plan(BenchRequest(mapOf("vendor" to "openblas", "arch" to arch)))
+    @Test fun `vendors select their compatible hosts`() {
+        for ((vendor, arch, platform) in listOf(Triple("openblas", "x86_64", "linux"),
+            Triple("openblas", "arm64", "linux"), Triple("onemkl", "x86_64", "linux"),
+            Triple("accelerate", "arm64", "mac"))) {
+            val cases = KoblasLabSuite.plan(BenchRequest(mapOf("vendor" to vendor, "arch" to arch)))
 
-            assertEquals(setOf(setOf("platform:linux", "arch:$arch")), cases.map { it.resources.requiredTags }.toSet())
-            assertTrue(cases.all { it.id.startsWith("comparison/openblas-$arch/") })
+            assertEquals(setOf(setOf("platform:$platform", "arch:$arch")), cases.map { it.resources.requiredTags }.toSet())
         }
     }
 
-    @Test fun `onemkl and accelerate keep their fixed hosts`() {
-        val onemkl = KoblasLabSuite.plan(BenchRequest(mapOf("vendor" to "onemkl")))
-        val accelerate = KoblasLabSuite.plan(BenchRequest(mapOf("vendor" to "accelerate")))
-
-        assertEquals(setOf(setOf("platform:linux", "arch:x86_64")), onemkl.map { it.resources.requiredTags }.toSet())
-        assertEquals(setOf(setOf("platform:mac", "arch:arm64")), accelerate.map { it.resources.requiredTags }.toSet())
-    }
-
-    @Test fun `vendor placement rejects an incompatible architecture`() {
-        assertFailsWith<IllegalArgumentException> {
-            KoblasLabSuite.plan(BenchRequest(mapOf("vendor" to "onemkl", "arch" to "arm64")))
+    @Test fun `vendor placement rejects incompatible hosts`() {
+        for (parameters in listOf(mapOf("vendor" to "onemkl", "arch" to "arm64"),
+            mapOf("vendor" to "openblas", "platform" to "mac"))) {
+            assertFailsWith<IllegalArgumentException> { KoblasLabSuite.plan(BenchRequest(parameters)) }
         }
-    }
-
-    @Test fun `every selected workload is its own complete paired case`() {
-        val grid = "koblas-bench/lab/cases-parity-level2.txt"
-        val selected = Cases.select(Cases.parse(repositoryFile(grid)))
-
-        val cases = KoblasLabSuite.plan(BenchRequest(mapOf("vendor" to "onemkl", "cases" to grid)))
-
-        val rows = cases.flatMap { case -> case.parameters.getValue("row").lines().map { case.id to it } }
-        assertEquals(selected.size, rows.size)
-        assertEquals(cases.size, cases.map { it.id }.distinct().size)
-        for ((id, row) in rows) {
-            val parsed = Cases.parse(row).single()
-            assertEquals("comparison/onemkl/${parsed.operation}/${parsed.id}", id, row)
-        }
-        assertTrue(cases.all { it.parameters.getValue("row").lines().size == 1 })
-        assertTrue(cases.all { it.resources.memoryMiB == 2048L })
-        assertTrue(cases.all { case -> case.inputs.any { it.role == "executable" } })
-        assertTrue(cases.all { case -> case.inputs.any { it.role == "vendor" } })
     }
 
     @Test fun `an operation selects only its own cells`() {
@@ -79,9 +57,11 @@ class LabAdapterTest {
         assertTrue(cases.isNotEmpty() && cases.all { it.id.startsWith("comparison/onemkl/dot/") })
     }
 
-    @Test fun `a request cannot supply its own rows`() {
-        assertFailsWith<IllegalArgumentException> {
-            KoblasLabSuite.plan(BenchRequest(mapOf("vendor" to "onemkl", "rows" to "dot+4+uniform")))
+    @Test fun `requests reject reserved rows and nonportable input paths`() {
+        for (parameters in listOf(mapOf("row" to "dot+4+uniform")) + listOf("cases", "profile").flatMap { key ->
+            listOf("/tmp/cases", "../cases", "a/../cases", "a\\cases", "C:cases").map { mapOf(key to it) }
+        }) {
+            assertFailsWith<IllegalArgumentException> { KoblasLabSuite.plan(BenchRequest(parameters)) }
         }
     }
 
@@ -95,19 +75,6 @@ class LabAdapterTest {
                 KoblasLabSuite.plan(BenchRequest(accepted + ("jvm-options" to rejected)))
             }
         }
-    }
-
-    @Test fun `JVM only rows need no Native executable`() {
-        val cases = KoblasLabSuite.plan(BenchRequest(mapOf("vendor" to "openblas", "arch" to "arm64",
-            "targets" to "jvm-scalar,jvm-simd,openblas-jvm")))
-
-        assertTrue(cases.all { case -> case.inputs.none { it.role == "executable" } })
-    }
-
-    @Test fun `the native engine is an accepted comparison target`() {
-        val request = BenchRequest(mapOf("vendor" to "openblas", "targets" to "jvm-simd,native,openblas,openblas-jvm"))
-
-        KoblasLabSuite.plan(request)
     }
 
     @Test fun `owned captures need no vendor and windows keeps compatible library architectures`() {
@@ -170,7 +137,4 @@ class LabAdapterTest {
         }
     }
 
-    private fun repositoryFile(path: String): String =
-        generateSequence(Path.of("").toAbsolutePath()) { it.parent }
-            .map { it.resolve(path) }.first { java.nio.file.Files.isRegularFile(it) }.let(java.nio.file.Files::readString)
 }

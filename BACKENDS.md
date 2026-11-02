@@ -129,7 +129,8 @@ python3 koblas-bench/tune-engine.py --capture --runtime native --backend onemkl 
 
 The workflow retains three paired rounds, timing metadata, CSVs, ratios and hashes, then emits `profile.tsv`.
 Fitting and validation use the scheduler's compatible hardware without CPU affinity pinning.
-It uses twenty warmups of 200 ms and validates the combined configuration on disjoint holdout cases.
+It uses twenty warmups and 200 ms measured samples, then validates the combined configuration on disjoint
+holdouts. Native warmups use 50 ms at this target; JVM warmups use the full 200 ms.
 Generated training includes non-square Level 2 calls, both structured Level 3 sides and large borrowed
 GEMM views; `supplement.txt` measures these additions independently of an existing training capture.
 `tail.txt` adds larger dense/indexed inputs and large strides. `anchors.txt` combines these with repeated
@@ -145,10 +146,12 @@ training caps. Matrix rules fit minimum extents and work together, with bounded 
 shapes. Borrowed layouts are fitted separately. Every covered measured variant must win on each CPU model.
 Native captures add 70 larger vector cases, including strided runs, so two winning lengths can exceed a
 reported full 32 MiB cache when core topology is unknown. `native-training.txt` contains the full Native
-grid; `native-tail.txt` is its supplemental tail. These cases are separate from the shared JVM grid.
+grid; `native-tail.txt` is its supplemental tail. `native-holdout.txt` also checks larger strided lengths
+above that training cap. These cases are separate from the shared JVM grid to fit its heap budget.
 Use `--runtime jvm` for transfer-inclusive JVM vendor tuning or `--backend jvm-simd` for owned vector tuning.
 The exact SIMD arm exposes every supplied kernel from its intrinsic minimum length; performance cutoffs
-belong to profiles. JVM fitting includes explicit owned SIMD rules and retains its packing families.
+belong to profiles. JVM fitting includes owned SIMD vector rules; panel, product and triangular families
+are an explicit fixed policy, checked by end-to-end holdout regression rather than the fitted win criterion.
 Repeat `--backend` to measure vendor precedence per operation and emit one complete composition.
 Capability metadata filters unsupported operations.
 The emitted profile uses the library's runtime CPU identity from capture metadata, so it matches startup

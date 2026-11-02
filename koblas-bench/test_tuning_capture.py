@@ -245,6 +245,11 @@ class TuningCaptureTest(unittest.TestCase):
 
             with self.assertRaisesRegex(ValueError, "package"):
                 measurements([root], "native", "onemkl")
+            for path in report.glob("*/metadata.txt"):
+                path.write_text(path.read_text().replace("Linux", "Windows"))
+            self.assertIsNone(measurements([root], "native", "onemkl").provenance[0]["signature"]["package"])
+            for path in report.glob("*/metadata.txt"):
+                path.write_text(path.read_text().replace("Windows", "Linux"))
             package = report.parent / "vendor-package.txt"
             package.write_text("oneMKL 2026.1\nsha256=fixture\n")
             row["record"]["artifacts"].append(dict(path="vendor-package.txt"))

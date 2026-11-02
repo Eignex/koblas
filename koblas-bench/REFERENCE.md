@@ -103,7 +103,9 @@ replacement attempts rerun the complete unfinished row. Other rows may use diffe
 See [LabAdapter.kt](src/jvmMain/kotlin/com/eignex/koblas/bench/LabAdapter.kt) for accepted parameters and validation.
 
 The [calibration manifest](lab/calibration.json) prepares the same generated grids as local tuning under
-`koblas-bench/build/calibration/`. Set `cases` to `training.txt` or `holdout.txt` under that directory.
+`koblas-bench/build/calibration/`. Set `cases` to `training.txt` or `holdout.txt` for JVM, or
+`native-training.txt` or `native-holdout.txt` for Native. `native-tail.txt` supplements identical measured
+sources; changed measured sources also need the repeated `anchors.txt` evidence before pooling captures.
 Use [the macOS manifest](lab/calibration-macos.json) for Accelerate so preparation builds on a compatible
 Mac. Native executables are frozen inputs built once during preparation; measured rows never invoke Gradle.
 Each workload has its own paired case, uses the lab's normal CPU accounting and 2 GiB, and runs without

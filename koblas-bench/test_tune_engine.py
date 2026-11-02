@@ -29,6 +29,12 @@ class TuneEngineTest(unittest.TestCase):
         self.assertEqual(len(native), len(set(native)))
         self.assertTrue(set(native).isdisjoint(training + holdout))
         self.assertTrue(all(int(case.split('+')[1]) * 8 > 32 * 1024 ** 2 for case in native))
+        native_holdout = tune.holdout_cases("native")
+        self.assertTrue(set(native_holdout).isdisjoint(training + native))
+        for stride in ("", "+stride=2", "+stride=-1", "+stride=-2"):
+            lengths = lambda cases: [int(case.split('+')[1]) for case in cases
+                                     if case.startswith("dot+") and case.endswith("uniform" + stride)]
+            self.assertGreater(max(lengths(native_holdout)), max(lengths(training + native)))
 
     def test_noisy_or_losing_larger_lengths_delay_the_crossover(self):
         paired = {"dot+32+uniform": [0.5, 0.5, 0.5], "dot+64+uniform": [0.8, 1.2, 0.8],

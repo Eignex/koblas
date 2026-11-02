@@ -118,7 +118,7 @@ def supplementary_cases():
     return cases
 
 
-def holdout_cases():
+def holdout_cases(runtime=None):
     cases = [line for line in Path(__file__).with_name("cases-addressed.txt").read_text().splitlines()
              if line and not line.startswith("#")]
     return cases + ["gemv+257x131+uniform+transA=T", "ger+131x257+uniform",
@@ -133,7 +133,11 @@ def holdout_cases():
                     "dot+8388609+uniform", "axpy+8388609+uniform",
                     "dot+4194305+uniform+stride=2", "axpy+4194305+uniform+stride=-2",
                     "spdot+524288+sparse-uniform+density=0.25",
-                    "dot+4097+uniform+stride=257", "axpy+4097+uniform+stride=257"]
+                    "dot+4097+uniform+stride=257", "axpy+4097+uniform+stride=257",
+                    "gemmt+129x65+uniform+uplo=L+transA=N+transB=N", "symv+17+uniform+uplo=U",
+                    *[f"trmv+17+triangular+uplo=L+transA={trans}+diag=N" for trans in ("N", "T")]] + (
+        [f"{op}+8388609+uniform+stride={stride}" for op in ("dot", "axpy") for stride in (2, -1, -2)]
+        if runtime == "native" else [])
 
 
 def tail_cases():
@@ -247,6 +251,7 @@ def main():
         training = training_cases()
         (args.write_cases / "training.txt").write_text("\n".join(training) + "\n")
         (args.write_cases / "holdout.txt").write_text("\n".join(holdout_cases()) + "\n")
+        (args.write_cases / "native-holdout.txt").write_text("\n".join(holdout_cases("native")) + "\n")
         (args.write_cases / "supplement.txt").write_text("\n".join(supplementary_cases()) + "\n")
         (args.write_cases / "anchors.txt").write_text("\n".join(anchor_cases()) + "\n")
         (args.write_cases / "tail.txt").write_text("\n".join(tail_cases()) + "\n")
@@ -326,7 +331,9 @@ def main():
                              timing_modes=capture.modes,
                              source_commits=sorted(capture.commits), vector_tail_cache_bytes=capture.cache_by_cpu,
                              selected_providers=capture.providers) for source, capture in captures.items()},
-        rules=rules, criterion="every variant and CPU: median <= 0.95 and every round <= 1.02",
+        fitted_rules=[rule for rule in rules if rule[1] != "Panels,Products,Triangular"],
+        fixed_family_rules=[rule for rule in rules if rule[1] == "Panels,Products,Triangular"],
+        criterion="fitted rules only: every variant and CPU median <= 0.95 and every round <= 1.02; fixed families use holdout regression validation",
         bounded_vector_rules=[dict(operation=rule[1], last_measured_length=rule[3],
                                    reason="No verified beyond-cache tail; routing remains bounded")
                               for rule in rules if rule[9] != "*" and rule[3] < MAX],
@@ -334,7 +341,7 @@ def main():
     if args.capture:
         validation_cases = args.output / "validation-cases.txt"
         training = set(args.cases.read_text().splitlines())
-        holdout = [line for line in (args.validation_cases.read_text().splitlines() if args.validation_cases else holdout_cases())
+        holdout = [line for line in (args.validation_cases.read_text().splitlines() if args.validation_cases else holdout_cases(args.runtime))
                    if line.strip() and not line.startswith("#") and line not in training]
         if not holdout:
             raise ValueError("validation requires cases disjoint from training")

@@ -70,7 +70,7 @@ def protocol_signature(fields, identities, path, parameters):
         bindings.append([identity["runtime"], identity["harness"], identity["warmup_target_ns"],
                          [(vendor, location.rsplit("/", 1)[-1], threads) for vendor, location, threads in vendors]])
     package = path.parent.parent / "vendor-package.txt"
-    if mkl and parameters.get("vendor") == "onemkl" and not package.is_file():
+    if mkl and parameters.get("vendor") == "onemkl" and identities[0].get("profile_os") == "Linux" and not package.is_file():
         raise ValueError("lab oneMKL capture is missing its pinned package evidence")
     protocol = {key: value for key, value in fields.items() if key in keys or key.startswith(("KOBLAS_DENSE_", "KOBLAS_SPARSE_")) or key == "engine_profile_sha256"}
     if any(identity.get("profile_runtime") == "jvm" for identity in identities):

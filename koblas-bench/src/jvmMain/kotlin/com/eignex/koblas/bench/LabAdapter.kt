@@ -33,9 +33,9 @@ internal object KoblasLabSuite : BenchSuite {
         val platform = p["platform"] ?: if (vendor == Vendor.Accelerate) "mac" else "linux"
         val arch = p["arch"] ?: if (vendor in setOf(Vendor.Accelerate, Vendor.ArmPl)) "arm64" else "x86_64"
         require(platform in setOf("linux", "mac", "windows") && arch in setOf("x86_64", "arm64"))
-        require(vendor != Vendor.Accelerate || platform == "mac") { "Accelerate requires macOS" }
-        require(vendor !in setOf(Vendor.OneMkl, Vendor.Aocl) || (arch == "x86_64" && platform != "mac"))
-        require(vendor != Vendor.ArmPl || (arch == "arm64" && platform != "mac"))
+        require(if (vendor == Vendor.Accelerate) platform == "mac" else vendor == null || platform != "mac")
+        require(vendor !in setOf(Vendor.OneMkl, Vendor.Aocl) || arch == "x86_64")
+        require(vendor != Vendor.ArmPl || arch == "arm64")
         val targets = p["targets"] ?: if (vendor == null) "jvm-scalar,jvm-simd"
             else "jvm-scalar,jvm-simd,${vendor.vendorName.lowercase()}-jvm,${vendor.vendorName.lowercase()}"
         val selected = targets.split(',')
@@ -78,18 +78,12 @@ internal object KoblasLabSuite : BenchSuite {
         val output = context.reportPath()
         val cases = context.outputDirectory.resolve("cases.txt")
         Files.writeString(cases, case.parameters.getValue(ROW) + "\n")
-        val argv = mutableListOf(captureShell(), root.resolve("koblas-bench/capture-report.sh").toString(),
+        val argv = mutableListOf(captureShell(), root.resolve("koblas-bench/capture-report.sh").toString().replace('\\', '/'),
             "--prepared", "--retain-incomplete", "--output", output.toString(), "--cases", cases.toString(),
             "--jvm-gc", "serial", "--jvm-heap", "512m")
-        for (key in listOf("targets", "samples", "warmups", "target-ms", "forks", "rounds")) {
-            argv += listOf("--$key", case.parameters[key] ?: when (key) {
-                "samples" -> "5"
-                "warmups" -> "20"
-                "target-ms" -> "200"
-                "forks" -> "2"
-                "rounds" -> "3"
-                else -> error("Missing capture target")
-            })
+        for ((key, default) in mapOf("targets" to case.parameters.getValue("targets"), "samples" to "5",
+            "warmups" to "20", "target-ms" to "200", "forks" to "2", "rounds" to "3")) {
+            argv += listOf("--$key", case.parameters[key] ?: default)
         }
         if (case.parameters["smoke"] == "true") argv += "--smoke"
         val vendor = case.parameters["vendor"]
@@ -119,8 +113,8 @@ internal object KoblasLabSuite : BenchSuite {
             Files.copy(directory.resolve("vendor-package.txt"), context.outputDirectory.resolve("vendor-package.txt"))
             environment["MKLROOT"] = directory.toString()
             environment["MKL_THREADING_LAYER"] = "SEQUENTIAL"
-            environment["LD_LIBRARY_PATH"] = directory.resolve("lib").toString() +
-                File.pathSeparator + System.getenv("LD_LIBRARY_PATH").orEmpty()
+            environment["LD_LIBRARY_PATH"] = listOfNotNull(directory.resolve("lib").toString(),
+                System.getenv("LD_LIBRARY_PATH")?.takeIf { it.isNotEmpty() }).joinToString(File.pathSeparator)
         }
         val exit = context.process(argv, "capture.log", environment = environment)
         val metadata = output.resolve("metadata.txt")

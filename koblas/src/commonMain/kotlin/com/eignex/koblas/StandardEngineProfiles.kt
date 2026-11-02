@@ -39,51 +39,39 @@ public object StandardEngineProfiles {
     private val portable = EngineProfile("portable", emptyList())
     private val profiles by lazy {
         EngineRuntime.entries.flatMap { runtime ->
-            listOf(OperatingSystem.Linux, OperatingSystem.MacOs).flatMap { os ->
-                (
-                    if (os == OperatingSystem.MacOs) {
-                        listOf(
-                            Architecture.Arm64,
-                        )
-                    } else {
-                        listOf(Architecture.X86_64, Architecture.Arm64)
-                    }
-                    ).map { arch ->
-                    val vendors = if (os == OperatingSystem.MacOs) {
-                        listOf(Vendor.Accelerate)
-                    } else {
-                        buildList {
-                            if (arch == Architecture.X86_64) add(Vendor.OneMkl)
-                            add(Vendor.OpenBlas)
-                            if (runtime == EngineRuntime.Jvm) {
-                                add(
-                                    if (arch == Architecture.X86_64) Vendor.Aocl else Vendor.ArmPl,
-                                )
-                            }
-                        }
-                    }
-                    EngineProfile(
-                        "${runtime.name.lowercase()}-$os-$arch-v1",
-                        vendors.flatMap { vendorRules(it, runtime) } +
-                            if (runtime == EngineRuntime.Jvm) jvmSimd?.rules.orEmpty() else emptyList(),
-                        runtime,
-                        HostPlatform(os, arch),
-                        "Provisional estimates; measure each vendor and target before merge",
+            listOf(
+                OperatingSystem.Linux to Architecture.X86_64,
+                OperatingSystem.Linux to Architecture.Arm64,
+                OperatingSystem.MacOs to Architecture.Arm64,
+            ).map { (os, arch) ->
+                val vendors = if (os == OperatingSystem.MacOs) {
+                    listOf(Vendor.Accelerate)
+                } else {
+                    listOfNotNull(
+                        Vendor.OneMkl.takeIf { arch == Architecture.X86_64 },
+                        Vendor.OpenBlas,
+                        (if (arch == Architecture.X86_64) Vendor.Aocl else Vendor.ArmPl).takeIf {
+                            runtime == EngineRuntime.Jvm
+                        },
                     )
                 }
+                EngineProfile(
+                    "${runtime.name.lowercase()}-$os-$arch-v1",
+                    vendors.flatMap { vendorRules(it, runtime) } +
+                        if (runtime == EngineRuntime.Jvm) jvmSimd?.rules.orEmpty() else emptyList(),
+                    runtime,
+                    HostPlatform(os, arch),
+                    "Provisional estimates; measure each vendor and target before merge",
+                )
             }
         }
     }
 
-    /** One complete prebuilt profile; unavailable providers fall through to owned SIMD or portable arithmetic. */
+    /** One prebuilt profile, borrowing documented best-effort preferences when the target is unmeasured. */
     public fun forTarget(runtime: EngineRuntime, host: HostPlatform, nativeAccess: Boolean = true): EngineProfile =
         if (nativeAccess) {
-            profiles.firstOrNull {
-                it.appliesTo(
-                    runtime,
-                    host,
-                )
-            } ?: bestEffortProfile(runtime, host, profiles) ?: portable
+            profiles.firstOrNull { it.appliesTo(runtime, host) }
+                ?: bestEffortProfile(runtime, host, profiles) ?: portable
         } else {
             if (runtime == EngineRuntime.Jvm) jvmSimd ?: portable else portable
         }
@@ -128,8 +116,9 @@ internal fun bestEffortProfile(
     host: HostPlatform,
     profiles: List<EngineProfile>,
 ): EngineProfile? {
-    if (host.operatingSystem == OperatingSystem.Other || host.architecture == Architecture.Other) return null
+    if (host.architecture == Architecture.Other) return null
     val vendors = when {
+        host.operatingSystem == OperatingSystem.Other -> emptySet()
         host.operatingSystem == OperatingSystem.MacOs -> setOf(Vendor.Accelerate)
         host.architecture == Architecture.X86_64 -> setOf(Vendor.OneMkl, Vendor.OpenBlas, Vendor.Aocl)
         else -> setOf(Vendor.OpenBlas, Vendor.ArmPl)
@@ -148,14 +137,18 @@ internal fun bestEffortProfile(
     }
     val vendor = closest(true)
     val owned = if (runtime == EngineRuntime.Jvm) closest(false) else null
-    if (vendor == null && owned == null) return null
+    val donors = listOfNotNull(vendor, owned).distinct()
+    if (donors.isEmpty()) return null
     return EngineProfile(
-        "best-effort-$runtime-${host.operatingSystem}-${host.architecture}",
+        "best-effort-$runtime-${host.operatingSystem}-${host.architecture}-${donors.joinToString("+") { it.name }}",
         vendor?.rules.orEmpty().filter { it.source in allowed } +
             owned?.rules.orEmpty().filter { it.source == "jvm-simd" },
         runtime,
         HostPlatform(host.operatingSystem, host.architecture),
-        "Unmeasured best effort; vendor preferences from ${vendor?.name}; owned preferences from ${owned?.name}",
+        "Unmeasured best effort; " + listOfNotNull(
+            vendor?.let { "vendor preferences from ${it.name}" },
+            owned?.let { "owned preferences from ${it.name}" },
+        ).joinToString("; "),
     )
 }
 

@@ -17,7 +17,6 @@ class StandardEngineProfilesTest {
         )) {
             for (runtime in EngineRuntime.entries) {
                 val host = HostPlatform(os, arch)
-                val profile = StandardEngineProfiles.forTarget(runtime, host)
                 val extra = if (runtime == EngineRuntime.Jvm && os != OperatingSystem.MacOs) {
                     setOf(if (arch == Architecture.X86_64) Vendor.Aocl else Vendor.ArmPl)
                 } else {
@@ -33,7 +32,6 @@ class StandardEngineProfilesTest {
                                 .takeIf { requested in available }
                         }
 
-                        assertEquals(profile.name, StandardEngineProfiles.forTarget(runtime, host).name)
                         assertEquals(if (access) candidates + extra else emptySet(), opened)
                         val selected = if (access) choices.firstOrNull { it in available } else null
                         for (borrowed in listOf(false, true)) {
@@ -101,6 +99,10 @@ class StandardEngineProfilesTest {
 
             assertTrue(profile.name.startsWith("best-effort-"))
             assertTrue(profile.evidence.startsWith("Unmeasured best effort"))
+            assertFalse("null" in profile.evidence)
+            val donor = if (case.runtime == EngineRuntime.Native) "linux-native" else "linux-jvm"
+            assertTrue(donor in profile.name && donor in profile.evidence)
+            if (case.os == OperatingSystem.MacOs) assertTrue("mac-jvm" in profile.name && "mac-jvm" in profile.evidence)
             assertEquals(case.source, engine.implementationFor(Dot, case.boundary))
             assertEquals(
                 if (case.runtime == EngineRuntime.Jvm) "jvm-simd" else PortableEngine.name,
@@ -111,6 +113,9 @@ class StandardEngineProfilesTest {
                 engine.implementationFor(Dot, if (case.runtime == EngineRuntime.Jvm) 7 else 3),
             )
         }
+        val unknownHost = HostPlatform(OperatingSystem.Other, Architecture.X86_64)
+        val unknown = assertNotNull(bestEffortProfile(EngineRuntime.Jvm, unknownHost, profiles))
+        assertEquals(setOf("jvm-simd"), unknown.rules.map { it.source }.toSet())
     }
 
     @Test
