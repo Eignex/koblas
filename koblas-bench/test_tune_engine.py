@@ -25,6 +25,10 @@ class TuneEngineTest(unittest.TestCase):
         self.assertTrue(set(tune.tail_cases()).issubset(training))
         self.assertTrue(set(tune.anchor_cases()).issubset(training))
         self.assertEqual(len(holdout), len(set(holdout)))
+        native = tune.native_tail_cases()
+        self.assertEqual(len(native), len(set(native)))
+        self.assertTrue(set(native).isdisjoint(training + holdout))
+        self.assertTrue(all(int(case.split('+')[1]) * 8 > 32 * 1024 ** 2 for case in native))
 
     def test_noisy_or_losing_larger_lengths_delay_the_crossover(self):
         paired = {"dot+32+uniform": [0.5, 0.5, 0.5], "dot+64+uniform": [0.8, 1.2, 0.8],

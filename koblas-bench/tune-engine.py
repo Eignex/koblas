@@ -145,6 +145,12 @@ def tail_cases():
              for op in ("spdot", "spdot-sparse", "spaxpy", "spscatter", "spgather", "spgather-zero", "spnrm2-indexed")])
 
 
+def native_tail_cases():
+    return ([f"{op}+6291456+uniform" for op in VECTORS] +
+            [f"{op}+{n}+uniform+stride={stride}" for op in VECTORS
+             for n in (6291456, 8388608) for stride in (2, -1, -2)])
+
+
 def anchor_cases():
     selected = []
     for case in training_cases():
@@ -244,6 +250,8 @@ def main():
         (args.write_cases / "supplement.txt").write_text("\n".join(supplementary_cases()) + "\n")
         (args.write_cases / "anchors.txt").write_text("\n".join(anchor_cases()) + "\n")
         (args.write_cases / "tail.txt").write_text("\n".join(tail_cases()) + "\n")
+        (args.write_cases / "native-tail.txt").write_text("\n".join(native_tail_cases()) + "\n")
+        (args.write_cases / "native-training.txt").write_text("\n".join(training + native_tail_cases()) + "\n")
         timing = {"dot+64+uniform", "dot+1000000+uniform", "copy+1000000+uniform+stride=2",
                   "axpy+64+uniform+stride=-2", "gemm+128x128x128+uniform", "gemm+16x16x2048+uniform",
                   "trsm+128x128+triangular+side=L+uplo=L+transA=N+diag=N"}
@@ -276,7 +284,8 @@ def main():
     args.output.mkdir(parents=True, exist_ok=False)
     if args.cases is None:
         args.cases = args.output / "training-cases.txt"
-        args.cases.write_text("\n".join(training_cases()) + "\n")
+        training = training_cases() + (native_tail_cases() if args.runtime == "native" else [])
+        args.cases.write_text("\n".join(training) + "\n")
     results = args.results or [args.output / "capture"]
     targets = list(dict.fromkeys((["native"] if args.runtime == "native" else ["jvm-scalar", args.simd_target]) + list(candidates.values())))
     if args.capture:

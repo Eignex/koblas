@@ -143,6 +143,9 @@ winning lengths beyond the reported per-core share of last-level cache, or the f
 Other length rules stay bounded and are flagged in the evidence. Holdouts also exercise inputs above the
 training caps. Matrix rules fit minimum extents and work together, with bounded depth bands for residual deep
 shapes. Borrowed layouts are fitted separately. Every covered measured variant must win on each CPU model.
+Native captures add 70 larger vector cases, including strided runs, so two winning lengths can exceed a
+reported full 32 MiB cache when core topology is unknown. `native-training.txt` contains the full Native
+grid; `native-tail.txt` is its supplemental tail. These cases are separate from the shared JVM grid.
 Use `--runtime jvm` for transfer-inclusive JVM vendor tuning or `--backend jvm-simd` for owned vector tuning.
 The exact SIMD arm exposes every supplied kernel from its intrinsic minimum length; performance cutoffs
 belong to profiles. JVM fitting includes explicit owned SIMD rules and retains its packing families.
